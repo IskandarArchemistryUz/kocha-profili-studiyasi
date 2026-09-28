@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Koʻcha Profili Studiyasi</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="frameWarn" hidden style="background:#b3412f;color:#fff;padding:12px 16px;border-radius:10px;margin-top:12px;font-size:15px"><b>Bu oynada xarita ishlamaydi.</b> Claude oynasi tashqi xarita va OSM maʼlumotlarini bloklaydi. Sahifani oddiy brauzerda (Chrome/Edge) oching — GitHub Pages havolasi yoki index.html fayli.</div>
+<header>
+  <div class="brand"><h1>Koʻcha Profili Studiyasi</h1><span>mavjud holat ↔ loyiha · <b class="num">v9 · 28.09</b></span></div>
+  <form class="search" id="searchForm" autocomplete="off">
+    <input id="q" type="search" placeholder="Manzil yoki koordinata: Amir Temur xiyoboni / 41.3111, 69.2797">
+    <button class="btn" type="submit">Topish</button>
+    <div class="results" id="results" hidden></div>
+  </form>
+  <div class="modes" id="appTabs" role="group" aria-label="Boʻlim">
+    <button data-app="area" aria-pressed="true">Hudud tahlili</button>
+    <button data-app="prof" aria-pressed="false">Koʻcha profili</button>
+    <button data-app="design" aria-pressed="false">Loyiha chizish (YHQ)</button>
+  </div>
+  <div class="modes" id="profModes" role="group" aria-label="Xarita rejimi" hidden>
+    <button data-mode="pick" aria-pressed="true">Koʻchani tanlash</button>
+    <button data-mode="measure" aria-pressed="false">Kesimni oʻlchash</button>
+    <button data-mode="draw" aria-pressed="false">Oʻqni chizish</button>
+  </div>
+</header>
+
+<section class="top">
+  <div class="mapwrap">
+    <div id="map"></div>
+    <div class="ctx" id="ctx" hidden></div>
+    <div class="hint" id="hint"></div>
+    <div class="viewtog" id="profView" role="group" aria-label="Planda koʻrsatish" hidden>
+      <button data-view="ex" aria-pressed="false">Planda: Mavjud</button>
+      <button data-view="pr" aria-pressed="true">Loyiha</button>
+      <button data-view="none" aria-pressed="false">Yashirish</button>
+    </div>
+    <div class="viewtog" id="areaView" role="group" aria-label="Tasnif qatlami">
+      <label for="opac" style="padding:4px 6px">Tasnif qatlami</label>
+      <input id="opac" type="range" min="0" max="1" step="0.05" value="0.65" style="width:110px">
+    </div>
+    <div class="mtool" id="mtool">
+      <div class="mbar" role="group" aria-label="Oʻlchash asboblari">
+        <button data-m="dist" aria-pressed="false" title="Masofa: nuqtalarni bosing, Enter — tugatish, Backspace — oxirgi nuqtani oʻchirish">Lineyka</button>
+        <button data-m="area" aria-pressed="false" title="Maydon: chegarani bosing, Enter yoki birinchi nuqtani bosib tugating">Maydon</button>
+        <button data-m="cut" aria-pressed="false" title="Koʻchaning bir chetidan narigi chetigacha 2 marta bosing — mavjud profil sunʼiy yoʻldoshdan olinadi">Kesim → profil</button>
+      </div>
+      <div class="mrow">
+        <select id="baseSel" aria-label="Asosiy xarita">
+          <option value="img">Sunʼiy yoʻldosh</option><option value="imgl">Sunʼiy yoʻldosh + nomlar</option><option value="street">Koʻcha xaritasi</option></select>
+        <button class="btn sm" id="bigMap" title="Xaritani kattalashtirish">⤢</button>
+      </div>
+      <div id="mlist"></div>
+      <div class="mrow small"><span class="num" id="coords">—</span><button class="btn sm" id="copyC" title="Oxirgi bosilgan nuqta koordinatasini nusxalash">Nusxa</button></div>
+    </div>
+  </div>
+
+  <aside class="side">
+   <div id="areaPanel" class="apanel"></div>
+   <div id="designPanel" class="apanel" hidden></div>
+   <div id="profPanel" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="site" id="site"></div>
+    <div class="fields">
+      <div class="field"><label for="row">Qizil chiziqlar orasi, m</label><input id="row" type="number" step="0.1" min="3" class="num"></div>
+      <div class="field"><label for="len">Uchastka uzunligi, m</label><input id="len" type="number" step="5" min="10" class="num"></div>
+    </div>
+    <div>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="ex" aria-selected="false">Mavjud holat</button>
+        <button role="tab" data-tab="pr" aria-selected="true">Loyiha</button>
+      </div>
+    </div>
+    <div id="editor" style="display:flex;flex-direction:column;gap:10px"></div>
+   </div>
+  </aside>
+</section>
+
+<section class="compare" id="compare" hidden>
+  <div class="card">
+    <h3>Koʻndalang kesim</h3>
+    <p class="sub">Ikkala profil bir xil masshtabda. Chapdan oʻngga — oʻq yoʻnalishiga qarab chap tomondan.</p>
+    <div class="seclabel"><b>Mavjud holat</b><span class="num" id="exSum"></span></div>
+    <div class="secwrap" id="secEx"></div>
+    <div class="seclabel"><b>Loyiha</b><span class="num" id="prSum"></span></div>
+    <div class="secwrap" id="secPr"></div>
+    <div class="legend" id="legend" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h3>Farqlar</h3>
+    <p class="sub" id="lenNote"></p>
+    <div class="shares" id="shares"></div>
+    <div style="overflow-x:auto"><table id="mt"></table></div>
+    <p class="small" style="margin-top:8px">Oʻtkazuvchanlik — bir boʻlak/zona uchun indikativ diapazonlar (NACTO, <i>Transit Street Design Guide</i>, 2016). Aniq hisob uchun harakat intensivligi va svetofor sikli kerak.</p>
+  </div>
+  <div class="card">
+    <h3>Tekshiruvlar</h3>
+    <p class="sub">Chegaralar normativ qiymat emas — ShNQ bandi yoki loyiha TZ boʻyicha oʻzingiz kiriting.</p>
+    <div class="checks" id="checks"></div>
+    <div class="thr" id="thr"></div>
+  </div>
+  <div class="card">
+    <h3>Saqlash va eksport</h3>
+    <p class="sub">Loyiha brauzerda avtomatik saqlanadi. Fayl sifatida ham yuklab olish mumkin.</p>
+    <div class="tools">
+      <button class="btn primary" id="expJson">Loyiha (.json)</button>
+      <button class="btn" id="expCsv">Farqlar jadvali (.csv)</button>
+      <button class="btn" id="expSvg">Kesimlar (.svg)</button>
+      <label class="btn" for="imp" style="display:inline-block">Faylni ochish…</label>
+      <input id="imp" type="file" accept=".json" hidden>
+      <button class="btn" id="resetAll">Namunaga qaytarish</button>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
