@@ -1380,11 +1380,26 @@ function hitTest(ll){
   const P=map.latLngToContainerPoint(ll);let best=null;
   DS().nodes.forEach(n=>{const d=map.latLngToContainerPoint(n.ll).distanceTo(P);if(d<14&&(!best||d<best.d))best={t:'node',id:n.id,d};});
   if(best)return best;
-  DS().segs.forEach(sg=>{const ll2=segLL(sg),pp=ll2.map(q=>map.latLngToContainerPoint(q));
+  return hitSeg(ll)||best;
+}
+/* koʻcha sirtiga tegish: oʻq atrofida koʻchaning butun eni boʻyicha (tor koʻchalarda kamida 10 px) */
+function hitSeg(ll,skip){
+  const P=map.latLngToContainerPoint(ll),ppm=1/(156543.03392*Math.cos(ll.lat*Math.PI/180)/Math.pow(2,map.getZoom()));let best=null;
+  DS().segs.forEach(sg=>{if(skip&&skip.has(sg.id))return;const A1=nodeById(sg.a),B1=nodeById(sg.b);if(!A1||!B1)return;
+    let half=10;try{const lay=layOf(sg);half=Math.max(10,lay.outer*ppm+3);}catch(e){}
+    const ll2=segLL(sg),pp=ll2.map(q=>map.latLngToContainerPoint(q));
     for(let i=0;i<pp.length-1;i++){const a=pp[i],b=pp[i+1],dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy||1;let t=((P.x-a.x)*dx+(P.y-a.y)*dy)/l2;t=Math.max(0,Math.min(1,t));
-      const q=L.point(a.x+t*dx,a.y+t*dy),d=q.distanceTo(P);if(d<10&&(!best||d<best.d))best={t:'seg',id:sg.id,i,ll:map.containerPointToLatLng(q),d};}});
+      const q=L.point(a.x+t*dx,a.y+t*dy),d=q.distanceTo(P);if(d<half&&(!best||d/half<best.r))best={t:'seg',id:sg.id,i,ll:map.containerPointToLatLng(q),d,r:d/half};}});
   return best;
 }
+/* osilib qolgan uchni yonidagi koʻchaga ulash (T-chorraha) */
+function snapEnd(n){if(!n)return false;const ds=DS(),inc=ds.segs.filter(sg=>sg.a===n.id||sg.b===n.id);if(inc.length!==1)return false;
+  const h=hitSeg(L.latLng(n.ll[0],n.ll[1]),new Set(inc.map(x=>x.id)));if(!h)return false;
+  const tgt=segById(h.id);const endA=nodeById(tgt.a),endB=nodeById(tgt.b);
+  // uchi nishon koʻchaning oxiriga juda yaqin boʻlsa — oʻsha tugunga ulanadi
+  const P=map.latLngToContainerPoint(h.ll);let m=null;[endA,endB].forEach(e=>{if(map.latLngToContainerPoint(L.latLng(e.ll[0],e.ll[1])).distanceTo(P)<16)m=e;});
+  if(!m)m=splitSeg(h);
+  inc.forEach(sg=>{if(sg.a===n.id)sg.a=m.id;if(sg.b===n.id)sg.b=m.id;});ds.nodes=ds.nodes.filter(x=>x!==n);return m;}
 const newNode=ll=>{const n={id:DS().nid++,ll:[+ll[0].toFixed(7),+ll[1].toFixed(7)],type:'auto',ri:14,rw:9.5,rtype:'r2',kr:6};DS().nodes.push(n);return n;};
 /* koʻchani nuqtada ikkiga boʻlish — barcha xususiyatlar saqlanadi */
 function splitSegAt(sg,i,ll,node){
@@ -1413,7 +1428,7 @@ function designClick(ll){
 }
 function finishSeg(endNode){
   if(!D.start)return;
-  if(!endNode){if(!D.pts.length){D.start=null;afterDesign();return;}const last=D.pts.pop();endNode=newNode(last);}
+  if(!endNode){if(!D.pts.length){D.start=null;afterDesign();return;}const last=D.pts.pop();const hh=hitTest(L.latLng(last[0],last[1]));endNode=hh&&(hh.t==='seg'||(hh.t==='node'&&hh.id!==D.start))?resolve(L.latLng(last[0],last[1]),hh):newNode(last);}
   if(endNode.id===D.start){D.start=null;D.pts=[];afterDesign();return;}
   const ds=DS(),sg={id:ds.sid++,a:D.start,b:endNode.id,pts:D.pts.slice(),p:ds.preset,rad:D.pts.map(()=>ds.drawR||0)};
   if(ds.preset==='kon'||ds.preset==='custom')sg.st=clone(presetStrips(ds.preset));
@@ -1664,7 +1679,7 @@ function renderEditHandles(){
   if(!sel)return;
   const o=origin();
   if(sel.t==='node'){const n=nodeById(sel.id);if(!n)return;const m=L.marker(n.ll,{pane:'designEdit',draggable:true,icon:handleIcon('c','#f4c542'),title:'Tugunni sudrang'}).addTo(editL);
-    m.on('drag',e=>{const p=e.target.getLatLng();n.ll=[p.lat,p.lng];coreRender();});m.on('dragend',()=>afterDesign());return;}
+    m.on('drag',e=>{const p=e.target.getLatLng();n.ll=[p.lat,p.lng];coreRender();});m.on('dragend',()=>{const m2=snapEnd(n);if(m2){DS().sel={t:'node',id:m2.id};toast('Koʻchaga ulandi — chorraha hosil boʻldi.');}afterDesign();});return;}
   if(sel.t==='xw'){const sg=segById(sel.id);if(!sg||!sg.xw||!sg.xw[sel.i])return;const x=sg.xw[sel.i],xy=segXY(sg,o),c=cumLen(xy),T=c[c.length-1];
     const m=L.marker(toLL(pointAt(xy,c,x.f*T),o),{pane:'designEdit',draggable:true,icon:handleIcon('c','#f4c542'),title:'Oʻtish joyini koʻcha boʻylab sudrang'}).addTo(editL);
     m.on('drag',e=>{const g=e.target.getLatLng(),pr=project(xy,toXY([g.lat,g.lng],o));x.f=Math.max(.02,Math.min(.98,pr.s/T));e.target.setLatLng(toLL(pointAt(xy,c,x.f*T),o));coreRender();});
@@ -1678,7 +1693,7 @@ function renderEditHandles(){
   ll.forEach((p,i)=>{const isNode=i===0||i===ll.length-1,vi=i-1,on=sel.v===vi&&!isNode;
     const m=L.marker(p,{pane:'designEdit',draggable:true,icon:handleIcon('c',isNode?'#f4c542':on?'#f4c542':'#fff',isNode?'':'R'),title:isNode?'Tugun':`Burilish nuqtasi · radius ${f1(effRad(sg,vi))} m (bosing — oʻzgartirish)`}).addTo(editL);
     m.on('drag',e=>{const q=e.target.getLatLng(),v=[q.lat,q.lng];if(i===0)nodeById(sg.a).ll=v;else if(i===ll.length-1)nodeById(sg.b).ll=v;else sg.pts[vi]=v;coreRender();});
-    m.on('dragend',()=>afterDesign());
+    m.on('dragend',()=>{if(isNode&&snapEnd(nodeById(i===0?sg.a:sg.b)))toast('Koʻchaga ulandi — chorraha hosil boʻldi.');afterDesign();});
     if(!isNode){m.on('click',()=>{ds.sel.v=vi;afterDesign();});m.on('contextmenu',e=>openVertexMenu(e,sg,vi));}});
   for(let i=0;i<ll.length-1;i++){const mp=mid(ll[i],ll[i+1]);const m=L.marker(mp,{pane:'designEdit',icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.6);border:1px dashed #1c2628;font:700 11px/12px sans-serif;text-align:center;color:#1c2628;cursor:copy">+</div>'}),title:'Burilish nuqtasi qoʻshish'}).addTo(editL);
     m.on('click',()=>{sg.pts.splice(i,0,mp);sg.rad=sg.rad||[];while(sg.rad.length<sg.pts.length-1)sg.rad.push(0);sg.rad.splice(i,0,ds.drawR||0);ds.sel.v=i;afterDesign();});}
@@ -2108,7 +2123,7 @@ function globalHandles(){
     const m=L.marker(n.ll,{pane:'designEdit',draggable:true,title:'Sudrab koʻchiring · bosing · oʻng tugma — menyu',icon:L.divIcon({className:'',iconSize:[12,12],iconAnchor:[6,6],
       html:`<div style="width:12px;height:12px;border-radius:50%;background:${k==='round'?'#6f8f4e':k==='sig'?'#e03b2e':'#fff'};border:2px solid #1c2628;cursor:move;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`})}).addTo(editL);
     m.on('drag',e=>{const p=e.target.getLatLng();n.ll=[p.lat,p.lng];coreRender();});
-    m.on('dragend',()=>afterDesign());
+    m.on('dragend',()=>{if(snapEnd(n))toast('Koʻchaga ulandi — chorraha hosil boʻldi.');afterDesign();});
     m.on('click',()=>{if(ds.tool==='select'){ds.sel={t:'node',id:n.id};afterDesign();}else designClick(L.latLng(n.ll[0],n.ll[1]));});
     m.on('contextmenu',e=>{stopE(e);openNodeMenu(e.containerPoint||map.latLngToContainerPoint(n.ll),n);});
   });
@@ -2143,6 +2158,7 @@ const KN={end:'uch',join:'burilish/ulanish',x:'tartibga solinmagan chorraha',sig
 function openNodeMenu(pt,n){const ds=DS(),k=nodeKind(n),set=f=>()=>{f();ds.sel={t:'node',id:n.id};afterDesign();};
   openMenu(pt,[{h:`Tugun · ${KN[k]} · ${degree(n)} yoʻl`},
     {t:'Shu tugundan yangi koʻcha boshlash',f:()=>{ds.tool='draw';D.start=n.id;D.pts=[];afterDesign();}},
+    degree(n)===1?{t:'Yonidagi koʻchaga ulash (T-chorraha)',f:()=>{const m2=snapEnd(n);if(m2){ds.sel={t:'node',id:m2.id};toast('Ulandi.');}else toast('Uch boshqa koʻcha ustida emas — uni koʻcha ustiga sudrang.');afterDesign();}}:null,
     '-',{h:'Chorraha turi'},
     {row:[['Avto',set(()=>n.type='auto'),n.type==='auto'],['Tartibga solinmagan',set(()=>n.type='x'),n.type==='x'],['Svetoforli',set(()=>n.type='sig'),n.type==='sig']]},
     {h:'Aylanma halqa'},{row:Object.entries(RTYPES).map(([rk,r])=>[r.n.replace(/ \(.+\)/,''),set(()=>{n.type='round';n.rtype=rk;n.ri=r.ri;n.rw=r.rw;n.lanes=r.lanes;}),n.type==='round'&&n.rtype===rk])},
