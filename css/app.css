@@ -292,3 +292,6 @@ kbd{font:600 11px var(--mono);background:var(--panel2);border:1px solid var(--li
 .ml3d .mlbar label{display:flex;gap:4px;align-items:center;color:var(--ink)}
 .ml3d .mlbar .btn{padding:3px 9px}
 .ml3d .mlnote{position:absolute;z-index:5;left:12px;bottom:12px;max-width:520px;background:rgba(26,30,35,.9);color:#e8eaec;border-radius:9px;padding:7px 11px;font-size:12px}
+
+.m-label .mx{margin-left:6px;cursor:pointer;color:#b3412f;font-weight:800}
+.m-label .mx:hover{color:#000}

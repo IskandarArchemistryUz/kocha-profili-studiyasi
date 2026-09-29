@@ -167,14 +167,24 @@ function clippedAxis(){
   return {o,xy:subLine(xy,a,b),len:b-a};
 }
 let stripsG=null,drP=0;
+function axisMenu(e,pre){stopE(e);openMenu(e.containerPoint,[...(pre||[]),{h:'Koʻcha oʻqi'+(S.site&&S.site.name?' · '+S.site.name:'')},
+  {t:'Profil qatlamini yashirish / koʻrsatish',f:()=>{S.view=S.view==='none'?S.active:'none';renderTabs();renderPlan();save();}},
+  {t:'Oʻqni teskari qilish',f:()=>{const ax=clippedAxis();if(!ax)return;S.site.full=ax.xy.map(q=>toLL(q,ax.o)).reverse();S.site.anchor=null;S.site.off=-(S.site.off||0);Object.keys(S.prof).forEach(k=>S.prof[k].reverse());renderAll();save();}},
+  {t:'Oʻqni va profilni oʻchirish',danger:1,f:delAxis}]);}
+function delAxis(){const prev=clone(S);S.site=null;renderAll();renderPlan();save();toast('Koʻcha oʻqi oʻchirildi.',()=>{S=prev;renderAll();renderPlan();save();});}
 function drawPlanStrips(G){
-  G.clearLayers();const ax=clippedAxis();if(!ax||S.view==='none')return;
+  G.clearLayers();const ax=clippedAxis();if(!ax)return;
+  L.polyline(ax.xy.map(q=>toLL(q,ax.o)),{color:'#b8672a',weight:14,opacity:0,bubblingMouseEvents:false}).on('contextmenu',axisMenu).bindTooltip('Koʻcha oʻqi — oʻng tugma: menyu, nuqtalarni sudrang',{sticky:true}).addTo(G);
+  L.polyline(ax.xy.map(q=>toLL(q,ax.o)),{color:'#b8672a',weight:2,dashArray:'6 5',interactive:false}).addTo(G);
+  if(S.view==='none')return;
   const w=S.view,p=S.prof[w],tot=sum(p),off=(S.site&&S.site.off)||0;let cum=0;
   p.forEach(e=>{
     const d=LIB[e.k], d1=off+tot/2-cum, d2=d1-e.w; cum+=e.w;
     const A=offsetLine(ax.xy,d1), B=offsetLine(ax.xy,d2).reverse(), on=S.sel[w]===e.id;
     const pg=L.polygon([...A,...B].map(q=>toLL(q,ax.o)),{color:on?'#f4c542':'#1c2628',weight:on?3:.6,fillColor:d.col,fillOpacity:.72}).bindTooltip(`${d.n} · ${f2(e.w)} m — bosib tanlang`,{sticky:true}).addTo(G);
     pg.on('click',ev=>{L.DomEvent.stop(ev);S.active=w;S.sel[w]=S.sel[w]===e.id?null:e.id;renderTabs();renderEditor();drawPlanStrips(G);});
+    pg.on('contextmenu',ev=>axisMenu(ev,[{h:`${d.n} · ${f2(e.w)} m`},{t:'Tanlash (muharrirda)',f:()=>{S.active=w;S.sel[w]=e.id;renderTabs();renderEditor();drawPlanStrips(G);}},
+      {t:'Elementni oʻchirish',danger:1,f:()=>{const i=p.indexOf(e);if(i>=0&&p.length>1){p.splice(i,1);if(w==='ex')S.row=+sum(p).toFixed(2);renderAll();save();}}},'-']));
     if(d.tree&&e.w>=.8){const mid=offsetLine(ax.xy,(d1+d2)/2),c=cumLen(mid),T=c[c.length-1];for(let s=S.set.treeSp/2;s<=T;s+=S.set.treeSp)L.circleMarker(toLL(pointAt(mid,c,s),ax.o),{interactive:false,radius:Math.max(3,Math.min(9,map.getZoom()-12)),color:'#3f6e33',weight:1,fillColor:'#5e9a4c',fillOpacity:.7}).addTo(G);}
   });
   [off+tot/2,off-tot/2].forEach(d=>L.polyline(offsetLine(ax.xy,d).map(q=>toLL(q,ax.o)),{color:'#d0342c',weight:2.5,interactive:false}).addTo(G));
@@ -182,12 +192,21 @@ function drawPlanStrips(G){
 function renderPlan(){
   planL.clearLayers();
   const ax=clippedAxis(); if(!ax) return;
-  L.polyline(ax.xy.map(q=>toLL(q,ax.o)),{color:'#b8672a',weight:2,dashArray:'6 5',interactive:false}).addTo(planL);
-  const n=ax.xy.length, end=ax.xy[n-1];
-  L.circleMarker(toLL(end,ax.o),{radius:4,color:'#b8672a',fillOpacity:1}).bindTooltip('Oʻq yoʻnalishi shu tomonga').addTo(planL);
   stripsG=L.layerGroup().addTo(planL);
-  if(S.view==='none') return;
   drawPlanStrips(stripsG);
+  // oʻq nuqtalari — sudrab tahrirlash
+  const vic=L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;background:#fff;border:2px solid #b8672a;border-radius:3px;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>'});
+  const axPts=ax.xy.map(q=>toLL(q,ax.o));let axDrag=0;
+  const soonA=()=>{if(!drP)drP=requestAnimationFrame(()=>{drP=0;drawPlanStrips(stripsG);});};
+  axPts.forEach((pt,i)=>{const m=L.marker(pt,{draggable:true,icon:vic,zIndexOffset:900,title:'Oʻq nuqtasi — sudrang; oʻng tugma: menyu'}).addTo(planL);
+    m.on('dragstart',()=>{S.site.full=axPts.map(p=>p.slice());S.site.anchor=null;if(S.site.src==='osm')S.site.src='osm+';axDrag=1;});
+    m.on('drag',ev=>{const g=ev.target.getLatLng();S.site.full[i]=[g.lat,g.lng];const o=S.site.full[0],c=cumLen(S.site.full.map(q=>toXY(q,o)));S.len=Math.max(5,Math.ceil(c[c.length-1]));soonA();});
+    m.on('dragend',()=>{axDrag=0;renderAll();save();});
+    m.on('contextmenu',e=>{stopE(e);openMenu(e.containerPoint,[{h:'Oʻq nuqtasi'},
+      axPts.length>2?{t:'Nuqtani oʻchirish',danger:1,f:()=>{S.site.full=axPts.filter((_,k)=>k!==i);S.site.anchor=null;const o=S.site.full[0],c=cumLen(S.site.full.map(q=>toXY(q,o)));S.len=Math.max(5,Math.ceil(c[c.length-1]));renderAll();save();}}:null,
+      i<axPts.length-1?{t:'Keyingi nuqta bilan orasiga nuqta qoʻshish',f:()=>{S.site.full=axPts.slice();S.site.full.splice(i+1,0,mid(axPts[i],axPts[i+1]));S.site.anchor=null;renderAll();save();}}:null,
+      '-',{t:'Oʻqni va profilni oʻchirish',danger:1,f:delAxis}]);});});
+  if(S.view==='none') return;
   const w=S.view,p=S.prof[w];if(!S.site||!p.length)return;
   const c=cumLen(ax.xy),T=c[c.length-1],f=frameAt(ax.xy,c,T/2);
   const P=d=>toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],ax.o), proj=ll=>{const q=toXY([ll.lat,ll.lng],ax.o);return (q[0]-f.p[0])*f.n[0]+(q[1]-f.p[1])*f.n[1];};
@@ -284,10 +303,19 @@ map.on('click',e=>{
   } else if(S.mode==='draw'){S.draw.push([e.latlng.lat,e.latlng.lng]);renderDraw();renderHint();}
 });
 function renderMeasure(){measL.clearLayers();const m=S.measure;if(!m)return;
-  L.circleMarker(m.a,{radius:4,color:'#b3412f',fillOpacity:1}).addTo(measL);
-  if(m.b){L.circleMarker(m.b,{radius:4,color:'#b3412f',fillOpacity:1}).addTo(measL);
-    L.polyline([m.a,m.b],{color:'#b3412f',weight:2}).addTo(measL);
-    L.marker([(m.a[0]+m.b[0])/2,(m.a[1]+m.b[1])/2],{icon:L.divIcon({className:'',html:`<span class="m-label">${f2(m.d)} m</span>`,iconSize:null})}).addTo(measL);}}
+  const del=()=>{S.measure=null;renderMeasure();renderHint();save();};
+  const menu=e=>{stopE(e);openMenu(e.containerPoint,[{h:'Kesim oʻlchovi'+(m.d?' · '+f2(m.d)+' m':'')},m.b?{t:'Qizil chiziq kengligi qilish',f:()=>{S.row=+m.d.toFixed(2);fit('ex');fit('pr');renderAll();save();}}:null,{t:'Oʻchirish',k:'Delete',danger:1,f:del}]);};
+  const vi=L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #b3412f;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>'});
+  let line=null,labM=null;
+  const upd=()=>{if(!m.b)return;m.d=map.distance(m.a,m.b);line.setLatLngs([m.a,m.b]);labM.setLatLng([(m.a[0]+m.b[0])/2,(m.a[1]+m.b[1])/2]);labM.setIcon(labIcon());};
+  const labIcon=()=>L.divIcon({className:'',html:`<span class="m-label">${f2(m.d)} m <b class="mx" title="Oʻchirish">✕</b></span>`,iconSize:null});
+  if(m.b){line=L.polyline([m.a,m.b],{color:'#b3412f',weight:3,bubblingMouseEvents:false}).on('contextmenu',menu).bindTooltip('Oʻng tugma — menyu; uchlarini sudrang',{sticky:true}).addTo(measL);
+    labM=L.marker([(m.a[0]+m.b[0])/2,(m.a[1]+m.b[1])/2],{icon:labIcon(),zIndexOffset:800}).addTo(measL);
+    labM.on('click',e=>{if(e.originalEvent&&e.originalEvent.target.closest('.mx')){stopE(e);del();}});labM.on('contextmenu',menu);}
+  ['a','b'].forEach(k=>{if(!m[k])return;const mk=L.marker(m[k],{draggable:true,icon:vi,zIndexOffset:900}).addTo(measL);
+    mk.on('drag',e=>{const g=e.target.getLatLng();m[k]=[g.lat,g.lng];upd();});mk.on('dragend',()=>{renderHint();save();});mk.on('contextmenu',menu);});
+}
+document.addEventListener('keydown',e=>{if((e.key==='Delete'||e.key==='Backspace')&&S.app==='prof'&&S.measure&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();S.measure=null;renderMeasure();renderHint();save();}});
 function renderDraw(){drawL.clearLayers();if(S.draw.length){L.polyline(S.draw,{color:'#1f6f7a',weight:3}).addTo(drawL);S.draw.forEach(p=>L.circleMarker(p,{radius:3,color:'#1f6f7a'}).addTo(drawL));}}
 function setMode(m){S.mode=m;document.querySelectorAll('#profModes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
   map.getContainer().style.cursor=m==='pick'?'pointer':'crosshair'; if(m!=='draw'){S.draw=[];renderDraw();} renderHint();}
@@ -856,10 +884,13 @@ function renderMeas(){
   el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{M.items.splice(+b.dataset.del,1);saveMeas();renderMeas();});
   el.querySelectorAll('[data-prof]').forEach(b=>b.onclick=()=>cutToProfile(M.items[+b.dataset.prof]));
   if(el.querySelector('#mClr'))el.querySelector('#mClr').onclick=()=>{M.items=[];saveMeas();renderMeas();};
-  M.items.forEach(it=>{
+  M.items.forEach((it,ii)=>{
     const col=it.type==='cut'?'#e2533f':'#f4c542';
-    if(it.type==='area')L.polygon(it.pts,{color:col,weight:2,fillOpacity:.12}).addTo(mL);else L.polyline(it.pts,{color:col,weight:3}).addTo(mL);
-    it.pts.forEach(q=>L.circleMarker(q,{radius:3,color:'#1c2628',weight:1,fillColor:col,fillOpacity:1}).addTo(mL));
+    const menu=e=>{stopE(e);openMenu(e.containerPoint,[{h:{dist:'Masofa',area:'Maydon',cut:'Kesim'}[it.type]},it.type==='cut'?{t:'Profilga → loyihalash',f:()=>cutToProfile(it)}:null,{t:'Oʻchirish',danger:1,f:()=>{M.items.splice(M.items.indexOf(it),1);saveMeas();renderMeas();}},{t:'Hammasini tozalash',danger:1,f:()=>{M.items=[];saveMeas();renderMeas();}}]);};
+    const shp=(it.type==='area'?L.polygon(it.pts,{color:col,weight:3,fillOpacity:.12,bubblingMouseEvents:false}):L.polyline(it.pts,{color:col,weight:3,bubblingMouseEvents:false})).on('contextmenu',menu).bindTooltip('Oʻng tugma — oʻchirish; nuqtalarni sudrang',{sticky:true}).addTo(mL);
+    const vi=L.divIcon({className:'',iconSize:[12,12],iconAnchor:[6,6],html:`<div style="width:12px;height:12px;border-radius:50%;background:${col};border:2px solid #1c2628;cursor:grab"></div>`});
+    it.pts.forEach((q,k)=>{const mk=L.marker(q,{draggable:true,icon:vi,zIndexOffset:900}).addTo(mL);
+      mk.on('drag',e=>{const g=e.target.getLatLng();it.pts[k]=[g.lat,g.lng];shp.setLatLngs(it.pts);});mk.on('dragend',()=>{saveMeas();renderMeas();});mk.on('contextmenu',menu);});
     if(it.type==='dist'){for(let i=1;i<it.pts.length;i++)lab(mid(it.pts[i-1],it.pts[i]),fmtD(map.distance(it.pts[i-1],it.pts[i]))).addTo(mL);if(it.pts.length>2)lab(it.pts[it.pts.length-1],'Σ '+fmtD(lineLen(it.pts))).addTo(mL);}
     if(it.type==='area'){const c=it.pts.reduce((s,p)=>[s[0]+p[0]/it.pts.length,s[1]+p[1]/it.pts.length],[0,0]);lab(c,fmtA(polyArea(it.pts))).addTo(mL);}
     if(it.type==='cut')lab(mid(...it.pts),fmtD(it.total)).addTo(mL);
