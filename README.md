@@ -2,22 +2,28 @@
 
 Koʻchalarni tahlil qilish va qayta loyihalash uchun brauzer asbobi — Toshkent va Oʻzbekiston sharoitiga moslangan. Archemistry Urban loyihasi.
 
-**Ochish:** `index.html` faylini brauzerda oching yoki GitHub Pages havolasidan foydalaning. Oʻrnatish shart emas; internet kerak (xarita, sunʼiy yoʻldosh tasviri, OpenStreetMap).
+**Ochish:** https://iskandararchemistryuz.github.io/kocha-profili-studiyasi/ (GitHub Pages) yoki `index.html` faylini brauzerda oching. Oʻrnatish shart emas; internet kerak (xarita, sunʼiy yoʻldosh tasviri, OpenStreetMap).
 
 ## Nima qila oladi
 
 **Hudud tahlili** — xaritada hudud belgilanadi; sunʼiy yoʻldosh tasviri (Esri World Imagery) piksellari OpenStreetMap qatlamlari bilan birlashtirilib, hudud funksiyalar boʻyicha foizda ajratiladi: qatnov qismi, trotuar, oʻsimlik, binolar, suv va boshqalar.
 
-**Koʻcha profili** — koʻchani bosganda mavjud koʻndalang kesim avtomatik aniqlanadi (koʻcha boʻylab har 1 m dagi kesimlarning koʻpchilik qiymati). Loyiha profili tuziladi va mavjud holat bilan taqqoslanadi: kenglik ulushlari, oʻtkazuvchanlik, kesib oʻtish masofasi, daraxtlar, parkovka.
+**Koʻcha profili** — koʻchani bosganda mavjud koʻndalang kesim avtomatik aniqlanadi (koʻcha boʻylab har 1 m dagi kesimlarning koʻpchilik qiymati). Qatnov qismi sunʼiy yoʻldosh tasviridagi asfalt rangidan aniqlanadi; profil OSM oʻqidan siljishi hisobga olinadi. Chetlar va oʻq xaritada sudrab tuzatiladi. Kutubxonada 34 element (parkovka 0°/30°/45°/90°, yuk/taksi zonasi, BRT, burilish boʻlagi, orolcha, parklet, kiosk, kanal va boshq.). Loyiha profili mavjud holat bilan taqqoslanadi: kenglik ulushlari, oʻtkazuvchanlik, kesib oʻtish masofasi, daraxtlar, parkovka joylari.
 
 **Loyiha chizish (YHQ)** — koʻchalar xaritada modullardan chiziladi va tugunlarda ulanadi:
-- 51 ta koʻcha moduli va parametrik Konstruktor (boʻlaklar, ajratuvchi, BRT, tramvay, velo, parkovka 0°/30°/45°/90°, dublyor, yomgʻir bogʻlari);
+- 49 ta koʻcha moduli va parametrik Konstruktor (boʻlaklar, ajratuvchi, BRT, tramvay, velo, parkovka 0°/30°/45°/90°, dublyor, yomgʻir bogʻlari);
 - radiusli burilishlar, bordyur radiusi bilan chorrahalar, 7 turdagi aylanma halqa (turbo-halqa ham);
 - piyoda oʻtish joylari, bekatlar, parklet, veloparkovka, erkin shakllar va yoʻl chiziqlari;
 - yoʻl belgilari katalogi va avtomatik joylashtirish;
 - YHQ mantigʻi boʻyicha tekshiruvlar (band raqamlarini foydalanuvchi kiritadi);
 - nusxa/qoʻyish/koʻchirish, orqaga/oldinga (Ctrl+Z/Y), oʻng tugma menyusi;
 - eksport: PNG, SVG, DXF (mahalliy yoki UTM 42N), GeoJSON, CSV hisob-kitob, 3D koʻrinish va OBJ+MTL.
+
+**Konseptual 3D** — profil yoki loyiha koʻchasi izometrik taqdimot koʻrinishida: bino, daraxtlar, odamlar, transport, yoʻl belgilari, oʻlchamlar; PNG eksport.
+
+**3D shahar** — MapLibre GL + OpenFreeMap: OSM binolari hajmda, sunʼiy yoʻldosh va loyiha qatlami.
+
+**Xaritalar** — Esri sunʼiy yoʻldosh, OSM nomlar va maʼmuriy chegaralar (Overpass), OpenStreetMap, CARTO Voyager, Google sunʼiy yoʻldosh (foydalanuvchining Map Tiles API kaliti bilan).
 
 ## Tuzilishi
 
@@ -27,7 +33,7 @@ css/app.css    uslublar
 js/app.js      butun mantiq
 ```
 
-Tashqi kutubxonalar CDN orqali yuklanadi: Leaflet 1.9.4, three.js r128 (faqat 3D rejimda).
+Tashqi kutubxonalar CDN orqali yuklanadi: Leaflet 1.9.4, three.js r128 (3D rejimlarda), MapLibre GL 4.7 (3D shahar).
 
 ## Maʼlumot manbalari va cheklovlar
 
