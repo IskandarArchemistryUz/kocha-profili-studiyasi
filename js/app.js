@@ -1321,9 +1321,21 @@ function buildShapes(){
         const P=d=>[f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],rd=a.lay.road.length?a.lay.road:a.lay.st,ang=Math.atan2(f.p[1]-c[1],f.p[0]-c[0]);
         const ord=pts=>{const an=p=>{let d=Math.atan2(p[1]-c[1],p[0]-c[0])-ang;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return d;};return an(pts[0])<an(pts[1])?pts:[pts[1],pts[0]];};
         return {ang,u,inn:ord([P(Math.max(...rd.map(x=>x.d1))),P(Math.min(...rd.map(x=>x.d2)))]),out:ord([P(a.lay.st[0].d1),P(a.lay.st[a.lay.st.length-1].d2)])};}).sort((x,y)=>x.ang-y.ang);
+      const KR=n.kr??6;
+      // aylana yoy bilan burchak (fillet): p1 va p2 dan chiquvchi ikki chiziq orasida r radiusli yoy
+      const fillet=(pl,p1,u1,p2,u2,r)=>{const X=lineInt(p1,u1,p2,u2);if(!X||X.t1>.01||X.t2>.01||X.t1<-120||X.t2<-120)return false;
+        const cs=Math.max(-1,Math.min(1,u1[0]*u2[0]+u1[1]*u2[1])),phi=Math.acos(cs);if(phi>2.97||phi<.05)return false;
+        let td=r/Math.tan(phi/2);const lim=Math.min(-X.t1,-X.t2);if(td>lim){td=lim;r=td*Math.tan(phi/2);}
+        const T1=[X.p[0]+u1[0]*td,X.p[1]+u1[1]*td],T2=[X.p[0]+u2[0]*td,X.p[1]+u2[1]*td];let bx=u1[0]+u2[0],by=u1[1]+u2[1];const bl=Math.hypot(bx,by)||1;bx/=bl;by/=bl;
+        const dc=r/Math.sin(phi/2),C=[X.p[0]+bx*dc,X.p[1]+by*dc];let a1=Math.atan2(T1[1]-C[1],T1[0]-C[0]),a2=Math.atan2(T2[1]-C[1],T2[0]-C[0]);let da=a2-a1;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+        pl.push(T1);const nn=Math.max(6,Math.ceil(Math.abs(da)/.12));for(let j=1;j<nn;j++){const t=a1+da*j/nn;pl.push([C[0]+r*Math.cos(t),C[1]+r*Math.sin(t)]);}pl.push(T2);return true;};
       const build=key=>{const pl=[];L2.forEach((a,i)=>{const b=L2[(i+1)%L2.length],p1=a[key][1],p2=b[key][0];pl.push(a[key][0],p1);
-        const X=lineInt(p1,a.u,p2,b.u);if(X&&X.t1<.01&&X.t2<.01&&X.t1>-80&&X.t2>-80){for(let j=1;j<14;j++){const t=j/14;pl.push([(1-t)**2*p1[0]+2*(1-t)*t*X.p[0]+t*t*p2[0],(1-t)**2*p1[1]+2*(1-t)*t*X.p[1]+t*t*p2[1]]);}}});return pl.map(q=>toLL(q,o));};
+        if(k==='join'){const X=lineInt(p1,a.u,p2,b.u);if(X&&X.t1<.01&&X.t2<.01&&X.t1>-80&&X.t2>-80){for(let j=1;j<14;j++){const t=j/14;pl.push([(1-t)**2*p1[0]+2*(1-t)*t*X.p[0]+t*t*p2[0],(1-t)**2*p1[1]+2*(1-t)*t*X.p[1]+t*t*p2[1]]);}}return;}
+        // tashqi (trotuar) burchak radiusi = bordyur radiusi + shu burchakdagi trotuar eni
+        let r=KR;if(key==='out'){const wa=Math.hypot(a.out[1][0]-a.inn[1][0],a.out[1][1]-a.inn[1][1]),wb=Math.hypot(b.out[0][0]-b.inn[0][0],b.out[0][1]-b.inn[0][1]);r=KR+Math.min(wa,wb);}
+        fillet(pl,p1,a.u,p2,b.u,r);});return pl.map(q=>toLL(q,o));};
       poly(build('out'),DK.walk.col,'ped',0);poly(build('inn'),DK.lane.col,'car',3);
+      if(k!=='join'){const pl2=build('inn');line([...pl2,pl2[0]],{color:'#f7f5ef',weight:1.4},null,3.05);}
       if(k==='sig')mark('svetofor');}
     if(k==='round'){const rt=RTYPES[n.rtype||'r2']||RTYPES.r2,Ro=n.ri+n.rw,side=Math.max(3,...A2.map(a=>a.lay.outer-a.lay.half)),lanes=n.lanes||rt.lanes,lw=n.rw/lanes;
       poly(circleLL(c,Ro+side,o,90),DK.walk.col,'ped',0);poly(circleLL(c,Ro,o,90),DK.lane.col,'car',3);
