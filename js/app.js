@@ -2684,27 +2684,68 @@ function c3Build(TH,strips,label){
   // piyoda oʻtish joyi (zebra) — barcha qatnov va velo polosalari boʻylab
   S2.forEach(s=>{if(['lane','bus','tram','park','hatch'].includes(s.c)){for(let xx=s.x0+.35;xx<s.x1-.3;xx+=1)flat(.5,4,xx+.25,zebraZ,top(s)+.011,'#ffffff');flat(s.w,.3,s.xm,zebraZ-2.9,top(s)+.011,'#ffffff');}
     if(s.c==='bike')flat(s.w,4,s.xm,zebraZ,top(s)+.011,'#a9d3a6');});
-  // daraxtlar
+  // ---- teksturalar keshi (yuqori aniqlikda) ----
+  const TX=C3.tx||(C3.tx={});
+  const tex=(key,wpx,hpx,draw)=>{if(TX[key])return TX[key];const cv=document.createElement('canvas');cv.width=wpx;cv.height=hpx;const g=cv.getContext('2d');g.lineCap='round';g.lineJoin='round';draw(g,wpx,hpx);
+    const t=new TH.CanvasTexture(cv);t.anisotropy=8;t.minFilter=TH.LinearMipmapLinearFilter;return TX[key]=t;};
+  const spr=(t,wm,hm,ax=.5,ay=0)=>{const s2=new TH.Sprite(new TH.SpriteMaterial({map:t,transparent:true,depthWrite:false,alphaTest:.02}));s2.scale.set(wm,hm,1);s2.center.set(ax,ay);return s2;};
+  // daraxt tojlari: dumaloq va choʻziq (ustunsimon), ichki soya bilan
+  const crownTex=(v)=>tex('crown'+v,512,v===1?768:512,(g,w,h)=>{const cx=w/2,cy=h/2,rx=w/2-8,ry=h/2-8;
+    g.fillStyle='rgba(196,222,178,.86)';g.beginPath();g.ellipse(cx,cy,rx,ry,0,0,7);g.fill();
+    g.fillStyle='rgba(222,238,210,.7)';g.beginPath();g.ellipse(cx-rx*.22,cy-ry*.25,rx*.55,ry*.5,0,0,7);g.fill();
+    g.strokeStyle='rgba(120,160,105,.35)';g.lineWidth=5;for(let i=0;i<5;i++){const a2=i*1.3+.4;g.beginPath();g.arc(cx+Math.cos(a2)*rx*.35,cy+Math.sin(a2)*ry*.35,Math.min(rx,ry)*.28,a2,a2+1.6);g.stroke();}
+    g.strokeStyle='#86a877';g.lineWidth=7;g.beginPath();g.ellipse(cx,cy,rx,ry,0,0,7);g.stroke();});
+  const trunkM=new TH.MeshLambertMaterial({color:'#9c9a8e'});
+  const tree=(xx,y0,z,r,v)=>{const h=4.3+R()*1.1,tr=new TH.Mesh(new TH.CylinderGeometry(.09,.13,h,8),trunkM);tr.position.set(xx,y0+h/2,z);sc.add(tr);
+    const cr=spr(crownTex(v),r*2,v===1?r*3:r*2,.5,.5);cr.position.set(xx,y0+h+(v===1?r*1.3:r*.85),z);sc.add(cr);};
   const treeSp=S.set&&S.set.treeSp?S.set.treeSp:8;
-  const crown=(xx,y,z,r)=>{const sp=c3Sprite(TH,(g,w,h)=>{g.fillStyle=C3COL.tree;g.strokeStyle=C3COL.treeE;g.lineWidth=5;g.beginPath();g.arc(w/2,h/2,w/2-5,0,7);g.fill();g.stroke();},r*2,r*2,.5,.5);sp.position.set(xx,y,z);sc.add(sp);};
+  const grass=tex('grass',256,256,(g,w,h)=>{g.strokeStyle='#8fb07f';g.lineWidth=5;[[.15,.1],[.3,.25],[.45,.05],[.6,.2],[.78,.12],[.9,.3]].forEach(([x0,t])=>{g.beginPath();g.moveTo(w*x0,h);g.quadraticCurveTo(w*(x0+.03),h*.5,w*(x0+.08),h*t);g.stroke();});});
   S2.forEach(s=>{const tr=s.c==='trees'||(s.c==='median'&&s.w>=1.5)||(s.c==='green'&&s.w>=2);
-    if(tr){for(let z=-L/2+treeSp/2;z<L/2;z+=treeSp){if(Math.abs(z-zebraZ)<3)continue;const h=4.2+R()*1.2,r=Math.min(3.2,1.8+s.w*.35);line([[s.xm,top(s),z],[s.xm,h,z]]);crown(s.xm,h+r*.8,z,r);}}
-    if(s.c==='green'&&!tr||s.c==='rain'){for(let z=-L/2+1;z<L/2;z+=1.6){const b=c3Sprite(TH,(g,w,h)=>{g.strokeStyle='#8fb07f';g.lineWidth=6;for(let i=0;i<5;i++){g.beginPath();g.moveTo(w*(.2+i*.15),h);g.lineTo(w*(.1+i*.18+R()*.1),h*R()*.4);g.stroke();}},.6,.7);b.position.set(s.x0+.2+R()*(s.w-.4),top(s),z);sc.add(b);}}
+    if(tr){const v=s.c==='median'&&s.w<3?1:(R()<.25?1:0);for(let z=-L/2+treeSp/2;z<L/2;z+=treeSp){if(Math.abs(z-zebraZ)<3)continue;tree(s.xm,top(s),z,Math.min(3,1.7+s.w*.35)*(v?.75:1),v);}}
+    if(s.c==='green'&&!tr||s.c==='rain'||s.c==='trees'){for(let z=-L/2+1;z<L/2;z+=s.c==='rain'?1.1:1.8){const b2=spr(grass,.7,.75);b2.position.set(s.x0+.25+R()*Math.max(.1,s.w-.5),top(s),z+R()*.6);sc.add(b2);}}
   });
-  // odamlar, velosipedchilar
+  // ---- odamlar va velosipedchilar: silliq siluetlar, bir necha xil ----
+  const INK='#40454d';
+  const personTex=(v)=>tex('p'+v,256,640,(g,w,h)=>{g.fillStyle=v%3===1?'#545a63':INK;g.strokeStyle=g.fillStyle;const cx=w/2,sw=v%2?1:-1,kid=v===5;
+    const H=h*(kid?.62:1),top0=h-H,U=H/10;
+    g.beginPath();g.arc(cx,top0+U*.62,U*.58,0,7);g.fill();// bosh
+    g.beginPath();g.moveTo(cx-U*.95,top0+U*1.55);g.quadraticCurveTo(cx,top0+U*1.2,cx+U*.95,top0+U*1.55);g.lineTo(cx+U*.8,top0+U*5.2);g.lineTo(cx-U*.8,top0+U*5.2);g.closePath();g.fill();// tana
+    g.lineWidth=U*.62;g.beginPath();g.moveTo(cx-U*.85,top0+U*1.8);g.lineTo(cx-U*1.05-sw*U*.25,top0+U*4.6);g.moveTo(cx+U*.85,top0+U*1.8);g.lineTo(cx+U*1.05-sw*U*.25,top0+U*4.6);g.stroke();// qoʻllar
+    g.lineWidth=U*.78;g.beginPath();g.moveTo(cx-U*.38,top0+U*5);g.lineTo(cx-U*.45+sw*U*.7,h-U*.2);g.moveTo(cx+U*.38,top0+U*5);g.lineTo(cx+U*.45-sw*U*.5,h-U*.2);g.stroke();// oyoqlar
+    if(v===2){g.fillRect(cx+U*1.05,top0+U*3.7,U*.9,U*1.2);}// sumka
+    if(v===4){g.beginPath();g.moveTo(cx-U*.95,top0+U*1.6);g.lineTo(cx-U*1.45,top0+U*5.8);g.lineTo(cx+U*1.45,top0+U*5.8);g.lineTo(cx+U*.95,top0+U*1.6);g.fill();}// koʻylak
+  });
+  const bikeTex=tex('bike',640,560,(g,w,h)=>{const r=w*.17,y=h-r-6,x1=w*.22,x2=w*.78;g.strokeStyle=INK;g.fillStyle=INK;g.lineWidth=12;
+    [x1,x2].forEach(x=>{g.beginPath();g.arc(x,y,r,0,7);g.stroke();});g.lineWidth=11;
+    const px=w*.46,py=y,sx=w*.4,sy=y-r*1.25,hx=w*.7,hy=y-r*1.4;g.beginPath();g.moveTo(x1,y);g.lineTo(px,py);g.lineTo(sx,sy);g.lineTo(x1,y);g.moveTo(px,py);g.lineTo(hx-8,hy+18);g.lineTo(sx,sy);g.moveTo(hx-8,hy+18);g.lineTo(x2,y);g.moveTo(hx-8,hy+18);g.lineTo(hx+14,hy);g.stroke();
+    g.lineWidth=26;g.beginPath();g.moveTo(sx,sy-8);g.lineTo(sx+w*.12,h*.22);g.stroke();// tana
+    g.beginPath();g.arc(sx+w*.16,h*.12,30,0,7);g.fill();// bosh
+    g.lineWidth=16;g.beginPath();g.moveTo(sx+w*.1,h*.26);g.lineTo(hx+10,hy-2);g.stroke();// qoʻl
+    g.lineWidth=18;g.beginPath();g.moveTo(sx,sy-6);g.lineTo(px+30,y-r*.55);g.lineTo(px,py);g.stroke();});// oyoq
   const dens=[0,.05,.12,.25][C3.ppl]||0;
   S2.forEach(s=>{const ped=['walk','shared','facade','island'].includes(s.c);
-    if(ped&&dens){const n=Math.round(L*s.w*dens*.35);for(let i=0;i<n;i++){const hh=1.55+R()*.3,p=c3Sprite(TH,(g,w,h)=>c3Person(g,w,h),hh*.38,hh);p.position.set(s.x0+.3+R()*(s.w-.6),top(s),-L/2+2+R()*(L-4));sc.add(p);}}
-    if(s.c==='bike'&&dens){const n=Math.max(1,Math.round(L*dens*.12));for(let i=0;i<n;i++){const p=c3Sprite(TH,(g,w,h)=>c3Person(g,w,h,1),1.7,1.75);p.position.set(s.xm,top(s),-L/2+3+R()*(L-6));sc.add(p);}}
+    if(ped&&dens){const n=Math.round(L*s.w*dens*.35);for(let i=0;i<n;i++){const v=Math.floor(R()*6),hh=(1.62+R()*.25);const p2=spr(personTex(v),hh*.4,hh);p2.position.set(s.x0+.3+R()*(s.w-.6),top(s),-L/2+2+R()*(L-4));sc.add(p2);}}
+    if(s.c==='bike'&&dens){const n=Math.max(1,Math.round(L*dens*.12));for(let i=0;i<n;i++){const p2=spr(bikeTex,1.85,1.62);p2.position.set(s.xm,top(s),-L/2+3+R()*(L-6));sc.add(p2);}}
   });
-  // avtomobillar, avtobus, tramvay
-  const car=(xx,y,z,rot=0)=>{const g=new TH.Group();box(1.8,.75,4.3,0,.55,0,'#ffffff',true,g);box(1.6,.55,2.3,0,1.2,-.2,'#f4f6fa',true,g);g.position.set(xx,y,z);g.rotation.y=rot;sc.add(g);};
-  const vehDens=[0,.6,1,1.5][C3.ppl]||.6;
+  // ---- transport: silliq kuzov (profil ekstruziyasi), oynalar, gʻildiraklar ----
+  const white=M('#fbfbfa'),glassM=new TH.MeshLambertMaterial({color:'#c9d6e6'}),tyreM=new TH.MeshLambertMaterial({color:'#5b5f66'}),eM2=new TH.LineBasicMaterial({color:'#8d8b9a'});
+  const extr=(pts,depth)=>{const sh2=new TH.Shape();pts.forEach(([u,v],i)=>i?sh2.lineTo(u,v):sh2.moveTo(u,v));sh2.closePath();const g2=new TH.ExtrudeGeometry(sh2,{depth,bevelEnabled:true,bevelThickness:.06,bevelSize:.05,bevelSegments:2,steps:1});g2.translate(0,0,-depth/2);return g2;};
+  const CARB=extr([[-2.2,.32],[-2.22,.72],[-1.95,.88],[-1.05,.95],[-.55,1.42],[.75,1.44],[1.25,.98],[2.08,.86],[2.22,.62],[2.18,.32]],1.62);
+  const CARW=extr([[-.95,.98],[-.5,1.36],[.7,1.38],[1.12,.98]],1.66);
+  const WHEEL=new TH.CylinderGeometry(.31,.31,.22,16);WHEEL.rotateX(Math.PI/2);const BWHEEL=new TH.CylinderGeometry(.48,.48,.3,18);BWHEEL.rotateX(Math.PI/2);
+  const car=(xx,y,z,rot=0,col)=>{const g=new TH.Group();const bdy=new TH.Mesh(CARB,col?M(col):white);g.add(bdy);const ed=new TH.LineSegments(new TH.EdgesGeometry(CARB,25),eM2);g.add(ed);
+    g.add(new TH.Mesh(CARW,glassM));[[-1.35,.83],[1.35,.83],[-1.35,-.83],[1.35,-.83]].forEach(([u,w2])=>{const wh=new TH.Mesh(WHEEL,tyreM);wh.position.set(u,.31,w2);g.add(wh);});
+    g.rotation.y=Math.PI/2+rot;g.position.set(xx,y,z);sc.add(g);};
+  const longV=(xx,y,z,len,hgt,col,winCol)=>{const g=new TH.Group(),r2=.35;const pts=[[-len/2,.35],[-len/2,hgt-r2],[-len/2+r2,hgt],[len/2-r2*2,hgt],[len/2,hgt-r2*2],[len/2,.35]];const B=extr(pts,2.5);
+    g.add(new TH.Mesh(B,M(col)));g.add(new TH.LineSegments(new TH.EdgesGeometry(B,25),eM2));const Wg=extr([[-len/2+.6,hgt*.52],[-len/2+.6,hgt-.35],[len/2-.9,hgt-.35],[len/2-.4,hgt*.52]],2.54);g.add(new TH.Mesh(Wg,M(winCol)));
+    for(let u=-len/2+2;u<len/2-1;u+=len>11?len-4.5:len-4)[1.18,-1.18].forEach(w2=>{const wh=new TH.Mesh(BWHEEL,tyreM);wh.position.set(u,.48,w2);g.add(wh);});
+    g.rotation.y=Math.PI/2;g.position.set(xx,y,z);sc.add(g);return g;};
+  const vehDens=[0,.6,1,1.5][C3.ppl]||.6,carCols=[null,null,null,'#e9ecef','#dfe3e8',null,'#f1ede6'];
   S2.forEach(s=>{const y=top(s);
-    if(s.c==='lane'){let z=-L/2+4+R()*8;while(z<L/2-12){if(Math.abs(z-zebraZ)>5)car(s.xm,y,z);z+=(10+R()*22)/vehDens;}}
-    if(s.c==='bus'){const z=-L/2+12+R()*(L-30);const g=new TH.Group();box(2.5,2.9,12,0,1.75,0,'#ffffff',true,g);box(2.52,.9,10.5,0,2.3,-.3,C3COL.glass,false,g);g.position.set(s.xm,y,z);sc.add(g);}
-    if(s.c==='tram'&&s.dir>=0){for(let k=0;k<3;k++)box(2.5,3,9.6,s.xm,y+1.65,-L/2+14+k*10,'#ffffff');}
-    if(s.c==='park'){for(let z=-L/2+3;z<L/2-10;z+=(s.ang===0?6:s.ang===90?2.5:4)*(R()<.35?2:1)){const rot=s.ang?(90-s.ang)*Math.PI/180:0;car(s.xm,y,z,rot);}}
+    if(s.c==='lane'){let z=-L/2+4+R()*8;while(z<L/2-12){if(Math.abs(z-zebraZ)>5)car(s.xm,y,z,s.dir<0?Math.PI:0,carCols[Math.floor(R()*carCols.length)]);z+=(10+R()*22)/vehDens;}}
+    if(s.c==='bus'){const z=-L/2+12+R()*(L-30);longV(s.xm,y,z,12,3.1,'#fbfbfa',C3COL.glass);}
+    if(s.c==='tram'&&s.dir>=0){for(let k=0;k<3;k++)longV(s.xm,y+.05,-L/2+14+k*9.8,9.4,3.3,'#fbfbfa','#c9d6e6');}
+    if(s.c==='park'){for(let z=-L/2+3;z<L/2-10;z+=(s.ang===0?6:s.ang===90?2.5:4)*(R()<.35?2:1)){const rot=s.ang?(90-s.ang)*Math.PI/180:0;car(s.xm,y,z,rot,carCols[Math.floor(R()*carCols.length)]);}}
   });
   // jihozlar: skameykalar, chiroqlar, kafe stollari
   const bench=(xx,y,z)=>box(.5,.45,1.8,xx,y+.225,z,'#ffffff');
