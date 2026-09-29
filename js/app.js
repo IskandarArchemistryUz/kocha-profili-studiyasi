@@ -134,21 +134,41 @@ function clippedAxis(){
   let a=Math.max(0,s0-S.len/2), b=Math.min(total,a+S.len); a=Math.max(0,b-S.len);
   return {o,xy:subLine(xy,a,b),len:b-a};
 }
+let stripsG=null,drP=0;
+function drawPlanStrips(G){
+  G.clearLayers();const ax=clippedAxis();if(!ax||S.view==='none')return;
+  const w=S.view,p=S.prof[w],tot=sum(p),off=(S.site&&S.site.off)||0;let cum=0;
+  p.forEach(e=>{
+    const d=LIB[e.k], d1=off+tot/2-cum, d2=d1-e.w; cum+=e.w;
+    const A=offsetLine(ax.xy,d1), B=offsetLine(ax.xy,d2).reverse(), on=S.sel[w]===e.id;
+    const pg=L.polygon([...A,...B].map(q=>toLL(q,ax.o)),{color:on?'#f4c542':'#1c2628',weight:on?3:.6,fillColor:d.col,fillOpacity:.72}).bindTooltip(`${d.n} · ${f2(e.w)} m — bosib tanlang`,{sticky:true}).addTo(G);
+    pg.on('click',ev=>{L.DomEvent.stop(ev);S.active=w;S.sel[w]=S.sel[w]===e.id?null:e.id;renderTabs();renderEditor();drawPlanStrips(G);});
+    if(d.tree&&e.w>=.8){const mid=offsetLine(ax.xy,(d1+d2)/2),c=cumLen(mid),T=c[c.length-1];for(let s=S.set.treeSp/2;s<=T;s+=S.set.treeSp)L.circleMarker(toLL(pointAt(mid,c,s),ax.o),{interactive:false,radius:Math.max(3,Math.min(9,map.getZoom()-12)),color:'#3f6e33',weight:1,fillColor:'#5e9a4c',fillOpacity:.7}).addTo(G);}
+  });
+  [off+tot/2,off-tot/2].forEach(d=>L.polyline(offsetLine(ax.xy,d).map(q=>toLL(q,ax.o)),{color:'#d0342c',weight:2.5,interactive:false}).addTo(G));
+}
 function renderPlan(){
   planL.clearLayers();
   const ax=clippedAxis(); if(!ax) return;
-  L.polyline(ax.xy.map(q=>toLL(q,ax.o)),{color:'#b8672a',weight:2,dashArray:'6 5'}).addTo(planL);
-  // yo'nalish strelkasi
-  const n=ax.xy.length, end=ax.xy[n-1], pre=ax.xy[n-2];
+  L.polyline(ax.xy.map(q=>toLL(q,ax.o)),{color:'#b8672a',weight:2,dashArray:'6 5',interactive:false}).addTo(planL);
+  const n=ax.xy.length, end=ax.xy[n-1];
   L.circleMarker(toLL(end,ax.o),{radius:4,color:'#b8672a',fillOpacity:1}).bindTooltip('Oʻq yoʻnalishi shu tomonga').addTo(planL);
+  stripsG=L.layerGroup().addTo(planL);
   if(S.view==='none') return;
-  const p=S.prof[S.view], tot=sum(p); let cum=0;
-  p.forEach(e=>{
-    const d=LIB[e.k], d1=tot/2-cum, d2=tot/2-cum-e.w; cum+=e.w;
-    const A=offsetLine(ax.xy,d1), B=offsetLine(ax.xy,d2).reverse();
-    L.polygon([...A,...B].map(q=>toLL(q,ax.o)),{color:'#1c2628',weight:.6,fillColor:d.col,fillOpacity:.88}).bindTooltip(`${d.n} · ${f2(e.w)} m`,{sticky:true}).addTo(planL);
-    if(d.tree&&e.w>=.8){const mid=offsetLine(ax.xy,(d1+d2)/2),c=cumLen(mid),T=c[c.length-1];for(let s=S.set.treeSp/2;s<=T;s+=S.set.treeSp)L.circleMarker(toLL(pointAt(mid,c,s),ax.o),{radius:Math.max(3,Math.min(9,map.getZoom()-12)),color:'#3f6e33',weight:1,fillColor:'#5e9a4c',fillOpacity:.95}).addTo(planL);}
-  });
+  drawPlanStrips(stripsG);
+  const w=S.view,p=S.prof[w];if(!S.site||!p.length)return;
+  const c=cumLen(ax.xy),T=c[c.length-1],f=frameAt(ax.xy,c,T/2);
+  const P=d=>toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],ax.o), proj=ll=>{const q=toXY([ll.lat,ll.lng],ax.o);return (q[0]-f.p[0])*f.n[0]+(q[1]-f.p[1])*f.n[1];};
+  const ico=(bg,tx)=>L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div style="width:24px;height:24px;border-radius:50%;background:${bg};border:2px solid #1c2628;box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:grab;display:flex;align-items:center;justify-content:center;font:700 13px sans-serif;color:#1c2628">${tx}</div>`});
+  const soon=()=>{if(!drP)drP=requestAnimationFrame(()=>{drP=0;drawPlanStrips(stripsG);});};
+  const done=()=>{if(w==='ex')S.row=+sum(p).toFixed(2);renderAll();save();};
+  const mkH=side=>{const off=S.site.off||0,tot=sum(p);const m=L.marker(P(side>0?off+tot/2:off-tot/2),{draggable:true,zIndexOffset:1000,icon:ico('#fff','↔'),title:'Chetni sudrang — chekka element eni oʻzgaradi'}).addTo(planL);
+    m.on('drag',ev=>{const dn=proj(ev.target.getLatLng()),it=side>0?p[0]:p[p.length-1],o0=S.site.off||0,t0=sum(p),edge=side>0?o0+t0/2:o0-t0/2;
+      const nw=Math.max(.3,+(it.w+side*(dn-edge)).toFixed(2)),real=nw-it.w;it.w=nw;S.site.off=+(o0+side*real/2).toFixed(3);soon();});
+    m.on('dragend',done);};
+  const mkC=()=>{const m=L.marker(P(S.site.off||0),{draggable:true,zIndexOffset:1000,icon:ico('#f4c542','✥'),title:'Butun profilni koʻndalangiga siljiting'}).addTo(planL);
+    m.on('drag',ev=>{S.site.off=+proj(ev.target.getLatLng()).toFixed(2);soon();});m.on('dragend',done);};
+  mkH(1);mkH(-1);mkC();
 }
 map.on('zoomend',renderPlan);
 
@@ -828,24 +848,41 @@ async function autoProfile(){
   if(!A.res||!A.res.cls||A.err){hint(null);return false;}
   const C=A.cache, cls=A.res.cls, c=cumLen(ax.xy), T=c[c.length-1], nD=Math.round(2*H/ST)+1, NA=AC.length;
   const cnt=Array.from({length:nD},()=>new Uint32Array(NA+1));
+  // Piksel asosidagi kesim: qatnov qismi OSM buferidan emas, tasvirdagi asfalt rangidan aniqlanadi
+  const KI=Object.fromEntries(AC.map((c,i)=>[c.k,i])),P=A.P,pix=C.pix;
+  const samp=[];
   for(let s=1;s<T-1;s+=1){
     const p=pointAt(ax.xy,c,s),p1=pointAt(ax.xy,c,Math.max(0,s-.7)),p2=pointAt(ax.xy,c,Math.min(T,s+.7));
     const tx=p2[0]-p1[0],ty=p2[1]-p1[1],tl=Math.hypot(tx,ty)||1,n=[-ty/tl,tx/tl];
     for(let i=0;i<nD;i++){const d=H-i*ST,ll=toLL([p[0]+n[0]*d,p[1]+n[1]*d],ax.o);
       const px=Math.floor(gxf(ll[1],C.z)-C.gx0),py=Math.floor(gyf(ll[0],C.z)-C.gy0);
-      const k=(px>=0&&py>=0&&px<C.cw&&py<C.ch)?cls[py*C.cw+px]:255;cnt[i][k===255?NA:k]++;}
+      samp.push(i,(px>=0&&py>=0&&px<C.cw&&py<C.ch)?py*C.cw+px:-1);}
   }
+  const feat=j=>{const r=pix[j*4],g=pix[j*4+1],b=pix[j*4+2],sm=r+g+b,br=sm/3,mx=Math.max(r,g,b),mn=Math.min(r,g,b),sat=(mx-mn)/(mx+1),exg=(2*g-r-b)/(sm+1);
+    const veg=exg>P.veg&&g>=r*.95&&br>18,soil=!veg&&r>g&&g>b&&sat>.18&&br>70&&(r-b)>25;return {br,veg,soil,sh:br<P.shadow};};
+  const med=a=>{if(!a.length)return null;a.sort((x,y)=>x-y);return a[a.length>>1];};
+  const aB=[],pB=[];
+  for(let q=0;q<samp.length;q+=2){const i=samp[q],j=samp[q+1];if(j<0)continue;const k=cls[j],f=feat(j);if(f.veg||f.soil||f.sh)continue;const d=Math.abs(H-i*ST);
+    if(k===KI.road&&d<=3)aB.push(f.br);else if(k===KI.ped||k===KI.side)pB.push(f.br);}
+  const mA=med(aB),mP=med(pB);
+  const thr=mA==null?null:(mP!=null&&pB.length>30&&mP>mA+12?Math.min(mA+60,Math.max(mA+12,(mA+mP)/2)):mA+30);
+  for(let q=0;q<samp.length;q+=2){const i=samp[q],j=samp[q+1];if(j<0){cnt[i][NA]++;continue;}
+    const k=cls[j];let L2=k;
+    if(thr!=null&&k!==KI.build&&k!==KI.water&&k!==KI.rail&&k!==KI.bike){const f=feat(j);
+      if(f.veg)L2=KI.veg;else if(f.sh)L2=KI.shadow;else if(f.soil)L2=KI.soil;else if(f.br<=thr)L2=(k===KI.park?KI.park:KI.road);else L2=(k===KI.ped?KI.ped:KI.side);}
+    cnt[i][L2]++;}
   const SH=AC.findIndex(x=>x.k==='shadow');
   const maj=cnt.map(h=>{let b=-1,bv=0,t=0;for(let k=0;k<NA;k++){t+=h[k];if(k!==SH&&h[k]>bv){bv=h[k];b=k;}}return bv>0&&bv>=t*.15?b:(t?SH:255);});
   const key=i=>maj[i]===255?'none':AC[maj[i]].k;
   // yoʻl oʻqiga eng yaqin qatnov qismi
   const i0=Math.round(H/ST); let ic=i0;
   for(let r=0;r<nD;r++){if(key(i0-r)==='road'){ic=i0-r;break;}if(key(i0+r)==='road'){ic=i0+r;break;}}
-  const edge=dir=>{let bRun=0,pRun=0,i=ic;
+  const edge=dir=>{let bRun=0,pRun=0,sRun=0,i=ic;
     for(;i>=0&&i<nD;i+=dir){const k=key(i);
       if(k==='none')return {i:i-dir,why:'tahlil chegarasi'};
       if(k==='build'){if(++bRun>=4)return {i:i-dir*bRun,why:'bino'};}else bRun=0;
-      if(k==='paved'||k==='soil'){if(++pRun>=16)return {i:i-dir*pRun,why:'hovli/ochiq maydon'};}else pRun=0;}
+      if(k==='paved'||k==='soil'){if(++pRun>=16)return {i:i-dir*pRun,why:'hovli/ochiq maydon'};}else pRun=0;
+      if(k==='side'||k==='ped'){if(++sRun>=48)return {i:i-dir*sRun,why:'keng ochiq maydon'};}else sRun=0;}
     return {i:i-dir,why:`${H} m chegara`};};
   const eL=edge(-1),eR=edge(1);
   const seq=maj.slice(eL.i,eR.i+1).map(k=>k===SH?255:k);
@@ -855,10 +892,12 @@ async function autoProfile(){
   for(let i=eL.i;i<=eR.i;i++)for(let k=0;k<NA;k++){shares[AC[k].k]=(shares[AC[k].k]||0)+cnt[i][k];tot.n+=cnt[i][k];}
   Object.keys(shares).forEach(k=>shares[k]=shares[k]/tot.n*100);
   S.prof.ex=items;S.prof.pr=items.map(e=>mk(e.k,e.w));S.row=+sum(items).toFixed(2);S.sel={ex:null,pr:null};S.active='ex';
+  {const dTop=H-eL.i*ST+ST/2,dBot=H-eR.i*ST-ST/2;S.site.off=+((dTop+dBot)/2).toFixed(2);}
   S.site.shares=shares;S.site.auto=true;
   S.site.notes=[`Profil ${fi(T)} m uchastka boʻylab har 1 m da olingan kesimlarning koʻpchilik qiymatidan aniqlandi (sunʼiy yoʻldosh + OSM).`,
     `Chap chet: ${eL.why}; oʻng chet: ${eR.why}. Qizil chiziqlar orasini «Kesimni oʻlchash» bilan tekshiring.`,
-    'Daraxt tojlari ostidagi trotuar «yashil» boʻlib chiqishi mumkin; yoʻl eni boʻlaklarga 3,3 m hisobida boʻlingan.'];
+    thr!=null?`Qatnov qismi tasvirdagi asfalt rangidan aniqlandi (asfalt yorqinligi ≈${Math.round(mA)}, chegara ${Math.round(thr)}); OSM oʻqidan siljish ${f2(S.site.off||0)} m.`:'Asfalt rangi aniqlanmadi — qatnov qismi OSM teglaridan olindi.',
+    'Daraxt tojlari ostidagi trotuar «yashil» boʻlib chiqishi mumkin; yoʻl eni boʻlaklarga 3,3 m hisobida boʻlingan. Chetlarni xaritadagi ↔ tutqichlar bilan, butun profilni ✥ bilan siljiting.'];
   renderAll();save();hint(null);return true;
 }
 
@@ -1717,7 +1756,7 @@ function profileToDesign(){
   const ll=ax.xy.map(q=>toLL(q,ax.o)),ds=DS(),p=S.prof[S.active],tot=sum(p);let cum=0;
   const st=p.map(e=>{const m=cum+e.w/2;cum+=e.w;const k=LIB2DK[e.k]||'walk';const dir=(DK[k].road||k==='bike')?(e.k==='bike2'?0:(m<tot/2?-1:1)):0;return [k,+e.w.toFixed(2),dir];});
   const a=newNode(ll[0]),b=newNode(ll[ll.length-1]);
-  const sg={id:ds.sid++,a:a.id,b:b.id,pts:ll.slice(1,-1),p:'custom',st,name:S.site?.name||'Koʻcha'};ds.segs.push(sg);
+  const sg={id:ds.sid++,a:a.id,b:b.id,pts:ll.slice(1,-1),p:'custom',st,off:S.site?.off||0,name:S.site?.name||'Koʻcha'};ds.segs.push(sg);
   ds.tool='select';ds.sel={t:'seg',id:sg.id,strip:null};
   setApp('design');map.fitBounds(L.latLngBounds(ll).pad(.3));afterDesign();
   loadOsmSigns(L.latLngBounds(ll).pad(.5));
@@ -2387,6 +2426,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementB
 if(!S.helpSeen){S.helpSeen=1;save();setTimeout(openHelp,600);}
 
 
+{const _ree=renderEditor;renderEditor=function(){_ree();if(stripsG&&S.app==='prof')drawPlanStrips(stripsG);};}
 /* ===== v11: barqaror boshqaruv ===== */
 /* chizib boʻlgach — Tanlash rejimi (yangi obyekt tanlangan, darhol sudrash/oʻchirish mumkin) */
 {const _fs=finishSeg;finishSeg=function(n){const had=!!D.start;_fs(n);if(had&&!D.start&&DS().tool==='draw'&&!DS().keepDraw){DS().tool='select';renderRail&&renderRail();renderDesignPanel();renderHint();}};}
