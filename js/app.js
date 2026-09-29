@@ -1,22 +1,22 @@
 try{if(window.top!==window.self)document.getElementById('frameWarn').hidden=false;}catch(e){document.getElementById('frameWarn').hidden=false;}
 /* ---------- Element kutubxonasi ---------- */
 const LIB={
-  facade:{n:'Fasad zonasi',a:'Fasad',c:'ped',w:.6,col:'#c4bba8'},
-  walk:{n:'Piyoda oʻtish zonasi',a:'Piyoda',c:'ped',w:2.4,col:'#e4d9bf',capM:[3000,3000]},
-  shared:{n:'Umumiy sirt (shared space)',a:'Umumiy',c:'ped',w:6,col:'#dccb9f'},
-  furn:{n:'Jihozlar zonasi (skameyka, chiroq)',a:'Jihoz',c:'other',w:1.2,col:'#aea58f'},
-  trees:{n:'Daraxt qatori',a:'Daraxt',c:'green',w:2,col:'#7fae6a',tree:1},
-  ariq:{n:'Ariq + daraxt qatori',a:'Ariq',c:'green',w:1.2,col:'#78a7a4',tree:1,ariq:1},
-  lawn:{n:'Maysazor',a:'Maysa',c:'green',w:1.5,col:'#9fc684'},
-  bike1:{n:'Velo yoʻlak (1 yoʻnalish)',a:'Velo',c:'bike',w:1.8,col:'#4d9b8a',capM:[2500,2500]},
-  bike2:{n:'Velo yoʻlak (2 yoʻnalish)',a:'Velo ⇅',c:'bike',w:3,col:'#3c8676',capM:[2500,2500]},
-  buffer:{n:'Himoya bufer',a:'Bufer',c:'other',w:.6,col:'#cdd2c9'},
-  park:{n:'Parkovka (parallel)',a:'Park.',c:'park',w:2.4,col:'#8c8f97',road:1},
-  lane:{n:'Avto harakat boʻlagi',a:'Avto',c:'car',w:3.3,col:'#5b6065',road:1,cap:[600,1600]},
-  mixed:{n:'Aralash boʻlak (avto + avtobus)',a:'Avto+A',c:'car',w:3.5,col:'#6d6660',road:1,cap:[1000,2800]},
-  bus:{n:'Ajratilgan avtobus boʻlagi',a:'Avtobus',c:'transit',w:3.5,col:'#b8483a',road:1,cap:[4000,8000]},
-  tram:{n:'Ajratilgan tramvay yoʻli',a:'Tramvay',c:'transit',w:3.3,col:'#c47b2a',road:1,cap:[10000,25000]},
-  median:{n:'Ajratuvchi / piyoda orolchasi',a:'Orolcha',c:'other',w:2,col:'#b3bca6',refuge:1},
+  facade:{n:'Fasad zonasi',a:'Fasad',c:'ped',w:.6,col:'#d9d0bd'},
+  walk:{n:'Piyoda oʻtish zonasi',a:'Piyoda',c:'ped',w:2.4,col:'#ebe2cf',capM:[3000,3000]},
+  shared:{n:'Umumiy sirt (shared space)',a:'Umumiy',c:'ped',w:6,col:'#e2d5b6'},
+  furn:{n:'Jihozlar zonasi (skameyka, chiroq)',a:'Jihoz',c:'other',w:1.2,col:'#cfc3a8'},
+  trees:{n:'Daraxt qatori',a:'Daraxt',c:'green',w:2,col:'#8cb36b',tree:1},
+  ariq:{n:'Ariq + daraxt qatori',a:'Ariq',c:'green',w:1.2,col:'#7fb0a8',tree:1,ariq:1},
+  lawn:{n:'Maysazor',a:'Maysa',c:'green',w:1.5,col:'#a9c98a'},
+  bike1:{n:'Velo yoʻlak (1 yoʻnalish)',a:'Velo',c:'bike',w:1.8,col:'#4fa585',capM:[2500,2500]},
+  bike2:{n:'Velo yoʻlak (2 yoʻnalish)',a:'Velo ⇅',c:'bike',w:3,col:'#3e9a74',capM:[2500,2500]},
+  buffer:{n:'Himoya bufer',a:'Bufer',c:'other',w:.6,col:'#d6d1c6'},
+  park:{n:'Parkovka (parallel)',a:'Park.',c:'park',w:2.4,col:'#6e7178',road:1},
+  lane:{n:'Avto harakat boʻlagi',a:'Avto',c:'car',w:3.3,col:'#4b4e55',road:1,cap:[600,1600]},
+  mixed:{n:'Aralash boʻlak (avto + avtobus)',a:'Avto+A',c:'car',w:3.5,col:'#5d585a',road:1,cap:[1000,2800]},
+  bus:{n:'Ajratilgan avtobus boʻlagi',a:'Avtobus',c:'transit',w:3.5,col:'#bf5a4d',road:1,cap:[4000,8000]},
+  tram:{n:'Ajratilgan tramvay yoʻli',a:'Tramvay',c:'transit',w:3.3,col:'#b8894f',road:1,cap:[10000,25000]},
+  median:{n:'Ajratuvchi / piyoda orolchasi',a:'Orolcha',c:'other',w:2,col:'#b9c4a6',refuge:1},
   // qoʻshimcha elementlar (v16)
   parklet:{n:'Parklet (parkovka oʻrnida oʻtirish joyi)',a:'Parklet',c:'ped',w:2.2,col:'#c9a877'},
   busstop:{n:'Bekat maydonchasi / platforma',a:'Bekat',c:'ped',w:3,col:'#d9cfb8'},
@@ -372,7 +372,7 @@ function renderEditor(){
   const w=S.active, p=S.prof[w], tot=sum(p), selId=S.sel[w], sel=p.find(e=>e.id===selId);
   const diff=S.row-tot, st=Math.abs(diff)<.005?['ok','Kenglikka mos']:diff>0?['warn',`${f2(diff)} m boʻsh`]:['bad',`${f2(-diff)} m oshiq`];
   let h=`<div class="strip" role="group" aria-label="Profil elementlari">`;
-  p.forEach(e=>{const d=LIB[e.k];h+=`<button class="blk ${DARK.has(e.k)?'dark':''}" data-id="${e.id}" aria-pressed="${e.id===selId}" title="${d.n} — ${f2(e.w)} m" style="flex:${e.w} 1 0;background:${d.col}"><span class="t">${d.a}</span><span class="w">${f2(e.w)}</span></button>`;});
+  p.forEach(e=>{const d=LIB[e.k];h+=`<button class="blk ${DARK.has(e.k)?'dark':''} ${e.w/tot<.085?'nar':''}" data-id="${e.id}" aria-pressed="${e.id===selId}" title="${d.n} — ${f2(e.w)} m" style="flex:${e.w} 1 0;background:${d.col}"><span class="t">${d.a}</span><span class="w">${f2(e.w)}</span></button>`;});
   h+=`</div><div class="sumline"><span class="num">Jami ${f2(tot)} / ${f2(S.row)} m</span><span class="chip ${st[0]}">${st[1]}</span>
     <span style="flex:1"></span>
     <button class="btn sm" id="fitB">Kenglikka moslash</button><button class="btn sm" id="mirB">Oynali aks</button>
@@ -1026,17 +1026,17 @@ async function autoProfile(){
    LOYIHA CHIZISH: YHQ ga mos, bir-biriga ulanadigan modullar
    ===================================================================== */
 const DK={
-  walk:{n:'Trotuar',col:'#d6c3a2',cat:'ped'}, shared:{n:'Umumiy sirt (yashash zonasi)',col:'#cdb894',cat:'ped'},
-  green:{n:'Koʻkalamzor / daraxt qatori',col:'#6f8f4e',cat:'green'}, median:{n:'Ajratuvchi polosa (koʻkalamzor)',col:'#7d9a58',cat:'green'},
-  buffer:{n:'Himoya bufer / bordyur',col:'#cbc5b8',cat:'ped'},
-  lane:{n:'Harakat boʻlagi',col:'#3c3e43',cat:'car',road:1}, turn:{n:'Markaziy burilish boʻlagi',col:'#3f4146',cat:'car',road:1},
-  hatch:{n:'Chiziqli ajratuvchi (shtrixlangan)',col:'#46484e',cat:'car',road:1},
-  park:{n:'Parkovka — parallel',col:'#505259',cat:'car',road:1,ang:0,sp:6},park30:{n:'Parkovka — 30° burchakli',col:'#505259',cat:'car',road:1,ang:30,sp:5},
-  park45:{n:'Parkovka — 45° burchakli',col:'#505259',cat:'car',road:1,ang:45,sp:3.54},park90:{n:'Parkovka — perpendikulyar (90°)',col:'#505259',cat:'car',road:1,ang:90,sp:2.5},
-  bus:{n:'Yoʻnalishli transport boʻlagi (avtobus/BRT)',col:'#9e3a32',cat:'pt',road:1}, tram:{n:'Tramvay yoʻli',col:'#5a5b61',cat:'pt',road:1},
-  bike:{n:'Velosiped boʻlagi/yoʻlkasi',col:'#2f8f58',cat:'bike'},
-  rain:{n:'Yomgʻir bogʻi (bioswale)',col:'#4f7f63',cat:'green'}, island:{n:'Xavfsizlik orolchasi (bordyurli)',col:'#bdb39e',cat:'ped'},
-  furn:{n:'Jihozlar zonasi (skameyka, chiroq)',col:'#aea58f',cat:'ped'},
+  walk:{n:'Trotuar',col:'#e4d9c3',cat:'ped'}, shared:{n:'Umumiy sirt (yashash zonasi)',col:'#dccfb0',cat:'ped'},
+  green:{n:'Koʻkalamzor / daraxt qatori',col:'#8cb36b',cat:'green'}, median:{n:'Ajratuvchi polosa (koʻkalamzor)',col:'#86ad66',cat:'green'},
+  buffer:{n:'Himoya bufer / bordyur',col:'#d6d1c6',cat:'ped'},
+  lane:{n:'Harakat boʻlagi',col:'#4b4e55',cat:'car',road:1}, turn:{n:'Markaziy burilish boʻlagi',col:'#51545b',cat:'car',road:1},
+  hatch:{n:'Chiziqli ajratuvchi (shtrixlangan)',col:'#55585f',cat:'car',road:1},
+  park:{n:'Parkovka — parallel',col:'#62656c',cat:'car',road:1,ang:0,sp:6},park30:{n:'Parkovka — 30° burchakli',col:'#62656c',cat:'car',road:1,ang:30,sp:5},
+  park45:{n:'Parkovka — 45° burchakli',col:'#62656c',cat:'car',road:1,ang:45,sp:3.54},park90:{n:'Parkovka — perpendikulyar (90°)',col:'#62656c',cat:'car',road:1,ang:90,sp:2.5},
+  bus:{n:'Yoʻnalishli transport boʻlagi (avtobus/BRT)',col:'#bf5a4d',cat:'pt',road:1}, tram:{n:'Tramvay yoʻli',col:'#6b6c72',cat:'pt',road:1},
+  bike:{n:'Velosiped boʻlagi/yoʻlkasi',col:'#5fae88',cat:'bike'},
+  rain:{n:'Yomgʻir bogʻi (bioswale)',col:'#6aa07f',cat:'green'}, island:{n:'Xavfsizlik orolchasi (bordyurli)',col:'#d3cab6',cat:'ped'},
+  furn:{n:'Jihozlar zonasi (skameyka, chiroq)',col:'#cdbfa3',cat:'ped'},
 };
 const isPk=k=>typeof k==='string'&&k.startsWith('park');
 const PKW={park:2.3,park30:4.7,park45:5.3,park90:5};
@@ -1217,7 +1217,7 @@ function lineInt(p,u,q,v){const den=u[0]*v[1]-u[1]*v[0];if(Math.abs(den)<1e-6)re
 /* shakllar roʻyxati: xaritaga ham, maydon hisobiga ham xizmat qiladi */
 function buildShapes(){
   const ds=DS(),o=origin(),sh=[],marks={},cwW=ds.thr.cw,gap=ds.thr.parkGap,WH='#f2f2ee';
-  const poly=(ll,col,cat,z)=>{if(ll&&ll.length>2)sh.push({t:'poly',ll,col,cat,z});};
+  const poly=(ll,col,cat,z,op)=>{if(ll&&ll.length>2)sh.push({t:'poly',ll,col,cat,z,op});};
   const line=(ll,opt,code,z=6)=>{sh.push({t:'line',ll,opt,z});if(code)marks[code]=(marks[code]||0)+1;};
   const mark=c=>marks[c]=(marks[c]||0)+1;
   const markOv=(mx,d,code)=>{if(code==='none')return;const LL=e=>offsetLine(mx,d+e).map(q=>toLL(q,o));const W1={color:'#fff',weight:1.3};
@@ -1259,11 +1259,14 @@ function buildShapes(){
       else poly(band(st.d1,st.d2),k.col,k.cat,1);
       if(st.k==='tram'){[-.72,.72].forEach(e=>line(offsetLine(xy,st.mid+e).map(q=>toLL(q,o)),{color:'#9ea1a8',weight:1.2}));}
       if(st.k==='hatch'&&st.w>=.8){for(let s=2;s<T-2;s+=4){const f=frameAt(xy,c,s),g=frameAt(xy,c,s+1.8);line([toLL([f.p[0]+f.n[0]*st.d1,f.p[1]+f.n[1]*st.d1],o),toLL([g.p[0]+g.n[0]*st.d2,g.p[1]+g.n[1]*st.d2],o)],{color:'#fff',weight:1});}mark('1.16');}
-      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(2.4,st.w*.7);for(let s=4;s<T-3;s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];poly(circleLL(P2,r,o,16),'#557d3c',null,2.6);poly(circleLL(P2,r*.55,o,12),'#6c9a4d',null,2.7);sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
+      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));for(let s=4;s<T-3;s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);}sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
       if(st.k==='rain'){[st.d1-.15,st.d2+.15].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#6fb3d9',weight:1.2,dashArray:'4 3'},null,2));for(let s=2;s<T-2;s+=3.5){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],Math.min(.7,st.w/3),o,10),'#3d6b4f',null,2);}}
       if(st.k==='island'){[st.d1-.1,st.d2+.1].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,2));}
       if(st.k==='shared'){for(let s=3;s<T-3;s+=6){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],.6,o,10),'#b8a47e',null,2);}}
     });
+    // bordyur chiziqlari: koʻtarilgan zona va qatnov qismi chegarasi, koʻcha tashqi chetlari
+    {const raised=k=>!DK[k].road;for(let i=0;i<lay.st.length-1;i++){const a1=lay.st[i],b1=lay.st[i+1];if(raised(a1.k)!==raised(b1.k))line(offsetLine(xy,a1.d2).map(q=>toLL(q,o)),{color:'#f7f5ef',weight:1.4},null,2.8);}
+      [lay.st[0].d1,lay.st[lay.st.length-1].d2].forEach(d=>line(offsetLine(xy,d).map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,2.8));}
     // boʻlaklar orasidagi chiziqlar
     const ms=zoneA?zoneA+1:0,me=zoneB?T-zoneB-1:T;
     if(me-ms>2){const mx=subLine(xy,ms,me);
@@ -1347,9 +1350,14 @@ function buildShapes(){
 }
 function renderDesign(){
   designL.clearLayers();const {sh}=buildShapes();
+  const zk=Math.pow(2,map.getZoom()-19),sc=o=>{const r=Object.assign({},o);r.weight=Math.max(.5,(o.weight??3)*zk);if(o.dashArray)r.dashArray=String(o.dashArray).split(/[ ,]+/).map(v=>Math.max(1,+v*zk).toFixed(1)).join(' ');return r;};
+  const oc=origin();
   sh.sort((a,b)=>a.z-b.z).forEach(x=>{
-    if(x.t==='poly')L.polygon(x.ll,{pane:'design',renderer:DR,stroke:false,fillColor:x.col,fillOpacity:1,interactive:false}).addTo(designL);
-    else if(x.t==='line')L.polyline(x.ll,Object.assign({pane:'design',renderer:DR,interactive:false,lineCap:'butt'},x.opt)).addTo(designL);
+    if(x.t==='poly')L.polygon(x.ll,{pane:'design',renderer:DR,stroke:false,fillColor:x.col,fillOpacity:x.op??1,interactive:false}).addTo(designL);
+    else if(x.t==='line')L.polyline(x.ll,Object.assign({pane:'design',renderer:DR,interactive:false,lineCap:'butt'},sc(x.opt))).addTo(designL);
+    else if(x.t==='car'&&zk>=.45){const P=toXY(x.ll,oc),ca=Math.cos(x.h),sa=Math.sin(x.h),R=(u,v)=>toLL([P[0]+u*ca-v*sa,P[1]+u*sa+v*ca],oc);
+      L.polygon([R(-2.2,-.85),R(1.9,-.85),R(2.2,-.6),R(2.2,.6),R(1.9,.85),R(-2.2,.85)],{pane:'design',renderer:DR,color:'#8a8d94',weight:Math.max(.5,zk),fillColor:'#f3f3f0',fillOpacity:1,interactive:false}).addTo(designL);
+      L.polygon([R(-1.1,-.72),R(.9,-.72),R(.9,.72),R(-1.1,.72)],{pane:'design',renderer:DR,stroke:false,fillColor:'#cfd6de',fillOpacity:1,interactive:false}).addTo(designL);}
     else if(x.t==='label')L.marker(x.ll,{pane:'design',interactive:false,icon:L.divIcon({className:'',html:`<b style="color:#fff;font:700 ${x.sm?10:12}px var(--sans)">${x.txt}</b>`,iconSize:null,iconAnchor:[4,8]})}).addTo(designL);
   });
   const sel=DS().sel;
@@ -1830,7 +1838,7 @@ function renderSigns(){
     m.on('dragend',e=>{const p=e.target.getLatLng();sn.ll=[p.lat,p.lng];save();});
   });
 }
-map.on('zoomend',()=>{if(S.app==='design')renderSigns();});
+map.on('zoomend',()=>{if(S.app==='design'){renderDesign();}});
 function signCatalogHTML(){const ds=DS(),groups=[['1.','Ogohlantiruvchi'],['2.','Imtiyoz'],['3.','Taqiqlovchi'],['4.','Buyuruvchi'],['5.','Axborot-koʻrsatkich'],['6.','Servis'],['TL','Svetofor']];
   const all=[...SIGNS,...(ds.customSigns||[]).map(u=>[u.c,u.n,'img',u.img])];
   return `<div class="card" style="padding:10px"><h3>Yoʻl belgilari katalogi</h3>
@@ -1978,7 +1986,7 @@ function autoSigns(){
 const SHP={asphalt:{n:'Asfalt (qatnov qismi)',col:'#3c3e43',cat:'car'},walk:{n:'Trotuar / piyoda yoʻli',col:'#d6c3a2',cat:'ped'},plaza:{n:'Maydon (plitka)',col:'#cbb48d',cat:'ped'},
   green:{n:'Koʻkalamzor',col:'#6f8f4e',cat:'green'},island:{n:'Orolcha (bordyurli)',col:'#bdb39e',cat:'ped'},bike:{n:'Velo yoʻlak',col:'#2f8f58',cat:'bike'},
   bus:{n:'Avtobus boʻlagi / bekat',col:'#9e3a32',cat:'pt'},park:{n:'Parkovka maydoni',col:'#505259',cat:'car'},water:{n:'Suv / ariq',col:'#3f86c6',cat:'green'},
-  rain:{n:'Yomgʻir bogʻi (bioswale)',col:'#4f7f63',cat:'green'},refuge:{n:'Xavfsizlik orolchasi',col:'#bdb39e',cat:'ped'},parklet:{n:'Parklet (dam olish joyi)',col:'#b08a5a',cat:'ped'},
+  rain:{n:'Yomgʻir bogʻi (bioswale)',col:'#6aa07f',cat:'green'},refuge:{n:'Xavfsizlik orolchasi',col:'#bdb39e',cat:'ped'},parklet:{n:'Parklet (dam olish joyi)',col:'#b08a5a',cat:'ped'},
   furn:{n:'Jihozlar / skameykalar zonasi',col:'#aea58f',cat:'ped'},play:{n:'Bolalar maydonchasi',col:'#d9a441',cat:'ped'},bikepark:{n:'Velo turargoh',col:'#3f9a6a',cat:'bike'}};
 const LNT=[['1.1','1.1 uzluksiz'],['1.2','1.2 chekka'],['1.3','1.3 qoʻsh uzluksiz'],['1.5','1.5 uzuq'],['1.6','1.6 yaqinlashish'],['1.11','1.11 aralash'],['1.12','1.12 toʻxtash chizigʻi'],['1.13','1.13 yoʻl berish'],['1.16','1.16 shtrixlangan orolcha'],['zebra','1.14.1 zebra'],['arrowS','1.18 toʻgʻriga'],['arrowL','1.18 chapga'],['arrowR','1.18 oʻngga'],['arrowSR','1.18 toʻgʻri + oʻng'],['arrowSL','1.18 toʻgʻri + chap']];
 const TWO_PT=new Set(['zebra','arrowS','arrowL','arrowR','arrowSR','arrowSL']);
