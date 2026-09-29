@@ -1256,10 +1256,14 @@ function buildShapes(){
             {const sm=(s0+s1)/2+sp/2*dv;if(sm<b-1&&sm>a+1&&((Math.abs(s0)*7.31)%1)<.62){const fm=frameAt(xy,c,sm),dm=(inner+outer)/2,rad=(ang||0)*Math.PI/180*(dv>0?1:-1)*(outer>inner?1:-1);
               const hx=fm.t[0]*Math.cos(rad)+fm.n[0]*Math.sin(rad),hy=fm.t[1]*Math.cos(rad)+fm.n[1]*Math.sin(rad);sh.push({t:'car',ll:toLL([fm.p[0]+fm.n[0]*dm,fm.p[1]+fm.n[1]*dm],o),h:Math.atan2(hy,hx),z:0});}}}
           marks['Parkovka joyi']=(marks['Parkovka joyi']||0)+Math.max(0,n-1);});}
+      else if(!k.road&&!['walk','bike','shared'].includes(st.k)&&(zoneA||zoneB)){
+        // chorraha oldida (oʻtish joyi zonasi) koʻkalamzor/bufer oʻrniga trotuar — piyoda oʻtish joyi trotuarga tutashadi
+        const za=zoneA?zoneA+.5:0,zb=zoneB?zoneB+.5:0;poly(band(st.d1,st.d2,za,T-zb),k.col,k.cat,1);
+        if(za)poly(band(st.d1,st.d2,0,za),DK.walk.col,'ped',1);if(zb)poly(band(st.d1,st.d2,T-zb,T),DK.walk.col,'ped',1);}
       else poly(band(st.d1,st.d2),k.col,k.cat,1);
       if(st.k==='tram'){[-.72,.72].forEach(e=>line(offsetLine(xy,st.mid+e).map(q=>toLL(q,o)),{color:'#9ea1a8',weight:1.2}));}
       if(st.k==='hatch'&&st.w>=.8){for(let s=2;s<T-2;s+=4){const f=frameAt(xy,c,s),g=frameAt(xy,c,s+1.8);line([toLL([f.p[0]+f.n[0]*st.d1,f.p[1]+f.n[1]*st.d1],o),toLL([g.p[0]+g.n[0]*st.d2,g.p[1]+g.n[1]*st.d2],o)],{color:'#fff',weight:1});}mark('1.16');}
-      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));for(let s=4;s<T-3;s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);}sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
+      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));for(let s=Math.max(4,zoneA+r+1);s<T-Math.max(3,zoneB+r+1);s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);}sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
       if(st.k==='rain'){[st.d1-.15,st.d2+.15].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#6fb3d9',weight:1.2,dashArray:'4 3'},null,2));for(let s=2;s<T-2;s+=3.5){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],Math.min(.7,st.w/3),o,10),'#3d6b4f',null,2);}}
       if(st.k==='island'){[st.d1-.1,st.d2+.1].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,2));}
       if(st.k==='shared'){for(let s=3;s<T-3;s+=6){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],.6,o,10),'#b8a47e',null,2);}}
