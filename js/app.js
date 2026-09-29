@@ -17,8 +17,29 @@ const LIB={
   bus:{n:'Ajratilgan avtobus boʻlagi',a:'Avtobus',c:'transit',w:3.5,col:'#b8483a',road:1,cap:[4000,8000]},
   tram:{n:'Ajratilgan tramvay yoʻli',a:'Tramvay',c:'transit',w:3.3,col:'#c47b2a',road:1,cap:[10000,25000]},
   median:{n:'Ajratuvchi / piyoda orolchasi',a:'Orolcha',c:'other',w:2,col:'#b3bca6',refuge:1},
+  // qoʻshimcha elementlar (v16)
+  parklet:{n:'Parklet (parkovka oʻrnida oʻtirish joyi)',a:'Parklet',c:'ped',w:2.2,col:'#c9a877'},
+  busstop:{n:'Bekat maydonchasi / platforma',a:'Bekat',c:'ped',w:3,col:'#d9cfb8'},
+  kiosk:{n:'Kiosk / savdo qatori',a:'Kiosk',c:'other',w:2.5,col:'#c2b59b'},
+  rain:{n:'Yomgʻir bogʻi (bioswale)',a:'Yomgʻir',c:'green',w:2,col:'#6f9f7c'},
+  water:{n:'Kanal / suv yoqasi',a:'Suv',c:'green',w:3,col:'#7fb2cf'},
+  bikepark:{n:'Veloparkovka',a:'V-park',c:'bike',w:2,col:'#7fb3a5'},
+  bikeprot:{n:'Himoyalangan velo yoʻlak (bordyur bilan)',a:'Velo+',c:'bike',w:2.2,col:'#3f917d',capM:[2500,2500]},
+  park30:{n:'Parkovka — 30° burchakli',a:'P 30°',c:'park',w:4.7,col:'#858891',road:1,sp:5},
+  park45:{n:'Parkovka — 45° burchakli',a:'P 45°',c:'park',w:5.3,col:'#81848d',road:1,sp:3.54},
+  park90:{n:'Parkovka — perpendikulyar (90°)',a:'P 90°',c:'park',w:5,col:'#7d8089',road:1,sp:2.5},
+  parkkerb:{n:'Parkovka — trotuar ustida (yarim)',a:'P ½',c:'park',w:1.2,col:'#a3a6ad'},
+  loading:{n:'Yuk tushirish / taksi zonasi',a:'Yuk/taksi',c:'park',w:2.5,col:'#9a8f7c',road:1},
+  turn:{n:'Burilish boʻlagi (markaziy/choʻntak)',a:'Burilish',c:'car',w:3.25,col:'#62676d',road:1},
+  hatch:{n:'Chiziqli ajratuvchi (shtrixlangan)',a:'Shtrix',c:'other',w:1.5,col:'#70757b',road:1},
+  brt:{n:'BRT yoʻlagi (toʻsiq bilan ajratilgan)',a:'BRT',c:'transit',w:3.5,col:'#a33d31',road:1,cap:[6000,12000]},
+  island:{n:'Xavfsizlik orolchasi (bordyurli)',a:'Orol',c:'other',w:2,col:'#c8c0ab',refuge:1},
+  shoulder:{n:'Yoʻl yoqasi (obochina)',a:'Yoqa',c:'other',w:1.5,col:'#b9ae96'},
+  barrier:{n:'Shovqin / himoya toʻsigʻi',a:'Toʻsiq',c:'other',w:.5,col:'#9aa0a6'},
 };
-const DARK=new Set(['lane','mixed','bus','park','bike2','bike1','tram']);
+const LIBG=[['Piyoda',['facade','walk','shared','furn','parklet','busstop','kiosk']],['Yashil va suv',['trees','ariq','lawn','rain','water']],['Velo',['bike1','bike2','bikeprot','bikepark']],
+  ['Parkovka',['park','park30','park45','park90','parkkerb','loading']],['Avto',['lane','mixed','turn']],['Jamoat transporti',['bus','brt','tram']],['Ajratuvchi va boshqa',['median','island','hatch','buffer','shoulder','barrier']]];
+const DARK=new Set(['lane','mixed','bus','park','bike2','bike1','tram','park30','park45','park90','loading','turn','hatch','brt','bikeprot']);
 const CATS={ped:['Piyoda','#d8c492'],green:['Yashil','#7fae6a'],bike:['Velo','#3c8676'],transit:['Jamoat transporti','#b8483a'],car:['Avto harakat','#5b6065'],park:['Parkovka','#8c8f97'],other:['Boshqa','#b3bca6']};
 
 let _id=0; const mk=(k,w)=>({id:++_id,k,w:+(w??LIB[k].w).toFixed(2)});
@@ -55,10 +76,10 @@ function metrics(p){
     const d=LIB[e.k]; m.cat[d.c]+=e.w;
     if(d.cap){m.capLo+=d.cap[0];m.capHi+=d.cap[1];}
     if(d.capM){m.capLo+=d.capM[0]*e.w;m.capHi+=d.capM[1]*e.w;}
-    if(e.k==='lane'||e.k==='mixed'||e.k==='bus'){m.lanes++; if(e.k!=='bus') m.laneMaxW=Math.max(m.laneMaxW,e.w);}
+    if(e.k==='lane'||e.k==='mixed'||e.k==='bus'||e.k==='brt'){m.lanes++; if(e.k!=='bus'&&e.k!=='brt') m.laneMaxW=Math.max(m.laneMaxW,e.w);}
     if(e.k==='walk'||e.k==='shared'){m.walkW+=e.w; m.walkMinSide=Math.min(m.walkMinSide,e.w);}
     if(d.tree && e.w>=0.8) m.trees+=Math.floor(L/S.set.treeSp)+1;
-    if(e.k==='park') m.parking+=Math.floor(L/S.set.parkLen);
+    if(d.c==='park'&&e.k!=='loading') m.parking+=Math.floor(L/(d.sp||S.set.parkLen));
     if(d.c==='green') m.greenA+=e.w*L;
     if(d.road||d.c==='bike') m.roadA+=e.w*L;
     if(d.road){run+=e.w; m.cross=Math.max(m.cross,run);} else if(!(d.c==='bike'||e.k==='buffer')||d.refuge){ if(d.refuge&&e.w<1.5){} else run=0; }
@@ -82,8 +103,8 @@ function sectionSVG(p,sc,W){
     const top=raised?base-0.15*sc:base;
     s+=`<rect x="${x}" y="${top}" width="${w}" height="${base+10-top}" fill="${d.col}" stroke="#1c2628" stroke-width=".4"/>`;
     const m=v=>v*sc;
-    if(e.k==='lane'||e.k==='park'||e.k==='mixed'){const cw=Math.min(w*.72,m(1.8)),ch=m(1.45);s+=`<rect x="${cx-cw/2}" y="${base-ch}" width="${cw}" height="${ch}" rx="${m(.3)}" fill="#e9ecef" stroke="#3b4146" stroke-width=".8"/><rect x="${cx-cw/2+cw*.12}" y="${base-ch+ch*.15}" width="${cw*.76}" height="${ch*.35}" fill="#9fb4c3"/>`;}
-    if(e.k==='mixed'||e.k==='bus'){if(e.k==='bus'||true){const bw=Math.min(w*.8,m(2.5)),bh2=m(3.1);if(e.k==='bus')s+=`<rect x="${cx-bw/2}" y="${base-bh2}" width="${bw}" height="${bh2}" rx="${m(.25)}" fill="#d9574a" stroke="#6b231b" stroke-width=".8"/><rect x="${cx-bw/2+bw*.1}" y="${base-bh2+bh2*.12}" width="${bw*.8}" height="${bh2*.3}" fill="#f3d8d3"/>`;}}
+    if(e.k==='lane'||(d.c==='park'&&d.road)||e.k==='mixed'||e.k==='turn'){const cw=Math.min(w*.72,m(1.8)),ch=m(1.45);s+=`<rect x="${cx-cw/2}" y="${base-ch}" width="${cw}" height="${ch}" rx="${m(.3)}" fill="#e9ecef" stroke="#3b4146" stroke-width=".8"/><rect x="${cx-cw/2+cw*.12}" y="${base-ch+ch*.15}" width="${cw*.76}" height="${ch*.35}" fill="#9fb4c3"/>`;}
+    if(e.k==='mixed'||e.k==='bus'||e.k==='brt'){if(e.k==='bus'||true){const bw=Math.min(w*.8,m(2.5)),bh2=m(3.1);if(e.k==='bus')s+=`<rect x="${cx-bw/2}" y="${base-bh2}" width="${bw}" height="${bh2}" rx="${m(.25)}" fill="#d9574a" stroke="#6b231b" stroke-width=".8"/><rect x="${cx-bw/2+bw*.1}" y="${base-bh2+bh2*.12}" width="${bw*.8}" height="${bh2*.3}" fill="#f3d8d3"/>`;}}
     if(e.k==='tram'){const bw=Math.min(w*.85,m(2.6)),bh2=m(3.4);s+=`<line x1="${cx}" y1="${base-bh2}" x2="${cx}" y2="${base-bh2-m(1.2)}" stroke="#3b4146"/><line x1="${cx-m(.6)}" y1="${base-bh2-m(1.2)}" x2="${cx+m(.6)}" y2="${base-bh2-m(1.2)}" stroke="#3b4146"/><rect x="${cx-bw/2}" y="${base-bh2}" width="${bw}" height="${bh2}" rx="${m(.3)}" fill="#e39a45" stroke="#6b421b" stroke-width=".8"/><rect x="${cx-bw/2+bw*.1}" y="${base-bh2+bh2*.12}" width="${bw*.8}" height="${bh2*.3}" fill="#fbe8cf"/>`;}
     if(e.k==='bike1'||e.k==='bike2'){const r=m(.33);const n=e.k==='bike2'?2:1;for(let i=0;i<n;i++){const bx=x+w*(i+1)/(n+1);s+=`<circle cx="${bx}" cy="${base-r}" r="${r}" fill="none" stroke="#123" stroke-width="1.1"/><line x1="${bx}" y1="${base-r}" x2="${bx}" y2="${base-m(1.25)}" stroke="#123" stroke-width="1.4"/><circle cx="${bx}" cy="${base-m(1.45)}" r="${m(.13)}" fill="#123"/>`;}}
     if(e.k==='walk'||e.k==='shared'||e.k==='facade'&&e.w>=1){const n=Math.max(1,Math.min(3,Math.floor(e.w/1.6)));for(let i=0;i<n;i++){const px=x+w*(i+1)/(n+1),h=m(1.7);s+=`<line x1="${px}" y1="${top}" x2="${px}" y2="${top-h*.85}" stroke="#2a3133" stroke-width="${Math.max(1.4,m(.12))}" stroke-linecap="round"/><circle cx="${px}" cy="${top-h*.93}" r="${Math.max(2,m(.12))}" fill="#2a3133"/>`;}}
@@ -357,12 +378,12 @@ function renderEditor(){
     <button class="btn sm" id="fitB">Kenglikka moslash</button><button class="btn sm" id="mirB">Oynali aks</button>
     ${w==='pr'?'<button class="btn sm" id="copyB">Mavjuddan nusxa</button>':''}</div>`;
   if(sel){
-    h+=`<div class="selbox"><select id="selK" aria-label="Element turi">${Object.entries(LIB).map(([k,d])=>`<option value="${k}" ${k===sel.k?'selected':''}>${d.n}</option>`).join('')}</select>
+    h+=`<div class="selbox"><select id="selK" aria-label="Element turi">${LIBG.map(([g,ks])=>`<optgroup label="${g}">${ks.map(k=>`<option value="${k}" ${k===sel.k?'selected':''}>${LIB[k].n}</option>`).join('')}</optgroup>`).join('')}</select>
     <input id="selW" type="number" step="0.05" min="0.2" value="${sel.w}" class="num" aria-label="Kenglik, m"><span class="small">m</span>
     <button class="btn sm" data-act="left" aria-label="Chapga">←</button><button class="btn sm" data-act="right" aria-label="Oʻngga">→</button>
     <button class="btn sm" data-act="dup">Nusxa</button><button class="btn sm" data-act="del" style="color:var(--bad)">Oʻchirish</button></div>`;
   } else h+=`<div class="small">Elementni tanlang yoki pastdan qoʻshing. Yangi element tanlangan elementdan keyin qoʻyiladi.</div>`;
-  h+=`<div><div class="pal-h">Qoʻshish</div><div class="palette">${Object.entries(LIB).map(([k,d])=>`<button data-add="${k}"><span class="sw" style="background:${d.col}"></span>${d.n}</button>`).join('')}</div></div>`;
+  h+=`<div><div class="pal-h">Qoʻshish</div>${LIBG.map(([g,ks])=>`<div class="small" style="margin:8px 0 4px;font-weight:600">${g}</div><div class="palette">${ks.map(k=>`<button data-add="${k}"><span class="sw" style="background:${LIB[k].col}"></span>${LIB[k].n}</button>`).join('')}</div>`).join('')}</div>`;
   h+=`<div><div class="pal-h">Tayyor sxemalar (joriy kenglikka moslanadi)</div><div class="tools">
     <button class="btn sm" data-tpl="complete">Toʻliq koʻcha</button><button class="btn sm" data-tpl="brt">Avtobus koridori</button>
     <button class="btn sm" data-tpl="tram">Tramvay + bulvar</button><button class="btn sm" data-tpl="calm">Tinch mahalla koʻchasi</button></div></div>`;
@@ -812,7 +833,7 @@ document.getElementById('copyC').onclick=async()=>{
 document.getElementById('bigMap').onclick=()=>{document.body.classList.toggle('big');setTimeout(()=>map.invalidateSize(),60);};
 
 /* Kesim: sunʼiy yoʻldosh tasnifidan koʻndalang profil */
-const CUT2LIB={road:'lane',park:'park',rail:'tram',bike:'bike1',ped:'walk',side:'walk',water:'ariq',veg:'trees',soil:'lawn',paved:'walk'};
+const CUT2LIB={road:'lane',park:'park',rail:'tram',bike:'bike1',ped:'walk',side:'walk',water:'water',veg:'trees',soil:'lawn',paved:'walk'};
 async function doCut(a,b){
   const total=map.distance(a,b);
   if(total<3||total>200){toast('Kesim uzunligi 3–200 m boʻlishi kerak.');return;}
@@ -1081,7 +1102,7 @@ const PRESETS={
 };
 const FIXED={shared:[['walk',2],['shared',6],['walk',2]],ped:[['walk',8]],pedT:[['green',2],['walk',8],['green',2]],
   greenway:[['green',1.5],['walk',3],['green',1],['bike',3,0],['green',1.5]],bikep:[['green',1],['bike',3,0],['green',1]],bike1:[['green',1],['bike',2,1],['green',1]]};
-const LIB2DK={walk:'walk',facade:'walk',shared:'shared',furn:'walk',trees:'green',ariq:'green',lawn:'green',median:'median',buffer:'buffer',park:'park',lane:'lane',mixed:'lane',bus:'bus',tram:'tram',bike1:'bike',bike2:'bike'};
+const LIB2DK={walk:'walk',facade:'walk',shared:'shared',furn:'walk',trees:'green',ariq:'green',lawn:'green',median:'median',buffer:'buffer',park:'park',lane:'lane',mixed:'lane',bus:'bus',tram:'tram',bike1:'bike',bike2:'bike',parklet:'furn',busstop:'walk',kiosk:'furn',rain:'rain',water:'rain',bikepark:'furn',bikeprot:'bike',park30:'park30',park45:'park45',park90:'park90',parkkerb:'walk',loading:'park',turn:'turn',hatch:'hatch',brt:'bus',island:'island',shoulder:'buffer',barrier:'buffer'};
 const KON0={pang:0,rain:0,furn:0,oneway:0,f:2,b:2,lw:3.5,med:'none',mw:3,bus:'none',tram:'none',bike:'none',park:'none',service:0,green:2,walk:3};
 function presetStrips(p){
   if(p==='custom'){const pr=S.prof.pr,tot=sum(pr);let cum=0;
@@ -2572,8 +2593,9 @@ const C3COL={asph:'#cfcddb',walk:'#eeedf1',facade:'#e6e4ec',furn:'#e2e0e8',green
   side:'#d9d6e2',edge:'#7d7b8c',wall:'#f3f0f5',win:'#d3def0',glass:'#dbe6f4',awn:'#ffffff',tree:'rgba(206,228,192,.78)',treeE:'#8fb07f',body:'#3f444c'};
 /* profil yoki loyiha koʻchasidan bir xil kesim roʻyxati: [{c,w,dir,k}] chapdan oʻngga */
 function c3FromProfile(p){const tot=sum(p);let cum=0;return p.map(e=>{const m=cum+e.w/2;cum+=e.w;const L2=LIB[e.k]||{};
-  const c={walk:'walk',facade:'facade',shared:'shared',furn:'furn',trees:'trees',ariq:'trees',lawn:'green',bike1:'bike',bike2:'bike',buffer:'buffer',park:'park',lane:'lane',mixed:'lane',bus:'bus',tram:'tram',median:'median'}[e.k]||'walk';
-  return {c,w:e.w,dir:L2.road||c==='bike'?(e.k==='bike2'?0:(m<tot/2?1:-1)):0,k:e.k,ang:0};});}
+  const c={walk:'walk',facade:'facade',shared:'shared',furn:'furn',trees:'trees',ariq:'trees',lawn:'green',bike1:'bike',bike2:'bike',bikeprot:'bike',buffer:'buffer',park:'park',park30:'park',park45:'park',park90:'park',loading:'park',lane:'lane',mixed:'lane',turn:'lane',hatch:'hatch',bus:'bus',brt:'bus',tram:'tram',median:'median',island:'island',rain:'rain',water:'water',parklet:'facade',busstop:'walk',kiosk:'furn',bikepark:'furn',parkkerb:'walk',shoulder:'buffer',barrier:'buffer'}[e.k]||'walk';
+  const ang={park30:30,park45:45,park90:90}[e.k]||0;
+  return {c,w:e.w,dir:(L2.road&&!['hatch'].includes(e.k))||c==='bike'?(e.k==='bike2'?0:(m<tot/2?1:-1)):0,k:e.k,ang};});}
 function c3FromSeg(sg){return stripsLayout(segStrips(sg),0).st.map(x=>{const k=x.k,d=DK[k]||{};
   let c={walk:'walk',shared:'shared',green:'trees',median:'median',buffer:'buffer',lane:'lane',turn:'lane',hatch:'hatch',bus:'bus',tram:'tram',bike:'bike',rain:'rain',island:'island',furn:'furn'}[k];
   if(isPk(k))c='park';return {c:c||'walk',w:x.w,dir:x.dir||0,k,ang:d.ang||0};});}
