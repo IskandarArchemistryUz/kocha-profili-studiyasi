@@ -538,13 +538,15 @@ const AC=[
   {k:'side',  n:'Yoʻl yoqasi / trotuar (taxmin)',     col:'#f0dda2', g:'Piyoda'},
   {k:'water', n:'Suv, kanal, ariq',                   col:'#3f86c6', g:'Suv'},
   {k:'veg',   n:'Oʻsimlik (daraxt, maysa)',           col:'#4f9a3e', g:'Yashil'},
-  {k:'soil',  n:'Ochiq tuproq',                       col:'#b08a5a', g:'Boshqa'},
+  {k:'soil',  n:'Ochiq tuproq / qizgʻish tomlar',                     col:'#b08a5a', g:'Boshqa'},
   {k:'paved', n:'Boshqa qattiq sirt (hovli, maydon)', col:'#bdb8ae', g:'Boshqa'},
   {k:'shadow',n:'Soya — aniqlanmagan',                col:'#2c2d36', g:'Aniqlanmagan'},
+  {k:'asph',  n:'Asfalt (yoʻl, parkovka, asfaltli hovli)', col:'#3e4349', g:'Asfalt'},
+  {k:'light', n:'Yorugʻ qattiq sirt (trotuar, maydon, tomlar)', col:'#e3d6b4', g:'Yorugʻ qattiq sirt'},
 ];
-const AG=[['Avto transport','#474c52'],['Jamoat transporti','#c47b2a'],['Velo','#2f8f7a'],['Piyoda','#e2bf55'],['Yashil','#4f9a3e'],['Suv','#3f86c6'],['Binolar','#c8553d'],['Boshqa','#bdb8ae'],['Aniqlanmagan','#2c2d36']];
+const AG=[['Asfalt','#3e4349'],['Yorugʻ qattiq sirt','#e3d6b4'],['Avto transport','#474c52'],['Jamoat transporti','#c47b2a'],['Velo','#2f8f7a'],['Piyoda','#e2bf55'],['Yashil','#4f9a3e'],['Suv','#3f86c6'],['Binolar','#c8553d'],['Boshqa','#bdb8ae'],['Aniqlanmagan','#2c2d36']];
 const A={tool:'rect',pts:[],busy:false,prog:0,msg:'',err:'',cache:null,res:null,opac:.65,
-  P:Object.assign({veg:.05,shadow:48,side:4,roadMul:1,zoom:'auto'},S.area?.P||{}),poly:S.area?.poly||null};
+  P:Object.assign({veg:.05,shadow:48,side:4,roadMul:1,zoom:'auto',src:'pix',osmB:false,asph:'auto'},S.area?.P||{}),poly:S.area?.poly||null};
 const areaL=L.layerGroup(); let classOverlay=null;
 const TS=256, gxf=(lon,z)=>(lon+180)/360*TS*2**z, gyf=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*TS*2**z;
 const lonf=(x,z)=>x/(TS*2**z)*360-180, latf=(y,z)=>Math.atan(Math.sinh(Math.PI*(1-2*y/(TS*2**z))))/R;
@@ -604,7 +606,7 @@ async function analyze(){
     let pix; try{pix=im.cx.getImageData(cx0,cy0,cw,ch).data;}catch(e){throw new Error('Brauzer sunʼiy yoʻldosh piksellarini oʻqishga ruxsat bermadi (CORS).');}
     setProg(.55,'OpenStreetMap: binolar, yoʻllar, trotuarlar olinmoqda…');
     const b=`(${bb.s},${bb.w},${bb.n},${bb.e})`;
-    const osm=await overpassRaw(`(way["building"]${b};relation["building"]${b};way["highway"]${b};way["area:highway"]${b};way["amenity"="parking"]${b};way["railway"~"^(tram|rail|light_rail|narrow_gauge)$"]${b};way["natural"="water"]${b};relation["natural"="water"]${b};way["waterway"]${b};way["landuse"="reservoir"]${b};);out geom;`);
+    let osm=[];try{osm=await overpassRaw(`(way["building"]${b};relation["building"]${b};way["highway"]${b};way["area:highway"]${b};way["amenity"="parking"]${b};way["railway"~"^(tram|rail|light_rail|narrow_gauge)$"]${b};way["natural"="water"]${b};relation["natural"="water"]${b};way["waterway"]${b};way["landuse"="reservoir"]${b};);out geom;`);}catch(e){if((A.P.src||'pix')!=='pix'||A.forceMix)throw e;notes.push('OpenStreetMap maʼlumoti olinmadi — tahlil faqat sunʼiy yoʻldosh piksellaridan.');}
     A.cache={z,gx0:im.ox+cx0,gy0:im.oy+cy0,cw,ch,pix,osm,bb,lat0,mpp:156543.03392*Math.cos(lat0*R)/2**z,notes};
     setProg(.85,'Piksellar tasniflanmoqda…');
     await new Promise(r=>setTimeout(r,20));
@@ -655,6 +657,17 @@ function classify(){
   const Mk=mask(()=>fillEls(parks));
   const Mw=mask(()=>{fillEls(wPoly);strokeEls(wLine,wW);});
 
+  const PIX=(P.src||'pix')==='pix'&&!A.forceMix;
+  // asfalt/yorugʻ sirt chegarasi: Otsu usuli (kulrang piksellar yorqinligi gistogrammasi)
+  let thrA=150;
+  if(PIX){const hist=new Float64Array(256);let n=0;
+    for(let i=0;i<N;i++){if(!Mpoly[i])continue;const r=pix[i*4],g=pix[i*4+1],b=pix[i*4+2],sm=r+g+b,br=sm/3,mx=Math.max(r,g,b),mn=Math.min(r,g,b),sat=(mx-mn)/(mx+1),exg=(2*g-r-b)/(sm+1);
+      if(exg>P.veg&&g>=r*.95)continue;if(br<P.shadow)continue;if(r>g&&g>b&&sat>.18&&br>70&&(r-b)>25)continue;hist[Math.min(255,Math.round(br))]++;n++;}
+    if(P.asph!=='auto'&&+P.asph>0)thrA=+P.asph;
+    else if(n>100){let sumA=0;for(let t=0;t<256;t++)sumA+=t*hist[t];let wB=0,sB=0,best=0,bt=128;const V=new Float64Array(256);for(let t=0;t<256;t++){wB+=hist[t];if(!wB)continue;const wF=n-wB;if(!wF)break;sB+=t*hist[t];const mB=sB/wB,mF=(sumA-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);V[t]=v;if(v>best)best=v;}
+      {let a=-1,b2=-1;for(let t=0;t<256;t++)if(V[t]>=best*.995){if(a<0)a=t;b2=t;}bt=Math.round((a+b2)/2);}
+      thrA=Math.max(70,Math.min(175,bt));}
+    A.thrA=thrA;}
   const keys=AC.map(c=>c.k), cnt=Object.fromEntries(keys.map(k=>[k,0])), cls=new Uint8Array(N).fill(255);
   let tot=0,canopy=0,roadAll=0,roadCan=0,pedAll=0,pedCan=0;
   const ki=Object.fromEntries(keys.map((k,i)=>[k,i]));
@@ -665,8 +678,12 @@ function classify(){
     const soil=!veg&&r>g&&g>b&&sat>.18&&br>70&&(r-b)>25;
     if(veg)canopy++;
     let k;
+    if(PIX){
+      if(P.osmB&&Mb[i])k='build';else if(veg)k='veg';else if(br<P.shadow)k='shadow';
+      else if(b>r+12&&b>=g&&sat>.12&&br<170)k='water';else if(soil)k='soil';else k=br<=thrA?'asph':'light';
+    }else{
     if(Mb[i])k='build';else if(Mw[i])k='water';else if(Mt[i])k='rail';else if(Mr[i])k='road';else if(Mc[i])k='bike';else if(Mp[i])k='ped';else if(Mk[i])k='park';
-    else if(veg)k='veg';else if(Mband[i]&&!soil&&br>=P.shadow)k='side';else if(soil)k='soil';else if(br<P.shadow)k='shadow';else k='paved';
+    else if(veg)k='veg';else if(Mband[i]&&!soil&&br>=P.shadow)k='side';else if(soil)k='soil';else if(br<P.shadow)k='shadow';else k='paved';}
     if(k==='road'){roadAll++;if(veg)roadCan++;} if(k==='ped'||k==='side'||(k==='veg'&&Mband[i])){pedAll++;if(veg)pedCan++;}
     cnt[k]++;cls[i]=ki[k];
   }
@@ -679,20 +696,27 @@ function classify(){
   if(classOverlay)areaL.removeLayer(classOverlay);
   classOverlay=L.imageOverlay(url,bounds,{opacity:A.opac});
   const px2=mpp*mpp;
-  A.res={tot,cnt,m2:tot*px2,px2,canopy,roadAll,roadCan,pedAll,pedCan,url,
+  A.res={pix:PIX,thrA:PIX?thrA:null,tot,cnt,m2:tot*px2,px2,canopy,roadAll,roadCan,pedAll,pedCan,url,
     cls,counts:{bld:bld.length,veh:vehL.length,ped:pedL.length+pedArea.length+ahPed.length,bike:bikeL.length,park:parks.length,water:wPoly.length+wLine.length},mpp,z};
   drawArea();
 }
 
 function renderAreaPanel(){
   const el=document.getElementById('areaPanel'),r=A.res;
-  let h=`<div><h2>Hudud tahlili</h2><p class="lead">Xaritada istalgan hududni belgilang. Sunʼiy yoʻldosh tasviri piksellarga ajratiladi va OSM qatlamlari bilan birlashtirilib, hudud qaysi funksiyalarga boʻlinganini foizda koʻrsatadi.</p></div>
+  let h=`<div><h2>Hudud tahlili</h2><p class="lead">Xaritada istalgan hududni belgilang. Sunʼiy yoʻldosh tasviri piksellarga ajratilib, hudud necha foiz asfalt, yashil, trotuar va boshqa sirtlardan iboratligi koʻrsatiladi.</p></div>
   <div class="seg"><button class="btn sm ${A.tool==='rect'?'primary':''}" data-tool="rect">Toʻrtburchak</button><button class="btn sm ${A.tool==='poly'?'primary':''}" data-tool="poly">Koʻpburchak</button><button class="btn sm" id="aView">Ekrandagi hudud</button>${A.poly&&!A.busy?'<button class="btn sm" id="aRe">Qayta hisoblash</button>':''}</div>`;
   if(A.err) h+=`<div class="warnbox" style="color:var(--bad);border-color:var(--bad)">${A.err}</div>`;
   if(A.busy) h+=`<div class="small">${A.msg}</div><div class="prog"><div style="width:${Math.round(A.prog*100)}%"></div></div>`;
   if(r&&!A.busy){
     const pc=k=>r.cnt[k]/r.tot*100, grp={};AG.forEach(([g])=>grp[g]=0);AC.forEach(c=>grp[c.g]+=pc(c.k));
-    h+=`<div class="big">
+    if(r.pix)h+=`<div class="big">
+      <div><b>${f2(r.m2/10000)}</b><span>ga, maydon</span></div>
+      <div><b>${f1(pc('asph'))}%</b><span>asfalt</span></div>
+      <div><b>${f1(pc('light'))}%</b><span>yorugʻ qattiq sirt (trotuar, maydon${A.P.osmB?'':', tomlar'})</span></div>
+      <div><b>${f1(pc('veg'))}%</b><span>yashil (daraxt, maysa)</span></div>
+      ${A.P.osmB?`<div><b>${f1(pc('build'))}%</b><span>binolar (OSM)</span></div>`:`<div><b>${f1(pc('soil')+pc('water'))}%</b><span>tuproq va suv</span></div>`}
+    </div>`;
+    else h+=`<div class="big">
       <div><b>${f2(r.m2/10000)}</b><span>ga, maydon</span></div>
       <div><b>${f1(grp['Avto transport'])}%</b><span>avto yoʻl + parkovka</span></div>
       <div><b>${f1(grp['Piyoda'])}%</b><span>piyoda (OSM + taxmin)</span></div>
@@ -702,27 +726,35 @@ function renderAreaPanel(){
     <div><div class="sbar" style="height:22px">${AG.map(([g,c])=>grp[g]>0?`<div style="width:${grp[g]}%;background:${c}" title="${g}: ${f1(grp[g])}%"></div>`:'').join('')}</div>
     <div class="legend" style="margin-top:6px">${AG.filter(([g])=>grp[g]>0.05).map(([g,c])=>`<span><i class="sw" style="background:${c}"></i>${g} <b class="num">${f1(grp[g])}%</b></span>`).join('')}</div></div>
     <div style="overflow-x:auto"><table class="ctab"><thead><tr><th>Sinf</th><th>m²</th><th>%</th></tr></thead><tbody>
-    ${AC.map(c=>`<tr><td><i class="sw" style="background:${c.col}"></i>${c.n}</td><td class="d">${fi(r.cnt[c.k]*r.px2)}</td><td class="d">${f1(pc(c.k))}</td></tr>`).join('')}
+    ${AC.filter(c=>r.cnt[c.k]>0).map(c=>`<tr><td><i class="sw" style="background:${c.col}"></i>${c.n}</td><td class="d">${fi(r.cnt[c.k]*r.px2)}</td><td class="d">${f1(pc(c.k))}</td></tr>`).join('')}
     <tr><td><b>Jami</b></td><td class="d"><b>${fi(r.m2)}</b></td><td class="d"><b>100,0</b></td></tr></tbody></table></div>
-    <table><tbody>
+    ${r.pix?`<table><tbody><tr><td>Asfalt / yorugʻ sirt chegarasi (yorqinlik)</td><td class="d">${r.thrA}${A.P.asph==='auto'?' (avto)':''}</td></tr><tr><td>Tasvir aniqligi</td><td class="d">${f2(r.mpp)} m/piksel (zoom ${r.z})</td></tr></tbody></table>`:''}
+    ${r.pix?'':`<table><tbody>
       <tr><td>Yoʻl sirtining daraxt soyasi ostidagi qismi</td><td class="d">${r.roadAll?f1(r.roadCan/r.roadAll*100)+'%':'—'}</td></tr>
       <tr><td>Piyoda zonasi (yoʻl yoqasi bilan) soyali qismi</td><td class="d">${r.pedAll?f1(r.pedCan/r.pedAll*100)+'%':'—'}</td></tr>
       <tr><td>Avto : piyoda maydon nisbati</td><td class="d">${grp['Piyoda']?'1 : '+f2(grp['Piyoda']/Math.max(grp['Avto transport'],.01)):'—'}</td></tr>
       <tr><td>Tasvir aniqligi</td><td class="d">${f2(r.mpp)} m/piksel (zoom ${r.z})</td></tr>
-    </tbody></table>`;
+    </tbody></table>`}`;
     const cN=r.counts, warns=[...(A.cache.notes||[])];
-    if(!cN.ped) warns.push('Bu hududda trotuar/piyoda yoʻlaklari OSMda chizilmagan: piyoda ulushi faqat «yoʻl yoqasi» taxminiga tayanadi.');
+    if(r.pix){warns.push('Hisob faqat sunʼiy yoʻldosh piksellaridan: daraxt tojlari ostidagi trotuar va yoʻl «yashil» boʻlib chiqadi; yorugʻ tomlar trotuardan ajratilmaydi (buning uchun «OSM binolari»ni yoqing). Tasvir sanasi nomaʼlum.');}
+    else{if(!cN.ped) warns.push('Bu hududda trotuar/piyoda yoʻlaklari OSMda chizilmagan: piyoda ulushi faqat «yoʻl yoqasi» taxminiga tayanadi.');
     if(!cN.bld) warns.push('OSMda binolar yoʻq — tomlar «boshqa qattiq sirt»ga tushgan boʻlishi mumkin.');
+    }
     if(r.cnt.shadow/r.tot>.08) warns.push('Soya ulushi yuqori. «Soya chegarasi»ni pasaytirib qayta hisoblang.');
-    h+=`<div class="small">OSM obyektlari: binolar <b class="num">${cN.bld}</b>, avto yoʻllar <b class="num">${cN.veh}</b>, piyoda <b class="num">${cN.ped}</b>, velo <b class="num">${cN.bike}</b>, parkovka <b class="num">${cN.park}</b>, suv <b class="num">${cN.water}</b>.</div>`;
+    if(!r.pix)h+=`<div class="small">OSM obyektlari: binolar <b class="num">${cN.bld}</b>, avto yoʻllar <b class="num">${cN.veh}</b>, piyoda <b class="num">${cN.ped}</b>, velo <b class="num">${cN.bike}</b>, parkovka <b class="num">${cN.park}</b>, suv <b class="num">${cN.water}</b>.</div>`;
     warns.forEach(w=>h+=`<div class="warnbox">${w}</div>`);
-    h+=`<details><summary>Qanday hisoblanadi va aniqligi</summary><p class="small">Binolar, yoʻllar, trotuarlar, parkovka, relslar va suv chegaralari OpenStreetMap geometriyasidan olinadi (yoʻl kengligi: <i>width</i> → <i>lanes</i> × 3,3 m → yoʻl toifasi boʻyicha standart). Oʻsimlik, ochiq tuproq va soya Esri World Imagery piksellari rangidan aniqlanadi (ExG = 2G−R−B indeksi). OSMda belgilanmagan, yoʻl chetidan belgilangan masofadagi qattiq sirt «yoʻl yoqasi / trotuar (taxmin)» deb olinadi. Daraxt tojlari yoʻl ustida boʻlsa, piksel funksional jihatdan yoʻl hisoblanadi; oʻsimlik qoplami foizi esa alohida, barcha piksellar boʻyicha beriladi. Sunʼiy yoʻldosh tasvirining olingan sanasi nomaʼlum — natijani joyida yoki yangi tasvir bilan tekshiring.</p></details>`;
+    if(r.pix)h+=`<details><summary>Qanday hisoblanadi va aniqligi</summary><p class="small">Har bir piksel Esri World Imagery tasviridan rangi boʻyicha tasniflanadi: oʻsimlik — yashillik indeksi (ExG); soya — past yorqinlik; tuproq va qizgʻish tomlar — iliq rang; qolgan kulrang sirtlar yorqinlik boʻyicha ikkiga boʻlinadi: qoramtir — asfalt, yorugʻ — trotuar, maydon, tomlar. Chegara Otsu usulida (yorqinlik gistogrammasidan) avtomatik tanlanadi yoki qoʻlda beriladi. OpenStreetMap faqat «binolarni ajratish» yoqilganda ishlatiladi.</p></details>`;
+    else h+=`<details><summary>Qanday hisoblanadi va aniqligi</summary><p class="small">Binolar, yoʻllar, trotuarlar, parkovka, relslar va suv chegaralari OpenStreetMap geometriyasidan olinadi (yoʻl kengligi: <i>width</i> → <i>lanes</i> × 3,3 m → yoʻl toifasi boʻyicha standart). Oʻsimlik, ochiq tuproq va soya Esri World Imagery piksellari rangidan aniqlanadi (ExG = 2G−R−B indeksi). OSMda belgilanmagan, yoʻl chetidan belgilangan masofadagi qattiq sirt «yoʻl yoqasi / trotuar (taxmin)» deb olinadi. Daraxt tojlari yoʻl ustida boʻlsa, piksel funksional jihatdan yoʻl hisoblanadi; oʻsimlik qoplami foizi esa alohida, barcha piksellar boʻyicha beriladi. Sunʼiy yoʻldosh tasvirining olingan sanasi nomaʼlum — natijani joyida yoki yangi tasvir bilan tekshiring.</p></details>`;
   }
+  const PX=(A.P.src||'pix')==='pix';
+  h+=`<div class="params" style="margin:6px 0"><label for="pSrc"><b>Tahlil manbasi</b></label><select id="pSrc" class="btn sm" style="grid-column:1/-1"><option value="pix" ${PX?'selected':''}>Sunʼiy yoʻldosh tasviri (piksellar)</option><option value="mix" ${PX?'':'selected'}>Sunʼiy yoʻldosh + OSM qatlamlari</option></select>
+    ${PX?`<label style="grid-column:1/-1;display:flex;gap:6px;align-items:center"><input type="checkbox" id="pOsmB" ${A.P.osmB?'checked':''}> Binolarni OSM dan ajratish (tomlar trotuarga qoʻshilmasin)</label>`:''}</div>`;
   h+=`<details ${r?'':'open'}><summary>Parametrlar</summary><div class="params" style="margin-top:8px">
+    ${PX?`<label for="pAs">Asfalt chegarasi (yorqinlik)</label><span class="num" id="vAs">${A.P.asph==='auto'?'avto'+(A.thrA?' ('+A.thrA+')':''):A.P.asph}</span><input id="pAs" type="range" min="60" max="190" step="1" value="${A.P.asph==='auto'?(A.thrA||130):A.P.asph}" style="grid-column:1/-1"><button class="btn sm" id="pAsAuto" style="grid-column:1/-1;justify-self:start">Avto (Otsu)</button>`:''}
     <label for="pVeg">Oʻsimlik sezgirligi (ExG chegarasi)</label><span class="num" id="vVeg">${A.P.veg.toFixed(3)}</span><input id="pVeg" type="range" min="0" max="0.15" step="0.005" value="${A.P.veg}" style="grid-column:1/-1">
     <label for="pSh">Soya chegarasi (yorqinlik)</label><span class="num" id="vSh">${A.P.shadow}</span><input id="pSh" type="range" min="10" max="90" step="1" value="${A.P.shadow}" style="grid-column:1/-1">
-    <label for="pSide">Trotuar taxmini: yoʻl chetidan, m</label><span class="num" id="vSide">${A.P.side}</span><input id="pSide" type="range" min="0" max="10" step="0.5" value="${A.P.side}" style="grid-column:1/-1">
-    <label for="pRm">Yoʻl kengligi koeffitsiyenti</label><span class="num" id="vRm">${A.P.roadMul}</span><input id="pRm" type="range" min="0.6" max="1.6" step="0.05" value="${A.P.roadMul}" style="grid-column:1/-1">
+    ${PX?'':`<label for="pSide">Trotuar taxmini: yoʻl chetidan, m</label><span class="num" id="vSide">${A.P.side}</span><input id="pSide" type="range" min="0" max="10" step="0.5" value="${A.P.side}" style="grid-column:1/-1">
+    <label for="pRm">Yoʻl kengligi koeffitsiyenti</label><span class="num" id="vRm">${A.P.roadMul}</span><input id="pRm" type="range" min="0.6" max="1.6" step="0.05" value="${A.P.roadMul}" style="grid-column:1/-1">`}
     <label for="pZ">Tasvir zoom</label><select id="pZ" class="btn sm"><option value="auto">avto</option><option>17</option><option>18</option><option>19</option></select>
   </div>${A.cache?'<button class="btn sm primary" id="aRecl" style="margin-top:8px">Parametrlar bilan qayta tasniflash</button>':''}</details>`;
   if(r&&!A.busy) h+=`<div class="tools"><button class="btn" id="aCsv">Natija (.csv)</button><button class="btn" id="aPng">Tasnif xaritasi (.png)</button><button class="btn" id="aGeo">Hudud chegarasi (.geojson)</button></div>`;
@@ -731,9 +763,14 @@ function renderAreaPanel(){
   el.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{A.tool=b.dataset.tool;A.pts=[];drawArea();renderHint();renderAreaPanel();});
   q('#aView').onclick=()=>{const b=map.getBounds();A.poly=[[b.getNorth(),b.getWest()],[b.getNorth(),b.getEast()],[b.getSouth(),b.getEast()],[b.getSouth(),b.getWest()]];A.pts=[];drawArea();analyze();};
   if(q('#aRe'))q('#aRe').onclick=analyze;
-  const bind=(id,key,vid,cast)=>{const i=q(id);i.oninput=()=>{A.P[key]=cast(i.value);q(vid).textContent=i.value;saveArea();};};
+  const bind=(id,key,vid,cast)=>{const i=q(id);if(!i)return;i.oninput=()=>{A.P[key]=cast(i.value);q(vid).textContent=i.value;saveArea();};};
   bind('#pVeg','veg','#vVeg',parseFloat);bind('#pSh','shadow','#vSh',parseFloat);bind('#pSide','side','#vSide',parseFloat);bind('#pRm','roadMul','#vRm',parseFloat);
   q('#pZ').value=A.P.zoom;q('#pZ').onchange=e=>{A.P.zoom=e.target.value;saveArea();};
+  const recl=()=>{if(A.cache){classify();}renderAreaPanel();};
+  q('#pSrc').onchange=e=>{A.P.src=e.target.value;saveArea();recl();};
+  if(q('#pOsmB'))q('#pOsmB').onchange=e=>{A.P.osmB=e.target.checked;saveArea();recl();};
+  if(q('#pAs')){q('#pAs').oninput=e=>{A.P.asph=+e.target.value;q('#vAs').textContent=e.target.value;saveArea();};q('#pAs').onchange=()=>recl();}
+  if(q('#pAsAuto'))q('#pAsAuto').onclick=()=>{A.P.asph='auto';saveArea();recl();};
   if(q('#aRecl'))q('#aRecl').onclick=()=>{if(A.cache&&A.cache.z!==(A.P.zoom==='auto'?A.cache.z:+A.P.zoom)){analyze();return;}classify();renderAreaPanel();};
   if(q('#aCsv'))q('#aCsv').onclick=()=>{const L2=['Sinf;Guruh;m2;%',...AC.map(c=>[c.n,c.g,Math.round(r.cnt[c.k]*r.px2),(r.cnt[c.k]/r.tot*100).toFixed(2)].join(';')),`Jami;;${Math.round(r.m2)};100`,'',
     `Oʻsimlik qoplami (sputnik), %;;;${(r.canopy/r.tot*100).toFixed(2)}`,`Yoʻl sirtining soyali qismi, %;;;${r.roadAll?(r.roadCan/r.roadAll*100).toFixed(2):''}`,`Tasvir aniqligi, m/piksel;;;${r.mpp.toFixed(3)}`];
@@ -833,7 +870,7 @@ document.getElementById('copyC').onclick=async()=>{
 document.getElementById('bigMap').onclick=()=>{document.body.classList.toggle('big');setTimeout(()=>map.invalidateSize(),60);};
 
 /* Kesim: sunʼiy yoʻldosh tasnifidan koʻndalang profil */
-const CUT2LIB={road:'lane',park:'park',rail:'tram',bike:'bike1',ped:'walk',side:'walk',water:'water',veg:'trees',soil:'lawn',paved:'walk'};
+const CUT2LIB={asph:'lane',light:'walk',road:'lane',park:'park',rail:'tram',bike:'bike1',ped:'walk',side:'walk',water:'water',veg:'trees',soil:'lawn',paved:'walk'};
 async function doCut(a,b){
   const total=map.distance(a,b);
   if(total<3||total>200){toast('Kesim uzunligi 3–200 m boʻlishi kerak.');return;}
@@ -928,7 +965,7 @@ async function autoProfile(){
   const H=35, ST=0.25;
   A.poly=[...offsetLine(ax.xy,H+4),...offsetLine(ax.xy,-(H+4)).reverse()].map(q=>toLL(q,ax.o));
   hint('Sunʼiy yoʻldosh tasviri va OSM tahlil qilinmoqda — profil aniqlanmoqda…');
-  await analyze();
+  A.forceMix=true;try{await analyze();}finally{A.forceMix=false;}
   if(!A.res||!A.res.cls||A.err){hint(null);return false;}
   const C=A.cache, cls=A.res.cls, c=cumLen(ax.xy), T=c[c.length-1], nD=Math.round(2*H/ST)+1, NA=AC.length;
   const cnt=Array.from({length:nD},()=>new Uint32Array(NA+1));
@@ -1498,7 +1535,7 @@ function designStats(){
   cats.forEach(c=>cnt[c]=0);for(let i=0;i<out.length;i++)if(out[i]>=0){cnt[cats[out[i]]]++;tot++;}
   return {cnt,tot,m2:tot*px2};
 }
-const EX2G={build:'build',road:'car',park:'car',rail:'pt',bike:'bike',ped:'ped',side:'ped',veg:'green',water:'green',soil:'other',paved:'other',shadow:'unk'};
+const EX2G={asph:'car',light:'ped',build:'build',road:'car',park:'car',rail:'pt',bike:'bike',ped:'ped',side:'ped',veg:'green',water:'green',soil:'other',paved:'other',shadow:'unk'};
 async function compareExisting(){
   const bb=designBBox();if(!bb){toast('Avval koʻcha chizing.');return;}
   A.poly=[[bb.n,bb.w],[bb.n,bb.e],[bb.s,bb.e],[bb.s,bb.w]];
