@@ -75,6 +75,8 @@ body.big .side{display:none}
 .leaflet-container{font-family:var(--sans);background:var(--panel3)}
 .hint{position:absolute;z-index:900;left:50%;bottom:14px;transform:translateX(-50%);width:max-content;max-width:min(640px,calc(100% - 32px));background:rgba(26,30,35,.92);color:#f2f3f5;border-radius:12px;padding:9px 14px;font-size:13px;box-shadow:var(--shadow);backdrop-filter:blur(6px)}
 .hint:empty{display:none}
+.hint{pointer-events:none}.hint button,.hint a,.hint input,.hint select{pointer-events:auto}
+.leaflet-container:focus,.leaflet-container:focus-visible{outline:none}
 .mapwrap:has(.viewtog:not([hidden])) .hint{bottom:62px}
 [hidden]{display:none!important}
 input[type=range]{accent-color:var(--acc)}
