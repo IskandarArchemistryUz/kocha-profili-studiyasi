@@ -42,7 +42,7 @@
   <header class="topbar">
     <div class="brand">
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#f5b83d"/><path d="M11 26L14 6M21 26L18 6" stroke="#1c2126" stroke-width="2.6" stroke-linecap="round"/><path d="M16 9v3M16 15v3M16 21v3" stroke="#1c2126" stroke-width="2" stroke-linecap="round"/></svg>
-      <div><h1>Koʻcha Profili Studiyasi</h1><span class="ver num">v12 · Archemistry Urban</span></div>
+      <div><h1>Koʻcha Profili Studiyasi</h1><span class="ver num">v13 · Archemistry Urban</span></div>
     </div>
     <div class="appseg" id="appTabs" role="group" aria-label="Boʻlim">
       <button data-app="area" aria-pressed="true">Hudud tahlili</button>
@@ -92,7 +92,8 @@
         <input id="opac" type="range" min="0" max="1" step="0.05" value="0.65">
       </div>
       <div class="basemap"><svg class="ic"><use href="#i-layers"/></svg>
-        <select id="baseSel" aria-label="Asosiy xarita"><option value="img">Sunʼiy yoʻldosh</option><option value="imgl">Sunʼiy yoʻldosh + nomlar</option><option value="street">Koʻcha xaritasi</option></select>
+        <select id="baseSel" aria-label="Asosiy xarita"><option value="img">Sunʼiy yoʻldosh (Esri)</option><option value="imgl">Sunʼiy yoʻldosh + OSM nomlar va chegaralar</option><option value="osm">OpenStreetMap (standart)</option><option value="carto">OSM — Voyager (toza)</option><option value="google">Google sunʼiy yoʻldosh (API kalit)</option><option value="street">Esri koʻcha xaritasi</option></select>
+        <button class="b3d" id="map3d" type="button" data-tip="3D shahar: OSM binolari hajmda, sunʼiy yoʻldosh va loyiha">3D shahar</button>
       </div>
       <div class="mtool" id="mtool"><div id="mlist"></div></div>
     </main>

@@ -108,10 +108,42 @@ const BASES={
   img:[L.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Sunʼiy yoʻldosh: Esri World Imagery'})],
   street:[L.tileLayer(ESRI+'World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Street Map'})],
 };
-BASES.imgl=[BASES.img[0],L.tileLayer(ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19})];
+const CARTO='https://{s}.basemaps.cartocdn.com/rastertiles/';
+const osmBnd=L.layerGroup();
+BASES.imgl=[BASES.img[0],L.tileLayer(CARTO+'voyager_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:21,maxNativeZoom:20,attribution:'Nomlar: © OpenStreetMap, © CARTO'}),osmBnd];
+BASES.osm=[L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:21,maxNativeZoom:19,attribution:'© OpenStreetMap hissadorlari'})];
+BASES.carto=[L.tileLayer(CARTO+'voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:21,maxNativeZoom:20,attribution:'© OpenStreetMap, © CARTO'})];
 let curBase=null;
-function setBase(k){if(curBase)curBase.forEach(l=>map.removeLayer(l));curBase=BASES[k]||BASES.img;curBase.forEach(l=>l.addTo(map));S.base=k;document.getElementById('baseSel').value=k;save();}
+/* Google Map Tiles API — faqat foydalanuvchining oʻz API kaliti bilan (rasmiy yoʻl) */
+async function googleBase(){
+  let key=S.gkey;
+  if(!key){key=(window.prompt('Google Map Tiles API kaliti (Google Cloud Console → Map Tiles API yoqilgan boʻlishi kerak). Kalit faqat shu brauzerda saqlanadi:')||'').trim();if(!key)return null;}
+  try{const r=await fetch('https://tile.googleapis.com/v1/createSession?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mapType:'satellite',language:'uz-UZ',region:'UZ'})});
+    const j=await r.json();if(!r.ok||!j.session)throw new Error(j.error?.message||('HTTP '+r.status));
+    S.gkey=key;save();
+    return [L.tileLayer(`https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=${j.session}&key=${encodeURIComponent(key)}`,{maxZoom:22,maxNativeZoom:21,attribution:'Tasvir: © Google'})];
+  }catch(e){toast('Google tasviri ochilmadi: '+e.message);S.gkey=null;save();return null;}
+}
+async function setBase(k){
+  let lay=BASES[k];
+  if(k==='google'){lay=BASES.google||await googleBase();if(lay)BASES.google=lay;else k=S.base&&S.base!=='google'?S.base:'img',lay=BASES[k];}
+  if(curBase)curBase.forEach(l=>map.removeLayer(l));curBase=lay||BASES.img;curBase.forEach(l=>l.addTo(map));S.base=k;document.getElementById('baseSel').value=k;save();
+  if(k==='imgl')setTimeout(loadBoundaries,0);
+}
 document.getElementById('baseSel').onchange=e=>setBase(e.target.value);
+/* OSM maʼmuriy chegaralari (Overpass) — sunʼiy yoʻldosh ustida */
+let bndKey='',bndT=0;
+async function loadBoundaries(){
+  if(S.base!=='imgl')return;const z=map.getZoom();if(z<8){osmBnd.clearLayers();return;}
+  const b=map.getBounds().pad(.2),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(v=>v.toFixed(3)).join(','),lv=z>=12?'4|5|6|8':z>=10?'2|4|5|6':'2|4';
+  const key=bb+lv;if(key===bndKey)return;bndKey=key;
+  try{const out=[];for(const l of lv.split('|')){const el=await overpassRaw(`rel[boundary=administrative][admin_level=${l}](${bb});way(r)(${bb});out geom;`);out.push([+l,el.filter(e=>e.type==='way'&&e.geometry)]);}
+    if(key!==bndKey)return;osmBnd.clearLayers();
+    const st={2:{color:'#ffffff',weight:3.5,dashArray:null},4:{color:'#ffd24d',weight:2.5,dashArray:'8 5'},5:{color:'#ffd24d',weight:2,dashArray:'4 4'},6:{color:'#ffe9a8',weight:1.6,dashArray:'6 4'},8:{color:'#fff3cf',weight:1,dashArray:'2 4'}};
+    out.forEach(([l,ws])=>ws.forEach(w=>L.polyline(w.geometry.map(g=>[g.lat,g.lon]),Object.assign({interactive:false,opacity:.95},st[l])).addTo(osmBnd)));
+  }catch(e){bndKey='';}
+}
+map.on('moveend',()=>{clearTimeout(bndT);bndT=setTimeout(loadBoundaries,700);});
 setBase(S.base||'img');
 L.control.scale({imperial:false,maxWidth:160,position:'bottomright'}).addTo(map);
 const planL=L.layerGroup().addTo(map), measL=L.layerGroup().addTo(map), drawL=L.layerGroup().addTo(map);
@@ -2455,5 +2487,50 @@ if(!S.helpSeen){S.helpSeen=1;save();setTimeout(openHelp,600);}
     if(!ok(e)){if(cont.style.cursor==='move')cont.style.cursor='';return;}cont.style.cursor=onSel(map.mouseEventToLatLng(e))?'move':'';});});
 })();
 {const _sa2=setApp;setApp=function(a){_sa2(a);if(a!=='design'){previewL.clearLayers();D.cur=null;}};}
+
+
+/* ===== 3D shahar: MapLibre GL + OpenFreeMap (OSM vektor) — binolar hajmda ===== */
+const ML_V='4.7.1';
+function loadMapLibre(){if(window.maplibregl)return Promise.resolve();
+  return new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href=`https://cdn.jsdelivr.net/npm/maplibre-gl@${ML_V}/dist/maplibre-gl.css`;document.head.appendChild(l);
+    const sc=document.createElement('script');sc.src=`https://cdn.jsdelivr.net/npm/maplibre-gl@${ML_V}/dist/maplibre-gl.js`;sc.onload=res;sc.onerror=()=>rej(new Error('MapLibre yuklanmadi'));document.head.appendChild(sc);});}
+let ML3=null;
+function designGeoJSON(){const fs=[];if(!S.design||!S.design.segs.length)return {type:'FeatureCollection',features:fs};
+  try{const {sh}=buildShapes();sh.forEach(x=>{if(x.t==='poly'&&x.ll&&x.ll.length>2){const r=x.ll.map(p=>[p[1],p[0]]);r.push(r[0]);fs.push({type:'Feature',properties:{col:x.col,z:x.z||0},geometry:{type:'Polygon',coordinates:[r]}});}
+    else if(x.t==='line'&&x.ll&&x.opt)fs.push({type:'Feature',properties:{col:x.opt.color||'#fff',w:x.opt.weight||1,z:x.z||0},geometry:{type:'LineString',coordinates:x.ll.map(p=>[p[1],p[0]])}});});}catch(e){}
+  fs.sort((a,b)=>a.properties.z-b.properties.z);return {type:'FeatureCollection',features:fs};}
+async function openCity3D(){
+  const wrap=document.querySelector('.mapwrap');let box=document.getElementById('ml3d');
+  if(!box){box=document.createElement('div');box.id='ml3d';box.className='ml3d';box.innerHTML=`<div class="mlmap" id="mlmap"></div>
+    <div class="mlbar"><b>3D shahar</b><label><input type="checkbox" id="mlSat" checked> Sunʼiy yoʻldosh</label><label><input type="checkbox" id="mlBld" checked> Binolar</label><label><input type="checkbox" id="mlDes" checked> Loyiha</label>
+    <label>Balandlik ×<input type="range" id="mlH" min="0.5" max="3" step="0.25" value="1" style="width:80px"></label><button class="btn sm" id="mlClose">✕ Yopish</button></div>
+    <div class="mlnote">Oʻng tugma (yoki Ctrl) bilan sudrang — aylantirish va qiyalik. Bino balandligi OSM dagi <i>height</i> / <i>building:levels</i> teglaridan; teg yoʻq binolar past koʻrinadi. Manba: © OpenStreetMap, OpenFreeMap.</div>`;
+    wrap.appendChild(box);}
+  box.hidden=false;
+  try{await loadMapLibre();}catch(e){box.hidden=true;toast(e.message+' — internetni tekshiring.');return;}
+  const c=map.getCenter(),z=Math.max(13,map.getZoom()-1);
+  if(ML3){ML3.jumpTo({center:[c.lng,c.lat],zoom:z});ML3.resize();refreshDesign3();return;}
+  ML3=new maplibregl.Map({container:'mlmap',style:'https://tiles.openfreemap.org/styles/liberty',center:[c.lng,c.lat],zoom:z,pitch:58,bearing:-18,maxPitch:80,antialias:true});
+  ML3.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+  ML3.on('load',()=>{
+    const firstSym=(ML3.getStyle().layers.find(l=>l.type==='symbol')||{}).id;
+    ML3.addSource('esri',{type:'raster',tiles:[ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Esri World Imagery'});
+    ML3.addLayer({id:'esri',type:'raster',source:'esri'},firstSym);
+    ML3.getStyle().layers.forEach(l=>{if(l.type==='fill-extrusion')ML3.setLayoutProperty(l.id,'visibility','none');});
+    ML3.addLayer({id:'kps-bld',type:'fill-extrusion',source:'openmaptiles','source-layer':'building',minzoom:13,
+      paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],6],0,'#e9e2d6',15,'#d9cbb5',40,'#c3a98a',100,'#9c7d5f'],
+        'fill-extrusion-height':['coalesce',['get','render_height'],6],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92}});
+    ML3.addSource('kps-des',{type:'geojson',data:designGeoJSON()});
+    ML3.addLayer({id:'kps-des-f',type:'fill',source:'kps-des',filter:['==','$type','Polygon'],paint:{'fill-color':['get','col'],'fill-opacity':.95}},'kps-bld');
+    ML3.addLayer({id:'kps-des-l',type:'line',source:'kps-des',filter:['==','$type','LineString'],paint:{'line-color':['get','col'],'line-width':['get','w']}},'kps-bld');
+    const q=id=>document.getElementById(id),vis=(ids,on)=>ids.forEach(i=>ML3.getLayer(i)&&ML3.setLayoutProperty(i,'visibility',on?'visible':'none'));
+    q('mlSat').onchange=e=>vis(['esri'],e.target.checked);q('mlBld').onchange=e=>vis(['kps-bld'],e.target.checked);q('mlDes').onchange=e=>vis(['kps-des-f','kps-des-l'],e.target.checked);
+    q('mlH').oninput=e=>{const k=+e.target.value;ML3.setPaintProperty('kps-bld','fill-extrusion-height',['*',k,['coalesce',['get','render_height'],6]]);ML3.setPaintProperty('kps-bld','fill-extrusion-base',['*',k,['coalesce',['get','render_min_height'],0]]);};
+  });
+  let mlWarn=0;ML3.on('error',e=>{if(!mlWarn&&!ML3.isStyleLoaded()){mlWarn=1;toast('3D xarita uslubi ochilmadi (OpenFreeMap): '+((e&&e.error&&e.error.message)||''));}});
+  document.getElementById('mlClose').onclick=()=>{const cc=ML3.getCenter();map.setView([cc.lat,cc.lng],Math.round(ML3.getZoom()+1));box.hidden=true;};
+}
+function refreshDesign3(){if(ML3&&ML3.getSource&&ML3.getSource('kps-des'))ML3.getSource('kps-des').setData(designGeoJSON());}
+document.getElementById('map3d').onclick=openCity3D;
 
 setMode('pick'); renderAll(); setApp(S.app||'area');

@@ -283,3 +283,12 @@ kbd{font:600 11px var(--mono);background:var(--panel2);border:1px solid var(--li
 .fgrid label,.fgrid .lbl{font-size:12px;color:var(--mute)}
 .fgrid select,.fgrid input[type=number],.addrow select{width:100%;padding:6px 8px;border:1px solid var(--line2);border-radius:7px;background:var(--panel)}
 .addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+
+.basemap .b3d{border:0;border-left:1px solid var(--line);background:none;font:700 12px var(--sans);padding:4px 8px;color:var(--ink);cursor:pointer}
+.basemap .b3d:hover{color:var(--acc)}
+.ml3d{position:absolute;inset:0;z-index:1500;background:#1a1e23}
+.ml3d .mlmap{position:absolute;inset:0}
+.ml3d .mlbar{position:absolute;z-index:5;left:12px;top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:5px 8px;box-shadow:var(--shadow);font-size:12.5px}
+.ml3d .mlbar label{display:flex;gap:4px;align-items:center;color:var(--ink)}
+.ml3d .mlbar .btn{padding:3px 9px}
+.ml3d .mlnote{position:absolute;z-index:5;left:12px;bottom:12px;max-width:520px;background:rgba(26,30,35,.9);color:#e8eaec;border-radius:9px;padding:7px 11px;font-size:12px}
