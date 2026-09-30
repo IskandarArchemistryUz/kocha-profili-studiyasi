@@ -2672,9 +2672,33 @@ document.getElementById('map3d').onclick=openCity3D;
 /* =====================================================================
    KONSEPTUAL 3D: koʻcha kesimining izometrik taqdimot koʻrinishi
    ===================================================================== */
-const C3={L:60,floors:(S.c3&&S.c3.floors)||5,ppl:(S.c3&&S.c3.ppl)??2,dims:(S.c3&&S.c3.dims)??true,bL:(S.c3&&S.c3.bL)??true,bR:(S.c3&&S.c3.bR)??'wire',src:null,ren:null,raf:0};
+const C3={L:60,pal:(S.c3&&S.c3.pal)||'pastel',shrub:(S.c3&&S.c3.shrub)??0,view:'iso',floors:(S.c3&&S.c3.floors)||5,ppl:(S.c3&&S.c3.ppl)??2,dims:(S.c3&&S.c3.dims)??true,bL:(S.c3&&S.c3.bL)??true,bR:(S.c3&&S.c3.bR)??'wire',src:null,ren:null,raf:0};
 const C3COL={asph:'#cfcddb',walk:'#eeedf1',facade:'#e6e4ec',furn:'#e2e0e8',green:'#d3e6c6',trees:'#d3e6c6',median:'#d3e6c6',rain:'#c4dcb8',bike:'#bfe0bd',bus:'#f1c9c4',tram:'#dcd6cc',park:'#d6d4e0',buffer:'#dedde4',island:'#e4e2e9',shared:'#ecebe6',hatch:'#cfcddb',water:'#bcd6e6',
   side:'#d9d6e2',edge:'#7d7b8c',wall:'#f3f0f5',win:'#d3def0',glass:'#dbe6f4',awn:'#ffffff',tree:'rgba(206,228,192,.78)',treeE:'#8fb07f',body:'#3f444c'};
+const C3PAL={
+  pastel:{n:'Pastel (lavanda)',asph:'#cfcddb',walk:'#eeedf1',facade:'#e6e4ec',furn:'#e2e0e8',green:'#d3e6c6',trees:'#d3e6c6',median:'#d3e6c6',rain:'#c4dcb8',bike:'#bfe0bd',bus:'#f1c9c4',tram:'#dcd6cc',park:'#d6d4e0',buffer:'#dedde4',island:'#e4e2e9',shared:'#ecebe6',hatch:'#cfcddb',water:'#bcd6e6',side:'#d9d6e2',edge:'#7d7b8c',wall:'#f3f0f5',win:'#d3def0',glass:'#dbe6f4',treeF:'rgba(196,222,178,.86)',treeH:'rgba(222,238,210,.7)',treeE:'#86a877',shrub:'#b9d6a6',bg:'#ffffff'},
+  warm:{n:'Iliq pastel (qum)',asph:'#d9cfc7',walk:'#f4ede4',facade:'#efe4d6',furn:'#eadfd0',green:'#dfe6bf',trees:'#dfe6bf',median:'#dfe6bf',rain:'#cfdcb0',bike:'#f3d9a7',bus:'#f2c1b1',tram:'#e3d4c1',park:'#e2d8cf',buffer:'#ece3d8',island:'#efe6da',shared:'#f3eadf',hatch:'#d9cfc7',water:'#c5dbe0',side:'#dccfc4',edge:'#8a7b70',wall:'#f7efe6',win:'#dfe3ea',glass:'#e3e8ee',treeF:'rgba(214,226,170,.88)',treeH:'rgba(236,242,208,.7)',treeE:'#a3a86f',shrub:'#cdd79f',bg:'#fffdf9'},
+  cool:{n:'Sovuq pastel (moviy)',asph:'#c9d0dd',walk:'#eef2f6',facade:'#e3e9f0',furn:'#dde4ec',green:'#cfe5d8',trees:'#cfe5d8',median:'#cfe5d8',rain:'#bcd9cb',bike:'#b9dfe0',bus:'#e9c7d3',tram:'#d3d8e0',park:'#d2d8e3',buffer:'#dde3ea',island:'#e3e8ef',shared:'#e9edf2',hatch:'#c9d0dd',water:'#b8d3ea',side:'#cfd6e2',edge:'#6f7a8c',wall:'#f0f3f7',win:'#cfdcef',glass:'#d6e2f2',treeF:'rgba(186,220,200,.86)',treeH:'rgba(218,238,226,.7)',treeE:'#7ea38f',shrub:'#aed2bd',bg:'#fbfdff'},
+  mint:{n:'Yalpiz va shaftoli',asph:'#d3d6d2',walk:'#f5f1ea',facade:'#efe8de',furn:'#e8e1d6',green:'#cdebd5',trees:'#cdebd5',median:'#cdebd5',rain:'#b9e0c6',bike:'#b5e3d3',bus:'#fbcdbd',tram:'#e2dcd2',park:'#dbddda',buffer:'#e7e5df',island:'#ece8e1',shared:'#f2eee6',hatch:'#d3d6d2',water:'#bfe0e8',side:'#d8d5cf',edge:'#7c8580',wall:'#f8f4ee',win:'#d5e5ea',glass:'#dcebee',treeF:'rgba(186,228,198,.86)',treeH:'rgba(222,244,228,.7)',treeE:'#7fb391',shrub:'#a9dcb8',bg:'#fffefb'},
+  mono:{n:'Monoxrom',asph:'#cfcfcf',walk:'#f1f1f1',facade:'#e8e8e8',furn:'#e2e2e2',green:'#dcdcdc',trees:'#dcdcdc',median:'#dcdcdc',rain:'#d4d4d4',bike:'#d8d8d8',bus:'#c9c9c9',tram:'#d5d5d5',park:'#d6d6d6',buffer:'#e0e0e0',island:'#e6e6e6',shared:'#ececec',hatch:'#cfcfcf',water:'#d0d0d0',side:'#d6d6d6',edge:'#6e6e6e',wall:'#f4f4f4',win:'#dcdcdc',glass:'#e2e2e2',treeF:'rgba(225,225,225,.85)',treeH:'rgba(245,245,245,.7)',treeE:'#8a8a8a',shrub:'#cfcfcf',bg:'#ffffff'},
+  vivid:{n:'Yorqin (reja ranglari)',asph:'#6b6e76',walk:'#e6dcc8',facade:'#dcd2bf',furn:'#cfc3a8',green:'#8cb36b',trees:'#8cb36b',median:'#86ad66',rain:'#6aa07f',bike:'#5fae88',bus:'#c35a4d',tram:'#8a8b90',park:'#7a7d84',buffer:'#d6d1c6',island:'#d3cab6',shared:'#e2d5b6',hatch:'#6b6e76',water:'#7fb2cf',side:'#b9b3a6',edge:'#55535f',wall:'#f2eee8',win:'#bcd0e6',glass:'#c9d8ea',treeF:'rgba(120,168,92,.9)',treeH:'rgba(160,200,120,.7)',treeE:'#4c7636',shrub:'#7fa860',bg:'#ffffff'}};
+Object.assign(C3COL,C3PAL[C3.pal]||C3PAL.pastel);
+/* koʻrinish tahlili: trotuardan eng yaqin harakat boʻlagidagi haydovchiga (soddalashtirilgan kesim boʻyicha) */
+function c3Sight(strips){
+  const S2=[];let x=0;strips.forEach(s=>{S2.push(Object.assign({x0:x,x1:x+s.w,xm:x+s.w/2},s));x+=s.w;});
+  const hedgeSet=['trees','green','median','rain','buffer'],out=[];
+  [['chap',1],['oʻng',-1]].forEach(([side,dir])=>{const walks=S2.filter(s=>['walk','shared','facade'].includes(s.c));if(!walks.length)return;
+    const w=dir>0?walks[0]:walks[walks.length-1];const lanes=S2.filter(s=>['lane','bus'].includes(s.c)&&(dir>0?s.x0>=w.x1:s.x1<=w.x0));if(!lanes.length)return;
+    const ln=dir>0?lanes[0]:lanes[lanes.length-1];const ex=dir>0?w.x1-.3:w.x0+.3,dx=ln.xm;
+    const obs=S2.filter(s=>dir>0?(s.x0>=w.x1-.01&&s.x1<=ln.x0+.01):(s.x1<=w.x0+.01&&s.x0>=ln.x1-.01)).map(s=>{
+      if(s.c==='park')return {x:s.xm,h:1.45,n:'parkovkadagi avtomobillar (≈1,45 m)'};
+      if(C3.shrub>0&&hedgeSet.includes(s.c))return {x:s.xm,h:C3.shrub,n:`butalar (${f2(C3.shrub)} m)`};return null;}).filter(Boolean);
+    const test=eh=>{const dh=1.15;return obs.filter(o=>{const t=(o.x-ex)/(dx-ex),hl=eh+(dh-eh)*t;return o.h>hl;});};
+    const kid=test(1.0),adult=test(1.6);
+    out.push(`<b>${side} trotuar → yaqin boʻlak:</b> kattalar (ko‘z 1,6 m) — ${adult.length?'<span style="color:#b3412f">toʻsilgan</span>: '+adult.map(o=>o.n).join(', '):'<span style="color:#2e7d4f">ochiq</span>'}; bola (ko‘z 1,0 m) — ${kid.length?'<span style="color:#b3412f">toʻsilgan</span>: '+kid.map(o=>o.n).join(', '):'<span style="color:#2e7d4f">ochiq</span>'}`);});
+  return out.length?out.join('<br>')+'<div style="color:#888;margin-top:3px">Soddalashtirilgan: haydovchi ko‘zi 1,15 m, toʻsiqlar kesim boʻyicha; daraxt tanasi hisobga olinmagan.</div>':'';
+}
+
 /* profil yoki loyiha koʻchasidan bir xil kesim roʻyxati: [{c,w,dir,k}] chapdan oʻngga */
 function c3FromProfile(p){const tot=sum(p);let cum=0;return p.map(e=>{const m=cum+e.w/2;cum+=e.w;const L2=LIB[e.k]||{};
   const c={walk:'walk',facade:'facade',shared:'shared',furn:'furn',trees:'trees',ariq:'trees',lawn:'green',bike1:'bike',bike2:'bike',bikeprot:'bike',buffer:'buffer',park:'park',park30:'park',park45:'park',park90:'park',loading:'park',lane:'lane',mixed:'lane',turn:'lane',hatch:'hatch',bus:'bus',brt:'bus',tram:'tram',median:'median',island:'island',rain:'rain',water:'water',parklet:'facade',busstop:'walk',kiosk:'furn',bikepark:'furn',parkkerb:'walk',shoulder:'buffer',barrier:'buffer'}[e.k]||'walk';
@@ -2729,20 +2753,24 @@ function c3Build(TH,strips,label){
     const t=new TH.CanvasTexture(cv);t.anisotropy=8;t.minFilter=TH.LinearMipmapLinearFilter;return TX[key]=t;};
   const spr=(t,wm,hm,ax=.5,ay=0)=>{const s2=new TH.Sprite(new TH.SpriteMaterial({map:t,transparent:true,depthWrite:false,alphaTest:.02}));s2.scale.set(wm,hm,1);s2.center.set(ax,ay);return s2;};
   // daraxt tojlari: dumaloq va choʻziq (ustunsimon), ichki soya bilan
-  const crownTex=(v)=>tex('crown'+v,512,v===1?768:512,(g,w,h)=>{const cx=w/2,cy=h/2,rx=w/2-8,ry=h/2-8;
-    g.fillStyle='rgba(196,222,178,.86)';g.beginPath();g.ellipse(cx,cy,rx,ry,0,0,7);g.fill();
-    g.fillStyle='rgba(222,238,210,.7)';g.beginPath();g.ellipse(cx-rx*.22,cy-ry*.25,rx*.55,ry*.5,0,0,7);g.fill();
+  const crownTex=(v)=>tex('crown'+v+C3.pal,512,v===1?768:512,(g,w,h)=>{const cx=w/2,cy=h/2,rx=w/2-8,ry=h/2-8;
+    g.fillStyle=C3COL.treeF;g.beginPath();g.ellipse(cx,cy,rx,ry,0,0,7);g.fill();
+    g.fillStyle=C3COL.treeH;g.beginPath();g.ellipse(cx-rx*.22,cy-ry*.25,rx*.55,ry*.5,0,0,7);g.fill();
     g.strokeStyle='rgba(120,160,105,.35)';g.lineWidth=5;for(let i=0;i<5;i++){const a2=i*1.3+.4;g.beginPath();g.arc(cx+Math.cos(a2)*rx*.35,cy+Math.sin(a2)*ry*.35,Math.min(rx,ry)*.28,a2,a2+1.6);g.stroke();}
-    g.strokeStyle='#86a877';g.lineWidth=7;g.beginPath();g.ellipse(cx,cy,rx,ry,0,0,7);g.stroke();});
+    g.strokeStyle=C3COL.treeE;g.lineWidth=7;g.beginPath();g.ellipse(cx,cy,rx,ry,0,0,7);g.stroke();});
   const trunkM=new TH.MeshLambertMaterial({color:'#9c9a8e'});
   const tree=(xx,y0,z,r,v)=>{const h=4.3+R()*1.1,tr=new TH.Mesh(new TH.CylinderGeometry(.09,.13,h,8),trunkM);tr.position.set(xx,y0+h/2,z);sc.add(tr);
     const cr=spr(crownTex(v),r*2,v===1?r*3:r*2,.5,.5);cr.position.set(xx,y0+h+(v===1?r*1.3:r*.85),z);sc.add(cr);};
   const treeSp=S.set&&S.set.treeSp?S.set.treeSp:8;
-  const grass=tex('grass',256,256,(g,w,h)=>{g.strokeStyle='#8fb07f';g.lineWidth=5;[[.15,.1],[.3,.25],[.45,.05],[.6,.2],[.78,.12],[.9,.3]].forEach(([x0,t])=>{g.beginPath();g.moveTo(w*x0,h);g.quadraticCurveTo(w*(x0+.03),h*.5,w*(x0+.08),h*t);g.stroke();});});
+  const grass=tex('grass'+C3.pal,256,256,(g,w,h)=>{g.strokeStyle=C3COL.treeE;g.lineWidth=5;[[.15,.1],[.3,.25],[.45,.05],[.6,.2],[.78,.12],[.9,.3]].forEach(([x0,t])=>{g.beginPath();g.moveTo(w*x0,h);g.quadraticCurveTo(w*(x0+.03),h*.5,w*(x0+.08),h*t);g.stroke();});});
   S2.forEach(s=>{const tr=s.c==='trees'||(s.c==='median'&&s.w>=1.5)||(s.c==='green'&&s.w>=2);
     if(tr){const v=s.c==='median'&&s.w<3?1:(R()<.25?1:0);for(let z=-L/2+treeSp/2;z<L/2;z+=treeSp){if(Math.abs(z-zebraZ)<3)continue;tree(s.xm,top(s),z,Math.min(3,1.7+s.w*.35)*(v?.75:1),v);}}
     if(s.c==='green'&&!tr||s.c==='rain'||s.c==='trees'){for(let z=-L/2+1;z<L/2;z+=s.c==='rain'?1.1:1.8){const b2=spr(grass,.7,.75);b2.position.set(s.x0+.25+R()*Math.max(.1,s.w-.5),top(s),z+R()*.6);sc.add(b2);}}
   });
+  // butalar (jonli toʻsiq)
+  if(C3.shrub>0){const hh=C3.shrub,shM=M(C3COL.shrub);S2.forEach(s=>{if(!['trees','green','median','rain','buffer'].includes(s.c)||s.w<.6)return;const bw=Math.min(.9,s.w*.5);
+    for(let z0=-L/2+1;z0<L/2-1;z0+=12){let z1=Math.min(L/2-1,z0+10.5);if(z1>zebraZ-3&&z0<zebraZ+3){if(z0<zebraZ-3)z1=zebraZ-3;else continue;}if(z1-z0<1)continue;
+      const g2=new TH.BoxGeometry(bw,hh,z1-z0),m2=new TH.Mesh(g2,shM);m2.position.set(s.xm,top(s)+hh/2,(z0+z1)/2);sc.add(m2);const e2=new TH.LineSegments(new TH.EdgesGeometry(g2),new TH.LineBasicMaterial({color:C3COL.treeE}));e2.position.copy(m2.position);sc.add(e2);}});}
   // ---- odamlar va velosipedchilar: silliq siluetlar, bir necha xil ----
   const INK='#40454d';
   const personTex=(v)=>tex('p'+v,256,640,(g,w,h)=>{g.fillStyle=v%3===1?'#545a63':INK;g.strokeStyle=g.fillStyle;const cx=w/2,sw=v%2?1:-1,kid=v===5;
@@ -2825,8 +2853,11 @@ async function openConcept3D(src){
       <label><input type="checkbox" id="c3dm"> Oʻlchamlar</label>
       <label>Chap bino <input type="checkbox" id="c3bl"></label>
       <label>Oʻng bino <select id="c3br"><option value="">yoʻq</option><option value="wire">kontur</option><option value="solid">toʻliq</option></select></label>
-      <span style="flex:1"></span><button class="btn sm" id="c3iso">Izometriya</button><button class="btn sm" id="c3png">PNG (yuqori sifat)</button><button class="btn sm primary" id="c3x">Yopish (Esc)</button></div>
-      <div id="c3c" style="flex:1;position:relative"></div><div style="position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#777">Sichqoncha: chap — aylantirish, oʻng — surish, gʻildirak — kattalashtirish. Konseptual tasvir, oʻlchamlar kesim boʻyicha.</div>`;
+      <label>Koʻrinish <select id="c3v"><option value="iso">Izometriya</option><option value="isoR">Izometriya (teskari)</option><option value="front">Old kesim</option><option value="top">Reja (yuqoridan)</option><option value="ped">👁 Piyoda koʻzi (1,6 m)</option><option value="kid">👁 Bola koʻzi (1,0 m)</option><option value="bike">👁 Velosipedchi (1,5 m)</option><option value="car">👁 Haydovchi (1,15 m)</option></select></label>
+      <label>Butalar <select id="c3s"><option value="0">yoʻq</option><option value="0.6">0,6 m</option><option value="1">1,0 m</option><option value="1.4">1,4 m</option></select></label>
+      <label>Palitra <select id="c3pal">${Object.entries(C3PAL).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('')}</select></label>
+      <span style="flex:1"></span><button class="btn sm" id="c3iso">Qayta markazlash</button><button class="btn sm" id="c3png">PNG (yuqori sifat)</button><button class="btn sm primary" id="c3x">Yopish (Esc)</button></div>
+      <div id="c3c" style="flex:1;position:relative"></div><div id="c3sight" style="position:absolute;right:12px;bottom:12px;max-width:520px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.45;box-shadow:var(--shadow)"></div><div style="position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#777">Sichqoncha: chap — aylantirish, oʻng — surish, gʻildirak — kattalashtirish. Konseptual tasvir, oʻlchamlar kesim boʻyicha.</div>`;
     document.body.appendChild(ov);
     ov.querySelector('#c3x').onclick=()=>{ov.hidden=true;cancelAnimationFrame(C3.raf);};
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!ov.hidden){ov.hidden=true;cancelAnimationFrame(C3.raf);}});}
@@ -2843,25 +2874,43 @@ async function openConcept3D(src){
   const Wp=host.clientWidth,Hp=host.clientHeight;ren.setPixelRatio(Math.min(2,devicePixelRatio));ren.setSize(Wp,Hp);
   const scene=new TH.Scene();scene.add(new TH.AmbientLight(0xffffff,.82));const dl=new TH.DirectionalLight(0xffffff,.3);dl.position.set(40,70,25);scene.add(dl);
   let built=null;
-  const cam=new TH.OrthographicCamera(-1,1,1,-1,-1000,2000);
+  const cam=new TH.OrthographicCamera(-1,1,1,-1,-1000,2000),pcam=new TH.PerspectiveCamera(62,Wp/Hp,.2,800);
   const ctl=new TH.OrbitControls(cam,ren.domElement);ctl.enableDamping=true;ctl.maxPolarAngle=Math.PI/2.1;
-  const iso=()=>{const bb=new TH.Box3().setFromObject(built.sc),c=bb.getCenter(new TH.Vector3());ctl.target.copy(c);cam.position.set(c.x+90,c.y+80,c.z+105);cam.up.set(0,1,0);cam.lookAt(c);cam.zoom=1;cam.updateMatrixWorld();
+  const pctl=new TH.OrbitControls(pcam,ren.domElement);pctl.enableDamping=true;pctl.enabled=false;pctl.rotateSpeed=.4;
+  let AC3=cam;
+  const fitOrtho=(off,up)=>{AC3=cam;ctl.enabled=true;pctl.enabled=false;const bb=new TH.Box3().setFromObject(built.sc),c=bb.getCenter(new TH.Vector3());ctl.target.copy(c);cam.position.set(c.x+off[0],c.y+off[1],c.z+off[2]);cam.up.set(...(up||[0,1,0]));cam.lookAt(c);cam.zoom=1;cam.updateMatrixWorld();
     const inv=cam.matrixWorldInverse;let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;[bb.min.x,bb.max.x].forEach(x=>[bb.min.y,bb.max.y].forEach(y=>[bb.min.z,bb.max.z].forEach(z=>{const v=new TH.Vector3(x,y,z).applyMatrix4(inv);x0=Math.min(x0,v.x);x1=Math.max(x1,v.x);y0=Math.min(y0,v.y);y1=Math.max(y1,v.y);})));
     let w=(x1-x0)*1.06,h=(y1-y0)*1.08;const asp=Wp/Hp;if(w/h>asp)h=w/asp;else w=h*asp;const cx=(x0+x1)/2,cy=(y0+y1)/2;
     cam.left=cx-w/2;cam.right=cx+w/2;cam.top=cy+h/2;cam.bottom=cy-h/2;cam.updateProjectionMatrix();ctl.update();};
-  const rebuild=(keepCam)=>{if(built)scene.remove(built.sc);built=c3Build(TH,strips,null);scene.add(built.sc);if(!keepCam)iso();
-    S.c3={floors:C3.floors,ppl:C3.ppl,dims:C3.dims,bL:C3.bL,bR:C3.bR};save();};
+  const S2x=()=>{let x=0;return strips.map(s=>{const o={...s,x0:x,x1:x+s.w,xm:x+s.w/2};x+=s.w;return o;});};
+  const eye=(kind)=>{const ss=S2x(),L=C3.L,zf=L/2-3;let st,ex,eh,lookDx=0;
+    const walks=ss.filter(s=>['walk','shared','facade'].includes(s.c)),lanes=ss.filter(s=>s.c==='lane'),bikes=ss.filter(s=>s.c==='bike');
+    if(kind==='ped'||kind==='kid'){st=walks[0];if(!st){toast('Profilda trotuar yoʻq.');return false;}ex=kind==='kid'?st.x1-.4:st.xm;eh=kind==='kid'?1.0:1.6;lookDx=kind==='kid'?4:1.5;}
+    if(kind==='bike'){st=bikes[0];if(!st){toast('Profilda velo yoʻlak yoʻq.');return false;}ex=st.xm;eh=1.5;}
+    if(kind==='car'){st=lanes.find(s=>s.dir>0)||lanes[0];if(!st){toast('Profilda harakat boʻlagi yoʻq.');return false;}ex=st.xm;eh=1.15+st.h;}
+    AC3=pcam;ctl.enabled=false;pctl.enabled=true;const y=(st.h||0)+eh;pcam.position.set(ex,y,zf);pctl.target.set(ex+lookDx,y-.25,zf-30);pcam.aspect=Wp/Hp;pcam.updateProjectionMatrix();pctl.update();
+    // kamera yonidagi odam siluetlarini yashirish
+    built.sc.traverse(o=>{if(o.isSprite&&o.position.distanceTo(pcam.position)<3.5)o.visible=false;});return true;};
+  const setView=v=>{C3.view=v;if(v==='iso')fitOrtho([90,80,105]);else if(v==='isoR')fitOrtho([-60,80,-115]);else if(v==='front')fitOrtho([0,6,300]);else if(v==='top')fitOrtho([0,300,.01],[-1,0,0]);else if(!eye(v)){C3.view='iso';q('#c3v').value='iso';fitOrtho([90,80,105]);}};
+  const iso=()=>setView(C3.view);
+  const rebuild=(keepCam)=>{if(built)scene.remove(built.sc);Object.assign(C3COL,C3PAL[C3.pal]||C3PAL.pastel);ren.setClearColor(C3COL.bg,1);built=c3Build(TH,strips,null);scene.add(built.sc);
+    if(!keepCam||AC3===pcam)iso();q('#c3sight').innerHTML=c3Sight(strips)||'';q('#c3sight').hidden=!q('#c3sight').innerHTML;
+    S.c3={floors:C3.floors,ppl:C3.ppl,dims:C3.dims,bL:C3.bL,bR:C3.bR,pal:C3.pal,shrub:C3.shrub};save();};
   rebuild();
+  q('#c3v').value=C3.view;q('#c3s').value=String(C3.shrub);q('#c3pal').value=C3.pal;
+  q('#c3v').onchange=e=>{rebuild(true);setView(e.target.value);};
+  q('#c3s').onchange=e=>{C3.shrub=+e.target.value;rebuild(true);};
+  q('#c3pal').onchange=e=>{C3.pal=e.target.value;rebuild(true);};
   q('#c3f').oninput=e=>{C3.floors=+e.target.value;q('#c3fv').textContent=C3.floors;rebuild(true);};
   q('#c3p').onchange=e=>{C3.ppl=+e.target.value;rebuild(true);};
   q('#c3dm').onchange=e=>{C3.dims=e.target.checked;rebuild(true);};
   q('#c3bl').onchange=e=>{C3.bL=e.target.checked;rebuild(true);};
   q('#c3br').onchange=e=>{C3.bR=e.target.value||false;rebuild(true);};
   q('#c3iso').onclick=()=>iso();
-  q('#c3png').onclick=()=>{const pr=ren.getPixelRatio();ren.setPixelRatio(3);ren.render(scene,cam);const u=ren.domElement.toDataURL('image/png');ren.setPixelRatio(pr);ren.render(scene,cam);
+  q('#c3png').onclick=()=>{const pr=ren.getPixelRatio();ren.setPixelRatio(3);ren.render(scene,AC3);const u=ren.domElement.toDataURL('image/png');ren.setPixelRatio(pr);ren.render(scene,AC3);
     const a=document.createElement('a');a.href=u;a.download=(typeof slug==='function'?slug():'kocha')+'-konsept-3d.png';a.click();toast('PNG saqlandi');};
-  cancelAnimationFrame(C3.raf);const loop=()=>{C3.raf=requestAnimationFrame(loop);ctl.update();ren.render(scene,cam);};loop();
-  window.__C3={scene,cam,ren,built};
+  cancelAnimationFrame(C3.raf);const loop=()=>{C3.raf=requestAnimationFrame(loop);(AC3===pcam?pctl:ctl).update();ren.render(scene,AC3);};loop();
+  window.__C3={scene,cam,pcam,ren,built,setView};
 }
 /* tugmalar: profil paneli, koʻcha muharriri, oʻng tugma menyusi */
 {const _rs2=renderSite;renderSite=function(){_rs2();const el=document.getElementById('site');if(!el||!S.prof)return;
