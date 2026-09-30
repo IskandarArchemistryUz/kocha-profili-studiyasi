@@ -2718,7 +2718,7 @@ function c3Text(TH,txt,size=1){const cv=document.createElement('canvas'),g=cv.ge
   g.font='600 64px sans-serif';g.fillStyle='#4a4957';g.textBaseline='middle';g.fillText(txt,10,44);const t=new TH.CanvasTexture(cv);
   const m=new TH.Mesh(new TH.PlaneGeometry(size*cv.width/84,size),new TH.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));return m;}
 function c3Build(TH,strips,label){
-  const sc=new TH.Group(),L=C3.L,W=strips.reduce((a,s)=>a+s.w,0);let rnd=7;const R=()=>{rnd=(rnd*16807)%2147483647;return (rnd-1)/2147483646;};
+  const SEC=C3.view==='front',sc=new TH.Group(),L=SEC?10:C3.L,W=strips.reduce((a,s)=>a+s.w,0);let rnd=7;const R=()=>{rnd=(rnd*16807)%2147483647;return (rnd-1)/2147483646;};
   const eM=new TH.LineBasicMaterial({color:C3COL.edge}),mat={};const M=c=>mat[c]||(mat[c]=new TH.MeshLambertMaterial({color:c}));
   const box=(w,h,d,x,y,z,col,edges=true,parent=sc)=>{const g=new TH.BoxGeometry(w,h,d),m=new TH.Mesh(g,M(col));m.position.set(x,y,z);parent.add(m);if(edges){const e=new TH.LineSegments(new TH.EdgesGeometry(g),eM);e.position.copy(m.position);parent.add(e);}return m;};
   const flat=(w,d,x,z,y,col,rot=0)=>{const m=new TH.Mesh(new TH.PlaneGeometry(w,d),new TH.MeshBasicMaterial({color:col,transparent:col==='#ffffff'?false:false}));m.rotation.x=-Math.PI/2;m.rotation.z=rot;m.position.set(x,y,z);sc.add(m);return m;};
@@ -2732,7 +2732,7 @@ function c3Build(TH,strips,label){
   // chiziqlar, yoʻl belgilari
   const dash=(xx,y,len=3,gap=6,col='#ffffff',wid=.15)=>{for(let z=-L/2+2;z<L/2-2;z+=len+gap)flat(wid,len,xx,z+len/2,y,col);};
   const solid=(xx,y,col='#ffffff',wid=.15,z0=-L/2,z1=L/2)=>flat(wid,z1-z0,xx,(z0+z1)/2,y,col);
-  const zebraZ=L/2-7;
+  const zebraZ=SEC?1e9:L/2-7;
   S2.forEach((s,i)=>{const n=S2[i+1];
     if(['lane','bus','tram','hatch','park'].includes(s.c)&&n&&['lane','bus','tram','hatch','park'].includes(n.c)){const y=Math.max(top(s),top(n));
       if(s.dir&&n.dir&&s.dir!==n.dir)solid(s.x1,y,'#ffffff',.3);else if(s.c==='park'||n.c==='park')solid(s.x1,y,'#ffffff',.12);else if(s.c==='bus'||n.c==='bus')solid(s.x1,y,'#ffffff',.25);else dash(s.x1,y);}
@@ -2745,7 +2745,7 @@ function c3Build(TH,strips,label){
     if(s.c==='park'){const ang=s.ang||0,sp=ang===0?6:ang===90?2.5:ang===45?3.5:5;for(let z=-L/2+1;z<L/2-10;z+=sp){if(ang===0)flat(s.w*.9,.12,s.xm,z,top(s),'#ffffff');else{const len=s.w/Math.sin(ang*Math.PI/180);flat(.12,Math.min(len,s.w*1.6),s.xm,z,top(s),'#ffffff',(90-ang)*Math.PI/180);}}}
   });
   // piyoda oʻtish joyi (zebra) — barcha qatnov va velo polosalari boʻylab
-  S2.forEach(s=>{if(['lane','bus','tram','park','hatch'].includes(s.c)){for(let xx=s.x0+.35;xx<s.x1-.3;xx+=1)flat(.5,4,xx+.25,zebraZ,top(s)+.011,'#ffffff');flat(s.w,.3,s.xm,zebraZ-2.9,top(s)+.011,'#ffffff');}
+  if(!SEC)S2.forEach(s=>{if(['lane','bus','tram','park','hatch'].includes(s.c)){for(let xx=s.x0+.35;xx<s.x1-.3;xx+=1)flat(.5,4,xx+.25,zebraZ,top(s)+.011,'#ffffff');flat(s.w,.3,s.xm,zebraZ-2.9,top(s)+.011,'#ffffff');}
     if(s.c==='bike')flat(s.w,4,s.xm,zebraZ,top(s)+.011,'#a9d3a6');});
   // ---- teksturalar keshi (yuqori aniqlikda) ----
   const TX=C3.tx||(C3.tx={});
@@ -2791,8 +2791,8 @@ function c3Build(TH,strips,label){
     g.lineWidth=18;g.beginPath();g.moveTo(sx,sy-6);g.lineTo(px+30,y-r*.55);g.lineTo(px,py);g.stroke();});// oyoq
   const dens=[0,.05,.12,.25][C3.ppl]||0;
   S2.forEach(s=>{const ped=['walk','shared','facade','island'].includes(s.c);
-    if(ped&&dens){const n=Math.round(L*s.w*dens*.35);for(let i=0;i<n;i++){const v=Math.floor(R()*6),hh=(1.62+R()*.25);const p2=spr(personTex(v),hh*.4,hh);p2.position.set(s.x0+.3+R()*(s.w-.6),top(s),-L/2+2+R()*(L-4));sc.add(p2);}}
-    if(s.c==='bike'&&dens){const n=Math.max(1,Math.round(L*dens*.12));for(let i=0;i<n;i++){const p2=spr(bikeTex,1.85,1.62);p2.position.set(s.xm,top(s),-L/2+3+R()*(L-6));sc.add(p2);}}
+    if(ped&&dens){const n=SEC?Math.max(1,Math.min(3,Math.round(s.w/1.6))):Math.round(L*s.w*dens*.35);for(let i=0;i<n;i++){const v=Math.floor(R()*6),hh=(1.62+R()*.25);const p2=spr(personTex(v),hh*.4,hh);p2.position.set(s.x0+.3+R()*(s.w-.6),top(s),-L/2+2+R()*(L-4));sc.add(p2);}}
+    if(s.c==='bike'&&dens){const n=SEC?1:Math.max(1,Math.round(L*dens*.12));for(let i=0;i<n;i++){const p2=spr(bikeTex,1.85,1.62);p2.position.set(s.xm,top(s),-L/2+3+R()*(L-6));sc.add(p2);}}
   });
   // ---- transport: silliq kuzov (profil ekstruziyasi), oynalar, gʻildiraklar ----
   const white=M('#fbfbfa'),glassM=new TH.MeshLambertMaterial({color:'#c9d6e6'}),tyreM=new TH.MeshLambertMaterial({color:'#5b5f66'}),eM2=new TH.LineBasicMaterial({color:'#8d8b9a'});
@@ -2809,10 +2809,11 @@ function c3Build(TH,strips,label){
     g.rotation.y=Math.PI/2;g.position.set(xx,y,z);sc.add(g);return g;};
   const vehDens=[0,.6,1,1.5][C3.ppl]||.6,carCols=[null,null,null,'#e9ecef','#dfe3e8',null,'#f1ede6'];
   S2.forEach(s=>{const y=top(s);
+    if(SEC){const cc=carCols[Math.floor(R()*carCols.length)];if(s.c==='lane')car(s.xm,y,-1,s.dir<0?Math.PI:0,cc);if(s.c==='bus')longV(s.xm,y,-2,12,3.1,'#fbfbfa',C3COL.glass);if(s.c==='tram'&&s.dir>=0)longV(s.xm,y+.05,-2,9.4,3.3,'#fbfbfa','#c9d6e6');if(s.c==='park')car(s.xm,y,-1,(s.ang||0)*Math.PI/180,cc);return;}
     if(s.c==='lane'){let z=-L/2+4+R()*8;while(z<L/2-12){if(Math.abs(z-zebraZ)>5)car(s.xm,y,z,s.dir<0?Math.PI:0,carCols[Math.floor(R()*carCols.length)]);z+=(10+R()*22)/vehDens;}}
     if(s.c==='bus'){const z=-L/2+12+R()*(L-30);longV(s.xm,y,z,12,3.1,'#fbfbfa',C3COL.glass);}
     if(s.c==='tram'&&s.dir>=0){for(let k=0;k<3;k++)longV(s.xm,y+.05,-L/2+14+k*9.8,9.4,3.3,'#fbfbfa','#c9d6e6');}
-    if(s.c==='park'){for(let z=-L/2+3;z<L/2-10;z+=(s.ang===0?6:s.ang===90?2.5:4)*(R()<.35?2:1)){const rot=s.ang?(90-s.ang)*Math.PI/180:0;car(s.xm,y,z,rot,carCols[Math.floor(R()*carCols.length)]);}}
+    if(s.c==='park'){for(let z=-L/2+3;z<L/2-10;z+=(s.ang===0?6:s.ang===90?2.5:4)*(R()<.35?2:1)){const rot=(s.ang||0)*Math.PI/180;car(s.xm,y,z,rot,carCols[Math.floor(R()*carCols.length)]);}}
   });
   // jihozlar: skameykalar, chiroqlar, kafe stollari
   const bench=(xx,y,z)=>box(.5,.45,1.8,xx,y+.225,z,'#ffffff');
@@ -2833,8 +2834,12 @@ function c3Build(TH,strips,label){
     for(let z=-L/2+2.5;z<L/2-2;z+=4){for(let f=shop?1:0;f<fl;f++){const m=new TH.Mesh(new TH.PlaneGeometry(1.6,1.7),new TH.MeshBasicMaterial({color:C3COL.win}));m.rotation.y=Math.PI/2;m.position.set(.02,f*fh+1.9,z);sc.add(m);}
       if(shop){const m=new TH.Mesh(new TH.PlaneGeometry(3.4,2.6),new TH.MeshBasicMaterial({color:C3COL.glass}));m.rotation.y=Math.PI/2;m.position.set(.02,1.4,z);sc.add(m);box(1.2,.12,3.4,.6,3,z,C3COL.awn);}}}
   if(C3.bR){const bx=W+Bd/2,g=new TH.BoxGeometry(Bd,BH,L);if(C3.bR==='wire'){const e=new TH.LineSegments(new TH.EdgesGeometry(g),new TH.LineBasicMaterial({color:'#b9b7c6'}));e.position.set(bx,BH/2,0);sc.add(e);}else box(Bd,BH,L,bx,BH/2,0,C3COL.wall);}
+  if(SEC){const wm=new TH.MeshBasicMaterial({color:C3COL.win}),fh2=3.1,fl2=C3.floors,Bd2=12,BH2=fl2*fh2+.6;
+    const faceWin=(x0)=>{for(let f=0;f<fl2;f++)for(let u=1.2;u<Bd2-1;u+=2.6){const m=new TH.Mesh(new TH.PlaneGeometry(1.4,1.6),wm);m.position.set(x0+u+.7,f*fh2+1.9,L/2+.03);sc.add(m);}};
+    if(C3.bL)faceWin(-Bd2);if(C3.bR==='solid')faceWin(W);
+    if(C3.dims){const yb=-base-.9;line([[0,yb,L/2+.05],[W,yb,L/2+.05]],'#4a4957');[0,W].forEach(xx=>line([[xx,-base-.3,L/2+.05],[xx,yb-.4,L/2+.05]],'#4a4957'));const t=c3Text(TH,f2(W)+' m',1.1);t.position.set(W/2,yb-.8,L/2+.05);sc.add(t);S2.forEach(s=>{if(s.w<1.2)return;const t2=c3Text(TH,f1(s.w),.75);t2.position.set(s.xm,-base/2,L/2+.03);sc.add(t2);line([[s.x1,0,L/2+.02],[s.x1,-base,L/2+.02]],'#9b99aa');});}}
   // oʻlchamlar
-  if(C3.dims){const zf=L/2+2.2;line([[0,0,zf],[W,0,zf]],'#4a4957');[0,W].forEach(xx=>line([[xx,0,L/2+.4],[xx,0,zf+.8]],'#4a4957'));
+  if(C3.dims&&!SEC){const zf=L/2+2.2;line([[0,0,zf],[W,0,zf]],'#4a4957');[0,W].forEach(xx=>line([[xx,0,L/2+.4],[xx,0,zf+.8]],'#4a4957'));
     const t=c3Text(TH,f2(W)+' m',2.2);t.rotation.x=-Math.PI/2;t.position.set(W/2,0,zf+1.3);sc.add(t);
     S2.forEach(s=>{if(s.w<1.2)return;const t2=c3Text(TH,f1(s.w),.75);t2.position.set(s.xm,-base/2,L/2+.02);sc.add(t2);line([[s.x1,0,L/2+.01],[s.x1,-base,L/2+.01]],'#9b99aa');});}
   if(label){const t=c3Text(TH,label,1.6);t.rotation.x=-Math.PI/2;t.position.set(W/2,0,-L/2-3);sc.add(t);}
@@ -2857,7 +2862,7 @@ async function openConcept3D(src){
       <label>Butalar <select id="c3s"><option value="0">yoʻq</option><option value="0.6">0,6 m</option><option value="1">1,0 m</option><option value="1.4">1,4 m</option></select></label>
       <label>Palitra <select id="c3pal">${Object.entries(C3PAL).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('')}</select></label>
       <span style="flex:1"></span><button class="btn sm" id="c3iso">Qayta markazlash</button><button class="btn sm" id="c3png">PNG (yuqori sifat)</button><button class="btn sm primary" id="c3x">Yopish (Esc)</button></div>
-      <div id="c3c" style="flex:1;position:relative"></div><div id="c3sight" style="position:absolute;right:12px;bottom:12px;max-width:520px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.45;box-shadow:var(--shadow)"></div><div style="position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#777">Sichqoncha: chap — aylantirish, oʻng — surish, gʻildirak — kattalashtirish. Konseptual tasvir, oʻlchamlar kesim boʻyicha.</div>`;
+      <div id="c3c" style="flex:1;position:relative"></div><div id="c3sight" style="position:absolute;right:12px;top:92px;max-width:460px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.45;box-shadow:var(--shadow)"></div><div style="position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#777">Sichqoncha: chap — aylantirish, oʻng — surish, gʻildirak — kattalashtirish. Konseptual tasvir, oʻlchamlar kesim boʻyicha.</div>`;
     document.body.appendChild(ov);
     ov.querySelector('#c3x').onclick=()=>{ov.hidden=true;cancelAnimationFrame(C3.raf);};
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!ov.hidden){ov.hidden=true;cancelAnimationFrame(C3.raf);}});}
@@ -2891,14 +2896,14 @@ async function openConcept3D(src){
     AC3=pcam;ctl.enabled=false;pctl.enabled=true;const y=(st.h||0)+eh;pcam.position.set(ex,y,zf);pctl.target.set(ex+lookDx,y-.25,zf-30);pcam.aspect=Wp/Hp;pcam.updateProjectionMatrix();pctl.update();
     // kamera yonidagi odam siluetlarini yashirish
     built.sc.traverse(o=>{if(o.isSprite&&o.position.distanceTo(pcam.position)<3.5)o.visible=false;});return true;};
-  const setView=v=>{C3.view=v;if(v==='iso')fitOrtho([90,80,105]);else if(v==='isoR')fitOrtho([-60,80,-115]);else if(v==='front')fitOrtho([0,6,300]);else if(v==='top')fitOrtho([0,300,.01],[-1,0,0]);else if(!eye(v)){C3.view='iso';q('#c3v').value='iso';fitOrtho([90,80,105]);}};
+  const setView=v=>{C3.view=v;dl.position.set(...(v==='front'?[25,50,120]:[40,70,25]));if(v==='iso')fitOrtho([90,80,105]);else if(v==='isoR')fitOrtho([-60,80,-115]);else if(v==='front')fitOrtho([0,0,300]);else if(v==='top')fitOrtho([0,300,.01],[-1,0,0]);else if(!eye(v)){C3.view='iso';q('#c3v').value='iso';fitOrtho([90,80,105]);}};
   const iso=()=>setView(C3.view);
   const rebuild=(keepCam)=>{if(built)scene.remove(built.sc);Object.assign(C3COL,C3PAL[C3.pal]||C3PAL.pastel);ren.setClearColor(C3COL.bg,1);built=c3Build(TH,strips,null);scene.add(built.sc);
-    if(!keepCam||AC3===pcam)iso();q('#c3sight').innerHTML=c3Sight(strips)||'';q('#c3sight').hidden=!q('#c3sight').innerHTML;
+    if(!keepCam||AC3===pcam)iso();{const sh=c3Sight(strips)||'';q('#c3sight').innerHTML=sh?'<button id="c3sx" title="Yopish" style="float:right;border:0;background:none;cursor:pointer;font-size:14px;color:#888">✕</button><b>Koʻrinish tahlili</b><br>'+sh:'';q('#c3sight').hidden=!sh||C3.sightOff;const bx=q('#c3sx');if(bx)bx.onclick=()=>{C3.sightOff=true;q('#c3sight').hidden=true;};}
     S.c3={floors:C3.floors,ppl:C3.ppl,dims:C3.dims,bL:C3.bL,bR:C3.bR,pal:C3.pal,shrub:C3.shrub};save();};
   rebuild();
   q('#c3v').value=C3.view;q('#c3s').value=String(C3.shrub);q('#c3pal').value=C3.pal;
-  q('#c3v').onchange=e=>{rebuild(true);setView(e.target.value);};
+  q('#c3v').onchange=e=>{C3.view=e.target.value;rebuild(true);setView(e.target.value);};
   q('#c3s').onchange=e=>{C3.shrub=+e.target.value;rebuild(true);};
   q('#c3pal').onchange=e=>{C3.pal=e.target.value;rebuild(true);};
   q('#c3f').oninput=e=>{C3.floors=+e.target.value;q('#c3fv').textContent=C3.floors;rebuild(true);};
