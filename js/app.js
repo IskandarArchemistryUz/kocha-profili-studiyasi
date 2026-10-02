@@ -2735,8 +2735,8 @@ async function detectTreesBB(bb){const lat0=(bb.s+bb.n)/2;
   const cx0=Math.floor(gxf(bb.w,z))-im.ox,cy0=Math.floor(gyf(bb.n,z))-im.oy,cw=Math.ceil(gxf(bb.e,z))-im.ox-cx0,ch=Math.ceil(gyf(bb.s,z))-im.oy-cy0;
   const pix=im.cx.getImageData(cx0,cy0,cw,ch).data,cell=Math.max(3,Math.round(3.5/mpp)),cand=[];
   for(let cy=0;cy+cell<=ch;cy+=cell)for(let cx=0;cx+cell<=cw;cx+=cell){let v=0,n=0,s=0,s2=0;
-    for(let y=cy;y<cy+cell;y++)for(let x=cx;x<cx+cell;x++){const i=(y*cw+x)*4,r=pix[i],g=pix[i+1],bl=pix[i+2],t=r+g+bl+1,ex=(2*g-r-bl)/t,br=t/3;n++;if(ex>.055&&br<150)v++;s+=br;s2+=br*br;}
-    const f=v/n,sd=Math.sqrt(Math.max(0,s2/n-(s/n)**2));if(f>.55&&sd>7&&s/n<120)cand.push({x:cx+cell/2,y:cy+cell/2,f});}
+    for(let y=cy;y<cy+cell;y++)for(let x=cx;x<cx+cell;x++){const i=(y*cw+x)*4,r=pix[i],g=pix[i+1],bl=pix[i+2],t=r+g+bl+1,ex=(2*g-r-bl)/t,br=t/3;n++;if(ex>.06&&g>r&&g>=bl&&br>30&&br<150)v++;s+=br;s2+=br*br;}
+    const f=v/n,sd=Math.sqrt(Math.max(0,s2/n-(s/n)**2));if(f>.55&&sd>7&&s/n<120&&s/n>34)cand.push({x:cx+cell*(.25+.5*((cx*7919+cy*104729)%97)/97),y:cy+cell*(.25+.5*((cx*31+cy*17)%89)/89),f});}
   cand.sort((a,b)=>b.f-a.f);const minD=5/mpp,grid=new Map(),G=k=>grid.get(k)||[],keep=[];
   for(const c of cand){const gx=Math.floor(c.x/minD),gy=Math.floor(c.y/minD);let ok=true;
     for(let i=-1;i<=1&&ok;i++)for(let j=-1;j<=1&&ok;j++)for(const o of G(`${gx+i},${gy+j}`))if((o.x-c.x)**2+(o.y-c.y)**2<minD*minD){ok=false;break;}
