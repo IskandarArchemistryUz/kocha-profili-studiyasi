@@ -248,7 +248,7 @@ async function ask(q){if(!res){toast('Avval hududni hisoblang.');return;}if(!KEY
   const out=$('#aiOut');out.innerHTML='<span class="note">AI yozmoqda…</span>';
   const sys="Siz Oʻzbekiston va Markaziy Osiyo shaharlarini yaxshi biladigan urbanist-ekspertsiz. Javobni oʻzbek tilida (lotin), qisqa va tuzilgan holda bering: ## Umumiy baho, ## Kuchli tomonlar, ## Zaif tomonlar, ## Tavsiyalar. Faqat foydalanuvchi bergan JSON koʻrsatkichlarga tayaning; yangi raqam, norma bandi yoki manba oʻylab topmang. Normaga ishora kerak boʻlsa, «tegishli me'yor bilan tekshirish kerak» deb yozing. OSM maʼlumotlari toʻliq boʻlmasligi mumkinligini hisobga oling va qaysi xulosa joyida tekshirishni talab qilishini ayting. Xalqaro taqqoslashlarni faqat umumiy tamoyil sifatida keltiring.";
   try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':KEY(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:MODEL(),max_tokens:1800,system:sys,messages:[{role:'user',content:`Hudud koʻrsatkichlari (JSON):\n${JSON.stringify(res,null,1)}\n\nSoʻrov: ${q}`}]})});
+      body:JSON.stringify({model:MODEL(),max_tokens:1800,system:sys+(window.KPS_LANG==='ru'?' Отвечай на русском языке.':window.KPS_LANG==='en'?' Answer in English.':''),messages:[{role:'user',content:`Hudud koʻrsatkichlari (JSON):\n${JSON.stringify(res,null,1)}\n\nSoʻrov: ${q}`}]})});
     const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));aiText=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');out.innerHTML=md(aiText);}
   catch(e){out.innerHTML=`<span class="note" style="color:var(--bad)">AI javob bermadi: ${esc(e.message)}</span>`;}}
 $('#askBtn').onclick=()=>ask($('#q').value);document.querySelectorAll('[data-qq]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.qq;ask(b.dataset.qq);});
@@ -268,8 +268,10 @@ async function toMaket(){const put=o=>new Promise((ok,no)=>{const r=indexedDB.op
     const src3='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s3);await put({id:'a15'+Date.now().toString(36),kind:'svg',name:'15 daqiqalik shahar — jadval',src:src3,thumb:src3,aspect:tw/H3,sub:res.mode,t,legend:C15.map(([c,n,col])=>({col,label:n,kind:'fill',on:true}))});}
   toast('Albomga yuborildi.');}
 $('#l15').onchange=()=>draw15();$('#lIso').onchange=()=>draw15();$('#lPoi').onchange=e=>{if(e.target.checked)O.addTo(map);else map.removeLayer(O);};
+if(window.KPS_LANG&&window.KPS_LANG!=='uz'){const q=$('#q');q.value=window.kpsT(q.value);}
 hint();renderRes();
 })();
 </script>
+<script src="js/i18n.js?v=2"></script>
 </body>
 </html>

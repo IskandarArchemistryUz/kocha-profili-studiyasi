@@ -188,9 +188,9 @@ function titleBlock(p,W,Hh){if(!p.tb)return '';const w=Math.min(180,W*.42),h=22,
   const sc=(p.items.find(it=>it.t==='map'||it.scale)||{}).scale;
   return `<g font-family="Archivo, sans-serif" fill="#141414"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="#141414" stroke-width=".35"/><line x1="${x}" y1="${y+9}" x2="${x+w}" y2="${y+9}" stroke="#141414" stroke-width=".25"/><line x1="${x+w*.5}" y1="${y+9}" x2="${x+w*.5}" y2="${y+h}" stroke="#141414" stroke-width=".25"/><line x1="${x+w*.75}" y1="${y+9}" x2="${x+w*.75}" y2="${y+h}" stroke="#141414" stroke-width=".25"/>
     <text x="${x+2.5}" y="${y+6.2}" font-size="3.6" font-weight="600">${esc(doc.meta.proj||doc.name)}</text><text x="${x+w-2.5}" y="${y+6.2}" font-size="2.6" text-anchor="end" fill="#696969">ARCHEMISTRY</text>
-    <text x="${x+2.5}" y="${y+13.5}" font-size="2.2" fill="#696969">MUALLIF</text><text x="${x+2.5}" y="${y+18.5}" font-size="3">${esc(doc.meta.author||'—')}</text>
-    <text x="${x+w*.5+2.5}" y="${y+13.5}" font-size="2.2" fill="#696969">MASSHTAB</text><text x="${x+w*.5+2.5}" y="${y+18.5}" font-size="3" font-family="IBM Plex Mono, monospace">${sc?'1:'+sc:'—'}</text>
-    <text x="${x+w*.75+2.5}" y="${y+13.5}" font-size="2.2" fill="#696969">VARAQ</text><text x="${x+w*.75+2.5}" y="${y+18.5}" font-size="3" font-family="IBM Plex Mono, monospace">${i} / ${n}</text></g>`;}
+    <text x="${x+2.5}" y="${y+13.5}" font-size="2.2" fill="#696969">${(window.kpsT||String)('MUALLIF')}</text><text x="${x+2.5}" y="${y+18.5}" font-size="3">${esc(doc.meta.author||'—')}</text>
+    <text x="${x+w*.5+2.5}" y="${y+13.5}" font-size="2.2" fill="#696969">${(window.kpsT||String)('MASSHTAB')}</text><text x="${x+w*.5+2.5}" y="${y+18.5}" font-size="3" font-family="IBM Plex Mono, monospace">${sc?'1:'+sc:'—'}</text>
+    <text x="${x+w*.75+2.5}" y="${y+13.5}" font-size="2.2" fill="#696969">${(window.kpsT||String)('VARAQ')}</text><text x="${x+w*.75+2.5}" y="${y+18.5}" font-size="3" font-family="IBM Plex Mono, monospace">${i} / ${n}</text></g>`;}
 function pageSVG(p,forThumb){const [W,Hh]=pageWH(p);return `<rect x="0" y="0" width="${W}" height="${Hh}" fill="#fff"/>`+layOrder(p).map(it=>itemSVG(it,forThumb)).join('')+titleBlock(p,W,Hh);}
 function bbox(it){if(it.pts){const xs=it.pts.map(q=>q[0]),ys=it.pts.map(q=>q[1]);return {x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}return {x:it.x,y:it.y,w:it.w,h:it.h};}
 function renderPaper(){const p=pg(),[W,Hh]=pageWH(p),sv=$('#paper');const pxmm=3.7795*zoom;
@@ -520,5 +520,6 @@ window.addEventListener('resize',()=>renderPaper());
   doc.pages.forEach(p=>p.items.forEach(it=>{if(it.t==='map'&&!it.src&&it.lat!=null)refreshMap(it);}));})();
 })();
 </script>
+<script src="js/i18n.js?v=2"></script>
 </body>
 </html>

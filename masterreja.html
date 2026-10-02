@@ -198,12 +198,13 @@ $('#allAlb').onclick=()=>toAlbum(CARDS.map(c=>c.id));
 $('#aiBtn').onclick=async()=>{const key=localStorage.getItem('kps_ai_key');if(!key){toast('AI kaliti kiritilmagan — Hudud tahlili sahifasida «AI kaliti».');return;}const o=calc(),b=$('#aiBtn');b.disabled=true;b.textContent='AI yozmoqda…';
   const facts=CARDS.map(c=>{const r=c.fn(o);return r.empty?null:`## ${c.t}\n`+(r.rows||[]).filter(x=>x.v!=null).map(x=>`- ${x.l}: ${typeof x.v==='number'?fmt(x.v):x.v} ${x.u||''}${x.norm?` (chegara: ${x.norm})`:''}`).join('\n');}).filter(Boolean).join('\n\n');
   try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:localStorage.getItem('kps_ai_model')||'claude-sonnet-5',max_tokens:1500,system:'Sen Oʻzbekistondagi master-reja boʻyicha urbanist-maslahatchisan. Oʻzbek (lotin) tilida, qisqa yoz. Faqat berilgan raqamlarga tayan, yangi raqam yoki normativ band oʻylab topma.',messages:[{role:'user',content:'Quyidagi koʻrsatkichlar asosida master-reja uchun qisqa xulosa, SWOT va asoslash kerak boʻlgan joylarni yoz:\n\n'+facts}]})});
+    body:JSON.stringify({model:localStorage.getItem('kps_ai_model')||'claude-sonnet-5',max_tokens:1500,system:'Sen Oʻzbekistondagi master-reja boʻyicha urbanist-maslahatchisan. Oʻzbek (lotin) tilida, qisqa yoz. Faqat berilgan raqamlarga tayan, yangi raqam yoki normativ band oʻylab topma.'+(window.KPS_LANG==='ru'?' Отвечай на русском языке.':window.KPS_LANG==='en'?' Answer in English.':''),messages:[{role:'user',content:'Quyidagi koʻrsatkichlar asosida master-reja uchun qisqa xulosa, SWOT va asoslash kerak boʻlgan joylarni yoz:\n\n'+facts}]})});
     const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);EXT.ai=(j.content||[]).map(c=>c.text||'').join('').trim();saveE();showAI();}catch(e){toast('AI xatosi: '+e.message);}b.disabled=false;b.textContent='AI xulosa';};
 function showAI(){$('#aiOut').hidden=!EXT.ai;$('#aiOut').textContent=EXT.ai||'';}
 window.addEventListener('storage',e=>{if(/^kps_(posadka_sum|area_sum|posadka)$/.test(e.key))render();});
 render();showAI();
 })();
 </script>
+<script src="js/i18n.js?v=2"></script>
 </body>
 </html>
