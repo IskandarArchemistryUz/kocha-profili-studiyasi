@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maʼlumotlar — Archemistry Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--panel:#fff;--bad:#b3261e;--mono:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font:13px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+a{color:inherit;text-decoration:none}button,input,select{font:inherit;color:inherit}
+header{height:52px;flex:none;display:flex;align-items:center;gap:20px;padding:0 18px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:13px;letter-spacing:.2em}.brand i{font-style:normal;font-size:11px;letter-spacing:.18em;color:var(--grey)}
+.crumb{font-size:11px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
+.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn.dark{background:var(--ink);color:var(--bg)}.btn.sm{height:26px;padding:0 9px;font-size:10.5px}
+main{flex:1;display:grid;grid-template-columns:340px 1fr;min-height:0}
+aside{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.ah{padding:16px 16px 10px}.ah h1{margin:0;font-size:22px;font-weight:500;letter-spacing:-.01em}.ah p{margin:6px 0 0;font-family:var(--mono);font-size:11.5px;color:var(--txt);line-height:1.6}
+.drop{margin:6px 16px 12px;border:1.5px dashed #c9c6bf;border-radius:2px;padding:18px 12px;text-align:center;cursor:pointer;font-size:12.5px}
+.drop.over{border-color:var(--ink);background:#f7f6f3}.drop small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--grey);margin-top:6px}
+.opts{display:flex;gap:8px;align-items:center;padding:0 16px 10px;font-size:11.5px;color:var(--txt)}.opts select{height:26px;border:1px solid var(--line);border-radius:2px;background:#fff;font-size:11.5px;flex:1}
+.lh{display:flex;justify-content:space-between;align-items:baseline;padding:8px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:10.5px;letter-spacing:.14em;color:var(--grey)}
+#list{flex:1;overflow:auto}
+.ly{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid #efede9}
+.ly input[type=color]{width:20px;height:20px;border:0;padding:0;background:none;cursor:pointer}
+.ly .n{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ly .m{font-family:var(--mono);font-size:10.5px;color:var(--grey)}
+.ly .a{display:flex;gap:2px}.ib{width:26px;height:26px;border:1px solid transparent;background:none;border-radius:2px;cursor:pointer;display:grid;place-items:center;color:var(--txt)}
+.ib:hover{border-color:var(--line)}.ib.off{opacity:.35}.ib.del:hover{color:var(--bad)}
+.empty{padding:18px 16px;font-family:var(--mono);font-size:11.5px;color:var(--grey);line-height:1.6}
+#map{height:100%;background:#ecebe7}
+.mapwrap{position:relative;min-height:0}
+.basesw{position:absolute;top:12px;right:12px;z-index:500;display:flex;background:#fff;border:1px solid var(--line);border-radius:2px;padding:2px}
+.basesw button{border:0;background:none;padding:5px 11px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;color:var(--grey)}
+.basesw button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#f4f3f1;padding:10px 14px;font-size:12.5px;z-index:2000;max-width:560px;border-radius:2px}
+.leaflet-popup-content{font:12px/1.4 Archivo,sans-serif;margin:10px 12px}.pt{border-collapse:collapse;font-size:11.5px}.pt td{padding:2px 6px;border-bottom:1px solid #eee;vertical-align:top}.pt td:first-child{color:var(--grey);font-family:var(--mono);font-size:10.5px}
+@media (max-width:760px){main{grid-template-columns:1fr;grid-template-rows:45% 55%}aside{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+<a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b><i>STUDIO</i></a>
+<span class="crumb">/ 05 · MAʼLUMOTLAR</span><span class="sp"></span>
+<a class="btn" href="studio.html#design">Koʻcha studiyasi</a><a class="btn dark" href="studio.html#area">Hudud tahlili</a>
+</header>
+<main>
+<aside>
+<div class="ah"><h1>Maʼlumotlar</h1><p>QGIS, ArcGIS, AutoCAD Map, Google Earth va boshqalardan qatlamlar. Fayllar faqat shu brauzerda saqlanadi va Koʻcha studiyasi xaritasida ham koʻrinadi.</p></div>
+<label class="drop" id="drop" tabindex="0">Faylni shu yerga tashlang yoki <u>tanlang</u>
+<small>GeoJSON · Shapefile (.zip) · KML · KMZ · GPX · CSV (lat/lon yoki WKT)</small>
+<input type="file" id="file" multiple hidden accept=".geojson,.json,.zip,.kml,.kmz,.gpx,.csv,.txt"></label>
+<div class="opts"><span>CRS (aniqlanmasa)</span><select id="crs">
+<option value="auto">Avto (fayldan)</option><option value="EPSG:4326">WGS 84 (lon/lat)</option><option value="EPSG:32642">WGS 84 / UTM 42N</option><option value="EPSG:32641">WGS 84 / UTM 41N</option><option value="EPSG:32643">WGS 84 / UTM 43N</option><option value="EPSG:3857">Web Mercator</option><option value="EPSG:28412">Pulkovo 1942 / GK zona 12</option><option value="EPSG:28413">Pulkovo 1942 / GK zona 13</option></select></div>
+<div class="lh"><span>QATLAMLAR</span><span id="cnt">0</span></div>
+<div id="list"></div>
+</aside>
+<div class="mapwrap"><div id="map"></div>
+<div class="basesw" role="group" aria-label="Fon"><button data-b="line" aria-pressed="true">Chizma</button><button data-b="sat" aria-pressed="false">Sputnik</button><button data-b="osm" aria-pressed="false">OSM</button></div></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+const LOGO='M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z';document.getElementById('logoP').setAttribute('d',LOGO);
+const $=s=>document.querySelector(s),toast=m=>{let w=document.getElementById('toasts');if(!w){w=document.createElement('div');w.id='toasts';w.style.cssText='position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:2000';document.body.appendChild(w);}const t=document.createElement('div');t.className='toast';t.style.position='static';t.style.transform='none';t.textContent=m;w.appendChild(t);setTimeout(()=>t.remove(),4200);};
+const loadScript=src=>new Promise((res,rej)=>{if([...document.scripts].some(s=>s.src===src))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('kutubxona yuklanmadi'));document.head.appendChild(s);});
+const map=L.map('map',{zoomControl:true}).setView([41.3111,69.2797],12);
+const BASE={line:L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}),
+ sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19,attribution:'Esri World Imagery'}),
+ osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})};
+let cur=BASE.line.addTo(map);
+document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{map.removeLayer(cur);cur=BASE[b.dataset.b].addTo(map);cur.bringToBack();document.querySelectorAll('[data-b]').forEach(x=>x.setAttribute('aria-pressed',x===b));});
+/* IndexedDB: barcha boʻlimlar uchun umumiy */
+const DB=()=>new Promise((res,rej)=>{const r=indexedDB.open('kps_data',1);r.onupgradeneeded=()=>r.result.createObjectStore('layers',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+const tx=async(mode,fn)=>{const db=await DB();return new Promise((res,rej)=>{const t=db.transaction('layers',mode),st=t.objectStore('layers'),out=fn(st);t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out);t.onerror=()=>rej(t.error);});};
+const all=()=>tx('readonly',s=>s.getAll()),put=o=>tx('readwrite',s=>s.put(o)),del=id=>tx('readwrite',s=>s.delete(id));
+const PAL=['#141414','#c2410c','#2f6f4f','#7b61d1','#1d6fa5','#b8860b','#be185d'];
+let LAY=[];const LL={};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function style(o){return {color:o.color,weight:1.6,fillColor:o.color,fillOpacity:.18};}
+function draw(o){if(LL[o.id])map.removeLayer(LL[o.id]);
+  LL[o.id]=L.geoJSON(o.geojson,{style:()=>style(o),pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:4,color:o.color,weight:1.4,fillColor:o.color,fillOpacity:.7}),
+    onEachFeature:(f,l)=>{const p=f.properties||{},k=Object.keys(p);if(k.length)l.bindPopup(`<b>${esc(o.name)}</b><table class="pt">${k.slice(0,40).map(x=>`<tr><td>${esc(x)}</td><td>${esc(p[x]??'')}</td></tr>`).join('')}</table>`,{maxWidth:360});}});
+  if(o.visible)LL[o.id].addTo(map);}
+function stats(gj){const t={};(gj.features||[]).forEach(f=>{const g=f.geometry&&f.geometry.type||'—';t[g]=(t[g]||0)+1;});return Object.entries(t).map(([k,v])=>`${v} ${k}`).join(' · ');}
+function render(){$('#cnt').textContent=LAY.length;
+  $('#list').innerHTML=LAY.length?LAY.map(o=>`<div class="ly" data-id="${o.id}"><input type="color" value="${o.color}" aria-label="Rang"><div><div class="n" title="${esc(o.name)}">${esc(o.name)}</div><div class="m">${esc(stats(o.geojson))}${o.crs?' · '+esc(o.crs):''}</div></div>
+    <div class="a"><button class="ib ${o.visible?'':'off'}" data-a="vis" title="Koʻrsatish/yashirish">◉</button><button class="ib" data-a="zoom" title="Qatlamga oʻtish">⤢</button><button class="ib" data-a="dl" title="GeoJSON yuklab olish">↓</button><button class="ib del" data-a="del" title="Oʻchirish">✕</button></div></div>`).join(''):'<div class="empty">Hali qatlam yoʻq. QGIS’da: qatlam → Export → Save Features As… → GeoJSON yoki ESRI Shapefile (barcha fayllarini .zip qiling).</div>';
+  document.querySelectorAll('.ly').forEach(r=>{const o=LAY.find(x=>x.id===r.dataset.id);
+    r.querySelector('input[type=color]').oninput=e=>{o.color=e.target.value;LL[o.id].setStyle(style(o));LL[o.id].eachLayer(l=>l.setStyle&&l.setStyle({color:o.color,fillColor:o.color}));};
+    r.querySelector('input[type=color]').onchange=()=>put(o);
+    r.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{const a=b.dataset.a;
+      if(a==='vis'){o.visible=!o.visible;o.visible?LL[o.id].addTo(map):map.removeLayer(LL[o.id]);await put(o);render();}
+      if(a==='zoom'){try{map.fitBounds(LL[o.id].getBounds(),{padding:[30,30]});}catch(e){}}
+      if(a==='dl'){const bl=new Blob([JSON.stringify(o.geojson)],{type:'application/geo+json'}),u=document.createElement('a');u.href=URL.createObjectURL(bl);u.download=o.name.replace(/\.[^.]+$/,'')+'.geojson';u.click();}
+      if(a==='del'){map.removeLayer(LL[o.id]);delete LL[o.id];await del(o.id);LAY=LAY.filter(x=>x!==o);render();}});});}
+/* CRS */
+const DEFS={'EPSG:32641':'+proj=utm +zone=41 +datum=WGS84 +units=m +no_defs','EPSG:32642':'+proj=utm +zone=42 +datum=WGS84 +units=m +no_defs','EPSG:32643':'+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs',
+ 'EPSG:28412':'+proj=tmerc +lat_0=0 +lon_0=69 +k=1 +x_0=12500000 +y_0=0 +ellps=krass +towgs84=23.92,-141.27,-80.9,0,0.35,0.82,-0.12 +units=m +no_defs','EPSG:28413':'+proj=tmerc +lat_0=0 +lon_0=75 +k=1 +x_0=13500000 +y_0=0 +ellps=krass +towgs84=23.92,-141.27,-80.9,0,0.35,0.82,-0.12 +units=m +no_defs'};
+const firstXY=gj=>{let c=null;const walk=a=>{if(c)return;if(typeof a[0]==='number'){c=a;return;}a.forEach(walk);};(gj.features||[]).some(f=>{if(f.geometry&&f.geometry.coordinates)walk(f.geometry.coordinates);return c;});return c;};
+async function reproject(gj,code){if(!code||code==='EPSG:4326'||code==='CRS84')return gj;await loadScript('https://cdn.jsdelivr.net/npm/proj4@2.22.0/dist/proj4.js');
+  Object.entries(DEFS).forEach(([k,v])=>proj4.defs(k,v));if(!proj4.defs(code))throw new Error(code+' qoʻllab-quvvatlanmaydi. Tanlovdan CRS belgilang.');
+  const tr=proj4(code,'EPSG:4326'),walk=a=>typeof a[0]==='number'?tr.forward(a.slice(0,2)):a.map(walk);
+  (gj.features||[]).forEach(f=>{if(f.geometry&&f.geometry.coordinates)f.geometry.coordinates=walk(f.geometry.coordinates);});delete gj.crs;return gj;}
+function crsOf(gj){const n=gj.crs&&gj.crs.properties&&gj.crs.properties.name;if(!n)return null;const m=String(n).match(/EPSG::?(\d+)/i);if(m)return 'EPSG:'+m[1];if(/CRS84/i.test(n))return 'CRS84';return null;}
+/* CSV */
+function parseCSV(txt){const sep=(txt.split('\n')[0].match(/;/g)||[]).length>(txt.split('\n')[0].match(/,/g)||[]).length?';':(txt.includes('\t')?'\t':',');
+  const rows=[];let row=[],f='',q=false;for(let i=0;i<txt.length;i++){const ch=txt[i];if(q){if(ch==='"'&&txt[i+1]==='"'){f+='"';i++;}else if(ch==='"')q=false;else f+=ch;}else if(ch==='"')q=true;else if(ch===sep){row.push(f);f='';}else if(ch==='\n'){row.push(f.replace(/\r$/,''));rows.push(row);row=[];f='';}else f+=ch;}if(f||row.length){row.push(f);rows.push(row);}
+  const h=rows.shift().map(s=>s.trim()),lo=h.map(s=>s.toLowerCase()),fi=a=>lo.findIndex(s=>a.includes(s));
+  const la=fi(['lat','latitude','y','shirota','kenglik']),ln=fi(['lon','lng','long','longitude','x','dolgota','uzunlik']),wk=fi(['wkt','geom','geometry','the_geom']);
+  const num=v=>parseFloat(String(v).replace(',','.'));const feats=[];
+  rows.forEach(r=>{if(r.length<2)return;const p={};h.forEach((k,i)=>p[k]=r[i]);let g=null;
+    if(wk>=0&&r[wk]){const m=String(r[wk]).match(/^\s*POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)/i);if(m)g={type:'Point',coordinates:[+m[1],+m[2]]};}
+    if(!g&&la>=0&&ln>=0&&isFinite(num(r[la]))&&isFinite(num(r[ln])))g={type:'Point',coordinates:[num(r[ln]),num(r[la])]};
+    if(g)feats.push({type:'Feature',properties:p,geometry:g});});
+  if(!feats.length)throw new Error('CSV ichida lat/lon (yoki WKT POINT) ustunlari topilmadi.');return {type:'FeatureCollection',features:feats};}
+async function readFile(f){const ext=f.name.toLowerCase().split('.').pop();let gj,list=[];
+  if(ext==='zip'){await loadScript('https://cdn.jsdelivr.net/npm/shpjs@6.2.0/dist/shp.min.js');const r=await shp(await f.arrayBuffer());(Array.isArray(r)?r:[r]).forEach(x=>list.push({name:x.fileName?x.fileName+'.shp':f.name,gj:x}));return list;}
+  if(ext==='kml'||ext==='gpx'||ext==='kmz'){await loadScript('https://cdn.jsdelivr.net/npm/@tmcw/togeojson@7.1.2/dist/togeojson.umd.js');let txt;
+    if(ext==='kmz'){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');const z=await JSZip.loadAsync(await f.arrayBuffer()),k=Object.keys(z.files).find(n=>/\.kml$/i.test(n));if(!k)throw new Error('KMZ ichida KML topilmadi');txt=await z.files[k].async('string');}else txt=await f.text();
+    const dom=new DOMParser().parseFromString(txt,'text/xml');gj=ext==='gpx'?toGeoJSON.gpx(dom):toGeoJSON.kml(dom);return [{name:f.name,gj}];}
+  if(ext==='csv'||ext==='txt')return [{name:f.name,gj:parseCSV(await f.text())}];
+  gj=JSON.parse(await f.text());if(gj.type==='Feature')gj={type:'FeatureCollection',features:[gj]};else if(gj.type&&gj.type!=='FeatureCollection')gj={type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:gj}]};
+  return [{name:f.name,gj}];}
+async function addFiles(files){for(const f of files){try{const parts=await readFile(f);
+  for(const {name,gj:g} of parts){let gj=g,code=crsOf(gj),sel=$('#crs').value;const xy=firstXY(gj);
+    if(!code&&xy&&(Math.abs(xy[0])>180||Math.abs(xy[1])>90)){if(sel==='auto')throw new Error(name+': koordinatalar metrda (proyeksiyada), lekin CRS koʻrsatilmagan. Yuqoridagi roʻyxatdan CRS tanlab qayta yuklang (masalan, UTM 42N).');code=sel;}
+    if(sel!=='auto'&&!crsOf(gj)&&xy&&(Math.abs(xy[0])>180||Math.abs(xy[1])>90))code=sel;
+    gj=await reproject(gj,code);
+    const o={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,color:PAL[LAY.length%PAL.length],visible:true,geojson:gj,crs:code||'EPSG:4326',t:new Date().toISOString()};
+    await put(o);LAY.push(o);draw(o);try{map.fitBounds(LL[o.id].getBounds(),{padding:[30,30]});}catch(e){}
+    toast(`«${name}» qoʻshildi: ${(gj.features||[]).length} ta obyekt.`);}
+  }catch(e){toast(f.name+': '+(e.message||e));}}render();}
+const dz=$('#drop');$('#file').onchange=e=>{addFiles([...e.target.files]);e.target.value='';};
+['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('over');}));
+['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over');}));
+dz.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
+document.addEventListener('dragover',e=>e.preventDefault());document.addEventListener('drop',e=>{e.preventDefault();if(e.target.closest&&e.target.closest('#drop'))return;addFiles([...e.dataTransfer.files]);});
+all().then(a=>{LAY=a.sort((x,y)=>x.t.localeCompare(y.t));LAY.forEach(draw);render();const vis=LAY.filter(o=>o.visible);if(vis.length){try{const b=L.featureGroup(vis.map(o=>LL[o.id]));map.fitBounds(b.getBounds(),{padding:[30,30]});}catch(e){}}}).catch(()=>{render();toast('Brauzer xotirasi (IndexedDB) ochilmadi.');});
+})();
+</script>
+</body>
+</html>

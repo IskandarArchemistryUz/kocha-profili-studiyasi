@@ -3272,3 +3272,17 @@ window.addEventListener('resize',()=>{if(S.app==='prof'&&S.pv&&S.pv!=='map'&&S.p
   if(['area','prof','design'].includes(h))S.app=h;
   if(q.toString())history.replaceState(null,'',location.pathname+location.hash);})();
 setMode('pick'); renderAll(); setApp(S.app||'area');
+
+/* Maʼlumotlar boʻlimidan import qilingan qatlamlar (umumiy IndexedDB) */
+const dataL=L.layerGroup().addTo(map);let dataOn=true;
+async function loadDataLayers(){try{const db=await new Promise((res,rej)=>{const r=indexedDB.open('kps_data',1);r.onupgradeneeded=()=>r.result.createObjectStore('layers',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+  const a=await new Promise((res,rej)=>{const q=db.transaction('layers','readonly').objectStore('layers').getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});
+  dataL.clearLayers();const vis=a.filter(o=>o.visible);
+  vis.forEach(o=>L.geoJSON(o.geojson,{interactive:false,style:()=>({color:o.color,weight:1.4,fillColor:o.color,fillOpacity:.12}),pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:3,color:o.color,weight:1,fillOpacity:.7,interactive:false})}).addTo(dataL));
+  let b=document.getElementById('dataBtn');
+  if(!b){b=document.createElement('div');b.id='dataBtn';b.className='databtn';document.querySelector('.mapwrap').appendChild(b);}
+  b.hidden=!a.length;b.innerHTML=`<button id="dataTg" aria-pressed="${dataOn}">Import qatlamlari · ${vis.length}</button><a href="data.html" title="Maʼlumotlar boʻlimi">↗</a>`;
+  b.querySelector('#dataTg').onclick=()=>{dataOn=!dataOn;dataOn?dataL.addTo(map):map.removeLayer(dataL);b.querySelector('#dataTg').setAttribute('aria-pressed',dataOn);};
+  if(!dataOn)map.removeLayer(dataL);
+}catch(e){}}
+loadDataLayers();window.addEventListener('focus',loadDataLayers);
