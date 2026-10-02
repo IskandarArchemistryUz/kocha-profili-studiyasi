@@ -1389,7 +1389,7 @@ function renderDesign(){
     L.polyline(segXY(sg,o).map(q=>toLL(q,o)),{pane:'design',renderer:DR,interactive:false,color:on?'#f4c542':'#ffffff',weight:on?3:1,opacity:on?1:.35,dashArray:on?null:'2 6'}).addTo(designL);});
   DS().nodes.forEach(n=>{const on=sel&&sel.t==='node'&&sel.id===n.id;
     L.circleMarker(n.ll,{pane:'design',renderer:DR,interactive:false,radius:on?7:5,color:on?'#f4c542':'#1c2628',weight:2,fillColor:nodeKind(n)==='round'?'#6f8f4e':nodeKind(n)==='sig'?'#e03b2e':'#ffffff',fillOpacity:1}).addTo(designL);});
-  drawPreview();
+  drawPreview();renderCheckMarks();
 }
 function drawPreview(){previewL.clearLayers();if(S.app!=='design')return;
   freePreview();
@@ -1531,30 +1531,63 @@ const YHQ=[
   {id:'bike',t:'Velosiped boʻlagida harakat yonidagi avtomobil oqimi bilan bir yoʻnalishda'},
   {id:'lanew',t:'Harakat boʻlagi kengligi belgilangan chegarada'},
 ];
+function segTitle(sg){const i=DS().segs.indexOf(sg);return sg.name||('Koʻcha '+(i+1));}
 function checkYHQ(){
   const ds=DS(),r={};const segs=ds.segs.map(s=>({s,lay:layOf(s)}));
-  const bad={rh:[],bus:[],bike:[],lanew:[],cross:[]};
+  const bad={rh:[],bus:[],bike:[],lanew:[],cross:[]},iss={rh:[],bus:[],bike:[],lanew:[],cross:[]};
+  const add=(k,s,o)=>{bad[k].push(s.id);iss[k].push(Object.assign({r:k,id:s.id},o));};
   segs.forEach(({s,lay})=>{
     const f=lay.road.filter(x=>x.dir>0),b=lay.road.filter(x=>x.dir<0);
-    if(f.length&&b.length&&Math.max(...f.map(x=>x.mid))>Math.min(...b.map(x=>x.mid)))bad.rh.push(s.id);
+    if(f.length&&b.length&&Math.max(...f.map(x=>x.mid))>Math.min(...b.map(x=>x.mid))){const x=f.reduce((a,c)=>c.mid>a.mid?c:a);add('rh',s,{strip:lay.st.indexOf(x),why:'Oldinga yoʻnalgan boʻlak qarama-qarshi oqimning chap tomonida'});}
     lay.st.forEach((x,i)=>{
-      if(x.k==='bus'){const side=lay.st.filter(y=>DK[y.k].road&&!isPk(y.k)&&Math.sign(y.mid)===Math.sign(x.mid));const outer=side.every(y=>Math.abs(y.mid)<=Math.abs(x.mid));const inner=side.every(y=>Math.abs(y.mid)>=Math.abs(x.mid));if(!outer&&!inner)bad.bus.push(s.id);}
-      if(x.k==='bike'&&x.dir){if((x.dir>0&&x.mid>0)||(x.dir<0&&x.mid<0))bad.bike.push(s.id);}
-      if(x.k==='lane'&&(x.w<ds.thr.laneMin||x.w>ds.thr.laneMax))bad.lanew.push(s.id);
+      if(x.k==='bus'){const side=lay.st.filter(y=>DK[y.k].road&&!isPk(y.k)&&Math.sign(y.mid)===Math.sign(x.mid));const outer=side.every(y=>Math.abs(y.mid)<=Math.abs(x.mid));const inner=side.every(y=>Math.abs(y.mid)>=Math.abs(x.mid));if(!outer&&!inner)add('bus',s,{strip:i,why:'Avtobus boʻlagi oddiy boʻlaklar orasida qolgan'});}
+      if(x.k==='bike'&&x.dir){if((x.dir>0&&x.mid>0)||(x.dir<0&&x.mid<0))add('bike',s,{strip:i,why:'Velo boʻlagi yonidagi avtomobil oqimiga teskari',fix:'bike'});}
+      if(x.k==='lane'&&(x.w<ds.thr.laneMin||x.w>ds.thr.laneMax))add('lanew',s,{strip:i,why:`Boʻlak eni ${f2(x.w)} m — ${x.w<ds.thr.laneMin?'tor (min '+f2(ds.thr.laneMin)+')':'keng (maks '+f2(ds.thr.laneMax)+')'}`,fix:'lanew'});
     });
-    [['a','cwA'],['b','cwB']].forEach(([e,f])=>{const k=nodeKind(nodeById(s[e]));if(isInter(k)&&s[f]===false&&lay.road.length)bad.cross.push(s.id);});
+    [['a','cwA'],['b','cwB']].forEach(([e,f])=>{const k=nodeKind(nodeById(s[e]));if(isInter(k)&&s[f]===false&&lay.road.length)add('cross',s,{end:e,why:`${e==='a'?'Boshlanish':'Tugash'} uchidagi chorrahada oʻtish joyi oʻchirilgan`,fix:'cross'});});
   });
   const u=a=>[...new Set(a)];
   r.rh=bad.rh.length?['bad',`${u(bad.rh).length} ta koʻchada teskari`]:['ok','avtomatik'];
   r.sep=['ok','chiziqlar avtomatik'];
   r.round=['ok',ds.nodes.some(n=>n.type==='round')?'avtomatik':'halqa yoʻq'];
-  r.cross=bad.cross.length?['bad',`${u(bad.cross).length} ta yoʻlda yoʻq`]:['ok','avtomatik'];
+  r.cross=bad.cross.length?['bad',`${bad.cross.length} ta joyda yoʻq`]:['ok','avtomatik'];
   r.stop=['ok','avtomatik'];r.park=['ok',`${ds.thr.parkGap} m kengaytma`];
   r.bus=bad.bus.length?['bad',`${u(bad.bus).length} ta koʻcha`]:['ok',segs.some(x=>x.lay.st.some(y=>y.k==='bus'))?'mos':'avtobus boʻlagi yoʻq'];
   r.bike=bad.bike.length?['bad',`${u(bad.bike).length} ta koʻcha`]:['ok','mos'];
-  r.lanew=bad.lanew.length?['bad',`${u(bad.lanew).length} ta koʻcha`]:['ok',`${f2(ds.thr.laneMin)}–${f2(ds.thr.laneMax)} m`];
+  r.lanew=bad.lanew.length?['bad',`${bad.lanew.length} ta boʻlak`]:['ok',`${f2(ds.thr.laneMin)}–${f2(ds.thr.laneMax)} m`];
+  Object.keys(r).forEach(k=>r[k][2]=iss[k]||[]);
   return r;
 }
+/* tekshiruv xatolarini xaritada koʻrsatish */
+const ckOrder=ck=>[...YHQ].sort((a,b)=>(ck[a.id][0]==='bad'?0:1)-(ck[b.id][0]==='bad'?0:1));
+const ckL=L.layerGroup();let CKR=null;
+function issGeom(it,k=0,nk=1){const sg=segById(it.id);if(!sg)return null;const o=origin(),xy=segXY(sg,o),c=cumLen(xy),T=c[c.length-1],lay=layOf(sg);
+  if(it.end){const n=nodeById(sg[it.end]);const f=frameAt(xy,c,it.end==='a'?Math.min(T*.25,14):Math.max(T*.75,T-14));return {pt:toLL(f.p,o),poly:null,node:n&&n.ll,sg};}
+  const st=it.strip!=null&&lay.st[it.strip];
+  const f=frameAt(xy,c,T*Math.max(.12,Math.min(.88,.5+(k-(nk-1)/2)*.22))),mid=st?st.mid:0;
+  return {pt:toLL([f.p[0]+f.n[0]*mid,f.p[1]+f.n[1]*mid],o),poly:st?[...offsetLine(xy,st.d1),...offsetLine(xy,st.d2).reverse()].map(q=>toLL(q,o)):null,sg};}
+function renderCheckMarks(){
+  ckL.clearLayers();const ds=DS();
+  if(S.app!=='design'||ds.itab!=='check'){map.removeLayer(ckL);return;}
+  ckL.addTo(map);if(!CKR)CKR=L.svg({pane:'designEdit'});
+  const ck=checkYHQ(),all=[];ckOrder(ck).forEach(q=>(ck[q.id][2]||[]).forEach((it,i)=>all.push([q.id,i,it])));
+  const per={};all.forEach(a=>{per[a[2].id]=(per[a[2].id]||0)+1;});const seen={};
+  all.forEach(([rid,i,it],n)=>{const k=seen[it.id]=(seen[it.id]??-1)+1;const g=issGeom(it,k,per[it.id]);if(!g)return;const on=ds.ckF&&ds.ckF[0]===rid&&ds.ckF[1]===i;
+    if(on){if(g.poly)L.polygon(g.poly,{renderer:CKR,className:'ck-flash',interactive:false,color:'#e5484d',weight:3,fillColor:'#e5484d',fillOpacity:.25}).addTo(ckL);
+      if(g.node)L.circleMarker(g.node,{renderer:CKR,className:'ck-flash',interactive:false,radius:16,color:'#e5484d',weight:3,fillOpacity:.15}).addTo(ckL);}
+    const m=L.marker(g.pt,{pane:'designEdit',icon:L.divIcon({className:'ck-pin'+(on?' on':''),html:`<span>${n+1}</span>`,iconSize:[22,22],iconAnchor:[11,11]}),title:it.why,zIndexOffset:on?1000:0}).addTo(ckL);
+    m.on('click',e=>{L.DomEvent.stop(e);focusIssue(rid,i);});});
+}
+function focusIssue(rid,i){const ds=DS(),it=(checkYHQ()[rid][2]||[])[i];if(!it)return;const g=issGeom(it);if(!g)return;
+  ds.ckF=[rid,i];ds.sel={t:'seg',id:it.id,strip:it.strip??null};renderDesignPanel._last=JSON.stringify(['seg',it.id,undefined]);
+  const b=L.latLngBounds(g.poly||segLL(g.sg));if(g.node)b.extend(g.node);
+  map.flyToBounds(b.pad(.15),{maxZoom:19,duration:.6});afterDesign();}
+function fixIssue(rid,i){const ds=DS(),it=(checkYHQ()[rid][2]||[])[i];if(!it)return;const sg=segById(it.id);if(!sg)return;
+  if(it.fix==='cross')sg[it.end==='a'?'cwA':'cwB']=true;
+  else{ensureSt(sg);const x=sg.st[it.strip];if(!x)return;
+    if(it.fix==='bike')x[2]=-x[2];
+    if(it.fix==='lanew')x[1]=Math.min(ds.thr.laneMax,Math.max(ds.thr.laneMin,x[1]));}
+  ds.ckF=null;afterDesign();toast('Tuzatildi. Ctrl+Z — qaytarish.');}
 
 /* maydonlar: loyiha va mavjud holat */
 function rasterDesign(grid){
@@ -1624,7 +1657,11 @@ function renderDesignPanel(){
   }
   if(tab==='check'){
     h+=`<div class="ihead"><div class="badge"><svg class="ic"><use href="#i-sign"/></svg></div><div><h2>YHQ tekshiruvlari</h2><p>Qoida mazmuni YHQ ilovalari asosida umumlashtirilgan. Band raqamini oʻzingiz kiritib tasdiqlang.</p></div></div>
-    <div class="checks">${YHQ.map(q=>`<div class="ck" style="grid-template-columns:1fr auto"><span>${q.t}<br><input data-src="${q.id}" value="${(ds.src[q.id]||'').replace(/"/g,'&quot;')}" placeholder="YHQ bandi…" style="width:100%;margin-top:4px;padding:4px 7px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);font-size:11.5px"></span><span class="chip ${ck[q.id][0]}">${ck[q.id][1]}</span></div>`).join('')}</div>
+    ${nbad?`<div class="ck-sum bad">${Object.values(ck).reduce((a,x)=>a+(x[2]||[]).length,0)} ta muammo topildi — bosing, xaritada koʻrsatiladi</div>`:`<div class="ck-sum ok">Hammasi mos — muammo topilmadi</div>`}
+    <div class="checks">${(()=>{let n=0;return ckOrder(ck).map(q=>{const c=ck[q.id],L2=c[2]||[];
+      const items=L2.map((it,i)=>{n++;const sg=segById(it.id),on=ds.ckF&&ds.ckF[0]===q.id&&ds.ckF[1]===i;
+        return `<div class="ck-it${on?' on':''}" data-iss="${q.id}:${i}" role="button" tabindex="0"><span class="ck-n">${n}</span><span class="ck-w"><b>${sg?segTitle(sg):'—'}</b>${it.strip!=null&&sg?' · '+(DK[layOf(sg).st[it.strip].k]||{}).n:''}<br>${it.why}</span>${it.fix?`<button class="btn sm" data-fix="${q.id}:${i}">Tuzatish</button>`:''}</div>`;}).join('');
+      return `<div class="ck ${c[0]}"><div class="ck-h"><span class="ck-dot"></span><span class="ck-t">${q.t}</span><span class="chip ${c[0]}">${c[1]}</span></div>${items?`<div class="ck-list">${items}</div>`:''}<input data-src="${q.id}" value="${(ds.src[q.id]||'').replace(/"/g,'&quot;')}" placeholder="YHQ bandi…" class="ck-src"></div>`;}).join('');})()}</div>
     <div class="sec-h">Chegaralar (namuna, normativ emas)</div>
     <div class="thr" style="margin-top:0"><div class="field"><label for="dLmin">Min. boʻlak eni, m</label><input id="dLmin" type="number" step="0.05" value="${ds.thr.laneMin}"></div><div class="field"><label for="dLmax">Maks. boʻlak eni, m</label><input id="dLmax" type="number" step="0.05" value="${ds.thr.laneMax}"></div>
     <div class="field"><label for="dCw">Oʻtish joyi eni, m</label><input id="dCw" type="number" step="0.5" value="${ds.thr.cw}"></div><div class="field"><label for="dPg">Toʻxtashsiz masofa, m</label><input id="dPg" type="number" step="0.5" value="${ds.thr.parkGap}"></div></div>
@@ -1643,9 +1680,11 @@ function renderDesignPanel(){
   }
   if(tab==='file'){ds.fileOpen=true;h+=fileHTML()+`<div class="sec-h">Loyihani tozalash</div><div class="tools"><button class="btn" id="dClr" style="color:var(--bad)">Hammasini oʻchirish</button><span class="small">Ctrl+Z bilan qaytarish mumkin</span></div><button class="btn" id="dGeo" hidden></button>`;}
   el.innerHTML=h;const q=s=>el.querySelector(s);
-  el.querySelectorAll('[data-it]').forEach(b=>b.onclick=()=>{ds.itab=b.dataset.it;renderDesignPanel();save();});
+  el.querySelectorAll('[data-it]').forEach(b=>b.onclick=()=>{ds.itab=b.dataset.it;if(ds.itab!=='check')ds.ckF=null;renderDesignPanel();renderCheckMarks();save();});
   el.querySelectorAll('[data-pre]').forEach(b=>b.onclick=()=>{ds.preset=b.dataset.pre;if(ds.tool!=='draw')ds.tool='draw';afterDesign();});
   el.querySelectorAll('[data-src]').forEach(i=>i.onchange=()=>{ds.src[i.dataset.src]=i.value.trim();save();});
+  el.querySelectorAll('[data-iss]').forEach(b=>{const go=()=>{const [r1,i1]=b.dataset.iss.split(':');focusIssue(r1,+i1);};b.onclick=e=>{if(e.target.closest('[data-fix]'))return;go();};b.onkeydown=e=>{if(e.key==='Enter')go();};});
+  el.querySelectorAll('[data-fix]').forEach(b=>b.onclick=()=>{const [r1,i1]=b.dataset.fix.split(':');fixIssue(r1,+i1);});
   const num=(id,fn)=>{const i=q(id);if(i)i.onchange=()=>{const v=parseFloat(i.value);if(v>0){fn(v);afterDesign();}};};
   num('#dLmin',v=>ds.thr.laneMin=v);num('#dLmax',v=>ds.thr.laneMax=v);num('#dCw',v=>ds.thr.cw=v);num('#dPg',v=>ds.thr.parkGap=v);
   if(tab==='prop'&&selOk){if(sel.t==='seg')bindSegEditor(el,segById(sel.id));if(sel.t==='sign')bindSignEditor(el,signById(sel.id));}
