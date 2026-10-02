@@ -2714,12 +2714,41 @@ function designGeoJSON(){const fs=[];if(!S.design||!S.design.segs.length)return 
   try{const {sh}=buildShapes();sh.forEach(x=>{if(x.t==='poly'&&x.ll&&x.ll.length>2){const r=x.ll.map(p=>[p[1],p[0]]);r.push(r[0]);fs.push({type:'Feature',properties:{col:x.col,z:x.z||0},geometry:{type:'Polygon',coordinates:[r]}});}
     else if(x.t==='line'&&x.ll&&x.opt)fs.push({type:'Feature',properties:{col:x.opt.color||'#fff',w:x.opt.weight||1,z:x.z||0},geometry:{type:'LineString',coordinates:x.ll.map(p=>[p[1],p[0]])}});});}catch(e){}
   fs.sort((a,b)=>a.properties.z-b.properties.z);return {type:'FeatureCollection',features:fs};}
+/* 3D shahar: sunʼiy yoʻldosh tasviridan daraxt tojlarini aniqlash (ExG + tekstura), 3D tojlar sifatida */
+async function city3DTrees(){
+  const b=ML3.getBounds();let bb={s:b.getSouth(),n:b.getNorth(),w:b.getWest(),e:b.getEast()};const lat0=(bb.s+bb.n)/2,mx=111320*Math.cos(lat0*R),my=110574;
+  const cLat=(bb.s+bb.n)/2,cLon=(bb.w+bb.e)/2,maxH=1200;
+  if((bb.e-bb.w)*mx>2*maxH){bb.w=cLon-maxH/mx;bb.e=cLon+maxH/mx;} if((bb.n-bb.s)*my>2*maxH){bb.s=cLat-maxH/my;bb.n=cLat+maxH/my;}
+  const pts=await detectTreesBB(bb);
+  const oct=(lon,lat,r)=>{const pts=[];for(let i=0;i<=8;i++){const a=i/8*2*Math.PI;pts.push([lon+r*Math.cos(a)/mx,lat+r*Math.sin(a)/my]);}return [pts];};
+  let rnd=11;const RN=()=>{rnd=(rnd*16807)%2147483647;return rnd/2147483647;};
+  const crowns=[],trunks=[];pts.forEach(([lon,lat,f])=>{const h=6+RN()*5,r=2+f*1.6;crowns.push({type:'Feature',properties:{b:h*.32,h,c:RN()<.5?'#7f9f63':'#93b075'},geometry:{type:'Polygon',coordinates:oct(lon,lat,r)}});trunks.push({type:'Feature',properties:{h:h*.36},geometry:{type:'Polygon',coordinates:oct(lon,lat,.25)}});});
+  const fc=f=>({type:'FeatureCollection',features:f});
+  if(ML3.getSource('kps-tr')){ML3.getSource('kps-tr').setData(fc(crowns));ML3.getSource('kps-trt').setData(fc(trunks));}
+  else{ML3.addSource('kps-tr',{type:'geojson',data:fc(crowns)});ML3.addSource('kps-trt',{type:'geojson',data:fc(trunks)});
+    ML3.addLayer({id:'kps-tr-t',type:'fill-extrusion',source:'kps-trt',paint:{'fill-extrusion-color':'#6e5a44','fill-extrusion-height':['get','h'],'fill-extrusion-base':0}});
+    ML3.addLayer({id:'kps-tr-c',type:'fill-extrusion',source:'kps-tr',paint:{'fill-extrusion-color':['get','c'],'fill-extrusion-height':['get','h'],'fill-extrusion-base':['get','b'],'fill-extrusion-opacity':.95}});}
+  ['kps-tr-c','kps-tr-t'].forEach(i=>ML3.setLayoutProperty(i,'visibility','visible'));
+  return pts.length;}
+async function detectTreesBB(bb){const lat0=(bb.s+bb.n)/2;
+  const z=18,im=await loadImagery(bb,z),mpp=156543.03392*Math.cos(lat0*R)/2**z;
+  const cx0=Math.floor(gxf(bb.w,z))-im.ox,cy0=Math.floor(gyf(bb.n,z))-im.oy,cw=Math.ceil(gxf(bb.e,z))-im.ox-cx0,ch=Math.ceil(gyf(bb.s,z))-im.oy-cy0;
+  const pix=im.cx.getImageData(cx0,cy0,cw,ch).data,cell=Math.max(3,Math.round(3.5/mpp)),cand=[];
+  for(let cy=0;cy+cell<=ch;cy+=cell)for(let cx=0;cx+cell<=cw;cx+=cell){let v=0,n=0,s=0,s2=0;
+    for(let y=cy;y<cy+cell;y++)for(let x=cx;x<cx+cell;x++){const i=(y*cw+x)*4,r=pix[i],g=pix[i+1],bl=pix[i+2],t=r+g+bl+1,ex=(2*g-r-bl)/t,br=t/3;n++;if(ex>.055&&br<150)v++;s+=br;s2+=br*br;}
+    const f=v/n,sd=Math.sqrt(Math.max(0,s2/n-(s/n)**2));if(f>.55&&sd>7&&s/n<120)cand.push({x:cx+cell/2,y:cy+cell/2,f});}
+  cand.sort((a,b)=>b.f-a.f);const minD=5/mpp,grid=new Map(),G=k=>grid.get(k)||[],keep=[];
+  for(const c of cand){const gx=Math.floor(c.x/minD),gy=Math.floor(c.y/minD);let ok=true;
+    for(let i=-1;i<=1&&ok;i++)for(let j=-1;j<=1&&ok;j++)for(const o of G(`${gx+i},${gy+j}`))if((o.x-c.x)**2+(o.y-c.y)**2<minD*minD){ok=false;break;}
+    if(ok){keep.push(c);const k=`${gx},${gy}`;grid.set(k,[...G(k),c]);if(keep.length>=9000)break;}}
+  const toLL2=(x,y)=>{const gx=(x+cx0+im.ox),gy=(y+cy0+im.oy),n=Math.PI-2*Math.PI*gy/(TS*2**z);return [gx/(TS*2**z)*360-180,180/Math.PI*Math.atan(.5*(Math.exp(n)-Math.exp(-n)))];};
+  return keep.map(c=>{const [lon,lat]=toLL2(c.x,c.y);return [lon,lat,c.f];});}
 async function openCity3D(){
   const wrap=document.querySelector('.mapwrap');let box=document.getElementById('ml3d');
   if(!box){box=document.createElement('div');box.id='ml3d';box.className='ml3d';box.innerHTML=`<div class="mlmap" id="mlmap"></div>
     <div class="mlbar"><b>3D shahar</b><label><input type="checkbox" id="mlSat" checked> Sunʼiy yoʻldosh</label><label><input type="checkbox" id="mlBld" checked> Binolar</label><label><input type="checkbox" id="mlDes" checked> Loyiha</label>
-    <label>Balandlik ×<input type="range" id="mlH" min="0.5" max="3" step="0.25" value="1" style="width:80px"></label><button class="btn sm" id="mlClose">✕ Yopish</button></div>
-    <div class="mlnote">Oʻng tugma (yoki Ctrl) bilan sudrang — aylantirish va qiyalik. Bino balandligi OSM dagi <i>height</i> / <i>building:levels</i> teglaridan; teg yoʻq binolar past koʻrinadi. Manba: © OpenStreetMap, OpenFreeMap.</div>`;
+    <label>Balandlik ×<input type="range" id="mlH" min="0.5" max="3" step="0.25" value="1" style="width:80px"></label><label><input type="checkbox" id="mlTer"> Relyef</label><label>×<input type="range" id="mlTx" min="1" max="5" step="0.5" value="2" style="width:70px"></label><label><input type="checkbox" id="mlCon"> Gorizontallar</label><label><input type="checkbox" id="mlTr"> Daraxtlar (sunʼiy yoʻldoshdan)</label><span id="mlSt" class="small"></span><button class="btn sm" id="mlClose">✕ Yopish</button></div>
+    <div class="mlnote">Oʻng tugma (yoki Ctrl) bilan sudrang — aylantirish va qiyalik. Bino balandligi OSM dagi <i>height</i> / <i>building:levels</i> teglaridan; teg yoʻq binolar past koʻrinadi. Manba: © OpenStreetMap, OpenFreeMap; relyef — AWS Terrain Tiles (SRTM va boshqa ochiq DEM); daraxtlar — Esri tasviridan yashillik indeksi boʻyicha taxmin.</div>`;
     wrap.appendChild(box);}
   box.hidden=false;
   try{await loadMapLibre();}catch(e){box.hidden=true;toast(e.message+' — internetni tekshiring.');return;}
@@ -2740,6 +2769,21 @@ async function openCity3D(){
     ML3.addLayer({id:'kps-des-l',type:'line',source:'kps-des',filter:['==','$type','LineString'],paint:{'line-color':['get','col'],'line-width':['get','w']}},'kps-bld');
     const q=id=>document.getElementById(id),vis=(ids,on)=>ids.forEach(i=>ML3.getLayer(i)&&ML3.setLayoutProperty(i,'visibility',on?'visible':'none'));
     q('mlSat').onchange=e=>vis(['esri'],e.target.checked);q('mlBld').onchange=e=>vis(['kps-bld'],e.target.checked);q('mlDes').onchange=e=>vis(['kps-des-f','kps-des-l'],e.target.checked);
+    const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+    ML3.addSource('kps-dem',{type:'raster-dem',tiles:[DEM],encoding:'terrarium',tileSize:256,maxzoom:15,attribution:'Relyef: AWS Terrain Tiles'});
+    ML3.addLayer({id:'kps-hill',type:'hillshade',source:'kps-dem',layout:{visibility:'none'},paint:{'hillshade-exaggeration':.45,'hillshade-shadow-color':'#5a5a5a'}},firstSym);
+    const ter=()=>{const on=q('mlTer').checked;ML3.setTerrain(on?{source:'kps-dem',exaggeration:+q('mlTx').value}:null);vis(['kps-hill'],on);};
+    q('mlTer').onchange=ter;q('mlTx').oninput=()=>{if(q('mlTer').checked)ter();};
+    q('mlCon').onchange=async e=>{if(!e.target.checked){vis(['kps-con','kps-con-lab'],false);return;}
+      if(!ML3.getSource('kps-cs')){try{if(!window.mlcontour)await loadScript('https://unpkg.com/maplibre-contour@0.1.1/dist/index.min.js');
+        const ds=new mlcontour.DemSource({url:DEM,encoding:'terrarium',maxzoom:14,worker:true});ds.setupMaplibre(maplibregl);
+        ML3.addSource('kps-cs',{type:'vector',tiles:[ds.contourProtocolUrl({thresholds:{11:[50,250],12:[20,100],13:[10,50],14:[5,25],15:[2,10]},contourLayer:'contours',elevationKey:'ele',levelKey:'level'})],maxzoom:15});
+        ML3.addLayer({id:'kps-con',type:'line',source:'kps-cs','source-layer':'contours',paint:{'line-color':'#6b5a44','line-opacity':['match',['get','level'],1,.75,.35],'line-width':['match',['get','level'],1,1.1,.5]}},firstSym);
+        ML3.addLayer({id:'kps-con-lab',type:'symbol',source:'kps-cs','source-layer':'contours',filter:['>',['get','level'],0],layout:{'symbol-placement':'line','text-field':['concat',['number-format',['get','ele'],{}],' m'],'text-size':10,'text-font':['Noto Sans Regular']},paint:{'text-color':'#5a4a36','text-halo-color':'#fff','text-halo-width':1.2}});
+      }catch(err){toast('Gorizontallar ochilmadi: '+err.message);e.target.checked=false;return;}}
+      vis(['kps-con','kps-con-lab'],true);};
+    q('mlTr').onchange=async e=>{if(!e.target.checked){vis(['kps-tr-c','kps-tr-t'],false);return;}
+      try{q('mlSt').textContent='Daraxtlar aniqlanmoqda…';const n=await city3DTrees();q('mlSt').textContent=n+' ta daraxt';}catch(err){q('mlSt').textContent='';toast('Daraxtlar aniqlanmadi: '+err.message);e.target.checked=false;}};
     q('mlH').oninput=e=>{const k=+e.target.value;ML3.setPaintProperty('kps-bld','fill-extrusion-height',['*',k,['coalesce',['get','render_height'],6]]);ML3.setPaintProperty('kps-bld','fill-extrusion-base',['*',k,['coalesce',['get','render_min_height'],0]]);};
   });
   let mlWarn=0;ML3.on('error',e=>{if(!mlWarn&&!ML3.isStyleLoaded()){mlWarn=1;toast('3D xarita uslubi ochilmadi (OpenFreeMap): '+((e&&e.error&&e.error.message)||''));}});
