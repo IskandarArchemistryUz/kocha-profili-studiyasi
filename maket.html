@@ -352,8 +352,8 @@ function fitZoom(){const [W,Hh]=pageWH(pg()),st=$('#stage');zoom=Math.max(.1,Mat
 $('#zIn').onclick=()=>{zoom=Math.min(4,zoom*1.2);renderPaper();};$('#zOut').onclick=()=>{zoom=Math.max(.08,zoom/1.2);renderPaper();};$('#zFit').onclick=fitZoom;
 $('#stage').addEventListener('wheel',e=>{if(e.ctrlKey){e.preventDefault();zoom=Math.max(.08,Math.min(4,zoom*(e.deltaY<0?1.1:1/1.1)));renderPaper();}},{passive:false});
 /* ---------- xarita oynasi ---------- */
-const TILE={line:'https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png',dark:'https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}.png',voy:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'};
-const TMAX={line:20,dark:20,voy:20,osm:19,sat:19};
+const TILE={line:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',dark:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',voy:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'};
+const TMAX={line:16,dark:16,voy:19,osm:19,sat:19};
 const R=Math.PI/180,gx=(lon,z)=>(lon+180)/360*256*2**z,gy=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*256*2**z;
 const loadImg=u=>new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=u;});
 async function defaultCenter(){try{const s=JSON.parse(localStorage.getItem('kps_v1')||'null');const n=s&&s.design&&s.design.nodes&&s.design.nodes[0];if(n)return n.ll;if(s&&s.site&&s.site.center)return s.site.center;}catch(e){}return [41.3111,69.2797];}

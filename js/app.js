@@ -137,9 +137,9 @@ const BASES={
 };
 const CARTO='https://{s}.basemaps.cartocdn.com/rastertiles/';
 const osmBnd=L.layerGroup();
-BASES.imgl=[BASES.img[0],L.tileLayer(CARTO+'voyager_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:21,maxNativeZoom:20,attribution:'Nomlar: © OpenStreetMap, © CARTO'}),osmBnd];
+BASES.imgl=[BASES.img[0],L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Nomlar: Esri'}),osmBnd];
 BASES.osm=[L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:21,maxNativeZoom:19,attribution:'© OpenStreetMap hissadorlari'})];
-BASES.carto=[L.tileLayer(CARTO+'voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:21,maxNativeZoom:20,attribution:'© OpenStreetMap, © CARTO'})];
+BASES.carto=[L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri, HERE, © OpenStreetMap'})];
 let curBase=null;
 /* Google Map Tiles API — faqat foydalanuvchining oʻz API kaliti bilan (rasmiy yoʻl) */
 async function googleBase(){

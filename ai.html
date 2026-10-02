@@ -74,7 +74,7 @@ const toast=m=>{const t=document.createElement('div');t.className='toast';t.text
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fi=v=>Math.round(v).toLocaleString('ru-RU'),f1=v=>(Math.round(v*10)/10).toLocaleString('ru-RU'),f2=v=>(Math.round(v*100)/100).toLocaleString('ru-RU');
 const map=L.map('map',{doubleClickZoom:false}).setView([41.3111,69.2797],14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,attribution:'© OpenStreetMap, © Esri'}).addTo(map);
 const A=L.layerGroup().addTo(map),O=L.layerGroup().addTo(map);
 let mode='radius',center=null,poly=[],done=false,res=null,aiText='';
 const KEY=()=>localStorage.getItem('kps_ai_key')||'',MODEL=()=>localStorage.getItem('kps_ai_model')||'claude-sonnet-5';
@@ -95,7 +95,7 @@ const pip=(p,r)=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){if(((r[
 const dm=(a,b)=>Math.hypot((a[1]-b[1])*MX,(a[0]-b[0])*MY);
 /* ---------- Overpass ---------- */
 const OVP=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
-async function ovp(q){let last;for(const u of OVP){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q)});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}catch(e){last=e;}}throw last;}
+async function ovp(q){let last;for(const u of OVP){try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),70000);const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),signal:ac.signal});clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}catch(e){last=e;}}throw last;}
 function prog(p,m){$('#body').innerHTML=`<div><div class="lbl">${esc(m)}</div><div class="prog" style="margin-top:8px"><s style="width:${Math.round(p*100)}%"></s></div></div>`;}
 async function compute(){let flt,inside,areaM2,ring;
   if(mode==='radius'){if(!center){toast('Xaritada markazni bosing.');return;}const r=Math.min(5000,Math.max(200,+$('#rKm').value*1000));LAT0=center[0];MX=111320*Math.cos(LAT0*R);flt=`(around:${r},${center[0]},${center[1]})`;inside=p=>dm(p,center)<=r;areaM2=Math.PI*r*r;
@@ -177,17 +177,17 @@ function fifteen(roads,poi,ring,inside,areaM2,bb){const NOWALK=/^(motorway|motor
   roads.elements.forEach(w=>{const t=w.tags||{};if(NOWALK.test(t.highway)||t.foot==='no'||t.access==='private')return;const ns=w.nodes||[],g=w.geometry||[];for(let i=1;i<ns.length;i++){if(!g[i]||!g[i-1])continue;const a=nid(ns[i-1],[g[i-1].lat,g[i-1].lon]),b=nid(ns[i],[g[i].lat,g[i].lon]),d=dm(pos[a],pos[b]);adj[a].push(b,d);adj[b].push(a,d);}});
   const CS=150,hash=new Map(),hk=(a,b)=>a+','+b;pos.forEach((p,i)=>{const k=hk(Math.floor(p[0]*MY/CS),Math.floor(p[1]*MX/CS));let v=hash.get(k);if(!v)hash.set(k,v=[]);v.push(i);});
   const snap=p=>{const a=Math.floor(p[0]*MY/CS),b=Math.floor(p[1]*MX/CS);let best=-1,bd=Infinity;for(let r=0;r<=2&&best<0;r++)for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++)for(const n of hash.get(hk(a+i,b+j))||[]){const d=dm(p,pos[n]);if(d<bd){bd=d;best=n;}}return best<0?null:[best,bd];};
-  const src={};C15.forEach(c=>src[c[0]]=[]);const seen=new Set();
+  const src={},cnt={};C15.forEach(c=>{src[c[0]]=[];cnt[c[0]]=0;});const seen=new Set();
   poi.elements.forEach(e=>{const k=e.type+e.id;if(seen.has(k))return;seen.add(k);const t=e.tags||{},cs=cls15(t);if(!cs.length)return;let pts;
     if(e.type==='way'&&e.geometry&&cs.includes('green')){const g=e.geometry;const st=Math.max(1,Math.floor(g.length/24));pts=g.filter((_,i)=>i%st===0).map(q=>[q.lat,q.lon]);}else pts=[e.type==='node'?[e.lat,e.lon]:e.center?[e.center.lat,e.center.lon]:null].filter(Boolean);
-    pts.forEach(p=>{const s=snap(p);if(s)cs.forEach(c=>src[c].push(s));});});
+    cs.forEach(c=>cnt[c]++);pts.forEach(p=>{const s=snap(p);if(s)cs.forEach(c=>src[c].push(s));});});
   const D={};C15.forEach(([c])=>{const dist=new Float64Array(pos.length).fill(Infinity),h=[];src[c].forEach(([n,d])=>{if(d<dist[n]){dist[n]=d;heapPush(h,[d,n]);}});
     while(h.length){const [d,n]=heapPop(h);if(d>dist[n]||d>3000)continue;const A=adj[n];for(let i=0;i<A.length;i+=2){const nd=d+A[i+1];if(nd<dist[A[i]]){dist[A[i]]=nd;heapPush(h,[nd,A[i]]);}}}D[c]=dist;});
   const sp=(+PRM.speed||5)*1000/60,L15=sp*15;const step=Math.max(60,Math.sqrt(areaM2/2200)),cells=[];
   for(let la=bb[0];la<=bb[2];la+=step/MY)for(let lo=bb[1];lo<=bb[3];lo+=step/MX){const p=[la+step/MY/2,lo+step/MX/2];if(!inside(p))continue;const s=snap(p);if(!s||s[1]>250){cells.push({p,n:null});continue;}
     const m={};C15.forEach(([c])=>m[c]=(D[c][s[0]]+s[1])/sp);cells.push({p,m,n:C15.filter(([c])=>m[c]<=15).length});}
   const ok=cells.filter(c=>c.n!=null),sum={speed_kmh:+PRM.speed||5,walk_15min_m:Math.round(L15),cells:ok.length,cell_size_m:Math.round(step),categories:{}};
-  C15.forEach(([c,n])=>{const ms=ok.map(x=>x.m[c]).filter(v=>isFinite(v)).sort((a,b)=>a-b);sum.categories[n]={within_5min_pct:ok.length?+(ok.filter(x=>x.m[c]<=5).length/ok.length*100).toFixed(1):0,within_10min_pct:ok.length?+(ok.filter(x=>x.m[c]<=10).length/ok.length*100).toFixed(1):0,within_15min_pct:ok.length?+(ok.filter(x=>x.m[c]<=15).length/ok.length*100).toFixed(1):0,median_min:ms.length?+ms[Math.floor(ms.length/2)].toFixed(1):null,count:src[c].length};});
+  C15.forEach(([c,n])=>{const ms=ok.map(x=>x.m[c]).filter(v=>isFinite(v)).sort((a,b)=>a-b);sum.categories[n]={within_5min_pct:ok.length?+(ok.filter(x=>x.m[c]<=5).length/ok.length*100).toFixed(1):0,within_10min_pct:ok.length?+(ok.filter(x=>x.m[c]<=10).length/ok.length*100).toFixed(1):0,within_15min_pct:ok.length?+(ok.filter(x=>x.m[c]<=15).length/ok.length*100).toFixed(1):0,median_min:ms.length?+ms[Math.floor(ms.length/2)].toFixed(1):null,count:cnt[c]};});
   sum.index_avg_categories_15min=ok.length?+(ok.reduce((s,x)=>s+x.n,0)/ok.length).toFixed(2):0;sum.full_15min_city_share_pct=ok.length?+(ok.filter(x=>x.n===C15.length).length/ok.length*100).toFixed(1):0;
   sum.no_network_cells_pct=cells.length?+((cells.length-ok.length)/cells.length*100).toFixed(1):0;
   // piyoda qamrovi (ped-shed): markazdan tarmoq boʻylab 5/10/15 daqiqa
