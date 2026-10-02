@@ -14,395 +14,195 @@ a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;c
 header{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:13px;letter-spacing:.2em}.crumb{font-size:11px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
 .btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
-.btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:26px;padding:0 9px;font-size:10.5px}.btn:disabled{opacity:.5}
-main{flex:1;display:grid;grid-template-columns:290px 1fr 300px;min-height:0}
-#nav{background:#fff;border-right:1px solid var(--line);overflow:auto;padding:10px 0}
-.ns{padding:4px 0 8px}.nsh{display:flex;gap:10px;padding:6px 14px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}.nsh b{color:var(--ink);font-weight:600;min-width:16px}
-.nu{display:grid;grid-template-columns:34px 1fr auto;grid-template-rows:auto 2px;column-gap:6px;row-gap:4px;align-items:center;width:100%;border:0;background:none;text-align:left;padding:6px 14px 6px 14px;font-size:12.5px}
-.nu:hover{background:var(--bg)}.nu.on{background:var(--ink);color:#f4f3f1}.nu.on .np{color:#cfccc5}
-.nn{font-family:var(--mono);font-size:11px;color:var(--grey)}.nu.on .nn{color:#cfccc5}.np{font-family:var(--mono);font-size:10.5px;color:var(--grey);display:flex;gap:4px;align-items:center}
-.nu .bar{grid-column:2/4;height:2px;background:#efede9}.nu .bar s{display:block;height:100%}.d{width:7px;height:7px;border-radius:50%;display:inline-block}.d.bad{background:var(--bad)}
-#main{overflow:auto;padding:22px}
-.card{background:#fff;border:1px solid var(--line);max-width:1180px;margin:0 auto}
-.ttl{display:flex;align-items:center;gap:14px;padding:16px 18px;border-bottom:1px solid var(--line)}
-.num{background:var(--ink);color:#f4f3f1;min-width:46px;height:46px;padding:0 8px;display:grid;place-items:center;font-size:18px;font-weight:600}
-h1{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.ru{font-size:12px;color:var(--grey);font-style:italic}
-.done{font-size:12px;display:flex;gap:6px;align-items:center}
-.cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:0}
-.ck{padding:16px 18px;border-right:1px solid var(--line)}.dr{padding:16px 18px}
-.ckh,.drh{display:flex;justify-content:space-between;align-items:baseline;background:var(--ink);color:#f4f3f1;padding:8px 10px;margin-bottom:8px}.ckh b,.drh b{font-weight:600;letter-spacing:.08em;font-size:12px}.ckh span,.drh span{font-size:11px;color:#cfccc5}
-table{width:100%;border-collapse:collapse}th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--grey);font-weight:500;text-align:left;padding:4px 6px}
-td{padding:7px 6px;border-top:1px solid #efede9;vertical-align:middle;font-size:12.5px}td.nm{text-align:center;font-weight:600;font-size:12px;width:120px}td.nm small{display:block;font-weight:400;font-style:italic;color:var(--blue);font-size:10.5px;margin-top:2px}
-.mono{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--grey)}
-.inp{display:flex;align-items:center;gap:4px}.inp input,td select,td textarea,.calc{width:100%;border:1px dashed var(--blue);background:#eef3fb;border-radius:2px;padding:5px 7px;font-family:var(--mono);font-size:12px;color:#1c3f78;min-width:0}
-td textarea{font-family:Archivo;resize:vertical}td select.ok{border-style:solid;border-color:var(--ok);background:#eaf4ee}td select.no{border-style:solid;border-color:var(--bad);background:#fbecea}
-.calc{border-style:solid;border-color:var(--line2);background:#f7f6f3;color:var(--ink)}.u{font-family:var(--mono);font-size:10.5px;color:var(--grey);white-space:nowrap;margin-left:4px}
-.pull{border:1px solid var(--blue);background:#fff;color:var(--blue);width:24px;height:24px;flex:none;border-radius:2px;padding:0}
-.st{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid var(--line2);font-style:normal;font-size:12px;font-weight:700}.st.ok{background:var(--ok);border-color:var(--ok);color:#fff}.st.bad{background:var(--bad);border-color:var(--bad);color:#fff}.st.fill,.st.na{background:#efede9}
-#uNote{width:100%;border:1px solid var(--line2);border-radius:2px;padding:8px;font-size:12.5px;resize:vertical}
-.slot{border:1px dashed var(--blue);min-height:280px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;padding:8px;background:#f6f5f2}
-.slot.empty{display:grid;place-items:center;text-align:center;color:var(--blue);font-size:13px;padding:20px}
-.slot figure{margin:0;background:#fff;border:1px solid var(--line)}.slot img{width:100%;height:150px;object-fit:contain;display:block;background:#fff}.slot figcaption{display:flex;justify-content:space-between;gap:6px;padding:5px 7px;font-size:11.5px;border-top:1px solid var(--line)}
-.slot figcaption button{border:0;background:none;color:var(--bad)}
-.row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.tools{display:flex;flex-direction:column;gap:4px}.tool{border:1px solid var(--line2);padding:7px 10px;font-size:12.5px;background:#fff}.tool:hover{border-color:var(--ink)}
-.tik{display:flex;justify-content:space-between;gap:16px;padding:10px 18px;border-top:1px solid var(--ink);font-size:12px}.tik span{color:var(--blue);font-style:italic;text-align:right}
+.btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:26px;padding:0 9px;font-size:10.5px}.btn:disabled{opacity:.45;cursor:default}
+main{flex:1;display:grid;grid-template-columns:300px 1fr;min-height:0}
+aside{background:#fff;border-right:1px solid var(--line);overflow:auto;padding:16px;display:flex;flex-direction:column;gap:18px}
+h1{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub0{font-size:12px;color:var(--grey);margin-top:4px}
 .lbl{font-size:10px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase;margin-bottom:6px}
-.note{font-family:var(--mono);font-size:10.5px;color:var(--grey);line-height:1.55}.note.warn{color:#8a4b00;background:#fdf3e1;padding:8px;margin-top:8px}
-#side{background:#fff;border-left:1px solid var(--line);overflow:auto;padding:16px;display:flex;flex-direction:column;gap:18px}
-#side .big{width:100%;border:1px solid var(--line2);padding:7px 8px;font-size:15px;font-weight:500;border-radius:2px}
-.srcb{border:1px solid var(--line);padding:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:2px}.srcb>b{font-weight:500}.srcb>span{font-family:var(--mono);font-size:10.5px;color:var(--grey)}.srcb>a{font-size:11.5px;color:var(--blue);margin-top:4px}
-.kv{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #f1efea}.kv b{font-family:var(--mono);font-weight:500}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.kpis div{padding:16px 18px;border-right:1px solid var(--line)}.kpis b{display:block;font-size:30px;font-weight:500}.kpis span{font-size:11px;color:var(--grey)}.kpis .b b{color:var(--bad)}
-table.sum{margin:0 18px;width:calc(100% - 36px)}table.sum tr[data-u]{cursor:pointer}table.sum tr[data-u]:hover{background:var(--bg)}td.ok{color:var(--ok);font-family:var(--mono)}td.bad{color:var(--bad);font-family:var(--mono)}
-.ov{position:fixed;inset:0;background:rgba(20,20,20,.35);z-index:900;display:grid;place-items:center;padding:30px}
-.dlg{background:#fff;border:1px solid var(--ink);width:100%;max-width:980px;max-height:90vh;display:flex;flex-direction:column}
-.dh{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}.dh:last-child{border-top:1px solid var(--line);border-bottom:0}.dh .x:not(.btn){border:0;background:none;font-size:16px}
-.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;padding:14px;overflow:auto}.mg button{border:1px solid var(--line);background:#fff;padding:0;text-align:left;display:flex;flex-direction:column}
-.mg button.on{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}.mg img{width:100%;height:110px;object-fit:contain;background:#f6f5f2}.mg span{font-size:12px;padding:5px 7px 0}.mg small{font-family:var(--mono);font-size:10px;color:var(--grey);padding:0 7px 6px}
+#src span{display:block;font-family:var(--mono);font-size:11px;color:var(--grey);padding:5px 0;border-bottom:1px solid #f1efea}#src span.on{color:var(--ink)}#src span.on::before{content:'● ';color:var(--ok)}
+.note{font-family:var(--mono);font-size:10.5px;color:var(--grey);line-height:1.55}
+#cards{overflow:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:14px;align-content:start}
+.cd{background:#fff;border:1px solid var(--line);display:flex;flex-direction:column}
+.ch{display:flex;justify-content:space-between;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--line)}.ch h2{margin:0;font-size:16px;font-weight:500}.cref{font-family:var(--mono);font-size:10.5px;color:var(--grey);margin-top:2px}
+.cb{padding:10px 16px}.ins{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;padding-bottom:10px;margin-bottom:6px;border-bottom:1px dashed var(--line)}.ins .sub{grid-column:1/-1;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--grey);margin-top:4px}
+.in{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--grey)}.iw{display:flex;align-items:center;gap:5px}.iw input{width:100%;min-width:0;border:1px dashed var(--blue);background:#eef3fb;border-radius:2px;padding:5px 7px;font-family:var(--mono);font-size:12px;color:#1c3f78}.iw em{font-style:normal;font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+table{width:100%;border-collapse:collapse}td{padding:6px 4px;border-top:1px solid #f1efea;font-size:12.5px;vertical-align:middle}td.v{text-align:right;font-family:var(--mono);white-space:nowrap}td.v em{font-style:normal;color:var(--grey);font-size:11px}td.nm{text-align:center;color:var(--blue);font-size:11px;white-space:nowrap;width:90px}
+.st{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;font-style:normal;font-size:11px;font-weight:700;color:#fff}.st.ok{background:var(--ok)}.st.bad{background:var(--bad)}
+.cf{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-top:1px solid #f1efea;margin-top:auto}.cf a{font-size:12px;color:var(--blue)}
+.emp{padding:18px 16px;color:var(--grey);font-size:12.5px}.emp a{color:var(--blue)}
+.charts{display:flex;gap:10px;padding:4px 16px 10px;flex-wrap:wrap}.ch1{width:100%;max-width:440px;height:auto;font-family:Archivo}.charts svg:nth-child(2){max-width:220px}
+#thr{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px}
+#aiOut{white-space:pre-wrap;font-size:12.5px;line-height:1.55;border:1px solid var(--line);padding:10px;background:#faf9f7;max-height:420px;overflow:auto}
 #toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:1000}.toast{background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:12.5px;border-radius:2px;display:flex;gap:12px;align-items:center}.toast button{border:1px solid #f4f3f1;background:none;color:#f4f3f1;font-size:11px;padding:3px 8px}
-@media (max-width:1200px){main{grid-template-columns:240px 1fr}#side{display:none}.cols{grid-template-columns:1fr}.ck{border-right:0;border-bottom:1px solid var(--line)}}
+@media (max-width:900px){main{grid-template-columns:1fr;overflow:auto}aside{border-right:0;border-bottom:1px solid var(--line)}#cards{grid-template-columns:1fr;overflow:visible}body{overflow:auto}}
 </style>
 </head>
 <body>
 <header>
 <a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
 <span class="crumb">/ 00 · MASTER REJA</span><span class="sp"></span>
-<button class="btn ghost sm" id="fNew">Yangi</button><button class="btn ghost sm" id="fOpen">Ochish</button><button class="btn ghost sm" id="fSave">Faylga saqlash</button><input type="file" id="fIn" accept=".json" hidden>
-<button class="btn dark" id="mkAlb">Albom yaratish →</button>
+<button class="btn ghost" id="aiBtn">AI xulosa</button><button class="btn dark" id="allAlb">Hammasini albomga →</button>
 </header>
-<main><nav id="nav" aria-label="Boʻlimlar"></nav><div id="main"></div><aside id="side"></aside></main>
+<main><aside>
+<div><h1>Master reja · hisob paneli</h1><div class="sub0">Master reja uchun portal hisoblay oladigan koʻrsatkichlar bir joyda. Maʼlumot Joylashtirish va Hudud tahlili boʻlimlaridan avtomatik olinadi.</div></div>
+<div><div class="lbl">Manbalar</div><div id="src"></div><div style="display:flex;gap:6px;margin-top:8px"><a class="btn sm ghost" href="posadka.html">Joylashtirish ↗</a><a class="btn sm ghost" href="ai.html">Hudud tahlili ↗</a></div></div>
+<div><div class="lbl">Chegaraviy qiymatlar</div><div id="thr"></div><div class="note" style="margin-top:6px">Boshlangʻich qiymatlar Urbanizatsiya qoʻmitasi master-reja shablonidan (ShNQ 2.07.01-23: zichlik §84, yashash maydoni §61, yashillik §§86, 474, avtoturargoh §416, uy-joy zichligi §82, 3-jadval, insolyatsiya §78, bekat §382, maktab/bogʻcha 38-jadval; UMN — bosh reja boʻyicha). Loyihaga qarab oʻzgartiring.</div></div>
+<div><div class="lbl">AI xulosa</div><div id="aiOut" hidden></div><div class="note">Yuqoridagi «AI xulosa» tugmasi barcha hisoblar asosida qisqa xulosa va SWOT yozadi (kalit Hudud tahlili sahifasida kiritiladi).</div></div>
+</aside><div id="cards"></div></main>
 <div id="toasts"></div>
 <script>
 (function(){
 'use strict';
 document.getElementById('logoP').setAttribute('d','M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z');
 
-/* Shablon tuzilishi — Urbanizatsiya qoʻmitasi «Master-plan» shabloni (ShNQ 2.07.01-23 asosida).
-   Qator: [kalit, koʻrsatkich, norma, havola, tur, qoʻshimcha]
-   tur: num | txt | area | yn | calc ; qoʻshimcha: {op:'<='|'>='|'in', v, v2, u:'birlik', src:'pz.x'|'ai.x', f:V=>qiymat} */
-const SEC=[
-{id:'0',t:'Loyiha identifikatsiyasi',ru:'Идентификация проекта',subs:[
- {id:'0.1',t:'Huquqiy rejim va normativ asoslar',ru:'Правовой режим и нормативные основания',rows:[
-  ['rejim','Huquqiy rejim','—','VQ-73','txt'],['asos','Normativ asoslar (farmon, qarorlar)','—','PF-158 · PF-29 · VQ-73','area'],
-  ['muddat','Rejim muddati','—','VQ-73','txt'],['cheklov','Hududdagi cheklovlar','—','VQ-73, 2-ilova','area'],['moliya','Moliyalashtirish manbai','—','','txt']],
-  draw:'Hudud holati sxemasi (ixtiyoriy)'},
- {id:'0.2',t:'Loyiha identifikatsiyasi',ru:'Идентификация проекта',rows:[
-  ['yai','Hududning yagona identifikatsion raqami (YaI)','majburiy','VQ-73','txt'],['reyestr','«Uy-joy» AAT reyestrida yozuv','bor/yoʻq','AAT «Uy-joy»','yn'],
-  ['soato','MHOBT (SOATO) kodi','majburiy','MHOBT','txt'],['maydon','Maydon','—','','num',{u:'ga',src:'pz.siteHa'}],
-  ['fzona','Funksional zona','Bosh reja','Bosh reja','txt'],['strategiya','Strategiya (renovatsiya, yangi qurilish…)','Bosh reja','Bosh reja','txt']],
-  draw:'Vaziyat sxemasi: hududning shahardagi oʻrni'},
- {id:'0.3',t:'Joy oʻziga xosligi',ru:'Идентичность места',rows:[
-  ['shaxs','Shaxs / tarix','—','Izohli xat','txt'],['konsepsiya','Kvartal konsepsiyasi','—','Izohli xat','area'],['kod','Mahalliy arxitektura kodi','—','','txt'],['guzar','Guzar (jamoat markazi)','loyihada','Izohli xat','yn']],
-  draw:'Konsepsiya sxemasi, tayanch obrazlar',ai:'Joyning oʻziga xosligi va mahalliy kod gʻoyalarini taklif qil.'}]},
-{id:'1',t:'Boshlangʻich maʼlumotlar va kontekst',ru:'Исходные данные и контекст',subs:[
- {id:'1.1',t:'Mavjud holat',ru:'Существующее положение',rows:[
-  ['mkd','Koʻp kvartirali uylar (KKU)','fakt','Kadastr','num',{u:'ta'}],['ijs','Yakka tartibdagi uylar','fakt','Kadastr','num',{u:'ta'}],['kv0','Kvartiralar','fakt','Kadastr','num',{u:'ta'}],
-  ['oila0','Oilalar (xonadonlar)','fakt','Reyestr','num',{u:'ta'}],['noturar','Noturar obyektlar','fakt','Kadastr','num',{u:'ta'}],['royxatsiz','Davlat roʻyxatidan oʻtmagan obyektlar','fakt','Kadastr','num',{u:'ta'}],
-  ['ozboshimcha','Oʻzboshimcha egallangan yer','fakt','','num',{u:'ga'}]],
-  draw:'Mavjud holat rejasi (kadastr qatlamlari)',tools:[['data.html','Maʼlumotlar: kadastr qatlamini yuklash']]},
- {id:'1.2',t:'Fotofiksatsiya',ru:'Фотофиксация',rows:[],draw:'Hudud fotosuratlari (joyi koʻrsatilgan sxema bilan)'},
- {id:'1.3',t:'Mavjud uy-joy fondi va eskirish',ru:'Существующий жилфонд и износ',rows:[
-  ['mkd_','KKU soni','fakt','Kadastr','calc',{f:V=>V.mkd}],['qurilgan','1950–60-yillarda qurilgan ulush','fakt','Geointellekt','num',{u:'%'}],['qavat0','Qavatlilik','fakt','Kadastr','txt'],
-  ['devor','Devor materiali','fakt','Kadastr','txt'],['yosh','Fond yoshi','hisob','','txt',{u:'yil'}],['buzish','Buziladigan / renovatsiya qilinadigan uylar','loyiha','Izohli xat','num',{u:'ta'}]],
-  draw:'Qurilish yillari boʻyicha diagramma yoki xarita'},
- {id:'1.4',t:'Demografiya va mavjud obyektlar',ru:'Демография и существующие объекты',rows:[
-  ['aholi0','Hozirgi aholi','fakt','Geointellekt / Davstat','num',{u:'kishi'}],['zich0','Hozirgi aholi zichligi','hisob','','calc',{u:'kishi/ga',f:V=>V.aholi0&&V.maydon?V.aholi0/V.maydon:null}],
-  ['mehnat','Mehnatga layoqatli (18–60)','fakt','Davstat','num',{u:'%'}],['daromad','Oʻrtacha oila daromadi','baho','','num',{u:'$'}],['kochish','Koʻchiriladigan oilalar','reyestr','Reyestr','num',{u:'oila'}]],
-  draw:'Yosh-jins piramidasi (mavjud aholi)'},
- {id:'1.5',t:'KRT amalga oshirilgandan keyingi demografiya',ru:'Демография после реализации КЗ',rows:[
-  ['kv','Kvartiralar','loyiha','TIK','num',{u:'ta',src:'pz.na'}],['kpk','Kishi / kvartira','hisob','','num',{u:'kishi'}],
-  ['aholi','Loyiha aholisi','hisob','','calc',{u:'kishi',f:V=>V.kv&&V.kpk?V.kv*V.kpk:null}],
-  ['zich','Aholi zichligi','≤ 400','ShNQ 2.07.01-23 §84','calc',{op:'<=',v:400,u:'kishi/ga',f:V=>V.aholi&&V.maydon?V.aholi/V.maydon:null}],
-  ['m2k','Yashash maydoni, m²/kishi','≥ 16','ShNQ 2.07.01-23 §61','num',{op:'>=',v:16,u:'m²',src:'pz.m2pp'}],
-  ['osish','Aholi oʻsishi','—','','calc',{u:'×',f:V=>V.aholi&&V.aholi0?V.aholi/V.aholi0:null}]],
-  draw:'Yosh-jins piramidasi (bashorat)',tools:[['posadka.html','Binolarni joylashtirish: kvartiralar soni']]},
- {id:'1.6',t:'Topografiya, geologiya, gidrogeologiya',ru:'Топография, геология, гидрогеология',rows:[
-  ['topo','Topografik syomka M 1:500','majburiy','ShNQ 1.02.07-19','yn'],['mgt','Muhandislik-geologik tadqiqotlar','majburiy','ShNQ 1.02.07-19','yn'],
-  ['farq','Balandlik farqi','koʻrsatilsin','','num',{u:'m'}],['tuproq','Tuproq toifasi','I–IV','ShNQ 2.01.03-19','txt'],['yoss','Yerosti suvlari sathi','koʻrsatilsin','','txt',{u:'m'}],
-  ['seysm','Seysmiklik','≤ 9','ShNQ 2.01.03-19','num',{op:'<=',v:9,u:'ball'}]],
-  draw:'Geologik-litologik ustun, relyef xaritasi',tools:[['studio.html#area','Hudud tahlili: relyef va gorizontallar (3D)']]},
- {id:'1.7',t:'Shahar bosh rejasi',ru:'Генплан города',rows:[['bpzona','Bosh rejadagi funksional zona','Bosh reja','ShNQ 2.07.01-23 §§3, 54','txt']],draw:'Bosh rejadan koʻchirma, hudud chegarasi bilan',tools:[['data.html','Maʼlumotlar: bosh reja qatlamini yuklash']]},
- {id:'1.9',t:'Shaharsozlik tahlili: qurilish yoshi',ru:'Возраст застройки',rows:[],draw:'Binolarni qurilgan yili boʻyicha boʻyalgan xarita',tools:[['data.html','Maʼlumotlar: binolar qatlami (yil maydoni bilan)']]},
- {id:'1.10',t:'Shaharsozlik tahlili: 15 daqiqalik izoxronlar',ru:'Карта изохронов — 15 мин',rows:[
-  ['i15','15 daqiqada yetiladigan ehtiyoj turlari (oʻrtacha)','—','','num',{u:'/ 9',src:'ai.i15'}],['f15','Barcha 9 tur 15 daqiqada (hudud ulushi)','—','','num',{u:'%',src:'ai.f15'}],
-  ['ped','Piyoda qamrovi (10 daq.): tarmoq / doira','—','','num',{src:'ai.ped'}]],
-  draw:'15 daqiqalik izoxronlar xaritasi',tools:[['ai.html','Hudud tahlili: 15 daqiqalik shahar']]},
- {id:'1.11',t:'Transport tugunlari tahlili',ru:'Анализ транспортных узлов',rows:[
-  ['radius','Tahlil radiusi','≥ 500 m','ShNQ 2.07.01-23','num',{op:'>=',v:500,u:'m',src:'ai.radius'}],['metro','Eng yaqin metro stansiyasi','—','','num',{u:'km'}],
-  ['vokzal','Temir yoʻl vokzali','—','','num',{u:'km'}],['aeroport','Aeroport','—','','num',{u:'km'}]],
-  draw:'Transport tugunlari va masofalar sxemasi',tools:[['ai.html','Hudud tahlili']]},
- {id:'1.12',t:'Mehnat joylari',ru:'Места приложения труда',rows:[['xizmat','Xizmat koʻrsatish obyektlari zichligi','—','','num',{u:'obyekt/km²',src:'ai.serv'}]],draw:'Mehnat joylari xaritasi',tools:[['ai.html','Hudud tahlili: xizmatlar']]},
- {id:'1.13',t:'Rivojlanishning istiqbolli yoʻnalishlari',ru:'Потенциальные направления развития',rows:[['yonalish','Asosiy yoʻnalishlar','—','','area']],draw:'Rivojlanish yoʻnalishlari sxemasi',ai:'Hududning rivojlanish yoʻnalishlarini koʻrsatkichlar asosida taklif qil.'},
- {id:'1.15',t:'SWOT tahlil',ru:'SWOT анализ',rows:[['s','Kuchli tomonlar','—','','area'],['w','Zaif tomonlar','—','','area'],['o','Imkoniyatlar','—','','area'],['t','Xavflar','—','','area']],draw:'SWOT jadvali',ai:'Hudud koʻrsatkichlari asosida SWOT tahlil yoz.'},
- {id:'1.16',t:'Ijtimoiy obyektlar bilan taʼminlanganlik',ru:'Обеспеченность соц. объектами',rows:[
-  ['dou','Maktabgacha taʼlim muassasalari (1 km)','—','ShNQ 2.07.01-23 §§61, 64','num',{u:'ta',src:'ai.kg'}],['dou_k','MTM yuklanish koeffitsiyenti','—','','num'],
-  ['sosh','Umumtaʼlim maktablari (1 km)','—','','num',{u:'ta',src:'ai.school'}],['sosh_k','Maktab yuklanish koeffitsiyenti','—','','num'],
-  ['tib','Tibbiyot muassasalari','—','','num',{u:'ta',src:'ai.health'}],['sport0','Sport inshootlari','—','','num',{u:'ta'}],['litsey','Litsey / kollej','—','','num',{u:'ta'}],['otm','OTM','—','','num',{u:'ta'}]],
-  draw:'Ijtimoiy obyektlar va xizmat radiuslari xaritasi',tools:[['ai.html','Hudud tahlili: ijtimoiy obyektlar']]},
- {id:'1.17',t:'Mavjud infratuzilma va ulanish nuqtalari',ru:'Существующая инфраструктура и точки подключения',rows:[
-  ['ts_suv','TSh — Suvtaʼminot','olinadi','RTT','yn'],['ts_el','TSh — Energosotuv','olinadi','RTT','yn'],['ts_gaz','TSh — Hududgaztaʼminot','mavjud boʻlsa','RTT','yn'],
-  ['ts_issiq','TSh — Issiqlik','mavjud boʻlsa','RTT','yn'],['ts_kan','TSh — Kanalizatsiya','olinadi','RTT','yn'],['ts_yom','TSh — Yomgʻir suvi','olinadi','RTT','yn'],['ts_aloqa','TSh — Aloqa','olinadi','RTT','yn']],
-  draw:'Magistral tarmoqlar va ulanish nuqtalari sxemasi',tools:[['data.html','Maʼlumotlar: muhandislik tarmoqlari qatlami']]},
- {id:'1.19',t:'Issiqlik tarmoqlari va ulanish nuqtalari',ru:'Схема тепловых сетей',rows:[['issiq_ul','Markazlashgan issiqlikka ulanish (mavjud hududda majburiy)','majburiy','VQ-100, 11-band «l»','yn'],['issiq_n','Ulanish nuqtalari','—','TSh','num',{u:'ta'}]],draw:'Issiqlik tarmoqlari sxemasi'}]},
-{id:'2',t:'Muhandislik infratuzilmasi',ru:'Инженерная инфраструктура',subs:[
- {id:'2.2',t:'Suv taʼminoti va kanalizatsiya',ru:'Водоснабжение и канализация',rows:[
-  ['suv_l','Suv sarfi, l/sut·kishi','1-jadval','ShNQ 2.04.02-19','num',{u:'l'}],['suv_jami','Jami suv sarfi','hisob','ShNQ 2.04.02-19','calc',{u:'m³/sut',f:V=>V.suv_l&&V.aholi?V.suv_l*V.aholi/1000:null}],
-  ['kan_jami','Jami kanalizatsiya (≈ suv)','hisob','ShNQ 2.04.03-19','calc',{u:'m³/sut',f:V=>V.suv_l&&V.aholi?V.suv_l*V.aholi/1000:null}],
-  ['v1','Suv ulanish nuqtasi (V1) kelishilgan','TSh RTT','','yn'],['k1','Kanalizatsiya ulanish nuqtasi (K1) kelishilgan','TSh RTT','','yn'],
-  ['gidrant','Yongʻin gidrantlari orasidagi masofa','≤ 150 m','ShNQ 2.04.02-19','num',{op:'<=',v:150,u:'m'}]],
-  draw:'Suv va kanalizatsiya tarmoqlari sxemasi'},
- {id:'2.3',t:'Yomgʻir suvlari kanalizatsiyasi',ru:'Ливневая канализация',rows:[['jadal','Hisobiy jadallik','iqlim boʻyicha','ShNQ 2.04.03-19','num',{u:'l/s·ga'}],['irrig','Irrigatsiya tizimi (ochiq/yopiq)','—','','txt'],['tozalash','Mahalliy tozalash','ha/yoʻq','','yn'],['suvbosish','Suv bosishdan himoya','majburiy','ShNQ 2.01.03','yn']],draw:'Yomgʻir suvlari sxemasi'},
- {id:'2.4',t:'Elektr taʼminoti',ru:'Электроснабжение',rows:[
-  ['el_kv','Kvartiraning solishtirma yuki','jadval boʻyicha','ShNQ 2.04.17-19','num',{u:'kVt'}],['el_jami','Jami yuk (koeffitsiyentsiz)','hisob','','calc',{u:'kVt',f:V=>V.el_kv&&V.kv?V.el_kv*V.kv:null}],
-  ['el_jami2','Jami yuk (loyiha hisobi, koeffitsiyentlar bilan)','—','ShNQ 2.07.01-23 §262, 15-jadval','num',{u:'kVt'}],['tp','Transformator podstansiyalari','—','','num',{u:'ta'}],['ps','Eng yaqin podstansiyagacha','—','','num',{u:'km'}]],
-  draw:'Elektr taʼminoti sxemasi'}]},
-{id:'3',t:'Loyihaning umumiy TIK',ru:'Сводные ТЭП',subs:[
- {id:'3',t:'Umumiy texnik-iqtisodiy koʻrsatkichlar',ru:'Сводные ТЭП проекта',rows:[
-  ['far','UMN (FAR) koeffitsiyenti','≤ 5','Bosh reja','num',{op:'<=',v:5,src:'pz.far'}],
-  ['ujz','Uy-joy fondi zichligi','2 200–7 500 m²/ga','ShNQ 2.07.01-23 §82, 3-jadval','num',{op:'in',v:2200,v2:7500,u:'m²/ga',src:'pz.resHa'}],
-  ['zich3','Aholi zichligi','≤ 400','ShNQ 2.07.01-23 §84','calc',{op:'<=',v:400,u:'kishi/ga',f:V=>V.zich}],
-  ['m2k3','Yashash maydoni, m²/kishi','≥ 16','ShNQ 2.07.01-23 §61','calc',{op:'>=',v:16,u:'m²',f:V=>V.m2k}],
-  ['yash','Koʻp kvartirali hudud yashilligi','≥ 30 %','ShNQ 2.07.01-23 §§86, 474','num',{op:'>=',v:30,u:'%',src:'pz.gr'}],
-  ['park3','Avtoturargoh, joy/kvartira','≥ 0,7','ShNQ 2.07.01-23 §416','calc',{op:'>=',v:.7,f:V=>V.park_jami&&V.kv?V.park_jami/V.kv:null}]],
-  draw:'Bosh reja yoki aksonometriya',tools:[['posadka.html','Binolarni joylashtirish: TIK hisobi']]}]},
-{id:'4',t:'Iqlim va ekologiya',ru:'Климат и экология',subs:[
- {id:'4.1',t:'Koʻkalamzorlashtirish: daraxtlar inventarizatsiyasi',ru:'Инвентаризация деревьев',rows:[['dar','Jami daraxtlar','GIS','','num',{u:'ta'}],['dar_t','Daraxt turlari','—','','num',{u:'ta'}],['dar_h','Oʻrtacha balandlik','—','','num',{u:'m'}],['dar_k','Oʻrtacha shox kengligi','—','','num',{u:'m'}],['dar_s','Saqlanadigan / kesiladigan','—','','txt']],
-  draw:'Daraxtlar inventarizatsiyasi xaritasi',tools:[['studio.html#area','Hudud tahlili: sunʼiy yoʻldosh tasviridan daraxtlar']]},
- {id:'4.2',t:'Iqlim (bazaviy shartlar)',ru:'Климат (базовые условия)',rows:[['iqlim','Iqlim zonasi','—','Oʻzgidromet','txt'],['balandlik','Dengiz sathidan balandlik','—','','txt',{u:'m'}],['tmax','Absolyut maksimum','—','Oʻzgidromet','txt',{u:'°C'}],['tmin','Qishki oʻrtacha minimum','—','','txt',{u:'°C'}],['shamol','Ustun shamol yoʻnalishi','—','','txt'],['tisit','Isitish uchun hisobiy harorat','—','','txt',{u:'°C'}]],draw:'Iqlim diagrammalari, shamollar guli'},
- {id:'4.3',t:'Insolyatsiya tahlili',ru:'Инсоляция',rows:[
-  ['ins','Yashash xonalari insolyatsiyasi (eng kam nuqta)','≥ 2,5 soat','ShNQ 2.07.01-23 §78','num',{op:'>=',v:2.5,u:'soat',src:'pz.insMin'}],['ins_d','Hisob davri','22.03–22.09','SanQvaN 0102-25','txt'],
-  ['ins_v','Hisob vaqti','8:00–17:00','SanQvaN 0102-25','txt'],['ins_a','Atrofdagi binolar hisobga olingan','✓','','yn'],['ins_o','Oʻz binolari hisobga olingan','✓','','yn']],
-  draw:'Insolyatsiya xaritasi (fasad nuqtalari)',tools:[['posadka.html','Binolarni joylashtirish: insolyatsiya hisobi']]},
- {id:'4.4',t:'Shamol, shovqin, issiqlik oroli',ru:'Ветер, шум, тепловой остров',rows:[['roza','Shamollar guli','majburiy','','yn'],['shamollat','Shamollatilish','baholansin','','txt'],['albedo','Sirt albedosi','≥ 0,3','EU Climate','num',{op:'>=',v:.3}],['orol','Issiqlik oroli','baholansin','SanQvaN 0267-22','txt']],draw:'Shamol va shovqin sxemasi'}]},
-{id:'5',t:'Seysmika va xatarlar',ru:'Сейсмика и риски',subs:[
- {id:'5',t:'Seysmika va xatarlar',ru:'Сейсмика и риски',rows:[
-  ['seysm5','Maydon seysmikligi','6–9 ball','ShNQ 2.01.03-19','calc',{op:'in',v:6,v2:9,u:'ball',f:V=>V.seysm}],['tuproq5','Tuproq toifasi','I–IV','ShNQ 2.01.03-19','calc',{f:V=>V.tuproq}],
-  ['qavat_ch','Balandlik chegarasi','kelishiladi','ShNQ 2.01.03-19','num',{u:'qavat'}],['chok','Antiseysmik chok','majburiy','ShNQ 2.01.03-19','yn'],['evak','Evakuatsiya zonalari','majburiy','FVV','yn'],
-  ['yongin','Binolar orasidagi yongʻinga qarshi masofa (eng kami)','6–15 m','ShNQ 2.07.01-23 56-jadval','num',{op:'>=',v:6,u:'m',src:'pz.minDist'}]],
-  draw:'Xatarlar va evakuatsiya sxemasi',tools:[['posadka.html','Binolarni joylashtirish: binolar orasidagi masofa']]}]},
-{id:'6',t:'Transport va mobillik',ru:'Транспорт и мобильность',subs:[
- {id:'6.1',t:'Koʻcha-yoʻl tarmogʻi',ru:'Улично-дорожная сеть',rows:[
-  ['magistral','Magistral koʻcha qizil chiziqlar orasi','40–100 m','ShNQ 2.07.01-23 20-jadval','num',{op:'in',v:40,v2:100,u:'m'}],['mahalliy','Mahalliy koʻcha','15–30 m','20-jadval','num',{op:'in',v:15,v2:30,u:'m'}],
-  ['yy1','Yongʻin yoʻli (bino H ≤ 13 m)','≥ 3,5 m','§667','num',{op:'>=',v:3.5,u:'m'}],['yy2','Yongʻin yoʻli (H 13–46 m)','≥ 4,2 m','§667','num',{op:'>=',v:4.2,u:'m'}],['yy3','Yongʻin yoʻli (H > 46 m)','≥ 6,0 m','§667','num',{op:'>=',v:6,u:'m'}],
-  ['trotuar','Trotuar','koʻcha toifasiga koʻra','ShNQ 2.07.06-24','yn'],['burilish','Burilish radiusi','tezlikka koʻra','ShNQ 2.07.06-24','num',{u:'m'}]],
-  draw:'Koʻcha-yoʻl tarmogʻi sxemasi va koʻndalang kesimlar',tools:[['studio.html#design','Koʻcha studiyasi: loyiha va YHQ tekshiruvi'],['studio.html#prof','Koʻcha studiyasi: koʻndalang kesim']]},
- {id:'6.2',t:'Jamoat transporti va piyoda yetish',ru:'Общественный транспорт и пеш. доступность',rows:[
-  ['jt400','Bekatgacha masofa (umumiy)','≤ 400 m','ShNQ 2.07.01-23 §382','txt'],['jt250','Shahar markazida','≤ 250 m','§382','txt'],
-  ['jt_ul','400 m zonasidagi hudud ulushi','≥ 95 %','§382','num',{op:'>=',v:95,u:'%',src:'ai.jt'}],['jt_n','Bekatlar soni','—','','num',{u:'ta',src:'ai.stops'}]],
-  draw:'Bekatlardan piyoda yetish izoxronlari',tools:[['ai.html','Hudud tahlili: bekatlar qamrovi']]},
- {id:'6.3',t:'Koʻcha-yoʻl tarmogʻiga yuklanish',ru:'Нагрузка на УДС',rows:[
-  ['pik','Pik soatdagi chiqish','hisob','','num',{u:'avt/soat'}],['otk','Chiqish joylari oʻtkazuvchanligi','hisob','','num',{u:'avt/soat'}],
-  ['vc','Yuklanish koeffitsiyenti V/C','< 1,0','','calc',{op:'<=',v:1,f:V=>V.pik&&V.otk?V.pik/V.otk:null}],['chiqish','Asosiy koʻchalarga chiqishlar','—','','num',{u:'ta'}]],draw:'Chiqish/kirish ssenariylari sxemasi'},
- {id:'6.4',t:'Ijtimoiy obyektlarga yetish',ru:'Размещение и доступность соц. объектов',rows:[
-  ['r_dou','Bogʻchagacha','≤ 300 m','ShNQ 2.07.01-23 38-jadval','num',{op:'<=',v:300,u:'m'}],['r_s1','Maktab I–IV sinf','≤ 300 m','38-jadval','num',{op:'<=',v:300,u:'m'}],
-  ['r_s2','Maktab V–IX sinf','≤ 500 m','38-jadval','num',{op:'<=',v:500,u:'m'}],['r_s3','Maktab X–XI sinf','≤ 800 m','38-jadval','num',{op:'<=',v:800,u:'m'}],['xavfsiz','Xavfsiz yoʻl','majburiy','§539','yn']],
-  draw:'Ijtimoiy obyektlar xizmat radiuslari',tools:[['ai.html','Hudud tahlili: maktab/bogʻcha 15 daqiqa']]},
- {id:'6.5',t:'Avtoturargoh',ru:'Парковка',rows:[
-  ['park_jami','Jami avtomobil oʻrinlari','—','','num',{u:'joy',src:'pz.parkHave'}],['park_kv','Joy / kvartira','≥ 0,7','ShNQ 2.07.01-23 29-jadval','calc',{op:'>=',v:.7,f:V=>V.park_jami&&V.kv?V.park_jami/V.kv:null}],
-  ['park_kmsh','KMSh uchun joylar','≥ 5 %','§411','num',{op:'>=',v:5,u:'%'}],['park_ev','Elektromobil quvvatlash','≥ 5 %','§412','num',{op:'>=',v:5,u:'%'}],
-  ['park_yer','Yer osti, m²/joy','20 m²/joy','§413','num',{u:'m²'}],['park_och','Ochiq (yashil bilan), m²/joy','35 m²/joy','§413','num',{u:'m²'}]],
-  draw:'Avtoturargoh balansi va joylashuvi',tools:[['posadka.html','Binolarni joylashtirish: avtoturargohlar'],['studio.html#design','Koʻcha studiyasi: koʻcha boʻyi avtoturargoh']]}]},
-{id:'7',t:'Ijtimoiy infratuzilma',ru:'Социальная инфраструктура',subs:[
- {id:'7.1',t:'Ijtimoiy infratuzilma: ehtiyoj hisobi',ru:'Расчёт потребности',rows:[
-  ['n_sosh','Maktab meʼyori, oʻrin/1000 kishi','165–280','ShNQ 2.07.01-23 5-ilova','num',{op:'in',v:165,v2:280}],['n_dou','Bogʻcha meʼyori, oʻrin/1000 kishi','70–125','5-ilova','num',{op:'in',v:70,v2:125}],
-  ['t_sosh','Talab: maktab oʻrinlari','hisob','','calc',{u:'oʻrin',f:V=>V.aholi&&V.n_sosh?V.aholi*V.n_sosh/1000:null}],['t_dou','Talab: bogʻcha oʻrinlari','hisob','','calc',{u:'oʻrin',f:V=>V.aholi&&V.n_dou?V.aholi*V.n_dou/1000:null}],
-  ['l_sosh','Loyihada: maktab oʻrinlari','≥ talab','','num',{u:'oʻrin',opf:V=>V.t_sosh}],['l_dou','Loyihada: bogʻcha oʻrinlari','≥ talab','','num',{u:'oʻrin',opf:V=>V.t_dou}]],
-  draw:'Ijtimoiy obyektlar joylashuvi'},
- {id:'7.2',t:'KMSh uchun muhit',ru:'Доступная среда (МГН)',rows:[['pandus','Kirishlarda pandus','majburiy','§411','yn'],['qiyalik','Pandus qiyaligi','≤ 8 %','ShNQ 2.08.02-23','num',{op:'<=',v:8,u:'%'}],['taktil','Taktil plitka','majburiy','GOST','yn'],
-  ['kmsh_kv','Toʻsiqsiz kvartiralar','≥ 5 %','§411','num',{op:'>=',v:5,u:'%'}],['kmsh_obj','Ijtimoiy obyektlarga toʻsiqsiz kirish','100 %','§411','num',{op:'>=',v:100,u:'%'}],['xavfsiz_o','Xavfsiz piyoda oʻtish joylari','majburiy','ShNQ 2.07.06-24','yn']],draw:'KMSh yoʻnalishlari sxemasi'},
- {id:'7.3',t:'Yashillik va obodonlashtirish',ru:'Озеленение и благоустройство',rows:[
-  ['yash7','Koʻp kvartirali hudud yashilligi','≥ 30 %','§86','calc',{op:'>=',v:30,u:'%',f:V=>V.yash}],
-  ['m_bol','Bolalar maydonchalari','≥ 0,7 m²/kishi','§89, 4-jadval','num',{u:'m²',opf:V=>V.aholi?V.aholi*.7:null}],['m_kat','Kattalar dam olish joylari','≥ 0,1 m²/kishi','§89, 4-jadval','num',{u:'m²',opf:V=>V.aholi?V.aholi*.1:null}],
-  ['m_xoj','Xoʻjalik maydonchalari','≥ 0,3 m²/kishi','§89, 4-jadval','num',{u:'m²',opf:V=>V.aholi?V.aholi*.3:null}],['m_sport','Sport maydonchalari','≥ 2,0 m²/kishi','§89, 4-jadval','num',{u:'m²',opf:V=>V.aholi?V.aholi*2:null}]],
-  draw:'Dendroreja va obodonlashtirish rejasi',tools:[['posadka.html','Binolarni joylashtirish: yashil hududlar']]}]},
-{id:'8',t:'Arxitektura va xonadonlar tarkibi',ru:'Архитектура и квартирография',subs:[
- {id:'8',t:'Arxitektura va xonadonlar tarkibi',ru:'Архитектура и квартирография',rows:[
-  ['kv8','Kvartiralar','—','','calc',{u:'ta',f:V=>V.kv}],['k1','1 xonali','—','','num',{u:'ta',src:'pz.a1'}],['k2','2 xonali','—','','num',{u:'ta',src:'pz.a2'}],['k3','3 xonali','—','','num',{u:'ta',src:'pz.a3'}],['k4','4+ xonali','—','','num',{u:'ta',src:'pz.a4'}],
-  ['fond','Uy-joy fondi (sotiladigan)','—','ShNQ 2.08.01-24','num',{u:'m²',src:'pz.sell'}],['m2k8','Kishiga','≥ 16 m²','§61','calc',{op:'>=',v:16,u:'m²',f:V=>V.m2k}]],
-  draw:'Fasadlar, tipik qavat rejalari, xonadonlar tarkibi',tools:[['posadka.html','Binolarni joylashtirish: xonadonlar tarkibi']]}]},
-{id:'9',t:'Qurilish navbatlari',ru:'Очерёдность строительства',subs:[
- {id:'9.1',t:'Qurilish navbatlari',ru:'Очерёдность строительства',rows:[['bosq','Bosqichlar','—','«Uy-joy» reglamenti','num',{u:'ta'}],['b1','1-bosqich muddati','—','PF-29','num',{u:'oy'}],['bjami','Jami muddat','—','','num',{u:'yil'}]],draw:'Bosqichlar sxemasi'},
- {id:'9.2',t:'KRTgacha va keyin',ru:'До / после',rows:[
-  ['dk_aholi','Aholi: oldin → keyin','—','','calc',{f:V=>V.aholi0&&V.aholi?`${fmt(V.aholi0)} → ${fmt(V.aholi)}`:null}],['dk_kv','Kvartiralar: oldin → keyin','—','','calc',{f:V=>V.kv0&&V.kv?`${fmt(V.kv0)} → ${fmt(V.kv)}`:null}],
-  ['park0','Avtoturargoh (mavjud)','—','','num',{u:'joy'}],['dk_park','Avtoturargoh: oldin → keyin','—','','calc',{f:V=>V.park0&&V.park_jami?`${fmt(V.park0)} → ${fmt(V.park_jami)}`:null}],
-  ['tij0','Tijorat maydoni (mavjud)','—','','num',{u:'m²'}],['tij','Tijorat maydoni (loyiha)','—','','num',{u:'m²',src:'pz.nonres'}]],draw:'Oldin / keyin taqqoslash'}]},
-{id:'10',t:'Barqaror rivojlanish (ESG)',ru:'Устойчивое развитие (ESG)',subs:[
- {id:'10',t:'Barqaror rivojlanish (ESG)',ru:'ESG',rows:[['e_yash','E: koʻkalamzorlashtirish','—','','calc',{u:'%',f:V=>V.yash}],['e_pv','E: tom quyosh panellari','—','','num',{u:'%'}],['e_edge','E: energiya samaradorligi sinfi (EDGE)','—','EDGE','txt'],['e_mahal','E: mahalliy materiallar','—','','num',{u:'%'}],
-  ['s_kochish','S: koʻchirish (kompensatsiya)','—','','calc',{u:'oila',f:V=>V.kochish}],['s_ish','S: yangi ish joylari','—','','num',{u:'ta'}],['g_eskrou','G: eskrou hisob','majburiy','PF-26 §13','yn'],['g_shaffof','G: shaffoflik (AAT «Uy-joy»)','—','','yn']],draw:'ESG paneli'}]},
-{id:'11',t:'Moliyaviy model',ru:'Финансовая модель',subs:[
- {id:'11.1',t:'Infratuzilma yigʻimi',ru:'Инфрасбор',rows:[
-  ['iy_st','Stavka','—','VMQ-151, 4-ilova','num',{u:'soʻm/m³'}],['iy_h','Qurilish hajmi','—','','num',{u:'m³'}],['iy_k1','Qurilish turi koeffitsiyenti','—','','num'],['iy_k2','Obyekt turi koeffitsiyenti','—','','num'],['iy_k3','Hududiy koeffitsiyent','—','','num'],['iy_k4','Oshiruvchi koeffitsiyent (≤ 3,0)','—','','num'],
-  ['iy','Infratuzilma yigʻimi','hisob','','calc',{u:'mlrd soʻm',f:V=>V.iy_st&&V.iy_h?V.iy_st*V.iy_h*(V.iy_k1||1)*(V.iy_k2||1)*(V.iy_k3||1)*(V.iy_k4||1)/1e9:null}],['kurs','Kurs','—','','num',{u:'soʻm/$'}],
-  ['iy_usd','Infratuzilma yigʻimi','hisob','','calc',{u:'mln $',f:V=>V.iy&&V.kurs?V.iy*1e9/V.kurs/1e6:null}]],draw:'Hisob formulasi'},
- {id:'11.2',t:'Daromad va xarajatlar',ru:'Финмодель',rows:[['tushum','Tushum','—','','num',{u:'mln $'}],['xarajat','Xarajatlar (jami)','—','','num',{u:'mln $'}],['foyda','Sof foyda','hisob','','calc',{u:'mln $',f:V=>V.tushum!=null&&V.xarajat!=null&&V.tushum!==''?V.tushum-V.xarajat:null}],
-  ['marja','Marja','—','','calc',{u:'%',f:V=>V.tushum&&V.foyda!=null?V.foyda/V.tushum*100:null}],['kapital','Oʻz kapitali','—','','num',{u:'mln $'}]],draw:'Daromad va xarajatlar tuzilmasi'}]},
-{id:'★',t:'Loyiha vizualizatsiyasi',ru:'Визуализации проекта',subs:[{id:'★',t:'Loyiha vizualizatsiyasi',ru:'Визуализации',rows:[],draw:'Vizualizatsiyalar (bir nechta)',multi:true,tools:[['studio.html#prof','Koʻcha studiyasi: koʻz koʻrinishi va 3D']]}]}
-];
-/* ---- yordamchilar ---- */
+/* ===== Master reja · hisob paneli ===== */
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const toast=(m,lbl,fn)=>{const t=document.createElement('div');t.className='toast';t.innerHTML=esc(m)+(lbl?` <button>${esc(lbl)}</button>`:'');if(lbl)t.querySelector('button').onclick=()=>{fn();t.remove();};$('#toasts').appendChild(t);setTimeout(()=>t.remove(),6000);};
-function fmt(v,d){if(v==null||v==='')return '—';if(typeof v!=='number')return String(v);const a=Math.abs(v),dd=d!=null?d:a>=100?0:a>=10?1:2;return v.toLocaleString('ru-RU',{maximumFractionDigits:dd,minimumFractionDigits:0}).replace(/ /g,' ');}
-const idb=(name,store)=>new Promise((res,rej)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>r.result.createObjectStore(store,{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
-const getAll=async(n,s)=>{const db=await idb(n,s);return new Promise((res,rej)=>{const q=db.transaction(s,'readonly').objectStore(s).getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});};
-const putRec=async(n,s,o)=>{const db=await idb(n,s);return new Promise((res,rej)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).put(o);t.oncomplete=res;t.onerror=()=>rej(t.error);});};
-/* ---- holat ---- */
-const DEF=()=>({name:'Yangi master reja',v:{},yn:{},att:{},note:{},done:{}});
-let M=DEF();try{const s=JSON.parse(localStorage.getItem('kps_mr')||'null');if(s&&s.v)M=Object.assign(DEF(),s);}catch(e){}
-const save=()=>{try{localStorage.setItem('kps_mr',JSON.stringify(M));}catch(e){toast('Saqlanmadi — brauzer xotirasi toʻlgan.');}};
-let cur=location.hash.slice(1)||'0.2',MATS=[];
-const ALL=SEC.flatMap(s=>s.subs.map(u=>Object.assign(u,{sec:s})));
-const ROWS=ALL.flatMap(u=>u.rows.map(r=>({k:r[0],n:r[1],norm:r[2],ref:r[3],t:r[4],o:r[5]||{},sub:u})));
-/* ---- portal manbalari ---- */
-function srcData(){let pz=null,ai=null;try{pz=JSON.parse(localStorage.getItem('kps_posadka_sum')||'null');}catch(e){}try{ai=JSON.parse(localStorage.getItem('kps_area_sum')||'null');}catch(e){}return {pz,ai};}
-function srcVal(key){const {pz,ai}=srcData();const [m,k]=key.split('.');
-  if(m==='pz'&&pz){const a=r=>((pz.apts||[]).find(x=>x.r===r)||{}).n;const map={siteHa:pz.siteHa,na:pz.na,far:pz.far,gr:pz.gr,parkHave:pz.parkHave,insMin:pz.insMin,minDist:pz.minDist,sell:pz.sell,nonres:pz.nonres,
-    m2pp:pz.pop?pz.sell/pz.pop:null,resHa:pz.siteHa?pz.res/pz.siteHa:null,a1:a(1),a2:a(2),a3:a(3),a4:a(4)};const v=map[k];return v==null||!isFinite(v)||(k!=='insMin'&&v===0&&k!=='gr')?null:+(+v).toFixed(k==='far'?2:k==='insMin'?2:1);}
-  if(m==='ai'&&ai){const F=ai.fifteen_min||{};const so=ai.social||{};const map={i15:F.index_avg_categories_15min,f15:F.full_15min_city_share_pct,ped:F.pedshed_10min_ratio,serv:ai.services_per_km2,kg:so.kindergarten,school:so.school,health:so.health,jt:ai.transit_400m_coverage_pct,stops:ai.transit_stops,
-    radius:/radius ([\d.]+)/.test(ai.mode||'')?+RegExp.$1*1000:null};const v=map[k];return v==null?null:v;}
-  return null;}
-function pullAll(onlyEmpty){let n=0;ROWS.forEach(r=>{if(!r.o.src)return;const v=srcVal(r.o.src);if(v==null)return;if(onlyEmpty&&M.v[r.k]!==undefined&&M.v[r.k]!=='')return;if(M.v[r.k]!==v){M.v[r.k]=v;n++;}});save();return n;}
-/* ---- qiymatlar va tekshiruv ---- */
-function vals(){const V={};ROWS.forEach(r=>{if(r.t==='num'){const x=M.v[r.k];V[r.k]=x===''||x==null?null:+x;}else if(r.t==='txt'||r.t==='area')V[r.k]=M.v[r.k]||null;else if(r.t==='yn')V[r.k]=M.yn[r.k]||null;});
-  for(let i=0;i<4;i++)ROWS.forEach(r=>{if(r.t==='calc'){try{const x=r.o.f(V);V[r.k]=x==null||(typeof x==='number'&&!isFinite(x))?null:x;}catch(e){V[r.k]=null;}}});return V;}
-function status(r,V){const v=V[r.k];if(r.t==='yn')return v==='ok'?'ok':v==='no'?'bad':v==='na'?'na':null;if(v==null||v==='')return null;
-  if(typeof v==='number'){const o=r.o;if(o.op==='<=')return v<=o.v?'ok':'bad';if(o.op==='>=')return v>=o.v?'ok':'bad';if(o.op==='in')return v>=o.v&&v<=o.v2?'ok':'bad';if(o.opf){const t=o.opf(V);if(t==null)return 'fill';return v>=t?'ok':'bad';}}
-  return 'fill';}
-function subStat(u,V){let ok=0,bad=0,fill=0,tot=0;u.rows.forEach(rr=>{const r=ROWS.find(x=>x.k===rr[0]);tot++;const s=status(r,V);if(s==='ok')ok++;else if(s==='bad')bad++;else if(s==='fill'||s==='na')fill++;});const att=(M.att[u.id]||[]).length;return {ok,bad,fill,tot,empty:tot-ok-bad-fill,att};}
-/* ---- chap navigatsiya ---- */
-function renderNav(){const V=vals();$('#nav').innerHTML=SEC.map(s=>`<div class="ns"><div class="nsh"><b>${esc(s.id)}</b><span>${esc(s.t)}</span></div>${s.subs.map(u=>{const st=subStat(u,V),pct=st.tot?Math.round((st.tot-st.empty)/st.tot*100):(st.att?100:0);
-    return `<button class="nu ${u.id===cur?'on':''}" data-u="${esc(u.id)}"><span class="nn">${esc(u.id)}</span><span class="nt">${esc(u.t)}</span><span class="np">${st.bad?`<i class="d bad"></i>`:''}${st.tot?`${st.tot-st.empty}/${st.tot}`:''}${st.att?' ▣':''}</span><span class="bar"><s style="width:${pct}%;background:${st.bad?'#b3261e':'#2e7d4f'}"></s></span></button>`;}).join('')}</div>`).join('')+
-    `<div class="ns"><button class="nu ${cur==='Σ'?'on':''}" data-u="Σ"><span class="nn">Σ</span><span class="nt">Yakuniy baho</span></button></div>`;
-  document.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>go(b.dataset.u));}
-function go(id){cur=id;history.replaceState(null,'','#'+id);renderAll();$('#main').scrollTop=0;}
-/* ---- markaziy karta ---- */
-function rowInput(r,V){const v=M.v[r.k]??'';const u=r.o.u?`<span class="u">${esc(r.o.u)}</span>`:'';
-  if(r.t==='calc'){const x=V[r.k];return `<div class="calc">${typeof x==='number'?fmt(x):esc(x??'—')}${u}</div>`;}
-  if(r.t==='yn'){const y=M.yn[r.k]||'';return `<select data-yn="${r.k}" class="${y}"><option value="" ${!y?'selected':''}>—</option><option value="ok" ${y==='ok'?'selected':''}>✓ bajarilgan / bor</option><option value="no" ${y==='no'?'selected':''}>✗ yoʻq</option><option value="na" ${y==='na'?'selected':''}>tegishli emas</option></select>`;}
-  if(r.t==='area')return `<textarea data-v="${r.k}" rows="3">${esc(v)}</textarea>`;
-  const sv=r.o.src?srcVal(r.o.src):null;
-  return `<div class="inp"><input data-v="${r.k}" ${r.t==='num'?'inputmode="decimal"':''} value="${esc(v)}" placeholder="${sv!=null?'portal: '+fmt(sv):'___'}">${u}${sv!=null&&String(sv)!==String(v)?`<button class="pull" data-pull="${r.k}" title="Portaldan olish: ${fmt(sv)}">↧</button>`:''}</div>`;}
-function normCell(r,V){let t=esc(r.norm);if(r.o.opf){const x=r.o.opf(V);if(x!=null)t+=`<br><span class="mono">= ${fmt(x)}${r.o.u?' '+esc(r.o.u):''}</span>`;}return t+(r.ref?`<small>${esc(r.ref)}</small>`:'');}
-function tikLine(u,V){const parts=u.rows.map(rr=>{const r=ROWS.find(x=>x.k===rr[0]),v=V[r.k];if(v==null||v===''||r.t==='area')return null;const vv=r.t==='yn'?{ok:'✓',no:'✗',na:'—'}[v]:typeof v==='number'?fmt(v):v;return `${r.n.replace(/ \(.*\)$/,'')}: ${vv}${r.o.u&&r.t!=='yn'?' '+r.o.u:''}`;}).filter(Boolean);return parts.slice(0,5).join(' | ');}
-function refs(u){return [...new Set(u.rows.map(r=>r[3]).filter(x=>x&&x!=='—'))].join(' · ');}
-function renderMain(){const V=vals();if(cur==='Σ'){renderSum(V);return;}const u=ALL.find(x=>x.id===cur)||ALL[1];
-  const st=subStat(u,V),att=M.att[u.id]||[];
-  let h=`<div class="card"><div class="ttl"><span class="num">${esc(u.id)}</span><div><h1>${esc(u.t)}</h1><div class="ru">${esc(u.ru)} · ${esc(u.sec.id)}-boʻlim</div></div><span class="sp"></span>
-    <label class="done"><input type="checkbox" id="uDone" ${M.done[u.id]?'checked':''}> Tayyor</label></div>
-    <div class="cols"><div class="ck">${u.rows.length?`<div class="ckh"><b>MUVOFIQLIK ROʻYXATI</b><span>${st.ok} ✓ · ${st.bad} ✗ · ${st.empty} boʻsh</span></div>
-    <table><thead><tr><th>Koʻrsatkich</th><th>Norma</th><th>Loyiha</th><th></th></tr></thead><tbody>${u.rows.map(rr=>{const r=ROWS.find(x=>x.k===rr[0]),s=status(r,V);
-      return `<tr><td>${esc(r.n)}</td><td class="nm">${normCell(r,V)}</td><td>${rowInput(r,V)}</td><td><i class="st ${s||''}" title="${s==='ok'?'meʼyorga mos':s==='bad'?'meʼyordan tashqari':s?'toʻldirilgan':'toʻldirilmagan'}">${s==='ok'?'✓':s==='bad'?'✗':''}</i></td></tr>`;}).join('')}</tbody></table>`:'<div class="note">Bu boʻlimda roʻyxat yoʻq — faqat chizma biriktiriladi.</div>'}
-    <div class="lbl" style="margin-top:14px">Izoh / matn</div><textarea id="uNote" rows="4" placeholder="Boʻlim uchun izoh, xulosa yoki tushuntirish…">${esc(M.note[u.id]||'')}</textarea>
-    ${u.ai?`<button class="btn sm ghost" id="uAI" style="margin-top:6px">AI qoralama: ${esc(u.ai.slice(0,48))}…</button>`:''}</div>
-    <div class="dr"><div class="drh"><b>CHIZMA</b><span>${esc(u.draw||'')}</span></div><div class="slot ${att.length?'':'empty'}">${att.length?att.map(id=>{const m=MATS.find(x=>x.id===id);return m?`<figure><img src="${m.thumb||m.src}" alt=""><figcaption>${esc(m.name)}<button data-rm="${esc(id)}" title="Olib tashlash">✕</button></figcaption></figure>`:'';}).join(''):`<div>${esc(u.draw||'Chizma')}<br><span class="note">Boshqa boʻlimlardan «Albomga» yuborilgan materialni tanlang yoki rasm yuklang.</span></div>`}</div>
-      <div class="row"><button class="btn sm" id="uPick">Materialdan tanlash</button><label class="btn sm ghost">Rasm yuklash<input type="file" id="uImg" accept="image/*" hidden></label></div>
-      ${(u.tools||[]).length?`<div class="lbl" style="margin-top:12px">Portal vositalari</div><div class="tools">${u.tools.map(t=>`<a class="tool" href="${t[0]}" target="_blank" rel="noopener">${esc(t[1])} ↗</a>`).join('')}</div>`:''}</div></div>
-    <div class="tik"><b>TIK:</b> ${esc(tikLine(u,V)||'___')}<span>${esc(refs(u))}</span></div></div>`;
-  $('#main').innerHTML=h;bindMain(u);}
-function bindMain(u){document.querySelectorAll('[data-v]').forEach(i=>i.onchange=()=>{M.v[i.dataset.v]=i.value.trim().replace(',','.')===''?'':(ROWS.find(r=>r.k===i.dataset.v).t==='num'?i.value.trim().replace(/\s/g,'').replace(',','.'):i.value);save();renderAll();});
-  document.querySelectorAll('[data-yn]').forEach(i=>i.onchange=()=>{M.yn[i.dataset.yn]=i.value;save();renderAll();});
-  document.querySelectorAll('[data-pull]').forEach(b=>b.onclick=()=>{const r=ROWS.find(x=>x.k===b.dataset.pull);M.v[r.k]=srcVal(r.o.src);save();renderAll();});
-  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{M.att[u.id]=(M.att[u.id]||[]).filter(x=>x!==b.dataset.rm);save();renderAll();});
-  $('#uNote').onchange=e=>{M.note[u.id]=e.target.value;save();};$('#uDone').onchange=e=>{M.done[u.id]=e.target.checked;save();renderNav();};
-  $('#uPick').onclick=()=>pickMat(u);$('#uImg').onchange=e=>{const f=e.target.files[0];if(f)uploadImg(f,u);};if($('#uAI'))$('#uAI').onclick=()=>aiDraft(u);}
-/* ---- materiallar ---- */
-async function loadMats(){try{MATS=(await getAll('kps_mat','mats')).filter(m=>m.id!=='design'&&m.src).sort((a,b)=>(b.t||'').localeCompare(a.t||''));}catch(e){MATS=[];}}
-function pickMat(u){const ov=document.createElement('div');ov.className='ov';ov.innerHTML=`<div class="dlg"><div class="dh"><b>Material tanlash · ${esc(u.id)} ${esc(u.t)}</b><button class="x">✕</button></div>
-  ${MATS.length?`<div class="mg">${MATS.map(m=>`<button data-m="${esc(m.id)}" class="${(M.att[u.id]||[]).includes(m.id)?'on':''}"><img src="${m.thumb||m.src}" alt=""><span>${esc(m.name)}</span><small>${esc(m.sub||'')}</small></button>`).join('')}</div>`:'<div class="note" style="padding:20px">Hali material yoʻq. Koʻcha studiyasi, Binolarni joylashtirish yoki Hudud tahlilida «Albomga →» tugmasini bosing.</div>'}
-  <div class="dh"><span class="note">Bir nechtasini tanlash mumkin.</span><button class="btn sm dark x">Tayyor</button></div></div>`;document.body.appendChild(ov);
-  ov.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const a=M.att[u.id]=M.att[u.id]||[],id=b.dataset.m;if(a.includes(id))a.splice(a.indexOf(id),1);else a.push(id);b.classList.toggle('on');save();});
-  ov.querySelectorAll('.x').forEach(b=>b.onclick=()=>{ov.remove();renderAll();});ov.onclick=e=>{if(e.target===ov){ov.remove();renderAll();}};}
-function uploadImg(f,u){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=async()=>{let src=r.result;if(im.width>2400){const c=document.createElement('canvas'),k=2400/im.width;c.width=2400;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);src=c.toDataURL('image/jpeg',.88);}
-  const m={id:'mr'+uid(),kind:'png',name:f.name.replace(/\.[^.]+$/,''),src,thumb:src,aspect:im.width/im.height,sub:'master reja · '+u.id,t:new Date().toISOString()};try{await putRec('kps_mat','mats',m);}catch(e){toast('Rasm saqlanmadi.');return;}
-  MATS.unshift(m);(M.att[u.id]=M.att[u.id]||[]).push(m.id);save();renderAll();};im.src=r.result;};r.readAsDataURL(f);}
-/* ---- yakuniy baho ---- */
-function renderSum(V){let T={ok:0,bad:0,empty:0,tot:0};const rows=SEC.map(s=>{const a={ok:0,bad:0,empty:0,tot:0,att:0,subs:s.subs.length,done:0};s.subs.forEach(u=>{const x=subStat(u,V);a.ok+=x.ok;a.bad+=x.bad;a.empty+=x.empty;a.tot+=x.tot;a.att+=x.att?1:0;a.done+=M.done[u.id]?1:0;});T.ok+=a.ok;T.bad+=a.bad;T.empty+=a.empty;T.tot+=a.tot;return [s,a];});
-  const bads=ROWS.filter(r=>status(r,V)==='bad');
-  $('#main').innerHTML=`<div class="card"><div class="ttl"><span class="num">Σ</span><div><h1>Yakuniy baho</h1><div class="ru">Сводная оценка по разделам</div></div></div>
-    <div class="kpis"><div><b>${T.ok}</b><span>meʼyorga mos</span></div><div class="b"><b>${T.bad}</b><span>meʼyordan tashqari</span></div><div><b>${T.empty}</b><span>toʻldirilmagan</span></div><div><b>${T.tot?Math.round((T.tot-T.empty)/T.tot*100):0} %</b><span>toʻldirilgan</span></div></div>
-    <table class="sum"><thead><tr><th>Boʻlim</th><th>✓</th><th>✗</th><th>Boʻsh</th><th>Chizmalar</th><th>Tayyor</th></tr></thead><tbody>${rows.map(([s,a])=>`<tr data-u="${esc(s.subs[0].id)}"><td><b>${esc(s.id)}</b> ${esc(s.t)}</td><td class="ok">${a.ok}</td><td class="bad">${a.bad||''}</td><td>${a.empty||''}</td><td>${a.att}/${a.subs}</td><td>${a.done}/${a.subs}</td></tr>`).join('')}</tbody></table>
-    ${bads.length?`<div class="lbl" style="margin-top:18px">Meʼyordan tashqari koʻrsatkichlar — asoslash kerak</div><table class="sum"><tbody>${bads.map(r=>`<tr data-u="${esc(r.sub.id)}"><td>${esc(r.sub.id)}</td><td>${esc(r.n)}</td><td>${esc(r.norm)} <small>${esc(r.ref)}</small></td><td class="bad">${typeof V[r.k]==='number'?fmt(V[r.k]):esc(V[r.k])}${r.o.u?' '+esc(r.o.u):''}</td></tr>`).join('')}</tbody></table>`:''}
-    <div class="note" style="margin-top:14px">Normativ qiymatlar va band raqamlari Urbanizatsiya qoʻmitasining master-reja shablonidan olingan (asosiy hujjat — ShNQ 2.07.01-23). Topshirishdan oldin har birini amaldagi hujjat matni bilan solishtiring.</div></div>`;
-  document.querySelectorAll('#main [data-u]').forEach(b=>b.onclick=()=>go(b.dataset.u));}
-/* ---- oʻng panel: manbalar ---- */
-function renderSide(){const {pz,ai}=srcData();const age=t=>t?new Date(t).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-  $('#side').innerHTML=`<div><div class="lbl">Loyiha</div><input id="mName" value="${esc(M.name)}" class="big"></div>
-  <div><div class="lbl">Portal maʼlumotlari</div>
-   <div class="srcb"><b>Binolarni joylashtirish</b>${pz?`<span>${esc(pz.name||'')} · ${age(pz.t)}</span><div class="kv"><span>Uchastka</span><b>${fmt(pz.siteHa)} ga</b></div><div class="kv"><span>FAR</span><b>${fmt(pz.far,2)}</b></div><div class="kv"><span>Kvartiralar · aholi</span><b>${fmt(pz.na)} · ${fmt(pz.pop)}</b></div><div class="kv"><span>Yashillik</span><b>${fmt(pz.gr)} %</b></div>${pz.insMin!=null?`<div class="kv"><span>Insolyatsiya (min)</span><b>${fmt(pz.insMin,2)} soat</b></div>`:''}`:'<span>hali hisob yoʻq</span>'}<a href="posadka.html" target="_blank">Ochish ↗</a></div>
-   <div class="srcb"><b>Hudud tahlili</b>${ai?`<span>${esc(ai.mode||'')} · ${age(ai.t)}</span><div class="kv"><span>Bekatlar 400 m</span><b>${fmt(ai.transit_400m_coverage_pct)} %</b></div>${ai.fifteen_min?`<div class="kv"><span>15 daqiqa indeksi</span><b>${fmt(ai.fifteen_min.index_avg_categories_15min)} / 9</b></div>`:''}`:'<span>hali hisob yoʻq</span>'}<a href="ai.html" target="_blank">Ochish ↗</a></div>
-   <button class="btn dark" id="pull" style="width:100%">Portaldan toʻldirish</button><div class="note">Raqamli maydonlarga Joylashtirish va Hudud tahlili natijalari qoʻyiladi. Qoʻlda kiritilganlarni almashtirmaslik uchun «faqat boʻshlarini» tanlang.</div>
-   <label class="note"><input type="checkbox" id="pullEmpty" checked> faqat boʻsh maydonlarni</label></div>
-  <div><div class="lbl">Shablon haqida</div><div class="note">Tuzilma Urbanizatsiya qoʻmitasining master-reja shabloniga mos: har bir boʻlimda chapda muvofiqlik roʻyxati (norma / loyiha / ✓✗), oʻngda chizma, pastda TIK va ShNQ havolasi. Normativ qiymatlar shablondan olingan.</div>
-   <div class="note warn">Shablonning oʻzida ayrim nomuvofiqliklar bor: avtoturargoh meʼyori 6.5 va 3-boʻlimda 0,7 joy/kv., 6.3 da esa ≥ 1,0; seysmiklik 1.6 va 5-boʻlimda 8 ball, TIK satrlarida 9 ball. Topshirishdan oldin aniqlang.</div></div>`;
-  $('#mName').onchange=e=>{M.name=e.target.value;save();};$('#pull').onclick=()=>{const n=pullAll($('#pullEmpty').checked);toast(n?n+' ta maydon portaldan toʻldirildi.':'Yangi qiymat topilmadi — avval Joylashtirish yoki Hudud tahlilida hisoblang.');renderAll();};}
-function renderAll(){renderNav();renderMain();renderSide();}
-/* ---- AI qoralama ---- */
-async function aiDraft(u){const key=localStorage.getItem('kps_ai_key');if(!key){toast('AI kaliti kiritilmagan — Hudud tahlili sahifasida «AI kaliti».');return;}const V=vals(),model=localStorage.getItem('kps_ai_model')||'claude-sonnet-5';
-  const facts=ROWS.filter(r=>V[r.k]!=null&&V[r.k]!=='').map(r=>`${r.sub.id} ${r.n}: ${typeof V[r.k]==='number'?fmt(V[r.k]):V[r.k]}${r.o.u?' '+r.o.u:''} (norma: ${r.norm}${r.ref?', '+r.ref:''})`).join('\n');const {ai}=srcData();
-  const b=$('#uAI');b.disabled=true;b.textContent='AI yozmoqda…';
-  try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model,max_tokens:1200,system:'Sen Oʻzbekistondagi master-reja boʻyicha urbanist-maslahatchisan. Faqat oʻzbek (lotin) tilida, qisqa va aniq yoz. Faqat berilgan raqamlarga tayan, yangi raqam yoki normativ band oʻylab topma. Maʼlumot yetishmasa, buni ochiq ayt.',
-      messages:[{role:'user',content:`Loyiha: ${M.name}\nBoʻlim: ${u.id} ${u.t}\nVazifa: ${u.ai}\n\nMaster-reja maydonlari:\n${facts||'(hali kiritilmagan)'}\n\nHudud tahlili (OSM):\n${ai?JSON.stringify(ai).slice(0,3500):'yoʻq'}`}]})});
-    const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);const txt=(j.content||[]).map(c=>c.text||'').join('').trim();
-    M.note[u.id]=(M.note[u.id]?M.note[u.id]+'\n\n':'')+txt;save();renderAll();toast('AI qoralamasi «Izoh» maydoniga qoʻshildi — tekshirib chiqing.');}catch(e){toast('AI xatosi: '+e.message);b.disabled=false;}}
-/* ---- fayl ---- */
-$('#fSave').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({kps_mr:1,M},null,1)],{type:'application/json'}));a.download=(M.name||'master-reja').replace(/[^\wʻʼ\- ]+/g,'')+'.json';a.click();};
-$('#fOpen').onclick=()=>$('#fIn').click();$('#fIn').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const j=JSON.parse(t);if(!j.kps_mr)throw 0;M=Object.assign(DEF(),j.M);save();renderAll();toast('Ochildi: '+M.name);}catch(err){toast('Bu master reja fayli emas.');}});e.target.value='';};
-$('#fNew').onclick=()=>{const old=JSON.stringify(M);M=DEF();save();renderAll();toast('Yangi master reja boshlandi.','Bekor qilish',()=>{M=JSON.parse(old);save();renderAll();});};
-/* ---- shablon boʻyicha albom yaratish ---- */
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6),R=Math.PI/180;
+const toast=(m,lbl,fn)=>{const t=document.createElement('div');t.className='toast';t.innerHTML=esc(m)+(lbl?` <button>${esc(lbl)}</button>`:'');if(lbl)t.querySelector('button').onclick=()=>{fn();t.remove();};$('#toasts').appendChild(t);setTimeout(()=>t.remove(),6500);};
+function fmt(v,d){if(v==null||v===''||(typeof v==='number'&&!isFinite(v)))return '—';if(typeof v!=='number')return String(v);const a=Math.abs(v),dd=d!=null?d:a>=100?0:a>=10?1:2;return v.toLocaleString('ru-RU',{maximumFractionDigits:dd}).replace(/ /g,' ');}
+const idb=(n,st)=>new Promise((res,rej)=>{const r=indexedDB.open(n,1);r.onupgradeneeded=()=>r.result.createObjectStore(st,{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+const getAll=async(n,st)=>{const db=await idb(n,st);return new Promise((res,rej)=>{const q=db.transaction(st,'readonly').objectStore(st).getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});};
+const putRec=async(n,st,o)=>{const db=await idb(n,st);return new Promise((res,rej)=>{const t=db.transaction(st,'readwrite');t.objectStore(st).put(o);t.oncomplete=res;t.onerror=()=>rej(t.error);});};
+const J=k=>{try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}};
+/* holat: faqat hisob uchun kerakli kiritmalar */
+const DEFI={kpk:'',aholi0:'',kv0:'',park0:'',tij0:'',sh:{d0:'',d1:'',d2:'',d3:''},n_sosh:'',n_dou:'',l_sosh:'',l_dou:'',m_sosh:'',m_dou:'',pk_sh:'',ex_n:'',ex_c:'',kmsh:'',ev:'',suv:'',el:'',iy_st:'',iy_k:'',kurs:'',
+  thr:{zich:400,m2k:16,yash:30,park:.7,ujz1:2200,ujz2:7500,far:5,ins:2.5,jt:400,dou:300,sosh:500}};
+let I=Object.assign(JSON.parse(JSON.stringify(DEFI)),J('kps_mrp')||{});I.thr=Object.assign({},DEFI.thr,I.thr||{});I.sh=Object.assign({},DEFI.sh,I.sh||{});
+const saveI=()=>{try{localStorage.setItem('kps_mrp',JSON.stringify(I));}catch(e){}};
+let EXT=J('kps_mrp_ext')||{};const saveE=()=>{try{localStorage.setItem('kps_mrp_ext',JSON.stringify(EXT));}catch(e){}};
+/* manbalar */
+function src(){const P=J('kps_posadka'),PS=J('kps_posadka_sum'),A=J('kps_area_sum');return {P,PS,A};}
+function geo(P){const lat=P&&P.site?P.site.reduce((a,p)=>a+p[0],0)/P.site.length:P&&P.blds&&P.blds[0]?P.blds[0].poly[0][0]:41.31,MX=111320*Math.cos(lat*R),MY=110574;
+  const area=poly=>{const a=poly.map(p=>[p[1]*MX,p[0]*MY]);let s=0;for(let i=0;i<a.length;i++){const j=(i+1)%a.length;s+=a[i][0]*a[j][1]-a[j][0]*a[i][1];}return Math.abs(s)/2;};return {lat,MX,MY,area};}
+/* ---- asosiy hisob ---- */
+function calc(){const {P,PS,A}=src(),o={P,PS,A};const n=v=>v===''||v==null?null:+v;
+  if(PS){o.site=PS.siteHa;o.fp=PS.fp;o.gfa=PS.gfa;o.res=PS.res;o.nonres=PS.nonres;o.far=PS.far;o.cov=PS.cov;o.kv=PS.na;o.sell=PS.sell;o.gr=PS.gr;o.park=PS.parkHave;o.ins=PS.insMin;o.minD=PS.minDist;
+    o.ppl=P&&P.p?+P.p.ppl:null;o.kpk=n(I.kpk)||o.ppl;o.aholi=o.kv&&o.kpk?o.kv*o.kpk:PS.pop;o.zich=o.site?o.aholi/o.site:null;o.m2k=o.aholi?o.sell/o.aholi:null;o.ujz=o.site?o.res/o.site:null;o.pkv=o.kv?o.park/o.kv:null;}
+  o.aholi0=n(I.aholi0);o.kv0=n(I.kv0);o.osish=o.aholi&&o.aholi0?o.aholi/o.aholi0:null;o.zich0=o.aholi0&&o.site?o.aholi0/o.site:null;
+  o.t_sosh=o.aholi&&n(I.n_sosh)?o.aholi*n(I.n_sosh)/1000:null;o.t_dou=o.aholi&&n(I.n_dou)?o.aholi*n(I.n_dou)/1000:null;
+  o.k_sosh=o.t_sosh!=null?(n(I.l_sosh)||0)+(n(I.m_sosh)||0)-o.t_sosh:null;o.k_dou=o.t_dou!=null?(n(I.l_dou)||0)+(n(I.m_dou)||0)-o.t_dou:null;
+  o.pik=o.park&&n(I.pk_sh)?o.park*n(I.pk_sh)/100:null;o.cap=n(I.ex_n)&&n(I.ex_c)?n(I.ex_n)*n(I.ex_c):null;o.vc=o.pik&&o.cap?o.pik/o.cap:null;
+  o.kmsh=o.park&&n(I.kmsh)?Math.ceil(o.park*n(I.kmsh)/100):null;o.ev=o.park&&n(I.ev)?Math.ceil(o.park*n(I.ev)/100):null;o.p1000=o.park&&o.aholi?o.park/o.aholi*1000:null;
+  o.suv=o.aholi&&n(I.suv)?o.aholi*n(I.suv)/1000:null;o.el=o.kv&&n(I.el)?o.kv*n(I.el):null;
+  o.hajm=o.gfa&&P&&P.p?o.gfa*+P.p.fh:null;o.iy=n(I.iy_st)&&o.hajm?n(I.iy_st)*o.hajm*(n(I.iy_k)||1):null;o.iyUsd=o.iy&&n(I.kurs)?o.iy/n(I.kurs):null;
+  if(P&&P.p){o.cost=+P.p.cost&&o.gfa?+P.p.cost*o.gfa:null;o.rev=+P.p.sale&&o.sell?+P.p.sale*o.sell:null;}
+  if(A){const F=A.fifteen_min||{};o.i15=F.index_avg_categories_15min;o.f15=F.full_15min_city_share_pct;o.ped=F.pedshed_10min_ratio;o.jtNet=F.transit_400m_network_pct;o.jtE=A.transit_400m_coverage_pct;
+    const pb=F.project_buildings;if(pb){o.dKg=pb.max_to_kindergarten_m;o.dSc=pb.max_to_school_m;o.dSt=pb.max_to_stop_m;}o.nodes=A.transport_nodes_straight_km;o.jobs=A.jobs_poi_per_km2;o.soc=A.social;}
+  if(P&&P.blds&&P.blds.length){const g=geo(P),ph={};let resT=0;P.blds.forEach(b=>{const a=g.area(b.poly),k=b.ph||1,G=a*b.fl,gfl=b.use==='res'&&b.gf&&b.gf!=='res'&&b.fl>1?a:0,r=b.use==='res'?G-gfl:0;ph[k]=ph[k]||{n:0,fp:0,gfa:0,res:0};ph[k].n++;ph[k].fp+=a;ph[k].gfa+=G;ph[k].res+=r;resT+=r;});
+    o.phases=Object.keys(ph).sort((a,b)=>a-b).map(k=>Object.assign({k:+k,kv:o.kv&&resT?o.kv*ph[k].res/resT:null},ph[k]));}
+  return o;}
+const chk=(v,op,t)=>v==null||t==null||t===''?null:op==='<='?v<=t:op==='>='?v>=t:op==='in'?v>=t[0]&&v<=t[1]:null;
+/* ---- kartalar ---- */
+const CARDS=[];const card=(id,t,ref,fn)=>CARDS.push({id,t,ref,fn});
+const inp=(k,lbl,ph,u,sub)=>`<label class="in"><span>${lbl}</span><span class="iw"><input data-i="${sub?sub+'.':''}${k}" value="${esc(sub?I[sub][k]:I[k])}" placeholder="${esc(ph||'')}">${u?`<em>${u}</em>`:''}</span></label>`;
+const row=(l,v,u,norm,ok,note)=>({l,v,u,norm,ok,note});
+card('tik','Umumiy texnik-iqtisodiy koʻrsatkichlar','Joylashtirish boʻlimidan',o=>{if(o.site==null)return {empty:'Avval «Binolarni joylashtirish» boʻlimida uchastka va binolarni chizing.',link:['posadka.html','Joylashtirishni ochish']};const T=I.thr;
+  return {inputs:inp('kpk','Kishi / kvartira',o.ppl?'Joylashtirishda: '+o.ppl:'',''),rows:[row('Uchastka maydoni',o.site,'ga'),row('Qurilish dogʻi · qoplami',fmt(o.fp)+' m² · '+fmt(o.cov)+' %',''),row('Umumiy qavatlar maydoni',o.gfa,'m²'),
+    row('UMN (FAR)',o.far,'','≤ '+fmt(+T.far),chk(o.far,'<=',+T.far)),row('Uy-joy fondi zichligi',o.ujz,'m²/ga',`${fmt(+T.ujz1)}–${fmt(+T.ujz2)}`,chk(o.ujz,'in',[+T.ujz1,+T.ujz2])),row('Kvartiralar',o.kv,'ta'),row('Loyiha aholisi',o.aholi,'kishi'),
+    row('Aholi zichligi',o.zich,'kishi/ga','≤ '+fmt(+T.zich),chk(o.zich,'<=',+T.zich)),row('Yashash maydoni kishiga',o.m2k,'m²','≥ '+fmt(+T.m2k),chk(o.m2k,'>=',+T.m2k)),row('Yashillik',o.gr,'%','≥ '+fmt(+T.yash),chk(o.gr,'>=',+T.yash)),
+    row('Avtoturargoh',o.pkv,'joy/kv','≥ '+fmt(+T.park),chk(o.pkv,'>=',+T.park))]};});
+card('demo','Demografiya: oldin va keyin','Davstat, reyestr — qoʻlda',o=>({inputs:inp('aholi0','Hozirgi aholi','','kishi')+inp('kv0','Hozirgi kvartiralar','','ta')+`<div class="sub">Yosh tuzilmasi, % (Davstat)</div>`+inp('d0','0–6 yosh','','%','sh')+inp('d1','7–17','','%','sh')+inp('d2','18–60','','%','sh')+inp('d3','60+','','%','sh'),
+  rows:[row('Hozirgi aholi · zichlik',o.aholi0!=null?fmt(o.aholi0)+' · '+fmt(o.zich0)+' kishi/ga':null,''),row('Loyihadan keyin aholi · zichlik',o.aholi!=null?fmt(o.aholi)+' · '+fmt(o.zich)+' kishi/ga':null,''),row('Aholi oʻsishi',o.osish,'×'),
+    ...['0–6','7–17','18–60','60+'].map((l,i)=>row(l+' yosh (loyiha)',o.aholi&&+I.sh['d'+i]?o.aholi*+I.sh['d'+i]/100:null,'kishi'))],chart:'pyr'}));
+card('soc','Ijtimoiy infratuzilma: ehtiyoj va kamomad','Meʼyor: oʻrin / 1000 kishi',o=>({inputs:inp('n_sosh','Maktab meʼyori','shablon: 165–280','oʻrin/1000')+inp('n_dou','Bogʻcha meʼyori','shablon: 70–125','oʻrin/1000')+inp('l_sosh','Loyihada maktab','','oʻrin')+inp('l_dou','Loyihada bogʻcha','','oʻrin')+inp('m_sosh','Atrofdagi boʻsh sigʻim: maktab','','oʻrin')+inp('m_dou','Atrofdagi boʻsh sigʻim: bogʻcha','','oʻrin'),
+  rows:[row('Talab: maktab oʻrinlari',o.t_sosh,'oʻrin'),row('Talab: bogʻcha oʻrinlari',o.t_dou,'oʻrin'),row('Maktab: ortiqcha / kamomad',o.k_sosh,'oʻrin','≥ 0',o.k_sosh==null?null:o.k_sosh>=0),row('Bogʻcha: ortiqcha / kamomad',o.k_dou,'oʻrin','≥ 0',o.k_dou==null?null:o.k_dou>=0),
+    row('Hududda maktab · bogʻcha · tibbiyot (OSM)',o.soc?`${o.soc.school} · ${o.soc.kindergarten} · ${o.soc.health}`:null,'')]}));
+card('walk','Piyoda yetish va 15 daqiqalik shahar','Hudud tahlili boʻlimidan (OSM, piyoda tarmogʻi)',o=>{if(o.i15==null&&o.jtE==null)return {empty:'Avval «Hudud tahlili»da hududni hisoblang. Loyiha binolarigacha masofalar Joylashtirishda chizilgan binolar boʻyicha olinadi.',link:['ai.html','Hudud tahlilini ochish']};const T=I.thr;
+  return {rows:[row('15 daqiqada yetiladigan ehtiyoj turlari',o.i15,'/ 9'),row('Barcha 9 tur 15 daqiqada',o.f15,'% hudud'),row('Bekatgacha ≤ 400 m (tarmoq)',o.jtNet,'% hudud'),row('Piyoda qamrovi (10 daq.)',o.ped,''),
+    row('Loyiha binolaridan bogʻchagacha (eng uzoq)',o.dKg,'m','≤ '+fmt(+T.dou),chk(o.dKg,'<=',+T.dou)),row('Loyiha binolaridan maktabgacha (eng uzoq)',o.dSc,'m','≤ '+fmt(+T.sosh),chk(o.dSc,'<=',+T.sosh)),row('Loyiha binolaridan bekatgacha (eng uzoq)',o.dSt,'m','≤ '+fmt(+T.jt),chk(o.dSt,'<=',+T.jt)),
+    row('Eng yaqin metro',o.nodes&&o.nodes.metro?o.nodes.metro.km:null,'km'),row('Temir yoʻl vokzali',o.nodes&&o.nodes.railway_station?o.nodes.railway_station.km:null,'km'),row('Aeroport',o.nodes&&o.nodes.airport?o.nodes.airport.km:null,'km'),row('Mehnat joylari zichligi (POI)',o.jobs,'/km²')],
+    note:'Masofalar piyoda tarmogʻi boʻyicha; transport tugunlari — toʻgʻri chiziq boʻyicha.'};});
+card('vc','Koʻcha tarmogʻiga yuklanish (V/C)','Pik soat ssenariysi',o=>({inputs:inp('pk_sh','Pik soatda chiqadigan avtomobillar','masalan: 50','% joylardan')+inp('ex_n','Asosiy koʻchalarga chiqishlar','','ta')+inp('ex_c','Bitta chiqish oʻtkazuvchanligi','','avt/soat'),
+  rows:[row('Avtoturargoh joylari',o.park,'joy'),row('Pik soat oqimi',o.pik,'avt/soat'),row('Chiqishlar oʻtkazuvchanligi',o.cap,'avt/soat'),row('Yuklanish koeffitsiyenti V/C',o.vc,'','< 1,0',o.vc==null?null:o.vc<1)]}));
+card('park','Avtoturargoh balansi','Joylashtirish boʻlimidan',o=>({inputs:inp('kmsh','KMSh uchun','shablon: ≥ 5','%')+inp('ev','Elektromobil quvvatlash','shablon: ≥ 5','%'),
+  rows:[row('Jami joylar (chizilgan)',o.park,'joy'),row('Joy / kvartira',o.pkv,'','≥ '+fmt(+I.thr.park),chk(o.pkv,'>=',+I.thr.park)),row('1000 aholiga',o.p1000,'joy'),row('KMSh joylari',o.kmsh,'joy'),row('Quvvatlash joylari',o.ev,'joy')]}));
+card('eng','Muhandislik yuklamalari','Solishtirma meʼyorlarni ShNQ 2.04.02-19, 2.04.17-19 dan kiriting',o=>({inputs:inp('suv','Suv sarfi','','l/sut·kishi')+inp('el','Kvartiraning solishtirma yuki','','kVt'),
+  rows:[row('Suv sarfi',o.suv,'m³/sut'),row('Kanalizatsiya (≈ suv)',o.suv,'m³/sut'),row('Elektr yuki (koeffitsiyentsiz)',o.el,'kVt')],note:'Tarmoqlar sxemasi va ulanish shartlari — resurs taʼminlovchi tashkilotlardan.'}));
+card('sun','Insolyatsiya va binolar orasidagi masofa','Joylashtirish boʻlimidan',o=>({rows:[row('Eng kam uzluksiz insolyatsiya',o.ins,'soat','≥ '+fmt(+I.thr.ins),chk(o.ins,'>=',+I.thr.ins)),row('Binolar orasidagi eng kam masofa',o.minD,'m')],note:'Hisob sanasi, vaqt oraligʻi, atrofdagi binolar va yongʻinga qarshi masofalar Joylashtirish boʻlimidagi «Normativ tekshiruv» blokida sozlanadi.',link:['posadka.html','Joylashtirishni ochish']}));
+card('dem','Relyef (balandlik farqi)','Raqamli relyef modeli (AWS Terrain, ~30 m)',o=>({rows:[row('Eng past nuqta',EXT.dem&&EXT.dem.min,'m'),row('Eng baland nuqta',EXT.dem&&EXT.dem.max,'m'),row('Balandlik farqi',EXT.dem&&EXT.dem.max-EXT.dem.min,'m'),row('Oʻrtacha qiyalik',EXT.dem&&EXT.dem.slope,'%')],
+  act:['dem','Uchastka boʻyicha hisoblash'],note:'Taxminiy: topografik syomka (M 1:500) oʻrnini bosmaydi.'}));
+card('clim','Iqlim va shamol','Open-Meteo arxivi (ERA5 reanaliz), 1996–2025',o=>{const C=EXT.clim;return {rows:C?[row('Absolyut maksimum',C.tmax,'°C'),row('Absolyut minimum',C.tmin,'°C'),row('Eng sovuq oy oʻrtacha minimumi',C.coldMin,'°C'),row('Eng issiq oy oʻrtacha maksimumi',C.hotMax,'°C'),row('Yillik yogʻin (oʻrtacha)',C.prec,'mm'),row('Ustun shamol yoʻnalishi',C.wdir,''),row('Oʻrtacha shamol tezligi',C.wspd,'m/s')]:[],
+  act:['clim','Iqlim maʼlumotini yuklash'],chart:C?'clim':null,note:'Reanaliz maʼlumotlari Oʻzgidromet kuzatuvlari oʻrnini bosmaydi; rasmiy hujjatda Oʻzgidromet manbasi koʻrsatiladi.'};});
+card('ph','Qurilish navbatlari','Joylashtirishda har bir binoga bosqich belgilang',o=>({rows:(o.phases||[]).map(p=>row(`${p.k}-bosqich: ${p.n} ta bino`,`${fmt(p.gfa)} m² · ~${fmt(p.kv)} kv.`,'')),note:'Kvartiralar bosqichlarga turar joy maydoni ulushi boʻyicha taxminan taqsimlangan.',empty:o.phases?null:'Binolar hali chizilmagan.'}));
+card('ba','Oldin va keyin','Mavjud holat — OSM yoki qoʻlda',o=>({inputs:inp('park0','Mavjud avtoturargoh','','joy')+inp('tij0','Mavjud tijorat maydoni','','m²'),
+  rows:[row('Aholi',o.aholi0!=null&&o.aholi!=null?`${fmt(o.aholi0)} → ${fmt(o.aholi)}`:null,''),row('Kvartiralar',o.kv0!=null&&o.kv!=null?`${fmt(o.kv0)} → ${fmt(o.kv)}`:null,''),row('Binolar (OSM)',EXT.ex?`${fmt(EXT.ex.n)} → ${fmt(o.P&&o.P.blds?o.P.blds.length:null)}`:null,''),
+    row('Qavatlar maydoni',EXT.ex&&o.gfa!=null?`${fmt(EXT.ex.gfa)} → ${fmt(o.gfa)} m²`:null,''),row('Avtoturargoh',+I.park0&&o.park!=null?`${fmt(+I.park0)} → ${fmt(o.park)}`:null,''),row('Tijorat maydoni',+I.tij0&&o.nonres!=null?`${fmt(+I.tij0)} → ${fmt(o.nonres)} m²`:null,''),
+    row('Yashillik',o.gr!=null?fmt(o.gr)+' %':null,'')],act:['ex','Uchastkadagi mavjud binolar (OSM)']}));
+card('fin','Moliyaviy koʻrsatkichlar','Infratuzilma yigʻimi — VMQ-151, 4-ilova formulasi',o=>({inputs:inp('iy_st','Yigʻim stavkasi','','soʻm/m³')+inp('iy_k','Koeffitsiyentlar koʻpaytmasi','masalan: 0,5×1×2 = 1','')+inp('kurs','Kurs','','soʻm/$'),
+  rows:[row('Qurilish hajmi (GFA × qavat balandligi)',o.hajm,'m³'),row('Infratuzilma yigʻimi',o.iy!=null?o.iy/1e9:null,'mlrd soʻm'),row('Infratuzilma yigʻimi',o.iyUsd!=null?o.iyUsd/1e6:null,'mln $'),row('Qurilish xarajati',o.cost!=null?o.cost/1e9:null,'mlrd soʻm'),row('Sotuvdan tushum',o.rev!=null?o.rev/1e9:null,'mlrd soʻm'),
+    row('Farq (yigʻimsiz)',o.cost!=null&&o.rev!=null?(o.rev-o.cost)/1e9:null,'mlrd soʻm')],note:'Narxlar Joylashtirish boʻlimida kiritiladi. Yer, moliyalash va koʻchirish xarajatlari kirmagan.'}));
+/* ---- chizish ---- */
+function cardHTML(c,o){const r=c.fn(o);let h=`<section class="cd" id="c_${c.id}"><div class="ch"><div><h2>${esc(c.t)}</h2><div class="cref">${esc(c.ref)}</div></div><div class="ca"><button class="btn sm ghost" data-alb="${c.id}" ${r.empty?'disabled':''}>Albomga →</button></div></div>`;
+  if(r.empty)h+=`<div class="emp">${esc(r.empty)}${r.link?` <a href="${r.link[0]}">${esc(r.link[1])} ↗</a>`:''}</div>`;
+  else{h+=`<div class="cb">${r.inputs?`<div class="ins">${r.inputs}</div>`:''}<table><tbody>${(r.rows||[]).map(x=>`<tr><td>${esc(x.l)}</td><td class="v">${typeof x.v==='number'?fmt(x.v):esc(x.v??'—')}${x.u&&x.v!=null?` <em>${esc(x.u)}</em>`:''}</td><td class="nm">${esc(x.norm||'')}</td><td>${x.ok===true?'<i class="st ok">✓</i>':x.ok===false?'<i class="st bad">✗</i>':''}</td></tr>`).join('')}</tbody></table></div>`;
+    if(r.chart==='pyr')h+=pyrSVG(o);if(r.chart==='clim'&&EXT.clim)h+=`<div class="charts">${climSVG(EXT.clim)}${roseSVG(EXT.clim.rose)}</div>`;
+    if(r.act||r.link||r.note)h+=`<div class="cf">${r.act?`<button class="btn sm" data-act="${r.act[0]}">${esc(r.act[1])}</button>`:''}${r.link?`<a href="${r.link[0]}">${esc(r.link[1])} ↗</a>`:''}${r.note?`<span class="note">${esc(r.note)}</span>`:''}</div>`;}
+  return h+'</section>';}
+function pyrSVG(o){if(!o.aholi||!['d0','d1','d2','d3'].some(k=>+I.sh[k]))return '';const L=['0–6','7–17','18–60','60+'],v=['d0','d1','d2','d3'].map(k=>+I.sh[k]||0),mx=Math.max(...v,1);
+  return `<div class="charts"><svg font-family="Archivo, Arial, sans-serif" viewBox="0 0 420 140" class="ch1">${L.map((l,i)=>`<text x="54" y="${28+i*30}" font-size="12" text-anchor="end" fill="#3c3c3c">${l}</text><rect x="62" y="${16+i*30}" width="${v[i]/mx*300}" height="18" fill="#7b61d1"/><text x="${68+v[i]/mx*300}" y="${29+i*30}" font-size="11" fill="#141414">${fmt(o.aholi*v[i]/100)} (${fmt(v[i])}%)</text>`).join('')}</svg></div>`;}
+function climSVG(C){const W=440,H=200,mn=Math.min(...C.mTmin,0)-2,mx=Math.max(...C.mTmax)+2,y=t=>20+(mx-t)/(mx-mn)*130,pm=Math.max(...C.mPrec,1),M=['Y','F','M','A','M','I','I','A','S','O','N','D'];
+  return `<svg font-family="Archivo, Arial, sans-serif" viewBox="0 0 ${W} ${H}" class="ch1"><text x="0" y="12" font-size="11" fill="#696969">Oylik harorat (°C) va yogʻin (mm)</text>${C.mPrec.map((p,i)=>`<rect x="${40+i*33}" y="${150-p/pm*60}" width="20" height="${p/pm*60}" fill="#bbd3f2"/>`).join('')}
+    <polyline points="${C.mTmax.map((t,i)=>`${50+i*33},${y(t)}`).join(' ')}" fill="none" stroke="#b3261e" stroke-width="2"/><polyline points="${C.mTmin.map((t,i)=>`${50+i*33},${y(t)}`).join(' ')}" fill="none" stroke="#1d6fa5" stroke-width="2"/>
+    <line x1="34" x2="${W-10}" y1="${y(0)}" y2="${y(0)}" stroke="#cfccc5" stroke-dasharray="3 3"/>${M.map((m,i)=>`<text x="${50+i*33}" y="168" font-size="10" text-anchor="middle" fill="#696969">${m}</text>`).join('')}
+    <text x="40" y="190" font-size="10" fill="#b3261e">— oʻrt. maks.</text><text x="130" y="190" font-size="10" fill="#1d6fa5">— oʻrt. min.</text><text x="210" y="190" font-size="10" fill="#5b87c5">▮ yogʻin</text></svg>`;}
+function roseSVG(rose){if(!rose)return '';const cx=110,cy=110,Rr=85,mx=Math.max(...rose),D=['Sh','','ShSh','','Sh','','','',"J",'','','','G','','',''];const lab=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  const uz=['Sh','ShShQ','ShQ','ShQQ','Q','JQQ','JQ','JJQ','J','JJG','JG','GJG','G','GShG','ShG','ShShG'];
+  return `<svg font-family="Archivo, Arial, sans-serif" viewBox="0 0 220 230" class="ch1"><text x="0" y="12" font-size="11" fill="#696969">Shamollar guli (chastota, %)</text>${[.25,.5,.75,1].map(k=>`<circle cx="${cx}" cy="${cy+10}" r="${Rr*k}" fill="none" stroke="#e6e4df"/>`).join('')}
+    <polygon points="${rose.map((v,i)=>{const a=i*22.5*R,r=v/mx*Rr;return `${cx+r*Math.sin(a)},${cy+10-r*Math.cos(a)}`;}).join(' ')}" fill="#7b61d1" fill-opacity=".35" stroke="#7b61d1" stroke-width="1.5"/>
+    ${[0,4,8,12].map(i=>{const a=i*22.5*R;return `<text x="${cx+(Rr+12)*Math.sin(a)}" y="${cy+14-(Rr+12)*Math.cos(a)}" font-size="11" text-anchor="middle" fill="#141414">${uz[i]}</text>`;}).join('')}<text x="${cx}" y="${cy+14}" font-size="9" text-anchor="middle" fill="#696969">maks. ${fmt(mx)}%</text></svg>`;}
+function render(){const o=calc(),{PS,A}=o;
+  $('#src').innerHTML=`<span class="${PS?'on':''}">Joylashtirish: ${PS?esc(PS.name||'')+' · '+new Date(PS.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span><span class="${A?'on':''}">Hudud tahlili: ${A?esc(A.mode||'')+' · '+new Date(A.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span>`;
+  $('#cards').innerHTML=CARDS.map(c=>cardHTML(c,o)).join('');
+  document.querySelectorAll('[data-i]').forEach(i=>i.onchange=()=>{const [a,b]=i.dataset.i.split('.');const v=i.value.trim().replace(/\s/g,'').replace(',','.');if(b)I[a][b]=v;else I[a]=v;saveI();render();});
+  document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>ACT[b.dataset.act](b));document.querySelectorAll('[data-alb]').forEach(b=>b.onclick=()=>toAlbum([b.dataset.alb]));
+  $('#thr').innerHTML=Object.entries({far:'UMN (FAR) ≤',ujz1:'Uy-joy zichligi, dan',ujz2:'gacha, m²/ga',zich:'Aholi zichligi ≤, kishi/ga',m2k:'Yashash, m²/kishi ≥',yash:'Yashillik ≥, %',park:'Avtoturargoh ≥, joy/kv',ins:'Insolyatsiya ≥, soat',jt:'Bekatgacha ≤, m',dou:'Bogʻchagacha ≤, m',sosh:'Maktabgacha ≤, m'}).map(([k,l])=>`<label class="in"><span>${l}</span><span class="iw"><input data-t="${k}" value="${esc(I.thr[k])}"></span></label>`).join('');
+  document.querySelectorAll('[data-t]').forEach(i=>i.onchange=()=>{I.thr[i.dataset.t]=i.value.replace(',','.');saveI();render();});}
+/* ---- tashqi maʼlumotlar ---- */
+const ACT={};
+ACT.dem=async b=>{const {P}=src();const pts=P&&(P.site||P.blds.flatMap(x=>x.poly));if(!pts||!pts.length){toast('Avval Joylashtirishda uchastka chizing.');return;}b.disabled=true;b.textContent='Hisoblanmoqda…';
+  try{const z=14,lx=lo=>(lo+180)/360*2**z*256,ly=la=>{const s=Math.sin(la*R);return (.5-Math.log((1+s)/(1-s))/(4*Math.PI))*2**z*256;};const X=pts.map(p=>lx(p[1])),Y=pts.map(p=>ly(p[0]));
+    const x0=Math.floor(Math.min(...X)),x1=Math.ceil(Math.max(...X)),y0=Math.floor(Math.min(...Y)),y1=Math.ceil(Math.max(...Y)),tiles={};
+    for(let tx=Math.floor(x0/256);tx<=Math.floor(x1/256);tx++)for(let ty=Math.floor(y0/256);ty<=Math.floor(y1/256);ty++){const im=new Image();im.crossOrigin='anonymous';im.src=`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${tx}/${ty}.png`;await im.decode();const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.drawImage(im,0,0);tiles[tx+','+ty]=g.getImageData(0,0,256,256).data;}
+    const el=(px,py)=>{const t=tiles[Math.floor(px/256)+','+Math.floor(py/256)],i=((Math.floor(py)%256)*256+(Math.floor(px)%256))*4;return t[i]*256+t[i+1]+t[i+2]/256-32768;};
+    const poly=P.site?P.site.map(p=>[lx(p[1]),ly(p[0])]):null,inside=(x,y)=>{if(!poly)return true;let c=false;for(let i=0,k=poly.length-1;i<poly.length;k=i++){if(((poly[i][1]>y)!==(poly[k][1]>y))&&(x<(poly[k][0]-poly[i][0])*(y-poly[i][1])/(poly[k][1]-poly[i][1])+poly[i][0]))c=!c;}return c;};
+    const v=[];for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)if(inside(x+.5,y+.5))v.push(el(x+.5,y+.5));if(!v.length)throw new Error('uchastka juda kichik');const mpp=156543.03392*Math.cos(pts[0][0]*R)/2**z,diag=Math.hypot(x1-x0,y1-y0)*mpp;
+    EXT.dem={min:+Math.min(...v).toFixed(1),max:+Math.max(...v).toFixed(1),slope:+((Math.max(...v)-Math.min(...v))/Math.max(diag,1)*100).toFixed(1),t:Date.now()};saveE();render();}catch(e){toast('Relyef olinmadi: '+e.message);b.disabled=false;}};
+ACT.clim=async b=>{const {P,A}=src();let c=P&&P.site?[P.site.reduce((a,p)=>a+p[0],0)/P.site.length,P.site.reduce((a,p)=>a+p[1],0)/P.site.length]:A&&A.center?A.center:null;if(!c){toast('Avval Joylashtirishda uchastka yoki Hudud tahlilida markaz tanlang.');return;}
+  b.disabled=true;b.textContent='Yuklanmoqda… (1–2 daqiqa)';const base=`https://archive-api.open-meteo.com/v1/archive?latitude=${c[0].toFixed(3)}&longitude=${c[1].toFixed(3)}&timezone=Asia%2FTashkent`;
+  try{const d=await (await fetch(base+'&start_date=1996-01-01&end_date=2025-12-31&daily=temperature_2m_max,temperature_2m_min,precipitation_sum')).json();if(!d.daily)throw new Error(d.reason||'javob yoʻq');
+    const T=d.daily.time,mx=d.daily.temperature_2m_max,mn=d.daily.temperature_2m_min,pr=d.daily.precipitation_sum,mT=Array(12).fill(0).map(()=>[[],[],0]);let ps=0;
+    T.forEach((t,i)=>{const m=+t.slice(5,7)-1;if(mx[i]!=null)mT[m][0].push(mx[i]);if(mn[i]!=null)mT[m][1].push(mn[i]);mT[m][2]+=pr[i]||0;ps+=pr[i]||0;});const av=a=>a.reduce((s,x)=>s+x,0)/a.length,yrs=T.length/365.25;
+    const mTmax=mT.map(m=>+av(m[0]).toFixed(1)),mTmin=mT.map(m=>+av(m[1]).toFixed(1)),mPrec=mT.map(m=>+(m[2]/yrs).toFixed(0));
+    const w=await (await fetch(base+'&start_date=2016-01-01&end_date=2025-12-31&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms')).json();const rose=Array(16).fill(0);let ws=0,wn=0;
+    (w.hourly?w.hourly.wind_direction_10m:[]).forEach((dir,i)=>{const s=w.hourly.wind_speed_10m[i];if(dir==null||s==null)return;ws+=s;wn++;if(s<.5)return;rose[Math.round(dir/22.5)%16]++;});const rt=rose.reduce((a,b)=>a+b,0)||1;
+    const uz=['shimol','shimol-shimoli-sharq','shimoli-sharq','sharq-shimoli-sharq','sharq','sharq-janubi-sharq','janubi-sharq','janub-janubi-sharq','janub','janub-janubi-gʻarb','janubi-gʻarb','gʻarb-janubi-gʻarb','gʻarb','gʻarb-shimoli-gʻarb','shimoli-gʻarb','shimol-shimoli-gʻarb'];
+    EXT.clim={tmax:Math.max(...mx.filter(x=>x!=null)),tmin:Math.min(...mn.filter(x=>x!=null)),coldMin:Math.min(...mTmin),hotMax:Math.max(...mTmax),prec:+(ps/yrs).toFixed(0),mTmax,mTmin,mPrec,rose:rose.map(v=>+(v/rt*100).toFixed(1)),wdir:wn?uz[rose.indexOf(Math.max(...rose))]:null,wspd:wn?+(ws/wn).toFixed(1):null,at:c,t:Date.now()};saveE();render();}
+  catch(e){toast('Iqlim maʼlumoti olinmadi: '+e.message);b.disabled=false;b.textContent='Qayta urinish';}};
+ACT.ex=async b=>{const {P}=src();if(!P||!P.site){toast('Avval Joylashtirishda uchastka chegarasini chizing.');return;}b.disabled=true;const g=geo(P);
+  try{const q=`[out:json][timeout:60];way["building"](poly:"${P.site.map(p=>p[0].toFixed(6)+' '+p[1].toFixed(6)).join(' ')}");out geom tags;`;const j=await (await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)})).json();
+    let fp=0,gfa=0,lv=0;j.elements.forEach(w=>{if(!w.geometry)return;const a=g.area(w.geometry.map(x=>[x.lat,x.lon])),l=parseFloat((w.tags||{})['building:levels']);if(l>0)lv++;fp+=a;gfa+=a*(l>0?l:1);});
+    EXT.ex={n:j.elements.length,fp:Math.round(fp),gfa:Math.round(gfa),lvShare:j.elements.length?Math.round(lv/j.elements.length*100):0,t:Date.now()};saveE();render();toast(`OSM: ${EXT.ex.n} ta bino; qavat tegi ${EXT.ex.lvShare}% binoda (qolganlari 1 qavat deb olindi).`);}catch(e){toast('OSM soʻrovi bajarilmadi: '+e.message);b.disabled=false;}};
+/* ---- albomga ---- */
 const svgURL=s=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);
-function wrap(t,n){const out=[];String(t||'').split('\n').forEach(par=>{let l='';par.split(' ').forEach(w=>{if((l+' '+w).trim().length>n){if(l)out.push(l);l=w;}else l=(l+' '+w).trim();});out.push(l);});return out;}
-const xe=s=>esc(s).replace(/'/g,'&#39;');
-function ckSVG(u,V){const W=600,rh=44,head=64,rows=u.rows.map(rr=>ROWS.find(x=>x.k===rr[0]));const Hh=head+rows.length*rh+6;
-  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${Hh}" font-family="Archivo, Arial, sans-serif"><rect width="${W}" height="${Hh}" fill="#fff" stroke="#dedcd7"/><rect width="${W}" height="34" fill="#141414"/><text x="14" y="23" font-size="15" font-weight="600" fill="#f4f3f1" letter-spacing="1">MUVOFIQLIK ROʻYXATI</text>
-  <text x="14" y="54" font-size="11" fill="#696969" letter-spacing=".8">KOʻRSATKICH</text><text x="372" y="54" font-size="11" fill="#696969" text-anchor="middle" letter-spacing=".8">NORMA</text><text x="500" y="54" font-size="11" fill="#696969" text-anchor="middle" letter-spacing=".8">LOYIHA</text>`;
-  rows.forEach((r,i)=>{const y=head+i*rh,st=status(r,V),v=V[r.k],vv=r.t==='yn'?{ok:'✓',no:'✗',na:'—'}[v]||'___':v==null||v===''?'___':typeof v==='number'?fmt(v)+(r.o.u?' '+r.o.u:''):String(v).slice(0,18);
-    const L=wrap(r.n,34).slice(0,2),N=wrap(r.norm,16).slice(0,2);
-    s+=`${i%2?`<rect x="1" y="${y}" width="${W-2}" height="${rh}" fill="#f7f6f3"/>`:''}${L.map((l,j)=>`<text x="14" y="${y+(L.length>1?17+j*15:26)}" font-size="13" font-weight="${j?400:500}" fill="#141414">${xe(l)}</text>`).join('')}
-      ${N.map((l,j)=>`<text x="372" y="${y+(r.ref?15:24)+j*13}" font-size="12.5" font-weight="600" text-anchor="middle" fill="#141414">${xe(l)}</text>`).join('')}${r.ref?`<text x="372" y="${y+(N.length>1?41:32)}" font-size="9.5" text-anchor="middle" fill="#2f5fa8" font-style="italic">${xe(r.ref.slice(0,30))}</text>`:''}
-      <rect x="448" y="${y+8}" width="104" height="${rh-16}" fill="#eef3fb" stroke="#2f5fa8" stroke-dasharray="3 2"/><text x="500" y="${y+rh/2+5}" font-size="13" text-anchor="middle" fill="#1c3f78">${xe(vv)}</text>
-      <circle cx="576" cy="${y+rh/2}" r="9" fill="${st==='ok'?'#2e7d4f':st==='bad'?'#b3261e':'#fff'}" stroke="${st==='ok'||st==='bad'?'none':'#cfccc5'}"/>${st==='ok'||st==='bad'?`<text x="576" y="${y+rh/2+4.5}" font-size="12" text-anchor="middle" fill="#fff" font-weight="700">${st==='ok'?'✓':'✗'}</text>`:''}`;});
-  return {src:svgURL(s+'</svg>'),aspect:W/Hh};}
-const T=(x,y,w,text,o={})=>Object.assign({id:uid(),t:'text',x,y,w,h:(o.fs||10)*.3528*1.4*(String(text).split('\n').length),text,ff:'Archivo',fs:10,col:'#141414',al:'l',layer:'L0'},o);
-const RC=(x,y,w,h,o={})=>Object.assign({id:uid(),t:'rect',x,y,w,h,fill:null,stroke:null,sw:0,op:1,layer:'L0'},o);
-function frame(name,right){return [RC(0,0,420,11,{fill:'#141414'}),T(8,2.6,260,name,{fs:10.5,col:'#f4f3f1'}),T(160,2.6,252,right,{fs:10.5,col:'#f4f3f1',al:'r'})];}
-function placeMats(ids,x,y,w,h){const ms=ids.map(id=>MATS.find(m=>m.id===id)).filter(Boolean).slice(0,4);if(!ms.length)return [];const n=ms.length,cols=n>1?2:1,rows=Math.ceil(n/cols),g=4,cw=(w-(cols-1)*g)/cols,ch=(h-(rows-1)*g)/rows;
-  return ms.map((m,i)=>{const a=m.aspect||1.5,cx=x+(i%cols)*(cw+g),cy=y+Math.floor(i/cols)*(ch+g);let ww=cw,hh=cw/a;if(hh>ch){hh=ch;ww=ch*a;}return {id:uid(),t:'mat',src:m.src,name:m.name,aspect:a,mW:null,frame:false,x:cx+(cw-ww)/2,y:cy+(ch-hh)/2,w:ww,h:hh,layer:'L0'};});}
-function subPage(u,V){const it=[...frame(M.name,`${u.sec.id==='★'?'':u.sec.id+'-boʻlim · '}${u.sec.t}`)];
-  it.push(RC(10,17,18,17,{fill:'#141414'}),T(10,21.2,18,u.id,{fs:u.id.length>3?13:17,col:'#f4f3f1',al:'c',b:true}),T(32,16.5,370,u.t,{fs:21,b:false}),T(32,27,370,u.ru,{fs:10,col:'#696969',i:true}));
-  let yb=40;if(u.rows.length){const c=ckSVG(u,V),w=150,h=w/c.aspect;it.push({id:uid(),t:'image',src:c.src,aspect:c.aspect,x:10,y:40,w,h,name:'Muvofiqlik roʻyxati',layer:'L0'});yb=40+h+5;}
-  const note=M.note[u.id];if(note&&yb<250){const lines=wrap(note,(u.rows.length?78:78)).slice(0,Math.max(2,Math.floor((270-yb)/4.6)));it.push(T(10,yb,150,lines.join('\n'),{fs:9,col:'#3c3c3c',lh:1.3}));}
-  const att=M.att[u.id]||[],X=u.rows.length||note?168:10,W2=410-X;
-  if(att.length)it.push(...placeMats(att,X,40,W2,230));else{it.push(RC(X,40,W2,230,{fill:'#f6f5f2',stroke:'#2f5fa8',sw:.35,ls:'dash'}),T(X+10,148,W2-20,'CHIZMA: '+(u.draw||''),{fs:12,col:'#2f5fa8',al:'c'}));}
-  const tik=tikLine(u,V);it.push({id:uid(),t:'line',pts:[[10,276],[410,276]],stroke:'#141414',sw:.3,op:1,layer:'L0'},T(10,278.5,400,wrap('TIK: '+(tik||'___'),190).slice(0,2).join('\n'),{fs:8,b:true,lh:1.3}),T(10,288.5,400,wrap(refs(u),210)[0]||'',{fs:7.5,col:'#2f5fa8',i:true}));
-  return {id:uid(),fmt:'A3',orient:'L',tb:false,items:it,name:u.id+' '+u.t};}
-function titlePage(V){const it=[RC(0,0,420,297,{fill:'#f4f3f1'}),RC(0,0,12,297,{fill:'#141414'}),T(30,40,360,'MASTER REJA',{fs:14,col:'#696969'}),T(30,52,380,M.name,{fs:40}),T(30,80,360,'Urbanizatsiya qoʻmitasi shabloni asosida · ShNQ 2.07.01-23',{fs:12,col:'#3c3c3c'})];
-  const k=[['Maydon',V.maydon,'ga'],['Kvartiralar',V.kv,'ta'],['Aholi',V.aholi,'kishi'],['FAR',V.far,''],['Aholi zichligi',V.zich,'kishi/ga'],['Avtoturargoh',V.park_jami,'joy']].filter(x=>x[1]!=null);
-  k.forEach((x,i)=>{const cx=30+(i%3)*120,cy=150+Math.floor(i/3)*40;it.push(T(cx,cy,110,x[0].toUpperCase(),{fs:9,col:'#696969'}),T(cx,cy+6,110,fmt(x[1])+(x[2]?' '+x[2]:''),{fs:22}));});
-  it.push(T(30,270,360,'Archemistry Studio · '+new Date().toLocaleDateString('ru-RU'),{fs:9,col:'#696969'}));return {id:uid(),fmt:'A3',orient:'L',tb:false,items:it,name:'Titul'};}
-function tocPage(list){const it=[...frame(M.name,'Mundarija'),T(20,22,380,'Mundarija',{fs:24})];let y=44;SEC.forEach(s=>{const subs=s.subs.filter(u=>list.includes(u));if(!subs.length)return;it.push(T(20,y,380,`${s.id}   ${s.t}`,{fs:12,b:true}));y+=6.5;
-  subs.forEach(u=>{it.push(T(34,y,330,`${u.id}  ${u.t}`,{fs:10,col:'#3c3c3c'}),T(360,y,40,String(list.indexOf(u)+3),{fs:10,col:'#696969',al:'r'}));y+=5.2;});y+=2;});
-  return {id:uid(),fmt:'A3',orient:'L',tb:false,items:it,name:'Mundarija'};}
-function sumPage(V){const W=900,rh=30;const rows=SEC.map(s=>{const a={ok:0,bad:0,empty:0};s.subs.forEach(u=>{const x=subStat(u,V);a.ok+=x.ok;a.bad+=x.bad;a.empty+=x.empty;});return [s,a];});const Hh=50+rows.length*rh;
-  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${Hh}" font-family="Archivo, Arial, sans-serif"><rect width="${W}" height="${Hh}" fill="#fff"/><text x="10" y="30" font-size="13" fill="#696969">BOʻLIM</text><text x="640" y="30" font-size="13" fill="#696969" text-anchor="middle">✓</text><text x="740" y="30" font-size="13" fill="#696969" text-anchor="middle">✗</text><text x="840" y="30" font-size="13" fill="#696969" text-anchor="middle">BOʻSH</text>`;
-  rows.forEach(([sec,a],i)=>{const y=50+i*rh;s+=`<line x1="0" x2="${W}" y1="${y-20}" y2="${y-20}" stroke="#dedcd7"/><text x="10" y="${y}" font-size="15">${xe(sec.id+'  '+sec.t)}</text><text x="640" y="${y}" font-size="15" text-anchor="middle" fill="#2e7d4f">${a.ok}</text><text x="740" y="${y}" font-size="15" text-anchor="middle" fill="#b3261e">${a.bad||''}</text><text x="840" y="${y}" font-size="15" text-anchor="middle" fill="#696969">${a.empty||''}</text>`;});
-  const it=[...frame(M.name,'Yakuniy baho'),RC(10,17,18,17,{fill:'#141414'}),T(10,21.2,18,'Σ',{fs:17,col:'#f4f3f1',al:'c'}),T(32,16.5,370,'Yakuniy baho',{fs:21}),T(32,27,370,'Сводная оценка по разделам',{fs:10,col:'#696969',i:true}),{id:uid(),t:'image',src:svgURL(s+'</svg>'),aspect:W/Hh,x:10,y:42,w:300,h:300*Hh/W,layer:'L0'}];
-  return {id:uid(),fmt:'A3',orient:'L',tb:false,items:it,name:'Yakuniy baho'};}
-function albumDlg(){const ov=document.createElement('div');ov.className='ov';ov.innerHTML=`<div class="dlg" style="max-width:520px"><div class="dh"><b>Shablon boʻyicha albom yaratish</b><button class="x">✕</button></div><div style="padding:16px;display:flex;flex-direction:column;gap:10px;font-size:13px">
-  <label><input type="radio" name="sc" value="filled" checked> Faqat toʻldirilgan yoki chizmasi bor boʻlimlar</label><label><input type="radio" name="sc" value="all"> Barcha boʻlimlar (boʻshlari shablon sifatida)</label><hr>
-  <label><input type="checkbox" id="aTit" checked> Titul varaq</label><label><input type="checkbox" id="aToc" checked> Mundarija</label><label><input type="checkbox" id="aSum" checked> Yakuniy baho (Σ)</label><hr>
-  <label><input type="radio" name="md" value="add" checked> Mavjud albom oxiriga qoʻshish</label><label><input type="radio" name="md" value="new"> Albomni almashtirish (eskisi oʻchadi)</label>
-  <div class="note">Varaqlar A3 albom formatida: chapda muvofiqlik roʻyxati, oʻngda chizma, pastda TIK. Albom sahifasi boshqa oynada ochiq boʻlsa, uni yoping yoki yangilang — aks holda u eski holatini qayta saqlaydi.</div>
-  <button class="btn dark" id="aGo">Yaratish</button></div></div>`;document.body.appendChild(ov);ov.querySelector('.x').onclick=()=>ov.remove();
-  $('#aGo').onclick=async()=>{const V=vals(),sc=ov.querySelector('[name=sc]:checked').value,md=ov.querySelector('[name=md]:checked').value;
-    const list=ALL.filter(u=>{if(sc==='all')return true;const x=subStat(u,V);return (x.tot-x.empty)>0||x.att||M.note[u.id];});if(!list.length){toast('Hali toʻldirilgan boʻlim yoʻq.');return;}
-    let doc=null;try{doc=(await getAll('kps_maket','docs')).find(d=>d.id==='main');}catch(e){}
-    if(!doc||md==='new')doc={id:'main',name:M.name,meta:{author:'',proj:M.name},pages:[],layers:[{id:'L0',name:'Asosiy',vis:true,lock:false}]};
-    const pages=[];if($('#aTit').checked)pages.push(titlePage(V));if($('#aToc').checked)pages.push(tocPage(list));list.forEach(u=>pages.push(subPage(u,V)));if($('#aSum').checked)pages.push(sumPage(V));
-    doc.pages=doc.pages.filter(p=>p.items&&p.items.length).concat(pages);if(!doc.layers||!doc.layers.length)doc.layers=[{id:'L0',name:'Asosiy',vis:true,lock:false}];
-    try{await putRec('kps_maket','docs',doc);}catch(e){toast('Albom saqlanmadi: '+e.message);return;}ov.remove();toast(pages.length+' ta varaq albomga qoʻshildi.','Albomni ochish',()=>window.open('maket.html','_blank'));};}
-$('#mkAlb').onclick=albumDlg;
-(async()=>{await loadMats();renderAll();})();
+function tableSVG(c,o){const r=c.fn(o),rows=r.rows||[],W=640,rh=26,H=56+rows.length*rh;
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Archivo, Arial, sans-serif"><rect width="${W}" height="${H}" fill="#fff"/><text x="0" y="20" font-size="16" font-weight="600" fill="#141414">${esc(c.t)}</text><text x="0" y="38" font-size="10.5" fill="#696969">${esc(c.ref)}</text>`;
+  rows.forEach((x,i)=>{const y=50+i*rh;s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#dedcd7"/><text x="0" y="${y+17}" font-size="12.5" fill="#3c3c3c">${esc(x.l)}</text><text x="440" y="${y+17}" font-size="12.5" text-anchor="end" font-family="IBM Plex Mono, monospace" fill="#141414">${esc(typeof x.v==='number'?fmt(x.v):x.v??'—')}${x.u&&x.v!=null?' '+esc(x.u):''}</text><text x="540" y="${y+17}" font-size="11" text-anchor="middle" fill="#2f5fa8">${esc(x.norm||'')}</text>${x.ok!=null?`<circle cx="620" cy="${y+13}" r="8" fill="${x.ok?'#2e7d4f':'#b3261e'}"/><text x="620" y="${y+17.5}" font-size="11" text-anchor="middle" fill="#fff" font-weight="700">${x.ok?'✓':'✗'}</text>`:''}`;});
+  return {src:svgURL(s+'</svg>'),aspect:W/H};}
+async function toAlbum(ids){const o=calc(),t=new Date().toISOString();let n=0;for(const id of ids){const c=CARDS.find(x=>x.id===id),r=c.fn(o);if(r.empty)continue;const tb=tableSVG(c,o);
+    await putRec('kps_mat','mats',{id:'mrp_'+id+'_'+uid(),kind:'svg',name:'Master reja — '+c.t,src:tb.src,thumb:tb.src,aspect:tb.aspect,sub:'hisob paneli',t});n++;
+    if(id==='clim'&&EXT.clim){for(const [nm,sv] of [['Iqlim diagrammasi',climSVG(EXT.clim)],['Shamollar guli',roseSVG(EXT.clim.rose)]]){const s2=sv.replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');const vb=s2.match(/viewBox="0 0 (\d+) (\d+)"/);await putRec('kps_mat','mats',{id:'mrp_'+uid(),kind:'svg',name:nm,src:svgURL(s2),thumb:svgURL(s2),aspect:vb?vb[1]/vb[2]:1,sub:'Open-Meteo',t});n++;}}
+    if(id==='demo'){const pv=pyrSVG(o);if(pv){const s2=pv.replace(/^<div class="charts">|<\/div>$/g,'').replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');await putRec('kps_mat','mats',{id:'mrp_'+uid(),kind:'svg',name:'Yosh tuzilmasi',src:svgURL(s2),thumb:svgURL(s2),aspect:3,sub:'hisob paneli',t});n++;}}}
+  toast(n?n+' ta material albomga yuborildi.':'Yuboriladigan hisob yoʻq.',n?'Albomni ochish':null,()=>window.open('maket.html','_blank'));}
+$('#allAlb').onclick=()=>toAlbum(CARDS.map(c=>c.id));
+/* ---- AI xulosa ---- */
+$('#aiBtn').onclick=async()=>{const key=localStorage.getItem('kps_ai_key');if(!key){toast('AI kaliti kiritilmagan — Hudud tahlili sahifasida «AI kaliti».');return;}const o=calc(),b=$('#aiBtn');b.disabled=true;b.textContent='AI yozmoqda…';
+  const facts=CARDS.map(c=>{const r=c.fn(o);return r.empty?null:`## ${c.t}\n`+(r.rows||[]).filter(x=>x.v!=null).map(x=>`- ${x.l}: ${typeof x.v==='number'?fmt(x.v):x.v} ${x.u||''}${x.norm?` (chegara: ${x.norm})`:''}`).join('\n');}).filter(Boolean).join('\n\n');
+  try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:localStorage.getItem('kps_ai_model')||'claude-sonnet-5',max_tokens:1500,system:'Sen Oʻzbekistondagi master-reja boʻyicha urbanist-maslahatchisan. Oʻzbek (lotin) tilida, qisqa yoz. Faqat berilgan raqamlarga tayan, yangi raqam yoki normativ band oʻylab topma.',messages:[{role:'user',content:'Quyidagi koʻrsatkichlar asosida master-reja uchun qisqa xulosa, SWOT va asoslash kerak boʻlgan joylarni yoz:\n\n'+facts}]})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);EXT.ai=(j.content||[]).map(c=>c.text||'').join('').trim();saveE();showAI();}catch(e){toast('AI xatosi: '+e.message);}b.disabled=false;b.textContent='AI xulosa';};
+function showAI(){$('#aiOut').hidden=!EXT.ai;$('#aiOut').textContent=EXT.ai||'';}
+window.addEventListener('storage',e=>{if(/^kps_(posadka_sum|area_sum|posadka)$/.test(e.key))render();});
+render();showAI();
 })();
 </script>
 </body>
