@@ -74,7 +74,7 @@ const toast=m=>{const t=document.createElement('div');t.className='toast';t.text
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fi=v=>Math.round(v).toLocaleString('ru-RU'),f1=v=>(Math.round(v*10)/10).toLocaleString('ru-RU'),f2=v=>(Math.round(v*100)/100).toLocaleString('ru-RU');
 const map=L.map('map',{doubleClickZoom:false}).setView([41.3111,69.2797],14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
 const A=L.layerGroup().addTo(map),O=L.layerGroup().addTo(map);
 let mode='radius',center=null,poly=[],done=false,res=null,aiText='';
 const KEY=()=>localStorage.getItem('kps_ai_key')||'',MODEL=()=>localStorage.getItem('kps_ai_model')||'claude-sonnet-5';

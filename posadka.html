@@ -80,7 +80,7 @@ const save=()=>{try{localStorage.setItem('kps_posadka',JSON.stringify(P));}catch
 try{const s=JSON.parse(localStorage.getItem('kps_posadka')||'null');if(s&&s.p)P=Object.assign(JSON.parse(JSON.stringify(DEF)),s,{p:Object.assign(JSON.parse(JSON.stringify(DEF.p)),s.p)});}catch(e){}
 /* ---- xarita ---- */
 const map=L.map('map',{zoomControl:true,doubleClickZoom:false}).setView(P.site?P.site[0]:P.center,P.site?18:16);
-const BASE={sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery'}),line:L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:21,maxNativeZoom:20,attribution:'© OSM, © CARTO'})};
+const BASE={sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery'}),line:L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:21,maxNativeZoom:20,attribution:'© OSM, © CARTO'})};
 let base=BASE.sat.addTo(map);
 document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{map.removeLayer(base);base=BASE[b.dataset.b].addTo(map);base.bringToBack();document.querySelectorAll('[data-b]').forEach(x=>x.setAttribute('aria-pressed',x===b));});
 const G=L.layerGroup().addTo(map),E=L.layerGroup().addTo(map),T=L.layerGroup().addTo(map);

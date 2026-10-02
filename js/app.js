@@ -2711,8 +2711,8 @@ function loadMapLibre(){if(window.maplibregl)return Promise.resolve();
     const sc=document.createElement('script');sc.src=`https://cdn.jsdelivr.net/npm/maplibre-gl@${ML_V}/dist/maplibre-gl.js`;sc.onload=res;sc.onerror=()=>rej(new Error('MapLibre yuklanmadi'));document.head.appendChild(sc);});}
 let ML3=null;
 function designGeoJSON(){const fs=[];if(!S.design||!S.design.segs.length)return {type:'FeatureCollection',features:fs};
-  try{const {sh}=buildShapes();sh.forEach(x=>{if(x.t==='poly'&&x.ll&&x.ll.length>2){const r=x.ll.map(p=>[p[1],p[0]]);r.push(r[0]);fs.push({type:'Feature',properties:{col:x.col,z:x.z||0},geometry:{type:'Polygon',coordinates:[r]}});}
-    else if(x.t==='line'&&x.ll&&x.opt)fs.push({type:'Feature',properties:{col:x.opt.color||'#fff',w:x.opt.weight||1,z:x.z||0},geometry:{type:'LineString',coordinates:x.ll.map(p=>[p[1],p[0]])}});});}catch(e){}
+  try{const {sh}=buildShapes();sh.forEach(x=>{if(x.t==='poly'&&x.ll&&x.ll.length>2){const r=x.ll.map(p=>[p[1],p[0]]);r.push(r[0]);fs.push({type:'Feature',properties:{col:x.col,z:x.z||0,cat:x.cat||'other'},geometry:{type:'Polygon',coordinates:[r]}});}
+    else if(x.t==='line'&&x.ll&&x.opt)fs.push({type:'Feature',properties:{col:x.opt.color||'#fff',w:x.opt.weight||1,z:x.z||0,cat:'mark',dash:x.opt.dashArray||null},geometry:{type:'LineString',coordinates:x.ll.map(p=>[p[1],p[0]])}});});}catch(e){}
   fs.sort((a,b)=>a.properties.z-b.properties.z);return {type:'FeatureCollection',features:fs};}
 /* 3D shahar: sunʼiy yoʻldosh tasviridan daraxt tojlarini aniqlash (ExG + tekstura), 3D tojlar sifatida */
 async function city3DTrees(){
@@ -3191,10 +3191,11 @@ const PICO={"piyoda":"M7.5 23.9C6.4 23.4 6.5 23.1 8.0 18.5C8.7 16.2 9.4 14.1 9.5
 const KICO=k=>({walk:'piyoda',shared:'piyoda',facade:'piyoda',busstop:'piyoda',parklet:'piyoda',trees:'daraxt',ariq:'daraxt',rain:'daraxt',lawn:'yashil',median:'yashil',island:'yashil',water:'suv',bike1:'velosiped',bike2:'velosiped',bikeprot:'velosiped',bikepark:'velosiped',lane:'kocha',mixed:'kocha',turn:'kocha',shoulder:'kocha',hatch:'kocha',bus:'avtobus',brt:'avtobus',tram:'tramvay',furn:'skameyka',kiosk:'bozor'})[k];
 const PV_TABS=[['map','Xarita'],['sec','Kesim'],['plan','Reja'],['axo','Aksonometriya'],['eye',"Ko'z ko'rinishi"]];
 let PWS_LAST=[];
+function profLegend(p){const seen={},out=[];p.forEach(e=>{const c=LIB[e.k].c;if(seen[c])return;seen[c]=1;out.push({col:SEC_SURF[c]||'#e7e5e0',label:CATS[c][0],kind:'fill',on:true});});[['F_car','Avtomobil'],['F_cyclist','Velosipedchi']].forEach(()=>{});return out;}
 function kpsMatPut(o){return new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=res;t.onerror=()=>rej(t.error);};r.onerror=()=>rej(r.error);});}
-async function sendToMaket(){const t=new Date().toISOString();try{await kpsMatPut({id:'design',kind:'design',geojson:designGeoJSON(),t});
+async function sendToMaket(){const t=new Date().toISOString();try{await kpsMatPut({id:'design',kind:'design',geojson:designGeoJSON(),cats:Object.assign({},...Object.entries(DCAT).map(([k,v])=>({[k]:v})),{mark:['Yoʻl chiziqlari','#ffffff'],other:['Boshqa (shakllar, belgilar)','#9a9a9a']}),t});
   let n=0,first=null;if(S.pv==='axo'||S.pv==='eye'){const cv=C3.ren&&C3.ren.domElement;if(!cv){toast('3D hali tayyor emas.');return;}const src=cv.toDataURL('image/png'),id='m'+Date.now().toString(36);await kpsMatPut({id,kind:'png',name:(S.pv==='axo'?'Aksonometriya':'Koʻz koʻrinishi')+' — '+(S.active==='ex'?'mavjud':'loyiha'),src,thumb:src,aspect:cv.width/cv.height,sub:'3D konsept',t});n=1;first=id;}
-  else for(const m of PWS_LAST){const id='m'+Date.now().toString(36)+n;const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(m.svg.replace('<svg ','<svg style="color:#141414" ').replace(/ vector-effect="non-scaling-stroke"/g,''));await kpsMatPut({id,kind:'svg',name:m.name,src,thumb:src,mW:m.mW,aspect:m.aspect,sub:m.sub,t});n++;first=first||id;}
+  else for(const m of PWS_LAST){const id='m'+Date.now().toString(36)+n;const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(m.svg.replace('<svg ','<svg style="color:#141414" ').replace(/ vector-effect="non-scaling-stroke"/g,''));await kpsMatPut({id,kind:'svg',name:m.name,src,thumb:src,mW:m.mW,aspect:m.aspect,sub:m.sub,legend:m.legend||null,t});n++;first=first||id;}
   toast(`${n} ta material Maketga yuborildi.`,()=>window.open('maket.html','_blank'),'Maketni ochish');}catch(e){toast('Yuborilmadi: '+e.message);}}
 function setPV(v){S.pv=v;save();renderPWS();}
 function planSVG(p,sc,Wv,Hv){
@@ -3251,9 +3252,9 @@ function renderPWS(){
   const dr=ws.querySelector('#pwsDraw'),DW=dr.clientWidth||900,DH=dr.clientHeight||500;
   if(pv==='sec'){const mx=Math.max(sum(S.prof.ex),sum(S.prof.pr),S.row),bw=Math.max(40,Math.min(120,DW*.08)),scW=(DW-2*bw-20)/mx,scH=((DH-30)/2-66)/9.5,sc=Math.max(6,Math.min(scW,scH)),W=Math.round(mx*sc+2*bw);
     const one=(k,t)=>`<div class="pws-sec${k===w?' on':''}" data-sw="${k}" style="width:${W}px"><div class="pws-cap"><b>${t}</b><span class="num">${f2(sum(S.prof[k]))} m</span></div>${sectionSVG(S.prof[k],sc,W,{x0:bw}).replace('<svg ',`<svg width="${W}" `)}</div>`;
-    PWS_LAST=[['ex','Kesim — mavjud holat'],['pr','Kesim — loyiha']].map(([k,t])=>{const svg=sectionSVG(S.prof[k],sc,W,{x0:bw}),h=+svg.match(/viewBox="0 0 [\d.]+ ([\d.]+)"/)[1];return {name:t,svg,mW:W/sc,aspect:W/h,sub:`${f2(sum(S.prof[k]))} m · haqiqiy masshtab`};});
+    PWS_LAST=[['ex','Kesim — mavjud holat'],['pr','Kesim — loyiha']].map(([k,t])=>{const svg=sectionSVG(S.prof[k],sc,W,{x0:bw}),h=+svg.match(/viewBox="0 0 [\d.]+ ([\d.]+)"/)[1];return {name:t,svg,mW:W/sc,aspect:W/h,sub:`${f2(sum(S.prof[k]))} m · haqiqiy masshtab`,legend:profLegend(S.prof[k])};});
     dr.innerHTML=one('ex','Mavjud holat')+one('pr','Loyiha');dr.querySelectorAll('.pws-sec').forEach(d=>d.onclick=()=>{if(S.active!==d.dataset.sw){S.active=d.dataset.sw;renderTabs();update();}});}
-  else if(pv==='plan'){const tot=sum(p),sc=Math.max(4,Math.min((DW-120)/tot,DH/40));const PW=Math.round(DW-10),PH=Math.round(DH-10);dr.innerHTML=planSVG(p,sc,PW,PH);PWS_LAST=[{name:'Reja — '+(w==='ex'?'mavjud':'loyiha'),svg:dr.innerHTML,mW:PW/sc,aspect:PW/PH,sub:`${f1(PW/sc)} × ${f1(PH/sc)} m`}];}
+  else if(pv==='plan'){const tot=sum(p),sc=Math.max(4,Math.min((DW-120)/tot,DH/40));const PW=Math.round(DW-10),PH=Math.round(DH-10);dr.innerHTML=planSVG(p,sc,PW,PH);PWS_LAST=[{name:'Reja — '+(w==='ex'?'mavjud':'loyiha'),svg:dr.innerHTML,mW:PW/sc,aspect:PW/PH,sub:`${f1(PW/sc)} × ${f1(PH/sc)} m`,legend:profLegend(p)}];}
   else{dr.innerHTML=`<div class="pws-wait">3D yuklanmoqda…</div>`;const r=dr.getBoundingClientRect();
     const key=JSON.stringify(p.map(e=>[e.k,e.w]));if(!(ov&&!ov.hidden&&C3.embedded&&C3.src===w&&C3._pv===pv&&C3._key===key)){C3._pv=pv;C3._key=key;openConcept3D(w,{rect:{left:r.left,top:r.top,width:r.width,height:r.height},view:pv==='eye'?'ped':'iso'});}}
   // konstruktor

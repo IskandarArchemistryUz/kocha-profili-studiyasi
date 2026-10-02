@@ -68,7 +68,7 @@ const LOGO='M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 
 const $=s=>document.querySelector(s),toast=m=>{let w=document.getElementById('toasts');if(!w){w=document.createElement('div');w.id='toasts';w.style.cssText='position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:2000';document.body.appendChild(w);}const t=document.createElement('div');t.className='toast';t.style.position='static';t.style.transform='none';t.textContent=m;w.appendChild(t);setTimeout(()=>t.remove(),4200);};
 const loadScript=src=>new Promise((res,rej)=>{if([...document.scripts].some(s=>s.src===src))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('kutubxona yuklanmadi'));document.head.appendChild(s);});
 const map=L.map('map',{zoomControl:true}).setView([41.3111,69.2797],12);
-const BASE={line:L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}),
+const BASE={line:L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}),
  sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19,attribution:'Esri World Imagery'}),
  osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})};
 let cur=BASE.line.addTo(map);
