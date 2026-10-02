@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Posadka — Archemistry Studio</title>
+<title>Joylashtirish — Archemistry Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -53,11 +53,11 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <body>
 <header>
 <a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
-<span class="crumb">/ 03 · POSADKA</span><input id="pName" aria-label="Loyiha nomi" value="Yangi uchastka">
+<span class="crumb">/ 03 · JOYLASHTIRISH</span><input id="pName" aria-label="Loyiha nomi" value="Yangi uchastka">
 <span class="sp"></span>
 <form id="sForm" style="display:flex"><input id="sQ" placeholder="Manzil yoki koordinata" style="height:30px;border:1px solid var(--line2);border-radius:2px;padding:0 8px;width:220px;background:#fff"></form>
 <div class="seg" role="group" aria-label="Koʻrinish"><button data-v="2d" aria-pressed="true">Reja</button><button data-v="3d" aria-pressed="false">3D</button></div>
-<button class="btn ghost" id="toMk">Maketga →</button><button class="btn dark" id="csv">Hisobot · CSV</button>
+<button class="btn ghost" id="toMk">Albomga →</button><button class="btn dark" id="csv">Hisobot · CSV</button>
 </header>
 <main>
 <nav class="rail" aria-label="Asboblar" id="rail"></nav>
@@ -83,7 +83,8 @@ const USES={res:['Turar joy','#c9b8f0'],com:['Savdo / xizmat','#f2c27b'],off:['O
 const DEF={name:'Yangi uchastka',site:null,blds:[],greens:[],parks:[],center:[41.3111,69.2797],
   p:{eff:0.75,fh:3.3,mix:[[1,25,45],[2,40,65],[3,28,85],[4,7,110]],ppl:3.2,park:1.0,cost:'',sale:''}};
 let P=JSON.parse(JSON.stringify(DEF)),tool='sel',sel=null,pts=[];
-const save=()=>{try{localStorage.setItem('kps_posadka',JSON.stringify(P));}catch(e){}};
+const save=()=>{try{localStorage.setItem('kps_posadka',JSON.stringify(P));}catch(e){}try{const c=calc();let md=null;if(P.blds.length>1){md=Math.min(...distances().all.map(o=>o.d));}let ins=null;try{if(INS&&INS.length)ins=Math.min(...INS.map(o=>o.best));}catch(e){}
+  localStorage.setItem('kps_posadka_sum',JSON.stringify({t:Date.now(),name:P.name,siteHa:c.site/1e4,fp:c.fp,gfa:c.gfa,res:c.res,nonres:c.nonres,far:c.far,cov:c.cov,green:c.green,gr:c.gr,na:c.na,pop:c.pop,sell:c.sell,apts:c.apts.map(a=>({r:a.r,n:a.n})),parkHave:c.parkHave,parkNeed:c.parkNeed,maxH:c.maxH,avgFl:c.avgFl,insMin:ins,minDist:md,blds:P.blds.length}));}catch(e){}};
 try{const s=JSON.parse(localStorage.getItem('kps_posadka')||'null');if(s&&s.p)P=Object.assign(JSON.parse(JSON.stringify(DEF)),s,{p:Object.assign(JSON.parse(JSON.stringify(DEF.p)),s.p)});}catch(e){}
 /* ---- xarita ---- */
 const map=L.map('map',{zoomControl:true,doubleClickZoom:false}).setView(P.site?P.site[0]:P.center,P.site?18:16);
@@ -161,7 +162,7 @@ function renderSide(){const c=calc(),p=P.p,s=selObj();let h='';
     <div class="f"><label>Qavatlar<input type="number" min="1" max="60" id="bFl" value="${s.fl}"></label><label>Balandlik<input disabled value="${f1(s.fl*p.fh)} m"></label></div>
     <div class="uses">${Object.entries(USES).map(([k,[n,c]])=>`<button data-use="${k}" aria-pressed="${s.use===k}"><i style="background:${c}"></i>${n}</button>`).join('')}</div>
     ${s.use==='res'?`<label style="font-size:12px"><input type="checkbox" id="bGf" ${s.gf&&s.gf!=='res'?'checked':''}> 1-qavat — notijorat (savdo/xizmat)</label>`:''}
-    ${s.use==='res'?`<button class="btn sm dark" id="bPlan" style="width:max-content">Kvartirografiya chizish${planCount(s)?' · '+planCount(s).tot+' kv/qavat':''}</button>`:''}
+    ${s.use==='res'?`<button class="btn sm dark" id="bPlan" style="width:max-content">Xonadonlar tarkibi chizish${planCount(s)?' · '+planCount(s).tot+' kv/qavat':''}</button>`:''}
     <div class="row" style="display:flex;gap:6px"><button class="btn sm ghost" id="bDup">Nusxa</button><button class="btn sm ghost" id="bDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div></div>`;}
     else h+=`<div class="sel"><div class="lbl" style="margin:0">${sel.t==='s'?'Uchastka':sel.t==='g'?'Yashil hudud':'Avtoturargoh'} · ${fi(area(s.poly))} m²</div><button class="btn sm ghost" id="bDel" style="color:var(--bad);border-color:var(--bad);width:max-content">Oʻchirish</button></div>`;}
   h+=`<div><div class="kv big"><span>Uchastka maydoni</span><b>${c.site?f2(c.site/1e4)+' ga':'—'}</b></div>
@@ -172,7 +173,7 @@ function renderSide(){const c=calc(),p=P.p,s=selObj();let h='';
     <div class="kv"><span>Turar joy / notijorat</span><b>${fi(c.res)} / ${fi(c.nonres)} m²</b></div></div>
     <div class="bar">${c.site?[[c.fp,'#8a7fb0'],[c.green,'#8cc37a'],[c.parkA,'#bdbab3'],[Math.max(0,c.site-c.fp-c.green-c.parkA),'#efede9']].map(([v,col])=>`<div style="flex:${v} 1 0;height:100%;background:${col}"></div>`).join(''):''}</div>
     <div class="note">Dogʻ · yashil · avtoturargoh · qolgan hudud</div>`;
-  h+=`<div><div class="lbl">Kvartirografiya · qiymatlar namuna, oʻzingiz belgilang</div><div class="grid"><span class="note">TUR</span><span class="note">ULUSH %</span><span class="note">OʻRT. M²</span>
+  h+=`<div><div class="lbl">Xonadonlar tarkibi · qiymatlar namuna, oʻzingiz belgilang</div><div class="grid"><span class="note">TUR</span><span class="note">ULUSH %</span><span class="note">OʻRT. M²</span>
     ${p.mix.map((m,i)=>`<span>${m[0]} xonali</span><input type="number" data-mx="${i}:1" value="${m[1]}"><input type="number" data-mx="${i}:2" value="${m[2]}">`).join('')}</div>
     <div class="f" style="margin-top:8px"><label>Sotiladigan maydon koeff.<input type="number" step="0.01" id="pEff" value="${p.eff}"></label><label>Qavat balandligi, m<input type="number" step="0.1" id="pFh" value="${p.fh}"></label>
     <label>Kishi / kvartira<input type="number" step="0.1" id="pPpl" value="${p.ppl}"></label><label>Avto joy / kvartira<input type="number" step="0.1" id="pPk" value="${p.park}"></label></div>
@@ -213,7 +214,7 @@ async function open3d(){try{if(!window.maplibregl){const l=document.createElemen
     M3.addLayer({id:'pos-l',type:'line',source:'pos',filter:['has','line'],paint:{'line-color':'#e8775f','line-width':2.5,'line-dasharray':[2,1]}});
     if(P.site||P.blds.length){const b=new maplibregl.LngLatBounds();(P.site||P.blds.flatMap(x=>x.poly)).forEach(p=>b.extend([p[1],p[0]]));M3.fitBounds(b,{padding:80,pitch:55,bearing:-20,duration:0});}});}
 function upd3d(){if(M3&&M3.getSource('pos'))M3.getSource('pos').setData(gj3());}
-/* ---- kvartirografiya (qavat rejasi) ---- */
+/* ---- xonadonlar tarkibi (qavat rejasi) ---- */
 const KT={1:['1 xonali','#e3dbf7'],2:['2 xonali','#cbbdf0'],3:['3 xonali','#ad9de2'],4:['4+ xonali','#8f7fcc'],core:['Zinapoya-lift','#bdbab3'],cor:['Koridor / MOP','#ebe9e4'],com:['Notijorat','#f2c27b']};
 function localFrame(poly){const M=poly.map(xy);let bi=0,bl=0;M.forEach((p,i)=>{const q=M[(i+1)%M.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l>bl){bl=l;bi=i;}});
   const o=M[bi],q=M[(bi+1)%M.length],an=Math.atan2(q[1]-o[1],q[0]-o[0]),cs=Math.cos(an),sn=Math.sin(an);
@@ -230,7 +231,7 @@ function planCount(b){if(!b.plan||!b.plan.cells||!b.plan.cells.length)return nul
   const rf=Math.max(0,b.fl-(b.gf&&b.gf!=='res'&&b.fl>1?1:0));Object.keys(n).forEach(k=>{n[k]*=rf;a[k]*=rf;});return {n,a,tot,sell:fa*rf,rf,fa};}
 let PL=null;
 function openPlan(b){b.plan=b.plan||{cells:[]};const fr=localFrame(b.poly);PL={b,fr,tool:'rect',k:'2',sel:null,snap:.5};
-  const w=document.createElement('div');w.className='fpw';w.id='fpw';w.innerHTML=`<div class="box"><div class="hd"><b style="font-size:14px;font-weight:500">Qavat rejasi · kvartirografiya</b><span class="note">${fi(area(b.poly))} m² dogʻ · ${b.fl} qavat</span><span class="sp"></span>
+  const w=document.createElement('div');w.className='fpw';w.id='fpw';w.innerHTML=`<div class="box"><div class="hd"><b style="font-size:14px;font-weight:500">Qavat rejasi · xonadonlar tarkibi</b><span class="note">${fi(area(b.poly))} m² dogʻ · ${b.fl} qavat</span><span class="sp"></span>
     <div class="seg"><button data-pt="sel">Tanlash</button><button data-pt="rect">Kvartira chizish</button></div><button class="btn sm ghost" id="plUndo">Bekor (Ctrl+Z)</button><button class="btn sm dark" id="plOk">Tayyor</button></div>
     <div class="cv" id="plCv"></div><div class="pn" id="plPn"></div></div>`;document.body.appendChild(w);
   PL.hist=[JSON.stringify(b.plan.cells)];
@@ -362,11 +363,11 @@ function planSVGm(){if(!P.site&&!P.blds.length)return null;const all=[...(P.site
   return {svg:s+'</svg>',mW:W,aspect:W/Hh};}
 $('#toMk').onclick=async()=>{const pl=planSVGm();if(!pl){toast('Avval uchastka yoki bino chizing.');return;}const c=calc(),t=new Date().toISOString();
   const put=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const tx=r.result.transaction('mats','readwrite');tx.objectStore('mats').put(o);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);};r.onerror=()=>rej(r.error);});
-  const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(pl.svg);await put({id:'pz'+Date.now().toString(36),kind:'svg',name:'Posadka — bosh reja · '+(P.name||''),src,thumb:src,mW:pl.mW,aspect:pl.aspect,sub:`${f1(c.site/1e4)} ga · FAR ${f2(c.far)}`,t,legend:posLegend()});
+  const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(pl.svg);await put({id:'pz'+Date.now().toString(36),kind:'svg',name:'Joylashtirish — bosh reja · '+(P.name||''),src,thumb:src,mW:pl.mW,aspect:pl.aspect,sub:`${f1(c.site/1e4)} ga · FAR ${f2(c.far)}`,t,legend:posLegend()});
   const rows=[['Uchastka',f2(c.site/1e4)+' ga'],['Qurilish dogʻi',fi(c.fp)+' m²'],['Qurilish ulushi',f1(c.cov)+' %'],['GFA',fi(c.gfa)+' m²'],['FAR (KPZ)',f2(c.far)],['Yashil hudud',f1(c.gr)+' %'],['Kvartiralar',fi(c.na)],['Aholi',fi(c.pop)],['Avtoturargoh talab / bor',fi(c.parkNeed)+' / '+fi(c.parkHave)]];
   const th=22,tw=420,tsvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tw} ${rows.length*th+30}" font-family="Archivo, sans-serif"><rect width="${tw}" height="${rows.length*th+30}" fill="#fff"/><text x="0" y="18" font-size="15" font-weight="600">Koʻrsatkichlar</text>${rows.map((r,i)=>`<line x1="0" x2="${tw}" y1="${30+i*th}" y2="${30+i*th}" stroke="#dedcd7"/><text x="0" y="${30+i*th+15}" font-size="12.5" fill="#3c3c3c">${esc(r[0])}</text><text x="${tw}" y="${30+i*th+15}" font-size="12.5" text-anchor="end" font-family="IBM Plex Mono, monospace">${esc(r[1])}</text>`).join('')}</svg>`;
-  const s2='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(tsvg);await put({id:'pt'+Date.now().toString(36),kind:'svg',name:'Posadka — koʻrsatkichlar jadvali',src:s2,thumb:s2,aspect:tw/(rows.length*th+30),sub:'jadval',t});
-  toast('Bosh reja va jadval Maketga yuborildi.');};
+  const s2='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(tsvg);await put({id:'pt'+Date.now().toString(36),kind:'svg',name:'Joylashtirish — koʻrsatkichlar jadvali',src:s2,thumb:s2,aspect:tw/(rows.length*th+30),sub:'jadval',t});
+  toast('Bosh reja va jadval Albomga yuborildi.');};
 $('#pName').value=P.name;$('#pName').onchange=e=>{P.name=e.target.value;save();};
 renderRail();hint();HIST.a=[JSON.stringify(P)];HIST.i=0;render();if(P.site)map.fitBounds(L.polygon(P.site).getBounds(),{padding:[40,40]});
 })();

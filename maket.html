@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Maket va taqdimot — Archemistry Studio</title>
+<title>Albom va taqdimot — Archemistry Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Instrument+Serif:ital@0;1&family=Golos+Text:wght@400;600&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -57,19 +57,27 @@ aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--l
 .toast{background:var(--ink);color:#f4f3f1;padding:10px 14px;font-size:12.5px;border-radius:2px;max-width:560px}
 #toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:300}
 .busy{position:fixed;inset:0;background:rgba(244,243,241,.7);z-index:250;display:flex;align-items:center;justify-content:center;font-size:14px}
+#ctx{position:fixed;z-index:1000;min-width:230px;background:#fff;border:1px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px 0;font:12.5px Archivo,sans-serif}
+#ctx hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+#ctx .ci,#ctx .cs button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:18px;border:0;background:none;padding:6px 12px;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
+#ctx .ci:hover:not([disabled]),#ctx .cs button:hover{background:var(--ink);color:#f4f3f1}#ctx .ci[disabled]{color:#b9b6ae;cursor:default}
+#ctx kbd{font:10.5px 'IBM Plex Mono',monospace;color:#8a877f}#ctx .ci:hover kbd,#ctx .cs button:hover kbd{color:#cfccc5}
+#ctx .sub{position:relative;cursor:default}#ctx .cs{display:none;position:absolute;left:100%;top:-5px;min-width:200px;background:#fff;border:1px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px 0}#ctx.left .cs{left:auto;right:100%}
+#ctx .sub:hover>.cs{display:block}#ctx .cs button.on{font-weight:600}#ctx .cs button.on::after{content:'●';font-size:8px}
+.flash{outline:2px solid #f0b429;outline-offset:-2px;transition:outline-color .8s}
 </style>
 </head>
 <body>
 <header>
 <a class="brand" href="./" title="Bosh sahifa"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
-<span class="crumb">/ 04 · MAKET</span>
+<span class="crumb">/ 04 · ALBOM</span>
 <input id="docName" aria-label="Albom nomi" value="Yangi albom">
 <span class="sp"></span>
 <div class="seg" id="fmtSeg" role="group" aria-label="Format"></div>
 <div class="seg" id="oriSeg" role="group" aria-label="Yoʻnalish"><button data-o="L" title="Albom (gorizontal)">▭</button><button data-o="P" title="Portret">▯</button></div>
 <button class="ib" id="undo" title="Bekor qilish (Ctrl+Z)">↶</button><button class="ib" id="redo" title="Qaytarish (Ctrl+Y)">↷</button>
 <button class="btn ghost" id="presBtn">▶ Taqdimot</button>
-<button class="btn dark" id="expBtn">Eksport ▾</button>
+<button class="btn dark" id="expBtn">Yuklab olish ▾</button>
 </header>
 <div class="menu" id="expMenu" hidden>
 <button data-x="pdf">PDF — barcha varaqlar <small>vektor emas, yuqori sifatli rastr</small></button>
@@ -141,7 +149,7 @@ const putRec=async(name,store,o)=>{const db=await idb(name,store);return new Pro
 const delRec=async(name,store,id)=>{const db=await idb(name,store);return new Promise((res,rej)=>{const t=db.transaction(store,'readwrite');t.objectStore(store).delete(id);t.oncomplete=res;t.onerror=()=>rej(t.error);});};
 let svT=0;const saveSoon=()=>{clearTimeout(svT);svT=setTimeout(()=>putRec('kps_maket','docs',doc).catch(()=>toast('Albom brauzerda saqlanmadi — xotira toʻlgan boʻlishi mumkin; faylga saqlang.')),600);};
 /* ---------- asboblar ---------- */
-const TOOLS=[['select','Tanlash (V)','<path d="M5 3l12 7-5 1.5L10 17z"/>'],['text','Matn (T)','<path d="M5 5h14M12 5v14M9 19h6"/>'],['line','Chiziq (L)','<path d="M4 20L20 4"/>'],['arrow','Strelka (A)','<path d="M4 20L20 4M11 4h9v9"/>'],['pen','Erkin chizish (P)','<path d="M4 16c3-8 6 3 9-3s4-7 7-8"/>'],['rect','Toʻrtburchak (R)','<rect x="4" y="5" width="16" height="14"/>'],['ellipse','Ellips (E)','<ellipse cx="12" cy="12" rx="8" ry="6"/>'],['poly','Koʻpburchak (G) — nuqtalarni bosing, ikki marta bosish/Enter — tugatish','<path d="M5 18l2-12 9-2 4 9-7 7z"/>'],0,['image','Rasm (I)','<rect x="3" y="5" width="18" height="14"/><path d="M3 16l5-5 4 4 3-3 6 6"/>'],['map','Xarita oynasi (M)','<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/>']];
+const TOOLS=[['select','Tanlash (V)','<path d="M5 3l12 7-5 1.5L10 17z"/>'],['text','Matn (T)','<path d="M5 5h14M12 5v14M9 19h6"/>'],['line','Chiziq (L)','<path d="M4 20L20 4"/>'],['arrow','Oʻq chiziq (A)','<path d="M4 20L20 4M11 4h9v9"/>'],['pen','Erkin chizish (P)','<path d="M4 16c3-8 6 3 9-3s4-7 7-8"/>'],['rect','Toʻrtburchak (R)','<rect x="4" y="5" width="16" height="14"/>'],['ellipse','Ellips (E)','<ellipse cx="12" cy="12" rx="8" ry="6"/>'],['poly','Koʻpburchak (G) — nuqtalarni bosing, ikki marta bosish/Enter — tugatish','<path d="M5 18l2-12 9-2 4 9-7 7z"/>'],0,['image','Rasm (I)','<rect x="3" y="5" width="18" height="14"/><path d="M3 16l5-5 4 4 3-3 6 6"/>'],['map','Xarita oynasi (M)','<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/>']];
 function renderTools(){$('#tools').innerHTML=TOOLS.map(t=>t?`<button data-tool="${t[0]}" title="${t[1]}" aria-pressed="${tool===t[0]}"><svg viewBox="0 0 24 24">${t[2]}</svg></button>`:'<span class="dv"></span>').join('');
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));}
 function setTool(t){if(t==='image'){$('#imgIn').click();return;}tool=t;renderTools();$('#paper').style.cursor=t==='select'?'default':'crosshair';}
@@ -196,9 +204,9 @@ function renderPaper(){const p=pg(),[W,Hh]=pageWH(p),sv=$('#paper');const pxmm=3
 let MATS=[];
 async function loadMats(){try{MATS=(await getAll('kps_mat','mats')).filter(m=>m.kind!=='design').sort((a,b)=>b.t.localeCompare(a.t));}catch(e){MATS=[];}}
 function renderLeft(){document.querySelectorAll('[data-lt]').forEach(b=>b.setAttribute('aria-selected',b.dataset.lt===lt));const el=$('#leftPane');
-  if(lt==='mat'){el.innerHTML=`<div class="note">Koʻcha studiyasida <b>Profil → Kesim / Reja / 3D</b> oynasida «Maketga» tugmasini bosing — material shu yerda paydo boʻladi. Sudrab varaqqa tashlang yoki bosing.</div>
+  if(lt==='mat'){el.innerHTML=`<div class="note">Koʻcha studiyasida <b>Profil → Kesim / Reja / 3D</b> oynasida «Albomga» tugmasini bosing — material shu yerda paydo boʻladi. Sudrab varaqqa tashlang yoki bosing.</div>
     <div class="lbl">Materiallar · ${MATS.length}</div>${MATS.map(m=>`<div class="mat" draggable="true" data-m="${m.id}"><div class="th" style="background-image:url('${m.thumb||m.src}')"></div><div style="min-width:0;flex:1"><div class="n">${esc(m.name)}</div><div class="m">${esc(m.sub||'')}</div></div><button class="ib" data-mdel="${m.id}" title="Oʻchirish" style="width:22px;height:22px">✕</button></div>`).join('')||'<div class="note">Hali material yoʻq.</div>'}
-    <div class="lbl">Qoʻshish</div><div class="row"><button class="btn sm ghost" data-add="map">Xarita oynasi</button><button class="btn sm ghost" data-add="img">Rasm</button><button class="btn sm ghost" data-add="title">Sarlavha</button><button class="btn sm ghost" data-add="legend">Izoh bloki</button><button class="btn sm ghost" data-add="lgnd">Legenda</button></div>
+    <div class="lbl">Qoʻshish</div><div class="row"><button class="btn sm ghost" data-add="map">Xarita oynasi</button><button class="btn sm ghost" data-add="img">Rasm</button><button class="btn sm ghost" data-add="title">Sarlavha</button><button class="btn sm ghost" data-add="legend">Izoh bloki</button><button class="btn sm ghost" data-add="lgnd">Shartli belgilar</button></div>
     <div class="note">Xarita oynasi masshtabda (1:500 … 1:10 000) chiziladi; Koʻcha studiyasidagi loyiha va «Maʼlumotlar»dagi qatlamlar ustiga qoʻyiladi.</div>`;
     el.querySelectorAll('[data-m]').forEach(d=>{d.onclick=e=>{if(e.target.closest('[data-mdel]'))return;const [W,Hh]=pageWH(pg());addMat(MATS.find(m=>m.id===d.dataset.m),W/2,Hh/2);};d.ondragstart=e=>e.dataTransfer.setData('text/kps-mat',d.dataset.m);});
     el.querySelectorAll('[data-mdel]').forEach(b=>b.onclick=async()=>{await delRec('kps_mat','mats',b.dataset.mdel);await loadMats();renderLeft();});
@@ -235,25 +243,25 @@ function addMat(m,cx,cy){if(!m)return;const it={id:uid(),t:'mat',src:m.src,name:
 /* ---------- oʻng panel ---------- */
 function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel);
   if(!it){el.innerHTML=`<div style="font-size:15px;font-weight:500">Varaq ${cur+1}</div>
-    <div class="f r"><label class="full">Format<select id="pFmt">${Object.keys(FMT).map(k=>`<option ${p.fmt===k?'selected':''}>${k}</option>`).join('')}<option value="custom" ${p.fmt==='custom'?'selected':''}>Ixtiyoriy (mm)</option></select></label>
+    <div class="f r"><label class="full">Varaq oʻlchami<select id="pFmt">${Object.keys(FMT).map(k=>`<option ${p.fmt===k?'selected':''}>${k}</option>`).join('')}<option value="custom" ${p.fmt==='custom'?'selected':''}>Ixtiyoriy (mm)</option></select></label>
     ${p.fmt==='custom'?`<label>Eni, mm<input type="number" id="pCw" value="${p.cw||1500}"></label><label>Boʻyi, mm<input type="number" id="pCh" value="${p.ch||1000}"></label>`:''}
-    <label class="full"><span><input type="checkbox" id="pTb" ${p.tb?'checked':''}> Shtamp (pastki oʻng burchak)</span></label></div>
-    <div class="lbl">Albom</div><div class="f r"><label class="full">Loyiha nomi (shtampda)<input type="text" id="mProj" value="${esc(doc.meta.proj)}"></label><label class="full">Muallif<input type="text" id="mAuth" value="${esc(doc.meta.author)}"></label></div>
+    <label class="full"><span><input type="checkbox" id="pTb" ${p.tb?'checked':''}> Asosiy yozuv (pastki oʻng burchak)</span></label></div>
+    <div class="lbl">Albom</div><div class="f r"><label class="full">Loyiha nomi (asosiy yozuvda)<input type="text" id="mProj" value="${esc(doc.meta.proj)}"></label><label class="full">Muallif<input type="text" id="mAuth" value="${esc(doc.meta.author)}"></label></div>
     <div class="note">Asbob tanlang: matn, chiziq, strelka, erkin chizish, shakl, rasm yoki xarita oynasi. Elementni bosing — xususiyatlari shu yerda chiqadi. Delete — oʻchirish, Ctrl+D — nusxa, strelkalar — 1 mm siljitish.</div>`;
     $('#pFmt').onchange=e=>{p.fmt=e.target.value;commit();renderAll();};if($('#pCw')){$('#pCw').onchange=e=>{p.cw=+e.target.value;commit();renderAll();};$('#pCh').onchange=e=>{p.ch=+e.target.value;commit();renderAll();};}
     $('#pTb').onchange=e=>{p.tb=e.target.checked;commit();renderAll();};$('#mProj').onchange=e=>{doc.meta.proj=e.target.value;commit();renderAll();};$('#mAuth').onchange=e=>{doc.meta.author=e.target.value;commit();renderAll();};return;}
-  const nm={poly:'Koʻpburchak',legend:'Legenda',text:'Matn',rect:'Toʻrtburchak',ellipse:'Ellips',line:'Chiziq',arrow:'Strelka',pen:'Erkin chiziq',image:'Rasm',mat:'Material',map:'Xarita oynasi'}[it.t];
+  const nm={poly:'Koʻpburchak',legend:'Shartli belgilar',text:'Matn',rect:'Toʻrtburchak',ellipse:'Ellips',line:'Chiziq',arrow:'Oʻq chiziq',pen:'Erkin chiziq',image:'Rasm',mat:'Material',map:'Xarita oynasi'}[it.t];
   const b=bbox(it);let h=`<div style="font-size:15px;font-weight:500">${nm}${it.name?` <span class="note">${esc(it.name)}</span>`:''}</div>`;
   if(!it.pts)h+=`<div class="f r"><label>X, mm<input type="number" step="0.5" data-k="x" value="${+it.x.toFixed(1)}"></label><label>Y, mm<input type="number" step="0.5" data-k="y" value="${+it.y.toFixed(1)}"></label><label>Eni, mm<input type="number" step="0.5" data-k="w" value="${+it.w.toFixed(1)}"></label><label>Boʻyi, mm<input type="number" step="0.5" data-k="h" value="${+it.h.toFixed(1)}"></label></div>`;
   else h+=`<div class="note">${b.w.toFixed(1)} × ${b.h.toFixed(1)} mm</div>`;
-  if(it.t==='text')h+=`<div class="f r"><label class="full">Matn<textarea id="tTxt" rows="3">${esc(it.text)}</textarea></label><label class="full">Shrift<select data-k="ff">${FONTS.map(f=>`<option ${it.ff===f?'selected':''} style="font-family:'${f}'">${f}</option>`).join('')}</select></label>
+  if(it.t==='text')h+=`<div class="f r"><label class="full">Matn<textarea id="tTxt" rows="3">${esc(it.text)}</textarea></label><label class="full">Yozuv turi<select data-k="ff">${FONTS.map(f=>`<option ${it.ff===f?'selected':''} style="font-family:'${f}'">${f}</option>`).join('')}</select></label>
     <label>Oʻlcham, pt<input type="number" step="1" data-k="fs" value="${it.fs}"></label><label>Qator oraligʻi<input type="number" step="0.05" data-k="lh" value="${it.lh||1.25}"></label></div>
     <div class="row"><button class="btn sm ${it.b?'dark':'ghost'}" data-tg="b"><b>B</b></button><button class="btn sm ${it.i?'dark':'ghost'}" data-tg="i"><i>I</i></button><button class="btn sm ${(it.al||'l')==='l'?'dark':'ghost'}" data-al="l">⇤</button><button class="btn sm ${it.al==='c'?'dark':'ghost'}" data-al="c">↔</button><button class="btn sm ${it.al==='r'?'dark':'ghost'}" data-al="r">⇥</button></div>
     <div class="lbl">Rang</div>${sw('col',it.col)}<div class="lbl">Fon</div>${sw('bg',it.bg,true)}`;
   const lsSel=`<label>Chiziq turi<select data-k="ls">${Object.entries(LS).map(([k,v])=>`<option value="${k}" ${lsOf(it)===k?'selected':''}>${v[0]}</option>`).join('')}</select></label>`;
   if(it.t==='rect'||it.t==='ellipse'||it.t==='poly'){const open=it.t==='poly'&&it.closed===false;
     if(!open)h+=`<div class="lbl">Toʻldirish</div>${sw('fill',it.fill,true)}<div class="f r"><label class="full">Toʻldirish shaffofligi<input type="range" min="0" max="1" step="0.05" data-k="fop" value="${it.fop??1}"></label></div>
-      <div class="f r"><label>Shtrixovka<select data-k="hatch">${Object.entries(HATCH).map(([k,v])=>`<option value="${k}" ${(it.hatch||'none')===k?'selected':''}>${v}</option>`).join('')}</select></label><label>Qadam, mm<input type="number" step="0.5" min="0.8" data-k="hsp" value="${it.hsp||2.5}"></label></div>${it.hatch&&it.hatch!=='none'?`<div class="lbl">Shtrix rangi</div>${sw('hcol',it.hcol||'#141414')}`:''}`;
+      <div class="f r"><label>Toʻldirish naqshi<select data-k="hatch">${Object.entries(HATCH).map(([k,v])=>`<option value="${k}" ${(it.hatch||'none')===k?'selected':''}>${v}</option>`).join('')}</select></label><label>Qadam, mm<input type="number" step="0.5" min="0.8" data-k="hsp" value="${it.hsp||2.5}"></label></div>${it.hatch&&it.hatch!=='none'?`<div class="lbl">Shtrix rangi</div>${sw('hcol',it.hcol||'#141414')}`:''}`;
     h+=`<div class="lbl">Kontur</div>${sw('stroke',it.stroke,true)}<div class="f r"><label>Qalinlik, mm<input type="number" step="0.05" data-k="sw" value="${it.sw||0}"></label>${lsSel}<label class="full">Kontur shaffofligi<input type="range" min="0" max="1" step="0.05" data-k="sop" value="${it.sop??1}"></label>
       ${it.t!=='ellipse'?`<label>Burchak radiusi, mm<input type="number" step="0.5" min="0" data-k="r" value="${it.r||0}"></label>`:''}${it.t==='poly'?`<label><span><input type="checkbox" id="pClosed" ${it.closed===false?'':'checked'}> Yopiq shakl</span></label>`:''}</div>`;}
   else if(it.pts)h+=`<div class="lbl">Rang</div>${sw('stroke',it.stroke)}<div class="f r"><label>Qalinlik, mm<input type="number" step="0.05" data-k="sw" value="${it.sw}"></label>${lsSel}<label class="full">Shaffoflik<input type="range" min="0" max="1" step="0.05" data-k="sop" value="${it.sop??1}"></label></div>`;
@@ -261,7 +269,7 @@ function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel
     <div class="lbl">Bandlar</div>${(it.entries||[]).map((e,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr 64px 20px;gap:4px;align-items:center;margin-bottom:3px"><input type="checkbox" data-le="${i}:on" ${e.on!==false?'checked':''}><input type="color" data-le="${i}:col" value="${/^#[0-9a-f]{6}$/i.test(e.col)?e.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><input type="text" data-le="${i}:label" value="${esc(e.label)}" style="border:1px solid var(--line2);padding:3px 5px;font-size:12px;min-width:0"><select data-le="${i}:kind" style="font-size:11px">${[['fill','maydon'],['line','chiziq'],['dot','nuqta']].map(([k,n])=>`<option value="${k}" ${e.kind===k?'selected':''}>${n}</option>`).join('')}</select><button class="ib" data-led="${i}" style="width:20px;height:20px">✕</button></div>`).join('')}
     <div class="row"><button class="btn sm ghost" id="leAdd">+ Band</button><button class="btn sm ghost" id="leFit">Boʻyini moslash</button></div>`;
   if(it.t==='map')h+=`<div class="f r"><label>Masshtab 1:<select data-k="scale">${[200,500,1000,2000,2500,5000,10000,25000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}</select></label><label>Fon<select data-k="style">${[['line','Chizma (oq)'],['sat','Sunʼiy yoʻldosh'],['dark','Grafit'],['voy','OSM toza'],['osm','OSM standart'],['none','Fonsiz']].map(([k,n])=>`<option value="${k}" ${it.style===k?'selected':''}>${n}</option>`).join('')}</select></label>
-    <label class="full"><span><input type="checkbox" data-lay="design" ${it.lay.design?'checked':''}> Koʻcha studiyasi loyihasi</span></label><label class="full"><span><input type="checkbox" data-lay="data" ${it.lay.data?'checked':''}> Maʼlumotlar qatlamlari</span></label></div><div id="mLayers" class="note">Qatlamlar yuklanmoqda…</div><div class="row"><button class="btn sm" id="mPick">Joyni tanlash…</button><button class="btn sm ghost" id="mLeg">Legenda yaratish</button></div>`;
+    <label class="full"><span><input type="checkbox" data-lay="design" ${it.lay.design?'checked':''}> Koʻcha studiyasi loyihasi</span></label><label class="full"><span><input type="checkbox" data-lay="data" ${it.lay.data?'checked':''}> Maʼlumotlar qatlamlari</span></label></div><div id="mLayers" class="note">Qatlamlar yuklanmoqda…</div><div class="row"><button class="btn sm" id="mPick">Joyni tanlash…</button><button class="btn sm ghost" id="mLeg">Shartli belgilar yaratish</button></div>`;
   if(it.t==='mat'&&it.mW)h+=`<div class="f r"><label class="full">Masshtab 1:<select id="matSc">${[50,100,200,250,500,1000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}${[50,100,200,250,500,1000].includes(+it.scale)?'':`<option selected>${it.scale}</option>`}</select></label></div><div class="note">Kesim haqiqiy oʻlchamda: eni ${it.mW.toFixed(1)} m.</div>`;
   if(it.t==='image'||it.t==='mat')h+=`<label style="font-size:12px"><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</label>`;
   h+=`<div class="f r"><label class="full">Qatlam<select data-k="layer">${doc.layers.map(l=>`<option value="${l.id}" ${(it.layer||'L0')===l.id?'selected':''}>${esc(l.name)}</option>`).join('')}</select></label></div>`;
@@ -279,7 +287,7 @@ function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel
   if($('#tTxt'))$('#tTxt').oninput=e=>{it.text=e.target.value;fitText(it);renderPaper();};if($('#tTxt'))$('#tTxt').onchange=()=>{commit();renderLeft();};
   if($('#mPick'))$('#mPick').onclick=()=>pickMap(it);
   if(it.t==='map'){mapLayerList(it).then(Ls=>{const el2=$('#mLayers');if(!el2)return;it.cats=it.cats||{};it.dl=it.dl||{};
-    el2.innerHTML=Ls.length?Ls.map((x,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr;gap:6px;align-items:center;margin:3px 0"><input type="checkbox" data-ml="${i}" ${x.on?'checked':''}><input type="color" data-mc="${i}" value="${/^#[0-9a-f]{6}$/i.test(x.col)?x.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><span style="font-family:Archivo;font-size:12px;color:#141414">${esc(x.name)}</span></div>`).join(''):'Qatlam yoʻq — studiyada «Maketga» bosing yoki Maʼlumotlarga fayl yuklang.';
+    el2.innerHTML=Ls.length?Ls.map((x,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr;gap:6px;align-items:center;margin:3px 0"><input type="checkbox" data-ml="${i}" ${x.on?'checked':''}><input type="color" data-mc="${i}" value="${/^#[0-9a-f]{6}$/i.test(x.col)?x.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><span style="font-family:Archivo;font-size:12px;color:#141414">${esc(x.name)}</span></div>`).join(''):'Qatlam yoʻq — studiyada «Albomga» bosing yoki Maʼlumotlarga fayl yuklang.';
     const set=(i,k,v)=>{const x=Ls[i];const o=x.src==='cat'?(it.cats[x.key]=it.cats[x.key]||{}):(it.dl[x.key]=it.dl[x.key]||{});o[k]=v;x[k]=v;refreshMap(it);commit();};
     el2.querySelectorAll('[data-ml]').forEach(c=>c.onchange=()=>set(+c.dataset.ml,'on',c.checked));el2.querySelectorAll('[data-mc]').forEach(c=>c.onchange=()=>set(+c.dataset.mc,'col',c.value));
     $('#mLeg').onclick=()=>{const ent=Ls.filter(x=>x.on).map(x=>({col:x.col,label:x.name,kind:x.kind||'fill',on:true}));const lg={id:uid(),t:'legend',title:'Shartli belgilar',entries:ent,fs:8,cols:1,x:it.x+it.w+4,y:it.y,w:60,h:0};lg.h=legendH(lg);const [W]=pageWH(pg());if(lg.x+lg.w>W)lg.x=Math.max(2,it.x);pg().items.push(lg);sel=lg.id;commit();renderAll();};});}
@@ -347,6 +355,40 @@ document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,sele
   if(k==='escape'){if(polyD){pg().items=pg().items.filter(x=>x!==polyD);polyD=null;drawTmp='';}sel=null;setTool('select');renderAll();return;}
   if(sel&&k.startsWith('arrow')){e.preventDefault();const it=pg().items.find(x=>x.id===sel),d=e.shiftKey?10:1,dx=k==='arrowleft'?-d:k==='arrowright'?d:0,dy=k==='arrowup'?-d:k==='arrowdown'?d:0;if(it.pts)it.pts=it.pts.map(q=>[q[0]+dx,q[1]+dy]);else{it.x+=dx;it.y+=dy;}commit();renderAll();return;}
   const m={v:'select',t:'text',l:'line',a:'arrow',p:'pen',r:'rect',e:'ellipse',g:'poly',m:'map',i:'image'}[k];if(m&&!e.ctrlKey&&!e.metaKey)setTool(m);});
+/* ---------- sichqonchaning oʻng tugmasi menyusi ---------- */
+let CLIP=null;
+function zMove(dir){const p=pg(),i=p.items.findIndex(x=>x.id===sel);if(i<0)return;const it=p.items[i],L=it.layer||'L0',same=p.items.map((x,k)=>[x,k]).filter(([x])=>(x.layer||'L0')===L).map(([,k])=>k),pos=same.indexOf(i);
+  p.items.splice(i,1);let to;if(dir==='top')to=same[same.length-1];else if(dir==='bottom')to=same[0];else if(dir==='up')to=pos<same.length-1?same[pos+1]:i;else to=pos>0?same[pos-1]:i;
+  p.items.splice(Math.max(0,Math.min(p.items.length,to)),0,it);commit();renderAll();}
+function copySel(cut){const it=pg().items.find(x=>x.id===sel);if(!it)return;CLIP=clone(it);if(cut)delSel();toast(cut?'Kesib olindi.':'Nusxa olindi.');}
+function pasteClip(P){if(!CLIP)return;const c=clone(CLIP);c.id=uid();c.layer=activeLayer;const b=bbox(c),dx=P?P[0]-b.x:5,dy=P?P[1]-b.y:5;if(c.pts)c.pts=c.pts.map(q=>[q[0]+dx,q[1]+dy]);else{c.x+=dx;c.y+=dy;}pg().items.push(c);sel=c.id;commit();renderAll();}
+function ctxClose(){const m=$('#ctx');if(m)m.remove();}
+function ctxOpen(x,y,rows){ctxClose();const m=document.createElement('div');m.id='ctx';m.setAttribute('role','menu');
+  m.innerHTML=rows.map((r,i)=>r==='-'?'<hr>':r.sub?`<div class="ci sub" data-i="${i}">${r.label}<span>›</span><div class="cs">${r.sub.map((s,j)=>`<button data-i="${i}" data-j="${j}" ${s.on?'class="on"':''}>${s.label}</button>`).join('')}</div></div>`:`<button class="ci" data-i="${i}" ${r.dis?'disabled':''}>${r.label}${r.k?`<kbd>${r.k}</kbd>`:''}</button>`).join('');
+  document.body.appendChild(m);const W=innerWidth,Hh=innerHeight,bw=m.offsetWidth,bh=m.offsetHeight;m.style.left=Math.min(x,W-bw-6)+'px';m.style.top=Math.min(y,Hh-bh-6)+'px';if(x+bw*2>W)m.classList.add('left');
+  m.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const r=rows[+b.dataset.i];ctxClose();if(b.dataset.j!=null)r.sub[+b.dataset.j].fn();else r.fn();});}
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#ctx'))ctxClose();},true);window.addEventListener('blur',ctxClose);document.addEventListener('keydown',e=>{if(e.key==='Escape')ctxClose();},true);
+const TOOLNAMES=[['select','Tanlash','V'],['text','Matn','T'],['line','Chiziq','L'],['arrow','Oʻq chiziq','A'],['pen','Erkin chizish','P'],['rect','Toʻrtburchak','R'],['ellipse','Ellips','E'],['poly','Koʻpburchak','G'],['map','Xarita oynasi','M'],['image','Rasm qoʻyish','I']];
+$('#stage').addEventListener('contextmenu',e=>{e.preventDefault();if(drag)return;const P=mm(e),p=pg(),idEl=e.target.closest('[data-id]');
+  if(polyD){ctxOpen(e.clientX,e.clientY,[{label:'Chizishni tugatish',k:'Enter',fn:finishPoly},{label:'Oxirgi nuqtani olib tashlash',k:'⌫',dis:polyD.pts.length<2,fn:()=>{polyD.pts.pop();renderPaper();}},{label:'Bekor qilish',k:'Esc',fn:()=>{pg().items=pg().items.filter(x=>x!==polyD);polyD=null;drawTmp='';sel=null;setTool('select');renderAll();}}]);return;}
+  const toolsSub=TOOLNAMES.map(([t,n,k])=>({label:`${n} <kbd>${k}</kbd>`,on:tool===t,fn:()=>setTool(t)}));
+  const layerSub=()=>doc.layers.map(l=>({label:esc(l.name)+(l.lock?' 🔒':''),on:false,fn:()=>{const it=p.items.find(x=>x.id===sel);if(it){it.layer=l.id;commit();renderAll();}}}));
+  let it=idEl&&p.items.find(x=>x.id===idEl.dataset.id);if(it&&isLocked(it))it=null;
+  if(it){sel=it.id;renderAll();const rows=[];
+    if(tool!=='select')rows.push({label:'Chizishni toʻxtatish',k:'Esc',fn:()=>setTool('select')},'-');
+    rows.push({label:'Xususiyatlar',fn:()=>{const pr=$('#props')||document.querySelector('aside:last-of-type');if(pr){pr.scrollTop=0;if(pr.parentElement)pr.parentElement.scrollTop=0;pr.classList.add('flash');setTimeout(()=>pr.classList.remove('flash'),900);const f=pr.querySelector('input,select');if(f)f.focus();}}});
+    if(it.t==='text')rows.push({label:'Matnni tahrirlash',fn:()=>openEditor(it)});if(it.t==='map')rows.push({label:'Xarita joyini tanlash',fn:()=>pickMap(it)});
+    rows.push('-',{label:'Nusxa olish',k:'Ctrl+C',fn:()=>copySel(false)},{label:'Kesib olish',k:'Ctrl+X',fn:()=>copySel(true)},{label:'Joylash',k:'Ctrl+V',dis:!CLIP,fn:()=>pasteClip(P)},{label:'Takrorlash',k:'Ctrl+D',fn:dupSel},'-',
+      {label:'Eng oldinga',k:'Ctrl+]',fn:()=>zMove('top')},{label:'Bir qadam oldinga',k:']',fn:()=>zMove('up')},{label:'Bir qadam orqaga',k:'[',fn:()=>zMove('down')},{label:'Eng orqaga',k:'Ctrl+[',fn:()=>zMove('bottom')},
+      {label:'Qatlamga oʻtkazish',sub:layerSub()},'-',{label:'Chizish asbobi',sub:toolsSub},'-',{label:'Oʻchirish',k:'Del',fn:delSel});
+    ctxOpen(e.clientX,e.clientY,rows);return;}
+  sel=null;renderAll();
+  ctxOpen(e.clientX,e.clientY,[...(tool!=='select'?[{label:'Chizishni toʻxtatish',k:'Esc',fn:()=>setTool('select')},'-']:[]),{label:'Joylash',k:'Ctrl+V',dis:!CLIP,fn:()=>pasteClip(P)},{label:'Chizish asbobi',sub:toolsSub},'-',
+    {label:'Yangi qatlam',fn:()=>{const l={id:'L'+uid(),name:'Qatlam '+(doc.layers.length+1),vis:true,lock:false};doc.layers.push(l);activeLayer=l.id;commit();renderAll();toast('«'+l.name+'» faol qatlam.');}},
+    {label:'Faol qatlam',sub:doc.layers.map(l=>({label:esc(l.name),on:l.id===activeLayer,fn:()=>{activeLayer=l.id;renderAll();}}))},'-',{label:'Varaqni sigʻdirish',fn:fitZoom}]);});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;const k=e.key.toLowerCase(),c=e.ctrlKey||e.metaKey;
+  if(c&&k==='c'&&sel){e.preventDefault();copySel(false);}else if(c&&k==='x'&&sel){e.preventDefault();copySel(true);}else if(c&&k==='v'&&CLIP){e.preventDefault();pasteClip(null);}
+  else if(sel&&(e.key===']'||e.key==='[')){e.preventDefault();zMove(e.key===']'?(c?'top':'up'):(c?'bottom':'down'));}});
 /* ---------- zoom ---------- */
 function fitZoom(){const [W,Hh]=pageWH(pg()),st=$('#stage');zoom=Math.max(.1,Math.min((st.clientWidth-60)/(W*3.7795),(st.clientHeight-130)/(Hh*3.7795)));renderPaper();}
 $('#zIn').onclick=()=>{zoom=Math.min(4,zoom*1.2);renderPaper();};$('#zOut').onclick=()=>{zoom=Math.max(.08,zoom/1.2);renderPaper();};$('#zFit').onclick=fitZoom;
@@ -446,7 +488,7 @@ async function exportAs(kind){const dpi=+$('#dpi').value,fn=(doc.name||'albom').
     if(kind==='pptx'){busy('PowerPoint kutubxonasi…');await loadScript('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js');const pp=new PptxGenJS(),[W0,H0]=pageWH(doc.pages[0]);pp.defineLayout({name:'K',width:W0/25.4,height:H0/25.4});pp.layout='K';
       for(let i=0;i<doc.pages.length;i++){busy(`PPTX: slayd ${i+1} / ${doc.pages.length}`);const p=doc.pages[i],[W,Hh]=pageWH(p),cv=await pageCanvas(p,Math.min(dpi,200)),s=pp.addSlide();const sc=Math.min(W0/W,H0/Hh),w=W*sc/25.4,h=Hh*sc/25.4;s.addImage({data:cv.toDataURL('image/jpeg',.92),x:(W0/25.4-w)/2,y:(H0/25.4-h)/2,w,h});}
       await pp.writeFile({fileName:fn+'.pptx'});}
-  }catch(e){toast('Eksport xatosi: '+e.message);}busy();}
+  }catch(e){toast('Yuklab olishda xato: '+e.message);}busy();}
 $('#expBtn').onclick=e=>{e.stopPropagation();$('#expMenu').hidden=!$('#expMenu').hidden;};document.addEventListener('click',e=>{if(!e.target.closest('#expMenu,#expBtn'))$('#expMenu').hidden=true;});
 document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>exportAs(b.dataset.x));
 $('#openJson').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{const d=JSON.parse(t);if(!d.pages)throw 0;doc=d;doc.id='main';cur=0;sel=null;migrate();commit();renderAll();fitZoom();toast('Albom ochildi.');}).catch(()=>toast('Fayl albom emas.'));e.target.value='';};
