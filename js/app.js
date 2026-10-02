@@ -1530,6 +1530,7 @@ function placeCrossing(ll,h){
 function delSel(){const ds=DS(),s=ds.sel;if(!s)return;
   if(s.t==='seg')ds.segs=ds.segs.filter(x=>x.id!==s.id);
   if(s.t==='sign'){ds.signs=(ds.signs||[]).filter(x=>x.id!==s.id);ds.sel=null;afterDesign();return;}
+  if(s.t==='signs'){ds.signs=(ds.signs||[]).filter(x=>!s.ids.includes(x.id));ds.sel=null;afterDesign();toast(`${s.ids.length} ta belgi oʻchirildi. Ctrl+Z — qaytarish.`);return;}
   if(s.t==='shape'||s.t==='line'){const key=s.t==='shape'?'shapes':'lines';ds[key]=(ds[key]||[]).filter(x=>x.id!==s.id);ds.sel=null;afterDesign();return;}
   if(s.t==='att'){const sg=segById(s.id);if(sg&&sg.att)sg.att.splice(s.i,1);ds.sel=null;afterDesign();return;}
   if(s.t==='xw'){const sg=segById(s.id);if(sg&&sg.xw)sg.xw.splice(s.i,1);ds.sel=null;afterDesign();return;}
@@ -1675,7 +1676,11 @@ function renderDesignPanel(){
   if(selKey&&selKey!==renderDesignPanel._last)ds.itab='prop';renderDesignPanel._last=selKey;
   const tab=ds.itab||'prop',ck=checkYHQ(),nbad=Object.values(ck).filter(x=>x[0]==='bad').length;
   let h=`<div class="itabs" role="tablist">${[['prop','Xususiyatlar'],['check','Tekshiruv'],['stats','Hisob'],['file','Fayl']].map(([k,n])=>`<button role="tab" data-it="${k}" aria-selected="${tab===k}">${n}${k==='check'&&nbad?`<span class="cnt">${nbad}</span>`:''}</button>`).join('')}</div>`;
-  if(tab==='prop'){
+  if(tab==='prop'&&sel&&sel.t==='signs'){const L2=(ds.signs||[]).filter(x=>sel.ids.includes(x.id)),codes=[...new Set(L2.map(x=>x.c))];
+    h+=`<div class="ihead"><div class="badge"><svg class="ic"><use href="#i-sign"/></svg></div><div style="flex:1"><h2>${L2.length} ta belgi tanlangan</h2><p>${codes.slice(0,8).join(', ')}${codes.length>8?'…':''}</p></div></div>
+    <div class="tools" style="flex-wrap:wrap"><button class="btn sm" data-ms="exist">Mavjud deb belgilash</button><button class="btn sm" data-ms="new">Yangi deb belgilash</button><button class="btn sm" data-ms="remove">Olib tashlanadi</button><button class="btn sm" data-ms="rot">↻ 90°</button><button class="btn sm" id="msNone">Bekor qilish (Esc)</button><button class="btn sm" id="msDel" style="color:var(--bad)">Hammasini oʻchirish</button></div>
+    <p class="small">Belgilarni birga suring — bittasini sudrasangiz, tanlanganlar hammasi siljiydi. Shift+bosish — qoʻshish/olib tashlash. Shift+sudrash xaritada — ramka bilan tanlash. Ctrl+A — barcha belgilar.</p>`;}
+  else if(tab==='prop'){
     if(selOk){
       h+=`<div class="ihead"><div class="badge"><svg class="ic"><use href="#${SELICON[sel.t]||'i-select'}"/></svg></div><div style="flex:1"><h2>${SELNAME[sel.t]||'Obyekt'}</h2><p>Tanlangan · <button class="btn sm" id="selClr" style="margin-left:4px">Bekor qilish (Esc)</button></p></div></div>`;
       h+=selBarHTML();
@@ -1705,7 +1710,7 @@ function renderDesignPanel(){
     <div class="sec-h">Chegaralar (namuna, normativ emas)</div>
     <div class="thr" style="margin-top:0"><div class="field"><label for="dLmin">Min. boʻlak eni, m</label><input id="dLmin" type="number" step="0.05" value="${ds.thr.laneMin}"></div><div class="field"><label for="dLmax">Maks. boʻlak eni, m</label><input id="dLmax" type="number" step="0.05" value="${ds.thr.laneMax}"></div>
     <div class="field"><label for="dCw">Oʻtish joyi eni, m</label><input id="dCw" type="number" step="0.5" value="${ds.thr.cw}"></div><div class="field"><label for="dPg">Toʻxtashsiz masofa, m</label><input id="dPg" type="number" step="0.5" value="${ds.thr.parkGap}"></div></div>
-    <div class="sec-h">Yoʻl belgilari</div><div class="tools"><button class="btn primary" id="dAuto">Belgilarni avtomatik qoʻyish</button><span class="small">chorraha, halqa, oʻtish joyi, bekat, bir tomonlama</span></div>`;
+    <div class="sec-h">Yoʻl belgilari</div><div class="tools"><button class="btn primary" id="dAuto">Belgilarni avtomatik qoʻyish</button><button class="btn" id="dAllS">Barcha belgilarni tanlash</button><span class="small">chorraha, halqa, oʻtish joyi, bekat, bir tomonlama</span></div>`;
   }
   if(tab==='stats'){
     const st=designStats(),{marks}=buildShapes();
@@ -1731,6 +1736,8 @@ function renderDesignPanel(){
   if(tab==='prop'&&ds.tool==='sign')bindSignCatalog(el);
   bindDesignExtras(el,q,num);
   if(q('#selClr'))q('#selClr').onclick=()=>{ds.sel=null;afterDesign();};
+  if(q('#dAllS'))q('#dAllS').onclick=()=>{if(!(ds.signs||[]).length){toast('Belgi yoʻq.');return;}ds.sel={t:'signs',ids:ds.signs.map(x=>x.id)};ds.itab='prop';afterDesign();};
+  if(sel&&sel.t==='signs'){el.querySelectorAll('[data-ms]').forEach(b=>b.onclick=()=>{(ds.signs||[]).forEach(x=>{if(!sel.ids.includes(x.id))return;if(b.dataset.ms==='rot')x.rot=((x.rot||0)+90)%360;else x.st=b.dataset.ms;});afterDesign();});if(q('#msDel'))q('#msDel').onclick=delSel;if(q('#msNone'))q('#msNone').onclick=()=>{ds.sel=null;afterDesign();};}
   if(q('#openHelp'))q('#openHelp').onclick=openHelp;
   if(q('#dDel'))q('#dDel').onclick=delSel;
   if(q('#dCmp'))q('#dCmp').onclick=compareExisting;
@@ -1945,14 +1952,16 @@ const ST_LBL={exist:'Mavjud',new:'Yangi (loyiha)',remove:'Olib tashlanadi'};
 function renderSigns(){
   signL.clearLayers();const ds=DS();if(S.app!=='design')return;
   const z=map.getZoom(),sz=Math.max(14,Math.min(44,Math.round(34*Math.pow(2,z-19))));
-  (ds.signs||[]).forEach(sn=>{const on=ds.sel&&ds.sel.t==='sign'&&ds.sel.id===sn.id;
+  (ds.signs||[]).forEach(sn=>{const on=ds.sel&&((ds.sel.t==='sign'&&ds.sel.id===sn.id)||(ds.sel.t==='signs'&&ds.sel.ids.includes(sn.id)));
     const ring=on?'outline:3px solid #f4c542;outline-offset:2px;border-radius:4px;':'';
     const badge=sn.st==='exist'?`<span style="position:absolute;left:-4px;bottom:-4px;background:#1c2628;color:#fff;font:700 8px sans-serif;border-radius:3px;padding:0 2px">M</span>`:sn.st==='remove'?`<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#d01c2a;font:900 ${sz}px sans-serif;line-height:1">×</span>`:'';
     const m=L.marker(sn.ll,{pane:'signs',draggable:true,title:`${sn.c} ${signDef(sn.c)[1]}`,icon:L.divIcon({className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],
       html:`<div style="position:relative;width:${sz}px;height:${sz}px;${ring}filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));${sn.st==='remove'?'opacity:.6;':''}"><div style="width:100%;height:100%;transform:rotate(${sn.rot||0}deg)">${signSVG(sn.c,sn.val)}</div>${badge}</div>`})}).addTo(signL);
-    m.on('click',()=>{ds.sel={t:'sign',id:sn.id};afterDesign();});
+    m.on('click',e=>{const oe=e.originalEvent||{};if(oe.shiftKey||oe.ctrlKey||oe.metaKey){const cur=ds.sel&&ds.sel.t==='signs'?ds.sel.ids.slice():ds.sel&&ds.sel.t==='sign'?[ds.sel.id]:[];const i=cur.indexOf(sn.id);i<0?cur.push(sn.id):cur.splice(i,1);ds.sel=cur.length?{t:'signs',ids:cur}:null;}else ds.sel={t:'sign',id:sn.id};afterDesign();});
     m.on('contextmenu',e=>openSignMenu(e,sn));
-    m.on('dragend',e=>{const p=e.target.getLatLng();sn.ll=[p.lat,p.lng];save();});
+    let grp=null;m.on('dragstart',()=>{if(ds.sel&&ds.sel.t==='signs'&&ds.sel.ids.includes(sn.id))grp={o:sn.ll.slice(),list:(ds.signs||[]).filter(x=>ds.sel.ids.includes(x.id)&&x!==sn).map(x=>[x,x.ll.slice()])};else grp=null;});
+    m.on('drag',e=>{if(!grp)return;const p=e.target.getLatLng(),d=[p.lat-grp.o[0],p.lng-grp.o[1]];grp.list.forEach(([x,l])=>{x.ll=[l[0]+d[0],l[1]+d[1]];});});
+    m.on('dragend',e=>{const p=e.target.getLatLng();sn.ll=[p.lat,p.lng];if(grp){grp=null;renderSigns();}pushHist();save();});
   });
 }
 map.on('zoomend',()=>{if(S.app==='design'){renderDesign();}});
@@ -3295,3 +3304,14 @@ async function loadDataLayers(){try{const db=await new Promise((res,rej)=>{const
   if(!dataOn)map.removeLayer(dataL);
 }catch(e){}}
 loadDataLayers();window.addEventListener('focus',loadDataLayers);
+
+/* Belgilarni koʻplab tanlash: Shift+sudrash (ramka), Ctrl+A, «Barcha belgilar» */
+(function(){let box=null,st=null;
+  map.boxZoom.disable();
+  map.on('mousedown',e=>{const oe=e.originalEvent;if(S.app!=='design'||DS().tool!=='select'||!oe.shiftKey||oe.button!==0)return;st=e.latlng;map.dragging.disable();box=L.rectangle([st,st],{color:'#2f6feb',weight:1,dashArray:'4 3',fillOpacity:.06,interactive:false}).addTo(map);});
+  map.on('mousemove',e=>{if(box)box.setBounds(L.latLngBounds(st,e.latlng));});
+  const end=e=>{if(!box)return;const b=box.getBounds();map.removeLayer(box);box=null;map.dragging.enable();const ds=DS(),ids=(ds.signs||[]).filter(x=>b.contains(L.latLng(x.ll[0],x.ll[1]))).map(x=>x.id);
+    if(ids.length){ds.sel={t:'signs',ids};afterDesign();toast(`${ids.length} ta belgi tanlandi.`);}else toast('Ramka ichida belgi yoʻq.');};
+  map.on('mouseup',end);document.addEventListener('mouseup',e=>{if(box)end(e);});
+  document.addEventListener('keydown',e=>{if(S.app!=='design'||e.target.matches('input,textarea,select'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){const ds=DS();if(!(ds.signs||[]).length)return;e.preventDefault();ds.sel={t:'signs',ids:ds.signs.map(x=>x.id)};afterDesign();toast(`Barcha ${ds.signs.length} ta belgi tanlandi.`);}});
+})();
