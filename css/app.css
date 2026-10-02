@@ -1,12 +1,12 @@
 /* Koʻcha Profili Studiyasi — interfeys
    Ranglar: asfalt (qoramtir), qogʻoz (oq panel), yoʻl chizigʻi sarigʻi (faol holat) */
 :root{
-  --bg:#eceef1; --panel:#ffffff; --panel2:#f4f5f7; --panel3:#e9ebee; --ink:#1c2126; --mute:#687380; --line:#e0e3e8; --line2:#cfd4da;
-  --acc:#1c2126; --acc-ink:#ffffff; --hl:#f5b83d; --hl-ink:#1c2126; --acc2:#c2702f; --ok:#2e7d4f; --bad:#c0392b; --warn:#9a6b09; --link:#2b62a6;
-  --top:#fbfbfa; --top-ink:#1c2126; --top-mute:#7a838e; --top-line:#e4e6e9;
-  --sans:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-  --r:10px; --shadow:0 1px 2px rgba(20,24,28,.06),0 4px 16px rgba(20,24,28,.08);
+  --bg:#f4f3f1; --panel:#ffffff; --panel2:#f7f6f4; --panel3:#ecebe7; --ink:#141414; --mute:#696969; --line:#e4e2dd; --line2:#d3d0ca;
+  --acc:#141414; --acc-ink:#ffffff; --hl:#f5b83d; --hl-ink:#141414; --acc2:#c2702f; --ok:#2e7d4f; --bad:#c0392b; --warn:#9a6b09; --link:#2b62a6;
+  --top:#f4f3f1; --top-ink:#141414; --top-mute:#696969; --top-line:#dedcd7;
+  --sans:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:4px; --shadow:0 1px 2px rgba(20,24,28,.06),0 4px 16px rgba(20,24,28,.08);
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -373,3 +373,16 @@ body:not(.railc) .tipbox{display:none!important}
 .ck-pin.on span{transform:scale(1.25);box-shadow:0 0 0 3px #fff,0 0 0 6px rgba(229,72,77,.35)}
 .ck-flash{animation:ckf 1.1s ease-in-out infinite}
 @keyframes ckf{0%,100%{stroke-opacity:1;fill-opacity:.28}50%{stroke-opacity:.3;fill-opacity:.06}}
+
+/* Archemistry aydentikasi */
+.brand .logo{width:24px;height:24px}
+.brand h1{font-size:13px;font-weight:500;letter-spacing:.2em;text-transform:uppercase}
+.brand h1 i{font-style:normal;color:var(--top-mute);font-weight:400;letter-spacing:.18em;margin-left:8px;font-size:11px}
+.appseg{background:transparent;border:1px solid var(--line2);border-radius:2px;padding:2px}
+.appseg button{border-radius:1px;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.appseg button[aria-pressed="true"]{background:var(--ink);color:#f4f3f1;box-shadow:none}
+.btn{border-radius:2px}
+.btn.primary{background:var(--ink);border-color:var(--ink)}
+.rg-h,.sec-h,.pal-h,.ibl{letter-spacing:.14em!important;text-transform:uppercase}
+.rail .rbtn.on,.rail .rbtn[aria-pressed="true"]{border-radius:2px}
+#secEx svg,#secPr svg{background:#fbfaf8}
