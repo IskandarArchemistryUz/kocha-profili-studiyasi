@@ -145,8 +145,42 @@ async function googleBase(){
     return [L.tileLayer(`https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=${j.session}&key=${encodeURIComponent(key)}`,{maxZoom:22,maxNativeZoom:21,attribution:'Tasvir: © Google'})];
   }catch(e){toast('Google tasviri ochilmadi: '+e.message);S.gkey=null;save();return null;}
 }
+/* Minimalistik vektor xaritalar (OpenFreeMap / OpenMapTiles, yorliqsiz) */
+const VSTY={
+  v_line:{n:'Chizma',bg:'#ffffff',water:'#e3ecf2',park:'#eef2e8',road:'#ffffff',rc:'#b9bcc1',bld:'#ffffff',bl:'#1a1c1e',bw:.7,rail:'#c9ccd1'},
+  v_fig:{n:'Figura-fon',bg:'#efece4',water:'#cfdbe2',park:'#d7dfcb',road:'#efece4',rc:'#efece4',bld:'#1a1c1e',bl:'#1a1c1e',bw:0,rail:'#d6d2c8'},
+  v_dark:{n:'Grafit',bg:'#1c1e21',water:'#18252f',park:'#22302a',road:'#2b2e33',rc:'#2b2e33',bld:'#3a3e44',bl:'#4a4f56',bw:.5,rail:'#33363b'},
+  v_pastel:{n:'Pastel',bg:'#f8f4ed',water:'#cde2f1',park:'#d8ead0',road:'#ffffff',rc:'#e6ddcc',bld:'#e7ddf6',bl:'#c9b8f0',bw:.6,rail:'#e6ddcc'},
+};
+function vStyle(p){
+  const W=(a,b)=>['interpolate',['exponential',1.6],['zoom'],12,a,19,b];
+  const cls=c=>['match',['get','class'],c,true,false];
+  const road=(id,c,w0,w1)=>[{id:id+'_c',type:'line','source-layer':'transportation',source:'o',filter:cls(c),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':p.rc,'line-width':W(w0+1,w1+2)}},
+    {id:id,type:'line','source-layer':'transportation',source:'o',filter:cls(c),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':p.road,'line-width':W(w0,w1)}}];
+  const casings=[...road('rmin',['minor','service','track'],.4,14),...road('rter',['tertiary','secondary'],.8,30),...road('rmaj',['primary','trunk','motorway'],1.2,44)];
+  const L2=casings.filter(l=>l.id.endsWith('_c')).concat(casings.filter(l=>!l.id.endsWith('_c')));
+  return {version:8,sources:{o:{type:'vector',url:'https://tiles.openfreemap.org/planet'}},layers:[
+    {id:'bg',type:'background',paint:{'background-color':p.bg}},
+    {id:'park',type:'fill',source:'o','source-layer':'park',paint:{'fill-color':p.park}},
+    {id:'green',type:'fill',source:'o','source-layer':'landcover',filter:['match',['get','class'],['grass','wood','farmland'],true,false],paint:{'fill-color':p.park}},
+    {id:'water',type:'fill',source:'o','source-layer':'water',paint:{'fill-color':p.water}},
+    {id:'wway',type:'line',source:'o','source-layer':'waterway',paint:{'line-color':p.water,'line-width':W(.5,8)}},
+    {id:'rail',type:'line',source:'o','source-layer':'transportation',filter:cls(['rail','transit']),paint:{'line-color':p.rail,'line-width':W(.5,3),'line-dasharray':[3,2]}},
+    ...L2,
+    {id:'bld',type:'fill',source:'o','source-layer':'building',minzoom:13,paint:{'fill-color':p.bld,'fill-outline-color':p.bw?p.bl:p.bld}},
+    ...(p.bw?[{id:'bldl',type:'line',source:'o','source-layer':'building',minzoom:15,paint:{'line-color':p.bl,'line-width':['interpolate',['linear'],['zoom'],15,.3,19,p.bw*1.6]}}]:[])
+  ]};
+}
+async function vectorBase(k){
+  try{await loadMapLibre();
+    if(!L.maplibreGL)await loadScript('https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js');
+    return [L.maplibreGL({style:vStyle(VSTY[k]),attribution:'© OpenStreetMap, OpenMapTiles, OpenFreeMap'})];
+  }catch(e){toast('Vektor xarita ochilmadi: '+e.message);return null;}
+}
 async function setBase(k){
   let lay=BASES[k];
+  if(VSTY[k]&&!lay){lay=await vectorBase(k);if(lay)BASES[k]=lay;else k='img',lay=BASES.img;}
+  document.body.dataset.base=k;
   if(k==='google'){lay=BASES.google||await googleBase();if(lay)BASES.google=lay;else k=S.base&&S.base!=='google'?S.base:'img',lay=BASES[k];}
   if(curBase)curBase.forEach(l=>map.removeLayer(l));curBase=lay||BASES.img;curBase.forEach(l=>l.addTo(map));S.base=k;document.getElementById('baseSel').value=k;save();
   if(k==='imgl')setTimeout(loadBoundaries,0);
@@ -3100,4 +3134,11 @@ function renderInfoBox(){const L2=document.getElementById('ibL');if(!L2)return;l
 }
 {const _upd=update;update=function(){_upd();if(S.app==='prof')renderInfoBox();};}
 
+/* bosh sahifadan kirish: ?open=nom, ?new=1, #area / #prof / #design */
+(function(){const q=new URLSearchParams(location.search),h=location.hash.slice(1);
+  if(q.get('new')){const all=readSaves();if(S.design&&S.design.segs&&S.design.segs.length){all['Avtosaqlash '+new Date().toISOString().slice(0,16).replace('T',' ')]={t:new Date().toISOString(),d:JSON.stringify(S)};try{localStorage.setItem('kps_saves',JSON.stringify(all));}catch(e){}}
+    const keep={base:S.base,helpSeen:S.helpSeen,gkey:S.gkey};S=Object.assign(sample(),keep);save();}
+  const op=q.get('open');if(op){const v=readSaves()[op];if(v)try{S=Object.assign(sample(),JSON.parse(v.d));_id=Math.max(0,...S.prof.ex.map(e=>e.id),...S.prof.pr.map(e=>e.id));save();}catch(e){}}
+  if(['area','prof','design'].includes(h))S.app=h;
+  if(q.toString())history.replaceState(null,'',location.pathname+location.hash);})();
 setMode('pick'); renderAll(); setApp(S.app||'area');
