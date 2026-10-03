@@ -259,7 +259,7 @@ let PL=null;
 const STAIRS={L1:['Zinapoya L1, 2 marshli, liftsiz',2.8,5.6,'L1'],L1L:['Zinapoya L1 + 1 lift',5.0,5.6,'L1'],L1LL:['Zinapoya L1 + 2 lift',6.6,5.6,'L1'],N1:['Tutunsiz N1 (havo zonasi orqali) + 2 lift',8.4,6.6,'N1'],GAL:['Galereya uyi zinapoyasi (ochiq)',3.0,6.0,'L1']};
 const minA=()=>{P.p.minA=Object.assign({1:28,2:48,3:64,4:80},P.p.minA||{});return P.p.minA;};
 function planSet(b){b.plan.set=Object.assign({step:.3,ax:0,ay:0,snapE:true},b.plan.set||{});b.plan.dims=b.plan.dims||[];return b.plan.set;}
-function openPlan(b){b.plan=b.plan||{cells:[]};planSet(b);const fr=localFrame(b.poly);PL={b,fr,tool:'rect',pal:useKey(b),k:RT[useKey(b)][0],st:b.fl*P.p.fh>28?'N1':'L1L',sel:null,rul:null,pp:null};
+function openPlan(b){b.plan=b.plan||{cells:[]};planSet(b);const fr=localFrame(b.poly);PL={b,fr,tool:'rect',pal:useKey(b),k:RT[useKey(b)][0],st:b.fl*P.p.fh>28?'N1':'L1L',sel:null,rul:null,pp:null};(b.plan&&b.plan.cells||[]).forEach(c=>{if(c.k==='core'&&STAIRS[c.sub]){const cx=c.x+c.w/2,cy=c.y+c.h/2,[w,h]=coreSize(c);c.w=w;c.h=h;c.x=+(cx-w/2).toFixed(2);c.y=+(cy-h/2).toFixed(2);}});
   const w=document.createElement('div');w.className='fpw';w.id='fpw';w.innerHTML=`<div class="box"><div class="hd"><b style="font-size:14px;font-weight:500">Qavat rejasi · xonalar tarkibi</b><span class="note">${fi(area(b.poly))} m² dogʻ · ${b.fl} qavat · H ≈ ${f1(b.fl*P.p.fh)} m</span><span class="sp"></span>
     <div class="seg"><button data-pt="sel" title="Tanlash (V)">Tanlash</button><button data-pt="rect" title="Toʻrtburchak xona (R)">Toʻrtburchak</button><button data-pt="poly" title="Koʻpburchak xona — qiyshiq devorlar (P)">Koʻpburchak</button><button data-pt="cut" title="Xonani chiziq bilan boʻlish (C)">Boʻlish</button><button data-pt="stair" title="Zinapoya-lift (S)">Zinapoya</button><button data-pt="ruler" title="Lineyka (M)">Lineyka</button></div>
     <label class="note" style="display:flex;gap:4px;align-items:center">funksiya<select id="plUse">${Object.keys(RT).map(k=>`<option value="${k}" ${k===useKey(b)?'selected':''}>${USES[k][0]}</option>`).join('')}</select></label>
@@ -277,6 +277,7 @@ function plPush(){PL.hist.push(JSON.stringify({c:PL.b.plan.cells,d:PL.b.plan.dim
 function plUndo(){if(PL.hist.length>1){PL.hist.pop();const s=JSON.parse(PL.hist[PL.hist.length-1]);PL.b.plan.cells=s.c;PL.b.plan.dims=s.d||[];PL.sel=null;plDraw();}}
 document.addEventListener('keydown',e=>{if(!PL||e.target.matches('input,select'))return;e.stopImmediatePropagation();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();plUndo();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&PL.sel){PL.b.plan.cells=PL.b.plan.cells.filter(c=>c.id!==PL.sel);PL.sel=null;plPush();plDraw();return;}
+  if(PL.sel&&e.key.startsWith('Arrow')){const c=PL.b.plan.cells.find(c=>c.id===PL.sel);if(c){e.preventDefault();const d=e.shiftKey?1:.1,dx={ArrowLeft:-d,ArrowRight:d}[e.key]||0,dy={ArrowUp:-d,ArrowDown:d}[e.key]||0;if(c.pts)c.pts=c.pts.map(p=>[+(p[0]+dx).toFixed(3),+(p[1]+dy).toFixed(3)]);else{c.x=+(c.x+dx).toFixed(2);c.y=+(c.y+dy).toFixed(2);}plPush();plDraw();}return;}
   if(e.key==='Enter'&&PL.pp){finishPoly2();return;}if(e.key==='Escape'){if(PL.pp){PL.pp=null;plDraw();return;}if(PL.rul){PL.rul=null;plDraw();return;}closePlan();return;}
   const t={v:'sel',r:'rect',s:'stair',m:'ruler',p:'poly',c:'cut'}[e.key.toLowerCase()];if(t&&!e.ctrlKey){PL.tool=t;PL.rul=null;plDraw();return;}
   if(KT[e.key]&&PL.sel){const c=PL.b.plan.cells.find(c=>c.id===PL.sel);if(c){c.k=e.key;plPush();plDraw();}}},true);
@@ -291,10 +292,15 @@ function snapP(p,ignore){const {b,fr}=PL,S=b.plan.set,tol=.35;
     let bx=tol,by=tol;X.forEach(v=>{const d=Math.abs(v-p[0]);if(d<bx){bx=d;x=v;gx=v;}});Y.forEach(v=>{const d=Math.abs(v-p[1]);if(d<by){by=d;y=v;gy=v;}});}
   return {p:[+x.toFixed(3),+y.toFixed(3)],gx,gy};}
 const fm=v=>(Math.round(v*100)/100).toLocaleString('ru-RU');
+function stairInfo(sub,mw){const g=coreGeo(sub,mw),r=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`;return `<div style="margin-top:4px">${r('Qavat balandligi',fm(+P.p.fh||3)+' m')}${r('Pogʻonalar (2 marsh)',g.nR+' = 2 × '+g.nR/2)}${r('Koʻtarilish × pogʻona eni',fi(g.hR*1000)+' × '+fi(g.tr*1000)+' mm')}${r('Marsh uzunligi',fm(g.run)+' m')}${r('Oraliq / qavat maydonchasi',fm(g.Lm)+' / '+fm(g.Lf)+' m')}${g.nL?r('Lift shaxtasi',fm(g.sw)+' × '+fm(g.sd)+' m'):''}</div>${g.nL?'<div class="note">Lift shaxtasi oʻlchami — namuna, lift ishlab chiqaruvchisi boʻyicha aniqlanadi.</div>':''}`;}
+function coreFacOk(c,fr){const g=coreGeo(c.sub,c.mw),hx=g.t+g.Ws+g.t,m=coreW2(c,g,(hx+g.W-g.t)/2,0),q=fr.pts;let d=1e9;for(let i=0;i<q.length;i++){const a=q[i],b2=q[(i+1)%q.length],vx=b2[0]-a[0],vy=b2[1]-a[1],L=vx*vx+vy*vy||1,tt=Math.max(0,Math.min(1,((m[0]-a[0])*vx+(m[1]-a[1])*vy)/L));d=Math.min(d,Math.hypot(a[0]+vx*tt-m[0],a[1]+vy*tt-m[1]));}return d<.6;}
+function onEdge(q,p){for(let i=0;i<q.length;i++){const a=q[i],b2=q[(i+1)%q.length],vx=b2[0]-a[0],vy=b2[1]-a[1],L=vx*vx+vy*vy||1,tt=Math.max(0,Math.min(1,((p[0]-a[0])*vx+(p[1]-a[1])*vy)/L));if(Math.hypot(a[0]+vx*tt-p[0],a[1]+vy*tt-p[1])<.15)return true;}return false;}
 function plChecks(b){const H=b.fl*P.p.fh,cores=b.plan.cells.filter(c=>c.k==='core'),A=minA(),bad=[];
   b.plan.cells.forEach(c=>{if(c.k in A){const ar=cellArea(b,c);if(ar>=1&&ar<A[c.k])bad.push(c.id);}});const w=[];
   if(!cores.length&&b.plan.cells.length)w.push('Zinapoya-lift tuguni qoʻyilmagan.');
   if(H>28&&cores.some(c=>(STAIRS[c.sub]||[])[3]!=='N1'))w.push(`Bino balandligi ≈ ${f1(H)} m > 28 m: seksiyali binoda N1 tutunsiz zinapoya talab qilinadi (ShNQ 2.08.01-19, 5.29-band).`);
+  const fr=PL&&PL.fr;if(fr){const outC=cores.filter(c=>[[c.x,c.y],[c.x+c.w,c.y],[c.x+c.w,c.y+c.h],[c.x,c.y+c.h]].some(p=>!inPolyL(fr.pts,p[0],p[1])&&!onEdge(fr.pts,p)));if(outC.length)w.push('Zinapoya tuguni bino dogʻidan chiqib turibdi.');
+    const nf=cores.filter(c=>c.sub==='N1'&&!coreFacOk(c,fr));if(nf.length)w.push('N1 havo zonasi tashqi devorga (fasadga) chiqishi kerak — tugunni fasadga suring yoki 90° burang.');}
   if(bad.length)w.push(`${bad.length} ta kvartira minimal maydondan kichik (ShNQ 2.08.01-19, 1-jadval).`);return {bad,w,H};}
 function plDraw(){const {b,fr}=PL,cv=$('#plCv'),pn=$('#plPn');if(!cv)return;const S=b.plan.set,pad=5,VW=fr.W+pad*2,VH=fr.H+pad*2,FS=Math.max(.55,VW/85);
   document.querySelectorAll('[data-pt]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.pt===PL.tool));const CH=plChecks(b);
@@ -303,9 +309,9 @@ function plDraw(){const {b,fr}=PL,cv=$('#plCv'),pn=$('#plPn');if(!cv)return;cons
   let ax='';if(S.ax>0)for(let x=0,i=1;x<=fr.W+.01;x+=S.ax,i++)ax+=`<line x1="${x}" x2="${x}" y1="-2" y2="${fr.H+.5}" stroke="#c2410c" stroke-width=".05" stroke-dasharray=".6 .3 .1 .3"/><circle cx="${x}" cy="-3" r="${FS*.9}" fill="#fff" stroke="#c2410c" stroke-width=".06"/><text x="${x}" y="-3" dy="${FS*.35}" font-size="${FS}" text-anchor="middle" fill="#c2410c" font-family="Archivo">${i}</text>`;
   if(S.ay>0)for(let y=0,i=0;y<=fr.H+.01;y+=S.ay,i++)ax+=`<line y1="${y}" y2="${y}" x1="-2" x2="${fr.W+.5}" stroke="#c2410c" stroke-width=".05" stroke-dasharray=".6 .3 .1 .3"/><circle cx="-3" cy="${y}" r="${FS*.9}" fill="#fff" stroke="#c2410c" stroke-width=".06"/><text x="-3" y="${y}" dy="${FS*.35}" font-size="${FS}" text-anchor="middle" fill="#c2410c" font-family="Archivo">${'ABVGDEJZIKLMNOPRSTUF'[i]||i}</text>`;
   const fp=fr.pts.map(p=>p.join(',')).join(' ');let dims='';fr.pts.forEach((p,i)=>{const q=fr.pts[(i+1)%fr.pts.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l<2)return;dims+=`<text x="${(p[0]+q[0])/2}" y="${(p[1]+q[1])/2}" font-size="${FS}" text-anchor="middle" dy="-.35" fill="#696969" font-family="IBM Plex Mono">${fm(l)}</text>`;});
-  const cells=b.plan.cells.map(c=>{const poly=cellPts(fr,c),ar=cellAreaFr(fr,c);if(!poly.length)return '';const on=c.id===PL.sel,bad=CH.bad.includes(c.id),ct=c.pts?pCent(c.pts):[c.x+c.w/2,c.y+c.h/2],bx=c.pts?Math.sqrt(Math.max(1,ar)):Math.min(c.w,c.h),fs=Math.max(.45,Math.min(bx/5.5,FS*2.2));
+  const cells=b.plan.cells.map(c=>{if(c.k==='core'){const on=c.id===PL.sel;return `<g data-c="${c.id}" style="cursor:move">${stairSym(c)}${on?`<rect x="${c.x-.15}" y="${c.y-.15}" width="${c.w+.3}" height="${c.h+.3}" fill="none" stroke="#2f6feb" stroke-width=".15"/>${dimLine([c.x,c.y+c.h+1.2],[c.x+c.w,c.y+c.h+1.2],FS,'#2f6feb')}${dimLine([c.x+c.w+1.2,c.y],[c.x+c.w+1.2,c.y+c.h],FS,'#2f6feb')}`:''}</g>`;}const poly=cellPts(fr,c),ar=cellAreaFr(fr,c);if(!poly.length)return '';const on=c.id===PL.sel,bad=CH.bad.includes(c.id),ct=c.pts?pCent(c.pts):[c.x+c.w/2,c.y+c.h/2],bx=c.pts?Math.sqrt(Math.max(1,ar)):Math.min(c.w,c.h),fs=Math.max(.45,Math.min(bx/5.5,FS*2.2));
     const lbl=isApt(c.k)?c.k+(String(c.k)==='4'?'+':'')+'x':c.k==='core'?(STAIRS[c.sub]?STAIRS[c.sub][3]:'Z'):(KT[c.k]||KT.cor)[0];
-    const sym=c.k==='core'?stairSym(c):'';
+    const sym='';
     return `<g data-c="${c.id}" style="cursor:${PL.tool==='sel'?'move':'crosshair'}"><polygon points="${poly.map(p=>p.join(',')).join(' ')}" fill="${(KT[c.k]||KT.cor)[1]}" stroke="${bad?'#b3261e':'#141414'}" stroke-width="${on?.2:bad?.18:.08}"/>${sym}
       <text x="${ct[0]}" y="${ct[1]}" font-size="${String(lbl).length>8?fs*.6:fs}" text-anchor="middle" font-family="Archivo" font-weight="600" fill="${bad?'#b3261e':'#141414'}">${lbl}${bad?' !':''}</text>
       <text x="${ct[0]}" y="${ct[1]+fs*1.05}" font-size="${fs*.7}" text-anchor="middle" font-family="IBM Plex Mono" fill="#3c3c3c">${f1(ar)} m²</text>
@@ -317,11 +323,16 @@ function plDraw(){const {b,fr}=PL,cv=$('#plCv'),pn=$('#plPn');if(!cv)return;cons
   const pc=planCount(b)||{n:{1:0,2:0,3:0,4:0},a:{1:0,2:0,3:0,4:0},tot:0,fa:0,rf:Math.max(0,b.fl-(b.gf&&b.gf!=='res'&&b.fl>1?1:0))},flA=area(b.poly),A=minA();
   const per={1:0,2:0,3:0,4:0};b.plan.cells.forEach(c=>{if(c.k in per&&cellArea(b,c)>=1)per[c.k]++;});
   const sc=PL.sel&&b.plan.cells.find(c=>c.id===PL.sel);
-  pn.innerHTML=`${PL.tool==='stair'?`<div><div class="lbl">Zinapoya-lift tuguni · xaritada joyni bosing</div><div style="display:flex;flex-direction:column;gap:4px">${Object.entries(STAIRS).map(([k,s])=>`<button class="stb" data-st="${k}" aria-pressed="${PL.st===k}"><b>${s[0]}</b><span>${fm(s[1])} × ${fm(s[2])} m · ${s[3]}</span></button>`).join('')}</div>
+  pn.innerHTML=`${PL.tool==='stair'?`<div><div class="lbl">Zinapoya-lift tuguni · xaritada joyni bosing</div><div style="display:flex;flex-direction:column;gap:4px">${Object.entries(STAIRS).map(([k,s])=>`<button class="stb" data-st="${k}" aria-pressed="${PL.st===k}"><b>${s[0]}</b><span>${fm(coreGeo(k,PL.mw).W)} × ${fm(coreGeo(k,PL.mw).H)} m · ${s[3]}</span></button>`).join('')}</div>
+      <div class="f" style="margin-top:6px"><label>Marsh eni, m<select id="plMw">${[1.05,1.2,1.35,1.5].map(v=>`<option value="${v}" ${(PL.mw||1.2)===v?'selected':''}>${fm(v)}</option>`).join('')}</select></label></div>${stairInfo(PL.st,PL.mw)}
       <div class="note" style="margin-top:6px">Oʻlchamlar — namuna, loyihangizga qarab oʻzgartiring. ShNQ 2.08.01-19: balandligi 28 m gacha boʻlgan uylarda oddiy L1 zinapoya (5.14-band); 28 m dan baland seksiyali uylarda N1 tutunsiz zinapoya (5.29-band). Marsh eni ≥ 1,05 m, maydoncha eni marshdan kam emas (7-jadval). Amaldagi ShNQ 2.08.01-24 bilan tekshiring.</div></div>`
     :`<div><div class="lbl">Joy turi (chizishdan oldin · 1–4 tugmalari)</div><div class="ktyp">${RT[PL.pal].filter(k=>k!=='core').map(k=>`<button data-kt="${k}" aria-pressed="${String(sc?sc.k:PL.k)===k}"><i style="background:${KT[k][1]}"></i>${KT[k][0]}</button>`).join('')}</div>
       <button class="btn sm ghost" id="plWhole" style="margin-top:6px">Butun qavat — bitta xona (keyin «Boʻlish»)</button><div class="note" style="margin-top:4px">Qiyshiq devorli xonalar: «Koʻpburchak» (P) bilan nuqtalarni bosing, Shift — 45°/90°; yoki butun qavatni bitta xona qilib, «Boʻlish» (C) chizigʻi bilan kesing.</div></div>`}
-    ${sc?`<div class="sel"><div class="lbl" style="margin:0">Tanlangan · ${f1(cellArea(b,sc))} m²${sc.k in A?` · min ${A[sc.k]} m²`:''}</div>${sc.pts?`<div class="note">Koʻpburchak xona — uchlarini sudrab tuzating</div>`:''}${sc.pts?'':`<div class="f"><label>Eni, m<input type="number" step="0.1" id="cW" value="${String(+sc.w.toFixed(2))}"></label><label>Chuqurligi, m<input type="number" step="0.1" id="cH" value="${String(+sc.h.toFixed(2))}"></label><label>X, m<input type="number" step="0.1" id="cX" value="${String(+sc.x.toFixed(2))}"></label><label>Y, m<input type="number" step="0.1" id="cY" value="${String(+sc.y.toFixed(2))}"></label></div>`}
+    ${sc&&sc.k==='core'?`<div class="sel"><div class="lbl" style="margin:0">Tanlangan tugun</div><div class="kv"><span>Gabarit</span><b>${fm(sc.w)} × ${fm(sc.h)} m</b></div>
+      <div class="f"><label>Turi<select id="cSub">${Object.entries(STAIRS).map(([k,s])=>`<option value="${k}" ${sc.sub===k?'selected':''}>${s[0]}</option>`).join('')}</select></label><label>Marsh eni, m<select id="cMw">${[1.05,1.2,1.35,1.5].map(v=>`<option value="${v}" ${(sc.mw||1.2)===v?'selected':''}>${fm(v)}</option>`).join('')}</select></label><label>X, m<input type="number" step="0.1" id="cX" value="${String(+sc.x.toFixed(2))}"></label><label>Y, m<input type="number" step="0.1" id="cY" value="${String(+sc.y.toFixed(2))}"></label></div>${stairInfo(sc.sub,sc.mw)}
+      <div class="note">Sichqoncha bilan sudrang yoki strelka tugmalari: 0,1 m, Shift bilan 1 m.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm ghost" id="cRot">90° burish</button><button class="btn sm ghost" id="cRep">Oʻngga takrorlash</button><button class="btn sm ghost" id="cDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div></div>`
+    :sc?`<div class="sel"><div class="lbl" style="margin:0">Tanlangan · ${f1(cellArea(b,sc))} m²${sc.k in A?` · min ${A[sc.k]} m²`:''}</div>${sc.pts?`<div class="note">Koʻpburchak xona — uchlarini sudrab tuzating</div>`:''}${sc.pts?'':`<div class="f"><label>Eni, m<input type="number" step="0.1" id="cW" value="${String(+sc.w.toFixed(2))}"></label><label>Chuqurligi, m<input type="number" step="0.1" id="cH" value="${String(+sc.h.toFixed(2))}"></label><label>X, m<input type="number" step="0.1" id="cX" value="${String(+sc.x.toFixed(2))}"></label><label>Y, m<input type="number" step="0.1" id="cY" value="${String(+sc.y.toFixed(2))}"></label></div>`}
       <div style="display:flex;gap:6px;flex-wrap:wrap">${sc.pts?'':'<button class="btn sm ghost" id="cRot">90° burish</button><button class="btn sm ghost" id="cPoly">Koʻpburchakka aylantirish</button>'}<button class="btn sm ghost" id="cRep">Oʻngga takrorlash</button><button class="btn sm ghost" id="cFill">Qatorni toʻldirish</button><button class="btn sm ghost" id="cDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div></div>`:''}
     <div><div class="lbl">Normativ tekshiruv</div>${CH.w.length?CH.w.map(t=>`<div class="note" style="color:#b3261e">• ${t}</div>`).join(''):`<div class="note" style="color:#2e7d4f">• ${b.plan.cells.length?(PL.pal==='res'?'Kvartiralar maydoni va zinapoya turi talablarga mos.':'Zinapoya turi talablarga mos.'):'Hali joy chizilmagan.'}</div>`}
       <div class="f" style="margin-top:6px;${PL.pal!=='res'?'display:none':''}">${[1,2,3,4].map(k=>`<label>Min. ${k}${k===4?'+':''} xonali, m²<input type="number" step="1" data-ma="${k}" value="${A[k]}"></label>`).join('')}</div>
@@ -334,14 +345,16 @@ function plDraw(){const {b,fr}=PL,cv=$('#plCv'),pn=$('#plPn');if(!cv)return;cons
     <div><div class="lbl">Oʻlchamlar</div><div class="note">Lineyka (M): ikki nuqtani bosing — oʻlcham chizigʻi qoladi. Oʻng tugma bilan oʻlchamni oʻchirasiz.</div>${b.plan.dims.length?`<button class="btn sm ghost" id="dClr" style="margin-top:6px">Oʻlchamlarni tozalash (${b.plan.dims.length})</button>`:''}</div>
     <div class="note">Chizish (R): toʻrtburchak torting — oʻlchami jonli koʻrinadi. Bogʻlanish: bino chetlari va boshqa kataklar → konstruktiv oʻqlar → toʻr qadami. Tanlash (V): sudrab koʻchiring, oq burchak — oʻlcham. Delete — oʻchirish.</div>`;
   pn.querySelectorAll('[data-kt]').forEach(x=>x.onclick=()=>{if(sc){sc.k=x.dataset.kt;plPush();}else{PL.k=x.dataset.kt;if(PL.tool!=='rect')PL.tool='rect';}plDraw();});
-  pn.querySelectorAll('[data-st]').forEach(x=>x.onclick=()=>{PL.st=x.dataset.st;plDraw();});
+  pn.querySelectorAll('[data-st]').forEach(x=>x.onclick=()=>{PL.st=x.dataset.st;plDraw();});if($('#plMw'))$('#plMw').onchange=e=>{PL.mw=+e.target.value;plDraw();};
   pn.querySelectorAll('[data-ma]').forEach(i=>i.onchange=()=>{minA()[i.dataset.ma]=+i.value;save();plDraw();});
   const nm=(id,fn)=>{const i=$(id);if(i)i.onchange=()=>{fn(+i.value);plPush();plDraw();};};
   if(sc){nm('#cW',v=>sc.w=Math.max(.6,v));nm('#cH',v=>sc.h=Math.max(.6,v));nm('#cX',v=>sc.x=v);nm('#cY',v=>sc.y=v);
     if($('#cPoly'))$('#cPoly').onclick=()=>{sc.pts=clipRect(fr.pts,sc).map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)]);plPush();plDraw();};
-    if($('#cRot'))$('#cRot').onclick=()=>{const cx=sc.x+sc.w/2,cy=sc.y+sc.h/2;[sc.w,sc.h]=[sc.h,sc.w];sc.x=cx-sc.w/2;sc.y=cy-sc.h/2;sc.r=((sc.r||0)+90)%360;plPush();plDraw();};
+    if($('#cRot'))$('#cRot').onclick=()=>{const cx=sc.x+sc.w/2,cy=sc.y+sc.h/2;sc.r=((sc.r||0)+90)%360;if(sc.k==='core'){const [w,h]=coreSize(sc);sc.w=w;sc.h=h;}else[sc.w,sc.h]=[sc.h,sc.w];sc.x=+(cx-sc.w/2).toFixed(2);sc.y=+(cy-sc.h/2).toFixed(2);plPush();plDraw();};
     $('#cRep').onclick=()=>{if(sc.pts){const xs=sc.pts.map(p=>p[0]),dw=Math.max(...xs)-Math.min(...xs);const n=Object.assign({},sc,{id:uid(),pts:sc.pts.map(p=>[p[0]+dw,p[1]])});b.plan.cells.push(n);PL.sel=n.id;plPush();plDraw();return;}const n=Object.assign({},sc,{id:uid(),x:sc.x+sc.w});b.plan.cells.push(n);PL.sel=n.id;plPush();plDraw();};
-    $('#cFill').onclick=()=>{if(sc.pts)return;let x=sc.x+sc.w;while(x+sc.w*.5<fr.W){b.plan.cells.push(Object.assign({},sc,{id:uid(),x}));x+=sc.w;}plPush();plDraw();};
+    const reCore=()=>{const cx=sc.x+sc.w/2,cy=sc.y+sc.h/2,[w,h]=coreSize(sc);sc.w=w;sc.h=h;sc.x=+(cx-w/2).toFixed(2);sc.y=+(cy-h/2).toFixed(2);};
+    if($('#cSub'))$('#cSub').onchange=e=>{sc.sub=e.target.value;reCore();plPush();plDraw();};if($('#cMw'))$('#cMw').onchange=e=>{sc.mw=+e.target.value;reCore();plPush();plDraw();};
+    if($('#cFill'))$('#cFill').onclick=()=>{if(sc.pts)return;let x=sc.x+sc.w;while(x+sc.w*.5<fr.W){b.plan.cells.push(Object.assign({},sc,{id:uid(),x}));x+=sc.w;}plPush();plDraw();};
     $('#cDel').onclick=()=>{b.plan.cells=b.plan.cells.filter(c=>c!==sc);PL.sel=null;plPush();plDraw();};}
   if($('#plWhole'))$('#plWhole').onclick=()=>{const c={id:uid(),k:PL.k==='core'?RT[PL.pal][0]:PL.k,pts:fr.pts.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)])};b.plan.cells.push(c);PL.sel=c.id;PL.tool='cut';plPush();plDraw();toast('Endi «Boʻlish» chizigʻi bilan xonalarga kesing: ikki nuqtani bosing.');};
   if($('#dClr'))$('#dClr').onclick=()=>{b.plan.dims=[];plPush();plDraw();};
@@ -357,18 +370,47 @@ function splitCells(a,b2){const {b,fr}=PL;let n=0;const out=[];b.plan.cells.forE
 function dimLine(a,b,FS,col){const L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.05)return '';const ux=(b[0]-a[0])/L,uy=(b[1]-a[1])/L,nx=-uy,ny=ux,t=.35,an=Math.atan2(uy,ux)*180/Math.PI,ang=an>90||an<-90?an+180:an,mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
   return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${col}" stroke-width=".06"/>${[a,b].map(p=>`<line x1="${p[0]-(ux-nx)*t}" y1="${p[1]-(uy-ny)*t}" x2="${p[0]+(ux-nx)*t}" y2="${p[1]+(uy-ny)*t}" stroke="${col}" stroke-width=".1"/>`).join('')}
     <text x="${mx+nx*.35}" y="${my+ny*.35}" font-size="${FS}" text-anchor="middle" font-family="IBM Plex Mono" fill="${col}" transform="rotate(${ang} ${mx+nx*.35} ${my+ny*.35})" dy="-.15" paint-order="stroke" stroke="#fff" stroke-width="${FS*.25}">${fm(L)}</text>`;}
-function stairSym(c){const s=STAIRS[c.sub];if(!s)return '';const n1=s[3]==='N1',vert=(c.r||0)%180===90,x=c.x,y=c.y,w=c.w,h=c.h;let o='';
-  const fl=vert?{x,y,w:w*(n1?.45:.55),h}:{x,y,w:w*(n1?.45:.55),h};const steps=10;for(let i=1;i<steps;i++){const yy=fl.y+fl.h*.2+(fl.h*.6)*i/steps;o+=`<line x1="${fl.x+.15}" x2="${fl.x+fl.w/2-.05}" y1="${yy}" y2="${yy}" stroke="#555" stroke-width=".04"/><line x1="${fl.x+fl.w/2+.05}" x2="${fl.x+fl.w-.15}" y1="${yy}" y2="${yy}" stroke="#555" stroke-width=".04"/>`;}
-  o+=`<line x1="${fl.x+fl.w/2}" x2="${fl.x+fl.w/2}" y1="${fl.y+fl.h*.18}" y2="${fl.y+fl.h*.82}" stroke="#555" stroke-width=".08"/>`;
-  const lifts=c.sub==='L1L'?1:c.sub==='L1LL'||c.sub==='N1'?2:0;for(let i=0;i<lifts;i++){const lx=x+w*(n1?.47:.58)+i*1.9,ly=y+h-2.4;o+=`<rect x="${lx}" y="${ly}" width="1.7" height="2.1" fill="#fff" stroke="#555" stroke-width=".05"/><line x1="${lx}" y1="${ly}" x2="${lx+1.7}" y2="${ly+2.1}" stroke="#555" stroke-width=".04"/><line x1="${lx+1.7}" y1="${ly}" x2="${lx}" y2="${ly+2.1}" stroke="#555" stroke-width=".04"/>`;}
-  if(n1)o+=`<rect x="${x+w*.47}" y="${y+.3}" width="${w*.5}" height="${h*.35}" fill="none" stroke="#2f6feb" stroke-width=".05" stroke-dasharray=".3 .2"/><text x="${x+w*.72}" y="${y+h*.2}" font-size=".5" text-anchor="middle" fill="#2f6feb" font-family="Archivo">havo zonasi</text>`;return o;}
+function coreGeo(sub,mw){mw=+mw||1.2;const t=.2,gap=.1,fh=+P.p.fh||3,nR=Math.max(4,Math.ceil(fh/.165/2)*2),hR=fh/nR,tr=.3,nT=nR/2-1,run=nT*tr,Lm=Math.max(1.3,mw+.1),Lf=Math.max(1.5,mw+.3),Ws=2*mw+gap,Hs=t+Lm+run+Lf+t,
+  nL={L1L:1,L1LL:2,N1:2}[sub]||0,sw=2.0,sd=2.2,Da=1.5,hall=2.4;let W,H;
+  if(sub==='N1'){W=t+Ws+t+hall+t+sd+t;H=Math.max(Hs,Da+t+nL*sw+(nL-1)*t+t);}else if(nL){W=t+Ws+t+nL*sw+(nL-1)*t+t;H=Math.max(Hs,t+sd+t+2.2+t);}else{W=t+Ws+t;H=Hs;}
+  return {t,gap,mw,nR,hR,tr,nT,run,Lm,Lf,Ws,Hs,nL,sw,sd,Da,hall,W:+W.toFixed(2),H:+H.toFixed(2)};}
+function coreSize(c){const g=coreGeo(c.sub,c.mw),v=(c.r||0)%180===90;return v?[g.H,g.W]:[g.W,g.H];}
+function coreXf(c,g){return `translate(${c.x+c.w/2} ${c.y+c.h/2}) rotate(${c.r||0}) translate(${-g.W/2} ${-g.H/2})`;}
+function coreW2(c,g,lx,ly){const a=(c.r||0)*Math.PI/180,dx=lx-g.W/2,dy=ly-g.H/2;return [c.x+c.w/2+dx*Math.cos(a)-dy*Math.sin(a),c.y+c.h/2+dx*Math.sin(a)+dy*Math.cos(a)];}
+function stairSym(c){const S=STAIRS[c.sub];if(!S)return '';const g=coreGeo(c.sub,c.mw),{t,mw,gap,Ws,tr,nT,run,Lm,Lf,sw,sd,Da,hall,W,H}=g,n1=c.sub==='N1',WL='#2b2b2b',LN='#3c3c3c';let o='';
+  const R=(x,y,w,h,f,ex='')=>`<rect x="${x}" y="${y}" width="${Math.max(0,w)}" height="${Math.max(0,h)}" fill="${f}" ${ex}/>`,Ln=(x1,y1,x2,y2,w=.03,ex='')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${LN}" stroke-width="${w}" ${ex}/>`;
+  // eshik: devordagi oʻyiq + tabaqa + yoy. hz — gorizontal devor (y=wy), d=+1/-1 ochilish tomoni
+  const door=(hz,cx,wy,dw,d)=>{if(hz){const y0=d>0?wy+t:wy;return R(cx-dw/2,wy-.01,dw,t+.02,'#fff')+Ln(cx-dw/2,y0,cx-dw/2,y0+d*dw,.035)+`<path d="M${cx-dw/2+dw} ${y0} A${dw} ${dw} 0 0 ${d>0?1:0} ${cx-dw/2} ${y0+d*dw}" fill="none" stroke="${LN}" stroke-width=".02"/>`;}
+    const x0=d>0?wy+t:wy;return R(wy-.01,cx-dw/2,t+.02,dw,'#fff')+Ln(x0,cx-dw/2,x0+d*dw,cx-dw/2,.035)+`<path d="M${x0} ${cx+dw/2} A${dw} ${dw} 0 0 ${d>0?0:1} ${x0+d*dw} ${cx-dw/2}" fill="none" stroke="${LN}" stroke-width=".02"/>`;};
+  const ldoor=(hz,cx,wy,dw)=>hz?R(cx-dw/2,wy-.01,dw,t+.02,'#fff')+Ln(cx-dw/2-.05,wy+t/2,cx+dw/2+.05,wy+t/2,.06):R(wy-.01,cx-dw/2,t+.02,dw,'#fff')+Ln(wy+t/2,cx-dw/2-.05,wy+t/2,cx+dw/2+.05,.06);
+  const lift=(x,y,w,h)=>R(x,y,w,h,'#fff')+R(x+.15,y+.15,w-.3,h-.3,'none',`stroke="${LN}" stroke-width=".03"`)+Ln(x+.15,y+.15,x+w-.15,y+h-.15)+Ln(x+w-.15,y+.15,x+.15,y+h-.15);
+  // marshlar: x0 — zinapoya ichki chap cheti, ry — marsh boshlanishi, top — qavat maydonchasi tepada
+  const flights=(x0,ry,top)=>{let q='';for(let i=0;i<=nT;i++){const y=ry+i*tr;q+=Ln(x0,y,x0+mw,y)+Ln(x0+mw+gap,y,x0+Ws,y);}
+    q+=R(x0+mw,ry,gap,run,'none',`stroke="${LN}" stroke-width=".03"`);const ym=ry+run/2;
+    q+=`<polyline points="${x0},${ym+.35} ${x0+Ws*.45},${ym+.05} ${x0+Ws*.5},${ym+.25} ${x0+Ws*.55},${ym-.05} ${x0+Ws},${ym-.35}" fill="none" stroke="${LN}" stroke-width=".035"/>`;
+    const ax=x0+mw/2,a0=top?ry-.25:ry+run+.25,a1=top?ry+run*.42:ry+run*.58,d=top?1:-1;
+    q+=`<circle cx="${ax}" cy="${a0}" r=".08" fill="${LN}"/>`+Ln(ax,a0,ax,a1,.03)+`<path d="M${ax-.14} ${a1-d*.28}L${ax} ${a1}L${ax+.14} ${a1-d*.28}" fill="none" stroke="${LN}" stroke-width=".03"/>`;return q;};
+  o+=R(0,0,W,H,WL);o+=R(t,t,Ws,H-2*t,'#fbfaf7');
+  if(n1){o+=flights(t,t+Lf,true);const hx=t+Ws+t;
+    o+=R(hx,0,W-t-hx,Da,'#e6f0fb');o+=Ln(hx,.06,W-t,.06,.05,'stroke-dasharray=".25 .12"');
+    o+=R(hx,Da+t,hall,H-Da-2*t,'#f4f2ec');for(let i=0;i<g.nL;i++){const y=Da+t+i*(sw+t);o+=lift(hx+hall+t,y,sd,sw)+ldoor(false,y+sw/2,hx+hall,.9);}
+    o+=door(false,t+Math.min(Da,Lf)/2,t+Ws,.9,-1)+door(true,hx+hall/2,Da,.9,-1)+door(true,hx+hall/2,H-t,1.2,-1);
+    o+=`<text x="${hx+(W-t-hx)*.64}" y="${Da*.62}" font-size=".38" text-anchor="middle" fill="#2f6feb" font-family="Archivo" transform="rotate(${-(c.r||0)} ${hx+(W-t-hx)/2} ${Da*.5})">havo zonasi · fasad</text>`;}
+  else{o+=flights(t,t+Lm,false);
+    if(g.nL){const hx=t+Ws+t;o+=R(hx,t+sd+t,W-t-hx,H-sd-3*t,'#f4f2ec');for(let i=0;i<g.nL;i++){const x=hx+i*(sw+t);o+=lift(x,t,sw,sd)+ldoor(true,x+sw/2,t+sd,.9);}
+      o+=door(false,H-t-Lf/2,t+Ws,1.0,1)+door(true,hx+(W-t-hx)/2,H-t,1.2,-1);}
+    else o+=door(true,t+Ws/2,H-t,1.0,-1);
+    if(c.sub==='GAL')o+=R(-.01,t,t+.02,H-2*t,'#fbfaf7')+Ln(.1,t,.1,H-t,.05,'stroke-dasharray=".25 .12"');}
+  const lx=n1?t+Ws*.3:t+Ws/2,ly=n1?t+Lf*.55:H-t-Lf*.45;
+  o+=`<text x="${lx}" y="${ly}" font-size=".5" font-weight="700" text-anchor="middle" font-family="Archivo" fill="#141414" transform="rotate(${-(c.r||0)} ${lx} ${ly})">${S[3]}</text>`;
+  return `<g transform="${coreXf(c,g)}">${o}</g>`;}
 function autoSplit(){const {b,fr}=PL,w=PL.aw,cor=PL.ac,N=PL.an,cells=[];const rows=cor>0?[[0,(fr.H-cor)/2],[(fr.H+cor)/2,(fr.H-cor)/2]]:[[0,fr.H]];
-  const pick=a=>{let best='2',bd=1e9;P.p.mix.forEach(m=>{if(m[2]>0&&Math.abs(m[2]-a)<bd){bd=Math.abs(m[2]-a);best=String(Math.min(4,m[0]));}});return best;};const H=b.fl*P.p.fh,cs=H>28?'N1':'L1L',cw0=STAIRS[cs][1];
+  const pick=a=>{let best='2',bd=1e9;P.p.mix.forEach(m=>{if(m[2]>0&&Math.abs(m[2]-a)<bd){bd=Math.abs(m[2]-a);best=String(Math.min(4,m[0]));}});return best;};const H=b.fl*P.p.fh,cs=H>28?'N1':'L1L',G0=coreGeo(cs,PL.mw),cw0=G0.W;
   if(cor>0)cells.push({id:uid(),k:'cor',x:0,y:(fr.H-cor)/2,w:fr.W,h:cor});
-  rows.forEach(([y,h],ri)=>{let x=0,i=0;while(x<fr.W-1){const isCore=N>0&&ri===0&&i%(N+1)===N,cw=isCore?Math.min(cw0,w*1.4):w,ww=Math.min(cw,fr.W-x);
-    const c={id:uid(),x,y,w:ww,h};const ar=pArea(clipRect(fr.pts,c));if(ar>=4){if(isCore){c.k='core';c.sub=cs;}else c.k=PL.pal==='res'?pick(ar):RT[PL.pal][0];cells.push(c);}x+=ww;i++;}});
+  rows.forEach(([y,h],ri)=>{let x=0,i=0;while(x<fr.W-1){const isCore=N>0&&ri===0&&i%(N+1)===N,cw=isCore?cw0:w,ww=Math.min(cw,fr.W-x);
+    const c={id:uid(),x,y,w:ww,h};const ar=pArea(clipRect(fr.pts,c));if(ar>=4){if(isCore){c.k='core';c.sub=cs;c.mw=PL.mw||1.2;c.r=0;c.h=Math.min(h,G0.H);if(h-G0.H>1)cells.push({id:uid(),k:'cor',x,y:y+G0.H,w:ww,h:h-G0.H});}else c.k=PL.pal==='res'?pick(ar):RT[PL.pal][0];cells.push(c);}x+=ww;i++;}});
   b.plan.cells=cells;PL.sel=null;}
-function plEvents(){const svg=$('#plSvg');if(!svg)return;const pt=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return [q.x,q.y];};
+function plEvents(){const svg=$('#plSvg');if(!svg)return;const pt=e=>{const sv=$("#plSvg")||svg,p=sv.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(sv.getScreenCTM().inverse());return [q.x,q.y];};
   const guide=s=>{const g=svg.querySelector('#plGuide');if(!g)return;const {fr}=PL;g.innerHTML=(s.gx!=null?`<line x1="${s.gx}" x2="${s.gx}" y1="-4" y2="${fr.H+4}" stroke="#2f6feb" stroke-width=".05" stroke-dasharray=".3 .2"/>`:'')+(s.gy!=null?`<line y1="${s.gy}" y2="${s.gy}" x1="-4" x2="${fr.W+4}" stroke="#2f6feb" stroke-width=".05" stroke-dasharray=".3 .2"/>`:'')+`<path d="M${s.p[0]-.4} ${s.p[1]}h.8M${s.p[0]} ${s.p[1]-.4}v.8" stroke="#f0b429" stroke-width=".1"/>`;};
   const lbl=(x,y,t)=>{const l=svg.querySelector('#plLbl');if(!l)return;l.setAttribute('x',x);l.setAttribute('y',y);l.textContent=t;};
   svg.oncontextmenu=e=>{e.preventDefault();const d=e.target.closest('[data-dim]');if(d){PL.b.plan.dims.splice(+d.dataset.dim,1);plPush();plDraw();}else if(PL.rul){PL.rul=null;plDraw();}};
@@ -382,8 +424,10 @@ function plEvents(){const svg=$('#plSvg');if(!svg)return;const pt=e=>{const p=sv
     if(PL.tool==='cut'){if(!PL.rul){PL.rul=p;return;}const a=PL.rul;PL.rul=null;const d=[p[0]-a[0],p[1]-a[1]],L=Math.hypot(...d)||1,ext=200;splitCells([a[0]-d[0]/L*ext,a[1]-d[1]/L*ext],[p[0]+d[0]/L*ext,p[1]+d[1]/L*ext]);return;}
     const vx=e.target.closest('[data-vx]');if(vx){const [id,i]=vx.dataset.vx.split(':'),c=cells.find(c=>c.id===id);svg.setPointerCapture(e.pointerId);drag2(svg,{m:'vx',c,i:+i},pt,guide,lbl);return;}
     if(PL.tool==='ruler'){if(!PL.rul){PL.rul=p;return;}PL.b.plan.dims.push({a:PL.rul,b:p});PL.rul=null;plPush();plDraw();return;}
-    if(PL.tool==='stair'){const S=STAIRS[PL.st],c={id:uid(),k:'core',sub:PL.st,x:+(p[0]-S[1]/2).toFixed(2),y:+(p[1]-S[2]/2).toFixed(2),w:S[1],h:S[2]};const s2=snapP([c.x,c.y]);c.x=s2.p[0];c.y=s2.p[1];cells.push(c);PL.sel=c.id;plPush();plDraw();return;}
+    if(PL.tool==='stair'&&cg&&cells.find(c=>c.id===cg.dataset.c&&c.k==='core')){const c=cells.find(c=>c.id===cg.dataset.c);PL.sel=c.id;plDraw();const s2=$('#plSvg');s2.setPointerCapture(e.pointerId);drag2(s2,{m:'mv',c,p0:raw,x:c.x,y:c.y},pt,null,null);return;}
+    if(PL.tool==='stair'){const G=coreGeo(PL.st,PL.mw),c={id:uid(),k:'core',sub:PL.st,mw:PL.mw||1.2,r:0,x:+(p[0]-G.W/2).toFixed(2),y:+(p[1]-G.H/2).toFixed(2),w:G.W,h:G.H};const s2=snapP([c.x,c.y]);c.x=s2.p[0];c.y=s2.p[1];cells.push(c);PL.sel=c.id;plPush();plDraw();return;}
     svg.setPointerCapture(e.pointerId);
+    if(cg&&PL.tool==='rect'){const c=cells.find(c=>c.id===cg.dataset.c);if(c&&(c.k==='core'||c.id===PL.sel)){const s2=$('#plSvg');s2.setPointerCapture(e.pointerId);drag2(s2,{m:'mv',c,p0:raw,x:c.x,y:c.y},pt,null,null);return;}}
     if(PL.tool==='sel'||rz){if(rz){const c=cells.find(c=>c.id===rz.dataset.rz);const st={m:'rz',c,p0:raw,w:c.w,h:c.h};drag2(svg,st,pt,guide,lbl);return;}
       if(cg){const c=cells.find(c=>c.id===cg.dataset.c);PL.sel=c.id;plDraw();const s2=$('#plSvg');s2.setPointerCapture(e.pointerId);drag2(s2,{m:'mv',c,p0:raw,x:c.x,y:c.y},pt,null,null);return;}
       PL.sel=null;plDraw();return;}
@@ -513,6 +557,6 @@ window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,
 })();
 </script>
 <script src="js/massing.js?v=2"></script>
-<script src="js/i18n.js?v=5"></script>
+<script src="js/i18n.js?v=7"></script>
 </body>
 </html>
