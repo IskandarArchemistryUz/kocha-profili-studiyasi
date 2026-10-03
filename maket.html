@@ -372,8 +372,10 @@ function renderLeft(){document.querySelectorAll('[data-lt]').forEach(b=>b.setAtt
 function addMat(m,cx,cy){if(!m)return;const it={id:uid(),t:'mat',src:m.src,name:m.name,aspect:m.aspect||1.6,mW:m.mW||null,legend:m.legend||null,frame:false,x:0,y:0,w:0,h:0};
   const [W,Hh]=pageWH(pg());if(m.mW){it.scale=200;it.w=m.mW*1000/it.scale;}else it.w=Math.min(W*.5,180);
   if(it.w>W*.9){it.w=W*.9;if(m.mW)it.scale=Math.round(m.mW*1000/it.w);}
+  if(it.w/it.aspect>Hh*.78)it.w=Hh*.78*it.aspect;
+  if(m.mW){const need=m.mW*1000/it.w,SC=[200,250,500,1000,2000,2500,5000,7500,10000,12500,15000,20000,25000,50000];it.scale=SC.find(v=>v>=need)||Math.ceil(need/1000)*1000;it.w=m.mW*1000/it.scale;}
   it.h=it.w/it.aspect;it.x=Math.max(5,cx-it.w/2);it.y=Math.max(5,cy-it.h/2);pg().items.push(it);sel=it.id;
-  if(m.legend&&m.legend.length){const lg={id:uid(),t:'legend',title:'',entries:clone(m.legend),fs:7,cols:Math.min(4,m.legend.length),x:it.x,y:it.y+it.h+2,w:Math.max(60,it.w),h:0};lg.h=legendH(lg);pg().items.push(lg);}
+  if(m.legend&&m.legend.length){const side=it.x+it.w+70<W;const lg={id:uid(),t:'legend',title:'',entries:clone(m.legend),fs:7,cols:side?1:Math.min(4,m.legend.length),x:side?it.x+it.w+4:it.x,y:side?it.y:it.y+it.h+2,w:side?62:Math.max(60,it.w),h:0};lg.h=legendH(lg);if(!side&&lg.y+lg.h>Hh-5){lg.y=Math.max(5,Hh-5-lg.h);}pg().items.push(lg);}
   commit();renderAll();}
 /* ---------- oʻng panel ---------- */
 function renderProps(){renderProps0();const el=$('#props'),it=pg().items.find(x=>x.id===sel);if(E_().length<=1&&it&&['rect','ellipse','poly','flow','icon','row','text','line','arrow','pen'].includes(it.t)&&!el.querySelector('[data-role]'))el.insertAdjacentHTML('beforeend',roleRow());if(E_().length<=1&&it&&['line','pen','arrow'].includes(it.t))el.insertAdjacentHTML('beforeend',mobRow());if(E_().length>1&&E_().some(x=>x.pts)&&!el.querySelector('[data-mob]'))el.insertAdjacentHTML('beforeend',mobRow());}
@@ -816,6 +818,6 @@ window.addEventListener('resize',()=>renderPaper());
 window.KPS_MK={get doc(){return doc;},pageCanvas};
 })();
 </script>
-<script src="js/i18n.js?v=19"></script>
+<script src="js/i18n.js?v=20"></script>
 </body>
 </html>

@@ -54,7 +54,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <div class="seg" id="modeSeg"><button data-m="radius" aria-pressed="true">Radius</button><button data-m="poly" aria-pressed="false">Chegara chizish</button></div>
 <label class="km">r =<input id="rKm" type="number" min="0.2" max="5" step="0.1" value="1">km</label>
 <button class="btn dark" id="runBtn">Hisoblash</button>
-<button class="btn ghost" id="keyBtn">AI kaliti</button>
+<button class="btn ghost" id="albBtn" title="Xarita (yoqilgan qatlamlar, fon bilan), koʻrsatkichlar va 15 daqiqa jadvalini albomga yuborish">Albomga →</button><button class="btn ghost" id="keyBtn">AI kaliti</button>
 </header>
 <main>
 <div class="mapw"><div id="map"></div><div class="hint" id="hint"></div>
@@ -403,7 +403,7 @@ function renderRes(){if(!res){$('#body').innerHTML=`<div><h2>Hudud bahosi</h2><d
   h+=`<div><div class="lbl" style="color:var(--ai)">AI xulosasi · qoralama, tekshiring</div><div class="ai" id="aiOut">${aiText?md(aiText):(KEY()?'<span class="note">Yuqoridagi soʻrovni yuboring (↑) yoki tugmalardan birini tanlang.</span>':'')}</div></div>${KEY()?'':keyBox()}
     ${prmBox()}<div class="chips"><button id="toMk">Albomga →</button><button id="cpJ">JSON nusxa</button></div>`;
   $('#body').innerHTML=h;bindKey();bind15();bindCV();bindOff();
-  $('#toMk').onclick=toMaket;$('#cpJ').onclick=()=>{navigator.clipboard.writeText(JSON.stringify(res,null,2));toast('Koʻrsatkichlar nusxalandi.');};}
+  $('#toMk').onclick=()=>toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));$('#cpJ').onclick=()=>{navigator.clipboard.writeText(JSON.stringify(res,null,2));toast('Koʻrsatkichlar nusxalandi.');};}
 function keyBox(){return `<div class="keybox"><b>AI xulosasi uchun Anthropic API kaliti</b><span class="note">Sayt serversiz ishlaydi: soʻrov brauzeringizdan toʻgʻridan-toʻgʻri Anthropic API ga ketadi. Kalit faqat shu brauzerda saqlanadi; har soʻrov kalit egasining hisobidan toʻlanadi. Kalit: console.anthropic.com → API Keys.</span>
   <input type="password" id="kIn" placeholder="sk-ant-..." value="${esc(KEY())}"><select id="kMod"><option value="${esc(MODEL())}">${esc(MODEL())}</option></select><div style="display:flex;gap:6px"><button class="btn sm dark" id="kSave">Saqlash</button><button class="btn sm ghost" id="kDel">Oʻchirish</button></div></div>`;}
 function bindKey(){if(!$('#kSave'))return;$('#kSave').onclick=async()=>{localStorage.setItem('kps_ai_key',$('#kIn').value.trim());localStorage.setItem('kps_ai_model',$('#kMod').value);await loadModels();toast('Kalit saqlandi.');renderRes();};
@@ -418,7 +418,14 @@ async function ask(q){if(!res){toast('Avval hududni hisoblang.');return;}if(!KEY
     const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));aiText=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');out.innerHTML=md(aiText);}
   catch(e){out.innerHTML=`<span class="note" style="color:var(--bad)">AI javob bermadi: ${esc(e.message)}</span>`;}}
 $('#askBtn').onclick=()=>ask($('#q').value);document.querySelectorAll('[data-qq]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.qq;ask(b.dataset.qq);});
-$('#runBtn').onclick=compute;
+$('#runBtn').onclick=compute;$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
+async function baseImg(bb){if(BASE==='none')return null;const U={grey:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}[BASE];if(!U)return null;
+  const lx=(lon,z)=>(lon+180)/360*2**z,ly=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*2**z;let z=BASE==='grey'?16:17;
+  while(z>11&&(Math.floor(lx(bb[3],z))-Math.floor(lx(bb[1],z))+1)*(Math.floor(ly(bb[0],z))-Math.floor(ly(bb[2],z))+1)>64)z--;
+  const fx0=lx(bb[1],z),fx1=lx(bb[3],z),fy0=ly(bb[2],z),fy1=ly(bb[0],z),X0=Math.floor(fx0),X1=Math.floor(fx1),Y0=Math.floor(fy0),Y1=Math.floor(fy1);
+  const cv=document.createElement('canvas');cv.width=Math.round((fx1-fx0)*256);cv.height=Math.round((fy1-fy0)*256);const g=cv.getContext('2d');let ok=0;
+  const jobs=[];for(let x=X0;x<=X1;x++)for(let y=Y0;y<=Y1;y++)jobs.push(new Promise(r=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{g.drawImage(im,(x-fx0)*256,(y-fy0)*256);ok++;r();};im.onerror=()=>r();im.src=U.replace('{z}',z).replace('{x}',x).replace('{y}',y);}));
+  await Promise.all(jobs);if(!ok)return null;try{return cv.toDataURL('image/jpeg',.85);}catch(e){return null;}}
 async function toMaket(){const put=o=>new Promise((ok,no)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=ok;t.onerror=()=>no(t.error);};r.onerror=()=>no(r.error);});
   const rows=MET.filter(m=>res[m[1]]!=null).map(m=>[m[0],f1(res[m[1]])+' '+m[2]]),tw=460,th=22,H=rows.length*th+34,t=new Date().toISOString();
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tw} ${H}" font-family="Archivo, sans-serif"><rect width="${tw}" height="${H}" fill="#fff"/><text x="0" y="18" font-size="15" font-weight="600">Hudud koʻrsatkichlari · ${esc(res.mode)}</text>${rows.map((r,i)=>`<line x1="0" x2="${tw}" y1="${32+i*th}" y2="${32+i*th}" stroke="#dedcd7"/><text x="0" y="${32+i*th+15}" font-size="12.5" fill="#3c3c3c">${esc(r[0])}</text><text x="${tw}" y="${32+i*th+15}" font-size="12.5" text-anchor="end" font-family="IBM Plex Mono, monospace">${esc(r[1])}</text>`).join('')}</svg>`;
@@ -426,9 +433,9 @@ async function toMaket(){const put=o=>new Promise((ok,no)=>{const r=indexedDB.op
   if(aiText){const lines=[];aiText.replace(/\*\*/g,'').split('\n').forEach(l=>{l=l.replace(/^#+\s*/,'').replace(/^[-*]\s+/,'— ');while(l.length>78){let k=l.lastIndexOf(' ',78);if(k<20)k=78;lines.push(l.slice(0,k));l=l.slice(k+1);}lines.push(l);});
     const lh=17,H2=lines.length*lh+20,s2=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tw} ${H2}" font-family="Archivo, sans-serif"><rect width="${tw}" height="${H2}" fill="#fff"/>${lines.map((l,i)=>`<text x="0" y="${16+i*lh}" font-size="12">${esc(l)}</text>`).join('')}</svg>`;
     const src2='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s2);await put({id:'aiT'+Date.now().toString(36),kind:'svg',name:'AI xulosasi',src:src2,thumb:src2,aspect:tw/H2,sub:'matn',t});}
-  if(LASTD){const b=LASTD.bb,pad=.04,bb=[b[0]-(b[2]-b[0])*pad,b[1]-(b[3]-b[1])*pad,b[2]+(b[2]-b[0])*pad,b[3]+(b[3]-b[1])*pad],X=ULY.toSVG(bb,1000),R2=LASTD.ring,MXl=111320*Math.cos((bb[0]+bb[2])/2*R),k=1000/((bb[3]-bb[1])*MXl);
+  if(LASTD){const b=LASTD.bb,pad=.04,bb=[b[0]-(b[2]-b[0])*pad,b[1]-(b[3]-b[1])*pad,b[2]+(b[2]-b[0])*pad,b[3]+(b[3]-b[1])*pad],X=ULY.toSVG(bb,1000),BG=await baseImg(bb),R2=LASTD.ring,MXl=111320*Math.cos((bb[0]+bb[2])/2*R),k=1000/((bb[3]-bb[1])*MXl);
     const ringP=`<path d="M${R2.map(p=>`${((p[1]-bb[1])*MXl*k).toFixed(1)} ${((bb[2]-p[0])*MY*k).toFixed(1)}`).join('L')}Z" fill="none" stroke="#141414" stroke-width="2" stroke-dasharray="8 5"/>`;
-    const s4=X.svg.replace('</svg>',ringP+'</svg>'),src4='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s4);
+    const s4=X.svg.replace(/(<rect width="[^"]+" height="[^"]+" fill="#fafaf7"\/>)/,'$1'+(BG?`<image href="${BG}" x="0" y="0" width="${X.W}" height="${X.H.toFixed(0)}" preserveAspectRatio="none"/>`:'')).replace('</svg>',ringP+'</svg>'),src4='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s4);
     await put({id:'amap'+Date.now().toString(36),kind:'svg',name:'Hudud xaritasi — faol qatlamlar',src:src4,thumb:src4,mW:(bb[3]-bb[1])*MXl,aspect:X.W/X.H,sub:res.mode,t,legend:X.legend});}
   if(res.fifteen_min){const F=res.fifteen_min,rw=C15.map(([c,n])=>[n,F.categories[n]]),th2=22,H3=rw.length*th2+56,s3=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tw} ${H3}" font-family="Archivo, sans-serif"><rect width="${tw}" height="${H3}" fill="#fff"/><text x="0" y="18" font-size="15" font-weight="600">15 daqiqalik shahar · ${F.speed_kmh} km/soat</text><text x="250" y="44" font-size="10" fill="#696969">≤5′</text><text x="310" y="44" font-size="10" fill="#696969">≤10′</text><text x="370" y="44" font-size="10" fill="#696969">≤15′</text><text x="${tw}" y="44" font-size="10" fill="#696969" text-anchor="end">med.</text>${rw.map(([n,x],i)=>`<line x1="0" x2="${tw}" y1="${50+i*th2}" y2="${50+i*th2}" stroke="#dedcd7"/><text x="0" y="${50+i*th2+15}" font-size="12" fill="#3c3c3c">${esc(n)}</text>${[x.within_5min_pct,x.within_10min_pct,x.within_15min_pct].map((v,j)=>`<text x="${250+j*60}" y="${50+i*th2+15}" font-size="12" font-family="IBM Plex Mono, monospace">${f1(v)}%</text>`).join('')}<text x="${tw}" y="${50+i*th2+15}" font-size="12" text-anchor="end" font-family="IBM Plex Mono, monospace">${x.median_min!=null?f1(x.median_min)+'′':'—'}</text>`).join('')}</svg>`;
     const src3='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s3);await put({id:'a15'+Date.now().toString(36),kind:'svg',name:'15 daqiqalik shahar — jadval',src:src3,thumb:src3,aspect:tw/H3,sub:res.mode,t,legend:C15.map(([c,n,col])=>({col,label:n,kind:'fill',on:true}))});}
@@ -438,6 +445,6 @@ if(window.KPS_LANG&&window.KPS_LANG!=='uz'){const q=$('#q');q.value=window.kpsT(
 hint();renderRes();
 })();
 </script>
-<script src="js/i18n.js?v=19"></script>
+<script src="js/i18n.js?v=20"></script>
 </body>
 </html>
