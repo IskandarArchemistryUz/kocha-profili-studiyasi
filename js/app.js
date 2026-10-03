@@ -271,7 +271,7 @@ function renderPlan(){
   const w=S.view,p=S.prof[w];if(!S.site||!p.length)return;
   const c=cumLen(ax.xy),T=c[c.length-1],f=frameAt(ax.xy,c,T/2);
   const P=d=>toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],ax.o), proj=ll=>{const q=toXY([ll.lat,ll.lng],ax.o);return (q[0]-f.p[0])*f.n[0]+(q[1]-f.p[1])*f.n[1];};
-  const ico=(bg,tx)=>L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div style="width:24px;height:24px;border-radius:50%;background:${bg};border:2px solid #1c2628;box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:grab;display:flex;align-items:center;justify-content:center;font:700 13px sans-serif;color:#1c2628">${tx}</div>`});
+  const ico=(bg,tx)=>L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div style="width:24px;height:24px;border-radius:50%;background:${bg};border:2px solid #1c2628;box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:grab;display:flex;align-items:center;justify-content:center;font:700 14.5px sans-serif;color:#1c2628">${tx}</div>`});
   const soon=()=>{if(!drP)drP=requestAnimationFrame(()=>{drP=0;drawPlanStrips(stripsG);});};
   const done=()=>{if(w==='ex')S.row=+sum(p).toFixed(2);renderAll();save();};
   const mkH=side=>{const off=S.site.off||0,tot=sum(p);const m=L.marker(P(side>0?off+tot/2:off-tot/2),{draggable:true,zIndexOffset:1000,icon:ico('#fff','↔'),title:'Chetni sudrang — chekka element eni oʻzgaradi'}).addTo(planL);
@@ -1777,7 +1777,7 @@ function selectAt(ll,h){
   ds.sel=h&&h.t==='seg'?{t:'seg',id:h.id}:null;afterDesign();
 }
 let dragRAF=0;const coreRender=()=>{if(dragRAF)return;dragRAF=requestAnimationFrame(()=>{dragRAF=0;renderDesignCore();});};
-const handleIcon=(shape,col='#fff',txt='')=>L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:`<div style="width:14px;height:14px;background:${col};border:2px solid #1c2628;border-radius:${shape==='c'?'50%':'2px'};box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:${shape==='c'?'move':'ew-resize'};font:700 8px/10px sans-serif;text-align:center;color:#1c2628">${txt}</div>`});
+const handleIcon=(shape,col='#fff',txt='')=>L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:`<div style="width:14px;height:14px;background:${col};border:2px solid #1c2628;border-radius:${shape==='c'?'50%':'2px'};box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:${shape==='c'?'move':'ew-resize'};font:700 9.5px/10px sans-serif;text-align:center;color:#1c2628">${txt}</div>`});
 function renderEditHandles(){
   editL.clearLayers();const ds=DS(),sel=ds.sel;if(S.app!=='design')return;
   // chizish jarayonida: qoʻyilgan nuqtalarni sudrab tuzatish
@@ -1804,7 +1804,7 @@ function renderEditHandles(){
     m.on('drag',e=>{const q=e.target.getLatLng(),v=[q.lat,q.lng];if(i===0)nodeById(sg.a).ll=v;else if(i===ll.length-1)nodeById(sg.b).ll=v;else sg.pts[vi]=v;coreRender();});
     m.on('dragend',()=>{if(isNode&&snapEnd(nodeById(i===0?sg.a:sg.b)))toast('Koʻchaga ulandi — chorraha hosil boʻldi.');afterDesign();});
     if(!isNode){m.on('click',()=>{ds.sel.v=vi;afterDesign();});m.on('contextmenu',e=>openVertexMenu(e,sg,vi));}});
-  for(let i=0;i<ll.length-1;i++){const mp=mid(ll[i],ll[i+1]);const m=L.marker(mp,{pane:'designEdit',icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.6);border:1px dashed #1c2628;font:700 11px/12px sans-serif;text-align:center;color:#1c2628;cursor:copy">+</div>'}),title:'Burilish nuqtasi qoʻshish'}).addTo(editL);
+  for(let i=0;i<ll.length-1;i++){const mp=mid(ll[i],ll[i+1]);const m=L.marker(mp,{pane:'designEdit',icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.6);border:1px dashed #1c2628;font:700 12.5px/12px sans-serif;text-align:center;color:#1c2628;cursor:copy">+</div>'}),title:'Burilish nuqtasi qoʻshish'}).addTo(editL);
     m.on('click',()=>{sg.pts.splice(i,0,mp);sg.rad=sg.rad||[];while(sg.rad.length<sg.pts.length-1)sg.rad.push(0);sg.rad.splice(i,0,ds.drawR||0);ds.sel.v=i;afterDesign();});}
   const f=frameAt(xy,c,T/2),P=d=>toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);
   const bounds=[lay.st[0].d1,...lay.st.map(x=>x.d2)];
@@ -1954,7 +1954,7 @@ function renderSigns(){
   const z=map.getZoom(),sz=Math.max(14,Math.min(44,Math.round(34*Math.pow(2,z-19))));
   (ds.signs||[]).forEach(sn=>{const on=ds.sel&&((ds.sel.t==='sign'&&ds.sel.id===sn.id)||(ds.sel.t==='signs'&&ds.sel.ids.includes(sn.id)));
     const ring=on?'outline:3px solid #f4c542;outline-offset:2px;border-radius:4px;':'';
-    const badge=sn.st==='exist'?`<span style="position:absolute;left:-4px;bottom:-4px;background:#1c2628;color:#fff;font:700 8px sans-serif;border-radius:3px;padding:0 2px">M</span>`:sn.st==='remove'?`<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#d01c2a;font:900 ${sz}px sans-serif;line-height:1">×</span>`:'';
+    const badge=sn.st==='exist'?`<span style="position:absolute;left:-4px;bottom:-4px;background:#1c2628;color:#fff;font:700 9.5px sans-serif;border-radius:3px;padding:0 2px">M</span>`:sn.st==='remove'?`<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#d01c2a;font:900 ${sz}px sans-serif;line-height:1">×</span>`:'';
     const m=L.marker(sn.ll,{pane:'signs',draggable:true,title:`${sn.c} ${signDef(sn.c)[1]}`,icon:L.divIcon({className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],
       html:`<div style="position:relative;width:${sz}px;height:${sz}px;${ring}filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));${sn.st==='remove'?'opacity:.6;':''}"><div style="width:100%;height:100%;transform:rotate(${sn.rot||0}deg)">${signSVG(sn.c,sn.val)}</div>${badge}</div>`})}).addTo(signL);
     m.on('click',e=>{const oe=e.originalEvent||{};if(oe.shiftKey||oe.ctrlKey||oe.metaKey){const cur=ds.sel&&ds.sel.t==='signs'?ds.sel.ids.slice():ds.sel&&ds.sel.t==='sign'?[ds.sel.id]:[];const i=cur.indexOf(sn.id);i<0?cur.push(sn.id):cur.splice(i,1);ds.sel=cur.length?{t:'signs',ids:cur}:null;}else ds.sel={t:'sign',id:sn.id};afterDesign();});
@@ -1970,7 +1970,7 @@ function signCatalogHTML(){const ds=DS(),groups=[['1.','Ogohlantiruvchi'],['2.',
   return `<div class="card" style="padding:10px"><h3>Yoʻl belgilari katalogi</h3>
   <p class="small" style="margin:0 0 8px">Raqamlash Vena konvensiyasi asosidagi tizim boʻyicha. YHQ ilovasidagi rasmiy raqam va nomlar bilan solishtirib tekshiring; kerakli belgi yoʻq boʻlsa — rasmini yuklang.</p>
   ${groups.map(([p,n])=>{const it=all.filter(x=>p==='TL'?x[0]==='TL':x[0].startsWith(p)&&x[0]!=='TL');if(!it.length)return '';
-    return `<div class="pal-h" style="margin-top:6px">${n}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px">${it.map(x=>`<button data-sgn="${x[0]}" title="${x[0]} ${x[1]}" style="border:1px solid ${ds.signSel===x[0]?'var(--acc)':'var(--line)'};${ds.signSel===x[0]?'box-shadow:inset 0 0 0 2px var(--acc);':''}background:var(--bg);border-radius:6px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="width:28px;height:28px">${signSVG(x[0],x[0]==='3.24'?40:null)}</span><span class="num" style="font-size:9px">${x[0]}</span></button>`).join('')}</div>`;}).join('')}
+    return `<div class="pal-h" style="margin-top:6px">${n}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px">${it.map(x=>`<button data-sgn="${x[0]}" title="${x[0]} ${x[1]}" style="border:1px solid ${ds.signSel===x[0]?'var(--acc)':'var(--line)'};${ds.signSel===x[0]?'box-shadow:inset 0 0 0 2px var(--acc);':''}background:var(--bg);border-radius:6px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="width:28px;height:28px">${signSVG(x[0],x[0]==='3.24'?40:null)}</span><span class="num" style="font-size:10.5px">${x[0]}</span></button>`).join('')}</div>`;}).join('')}
   <div class="tools" style="margin-top:8px"><label class="btn sm" for="sgUp">Belgi rasmini yuklash…</label><input id="sgUp" type="file" accept="image/png,image/svg+xml,image/jpeg" hidden>
   <button class="btn sm" id="sgOsm">OSMdagi mavjud belgilarni yuklash (ekrandagi hudud)</button></div>
   ${ds.signSel?`<div class="small" style="margin-top:6px">Tanlangan: <b>${ds.signSel}</b> ${signDef(ds.signSel)[1]} — xaritaga bosing.</div>`:''}
@@ -2171,7 +2171,7 @@ function freeHandles(sel){const ob=freeObj(sel);if(!ob)return;const closed=sel.t
     m.on('drag',e=>{const q=e.target.getLatLng();ob.pts[i]=[q.lat,q.lng];coreRender();});m.on('dragend',()=>afterDesign());
     m.on('contextmenu',()=>{if(ob.pts.length>(closed?3:2)){ob.pts.splice(i,1);afterDesign();}});});
   const n=ob.pts.length;for(let i=0;i<(closed?n:n-1);i++){const a=ob.pts[i],b=ob.pts[(i+1)%n],mp=mid(a,b);
-    const m=L.marker(mp,{pane:'designEdit',icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.6);border:1px dashed #1c2628;font:700 11px/12px sans-serif;text-align:center;color:#1c2628;cursor:copy">+</div>'}),title:'Nuqta qoʻshish'}).addTo(editL);
+    const m=L.marker(mp,{pane:'designEdit',icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.6);border:1px dashed #1c2628;font:700 12.5px/12px sans-serif;text-align:center;color:#1c2628;cursor:copy">+</div>'}),title:'Nuqta qoʻshish'}).addTo(editL);
     m.on('click',()=>{ob.pts.splice(i+1,0,mp);afterDesign();});}}
 function freeHint(h,t){const ds=DS(),n=F.pts.length;
   const what=t==='shape'?`<b>Erkin shakl</b> (${SHP[ds.shapeType||'asphalt'].n}). Chegarani nuqtama-nuqta bosing; birinchi nuqtani bosib yoki Enter bilan yoping.`
@@ -2198,7 +2198,7 @@ function bindFree(el,q){const ds=DS();
   const g=el.querySelector('#guide');if(g)g.addEventListener('toggle',()=>{ds.guideOpen=g.open;save();});}
 function guideHTML(){const ds=DS(),open=ds.guideOpen??true;
   const sec=(t,items)=>`<div style="margin-top:10px"><b>${t}</b><ol style="margin:4px 0 0;padding-left:20px;display:grid;gap:3px">${items.map(x=>`<li>${x}</li>`).join('')}</ol></div>`;
-  return `<details id="guide" class="card" style="padding:10px 12px" ${open?'open':''}><summary style="font-size:14px">Qoʻllanma — qanday ishlatiladi</summary><div class="small" style="color:var(--ink);font-size:12.5px;line-height:1.5">
+  return `<details id="guide" class="card" style="padding:10px 12px" ${open?'open':''}><summary style="font-size:15px">Qoʻllanma — qanday ishlatiladi</summary><div class="small" style="color:var(--ink);font-size:14px;line-height:1.5">
   ${sec('Koʻcha chizish',['«Koʻcha chizish» asbobini tanlang.','Pastdagi roʻyxatdan modulni tanlang (guruhni bosib oching) yoki «Konstruktor»da oʻzingiz tuzing.','Kerak boʻlsa burilish radiusini va «Bir tomonlama» rejimini tanlang.','Xaritada boshlanish nuqtasini, soʻng burilish nuqtalarini bosing. Qoʻyilgan nuqtalarni sudrab tuzatish mumkin.','Mavjud koʻcha yoki tugunni bossangiz — ulanadi va chorraha hosil boʻladi. Boʻsh joyda tugatish — Enter yoki ikki marta bosish.'])}
   ${sec('Bir tomonlama harakat',['Yangi koʻcha uchun: chizishdan oldin «→ Bir tomonlama» ni tanlang — harakat siz chizgan yoʻnalishda boʻladi.','Mavjud koʻcha uchun: «Tanlash / tahrirlash» → koʻchani bosing → «Harakat» qatoridan tanlang. Sariq strelka oʻq yoʻnalishini koʻrsatadi; teskari kerak boʻlsa «← teskari».'])}
   ${sec('Tahrirlash',['«Tanlash / tahrirlash» bilan koʻchaning istalgan qismini bosing — oʻsha element (boʻlak, trotuar, yashil…) tanlanadi, turini panelda almashtirasiz.','Oq kvadratlar — elementlar chegarasi: sudrab enini oʻzgartirasiz.','«R» doiralar — burilish nuqtalari: sudrang yoki bosib radiusini tanlang; «+» — yangi nuqta; oʻng tugma — nuqtani oʻchirish.','Delete — tanlanganni oʻchirish; Esc — bekor qilish.'])}
@@ -2427,7 +2427,7 @@ function fileHTML(){const saves=readSaves(),keys=Object.keys(saves).sort((a,b)=>
   return `<details class="card" style="padding:10px" ${DS().fileOpen?'open':''} id="fileBox"><summary>Fayl: saqlash, ochish, yuklab olish</summary>
   <div class="field" style="margin-top:8px"><label for="pName">Loyiha nomi</label><input id="pName" value="${projName().replace(/"/g,'&quot;')}"></div>
   <div class="pal-h" style="margin-top:10px">Loyiha</div><div class="tools"><button class="btn sm primary" id="fSave">Faylga saqlash (.json)</button><label class="btn sm" for="fOpen">Fayldan ochish…</label><input id="fOpen" type="file" accept=".json" hidden><button class="btn sm" id="fBrow">Brauzerda saqlash</button></div>
-  ${keys.length?`<div style="margin-top:6px;display:grid;gap:4px">${keys.map(k=>`<div style="display:flex;gap:6px;align-items:center;font-size:12px"><span style="flex:1">${k} <span class="small">${saves[k].t.slice(0,16).replace('T',' ')}</span></span><button class="btn sm" data-lo="${k.replace(/"/g,'&quot;')}">Ochish</button><button class="btn sm" data-rm="${k.replace(/"/g,'&quot;')}" style="color:var(--bad)">✕</button></div>`).join('')}</div>`:''}
+  ${keys.length?`<div style="margin-top:6px;display:grid;gap:4px">${keys.map(k=>`<div style="display:flex;gap:6px;align-items:center;font-size:13.5px"><span style="flex:1">${k} <span class="small">${saves[k].t.slice(0,16).replace('T',' ')}</span></span><button class="btn sm" data-lo="${k.replace(/"/g,'&quot;')}">Ochish</button><button class="btn sm" data-rm="${k.replace(/"/g,'&quot;')}" style="color:var(--bad)">✕</button></div>`).join('')}</div>`:''}
   <div class="pal-h" style="margin-top:10px">Rasm</div><div class="tools"><select id="eScale" class="btn sm">${[[2,'2 px/m'],[4,'4 px/m'],[8,'8 px/m (yuqori)'],[12,'12 px/m']].map(([v,n])=>`<option value="${v}" ${v===4?'selected':''}>${n}</option>`).join('')}</select>
     <label class="small"><input type="checkbox" id="eSat" checked> Sunʼiy yoʻldosh fonda</label><button class="btn sm" id="ePng">PNG</button><button class="btn sm" id="eSvg">SVG (vektor, qatlamli)</button></div>
   <div class="pal-h" style="margin-top:10px">CAD / GIS (ArchiCAD, AutoCAD, QGIS)</div><div class="tools"><select id="eCrs" class="btn sm"><option value="local">Mahalliy koordinata (0,0 — birinchi tugun), metr</option><option value="utm">UTM WGS84 (Toshkent — 42N), metr</option></select>
@@ -2992,7 +2992,7 @@ async function openConcept3D(src,opt){
   C3.src=src;
   let ov=document.getElementById('c3d');
   if(!ov){ov=document.createElement('div');ov.id='c3d';ov.style.cssText='position:fixed;inset:0;z-index:3000;background:#ffffff;display:flex;flex-direction:column';
-    ov.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);font-size:12.5px">
+    ov.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);font-size:14px">
       <b style="margin-right:6px">Gʻoyaviy 3D</b><span id="c3src"></span>
       <label>Qavatlar <input type="range" id="c3f" min="1" max="16" step="1" style="width:90px"> <b id="c3fv"></b></label>
       <label>Odamlar/transport <select id="c3p"><option value="0">yoʻq</option><option value="1">kam</option><option value="2">oʻrta</option><option value="3">koʻp</option></select></label>
@@ -3003,7 +3003,7 @@ async function openConcept3D(src,opt){
       <label>Butalar <select id="c3s"><option value="0">yoʻq</option><option value="0.6">0,6 m</option><option value="1">1,0 m</option><option value="1.4">1,4 m</option></select></label>
       <label>Palitra <select id="c3pal">${Object.entries(C3PAL).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('')}</select></label>
       <button class="btn sm" id="c3as">Modellar…</button><span style="flex:1"></span><button class="btn sm" id="c3iso">Qayta markazlash</button><button class="btn sm" id="c3png">PNG (yuqori sifat)</button><button class="btn sm primary" id="c3x">Yopish (Esc)</button></div>
-      <div id="c3c" style="flex:1;position:relative"></div><div id="c3sight" style="position:absolute;right:12px;top:92px;max-width:460px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.45;box-shadow:var(--shadow)"></div><div style="position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#777">Sichqoncha: chap — aylantirish, oʻng — surish, gʻildirak — kattalashtirish. Gʻoyaviy tasvir, oʻlchamlar kesim boʻyicha.</div>`;
+      <div id="c3c" style="flex:1;position:relative"></div><div id="c3sight" style="position:absolute;right:12px;top:92px;max-width:460px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:13.5px;line-height:1.45;box-shadow:var(--shadow)"></div><div style="position:absolute;left:12px;bottom:10px;font-size:13px;color:#777">Sichqoncha: chap — aylantirish, oʻng — surish, gʻildirak — kattalashtirish. Gʻoyaviy tasvir, oʻlchamlar kesim boʻyicha.</div>`;
     document.body.appendChild(ov);
     ov.querySelector('#c3x').onclick=()=>{ov.hidden=true;cancelAnimationFrame(C3.raf);if(C3.embedded&&typeof setPV==='function')setPV('sec');};
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!ov.hidden){ov.hidden=true;cancelAnimationFrame(C3.raf);}});}
@@ -3043,7 +3043,7 @@ async function openConcept3D(src,opt){
   const setView=v=>{C3.view=v;dl.position.set(...(v==='front'?[25,50,120]:[40,70,25]));if(v==='iso')fitOrtho([90,80,105]);else if(v==='isoR')fitOrtho([-60,80,-115]);else if(v==='front')fitOrtho([0,0,300]);else if(v==='top')fitOrtho([0,300,.01],[-1,0,0]);else if(!eye(v)){C3.view='iso';q('#c3v').value='iso';fitOrtho([90,80,105]);}};
   const iso=()=>setView(C3.view);
   const rebuild=(keepCam)=>{if(built)scene.remove(built.sc);Object.assign(C3COL,C3PAL[C3.pal]||C3PAL.pastel);ren.setClearColor(C3COL.bg,1);built=c3Build(TH,strips,null);scene.add(built.sc);
-    if(!keepCam||AC3===pcam)iso();{const sh=c3Sight(strips)||'';q('#c3sight').innerHTML=sh?'<button id="c3sx" title="Yopish" style="float:right;border:0;background:none;cursor:pointer;font-size:14px;color:#888">✕</button><b>Koʻrinish tahlili</b><br>'+sh:'';q('#c3sight').hidden=!sh||C3.sightOff;const bx=q('#c3sx');if(bx)bx.onclick=()=>{C3.sightOff=true;q('#c3sight').hidden=true;};}
+    if(!keepCam||AC3===pcam)iso();{const sh=c3Sight(strips)||'';q('#c3sight').innerHTML=sh?'<button id="c3sx" title="Yopish" style="float:right;border:0;background:none;cursor:pointer;font-size:15px;color:#888">✕</button><b>Koʻrinish tahlili</b><br>'+sh:'';q('#c3sight').hidden=!sh||C3.sightOff;const bx=q('#c3sx');if(bx)bx.onclick=()=>{C3.sightOff=true;q('#c3sight').hidden=true;};}
     S.c3={floors:C3.floors,ppl:C3.ppl,dims:C3.dims,bL:C3.bL,bR:C3.bR,pal:C3.pal,shrub:C3.shrub};save();};
   await c3LoadAssets(TH);
   rebuild();

@@ -4,42 +4,42 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hudud bahosi va AI — Archemistry Studio</title>
-<script src="js/beta.js?v=4"></script>
+<script src="js/beta.js?v=5"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--line2:#cfccc5;--bad:#b3261e;--ok:#2e7d4f;--ai:#7b61d1;--mono:'IBM Plex Mono',ui-monospace,monospace}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
-body{font:13px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+body{font:14.5px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 a{color:inherit}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
 header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px;text-decoration:none}.brand b{font-weight:500;font-size:13px;letter-spacing:.2em}.crumb{font-size:11px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
-.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none}
-.btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:26px;padding:0 9px;font-size:10.5px}.btn:disabled{opacity:.4}
-.seg{display:flex;border:1px solid var(--line2);border-radius:2px;overflow:hidden;background:#fff}.seg button{border:0;background:none;padding:0 11px;height:28px;font-size:11px;letter-spacing:.1em;text-transform:uppercase}.seg button[aria-pressed=true]{background:var(--ink);color:#f4f3f1}
-.km{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:12px}.km input{width:58px;height:28px;border:1px solid var(--line2);border-radius:2px;padding:0 6px;font-family:var(--mono)}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none}.brand b{font-weight:500;font-size:14.5px;letter-spacing:.2em}.crumb{font-size:12.5px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
+.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none}
+.btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:26px;padding:0 9px;font-size:12px}.btn:disabled{opacity:.4}
+.seg{display:flex;border:1px solid var(--line2);border-radius:2px;overflow:hidden;background:#fff}.seg button{border:0;background:none;padding:0 11px;height:28px;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase}.seg button[aria-pressed=true]{background:var(--ink);color:#f4f3f1}
+.km{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:13.5px}.km input{width:58px;height:28px;border:1px solid var(--line2);border-radius:2px;padding:0 6px;font-family:var(--mono)}
 main{flex:1;display:grid;grid-template-columns:1fr 440px;min-height:0}
 .mapw{position:relative;min-width:0}#map{position:absolute;inset:0}
-.hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:600;background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:12.5px;border-radius:2px;max-width:640px}.hint b{color:#f0b429}
-.hint button{margin-left:10px;border:1px solid #f4f3f1;background:none;color:#f4f3f1;font-size:11px;padding:3px 8px;border-radius:2px}
-.legend{position:absolute;left:12px;bottom:60px;z-index:600;background:rgba(255,255,255,.92);border:1px solid var(--line);padding:6px 10px;font-size:11px;display:flex;gap:12px}
+.hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:600;background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:14px;border-radius:2px;max-width:640px}.hint b{color:#f0b429}
+.hint button{margin-left:10px;border:1px solid #f4f3f1;background:none;color:#f4f3f1;font-size:12.5px;padding:3px 8px;border-radius:2px}
+.legend{position:absolute;left:12px;bottom:60px;z-index:600;background:rgba(255,255,255,.92);border:1px solid var(--line);padding:6px 10px;font-size:12.5px;display:flex;gap:12px}
 aside{background:#fff;border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .top{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .ask{display:flex;gap:8px;align-items:flex-end;border:1px solid var(--line2);border-radius:2px;padding:8px 8px 8px 10px}
-.ask textarea{flex:1;border:0;outline:none;resize:none;font-size:13px;height:40px;background:none}
-.ask button{width:32px;height:32px;border:0;border-radius:2px;background:var(--ink);color:#fff;font-size:15px}
+.ask textarea{flex:1;border:0;outline:none;resize:none;font-size:14.5px;height:40px;background:none}
+.ask button{width:32px;height:32px;border:0;border-radius:2px;background:var(--ink);color:#fff;font-size:16px}
 .body{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:16px}
-h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-family:var(--mono);font-size:11px;color:var(--grey)}
-.lbl{font-size:10px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase}
-.met{display:grid;grid-template-columns:1fr auto;gap:3px 12px;padding:8px 0;border-bottom:1px solid #efede9;font-size:12.5px}.met b{font-family:var(--mono);font-weight:500}.met i{grid-column:1/-1;height:3px;background:#efede9;display:block}.met i s{display:block;height:100%;text-decoration:none}
-.met small{grid-column:1/-1;font-family:var(--mono);font-size:10.5px;color:var(--grey)}
-.ai{font-size:13.5px;line-height:1.6}.ai h3{font-size:14px;margin:14px 0 4px}.ai ul{padding-left:18px;margin:4px 0}.ai p{margin:6px 0}
-.chips{display:flex;gap:6px;flex-wrap:wrap}.chips button{height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:14px;background:#fff;font-size:12px}.chips button:hover{border-color:var(--ink)}
-.note{font-family:var(--mono);font-size:10.5px;color:var(--grey);line-height:1.55}
-.keybox{border:1px solid var(--ai);padding:12px;display:flex;flex-direction:column;gap:8px;font-size:12.5px}.keybox input,.keybox select{border:1px solid var(--line2);border-radius:2px;padding:5px 7px;font-family:var(--mono);font-size:12px;width:100%}
+h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-family:var(--mono);font-size:12.5px;color:var(--grey)}
+.lbl{font-size:11.5px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase}
+.met{display:grid;grid-template-columns:1fr auto;gap:3px 12px;padding:8px 0;border-bottom:1px solid #efede9;font-size:14px}.met b{font-family:var(--mono);font-weight:500}.met i{grid-column:1/-1;height:3px;background:#efede9;display:block}.met i s{display:block;height:100%;text-decoration:none}
+.met small{grid-column:1/-1;font-family:var(--mono);font-size:12px;color:var(--grey)}
+.ai{font-size:15px;line-height:1.6}.ai h3{font-size:15px;margin:14px 0 4px}.ai ul{padding-left:18px;margin:4px 0}.ai p{margin:6px 0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips button{height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:14px;background:#fff;font-size:13.5px}.chips button:hover{border-color:var(--ink)}
+.note{font-family:var(--mono);font-size:12px;color:var(--grey);line-height:1.55}
+.keybox{border:1px solid var(--ai);padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px}.keybox input,.keybox select{border:1px solid var(--line2);border-radius:2px;padding:5px 7px;font-family:var(--mono);font-size:13.5px;width:100%}
 .prog{height:3px;background:#efede9}.prog s{display:block;height:100%;background:var(--ink);text-decoration:none;transition:width .3s}
-#toasts{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:900}.toast{background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:12.5px;border-radius:2px}
+#toasts{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:900}.toast{background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:14px;border-radius:2px}
 @media (max-width:860px){main{grid-template-columns:1fr;grid-template-rows:45% 55%}}
 </style>
 </head>
@@ -214,16 +214,16 @@ function draw15(F){LAST15=F||LAST15;O15.clearLayers();const F2=LAST15;if(!F2||!$
 
 const MET=[['Chorrahalar zichligi','intersection_density_per_km2','/km²',200,'#e8775f','koʻcha tarmogʻi ulanganligi'],['Koʻcha tarmogʻi zichligi','street_density_km_per_km2','km/km²',25,'#141414','avto koʻchalar uzunligi / maydon'],['Bekatlargacha 400 m qamrovi','transit_400m_coverage_pct','%',100,'#1d6fa5','hudud nuqtalari ulushi (toʻgʻri chiziq boʻyicha)'],['Maktab/bogʻchagacha 500 m','schools_kindergartens_500m_coverage_pct','%',100,'#c2410c','hudud nuqtalari ulushi'],['Xizmatlar zichligi','services_per_km2','POI/km²',600,'#7b61d1','doʻkon, kafe, xizmat va h.k.'],['Funksional aralashuv','land_use_mix_entropy_0_1','0–1',1,'#7b61d1','xizmat turlari entropiyasi'],['Yashil hudud ulushi','green_area_share_pct','%',40,'#2e7d4f','OSM dagi park, bogʻ, oʻrmon, maysa'],['Binolar qoplami','building_coverage_pct','%',60,'#696969','bino dogʻlari / maydon'],['Trotuar teglangan koʻchalar','sidewalk_tagged_share_pct','%',100,'#3c3c3c','OSM da sidewalk tegi bor ulush'],['Velo infratuzilma','cycle_km','km',20,'#2f6f4f','cycleway va velo boʻlaklar']];
 function md(t){return esc(t).replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h3>$1</h3>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^(?:- |\* )(.*)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`).split(/\n{2,}/).map(p=>/^<(h3|ul)/.test(p)?p:`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');}
-function prmBox(){return `<div><div class="lbl">Hisob parametrlari · namuna, oʻzingiz belgilang</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:10.5px;color:var(--grey)"><label>Yurish tezligi, km/soat<input id="pSp" type="number" step="0.1" value="${PRM.speed}" style="width:100%"></label><label>Qavat (tegsiz binolar)<input id="pLv" type="number" step="1" value="${PRM.lv}" placeholder="1" style="width:100%"></label><label>m² / kishi (aholi)<input id="pMp" type="number" step="1" value="${PRM.mpp}" placeholder="—" style="width:100%"></label></div><div class="note">Oʻzgartirgandan keyin «Hisoblash» ni qayta bosing.</div></div>`;}
+function prmBox(){return `<div><div class="lbl">Hisob parametrlari · namuna, oʻzingiz belgilang</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px;color:var(--grey)"><label>Yurish tezligi, km/soat<input id="pSp" type="number" step="0.1" value="${PRM.speed}" style="width:100%"></label><label>Qavat (tegsiz binolar)<input id="pLv" type="number" step="1" value="${PRM.lv}" placeholder="1" style="width:100%"></label><label>m² / kishi (aholi)<input id="pMp" type="number" step="1" value="${PRM.mpp}" placeholder="—" style="width:100%"></label></div><div class="note">Oʻzgartirgandan keyin «Hisoblash» ni qayta bosing.</div></div>`;}
 function bindPrm(){[['#pSp','speed'],['#pLv','lv'],['#pMp','mpp']].forEach(([i,k])=>{const e=$(i);if(e)e.onchange=()=>{PRM[k]=e.value;localStorage.setItem('kps_ai_prm',JSON.stringify(PRM));};});}
 function sec15(){const F=res.fifteen_min;if(!F)return '';let h=`<div><div class="lbl">15 daqiqalik shahar · piyoda tarmogʻi boʻyicha</div>
   <div class="met"><span>Oʻrtacha: 15 daqiqada yetiladigan ehtiyoj turlari</span><b>${f1(F.index_avg_categories_15min)} / ${C15.length}</b><i><s style="width:${F.index_avg_categories_15min/C15.length*100}%;background:#2e7d4f"></s></i></div>
   <div class="met"><span>Barcha ${C15.length} tur 15 daqiqada</span><b>${f1(F.full_15min_city_share_pct)} %</b></div>
   <div class="met"><span>Bekatgacha ≤ 400 m (piyoda tarmogʻi boʻyicha)</span><b>${f1(F.transit_400m_network_pct)} %</b><small>toʻgʻri chiziq boʻyicha: ${f1(res.transit_400m_coverage_pct)} %</small></div>
   ${F.project_buildings?`<div class="met"><span>Loyiha binolaridan (Joylashtirish, ${F.project_buildings.n} ta) eng uzoq masofa</span><b>${F.project_buildings.max_to_kindergarten_m!=null?fi(F.project_buildings.max_to_kindergarten_m)+' m':'—'} · ${F.project_buildings.max_to_school_m!=null?fi(F.project_buildings.max_to_school_m)+' m':'—'} · ${F.project_buildings.max_to_stop_m!=null?fi(F.project_buildings.max_to_stop_m)+' m':'—'}</b><small>bogʻcha · maktab · bekat — turar joy binolari, tarmoq boʻyicha</small></div>`:''}${F.pedshed_10min_ratio!=null?`<div class="met"><span>Piyoda qamrovi (10 daq.): tarmoq / doira</span><b>${f2(F.pedshed_10min_ratio)}</b><small>1 ga yaqin — toʻr yaxshi ulangan</small></div>`:''}
-  <div style="display:grid;grid-template-columns:1fr 46px 46px 46px 50px;gap:2px 6px;font-size:11.5px;margin-top:8px;align-items:center"><span class="note">EHTIYOJ</span><span class="note">≤5′</span><span class="note">≤10′</span><span class="note">≤15′</span><span class="note">MED.</span>`;
-  C15.forEach(([c,n,col])=>{const x=F.categories[n];h+=`<button data-c15="${c}" style="border:0;background:${cat15===c?'#efede9':'none'};text-align:left;padding:3px 4px;display:flex;gap:6px;align-items:center;font-size:11.5px"><i style="width:9px;height:9px;background:${col};flex:none"></i>${n} <span class="note">(${x.count})</span></button><b style="font-family:var(--mono);font-weight:500">${f1(x.within_5min_pct)}</b><b style="font-family:var(--mono);font-weight:500">${f1(x.within_10min_pct)}</b><b style="font-family:var(--mono);font-weight:500;color:${x.within_15min_pct>=80?'var(--ok)':x.within_15min_pct<50?'var(--bad)':'inherit'}">${f1(x.within_15min_pct)}</b><b style="font-family:var(--mono);font-weight:400">${x.median_min!=null?f1(x.median_min)+'′':'—'}</b>`;});
-  h+=`</div><div style="display:flex;gap:6px;margin-top:6px;align-items:center"><button class="btn sm ${cat15==='all'?'dark':'ghost'}" data-c15="all" style="height:24px;font-size:10px">Hammasi</button><span class="note">${cat15==='all'?'Rang: nechta tur 15 daqiqada (qizil 0 → yashil hammasi)':'Rang: ≤5′ · ≤10′ · ≤15′ · ≤25′ · undan koʻp'}</span></div>
+  <div style="display:grid;grid-template-columns:1fr 46px 46px 46px 50px;gap:2px 6px;font-size:13px;margin-top:8px;align-items:center"><span class="note">EHTIYOJ</span><span class="note">≤5′</span><span class="note">≤10′</span><span class="note">≤15′</span><span class="note">MED.</span>`;
+  C15.forEach(([c,n,col])=>{const x=F.categories[n];h+=`<button data-c15="${c}" style="border:0;background:${cat15===c?'#efede9':'none'};text-align:left;padding:3px 4px;display:flex;gap:6px;align-items:center;font-size:13px"><i style="width:9px;height:9px;background:${col};flex:none"></i>${n} <span class="note">(${x.count})</span></button><b style="font-family:var(--mono);font-weight:500">${f1(x.within_5min_pct)}</b><b style="font-family:var(--mono);font-weight:500">${f1(x.within_10min_pct)}</b><b style="font-family:var(--mono);font-weight:500;color:${x.within_15min_pct>=80?'var(--ok)':x.within_15min_pct<50?'var(--bad)':'inherit'}">${f1(x.within_15min_pct)}</b><b style="font-family:var(--mono);font-weight:400">${x.median_min!=null?f1(x.median_min)+'′':'—'}</b>`;});
+  h+=`</div><div style="display:flex;gap:6px;margin-top:6px;align-items:center"><button class="btn sm ${cat15==='all'?'dark':'ghost'}" data-c15="all" style="height:24px;font-size:11.5px">Hammasi</button><span class="note">${cat15==='all'?'Rang: nechta tur 15 daqiqada (qizil 0 → yashil hammasi)':'Rang: ≤5′ · ≤10′ · ≤15′ · ≤25′ · undan koʻp'}</span></div>
   <div class="note">% — hudud kataklari (${F.cell_size_m} m) ulushi; ${F.cells} katak. Qatorni bosing — xaritada shu ehtiyoj boʻyicha qamrov.</div></div>`;return h;}
 function secNodes(){const n=res.transport_nodes_straight_km;if(!n)return '';const r=(l,x)=>`<div class="met"><span>${l}${x&&x.name?` <span class="note">(${esc(x.name)})</span>`:''}</span><b>${x?f2(x.km)+' km':'—'}</b></div>`;
   return `<div><div class="lbl">Transport tugunlari · toʻgʻri chiziq boʻyicha</div>${r('Eng yaqin metro',n.metro)}${r('Temir yoʻl vokzali',n.railway_station)}${r('Aeroport',n.airport)}<div class="met"><span>Mehnat joylari zichligi (ofis, savdo, xizmat POI)</span><b>${f1(res.jobs_poi_per_km2)} /km²</b><small>OSM boʻyicha taxminiy koʻrsatkich</small></div></div>`;}

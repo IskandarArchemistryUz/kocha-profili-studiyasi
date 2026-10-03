@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Archemistry Studio — shahar va koʻcha loyihalash</title>
-<script src="js/beta.js?v=4"></script>
+<script src="js/beta.js?v=5"></script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Archemistry Studio">
 <meta property="og:title" content="Archemistry Studio — shahar loyihasi bitta brauzerda (beta)">
@@ -22,36 +22,36 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 header{height:64px;display:flex;align-items:center;gap:36px;padding:0 32px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(244,243,241,.94);backdrop-filter:blur(8px);z-index:5}
-.brand{display:flex;align-items:center;gap:12px}.brand b{font-weight:500;font-size:15px;letter-spacing:.22em}.brand i{font-style:normal;font-size:11px;letter-spacing:.2em;color:var(--grey)}
-nav{display:flex;gap:26px;font-size:11.5px;letter-spacing:.14em}nav a:hover{color:var(--grey)}
+.brand{display:flex;align-items:center;gap:12px}.brand b{font-weight:500;font-size:16px;letter-spacing:.22em}.brand i{font-style:normal;font-size:12.5px;letter-spacing:.2em;color:var(--grey)}
+nav{display:flex;gap:26px;font-size:13px;letter-spacing:.14em}nav a:hover{color:var(--grey)}
 .sp{flex:1}
-.btn{height:40px;padding:0 18px;display:inline-flex;align-items:center;gap:12px;font-size:11.5px;letter-spacing:.14em;border:1px solid var(--ink);background:transparent;color:var(--ink)}
+.btn{height:40px;padding:0 18px;display:inline-flex;align-items:center;gap:12px;font-size:13px;letter-spacing:.14em;border:1px solid var(--ink);background:transparent;color:var(--ink)}
 .btn.dark{background:var(--ink);color:var(--bg)}.btn:hover{opacity:.85}
 .wrap{max-width:1240px;margin:0 auto;padding:0 32px}
 .hero{padding-top:72px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:24px;align-items:end}
 h1{grid-column:span 8;margin:0;font-size:clamp(44px,6.2vw,78px);line-height:.98;font-weight:500;letter-spacing:-.03em}
 .lead{grid-column:span 4;display:flex;flex-direction:column;gap:22px;padding-bottom:8px}
-.lead p{margin:0;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--txt)}
+.lead p{margin:0;font-family:var(--mono);font-size:14.5px;line-height:1.7;color:var(--txt)}
 .lead div{display:flex;gap:8px;flex-wrap:wrap}
 figure{margin:64px 0 0}figure svg{width:100%;height:auto;display:block}
-figcaption{display:flex;justify-content:space-between;gap:16px;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--grey)}
+figcaption{display:flex;justify-content:space-between;gap:16px;margin-top:10px;font-family:var(--mono);font-size:12.5px;color:var(--grey)}
 .sh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid var(--ink);padding-bottom:14px;gap:16px}
-.sh h2{margin:0;font-size:40px;font-weight:500;letter-spacing:-.02em}.sh span{font-family:var(--mono);font-size:11px;color:var(--grey)}
+.sh h2{margin:0;font-size:40px;font-weight:500;letter-spacing:-.02em}.sh span{font-family:var(--mono);font-size:12.5px;color:var(--grey)}
 #bolimlar{padding-top:110px}
 .mod{display:grid;grid-template-columns:64px 52px 300px 1fr 150px;gap:16px;align-items:center;padding:26px 8px;border-bottom:1px solid var(--line);transition:background .2s}
 a.mod:hover{background:#eceae6}
-.mod .n{font-family:var(--mono);font-size:12px;color:var(--grey)}.mod svg{fill:var(--ink)}
-.mod .t{font-size:26px;font-weight:500;letter-spacing:-.01em}.mod .d{font-family:var(--mono);font-size:12.5px;line-height:1.65;color:var(--txt)}
-.mod .s{justify-self:end;font-size:11px;letter-spacing:.14em}.mod.soon .s,.mod.soon .t{color:#8a8a8a}.mod.soon svg{fill:#8a8a8a}
+.mod .n{font-family:var(--mono);font-size:13.5px;color:var(--grey)}.mod svg{fill:var(--ink)}
+.mod .t{font-size:26px;font-weight:500;letter-spacing:-.01em}.mod .d{font-family:var(--mono);font-size:14px;line-height:1.65;color:var(--txt)}
+.mod .s{justify-self:end;font-size:12.5px;letter-spacing:.14em}.mod.soon .s,.mod.soon .t{color:#8a8a8a}.mod.soon svg{fill:#8a8a8a}
 .band{padding:70px 0 30px;overflow:hidden}.band .track{display:flex;gap:46px;width:max-content;animation:sl 60s linear infinite}
 .band:hover .track{animation-play-state:paused}
 @keyframes sl{to{transform:translateX(-50%)}}
-.ic{display:flex;flex-direction:column;align-items:center;gap:12px;width:80px}.ic svg{fill:var(--ink)}.ic span{font-size:9.5px;letter-spacing:.14em;white-space:nowrap}
+.ic{display:flex;flex-direction:column;align-items:center;gap:12px;width:80px}.ic svg{fill:var(--ink)}.ic span{font-size:11px;letter-spacing:.14em;white-space:nowrap}
 #loyihalar{padding:60px 32px 110px}
-.row{display:grid;grid-template-columns:2fr 1fr 1fr 110px;gap:16px;padding:16px 8px;border-bottom:1px solid var(--line);font-size:15px;align-items:center}
-.row .m{font-family:var(--mono);font-size:12px;color:var(--grey)}.row a{text-align:right;font-size:11px;letter-spacing:.14em}.row a:hover{color:var(--grey)}
-.empty{padding:18px 8px;font-family:var(--mono);font-size:12.5px;color:var(--grey)}
-footer{border-top:1px solid var(--line);padding:36px 32px;display:flex;align-items:center;gap:16px;font-family:var(--mono);font-size:11px;color:var(--grey);flex-wrap:wrap}
+.row{display:grid;grid-template-columns:2fr 1fr 1fr 110px;gap:16px;padding:16px 8px;border-bottom:1px solid var(--line);font-size:16px;align-items:center}
+.row .m{font-family:var(--mono);font-size:13.5px;color:var(--grey)}.row a{text-align:right;font-size:12.5px;letter-spacing:.14em}.row a:hover{color:var(--grey)}
+.empty{padding:18px 8px;font-family:var(--mono);font-size:14px;color:var(--grey)}
+footer{border-top:1px solid var(--line);padding:36px 32px;display:flex;align-items:center;gap:16px;font-family:var(--mono);font-size:12.5px;color:var(--grey);flex-wrap:wrap}
 @media (prefers-reduced-motion:reduce){.band .track{animation:none}}
 @media (max-width:900px){h1,.lead{grid-column:1/-1}nav{display:none}.mod{grid-template-columns:40px 40px 1fr;}.mod .d{grid-column:3}.mod .s{grid-column:3;justify-self:start}}
 @media (max-width:560px){header{padding:0 16px;gap:12px}.brand i{display:none}.wrap,#loyihalar{padding-left:16px;padding-right:16px}.row{grid-template-columns:1fr 90px}.row .m{display:none}figcaption span:last-child{display:none}}

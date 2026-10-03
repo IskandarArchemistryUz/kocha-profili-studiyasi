@@ -4,55 +4,55 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Joylashtirish — Archemistry Studio</title>
-<script src="js/beta.js?v=4"></script>
+<script src="js/beta.js?v=5"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--line2:#cfccc5;--bad:#b3261e;--ok:#2e7d4f;--mono:'IBM Plex Mono',ui-monospace,monospace;--res:#c9b8f0;--com:#f2c27b;--soc:#9fc6e8;--off:#bdbdbd}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
-body{font:13px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+body{font:14.5px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 a{color:inherit;text-decoration:none}button,input,select{font:inherit;color:inherit}button{cursor:pointer}
 header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:13px;letter-spacing:.2em}.crumb{font-size:11px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
-#pName{border:1px solid transparent;background:transparent;font-size:14px;font-weight:500;padding:4px 6px;width:220px;border-radius:2px}#pName:hover,#pName:focus{border-color:var(--line2);background:#fff}
-.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
-.btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:26px;padding:0 9px;font-size:10.5px}
-.seg{display:flex;border:1px solid var(--line2);border-radius:2px;overflow:hidden;background:#fff}.seg button{border:0;background:none;padding:0 12px;height:28px;font-size:11px;letter-spacing:.12em;text-transform:uppercase}.seg button[aria-pressed=true]{background:var(--ink);color:#f4f3f1}
+.brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:14.5px;letter-spacing:.2em}.crumb{font-size:12.5px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
+#pName{border:1px solid transparent;background:transparent;font-size:15px;font-weight:500;padding:4px 6px;width:220px;border-radius:2px}#pName:hover,#pName:focus{border-color:var(--line2);background:#fff}
+.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:26px;padding:0 9px;font-size:12px}
+.seg{display:flex;border:1px solid var(--line2);border-radius:2px;overflow:hidden;background:#fff}.seg button{border:0;background:none;padding:0 12px;height:28px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase}.seg button[aria-pressed=true]{background:var(--ink);color:#f4f3f1}
 main{flex:1;display:grid;grid-template-columns:56px 1fr 350px;min-height:0}
 .rail{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:10px}
 .rail button{width:40px;height:40px;border:0;background:none;border-radius:2px;display:grid;place-items:center;position:relative}.rail button:hover{background:var(--bg)}.rail button[aria-pressed=true]{background:var(--ink);color:#fff}
 .rail svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.rail .k{position:absolute;right:3px;bottom:2px;font:9px var(--mono);opacity:.6}
+.rail .k{position:absolute;right:3px;bottom:2px;font:10.5px var(--mono);opacity:.6}
 .mapw{position:relative;min-width:0}#map,#map3{position:absolute;inset:0}#map3{display:none;z-index:650;background:#e9e6df}.v3d #map{visibility:hidden}.v3d .basesw{display:none}
-.hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:600;background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:12.5px;border-radius:2px;max-width:640px}
-.hint b{color:#f0b429}.hint button{margin-left:10px;border:1px solid #f4f3f1;background:none;color:#f4f3f1;font-size:11px;padding:3px 8px;border-radius:2px}
+.hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:600;background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:14px;border-radius:2px;max-width:640px}
+.hint b{color:#f0b429}.hint button{margin-left:10px;border:1px solid #f4f3f1;background:none;color:#f4f3f1;font-size:12.5px;padding:3px 8px;border-radius:2px}
 .basesw{position:absolute;top:12px;right:12px;z-index:600;display:flex;gap:6px}
 aside{background:#fff;border-left:1px solid var(--line);overflow:auto;padding:16px;display:flex;flex-direction:column;gap:16px}
-h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-family:var(--mono);font-size:11px;color:var(--grey);margin-top:2px}
-.lbl{font-size:10px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase;margin-bottom:6px}
-.kv{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid #efede9;font-size:12.5px}.kv b{font-family:var(--mono);font-weight:500}
+h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-family:var(--mono);font-size:12.5px;color:var(--grey);margin-top:2px}
+.lbl{font-size:11.5px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase;margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid #efede9;font-size:14px}.kv b{font-family:var(--mono);font-weight:500}
 .kv.big b{font-size:16px}
-.grid{display:grid;grid-template-columns:1fr 70px 70px;gap:5px 8px;align-items:center;font-size:12px}
-.grid input,.f input,.f select{width:100%;border:1px solid var(--line2);border-radius:2px;padding:4px 6px;font-family:var(--mono);font-size:12px;background:#fff}
-.f{display:grid;grid-template-columns:1fr 1fr;gap:6px}.f label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:var(--grey)}.f .full{grid-column:1/-1}
+.grid{display:grid;grid-template-columns:1fr 70px 70px;gap:5px 8px;align-items:center;font-size:13.5px}
+.grid input,.f input,.f select{width:100%;border:1px solid var(--line2);border-radius:2px;padding:4px 6px;font-family:var(--mono);font-size:13.5px;background:#fff}
+.f{display:grid;grid-template-columns:1fr 1fr;gap:6px}.f label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--grey)}.f .full{grid-column:1/-1}
 .bar{display:flex;height:12px;border-radius:2px;overflow:hidden;background:#efede9}
-.note{font-family:var(--mono);font-size:10.5px;color:var(--grey);line-height:1.55}
+.note{font-family:var(--mono);font-size:12px;color:var(--grey);line-height:1.55}
 .sel{border:1px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:10px}
-.uses{display:flex;gap:4px;flex-wrap:wrap}.uses button{border:1px solid var(--line2);background:#fff;border-radius:2px;padding:4px 8px;font-size:11.5px;display:flex;align-items:center;gap:6px}.uses button i{width:10px;height:10px;display:inline-block}.uses button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-.blab{background:none;border:0;box-shadow:none;font:600 11px Archivo;color:#2a2340;text-align:center;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff}
-#toasts{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:900}.toast{background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:12.5px;border-radius:2px}
+.uses{display:flex;gap:4px;flex-wrap:wrap}.uses button{border:1px solid var(--line2);background:#fff;border-radius:2px;padding:4px 8px;font-size:13px;display:flex;align-items:center;gap:6px}.uses button i{width:10px;height:10px;display:inline-block}.uses button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.blab{background:none;border:0;box-shadow:none;font:600 12.5px Archivo;color:#2a2340;text-align:center;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff}
+#toasts{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:900}.toast{background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:14px;border-radius:2px}
 .fpw{position:fixed;inset:0;z-index:1200;background:rgba(20,20,20,.35);display:flex;align-items:stretch;justify-content:center;padding:28px}
 .fpw .box{background:#fff;flex:1;max-width:1500px;display:grid;grid-template-columns:1fr 320px;grid-template-rows:auto 1fr;border:1px solid var(--ink)}
 .fpw .hd{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:8px 14px;border-bottom:1px solid var(--line)}
 .fpw .cv{position:relative;overflow:hidden;background:#f4f3f1}.fpw .cv svg{width:100%;height:100%;display:block;user-select:none}
 .fpw .pn{border-left:1px solid var(--line);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:14px}
-.ktyp{display:grid;grid-template-columns:1fr 1fr;gap:4px}.ktyp button{border:1px solid var(--line2);background:#fff;border-radius:2px;padding:5px 6px;font-size:11.5px;display:flex;gap:6px;align-items:center;text-align:left}.ktyp button i{width:12px;height:12px;flex:none;border:1px solid #0003}.ktyp button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-.chk{display:flex;gap:8px;align-items:center;font-size:12px}.chk i{width:10px;height:10px;border-radius:50%;flex:none}
-.facd summary{cursor:pointer;font-size:12px;font-weight:500;padding:4px 0}.facd{border-top:1px solid var(--line);padding-top:6px}
-.stb{border:1px solid var(--line2);background:#fff;text-align:left;padding:6px 8px;display:flex;flex-direction:column;gap:2px;cursor:pointer}.stb b{font-weight:500;font-size:12px}.stb span{font-family:var(--mono);font-size:10.5px;color:var(--grey)}.stb[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-.fpw .hd select,.fpw .hd input{border:1px solid var(--line2);padding:2px 4px;font:11px var(--mono)}
-.blk{border:0;background:none;text-align:left;padding:0;font:12.5px Archivo;cursor:pointer;color:var(--ink)}.blk:hover{text-decoration:underline}
+.ktyp{display:grid;grid-template-columns:1fr 1fr;gap:4px}.ktyp button{border:1px solid var(--line2);background:#fff;border-radius:2px;padding:5px 6px;font-size:13px;display:flex;gap:6px;align-items:center;text-align:left}.ktyp button i{width:12px;height:12px;flex:none;border:1px solid #0003}.ktyp button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.chk{display:flex;gap:8px;align-items:center;font-size:13.5px}.chk i{width:10px;height:10px;border-radius:50%;flex:none}
+.facd summary{cursor:pointer;font-size:13.5px;font-weight:500;padding:4px 0}.facd{border-top:1px solid var(--line);padding-top:6px}
+.stb{border:1px solid var(--line2);background:#fff;text-align:left;padding:6px 8px;display:flex;flex-direction:column;gap:2px;cursor:pointer}.stb b{font-weight:500;font-size:13.5px}.stb span{font-family:var(--mono);font-size:12px;color:var(--grey)}.stb[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.fpw .hd select,.fpw .hd input{border:1px solid var(--line2);padding:2px 4px;font:12.5px var(--mono)}
+.blk{border:0;background:none;text-align:left;padding:0;font:14px Archivo;cursor:pointer;color:var(--ink)}.blk:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -152,7 +152,7 @@ function render(){G.clearLayers();E.clearLayers();T.eachLayer(l=>{if(!l.options|
     L.marker(cent(b.poly),{interactive:false,icon:L.divIcon({className:'blab',html:`${b.fl} qav.`,iconSize:null,iconAnchor:[16,7]})}).addTo(G);});
   const s=selObj();if(s&&s.poly){s.poly.forEach((p,i)=>{const m=L.marker(p,{draggable:true,icon:L.divIcon({className:'',html:'<div style="width:10px;height:10px;background:#fff;border:2px solid #141414"></div>',iconSize:[10,10],iconAnchor:[5,5]})}).addTo(E);
       m.on('drag',ev=>{const q=ev.target.getLatLng();s.poly[i]=[q.lat,q.lng];G.clearLayers();render.light();});m.on('dragend',()=>commit());});
-    const c=cent(s.poly),mv=L.marker(c,{draggable:true,icon:L.divIcon({className:'',html:'<div style="width:16px;height:16px;border-radius:50%;background:#141414;color:#fff;font-size:11px;display:grid;place-items:center">✥</div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(E);
+    const c=cent(s.poly),mv=L.marker(c,{draggable:true,icon:L.divIcon({className:'',html:'<div style="width:16px;height:16px;border-radius:50%;background:#141414;color:#fff;font-size:12.5px;display:grid;place-items:center">✥</div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(E);
     let st=null;mv.on('dragstart',()=>{st={c:c.slice(),poly:s.poly.map(p=>p.slice())};});mv.on('drag',ev=>{const q=ev.target.getLatLng(),d=[q.lat-st.c[0],q.lng-st.c[1]];s.poly=st.poly.map(p=>[p[0]+d[0],p[1]+d[1]]);if(sel.t==='s')P.site=s.poly;else if(sel.t==='b')P.blds.find(b=>b.id===sel.id).poly=s.poly;G.clearLayers();render.light();});mv.on('dragend',()=>commit());}
   drawAnalysis();renderSide();if(view==='3d')upd3d();}
 render.light=()=>{const keep=sel;const s=selObj();P.site&&L.polygon(P.site,{color:'#e8775f',weight:2.5,dashArray:'8 5',fillOpacity:.04,interactive:false}).addTo(G);P.greens.forEach(g=>L.polygon(g.poly,{color:'#4f7f3c',weight:1,fillColor:'#8cc37a',fillOpacity:.55,interactive:false}).addTo(G));P.parks.forEach(g=>L.polygon(g.poly,{color:'#696969',weight:1,fillColor:'#d6d4cf',fillOpacity:.8,interactive:false}).addTo(G));P.blds.forEach(b=>L.polygon(b.poly,{color:'#6a5a9a',weight:1.2,fillColor:USES[b.use][1],fillOpacity:.92,interactive:false}).addTo(G));};
@@ -170,7 +170,7 @@ function renderSide(){const c=calc(),p=P.p,s=selObj();let h='';
     <div class="f"><label>Qavatlar<input type="number" min="1" max="60" id="bFl" value="${s.fl}"></label><label>Balandlik<input disabled value="${f1(s.fl*p.fh)} m"></label>
       <label>Qurilish bosqichi<input type="number" min="1" max="20" id="bPh" value="${s.ph||1}"></label><label>Yongʻinbardoshlik darajasi<select id="bFr">${['','I–II','III','IV–V'].map(v=>`<option value="${v}" ${(s.fr||'')===v?'selected':''}>${v||'—'}</option>`).join('')}</select></label></div>
     <div class="uses">${Object.entries(USES).map(([k,[n,c]])=>`<button data-use="${k}" aria-pressed="${s.use===k}"><i style="background:${c}"></i>${n}</button>`).join('')}</div>
-    ${s.use==='res'?`<label style="font-size:12px"><input type="checkbox" id="bGf" ${s.gf&&s.gf!=='res'?'checked':''}> 1-qavat — notijorat (savdo/xizmat)</label>`:''}
+    ${s.use==='res'?`<label style="font-size:13.5px"><input type="checkbox" id="bGf" ${s.gf&&s.gf!=='res'?'checked':''}> 1-qavat — notijorat (savdo/xizmat)</label>`:''}
     <button class="btn sm dark" id="bPlan" style="width:max-content">Qavat rejasini chizish${planCount(s)?' · '+planCount(s).tot+' kv/qavat':''}</button>
     ${facUI(s)}
     <div class="row" style="display:flex;gap:6px"><button class="btn sm ghost" id="bDup">Nusxa</button><button class="btn sm ghost" id="bDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div></div>`;}
@@ -261,7 +261,7 @@ const STAIRS={L1:['Zinapoya L1, 2 marshli, liftsiz',2.8,5.6,'L1'],L1L:['Zinapoya
 const minA=()=>{P.p.minA=Object.assign({1:28,2:48,3:64,4:80},P.p.minA||{});return P.p.minA;};
 function planSet(b){b.plan.set=Object.assign({step:.3,ax:0,ay:0,snapE:true},b.plan.set||{});b.plan.dims=b.plan.dims||[];return b.plan.set;}
 function openPlan(b){b.plan=b.plan||{cells:[]};planSet(b);const fr=localFrame(b.poly);PL={b,fr,tool:'rect',pal:useKey(b),k:RT[useKey(b)][0],st:b.fl*P.p.fh>28?'N1':'L1L',sel:null,rul:null,pp:null};(b.plan&&b.plan.cells||[]).forEach(c=>{if(c.k==='core'&&STAIRS[c.sub]){const cx=c.x+c.w/2,cy=c.y+c.h/2,[w,h]=coreSize(c);c.w=w;c.h=h;c.x=+(cx-w/2).toFixed(2);c.y=+(cy-h/2).toFixed(2);}});
-  const w=document.createElement('div');w.className='fpw';w.id='fpw';w.innerHTML=`<div class="box"><div class="hd"><b style="font-size:14px;font-weight:500">Qavat rejasi · xonalar tarkibi</b><span class="note">${fi(area(b.poly))} m² dogʻ · ${b.fl} qavat · H ≈ ${f1(b.fl*P.p.fh)} m</span><span class="sp"></span>
+  const w=document.createElement('div');w.className='fpw';w.id='fpw';w.innerHTML=`<div class="box"><div class="hd"><b style="font-size:15px;font-weight:500">Qavat rejasi · xonalar tarkibi</b><span class="note">${fi(area(b.poly))} m² dogʻ · ${b.fl} qavat · H ≈ ${f1(b.fl*P.p.fh)} m</span><span class="sp"></span>
     <div class="seg"><button data-pt="sel" title="Tanlash (V)">Tanlash</button><button data-pt="rect" title="Toʻrtburchak xona (R)">Toʻrtburchak</button><button data-pt="poly" title="Koʻpburchak xona — qiyshiq devorlar (P)">Koʻpburchak</button><button data-pt="cut" title="Xonani chiziq bilan boʻlish (C)">Boʻlish</button><button data-pt="stair" title="Zinapoya-lift (S)">Zinapoya</button><button data-pt="ruler" title="Lineyka (M)">Lineyka</button></div>
     <label class="note" style="display:flex;gap:4px;align-items:center">funksiya<select id="plUse">${Object.keys(RT).map(k=>`<option value="${k}" ${k===useKey(b)?'selected':''}>${USES[k][0]}</option>`).join('')}</select></label>
     <label class="note" style="display:flex;gap:4px;align-items:center">qadam<select id="plStep">${[.1,.3,.5,.6,1.2].map(v=>`<option value="${v}" ${b.plan.set.step==v?'selected':''}>${String(v).replace('.',',')} m</option>`).join('')}</select></label>
@@ -489,12 +489,12 @@ function normPanel(){const n=N(),a=AN0();let h=`<div><div class="lbl">Normativ t
   <label>Hisob sanasi<select id="nDate">${[['03-22','22 mart'],['04-22','22 aprel'],['06-22','22 iyun'],['08-22','22 avgust'],['09-22','22 sentabr'],['12-22','22 dekabr']].map(([v,t])=>`<option value="${v}" ${n.date===v?'selected':''}>${t}</option>`).join('')}</select></label>
   <label>Hisob nuqtasi, qavat sathidan m<input type="number" step="0.1" id="nWz" value="${n.wz}"></label>
   <label>Hisob vaqti: dan, soat<input type="number" step="0.5" id="nT0" value="${n.t0}" placeholder="quyosh chiqishi"></label><label>gacha, soat<input type="number" step="0.5" id="nT1" value="${n.t1}" placeholder="quyosh botishi"></label>
-  <div class="full" style="font-size:10.5px;color:var(--grey)">Yongʻinga qarshi masofa, m — darajalar juftligi boʻyicha (meʼyoriy jadvaldan kiriting)</div>
+  <div class="full" style="font-size:12px;color:var(--grey)">Yongʻinga qarshi masofa, m — darajalar juftligi boʻyicha (meʼyoriy jadvaldan kiriting)</div>
   ${[[0,0],[0,1],[0,2],[1,1],[1,2],[2,2]].map(([a,b])=>`<label>${FRK[a]} ↔ ${FRK[b]}<input type="number" step="0.5" data-fm="${fmKey(FRK[a],FRK[b])}" value="${n.fm[fmKey(FRK[a],FRK[b])]||''}" placeholder="—"></label>`).join('')}<label class="full">Asos (ShNQ bandi)<input id="nRef" value="${esc(n.ref)}" placeholder="masalan: ShNQ 2.07.01-23, … band"></label></div>`;
   if(a.dist&&P.blds.length>1){const r=distances(),bad=r.all.filter(o=>o.ok===false).length,mn=Math.min(...r.all.map(o=>o.d));h+=`<div class="kv"><span>Eng yaqin binolar oraligʻi</span><b>${f1(mn)} m</b></div>${r.all.some(o=>o.req)?`<div class="kv"><span>Talabga javob bermaydi</span><b style="color:${bad?'var(--bad)':'var(--ok)'}">${bad} juft</b></div>`:''}${r.sb.length?`<div class="kv"><span>Chekinish buzilgan</span><b style="color:${r.sb.some(o=>!o.ok)?'var(--bad)':'var(--ok)'}">${r.sb.filter(o=>!o.ok).length} bino</b></div>`:''}`;}
   if(a.ins&&INS&&INS.length){const thr=+n.ins,worst=Math.min(...INS.map(o=>o.best));h+=`<div class="kv"><span>Hisob nuqtalari</span><b>${INS.length}</b></div><div class="kv"><span>Eng kam uzluksiz insolyatsiya</span><b>${hm(worst)}</b></div>${thr?`<div class="kv"><span>Talabdan kam nuqtalar</span><b style="color:${INS.some(o=>o.best<thr)?'var(--bad)':'var(--ok)'}">${INS.filter(o=>o.best<thr).length}</b></div>`:''}
     <div class="chk"><i style="background:hsl(0,85%,30%)"></i>0 soat<i style="background:hsl(22,85%,42%);margin-left:8px"></i>3<i style="background:hsl(45,85%,55%);margin-left:8px"></i>6+ soat${thr?' · talab kiritilgan: yashil/qizil':''}</div>`;}
-  h+=`<div style="margin-top:10px;display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button class="btn sm ghost" id="nCtx">Atrofdagi binolarni yuklash (OSM)</button>${(P.ctx||[]).length?`<button class="btn sm ghost" id="nCtxX">Tozalash (${P.ctx.length})</button>`:''}<label style="font-size:10.5px;color:var(--grey);display:flex;flex-direction:column">Qavati nomaʼlum binolar<input id="nCtxLv" type="number" min="1" value="${n.ctxLv}" placeholder="2" style="width:70px;border:1px solid var(--line2);padding:3px 5px;font-family:var(--mono)"></label></div>
+  h+=`<div style="margin-top:10px;display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button class="btn sm ghost" id="nCtx">Atrofdagi binolarni yuklash (OSM)</button>${(P.ctx||[]).length?`<button class="btn sm ghost" id="nCtxX">Tozalash (${P.ctx.length})</button>`:''}<label style="font-size:12px;color:var(--grey);display:flex;flex-direction:column">Qavati nomaʼlum binolar<input id="nCtxLv" type="number" min="1" value="${n.ctxLv}" placeholder="2" style="width:70px;border:1px solid var(--line2);padding:3px 5px;font-family:var(--mono)"></label></div>
   <div class="note">Atrofdagi mavjud binolar soya va masofa hisobiga qoʻshiladi; TIK ga kirmaydi. Uchastka ichidagi (buziladigan) binolar olinmaydi.</div>`;
   h+=`<div class="note" style="margin-top:6px">Geometrik hisob: quyosh holati (kenglik ${f2(lat0())}°, quyosh vaqti, 5 daqiqa qadam), fasad oldidagi nuqtalar, boshqa binolar soyasi. Faqat turar joy binolari fasadlari. Me'yoriy qiymatlar avtomatik qoʻyilmaydi — amaldagi ShNQ 2.07.01-23 va sanitariya qoidalaridan oʻzingiz kiriting${n.ref?' · asos: '+esc(n.ref):''}. Atrofdagi binolar uchun yuqoridagi tugmadan foydalaning.</div></div>`;
   return h;}

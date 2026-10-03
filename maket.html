@@ -4,49 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Albom va taqdimot — Archemistry Studio</title>
-<script src="js/beta.js?v=4"></script>
+<script src="js/beta.js?v=5"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Instrument+Serif:ital@0;1&family=Golos+Text:wght@400;600&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--desk:#e7e6e2;--line:#dedcd7;--line2:#cfccc5;--sel:#2f6feb;--bad:#b3261e;--mono:'IBM Plex Mono',ui-monospace,monospace}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
-body{font:13px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+body{font:14.5px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
 header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--bg)}
-.brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:13px;letter-spacing:.2em}
-.crumb{font-size:11px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
-#docName{border:1px solid transparent;background:transparent;font-size:14px;font-weight:500;padding:4px 6px;width:240px;border-radius:2px}#docName:hover,#docName:focus{border-color:var(--line2);background:#fff}
+.brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:14.5px;letter-spacing:.2em}
+.crumb{font-size:12.5px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
+#docName{border:1px solid transparent;background:transparent;font-size:15px;font-weight:500;padding:4px 6px;width:240px;border-radius:2px}#docName:hover,#docName:focus{border-color:var(--line2);background:#fff}
 .seg{display:flex;border:1px solid var(--line2);border-radius:2px;overflow:hidden;background:#fff}
-.seg button{border:0;background:none;padding:0 9px;height:28px;font-family:var(--mono);font-size:11.5px}.seg button[aria-pressed=true]{background:var(--ink);color:#f4f3f1}
-.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
-.btn.dark{background:var(--ink);color:var(--bg)}.btn.sm{height:26px;padding:0 9px;font-size:10.5px}.btn.ghost{border-color:var(--line2)}
+.seg button{border:0;background:none;padding:0 9px;height:28px;font-family:var(--mono);font-size:13px}.seg button[aria-pressed=true]{background:var(--ink);color:#f4f3f1}
+.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn.dark{background:var(--ink);color:var(--bg)}.btn.sm{height:26px;padding:0 9px;font-size:12px}.btn.ghost{border-color:var(--line2)}
 .ib{width:30px;height:30px;border:1px solid transparent;background:none;border-radius:2px;display:grid;place-items:center}.ib:hover{border-color:var(--line2)}
 .menu{position:absolute;right:14px;top:48px;background:#fff;border:1px solid var(--line2);box-shadow:0 6px 24px rgba(0,0,0,.12);z-index:50;min-width:220px;padding:6px}
-.menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;font-size:12.5px}.menu button:hover{background:var(--bg)}.menu small{color:var(--grey);font-family:var(--mono);font-size:10.5px}
+.menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;font-size:14px}.menu button:hover{background:var(--bg)}.menu small{color:var(--grey);font-family:var(--mono);font-size:12px}
 main{flex:1;display:grid;grid-template-columns:250px 1fr 270px;min-height:0}
 aside{background:#fff;display:flex;flex-direction:column;min-height:0}
 aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--line);overflow:auto}
 .tabs{display:flex;gap:16px;padding:0 14px;border-bottom:1px solid var(--line)}
-.tabs button{border:0;background:none;height:38px;padding:0;font-size:12.5px;color:var(--grey);border-bottom:2px solid transparent}.tabs button[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.tabs button{border:0;background:none;height:38px;padding:0;font-size:14px;color:var(--grey);border-bottom:2px solid transparent}.tabs button[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
 .pane{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:12px}
-.lbl{font-size:10px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase}
+.lbl{font-size:11.5px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase}
 .mat{display:flex;gap:10px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:2px;cursor:grab;background:#fff}
 .mat:hover{border-color:var(--ink)}.mat .th{width:56px;height:40px;background:#f7f6f3 center/contain no-repeat;flex:none;border:1px solid #efede9}
-.mat .n{font-size:12px;line-height:1.3}.mat .m{font-family:var(--mono);font-size:10px;color:var(--grey)}
-.note{font-family:var(--mono);font-size:11px;color:var(--grey);line-height:1.55}
+.mat .n{font-size:13.5px;line-height:1.3}.mat .m{font-family:var(--mono);font-size:11.5px;color:var(--grey)}
+.note{font-family:var(--mono);font-size:12.5px;color:var(--grey);line-height:1.55}
 .pg{display:flex;gap:8px;align-items:flex-start;cursor:pointer}.pg .th{flex:none;background:#fff;border:1px solid var(--line2);overflow:hidden}.pg.on .th{outline:2px solid var(--ink)}
-.pg .n{font-family:var(--mono);font-size:10.5px;color:var(--grey)}.pg .a{display:flex;flex-direction:column;gap:2px;margin-left:auto}.pg .a button{border:0;background:none;font-size:11px;padding:1px 4px;color:var(--grey)}.pg .a button:hover{color:var(--ink)}
+.pg .n{font-family:var(--mono);font-size:12px;color:var(--grey)}.pg .a{display:flex;flex-direction:column;gap:2px;margin-left:auto}.pg .a button{border:0;background:none;font-size:12.5px;padding:1px 4px;color:var(--grey)}.pg .a button:hover{color:var(--ink)}
 .stage{user-select:none;-webkit-user-select:none;position:relative;background:var(--desk);overflow:auto;min-width:0}
 .tools{position:sticky;top:10px;left:0;margin:10px auto 0;width:max-content;z-index:20;display:flex;gap:2px;padding:4px;background:#fff;border-radius:2px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
 .tools button{width:34px;height:34px;border:0;background:none;border-radius:2px;display:grid;place-items:center}.tools button:hover{background:var(--bg)}.tools button[aria-pressed=true]{background:var(--ink);color:#fff}
 .tools .dv{width:1px;background:var(--line);margin:4px}
 .tools svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 #paper{user-select:none;-webkit-user-select:none;display:block;margin:18px auto 80px;box-shadow:0 6px 30px rgba(0,0,0,.14);background:#fff;touch-action:none}
-.zoom{position:sticky;left:12px;bottom:12px;float:left;margin-top:-50px;z-index:20;display:flex;gap:4px;align-items:center;background:#fff;padding:4px 8px;border-radius:2px;font-family:var(--mono);font-size:11px;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+.zoom{position:sticky;left:12px;bottom:12px;float:left;margin-top:-50px;z-index:20;display:flex;gap:4px;align-items:center;background:#fff;padding:4px 8px;border-radius:2px;font-family:var(--mono);font-size:12.5px;box-shadow:0 1px 6px rgba(0,0,0,.08)}
 .zoom button{border:0;background:none;width:22px;height:22px}
-.f{display:grid;grid-template-columns:1fr 1fr;gap:6px}.f label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:var(--grey)}
-.f input,.f select,.r select,.r input[type=text],.r input[type=number],.r textarea{border:1px solid var(--line2);border-radius:2px;padding:4px 6px;background:#fff;font-size:12px;width:100%}
+.f{display:grid;grid-template-columns:1fr 1fr;gap:6px}.f label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--grey)}
+.f input,.f select,.r select,.r input[type=text],.r input[type=number],.r textarea{border:1px solid var(--line2);border-radius:2px;padding:4px 6px;background:#fff;font-size:13.5px;width:100%}
 .r .full{grid-column:1/-1}.sw{display:flex;gap:5px;flex-wrap:wrap}.sw button{width:22px;height:22px;border-radius:50%;border:1px solid var(--line2)}.sw button.on{box-shadow:0 0 0 2px #fff,0 0 0 3px var(--ink)}
 .row{display:flex;gap:6px;flex-wrap:wrap}
 #ed{position:absolute;z-index:30;border:1px dashed var(--sel);background:rgba(255,255,255,.95);resize:none;outline:none;padding:0;line-height:1.25;overflow:hidden}
@@ -54,17 +54,17 @@ aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--l
 .mbox{background:#fff;width:min(1000px,94vw);height:min(720px,90vh);display:flex;flex-direction:column}
 .mbox header{height:48px}.mbox #pmap{flex:1}.frame{position:absolute;z-index:500;border:2px solid var(--ink);box-shadow:0 0 0 9999px rgba(244,243,241,.45);pointer-events:none;left:50%;top:50%;transform:translate(-50%,-50%)}
 #pres{position:fixed;inset:0;background:#111;z-index:200;display:flex;align-items:center;justify-content:center}#pres svg{max-width:100vw;max-height:100vh;background:#fff}
-#pres .pi{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:#aaa;font-family:var(--mono);font-size:12px}
-.toast{background:var(--ink);color:#f4f3f1;padding:10px 14px;font-size:12.5px;border-radius:2px;max-width:560px}
+#pres .pi{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:#aaa;font-family:var(--mono);font-size:13.5px}
+.toast{background:var(--ink);color:#f4f3f1;padding:10px 14px;font-size:14px;border-radius:2px;max-width:560px}
 #toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:300}
-.busy{position:fixed;inset:0;background:rgba(244,243,241,.7);z-index:250;display:flex;align-items:center;justify-content:center;font-size:14px}
-#ctx{position:fixed;z-index:1000;min-width:230px;background:#fff;border:1px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px 0;font:12.5px Archivo,sans-serif}
+.busy{position:fixed;inset:0;background:rgba(244,243,241,.7);z-index:250;display:flex;align-items:center;justify-content:center;font-size:15px}
+#ctx{position:fixed;z-index:1000;min-width:230px;background:#fff;border:1px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px 0;font:14px Archivo,sans-serif}
 #ctx hr{border:0;border-top:1px solid var(--line);margin:4px 0}
 #ctx .ci,#ctx .cs button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:18px;border:0;background:none;padding:6px 12px;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
 #ctx .ci:hover:not([disabled]),#ctx .cs button:hover{background:var(--ink);color:#f4f3f1}#ctx .ci[disabled]{color:#b9b6ae;cursor:default}
-#ctx kbd{font:10.5px 'IBM Plex Mono',monospace;color:#8a877f}#ctx .ci:hover kbd,#ctx .cs button:hover kbd{color:#cfccc5}
+#ctx kbd{font:12px 'IBM Plex Mono',monospace;color:#8a877f}#ctx .ci:hover kbd,#ctx .cs button:hover kbd{color:#cfccc5}
 #ctx .sub{position:relative;cursor:default}#ctx .cs{display:none;position:absolute;left:100%;top:-5px;min-width:200px;background:#fff;border:1px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px 0}#ctx.left .cs{left:auto;right:100%}
-#ctx .sub:hover>.cs{display:block}#ctx .cs button.on{font-weight:600}#ctx .cs button.on::after{content:'●';font-size:8px}
+#ctx .sub:hover>.cs{display:block}#ctx .cs button.on{font-weight:600}#ctx .cs button.on::after{content:'●';font-size:9.5px}
 .flash{outline:2px solid #f0b429;outline-offset:-2px;transition:outline-color .8s}
 </style>
 </head>
@@ -85,8 +85,8 @@ aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--l
 <button data-x="pptx">PowerPoint (.pptx) <small>har varaq — bitta slayd</small></button>
 <button data-x="png">PNG — joriy varaq</button>
 <button data-x="json">Albomni faylga saqlash (.json)</button>
-<label style="display:block;padding:8px 10px;font-size:12.5px;cursor:pointer">Albomni fayldan ochish…<input type="file" id="openJson" accept=".json" hidden></label>
-<div style="padding:6px 10px;font-size:11px;color:var(--grey)">Sifat: <select id="dpi"><option value="100">100 dpi (tez)</option><option value="150" selected>150 dpi</option><option value="200">200 dpi</option><option value="300">300 dpi (A3 gacha)</option></select></div>
+<label style="display:block;padding:8px 10px;font-size:14px;cursor:pointer">Albomni fayldan ochish…<input type="file" id="openJson" accept=".json" hidden></label>
+<div style="padding:6px 10px;font-size:12.5px;color:var(--grey)">Sifat: <select id="dpi"><option value="100">100 dpi (tez)</option><option value="150" selected>150 dpi</option><option value="200">200 dpi</option><option value="300">300 dpi (A3 gacha)</option></select></div>
 </div>
 <main>
 <aside class="l">
@@ -217,7 +217,7 @@ function renderLeft(){document.querySelectorAll('[data-lt]').forEach(b=>b.setAtt
       if(a==='title'){const it={id:uid(),t:'text',x:15,y:12,w:W*.6,h:16,text:doc.name,ff:'Archivo',fs:36,col:'#141414',b:false,al:'l'};pg().items.push(it);sel=it.id;commit();renderAll();}
       if(a==='lgnd'){const it={id:uid(),t:'legend',title:'Shartli belgilar',entries:[{col:'#cfe3c4',label:'Yashil hudud',kind:'fill',on:true},{col:'#141414',label:'Chegara',kind:'line',on:true}],fs:9,cols:1,x:W*.7,y:30,w:60,h:0};it.h=legendH(it);pg().items.push(it);sel=it.id;commit();renderAll();}
       if(a==='legend'){const it={id:uid(),t:'text',x:W*.62,y:30,w:W*.3,h:40,text:'Izoh:\n— [matn]',ff:'IBM Plex Mono',fs:10,col:'#3c3c3c',al:'l'};pg().items.push(it);sel=it.id;commit();renderAll();}});}
-  else if(lt==='layers'){el.innerHTML=`<div class="note">Yangi elementlar faol qatlamga tushadi. Koʻz — koʻrsatish, qulf — tanlab boʻlmaydi. Tartib: yuqoridagi qatlam — orqada.</div>`+doc.layers.map((l,i)=>`<div style="display:grid;grid-template-columns:18px 1fr 26px 26px 20px 20px 20px;gap:4px;align-items:center"><input type="radio" name="actL" data-la="${l.id}" ${activeLayer===l.id?'checked':''} title="Faol qatlam"><input type="text" data-ln="${l.id}" value="${esc(l.name)}" style="border:1px solid var(--line2);padding:3px 6px;font-size:12px;min-width:0"><button class="ib" data-lv="${l.id}" title="Koʻrsatish" style="opacity:${l.vis!==false?1:.35}">◉</button><button class="ib" data-lk="${l.id}" title="Qulf" style="opacity:${l.lock?1:.35}">🔒︎</button><button class="ib" data-lu="${i}" title="Yuqoriga" style="width:20px">↑</button><button class="ib" data-ld="${i}" title="Pastga" style="width:20px">↓</button><button class="ib" data-lx="${l.id}" title="Oʻchirish" style="width:20px">✕</button></div><div class="note" style="margin:-6px 0 0 22px">${doc.pages.reduce((a,p)=>a+p.items.filter(it=>it.layer===l.id).length,0)} ta element</div>`).join('')+`<div class="row"><button class="btn sm ghost" id="addL">+ Qatlam</button>${sel?'<button class="btn sm ghost" id="movL">Tanlanganni faol qatlamga</button>':''}</div>`;
+  else if(lt==='layers'){el.innerHTML=`<div class="note">Yangi elementlar faol qatlamga tushadi. Koʻz — koʻrsatish, qulf — tanlab boʻlmaydi. Tartib: yuqoridagi qatlam — orqada.</div>`+doc.layers.map((l,i)=>`<div style="display:grid;grid-template-columns:18px 1fr 26px 26px 20px 20px 20px;gap:4px;align-items:center"><input type="radio" name="actL" data-la="${l.id}" ${activeLayer===l.id?'checked':''} title="Faol qatlam"><input type="text" data-ln="${l.id}" value="${esc(l.name)}" style="border:1px solid var(--line2);padding:3px 6px;font-size:13.5px;min-width:0"><button class="ib" data-lv="${l.id}" title="Koʻrsatish" style="opacity:${l.vis!==false?1:.35}">◉</button><button class="ib" data-lk="${l.id}" title="Qulf" style="opacity:${l.lock?1:.35}">🔒︎</button><button class="ib" data-lu="${i}" title="Yuqoriga" style="width:20px">↑</button><button class="ib" data-ld="${i}" title="Pastga" style="width:20px">↓</button><button class="ib" data-lx="${l.id}" title="Oʻchirish" style="width:20px">✕</button></div><div class="note" style="margin:-6px 0 0 22px">${doc.pages.reduce((a,p)=>a+p.items.filter(it=>it.layer===l.id).length,0)} ta element</div>`).join('')+`<div class="row"><button class="btn sm ghost" id="addL">+ Qatlam</button>${sel?'<button class="btn sm ghost" id="movL">Tanlanganni faol qatlamga</button>':''}</div>`;
     el.querySelectorAll('[data-la]').forEach(r=>r.onchange=()=>{activeLayer=r.dataset.la;renderLeft();});
     el.querySelectorAll('[data-ln]').forEach(i=>i.onchange=()=>{doc.layers.find(l=>l.id===i.dataset.ln).name=i.value;commit();});
     el.querySelectorAll('[data-lv]').forEach(b=>b.onclick=()=>{const l=doc.layers.find(x=>x.id===b.dataset.lv);l.vis=l.vis===false;commit();renderAll();});
@@ -243,7 +243,7 @@ function addMat(m,cx,cy){if(!m)return;const it={id:uid(),t:'mat',src:m.src,name:
   commit();renderAll();}
 /* ---------- oʻng panel ---------- */
 function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel);
-  if(!it){el.innerHTML=`<div style="font-size:15px;font-weight:500">Varaq ${cur+1}</div>
+  if(!it){el.innerHTML=`<div style="font-size:16px;font-weight:500">Varaq ${cur+1}</div>
     <div class="f r"><label class="full">Varaq oʻlchami<select id="pFmt">${Object.keys(FMT).map(k=>`<option ${p.fmt===k?'selected':''}>${k}</option>`).join('')}<option value="custom" ${p.fmt==='custom'?'selected':''}>Ixtiyoriy (mm)</option></select></label>
     ${p.fmt==='custom'?`<label>Eni, mm<input type="number" id="pCw" value="${p.cw||1500}"></label><label>Boʻyi, mm<input type="number" id="pCh" value="${p.ch||1000}"></label>`:''}
     <label class="full"><span><input type="checkbox" id="pTb" ${p.tb?'checked':''}> Asosiy yozuv (pastki oʻng burchak)</span></label></div>
@@ -252,7 +252,7 @@ function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel
     $('#pFmt').onchange=e=>{p.fmt=e.target.value;commit();renderAll();};if($('#pCw')){$('#pCw').onchange=e=>{p.cw=+e.target.value;commit();renderAll();};$('#pCh').onchange=e=>{p.ch=+e.target.value;commit();renderAll();};}
     $('#pTb').onchange=e=>{p.tb=e.target.checked;commit();renderAll();};$('#mProj').onchange=e=>{doc.meta.proj=e.target.value;commit();renderAll();};$('#mAuth').onchange=e=>{doc.meta.author=e.target.value;commit();renderAll();};return;}
   const nm={poly:'Koʻpburchak',legend:'Shartli belgilar',text:'Matn',rect:'Toʻrtburchak',ellipse:'Ellips',line:'Chiziq',arrow:'Oʻq chiziq',pen:'Erkin chiziq',image:'Rasm',mat:'Material',map:'Xarita oynasi'}[it.t];
-  const b=bbox(it);let h=`<div style="font-size:15px;font-weight:500">${nm}${it.name?` <span class="note">${esc(it.name)}</span>`:''}</div>`;
+  const b=bbox(it);let h=`<div style="font-size:16px;font-weight:500">${nm}${it.name?` <span class="note">${esc(it.name)}</span>`:''}</div>`;
   if(!it.pts)h+=`<div class="f r"><label>X, mm<input type="number" step="0.5" data-k="x" value="${+it.x.toFixed(1)}"></label><label>Y, mm<input type="number" step="0.5" data-k="y" value="${+it.y.toFixed(1)}"></label><label>Eni, mm<input type="number" step="0.5" data-k="w" value="${+it.w.toFixed(1)}"></label><label>Boʻyi, mm<input type="number" step="0.5" data-k="h" value="${+it.h.toFixed(1)}"></label></div>`;
   else h+=`<div class="note">${b.w.toFixed(1)} × ${b.h.toFixed(1)} mm</div>`;
   if(it.t==='text')h+=`<div class="f r"><label class="full">Matn<textarea id="tTxt" rows="3">${esc(it.text)}</textarea></label><label class="full">Yozuv turi<select data-k="ff">${FONTS.map(f=>`<option ${it.ff===f?'selected':''} style="font-family:'${f}'">${f}</option>`).join('')}</select></label>
@@ -267,12 +267,12 @@ function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel
       ${it.t!=='ellipse'?`<label>Burchak radiusi, mm<input type="number" step="0.5" min="0" data-k="r" value="${it.r||0}"></label>`:''}${it.t==='poly'?`<label><span><input type="checkbox" id="pClosed" ${it.closed===false?'':'checked'}> Yopiq shakl</span></label>`:''}</div>`;}
   else if(it.pts)h+=`<div class="lbl">Rang</div>${sw('stroke',it.stroke)}<div class="f r"><label>Qalinlik, mm<input type="number" step="0.05" data-k="sw" value="${it.sw}"></label>${lsSel}<label class="full">Shaffoflik<input type="range" min="0" max="1" step="0.05" data-k="sop" value="${it.sop??1}"></label></div>`;
   if(it.t==='legend')h+=`<div class="f r"><label class="full">Sarlavha<input type="text" id="lgT" value="${esc(it.title||'')}"></label><label>Matn, pt<input type="number" data-k="fs" value="${it.fs||9}"></label><label>Ustunlar<input type="number" min="1" max="4" data-k="cols" value="${it.cols||1}"></label><label class="full"><span><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</span></label></div>
-    <div class="lbl">Bandlar</div>${(it.entries||[]).map((e,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr 64px 20px;gap:4px;align-items:center;margin-bottom:3px"><input type="checkbox" data-le="${i}:on" ${e.on!==false?'checked':''}><input type="color" data-le="${i}:col" value="${/^#[0-9a-f]{6}$/i.test(e.col)?e.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><input type="text" data-le="${i}:label" value="${esc(e.label)}" style="border:1px solid var(--line2);padding:3px 5px;font-size:12px;min-width:0"><select data-le="${i}:kind" style="font-size:11px">${[['fill','maydon'],['line','chiziq'],['dot','nuqta']].map(([k,n])=>`<option value="${k}" ${e.kind===k?'selected':''}>${n}</option>`).join('')}</select><button class="ib" data-led="${i}" style="width:20px;height:20px">✕</button></div>`).join('')}
+    <div class="lbl">Bandlar</div>${(it.entries||[]).map((e,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr 64px 20px;gap:4px;align-items:center;margin-bottom:3px"><input type="checkbox" data-le="${i}:on" ${e.on!==false?'checked':''}><input type="color" data-le="${i}:col" value="${/^#[0-9a-f]{6}$/i.test(e.col)?e.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><input type="text" data-le="${i}:label" value="${esc(e.label)}" style="border:1px solid var(--line2);padding:3px 5px;font-size:13.5px;min-width:0"><select data-le="${i}:kind" style="font-size:12.5px">${[['fill','maydon'],['line','chiziq'],['dot','nuqta']].map(([k,n])=>`<option value="${k}" ${e.kind===k?'selected':''}>${n}</option>`).join('')}</select><button class="ib" data-led="${i}" style="width:20px;height:20px">✕</button></div>`).join('')}
     <div class="row"><button class="btn sm ghost" id="leAdd">+ Band</button><button class="btn sm ghost" id="leFit">Boʻyini moslash</button></div>`;
   if(it.t==='map')h+=`<div class="f r"><label>Masshtab 1:<select data-k="scale">${[200,500,1000,2000,2500,5000,10000,25000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}</select></label><label>Fon<select data-k="style">${[['line','Chizma (oq)'],['sat','Sunʼiy yoʻldosh'],['dark','Grafit'],['voy','OSM toza'],['osm','OSM standart'],['none','Fonsiz']].map(([k,n])=>`<option value="${k}" ${it.style===k?'selected':''}>${n}</option>`).join('')}</select></label>
     <label class="full"><span><input type="checkbox" data-lay="design" ${it.lay.design?'checked':''}> Koʻcha studiyasi loyihasi</span></label><label class="full"><span><input type="checkbox" data-lay="data" ${it.lay.data?'checked':''}> Maʼlumotlar qatlamlari</span></label></div><div id="mLayers" class="note">Qatlamlar yuklanmoqda…</div><div class="row"><button class="btn sm" id="mPick">Joyni tanlash…</button><button class="btn sm ghost" id="mLeg">Shartli belgilar yaratish</button></div>`;
   if(it.t==='mat'&&it.mW)h+=`<div class="f r"><label class="full">Masshtab 1:<select id="matSc">${[50,100,200,250,500,1000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}${[50,100,200,250,500,1000].includes(+it.scale)?'':`<option selected>${it.scale}</option>`}</select></label></div><div class="note">Kesim haqiqiy oʻlchamda: eni ${it.mW.toFixed(1)} m.</div>`;
-  if(it.t==='image'||it.t==='mat')h+=`<label style="font-size:12px"><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</label>`;
+  if(it.t==='image'||it.t==='mat')h+=`<label style="font-size:13.5px"><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</label>`;
   h+=`<div class="f r"><label class="full">Qatlam<select data-k="layer">${doc.layers.map(l=>`<option value="${l.id}" ${(it.layer||'L0')===l.id?'selected':''}>${esc(l.name)}</option>`).join('')}</select></label></div>`;
   h+=`<div class="f r"><label>Shaffoflik<input type="range" min="0.1" max="1" step="0.05" data-k="op" value="${it.op??1}"></label>${it.pts?'':`<label>Burilish, °<input type="number" step="1" data-k="rot" value="${it.rot||0}"></label>`}</div>
     <div class="row"><button class="btn sm ghost" data-z="up">Oldinga</button><button class="btn sm ghost" data-z="dn">Orqaga</button><button class="btn sm ghost" id="iDup">Nusxa</button><button class="btn sm ghost" id="iDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div>`;
@@ -288,7 +288,7 @@ function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel
   if($('#tTxt'))$('#tTxt').oninput=e=>{it.text=e.target.value;fitText(it);renderPaper();};if($('#tTxt'))$('#tTxt').onchange=()=>{commit();renderLeft();};
   if($('#mPick'))$('#mPick').onclick=()=>pickMap(it);
   if(it.t==='map'){mapLayerList(it).then(Ls=>{const el2=$('#mLayers');if(!el2)return;it.cats=it.cats||{};it.dl=it.dl||{};
-    el2.innerHTML=Ls.length?Ls.map((x,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr;gap:6px;align-items:center;margin:3px 0"><input type="checkbox" data-ml="${i}" ${x.on?'checked':''}><input type="color" data-mc="${i}" value="${/^#[0-9a-f]{6}$/i.test(x.col)?x.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><span style="font-family:Archivo;font-size:12px;color:#141414">${esc(x.name)}</span></div>`).join(''):'Qatlam yoʻq — studiyada «Albomga» bosing yoki Maʼlumotlarga fayl yuklang.';
+    el2.innerHTML=Ls.length?Ls.map((x,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr;gap:6px;align-items:center;margin:3px 0"><input type="checkbox" data-ml="${i}" ${x.on?'checked':''}><input type="color" data-mc="${i}" value="${/^#[0-9a-f]{6}$/i.test(x.col)?x.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><span style="font-family:Archivo;font-size:13.5px;color:#141414">${esc(x.name)}</span></div>`).join(''):'Qatlam yoʻq — studiyada «Albomga» bosing yoki Maʼlumotlarga fayl yuklang.';
     const set=(i,k,v)=>{const x=Ls[i];const o=x.src==='cat'?(it.cats[x.key]=it.cats[x.key]||{}):(it.dl[x.key]=it.dl[x.key]||{});o[k]=v;x[k]=v;refreshMap(it);commit();};
     el2.querySelectorAll('[data-ml]').forEach(c=>c.onchange=()=>set(+c.dataset.ml,'on',c.checked));el2.querySelectorAll('[data-mc]').forEach(c=>c.onchange=()=>set(+c.dataset.mc,'col',c.value));
     $('#mLeg').onclick=()=>{const ent=Ls.filter(x=>x.on).map(x=>({col:x.col,label:x.name,kind:x.kind||'fill',on:true}));const lg={id:uid(),t:'legend',title:'Shartli belgilar',entries:ent,fs:8,cols:1,x:it.x+it.w+4,y:it.y,w:60,h:0};lg.h=legendH(lg);const [W]=pageWH(pg());if(lg.x+lg.w>W)lg.x=Math.max(2,it.x);pg().items.push(lg);sel=lg.id;commit();renderAll();};});}
