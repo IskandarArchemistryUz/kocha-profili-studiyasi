@@ -225,7 +225,22 @@ async function open3d(){try{if(!window.maplibregl){const l=document.createElemen
     if(P.site||P.blds.length){const b=new maplibregl.LngLatBounds();(P.site||P.blds.flatMap(x=>x.poly)).forEach(p=>b.extend([p[1],p[0]]));M3.fitBounds(b,{padding:80,pitch:55,bearing:-20,duration:0});}});}
 function upd3d(){if(window.M3D)M3D.update();}
 /* ---- xonadonlar tarkibi (qavat rejasi) ---- */
-const KT={1:['1 xonali','#e3dbf7'],2:['2 xonali','#cbbdf0'],3:['3 xonali','#ad9de2'],4:['4+ xonali','#8f7fcc'],core:['Zinapoya-lift','#bdbab3'],cor:['Koridor / MOP','#ebe9e4'],com:['Notijorat','#f2c27b']};
+const KT={1:['1 xonali','#e3dbf7'],2:['2 xonali','#cbbdf0'],3:['3 xonali','#ad9de2'],4:['4+ xonali','#8f7fcc'],core:['Zinapoya-lift','#bdbab3'],cor:['Koridor / MOP','#ebe9e4'],com:['Notijorat','#f2c27b'],
+  o_open:['Ochiq ofis','#cfe0f2'],o_cab:['Kabinet','#a9c7e8'],o_meet:['Yigʻilish xonasi','#8fb3dd'],o_rec:['Qabulxona','#e2d6f2'],o_wc:['Sanuzel','#d5e6e3'],o_tech:['Texnik xona','#d0cdc6'],
+  s_hall:['Savdo zali','#f6d6a8'],s_cafe:['Kafe / restoran zali','#f2c27b'],s_kit:['Oshxona (tayyorlash)','#e8b08a'],s_store:['Ombor','#d8c6ae'],s_staff:['Xodimlar xonasi','#e7dcc8'],
+  e_class:['Sinf / guruh xonasi','#bfe0c8'],e_gym:['Sport zali','#a6d1b2'],e_din:['Ovqatlanish zali','#e8d3a8'],e_med:['Tibbiyot xonasi','#f0c9c9'],e_adm:['Maʼmuriyat','#d4d8ee'],e_hall:['Hol / rekreatsiya','#ece6d6']};
+const RT={res:['1','2','3','4','cor','core','com'],off:['o_open','o_cab','o_meet','o_rec','o_wc','o_tech','cor','core'],com:['s_hall','s_cafe','s_kit','s_store','s_staff','o_wc','cor','core'],soc:['e_class','e_gym','e_din','e_med','e_adm','e_hall','o_wc','cor','core']};
+const isApt=k=>k==='1'||k==='2'||k==='3'||k==='4'||k===1||k===2||k===3||k===4;
+const useKey=b=>RT[b.use]?b.use:'res';
+function inPolyL(q,x,y){let c=false;for(let i=0,j=q.length-1;i<q.length;j=i++){if(((q[i][1]>y)!==(q[j][1]>y))&&(x<(q[j][0]-q[i][0])*(y-q[i][1])/(q[j][1]-q[i][1])+q[i][0]))c=!c;}return c;}
+function segX(a,b,c,d){const r=(b[0]-a[0])*(d[1]-c[1])-(b[1]-a[1])*(d[0]-c[0]);if(Math.abs(r)<1e-12)return null;const t=((c[0]-a[0])*(d[1]-c[1])-(c[1]-a[1])*(d[0]-c[0]))/r,u=((c[0]-a[0])*(b[1]-a[1])-(c[1]-a[1])*(b[0]-a[0]))/r;return t>1e-6&&t<1-1e-6&&u>1e-6&&u<1-1e-6?[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1]),t]:null;}
+function cellPts(fr,c){return c.pts?c.pts:clipRect(fr.pts,c);}
+function cellAreaFr(fr,c){if(!c.pts)return pArea(clipRect(fr.pts,c));const q=c.pts,F=fr.pts;const nearB=p=>F.some((a,i)=>{const b=F[(i+1)%F.length],dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy)<.05;});
+  let exact=q.every(p=>inPolyL(F,p[0],p[1])||nearB(p));if(exact)for(let i=0;i<q.length&&exact;i++)for(let j=0;j<F.length;j++)if(segX(q[i],q[(i+1)%q.length],F[j],F[(j+1)%F.length])){exact=false;break;}
+  if(exact)return pArea(q);const xs=q.map(p=>p[0]),ys=q.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),st=Math.max(.08,Math.sqrt((x1-x0)*(y1-y0))/120);let n=0;
+  for(let x=x0+st/2;x<x1;x+=st)for(let y=y0+st/2;y<y1;y+=st)if(inPolyL(q,x,y)&&inPolyL(F,x,y))n++;return n*st*st;}
+function clipHalf(q,a,b,sgn){const side=p=>sgn*((b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]));const out=[];for(let i=0;i<q.length;i++){const P1=q[i],P2=q[(i+1)%q.length],s1=side(P1),s2=side(P2);if(s1>=0)out.push(P1);if((s1>=0)!==(s2>=0)){const t=s1/(s1-s2);out.push([P1[0]+t*(P2[0]-P1[0]),P1[1]+t*(P2[1]-P1[1])]);}}return out.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)]);}
+function pCent(q){let a=0,x=0,y=0;for(let i=0;i<q.length;i++){const p=q[i],r=q[(i+1)%q.length],c=p[0]*r[1]-r[0]*p[1];a+=c;x+=(p[0]+r[0])*c;y+=(p[1]+r[1])*c;}if(Math.abs(a)<1e-9)return [q.reduce((s,p)=>s+p[0],0)/q.length,q.reduce((s,p)=>s+p[1],0)/q.length];return [x/(3*a),y/(3*a)];}
 function localFrame(poly){const M=poly.map(xy);let bi=0,bl=0;M.forEach((p,i)=>{const q=M[(i+1)%M.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l>bl){bl=l;bi=i;}});
   const o=M[bi],q=M[(bi+1)%M.length],an=Math.atan2(q[1]-o[1],q[0]-o[0]),cs=Math.cos(an),sn=Math.sin(an);
   let L0=M.map(p=>{const dx=p[0]-o[0],dy=p[1]-o[1];return [dx*cs+dy*sn,-(-dx*sn+dy*cs)];});
@@ -235,25 +250,26 @@ function clipRect(poly,r){let out=poly;const E=[[p=>p[0]>=r.x,(a,b)=>{const t=(r
   [p=>p[1]>=r.y,(a,b)=>{const t=(r.y-a[1])/(b[1]-a[1]);return [a[0]+t*(b[0]-a[0]),r.y];}],[p=>p[1]<=r.y+r.h,(a,b)=>{const Y=r.y+r.h,t=(Y-a[1])/(b[1]-a[1]);return [a[0]+t*(b[0]-a[0]),Y];}]];
   for(const [ins,cut] of E){const inp=out;out=[];if(!inp.length)break;for(let i=0;i<inp.length;i++){const a=inp[(i+inp.length-1)%inp.length],b=inp[i];if(ins(b)){if(!ins(a))out.push(cut(a,b));out.push(b);}else if(ins(a))out.push(cut(a,b));}}return out;}
 const pArea=a=>{let s=0;for(let i=0;i<a.length;i++){const j=(i+1)%a.length;s+=a[i][0]*a[j][1]-a[j][0]*a[i][1];}return Math.abs(s)/2;};
-function cellArea(b,c){const fr=localFrame(b.poly);return pArea(clipRect(fr.pts,c));}
+function cellArea(b,c){return cellAreaFr(localFrame(b.poly),c);}
 function planCount(b){if(!b.plan||!b.plan.cells||!b.plan.cells.length)return null;const fr=localFrame(b.poly),n={1:0,2:0,3:0,4:0},a={1:0,2:0,3:0,4:0};let tot=0,fa=0;
-  b.plan.cells.forEach(c=>{if(!(c.k in n))return;const ar=pArea(clipRect(fr.pts,c));if(ar<1)return;n[c.k]++;a[c.k]+=ar;tot++;fa+=ar;});
+  b.plan.cells.forEach(c=>{if(!(c.k in n))return;const ar=cellAreaFr(fr,c);if(ar<1)return;n[c.k]++;a[c.k]+=ar;tot++;fa+=ar;});
   const rf=Math.max(0,b.fl-(b.gf&&b.gf!=='res'&&b.fl>1?1:0));Object.keys(n).forEach(k=>{n[k]*=rf;a[k]*=rf;});return {n,a,tot,sell:fa*rf,rf,fa};}
 let PL=null;
 /* zinapoya-lift tugunlari: oʻlchamlar — loyihalash uchun namuna (normativ emas) */
 const STAIRS={L1:['Zinapoya L1, 2 marshli, liftsiz',2.8,5.6,'L1'],L1L:['Zinapoya L1 + 1 lift',5.0,5.6,'L1'],L1LL:['Zinapoya L1 + 2 lift',6.6,5.6,'L1'],N1:['Tutunsiz N1 (havo zonasi orqali) + 2 lift',8.4,6.6,'N1'],GAL:['Galereya uyi zinapoyasi (ochiq)',3.0,6.0,'L1']};
 const minA=()=>{P.p.minA=Object.assign({1:28,2:48,3:64,4:80},P.p.minA||{});return P.p.minA;};
 function planSet(b){b.plan.set=Object.assign({step:.3,ax:0,ay:0,snapE:true},b.plan.set||{});b.plan.dims=b.plan.dims||[];return b.plan.set;}
-function openPlan(b){b.plan=b.plan||{cells:[]};planSet(b);const fr=localFrame(b.poly);PL={b,fr,tool:'rect',k:'2',st:b.fl*P.p.fh>28?'N1':'L1L',sel:null,rul:null};
-  const w=document.createElement('div');w.className='fpw';w.id='fpw';w.innerHTML=`<div class="box"><div class="hd"><b style="font-size:14px;font-weight:500">Qavat rejasi · xonadonlar tarkibi</b><span class="note">${fi(area(b.poly))} m² dogʻ · ${b.fl} qavat · H ≈ ${f1(b.fl*P.p.fh)} m</span><span class="sp"></span>
-    <div class="seg"><button data-pt="sel" title="Tanlash (V)">Tanlash</button><button data-pt="rect" title="Kvartira (R)">Kvartira</button><button data-pt="stair" title="Zinapoya-lift (S)">Zinapoya</button><button data-pt="ruler" title="Lineyka (M)">Lineyka</button></div>
+function openPlan(b){b.plan=b.plan||{cells:[]};planSet(b);const fr=localFrame(b.poly);PL={b,fr,tool:'rect',pal:useKey(b),k:RT[useKey(b)][0],st:b.fl*P.p.fh>28?'N1':'L1L',sel:null,rul:null,pp:null};
+  const w=document.createElement('div');w.className='fpw';w.id='fpw';w.innerHTML=`<div class="box"><div class="hd"><b style="font-size:14px;font-weight:500">Qavat rejasi · xonalar tarkibi</b><span class="note">${fi(area(b.poly))} m² dogʻ · ${b.fl} qavat · H ≈ ${f1(b.fl*P.p.fh)} m</span><span class="sp"></span>
+    <div class="seg"><button data-pt="sel" title="Tanlash (V)">Tanlash</button><button data-pt="rect" title="Toʻrtburchak xona (R)">Toʻrtburchak</button><button data-pt="poly" title="Koʻpburchak xona — qiyshiq devorlar (P)">Koʻpburchak</button><button data-pt="cut" title="Xonani chiziq bilan boʻlish (C)">Boʻlish</button><button data-pt="stair" title="Zinapoya-lift (S)">Zinapoya</button><button data-pt="ruler" title="Lineyka (M)">Lineyka</button></div>
+    <label class="note" style="display:flex;gap:4px;align-items:center">funksiya<select id="plUse">${Object.keys(RT).map(k=>`<option value="${k}" ${k===useKey(b)?'selected':''}>${USES[k][0]}</option>`).join('')}</select></label>
     <label class="note" style="display:flex;gap:4px;align-items:center">qadam<select id="plStep">${[.1,.3,.5,.6,1.2].map(v=>`<option value="${v}" ${b.plan.set.step==v?'selected':''}>${String(v).replace('.',',')} m</option>`).join('')}</select></label>
     <label class="note" style="display:flex;gap:4px;align-items:center">oʻqlar<input id="plAx" type="number" step="0.3" min="0" value="${b.plan.set.ax||''}" placeholder="—" style="width:52px">×<input id="plAy" type="number" step="0.3" min="0" value="${b.plan.set.ay||''}" placeholder="—" style="width:52px"></label>
     <label class="note" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="plSn" ${b.plan.set.snapE?'checked':''}>chetlarga bogʻlash</label>
     <button class="btn sm ghost" id="plUndo">Bekor (Ctrl+Z)</button><button class="btn sm dark" id="plOk">Tayyor</button></div>
     <div class="cv" id="plCv"></div><div class="pn" id="plPn"></div></div>`;document.body.appendChild(w);
   PL.hist=[JSON.stringify({c:b.plan.cells,d:b.plan.dims})];
-  w.querySelectorAll('[data-pt]').forEach(x=>x.onclick=()=>{PL.tool=x.dataset.pt;PL.rul=null;plDraw();});$('#plOk').onclick=closePlan;$('#plUndo').onclick=plUndo;
+  w.querySelectorAll('[data-pt]').forEach(x=>x.onclick=()=>{PL.tool=x.dataset.pt;PL.rul=null;PL.pp=null;if(PL.tool==='rect'||PL.tool==='poly'){if(PL.k==='core'||!RT[PL.pal].includes(PL.k))PL.k=RT[PL.pal][0];}plDraw();});$('#plUse').onchange=e=>{PL.pal=e.target.value;PL.k=RT[PL.pal][0];plDraw();};$('#plOk').onclick=closePlan;$('#plUndo').onclick=plUndo;
   $('#plStep').onchange=e=>{b.plan.set.step=+e.target.value;plDraw();};$('#plAx').onchange=e=>{b.plan.set.ax=+e.target.value||0;plDraw();};$('#plAy').onchange=e=>{b.plan.set.ay=+e.target.value||0;plDraw();};$('#plSn').onchange=e=>{b.plan.set.snapE=e.target.checked;};
   w.addEventListener('mousedown',e=>{if(e.target===w)closePlan();});plDraw();}
 function closePlan(){const w=$('#fpw');if(w)w.remove();PL=null;commit();}
@@ -261,11 +277,15 @@ function plPush(){PL.hist.push(JSON.stringify({c:PL.b.plan.cells,d:PL.b.plan.dim
 function plUndo(){if(PL.hist.length>1){PL.hist.pop();const s=JSON.parse(PL.hist[PL.hist.length-1]);PL.b.plan.cells=s.c;PL.b.plan.dims=s.d||[];PL.sel=null;plDraw();}}
 document.addEventListener('keydown',e=>{if(!PL||e.target.matches('input,select'))return;e.stopImmediatePropagation();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();plUndo();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&PL.sel){PL.b.plan.cells=PL.b.plan.cells.filter(c=>c.id!==PL.sel);PL.sel=null;plPush();plDraw();return;}
-  if(e.key==='Escape'){if(PL.rul){PL.rul=null;plDraw();return;}closePlan();return;}
-  const t={v:'sel',r:'rect',s:'stair',m:'ruler'}[e.key.toLowerCase()];if(t&&!e.ctrlKey){PL.tool=t;PL.rul=null;plDraw();return;}
+  if(e.key==='Enter'&&PL.pp){finishPoly2();return;}if(e.key==='Escape'){if(PL.pp){PL.pp=null;plDraw();return;}if(PL.rul){PL.rul=null;plDraw();return;}closePlan();return;}
+  const t={v:'sel',r:'rect',s:'stair',m:'ruler',p:'poly',c:'cut'}[e.key.toLowerCase()];if(t&&!e.ctrlKey){PL.tool=t;PL.rul=null;plDraw();return;}
   if(KT[e.key]&&PL.sel){const c=PL.b.plan.cells.find(c=>c.id===PL.sel);if(c){c.k=e.key;plPush();plDraw();}}},true);
 /* bogʻlash: chetlar/uchlar → konstruktiv oʻqlar → toʻr */
-function snapP(p,ignore){const {b,fr}=PL,S=b.plan.set,tol=.35;let x=Math.round(p[0]/S.step)*S.step,y=Math.round(p[1]/S.step)*S.step,gx=null,gy=null;
+function snapP(p,ignore){const {b,fr}=PL,S=b.plan.set,tol=.35;
+  if(S.snapE){const V=fr.pts.slice(),E=[];fr.pts.forEach((q,i)=>E.push([q,fr.pts[(i+1)%fr.pts.length]]));b.plan.cells.forEach(c=>{if(c.id===ignore)return;const q=c.pts||[[c.x,c.y],[c.x+c.w,c.y],[c.x+c.w,c.y+c.h],[c.x,c.y+c.h]];q.forEach((v,i)=>{V.push(v);E.push([v,q[(i+1)%q.length]]);});});
+    let bv=null,bd=.45;V.forEach(v=>{const d=Math.hypot(v[0]-p[0],v[1]-p[1]);if(d<bd){bd=d;bv=v;}});if(bv)return {p:[+bv[0].toFixed(3),+bv[1].toFixed(3)],gx:bv[0],gy:bv[1],v:1};
+    let be=null;bd=.3;E.forEach(([a,c])=>{const dx=c[0]-a[0],dy=c[1]-a[1];if(Math.abs(dx)<1e-6||Math.abs(dy)<1e-6)return;const L=dx*dx+dy*dy,t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L)),q=[a[0]+t*dx,a[1]+t*dy],d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<bd){bd=d;be=q;}});
+    if(be)return {p:[+be[0].toFixed(3),+be[1].toFixed(3)],gx:null,gy:null,e:1};}let x=Math.round(p[0]/S.step)*S.step,y=Math.round(p[1]/S.step)*S.step,gx=null,gy=null;
   if(S.ax>0){const ax=Math.round(p[0]/S.ax)*S.ax;if(Math.abs(ax-p[0])<tol){x=ax;gx=ax;}}if(S.ay>0){const ay=Math.round(p[1]/S.ay)*S.ay;if(Math.abs(ay-p[1])<tol){y=ay;gy=ay;}}
   if(S.snapE){const X=[],Y=[];fr.pts.forEach(q=>{X.push(q[0]);Y.push(q[1]);});b.plan.cells.forEach(c=>{if(c.id===ignore)return;X.push(c.x,c.x+c.w);Y.push(c.y,c.y+c.h);});
     let bx=tol,by=tol;X.forEach(v=>{const d=Math.abs(v-p[0]);if(d<bx){bx=d;x=v;gx=v;}});Y.forEach(v=>{const d=Math.abs(v-p[1]);if(d<by){by=d;y=v;gy=v;}});}
@@ -283,13 +303,14 @@ function plDraw(){const {b,fr}=PL,cv=$('#plCv'),pn=$('#plPn');if(!cv)return;cons
   let ax='';if(S.ax>0)for(let x=0,i=1;x<=fr.W+.01;x+=S.ax,i++)ax+=`<line x1="${x}" x2="${x}" y1="-2" y2="${fr.H+.5}" stroke="#c2410c" stroke-width=".05" stroke-dasharray=".6 .3 .1 .3"/><circle cx="${x}" cy="-3" r="${FS*.9}" fill="#fff" stroke="#c2410c" stroke-width=".06"/><text x="${x}" y="-3" dy="${FS*.35}" font-size="${FS}" text-anchor="middle" fill="#c2410c" font-family="Archivo">${i}</text>`;
   if(S.ay>0)for(let y=0,i=0;y<=fr.H+.01;y+=S.ay,i++)ax+=`<line y1="${y}" y2="${y}" x1="-2" x2="${fr.W+.5}" stroke="#c2410c" stroke-width=".05" stroke-dasharray=".6 .3 .1 .3"/><circle cx="-3" cy="${y}" r="${FS*.9}" fill="#fff" stroke="#c2410c" stroke-width=".06"/><text x="-3" y="${y}" dy="${FS*.35}" font-size="${FS}" text-anchor="middle" fill="#c2410c" font-family="Archivo">${'ABVGDEJZIKLMNOPRSTUF'[i]||i}</text>`;
   const fp=fr.pts.map(p=>p.join(',')).join(' ');let dims='';fr.pts.forEach((p,i)=>{const q=fr.pts[(i+1)%fr.pts.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l<2)return;dims+=`<text x="${(p[0]+q[0])/2}" y="${(p[1]+q[1])/2}" font-size="${FS}" text-anchor="middle" dy="-.35" fill="#696969" font-family="IBM Plex Mono">${fm(l)}</text>`;});
-  const cells=b.plan.cells.map(c=>{const poly=clipRect(fr.pts,c),ar=pArea(poly);if(!poly.length)return '';const on=c.id===PL.sel,bad=CH.bad.includes(c.id),fs=Math.max(.5,Math.min(c.w,c.h)/5.5);
-    const lbl=c.k in {1:1,2:1,3:1,4:1}?c.k+(c.k==='4'?'+':'')+'x':c.k==='core'?(STAIRS[c.sub]?STAIRS[c.sub][3]:'Z'):KT[c.k][0].split(' ')[0];
+  const cells=b.plan.cells.map(c=>{const poly=cellPts(fr,c),ar=cellAreaFr(fr,c);if(!poly.length)return '';const on=c.id===PL.sel,bad=CH.bad.includes(c.id),ct=c.pts?pCent(c.pts):[c.x+c.w/2,c.y+c.h/2],bx=c.pts?Math.sqrt(Math.max(1,ar)):Math.min(c.w,c.h),fs=Math.max(.45,Math.min(bx/5.5,FS*2.2));
+    const lbl=isApt(c.k)?c.k+(String(c.k)==='4'?'+':'')+'x':c.k==='core'?(STAIRS[c.sub]?STAIRS[c.sub][3]:'Z'):(KT[c.k]||KT.cor)[0];
     const sym=c.k==='core'?stairSym(c):'';
-    return `<g data-c="${c.id}" style="cursor:${PL.tool==='sel'?'move':'crosshair'}"><polygon points="${poly.map(p=>p.join(',')).join(' ')}" fill="${KT[c.k][1]}" stroke="${bad?'#b3261e':'#141414'}" stroke-width="${on?.2:bad?.18:.08}"/>${sym}
-      <text x="${c.x+c.w/2}" y="${c.y+c.h/2}" font-size="${fs}" text-anchor="middle" font-family="Archivo" font-weight="600" fill="${bad?'#b3261e':'#141414'}">${lbl}${bad?' !':''}</text>
-      <text x="${c.x+c.w/2}" y="${c.y+c.h/2+fs*1.1}" font-size="${fs*.75}" text-anchor="middle" font-family="IBM Plex Mono" fill="#3c3c3c">${f1(ar)} m²</text>
-      ${on?`<rect data-rz="${c.id}" x="${c.x+c.w-.45}" y="${c.y+c.h-.45}" width=".9" height=".9" fill="#fff" stroke="#141414" stroke-width=".1" style="cursor:nwse-resize"/>${dimLine([c.x,c.y+c.h+1.2],[c.x+c.w,c.y+c.h+1.2],FS,'#2f6feb')}${dimLine([c.x+c.w+1.2,c.y],[c.x+c.w+1.2,c.y+c.h],FS,'#2f6feb')}`:''}</g>`;}).join('');
+    return `<g data-c="${c.id}" style="cursor:${PL.tool==='sel'?'move':'crosshair'}"><polygon points="${poly.map(p=>p.join(',')).join(' ')}" fill="${(KT[c.k]||KT.cor)[1]}" stroke="${bad?'#b3261e':'#141414'}" stroke-width="${on?.2:bad?.18:.08}"/>${sym}
+      <text x="${ct[0]}" y="${ct[1]}" font-size="${String(lbl).length>8?fs*.6:fs}" text-anchor="middle" font-family="Archivo" font-weight="600" fill="${bad?'#b3261e':'#141414'}">${lbl}${bad?' !':''}</text>
+      <text x="${ct[0]}" y="${ct[1]+fs*1.05}" font-size="${fs*.7}" text-anchor="middle" font-family="IBM Plex Mono" fill="#3c3c3c">${f1(ar)} m²</text>
+      ${on&&c.pts?c.pts.map((v,i)=>`<circle data-vx="${c.id}:${i}" cx="${v[0]}" cy="${v[1]}" r="${FS*.38}" fill="#fff" stroke="#2f6feb" stroke-width=".1" style="cursor:move"/>`).join('')+c.pts.map((v,i)=>dimLine(v,c.pts[(i+1)%c.pts.length],FS*.85,'#2f6feb')).join(''):''}
+      ${on&&!c.pts?`<rect data-rz="${c.id}" x="${c.x+c.w-.45}" y="${c.y+c.h-.45}" width=".9" height=".9" fill="#fff" stroke="#141414" stroke-width=".1" style="cursor:nwse-resize"/>${dimLine([c.x,c.y+c.h+1.2],[c.x+c.w,c.y+c.h+1.2],FS,'#2f6feb')}${dimLine([c.x+c.w+1.2,c.y],[c.x+c.w+1.2,c.y+c.h],FS,'#2f6feb')}`:''}</g>`;}).join('');
   const dl=b.plan.dims.map((d,i)=>`<g data-dim="${i}">${dimLine(d.a,d.b,FS,'#141414')}</g>`).join('');
   cv.innerHTML=`<svg id="plSvg" viewBox="${-pad} ${-pad} ${VW} ${VH}" preserveAspectRatio="xMidYMid meet"><g>${g.join('')}</g><polygon points="${fp}" fill="#fff" fill-opacity=".55" stroke="none"/>${ax}${cells}<polygon points="${fp}" fill="none" stroke="#141414" stroke-width=".25"/>${dims}${dl}
     <rect id="plTmp" fill="#f0b429" fill-opacity=".12" stroke="#f0b429" stroke-width=".12" stroke-dasharray=".5 .3" width="0" height="0"/><g id="plGuide"></g><text id="plLbl" font-size="${FS*1.05}" font-family="IBM Plex Mono" fill="#141414" paint-order="stroke" stroke="#fff" stroke-width="${FS*.3}"></text></svg>`;
@@ -298,17 +319,18 @@ function plDraw(){const {b,fr}=PL,cv=$('#plCv'),pn=$('#plPn');if(!cv)return;cons
   const sc=PL.sel&&b.plan.cells.find(c=>c.id===PL.sel);
   pn.innerHTML=`${PL.tool==='stair'?`<div><div class="lbl">Zinapoya-lift tuguni · xaritada joyni bosing</div><div style="display:flex;flex-direction:column;gap:4px">${Object.entries(STAIRS).map(([k,s])=>`<button class="stb" data-st="${k}" aria-pressed="${PL.st===k}"><b>${s[0]}</b><span>${fm(s[1])} × ${fm(s[2])} m · ${s[3]}</span></button>`).join('')}</div>
       <div class="note" style="margin-top:6px">Oʻlchamlar — namuna, loyihangizga qarab oʻzgartiring. ShNQ 2.08.01-19: balandligi 28 m gacha boʻlgan uylarda oddiy L1 zinapoya (5.14-band); 28 m dan baland seksiyali uylarda N1 tutunsiz zinapoya (5.29-band). Marsh eni ≥ 1,05 m, maydoncha eni marshdan kam emas (7-jadval). Amaldagi ShNQ 2.08.01-24 bilan tekshiring.</div></div>`
-    :`<div><div class="lbl">Joy turi (chizishdan oldin · 1–4 tugmalari)</div><div class="ktyp">${Object.entries(KT).filter(([k])=>k!=='core').map(([k,[n,c]])=>`<button data-kt="${k}" aria-pressed="${(sc?sc.k:PL.k)===k}"><i style="background:${c}"></i>${n}</button>`).join('')}</div></div>`}
-    ${sc?`<div class="sel"><div class="lbl" style="margin:0">Tanlangan · ${f1(cellArea(b,sc))} m²${sc.k in A?` · min ${A[sc.k]} m²`:''}</div><div class="f"><label>Eni, m<input type="number" step="0.1" id="cW" value="${String(+sc.w.toFixed(2))}"></label><label>Chuqurligi, m<input type="number" step="0.1" id="cH" value="${String(+sc.h.toFixed(2))}"></label><label>X, m<input type="number" step="0.1" id="cX" value="${String(+sc.x.toFixed(2))}"></label><label>Y, m<input type="number" step="0.1" id="cY" value="${String(+sc.y.toFixed(2))}"></label></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm ghost" id="cRot">90° burish</button><button class="btn sm ghost" id="cRep">Oʻngga takrorlash</button><button class="btn sm ghost" id="cFill">Qatorni toʻldirish</button><button class="btn sm ghost" id="cDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div></div>`:''}
-    <div><div class="lbl">Normativ tekshiruv</div>${CH.w.length?CH.w.map(t=>`<div class="note" style="color:#b3261e">• ${t}</div>`).join(''):`<div class="note" style="color:#2e7d4f">• ${b.plan.cells.length?'Kvartiralar maydoni va zinapoya turi talablarga mos.':'Hali joy chizilmagan.'}</div>`}
-      <div class="f" style="margin-top:6px">${[1,2,3,4].map(k=>`<label>Min. ${k}${k===4?'+':''} xonali, m²<input type="number" step="1" data-ma="${k}" value="${A[k]}"></label>`).join('')}</div>
-      <div class="note">Boshlangʻich qiymatlar: ShNQ 2.08.01-19 «Turar joy binolari», 1-jadval (umumiy maydon: 1 xonali — 28–36, 2 — 48, 3 — 64, 4 — 80 m²; oshxona ≥ 8 m², 2–3 xonali uylarda umumiy xona ≥ 16 m², 3.8-band). Bu oldingi tahrir — amaldagi ShNQ 2.08.01-24 bilan tekshiring.</div></div>
+    :`<div><div class="lbl">Joy turi (chizishdan oldin · 1–4 tugmalari)</div><div class="ktyp">${RT[PL.pal].filter(k=>k!=='core').map(k=>`<button data-kt="${k}" aria-pressed="${String(sc?sc.k:PL.k)===k}"><i style="background:${KT[k][1]}"></i>${KT[k][0]}</button>`).join('')}</div>
+      <button class="btn sm ghost" id="plWhole" style="margin-top:6px">Butun qavat — bitta xona (keyin «Boʻlish»)</button><div class="note" style="margin-top:4px">Qiyshiq devorli xonalar: «Koʻpburchak» (P) bilan nuqtalarni bosing, Shift — 45°/90°; yoki butun qavatni bitta xona qilib, «Boʻlish» (C) chizigʻi bilan kesing.</div></div>`}
+    ${sc?`<div class="sel"><div class="lbl" style="margin:0">Tanlangan · ${f1(cellArea(b,sc))} m²${sc.k in A?` · min ${A[sc.k]} m²`:''}</div>${sc.pts?`<div class="note">Koʻpburchak xona — uchlarini sudrab tuzating</div>`:''}${sc.pts?'':`<div class="f"><label>Eni, m<input type="number" step="0.1" id="cW" value="${String(+sc.w.toFixed(2))}"></label><label>Chuqurligi, m<input type="number" step="0.1" id="cH" value="${String(+sc.h.toFixed(2))}"></label><label>X, m<input type="number" step="0.1" id="cX" value="${String(+sc.x.toFixed(2))}"></label><label>Y, m<input type="number" step="0.1" id="cY" value="${String(+sc.y.toFixed(2))}"></label></div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${sc.pts?'':'<button class="btn sm ghost" id="cRot">90° burish</button><button class="btn sm ghost" id="cPoly">Koʻpburchakka aylantirish</button>'}<button class="btn sm ghost" id="cRep">Oʻngga takrorlash</button><button class="btn sm ghost" id="cFill">Qatorni toʻldirish</button><button class="btn sm ghost" id="cDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div></div>`:''}
+    <div><div class="lbl">Normativ tekshiruv</div>${CH.w.length?CH.w.map(t=>`<div class="note" style="color:#b3261e">• ${t}</div>`).join(''):`<div class="note" style="color:#2e7d4f">• ${b.plan.cells.length?(PL.pal==='res'?'Kvartiralar maydoni va zinapoya turi talablarga mos.':'Zinapoya turi talablarga mos.'):'Hali joy chizilmagan.'}</div>`}
+      <div class="f" style="margin-top:6px;${PL.pal!=='res'?'display:none':''}">${[1,2,3,4].map(k=>`<label>Min. ${k}${k===4?'+':''} xonali, m²<input type="number" step="1" data-ma="${k}" value="${A[k]}"></label>`).join('')}</div>
+      <div class="note" style="${PL.pal!=='res'?'display:none':''}">Boshlangʻich qiymatlar: ShNQ 2.08.01-19 «Turar joy binolari», 1-jadval (umumiy maydon: 1 xonali — 28–36, 2 — 48, 3 — 64, 4 — 80 m²; oshxona ≥ 8 m², 2–3 xonali uylarda umumiy xona ≥ 16 m², 3.8-band). Bu oldingi tahrir — amaldagi ShNQ 2.08.01-24 bilan tekshiring.</div></div>
     <div><div class="lbl">Avtomatik boʻlish</div><div class="f"><label>Kvartira eni, m<input type="number" step="0.1" id="aW" value="${PL.aw||7.2}"></label><label>Koridor, m (0 — seksiya)<input type="number" step="0.1" id="aC" value="${PL.ac??0}"></label><label class="full">Zinapoya-lift har N kvartirada<input type="number" min="0" id="aN" value="${PL.an??4}"></label></div>
       <button class="btn sm ghost" id="aGo" style="margin-top:6px">Boʻlish (mavjudini almashtiradi)</button></div>
-    <div><div class="lbl">Bir qavatda</div>${[1,2,3,4].map(k=>`<div class="kv"><span>${KT[k][0]}</span><b>${per[k]}</b></div>`).join('')}
+    ${roomSum(b)}<div ${PL.pal!=='res'?'hidden':''}><div class="lbl">Bir qavatda</div>${[1,2,3,4].map(k=>`<div class="kv"><span>${KT[k][0]}</span><b>${per[k]}</b></div>`).join('')}
       <div class="kv"><span>Kvartiralar maydoni / dogʻ</span><b>${fi(pc.fa||0)} / ${fi(flA)} m²</b></div><div class="kv"><span>Koeffitsient (K1)</span><b>${flA?f2((pc.fa||0)/flA):'—'}</b></div></div>
-    <div><div class="lbl">Butun bino · ${pc.rf} turar qavat</div>${[1,2,3,4].map(k=>`<div class="kv"><span>${KT[k][0]}</span><b>${fi(pc.n[k])} · ${fi(pc.a[k])} m²</b></div>`).join('')}<div class="kv big"><span>Jami kvartira</span><b>${fi(pc.tot*pc.rf)}</b></div></div>
+    <div ${PL.pal!=='res'?'hidden':''}><div class="lbl">Butun bino · ${pc.rf} turar qavat</div>${[1,2,3,4].map(k=>`<div class="kv"><span>${KT[k][0]}</span><b>${fi(pc.n[k])} · ${fi(pc.a[k])} m²</b></div>`).join('')}<div class="kv big"><span>Jami kvartira</span><b>${fi(pc.tot*pc.rf)}</b></div></div>
     <div><div class="lbl">Oʻlchamlar</div><div class="note">Lineyka (M): ikki nuqtani bosing — oʻlcham chizigʻi qoladi. Oʻng tugma bilan oʻlchamni oʻchirasiz.</div>${b.plan.dims.length?`<button class="btn sm ghost" id="dClr" style="margin-top:6px">Oʻlchamlarni tozalash (${b.plan.dims.length})</button>`:''}</div>
     <div class="note">Chizish (R): toʻrtburchak torting — oʻlchami jonli koʻrinadi. Bogʻlanish: bino chetlari va boshqa kataklar → konstruktiv oʻqlar → toʻr qadami. Tanlash (V): sudrab koʻchiring, oq burchak — oʻlcham. Delete — oʻchirish.</div>`;
   pn.querySelectorAll('[data-kt]').forEach(x=>x.onclick=()=>{if(sc){sc.k=x.dataset.kt;plPush();}else{PL.k=x.dataset.kt;if(PL.tool!=='rect')PL.tool='rect';}plDraw();});
@@ -316,13 +338,22 @@ function plDraw(){const {b,fr}=PL,cv=$('#plCv'),pn=$('#plPn');if(!cv)return;cons
   pn.querySelectorAll('[data-ma]').forEach(i=>i.onchange=()=>{minA()[i.dataset.ma]=+i.value;save();plDraw();});
   const nm=(id,fn)=>{const i=$(id);if(i)i.onchange=()=>{fn(+i.value);plPush();plDraw();};};
   if(sc){nm('#cW',v=>sc.w=Math.max(.6,v));nm('#cH',v=>sc.h=Math.max(.6,v));nm('#cX',v=>sc.x=v);nm('#cY',v=>sc.y=v);
-    $('#cRot').onclick=()=>{const cx=sc.x+sc.w/2,cy=sc.y+sc.h/2;[sc.w,sc.h]=[sc.h,sc.w];sc.x=cx-sc.w/2;sc.y=cy-sc.h/2;sc.r=((sc.r||0)+90)%360;plPush();plDraw();};
-    $('#cRep').onclick=()=>{const n=Object.assign({},sc,{id:uid(),x:sc.x+sc.w});b.plan.cells.push(n);PL.sel=n.id;plPush();plDraw();};
-    $('#cFill').onclick=()=>{let x=sc.x+sc.w;while(x+sc.w*.5<fr.W){b.plan.cells.push(Object.assign({},sc,{id:uid(),x}));x+=sc.w;}plPush();plDraw();};
+    if($('#cPoly'))$('#cPoly').onclick=()=>{sc.pts=clipRect(fr.pts,sc).map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)]);plPush();plDraw();};
+    if($('#cRot'))$('#cRot').onclick=()=>{const cx=sc.x+sc.w/2,cy=sc.y+sc.h/2;[sc.w,sc.h]=[sc.h,sc.w];sc.x=cx-sc.w/2;sc.y=cy-sc.h/2;sc.r=((sc.r||0)+90)%360;plPush();plDraw();};
+    $('#cRep').onclick=()=>{if(sc.pts){const xs=sc.pts.map(p=>p[0]),dw=Math.max(...xs)-Math.min(...xs);const n=Object.assign({},sc,{id:uid(),pts:sc.pts.map(p=>[p[0]+dw,p[1]])});b.plan.cells.push(n);PL.sel=n.id;plPush();plDraw();return;}const n=Object.assign({},sc,{id:uid(),x:sc.x+sc.w});b.plan.cells.push(n);PL.sel=n.id;plPush();plDraw();};
+    $('#cFill').onclick=()=>{if(sc.pts)return;let x=sc.x+sc.w;while(x+sc.w*.5<fr.W){b.plan.cells.push(Object.assign({},sc,{id:uid(),x}));x+=sc.w;}plPush();plDraw();};
     $('#cDel').onclick=()=>{b.plan.cells=b.plan.cells.filter(c=>c!==sc);PL.sel=null;plPush();plDraw();};}
+  if($('#plWhole'))$('#plWhole').onclick=()=>{const c={id:uid(),k:PL.k==='core'?RT[PL.pal][0]:PL.k,pts:fr.pts.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)])};b.plan.cells.push(c);PL.sel=c.id;PL.tool='cut';plPush();plDraw();toast('Endi «Boʻlish» chizigʻi bilan xonalarga kesing: ikki nuqtani bosing.');};
   if($('#dClr'))$('#dClr').onclick=()=>{b.plan.dims=[];plPush();plDraw();};
   $('#aGo').onclick=()=>{PL.aw=+$('#aW').value||7.2;PL.ac=+$('#aC').value||0;PL.an=+$('#aN').value||0;autoSplit();plPush();plDraw();};
   plEvents();}
+function roomSum(b){if(PL.pal==='res'&&b.use==='res')return '';const fr=PL.fr,by={};b.plan.cells.forEach(c=>{const ar=cellAreaFr(fr,c);if(ar<.5)return;by[c.k]=(by[c.k]||0)+ar;});const ks=Object.keys(by);if(!ks.length)return '';const tot=ks.reduce((s,k)=>s+by[k],0),flA=area(b.poly);
+  return `<div><div class="lbl">Xonalar balansi · bir qavatda</div>${ks.map(k=>`<div class="kv"><span><i style="display:inline-block;width:9px;height:9px;background:${(KT[k]||KT.cor)[1]};margin-right:6px"></i>${(KT[k]||[k])[0]}</span><b>${fi(by[k])} m² · ${f1(by[k]/flA*100)} %</b></div>`).join('')}
+    <div class="kv"><span>Jami xonalar / dogʻ</span><b>${fi(tot)} / ${fi(flA)} m²</b></div><div class="kv big"><span>Butun bino (${b.fl} qavat)</span><b>${fi(tot*b.fl)} m²</b></div>${tot>flA*1.005?'<div class="note" style="color:#b3261e">Xonalar ustma-ust tushgan — jami qavat dogʻidan katta. Ortiqchasini oʻchiring yoki «Boʻlish» bilan kesing.</div>':''}</div>`;}
+function finishPoly2(){const q=PL.pp;PL.pp=null;if(!q||q.length<3){plDraw();return;}const c={id:uid(),k:PL.k==='core'?RT[PL.pal][0]:PL.k,pts:q};PL.b.plan.cells.push(c);PL.sel=c.id;plPush();plDraw();}
+function splitCells(a,b2){const {b,fr}=PL;let n=0;const out=[];b.plan.cells.forEach(c=>{const q=c.pts||clipRect(fr.pts,c);let k=0;for(let i=0;i<q.length;i++)if(segX(a,b2,q[i],q[(i+1)%q.length]))k++;
+    if(k<2){out.push(c);return;}const A=clipHalf(q,a,b2,1),B=clipHalf(q,a,b2,-1);if(A.length<3||B.length<3||pArea(A)<.3||pArea(B)<.3){out.push(c);return;}n++;out.push(Object.assign({},c,{pts:A}),Object.assign({},c,{id:uid(),pts:B}));});
+  b.plan.cells=out;if(n){plPush();}else toast('Chiziq hech bir xonani toʻliq kesib oʻtmadi — xonaning ikki devoridan oʻtkazing.');plDraw();}
 function dimLine(a,b,FS,col){const L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.05)return '';const ux=(b[0]-a[0])/L,uy=(b[1]-a[1])/L,nx=-uy,ny=ux,t=.35,an=Math.atan2(uy,ux)*180/Math.PI,ang=an>90||an<-90?an+180:an,mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
   return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${col}" stroke-width=".06"/>${[a,b].map(p=>`<line x1="${p[0]-(ux-nx)*t}" y1="${p[1]-(uy-ny)*t}" x2="${p[0]+(ux-nx)*t}" y2="${p[1]+(uy-ny)*t}" stroke="${col}" stroke-width=".1"/>`).join('')}
     <text x="${mx+nx*.35}" y="${my+ny*.35}" font-size="${FS}" text-anchor="middle" font-family="IBM Plex Mono" fill="${col}" transform="rotate(${ang} ${mx+nx*.35} ${my+ny*.35})" dy="-.15" paint-order="stroke" stroke="#fff" stroke-width="${FS*.25}">${fm(L)}</text>`;}
@@ -335,15 +366,21 @@ function autoSplit(){const {b,fr}=PL,w=PL.aw,cor=PL.ac,N=PL.an,cells=[];const ro
   const pick=a=>{let best='2',bd=1e9;P.p.mix.forEach(m=>{if(m[2]>0&&Math.abs(m[2]-a)<bd){bd=Math.abs(m[2]-a);best=String(Math.min(4,m[0]));}});return best;};const H=b.fl*P.p.fh,cs=H>28?'N1':'L1L',cw0=STAIRS[cs][1];
   if(cor>0)cells.push({id:uid(),k:'cor',x:0,y:(fr.H-cor)/2,w:fr.W,h:cor});
   rows.forEach(([y,h],ri)=>{let x=0,i=0;while(x<fr.W-1){const isCore=N>0&&ri===0&&i%(N+1)===N,cw=isCore?Math.min(cw0,w*1.4):w,ww=Math.min(cw,fr.W-x);
-    const c={id:uid(),x,y,w:ww,h};const ar=pArea(clipRect(fr.pts,c));if(ar>=4){if(isCore){c.k='core';c.sub=cs;}else c.k=pick(ar);cells.push(c);}x+=ww;i++;}});
+    const c={id:uid(),x,y,w:ww,h};const ar=pArea(clipRect(fr.pts,c));if(ar>=4){if(isCore){c.k='core';c.sub=cs;}else c.k=PL.pal==='res'?pick(ar):RT[PL.pal][0];cells.push(c);}x+=ww;i++;}});
   b.plan.cells=cells;PL.sel=null;}
 function plEvents(){const svg=$('#plSvg');if(!svg)return;const pt=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return [q.x,q.y];};
   const guide=s=>{const g=svg.querySelector('#plGuide');if(!g)return;const {fr}=PL;g.innerHTML=(s.gx!=null?`<line x1="${s.gx}" x2="${s.gx}" y1="-4" y2="${fr.H+4}" stroke="#2f6feb" stroke-width=".05" stroke-dasharray=".3 .2"/>`:'')+(s.gy!=null?`<line y1="${s.gy}" y2="${s.gy}" x1="-4" x2="${fr.W+4}" stroke="#2f6feb" stroke-width=".05" stroke-dasharray=".3 .2"/>`:'')+`<path d="M${s.p[0]-.4} ${s.p[1]}h.8M${s.p[0]} ${s.p[1]-.4}v.8" stroke="#f0b429" stroke-width=".1"/>`;};
   const lbl=(x,y,t)=>{const l=svg.querySelector('#plLbl');if(!l)return;l.setAttribute('x',x);l.setAttribute('y',y);l.textContent=t;};
   svg.oncontextmenu=e=>{e.preventDefault();const d=e.target.closest('[data-dim]');if(d){PL.b.plan.dims.splice(+d.dataset.dim,1);plPush();plDraw();}else if(PL.rul){PL.rul=null;plDraw();}};
   svg.onpointermove=e=>{if(svg._drag)return;const s=snapP(pt(e));guide(s);if(PL.tool==='ruler'&&PL.rul){const a=PL.rul;svg.querySelector('#plGuide').innerHTML+=dimLine(a,s.p,Math.max(.55,(PL.fr.W+10)/85),'#c2410c');}
+    if(PL.tool==='poly'&&PL.pp){const q=PL.pp.concat([s.p]);svg.querySelector('#plGuide').innerHTML+=`<polyline points="${q.map(v=>v.join(',')).join(' ')}" fill="${(KT[PL.k]||KT.cor)[1]}" fill-opacity=".35" stroke="#2f6feb" stroke-width=".1"/>`+q.slice(1).map((v,i)=>dimLine(q[i],v,Math.max(.55,(PL.fr.W+10)/85),'#2f6feb')).join('');lbl(s.p[0]+.5,s.p[1]-.5,q.length>2?`${fm(pArea(q))} m²`:'');}
+    if(PL.tool==='cut'&&PL.rul){const a=PL.rul;svg.querySelector('#plGuide').innerHTML+=`<line x1="${a[0]}" y1="${a[1]}" x2="${s.p[0]}" y2="${s.p[1]}" stroke="#b3261e" stroke-width=".12" stroke-dasharray=".5 .25"/>`;}
     if(PL.tool==='stair'){const S=STAIRS[PL.st];lbl(s.p[0]+.6,s.p[1]-.6,`${S[3]} · ${fm(S[1])} × ${fm(S[2])} m`);}};
   svg.onpointerdown=e=>{if(e.button!==0)return;const raw=pt(e),s=snapP(raw),p=s.p,rz=e.target.closest('[data-rz]'),cg=e.target.closest('[data-c]'),cells=PL.b.plan.cells;
+    if(PL.tool==='poly'){if(e.detail>1){finishPoly2();return;}let q=p;if(PL.pp&&e.shiftKey){const l=PL.pp[PL.pp.length-1],dx=raw[0]-l[0],dy=raw[1]-l[1],L=Math.hypot(dx,dy),an=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*Math.PI/4;q=[+(l[0]+L*Math.cos(an)).toFixed(3),+(l[1]+L*Math.sin(an)).toFixed(3)];}
+      if(PL.pp&&PL.pp.length>2&&Math.hypot(q[0]-PL.pp[0][0],q[1]-PL.pp[0][1])<.4){finishPoly2();return;}PL.pp=PL.pp||[];const l=PL.pp[PL.pp.length-1];if(!l||Math.hypot(q[0]-l[0],q[1]-l[1])>.05)PL.pp.push(q);return;}
+    if(PL.tool==='cut'){if(!PL.rul){PL.rul=p;return;}const a=PL.rul;PL.rul=null;const d=[p[0]-a[0],p[1]-a[1]],L=Math.hypot(...d)||1,ext=200;splitCells([a[0]-d[0]/L*ext,a[1]-d[1]/L*ext],[p[0]+d[0]/L*ext,p[1]+d[1]/L*ext]);return;}
+    const vx=e.target.closest('[data-vx]');if(vx){const [id,i]=vx.dataset.vx.split(':'),c=cells.find(c=>c.id===id);svg.setPointerCapture(e.pointerId);drag2(svg,{m:'vx',c,i:+i},pt,guide,lbl);return;}
     if(PL.tool==='ruler'){if(!PL.rul){PL.rul=p;return;}PL.b.plan.dims.push({a:PL.rul,b:p});PL.rul=null;plPush();plDraw();return;}
     if(PL.tool==='stair'){const S=STAIRS[PL.st],c={id:uid(),k:'core',sub:PL.st,x:+(p[0]-S[1]/2).toFixed(2),y:+(p[1]-S[2]/2).toFixed(2),w:S[1],h:S[2]};const s2=snapP([c.x,c.y]);c.x=s2.p[0];c.y=s2.p[1];cells.push(c);PL.sel=c.id;plPush();plDraw();return;}
     svg.setPointerCapture(e.pointerId);
@@ -354,6 +391,8 @@ function plEvents(){const svg=$('#plSvg');if(!svg)return;const pt=e=>{const p=sv
 function drag2(svg,st,pt,guide,lbl){const tmp=svg.querySelector('#plTmp');svg._drag=1;guide=guide||(()=>{});const L=svg.querySelector('#plLbl'),lab=(x,y,t)=>{if(L){L.setAttribute('x',x);L.setAttribute('y',y);L.textContent=t;}};
   svg.onpointermove=e=>{const raw=pt(e);
     if(st.m==='new'){const s=snapP(raw);guide(s);const x=Math.min(st.p0[0],s.p[0]),y=Math.min(st.p0[1],s.p[1]),w=Math.abs(s.p[0]-st.p0[0]),h=Math.abs(s.p[1]-st.p0[1]);Object.assign(st,{x,y,w,h});tmp.setAttribute('x',x);tmp.setAttribute('y',y);tmp.setAttribute('width',w);tmp.setAttribute('height',h);lab(x+w+.4,y-.4,`${fm(w)} × ${fm(h)} m = ${fm(w*h)} m²`);}
+    else if(st.m==='vx'){const s=snapP(raw,st.c.id);guide(s);st.c.pts[st.i]=s.p;st.moved=1;const g=svg.querySelector(`[data-c="${st.c.id}"] polygon`);if(g)g.setAttribute('points',st.c.pts.map(p=>p.join(',')).join(' '));lab(s.p[0]+.4,s.p[1]-.4,`${fm(pArea(st.c.pts))} m²`);}
+    else if(st.m==='mv'&&st.c.pts){st.o=st.o||st.c.pts.map(p=>p.slice());const d0=[raw[0]-st.p0[0],raw[1]-st.p0[1]],v=st.o[0],s=snapP([v[0]+d0[0],v[1]+d0[1]],st.c.id),d=[s.p[0]-v[0],s.p[1]-v[1]];st.c.pts=st.o.map(p=>[+(p[0]+d[0]).toFixed(3),+(p[1]+d[1]).toFixed(3)]);st.moved=1;const g=svg.querySelector(`[data-c="${st.c.id}"]`);if(g)g.setAttribute('transform',`translate(${d[0]} ${d[1]})`);}
     else if(st.m==='mv'){const s=snapP([st.x+raw[0]-st.p0[0],st.y+raw[1]-st.p0[1]],st.c.id),s2=snapP([st.x+raw[0]-st.p0[0]+st.c.w,st.y+raw[1]-st.p0[1]+st.c.h],st.c.id);
       st.c.x=s2.gx!=null&&s.gx==null?s2.p[0]-st.c.w:s.p[0];st.c.y=s2.gy!=null&&s.gy==null?s2.p[1]-st.c.h:s.p[1];st.moved=1;const g=svg.querySelector(`[data-c="${st.c.id}"]`);if(g)g.setAttribute('transform',`translate(${st.c.x-st.x} ${st.c.y-st.y})`);lab(st.c.x,st.c.y-.5,`x ${fm(st.c.x)} · y ${fm(st.c.y)}`);}
     else if(st.m==='rz'){const s=snapP([st.c.x+st.w+raw[0]-st.p0[0],st.c.y+st.h+raw[1]-st.p0[1]],st.c.id);guide(s);st.c.w=Math.max(.6,s.p[0]-st.c.x);st.c.h=Math.max(.6,s.p[1]-st.c.y);st.moved=1;tmp.setAttribute('x',st.c.x);tmp.setAttribute('y',st.c.y);tmp.setAttribute('width',st.c.w);tmp.setAttribute('height',st.c.h);lab(st.c.x+st.c.w+.4,st.c.y-.4,`${fm(st.c.w)} × ${fm(st.c.h)} m = ${fm(st.c.w*st.c.h)} m²`);}};
@@ -474,6 +513,6 @@ window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,
 })();
 </script>
 <script src="js/massing.js?v=2"></script>
-<script src="js/i18n.js?v=4"></script>
+<script src="js/i18n.js?v=5"></script>
 </body>
 </html>
