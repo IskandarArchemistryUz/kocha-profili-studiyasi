@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Archemistry Studio — shahar va koʻcha loyihalash</title>
+<script src="js/beta.js?v=1"></script>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Archemistry Studio">
+<meta property="og:title" content="Archemistry Studio — shahar loyihasi bitta brauzerda (beta)">
+<meta property="og:description" content="Master reja hisoblari, koʻcha profili, binolarni joylashtirish, 3D, insolyatsiya, qavat rejasi va albom. Bepul beta.">
+<meta property="og:image" content="https://iskandararchemistryuz.github.io/kocha-profili-studiyasi/assets/og.jpg">
+<meta property="og:url" content="https://iskandararchemistryuz.github.io/kocha-profili-studiyasi/">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Hudud tahlili, koʻcha profili, binolarni joylashtirish va albom — bitta brauzerda.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 103.45 100%22%3E%3Cpath fill=%22%23696969%22 fill-rule=%22evenodd%22 d=%22M0.18%2099.88C0.05%2099.75%20-0.00%2099.62%200.02%2099.50C0.04%2099.41%209.94%2083.09%2022.02%2063.24C34.11%2043.39%2044.08%2027.00%2044.19%2026.82C44.29%2026.63%2044.36%2026.42%2044.34%2026.33C44.31%2026.25%2040.81%2020.46%2036.56%2013.47C32.30%206.48%2028.80%200.68%2028.78%200.58C28.76%200.46%2028.81%200.33%2028.95%200.20L29.15%200.00L46.81%200.00L64.48%20-0.00L64.66%200.14C64.77%200.24%2064.84%200.37%2064.84%200.52C64.84%200.68%2063.31%203.25%2059.55%209.40C55.65%2015.80%2054.27%2018.13%2054.27%2018.30C54.27%2018.47%2060.60%2028.92%2078.87%2058.93C92.40%2081.14%20103.49%2099.40%20103.51%2099.50C103.53%2099.62%20103.48%2099.74%20103.34%2099.88L103.14%20100.08L51.76%20100.08L0.38%20100.08L0.18%2099.88ZM84.67%2098.63C86.09%2097.94%2086.73%2096.21%2086.07%2094.85C85.63%2093.94%2049.16%2034.17%2048.84%2033.84C47.73%2032.69%2045.86%2032.72%2044.74%2033.91C44.40%2034.26%207.73%2094.44%207.50%2095.02C7.38%2095.30%207.34%2095.60%207.34%2096.04L7.34%2096.67L7.55%2097.13C7.93%2097.97%208.55%2098.54%209.35%2098.79L9.68%2098.89L46.94%2098.88L84.21%2098.86L84.67%2098.63ZM52.47%2011.63C52.97%2011.50%2053.52%2011.19%2053.86%2010.84C54.10%2010.58%2057.46%205.09%2057.73%204.51C57.87%204.21%2057.91%203.98%2057.91%203.56L57.92%203.00L57.68%202.53C57.42%202.01%2057.09%201.67%2056.56%201.39L56.23%201.21L51.76%201.21L47.30%201.21L46.88%201.45C46.10%201.88%2045.69%202.53%2045.63%203.42C45.61%203.76%2045.63%204.09%2045.69%204.28C45.81%204.65%2049.38%2010.53%2049.67%2010.84C50.15%2011.34%2051.04%2011.74%2051.73%2011.75C51.88%2011.75%2052.21%2011.70%2052.47%2011.63Z%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,6 +80,6 @@ try{var cur=JSON.parse(localStorage.getItem('kps_v1')||'null');if(cur)rows.push(
 try{var sv=JSON.parse(localStorage.getItem('kps_saves')||'{}');Object.keys(sv).sort(function(a,b){return sv[b].t.localeCompare(sv[a].t);}).slice(0,8).forEach(function(k){rows.push({n:k,m:'KOʻCHA STUDIYASI',t:sv[k].t.slice(0,16).replace('T',' '),h:'studio.html?open='+encodeURIComponent(k)+'#design'});});}catch(e){}
 el.innerHTML=rows.length?rows.map(function(r){return '<div class="row"><span>'+esc(r.n)+'</span><span class="m">'+esc(r.m)+'</span><span class="m">'+esc(r.t)+'</span><a href="'+r.h+'">OCHISH →</a></div>';}).join(''):'<div class="empty">Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.</div>';})();
 </script>
-<script src="js/i18n.js?v=7"></script>
+<script src="js/i18n.js?v=8"></script>
 </body>
 </html>
