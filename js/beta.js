@@ -2,8 +2,8 @@
    Sozlash: faqat quyidagi CFG qiymatlarini toʻldiring. Boʻsh qolgan tugma koʻrinmaydi. */
 (function(){
 var CFG={
-  card:'',          // Humo karta raqami, masalan: '9860 0000 0000 0000'
-  cardName:'',      // karta egasi, masalan: 'ISKANDAR S.'
+  card:'9860 1701 0316 0777',          // Humo karta raqami, masalan: '9860 0000 0000 0000'
+  cardName:'Iskandar Soliyev',      // karta egasi, masalan: 'ISKANDAR S.'
   donateMin:25000,  // eng kam summa, soʻm
   donateSums:[25000,50000,100000],
   dlLimit:3,        // beta: bitta brauzerda bepul yuklab olish soni
