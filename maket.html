@@ -450,7 +450,7 @@ sv.addEventListener('pointerdown',e=>{if(e.button!==0)return;let P=mm(e);const p
   if(tool==='poly'){if(!polyD){const it={id:uid(),op:1,t:'poly',pts:[P],closed:true,fill:'#cfe3c4',fop:.7,stroke:'#141414',sw:.35,layer:activeLayer};p.items.push(it);sel=it.id;polyD=it;}
     else{const f=polyD.pts[0];if(polyD.pts.length>2&&Math.hypot(P[0]-f[0],P[1]-f[1])<2.5/zoom){finishPoly();return;}const l=polyD.pts[polyD.pts.length-1];if(Math.hypot(P[0]-l[0],P[1]-l[1])>.3)polyD.pts.push(e.shiftKey?snap45(l,P):P);}renderPaper();return;}
   const base={id:uid(),op:1};
-  if(tool==='text'){const it={...base,t:'text',x:P[0],y:P[1],w:80,h:8,text:'',ff:'Archivo',fs:14,col:'#141414',al:'l'};p.items.push(it);sel=it.id;setTool('select');renderAll();openEditor(it,true);return;}
+  if(tool==='text'){const it={...base,t:'text',x:P[0],y:P[1],w:80,h:8,text:'',ff:'Archivo',fs:14,col:'#141414',al:'l'};p.items.push(it);sel=it.id;e.preventDefault();setTool('select');renderAll();setTimeout(()=>openEditor(it,true),30);return;}
   if(tool==='rect'||tool==='ellipse'||tool==='map'){const it={...base,t:tool,x:P[0],y:P[1],w:0,h:0,fill:tool==='map'?null:null,stroke:'#141414',sw:.35};if(tool==='map')Object.assign(it,{scale:1000,style:'line',lay:{design:true,data:true}});drag={k:'new',it,P};p.items.push(it);sel=it.id;return;}
   if(tool==='line'||tool==='arrow'){const it={...base,t:tool,pts:[P,P.slice()],stroke:'#141414',sw:.5};drag={k:'new',it,P};p.items.push(it);sel=it.id;return;}
   if(tool==='pen'){const it={...base,t:'pen',pts:[P],stroke:penCol,sw:penW};drag={k:'pen',it};p.items.push(it);sel=it.id;return;}});
@@ -707,6 +707,6 @@ window.addEventListener('resize',()=>renderPaper());
 window.KPS_MK={get doc(){return doc;},pageCanvas};
 })();
 </script>
-<script src="js/i18n.js?v=13"></script>
+<script src="js/i18n.js?v=14"></script>
 </body>
 </html>
