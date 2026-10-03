@@ -122,7 +122,18 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const FMT={A4:[297,210],A3:[420,297],A2:[594,420],A1:[841,594],A0:[1189,841],'A0+':[1300,900]};
 const pageWH=p=>{const f=p.fmt==='custom'?[p.cw||1500,p.ch||1000]:FMT[p.fmt];return p.orient==='P'?[Math.min(...f),Math.max(...f)]:[Math.max(...f),Math.min(...f)];};
 const FONTS=['Archivo','IBM Plex Sans','IBM Plex Mono','Instrument Serif','Golos Text','PT Serif'];
-const COLS=['#141414','#696969','#b9b6ae','#ffffff','#b3261e','#e8775f','#f7c6b8','#c2410c','#f0b429','#f6e3a1','#2f6f4f','#6fa88a','#cfe3c4','#1d6fa5','#bbd3f2','#7b61d1','#e7ddf6'];
+const COLS0=['#141414','#696969','#b9b6ae','#ffffff','#b3261e','#e8775f','#f7c6b8','#c2410c','#f0b429','#f6e3a1','#2f6f4f','#6fa88a','#cfe3c4','#1d6fa5','#bbd3f2','#7b61d1','#e7ddf6'];
+/* kartografik palitralar: neytral asos, ketma-ket, divergent, xavf (qizil faqat yuqori pogʻonada), yer foydalanish, figure-ground */
+const PALS={base:['Asosiy',COLS0],neutral:['Neytral asos',['#fafaf7','#d9dedc','#c8cfd1','#8e999d','#66747c','#263238','#ffffff']],seq:['Ketma-ket · koʻk',['#dbe7ef','#b8d0de','#8bb4c9','#5c93b3','#22577a']],seqG:['Ketma-ket · yashil',['#e8f1e4','#c3dcb5','#93c089','#5e9e5e','#2e6b3f']],
+  div:['Divergent (oʻrtadan)',['#c46a3a','#eab59a','#ededed','#9ec1c7','#278062']],heat:['Issiqlik / xavf',['#f7e9c7','#f4c88a','#eda062','#d8724a','#b03a2e']],use:['Yer foydalanish',['#e9c46a','#d77a61','#8fb4c7','#b08bbb','#b6c99a','#e4b08a','#7ea6b8']],fg:['Figure-ground (3 rang)',['#263238','#f5f4ef','#e6a15c','#9ab3bb']]};
+let palK='base';try{palK=localStorage.getItem('kps_pal')||'base';}catch(e){}if(!PALS[palK])palK='base';
+const COLS=new Proxy([],{get:(t,k)=>{const a=PALS[palK][1];const v=a[k];return typeof v==='function'?v.bind(a):v;}});
+const palSel=()=>`<select data-palk style="font-size:12px;border:1px solid #cfccc5;padding:1px 3px;margin:2px 0 4px">${Object.entries(PALS).map(([k,v])=>`<option value="${k}" ${k===palK?'selected':''}>${v[0]}</option>`).join('')}</select>`;
+const ROLES=[['ctx','1 · Kontekst','#dfe3e2'],['sec','2 · Ikkinchi darajali','#b0b9bc'],['pri','3 · Asosiy tahlil','#22577a'],['acc','4 · Urgʻu','#e6a15c'],['warn','5 · Ogohlantirish','#b03a2e']];
+const roleRow=()=>`<div class="lbl">Ierarxiya roli · rang avtomatik</div><div class="row" style="flex-wrap:wrap">${ROLES.map(([k,n,c])=>`<button class="btn sm ghost" data-role="${k}" style="gap:5px"><i style="width:10px;height:10px;background:${c};display:inline-block"></i>${n}</button>`).join('')}</div><div class="note">Kontekst — jim kulrang, asosiy tahlil — toʻq, urgʻu — bitta element, qizil — faqat ogohlantirish uchun.</div>`;
+function applyRole(items,k){const r=ROLES.find(x=>x[0]===k);if(!r)return;items.forEach(it=>{it.role=k;const c=r[2];if(['rect','ellipse','poly'].includes(it.t)&&!(it.t==='poly'&&it.closed===false)){it.fill=c;if(it.stroke&&it.stroke!=='none')it.stroke=k==='ctx'?'#c8cfd1':c;}else if(['flow','icon','row','text'].includes(it.t))it.col=c;else if(it.pts)it.stroke=c;});commit();renderAll();}
+document.addEventListener('change',e=>{if(e.target.matches&&e.target.matches('[data-palk]')){palK=e.target.value;try{localStorage.setItem('kps_pal',palK);}catch(x){}renderProps();}});
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-role]');if(!b)return;const A=E_();const it=pg().items.find(x=>x.id===sel);applyRole(A.length>1?A:it?[it]:[],b.dataset.role);});
 const LS={solid:['Uzluksiz',null],dash:['Shtrix',[6,4]],long:['Uzun shtrix',[14,5]],dot:['Nuqta',[.01,2.6]],dashdot:['Shtrix-punktir',[9,3,.01,3]],dashdotdot:['Shtrix-2 punktir',[9,3,.01,3,.01,3]]};
 const lsOf=it=>it.ls||(it.dash?'dash':'solid');const dashArr=it=>{const d=LS[lsOf(it)][1];return d?d.map(v=>v*Math.max(.25,it.sw||.35)):null;};
 const HATCH={none:'Yoʻq',diag:'Qiya ////',diag2:'Qiya \\\\',cross:'Toʻr (qiya)',horiz:'Gorizontal',vert:'Vertikal',grid:'Katak',dots:'Nuqtalar'};
@@ -350,7 +361,8 @@ function addMat(m,cx,cy){if(!m)return;const it={id:uid(),t:'mat',src:m.src,name:
   if(m.legend&&m.legend.length){const lg={id:uid(),t:'legend',title:'',entries:clone(m.legend),fs:7,cols:Math.min(4,m.legend.length),x:it.x,y:it.y+it.h+2,w:Math.max(60,it.w),h:0};lg.h=legendH(lg);pg().items.push(lg);}
   commit();renderAll();}
 /* ---------- oʻng panel ---------- */
-function renderProps(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel);if(E_().length>1){multiProps(el);return;}
+function renderProps(){renderProps0();const el=$('#props'),it=pg().items.find(x=>x.id===sel);if(E_().length<=1&&it&&['rect','ellipse','poly','flow','icon','row','text','line','arrow','pen'].includes(it.t)&&!el.querySelector('[data-role]'))el.insertAdjacentHTML('beforeend',roleRow());}
+function renderProps0(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===sel);if(E_().length>1){multiProps(el);return;}
   if(!it){el.innerHTML=presetPanel()+`<div style="font-size:16px;font-weight:500">Varaq ${cur+1}</div>
     <div class="f r"><label class="full">Varaq oʻlchami<select id="pFmt">${Object.keys(FMT).map(k=>`<option ${p.fmt===k?'selected':''}>${k}</option>`).join('')}<option value="custom" ${p.fmt==='custom'?'selected':''}>Ixtiyoriy (mm)</option></select></label>
     ${p.fmt==='custom'?`<label>Eni, mm<input type="number" id="pCw" value="${p.cw||1500}"></label><label>Boʻyi, mm<input type="number" id="pCh" value="${p.ch||1000}"></label>`:''}
@@ -429,7 +441,7 @@ function presetPanel(){if(!['flow','blob','icon','row'].includes(tool))return ''
 function bindPresets(){document.querySelectorAll('[data-pre]').forEach(b=>b.onclick=()=>{const i=+b.dataset.pre;if(tool==='flow'){const [,c,st]=PRESETS.flow[i];DEF.flow.col=c;DEF.flow.style=st;}if(tool==='blob')DEF.blob.fill=PRESETS.blob[i][1];if(tool==='icon')DEF.icon.col=PRESETS.icon[i][1];renderProps();});
   document.querySelectorAll('.presets [data-gl]').forEach(b=>b.onclick=()=>{DEF.icon.g=b.dataset.gl;renderProps();});
   const on=(id,fn)=>{const e=$(id);if(e)e.onchange=()=>{fn(e.value);renderProps();};};on('#dfW',v=>DEF.flow.w=+v);on('#dfH',v=>DEF.flow.head=v);on('#dbG',v=>DEF.blob.glow=+v);on('#diS',v=>DEF.icon.style=v);on('#diW',v=>DEF.icon.w=+v);on('#drG',v=>DEF.row.g=v);on('#drS',v=>DEF.row.sp=+v);on('#drZ',v=>DEF.row.sz=+v);}
-function sw(k,v,allowNone){return `<div class="sw">${allowNone?`<button data-sw="${k}" data-c="none" title="yoʻq" class="${!v?'on':''}" style="background:linear-gradient(45deg,#fff 45%,#b3261e 46%,#b3261e 54%,#fff 55%)"></button>`:''}${COLS.map(c=>`<button data-sw="${k}" data-c="${c}" class="${v===c?'on':''}" style="background:${c}" title="${c}"></button>`).join('')}<input type="color" data-swc="${k}" value="${v&&v[0]==='#'&&v.length===7?v:'#141414'}" style="width:26px;height:24px;border:0;padding:0;background:none"></div>`;}
+function sw(k,v,allowNone){return palSel()+`<div class="sw">${allowNone?`<button data-sw="${k}" data-c="none" title="yoʻq" class="${!v?'on':''}" style="background:linear-gradient(45deg,#fff 45%,#b3261e 46%,#b3261e 54%,#fff 55%)"></button>`:''}${COLS.map(c=>`<button data-sw="${k}" data-c="${c}" class="${v===c?'on':''}" style="background:${c}" title="${c}"></button>`).join('')}<input type="color" data-swc="${k}" value="${v&&v[0]==='#'&&v.length===7?v:'#141414'}" style="width:26px;height:24px;border:0;padding:0;background:none"></div>`;}
 function fitText(it){const fs=fsMM(it),n=String(it.text||'').split('\n').length;it.h=Math.max(it.h||0,fs*(1+(n-1)*(it.lh||1.25))+fs*.35);}
 /* ---------- sichqoncha ---------- */
 const sv=$('#paper');let drag=null,drawTmp='';
@@ -499,10 +511,10 @@ function recolorMulti(c){E_().forEach(it=>{if(['rect','ellipse','poly'].includes
 function multiProps(el){const A=E_();el.innerHTML=`<div style="font-size:16px;font-weight:500"><span>${A.length}</span> <span>ta element tanlandi</span></div><div class="note">Shift + bosish — qoʻshish yoki olib tashlash · boʻsh joydan sudrash — ramka bilan tanlash · Ctrl+A — hammasi · Ctrl+G — guruhlash.</div>
   <div class="lbl">Bir-biriga nisbatan tekislash</div><div class="row">${[['l','⇤ Chap'],['ch','↔ Markaz'],['r','Oʻng ⇥'],['t','⤒ Yuqori'],['cv','↕ Oʻrta'],['b','Past ⤓']].map(([k,v])=>`<button class="btn sm ghost" data-ma="${k}">${v}</button>`).join('')}</div>
   <div class="lbl">Teng taqsimlash</div><div class="row"><button class="btn sm ghost" data-dist="h">↔ Gorizontal</button><button class="btn sm ghost" data-dist="v">↕ Vertikal</button></div>
-  <div class="lbl">Rang (hammasiga)</div><div class="sw">${COLS.map(c=>`<button data-mc="${c}" style="background:${c}" title="${c}"></button>`).join('')}</div>
+  <div class="lbl">Rang (hammasiga)</div>${palSel()}<div class="sw">${COLS.map(c=>`<button data-mc="${c}" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="row"><button class="btn sm ghost" id="mPal" title="Tanlanganlarga palitra ranglarini chapdan oʻngga / yuqoridan pastga ketma-ket beradi">Palitrani ketma-ket taqsimlash</button></div>${roleRow()}
   <div class="lbl">Shaffoflik (hammasiga)</div><input type="range" min="0.1" max="1" step="0.05" id="mOp" value="1" style="width:100%">
   <div class="row" style="margin-top:10px"><button class="btn sm ghost" id="mGrp">Guruhlash (Ctrl+G)</button><button class="btn sm ghost" id="mUng">Guruhni ajratish</button><button class="btn sm ghost" id="mDup">Nusxa</button><button class="btn sm ghost" id="mDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div>`;
-  el.querySelectorAll('[data-ma]').forEach(b=>b.onclick=()=>alignMulti(b.dataset.ma));el.querySelectorAll('[data-dist]').forEach(b=>b.onclick=()=>distMulti(b.dataset.dist));el.querySelectorAll('[data-mc]').forEach(b=>b.onclick=()=>recolorMulti(b.dataset.mc));
+  el.querySelectorAll('[data-ma]').forEach(b=>b.onclick=()=>alignMulti(b.dataset.ma));el.querySelectorAll('[data-dist]').forEach(b=>b.onclick=()=>distMulti(b.dataset.dist));el.querySelectorAll('[data-mc]').forEach(b=>b.onclick=()=>recolorMulti(b.dataset.mc));if($('#mPal'))$('#mPal').onclick=()=>{const A=E_().slice().sort((a,b)=>{const p=bbox(a),q=bbox(b);return Math.abs(p.x-q.x)>2?p.x-q.x:p.y-q.y;}),P=PALS[palK][1];A.forEach((it,i)=>{const c=P[Math.round(i*(P.length-1)/Math.max(1,A.length-1))];if(['rect','ellipse','poly'].includes(it.t)&&!(it.t==='poly'&&it.closed===false))it.fill=c;else if(['flow','icon','row','text'].includes(it.t))it.col=c;else if(it.pts)it.stroke=c;});commit();renderAll();};
   $('#mOp').onchange=e=>{E_().forEach(it=>it.op=+e.target.value);commit();renderAll();};$('#mGrp').onclick=groupSel;$('#mUng').onclick=ungroupSel;$('#mDup').onclick=dupSel;$('#mDel').onclick=delSel;}
 function dupSel(){const p=pg(),A=E_();if(!A.length)return;const gm={},N=A.map(it=>{const c=clone(it);c.id=uid();if(c.grp)c.grp=gm[c.grp]||(gm[c.grp]=uid());if(c.pts)c.pts=c.pts.map(q=>[q[0]+5,q[1]+5]);else{c.x+=5;c.y+=5;}p.items.push(c);return c;});MS.clear();sel=N[0].id;N.slice(1).forEach(c=>MS.add(c.id));commit();renderAll();}
 function delSel(){const p=pg(),A=E_();if(!A.length)return;const ids=new Set(A.map(x=>x.id));p.items=p.items.filter(x=>!ids.has(x.id));sel=null;MS.clear();commit();renderAll();}
@@ -572,8 +584,9 @@ rX.addEventListener('pointerdown',e=>rulerDrag('y',e));rY.addEventListener('poin
 $('#stage').addEventListener('scroll',()=>drawRulers());window.addEventListener('resize',()=>drawRulers());
 sv.addEventListener('contextmenu',e=>{const g=e.target.closest('[data-guide]');if(g){e.preventDefault();e.stopPropagation();const [ax,i]=g.dataset.guide.split(':');pg().guides[ax].splice(+i,1);commit();renderPaper();}},true);
 function renderZoomBar(){const z=document.querySelector('.zoom');if(!z)return;let x=$('#zTg');if(!x){x=document.createElement('span');x.id='zTg';x.style.cssText='display:flex;gap:3px;margin-left:6px';z.appendChild(x);}
-  x.innerHTML=[['snap','Magnit (S)',snapOn],['grid','Toʻr 5 mm',gridOn],['rul','Lineyka',rulOn]].map(([k,n,on])=>`<button data-zt="${k}" style="width:auto;padding:0 7px;${on?'background:#141414;color:#fff':''}">${n}</button>`).join('');
-  x.querySelectorAll('[data-zt]').forEach(b=>b.onclick=()=>{const k=b.dataset.zt;if(k==='snap')snapOn=!snapOn;if(k==='grid')gridOn=!gridOn;if(k==='rul')rulOn=!rulOn;renderZoomBar();renderPaper();});}
+  x.innerHTML=[['snap','Magnit (S)',snapOn],['grid','Toʻr 5 mm',gridOn],['rul','Lineyka',rulOn],['gray','Kulrang sinov',grayOn]].map(([k,n,on])=>`<button data-zt="${k}" style="width:auto;padding:0 7px;${on?'background:#141414;color:#fff':''}">${n}</button>`).join('');
+  x.querySelectorAll('[data-zt]').forEach(b=>b.onclick=()=>{const k=b.dataset.zt;if(k==='snap')snapOn=!snapOn;if(k==='grid')gridOn=!gridOn;if(k==='rul')rulOn=!rulOn;if(k==='gray'){grayOn=!grayOn;$('#paper').style.filter=grayOn?'grayscale(1)':'';}renderZoomBar();renderPaper();});}
+let grayOn=false;
 renderZoomBar();
 function fitZoom(){const [W,Hh]=pageWH(pg()),st=$('#stage');zoom=Math.max(.1,Math.min((st.clientWidth-60)/(W*3.7795),(st.clientHeight-130)/(Hh*3.7795)));renderPaper();}
 $('#zIn').onclick=()=>{zoom=Math.min(4,zoom*1.2);renderPaper();};$('#zOut').onclick=()=>{zoom=Math.max(.08,zoom/1.2);renderPaper();};$('#zFit').onclick=fitZoom;
@@ -707,6 +720,6 @@ window.addEventListener('resize',()=>renderPaper());
 window.KPS_MK={get doc(){return doc;},pageCanvas};
 })();
 </script>
-<script src="js/i18n.js?v=15"></script>
+<script src="js/i18n.js?v=17"></script>
 </body>
 </html>
