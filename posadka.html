@@ -51,6 +51,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 .facd summary{cursor:pointer;font-size:12px;font-weight:500;padding:4px 0}.facd{border-top:1px solid var(--line);padding-top:6px}
 .stb{border:1px solid var(--line2);background:#fff;text-align:left;padding:6px 8px;display:flex;flex-direction:column;gap:2px;cursor:pointer}.stb b{font-weight:500;font-size:12px}.stb span{font-family:var(--mono);font-size:10.5px;color:var(--grey)}.stb[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .fpw .hd select,.fpw .hd input{border:1px solid var(--line2);padding:2px 4px;font:11px var(--mono)}
+.blk{border:0;background:none;text-align:left;padding:0;font:12.5px Archivo;cursor:pointer;color:var(--ink)}.blk:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -101,9 +102,10 @@ const xy=p=>[p[1]*MX(),p[0]*MY],ll=q=>[q[1]/MY,q[0]/MX()];
 const area=poly=>{const a=poly.map(xy);let s=0;for(let i=0;i<a.length;i++){const j=(i+1)%a.length;s+=a[i][0]*a[j][1]-a[j][0]*a[i][1];}return Math.abs(s)/2;};
 const dist=(a,b)=>{const p=xy(a),q=xy(b);return Math.hypot(p[0]-q[0],p[1]-q[1]);};
 /* ---- asboblar ---- */
+const TOOLS_PLAN=['plan','Qavat rejasi (R) — tanlangan bino','<path d="M4 4h16v16H4zM4 12h9M13 4v16M13 15h7"/>','R'];
 const TOOLS=[['sel','Tanlash (V)','<path d="M5 3l12 7-5 1.5L10 17z"/>','V'],['site','Uchastka chegarasi (U)','<path d="M4 7l12-3 4 12-14 4z" stroke-dasharray="3 2"/>','U'],['bld','Bino — toʻrtburchak (B)','<path d="M4 20V8l8-4 8 4v12M9 20v-5h6v5"/>','B'],['bldp','Bino — koʻpburchak (K)','<path d="M4 18l2-12 9-2 5 8-6 7z"/>','K'],['green','Yashil hudud (G)','<circle cx="12" cy="10" r="5"/><path d="M12 15v6"/>','G'],['park','Avtoturargoh (P)','<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M10 16V8h3a2.5 2.5 0 010 5h-3"/>','P'],['meas','Oʻlchash (M)','<path d="M3 12h18M3 9v6M21 9v6"/>','M']];
-function renderRail(){$('#rail').innerHTML=TOOLS.map(t=>`<button data-t="${t[0]}" title="${t[1]}" aria-pressed="${tool===t[0]}"><svg viewBox="0 0 24 24">${t[2]}</svg><span class="k">${t[3]}</span></button>`).join('');document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>setTool(b.dataset.t));}
-function setTool(t){tool=t;pts=[];renderRail();drawTmp();hint();render();map.getContainer().style.cursor=t==='sel'?'':'crosshair';}
+function renderRail(){$('#rail').innerHTML=TOOLS.concat([TOOLS_PLAN]).map(t=>`<button data-t="${t[0]}" title="${t[1]}" aria-pressed="${tool===t[0]}"><svg viewBox="0 0 24 24">${t[2]}</svg><span class="k">${t[3]}</span></button>`).join('');document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>setTool(b.dataset.t));}
+function setTool(t){if(t==='plan'){const b=(sel&&sel.t==='b'&&P.blds.find(x=>x.id===sel.id))||P.blds[0];if(!b){toast('Avval bino chizing (B).');return;}if(P.blds.length>1&&!(sel&&sel.t==='b'))toast('Birinchi bino ochildi. Boshqasi uchun avval binoni tanlang.');openPlan(b);return;}tool=t;pts=[];renderRail();drawTmp();hint();render();map.getContainer().style.cursor=t==='sel'?'':'crosshair';}
 function hint(){const h=$('#hint');const m={sel:'<b>Tanlash.</b> Binoni yoki hududni bosing — xususiyatlari oʻngda. Uchlarini sudrab oʻzgartiring. Delete — oʻchirish.',
   site:`<b>Uchastka chegarasi.</b> Burchaklarni bosing (${pts.length}), oxirida birinchi nuqtani yoki Enter.`,
   bld:pts.length===0?'<b>Bino.</b> Bir burchagini bosing.':pts.length===1?'<b>Bino.</b> Fasad boʻylab ikkinchi burchakni bosing.':'<b>Bino.</b> Chuqurlikni koʻrsating va bosing.',
@@ -119,7 +121,7 @@ map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(tool==='sel'){if(sel){
   pts.push(p);drawTmp();hint();});
 map.on('dblclick',()=>{if(pts.length>2)finish();});
 document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea'))return;if(e.key==='Enter'&&pts.length>2)finish();if(e.key==='Escape'){pts=[];sel=null;setTool('sel');render();}
-  if((e.key==='Delete'||e.key==='Backspace')&&sel){delSel();}const m={v:'sel',u:'site',b:'bld',k:'bldp',g:'green',p:'park',m:'meas'}[e.key.toLowerCase()];if(m&&!e.ctrlKey&&!e.metaKey)setTool(m);});
+  if((e.key==='Delete'||e.key==='Backspace')&&sel){delSel();}const m={v:'sel',u:'site',b:'bld',k:'bldp',g:'green',p:'park',m:'meas',r:'plan'}[e.key.toLowerCase()];if(m&&!e.ctrlKey&&!e.metaKey)setTool(m);});
 function rect3(a,b,c){const A=xy(a),B=xy(b),C=xy(c),ux=B[0]-A[0],uy=B[1]-A[1],L0=Math.hypot(ux,uy);if(L0<1)return null;const nx=-uy/L0,ny=ux/L0,d=(C[0]-A[0])*nx+(C[1]-A[1])*ny;if(Math.abs(d)<1)return null;
   return [A,B,[B[0]+nx*d,B[1]+ny*d],[A[0]+nx*d,A[1]+ny*d]].map(ll);}
 function finish(){if(pts.length<3)return;const poly=pts.slice();pts=[];
@@ -161,13 +163,14 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLower
 /* ---- oʻng panel ---- */
 function renderSide(){const c=calc(),p=P.p,s=selObj();let h='';
   h+=`<div><h2>Koʻrsatkichlar</h2><div class="sub">Chizilgan geometriyadan avtomatik hisoblanadi</div></div>`;
+  if(!s&&P.blds.length)h+=`<div><div class="lbl">Binolar · bosing — tanlash, «Reja» — qavat rejasi</div>${P.blds.map((b,i)=>`<div class="kv" style="align-items:center"><button class="blk" data-bsel="${b.id}">${i+1}. ${USES[b.use][0]} · ${b.fl} qav. · ${fi(area(b.poly))} m²</button><button class="btn sm ghost" data-bplan="${b.id}">Reja</button></div>`).join('')}</div>`;
   if(!P.site)h+=`<div class="note">Boshlash: chapdagi <b>uchastka chegarasi</b> (U) asbobi bilan yer uchastkangizni chizing, soʻng <b>bino</b> (B) — uchta bosish: fasad boshi, fasad oxiri, chuqurlik.</div>`;
   if(s){if(sel.t==='b'){h+=`<div class="sel"><div class="lbl" style="margin:0">Tanlangan bino · ${fi(area(s.poly))} m² dogʻ</div>
     <div class="f"><label>Qavatlar<input type="number" min="1" max="60" id="bFl" value="${s.fl}"></label><label>Balandlik<input disabled value="${f1(s.fl*p.fh)} m"></label>
       <label>Qurilish bosqichi<input type="number" min="1" max="20" id="bPh" value="${s.ph||1}"></label><label>Yongʻinbardoshlik darajasi<select id="bFr">${['','I–II','III','IV–V'].map(v=>`<option value="${v}" ${(s.fr||'')===v?'selected':''}>${v||'—'}</option>`).join('')}</select></label></div>
     <div class="uses">${Object.entries(USES).map(([k,[n,c]])=>`<button data-use="${k}" aria-pressed="${s.use===k}"><i style="background:${c}"></i>${n}</button>`).join('')}</div>
     ${s.use==='res'?`<label style="font-size:12px"><input type="checkbox" id="bGf" ${s.gf&&s.gf!=='res'?'checked':''}> 1-qavat — notijorat (savdo/xizmat)</label>`:''}
-    ${s.use==='res'?`<button class="btn sm dark" id="bPlan" style="width:max-content">Xonadonlar tarkibi chizish${planCount(s)?' · '+planCount(s).tot+' kv/qavat':''}</button>`:''}
+    <button class="btn sm dark" id="bPlan" style="width:max-content">Qavat rejasini chizish${planCount(s)?' · '+planCount(s).tot+' kv/qavat':''}</button>
     ${facUI(s)}
     <div class="row" style="display:flex;gap:6px"><button class="btn sm ghost" id="bDup">Nusxa</button><button class="btn sm ghost" id="bDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div></div>`;}
     else h+=`<div class="sel"><div class="lbl" style="margin:0">${sel.t==='s'?'Uchastka':sel.t==='g'?'Yashil hudud':'Avtoturargoh'} · ${fi(area(s.poly))} m²</div><button class="btn sm ghost" id="bDel" style="color:var(--bad);border-color:var(--bad);width:max-content">Oʻchirish</button></div>`;}
@@ -198,6 +201,7 @@ function renderSide(){const c=calc(),p=P.p,s=selObj();let h='';
   document.querySelectorAll('[data-mx]').forEach(i=>i.onchange=()=>{const [a,b]=i.dataset.mx.split(':').map(Number);p.mix[a][b]=+i.value;commit();});
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{s.use=b.dataset.use;commit();});
   if($('#bGf'))$('#bGf').onchange=e=>{s.gf=e.target.checked?'com':'res';commit();};
+  document.querySelectorAll('[data-bsel]').forEach(x=>x.onclick=()=>{sel={t:'b',id:x.dataset.bsel};render();});document.querySelectorAll('[data-bplan]').forEach(x=>x.onclick=()=>openPlan(P.blds.find(b=>b.id===x.dataset.bplan)));
   if($('#bPlan'))$('#bPlan').onclick=()=>openPlan(s);bindNorm();if(s&&sel&&sel.t==='b')bindFac(s);
   if($('#bDel'))$('#bDel').onclick=delSel;if($('#bDup'))$('#bDup').onclick=()=>{const c2=JSON.parse(JSON.stringify(s));c2.id=uid();const d=12/MY;c2.poly=c2.poly.map(q=>[q[0]-d,q[1]]);P.blds.push(c2);sel={t:'b',id:c2.id};commit();};}
 /* ---- 3D ---- */
@@ -466,10 +470,10 @@ function bindFac(b){const M=window.M3D_LIB;if(!M||!$('#fStyle'))return;document.
   $('#fAll').onclick=()=>{P.blds.forEach(x=>{x.fac=JSON.parse(JSON.stringify(b.fac||{}));});commit();toast('Fasad barcha binolarga qoʻllandi.');};
   $('#fDef').onclick=()=>{P.p.fac0=(b.fac&&b.fac.style)||'tsh';commit();toast('Yangi binolar shu uslubda boʻladi.');};}
 const putMat=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const tx=r.result.transaction('mats','readwrite');tx.objectStore('mats').put(o);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);};r.onerror=()=>rej(r.error);});
-window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,refresh:()=>renderSide()};
+window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,openPlan,refresh:()=>renderSide()};
 })();
 </script>
-<script src="js/massing.js?v=1"></script>
-<script src="js/i18n.js?v=3"></script>
+<script src="js/massing.js?v=2"></script>
+<script src="js/i18n.js?v=4"></script>
 </body>
 </html>
