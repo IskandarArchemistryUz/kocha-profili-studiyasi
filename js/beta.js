@@ -2,11 +2,11 @@
    Sozlash: faqat quyidagi CFG qiymatlarini toʻldiring. Boʻsh qolgan tugma koʻrinmaydi. */
 (function(){
 var CFG={
-  donate:'',        // masalan: 'https://tirikchilik.uz/archemistry'
+  donate:'https://www.tirikchilik.uz/archemistryurban',        // masalan: 'https://tirikchilik.uz/archemistry'
   donateSum:'50 000',
-  tg:'',            // masalan: 'https://t.me/archemistry_beta' (guruh) yoki 'https://t.me/username'
-  form:'',          // Google Form havolasi
-  goat:''           // GoatCounter kodi, masalan: 'archemistry' (archemistry.goatcounter.com)
+  tg:'https://t.me/+OGltk-ZVMVQ3NzBi',            // masalan: 'https://t.me/archemistry_beta' (guruh) yoki 'https://t.me/username'
+  form:'https://forms.gle/7rrP3FyPdUSa6ULC9',          // Google Form havolasi
+  goat:'archemistry'           // GoatCounter kodi, masalan: 'archemistry' (archemistry.goatcounter.com)
 };
 window.KPS_BETA=CFG;
 var ERR=[];try{ERR=JSON.parse(sessionStorage.getItem('kps_errs')||'[]');}catch(e){}
