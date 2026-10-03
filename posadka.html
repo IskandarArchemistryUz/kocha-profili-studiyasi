@@ -299,12 +299,21 @@ function openPlan(b){b.plan=b.plan||{cells:[]};planSet(b);const fr=localFrame(b.
     <label class="note" style="display:flex;gap:4px;align-items:center">qadam<select id="plStep">${[.1,.3,.5,.6,1.2].map(v=>`<option value="${v}" ${b.plan.set.step==v?'selected':''}>${String(v).replace('.',',')} m</option>`).join('')}</select></label>
     <label class="note" style="display:flex;gap:4px;align-items:center">oʻqlar<input id="plAx" type="number" step="0.3" min="0" value="${b.plan.set.ax||''}" placeholder="—" style="width:52px">×<input id="plAy" type="number" step="0.3" min="0" value="${b.plan.set.ay||''}" placeholder="—" style="width:52px"></label>
     <label class="note" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="plSn" ${b.plan.set.snapE?'checked':''}>chetlarga bogʻlash</label>
-    <button class="btn sm ghost" id="plUndo">Bekor (Ctrl+Z)</button><button class="btn sm dark" id="plOk">Tayyor</button></div>
+    <button class="btn sm ghost" id="plAlb">Albomga →</button><button class="btn sm ghost" id="plUndo">Bekor (Ctrl+Z)</button><button class="btn sm dark" id="plOk">Tayyor</button></div>
     <div class="cv" id="plCv"></div><div class="pn" id="plPn"></div></div>`;document.body.appendChild(w);
   b.plan.walls=b.plan.walls||[];PL.hist=[JSON.stringify({c:b.plan.cells,d:b.plan.dims,w:b.plan.walls})];
-  w.querySelectorAll('[data-pt]').forEach(x=>x.onclick=()=>{PL.tool=x.dataset.pt;PL.rul=null;PL.pp=null;PL.wp=null;if(PL.tool==='rect'||PL.tool==='poly'){if(PL.k==='core'||!RT[PL.pal].includes(PL.k))PL.k=RT[PL.pal][0];}plDraw();});$('#plUse').onchange=e=>{PL.pal=e.target.value;PL.k=RT[PL.pal][0];plDraw();};$('#plOk').onclick=closePlan;$('#plUndo').onclick=plUndo;
+  w.querySelectorAll('[data-pt]').forEach(x=>x.onclick=()=>{PL.tool=x.dataset.pt;PL.rul=null;PL.pp=null;PL.wp=null;if(PL.tool==='rect'||PL.tool==='poly'){if(PL.k==='core'||!RT[PL.pal].includes(PL.k))PL.k=RT[PL.pal][0];}plDraw();});$('#plUse').onchange=e=>{PL.pal=e.target.value;PL.k=RT[PL.pal][0];plDraw();};$('#plOk').onclick=closePlan;$('#plAlb').onclick=planToAlbum;$('#plUndo').onclick=plUndo;
   $('#plStep').onchange=e=>{b.plan.set.step=+e.target.value;plDraw();};const reB=()=>{const L=+$('#plBL').value,W=+$('#plBW').value;bReshape(b,L,W,null);const t=PL.tool;$('#fpw').remove();openPlan(b);PL.tool=t;plDraw();commit();toast('Bino oʻlchami oʻzgardi. Xonalar chegaradan chiqsa, ularni suring yoki qayta boʻling.');};$('#plBL').onchange=reB;$('#plBW').onchange=reB;$('#plAx').onchange=e=>{b.plan.set.ax=+e.target.value||0;plDraw();};$('#plAy').onchange=e=>{b.plan.set.ay=+e.target.value||0;plDraw();};$('#plSn').onchange=e=>{b.plan.set.snapE=e.target.checked;};
   w.addEventListener('mousedown',e=>{if(e.target===w)closePlan();});plDraw();}
+async function planToAlbum(){const sv=$('#plSvg');if(!sv)return;const {b,fr}=PL,c=sv.cloneNode(true);c.querySelectorAll('#plGuide,#plTmp,#plLbl,[data-rz],[data-vx]').forEach(e=>e.remove());
+  c.setAttribute('xmlns','http://www.w3.org/2000/svg');const vb=c.getAttribute('viewBox').split(' ').map(Number);c.removeAttribute('id');c.removeAttribute('preserveAspectRatio');
+  const svg=c.outerHTML.replace('<svg ',`<svg font-family="Archivo, sans-serif" `).replace(/<g[^>]*><\/g>/g,'');const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg),t=new Date().toISOString();
+  const leg=[...new Set(b.plan.cells.map(x=>x.k))].filter(k=>KT[k]).map(k=>({col:KT[k][1],label:KT[k][0],kind:'fill',on:true}));
+  await putMat({id:'pl'+uid(),kind:'svg',name:'Qavat rejasi · '+(P.name||'')+' · '+fi(area(b.poly))+' m²',src,thumb:src,mW:vb[2],aspect:vb[2]/vb[3],sub:`${b.fl} qavat · ${b.plan.cells.length} joy`,t,legend:leg});
+  const by={};b.plan.cells.forEach(x=>{const ar=cellAreaFr(fr,x);if(ar<.5)return;const k=x.k==='core'?'core':x.k;by[k]=(by[k]||0)+ar;});const rows=Object.entries(by).map(([k,v])=>[k==='core'?'Zinapoya-lift tugunlari':(KT[k]||[k])[0],v]);
+  if(rows.length){const tw=420,th=22,Hh=rows.length*th+56,tot=rows.reduce((s2,r)=>s2+r[1],0);const ts=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tw} ${Hh}" font-family="Archivo, sans-serif"><rect width="${tw}" height="${Hh}" fill="#fff"/><text x="0" y="18" font-size="15" font-weight="600">Qavat rejasi · maydonlar balansi</text>${rows.map((r,i)=>`<line x1="0" x2="${tw}" y1="${30+i*th}" y2="${30+i*th}" stroke="#dedcd7"/><text x="0" y="${30+i*th+15}" font-size="12">${esc(r[0])}</text><text x="${tw}" y="${30+i*th+15}" font-size="12" text-anchor="end">${fi(r[1])} m²</text>`).join('')}<line x1="0" x2="${tw}" y1="${30+rows.length*th}" y2="${30+rows.length*th}" stroke="#141414"/><text x="0" y="${30+rows.length*th+17}" font-size="12.5" font-weight="600">Jami (bir qavat) · ${b.fl} qavat</text><text x="${tw}" y="${30+rows.length*th+17}" font-size="12.5" font-weight="600" text-anchor="end">${fi(tot)} m² · ${fi(tot*b.fl)} m²</text></svg>`;
+    const s3='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ts);await putMat({id:'plt'+uid(),kind:'svg',name:'Qavat rejasi — maydonlar jadvali',src:s3,thumb:s3,aspect:tw/Hh,sub:'jadval',t});}
+  toast('Qavat rejasi va maydonlar jadvali Albomga yuborildi.');}
 function closePlan(){const w=$('#fpw');if(w)w.remove();PL=null;commit();}
 function plPush(){PL.hist.push(JSON.stringify({c:PL.b.plan.cells,d:PL.b.plan.dims,w:PL.b.plan.walls||[]}));if(PL.hist.length>80)PL.hist.shift();}
 function plUndo(){if(PL.hist.length>1){PL.hist.pop();const s=JSON.parse(PL.hist[PL.hist.length-1]);PL.b.plan.cells=s.c;PL.b.plan.dims=s.d||[];PL.b.plan.walls=s.w||[];PL.sel=null;plDraw();}}
@@ -617,7 +626,7 @@ const putMat=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.on
 window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,openPlan,refresh:()=>renderSide()};
 })();
 </script>
-<script src="js/massing.js?v=2"></script>
-<script src="js/i18n.js?v=11"></script>
+<script src="js/massing.js?v=3"></script>
+<script src="js/i18n.js?v=12"></script>
 </body>
 </html>

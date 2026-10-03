@@ -143,6 +143,6 @@ document.addEventListener('dragover',e=>e.preventDefault());document.addEventLis
 all().then(a=>{LAY=a.sort((x,y)=>x.t.localeCompare(y.t));LAY.forEach(draw);render();const vis=LAY.filter(o=>o.visible);if(vis.length){try{const b=L.featureGroup(vis.map(o=>LL[o.id]));map.fitBounds(b.getBounds(),{padding:[30,30]});}catch(e){}}}).catch(()=>{render();toast('Brauzer xotirasi (IndexedDB) ochilmadi.');});
 })();
 </script>
-<script src="js/i18n.js?v=11"></script>
+<script src="js/i18n.js?v=12"></script>
 </body>
 </html>

@@ -797,7 +797,7 @@ function renderAreaPanel(){
     <label for="pRm">Yoʻl kengligi koeffitsiyenti</label><span class="num" id="vRm">${A.P.roadMul}</span><input id="pRm" type="range" min="0.6" max="1.6" step="0.05" value="${A.P.roadMul}" style="grid-column:1/-1">`}
     <label for="pZ">Tasvir zoom</label><select id="pZ" class="btn sm"><option value="auto">avto</option><option>17</option><option>18</option><option>19</option></select>
   </div>${A.cache?'<button class="btn sm primary" id="aRecl" style="margin-top:8px">Parametrlar bilan qayta tasniflash</button>':''}</details>`;
-  if(r&&!A.busy) h+=`<div class="tools"><button class="btn" id="aCsv">Natija (.csv)</button><button class="btn" id="aPng">Tasnif xaritasi (.png)</button><button class="btn" id="aGeo">Hudud chegarasi (.geojson)</button></div>`;
+  if(r&&!A.busy) h+=`<div class="tools"><button class="btn" id="aCsv">Natija (.csv)</button><button class="btn" id="aPng">Tasnif xaritasi (.png)</button><button class="btn" id="aGeo">Hudud chegarasi (.geojson)</button><button class="btn dark" id="aAlb">Albomga →</button></div>`;
   el.innerHTML=h;
   const q=s=>el.querySelector(s);
   el.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{A.tool=b.dataset.tool;A.pts=[];drawArea();renderHint();renderAreaPanel();});
@@ -816,6 +816,12 @@ function renderAreaPanel(){
     `Oʻsimlik qoplami (sputnik), %;;;${(r.canopy/r.tot*100).toFixed(2)}`,`Yoʻl sirtining soyali qismi, %;;;${r.roadAll?(r.roadCan/r.roadAll*100).toFixed(2):''}`,`Tasvir aniqligi, m/piksel;;;${r.mpp.toFixed(3)}`];
     dl('hudud-tahlili.csv','﻿'+L2.join('\n'),'text/csv');};
   if(q('#aPng'))q('#aPng').onclick=()=>{const a=document.createElement('a');a.href=r.url;a.download='hudud-tasnif.png';document.body.appendChild(a);a.click();a.remove();};
+  if(q('#aAlb'))q('#aAlb').onclick=async()=>{const t=new Date().toISOString(),im=await new Promise(ok=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=r.url;});
+    const leg=AC.filter(c=>r.cnt[c.k]>0).map(c=>({col:c.col,label:c.n,kind:'fill',on:true}));
+    await kpsMatPut({id:'ar'+Date.now().toString(36),kind:'png',name:'Hudud tahlili — tasnif xaritasi',src:r.url,thumb:r.url,aspect:im?im.width/im.height:1.4,sub:Math.round(r.m2).toLocaleString('ru-RU')+' m²',t,legend:leg});
+    const rows=AC.filter(c=>r.cnt[c.k]>0).map(c=>[c.n,c.col,Math.round(r.cnt[c.k]*r.px2),r.cnt[c.k]/r.tot*100]),tw=460,th=22,Hh=rows.length*th+34;
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tw} ${Hh}" font-family="Archivo, sans-serif"><rect width="${tw}" height="${Hh}" fill="#fff"/><text x="0" y="18" font-size="15" font-weight="600">Hudud tahlili · yer qoplami</text>${rows.map((w,i)=>`<line x1="0" x2="${tw}" y1="${30+i*th}" y2="${30+i*th}" stroke="#dedcd7"/><rect x="0" y="${34+i*th}" width="14" height="12" fill="${w[1]}"/><text x="22" y="${30+i*th+15}" font-size="12">${w[0].replace(/&/g,'&amp;').replace(/</g,'&lt;')}</text><text x="${tw-70}" y="${30+i*th+15}" font-size="12" text-anchor="end">${w[2].toLocaleString('ru-RU')} m²</text><text x="${tw}" y="${30+i*th+15}" font-size="12" text-anchor="end" font-weight="600">${w[3].toFixed(1)} %</text>`).join('')}</svg>`;
+    const s2='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);await kpsMatPut({id:'art'+Date.now().toString(36),kind:'svg',name:'Hudud tahlili — jadval',src:s2,thumb:s2,aspect:tw/Hh,sub:'jadval',t});toast('Tasnif xaritasi va jadval Albomga yuborildi.');};
   if(q('#aGeo'))q('#aGeo').onclick=()=>dl('hudud.geojson',JSON.stringify({type:'Feature',properties:{maydon_m2:Math.round(r.m2)},geometry:{type:'Polygon',coordinates:[[...A.poly,A.poly[0]].map(p=>[p[1],p[0]])]}}),'application/geo+json');
 }
 document.getElementById('opac').oninput=e=>{A.opac=+e.target.value;if(classOverlay)classOverlay.setOpacity(A.opac);};
