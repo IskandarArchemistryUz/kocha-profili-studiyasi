@@ -2,8 +2,12 @@
    Sozlash: faqat quyidagi CFG qiymatlarini toʻldiring. Boʻsh qolgan tugma koʻrinmaydi. */
 (function(){
 var CFG={
-  donate:'https://www.tirikchilik.uz/archemistryurban',        // masalan: 'https://tirikchilik.uz/archemistry'
-  donateSum:'50 000',
+  card:'',          // Humo karta raqami, masalan: '9860 0000 0000 0000'
+  cardName:'',      // karta egasi, masalan: 'ISKANDAR S.'
+  donateMin:25000,  // eng kam summa, soʻm
+  donateSums:[25000,50000,100000],
+  dlLimit:3,        // beta: bitta brauzerda bepul yuklab olish soni
+  owner:'d49168b121efd4f413968b3ed78eb2339a9ce3033c3fb9c0d6f48cebaa44c6ff', // egasi kaliti (SHA-256)
   tg:'https://t.me/+OGltk-ZVMVQ3NzBi',            // masalan: 'https://t.me/archemistry_beta' (guruh) yoki 'https://t.me/username'
   form:'https://forms.gle/7rrP3FyPdUSa6ULC9',          // Google Form havolasi
   goat:'archemistry'           // GoatCounter kodi, masalan: 'archemistry' (archemistry.goatcounter.com)
@@ -22,9 +26,17 @@ function css(){var s=document.createElement('style');s.textContent=
 '#kbPn .s{padding:12px 16px;border-bottom:1px solid #e3e0d8}#kbPn .s:last-child{border-bottom:0}#kbPn .l{font:500 10px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:#6b6862;margin-bottom:6px}'+
 '#kbPn a.b,#kbPn button.b{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:8px 10px;border:1px solid #141414;border-radius:6px;background:#fff;color:#141414;text-decoration:none;text-align:left;font:500 13px "IBM Plex Sans",sans-serif;cursor:pointer}'+
 '#kbPn a.b:hover,#kbPn button.b:hover{background:#f0eee8}#kbPn .b.k{background:#f0b429;border-color:#f0b429}#kbPn .b.k:hover{background:#e5a91d}#kbPn textarea{width:100%;box-sizing:border-box;height:84px;margin-top:6px;padding:8px;border:1px solid #cfcac0;border-radius:6px;font:12px "IBM Plex Mono",monospace;resize:vertical}'+
+'#kbPn .am{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}#kbPn .am span{padding:4px 9px;border:1px solid #cfcac0;border-radius:12px;font:500 12px "IBM Plex Mono",monospace;background:#fff}#kbPn .cd{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;padding:10px;border:1px dashed #141414;border-radius:8px;background:#fff}#kbPn .cd .b{width:auto;margin:0;flex:none}#kbPn .cn{font:600 15px "IBM Plex Mono",monospace;letter-spacing:.04em}'+
+'#kbLim{position:fixed;inset:0;z-index:9500;background:rgba(20,20,20,.45);display:flex;align-items:center;justify-content:center}#kbLim>div{width:400px;max-width:calc(100vw - 32px);background:#fbfaf7;border:1px solid #141414;border-radius:10px;padding:20px;font:13px/1.5 "IBM Plex Sans",sans-serif;color:#141414}#kbLim h3{font:600 18px Archivo,sans-serif;margin:0 0 8px}#kbLim .r{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}#kbLim button{padding:8px 12px;border:1px solid #141414;border-radius:6px;background:#fff;cursor:pointer;font:500 13px "IBM Plex Sans",sans-serif}#kbLim button.k{background:#f0b429;border-color:#f0b429}'+
+'#kbToast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9400;background:#141414;color:#f4f3ef;padding:8px 14px;border-radius:8px;font:13px "IBM Plex Sans",sans-serif}'+
 '#kbPn .n{color:#6b6862;font-size:12px;margin-top:6px}#kbPn .x{float:right;border:0;background:none;font-size:18px;line-height:1;cursor:pointer;color:#6b6862}'+
 '#kbBar{position:relative;z-index:50;background:#f0b429;color:#141414;font:13px/1.4 "IBM Plex Sans",sans-serif;padding:8px 44px 8px 16px;text-align:center}#kbBar button{position:absolute;right:10px;top:6px;border:0;background:none;font-size:18px;cursor:pointer}#kbBar a{color:#141414;font-weight:600}'+
 '@media print{#kbBtn,#kbPn,#kbBar{display:none!important}}';document.head.appendChild(s);}
+function sum(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+function donateHtml(){return '<div class="s" id="kbDon"><div class="l">☕ Qahva uchun</div><div class="n">Portal bepul. Rivojlanishiga hissa qoʻshmoqchi boʻlsangiz — Humo kartaga oʻtkazma qiling.</div>'+
+  '<div class="n"><b>'+sum(CFG.donateMin)+'</b> <span>soʻmdan boshlab — summani oʻzingiz tanlaysiz</span></div><div class="am">'+CFG.donateSums.map(function(v){return '<span>'+sum(v)+'</span>';}).join('')+'<span>istalgan</span></div>'+
+  '<div class="cd"><div><b class="cn">'+CFG.card+'</b><div class="n" style="margin:2px 0 0">Humo · '+CFG.cardName+'</div></div><button type="button" class="b k" id="kbCard">Nusxalash</button></div>'+
+  '<div class="n">Raqamni nusxalab, Payme, Click yoki bank ilovangizda oʻtkazing.</div></div>';}
 function ui(){css();
   var home=/(^|\/)(index\.html)?$/.test(location.pathname);var b=document.createElement('button');b.id='kbBtn';b.type='button';b.title='Fikr bildirish · xato haqida xabar';if(!home)b.className='c';b.innerHTML=(home?'BETA · Fikr bildirish':'β')+'<span id="kbDot"'+(ERR.length?'':' hidden')+'></span>';document.body.appendChild(b);
   var p=document.createElement('div');p.id='kbPn';p.hidden=true;
@@ -33,18 +45,41 @@ function ui(){css();
    (CFG.tg?'<button class="b" id="kbTg">Telegramda yuborish →</button>':'')+(CFG.form?'<a class="b" href="'+CFG.form+'" target="_blank" rel="noopener">Batafsil soʻrovnoma (Google Form) →</a>':'')+
    '<button class="b" id="kbCp">Matnni nusxalash</button></div>'+
    '<div class="s"><div class="l">Xato haqida xabar</div><div class="n">Tugma sahifa, brauzer va soʻnggi xatolar haqidagi texnik maʼlumotni matnga qoʻshadi — shaxsiy maʼlumot yuborilmaydi.</div><button class="b" id="kbBug">Xato maʼlumotini qoʻshish</button></div>'+
-   (CFG.donate?'<div class="s"><div class="l">Qoʻllab-quvvatlash</div><div class="n">Portal bepul. Rivojlanishiga hissa qoʻshmoqchi boʻlsangiz — istalgan summani yuboring.</div><div class="n"><b>'+CFG.donateSum+' soʻm</b> — bir qahva</div><a class="b k" href="'+CFG.donate+'" target="_blank" rel="noopener">☕ Qahva uchun donat →</a></div>':'');
+   (CFG.card?donateHtml():'');
   document.body.appendChild(p);
   var T=function(){return document.getElementById('kbTxt');};
   b.onclick=function(){p.hidden=!p.hidden;};document.getElementById('kbX').onclick=function(){p.hidden=true;};
   function copy(t,ok){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(ok,function(){T().select();try{document.execCommand('copy');}catch(e){}ok();});}
   document.getElementById('kbBug').onclick=function(){var t=T();if(t.value.indexOf('Sahifa: ')<0)t.value=(t.value?t.value+'\n\n':'Nima qildim va nima boʻldi: \n\n')+'— texnik —\n'+info();t.focus();};
   document.getElementById('kbCp').onclick=function(){var x=this;copy(T().value||info(),function(){x.textContent='Nusxalandi ✓';setTimeout(function(){x.textContent='Matnni nusxalash';},1800);});};
+  var kc=document.getElementById('kbCard');if(kc)kc.onclick=function(){copy(CFG.card.replace(/\s/g,''),function(){kc.textContent='Nusxalandi ✓';setTimeout(function(){kc.textContent='Nusxalash';},1800);});};
+  window.KPS_openPanel=function(sec){p.hidden=false;var el=sec&&document.getElementById(sec);if(el)el.scrollIntoView({block:'nearest'});};
   var tg=document.getElementById('kbTg');if(tg)tg.onclick=function(){copy(T().value||info(),function(){window.open(CFG.tg,'_blank','noopener');});tg.textContent='Matn nusxalandi — Telegramda joylang (Ctrl+V)';};
   if(home&&!localStorage.getItem('kps_beta_bar')){var bar=document.createElement('div');bar.id='kbBar';
     bar.innerHTML='<span>Archemistry Studio — beta: hamma uchun bepul, sinov rejimida. Xato yoki gʻoya boʻlsa, pastdagi «Fikr bildirish» tugmasi orqali yozing.</span><button aria-label="Yopish">×</button>';
     document.body.insertBefore(bar,document.body.firstChild);bar.querySelector('button').onclick=function(){bar.remove();try{localStorage.setItem('kps_beta_bar','1');}catch(e){}};}
 }
+/* ---- yuklab olish cheklovi (beta) ---- */
+function isOwner(){try{return localStorage.getItem('kps_owner')==='1';}catch(e){return false;}}
+(function(){var m=/[?&]egasi=([^&#]+)/.exec(location.search);if(!m)return;var k=decodeURIComponent(m[1]);
+  if(k==='off'){try{localStorage.removeItem('kps_owner');}catch(e){}return;}
+  if(!(window.crypto&&crypto.subtle))return;crypto.subtle.digest('SHA-256',new TextEncoder().encode(k)).then(function(h){var x=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    if(x===CFG.owner){try{localStorage.setItem('kps_owner','1');}catch(e){}toast(L('Egasi rejimi yoqildi — yuklab olish cheklanmagan.'));history.replaceState(null,'',location.pathname+location.hash);}});})();
+function L(t){return window.kpsT?kpsT(t):t;}
+function dlN(){try{return +localStorage.getItem('kps_dl')||0;}catch(e){return 0;}}
+function toast(t){var d=document.getElementById('kbToast');if(!d){d=document.createElement('div');d.id='kbToast';document.body.appendChild(d);}d.textContent=t;clearTimeout(d._t);d._t=setTimeout(function(){d.remove();},3200);}
+function exempt(a){var n=(a.download||'').toLowerCase();return /\.json$/.test(n)&&!/\.geojson$/.test(n);}
+function limitBox(){if(document.getElementById('kbLim'))return;var w=document.createElement('div');w.id='kbLim';
+  w.innerHTML='<div><h3>Bepul yuklab olish tugadi</h3><div>Beta rejimida bepul yuklab olish soni cheklangan va siz bu limitdan foydalandingiz. Portalda ishlashni davom ettirishingiz mumkin — tahlil, chizish va koʻrish cheklanmagan.</div><div style="margin-top:8px;color:#6b6862">Koʻproq yuklab olish kerak boʻlsa, beta guruhimizga yozing.</div><div class="r">'+(CFG.tg?'<button class="k" id="kbLimTg">Telegram guruh →</button>':'')+(CFG.card?'<button id="kbLimDon">☕ Qahva uchun</button>':'')+'<button id="kbLimX">Yopish</button></div></div>';
+  document.body.appendChild(w);w.onclick=function(e){if(e.target===w)w.remove();};document.getElementById('kbLimX').onclick=function(){w.remove();};
+  var t=document.getElementById('kbLimTg');if(t)t.onclick=function(){window.open(CFG.tg,'_blank','noopener');};var d=document.getElementById('kbLimDon');if(d)d.onclick=function(){w.remove();if(window.KPS_openPanel)KPS_openPanel('kbDon');};}
+function gate(a){if(!a||!a.hasAttribute||!a.hasAttribute('download'))return true;if(a._kpsOk)return true;if(isOwner()||exempt(a)){a._kpsOk=1;return true;}
+  var n=dlN();if(n>=CFG.dlLimit){limitBox();return false;}n++;try{localStorage.setItem('kps_dl',n);}catch(e){}a._kpsOk=1;setTimeout(function(){a._kpsOk=0;},1500);
+  toast(L('Bepul yuklab olish qoldi:')+' '+(CFG.dlLimit-n));return true;}
+window.KPS_gate=gate;
+var _click=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(!gate(this))return;return _click.apply(this,arguments);};
+var _disp=HTMLAnchorElement.prototype.dispatchEvent;HTMLAnchorElement.prototype.dispatchEvent=function(ev){if(ev&&ev.type==='click'&&!gate(this))return false;return _disp.apply(this,arguments);};
+document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a[download]');if(a&&!gate(a)){e.preventDefault();e.stopPropagation();}},true);
 if(CFG.goat){var g=document.createElement('script');g.async=true;g.dataset.goatcounter='https://'+CFG.goat+'.goatcounter.com/count';g.src='https://gc.zgo.at/count.js';document.head.appendChild(g);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ui);else ui();
 })();
