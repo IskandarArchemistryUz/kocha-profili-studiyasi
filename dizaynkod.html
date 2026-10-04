@@ -200,7 +200,7 @@ function layout(sg){
   else{tw=sg.uzW+gap+sg.altW;th=L;}
   sg.lw=0;sg.lh=0;sg.lg=0;
   if(sg.mode==="text"&&sg.tlogo){sg.lh=sg.tlogoH||Math.round(th);sg.lw=sg.lh*sg.tlogo.width/sg.tlogo.height;sg.lg=Math.max(5,L*0.4);}
-  sg.w=sg.lw+sg.lg+tw;sg.h=Math.max(th,sg.lh);sg.ty=(sg.h-th)/2;sg.ly=(sg.h-sg.lh)/2;
+  sg.tw=tw;sg.w=sg.lw+sg.lg+tw;sg.h=Math.max(th,sg.lh);sg.ty=(sg.h-th)/2;sg.ly=(sg.h-sg.lh)/2;
   if(sg.type==="devor_substratli"){sg.w+=2*sg.pad;sg.h+=2*sg.pad;}
 }
 
@@ -571,8 +571,9 @@ function drawSigns(K){
 /* ---------- yoritish ko'rinishi ---------- */
 function cctColor(k){if(k<=2900)return"#FFD08A";if(k<=3200)return"#FFDDA8";if(k<=3700)return"#FFE9C7";if(k<=4200)return"#FFF4E2";if(k<=5000)return"#F4F6FF";return"#E2ECFF";}
 function textRuns(s,x,y,L){const v=S.view,ox=x+((s.type==="devor_substratli"?s.pad:0)+(s.lw||0)+(s.lg||0))*v.s,oy=y+((s.type==="devor_substratli"?s.pad:0)+(s.ty||0))*v.s,A=(s.altH||s.letterH)*v.s;
-  const f=h=>`600 ${h/CAP}px "IBM Plex Sans", sans-serif`;const r=[{t:s.uz.toUpperCase(),x:ox,y:oy+L,f:f(L)}];
-  if(s.alt){if(s.layout==="ostma")r.push({t:s.alt.toUpperCase(),x:ox,y:oy+L*1.5+A,f:f(A)});else r.push({t:s.alt.toUpperCase(),x:ox+(s.uzW+s.letterH*0.9)*v.s,y:oy+L,f:f(A)});}
+  const f=h=>`600 ${h/CAP}px "IBM Plex Sans", sans-serif`;const st=s.layout==="ostma"&&s.alt,ka=st?({chap:0,markaz:.5,ong:1}[s.align||"chap"]):0;
+  const r=[{t:s.uz.toUpperCase(),x:ox+ka*((s.tw||0)-s.uzW)*v.s,y:oy+L,f:f(L)}];
+  if(s.alt){if(st)r.push({t:s.alt.toUpperCase(),x:ox+ka*((s.tw||0)-s.altW)*v.s,y:oy+L*1.5+A,f:f(A)});else r.push({t:s.alt.toUpperCase(),x:ox+(s.uzW+s.letterH*0.9)*v.s,y:oy+L,f:f(A)});}
   return r;}
 function drawRuns(runs){for(const r of runs){ctx.font=r.font||r.f;ctx.fillText(r.t,r.x,r.y);}}
 function paintSign(s,x,y,w,h,L,K){
@@ -720,9 +721,11 @@ function renderSignCard(C){
     s.mode==="text"?`<label class="f" for="f_letterH">O'zbekcha harf balandligi: <b id="o_letterH">${s.letterH} sm</b><input type="range" id="f_letterH" min="8" max="90" value="${s.letterH}"></label>
     ${s.alt?`<label class="f" for="f_altH">Ikkinchi til harf balandligi: <b id="o_altH">${s.altH||s.letterH} sm</b><input type="range" id="f_altH" min="5" max="90" value="${s.altH||s.letterH}"></label>
     <div class="f">Tillar joylashuvi<div class="row" style="margin-top:4px"><button id="lyY" aria-pressed="${s.layout!=="ostma"}">Yonma-yon</button><button id="lyO" aria-pressed="${s.layout==="ostma"}">Ostma-ost</button></div>
+    ${s.layout==="ostma"?`<div class="row" style="margin-top:6px;grid-template-columns:repeat(3,1fr)"><button data-al="chap" aria-pressed="${(s.align||"chap")==="chap"}">⇤ Chap</button><button data-al="markaz" aria-pressed="${s.align==="markaz"}">↔ Markaz</button><button data-al="ong" aria-pressed="${s.align==="ong"}">O'ng ⇥</button></div>`:""}
     <small style="color:var(--muted)">${s.layout==="ostma"?"Hujjat ikki xil: «yuqoridan yoki chapdan» deydi, keyingi bandda «birining ostiga qo'yish taqiqlanadi» (101-bet). Bosh me'mor ko'rib chiqadi.":"Hujjat talab qiladigan joylashuv (101-bet)."}</small></div>`:""}
     ${panel?"":s.tlogo?`<label class="f" for="f_tlogoH">Logotip balandligi: <b id="o_tlogoH">${s.tlogoH||Math.round(s.lh)} sm</b><input type="range" id="f_tlogoH" min="10" max="150" value="${s.tlogoH||Math.round(s.lh)}"></label><div class="row"><button id="tlogoDel">Logotipni olib tashlash</button></div>`:
       `<label class="f" for="f_tlogo">Logotip qo'shish (ixtiyoriy) — matn chap tomonida<input type="file" id="f_tlogo" accept="image/png,image/svg+xml,image/jpeg"></label>`}`:""}
+  ${s.type!=="axborot_plitasi"?`<div class="f">Joylashuv<div class="row" style="margin-top:4px"><button data-pos="chap">⇤ Chap chet</button><button data-pos="eshik">Eshik o'qi</button><button data-pos="markaz">Fasad markazi</button><button data-pos="ong">O'ng chet ⇥</button></div></div>`:""}
   <p class="lead" style="font-size:13px">Peshlavhani rasm ustida suring. G'ildirak — yaqinlashtirish, bo'sh joyni tortish — rasmni surish. Alt bosilsa magnit o'chadi.</p>
   <label class="chk"><input type="checkbox" id="snapChk" ${S.snap?"checked":""}> Magnit: eshik o'qi, zona chetlari va boshqa yozuvlarga yopishadi</label>
   <h3 class="sec">3 · Yoritish</h3>
@@ -812,6 +815,11 @@ function onSignClick(e){const b=e.target.closest('button');if(!b)return;const s=
   if(b.id==="mText"){s.mode="text";layout(s);renderCard();evaluate();}
   if(b.id==="mLogo"){s.mode="logo";renderCard();evaluate();}
   if(b.id==="lyY"||b.id==="lyO"){s.layout=b.id==="lyO"?"ostma":"yonma";s.tlogoH=0;layout(s);placeSign(s);renderCard();evaluate();}
+  if(b.dataset.al){s.align=b.dataset.al;renderCard();evaluate();return;}
+  if(b.dataset.pos){const door=S.elements.find(e=>e.kind==="eshik");const z=zoneFor(s);const m=2;
+    if(b.dataset.pos==="chap")s.x=m;else if(b.dataset.pos==="ong")s.x=Math.round(S.W-s.w-m);
+    else if(b.dataset.pos==="eshik"&&door)s.x=Math.round(door.x+door.w/2-s.w/2);else s.x=Math.round(S.W/2-s.w/2);
+    if(z&&MAIN.has(s.type))s.y=Math.round((z.y0+z.y1)/2-s.h/2);evaluate();return;}
   if(b.id==="tlogoDel"){s.tlogo=null;s.tlogoH=0;layout(s);renderCard();evaluate();}
   if(b.id==="addSign"){const t=Object.keys(TYPES_V1).find(t=>typeAvailable(t)[0]&&!MAIN.has(t))||firstAvailable();const n=newSign(t);S.signs.push(n);S.sel=n.id;placeSign(n);renderCard();evaluate();}
   if(b.id==="delSign"){S.signs=S.signs.filter(x=>x.id!==S.sel);S.sel=S.signs[0]?S.signs[0].id:null;renderCard();evaluate();}
