@@ -64,7 +64,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <span class="sp"></span>
 <form id="sForm" style="display:flex"><input id="sQ" placeholder="Manzil yoki koordinata" style="height:30px;border:1px solid var(--line2);border-radius:2px;padding:0 8px;width:220px;background:#fff"></form>
 <div class="seg" role="group" aria-label="Koʻrinish"><button data-v="2d" aria-pressed="true">Reja</button><button data-v="3d" aria-pressed="false">3D</button></div>
-<button class="btn ghost" id="toMk">Albomga →</button><button class="btn dark" id="csv">Hisobot · CSV</button>
+<button class="btn ghost" id="toMk">Albomga →</button><button class="btn dark" id="csv">Hisobot · CSV</button><button class="btn ghost" id="gjson">GeoJSON</button>
 </header>
 <main>
 <nav class="rail" aria-label="Asboblar" id="rail"></nav>
@@ -588,7 +588,17 @@ $('#sForm').onsubmit=async e=>{e.preventDefault();const q=$('#sQ').value.trim();
   try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=uz&q='+encodeURIComponent(q));const j=await r.json();if(j[0])map.setView([+j[0].lat,+j[0].lon],17);else toast('Topilmadi');}catch(err){toast('Qidiruv ishlamadi');}};
 $('#csv').onclick=()=>{const c=calc(),rows=[['Koʻrsatkich','Qiymat','Birlik'],['Uchastka maydoni',(c.site/1e4).toFixed(3),'ga'],['Qurilish dogʻi',c.fp.toFixed(0),'m²'],['Qurilish ulushi',c.cov.toFixed(1),'%'],['Umumiy qavatlar maydoni',c.gfa.toFixed(0),'m²'],['FAR (KPZ)',c.far.toFixed(2),''],['Oʻrtacha qavatlilik',c.avgFl.toFixed(1),''],['Yashil hudud',c.green.toFixed(0),'m²'],['Turar joy GFA',c.res.toFixed(0),'m²'],['Notijorat GFA',c.nonres.toFixed(0),'m²'],['Sotiladigan turar joy',c.sell.toFixed(0),'m²'],...c.apts.map(a=>[a.r+' xonali kvartiralar',a.n,'dona']),['Kvartiralar jami',c.na,'dona'],['Aholi',c.pop.toFixed(0),'kishi'],['Avtoturargoh talab',c.parkNeed,'joy'],['Avtoturargoh chizilgan',c.parkHave,'joy'],['Qurilish xarajati',c.cost.toFixed(0),'soʻm'],['Sotuvdan tushum',c.rev.toFixed(0),'soʻm'],[],['Binolar'],['№','Dogʻ m²','Qavat','Funksiya']];
   P.blds.forEach((b,i)=>rows.push([i+1,area(b.poly).toFixed(0),b.fl,USES[b.use][0]]));
+  const llr=(t,poly)=>{rows.push([],[t],['n','lat','lon']);(poly||[]).forEach((q,i)=>rows.push([i+1,q[0].toFixed(7),q[1].toFixed(7)]));};
+  if(P.site)llr('Uchastka chegarasi (WGS84)',P.site);
+  P.blds.forEach((b,i)=>llr('Bino '+(i+1)+' chegarasi (WGS84)',b.poly));
   const csv='﻿'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=(P.name||'posadka')+'.csv';a.click();};
+$('#gjson').onclick=()=>{if(!P.site&&!P.blds.length){toast(typeof kpsT==='function'?kpsT('Avval uchastka yoki bino chizing'):'Avval uchastka yoki bino chizing');return;}
+  const ring=q=>{const r=q.map(p=>[+p[1].toFixed(7),+p[0].toFixed(7)]);r.push(r[0]);return [r];},F=[];
+  if(P.site)F.push({type:'Feature',properties:{kind:'uchastka',name:P.name||'',area_m2:Math.round(area(P.site))},geometry:{type:'Polygon',coordinates:ring(P.site)}});
+  P.blds.forEach((b,i)=>F.push({type:'Feature',properties:{kind:'bino',n:i+1,floors:b.fl,use:b.use,height_m:+(b.fl*P.p.fh).toFixed(1),area_m2:Math.round(area(b.poly))},geometry:{type:'Polygon',coordinates:ring(b.poly)}}));
+  P.greens.forEach(g=>F.push({type:'Feature',properties:{kind:'yashil',area_m2:Math.round(area(g.poly))},geometry:{type:'Polygon',coordinates:ring(g.poly)}}));
+  P.parks.forEach(g=>F.push({type:'Feature',properties:{kind:'avtoturargoh',area_m2:Math.round(area(g.poly))},geometry:{type:'Polygon',coordinates:ring(g.poly)}}));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({type:'FeatureCollection',features:F},null,1)],{type:'application/geo+json'}));a.download=(P.name||'posadka')+'.geojson';a.click();};
 function planSVGm(){if(!P.site&&!P.blds.length)return null;const all=[...(P.site||[]),...P.blds.flatMap(b=>b.poly),...P.greens.flatMap(g=>g.poly),...P.parks.flatMap(g=>g.poly)].map(xy);
   const x0=Math.min(...all.map(a=>a[0]))-10,x1=Math.max(...all.map(a=>a[0]))+10,y0=Math.min(...all.map(a=>a[1]))-10,y1=Math.max(...all.map(a=>a[1]))+10,W=x1-x0,Hh=y1-y0,k=4;
   const pth=poly=>'M'+poly.map(xy).map(a=>`${((a[0]-x0)*k).toFixed(1)} ${((y1-a[1])*k).toFixed(1)}`).join('L')+'Z';
