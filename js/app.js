@@ -1040,7 +1040,7 @@ async function autoProfile(){
     cnt[i][L2]++;}
   const SH=AC.findIndex(x=>x.k==='shadow');
   const maj=cnt.map(h=>{let b=-1,bv=0,t=0;for(let k=0;k<NA;k++){t+=h[k];if(k!==SH&&h[k]>bv){bv=h[k];b=k;}}return bv>0&&bv>=t*.15?b:(t?SH:255);});
-  const key=i=>maj[i]===255?'none':AC[maj[i]].k;
+  const key=i=>(i<0||i>=nD||maj[i]==null||maj[i]===255||!AC[maj[i]])?'none':AC[maj[i]].k;
   // yoʻl oʻqiga eng yaqin qatnov qismi
   const i0=Math.round(H/ST); let ic=i0;
   for(let r=0;r<nD;r++){if(key(i0-r)==='road'){ic=i0-r;break;}if(key(i0+r)==='road'){ic=i0+r;break;}}
