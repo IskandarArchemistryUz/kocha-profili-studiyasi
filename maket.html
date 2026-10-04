@@ -52,6 +52,7 @@ aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--l
 #ed{position:absolute;z-index:30;border:1px dashed var(--sel);background:rgba(255,255,255,.95);resize:none;outline:none;padding:0;line-height:1.25;overflow:hidden}
 .modal{position:fixed;inset:0;background:rgba(20,20,20,.45);z-index:100;display:flex;align-items:center;justify-content:center}
 .mbox{background:#fff;width:min(1000px,94vw);height:min(720px,90vh);display:flex;flex-direction:column}
+.tplg{flex:1;overflow:auto;padding:14px 18px 24px}.tplg h4{margin:18px 0 8px;font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--grey)}.tplg h4:first-child{margin-top:0}.tplr{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}.tplc{border:1px solid var(--line);background:#fff;padding:8px;cursor:pointer;text-align:left;font:inherit;display:flex;flex-direction:column;gap:6px}.tplc:hover{border-color:var(--ink)}.tplc .tt{display:flex;align-items:center;justify-content:center;background:var(--desk);height:130px}.tplc .tt svg{max-width:100%;max-height:122px;box-shadow:0 1px 3px rgba(0,0,0,.18)}.tplc b{font-weight:500;font-size:13.5px}.tplc small{font-size:12px;color:var(--grey);line-height:1.35}.tplc i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--grey)}
 .mbox header{height:48px}.mbox #pmap{flex:1}.frame{position:absolute;z-index:500;border:2px solid var(--ink);box-shadow:0 0 0 9999px rgba(244,243,241,.45);pointer-events:none;left:50%;top:50%;transform:translate(-50%,-50%)}
 #pres{position:fixed;inset:0;background:#111;z-index:200;display:flex;align-items:center;justify-content:center}#pres svg{max-width:100vw;max-height:100vh;background:#fff}
 #pres .pi{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:#aaa;font-family:var(--mono);font-size:13.5px}
@@ -110,6 +111,7 @@ aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--l
 <input type="file" id="imgIn" accept="image/*" hidden>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/shablonlar.js?v=1"></script>
 <script>
 (function(){
 'use strict';
@@ -297,8 +299,8 @@ function itemSVG(it,forThumb){
     case 'text':{const fs=fsMM(it),lines=String(it.text||'').split('\n'),ax=it.al==='c'?it.x+it.w/2:it.al==='r'?it.x+it.w:it.x,anc=it.al==='c'?'middle':it.al==='r'?'end':'start';
       return `<g data-id="${it.id}"${tf}><rect data-id="${it.id}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="${it.bg||'transparent'}"/><text data-id="${it.id}" x="${ax}" y="${it.y+fs*.92}" font-family="${esc(it.ff||'Archivo')}, sans-serif" font-size="${fs}" fill="${it.col||'#141414'}" font-weight="${it.b?700:400}" font-style="${it.i?'italic':'normal'}" text-anchor="${anc}" ${st}>${lines.map((l,i)=>`<tspan x="${ax}" dy="${i?fs*(it.lh||1.25):0}">${esc(l)||' '}</tspan>`).join('')}</text></g>`;}
     case 'image':case 'mat':case 'map':{let s=`<g data-id="${it.id}"${tf}>`;
-      if(it.src)s+=`<image data-id="${it.id}" href="${it.src}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" preserveAspectRatio="${it.t==='map'?'none':'xMidYMid meet'}" ${st}/>`;
-      else s+=`<rect data-id="${it.id}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="#f1efea"/><text x="${it.x+it.w/2}" y="${it.y+it.h/2}" font-size="4" text-anchor="middle" fill="#696969" font-family="Archivo">${it.t==='map'?'Xarita tayyorlanmoqda…':'Rasm'}</text>`;
+      if(it.src)s+=`<image data-id="${it.id}" href="${it.src}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" preserveAspectRatio="${it.t==='map'?'none':it.fit==='cover'?'xMidYMid slice':'xMidYMid meet'}" ${st}/>`;
+      else s+=`<rect data-id="${it.id}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="#f1efea"/>${it.ph?`<path d="M${it.x} ${it.y}L${it.x+it.w} ${it.y+it.h}M${it.x+it.w} ${it.y}L${it.x} ${it.y+it.h}" stroke="#d9d6cf" stroke-width="${Math.max(.15,Math.min(it.w,it.h)*.003)}" pointer-events="none"/>`:''}<text x="${it.x+it.w/2}" y="${it.y+it.h/2}" font-size="${it.ph?Math.max(3,Math.min(9,Math.min(it.w,it.h)*.06)):4}" text-anchor="middle" fill="#696969" font-family="Archivo" pointer-events="none">${it.t==='map'?'Xarita tayyorlanmoqda…':esc(it.ph&&it.name?it.name:'Rasm')}</text>`;
       if(it.t==='map'||it.frame)s+=`<rect x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="none" stroke="#141414" stroke-width="${it.fsw||.35}"/>`;
       return s+'</g>';}}return '';}
 function legendSVG(it){const fs=(it.fs||9)*PT,rows=(it.entries||[]).filter(e=>e.on!==false),cols=Math.max(1,it.cols||1),rh=fs*1.9,cw=it.w/cols;let s=`<g data-id="${it.id}" opacity="${it.op??1}"><rect data-id="${it.id}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="${it.bg||'#ffffff'}" fill-opacity="${it.bg?1:0.001}" stroke="${it.frame?'#141414':'none'}" stroke-width=".25"/>`;
@@ -361,13 +363,14 @@ function renderLeft(){document.querySelectorAll('[data-lt]').forEach(b=>b.setAtt
     el.querySelectorAll('[data-lx]').forEach(b=>b.onclick=()=>{if(doc.layers.length<2)return;const id=b.dataset.lx;doc.layers=doc.layers.filter(l=>l.id!==id);const to=doc.layers[0].id;doc.pages.forEach(p=>p.items.forEach(it=>{if(it.layer===id)it.layer=to;}));if(activeLayer===id)activeLayer=to;commit();renderAll();});
     $('#addL').onclick=()=>{const l={id:'L'+uid(),name:'Qatlam '+(doc.layers.length+1),vis:true,lock:false};doc.layers.push(l);activeLayer=l.id;commit();renderAll();};
     if($('#movL'))$('#movL').onclick=()=>{const it=pg().items.find(x=>x.id===sel);if(it){it.layer=activeLayer;commit();renderAll();}};}
-  else{const tw=96;el.innerHTML=`<div class="lbl">Varaqlar · ${doc.pages.length}</div>`+doc.pages.map((p,i)=>{const [W,Hh]=pageWH(p),th=tw*Hh/W;return `<div class="pg ${i===cur?'on':''}" data-p="${i}"><svg class="th" width="${tw}" height="${th}" viewBox="0 0 ${W} ${Hh}">${pageSVG(p,true)}</svg><div><div class="n">${i+1} · ${p.fmt==='custom'?p.cw+'×'+p.ch:p.fmt} ${p.orient==='P'?'portret':'albom'}</div></div><div class="a"><button data-pa="up" title="Yuqoriga">↑</button><button data-pa="dn" title="Pastga">↓</button><button data-pa="dup" title="Nusxa">⧉</button><button data-pa="del" title="Oʻchirish">✕</button></div></div>`;}).join('')+`<button class="btn sm ghost" id="addPg">+ Varaq</button>`;
+  else{const tw=96;el.innerHTML=`<div class="lbl">Varaqlar · ${doc.pages.length}</div>`+doc.pages.map((p,i)=>{const [W,Hh]=pageWH(p),th=tw*Hh/W;return `<div class="pg ${i===cur?'on':''}" data-p="${i}"><svg class="th" width="${tw}" height="${th}" viewBox="0 0 ${W} ${Hh}">${pageSVG(p,true)}</svg><div><div class="n">${i+1} · ${p.fmt==='custom'?p.cw+'×'+p.ch:p.fmt} ${p.orient==='P'?'portret':'albom'}</div></div><div class="a"><button data-pa="up" title="Yuqoriga">↑</button><button data-pa="dn" title="Pastga">↓</button><button data-pa="dup" title="Nusxa">⧉</button><button data-pa="del" title="Oʻchirish">✕</button></div></div>`;}).join('')+`<div class="row" style="gap:6px"><button class="btn sm ghost" id="addPg">+ Varaq</button><button class="btn sm dark" id="tplPg">▦ Shablondan</button></div>`;
     el.querySelectorAll('[data-p]').forEach(d=>d.onclick=e=>{const i=+d.dataset.p,a=e.target.dataset.pa;
       if(a==='up'&&i>0){[doc.pages[i-1],doc.pages[i]]=[doc.pages[i],doc.pages[i-1]];cur=i-1;commit();}
       else if(a==='dn'&&i<doc.pages.length-1){[doc.pages[i+1],doc.pages[i]]=[doc.pages[i],doc.pages[i+1]];cur=i+1;commit();}
       else if(a==='dup'){const c=clone(doc.pages[i]);c.id=uid();c.items.forEach(x=>x.id=uid());doc.pages.splice(i+1,0,c);cur=i+1;commit();}
       else if(a==='del'){if(doc.pages.length>1){doc.pages.splice(i,1);cur=Math.max(0,Math.min(cur,doc.pages.length-1));commit();}}
       else cur=i;sel=null;renderAll();});
+    $('#tplPg').onclick=openTpl;
     $('#addPg').onclick=()=>{const p=pg();doc.pages.splice(cur+1,0,{id:uid(),fmt:p.fmt,orient:p.orient,cw:p.cw,ch:p.ch,tb:p.tb,items:[]});cur++;sel=null;commit();renderAll();};}}
 function addMat(m,cx,cy){if(!m)return;const it={id:uid(),t:'mat',src:m.src,name:m.name,aspect:m.aspect||1.6,mW:m.mW||null,legend:m.legend||null,frame:false,x:0,y:0,w:0,h:0};
   const [W,Hh]=pageWH(pg());if(m.mW){it.scale=200;it.w=m.mW*1000/it.scale;}else it.w=Math.min(W*.5,180);
@@ -463,7 +466,7 @@ function fitText(it){const fs=fsMM(it),n=String(it.text||'').split('\n').length;
 /* ---------- sichqoncha ---------- */
 const sv=$('#paper');let drag=null,drawTmp='';
 function mm(e){const pt=sv.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const q=pt.matrixTransform(sv.getScreenCTM().inverse());return [q.x,q.y];}
-sv.addEventListener('pointerdown',e=>{if(e.button!==0)return;let P=mm(e);const p=pg(),hEl=e.target.closest('[data-h]'),idEl=e.target.closest('[data-id]'),gEl=e.target.closest('[data-guide]');sv.setPointerCapture(e.pointerId);
+sv.addEventListener('pointerdown',e=>{if(e.button!==0)return;let P=mm(e);const p=pg(),hEl=e.target.closest('[data-h]'),idEl=e.target.closest('[data-id]'),gEl=e.target.closest('[data-guide]');{const now=Date.now(),hid=idEl?idEl.dataset.id:null;if(hid&&LPD&&LPD.id===hid&&now-LPD.t<450){LPD=null;const it0=p.items.find(x=>x.id===hid);if(it0&&it0.t==='image'&&(it0.ph||!it0.src)){fillFrame(it0);return;}}LPD={id:hid,t:now};}sv.setPointerCapture(e.pointerId);
   if(gEl&&!polyD){const [ax,i]=gEl.dataset.guide.split(':');drag={k:'guide',ax,i:+i};return;}
   if(tool!=='select'&&!e.altKey&&!(e.shiftKey&&polyD))P=snapPt(P,[]).p;
   if(tool==='select'){
@@ -506,7 +509,14 @@ sv.addEventListener('pointerup',()=>{SNAPL=[];if(!drag)return;const it=drag.it,k
   if(k==='h'&&it.t==='map')refreshMap(it);
   commit();renderAll();});
 function finishPoly(){if(!polyD)return;const it=polyD;polyD=null;drawTmp='';const q=[];it.pts.forEach(p=>{const l=q[q.length-1];if(!l||Math.hypot(p[0]-l[0],p[1]-l[1])>.5)q.push(p);});it.pts=q;if(it.pts.length<(it.t==='poly'?3:2)){pg().items=pg().items.filter(x=>x!==it);sel=null;}setTool('select');commit();renderAll();}
-sv.addEventListener('dblclick',e=>{if(polyD){finishPoly();return;}const idEl=e.target.closest('[data-id]');if(!idEl)return;const it=pg().items.find(x=>x.id===idEl.dataset.id);if(!it)return;if(it.t==='text')openEditor(it);if(it.t==='map')pickMap(it);});
+sv.addEventListener('dblclick',e=>{if(polyD){finishPoly();return;}const idEl=e.target.closest('[data-id]')||document.elementsFromPoint(e.clientX,e.clientY).map(x=>x.closest&&x.closest('[data-id]')).find(Boolean);if(!idEl)return;const it=pg().items.find(x=>x.id===idEl.dataset.id);if(!it)return;if(it.t==='text')openEditor(it);if(it.t==='map')pickMap(it);if(it.t==='image'&&(it.ph||!it.src))fillFrame(it);});
+let LPD=null;
+function fillFrame(it){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{it.src=r.result;it.aspect=im.width/im.height;it.fit='cover';it.frame=false;commit();renderAll();toast('Rasm ramkaga qoʻyildi — ortiqcha qismi kesiladi.');};im.src=r.result;};r.readAsDataURL(f);};inp.click();}
+function tplPage(t){const p={id:uid(),fmt:t.fmt,orient:t.orient,tb:t.tb,items:[]};const [W,Hh]=pageWH(p);p.items=t.fn(W,t.tb?Hh-30:Hh).map(o=>{const it=Object.assign({id:uid()},clone(o));if(it.t==='legend')it.h=legendH(it);return it;});return p;}
+function openTpl(){const L=window.KPS_TPL||[];if(!L.length){toast('Shablonlar yuklanmadi.');return;}const cats=[...new Set(L.map(t=>t.cat))];const box=document.createElement('div');box.className='modal';
+  box.innerHTML=`<div class="mbox"><header style="display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid var(--line)"><b>Varaq shablonlari</b><span class="note">${L.length} ta maket · rasm qoʻyilmagan, faqat ramkalar. Ramkani ikki marta bosing — rasm qoʻyiladi.</span><span class="sp" style="flex:1"></span><button class="btn sm ghost" id="tplX">Yopish</button></header><div class="tplg">${cats.map(c=>`<h4>${esc(c)}</h4><div class="tplr">${L.filter(t=>t.cat===c).map(t=>{const p=tplPage(t),[W,Hh]=pageWH(p),tw=W>=Hh?170:Math.round(122*W/Hh),th=Math.round(tw*Hh/W);return `<button class="tplc" data-t="${t.id}"><span class="tt"><svg width="${tw}" height="${th}" viewBox="0 0 ${W} ${Hh}">${pageSVG(p,true)}</svg></span><b>${esc(t.name)}</b><small>${esc(t.desc)}</small><i>${t.fmt} · ${t.orient==='P'?'portret':'albom'}</i></button>`;}).join('')}</div>`).join('')}</div></div>`;
+  document.body.appendChild(box);const close=()=>box.remove();box.querySelector('#tplX').onclick=close;box.onclick=e=>{if(e.target===box)close();};
+  box.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const t=L.find(x=>x.id===b.dataset.t);const p=tplPage(t);const empty=pg().items.length===0;if(empty)doc.pages.splice(cur,1,p);else{doc.pages.splice(cur+1,0,p);cur++;}sel=null;commit();renderAll();if(typeof fitZoom==='function')fitZoom();close();toast('«'+t.name+'» varagʻi qoʻshildi.');});}
 function simplify(pts,tol){if(pts.length<3)return pts;const out=[pts[0]];let last=pts[0];for(let i=1;i<pts.length-1;i++){if(Math.hypot(pts[i][0]-last[0],pts[i][1]-last[1])>tol){out.push(pts[i]);last=pts[i];}}out.push(pts[pts.length-1]);return out.map(q=>[+q[0].toFixed(2),+q[1].toFixed(2)]);}
 /* sudrab tashlash: materiallar va rasmlar */
 sv.addEventListener('dragover',e=>e.preventDefault());
@@ -687,7 +697,8 @@ async function pageCanvas(p,dpi){const [W,Hh]=pageWH(p),k=dpi/25.4,cv=document.c
   const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,cv.width,cv.height);await document.fonts.ready;
   for(const it of layOrder(p)){if(it.t==='image'||it.t==='mat'||it.t==='map'){let src=it.src;if(it.t==='map'&&it.lat!=null){try{src=(await mapCanvas(it,Math.min(dpi,220)));}catch(e){src=it.src;}}
       const im=src instanceof HTMLCanvasElement?src:await loadImg(src);c.save();c.globalAlpha=it.op??1;if(it.rot){c.translate((it.x+it.w/2)*k,(it.y+it.h/2)*k);c.rotate(it.rot*R);c.translate(-(it.x+it.w/2)*k,-(it.y+it.h/2)*k);}
-      if(im){if(it.t==='map')c.drawImage(im,it.x*k,it.y*k,it.w*k,it.h*k);else{const a=(im.width||1)/(im.height||1),bw=it.w,bh=it.h;let w=bw,h=bw/a;if(h>bh){h=bh;w=bh*a;}c.drawImage(im,(it.x+(bw-w)/2)*k,(it.y+(bh-h)/2)*k,w*k,h*k);}}
+      if(im){if(it.t==='map')c.drawImage(im,it.x*k,it.y*k,it.w*k,it.h*k);else if(it.fit==='cover'){const a=(im.width||1)/(im.height||1),b=it.w/it.h;let sw=im.width,sh=im.height,sx=0,sy=0;if(a>b){sw=im.height*b;sx=(im.width-sw)/2;}else{sh=im.width/b;sy=(im.height-sh)/2;}c.drawImage(im,sx,sy,sw,sh,it.x*k,it.y*k,it.w*k,it.h*k);}
+        else{const a=(im.width||1)/(im.height||1),bw=it.w,bh=it.h;let w=bw,h=bw/a;if(h>bh){h=bh;w=bh*a;}c.drawImage(im,(it.x+(bw-w)/2)*k,(it.y+(bh-h)/2)*k,w*k,h*k);}}
       if(it.t==='map'||it.frame){c.strokeStyle='#141414';c.lineWidth=(it.fsw||.35)*k;c.strokeRect(it.x*k,it.y*k,it.w*k,it.h*k);}c.restore();}
     else if(needSvg(it)){const svg=`<svg xmlns="${NS}" width="${cv.width}" height="${cv.height}" viewBox="0 0 ${W} ${Hh}">${itemSVG(it,true)}</svg>`;const im=await loadImg('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg));if(im)c.drawImage(im,0,0,cv.width,cv.height);}
     else drawItem(c,it,k);}
