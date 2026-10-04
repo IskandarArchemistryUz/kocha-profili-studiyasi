@@ -364,7 +364,7 @@ function evaluate(){
 
 
 /* ================== UI v2 ================== */
-const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const cv=document.getElementById('cv');let ctx=cv.getContext('2d');
 const STEPS=["Rasm","Eshik","Fasad","Peshlavha"];
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function toPx(x,y){const v=S.view;return[(x-v.x0)*v.s,(y-v.y0)*v.s];}
@@ -738,6 +738,7 @@ function renderSignCard(C){
     ${panel||s.mode==="logo"?"":`<label class="chk"><input type="checkbox" id="f_brand" ${s.brand?"checked":""}> Ikkinchi tildagi nom — ro'yxatdan o'tgan tovar belgisi</label>`}
   </div></details>
   ${S.signs.length>1?`<div class="row">${S.signs.map(x=>`<button data-sel="${x.id}" aria-pressed="${x.id===S.sel}">#${x.id} ${TYPES_V1[x.type].split(" — ")[0]}</button>`).join("")}</div>`:""}
+  ${STUDIO?`<div class="row"><button id="toAlbum" class="primary" style="grid-column:1/-1">Albomga yuborish</button></div>`:""}
   <div class="row"><button id="addSign">Yana peshlavha qo'shish</button><button id="delSign">O'chirish</button></div>`:""}
   <details class="more" id="allChecks"><summary>Barcha tekshiruvlar va manbalar</summary><div class="inner" id="allList"></div></details>
   <div class="nav"><button id="back">Orqaga</button></div>`;
@@ -820,10 +821,36 @@ function onSignClick(e){const b=e.target.closest('button');if(!b)return;const s=
     if(b.dataset.pos==="chap")s.x=m;else if(b.dataset.pos==="ong")s.x=Math.round(S.W-s.w-m);
     else if(b.dataset.pos==="eshik"&&door)s.x=Math.round(door.x+door.w/2-s.w/2);else s.x=Math.round(S.W/2-s.w/2);
     if(z&&MAIN.has(s.type))s.y=Math.round((z.y0+z.y1)/2-s.h/2);evaluate();return;}
+  if(b.id==="toAlbum"){toAlbum();return;}
   if(b.id==="tlogoDel"){s.tlogo=null;s.tlogoH=0;layout(s);renderCard();evaluate();}
   if(b.id==="addSign"){const t=Object.keys(TYPES_V1).find(t=>typeAvailable(t)[0]&&!MAIN.has(t))||firstAvailable();const n=newSign(t);S.signs.push(n);S.sel=n.id;placeSign(n);renderCard();evaluate();}
   if(b.id==="delSign"){S.signs=S.signs.filter(x=>x.id!==S.sel);S.sel=S.signs[0]?S.signs[0].id:null;renderCard();evaluate();}
 }
+
+/* albomga yuborish: toza fasad rasmi + tekshiruv jadvali (kps_mat IndexedDB) */
+function facadePNG(){const F=S.F;if(!F)return null;const sc=Math.min(1,2400/F.width),oc=document.createElement('canvas');oc.width=Math.round(F.width*sc);oc.height=Math.round(F.height*sc);
+  const old=ctx,oldN=S.night;ctx=oc.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,oc.width,oc.height);ctx.imageSmoothingQuality="high";ctx.setTransform(sc,0,0,sc,0,0);ctx.drawImage(F,0,0);
+  const K=1/sc;try{for(const s of S.signs){const[x,y]=toPx(s.x,s.y);paintSign(s,x,y,s.w*S.view.s,s.h*S.view.s,s.letterH*S.view.s,K);}}finally{ctx=old;S.night=oldN;}
+  return {src:oc.toDataURL('image/jpeg',.9),aspect:oc.width/oc.height};}
+function checksSVG(){const it=(S.items||[]).filter(i=>i.st!=="pend");const tag={ok:"mos",warn:"ko'rib chiqish",bad:"mos emas"},col={ok:"#25744A",warn:"#8A5A00",bad:"#B3261E"};
+  const rows=["bad","warn","ok"].flatMap(st=>it.filter(i=>i.st===st)).slice(0,14);const bad=it.filter(i=>i.st==="bad").length,warn=it.filter(i=>i.st==="warn").length;
+  const W=180,rh=6.2,H=34+rows.length*rh+10,e=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const verdict=bad?`${bad} ta talabga mos emas`:warn?`Asosiy talablarga mos · ${warn} ta band ko'rib chiqiladi`:"Talablarga mos";
+  let g=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" font-family="Archivo, Arial, sans-serif"><rect width="${W}" height="${H}" fill="#fff"/>`+
+   `<text x="0" y="6" font-size="5" font-weight="700" fill="#141414">Dizayn-kod: peshlavha tekshiruvi</text>`+
+   `<text x="0" y="12" font-size="3" fill="#696969" font-family="IBM Plex Mono, monospace">Joy tipi ${e(S.tip)} · VII-19-17-14-0-K/26, 2-ilova, P2.3 §2</text>`+
+   `<rect x="0" y="16" width="${W}" height="9" fill="${bad?'#F9E1DE':warn?'#F7EACB':'#DDF0E4'}"/><text x="3" y="22" font-size="3.6" font-weight="700" fill="${bad?col.bad:warn?col.warn:col.ok}">${e(verdict)}</text>`;
+  let y=30;g+=`<text x="0" y="${y}" font-size="2.6" fill="#696969">TALAB</text><text x="92" y="${y}" font-size="2.6" fill="#696969">NATIJA</text><text x="140" y="${y}" font-size="2.6" fill="#696969">HOLAT</text><text x="${W}" y="${y}" font-size="2.6" fill="#696969" text-anchor="end">BET</text>`;
+  rows.forEach(i=>{y+=rh;g+=`<line x1="0" x2="${W}" y1="${y-rh+1.6}" y2="${y-rh+1.6}" stroke="#dedcd7" stroke-width=".2"/><text x="0" y="${y}" font-size="3" fill="#141414">${e(human(i.r.parametr)).slice(0,48)}</text><text x="92" y="${y}" font-size="3" fill="#3c3c3c">${e(i.val||'').slice(0,26)}</text><text x="140" y="${y}" font-size="3" font-weight="700" fill="${col[i.st]}">${tag[i.st]}</text><text x="${W}" y="${y}" font-size="3" fill="#696969" text-anchor="end">${i.r.manba.bet}</text>`;});
+  return {svg:g+`</svg>`,aspect:W/H};}
+async function toAlbum(){if(!S.F||!S.signs.length){alert("Avval peshlavhani joylang.");return;}
+  const put=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const tx=r.result.transaction('mats','readwrite');tx.objectStore('mats').put(o);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);};r.onerror=()=>rej(r.error);});
+  const t=new Date().toISOString(),id=Date.now().toString(36),f=facadePNG(),c=checksSVG(),nm=(S.signs[0].uz||'').trim()||'peshlavha';
+  const bad=(S.items||[]).filter(i=>i.st==="bad").length;
+  await put({id:'pv'+id+'f',kind:'png',name:'Peshlavha — fasad · '+nm,src:f.src,thumb:f.src,aspect:f.aspect,mW:S.W/100,sub:'joy tipi '+S.tip+(bad?' · '+bad+' ta xato':' · mos'),t});
+  const cs='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(c.svg);
+  await put({id:'pv'+id+'c',kind:'svg',name:'Peshlavha — tekshiruv · '+nm,src:cs,thumb:cs,aspect:c.aspect,sub:'dizayn-kod talablari',t});
+  const b=document.getElementById('toAlbum');if(b){b.textContent="Albomga yuborildi ✓ — «Albom → Loyihadan»";setTimeout(()=>{const x=document.getElementById('toAlbum');if(x)x.textContent="Albomga yuborish";},4000);}}
 
 /* dvigatel natijalarini UIga ulash */
 function renderResults(){for(const i of S.items||[])i.sid=i.label==="Butun fasad"?null:+i.label.split("#")[1];renderVerdict();}
