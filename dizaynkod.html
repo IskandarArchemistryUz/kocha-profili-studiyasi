@@ -7470,7 +7470,7 @@ const TOL=DATA.meta.portal_parametri_olchov_xatosi_sm||3;
 document.getElementById('ver').textContent=DATA.meta.versiya;
 
 const S={tip:"U1",meros:false,visorPass:false,src:null,sample:true,
-  step:4,door:{q:[],w:100,h:220},floors:null,floorsManual:false,night:false,snap:true,guides:[],mouse:null,F:null,Fb:null,lines:null,bezak:false,windows:[],
+  step:4,door:{q:[],w:100,h:220},sub3:0,show2:false,night:false,snap:true,guides:[],mouse:null,F:null,Fb:null,lines:null,bezak:false,windows:[],
   elements:[],signs:[],sel:null,nextId:1,view:null,W:0,H:0,items:[],newType:"devor_substratsiz"};
 /* ---------- tiplar ---------- */
 const TIPS = [
@@ -7719,7 +7719,7 @@ function makeSample(){
   S.src=P;S.sample=true;
   S.door={q:[[ox+330,oy+150],[ox+450,oy+150],[ox+450,oy+420],[ox+330,oy+420]].map(p=>apply(Hf,p[0],p[1])),w:120,h:270};
   rectify();
-  S.lines={yT:-150,xL:-330,xR:470,yB:-30,yR:-500};S.floors=2;S.bezak=true;
+  S.lines={yT:-150,xL:-330,xR:470,yB:-30,y2:null};S.sub3=1;S.bezak=true;
   S.windows=[{x:-270,y:20,w:220,h:230},{x:170,y:20,w:240,h:230}];
   syncGeometry();
   S.signs=[newSign("devor_substratsiz",{uz:"NON UYI",alt:"BAKERY",letterH:45})];S.sel=S.signs[0].id;
@@ -7739,11 +7739,21 @@ function rectify(){
   const F=document.createElement('canvas');F.width=Math.round((bx1-bx0)*s);F.height=Math.round((by1-by0)*s);
   warp(S.src,F,mul(Hc2i,[1/s,0,bx0,0,1/s,by0,0,0,1]));
   S.F=F;S.Fb={bx0,by0,s};
-  if(!S.lines)S.lines={yT:-Math.round(dh*0.6),xL:-Math.round(dw*2),xR:Math.round(dw*3),yB:-30,yR:Math.round(by0+0.04*(by1-by0))};
-  if(S.lines.yR==null)S.lines.yR=Math.round(by0+0.04*(by1-by0));autoFloors();
+  if(!S.lines){S.lines={yT:detectCornice(),xL:-Math.round(dw*2),xR:Math.round(dw*3),yB:-30,y2:null};S.sub3=0;}
 }
-function upperFloorH(){const L=S.lines;if(!L||L.yR==null)return null;const n=S.floors||1;if(n<2)return null;return(L.yT-L.yR)/(n-1);}
-function autoFloors(){const L=S.lines;if(!L||S.floorsManual)return;S.floors=Math.max(1,1+Math.round((L.yT-L.yR)/330));}
+/* karniz/belbog'ni taxmin qilish: eshik ustidagi eng kuchli gorizontal chiziq */
+function detectCornice(){
+  const b=S.Fb,F=S.F,dw=S.door.w;const g=F.getContext('2d');
+  const x0=Math.max(0,Math.round((-120-b.bx0)*b.s)),x1=Math.min(F.width-1,Math.round((dw+120-b.bx0)*b.s));
+  const yA=Math.max(2,Math.round((-450-b.by0)*b.s)),yB=Math.min(F.height-3,Math.round((-30-b.by0)*b.s));
+  if(x1-x0<10||yB-yA<10)return -Math.round(S.door.h*0.5);
+  const d=g.getImageData(x0,yA-2,x1-x0,yB-yA+4).data,W=x1-x0;const lum=(r,c)=>{const i=(r*W+c)*4;return d[i+3]?0.3*d[i]+0.59*d[i+1]+0.11*d[i+2]:NaN;};
+  let best=-1,bestY=null;
+  for(let r=2;r<yB-yA+2;r++){let sum=0,n=0;for(let c=0;c<W;c+=2){const v=Math.abs(lum(r+2,c)-lum(r-2,c));if(!isNaN(v)){sum+=v;n++;}}if(n<W*0.3)continue;const e=sum/n;if(e>best){best=e;bestY=r;}}
+  if(bestY==null)return -Math.round(S.door.h*0.5);
+  return Math.round((yA-2+bestY)/b.s+b.by0);
+}
+function upperFloorH(){const L=S.lines;if(!S.show2||!L||L.y2==null)return null;return L.yT-L.y2;}
 /* eshik koordinatalari (D) → dvigatel koordinatalari (do'kon fasadi chap-yuqori burchagidan) */
 function syncGeometry(){
   const L=S.lines,dw=S.door.w,dh=S.door.h,b=S.Fb;
@@ -7835,12 +7845,9 @@ function drawFacadeLines(K){
   const[a,b]=D2px(L.xL,L.yT),[c,d]=D2px(L.xR,dh);
   ctx.fillStyle="rgba(2,94,105,.16)";ctx.fillRect(a,b,c-a,d-b);
   const[ex,ey]=D2px(0,0);ctx.strokeStyle="#FF9F0A";ctx.lineWidth=2*K;ctx.strokeRect(ex,ey,dw*S.Fb.s,dh*S.Fb.s);
-  if(L.yR!=null){const n=S.floors||1;
-    if(n>1){const h=(L.yT-L.yR)/(n-1);for(let i=1;i<n;i++){const y=L.yT-h*i;const[,Y]=D2px(0,y);ctx.strokeStyle="rgba(255,255,255,.75)";ctx.lineWidth=1.2*K;ctx.setLineDash([3*K,5*K]);ctx.beginPath();ctx.moveTo(0,Y);ctx.lineTo(cv.width,Y);ctx.stroke();ctx.setLineDash([]);}
-      for(let i=0;i<n;i++){const yc=i===0?(L.yT+dh)/2:L.yT-h*(i-0.5);const[,Y]=D2px(0,yc);ctx.font=font(700,13);ctx.fillStyle="#FFFFFF";ctx.strokeStyle="rgba(0,0,0,.55)";ctx.lineWidth=3*K;ctx.strokeText(String(i+1),cv.width-26*K,Y);ctx.fillText(String(i+1),cv.width-26*K,Y);}}
-    hline(L.yR,"Bino tomi",K,"#B4543A");}
-  hline(L.yT,"1-qavat tepasi (2-qavat boshlanishi)",K,"#025E69");
-  vline(L.xL,"Do'kon chap chegarasi",K,"#7A4FA0");vline(L.xR,"O'ng chegara",K,"#7A4FA0");
+  if(S.show2&&L.y2!=null)hline(L.y2,"2-qavat tepasi",K,"#3F8F6B");
+  ctx.globalAlpha=S.sub3===0?1:.55;hline(L.yT,"Do'kon qavati shu yerda tugaydi",K,"#025E69");ctx.globalAlpha=1;
+  if(S.sub3>0){vline(L.xL,"Do'kon chap cheti",K,"#7A4FA0");vline(L.xR,"O'ng cheti",K,"#7A4FA0");}
   if(S.bezak){const[bx,by]=D2px(-20,L.yB),[bx2,by2]=D2px(dw+20,-2);ctx.fillStyle="rgba(138,90,43,.35)";ctx.fillRect(bx,by,bx2-bx,by2-by);ctx.strokeStyle="#8A5A2B";ctx.lineWidth=2*K;ctx.strokeRect(bx,by,bx2-bx,by2-by);ctx.font=font(600,12);ctx.fillStyle="#FFFFFF";ctx.fillText("Bezak — yuqori qirrasini suring",bx+4*K,by-6*K);}
   S.windows.forEach(w=>{const[x,y]=D2px(w.x,w.y);const W=w.w*S.Fb.s,H=w.h*S.Fb.s;ctx.strokeStyle="#4C7DB0";ctx.lineWidth=2.5*K;ctx.strokeRect(x,y,W,H);ctx.fillStyle="rgba(76,125,176,.15)";ctx.fillRect(x,y,W,H);ctx.fillStyle="#4C7DB0";ctx.fillRect(x+W-8*K,y+H-8*K,16*K,16*K);});
 }
@@ -7978,24 +7985,28 @@ function renderCard(){
     </div>
     <p class="lead" style="font-size:13px">Eshik qanchalik aniq belgilansa, viveska o'lchamlari shuncha aniq chiqadi. Eshik ramkasining tashqi qirrasi bo'yicha oling.</p>
     <div class="nav"><button id="back">Orqaga</button><button class="primary" id="next">Keyingi: rasmni tekislash</button></div>`;}
-  if(S.step===3){C.innerHTML=`
-    <h2>Fasad chegaralari</h2>
-    <p class="lead">Rasm eshik bo'yicha tekislandi. Endi chiziqlarni sichqoncha bilan suring:</p>
-    <ul class="lead" style="margin:0;padding-left:18px;font-size:14px">
-      <li><b style="color:#025E69">Ko'k-yashil</b> — do'kon qavatining tepasi: 2-qavat qayerdan boshlanadi (karniz yoki belbog'). Pastki qavat ikki qavat balandligida bo'lsa, uning tepasiga qo'ying.</li>
-      <li><b style="color:#B4543A">Qizil-jigarrang</b> — binoning tomi (eng yuqori qirrasi)</li>
-      <li><b style="color:#7A4FA0">Binafsha</b> — do'koningiz fasadining chap va o'ng chegarasi</li>
-    </ul>
-    <label class="f" for="floors">Binoning qavatlari soni<input type="number" id="floors" min="1" max="60" value="${S.floors||1}"></label>
-    <p class="lead" style="font-size:13px">Oq nuqtali chiziqlar qavatlarni ko'rsatadi. Ular rasmdagi deraza qatorlariga to'g'ri kelsa, o'lchov to'g'ri olingan.</p>
-    <label class="chk"><input type="checkbox" id="bezak" ${S.bezak?"checked":""}> Eshik ustida bezak yoki karniz bor</label>
-    <div class="row"><button id="addWin">Deraza yoki vitrina qo'shish</button><button id="delWin" ${S.windows.length?"":"disabled"}>Oxirgisini o'chirish</button></div>
+  if(S.step===3&&S.sub3===0){C.innerHTML=`
+    <p class="lead" style="font-size:12px;letter-spacing:.08em">1 / 2</p>
+    <h2>Do'kon qavati qayerda tugaydi?</h2>
+    <p class="lead">Ko'k chiziqni do'kon qavati tepasidagi karniz yoki belbog' ostiga suring. Dastur uni rasmdan taxmin qildi — to'g'ri bo'lsa, shunchaki "Tayyor" ni bosing.</p>
+    <p class="lead" style="font-size:13px">Pastki qavat baland (stilobat, ikki qavat balandligidagi vitrina) bo'lsa, o'sha baland qavatning tepasiga qo'ying.</p>
     <div class="dims" id="dims"></div>
-    <div class="nav"><button id="back">Orqaga</button><button class="primary" id="next">Keyingi: viveska</button></div>`;dims();}
+    <div class="nav"><button id="back">Orqaga</button><button class="primary" id="sub3next">Tayyor</button></div>`;dims();}
+  if(S.step===3&&S.sub3===1){const t2=["U3","U4","U7"].includes(S.tip)||/^[OP]/.test(S.tip);C.innerHTML=`
+    <p class="lead" style="font-size:12px;letter-spacing:.08em">2 / 2</p>
+    <h2>Do'koningiz qayerdan qayergacha?</h2>
+    <p class="lead">Ikkita binafsha chiziqni do'kon fasadining chap va o'ng chetiga suring. Viveska uzunligi shu kenglikka nisbatan tekshiriladi.</p>
+    <div class="dims" id="dims"></div>
+    <details class="more"><summary>Qo'shimcha (ixtiyoriy)</summary><div class="inner">
+      <label class="chk"><input type="checkbox" id="bezak" ${S.bezak?"checked":""}> Eshik ustida bezak yoki karniz bor — viveska undan chekinadi</label>
+      <div class="row"><button id="addWin">Deraza yoki vitrina qo'shish</button><button id="delWin" ${S.windows.length?"":"disabled"}>Oxirgisini o'chirish</button></div>
+      ${t2?`<label class="chk"><input type="checkbox" id="show2" ${S.show2?"checked":""}> Viveskani 2-qavat darajasiga ham qo'yishni ko'rib chiqaman (bu joyda ruxsat bor)</label>`:""}
+    </div></details>
+    <div class="nav"><button id="sub3back">← Do'kon qavati</button><button class="primary" id="next">Keyingi: viveska</button></div>`;dims();}
   if(S.step===4){renderSignCard(C);}
   bindCard();
 }
-function dims(){const el=document.getElementById('dims');if(!el)return;syncGeometry();const L=S.lines,bh=L.yR!=null?Math.round((S.door.h-L.yR)/10)/10:null,h2=upperFloorH();const fi=document.getElementById('floors');if(fi&&+fi.value!==S.floors&&document.activeElement!==fi)fi.value=S.floors;el.innerHTML=`Do'kon fasadi: ${S.W} sm eni × ${S.H} sm (1-qavat balandligi)<br>Bino: ${S.floors} qavat, balandligi ≈ ${bh} m${h2?`, yuqori qavatlar ≈ ${Math.round(h2)} sm`:""}`;}
+function dims(){const el=document.getElementById('dims');if(!el)return;syncGeometry();el.innerHTML=S.sub3===0?`Do'kon qavati balandligi: ${S.H} sm`:`Do'kon fasadi: ${S.W} sm eni × ${S.H} sm bo'yi`;}
 
 function renderSignCard(C){
   const s=S.signs.find(x=>x.id===S.sel)||S.signs[0];
@@ -8071,17 +8082,19 @@ function bindCard(){
     $('dh').addEventListener('input',e=>{S.door.h=+e.target.value||210;draw();});
   }
   if(S.step===3){
-    $('bezak').addEventListener('change',e=>{S.bezak=e.target.checked;draw();});
-    $('floors').addEventListener('input',e=>{const v=Math.max(1,Math.round(+e.target.value||1));S.floors=v;S.floorsManual=true;dims();draw();});
-    $('addWin').addEventListener('click',()=>{const n=S.windows.length;S.windows.push({x:S.door.w+40+n*30,y:20+n*10,w:200,h:200});renderCard();draw();});
-    $('delWin').addEventListener('click',()=>{S.windows.pop();renderCard();draw();});
+    if($('sub3next'))$('sub3next').addEventListener('click',()=>{S.sub3=1;renderCard();draw();});
+    if($('sub3back'))$('sub3back').addEventListener('click',()=>{S.sub3=0;renderCard();draw();});
+    if($('show2'))$('show2').addEventListener('change',e=>{S.show2=e.target.checked;if(S.show2&&S.lines.y2==null)S.lines.y2=S.lines.yT-330;draw();});
+    if($('bezak'))$('bezak').addEventListener('change',e=>{S.bezak=e.target.checked;draw();});
+    $('addWin')&&$('addWin').addEventListener('click',()=>{const n=S.windows.length;S.windows.push({x:S.door.w+40+n*30,y:20+n*10,w:200,h:200});renderCard();draw();});
+    $('delWin')&&$('delWin').addEventListener('click',()=>{S.windows.pop();renderCard();draw();});
   }
   if(S.step===4){
     const C=document.getElementById('card');
     C.addEventListener('input',onSignInput);C.addEventListener('change',onSignChange);C.addEventListener('click',onSignClick);
   }
 }
-function newPhoto(C){S.src=C;S.sample=false;S.F=null;S.lines=null;S.windows=[];S.bezak=false;S.signs=[];S.view=null;
+function newPhoto(C){S.sub3=0;S.show2=false;S.src=C;S.sample=false;S.F=null;S.lines=null;S.windows=[];S.bezak=false;S.signs=[];S.view=null;
   const w=C.width,h=C.height;S.door.q=[[w*.42,h*.45],[w*.58,h*.45],[w*.58,h*.85],[w*.42,h*.85]];renderSteps();renderCard();draw();}
 function curSign(){return S.signs.find(x=>x.id===S.sel);}
 function onSignInput(e){const s=curSign(),t=e.target;if(!s||!t.id||!t.id.startsWith("f_")||t.type==="file")return;const k=t.id.slice(2);
@@ -8145,8 +8158,8 @@ cv.addEventListener('pointerdown',e=>{const[X,Y]=ptr(e);const K=k();cv.setPointe
     for(let n=S.windows.length-1;n>=0;n--){const w=S.windows[n];if(Math.abs(x-(w.x+w.w))<tol&&Math.abs(y-(w.y+w.h))<tol){drag={t:"winR",w};return;}if(x>w.x&&x<w.x+w.w&&y>w.y&&y<w.y+w.h){drag={t:"winM",w,dx:x-w.x,dy:y-w.y};return;}}
     if(S.bezak&&Math.abs(y-L.yB)<tol&&x>-40&&x<S.door.w+40){drag={t:"yB"};return;}
     if(Math.abs(y-L.yT)<tol){drag={t:"yT"};return;}
-    if(L.yR!=null&&Math.abs(y-L.yR)<tol){drag={t:"yR"};return;}
-    if(Math.abs(x-L.xL)<tol){drag={t:"xL"};return;}if(Math.abs(x-L.xR)<tol){drag={t:"xR"};return;}if(Z.z>1)startPan(e);return;}
+    if(S.show2&&L.y2!=null&&Math.abs(y-L.y2)<tol){drag={t:"y2"};return;}
+    if(S.sub3>0&&Math.abs(x-L.xL)<tol){drag={t:"xL"};return;}if(S.sub3>0&&Math.abs(x-L.xR)<tol){drag={t:"xR"};return;}if(Z.z>1)startPan(e);return;}
   if(S.step===4&&S.view){const[x,y]=toCm(X,Y);
     for(const s of[...S.signs].reverse()){
       if(s.mode==="logo"&&s.id===S.sel&&Math.abs(x-(s.x+s.w))<14*K/S.view.s&&Math.abs(y-(s.y+s.h))<14*K/S.view.s){drag={t:"resize",s};return;}
@@ -8156,12 +8169,12 @@ cv.addEventListener('pointerdown',e=>{const[X,Y]=ptr(e);const K=k();cv.setPointe
 cv.addEventListener('pointermove',e=>{const[X,Y]=ptr(e);
   if(S.step>=3){S.mouse=[X,Y];if(!drag){draw();}}
   if(drag&&drag.t==="pan"){const[sx,sy]=ptrS(e);Z.px=drag.px-(sx-drag.sx);Z.py=drag.py-(sy-drag.sy);clampPan();draw();return;}
-  if(!drag){let c="default";if(S.step===3){const[x,y]=px2D(X,Y),L=S.lines,tol=14*k()/S.Fb.s;if(Math.abs(y-L.yT)<tol||Math.abs(y-L.yR)<tol||(S.bezak&&Math.abs(y-L.yB)<tol))c="ns-resize";else if(Math.abs(x-L.xL)<tol||Math.abs(x-L.xR)<tol)c="ew-resize";}
+  if(!drag){let c="default";if(S.step===3){const[x,y]=px2D(X,Y),L=S.lines,tol=14*k()/S.Fb.s;if(Math.abs(y-L.yT)<tol||(S.show2&&Math.abs(y-L.y2)<tol)||(S.bezak&&Math.abs(y-L.yB)<tol))c="ns-resize";else if(Math.abs(x-L.xL)<tol||Math.abs(x-L.xR)<tol)c="ew-resize";}
     else if(S.step===2||S.step===4)c=Z.z>1?"grab":"default";if(spaceDown)c="grab";cv.style.cursor=c;return;}
   if(drag.t==="corner"){S.door.q[drag.i]=[X/S.sc,Y/S.sc];draw();return;}
   if(drag.t==="quad"){const dx=(X-drag.X)/S.sc,dy=(Y-drag.Y)/S.sc;S.door.q=drag.q.map(p=>[p[0]+dx,p[1]+dy]);draw();return;}
   if(S.step===3){const[x,y]=px2D(X,Y),L=S.lines;
-    if(drag.t==="yT"){L.yT=Math.round(Math.min(y,-20));autoFloors();}if(drag.t==="yR"){L.yR=Math.round(Math.min(y,L.yT-150));autoFloors();}if(drag.t==="yB")L.yB=Math.round(Math.max(L.yT+5,Math.min(y,-6)));
+    if(drag.t==="yT"){L.yT=Math.round(Math.min(y,-20));}if(drag.t==="y2"){L.y2=Math.round(Math.min(y,L.yT-150));}if(drag.t==="yB")L.yB=Math.round(Math.max(L.yT+5,Math.min(y,-6)));
     if(drag.t==="xL")L.xL=Math.round(Math.min(x,-5));if(drag.t==="xR")L.xR=Math.round(Math.max(x,S.door.w+5));
     if(drag.t==="winM"){drag.w.x=Math.round(x-drag.dx);drag.w.y=Math.round(y-drag.dy);}if(drag.t==="winR"){drag.w.w=Math.max(20,Math.round(x-drag.w.x));drag.w.h=Math.max(20,Math.round(y-drag.w.y));}
     dims();draw();return;}
