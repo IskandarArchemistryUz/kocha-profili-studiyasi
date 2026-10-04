@@ -133,7 +133,7 @@ async function analyse(lat,lon){
   if(hl){map.removeLayer(hl);hl=null;}
   $('#mh').style.display='none';
   try{
-    const q=`(way(around:110,${lat},${lon})["highway"~"^(trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian)$"];
+    const q=`(way(around:160,${lat},${lon})["highway"~"^(trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian)$"];
       way(around:220,${lat},${lon})["highway"="pedestrian"]["area"="yes"];
       nwr(around:220,${lat},${lon})["place"="square"];
       nwr(around:250,${lat},${lon})["railway"="station"];
@@ -149,7 +149,7 @@ async function analyse(lat,lon){
     // ko'chalar: nom bo'yicha guruhlash
     const groups={};
     for(const w of S.ways){if(w.tags.area==='yes')continue;const nb=nearestOnWay(w.geometry);w._d=nb.d;w._b=nb.b;const key=w.tags.name||('#'+w.id);(groups[key]=groups[key]||[]).push(w);}
-    for(const [key,ws] of Object.entries(groups)){ws.sort((a,b)=>a._d-b._d);const w=ws[0];if(w._d>90)continue;
+    for(const [key,ws] of Object.entries(groups)){ws.sort((a,b)=>a._d-b._d);const w=ws[0];if(w._d>150)continue;
       const ped=w.tags.highway==='pedestrian';
       cands.push({kind:ped?'ped':'street',name:w.tags.name||'Nomsiz koʻcha',hw:w.tags.highway,d:w._d,ways:ws});}
     // maydonlar
@@ -158,9 +158,9 @@ async function analyse(lat,lon){
     el.filter(e=>e.tags&&(e.tags.station==='subway'||e.tags.railway==='station'||e.tags.amenity==='bus_station')).forEach(e=>{const c=e.type==='node'?[e.lat,e.lon]:(e.center?[e.center.lat,e.center.lon]:centroid(e.geometry||[]));if(!c)return;const d=haversine(lat,lon,c[0],c[1]);
       const what=e.tags.station==='subway'?'metro bekati':e.tags.railway==='station'?'temir yoʻl vokzali':'avtostansiya';cands.push({kind:'tpu',name:(e.tags.name||'')+' — '+what,d,el:e});});
     // takrorlarni olib tashlash
-    const seen=new Set();S.cands=cands.sort((a,b)=>a.d-b.d).filter(c=>{const k=c.kind+c.name;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,7);
+    const seen=new Set();const ORD={street:0,ped:0,square:1,tpu:2};S.cands=cands.sort((a,b)=>(ORD[a.kind]-ORD[b.kind])||(a.d-b.d)).filter(c=>{const k=c.kind+c.name;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,8);
     S.cands.push({kind:'inner',name:'Koʻchaga emas — hovli, park yoki bozor ichiga',d:null});
-    choose(0);
+    {const f=S.cands.findIndex(c=>c.kind==='street'||c.kind==='ped');choose(f>=0?f:S.cands.length-1);}
   }catch(e){S.err='OpenStreetMap maʼlumoti yuklanmadi ('+e.message+'). Birozdan keyin qayta bosing.';}
   S.busy=false;render();
 }
