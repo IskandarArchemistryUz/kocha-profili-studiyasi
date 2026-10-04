@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dizayn-kod: joy tipi — Archemistry Studio</title>
+<script src="js/beta.js?v=6"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--panel:#fff;--sunk:#f7f6f3;--bad:#b3261e;--ok:#25744A;--ok-soft:#DDF0E4;--warn:#8A5A00;--warn-soft:#F7EACB;--teal:#025E69;--mono:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font:15px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+a{color:inherit;text-decoration:none}button,input,select{font:inherit;color:inherit}
+header{height:52px;flex:none;display:flex;align-items:center;gap:20px;padding:0 18px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:14.5px;letter-spacing:.2em}.brand i{font-style:normal;font-size:12.5px;letter-spacing:.18em;color:var(--grey)}
+.crumb{font-size:12.5px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
+.btn{height:32px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.dark{background:var(--ink);color:var(--bg)}.btn.wide{width:100%;height:42px;font-size:13.5px}
+main{flex:1;display:grid;grid-template-columns:400px 1fr;min-height:0}
+aside{border-right:1px solid var(--line);background:var(--panel);overflow:auto;min-height:0}
+.ah{padding:18px 18px 8px}.ah h1{margin:0;font-size:22px;font-weight:500;letter-spacing:-.01em}.ah p{margin:6px 0 0;font-size:14px;color:var(--txt)}
+.blk{padding:14px 18px;border-top:1px solid var(--line)}
+.blk h3{margin:0 0 10px;font-size:12px;font-weight:500;letter-spacing:.14em;color:var(--grey);text-transform:uppercase}
+.srch{display:flex;gap:6px}.srch input{flex:1;height:38px;border:1px solid var(--line);border-radius:2px;padding:0 10px;background:var(--sunk)}
+.hint{font-size:13.5px;color:var(--txt);margin-top:8px}
+.opt{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:2px;margin-bottom:6px;cursor:pointer;background:#fff}
+.opt:hover{border-color:#bdbab3}.opt input{margin:3px 0 0;accent-color:var(--ink)}
+.opt.on{border-color:var(--ink);background:var(--sunk)}
+.opt b{font-weight:500;display:block}.opt small{display:block;font-size:12.5px;color:var(--grey);font-family:var(--mono);margin-top:2px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg button{border:1px solid var(--line);background:#fff;border-radius:2px;padding:10px 6px;cursor:pointer;text-align:center}
+.seg button[aria-pressed=true]{border-color:var(--ink);background:var(--sunk);box-shadow:inset 0 0 0 1px var(--ink)}
+.seg svg{display:block;margin:0 auto 6px}.seg b{font-weight:500;display:block}.seg small{font-size:12px;color:var(--grey)}
+.est{font-size:13.5px;margin:0 0 10px;padding:8px 10px;background:var(--warn-soft);color:var(--warn);border-radius:2px}
+.est.okk{background:var(--ok-soft);color:var(--ok)}
+.res{border:1px solid var(--ink);border-radius:2px;padding:14px}
+.res .code{font:600 34px/1 Archivo,sans-serif;letter-spacing:-.01em}.res .nm{font-size:16px;margin:6px 0 10px}
+.why{list-style:none;margin:0;padding:0}.why li{font-size:13.5px;padding:6px 0;border-top:1px solid #efede9;display:grid;grid-template-columns:14px 1fr;gap:8px}
+.why li:before{content:"";width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--ok)}
+.why li.t:before{background:#d29b2a}.why li.i:before{background:#9a9a9a}
+.why small{display:block;color:var(--grey);font-family:var(--mono);font-size:12px}
+.src{font-family:var(--mono);font-size:12px;color:var(--grey);line-height:1.6}
+.busy{font-size:14px;color:var(--txt);display:flex;gap:10px;align-items:center}
+.spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:s 0.8s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
+.err{color:var(--bad);font-size:14px}
+.mapwrap{position:relative;min-height:0}#map{height:100%;background:#ecebe7}
+.basesw{position:absolute;top:12px;right:12px;z-index:500;display:flex;background:#fff;border:1px solid var(--line);border-radius:2px;padding:2px}
+.basesw button{border:0;background:none;padding:6px 11px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;color:var(--grey)}
+.basesw button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.legend{position:absolute;left:12px;bottom:22px;z-index:500;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:2px;padding:8px 10px;font-size:12.5px;line-height:1.7}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px dashed var(--teal);vertical-align:middle;margin-right:6px}
+.legend i.s{border-top:4px solid #e0457b}.legend i.g{width:9px;height:9px;border:0;border-radius:50%;background:#E7A750;margin-right:6px}
+.maphint{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:500;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:2px;font-size:14px;pointer-events:none}
+.leaflet-container{font:13px/1.4 Archivo,sans-serif}
+@media (max-width:820px){body{overflow:auto;height:auto}main{grid-template-columns:1fr;grid-template-rows:auto}.mapwrap{height:58vh;order:-1}aside{border-right:0;overflow:visible}header .brand i,header .crumb{display:none}}
+</style>
+</head>
+<body>
+<header>
+<a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b><i>STUDIO</i></a>
+<span class="crumb">/ 07 · DIZAYN-KOD · JOY TIPI</span><span class="sp"></span>
+<a class="btn" href="dizaynkod.html">Viveska</a>
+</header>
+<main>
+<aside id="side"></aside>
+<div class="mapwrap"><div id="map"></div>
+<div class="maphint" id="mh">Doʻkoningiz kirish eshigini xaritada bosing</div>
+<div class="basesw" role="group" aria-label="Fon"><button data-b="line" aria-pressed="true">Chizma</button><button data-b="sat" aria-pressed="false">Sputnik</button><button data-b="osm" aria-pressed="false">OSM</button></div>
+<div class="legend"><div><i></i>Kichik halqa yoʻli (OSM, taxmin)</div><div><i class="s"></i>Tanlangan koʻcha</div><div><i class="g"></i>3-ilova: gastronomik koʻchalar</div></div>
+</div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+const LOGO='M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z';document.getElementById('logoP').setAttribute('d',LOGO);
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- tipologiya (1-ilova, 1.3, 8–12-bet) ---------- */
+const TIPN={U1:"Markaziy koʻcha, 2–4 tasma",U2:"Markaziy magistral, 5–8 tasma",U3:"Periferik koʻcha, 2–4 tasma",U4:"Periferik magistral, 5–8 tasma",U5:"Piyodalar koʻchasi",U6:"Shahar maydoni",U7:"Transport almashuv uzeli (TPU)",
+M1:"Muntazam mahalla",M2:"Vernakulyar mahalla",M3:"Sovet oʻrta qavatli (4–5 qavat)",M4:"Sovet aralash qurilishi",M5:"Zamonaviy qurilish",
+O1:"Tomoshabop obyekt",O2:"Bozor",O3:"Madaniy va hordiq obyekti",O4:"Biznes va savdo markazi",
+P1:"Urbanizatsiyalashgan park",P2:"Tabiiy park",P3:"Yirik suv havzasi boʻyidagi park",P4:"Kichik suv havzasi boʻyidagi park",P5:"Skver"};
+const TIPD={M1:"Toʻgʻri koʻchalar, 3 qavatgacha hovli uylar",M2:"Eski shahar: tor, egri koʻchalar, 3 qavatgacha hovli uylar",M3:"4–5 qavatli koʻp kvartirali uylar, umumiy hovlilar",M4:"Kam va koʻp qavatli uylar aralash, 1-qavatda doʻkonlar",M5:"Yangi koʻp kvartirali uylar, obodonlashtirilgan hovlilar",
+O1:"Diqqatga sazovor bino oldidagi hudud",O2:"Bozor binosi yoki majmuasi hududi",O3:"Teatr, muzey, kutubxona, kinoteatr, madaniyat saroyi",O4:"Ofis, savdo markazi, xizmat koʻrsatish majmuasi",
+P1:"Sport, oʻyin, tadbirlar; infratuzilma rivojlangan",P2:"Koʻkalamzorlik koʻp, tabiiy landshaft",P3:"Daryo yoki yirik kanal qirgʻogʻi",P4:"Kichik kanal yoki yirik ariq qirgʻogʻi",P5:"Ixcham yashil maydon, qisqa dam olish"};
+
+/* ---------- 3-ilova (220–221-bet): faqat nuqta, chegara berilmagan ---------- */
+const ANX3=[["Bektemir","Husayn Boyqaro",41.257139,69.378250,"Mt"],["Mirzo Ulugʻbek","Hamid Olimjon, Sodiq Azimov, Yahyo Gʻulomov, Shahrisabz, Oʻzbekiston ovozi, Istiqlol",41.311861,69.290806,"M"],
+["Mirobod","Taras Shevchenko",41.297111,69.280917,"M"],["Olmazor","Forobiy tor, Qoʻrgʻontepa, Zarqaynar va boshq.",41.338361,69.222917,"Mt"],["Sergeli","Jaloyir, Sugʻdiyona",41.220500,69.227417,"Mt"],
+["Uchtepa","Katta Xirmontepa, Farhod",41.289639,69.180722,"Mt"],["Chilonzor","Al-Xorazmiy va Qatortol",41.267800,69.190300,"Mt"],["Shayxontohur","Bunyodkor, Gulxaniy",41.301111,69.206778,"Mt"],
+["Yunusobod","Yuqori Qoraqamish, Rixsiliy",41.369583,69.279722,"Mt"],["Yakkasaroy","Shota Rustaveli",41.287733,69.252967,"M","koordinata PDFda buzilgan, tiklangan"],["Yangihayot","Mehrigiyo",41.219917,69.201694,"Mt"],["Yashnobod","Sodiq Azimov, Muxtor Ashrafiy, Qorasuv",41.305611,69.290139,"M"]];
+
+/* ---------- xarita ---------- */
+const map=L.map('map',{zoomControl:true}).setView([41.3111,69.2600],13);
+const BASE={line:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,attribution:'© OpenStreetMap, © Esri'}),
+ sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19,attribution:'Esri World Imagery'}),
+ osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})};
+let base='line';BASE.line.addTo(map);
+function setBase(b){if(b===base)return;map.removeLayer(BASE[base]);BASE[b].addTo(map);base=b;document.querySelectorAll('.basesw button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.b===b));}
+document.querySelectorAll('.basesw button').forEach(x=>x.onclick=()=>setBase(x.dataset.b));
+ANX3.forEach(a=>L.circleMarker([a[2],a[3]],{radius:6,color:'#fff',weight:1.5,fillColor:'#E7A750',fillOpacity:1}).bindTooltip(`<b>3-ilova: ${esc(a[0])}</b><br>${esc(a[1])}<br>TGKM-${a[4]}`).addTo(map));
+
+let KH=null;
+fetch('data/kichik-halqa.json').then(r=>r.json()).then(j=>{KH=j.polygon;L.polygon(KH.map(p=>[p[1],p[0]]),{color:'#025E69',weight:2.5,dashArray:'7 6',fill:false,interactive:false}).addTo(map);}).catch(()=>{});
+const inPoly=(x,y,P)=>{let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const [xi,yi]=P[i],[xj,yj]=P[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;};
+
+/* ---------- geometriya (metr, lokal) ---------- */
+let K={kx:1,ky:1,lat0:0,lon0:0};
+const toXY=(lat,lon)=>[(lon-K.lon0)*K.kx,(lat-K.lat0)*K.ky];
+function nearestOnWay(g){let best={d:1e9,b:0};for(let i=1;i<g.length;i++){const [ax,ay]=toXY(g[i-1].lat,g[i-1].lon),[bx,by]=toXY(g[i].lat,g[i].lon);const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy||1;let t=-(ax*dx+ay*dy)/L2;t=Math.max(0,Math.min(1,t));const px=ax+dx*t,py=ay+dy*t,d=Math.hypot(px,py);if(d<best.d)best={d,b:Math.atan2(dy,dx)*180/Math.PI};}return best;}
+const angDiff=(a,b)=>{let d=Math.abs(a-b)%360;return d>180?360-d:d;};
+const haversine=(a,b,c,d)=>{const R=6371000,r=Math.PI/180;const x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
+
+/* ---------- Overpass ---------- */
+const OVP=['https://overpass-api.de/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+async function overpass(q){let err;for(const u of OVP){const c=new AbortController(),tm=setTimeout(()=>c.abort(),40000);
+ try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent('[out:json][timeout:40];'+q),signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();clearTimeout(tm);return j.elements;}catch(e){clearTimeout(tm);err=e;}}
+ throw err||new Error('Overpass');}
+
+/* ---------- holat ---------- */
+const S={pt:null,busy:false,err:'',cands:[],ways:[],areas:[],levels:[],pick:null,lanes:null,est:null,area:null,step:0};
+let mk=null,hl=null;
+
+const HWRU={trunk:'magistral',primary:'asosiy',secondary:'ikkinchi darajali',tertiary:'uchinchi darajali',unclassified:'mahalliy',residential:'turar joy koʻchasi',living_street:'turar joy koʻchasi',pedestrian:'piyodalar'};
+
+async function analyse(lat,lon){
+  S.pt=[lat,lon];S.busy=true;S.err='';S.pick=null;S.lanes=null;S.area=null;S.cands=[];render();
+  K={lat0:lat,lon0:lon,kx:Math.cos(lat*Math.PI/180)*111320,ky:110540};
+  if(mk)mk.setLatLng([lat,lon]);else mk=L.marker([lat,lon]).addTo(map);
+  if(hl){map.removeLayer(hl);hl=null;}
+  $('#mh').style.display='none';
+  try{
+    const q=`(way(around:110,${lat},${lon})["highway"~"^(trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian)$"];
+      way(around:220,${lat},${lon})["highway"="pedestrian"]["area"="yes"];
+      nwr(around:220,${lat},${lon})["place"="square"];
+      nwr(around:250,${lat},${lon})["railway"="station"];
+      nwr(around:250,${lat},${lon})["amenity"="bus_station"];
+      node(around:250,${lat},${lon})["station"="subway"];);out geom tags;
+      is_in(${lat},${lon})->.ar;area.ar;out tags;
+      way(around:160,${lat},${lon})["building"]["building:levels"];out tags;`;
+    const el=await overpass(q);
+    S.ways=el.filter(e=>e.type==='way'&&e.tags&&e.tags.highway&&e.geometry);
+    S.areas=el.filter(e=>e.type==='area');
+    S.levels=el.filter(e=>e.type==='way'&&e.tags&&e.tags.building&&!e.geometry).map(e=>parseFloat(e.tags['building:levels'])).filter(n=>n>0);
+    const cands=[];
+    // ko'chalar: nom bo'yicha guruhlash
+    const groups={};
+    for(const w of S.ways){if(w.tags.area==='yes')continue;const nb=nearestOnWay(w.geometry);w._d=nb.d;w._b=nb.b;const key=w.tags.name||('#'+w.id);(groups[key]=groups[key]||[]).push(w);}
+    for(const [key,ws] of Object.entries(groups)){ws.sort((a,b)=>a._d-b._d);const w=ws[0];if(w._d>90)continue;
+      const ped=w.tags.highway==='pedestrian';
+      cands.push({kind:ped?'ped':'street',name:w.tags.name||'Nomsiz koʻcha',hw:w.tags.highway,d:w._d,ways:ws});}
+    // maydonlar
+    el.filter(e=>e.tags&&(e.tags.place==='square'||(e.tags.highway==='pedestrian'&&e.tags.area==='yes'))).forEach(e=>{const c=e.type==='node'?[e.lat,e.lon]:centroid(e.geometry);const d=haversine(lat,lon,c[0],c[1]);if(!e.tags.name&&e.tags.place!=='square')return;cands.push({kind:'square',name:e.tags.name||'Maydon',d,el:e});});
+    // TPU
+    el.filter(e=>e.tags&&(e.tags.station==='subway'||e.tags.railway==='station'||e.tags.amenity==='bus_station')).forEach(e=>{const c=e.type==='node'?[e.lat,e.lon]:(e.center?[e.center.lat,e.center.lon]:centroid(e.geometry||[]));if(!c)return;const d=haversine(lat,lon,c[0],c[1]);
+      const what=e.tags.station==='subway'?'metro bekati':e.tags.railway==='station'?'temir yoʻl vokzali':'avtostansiya';cands.push({kind:'tpu',name:(e.tags.name||'')+' — '+what,d,el:e});});
+    // takrorlarni olib tashlash
+    const seen=new Set();S.cands=cands.sort((a,b)=>a.d-b.d).filter(c=>{const k=c.kind+c.name;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,7);
+    S.cands.push({kind:'inner',name:'Koʻchaga emas — hovli, park yoki bozor ichiga',d:null});
+    choose(0);
+  }catch(e){S.err='OpenStreetMap maʼlumoti yuklanmadi ('+e.message+'). Birozdan keyin qayta bosing.';}
+  S.busy=false;render();
+}
+function centroid(g){if(!g||!g.length)return null;let a=0,b=0;g.forEach(p=>{a+=p.lat;b+=p.lon});return [a/g.length,b/g.length];}
+
+/* ---------- tasmalar sonini taxmin qilish ---------- */
+function laneEstimate(c){
+  const ws=c.ways;const w0=ws[0];const t0=w0.tags;const notes=[];
+  const one=t=>t.oneway==='yes'||t.oneway==='1'||t.oneway==='-1';
+  let n=null,src='',conf='past';
+  const lanesOf=w=>{const l=parseInt(w.tags.lanes);return l>0?l:null;};
+  if(one(t0)){
+    const opp=ws.filter(w=>w!==w0&&one(w.tags)&&angDiff(w._b,w0._b)>120&&w._d<90);
+    const same=ws.filter(w=>one(w.tags)&&angDiff(w._b,w0._b)<60);
+    const o=opp[0];
+    const l0=lanesOf(w0)??(same.map(lanesOf).find(x=>x)||null);
+    const l1=o?(lanesOf(o)??(opp.map(lanesOf).find(x=>x)||null)):null;
+    if(o){
+      if(l0&&l1){n=l0+l1;src=`OSM «lanes»: ${l0} + ${l1} (ikki yoʻnalish)`;conf='orta';}
+      else if(l0||l1){n=2*(l0||l1);src=`OSM «lanes»: bir tomoni ${l0||l1}, ikkinchisi xuddi shunday deb olindi`;conf='past';}
+      c.dual=true;
+    }else if(l0){n=l0;src=`OSM «lanes» = ${l0}, bir tomonlama koʻcha`;conf='orta';}
+  }else{const l=lanesOf(w0);if(l){n=l;src=`OSM «lanes» = ${l}`;conf='orta';}}
+  if(n==null){const wd=parseFloat(t0.width);if(wd>0){n=Math.round(wd/3.5)*(c.dual?2:1);src=`OSM «width» = ${wd} m ÷ 3,5 m`;conf='past';}}
+  let grp=null;
+  if(n!=null)grp=n>=5?'5-8':'2-4';
+  else{const hw=t0.highway;
+    if(hw==='trunk'){grp='5-8';src='Yoʻl toifasi «trunk» (magistral)';}
+    else if(hw==='primary'){grp=c.dual?'5-8':'2-4';src=c.dual?'«primary», ikki alohida qatnov qismi':'«primary», bitta qatnov qismi';}
+    else if(hw==='secondary'){grp=c.dual?'5-8':'2-4';src='«secondary»'+(c.dual?', ikki alohida qatnov qismi':'');}
+    else{grp='2-4';src='Yoʻl toifasi: '+(HWRU[hw]||hw);}
+    conf='past';}
+  if(n!=null&&(n<2||n>8))notes.push(`${n} tasma — hujjatda 2–4 yoki 5–8 berilgan; eng yaqin guruh olindi (talqin)`);
+  return {n,grp,src,conf,notes};
+}
+
+function choose(i){
+  S.pick=i;const c=S.cands[i];S.area=null;
+  if(hl){map.removeLayer(hl);hl=null;}
+  if(c.kind==='street'||c.kind==='ped'){hl=L.featureGroup(c.ways.map(w=>L.polyline(w.geometry.map(p=>[p.lat,p.lon]),{color:'#e0457b',weight:6,opacity:.85}))).addTo(map);}
+  if(c.kind==='street'){S.est=laneEstimate(c);S.lanes=S.est.grp;}else{S.est=null;S.lanes=null;}
+  if(c.kind==='inner')S.area=guessInner();
+  render();
+}
+
+function guessInner(){
+  const t=S.areas.map(a=>a.tags||{});
+  const has=f=>t.find(f);
+  if(has(x=>/^(park|garden)$/.test(x.leisure)))return {tip:(has(x=>/skver|сквер/i.test(x.name||''))?'P5':'P1'),why:'OSM: '+(has(x=>/^(park|garden)$/.test(x.leisure)).name||'park')+' ichida'};
+  if(has(x=>x.amenity==='marketplace'))return {tip:'O2',why:'OSM: '+(has(x=>x.amenity==='marketplace').name||'bozor')+' hududida'};
+  if(has(x=>x.shop==='mall'))return {tip:'O4',why:'OSM: '+(has(x=>x.shop==='mall').name||'savdo markazi')+' hududida'};
+  if(has(x=>/^(theatre|cinema|arts_centre|library|community_centre)$/.test(x.amenity)||x.tourism==='museum'))return {tip:'O3',why:'OSM: madaniy obyekt hududida'};
+  if(has(x=>x.leisure==='stadium'||x.tourism==='attraction'||x.historic))return {tip:'O1',why:'OSM: diqqatga sazovor obyekt hududida'};
+  const LV=S.levels.slice().sort((a,b)=>a-b);
+  if(LV.length>=3){const med=LV[Math.floor(LV.length/2)],lo=LV.filter(x=>x<=3).length,hi=LV.filter(x=>x>=6).length;
+    let tip=med<=3?'M1':med<=5?'M3':'M5';if(lo>=2&&hi>=2)tip='M4';
+    return {tip,why:`Atrofdagi ${LV.length} ta binoning qavatliligi (OSM): oʻrtacha ${med} qavat`};}
+  return {tip:'M3',why:'OSMda atrof haqida maʼlumot kam — oʻzingiz tanlang'};
+}
+
+function result(){
+  const c=S.cands[S.pick];if(!c)return null;const why=[];let tip;
+  if(c.kind==='ped'){tip='U5';why.push(['',`«${c.name}» OSMda piyodalar koʻchasi (highway=pedestrian)`,'1-ilova, 1.3, 10-bet']);why.push(['t','Rasmiy piyoda koʻchalari roʻyxati hali olinmagan — OSM boʻyicha taxmin','']);}
+  else if(c.kind==='square'){tip='U6';why.push(['',`Doʻkon «${c.name}» maydoniga qaragan (siz tanladingiz)`,'1-ilova, 1.3, 10-bet']);why.push(['t','Maydonlar roʻyxati OSMdan — rasmiy emas','']);}
+  else if(c.kind==='tpu'){tip='U7';why.push(['',`Doʻkon ${c.name} oldidagi transport uzeliga qaragan (siz tanladingiz)`,'1-ilova, 1.3, 10-bet; 1.4, 5-band, 12-bet']);why.push(['t','TPU chegarasi OSMda yoʻq — bekat yaqinligi boʻyicha taxmin','']);}
+  else if(c.kind==='street'){
+    const nameRing=/kichik\s*halqa|малая\s*кольцев|кичик\s*халқа/i.test(c.name);
+    const inside=nameRing||(KH?inPoly(S.pt[1],S.pt[0],KH):false);
+    const big=S.lanes==='5-8';tip=inside?(big?'U2':'U1'):(big?'U4':'U3');
+    why.push(['',inside?(nameRing?'Doʻkon Kichik halqa yoʻlining oʻziga qaragan — ichkarida deb olinadi':'Kichik halqa yoʻli ichida'):'Kichik halqa yoʻli tashqarisida',KH?'Chiziq: OSM, 2026-10-04 (taxmin)':'']);
+    why.push([S.userLanes?'':'t',`Qatnov qismi: ${S.lanes==='5-8'?'5–8':'2–4'} tasma`+(S.userLanes?' (siz tasdiqladingiz)':' — taxmin: '+S.est.src),'']);
+    S.est.notes.forEach(n=>why.push(['t',n,'']));
+    why.push(['i','Fasad koʻchaga qaraganda koʻcha talablari ustun (U > P > O > M)','1-ilova, 1.4 (12-bet), 1.5 (14-bet)']);
+  }else{tip=S.areaTip||(S.area&&S.area.tip)||'M3';why.push([S.areaTip?'':'t',S.areaTip?'Siz tanladingiz':S.area.why,'']);
+    why.push(['i','Hovli, park yoki obyekt ichiga qaragan fasad uchun koʻcha tipi qoʻllanmaydi','1-ilova, 1.5, 14–15-bet']);}
+  // 3-ilova
+  const a3=ANX3.map(a=>[a,haversine(S.pt[0],S.pt[1],a[2],a[3])]).sort((x,y)=>x[1]-y[1])[0];
+  if(a3&&a3[1]<450)why.push(['i',`3-ilova roʻyxatidagi gastronomik koʻcha yaqinida: ${a3[0][1]} (${a3[0][0]}), ${Math.round(a3[1])} m. Chegarasi berilmagan — yigʻim stavkasiga taʼsir qiladi (TGKM-${a3[0][4]})`,'3-ilova, 220–221-bet']);
+  return {tip,why};
+}
+
+function laneSvg(n){const w=92,h=34,lw=Math.min(11,(w-12)/n);let s=`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><rect x="0" y="4" width="${w}" height="26" fill="#ecebe7"/>`;const x0=(w-lw*n)/2;
+  for(let i=0;i<n;i++){s+=`<rect x="${x0+i*lw+0.5}" y="6" width="${lw-1}" height="22" fill="#9a9893"/>`;}
+  s+=`<line x1="${w/2}" y1="6" x2="${w/2}" y2="28" stroke="#E7A750" stroke-width="1.5"/></svg>`;return s;}
+
+function render(){
+  const side=$('#side');let h=`<div class="ah"><h1>Joyingiz tipi</h1><p>Dizayn-kod talablari doʻkon qaysi turdagi jamoat joyida turganiga bogʻliq. Xaritada doʻkon kirishini bosing — tipni OpenStreetMap boʻyicha aniqlaymiz, siz tasdiqlaysiz.</p></div>
+  <div class="blk"><h3>1 · Joyni toping</h3><form class="srch" id="sf"><input id="q" placeholder="Manzil yoki koʻcha nomi" autocomplete="off"><button class="btn dark">Topish</button></form>
+  <div class="hint">${S.pt?'Joy belgilandi. Boshqa joyni bosib oʻzgartirishingiz mumkin.':'Keyin xaritada doʻkoningiz kirish eshigi turgan joyni bosing.'}</div></div>`;
+  if(S.busy)h+=`<div class="blk"><div class="busy"><span class="spin"></span>Atrofdagi koʻchalar yuklanmoqda…</div></div>`;
+  if(S.err)h+=`<div class="blk"><div class="err">${esc(S.err)}</div></div>`;
+  if(!S.busy&&S.cands.length){
+    h+=`<div class="blk"><h3>2 · Kirish eshigi qaysi tomonga qaragan?</h3>`;
+    S.cands.forEach((c,i)=>{const sub=c.kind==='street'?(HWRU[c.hw]||c.hw)+' · '+Math.round(c.d)+' m':c.kind==='ped'?'piyodalar koʻchasi · '+Math.round(c.d)+' m':c.kind==='square'?'maydon · '+Math.round(c.d)+' m':c.kind==='tpu'?'transport uzeli · '+Math.round(c.d)+' m':'mahalla, park yoki obyekt hududi';
+      h+=`<label class="opt ${S.pick===i?'on':''}"><input type="radio" name="c" value="${i}" ${S.pick===i?'checked':''}><span><b>${esc(c.name)}</b><small>${esc(sub)}</small></span></label>`;});
+    h+=`</div>`;
+    const c=S.cands[S.pick];
+    if(c&&c.kind==='street'){
+      const e=S.est;
+      h+=`<div class="blk"><h3>3 · Qatnov qismida nechta tasma?</h3>
+      <div class="est ${S.userLanes?'okk':''}">${S.userLanes?'Siz tasdiqladingiz.':'Taxmin: '+esc(e.src)+'. Sputnikda tekshirib, toʻgʻrisini bosing.'}</div>
+      <div class="seg"><button data-l="2-4" aria-pressed="${S.lanes==='2-4'}">${laneSvg(3)}<b>2–4 tasma</b><small>ikkala yoʻnalish birga</small></button><button data-l="5-8" aria-pressed="${S.lanes==='5-8'}">${laneSvg(6)}<b>5–8 tasma</b><small>ikkala yoʻnalish birga</small></button></div>
+      <p class="hint"><a href="#" id="satg"><u>Sputnikda koʻrish</u></a> — avtomobil yoʻlagi chiziqlarini sanang. Tramvay, avtoturargoh va trotuar hisobga olinmaydi.</p></div>`;
+    }
+    if(c&&c.kind==='inner'){
+      const cur=S.areaTip||(S.area&&S.area.tip);
+      h+=`<div class="blk"><h3>3 · Hudud turi</h3><div class="est">${esc(S.area?S.area.why:'')}. Toʻgʻrisini tanlang.</div>`;
+      [['Dam olish',['P1','P2','P3','P4','P5']],['Jamoat obyekti',['O1','O2','O3','O4']],['Mahalla',['M1','M2','M3','M4','M5']]].forEach(([g,l])=>{h+=`<div class="src" style="margin:10px 0 6px">${g.toUpperCase()}</div>`;
+        l.forEach(t=>{h+=`<label class="opt ${cur===t?'on':''}"><input type="radio" name="a" value="${t}" ${cur===t?'checked':''}><span><b>${t} · ${TIPN[t]}</b><small>${esc(TIPD[t]||'')}</small></span></label>`;});});
+      h+=`</div>`;
+    }
+    const r=result();
+    if(r){h+=`<div class="blk"><h3>Natija</h3><div class="res"><div class="code">${r.tip}</div><div class="nm">${TIPN[r.tip]}</div><ul class="why">${r.why.map(([k,t,s])=>`<li class="${k}"><span>${esc(t)}${s?`<small>${esc(s)}</small>`:''}</span></li>`).join('')}</ul></div>
+      <div style="margin-top:12px"><a class="btn dark wide" href="dizaynkod.html?tip=${r.tip}">Viveskani tekshirishga oʻtish →</a></div>
+      <p class="src" style="margin-top:12px">Yashil — aniq; sariq — taxmin, tasdiqlang; kulrang — maʼlumot. Rasmiy chegaralar sxemasi (qarorning 3-bandi) chiqqach, tip undan olinadi.</p></div>`;}
+  }
+  h+=`<div class="blk src">Manba: Toshkent shahar Kengashining 2026-02-17 VII-19-17-14-0-K/26-son qarori, 1-ilova (8–15-bet), 3-ilova. Xarita maʼlumoti: © OpenStreetMap hissadorlari.</div>`;
+  side.innerHTML=h;
+  $('#sf').onsubmit=async ev=>{ev.preventDefault();const q=$('#q').value.trim();if(!q)return;
+    try{const j=await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=uz&viewbox=69.10,41.42,69.47,41.17&bounded=1&q='+encodeURIComponent(q))).json();
+      if(j[0]){map.setView([+j[0].lat,+j[0].lon],18);$('#mh').style.display='';$('#mh').textContent='Endi doʻkon kirishini bosing';}else alertBox('Topilmadi. Boshqacha yozib koʻring yoki xaritada qidiring.');}catch(e){alertBox('Qidiruv ishlamadi.');}};
+  side.querySelectorAll('input[name=c]').forEach(x=>x.onchange=()=>{S.userLanes=false;S.areaTip=null;choose(+x.value);});
+  side.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{S.lanes=b.dataset.l;S.userLanes=true;render();});
+  side.querySelectorAll('input[name=a]').forEach(x=>x.onchange=()=>{S.areaTip=x.value;render();});
+  const sg=$('#satg');if(sg)sg.onclick=ev=>{ev.preventDefault();setBase('sat');if(hl)map.fitBounds(hl.getBounds(),{maxZoom:19});else if(S.pt)map.setView(S.pt,19);};
+}
+function alertBox(m){const d=document.createElement('div');d.className='maphint';d.style.top='auto';d.style.bottom='24px';d.textContent=m;document.querySelector('.mapwrap').appendChild(d);setTimeout(()=>d.remove(),3500);}
+
+map.on('click',e=>{if(S.busy)return;S.userLanes=false;S.areaTip=null;analyse(e.latlng.lat,e.latlng.lng);});
+const qp=new URLSearchParams(location.search);if(qp.get('lat')&&qp.get('lon')){const la=+qp.get('lat'),lo=+qp.get('lon');map.setView([la,lo],18);analyse(la,lo);}
+render();
+})();
+</script>
+<script src="js/i18n.js?v=21"></script>
+</body>
+</html>

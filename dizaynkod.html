@@ -7472,6 +7472,7 @@ const RULES=DATA.qoidalar;
 const TOL=DATA.meta.portal_parametri_olchov_xatosi_sm||3;
 document.getElementById('ver').textContent=DATA.meta.versiya;
 
+const STUDIO=true;
 const S={tip:"U1",meros:false,visorPass:false,src:null,sample:true,
   step:4,door:{q:[],w:100,h:220},sub3:0,show2:false,night:false,snap:true,guides:[],mouse:null,F:null,Fb:null,lines:null,bezak:false,windows:[],
   elements:[],signs:[],sel:null,nextId:1,view:null,W:0,H:0,items:[],newType:"devor_substratsiz"};
@@ -7977,6 +7978,7 @@ function go(n){resetZoom();
 }
 function firstAvailable(){return Object.keys(TYPES_V1).find(t=>typeAvailable(t)[0]);}
 function tipOptions(){return TIPS.map(([g,l])=>`<optgroup label="${g}">${l.map(([v,t])=>`<option value="${v}" ${v===S.tip?"selected":""}>${t}</option>`).join("")}</optgroup>`).join("");}
+(()=>{try{const t=new URLSearchParams(location.search).get('tip');if(t&&TIPS.some(([g,l])=>l.some(([v])=>v===t))){S.tip=t;S.tipFromMap=true;}}catch(e){}})();
 
 function renderCard(){
   const C=document.getElementById('card');
@@ -7986,6 +7988,7 @@ function renderCard(){
     <label class="drop" for="file"><b>Rasmni tanlang</b>JPG yoki PNG<input type="file" id="file" accept="image/*"></label>
     <div class="row"><button id="rot">Rasmni 90° burish</button></div>
     <label class="f" for="tip">Do'kon qayerda joylashgan?<select id="tip">${tipOptions()}</select></label>
+    ${STUDIO?`<p class="hint" style="margin:-4px 0 10px"><a href="dizaynkod-joy.html" style="text-decoration:underline">Bilmaysizmi? Xaritada aniqlang →</a>${S.tipFromMap?" · tip xaritadan olindi":""}</p>`:""}
     <label class="chk"><input type="checkbox" id="meros" ${S.meros?"checked":""}> Bino madaniy meros obyekti yoki tarixiy bino</label>
     <label class="chk"><input type="checkbox" id="visorPass" ${S.visorPass?"checked":""}> Kirish ustida visor (soyabon) bor va u fasad pasportida ko'rsatilgan</label>
     <div class="nav"><button class="primary" id="next" ${S.src?"":"disabled"}>Keyingi: eshikni belgilash</button></div>`;}
