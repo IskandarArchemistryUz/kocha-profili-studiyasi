@@ -25,6 +25,8 @@ Koʻchalarni tahlil qilish va qayta loyihalash uchun brauzer asbobi — Toshkent
 
 **Xaritalar** — Esri sunʼiy yoʻldosh, OSM nomlar va maʼmuriy chegaralar (Overpass), OpenStreetMap, CARTO Voyager, Google sunʼiy yoʻldosh (foydalanuvchining Map Tiles API kaliti bilan).
 
+**Dizayn-kod · viveska** (`dizaynkod.html`) — Toshkent dizayn-kodi (Kengash qarori 2026-yil 17-fevral, VII-19-17-14-0-K/26, 2-ilova, P2.3 §2) boʻyicha viveskani fasad rasmida tekshirish. 4 qadam: rasm → eshik (tekislash va masshtab eshik oʻlchami boʻyicha) → fasad chegaralari va qavatlar → viveska. Har bir talab boʻlim, bet va soʻzma-soʻz iqtibos bilan; xato boʻlsa «Tuzatish» tugmasi. Yaqinlashtirish, chizgʻichlar, oʻlcham chiziqlari, magnit, kunduzgi/kechki yoritish koʻrinishi. Qoidalar sahifa ichida JSON koʻrinishida (205 qoida); hujjatdagi noaniqliklar boʻyicha loyiha talqinlari (Q-01…Q-13) — rasmiy tushuntirish emas.
+
 ## Tuzilishi
 
 ```
