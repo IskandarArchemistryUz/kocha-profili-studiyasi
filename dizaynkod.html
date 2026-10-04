@@ -31,11 +31,13 @@ ol.steps button[aria-current="step"]{color:var(--fg);border-color:var(--accent)}
 ol.steps button[aria-current="step"] .n{background:var(--accent);color:var(--on-accent)}
 ol.steps button.done .n{background:var(--ok-soft);color:var(--ok)}
 ol.steps button:disabled{cursor:not-allowed;opacity:.55}
-.wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
-@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
-.stage{background:var(--sunk);border-radius:2px;overflow:hidden;position:relative}
-canvas#cv{display:block;width:100%;height:auto;touch-action:none;cursor:default}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:stretch;height:640px}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);height:auto!important}.stage{height:62vh}.card{max-height:none}}
+.stage{background:var(--sunk);border-radius:2px;overflow:hidden;position:relative;min-height:0;height:100%}
+canvas#cv{display:block;width:100%;height:100%;touch-action:none;cursor:default}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0;overflow:auto;min-height:0}
+.card h3.sec{font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:6px 0 -4px;padding-top:10px;border-top:1px solid var(--line)}
+.hintbar{position:absolute;left:34px;top:30px;font:12.5px var(--f-ui);color:var(--fg);background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:3px;padding:4px 9px;pointer-events:none}
 .card h2{font-size:18px;font-weight:600}
 .lead{color:var(--muted);font-size:14px}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
@@ -118,6 +120,7 @@ button.primary{text-transform:uppercase;letter-spacing:.1em;font-size:13px}
     <div class="zoombar" role="group" aria-label="Masshtab">
       <button id="zOut" aria-label="Uzoqlashtirish">−</button><span id="zLbl">100 %</span><button id="zIn" aria-label="Yaqinlashtirish">+</button><button id="zFit">Butun</button>
     </div>
+    <span class="hintbar" id="hint"></span>
     <span class="sample" id="sampleTag">Namuna — o'z rasmingizni 1-qadamda yuklang</span>
   </div>
   <div class="card" id="card"></div>
@@ -7502,7 +7505,8 @@ function warp(srcC,dstC,Hdst2src){
   const sg=srcC.getContext('2d').getImageData(0,0,srcC.width,srcC.height), sd=sg.data, sw=srcC.width, sh=srcC.height;
   const dg=dstC.getContext('2d'), out=dg.createImageData(dstC.width,dstC.height), od=out.data;
   for(let y=0;y<dstC.height;y++)for(let x=0;x<dstC.width;x++){const[u,v]=apply(Hdst2src,x,y);const i=(y*dstC.width+x)*4;
-    if(u>=0&&v>=0&&u<sw-1&&v<sh-1){const j=((v|0)*sw+(u|0))*4;od[i]=sd[j];od[i+1]=sd[j+1];od[i+2]=sd[j+2];od[i+3]=sd[j+3];}else{od[i+3]=0;}}
+    if(u>=0&&v>=0&&u<sw-1&&v<sh-1){const x0=u|0,y0=v|0,fx=u-x0,fy=v-y0,j=(y0*sw+x0)*4,j2=j+sw*4;
+      for(let c=0;c<4;c++){const a=sd[j+c]+(sd[j+4+c]-sd[j+c])*fx,b=sd[j2+c]+(sd[j2+4+c]-sd[j2+c])*fx;od[i+c]=a+(b-a)*fy;}}else{od[i+3]=0;}}
   dg.putImageData(out,0,0);
 }
 function el(kind,x,y,w,h){return{id:S.nextId++,kind,x,y,w,h};}
@@ -7696,8 +7700,13 @@ const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim
 function toPx(x,y){const v=S.view;return[(x-v.x0)*v.s,(y-v.y0)*v.s];}
 function toCm(px,py){const v=S.view;return[px/v.s+v.x0,py/v.s+v.y0];}
 const Z={z:1,px:0,py:0};
-const baseK=()=>Math.max(1,cv.width/(cv.getBoundingClientRect().width||cv.width));
-const k=()=>baseK()/Z.z;
+const FIT={f:1,ox:0,oy:0,W:1,H:1};
+const DPR=()=>Math.min(3,window.devicePixelRatio||1);
+const baseK=()=>DPR();
+const k=()=>DPR()/(FIT.f*Z.z);
+function sizeCanvas(){const r=cv.getBoundingClientRect(),d=DPR();const w=Math.max(200,Math.round(r.width*d)),h=Math.max(200,Math.round(r.height*d));if(cv.width!==w)cv.width=w;if(cv.height!==h)cv.height=h;}
+function fitWorld(W,H){FIT.W=W;FIT.H=H;const pad=28*DPR();FIT.f=Math.min((cv.width-pad*1.4)/W,(cv.height-pad*1.4)/H);FIT.ox=(cv.width-W*FIT.f)/2+pad*0.35;FIT.oy=(cv.height-H*FIT.f)/2+pad*0.35;}
+function worldT(){ctx.setTransform(FIT.f*Z.z,0,0,FIT.f*Z.z,FIT.ox*Z.z-Z.px,FIT.oy*Z.z-Z.py);}
 function clampPan(){Z.z=Math.max(1,Math.min(12,Z.z));Z.px=Math.max(0,Math.min(Z.px,cv.width*(Z.z-1)));Z.py=Math.max(0,Math.min(Z.py,cv.height*(Z.z-1)));}
 function zoomAt(f,sx,sy){const wx=(sx+Z.px)/Z.z,wy=(sy+Z.py)/Z.z;Z.z*=f;Z.z=Math.max(1,Math.min(12,Z.z));Z.px=wx*Z.z-sx;Z.py=wy*Z.z-sy;clampPan();draw();}
 function resetZoom(){Z.z=1;Z.px=0;Z.py=0;}
@@ -7735,7 +7744,7 @@ function rectify(){
   for(const[x,y]of[[0,0],[W,0],[W,H],[0,H],[W/2,0],[W/2,H],[0,H/2],[W,H/2]]){const w=Hi2c[6]*x+Hi2c[7]*y+1;if(w>0.05)pts.push(apply(Hi2c,x,y));}
   let bx0=Math.min(...pts.map(p=>p[0])),bx1=Math.max(...pts.map(p=>p[0])),by0=Math.min(...pts.map(p=>p[1])),by1=Math.max(...pts.map(p=>p[1]));
   bx0=Math.max(bx0,-3000);bx1=Math.min(bx1,dw+3000);by0=Math.max(by0,-6000);by1=Math.min(by1,dh+250);
-  const s=Math.min(1100/(bx1-bx0),820/(by1-by0));
+  const s=Math.min(2200/(bx1-bx0),1500/(by1-by0));
   const F=document.createElement('canvas');F.width=Math.round((bx1-bx0)*s);F.height=Math.round((by1-by0)*s);
   warp(S.src,F,mul(Hc2i,[1/s,0,bx0,0,1/s,by0,0,0,1]));
   S.F=F;S.Fb={bx0,by0,s};
@@ -7792,11 +7801,13 @@ function placeSign(s){
 function draw(){
   document.getElementById('sampleTag').hidden=!S.sample;
   const K=k();
+  sizeCanvas();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);ctx.imageSmoothingQuality="high";
+  hint();
   if(S.step===1||S.step===2){
-    if(!S.src){cv.width=1000;cv.height=640;ctx.fillStyle=css('--sunk');ctx.fillRect(0,0,1000,640);ctx.fillStyle=css('--muted');ctx.font=font(500,18);ctx.textAlign="center";ctx.fillText("Rasm yuklanmagan",500,320);ctx.textAlign="start";return;}
-    const sc=Math.min(1000/S.src.width,1);cv.width=Math.round(S.src.width*sc);cv.height=Math.round(S.src.height*sc);S.sc=sc;
-    clampPan();ctx.setTransform(Z.z,0,0,Z.z,-Z.px,-Z.py);const K=k();
-    ctx.drawImage(S.src,0,0,cv.width,cv.height);
+    if(!S.src){ctx.fillStyle=css('--muted');ctx.font=`500 ${18*DPR()}px "IBM Plex Sans", sans-serif`;ctx.textAlign="center";ctx.fillText("Rasm yuklanmagan",cv.width/2,cv.height/2);ctx.textAlign="start";return;}
+    const sc=1;S.sc=1;fitWorld(S.src.width,S.src.height);
+    clampPan();worldT();const K=k();
+    ctx.drawImage(S.src,0,0);
     if(S.step===2&&S.door.q.length===4){
       const q=S.door.q.map(p=>[p[0]*sc,p[1]*sc]);
       ctx.fillStyle="rgba(255,159,10,.18)";ctx.strokeStyle="#FF9F0A";ctx.lineWidth=3*K;ctx.beginPath();q.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fill();ctx.stroke();
@@ -7809,13 +7820,14 @@ function draw(){
     return;
   }
   if(!S.F)return;
-  cv.width=S.F.width;cv.height=S.F.height;clampPan();ctx.setTransform(Z.z,0,0,Z.z,-Z.px,-Z.py);
+  fitWorld(S.F.width,S.F.height);clampPan();worldT();
   const KK=k();ctx.drawImage(S.F,0,0);
   if(S.step===3)drawFacadeLines(KK);
   if(S.step===4)drawSigns(KK);
   ctx.setTransform(1,0,0,1,0,0);
   drawRulers();zoomLabel();
 }
+function hint(){const h=document.getElementById('hint');if(!h)return;const t={1:"",2:"Oq nuqtalarni eshik burchaklariga suring",3:S.sub3===0?"Ko'k chiziqni do'kon qavati tepasiga suring":"Binafsha chiziqlarni do'kon chetlariga suring",4:"Viveskani suring · g'ildirak — yaqinlashtirish"}[S.step]||"";h.textContent=t;h.hidden=!t;}
 function zoomLabel(){const l=document.getElementById('zLbl');if(l)l.textContent=Math.round(Z.z*100)+" %";}
 /* chizg'ichlar: gorizontal — do'kon chap chetidan, vertikal — trotuardan balandlik */
 function rulerMap(){
@@ -7824,22 +7836,23 @@ function rulerMap(){
   return null;}
 function drawRulers(){
   const m=rulerMap();if(!m)return;const B=baseK(),T=22*B,W=cv.width,H=cv.height;
-  const ppc=Z.z/m.a; // ekran (kanvas) px / sm
+  const sc=FIT.f*Z.z,ppc=sc/m.a; // ekran px / sm
   const steps=[1,2,5,10,20,50,100,200,500,1000,2000];let st=steps.find(x=>x*ppc>=9*B)||2000;const major=st*5;
-  const cmX=sx=>((sx+Z.px)/Z.z)*m.a+m.bX, hY=sy=>m.cH-(((sy+Z.py)/Z.z)*m.a+m.bY);
-  const sxOf=cm=>((cm-m.bX)/m.a)*Z.z-Z.px, syOf=h=>((m.cH-h-m.bY)/m.a)*Z.z-Z.py;
+  const wx=sx=>((sx+Z.px)/Z.z-FIT.ox)/FIT.f, wy=sy=>((sy+Z.py)/Z.z-FIT.oy)/FIT.f;
+  const cmX=sx=>wx(sx)*m.a+m.bX, hY=sy=>m.cH-(wy(sy)*m.a+m.bY);
+  const sxOf=cm=>(((cm-m.bX)/m.a)*FIT.f+FIT.ox)*Z.z-Z.px, syOf=h=>(((m.cH-h-m.bY)/m.a)*FIT.f+FIT.oy)*Z.z-Z.py;
   ctx.save();ctx.fillStyle="rgba(255,255,255,.92)";ctx.fillRect(0,0,W,T);ctx.fillRect(0,0,T,H);
   ctx.strokeStyle="#2B3A3A";ctx.fillStyle="#2B3A3A";ctx.lineWidth=1*B;ctx.font=`500 ${Math.round(10*B)}px "IBM Plex Mono", monospace`;
   const lbl=v=>Math.abs(v)>=100?(v/100)+" m":v+"";
   for(let c=Math.ceil(cmX(T)/st)*st;c<=cmX(W);c+=st){const x=sxOf(c),mj=Math.round(c)%major===0;ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T-(mj?10:5)*B);ctx.stroke();if(mj)ctx.fillText(lbl(Math.round(c)),x+2*B,10*B);}
   for(let h=Math.ceil(hY(H)/st)*st;h<=hY(T);h+=st){const y=syOf(h),mj=Math.round(h)%major===0;ctx.beginPath();ctx.moveTo(T,y);ctx.lineTo(T-(mj?10:5)*B,y);ctx.stroke();if(mj){ctx.save();ctx.translate(10*B,y-2*B);ctx.rotate(-Math.PI/2);ctx.fillText(lbl(Math.round(h)),0,0);ctx.restore();}}
-  if(S.mouse){const x=S.mouse[0]*Z.z-Z.px,y=S.mouse[1]*Z.z-Z.py;ctx.fillStyle="#E0218A";ctx.fillRect(x-1*B,0,2*B,T);ctx.fillRect(0,y-1*B,T,2*B);
+  if(S.mouse){const x=(S.mouse[0]*FIT.f+FIT.ox)*Z.z-Z.px,y=(S.mouse[1]*FIT.f+FIT.oy)*Z.z-Z.py;ctx.fillStyle="#E0218A";ctx.fillRect(x-1*B,0,2*B,T);ctx.fillRect(0,y-1*B,T,2*B);
     const t=`${Math.round(cmX(x))} · h ${Math.round(hY(y))} sm`;ctx.font=`600 ${Math.round(11*B)}px "IBM Plex Mono", monospace`;const tw=ctx.measureText(t).width;ctx.fillStyle="#E0218A";ctx.fillRect(W-tw-14*B,T+4*B,tw+10*B,18*B);ctx.fillStyle="#fff";ctx.fillText(t,W-tw-9*B,T+17*B);}
   ctx.fillStyle="#E8EEED";ctx.fillRect(0,0,T,T);ctx.restore();
 }
-function vline(x,label,K,color){const[X]=D2px(x,0);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(X,0);ctx.lineTo(X,cv.height);ctx.stroke();ctx.setLineDash([]);pill(label,X+6*K,30*K,K,color);}
-function hline(y,label,K,color){const[,Y]=D2px(0,y);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(0,Y);ctx.lineTo(cv.width,Y);ctx.stroke();ctx.setLineDash([]);pill(label,12*K,Y-8*K,K,color);}
-function pill(t,x,y,K,color){ctx.font=font(600,13);const w=ctx.measureText(t).width+14*K,h=22*K;ctx.fillStyle=color;ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y-h+4*K,w,h,4*K):ctx.rect(x,y-h+4*K,w,h);ctx.fill();ctx.fillStyle="#FFFFFF";ctx.fillText(t,x+7*K,y-3*K);}
+function vline(x,label,K,color){const[X]=D2px(x,0);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(X,0);ctx.lineTo(X,FIT.H);ctx.stroke();ctx.setLineDash([]);pill(label,X+6*K,30*K,K,color);}
+function hline(y,label,K,color){const[,Y]=D2px(0,y);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(0,Y);ctx.lineTo(FIT.W,Y);ctx.stroke();ctx.setLineDash([]);pill(label,12*K,Y-8*K,K,color);}
+function pill(t,x,y,K,color){ctx.font=font(600,12);const w=ctx.measureText(t).width+12*K,h=20*K;ctx.fillStyle=color;ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y-h+4*K,w,h,4*K):ctx.rect(x,y-h+4*K,w,h);ctx.fill();ctx.fillStyle="#FFFFFF";ctx.fillText(t,x+7*K,y-3*K);}
 function drawFacadeLines(K){
   const L=S.lines,dw=S.door.w,dh=S.door.h;
   const[a,b]=D2px(L.xL,L.yT),[c,d]=D2px(L.xR,dh);
@@ -7865,9 +7878,9 @@ function drawDims(s,K){const v=S.view,[x,y]=toPx(s.x,s.y),w=s.w*v.s,h=s.h*v.s,[,
 function drawSigns(K){
   const v=S.view,sel=S.signs.find(s=>s.id===S.sel);
   const[a,b]=toPx(0,0),[c,d]=toPx(S.W,S.H);
-  const drawGuides=()=>{for(const g of S.guides){ctx.save();ctx.strokeStyle="#E0218A";ctx.lineWidth=1.2*K;ctx.setLineDash([5*K,4*K]);ctx.beginPath();if(g.x!=null){const[X]=toPx(g.x,0);ctx.moveTo(X,0);ctx.lineTo(X,cv.height);}else{const[,Y]=toPx(0,g.y);ctx.moveTo(0,Y);ctx.lineTo(cv.width,Y);}ctx.stroke();ctx.restore();}};
+  const drawGuides=()=>{for(const g of S.guides){ctx.save();ctx.strokeStyle="#E0218A";ctx.lineWidth=1.2*K;ctx.setLineDash([5*K,4*K]);ctx.beginPath();if(g.x!=null){const[X]=toPx(g.x,0);ctx.moveTo(X,0);ctx.lineTo(X,FIT.H);}else{const[,Y]=toPx(0,g.y);ctx.moveTo(0,Y);ctx.lineTo(FIT.W,Y);}ctx.stroke();ctx.restore();}};
   ctx.setLineDash([6*K,4*K]);ctx.strokeStyle="rgba(255,255,255,.85)";ctx.lineWidth=1.5*K;ctx.strokeRect(a,b,c-a,d-b);ctx.setLineDash([]);
-  if(S.night){ctx.fillStyle="rgba(6,10,24,.68)";ctx.fillRect(0,0,cv.width,cv.height);}
+  if(S.night){ctx.fillStyle="rgba(6,10,24,.68)";ctx.fillRect(0,0,FIT.W,FIT.H);}
   const z=sel&&zoneFor(sel);
   if(z&&z.y1>z.y0&&!S.night){const[,q]=toPx(0,z.y0),[,r]=toPx(0,z.y1);ctx.fillStyle="rgba(52,199,89,.22)";ctx.fillRect(a,q,c-a,r-q);ctx.strokeStyle="#34C759";ctx.lineWidth=2*K;ctx.setLineDash([6*K,4*K]);ctx.strokeRect(a,q,c-a,r-q);ctx.setLineDash([]);
     pill("Viveska shu yashil zonaga",a+6*K,q-4*K,K,"#25744A");
@@ -8016,8 +8029,9 @@ function renderSignCard(C){
   C.innerHTML=`
   <div id="verdict"></div>
   <div id="probs" style="display:flex;flex-direction:column;gap:8px"></div>
-  <h2 style="font-size:15px">Viveska</h2>
+  <h3 class="sec">1 · Viveska turi</h3>
   <div class="types">${types}</div>
+  <h3 class="sec">2 · Matn va o'lcham</h3>
   ${s?`
   ${panel?"":`<div class="row"><button id="mText" aria-pressed="${s.mode==="text"}">Matn</button><button id="mLogo" aria-pressed="${s.mode==="logo"}">Logotip yuklash</button></div>`}
   ${s.mode==="logo"?`<label class="f" for="f_logo">PNG yoki SVG fayl<input type="file" id="f_logo" accept="image/png,image/svg+xml,image/jpeg"></label>
@@ -8030,7 +8044,8 @@ function renderSignCard(C){
     ${s.alt?`<label class="f" for="f_altH">Ikkinchi til harf balandligi: <b id="o_altH">${s.altH||s.letterH} sm</b><input type="range" id="f_altH" min="5" max="90" value="${s.altH||s.letterH}"></label>`:""}`:""}
   <p class="lead" style="font-size:13px">Viveskani rasm ustida suring. G'ildirak — yaqinlashtirish, bo'sh joyni tortish — rasmni surish. Alt bosilsa magnit o'chadi.</p>
   <label class="chk"><input type="checkbox" id="snapChk" ${S.snap?"checked":""}> Magnit: eshik o'qi, zona chetlari va boshqa yozuvlarga yopishadi</label>
-  <label class="f" for="f_light">Yoritish<select id="f_light">${lights.map(l=>`<option value="${l}" ${s.light===l?"selected":""}>${LIGHTS[l]}</option>`).join("")}</select></label>
+  <h3 class="sec">3 · Yoritish</h3>
+  <label class="f" for="f_light">Yoritish usuli<select id="f_light">${lights.map(l=>`<option value="${l}" ${s.light===l?"selected":""}>${LIGHTS[l]}</option>`).join("")}</select></label>
   <div class="row"><button id="dayBtn" aria-pressed="${!S.night}">Kunduzgi ko'rinish</button><button id="nightBtn" aria-pressed="${S.night}">Kechki ko'rinish</button></div>
   <details class="more"><summary>Yorqinlik, material va boshqalar</summary><div class="inner">
     <div class="row"><label class="f" for="f_lum">Yorqinlik, kd/m²<input type="number" id="f_lum" value="${s.lum}"></label><label class="f" for="f_cct">Rang harorati, K<input type="number" id="f_cct" value="${s.cct}" step="100"></label></div>
@@ -8070,7 +8085,7 @@ function bindCard(){
   $('back')&&$('back').addEventListener('click',()=>go(S.step-1));
   if(S.step===1){
     $('file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{
-      const sc=Math.min(1,1600/Math.max(im.width,im.height));const C=document.createElement('canvas');C.width=Math.round(im.width*sc);C.height=Math.round(im.height*sc);C.getContext('2d').drawImage(im,0,0,C.width,C.height);
+      const sc=Math.min(1,2600/Math.max(im.width,im.height));const C=document.createElement('canvas');C.width=Math.round(im.width*sc);C.height=Math.round(im.height*sc);C.getContext('2d').drawImage(im,0,0,C.width,C.height);
       newPhoto(C);};im.src=fr.result;};fr.readAsDataURL(f);});
     $('rot').addEventListener('click',()=>{if(!S.src)return;const o=S.src,C=document.createElement('canvas');C.width=o.height;C.height=o.width;const g=C.getContext('2d');g.translate(C.width,0);g.rotate(Math.PI/2);g.drawImage(o,0,0);newPhoto(C);});
     $('tip').addEventListener('change',e=>{S.tip=e.target.value;});
@@ -8124,7 +8139,7 @@ function renderResults(){for(const i of S.items||[])i.sid=i.label==="Butun fasad
 /* ---------- magnit ---------- */
 function snapMove(s,nx,ny,off){
   S.guides=[];if(!S.snap||off)return[nx,ny];
-  const thr=8*baseK()/(Z.z*S.view.s);const z=zoneFor(s),door=S.elements.find(e=>e.kind==="eshik");
+  const thr=8*DPR()/(Z.z*FIT.f*S.view.s);const z=zoneFor(s),door=S.elements.find(e=>e.kind==="eshik");
   const xs=[],ys=[];
   if(door)xs.push({c:door.x+door.w/2,k:"c"});xs.push({c:S.W/2,k:"c"},{c:0,k:"l"},{c:S.W,k:"r"});
   for(const o of S.signs)if(o!==s){xs.push({c:o.x,k:"l"},{c:o.x+o.w,k:"r"},{c:o.x+o.w/2,k:"c"});ys.push({c:o.y+o.h/2,k:"m"},{c:o.y,k:"t"},{c:o.y+o.h,k:"b"});}
@@ -8142,7 +8157,7 @@ function snapMove(s,nx,ny,off){
 /* ---------- sichqoncha ---------- */
 let drag=null;
 function ptrS(e){const b=cv.getBoundingClientRect();return[(e.clientX-b.left)*cv.width/b.width,(e.clientY-b.top)*cv.height/b.height];}
-function ptr(e){const[sx,sy]=ptrS(e);return[(sx+Z.px)/Z.z,(sy+Z.py)/Z.z];}
+function ptr(e){const[sx,sy]=ptrS(e);return[((sx+Z.px)/Z.z-FIT.ox)/FIT.f,((sy+Z.py)/Z.z-FIT.oy)/FIT.f];}
 let spaceDown=false;window.addEventListener('keydown',e=>{if(e.code==="Space"&&e.target===document.body){spaceDown=true;e.preventDefault();}});window.addEventListener('keyup',e=>{if(e.code==="Space")spaceDown=false;});
 cv.addEventListener('wheel',e=>{if(!S.src&&!S.F)return;e.preventDefault();const[sx,sy]=ptrS(e);zoomAt(Math.exp(-e.deltaY*0.0016),sx,sy);},{passive:false});
 document.getElementById('zIn').addEventListener('click',()=>zoomAt(1.4,cv.width/2,cv.height/2));
@@ -8184,10 +8199,12 @@ cv.addEventListener('pointermove',e=>{const[X,Y]=ptr(e);
 });
 cv.addEventListener('pointerup',()=>{if(drag&&S.step===4)renderVerdict();drag=null;S.guides=[];draw();});
 cv.addEventListener('pointerleave',()=>{S.mouse=null;if(!drag)draw();});
-window.addEventListener('resize',()=>draw());
+function fitLayout(){const w=document.querySelector('.wrap');if(!w)return;if(window.innerWidth<=900){w.style.height='';return;}const t=w.getBoundingClientRect().top+window.scrollY;const pb=parseFloat(getComputedStyle(document.body).paddingBottom)||0;w.style.height=Math.max(460,window.innerHeight-t-pb-12)+'px';}
+window.addEventListener('resize',()=>{fitLayout();draw();});
+if(window.ResizeObserver)new ResizeObserver(()=>draw()).observe(document.querySelector('.stage'));
 
 /* ---------- ishga tushirish ---------- */
-const boot=()=>{makeSample();S.step=4;renderSteps();renderCard();evaluate();draw();};
+const boot=()=>{fitLayout();makeSample();S.step=4;renderSteps();renderCard();evaluate();draw();};
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(boot);else boot();
 </script>
 <script src="js/i18n.js?v=21"></script>
