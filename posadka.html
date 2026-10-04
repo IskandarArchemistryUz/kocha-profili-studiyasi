@@ -64,7 +64,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <span class="sp"></span>
 <form id="sForm" style="display:flex"><input id="sQ" placeholder="Manzil yoki koordinata" style="height:30px;border:1px solid var(--line2);border-radius:2px;padding:0 8px;width:220px;background:#fff"></form>
 <div class="seg" role="group" aria-label="Koʻrinish"><button data-v="2d" aria-pressed="true">Reja</button><button data-v="3d" aria-pressed="false">3D</button></div>
-<button class="btn ghost" id="toMk">Albomga →</button><button class="btn dark" id="csv">Hisobot · CSV</button><button class="btn ghost" id="gjson">GeoJSON</button>
+<button class="btn ghost" id="toMk">Albomga →</button><button class="btn dark" id="csv">Hisobot · CSV</button><button class="btn ghost" id="gjIn" title="GeoJSON import">GeoJSON ↑</button><input type="file" id="gjFile" accept=".geojson,.json,application/geo+json" style="display:none"><button class="btn ghost" id="gjson">GeoJSON ↓</button>
 </header>
 <main>
 <nav class="rail" aria-label="Asboblar" id="rail"></nav>
@@ -595,10 +595,22 @@ $('#csv').onclick=()=>{const c=calc(),rows=[['Koʻrsatkich','Qiymat','Birlik'],[
 $('#gjson').onclick=()=>{if(!P.site&&!P.blds.length){toast(typeof kpsT==='function'?kpsT('Avval uchastka yoki bino chizing'):'Avval uchastka yoki bino chizing');return;}
   const ring=q=>{const r=q.map(p=>[+p[1].toFixed(7),+p[0].toFixed(7)]);r.push(r[0]);return [r];},F=[];
   if(P.site)F.push({type:'Feature',properties:{kind:'uchastka',name:P.name||'',area_m2:Math.round(area(P.site))},geometry:{type:'Polygon',coordinates:ring(P.site)}});
-  P.blds.forEach((b,i)=>F.push({type:'Feature',properties:{kind:'bino',n:i+1,floors:b.fl,use:b.use,height_m:+(b.fl*P.p.fh).toFixed(1),area_m2:Math.round(area(b.poly))},geometry:{type:'Polygon',coordinates:ring(b.poly)}}));
+  P.blds.forEach((b,i)=>F.push({type:'Feature',properties:{kind:'bino',n:i+1,floors:b.fl,use:b.use,gf:b.gf||'res',height_m:+(b.fl*P.p.fh).toFixed(1),area_m2:Math.round(area(b.poly))},geometry:{type:'Polygon',coordinates:ring(b.poly)}}));
   P.greens.forEach(g=>F.push({type:'Feature',properties:{kind:'yashil',area_m2:Math.round(area(g.poly))},geometry:{type:'Polygon',coordinates:ring(g.poly)}}));
   P.parks.forEach(g=>F.push({type:'Feature',properties:{kind:'avtoturargoh',area_m2:Math.round(area(g.poly))},geometry:{type:'Polygon',coordinates:ring(g.poly)}}));
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({type:'FeatureCollection',features:F},null,1)],{type:'application/geo+json'}));a.download=(P.name||'posadka')+'.geojson';a.click();};
+$('#gjIn').onclick=()=>$('#gjFile').click();
+$('#gjFile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;let j;try{j=JSON.parse(await f.text());}catch(err){toast(kpsT('Fayl GeoJSON emas'));return;}
+  const ring=g=>{const c=g&&g.type==='Polygon'?g.coordinates[0]:g&&g.type==='MultiPolygon'?g.coordinates[0][0]:null;if(!c)return null;const r=c.map(q=>[+q[1],+q[0]]);if(r.length>1&&r[0][0]===r[r.length-1][0]&&r[0][1]===r[r.length-1][1])r.pop();return r.length>=3?r:null;};
+  const F=(j.type==='FeatureCollection'?j.features:[j]).filter(x=>x&&x.geometry);if(!F.length){toast(kpsT('Faylda poligon topilmadi'));return;}
+  const hasKind=F.some(x=>x.properties&&x.properties.kind);let site=null,b=[],g=[],pk=[];
+  F.forEach((x,i)=>{const r=ring(x.geometry);if(!r)return;const pr=x.properties||{},k=pr.kind||(hasKind?'':(i===0?'uchastka':'bino'));
+    if(k==='uchastka')site=r;else if(k==='bino'){const fl=Math.max(1,Math.round(+pr.floors||+pr.levels||(+pr.height_m/P.p.fh)||9));b.push({id:uid(),poly:r,fl,use:USES[pr.use]?pr.use:'res',gf:pr.gf||'res'});}
+    else if(k==='yashil')g.push({id:uid(),poly:r});else if(k==='avtoturargoh')pk.push({id:uid(),poly:r,lvl:'ground'});});
+  if(!site&&!b.length){toast(kpsT('Faylda poligon topilmadi'));return;}
+  if((P.site||P.blds.length)&&!confirm(kpsT('Joriy uchastka va binolar fayldagilar bilan almashtirilsinmi?')))return;
+  if(site)P.site=site;P.blds=b;P.greens=g;P.parks=pk;{const sf=F.find(x=>x.properties&&x.properties.kind==='uchastka'&&x.properties.name);const nm=sf?sf.properties.name:j.name;if(nm){P.name=String(nm);if($('#pName'))$('#pName').value=P.name;}}sel=null;
+  const all=[...(P.site||[]),...b.flatMap(x=>x.poly)];if(all.length)map.fitBounds(all,{padding:[30,30]});commit();toast(kpsT('Import qilindi')+': '+b.length+' '+kpsT('bino'));};
 function planSVGm(){if(!P.site&&!P.blds.length)return null;const all=[...(P.site||[]),...P.blds.flatMap(b=>b.poly),...P.greens.flatMap(g=>g.poly),...P.parks.flatMap(g=>g.poly)].map(xy);
   const x0=Math.min(...all.map(a=>a[0]))-10,x1=Math.max(...all.map(a=>a[0]))+10,y0=Math.min(...all.map(a=>a[1]))-10,y1=Math.max(...all.map(a=>a[1]))+10,W=x1-x0,Hh=y1-y0,k=4;
   const pth=poly=>'M'+poly.map(xy).map(a=>`${((a[0]-x0)*k).toFixed(1)} ${((y1-a[1])*k).toFixed(1)}`).join('L')+'Z';
