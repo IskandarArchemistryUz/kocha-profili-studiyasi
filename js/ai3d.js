@@ -70,67 +70,81 @@ function prep(ctx){const D=ctx.D,MX=ctx.MX,MY=ctx.MY,ringLL=D.ring,c0=ringLL.red
   return {c0,ring,convex,R,blds,roads,rails,runway,green,water,aero,canals,trees,pins,rasters,roadKm,areaKm2:Math.abs(sArea(ring))/1e6};}
 
 /* ---------------- interfeys ---------------- */
-const CSS=`.a3{position:fixed;inset:0;z-index:3000;background:#f4f3f1;display:flex;flex-direction:column;font:14px Archivo,system-ui,sans-serif;color:#141414}
-.a3 header{height:56px;flex:none;display:flex;align-items:center;gap:18px;padding:0 16px;border-bottom:1px solid #dedcd7}.a3 header h2{margin:0;font-size:19px;font-weight:500}
-.a3 .st{display:flex;gap:22px;margin-left:auto;font-family:'IBM Plex Mono',monospace}.a3 .st div{display:flex;flex-direction:column;align-items:flex-end;font-size:11px;color:#696969;letter-spacing:.08em;text-transform:uppercase}.a3 .st b{font:500 19px Archivo,sans-serif;color:#141414;letter-spacing:0}
-.a3 .x{border:1px solid #141414;background:none;height:30px;padding:0 12px;cursor:pointer;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase}
-.a3 main{flex:1;display:grid;grid-template-columns:1fr 330px;min-height:0}.a3 .vw{position:relative;min-width:0;background:var(--bg3,#f2efe8)}.a3 canvas{display:block}
-.a3 .hint3{position:absolute;left:12px;bottom:10px;font-size:12px;color:#696969;background:rgba(255,255,255,.8);padding:3px 8px}
-.a3 aside{border-left:1px solid #dedcd7;background:#fff;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:12px}
-.a3 .lb{font-size:11px;letter-spacing:.14em;color:#696969;text-transform:uppercase;margin-bottom:5px}
-.a3 .g2{display:grid;grid-template-columns:1fr 1fr;gap:4px}.a3 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
-.a3 .b{height:28px;border:1px solid #cfccc5;background:#fff;cursor:pointer;font-size:12.5px;padding:0 6px}.a3 .b[aria-pressed=true]{background:#141414;color:#fff;border-color:#141414}.a3 .b.dk{background:#141414;color:#fff;border-color:#141414}
-.a3 .tg{display:flex;align-items:center;justify-content:space-between;font-size:13.5px;padding:3px 0}.a3 .tg input{margin:0}
-.a3 .cl{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px}.a3 .cl label{display:flex;align-items:center;gap:6px;font-size:12.5px}.a3 .cl input{width:22px;height:18px;border:1px solid #cfccc5;padding:0}
-.a3 .rw{display:grid;grid-template-columns:118px minmax(0,1fr) 34px;align-items:center;gap:6px;font-size:12.5px}.a3 .rw output{font:11.5px 'IBM Plex Mono',monospace;text-align:right}
-.a3 .nt{font:11.5px/1.5 'IBM Plex Mono',monospace;color:#696969}
-.a3 .dl{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.a3 .dl button{border:1px solid #cfccc5;background:#fff;cursor:pointer;text-align:left;padding:6px 7px;font-size:12.5px;line-height:1.2}.a3 .dl button small{display:block;color:#8a877f;font-size:11px}
-.a3 .busy{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(244,243,241,.7);font-size:14px}
-@media (max-width:860px){.a3 main{grid-template-columns:1fr;grid-template-rows:55% 45%}}`;
+const CSS=`.a3{position:fixed;inset:0;z-index:3000;background:#f4f3f1;display:flex;flex-direction:column;font:14.5px/1.45 Archivo,system-ui,sans-serif;color:#141414}
+.a3 header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid #dedcd7;background:#f4f3f1}
+.a3 .brand{display:flex;align-items:center;gap:10px}.a3 .brand b{font-weight:500;font-size:14.5px;letter-spacing:.2em}.a3 .crumb{font-size:12.5px;letter-spacing:.14em;color:#696969;text-transform:uppercase}
+.a3 .st{margin-left:auto;display:flex;gap:0;font:12px 'IBM Plex Mono',monospace;color:#696969;border:1px solid #dedcd7;background:#fff}.a3 .st span{padding:4px 10px;border-left:1px solid #efede9;white-space:nowrap}.a3 .st span:first-child{border-left:0}.a3 .st b{color:#141414;font-weight:500;margin-left:5px}
+.a3 .btn{height:30px;padding:0 12px;border:1px solid #141414;background:transparent;border-radius:2px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer;color:#141414}
+.a3 .btn.dark{background:#141414;color:#f4f3f1}.a3 .btn.ghost{border-color:#cfccc5}.a3 .btn.sm{height:26px;padding:0 9px;font-size:11.5px}
+.a3 main{flex:1;display:grid;grid-template-columns:1fr 340px;min-height:0}.a3 .vw{position:relative;min-width:0}.a3 canvas{display:block}
+.a3 .cmp{position:absolute;left:14px;top:14px;width:118px;height:118px;border:1px solid #dedcd7;background:rgba(255,255,255,.94);border-radius:50%;box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.a3 .cmp button{position:absolute;width:34px;height:34px;border:1px solid #cfccc5;border-radius:50%;background:#fff;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.04em;cursor:pointer;color:#141414;padding:0}
+.a3 .cmp button[aria-pressed=true]{background:#141414;color:#f4f3f1;border-color:#141414}.a3 .cmp .n{position:absolute;left:50%;top:3px;transform:translateX(-50%);font:600 10px 'IBM Plex Mono',monospace;color:#b3261e}
+.a3 .vtools{position:absolute;left:14px;top:142px;display:flex;flex-direction:column;gap:4px}
+.a3 .chip{display:flex;align-items:center;gap:7px;height:26px;padding:0 10px;border:1px solid #dedcd7;background:rgba(255,255,255,.94);font-size:12.5px;cursor:pointer;border-radius:13px;white-space:nowrap}.a3 .chip[aria-pressed=true]{background:#141414;color:#f4f3f1;border-color:#141414}
+.a3 .hint3{position:absolute;left:14px;bottom:12px;font:11.5px 'IBM Plex Mono',monospace;color:#696969}
+.a3 aside{border-left:1px solid #dedcd7;background:#fff;overflow:auto;display:flex;flex-direction:column}
+.a3 .sec{padding:12px 16px;border-bottom:1px solid #efede9;display:flex;flex-direction:column;gap:7px}
+.a3 .lbl{font-size:11.5px;letter-spacing:.14em;color:#696969;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.a3 .seg{display:flex;border:1px solid #cfccc5;border-radius:2px;overflow:hidden;background:#fff}.a3 .seg button{flex:1;border:0;border-left:1px solid #efede9;background:none;height:28px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#141414}.a3 .seg button:first-child{border-left:0}.a3 .seg button[aria-pressed=true]{background:#141414;color:#f4f3f1}
+.a3 .ly{display:grid;grid-template-columns:18px 22px 1fr auto;align-items:center;gap:8px;font-size:13.5px;padding:2px 0}.a3 .ly input[type=checkbox]{margin:0}.a3 .ly input[type=color]{width:22px;height:16px;border:1px solid #cfccc5;padding:0;background:none;cursor:pointer}.a3 .ly i{font:11px 'IBM Plex Mono',monospace;color:#8a877f;font-style:normal}.a3 .ly .ph{width:18px}
+.a3 .ly.sub{padding-left:26px;font-size:12.5px;color:#3c3c3c;grid-template-columns:22px 1fr auto}
+.a3 .rw{display:grid;grid-template-columns:128px minmax(0,1fr) 40px;align-items:center;gap:8px;font-size:12.5px;color:#3c3c3c}.a3 .rw output{font:11.5px 'IBM Plex Mono',monospace;text-align:right;color:#141414}.a3 .rw input{accent-color:#141414}
+.a3 .nt{font:11.5px/1.55 'IBM Plex Mono',monospace;color:#696969}
+.a3 .ex{display:flex;flex-wrap:wrap;gap:5px}.a3 .ex button{height:30px;padding:0 10px;border:1px solid #cfccc5;background:#fff;border-radius:2px;cursor:pointer;font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.04em;color:#141414}.a3 .ex button:hover{border-color:#141414}.a3 .ex button.dark{background:#141414;color:#f4f3f1;border-color:#141414}
+.a3 .ex select{height:30px;border:1px solid #cfccc5;border-radius:2px;font:12px 'IBM Plex Mono',monospace;background:#fff}
+.a3 .busy{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:13px 'IBM Plex Mono',monospace;color:#696969;letter-spacing:.08em}
+@media (max-width:860px){.a3 main{grid-template-columns:1fr;grid-template-rows:55% 45%}.a3 .st{display:none}}`;
 
 async function open(ctx){if(!document.getElementById('a3css')){const st=document.createElement('style');st.id='a3css';st.textContent=CSS;document.head.appendChild(st);}
-  const ov=document.createElement('div');ov.className='a3';ov.innerHTML=`<header><h2>${T('3D model va vektor illyustratsiya')}</h2><span class="nt">${esc(ctx.mode||'')}</span><div class="st" id="a3st"></div><button class="x" id="a3x">${T('Yopish')} ✕</button></header>
-  <main><div class="vw" id="a3v"><div class="busy" id="a3b">${T('3D kutubxona yuklanmoqda…')}</div><div class="hint3">${T('Sichqoncha: aylantirish · gʻildirak: yaqinlashtirish · oʻng tugma / Shift: surish')}</div></div><aside id="a3p"></aside></main>`;
+  const ov=document.createElement('div');ov.className='a3';const lp=(document.getElementById('logoP')||{}).getAttribute?document.getElementById('logoP').getAttribute('d'):'';
+  ov.innerHTML=`<header><span class="brand"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path fill="#696969" fill-rule="evenodd" d="${lp}"/></svg><b>ARCHEMISTRY</b></span><span class="crumb">/ 06 · AI · ${T('3D maket')}</span><span class="crumb" style="letter-spacing:.06em;text-transform:none;font-family:'IBM Plex Mono',monospace">${esc(ctx.mode||'')}</span>
+    <div class="st" id="a3st"></div><button class="btn ghost" id="a3x">← ${T('Xaritaga')}</button></header>
+  <main><div class="vw" id="a3v"><div class="busy" id="a3b">${T('3D kutubxona yuklanmoqda…')}</div>
+    <div class="cmp" title="${T('Koʻrinish yoʻnalishi')}"><span class="n">N</span>${[['nw',6,6],['ne',76,6],['sw',6,76],['se',76,76],['top',41,41]].map(([k,x,y])=>`<button data-vw="${k}" style="left:${x}px;top:${y}px" title="${k==='top'?T('Yuqoridan'):k.toUpperCase()+' '+T('izometriya')}">${k==='top'?'⊙':k.toUpperCase()}</button>`).join('')}</div>
+    <div class="vtools"><button class="chip" data-vw="eye" aria-pressed="false">◉ ${T('Koʻz sathi')}</button><label class="chip"><input type="checkbox" id="a3pp"> ${T('Perspektiva')}</label><label class="chip"><input type="checkbox" id="a3sh"> ${T('Soyalar')}</label></div>
+    <div class="hint3">${T('sudrash — aylantirish · gʻildirak — masshtab · oʻng tugma — surish')}</div></div><aside id="a3p"></aside></main>`;
   document.body.appendChild(ov);const close=()=>{if(S&&S.ren){S.ren.dispose();S.ren.forceContextLoss&&S.ren.forceContextLoss();}window.removeEventListener('resize',S&&S.onR);document.removeEventListener('keydown',key);ov.remove();S=null;};
   const key=e=>{if(e.key==='Escape')close();};document.addEventListener('keydown',key);ov.querySelector('#a3x').onclick=close;
   try{await load('three');await load('orbit');}catch(e){ov.querySelector('#a3b').textContent=T('3D kutubxonani yuklab boʻlmadi')+': '+e.message;return;}
   let pal;try{pal=Object.assign({},PAL0,JSON.parse(localStorage.getItem('kps_a3_pal')||'{}'));}catch(e){pal=Object.assign({},PAL0);}
   let opt={view:'sw',persp:false,shadow:true,preset:'none',lay:{},bmode:'one',lv:ctx.lv||2,fh:3.2,pinK:.6,pinS:1,stl:2000};try{Object.assign(opt,JSON.parse(localStorage.getItem('kps_a3_opt')||'{}'));}catch(e){}
   S={ctx,ov,pal,opt,data:prep(ctx)};S.opt.lay=Object.assign({bld:1,tree:1,road:1,rail:1,green:1,water:1,pins:1,ras:0,base:1,legend:1},S.opt.lay||{});
-  const d=S.data;ov.querySelector('#a3st').innerHTML=[['Binolar',d.blds.length],['Koʻchalar, km',d.roadKm.toFixed(1)],['Daraxtlar',d.trees.length],['Ikonkalar',d.pins.length],['Maydon, km²',d.areaKm2.toFixed(2)]].map(([n,v])=>`<div>${T(n)}<b>${v}</b></div>`).join('');
+  const d=S.data;ov.querySelector('#a3st').innerHTML=[['binolar',d.blds.length],['koʻchalar',d.roadKm.toFixed(1)+' km'],['daraxtlar',d.trees.length],['ikonkalar',d.pins.length],['maydon',d.areaKm2.toFixed(2)+' km²']].map(([n,v])=>`<span>${T(n)}<b>${v}</b></span>`).join('');
   initGL();buildAll();panel();setView(S.opt.view,true);ov.querySelector('#a3b').remove();}
 const saveOpt=()=>{try{localStorage.setItem('kps_a3_opt',JSON.stringify(S.opt));localStorage.setItem('kps_a3_pal',JSON.stringify(S.pal));}catch(e){}};
 
-function panel(){const o=S.opt,p=S.pal,el=S.ov.querySelector('#a3p');const L=o.lay;
-  const tg=(k,n)=>`<label class="tg"><span>${T(n)}</span><input type="checkbox" data-ly="${k}" ${L[k]?'checked':''}></label>`;
-  el.innerHTML=`<div><div class="lb">${T('Koʻrinish')}</div><div class="g2">${[['nw','NW iso'],['ne','NE iso'],['sw','SW iso'],['se','SE iso'],['top','Yuqoridan'],['eye','Koʻz sathi']].map(([k,n])=>`<button class="b" data-vw="${k}" aria-pressed="${o.view===k}">${T(n)}</button>`).join('')}</div>
-    <label class="tg"><span>${T('Perspektiva')}</span><input type="checkbox" id="a3pp" ${o.persp?'checked':''}></label><label class="tg"><span>${T('Soyalar')}</span><input type="checkbox" id="a3sh" ${o.shadow?'checked':''}></label></div>
-  <div><div class="lb">${T('Grafika')}</div><div class="g3">${[['none','Konturiz'],['thin','Ingichka kontur'],['bw','Oq-qora']].map(([k,n])=>`<button class="b" data-pr="${k}" aria-pressed="${o.preset===k}">${T(n)}</button>`).join('')}</div></div>
-  <div><div class="lb">${T('Qatlamlar')}</div>${tg('bld','Binolar')}${tg('tree','Daraxtlar')}${tg('road','Koʻchalar')}${tg('rail','Temir yoʻl, aeroport')}${tg('green','Yashil hududlar')}${tg('water','Suv')}${tg('pins','Ikonkalar (ustunda)')}${S.data.rasters.length?tg('ras','Tahlil qatlami (yerda)'):''}${tg('base','Asos (plita)')}${tg('legend','Legenda (SVG)')}</div>
-  <div><div class="lb">${T('Binolar')}</div><div class="g3">${[['one','Bir rang'],['lv','Qavatlar'],['use','Funksiya']].map(([k,n])=>`<button class="b" data-bm="${k}" aria-pressed="${o.bmode===k}">${T(n)}</button>`).join('')}</div>
-    <div class="rw" style="margin-top:6px"><span>${T('Tegsiz bino, qavat')}</span><input type="range" min="1" max="9" step="1" id="a3lv" value="${o.lv}"><output>${o.lv}</output></div>
+function panel(){const o=S.opt,p=S.pal,d=S.data,el=S.ov.querySelector('#a3p');const L=o.lay;
+  const cb=k=>`<input type="checkbox" data-ly="${k}" ${L[k]?'checked':''}>`,sw=k=>`<input type="color" data-pc="${k}" value="${p[k]}" title="${T('Rang')}">`;
+  const row=(k,c,n,cnt)=>`<label class="ly">${k?cb(k):'<span class="ph"></span>'}${c?sw(c):'<span></span>'}<span>${T(n)}</span><i>${cnt??''}</i></label>`,sub=(c,n)=>`<label class="ly sub">${sw(c)}<span>${T(n)}</span><i></i></label>`;
+  el.innerHTML=`<div class="sec"><div class="lbl">${T('Uslub')}</div><div class="seg">${[['none','Maket'],['thin','Chizma'],['bw','Monoxrom']].map(([k,n])=>`<button data-pr="${k}" aria-pressed="${o.preset===k}">${T(n)}</button>`).join('')}</div>
+    <div class="nt">${T('Maket — konturisiz hajmlar; chizma — ingichka kontur; monoxrom — oq-qora taqdimot.')}</div></div>
+  <div class="sec"><div class="lbl">${T('Qatlamlar va ranglar')}<button class="btn sm ghost" id="a3rc">${T('Tiklash')}</button></div>
+    ${row('bld','bld','Binolar',d.blds.length)}${row('tree','tree','Daraxtlar',d.trees.length)}${row('road','road','Koʻchalar',d.roadKm.toFixed(1)+' km')}${sub('major','magistrallar')}${sub('foot','piyoda yoʻllari')}
+    ${row('rail','rail','Temir yoʻl, aeroport',d.rails.length+d.runway.length||'')}${row('green','green','Yashil hududlar',d.green.length)}${row('water','water','Suv',d.water.length+d.canals.length||'')}
+    ${row('pins','','Ikonkalar ustunda',d.pins.length)}${d.rasters.length?row('ras','','Tahlil qatlami yerda',d.rasters.length):''}${row('base','base','Asos (plita)')}${row('','ground','Yer yuzasi')}${row('','bg','Fon')}${row('','edge','Kontur')}${row('legend','','Legenda (vektor)')}</div>
+  <div class="sec"><div class="lbl">${T('Binolar')}</div><div class="seg">${[['one','Bir rang'],['lv','Qavatlar'],['use','Funksiya']].map(([k,n])=>`<button data-bm="${k}" aria-pressed="${o.bmode===k}">${T(n)}</button>`).join('')}</div>
+    <div class="rw"><span>${T('Tegsiz bino, qavat')}</span><input type="range" min="1" max="9" step="1" id="a3lv" value="${o.lv}"><output>${o.lv}</output></div>
     <div class="rw"><span>${T('Qavat balandligi, m')}</span><input type="range" min="2.7" max="4.5" step=".1" id="a3fh" value="${o.fh}"><output>${o.fh}</output></div></div>
-  <div><div class="lb">${T('Ikonkalar')}</div><div class="rw"><span>${T('Ustun balandligi, m')}</span><input type="range" min="0" max="${Math.round(S.data.R*1.2/10)*10}" step="10" id="a3ph" value="${pinH()}"><output>${pinH()}</output></div>
+  <div class="sec"><div class="lbl">${T('Ikonkalar')}</div><div class="rw"><span>${T('Ustun balandligi, m')}</span><input type="range" min="0" max="${Math.round(d.R*1.2/10)*10}" step="10" id="a3ph" value="${pinH()}"><output>${pinH()}</output></div>
     <div class="rw"><span>${T('Oʻlchami')}</span><input type="range" min=".5" max="2.5" step=".1" id="a3ps" value="${o.pinS}"><output>${o.pinS}</output></div><div class="nt">${T('Xaritada yoqilgan nuqta qatlamlari (bekat, maktab, kafe…) ustunga koʻtariladi.')}</div></div>
-  <div><div class="lb">${T('Ranglar')}</div><div class="cl">${[['bg','Fon'],['ground','Yer'],['base','Asos'],['bld','Binolar'],['green','Yashil'],['water','Suv'],['tree','Daraxtlar'],['road','Koʻchalar'],['major','Magistral'],['foot','Piyoda yoʻli'],['rail','Temir yoʻl'],['edge','Kontur']].map(([k,n])=>`<label><input type="color" data-pc="${k}" value="${p[k]}">${T(n)}</label>`).join('')}</div><button class="b" id="a3rc" style="margin-top:6px;width:100%">${T('Ranglarni tiklash')}</button></div>
-  <div><div class="lb">${T('Yuklab olish')}</div><div class="dl">
-    <button data-ex="svg">${T('Vektor')}<small>.svg</small></button><button data-ex="png">${T('Rasm')}<small>.png · 2×</small></button><button data-ex="alb">${T('Albomga')}<small>SVG →</small></button>
-    <button data-ex="obj">Rhino, ArchiCAD<small>.obj + .mtl</small></button><button data-ex="dxf">AutoCAD<small>.dxf · 3D</small></button><button data-ex="dae">SketchUp<small>.dae</small></button>
-    <button data-ex="glb">Blender, web<small>.glb</small></button><button data-ex="stl">${T('3D bosma')}<small>.stl · mm</small></button><select id="a3stl" class="b" title="${T('STL masshtabi')}">${[1000,2000,5000,10000].map(v=>`<option value="${v}" ${+o.stl===v?'selected':''}>1:${v}</option>`).join('')}</select></div>
-    <div class="nt" style="margin-top:6px">${T('Koordinatalar — metrda, hudud markazidan (X — sharq, Y — shimol, Z — balandlik). Balandlik: OSM building:levels yoki height; teg yoʻq binolar — yuqoridagi qavat soni. Relyef hisobga olinmagan. Manba: © OpenStreetMap.')}</div></div>`;
-  el.querySelectorAll('[data-vw]').forEach(b=>b.onclick=()=>{setView(b.dataset.vw);});
-  el.querySelector('#a3pp').onchange=e=>{o.persp=e.target.checked;setView(o.view);};
-  el.querySelector('#a3sh').onchange=e=>{o.shadow=e.target.checked;applyShadow();saveOpt();render();};
+  <div class="sec"><div class="lbl">${T('Taqdimot')}</div><div class="ex"><button data-ex="svg" class="dark">SVG</button><button data-ex="png">PNG 2×</button><button data-ex="alb">${T('Albomga')} →</button></div>
+    <div class="lbl" style="margin-top:4px">${T('Model')}</div><div class="ex"><button data-ex="obj" title="Rhino, ArchiCAD, Blender">OBJ</button><button data-ex="dxf" title="AutoCAD">DXF</button><button data-ex="dae" title="SketchUp">DAE</button><button data-ex="glb" title="Blender, web">GLB</button><button data-ex="stl" title="${T('3D bosma, mm')}">STL</button><select id="a3stl" title="${T('STL masshtabi')}">${[1000,2000,5000,10000].map(v=>`<option value="${v}" ${+o.stl===v?'selected':''}>1:${v}</option>`).join('')}</select></div>
+    <div class="nt">${T('Koordinatalar — metrda, hudud markazidan (X — sharq, Y — shimol, Z — balandlik). Balandlik: OSM building:levels yoki height; teg yoʻq binolar — yuqoridagi qavat soni. Relyef hisobga olinmagan. Manba: © OpenStreetMap.')}</div></div>`;
+  const ov=S.ov;ov.querySelectorAll('[data-vw]').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.vw===o.view);b.onclick=()=>setView(b.dataset.vw);});
+  const pp=ov.querySelector('#a3pp'),sh=ov.querySelector('#a3sh');pp.checked=!!o.persp;sh.checked=!!o.shadow;
+  pp.closest('.chip').setAttribute('aria-pressed',!!o.persp);sh.closest('.chip').setAttribute('aria-pressed',!!o.shadow);
+  pp.onchange=e=>{o.persp=e.target.checked;pp.closest('.chip').setAttribute('aria-pressed',o.persp);setView(o.view);};
+  sh.onchange=e=>{o.shadow=e.target.checked;sh.closest('.chip').setAttribute('aria-pressed',o.shadow);applyShadow();saveOpt();render();};
   el.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{o.preset=b.dataset.pr;const pr=PRESET[o.preset];Object.assign(S.pal,PAL0,pr);delete S.pal.edges;restyle();panel();saveOpt();});
   el.querySelectorAll('[data-ly]').forEach(i=>i.onchange=()=>{L[i.dataset.ly]=i.checked?1:0;vis();saveOpt();if(i.dataset.ly==='pins')setView(o.view);else render();});
   el.querySelectorAll('[data-bm]').forEach(b=>b.onclick=()=>{o.bmode=b.dataset.bm;buildBlds();panel();saveOpt();render();});
   const rng=(id,k,fn)=>{const i=el.querySelector(id);i.oninput=()=>{o[k]=+i.value;i.nextElementSibling.textContent=i.value;fn();render();};i.onchange=saveOpt;};
   rng('#a3lv','lv',buildBlds);rng('#a3fh','fh',buildBlds);{const i=el.querySelector('#a3ph');i.oninput=()=>{o.pinK=+i.value/S.data.R;i.nextElementSibling.textContent=i.value;buildPins();fitCam();render();};i.onchange=saveOpt;}rng('#a3ps','pinS',buildPins);
-  el.querySelectorAll('[data-pc]').forEach(i=>i.oninput=()=>{S.pal[i.dataset.pc]=i.value;restyle();saveOpt();});
-  el.querySelector('#a3rc').onclick=()=>{S.pal=Object.assign({},PAL0,PRESET[o.preset]);delete S.pal.edges;restyle();panel();saveOpt();};
+  el.querySelectorAll('[data-pc]').forEach(i=>{i.onclick=e=>e.stopPropagation();i.oninput=()=>{S.pal[i.dataset.pc]=i.value;restyle();saveOpt();};});
+  el.querySelector('#a3rc').onclick=e=>{e.preventDefault();S.pal=Object.assign({},PAL0,PRESET[o.preset]);delete S.pal.edges;restyle();panel();saveOpt();};
   el.querySelector('#a3stl').onchange=e=>{o.stl=+e.target.value;saveOpt();};
-  el.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>doExport(b.dataset.ex).catch(e=>S.ctx.toast(T('Eksport bajarilmadi')+': '+(e.message||e))));
-  if(window.kpsT&&window.KPS_LANG&&window.KPS_LANG!=='uz'){/* i18n kuzatuvchisi matnni tarjima qiladi */}}
+  el.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>doExport(b.dataset.ex).catch(e=>S.ctx.toast(T('Eksport bajarilmadi')+': '+(e.message||e))));}
 
 /* ---------------- WebGL sahna ---------------- */
 function initGL(){const v=S.ov.querySelector('#a3v'),W=v.clientWidth,H=v.clientHeight;

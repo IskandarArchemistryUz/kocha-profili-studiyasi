@@ -79,6 +79,6 @@ try{var cur=JSON.parse(localStorage.getItem('kps_v1')||'null');if(cur)rows.push(
 try{var sv=JSON.parse(localStorage.getItem('kps_saves')||'{}');Object.keys(sv).sort(function(a,b){return sv[b].t.localeCompare(sv[a].t);}).slice(0,8).forEach(function(k){rows.push({n:k,m:'KOʻCHA STUDIYASI',t:sv[k].t.slice(0,16).replace('T',' '),h:'studio.html?open='+encodeURIComponent(k)+'#design'});});}catch(e){}
 el.innerHTML=rows.length?rows.map(function(r){return '<div class="row"><span>'+esc(r.n)+'</span><span class="m">'+esc(r.m)+'</span><span class="m">'+esc(r.t)+'</span><a href="'+r.h+'">OCHISH →</a></div>';}).join(''):'<div class="empty">Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.</div>';})();
 </script>
-<script src="js/i18n.js?v=26"></script>
+<script src="js/i18n.js?v=27"></script>
 </body>
 </html>

@@ -43,14 +43,16 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 .ofs{display:grid;grid-template-columns:1fr 1fr;gap:6px}.ofs label{font-size:12px;color:var(--grey);display:flex;flex-direction:column;gap:2px}.ofs input{border:1px solid var(--line2);padding:3px 5px;font-family:var(--mono);font-size:13px}
 .cvbox{border:1px solid var(--line2);padding:10px;display:flex;flex-direction:column;gap:8px}
 #toasts{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:900}.toast{background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:14px;border-radius:2px}
+header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none}.seg button{white-space:nowrap;padding:0 9px}header .btn{padding:0 10px;letter-spacing:.1em}
+@media (max-width:1750px){header .crumb.hide-s{display:none}#brandCrumb{display:none}}
 @media (max-width:860px){main{grid-template-columns:1fr;grid-template-rows:45% 55%}}
 </style>
 </head>
 <body>
 <header>
 <a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
-<span class="crumb">/ 06 · AI · HUDUD BAHOSI</span><span class="sp"></span>
-<span class="crumb">HUDUD</span>
+<span class="crumb" id="brandCrumb">/ 06 · AI · HUDUD BAHOSI</span><span class="sp"></span>
+<span class="crumb hide-s">HUDUD</span>
 <div class="seg" id="modeSeg"><button data-m="radius" aria-pressed="true" title="Doira: markazni bosing">Doira</button><button data-m="rect" aria-pressed="false" title="Toʻrtburchak: ikki burchakni bosing">Toʻrtburchak</button><button data-m="poly" aria-pressed="false" title="Erkin chegara: burchaklarni bosing">Erkin chegara</button></div>
 <label class="km">r =<input id="rKm" type="number" min="0.2" max="5" step="0.1" value="1">km</label>
 <label class="km" title="Hududdan tashqarini xaritada, albomda va 3D da kesib tashlash" style="font-family:inherit;font-size:12.5px;gap:6px;cursor:pointer"><input type="checkbox" id="clipCb"> Faqat hudud ichi</label>
@@ -71,7 +73,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/uly.js?v=2"></script>
-<script src="js/ai3d.js?v=2"></script>
+<script src="js/ai3d.js?v=3"></script>
 <script>
 (function(){
 'use strict';
@@ -93,8 +95,9 @@ let mode='radius',center=null,poly=[],done=false,res=null,aiText='',rectA=null,r
 const KEY=()=>localStorage.getItem('kps_ai_key')||'',MODEL=()=>localStorage.getItem('kps_ai_model')||'claude-sonnet-5';
 function hint(){const h=$('#hint');if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgartiring yoki «Hisoblash» ni bosing.':'<b>Doira.</b> Xaritada markazni bosing.';
   else if(mode==='rect')h.innerHTML=done?'<b>Toʻrtburchak tayyor.</b> «Hisoblash» ni bosing yoki qaytadan ikki burchakni bosing.':rectA?'<b>Toʻrtburchak.</b> Qarama-qarshi burchakni bosing.':'<b>Toʻrtburchak.</b> Birinchi burchakni bosing.';
-  else h.innerHTML=done?'<b>Chegara tayyor.</b> «Hisoblash» ni bosing.':`<b>Chegara.</b> Burchaklarni bosing (${poly.length}); oxirida — ikki marta bosing yoki Enter.`+(poly.length?'<button id="hCl">Tozalash</button>':'');
-  if($('#hCl'))$('#hCl').onclick=()=>{poly=[];done=false;drawArea();hint();};}
+  else h.innerHTML=done?'<b>Chegara tayyor.</b> Nuqtalarni sudrab tuzating, «+» — nuqta qoʻshish. «Hisoblash» ni bosing.<button id="hCl">Qaytadan</button>':`<b>Erkin chegara.</b> Burchaklarni bosing (${poly.length}).${poly.length>2?' Yopish — birinchi nuqtani bosing yoki Enter.':''}`+(poly.length>2?'<button id="hClose">Yopish</button>':'')+(poly.length?'<button id="hUndo">Oxirgi nuqta ⌫</button><button id="hCl">Tozalash</button>':'');
+  if($('#hClose'))$('#hClose').onclick=closePoly;if($('#hUndo'))$('#hUndo').onclick=undoPt;
+  if($('#hCl'))$('#hCl').onclick=()=>{poly=[];done=false;PV.clearLayers();DIRTY=true;drawArea();hint();};}
 function curRing(){if(LASTD&&LASTD.ring&&!DIRTY)return LASTD.ring;if(mode==='radius'&&center){const r=+$('#rKm').value*1000,mx=111320*Math.cos(center[0]*R),o=[];for(let i=0;i<72;i++){const a=i/72*2*Math.PI;o.push([center[0]+r*Math.sin(a)/MY,center[1]+r*Math.cos(a)/mx]);}return o;}return done&&poly.length>2?poly:null;}
 map.createPane('maskP');map.getPane('maskP').style.zIndex=620;map.getPane('maskP').style.pointerEvents='none';
 const MASK=L.layerGroup().addTo(map);
@@ -103,15 +106,29 @@ function updMask(){MASK.clearLayers();if(!CLIP)return;const r=curRing();if(!r)re
 function drawArea(){A.clearLayers();updMask();if(mode==='rect'&&rectA&&rectCur&&!done){const a=rectA,b=rectCur;L.rectangle([[Math.min(a[0],b[0]),Math.min(a[1],b[1])],[Math.max(a[0],b[0]),Math.max(a[1],b[1])]],{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);}
   if(mode==='rect'&&done&&poly.length)L.polygon(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);
   if(mode==='radius'&&center)L.circle(center,{radius:+$('#rKm').value*1000,color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);
-  if(mode==='poly'&&poly.length){(done?L.polygon(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}):L.polyline(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5'})).addTo(A);poly.forEach(p=>L.circleMarker(p,{radius:3,color:'#7b61d1'}).addTo(A));}}
+  if(mode==='poly'&&poly.length){const shp=(done?L.polygon(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05,interactive:false}):L.polyline(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',interactive:false})).addTo(A);
+    poly.forEach((p,i)=>{const first=i===0&&!done&&poly.length>2,sz=first?16:11;
+      const m=L.marker(p,{draggable:true,keyboard:false,title:first?'Bosing — chegarani yopish':'Sudrang — joyini oʻzgartirish; oʻng tugma — oʻchirish',
+        icon:L.divIcon({className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${first?'#7b61d1':'#fff'};border:2px solid #7b61d1;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:${first?'pointer':'move'}"></div>`})}).addTo(A);
+      m.on('click',()=>{if(first)closePoly();});m.on('drag',e=>{const q=e.target.getLatLng();poly[i]=[q.lat,q.lng];shp.setLatLngs(poly);DIRTY=true;});m.on('dragend',()=>{drawArea();});
+      m.on('contextmenu',()=>{if(poly.length>(done?3:1)){poly.splice(i,1);DIRTY=true;drawArea();hint();}});});
+    if(done)poly.forEach((p,i)=>{const q=poly[(i+1)%poly.length],mp=[(p[0]+q[0])/2,(p[1]+q[1])/2];L.marker(mp,{keyboard:false,title:'Nuqta qoʻshish',icon:L.divIcon({className:'',iconSize:[13,13],iconAnchor:[6.5,6.5],html:'<div style="width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,.75);border:1px dashed #7b61d1;font:700 11px/11px sans-serif;text-align:center;color:#7b61d1;cursor:copy">+</div>'})}).addTo(A).on('click',()=>{poly.splice(i+1,0,mp);DIRTY=true;drawArea();});});}}
+const PV=L.layerGroup().addTo(map);
+function closePoly(){if(mode!=='poly'||poly.length<3)return;done=true;PV.clearLayers();DIRTY=true;drawArea();hint();}
+function undoPt(){if(mode==='poly'&&!done&&poly.length){poly.pop();PV.clearLayers();drawArea();hint();}}
 map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(mode==='radius'){center=p;}
   else if(mode==='rect'){if(!rectA||done){rectA=p;rectCur=p;poly=[];done=false;}else{const a=rectA,b=p;poly=[[a[0],a[1]],[a[0],b[1]],[b[0],b[1]],[b[0],a[1]]];done=true;rectA=null;}}
-  else{if(done){poly=[];done=false;}poly.push(p);}DIRTY=true;drawArea();hint();});
-map.on('mousemove',e=>{if(mode==='rect'&&rectA&&!done){rectCur=[e.latlng.lat,e.latlng.lng];drawArea();}});
+  else{if(done){return;}// tayyor chegara nuqtalar bilan tahrirlanadi; qaytadan chizish — «Qaytadan»
+    if(poly.length>2){const a=map.latLngToContainerPoint(poly[0]);if(a.distanceTo(e.containerPoint)<14){closePoly();return;}}poly.push(p);}DIRTY=true;drawArea();hint();});
+map.on('mousemove',e=>{if(mode==='rect'&&rectA&&!done){rectCur=[e.latlng.lat,e.latlng.lng];drawArea();}
+  if(mode==='poly'&&!done&&poly.length){PV.clearLayers();const c=[e.latlng.lat,e.latlng.lng];L.polyline([poly[poly.length-1],c],{color:'#7b61d1',weight:1.5,dashArray:'3 4',interactive:false}).addTo(PV);
+    if(poly.length>1)L.polyline([c,poly[0]],{color:'#7b61d1',weight:1,opacity:.45,dashArray:'2 5',interactive:false}).addTo(PV);}});
 $('#clipCb').checked=CLIP;$('#clipCb').onchange=e=>{CLIP=e.target.checked;localStorage.setItem('kps_ai_clip',CLIP?'1':'0');updMask();};
-map.on('dblclick',()=>{if(mode==='poly'&&poly.length>2){done=true;drawArea();hint();}});
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&mode==='poly'&&poly.length>2&&!e.target.matches('textarea,input')){done=true;drawArea();hint();}});
-document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;poly=[];done=false;rectA=null;DIRTY=true;document.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.km').style.display=mode==='radius'?'flex':'none';drawArea();hint();});
+map.on('dblclick',()=>{if(mode==='poly'&&!done&&poly.length>3){// ikki marta bosishdagi takror nuqtani olib tashlash
+    const a=poly[poly.length-1],b=poly[poly.length-2];if(map.latLngToContainerPoint(a).distanceTo(map.latLngToContainerPoint(b))<6)poly.pop();closePoly();}});
+document.addEventListener('keydown',e=>{if(e.target.matches('textarea,input'))return;if(e.key==='Enter'&&mode==='poly'&&poly.length>2&&!done){closePoly();}
+  if((e.key==='Backspace'||e.key==='Delete')&&mode==='poly'&&!done&&poly.length){e.preventDefault();undoPt();}if(e.key==='Escape'&&mode==='poly'&&!done){poly=[];PV.clearLayers();drawArea();hint();}});
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;poly=[];done=false;rectA=null;DIRTY=true;PV.clearLayers();document.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.km').style.display=mode==='radius'?'flex':'none';drawArea();hint();});
 $('#rKm').oninput=()=>{DIRTY=true;drawArea();};
 /* ---------- geometriya ---------- */
 let LAT0=41.3,MX=111320*Math.cos(41.3*R);const MY=110574;const xy=(lat,lon)=>[lon*MX,lat*MY];
@@ -537,6 +554,6 @@ hint();renderRes();
 openRun('last',true).then(ok=>{if(ok)toast('Oxirgi tahlil tiklandi. Boshqalari — «Saqlanganlar» da.');}).catch(()=>{});
 })();
 </script>
-<script src="js/i18n.js?v=26"></script>
+<script src="js/i18n.js?v=27"></script>
 </body>
 </html>
