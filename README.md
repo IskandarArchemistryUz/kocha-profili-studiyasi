@@ -13,6 +13,9 @@ Koʻchalarni tahlil qilish va qayta loyihalash uchun brauzer asbobi — Toshkent
 **Loyiha chizish (YHQ)** — koʻchalar xaritada modullardan chiziladi va tugunlarda ulanadi:
 - 49 ta koʻcha moduli va parametrik Konstruktor (boʻlaklar, ajratuvchi, BRT, tramvay, velo, parkovka 0°/30°/45°/90°, dublyor, yomgʻir bogʻlari);
 - radiusli burilishlar, bordyur radiusi bilan chorrahalar, 7 turdagi aylanma halqa (turbo-halqa ham);
+- koʻcha oʻqdan boshqariladi: oʻq — qatnov qismining markazi, tugunlar shu oʻqda; chetni sudraganda ikki tomon simmetrik oʻzgaradi (Alt — bir tomon);
+- eni har xil koʻchalar ulanganda silliq oʻtish (taper) va uzluksiz oʻq chizigʻi;
+- chorrahaga yaqinlashishda har bir boʻlakka 1.18 strelkalari (toʻgʻri, chap, oʻng, birikmalar, qayrilish) — avtomatik, bosib yoki panelda almashtiriladi;
 - piyoda oʻtish joylari, bekatlar, parklet, veloparkovka, erkin shakllar va yoʻl chiziqlari;
 - yoʻl belgilari katalogi va avtomatik joylashtirish;
 - YHQ mantigʻi boʻyicha tekshiruvlar (band raqamlarini foydalanuvchi kiritadi);
