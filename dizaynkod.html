@@ -419,6 +419,7 @@ function rectify(){
   warp(S.src,F,mul(Hc2i,[1/s,0,bx0,0,1/s,by0,0,0,1]));
   S.F=F;S.Fb={bx0,by0,s};
   if(!S.lines){S.lines={yT:detectCornice(),xL:-Math.round(dw*2),xR:Math.round(dw*3),yB:-30,y2:null};S.sub3=0;}
+  clampEdges();
 }
 /* karniz/belbog'ni taxmin qilish: eshik ustidagi eng kuchli gorizontal chiziq */
 function detectCornice(){
@@ -445,6 +446,13 @@ function syncGeometry(){
 }
 const D2px=(x,y)=>{const b=S.Fb;return[(x-b.bx0)*b.s,(y-b.by0)*b.s];};
 const px2D=(X,Y)=>{const b=S.Fb;return[X/b.s+b.bx0,Y/b.s+b.by0];};
+/* binafsha chiziqlar doim rasm ichida qoladi — chetdan chiqib ketib, ushlab bo'lmay qolmasin */
+function edgeRange(){const b=S.Fb,w=S.F.width/b.s,m=Math.max(8,w*0.012);return[Math.round(b.bx0+m),Math.round(b.bx0+w-m)];}
+function clampEdges(){const L=S.lines;if(!L||!S.Fb)return;const[lo,hi]=edgeRange(),dw=S.door.w;
+  L.xL=Math.round(Math.max(Math.min(lo,-5),Math.min(L.xL,-5)));
+  L.xR=Math.round(Math.min(Math.max(hi,dw+5),Math.max(L.xR,dw+5)));}
+/* ko'rinib turgan qism (dunyo px) — tutqichni ekranning o'rtasiga qo'yish uchun */
+function visWorldY(){const y0=(Z.py/Z.z-FIT.oy)/FIT.f,y1=((cv.height+Z.py)/Z.z-FIT.oy)/FIT.f;return[Math.max(0,y0),Math.min(S.F.height,y1)];}
 
 /* ---------- peshlavhani zonaga joylash ---------- */
 function zoneFor(s){
@@ -497,7 +505,7 @@ function draw(){
   ctx.setTransform(1,0,0,1,0,0);
   drawRulers();zoomLabel();
 }
-function hint(){const h=document.getElementById('hint');if(!h)return;const t={1:"",2:"Oq nuqtalarni eshik burchaklariga suring",3:S.sub3===0?"Ko'k chiziqni do'kon qavati tepasiga suring":"Binafsha chiziqlarni do'kon chetlariga suring",4:"Peshlavhani suring · g'ildirak — yaqinlashtirish"}[S.step]||"";h.textContent=t;h.hidden=!t;}
+function hint(){const h=document.getElementById('hint');if(!h)return;const t={1:"",2:"Oq nuqtalarni eshik burchaklariga suring",3:S.sub3===0?"Ko'k chiziqni do'kon qavati tepasiga suring":"Do'kon chetini rasm ustida bosing yoki binafsha tutqichni suring",4:"Peshlavhani suring · g'ildirak — yaqinlashtirish"}[S.step]||"";h.textContent=t;h.hidden=!t;}
 function zoomLabel(){const l=document.getElementById('zLbl');if(l)l.textContent=Math.round(Z.z*100)+" %";}
 /* chizg'ichlar: gorizontal — do'kon chap chetidan, vertikal — trotuardan balandlik */
 function rulerMap(){
@@ -520,7 +528,12 @@ function drawRulers(){
     const t=`${Math.round(cmX(x))} · h ${Math.round(hY(y))} sm`;ctx.font=`600 ${Math.round(11*B)}px "IBM Plex Mono", monospace`;const tw=ctx.measureText(t).width;ctx.fillStyle="#E0218A";ctx.fillRect(W-tw-14*B,T+4*B,tw+10*B,18*B);ctx.fillStyle="#fff";ctx.fillText(t,W-tw-9*B,T+17*B);}
   ctx.fillStyle="#E8EEED";ctx.fillRect(0,0,T,T);ctx.restore();
 }
-function vline(x,label,K,color){const[X]=D2px(x,0);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(X,0);ctx.lineTo(X,FIT.H);ctx.stroke();ctx.setLineDash([]);pill(label,X+6*K,30*K,K,color);}
+function vline(x,label,K,color,knob){const[X]=D2px(x,0);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(X,0);ctx.lineTo(X,FIT.H);ctx.stroke();ctx.setLineDash([]);
+  const[v0,v1]=visWorldY();const ky=(v0+v1)/2;
+  if(knob){const r=16*K;ctx.fillStyle=color;ctx.beginPath();ctx.arc(X,ky,r,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=2*K;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(X-8*K,ky);ctx.lineTo(X+8*K,ky);ctx.moveTo(X-8*K,ky);ctx.lineTo(X-4*K,ky-4*K);ctx.moveTo(X-8*K,ky);ctx.lineTo(X-4*K,ky+4*K);ctx.moveTo(X+8*K,ky);ctx.lineTo(X+4*K,ky-4*K);ctx.moveTo(X+8*K,ky);ctx.lineTo(X+4*K,ky+4*K);ctx.stroke();}
+  const lx=knob==="L"?X+22*K:knob==="R"?X-22*K-(ctx.font=font(600,12),ctx.measureText(label).width+12*K):X+6*K;
+  pill(label,lx,knob?ky-22*K:Math.max(v0,0)+30*K,K,color);}
 function hline(y,label,K,color){const[,Y]=D2px(0,y);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(0,Y);ctx.lineTo(FIT.W,Y);ctx.stroke();ctx.setLineDash([]);pill(label,12*K,Y-8*K,K,color);}
 function pill(t,x,y,K,color){ctx.font=font(600,12);const w=ctx.measureText(t).width+12*K,h=20*K;ctx.fillStyle=color;ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y-h+4*K,w,h,4*K):ctx.rect(x,y-h+4*K,w,h);ctx.fill();ctx.fillStyle="#FFFFFF";ctx.fillText(t,x+7*K,y-3*K);}
 function drawFacadeLines(K){
@@ -530,7 +543,7 @@ function drawFacadeLines(K){
   const[ex,ey]=D2px(0,0);ctx.strokeStyle="#FF9F0A";ctx.lineWidth=2*K;ctx.strokeRect(ex,ey,dw*S.Fb.s,dh*S.Fb.s);
   if(S.show2&&L.y2!=null)hline(L.y2,"2-qavat tepasi",K,"#3F8F6B");
   ctx.globalAlpha=S.sub3===0?1:.55;hline(L.yT,"Do'kon qavati shu yerda tugaydi",K,"#025E69");ctx.globalAlpha=1;
-  if(S.sub3>0){vline(L.xL,"Do'kon chap cheti",K,"#7A4FA0");vline(L.xR,"O'ng cheti",K,"#7A4FA0");}
+  if(S.sub3>0){vline(L.xL,"Chap chet",K,"#7A4FA0","L");vline(L.xR,"O'ng chet",K,"#7A4FA0","R");}
   if(S.bezak){const[bx,by]=D2px(-20,L.yB),[bx2,by2]=D2px(dw+20,-2);ctx.fillStyle="rgba(138,90,43,.35)";ctx.fillRect(bx,by,bx2-bx,by2-by);ctx.strokeStyle="#8A5A2B";ctx.lineWidth=2*K;ctx.strokeRect(bx,by,bx2-bx,by2-by);ctx.font=font(600,12);ctx.fillStyle="#FFFFFF";ctx.fillText("Bezak — yuqori qirrasini suring",bx+4*K,by-6*K);}
   S.windows.forEach(w=>{const[x,y]=D2px(w.x,w.y);const W=w.w*S.Fb.s,H=w.h*S.Fb.s;ctx.strokeStyle="#4C7DB0";ctx.lineWidth=2.5*K;ctx.strokeRect(x,y,W,H);ctx.fillStyle="rgba(76,125,176,.15)";ctx.fillRect(x,y,W,H);ctx.fillStyle="#4C7DB0";ctx.fillRect(x+W-8*K,y+H-8*K,16*K,16*K);});
 }
@@ -684,7 +697,7 @@ function renderCard(){
   if(S.step===3&&S.sub3===1){const t2=["U3","U4","U7"].includes(S.tip)||/^[OP]/.test(S.tip);C.innerHTML=`
     <p class="lead" style="font-size:12px;letter-spacing:.08em">2 / 2</p>
     <h2>Do'koningiz qayerdan qayergacha?</h2>
-    <p class="lead">Ikkita binafsha chiziqni do'kon fasadining chap va o'ng chetiga suring. Peshlavha uzunligi shu kenglikka nisbatan tekshiriladi.</p>
+    <p class="lead">Do'koningiz fasadi chap tomonda qayerda boshlanadi — o'sha joyni rasm ustida bosing; o'ng tomonda qayerda tugaydi — o'shani bosing. Binafsha chiziqlar shu joyga keladi, keyin tutqichdan ushlab aniqlashtirish mumkin. Peshlavha uzunligi shu kenglikka nisbatan tekshiriladi.</p>
     <div class="dims" id="dims"></div>
     <details class="more"><summary>Qo'shimcha (ixtiyoriy)</summary><div class="inner">
       <label class="chk"><input type="checkbox" id="bezak" ${S.bezak?"checked":""}> Eshik ustida bezak yoki karniz bor — peshlavha undan chekinadi</label>
@@ -781,7 +794,7 @@ function bindCard(){
     $('dh').addEventListener('input',e=>{S.door.h=+e.target.value||210;draw();});
   }
   if(S.step===3){
-    if($('sub3next'))$('sub3next').addEventListener('click',()=>{S.sub3=1;renderCard();draw();});
+    if($('sub3next'))$('sub3next').addEventListener('click',()=>{S.sub3=1;clampEdges();resetZoom();if(typeof dims==='function')dims();renderCard();draw();});
     if($('sub3back'))$('sub3back').addEventListener('click',()=>{S.sub3=0;renderCard();draw();});
     if($('show2'))$('show2').addEventListener('change',e=>{S.show2=e.target.checked;if(S.show2&&S.lines.y2==null)S.lines.y2=S.lines.yT-330;draw();});
     if($('bezak'))$('bezak').addEventListener('change',e=>{S.bezak=e.target.checked;draw();});
@@ -893,7 +906,11 @@ cv.addEventListener('pointerdown',e=>{const[X,Y]=ptr(e);const K=k();cv.setPointe
     if(S.bezak&&Math.abs(y-L.yB)<tol&&x>-40&&x<S.door.w+40){drag={t:"yB"};return;}
     if(Math.abs(y-L.yT)<tol){drag={t:"yT"};return;}
     if(S.show2&&L.y2!=null&&Math.abs(y-L.y2)<tol){drag={t:"y2"};return;}
-    if(S.sub3>0&&Math.abs(x-L.xL)<tol){drag={t:"xL"};return;}if(S.sub3>0&&Math.abs(x-L.xR)<tol){drag={t:"xR"};return;}if(Z.z>1)startPan(e);return;}
+    if(S.sub3>0){const t2=tol*1.6;if(Math.abs(x-L.xL)<t2){drag={t:"xL"};return;}if(Math.abs(x-L.xR)<t2){drag={t:"xR"};return;}
+      /* chiziqni topa olmasa: eshikdan chapni bossa — chap chet, o'ngni bossa — o'ng chet shu joyga keladi */
+      const[lo,hi]=edgeRange();if(x<0){L.xL=Math.round(Math.max(lo,Math.min(x,-5)));drag={t:"xL"};dims();draw();return;}
+      if(x>S.door.w){L.xR=Math.round(Math.min(hi,Math.max(x,S.door.w+5)));drag={t:"xR"};dims();draw();return;}}
+    if(Z.z>1)startPan(e);return;}
   if(S.step===4&&S.view){const[x,y]=toCm(X,Y);
     for(const s of[...S.signs].reverse()){
       if(s.mode==="logo"&&s.id===S.sel&&Math.abs(x-(s.x+s.w))<14*K/S.view.s&&Math.abs(y-(s.y+s.h))<14*K/S.view.s){drag={t:"resize",s};return;}
@@ -903,13 +920,13 @@ cv.addEventListener('pointerdown',e=>{const[X,Y]=ptr(e);const K=k();cv.setPointe
 cv.addEventListener('pointermove',e=>{const[X,Y]=ptr(e);
   if(S.step>=3){S.mouse=[X,Y];if(!drag){draw();}}
   if(drag&&drag.t==="pan"){const[sx,sy]=ptrS(e);Z.px=drag.px-(sx-drag.sx);Z.py=drag.py-(sy-drag.sy);clampPan();draw();return;}
-  if(!drag){let c="default";if(S.step===3){const[x,y]=px2D(X,Y),L=S.lines,tol=14*k()/S.Fb.s;if(Math.abs(y-L.yT)<tol||(S.show2&&Math.abs(y-L.y2)<tol)||(S.bezak&&Math.abs(y-L.yB)<tol))c="ns-resize";else if(Math.abs(x-L.xL)<tol||Math.abs(x-L.xR)<tol)c="ew-resize";}
+  if(!drag){let c="default";if(S.step===3){const[x,y]=px2D(X,Y),L=S.lines,tol=14*k()/S.Fb.s;if(Math.abs(y-L.yT)<tol||(S.show2&&Math.abs(y-L.y2)<tol)||(S.bezak&&Math.abs(y-L.yB)<tol))c="ns-resize";else if(S.sub3>0&&(x<0||x>S.door.w))c="ew-resize";}
     else if(S.step===2||S.step===4)c=Z.z>1?"grab":"default";if(spaceDown)c="grab";cv.style.cursor=c;return;}
   if(drag.t==="corner"){S.door.q[drag.i]=[X/S.sc,Y/S.sc];draw();return;}
   if(drag.t==="quad"){const dx=(X-drag.X)/S.sc,dy=(Y-drag.Y)/S.sc;S.door.q=drag.q.map(p=>[p[0]+dx,p[1]+dy]);draw();return;}
   if(S.step===3){const[x,y]=px2D(X,Y),L=S.lines;
     if(drag.t==="yT"){L.yT=Math.round(Math.min(y,-20));}if(drag.t==="y2"){L.y2=Math.round(Math.min(y,L.yT-150));}if(drag.t==="yB")L.yB=Math.round(Math.max(L.yT+5,Math.min(y,-6)));
-    if(drag.t==="xL")L.xL=Math.round(Math.min(x,-5));if(drag.t==="xR")L.xR=Math.round(Math.max(x,S.door.w+5));
+    {const[lo,hi]=edgeRange();if(drag.t==="xL")L.xL=Math.round(Math.max(Math.min(lo,-5),Math.min(x,-5)));if(drag.t==="xR")L.xR=Math.round(Math.min(Math.max(hi,S.door.w+5),Math.max(x,S.door.w+5)));}
     if(drag.t==="winM"){drag.w.x=Math.round(x-drag.dx);drag.w.y=Math.round(y-drag.dy);}if(drag.t==="winR"){drag.w.w=Math.max(20,Math.round(x-drag.w.x));drag.w.h=Math.max(20,Math.round(y-drag.w.y));}
     dims();draw();return;}
   if(S.step===4){const[x,y]=toCm(X,Y);
