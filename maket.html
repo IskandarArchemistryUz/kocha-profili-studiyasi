@@ -278,6 +278,16 @@ function renderTools(){$('#tools').innerHTML=TOOLS.map(t=>t?`<button data-tool="
 function setTool(t){if(t==='image'){$('#imgIn').click();return;}tool=t;renderTools();if(['flow','blob','icon','row'].includes(t)&&!polyD){sel=null;if(typeof renderProps==='function'){renderPaper();renderProps();}}$('#paper').style.cursor=t==='select'?'default':'crosshair';}
 /* ---------- chizish (SVG) ---------- */
 const fsMM=it=>(it.fs||14)*PT;
+/* kesilgan rasmning toʻliq (kesilmagan) chegarasi */
+let CROP=null;
+function fullBox(it){const c=it.crop||{l:0,t:0,r:0,b:0},fw=it.w/Math.max(.02,1-c.l-c.r),fh=it.h/Math.max(.02,1-c.t-c.b);return {x:it.x-c.l*fw,y:it.y-c.t*fh,w:fw,h:fh};}
+function cropStart(it){if(!it||!(it.t==='image'||it.t==='mat')||!it.src)return;
+  if(!it.crop){// «meet» joylashuvda boʻsh chetlarni olib tashlab, rasm chegarasiga keltirish
+    const a=it.aspect||it.w/it.h,b=it.w/it.h;if(Math.abs(a-b)>.01&&it.fit!=='cover'){if(b>a){const nw=it.h*a;it.x+=(it.w-nw)/2;it.w=nw;}else{const nh=it.w/a;it.y+=(it.h-nh)/2;it.h=nh;}}
+    it.crop={l:0,t:0,r:0,b:0};if(it.mW&&!it.mW0)it.mW0=it.mW;}
+  CROP=it.id;sel=it.id;renderAll();toast&&toast('Kesish: tutqichlarni torting, ichini sudrab rasmni suring. Enter yoki Esc — tayyor.');}
+function cropEnd(){if(!CROP)return;const it=pg().items.find(x=>x.id===CROP);CROP=null;if(it&&it.crop&&it.crop.l+it.crop.r+it.crop.t+it.crop.b<.001){delete it.crop;}commit();renderAll();}
+function cropReset(it){if(!it||!it.crop)return;const F=fullBox(it);it.x=F.x;it.y=F.y;it.w=F.w;it.h=F.h;it.aspect=F.w/F.h;if(it.mW0)it.mW=it.mW0;delete it.crop;CROP=null;commit();renderAll();}
 function itemSVG(it,forThumb){
   const st=`opacity="${it.op??1}"`,da=dashArr(it),dash=da?`stroke-dasharray="${da.join(' ')}"${lsOf(it).includes('dot')?' stroke-linecap="round"':''}`:'',fo=`fill-opacity="${it.fop??1}" stroke-opacity="${it.sop??1}"`;
   const hat=(shape)=>it.hatch&&it.hatch!=='none'?hatchDef(it)+'<g pointer-events="none">'+shape.replace(/fill="[^"]*"/,`fill="url(#h_${it.id})"`).replace(/stroke="[^"]*"/,'stroke="none"').replace(/ data-id="[^"]*"/,'').replace(/fill-opacity="[^"]*"/,'')+'</g>':'';
@@ -299,7 +309,10 @@ function itemSVG(it,forThumb){
     case 'text':{const fs=fsMM(it),lines=String(it.text||'').split('\n'),ax=it.al==='c'?it.x+it.w/2:it.al==='r'?it.x+it.w:it.x,anc=it.al==='c'?'middle':it.al==='r'?'end':'start';
       return `<g data-id="${it.id}"${tf}><rect data-id="${it.id}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="${it.bg||'transparent'}"/><text data-id="${it.id}" x="${ax}" y="${it.y+fs*.92}" font-family="${esc(it.ff||'Archivo')}, sans-serif" font-size="${fs}" fill="${it.col||'#141414'}" font-weight="${it.b?700:400}" font-style="${it.i?'italic':'normal'}" text-anchor="${anc}" ${st}>${lines.map((l,i)=>`<tspan x="${ax}" dy="${i?fs*(it.lh||1.25):0}">${esc(l)||' '}</tspan>`).join('')}</text></g>`;}
     case 'image':case 'mat':case 'map':{let s=`<g data-id="${it.id}"${tf}>`;
-      if(it.src)s+=`<image data-id="${it.id}" href="${it.src}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" preserveAspectRatio="${it.t==='map'?'none':it.fit==='cover'?'xMidYMid slice':'xMidYMid meet'}" ${st}/>`;
+      if(it.src&&it.crop&&it.t!=='map'){const F=fullBox(it);s+=`<clipPath id="cp_${it.id}"><rect x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}"/></clipPath>`;
+        if(CROP===it.id&&!forThumb)s+=`<image href="${it.src}" x="${F.x}" y="${F.y}" width="${F.w}" height="${F.h}" preserveAspectRatio="none" opacity=".28" pointer-events="none"/><rect x="${F.x}" y="${F.y}" width="${F.w}" height="${F.h}" fill="none" stroke="#2f6feb" stroke-width=".2" stroke-dasharray="1 1" pointer-events="none"/>`;
+        s+=`<image data-id="${it.id}" href="${it.src}" x="${F.x}" y="${F.y}" width="${F.w}" height="${F.h}" preserveAspectRatio="none" clip-path="url(#cp_${it.id})" ${st}/>`;}
+      else if(it.src)s+=`<image data-id="${it.id}" href="${it.src}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" preserveAspectRatio="${it.t==='map'?'none':it.fit==='cover'?'xMidYMid slice':'xMidYMid meet'}" ${st}/>`;
       else s+=`<rect data-id="${it.id}" x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="#f1efea"/>${it.ph?`<path d="M${it.x} ${it.y}L${it.x+it.w} ${it.y+it.h}M${it.x+it.w} ${it.y}L${it.x} ${it.y+it.h}" stroke="#d9d6cf" stroke-width="${Math.max(.15,Math.min(it.w,it.h)*.003)}" pointer-events="none"/>`:''}<text x="${it.x+it.w/2}" y="${it.y+it.h/2}" font-size="${it.ph?Math.max(3,Math.min(9,Math.min(it.w,it.h)*.06)):4}" text-anchor="middle" fill="#696969" font-family="Archivo" pointer-events="none">${it.t==='map'?'Xarita tayyorlanmoqda…':esc(it.ph&&it.name?it.name:'Rasm')}</text>`;
       if(it.t==='map'||it.frame)s+=`<rect x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="none" stroke="#141414" stroke-width="${it.fsw||.35}"/>`;
       return s+'</g>';}}return '';}
@@ -417,12 +430,12 @@ function renderProps0(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===se
   if(it.t==='map')h+=`<div class="f r"><label>Masshtab 1:<select data-k="scale">${[200,500,1000,2000,2500,5000,10000,25000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}</select></label><label>Fon<select data-k="style">${[['line','Chizma (oq)'],['sat','Sunʼiy yoʻldosh'],['dark','Grafit'],['voy','OSM toza'],['osm','OSM standart'],['none','Fonsiz']].map(([k,n])=>`<option value="${k}" ${it.style===k?'selected':''}>${n}</option>`).join('')}</select></label>
     <label class="full"><span><input type="checkbox" data-lay="design" ${it.lay.design?'checked':''}> Koʻcha studiyasi loyihasi</span></label><label class="full"><span><input type="checkbox" data-lay="data" ${it.lay.data?'checked':''}> Maʼlumotlar qatlamlari</span></label></div><div id="mLayers" class="note">Qatlamlar yuklanmoqda…</div><div class="row"><button class="btn sm" id="mPick">Joyni tanlash…</button><button class="btn sm ghost" id="mLeg">Shartli belgilar yaratish</button></div>`;
   if(it.t==='mat'&&it.mW)h+=`<div class="f r"><label class="full">Masshtab 1:<select id="matSc">${[50,100,200,250,500,1000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}${[50,100,200,250,500,1000].includes(+it.scale)?'':`<option selected>${it.scale}</option>`}</select></label></div><div class="note">Kesim haqiqiy oʻlchamda: eni ${it.mW.toFixed(1)} m.</div>`;
-  if(it.t==='image'||it.t==='mat')h+=`<label style="font-size:13.5px"><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</label>`;
+  if(it.t==='image'||it.t==='mat')h+=`<label style="font-size:13.5px"><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</label>`+(it.src?`<div class="row"><button class="btn sm ${CROP===it.id?'':'ghost'}" id="iCrop">${CROP===it.id?'✓ Kesish tayyor':'✂ Kesish (crop)'}</button>${it.crop?'<button class="btn sm ghost" id="iCropR">Kesishni bekor qilish</button>':''}</div>`:'');
   h+=`<div class="f r"><label class="full">Qatlam<select data-k="layer">${doc.layers.map(l=>`<option value="${l.id}" ${(it.layer||'L0')===l.id?'selected':''}>${esc(l.name)}</option>`).join('')}</select></label></div>`;
   h+=`<div class="f r"><label>Shaffoflik<input type="range" min="0.1" max="1" step="0.05" data-k="op" value="${it.op??1}"></label>${it.pts?'':`<label>Burilish, °<input type="number" step="1" data-k="rot" value="${it.rot||0}"></label>`}</div>
     <div class="lbl">Varaqqa tekislash</div><div class="row">${[['l','⇤ Chap'],['ch','↔ Markaz'],['r','Oʻng ⇥'],['t','⤒ Yuqori'],['cv','↕ Oʻrta'],['b','Past ⤓']].map(([k,v])=>`<button class="btn sm ghost" data-al2="${k}">${v}</button>`).join('')}${it.pts?'<button class="btn sm ghost" data-flip="h">⇋ Akslantirish</button><button class="btn sm ghost" data-flip="v">⇵ Akslantirish</button>':''}</div>
     <div class="row"><button class="btn sm ghost" data-z="up">Oldinga</button><button class="btn sm ghost" data-z="dn">Orqaga</button><button class="btn sm ghost" id="iDup">Nusxa</button><button class="btn sm ghost" id="iDel" style="color:var(--bad);border-color:var(--bad)">Oʻchirish</button></div>`;
-  el.innerHTML=h;
+  el.innerHTML=h;{const cb=el.querySelector('#iCrop');if(cb)cb.onclick=()=>{if(CROP===it.id)cropEnd();else cropStart(it);};const cr=el.querySelector('#iCropR');if(cr)cr.onclick=()=>cropReset(it);}
   el.querySelectorAll('[data-k]').forEach(i=>i.onchange=()=>{const k=i.dataset.k,v=i.type==='number'||i.type==='range'||k==='scale'?+i.value:i.value;it[k]=v;if(it.t==='map'&&(k==='scale'||k==='style'||k==='w'||k==='h'))refreshMap(it);if((it.t==='mat')&&k==='w'&&it.aspect){it.h=it.w/it.aspect;if(it.mW)it.scale=Math.round(it.mW*1000/it.w);}commit();renderAll();});
   el.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>{it[b.dataset.sw]=b.dataset.c==='none'?null:b.dataset.c;commit();renderAll();});
   el.querySelectorAll('[data-swc]').forEach(i=>i.onchange=()=>{it[i.dataset.swc]=i.value;commit();renderAll();});
@@ -470,6 +483,7 @@ sv.addEventListener('pointerdown',e=>{if(e.button!==0)return;let P=mm(e);const p
   if(gEl&&!polyD){const [ax,i]=gEl.dataset.guide.split(':');drag={k:'guide',ax,i:+i};return;}
   if(tool!=='select'&&!e.altKey&&!(e.shiftKey&&polyD))P=snapPt(P,[]).p;
   if(tool==='select'){
+    if(CROP&&!hEl&&!(idEl&&idEl.dataset.id===CROP))cropEnd();
     if(hEl&&sel){const it=p.items.find(x=>x.id===sel);drag={k:'h',h:hEl.dataset.h,it,o:clone(it),P};return;}
     if(idEl){const it=p.items.find(x=>x.id===idEl.dataset.id);if(!it||isLocked(it)){sel=null;MS.clear();renderAll();return;}const grp=it.grp?p.items.filter(x=>x.grp===it.grp).map(x=>x.id):[it.id];
       if(e.shiftKey){if(sel===it.id||MS.has(it.id)){grp.forEach(i=>MS.delete(i));if(grp.includes(sel)){sel=[...MS][0]||null;if(sel)MS.delete(sel);}}else{if(sel)MS.add(sel);grp.forEach(i=>MS.add(i));sel=it.id;MS.delete(sel);}renderAll();return;}
@@ -492,10 +506,19 @@ sv.addEventListener('pointermove',e=>{if(polyD){let P=mm(e);const l=polyD.pts[po
   if(drag.k==='box'){drag.P2=P;const x=Math.min(drag.P[0],P[0]),y=Math.min(drag.P[1],P[1]);drawTmp=`<rect x="${x}" y="${y}" width="${Math.abs(P[0]-drag.P[0])}" height="${Math.abs(P[1]-drag.P[1])}" fill="#2f6feb" fill-opacity=".06" stroke="#2f6feb" stroke-width="${.3/zoom}" stroke-dasharray="${1.2/zoom} ${.8/zoom}"/>`;renderPaper();return;}
   if((drag.k==='h'||drag.k==='new')&&!e.altKey&&!e.shiftKey)P=snapPt(P,[it.id]).p;
   const dx=P[0]-(drag.P?drag.P[0]:0),dy=P[1]-(drag.P?drag.P[1]:0);
+  if(drag.k==='mv'&&CROP&&drag.items.length===1&&drag.items[0].id===CROP&&drag.items[0].crop){const x=drag.items[0],o=drag.o[0],c0=o.crop,F=fullBox(o);
+    let dl=-dx/F.w,dt=-dy/F.h;dl=Math.max(-c0.l,Math.min(c0.r,dl));dt=Math.max(-c0.t,Math.min(c0.b,dt));x.crop={l:c0.l+dl,r:c0.r-dl,t:c0.t+dt,b:c0.b-dt};renderPaper();return;}
   if(drag.k==='mv'){let ddx=dx,ddy=dy;if(!e.altKey){const r=snapBB({x:drag.bb.x+dx,y:drag.bb.y+dy,w:drag.bb.w,h:drag.bb.h},drag.items.map(i=>i.id));ddx+=r.dx;ddy+=r.dy;}else SNAPL=[];
     drag.items.forEach((x,i)=>{const o=drag.o[i];if(x.pts)x.pts=o.pts.map(q=>[q[0]+ddx,q[1]+ddy]);else{x.x=o.x+ddx;x.y=o.y+ddy;}});}
   else if(drag.k==='h'){const o=drag.o,h=drag.h;if(h[0]==='p'){it.pts[+h.slice(1)]=P;}else{let x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;if(h.includes('w'))x0=Math.min(P[0],x1-1);if(h.includes('e'))x1=Math.max(P[0],x0+1);if(h.includes('n'))y0=Math.min(P[1],y1-1);if(h.includes('s'))y1=Math.max(P[1],y0+1);
-      const keep=(it.t==='image'||it.t==='mat')&&!e.altKey;if(keep&&it.aspect){const w=x1-x0;if(h==='n'||h==='s'){const hh=y1-y0;const nw=hh*it.aspect;x1=x0+nw;}else{y1=y0+w/it.aspect;}}
+      if(CROP===it.id&&it.crop){// kesish: rasm joyida, faqat koʻrinadigan qism oʻzgaradi
+        const F=fullBox(o);x0=Math.max(F.x,x0);y0=Math.max(F.y,y0);x1=Math.min(F.x+F.w,x1);y1=Math.min(F.y+F.h,y1);if(x1-x0<2||y1-y0<2)return renderPaper();
+        it.crop={l:(x0-F.x)/F.w,r:(F.x+F.w-x1)/F.w,t:(y0-F.y)/F.h,b:(F.y+F.h-y1)/F.h};it.x=x0;it.y=y0;it.w=x1-x0;it.h=y1-y0;it.aspect=it.w/it.h;if(it.mW0)it.mW=it.mW0*(1-it.crop.l-it.crop.r);renderPaper();return;}
+      const keep=(it.t==='image'||it.t==='mat')&&!e.altKey;if(keep&&it.aspect){const w=x1-x0,hh=y1-y0;
+        // qarama-qarshi tomon joyida qoladi (tepadan tortilsa — pastki chet qimirlamaydi)
+        if(h==='n'||h==='s'){const nw=hh*it.aspect;if(h==='n'){const cx=o.x+o.w/2;x0=cx-nw/2;x1=cx+nw/2;}else{const cx=o.x+o.w/2;x0=cx-nw/2;x1=cx+nw/2;}}
+        else if(h==='e'||h==='w'){const nh=w/it.aspect,cy=o.y+o.h/2;y0=cy-nh/2;y1=cy+nh/2;}
+        else if(h.includes('n'))y0=y1-w/it.aspect;else y1=y0+w/it.aspect;}
       if(it.t==='icon'){const d=Math.max(x1-x0,y1-y0);x1=x0+d;y1=y0+d;}it.x=x0;it.y=y0;it.w=x1-x0;it.h=y1-y0;if(it.t==='mat'&&it.mW)it.scale=Math.round(it.mW*1000/it.w);}}
   else if(drag.k==='new'){if(it.pts)it.pts[1]=e.shiftKey?snap45(it.pts[0],P):P;else{it.x=Math.min(P[0],drag.P[0]);it.y=Math.min(P[1],drag.P[1]);it.w=Math.abs(dx);it.h=Math.abs(dy);}}
   else if(drag.k==='pen'){const l=it.pts[it.pts.length-1];if(Math.hypot(P[0]-l[0],P[1]-l[1])>.6/zoom)it.pts.push(P);}
@@ -509,7 +532,7 @@ sv.addEventListener('pointerup',()=>{SNAPL=[];if(!drag)return;const it=drag.it,k
   if(k==='h'&&it.t==='map')refreshMap(it);
   commit();renderAll();});
 function finishPoly(){if(!polyD)return;const it=polyD;polyD=null;drawTmp='';const q=[];it.pts.forEach(p=>{const l=q[q.length-1];if(!l||Math.hypot(p[0]-l[0],p[1]-l[1])>.5)q.push(p);});it.pts=q;if(it.pts.length<(it.t==='poly'?3:2)){pg().items=pg().items.filter(x=>x!==it);sel=null;}setTool('select');commit();renderAll();}
-sv.addEventListener('dblclick',e=>{if(polyD){finishPoly();return;}const idEl=e.target.closest('[data-id]')||document.elementsFromPoint(e.clientX,e.clientY).map(x=>x.closest&&x.closest('[data-id]')).find(Boolean);if(!idEl)return;const it=pg().items.find(x=>x.id===idEl.dataset.id);if(!it)return;if(it.t==='text')openEditor(it);if(it.t==='map')pickMap(it);if(it.t==='image'&&(it.ph||!it.src))fillFrame(it);});
+sv.addEventListener('dblclick',e=>{if(polyD){finishPoly();return;}const idEl=e.target.closest('[data-id]')||document.elementsFromPoint(e.clientX,e.clientY).map(x=>x.closest&&x.closest('[data-id]')).find(Boolean);if(!idEl)return;const it=pg().items.find(x=>x.id===idEl.dataset.id);if(!it)return;if(it.t==='text')openEditor(it);if(it.t==='map')pickMap(it);if(it.t==='image'&&(it.ph||!it.src))fillFrame(it);else if((it.t==='image'||it.t==='mat')&&it.src)cropStart(it);});
 let LPD=null;
 function fillFrame(it){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{it.src=r.result;it.aspect=im.width/im.height;it.fit='cover';it.frame=false;commit();renderAll();toast('Rasm ramkaga qoʻyildi — ortiqcha qismi kesiladi.');};im.src=r.result;};r.readAsDataURL(f);};inp.click();}
 function tplPage(t){const p={id:uid(),fmt:t.fmt,orient:t.orient,tb:t.tb,items:[]};const [W,Hh]=pageWH(p);p.items=t.fn(W,t.tb?Hh-30:Hh).map(o=>{const it=Object.assign({id:uid()},clone(o));if(it.t==='legend')it.h=legendH(it);return it;});return p;}
@@ -546,6 +569,7 @@ function multiProps(el){const A=E_();el.innerHTML=`<div style="font-size:16px;fo
 function dupSel(){const p=pg(),A=E_();if(!A.length)return;const gm={},N=A.map(it=>{const c=clone(it);c.id=uid();if(c.grp)c.grp=gm[c.grp]||(gm[c.grp]=uid());if(c.pts)c.pts=c.pts.map(q=>[q[0]+5,q[1]+5]);else{c.x+=5;c.y+=5;}p.items.push(c);return c;});MS.clear();sel=N[0].id;N.slice(1).forEach(c=>MS.add(c.id));commit();renderAll();}
 function delSel(){const p=pg(),A=E_();if(!A.length)return;const ids=new Set(A.map(x=>x.id));p.items=p.items.filter(x=>!ids.has(x.id));sel=null;MS.clear();commit();renderAll();}
 document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;const k=e.key.toLowerCase();
+  if(CROP&&(e.key==='Enter'||e.key==='Escape')){e.preventDefault();e.stopPropagation();cropEnd();return;}
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();redo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='d'){e.preventDefault();dupSel();return;}
   if(k==='delete'||k==='backspace'){if(sel){e.preventDefault();delSel();}return;}
@@ -697,7 +721,8 @@ async function pageCanvas(p,dpi){const [W,Hh]=pageWH(p),k=dpi/25.4,cv=document.c
   const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,cv.width,cv.height);await document.fonts.ready;
   for(const it of layOrder(p)){if(it.t==='image'||it.t==='mat'||it.t==='map'){let src=it.src;if(it.t==='map'&&it.lat!=null){try{src=(await mapCanvas(it,Math.min(dpi,220)));}catch(e){src=it.src;}}
       const im=src instanceof HTMLCanvasElement?src:await loadImg(src);c.save();c.globalAlpha=it.op??1;if(it.rot){c.translate((it.x+it.w/2)*k,(it.y+it.h/2)*k);c.rotate(it.rot*R);c.translate(-(it.x+it.w/2)*k,-(it.y+it.h/2)*k);}
-      if(im){if(it.t==='map')c.drawImage(im,it.x*k,it.y*k,it.w*k,it.h*k);else if(it.fit==='cover'){const a=(im.width||1)/(im.height||1),b=it.w/it.h;let sw=im.width,sh=im.height,sx=0,sy=0;if(a>b){sw=im.height*b;sx=(im.width-sw)/2;}else{sh=im.width/b;sy=(im.height-sh)/2;}c.drawImage(im,sx,sy,sw,sh,it.x*k,it.y*k,it.w*k,it.h*k);}
+      if(im&&it.crop&&it.t!=='map'){const C=it.crop,iw=im.width||1,ih=im.height||1;c.drawImage(im,C.l*iw,C.t*ih,(1-C.l-C.r)*iw,(1-C.t-C.b)*ih,it.x*k,it.y*k,it.w*k,it.h*k);}
+      else if(im){if(it.t==='map')c.drawImage(im,it.x*k,it.y*k,it.w*k,it.h*k);else if(it.fit==='cover'){const a=(im.width||1)/(im.height||1),b=it.w/it.h;let sw=im.width,sh=im.height,sx=0,sy=0;if(a>b){sw=im.height*b;sx=(im.width-sw)/2;}else{sh=im.width/b;sy=(im.height-sh)/2;}c.drawImage(im,sx,sy,sw,sh,it.x*k,it.y*k,it.w*k,it.h*k);}
         else{const a=(im.width||1)/(im.height||1),bw=it.w,bh=it.h;let w=bw,h=bw/a;if(h>bh){h=bh;w=bh*a;}c.drawImage(im,(it.x+(bw-w)/2)*k,(it.y+(bh-h)/2)*k,w*k,h*k);}}
       if(it.t==='map'||it.frame){c.strokeStyle='#141414';c.lineWidth=(it.fsw||.35)*k;c.strokeRect(it.x*k,it.y*k,it.w*k,it.h*k);}c.restore();}
     else if(needSvg(it)){const svg=`<svg xmlns="${NS}" width="${cv.width}" height="${cv.height}" viewBox="0 0 ${W} ${Hh}">${itemSVG(it,true)}</svg>`;const im=await loadImg('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg));if(im)c.drawImage(im,0,0,cv.width,cv.height);}
@@ -829,6 +854,6 @@ window.addEventListener('resize',()=>renderPaper());
 window.KPS_MK={get doc(){return doc;},pageCanvas};
 })();
 </script>
-<script src="js/i18n.js?v=24"></script>
+<script src="js/i18n.js?v=25"></script>
 </body>
 </html>

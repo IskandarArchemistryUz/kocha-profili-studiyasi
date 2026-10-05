@@ -29,6 +29,9 @@ Koʻchalarni tahlil qilish va qayta loyihalash uchun brauzer asbobi — Toshkent
 
 **Xaritalar** — Esri sunʼiy yoʻldosh, OSM nomlar va maʼmuriy chegaralar (Overpass), OpenStreetMap, CARTO Voyager, Google sunʼiy yoʻldosh (foydalanuvchining Map Tiles API kaliti bilan).
 
+**AI · hudud bahosi** (`ai.html`) — hudud doira, toʻrtburchak yoki erkin chegara bilan tanlanadi; «Faqat hudud ichi» — tashqarisi xaritada, albomda va 3D da kesiladi. Qatlamlar: piyoda tarmogʻi, bekatlar, 15 daqiqa xizmatlari, binolar, yashil/suv, temir yoʻl, metro, tramvay, aeroport, yer foydalanish. Shovqin proksi — magistral yoʻllar, temir yoʻl/tramvay va aeroport (uchish-qoʻnish yoʻlagi va parvoz koridori) boʻyicha masofa; oʻlchov emas.
+**3D / vektor** — hudud 3D modeli: koʻrinish (NW/NE/SW/SE izometriya, yuqoridan, koʻz sathi, perspektiva, soyalar), grafika (konturiz, ingichka kontur, oq-qora), qatlamlar va ranglar, ikonkalar ustunda; yuklab olish: SVG (vektor illyustratsiya), PNG, OBJ+MTL, DXF (3DFACE + rejadagi chiziqlar), STL (1:1000–1:10 000, mm), GLB, DAE (SketchUp); albomga yuborish.
+
 **Dizayn-kod · peshlavha** (`dizaynkod.html`) — Toshkent dizayn-kodi (Kengash qarori 2026-yil 17-fevral, VII-19-17-14-0-K/26, 2-ilova, P2.3 §2) boʻyicha peshlavhani fasad rasmida tekshirish. 4 qadam: rasm → eshik (tekislash va masshtab eshik oʻlchami boʻyicha) → fasad chegaralari va qavatlar → viveska. Har bir talab boʻlim, bet va soʻzma-soʻz iqtibos bilan; xato boʻlsa «Tuzatish» tugmasi. Yaqinlashtirish, chizgʻichlar, oʻlcham chiziqlari, magnit, kunduzgi/kechki yoritish koʻrinishi. Qoidalar sahifa ichida JSON koʻrinishida (205 qoida); hujjatdagi noaniqliklar boʻyicha loyiha talqinlari (Q-01…Q-13) — rasmiy tushuntirish emas.
 
 ## Tuzilishi

@@ -41,7 +41,7 @@ const save=()=>{try{const o={};Object.values(LY).forEach(l=>{o[l.id]=l.st;});loc
 /* ---- kanvas nuqta qatlami ---- */
 const PtLayer=L.Layer.extend({
   initialize(ly){this.ly=ly;},
-  onAdd(map){this._map=map;const c=this._c=L.DomUtil.create('canvas','uly-pt');c.style.cssText='position:absolute;pointer-events:none';map.getPane('overlayPane').appendChild(c);
+  onAdd(map){this._map=map;const c=this._c=L.DomUtil.create('canvas','uly-pt');c.style.cssText='position:absolute;pointer-events:none';(map.getPane('ulyPt')||map.getPane('overlayPane')).appendChild(c);
     this._r=()=>this.redraw();this._h=()=>{c.style.display='none';};map.on('moveend zoomend resize viewreset',this._r);map.on('zoomstart',this._h);this.redraw();},
   onRemove(map){map.off('moveend zoomend resize viewreset',this._r);map.off('zoomstart',this._h);this._c.remove();},
   redraw(){const map=this._map;if(!map)return;const c=this._c,sz=map.getSize(),dpr=Math.min(2,devicePixelRatio||1);c.width=sz.x*dpr;c.height=sz.y*dpr;c.style.width=sz.x+'px';c.style.height=sz.y+'px';c.style.display='';
@@ -105,13 +105,13 @@ function renderLegend(){const ls=ORDER.map(id=>LY[id]).filter(l=>l&&l.st.on&&!l.
 /* ---- SVG eksport (albom uchun) ---- */
 function toSVG(bb,W){const MX=111320*Math.cos((bb[0]+bb[2])/2*Math.PI/180),MY=110574,x0=bb[1]*MX,y1=bb[2]*MY,k=W/((bb[3]-bb[1])*MX),H=(bb[2]-bb[0])*MY*k,P=p=>`${((p[1]*MX-x0)*k).toFixed(1)} ${((y1-p[0]*MY)*k).toFixed(1)}`;
   let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H.toFixed(0)}"><rect width="${W}" height="${H.toFixed(0)}" fill="#fafaf7"/>`;
-  ORDER.map(id=>LY[id]).filter(l=>l&&l.st.on).forEach(l=>{const st=l.st;
+  const KO={raster:0,poly:1,line:2,pt:3};ORDER.map(id=>LY[id]).filter(l=>l&&l.st.on).sort((a,b)=>KO[a.kind]-KO[b.kind]).forEach(l=>{const st=l.st;// rastr → poligon → chiziq → nuqta (ikonkalar doim ustida)
     if(l.kind==='raster'){const r=l.render(st),b=r.bounds;s+=`<image href="${r.url}" x="${((b[0][1]*MX-x0)*k).toFixed(1)}" y="${((y1-b[1][0]*MY)*k).toFixed(1)}" width="${((b[1][1]-b[0][1])*MX*k).toFixed(1)}" height="${((b[1][0]-b[0][0])*MY*k).toFixed(1)}" opacity="${st.opacity}" preserveAspectRatio="none"/>`;return;}
     if(l.kind==='pt'){const sz=(+st.size||4)*W/1000,ic=st.shape==='icon'&&IC[st.icon||l.icon];l.data.forEach(d=>{const p=d.p||d,c=l.colorFn?l.colorFn(d,st)||st.color:st.color,[x,y]=P(p).split(' ');
         s+=st.shape==='square'?`<rect x="${x-sz}" y="${y-sz}" width="${2*sz}" height="${2*sz}" fill="${c}" opacity="${st.opacity}"/>`:`<circle cx="${x}" cy="${y}" r="${sz.toFixed(1)}" fill="${c}" stroke="#fff" stroke-width="${(sz/5).toFixed(2)}" opacity="${st.opacity}"/>`;
         if(ic&&sz>=4){const kk=sz*1.25/24;s+=`<path d="${IC[st.icon||l.icon]}" fill="#fff" fill-rule="evenodd" transform="translate(${(x-12*kk).toFixed(1)} ${(y-12*kk).toFixed(1)}) scale(${kk.toFixed(3)})"/>`;}});return;}
     l.data.forEach(f=>{const g=f.g||f,c=l.colorFn?l.colorFn(f,st)||st.color:st.color;if(!g.length)return;const d='M'+g.map(P).join('L');
-      s+=l.kind==='line'?`<path d="${d}" fill="none" stroke="${c}" stroke-width="${(+st.size*W/1000).toFixed(2)}" opacity="${st.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`:`<path d="${d}Z" fill="${c}" fill-opacity="${st.opacity}" stroke="${l.stroke||c}" stroke-width="${(+st.size*W/1000).toFixed(2)}"/>`;});});
+      const da=l.kind==='line'&&l.dashFn&&l.dashFn(f);s+=l.kind==='line'?`<path d="${d}" fill="none" stroke="${c}" stroke-width="${(+st.size*W/1000).toFixed(2)}" opacity="${st.opacity}" stroke-linecap="round" stroke-linejoin="round"${da?` stroke-dasharray="${String(da).split(' ').map(v=>(+v*W/1000).toFixed(2)).join(' ')}"`:''}/>`:`<path d="${d}Z" fill="${c}" fill-opacity="${st.opacity}" stroke="${l.stroke||c}" stroke-width="${(+st.size*W/1000).toFixed(2)}"/>`;});});
   return {svg:s+'</svg>',W,H,legend:legendItems()};}
 function legendItems(){const out=[];ORDER.map(id=>LY[id]).filter(l=>l&&l.st.on&&!l.noLegend).forEach(l=>{const p=l.legend?l.legend(l.st):null;if(p&&p.length)p.forEach(([c,t])=>out.push({col:c,label:l.name+': '+t,kind:'fill',on:true}));else out.push({col:l.st.color,label:l.name,kind:l.kind==='line'?'line':l.kind==='pt'?'dot':'fill',on:true});});return out;}
 /* ---- uslublar ---- */
@@ -133,7 +133,7 @@ const css=document.createElement('style');css.textContent=`
 .uly-ras{image-rendering:auto}
 @media (max-width:860px){.ulyP{width:220px;max-height:60%}}`;document.head.appendChild(css);
 window.ULY={PAL,IC,LY,set,remove,clear,toSVG,legendItems,restyle,
-  init(map,mapEl,cb){MAP=map;onChange=cb||onChange;PEL=document.createElement('div');PEL.className='ulyP';mapEl.appendChild(PEL);LEL=document.createElement('div');LEL.className='ulyL';LEL.hidden=true;mapEl.appendChild(LEL);bindPanel();renderPanel();},
+  init(map,mapEl,cb){MAP=map;if(!map.getPane('ulyPt')){map.createPane('ulyPt');map.getPane('ulyPt').style.zIndex=450;map.getPane('ulyPt').style.pointerEvents='none';}onChange=cb||onChange;PEL=document.createElement('div');PEL.className='ulyP';mapEl.appendChild(PEL);LEL=document.createElement('div');LEL.className='ulyL';LEL.hidden=true;mapEl.appendChild(LEL);bindPanel();renderPanel();},
   /* qiymat → rang (pogʻonali) */
   step(v,br,pal){let i=0;while(i<br.length&&v>br[i])i++;return pal[Math.min(i,pal.length-1)];},
   /* panjara kataklaridan silliq rastr */

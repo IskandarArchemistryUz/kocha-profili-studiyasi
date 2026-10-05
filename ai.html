@@ -51,9 +51,10 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
 <span class="crumb">/ 06 · AI · HUDUD BAHOSI</span><span class="sp"></span>
 <span class="crumb">HUDUD</span>
-<div class="seg" id="modeSeg"><button data-m="radius" aria-pressed="true">Radius</button><button data-m="poly" aria-pressed="false">Chegara chizish</button></div>
+<div class="seg" id="modeSeg"><button data-m="radius" aria-pressed="true" title="Doira: markazni bosing">Doira</button><button data-m="rect" aria-pressed="false" title="Toʻrtburchak: ikki burchakni bosing">Toʻrtburchak</button><button data-m="poly" aria-pressed="false" title="Erkin chegara: burchaklarni bosing">Erkin chegara</button></div>
 <label class="km">r =<input id="rKm" type="number" min="0.2" max="5" step="0.1" value="1">km</label>
-<button class="btn dark" id="runBtn">Hisoblash</button>
+<label class="km" title="Hududdan tashqarini xaritada, albomda va 3D da kesib tashlash" style="font-family:inherit;font-size:12.5px;gap:6px;cursor:pointer"><input type="checkbox" id="clipCb"> Faqat hudud ichi</label>
+<button class="btn dark" id="runBtn">Hisoblash</button><button class="btn ghost" id="b3d" title="3D model va vektor illyustratsiya: qatlamlar, ranglar, yuklab olish (SVG, PNG, OBJ, DXF, STL, GLB, DAE)">3D / vektor</button>
 <button class="btn ghost" id="albBtn" title="Xarita (yoqilgan qatlamlar, fon bilan), koʻrsatkichlar va 15 daqiqa jadvalini albomga yuborish">Albomga →</button><button class="btn ghost" id="keyBtn">AI kaliti</button>
 </header>
 <main>
@@ -69,7 +70,8 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 </main>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/uly.js?v=1"></script>
+<script src="js/uly.js?v=2"></script>
+<script src="js/ai3d.js?v=1"></script>
 <script>
 (function(){
 'use strict';
@@ -87,18 +89,30 @@ let BASE=localStorage.getItem('kps_ai_base')||'grey';if(!BASES[BASE])BASE='grey'
   d.onclick=e=>{const b=e.target.closest('[data-b]');if(!b)return;map.removeLayer(BASES[BASE]);BASE=b.dataset.b;BASES[BASE].addTo(map);BASES[BASE].bringToBack&&BASES[BASE].bringToBack();localStorage.setItem('kps_ai_base',BASE);d.querySelectorAll('[data-b]').forEach(x=>x.setAttribute('aria-pressed',x===b));};L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
 ULY.init(map,document.querySelector('.mapw'));
 const A=L.layerGroup().addTo(map),O=L.layerGroup().addTo(map);
-let mode='radius',center=null,poly=[],done=false,res=null,aiText='';
+let mode='radius',center=null,poly=[],done=false,res=null,aiText='',rectA=null,rectCur=null,DIRTY=true,CLIP=localStorage.getItem('kps_ai_clip')==='1';
 const KEY=()=>localStorage.getItem('kps_ai_key')||'',MODEL=()=>localStorage.getItem('kps_ai_model')||'claude-sonnet-5';
-function hint(){const h=$('#hint');if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgartiring yoki «Hisoblash» ni bosing.':'<b>Radius.</b> Xaritada markazni bosing.';
+function hint(){const h=$('#hint');if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgartiring yoki «Hisoblash» ni bosing.':'<b>Doira.</b> Xaritada markazni bosing.';
+  else if(mode==='rect')h.innerHTML=done?'<b>Toʻrtburchak tayyor.</b> «Hisoblash» ni bosing yoki qaytadan ikki burchakni bosing.':rectA?'<b>Toʻrtburchak.</b> Qarama-qarshi burchakni bosing.':'<b>Toʻrtburchak.</b> Birinchi burchakni bosing.';
   else h.innerHTML=done?'<b>Chegara tayyor.</b> «Hisoblash» ni bosing.':`<b>Chegara.</b> Burchaklarni bosing (${poly.length}); oxirida — ikki marta bosing yoki Enter.`+(poly.length?'<button id="hCl">Tozalash</button>':'');
   if($('#hCl'))$('#hCl').onclick=()=>{poly=[];done=false;drawArea();hint();};}
-function drawArea(){A.clearLayers();if(mode==='radius'&&center)L.circle(center,{radius:+$('#rKm').value*1000,color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);
+function curRing(){if(LASTD&&LASTD.ring&&!DIRTY)return LASTD.ring;if(mode==='radius'&&center){const r=+$('#rKm').value*1000,mx=111320*Math.cos(center[0]*R),o=[];for(let i=0;i<72;i++){const a=i/72*2*Math.PI;o.push([center[0]+r*Math.sin(a)/MY,center[1]+r*Math.cos(a)/mx]);}return o;}return done&&poly.length>2?poly:null;}
+map.createPane('maskP');map.getPane('maskP').style.zIndex=620;map.getPane('maskP').style.pointerEvents='none';
+const MASK=L.layerGroup().addTo(map);
+function updMask(){MASK.clearLayers();if(!CLIP)return;const r=curRing();if(!r)return;const W=[[-85,-180],[-85,180],[85,180],[85,-180]];
+  L.polygon([W,r],{pane:'maskP',stroke:false,fillColor:'#f4f3f1',fillOpacity:1,interactive:false}).addTo(MASK);L.polygon(r,{pane:'maskP',color:'#141414',weight:1.2,dashArray:'6 5',fill:false,interactive:false}).addTo(MASK);}
+function drawArea(){A.clearLayers();updMask();if(mode==='rect'&&rectA&&rectCur&&!done){const a=rectA,b=rectCur;L.rectangle([[Math.min(a[0],b[0]),Math.min(a[1],b[1])],[Math.max(a[0],b[0]),Math.max(a[1],b[1])]],{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);}
+  if(mode==='rect'&&done&&poly.length)L.polygon(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);
+  if(mode==='radius'&&center)L.circle(center,{radius:+$('#rKm').value*1000,color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);
   if(mode==='poly'&&poly.length){(done?L.polygon(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}):L.polyline(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5'})).addTo(A);poly.forEach(p=>L.circleMarker(p,{radius:3,color:'#7b61d1'}).addTo(A));}}
-map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(mode==='radius'){center=p;}else{if(done){poly=[];done=false;}poly.push(p);}drawArea();hint();});
+map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(mode==='radius'){center=p;}
+  else if(mode==='rect'){if(!rectA||done){rectA=p;rectCur=p;poly=[];done=false;}else{const a=rectA,b=p;poly=[[a[0],a[1]],[a[0],b[1]],[b[0],b[1]],[b[0],a[1]]];done=true;rectA=null;}}
+  else{if(done){poly=[];done=false;}poly.push(p);}DIRTY=true;drawArea();hint();});
+map.on('mousemove',e=>{if(mode==='rect'&&rectA&&!done){rectCur=[e.latlng.lat,e.latlng.lng];drawArea();}});
+$('#clipCb').checked=CLIP;$('#clipCb').onchange=e=>{CLIP=e.target.checked;localStorage.setItem('kps_ai_clip',CLIP?'1':'0');updMask();};
 map.on('dblclick',()=>{if(mode==='poly'&&poly.length>2){done=true;drawArea();hint();}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&mode==='poly'&&poly.length>2&&!e.target.matches('textarea,input')){done=true;drawArea();hint();}});
-document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.km').style.display=mode==='radius'?'flex':'none';drawArea();hint();});
-$('#rKm').oninput=drawArea;
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;poly=[];done=false;rectA=null;DIRTY=true;document.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.km').style.display=mode==='radius'?'flex':'none';drawArea();hint();});
+$('#rKm').oninput=()=>{DIRTY=true;drawArea();};
 /* ---------- geometriya ---------- */
 let LAT0=41.3,MX=111320*Math.cos(41.3*R);const MY=110574;const xy=(lat,lon)=>[lon*MX,lat*MY];
 const ringArea=r=>{let s=0;for(let i=0;i<r.length;i++){const a=xy(r[i][0],r[i][1]),b=xy(r[(i+1)%r.length][0],r[(i+1)%r.length][1]);s+=a[0]*b[1]-b[0]*a[1];}return Math.abs(s)/2;};
@@ -121,6 +135,7 @@ async function compute(){let flt,inside,areaM2,ring;
     const poi=await ovp(`[out:json][timeout:120];(node["highway"="bus_stop"]${flt};node["public_transport"="platform"]${flt};node["railway"~"^(tram_stop|station|subway_entrance)$"]${flt};node["amenity"]${flt};node["shop"]${flt};node["office"]${flt};node["leisure"]${flt};way["amenity"]${flt};way["shop"]${fltB};way["amenity"]${fltB};node["amenity"]${fltB};node["shop"]${fltB};node["leisure"]${fltB};node["highway"="bus_stop"]${fltB};node["public_transport"="platform"]${fltB};node["railway"~"^(tram_stop|station|subway_entrance)$"]${fltB};way["leisure"~"^(park|garden|playground|pitch|sports_centre|fitness_centre|stadium|swimming_pool)$"]${fltB};way["leisure"~"^(park|garden|playground|pitch)$"]${flt};way["landuse"~"^(grass|forest|recreation_ground|meadow)$"]${flt};way["natural"~"^(wood|scrub)$"]${flt};);out center geom;`);
     let blds=null;if(!big){prog(.6,'OSM: binolar…');blds=await ovp(`[out:json][timeout:120];way["building"]${flt};out geom;`);}
     prog(.7,'OSM: yashil hudud, daraxtlar, piyoda oʻtish joylari…');let env={elements:[]};try{env=await ovp(`[out:json][timeout:120];(way["leisure"~"^(park|garden|nature_reserve)$"]${flt};relation["leisure"~"^(park|garden)$"]${flt};way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|orchard|vineyard|allotments|cemetery|flowerbed)$"]${flt};relation["landuse"~"^(grass|forest|recreation_ground|meadow)$"]${flt};way["natural"~"^(wood|scrub|grassland|water)$"]${flt};relation["natural"~"^(wood|water|scrub)$"]${flt};way["waterway"~"^(canal|river|stream)$"]${flt};node["natural"="tree"]${flt};way["natural"="tree_row"]${flt};node["highway"~"^(crossing|traffic_signals)$"]${flt};node["kerb"]${flt};node["wheelchair"]${flt};way["wheelchair"]${flt};);out geom;`);}catch(e){}
+    prog(.78,'OSM: temir yoʻl, tramvay, aeroport, yer foydalanish…');const T=await trnFetch(flt,fltB,ring,inside);
     prog(.9,'Hisoblanmoqda…');
     // koʻcha tarmogʻi
     const CAR=/^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|primary_link|secondary_link|tertiary_link|service)$/,WALK=/^(footway|path|pedestrian|steps|living_street)$/;
@@ -157,7 +172,7 @@ async function compute(){let flt,inside,areaM2,ring;
     let gfa=null,lvTag=0,resGfa=0;if(blds){gfa=0;blds.elements.forEach(w=>{const g=(w.geometry||[]).map(q=>[q.lat,q.lon]);if(g.length<3||!inside(g[0]))return;const t=w.tags||{},a=ringArea(g),lv=parseFloat(t['building:levels']);if(lv>0)lvTag++;const L=lv>0?lv:(+PRM.lv||1);gfa+=a*L;if(/^(apartments|residential|house|detached|semidetached_house|terrace|dormitory)$/.test(t.building))resGfa+=a*L;});}
     const mpp=+PRM.mpp||0;
     const km2=areaM2/1e6,cats=Object.entries(cat).sort((a,b)=>b[1]-a[1]),N=cats.reduce((s,c)=>s+c[1],0),ent=N&&cats.length>1?-cats.reduce((s,[,n])=>s+n/N*Math.log(n/N),0)/Math.log(cats.length):0;
-    res={area_km2:+km2.toFixed(3),mode:mode==='radius'?`radius ${$('#rKm').value} km`:'chizilgan chegara',center:mode==='radius'?center.map(v=>+v.toFixed(5)):null,
+    res={area_km2:+km2.toFixed(3),mode:mode==='radius'?`radius ${$('#rKm').value} km`:mode==='rect'?'toʻrtburchak':'chizilgan chegara',center:mode==='radius'?center.map(v=>+v.toFixed(5)):null,
       intersections:inter,intersection_density_per_km2:+(inter/km2).toFixed(1),street_km_car:+(carLen/1000).toFixed(2),street_density_km_per_km2:+(carLen/1000/km2).toFixed(2),
       walk_paths_km:+(walkLen/1000).toFixed(2),cycle_km:+(cycLen/1000).toFixed(2),sidewalk_tagged_share_pct:carLen?+(sidew/carLen*100).toFixed(1):0,wide_roads_4plus_lanes_km:+(lanesWide/1000).toFixed(2),
       transit_stops:stops.length,transit_400m_coverage_pct:tot?+(cov/tot*100).toFixed(1):0,schools_kindergartens_500m_coverage_pct:tot?+(cov2/tot*100).toFixed(1):0,
@@ -172,8 +187,8 @@ async function compute(){let flt,inside,areaM2,ring;
       notes:['Manba: OpenStreetMap (Overpass), soʻrov sanasi '+new Date().toISOString().slice(0,10)+'. OSM toʻliq boʻlmasligi mumkin — ayniqsa trotuar va bekat teglari.',big?'Hudud katta — binolar qoplami hisoblanmadi.':null,'15 daqiqa: piyoda tarmogʻi (OSM) boʻyicha Dijkstra, tezlik '+F15.summary.speed_kmh+' km/soat; hudud chegarasidan 1,3 km tashqaridagi xizmatlar ham hisobga olingan.',blds?'Qavatlar soni '+(bN?Math.round(lvTag/bN*100):0)+'% binoda OSM da bor, qolganlariga '+(+PRM.lv||1)+' qavat qabul qilindi.':null].filter(Boolean)};
     // xaritada
     try{localStorage.setItem('kps_area_sum',JSON.stringify(Object.assign({t:Date.now()},res)));}catch(e){}
-    res.official_statistics=offRes();CV=null;ENV=null;LASTD={roads,poi,blds,E,stops,serv,interPts,ring,inside,bb:bb0(ring),areaM2,F15};
-    draw15(F15);layersAll();envAsync();
+    res.official_statistics=offRes();CV=null;ENV=null;LASTD={roads,poi,blds,E,stops,serv,interPts,ring,inside,bb:bb0(ring),areaM2,F15,T};
+    DIRTY=false;updMask();draw15(F15);layersAll();envAsync();
     $('#lgd').hidden=false;aiText='';renderRes();
   }catch(e){$('#body').innerHTML=`<div class="note" style="color:var(--bad)">OSM soʻrovi bajarilmadi: ${esc(e.message||e)}. Biroz kutib qayta urining yoki hududni kichraytiring.</div>`;}
   $('#runBtn').disabled=false;}
@@ -247,6 +262,19 @@ function accStats(E,roads,inside,carLen,stops,poi){const cr=E.cross.length,tac=E
   let steps=0;roads.elements.forEach(w=>{if(w.tags.highway==='steps'&&(w.geometry||[]).some(g=>inside([g.lat,g.lon])))steps++;});
   return {crossings:cr,crossings_per_km_street:carLen?+(cr/(carLen/1000)).toFixed(1):null,signalised_crossings:sigC,traffic_signals:E.sig.length,tactile_paving_yes_pct_of_crossings:cr?+(tac/cr*100).toFixed(1):null,tactile_tagged_pct:cr?+(tacTag/cr*100).toFixed(1):null,
     kerbs:kb,wheelchair_tagged:wc,wheelchair_tagged_pois:E.wc.length,steps_ways:steps,note:'OSM teglari asosida; teg yoʻqligi — toʻsiq yoʻqligini anglatmaydi, faqat maʼlumot yoʻqligini.'};}
+/* ---- temir yoʻl, aeroport, yer foydalanish ---- */
+async function trnFetch(flt,fltB,ring,inside){const c0=ring.reduce((s,p)=>[s[0]+p[0]/ring.length,s[1]+p[1]/ring.length],[0,0]),ar=`(around:9000,${c0[0].toFixed(5)},${c0[1].toFixed(5)})`;
+  const T={rail:[],st:[],runway:[],taxi:[],aero:[],land:[]};let j={elements:[]};
+  try{j=await ovp(`[out:json][timeout:120];(way["railway"~"^(rail|light_rail|subway|tram|narrow_gauge|monorail|preserved|funicular)$"]${fltB};node["railway"~"^(station|halt|tram_stop)$"]${fltB};way["aeroway"~"^(runway|taxiway)$"]${ar};way["aeroway"="aerodrome"]${ar};relation["aeroway"="aerodrome"]${ar};way["landuse"~"^(residential|commercial|retail|industrial|railway|education|construction|garages|military|religious)$"]${flt};);out geom;`);}catch(e){return T;}
+  (j.elements||[]).forEach(e=>{const t=e.tags||{};if(e.type==='node'){const p=[e.lat,e.lon];if(inside(p))T.st.push({p,n:t.name||'',k:t.railway});return;}
+    const rings=e.type==='way'&&e.geometry?[e.geometry.map(g=>[g.lat,g.lon])]:e.type==='relation'&&e.members?joinRings(e.members.filter(m=>m.role!=='inner'&&m.geometry).map(m=>m.geometry.map(g=>[g.lat,g.lon]))):[];
+    rings.forEach(g=>{if(g.length<2)return;
+      if(t.railway){T.rail.push({g,k:t.railway,tun:t.tunnel==='yes'||t.tunnel==='building_passage'||+t.layer<0||t.location==='underground',br:t.bridge==='yes',svc:!!t.service});return;}
+      if(t.aeroway==='runway'){T.runway.push(g);return;}if(t.aeroway==='taxiway'){T.taxi.push(g);return;}if(t.aeroway==='aerodrome'){T.aero.push(g);return;}
+      if(t.landuse&&g.length>2)T.land.push({g,u:t.landuse});});});
+  return T;}
+const RAILC={rail:['#3d3d3d','Temir yoʻl'],light_rail:['#5f6b8a','Yengil relsli'],subway:['#7b61d1','Metro (yer usti / tunnel)'],tram:['#b8894f','Tramvay'],narrow_gauge:['#3d3d3d','Tor izli'],other:['#777','Boshqa relsli']};
+const LANDC={residential:['#f1e3b8','Turar joy'],commercial:['#efc7b6','Tijorat'],retail:['#efc7b6','Savdo'],industrial:['#d8cde3','Sanoat'],railway:['#d6d3cf','Temir yoʻl hududi'],education:['#cfe0ea','Taʼlim'],construction:['#e8e2d0','Qurilish'],garages:['#dedbd6','Garajlar'],military:['#e3cfcf','Harbiy'],religious:['#e6dfcf','Diniy']};
 /* ---- qatlamlar ---- */
 const SVC_IC={food:'food',edu:'school',health:'health',green:'park',sport:'sport',cafe:'cafe',serv:'serv',cult:'cult'};
 function walkCls(t){const h=t.highway;if(/^(motorway|trunk|motorway_link|trunk_link)$/.test(h))return 'no';if(/^(footway|pedestrian|path|steps|living_street)$/.test(h))return 'ped';if(h==='cycleway')return 'cyc';if(/^(both|left|right|separate|yes)$/.test(t.sidewalk||t['sidewalk:both']||''))return 'sw';if(h==='service'||h==='track')return 'svc';return 'st';}
@@ -260,6 +288,15 @@ function layersAll(){const D=LASTD;if(!D)return;const P=ULY.PAL;ULY.clear();
   ULY.set('walk',{name:'Piyoda tarmogʻi (OSM)',group:'Harakat va piyoda tarmogʻi',kind:'line',data:wk,on:false,st:{size:1.5,opacity:.9,mode:'cls'},modes:{cls:'Turi boʻyicha',one:'Bir rang'},colorFn:(f,st)=>st.mode==='one'?null:WCOL[f.c][0],legend:st=>st.mode==='one'?[]:Object.values(WCOL).map(([c,n])=>[c,n])});
   ULY.set('stops',{name:'Jamoat transporti bekatlari',group:'Harakat va piyoda tarmogʻi',kind:'pt',data:D.stops,icon:'bus',st:{color:'#1d6fa5',size:5.5,shape:'icon',icon:'bus'}});
   ULY.set('inter',{name:'Chorrahalar',group:'Harakat va piyoda tarmogʻi',kind:'pt',data:D.interPts,on:false,st:{color:'#e8775f',size:2}});
+  // temir yoʻl, aeroport, yer foydalanish
+  if(D.T){const T=D.T;
+    if(T.rail.length)ULY.set('rail',{name:'Temir yoʻl, metro, tramvay',group:'Temir yoʻl va aeroport',kind:'line',data:T.rail,st:{color:'#3d3d3d',size:2.5,opacity:.95,mode:'cls'},modes:{cls:'Turi boʻyicha',one:'Bir rang'},
+      colorFn:(f,st)=>st.mode==='one'?null:(RAILC[f.k]||RAILC.other)[0],dashFn:f=>f.tun?'4 5':null,legend:st=>st.mode==='one'?[]:[...new Set(T.rail.map(f=>RAILC[f.k]?f.k:'other'))].map(k=>RAILC[k])});
+    if(T.st.length)ULY.set('rst',{name:'Vokzal, bekat (temir yoʻl, tramvay)',group:'Temir yoʻl va aeroport',kind:'pt',data:T.st,icon:'metro',st:{color:'#3d3d3d',size:5.5,shape:'icon',icon:'metro'}});
+    if(T.aero.length)ULY.set('aero',{name:'Aeroport hududi',group:'Temir yoʻl va aeroport',kind:'poly',data:T.aero,st:{color:'#c9d3dc',size:.5,opacity:.55}});
+    if(T.runway.length)ULY.set('runway',{name:'Uchish-qoʻnish yoʻlagi',group:'Temir yoʻl va aeroport',kind:'line',data:T.runway,st:{color:'#66747c',size:6,opacity:.9}});
+    if(T.land.length)ULY.set('land',{name:'Yer foydalanish (OSM landuse)',group:'Binolar va zichlik',kind:'poly',data:T.land,on:false,st:{color:'#e9e4d8',size:.2,opacity:.55,mode:'u'},modes:{u:'Turi boʻyicha',one:'Bir rang'},
+      colorFn:(f,st)=>st.mode==='one'?null:(LANDC[f.u]||['#e9e4d8'])[0],legend:st=>st.mode==='one'?[]:[...new Set(T.land.map(f=>f.u))].filter(u=>LANDC[u]).map(u=>LANDC[u])});}
   // xizmatlar
   const byC={};C15.forEach(([c])=>byC[c]=[]);const seen=new Set();D.poi.elements.forEach(e=>{const k=e.type+e.id;if(seen.has(k))return;seen.add(k);const t=e.tags||{},p=e.type==='node'?[e.lat,e.lon]:e.center?[e.center.lat,e.center.lon]:e.geometry&&e.geometry.length?[e.geometry[0].lat,e.geometry[0].lon]:null;if(!p||!D.inside(p))return;cls15(t).forEach(c=>byC[c].push(p));});
   C15.forEach(([c,n,col])=>{if(c==='transit')return;ULY.set('svc_'+c,{name:n,group:'Xizmatlar (15 daqiqa toifalari)',kind:'pt',data:byC[c],icon:SVC_IC[c],on:false,st:{color:col,size:4,shape:'dot',icon:SVC_IC[c]}});});
@@ -289,14 +326,29 @@ function lay15(){const F2=LAST15;if(!F2)return;const N=C15.length,P=ULY.PAL;
     legend:st=>{const p=pals[st.pal]||P.seq;return cat15==='all'?[[p[0],'0–1 tur'],[p[1],'2–3'],[p[2],'4–5'],[p[3],'6–7'],[p[4],'8–9 tur']]:[[p[4],'≤5′'],[p[3],'≤10′'],[p[2],'≤15′'],[p[1],'≤25′'],[st.pal==='rg'?p[0]:P.heat[4],'>25′']];}});}
 /* ---- muhit: havo sifati (Open-Meteo / CAMS) + shovqin proksi ---- */
 async function envAsync(){const D=LASTD;if(!D)return;ENV={};
-  // shovqin proksi: katta yoʻllardan masofa
-  const MAJ=/^(motorway|trunk|primary|motorway_link|trunk_link|primary_link)$/,segs=[],H=new Map(),CS=200,hk=(a,b)=>a+','+b;
-  D.roads.elements.forEach(w=>{const t=w.tags||{};if(!(MAJ.test(t.highway)||(t.highway==='secondary'&&+t.lanes>=4)))return;const g=w.geometry||[];for(let i=1;i<g.length;i++){const a=[g[i-1].lat,g[i-1].lon],b=[g[i].lat,g[i].lon],s=[a,b];segs.push(s);
-    const x0=Math.floor(Math.min(a[0],b[0])*MY/CS),x1=Math.floor(Math.max(a[0],b[0])*MY/CS),y0=Math.floor(Math.min(a[1],b[1])*MX/CS),y1=Math.floor(Math.max(a[1],b[1])*MX/CS);for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){const k=hk(x,y);if(!H.has(k))H.set(k,[]);H.get(k).push(s);}}});
+  // shovqin proksi: magistral yoʻllar, temir yoʻl va aeroportdan masofa
+  const MAJ=/^(motorway|trunk|primary|motorway_link|trunk_link|primary_link)$/,CS=200,hk=(a,b)=>a+','+b;
+  const index=segs=>{const H=new Map();segs.forEach(s=>{const [a,b]=s,x0=Math.floor(Math.min(a[0],b[0])*MY/CS),x1=Math.floor(Math.max(a[0],b[0])*MY/CS),y0=Math.floor(Math.min(a[1],b[1])*MX/CS),y1=Math.floor(Math.max(a[1],b[1])*MX/CS);for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){const k=hk(x,y);if(!H.has(k))H.set(k,[]);H.get(k).push(s);}});return H;};
+  const toSegs=gs=>{const o=[];gs.forEach(g=>{for(let i=1;i<g.length;i++)o.push([g[i-1],g[i]]);});return o;};
   const dseg=(p,[a,b])=>{const px=p[1]*MX,py=p[0]*MY,ax=a[1]*MX,ay=a[0]*MY,bx=b[1]*MX,by=b[0]*MY,dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;let t=L2?((px-ax)*dx+(py-ay)*dy)/L2:0;t=Math.max(0,Math.min(1,t));return Math.hypot(px-ax-t*dx,py-ay-t*dy);};
-  const cells=D.F15.cells.map(c=>{const a=Math.floor(c.p[0]*MY/CS),b=Math.floor(c.p[1]*MX/CS);let d=Infinity;for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)for(const s of H.get(hk(a+i,b+j))||[])d=Math.min(d,dseg(c.p,s));return {p:c.p,d};});
-  const n=cells.length||1;ENV.noise={cells,share_within_50m_pct:+(cells.filter(c=>c.d<=50).length/n*100).toFixed(1),share_50_100m_pct:+(cells.filter(c=>c.d>50&&c.d<=100).length/n*100).toFixed(1),share_100_200m_pct:+(cells.filter(c=>c.d>100&&c.d<=200).length/n*100).toFixed(1),
-    major_road_km:+(segs.reduce((s,[a,b])=>s+dm(a,b),0)/1000).toFixed(2),note:'Proksi: magistral (trunk/primary, 4+ polosali secondary) koʻchalardan toʻgʻri chiziq boʻyicha masofa. Shovqin oʻlchovi emas.'};
+  const near=(H,p,R)=>{const a=Math.floor(p[0]*MY/CS),b=Math.floor(p[1]*MX/CS),n=Math.ceil(R/CS);let d=Infinity;for(let i=-n;i<=n;i++)for(let j=-n;j<=n;j++)for(const s of H.get(hk(a+i,b+j))||[])d=Math.min(d,dseg(p,s));return d;};
+  const rg=[];D.roads.elements.forEach(w=>{const t=w.tags||{};if(!(MAJ.test(t.highway)||(t.highway==='secondary'&&+t.lanes>=4)))return;rg.push((w.geometry||[]).map(g=>[g.lat,g.lon]));});
+  const segs=toSegs(rg),HR=index(segs),T=D.T||{rail:[],runway:[]};
+  const railS=toSegs(T.rail.filter(r=>!r.tun&&/^(rail|light_rail|narrow_gauge|subway|monorail|preserved)$/.test(r.k)).map(r=>r.g)),tramS=toSegs(T.rail.filter(r=>!r.tun&&r.k==='tram').map(r=>r.g)),HL=index(railS),HT=index(tramS);
+  // aeroport: uchish-qoʻnish yoʻlagidan masofa + parvoz yoʻnalishi boʻylab koridor
+  const RW=T.runway.map(g=>{const a=g[0],b=g[g.length-1],ax=a[1]*MX,ay=a[0]*MY,bx=b[1]*MX,by=b[0]*MY,L=Math.hypot(bx-ax,by-ay)||1;return {g,ax,ay,ux:(bx-ax)/L,uy:(by-ay)/L,L};});
+  const airLv=p=>{let lv=0;const px=p[1]*MX,py=p[0]*MY;RW.forEach(r=>{let d=Infinity;for(let i=1;i<r.g.length;i++)d=Math.min(d,dseg(p,[r.g[i-1],r.g[i]]));
+      const s=(px-r.ax)*r.ux+(py-r.ay)*r.uy,lat=Math.abs(-(px-r.ax)*r.uy+(py-r.ay)*r.ux),beyond=s<0?-s:s>r.L?s-r.L:0;
+      let l=d<=1000?4:d<=2500?3:d<=5000?1:0;if(beyond>0&&lat<=700)l=Math.max(l,beyond<=3500?3:beyond<=7000?1:0);lv=Math.max(lv,l);});return lv;};
+  const band=(d,a,b,c)=>d<=a?4:d<=b?3:d<=c?1:0;
+  const cells=D.F15.cells.map(c=>{const d=near(HR,c.p,200),dl=railS.length?near(HL,c.p,400):Infinity,dt=tramS.length?near(HT,c.p,200):Infinity;
+    const s={road:band(d,50,100,200),rail:Math.max(band(dl,60,150,300),dt<=20?3:dt<=50?1:0),air:RW.length?airLv(c.p):0};const lv=Math.max(s.road,s.rail,s.air);
+    return {p:c.p,d,dl,s,lv,src:lv?Object.keys(s).find(k=>s[k]===lv):null};});
+  const n=cells.length||1,pc=f=>+(cells.filter(f).length/n*100).toFixed(1);
+  ENV.noise={cells,share_within_50m_pct:pc(c=>c.d<=50),share_50_100m_pct:pc(c=>c.d>50&&c.d<=100),share_100_200m_pct:pc(c=>c.d>100&&c.d<=200),
+    rail_high_share_pct:pc(c=>c.s.rail>=3),rail_any_share_pct:pc(c=>c.s.rail>=1),airport_high_share_pct:pc(c=>c.s.air>=3),airport_any_share_pct:pc(c=>c.s.air>=1),combined_high_share_pct:pc(c=>c.lv>=3),
+    major_road_km:+(segs.reduce((s,[a,b])=>s+dm(a,b),0)/1000).toFixed(2),rail_km:+(railS.reduce((s,[a,b])=>s+dm(a,b),0)/1000).toFixed(2),runways_within_9km:RW.length,
+    note:'Proksi: (1) magistral koʻchalar (trunk/primary, 4+ polosali secondary) — ≤50 / 100 / 200 m; (2) temir yoʻl, yer usti metro — ≤60 / 150 / 300 m, tramvay — ≤20 / 50 m; (3) aeroport — uchish-qoʻnish yoʻlagidan ≤1 / 2,5 / 5 km va parvoz yoʻnalishi boʻylab 700 m kenglikdagi koridor (yoʻlak oxiridan 3,5 / 7 km). Toʻgʻri chiziq boʻyicha masofa; shovqin oʻlchovi yoki shovqin xaritasi emas.'};
   layNoise();
   // havo sifati
   const c0=D.ring.reduce((s,p)=>[s[0]+p[0]/D.ring.length,s[1]+p[1]/D.ring.length],[0,0]);
@@ -306,8 +358,9 @@ async function envAsync(){const D=LASTD;if(!D)return;ENV={};
       who_2021_aqg_annual_ugm3:{pm2_5:5,pm10:15,no2:10},source:'Open-Meteo Air Quality API (CAMS modeli, ~11–40 km katak) — mahalla darajasidagi oʻlchov emas, shahar fonini koʻrsatadi.'};}
   catch(e){ENV.air={error:String(e.message||e)};}
   if(res){res.environment={air_quality:ENV.air,noise_proxy:Object.fromEntries(Object.entries(ENV.noise).filter(([k])=>k!=='cells')),health_15min:res.fifteen_min&&res.fifteen_min.categories['Poliklinika / dorixona']||null};renderRes();}}
-function layNoise(){const N=ENV&&ENV.noise;if(!N)return;const P=ULY.PAL,F2=LASTD.F15;
-  ULY.set('noise',{name:'Shovqin taʼsiri proksi (magistraldan masofa)',group:'Sogʻliq va ekologiya',kind:'raster',on:false,st:{opacity:.6},note:N.note,render:()=>ULY.grid(N.cells,F2.step,MX,MY,F2.ring,c=>c.d<=50?P.heat[4]:c.d<=100?P.heat[3]:c.d<=200?P.heat[1]:null),legend:()=>[[P.heat[4],'≤50 m'],[P.heat[3],'50–100 m'],[P.heat[1],'100–200 m']]});}
+function layNoise(){const N=ENV&&ENV.noise;if(!N)return;const P=ULY.PAL,F2=LASTD.F15,col=l=>l>=4?P.heat[4]:l>=3?P.heat[3]:l>=1?P.heat[1]:null;
+  ULY.set('noise',{name:'Shovqin taʼsiri proksi (yoʻl, temir yoʻl, aeroport)',group:'Sogʻliq va ekologiya',kind:'raster',on:false,st:{opacity:.6,mode:'all'},modes:{all:'Barcha manbalar',road:'Magistral yoʻllar',rail:'Temir yoʻl, tramvay',air:'Aeroport'},note:N.note,
+    render:st=>ULY.grid(N.cells,F2.step,MX,MY,F2.ring,c=>col(st.mode&&st.mode!=='all'?c.s[st.mode]:c.lv)),legend:()=>[[P.heat[4],'juda yuqori'],[P.heat[3],'yuqori'],[P.heat[1],'oʻrtacha']]});}
 /* ---- CV: sunʼiy yoʻldosh tasviridan koʻkalam/kanop, suv, qattiq qoplama ---- */
 async function cvRun(){const D=LASTD;if(!D){toast('Avval hududni hisoblang.');return;}const bb=D.bb,btn=$('#cvGo');btn.disabled=true;btn.textContent='Tasvirlar yuklanmoqda…';
   const lx=(lon,z)=>(lon+180)/360*2**z,ly=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*2**z;let z=18;
@@ -362,6 +415,9 @@ function secEnv(){const e=res.environment,F=res.fifteen_min;let h=`<div><div cla
   const row=(l,v,w)=>v==null?'':`<div class="met"><span>${l}</span><b style="color:${w!=null&&v>w?'var(--bad)':'inherit'}">${f1(v)} µg/m³</b>${w!=null?`<i><s style="width:${Math.min(100,v/(w*6)*100)}%;background:${v>w?'#b03a2e':'#278062'}"></s></i><small>JSST 2021 yillik yoʻriqnoma: ${w} µg/m³ · 30 kunlik oʻrtacha bilan taqqoslash taxminiy</small>`:''}</div>`;
   if(a.error)h+=`<div class="note">Havo sifati yuklanmadi: ${esc(a.error)}</div>`;else{h+=row('PM2.5, 30 kunlik oʻrtacha',a.pm2_5_mean_30d,5)+row('PM10, 30 kunlik oʻrtacha',a.pm10_mean_30d,15)+row('NO₂, 30 kunlik oʻrtacha',a.no2_mean_30d,10)+row('O₃, 30 kunlik oʻrtacha',a.o3_mean_30d,null)+`<div class="note">${esc(a.source||'')} ${esc(a.period||'')}</div>`;}
   h+=`<div class="met"><span>Magistraldan ≤ 50 m (shovqin proksi)</span><b>${f1(n.share_within_50m_pct)} %</b><small>50–100 m: ${f1(n.share_50_100m_pct)} % · 100–200 m: ${f1(n.share_100_200m_pct)} % hudud kataklari · magistrallar ${f2(n.major_road_km)} km</small></div>`;
+  if(n.rail_any_share_pct!=null)h+=`<div class="met"><span>Temir yoʻl / tramvay taʼsiri</span><b>${f1(n.rail_high_share_pct)} %</b><small>yuqori daraja; har qanday daraja: ${f1(n.rail_any_share_pct)} % · yer usti relsli yoʻllar ${f2(n.rail_km)} km</small></div>
+  <div class="met"><span>Aeroport taʼsiri</span><b>${f1(n.airport_high_share_pct)} %</b><small>yuqori daraja; har qanday: ${f1(n.airport_any_share_pct)} % · 9 km ichida uchish-qoʻnish yoʻlagi: ${n.runways_within_9km}</small></div>
+  <div class="met"><span>Jami: yuqori shovqin xavfi (istalgan manba)</span><b>${f1(n.combined_high_share_pct)} %</b></div>`;
   const hp=F&&F.categories['Poliklinika / dorixona'];if(hp)h+=`<div class="met"><span>Poliklinika / dorixona 15 daqiqada</span><b>${f1(hp.within_15min_pct)} %</b><small>piyoda tarmogʻi boʻyicha; mediana ${hp.median_min!=null?f1(hp.median_min)+'′':'—'}</small></div>`;
   if(res.computer_vision)h+=`<div class="met"><span>Issiqlik orol xavfi proksi (CV)</span><b>${f2(res.computer_vision.heat_proxy_mean_0_1)} / 1</b><small>yashil qoplam kamligi + bino qoplami; harorat oʻlchovi emas</small></div>`;
   return h+'</div>';}
@@ -418,7 +474,9 @@ async function ask(q){if(!res){toast('Avval hududni hisoblang.');return;}if(!KEY
     const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));aiText=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');out.innerHTML=md(aiText);}
   catch(e){out.innerHTML=`<span class="note" style="color:var(--bad)">AI javob bermadi: ${esc(e.message)}</span>`;}}
 $('#askBtn').onclick=()=>ask($('#q').value);document.querySelectorAll('[data-qq]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.qq;ask(b.dataset.qq);});
-$('#runBtn').onclick=compute;$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
+$('#runBtn').onclick=compute;
+$('#b3d').onclick=()=>{if(!LASTD){toast('Avval hududni hisoblang.');return;}if(!window.AI3D){toast('3D modul yuklanmadi.');return;}
+  AI3D.open({D:LASTD,MX,MY,ULY,toast,clip:CLIP,mode:res&&res.mode,lv:+PRM.lv||0,putMat:o=>new Promise((ok,no)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=ok;t.onerror=()=>no(t.error);};r.onerror=()=>no(r.error);})});};$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
 async function baseImg(bb){if(BASE==='none')return null;const U={grey:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}[BASE];if(!U)return null;
   const lx=(lon,z)=>(lon+180)/360*2**z,ly=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*2**z;let z=BASE==='grey'?16:17;
   while(z>11&&(Math.floor(lx(bb[3],z))-Math.floor(lx(bb[1],z))+1)*(Math.floor(ly(bb[0],z))-Math.floor(ly(bb[2],z))+1)>64)z--;
@@ -435,7 +493,8 @@ async function toMaket(){const put=o=>new Promise((ok,no)=>{const r=indexedDB.op
     const src2='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s2);await put({id:'aiT'+Date.now().toString(36),kind:'svg',name:'AI xulosasi',src:src2,thumb:src2,aspect:tw/H2,sub:'matn',t});}
   if(LASTD){const b=LASTD.bb,pad=.04,bb=[b[0]-(b[2]-b[0])*pad,b[1]-(b[3]-b[1])*pad,b[2]+(b[2]-b[0])*pad,b[3]+(b[3]-b[1])*pad],X=ULY.toSVG(bb,1000),BG=await baseImg(bb),R2=LASTD.ring,MXl=111320*Math.cos((bb[0]+bb[2])/2*R),k=1000/((bb[3]-bb[1])*MXl);
     const ringP=`<path d="M${R2.map(p=>`${((p[1]-bb[1])*MXl*k).toFixed(1)} ${((bb[2]-p[0])*MY*k).toFixed(1)}`).join('L')}Z" fill="none" stroke="#141414" stroke-width="2" stroke-dasharray="8 5"/>`;
-    const s4=X.svg.replace(/(<rect width="[^"]+" height="[^"]+" fill="#fafaf7"\/>)/,'$1'+(BG?`<image href="${BG}" x="0" y="0" width="${X.W}" height="${X.H.toFixed(0)}" preserveAspectRatio="none"/>`:'')).replace('</svg>',ringP+'</svg>'),src4='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s4);
+    const ringD=`M${R2.map(p=>`${((p[1]-bb[1])*MXl*k).toFixed(1)} ${((bb[2]-p[0])*MY*k).toFixed(1)}`).join('L')}Z`,cl=CLIP?`<defs><clipPath id="rc"><path d="${ringD}"/></clipPath></defs><g clip-path="url(#rc)">`:'';
+    const s4=X.svg.replace(/(<rect width="[^"]+" height="[^"]+" fill="#fafaf7"\/>)/,(CLIP?'<rect width="'+X.W+'" height="'+X.H.toFixed(0)+'" fill="#ffffff"/>':'$1')+cl+(BG?`<image href="${BG}" x="0" y="0" width="${X.W}" height="${X.H.toFixed(0)}" preserveAspectRatio="none"/>`:'')).replace('</svg>',(CLIP?'</g>':'')+ringP+'</svg>'),src4='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s4);
     await put({id:'amap'+Date.now().toString(36),kind:'svg',name:'Hudud xaritasi — faol qatlamlar',src:src4,thumb:src4,mW:(bb[3]-bb[1])*MXl,aspect:X.W/X.H,sub:res.mode,t,legend:X.legend});}
   if(res.fifteen_min){const F=res.fifteen_min,rw=C15.map(([c,n])=>[n,F.categories[n]]),th2=22,H3=rw.length*th2+56,s3=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tw} ${H3}" font-family="Archivo, sans-serif"><rect width="${tw}" height="${H3}" fill="#fff"/><text x="0" y="18" font-size="15" font-weight="600">15 daqiqalik shahar · ${F.speed_kmh} km/soat</text><text x="250" y="44" font-size="10" fill="#696969">≤5′</text><text x="310" y="44" font-size="10" fill="#696969">≤10′</text><text x="370" y="44" font-size="10" fill="#696969">≤15′</text><text x="${tw}" y="44" font-size="10" fill="#696969" text-anchor="end">med.</text>${rw.map(([n,x],i)=>`<line x1="0" x2="${tw}" y1="${50+i*th2}" y2="${50+i*th2}" stroke="#dedcd7"/><text x="0" y="${50+i*th2+15}" font-size="12" fill="#3c3c3c">${esc(n)}</text>${[x.within_5min_pct,x.within_10min_pct,x.within_15min_pct].map((v,j)=>`<text x="${250+j*60}" y="${50+i*th2+15}" font-size="12" font-family="IBM Plex Mono, monospace">${f1(v)}%</text>`).join('')}<text x="${tw}" y="${50+i*th2+15}" font-size="12" text-anchor="end" font-family="IBM Plex Mono, monospace">${x.median_min!=null?f1(x.median_min)+'′':'—'}</text>`).join('')}</svg>`;
     const src3='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s3);await put({id:'a15'+Date.now().toString(36),kind:'svg',name:'15 daqiqalik shahar — jadval',src:src3,thumb:src3,aspect:tw/H3,sub:res.mode,t,legend:C15.map(([c,n,col])=>({col,label:n,kind:'fill',on:true}))});}
@@ -445,6 +504,6 @@ if(window.KPS_LANG&&window.KPS_LANG!=='uz'){const q=$('#q');q.value=window.kpsT(
 hint();renderRes();
 })();
 </script>
-<script src="js/i18n.js?v=24"></script>
+<script src="js/i18n.js?v=25"></script>
 </body>
 </html>
