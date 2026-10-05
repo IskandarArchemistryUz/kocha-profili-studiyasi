@@ -15,6 +15,7 @@ Koʻchalarni tahlil qilish va qayta loyihalash uchun brauzer asbobi — Toshkent
 - radiusli burilishlar, bordyur radiusi bilan chorrahalar, 7 turdagi aylanma halqa (turbo-halqa ham);
 - koʻcha oʻqdan boshqariladi: oʻq — qatnov qismining markazi, tugunlar shu oʻqda; chetni sudraganda ikki tomon simmetrik oʻzgaradi (Alt — bir tomon);
 - eni har xil koʻchalar ulanganda silliq oʻtish (taper) va uzluksiz oʻq chizigʻi;
+- chorrahaga yaqinlashishda qoʻshimcha boʻlaklar (chapga, oʻngga, qayrilish; 1–2 tadan), toʻplanish va oʻtish (taper) uzunligi — avtomatik (vaziyatga qarab) yoki qoʻlda; uzunliklar namuna qiymat, normativ bilan tasdiqlanadi;
 - chorrahaga yaqinlashishda har bir boʻlakka 1.18 strelkalari (toʻgʻri, chap, oʻng, birikmalar, qayrilish) — avtomatik, bosib yoki panelda almashtiriladi;
 - piyoda oʻtish joylari, bekatlar, parklet, veloparkovka, erkin shakllar va yoʻl chiziqlari;
 - yoʻl belgilari katalogi va avtomatik joylashtirish;
