@@ -55,7 +55,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <label class="km">r =<input id="rKm" type="number" min="0.2" max="5" step="0.1" value="1">km</label>
 <label class="km" title="Hududdan tashqarini xaritada, albomda va 3D da kesib tashlash" style="font-family:inherit;font-size:12.5px;gap:6px;cursor:pointer"><input type="checkbox" id="clipCb"> Faqat hudud ichi</label>
 <button class="btn dark" id="runBtn">Hisoblash</button><button class="btn ghost" id="b3d" title="3D model va vektor illyustratsiya: qatlamlar, ranglar, yuklab olish (SVG, PNG, OBJ, DXF, STL, GLB, DAE)">3D / vektor</button>
-<button class="btn ghost" id="albBtn" title="Xarita (yoqilgan qatlamlar, fon bilan), koʻrsatkichlar va 15 daqiqa jadvalini albomga yuborish">Albomga →</button><button class="btn ghost" id="keyBtn">AI kaliti</button>
+<button class="btn ghost" id="albBtn" title="Xarita (yoqilgan qatlamlar, fon bilan), koʻrsatkichlar va 15 daqiqa jadvalini albomga yuborish">Albomga →</button><button class="btn ghost" id="savBtn" title="Saqlangan tahlillar: qayta ochish, nomlash, oʻchirish">Saqlanganlar</button><button class="btn ghost" id="keyBtn">AI kaliti</button>
 </header>
 <main>
 <div class="mapw"><div id="map"></div><div class="hint" id="hint"></div>
@@ -71,7 +71,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/uly.js?v=2"></script>
-<script src="js/ai3d.js?v=1"></script>
+<script src="js/ai3d.js?v=2"></script>
 <script>
 (function(){
 'use strict';
@@ -120,9 +120,12 @@ const pip=(p,r)=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){if(((r[
 const dm=(a,b)=>Math.hypot((a[1]-b[1])*MX,(a[0]-b[0])*MY);
 /* ---------- Overpass ---------- */
 const OVP=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
-async function ovp(q){let last;for(const u of OVP){try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),70000);const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),signal:ac.signal});clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}catch(e){last=e;}}throw last;}
+/* saqlangan tahlil: OSM javoblari yoziladi va qayta ochilganda tarmoqsiz takrorlanadi */
+let REC=null,REPLAY=null,RESTORE_AI=null,CUR_ID=null;
+async function ovp(q){if(REPLAY&&REPLAY[q]){if(REC)REC[q]=REPLAY[q];return REPLAY[q];}const j=await ovp0(q);if(REC)REC[q]=j;return j;}
+async function ovp0(q){let last;for(const u of OVP){try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),70000);const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),signal:ac.signal});clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}catch(e){last=e;}}throw last;}
 function prog(p,m){$('#body').innerHTML=`<div><div class="lbl">${esc(m)}</div><div class="prog" style="margin-top:8px"><s style="width:${Math.round(p*100)}%"></s></div></div>`;}
-async function compute(){let flt,inside,areaM2,ring;
+async function compute(){let flt,inside,areaM2,ring;REC={};
   if(mode==='radius'){if(!center){toast('Xaritada markazni bosing.');return;}const r=Math.min(5000,Math.max(200,+$('#rKm').value*1000));LAT0=center[0];MX=111320*Math.cos(LAT0*R);flt=`(around:${r},${center[0]},${center[1]})`;inside=p=>dm(p,center)<=r;areaM2=Math.PI*r*r;
     ring=[];for(let i=0;i<48;i++){const a=i/48*2*Math.PI;ring.push([center[0]+r*Math.sin(a)/MY,center[1]+r*Math.cos(a)/MX]);}}
   else{if(!done){toast('Avval chegarani chizing.');return;}LAT0=poly[0][0];MX=111320*Math.cos(LAT0*R);ring=poly;areaM2=ringArea(poly);if(areaM2>8e7){toast('Hudud juda katta (80 km² dan ortiq).');return;}flt=`(poly:"${poly.map(p=>p[0].toFixed(6)+' '+p[1].toFixed(6)).join(' ')}")`;inside=p=>pip(p,poly);}
@@ -189,7 +192,8 @@ async function compute(){let flt,inside,areaM2,ring;
     try{localStorage.setItem('kps_area_sum',JSON.stringify(Object.assign({t:Date.now()},res)));}catch(e){}
     res.official_statistics=offRes();CV=null;ENV=null;LASTD={roads,poi,blds,E,stops,serv,interPts,ring,inside,bb:bb0(ring),areaM2,F15,T};
     DIRTY=false;updMask();draw15(F15);layersAll();envAsync();
-    $('#lgd').hidden=false;aiText='';renderRes();
+    $('#lgd').hidden=false;aiText=RESTORE_AI||'';RESTORE_AI=null;renderRes();
+    saveRun('last').catch(e=>console.warn(e));
   }catch(e){$('#body').innerHTML=`<div class="note" style="color:var(--bad)">OSM soʻrovi bajarilmadi: ${esc(e.message||e)}. Biroz kutib qayta urining yoki hududni kichraytiring.</div>`;}
   $('#runBtn').disabled=false;}
 /* ---- 15 daqiqalik shahar ---- */
@@ -457,8 +461,9 @@ function renderRes(){if(!res){$('#body').innerHTML=`<div><h2>Hudud bahosi</h2><d
   h+=`<div class="met"><span>Bekatlar · chorrahalar · xizmatlar</span><b>${res.transit_stops} · ${res.intersections} · ${res.services_poi}</b></div><div class="met"><span>Maktab · bogʻcha · sogʻliqni saqlash</span><b>${res.social.school} · ${res.social.kindergarten} · ${res.social.health}</b></div></div>
     ${sec15()}${secNodes()}${secDens()}${secEnv()}${secAcc()}${secCV()}${secOff()}<div class="note">${res.notes.map(esc).join('<br>')}</div>`;
   h+=`<div><div class="lbl" style="color:var(--ai)">AI xulosasi · qoralama, tekshiring</div><div class="ai" id="aiOut">${aiText?md(aiText):(KEY()?'<span class="note">Yuqoridagi soʻrovni yuboring (↑) yoki tugmalardan birini tanlang.</span>':'')}</div></div>${KEY()?'':keyBox()}
-    ${prmBox()}<div class="chips"><button id="toMk">Albomga →</button><button id="cpJ">JSON nusxa</button></div>`;
+    ${prmBox()}<div class="chips"><button id="svRun">💾 Saqlash</button><button id="toMk">Albomga →</button><button id="cpJ">JSON nusxa</button></div>`;
   $('#body').innerHTML=h;bindKey();bind15();bindCV();bindOff();
+  $('#svRun').onclick=()=>{const n=prompt('Tahlil nomi:',CUR_ID&&CUR_ID!=='last'&&CUR_NAME?CUR_NAME:defName());if(n==null)return;saveRun(CUR_ID&&CUR_ID!=='last'?CUR_ID:'r'+Date.now().toString(36),n).then(()=>toast('Saqlandi: '+n+'. «Saqlanganlar» dan qayta ochasiz.')).catch(e=>toast('Saqlanmadi: '+(e.message||e)));};
   $('#toMk').onclick=()=>toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));$('#cpJ').onclick=()=>{navigator.clipboard.writeText(JSON.stringify(res,null,2));toast('Koʻrsatkichlar nusxalandi.');};}
 function keyBox(){return `<div class="keybox"><b>AI xulosasi uchun Anthropic API kaliti</b><span class="note">Sayt serversiz ishlaydi: soʻrov brauzeringizdan toʻgʻridan-toʻgʻri Anthropic API ga ketadi. Kalit faqat shu brauzerda saqlanadi; har soʻrov kalit egasining hisobidan toʻlanadi. Kalit: console.anthropic.com → API Keys.</span>
   <input type="password" id="kIn" placeholder="sk-ant-..." value="${esc(KEY())}"><select id="kMod"><option value="${esc(MODEL())}">${esc(MODEL())}</option></select><div style="display:flex;gap:6px"><button class="btn sm dark" id="kSave">Saqlash</button><button class="btn sm ghost" id="kDel">Oʻchirish</button></div></div>`;}
@@ -471,7 +476,7 @@ async function ask(q){if(!res){toast('Avval hududni hisoblang.');return;}if(!KEY
   const sys="Siz Oʻzbekiston va Markaziy Osiyo shaharlarini yaxshi biladigan urbanist-ekspertsiz. Javobni oʻzbek tilida (lotin), qisqa va tuzilgan holda bering: ## Umumiy baho, ## Kuchli tomonlar, ## Zaif tomonlar, ## Tavsiyalar. Faqat foydalanuvchi bergan JSON koʻrsatkichlarga tayaning; yangi raqam, norma bandi yoki manba oʻylab topmang. Normaga ishora kerak boʻlsa, «tegishli me'yor bilan tekshirish kerak» deb yozing. OSM maʼlumotlari toʻliq boʻlmasligi mumkinligini hisobga oling va qaysi xulosa joyida tekshirishni talab qilishini ayting. Xalqaro taqqoslashlarni faqat umumiy tamoyil sifatida keltiring.";
   try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':KEY(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:MODEL(),max_tokens:1800,system:sys+(window.KPS_LANG==='ru'?' Отвечай на русском языке.':window.KPS_LANG==='en'?' Answer in English.':''),messages:[{role:'user',content:`Hudud koʻrsatkichlari (JSON):\n${JSON.stringify(res,null,1)}\n\nSoʻrov: ${q}`}]})});
-    const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));aiText=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');out.innerHTML=md(aiText);}
+    const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));aiText=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');out.innerHTML=md(aiText);saveRun('last').catch(()=>{});if(CUR_ID&&CUR_ID!=='last')saveRun(CUR_ID,CUR_NAME).catch(()=>{});}
   catch(e){out.innerHTML=`<span class="note" style="color:var(--bad)">AI javob bermadi: ${esc(e.message)}</span>`;}}
 $('#askBtn').onclick=()=>ask($('#q').value);document.querySelectorAll('[data-qq]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.qq;ask(b.dataset.qq);});
 $('#runBtn').onclick=compute;
@@ -501,9 +506,37 @@ async function toMaket(){const put=o=>new Promise((ok,no)=>{const r=indexedDB.op
   toast('Albomga yuborildi.');}
 
 if(window.KPS_LANG&&window.KPS_LANG!=='uz'){const q=$('#q');q.value=window.kpsT(q.value);}
+/* ---------- saqlangan tahlillar (IndexedDB) ---------- */
+let CUR_NAME=null,LASTREC=null;
+const rdb=()=>new Promise((ok,no)=>{const r=indexedDB.open('kps_ai_runs',1);r.onupgradeneeded=()=>r.result.createObjectStore('runs',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
+async function rdo(mode,fn){const db=await rdb();return new Promise((ok,no)=>{const t=db.transaction('runs',mode),st=t.objectStore('runs');let out;const rq=fn(st);if(rq)rq.onsuccess=()=>{out=rq.result;};t.oncomplete=()=>ok(out);t.onerror=()=>no(t.error);t.onabort=()=>no(t.error||new Error('abort'));});}
+const defName=()=>(res?res.mode:'Hudud')+' · '+new Date().toLocaleDateString('ru-RU');
+async function saveRun(id,name){if(!res||!LASTD)throw new Error('Avval hududni hisoblang.');if(id==='last'||!LASTREC||LASTREC._t!==LASTD){LASTREC={q:REC||{},_t:LASTD};}
+  const o={id,name:name||(id==='last'?'Oxirgi tahlil':defName()),t:new Date().toISOString(),sel:{mode,center,poly,r:+$('#rKm').value},q:LASTREC.q,ai:aiText,label:res.mode,area:res.area_km2,cv:res.computer_vision||null};
+  await rdo('readwrite',st=>st.put(o));if(id!=='last'){CUR_ID=id;CUR_NAME=o.name;}}
+async function listRuns(){const all=await rdo('readonly',st=>st.getAll());return (all||[]).map(r=>({id:r.id,name:r.name,t:r.t,label:r.label,area:r.area,hasAI:!!r.ai})).sort((a,b)=>(a.id==='last')-(b.id==='last')||b.t.localeCompare(a.t));}
+async function openRun(id,quiet){const r=await rdo('readonly',st=>st.get(id));if(!r){if(!quiet)toast('Topilmadi.');return false;}
+  mode=r.sel.mode;document.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.m===mode));$('.km').style.display=mode==='radius'?'flex':'none';
+  $('#rKm').value=r.sel.r;center=r.sel.center;poly=r.sel.poly||[];done=mode!=='radius';rectA=null;DIRTY=true;drawArea();hint();
+  const ring=mode==='radius'?curRing():poly;if(ring&&ring.length)map.fitBounds(L.latLngBounds(ring).pad(.08));
+  REPLAY=r.q||{};RESTORE_AI=r.ai||null;CUR_ID=id==='last'?null:id;CUR_NAME=id==='last'?null:r.name;
+  try{await compute();}finally{REPLAY=null;}LASTREC={q:r.q||{},_t:LASTD};if(!quiet)toast('Ochildi: '+r.name);return true;}
+async function runsUI(){let rows=[];try{rows=await listRuns();}catch(e){toast('Saqlanganlarni oʻqib boʻlmadi: '+(e.message||e));return;}
+  const d=s=>new Date(s).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  $('#body').innerHTML=`<div><h2>Saqlangan tahlillar</h2><div class="sub">Brauzerda saqlanadi (IndexedDB) · OSM maʼlumotlari bilan birga — qayta ochilganda internetsiz tiklanadi</div></div>
+  ${res?'<div><button class="btn sm ghost" id="rvBack">← Natijaga qaytish</button></div>':''}
+  ${rows.length?rows.map(r=>`<div class="met" style="grid-template-columns:1fr auto"><span><b style="font-family:inherit;font-weight:500">${esc(r.id==='last'?'Oxirgi tahlil (avto)':r.name)}</b><br><span class="note">${esc(r.label||'')} · ${r.area!=null?f2(r.area)+' km²':''} · ${d(r.t)}${r.hasAI?' · AI xulosasi bor':''}</span></span>
+    <span style="display:flex;gap:4px;align-items:center"><button class="btn sm dark" data-ro="${esc(r.id)}">Ochish</button>${r.id==='last'?'':`<button class="btn sm ghost" data-rn="${esc(r.id)}" title="Nomini oʻzgartirish">✎</button>`}<button class="btn sm ghost" data-rd="${esc(r.id)}" title="Oʻchirish" style="color:var(--bad);border-color:var(--bad)">✕</button></span></div>`).join(''):'<div class="note">Hali saqlangan tahlil yoʻq. Hisoblagandan keyin «💾 Saqlash» ni bosing; oxirgi tahlil avtomatik saqlanadi.</div>'}`;
+  if($('#rvBack'))$('#rvBack').onclick=renderRes;
+  document.querySelectorAll('[data-ro]').forEach(b=>b.onclick=()=>openRun(b.dataset.ro).catch(e=>toast('Ochilmadi: '+(e.message||e))));
+  document.querySelectorAll('[data-rd]').forEach(b=>b.onclick=async()=>{if(!confirm('Oʻchirilsinmi?'))return;await rdo('readwrite',st=>st.delete(b.dataset.rd));if(CUR_ID===b.dataset.rd){CUR_ID=null;CUR_NAME=null;}runsUI();});
+  document.querySelectorAll('[data-rn]').forEach(b=>b.onclick=async()=>{const r=await rdo('readonly',st=>st.get(b.dataset.rn));const n=prompt('Yangi nom:',r.name);if(!n)return;r.name=n;await rdo('readwrite',st=>st.put(r));if(CUR_ID===r.id)CUR_NAME=n;runsUI();});}
+$('#savBtn').onclick=runsUI;
 hint();renderRes();
+// sahifa ochilganda oxirgi tahlilni tiklash
+openRun('last',true).then(ok=>{if(ok)toast('Oxirgi tahlil tiklandi. Boshqalari — «Saqlanganlar» da.');}).catch(()=>{});
 })();
 </script>
-<script src="js/i18n.js?v=25"></script>
+<script src="js/i18n.js?v=26"></script>
 </body>
 </html>

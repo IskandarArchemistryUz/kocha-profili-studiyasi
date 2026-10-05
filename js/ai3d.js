@@ -95,7 +95,7 @@ async function open(ctx){if(!document.getElementById('a3css')){const st=document
   const key=e=>{if(e.key==='Escape')close();};document.addEventListener('keydown',key);ov.querySelector('#a3x').onclick=close;
   try{await load('three');await load('orbit');}catch(e){ov.querySelector('#a3b').textContent=T('3D kutubxonani yuklab boʻlmadi')+': '+e.message;return;}
   let pal;try{pal=Object.assign({},PAL0,JSON.parse(localStorage.getItem('kps_a3_pal')||'{}'));}catch(e){pal=Object.assign({},PAL0);}
-  let opt={view:'sw',persp:false,shadow:true,preset:'none',lay:{},bmode:'one',lv:ctx.lv||2,fh:3.2,pinH:45,pinS:1,stl:2000};try{Object.assign(opt,JSON.parse(localStorage.getItem('kps_a3_opt')||'{}'));}catch(e){}
+  let opt={view:'sw',persp:false,shadow:true,preset:'none',lay:{},bmode:'one',lv:ctx.lv||2,fh:3.2,pinK:.6,pinS:1,stl:2000};try{Object.assign(opt,JSON.parse(localStorage.getItem('kps_a3_opt')||'{}'));}catch(e){}
   S={ctx,ov,pal,opt,data:prep(ctx)};S.opt.lay=Object.assign({bld:1,tree:1,road:1,rail:1,green:1,water:1,pins:1,ras:0,base:1,legend:1},S.opt.lay||{});
   const d=S.data;ov.querySelector('#a3st').innerHTML=[['Binolar',d.blds.length],['Koʻchalar, km',d.roadKm.toFixed(1)],['Daraxtlar',d.trees.length],['Ikonkalar',d.pins.length],['Maydon, km²',d.areaKm2.toFixed(2)]].map(([n,v])=>`<div>${T(n)}<b>${v}</b></div>`).join('');
   initGL();buildAll();panel();setView(S.opt.view,true);ov.querySelector('#a3b').remove();}
@@ -110,7 +110,7 @@ function panel(){const o=S.opt,p=S.pal,el=S.ov.querySelector('#a3p');const L=o.l
   <div><div class="lb">${T('Binolar')}</div><div class="g3">${[['one','Bir rang'],['lv','Qavatlar'],['use','Funksiya']].map(([k,n])=>`<button class="b" data-bm="${k}" aria-pressed="${o.bmode===k}">${T(n)}</button>`).join('')}</div>
     <div class="rw" style="margin-top:6px"><span>${T('Tegsiz bino, qavat')}</span><input type="range" min="1" max="9" step="1" id="a3lv" value="${o.lv}"><output>${o.lv}</output></div>
     <div class="rw"><span>${T('Qavat balandligi, m')}</span><input type="range" min="2.7" max="4.5" step=".1" id="a3fh" value="${o.fh}"><output>${o.fh}</output></div></div>
-  <div><div class="lb">${T('Ikonkalar')}</div><div class="rw"><span>${T('Ustun balandligi, m')}</span><input type="range" min="0" max="150" step="5" id="a3ph" value="${o.pinH}"><output>${o.pinH}</output></div>
+  <div><div class="lb">${T('Ikonkalar')}</div><div class="rw"><span>${T('Ustun balandligi, m')}</span><input type="range" min="0" max="${Math.round(S.data.R*1.2/10)*10}" step="10" id="a3ph" value="${pinH()}"><output>${pinH()}</output></div>
     <div class="rw"><span>${T('Oʻlchami')}</span><input type="range" min=".5" max="2.5" step=".1" id="a3ps" value="${o.pinS}"><output>${o.pinS}</output></div><div class="nt">${T('Xaritada yoqilgan nuqta qatlamlari (bekat, maktab, kafe…) ustunga koʻtariladi.')}</div></div>
   <div><div class="lb">${T('Ranglar')}</div><div class="cl">${[['bg','Fon'],['ground','Yer'],['base','Asos'],['bld','Binolar'],['green','Yashil'],['water','Suv'],['tree','Daraxtlar'],['road','Koʻchalar'],['major','Magistral'],['foot','Piyoda yoʻli'],['rail','Temir yoʻl'],['edge','Kontur']].map(([k,n])=>`<label><input type="color" data-pc="${k}" value="${p[k]}">${T(n)}</label>`).join('')}</div><button class="b" id="a3rc" style="margin-top:6px;width:100%">${T('Ranglarni tiklash')}</button></div>
   <div><div class="lb">${T('Yuklab olish')}</div><div class="dl">
@@ -122,10 +122,10 @@ function panel(){const o=S.opt,p=S.pal,el=S.ov.querySelector('#a3p');const L=o.l
   el.querySelector('#a3pp').onchange=e=>{o.persp=e.target.checked;setView(o.view);};
   el.querySelector('#a3sh').onchange=e=>{o.shadow=e.target.checked;applyShadow();saveOpt();render();};
   el.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{o.preset=b.dataset.pr;const pr=PRESET[o.preset];Object.assign(S.pal,PAL0,pr);delete S.pal.edges;restyle();panel();saveOpt();});
-  el.querySelectorAll('[data-ly]').forEach(i=>i.onchange=()=>{L[i.dataset.ly]=i.checked?1:0;vis();saveOpt();render();});
+  el.querySelectorAll('[data-ly]').forEach(i=>i.onchange=()=>{L[i.dataset.ly]=i.checked?1:0;vis();saveOpt();if(i.dataset.ly==='pins')setView(o.view);else render();});
   el.querySelectorAll('[data-bm]').forEach(b=>b.onclick=()=>{o.bmode=b.dataset.bm;buildBlds();panel();saveOpt();render();});
   const rng=(id,k,fn)=>{const i=el.querySelector(id);i.oninput=()=>{o[k]=+i.value;i.nextElementSibling.textContent=i.value;fn();render();};i.onchange=saveOpt;};
-  rng('#a3lv','lv',buildBlds);rng('#a3fh','fh',buildBlds);rng('#a3ph','pinH',buildPins);rng('#a3ps','pinS',buildPins);
+  rng('#a3lv','lv',buildBlds);rng('#a3fh','fh',buildBlds);{const i=el.querySelector('#a3ph');i.oninput=()=>{o.pinK=+i.value/S.data.R;i.nextElementSibling.textContent=i.value;buildPins();fitCam();render();};i.onchange=saveOpt;}rng('#a3ps','pinS',buildPins);
   el.querySelectorAll('[data-pc]').forEach(i=>i.oninput=()=>{S.pal[i.dataset.pc]=i.value;restyle();saveOpt();});
   el.querySelector('#a3rc').onclick=()=>{S.pal=Object.assign({},PAL0,PRESET[o.preset]);delete S.pal.edges;restyle();panel();saveOpt();};
   el.querySelector('#a3stl').onchange=e=>{o.stl=+e.target.value;saveOpt();};
@@ -140,13 +140,14 @@ function initGL(){const v=S.ov.querySelector('#a3v'),W=v.clientWidth,H=v.clientH
   sun.shadow.mapSize.set(4096,4096);const c=sun.shadow.camera;c.left=-R*1.3;c.right=R*1.3;c.top=R*1.3;c.bottom=-R*1.3;c.near=1;c.far=R*5;sun.shadow.bias=-.0004;sun.shadow.normalBias=.6;sc.add(sun);sc.add(sun.target);S.sun=sun;
   S.root=new THREE.Group();sc.add(S.root);
   S.onR=()=>{if(!S)return;const W2=v.clientWidth,H2=v.clientHeight;ren.setSize(W2,H2);fitCam();render();};window.addEventListener('resize',S.onR);}
-function fitCam(){const v=S.ov.querySelector('#a3v'),a=v.clientWidth/Math.max(1,v.clientHeight),R=S.data.R*1.12,cam=S.cam;if(!cam)return;
+function pinLift(){return S.opt.lay.pins&&S.data.pins.length?pinH():0;}
+function fitCam(){const v=S.ov.querySelector('#a3v'),a=v.clientWidth/Math.max(1,v.clientHeight),R=S.data.R*1.12+(S.opt.view==='top'?0:pinLift()*.45),cam=S.cam;if(!cam)return;
   if(cam.isOrthographicCamera){cam.left=-R*a;cam.right=R*a;cam.top=R;cam.bottom=-R;}else cam.aspect=a;cam.updateProjectionMatrix();}
 function setView(k,first){const o=S.opt;o.view=k;saveOpt();const R=S.data.R,eye=k==='eye';const persp=o.persp||eye;
   const cam=persp?new THREE.PerspectiveCamera(eye?55:30,1,1,R*40):new THREE.OrthographicCamera(-1,1,1,-1,-R*20,R*20);S.cam=cam;fitCam();
   const dir={nw:[-1,1,-1],ne:[1,1,-1],sw:[-1,1,1],se:[1,1,1],top:[0,1,.001],eye:[-1,.05,1]}[k]||[-1,1,1],dv=new THREE.Vector3(...dir).normalize();
   const dist=persp?(eye?R*.9:R/Math.tan(15*Math.PI/180)*1.15):R*4;cam.position.copy(dv.multiplyScalar(dist));if(eye)cam.position.y=Math.max(cam.position.y,1.7*6);
-  const tgt=new THREE.Vector3(0,eye?6:0,0);cam.lookAt(tgt);if(S.ctl)S.ctl.dispose();const ctl=new THREE.OrbitControls(cam,S.ren.domElement);ctl.target.copy(tgt);ctl.enableDamping=false;ctl.screenSpacePanning=true;ctl.maxPolarAngle=Math.PI*.495;
+  const tgt=new THREE.Vector3(0,eye?6:k==='top'?0:pinLift()*.4,0);cam.lookAt(tgt);if(S.ctl)S.ctl.dispose();const ctl=new THREE.OrbitControls(cam,S.ren.domElement);ctl.target.copy(tgt);ctl.enableDamping=false;ctl.screenSpacePanning=true;ctl.maxPolarAngle=Math.PI*.495;
   ctl.addEventListener('change',render);ctl.update();S.ctl=ctl;S.ov.querySelectorAll('[data-vw]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.vw===k));render();}
 function render(){if(S&&S.ren&&S.cam){const cam=S.cam;// ikonkalar ekranda doimiy oʻlchamda
     if(S.gPin){const f=.034*S.opt.pinS,v=new THREE.Vector3();S.gPin.children.forEach(o=>{if(!o.isSprite)return;const k=cam.isOrthographicCamera?f*(cam.top-cam.bottom)/cam.zoom:f*2*Math.tan(cam.fov*Math.PI/360)*v.copy(o.position).sub(cam.position).length();o.scale.set(k,k,1);});}
@@ -192,10 +193,11 @@ function iconTex(col,icon){const k=col+icon;if(ICT[k])return ICT[k];const cv=doc
   c.beginPath();c.arc(64,64,58,0,7);c.fillStyle=col;c.fill();c.lineWidth=7;c.strokeStyle='#fff';c.stroke();const IC=(S.ctx.ULY.IC||{})[icon];
   if(IC){c.save();c.translate(64-36,64-36);c.scale(3,3);c.fillStyle='#fff';c.fill(new Path2D(IC),'evenodd');c.restore();}else{c.beginPath();c.arc(64,64,16,0,7);c.fillStyle='#fff';c.fill();}
   const t=new THREE.CanvasTexture(cv);t.anisotropy=4;return ICT[k]=t;}
-function buildPins(){const g=grp('gPin'),d=S.data;if(!d.pins.length)return;const H=S.opt.pinH,ln=[];
+function pinH(){return Math.round(S.data.R*(S.opt.pinK??.6)/10)*10;}
+function buildPins(){const g=grp('gPin'),d=S.data;if(!d.pins.length)return;const H=pinH(),ln=[];
   d.pins.forEach(p=>{const top=H+((p.x*13.7+p.y*7.1)%1+1)%1*H*.25;p.top=top;if(H>0)ln.push(p.x,0,-p.y,p.x,top,-p.y);
     const s=new THREE.Sprite(new THREE.SpriteMaterial({map:iconTex(p.col,p.icon),depthTest:true}));s.position.set(p.x,top,-p.y);s.renderOrder=10;g.add(s);});
-  if(ln.length){const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(ln,3));g.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:'#555555',transparent:true,opacity:.7})));}
+  if(ln.length){const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(ln,3));g.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:'#3a3a3a',transparent:true,opacity:.85})));}
   vis();}
 function applyShadow(){S.ren.shadowMap.enabled=!!S.opt.shadow;S.sun.castShadow=!!S.opt.shadow;S.root.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true);}});}
 function vis(){if(!S)return;const L=S.opt.lay;if(S.gBld)S.gBld.children.forEach(o=>o.visible=!!L.bld&&(!o.userData.edge||PRESET[S.opt.preset].edges===1));if(S.gTree)S.gTree.visible=!!L.tree;if(S.gPin)S.gPin.visible=!!L.pins;if(S.gRas)S.gRas.visible=!!L.ras;
@@ -264,8 +266,8 @@ function toSVG(){const cam=S.cam,v=S.ov.querySelector('#a3v'),W=1800,H=Math.roun
     prims.push({z:vz(t[0],y,-t[1]),d:`<line x1="${g[0].toFixed(1)}" y1="${g[1].toFixed(1)}" x2="${c[0].toFixed(1)}" y2="${c[1].toFixed(1)}" stroke="#8a7a62" stroke-width="${(sc*.4).toFixed(2)}"/><circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(r*sc).toFixed(2)}" fill="${p.tree}"${edges?` stroke="${shade(p.tree,.7)}" stroke-width=".4"`:''}/>`});});}
   prims.sort((a,b)=>a.z-b.z).forEach(x=>s+=x.d);
   // ikonkalar — ustunda, hammasining ustida
-  if(L.pins&&d.pins.length){const R0=13*S.opt.pinS,IC=S.ctx.ULY.IC||{};d.pins.slice().sort((a,b)=>vz(a.x,a.top||0,-a.y)-vz(b.x,b.top||0,-b.y)).forEach(q=>{const g=pr(q.x,0,-q.y),t=pr(q.x,q.top||S.opt.pinH,-q.y);
-    s+=`<line x1="${g[0].toFixed(1)}" y1="${g[1].toFixed(1)}" x2="${t[0].toFixed(1)}" y2="${t[1].toFixed(1)}" stroke="#555" stroke-width="1"/><circle cx="${g[0].toFixed(1)}" cy="${g[1].toFixed(1)}" r="1.6" fill="#555"/><circle cx="${t[0].toFixed(1)}" cy="${t[1].toFixed(1)}" r="${R0}" fill="${q.col}" stroke="#fff" stroke-width="2"/>`;
+  if(L.pins&&d.pins.length){const R0=13*S.opt.pinS,IC=S.ctx.ULY.IC||{};d.pins.slice().sort((a,b)=>vz(a.x,a.top||0,-a.y)-vz(b.x,b.top||0,-b.y)).forEach(q=>{const g=pr(q.x,0,-q.y),t=pr(q.x,q.top||pinH(),-q.y);
+    s+=`<line x1="${g[0].toFixed(1)}" y1="${g[1].toFixed(1)}" x2="${t[0].toFixed(1)}" y2="${t[1].toFixed(1)}" stroke="#3a3a3a" stroke-width="1.3"/><circle cx="${g[0].toFixed(1)}" cy="${g[1].toFixed(1)}" r="1.6" fill="#555"/><circle cx="${t[0].toFixed(1)}" cy="${t[1].toFixed(1)}" r="${R0}" fill="${q.col}" stroke="#fff" stroke-width="2"/>`;
     if(IC[q.icon]){const k=R0*1.25/24;s+=`<path d="${IC[q.icon]}" fill="#fff" fill-rule="evenodd" transform="translate(${(t[0]-12*k).toFixed(1)} ${(t[1]-12*k).toFixed(1)}) scale(${k.toFixed(3)})"/>`;}});}
   // legenda
   if(L.legend){const it=[];if(L.bld&&S.opt.bmode==='lv')[['1–2',SEQ[0]],['3–5',SEQ[1]],['6–9',SEQ[2]],['10–16',SEQ[3]],['17+',SEQ[4]]].forEach(([n,c])=>it.push([c,T('Qavatlar')+': '+n,'f']));
