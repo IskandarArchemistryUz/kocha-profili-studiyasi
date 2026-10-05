@@ -136,26 +136,53 @@ const ringArea=r=>{let s=0;for(let i=0;i<r.length;i++){const a=xy(r[i][0],r[i][1
 const pip=(p,r)=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){if(((r[i][0]>p[0])!==(r[j][0]>p[0]))&&(p[1]<(r[j][1]-r[i][1])*(p[0]-r[i][0])/(r[j][0]-r[i][0])+r[i][1]))c=!c;}return c;};
 const dm=(a,b)=>Math.hypot((a[1]-b[1])*MX,(a[0]-b[0])*MY);
 /* ---------- Overpass ---------- */
-const OVP=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+/* OSM (Overpass) — bepul umumiy serverlar: band boʻlsa 429/504 qaytaradi.
+   Yechim: bir nechta oyna (mirror) navbat bilan, javob kechiksa parallel zaxira soʻrov,
+   javoblar brauzer keshida (IndexedDB, 14 kun) — shu hudud qayta hisoblansa tarmoqqa chiqilmaydi. */
+const OVP=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+let OVI=0;const OVSTAT={};
+const host=u=>u.replace(/^https?:\/\//,'').split('/')[0];
+async function ovFetch(u,q,signal){const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),signal});
+  if(!r.ok)throw new Error('HTTP '+r.status+' · '+host(u)+(r.status===429?' (navbat toʻla)':r.status>=500?' (server band)':''));const j=await r.json().catch(()=>{throw new Error(host(u)+': notoʻgʻri javob');});
+  if(j.remark&&/runtime error|timed out|out of memory/i.test(j.remark))throw new Error(host(u)+': '+j.remark.slice(0,80));return j;}
+function ovp0(q){const order=OVP.map((_,k)=>OVP[(OVI+k)%OVP.length]);OVI++;
+  return new Promise((ok,no)=>{let fin=false,started=0,active=0;const errs=[],ctl=[];
+    const launch=()=>{if(fin||started>=order.length)return;const u=order[started++],ac=new AbortController(),tm=setTimeout(()=>ac.abort(),90000);ctl.push(ac);active++;
+      ovFetch(u,q,ac.signal).then(j=>{clearTimeout(tm);if(fin)return;fin=true;OVSTAT[host(u)]=(OVSTAT[host(u)]||0)+1;ctl.forEach(c=>{if(c!==ac)c.abort();});ok(j);})
+        .catch(e=>{clearTimeout(tm);active--;if(fin)return;errs.push(e.name==='AbortError'?host(u)+': 90 s ichida javob yoʻq':String(e.message||e));if(started<order.length)launch();else if(!active)no(new Error(errs.join(' · ')));});};
+    launch();// 15 s ichida javob boʻlmasa — keyingi oynaga ham parallel soʻrov
+    const hd=setInterval(()=>{if(fin||started>=order.length){clearInterval(hd);return;}if(active<2)launch();},15000);});}
+const cdb=()=>new Promise((ok,no)=>{const r=indexedDB.open('kps_ovc',1);r.onupgradeneeded=()=>r.result.createObjectStore('c',{keyPath:'q'});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
+async function cget(q){try{const db=await cdb();return await new Promise(ok=>{const t=db.transaction('c','readonly').objectStore('c').get(q);t.onsuccess=()=>{const v=t.result;ok(v&&Date.now()-v.t<14*864e5?v.j:null);};t.onerror=()=>ok(null);});}catch(e){return null;}}
+async function cput(q,j){try{const db=await cdb();const st=db.transaction('c','readwrite').objectStore('c');st.put({q,j,t:Date.now()});
+  const rq=st.openCursor();rq.onsuccess=()=>{const c=rq.result;if(!c)return;if(Date.now()-c.value.t>14*864e5)c.delete();c.continue();};}catch(e){}}
+/* ixtiyoriy maʼlumot: kutish chegarasi (soʻrov fonda davom etadi va keshga tushadi) */
+const soft=(pr,ms,fb,onT)=>Promise.race([pr,new Promise(r=>setTimeout(()=>{if(onT)onT();r(fb);},ms))]);
+async function ovpC(q){const c=await cget(q);if(c){OVSTAT.kesh=(OVSTAT.kesh||0)+1;return c;}const j=await ovp0(q);cput(q,j);return j;}
 /* saqlangan tahlil: OSM javoblari yoziladi va qayta ochilganda tarmoqsiz takrorlanadi */
 let REC=null,REPLAY=null,RESTORE_AI=null,CUR_ID=null;
-async function ovp(q){if(REPLAY&&REPLAY[q]){if(REC)REC[q]=REPLAY[q];return REPLAY[q];}const j=await ovp0(q);if(REC)REC[q]=j;return j;}
-async function ovp0(q){let last;for(const u of OVP){try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),70000);const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),signal:ac.signal});clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}catch(e){last=e;}}throw last;}
-function prog(p,m){$('#body').innerHTML=`<div><div class="lbl">${esc(m)}</div><div class="prog" style="margin-top:8px"><s style="width:${Math.round(p*100)}%"></s></div></div>`;}
+async function ovp(q){if(REPLAY&&REPLAY[q]){if(REC)REC[q]=REPLAY[q];return REPLAY[q];}const j=await ovpC(q);if(REC)REC[q]=j;return j;}
+let PT0=0;function prog(p,m){$('#body').innerHTML=`<div><div class="lbl">${esc(m)}</div><div class="prog" style="margin-top:8px"><s style="width:${Math.round(p*100)}%"></s></div><div class="note" style="margin-top:6px" id="pTm"></div></div>`;tick();}
+function tick(){const e=$('#pTm');if(!e||!PT0)return;const sec=Math.round((Date.now()-PT0)/1000);e.textContent=sec+' s'+(sec>25?' · OSM serverlari sekin javob bermoqda, zaxira serverlar ham soʻralmoqda…':'');}
+setInterval(tick,1000);
 async function compute(){let flt,inside,areaM2,ring;REC={};
   if(mode==='radius'){if(!center){toast('Xaritada markazni bosing.');return;}const r=Math.min(5000,Math.max(200,+$('#rKm').value*1000));LAT0=center[0];MX=111320*Math.cos(LAT0*R);flt=`(around:${r},${center[0]},${center[1]})`;inside=p=>dm(p,center)<=r;areaM2=Math.PI*r*r;
     ring=[];for(let i=0;i<48;i++){const a=i/48*2*Math.PI;ring.push([center[0]+r*Math.sin(a)/MY,center[1]+r*Math.cos(a)/MX]);}}
-  else{if(!done){toast('Avval chegarani chizing.');return;}LAT0=poly[0][0];MX=111320*Math.cos(LAT0*R);ring=poly;areaM2=ringArea(poly);if(areaM2>8e7){toast('Hudud juda katta (80 km² dan ortiq).');return;}flt=`(poly:"${poly.map(p=>p[0].toFixed(6)+' '+p[1].toFixed(6)).join(' ')}")`;inside=p=>pip(p,poly);}
-  const BUF=1300;let fltB;if(mode==='radius')fltB=`(around:${Math.min(5000,Math.max(200,+$('#rKm').value*1000))+BUF},${center[0]},${center[1]})`;else{const b0=ring.reduce((b,p)=>[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b[2],p[0]),Math.max(b[3],p[1])],[90,180,-90,-180]);fltB=`(${(b0[0]-BUF/MY).toFixed(6)},${(b0[1]-BUF/MX).toFixed(6)},${(b0[2]+BUF/MY).toFixed(6)},${(b0[3]+BUF/MX).toFixed(6)})`;}
+  else{if(!done){toast('Avval chegarani chizing.');return;}LAT0=poly[0][0];MX=111320*Math.cos(LAT0*R);ring=poly;areaM2=ringArea(poly);if(areaM2>8e7){toast('Hudud juda katta (80 km² dan ortiq).');return;}{const b=bb0(poly);flt=`(${b[0].toFixed(5)},${b[1].toFixed(5)},${b[2].toFixed(5)},${b[3].toFixed(5)})`;}inside=p=>pip(p,poly);}
+  const BUF=1300;let fltB;if(mode==='radius')fltB=`(around:${Math.min(5000,Math.max(200,+$('#rKm').value*1000))+BUF},${center[0]},${center[1]})`;else{const b0=ring.reduce((b,p)=>[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b[2],p[0]),Math.max(b[3],p[1])],[90,180,-90,-180]);fltB=`(${(b0[0]-BUF/MY).toFixed(5)},${(b0[1]-BUF/MX).toFixed(5)},${(b0[2]+BUF/MY).toFixed(5)},${(b0[3]+BUF/MX).toFixed(5)})`;}
   const big=areaM2>2e7;$('#runBtn').disabled=true;O.clearLayers();
   try{
-    prog(.1,'OSM: koʻcha tarmogʻi…');
-    const roads=await ovp(`[out:json][timeout:180];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian|service|footway|path|cycleway|steps|track|primary_link|secondary_link|tertiary_link|trunk_link|motorway_link)$"]${fltB};out body geom;`);
-    prog(.4,'OSM: bekatlar, xizmatlar, yashil hududlar…');
-    const poi=await ovp(`[out:json][timeout:120];(node["highway"="bus_stop"]${flt};node["public_transport"="platform"]${flt};node["railway"~"^(tram_stop|station|subway_entrance)$"]${flt};node["amenity"]${flt};node["shop"]${flt};node["office"]${flt};node["leisure"]${flt};way["amenity"]${flt};way["shop"]${fltB};way["amenity"]${fltB};node["amenity"]${fltB};node["shop"]${fltB};node["leisure"]${fltB};node["highway"="bus_stop"]${fltB};node["public_transport"="platform"]${fltB};node["railway"~"^(tram_stop|station|subway_entrance)$"]${fltB};way["leisure"~"^(park|garden|playground|pitch|sports_centre|fitness_centre|stadium|swimming_pool)$"]${fltB};way["leisure"~"^(park|garden|playground|pitch)$"]${flt};way["landuse"~"^(grass|forest|recreation_ground|meadow)$"]${flt};way["natural"~"^(wood|scrub)$"]${flt};);out center geom;`);
-    let blds=null;if(!big){prog(.6,'OSM: binolar…');blds=await ovp(`[out:json][timeout:120];way["building"]${flt};out geom;`);}
-    prog(.7,'OSM: yashil hudud, daraxtlar, piyoda oʻtish joylari…');let env={elements:[]};try{env=await ovp(`[out:json][timeout:120];(way["leisure"~"^(park|garden|nature_reserve)$"]${flt};relation["leisure"~"^(park|garden)$"]${flt};way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|orchard|vineyard|allotments|cemetery|flowerbed)$"]${flt};relation["landuse"~"^(grass|forest|recreation_ground|meadow)$"]${flt};way["natural"~"^(wood|scrub|grassland|water)$"]${flt};relation["natural"~"^(wood|water|scrub)$"]${flt};way["waterway"~"^(canal|river|stream)$"]${flt};node["natural"="tree"]${flt};way["natural"="tree_row"]${flt};node["highway"~"^(crossing|traffic_signals)$"]${flt};node["kerb"]${flt};node["wheelchair"]${flt};way["wheelchair"]${flt};);out geom;`);}catch(e){}
-    prog(.78,'OSM: temir yoʻl, tramvay, aeroport, yer foydalanish…');const T=await trnFetch(flt,fltB,ring,inside);
+    PT0=Date.now();const warn=[];let nDone=0;const NQ=5,stepP=m=>{nDone++;prog(.1+.75*nDone/NQ,`OSM: ${nDone}/${NQ} tayyor (${m})…`);};prog(.08,'OSM: maʼlumotlar parallel yuklanmoqda…');
+    const qRoads=`[out:json][timeout:120];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian|service|footway|path|cycleway|steps|track|primary_link|secondary_link|tertiary_link|trunk_link|motorway_link)$"]${fltB};out body geom qt;`;
+    const qPoi=`[out:json][timeout:120];(node["highway"="bus_stop"]${fltB};node["public_transport"="platform"]${fltB};node["railway"~"^(tram_stop|station|subway_entrance)$"]${fltB};node["amenity"]${fltB};node["shop"]${fltB};node["office"]${flt};node["leisure"]${fltB};way["amenity"]${fltB};way["shop"]${fltB};way["leisure"~"^(park|garden|playground|pitch|sports_centre|fitness_centre|stadium|swimming_pool)$"]${fltB};way["landuse"~"^(grass|forest|recreation_ground|meadow)$"]${flt};way["natural"~"^(wood|scrub)$"]${flt};);out center geom qt;`;
+    const qB=`[out:json][timeout:120];way["building"]${flt};out geom qt;`;
+    const qEnv=`[out:json][timeout:120];(way["leisure"~"^(park|garden|nature_reserve)$"]${flt};relation["leisure"~"^(park|garden)$"]${flt};way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|orchard|vineyard|allotments|cemetery|flowerbed)$"]${flt};relation["landuse"~"^(grass|forest|recreation_ground|meadow)$"]${flt};way["natural"~"^(wood|scrub|grassland|water)$"]${flt};relation["natural"~"^(wood|water|scrub)$"]${flt};way["waterway"~"^(canal|river|stream)$"]${flt};node["natural"="tree"]${flt};way["natural"="tree_row"]${flt};node["highway"~"^(crossing|traffic_signals)$"]${flt};node["kerb"]${flt};node["wheelchair"]${flt};way["wheelchair"]${flt};);out geom qt;`;
+    const [roads,poi,blds,env,T]=await Promise.all([
+      ovp(qRoads).then(j=>{stepP('koʻchalar');return j;}),
+      ovp(qPoi).then(j=>{stepP('xizmatlar, bekatlar');return j;}),
+      big?Promise.resolve(null).then(x=>{stepP('binolar — hudud katta');return x;}):ovp(qB).then(j=>{stepP('binolar');return j;}).catch(e=>{warn.push('Binolar yuklanmadi: '+e.message);stepP('binolar ✕');return null;}),
+      ovp(qEnv).then(j=>{stepP('yashil, suv, oʻtish joylari');return j;}).catch(e=>{warn.push('Yashil hudud, suv va oʻtish joylari yuklanmadi: '+e.message);stepP('muhit ✕');return {elements:[]};}),
+      soft(trnFetch(flt,fltB,ring,inside),45000,{rail:[],st:[],runway:[],taxi:[],aero:[],land:[]},()=>warn.push('Temir yoʻl / aeroport maʼlumoti 45 s ichida kelmadi — keyingi hisoblashda keshdan olinadi.')).then(t=>{stepP('temir yoʻl, aeroport');return t;})]);
     prog(.9,'Hisoblanmoqda…');
     // koʻcha tarmogʻi
     const CAR=/^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|primary_link|secondary_link|tertiary_link|service)$/,WALK=/^(footway|path|pedestrian|steps|living_street)$/;
@@ -183,7 +210,7 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
     for(let la=bb[0];la<=bb[2];la+=step/MY)for(let lo=bb[1];lo<=bb[3];lo+=step/MX){const p=[la,lo];if(!inside(p))continue;tot++;if(near(p,400))cov++;if(nearS(p))cov2++;}
     let bA=null,bN=0;if(blds){bA=0;blds.elements.forEach(w=>{const g=(w.geometry||[]).map(q=>[q.lat,q.lon]);if(g.length>2&&inside(g[0])){bA+=ringArea(g);bN++;}});}
     let nodes=null;try{prog(.8,'OSM: metro, vokzal, aeroport…');const c0=mode==='radius'?center:[ring.reduce((s,p)=>s+p[0],0)/ring.length,ring.reduce((s,p)=>s+p[1],0)/ring.length];
-      const tn=await ovp(`[out:json][timeout:60];(node["station"="subway"](around:15000,${c0[0]},${c0[1]});node["railway"="station"]["station"!="subway"](around:20000,${c0[0]},${c0[1]});nwr["aeroway"="aerodrome"]["aerodrome:type"!="private"](around:40000,${c0[0]},${c0[1]}););out center 300;`);
+      const tn=await soft(ovp(`[out:json][timeout:60];(node["station"="subway"](around:15000,${c0[0]},${c0[1]});node["railway"="station"]["station"!="subway"](around:20000,${c0[0]},${c0[1]});nwr["aeroway"="aerodrome"]["aerodrome:type"!="private"](around:40000,${c0[0]},${c0[1]}););out center 300;`),20000,{elements:[]});
       const near=f=>{let b=null;tn.elements.forEach(e=>{const t=e.tags||{};if(!f(t))return;const p=e.type==='node'?[e.lat,e.lon]:e.center?[e.center.lat,e.center.lon]:null;if(!p)return;const d=dm(p,c0);if(!b||d<b.d)b={d,n:t.name||t['name:uz']||''};});return b?{km:+(b.d/1000).toFixed(2),name:b.n}:null;};
       nodes={metro:near(t=>t.station==='subway'),railway_station:near(t=>t.railway==='station'&&t.station!=='subway'),airport:near(t=>t.aeroway==='aerodrome')};}catch(e){}
     prog(.85,'15 daqiqalik shahar: piyodalar tarmogʻi boʻyicha masofalar…');await new Promise(r=>setTimeout(r,30));
@@ -204,15 +231,17 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
       green_osm_note:'OSM poligonlari birlashtirib (ustma-ust tushganlar bir marta) hisoblandi',trees_osm:E.trees.length,water_share_pct:+(rasterShare(E.water,ring,bb0(ring))*100).toFixed(1),
       accessibility:accStats(E,roads,inside,carLen,stops,poi),
       fifteen_min:F15.summary,transport_nodes_straight_km:nodes,jobs_poi_per_km2:+(((cat['ofis']||0)+(cat['savdo']||0)+(cat['xizmat']||0)+(cat['ovqatlanish']||0)+(cat['sogʻliqni saqlash']||0)+(cat['taʼlim']||0))/km2).toFixed(1),
-      notes:['Manba: OpenStreetMap (Overpass), soʻrov sanasi '+new Date().toISOString().slice(0,10)+'. OSM toʻliq boʻlmasligi mumkin — ayniqsa trotuar va bekat teglari.',big?'Hudud katta — binolar qoplami hisoblanmadi.':null,'15 daqiqa: piyoda tarmogʻi (OSM) boʻyicha Dijkstra, tezlik '+F15.summary.speed_kmh+' km/soat; hudud chegarasidan 1,3 km tashqaridagi xizmatlar ham hisobga olingan.',blds?'Qavatlar soni '+(bN?Math.round(lvTag/bN*100):0)+'% binoda OSM da bor, qolganlariga '+(+PRM.lv||1)+' qavat qabul qilindi.':null].filter(Boolean)};
+      notes:['Manba: OpenStreetMap (Overpass), soʻrov sanasi '+new Date().toISOString().slice(0,10)+'. OSM toʻliq boʻlmasligi mumkin — ayniqsa trotuar va bekat teglari.',big?'Hudud katta — binolar qoplami hisoblanmadi.':null,...warn,'15 daqiqa: piyoda tarmogʻi (OSM) boʻyicha Dijkstra, tezlik '+F15.summary.speed_kmh+' km/soat; hudud chegarasidan 1,3 km tashqaridagi xizmatlar ham hisobga olingan.',blds?'Qavatlar soni '+(bN?Math.round(lvTag/bN*100):0)+'% binoda OSM da bor, qolganlariga '+(+PRM.lv||1)+' qavat qabul qilindi.':null].filter(Boolean)};
     // xaritada
     try{localStorage.setItem('kps_area_sum',JSON.stringify(Object.assign({t:Date.now()},res)));}catch(e){}
     res.official_statistics=offRes();CV=null;ENV=null;LASTD={roads,poi,blds,E,stops,serv,interPts,ring,inside,bb:bb0(ring),areaM2,F15,T};
     DIRTY=false;updMask();draw15(F15);layersAll();envAsync();
     $('#lgd').hidden=false;aiText=RESTORE_AI||'';RESTORE_AI=null;renderRes();
     saveRun('last').catch(e=>console.warn(e));
-  }catch(e){$('#body').innerHTML=`<div class="note" style="color:var(--bad)">OSM soʻrovi bajarilmadi: ${esc(e.message||e)}. Biroz kutib qayta urining yoki hududni kichraytiring.</div>`;}
-  $('#runBtn').disabled=false;}
+  }catch(e){console.error(e);$('#body').innerHTML=`<div><h2>OSM serverlari javob bermadi</h2><div class="note" style="color:var(--bad);margin-top:6px">${esc(e.message||e)}</div>
+    <div class="note" style="margin-top:8px">OpenStreetMap maʼlumoti bepul umumiy Overpass serverlaridan olinadi; ular band boʻlganda 429 (navbat toʻla) yoki 502/503/504 (server band) qaytaradi. Sayt toʻrtta serverni navbat bilan soʻradi. Yuklangan qismlar keshda saqlandi — qayta urinish tezroq boʻladi. Bir necha daqiqadan keyin urining yoki hududni kichraytiring.</div>
+    <div style="margin-top:10px"><button class="btn dark sm" id="reTry">Qayta urinish</button></div></div>`;$('#reTry').onclick=compute;}
+  PT0=0;$('#runBtn').disabled=false;}
 /* ---- 15 daqiqalik shahar ---- */
 const PRM=Object.assign({speed:5,lv:'',mpp:''},(()=>{try{return JSON.parse(localStorage.getItem('kps_ai_prm')||'{}');}catch(e){return {};}})());
 const C15=[['food','Oziq-ovqat doʻkoni','#d97706'],['edu','Maktab / bogʻcha','#c2410c'],['health','Poliklinika / dorixona','#b3261e'],['transit','Jamoat transporti bekati','#1d6fa5'],['green','Park / bogʻ','#2e7d4f'],['sport','Sport / oʻyin maydonchasi','#0f766e'],['cafe','Kafe / choyxona','#9d4edd'],['serv','Maishiy xizmat, bank, pochta','#7b61d1'],['cult','Madaniyat / jamoat markazi','#475569']];
