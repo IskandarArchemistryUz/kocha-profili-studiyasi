@@ -73,7 +73,7 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/uly.js?v=2"></script>
-<script src="js/ai3d.js?v=3"></script>
+<script src="js/ai3d.js?v=4"></script>
 <script>
 (function(){
 'use strict';
@@ -90,6 +90,13 @@ let BASE=localStorage.getItem('kps_ai_base')||'grey';if(!BASES[BASE])BASE='grey'
 (()=>{const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.innerHTML=[['grey','Kulrang'],['osm','OSM'],['sat','Sunʼiy yoʻldosh'],['none','Fonsiz']].map(([k,n])=>`<button data-b="${k}" aria-pressed="${k===BASE}">${n}</button>`).join('');
   d.onclick=e=>{const b=e.target.closest('[data-b]');if(!b)return;map.removeLayer(BASES[BASE]);BASE=b.dataset.b;BASES[BASE].addTo(map);BASES[BASE].bringToBack&&BASES[BASE].bringToBack();localStorage.setItem('kps_ai_base',BASE);d.querySelectorAll('[data-b]').forEach(x=>x.setAttribute('aria-pressed',x===b));};L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
 ULY.init(map,document.querySelector('.mapw'));
+let SDRAW=null;const SL=L.layerGroup().addTo(map);
+(()=>{const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.style.marginTop='6px';d.style.clear='both';d.innerHTML='<button id="siteBtn" title="Yer uchastkasi chegarasini chizish (qizil shtrix-punktir)">✎ Uchastka</button>';L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
+function siteRender(){SL.clearLayers();if(SDRAW&&SDRAW.length){L.polyline(SDRAW,{color:'#c62828',weight:2,dashArray:'14 5 2 5',interactive:false}).addTo(SL);SDRAW.forEach((p,i)=>L.circleMarker(p,{radius:i===0&&SDRAW.length>2?7:4,color:'#c62828',weight:2,fillColor:i===0&&SDRAW.length>2?'#c62828':'#fff',fillOpacity:1}).addTo(SL).on('click',e=>{L.DomEvent.stop(e);if(i===0)siteClose();}));}
+  SITES.forEach((x,k)=>L.polygon(x.pts,{color:'#c62828',weight:10,opacity:0,fill:false}).addTo(SL).on('click',e=>{if(SDRAW)return;L.DomEvent.stop(e);if(confirm('Bu uchastka chegarasi oʻchirilsinmi?')){SITES.splice(k,1);saveSites();laySites();siteRender();}}));}
+function siteHint(){const h=$('#hint');h.innerHTML=`<b>Uchastka chegarasi.</b> Burchaklarni bosing (${SDRAW.length}).${SDRAW.length>2?' Yopish — birinchi nuqta yoki Enter.':''}<button id="sClose" ${SDRAW.length>2?'':'disabled'}>Yopish</button><button id="sEsc">Bekor</button>`;$('#sClose').onclick=siteClose;$('#sEsc').onclick=()=>{SDRAW=null;siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');};}
+function siteClose(){if(!SDRAW||SDRAW.length<3)return;SITES.push({id:Date.now().toString(36),pts:SDRAW});SDRAW=null;saveSites();laySites();siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');toast('Uchastka chegarasi saqlandi — xaritada, albomda va 3D da koʻrinadi.');}
+setTimeout(()=>{$('#siteBtn').onclick=()=>{if(SDRAW){SDRAW=null;siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');return;}SDRAW=[];$('#siteBtn').setAttribute('aria-pressed','true');siteHint();};laySites();siteRender();},0);
 const A=L.layerGroup().addTo(map),O=L.layerGroup().addTo(map);
 let mode='radius',center=null,poly=[],done=false,res=null,aiText='',rectA=null,rectCur=null,DIRTY=true,CLIP=localStorage.getItem('kps_ai_clip')==='1';
 const KEY=()=>localStorage.getItem('kps_ai_key')||'',MODEL=()=>localStorage.getItem('kps_ai_model')||'claude-sonnet-5';
@@ -116,7 +123,7 @@ function drawArea(){A.clearLayers();updMask();if(mode==='rect'&&rectA&&rectCur&&
 const PV=L.layerGroup().addTo(map);
 function closePoly(){if(mode!=='poly'||poly.length<3)return;done=true;PV.clearLayers();DIRTY=true;drawArea();hint();}
 function undoPt(){if(mode==='poly'&&!done&&poly.length){poly.pop();PV.clearLayers();drawArea();hint();}}
-map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(mode==='radius'){center=p;}
+map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(SDRAW){if(SDRAW.length>2&&map.latLngToContainerPoint(SDRAW[0]).distanceTo(e.containerPoint)<14){siteClose();return;}SDRAW.push(p);siteRender();siteHint();return;}if(mode==='radius'){center=p;}
   else if(mode==='rect'){if(!rectA||done){rectA=p;rectCur=p;poly=[];done=false;}else{const a=rectA,b=p;poly=[[a[0],a[1]],[a[0],b[1]],[b[0],b[1]],[b[0],a[1]]];done=true;rectA=null;}}
   else{if(done){return;}// tayyor chegara nuqtalar bilan tahrirlanadi; qaytadan chizish — «Qaytadan»
     if(poly.length>2){const a=map.latLngToContainerPoint(poly[0]);if(a.distanceTo(e.containerPoint)<14){closePoly();return;}}poly.push(p);}DIRTY=true;drawArea();hint();});
@@ -124,9 +131,9 @@ map.on('mousemove',e=>{if(mode==='rect'&&rectA&&!done){rectCur=[e.latlng.lat,e.l
   if(mode==='poly'&&!done&&poly.length){PV.clearLayers();const c=[e.latlng.lat,e.latlng.lng];L.polyline([poly[poly.length-1],c],{color:'#7b61d1',weight:1.5,dashArray:'3 4',interactive:false}).addTo(PV);
     if(poly.length>1)L.polyline([c,poly[0]],{color:'#7b61d1',weight:1,opacity:.45,dashArray:'2 5',interactive:false}).addTo(PV);}});
 $('#clipCb').checked=CLIP;$('#clipCb').onchange=e=>{CLIP=e.target.checked;localStorage.setItem('kps_ai_clip',CLIP?'1':'0');updMask();};
-map.on('dblclick',()=>{if(mode==='poly'&&!done&&poly.length>3){// ikki marta bosishdagi takror nuqtani olib tashlash
+map.on('dblclick',()=>{if(SDRAW){if(SDRAW.length>3)SDRAW.pop();siteClose();return;}if(mode==='poly'&&!done&&poly.length>3){// ikki marta bosishdagi takror nuqtani olib tashlash
     const a=poly[poly.length-1],b=poly[poly.length-2];if(map.latLngToContainerPoint(a).distanceTo(map.latLngToContainerPoint(b))<6)poly.pop();closePoly();}});
-document.addEventListener('keydown',e=>{if(e.target.matches('textarea,input'))return;if(e.key==='Enter'&&mode==='poly'&&poly.length>2&&!done){closePoly();}
+document.addEventListener('keydown',e=>{if(e.target.matches('textarea,input'))return;if(SDRAW){if(e.key==='Enter')siteClose();if(e.key==='Escape'){SDRAW=null;siteRender();hint();}if(e.key==='Backspace'){e.preventDefault();SDRAW.pop();siteRender();siteHint();}return;}if(e.key==='Enter'&&mode==='poly'&&poly.length>2&&!done){closePoly();}
   if((e.key==='Backspace'||e.key==='Delete')&&mode==='poly'&&!done&&poly.length){e.preventDefault();undoPt();}if(e.key==='Escape'&&mode==='poly'&&!done){poly=[];PV.clearLayers();drawArea();hint();}});
 document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;poly=[];done=false;rectA=null;DIRTY=true;PV.clearLayers();document.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.km').style.display=mode==='radius'?'flex':'none';drawArea();hint();});
 $('#rKm').oninput=()=>{DIRTY=true;drawArea();};
@@ -235,7 +242,7 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
     // xaritada
     try{localStorage.setItem('kps_area_sum',JSON.stringify(Object.assign({t:Date.now()},res)));}catch(e){}
     res.official_statistics=offRes();CV=null;ENV=null;LASTD={roads,poi,blds,E,stops,serv,interPts,ring,inside,bb:bb0(ring),areaM2,F15,T};
-    DIRTY=false;updMask();draw15(F15);layersAll();envAsync();
+    DIRTY=false;LASTD.autoTrees=autoTrees(LASTD);updMask();draw15(F15);layersAll();envAsync();
     $('#lgd').hidden=false;aiText=RESTORE_AI||'';RESTORE_AI=null;renderRes();
     saveRun('last').catch(e=>console.warn(e));
   }catch(e){console.error(e);$('#body').innerHTML=`<div><h2>OSM serverlari javob bermadi</h2><div class="note" style="color:var(--bad);margin-top:6px">${esc(e.message||e)}</div>
@@ -293,14 +300,14 @@ const bb0=r=>r.reduce((b,p)=>[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b
 function joinRings(ws){const out=[],segs=ws.filter(w=>w.length>1).map(w=>w.slice());while(segs.length){let r=segs.shift();let guard=0;while(guard++<500){const a=r[0],b=r[r.length-1];if(Math.abs(a[0]-b[0])<1e-7&&Math.abs(a[1]-b[1])<1e-7)break;
     const i=segs.findIndex(s=>{const c=s[0],d=s[s.length-1];return (Math.abs(c[0]-b[0])<1e-7&&Math.abs(c[1]-b[1])<1e-7)||(Math.abs(d[0]-b[0])<1e-7&&Math.abs(d[1]-b[1])<1e-7);});if(i<0)break;let s=segs.splice(i,1)[0];if(Math.abs(s[0][0]-b[0])>=1e-7||Math.abs(s[0][1]-b[1])>=1e-7)s=s.reverse();r=r.concat(s.slice(1));}
   if(r.length>3)out.push(r);}return out;}
-function envParse(env,inside){const E={green:[],water:[],trees:[],treeRows:[],cross:[],kerb:[],wc:[],sig:[]},GR=/^(park|garden|nature_reserve|grass|forest|meadow|recreation_ground|village_green|orchard|vineyard|allotments|cemetery|flowerbed|wood|scrub|grassland)$/;
+function envParse(env,inside){const E={green:[],greenK:[],water:[],trees:[],treeRows:[],cross:[],kerb:[],wc:[],sig:[]},GR=/^(park|garden|nature_reserve|grass|forest|meadow|recreation_ground|village_green|orchard|vineyard|allotments|cemetery|flowerbed|wood|scrub|grassland)$/;
   (env.elements||[]).forEach(e=>{const t=e.tags||{};
     if(e.type==='node'){const p=[e.lat,e.lon];if(!inside(p))return;if(t.natural==='tree')E.trees.push(p);if(t.highway==='crossing')E.cross.push({p,t});if(t.highway==='traffic_signals')E.sig.push(p);if(t.kerb)E.kerb.push({p,v:t.kerb});if(t.wheelchair&&t.highway!=='crossing')E.wc.push({p,v:t.wheelchair,n:t.name||t.amenity||t.shop||''});return;}
     let rings=[];if(e.type==='way'&&e.geometry)rings=[e.geometry.map(g=>[g.lat,g.lon])];else if(e.type==='relation'&&e.members)rings=joinRings(e.members.filter(m=>m.role!=='inner'&&m.geometry).map(m=>m.geometry.map(g=>[g.lat,g.lon])));
     rings.forEach(r=>{if(!r.length)return;const c=[r.reduce((s,p)=>s+p[0],0)/r.length,r.reduce((s,p)=>s+p[1],0)/r.length];
       if(t.natural==='tree_row'){if(r.some(inside))E.treeRows.push(r);return;}if(t.wheelchair&&e.type==='way'){if(inside(c))E.wc.push({p:c,v:t.wheelchair,n:t.name||t.amenity||''});}
       if(t.waterway){if(r.some(inside))E.water.push({g:r,line:1});return;}if(t.natural==='water'){E.water.push(r);return;}
-      if(GR.test(t.leisure||t.landuse||t.natural||''))E.green.push(r);});});
+      if(GR.test(t.leisure||t.landuse||t.natural||'')){E.green.push(r);E.greenK.push(t.leisure||t.landuse||t.natural);}});});
   E.waterPoly=E.water.filter(w=>!w.line);E.waterLine=E.water.filter(w=>w.line).map(w=>w.g);E.water=E.waterPoly;return E;}
 function rasterShare(polys,ring,bb){if(!polys.length)return 0;const w=(bb[3]-bb[1])*MX,h=(bb[2]-bb[0])*MY,k=Math.min(1,900/Math.max(w,h)),W=Math.max(2,Math.round(w*k)),H=Math.max(2,Math.round(h*k));
   const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d'),P=p=>[(p[1]-bb[1])*MX*k,(bb[2]-p[0])*MY*k];
@@ -367,7 +374,26 @@ function layersAll(){const D=LASTD;if(!D)return;const P=ULY.PAL;ULY.clear();
     legend:st=>st.mode==='tac'?[['#278062','taktil bor'],['#b03a2e','taktil yoʻq'],['#8e999d','maʼlumot yoʻq']]:st.mode==='sig'?[['#22577a','svetoforli'],['#8e999d','svetoforsiz / nomaʼlum']]:[]});
   ULY.set('wc',{name:'Nogironlar aravachasi uchun (wheelchair)',group:'Ochiqlik (accessibility)',kind:'pt',data:D.E.wc,icon:'wheel',on:false,st:{color:'#278062',size:4.5,shape:'icon',icon:'wheel',mode:'v'},modes:{v:'Holati',one:'Bir rang'},
     colorFn:(f,st)=>st.mode==='v'?(f.v==='yes'?'#278062':f.v==='limited'?'#eda062':f.v==='no'?'#b03a2e':'#8e999d'):null,legend:st=>st.mode==='v'?[['#278062','ha'],['#eda062','qisman'],['#b03a2e','yoʻq']]:[]});
-  if(ENV&&ENV.noise)layNoise();if(CV)layCV();}
+  if(D.autoTrees&&D.autoTrees.length)ULY.set('atrees',{name:'Daraxtlar — avtomatik (yashil hududlardan)',group:'Yashil, suv, kanop',kind:'pt',data:D.autoTrees,icon:'tree',on:false,st:{color:'#7fae5a',size:2.5},
+    note:'Taxminiy: OSM yashil hududlari ichida (park, bogʻ — ~9 m, oʻrmon — ~6 m, maysa — ~16 m oraliq) binolardan tashqarida joylashtirildi; CV tahlili bajarilgan boʻlsa — faqat tasvirda koʻkalam koʻringan joylarda. Haqiqiy daraxtlar roʻyxati emas.'});
+  laySites();if(ENV&&ENV.noise)layNoise();if(CV)layCV();}
+/* ---- avtomatik daraxtlar: yashil hududlardan ---- */
+function autoTrees(D){const E=D.E,out=[],SP={forest:6,wood:6,orchard:7,park:9,garden:9,nature_reserve:7,recreation_ground:12,cemetery:10,village_green:14,grass:16,meadow:18,grassland:18,allotments:12,flowerbed:0,scrub:8,vineyard:0};
+  // binolar: katak-xesh boʻyicha tekshirish
+  const H=new Map(),CS=60,hk=(a,b)=>a+','+b,bl=[];((D.blds&&D.blds.elements)||[]).forEach(w=>{const g=(w.geometry||[]).map(q=>[q.lat,q.lon]);if(g.length<3)return;const b=bb0(g),i=bl.length;bl.push(g);
+    for(let x=Math.floor(b[0]*MY/CS);x<=Math.floor(b[2]*MY/CS);x++)for(let y=Math.floor(b[1]*MX/CS);y<=Math.floor(b[3]*MX/CS);y++){const k=hk(x,y);if(!H.has(k))H.set(k,[]);H.get(k).push(i);}});
+  const inBld=p=>{for(const i of H.get(hk(Math.floor(p[0]*MY/CS),Math.floor(p[1]*MX/CS)))||[])if(pip(p,bl[i]))return true;return false;};
+  const veg=CV&&CV.cells?(()=>{const m=new Map(),st=D.F15.step;CV.cells.forEach(c=>{if(c.veg!=null)m.set(Math.floor(c.p[0]*MY/st)+','+Math.floor(c.p[1]*MX/st),c.veg);});return p=>{const v=m.get(Math.floor(p[0]*MY/st)+','+Math.floor(p[1]*MX/st));return v==null||v>.12;};})():null;
+  E.green.forEach((r,gi)=>{const k=(E.greenK&&E.greenK[gi])||'park',sp=SP[k]??10;if(!sp||r.length<3)return;const b=bb0(r),st=sp;
+    for(let la=b[0];la<=b[2];la+=st/MY)for(let lo=b[1];lo<=b[3];lo+=st/MX){if(out.length>=20000)return;const h=Math.sin(la*9e6+lo*7e6)*43758.5453,j1=h-Math.floor(h),h2=Math.sin(la*3e6-lo*5e6)*12345.678,j2=h2-Math.floor(h2);
+      const p=[la+(j1-.5)*st*.7/MY,lo+(j2-.5)*st*.7/MX];if(!pip(p,r)||!D.inside(p)||inBld(p)||(veg&&!veg(p)))continue;out.push(p);}});
+  return out;}
+/* ---- uchastka chegarasi (qizil shtrix-punktir) ---- */
+let SITES=[];try{SITES=JSON.parse(localStorage.getItem('kps_ai_sites')||'[]');}catch(e){}
+const saveSites=()=>{try{localStorage.setItem('kps_ai_sites',JSON.stringify(SITES));}catch(e){}};
+function laySites(){if(!SITES.length){ULY.remove&&ULY.LY.sites&&ULY.remove('sites');return;}
+  ULY.set('sites',{name:'Uchastka chegarasi',group:'Loyiha',kind:'line',data:SITES.map(x=>x.pts.concat([x.pts[0]])),st:{color:'#c62828',size:2.2,opacity:1},dashFn:()=>'14 5 2.5 5',
+    note:'Chizish: xarita oʻng tomonidagi «✎ Uchastka» tugmasi. Oʻchirish — chegarani bosing.'});}
 function lay15(){const F2=LAST15;if(!F2)return;const N=C15.length,P=ULY.PAL;
   const pals={seq:P.seq,grn:P.seqG,rg:['#b03a2e','#eda062','#e9d36b','#93c089','#2e7d4f']};
   const col=(c,st)=>{if(c.n==null)return 'rgba(200,200,195,.5)';const p=pals[st.pal]||P.seq;if(cat15==='all')return p[Math.min(4,Math.floor(c.n/N*4.999))];const m=c.m[cat15];return m<=5?p[4]:m<=10?p[3]:m<=15?p[2]:m<=25?p[1]:(st.pal==='rg'?p[0]:P.heat[4]);};
@@ -440,7 +466,7 @@ async function cvRun(){const D=LASTD;if(!D){toast('Avval hududni hisoblang.');re
   CV={url:oc.toDataURL('image/png'),bounds,img:sm.toDataURL('image/jpeg',.82),cells,z,tiles:nx*ny,fail,stats:{green_canopy_pct:+(nV/nIn*100).toFixed(1),water_pct:+(nW/nIn*100).toFixed(1),deep_shadow_pct:+(nS/nIn*100).toFixed(1),other_built_bare_pct:+((nIn-nV-nW-nS)/nIn*100).toFixed(1),
     heat_proxy_mean_0_1:+(cells.filter(c=>c.heat!=null).reduce((s,c)=>s+c.heat,0)/Math.max(1,cells.filter(c=>c.heat!=null).length)).toFixed(2),pixel_m:+(156543.03*Math.cos(bb[0]*R)/2**z).toFixed(2)}};
   CV.stats.method='Esri World Imagery (z'+z+', ~'+CV.stats.pixel_m+' m/piksel) · piksel tasniflash: ExG=2G−R−B (yashil), koʻk ustunligi (suv), qorongʻi soya. Daraxt soyalari va tomdagi yashillik xato berishi mumkin.';
-  if(res){res.computer_vision=CV.stats;}layCV();btn.disabled=false;btn.textContent='Qayta tahlil';renderRes();toast('CV tahlili tayyor.');}
+  if(res){res.computer_vision=CV.stats;}LASTD.autoTrees=autoTrees(LASTD);layersAll();layCV();btn.disabled=false;btn.textContent='Qayta tahlil';renderRes();toast('CV tahlili tayyor.');}
 function layCV(){if(!CV)return;const P=ULY.PAL,F2=LASTD.F15;
   ULY.set('cv_veg',{name:'CV: koʻkalam / kanop + suv (tasvirdan)',group:'Yashil, suv, kanop',kind:'raster',st:{opacity:.75},note:CV.stats.method,render:()=>({url:CV.url,bounds:CV.bounds}),legend:()=>[['#2e7d4f','yashil / daraxt toji'],['#3a7ca5','suv']]});
   ULY.set('cv_heat',{name:'Issiqlik orol xavfi proksi (CV + binolar)',group:'Sogʻliq va ekologiya',kind:'raster',on:false,st:{opacity:.6},note:'0,65 × (1 − yashil ulushi) + 0,35 × bino qoplami; katak boʻyicha. Harorat oʻlchovi emas.',
@@ -527,7 +553,7 @@ async function ask(q){if(!res){toast('Avval hududni hisoblang.');return;}if(!KEY
 $('#askBtn').onclick=()=>ask($('#q').value);document.querySelectorAll('[data-qq]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.qq;ask(b.dataset.qq);});
 $('#runBtn').onclick=compute;
 $('#b3d').onclick=()=>{if(!LASTD){toast('Avval hududni hisoblang.');return;}if(!window.AI3D){toast('3D modul yuklanmadi.');return;}
-  AI3D.open({D:LASTD,MX,MY,ULY,toast,clip:CLIP,mode:res&&res.mode,lv:+PRM.lv||0,putMat:o=>new Promise((ok,no)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=ok;t.onerror=()=>no(t.error);};r.onerror=()=>no(r.error);})});};$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
+  AI3D.open({D:LASTD,MX,MY,ULY,toast,sites:SITES,onSites:a=>{SITES=a;saveSites();laySites();siteRender();},clip:CLIP,mode:res&&res.mode,lv:+PRM.lv||0,putMat:o=>new Promise((ok,no)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=ok;t.onerror=()=>no(t.error);};r.onerror=()=>no(r.error);})});};$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
 async function baseImg(bb){if(BASE==='none')return null;const U={grey:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}[BASE];if(!U)return null;
   const lx=(lon,z)=>(lon+180)/360*2**z,ly=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*2**z;let z=BASE==='grey'?16:17;
   while(z>11&&(Math.floor(lx(bb[3],z))-Math.floor(lx(bb[1],z))+1)*(Math.floor(ly(bb[0],z))-Math.floor(ly(bb[2],z))+1)>64)z--;
@@ -583,6 +609,6 @@ hint();renderRes();
 openRun('last',true).then(ok=>{if(ok)toast('Oxirgi tahlil tiklandi. Boshqalari — «Saqlanganlar» da.');}).catch(()=>{});
 })();
 </script>
-<script src="js/i18n.js?v=27"></script>
+<script src="js/i18n.js?v=28"></script>
 </body>
 </html>
