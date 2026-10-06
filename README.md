@@ -23,6 +23,8 @@ Koʻchalarni tahlil qilish va qayta loyihalash uchun brauzer asbobi — Toshkent
 - nusxa/qoʻyish/koʻchirish, orqaga/oldinga (Ctrl+Z/Y), oʻng tugma menyusi;
 - eksport: PNG, SVG, DXF (mahalliy yoki UTM 42N), GeoJSON, CSV hisob-kitob, 3D koʻrinish va OBJ+MTL.
 
+**Shamol va ventilyatsiya** (`shamol.html`) — OSM binolaridan 16 yoʻnalish boʻyicha frontal maydon zichligi λf (100/50 m katak), ERA5 shamol guli (kun vaqti va mavsum boʻyicha), eng kam qarshilikli shamol yoʻlaklari. Minora qoʻshib (yoki Joylashtirishdan/GeoJSON dan olib) mavjud holat bilan Δλf farqi koʻriladi. Makro daraja (≤5 km), loyihalash bosqichi uchun dalil; CFD va tungi sovuq havo oqimi (KLAM_21) kirmagan.
+
 **Konseptual 3D** — profil yoki loyiha koʻchasi izometrik taqdimot koʻrinishida: bino, daraxtlar, odamlar, transport, yoʻl belgilari, oʻlchamlar; PNG eksport.
 
 **3D shahar** — MapLibre GL + OpenFreeMap: OSM binolari hajmda, sunʼiy yoʻldosh va loyiha qatlami.
