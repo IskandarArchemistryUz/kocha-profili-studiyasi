@@ -221,11 +221,13 @@ $("mrClose").onclick=()=>openDrawer(false);
    Boʻlimlar oʻz maʼlumotini umumiy brauzer kalitlariga yozadi. Faol loyiha — shu kalitlardagi holat.
    Loyiha almashtirilganda joriy holat «kps_projects» bazasiga nusxalanadi, tanlangan loyiha holati qaytariladi.
    Sozlamalar (til, AI kaliti, palitralar), saqlangan tahlillar kutubxonasi va 3D aktivlar umumiy qoladi. */
-const LS_KEYS=['kps_project','kps_v1','kps_posadka','kps_posadka_sum','kps_area_sum','kps_ai_sites','kps_mrp','kps_mrp_ext','kps_site','kps_site_seen_studio'];
-const IDB_ALL=[['kps_maket','docs'],['kps_mat','mats'],['kps_data','layers']];
-const IDB_ONE=[['kps_ai_runs','runs','last']];
+const LS_KEYS=['kps_project','kps_v1','kps_saves','kps_posadka','kps_posadka_sum','kps_area_sum','kps_ai_sites','kps_official','kps_mrp','kps_mrp_ext','kps_site','kps_site_seen_studio'];
+// albom, albom materiallari, yuklangan qatlamlar, saqlangan tahlillar va foydalanuvchi 3D modellari — hammasi loyihaga tegishli
+const IDB_ALL=[['kps_maket','docs'],['kps_mat','mats'],['kps_data','layers'],['kps_ai_runs','runs'],['kps_assets','a']];
+const IDB_ONE=[];
+const IDB_OPT={kps_assets:{keyPath:'id',autoIncrement:true}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function idbOpen(name,store){return new Promise((res,rej)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>r.result.createObjectStore(store,{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function idbOpen(name,store){return new Promise((res,rej)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>r.result.createObjectStore(store,IDB_OPT[name]||{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function idbTx(name,store,mode,fn){const db=await idbOpen(name,store);try{if(!db.objectStoreNames.contains(store))return mode==='readonly'?[]:null;
   return await new Promise((res,rej)=>{const t=db.transaction(store,mode),os=t.objectStore(store);let out;const r=fn(os);if(r)r.onsuccess=()=>{out=r.result;};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);});}finally{db.close();}}
 const idbAll=(n,s)=>idbTx(n,s,'readonly',os=>os.getAll()).then(r=>r||[]);
@@ -257,6 +259,7 @@ async function restore(id){
   Object.entries(snap.ls||{}).forEach(([k,v])=>{try{localStorage.setItem(k,v);}catch(e){}});
   for(const [n,s] of IDB_ALL) await idbReplace(n,s,(snap.idb||{})[n+'/'+s]||[]);
   for(const [n,s,key] of IDB_ONE){const r=(snap.idb||{})[n+'/'+s+'#'+key]; if(r) await idbPut(n,s,r);}
+  const legacy=(snap.idb||{})['kps_ai_runs/runs#last']; if(legacy && !((snap.idb||{})['kps_ai_runs/runs']||[]).length) await idbPut('kps_ai_runs','runs',legacy);
 }
 function teardown(){
   Object.values(frames).forEach(f=>f.remove()); for(const k in frames) delete frames[k];
