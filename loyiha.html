@@ -80,14 +80,15 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 /* telefon uchun pastki qadamlar paneli — faqat kichik ekranda */
 .stepsM{display:none}
 /* planshet: qadam nomlari qisqaroq, koʻrsatma yashirin */
-@media (max-width:1100px){
+@media (max-width:1200px){
+  .brand{font-size:0;gap:0}
   .hint{display:none}
   .step{padding:0 9px}
   .pname{width:9em}
   .drawer.open{position:absolute;right:0;top:0;bottom:0;width:min(560px,100vw);z-index:5}
 }
-/* telefon: qadamlar pastki panelda, tepada faqat loyiha nomi va Master reja */
-@media (max-width:760px){
+/* telefon va planshet (tik holatda): qadamlar pastki panelda, tepada faqat loyiha nomi va Master reja */
+@media (max-width:900px){
   body{grid-template-rows:auto auto minmax(0,1fr) auto}
   .top{height:48px;gap:8px;padding:0 10px}
   .brand{font-size:0;gap:0}
@@ -160,7 +161,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="12";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="13";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
