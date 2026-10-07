@@ -297,7 +297,10 @@ async function loadOSM(){
   const bb=bbox(G.ring), b=`${bb[1]-0.002},${bb[0]-0.002},${bb[3]+0.002},${bb[2]+0.002}`;
   const q=`[out:json][timeout:150];(way["building"](${b});relation["building"](${b});way["landuse"](${b});relation["landuse"](${b});way["leisure"](${b});way["natural"](${b});relation["natural"](${b});way["amenity"](${b});way["waterway"](${b});way["highway"](${b});way["railway"](${b});way["shop"](${b}););out geom;`;
   let last;
-  for(const url of OVERPASS){ try{ const r=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}}); if(!r.ok) throw new Error(url.split("/")[2]+" "+r.status); G.osm=(await r.json()).elements||[]; return; }catch(e){ last=e; } }
+  for(let n=0;n<OVERPASS.length;n++){ const url=OVERPASS[n], ac=new AbortController(), tm=setTimeout(()=>ac.abort(),45000);
+    busy(`OSM obyektlari yuklanmoqda… (server ${n+1}/${OVERPASS.length})`);
+    try{ const r=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ac.signal}); if(!r.ok) throw new Error(url.split("/")[2]+" "+r.status); G.osm=(await r.json()).elements||[]; clearTimeout(tm); return; }
+    catch(e){ clearTimeout(tm); last=e.name==="AbortError"?new Error(url.split("/")[2]+" 45 s ichida javob bermadi"):e; } }
   throw new Error("OSM (Overpass) javob bermadi: "+(last&&last.message));
 }
 
@@ -526,13 +529,17 @@ $("slBreaks").onchange=()=>{ if(G.done&&G.tab==="nishab") renderNis(); };
 $("runBtn").onclick=async()=>{
   if(!G.ring) return; $("runBtn").disabled=true; err("");
   try{
-    setupGrid();
-    busy("Relyef va OSM yuklanmoqda…");
-    await Promise.all([loadDEM(), loadOSM()]);
-    busy("Hisoblanmoqda…"); await new Promise(r=>setTimeout(r,30));
-    buildBuildings(); contours(); map.getSource("cont").setData(G.cont);
+    setupGrid(); G.osm=[]; G.bld=[]; G.done=false;
+    // 1) relyef — darhol koʻrsatiladi
+    busy("Relyef yuklanmoqda…"); await loadDEM();
+    busy("Gorizontallar…"); await new Promise(r=>setTimeout(r,20));
+    contours(); map.getSource("cont").setData(G.cont); buildBuildings();
     G.done=true; $("toAlb").disabled=false; renderLuMap(); fillMetricSelect(); renderAll();
-    $("siteStatus").textContent=`Hisoblandi · ${fi(G.bld.length)} bino · relyef ${f1(G.mpp)} m/piksel`;
+    $("siteStatus").textContent=`Relyef tayyor (${f1(G.mpp)} m/piksel). OSM obyektlari yuklanmoqda…`;
+    // 2) OSM — binolar, yer foydalanish, yoʻllar
+    try{ await loadOSM(); buildBuildings(); renderAll();
+      $("siteStatus").textContent=`Hisoblandi · ${fi(G.bld.length)} bino · relyef ${f1(G.mpp)} m/piksel`; }
+    catch(e){ $("siteStatus").className="status warn"; $("siteStatus").textContent="Relyef tayyor, lekin OSM yuklanmadi: "+e.message+" Qayta bosib koʻring yoki bino/yer qatlamini yuklang."; buildBuildings(); renderAll(); }
   }catch(e){ err("Tahlil bajarilmadi: "+e.message); }
   busy(""); $("runBtn").disabled=false;
 };
