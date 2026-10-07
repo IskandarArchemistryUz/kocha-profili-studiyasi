@@ -96,7 +96,7 @@ document.documentElement.classList.add('kps-embed');
 var st=document.createElement('style');
 st.textContent='html.kps-embed header .brand,html.kps-embed header .crumb,html.kps-embed #brandCrumb,html.kps-embed #kbBtn,html.kps-embed #kbPn{display:none!important}';
 document.head.appendChild(st);
-var PAGES=['index.html','studio.html','ai.html','posadka.html','maket.html','masterreja.html','data.html','shamol.html'];
+var PAGES=['index.html','studio.html','ai.html','posadka.html','maket.html','masterreja.html','data.html','shamol.html','gis.html'];
 document.addEventListener('click',function(e){
   var a=e.target&&e.target.closest&&e.target.closest('a[href]');if(!a||a.target==='_blank'||a.hasAttribute('download'))return;
   var u;try{u=new URL(a.getAttribute('href'),location.href);}catch(x){return;}
@@ -117,6 +117,7 @@ var SHEETS={
   ai:[['Xarita',null],['Natija','main > aside']],
   posadka:[['Reja',null],['Koʻrsatkichlar','main > aside']],
   shamol:[['Xarita',null],['Boshqaruv','.app > aside']],
+  gis:[['Xarita',null],['Tahlil','.app > aside']],
   studio:[['Xarita',null],['Panel','.work > aside.side']],
   maket:[['Varaq',null],['Materiallar','main > aside.l'],['Xususiyatlar','main > aside.r']]
 };
