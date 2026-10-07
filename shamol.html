@@ -905,6 +905,7 @@ $("segView").addEventListener("click",()=>{ if(map.getLayer("lbm")){ map.setLayo
 function applySite(){
   let s=null;try{s=JSON.parse(localStorage.getItem('kps_site')||'null');}catch(e){}
   if(!s||!s.ring||s.ring.length<3||S.grid) return;   // hudud yuklangandan keyin almashtirilmaydi
+  if(!map.getSource("circle")){ setTimeout(applySite,500); return; }   // xarita qatlamlari hali tayyor emas
   let la=0,lo=0; s.ring.forEach(p=>{la+=p[0];lo+=p[1];}); la/=s.ring.length; lo/=s.ring.length;
   const kx=111320*Math.cos(la*DEG); let rmax=0; s.ring.forEach(p=>{ rmax=Math.max(rmax,Math.hypot((p[1]-lo)*kx,(p[0]-la)*110540)); });
   const rk=Math.max(0.5,Math.min(3,Math.ceil((rmax+150)/250)*0.25));
@@ -917,7 +918,7 @@ function applySite(){
   map.fitBounds(b,{padding:40,pitch:50,duration:0});
   $("loadStatus").textContent=`Hudud 1-qadamdan olindi · radius ${rk} km. «Binolar va shamolni yuklash» ni bosing.`;
 }
-if(map.loaded()) applySite(); else map.on("load",applySite);
+applySite();
 window.addEventListener("storage",e=>{ if(e.key==="kps_site") applySite(); });
 renderStats(); renderTowers();
 };

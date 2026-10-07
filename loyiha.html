@@ -181,6 +181,7 @@ function show(i, j, src){
   P.step=i; P.sub[st.id]=j; if(!P.seen.includes(i)) P.seen.push(i); saveP(); { const c=REG.list&&REG.list.find(x=>x.id===REG.active); if(c){ c.t=new Date().toISOString(); c.step=i; localStorage.setItem("kps_projects",JSON.stringify(REG)); } }
   const f=frameFor(u.page, src);
   Object.values(frames).forEach(x=>x.hidden = x!==f);
+  try{ f.contentWindow.dispatchEvent(new Event("resize")); }catch(e){}   // yashirin turgan xaritalar oʻlchamini qayta oladi
   if(u.app){ f.dataset.wantApp=u.app; applyApp(f); }
   renderNav();
   try{ history.replaceState(null,"","#"+st.id+"-"+u.id); }catch(e){}
