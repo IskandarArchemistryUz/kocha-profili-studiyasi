@@ -52,10 +52,13 @@ aside{border-right:1px solid var(--line);background:var(--panel);display:flex;fl
 <aside>
 <div class="ah"><h1>Maʼlumotlar</h1><p>QGIS, ArcGIS, AutoCAD Map, Google Earth va boshqalardan qatlamlar. Fayllar faqat shu brauzerda saqlanadi va Koʻcha studiyasi xaritasida ham koʻrinadi.</p></div>
 <label class="drop" id="drop" tabindex="0">Faylni shu yerga tashlang yoki <u>tanlang</u>
-<small>GeoJSON · Shapefile (.zip) · KML · KMZ · GPX · CSV (lat/lon yoki WKT)</small>
-<input type="file" id="file" multiple hidden accept=".geojson,.json,.zip,.kml,.kmz,.gpx,.csv,.txt"></label>
+<small>Shapefile (.shp + .dbf + .prj — bir nechta faylni birga tanlang yoki .zip) · GeoPackage · GeoJSON · KML · KMZ · GPX · CSV</small>
+<input type="file" id="file" multiple hidden accept=".geojson,.json,.zip,.kml,.kmz,.gpx,.csv,.txt,.shp,.dbf,.shx,.prj,.cpg,.gpkg"></label>
+<div class="opts"><button type="button" class="btn" id="dirBtn" style="flex:1">Butun papkani tanlash</button><input type="file" id="dir" webkitdirectory multiple hidden></div>
+<div class="opts"><span>Qamrov</span><select id="scope"><option value="site">Loyiha hududi + 1 km</option><option value="view">Xaritada koʻrinayotgan joy</option><option value="all">Butun fayl</option></select></div>
 <div class="opts"><span>CRS (aniqlanmasa)</span><select id="crs">
-<option value="auto">Avto (fayldan)</option><option value="EPSG:4326">WGS 84 (lon/lat)</option><option value="EPSG:32642">WGS 84 / UTM 42N</option><option value="EPSG:32641">WGS 84 / UTM 41N</option><option value="EPSG:32643">WGS 84 / UTM 43N</option><option value="EPSG:3857">Web Mercator</option><option value="EPSG:28412">Pulkovo 1942 / GK zona 12</option><option value="EPSG:28413">Pulkovo 1942 / GK zona 13</option></select></div>
+<option value="auto">Avto (fayldan)</option><option value="EPSG:4326">WGS 84 (lon/lat)</option><option value="EPSG:32642">WGS 84 / UTM 42N</option><option value="EPSG:32641">WGS 84 / UTM 41N</option><option value="EPSG:32643">WGS 84 / UTM 43N</option><option value="EPSG:3857">Web Mercator</option><option value="TOSHKENT-MSK">Toshkent mahalliy (MSK, shahar bazasi)</option><option value="EPSG:28412">Pulkovo 1942 / GK zona 12</option><option value="EPSG:28413">Pulkovo 1942 / GK zona 13</option></select></div>
+<details class="opts" style="display:block"><summary style="cursor:pointer">Aniq moslash (siljitish)</summary><div style="display:flex;gap:8px;margin-top:6px;align-items:center"><label style="flex:1">Sharqqa, m <input id="dx" type="number" value="0" step="0.5" style="width:70px"></label><label style="flex:1">Shimolga, m <input id="dy" type="number" value="0" step="0.5" style="width:70px"></label></div><p style="margin:6px 0 0;font-size:12px;color:var(--grey)">Mahalliy tizimdagi (MSK, Pulkovo) qatlam sunʼiy yoʻldosh tasviriga nisbatan bir necha metr surilgan boʻlsa — farqni kiriting va qayta yuklang.</p></details>
 <div class="lh"><span>QATLAMLAR</span><span id="cnt">0</span></div>
 <div id="list"></div>
 </aside>
@@ -103,7 +106,7 @@ const DEFS={'EPSG:32641':'+proj=utm +zone=41 +datum=WGS84 +units=m +no_defs','EP
  'EPSG:28412':'+proj=tmerc +lat_0=0 +lon_0=69 +k=1 +x_0=12500000 +y_0=0 +ellps=krass +towgs84=23.92,-141.27,-80.9,0,0.35,0.82,-0.12 +units=m +no_defs','EPSG:28413':'+proj=tmerc +lat_0=0 +lon_0=75 +k=1 +x_0=13500000 +y_0=0 +ellps=krass +towgs84=23.92,-141.27,-80.9,0,0.35,0.82,-0.12 +units=m +no_defs'};
 const firstXY=gj=>{let c=null;const walk=a=>{if(c)return;if(typeof a[0]==='number'){c=a;return;}a.forEach(walk);};(gj.features||[]).some(f=>{if(f.geometry&&f.geometry.coordinates)walk(f.geometry.coordinates);return c;});return c;};
 async function reproject(gj,code){if(!code||code==='EPSG:4326'||code==='CRS84')return gj;await loadScript('https://cdn.jsdelivr.net/npm/proj4@2.22.0/dist/proj4.js');
-  Object.entries(DEFS).forEach(([k,v])=>proj4.defs(k,v));if(!proj4.defs(code))throw new Error(code+' qoʻllab-quvvatlanmaydi. Tanlovdan CRS belgilang.');
+  Object.entries(DEFS).forEach(([k,v])=>proj4.defs(k,v));if(window.GISIMP)Object.entries(GISIMP.DEFS).forEach(([k,v])=>{if(!proj4.defs(k))proj4.defs(k,v);});if(!proj4.defs(code))throw new Error(code+' qoʻllab-quvvatlanmaydi. Tanlovdan CRS belgilang.');
   const tr=proj4(code,'EPSG:4326'),walk=a=>typeof a[0]==='number'?tr.forward(a.slice(0,2)):a.map(walk);
   (gj.features||[]).forEach(f=>{if(f.geometry&&f.geometry.coordinates)f.geometry.coordinates=walk(f.geometry.coordinates);});delete gj.crs;return gj;}
 function crsOf(gj){const n=gj.crs&&gj.crs.properties&&gj.crs.properties.name;if(!n)return null;const m=String(n).match(/EPSG::?(\d+)/i);if(m)return 'EPSG:'+m[1];if(/CRS84/i.test(n))return 'CRS84';return null;}
@@ -126,7 +129,28 @@ async function readFile(f){const ext=f.name.toLowerCase().split('.').pop();let g
   if(ext==='csv'||ext==='txt')return [{name:f.name,gj:parseCSV(await f.text())}];
   gj=JSON.parse(await f.text());if(gj.type==='Feature')gj={type:'FeatureCollection',features:[gj]};else if(gj.type&&gj.type!=='FeatureCollection')gj={type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:gj}]};
   return [{name:f.name,gj}];}
-async function addFiles(files){for(const f of files){try{const parts=await readFile(f);
+function scopeRegion(){const sc=$('#scope').value;
+  if(sc==='site'){let s=null;try{s=JSON.parse(localStorage.getItem('kps_site')||'null');}catch(e){}
+    if(s&&s.ring&&s.ring.length>2){let a=[180,90,-180,-90];s.ring.forEach(([la,lo])=>{a[0]=Math.min(a[0],lo);a[1]=Math.min(a[1],la);a[2]=Math.max(a[2],lo);a[3]=Math.max(a[3],la);});
+      const pad=1000/111320,padx=pad/Math.cos((a[1]+a[3])/2*Math.PI/180);return {r:[a[0]-padx,a[1]-pad,a[2]+padx,a[3]+pad],label:'loyiha hududi + 1 km'};}
+    return {r:viewR(),label:'xaritadagi koʻrinish (loyiha hududi hali belgilanmagan)'};}
+  if(sc==='view')return {r:viewR(),label:'xaritadagi koʻrinish'};
+  return {r:null,label:'butun fayl'};}
+function viewR(){const b=map.getBounds();return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];}
+async function addFiles(files){
+  if(files.some(f=>/\.(shp|dbf|shx|prj|cpg|gpkg)$/i.test(f.name))){
+    const sc=scopeRegion(),big=files.reduce((a,f)=>a+(/\.(shp|dbf|gpkg)$/i.test(f.name)?f.size:0),0);
+    if(!sc.r&&big>150*1024*1024){toast(`Fayllar katta (${Math.round(big/1048576)} MB). «Qamrov» da loyiha hududi yoki xarita koʻrinishini tanlang.`);return;}
+    toast('Oʻqilmoqda: '+sc.label+'…');
+    try{const r=await GISIMP.read(files,{region:sc.r,crs:$('#crs').value,dx:+$('#dx').value||0,dy:+$('#dy').value||0,onProgress:m=>toast(m)});
+      for(const l of r.layers){ if(!l.kept){toast(`«${l.name}»: tanlangan hududda obyekt yoʻq (${(l.total||0).toLocaleString('ru-RU')} tadan). Qamrovni yoki xaritani tekshiring.`);continue;}
+        const o={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:l.name,color:PAL[LAY.length%PAL.length],visible:true,geojson:l.gj,crs:l.crs,t:new Date().toISOString()};
+        await put(o);LAY.push(o);draw(o);try{map.fitBounds(LL[o.id].getBounds(),{padding:[30,30]});}catch(e){}
+        toast(`«${l.name}»: ${l.kept.toLocaleString('ru-RU')} ta obyekt${l.total?' ('+l.total.toLocaleString('ru-RU')+' tadan)':''} · ${l.crs}${l.note?' · '+l.note:''}`);}
+      r.errors.forEach(e=>toast(e));
+    }catch(e){toast('Import xatosi: '+(e.message||e));}
+    files=GISIMP.groups(files).other;render();}
+  for(const f of files){try{const parts=await readFile(f);
   for(const {name,gj:g} of parts){let gj=g,code=crsOf(gj),sel=$('#crs').value;const xy=firstXY(gj);
     if(!code&&xy&&(Math.abs(xy[0])>180||Math.abs(xy[1])>90)){if(sel==='auto')throw new Error(name+': koordinatalar metrda (proyeksiyada), lekin CRS koʻrsatilmagan. Yuqoridagi roʻyxatdan CRS tanlab qayta yuklang (masalan, UTM 42N).');code=sel;}
     if(sel!=='auto'&&!crsOf(gj)&&xy&&(Math.abs(xy[0])>180||Math.abs(xy[1])>90))code=sel;
@@ -136,6 +160,7 @@ async function addFiles(files){for(const f of files){try{const parts=await readF
     toast(`«${name}» qoʻshildi: ${(gj.features||[]).length} ta obyekt.`);}
   }catch(e){toast(f.name+': '+(e.message||e));}}render();}
 const dz=$('#drop');$('#file').onchange=e=>{addFiles([...e.target.files]);e.target.value='';};
+$('#dirBtn').onclick=()=>$('#dir').click();$('#dir').onchange=e=>{addFiles([...e.target.files]);e.target.value='';};
 ['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('over');}));
 ['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over');}));
 dz.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
@@ -143,6 +168,7 @@ document.addEventListener('dragover',e=>e.preventDefault());document.addEventLis
 all().then(a=>{LAY=a.sort((x,y)=>x.t.localeCompare(y.t));LAY.forEach(draw);render();const vis=LAY.filter(o=>o.visible);if(vis.length){try{const b=L.featureGroup(vis.map(o=>LL[o.id]));map.fitBounds(b.getBounds(),{padding:[30,30]});}catch(e){}}}).catch(()=>{render();toast('Brauzer xotirasi (IndexedDB) ochilmadi.');});
 })();
 </script>
+<script src="js/gisimport.js?v=1"></script>
 <script src="js/i18n.js?v=29"></script>
 </body>
 </html>

@@ -326,7 +326,7 @@ function luOf(t){
   if(t.building) return "bino";
   return null;
 }
-const KW=[["turar",/turar|resid|жил|house|uy\b|kvart/i],["jamoat",/jamoat|maktab|school|bogʻcha|bog'cha|sogʻliq|hospital|kasal|public|социал|образ|адм/i],["savdo",/savdo|commerc|retail|torg|торг|bozor|market|xizmat/i],
+const KW=[["turar",/turar|resid|жил|house|uy\b|kvart|дом|многокварт|ИЖС|xovli|hovli/i],["jamoat",/jamoat|maktab|school|bogʻcha|bog'cha|sogʻliq|hospital|kasal|public|социал|образ|адм/i],["savdo",/savdo|commerc|retail|torg|торг|bozor|market|xizmat/i],
   ["sanoat",/sanoat|industr|пром|ombor|склад|zavod/i],["yashil",/yashil|park|green|bog\b|озел|сквер/i],["qishloq",/qishloq|agri|sel|ферм|ekin|dala/i],["suv",/suv|water|вод/i],["transport",/transport|yo'l|yoʻl|road|parking|автост|дорог/i],["qabr",/qabr|cemet|кладб/i]];
 const guessLU=v=>{ for(const [k,re] of KW) if(re.test(String(v))) return k; return ""; };
 let LU_MAP={};
@@ -469,10 +469,11 @@ function buildBuildings(){
     out.push({ll:r,a:polyAreaM(r),fl:lv||df,hq:lv?"tag":"default",lu:luOf(e.tags)||"bino",src:"osm"}); }); });
   G.userB=false;
   const l=layerById($("bLayer").value);
-  if(l){ const LV=["floors","qavat","qavatlar","levels","building:levels","etaj","etajnost","storeys"], HT=["height","balandlik","H","h"];
+  if(l){ const LV=["floors","qavat","qavatlar","qavat_soni","levels","building:levels","etaj","etajnost","etazh","этаж","этажность","storeys"], HT=["height","balandlik","h","высота"];
     const cents=out.map(b=>b.ll.reduce((a,p)=>[a[0]+p[0]/b.ll.length,a[1]+p[1]/b.ll.length],[0,0]));
     (l.geojson.features||[]).forEach(f=>{ const pr=f.properties||{}; featRings(f).slice(0,1).forEach(r=>{ if(r.length<4) return;
-      let fl=null; for(const k of LV) if(num(pr[k])){fl=num(pr[k]);break;} if(!fl) for(const k of HT) if(num(pr[k])){fl=Math.max(1,Math.round(num(pr[k])/3.3));break;}
+      const pk={}; Object.keys(pr).forEach(k=>pk[k.toLowerCase()]=pr[k]);   // maydon nomlari katta-kichik harfdan qatʼi nazar
+      let fl=null; for(const k of LV) if(num(pk[k])){fl=num(pk[k]);break;} if(!fl) for(const k of HT) if(num(pk[k])){fl=Math.max(1,Math.round(num(pk[k])/3.3));break;}
       // OSM binosi bilan ustma-ust boʻlsa — yuklangan maʼlumot ustun
       for(let i=out.length-1;i>=0;i--){ const c=cents[i]; if(c&&pip(c,r)){ out.splice(i,1); cents.splice(i,1); } }
       out.push({ll:r,a:polyAreaM(r),fl:fl||df,hq:fl?"tag":"default",lu:"bino",src:"user"}); }); });
