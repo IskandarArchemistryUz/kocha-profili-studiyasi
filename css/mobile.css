@@ -1,0 +1,34 @@
+/* Archemistry Lab — telefon va planshet uchun moslashuv.
+   js/beta.js har sahifaga html[data-page] va (kerak boʻlsa) pastki panel tugmalarini qoʻshadi. */
+
+/* ---------- planshet va telefon: sarlavha paneli bir qatorda, yonga suriladi ---------- */
+@media (max-width:1100px){
+  html[data-page] body > header,html[data-page] .app > header{overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  html[data-page] body > header::-webkit-scrollbar,html[data-page] .app > header::-webkit-scrollbar{display:none}
+  html[data-page] body > header > *,html[data-page] .app > header > *{flex:none}
+  html[data-page] body > header .sp{flex:0 0 6px}
+}
+
+/* ---------- telefon: xarita butun ekranda, panel pastdan ochiladi ---------- */
+@media (max-width:820px){
+  html.km-sheet,html.km-sheet body{height:100%;overflow:hidden}
+  html.km-sheet body > header{height:46px}
+  /* xarita yoki varaq — butun joy, pastda tugmalar qatori uchun 46 px */
+  html.km-sheet main{display:block!important;position:relative;flex:1;min-height:0}
+  html.km-sheet main > .mapw,html.km-sheet main > .stage{position:absolute!important;inset:0 0 46px 0;min-width:0}
+  html.km-sheet .app{display:flex!important;flex-direction:column;height:100%!important;grid-template-columns:none!important;grid-template-rows:none!important}
+  html.km-sheet .app > .mapwrap{flex:1;min-height:0;margin-bottom:46px}
+  /* asboblar ustuni xarita ustida kichik suzuvchi panel */
+  html.km-sheet main > .rail{position:absolute!important;top:8px;left:8px;z-index:800;max-height:calc(100% - 70px);overflow:auto;border:1px solid #dedcd7;border-radius:6px;padding:4px!important;width:auto!important}
+  /* pastdan chiquvchi panel */
+  html.km-sheet .km-panel{position:fixed!important;left:0!important;right:0!important;bottom:46px!important;top:auto!important;width:auto!important;height:58vh!important;max-height:calc(100% - 96px);z-index:950;display:none!important;overflow:auto!important;border:0!important;border-top:1px solid #141414!important;box-shadow:0 -8px 22px rgba(0,0,0,.14);background:#fff}
+  html.km-sheet .km-panel.km-on{display:flex!important}
+  /* pastki tugmalar qatori */
+  #kmBar{position:fixed;left:0;right:0;bottom:0;height:46px;z-index:960;display:flex;background:#fbfaf7;border-top:1px solid #141414;padding-bottom:env(safe-area-inset-bottom,0px)}
+  #kmBar button{flex:1;border:0;border-right:1px solid #dedcd7;background:transparent;font:500 12px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:#141414;cursor:pointer}
+  #kmBar button:last-child{border-right:0}
+  #kmBar button[aria-pressed="true"]{background:#141414;color:#fbfaf7}
+  /* fikr tugmasi pastki qatorni yopmasin */
+  html.km-sheet #kbBtn{bottom:58px!important}
+}
+@media (min-width:821px){ #kmBar{display:none} }

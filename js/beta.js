@@ -107,3 +107,31 @@ document.addEventListener('click',function(e){
   window.parent.postMessage({kps:'go',href:p+u.search+u.hash},location.origin);
 },true);
 })();
+/* Telefon va planshet: sahifa nomi html[data-page] da, moslashuv uslublari css/mobile.css da.
+   Xaritali boʻlimlarda telefonda panel pastdan ochiladi, pastki qatordagi tugmalar bilan almashtiriladi. */
+(function(){
+var pg=(location.pathname.split('/').pop()||'index.html').replace(/\.html$/,'')||'index';
+document.documentElement.dataset.page=pg;
+var l=document.createElement('link');l.rel='stylesheet';l.href='css/mobile.css?v=1';document.head.appendChild(l);
+var SHEETS={
+  ai:[['Xarita',null],['Natija','main > aside']],
+  posadka:[['Reja',null],['Koʻrsatkichlar','main > aside']],
+  shamol:[['Xarita',null],['Boshqaruv','.app > aside']],
+  maket:[['Varaq',null],['Materiallar','main > aside.l'],['Xususiyatlar','main > aside.r']]
+};
+var cfg=SHEETS[pg];if(!cfg)return;
+function init(){
+  var panels=cfg.map(function(c){var el=c[1]?document.querySelector(c[1]):null;if(el)el.classList.add('km-panel');return el;});
+  var bar=document.createElement('nav');bar.id='kmBar';bar.setAttribute('aria-label','Koʻrinish');
+  bar.innerHTML=cfg.map(function(c,i){return '<button type="button" data-i="'+i+'" aria-pressed="'+(i===0)+'">'+c[0]+'</button>';}).join('');
+  document.body.appendChild(bar);
+  var mq=matchMedia('(max-width:820px)'),cur=0;
+  function pick(i){cur=i;panels.forEach(function(p,k){if(p)p.classList.toggle('km-on',k===i);});
+    [].forEach.call(bar.children,function(b,k){b.setAttribute('aria-pressed',k===i);});
+    setTimeout(function(){window.dispatchEvent(new Event('resize'));},60);}
+  function apply(){document.documentElement.classList.toggle('km-sheet',mq.matches);pick(mq.matches?cur:0);}
+  bar.onclick=function(e){var b=e.target.closest('button');if(!b)return;var i=+b.dataset.i;pick(i===cur&&i!==0?0:i);};
+  mq.addEventListener?mq.addEventListener('change',apply):mq.addListener(apply);apply();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();

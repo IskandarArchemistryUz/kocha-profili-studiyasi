@@ -77,11 +77,38 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .drawer .dh{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}
 .drawer .dh button{border:0;background:none;font-size:18px;cursor:pointer;line-height:1}
 .drawer iframe{width:100%;height:100%;border:0}
-@media (max-width:900px){
-  .step .t{display:none}
-  .pname{width:8em}
-  .drawer.open{position:absolute;right:0;top:0;bottom:0;width:min(560px,100vw);z-index:5}
+/* telefon uchun pastki qadamlar paneli — faqat kichik ekranda */
+.stepsM{display:none}
+/* planshet: qadam nomlari qisqaroq, koʻrsatma yashirin */
+@media (max-width:1100px){
   .hint{display:none}
+  .step{padding:0 9px}
+  .pname{width:9em}
+  .drawer.open{position:absolute;right:0;top:0;bottom:0;width:min(560px,100vw);z-index:5}
+}
+/* telefon: qadamlar pastki panelda, tepada faqat loyiha nomi va Master reja */
+@media (max-width:760px){
+  body{grid-template-rows:auto auto minmax(0,1fr) auto}
+  .top{height:48px;gap:8px;padding:0 10px}
+  .brand{font-size:0;gap:0}
+  .pname{width:auto;flex:1;min-width:0;font-size:15px}
+  .pwrap{flex:1;min-width:0}
+  .pmenu{position:fixed;left:8px;right:8px;top:52px;width:auto}
+  #mrBtn{padding:0 9px;font-size:11px}
+  .steps{grid-row:4;position:static;margin:0;height:56px;width:100%;justify-content:space-around;border-top:1px solid var(--ink);background:var(--paper);overflow:visible;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .top .steps{display:none}
+  .stepsM{display:flex}
+  .step{flex:1;flex-direction:column;justify-content:center;gap:3px;padding:0 2px}
+  .step .t{display:block;font-size:10.5px;letter-spacing:.02em}
+  .step .n{width:20px;height:20px;font-size:10.5px}
+  .step+.step::before{display:none}
+  .step[aria-current="step"]::after{top:-1px;bottom:auto;left:18%;right:18%}
+  .sub{height:auto;min-height:40px;padding:4px 10px;gap:8px}
+  .subtabs{overflow-x:auto;max-width:100%;scrollbar-width:none}
+  .subtabs::-webkit-scrollbar{display:none}
+  .subtabs button{white-space:nowrap}
+  .next{display:none}
+  .drawer.open{position:fixed;inset:0;width:100vw;z-index:40}
 }
 @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
 </style>
@@ -111,6 +138,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
     <div id="mrHost"></div>
   </aside>
 </main>
+<nav class="steps stepsM" id="stepsM" aria-label="Loyiha qadamlari"></nav>
 
 <script>
 "use strict";
@@ -198,12 +226,13 @@ window.addEventListener("message",e=>{ if(e.origin!==location.origin||!e.data||e
 
 function renderNav(){
   const i=P.step, st=STEPS[i], j=P.sub[st.id]||0;
-  $("steps").innerHTML=STEPS.map((s,k)=>`<button class="step${P.seen.includes(k)&&k!==i?" seen":""}" data-i="${k}" ${k===i?'aria-current="step"':""}><span class="n">${k+1}</span><span class="t">${s.t}</span></button>`).join("");
+  $("stepsM").innerHTML=$("steps").innerHTML=STEPS.map((s,k)=>`<button class="step${P.seen.includes(k)&&k!==i?" seen":""}" data-i="${k}" ${k===i?'aria-current="step"':""}><span class="n">${k+1}</span><span class="t">${s.t}</span></button>`).join("");
   $("subtabs").innerHTML = st.subs.length>1 ? st.subs.map((u,k)=>`<button data-j="${k}" aria-pressed="${k===j}">${u.t}</button>`).join("") : "";
   $("hint").textContent=st.subs[j].hint;
   const nx=STEPS[i+1]; $("nextBtn").textContent = nx ? `Keyingi: ${nx.t} →` : "Bosh sahifa";
 }
 $("steps").onclick=e=>{ const b=e.target.closest("button[data-i]"); if(b) show(+b.dataset.i); };
+$("stepsM").onclick=$("steps").onclick;
 $("subtabs").onclick=e=>{ const b=e.target.closest("button[data-j]"); if(b) show(P.step, +b.dataset.j); };
 $("nextBtn").onclick=()=>{ if(P.step<STEPS.length-1) show(P.step+1); else location.href="./"; };
 
