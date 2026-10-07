@@ -110,6 +110,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
   .subtabs button{white-space:nowrap}
   .next{display:none}
   .drawer.open{position:fixed;inset:0;width:100vw;z-index:40}
+  .sub:has(.subtabs:empty){display:none}   /* boʻlim ichida tanlov boʻlmasa — boʻsh qator yoʻq */
 }
 @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
 </style>
@@ -161,7 +162,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="13";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="14";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
