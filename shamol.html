@@ -215,7 +215,7 @@ const SLICES=[["sutka","Sutka"],["tun","Tun"],["tong","Tong"],["kunduz","Kun"],[
 const SEASONS=[["yil","Yil"],["yoz","Yoz"],["qish","Qish"]];
 const VIEWS=[["mavjud","Mavjud"],["loyiha","Loyiha"],["farq","Farq"],["tasir","Bino taʼsiri"]];
 const DIRMODES=[["one","Bitta yoʻnalish"],["rose","Butun gul"]];
-const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 const S={dirMode:"one", dir:null, probe:null, probeMode:false, center:null, base:[], proj:[], towers:[], wind:null, slice:"kunduz", season:"yoz", view:"farq", addMode:false, grid:null, origin:null};
 let nextId=1;
 const $=id=>document.getElementById(id);
@@ -279,9 +279,11 @@ async function overpass(lat,lon,r){
   const q=`[out:json][timeout:120];(way["building"](around:${r},${lat},${lon});relation["building"](around:${r},${lat},${lon}););out geom;`;
   let last;
   for(const url of OVERPASS){
-    try{ const res=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
-      if(!res.ok) throw new Error(url.split("/")[2]+" "+res.status); return await res.json(); }
-    catch(e){ last=e; }
+    const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),40000);
+    try{ busy("OSM binolari yuklanmoqda… ("+url.split("/")[2]+")");
+      const res=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ac.signal});
+      if(!res.ok) throw new Error(url.split("/")[2]+" "+res.status); const j=await res.json(); clearTimeout(tm); return j; }
+    catch(e){ clearTimeout(tm); last=e.name==="AbortError"?new Error(url.split("/")[2]+": 40 s ichida javob yoʻq"):e; }
   }
   throw new Error("Overpass javob bermadi ("+(last&&last.message)+"). Bir daqiqadan soʻng qayta urinib koʻring.");
 }
