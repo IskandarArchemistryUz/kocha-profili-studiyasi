@@ -146,7 +146,7 @@ function onFrameLoad(f){
     // sahifa skript orqali boshqa boʻlimga oʻtdi (masalan «Albomga →»): uni oʻz qadamida ochamiz, bu oynani qaytaramiz
     let full=path; try{ full=path+f.contentWindow.location.search+f.contentWindow.location.hash; }catch(e){}
     try{ f.contentWindow.history.back(); }catch(e){ f.src=f.dataset.page; }
-    if(path==="index.html"){ location.href="./"; return; }
+    if(path==="index.html"||!PAGE_TO[path]) return;   // bosh sahifa yoki notanish sahifa: oyna oʻz boʻlimiga qaytariladi, loyiha yopilmaydi
     go(full);
     return;
   }
