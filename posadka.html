@@ -645,11 +645,6 @@ function bindFac(b){const M=window.M3D_LIB;if(!M||!$('#fStyle'))return;document.
   $('#fAll').onclick=()=>{P.blds.forEach(x=>{x.fac=JSON.parse(JSON.stringify(b.fac||{}));});commit();toast('Fasad barcha binolarga qoʻllandi.');};
   $('#fDef').onclick=()=>{P.p.fac0=(b.fac&&b.fac.style)||'tsh';commit();toast('Yangi binolar shu uslubda boʻladi.');};}
 const putMat=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const tx=r.result.transaction('mats','readwrite');tx.objectStore('mats').put(o);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);};r.onerror=()=>rej(r.error);});
-window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,openPlan,refresh:()=>renderSide()};
-})();
-</script>
-<script src="js/massing.js?v=6"></script>
-<script src="js/i18n.js?v=29">
 /* Loyiha rejimi: 1-qadamdagi hudud chegarasi maʼlumot uchun koʻrsatiladi (uchastka chegarasi oʻzgarmaydi). */
 (function(){
   if(!document.documentElement.classList.contains('kps-embed')) return;
@@ -666,6 +661,10 @@ window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,
   apply(true);
   window.addEventListener('storage',e=>{if(e.key==='kps_site')apply(true);});
 })();
+window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,openPlan,refresh:()=>renderSide()};
+})();
 </script>
+<script src="js/massing.js?v=6"></script>
+<script src="js/i18n.js?v=29"></script>
 </body>
 </html>
