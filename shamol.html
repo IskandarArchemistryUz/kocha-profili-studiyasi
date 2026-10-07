@@ -929,7 +929,7 @@ function matPut(o){ return new Promise((res,rej)=>{ const r=indexedDB.open("kps_
 $("btnAlb").onclick=async()=>{
   if(!S.grid){ $("albSt").textContent="Avval «Binolar va shamolni yuklash»."; return; }
   try{
-    map.triggerRepaint(); await new Promise(r=>map.once("render",r)); await new Promise(r=>requestAnimationFrame(r));
+    const to=ms=>new Promise(r=>setTimeout(r,ms)); map.triggerRepaint(); await Promise.race([new Promise(r=>map.once("render",r)),to(900)]); await Promise.race([new Promise(r=>requestAnimationFrame(r)),to(200)]);
     const cv=map.getCanvas(), src=cv.toDataURL("image/png"), t=new Date().toISOString();
     const dirTxt = S.dirMode==="one" ? `shamol ${NAMES[S.dir]} tomondan` : "butun shamol guli";
     const viewTxt = {mavjud:"turgʻunlik — mavjud holat",loyiha:"turgʻunlik — loyiha",farq:"farq: loyiha − mavjud",tasir:"tanlangan binoning taʼsiri"}[S.view]||"";
