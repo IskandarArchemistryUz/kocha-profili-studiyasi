@@ -277,15 +277,17 @@ $("radius").oninput=()=>{ $("rLbl").textContent=$("radius").value; if(S.center) 
 /* ---------- maʼlumot yuklash ---------- */
 async function overpass(lat,lon,r){
   const q=`[out:json][timeout:120];(way["building"](around:${r},${lat},${lon});relation["building"](around:${r},${lat},${lon}););out geom;`;
-  let last;
-  for(const url of OVERPASS){
-    const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),40000);
-    try{ busy("OSM binolari yuklanmoqda… ("+url.split("/")[2]+")");
-      const res=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ac.signal});
-      if(!res.ok) throw new Error(url.split("/")[2]+" "+res.status); const j=await res.json(); clearTimeout(tm); return j; }
-    catch(e){ clearTimeout(tm); last=e.name==="AbortError"?new Error(url.split("/")[2]+": 40 s ichida javob yoʻq"):e; }
-  }
-  throw new Error("Overpass javob bermadi ("+(last&&last.message)+"). Bir daqiqadan soʻng qayta urinib koʻring.");
+  // barcha serverlarga birdaniga soʻrov — qaysi biri birinchi javob bersa, oʻsha olinadi, qolganlari bekor qilinadi
+  const acs=OVERPASS.map(()=>new AbortController()), tm=setTimeout(()=>acs.forEach(a=>a.abort()),150000);
+  busy("OSM binolari yuklanmoqda… (bir nechta serverdan)");
+  try{
+    const j=await Promise.any(OVERPASS.map(async(url,i)=>{
+      const res=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:acs[i].signal});
+      if(!res.ok) throw new Error(url.split("/")[2]+" "+res.status);
+      const t=await res.json(); if(!t||!t.elements) throw new Error(url.split("/")[2]+": boʻsh javob"); return t; }));
+    acs.forEach(a=>a.abort()); return j;
+  }catch(e){ throw new Error("OSM serverlari javob bermadi. Bir-ikki daqiqadan soʻng qayta urinib koʻring."); }
+  finally{ clearTimeout(tm); }
 }
 function heightFromTags(t,p){
   const num=v=>{ const x=parseFloat(String(v).replace(",",".")); return x>0?x:null; };
