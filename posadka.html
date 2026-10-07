@@ -659,7 +659,9 @@ window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,
     if(lay){map.removeLayer(lay);lay=null;}
     if(!s||!s.ring||s.ring.length<3) return;
     lay=L.polygon(s.ring,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fill:false,interactive:false}).addTo(map);
-    if(fit&&!(P.site&&P.site.length)) try{map.fitBounds(lay.getBounds().pad(.05));}catch(e){}
+    // uchastka yoʻq yoki u boshqa joyda (hududdan tashqarida) boʻlsa — xarita loyiha hududiga
+    const inside=()=>{ if(!(P.site&&P.site.length)) return false; const b=lay.getBounds(); return P.site.some(q=>b.contains(L.latLng(q[0],q[1]))); };
+    if(fit&&!inside()) try{map.fitBounds(lay.getBounds().pad(.05));}catch(e){}
   }
   apply(true);
   window.addEventListener('storage',e=>{if(e.key==='kps_site')apply(true);});
