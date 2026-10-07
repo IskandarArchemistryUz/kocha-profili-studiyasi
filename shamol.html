@@ -234,7 +234,8 @@ const map=new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
 map.on("error",e=>{ if(e && e.error && /style|tiles/i.test(String(e.error.message||""))) err("Asos xarita yuklanmadi: "+e.error.message); });
 let centerMarker=null;
-map.on("load",()=>{
+const onStyle=fn=>{ let done=false; const go=()=>{ if(done) return; done=true; fn(); }; if(map.isStyleLoaded()) go(); else { map.once("style.load",go); map.once("load",go); } };
+onStyle(()=>{
   // uslubning oʻz binolarini yashiramiz — oʻrniga OSM'dan olingan hajmlar
   map.getStyle().layers.forEach(l=>{ if(l["source-layer"]==="building") map.setLayoutProperty(l.id,"visibility","none"); });
   map.addSource("heat",{type:"image",url:blankPNG(),coordinates:[[0,0.001],[0.001,0.001],[0.001,0],[0,0]]});
@@ -889,7 +890,7 @@ function lvlLbl(){ const D=L.D; if(D) $("lbmLevelLbl").textContent=((+$("lbmLeve
 function rowLbl(){ const D=L.D; if(D){ const r=+$("lbmRow").value, off=Math.round(D.b0+(r+.5)*D.dx); $("lbmRowLbl").textContent=off===0?"markaz":(off>0?"+":"")+off+" m"; } }
 $("lbmLevel").oninput=()=>{ lvlLbl(); if(L.D&&!L.running) lbmRead(L.D); };
 $("lbmRow").oninput=()=>{ rowLbl(); if(L.D&&!L.running) lbmRead(L.D); };
-map.on("load",()=>{
+onStyle(()=>{
   map.addSource("lbm",{type:"image",url:blankPNG(),coordinates:[[0,0.001],[0.001,0.001],[0.001,0],[0,0]]});
   map.addLayer({id:"lbm",type:"raster",source:"lbm",layout:{visibility:"none"},paint:{"raster-opacity":0.9,"raster-resampling":"linear","raster-fade-duration":0}},"flow");
   map.addSource("lbmbox",{type:"geojson",data:fc([])});

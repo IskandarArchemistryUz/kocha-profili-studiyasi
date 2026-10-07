@@ -184,7 +184,8 @@ const map=new maplibregl.Map({container:"map",style:"https://tiles.openfreemap.o
 map.addControl(new maplibregl.NavigationControl({showCompass:true}),"top-right");
 map.addControl(new maplibregl.ScaleControl({maxWidth:140,unit:"metric"}),"bottom-right");
 const blank=(()=>{const c=document.createElement("canvas");c.width=c.height=1;return c.toDataURL();})();
-map.on("load",()=>{
+const onStyle=fn=>{ let done=false; const go=()=>{ if(done) return; done=true; fn(); }; if(map.isStyleLoaded()) go(); else { map.once("style.load",go); map.once("load",go); } };
+onStyle(()=>{
   map.addSource("ras",{type:"image",url:blank,coordinates:[[0,0.001],[0.001,0.001],[0.001,0],[0,0]]});
   map.addLayer({id:"ras",type:"raster",source:"ras",paint:{"raster-opacity":0.95,"raster-fade-duration":0,"raster-resampling":"linear"}});
   map.addSource("grid",{type:"geojson",data:fc([])});
