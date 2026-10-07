@@ -646,12 +646,12 @@ async function analyze(){
     let pix; try{pix=im.cx.getImageData(cx0,cy0,cw,ch).data;}catch(e){throw new Error('Brauzer sunʼiy yoʻldosh piksellarini oʻqishga ruxsat bermadi (CORS).');}
     setProg(.55,'OpenStreetMap: binolar, yoʻllar, trotuarlar olinmoqda…');
     const b=`(${bb.s},${bb.w},${bb.n},${bb.e})`;
-    let osm=[];try{osm=await overpassRaw(`(way["building"]${b};relation["building"]${b};way["highway"]${b};way["area:highway"]${b};way["amenity"="parking"]${b};way["railway"~"^(tram|rail|light_rail|narrow_gauge)$"]${b};way["natural"="water"]${b};relation["natural"="water"]${b};way["waterway"]${b};way["landuse"="reservoir"]${b};);out geom;`);}catch(e){if((A.P.src||'pix')!=='pix'||A.forceMix)throw e;notes.push('OpenStreetMap maʼlumoti olinmadi — tahlil faqat sunʼiy yoʻldosh piksellaridan.');}
+    let osm=[];try{osm=await overpassRaw(`(way["building"]${b};relation["building"]${b};way["highway"]${b};way["area:highway"]${b};way["amenity"="parking"]${b};way["railway"~"^(tram|rail|light_rail|narrow_gauge)$"]${b};way["natural"="water"]${b};relation["natural"="water"]${b};way["waterway"]${b};way["landuse"="reservoir"]${b};);out geom;`);}catch(e){if(A.forceMix&&!S.fromSite)throw e;notes.push('OpenStreetMap serverlari javob bermadi — tahlil hozircha faqat sunʼiy yoʻldosh piksellaridan. Keyinroq «Qayta hisoblash» ni bosing.');}
     A.cache={z,gx0:im.ox+cx0,gy0:im.oy+cy0,cw,ch,pix,osm,bb,lat0,mpp:156543.03392*Math.cos(lat0*R)/2**z,notes};
     setProg(.85,'Piksellar tasniflanmoqda…');
     await new Promise(r=>setTimeout(r,20));
     classify();
-  }catch(e){A.err=e.message||String(e);if(/fetch|Failed|NetworkError|HTTP/.test(A.err))A.err='Tarmoq xatosi: '+A.err+'. Internetni tekshiring; fayl Claude oynasida emas, oddiy brauzerda ochilganiga ishonch hosil qiling.';}
+  }catch(e){A.err=e.message||String(e);if(/abort/i.test(A.err))A.err='OpenStreetMap serverlari javob bermadi (band). Bir daqiqadan soʻng «Qayta hisoblash» ni bosing.';else if(/fetch|Failed|NetworkError|HTTP/.test(A.err))A.err='Tarmoq xatosi: '+A.err+'. Internetni tekshiring; fayl Claude oynasida emas, oddiy brauzerda ochilganiga ishonch hosil qiling.';}
   A.busy=false;renderHint();renderAreaPanel();
 }
 
