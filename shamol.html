@@ -922,8 +922,6 @@ function applySite(){
 }
 applySite();
 window.addEventListener("storage",e=>{ if(e.key==="kps_site") applySite(); });
-renderStats(); renderTowers();
-};
 /* albomga: joriy 3D koʻrinish (+ afsona) va 3D oqim tik kesimi */
 function matPut(o){ return new Promise((res,rej)=>{ const r=indexedDB.open("kps_mat",1); r.onupgradeneeded=()=>r.result.createObjectStore("mats",{keyPath:"id"}); r.onsuccess=()=>{ const t=r.result.transaction("mats","readwrite"); t.objectStore("mats").put(o); t.oncomplete=res; t.onerror=()=>rej(t.error); }; r.onerror=()=>rej(r.error); }); }
 $("btnAlb").onclick=async()=>{
@@ -940,6 +938,8 @@ $("btnAlb").onclick=async()=>{
     if(window.__lbmSideOk){ const s2=side.toDataURL("image/png"); await matPut({id:"windv"+Date.now().toString(36),kind:"png",name:"Shamol — 3D oqim tik kesimi",src:s2,thumb:s2,aspect:side.width/side.height,sub:"tezlik nisbati · LBM",t}); n++; }
     $("albSt").textContent=`${n} ta varaq materiali albomga yuborildi (5-qadam).`;
   }catch(e){ $("albSt").textContent="Yuborilmadi: "+e.message; }
+};
+renderStats(); renderTowers();
 };
 </script>
 </body>
