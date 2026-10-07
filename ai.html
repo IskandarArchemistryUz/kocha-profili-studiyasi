@@ -110,7 +110,11 @@ map.createPane('maskP');map.getPane('maskP').style.zIndex=620;map.getPane('maskP
 const MASK=L.layerGroup().addTo(map);
 function updMask(){MASK.clearLayers();if(!CLIP)return;const r=curRing();if(!r)return;const W=[[-85,-180],[-85,180],[85,180],[85,-180]];
   L.polygon([W,r],{pane:'maskP',stroke:false,fillColor:'#f4f3f1',fillOpacity:1,interactive:false}).addTo(MASK);L.polygon(r,{pane:'maskP',color:'#141414',weight:1.2,dashArray:'6 5',fill:false,interactive:false}).addTo(MASK);}
-function drawArea(){A.clearLayers();updMask();if(mode==='rect'&&rectA&&rectCur&&!done){const a=rectA,b=rectCur;L.rectangle([[Math.min(a[0],b[0]),Math.min(a[1],b[1])],[Math.max(a[0],b[0]),Math.max(a[1],b[1])]],{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);}
+let siteT=0;function publishSite(){clearTimeout(siteT);siteT=setTimeout(()=>{const r=curRing();if(!r||r.length<3)return;
+  const ring=r.map(p=>[+(+p[0]).toFixed(6),+(+p[1]).toFixed(6)]);let prev=null;try{prev=JSON.parse(localStorage.getItem('kps_site')||'null');}catch(e){}
+  if(prev&&JSON.stringify(prev.ring)===JSON.stringify(ring))return;   // oʻzgarmagan
+  try{localStorage.setItem('kps_site',JSON.stringify({t:Date.now(),mode,ring,center:center?[center[0],center[1]]:null,r:mode==='radius'?Math.round(+$('#rKm').value*1000):null}));}catch(e){}},400);}
+function drawArea(){publishSite();A.clearLayers();updMask();if(mode==='rect'&&rectA&&rectCur&&!done){const a=rectA,b=rectCur;L.rectangle([[Math.min(a[0],b[0]),Math.min(a[1],b[1])],[Math.max(a[0],b[0]),Math.max(a[1],b[1])]],{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);}
   if(mode==='rect'&&done&&poly.length)L.polygon(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);
   if(mode==='radius'&&center)L.circle(center,{radius:+$('#rKm').value*1000,color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05}).addTo(A);
   if(mode==='poly'&&poly.length){const shp=(done?L.polygon(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fillOpacity:.05,interactive:false}):L.polyline(poly,{color:'#7b61d1',weight:1.5,dashArray:'6 5',interactive:false})).addTo(A);

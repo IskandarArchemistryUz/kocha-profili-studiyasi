@@ -3555,15 +3555,19 @@ loadDataLayers();window.addEventListener('focus',loadDataLayers);
   function apply(){
     let s=null;try{s=JSON.parse(localStorage.getItem('kps_site')||'null');}catch(e){}
     if(!s||!s.ring||s.ring.length<3) return;
-    if(+(localStorage.getItem('kps_site_seen_studio')||0)>=s.t) return;
+    if(+(localStorage.getItem('kps_site_seen_studio')||0)>=s.t&&A.res&&A.poly) return;   // shu hudud allaqachon hisoblangan
     try{localStorage.setItem('kps_site_seen_studio',String(s.t));}catch(e){}
     let ring=s.ring;if(ring.length>64){const st=Math.ceil(ring.length/64);ring=ring.filter((_,i)=>i%st===0);}
     A.poly=ring.map(p=>[p[0],p[1]]);A.pts=[];A.res=null;
     if(classOverlay){areaL.removeLayer(classOverlay);classOverlay=null;}
-    saveArea();drawArea();if(S.app==='area')renderAreaPanel();
+    saveArea();drawArea();
     try{map.fitBounds(L.latLngBounds(A.poly).pad(.08));}catch(e){}
-    toast('Hudud chegarasi 1-qadamdan olindi. Yer qoplamini hisoblash uchun «Qayta hisoblash» ni bosing.');
+    S.fromSite=true;
+    analyze().catch(e=>{A.err=String(e.message||e);renderAreaPanel();}).finally(()=>{renderAreaPanel();renderHint();});
   }
   apply();
   window.addEventListener('storage',e=>{if(e.key==='kps_site')apply();});
+  // loyiha oynasi ichida: hudud 1-qadamda belgilanadi — koʻrsatma shuni aytadi
+  const _ah=areaHint;areaHint=function(h){if(!A.busy&&A.poly&&!A.pts.length){h.innerHTML='<b>Hudud 1-qadamdan olingan.</b> Uni oʻzgartirish uchun 1-qadamga qayting yoki shu yerda yangi toʻrtburchak chizing.';return;}_ah(h);};
+  renderHint();
 })();

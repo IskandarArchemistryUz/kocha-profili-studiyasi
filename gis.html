@@ -241,10 +241,11 @@ function applySiteChoice(){
   const bb=bbox(r); map.fitBounds([[bb[0],bb[1]],[bb[2],bb[3]]],{padding:50,duration:0});
   $("siteStatus").className="status"; $("siteStatus").textContent=`Maydon: ${f1(Math.abs(ringArea(r))/1e4)} ga. «Tahlilni hisoblash» ni bosing.`;
   $("runBtn").disabled=false;
+  if(document.documentElement.classList.contains("kps-embed")&&!G.done&&!G.auto){ G.auto=true; setTimeout(()=>$("runBtn").click(),300); }   // loyiha ichida — hudud tayyor boʻlsa oʻzi hisoblaydi
 }
 const bbox=r=>{let a=[1e9,1e9,-1e9,-1e9];r.forEach(([x,y])=>{a[0]=Math.min(a[0],x);a[1]=Math.min(a[1],y);a[2]=Math.max(a[2],x);a[3]=Math.max(a[3],y);});return a;};
-$("siteSrc").onchange=()=>{ G.done=false; applySiteChoice(); };
-window.addEventListener("storage",e=>{ if(e.key==="kps_site"&&$("siteSrc").value==="site"){ G.done=false; applySiteChoice(); } });
+$("siteSrc").onchange=()=>{ G.done=false; G.auto=true; applySiteChoice(); };
+window.addEventListener("storage",e=>{ if(e.key==="kps_site"&&$("siteSrc").value==="site"){ G.done=false; G.auto=false; applySiteChoice(); } });
 window.addEventListener("focus",async()=>{ const n=G.layers.length; await loadLayers(); if(G.layers.length!==n&&G.done){ renderAll(); } });
 
 /* ---------- maʼlumot yuklash: relyef + OSM ---------- */
