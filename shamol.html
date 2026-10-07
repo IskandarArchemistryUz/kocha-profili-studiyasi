@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shamol tahlili — Archemistry Studio</title>
+<script src="js/beta.js?v=7"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#efebe3; --paper:#f7f4ee; --ink:#1d1b18; --muted:#6f6a61; --rule:#d9d3c8;
+  --accent:#c2432b; --cool:#2f6f86;
+  --f-sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+html,body{height:100%;margin:0}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-sans);font-size:14px}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:auto minmax(0,1fr);height:100%}
+header{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--paper)}
+.brand{font-family:var(--f-mono);letter-spacing:.14em;font-size:13px;font-weight:500}
+.crumb{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.stats{margin-left:auto;display:flex;flex-wrap:wrap;font-family:var(--f-mono);font-size:12px}
+.stats span{border:1px solid var(--rule);padding:3px 9px;margin-left:-1px;background:var(--ground)}
+.stats b{font-weight:500}
+.mapwrap{position:relative;min-width:0;min-height:0}
+#map{position:absolute;inset:0}
+#particles{position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
+.legend{position:absolute;left:12px;bottom:28px;background:var(--paper);border:1px solid var(--rule);padding:8px 10px;font-family:var(--f-mono);font-size:11px;display:grid;gap:5px;z-index:2}
+.ramp{height:8px;width:190px}
+.ramp-lbl{display:flex;justify-content:space-between;color:var(--muted)}
+.busy{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-family:var(--f-mono);font-size:12px;padding:6px 14px;z-index:3}
+.err{position:absolute;top:52px;left:50%;transform:translateX(-50%);max-width:80%;background:var(--accent);color:#fff;font-family:var(--f-mono);font-size:12px;padding:8px 12px;z-index:3}
+.centerpin{position:absolute;top:12px;left:12px;background:var(--paper);border:1px solid var(--rule);font-family:var(--f-mono);font-size:11px;padding:6px 9px;z-index:2;max-width:60%}
+aside{border-left:1px solid var(--rule);background:var(--paper);overflow-y:auto;min-width:0}
+section{padding:14px 16px;border-bottom:1px solid var(--rule);display:grid;gap:10px}
+h2{margin:0;font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+p.note{margin:0;font-family:var(--f-mono);font-size:11.5px;line-height:1.5;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--rule)}
+.seg button{flex:1 1 auto;font-family:var(--f-mono);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;padding:7px 6px;border:0;border-right:1px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.btn{font-family:var(--f-mono);font-size:12px;border:1px solid var(--ink);background:transparent;color:var(--ink);padding:7px 10px;cursor:pointer}
+.btn.solid{background:var(--ink);color:var(--paper)}
+.btn:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fields label{display:grid;gap:3px;font-size:11.5px;color:var(--muted);font-family:var(--f-mono)}
+input[type=number],select{font-family:var(--f-mono);font-size:12.5px;padding:5px 6px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);width:100%;box-sizing:border-box}
+input[type=range]{width:100%}
+.status{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.status.warn{color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{font-size:12.5px;padding:5px 4px;border-bottom:1px solid var(--rule);text-align:right}
+td:first-child,th:first-child{text-align:left}
+th{font-family:var(--f-mono);font-size:10.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.neg{color:var(--accent)} .pos{color:var(--cool)}
+.towers td button{border:0;background:none;color:var(--muted);cursor:pointer;font-family:var(--f-mono)}
+.rosewrap{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.rose{width:140px;height:140px;flex:none;cursor:pointer}
+.rosefacts{font-family:var(--f-mono);font-size:12px;display:grid;gap:3px}
+details summary{cursor:pointer;font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+details[open] summary{margin-bottom:10px}
+.filebtn{display:inline-flex;font-family:var(--f-mono);font-size:12px;border:1px dashed var(--muted);padding:6px 10px;cursor:pointer;position:relative}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px}
+@media (max-width:860px){ .app{grid-template-columns:1fr;grid-template-rows:auto 65vh auto;height:auto} aside{border-left:0;border-top:1px solid var(--rule)} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <a class="brand" href="./" style="color:inherit;text-decoration:none">ARCHEMISTRY</a>
+    <span class="crumb">/ TAHLIL · SHAMOL</span>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="mapwrap">
+    <div id="map"></div>
+    
+    <div class="centerpin" id="centerpin">Xaritada hudud markazini bosing, keyin «Binolar va shamolni yuklash».</div>
+    <div class="legend" id="legend" hidden></div>
+    <div class="busy" id="busy" hidden></div>
+    <div class="err" id="err" hidden></div>
+  </div>
+
+  <aside>
+    <section>
+      <h2>1 · Hudud</h2>
+      <label class="fields" style="grid-template-columns:1fr auto;align-items:center" for="radius">
+        <span>Radius: <b id="rLbl">1.5</b> km</span><span></span>
+      </label>
+      <input type="range" id="radius" min="0.5" max="3" step="0.25" value="1.5">
+      <button class="btn solid" id="btnLoad" disabled>Binolar va shamolni yuklash</button>
+      <span class="status" id="loadStatus">Markaz tanlanmagan.</span>
+    </section>
+
+    <section>
+      <h2>2 · Vaqt</h2>
+      <div class="seg" id="segSlice"></div>
+      <div class="seg" id="segSeason"></div>
+      <div class="seg" id="segDir"></div>
+      <div class="rosewrap"><svg class="rose" id="rose" viewBox="0 0 140 140"></svg><div class="rosefacts" id="rosefacts"></div></div>
+      <p class="note">Gul bargini bosib, istalgan yoʻnalishni tanlang.</p>
+    </section>
+
+    <section>
+      <h2>3 · Koʻrinish</h2>
+      <div class="seg" id="segView"></div>
+      <button class="btn" id="btnProbe" aria-pressed="false">Binoning taʼsirini koʻrish</button>
+      <label class="chk"><input type="checkbox" id="chkPart" checked> Shamol oqimi chiziqlari</label>
+      <label class="chk"><input type="checkbox" id="chk3d" checked> 3D binolar</label>
+      <p class="note" id="viewNote"></p>
+    </section>
+
+    <section>
+      <h2>4 · Minoralar (loyiha)</h2>
+      <div class="row">
+        <button class="btn" id="btnAdd" aria-pressed="false">+ Minora qoʻyish</button>
+        <button class="btn" id="btnClear">Tozalash</button>
+      </div>
+      <div class="fields">
+        <label for="tw">Eni, m<input type="number" id="tw" value="30" min="5" max="300"></label>
+        <label for="td">Boʻyi, m<input type="number" id="td" value="30" min="5" max="300"></label>
+        <label for="tf">Qavat<input type="number" id="tf" value="21" min="1" max="120"></label>
+      </div>
+      <p class="note">Qoʻyish rejimida xaritaga bosing. Minorani sichqoncha bilan sudrab koʻchirsa boʻladi.</p>
+      <table class="towers" id="towerTable"></table>
+      <button class="btn" id="btnAttr">Har bir minora taʼsiri</button>
+      <div id="attrOut"></div>
+      <label class="filebtn">Loyiha binolari GeoJSON<input type="file" id="fProj" accept=".geojson,.json"></label>
+      <span class="status" id="pStatus"></span>
+    </section>
+
+    <section>
+      <h2>5 · Natija</h2>
+      <table id="metrics"></table>
+      <p class="note" id="metricsNote"></p>
+    </section>
+
+        <section id="lbmSec">
+      <h2>6 · 3D oqim (LBM · WebGPU)</h2>
+      <span class="status" id="gpuStatus">Videokarta tekshirilmoqda…</span>
+      <div class="fields">
+        <label for="lbmSize">Zona, m<select id="lbmSize"><option>300</option><option selected>400</option><option>600</option><option>800</option></select></label>
+        <label for="lbmQ">Sifat<select id="lbmQ"><option value="0.35" selected>yengil</option><option value="0.9">oʻrta</option><option value="2">yuqori</option></select></label>
+        <label for="lbmScen">Ssenariy<select id="lbmScen"><option value="mavjud">mavjud</option><option value="loyiha" selected>loyiha</option></select></label>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnLbmCenter" aria-pressed="false">Zona markazini tanlash</button>
+        <button class="btn solid" id="btnLbmRun" disabled>Boshlash</button>
+      </div>
+      <span class="status" id="lbmStatus">Shamol yoʻnalishi — 2-boʻlimdagi tanlangan barg.</span>
+      <label class="fields" style="grid-template-columns:1fr" for="lbmLevel"><span>Gorizontal kesim balandligi: <b id="lbmLevelLbl">—</b></span><input type="range" id="lbmLevel" min="0" max="10" value="0"></label>
+      <div class="seg" id="segLbmView"><button data-k="vr" aria-pressed="true">Tezlik nisbati</button><button data-k="farq" aria-pressed="false" disabled>Farq</button></div>
+      <label class="fields" style="grid-template-columns:1fr" for="lbmRow"><span>Tik kesim (shamol boʻylab): <b id="lbmRowLbl">markaz</b></span><input type="range" id="lbmRow" min="0" max="10" value="5"></label>
+      <canvas id="lbmSide" width="660" height="240" style="width:100%;border:1px solid var(--rule);background:#fff"></canvas>
+      <div class="legend" style="position:static" id="lbmLegend"><span>Xaritada: shu balandlikda kirish oqimiga nisbatan tezlik · tik kesimda: zona tepasidagi shamolga nisbatan</span><div class="ramp" id="lbmRamp"></div><div class="ramp-lbl"><span>0 turgʻun</span><span>0,5</span><span>1 ochiq joydek</span><span>1,4 kuchaygan</span></div></div>
+      <p class="note">Havo binolar orasidan ham, ustidan ham oʻtadi. Tik kesimda minora tepasidan pastga tushayotgan oqim va hovli ichidagi girdoblar koʻrinadi. Natija sifat darajasida: LBM kalibrlanmagan va ekspertiza hisobi oʻrnini bosmaydi.</p>
+    </section>
+
+<section>
+      <details>
+        <summary>Model sozlamalari</summary>
+        <div style="display:grid;gap:10px">
+          <div class="fields">
+            <label for="pCell">Katak, m<select id="pCell"><option value="0" selected>avto</option><option>20</option><option>25</option><option>50</option></select></label>
+            <label for="pBeta">Toʻsish β<input type="number" id="pBeta" value="1.0" min="0.1" max="5" step="0.1"></label>
+            <label for="pLr">Tiklanish, m<input type="number" id="pLr" value="150" min="20" max="2000" step="10"></label>
+            <label for="pFloorH">Qavat, m<input type="number" id="pFloorH" value="3.3" min="2.5" max="6" step="0.1"></label>
+            <label for="pDefF">Standart qavat<input type="number" id="pDefF" value="2" min="1" max="30"></label>
+            <label for="pW">Ogʻirlik<select id="pW"><option value="f" selected>chastota</option><option value="fs">chastota×tezlik</option></select></label>
+          </div>
+          <button class="btn solid" id="btnRecalc">Qayta hisoblash</button>
+        </div>
+      </details>
+      <details>
+        <summary>Usul va cheklovlar</summary>
+        <div style="display:grid;gap:8px">
+          <p class="note">Binolar: OpenStreetMap (Overpass API). Balandlik <code>height</code> yoki <code>building:levels</code> tegidan; yoʻq boʻlsa standart qavat soni olinadi.</p>
+          <p class="note">Shamol: ERA5 reanalizi, 2015–2024, soatlik 10 m shamol (Open-Meteo arxiv API), Toshkent vaqti boʻyicha.</p>
+          <p class="note">Har bir katak uchun 16 yoʻnalish boʻyicha frontal maydon zichligi λf hisoblanadi. Havo shamol tomondan katakdan katakka oʻtadi: binolar uni exp(−β·λf·Δx/100) bilan susaytiradi, ochiq joylarda u tiklanadi. Indeks — shamol guli boʻyicha ogʻirlangan natija (0 — turgʻun, 1 — ochiq).</p>
+          <p class="note">Bu soddalashtirilgan, kalibrlanmagan indeks. U Velocity Ratio emas va CFD oʻrnini bosmaydi. Zarrachalar indeksni koʻrsatish uchun, haqiqiy oqim trayektoriyasi emas. Tungi sovuq havo oqimi (relyef) hisobga olinmagan.</p>
+        </div>
+      </details>
+    </section>
+  </aside>
+</div>
+
+<script>
+/* xarita kutubxonasini bir nechta manbadan yuklash; hech biri ochilmasa — tushunarli xabar */
+(function(){
+  const urls=["https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"];
+  let i=0;
+  function next(){
+    if(window.maplibregl){ window.startApp(); return; }
+    if(i>=urls.length){
+      const e=document.getElementById("err"); e.hidden=false;
+      e.innerHTML="Xarita kutubxonasi yuklanmadi — bu oynada internet yopiq.<br>Faylni kompyuterga yuklab oling va <b>Chrome</b>da oching (fayl ustida o‘ng tugma → Открыть с помощью → Chrome).";
+      document.getElementById("centerpin").hidden=true; return;
+    }
+    const s=document.createElement("script"); s.src=urls[i++]; s.onload=next; s.onerror=next; document.head.appendChild(s);
+  }
+  window.addEventListener("DOMContentLoaded",()=>setTimeout(next,0));
+})();
+</script>
+<script>
+"use strict";
+window.startApp=function(){
+const DIRS=16, DEG=Math.PI/180;
+const SLICES=[["sutka","Sutka"],["tun","Tun"],["tong","Tong"],["kunduz","Kun"],["kech","Kech"]];
+const SEASONS=[["yil","Yil"],["yoz","Yoz"],["qish","Qish"]];
+const VIEWS=[["mavjud","Mavjud"],["loyiha","Loyiha"],["farq","Farq"],["tasir","Bino taʼsiri"]];
+const DIRMODES=[["one","Bitta yoʻnalish"],["rose","Butun gul"]];
+const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+const S={dirMode:"one", dir:null, probe:null, probeMode:false, center:null, base:[], proj:[], towers:[], wind:null, slice:"kunduz", season:"yoz", view:"farq", addMode:false, grid:null, origin:null};
+let nextId=1;
+const $=id=>document.getElementById(id);
+const P=()=>({cell:+$("pCell").value, beta:+$("pBeta").value, lr:+$("pLr").value, floorH:+$("pFloorH").value, defF:+$("pDefF").value, w:$("pW").value});
+function busy(t){ $("busy").hidden=!t; if(t) $("busy").textContent=t; }
+function err(t){ $("err").hidden=!t; $("err").textContent=t||""; if(t) setTimeout(()=>err(""),9000); }
+
+/* ---------- koordinatalar ---------- */
+function setOrigin(lon,lat){ S.origin={lon,lat,kx:111320*Math.cos(lat*DEG),ky:110540}; }
+const toXY=(lon,lat)=>[(lon-S.origin.lon)*S.origin.kx,(lat-S.origin.lat)*S.origin.ky];
+const toLL=(x,y)=>[S.origin.lon+x/S.origin.kx, S.origin.lat+y/S.origin.ky];
+
+/* ---------- xarita ---------- */
+const map=new maplibregl.Map({
+  container:"map", style:"https://tiles.openfreemap.org/styles/positron",
+  center:[69.2797,41.3111], zoom:14, pitch:55, bearing:-20, maxPitch:75, antialias:true
+});
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
+map.on("error",e=>{ if(e && e.error && /style|tiles/i.test(String(e.error.message||""))) err("Asos xarita yuklanmadi: "+e.error.message); });
+let centerMarker=null;
+map.on("load",()=>{
+  // uslubning oʻz binolarini yashiramiz — oʻrniga OSM'dan olingan hajmlar
+  map.getStyle().layers.forEach(l=>{ if(l["source-layer"]==="building") map.setLayoutProperty(l.id,"visibility","none"); });
+  map.addSource("heat",{type:"image",url:blankPNG(),coordinates:[[0,0.001],[0.001,0.001],[0.001,0],[0,0]]});
+  map.addLayer({id:"heat",type:"raster",source:"heat",paint:{"raster-opacity":0.95,"raster-resampling":"linear","raster-fade-duration":0}});
+  map.addSource("flow",{type:"geojson",data:fc([])});
+  map.addLayer({id:"flow",type:"line",source:"flow",layout:{"line-cap":"round"},paint:{"line-color":["interpolate",["linear"],["get","v"],0,"#c2432b",0.5,"#8a6a58",1,"#1d1b18"],"line-width":1.3,"line-opacity":["get","o"]}});
+  map.addSource("bld",{type:"geojson",data:fc([])});
+  map.addLayer({id:"bld",type:"fill-extrusion",source:"bld",paint:{
+    "fill-extrusion-color":["case",["==",["get","probe"],1],"#c2432b",["==",["get","kind"],"tower"],"#1d1b18",["==",["get","kind"],"proj"],"#3b3833",["==",["get","hq"],"default"],"#d8d2c6","#cbc3b5"],
+    "fill-extrusion-height":["get","h"], "fill-extrusion-base":0, "fill-extrusion-opacity":0.92}});
+  map.addSource("circle",{type:"geojson",data:fc([])});
+  map.addLayer({id:"circle",type:"line",source:"circle",paint:{"line-color":"#1d1b18","line-width":1.2,"line-dasharray":[3,2]}});
+});
+function blankPNG(){ const c=document.createElement("canvas"); c.width=c.height=1; return c.toDataURL(); }
+const fc=f=>({type:"FeatureCollection",features:f});
+function circleFeature(lon,lat,rkm){ const pts=[]; for(let i=0;i<=72;i++){ const a=i*5*DEG; pts.push([lon+Math.sin(a)*rkm*1000/(111320*Math.cos(lat*DEG)), lat+Math.cos(a)*rkm*1000/110540]); }
+  return {type:"Feature",geometry:{type:"LineString",coordinates:pts},properties:{}}; }
+map.on("click",e=>{
+  if(S.probeMode && S.grid){
+    const hit=map.queryRenderedFeatures(e.point,{layers:["bld"]}).find(f=>f.properties.kind==="base");
+    if(!hit){ return; }
+    S.probe=S.base[hit.properties.bi]; S.view="tasir"; [...$("segView").children].forEach(c=>c.setAttribute("aria-pressed",c.dataset.k==="tasir"));
+    busy("Bino taʼsiri hisoblanmoqda…"); setTimeout(()=>{ computeProbe(); renderHeat(); renderBuildings(); renderLegend(); busy(""); },40); return; }
+  if(S.addMode && S.grid){ const [x,y]=toXY(e.lngLat.lng,e.lngLat.lat);
+    S.towers.push({id:nextId++,x:Math.round(x),y:Math.round(y),w:+$("tw").value||30,d:+$("td").value||30,floors:+$("tf").value||21}); towersChanged(); return; }
+  if(S.grid) return; // hudud yuklangandan keyin markaz bosish bilan oʻzgarmaydi
+  pickCenter(e.lngLat.lng,e.lngLat.lat);
+});
+function pickCenter(lon,lat){
+  S.center=[lon,lat];
+  if(!centerMarker) centerMarker=new maplibregl.Marker({color:"#c2432b"}).setLngLat(S.center).addTo(map); else centerMarker.setLngLat(S.center);
+  map.getSource("circle").setData(fc([circleFeature(lon,lat,+$("radius").value)]));
+  $("btnLoad").disabled=false; $("loadStatus").textContent=`Markaz: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+}
+$("radius").oninput=()=>{ $("rLbl").textContent=$("radius").value; if(S.center) map.getSource("circle").setData(fc([circleFeature(S.center[0],S.center[1],+$("radius").value)])); };
+
+/* ---------- maʼlumot yuklash ---------- */
+async function overpass(lat,lon,r){
+  const q=`[out:json][timeout:120];(way["building"](around:${r},${lat},${lon});relation["building"](around:${r},${lat},${lon}););out geom;`;
+  let last;
+  for(const url of OVERPASS){
+    try{ const res=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+      if(!res.ok) throw new Error(url.split("/")[2]+" "+res.status); return await res.json(); }
+    catch(e){ last=e; }
+  }
+  throw new Error("Overpass javob bermadi ("+(last&&last.message)+"). Bir daqiqadan soʻng qayta urinib koʻring.");
+}
+function heightFromTags(t,p){
+  const num=v=>{ const x=parseFloat(String(v).replace(",",".")); return x>0?x:null; };
+  const h=num(t.height)||num(t["building:height"]); if(h) return [h,"measured"];
+  const l=num(t["building:levels"])||num(t.levels); if(l) return [l*p.floorH+(num(t["roof:levels"])||0)*p.floorH*0.5,"levels"];
+  return [p.defF*p.floorH,"default"];
+}
+function parseOSM(js){
+  const p=P(), out=[];
+  for(const el of js.elements||[]){
+    const t=el.tags||{}; if(t["building"]==="no"||t["building:part"]) continue;
+    const [h,hq]=heightFromTags(t,p);
+    const rings=[];
+    if(el.type==="way" && el.geometry) rings.push(el.geometry);
+    else if(el.type==="relation" && el.members) el.members.filter(m=>m.role==="outer"&&m.geometry).forEach(m=>rings.push(m.geometry));
+    for(const g of rings){ if(g.length<4) continue;
+      const pts=g.slice(0,-1).map(q=>toXY(q.lon,q.lat)); if(pts.length>=3) out.push({pts,h,hq,kind:"base"}); }
+  }
+  return out;
+}
+async function era5(lat,lon){
+  const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&start_date=2015-01-01&end_date=2024-12-31&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Asia%2FTashkent`;
+  const res=await fetch(url); if(!res.ok) throw new Error("Open-Meteo: "+res.status);
+  const js=await res.json(); const h=js.hourly;
+  return buildRoses(h.time, h.wind_speed_10m, h.wind_direction_10m);
+}
+function buildRoses(time,sp,dir){
+  const acc={}; SEASONS.forEach(([s])=>{acc[s]={}; SLICES.forEach(([k])=>acc[s][k]={cnt:new Array(DIRS).fill(0),sp:new Array(DIRS).fill(0),calm:0,n:0});});
+  for(let i=0;i<time.length;i++){
+    const v=sp[i], d=dir[i]; if(v==null||d==null) continue;
+    const t=time[i], hr=+t.slice(11,13), mo=+t.slice(5,7);
+    const sl=(hr>=22||hr<6)?"tun":hr<10?"tong":hr<18?"kunduz":"kech";
+    const ss=["yil"]; if(mo>=6&&mo<=8) ss.push("yoz"); if(mo===12||mo<=2) ss.push("qish");
+    const sec=Math.round(((d%360)+360)%360/22.5)%DIRS;
+    for(const s of ss) for(const k of ["sutka",sl]){ const a=acc[s][k]; a.n++; if(v<0.5) a.calm++; else {a.cnt[sec]++; a.sp[sec]+=v;} }
+  }
+  const out={}; SEASONS.forEach(([s])=>{out[s]={}; SLICES.forEach(([k])=>{const a=acc[s][k], m=a.n-a.calm;
+    out[s][k]={freq:a.cnt.map(c=>m?c/m:0), speed:a.cnt.map((c,i)=>c?a.sp[i]/c:0), calm:a.n?a.calm/a.n:0, n:a.n};});});
+  out.hours=time.length; return out;
+}
+$("btnLoad").onclick=async()=>{
+  if(!S.center) return;
+  const [lon,lat]=S.center, r=+$("radius").value*1000;
+  $("btnLoad").disabled=true; err("");
+  try{
+    setOrigin(lon,lat);
+    busy("OSM binolari yuklanmoqda…");
+    const [osm,wind]=await Promise.all([overpass(lat,lon,r), era5(lat,lon).catch(e=>({error:e}))]);
+    S.base=parseOSM(osm); S.base.forEach((b,i)=>b._i=i); S.probe=null;
+    if(!S.base.length) throw new Error("Bu hududda OSM binolari topilmadi.");
+    if(wind.error) throw new Error("Shamol maʼlumoti yuklanmadi: "+wind.error.message);
+    S.wind=wind; S.towers=[]; S.proj=[]; S.radius=r;
+    $("loadStatus").textContent=`${S.base.length.toLocaleString("ru-RU")} ta bino · ERA5 ${wind.hours.toLocaleString("ru-RU")} soat`;
+    $("centerpin").textContent="Hudud yuklandi. Boshqa hudud uchun sahifani yangilang.";
+    map.fitBounds(bboxLL(r),{padding:30,pitch:55,bearing:-20,duration:900});
+    recomputeAll();
+  }catch(e){ err(e.message); busy(""); $("btnLoad").disabled=false; }
+};
+function bboxLL(r){ const [a,b]=toLL(-r,-r), [c,d]=toLL(r,r); return [[a,b],[c,d]]; }
+
+/* ---------- geometriya ---------- */
+function rect(cx,cy,w,d){ return [[cx-w/2,cy-d/2],[cx+w/2,cy-d/2],[cx+w/2,cy+d/2],[cx-w/2,cy+d/2]]; }
+const towerPoly=t=>rect(t.x,t.y,t.w,t.d);
+function polyArea(p){ let a=0; for(let i=0,j=p.length-1;i<p.length;j=i++) a+=(p[j][0]+p[i][0])*(p[j][1]-p[i][1]); return Math.abs(a/2); }
+function inPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j=i++){ const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1]; if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c; } return c; }
+function projList(){ const p=P(); return S.proj.concat(S.towers.map(t=>({pts:towerPoly(t),h:t.floors*p.floorH,hq:"measured",kind:"tower",tid:t.id}))); }
+function makeGrid(){
+  const r=S.radius+200, p=P();
+  let dx=p.cell||Math.max(10,Math.min(40,Math.round((2*S.radius+400)/300)));
+  while(Math.pow(2*r/dx,2)>160000) dx*=1.25;
+  const n=Math.ceil(2*r/dx), g={x0:-n*dx/2,y0:-n*dx/2,dx,nx:n,ny:n,N:n*n,orders:[]};
+  for(let k=0;k<DIRS;k++){ const th=k*22.5*DEG, ux=-Math.sin(th), uy=-Math.cos(th), s=new Float32Array(g.N), idx=new Uint32Array(g.N);
+    for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const q=j*n+i; s[q]=i*ux+j*uy; idx[q]=q; }
+    g.orders.push(idx.sort((a,b)=>s[a]-s[b])); }
+  return g;
+}
+function frac(b,g){
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity; b.pts.forEach(([x,y])=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);});
+  const st=Math.max(1.5,Math.min(g.dx/3,Math.max(x1-x0,y1-y0)/4)), m=new Map(); let tot=0;
+  for(let y=y0+st/2;y<y1;y+=st) for(let x=x0+st/2;x<x1;x+=st){ if(!inPoly(x,y,b.pts)) continue;
+    const i=Math.floor((x-g.x0)/g.dx), j=Math.floor((y-g.y0)/g.dx); if(i<0||j<0||i>=g.nx||j>=g.ny) continue; const q=j*g.nx+i; m.set(q,(m.get(q)||0)+1); tot++; }
+  if(!tot){ const cx=(x0+x1)/2, cy=(y0+y1)/2, i=Math.floor((cx-g.x0)/g.dx), j=Math.floor((cy-g.y0)/g.dx); if(i>=0&&j>=0&&i<g.nx&&j<g.ny){ m.set(j*g.nx+i,1); tot=1; } }
+  return {m,tot};
+}
+function geometry(list,g){
+  const lf=[]; for(let k=0;k<DIRS;k++) lf.push(new Float32Array(g.N)); const lp=new Float32Array(g.N), hmax=new Float32Array(g.N), A=g.dx*g.dx;
+  for(const b of list){
+    if(b._g!==g){ b._f=frac(b,g); b._g=g; b._a=polyArea(b.pts); }
+    const {m,tot}=b._f; if(!tot) continue;
+    const w=[]; for(let k=0;k<DIRS;k++){ const th=k*22.5*DEG, nx=Math.cos(th), ny=-Math.sin(th); let lo=Infinity,hi=-Infinity; for(const [x,y] of b.pts){ const v=x*nx+y*ny; if(v<lo)lo=v; if(v>hi)hi=v; } w.push(hi-lo); }
+    for(const [q,c] of m){ const f=c/tot; for(let k=0;k<DIRS;k++) lf[k][q]+=w[k]*b.h*f/A; lp[q]+=b._a*f/A; if(b.h>hmax[q]) hmax[q]=b.h; }
+  }
+  return {lf,lp,hmax};
+}
+function ventilate(geo,g,p,only){
+  // only: faqat shu yoʻnalishlar (tezlik uchun); qolganlari null
+  const out=[], nx=g.nx, ny=g.ny, done=new Uint8Array(g.N), att=Math.exp(-p.beta*g.dx/100), dx=g.dx;
+  for(let k=0;k<DIRS;k++){
+    if(only && !only.includes(k)){ out.push(null); continue; }
+    const th=k*22.5*DEG, ux=-Math.sin(th), uy=-Math.cos(th), px_=-uy, py_=ux;
+    const lf=geo.lf[k], hm=geo.hmax, v=new Float32Array(g.N), hs=new Float32Array(g.N), ord=g.orders[k]; done.fill(0);
+    const samp=(fx,fy,arr,def)=>{ const i0=Math.floor(fx), j0=Math.floor(fy), ax=fx-i0, ay=fy-j0; let s=0,w=0;
+      const add=(ii,jj,ww)=>{ if(ww<=0) return; if(ii<0||jj<0||ii>=nx||jj>=ny){s+=def*ww;w+=ww;} else { const m=jj*nx+ii; if(done[m]){s+=arr[m]*ww;w+=ww;} } };
+      add(i0,j0,(1-ax)*(1-ay)); add(i0+1,j0,ax*(1-ay)); add(i0,j0+1,(1-ax)*ay); add(i0+1,j0+1,ax*ay); return w>0?s/w:def; };
+    for(let qq=0;qq<g.N;qq++){
+      const q=ord[qq], i=q%nx, j=(q-i)/nx, fx=i-ux, fy=j-uy;
+      // shamol tomondan kelgan havo: markaz + ikki yon (izning kengayishi uchun)
+      let pv=0.8*samp(fx,fy,v,1)+0.1*samp(fx+px_*0.7,fy+py_*0.7,v,1)+0.1*samp(fx-px_*0.7,fy-py_*0.7,v,1);
+      let h=samp(fx,fy,hs,0);
+      const L=lf[q];
+      pv*=Math.pow(att,L)*(1-0.9*Math.min(1,geo.lp[q]));   // bino ichidan havo oʻtmaydi
+      // "soya balandligi": eng baland toʻsiq balandligi oqim boʻylab sekin soʻnadi
+      h=Math.max(h*Math.exp(-dx/(10*h+1)), hm[q]);
+      const Lr=p.lr+5*h;                     // baland bino ortida havo uzoqroq tiklanadi
+      pv+=(1-pv)*(1-Math.exp(-dx/Lr))*Math.exp(-L/0.12);
+      v[q]=pv; hs[q]=h; done[q]=1;
+    }
+    out.push(v);
+  }
+  return out;
+}
+const rose=()=>S.wind[S.season][S.slice];
+function weights(){ const R=rose(), p=P(); const w=R.freq.map((f,i)=>p.w==="fs"?f*R.speed[i]:f); const s=w.reduce((a,b)=>a+b,0)||1; return w.map(v=>v/s); }
+function dominant(){ const R=rose(); let b=0; R.freq.forEach((f,i)=>{ if(f>R.freq[b]) b=i; }); return b; }
+function combine(Pk,g){ if(S.dirMode==="one") return Pk[S.dir].slice();
+  const w=weights(), idx=new Float32Array(g.N); for(let k=0;k<DIRS;k++){ if(!w[k]) continue; const v=Pk[k]; for(let q=0;q<g.N;q++) idx[q]+=w[k]*v[q]; } return idx; }
+
+/* ---------- hisob oqimi ---------- */
+function recomputeAll(){
+  busy("Ventilyatsiya hisoblanmoqda…");
+  setTimeout(()=>{ try{
+    const p=P(); S.grid=makeGrid(); S.base.forEach(b=>b._g=null); S.proj.forEach(b=>b._g=null);
+    S.Pb=ventilate(geometry(S.base,S.grid),S.grid,p); recomputeProj(true);
+  }catch(e){ err("Hisobda xato: "+e.message); busy(""); } },40);
+}
+function recomputeProj(inline){
+  const run=()=>{ const p=P(), gp=geometry(S.base.concat(projList()),S.grid); S.geomLP=gp.lp; S.Pp=ventilate(gp,S.grid,p); $("attrOut").innerHTML=""; recombine(); busy(""); };
+  if(inline) run(); else { busy("Loyiha hisoblanmoqda…"); setTimeout(run,40); }
+}
+function recombine(resetDir){ if(!S.Pb) return; if(resetDir||S.dir==null) S.dir=dominant();
+  S.idxB=combine(S.Pb,S.grid); S.idxP=combine(S.Pp,S.grid); if(S.probe) computeProbe(); renderAll(); }
+function computeProbe(){ const p=P(), list=S.base.filter(b=>b!==S.probe);
+  const only = S.dirMode==="one" ? [S.dir] : null;
+  S.idxProbe=combine(ventilate(geometry(list,S.grid),S.grid,p,only),S.grid); }
+function towersChanged(){ renderBuildings(); renderTowers(); if(S.grid) recomputeProj(false); }
+
+/* ---------- koʻrsatish ---------- */
+function heatImage(){
+  const g=S.grid, c=document.createElement("canvas"); c.width=g.nx; c.height=g.ny;
+  const x=c.getContext("2d"), im=x.createImageData(g.nx,g.ny), d=im.data;
+  // turgʻunlik shkalasi: sariq → toʻq sariq → qizil
+  const stops=[[0,[250,214,120]],[0.5,[232,120,58]],[1,[160,30,30]]];
+  const ramp=t=>{ t=Math.max(0,Math.min(1,t)); for(let s=1;s<stops.length;s++){ if(t<=stops[s][0]){ const [a,ca]=stops[s-1],[b,cb]=stops[s],u=(t-a)/(b-a); return ca.map((v,i)=>v+(cb[i]-v)*u); } } return stops[2][1]; };
+  for(let j=0;j<g.ny;j++) for(let i=0;i<g.nx;i++){
+    const q=j*g.nx+i, o=((g.ny-1-j)*g.nx+i)*4; let col=[0,0,0], a=0;
+    if(S.view==="farq"||S.view==="tasir"){
+      const dv = S.view==="farq" ? S.idxP[q]-S.idxB[q] : (S.idxProbe? S.idxB[q]-S.idxProbe[q] : 0);
+      if(Math.abs(dv)>0.015){ col= dv<0?[194,40,30]:[40,110,150]; a=Math.min(0.92,0.25+Math.abs(dv)/0.3); }
+    } else { const v=(S.view==="mavjud"?S.idxB:S.idxP)[q], t=(0.92-v)/0.6; if(t>0.05){ col=ramp(t); a=Math.min(0.85,0.2+t*0.7); } }
+    d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; d[o+3]=Math.round(a*255);
+  }
+  x.putImageData(im,0,0); return c.toDataURL();
+}
+function renderHeat(){
+  const g=S.grid, x1=g.x0+g.nx*g.dx, y1=g.y0+g.ny*g.dx;
+  map.getSource("heat").updateImage({url:heatImage(), coordinates:[toLL(g.x0,y1),toLL(x1,y1),toLL(x1,g.y0),toLL(g.x0,g.y0)]});
+}
+function renderBuildings(){
+  if(!map.getSource("bld")) return;
+  const showProj=S.view!=="mavjud", feats=[];
+  const f=(b,kind)=>({type:"Feature",properties:{h:b.h,hq:b.hq,kind,tid:b.tid||0,bi:b._i==null?-1:b._i,probe:b===S.probe?1:0},geometry:{type:"Polygon",coordinates:[b.pts.concat([b.pts[0]]).map(([x,y])=>toLL(x,y))]}});
+  S.base.forEach(b=>feats.push(f(b,"base")));
+  if(showProj){ S.proj.forEach(b=>feats.push(f(b,"proj"))); projList().filter(b=>b.kind==="tower").forEach(b=>feats.push(f(b,"tower"))); }
+  map.getSource("bld").setData(fc(feats));
+}
+function renderLegend(){
+  const v=S.view; $("legend").hidden=false;
+  const dirTxt = S.dirMode==="one" ? `shamol ${NAMES[S.dir]} tomondan` : "butun shamol guli";
+  $("legend").innerHTML = (v==="farq"||v==="tasir")
+    ? `<span>${v==="farq"?"Farq: loyiha − mavjud":"Tanlangan binoning taʼsiri"} · ${dirTxt}</span><div class="ramp" style="background:linear-gradient(90deg,#c2281e,transparent 45%,transparent 55%,#286e96)"></div><div class="ramp-lbl"><span>havo kamaydi</span><span>koʻpaydi</span></div>`
+    : `<span>Turgʻunlik — ${v==="mavjud"?"mavjud holat":"loyiha"} · ${dirTxt}</span><div class="ramp" style="background:linear-gradient(90deg,rgba(250,214,120,.3),#e8783a,#a01e1e)"></div><div class="ramp-lbl"><span>biroz pasaygan</span><span>havo turib qoladi</span></div>`;
+  $("viewNote").textContent = {
+    mavjud:"Qizil — havo kam yetib keladigan joylar. Bino ortidagi qizil «dum» — uning shamol soyasi.",
+    loyiha:"Qora hajmlar — loyiha minoralari. Ular bilan birga hisoblangan.",
+    farq:"Qizil — minoralar sababli havo kamaygan koʻchalar va hovlilar, koʻk — oqim kuchaygan joylar.",
+    tasir: S.probe ? "Qizil bino olib tashlansa havo qayerga qaytishini koʻrsatadi: qizil dog‘ — shu binoning soyasi." : "«Binoning taʼsirini koʻrish» ni bosib, xaritadagi istalgan binoni tanlang."}[v];
+}
+const NAMES=["Sh","ShShSh","ShSh","ShShQ","Q","JShQ","JSh","JJSh","J","JJG","JG","GJG","G","GShG","ShG","ShShG"];
+function renderRose(){
+  const R=rose(), c=70, rm=58, mx=Math.max(...R.freq,0.01); let s=`<circle cx="${c}" cy="${c}" r="${rm}" fill="none" stroke="#d9d3c8"/><circle cx="${c}" cy="${c}" r="${rm/2}" fill="none" stroke="#d9d3c8"/>`;
+  const pt=(a,r)=>`${(c+Math.sin(a)*r).toFixed(1)},${(c-Math.cos(a)*r).toFixed(1)}`;
+  for(let k=0;k<DIRS;k++){ const a0=(k*22.5-10)*DEG, a1=(k*22.5+10)*DEG, rr=11+(rm-11)*R.freq[k]/mx, sel=S.dirMode==="one"&&k===S.dir;
+    s+=`<polygon data-k="${k}" points="${pt(a0,8)} ${pt(a0,rm)} ${pt(a1,rm)} ${pt(a1,8)}" fill="transparent"/><polygon data-k="${k}" points="${pt(a0,11)} ${pt(a0,rr)} ${pt(a1,rr)} ${pt(a1,11)}" fill="${sel?"#c2432b":"#1d1b18"}" fill-opacity="${sel?1:.7}"/>`; }
+  s+=`<text x="${c}" y="${c+4}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="#6f6a61">${Math.round(R.calm*100)}%</text>`;
+  [["N",c,9],["E",136,c+4],["S",c,138],["W",4,c+4]].forEach(([t,x,y])=>s+=`<text x="${x}" y="${y}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" fill="#6f6a61">${t}</text>`);
+  $("rose").innerHTML=s;
+  const top=R.freq.map((f,i)=>[f,i]).sort((a,b)=>b[0]-a[0]); const ms=R.speed.reduce((a,v,i)=>a+v*R.freq[i],0);
+  $("rosefacts").innerHTML=(S.dirMode==="one"?`<span class="neg">Tanlangan: ${NAMES[S.dir]} ${Math.round(R.freq[S.dir]*100)}%</span>`:"")+`<span>Asosiy: ${NAMES[top[0][1]]} ${Math.round(top[0][0]*100)}%</span><span>Ikkinchi: ${NAMES[top[1][1]]} ${Math.round(top[1][0]*100)}%</span><span>Shtil: ${Math.round(R.calm*100)}%</span><span>Oʻrt. tezlik: ${ms.toFixed(1)} m/s</span><span>ERA5, 10 m</span>`;
+}
+function zone(){ const g=S.grid, m=new Uint8Array(g.N), L=projList(); if(!L.length){ m.fill(1); return {m,all:true}; }
+  const cs=L.map(b=>[b.pts.reduce((a,p)=>a+p[0],0)/b.pts.length, b.pts.reduce((a,p)=>a+p[1],0)/b.pts.length]);
+  for(let j=0;j<g.ny;j++) for(let i=0;i<g.nx;i++){ const x=g.x0+(i+.5)*g.dx, y=g.y0+(j+.5)*g.dx; for(const [a,b] of cs) if((x-a)**2+(y-b)**2<250000){ m[j*g.nx+i]=1; break; } }
+  return {m,all:false}; }
+function renderMetrics(){
+  const {m,all}=zone(), A=S.grid.dx*S.grid.dx/1e4; let sb=0,sp=0,c=0,tb=0,tp=0,wo=0;
+  for(let q=0;q<m.length;q++) if(m[q]){ c++; sb+=S.idxB[q]; sp+=S.idxP[q]; if(S.idxB[q]<0.45)tb++; if(S.idxP[q]<0.45)tp++; if(S.idxP[q]-S.idxB[q]<-0.1)wo++; }
+  const b=sb/c, p=sp/c, R=rose();
+  $("metrics").innerHTML=`<tr><th></th><th>Mavjud</th><th>Loyiha</th></tr>
+   <tr><td>Oʻrtacha indeks</td><td>${b.toFixed(2)}</td><td class="${p<b-0.005?'neg':''}">${p.toFixed(2)}</td></tr>
+   <tr><td>Turgʻun zona (&lt;0,45), ga</td><td>${(tb*A).toFixed(1)}</td><td class="${tp>tb?'neg':''}">${(tp*A).toFixed(1)}</td></tr>
+   <tr><td>Yomonlashgan (Δ&lt;−0,1), ga</td><td>—</td><td class="${wo?'neg':''}">${(wo*A).toFixed(1)}</td></tr>
+   <tr><td>Shtil soatlari</td><td colspan="2">${Math.round(R.calm*100)}%</td></tr>`;
+  $("metricsNote").textContent = all ? "Butun hudud boʻyicha." : "Loyiha binolaridan 500 m radiusdagi zona boʻyicha.";
+}
+function renderTowers(){
+  const p=P(); $("towerTable").innerHTML = S.towers.length ? `<tr><th>№</th><th>Oʻlcham</th><th>Balandlik</th><th></th></tr>`+S.towers.map(t=>`<tr><td>${t.id}</td><td>${t.w}×${t.d} m</td><td>${t.floors} q · ${Math.round(t.floors*p.floorH)} m</td><td><button data-del="${t.id}" aria-label="Oʻchirish">✕</button></td></tr>`).join("") : `<tr><td class="status">Minora yoʻq.</td></tr>`;
+}
+function renderStats(){ if(window.__lbmReady) $("btnLbmRun").disabled=!S.grid;
+  const n=S.base.length, def=S.base.filter(b=>b.hq==="default").length, g=S.grid;
+  $("stats").innerHTML=`<span>binolar <b>${n.toLocaleString("ru-RU")}</b></span><span>balandligi taxminiy <b>${n?Math.round(def/n*100):0}%</b></span><span>minoralar <b>${S.towers.length}</b></span><span>katak <b>${g?Math.round(g.dx):"—"} m</b></span>`;
+}
+function renderAll(){ renderHeat(); renderBuildings(); renderLegend(); renderRose(); renderMetrics(); renderTowers(); renderStats(); resetParticles(); }
+
+/* ---------- shamol oqimi chiziqlari (binolar orqasida yashirinadi) ---------- */
+let parts=[], frame=0;
+function flowDir(){ return S.dirMode==="one" ? S.dir : dominant(); }
+function spawn(p,anywhere){ const R=S.radius, k=flowDir(), th=k*22.5*DEG, ux=-Math.sin(th), uy=-Math.cos(th);
+  if(anywhere||Math.random()<0.35){ p.x=(Math.random()*2-1)*R; p.y=(Math.random()*2-1)*R; }
+  else { const t=(Math.random()*2-1)*R*1.2; p.x=-ux*R*1.05+(-uy)*t; p.y=-uy*R*1.05+ux*t; }   // shamol tomondagi chegaradan
+  p.tr=[]; p.age=0; p.life=140+Math.random()*160; return p; }
+function resetParticles(){ if(!S.grid) return; parts=[]; for(let i=0;i<1600;i++) parts.push(spawn({},true)); }
+function fieldAt(Pk,x,y){ const g=S.grid, i=Math.floor((x-g.x0)/g.dx), j=Math.floor((y-g.y0)/g.dx); if(i<1||j<1||i>=g.nx-1||j>=g.ny-1) return null; const q=j*g.nx+i;
+  return {v:Pk[q], gx:(Pk[q+1]-Pk[q-1])/(2*g.dx), gy:(Pk[q+g.nx]-Pk[q-g.nx])/(2*g.dx), lp:S.geomLP?S.geomLP[q]:0}; }
+function tick(){
+  requestAnimationFrame(tick);
+  const src=map.getSource&&map.getSource("flow"); if(!src) return;
+  if(window.lbmFlow && window.lbmFlow(src)) return;
+  if(!S.grid||!$("chkPart").checked){ if(frame!==-1){ src.setData(fc([])); frame=-1; } return; }
+  if(frame<0) frame=0; if((frame++)%2) return;
+  const k=flowDir(), Pk=(S.view==="mavjud"?S.Pb:S.Pp)[k]; if(!Pk) return;
+  const th=k*22.5*DEG, ux=-Math.sin(th), uy=-Math.cos(th), step=S.grid.dx*0.9, feats=[];
+  for(const p of parts){
+    const f=fieldAt(Pk,p.x,p.y);
+    if(!f||p.age++>p.life||f.v<0.06||f.lp>0.45){ spawn(p); continue; }
+    // oqim: shamol yoʻnalishi × indeks; toʻsiq oldida havo ochiqroq tomonga buriladi
+    const along=f.gx*ux+f.gy*uy; let vx=ux*f.v+(f.gx-along*ux)*90, vy=uy*f.v+(f.gy-along*uy)*90;
+    p.x+=vx*step; p.y+=vy*step; p.tr.push(toLL(p.x,p.y)); if(p.tr.length>14) p.tr.shift();
+    if(p.tr.length>1) feats.push({type:"Feature",properties:{v:f.v,o:Math.min(0.85,p.age/12)*0.85},geometry:{type:"LineString",coordinates:p.tr.slice()}});
+  }
+  src.setData(fc(feats));
+}
+requestAnimationFrame(tick);
+
+/* ---------- minoralarni sudrash ---------- */
+let drag=null;
+map.on("mousedown","bld",e=>{
+  if(S.addMode) return; const f=e.features&&e.features.find(x=>x.properties.kind==="tower"); if(!f) return;
+  e.preventDefault(); const t=S.towers.find(t=>t.id===f.properties.tid); if(!t) return;
+  const [x,y]=toXY(e.lngLat.lng,e.lngLat.lat); drag={t,ox:x-t.x,oy:y-t.y}; map.getCanvas().style.cursor="grabbing";
+});
+map.on("mousemove",e=>{ if(!drag) return; const [x,y]=toXY(e.lngLat.lng,e.lngLat.lat); drag.t.x=Math.round(x-drag.ox); drag.t.y=Math.round(y-drag.oy); renderBuildings(); });
+map.on("mouseup",()=>{ if(!drag) return; drag=null; map.getCanvas().style.cursor=""; towersChanged(); });
+map.on("mouseenter","bld",e=>{ if(e.features.some(f=>f.properties.kind==="tower")) map.getCanvas().style.cursor="move"; });
+map.on("mouseleave","bld",()=>{ if(!drag) map.getCanvas().style.cursor=""; });
+
+/* ---------- boshqaruv ---------- */
+function seg(id,items,key,cb){ const el=$(id); el.innerHTML=items.map(([k,l])=>`<button data-k="${k}" aria-pressed="${S[key]===k}">${l}</button>`).join("");
+  el.onclick=e=>{ const b=e.target.closest("button"); if(!b) return; S[key]=b.dataset.k; [...el.children].forEach(c=>c.setAttribute("aria-pressed",c===b)); cb(); }; }
+seg("segSlice",SLICES,"slice",()=>recombine(true));
+seg("segSeason",SEASONS,"season",()=>recombine(true));
+seg("segDir",DIRMODES,"dirMode",()=>recombine());
+$("rose").onclick=e=>{ const el=e.target.closest("[data-k]"); if(!el||!S.Pb) return; S.dir=+el.dataset.k; S.dirMode="one";
+  [...$("segDir").children].forEach(c=>c.setAttribute("aria-pressed",c.dataset.k==="one")); recombine(); };
+$("btnProbe").onclick=()=>{ S.probeMode=!S.probeMode; $("btnProbe").setAttribute("aria-pressed",S.probeMode); $("btnProbe").classList.toggle("solid",S.probeMode);
+  if(S.probeMode && S.addMode) $("btnAdd").click(); map.getCanvas().style.cursor=S.probeMode?"help":""; };
+seg("segView",VIEWS,"view",()=>{ if(S.grid){ renderHeat(); renderBuildings(); renderLegend(); } });
+$("chk3d").onchange=()=>{ map.setPaintProperty("bld","fill-extrusion-height",$("chk3d").checked?["get","h"]:0); map.easeTo({pitch:$("chk3d").checked?55:0}); };
+$("btnAdd").onclick=()=>{ S.addMode=!S.addMode; $("btnAdd").setAttribute("aria-pressed",S.addMode); $("btnAdd").classList.toggle("solid",S.addMode); map.getCanvas().style.cursor=S.addMode?"crosshair":""; };
+$("btnClear").onclick=()=>{ S.towers=[]; towersChanged(); };
+$("towerTable").onclick=e=>{ const b=e.target.closest("button[data-del]"); if(!b) return; S.towers=S.towers.filter(t=>t.id!==+b.dataset.del); towersChanged(); };
+$("btnRecalc").onclick=()=>{ if(S.base.length) recomputeAll(); };
+$("btnAttr").onclick=()=>{
+  if(!S.towers.length||!S.grid){ $("attrOut").innerHTML='<p class="note">Avval minora qoʻying.</p>'; return; }
+  busy("Har bir minora taʼsiri hisoblanmoqda…");
+  setTimeout(()=>{ const p=P(), g=S.grid, A=g.dx*g.dx/1e4, rows=[];
+    for(const t of S.towers){ const list=S.base.concat(S.proj, S.towers.filter(o=>o!==t).map(o=>({pts:towerPoly(o),h:o.floors*p.floorH})));
+      const idx=combine(ventilate(geometry(list,g),g,p),g); let a=0,mx=0; for(let q=0;q<g.N;q++){ const d=idx[q]-S.idxP[q]; if(d>0.05)a++; if(d>mx)mx=d; } rows.push({t,a:a*A,mx}); }
+    rows.sort((a,b)=>b.a-a.a);
+    $("attrOut").innerHTML=`<table><tr><th>Minora</th><th>Taʼsir, ga</th><th>Maks. Δ</th></tr>${rows.map(r=>`<tr><td>№${r.t.id} · ${r.t.floors} q</td><td class="${r.a>0?'neg':''}">${r.a.toFixed(1)}</td><td>−${r.mx.toFixed(2)}</td></tr>`).join("")}</table><p class="note">Taʼsir maydoni — shu minora olib tashlansa indeksi 0,05 dan koʻproq oshadigan joylar. Joriy vaqt va mavsum uchun.</p>`;
+    busy(""); },40);
+};
+$("fProj").onchange=e=>{ const f=e.target.files[0]; if(!f) return; if(!S.grid){ $("pStatus").textContent="Avval hududni yuklang."; return; }
+  const r=new FileReader(); r.onload=()=>{ try{ const gj=JSON.parse(r.result), p=P(), out=[];
+    (gj.features||[]).forEach(ft=>{ const g=ft.geometry, pr=ft.properties||{}; if(!g) return;
+      const rings=g.type==="Polygon"?[g.coordinates[0]]:g.type==="MultiPolygon"?g.coordinates.map(c=>c[0]):[];
+      const lv=parseFloat(pr.floors||pr.qavat||pr["building:levels"]||pr.levels), hh=parseFloat(pr.height||pr.H||pr.balandlik);
+      const h=hh>0?hh:lv>0?lv*p.floorH:p.defF*p.floorH;
+      rings.forEach(rg=>{ if(Math.abs(rg[0][0])>180) throw new Error("Loyiha fayli WGS84 (gradus) koordinatada boʻlishi kerak."); out.push({pts:rg.slice(0,-1).map(c=>toXY(c[0],c[1])),h,hq:"measured",kind:"proj"}); }); });
+    S.proj=out; $("pStatus").textContent=`${f.name}: ${out.length} ta bino`; towersChanged(); }
+    catch(x){ $("pStatus").textContent=x.message; } }; r.readAsText(f); e.target.value=""; };
+/* =====================================================================
+   3D OQIM: Lattice Boltzmann D3Q19 + Smagorinsky, WebGPU
+   Domen shamol yoʻnalishi boʻyicha burilgan: x — oqim boʻylab, y — koʻndalang, z — yuqoriga.
+   ===================================================================== */
+const LBM_WGSL = /* wgsl */`
+struct Params { nx:u32, ny:u32, nz:u32, N:u32, u0:f32, tau0:f32, alpha:f32, cs:f32 };
+@group(0) @binding(0) var<uniform> P: Params;
+@group(0) @binding(1) var<storage, read> src: array<f32>;
+@group(0) @binding(2) var<storage, read_write> dst: array<f32>;
+@group(0) @binding(3) var<storage, read> flags: array<u32>;
+var<private> CX: array<i32,19> = array<i32,19>(0,1,-1,0,0,0,0,1,-1,1,-1,1,-1,1,-1,0,0,0,0);
+var<private> CY: array<i32,19> = array<i32,19>(0,0,0,1,-1,0,0,1,-1,-1,1,0,0,0,0,1,-1,1,-1);
+var<private> CZ: array<i32,19> = array<i32,19>(0,0,0,0,0,1,-1,0,0,0,0,1,-1,-1,1,1,-1,-1,1);
+var<private> OPP: array<u32,19> = array<u32,19>(0u,2u,1u,4u,3u,6u,5u,8u,7u,10u,9u,12u,11u,14u,13u,16u,15u,18u,17u);
+fn W(i:u32)->f32 { if(i==0u){return 1.0/3.0;} if(i<7u){return 1.0/18.0;} return 1.0/36.0; }
+fn feq(i:u32, rho:f32, u:vec3f)->f32 {
+  let c=vec3f(f32(CX[i]),f32(CY[i]),f32(CZ[i])); let cu=3.0*dot(c,u);
+  return W(i)*rho*(1.0+cu+0.5*cu*cu-1.5*dot(u,u));
+}
+fn prof(z:u32)->f32 { let h=(f32(z)+0.5)/f32(P.nz); return P.u0*pow(h,P.alpha); }
+@compute @workgroup_size(64)
+fn init(@builtin(global_invocation_id) g: vec3u){
+  let idx=g.x; if(idx>=P.N){return;}
+  let z=idx/(P.nx*P.ny); let fl=flags[idx];
+  for(var i=0u;i<19u;i++){ if(fl==1u){ dst[i*P.N+idx]=0.0; } else { dst[i*P.N+idx]=feq(i,1.0,vec3f(prof(z),0.0,0.0)); } }
+}
+@compute @workgroup_size(64)
+fn step(@builtin(global_invocation_id) g: vec3u){
+  let idx=g.x; if(idx>=P.N){return;}
+  let nxy=P.nx*P.ny; let x=idx%P.nx; let y=(idx/P.nx)%P.ny; let z=idx/nxy; let fl=flags[idx];
+  if(fl==1u){ return; }
+  if(fl==2u){ let u=vec3f(prof(z),0.0,0.0); for(var i=0u;i<19u;i++){ dst[i*P.N+idx]=feq(i,1.0,u); } return; }
+  if(fl==3u){ for(var i=0u;i<19u;i++){ dst[i*P.N+idx]=src[i*P.N+idx-1u]; } return; }
+  var f: array<f32,19>;
+  for(var i=0u;i<19u;i++){
+    let sx=i32(x)-CX[i]; let sy=i32(y)-CY[i]; let sz=i32(z)-CZ[i];
+    var bb=false; var n=0u;
+    if(sx<0||sy<0||sz<0||sx>=i32(P.nx)||sy>=i32(P.ny)||sz>=i32(P.nz)){ bb=true; }
+    else { n=u32(sx)+u32(sy)*P.nx+u32(sz)*nxy; if(flags[n]==1u){ bb=true; } }
+    if(bb){ f[i]=src[OPP[i]*P.N+idx]; } else { f[i]=src[i*P.N+n]; }
+  }
+  var rho=0.0; var m=vec3f(0.0);
+  for(var i=0u;i<19u;i++){ rho+=f[i]; m+=f[i]*vec3f(f32(CX[i]),f32(CY[i]),f32(CZ[i])); }
+  var u=m/max(rho,1e-6);
+  let bad = rho<0.6 || rho>1.4 || length(u)>0.3 || rho!=rho;
+  if(bad){ rho=1.0; u=vec3f(prof(z),0.0,0.0); for(var i=0u;i<19u;i++){ dst[i*P.N+idx]=feq(i,1.0,u); } return; }
+  // Smagorinsky: nomuvozanat impuls oqimi orqali lokal relaksatsiya vaqti
+  var pxx=0.0; var pyy=0.0; var pzz=0.0; var pxy=0.0; var pxz=0.0; var pyz=0.0;
+  var fe: array<f32,19>;
+  for(var i=0u;i<19u;i++){
+    fe[i]=feq(i,rho,u); let d=f[i]-fe[i];
+    let cx=f32(CX[i]); let cy=f32(CY[i]); let cz=f32(CZ[i]);
+    pxx+=cx*cx*d; pyy+=cy*cy*d; pzz+=cz*cz*d; pxy+=cx*cy*d; pxz+=cx*cz*d; pyz+=cy*cz*d;
+  }
+  let Q=sqrt(pxx*pxx+pyy*pyy+pzz*pzz+2.0*(pxy*pxy+pxz*pxz+pyz*pyz));
+  let tau=0.5*(P.tau0+sqrt(P.tau0*P.tau0+18.0*1.41421356*P.cs*P.cs*Q/rho));
+  for(var i=0u;i<19u;i++){ dst[i*P.N+idx]=f[i]-(f[i]-fe[i])/tau; }
+}
+`;
+const SLICE_WGSL = /* wgsl */`
+struct Params { nx:u32, ny:u32, nz:u32, N:u32, u0:f32, tau0:f32, alpha:f32, cs:f32 };
+struct SP { mode:u32, level:u32, a:u32, b:u32 };
+@group(0) @binding(0) var<uniform> P: Params;
+@group(0) @binding(1) var<storage, read> F: array<f32>;
+@group(0) @binding(2) var<storage, read_write> outp: array<vec4f>;
+@group(0) @binding(3) var<storage, read> flags: array<u32>;
+@group(0) @binding(4) var<uniform> S: SP;
+var<private> CX: array<i32,19> = array<i32,19>(0,1,-1,0,0,0,0,1,-1,1,-1,1,-1,1,-1,0,0,0,0);
+var<private> CY: array<i32,19> = array<i32,19>(0,0,0,1,-1,0,0,1,-1,-1,1,0,0,0,0,1,-1,1,-1);
+var<private> CZ: array<i32,19> = array<i32,19>(0,0,0,0,0,1,-1,0,0,0,0,1,-1,-1,1,1,-1,-1,1);
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) g: vec3u){
+  let k=g.x; let nxy=P.nx*P.ny; var cell=0u;
+  if(S.mode==0u){ if(k>=nxy){return;} cell=k+S.level*nxy; }
+  else { if(k>=P.nx*P.nz){return;} let x=k%P.nx; let z=k/P.nx; cell=x+S.level*P.nx+z*nxy; }
+  if(flags[cell]==1u){ outp[k]=vec4f(0.0,0.0,0.0,-1.0); return; }
+  var rho=0.0; var m=vec3f(0.0);
+  for(var i=0u;i<19u;i++){ let v=F[i*P.N+cell]; rho+=v; m+=v*vec3f(f32(CX[i]),f32(CY[i]),f32(CZ[i])); }
+  outp[k]=vec4f(m/max(rho,1e-6),1.0);
+}
+`;
+
+const L={dev:null, running:false, view:"vr", results:{}, pickMode:false, center:null};
+async function lbmInitGPU(){
+  const st=$("gpuStatus");
+  if(!navigator.gpu){ st.className="status warn"; st.textContent="Bu brauzerda WebGPU yoʻq. Chrome 113+ yoki Edge kerak (chrome://gpu → WebGPU)."; return; }
+  try{
+    const ad=await navigator.gpu.requestAdapter({powerPreference:"high-performance"});
+    if(!ad){ st.className="status warn"; st.textContent="WebGPU adapteri topilmadi. Videokarta drayverini yangilang yoki chrome://flags da WebGPU ni yoqing."; return; }
+    const lim=ad.limits;
+    L.maxBuf=Math.min(lim.maxStorageBufferBindingSize, lim.maxBufferSize);
+    L.dev=await ad.requestDevice({requiredLimits:{maxStorageBufferBindingSize:L.maxBuf, maxBufferSize:L.maxBuf}});
+    L.dev.lost.then(i=>{ L.running=false; L.D=null; L.dev=null; window.__lbmReady=false; $("btnLbmRun").textContent="Boshlash"; $("btnLbmRun").disabled=true;
+      const q=$("lbmQ"); if(q.selectedIndex>0) q.selectedIndex--; const z=$("lbmSize"); if(z.selectedIndex>0) z.selectedIndex--;
+      $("gpuStatus").className="status warn"; $("gpuStatus").textContent="Videokarta yuklamani koʻtarmadi. Sifat va zona bir pogʻona pasaytirildi, qayta ulanmoqda…";
+      setTimeout(lbmInitGPU,1500); });
+    let name=""; try{ const inf=ad.info||(ad.requestAdapterInfo?await ad.requestAdapterInfo():null); if(inf) name=[inf.vendor,inf.architecture,inf.description].filter(Boolean).join(" "); }catch(e){}
+    L.maxCells=Math.floor(L.maxBuf/(19*4));
+    st.className="status"; st.textContent=`WebGPU tayyor${name?" · "+name:""} · maks. ${(Math.min(L.maxCells,6e6)/1e6).toFixed(1)} mln katak`;
+    window.__lbmReady=true; $("btnLbmRun").disabled=!S.grid;
+  }catch(e){ st.className="status warn"; st.textContent="WebGPU ishga tushmadi: "+e.message; }
+}
+lbmInitGPU();
+
+/* --- domen va vokselizatsiya --- */
+function lbmSetup(){
+  const k=S.dir==null?dominant():S.dir, th=k*22.5*DEG, ux=-Math.sin(th), uy=-Math.cos(th), px=-uy, py=ux;
+  const scen=$("lbmScen").value, list=S.base.concat(scen==="loyiha"?projList():[]);
+  const c=L.center||S.lbmDefault();
+  const zone=+$("lbmSize").value;
+  const a0=-zone/2-80, a1=zone/2+220, b0=-zone/2-90, b1=zone/2+90;
+  // zonadagi eng baland bino → domen balandligi
+  let hmax=20; const toAB=(x,y)=>[(x-c[0])*ux+(y-c[1])*uy, (x-c[0])*px+(y-c[1])*py];
+  const sel=[];
+  for(const b of list){ const ab=b.pts.map(([x,y])=>toAB(x,y)); let lo0=1e9,hi0=-1e9,lo1=1e9,hi1=-1e9;
+    for(const [a,bb] of ab){ lo0=Math.min(lo0,a); hi0=Math.max(hi0,a); lo1=Math.min(lo1,bb); hi1=Math.max(hi1,bb); }
+    if(hi0<a0||lo0>a1||hi1<b0||lo1>b1) continue; sel.push({ab,h:b.h,lo0,hi0,lo1,hi1}); if(b.h>hmax) hmax=b.h; }
+  const H=Math.min(260,Math.max(100,hmax*2.3));
+  const budget=Math.min(L.maxCells||2e6, (+$("lbmQ").value)*1e6);
+  let dx=Math.max(3,Math.ceil(Math.cbrt((a1-a0)*(b1-b0)*H/budget)));
+  let nx=Math.round((a1-a0)/dx), ny=Math.round((b1-b0)/dx), nz=Math.round(H/dx);
+  while(nx*ny*nz>budget*1.15){ dx+=1; nx=Math.round((a1-a0)/dx); ny=Math.round((b1-b0)/dx); nz=Math.round(H/dx); }
+  const N=nx*ny*nz, flags=new Uint32Array(N), foot=new Float32Array(nx*ny);
+  for(const b of sel){
+    const i0=Math.max(0,Math.floor((b.lo0-a0)/dx)), i1=Math.min(nx-1,Math.ceil((b.hi0-a0)/dx)), j0=Math.max(0,Math.floor((b.lo1-b0)/dx)), j1=Math.min(ny-1,Math.ceil((b.hi1-b0)/dx));
+    const kz=Math.min(nz-2,Math.round(b.h/dx));
+    for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){
+      const a=a0+(i+.5)*dx, bb=b0+(j+.5)*dx; if(!inPoly(a,bb,b.ab)) continue;
+      if(b.h>foot[j*nx+i]) foot[j*nx+i]=b.h;
+      for(let z=0;z<kz;z++) flags[i+j*nx+z*nx*ny]=1;
+    }
+  }
+  // chegaralar: kirish (x=0), yon va tepa — tashqi oqim; chiqish (x=nx-1)
+  for(let z=0;z<nz;z++) for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+    const q=i+j*nx+z*nx*ny;
+    if(i===nx-1) flags[q]=3; else if(i===0||j===0||j===ny-1||z===nz-1) flags[q]=2;
+  }
+  return {k,ux,uy,px,py,c,a0,a1,b0,b1,dx,nx,ny,nz,N,flags,foot,scen,zone,H,
+    toW:(a,b)=>[c[0]+a*ux+b*px, c[1]+a*uy+b*py], sig:[k,c[0]|0,c[1]|0,zone,dx].join(":")};
+}
+
+/* --- GPU resurslari --- */
+function lbmBuild(D){
+  const dev=L.dev, N=D.N, fsize=N*19*4;
+  const mk=(size,usage)=>dev.createBuffer({size,usage});
+  D.par=mk(32,GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST);
+  const pb=new ArrayBuffer(32), pu=new Uint32Array(pb), pf=new Float32Array(pb);
+  pu[0]=D.nx; pu[1]=D.ny; pu[2]=D.nz; pu[3]=N; pf[4]=0.08; pf[5]=0.5+3*0.0004; pf[6]=0.25; pf[7]=0.17;
+  dev.queue.writeBuffer(D.par,0,pb);
+  D.fA=mk(fsize,GPUBufferUsage.STORAGE); D.fB=mk(fsize,GPUBufferUsage.STORAGE);
+  D.fl=mk(N*4,GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST); dev.queue.writeBuffer(D.fl,0,D.flags);
+  const mod=dev.createShaderModule({code:LBM_WGSL}), smod=dev.createShaderModule({code:SLICE_WGSL});
+  const C=GPUShaderStage.COMPUTE;
+  const bgl=dev.createBindGroupLayout({entries:[{binding:0,visibility:C,buffer:{type:"uniform"}},{binding:1,visibility:C,buffer:{type:"read-only-storage"}},{binding:2,visibility:C,buffer:{type:"storage"}},{binding:3,visibility:C,buffer:{type:"read-only-storage"}}]});
+  const pl=dev.createPipelineLayout({bindGroupLayouts:[bgl]});
+  D.pInit=dev.createComputePipeline({layout:pl,compute:{module:mod,entryPoint:"init"}});
+  D.pStep=dev.createComputePipeline({layout:pl,compute:{module:mod,entryPoint:"step"}});
+  D.pSlice=dev.createComputePipeline({layout:"auto",compute:{module:smod,entryPoint:"main"}});
+  const bg=(pipe,s,d)=>dev.createBindGroup({layout:bgl,entries:[{binding:0,resource:{buffer:D.par}},{binding:1,resource:{buffer:s}},{binding:2,resource:{buffer:d}},{binding:3,resource:{buffer:D.fl}}]});
+  D.bgInitA=bg(D.pInit,D.fB,D.fA); D.bgInitB=bg(D.pInit,D.fA,D.fB);
+  D.bgAB=bg(D.pStep,D.fA,D.fB); D.bgBA=bg(D.pStep,D.fB,D.fA);
+  // kesimlar
+  D.hSize=D.nx*D.ny*16; D.vSize=D.nx*D.nz*16;
+  D.hOut=mk(D.hSize,GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC); D.vOut=mk(D.vSize,GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC);
+  D.hRead=mk(D.hSize,GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST); D.vRead=mk(D.vSize,GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST);
+  D.hSP=mk(16,GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST); D.vSP=mk(16,GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST);
+  const sbg=(f,out,sp)=>dev.createBindGroup({layout:D.pSlice.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:D.par}},{binding:1,resource:{buffer:f}},{binding:2,resource:{buffer:out}},{binding:3,resource:{buffer:D.fl}},{binding:4,resource:{buffer:sp}}]});
+  D.sh={A:sbg(D.fA,D.hOut,D.hSP), B:sbg(D.fB,D.hOut,D.hSP)}; D.sv={A:sbg(D.fA,D.vOut,D.vSP), B:sbg(D.fB,D.vOut,D.vSP)};
+  // boshlangʻich holat: ikkala buferga muvozanat profili
+  const enc=dev.createCommandEncoder(), wg=Math.ceil(N/64);
+  for(const g of [D.bgInitA,D.bgInitB]){ const p=enc.beginComputePass(); p.setPipeline(D.pInit); p.setBindGroup(0,g); p.dispatchWorkgroups(wg); p.end(); }
+  dev.queue.submit([enc.finish()]);
+  D.cur="A"; D.steps=0;
+}
+function lbmFree(D){ if(!D) return; ["fA","fB","fl","par","hOut","vOut","hRead","vRead","hSP","vSP"].forEach(k=>{ try{ D[k]&&D[k].destroy(); }catch(e){} }); }
+
+/* --- hisob sikli --- */
+const nextFrame=()=>new Promise(r=>requestAnimationFrame(r));
+async function lbmLoop(D){
+  const dev=L.dev, wg=Math.ceil(D.N/64); let K=2, lastRead=0, t0=performance.now(), busyMs=0;
+  while(L.running && L.D===D){
+    if(document.hidden){ await new Promise(r=>setTimeout(r,300)); continue; }      // yashirin oynada GPU dam oladi
+    const enc=dev.createCommandEncoder();
+    for(let s=0;s<K;s++){ const p=enc.beginComputePass(); p.setPipeline(D.pStep); p.setBindGroup(0, D.cur==="A"?D.bgAB:D.bgBA); p.dispatchWorkgroups(wg); p.end(); D.cur=D.cur==="A"?"B":"A"; }
+    const ts=performance.now(); dev.queue.submit([enc.finish()]); await dev.queue.onSubmittedWorkDone(); const dt=performance.now()-ts;
+    D.steps+=K; busyMs+=dt;
+    // bitta paket ~12 ms dan oshmasin: Windows GPU'ni "osilib qoldi" deb oʻchirmasligi uchun
+    K = dt<8 ? Math.min(24,K+1) : dt>14 ? Math.max(1,K-1) : K;
+    if(performance.now()-lastRead>800){ await lbmRead(D); lastRead=performance.now(); }
+    const el=(performance.now()-t0)/1000, mlups=D.N*D.steps/el/1e6, flow=D.steps*0.08/D.nx;
+    const done=flow>=4;
+    $("lbmStatus").textContent=`${D.nx}×${D.ny}×${D.nz} katak (${D.dx} m) · ${D.steps.toLocaleString("ru-RU")} qadam · ${mlups.toFixed(0)} MLUPS · ${flow<1.5?"oqim shakllanmoqda…":flow<3?"deyarli barqaror":"barqaror"}${done?" — hisob toʻxtatildi":""}`;
+    if(done){ await lbmRead(D); L.running=false; $("btnLbmRun").textContent="Qayta boshlash"; break; }
+    // har kadrda GPU'ga xarita chizish uchun ham vaqt qoldiramiz
+    await nextFrame(); if(dt>10) await nextFrame();
+  }
+}
+async function lbmRead(D){
+  if(D.reading) return; D.reading=true;
+  const dev=L.dev, lev=+$("lbmLevel").value, row=+$("lbmRow").value;
+  dev.queue.writeBuffer(D.hSP,0,new Uint32Array([0,lev,0,0])); dev.queue.writeBuffer(D.vSP,0,new Uint32Array([1,row,0,0]));
+  const enc=dev.createCommandEncoder();
+  let p=enc.beginComputePass(); p.setPipeline(D.pSlice); p.setBindGroup(0,D.sh[D.cur]); p.dispatchWorkgroups(Math.ceil(D.nx*D.ny/64)); p.end();
+  p=enc.beginComputePass(); p.setPipeline(D.pSlice); p.setBindGroup(0,D.sv[D.cur]); p.dispatchWorkgroups(Math.ceil(D.nx*D.nz/64)); p.end();
+  enc.copyBufferToBuffer(D.hOut,0,D.hRead,0,D.hSize); enc.copyBufferToBuffer(D.vOut,0,D.vRead,0,D.vSize);
+  dev.queue.submit([enc.finish()]);
+  try{
+    await Promise.all([D.hRead.mapAsync(GPUMapMode.READ), D.vRead.mapAsync(GPUMapMode.READ)]);
+    D.h=new Float32Array(D.hRead.getMappedRange().slice(0)); D.v=new Float32Array(D.vRead.getMappedRange().slice(0));
+    D.hRead.unmap(); D.vRead.unmap(); D.hLevel=lev;
+    lbmDrawMap(D); lbmDrawSide(D);
+  }catch(e){}
+  D.reading=false;
+}
+
+/* --- rang shkalasi (tezlik nisbati) --- */
+const VR_STOPS=[[0,[120,20,25]],[0.1,[194,40,30]],[0.3,[238,140,60]],[0.5,[245,220,140]],[0.7,[200,225,215]],[1.0,[90,160,190]],[1.4,[40,70,150]]];
+function vrCol(v){ if(v<=0) return VR_STOPS[0][1]; for(let s=1;s<VR_STOPS.length;s++){ if(v<=VR_STOPS[s][0]){ const [a,ca]=VR_STOPS[s-1],[b,cb]=VR_STOPS[s],t=(v-a)/(b-a); return ca.map((x,i)=>x+(cb[i]-x)*t); } } return VR_STOPS[VR_STOPS.length-1][1]; }
+$("lbmRamp").style.background="linear-gradient(90deg,"+VR_STOPS.map(([v,c])=>`rgb(${c.map(Math.round).join(",")}) ${(v/1.4*100).toFixed(0)}%`).join(",")+")";
+function uTopRef(D){ return 0.08; }
+function lbmDrawMap(D){
+  const nx=D.nx, ny=D.ny, cv=document.createElement("canvas"); cv.width=nx; cv.height=ny;
+  const x=cv.getContext("2d"), im=x.createImageData(nx,ny), d=im.data, h=D.h;
+  // maʼlumot nuqtasi: shu balandlikda shamol tomondagi kirish zonasidagi oʻrtacha tezlik
+  let rs=0, rc=0; const iEnd=Math.max(4,Math.round(nx*0.06));
+  for(let j=2;j<ny-2;j++) for(let i=2;i<iEnd;i++){ const q=j*nx+i; if(h[q*4+3]>=0){ rs+=Math.hypot(h[q*4],h[q*4+1],h[q*4+2]); rc++; } }
+  const ref=rc? rs/rc : uTopRef(D); D.ref=ref;
+  const vr=new Float32Array(nx*ny); for(let q=0;q<nx*ny;q++){ vr[q]= h[q*4+3]<0 ? -1 : Math.hypot(h[q*4],h[q*4+1],h[q*4+2])/ref; }
+  D.vr=vr; L.results[D.scen]={sig:D.sig+":"+D.hLevel, vr};
+  const other=L.results[D.scen==="loyiha"?"mavjud":"loyiha"], canFarq=other&&other.sig===D.sig+":"+D.hLevel;
+  $("segLbmView").children[1].disabled=!canFarq; if(!canFarq&&L.view==="farq") setLbmView("vr");
+  for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+    const q=j*nx+i, o=((ny-1-j)*nx+i)*4; let c=[0,0,0], a=0;
+    if(vr[q]>=0){
+      if(L.view==="farq"){ const ov=other.vr[q]; if(ov>=0){ const dv=(D.scen==="loyiha"? vr[q]-ov : ov-vr[q]); if(Math.abs(dv)>0.03){ c=dv<0?[194,40,30]:[40,110,150]; a=Math.min(0.9,0.25+Math.abs(dv)/0.4); } } }
+      else { c=vrCol(vr[q]); a=0.82; }
+    }
+    d[o]=c[0]; d[o+1]=c[1]; d[o+2]=c[2]; d[o+3]=Math.round(a*255);
+  }
+  x.putImageData(im,0,0);
+  const C=[D.toW(D.a0,D.b1),D.toW(D.a1,D.b1),D.toW(D.a1,D.b0),D.toW(D.a0,D.b0)].map(([X,Y])=>toLL(X,Y));
+  map.getSource("lbm").updateImage({url:cv.toDataURL(),coordinates:C});
+  map.setLayoutProperty("lbm","visibility","visible"); map.setLayoutProperty("heat","visibility","none");
+  map.getSource("lbmbox").setData(fc([{type:"Feature",properties:{},geometry:{type:"LineString",coordinates:C.concat([C[0]])}}]));
+}
+function lbmDrawSide(D){
+  const cv=$("lbmSide"), x=cv.getContext("2d"), W=cv.width, Hh=cv.height, nx=D.nx, nz=D.nz, v=D.v;
+  const sx=W/nx, sz=Math.min(Hh/nz, sx*2.2), top=Hh-nz*sz;
+  x.clearRect(0,0,W,Hh); x.fillStyle="#f7f4ee"; x.fillRect(0,0,W,Hh);
+  for(let z=0;z<nz;z++) for(let i=0;i<nx;i++){ const q=z*nx+i;
+    if(v[q*4+3]<0){ x.fillStyle="#3b3833"; } else { const c=vrCol(Math.hypot(v[q*4],v[q*4+1],v[q*4+2])/uTopRef(D)); x.fillStyle=`rgb(${c.map(Math.round).join(",")})`; }
+    x.fillRect(i*sx, Hh-(z+1)*sz, sx+0.6, sz+0.6); }
+  // oqim strelkalari (x va z komponentlari)
+  x.strokeStyle="rgba(29,27,24,.75)"; x.lineWidth=1;
+  const st=Math.max(2,Math.round(nx/48));
+  for(let z=1;z<nz;z+=st) for(let i=1;i<nx;i+=st){ const q=z*nx+i; if(v[q*4+3]<0) continue;
+    const ux=v[q*4]/0.08, uz=v[q*4+2]/0.08, L2=Math.hypot(ux,uz); if(L2<0.03) continue;
+    const cx=(i+.5)*sx, cy=Hh-(z+.5)*sz, len=Math.min(1,L2)*st*sx*0.9, dx_=ux/L2*len, dy_=-uz/L2*len;
+    x.beginPath(); x.moveTo(cx-dx_/2,cy-dy_/2); x.lineTo(cx+dx_/2,cy+dy_/2); x.stroke();
+    x.beginPath(); x.arc(cx+dx_/2,cy+dy_/2,1.3,0,7); x.fillStyle="rgba(29,27,24,.8)"; x.fill(); }
+  x.fillStyle="#1d1b18"; x.font="11px IBM Plex Mono, monospace"; x.textAlign="left";
+  x.fillText("shamol →",6,14);
+  x.textAlign="right"; for(let m=50;m<nz*D.dx;m+=50){ const y=Hh-m/D.dx*sz; if(y<top+8) break; x.fillText(m+" m",W-4,y+4); x.fillStyle="rgba(29,27,24,.15)"; x.fillRect(0,y,W-40,1); x.fillStyle="#1d1b18"; }
+  // tik kesim chizigʻi xaritada
+  const row=+$("lbmRow").value, b=D.b0+(row+.5)*D.dx, P1=toLL(...D.toW(D.a0,b)), P2=toLL(...D.toW(D.a1,b));
+  map.getSource("lbmrow").setData(fc([{type:"Feature",properties:{},geometry:{type:"LineString",coordinates:[P1,P2]}}]));
+}
+
+/* --- oqim chiziqlari LBM maydonidan --- */
+let lparts=[];
+window.lbmFlow=function(src){
+  const D=L.D; if(!D||!D.h||!$("chkPart").checked) return false;
+  if(!lparts.length||lparts.D!==D){ lparts=[]; lparts.D=D; for(let i=0;i<900;i++) lparts.push({}); lparts.forEach(p=>lspawn(p,D,true)); }
+  const feats=[], h=D.h, step=D.dx*1.6;
+  for(const p of lparts){
+    const i=Math.floor((p.a-D.a0)/D.dx), j=Math.floor((p.b-D.b0)/D.dx);
+    if(i<0||j<0||i>=D.nx||j>=D.ny||p.age++>p.life){ lspawn(p,D); continue; }
+    const q=j*D.nx+i; if(h[q*4+3]<0){ lspawn(p,D); continue; }
+    const ua=h[q*4]/0.08, ub=h[q*4+1]/0.08, sp=Math.hypot(ua,ub); if(sp<0.02){ lspawn(p,D); continue; }
+    p.a+=ua*step; p.b+=ub*step; p.tr.push(toLL(...D.toW(p.a,p.b))); if(p.tr.length>16) p.tr.shift();
+    if(p.tr.length>1) feats.push({type:"Feature",properties:{v:Math.min(1,sp),o:Math.min(0.9,p.age/10)},geometry:{type:"LineString",coordinates:p.tr.slice()}});
+  }
+  src.setData(fc(feats)); return true;
+};
+function lspawn(p,D,any){ p.a = any||Math.random()<0.4 ? D.a0+Math.random()*(D.a1-D.a0) : D.a0+D.dx*2; p.b=D.b0+Math.random()*(D.b1-D.b0); p.tr=[]; p.age=0; p.life=80+Math.random()*120; }
+
+/* --- boshqaruv --- */
+S.lbmDefault=()=>{ if(S.towers.length){ const t=S.towers; return [t.reduce((a,o)=>a+o.x,0)/t.length, t.reduce((a,o)=>a+o.y,0)/t.length]; } const c=map.getCenter(); return toXY(c.lng,c.lat); };
+function setLbmView(v){ L.view=v; [...$("segLbmView").children].forEach(c=>c.setAttribute("aria-pressed",c.dataset.k===v)); if(L.D&&L.D.h) lbmDrawMap(L.D); }
+$("segLbmView").onclick=e=>{ const b=e.target.closest("button"); if(!b||b.disabled) return; setLbmView(b.dataset.k); };
+$("btnLbmCenter").onclick=()=>{ L.pickMode=!L.pickMode; $("btnLbmCenter").setAttribute("aria-pressed",L.pickMode); $("btnLbmCenter").classList.toggle("solid",L.pickMode); map.getCanvas().style.cursor=L.pickMode?"crosshair":""; };
+map.on("click",e=>{ if(!L.pickMode||!S.grid) return; L.center=toXY(e.lngLat.lng,e.lngLat.lat); $("btnLbmCenter").click(); $("lbmStatus").textContent="Zona markazi tanlandi. «Boshlash» ni bosing."; });
+$("btnLbmRun").onclick=()=>{
+  if(L.running){ lbmStop(); return; }
+  if(!L.dev||!S.grid) return;
+  try{
+    const D=lbmSetup(); lbmFree(L.D); lbmBuild(D); L.D=D; L.running=true;
+    $("lbmLevel").max=Math.min(D.nz-2, Math.round(150/D.dx)); $("lbmLevel").value=0; lvlLbl();
+    $("lbmRow").max=D.ny-1; $("lbmRow").value=Math.round(D.ny/2); rowLbl();
+    $("btnLbmRun").textContent="Toʻxtatish";
+    lbmLoop(D).catch(e=>{ err("3D hisobda xato: "+e.message); lbmStop(); });
+  }catch(e){ err("3D oqimni boshlab boʻlmadi: "+e.message); }
+};
+function lbmStop(){ L.running=false; $("btnLbmRun").textContent="Qayta boshlash"; }
+function lvlLbl(){ const D=L.D; if(D) $("lbmLevelLbl").textContent=((+$("lbmLevel").value+0.5)*D.dx).toFixed(1)+" m"+(+$("lbmLevel").value===0?" (piyoda sathi)":""); }
+function rowLbl(){ const D=L.D; if(D){ const r=+$("lbmRow").value, off=Math.round(D.b0+(r+.5)*D.dx); $("lbmRowLbl").textContent=off===0?"markaz":(off>0?"+":"")+off+" m"; } }
+$("lbmLevel").oninput=()=>{ lvlLbl(); if(L.D&&!L.running) lbmRead(L.D); };
+$("lbmRow").oninput=()=>{ rowLbl(); if(L.D&&!L.running) lbmRead(L.D); };
+map.on("load",()=>{
+  map.addSource("lbm",{type:"image",url:blankPNG(),coordinates:[[0,0.001],[0.001,0.001],[0.001,0],[0,0]]});
+  map.addLayer({id:"lbm",type:"raster",source:"lbm",layout:{visibility:"none"},paint:{"raster-opacity":0.9,"raster-resampling":"linear","raster-fade-duration":0}},"flow");
+  map.addSource("lbmbox",{type:"geojson",data:fc([])});
+  map.addLayer({id:"lbmbox",type:"line",source:"lbmbox",paint:{"line-color":"#1d1b18","line-width":1.5}});
+  map.addSource("lbmrow",{type:"geojson",data:fc([])});
+  map.addLayer({id:"lbmrow",type:"line",source:"lbmrow",paint:{"line-color":"#c2432b","line-width":2,"line-dasharray":[2,1]}});
+});
+// 2D xaritaga qaytish: koʻrinish tugmalari bosilganda LBM qatlamini yashirish
+$("segView").addEventListener("click",()=>{ if(map.getLayer("lbm")){ map.setLayoutProperty("lbm","visibility","none"); map.setLayoutProperty("heat","visibility","visible"); } L.running=false; L.D&&($("btnLbmRun").textContent="Qayta boshlash"); lparts=[]; if(L.D) L.D.h=null; });
+
+renderStats(); renderTowers();
+};
+</script>
+</body>
+</html>

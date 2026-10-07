@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loyiha — Archemistry Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Bitta loyiha oynasi: tepada qadamlar, ostida joriy qadam asboblari, oʻngda — Master reja paneli */
+:root{
+  --ink:#141414; --grey:#696969; --txt:#3c3c3c; --bg:#f4f3f1; --line:#dedcd7; --paper:#fbfaf7; --acc:#c2432b;
+  --f-head:"Archivo",system-ui,sans-serif; --f-sans:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.4 var(--f-sans);display:grid;grid-template-rows:auto auto minmax(0,1fr)}
+a{color:inherit}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+.top{display:flex;align-items:center;gap:14px;padding:0 14px;height:54px;border-bottom:1px solid var(--ink);background:var(--paper);min-width:0}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font:600 13px var(--f-mono);letter-spacing:.14em;flex:none}
+.brand svg{flex:none}
+.pname{font:600 16px var(--f-head);border:0;border-bottom:1px dashed transparent;background:transparent;width:13em;min-width:6em;padding:2px 0;color:var(--ink)}
+.pname:hover,.pname:focus{border-bottom-color:var(--grey);outline:none}
+
+.steps{display:flex;align-items:stretch;margin:0 auto;height:100%;min-width:0;overflow-x:auto;scrollbar-width:none}
+.steps::-webkit-scrollbar{display:none}
+.step{display:flex;align-items:center;gap:8px;padding:0 14px;border:0;background:none;cursor:pointer;position:relative;white-space:nowrap;color:var(--grey)}
+.step .n{width:22px;height:22px;border-radius:50%;border:1px solid currentColor;display:grid;place-items:center;font:500 11px var(--f-mono)}
+.step .t{font:500 14px var(--f-sans)}
+.step+.step::before{content:"";position:absolute;left:-6px;top:50%;width:12px;height:1px;background:var(--line)}
+.step.seen{color:var(--txt)}
+.step.seen .n{background:var(--line);border-color:var(--line)}
+.step[aria-current="step"]{color:var(--ink)}
+.step[aria-current="step"] .n{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.step[aria-current="step"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;background:var(--ink)}
+.step:hover{color:var(--ink)}
+
+.tools{display:flex;gap:8px;align-items:center;flex:none}
+.btn{height:32px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font:500 12px var(--f-mono);letter-spacing:.05em;cursor:pointer;white-space:nowrap}
+.btn.dark{background:var(--ink);color:var(--paper)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+.sub{display:flex;align-items:center;gap:16px;padding:0 14px;height:42px;border-bottom:1px solid var(--line);background:var(--bg);min-width:0}
+.subtabs{display:flex;border:1px solid var(--line);flex:none}
+.subtabs:empty{display:none}
+.subtabs button{border:0;border-right:1px solid var(--line);background:transparent;padding:5px 12px;font:500 11.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.subtabs button:last-child{border-right:0}
+.subtabs button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.hint{font:12px var(--f-mono);color:var(--grey);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.next{margin-left:auto}
+
+.stage{position:relative;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) auto}
+.frames{position:relative;min-width:0}
+.frames iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
+.frames iframe[hidden]{display:none}
+.loading{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);font:12px var(--f-mono);padding:6px 14px;z-index:2}
+
+.drawer{width:0;overflow:hidden;border-left:1px solid var(--ink);background:var(--paper);display:grid;grid-template-rows:auto minmax(0,1fr);transition:width .22s ease}
+.drawer.open{width:min(560px,46vw)}
+.drawer .dh{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}
+.drawer .dh button{border:0;background:none;font-size:18px;cursor:pointer;line-height:1}
+.drawer iframe{width:100%;height:100%;border:0}
+@media (max-width:900px){
+  .step .t{display:none}
+  .pname{width:8em}
+  .drawer.open{position:absolute;right:0;top:0;bottom:0;width:min(560px,100vw);z-index:5}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./" title="Bosh sahifa">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 22L12 2l10 20" fill="none" stroke="#141414" stroke-width="2"/></svg>ARCHEMISTRY
+  </a>
+  <input class="pname" id="pname" aria-label="Loyiha nomi" value="Yangi loyiha">
+  <nav class="steps" id="steps" aria-label="Loyiha qadamlari"></nav>
+  <div class="tools">
+    <button class="btn" id="mrBtn" aria-pressed="false" title="Master reja koʻrsatkichlari — har qadamda ochiq turadi">Master reja</button>
+  </div>
+</header>
+<div class="sub">
+  <div class="subtabs" id="subtabs" role="group" aria-label="Qadam ichidagi boʻlim"></div>
+  <span class="hint" id="hint"></span>
+  <button class="btn dark next" id="nextBtn"></button>
+</div>
+<main class="stage">
+  <div class="frames" id="frames"><div class="loading" id="loading" hidden>Yuklanmoqda…</div></div>
+  <aside class="drawer" id="drawer" aria-label="Master reja">
+    <div class="dh"><span>Master reja · koʻrsatkichlar</span><button id="mrClose" aria-label="Yopish">×</button></div>
+    <div id="mrHost"></div>
+  </aside>
+</main>
+
+<script>
+"use strict";
+/* Qadamlar: har bir boʻlim — mavjud sahifa. Bir sahifa bitta iframe'da yashaydi va qadamlar orasida yopilmaydi,
+   shuning uchun ish holati saqlanadi. Maʼlumot sahifalar orasida umumiy brauzer xotirasi orqali oʻtadi
+   (kps_data — qatlamlar, kps_posadka — binolar, kps_mat — albom materiallari). */
+const STEPS=[
+  {id:"hudud", t:"Hudud", subs:[
+    {id:"chegara", t:"Chegara va baho", page:"ai.html", hint:"Hududni doira, toʻrtburchak yoki erkin chegara bilan belgilang va «Hisoblash» ni bosing. 3D va ikonkalar shu yerda."},
+    {id:"malumot", t:"Maʼlumot yuklash", page:"data.html", hint:"QGIS va boshqa dasturlardan GeoJSON, Shapefile, KML, CSV yuklang — qatlamlar Koʻcha studiyasi va albomda koʻrinadi."}]},
+  {id:"tahlil", t:"Tahlil", subs:[
+    {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area", hint:"Sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi — hududni belgilab tahlil qiling."},
+    {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Hudud markazini bosing va «Binolar va shamolni yuklash». Minoralarni 4-qadamdan oldin shu yerda sinab koʻrish mumkin."}]},
+  {id:"kocha", t:"Koʻchalar", subs:[
+    {id:"loyiha", t:"Loyiha chizish", page:"studio.html", app:"design", hint:"Koʻchalarni modullardan chizing; YHQ tekshiruvlari va 3D shu yerda."},
+    {id:"profil", t:"Profil", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."}]},
+  {id:"bino", t:"Binolar", subs:[
+    {id:"posadka", t:"Joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar. Tayyor boʻlsa «Albomga →»."}]},
+  {id:"albom", t:"Albom", subs:[
+    {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
+];
+const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
+const $=id=>document.getElementById(id);
+
+/* --- loyiha holati (nom, joriy qadam, koʻrilgan qadamlar) --- */
+let P={name:"Yangi loyiha", step:0, sub:{}, seen:[0]};
+try{ const v=JSON.parse(localStorage.getItem("kps_project")||"null"); if(v&&typeof v==="object") P=Object.assign(P,v); }catch(e){}
+const saveP=()=>{ try{ localStorage.setItem("kps_project",JSON.stringify(P)); }catch(e){} };
+$("pname").value=P.name;
+$("pname").addEventListener("input",e=>{ P.name=e.target.value.trim()||"Yangi loyiha"; saveP(); document.title=P.name+" — Archemistry Studio"; });
+document.title=P.name+" — Archemistry Studio";
+
+/* --- iframe'lar: har sahifa uchun bittadan, kerak boʻlganda yaratiladi --- */
+const frames={};
+function frameFor(page, src){
+  let f=frames[page];
+  if(!f){
+    f=document.createElement("iframe"); f.title=page; f.hidden=true; f.dataset.page=page;
+    f.addEventListener("load",()=>onFrameLoad(f));
+    $("frames").appendChild(f); frames[page]=f;
+    $("loading").hidden=false; f.src=src||page;
+  } else if(src){ $("loading").hidden=false; f.src=src; }
+  return f;
+}
+function onFrameLoad(f){
+  $("loading").hidden=true;
+  let path=""; try{ path=f.contentWindow.location.pathname.split("/").pop()||"index.html"; }catch(e){ return; }
+  if(path!==f.dataset.page){
+    // sahifa skript orqali boshqa boʻlimga oʻtdi (masalan «Albomga →»): uni oʻz qadamida ochamiz, bu oynani qaytaramiz
+    let full=path; try{ full=path+f.contentWindow.location.search+f.contentWindow.location.hash; }catch(e){}
+    try{ f.contentWindow.history.back(); }catch(e){ f.src=f.dataset.page; }
+    if(path==="index.html"){ location.href="./"; return; }
+    go(full);
+    return;
+  }
+  if(f.dataset.wantApp) applyApp(f);
+}
+function applyApp(f){
+  const app=f.dataset.wantApp; if(!app) return;
+  try{ const b=f.contentDocument.querySelector('#appTabs button[data-app="'+app+'"]'); if(b){ b.click(); delete f.dataset.wantApp; } }catch(e){}
+}
+
+/* --- qadamni koʻrsatish --- */
+function show(i, j, src){
+  i=Math.max(0,Math.min(STEPS.length-1,i)); const st=STEPS[i];
+  if(j==null) j=P.sub[st.id]||0; j=Math.max(0,Math.min(st.subs.length-1,j));
+  const u=st.subs[j];
+  P.step=i; P.sub[st.id]=j; if(!P.seen.includes(i)) P.seen.push(i); saveP();
+  const f=frameFor(u.page, src);
+  Object.values(frames).forEach(x=>x.hidden = x!==f);
+  if(u.app){ f.dataset.wantApp=u.app; applyApp(f); }
+  renderNav();
+  try{ history.replaceState(null,"","#"+st.id+"-"+u.id); }catch(e){}
+}
+function go(href){
+  const page=href.split(/[?#]/)[0], hash=(href.split("#")[1]||"");
+  if(page==="masterreja.html"){ openDrawer(true); return; }
+  const key = PAGE_TO[page+"#"+hash] ? page+"#"+hash : page;
+  const hit=PAGE_TO[key]; if(!hit) { location.href=href; return; }
+  const sameStudio = page==="studio.html" && frames[page];
+  show(hit[0], hit[1], (href.includes("?")||(!sameStudio&&href!==page)) ? href : undefined);
+}
+window.addEventListener("message",e=>{ if(e.origin!==location.origin||!e.data||e.data.kps!=="go") return; go(String(e.data.href)); });
+
+function renderNav(){
+  const i=P.step, st=STEPS[i], j=P.sub[st.id]||0;
+  $("steps").innerHTML=STEPS.map((s,k)=>`<button class="step${P.seen.includes(k)&&k!==i?" seen":""}" data-i="${k}" ${k===i?'aria-current="step"':""}><span class="n">${k+1}</span><span class="t">${s.t}</span></button>`).join("");
+  $("subtabs").innerHTML = st.subs.length>1 ? st.subs.map((u,k)=>`<button data-j="${k}" aria-pressed="${k===j}">${u.t}</button>`).join("") : "";
+  $("hint").textContent=st.subs[j].hint;
+  const nx=STEPS[i+1]; $("nextBtn").textContent = nx ? `Keyingi: ${nx.t} →` : "Bosh sahifa";
+}
+$("steps").onclick=e=>{ const b=e.target.closest("button[data-i]"); if(b) show(+b.dataset.i); };
+$("subtabs").onclick=e=>{ const b=e.target.closest("button[data-j]"); if(b) show(P.step, +b.dataset.j); };
+$("nextBtn").onclick=()=>{ if(P.step<STEPS.length-1) show(P.step+1); else location.href="./"; };
+
+/* --- Master reja paneli: istalgan qadamda ochiladi --- */
+let mrFrame=null;
+function openDrawer(on){
+  $("drawer").classList.toggle("open",on); $("mrBtn").setAttribute("aria-pressed",on);
+  if(on && !mrFrame){ mrFrame=document.createElement("iframe"); mrFrame.title="Master reja"; mrFrame.src="masterreja.html"; $("mrHost").appendChild(mrFrame); $("mrHost").style.height="100%"; }
+  else if(on && mrFrame){ try{ mrFrame.contentWindow.location.reload(); }catch(e){} }   // yangi binolar va hudud koʻrsatkichlarini qayta oʻqish
+}
+$("mrBtn").onclick=()=>openDrawer(!$("drawer").classList.contains("open"));
+$("mrClose").onclick=()=>openDrawer(false);
+
+/* --- boshlash: #qadam-boʻlim havolasi yoki oxirgi holat --- */
+(function(){
+  const h=location.hash.slice(1).split("-"); const i=STEPS.findIndex(s=>s.id===h[0]);
+  if(i>=0){ const j=STEPS[i].subs.findIndex(u=>u.id===h[1]); show(i, j>=0?j:0); } else show(P.step||0);
+})();
+</script>
+</body>
+</html>

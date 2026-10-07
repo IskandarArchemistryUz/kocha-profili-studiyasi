@@ -87,3 +87,23 @@ document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&
 if(CFG.goat){var g=document.createElement('script');g.async=true;g.dataset.goatcounter='https://'+CFG.goat+'.goatcounter.com/count';g.src='https://gc.zgo.at/count.js';document.head.appendChild(g);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ui);else ui();
 })();
+/* Loyiha rejimi: sahifa loyiha.html ichida (iframe) ochilganda — bosh sahifa havolasi va
+   fikr tugmasi yashiriladi, boshqa boʻlimlarga havolalar loyiha oynasida qadam sifatida ochiladi. */
+(function(){
+var inShell=false;try{inShell=window.parent!==window&&/loyiha\.html$/.test(window.parent.location.pathname);}catch(e){}
+if(!inShell)return;
+document.documentElement.classList.add('kps-embed');
+var st=document.createElement('style');
+st.textContent='html.kps-embed header .brand,html.kps-embed header .crumb,html.kps-embed #brandCrumb,html.kps-embed #kbBtn,html.kps-embed #kbPn{display:none!important}';
+document.head.appendChild(st);
+var PAGES=['index.html','studio.html','ai.html','posadka.html','maket.html','masterreja.html','data.html','shamol.html'];
+document.addEventListener('click',function(e){
+  var a=e.target&&e.target.closest&&e.target.closest('a[href]');if(!a||a.target==='_blank'||a.hasAttribute('download'))return;
+  var u;try{u=new URL(a.getAttribute('href'),location.href);}catch(x){return;}
+  if(u.origin!==location.origin)return;
+  var p=u.pathname.split('/').pop()||'index.html';if(PAGES.indexOf(p)<0)return;
+  if(p===(location.pathname.split('/').pop()||'index.html')&&u.hash&&u.search===location.search)return; // sahifa ichidagi langar
+  e.preventDefault();e.stopPropagation();
+  window.parent.postMessage({kps:'go',href:p+u.search+u.hash},location.origin);
+},true);
+})();
