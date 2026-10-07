@@ -2661,7 +2661,7 @@ function fileHTML(){const saves=readSaves(),keys=Object.keys(saves).sort((a,b)=>
   <div class="pal-h" style="margin-top:10px">Loyiha</div><div class="tools"><button class="btn sm primary" id="fSave">Faylga saqlash (.json)</button><label class="btn sm" for="fOpen">Fayldan ochish…</label><input id="fOpen" type="file" accept=".json" hidden><button class="btn sm" id="fBrow">Brauzerda saqlash</button></div>
   ${keys.length?`<div style="margin-top:6px;display:grid;gap:4px">${keys.map(k=>`<div style="display:flex;gap:6px;align-items:center;font-size:13.5px"><span style="flex:1">${k} <span class="small">${saves[k].t.slice(0,16).replace('T',' ')}</span></span><button class="btn sm" data-lo="${k.replace(/"/g,'&quot;')}">Ochish</button><button class="btn sm" data-rm="${k.replace(/"/g,'&quot;')}" style="color:var(--bad)">✕</button></div>`).join('')}</div>`:''}
   <div class="pal-h" style="margin-top:10px">Rasm</div><div class="tools"><select id="eScale" class="btn sm">${[[2,'2 px/m'],[4,'4 px/m'],[8,'8 px/m (yuqori)'],[12,'12 px/m']].map(([v,n])=>`<option value="${v}" ${v===4?'selected':''}>${n}</option>`).join('')}</select>
-    <label class="small"><input type="checkbox" id="eSat" checked> Sunʼiy yoʻldosh fonda</label><button class="btn sm" id="ePng">PNG</button><button class="btn sm" id="eSvg">SVG (vektor, qatlamli)</button></div>
+    <label class="small"><input type="checkbox" id="eSat" checked> Sunʼiy yoʻldosh fonda</label><button class="btn sm" id="ePng">PNG</button><button class="btn sm" id="eSvg">SVG (vektor, qatlamli)</button><button class="btn sm primary" id="eAlb">Albomga →</button></div>
   <div class="pal-h" style="margin-top:10px">CAD / GIS (ArchiCAD, AutoCAD, QGIS)</div><div class="tools"><select id="eCrs" class="btn sm"><option value="local">Mahalliy koordinata (0,0 — birinchi tugun), metr</option><option value="utm">UTM WGS84 (Toshkent — 42N), metr</option></select>
     <button class="btn sm" id="eDxf">DXF (qatlamlar bilan)</button><button class="btn sm" id="dGeo2">GeoJSON</button><button class="btn sm" id="eCsv">Hisob-kitob (.csv)</button></div>
   <p class="small" style="margin:6px 0 0">ArchiCAD: <i>Fayl → Qoʻshimcha fayl → DXF/DWG</i> orqali; qatlamlar (ROAD, SIDEWALK, GREEN, MARKINGS, SIGNS…) saqlanadi. 3D model — «3D koʻrinish»dan OBJ.</p></details>`;}
@@ -2672,7 +2672,7 @@ function bindFile(el){const q=s=>el.querySelector(s),ds=DS();if(!q('#fileBox'))r
   q('#fOpen').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j.prof&&!j.design)throw 0;loadState(j);toast('Loyiha ochildi.');}catch(e){toast('Fayl oʻqilmadi: bu Koʻcha Profili Studiyasi loyihasi emas.');}};r.readAsText(f);ev.target.value='';};
   el.querySelectorAll('[data-lo]').forEach(b=>b.onclick=()=>{const v=readSaves()[b.dataset.lo];if(v){loadState(JSON.parse(v.d));toast(`«${b.dataset.lo}» ochildi.`);}});
   el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{const all=readSaves();delete all[b.dataset.rm];try{localStorage.setItem('kps_saves',JSON.stringify(all));}catch(e){}renderDesignPanel();});
-  q('#ePng').onclick=()=>exportPNG(+q('#eScale').value,q('#eSat').checked);q('#eSvg').onclick=()=>exportSVG(q('#eSat').checked);
+  q('#ePng').onclick=()=>exportPNG(+q('#eScale').value,q('#eSat').checked);q('#eSvg').onclick=()=>exportSVG(q('#eSat').checked);if(q('#eAlb'))q('#eAlb').onclick=sendToMaket;
   q('#eDxf').onclick=()=>exportDXF(q('#eCrs').value);q('#eCsv').onclick=exportCSV;q('#dGeo2').onclick=()=>{const b=document.getElementById('dGeo');if(b)b.click();};}
 
 /* =====================================================================
@@ -3570,4 +3570,30 @@ loadDataLayers();window.addEventListener('focus',loadDataLayers);
   // loyiha oynasi ichida: hudud 1-qadamda belgilanadi — koʻrsatma shuni aytadi
   const _ah=areaHint;areaHint=function(h){if(!A.busy&&A.poly&&!A.pts.length){h.innerHTML='<b>Hudud 1-qadamdan olingan.</b> Uni oʻzgartirish uchun 1-qadamga qayting yoki shu yerda yangi toʻrtburchak chizing.';return;}_ah(h);};
   renderHint();
+})();
+
+/* Loyiha rejimi: qadam boʻlimni oʻzi tanlaydi — yuqoridagi boʻlim tablari va boshqa rejim asboblari yashiriladi;
+   hudud izolyatsiyasi («Faqat hudud ichi») va 1-qadamdagi uchastka chegarasi */
+(function(){
+  if(!document.documentElement.classList.contains('kps-embed')) return;
+  const st=document.createElement('style');
+  st.textContent='#appTabs{display:none!important} body.kps-area .mbar .rbtn[data-m="cut"]{display:none!important} #isoBtn{position:absolute;top:10px;right:10px;z-index:900;height:30px;padding:0 10px;border:1px solid #141414;background:#fff;font:500 11.5px "IBM Plex Mono",monospace;letter-spacing:.06em;cursor:pointer} #isoBtn[aria-pressed="true"]{background:#141414;color:#fff}';
+  document.head.appendChild(st);
+  const _sa=setApp; setApp=function(a){ _sa(a); document.body.classList.toggle('kps-area',a==='area'); };
+  document.body.classList.toggle('kps-area',S.app==='area');
+  const siteRing=()=>{ try{ const s=JSON.parse(localStorage.getItem('kps_site')||'null'); return s&&s.ring&&s.ring.length>2?s.ring:null; }catch(e){ return null; } };
+  // izolyatsiya: hududdan tashqarisi oqartiriladi
+  let mask=null, iso=localStorage.getItem('kps_ai_clip')==='1';
+  const btn=document.createElement('button'); btn.id='isoBtn'; btn.type='button'; btn.textContent='Faqat hudud ichi';
+  document.querySelector('.mapwrap').appendChild(btn);
+  function drawIso(){ if(mask){ map.removeLayer(mask); mask=null; } btn.setAttribute('aria-pressed',iso); const r=siteRing(); btn.hidden=!r;
+    if(!iso||!r) return; const world=[[85,-180],[85,180],[-85,180],[-85,-180]];
+    mask=L.polygon([world,r],{stroke:false,fillColor:'#f4f3f1',fillOpacity:.86,interactive:false}).addTo(map); }
+  btn.onclick=()=>{ iso=!iso; try{localStorage.setItem('kps_ai_clip',iso?'1':'0');}catch(e){} drawIso(); };
+  // 1-qadamdagi uchastka chegarasi (qizil punktir)
+  let siteL=null;
+  function drawSites(){ if(siteL){ map.removeLayer(siteL); siteL=null; } let a=[]; try{ a=JSON.parse(localStorage.getItem('kps_ai_sites')||'[]'); }catch(e){}
+    if(!a.length) return; siteL=L.layerGroup(a.map(x=>L.polygon(x.pts,{color:'#c62828',weight:2,dashArray:'10 5 2 5',fill:false,interactive:false}))).addTo(map); }
+  drawIso(); drawSites();
+  window.addEventListener('storage',e=>{ if(e.key==='kps_site'||e.key==='kps_ai_clip'){ iso=localStorage.getItem('kps_ai_clip')==='1'; drawIso(); } if(e.key==='kps_ai_sites') drawSites(); });
 })();

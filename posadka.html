@@ -658,8 +658,21 @@ const putMat=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.on
     const inside=()=>{ if(!(P.site&&P.site.length)) return false; const b=lay.getBounds(); return P.site.some(q=>b.contains(L.latLng(q[0],q[1]))); };
     if(fit&&!inside()) try{map.fitBounds(lay.getBounds().pad(.05));}catch(e){}
   }
-  apply(true);
-  window.addEventListener('storage',e=>{if(e.key==='kps_site')apply(true);});
+  // 1-qadamda chizilgan uchastka chegarasi — shu yerdagi uchastka boʻladi (oʻzingiz chizmagan boʻlsangiz)
+  function takeSite(){ let a=[]; try{ a=JSON.parse(localStorage.getItem('kps_ai_sites')||'[]'); }catch(e){}
+    if(!a.length||!a[0].pts||a[0].pts.length<3) return false;
+    const pts=a[0].pts.map(p=>[+p[0],+p[1]]), same=P.site&&JSON.stringify(P.site)===JSON.stringify(pts);
+    if(same) return false;
+    if(P.site&&P.site.length&&P._siteSrc!=='step1') return false;   // oʻzi chizgan uchastkani almashtirmaymiz
+    P.site=pts; P._siteSrc='step1'; commit(); try{ map.fitBounds(L.latLngBounds(pts).pad(.25)); }catch(e){} return true; }
+  apply(!takeSite());
+  window.addEventListener('storage',e=>{ if(e.key==='kps_site') apply(true); if(e.key==='kps_ai_sites') takeSite(); });
+  // izolyatsiya: hududdan tashqarisi oqartiriladi (1-qadamdagi «Faqat hudud ichi» bilan bir xil)
+  let mask=null;
+  function drawIso(){ if(mask){ map.removeLayer(mask); mask=null; } let s=null; try{ s=JSON.parse(localStorage.getItem('kps_site')||'null'); }catch(e){}
+    if(localStorage.getItem('kps_ai_clip')!=='1'||!s||!s.ring) return;
+    mask=L.polygon([[[85,-180],[85,180],[-85,180],[-85,-180]],s.ring],{stroke:false,fillColor:'#f4f3f1',fillOpacity:.86,interactive:false}).addTo(map); }
+  drawIso(); window.addEventListener('storage',e=>{ if(e.key==='kps_ai_clip'||e.key==='kps_site') drawIso(); });
 })();
 window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,openPlan,refresh:()=>renderSide()};
 })();

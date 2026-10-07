@@ -135,6 +135,7 @@ details[open] summary{margin-bottom:10px}
 
     <section>
       <h2>5 · Natija</h2>
+      <div class="row"><button class="btn solid" id="btnAlb">Albomga →</button><span class="status" id="albSt"></span></div>
       <table id="metrics"></table>
       <p class="note" id="metricsNote"></p>
     </section>
@@ -229,7 +230,7 @@ const toLL=(x,y)=>[S.origin.lon+x/S.origin.kx, S.origin.lat+y/S.origin.ky];
 /* ---------- xarita ---------- */
 const map=new maplibregl.Map({
   container:"map", style:"https://tiles.openfreemap.org/styles/positron",
-  center:[69.2797,41.3111], zoom:14, pitch:55, bearing:-20, maxPitch:75, antialias:true
+  center:[69.2797,41.3111], zoom:14, pitch:55, bearing:-20, maxPitch:75, antialias:true, preserveDrawingBuffer:true
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
 map.on("error",e=>{ if(e && e.error && /style|tiles/i.test(String(e.error.message||""))) err("Asos xarita yuklanmadi: "+e.error.message); });
@@ -827,7 +828,7 @@ function lbmDrawMap(D){
   map.setLayoutProperty("lbm","visibility","visible"); map.setLayoutProperty("heat","visibility","none");
   map.getSource("lbmbox").setData(fc([{type:"Feature",properties:{},geometry:{type:"LineString",coordinates:C.concat([C[0]])}}]));
 }
-function lbmDrawSide(D){
+function lbmDrawSide(D){ window.__lbmSideOk=true;
   const cv=$("lbmSide"), x=cv.getContext("2d"), W=cv.width, Hh=cv.height, nx=D.nx, nz=D.nz, v=D.v;
   const sx=W/nx, sz=Math.min(Hh/nz, sx*2.2), top=Hh-nz*sz;
   x.clearRect(0,0,W,Hh); x.fillStyle="#f7f4ee"; x.fillRect(0,0,W,Hh);
@@ -922,6 +923,23 @@ function applySite(){
 applySite();
 window.addEventListener("storage",e=>{ if(e.key==="kps_site") applySite(); });
 renderStats(); renderTowers();
+};
+/* albomga: joriy 3D koʻrinish (+ afsona) va 3D oqim tik kesimi */
+function matPut(o){ return new Promise((res,rej)=>{ const r=indexedDB.open("kps_mat",1); r.onupgradeneeded=()=>r.result.createObjectStore("mats",{keyPath:"id"}); r.onsuccess=()=>{ const t=r.result.transaction("mats","readwrite"); t.objectStore("mats").put(o); t.oncomplete=res; t.onerror=()=>rej(t.error); }; r.onerror=()=>rej(r.error); }); }
+$("btnAlb").onclick=async()=>{
+  if(!S.grid){ $("albSt").textContent="Avval «Binolar va shamolni yuklash»."; return; }
+  try{
+    map.triggerRepaint(); await new Promise(r=>map.once("render",r)); await new Promise(r=>requestAnimationFrame(r));
+    const cv=map.getCanvas(), src=cv.toDataURL("image/png"), t=new Date().toISOString();
+    const dirTxt = S.dirMode==="one" ? `shamol ${NAMES[S.dir]} tomondan` : "butun shamol guli";
+    const viewTxt = {mavjud:"turgʻunlik — mavjud holat",loyiha:"turgʻunlik — loyiha",farq:"farq: loyiha − mavjud",tasir:"tanlangan binoning taʼsiri"}[S.view]||"";
+    const leg = (S.view==="farq"||S.view==="tasir") ? [{col:"#c2281e",label:"havo kamaydi",kind:"fill",on:true},{col:"#286e96",label:"havo koʻpaydi",kind:"fill",on:true}]
+      : [{col:"#fad678",label:"biroz pasaygan",kind:"fill",on:true},{col:"#e8783a",label:"turgʻun",kind:"fill",on:true},{col:"#a01e1e",label:"havo turib qoladi",kind:"fill",on:true}];
+    await matPut({id:"wind"+Date.now().toString(36),kind:"png",name:"Shamol — "+viewTxt,src,thumb:src,aspect:cv.width/cv.height,sub:`${SLICES.find(x=>x[0]===S.slice)[1]} · ${SEASONS.find(x=>x[0]===S.season)[1]} · ${dirTxt}`,t,legend:leg});
+    let n=1; const side=$("lbmSide");
+    if(window.__lbmSideOk){ const s2=side.toDataURL("image/png"); await matPut({id:"windv"+Date.now().toString(36),kind:"png",name:"Shamol — 3D oqim tik kesimi",src:s2,thumb:s2,aspect:side.width/side.height,sub:"tezlik nisbati · LBM",t}); n++; }
+    $("albSt").textContent=`${n} ta varaq materiali albomga yuborildi (5-qadam).`;
+  }catch(e){ $("albSt").textContent="Yuborilmadi: "+e.message; }
 };
 </script>
 </body>
