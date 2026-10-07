@@ -112,7 +112,7 @@ document.addEventListener('click',function(e){
 (function(){
 var pg=(location.pathname.split('/').pop()||'index.html').replace(/\.html$/,'')||'index';
 document.documentElement.dataset.page=pg;
-var l=document.createElement('link');l.rel='stylesheet';l.href='css/mobile.css?v=2';document.head.appendChild(l);
+var l=document.createElement('link');l.rel='stylesheet';l.href='css/mobile.css?v=3';document.head.appendChild(l);
 var SHEETS={
   ai:[['Xarita',null],['Natija','main > aside']],
   posadka:[['Reja',null],['Koʻrsatkichlar','main > aside']],

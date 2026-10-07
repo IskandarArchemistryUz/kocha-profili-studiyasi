@@ -24,6 +24,10 @@
   html.km-sheet .work > .mapwrap{position:absolute!important;inset:0 0 46px 0}
   html.km-sheet .work > .rail{position:absolute!important;top:8px;left:8px;z-index:800;max-height:calc(100% - 70px);overflow:auto;border:1px solid #dedcd7;border-radius:6px;background:#fbfbfa}
   html.km-sheet[data-page="studio"] .statusbar{display:none}
+  /* telefonda asboblar ustuni ixcham: faqat belgilar */
+  html.km-sheet[data-page="studio"] .rail{width:46px!important;padding:4px!important;align-items:center!important}
+  html.km-sheet[data-page="studio"] .rail .rbtn{width:36px!important;height:36px;justify-content:center!important;padding:0!important}
+  html.km-sheet[data-page="studio"] .rail .rbtn .lb,html.km-sheet[data-page="studio"] .rail .rbtn .k,html.km-sheet[data-page="studio"] .rail .rg-h{display:none!important}
   /* asboblar ustuni xarita ustida kichik suzuvchi panel */
   html.km-sheet main > .rail{position:absolute!important;top:8px;left:8px;z-index:800;max-height:calc(100% - 70px);overflow:auto;border:1px solid #dedcd7;border-radius:6px;padding:4px!important;width:auto!important}
   /* pastdan chiquvchi panel */
