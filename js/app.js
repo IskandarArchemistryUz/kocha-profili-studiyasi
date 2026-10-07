@@ -1,4 +1,4 @@
-try{if(window.top!==window.self)document.getElementById('frameWarn').hidden=false;}catch(e){document.getElementById('frameWarn').hidden=false;}
+if(!document.documentElement.classList.contains('kps-embed')){try{if(window.top!==window.self)document.getElementById('frameWarn').hidden=false;}catch(e){document.getElementById('frameWarn').hidden=false;}}   // loyiha oynasi ichida xarita ishlaydi — ogohlantirish kerak emas
 /* ---------- Element kutubxonasi ---------- */
 const LIB={
   facade:{n:'Fasad zonasi',a:'Fasad',c:'ped',w:.6,col:'#d9d0bd'},

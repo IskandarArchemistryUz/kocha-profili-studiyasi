@@ -112,11 +112,12 @@ document.addEventListener('click',function(e){
 (function(){
 var pg=(location.pathname.split('/').pop()||'index.html').replace(/\.html$/,'')||'index';
 document.documentElement.dataset.page=pg;
-var l=document.createElement('link');l.rel='stylesheet';l.href='css/mobile.css?v=1';document.head.appendChild(l);
+var l=document.createElement('link');l.rel='stylesheet';l.href='css/mobile.css?v=2';document.head.appendChild(l);
 var SHEETS={
   ai:[['Xarita',null],['Natija','main > aside']],
   posadka:[['Reja',null],['Koʻrsatkichlar','main > aside']],
   shamol:[['Xarita',null],['Boshqaruv','.app > aside']],
+  studio:[['Xarita',null],['Panel','.work > aside.side']],
   maket:[['Varaq',null],['Materiallar','main > aside.l'],['Xususiyatlar','main > aside.r']]
 };
 var cfg=SHEETS[pg];if(!cfg)return;

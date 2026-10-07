@@ -18,6 +18,12 @@
   html.km-sheet main > .mapw,html.km-sheet main > .stage{position:absolute!important;inset:0 0 46px 0;min-width:0}
   html.km-sheet .app{display:flex!important;flex-direction:column;height:100%!important;grid-template-columns:none!important;grid-template-rows:none!important}
   html.km-sheet .app > .mapwrap{flex:1;min-height:0;margin-bottom:46px}
+  /* koʻcha studiyasi: .app > .work(.rail, .mapwrap, .side) */
+  html.km-sheet[data-page="studio"] .app{position:fixed!important;inset:0;height:auto!important;min-height:0!important}
+  html.km-sheet .work{display:block!important;position:relative;flex:1;min-height:0}
+  html.km-sheet .work > .mapwrap{position:absolute!important;inset:0 0 46px 0}
+  html.km-sheet .work > .rail{position:absolute!important;top:8px;left:8px;z-index:800;max-height:calc(100% - 70px);overflow:auto;border:1px solid #dedcd7;border-radius:6px;background:#fbfbfa}
+  html.km-sheet[data-page="studio"] .statusbar{display:none}
   /* asboblar ustuni xarita ustida kichik suzuvchi panel */
   html.km-sheet main > .rail{position:absolute!important;top:8px;left:8px;z-index:800;max-height:calc(100% - 70px);overflow:auto;border:1px solid #dedcd7;border-radius:6px;padding:4px!important;width:auto!important}
   /* pastdan chiquvchi panel */
