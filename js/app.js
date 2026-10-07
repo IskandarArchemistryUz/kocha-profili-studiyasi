@@ -3547,3 +3547,23 @@ loadDataLayers();window.addEventListener('focus',loadDataLayers);
   map.on('mouseup',end);document.addEventListener('mouseup',e=>{if(box)end(e);});
   document.addEventListener('keydown',e=>{if(S.app!=='design'||e.target.matches('input,textarea,select'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){const ds=DS();if(!(ds.signs||[]).length)return;e.preventDefault();ds.sel={t:'signs',ids:ds.signs.map(x=>x.id)};afterDesign();toast(`Barcha ${ds.signs.length} ta belgi tanlandi.`);}});
 })();
+
+/* Loyiha rejimi: 1-qadamda (AI · hudud bahosi) hisoblangan hudud chegarasi «kps_site» dan olinadi.
+   Faqat loyiha oynasi ichida ishlaydi; alohida ochilgan studiya avvalgidek qoladi. */
+(function(){
+  if(!document.documentElement.classList.contains('kps-embed')) return;
+  function apply(){
+    let s=null;try{s=JSON.parse(localStorage.getItem('kps_site')||'null');}catch(e){}
+    if(!s||!s.ring||s.ring.length<3) return;
+    if(+(localStorage.getItem('kps_site_seen_studio')||0)>=s.t) return;
+    try{localStorage.setItem('kps_site_seen_studio',String(s.t));}catch(e){}
+    let ring=s.ring;if(ring.length>64){const st=Math.ceil(ring.length/64);ring=ring.filter((_,i)=>i%st===0);}
+    A.poly=ring.map(p=>[p[0],p[1]]);A.pts=[];A.res=null;
+    if(classOverlay){areaL.removeLayer(classOverlay);classOverlay=null;}
+    saveArea();drawArea();if(S.app==='area')renderAreaPanel();
+    try{map.fitBounds(L.latLngBounds(A.poly).pad(.08));}catch(e){}
+    toast('Hudud chegarasi 1-qadamdan olindi. Yer qoplamini hisoblash uchun «Qayta hisoblash» ni bosing.');
+  }
+  apply();
+  window.addEventListener('storage',e=>{if(e.key==='kps_site')apply();});
+})();

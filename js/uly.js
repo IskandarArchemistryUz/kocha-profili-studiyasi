@@ -1,4 +1,4 @@
-/* Archemistry Studio — xarita qatlamlari boshqaruvi (yoqish/oʻchirish, rang, oʻlcham, shaffoflik, ikonka)
+/* Archemistry Lab — xarita qatlamlari boshqaruvi (yoqish/oʻchirish, rang, oʻlcham, shaffoflik, ikonka)
    window.ULY: set(id,def), clear(), panel(el), legend(el), toSVG(), PAL */
 (function(){
 'use strict';

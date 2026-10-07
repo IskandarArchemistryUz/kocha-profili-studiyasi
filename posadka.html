@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Joylashtirish — Archemistry Studio</title>
-<script src="js/beta.js?v=7"></script>
+<title>Joylashtirish — Archemistry Lab</title>
+<script src="js/beta.js?v=8"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -648,7 +648,22 @@ const putMat=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.on
 window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,openPlan,refresh:()=>renderSide()};
 })();
 </script>
-<script src="js/massing.js?v=5"></script>
-<script src="js/i18n.js?v=28"></script>
+<script src="js/massing.js?v=6"></script>
+<script src="js/i18n.js?v=29">
+/* Loyiha rejimi: 1-qadamdagi hudud chegarasi maʼlumot uchun koʻrsatiladi (uchastka chegarasi oʻzgarmaydi). */
+(function(){
+  if(!document.documentElement.classList.contains('kps-embed')) return;
+  let lay=null;
+  function apply(fit){
+    let s=null;try{s=JSON.parse(localStorage.getItem('kps_site')||'null');}catch(e){}
+    if(lay){map.removeLayer(lay);lay=null;}
+    if(!s||!s.ring||s.ring.length<3) return;
+    lay=L.polygon(s.ring,{color:'#7b61d1',weight:1.5,dashArray:'6 5',fill:false,interactive:false}).addTo(map);
+    if(fit&&!(P.site&&P.site.length)) try{map.fitBounds(lay.getBounds().pad(.05));}catch(e){}
+  }
+  apply(true);
+  window.addEventListener('storage',e=>{if(e.key==='kps_site')apply(true);});
+})();
+</script>
 </body>
 </html>

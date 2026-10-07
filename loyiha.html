@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Loyiha — Archemistry Studio</title>
+<title>Loyiha — Archemistry Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -38,6 +38,20 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .step[aria-current="step"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;background:var(--ink)}
 .step:hover{color:var(--ink)}
 
+.pwrap{position:relative;display:flex;align-items:center;gap:2px;flex:none}
+.pmenu-btn{border:0;background:none;cursor:pointer;font-size:12px;padding:4px 6px;color:var(--grey)}
+.pmenu{position:absolute;top:calc(100% + 10px);left:0;z-index:20;width:300px;background:var(--paper);border:1px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.12);display:grid}
+.pmenu[hidden]{display:none}
+.pmenu .ph{padding:10px 12px 6px;font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}
+.pmenu .pi{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
+.pmenu .pi.on{background:var(--bg)}
+.pmenu .pi button.nm{border:0;background:none;text-align:left;cursor:pointer;font:500 14px var(--f-sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0}
+.pmenu .pi .tm{font:11px var(--f-mono);color:var(--grey)}
+.pmenu .pi button.del{border:0;background:none;color:var(--grey);cursor:pointer;font:12px var(--f-mono)}
+.pmenu .pi button.del.sure{color:var(--acc)}
+.pmenu .pf{padding:10px 12px;border-top:1px solid var(--ink)}
+.cover{position:fixed;inset:0;z-index:50;background:rgba(244,243,241,.85);display:grid;place-items:center;font:13px var(--f-mono)}
+.cover[hidden]{display:none}
 .tools{display:flex;gap:8px;align-items:center;flex:none}
 .btn{height:32px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font:500 12px var(--f-mono);letter-spacing:.05em;cursor:pointer;white-space:nowrap}
 .btn.dark{background:var(--ink);color:var(--paper)}
@@ -75,9 +89,10 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 <body>
 <header class="top">
   <a class="brand" href="./" title="Bosh sahifa">
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 22L12 2l10 20" fill="none" stroke="#141414" stroke-width="2"/></svg>ARCHEMISTRY
+    <svg width="21" height="20" viewBox="0 0 103.45 100" aria-hidden="true"><path d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z" fill="#696969" fill-rule="evenodd"/></svg>ARCHEMISTRY
   </a>
-  <input class="pname" id="pname" aria-label="Loyiha nomi" value="Yangi loyiha">
+  <div class="pwrap"><input class="pname" id="pname" aria-label="Loyiha nomi" value="Yangi loyiha"><button class="pmenu-btn" id="pmBtn" aria-expanded="false" aria-label="Loyihalar roʻyxati">▾</button>
+    <div class="pmenu" id="pmenu" hidden><div class="ph">Loyihalar · shu brauzerda</div><div id="plist"></div><div class="pf"><button class="btn dark" id="pNew">+ Yangi loyiha</button></div></div></div>
   <nav class="steps" id="steps" aria-label="Loyiha qadamlari"></nav>
   <div class="tools">
     <button class="btn" id="mrBtn" aria-pressed="false" title="Master reja koʻrsatkichlari — har qadamda ochiq turadi">Master reja</button>
@@ -88,6 +103,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
   <span class="hint" id="hint"></span>
   <button class="btn dark next" id="nextBtn"></button>
 </div>
+<div class="cover" id="cover" hidden>Loyiha almashtirilmoqda…</div>
 <main class="stage">
   <div class="frames" id="frames"><div class="loading" id="loading" hidden>Yuklanmoqda…</div></div>
   <aside class="drawer" id="drawer" aria-label="Master reja">
@@ -124,8 +140,8 @@ let P={name:"Yangi loyiha", step:0, sub:{}, seen:[0]};
 try{ const v=JSON.parse(localStorage.getItem("kps_project")||"null"); if(v&&typeof v==="object") P=Object.assign(P,v); }catch(e){}
 const saveP=()=>{ try{ localStorage.setItem("kps_project",JSON.stringify(P)); }catch(e){} };
 $("pname").value=P.name;
-$("pname").addEventListener("input",e=>{ P.name=e.target.value.trim()||"Yangi loyiha"; saveP(); document.title=P.name+" — Archemistry Studio"; });
-document.title=P.name+" — Archemistry Studio";
+$("pname").addEventListener("input",e=>{ P.name=e.target.value.trim()||"Yangi loyiha"; saveP(); document.title=P.name+" — Archemistry Lab"; });
+document.title=P.name+" — Archemistry Lab";
 
 /* --- iframe'lar: har sahifa uchun bittadan, kerak boʻlganda yaratiladi --- */
 const frames={};
@@ -162,7 +178,7 @@ function show(i, j, src){
   i=Math.max(0,Math.min(STEPS.length-1,i)); const st=STEPS[i];
   if(j==null) j=P.sub[st.id]||0; j=Math.max(0,Math.min(st.subs.length-1,j));
   const u=st.subs[j];
-  P.step=i; P.sub[st.id]=j; if(!P.seen.includes(i)) P.seen.push(i); saveP();
+  P.step=i; P.sub[st.id]=j; if(!P.seen.includes(i)) P.seen.push(i); saveP(); { const c=REG.list&&REG.list.find(x=>x.id===REG.active); if(c){ c.t=new Date().toISOString(); c.step=i; localStorage.setItem("kps_projects",JSON.stringify(REG)); } }
   const f=frameFor(u.page, src);
   Object.values(frames).forEach(x=>x.hidden = x!==f);
   if(u.app){ f.dataset.wantApp=u.app; applyApp(f); }
@@ -200,8 +216,83 @@ function openDrawer(on){
 $("mrBtn").onclick=()=>openDrawer(!$("drawer").classList.contains("open"));
 $("mrClose").onclick=()=>openDrawer(false);
 
+/* --- bir nechta loyiha ---
+   Boʻlimlar oʻz maʼlumotini umumiy brauzer kalitlariga yozadi. Faol loyiha — shu kalitlardagi holat.
+   Loyiha almashtirilganda joriy holat «kps_projects» bazasiga nusxalanadi, tanlangan loyiha holati qaytariladi.
+   Sozlamalar (til, AI kaliti, palitralar), saqlangan tahlillar kutubxonasi va 3D aktivlar umumiy qoladi. */
+const LS_KEYS=['kps_project','kps_v1','kps_posadka','kps_posadka_sum','kps_area_sum','kps_ai_sites','kps_mrp','kps_mrp_ext','kps_site','kps_site_seen_studio'];
+const IDB_ALL=[['kps_maket','docs'],['kps_mat','mats'],['kps_data','layers']];
+const IDB_ONE=[['kps_ai_runs','runs','last']];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function idbOpen(name,store){return new Promise((res,rej)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>r.result.createObjectStore(store,{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbTx(name,store,mode,fn){const db=await idbOpen(name,store);try{if(!db.objectStoreNames.contains(store))return mode==='readonly'?[]:null;
+  return await new Promise((res,rej)=>{const t=db.transaction(store,mode),os=t.objectStore(store);let out;const r=fn(os);if(r)r.onsuccess=()=>{out=r.result;};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);});}finally{db.close();}}
+const idbAll=(n,s)=>idbTx(n,s,'readonly',os=>os.getAll()).then(r=>r||[]);
+const idbGet=(n,s,id)=>idbTx(n,s,'readonly',os=>os.get(id));
+const idbReplace=(n,s,recs)=>idbTx(n,s,'readwrite',os=>{os.clear();(recs||[]).forEach(r=>os.put(r));});
+const idbPut=(n,s,rec)=>idbTx(n,s,'readwrite',os=>rec?os.put(rec):null);
+const idbDel=(n,s,id)=>idbTx(n,s,'readwrite',os=>os.delete(id));
+let REG={active:null,list:[]};
+try{const v=JSON.parse(localStorage.getItem('kps_projects')||'null');if(v&&Array.isArray(v.list))REG=v;}catch(e){}
+const saveReg=()=>{try{localStorage.setItem('kps_projects',JSON.stringify(REG));}catch(e){}};
+const newId=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+if(!REG.active||!REG.list.find(x=>x.id===REG.active)){ const id=newId(); REG.list.push({id,name:P.name,t:new Date().toISOString()}); REG.active=id; saveReg(); }
+const cur=()=>REG.list.find(x=>x.id===REG.active);
+
+async function snapshot(id){
+  const snap={id,t:new Date().toISOString(),ls:{},idb:{}};
+  LS_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)snap.ls[k]=v;});
+  for(const [n,s] of IDB_ALL) snap.idb[n+'/'+s]=await idbAll(n,s);
+  for(const [n,s,key] of IDB_ONE){const r=await idbGet(n,s,key);if(r)snap.idb[n+'/'+s+'#'+key]=r;}
+  await idbPut('kps_projects','snap',snap);
+}
+async function clearLive(){
+  LS_KEYS.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+  for(const [n,s] of IDB_ALL) await idbReplace(n,s,[]);
+  for(const [n,s,key] of IDB_ONE) await idbDel(n,s,key);
+}
+async function restore(id){
+  const snap=await idbGet('kps_projects','snap',id); if(!snap) return;
+  Object.entries(snap.ls||{}).forEach(([k,v])=>{try{localStorage.setItem(k,v);}catch(e){}});
+  for(const [n,s] of IDB_ALL) await idbReplace(n,s,(snap.idb||{})[n+'/'+s]||[]);
+  for(const [n,s,key] of IDB_ONE){const r=(snap.idb||{})[n+'/'+s+'#'+key]; if(r) await idbPut(n,s,r);}
+}
+function teardown(){
+  Object.values(frames).forEach(f=>f.remove()); for(const k in frames) delete frames[k];
+  if(mrFrame){mrFrame.remove();mrFrame=null;} openDrawer(false);
+}
+function loadP(){ P={name:cur().name, step:0, sub:{}, seen:[0]}; try{const v=JSON.parse(localStorage.getItem('kps_project')||'null');if(v)P=Object.assign(P,v);}catch(e){} P.name=cur().name; $("pname").value=P.name; document.title=P.name+" — Archemistry Lab"; saveP(); }
+async function withCover(fn){ $("cover").hidden=false; closeMenu(); teardown(); await sleep(400);   // boʻlimlar kechiktirilgan saqlashlarini tugatsin
+  try{ await fn(); }catch(e){ $("cover").textContent="Xato: "+(e.message||e); await sleep(2500); }
+  $("cover").hidden=true; $("cover").textContent="Loyiha almashtirilmoqda…"; loadP(); show(P.step||0); }
+async function switchTo(id){ if(id===REG.active||!REG.list.find(x=>x.id===id)) return;
+  await withCover(async()=>{ await snapshot(REG.active); await clearLive(); await restore(id); REG.active=id; saveReg(); }); }
+async function newProject(){
+  await withCover(async()=>{ await snapshot(REG.active); await clearLive();
+    const id=newId(), n=REG.list.length+1; REG.list.push({id,name:"Loyiha "+n,t:new Date().toISOString()}); REG.active=id; saveReg(); }); }
+async function delProject(id){ if(id===REG.active) return; REG.list=REG.list.filter(x=>x.id!==id); saveReg(); try{await idbDel('kps_projects','snap',id);}catch(e){} renderMenu(); }
+
+/* --- loyihalar menyusi --- */
+let armed=null;
+function renderMenu(){
+  const fmt=t=>t?String(t).slice(0,16).replace('T',' '):'';
+  $("plist").innerHTML=REG.list.slice().reverse().map(x=>`<div class="pi${x.id===REG.active?' on':''}"><button class="nm" data-open="${x.id}">${x.name.replace(/[<>&"]/g,'')}</button><span class="tm">${x.id===REG.active?'ochiq':fmt(x.t)}</span>${x.id===REG.active?'<span></span>':`<button class="del${armed===x.id?' sure':''}" data-del="${x.id}">${armed===x.id?'Ha, oʻchir':'Oʻchirish'}</button>`}</div>`).join("");
+}
+function closeMenu(){ $("pmenu").hidden=true; $("pmBtn").setAttribute("aria-expanded","false"); armed=null; }
+$("pmBtn").onclick=e=>{ e.stopPropagation(); const open=$("pmenu").hidden; if(open){ renderMenu(); $("pmenu").hidden=false; $("pmBtn").setAttribute("aria-expanded","true"); } else closeMenu(); };
+$("plist").onclick=e=>{ const o=e.target.closest("[data-open]"), d=e.target.closest("[data-del]");
+  if(o){ switchTo(o.dataset.open); return; }
+  if(d){ if(armed===d.dataset.del) delProject(d.dataset.del); else { armed=d.dataset.del; renderMenu(); } } };
+$("pNew").onclick=()=>newProject();
+document.addEventListener("click",e=>{ if(!$("pmenu").hidden && !e.target.closest(".pwrap")) closeMenu(); });
+$("pname").addEventListener("input",()=>{ const c=cur(); if(c){ c.name=P.name; c.t=new Date().toISOString(); saveReg(); } });
+
 /* --- boshlash: #qadam-boʻlim havolasi yoki oxirgi holat --- */
-(function(){
+(async function(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("new")||q.get("p")){ history.replaceState(null,"",location.pathname+location.hash);
+    if(q.get("new")){ await newProject(); return; }
+    if(q.get("p")&&q.get("p")!==REG.active){ await switchTo(q.get("p")); return; } }
   const h=location.hash.slice(1).split("-"); const i=STEPS.findIndex(s=>s.id===h[0]);
   if(i>=0){ const j=STEPS[i].subs.findIndex(u=>u.id===h[1]); show(i, j>=0?j:0); } else show(P.step||0);
 })();

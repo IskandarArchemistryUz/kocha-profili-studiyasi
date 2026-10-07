@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hudud bahosi va AI — Archemistry Studio</title>
-<script src="js/beta.js?v=7"></script>
+<title>Hudud bahosi va AI — Archemistry Lab</title>
+<script src="js/beta.js?v=8"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -72,8 +72,8 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 </main>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/uly.js?v=2"></script>
-<script src="js/ai3d.js?v=4"></script>
+<script src="js/uly.js?v=3"></script>
+<script src="js/ai3d.js?v=5"></script>
 <script>
 (function(){
 'use strict';
@@ -241,6 +241,7 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
       notes:['Manba: OpenStreetMap (Overpass), soʻrov sanasi '+new Date().toISOString().slice(0,10)+'. OSM toʻliq boʻlmasligi mumkin — ayniqsa trotuar va bekat teglari.',big?'Hudud katta — binolar qoplami hisoblanmadi.':null,...warn,'15 daqiqa: piyoda tarmogʻi (OSM) boʻyicha Dijkstra, tezlik '+F15.summary.speed_kmh+' km/soat; hudud chegarasidan 1,3 km tashqaridagi xizmatlar ham hisobga olingan.',blds?'Qavatlar soni '+(bN?Math.round(lvTag/bN*100):0)+'% binoda OSM da bor, qolganlariga '+(+PRM.lv||1)+' qavat qabul qilindi.':null].filter(Boolean)};
     // xaritada
     try{localStorage.setItem('kps_area_sum',JSON.stringify(Object.assign({t:Date.now()},res)));}catch(e){}
+    try{localStorage.setItem('kps_site',JSON.stringify({t:Date.now(),mode,ring:ring.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)]),center:center?[center[0],center[1]]:null,r:mode==='radius'?Math.round(+$('#rKm').value*1000):null,areaM2:Math.round(areaM2)}));}catch(e){}
     res.official_statistics=offRes();CV=null;ENV=null;LASTD={roads,poi,blds,E,stops,serv,interPts,ring,inside,bb:bb0(ring),areaM2,F15,T};
     DIRTY=false;LASTD.autoTrees=autoTrees(LASTD);updMask();draw15(F15);layersAll();envAsync();
     $('#lgd').hidden=false;aiText=RESTORE_AI||'';RESTORE_AI=null;renderRes();
@@ -609,6 +610,6 @@ hint();renderRes();
 openRun('last',true).then(ok=>{if(ok)toast('Oxirgi tahlil tiklandi. Boshqalari — «Saqlanganlar» da.');}).catch(()=>{});
 })();
 </script>
-<script src="js/i18n.js?v=28"></script>
+<script src="js/i18n.js?v=29"></script>
 </body>
 </html>

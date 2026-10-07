@@ -1,4 +1,4 @@
-/* Archemistry Studio · Joylashtirish — 3D massing muharriri (three.js r128).
+/* Archemistry Lab · Joylashtirish — 3D massing muharriri (three.js r128).
    Bino hajmlari, fasad modullari, quyosh va soya, AI render. Maʼlumot posadka.html dagi window.PZ orqali. */
 (function(){'use strict';
 const R=Math.PI/180,$=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

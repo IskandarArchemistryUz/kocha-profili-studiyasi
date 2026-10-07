@@ -1,4 +1,4 @@
-/* Archemistry Studio — AI hudud bahosi: 3D model va vektor illyustratsiya
+/* Archemistry Lab — AI hudud bahosi: 3D model va vektor illyustratsiya
    window.AI3D.open(ctx) — ctx: {D (LASTD), MX, MY, ULY, toast, putMat, mode, lv}
    Koʻrinish: izometrik (NW/NE/SW/SE), yuqoridan, koʻz sathi; perspektiva; soyalar.
    Qatlamlar: binolar, daraxtlar, koʻchalar, temir yoʻl, yashil, suv, ikonkalar (pin), tahlil qatlami, asos.
@@ -268,7 +268,7 @@ function exportMeshes(){const out=[];S.root.updateMatrixWorld(true);S.root.trave
       if(Array.isArray(o.material)){// ExtrudeGeometry: guruhlar (yuz / yon)
         o.geometry.groups.forEach((gr,gi)=>{if(!o.material[gr.materialIndex].visible)return;const ia=o.geometry.index,pp=[];for(let k=gr.start;k<gr.start+gr.count;k++){const vi=ia?ia.getX(k):k;v.fromBufferAttribute(o.geometry.attributes.position,vi).applyMatrix4(o.matrixWorld);pp.push(v.x,v.y,v.z);}out.push({name:o.name+(gi?'_yon':'_yuz'),pos:pp,color:o.material[gr.materialIndex].color.getHexString()});});return;}
       for(let j=0;j<pa.count;j++){v.fromBufferAttribute(pa,j).applyMatrix4(o.matrixWorld);pos.push(v.x,v.y,v.z);}out.push({name:o.name,pos,color:o.material.color?o.material.color.getHexString():'dddddd',vcol:o.material.vertexColors&&g.attributes.color?g.attributes.color.array:null});}});return out;}
-function toOBJ(){const ms=exportMeshes();let obj='# Archemistry Studio — 3D hudud modeli (metr, Y — yuqoriga)\n# © OpenStreetMap hissadorlari\nmtllib '+fname('mtl')+'\n',mtl='',vi=1;
+function toOBJ(){const ms=exportMeshes();let obj='# Archemistry Lab — 3D hudud modeli (metr, Y — yuqoriga)\n# © OpenStreetMap hissadorlari\nmtllib '+fname('mtl')+'\n',mtl='',vi=1;
   ms.forEach((m,k)=>{const mn=m.name+'_'+k;mtl+=`newmtl ${mn}\nKd ${m.color.match(/../g).map(h=>(parseInt(h,16)/255).toFixed(3)).join(' ')}\nKa 0 0 0\nd 1\n\n`;obj+=`o ${m.name}\nusemtl ${mn}\n`;
     for(let i=0;i<m.pos.length;i+=3)obj+=`v ${m.pos[i].toFixed(3)} ${m.pos[i+1].toFixed(3)} ${m.pos[i+2].toFixed(3)}`+(m.vcol?` ${m.vcol[i].toFixed(3)} ${m.vcol[i+1].toFixed(3)} ${m.vcol[i+2].toFixed(3)}`:'')+'\n';
     for(let i=0;i<m.pos.length/3;i+=3)obj+=`f ${vi+i} ${vi+i+1} ${vi+i+2}\n`;vi+=m.pos.length/3;});return {obj,mtl};}
@@ -332,7 +332,7 @@ function toSVG(){const cam=S.cam,v=S.ov.querySelector('#a3v'),W=1800,H=Math.roun
     if(L.pins){const seen={};d.pins.forEach(q=>{if(!seen[q.cat]){seen[q.cat]=1;it.push([q.col,T(q.cat),'c']);}});}
     const lh=20,bh=it.length*lh+16,y0=H-bh-16;s+=`<g><rect x="16" y="${y0}" width="300" height="${bh}" fill="#ffffff" fill-opacity=".9" stroke="#dedcd7"/>`;
     it.forEach(([c,n,k],i)=>{const y=y0+14+i*lh;s+=k==='c'?`<circle cx="31" cy="${y+5}" r="6" fill="${c}"/>`:k==='l'?`<rect x="24" y="${y+3}" width="14" height="4" fill="${c}"/>`:`<rect x="24" y="${y-1}" width="14" height="12" fill="${c}" stroke="#bbb" stroke-width=".5"/>`;s+=`<text x="46" y="${y+9}" font-size="12.5" fill="#3c3c3c">${esc(n)}</text>`;});s+='</g>';}
-  s+=`<text x="${W-16}" y="${H-12}" font-size="11" fill="#8a877f" text-anchor="end">© OpenStreetMap · Archemistry Studio</text></svg>`;return {svg:s,W,H};}
+  s+=`<text x="${W-16}" y="${H-12}" font-size="11" fill="#8a877f" text-anchor="end">© OpenStreetMap · Archemistry Lab</text></svg>`;return {svg:s,W,H};}
 function pxPerM(){const cam=S.cam,V=new THREE.Vector3(),W=1800;const a=V.set(0,0,0).project(cam).clone(),b=new THREE.Vector3(1,0,0).project(cam),c=new THREE.Vector3(0,1,0).project(cam);return Math.max(Math.hypot(b.x-a.x,b.y-a.y),Math.hypot(c.x-a.x,c.y-a.y))/2*W;}
 function shade(hex,k){const c=new THREE.Color(hex);c.r=Math.min(1,c.r*k);c.g=Math.min(1,c.g*k);c.b=Math.min(1,c.b*k);return '#'+c.getHexString();}
 async function doExport(k){const t=S.ctx.toast;

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Maʼlumotlar — Archemistry Studio</title>
-<script src="js/beta.js?v=7"></script>
+<title>Maʼlumotlar — Archemistry Lab</title>
+<script src="js/beta.js?v=8"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -44,7 +44,7 @@ aside{border-right:1px solid var(--line);background:var(--panel);display:flex;fl
 </head>
 <body>
 <header>
-<a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b><i>STUDIO</i></a>
+<a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b><i>LAB</i></a>
 <span class="crumb">/ 05 · MAʼLUMOTLAR</span><span class="sp"></span>
 <a class="btn" href="studio.html#design">Koʻcha studiyasi</a><a class="btn dark" href="studio.html#area">Hudud tahlili</a>
 </header>
@@ -143,6 +143,6 @@ document.addEventListener('dragover',e=>e.preventDefault());document.addEventLis
 all().then(a=>{LAY=a.sort((x,y)=>x.t.localeCompare(y.t));LAY.forEach(draw);render();const vis=LAY.filter(o=>o.visible);if(vis.length){try{const b=L.featureGroup(vis.map(o=>LL[o.id]));map.fitBounds(b.getBounds(),{padding:[30,30]});}catch(e){}}}).catch(()=>{render();toast('Brauzer xotirasi (IndexedDB) ochilmadi.');});
 })();
 </script>
-<script src="js/i18n.js?v=28"></script>
+<script src="js/i18n.js?v=29"></script>
 </body>
 </html>

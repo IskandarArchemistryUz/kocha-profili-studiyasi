@@ -1,4 +1,4 @@
-/* Archemistry Studio — beta: fikr-mulohaza, xato haqida xabar, qahva uchun donat, tashrif statistikasi.
+/* Archemistry Lab — beta: fikr-mulohaza, xato haqida xabar, qahva uchun donat, tashrif statistikasi.
    Sozlash: faqat quyidagi CFG qiymatlarini toʻldiring. Boʻsh qolgan tugma koʻrinmaydi. */
 (function(){
 var CFG={
@@ -43,7 +43,7 @@ function coffee(){var w=document.getElementById('kbCofW');if(!w){w=document.crea
 function ui(){css();
   var home=/(^|\/)(index\.html)?$/.test(location.pathname);var b=document.createElement('button');b.id='kbBtn';b.type='button';b.title='Fikr bildirish · xato haqida xabar';if(!home)b.className='c';b.innerHTML=(home?'BETA · Fikr bildirish':'β')+'<span id="kbDot"'+(ERR.length?'':' hidden')+'></span>';document.body.appendChild(b);
   var p=document.createElement('div');p.id='kbPn';p.hidden=true;
-  p.innerHTML='<div class="h"><button class="x" id="kbX" aria-label="Yopish">×</button><b>Archemistry Studio</b><span class="tag">BETA</span><div class="n">Portal sinov rejimida va hamma uchun bepul. Xato topsangiz yoki gʻoyangiz boʻlsa — yozing, tez tuzatamiz.</div></div>'+
+  p.innerHTML='<div class="h"><button class="x" id="kbX" aria-label="Yopish">×</button><b>Archemistry Lab</b><span class="tag">BETA</span><div class="n">Portal sinov rejimida va hamma uchun bepul. Xato topsangiz yoki gʻoyangiz boʻlsa — yozing, tez tuzatamiz.</div></div>'+
    '<div class="s"><div class="l">Fikr va taklif</div><textarea id="kbTxt" placeholder="Nima yoqdi, nima yetishmayapti, nima noqulay?"></textarea>'+
    (CFG.tg?'<button class="b" id="kbTg">Telegramda yuborish →</button>':'')+(CFG.form?'<a class="b" href="'+CFG.form+'" target="_blank" rel="noopener">Batafsil soʻrovnoma (Google Form) →</a>':'')+
    '<button class="b" id="kbCp">Matnni nusxalash</button></div>'+
@@ -60,7 +60,7 @@ function ui(){css();
   var tg=document.getElementById('kbTg');if(tg)tg.onclick=function(){copy(T().value||info(),function(){window.open(CFG.tg,'_blank','noopener');});tg.textContent='Matn nusxalandi — Telegramda joylang (Ctrl+V)';};
   if(home&&CFG.donate)coffee();
   if(home&&!localStorage.getItem('kps_beta_bar')){var bar=document.createElement('div');bar.id='kbBar';
-    bar.innerHTML='<span>Archemistry Studio — beta: hamma uchun bepul, sinov rejimida. Xato yoki gʻoya boʻlsa, pastdagi «Fikr bildirish» tugmasi orqali yozing.</span><button aria-label="Yopish">×</button>';
+    bar.innerHTML='<span>Archemistry Lab — beta: hamma uchun bepul, sinov rejimida. Xato yoki gʻoya boʻlsa, pastdagi «Fikr bildirish» tugmasi orqali yozing.</span><button aria-label="Yopish">×</button>';
     document.body.insertBefore(bar,document.body.firstChild);bar.querySelector('button').onclick=function(){bar.remove();try{localStorage.setItem('kps_beta_bar','1');}catch(e){}};}
 }
 /* ---- yuklab olish cheklovi (beta) ---- */
