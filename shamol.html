@@ -129,6 +129,7 @@ details[open] summary{margin-bottom:10px}
       <table class="towers" id="towerTable"></table>
       <button class="btn" id="btnAttr">Har bir minora taʼsiri</button>
       <div id="attrOut"></div>
+      <p class="note" id="pzStatus">4-qadamda («Binolar») qoʻyilgan binolar shu yerga avtomatik tushadi.</p>
       <label class="filebtn">Loyiha binolari GeoJSON<input type="file" id="fProj" accept=".geojson,.json"></label>
       <span class="status" id="pStatus"></span>
     </section>
@@ -334,11 +335,11 @@ $("btnLoad").onclick=async()=>{
     S.base=parseOSM(osm); S.base.forEach((b,i)=>b._i=i); S.probe=null;
     if(!S.base.length) throw new Error("Bu hududda OSM binolari topilmadi.");
     if(wind.error) throw new Error("Shamol maʼlumoti yuklanmadi: "+wind.error.message);
-    S.wind=wind; S.towers=[]; S.proj=[]; S.radius=r;
+    S.wind=wind; S.towers=[]; S.proj=[]; S.projPz=[]; S.pzKey=""; S.radius=r;
     $("loadStatus").textContent=`${S.base.length.toLocaleString("ru-RU")} ta bino · ERA5 ${wind.hours.toLocaleString("ru-RU")} soat`;
     $("centerpin").textContent="Hudud yuklandi. Boshqa hudud uchun sahifani yangilang.";
     map.fitBounds(bboxLL(r),{padding:30,pitch:55,bearing:-20,duration:900});
-    recomputeAll();
+    recomputeAll(); syncPosadka();
   }catch(e){ err(e.message); busy(""); $("btnLoad").disabled=false; }
 };
 function bboxLL(r){ const [a,b]=toLL(-r,-r), [c,d]=toLL(r,r); return [[a,b],[c,d]]; }
@@ -348,7 +349,8 @@ function rect(cx,cy,w,d){ return [[cx-w/2,cy-d/2],[cx+w/2,cy-d/2],[cx+w/2,cy+d/2
 const towerPoly=t=>rect(t.x,t.y,t.w,t.d);
 function polyArea(p){ let a=0; for(let i=0,j=p.length-1;i<p.length;j=i++) a+=(p[j][0]+p[i][0])*(p[j][1]-p[i][1]); return Math.abs(a/2); }
 function inPoly(x,y,p){ let c=false; for(let i=0,j=p.length-1;i<p.length;j=i++){ const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1]; if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c; } return c; }
-function projList(){ const p=P(); return S.proj.concat(S.towers.map(t=>({pts:towerPoly(t),h:t.floors*p.floorH,hq:"measured",kind:"tower",tid:t.id}))); }
+const baseP=()=>S.base.filter(b=>!b._demol);   // loyiha holati: uchastkadagi buziladigan binolarsiz
+function projList(){ const p=P(); return S.proj.concat(S.projPz||[], S.towers.map(t=>({pts:towerPoly(t),h:t.floors*p.floorH,hq:"measured",kind:"tower",tid:t.id}))); }
 function makeGrid(){
   const r=S.radius+200, p=P();
   let dx=p.cell||Math.max(10,Math.min(40,Math.round((2*S.radius+400)/300)));
@@ -419,7 +421,7 @@ function recomputeAll(){
   }catch(e){ err("Hisobda xato: "+e.message); busy(""); } },40);
 }
 function recomputeProj(inline){
-  const run=()=>{ const p=P(), gp=geometry(S.base.concat(projList()),S.grid); S.geomLP=gp.lp; S.Pp=ventilate(gp,S.grid,p); $("attrOut").innerHTML=""; recombine(); busy(""); };
+  const run=()=>{ const p=P(), gp=geometry(baseP().concat(projList()),S.grid); S.geomLP=gp.lp; S.Pp=ventilate(gp,S.grid,p); $("attrOut").innerHTML=""; recombine(); busy(""); };
   if(inline) run(); else { busy("Loyiha hisoblanmoqda…"); setTimeout(run,40); }
 }
 function recombine(resetDir){ if(!S.Pb) return; if(resetDir||S.dir==null) S.dir=dominant();
@@ -454,8 +456,8 @@ function renderBuildings(){
   if(!map.getSource("bld")) return;
   const showProj=S.view!=="mavjud", feats=[];
   const f=(b,kind)=>({type:"Feature",properties:{h:b.h,hq:b.hq,kind,tid:b.tid||0,bi:b._i==null?-1:b._i,probe:b===S.probe?1:0},geometry:{type:"Polygon",coordinates:[b.pts.concat([b.pts[0]]).map(([x,y])=>toLL(x,y))]}});
-  S.base.forEach(b=>feats.push(f(b,"base")));
-  if(showProj){ S.proj.forEach(b=>feats.push(f(b,"proj"))); projList().filter(b=>b.kind==="tower").forEach(b=>feats.push(f(b,"tower"))); }
+  S.base.forEach(b=>{ if(!(showProj&&b._demol)) feats.push(f(b,"base")); });
+  if(showProj){ S.proj.concat(S.projPz||[]).forEach(b=>feats.push(f(b,"proj"))); projList().filter(b=>b.kind==="tower").forEach(b=>feats.push(f(b,"tower"))); }
   map.getSource("bld").setData(fc(feats));
 }
 function renderLegend(){
@@ -568,7 +570,7 @@ $("btnAttr").onclick=()=>{
   if(!S.towers.length||!S.grid){ $("attrOut").innerHTML='<p class="note">Avval minora qoʻying.</p>'; return; }
   busy("Har bir minora taʼsiri hisoblanmoqda…");
   setTimeout(()=>{ const p=P(), g=S.grid, A=g.dx*g.dx/1e4, rows=[];
-    for(const t of S.towers){ const list=S.base.concat(S.proj, S.towers.filter(o=>o!==t).map(o=>({pts:towerPoly(o),h:o.floors*p.floorH})));
+    for(const t of S.towers){ const list=baseP().concat(S.proj, S.projPz||[], S.towers.filter(o=>o!==t).map(o=>({pts:towerPoly(o),h:o.floors*p.floorH})));
       const idx=combine(ventilate(geometry(list,g),g,p),g); let a=0,mx=0; for(let q=0;q<g.N;q++){ const d=idx[q]-S.idxP[q]; if(d>0.05)a++; if(d>mx)mx=d; } rows.push({t,a:a*A,mx}); }
     rows.sort((a,b)=>b.a-a.a);
     $("attrOut").innerHTML=`<table><tr><th>Minora</th><th>Taʼsir, ga</th><th>Maks. Δ</th></tr>${rows.map(r=>`<tr><td>№${r.t.id} · ${r.t.floors} q</td><td class="${r.a>0?'neg':''}">${r.a.toFixed(1)}</td><td>−${r.mx.toFixed(2)}</td></tr>`).join("")}</table><p class="note">Taʼsir maydoni — shu minora olib tashlansa indeksi 0,05 dan koʻproq oshadigan joylar. Joriy vaqt va mavsum uchun.</p>`;
@@ -690,7 +692,7 @@ lbmInitGPU();
 /* --- domen va vokselizatsiya --- */
 function lbmSetup(){
   const k=S.dir==null?dominant():S.dir, th=k*22.5*DEG, ux=-Math.sin(th), uy=-Math.cos(th), px=-uy, py=ux;
-  const scen=$("lbmScen").value, list=S.base.concat(scen==="loyiha"?projList():[]);
+  const scen=$("lbmScen").value, list=scen==="loyiha"?baseP().concat(projList()):S.base.slice();
   const c=L.center||S.lbmDefault();
   const zone=+$("lbmSize").value;
   const a0=-zone/2-80, a1=zone/2+220, b0=-zone/2-90, b1=zone/2+90;
@@ -922,6 +924,25 @@ function applySite(){
 }
 applySite();
 window.addEventListener("storage",e=>{ if(e.key==="kps_site") applySite(); });
+/* 4-qadam («Binolar → Joylashtirish») binolari loyiha holatiga avtomatik qoʻshiladi.
+   Uchastka ichidagi mavjud OSM binolari loyiha holatida buzilgan deb olinadi. */
+function syncPosadka(){
+  if(!S.grid) return;
+  let z=null; try{ z=JSON.parse(localStorage.getItem("kps_posadka")||"null"); }catch(e){}
+  const blds=(z&&z.blds)||[], site=(z&&z.site&&z.site.length>2)?z.site:null;
+  const key=JSON.stringify([blds.map(b=>[b.poly,b.fl]),site]); if(key===S.pzKey) return; S.pzKey=key;
+  const p=P(), fh=(z&&z.p&&+z.p.fh)||p.floorH;
+  S.projPz=blds.filter(b=>b.poly&&b.poly.length>2).map(b=>({pts:b.poly.map(q=>toXY(q[1],q[0])),h:Math.max(1,+b.fl||1)*fh,hq:"measured",kind:"proj"}));
+  const sp=site?site.map(q=>toXY(q[1],q[0])):null; let nd=0;
+  S.base.forEach(b=>{ let cx=0,cy=0; b.pts.forEach(q=>{cx+=q[0];cy+=q[1];}); cx/=b.pts.length; cy/=b.pts.length; b._demol=!!(sp&&inPoly(cx,cy,sp)); if(b._demol) nd++; });
+  $("pzStatus").innerHTML = blds.length
+    ? `<b>4-qadamdan: ${blds.length} ta bino</b> loyiha holatiga qoʻshildi${nd?` · uchastkadagi ${nd} ta mavjud bino buziladi deb olindi`:""}. «Farq» koʻrinishida taʼsirini koʻring.`
+    : "4-qadamda («Binolar») qoʻyilgan binolar shu yerga avtomatik tushadi.";
+  towersChanged();
+}
+window.addEventListener("storage",e=>{ if(e.key==="kps_posadka") syncPosadka(); });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) syncPosadka(); });
+setInterval(()=>{ if(!document.hidden&&S.grid) syncPosadka(); },3000);
 /* albomga: joriy 3D koʻrinish (+ afsona) va 3D oqim tik kesimi */
 function matPut(o){ return new Promise((res,rej)=>{ const r=indexedDB.open("kps_mat",1); r.onupgradeneeded=()=>r.result.createObjectStore("mats",{keyPath:"id"}); r.onsuccess=()=>{ const t=r.result.transaction("mats","readwrite"); t.objectStore("mats").put(o); t.oncomplete=res; t.onerror=()=>rej(t.error); }; r.onerror=()=>rej(r.error); }); }
 $("btnAlb").onclick=async()=>{

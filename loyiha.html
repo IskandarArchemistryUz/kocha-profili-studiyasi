@@ -154,16 +154,17 @@ const STEPS=[
   {id:"tahlil", t:"Tahlil", subs:[
     {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area", hint:"Sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi — hududni belgilab tahlil qiling."},
     {id:"gis", t:"Relyef · zichlik", page:"gis.html", hint:"Balandlik, nishablik, yer foydalanish va zichlik setkasi — 1-qadamdagi hudud ichida. Yuklangan GIS qatlamlar tahlilni boyitadi."},
-    {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Hudud markazini bosing va «Binolar va shamolni yuklash». Minoralarni 4-qadamdan oldin shu yerda sinab koʻrish mumkin."}]},
+    {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Loyiha binolarining taʼsiri — 4-qadam «Binolar → Shamol taʼsiri»."}]},
   {id:"kocha", t:"Koʻchalar", subs:[
     {id:"loyiha", t:"Loyiha chizish", page:"studio.html", app:"design", hint:"Koʻchalarni modullardan chizing; YHQ tekshiruvlari va 3D shu yerda."},
     {id:"profil", t:"Profil", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."}]},
   {id:"bino", t:"Binolar", subs:[
-    {id:"posadka", t:"Joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar. Tayyor boʻlsa «Albomga →»."}]},
+    {id:"posadka", t:"Joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."},
+    {id:"shamol", t:"Shamol taʼsiri", page:"shamol.html", hint:"Joylashtirishdagi binolar avtomatik qoʻshiladi. «Farq» — loyiha havo almashinuvini qayerda yomonlashtiradi. Binoni oʻzgartirsangiz, natija yangilanadi."}]},
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="29";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="30";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
