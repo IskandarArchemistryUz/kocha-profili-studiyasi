@@ -160,6 +160,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
+const BUILD="10";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -179,7 +180,7 @@ function frameFor(page, src){
     f=document.createElement("iframe"); f.title=page; f.hidden=true; f.dataset.page=page;
     f.addEventListener("load",()=>onFrameLoad(f));
     $("frames").appendChild(f); frames[page]=f;
-    $("loading").hidden=false; f.src=src||page;
+    $("loading").hidden=false; f.src=src||(page+"?b="+BUILD);
   } else if(src){ $("loading").hidden=false; f.src=src; }
   return f;
 }
@@ -240,7 +241,7 @@ $("nextBtn").onclick=()=>{ if(P.step<STEPS.length-1) show(P.step+1); else locati
 let mrFrame=null;
 function openDrawer(on){
   $("drawer").classList.toggle("open",on); $("mrBtn").setAttribute("aria-pressed",on);
-  if(on && !mrFrame){ mrFrame=document.createElement("iframe"); mrFrame.title="Master reja"; mrFrame.src="masterreja.html"; $("mrHost").appendChild(mrFrame); $("mrHost").style.height="100%"; }
+  if(on && !mrFrame){ mrFrame=document.createElement("iframe"); mrFrame.title="Master reja"; mrFrame.src="masterreja.html?b="+BUILD; $("mrHost").appendChild(mrFrame); $("mrHost").style.height="100%"; }
   else if(on && mrFrame){ try{ mrFrame.contentWindow.location.reload(); }catch(e){} }   // yangi binolar va hudud koʻrsatkichlarini qayta oʻqish
 }
 $("mrBtn").onclick=()=>openDrawer(!$("drawer").classList.contains("open"));
