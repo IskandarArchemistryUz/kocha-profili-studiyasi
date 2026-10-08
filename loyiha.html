@@ -164,7 +164,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="39";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="40";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -182,19 +182,21 @@ function frameFor(page, src){
   let f=frames[page];
   if(!f){
     f=document.createElement("iframe"); f.title=page; f.hidden=true; f.dataset.page=page;
+    f.src=src||(page+"?b="+BUILD);   // src qoʻshishdan OLDIN — aks holda boʻsh about:blank yuklanishi sodir boʻladi
     f.addEventListener("load",()=>onFrameLoad(f));
     $("frames").appendChild(f); frames[page]=f;
-    $("loading").hidden=false; f.src=src||(page+"?b="+BUILD);
+    $("loading").hidden=false;
   } else if(src){ $("loading").hidden=false; f.src=src; }
   return f;
 }
 function onFrameLoad(f){
   $("loading").hidden=true;
-  let path=""; try{ path=f.contentWindow.location.pathname.split("/").pop()||"index.html"; }catch(e){ return; }
+  let path=""; try{ if(f.contentWindow.location.protocol==="about:") return; path=f.contentWindow.location.pathname.split("/").pop()||"index.html"; }catch(e){ return; }
   if(path!==f.dataset.page){
     // sahifa skript orqali boshqa boʻlimga oʻtdi (masalan «Albomga →»): uni oʻz qadamida ochamiz, bu oynani qaytaramiz
     let full=path; try{ full=path+f.contentWindow.location.search+f.contentWindow.location.hash; }catch(e){}
-    try{ f.contentWindow.history.back(); }catch(e){ f.src=f.dataset.page; }
+    // history.back() EMAS: iframe tarixi asosiy oyna bilan umumiy — u butun saytni orqaga (bosh sahifaga) qaytarib yuborardi
+    try{ f.contentWindow.location.replace(f.dataset.page+"?b="+BUILD); }catch(e){ f.src=f.dataset.page+"?b="+BUILD; }
     if(path==="index.html"||!PAGE_TO[path]) return;   // bosh sahifa yoki notanish sahifa: oyna oʻz boʻlimiga qaytariladi, loyiha yopilmaydi
     go(full);
     return;
@@ -273,6 +275,7 @@ let REG={active:null,list:[]};
 try{const v=JSON.parse(localStorage.getItem('kps_projects')||'null');if(v&&Array.isArray(v.list))REG=v;}catch(e){}
 const saveReg=()=>{try{localStorage.setItem('kps_projects',JSON.stringify(REG));}catch(e){}};
 const newId=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const FRESH=!REG.list.length;   // birinchi tashrif: hali loyiha yoʻq
 if(!REG.active||!REG.list.find(x=>x.id===REG.active)){ const id=newId(); REG.list.push({id,name:P.name,t:new Date().toISOString()}); REG.active=id; saveReg(); }
 const cur=()=>REG.list.find(x=>x.id===REG.active);
 
@@ -329,7 +332,7 @@ $("pname").addEventListener("input",()=>{ const c=cur(); if(c){ c.name=P.name; c
 (async function(){
   const q=new URLSearchParams(location.search);
   if(q.get("new")||q.get("p")){ history.replaceState(null,"",location.pathname+location.hash);
-    if(q.get("new")){ await newProject(); return; }
+    if(q.get("new")&&!FRESH){ await newProject(); return; }
     if(q.get("p")&&q.get("p")!==REG.active){ await switchTo(q.get("p")); return; } }
   const h=location.hash.slice(1).split("-"); const i=STEPS.findIndex(s=>s.id===h[0]);
   if(i>=0){ const j=STEPS[i].subs.findIndex(u=>u.id===h[1]); show(i, j>=0?j:0); } else show(P.step||0);
