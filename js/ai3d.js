@@ -118,7 +118,7 @@ async function open(ctx){if(!document.getElementById('a3css')){const st=document
   let opt={view:'sw',persp:false,shadow:true,preset:'none',lay:{},bmode:'one',lv:ctx.lv||2,fh:3.2,pinK:.6,pinS:1,stl:2000,explode:false,exGap:.6};try{Object.assign(opt,JSON.parse(localStorage.getItem('kps_a3_opt')||'{}'));}catch(e){}
   S={ctx,ov,pal,opt,data:prep(ctx)};['pinHide','pinCatOff','pinCatH','pinOff'].forEach(k=>{if(!opt[k]||typeof opt[k]!=='object')opt[k]={};});S.ex=opt.explode?1:0;S.opt.lay=Object.assign({bld:1,tree:1,atree:1,site:1,road:1,rail:1,green:1,water:1,pins:1,ras:0,base:1,legend:1,lu:1,rel:1},S.opt.lay||{});if(S.opt.relK==null)S.opt.relK=3;
   const d=S.data;ov.querySelector('#a3st').innerHTML=[['binolar',d.blds.length],['koʻchalar',d.roadKm.toFixed(1)+' km'],['daraxtlar',d.trees.length],['ikonkalar',d.pins.length],['maydon',d.areaKm2.toFixed(2)+' km²']].map(([n,v])=>`<span>${T(n)}<b>${v}</b></span>`).join('');
-  initGL();buildAll();panel();bindPointer();setView(S.opt.view,true);ov.querySelector('#a3b').remove();if(S.opt.explode)ensureRel();}
+  initGL();buildAll();panel();bindPointer();setView(S.opt.explode&&(S.opt.view==='top'||S.opt.view==='eye')?'sw':S.opt.view,true);ov.querySelector('#a3b').remove();if(S.opt.explode)ensureRel();}
 const saveOpt=()=>{try{localStorage.setItem('kps_a3_opt',JSON.stringify(S.opt));localStorage.setItem('kps_a3_pal',JSON.stringify(S.pal));}catch(e){}};
 
 function panel(){const o=S.opt,p=S.pal,d=S.data,el=S.ov.querySelector('#a3p');const L=o.lay;
