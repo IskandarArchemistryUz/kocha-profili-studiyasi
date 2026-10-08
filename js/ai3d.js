@@ -304,7 +304,7 @@ function relNote(){const r=S.data.rel;if(S.relBusy)return T('Relyef yuklanmoqda�
   return T('Relyef')+`: ${Math.round(r.emin)}–${Math.round(r.emax)} m, ${T('farq')} ${Math.round(r.emax-r.emin)} m · ${T('izochiziqlar har')} ${r.iv} m · ${T('manba: Mapzen Terrarium (SRTM), ~30 m')}`;}
 async function ensureRel(){if(S.data.rel||S.relBusy||!S.opt.lay.rel)return;S.relBusy=true;S.relErr=null;const n=S.ov.querySelector('#a3reln');if(n)n.textContent=relNote();
   try{const d=S.data,xs=d.ring.map(p=>p[0]),ys=d.ring.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
-    const st=Math.max(6,Math.max(x1-x0,y1-y0)/150),nx=Math.ceil((x1-x0)/st)+1,ny=Math.ceil((y1-y0)/st)+1;
+    const st=Math.max(10,Math.max(x1-x0,y1-y0)/110),nx=Math.ceil((x1-x0)/st)+1,ny=Math.ceil((y1-y0)/st)+1;
     const L2=ll=>ll,lon2x=(lo,z)=>(lo+180)/360*256*2**z,lat2y=(la,z)=>{const r=la*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*256*2**z;};
     const a=d.inv([x0,y1]),b=d.inv([x1,y0]);let z=15;const nT=z=>(Math.floor(lon2x(b[1],z)/256)-Math.floor(lon2x(a[1],z)/256)+1)*(Math.floor(lat2y(b[0],z)/256)-Math.floor(lat2y(a[0],z)/256)+1);while(z>9&&nT(z)>16)z--;
     const tx0=Math.floor(lon2x(a[1],z)/256),tx1=Math.floor(lon2x(b[1],z)/256),ty0=Math.floor(lat2y(a[0],z)/256),ty1=Math.floor(lat2y(b[0],z)/256),TW=(tx1-tx0+1)*256,TH=(ty1-ty0+1)*256,dem=new Float32Array(TW*TH),jobs=[];
@@ -315,7 +315,7 @@ async function ensureRel(){if(S.data.rel||S.relBusy||!S.opt.lay.rel)return;S.rel
     const samp=(lat,lon)=>{const fx=lon2x(lon,z)-tx0*256-.5,fy=lat2y(lat,z)-ty0*256-.5,i=Math.max(0,Math.min(TW-2,Math.floor(fx))),j=Math.max(0,Math.min(TH-2,Math.floor(fy))),u=Math.min(1,Math.max(0,fx-i)),v=Math.min(1,Math.max(0,fy-j)),e=(ii,jj)=>dem[jj*TW+ii];
       return e(i,j)*(1-u)*(1-v)+e(i+1,j)*u*(1-v)+e(i,j+1)*(1-u)*v+e(i+1,j+1)*u*v;};
     let E=new Float32Array(nx*ny);for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const ll=d.inv([x0+i*st,y0+j*st]);E[j*nx+i]=samp(ll[0],ll[1]);}
-    for(let pass=0;pass<2;pass++){const O=new Float32Array(nx*ny);for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){let s2=0,n2=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii>=0&&jj>=0&&ii<nx&&jj<ny){s2+=E[jj*nx+ii];n2++;}}O[j*nx+i]=s2/n2;}E=O;}
+    for(let pass=0;pass<4;pass++){const O=new Float32Array(nx*ny);for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){let s2=0,n2=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii>=0&&jj>=0&&ii<nx&&jj<ny){s2+=E[jj*nx+ii];n2++;}}O[j*nx+i]=s2/n2;}E=O;}
     const IN=new Uint8Array(nx*ny);let emin=1e9,emax=-1e9;for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){if(pip([x0+i*st,y0+j*st],d.ring)){IN[j*nx+i]=1;const e=E[j*nx+i];if(e<emin)emin=e;if(e>emax)emax=e;}}
     if(emin>emax)throw new Error(T('hudud ichida nuqta yoʻq'));const rg=emax-emin,iv=rg<=8?1:rg<=20?2:rg<=50?5:rg<=120?10:rg<=300?25:50;
     d.rel={x0,y0,st,nx,ny,E,IN,emin,emax,iv};buildRel();applyLevels();recenter();render();}
