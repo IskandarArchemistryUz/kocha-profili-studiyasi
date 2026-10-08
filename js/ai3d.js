@@ -113,7 +113,7 @@ async function open(ctx){if(!document.getElementById('a3css')){const st=document
   const key=e=>{if(S&&S.sdraw){if(e.key==='Escape')siteCancel();if(e.key==='Enter')siteFinish();if(e.key==='Backspace'){e.preventDefault();S.sdraw.pop();buildSites();render();siteTip();}return;}if(S&&S.pinSel){if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();hidePin(S.pinSel);return;}if(e.key==='Escape'){selPin(null);return;}}if(e.key==='Escape')close();};document.addEventListener('keydown',key);ov.querySelector('#a3x').onclick=close;
   try{await load('three');await load('orbit');}catch(e){ov.querySelector('#a3b').textContent=T('3D kutubxonani yuklab boʻlmadi')+': '+e.message;return;}
   let pal;try{pal=Object.assign({},PAL0,JSON.parse(localStorage.getItem('kps_a3_pal')||'{}'));}catch(e){pal=Object.assign({},PAL0);}
-  let opt={view:'sw',persp:false,shadow:true,preset:'none',lay:{},bmode:'one',lv:ctx.lv||2,fh:3.2,pinK:.6,pinS:1,stl:2000,explode:false,exGap:.45};try{Object.assign(opt,JSON.parse(localStorage.getItem('kps_a3_opt')||'{}'));}catch(e){}
+  let opt={view:'sw',persp:false,shadow:true,preset:'none',lay:{},bmode:'one',lv:ctx.lv||2,fh:3.2,pinK:.6,pinS:1,stl:2000,explode:false,exGap:.6};try{Object.assign(opt,JSON.parse(localStorage.getItem('kps_a3_opt')||'{}'));}catch(e){}
   S={ctx,ov,pal,opt,data:prep(ctx)};['pinHide','pinCatOff','pinCatH','pinOff'].forEach(k=>{if(!opt[k]||typeof opt[k]!=='object')opt[k]={};});S.ex=opt.explode?1:0;S.opt.lay=Object.assign({bld:1,tree:1,atree:1,site:1,road:1,rail:1,green:1,water:1,pins:1,ras:0,base:1,legend:1},S.opt.lay||{});
   const d=S.data;ov.querySelector('#a3st').innerHTML=[['binolar',d.blds.length],['koʻchalar',d.roadKm.toFixed(1)+' km'],['daraxtlar',d.trees.length],['ikonkalar',d.pins.length],['maydon',d.areaKm2.toFixed(2)+' km²']].map(([n,v])=>`<span>${T(n)}<b>${v}</b></span>`).join('');
   initGL();buildAll();panel();bindPointer();setView(S.opt.view,true);ov.querySelector('#a3b').remove();}
@@ -294,7 +294,7 @@ function showSel(){const el=S.ov.querySelector('#a3sel');if(!el)return;const p=S
 
 /* ---------------- qatlamlarga ajratish ---------------- */
 const LVN={base:'Asos va koʻchalar',ras:'Tahlil',land:'Landshaft',bld:'Binolar',pins:'Xizmatlar'};
-function levels(){const L=S.opt.lay,d=S.data,g=(S.opt.exGap??.45)*d.R*(S.ex||0),order=['base'];
+function levels(){const L=S.opt.lay,d=S.data,g=(S.opt.exGap??.6)*d.R*(S.ex||0),order=['base'];
   if(L.ras&&d.rasters.length)order.push('ras');
   if((L.green&&d.green.length)||(L.water&&(d.water.length||d.canals.length))||(L.tree&&d.trees.length)||(L.atree&&d.atrees.length))order.push('land');
   if((L.bld&&d.blds.length)||(L.site&&d.sites.length))order.push('bld');
