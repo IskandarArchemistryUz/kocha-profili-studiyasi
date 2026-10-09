@@ -7,7 +7,9 @@ var CFG={
   cardName:'Iskandar Soliyev',      // karta egasi, masalan: 'ISKANDAR S.'
   donateMin:25000,  // eng kam summa, soʻm
   donateSums:[25000,50000,100000],
-  dlLimit:3,        // beta: bitta brauzerda bepul yuklab olish soni
+  dlLimit:18,       // beta: bitta brauzerda bepul yuklab olish soni
+  codeBonus:20,     // fikr qoldirganlarga beriladigan kod: +N yuklash
+  codes:["20bb320e2a0a8d29aa3271fa", "264860b314f07dd9aa3169a2", "8cb3208df130bf5105c49c63", "b15606c4fc809e458b837f32", "aedd95e7ca94b5ef5331d5aa", "51706bf93d306558b9783e13", "ad7c5ea3dd3259bed62b9513", "8424e0d3e864e43d12d503b9", "38ad78b5168e989a9be74b8f", "ddc0fd7c1f5b0919e727a356", "a95c88375eaacfd666b70bc1", "cec0c113d9877184afe62373", "d9e322faaf04c40d9b7bb93e", "568d0d933364a6db4887f251", "504fd019e4aacaf875e185aa", "836f6052fd50da9a69de62c3", "8cb4fdc8649cddde782a974f", "2781334b1fa922bba5d2e1ae", "ba51de7e75a552aa3be49621", "88a546515caa0e4022d1f02b", "cdbe188c132fc60985e1b2dd", "c37428be739bb0bc786f84f9", "1bce0f7143c29b9f4d48f1d4", "c1504f3112afb494877da48a", "0f878cecb90cf8a93216d14d", "50d2b11eb4fc89dec6cf63ab", "30a744e620648e654f10e2dd", "794f73280462772218dcd8f6", "3b52aaa0741ae9669ff3ba08", "b3ae0a345fdf8a1ac8b84bb9", "ca89c0fef62313b1d9b087ad", "f9f1de242d3f8244d0aa6567", "2a5d9a1c128901085e93ac1d", "310f809326db8da6bf47a85d", "8370770eabbf2022c6f503b4", "9d6b63ad43ee12feb3c567f4", "b42db3f54ef0e4190e0ea0fe", "615e782d104799bf3a85ab38", "ae4c23113b6e295bf6216065", "30911cb577e8be668c9123dd", "8326f8a7469dd9fc7695bfb0", "661b0da920a98eac8c682cfb", "1fb6580bf8c2494b4562ee9c", "233957267142de30b88c47be", "4d0ad0fc1d064c8baf5b43e8", "cf19b542c99e4369c63f9f48", "17292c5c034656ce9645fab7", "f62b60c07041f278b3c67403", "a7997a73ca077e9df2a67c99", "3b58db3565a541b6a0764bf4", "a8dfb94dd36e9c8885ab0b69", "f95b73ca319cedf2de4d27fb", "7d99928fcb2960d8db55f6b6", "6deaadf28940dd847c322592", "bda545a5252c42b9b1de3eb1", "4a7e1d0f6b85a5b3377131e6", "e622dff0471499e51b5751f1", "54c6711a2e49a8c0968765d4", "2845e4fbe8573048b051efd6", "afe472aa8e0156046d3e3e5e"], // kodlar xeshi (SHA-256('kps|'+KOD), 24 belgi) — kodlarning oʻzi repoda yoʻq
   owner:'d49168b121efd4f413968b3ed78eb2339a9ce3033c3fb9c0d6f48cebaa44c6ff', // egasi kaliti (SHA-256)
   tg:'https://t.me/+OGltk-ZVMVQ3NzBi',            // masalan: 'https://t.me/archemistry_beta' (guruh) yoki 'https://t.me/username'
   form:'https://forms.gle/7rrP3FyPdUSa6ULC9',          // Google Form havolasi
@@ -48,10 +50,13 @@ function ui(){css();
    (CFG.tg?'<button class="b" id="kbTg">Telegramda yuborish →</button>':'')+(CFG.form?'<a class="b" href="'+CFG.form+'" target="_blank" rel="noopener">Batafsil soʻrovnoma (Google Form) →</a>':'')+
    '<button class="b" id="kbCp">Matnni nusxalash</button></div>'+
    '<div class="s"><div class="l">Xato haqida xabar</div><div class="n">Tugma sahifa, brauzer va soʻnggi xatolar haqidagi texnik maʼlumotni matnga qoʻshadi — shaxsiy maʼlumot yuborilmaydi.</div><button class="b" id="kbBug">Xato maʼlumotini qoʻshish</button></div>'+
+   '<div class="s"><div class="l">'+L('Yuklab olish')+'</div><div class="n" id="kbDlN"></div><div class="n">'+L('Fikr qoldirganlarga kod beramiz: +')+CFG.codeBonus+' '+L('yuklash.')+'</div>'+codeHtml('kbPnC')+'</div>'+
    (CFG.donate?donateHtml():'');
   document.body.appendChild(p);
+  var upd=function(){var d=document.getElementById('kbDlN');if(d)d.textContent=isOwner()?L('Cheklanmagan (egasi).'):L('Bepul yuklab olish qoldi:')+' '+Math.max(0,dlMax()-dlN())+' / '+dlMax();};
+  bindCode('kbPnC',upd);
   var T=function(){return document.getElementById('kbTxt');};
-  b.onclick=function(){p.hidden=!p.hidden;};document.getElementById('kbX').onclick=function(){p.hidden=true;};
+  b.onclick=function(){p.hidden=!p.hidden;if(!p.hidden)upd();};document.getElementById('kbX').onclick=function(){p.hidden=true;};
   function copy(t,ok){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(ok,function(){T().select();try{document.execCommand('copy');}catch(e){}ok();});}
   document.getElementById('kbBug').onclick=function(){var t=T();if(t.value.indexOf('Sahifa: ')<0)t.value=(t.value?t.value+'\n\n':'Nima qildim va nima boʻldi: \n\n')+'— texnik —\n'+info();t.focus();};
   document.getElementById('kbCp').onclick=function(){var x=this;copy(T().value||info(),function(){x.textContent='Nusxalandi ✓';setTimeout(function(){x.textContent='Matnni nusxalash';},1800);});};
@@ -71,15 +76,27 @@ function isOwner(){try{return localStorage.getItem('kps_owner')==='1';}catch(e){
     if(x===CFG.owner){try{localStorage.setItem('kps_owner','1');}catch(e){}toast(L('Egasi rejimi yoqildi — yuklab olish cheklanmagan.'));history.replaceState(null,'',location.pathname+location.hash);}});})();
 function L(t){return window.kpsT?kpsT(t):t;}
 function dlN(){try{return +localStorage.getItem('kps_dl')||0;}catch(e){return 0;}}
+function dlMax(){var b=0;try{b=+localStorage.getItem('kps_dl_bonus')||0;}catch(e){}return CFG.dlLimit+b;}
+/* fikr uchun kod: bir brauzerda bir marta, +CFG.codeBonus yuklash */
+function redeem(raw,done){var c=String(raw||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(c.length===10&&c.indexOf('AL')===0)c='AL-'+c.slice(2,6)+'-'+c.slice(6);
+  if(!(window.crypto&&crypto.subtle)){done(false,L('Brauzer kodni tekshira olmadi.'));return;}
+  crypto.subtle.digest('SHA-256',new TextEncoder().encode('kps|'+c)).then(function(h){var x=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('').slice(0,24);
+    if(CFG.codes.indexOf(x)<0){done(false,L('Kod topilmadi. Harflarni tekshiring.'));return;}
+    var used=[];try{used=JSON.parse(localStorage.getItem('kps_codes')||'[]');}catch(e){}if(used.indexOf(x)>=0){done(false,L('Bu kod shu brauzerda allaqachon ishlatilgan.'));return;}
+    used.push(x);var b=0;try{b=+localStorage.getItem('kps_dl_bonus')||0;localStorage.setItem('kps_dl_bonus',b+CFG.codeBonus);localStorage.setItem('kps_codes',JSON.stringify(used));}catch(e){}
+    done(true,L('Kod qabul qilindi: +')+CFG.codeBonus+' '+L('yuklash. Qoldi:')+' '+Math.max(0,dlMax()-dlN()));});}
+function codeHtml(id){return '<div style="display:flex;gap:6px;margin-top:8px"><input id="'+id+'" placeholder="AL-XXXX-XXXX" autocomplete="off" style="flex:1;min-width:0;padding:7px 9px;border:1px solid #cfcac0;border-radius:6px;font:13px \'IBM Plex Mono\',monospace;text-transform:uppercase"><button id="'+id+'B" style="padding:7px 12px;border:1px solid #141414;border-radius:6px;background:#141414;color:#fff;cursor:pointer;font:500 13px \'IBM Plex Sans\',sans-serif">'+L('Kiritish')+'</button></div><div id="'+id+'M" style="margin-top:6px;font-size:12px;color:#6b6862"></div>';}
+function bindCode(id,after){var i=document.getElementById(id),b=document.getElementById(id+'B'),m=document.getElementById(id+'M');if(!i||!b)return;
+  var go=function(){redeem(i.value,function(ok,msg){m.textContent=msg;m.style.color=ok?'#1d7a3a':'#b3261e';if(ok){i.value='';if(after)setTimeout(after,1400);}});};b.onclick=go;i.onkeydown=function(e){if(e.key==='Enter')go();};}
 function toast(t){var d=document.getElementById('kbToast');if(!d){d=document.createElement('div');d.id='kbToast';document.body.appendChild(d);}d.textContent=t;clearTimeout(d._t);d._t=setTimeout(function(){d.remove();},3200);}
 function exempt(a){var n=(a.download||'').toLowerCase();return /\.json$/.test(n)&&!/\.geojson$/.test(n);}
 function limitBox(){if(document.getElementById('kbLim'))return;var w=document.createElement('div');w.id='kbLim';
-  w.innerHTML='<div><h3>Bepul yuklab olish tugadi</h3><div>Beta rejimida bepul yuklab olish soni cheklangan va siz bu limitdan foydalandingiz. Portalda ishlashni davom ettirishingiz mumkin — tahlil, chizish va koʻrish cheklanmagan.</div><div style="margin-top:8px;color:#6b6862">Koʻproq yuklab olish kerak boʻlsa, beta guruhimizga yozing.</div><div class="r">'+(CFG.tg?'<button class="k" id="kbLimTg">Telegram guruh →</button>':'')+(CFG.donate?'<button id="kbLimDon">☕ Qahva uchun</button>':'')+'<button id="kbLimX">Yopish</button></div></div>';
-  document.body.appendChild(w);w.onclick=function(e){if(e.target===w)w.remove();};document.getElementById('kbLimX').onclick=function(){w.remove();};
+  w.innerHTML='<div><h3>Bepul yuklab olish tugadi</h3><div>Beta rejimida bepul yuklab olish soni cheklangan va siz bu limitdan foydalandingiz. Portalda ishlashni davom ettirishingiz mumkin — tahlil, chizish va koʻrish cheklanmagan.</div><div style="margin-top:8px;color:#6b6862">'+L('Fikr-mulohaza qoldirsangiz (soʻrovnoma yoki Telegram guruh), biz sizga kod beramiz — u yana')+' '+CFG.codeBonus+' '+L('ta yuklashni ochadi.')+'</div>'+codeHtml('kbLimC')+'<div class="r">'+(CFG.tg?'<button class="k" id="kbLimTg">Telegram guruh →</button>':'')+(CFG.donate?'<button id="kbLimDon">☕ Qahva uchun</button>':'')+'<button id="kbLimX">Yopish</button></div></div>';
+  document.body.appendChild(w);w.onclick=function(e){if(e.target===w)w.remove();};document.getElementById('kbLimX').onclick=function(){w.remove();};bindCode('kbLimC',function(){w.remove();});
   var t=document.getElementById('kbLimTg');if(t)t.onclick=function(){window.open(CFG.tg,'_blank','noopener');};var d=document.getElementById('kbLimDon');if(d)d.onclick=function(){w.remove();window.open(CFG.donate,'_blank','noopener');};}
 function gate(a){if(!a||!a.hasAttribute||!a.hasAttribute('download'))return true;if(a._kpsOk)return true;if(isOwner()||exempt(a)){a._kpsOk=1;return true;}
-  var n=dlN();if(n>=CFG.dlLimit){limitBox();return false;}n++;try{localStorage.setItem('kps_dl',n);}catch(e){}a._kpsOk=1;setTimeout(function(){a._kpsOk=0;},1500);
-  toast(L('Bepul yuklab olish qoldi:')+' '+(CFG.dlLimit-n));return true;}
+  var n=dlN();if(n>=dlMax()){limitBox();return false;}n++;try{localStorage.setItem('kps_dl',n);}catch(e){}a._kpsOk=1;setTimeout(function(){a._kpsOk=0;},1500);
+  toast(L('Bepul yuklab olish qoldi:')+' '+(dlMax()-n));return true;}
 window.KPS_gate=gate;
 var _click=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(!gate(this))return;return _click.apply(this,arguments);};
 var _disp=HTMLAnchorElement.prototype.dispatchEvent;HTMLAnchorElement.prototype.dispatchEvent=function(ev){if(ev&&ev.type==='click'&&!gate(this))return false;return _disp.apply(this,arguments);};
