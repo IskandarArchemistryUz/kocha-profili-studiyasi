@@ -111,7 +111,7 @@ var inShell=false;try{inShell=window.parent!==window&&/loyiha\.html$/.test(windo
 if(!inShell)return;
 document.documentElement.classList.add('kps-embed');
 var st=document.createElement('style');
-st.textContent='html.kps-embed header .brand,html.kps-embed header .crumb,html.kps-embed #brandCrumb,html.kps-embed #kbBtn,html.kps-embed #kbPn{display:none!important}';
+st.textContent='html.kps-embed header .brand,html.kps-embed header .crumb,html.kps-embed #brandCrumb,html.kps-embed #kbBtn,html.kps-embed #kbPn,html.kps-embed #kpsLang{display:none!important}';
 document.head.appendChild(st);
 var PAGES=['index.html','studio.html','ai.html','posadka.html','maket.html','masterreja.html','data.html','shamol.html','gis.html'];
 document.addEventListener('click',function(e){
