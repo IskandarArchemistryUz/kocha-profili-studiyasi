@@ -674,10 +674,22 @@ const putMat=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.on
     mask=L.polygon([[[85,-180],[85,180],[-85,180],[-85,-180]],s.ring],{stroke:false,fillColor:'#f4f3f1',fillOpacity:.86,interactive:false}).addTo(map); }
   drawIso(); window.addEventListener('storage',e=>{ if(e.key==='kps_ai_clip'||e.key==='kps_site') drawIso(); });
 })();
+/* shamol: 1-qadamdagi shamol guli xaritada (bino joylashuvini tanlashda) va shamol taʼsiri tahliliga havola */
+(function(){const WN=['Sh','ShShQ','ShQ','ShQQ','Q','JShQ','JQ','JJQ','J','JJGʻ','JGʻ','JGʻGʻ','Gʻ','ShGʻGʻ','ShGʻ','ShShGʻ'];
+  const Ctl=L.Control.extend({options:{position:'bottomleft'},onAdd(){const d=L.DomUtil.create('div');d.id='pzWind';d.style.cssText='background:#fff;border:1px solid #141414;padding:8px 10px;font:12px/1.45 "IBM Plex Sans",sans-serif;max-width:230px';L.DomEvent.disableClickPropagation(d);return d;}});
+  map.addControl(new Ctl());
+  function draw(){const d=document.getElementById('pzWind');if(!d)return;let w=null;try{w=JSON.parse(localStorage.getItem('kps_wind_rose')||'null');}catch(e){}
+    const link='<a href="shamol.html#bino" style="display:inline-block;margin-top:5px;color:#141414;font-weight:600">Binolarning shamolga taʼsiri →</a>';
+    if(!w||!w.yil){d.innerHTML='<b>Shamol</b><br><span style="color:#696969">Shamol guli 1-qadamda «Hisoblash» dan keyin chiqadi.</span><br>'+link;return;}
+    const f=w.yil.freq,c=34,R=30,mx=Math.max(...f,.01);let s='<svg width="68" height="68" viewBox="0 0 68 68" style="float:left;margin-right:8px">';
+    f.forEach((v,i)=>{const a0=(i*22.5-9)*Math.PI/180,a1=(i*22.5+9)*Math.PI/180,r=3+(R-3)*v/mx;s+=`<path d="M${c} ${c}L${(c+Math.sin(a0)*r).toFixed(1)} ${(c-Math.cos(a0)*r).toFixed(1)}L${(c+Math.sin(a1)*r).toFixed(1)} ${(c-Math.cos(a1)*r).toFixed(1)}Z" fill="${v===mx?'#1d6fa5':'#9fbdd1'}"/>`;});
+    s+=`<text x="${c}" y="9" text-anchor="middle" font-size="9" fill="#b3261e">Sh</text></svg>`;const t=f.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]);
+    d.innerHTML=s+`<b>Shamol</b> (ERA5)<br>Asosiy: ${WN[t[0][1]]} ${Math.round(t[0][0]*100)} %<br>Ikkinchi: ${WN[t[1][1]]} ${Math.round(t[1][0]*100)} %<br>Shtil: ${Math.round(w.yil.calm*100)} %<div style="clear:both"></div>`+link;}
+  draw();window.addEventListener('storage',e=>{if(e.key==='kps_wind_rose')draw();});})();
 window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,c.lng];},toast,sunPos,doy,N,uid,USES,sel:()=>sel,setSel:id=>{sel=id?{t:'b',id}:null;renderSide();},commit,delSel,loadCtx,putMat,openPlan,refresh:()=>renderSide()};
 })();
 </script>
 <script src="js/massing.js?v=6"></script>
-<script src="js/i18n.js?v=31"></script>
+<script src="js/i18n.js?v=32"></script>
 </body>
 </html>
