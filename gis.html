@@ -34,8 +34,8 @@ section{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:1
 h2{margin:0;font:500 11px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--grey)}
 h3{margin:0;font:600 17px var(--f-head)}
 p.note{margin:0;font:11.5px/1.55 var(--f-mono);color:var(--grey)}
-.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:2}
-.tabs button{border:0;border-right:1px solid var(--line);background:transparent;padding:10px 2px;font:500 10.5px var(--f-mono);letter-spacing:.05em;text-transform:uppercase;cursor:pointer;color:var(--txt)}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:2}
+.tabs button{border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:transparent;padding:10px 2px;font:500 10.5px var(--f-mono);letter-spacing:.05em;text-transform:uppercase;cursor:pointer;color:var(--txt)}
 .tabs button:last-child{border-right:0}
 .tabs button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .btn{height:32px;padding:0 12px;border:1px solid var(--ink);background:transparent;font:500 12px var(--f-mono);letter-spacing:.05em;cursor:pointer;color:var(--ink)}
@@ -82,7 +82,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <button data-t="nishab" aria-pressed="false">Nishab</button>
       <button data-t="yer" aria-pressed="false">Yer foyd.</button>
       <button data-t="zich" aria-pressed="false">Zichlik</button>
-      <button data-t="muh" aria-pressed="false">Muhandislik</button>
+      <button data-t="muh" aria-pressed="false">Tarmoqlar</button>
     </nav>
 
     <section>
@@ -622,6 +622,6 @@ $("uLayer").onchange=()=>{const l=layerById($("uLayer").value);const fs=l?[...ne
 $("uField").onchange=()=>{if(G.done&&G.tab==="muh")renderMuh();};
 };
 </script>
-<script src="js/i18n.js?v=33"></script>
+<script src="js/i18n.js?v=34"></script>
 </body>
 </html>
