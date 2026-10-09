@@ -153,7 +153,7 @@ const STEPS=[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html", hint:"QGIS va boshqa dasturlardan GeoJSON, Shapefile, KML, CSV yuklang — qatlamlar Koʻcha studiyasi va albomda koʻrinadi."}]},
   {id:"tahlil", t:"Tahlil", subs:[
     {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area", hint:"Sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi — hududni belgilab tahlil qiling."},
-    {id:"gis", t:"Relyef · zichlik", page:"gis.html", hint:"Balandlik, nishablik, yer foydalanish va zichlik setkasi — 1-qadamdagi hudud ichida. Yuklangan GIS qatlamlar tahlilni boyitadi."},
+    {id:"gis", t:"Relyef · zichlik · tarmoqlar", page:"gis.html", hint:"Balandlik, nishablik, yer foydalanish, zichlik setkasi va muhandislik tarmoqlari — 1-qadamdagi hudud ichida. Yuklangan GIS qatlamlar tahlilni boyitadi."},
     {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Loyiha binolarining taʼsiri — 4-qadam «Binolar → Shamol taʼsiri»."}]},
   {id:"kocha", t:"Koʻchalar", subs:[
     {id:"loyiha", t:"Loyiha chizish", page:"studio.html", app:"design", hint:"Koʻchalarni modullardan chizing; YHQ tekshiruvlari va 3D shu yerda."},
@@ -164,7 +164,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="44";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="45";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -340,6 +340,6 @@ $("pname").addEventListener("input",()=>{ const c=cur(); if(c){ c.name=P.name; c
   if(i>=0){ const j=STEPS[i].subs.findIndex(u=>u.id===h[1]); show(i, j>=0?j:0); } else show(P.step||0);
 })();
 </script>
-<script src="js/i18n.js?v=32"></script>
+<script src="js/i18n.js?v=33"></script>
 </body>
 </html>
