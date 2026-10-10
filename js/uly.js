@@ -37,6 +37,8 @@ const IC={
 const P2={};const path2=k=>P2[k]||(P2[k]=IC[k]?new Path2D(IC[k]):null);
 /* ---- saqlangan uslublar ---- */
 let SAVED={};try{SAVED=JSON.parse(localStorage.getItem('kps_uly')||'{}');}catch(e){}
+/* 2026-10: xizmat turlari ranglari yangilandi — eski saqlangan ranglar yangisini bosib qolmasin (bir marta) */
+try{if(localStorage.getItem('kps_uly_v')!=='2'){Object.keys(SAVED).forEach(k=>{if(/^svc_/.test(k)&&SAVED[k])delete SAVED[k].color;});localStorage.setItem('kps_uly',JSON.stringify(SAVED));localStorage.setItem('kps_uly_v','2');}}catch(e){}
 const save=()=>{try{const o={};Object.values(LY).forEach(l=>{o[l.id]=l.st;});localStorage.setItem('kps_uly',JSON.stringify(Object.assign(SAVED,o)));}catch(e){}};
 /* ---- kanvas nuqta qatlami ---- */
 const PtLayer=L.Layer.extend({
@@ -95,10 +97,12 @@ function bindPanel(){PEL.addEventListener('input',e=>{const r=e.target.closest('
     if(k==='on'){toggle(l,e.target.checked);return;}let v=e.target.value;if(k==='size'||k==='opacity')v=+v;l.st[k]=v;const o=e.target.nextElementSibling;if(o&&o.tagName==='OUTPUT')o.textContent=k==='opacity'?Math.round(v*100)+'%':v;
     if(k==='shape'||k==='mode'||k==='pal'){restyle(l);renderPanel();}else{restyle(l);const sw=PEL.querySelector(`.ur[data-id="${l.id}"] .sw`);if(sw)sw.style.cssText=swatch(l);}if(LEL)renderLegend();});
   PEL.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const r=b.closest('[data-id]');
-    if(b.dataset.ua==='none'){Object.values(LY).forEach(l=>{if(l.st.on&&!l.keep)toggle(l,false);});return;}if(b.dataset.ua==='min'){PEL.classList.toggle('min');renderPanel();return;}
+    if(b.dataset.ua==='none'){Object.values(LY).forEach(l=>{if(l.st.on&&!l.keep)toggle(l,false);});return;}if(b.dataset.ua==='min'){PEL.classList.toggle('min');renderPanel();if(LEL)renderLegend();return;}
     if(!r)return;const l=LY[r.dataset.id];if(b.dataset.uk==='x'){open[l.id]=!open[l.id];renderPanel();return;}if(b.dataset.uic){l.st.icon=b.dataset.uic;restyle(l);renderPanel();}});
   L.DomEvent.disableClickPropagation(PEL);L.DomEvent.disableScrollPropagation(PEL);}
-function renderLegend(){const ls=ORDER.map(id=>LY[id]).filter(l=>l&&l.st.on&&!l.noLegend);if(!ls.length){LEL.hidden=true;return;}LEL.hidden=false;
+/* Xarita legendasi qatlamlar paneli bilan takrorlanmasin: panel ochiq boʻlsa, faqat shkalali (bir necha rangli) qatlamlar koʻrsatiladi —
+   ularning maʼnosi paneldagi rang namunasidan oʻqilmaydi. Panel yigʻilganda — toʻliq legenda. */
+function renderLegend(){const full=!PEL||PEL.classList.contains('min');const ls=ORDER.map(id=>LY[id]).filter(l=>l&&l.st.on&&!l.noLegend&&(full||(l.legend&&(l.legend(l.st)||[]).length)));if(!ls.length){LEL.hidden=true;return;}LEL.hidden=false;
   LEL.innerHTML=ls.map(l=>{const p=l.legend?l.legend(l.st):null;if(p&&p.length)return `<div class="lr"><span class="lt">${esc(T(l.name))}</span>${p.map(([c,t])=>`<span class="li"><i style="background:${c}"></i>${esc(T(t))}</span>`).join('')}</div>`;
     const st=l.st,ic=st.shape==='icon'&&IC[st.icon||l.icon]?`<svg viewBox="0 0 24 24" style="width:14px;height:14px;background:${st.color};border-radius:50%;fill:#fff;padding:2px"><path d="${IC[st.icon||l.icon]}" fill-rule="evenodd"/></svg>`:`<i style="${swatch(l)};width:12px;height:${l.kind==='line'?3:12}px;display:inline-block;margin:0"></i>`;
     return `<div class="lr"><span class="li">${ic}${esc(T(l.name))}</span></div>`;}).join('');}
