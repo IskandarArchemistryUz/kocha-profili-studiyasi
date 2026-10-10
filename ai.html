@@ -542,10 +542,10 @@ function bindCV(){if($('#cvGo'))$('#cvGo').onclick=cvRun;if($('#cvAiB'))$('#cvAi
 const MET=[['Chorrahalar zichligi','intersection_density_per_km2','/km²',200,'','koʻcha tarmogʻi ulanganligi'],['Koʻcha tarmogʻi zichligi','street_density_km_per_km2','km/km²',25,'','avto koʻchalar uzunligi / maydon'],['Bekatlargacha 400 m qamrovi','transit_400m_coverage_pct','%',100,'','hudud nuqtalari ulushi (toʻgʻri chiziq boʻyicha)'],['Maktab/bogʻchagacha 500 m','schools_kindergartens_500m_coverage_pct','%',100,'','hudud nuqtalari ulushi'],['Xizmatlar zichligi','services_per_km2','POI/km²',600,'','doʻkon, kafe, xizmat va h.k.'],['Funksional aralashuv','land_use_mix_entropy_0_1','0–1',1,'','xizmat turlari entropiyasi'],['Yashil hudud ulushi','green_area_share_pct','%',40,'','OSM dagi park, bogʻ, oʻrmon, maysa'],['Binolar qoplami','building_coverage_pct','%',60,'','bino dogʻlari / maydon'],['Trotuar teglangan koʻchalar','sidewalk_tagged_share_pct','%',100,'','OSM da sidewalk tegi bor ulush'],['Velo infratuzilma','cycle_km','km',20,'','cycleway va velo boʻlaklar']];
 /* Moʻljallar: koʻrsatkichni baholash uchun. Har birida manba — tekshirmasdan oʻzgartirmang.
    Moʻljali yoʻq koʻrsatkich neytral (kulrang) chiqadi: baho bermaymiz. ok — moʻljalga yetgan; fair — 75 % dan yuqori; poor — undan past. */
-const BENCH={
-  intersection_density_per_km2:{v:100,src:'UN-Habitat, Streets as Public Spaces and Drivers of Urban Prosperity (2013): ~100 chorraha/km²'},
-  street_density_km_per_km2:{v:18,src:'UN-Habitat, A New Strategy of Sustainable Neighbourhood Planning: Five Principles (2014): ≥ 18 km/km²'},
-  green_area_share_pct:{v:15,src:'UN-Habitat, Global Public Space Toolkit (2015): ochiq yashil/jamoat joylari uchun 15–20 % yer'}
+const BENCH={   /* manbalar 2026-10-10 da tekshirildi */
+  intersection_density_per_km2:{v:100,src:'SDSN, SDG indikatorlari, i-70 (indicators.report): maqbul oraliq 80–120 chorraha/km², optimal ≈ 100'},
+  street_density_km_per_km2:{v:18,src:'UN-Habitat, A New Strategy of Sustainable Neighbourhood Planning: Five Principles (2014): kamida 18 km koʻcha / km², yerning ≥ 30 % koʻchalarga'},
+  green_area_share_pct:{v:15,src:'UN-Habitat, Five Principles (2014): yuqori zichlikdagi aralash hududda ochiq jamoat joylariga 15–20 % yer. Taxminiy taqqoslash: OSM yashil hududi jamoat joyi bilan bir xil emas'}
 };
 const KPI=['transit_400m_coverage_pct','green_area_share_pct','intersection_density_per_km2'];
 function stOf(k,v){const b=BENCH[k];if(!b||v==null)return null;return v>=b.v?'ok':v>=b.v*.75?'fair':'poor';}
