@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GIS tahlil — Archemistry Lab</title>
+<script src="js/params.js?v=1"></script>
 <script src="js/beta.js?v=14"></script>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -90,7 +91,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <span class="status" id="siteStatus">Chegara oʻqilmoqda…</span>
       <div class="fields">
         <label for="siteSrc">Chegara manbasi<select id="siteSrc"></select></label>
-        <label for="defF">Qavat (nomaʼlum bino)<input type="number" id="defF" value="2" min="1" max="30"></label>
+        <label for="defF" title="Loyiha parametri — barcha qadamlarda bir xil">Qavat (nomaʼlum bino)<input type="number" id="defF" value="2" min="1" max="30"></label>
       </div>
       <button class="btn dark" id="runBtn" disabled>Tahlilni hisoblash</button>
     </section>
@@ -477,7 +478,9 @@ $("xLayer").onchange=()=>{ const l=layerById($("xLayer").value); $("xField").inn
 $("xField").onchange=()=>{ fillMetricSelect(); if(G.done&&G.tab==="zich") renderZich(); };
 ["cell","metric","m2p"].forEach(id=>$(id).onchange=()=>{ if(G.done&&G.tab==="zich") renderZich(); });
 $("bLayer").onchange=()=>{ if(G.done){ buildBuildings(); renderAll(); } };
-$("defF").onchange=()=>{ if(G.done){ buildBuildings(); renderAll(); } };
+$("defF").value=KP.get("lvUnknown");
+$("defF").onchange=()=>{ KP.set("lvUnknown",$("defF").value); $("defF").value=KP.get("lvUnknown"); if(G.done){ buildBuildings(); renderAll(); } };
+KP.on(()=>{ const v=KP.get("lvUnknown"); if(+$("defF").value!==v){ $("defF").value=v; if(G.done){ buildBuildings(); renderAll(); } } });
 function polyAreaM(r){ return Math.abs(ringArea(r)); }
 function buildBuildings(){
   const df=+$("defF").value||2, out=[];
@@ -622,6 +625,6 @@ $("uLayer").onchange=()=>{const l=layerById($("uLayer").value);const fs=l?[...ne
 $("uField").onchange=()=>{if(G.done&&G.tab==="muh")renderMuh();};
 };
 </script>
-<script src="js/i18n.js?v=34"></script>
+<script src="js/i18n.js?v=36"></script>
 </body>
 </html>

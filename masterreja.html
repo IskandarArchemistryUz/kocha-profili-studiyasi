@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Master reja — Archemistry Lab</title>
+<script src="js/params.js?v=1"></script>
 <script src="js/beta.js?v=14"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -79,7 +80,7 @@ function geo(P){const lat=P&&P.site?P.site.reduce((a,p)=>a+p[0],0)/P.site.length
 function calc(){const {P,PS,A}=src(),o={P,PS,A};const n=v=>v===''||v==null?null:+v;
   if(PS){o.site=PS.siteHa;o.fp=PS.fp;o.gfa=PS.gfa;o.res=PS.res;o.nonres=PS.nonres;o.far=PS.far;o.cov=PS.cov;o.kv=PS.na;o.sell=PS.sell;o.gr=PS.gr;o.park=PS.parkHave;o.ins=PS.insMin;o.minD=PS.minDist;
     if(!(o.site>0)){o.site=null;o.far=null;o.cov=null;o.gr=null;}
-    o.ppl=P&&P.p?+P.p.ppl:null;o.kpk=n(I.kpk)||o.ppl;o.aholi=o.kv&&o.kpk?o.kv*o.kpk:PS.pop;o.zich=o.site?o.aholi/o.site:null;o.m2k=o.aholi?o.sell/o.aholi:null;o.ujz=o.site?o.res/o.site:null;o.pkv=o.kv?o.park/o.kv:null;}
+    o.ppl=KP.get('hh');o.kpk=KP.get('hh');o.aholi=o.kv&&o.kpk?o.kv*o.kpk:PS.pop;o.zich=o.site?o.aholi/o.site:null;o.m2k=o.aholi?o.sell/o.aholi:null;o.ujz=o.site?o.res/o.site:null;o.pkv=o.kv?o.park/o.kv:null;}
   o.aholi0=n(I.aholi0);o.kv0=n(I.kv0);o.osish=o.aholi&&o.aholi0?o.aholi/o.aholi0:null;o.zich0=o.aholi0&&o.site?o.aholi0/o.site:null;
   o.t_sosh=o.aholi&&n(I.n_sosh)?o.aholi*n(I.n_sosh)/1000:null;o.t_dou=o.aholi&&n(I.n_dou)?o.aholi*n(I.n_dou)/1000:null;
   o.k_sosh=o.t_sosh!=null?(n(I.l_sosh)||0)+(n(I.m_sosh)||0)-o.t_sosh:null;o.k_dou=o.t_dou!=null?(n(I.l_dou)||0)+(n(I.m_dou)||0)-o.t_dou:null;
@@ -100,7 +101,7 @@ const inp=(k,lbl,ph,u,sub)=>`<label class="in"><span>${lbl}</span><span class="i
 const row=(l,v,u,norm,ok,note)=>({l,v,u,norm,ok,note});
 const naNote=rows=>{const c=(rows||[]).filter(x=>x.norm),na=c.filter(x=>x.ok==null).length;return na?`<div class="nachk">${c.length-na} / ${c.length} meʼyor tekshirildi · ${na} tasi uchun maʼlumot yetarli emas (?)</div>`:'';};
 card('tik','Umumiy texnik-iqtisodiy koʻrsatkichlar','Joylashtirish boʻlimidan',o=>{if(!o.PS)return {empty:'Avval «Binolarni joylashtirish» boʻlimida uchastka va binolarni chizing.',link:['posadka.html','Joylashtirishni ochish']};const T=I.thr;
-  return {note:o.site==null?'Uchastka chegarasi chizilmagan — UMN, zichlik va yashillik tekshirilmaydi.':null,link:o.site==null?['posadka.html','Uchastkani chizish']:null,inputs:inp('kpk','Kishi / kvartira',o.ppl?'Joylashtirishda: '+o.ppl:'',''),rows:[row('Uchastka maydoni',o.site,'ga'),row('Qurilish dogʻi · qoplami',fmt(o.fp)+' m² · '+fmt(o.cov)+' %',''),row('Umumiy qavatlar maydoni',o.gfa,'m²'),
+  return {note:o.site==null?'Uchastka chegarasi chizilmagan — UMN, zichlik va yashillik tekshirilmaydi.':null,link:o.site==null?['posadka.html','Uchastkani chizish']:null,inputs:`<label class="in" title="${esc(KP.meta('hh').src)}"><span>Kishi / kvartira ◆</span><span class="iw"><input data-kp="hh" value="${esc(KP.fmt(KP.get('hh')))}"></span></label><div class="note" style="grid-column:1/-1">◆ loyiha parametri, barcha qadamlarda bir xil · ${esc(KP.meta('hh').src)}</div>`,rows:[row('Uchastka maydoni',o.site,'ga'),row('Qurilish dogʻi · qoplami',fmt(o.fp)+' m² · '+fmt(o.cov)+' %',''),row('Umumiy qavatlar maydoni',o.gfa,'m²'),
     row('UMN (FAR)',o.far,'','≤ '+fmt(+T.far),chk(o.far,'<=',+T.far)),row('Uy-joy fondi zichligi',o.ujz,'m²/ga',`${fmt(+T.ujz1)}–${fmt(+T.ujz2)}`,chk(o.ujz,'in',[+T.ujz1,+T.ujz2])),row('Kvartiralar',o.kv,'ta'),row('Loyiha aholisi',o.aholi,'kishi'),
     row('Aholi zichligi',o.zich,'kishi/ga','≤ '+fmt(+T.zich),chk(o.zich,'<=',+T.zich)),row('Yashash maydoni kishiga',o.m2k,'m²','≥ '+fmt(+T.m2k),chk(o.m2k,'>=',+T.m2k)),row('Yashillik',o.gr,'%','≥ '+fmt(+T.yash),chk(o.gr,'>=',+T.yash)),
     row('Avtoturargoh',o.pkv,'joy/kv','≥ '+fmt(+T.park),chk(o.pkv,'>=',+T.park))]};});
@@ -153,13 +154,15 @@ function roseSVG(rose){if(!rose)return '';const cx=110,cy=110,Rr=85,mx=Math.max(
   return `<svg font-family="Archivo, Arial, sans-serif" viewBox="0 0 220 230" class="ch1"><text x="0" y="12" font-size="11" fill="#696969">Shamollar guli (chastota, %)</text>${[.25,.5,.75,1].map(k=>`<circle cx="${cx}" cy="${cy+10}" r="${Rr*k}" fill="none" stroke="#e6e4df"/>`).join('')}
     <polygon points="${rose.map((v,i)=>{const a=i*22.5*R,r=v/mx*Rr;return `${cx+r*Math.sin(a)},${cy+10-r*Math.cos(a)}`;}).join(' ')}" fill="#7b61d1" fill-opacity=".35" stroke="#7b61d1" stroke-width="1.5"/>
     ${[0,4,8,12].map(i=>{const a=i*22.5*R;return `<text x="${cx+(Rr+12)*Math.sin(a)}" y="${cy+14-(Rr+12)*Math.cos(a)}" font-size="11" text-anchor="middle" fill="#141414">${uz[i]}</text>`;}).join('')}<text x="${cx}" y="${cy+14}" font-size="9" text-anchor="middle" fill="#696969">maks. ${fmt(mx)}%</text></svg>`;}
+KP.migrate('hh',(typeof I!=='undefined'&&I.kpk)||'',3.2);KP.on(()=>{try{render();}catch(e){}});
 function render(){const o=calc(),{PS,A}=o;
   $('#src').innerHTML=`<span class="${PS?'on':''}">Joylashtirish: ${PS?esc(PS.name||'')+' · '+new Date(PS.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span><span class="${A?'on':''}">Hudud tahlili: ${A?esc(A.mode||'')+' · '+new Date(A.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span>`;
   $('#cards').innerHTML=CARDS.map(c=>cardHTML(c,o)).join('');
   document.querySelectorAll('[data-i]').forEach(i=>i.onchange=()=>{const [a,b]=i.dataset.i.split('.');const v=i.value.trim().replace(/\s/g,'').replace(',','.');if(b)I[a][b]=v;else I[a]=v;saveI();render();});
   document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>ACT[b.dataset.act](b));document.querySelectorAll('[data-alb]').forEach(b=>b.onclick=()=>toAlbum([b.dataset.alb]));
   $('#thr').innerHTML=Object.entries({far:'UMN (FAR) ≤',ujz1:'Uy-joy zichligi, dan',ujz2:'gacha, m²/ga',zich:'Aholi zichligi ≤, kishi/ga',m2k:'Yashash, m²/kishi ≥',yash:'Yashillik ≥, %',park:'Avtoturargoh ≥, joy/kv',ins:'Insolyatsiya ≥, soat',jt:'Bekatgacha ≤, m',dou:'Bogʻchagacha ≤, m',sosh:'Maktabgacha ≤, m'}).map(([k,l])=>`<label class="in"><span>${l}</span><span class="iw"><input data-t="${k}" value="${esc(I.thr[k])}"></span></label>`).join('');
-  document.querySelectorAll('[data-t]').forEach(i=>i.onchange=()=>{I.thr[i.dataset.t]=i.value.replace(',','.');saveI();render();});}
+  document.querySelectorAll('[data-t]').forEach(i=>i.onchange=()=>{I.thr[i.dataset.t]=i.value.replace(',','.');saveI();render();});
+  document.querySelectorAll('[data-kp]').forEach(i=>i.onchange=()=>{KP.set(i.dataset.kp,i.value);render();});}
 /* ---- tashqi maʼlumotlar ---- */
 const ACT={};
 ACT.dem=async b=>{const {P}=src();const pts=P&&(P.site||P.blds.flatMap(x=>x.poly));if(!pts||!pts.length){toast('Avval Joylashtirishda uchastka chizing.');return;}b.disabled=true;b.textContent='Hisoblanmoqda…';
@@ -208,6 +211,6 @@ window.addEventListener('storage',e=>{if(/^kps_(posadka_sum|area_sum|posadka)$/.
 render();showAI();
 })();
 </script>
-<script src="js/i18n.js?v=34"></script>
+<script src="js/i18n.js?v=36"></script>
 </body>
 </html>
