@@ -1777,14 +1777,16 @@ function checkYHQ(){
     [['a','cwA'],['b','cwB']].forEach(([e,f])=>{const k=nodeKind(nodeById(s[e]));if(isInter(k)&&s[f]===false&&lay.road.length)add('cross',s,{end:e,why:`${e==='a'?'Boshlanish':'Tugash'} uchidagi chorrahada oʻtish joyi oʻchirilgan`,fix:'cross'});});
   });
   const u=a=>[...new Set(a)];
-  r.rh=bad.rh.length?['bad',`${u(bad.rh).length} ta koʻchada teskari`]:['ok','avtomatik'];
-  r.sep=['ok','chiziqlar avtomatik'];
-  r.round=['ok',ds.nodes.some(n=>n.type==='round')?'avtomatik':'halqa yoʻq'];
-  r.cross=bad.cross.length?['bad',`${bad.cross.length} ta joyda yoʻq`]:['ok','avtomatik'];
-  r.stop=['ok','avtomatik'];r.park=['ok',`${ds.thr.parkGap} m kengaytma`];
-  r.bus=bad.bus.length?['bad',`${u(bad.bus).length} ta koʻcha`]:['ok',segs.some(x=>x.lay.st.some(y=>y.k==='bus'))?'mos':'avtobus boʻlagi yoʻq'];
-  r.bike=bad.bike.length?['bad',`${u(bad.bike).length} ta koʻcha`]:['ok','mos'];
-  r.lanew=bad.lanew.length?['bad',`${bad.lanew.length} ta boʻlak`]:['ok',`${f2(ds.thr.laneMin)}–${f2(ds.thr.laneMax)} m`];
+  /* holatlar: ok — tekshirildi va mos; bad — muammo; auto — chizish qoidasi bilan taʼminlanadi (tekshiruv emas); na — qoʻllanilmaydi / tekshiradigan narsa yoʻq */
+  const has=segs.length>0,NA=['na','koʻcha yoʻq'];
+  r.rh=!has?NA:bad.rh.length?['bad',`${u(bad.rh).length} ta koʻchada teskari`]:['ok','mos'];
+  r.sep=!has?NA:['auto','chiziqlar avtomatik'];
+  r.round=ds.nodes.some(n=>n.type==='round')?['auto','avtomatik']:['na','halqa yoʻq'];
+  r.cross=!has?NA:bad.cross.length?['bad',`${bad.cross.length} ta joyda yoʻq`]:['ok','mos'];
+  r.stop=!has?NA:['auto','avtomatik'];r.park=!has?NA:['auto',`${ds.thr.parkGap} m kengaytma`];
+  r.bus=bad.bus.length?['bad',`${u(bad.bus).length} ta koʻcha`]:segs.some(x=>x.lay.st.some(y=>y.k==='bus'))?['ok','mos']:['na','avtobus boʻlagi yoʻq'];
+  r.bike=bad.bike.length?['bad',`${u(bad.bike).length} ta koʻcha`]:segs.some(x=>x.lay.st.some(y=>y.k==='bike'&&y.dir))?['ok','mos']:['na','velo boʻlagi yoʻq'];
+  r.lanew=!has?NA:bad.lanew.length?['bad',`${bad.lanew.length} ta boʻlak`]:['ok',`${f2(ds.thr.laneMin)}–${f2(ds.thr.laneMax)} m`];
   Object.keys(r).forEach(k=>r[k][2]=iss[k]||[]);
   return r;
 }
@@ -1891,7 +1893,10 @@ function renderDesignPanel(){
   }
   if(tab==='check'){
     h+=`<div class="ihead"><div class="badge"><svg class="ic"><use href="#i-sign"/></svg></div><div><h2>YHQ tekshiruvlari</h2><p>Qoida mazmuni YHQ ilovalari asosida umumlashtirilgan. Band raqamini oʻzingiz kiritib tasdiqlang.</p></div></div>
-    ${nbad?`<div class="ck-sum bad">${Object.values(ck).reduce((a,x)=>a+(x[2]||[]).length,0)} ta muammo topildi — bosing, xaritada koʻrsatiladi</div>`:`<div class="ck-sum ok">Hammasi mos — muammo topilmadi</div>`}
+    ${(()=>{const V=Object.values(ck),cnt=st=>V.filter(x=>x[0]===st).length,nok=cnt('ok'),nau=cnt('auto'),nna=cnt('na');
+      const tail=`<div class="ck-scope">${nok} ta qoida tekshirildi · ${nau} tasi chizishda avtomatik · ${nna} tasi qoʻllanilmaydi. Faqat koʻcha kesimi va tugunlar tekshiriladi — mavjud binolar, koʻchalar va qizil chiziqlar bilan kesishish tekshirilmaydi.</div>`;
+      if(!ds.segs.length)return `<div class="ck-sum na">Hali koʻcha chizilmagan — tekshiradigan narsa yoʻq</div>`;
+      return (nbad?`<div class="ck-sum bad">${V.reduce((a,x)=>a+(x[2]||[]).length,0)} ta muammo topildi — bosing, xaritada koʻrsatiladi</div>`:`<div class="ck-sum ok">Tekshirilgan ${nok} ta qoidada muammo topilmadi</div>`)+tail;})()}
     <div class="checks">${(()=>{let n=0;return ckOrder(ck).map(q=>{const c=ck[q.id],L2=c[2]||[];
       const items=L2.map((it,i)=>{n++;const sg=segById(it.id),on=ds.ckF&&ds.ckF[0]===q.id&&ds.ckF[1]===i;
         return `<div class="ck-it${on?' on':''}" data-iss="${q.id}:${i}" role="button" tabindex="0"><span class="ck-n">${n}</span><span class="ck-w"><b>${sg?segTitle(sg):'—'}</b>${it.strip!=null&&sg?' · '+(DK[layOf(sg).st[it.strip].k]||{}).n:''}<br>${it.why}</span>${it.fix?`<button class="btn sm" data-fix="${q.id}:${i}">Tuzatish</button>`:''}</div>`;}).join('');

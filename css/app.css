@@ -361,6 +361,10 @@ body:not(.railc) .tipbox{display:none!important}
 .ck-h{display:grid;grid-template-columns:8px 1fr auto;gap:8px;align-items:start}
 .ck-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--ok)}
 .ck.bad .ck-dot{background:var(--bad)}
+.ck.auto .ck-dot{background:var(--blue,#2f5fa8)}.ck.na .ck-dot{background:#b8b5ad}.ck.na .ck-t{color:var(--grey,#696969)}
+.chip.auto{color:var(--blue,#2f5fa8)} .chip.na{color:#8a877f}
+.ck-sum.na{background:color-mix(in srgb,#8a877f 10%,transparent);color:#5f5c55}
+.ck-scope{font-size:12px;line-height:1.45;color:var(--grey,#696969);margin:0 0 8px}
 .ck-t{line-height:1.35}
 .ck-list{margin:6px 0 2px 16px;display:grid;gap:4px}
 .ck-it{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:13px;line-height:1.35;color:var(--ink2,inherit)}
