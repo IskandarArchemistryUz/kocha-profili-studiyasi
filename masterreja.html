@@ -162,7 +162,10 @@ function render(){const o=calc(),{PS,A}=o;
   document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>ACT[b.dataset.act](b));document.querySelectorAll('[data-alb]').forEach(b=>b.onclick=()=>toAlbum([b.dataset.alb]));
   $('#thr').innerHTML=Object.entries({far:'UMN (FAR) ≤',ujz1:'Uy-joy zichligi, dan',ujz2:'gacha, m²/ga',zich:'Aholi zichligi ≤, kishi/ga',m2k:'Yashash, m²/kishi ≥',yash:'Yashillik ≥, %',park:'Avtoturargoh ≥, joy/kv',ins:'Insolyatsiya ≥, soat',jt:'Bekatgacha ≤, m',dou:'Bogʻchagacha ≤, m',sosh:'Maktabgacha ≤, m'}).map(([k,l])=>`<label class="in"><span>${l}</span><span class="iw"><input data-t="${k}" value="${esc(I.thr[k])}"></span></label>`).join('');
   document.querySelectorAll('[data-t]').forEach(i=>i.onchange=()=>{I.thr[i.dataset.t]=i.value.replace(',','.');saveI();render();});
-  document.querySelectorAll('[data-kp]').forEach(i=>i.onchange=()=>{KP.set(i.dataset.kp,i.value);render();});}
+  document.querySelectorAll('[data-kp]').forEach(i=>i.onchange=()=>{KP.set(i.dataset.kp,i.value);render();});
+  /* loyiha oynasidagi «Master reja» tugmasi uchun qisqa holat: mos / mos emas / tekshirib boʻlmaydi */
+  try{let ok=0,bad=0,na=0,first=null;CARDS.forEach(c=>{const r=c.fn(o);if(r.empty)return;(r.rows||[]).forEach(x=>{if(x.ok===true)ok++;else if(x.ok===false){bad++;if(!first)first=x.l;}else if(x.norm)na++;});});
+    localStorage.setItem('kps_mr_sum',JSON.stringify({t:Date.now(),ok,bad,na,first,has:!!PS}));}catch(e){}}
 /* ---- tashqi maʼlumotlar ---- */
 const ACT={};
 ACT.dem=async b=>{const {P}=src();const pts=P&&(P.site||P.blds.flatMap(x=>x.poly));if(!pts||!pts.length){toast('Avval Joylashtirishda uchastka chizing.');return;}b.disabled=true;b.textContent='Hisoblanmoqda…';
@@ -211,6 +214,6 @@ window.addEventListener('storage',e=>{if(/^kps_(posadka_sum|area_sum|posadka)$/.
 render();showAI();
 })();
 </script>
-<script src="js/i18n.js?v=38"></script>
+<script src="js/i18n.js?v=39"></script>
 </body>
 </html>

@@ -744,7 +744,7 @@ function classify(){
 function renderAreaPanel(){
   const el=document.getElementById('areaPanel'),r=A.res;
   let h=`<div><h2>Hudud tahlili</h2><p class="lead">Xaritada istalgan hududni belgilang. Sunʼiy yoʻldosh tasviri piksellarga ajratilib, hudud necha foiz asfalt, yashil, trotuar va boshqa sirtlardan iboratligi koʻrsatiladi.</p></div>
-  <div class="seg"><button class="btn sm ${A.tool==='rect'?'primary':''}" data-tool="rect">Toʻrtburchak</button><button class="btn sm ${A.tool==='poly'?'primary':''}" data-tool="poly">Koʻpburchak</button><button class="btn sm" id="aView">Ekrandagi hudud</button>${A.poly&&!A.busy?'<button class="btn sm" id="aRe">Qayta hisoblash</button>':''}</div>`;
+  ${S.fromSite&&A.poly?'<div class="small" style="margin:0 0 6px">Hudud: <b>1-qadamdan</b>. Boshqa hududni chap paneldan tanlang.</div>':'<div class="small" style="margin:0 0 6px">Hududni chap paneldan belgilang: toʻrtburchak, koʻpburchak yoki ekrandagi hudud.</div>'}<div class="seg">${A.poly&&!A.busy?'<button class="btn sm" id="aRe">Qayta hisoblash</button>':''}</div>`;
   if(A.err) h+=`<div class="warnbox" style="color:var(--bad);border-color:var(--bad)">${A.err}</div>`;
   if(A.busy) h+=`<div class="small">${A.msg}</div><div class="prog"><div style="width:${Math.round(A.prog*100)}%"></div></div>`;
   if(r&&!A.busy){
@@ -801,7 +801,7 @@ function renderAreaPanel(){
   el.innerHTML=h;
   const q=s=>el.querySelector(s);
   el.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{A.tool=b.dataset.tool;A.pts=[];drawArea();renderHint();renderAreaPanel();});
-  q('#aView').onclick=()=>{const b=map.getBounds();A.poly=[[b.getNorth(),b.getWest()],[b.getNorth(),b.getEast()],[b.getSouth(),b.getEast()],[b.getSouth(),b.getWest()]];A.pts=[];drawArea();analyze();};
+  if(q('#aView'))q('#aView').onclick=()=>{const b=map.getBounds();A.poly=[[b.getNorth(),b.getWest()],[b.getNorth(),b.getEast()],[b.getSouth(),b.getEast()],[b.getSouth(),b.getWest()]];A.pts=[];drawArea();analyze();};
   if(q('#aRe'))q('#aRe').onclick=analyze;
   const bind=(id,key,vid,cast)=>{const i=q(id);if(!i)return;i.oninput=()=>{A.P[key]=cast(i.value);q(vid).textContent=i.value;saveArea();};};
   bind('#pVeg','veg','#vVeg',parseFloat);bind('#pSh','shadow','#vSh',parseFloat);bind('#pSide','side','#vSide',parseFloat);bind('#pRm','roadMul','#vRm',parseFloat);
@@ -2265,7 +2265,8 @@ const RQ=[0,10,15,25,50,100,200];
 function toolOptionsHTML(){
   const ds=DS();let h='';
   if(ds.tool==='draw'){
-    h+=`<div class="card" style="padding:10px"><label class="small" style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="dKeep" ${ds.keepDraw?'checked':''}> Tugatgach ham chizishni davom ettirish (aks holda «Tanlash»ga oʻtadi)</label><div class="pal-h">Harakat (yangi chiziladigan koʻcha)</div><div class="tools" style="margin-bottom:8px"><button class="btn sm ${!ds.drawOne?'primary':''}" data-one="0">⇄ Ikki tomonlama</button><button class="btn sm ${ds.drawOne?'primary':''}" data-one="1">→ Bir tomonlama (chizish yoʻnalishida)</button></div><div class="pal-h">Burilish radiusi (yangi nuqtalar uchun)</div><div class="tools">${RQ.map(r=>`<button class="btn sm ${(ds.drawR||0)===r?'primary':''}" data-rr="${r}">${r?r+' m':'oʻtkir'}</button>`).join('')}<input id="dR" type="number" min="0" step="1" value="${ds.drawR||0}" class="num" style="width:70px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"></div>
+    /* harakat, burilish va «davom ettirish» xarita ustidagi panelda — bu yerda takrorlanmaydi; faqat ixtiyoriy radius */
+    h+=`<div class="card" style="padding:10px"><p class="small" style="margin:0 0 6px">Harakat yoʻnalishi, burilish radiusi va «Davom ettirish» — xarita ustidagi panelda. Roʻyxatda yoʻq radius:</p><div class="tools"><input id="dR" type="number" min="0" step="1" value="${ds.drawR||0}" class="num" style="width:70px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"> <span class="small">m (0 — oʻtkir)</span></div>
     <p class="small" style="margin:6px 0 0">Koʻcha yarim enidan kichik radius avtomatik kattalashtiriladi (aks holda chetlar oʻzaro kesishadi). Tayyor nuqtaning radiusini «Tanlash» rejimida nuqtani bosib oʻzgartirasiz.</p></div>`;
     const groups=[...new Set(Object.values(PRESETS).map(p=>p.g))];
     h+=`<div><div class="pal-h">Koʻcha modullari · ${Object.keys(PRESETS).length} ta</div>${groups.map(g=>{const it=Object.entries(PRESETS).filter(([,p])=>p.g===g);const open=it.some(([k])=>k===ds.preset);
@@ -3354,8 +3355,11 @@ renderRail=function(){
     el.innerHTML=TGROUPS.map(([g,ks])=>`<div class="rg-h">${g}</div>`+ks.map(k=>{const [kk,n,ic,key]=T[k];return railBtn(`data-dt="${kk}"`,ic,({select:'Tanlash',xwalk:'Oʻtish joyi',round:'Aylanma halqa',obj:'Obyektlar'}[kk])||n,key,ds.tool===kk);}).join('')).join('');
     el.querySelectorAll('[data-dt]').forEach(b=>b.onclick=()=>pickTool(b.dataset.dt));}
   else if(S.app==='area'){
-    el.innerHTML='<div class="rg-h">Hudud</div>'+[['rect','Toʻrtburchak','i-rect'],['poly','Koʻpburchak','i-poly'],['view','Ekrandagi hudud','i-view']].map(([k,n,ic])=>railBtn(`data-at="${k}"`,ic,n,'',k!=='view'&&A.tool===k)).join('');
+    const emb=document.documentElement.classList.contains('kps-embed')&&typeof window.kpsApplySite==='function';
+    el.innerHTML='<div class="rg-h">Hudud</div>'+(emb?railBtn('data-at="site"','i-poly','1-qadam hududi','',!!S.fromSite):'')+[['rect','Toʻrtburchak','i-rect'],['poly','Koʻpburchak','i-poly'],['view','Ekrandagi hudud','i-view']].map(([k,n,ic])=>railBtn(`data-at="${k}"`,ic,n,'',!S.fromSite&&k!=='view'&&A.tool===k)).join('');
     el.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{const k=b.dataset.at;
+      if(k==='site'){window.kpsApplySite();renderRail();return;}
+      S.fromSite=false;
       if(k==='view'){const bb=map.getBounds();A.poly=[[bb.getNorth(),bb.getWest()],[bb.getNorth(),bb.getEast()],[bb.getSouth(),bb.getEast()],[bb.getSouth(),bb.getWest()]];A.pts=[];drawArea();analyze();return;}
       A.tool=k;A.pts=[];drawArea();renderHint();renderAreaPanel();renderRail();});}
   else el.innerHTML='';
@@ -3571,6 +3575,7 @@ loadDataLayers();window.addEventListener('focus',loadDataLayers);
     analyze().catch(e=>{A.err=String(e.message||e);renderAreaPanel();}).finally(()=>{renderAreaPanel();renderHint();});
   }
   apply();
+  window.kpsApplySite=()=>{try{localStorage.removeItem('kps_site_seen_studio');}catch(e){}A.res=null;apply();};
   window.addEventListener('storage',e=>{if(e.key==='kps_site')apply();});
   // loyiha oynasi ichida: hudud 1-qadamda belgilanadi — koʻrsatma shuni aytadi
   const _ah=areaHint;areaHint=function(h){if(!A.busy&&A.poly&&!A.pts.length){h.innerHTML='<b>Hudud 1-qadamdan olingan.</b> Uni oʻzgartirish uchun 1-qadamga qayting yoki shu yerda yangi toʻrtburchak chizing.';return;}_ah(h);};
