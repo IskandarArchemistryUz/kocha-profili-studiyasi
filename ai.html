@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hudud bahosi va AI — Archemistry Lab</title>
 <script src="js/params.js?v=1"></script>
+<script src="js/osm.js?v=1"></script>
 <script src="js/beta.js?v=14"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -195,6 +196,8 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
       big?Promise.resolve(null).then(x=>{stepP('binolar — hudud katta');return x;}):ovp(qB).then(j=>{stepP('binolar');return j;}).catch(e=>{warn.push('Binolar yuklanmadi: '+e.message);stepP('binolar ✕');return null;}),
       ovp(qEnv).then(j=>{stepP('yashil, suv, oʻtish joylari');return j;}).catch(e=>{warn.push('Yashil hudud, suv va oʻtish joylari yuklanmadi: '+e.message);stepP('muhit ✕');return {elements:[]};}),
       soft(trnFetch(flt,fltB,ring,inside),45000,{rail:[],st:[],runway:[],taxi:[],aero:[],land:[]},()=>warn.push('Temir yoʻl / aeroport maʼlumoti 45 s ichida kelmadi — keyingi hisoblashda keshdan olinadi.')).then(t=>{stepP('temir yoʻl, aeroport');return t;})]);
+    {const sb=ring.reduce((b,p)=>[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b[2],p[0]),Math.max(b[3],p[1])],[90,180,-90,-180]);   // boshqa qadamlar qayta soʻramasin
+      try{KOSM.share({building:blds&&blds.elements,highway:roads&&roads.elements,env:env&&env.elements},sb);}catch(e){}}
     prog(.9,'Hisoblanmoqda…');
     // koʻcha tarmogʻi
     const CAR=/^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|primary_link|secondary_link|tertiary_link|service)$/,WALK=/^(footway|path|pedestrian|steps|living_street)$/;
@@ -646,6 +649,6 @@ hint();renderRes();
 openRun('last',true).then(ok=>{if(ok)toast('Oxirgi tahlil tiklandi. Boshqalari — «Saqlanganlar» da.');}).catch(()=>{});
 })();
 </script>
-<script src="js/i18n.js?v=36"></script>
+<script src="js/i18n.js?v=37"></script>
 </body>
 </html>
