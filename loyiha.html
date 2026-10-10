@@ -32,7 +32,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .step .t{font:500 14px var(--f-sans)}
 .step+.step::before{content:"";position:absolute;left:-6px;top:50%;width:12px;height:1px;background:var(--line)}
 .step.seen{color:var(--txt)}
-.step.seen .n{background:var(--line);border-color:var(--line)}
+.step.seen .n{background:#2e7d4f;border-color:#2e7d4f;color:#fff}
 .step[aria-current="step"]{color:var(--ink)}
 .step[aria-current="step"] .n{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .step[aria-current="step"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;background:var(--ink)}
@@ -52,11 +52,13 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .pmenu .pf{padding:10px 12px;border-top:1px solid var(--ink)}
 .pmenu .pf2{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 10px}.pmenu .pf2 .btn{width:100%}
 .pmenu .pnote{padding:0 12px 10px;font:11px/1.45 var(--f-mono);color:var(--grey)}
-.sst{border:0;background:none;cursor:pointer;font:11px var(--f-mono);color:var(--grey);padding:4px 6px;white-space:nowrap;flex:none}
-.sst.warn{color:var(--acc)}
-.sst:hover{text-decoration:underline}
+.sst{border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;font:11px var(--f-mono);color:var(--grey);padding:3px 10px 3px 8px;white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px}
+.sst::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.sst.warn{color:#95620f;border-color:#95620f}
+.sst:hover{border-color:var(--ink)}.sst .act{color:var(--ink);text-decoration:underline}
 .ltoast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);font:13px var(--f-sans);padding:10px 14px;max-width:min(560px,92vw);box-shadow:0 8px 24px rgba(0,0,0,.2)}
 @media (max-width:1200px){.sst .lg{display:none}}
+@media (max-width:1800px){.sst .act{display:none}}
 .cover{position:fixed;inset:0;z-index:50;background:rgba(244,243,241,.85);display:grid;place-items:center;font:13px var(--f-mono)}
 .cover[hidden]{display:none}
 .tools{display:flex;gap:8px;align-items:center;flex:none}
@@ -211,7 +213,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="47";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="48";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -284,7 +286,7 @@ window.addEventListener("message",e=>{ if(e.origin!==location.origin||!e.data||e
 
 function renderNav(){
   const i=P.step, st=STEPS[i], j=P.sub[st.id]||0;
-  $("stepsM").innerHTML=$("steps").innerHTML=STEPS.map((s,k)=>`<button class="step${P.seen.includes(k)&&k!==i?" seen":""}" data-i="${k}" ${k===i?'aria-current="step"':""}><span class="n">${k+1}</span><span class="t">${s.t}</span></button>`).join("");
+  $("stepsM").innerHTML=$("steps").innerHTML=STEPS.map((s,k)=>`<button class="step${P.seen.includes(k)&&k!==i?" seen":""}" data-i="${k}" ${k===i?'aria-current="step"':""}><span class="n">${P.seen.includes(k)&&k!==i?"✓":k+1}</span><span class="t">${s.t}</span></button>`).join("");
   $("subtabs").innerHTML = st.subs.length>1 ? st.subs.map((u,k)=>`<button data-j="${k}" aria-pressed="${k===j}">${u.t}</button>`).join("") : "";
   $("hint").textContent=st.subs[j].hint;
   const nx=STEPS[i+1]; $("nextBtn").textContent = nx ? `Keyingi: ${nx.t} →` : "Bosh sahifa";
@@ -304,7 +306,7 @@ function openDrawer(on){
 function ensureMr(){ if(mrFrame) return; mrFrame=document.createElement("iframe"); mrFrame.title="Master reja"; mrFrame.src="masterreja.html?b="+BUILD; $("mrHost").appendChild(mrFrame); $("mrHost").style.height="100%"; }
 function renderMrB(){ const el=$("mrB"); if(!el) return; let s=null; try{ s=JSON.parse(localStorage.getItem("kps_mr_sum")||"null"); }catch(e){}
   if(!s||!s.has){ el.innerHTML=""; $("mrBtn").title="Master reja koʻrsatkichlari va meʼyor tekshiruvi (ShNQ). Hisob uchun 4-qadamda binolarni joylashtiring."; return; }
-  const t=[s.bad?`<span class="mb bad">✗ ${s.bad}</span>`:"", s.na?`<span class="mb na">? ${s.na}</span>`:"", !s.bad&&!s.na&&s.ok?`<span class="mb ok">✓ ${s.ok}</span>`:""].join("");
+  const t=[s.bad?`<span class="mb bad" title="meʼyorga mos emas">${s.bad} mos emas</span>`:"", s.na?`<span class="mb na" title="maʼlumot yetarli emas">${s.na} nomaʼlum</span>`:"", !s.bad&&!s.na&&s.ok?`<span class="mb ok">✓ hammasi mos</span>`:""].join("");
   el.innerHTML=t; $("mrBtn").title=`Meʼyor tekshiruvi: ${s.ok} mos, ${s.bad} mos emas${s.first?" (birinchisi: "+s.first+")":""}, ${s.na} tasi uchun maʼlumot yetarli emas. Bosing — batafsil.`; }
 window.addEventListener("storage",e=>{ if(e.key==="kps_mr_sum") renderMrB(); });
 $("mrBtn").onclick=()=>openDrawer(!$("drawer").classList.contains("open"));
@@ -458,9 +460,10 @@ let lastSave=null;
 function renderSst(){const b=$("sst");if(!b)return;const x=cur();if(!x)return;
   const hm=d=>new Date(d).toTimeString().slice(0,5),exp=x.exp?new Date(x.exp):null,days=exp?Math.floor((Date.now()-exp)/864e5):null;
   const changed=!exp||(lastSave&&lastSave>exp);   // zaxiradan keyin oʻzgargan
-  const warn=!exp||(changed&&days>=3);
-  const zx=!exp?'fayl zaxirasi yoʻq':days===0?'zaxira bugun':days===1?'zaxira kecha':'zaxira '+days+' kun oldin';
-  b.innerHTML=`<span>${lastSave?'Saqlandi '+hm(lastSave):'Brauzerda saqlanadi'}</span><span class="lg"> · ${zx}</span>`;
+  // Ogohlantirish (oxra, qizil emas) faqat yoʻqotiladigan ish boʻlsa: shu sessiyada oʻzgarish bor va fayl zaxirasi yoʻq, yoki zaxiradan keyin oʻzgargan va u 3 kundan eski
+  const warn=(!exp&&!!lastSave)||(!!exp&&changed&&days>=3);
+  const zx=!exp?'zaxira yoʻq':days===0?'zaxira bugun':days===1?'zaxira kecha':'zaxira '+days+' kun oldin';
+  b.innerHTML=`<span>${lastSave?'Saqlandi '+hm(lastSave):'Brauzerda'}</span><span class="lg"> · ${zx}</span>${warn?'<span class="act lg">Faylga saqlash</span>':''}`;
   b.classList.toggle('warn',warn);b.title=(warn?'Loyiha faqat shu brauzerda. ':'')+'Bosing — loyihani faylga saqlash.';}
 window.addEventListener('storage',e=>{if(e.key&&LS_KEYS.includes(e.key)){lastSave=new Date();renderSst();}});
 $("sst").onclick=()=>exportActive();
@@ -533,6 +536,6 @@ document.addEventListener("click",e=>{if(!e.target.closest(".gq"))$("gl").hidden
   renderMrB(); setTimeout(ensureMr,1500);   // panel fonda yuklanadi — tugmadagi holat doim jonli
 })();
 </script>
-<script src="js/i18n.js?v=39"></script>
+<script src="js/i18n.js?v=40"></script>
 </body>
 </html>
