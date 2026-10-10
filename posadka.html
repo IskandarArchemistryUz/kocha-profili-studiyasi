@@ -64,14 +64,14 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 <a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
 <span class="crumb">/ 03 · JOYLASHTIRISH</span><input id="pName" aria-label="Loyiha nomi" value="Yangi uchastka">
 <span class="sp"></span>
-<form id="sForm" style="display:flex"><input id="sQ" placeholder="Manzil yoki koordinata" style="height:30px;border:1px solid var(--line2);border-radius:2px;padding:0 8px;width:220px;background:#fff"></form>
+<form id="sForm" style="display:flex"><input id="sQ" placeholder="Xaritada joy: manzil yoki koordinata" style="height:30px;border:1px solid var(--line2);border-radius:2px;padding:0 8px;width:220px;background:#fff"></form>
 <div class="seg" role="group" aria-label="Koʻrinish"><button data-v="2d" aria-pressed="true">Reja</button><button data-v="3d" aria-pressed="false">3D</button></div>
 <button class="btn ghost" id="toMk">Albomga →</button><button class="btn dark" id="csv">Hisobot · CSV</button><button class="btn ghost" id="gjIn" title="GeoJSON import">GeoJSON ↑</button><input type="file" id="gjFile" accept=".geojson,.json,application/geo+json" style="display:none"><button class="btn ghost" id="gjson">GeoJSON ↓</button>
 </header>
 <main>
 <nav class="rail" aria-label="Asboblar" id="rail"></nav>
 <div class="mapw"><div id="map"></div><div id="map3"></div>
-<div class="basesw"><div class="seg"><button data-b="sat" aria-pressed="true">Sputnik</button><button data-b="line" aria-pressed="false">Chizma</button></div></div>
+<div class="basesw"><div class="seg"><button data-b="sat" aria-pressed="true">Sunʼiy yoʻldosh</button><button data-b="line" aria-pressed="false">Chizma</button></div></div>
 <div class="hint" id="hint"></div></div>
 <aside id="side"></aside>
 </main>
@@ -696,6 +696,6 @@ window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,
 })();
 </script>
 <script src="js/massing.js?v=6"></script>
-<script src="js/i18n.js?v=38"></script>
+<script src="js/i18n.js?v=39"></script>
 </body>
 </html>
