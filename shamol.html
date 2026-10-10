@@ -916,7 +916,7 @@ function applySite(){
   if(!map.getSource("circle")){ setTimeout(applySite,500); return; }   // xarita qatlamlari hali tayyor emas
   let la=0,lo=0; s.ring.forEach(p=>{la+=p[0];lo+=p[1];}); la/=s.ring.length; lo/=s.ring.length;
   const kx=111320*Math.cos(la*DEG); let rmax=0; s.ring.forEach(p=>{ rmax=Math.max(rmax,Math.hypot((p[1]-lo)*kx,(p[0]-la)*110540)); });
-  const rk=Math.max(0.5,Math.min(3,Math.ceil((rmax+150)/250)*0.25));
+  const rk=Math.max(0.5,Math.min(3,Math.ceil((rmax+149)/250)*0.25));   // hudud + 150 m bufer, 0,25 km qadam (1 m tolerantlik: aylana chizigʻidagi yaxlitlash xatosi keyingi qadamga sakratmasin)
   $("radius").value=rk; $("rLbl").textContent=rk;
   const ring=s.ring.map(p=>[p[1],p[0]]); ring.push(ring[0]);
   if(!map.getSource("site")){ map.addSource("site",{type:"geojson",data:fc([])}); map.addLayer({id:"site",type:"line",source:"site",paint:{"line-color":"#7b61d1","line-width":1.8,"line-dasharray":[3,2]}}); }
@@ -924,7 +924,8 @@ function applySite(){
   pickCenter(lo,la);
   let b=[[1e9,1e9],[-1e9,-1e9]]; ring.forEach(([x,y])=>{ b[0][0]=Math.min(b[0][0],x); b[0][1]=Math.min(b[0][1],y); b[1][0]=Math.max(b[1][0],x); b[1][1]=Math.max(b[1][1],y); });
   map.fitBounds(b,{padding:40,pitch:50,duration:0});
-  $("loadStatus").textContent=`Hudud 1-qadamdan olindi · radius ${rk} km. «Binolar va shamolni yuklash» ni bosing.`;
+  const hk=String(Math.round(rmax/10)/100).replace('.',','),rks=String(rk).replace('.',',');
+  $("loadStatus").textContent=`Hudud 1-qadamdan olindi (radiusi ≈ ${hk} km). Shamol hisobi ${rks} km: hudud + 150 m bufer — chetdagi binolar ham oqimga taʼsir qiladi. «Binolar va shamolni yuklash» ni bosing.`;
 }
 applySite();
 window.addEventListener("storage",e=>{ if(e.key==="kps_site") applySite(); });
@@ -967,6 +968,6 @@ $("btnAlb").onclick=async()=>{
 renderStats(); renderTowers();
 };
 </script>
-<script src="js/i18n.js?v=36"></script>
+<script src="js/i18n.js?v=37"></script>
 </body>
 </html>

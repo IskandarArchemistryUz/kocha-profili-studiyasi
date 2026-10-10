@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Joylashtirish — Archemistry Lab</title>
 <script src="js/params.js?v=1"></script>
+<script src="js/osm.js?v=1"></script>
 <script src="js/beta.js?v=14"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -578,7 +579,7 @@ function bindNorm(){const n=N(),a=AN0();const tg=(id,k)=>{const b=$(id);if(b)b.o
   {const i=$('#nCtxLv');if(i)i.onchange=()=>{KP.set('lvUnknown',i.value);commit();};}[['#nT0','t0'],['#nT1','t1'],['#nDmin','dmin'],['#nDk','dk'],['#nSb','setb'],['#nIh','ins'],['#nDate','date'],['#nWz','wz'],['#nRef','ref']].forEach(([id,k])=>{const i=$(id);if(i)i.onchange=()=>{n[k]=i.value;commit();};});}
 async function loadCtx(){const src=P.site||P.blds.flatMap(b=>b.poly);if(!src.length){toast('Avval uchastka yoki bino chizing.');return;}const pad=200;const la=src.map(p=>p[0]),lo=src.map(p=>p[1]);
   const bb=[Math.min(...la)-pad/MY,Math.min(...lo)-pad/MX(),Math.max(...la)+pad/MY,Math.max(...lo)+pad/MX()].map(v=>v.toFixed(6)).join(',');toast('OSM dan binolar yuklanmoqda…');
-  try{const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(`[out:json][timeout:90];(way["building"](${bb});way["highway"](${bb}););out geom tags;`)});const j=await r.json();const lv0=KP.get('lvUnknown');
+  try{let j;try{j=await KOSM.fetch(`[out:json][timeout:90];(way["building"](${bb});way["highway"](${bb}););out geom tags;`);}catch(e1){const sh=await KOSM.shared(bb.split(',').map(Number));if(!sh)throw e1;j={elements:sh.elements.filter(w=>w.tags&&(w.tags.building||w.tags.highway))};toast('OSM serveri javob bermadi — 1-qadamda yuklangan binolar ishlatildi.');}const lv0=KP.get('lvUnknown');
     const inSite=p=>{if(!P.site)return false;let c=false;const S=P.site;for(let i=0,k=S.length-1;i<S.length;k=i++){if(((S[i][0]>p[0])!==(S[k][0]>p[0]))&&(p[1]<(S[k][1]-S[i][1])*(p[0]-S[i][0])/(S[k][0]-S[i][0])+S[i][1]))c=!c;}return c;};
     const RW={motorway:22,trunk:20,primary:16,secondary:12,tertiary:10,unclassified:7,residential:7,living_street:6,service:4,pedestrian:5,footway:2,path:1.6,cycleway:2,steps:1.6};
     P.ctxRd=j.elements.filter(w=>w.tags&&w.tags.highway&&w.geometry).map(w=>({pts:w.geometry.map(g=>[g.lat,g.lon]),w:RW[w.tags.highway.replace('_link','')]||5}));
@@ -695,6 +696,6 @@ window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,
 })();
 </script>
 <script src="js/massing.js?v=6"></script>
-<script src="js/i18n.js?v=36"></script>
+<script src="js/i18n.js?v=37"></script>
 </body>
 </html>

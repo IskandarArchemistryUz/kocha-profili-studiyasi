@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GIS tahlil — Archemistry Lab</title>
 <script src="js/params.js?v=1"></script>
+<script src="js/osm.js?v=1"></script>
 <script src="js/beta.js?v=14"></script>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -311,16 +312,18 @@ async function loadDEM(){
   }
   G.slope=sl;
 }
-const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+const OVERPASS=KOSM.mirrors;   // umumiy oynalar roʻyxati (js/osm.js)
 async function loadOSM(){
   const bb=bbox(G.ring), b=`${bb[1]-0.002},${bb[0]-0.002},${bb[3]+0.002},${bb[2]+0.002}`;
   const q=`[out:json][timeout:150];(way["building"](${b});relation["building"](${b});way["landuse"](${b});relation["landuse"](${b});way["leisure"](${b});way["natural"](${b});relation["natural"](${b});way["amenity"](${b});way["waterway"](${b});way["highway"](${b});way["railway"](${b});way["shop"](${b}););out geom;`;
-  let last;
-  for(let n=0;n<OVERPASS.length;n++){ const url=OVERPASS[n], ac=new AbortController(), tm=setTimeout(()=>ac.abort(),45000);
-    busy(`OSM obyektlari yuklanmoqda… (server ${n+1}/${OVERPASS.length})`);
-    try{ const r=await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ac.signal}); if(!r.ok) throw new Error(url.split("/")[2]+" "+r.status); G.osm=(await r.json()).elements||[]; clearTimeout(tm); return; }
-    catch(e){ clearTimeout(tm); last=e.name==="AbortError"?new Error(url.split("/")[2]+" 45 s ichida javob bermadi"):e; } }
-  throw new Error("OSM (Overpass) javob bermadi: "+(last&&last.message));
+  G.osmNote="";
+  try{ const j=await KOSM.fetch(q,{onTry:(n,N,h)=>busy(`OSM obyektlari yuklanmoqda… (server ${n}/${N}: ${h})`)}); G.osm=j.elements||[]; return; }
+  catch(e){
+    // server javob bermadi — 1-qadamda shu hudud uchun yuklangan binolar, koʻchalar va muhit qatlamlari
+    const sh=await KOSM.shared([bb[1]-0.002,bb[0]-0.002,bb[3]+0.002,bb[2]+0.002]);
+    if(sh&&sh.elements.length){ G.osm=sh.elements; G.osmNote="OSM serveri javob bermadi ("+e.message+"). 1-qadamda yuklangan binolar, koʻchalar va yashil/suv qatlamlari ishlatildi — yer foydalanishning boshqa turlari (savdo, sanoat, jamoat) toʻliq emas."; return; }
+    throw new Error("OSM (Overpass) javob bermadi: "+e.message);
+  }
 }
 
 /* ---------- yer foydalanish toifalari ---------- */
@@ -603,7 +606,8 @@ $("runBtn").onclick=async()=>{
     $("siteStatus").textContent=`Relyef tayyor (${f1(G.mpp)} m/piksel). OSM obyektlari yuklanmoqda…`;
     // 2) OSM — binolar, yer foydalanish, yoʻllar
     try{ await loadOSM(); buildBuildings(); renderAll();
-      $("siteStatus").textContent=`Hisoblandi · ${fi(G.bld.length)} bino · relyef ${f1(G.mpp)} m/piksel`; }
+      $("siteStatus").textContent=`Hisoblandi · ${fi(G.bld.length)} bino · relyef ${f1(G.mpp)} m/piksel`+(G.osmNote?" · "+G.osmNote:"");
+      if(G.osmNote) $("siteStatus").className="status warn"; }
     catch(e){ $("siteStatus").className="status warn"; $("siteStatus").textContent="Relyef tayyor, lekin OSM yuklanmadi: "+e.message+" Qayta bosib koʻring yoki bino/yer qatlamini yuklang."; buildBuildings(); renderAll(); }
   }catch(e){ err("Tahlil bajarilmadi: "+e.message); }
   busy(""); $("runBtn").disabled=false;
@@ -625,6 +629,6 @@ $("uLayer").onchange=()=>{const l=layerById($("uLayer").value);const fs=l?[...ne
 $("uField").onchange=()=>{if(G.done&&G.tab==="muh")renderMuh();};
 };
 </script>
-<script src="js/i18n.js?v=36"></script>
+<script src="js/i18n.js?v=37"></script>
 </body>
 </html>
