@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Joylashtirish — Archemistry Lab</title>
+<script src="js/params.js?v=1"></script>
 <script src="js/beta.js?v=14"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -93,6 +94,10 @@ let P=JSON.parse(JSON.stringify(DEF)),tool='sel',sel=null,pts=[];
 const save=()=>{try{localStorage.setItem('kps_posadka',JSON.stringify(P));}catch(e){}try{const c=calc();let md=null;if(P.blds.length>1){md=Math.min(...distances().all.map(o=>o.d));}let ins=null;try{if(INS&&INS.length)ins=Math.min(...INS.map(o=>o.best));}catch(e){}
   localStorage.setItem('kps_posadka_sum',JSON.stringify({t:Date.now(),name:P.name,siteHa:c.site/1e4,fp:c.fp,gfa:c.gfa,res:c.res,nonres:c.nonres,far:c.far,cov:c.cov,green:c.green,gr:c.gr,na:c.na,pop:c.pop,sell:c.sell,apts:c.apts.map(a=>({r:a.r,n:a.n})),parkHave:c.parkHave,parkNeed:c.parkNeed,maxH:c.maxH,avgFl:c.avgFl,insMin:ins,minDist:md,blds:P.blds.length}));}catch(e){}};
 try{const s=JSON.parse(localStorage.getItem('kps_posadka')||'null');if(s&&s.p)P=Object.assign(JSON.parse(JSON.stringify(DEF)),s,{p:Object.assign(JSON.parse(JSON.stringify(DEF.p)),s.p)});}catch(e){}
+/* yagona loyiha parametrlari: kishi/kvartira, avtoturargoh talabi, sotiladigan maydon koeff. — KP dan (eski qiymat bir marta koʻchiriladi) */
+KP.migrate('hh',P.p.ppl,3.2);KP.migrate('park',P.p.park,1.0);KP.migrate('netGross',P.p.eff,0.75);
+const syncKP=()=>{P.p.ppl=KP.get('hh');P.p.park=KP.get('park');P.p.eff=KP.get('netGross');};syncKP();
+KP.on(()=>{syncKP();try{save();render();}catch(e){}});
 /* ---- xarita ---- */
 const map=L.map('map',{zoomControl:true,doubleClickZoom:false}).setView(P.site?P.site[0]:P.center,P.site?18:16);
 const BASE={sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:18,attribution:'Esri World Imagery'}),line:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:16,attribution:'© OSM, © Esri'})};
@@ -145,7 +150,7 @@ function drawTmp(){T.eachLayer(l=>{if(l.options&&l.options.tmp)T.removeLayer(l);
   L.polyline(q,{color:'#f0b429',weight:2,dashArray:'6 4',interactive:false,tmp:true}).addTo(T);
   if(pts.length)L.marker(cur,{interactive:false,tmp:true,icon:L.divIcon({className:'blab',html:f1(dist(pts[pts.length-1],cur))+' m',iconSize:null,iconAnchor:[-8,-8]})}).addTo(T);}
 /* ---- hisob-kitob ---- */
-function calc(){const p=P.p,site=P.site?area(P.site):0;let fp=0,gfa=0,res=0,nonres=0,maxH=0,flS=0;
+function calc(){syncKP();const p=P.p,site=P.site?area(P.site):0;let fp=0,gfa=0,res=0,nonres=0,maxH=0,flS=0;
   let resMix=0;const pl={1:0,2:0,3:0,4:0},plA={1:0,2:0,3:0,4:0};let plSell=0;
   P.blds.forEach(b=>{const a=area(b.poly);fp+=a;const g=a*b.fl;gfa+=g;flS+=a*b.fl;maxH=Math.max(maxH,b.fl*p.fh);
     if(b.use==='res'){const gfl=b.gf&&b.gf!=='res'&&b.fl>1?a:0;res+=g-gfl;nonres+=gfl;
@@ -207,8 +212,8 @@ function renderSide(){const c=calc(),p=P.p,s=selObj();let h='';
     <div class="note">Dogʻ · yashil · avtoturargoh · qolgan hudud</div>`;
   h+=`<div><div class="lbl">Xonadonlar tarkibi · qiymatlar namuna, oʻzingiz belgilang</div><div class="grid"><span class="note">TUR</span><span class="note">ULUSH %</span><span class="note">OʻRT. M²</span>
     ${p.mix.map((m,i)=>`<span>${m[0]} xonali</span><input type="number" data-mx="${i}:1" value="${m[1]}"><input type="number" data-mx="${i}:2" value="${m[2]}">`).join('')}</div>
-    <div class="f" style="margin-top:8px"><label>Sotiladigan maydon koeff.<input type="number" step="0.01" id="pEff" value="${p.eff}"></label><label>Qavat balandligi, m<input type="number" step="0.1" id="pFh" value="${p.fh}"></label>
-    <label>Kishi / kvartira<input type="number" step="0.1" id="pPpl" value="${p.ppl}"></label><label>Avto joy / kvartira<input type="number" step="0.1" id="pPk" value="${p.park}"></label></div>
+    <div class="f" style="margin-top:8px"><label title="${esc(KP.meta('netGross').src)}">Sotiladigan maydon koeff. ◆<input type="number" step="0.01" id="pEff" value="${p.eff}"></label><label>Qavat balandligi, m<input type="number" step="0.1" id="pFh" value="${p.fh}"></label>
+    <label title="${esc(KP.meta('hh').src)}">Kishi / kvartira ◆<input type="number" step="0.01" id="pPpl" value="${p.ppl}"></label><label title="${esc(KP.meta('park').src)}">Avto joy / kvartira ◆<input type="number" step="0.1" id="pPk" value="${p.park}"></label></div><div class="note">◆ — loyiha parametri: barcha qadamlarda bir xil. Manba — maydon ustiga sichqonchani olib boring.</div>
     <div style="margin-top:8px"><div class="kv"><span>Sotiladigan turar joy</span><b>${fi(c.sell)} m²</b></div>${c.apts.map(a=>`<div class="kv"><span>${a.r}${a.r===4?'+':''} xonali${a.pl?` <span class="note">(${fi(a.pl)} chizilgan${a.est?' + '+fi(a.est)+' taxmin':''})</span>`:''}</span><b>${fi(a.n)}</b></div>`).join('')}
     <div class="kv big"><span>Kvartiralar · aholi</span><b>${fi(c.na)} · ${fi(c.pop)}</b></div><div class="kv"><span>Aholi zichligi</span><b>${c.site?fi(c.dens)+' kishi/ga':'—'}</b></div>
     <div class="kv"><span>Avtoturargoh · talab / chizilgan</span><b style="color:${c.parkHave>=c.parkNeed?'var(--ok)':'var(--bad)'}">${fi(c.parkNeed)} / ${fi(c.parkHave)}</b></div></div>
@@ -219,7 +224,7 @@ function renderSide(){const c=calc(),p=P.p,s=selObj();let h='';
     <div class="note">Yer, muhandislik tarmoqlari, soliq va moliyalash xarajatlari hisobga olinmagan.</div></div>`;
   $('#side').innerHTML=h;
   const num=(id,fn)=>{const i=$(id);if(i)i.onchange=()=>{fn(+i.value);commit();};};
-  num('#bFl',v=>{s.fl=Math.max(1,Math.round(v));});if(sel&&sel.t==='b'){const D=bDims(s);num('#bL',v=>bReshape(s,v,D.W,null));num('#bW',v=>bReshape(s,D.L,v,null));num('#bDeg',v=>bReshape(s,D.L,D.W,v));}num('#bPh',v=>{s.ph=Math.max(1,Math.round(v));});if($('#bFr'))$('#bFr').onchange=e=>{s.fr=e.target.value;commit();};num('#pEff',v=>p.eff=v);num('#pFh',v=>p.fh=v);num('#pPpl',v=>p.ppl=v);num('#pPk',v=>p.park=v);
+  num('#bFl',v=>{s.fl=Math.max(1,Math.round(v));});if(sel&&sel.t==='b'){const D=bDims(s);num('#bL',v=>bReshape(s,v,D.W,null));num('#bW',v=>bReshape(s,D.L,v,null));num('#bDeg',v=>bReshape(s,D.L,D.W,v));}num('#bPh',v=>{s.ph=Math.max(1,Math.round(v));});if($('#bFr'))$('#bFr').onchange=e=>{s.fr=e.target.value;commit();};num('#pEff',v=>{KP.set('netGross',v);p.eff=KP.get('netGross');});num('#pFh',v=>p.fh=v);num('#pPpl',v=>{KP.set('hh',v);p.ppl=KP.get('hh');});num('#pPk',v=>{KP.set('park',v);p.park=KP.get('park');});
   if($('#pCost'))$('#pCost').onchange=e=>{p.cost=e.target.value;commit();};if($('#pSale'))$('#pSale').onchange=e=>{p.sale=e.target.value;commit();};
   document.querySelectorAll('[data-mx]').forEach(i=>i.onchange=()=>{const [a,b]=i.dataset.mx.split(':').map(Number);p.mix[a][b]=+i.value;commit();});
   document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{s.use=b.dataset.use;commit();});
@@ -563,17 +568,17 @@ function normPanel(){const n=N(),a=AN0();let h=`<div><div class="lbl">Normativ t
   if(a.dist&&P.blds.length>1){const r=distances(),bad=r.all.filter(o=>o.ok===false).length,mn=Math.min(...r.all.map(o=>o.d));h+=`<div class="kv"><span>Eng yaqin binolar oraligʻi</span><b>${f1(mn)} m</b></div>${r.all.some(o=>o.req)?`<div class="kv"><span>Talabga javob bermaydi</span><b style="color:${bad?'var(--bad)':'var(--ok)'}">${bad} juft</b></div>`:''}${r.sb.length?`<div class="kv"><span>Chekinish buzilgan</span><b style="color:${r.sb.some(o=>!o.ok)?'var(--bad)':'var(--ok)'}">${r.sb.filter(o=>!o.ok).length} bino</b></div>`:''}`;}
   if(a.ins&&INS&&INS.length){const thr=+n.ins,worst=Math.min(...INS.map(o=>o.best));h+=`<div class="kv"><span>Hisob nuqtalari</span><b>${INS.length}</b></div><div class="kv"><span>Eng kam uzluksiz insolyatsiya</span><b>${hm(worst)}</b></div>${thr?`<div class="kv"><span>Talabdan kam nuqtalar</span><b style="color:${INS.some(o=>o.best<thr)?'var(--bad)':'var(--ok)'}">${INS.filter(o=>o.best<thr).length}</b></div>`:''}
     <div class="chk"><i style="background:hsl(0,85%,30%)"></i>0 soat<i style="background:hsl(22,85%,42%);margin-left:8px"></i>3<i style="background:hsl(45,85%,55%);margin-left:8px"></i>6+ soat${thr?' · talab kiritilgan: yashil/qizil':''}</div>`;}
-  h+=`<div style="margin-top:10px;display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button class="btn sm ghost" id="nCtx">Atrofdagi binolarni yuklash (OSM)</button>${(P.ctx||[]).length?`<button class="btn sm ghost" id="nCtxX">Tozalash (${P.ctx.length})</button>`:''}<label style="font-size:12px;color:var(--grey);display:flex;flex-direction:column">Qavati nomaʼlum binolar<input id="nCtxLv" type="number" min="1" value="${n.ctxLv}" placeholder="2" style="width:70px;border:1px solid var(--line2);padding:3px 5px;font-family:var(--mono)"></label></div>
+  h+=`<div style="margin-top:10px;display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button class="btn sm ghost" id="nCtx">Atrofdagi binolarni yuklash (OSM)</button>${(P.ctx||[]).length?`<button class="btn sm ghost" id="nCtxX">Tozalash (${P.ctx.length})</button>`:''}<label style="font-size:12px;color:var(--grey);display:flex;flex-direction:column">Qavati nomaʼlum binolar<input id="nCtxLv" type="number" min="1" value="${KP.get('lvUnknown')}" title="Loyiha parametri — barcha qadamlarda bir xil" style="width:70px;border:1px solid var(--line2);padding:3px 5px;font-family:var(--mono)"></label></div>
   <div class="note">Atrofdagi mavjud binolar soya va masofa hisobiga qoʻshiladi; TIK ga kirmaydi. Uchastka ichidagi (buziladigan) binolar olinmaydi.</div>`;
   h+=`<div class="note" style="margin-top:6px">Geometrik hisob: quyosh holati (kenglik ${f2(lat0())}°, quyosh vaqti, 5 daqiqa qadam), fasad oldidagi nuqtalar, boshqa binolar soyasi. Faqat turar joy binolari fasadlari. Me'yoriy qiymatlar avtomatik qoʻyilmaydi — amaldagi ShNQ 2.07.01-23 va sanitariya qoidalaridan oʻzingiz kiriting${n.ref?' · asos: '+esc(n.ref):''}. Atrofdagi binolar uchun yuqoridagi tugmadan foydalaning.</div></div>`;
   return h;}
 function bindNorm(){const n=N(),a=AN0();const tg=(id,k)=>{const b=$(id);if(b)b.onclick=()=>{a[k]=!a[k];if(k==='ins'&&a[k])INSkey='';commit();};};tg('#nDist','dist');tg('#nIns','ins');
   document.querySelectorAll('[data-fm]').forEach(i=>i.onchange=()=>{n.fm[i.dataset.fm]=i.value;commit();});
   if($('#nCtx'))$('#nCtx').onclick=loadCtx;if($('#nCtxX'))$('#nCtxX').onclick=()=>{P.ctx=[];INSkey='';commit();};
-  [['#nT0','t0'],['#nT1','t1'],['#nCtxLv','ctxLv'],['#nDmin','dmin'],['#nDk','dk'],['#nSb','setb'],['#nIh','ins'],['#nDate','date'],['#nWz','wz'],['#nRef','ref']].forEach(([id,k])=>{const i=$(id);if(i)i.onchange=()=>{n[k]=i.value;commit();};});}
+  {const i=$('#nCtxLv');if(i)i.onchange=()=>{KP.set('lvUnknown',i.value);commit();};}[['#nT0','t0'],['#nT1','t1'],['#nDmin','dmin'],['#nDk','dk'],['#nSb','setb'],['#nIh','ins'],['#nDate','date'],['#nWz','wz'],['#nRef','ref']].forEach(([id,k])=>{const i=$(id);if(i)i.onchange=()=>{n[k]=i.value;commit();};});}
 async function loadCtx(){const src=P.site||P.blds.flatMap(b=>b.poly);if(!src.length){toast('Avval uchastka yoki bino chizing.');return;}const pad=200;const la=src.map(p=>p[0]),lo=src.map(p=>p[1]);
   const bb=[Math.min(...la)-pad/MY,Math.min(...lo)-pad/MX(),Math.max(...la)+pad/MY,Math.max(...lo)+pad/MX()].map(v=>v.toFixed(6)).join(',');toast('OSM dan binolar yuklanmoqda…');
-  try{const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(`[out:json][timeout:90];(way["building"](${bb});way["highway"](${bb}););out geom tags;`)});const j=await r.json();const lv0=+N().ctxLv||2;
+  try{const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(`[out:json][timeout:90];(way["building"](${bb});way["highway"](${bb}););out geom tags;`)});const j=await r.json();const lv0=KP.get('lvUnknown');
     const inSite=p=>{if(!P.site)return false;let c=false;const S=P.site;for(let i=0,k=S.length-1;i<S.length;k=i++){if(((S[i][0]>p[0])!==(S[k][0]>p[0]))&&(p[1]<(S[k][1]-S[i][1])*(p[0]-S[i][0])/(S[k][0]-S[i][0])+S[i][1]))c=!c;}return c;};
     const RW={motorway:22,trunk:20,primary:16,secondary:12,tertiary:10,unclassified:7,residential:7,living_street:6,service:4,pedestrian:5,footway:2,path:1.6,cycleway:2,steps:1.6};
     P.ctxRd=j.elements.filter(w=>w.tags&&w.tags.highway&&w.geometry).map(w=>({pts:w.geometry.map(g=>[g.lat,g.lon]),w:RW[w.tags.highway.replace('_link','')]||5}));
@@ -690,6 +695,6 @@ window.PZ={P:()=>P,xy,ll,lat0,center:()=>{const c=map.getCenter();return [c.lat,
 })();
 </script>
 <script src="js/massing.js?v=6"></script>
-<script src="js/i18n.js?v=34"></script>
+<script src="js/i18n.js?v=36"></script>
 </body>
 </html>

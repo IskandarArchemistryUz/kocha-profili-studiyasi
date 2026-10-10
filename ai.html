@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hudud bahosi va AI — Archemistry Lab</title>
+<script src="js/params.js?v=1"></script>
 <script src="js/beta.js?v=14"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -227,12 +228,12 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
     prog(.85,'15 daqiqalik shahar: piyodalar tarmogʻi boʻyicha masofalar…');await new Promise(r=>setTimeout(r,30));
     const F15=fifteen(roads,poi,ring,inside,areaM2,bb);
     // zichlik
-    let gfa=null,lvTag=0,resGfa=0,houses=0,smallYes=0;if(blds){gfa=0;blds.elements.forEach(w=>{const g=(w.geometry||[]).map(q=>[q.lat,q.lon]);if(g.length<3||!inside(g[0]))return;const t=w.tags||{},a=ringArea(g),lv=parseFloat(t['building:levels']);if(lv>0)lvTag++;const L=lv>0?lv:(+PRM.lv||1);gfa+=a*L;
+    let gfa=null,lvTag=0,resGfa=0,houses=0,smallYes=0;if(blds){gfa=0;blds.elements.forEach(w=>{const g=(w.geometry||[]).map(q=>[q.lat,q.lon]);if(g.length<3||!inside(g[0]))return;const t=w.tags||{},a=ringArea(g),lv=parseFloat(t['building:levels']);if(lv>0)lvTag++;const L=lv>0?lv:KP.get('lvUnknown');gfa+=a*L;
       // hovli uylar: house/detached va teglanmagan kichik binolar (≤ 350 m², ≤ 2 qavat, funksiya tegi yoʻq) — mahalla uylari
       const plain=t.building==='yes'&&!t.amenity&&!t.shop&&!t.office&&!t.name&&a<=350&&a>=40&&!(lv>2);
       if(/^(house|detached|semidetached_house|terrace)$/.test(t.building)||plain){houses++;if(plain)smallYes++;}
       if(/^(apartments|residential|house|detached|semidetached_house|terrace|dormitory)$/.test(t.building)||plain)resGfa+=a*L;});}
-    const mpp=+PRM.mpp||27,hhs=+PRM.hh||4.4;
+    const mpp=KP.get('mppGross'),hhs=KP.get('hh');
     const km2=areaM2/1e6,cats=Object.entries(cat).sort((a,b)=>b[1]-a[1]),N=cats.reduce((s,c)=>s+c[1],0),ent=N&&cats.length>1?-cats.reduce((s,[,n])=>s+n/N*Math.log(n/N),0)/Math.log(cats.length):0;
     res={area_km2:+km2.toFixed(3),mode:mode==='radius'?`radius ${$('#rKm').value} km`:mode==='rect'?'toʻrtburchak':'chizilgan chegara',center:mode==='radius'?center.map(v=>+v.toFixed(5)):null,
       intersections:inter,intersection_density_per_km2:+(inter/km2).toFixed(1),street_km_car:+(carLen/1000).toFixed(2),street_density_km_per_km2:+(carLen/1000/km2).toFixed(2),
@@ -247,7 +248,7 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
       green_osm_note:'OSM poligonlari birlashtirib (ustma-ust tushganlar bir marta) hisoblandi',trees_osm:E.trees.length,water_share_pct:+(rasterShare(E.water,ring,bb0(ring))*100).toFixed(1),
       accessibility:accStats(E,roads,inside,carLen,stops,poi),
       fifteen_min:F15.summary,transport_nodes_straight_km:nodes,jobs_poi_per_km2:+(((cat['ofis']||0)+(cat['savdo']||0)+(cat['xizmat']||0)+(cat['ovqatlanish']||0)+(cat['sogʻliqni saqlash']||0)+(cat['taʼlim']||0))/km2).toFixed(1),
-      notes:['Manba: OpenStreetMap (Overpass), soʻrov sanasi '+new Date().toISOString().slice(0,10)+'. OSM toʻliq boʻlmasligi mumkin — ayniqsa trotuar va bekat teglari.',big?'Hudud katta — binolar qoplami hisoblanmadi.':null,...warn,'15 daqiqa: piyoda tarmogʻi (OSM) boʻyicha Dijkstra, tezlik '+F15.summary.speed_kmh+' km/soat; hudud chegarasidan 1,3 km tashqaridagi xizmatlar ham hisobga olingan.',blds?'Qavatlar soni '+(bN?Math.round(lvTag/bN*100):0)+'% binoda OSM da bor, qolganlariga '+(+PRM.lv||1)+' qavat qabul qilindi.':null].filter(Boolean)};
+      notes:['Manba: OpenStreetMap (Overpass), soʻrov sanasi '+new Date().toISOString().slice(0,10)+'. OSM toʻliq boʻlmasligi mumkin — ayniqsa trotuar va bekat teglari.',big?'Hudud katta — binolar qoplami hisoblanmadi.':null,...warn,'15 daqiqa: piyoda tarmogʻi (OSM) boʻyicha Dijkstra, tezlik '+F15.summary.speed_kmh+' km/soat; hudud chegarasidan 1,3 km tashqaridagi xizmatlar ham hisobga olingan.',blds?'Qavatlar soni '+(bN?Math.round(lvTag/bN*100):0)+'% binoda OSM da bor, qolganlariga '+KP.fmt(KP.get('lvUnknown'))+' qavat qabul qilindi (loyiha parametri).':null].filter(Boolean)};
     // xaritada
     try{localStorage.setItem('kps_area_sum',JSON.stringify(Object.assign({t:Date.now()},res)));}catch(e){}
     try{localStorage.setItem('kps_site',JSON.stringify({t:Date.now(),mode,ring:ring.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)]),center:center?[center[0],center[1]]:null,r:mode==='radius'?Math.round(+$('#rKm').value*1000):null,areaM2:Math.round(areaM2)}));}catch(e){}
@@ -261,6 +262,10 @@ async function compute(){let flt,inside,areaM2,ring;REC={};
   PT0=0;$('#runBtn').disabled=false;}
 /* ---- 15 daqiqalik shahar ---- */
 const PRM=Object.assign({speed:5,lv:'',mpp:'',hh:''},(()=>{try{return JSON.parse(localStorage.getItem('kps_ai_prm')||'{}');}catch(e){return {};}})());
+/* eski 1-qadam parametrlari → yagona loyiha parametrlari (bir marta) */
+KP.migrate('speed',PRM.speed,5);KP.migrate('lvUnknown',PRM.lv,1);KP.migrate('mppGross',PRM.mpp,27);KP.migrate('hh',PRM.hh,4.4);
+if(PRM.lv!==''||PRM.mpp!==''||PRM.hh!==''||+PRM.speed!==5){PRM.speed=5;PRM.lv=PRM.mpp=PRM.hh='';try{localStorage.setItem('kps_ai_prm',JSON.stringify(PRM));}catch(e){}}
+KP.on(()=>{[['#pSp','speed'],['#pLv','lvUnknown'],['#pMp','mppGross'],['#pHh','hh']].forEach(([i,k])=>{const e=$(i);if(e&&document.activeElement!==e)e.value=KP.get(k);});});
 const C15=[['food','Oziq-ovqat doʻkoni','#d97706'],['edu','Maktab / bogʻcha','#c2410c'],['health','Poliklinika / dorixona','#b3261e'],['transit','Jamoat transporti bekati','#1d6fa5'],['green','Park / bogʻ','#2e7d4f'],['sport','Sport / oʻyin maydonchasi','#0f766e'],['cafe','Kafe / choyxona','#9d4edd'],['serv','Maishiy xizmat, bank, pochta','#7b61d1'],['cult','Madaniyat / jamoat markazi','#475569']];
 function cls15(t){const a=t.amenity||'',sh=t.shop||'',le=t.leisure||'';const r=[];
   if(/^(supermarket|convenience|grocery|greengrocer|bakery|butcher|deli|dairy|general|farm)$/.test(sh)||a==='marketplace')r.push('food');
@@ -281,10 +286,10 @@ function fifteen(roads,poi,ring,inside,areaM2,bb){const NOWALK=/^(motorway|motor
     cs.forEach(c=>cnt[c]++);const ex=t.amenity==='kindergarten'?'kg':t.amenity==='school'?'school':null;pts.forEach(p=>{const s=snap(p);if(s){cs.forEach(c=>src[c].push(s));if(ex)src[ex].push(s);}});});
   const D={};[...C15,['kg'],['school']].forEach(([c])=>{const dist=new Float64Array(pos.length).fill(Infinity),h=[];src[c].forEach(([n,d])=>{if(d<dist[n]){dist[n]=d;heapPush(h,[d,n]);}});
     while(h.length){const [d,n]=heapPop(h);if(d>dist[n]||d>3000)continue;const A=adj[n];for(let i=0;i<A.length;i+=2){const nd=d+A[i+1];if(nd<dist[A[i]]){dist[A[i]]=nd;heapPush(h,[nd,A[i]]);}}}D[c]=dist;});
-  const sp=(+PRM.speed||5)*1000/60,L15=sp*15;const step=Math.max(60,Math.sqrt(areaM2/2200)),cells=[];
+  const sp=KP.get('speed')*1000/60,L15=sp*15;const step=Math.max(60,Math.sqrt(areaM2/2200)),cells=[];
   for(let la=bb[0];la<=bb[2];la+=step/MY)for(let lo=bb[1];lo<=bb[3];lo+=step/MX){const p=[la+step/MY/2,lo+step/MX/2];if(!inside(p))continue;const s=snap(p);if(!s||s[1]>250){cells.push({p,n:null});continue;}
     const m={};C15.forEach(([c])=>m[c]=(D[c][s[0]]+s[1])/sp);cells.push({p,m,n:C15.filter(([c])=>m[c]<=15).length});}
-  const ok=cells.filter(c=>c.n!=null),sum={speed_kmh:+PRM.speed||5,walk_15min_m:Math.round(L15),cells:ok.length,cell_size_m:Math.round(step),categories:{}};
+  const ok=cells.filter(c=>c.n!=null),sum={speed_kmh:KP.get('speed'),walk_15min_m:Math.round(L15),cells:ok.length,cell_size_m:Math.round(step),categories:{}};
   C15.forEach(([c,n])=>{const ms=ok.map(x=>x.m[c]).filter(v=>isFinite(v)).sort((a,b)=>a-b);sum.categories[n]={within_5min_pct:ok.length?+(ok.filter(x=>x.m[c]<=5).length/ok.length*100).toFixed(1):0,within_10min_pct:ok.length?+(ok.filter(x=>x.m[c]<=10).length/ok.length*100).toFixed(1):0,within_15min_pct:ok.length?+(ok.filter(x=>x.m[c]<=15).length/ok.length*100).toFixed(1):0,median_min:ms.length?+ms[Math.floor(ms.length/2)].toFixed(1):null,count:cnt[c]};});
   sum.index_avg_categories_15min=ok.length?+(ok.reduce((s,x)=>s+x.n,0)/ok.length).toFixed(2):0;sum.full_15min_city_share_pct=ok.length?+(ok.filter(x=>x.n===C15.length).length/ok.length*100).toFixed(1):0;
   sum.transit_400m_network_pct=ok.length?+(ok.filter(x=>x.m.transit*sp<=400).length/ok.length*100).toFixed(1):0;
@@ -521,8 +526,9 @@ function secCV(){const s=res.computer_vision;return `<div class="cvbox"><div cla
 function bindCV(){if($('#cvGo'))$('#cvGo').onclick=cvRun;if($('#cvAiB'))$('#cvAiB').onclick=cvAI;}
 const MET=[['Chorrahalar zichligi','intersection_density_per_km2','/km²',200,'#e8775f','koʻcha tarmogʻi ulanganligi'],['Koʻcha tarmogʻi zichligi','street_density_km_per_km2','km/km²',25,'#141414','avto koʻchalar uzunligi / maydon'],['Bekatlargacha 400 m qamrovi','transit_400m_coverage_pct','%',100,'#1d6fa5','hudud nuqtalari ulushi (toʻgʻri chiziq boʻyicha)'],['Maktab/bogʻchagacha 500 m','schools_kindergartens_500m_coverage_pct','%',100,'#c2410c','hudud nuqtalari ulushi'],['Xizmatlar zichligi','services_per_km2','POI/km²',600,'#7b61d1','doʻkon, kafe, xizmat va h.k.'],['Funksional aralashuv','land_use_mix_entropy_0_1','0–1',1,'#7b61d1','xizmat turlari entropiyasi'],['Yashil hudud ulushi','green_area_share_pct','%',40,'#2e7d4f','OSM dagi park, bogʻ, oʻrmon, maysa'],['Binolar qoplami','building_coverage_pct','%',60,'#696969','bino dogʻlari / maydon'],['Trotuar teglangan koʻchalar','sidewalk_tagged_share_pct','%',100,'#3c3c3c','OSM da sidewalk tegi bor ulush'],['Velo infratuzilma','cycle_km','km',20,'#2f6f4f','cycleway va velo boʻlaklar']];
 function md(t){return esc(t).replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h3>$1</h3>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^(?:- |\* )(.*)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`).split(/\n{2,}/).map(p=>/^<(h3|ul)/.test(p)?p:`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');}
-function prmBox(){return `<div><div class="lbl">Hisob parametrlari · namuna, oʻzingiz belgilang</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px;color:var(--grey)"><label>Yurish tezligi, km/soat<input id="pSp" type="number" step="0.1" value="${PRM.speed}" style="width:100%"></label><label>Qavat (tegsiz binolar)<input id="pLv" type="number" step="1" value="${PRM.lv}" placeholder="1" style="width:100%"></label><label>m² / kishi (aholi)<input id="pMp" type="number" step="1" value="${PRM.mpp}" placeholder="27" style="width:100%"></label><label>Xonadon hajmi, kishi<input id="pHh" type="number" step="0.1" value="${PRM.hh}" placeholder="4.4" style="width:100%"></label></div><div class="note">Oʻzgartirgandan keyin «Hisoblash» ni qayta bosing.</div></div>`;}
-function bindPrm(){[['#pSp','speed'],['#pLv','lv'],['#pMp','mpp'],['#pHh','hh']].forEach(([i,k])=>{const e=$(i);if(e)e.onchange=()=>{PRM[k]=e.value;localStorage.setItem('kps_ai_prm',JSON.stringify(PRM));};});}
+function prmBox(){const f=(id,k,st)=>{const m=KP.meta(k);return `<label title="${esc(m.src)}">${esc(m.l)}${m.u?', '+esc(m.u):''}<input id="${id}" type="number" step="${st}" value="${m.v}" style="width:100%${m.custom?';border-color:var(--ink)':''}"></label>`;};
+  return `<div><div class="lbl">Loyiha parametrlari · barcha qadamlarda bir xil</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--grey)">${f('pSp','speed',0.1)}${f('pLv','lvUnknown',1)}${f('pMp','mppGross',1)}${f('pHh','hh',0.01)}</div><div class="note">Manba — maydon ustiga sichqonchani olib boring. Oʻzgartirsangiz, Joylashtirish va Master reja ham shu qiymatni oladi. Keyin «Hisoblash» ni qayta bosing.</div></div>`;}
+function bindPrm(){[['#pSp','speed'],['#pLv','lvUnknown'],['#pMp','mppGross'],['#pHh','hh']].forEach(([i,k])=>{const e=$(i);if(e)e.onchange=()=>{KP.set(k,e.value);e.value=KP.get(k);};});}
 function sec15(){const F=res.fifteen_min;if(!F)return '';let h=`<div><div class="lbl">15 daqiqalik shahar · piyoda tarmogʻi boʻyicha</div>
   <div class="met"><span>Oʻrtacha: 15 daqiqada yetiladigan ehtiyoj turlari</span><b>${f1(F.index_avg_categories_15min)} / ${C15.length}</b><i><s style="width:${F.index_avg_categories_15min/C15.length*100}%;background:#2e7d4f"></s></i></div>
   <div class="met"><span>Barcha ${C15.length} tur 15 daqiqada</span><b>${f1(F.full_15min_city_share_pct)} %</b></div>
@@ -584,7 +590,7 @@ async function ask(q){if(!res){toast('Avval hududni hisoblang.');return;}if(!KEY
 $('#askBtn').onclick=()=>ask($('#q').value);document.querySelectorAll('[data-qq]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.qq;ask(b.dataset.qq);});
 $('#runBtn').onclick=compute;
 $('#b3d').onclick=()=>{if(!LASTD){toast('Avval hududni hisoblang.');return;}if(!window.AI3D){toast('3D modul yuklanmadi.');return;}
-  AI3D.open({D:LASTD,MX,MY,ULY,toast,sites:SITES,onSites:a=>{SITES=a;saveSites();laySites();siteRender();},clip:CLIP,mode:res&&res.mode,lv:+PRM.lv||0,putMat:o=>new Promise((ok,no)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=ok;t.onerror=()=>no(t.error);};r.onerror=()=>no(r.error);})});};$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
+  AI3D.open({D:LASTD,MX,MY,ULY,toast,sites:SITES,onSites:a=>{SITES=a;saveSites();laySites();siteRender();},clip:CLIP,mode:res&&res.mode,lv:KP.get('lvUnknown'),putMat:o=>new Promise((ok,no)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=ok;t.onerror=()=>no(t.error);};r.onerror=()=>no(r.error);})});};$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
 async function baseImg(bb){if(BASE==='none')return null;const U={grey:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}[BASE];if(!U)return null;
   const lx=(lon,z)=>(lon+180)/360*2**z,ly=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*2**z;let z=BASE==='grey'?16:17;
   while(z>11&&(Math.floor(lx(bb[3],z))-Math.floor(lx(bb[1],z))+1)*(Math.floor(ly(bb[0],z))-Math.floor(ly(bb[2],z))+1)>64)z--;
@@ -640,6 +646,6 @@ hint();renderRes();
 openRun('last',true).then(ok=>{if(ok)toast('Oxirgi tahlil tiklandi. Boshqalari — «Saqlanganlar» da.');}).catch(()=>{});
 })();
 </script>
-<script src="js/i18n.js?v=34"></script>
+<script src="js/i18n.js?v=36"></script>
 </body>
 </html>

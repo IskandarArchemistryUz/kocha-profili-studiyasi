@@ -53,6 +53,20 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .cover{position:fixed;inset:0;z-index:50;background:rgba(244,243,241,.85);display:grid;place-items:center;font:13px var(--f-mono)}
 .cover[hidden]{display:none}
 .tools{display:flex;gap:8px;align-items:center;flex:none}
+/* loyiha parametrlari paneli */
+.prwrap{position:relative}
+.prm{position:absolute;top:calc(100% + 10px);right:0;z-index:20;width:380px;max-height:calc(100vh - 80px);overflow:auto;background:var(--paper);border:1px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.prm .ph{padding:10px 12px 4px;font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}
+.prm .pd{padding:0 12px 8px;font:12px/1.45 var(--f-sans);color:var(--grey)}
+.prm .pr{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:4px 10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
+.prm .pr label{font:500 13px var(--f-sans);color:var(--ink)}
+.prm .pr input{width:100%;height:28px;border:1px solid var(--line);background:#fff;padding:0 6px;font:13px var(--f-mono);text-align:right}
+.prm .pr.cu input{border-color:var(--ink)}
+.prm .pr .src{grid-column:1/-1;font:11px/1.4 var(--f-mono);color:var(--grey)}
+.prm .pr .src button{border:0;background:none;padding:0;color:var(--acc);font:inherit;cursor:pointer;text-decoration:underline}
+.prm .pf{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--ink);font:11px var(--f-mono);color:var(--grey)}
+.btn[aria-expanded="true"]{background:var(--ink);color:var(--paper)}
+@media (max-width:760px){.prm{position:fixed;left:8px;right:8px;top:52px;width:auto}}
 .btn{height:32px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font:500 12px var(--f-mono);letter-spacing:.05em;cursor:pointer;white-space:nowrap}
 .btn.dark{background:var(--ink);color:var(--paper)}
 .btn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
@@ -144,6 +158,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
   <div class="tools">
     <div class="gq"><input id="gq" type="search" placeholder="Qayerda nima? (shamol, aholi…)" autocomplete="off" aria-label="Qayerda nima? Funksiyani qidirish"><div class="gl" id="gl" hidden></div></div>
     <button class="btn helpb" id="helpBtn" title="Bu qadamda nima qilinadi">?</button>
+    <div class="prwrap"><button class="btn" id="prBtn" aria-expanded="false" aria-controls="prm" title="Loyiha farazlari: kishi/xonadon, avtoturargoh, qavat… — barcha qadamlar shu qiymatlarni oladi">Parametrlar</button><div class="prm" id="prm" hidden role="dialog" aria-label="Loyiha parametrlari"></div></div>
     <button class="btn" id="mrBtn" aria-pressed="false" title="Master reja koʻrsatkichlari — har qadamda ochiq turadi">Master reja</button>
   </div>
 </header>
@@ -162,6 +177,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 </main>
 <nav class="steps stepsM" id="stepsM" aria-label="Loyiha qadamlari"></nav>
 
+<script src="js/params.js?v=1"></script>
 <script>
 "use strict";
 /* Qadamlar: har bir boʻlim — mavjud sahifa. Bir sahifa bitta iframe'da yashaydi va qadamlar orasida yopilmaydi,
@@ -273,13 +289,27 @@ function openDrawer(on){
   else if(on && mrFrame){ try{ mrFrame.contentWindow.location.reload(); }catch(e){} }   // yangi binolar va hudud koʻrsatkichlarini qayta oʻqish
 }
 $("mrBtn").onclick=()=>openDrawer(!$("drawer").classList.contains("open"));
+/* --- Loyiha parametrlari: bitta joyda, barcha qadamlar oʻqiydi (js/params.js) --- */
+function renderPrm(){const box=$("prm");if(!box||box.hidden)return;const e=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const L=KP.list(),nc=L.filter(m=>m.custom).length;
+  box.innerHTML=`<div class="ph">Loyiha parametrlari</div><div class="pd">Farazlar bitta joyda. Bu yerda oʻzgartirsangiz, barcha qadamlar shu qiymatni oladi. Har bir loyiha uchun alohida saqlanadi.</div>`+
+    L.map(m=>`<div class="pr${m.custom?' cu':''}"><label for="kp_${m.k}">${e(m.l)}${m.u?` <span style="color:var(--grey);font-weight:400">·</span> <span style="color:var(--grey);font-weight:400">${e(m.u)}</span>`:''}</label><input id="kp_${m.k}" data-kp="${m.k}" inputmode="decimal" value="${e(KP.fmt(m.v))}"><div class="src">${m.custom?`<span>Loyiha uchun oʻzgartirilgan</span> · <span>standart ${e(KP.fmt(m.def))}</span> <button data-kpr="${m.k}">qaytarish</button>`:`<span>Manba:</span> <span>${e(m.src)}</span>`}<br><span>Qayerda:</span> <span>${e(m.use)}</span></div></div>`).join('')+
+    `<div class="pf"><span>${nc?nc+' ta qiymat oʻzgartirilgan':'Hammasi standart'}</span>${nc?'<button class="btn" id="kpAll">Hammasini standartga</button>':''}</div>`;
+  box.querySelectorAll('[data-kp]').forEach(i=>i.onchange=()=>{KP.set(i.dataset.kp,i.value);renderPrm();});
+  box.querySelectorAll('[data-kpr]').forEach(b=>b.onclick=()=>{KP.reset(b.dataset.kpr);renderPrm();});
+  const a=$("kpAll");if(a)a.onclick=()=>{KP.reset();renderPrm();};}
+function openPrm(on){$("prm").hidden=!on;$("prBtn").setAttribute("aria-expanded",on);if(on)renderPrm();}
+$("prBtn").onclick=e=>{e.stopPropagation();openPrm($("prm").hidden);};
+document.addEventListener("click",e=>{if(!$("prm").hidden&&!e.target.closest(".prwrap"))openPrm(false);});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("prm").hidden)openPrm(false);});
+KP.on(()=>renderPrm());
 $("mrClose").onclick=()=>openDrawer(false);
 
 /* --- bir nechta loyiha ---
    Boʻlimlar oʻz maʼlumotini umumiy brauzer kalitlariga yozadi. Faol loyiha — shu kalitlardagi holat.
    Loyiha almashtirilganda joriy holat «kps_projects» bazasiga nusxalanadi, tanlangan loyiha holati qaytariladi.
    Sozlamalar (til, AI kaliti, palitralar), saqlangan tahlillar kutubxonasi va 3D aktivlar umumiy qoladi. */
-const LS_KEYS=['kps_project','kps_v1','kps_saves','kps_posadka','kps_posadka_sum','kps_area_sum','kps_ai_sites','kps_official','kps_mrp','kps_mrp_ext','kps_site','kps_site_seen_studio'];
+const LS_KEYS=['kps_project','kps_params','kps_v1','kps_saves','kps_posadka','kps_posadka_sum','kps_area_sum','kps_ai_sites','kps_official','kps_mrp','kps_mrp_ext','kps_site','kps_site_seen_studio'];
 // albom, albom materiallari, yuklangan qatlamlar, saqlangan tahlillar va foydalanuvchi 3D modellari — hammasi loyihaga tegishli
 const IDB_ALL=[['kps_maket','docs'],['kps_mat','mats'],['kps_data','layers'],['kps_ai_runs','runs'],['kps_assets','a']];
 const IDB_ONE=[];
@@ -414,6 +444,6 @@ document.addEventListener("click",e=>{if(!e.target.closest(".gq"))$("gl").hidden
   if(i>=0){ const j=STEPS[i].subs.findIndex(u=>u.id===h[1]); show(i, j>=0?j:0); } else show(P.step||0);
 })();
 </script>
-<script src="js/i18n.js?v=34"></script>
+<script src="js/i18n.js?v=36"></script>
 </body>
 </html>
