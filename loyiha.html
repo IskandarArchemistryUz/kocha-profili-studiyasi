@@ -50,6 +50,13 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .pmenu .pi button.del{border:0;background:none;color:var(--grey);cursor:pointer;font:12px var(--f-mono)}
 .pmenu .pi button.del.sure{color:var(--acc)}
 .pmenu .pf{padding:10px 12px;border-top:1px solid var(--ink)}
+.pmenu .pf2{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 10px}.pmenu .pf2 .btn{width:100%}
+.pmenu .pnote{padding:0 12px 10px;font:11px/1.45 var(--f-mono);color:var(--grey)}
+.sst{border:0;background:none;cursor:pointer;font:11px var(--f-mono);color:var(--grey);padding:4px 6px;white-space:nowrap;flex:none}
+.sst.warn{color:var(--acc)}
+.sst:hover{text-decoration:underline}
+.ltoast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);font:13px var(--f-sans);padding:10px 14px;max-width:min(560px,92vw);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+@media (max-width:1200px){.sst .lg{display:none}}
 .cover{position:fixed;inset:0;z-index:50;background:rgba(244,243,241,.85);display:grid;place-items:center;font:13px var(--f-mono)}
 .cover[hidden]{display:none}
 .tools{display:flex;gap:8px;align-items:center;flex:none}
@@ -153,7 +160,8 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
     <svg width="21" height="20" viewBox="0 0 103.45 100" aria-hidden="true"><path d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z" fill="#696969" fill-rule="evenodd"/></svg>ARCHEMISTRY
   </a>
   <div class="pwrap"><input class="pname" id="pname" aria-label="Loyiha nomi" value="Yangi loyiha"><button class="pmenu-btn" id="pmBtn" aria-expanded="false" aria-label="Loyihalar roʻyxati">▾</button>
-    <div class="pmenu" id="pmenu" hidden><div class="ph">Loyihalar · shu brauzerda</div><div id="plist"></div><div class="pf"><button class="btn dark" id="pNew">+ Yangi loyiha</button></div></div></div>
+    <div class="pmenu" id="pmenu" hidden><div class="ph">Loyihalar · shu brauzerda</div><div id="plist"></div><div class="pf"><button class="btn dark" id="pNew">+ Yangi loyiha</button></div><div class="pf2"><button class="btn" id="pExp" title="Ochiq loyihani bitta faylga saqlash — boshqa kompyuterda yoki kesh tozalangandan keyin qayta ochish uchun">Faylga saqlash</button><button class="btn" id="pImp" title="Avval saqlangan .archemistry.json faylni yangi loyiha sifatida ochish">Fayldan ochish</button></div><div class="pf2" style="grid-template-columns:1fr"><button class="btn" id="pExpAll" title="Barcha loyihalarni bitta zaxira faylga saqlash">Barcha loyihalarni zaxiralash</button></div><div class="pnote">Loyihalar shu brauzerda saqlanadi. Kesh tozalansa yoki boshqa kompyuterga oʻtsangiz — faylga saqlab qoʻying.</div><input type="file" id="pFile" accept=".json,application/json" hidden></div></div>
+  <button class="sst" id="sst" title="Loyiha holati — bosing: faylga saqlash"></button>
   <nav class="steps" id="steps" aria-label="Loyiha qadamlari"></nav>
   <div class="tools">
     <div class="gq"><input id="gq" type="search" placeholder="Qayerda nima? (shamol, aholi…)" autocomplete="off" aria-label="Qayerda nima? Funksiyani qidirish"><div class="gl" id="gl" hidden></div></div>
@@ -331,13 +339,14 @@ const FRESH=!REG.list.length;   // birinchi tashrif: hali loyiha yoʻq
 if(!REG.active||!REG.list.find(x=>x.id===REG.active)){ const id=newId(); REG.list.push({id,name:P.name,t:new Date().toISOString()}); REG.active=id; saveReg(); }
 const cur=()=>REG.list.find(x=>x.id===REG.active);
 
-async function snapshot(id){
+async function collect(id){
   const snap={id,t:new Date().toISOString(),ls:{},idb:{}};
   LS_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)snap.ls[k]=v;});
   for(const [n,s] of IDB_ALL) snap.idb[n+'/'+s]=await idbAll(n,s);
   for(const [n,s,key] of IDB_ONE){const r=await idbGet(n,s,key);if(r)snap.idb[n+'/'+s+'#'+key]=r;}
-  await idbPut('kps_projects','snap',snap);
+  return snap;
 }
+async function snapshot(id){ await idbPut('kps_projects','snap',await collect(id)); }
 async function clearLive(){
   LS_KEYS.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
   for(const [n,s] of IDB_ALL) await idbReplace(n,s,[]);
@@ -357,7 +366,7 @@ function teardown(){
 function loadP(){ P={name:cur().name, step:0, sub:{}, seen:[0]}; try{const v=JSON.parse(localStorage.getItem('kps_project')||'null');if(v)P=Object.assign(P,v);}catch(e){} P.name=cur().name; $("pname").value=P.name; document.title=P.name+" — Archemistry Lab"; saveP(); }
 async function withCover(fn){ $("cover").hidden=false; closeMenu(); teardown(); await sleep(400);   // boʻlimlar kechiktirilgan saqlashlarini tugatsin
   try{ await fn(); }catch(e){ $("cover").textContent="Xato: "+(e.message||e); await sleep(2500); }
-  $("cover").hidden=true; $("cover").textContent="Loyiha almashtirilmoqda…"; loadP(); show(P.step||0); }
+  $("cover").hidden=true; $("cover").textContent="Loyiha almashtirilmoqda…"; loadP(); show(P.step||0); lastSave=null; renderSst(); }
 async function switchTo(id){ if(id===REG.active||!REG.list.find(x=>x.id===id)) return;
   await withCover(async()=>{ await snapshot(REG.active); await clearLive(); await restore(id); REG.active=id; saveReg(); }); }
 async function newProject(){
@@ -377,6 +386,74 @@ $("plist").onclick=e=>{ const o=e.target.closest("[data-open]"), d=e.target.clos
   if(o){ switchTo(o.dataset.open); return; }
   if(d){ if(armed===d.dataset.del) delProject(d.dataset.del); else { armed=d.dataset.del; renderMenu(); } } };
 $("pNew").onclick=()=>newProject();
+/* --- faylga saqlash / fayldan ochish ---
+   Fayl: {format:"archemistry-lab", v:1, projects:[{name, step, snap:{ls, idb}}]}. Blob/ArrayBuffer (rasm, 3D model) base64 bilan yoziladi.
+   Import har doim YANGI loyiha qoʻshadi — mavjud loyiha ustidan yozilmaydi. Faqat maʼlum kalitlar va bazalar oʻqiladi. */
+const FMT='archemistry-lab',FMT_V=1;
+let ltT=0;function ltoast(m){let t=document.querySelector('.ltoast');if(!t){t=document.createElement('div');t.className='ltoast';t.setAttribute('role','status');document.body.appendChild(t);}t.textContent=window.kpsT?kpsT(m):m;t.hidden=false;clearTimeout(ltT);ltT=setTimeout(()=>{t.hidden=true;},4500);}
+const b64=buf=>{let s='';const a=new Uint8Array(buf);for(let i=0;i<a.length;i+=0x8000)s+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000));return btoa(s);};
+const unb64=t=>{const s=atob(t),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a;};
+async function enc(v){
+  if(typeof Blob!=='undefined'&&v instanceof Blob)return {__kpsBlob:v.type||'',d:b64(await v.arrayBuffer())};
+  if(v instanceof ArrayBuffer)return {__kpsBuf:1,d:b64(v)};
+  if(ArrayBuffer.isView(v))return {__kpsView:v.constructor.name,d:b64(v.buffer.slice(v.byteOffset,v.byteOffset+v.byteLength))};
+  if(v instanceof Date)return {__kpsDate:v.toISOString()};
+  if(Array.isArray(v)){const o=[];for(const x of v)o.push(await enc(x));return o;}
+  if(v&&typeof v==='object'){const o={};for(const k of Object.keys(v))o[k]=await enc(v[k]);return o;}
+  return v;}
+function dec(v){
+  if(Array.isArray(v))return v.map(dec);
+  if(v&&typeof v==='object'){
+    if('__kpsBlob' in v)return new Blob([unb64(v.d)],{type:v.__kpsBlob});
+    if(v.__kpsBuf)return unb64(v.d).buffer;
+    if(v.__kpsView){const C=/^(Uint8|Int8|Uint16|Int16|Uint32|Int32|Float32|Float64|Uint8Clamped)Array$/.test(v.__kpsView)?globalThis[v.__kpsView]:Uint8Array;return new C(unb64(v.d).buffer);}
+    if(v.__kpsDate)return new Date(v.__kpsDate);
+    const o={};for(const k in v)o[k]=dec(v[k]);return o;}
+  return v;}
+const today=()=>new Date().toISOString().slice(0,10);
+const fname=n=>String(n||'loyiha').replace(/[\\/:*?"<>|]+/g,'_').trim().slice(0,60)||'loyiha';
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);}
+const pack=async(x,snap)=>({name:x.name,created:x.t||null,step:x.step||0,snap:await enc(snap)});
+function markExported(ids){const t=new Date().toISOString();REG.list.forEach(x=>{if(ids.includes(x.id))x.exp=t;});saveReg();renderSst();}
+async function exportActive(){ closeMenu(); ltoast('Fayl tayyorlanmoqda…'); await sleep(400);   // boʻlimlar kechiktirilgan saqlashlarini tugatsin
+  const x=cur(),snap=await collect(x.id);
+  download(fname(x.name)+'-'+today()+'.archemistry.json',JSON.stringify({format:FMT,v:FMT_V,app:'Archemistry Lab',exported:new Date().toISOString(),projects:[await pack(x,snap)]}));
+  markExported([x.id]); ltoast('«'+x.name+'» faylga saqlandi. Faylni xavfsiz joyda saqlang.'); }
+async function exportAll(){ closeMenu(); ltoast('Zaxira tayyorlanmoqda…'); await sleep(400);
+  const out=[];for(const x of REG.list){const snap=x.id===REG.active?await collect(x.id):await idbGet('kps_projects','snap',x.id);if(snap)out.push(await pack(x,snap));}
+  download('archemistry-zaxira-'+today()+'.archemistry.json',JSON.stringify({format:FMT,v:FMT_V,app:'Archemistry Lab',exported:new Date().toISOString(),projects:out}));
+  markExported(REG.list.map(x=>x.id)); ltoast(out.length+' ta loyiha bitta faylga zaxiralandi.'); }
+async function importFile(f){
+  let data;try{data=JSON.parse(await f.text());}catch(e){ltoast('Fayl oʻqilmadi: bu JSON fayl emas.');return;}
+  if(!data||data.format!==FMT||!Array.isArray(data.projects)||!data.projects.length){ltoast('Bu Archemistry Lab loyiha fayli emas.');return;}
+  if(+data.v>FMT_V){ltoast('Fayl saytning yangiroq versiyasida saqlangan — sahifani yangilang (Ctrl+Shift+R).');return;}
+  const ids=[];
+  for(const pj of data.projects){let snap;try{snap=dec(pj.snap||{});}catch(e){continue;}if(!snap||typeof snap.ls!=='object')continue;
+    const ls={};LS_KEYS.forEach(k=>{if(typeof snap.ls[k]==='string')ls[k]=snap.ls[k];});
+    const idb={};IDB_ALL.forEach(([n,s])=>{const r=(snap.idb||{})[n+'/'+s];if(Array.isArray(r))idb[n+'/'+s]=r;});
+    const id=newId(),t=new Date().toISOString();let name=String(pj.name||'Fayldan loyiha').slice(0,80);if(REG.list.some(x=>x.name===name))name+=' (fayldan)';
+    try{const kp=JSON.parse(ls.kps_project||'{}');kp.name=name;ls.kps_project=JSON.stringify(kp);}catch(e){}
+    await idbPut('kps_projects','snap',{id,t,ls,idb});REG.list.push({id,name,t,step:+pj.step||0,exp:t});ids.push(id);}
+  saveReg();
+  if(!ids.length){ltoast('Faylda ochiladigan loyiha topilmadi.');return;}
+  if(ids.length===1){await switchTo(ids[0]);ltoast('«'+cur().name+'» fayldan ochildi.');}
+  else{renderMenu();$("pmenu").hidden=false;ltoast(ids.length+' ta loyiha qoʻshildi — roʻyxatdan tanlang.');}}
+$("pExp").onclick=()=>exportActive();
+$("pExpAll").onclick=()=>exportAll();
+$("pImp").onclick=()=>$("pFile").click();
+$("pFile").onchange=()=>{const f=$("pFile").files[0];$("pFile").value='';if(f){closeMenu();importFile(f);}};
+/* --- saqlash holati: brauzerda avtomatik; fayl zaxirasi qachon olingan --- */
+let lastSave=null;
+function renderSst(){const b=$("sst");if(!b)return;const x=cur();if(!x)return;
+  const hm=d=>new Date(d).toTimeString().slice(0,5),exp=x.exp?new Date(x.exp):null,days=exp?Math.floor((Date.now()-exp)/864e5):null;
+  const changed=!exp||(lastSave&&lastSave>exp);   // zaxiradan keyin oʻzgargan
+  const warn=!exp||(changed&&days>=3);
+  const zx=!exp?'fayl zaxirasi yoʻq':days===0?'zaxira bugun':days===1?'zaxira kecha':'zaxira '+days+' kun oldin';
+  b.innerHTML=`<span>${lastSave?'Saqlandi '+hm(lastSave):'Brauzerda saqlanadi'}</span><span class="lg"> · ${zx}</span>`;
+  b.classList.toggle('warn',warn);b.title=(warn?'Loyiha faqat shu brauzerda. ':'')+'Bosing — loyihani faylga saqlash.';}
+window.addEventListener('storage',e=>{if(e.key&&LS_KEYS.includes(e.key)){lastSave=new Date();renderSst();}});
+$("sst").onclick=()=>exportActive();
+renderSst();
 document.addEventListener("click",e=>{ if(!$("pmenu").hidden && !e.target.closest(".pwrap")) closeMenu(); });
 $("pname").addEventListener("input",()=>{ const c=cur(); if(c){ c.name=P.name; c.t=new Date().toISOString(); saveReg(); } });
 
@@ -444,6 +521,6 @@ document.addEventListener("click",e=>{if(!e.target.closest(".gq"))$("gl").hidden
   if(i>=0){ const j=STEPS[i].subs.findIndex(u=>u.id===h[1]); show(i, j>=0?j:0); } else show(P.step||0);
 })();
 </script>
-<script src="js/i18n.js?v=37"></script>
+<script src="js/i18n.js?v=38"></script>
 </body>
 </html>
