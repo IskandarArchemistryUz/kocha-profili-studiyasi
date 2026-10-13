@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manzilli roʻyxat — Archemistry Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#141414;--grey:#696969;--bg:#f4f3f1;--line:#dedcd7;--line2:#cfccc5;--bad:#b3261e;--ok:#2e7d4f;--warn:#a86a00;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  --g:#d1492e;--s:#2e7d4f;--f:#7a3fb0;--b:#1f6fb5}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font:14px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+a{color:inherit}button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+header{height:52px;flex:none;overflow-x:auto;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--bg)}
+.brand b{font-weight:500;letter-spacing:.2em}.crumb{font-size:12.5px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
+.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:24px;padding:0 8px;font-size:11px}.btn:disabled{opacity:.45;cursor:default}
+main{flex:1;display:grid;grid-template-columns:400px 1fr;min-height:0}
+aside{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.top{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+h1{margin:0;font-size:19px;font-weight:500}.sub0{font-size:12.5px;color:var(--grey)}
+.lbl{font-size:11px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase}
+.types{display:flex;flex-wrap:wrap;gap:6px}.types label{display:flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid var(--line);padding:3px 8px;border-radius:2px;cursor:pointer;user-select:none}
+.sw{width:14px;height:4px;border-radius:2px;display:inline-block}
+#stats{font-family:var(--mono);font-size:12px;color:var(--grey);line-height:1.6}#stats b{color:var(--ink);font-weight:500}
+#prog{height:3px;background:var(--line);position:relative;overflow:hidden}#prog i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);width:0}
+#msg{font-family:var(--mono);font-size:11.5px;color:var(--grey);min-height:16px}
+#list{overflow:auto;flex:1}
+.it{display:grid;grid-template-columns:30px 1fr auto;gap:2px 8px;padding:9px 14px;border-bottom:1px solid #f1efea;cursor:pointer;font-size:12.5px}
+.it:hover{background:#faf9f7}.it.sel{background:#eef3fb}
+.it .no{font-family:var(--mono);color:var(--grey)}.it .nm{line-height:1.35}.it .sm{font-family:var(--mono);text-align:right;white-space:nowrap}
+.it .meta{grid-column:2/4;display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--grey)}
+.st{padding:0 5px;border-radius:2px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}
+.st.ok{background:#e3f1e8;color:var(--ok)}.st.tx{background:#fbf0d9;color:var(--warn)}.st.no{background:#f7e0de;color:var(--bad)}.st.qo{background:#e4ebf7;color:#2f5fa8}.st.kut{background:#eee;color:var(--grey)}
+#map{min-height:0;position:relative}
+.edit{position:absolute;z-index:800;left:50%;top:12px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 12px;font-size:12.5px;border-radius:2px;display:none;gap:10px;align-items:center}
+.edit .btn{border-color:#fff;color:#fff}
+.leaflet-popup-content{font:13px/1.4 Archivo,system-ui,sans-serif;margin:10px 12px}.pp b{font-weight:600}.pp .m{font-family:var(--mono);font-size:11.5px;color:var(--grey)}
+.leg{background:#fff;padding:8px 10px;font-size:12px;border:1px solid var(--line);line-height:1.7}
+@media(max-width:820px){main{grid-template-columns:1fr;grid-template-rows:55% 45%}aside{order:2;border-right:0;border-top:1px solid var(--line)}header .crumb{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html" style="text-decoration:none"><b>ARCHEMISTRY</b></a><span class="crumb">/ MANZILLI ROʻYXAT</span><span class="sp"></span>
+  <button class="btn ghost" id="bImp">GeoJSON ochish</button><input type="file" id="fImp" accept=".geojson,.json" hidden>
+  <button class="btn" id="bExp">GeoJSON yuklab olish</button>
+  <button class="btn dark" id="bRun">OSM dan chizish</button>
+</header>
+<main>
+<aside>
+  <div class="top">
+    <div><h1>Gavjum koʻcha, soyali sayr, sohil boʻyi</h1>
+      <div class="sub0">Toshkent shahar hokimining 2026-yil 12-oktabrdagi 522-14-0-Q/26-son qaroriga 1-ilova · 56 obyekt · mln soʻm (loyiha-smeta uchun dastlabki talab)</div></div>
+    <div class="types" id="types"></div>
+    <div id="stats"></div>
+    <div id="prog"><i></i></div><div id="msg">«OSM dan chizish» — koʻcha nomlari va kesishmalar boʻyicha uchastkalar OpenStreetMap'dan avtomatik topiladi.</div>
+  </div>
+  <div id="list"></div>
+</aside>
+<div id="map"><div class="edit" id="edit"><span id="editT"></span><button class="btn sm" id="eUndo">Orqaga</button><button class="btn sm" id="eOk">Saqlash</button><button class="btn sm" id="eNo">Bekor</button></div></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/osm.js?v=1"></script>
+<script>
+/* Manzilli roʻyxat (1-ilova) → xarita.
+   Har bir obyekt: asosiy koʻcha nomi + boshlanish (A) va tugash (B) moʻljali.
+   Moʻljal turlari: s: — kesishuvchi koʻcha; w: — kanal/ariq; p: — nomli obyekt (bozor, restoran, bekat, chorraha);
+   L: — A dan metr hisobida; null — koʻchaning tuman ichidagi uchi.
+   OSM'da nomlar lotin yoki kirill yozuvida boʻladi, shuning uchun har bir nom ikki variantda (| bilan). */
+const TYPES={g:['Gavjum koʻcha','--g'],s:['Soyali sayr koʻcha','--s'],f:['Festival koʻcha','--f'],b:['Sohil boʻyi','--b']};
+// Tumanlar markazi (taxminiy) — bir xil nomli koʻchalardan toʻgʻrisini tanlash va soʻrov chegarasi uchun
+const TUM={bek:['Bektemir',41.215,69.335],mu:['Mirzo Ulugʻbek',41.333,69.335],mir:['Mirobod',41.290,69.287],olm:['Olmazor',41.350,69.215],
+  ser:['Sergeli',41.222,69.225],uch:['Uchtepa',41.292,69.180],chi:['Chilonzor',41.278,69.205],shx:['Shayxontohur',41.320,69.240],
+  yun:['Yunusobod',41.362,69.285],yak:['Yakkasaroy',41.285,69.262],yh:['Yangihayot',41.197,69.205]};
+// Nomlar
+const N={
+ shahrisabz:'Shahrisabz|Шахрисабз',mustaqillik:'Mustaqillik|Мустакиллик|Мустақиллик',taraqqiyot:'Taraqqiyot|Тараккиёт|Тараққиёт',
+ mahtumquli:'Mahtumquli|Махтумкули|Махтумқули',ozbovozi:'O.?zbekiston ovozi|Узбекистон овози|Ўзбекистон овози|Узбекистанский голос',
+ osiyo:'Osiyo|Осиё',khay:'Kichik halqa|Kichik Halqa|Малая кольцевая|Кичик халка|Кичик ҳалқа',gulsara:'Gulsara|Гулсара',
+ amirtemur:'Amir Temur|Амир Темур|Амира Темура',turkiston:'Turkiston|Туркестан|Туркистон',oybek:'Oybek|Ойбек|Айбек',
+ istiqbol:'Istiqbol|Истикбол|Истиқбол',mirobod:'Mirobod|Мирабад|Миробод',rustaveli:'Rustaveli|Руставели',nukus:'Nukus|Нукус',
+ shirin:'Shirin|Ширин',farhod:'Farhod|Фарход|Фарҳод',lutfiy:'Lutfiy|Лутфий|Лутфи',zargarlik:'Zargarlik|Заргарлик',
+ kxirmon:'Katta Xirmontepa|Katta Hirmontepa|Катта Хирмонтепа|Катта Хирмантепа|Катта Ҳирмонтепа',shayxzoda:'Shayxzoda|Shaykhzoda|Шейхзаде|Шайхзода',
+ ikarimov:'Islom Karimov|Ислам Каримов|Ислом Каримов',furqat:'Furqat|Фуркат|Фурқат',anhor:'Anhor|Анхор',borijar:'Bo.?rijar|Бурджар|Бўрижар',
+ navoiy:'Navoiy|Навои|Навоий',qodiriy:'Qodiriy|Кадыри|Қодирий|Кодирий',tkad:'halqa avtomobil|Halqa avtomobil|кольцевая автомобильная|кольцевая автодорога|TKAD|ТКАД',
+ qorgontepa:'Qo.?rg.?ontepa|Кургантепа|Қўрғонтепа|Кургонтепа',qipchoq:'Qipchoq|Кипчак|Қипчоқ',shokirariq:'Shokirariq|Шокирарик|Шокирариқ',
+ mehrigiyo:'Mehrigiyo|Мехригиё|Меҳригиё',tursunzoda:'Tursunzoda|Турсунзаде|Турсунзода',lutfkor:'Lutf?i?kor|Лутфикор|Лутфкор',
+ choshtepa:'Choshtepa|Чоштепа|Чош-тепа',
+};
+const S=k=>'s:'+N[k];
+// [№, tuman, tur, asosiy koʻcha(lar), A, B, mln soʻm, obyekt nomi]
+const RAW=[
+[1,'bek','g','Husayn Bayqaro|Хусейн Байкаро|Ҳусайн Бойқаро|Barhayot|Бархаёт',null,'s:Bektemir|Бектемир',1051,'Barhayot va Husayn Bayqaro koʻchalari (Husayn Bayqaro va Bektemir shohkoʻchasi kesishmasigacha)'],
+[2,'bek','g','Bektemir|Бектемир','p:Bektemir.*post|пост|ДПС|YPX','p:Food ?city|Фуд ?сити',761,'Bektemir shohkoʻchasi (Bektemir postidan "Food city" bozori koʻprigigacha)'],
+[3,'mu','g',N.shahrisabz,S('mustaqillik'),S('taraqqiyot'),202,'Shahrisabz koʻchasi (Mustaqillik — Taraqqiyot)'],
+[4,'mu','s','Yahyo G.?ulomov|Яхьё Гулямов|Яҳё Ғуломов|Яхья Гулямов','s:Oloy|Алай|Олой|p:Oloy bozori|Алайский',S('mahtumquli'),412,'Yahyo Gʻulomov koʻchasi (Oloy bozori koʻchasidan Mahtumquligacha)'],
+[5,'mu','g','Shastri|Шастри|Mahatma Gandi|Махатма Ганди',S('ozbovozi'),'s:Hamid.?Olimjon|Хамида Алимджана|Ҳамид Олимжон',228,'Shastri va Mahatma Gandi koʻchalari (Oʻzbekiston Ovozi — Hamid Olimjon)'],
+[6,'mu','g','Sodiq Azimov|Садыка Азимова|Содиқ Азимов',S('ozbovozi'),S('mahtumquli'),176,'Sodiq Azimov koʻchasi (Oʻzbekiston ovozi — Mahtumquli kesishuvi)'],
+[7,'mu','g','Oqqo.?rg.?on|Аккурган|Оққўрғон',S('osiyo'),S('khay'),385,'Oqqoʻrgʻon koʻchasi (Osiyo — KHAY)'],
+[8,'mu','g','Mingbuloq|Мингбулак|Мингбулоқ','p:Akademiya|Академия',S('gulsara'),385,'Mingbuloq koʻchasi, 1-bosqich ("IIV Akademiya" bekati — Gulsara)'],
+[9,'mu','s','Mingbuloq|Мингбулак|Мингбулоқ',S('gulsara'),'s:Temur Malik|Темур Малик|Тимур Малик',326,'Mingbuloq koʻchasi, 2-bosqich (Gulsara — Temur Malik)'],
+[10,'mu','g','Parkent|Паркент','s:Muhammad Yusuf|Мухаммад Юсуф|Муҳаммад Юсуф','L:800',259,'Parkent koʻchasi (Muhammad Yusufdan boshlab 800 m)'],
+[11,'mir','g','Afrosiyob|Афросиаб|Афросиёб',S('shahrisabz'),S('mirobod'),259,'Afrosiyob koʻchasi (Shahrisabz — Mirobod)'],
+[12,'mir','g',N.oybek,S('shahrisabz'),S('turkiston'),353,'Oybek koʻchasi (Shahrisabz — Turkiston)'],
+[13,'mir','g','Sayyid Baraka|Сайид Барака|Саид Барака',S('oybek'),S('istiqbol'),385,'Sayyid Baraka koʻchasi (Oybek — Istiqbol)'],
+[14,'mir','g','Fidokor|Фидокор',S('oybek'),S('amirtemur'),228,'Fidokor koʻchasi (Oybek — Amir Temur shohkoʻchasi)'],
+[15,'mir','g',N.turkiston,S('oybek'),S('amirtemur'),176,'Turkiston koʻchasi (Oybek — Amir Temur shohkoʻchasi)'],
+[16,'mir','g',N.amirtemur,S('turkiston'),S('shahrisabz'),385,'Amir Temur shohkoʻchasi (Turkiston — Shahrisabz)'],
+[17,'mir','g','Sodiq Azimov|Садыка Азимова|Содиқ Азимов',S('amirtemur'),S('istiqbol'),176,'Sodiq Azimov koʻchasi (Amir Temur — Istiqbol)'],
+[18,'mir','g',N.shahrisabz,S('mirobod'),S('istiqbol'),530,'Shahrisabz koʻchasi (Mirobod — Istiqbol)'],
+[19,'olm','g','Qorasaroy|Карасарай|Қорасарой',S('khay'),'s:Nurafshon|Нурафшон',228,'Qorasaroy koʻchasi (KHAY va Nurafshonni bogʻlovchi qism)'],
+[20,'olm','g','Oltinsoy|Алтынсай|Олтинсой|Алтинсай','s:Gulsaroy|Гульсарай|Гулсарой',S('khay'),471,'Oltinsoy koʻchasi (Gulsaroy kesishmasidan KHAYgacha)'],
+[21,'olm','g','Gulsaroy|Гульсарай|Гулсарой','s:Sag.?bon|Сагбан|Сағбон|s:Keles|Келес','s:Oltinsoy|Алтынсай|Олтинсой|Алтинсай',353,'Gulsaroy koʻchasi (Sagʻbon va Keles yoʻli tutashgan joydan Oltinsoygacha)'],
+[22,'ser','s',N.lutfkor,'p:Korzinka|Корзинка','p:Gumma|Гумма|Гуммахоним',326,'Lutfikor koʻchasi ("Korzinka" — "Gumma-xonim" chorrahasi)'],
+[23,'ser','g','Obihayot|Обихаёт|Обиҳаёт','p:Avtosalon|Автосалон','p:Yarmarka|Ярмарка',412,'Obihayot koʻchasi ("Avtosalon" — "Yarmarka" chorrahasi)'],
+[24,'ser','g',N.mehrigiyo,'p:Dehqon bozori|Деҳқон бозори|Дехкон бозори|рынок|bozor','p:metro|метро',326,'Mehrigiyo koʻchasi ("Dehqon bozori" — 3-metro bekati)'],
+[25,'ser','s',N.tursunzoda,'p:O.?zgarish|Узгариш|Ўзгариш','p:Sergeli|Сергели',326,'Mirzo Tursunzoda koʻchasi (Oʻzgarish 2-metro — Sergeli 3-metro)'],
+[26,'ser','g','Porloq|Порлок|Порлоқ','p:Neft.?Gaz|нефтегаз|Нефтгаз','p:39|kasalxona|больница|шифохона',353,'Porloq koʻchasi ("UzNeftGaz" — sobiq 39-son kasalxona)'],
+[27,'ser','g',N.tkad,'p:Neft.?Gaz|нефтегаз|Нефтгаз','p:Hoji ?Bobo|Хожи ?Бобо|Ходжи ?Бобо',353,'Toshkent avtomobil halqa yoʻli ("UzNeftGaz" — "Hoji Bobo" restorani)'],
+[28,'ser','b',N.choshtepa,'w:Jo.?nariq|Жунарик|Жўнариқ|'+N.borijar,'p:ECO ?PANEL|Эко ?панел',326,'Choshtepa koʻchasi (Joʻnariq va Boʻrijar kanallari tutashmasidan "ECO PANEL TECH"gacha) — sohil boʻyi'],
+[29,'ser','g','Yangi Qo.?yliq|Янги Куйлюк|Янги Қўйлиқ|Новый Куйлюк','p:Qiyot|Киёт|Қиёт','s:Qo.?yliq|Куйлюк|Қўйлиқ',280,'Yangi Qoʻyliq koʻchasi ("Qiyot" metro chorrahasi — Yangi Qoʻyliq kesishmasi)'],
+[30,'ser','g',N.qipchoq,'p:Yangi Sergeli|Янги Сергели','p:Chinor|Чинор',326,'Qipchoq koʻchasi ("Yangi Sergeli" chorrahasi — "Chinor" metro)'],
+[31,'ser','g',N.shokirariq,'p:FHDYO|ФҲДЁ|ФХДЁ|ЗАГС','p:Yangihayot|Янгихаёт|Янгиҳаёт',326,'Shokirariq koʻchasi (FHDYO chorrahasi — "Yangihayot" metro)'],
+[32,'uch','g','Foziltepa|Фозилтепа|Фазылтепа',S('farhod'),S('shirin'),562,'Foziltepa koʻchasi (Farhod — Shirin)'],
+[33,'uch','g',N.shirin,'s:Foziltepa|Фозилтепа|Фазылтепа',S('lutfiy'),439,'Shirin koʻchasi (Foziltepa — Lutfiy)'],
+[34,'uch','g',N.kxirmon,S('shirin'),S('shayxzoda'),469,'Katta Xirmontepa koʻchasi, 2-bosqich (Shirin — Maqsud Shayxzoda)'],
+[35,'uch','g',N.shayxzoda,S('shirin'),S('kxirmon'),280,'Maqsud Shayxzoda koʻchasi, 2-bosqich (Shirin — Katta Xirmontepa)'],
+[36,'uch','g',N.shirin,S('lutfiy'),S('zargarlik'),326,'Shirin koʻchasi (Lutfiy — Zargarlik)'],
+[37,'uch','g',N.zargarlik,S('farhod'),S('kxirmon'),616,'Zargarlik koʻchasi (Farhod — Katta Xirmontepa)'],
+[38,'chi','f','Afrosiyob|Афросиаб|Афросиёб',S('ikarimov'),'w:'+N.borijar,176,'Afrosiyob koʻchasi (Islom Karimovdan Boʻrijar kanaligacha) — festival koʻcha'],
+[39,'chi','g',N.ikarimov,S('furqat'),'w:'+N.anhor,412,'Islom Karimov koʻchasi (Furqatdan Anhor kanaligacha)'],
+[40,'chi','g','Mahmudjon G.?ofurov|Gafurov|Гафуров|Ғофуров|Гофуров',S('furqat'),S('ikarimov'),228,'Mahmudjon Gʻofurov koʻchasi (Furqat — Islom Karimov, Muqimiy teatri yoni)'],
+[41,'chi','s','Qatortol|Катартал|Қатортол','s:Bunyodkor|Бунёдкор',S('zargarlik'),412,'Qatortol-2 koʻchasi (Bunyodkor — Zargarlik)'],
+[42,'shx','b','~w:'+N.anhor,S('navoiy'),S('ikarimov'),385,'Anhor boʻyi loyihasining 2-bosqichi (Alisher Navoiy — Islom Karimov) — sohil boʻyi'],
+[43,'yun','g','Rashidov|Рашидов',S('osiyo'),S('qodiriy'),228,'Sharof Rashidov koʻchasi, 1-bosqich (Osiyo — Abdulla Qodiriy)'],
+[44,'yun','g','Rashidov|Рашидов',S('qodiriy'),S('navoiy'),145,'Sharof Rashidov koʻchasi, 2-bosqich (Abdulla Qodiriy — Alisher Navoiy)'],
+[45,'yak','g','Qahhor|Каххар|Қаҳҳор|Qahhar|Tarobiy|Тараби|Таробий',S('rustaveli'),S('nukus'),353,'Abdulla Qahhor va Mahmud Tarobiy koʻchalari, 1-bosqich (Shota Rustaveli — Nukus)'],
+[46,'yak','g',N.mirobod,null,S('rustaveli'),145,'Mirobod koʻchasi (Shota Rustaveligacha)'],
+[47,'yak','s','Bratislava|Братислава','s:Bobur|Бобур|Бабур',S('rustaveli'),228,'Bratislava koʻchasi (Bobur — Shota Rustaveli)'],
+[48,'yak','s','Glinka|Глинка',S('rustaveli'),S('nukus'),259,'Glinka koʻchasi (Sh. Rustaveli — Nukus)'],
+[49,'yh','s',N.tkad,'s:Qo.?rg.?ontepa 2|2-tor|2-й|2 тупик',S('qorgontepa'),326,'Toshkent halqa avtomobil yoʻli (Qoʻrgʻontepa 2-tor va Qoʻrgʻontepa oraligʻi)'],
+[50,'yh','g','O.?zar|Узар|Ўзар',S('tkad'),S('choshtepa'),500,'Oʻzar koʻchasi (Katta halqa yoʻli va Choshtepa oraligʻi)'],
+[51,'yh','g',N.qorgontepa,S('qipchoq'),'s:Do.?stlik|Дустлик|Дўстлик',259,'Qoʻrgʻontepa koʻchasi, 2-bosqich (Qipchoq — Doʻstlik)'],
+[52,'yh','s',N.qorgontepa,S('shokirariq'),S('qipchoq'),412,'Qoʻrgʻontepa koʻchasi, 3-bosqich (Shokirariq — Qipchoq)'],
+[53,'yh','s',N.tursunzoda,'s:Xonobodtepa|Хонободтепа|Ханабадтепа',S('mehrigiyo'),259,'Mirzo Tursunzoda koʻchasi, 1-bosqich (Xonobodtepa — Mehrigiyo)'],
+[54,'yh','s',N.tursunzoda,S('mehrigiyo'),S('shokirariq'),280,'Mirzo Tursunzoda koʻchasi, 2-bosqich (Mehrigiyo — Shokirariq)'],
+[55,'yh','g',N.tursunzoda+'|'+N.lutfkor,S('shokirariq'),S('qipchoq'),412,'Mirzo Tursunzoda va Lutfkor 2-tor koʻchalari (Shokirariq — Qipchoq)'],
+[56,'yh','g',N.qipchoq,'s:'+N.lutfkor,S('qorgontepa'),280,'Qipchoq shohkoʻchasi (Lutfkor 2-tor — Qoʻrgʻontepa)'],
+];
+const OBJ=RAW.map(r=>({n:r[0],t:r[1],k:r[2],main:r[3],a:r[4],b:r[5],sum:r[6],nm:r[7],geom:null,st:'kut',note:''}));
+
+/* ---------- yordamchilar ---------- */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const R=6371000,rad=Math.PI/180;
+function dist(a,b){const x=(b[1]-a[1])*rad*Math.cos((a[0]+b[0])/2*rad),y=(b[0]-a[0])*rad;return Math.sqrt(x*x+y*y)*R;}
+function segDist(p,a,b){const k=Math.cos(p[0]*rad),ax=(a[1]-p[1])*k,ay=a[0]-p[0],bx=(b[1]-p[1])*k,by=b[0]-p[0],dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;
+  let t=L?-(ax*dx+ay*dy)/L:0;t=Math.max(0,Math.min(1,t));const x=ax+t*dx,y=ay+t*dy;return Math.sqrt(x*x+y*y)*rad*R;}
+function plen(c){let s=0;for(let i=1;i<c.length;i++)s+=dist(c[i-1],c[i]);return s;}
+const NAMEKEYS=['name','name:uz','name:ru','name:en','name:uz-Cyrl','alt_name','old_name','official_name','short_name'];
+// anchor "s:A|B|p:C" → [{k:'s',re:/A|B/i},{k:'p',re:/C/i}] (bir nechta muqobil moʻljal)
+function parseAnchor(s){if(!s)return null;if(/^L:/.test(s))return [{k:'L',len:+s.slice(2)}];
+  const out=[];s.split(/\|(?=[spw]:)/).forEach(part=>{const k=part[0];out.push({k,src:part.slice(2),re:new RegExp(part.slice(2),'i')});});return out;}
+const nameHit=(tags,re)=>tags&&NAMEKEYS.some(k=>tags[k]&&re.test(tags[k]));
+const oq=s=>s.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+
+/* ---------- Overpass: har bir tuman uchun bitta soʻrov ---------- */
+function bboxOf(t,d){const c=TUM[t];const dl=d||0.065,dn=dl/Math.cos(c[1]*rad);return [c[1]-dl,c[2]-dn,c[1]+dl,c[2]+dn];}
+function districtQuery(t,objs){const bb=bboxOf(t).map(v=>v.toFixed(4)).join(',');const hw=new Set(),ww=new Set(),pp=new Set();
+  objs.forEach(o=>{(o.main[0]==='~'?ww:hw).add(o.main.replace(/^~w:/,''));[o.a,o.b].forEach(a=>(parseAnchor(a)||[]).forEach(x=>{if(x.k==='s')hw.add(x.src);if(x.k==='w')ww.add(x.src);if(x.k==='p')pp.add(x.src);}));});
+  const kv=s=>`[~"^(${NAMEKEYS.join('|')})$"~"${oq(s)}",i]`;let q=`[out:json][timeout:120][bbox:${bb}];(`;
+  if(hw.size)q+=`way[highway]${kv([...hw].join('|'))};`;
+  if(ww.size)q+=`way[waterway]${kv([...ww].join('|'))};way[natural=water]${kv([...ww].join('|'))};`;
+  if(pp.size){const s=kv([...pp].join('|'));q+=`node${s};way[!highway][!waterway]${s};`;}
+  return q+');out geom qt;';}
+
+/* ---------- uchastkani topish ---------- */
+function solve(o,els){
+  const c=[TUM[o.t][1],TUM[o.t][2]];
+  const mainRe=new RegExp(o.main.replace(/^~w:/,''),'i'),isW=o.main[0]==='~';
+  const mains=els.filter(e=>e.type==='way'&&e.geometry&&(isW?e.tags.waterway:e.tags.highway)&&nameHit(e.tags,mainRe));
+  if(!mains.length)return {st:'no',note:'Asosiy koʻcha OSM\'da topilmadi'};
+  // graf: tugun id → [lat,lon], qoʻshnilar
+  const P=new Map(),G=new Map();const add=(a,b,w)=>{(G.get(a)||G.set(a,[]).get(a)).push([b,w]);};
+  mains.forEach(w=>{const ids=w.nodes||w.geometry.map((_,i)=>'w'+w.id+'_'+i);
+    w.geometry.forEach((g,i)=>{if(!g)return;P.set(ids[i],[g.lat,g.lon]);if(i&&w.geometry[i-1]){const d=dist(P.get(ids[i-1]),P.get(ids[i]));add(ids[i-1],ids[i],d);add(ids[i],ids[i-1],d);}});});
+  // uzilishlar: yoʻl uchlari 80 m ichida boʻlsa — jarima bilan ulash (OSM'da nom bir boʻlakda tushib qolgan joylar)
+  const ends=[];mains.forEach(w=>{const ids=w.nodes;if(ids&&ids.length){ends.push(ids[0],ids[ids.length-1]);}});
+  for(let i=0;i<ends.length;i++)for(let j=i+1;j<ends.length;j++){const d=dist(P.get(ends[i]),P.get(ends[j]));if(d>0&&d<80){add(ends[i],ends[j],d*3);add(ends[j],ends[i],d*3);}}
+  const nodes=[...P.keys()];
+  const mainIds=new Set(mains.map(w=>w.id));
+  function cands(an,from){if(!an)return {list:[],kind:'end'};
+    for(const a of an){let out=[];
+      if(a.k==='s'||a.k==='w'){const ws=els.filter(e=>e.type==='way'&&!mainIds.has(e.id)&&e.geometry&&(a.k==='s'?e.tags.highway:(e.tags.waterway||e.tags.natural))&&nameHit(e.tags,a.re));
+        if(a.k==='s'){const sh=new Set();ws.forEach(w=>(w.nodes||[]).forEach(id=>{if(P.has(id))sh.add(id);}));out=[...sh];}
+        if(!out.length){const lim=a.k==='w'?45:25;ws.forEach(w=>{const g=w.geometry.map(x=>[x.lat,x.lon]);nodes.forEach(id=>{const p=P.get(id);
+            for(let i=1;i<g.length;i++){if(Math.abs(g[i][0]-p[0])>0.01&&Math.abs(g[i-1][0]-p[0])>0.01)continue;if(segDist(p,g[i-1],g[i])<lim){out.push(id);break;}}});});}
+        if(out.length)return {list:cluster(out),kind:a.k,exact:a.k==='s'};}
+      if(a.k==='p'){const ps=els.filter(e=>!mainIds.has(e.id)&&!(e.tags&&e.tags.highway)&&nameHit(e.tags,a.re)).map(e=>e.lat!=null?[e.lat,e.lon]:centroid(e.geometry)).filter(Boolean);
+        ps.forEach(p=>{let best=null,bd=400;nodes.forEach(id=>{const d=dist(p,P.get(id));if(d<bd){bd=d;best=id;}});if(best)out.push(best);});
+        if(out.length)return {list:cluster(out),kind:'p'};}}
+    return {list:[],kind:'miss'};}
+  function cluster(ids){const keep=[];ids.forEach(id=>{if(!keep.some(k=>dist(P.get(k),P.get(id))<35))keep.push(id);});return keep;}
+  function dijkstra(src){const D=new Map([[src,0]]),prev=new Map(),done=new Set();const q=new Heap();q.push([0,src]);
+    while(q.size()){const [d,u]=q.pop();if(done.has(u))continue;done.add(u);
+      for(const [v,w] of G.get(u)||[]){const nd=d+w;if(nd<(D.get(v)??Infinity)){D.set(v,nd);prev.set(v,u);q.push([nd,v]);}}}
+    return {D,prev};}
+  const pathTo=(prev,src,t)=>{const p=[t];while(p[0]!==src){const u=prev.get(p[0]);if(u==null)return null;p.unshift(u);}return p;};
+  const A=parseAnchor(o.a),B=parseAnchor(o.b);
+  const isL=B&&B[0].k==='L';
+  let ca=cands(A),cb=isL?{list:[],kind:'L'}:cands(B);
+  const notes=[];if(ca.kind==='miss')notes.push('A moʻljal topilmadi');if(cb.kind==='miss')notes.push('B moʻljal topilmadi');
+  const inD=id=>dist(P.get(id),c)<6500;
+  // uchi koʻrsatilmagan / topilmagan tomon — koʻchaning tuman markaziga yaqin qismidagi eng uzoq nuqta
+  if(!ca.list.length&&cb.list.length){[ca,cb]=[cb,ca];}
+  if(!ca.list.length)return {st:'no',note:(notes.join('; ')||'Moʻljallar topilmadi')};
+  let best=null;
+  ca.list.slice(0,12).forEach(sa=>{const {D,prev}=dijkstra(sa);let tg=[];
+    if(isL){let bd=Infinity,bi=null;D.forEach((d,id)=>{const e=Math.abs(d-B[0].len);if(e<bd&&inD(id)){bd=e;bi=id;}});if(bi)tg=[bi];}
+    else if(cb.list.length)tg=cb.list.filter(id=>D.has(id)&&id!==sa);
+    else{let md=0,mi=null;D.forEach((d,id)=>{if(d>md&&d<3500&&inD(id)){md=d;mi=id;}});if(mi)tg=[mi];}
+    tg.forEach(tb=>{const L=D.get(tb);if(L<40)return;const p=pathTo(prev,sa,tb);if(!p)return;const pts=p.map(id=>P.get(id));
+      const mid=pts[Math.floor(pts.length/2)];const score=L+0.6*dist(mid,c);if(!best||score<best.score)best={score,pts,L};});});
+  if(!best)return {st:'no',note:(notes.concat(['A va B orasida uzluksiz yoʻl yoʻq'])).join('; ')};
+  const exact=ca.kind==='s'&&cb.kind==='s';
+  if(isL)notes.push('800 m yoʻnalishi taxminiy');if(ca.kind==='p'||cb.kind==='p')notes.push('nomli obyekt boʻyicha (taxmin)');
+  if(ca.kind==='w'||cb.kind==='w')notes.push('kanal kesishuvi geometriya boʻyicha');if(cb.kind==='end'||cb.kind==='miss')notes.push('bir uchi koʻchaning oxiri deb olindi');
+  return {st:exact?'ok':'tx',geom:best.pts,note:notes.join('; ')};}
+class Heap{constructor(){this.a=[];}size(){return this.a.length;}
+  push(x){const a=this.a;a.push(x);let i=a.length-1;while(i){const p=(i-1)>>1;if(a[p][0]<=a[i][0])break;[a[p],a[i]]=[a[i],a[p]];i=p;}}
+  pop(){const a=this.a,top=a[0],last=a.pop();if(a.length){a[0]=last;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<a.length&&a[l][0]<a[m][0])m=l;if(r<a.length&&a[r][0]<a[m][0])m=r;if(m===i)break;[a[m],a[i]]=[a[i],a[m]];i=m;}}return top;}}
+function centroid(g){if(!g||!g.length)return null;let a=0,b=0,n=0;g.forEach(x=>{if(x){a+=x.lat;b+=x.lon;n++;}});return n?[a/n,b/n]:null;}
+
+/* ---------- xarita ---------- */
+const map=L.map('map',{zoomControl:true}).setView([41.29,69.25],12);
+const BASES={'Kulrang':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,attribution:'© Esri, © OpenStreetMap'}),
+  'Sunʼiy yoʻldosh':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19,attribution:'© Esri, Maxar'}),
+  'OpenStreetMap':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'})};
+BASES['Kulrang'].addTo(map);L.control.layers(BASES,null,{position:'topright'}).addTo(map);L.control.scale({imperial:false}).addTo(map);
+const leg=L.control({position:'bottomright'});leg.onAdd=()=>{const d=L.DomUtil.create('div','leg');d.innerHTML=Object.entries(TYPES).map(([k,v])=>`<span class="sw" style="background:var(${v[1]});height:5px;width:18px"></span> ${v[0]}`).join('<br>')+'<br><span style="font-family:var(--mono);font-size:11px;color:#696969">uzuq chiziq — taxmin</span>';return d;};leg.addTo(map);
+const layer=L.layerGroup().addTo(map),lines={};const col=k=>getComputedStyle(document.documentElement).getPropertyValue(TYPES[k][1]).trim();
+const show={g:1,s:1,f:1,b:1};let sel=null;
+function draw(o){if(lines[o.n]){layer.removeLayer(lines[o.n]);delete lines[o.n];}if(!o.geom||!show[o.k])return;
+  const pl=L.polyline(o.geom,{color:col(o.k),weight:sel===o.n?8:5,opacity:.9,dashArray:o.st==='tx'?'8 6':null}).addTo(layer);
+  pl.bindPopup(()=>`<div class="pp"><b>${o.n}. ${esc(o.nm)}</b><br>${TUM[o.t][0]} tumani · ${TYPES[o.k][0]}<br><span class="m">${fmt(o.sum)} mln soʻm · ${fmt(plen(o.geom))} m · ${fmt(o.sum/plen(o.geom)*1000)} mln soʻm/km</span>${o.note?`<br><span class="m">${esc(o.note)}</span>`:''}<br><button class="btn sm" style="margin-top:6px" onclick="startEdit(${o.n})">Qoʻlda chizish</button></div>`);
+  pl.on('click',()=>select(o.n,false));lines[o.n]=pl;}
+const fmt=v=>isFinite(v)?Math.round(v).toLocaleString('ru-RU'):'—';
+const ST={ok:'aniq',tx:'taxmin',no:'topilmadi',qo:'qoʻlda',kut:'kutilmoqda'};
+function renderList(){$('list').innerHTML=OBJ.filter(o=>show[o.k]).map(o=>`<div class="it${sel===o.n?' sel':''}" data-n="${o.n}"><span class="no">${o.n}</span><span class="nm"><span class="sw" style="background:var(${TYPES[o.k][1]})"></span> ${esc(o.nm)}</span><span class="sm">${fmt(o.sum)}</span>
+  <span class="meta"><span class="st ${o.st}">${ST[o.st]}</span>${TUM[o.t][0]}${o.geom?' · '+fmt(plen(o.geom))+' m':''}${o.note?' · '+esc(o.note):''}</span></div>`).join('');stats();}
+function stats(){const v=OBJ.filter(o=>show[o.k]);let h='';Object.entries(TYPES).forEach(([k,t])=>{const a=OBJ.filter(o=>o.k===k);if(!a.length)return;const km=a.reduce((s,o)=>s+(o.geom?plen(o.geom):0),0)/1000;
+    h+=`${t[0]}: <b>${a.length}</b> ta · <b>${fmt(a.reduce((s,o)=>s+o.sum,0))}</b> mln${km?` · ${km.toFixed(1)} km`:''}<br>`;});
+  const km=v.reduce((s,o)=>s+(o.geom?plen(o.geom):0),0)/1000,drawn=v.filter(o=>o.geom).length;
+  h+=`Jami: <b>${v.length}</b> ta · <b>${fmt(v.reduce((s,o)=>s+o.sum,0))}</b> mln soʻm · chizilgan ${drawn}/${v.length}${km?` · <b>${km.toFixed(1)}</b> km`:''}`;$('stats').innerHTML=h;}
+function select(n,fly=true){sel=n;OBJ.forEach(draw);renderList();const o=OBJ.find(x=>x.n===n);
+  const el=document.querySelector(`.it[data-n="${n}"]`);if(el)el.scrollIntoView({block:'nearest'});
+  if(fly&&o.geom)map.fitBounds(L.latLngBounds(o.geom),{maxZoom:17,padding:[60,60]});else if(fly)map.setView([TUM[o.t][1],TUM[o.t][2]],14);
+  if(fly&&lines[n])lines[n].openPopup();}
+$('list').onclick=e=>{const it=e.target.closest('.it');if(it)select(+it.dataset.n);};
+$('types').innerHTML=Object.entries(TYPES).map(([k,v])=>`<label><input type="checkbox" data-k="${k}" checked><span class="sw" style="background:var(${v[1]})"></span>${v[0]}</label>`).join('');
+$('types').onchange=e=>{show[e.target.dataset.k]=e.target.checked?1:0;OBJ.forEach(draw);renderList();};
+
+/* ---------- qoʻlda chizish / tuzatish ---------- */
+let ed=null;
+window.startEdit=n=>{map.closePopup();const o=OBJ.find(x=>x.n===n);ed={o,pts:[],tmp:L.polyline([],{color:'#141414',weight:4,dashArray:'4 4'}).addTo(map)};
+  $('editT').textContent=`${n}-obyekt: xaritada nuqtalarni ketma-ket bosing`;$('edit').style.display='flex';map.getContainer().style.cursor='crosshair';
+  if(!o.geom)map.setView([TUM[o.t][1],TUM[o.t][2]],14);};
+map.on('click',e=>{if(!ed)return;ed.pts.push([e.latlng.lat,e.latlng.lng]);ed.tmp.setLatLngs(ed.pts);});
+$('eUndo').onclick=()=>{if(!ed)return;ed.pts.pop();ed.tmp.setLatLngs(ed.pts);};
+function endEdit(save){if(!ed)return;if(save&&ed.pts.length>1){Object.assign(ed.o,{geom:ed.pts,st:'qo',note:'qoʻlda chizilgan'});saveManual();}
+  map.removeLayer(ed.tmp);const n=ed.o.n;ed=null;$('edit').style.display='none';map.getContainer().style.cursor='';select(n,false);}
+$('eOk').onclick=()=>endEdit(true);$('eNo').onclick=()=>endEdit(false);
+const LS='kps_manzilli_v1';
+function saveManual(){try{localStorage.setItem(LS,JSON.stringify(OBJ.filter(o=>o.st==='qo').map(o=>[o.n,o.geom])));}catch(e){}}
+function loadManual(){try{(JSON.parse(localStorage.getItem(LS)||'[]')).forEach(([n,g])=>{const o=OBJ.find(x=>x.n===n);if(o)Object.assign(o,{geom:g,st:'qo',note:'qoʻlda chizilgan'});});}catch(e){}}
+
+/* ---------- OSM dan chizish ---------- */
+async function run(){$('bRun').disabled=true;const ts=[...new Set(OBJ.map(o=>o.t))];let i=0;
+  for(const t of ts){const objs=OBJ.filter(o=>o.t===t);$('msg').textContent=`${TUM[t][0]} tumani: OSM soʻrovi… (${i+1}/${ts.length})`;
+    try{const j=await KOSM.fetch(districtQuery(t,objs),{onTry:(k,n,h)=>{$('msg').textContent=`${TUM[t][0]}: ${h} (${k}/${n})`;}});
+      objs.forEach(o=>{if(o.st==='qo')return;try{const r=solve(o,j.elements||[]);Object.assign(o,{geom:r.geom||null,st:r.st,note:r.note||''});}catch(e){Object.assign(o,{st:'no',note:'xato: '+e.message});}draw(o);});}
+    catch(e){objs.forEach(o=>{if(o.st!=='qo')Object.assign(o,{st:'no',note:'OSM server javob bermadi'});});$('msg').textContent=String(e.message||e);}
+    i++;$('prog').firstChild.style.width=(i/ts.length*100)+'%';renderList();}
+  const g=OBJ.filter(o=>o.geom);if(g.length)map.fitBounds(L.latLngBounds(g.flatMap(o=>o.geom)),{padding:[30,30]});
+  const c=k=>OBJ.filter(o=>o.st===k).length;
+  $('msg').textContent=`Tayyor: aniq ${c('ok')}, taxmin ${c('tx')}, qoʻlda ${c('qo')}, topilmadi ${c('no')}. Taxmin/topilmaganlarni roʻyxatdan tanlab «Qoʻlda chizish» bilan tuzating.`;
+  $('bRun').disabled=false;}
+$('bRun').onclick=run;
+
+/* ---------- GeoJSON ---------- */
+$('bExp').onclick=()=>{const fc={type:'FeatureCollection',name:'manzilli_royxat_522-14-0-Q-26',features:OBJ.filter(o=>o.geom).map(o=>({type:'Feature',
+    properties:{tr:o.n,tuman:TUM[o.t][0],tur:TYPES[o.k][0],obyekt:o.nm,mln_som:o.sum,uzunlik_m:Math.round(plen(o.geom)),mln_som_km:+(o.sum/plen(o.geom)*1000).toFixed(1),holat:ST[o.st],izoh:o.note},
+    geometry:{type:'LineString',coordinates:o.geom.map(p=>[+p[1].toFixed(6),+p[0].toFixed(6)])}}))};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(fc)],{type:'application/geo+json'}));a.download='manzilli-royxat.geojson';a.click();};
+$('bImp').onclick=()=>$('fImp').click();
+$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{const fc=JSON.parse(t);(fc.features||[]).forEach(ft=>{const o=OBJ.find(x=>x.n===ft.properties.tr);if(!o||!ft.geometry)return;
+    const st=Object.keys(ST).find(k=>ST[k]===ft.properties.holat)||'qo';Object.assign(o,{geom:ft.geometry.coordinates.map(c=>[c[1],c[0]]),st,note:ft.properties.izoh||''});});
+  saveManual();OBJ.forEach(draw);renderList();$('msg').textContent='GeoJSON yuklandi.';}).catch(err=>{$('msg').textContent='Fayl oʻqilmadi: '+err.message;});};
+
+loadManual();OBJ.forEach(draw);renderList();
+</script>
+</body>
+</html>

@@ -34,6 +34,8 @@ Koʻchalarni tahlil qilish va qayta loyihalash uchun brauzer asbobi — Toshkent
 
 **Dizayn-kod · peshlavha** (`dizaynkod.html`) — Toshkent dizayn-kodi (Kengash qarori 2026-yil 17-fevral, VII-19-17-14-0-K/26, 2-ilova, P2.3 §2) boʻyicha peshlavhani fasad rasmida tekshirish. 4 qadam: rasm → eshik (tekislash va masshtab eshik oʻlchami boʻyicha) → fasad chegaralari va qavatlar → viveska. Har bir talab boʻlim, bet va soʻzma-soʻz iqtibos bilan; xato boʻlsa «Tuzatish» tugmasi. Yaqinlashtirish, chizgʻichlar, oʻlcham chiziqlari, magnit, kunduzgi/kechki yoritish koʻrinishi. Qoidalar sahifa ichida JSON koʻrinishida (205 qoida); hujjatdagi noaniqliklar boʻyicha loyiha talqinlari (Q-01…Q-13) — rasmiy tushuntirish emas.
 
+**Manzilli roʻyxat** (`manzilli-royxat.html`) — Toshkent shahar hokimining 2026-yil 12-oktabrdagi 522-14-0-Q/26-son qaroriga 1-ilova (gavjum koʻcha, soyali sayr, festival koʻcha, sohil boʻyi — 56 obyekt) xaritada. Uchastkalar koʻcha nomi va kesishuvchi koʻcha/kanal/nomli obyekt boʻyicha OpenStreetMap'dan avtomatik topiladi («aniq» — ikki uchi koʻcha kesishmasi; «taxmin» — bozor, bekat va h.k. boʻyicha); notoʻgʻrisini qoʻlda chizib tuzatish, GeoJSON eksport/import, tur boʻyicha summa, km va mln soʻm/km.
+
 ## Tuzilishi
 
 ```
