@@ -191,6 +191,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 <nav class="steps stepsM" id="stepsM" aria-label="Loyiha qadamlari"></nav>
 
 <script src="js/params.js?v=2"></script>
+<script src="js/project.js?v=2"></script>
 <script>
 "use strict";
 /* Qadamlar: har bir boʻlim — mavjud sahifa. Bir sahifa bitta iframe'da yashaydi va qadamlar orasida yopilmaydi,
@@ -205,7 +206,7 @@ const STEPS=[
     {id:"qatlam", t:"Tahlil qatlamlari", page:"muharrir.html", tool:"tahlil", hint:"Asosiy oyna: hisoblangan tahlillar shu xaritada qatlam boʻlib turadi — yoqing, shaffofligini sozlang. Hisoblash — keyingi tablarda; natija avtomatik shu yerga keladi."},
     {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area", hint:"Sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi — hududni belgilab tahlil qiling."},
     {id:"gis", t:"Relyef · zichlik · tarmoqlar", page:"gis.html", hint:"Balandlik, nishablik, yer foydalanish, zichlik setkasi va muhandislik tarmoqlari — 1-qadamdagi hudud ichida. Yuklangan GIS qatlamlar tahlilni boyitadi."},
-    {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Loyiha binolarining taʼsiri — 4-qadam «Binolar → Shamol taʼsiri»."}]},
+    {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat va loyiha taʼsiri bir joyda: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Asosiy oynadagi binolar avtomatik qoʻshiladi — «Farq» koʻrinishida loyiha qayerda havo almashinuvini yomonlashtirishini koʻring."}]},
   {id:"kocha", t:"Koʻchalar", subs:[
     {id:"muharrir", t:"Koʻcha tarmogʻi", page:"muharrir.html", tool:"street", hint:"Asosiy oyna: koʻchalarni modullardan chizing — kvartallar avtomatik chiqadi. Batafsil koʻcha loyihasi va YHQ — «Koʻcha loyihasi · YHQ»."},
     {id:"loyiha", t:"Koʻcha loyihasi · YHQ", page:"studio.html", app:"design", hint:"Asosiy oynadagi koʻchalar shu yerga avtomatik keladi — kesim, YHQ tekshiruvi, belgilar va oʻtish joylari. Modul almashtirilsa, asosiy oynada ham almashadi."},
@@ -213,12 +214,11 @@ const STEPS=[
   {id:"bino", t:"Binolar", subs:[
     {id:"kvartal", t:"Kvartal va binolar", page:"muharrir.html", tool:"zone", hint:"Asosiy oyna: kvartallarga zona bering (Z), binolarni generatsiya qiling (G) yoki qoʻlda tahrirlang (B)."},
     {id:"tekshiruv", t:"Tekshiruv", page:"muharrir.html", tool:"tek", hint:"Asosiy oyna: soya, insolyatsiya, masofalar, shamol va 15 daqiqa linzalari — binoni bosing."},
-    {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."},
-    {id:"shamol", t:"Shamol taʼsiri", page:"shamol.html", hint:"Joylashtirishdagi binolar avtomatik qoʻshiladi. «Farq» — loyiha havo almashinuvini qayerda yomonlashtiradi. Binoni oʻzgartirsangiz, natija yangilanadi."}]},
+    {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."}]},
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="63";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="64";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -339,11 +339,11 @@ $("mrClose").onclick=()=>openDrawer(false);
    Boʻlimlar oʻz maʼlumotini umumiy brauzer kalitlariga yozadi. Faol loyiha — shu kalitlardagi holat.
    Loyiha almashtirilganda joriy holat «kps_projects» bazasiga nusxalanadi, tanlangan loyiha holati qaytariladi.
    Sozlamalar (til, AI kaliti, palitralar), saqlangan tahlillar kutubxonasi va 3D aktivlar umumiy qoladi. */
-const LS_KEYS=['kps_project','kps_params','kps_mr_doc','kps_mr_vars','kps_v1','kps_saves','kps_posadka','kps_posadka_sum','kps_area_sum','kps_ai_sites','kps_official','kps_mrp','kps_mrp_ext','kps_site','kps_site_seen_studio'];
+const LS_KEYS=KPSPRJ.LS_KEYS;   // roʻyxat js/project.js da — bosh sahifa ham shuni ishlatadi
 // albom, albom materiallari, yuklangan qatlamlar, saqlangan tahlillar va foydalanuvchi 3D modellari — hammasi loyihaga tegishli
-const IDB_ALL=[['kps_maket','docs'],['kps_mat','mats'],['kps_data','layers'],['kps_ai_runs','runs'],['kps_assets','a']];
+const IDB_ALL=KPSPRJ.IDB_ALL;
 const IDB_ONE=[];
-const IDB_OPT={kps_assets:{keyPath:'id',autoIncrement:true}};
+const IDB_OPT=KPSPRJ.IDB_OPT;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function idbOpen(name,store){return new Promise((res,rej)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>r.result.createObjectStore(store,IDB_OPT[name]||{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function idbTx(name,store,mode,fn){const db=await idbOpen(name,store);try{if(!db.objectStoreNames.contains(store))return mode==='readonly'?[]:null;
@@ -358,7 +358,12 @@ try{const v=JSON.parse(localStorage.getItem('kps_projects')||'null');if(v&&Array
 const saveReg=()=>{try{localStorage.setItem('kps_projects',JSON.stringify(REG));}catch(e){}};
 const newId=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const FRESH=!REG.list.length;   // birinchi tashrif: hali loyiha yoʻq
-if(!REG.active||!REG.list.find(x=>x.id===REG.active)){ const id=newId(); REG.list.push({id,name:P.name,t:new Date().toISOString()}); REG.active=id; saveReg(); }
+/* faol loyiha yoʻq (masalan bosh sahifada oʻchirilgan): ?p= boʻlsa — oʻsha loyiha ochiladi, aks holda yangi */
+let RESTORE_FIRST=null,JUST_NEW=false;
+if(!REG.active||!REG.list.find(x=>x.id===REG.active)){ const qp=new URLSearchParams(location.search).get('p');
+  if(qp&&REG.list.find(x=>x.id===qp)){ REG.active=qp; RESTORE_FIRST=qp; }
+  else{ const id=newId(); REG.list.push({id,name:REG.list.length?"Loyiha "+(REG.list.length+1):P.name,t:new Date().toISOString()}); REG.active=id; JUST_NEW=true; }
+  saveReg(); }
 const cur=()=>REG.list.find(x=>x.id===REG.active);
 
 async function collect(id){
@@ -507,7 +512,7 @@ $("helpBtn").onclick=()=>{const el=$("guide");if(!el.hidden){el.hidden=true;retu
 const FIND=[
  ["Shamol guli va yoʻnalishlar","shamol veter ветер wind roza роза yoʻnalish направление","hudud","chegara",null,"1-qadam natijasida «Shamol» boʻlimi"],
  ["Shamol: havo turib qoladigan joylar","shamol turgʻun застой ventilyatsiya вентиляция stagnation","tahlil","shamol",null,""],
- ["Binolarning shamolga taʼsiri","shamol bino taʼsir влияние ветер loyiha","bino","shamol",null,""],
+ ["Binolarning shamolga taʼsiri","shamol bino taʼsir влияние ветер loyiha","tahlil","shamol",null,"«Farq» koʻrinishi — loyiha binolari bilan"],
  ["Aholi va xonadonlar","aholi население population xonadon xoʻjalik домохозяйств household zichlik","hudud","chegara",null,"«Hisoblash» dan keyin oʻngda «Zichlik» boʻlimi"],
  ["Zichlik setkasi (FAR, aholi)","zichlik плотность density far setka сетка aholi","tahlil","gis","zich",""],
  ["Muhandislik tarmoqlari","muhandislik инженер utility tarmoq сети elektr электр gaz газ suv вод kanalizatsiya канализ quvur труб ariq арык issiqlik тепл","tahlil","gis","muh",""],
@@ -541,7 +546,8 @@ document.addEventListener("click",e=>{if(!e.target.closest(".gq"))$("gl").hidden
 (async function(){
   const q=new URLSearchParams(location.search);
   if(q.get("new")||q.get("p")){ history.replaceState(null,"",location.pathname+location.hash);
-    if(q.get("new")&&!FRESH){ await newProject(); return; }
+    if(RESTORE_FIRST){ await withCover(async()=>{ await restore(RESTORE_FIRST); }); return; }
+    if(q.get("new")&&!FRESH&&!JUST_NEW){ await newProject(); return; }
     if(q.get("p")&&q.get("p")!==REG.active){ await switchTo(q.get("p")); return; } }
   const h=location.hash.slice(1).split("-"); const i=STEPS.findIndex(s=>s.id===h[0]);
   if(i>=0){ const j=STEPS[i].subs.findIndex(u=>u.id===h[1]); show(i, j>=0?j:0); } else show(P.step||0);
