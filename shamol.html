@@ -16,7 +16,7 @@
 }
 html,body{height:100%;margin:0}
 body{background:var(--ground);color:var(--ink);font-family:var(--f-sans);font-size:14px}
-.app{display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:auto minmax(0,1fr);height:100%}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr);height:100%}
 header{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--paper)}
 .brand{font-family:var(--f-mono);letter-spacing:.14em;font-size:13px;font-weight:500}
 .crumb{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
@@ -66,6 +66,7 @@ details[open] summary{margin-bottom:10px}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .chk{display:flex;gap:8px;align-items:center;font-size:13px}
 @media (max-width:860px){ .app{grid-template-columns:1fr;grid-template-rows:auto 65vh auto;height:auto} aside{border-left:0;border-top:1px solid var(--rule)} }
+.v23{position:absolute;right:52px;bottom:30px;z-index:3;display:flex;background:#fff;border:1px solid var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.12)}.v23 button{width:40px;height:34px;border:0;border-left:1px solid #e4e2dc;background:none;font:600 12px var(--f-mono);cursor:pointer}.v23 button:first-child{border-left:0}.v23 button[aria-pressed=true]{background:var(--ink);color:#fff}
 </style>
 </head>
 <body>
@@ -236,7 +237,7 @@ const map=new maplibregl.Map({
   container:"map", style:KPSMAP.mlStyle({buildings:false}),
   center:[69.2797,41.3111], zoom:14, pitch:55, bearing:-20, maxPitch:75, antialias:true, preserveDrawingBuffer:true
 });
-map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"bottom-right");
 const KB=KPSMAP.maplibre(map,{buildings:false});   // umumiy fon xarita va xarita holati (js/basemap.js)
 map.on("error",e=>{ if(e && e.error && /style|tiles/i.test(String(e.error.message||""))) err("Asos xarita yuklanmadi: "+e.error.message); });
 let centerMarker=null;
@@ -571,7 +572,13 @@ $("rose").onclick=e=>{ const el=e.target.closest("[data-k]"); if(!el||!S.Pb) ret
 $("btnProbe").onclick=()=>{ S.probeMode=!S.probeMode; $("btnProbe").setAttribute("aria-pressed",S.probeMode); $("btnProbe").classList.toggle("solid",S.probeMode);
   if(S.probeMode && S.addMode) $("btnAdd").click(); map.getCanvas().style.cursor=S.probeMode?"help":""; };
 seg("segView",VIEWS,"view",()=>{ if(S.grid){ renderHeat(); renderBuildings(); renderLegend(); } });
-$("chk3d").onchange=()=>{ map.setPaintProperty("bld","fill-extrusion-height",$("chk3d").checked?["get","h"]:0); map.easeTo({pitch:$("chk3d").checked?55:0}); };
+$("chk3d").onchange=()=>{ map.setPaintProperty("bld","fill-extrusion-height",$("chk3d").checked?["get","h"]:0); map.easeTo({pitch:$("chk3d").checked?55:0}); sync2d3d(); };
+/* xarita ustida 2D / 3D — boshqa tahlil oynalaridagi kabi pastki o'ngda */
+function sync2d3d(){ document.querySelectorAll("#v23 button").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.v==="3")===$("chk3d").checked))); }
+(()=>{ const d=document.createElement("div"); d.id="v23"; d.className="v23"; d.innerHTML='<button data-v="2">2D</button><button data-v="3">3D</button>';
+  document.getElementById("map").parentElement.appendChild(d);
+  d.onclick=e=>{ const b=e.target.closest("[data-v]"); if(!b) return; const want=b.dataset.v==="3"; if($("chk3d").checked!==want){ $("chk3d").checked=want; $("chk3d").onchange(); } };
+  sync2d3d(); })();
 $("btnAdd").onclick=()=>{ S.addMode=!S.addMode; $("btnAdd").setAttribute("aria-pressed",S.addMode); $("btnAdd").classList.toggle("solid",S.addMode); map.getCanvas().style.cursor=S.addMode?"crosshair":""; };
 $("btnClear").onclick=()=>{ S.towers=[]; towersChanged(); };
 $("towerTable").onclick=e=>{ const b=e.target.closest("button[data-del]"); if(!b) return; S.towers=S.towers.filter(t=>t.id!==+b.dataset.del); towersChanged(); };
@@ -933,6 +940,9 @@ function applySite(){
   const hk=String(Math.round(rmax/10)/100).replace('.',','),rks=String(rk).replace('.',',');
   $("loadStatus").textContent=`Hudud 1-qadamdan olindi (radiusi ≈ ${hk} km). Shamol hisobi ${rks} km: hudud + 150 m bufer — chetdagi binolar ham oqimga taʼsir qiladi. «Binolar va shamolni yuklash» ni bosing.`;
 }
+/* loyiha ichida: tab birinchi marta ochilganda hudud tayyor bo'lsa, binolar va shamol o'zi yuklanadi (Hudud bahosi bilan bir xil) */
+if(document.documentElement.classList.contains("kps-embed")){ let s0=null; try{ s0=JSON.parse(localStorage.getItem("kps_site")||"null"); }catch(e){}
+  if(s0&&s0.ring&&s0.ring.length>2){ let n=0; const t=setInterval(()=>{ const b=$("btnLoad"); if(b&&!b.disabled&&(map.isStyleLoaded()||n>6)){ clearInterval(t); b.click(); } else if(++n>40) clearInterval(t); },500); } }
 applySite();
 window.addEventListener("storage",e=>{ if(e.key==="kps_site") applySite(); });
 /* 4-qadam («Binolar → Joylashtirish») binolari loyiha holatiga avtomatik qoʻshiladi.

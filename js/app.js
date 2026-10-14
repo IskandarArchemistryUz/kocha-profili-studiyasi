@@ -2937,7 +2937,7 @@ function openHelp(){const m=document.getElementById('helpModal');const g=guideHT
 document.getElementById('helpBtn').onclick=openHelp;document.getElementById('helpClose').onclick=()=>document.getElementById('helpModal').hidden=true;
 document.getElementById('helpModal').addEventListener('mousedown',e=>{if(e.target.id==='helpModal')e.currentTarget.hidden=true;});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('helpModal').hidden=true;});
-if(!S.helpSeen){S.helpSeen=1;save();setTimeout(openHelp,600);}
+if(!S.helpSeen&&!document.documentElement.classList.contains('kps-embed')){S.helpSeen=1;save();setTimeout(openHelp,600);}
 
 
 {const _ree=renderEditor;renderEditor=function(){_ree();if(stripsG&&S.app==='prof')drawPlanStrips(stripsG);};}
