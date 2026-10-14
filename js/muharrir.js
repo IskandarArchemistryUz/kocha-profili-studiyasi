@@ -439,6 +439,7 @@ function draw(){
     const sel=sb===b;r.blds.forEach(x=>bf.push(Object.assign({},x.f,{properties:{h:x.fl*MRGEN.FH,fl:x.fl,c:BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched}})));});
   if(sbl&&!bldRec(sbl.zid,sbl.bid))S.sel=null;
   map.getSource('blds').setData(FC(bf));
+  pubSoon();
   const sbo=S.sel&&S.sel.t==='bl'&&bldRec(S.sel.zid,S.sel.bid);
   map.getSource('bsel').setData(FC(sb?[turf.polygonToLine(sb.f)]:sbo?[turf.polygonToLine(sbo.b.f)]:[]));
   renderNb();renderLensMap();
@@ -456,6 +457,21 @@ function renderNb(){const src=map.getSource('nbp');if(!src)return;const n=S.nb;
 function renderUndo(){$('#undo').disabled=!H.u.length;$('#redo').disabled=!H.r.length;}
 
 /* ---------- TEP ---------- */
+/* asosiy oyna binolari — boshqa boʻlimlar uchun yagona manba (js/project.js): Master reja koʻrsatkichlari, Shamol taʼsiri, Hudud bahosi */
+const USE={turar:['res',null],aralash:['res','com'],savdo:['com',null],ijtimoiy:['soc',null]};
+let PUBT=0,PUBK='';
+function pubSoon(){clearTimeout(PUBT);PUBT=setTimeout(pubNow,700);}
+function pubNow(){if(!window.KPSPRJ)return;
+  const ll=c=>[+c[1].toFixed(7),+c[0].toFixed(7)],ring=cs=>{const r=cs.map(ll);if(r.length>1&&r[0][0]===r[r.length-1][0]&&r[0][1]===r[r.length-1][1])r.pop();return r;};
+  const blds=[];let sell=0,res=0,maxH=0;
+  BLK.forEach(b=>{if(!b.r||!b.z)return;const u=USE[b.z.z]||['oth',null],sh=RES_SHARE[b.z.z]||0;res+=b.r.gfa*sh;sell+=b.r.gfa*sh*KP.get('netGross');
+    b.r.blds.forEach(x=>{const g=x.f&&x.f.geometry;if(!g)return;blds.push({poly:ring(g.coordinates[0]),fl:x.fl,use:u[0],gf:u[1]||undefined,ph:1});maxH=Math.max(maxH,x.fl*MRGEN.FH);});});
+  const k=kpis(),siteM2=k.siteHa?k.siteHa*1e4:null;
+  const P={src:'mr',site:SITE?ring(SITE):null,p:{fh:MRGEN.FH},blds,greens:[],parks:[]};
+  const tep={src:'mr',name:'Master reja',siteHa:k.siteHa,fp:k.fp||0,gfa:k.gfa||0,res,nonres:(k.gfa||0)-res,far:siteM2?(k.gfa||0)/siteM2:0,cov:siteM2?(k.fp||0)/siteM2*100:0,
+    green:(k.zha&&k.zha.yashil||0)*1e4,gr:k.greenPct||0,na:Math.round(k.kv||0),pop:Math.round(k.pop||0),sell,apts:[],parkHave:null,parkNeed:null,maxH,avgFl:k.flAvg||0,insMin:null,minDist:null,blds:blds.length};
+  const key=JSON.stringify([P,tep]);if(key===PUBK)return;PUBK=key;
+  P.t=tep.t=Date.now();KPSPRJ.publishMr(P,tep);}
 function kpis(){
   const out={};
   out.siteHa=SITE?turf.area(turf.polygon([SITE]))/1e4:null;

@@ -6,6 +6,7 @@
 <title>Master reja — Archemistry Lab</title>
 <script src="js/params.js?v=2"></script>
 <script src="js/beta.js?v=15"></script>
+<script src="js/project.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -46,8 +47,8 @@ table{width:100%;border-collapse:collapse}td{padding:6px 4px;border-top:1px soli
 <button class="btn ghost" id="aiBtn">AI xulosa</button><button class="btn dark" id="allAlb">Hammasini albomga →</button>
 </header>
 <main><aside>
-<div><h1>Master reja · hisob paneli</h1><div class="sub0">Master reja uchun portal hisoblay oladigan koʻrsatkichlar bir joyda. Maʼlumot Joylashtirish va Hudud tahlili boʻlimlaridan avtomatik olinadi.</div></div>
-<div><div class="lbl">Manbalar</div><div id="src"></div><div style="display:flex;gap:6px;margin-top:8px"><a class="btn sm ghost" href="posadka.html">Joylashtirish ↗</a><a class="btn sm ghost" href="ai.html">Hudud tahlili ↗</a></div></div>
+<div><h1>Master reja · hisob paneli</h1><div class="sub0">Master reja uchun portal hisoblay oladigan koʻrsatkichlar bir joyda. Maʼlumot Binolar (asosiy oyna yoki Uchastkada joylashtirish) va Hudud bahosi boʻlimlaridan avtomatik olinadi.</div></div>
+<div><div class="lbl">Manbalar</div><div id="src"></div><div style="display:flex;gap:6px;margin-top:8px"><a class="btn sm ghost" href="muharrir.html#bino">Binolar ↗</a><a class="btn sm ghost" href="ai.html">Hudud bahosi ↗</a></div></div>
 <div><div class="lbl">Chegaraviy qiymatlar</div><div id="thr"></div><div class="note" style="margin-top:6px">Boshlangʻich qiymatlar Urbanizatsiya qoʻmitasi master-reja shablonidan (ShNQ 2.07.01-23: zichlik §84, yashash maydoni §61, yashillik §§86, 474, avtoturargoh §416, uy-joy zichligi §82, 3-jadval, insolyatsiya §78, bekat §382, maktab/bogʻcha 38-jadval; UMN — bosh reja boʻyicha). Loyihaga qarab oʻzgartiring.</div></div>
 <div><div class="lbl">AI xulosa</div><div id="aiOut" hidden></div><div class="note">Yuqoridagi «AI xulosa» tugmasi barcha hisoblar asosida qisqa xulosa va SWOT yozadi (kalit Hudud tahlili sahifasida kiritiladi).</div></div>
 </aside><div id="cards"></div></main>
@@ -73,7 +74,8 @@ let I=Object.assign(JSON.parse(JSON.stringify(DEFI)),J('kps_mrp')||{});I.thr=Obj
 const saveI=()=>{try{localStorage.setItem('kps_mrp',JSON.stringify(I));}catch(e){}};
 let EXT=J('kps_mrp_ext')||{};const saveE=()=>{try{localStorage.setItem('kps_mrp_ext',JSON.stringify(EXT));}catch(e){}};
 /* manbalar */
-function src(){const P=J('kps_posadka'),PS=J('kps_posadka_sum'),A=J('kps_area_sum');return {P,PS,A};}
+/* binolar: asosiy oyna (Master reja) yoki «Uchastkada joylashtirish» — js/project.js */
+function src(){const B=window.KPSPRJ?KPSPRJ.buildings():{P:J('kps_posadka')},P=B.P,PS=window.KPSPRJ?KPSPRJ.summary():J('kps_posadka_sum'),A=J('kps_area_sum');return {P,PS,A};}
 function geo(P){const lat=P&&P.site?P.site.reduce((a,p)=>a+p[0],0)/P.site.length:P&&P.blds&&P.blds[0]?P.blds[0].poly[0][0]:41.31,MX=111320*Math.cos(lat*R),MY=110574;
   const area=poly=>{const a=poly.map(p=>[p[1]*MX,p[0]*MY]);let s=0;for(let i=0;i<a.length;i++){const j=(i+1)%a.length;s+=a[i][0]*a[j][1]-a[j][0]*a[i][1];}return Math.abs(s)/2;};return {lat,MX,MY,area};}
 /* ---- asosiy hisob ---- */
@@ -100,8 +102,8 @@ const CARDS=[];const card=(id,t,ref,fn)=>CARDS.push({id,t,ref,fn});
 const inp=(k,lbl,ph,u,sub)=>`<label class="in"><span>${lbl}</span><span class="iw"><input data-i="${sub?sub+'.':''}${k}" value="${esc(sub?I[sub][k]:I[k])}" placeholder="${esc(ph||'')}">${u?`<em>${u}</em>`:''}</span></label>`;
 const row=(l,v,u,norm,ok,note)=>({l,v,u,norm,ok,note});
 const naNote=rows=>{const c=(rows||[]).filter(x=>x.norm),na=c.filter(x=>x.ok==null).length;return na?`<div class="nachk">${c.length-na} / ${c.length} meʼyor tekshirildi · ${na} tasi uchun maʼlumot yetarli emas (?)</div>`:'';};
-card('tik','Umumiy texnik-iqtisodiy koʻrsatkichlar','Joylashtirish boʻlimidan',o=>{if(!o.PS)return {empty:'Avval «Binolarni joylashtirish» boʻlimida uchastka va binolarni chizing.',link:['posadka.html','Joylashtirishni ochish']};const T=I.thr;
-  return {note:o.site==null?'Uchastka chegarasi chizilmagan — UMN, zichlik va yashillik tekshirilmaydi.':null,link:o.site==null?['posadka.html','Uchastkani chizish']:null,inputs:`<label class="in" title="${esc(KP.meta('hh').src)}"><span>Kishi / kvartira ◆</span><span class="iw"><input data-kp="hh" value="${esc(KP.fmt(KP.get('hh')))}"></span></label><div class="note" style="grid-column:1/-1">◆ loyiha parametri, barcha qadamlarda bir xil · ${esc(KP.meta('hh').src)}</div>`,rows:[row('Uchastka maydoni',o.site,'ga'),row('Qurilish dogʻi · qoplami',fmt(o.fp)+' m² · '+fmt(o.cov)+' %',''),row('Umumiy qavatlar maydoni',o.gfa,'m²'),
+card('tik','Umumiy texnik-iqtisodiy koʻrsatkichlar','Binolar bosqichidan',o=>{if(!o.PS)return {empty:'Avval «Binolar» bosqichida kvartallarga zona bering va binolarni generatsiya qiling (yoki «Uchastkada joylashtirish»).',link:['muharrir.html#bino','Binolar bosqichini ochish']};const T=I.thr;
+  return {note:o.site==null?'Uchastka chegarasi chizilmagan — UMN, zichlik va yashillik tekshirilmaydi.':null,link:o.site==null?['muharrir.html','Hudud chegarasini chizish']:null,inputs:`<label class="in" title="${esc(KP.meta('hh').src)}"><span>Kishi / kvartira ◆</span><span class="iw"><input data-kp="hh" value="${esc(KP.fmt(KP.get('hh')))}"></span></label><div class="note" style="grid-column:1/-1">◆ loyiha parametri, barcha qadamlarda bir xil · ${esc(KP.meta('hh').src)}</div>`,rows:[row('Uchastka maydoni',o.site,'ga'),row('Qurilish dogʻi · qoplami',fmt(o.fp)+' m² · '+fmt(o.cov)+' %',''),row('Umumiy qavatlar maydoni',o.gfa,'m²'),
     row('UMN (FAR)',o.far,'','≤ '+fmt(+T.far),chk(o.far,'<=',+T.far)),row('Uy-joy fondi zichligi',o.ujz,'m²/ga',`${fmt(+T.ujz1)}–${fmt(+T.ujz2)}`,chk(o.ujz,'in',[+T.ujz1,+T.ujz2])),row('Kvartiralar',o.kv,'ta'),row('Loyiha aholisi',o.aholi,'kishi'),
     row('Aholi zichligi',o.zich,'kishi/ga','≤ '+fmt(+T.zich),chk(o.zich,'<=',+T.zich)),row('Yashash maydoni kishiga',o.m2k,'m²','≥ '+fmt(+T.m2k),chk(o.m2k,'>=',+T.m2k)),row('Yashillik',o.gr,'%','≥ '+fmt(+T.yash),chk(o.gr,'>=',+T.yash)),
     row('Avtoturargoh',o.pkv,'joy/kv','≥ '+fmt(+T.park),chk(o.pkv,'>=',+T.park))]};});
@@ -156,7 +158,7 @@ function roseSVG(rose){if(!rose)return '';const cx=110,cy=110,Rr=85,mx=Math.max(
     ${[0,4,8,12].map(i=>{const a=i*22.5*R;return `<text x="${cx+(Rr+12)*Math.sin(a)}" y="${cy+14-(Rr+12)*Math.cos(a)}" font-size="11" text-anchor="middle" fill="#141414">${uz[i]}</text>`;}).join('')}<text x="${cx}" y="${cy+14}" font-size="9" text-anchor="middle" fill="#696969">maks. ${fmt(mx)}%</text></svg>`;}
 KP.migrate('hh',(typeof I!=='undefined'&&I.kpk)||'',3.2);KP.on(()=>{try{render();}catch(e){}});
 function render(){const o=calc(),{PS,A}=o;
-  $('#src').innerHTML=`<span class="${PS?'on':''}">Joylashtirish: ${PS?esc(PS.name||'')+' · '+new Date(PS.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span><span class="${A?'on':''}">Hudud tahlili: ${A?esc(A.mode||'')+' · '+new Date(A.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span>`;
+  $('#src').innerHTML=`<span class="${PS?'on':''}">Binolar: ${PS?esc(PS.name||'')+' · '+new Date(PS.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span><span class="${A?'on':''}">Hudud tahlili: ${A?esc(A.mode||'')+' · '+new Date(A.t).toLocaleDateString('ru-RU'):'hisob yoʻq'}</span>`;
   $('#cards').innerHTML=CARDS.map(c=>cardHTML(c,o)).join('');
   document.querySelectorAll('[data-i]').forEach(i=>i.onchange=()=>{const [a,b]=i.dataset.i.split('.');const v=i.value.trim().replace(/\s/g,'').replace(',','.');if(b)I[a][b]=v;else I[a]=v;saveI();render();});
   document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>ACT[b.dataset.act](b));document.querySelectorAll('[data-alb]').forEach(b=>b.onclick=()=>toAlbum([b.dataset.alb]));
@@ -210,7 +212,7 @@ $('#aiBtn').onclick=async()=>{const key=localStorage.getItem('kps_ai_key');if(!k
     body:JSON.stringify({model:localStorage.getItem('kps_ai_model')||'claude-sonnet-5',max_tokens:1500,system:'Sen Oʻzbekistondagi master-reja boʻyicha urbanist-maslahatchisan. Oʻzbek (lotin) tilida, qisqa yoz. Faqat berilgan raqamlarga tayan, yangi raqam yoki normativ band oʻylab topma.'+(window.KPS_LANG==='ru'?' Отвечай на русском языке.':window.KPS_LANG==='en'?' Answer in English.':''),messages:[{role:'user',content:'Quyidagi koʻrsatkichlar asosida master-reja uchun qisqa xulosa, SWOT va asoslash kerak boʻlgan joylarni yoz:\n\n'+facts}]})});
     const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);EXT.ai=(j.content||[]).map(c=>c.text||'').join('').trim();saveE();showAI();}catch(e){toast('AI xatosi: '+e.message);}b.disabled=false;b.textContent='AI xulosa';};
 function showAI(){$('#aiOut').hidden=!EXT.ai;$('#aiOut').textContent=EXT.ai||'';}
-window.addEventListener('storage',e=>{if(/^kps_(posadka_sum|area_sum|posadka)$/.test(e.key))render();});
+window.addEventListener('storage',e=>{if(/^kps_(posadka_sum|area_sum|posadka|mr_blds|mr_tep)$/.test(e.key))render();});
 render();showAI();
 })();
 </script>

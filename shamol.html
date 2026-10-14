@@ -192,6 +192,7 @@ details[open] summary{margin-bottom:10px}
 
 <script src="js/basemap.js?v=1"></script>
 <script src="js/layerbus.js?v=1"></script>
+<script src="js/project.js?v=1"></script>
 <script>
 /* xarita kutubxonasini bir nechta manbadan yuklash; hech biri ochilmasa — tushunarli xabar */
 (function(){
@@ -938,7 +939,8 @@ window.addEventListener("storage",e=>{ if(e.key==="kps_site") applySite(); });
    Uchastka ichidagi mavjud OSM binolari loyiha holatida buzilgan deb olinadi. */
 function syncPosadka(){
   if(!S.grid) return;
-  let z=null; try{ z=JSON.parse(localStorage.getItem("kps_posadka")||"null"); }catch(e){}
+  /* loyiha binolari: asosiy oyna (Master reja) yoki «Uchastkada joylashtirish» — js/project.js */
+  const SRC=window.KPSPRJ?KPSPRJ.buildings():{P:(()=>{try{return JSON.parse(localStorage.getItem("kps_posadka")||"null");}catch(e){return null;}})()}; const z=SRC.P;
   const blds=(z&&z.blds)||[], site=(z&&z.site&&z.site.length>2)?z.site:null;
   const key=JSON.stringify([blds.map(b=>[b.poly,b.fl]),site]); if(key===S.pzKey) return; S.pzKey=key;
   const p=P(), fh=(z&&z.p&&+z.p.fh)||p.floorH;
@@ -946,11 +948,11 @@ function syncPosadka(){
   const sp=site?site.map(q=>toXY(q[1],q[0])):null; let nd=0;
   S.base.forEach(b=>{ let cx=0,cy=0; b.pts.forEach(q=>{cx+=q[0];cy+=q[1];}); cx/=b.pts.length; cy/=b.pts.length; b._demol=!!(sp&&inPoly(cx,cy,sp)); if(b._demol) nd++; });
   $("pzStatus").innerHTML = blds.length
-    ? `<b>4-qadamdan: ${blds.length} ta bino</b> loyiha holatiga qoʻshildi${nd?` · uchastkadagi ${nd} ta mavjud bino buziladi deb olindi`:""}. «Farq» koʻrinishida taʼsirini koʻring.`
+    ? `<b>${SRC.name||"Binolar"}: ${blds.length} ta bino</b> loyiha holatiga qoʻshildi${nd?` · uchastkadagi ${nd} ta mavjud bino buziladi deb olindi`:""}. «Farq» koʻrinishida taʼsirini koʻring.`
     : "4-qadamda («Binolar») qoʻyilgan binolar shu yerga avtomatik tushadi.";
   towersChanged();
 }
-window.addEventListener("storage",e=>{ if(e.key==="kps_posadka") syncPosadka(); });
+window.addEventListener("storage",e=>{ if(e.key==="kps_posadka"||e.key==="kps_mr_blds") syncPosadka(); });
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) syncPosadka(); });
 setInterval(()=>{ if(!document.hidden&&S.grid) syncPosadka(); },3000);
 /* albomga: joriy 3D koʻrinish (+ afsona) va 3D oqim tik kesimi */
