@@ -101,7 +101,7 @@ let K=78271.517;   // metr → piksel: px = m · 2^z / (78271,517 · cos φ)
 const mpx=(prop,min)=>{const v=z=>['/',['*',['get',prop],2**z],K];const w=z=>min?['max',min,v(z)]:v(z);return ['interpolate',['exponential',2],['zoom'],10,w(10),24,w(24)];};
 
 function addLayers(){
-  ['site','blocks','bsel','corr','road','sel','nodes','prev','blds','nbp','shadow','insp','dist','windc'].forEach(id=>map.addSource(id,{type:'geojson',data:FC()}));
+  ['site','blocks','bsel','corr','road','sel','nodes','prev','blds','nbp','shadow','insp','dist','windc','walk'].forEach(id=>map.addSource(id,{type:'geojson',data:FC()}));
   map.addLayer({id:'blocks-fill',type:'fill',source:'blocks',paint:{'fill-color':['get','c'],'fill-opacity':['case',['get','z'],.78,.35]}});
   map.addLayer({id:'blocks-line',type:'line',source:'blocks',paint:{'line-color':'#111','line-width':.8,'line-opacity':.45}});
   map.addLayer({id:'corr-fill',type:'fill',source:'corr',paint:{'fill-color':'#e4d9c3','fill-opacity':.92}});
@@ -121,6 +121,7 @@ function addLayers(){
   map.addLayer({id:'blds-line',type:'line',source:'blds',paint:{'line-color':'#111','line-width':.9,'line-opacity':['case',['==',['get','__p'],1],0,.85]}});
   map.addLayer({id:'dist',type:'line',source:'dist',paint:{'line-color':['get','c'],'line-width':1.8,'line-dasharray':[3,2]}});
   map.addLayer({id:'insp',type:'circle',source:'insp',paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,2,17,5],'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':['interpolate',['linear'],['zoom'],14,0,16,1]}});
+  map.addLayer({id:'walk',type:'circle',source:'walk',paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,3,17,7],'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':1.2}});
   map.addLayer({id:'nbp-fill',type:'fill',source:'nbp',paint:{'fill-color':['case',['get','ok'],'#7fb0e0','#e8998c'],'fill-opacity':.55}});
   map.addLayer({id:'nbp-line',type:'line',source:'nbp',paint:{'line-color':'#2a6fb0','line-width':1.6,'line-dasharray':[3,2]}});
   map.addLayer({id:'nodes',type:'circle',source:'nodes',paint:{'circle-radius':['case',['get','s'],7,5],'circle-color':['case',['get','s'],'#2a6fb0',['>=',['get','d'],3],'#111','#fff'],'circle-stroke-color':['case',['get','s'],'#fff','#111'],'circle-stroke-width':1.5}});
@@ -227,7 +228,7 @@ function bldOp(op,v){if(!S.sel||S.sel.t!=='bl')return;const {zid,bid}=S.sel;
   else if(op==='dup')editBld(zid,bid,(x,rec)=>{const f=polyOf(x),br=MRGEN.mainBearing(f)+90;
     const d=Math.min(60,Math.sqrt(turf.area(f))*.8+8);const n={id:rec.bn++,cs:cs7(turf.transformTranslate(f,d,br,{units:'meters'}).geometry.coordinates),fl:x.fl};rec.blds.push(n);S.sel={t:'bl',zid,bid:n.id};});}
 /* ---------- 5-bosqich: tekshiruv linzalari ---------- */
-const LENS=(()=>{try{return Object.assign({sh:false,ins:false,dist:false,wind:false},JSON.parse(localStorage.getItem('kps_mr_lens')||'{}'));}catch(_){return {sh:false,ins:false,dist:false};}})();
+const LENS=(()=>{try{return Object.assign({sh:false,ins:false,dist:false,wind:false,walk:false,wt:'ijtimoiy'},JSON.parse(localStorage.getItem('kps_mr_lens')||'{}'));}catch(_){return {sh:false,ins:false,dist:false};}})();
 const saveLens=()=>{try{localStorage.setItem('kps_mr_lens',JSON.stringify(LENS));}catch(_){}};
 const BLANK=(()=>{const c=document.createElement('canvas');c.width=c.height=1;return c.toDataURL();})();
 /* shamol linzasi: ERA5 shamol guli + VENT indeksi (shamol boʻlimidagi model) */
@@ -267,6 +268,35 @@ function roseSVG(R){const c=58,rm=48,mx=Math.max(...R.freq,.01),pt=(a,r)=>`${(c+
     s+=`<polygon data-wd="${k}" points="${pt(a0,6)} ${pt(a0,rm)} ${pt(a1,rm)} ${pt(a1,6)}" fill="transparent" style="cursor:pointer"><title>${VENT.NAMES[k]} ${Math.round(R.freq[k]*100)} %</title></polygon><polygon points="${pt(a0,9)} ${pt(a0,rr)} ${pt(a1,rr)} ${pt(a1,9)}" fill="${k===sel?'#c2432b':'#1d1b18'}" fill-opacity="${k===sel?1:.7}" pointer-events="none"/>`;}
   [['N',c,8],['E',111,c+3],['S',c,114],['W',5,c+3]].forEach(([t,x,y])=>s+=`<text x="${x}" y="${y}" text-anchor="middle" font-size="8" font-family="IBM Plex Mono,monospace" fill="#6f6a61">${t}</text>`);
   return s+'</svg>';}
+/* 15 daqiqa: koʻcha tarmogʻi (oʻqlar) boʻylab piyoda masofa — turar joy binosidan maqsad zonadagi eng yaqin kvartalgacha */
+const WT=[{k:'ijtimoiy',n:'Ijtimoiy (maktab, bogʻcha)',z:['ijtimoiy']},{k:'yashil',n:'Park (yashil hudud)',z:['yashil']},{k:'savdo',n:'Savdo (savdo + aralash)',z:['savdo','aralash']}];
+const WBIN=[[5,'#1a7f4b'],[10,'#7fb24a'],[15,'#e0b13a'],[Infinity,'#c2432b']];
+const minCol=m=>m==null?'#8a857c':WBIN.find(b=>m<=b[0])[1];
+let WALK=null;
+function walkCalc(){const o=origin(),F=MRCHK.frame(o[1],o[0]),sp=(KP.get('speed')||5)*1000/60;   // m/daqiqa
+  const NX=new Map(D.nodes.map(n=>[n.id,F.xy(n.ll)]));const E=[];D.edges.forEach(e=>{const A=NX.get(e.a),B=NX.get(e.b);if(A&&B)E.push({a:e.a,b:e.b,A,B,len:Math.hypot(B[0]-A[0],B[1]-A[1])});});
+  if(!E.length)return null;const adj=new Map();E.forEach(x=>{[[x.a,x.b],[x.b,x.a]].forEach(([u,v])=>{if(!adj.has(u))adj.set(u,[]);adj.get(u).push([v,x.len]);});});
+  const snap=p=>{let best=null;E.forEach((x,k)=>{const dx=x.B[0]-x.A[0],dy=x.B[1]-x.A[1],l=dx*dx+dy*dy;let t=l?((p[0]-x.A[0])*dx+(p[1]-x.A[1])*dy)/l:0;t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(p[0]-(x.A[0]+t*dx),p[1]-(x.A[1]+t*dy));if(!best||d<best.d)best={k,t,d};});return best;};
+  const res=[];BLK.forEach(b=>{if(!b.r||!(RES_SHARE[b.z.z]>0))return;b.r.blds.forEach(x=>{const c=turf.centroid(x.f).geometry.coordinates;res.push({zid:b.z.id,bid:x.id,z:b.z.z,ll:c,s:snap(F.xy(c)),pop:bldPop(b,x)});});});
+  const out={sp,res,t:{}};
+  WT.forEach(tg=>{const T=BLK.filter(b=>b.z&&tg.z.includes(b.z.z));const dist=new Map(),onEdge=new Map();
+    /* manbalar: maqsad kvartal chegarasi boʻylab har 20 m dagi nuqtalar, eng yaqin koʻcha oʻqiga ulanadi */
+    T.forEach(b=>{const ring=b.f.geometry.coordinates[0],L=turf.length(turf.lineString(ring),{units:'meters'}),n=Math.max(4,Math.round(L/20));
+      for(let i=0;i<n;i++){const p=F.xy(turf.along(turf.lineString(ring),L*i/n,{units:'meters'}).geometry.coordinates),s=snap(p);if(!s||s.d>60)continue;const x=E[s.k];
+        [[x.a,s.d+s.t*x.len],[x.b,s.d+(1-s.t)*x.len]].forEach(([u,c])=>{if(!(dist.get(u)<=c))dist.set(u,c);});
+        if(!onEdge.has(s.k))onEdge.set(s.k,[]);onEdge.get(s.k).push(s);}});
+    /* Dijkstra (tugunlar soni kichik — oddiy navbat) */
+    const done=new Set();for(;;){let u=null,du=Infinity;dist.forEach((d,k)=>{if(!done.has(k)&&d<du){du=d;u=k;}});if(u==null)break;done.add(u);
+      (adj.get(u)||[]).forEach(([v,l])=>{if(!(dist.get(v)<=du+l))dist.set(v,du+l);});}
+    const tz=new Set(T.map(b=>b.z.id));
+    out.t[tg.k]=res.map(r=>{if(!T.length)return null;if(tz.has(r.zid)||tg.z.includes(r.z))return 0;const s=r.s;if(!s)return null;const x=E[s.k];
+      let m=Math.min((dist.get(x.a)??Infinity)+s.t*x.len,(dist.get(x.b)??Infinity)+(1-s.t)*x.len);
+      (onEdge.get(s.k)||[]).forEach(q=>{m=Math.min(m,q.d+Math.abs(q.t-s.t)*x.len);});
+      return isFinite(m)?(m+s.d)/sp:null;});
+    const P=res.reduce((a,r)=>a+r.pop,0)||1;out.t[tg.k].share=[5,10,15].map(th=>res.reduce((a,r,i)=>a+(out.t[tg.k][i]!=null&&out.t[tg.k][i]<=th?r.pop:0),0)/P);
+    out.t[tg.k].none=!T.length;});
+  return out;}
 let HR=11,PLAY=0,SHK='',INS=null,INSK='',INST=0,DST=null;
 const chk=()=>D.chk||(D.chk=CHK0());
 function origin(){if(SITE){const c=turf.center(turf.polygon([SITE])).geometry.coordinates;return c;}const b=BLK.find(b=>b.r);return b?b.c:(D.nodes[0]||{ll:[69.28,41.31]}).ll;}
@@ -287,6 +317,10 @@ function renderLensMap(){if(!map.getSource('shadow'))return;const L=bldList(),o=
     if(k!==INSK&&!busy()){INSK=k;INS=null;clearTimeout(INST);INST=setTimeout(()=>{const t0=performance.now();const r=MRCHK.insolation(L,F,{md:c.md,lat:o[1],lng:o[0],wz:c.wz,step:c.step});r.L=L;r.ms=performance.now()-t0;INS=r;paintIns();renderPanel();renderLens();},250);}
     paintIns();}
   else{INSK='';INS=null;map.getSource('insp').setData(FC());}
+  /* 15 daqiqa */
+  if(LENS.walk){if(!busy())WALK=walkCalc();const M=WALK&&WALK.t[LENS.wt];
+    map.getSource('walk').setData(FC(WALK?WALK.res.map((r,i)=>({type:'Feature',properties:{c:minCol(M?M[i]:null)},geometry:{type:'Point',coordinates:r.ll}})):[]));}
+  else{WALK=null;map.getSource('walk').setData(FC());}
   /* shamol */
   const wl=map.getLayer('wind');
   if(LENS.wind){ensureRose();const w=windW();
@@ -307,7 +341,7 @@ function renderLens(){const el=$('#lens');if(!el)return;const c=chk(),o=origin()
   if(sr!=null)HR=Math.min(Math.max(HR,Math.ceil(sr*4)/4),Math.floor(ss*4)/4);
   const tg=(k,n)=>`<button data-lens="${k}" aria-pressed="${!!LENS[k]}">${esc(T(n))}</button>`;
   const D8=[['02-22','22 fevral'],['03-22','22 mart'],['04-22','22 aprel'],['06-22','22 iyun'],['08-22','22 avgust'],['09-22','22 sentabr'],['12-22','22 dekabr']];
-  let h=`<div class="seg lseg" role="group" aria-label="${esc(T('Linzalar'))}">${tg('sh','Soya')}${tg('ins','Insolyatsiya')}${tg('dist','Masofalar')}${tg('wind','Shamol')}</div>
+  let h=`<div class="seg lseg" role="group" aria-label="${esc(T('Linzalar'))}">${tg('sh','Soya')}${tg('ins','Insolyatsiya')}${tg('dist','Masofalar')}${tg('wind','Shamol')}${tg('walk','15 daqiqa')}</div>
     <label class="rng" style="margin-top:8px"><span>${esc(T('Sana'))}</span><select id="lMd">${D8.map(([v,t])=>`<option value="${v}" ${c.md===v?'selected':''}>${esc(T(t))}</option>`).join('')}</select></label>`;
   if(LENS.sh)h+=`<div class="hrow"><button class="btn" id="lPlay" aria-label="${esc(T(PLAY?'Toʻxtatish':'Kun davomida koʻrsatish'))}">${PLAY?'❚❚':'▶'}</button><label class="rng" style="flex:1"><span>${esc(T('Vaqt (UTC+5)'))} <b>${MRCHK.hm(HR)}</b></span><input type="range" id="lHr" min="${Math.ceil(sr*4)/4}" max="${Math.floor(ss*4)/4}" step="0.25" value="${HR}"></label></div>
     <p class="note">${esc(T('Quyosh'))}: ${MRCHK.hm(sr)}–${MRCHK.hm(ss)}</p>`;
@@ -324,13 +358,18 @@ function renderLens(){const el=$('#lens');if(!el)return;const c=chk(),o=origin()
         <div class="lg" style="margin-top:6px"><i style="height:4px;background:#1f6fb2"></i>${esc(T('Shamol yoʻlagi: koʻcha asosiy shamollarga parallel'))}</div>
         <p class="note">${esc(T('ERA5 reanalizi, 2015–2024, 10 m (Open-Meteo). Indeks — shamol boʻlimidagi soddalashtirilgan model; CFD emas, nisbiy taqqoslash uchun.'))}</p>`;}
     h+=`</div>`;}
-  h+=`<p class="note">${esc(T('Normativ talablar va natijalar — Tekshiruv asbobida (T). 15 daqiqalik linza keyingi qismda.'))}</p>`;
+  if(LENS.walk){h+=`<div class="seg lseg" role="group" style="margin-top:10px" aria-label="${esc(T('Maqsad'))}">${WT.map(t=>`<button data-wt="${t.k}" aria-pressed="${LENS.wt===t.k}">${esc(T(t.n.split(' (')[0]))}</button>`).join('')}</div>
+    <div class="chk">${WBIN.map((b,i)=>`<i style="background:${b[1]}"></i>${i<3?'≤ '+b[0]:'> 15'}`).join(' ')} ${esc(T('daq.'))} <i style="background:#8a857c"></i>${esc(T('yoʻq'))}</div>
+    ${WALK&&WALK.t[LENS.wt]&&WALK.t[LENS.wt].none?`<p class="warnn">${esc(T('Bu turdagi zona hali yoʻq — Z asbobi bilan kvartal bering.'))}</p>`:''}
+    <p class="note">${esc(T('Koʻcha oʻqlari boʻylab piyoda masofa, tezlik'))} ${fmt(KP.get('speed')||5,1)} ${esc(T('km/soat (loyiha parametri). Bino → eng yaqin koʻcha → maqsad kvartal chegarasi. Ichki yoʻlaklar va piyoda oʻtish joylari hisobga olinmaydi.'))}</p>`;}
+  h+=`<p class="note">${esc(T('Normativ talablar va natijalar — Tekshiruv asbobida (T).'))}</p>`;
   el.innerHTML=h;
   $$('#lens [data-lens]').forEach(b=>b.onclick=()=>{LENS[b.dataset.lens]=!LENS[b.dataset.lens];saveLens();if(!LENS.sh)stopPlay();render();});
   const md=$('#lMd');if(md)md.onchange=()=>act(()=>{chk().md=md.value;});
   const se=$('#wSe');if(se)se.onchange=()=>{WS.season=se.value;saveWS();render();};const sl=$('#wSl');if(sl)sl.onchange=()=>{WS.slice=sl.value;saveWS();render();};
   $$('#lens [data-wm]').forEach(b=>b.onclick=()=>{WS.mode=b.dataset.wm;saveWS();render();});
   $$('#lens [data-wd]').forEach(p=>p.onclick=()=>{WS.mode='one';WS.dir=+p.dataset.wd;saveWS();render();});
+  $$('#lens [data-wt]').forEach(b=>b.onclick=()=>{LENS.wt=b.dataset.wt;saveLens();render();});
   const rt=$('#wRetry');if(rt)rt.onclick=()=>{ROSEst='';ensureRose();renderLens();};
   const hr=$('#lHr');if(hr){hr.oninput=()=>{HR=+hr.value;const lb=hr.previousElementSibling.querySelector('b');if(lb)lb.textContent=MRCHK.hm(HR);renderLensMap();};}
   const pl=$('#lPlay');if(pl)pl.onclick=()=>{if(PLAY){stopPlay();renderLens();return;}if(HR>=Math.floor(ss*4)/4-.01)HR=Math.ceil(sr*4)/4;
@@ -355,6 +394,12 @@ function tekHTML(so){const c=chk(),thr=+c.ins;let h='';
   else if(DST&&DST.all.length){const mn=Math.min(...DST.all.map(o=>o.d)),bad=DST.all.filter(o=>o.ok===false);
     h+=`<div class="kv"><span>${esc(T('Eng yaqin binolar oraligʻi'))}</span><b>${fmt(mn,1)} m</b>${DST.all.some(o=>o.req)?`<span>${esc(T('Talabni buzgan juftlar'))}</span><b style="color:${bad.length?'#b3261e':'#2e7d4f'}">${bad.length}</b>`:''}</div>`;}
   else h+=`<p class="note">${esc(T('Kamida ikkita bino kerak.'))}</p>`;
+  /* 15 daqiqa */
+  h+=`<div class="lb" style="margin-top:4px">${esc(T('Piyoda qamrov (aholi ulushi)'))}</div>`;
+  if(!LENS.walk)h+=`<button class="btn" data-on="walk">${esc(T('15 daqiqalik linzani yoqish'))}</button>`;
+  else if(WALK&&WALK.res.length)h+=`<table class="wt"><tr><th></th><th>≤ 5</th><th>≤ 10</th><th>≤ 15 ${esc(T('daq.'))}</th></tr>${WT.map(t=>{const M=WALK.t[t.k];return `<tr><td>${esc(T(t.n.split(' (')[0]))}</td>${M.none?`<td colspan="3" class="mut">${esc(T('zona yoʻq'))}</td>`:M.share.map(v=>`<td>${fmt(v*100,0)} %</td>`).join('')}</tr>`;}).join('')}</table>
+    <p class="note">${esc(T('Ulush — binolar aholisi boʻyicha (taxminiy aholi). 15 daqiqa — «15 daqiqalik shahar» konsepsiyasi (C. Moreno) moʻljali, meʼyor emas; ShNQ xizmat radiuslari alohida tekshiriladi.'))}</p>`;
+  else h+=`<p class="note">${esc(T('Turar joy binolari va koʻchalar kerak.'))}</p>`;
   /* shamol */
   h+=`<div class="lb" style="margin-top:4px">${esc(T('Shamol'))}</div>`;
   if(!LENS.wind)h+=`<button class="btn" data-on="wind">${esc(T('Shamol linzasini yoqish'))}</button>`;
@@ -364,7 +409,7 @@ function tekHTML(so){const c=chk(),thr=+c.ins;let h='';
   /* tanlangan bino */
   if(so){const L=(INS&&INS.L)||[],i=L.findIndex(b=>b.zid===S.sel.zid&&b.bid===S.sel.bid),P=INS&&i>=0?INS.pts.filter(p=>p.bi===i):[];
     let nd=null;if(DST&&DST.L){const j=DST.L.findIndex(b=>b.zid===S.sel.zid&&b.bid===S.sel.bid);DST.all.forEach(o=>{if((o.i===j||o.j===j)&&(!nd||o.d<nd.d))nd=o;});}
-    h+=`<div class="lb" style="margin-top:4px">${esc(T('Tanlangan bino'))} · ${esc(so.b.name)} · ${so.x.fl} ${esc(T('qavat'))}</div><div class="kv">${P.length?`<span>${esc(T('Fasad nuqtalari'))}</span><b>${P.length}</b><span>${esc(T('Uzluksiz: eng kam / eng koʻp'))}</span><b>${MRCHK.hm(Math.min(...P.map(p=>p.best)))} / ${MRCHK.hm(Math.max(...P.map(p=>p.best)))}</b>`:''}${nd?`<span>${esc(T('Eng yaqin bino'))}</span><b style="color:${nd.ok===false?'#b3261e':'inherit'}">${fmt(nd.d,1)} m${nd.req?' / '+fmt(nd.req,1):''}</b>`:''}</div>`;}
+    h+=`<div class="lb" style="margin-top:4px">${esc(T('Tanlangan bino'))} · ${esc(so.b.name)} · ${so.x.fl} ${esc(T('qavat'))}</div><div class="kv">${P.length?`<span>${esc(T('Fasad nuqtalari'))}</span><b>${P.length}</b><span>${esc(T('Uzluksiz: eng kam / eng koʻp'))}</span><b>${MRCHK.hm(Math.min(...P.map(p=>p.best)))} / ${MRCHK.hm(Math.max(...P.map(p=>p.best)))}</b>`:''}${WALK?(()=>{const i=WALK.res.findIndex(r=>r.zid===S.sel.zid&&r.bid===S.sel.bid);return i<0?'':WT.map(t=>{const m=WALK.t[t.k][i];return `<span>${esc(T('Piyoda'))}: ${esc(T(t.n.split(' (')[0]))}</span><b style="color:${minCol(m)}">${m==null?'—':fmt(m,1)+' '+T('daq.')}</b>`;}).join('');})():''}${nd?`<span>${esc(T('Eng yaqin bino'))}</span><b style="color:${nd.ok===false?'#b3261e':'inherit'}">${fmt(nd.d,1)} m${nd.req?' / '+fmt(nd.req,1):''}</b>`:''}</div>`;}
   h+=`<p class="note">${esc(T('Hisob usuli: quyosh holati (NOAA algoritmi, refraksiyasiz), 10 daqiqa qadam; turar joy binolari fasadlari boʻylab birinchi qavat deraza sathidagi nuqtalar; boshqa binolar soyasi. Atrofdagi mavjud binolar hali hisobga olinmaydi — chekka binolar natijasi optimistik.'))}</p>
     <div class="keys"><b>T</b>${esc(T('tekshiruv'))} · <b>B</b>${esc(T('binolar'))} · ${esc(T('binoni bosing — uning natijasi'))}</div>`;
   return h;}
@@ -640,5 +685,5 @@ async function init(){
   $('#emptyGo').onclick=()=>{$('#empty').hidden=true;};
 }
 init();
-window.MR={get D(){return D;},get BLK(){return BLK;},get S(){return S;},get INS(){return INS;},get WIND(){return WIND;},WS,get DST(){return DST;},LENS,setHr:h=>{HR=h;renderLensMap();},act,undo,redo,map,kpis,draw,bake,bldOp,rectFrom};   // sinov va keyingi bosqichlar uchun
+window.MR={get D(){return D;},get BLK(){return BLK;},get S(){return S;},get INS(){return INS;},get WIND(){return WIND;},get WALK(){return WALK;},WS,get DST(){return DST;},LENS,setHr:h=>{HR=h;renderLensMap();},act,undo,redo,map,kpis,draw,bake,bldOp,rectFrom};   // sinov va keyingi bosqichlar uchun
 })();
