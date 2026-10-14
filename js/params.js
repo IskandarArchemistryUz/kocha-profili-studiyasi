@@ -11,9 +11,10 @@
     park:{v:0.7,u:'joy / kvartira',l:'Avtoturargoh talabi',src:'Urbanizatsiya qoʻmitasi master-reja shabloni (ShNQ 2.07.01-23, §416)',use:'Joylashtirish: avtoturargoh talabi'},
     lvUnknown:{v:2,u:'qavat',l:'Qavati nomaʼlum bino',src:'Taxmin, loyiha muallifi tasdiqlagan (2026-10-10)',use:'1-qadam aholi bahosi, GIS zichlik, Joylashtirish insolyatsiyasi'},
     mppGross:{v:27,u:'m² / kishi',l:'Mavjud fondda brutto maydon kishiga',src:'Oʻzbekistonda 1 kishiga 19,2 m² yashash maydoni → brutto ≈ 27 m²',use:'1-qadam: mavjud aholi bahosi'},
+    unitM2:{v:60,u:'m²',l:'Kvartira oʻrtacha maydoni (netto)',src:'G8 zichlik modeli, TAS District, 2026-09-01',use:'Master reja muharriri: kvartiralar soni'},
     speed:{v:5,u:'km / soat',l:'Piyoda yurish tezligi',src:'Namuna',use:'1-qadam: 15 daqiqalik qamrov'}
   };
-  var ORDER=['hh','netGross','park','lvUnknown','mppGross','speed'];
+  var ORDER=['hh','unitM2','netGross','park','lvUnknown','mppGross','speed'];
   function read(){try{var o=JSON.parse(localStorage.getItem(KEY)||'{}');return o&&typeof o==='object'?o:{};}catch(e){return {};}}
   function write(o){try{localStorage.setItem(KEY,JSON.stringify(o));}catch(e){}}
   var subs=[];
