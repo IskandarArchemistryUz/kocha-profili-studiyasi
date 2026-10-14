@@ -206,27 +206,34 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 const STEPS=[
   {id:"loyiha", t:"Loyiha", subs:[
     {id:"oyna", t:"Loyiha", page:"muharrir.html", hint:"U uchastka · H tahlil hududi · S yoʻllar · Z/G parsel va binolar · B bino · A tahlil"}]},
+  /* Tahlil — atrofni baholashning hammasi bitta blokda: har bir tab bitta tahlil, xarita hududi umumiy (kps_site) */
+  {id:"tahlil", t:"Tahlil", subs:[
+    {id:"baho", t:"Baho", page:"ai.html"},
+    {id:"qoplam", t:"Yer qoplami", page:"studio.html", app:"area"},
+    {id:"relyef", t:"Relyef", page:"gis.html", gtab:"balandlik"},
+    {id:"nishab", t:"Nishab", page:"gis.html", gtab:"nishab"},
+    {id:"yer", t:"Yer foydalanish", page:"gis.html", gtab:"yer"},
+    {id:"zich", t:"Zichlik", page:"gis.html", gtab:"zich"},
+    {id:"muh", t:"Tarmoqlar", page:"gis.html", gtab:"muh"},
+    {id:"shamol", t:"Shamol", page:"shamol.html"}]},
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
   /* chuqur asboblar — menyuda «Qoʻshimcha»; xarita va maʼlumot asosiy oyna bilan umumiy */
   {id:"qosh", t:"Qoʻshimcha", hidden:true, subs:[
-    {id:"chegara", t:"Hudud bahosi", page:"ai.html"},
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
-    {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area"},
-    {id:"gis", t:"Relyef · zichlik · tarmoqlar", page:"gis.html"},
-    {id:"shamol", t:"Shamol", page:"shamol.html"},
     {id:"loyiha", t:"Koʻcha tafsiloti · YHQ", page:"studio.html", app:"design"},
     {id:"profil", t:"Koʻcha profili", page:"studio.html", app:"prof"},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="67";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="68";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
 /* --- loyiha holati (nom, joriy qadam, koʻrilgan qadamlar) --- */
 let P={name:"Yangi loyiha", step:0, sub:{}, seen:[0]};
 try{ const v=JSON.parse(localStorage.getItem("kps_project")||"null"); if(v&&typeof v==="object") P=Object.assign(P,v); }catch(e){}
-if(!P.lay2){ P.step=0; P.sub={}; P.lay2=1; }   // eski qadamlar (Hudud…Binolar) → bitta oyna
+if(!P.lay2){ P.step=0; P.sub={}; P.lay2=1; }
+if(!P.lay3){ if(P.step===1) P.step=2; else if(P.step>1) P.step=0; P.lay3=1; }   // «Tahlil» qadami qo'shildi   // eski qadamlar (Hudud…Binolar) → bitta oyna
 const saveP=()=>{ try{ localStorage.setItem("kps_project",JSON.stringify(P)); }catch(e){} };
 $("pname").value=P.name;
 $("pname").addEventListener("input",e=>{ P.name=e.target.value.trim()||"Yangi loyiha"; saveP(); document.title=P.name+" — Archemistry Lab"; });
@@ -258,10 +265,15 @@ function onFrameLoad(f){
     return;
   }
   if(f.dataset.wantApp) applyApp(f);
+  if(f.dataset.wantGtab) setTimeout(()=>applyGtab(f),50);
   if(f.dataset.wantTool) sendTool(f);
 }
 /* bitta oyna (muharrir.html) bir nechta qadamda: qadam almashganda faqat asbob almashadi, xarita qayta yuklanmaydi */
 function sendTool(f){ try{ f.contentWindow.postMessage({kps:"tool",t:f.dataset.wantTool},location.origin); }catch(e){} }
+/* gis.html ichidagi tahlil turi: sahifa yuklanib, birinchi hisob tugaguncha bir necha marta tekshiriladi (hisob boshida «Asos» ga qaytadi) */
+function applyGtab(f){ const t=f.dataset.wantGtab; if(!t) return; clearInterval(f._gt); let n=0;
+  const once=()=>{ try{ const b=f.contentDocument&&f.contentDocument.querySelector('#tabs [data-t="'+t+'"]'); if(b&&b.getAttribute("aria-pressed")!=="true") b.click(); }catch(e){} };
+  once(); f._gt=setInterval(()=>{ if(f.dataset.wantGtab!==t||++n>40){ clearInterval(f._gt); return; } once(); },500); }
 function applyApp(f){
   const app=f.dataset.wantApp; if(!app) return;
   try{ const b=f.contentDocument.querySelector('#appTabs button[data-app="'+app+'"]'); if(b){ b.click(); delete f.dataset.wantApp; } }catch(e){}
@@ -279,6 +291,7 @@ function show(i, j, src){
   Object.values(frames).forEach(x=>x.hidden = x!==f);
   try{ f.contentWindow.dispatchEvent(new Event("resize")); }catch(e){}   // yashirin turgan xaritalar oʻlchamini qayta oladi
   if(u.app){ f.dataset.wantApp=u.app; applyApp(f); }
+  if(u.gtab){ f.dataset.wantGtab=u.gtab; applyGtab(f); }
   if(u.tool){ f.dataset.wantTool=u.tool; sendTool(f); }
   renderNav();
   try{ history.replaceState(null,"","#"+st.id+"-"+u.id); }catch(e){}
@@ -302,9 +315,10 @@ function renderNav(){
   $("stepsM").innerHTML=$("steps").innerHTML=STEPS.map((s,k)=>s.hidden?"":`<button class="step tab" data-i="${k}" ${k===i?'aria-current="step"':""}><span class="t">${s.t}</span></button>`).join("")
 ;
   $("qwrap").innerHTML=`<button class="btn qb" id="qBtn" aria-expanded="false" aria-haspopup="true" ${st.hidden?'aria-pressed="true"':""}>Qoʻshimcha ▾</button><div class="qm" id="qMenu" hidden role="menu">${STEPS.find(s=>s.hidden).subs.map((u,k)=>`<button role="menuitem" data-q="${k}">${u.t}</button>`).join("")}</div>`;
-  $("subtabs").innerHTML = st.hidden ? `<button data-back>← Loyiha</button><button aria-pressed="true">${st.subs[j].t}</button>` : "";
+  $("subtabs").innerHTML = st.hidden ? `<button data-back>← Loyiha</button><button aria-pressed="true">${st.subs[j].t}</button>`
+    : st.subs.length>1 ? st.subs.map((u,k)=>`<button data-j="${k}" aria-pressed="${k===j}">${u.t}</button>`).join("") : "";
   $("hint").textContent=st.subs[j].hint||"";
-  $("nextBtn").textContent = st.id==="loyiha" ? "Albom →" : "← Loyiha";
+  $("nextBtn").textContent = st.id==="albom" ? "← Loyiha" : "Albom →";
 }
 $("steps").onclick=e=>{ const b=e.target.closest("button[data-i]"); if(b) show(+b.dataset.i); };
 $("qwrap").onclick=e=>{ const q=e.target.closest("[data-q]"); if(q){ $("qMenu").hidden=true; show(STEPS.findIndex(s=>s.hidden),+q.dataset.q); return; }
@@ -312,7 +326,7 @@ $("qwrap").onclick=e=>{ const q=e.target.closest("[data-q]"); if(q){ $("qMenu").
 document.addEventListener("click",e=>{ if(!e.target.closest("#qwrap")){ const m=$("qMenu"); if(m) m.hidden=true; } });
 $("stepsM").onclick=$("steps").onclick;
 $("subtabs").onclick=e=>{ if(e.target.closest("[data-back]")){ show(0); return; } const b=e.target.closest("button[data-j]"); if(b) show(P.step, +b.dataset.j); };
-$("nextBtn").onclick=()=>{ show(STEPS[P.step].id==="loyiha"?1:0); };
+$("nextBtn").onclick=()=>{ const a=STEPS.findIndex(s=>s.id==="albom"); show(P.step===a?0:a); };
 
 /* --- Master reja paneli: istalgan qadamda ochiladi --- */
 let mrFrame=null;
@@ -520,21 +534,21 @@ $("helpBtn").onclick=()=>{const el=$("guide");if(!el.hidden){el.hidden=true;retu
 
 /* --- «Qayerda nima?»: funksiyani nomi boʻyicha topish --- */
 const FIND=[
- ["Shamol guli va yoʻnalishlar","shamol veter ветер wind roza роза yoʻnalish направление","qosh","chegara",null,"1-qadam natijasida «Shamol» boʻlimi"],
- ["Shamol: havo turib qoladigan joylar","shamol turgʻun застой ventilyatsiya вентиляция stagnation","qosh","shamol",null,""],
- ["Binolarning shamolga taʼsiri","shamol bino taʼsir влияние ветер loyiha","qosh","shamol",null,"«Farq» koʻrinishi — loyiha binolari bilan"],
- ["Aholi va xonadonlar","aholi население population xonadon xoʻjalik домохозяйств household zichlik","qosh","chegara",null,"«Hisoblash» dan keyin oʻngda «Zichlik» boʻlimi"],
- ["Zichlik setkasi (FAR, aholi)","zichlik плотность density far setka сетка aholi","qosh","gis","zich",""],
- ["Muhandislik tarmoqlari","muhandislik инженер utility tarmoq сети elektr электр gaz газ suv вод kanalizatsiya канализ quvur труб ariq арык issiqlik тепл","qosh","gis","muh",""],
- ["Relyef va balandlik","relyef рельеф balandlik высот terrain dem gorizontal","qosh","gis","balandlik",""],
- ["Nishablik","nishab уклон slope","qosh","gis","nishab",""],
- ["Yer foydalanish","yer foydalanish землепольз land use funksiya","qosh","gis","yer",""],
- ["Yer qoplami (asfalt, yashil)","yer qoplami asfalt yashil зелен покрыт cover","qosh","tasnif",null,""],
+ ["Shamol guli va yoʻnalishlar","shamol veter ветер wind roza роза yoʻnalish направление","tahlil","baho",null,"1-qadam natijasida «Shamol» boʻlimi"],
+ ["Shamol: havo turib qoladigan joylar","shamol turgʻun застой ventilyatsiya вентиляция stagnation","tahlil","shamol",null,""],
+ ["Binolarning shamolga taʼsiri","shamol bino taʼsir влияние ветер loyiha","tahlil","shamol",null,"«Farq» koʻrinishi — loyiha binolari bilan"],
+ ["Aholi va xonadonlar","aholi население population xonadon xoʻjalik домохозяйств household zichlik","tahlil","baho",null,"«Hisoblash» dan keyin oʻngda «Zichlik» boʻlimi"],
+ ["Zichlik setkasi (FAR, aholi)","zichlik плотность density far setka сетка aholi","tahlil","zich","zich",""],
+ ["Muhandislik tarmoqlari","muhandislik инженер utility tarmoq сети elektr электр gaz газ suv вод kanalizatsiya канализ quvur труб ariq арык issiqlik тепл","tahlil","muh","muh",""],
+ ["Relyef va balandlik","relyef рельеф balandlik высот terrain dem gorizontal","tahlil","relyef","balandlik",""],
+ ["Nishablik","nishab уклон slope","tahlil","nishab","nishab",""],
+ ["Yer foydalanish","yer foydalanish землепольз land use funksiya","tahlil","yer","yer",""],
+ ["Yer qoplami (asfalt, yashil)","yer qoplami asfalt yashil зелен покрыт cover","tahlil","qoplam",null,""],
  ["Insolyatsiya","insolyatsiya инсоляц quyosh солн sun soya тень","loyiha","oyna",null,"chap panel — T (Tekshiruv) → Insolyatsiya"],
  ["Binolarni joylashtirish, TEP","bino здан joylashtirish размещ qavat этаж tep тэп xonadon квартир","loyiha","oyna",null,"chap panel — Z, G, B; TEP — pastki qatorda"],
  ["Koʻcha chizish va YHQ tekshiruvi","koʻcha улиц street yhq пдд chizish модул","loyiha","oyna",null,"chap panel — S (Yoʻllar); YHQ — Qoʻshimcha → Koʻcha tafsiloti"],
  ["Koʻcha profili (kesim)","profil профил kesim разрез сечение","qosh","profil",null,""],
- ["3D maket va qatlamlarga ajratish","3d maket макет qatlam слой exploded vektor svg obj","qosh","chegara",null,"yuqoridagi «3D / vektor» tugmasi"],
+ ["3D maket va qatlamlarga ajratish","3d maket макет qatlam слой exploded vektor svg obj","tahlil","baho",null,"yuqoridagi «3D / vektor» tugmasi"],
  ["Hudud chegarasi (doira, toʻrtburchak, erkin)","hudud граница территор chegara doira круг toʻrtburchak poligon polygon area","loyiha","oyna",null,""],
  ["Uchastka chegarasi","uchastka участок chegara границ","loyiha","oyna",null,"chap panel — U (Uchastka)"],
  ["GIS fayl yuklash (Shapefile, GPKG)","yuklash загруз shapefile shp gpkg geopackage geojson kml gis fayl файл","qosh","malumot",null,""],

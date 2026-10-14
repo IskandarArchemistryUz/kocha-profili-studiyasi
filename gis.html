@@ -15,7 +15,7 @@
   --f-sans:"IBM Plex Sans",system-ui,sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--f-head:"Archivo",system-ui,sans-serif}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-sans)}
-.app{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-rows:auto minmax(0,1fr);height:100%}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr);height:100%}
 header{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 14px;height:50px;border-bottom:1px solid var(--line);background:var(--paper)}
 .brand{display:inline-flex;align-items:center;gap:8px;font:500 13px var(--f-mono);letter-spacing:.14em;color:inherit;text-decoration:none}
 .crumb{font:12px var(--f-mono);color:var(--grey);letter-spacing:.06em}
@@ -58,6 +58,8 @@ td i{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align
 .map-tbl{max-height:260px;overflow:auto}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 @media (max-width:860px){ .app{grid-template-columns:minmax(0,1fr)} }
+/* loyiha ichida tahlil turi tepadagi «Tahlil» tablaridan tanlanadi */
+html.kps-embed #tabs{display:none}
 </style>
 </head>
 <body>
@@ -198,7 +200,7 @@ const G={utOff:{}, utilOsm:null, ring:null, z:15, ox:0, oy:0, W:0, H:0, mpp:1, d
 
 /* ---------- xarita ---------- */
 const map=new maplibregl.Map({container:"map",style:KPSMAP.mlStyle(),center:[69.2797,41.3111],zoom:12,preserveDrawingBuffer:true,attributionControl:{compact:true}});
-map.addControl(new maplibregl.NavigationControl({showCompass:true}),"top-right");
+map.addControl(new maplibregl.NavigationControl({showCompass:true}),"bottom-right");
 map.addControl(new maplibregl.ScaleControl({maxWidth:140,unit:"metric"}),"bottom-right");
 const KB=KPSMAP.maplibre(map);   // umumiy fon xarita va xarita holati (js/basemap.js)
 const blank=(()=>{const c=document.createElement("canvas");c.width=c.height=1;return c.toDataURL();})();
