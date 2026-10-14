@@ -133,6 +133,12 @@ function addLayers(){
   map.addLayer({id:'sel',type:'line',source:'sel',paint:{'line-color':'#2a6fb0','line-width':mpx('W',4),'line-opacity':.35}});
   map.addLayer({id:'road-hit',type:'line',source:'road',paint:{'line-color':'#000','line-opacity':0,'line-width':mpx('W',14)}});
   map.addLayer({id:'prev',type:'line',source:'prev',paint:{'line-color':'#f0b323','line-width':mpx('W',3),'line-opacity':.55}});
+  map.addSource('ksec',{type:'geojson',data:FC()});
+  map.addLayer({id:'ksec-l',type:'line',source:'ksec',filter:['==',['geometry-type'],'LineString'],paint:{'line-color':'#141414','line-width':2,'line-dasharray':[4,2]}});
+  map.addLayer({id:'ksec-p',type:'circle',source:'ksec',filter:['==',['geometry-type'],'Point'],paint:{'circle-radius':6,'circle-color':'#fff','circle-stroke-color':'#141414','circle-stroke-width':2}});
+  map.addLayer({id:'ksec-t',type:'symbol',source:'ksec',filter:['==',['geometry-type'],'Point'],layout:{'text-field':['get','n'],'text-font':['Noto Sans Regular'],'text-size':12,'text-offset':[0,-1.3]},paint:{'text-color':'#141414','text-halo-color':'#fff','text-halo-width':1.5}});
+  map.addSource('ctx',{type:'geojson',data:FC()});
+  map.addLayer({id:'ctx',type:'fill-extrusion',source:'ctx',paint:{'fill-extrusion-color':'#c9c6bf','fill-extrusion-height':['get','h'],'fill-extrusion-base':0,'fill-extrusion-opacity':.75}});
   map.addSource('wind',{type:'image',url:BLANK,coordinates:[[69.27,41.32],[69.28,41.32],[69.28,41.31],[69.27,41.31]]});
   map.addLayer({id:'wind',type:'raster',source:'wind',layout:{visibility:'none'},paint:{'raster-opacity':.85,'raster-fade-duration':0,'raster-resampling':'linear'}});
   map.addLayer({id:'windc',type:'line',source:'windc',layout:{'line-cap':'round'},paint:{'line-color':'#1f6fb2','line-width':['interpolate',['linear'],['zoom'],14,2,17,5],'line-opacity':['get','o']}});
@@ -433,6 +439,23 @@ const BLANK=(()=>{const c=document.createElement('canvas');c.width=c.height=1;re
 /* shamol linzasi: ERA5 shamol guli + VENT indeksi (shamol boʻlimidagi model) */
 const WS=(()=>{const d={season:'yil',slice:'sutka',mode:'gul',dir:null};try{return Object.assign(d,JSON.parse(localStorage.getItem('kps_mr_wind')||'{}'));}catch(_){return d;}})();
 const saveWS=()=>{try{localStorage.setItem('kps_mr_wind',JSON.stringify(WS));}catch(_){}};
+if(!WS.v)WS.v='loyiha';if(WS.ctx==null)WS.ctx=true;
+/* ---------- atrofdagi mavjud binolar (OSM) — shamol va 3D uchun ----------
+   Uchastka ichidagilar loyiha bilan almashadi deb olinadi (hisobga kirmaydi). Manba: 1-qadam ulashgan paket yoki Overpass (14 kun kesh). */
+let CTX=null,CTXst='',CTXk='';
+function ctxBB(){const r=plotRing()||siteRing();if(!r)return null;const b=turf.bbox(turf.buffer(turf.polygon([r]),400,{units:'meters'}));return [b[1],b[0],b[3],b[2]];}
+function ctxLoad(){const bb=ctxBB();if(!bb||!window.KOSM)return;const k=bb.map(v=>v.toFixed(4)).join(',');if(k===CTXk&&CTXst)return;CTXk=k;CTXst='load';CTX=null;
+  const q=`[out:json][timeout:60];way["building"](${bb.join(',')});out geom;`;
+  KOSM.shared(bb).then(sh=>sh&&sh.kinds.includes('building')?sh:KOSM.fetch(q)).then(j=>{if(CTXk!==k)return;
+    const pf=plotFeature(),lv=KP.get('lvUnknown')||2,out=[];
+    (j.elements||[]).forEach(e=>{const t=e.tags||{};if(!t.building||t['building:part']||!e.geometry||e.geometry.length<4)return;
+      const cs=e.geometry.map(g=>[g.lon,g.lat]);if(cs[0][0]!==cs[cs.length-1][0]||cs[0][1]!==cs[cs.length-1][1])cs.push(cs[0]);
+      let c=null;try{c=turf.centroid(turf.polygon([cs])).geometry.coordinates;}catch(_){return;}
+      if(pf&&inPoly(c,pf))return;
+      const n=parseFloat(t['building:levels']),hh=parseFloat(String(t.height||'').replace(',','.'));
+      out.push({cs,h:hh>0?hh:(n>0?n:lv)*MRGEN.FH});});
+    CTX=out;CTXst='ok';ctxDraw();WINDK='';render();}).catch(()=>{if(CTXk===k){CTXst='err';renderPanel();}});}
+function ctxDraw(){const src=map.getSource('ctx');if(!src)return;src.setData(FC(WS.ctx&&CTX?CTX.map(b=>({type:'Feature',properties:{h:b.h},geometry:{type:'Polygon',coordinates:[b.cs]}})):[]));}
 let ROSE=null,ROSEst='',WIND=null,WINDK='',WINDT=0,GRIDK='',GRID=null;
 function ensureRose(){if(ROSE||ROSEst==='load')return;const o=origin();ROSEst='load';
   VENT.loadRoses(o[1],o[0]).then(r=>{ROSE=r;ROSEst='ok';WINDK='';render();}).catch(e=>{ROSEst='err';ROSE=null;console.warn('[MR] ERA5',e);renderLens();});}
@@ -443,19 +466,24 @@ function windW(){const R=roseNow();if(!R)return null;if(WS.mode==='one'){const w
 function windRun(L,F){const site=SITE?SITE.map(F.xy):null,pts=site||L.flatMap(b=>b.cs[0].map(F.xy));
   let bb=[Infinity,Infinity,-Infinity,-Infinity];pts.forEach(p=>{bb[0]=Math.min(bb[0],p[0]);bb[1]=Math.min(bb[1],p[1]);bb[2]=Math.max(bb[2],p[0]);bb[3]=Math.max(bb[3],p[1]);});
   bb=[bb[0]-250,bb[1]-250,bb[2]+250,bb[3]+250];const gk=bb.map(v=>Math.round(v)).join(',');if(gk!==GRIDK){GRIDK=gk;GRID=VENT.makeGrid(bb);}const g=GRID;
-  const list=L.map(b=>({pts:b.cs[0].slice(0,-1).map(F.xy),h:b.h})),geo=VENT.geometry(list,g),w=windW(),only=[];w.forEach((v,k)=>{if(v>0)only.push(k);});
-  const P=VENT.ventilate(geo,g,{},only),idx=new Float32Array(g.N);only.forEach(k=>{const v=P[k];for(let q=0;q<g.N;q++)idx[q]+=w[k]*v[q];});
+  const ctx=WS.ctx&&CTX?CTX.map(b=>({pts:b.cs.slice(0,-1).map(F.xy),h:b.h})).filter(b=>b.pts.some(([x,y])=>x>=bb[0]&&x<=bb[2]&&y>=bb[1]&&y<=bb[3])):[];
+  const proj=L.map(b=>({pts:b.cs[0].slice(0,-1).map(F.xy),h:b.h})),w=windW(),only=[];w.forEach((v,k)=>{if(v>0)only.push(k);});
+  const run=list=>{const geo=VENT.geometry(list,g),P=VENT.ventilate(geo,g,{},only),idx=new Float32Array(g.N);only.forEach(k=>{const v=P[k];for(let q=0;q<g.N;q++)idx[q]+=w[k]*v[q];});return {geo,idx};};
+  const A=run(WS.v==='mavjud'?ctx:ctx.concat(proj)),B=WS.v==='farq'?run(ctx):null,geo=A.geo,idx=A.idx;
   /* koʻrsatkichlar: hudud ichidagi ochiq (bino bilan band boʻlmagan) kataklar */
-  let n=0,sum=0,st=0;for(let j=0;j<g.ny;j++)for(let i=0;i<g.nx;i++){const q=j*g.nx+i;if(geo.lp[q]>.5)continue;const x=g.x0+(i+.5)*g.dx,y=g.y0+(j+.5)*g.dx;
-    if(site&&!vInPoly(x,y,site))continue;n++;sum+=idx[q];if(idx[q]<.45)st++;}
+  let n=0,sum=0,st=0,dsum=0,worse=0;for(let j=0;j<g.ny;j++)for(let i=0;i<g.nx;i++){const q=j*g.nx+i;if(geo.lp[q]>.5)continue;const x=g.x0+(i+.5)*g.dx,y=g.y0+(j+.5)*g.dx;
+    if(site&&!vInPoly(x,y,site))continue;n++;sum+=idx[q];if(idx[q]<.45)st++;if(B){dsum+=idx[q]-B.idx[q];if(idx[q]-B.idx[q]<-.1)worse++;}}
   
   /* rasm: turgʻunlik shkalasi (shamol boʻlimidagi bilan bir xil) */
   const c=document.createElement('canvas');c.width=g.nx;c.height=g.ny;const x2=c.getContext('2d',{willReadFrequently:true})   /* GPU-kanvas emas: putImageData tez */,im=x2.createImageData(g.nx,g.ny),d=im.data;
   const stops=[[0,[250,214,120]],[.5,[232,120,58]],[1,[160,30,30]]],ramp=t=>{t=Math.max(0,Math.min(1,t));for(let s=1;s<stops.length;s++)if(t<=stops[s][0]){const [a,ca]=stops[s-1],[b,cb]=stops[s],u=(t-a)/(b-a);return ca.map((v,i)=>v+(cb[i]-v)*u);}return stops[2][1];};
-  for(let j=0;j<g.ny;j++)for(let i=0;i<g.nx;i++){const q=j*g.nx+i,o=((g.ny-1-j)*g.nx+i)*4,t=(.92-idx[q])/.6;if(t>.05&&geo.lp[q]<.5){const col=ramp(t);d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=Math.round(Math.min(.85,.2+t*.7)*255);}}
+  for(let j=0;j<g.ny;j++)for(let i=0;i<g.nx;i++){const q=j*g.nx+i,o=((g.ny-1-j)*g.nx+i)*4;if(geo.lp[q]>=.5)continue;
+    if(B){/* farq: qizil — loyiha havoni yomonlashtiradi, koʻk — yaxshilaydi */const df=idx[q]-B.idx[q],a=Math.min(1,Math.abs(df)/.35);if(Math.abs(df)<.02)continue;
+      const col=df<0?[178,40,40]:[40,110,190];d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=Math.round((.15+a*.7)*255);continue;}
+    const t=(.92-idx[q])/.6;if(t>.05){const col=ramp(t);d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=Math.round(Math.min(.85,.2+t*.7)*255);}}
   x2.putImageData(im,0,0);
   const x1=g.x0+g.nx*g.dx,y1=g.y0+g.ny*g.dx;
-  return {url:c.toDataURL(),coords:[F.ll([g.x0,y1]),F.ll([x1,y1]),F.ll([x1,g.y0]),F.ll([g.x0,g.y0])],mean:n?sum/n:null,stag:n?st/n:null,n,dx:g.dx,w};}
+  return {url:c.toDataURL(),coords:[F.ll([g.x0,y1]),F.ll([x1,y1]),F.ll([x1,g.y0]),F.ll([g.x0,g.y0])],mean:n?sum/n:null,stag:n?st/n:null,n,dx:g.dx,w,v:WS.v,nCtx:ctx.length,dmean:B&&n?dsum/n:null,worse:B&&n?worse/n:null};}
 function vInPoly(x,y,p){let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;}
 /* shamol yoʻlaklari: koʻcha yoʻnalishi shamol yoʻnalishlariga qanchalik parallel (chastota bilan tortilgan |cos|) */
 function corridors(w){let tot=0,good=0;const f=[];D.edges.forEach(e=>{const l=edgeLine(e);if(!l)return;const a=node(e.a).ll,b=node(e.b).ll,br=turf.bearing(a,b)*Math.PI/180,len=turf.length(l,{units:'meters'});
@@ -524,7 +552,8 @@ function renderLensMap(){if(!map.getSource('shadow'))return;const L=bldList(),o=
   const wl=map.getLayer('wind');
   if(LENS.wind){ensureRose();const w=windW();
     if(w){const cr=corridors(w);map.getSource('windc').setData(cr.fc);if(WIND)WIND.cshare=cr.share;
-      if(L.length){const k=geo+WS.season+WS.slice+WS.mode+WS.dir;if(k!==WINDK&&!busy()){WINDK=k;WIND=null;clearTimeout(WINDT);WINDT=setTimeout(()=>{const t0=performance.now();const r=windRun(L,F);r.ms=performance.now()-t0;r.cshare=cr.share;WIND=r;scheduleSnap();
+      if(WS.ctx)ctxLoad();
+      if(L.length||(WS.v==='mavjud'&&CTX)){const k=geo+WS.season+WS.slice+WS.mode+WS.dir+WS.v+(WS.ctx?CTXst+(CTX?CTX.length:0):'x');if(k!==WINDK&&!busy()){WINDK=k;WIND=null;clearTimeout(WINDT);WINDT=setTimeout(()=>{const t0=performance.now();const r=windRun(L,F);r.ms=performance.now()-t0;r.cshare=cr.share;WIND=r;scheduleSnap();
         map.getSource('wind').updateImage({url:r.url,coordinates:r.coords});if(S.view!=='fg')map.setLayoutProperty('wind','visibility','visible');renderPanel();renderLens();},200);}}
       else{WIND=null;WINDK='';map.setLayoutProperty('wind','visibility','none');}}
     if(WIND&&wl&&S.view!=='fg')map.setLayoutProperty('wind','visibility','visible');}
@@ -602,19 +631,69 @@ function tekHTML(so){const c=chk(),thr=+c.ins;let h='';
   /* shamol */
   h+=`<div class="lb" style="margin-top:4px">${esc(T('Shamol'))}</div>`;
   if(!LENS.wind)h+=`<button class="btn" data-on="wind">${esc(T('Shamol linzasini yoqish'))}</button>`;
+  if(LENS.wind)h+=`<div class="seg lseg" role="group" aria-label="${esc(T('Shamol koʻrinishi'))}" style="margin:4px 0 6px"><button data-wv="mavjud" aria-pressed="${WS.v==='mavjud'}">${esc(T('Mavjud'))}</button><button data-wv="loyiha" aria-pressed="${WS.v==='loyiha'}">${esc(T('Loyiha'))}</button><button data-wv="farq" aria-pressed="${WS.v==='farq'}">${esc(T('Farq'))}</button></div>
+    <label class="note" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" id="wCtx" ${WS.ctx?'checked':''}> ${esc(T('Atrofdagi binolar (OSM)'))} ${WS.ctx?(CTXst==='load'?'— '+esc(T('yuklanmoqda…')):CTXst==='err'?'— '+esc(T('yuklanmadi')):CTX?'— '+CTX.length:''):''}</label>`;
+  if(!LENS.wind);
   else if(!WIND)h+=`<p class="note">${esc(T(ROSEst==='err'?'Shamol maʼlumoti yuklanmadi (Open-Meteo).':'Hisoblanmoqda…'))}</p>`;
   else h+=`<div class="kv"><span>${esc(T('Oʻrtacha indeks (ochiq joylar)'))}</span><b>${fmt(WIND.mean,2)}</b><span>${esc(T('Turgʻun ulush (indeks < 0,45)'))}</span><b style="color:${WIND.stag>.25?'#b23a2e':'inherit'}">${fmt(WIND.stag*100,0)} %</b>${WIND.cshare!=null?`<span>${esc(T('Shamol yoʻlagi boʻlgan koʻchalar'))}</span><b>${fmt(WIND.cshare*100,0)} %</b>`:''}<span>${esc(T('Katak · hisob vaqti'))}</span><b>${WIND.dx} m · ${fmt(WIND.ms/1000,2)} s</b></div>
-    <p class="note">${esc(T('0,45 chegarasi — shamol boʻlimidagi model shkalasi, meʼyor emas. Atrofdagi mavjud binolar hali hisobga olinmaydi.'))}</p>`;
+    ${WIND.v==='farq'&&WIND.dmean!=null?`<div class="kv"><span>${esc(T('Indeks oʻzgarishi (loyiha − mavjud)'))}</span><b style="color:${WIND.dmean<0?'#b23a2e':'#2a6fb0'}">${WIND.dmean>0?'+':''}${fmt(WIND.dmean,3)}</b><span>${esc(T('Sezilarli yomonlashgan joylar'))}</span><b>${fmt(WIND.worse*100,0)} %</b></div><p class="note"><span style="color:#b23a2e">■</span> ${esc(T('loyiha havoni toʻsadi'))} · <span style="color:#2a6fb0">■</span> ${esc(T('yaxshilanadi'))}</p>`:''}
+    <p class="note">${esc(T('0,45 chegarasi — shamol boʻlimidagi model shkalasi, meʼyor emas.'))} ${WIND.nCtx?esc(T('Atrofdagi '+WIND.nCtx+' ta mavjud bino hisobga olingan; uchastka ichidagilar loyiha bilan almashadi deb olingan.')):esc(T('Atrofdagi binolar hisobga olinmagan.'))}</p>`;
   /* tanlangan bino */
   if(so){const L=(INS&&INS.L)||[],i=L.findIndex(b=>b.zid===S.sel.zid&&b.bid===S.sel.bid),P=INS&&i>=0?INS.pts.filter(p=>p.bi===i):[];
     let nd=null;if(DST&&DST.L){const j=DST.L.findIndex(b=>b.zid===S.sel.zid&&b.bid===S.sel.bid);DST.all.forEach(o=>{if((o.i===j||o.j===j)&&(!nd||o.d<nd.d))nd=o;});}
     h+=`<div class="lb" style="margin-top:4px">${esc(T('Tanlangan bino'))} · ${esc(so.b.name)} · ${so.x.fl} ${esc(T('qavat'))}</div><div class="kv">${P.length?`<span>${esc(T('Fasad nuqtalari'))}</span><b>${P.length}</b><span>${esc(T('Uzluksiz: eng kam / eng koʻp'))}</span><b>${MRCHK.hm(Math.min(...P.map(p=>p.best)))} / ${MRCHK.hm(Math.max(...P.map(p=>p.best)))}</b>`:''}${WALK?(()=>{const i=WALK.res.findIndex(r=>r.zid===S.sel.zid&&r.bid===S.sel.bid);return i<0?'':WT.map(t=>{const m=WALK.t[t.k][i];return `<span>${esc(T('Piyoda'))}: ${esc(T(t.n.split(' (')[0]))}</span><b style="color:${minCol(m)}">${m==null?'—':fmt(m,1)+' '+T('daq.')}</b>`;}).join('');})():''}${nd?`<span>${esc(T('Eng yaqin bino'))}</span><b style="color:${nd.ok===false?'#b3261e':'inherit'}">${fmt(nd.d,1)} m${nd.req?' / '+fmt(nd.req,1):''}</b>`:''}</div>`;}
   h+=`<p class="note">${esc(T('Hisob usuli: quyosh holati (NOAA algoritmi, refraksiyasiz), 10 daqiqa qadam; turar joy binolari fasadlari boʻylab birinchi qavat deraza sathidagi nuqtalar; boshqa binolar soyasi. Atrofdagi mavjud binolar hali hisobga olinmaydi — chekka binolar natijasi optimistik.'))}</p>
     <div class="keys"><b>T</b>${esc(T('tekshiruv'))} · <b>B</b>${esc(T('binolar'))} · ${esc(T('binoni bosing — uning natijasi'))}</div>`;
+  h+=ksHTML();
+  return h;}
+/* ---------- kesim: xaritada ikki nuqta — relyef va binolar profili ----------
+   Relyef: Terrain Tiles (Mapzen/AWS terrarium, ~30 m SRTM asosida, z14) — kichik relyef shakllari koʻrinmaydi.
+   Binolar: loyiha (qavat×3,3 m, tom bilan emas) va atrofdagi OSM binolari (yoqilgan boʻlsa). */
+const KS={on:false,pts:[],prof:null,st:''};const DEMT=new Map();
+function demTile(z,x,y){const k=z+'/'+x+'/'+y;if(DEMT.has(k))return DEMT.get(k);
+  const p=fetch(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${k}.png`).then(r=>{if(!r.ok)throw new Error('relyef '+r.status);return r.blob();}).then(createImageBitmap).then(bm=>{const c=new OffscreenCanvas(256,256),x2=c.getContext('2d');x2.drawImage(bm,0,0);return x2.getImageData(0,0,256,256).data;});
+  DEMT.set(k,p);p.catch(()=>DEMT.delete(k));return p;}
+async function elevAt(lng,lat){const z=14,n=2**z,fx=(lng+180)/360*n,la=lat*Math.PI/180,fy=(1-Math.log(Math.tan(la)+1/Math.cos(la))/Math.PI)/2*n,x=Math.floor(fx),y=Math.floor(fy);
+  const d=await demTile(z,x,y),px=Math.min(255,Math.floor((fx-x)*256)),py=Math.min(255,Math.floor((fy-y)*256)),o=(py*256+px)*4;return d[o]*256+d[o+1]+d[o+2]/256-32768;}
+async function ksRun(){const [a,b]=KS.pts,L=turf.distance(a,b,{units:'meters'}),N=Math.max(40,Math.min(400,Math.round(L/2)));KS.st='load';renderPanel();
+  try{const pts=[];for(let i=0;i<=N;i++){const t=i/N;pts.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}
+    const z=await Promise.all(pts.map(p=>elevAt(p[0],p[1])));
+    /* binolar: har nuqtada eng baland bino (loyiha — qavatlar boʻyicha, pogʻonalar hisobga olinadi) */
+    const proj=[];BLK.forEach(bk=>{if(bk.r)bk.r.blds.forEach(x=>{(x.seg||[]).forEach(g=>proj.push({poly:g.poly,h:g.f1*MRGEN.FH,p:1}));});});
+    const ctx=WS.ctx&&CTX?CTX.map(c=>({poly:turf.polygon([c.cs]),h:c.h,p:0})):[];
+    const all=proj.concat(ctx).map(o=>({o,bb:turf.bbox(o.poly)}));
+    const hb=pts.map(p=>{let h=0,pr=0;for(const {o,bb} of all){if(p[0]<bb[0]||p[0]>bb[2]||p[1]<bb[1]||p[1]>bb[3])continue;if(o.h>h&&inPoly(p,o.poly)){h=o.h;pr=o.p;}}return {h,pr};});
+    KS.prof={L,z,hb,N};KS.st='ok';}catch(e){KS.st='err';KS.err=String(e.message||e);}
+  renderPanel();}
+function ksDraw(){const src=map.getSource('ksec');if(!src)return;const f=[];if(KS.pts.length){if(KS.pts.length===2)f.push({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:KS.pts}});KS.pts.forEach((p,i)=>f.push({type:'Feature',properties:{n:'AB'[i]},geometry:{type:'Point',coordinates:p}}));}src.setData(FC(f));}
+function ksSVG(){const P=KS.prof;if(!P)return '';const W=320,H=150,pad=26,zmin=Math.min(...P.z),zt=P.z.map((z,i)=>z+P.hb[i].h),zmax=Math.max(...zt,zmin+5),sx=(W-pad-6)/P.L;
+  /* vertikal masshtab: binolar va relyef koʻrinsin; nisbat yozib qoʻyiladi */
+  const sy=(H-pad-8)/(zmax-zmin),ex=sy/sx,X=i=>pad+i/P.N*P.L*sx,Y=v=>H-pad-(v-zmin)*sy;
+  let g=`M${X(0)},${H-pad}`;P.z.forEach((z,i)=>{g+=` L${X(i).toFixed(1)},${Y(z).toFixed(1)}`;});g+=` L${X(P.N)},${H-pad} Z`;
+  let bl='';for(let i=0;i<P.N;i++){const b=P.hb[i];if(!b.h)continue;bl+=`<rect x="${X(i).toFixed(1)}" y="${Y(P.z[i]+b.h).toFixed(1)}" width="${(X(i+1)-X(i)+.4).toFixed(1)}" height="${(b.h*sy).toFixed(1)}" fill="${b.pr?'#f0b323':'#b9b5ac'}"/>`;}
+  const t=v=>Math.round(v);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(T('Kesim: relyef va binolar'))}" style="display:block;background:#fff;border:1px solid var(--line)">
+    <path d="${g}" fill="#e7dcc6" stroke="#8a7a5c" stroke-width="1"/>${bl}
+    <line x1="${pad}" y1="${H-pad}" x2="${W-6}" y2="${H-pad}" stroke="#141414" stroke-width=".8"/><line x1="${pad}" y1="8" x2="${pad}" y2="${H-pad}" stroke="#141414" stroke-width=".8"/>
+    <g font-family="IBM Plex Mono,monospace" font-size="9" fill="#5e5c58"><text x="${pad}" y="${H-12}">A · 0</text><text x="${W-6}" y="${H-12}" text-anchor="end">B · ${t(P.L)} m</text>
+    <text x="${pad-3}" y="${Y(zmin)+3}" text-anchor="end">${t(zmin)}</text><text x="${pad-3}" y="${Y(zmax)+9}" text-anchor="end">${t(zmax)}</text>
+    <text x="${W-6}" y="16" text-anchor="end">${esc(T('vertikal'))} ×${ex.toFixed(1)}</text></g></svg>`;}
+function ksHTML(){const P=KS.prof;let h=`<div class="lb" style="margin-top:10px">${esc(T('Kesim (profil)'))}</div>`;
+  h+=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ${KS.on?'dark':''}" id="ksGo">${esc(T(KS.on?(KS.pts.length?'B nuqtani bosing…':'A nuqtani bosing…'):'✎ Kesim chizish'))}</button>${KS.pts.length?`<button class="btn" id="ksClr">${esc(T('Tozalash'))}</button>`:''}</div>`;
+  if(KS.st==='load')h+=`<p class="note">${esc(T('Relyef yuklanmoqda…'))}</p>`;
+  else if(KS.st==='err')h+=`<p class="warnn">${esc(T('Relyef yuklanmadi'))}: ${esc(KS.err||'')}</p>`;
+  else if(P){const zmn=Math.min(...P.z),zmx=Math.max(...P.z);/* eng tik qism — kamida 30 m oraliqda (relyef manbasi ~30 m; qisqa oraliq shovqin beradi) */const st=P.L/P.N,w=Math.max(1,Math.ceil(30/st));let s=0;for(let i=0;i+w<=P.N;i++)s=Math.max(s,Math.abs(P.z[i+w]-P.z[i])/(w*st));
+    h+=ksSVG()+`<div class="kv"><span>${esc(T('Uzunlik'))}</span><b>${fmt(P.L,0)} m</b><span>${esc(T('Balandlik farqi'))}</span><b>${fmt(zmx-zmn,1)} m (${fmt(zmn,0)}–${fmt(zmx,0)})</b><span>${esc(T('Oʻrtacha nishab'))}</span><b>${fmt(Math.abs(P.z[P.N]-P.z[0])/P.L*100,1)} %</b><span>${esc(T('Eng tik qism (30 m)'))}</span><b>${fmt(s*100,1)} %</b></div>
+    <p class="note"><span style="color:#f0b323">■</span> ${esc(T('loyiha binolari'))} · <span style="color:#b9b5ac">■</span> ${esc(T('mavjud (OSM)'))}. ${esc(T('Relyef — Terrain Tiles (SRTM asosida, ~30 m), kichik shakllar koʻrinmaydi.'))}</p>`;}
+  else h+=`<p class="note">${esc(T('Xaritada ikki nuqtani bosing — shu chiziq boʻylab relyef va binolar profili chiqadi.'))}</p>`;
   return h;}
 function bindTek(){$$('#panel [data-ck]').forEach(i=>i.onchange=()=>act(()=>{chk()[i.dataset.ck]=i.value===''?'':+i.value;}));
   const rf=$('#cRef');if(rf)rf.onchange=()=>act(()=>{chk().ref=rf.value.trim().slice(0,120);});
-  $$('#panel [data-on]').forEach(b=>b.onclick=()=>{LENS[b.dataset.on]=true;saveLens();render();});}
+  $$('#panel [data-on]').forEach(b=>b.onclick=()=>{LENS[b.dataset.on]=true;saveLens();render();});
+  $$('#panel [data-wv]').forEach(b=>b.onclick=()=>{WS.v=b.dataset.wv;saveWS();WINDK='';render();});
+  {const c=$('#wCtx');if(c)c.onchange=()=>{WS.ctx=c.checked;saveWS();ctxDraw();WINDK='';render();};}
+  {const g=$('#ksGo');if(g)g.onclick=()=>{KS.on=!KS.on;if(KS.on){KS.pts=[];KS.prof=null;KS.st='';ksDraw();}renderPanel();};
+   const c=$('#ksClr');if(c)c.onclick=()=>{KS.on=false;KS.pts=[];KS.prof=null;KS.st='';ksDraw();renderPanel();};}}
 const LOCK_SVG='<svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true" style="vertical-align:-1px;margin-left:3px"><rect x="2" y="5" width="8" height="6" fill="currentColor"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
 /* qavat chiziqlari: har qavat alohida hajm + plita; juda koʻp qavatda (> 3000) — boʻlaklar bilan */
 const SLAB=.22;let FLOORS=true;
@@ -842,6 +921,7 @@ const bldAt=pt=>{try{return map.queryRenderedFeatures(pt,{layers:['blds']})[0]||
 map.on('click',e=>{
   if((S.drag&&S.drag.moved)||S.bdrag)return;
   if(S.fe)return;
+  if(KS.on){KS.pts.push(e.lngLat.toArray());if(KS.pts.length>=2){KS.pts=KS.pts.slice(-2);KS.on=false;ksDraw();ksRun();}else{ksDraw();renderPanel();}return;}
   if(S.tool==='uchastka'){MRPLOT.click(e);return;}
   if(S.tool==='hudud'){MRHUD.click(e);return;}
   if(S.tool==='tahlil')return;
