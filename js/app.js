@@ -749,6 +749,12 @@ function classify(){
   const bounds=[[latf(gy0+ch,z),lonf(gx0,z)],[latf(gy0,z),lonf(gx0+cw,z)]];
   if(classOverlay)areaL.removeLayer(classOverlay);
   classOverlay=L.imageOverlay(url,bounds,{opacity:A.opac});
+  /* natija asosiy oynaga (Tahlil qatlamlari) */
+  if(window.KPSLAY){const [[s0,w0],[n0,e0]]=bounds;
+    KPSLAY.publish({id:'tasnif',name:'Yer qoplami',page:'studio.html#area',
+      legend:'<span class="t">Yer qoplami (sunʼiy yoʻldosh tasviri)</span>'+AC.filter(c=>cnt[c.k]).map(c=>`<span class="it"><i style="background:${c.col}"></i>${c.n} · ${Math.round(cnt[c.k]/tot*100)}%</span>`).join(''),
+      sources:{img:{type:'image',url,coordinates:[[w0,n0],[e0,n0],[e0,s0],[w0,s0]]}},
+      layers:[{id:'img',type:'raster',source:'img',paint:{'raster-opacity':.85,'raster-fade-duration':0}}]});}
   const px2=mpp*mpp;
   A.res={pix:PIX,thrA:PIX?thrA:null,tot,cnt,m2:tot*px2,px2,canopy,roadAll,roadCan,pedAll,pedCan,url,
     cls,counts:{bld:bld.length,veh:vehL.length,ped:pedL.length+pedArea.length+ahPed.length,bike:bikeL.length,park:parks.length,water:wPoly.length+wLine.length},mpp,z};

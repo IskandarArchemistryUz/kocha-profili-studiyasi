@@ -165,6 +165,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 </div>
 
 <script src="js/basemap.js?v=1"></script>
+<script src="js/layerbus.js?v=1"></script>
 <script>
 (function(){
   const urls=["https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"];
@@ -218,6 +219,8 @@ onStyle(()=>{
   map.addSource("ring",{type:"geojson",data:fc([])});
   map.addLayer({id:"ring",type:"line",source:"ring",paint:{"line-color":"#141414","line-width":2.6}});
   initSite();
+  /* natija asosiy oynaga (Tahlil qatlamlari) — har tab alohida qatlam */
+  if(window.KPSLAY) KPSLAY.mirror(map,{id:()=>"gis-"+G.tab, name:()=>"Relyef · "+((document.querySelector('#tabs [data-t="'+G.tab+'"]')||{}).textContent||G.tab), page:"gis.html", sources:["ras","grid","cont","util"], legend:()=>$("legend").hidden?"":$("legend").innerHTML});
 });
 
 /* ---------- foydalanuvchi qatlamlari (1-qadam «Maʼlumot yuklash», IndexedDB kps_data) ---------- */

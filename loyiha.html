@@ -202,6 +202,7 @@ const STEPS=[
     {id:"chegara", t:"Hudud bahosi", page:"ai.html", hint:"Asosiy oynada chizilgan hudud shu yerga oʻtadi — «Hisoblash» ni bosing: aholi, xizmatlar, shamol guli. 3D va ikonkalar shu yerda."},
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html", hint:"QGIS va boshqa dasturlardan GeoJSON, Shapefile, KML, CSV yuklang — qatlamlar Koʻcha studiyasi va albomda koʻrinadi."}]},
   {id:"tahlil", t:"Tahlil", subs:[
+    {id:"qatlam", t:"Tahlil qatlamlari", page:"muharrir.html", tool:"tahlil", hint:"Asosiy oyna: hisoblangan tahlillar shu xaritada qatlam boʻlib turadi — yoqing, shaffofligini sozlang. Hisoblash — keyingi tablarda; natija avtomatik shu yerga keladi."},
     {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area", hint:"Sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi — hududni belgilab tahlil qiling."},
     {id:"gis", t:"Relyef · zichlik · tarmoqlar", page:"gis.html", hint:"Balandlik, nishablik, yer foydalanish, zichlik setkasi va muhandislik tarmoqlari — 1-qadamdagi hudud ichida. Yuklangan GIS qatlamlar tahlilni boyitadi."},
     {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Loyiha binolarining taʼsiri — 4-qadam «Binolar → Shamol taʼsiri»."}]},
@@ -217,7 +218,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="61";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="62";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -481,6 +482,7 @@ $("pname").addEventListener("input",()=>{ const c=cur(); if(c){ c.name=P.name; c
 
 /* --- qadam koʻrsatmalari: har boʻlim birinchi ochilganda qisqa «nima qilish kerak» --- */
 const GUIDE={
+ "tahlil-qatlam":["Tahlil — bitta xaritada",["<b>Yer qoplami</b>, <b>Relyef · zichlik · tarmoqlar</b> yoki <b>Shamol</b> tabini oching — hudud boʻyicha hisoblanadi.","Natija avtomatik shu asosiy oynaga qatlam boʻlib keladi (chap panel — <b>Tahlil</b>, A).","Qatlamni yoqing, shaffofligini sozlang — u Koʻchalar va Binolar bosqichlarida ham loyiha ostida koʻrinib turadi."]],
  "hudud-xarita":["Bitta xarita — butun loyiha",["Chap panelda <b>Hudud</b> (H): oʻngda <b>Doira</b>, <b>Toʻrtburchak</b> yoki <b>Erkin chegara</b> ni tanlang va xaritada belgilang.","Chegarani nuqtalaridan sudrab tuzating — u barcha boʻlimlarga birdan oʻtadi.","Shu xarita <b>Koʻchalar</b> va <b>Binolar</b> bosqichlarida ham qoladi: qadam almashganda faqat asbob almashadi."]],
  "hudud-chegara":["Hududni belgilang",["Yuqorida <b>Doira</b>, <b>Toʻrtburchak</b> yoki <b>Erkin chegara</b> ni tanlang va xaritada hududni belgilang.","<b>Hisoblash</b> ni bosing — oʻngda koʻrsatkichlar chiqadi: aholi va xonadonlar, shamol guli, xizmatlar, yashil ulush.","Loyiha uchastkasi boʻlsa, <b>✎ Uchastka</b> bilan chizing. <b>3D / vektor</b> — maket va qatlamlarga ajratilgan koʻrinish."],"Hudud va uchastka keyingi barcha qadamlarda avtomatik ishlatiladi."],
  "hudud-malumot":["Oʻz maʼlumotingizni yuklang",["Shapefile, GeoPackage, GeoJSON, KML yoki CSV faylni tanlang (yoki butun papkani).","Koordinata tizimini tekshiring — Toshkent MSK ham bor.","Yuklangan qatlamlar Tahlil (zichlik, yer foydalanish, muhandislik) va albomda tanlanadi."],"Ixtiyoriy qadam — OSM maʼlumoti yetarli boʻlsa, oʻtkazib yuboring."],

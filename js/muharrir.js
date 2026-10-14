@@ -510,6 +510,7 @@ function presetOpts(cur){const g={};MOD.presets.forEach(p=>(g[p.g]=g[p.g]||[]).p
   return Object.entries(g).map(([n,ps])=>`<optgroup label="${esc(T(n))}">${ps.map(p=>`<option value="${p.id}" ${p.id===cur?'selected':''}>${esc(T(p.n))} · ${fmt(p.W,1)} m</option>`).join('')}</optgroup>`).join('');}
 function stripBar(p){return `<div class="strips" title="${esc(T(p.n))}">${p.st.map(s=>`<i style="flex:${s[1]} 1 0;background:${(MOD.dk[s[0]]||{}).c||'#ccc'}" title="${esc(T((MOD.dk[s[0]]||{}).n||s[0]))} · ${fmt(s[1],2)} m"></i>`).join('')}</div>`;}
 function renderPanel(){
+  if(S.tool==='tahlil'){$('#panel').innerHTML=`<div class="ph"><span class="lb">2 · ${esc(T('Tahlil'))}</span><span class="phr"><span class="lb">beta</span></span></div><h2>${esc(T('Tahlil qatlamlari'))}</h2><div class="bd">${MRTX.html()}</div>`;MRTX.bind($('#panel'));hint();return;}
   if(S.tool==='hudud'){$('#panel').innerHTML=`<div class="ph"><span class="lb">1 · ${esc(T('Hudud'))}</span><span class="phr"><span class="lb">beta</span></span></div><h2>${esc(T('Hudud chegarasi'))}</h2><div class="bd">${MRHUD.html()}</div>`;MRHUD.bind($('#panel'));hint();return;}
   const st=S.tool==='tek'?5:S.tool==='bino'||(S.sel&&S.sel.t==='bl')?4:S.tool==='gen'?3:S.tool==='zone'||(S.sel&&S.sel.t==='b')?1:0,ttl=st===5?'Tekshiruv':st===4?'Binolar':st===3?'Generatsiya':st?'Kvartallar va zonalash':'Koʻcha tarmogʻi';
   const hasEx=window.MRANIM&&MRANIM.has(S.tool);
@@ -563,6 +564,7 @@ function renderPanel(){
   hint();}
 function hint(){let t='';
   if(S.tool==='hudud')t=MRHUD.hint();
+  if(S.tool==='tahlil')t=MRTX.hint();
   if(S.tool==='zone')t='Kvartalni bosing — joriy zona beriladi';
   else if(S.tool==='gen')t='Kvartalni bosing — binolar parametrlari';
   else if(S.tool==='tek')t='Binoni bosing — insolyatsiya va eng yaqin masofa';
@@ -571,7 +573,7 @@ function hint(){let t='';
   $('#hint').textContent=T(t);}
 
 /* ---------- asboblar ---------- */
-function setTool(t){S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(window.MRANIM){if(MRANIM.open&&MRANIM.cur!==t)MRANIM.hide();MRANIM.first(t,$('.main'));}if(window.MRHUD)MRHUD.active(t==='hudud');map.getCanvas().style.cursor=t==='street'||t==='hudud'?'crosshair':'';$('#tip').textContent='';render();}
+function setTool(t){S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(window.MRANIM){if(MRANIM.open&&MRANIM.cur!==t)MRANIM.hide();MRANIM.first(t,$('.main'));}if(window.MRHUD)MRHUD.active(t==='hudud');if(window.MRTX)MRTX.active(t==='tahlil');map.getCanvas().style.cursor=t==='street'||t==='hudud'?'crosshair':'';$('#tip').textContent='';render();}
 $$('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('#undo').onclick=undo;$('#redo').onclick=redo;
 $$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});applyView();setTimeout(render,650);});
@@ -592,6 +594,7 @@ const bldAt=pt=>{try{return map.queryRenderedFeatures(pt,{layers:['blds']})[0]||
 map.on('click',e=>{
   if(S.drag||S.bdrag)return;
   if(S.tool==='hudud'){MRHUD.click(e);return;}
+  if(S.tool==='tahlil')return;
   if(S.tool==='tek'){const f=bldAt(e.point);S.sel=f?{t:'bl',zid:f.properties.zid,bid:f.properties.bid}:null;render();return;}
   if(S.tool==='bino'){const ll=e.lngLat.toArray(),tip=$('#tip');
     if(S.nb){const b=blockAt(S.nb.p1),r=b&&rectFrom(b,S.nb.p1,ll);S.nb=null;tip.textContent='';
@@ -613,6 +616,7 @@ map.on('click',e=>{
 map.on('dblclick',e=>{if(S.tool==='hudud'){MRHUD.dbl(e);return;}if(S.tool==='street'&&S.draw){e.preventDefault();endDraw();}});
 map.on('mousemove',e=>{
   if(S.tool==='hudud'){MRHUD.move(e);return;}
+  if(S.tool==='tahlil'){map.getCanvas().style.cursor='';return;}
   if(S.drag){const n=node(S.drag.id);if(n){n.ll=e.lngLat.toArray();S.drag.moved=true;render();}return;}
   if(S.bdrag){const d=S.bdrag,ll=e.lngLat.toArray();if(!d.moved){const px=map.project(d.p0);if(Math.hypot(px.x-e.point.x,px.y-e.point.y)<3)return;
       const b=blkOfZ(d.zid);if(!b)return;const rec=bake(b),x=rec.blds.find(x=>x.id===d.bid);if(!x)return;d.x=x;d.cs=x.cs;d.moved=true;}
@@ -663,6 +667,7 @@ window.addEventListener('keydown',e=>{
   if(S.tool==='hudud'&&MRHUD.key(e)){e.preventDefault();return;}
   if(e.key==='Enter'||e.key==='Escape'){if(S.draw){endDraw();}else if(e.key==='Escape'&&S.sel){S.sel=null;render();}return;}
   if(k==='h'&&!e.ctrlKey&&!e.metaKey)setTool('hudud');
+  if(k==='a'&&!e.ctrlKey&&!e.metaKey)setTool('tahlil');
   if(k==='s'&&!e.ctrlKey&&!e.metaKey)setTool('street');
   if(k==='v'&&!e.ctrlKey&&!e.metaKey)setTool('select');
   if(k==='z'&&!e.ctrlKey&&!e.metaKey)setTool('zone');
@@ -766,7 +771,7 @@ async function toAlbum(){const st=$('#albSt');
 /* loyiha oynasi (loyiha.html) bosqich almashganda asbobni tanlaydi: {kps:'tool', t} */
 let LOADED=false,PENDING_TOOL=null;
 window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.kps!=='tool')return;const t=String(e.data.t||'');
-  if(!['hudud','street','select','zone','gen','bino','tek'].includes(t))return;if(LOADED){if(S.tool!==t)setTool(t);}else PENDING_TOOL=t;});
+  if(!['hudud','tahlil','street','select','zone','gen','bino','tek'].includes(t))return;if(LOADED){if(S.tool!==t)setTool(t);}else PENDING_TOOL=t;});
 async function init(){
   try{MOD=await (await fetch('data/kocha-modullari.json?v=1')).json();}catch(e){MOD={dk:{},presets:[{id:'res',g:'—',n:'Koʻcha',W:15,lanes:2,st:[['lane',7,0]]}]};}
   MOD.presets.forEach(p=>PRE[p.id]=p);
@@ -779,6 +784,7 @@ async function init(){
     if(pts.length>1){const b=turf.bbox(turf.multiPoint(pts));map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:120,duration:0});}
     else if(SITE){const b=turf.bbox(turf.lineString(SITE));map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:{top:60,bottom:60,left:340,right:60},duration:0});}
     MRHUD.init({map,onSite:()=>{loadSite();render();},render:()=>{if(S.tool==='hudud')renderPanel();}});
+    MRTX.init({map,render:()=>{if(S.tool==='tahlil')renderPanel();}});
     MRHUD.next=()=>{setTool('street');try{parent!==window&&parent.postMessage({kps:'go',href:'muharrir.html#kocha'},location.origin);}catch(e){}};
     LOADED=true;
     setTool(PENDING_TOOL||(!SITE&&!D.edges.length?'hudud':D.edges.length?'select':'street'));PENDING_TOOL=null;});
