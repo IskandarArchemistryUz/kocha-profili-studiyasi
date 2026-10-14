@@ -56,6 +56,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .kpi i{font-style:normal}.kpi.off b{color:#b9b6ae}.kpi .ok{color:var(--good)}.kpi .wn{color:var(--fair)}
 .empty{position:absolute;inset:0;display:grid;place-items:center;z-index:5;background:rgba(243,242,239,.92)}
 .empty[hidden]{display:none}
+.zp{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.zp button{display:flex;align-items:center;gap:8px;height:36px;padding:0 8px;border:1px solid var(--line);background:#fff;cursor:pointer;text-align:left;font-size:13px}
+.zp button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.zp i{width:16px;height:16px;flex:none;border:1px solid rgba(0,0,0,.25)}
+.panel input[type=text]{width:100%;height:34px;border:1px solid var(--line);padding:0 8px}
+.bbar{display:flex;height:14px;border:1px solid var(--ink);margin:6px 0}
+.blbl{position:absolute;pointer-events:none;font:500 11px var(--mono);color:#111;background:rgba(255,255,255,.82);padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%)}
+.blbl small{display:block;font-weight:400;color:var(--muted);text-align:center}
 .empty div{max-width:420px;background:#fff;border:1px solid var(--ink);padding:20px}
 @media (max-width:900px){.app{grid-template-columns:48px minmax(0,1fr)}.side{display:none}.panel{width:260px}}
 </style>
@@ -66,7 +74,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <button class="tb" data-tool="select" aria-label="Tanlash va tahrirlash (V)" title="Tanlash va tahrirlash (V)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l13 6-5.5 1.8L10.5 17z"/></svg><span class="k">V</span></button>
     <div class="sep"></div>
     <button class="tb" data-tool="street" aria-label="Koʻcha chizish (S)" title="Koʻcha chizish (S)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21 9 3M19 21 15 3"/><path d="M12 5v2M12 11v2M12 17v2"/></svg><span class="k">S</span></button>
-    <button class="tb" disabled aria-label="Kvartallar — 2-bosqich" title="Kvartallar va zonalash — keyingi bosqich"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="16" height="7"/></svg></button>
+    <button class="tb" data-tool="zone" aria-label="Zonalash (Z)" title="Zonalash: kvartalni bosing — vazifasi beriladi (Z)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="16" height="7"/></svg><span class="k">Z</span></button>
     <button class="tb" disabled aria-label="Generatsiya — 3-bosqich" title="Binolarni generatsiya qilish — keyingi bosqich"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V11l5-3v13M9 21V6l6-3v18M15 21V9l5 3v9"/></svg></button>
     <button class="tb" disabled aria-label="Bino — 4-bosqich" title="Bino tahriri — keyingi bosqich"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V8l7-4 7 4v13"/><path d="M10 21v-5h4v5"/><path d="M3 21h18"/></svg></button>
     <div class="sep"></div>
@@ -79,6 +87,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <section class="panel" id="panel" aria-live="polite"></section>
     <div class="hint" id="hint"></div>
     <div class="tip" id="tip"></div>
+    <div id="labels" style="position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden"></div>
     <div class="empty" id="empty" hidden><div><div class="lb hd">Hudud yoʻq</div><p class="note" style="color:var(--ink)">Avval 1-qadamda hududni belgilang — muharrir shu chegarani oladi. Hududsiz ham chizish mumkin: xaritani kerakli joyga suring.</p><p style="margin:14px 0 0"><button class="btn dark" id="emptyGo">Hududsiz davom etish</button></p></div></div>
   </main>
 
@@ -92,7 +101,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <div class="lg"><i style="height:0;border-top:1.6px dashed #b23a2e"></i>Qizil chiziq</div>
       <div class="lg"><i style="height:10px;background:#55585c"></i>Qatnov qismi</div>
       <div class="lg"><i style="height:10px;background:#e4d9c3"></i>Trotuar, koʻkalamzor (koʻcha ichida)</div>
+      <div id="zleg"></div>
     </div>
+    <div><span class="lb hd">Hudud balansi</span><div id="bal"><p class="note">Koʻchalar chizilgach kvartallar avtomatik chiqadi.</p></div></div>
     <div><span class="lb hd">Linzalar</span><p class="note">Soya, insolyatsiya, shamol va 15 daqiqa — binolar qoʻshilgandan keyin shu yerda yoqiladi.</p></div>
   </aside>
 
@@ -100,7 +111,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
-<script src="js/muharrir.js?v=1"></script>
-<script src="js/i18n.js?v=44"></script>
+<script src="js/muharrir.js?v=2"></script>
+<script src="js/i18n.js?v=45"></script>
 </body>
 </html>

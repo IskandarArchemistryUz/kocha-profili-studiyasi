@@ -207,14 +207,14 @@ const STEPS=[
   {id:"kocha", t:"Koʻchalar", subs:[
     {id:"loyiha", t:"Loyiha chizish", page:"studio.html", app:"design", hint:"Koʻchalarni modullardan chizing; YHQ tekshiruvlari va 3D shu yerda."},
     {id:"profil", t:"Profil", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."},
-    {id:"muharrir", t:"Master reja · beta", page:"muharrir.html", hint:"Yangi muharrir: koʻcha tarmogʻi bitta xaritada, qizil chiziqlar va TEP darhol. Kvartallar va binolar keyingi bosqichlarda shu yerga qoʻshiladi."}]},
+    {id:"muharrir", t:"Master reja · beta", page:"muharrir.html", hint:"Yangi muharrir: koʻchalar, kvartallar va zonalash bitta xaritada; qizil chiziqlar, hudud balansi va TEP darhol. Binolar keyingi bosqichda."}]},
   {id:"bino", t:"Binolar", subs:[
     {id:"posadka", t:"Joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."},
     {id:"shamol", t:"Shamol taʼsiri", page:"shamol.html", hint:"Joylashtirishdagi binolar avtomatik qoʻshiladi. «Farq» — loyiha havo almashinuvini qayerda yomonlashtiradi. Binoni oʻzgartirsangiz, natija yangilanadi."}]},
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="50";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="51";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -537,6 +537,6 @@ document.addEventListener("click",e=>{if(!e.target.closest(".gq"))$("gl").hidden
   renderMrB(); setTimeout(ensureMr,1500);   // panel fonda yuklanadi — tugmadagi holat doim jonli
 })();
 </script>
-<script src="js/i18n.js?v=44"></script>
+<script src="js/i18n.js?v=45"></script>
 </body>
 </html>
