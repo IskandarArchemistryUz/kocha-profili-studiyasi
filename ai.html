@@ -87,7 +87,7 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/basemap.js?v=1"></script>
-<script src="js/project.js?v=1"></script>
+<script src="js/project.js?v=2"></script>
 <script src="js/uly.js?v=5"></script>
 <script src="js/ai3d.js?v=13"></script>
 <script>
@@ -111,7 +111,14 @@ setTimeout(()=>{$('#siteBtn').onclick=()=>{if(SDRAW){SDRAW=null;siteRender();hin
 const A=L.layerGroup().addTo(map),O=L.layerGroup().addTo(map);
 let mode='radius',center=null,poly=[],done=false,res=null,aiText='',rectA=null,rectCur=null,DIRTY=true,CLIP=localStorage.getItem('kps_ai_clip')==='1';
 const KEY=()=>localStorage.getItem('kps_ai_key')||'',MODEL=()=>localStorage.getItem('kps_ai_model')||'claude-sonnet-5';
-function hint(){const h=$('#hint');if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgartiring yoki «Hisoblash» ni bosing.':'<b>Doira.</b> Xaritada markazni bosing.';
+/* loyiha ichida hudud chegarasi faqat asosiy oynada (H) chiziladi — bu yerda takrorlanmaydi */
+const SITE_LOCK=window.parent!==window;
+if(SITE_LOCK){const st=document.createElement('style');st.textContent='#modeSeg,#modeSeg+.km{display:none!important}';document.head.appendChild(st);}
+function hint(){const h=$('#hint');
+  if(SITE_LOCK){const has=mode==='radius'?!!center:(done&&poly.length>2);
+    h.innerHTML=has?'<b>Hudud asosiy oynadan olingan.</b> «Hisoblash» ni bosing. Chegarani oʻzgartirish — <a href="#" id="toHud">Hudud chegarasi</a>.':'<b>Hudud hali belgilanmagan.</b> Uni asosiy oynada chizing: <a href="#" id="toHud">Hudud chegarasi →</a>';
+    const a=$('#toHud');if(a)a.onclick=ev=>{ev.preventDefault();try{parent.postMessage({kps:'go',href:'muharrir.html#hudud'},location.origin);}catch(er){}};return;}
+if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgartiring yoki «Hisoblash» ni bosing.':'<b>Doira.</b> Xaritada markazni bosing.';
   else if(mode==='rect')h.innerHTML=done?'<b>Toʻrtburchak tayyor.</b> «Hisoblash» ni bosing yoki qaytadan ikki burchakni bosing.':rectA?'<b>Toʻrtburchak.</b> Qarama-qarshi burchakni bosing.':'<b>Toʻrtburchak.</b> Birinchi burchakni bosing.';
   else h.innerHTML=done?'<b>Chegara tayyor.</b> Nuqtalarni sudrab tuzating, «+» — nuqta qoʻshish. «Hisoblash» ni bosing.<button id="hCl">Qaytadan</button>':`<b>Erkin chegara.</b> Burchaklarni bosing (${poly.length}).${poly.length>2?' Yopish — birinchi nuqtani bosing yoki Enter.':''}`+(poly.length>2?'<button id="hClose">Yopish</button>':'')+(poly.length?'<button id="hUndo">Oxirgi nuqta ⌫</button><button id="hCl">Tozalash</button>':'');
   if($('#hClose'))$('#hClose').onclick=closePoly;if($('#hUndo'))$('#hUndo').onclick=undoPt;
@@ -138,7 +145,7 @@ function drawArea(){publishSite();A.clearLayers();updMask();if(mode==='rect'&&re
 const PV=L.layerGroup().addTo(map);
 function closePoly(){if(mode!=='poly'||poly.length<3)return;done=true;PV.clearLayers();DIRTY=true;drawArea();hint();}
 function undoPt(){if(mode==='poly'&&!done&&poly.length){poly.pop();PV.clearLayers();drawArea();hint();}}
-map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(SDRAW){if(SDRAW.length>2&&map.latLngToContainerPoint(SDRAW[0]).distanceTo(e.containerPoint)<14){siteClose();return;}SDRAW.push(p);siteRender();siteHint();return;}if(mode==='radius'){center=p;}
+map.on('click',e=>{const p=[e.latlng.lat,e.latlng.lng];if(SDRAW){if(SDRAW.length>2&&map.latLngToContainerPoint(SDRAW[0]).distanceTo(e.containerPoint)<14){siteClose();return;}SDRAW.push(p);siteRender();siteHint();return;}if(SITE_LOCK){hint();return;}if(mode==='radius'){center=p;}
   else if(mode==='rect'){if(!rectA||done){rectA=p;rectCur=p;poly=[];done=false;}else{const a=rectA,b=p;poly=[[a[0],a[1]],[a[0],b[1]],[b[0],b[1]],[b[0],a[1]]];done=true;rectA=null;}}
   else{if(done){return;}// tayyor chegara nuqtalar bilan tahrirlanadi; qaytadan chizish — «Qaytadan»
     if(poly.length>2){const a=map.latLngToContainerPoint(poly[0]);if(a.distanceTo(e.containerPoint)<14){closePoly();return;}}poly.push(p);}DIRTY=true;drawArea();hint();});

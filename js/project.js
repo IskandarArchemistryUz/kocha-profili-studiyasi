@@ -23,5 +23,10 @@ function publishMr(blds,tep){
 }
 /* boshqa oynadan oʻzgarish kelganda */
 function onChange(f){window.addEventListener('storage',e=>{if(KEYS.includes(e.key))f(e.key);});}
-window.KPSPRJ={buildings,summary,publishMr,onChange,KEYS};
+/* loyihaga tegishli maʼlumot — loyiha almashtirilganda nusxalanadi, oʻchirilganda tozalanadi (loyiha.html, bosh sahifa) */
+const LS_KEYS=['kps_project','kps_params','kps_mr_doc','kps_mr_vars','kps_mr_blds','kps_mr_tep','kps_tx','kps_view','kps_v1','kps_saves','kps_posadka','kps_posadka_sum','kps_area_sum','kps_ai_sites','kps_official','kps_mrp','kps_mrp_ext','kps_site','kps_site_seen_studio'];
+// albom, albom materiallari, yuklangan qatlamlar, tahlil qatlamlari, saqlangan tahlillar va foydalanuvchi 3D modellari
+const IDB_ALL=[['kps_maket','docs'],['kps_mat','mats'],['kps_data','layers'],['kps_layers','g'],['kps_ai_runs','runs'],['kps_assets','a']];
+const IDB_OPT={kps_assets:{keyPath:'id',autoIncrement:true}};
+window.KPSPRJ={buildings,summary,publishMr,onChange,KEYS,LS_KEYS,IDB_ALL,IDB_OPT};
 })();
