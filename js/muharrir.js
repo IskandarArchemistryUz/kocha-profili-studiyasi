@@ -202,13 +202,16 @@ function genHTML(b){const z=b.z;if(!z||!GENZ.includes(z.z))return S.tool==='gen'
     <label class="rng"><span>${esc(T('Maks. qavat'))} <b>${g.fl}</b></span><input type="range" id="gFl" min="1" max="30" step="1" value="${g.fl}"></label>
     <label class="rng"><span>${esc(T('Qizil chiziqdan chekinish'))} <b>${g.sb} m</b></span><input type="range" id="gSb" min="0" max="20" step="1" value="${g.sb}"></label>
     <div class="kv"><span>${esc(T('Binolar'))}</span><b>${r.blds?r.blds.length:0} · ${fmt(r.flAvg||0,1)} ${esc(T('qavat'))}</b><span>GFA</span><b>${fmt(r.gfa,0)} m²</b><span>${esc(T('FAR (erishildi)'))}</span><b>${fmt(r.far,2)}</b><span>${esc(T('Qoplam'))}</span><b>${r.A?fmt(r.fp/r.A*100,0):'—'} %</b>${r.kv?`<span>${esc(T('Kvartiralar'))}</span><b>${fmt(r.kv,0)}</b><span>${esc(T('Aholi'))}</span><b>${fmt(r.pop,0)}</b><span>${esc(T('Netto zichlik'))} ${gi('brutto')}</span><b>${fmt(r.pop/b.ha,0)} ${esc(T('kishi/ga'))}</b>`:''}</div>
-    ${r.capped?`<p class="warnn">${esc(T('Maks. qavat cheklovi tufayli maqsadli FAR ga yetmadi — qavatni oshiring yoki tipologiyani almashtiring.'))}</p>`:''}${r.note?`<p class="warnn">${esc(T(r.note))}</p>`:''}
-    <p class="note">${esc(T('Binolar orasi va chuqurligi — taxmin; insolyatsiya va yongʻinga qarshi masofalar keyingi bosqichda tekshiriladi.'))}</p>
+    
+    <label class="chk" style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="gSeis" ${g.seis!==false?'checked':''}> ${esc(T('Seysmik hudud (8+ ball): binolar orasi ≥ 2H'))}</label>
+    ${(r.warn||[]).map(w=>`<p class="warnn">${esc(T(w))}</p>`).join('')}
+    ${r.rules&&r.rules.length?`<details class="grl"><summary class="lb">${esc(T('Qoʻllangan qoidalar'))} · ${r.rules.length}</summary>${r.rules.map(x=>`<div class="grr"><span>${esc(T(x.t))}</span><b>${esc(T(x.v))}</b><small>${esc(T(x.src))}</small></div>`).join('')}</details>`:''}
     <div class="brow"><button class="btn" id="genLock" title="${esc(T('Binolar hujjatga saqlanadi va generator ularni qayta chizmaydi'))}">${LOCK_SVG} ${esc(T('Qulflash'))}</button><button class="btn" id="genOff">${esc(T('Binolarni olib tashlash'))}</button></div></div>`;
   return h;}
 function bindGen(b){if(!b)return;const rec=()=>zoneRec(b,true);
   const go=$('#genGo');if(go)go.onclick=()=>act(()=>{rec().g=b.z&&b.z.z==='ijtimoiy'?{typ:'perimetr',far:.6,fl:3,sb:10}:defG(b.ha<1.5?'perimetr':'seksiya');});
   $$('#panel [data-typ]').forEach(x=>x.onclick=()=>act(()=>{const g=rec().g,t=x.dataset.typ;rec().g=Object.assign(defG(t),{sb:g.sb});}));
+  {const sz=$('#gSeis');if(sz)sz.onchange=()=>act(()=>{rec().g.seis=sz.checked;});}
   [['#gFar','far',parseFloat],['#gFl','fl',v=>parseInt(v,10)],['#gSb','sb',v=>parseInt(v,10)]].forEach(([id,k,cv])=>{const i=$(id);if(!i)return;
     i.oninput=()=>{const lb=i.previousElementSibling&&i.previousElementSibling.querySelector('b');if(lb)lb.textContent=k==='sb'?i.value+' m':k==='far'?(+i.value).toFixed(1).replace('.',','):i.value;};
     i.onchange=()=>act(()=>{rec().g[k]=cv(i.value);});});
