@@ -183,14 +183,28 @@ async function vectorBase(k){
     return [L.maplibreGL({style:vStyle(VSTY[k]),attribution:'© OpenStreetMap, OpenMapTiles, OpenFreeMap'})];
   }catch(e){toast('Vektor xarita ochilmadi: '+e.message);return null;}
 }
+/* Umumiy fon (js/basemap.js): Stil / OSM / Sunʼiy yoʻldosh / Fonsiz — barcha boʻlimlarda bir xil.
+   Qoʻshimcha fonlar (nomlar bilan sunʼiy yoʻldosh, Google, Esri koʻcha, Voyager) faqat shu boʻlimda. */
+const KB=KPSMAP.leaflet(map,{control:false});
+const SHARED={stil:'stil',osm:'osm',img:'sat',none:'none'},EXTRA={imgl:'sat',google:'sat',street:'osm',carto:'osm'};
+const fromMode=m=>({stil:'stil',osm:'osm',sat:'img',none:'none'})[m]||'stil';
 async function setBase(k){
-  let lay=BASES[k];
-  if(VSTY[k]&&!lay){lay=await vectorBase(k);if(lay)BASES[k]=lay;else k='img',lay=BASES.img;}
-  document.body.dataset.base=k;
-  if(k==='google'){lay=BASES.google||await googleBase();if(lay)BASES.google=lay;else k=S.base&&S.base!=='google'?S.base:'img',lay=BASES[k];}
-  if(curBase)curBase.forEach(l=>map.removeLayer(l));curBase=lay||BASES.img;curBase.forEach(l=>l.addTo(map));S.base=k;document.getElementById('baseSel').value=k;save();
+  if(VSTY[k])k='stil';
+  if(!SHARED[k]&&!EXTRA[k])k=fromMode(KPSMAP.base().mode);
+  document.body.dataset.base=k;S.base=k;
+  if(SHARED[k]){if(curBase){curBase.forEach(l=>map.removeLayer(l));curBase=null;}KB.claim();if(KPSMAP.base().mode!==SHARED[k])KPSMAP.set({mode:SHARED[k]});}
+  else{let lay=BASES[k];
+    if(k==='google'){lay=BASES.google||await googleBase();if(lay)BASES.google=lay;else{S.base=null;return setBase(fromMode(KPSMAP.base().mode));}}
+    KB.release();if(curBase)curBase.forEach(l=>map.removeLayer(l));curBase=lay;curBase.forEach(l=>{l.addTo(map);l.bringToBack&&l.bringToBack();});
+    if(KPSMAP.base().mode!==EXTRA[k])KPSMAP.set({mode:EXTRA[k]});}
+  document.getElementById('baseSel').value=k;save();
   if(k==='imgl')setTimeout(loadBoundaries,0);
 }
+/* boshqa boʻlimda fon almashsa — shu yerda ham */
+KPSMAP.onChange(b=>{const k=S.base;if(EXTRA[k]&&EXTRA[k]===b.mode)return;if(SHARED[k]===b.mode)return;setBase(fromMode(b.mode));});
+{const bs=document.getElementById('baseSel');
+  bs.innerHTML='<optgroup label="Asosiy — barcha boʻlimlarda"><option value="stil">Stil (ranglari oʻzgaradi)</option><option value="osm">OpenStreetMap</option><option value="img">Sunʼiy yoʻldosh (Esri)</option><option value="none">Fonsiz</option></optgroup><optgroup label="Qoʻshimcha — faqat shu boʻlimda"><option value="imgl">Sunʼiy yoʻldosh + OSM nomlar va chegaralar</option><option value="google">Google sunʼiy yoʻldosh (API kalit)</option><option value="street">Esri koʻcha xaritasi</option><option value="carto">OSM — Voyager (toza)</option></optgroup>';
+  bs.after(KPSMAP.control({modes:false,down:true}));}
 document.getElementById('baseSel').onchange=e=>setBase(e.target.value);
 /* OSM maʼmuriy chegaralari (Overpass) — sunʼiy yoʻldosh ustida */
 let bndKey='',bndT=0;
@@ -205,7 +219,7 @@ async function loadBoundaries(){
   }catch(e){bndKey='';}
 }
 map.on('moveend',()=>{clearTimeout(bndT);bndT=setTimeout(loadBoundaries,700);});
-setBase(S.base||'img');
+setBase(EXTRA[S.base]&&EXTRA[S.base]===KPSMAP.base().mode?S.base:fromMode(KPSMAP.base().mode));
 L.control.scale({imperial:false,maxWidth:160,position:'bottomright'}).addTo(map);
 const planL=L.layerGroup().addTo(map), measL=L.layerGroup().addTo(map), drawL=L.layerGroup().addTo(map);
 function renderBase(){}

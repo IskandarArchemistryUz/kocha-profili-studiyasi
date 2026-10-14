@@ -111,6 +111,7 @@ aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--l
 <input type="file" id="imgIn" accept="image/*" hidden>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/basemap.js?v=1"></script>
 <script src="js/shablonlar.js?v=1"></script>
 <script>
 (function(){
@@ -358,7 +359,7 @@ function renderLeft(){document.querySelectorAll('[data-lt]').forEach(b=>b.setAtt
     el.querySelectorAll('[data-m]').forEach(d=>{d.onclick=e=>{if(e.target.closest('[data-mdel]'))return;const [W,Hh]=pageWH(pg());addMat(MATS.find(m=>m.id===d.dataset.m),W/2,Hh/2);};d.ondragstart=e=>e.dataTransfer.setData('text/kps-mat',d.dataset.m);});
     el.querySelectorAll('[data-mdel]').forEach(b=>b.onclick=async()=>{await delRec('kps_mat','mats',b.dataset.mdel);await loadMats();renderLeft();});
     el.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const a=b.dataset.add,[W,Hh]=pageWH(pg());
-      if(a==='map'){const it={id:uid(),t:'map',x:15,y:30,w:W*.55,h:Hh*.6,scale:1000,style:'line',lay:{design:true,data:true},lat:null,lon:null};pg().items.push(it);sel=it.id;commit();renderAll();pickMap(it);}
+      if(a==='map'){const it={id:uid(),t:'map',x:15,y:30,w:W*.55,h:Hh*.6,scale:1000,style:'stil',lay:{design:true,data:true},lat:null,lon:null};pg().items.push(it);sel=it.id;commit();renderAll();pickMap(it);}
       if(a==='img')$('#imgIn').click();
       if(a==='title'){const it={id:uid(),t:'text',x:15,y:12,w:W*.6,h:16,text:doc.name,ff:'Archivo',fs:36,col:'#141414',b:false,al:'l'};pg().items.push(it);sel=it.id;commit();renderAll();}
       if(a==='north'){const it={id:uid(),t:'icon',g:'north',style:'bare',col:'#141414',fg:'#ffffff',x:W-30,y:15,w:12,h:12};pg().items.push(it);sel=it.id;commit();renderAll();}
@@ -427,7 +428,7 @@ function renderProps0(){const el=$('#props'),p=pg(),it=p.items.find(x=>x.id===se
   if(it.t==='legend')h+=`<div class="f r"><label class="full">Sarlavha<input type="text" id="lgT" value="${esc(it.title||'')}"></label><label>Matn, pt<input type="number" data-k="fs" value="${it.fs||9}"></label><label>Ustunlar<input type="number" min="1" max="4" data-k="cols" value="${it.cols||1}"></label><label class="full"><span><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</span></label><label class="full"><span><input type="checkbox" data-cb="auto" ${it.auto?'checked':''}> Avtomatik — sahifadagi rang, naqsh va chiziqlardan yigʻiladi</span></label></div>
     ${it.auto?'<div class="note">Sahifada rang oʻzgarsa, legenda ham yangilanadi. Nomlarini shu yerda yozing — ular saqlanib qoladi.</div>':''}<div class="lbl">Bandlar</div>${(it.entries||[]).map((e,i)=>`<div style="display:grid;grid-template-columns:18px 26px 1fr 64px 20px;gap:4px;align-items:center;margin-bottom:3px"><input type="checkbox" data-le="${i}:on" ${e.on!==false?'checked':''}><input type="color" data-le="${i}:col" value="${/^#[0-9a-f]{6}$/i.test(e.col)?e.col:'#999999'}" style="width:24px;height:22px;border:0;padding:0"><input type="text" data-le="${i}:label" value="${esc(e.label)}" style="border:1px solid var(--line2);padding:3px 5px;font-size:13.5px;min-width:0"><select data-le="${i}:kind" style="font-size:12.5px">${[['fill','maydon'],['line','chiziq'],['dot','nuqta']].map(([k,n])=>`<option value="${k}" ${e.kind===k?'selected':''}>${n}</option>`).join('')}</select><button class="ib" data-led="${i}" style="width:20px;height:20px">✕</button></div>`).join('')}
     <div class="row"><button class="btn sm ghost" id="leAdd">+ Band</button><button class="btn sm ghost" id="leFit">Boʻyini moslash</button></div>`;
-  if(it.t==='map')h+=`<div class="f r"><label>Masshtab 1:<select data-k="scale">${[200,500,1000,2000,2500,5000,10000,25000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}</select></label><label>Fon<select data-k="style">${[['line','Chizma (oq)'],['sat','Sunʼiy yoʻldosh'],['dark','Grafit'],['voy','OSM toza'],['osm','OSM standart'],['none','Fonsiz']].map(([k,n])=>`<option value="${k}" ${it.style===k?'selected':''}>${n}</option>`).join('')}</select></label>
+  if(it.t==='map')h+=`<div class="f r"><label>Masshtab 1:<select data-k="scale">${[200,500,1000,2000,2500,5000,10000,25000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}</select></label><label>Fon<select data-k="style">${[['stil','Stil (umumiy ranglar)'],['line','Kulrang (Esri, eski)'],['sat','Sunʼiy yoʻldosh'],['dark','Grafit'],['voy','OSM toza'],['osm','OSM standart'],['none','Fonsiz']].map(([k,n])=>`<option value="${k}" ${it.style===k?'selected':''}>${n}</option>`).join('')}</select></label>
     <label class="full"><span><input type="checkbox" data-lay="design" ${it.lay.design?'checked':''}> Koʻcha studiyasi loyihasi</span></label><label class="full"><span><input type="checkbox" data-lay="data" ${it.lay.data?'checked':''}> Maʼlumotlar qatlamlari</span></label></div><div id="mLayers" class="note">Qatlamlar yuklanmoqda…</div><div class="row"><button class="btn sm" id="mPick">Joyni tanlash…</button><button class="btn sm ghost" id="mLeg">Shartli belgilar yaratish</button></div>`;
   if(it.t==='mat'&&it.mW)h+=`<div class="f r"><label class="full">Masshtab 1:<select id="matSc">${[50,100,200,250,500,1000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}${[50,100,200,250,500,1000].includes(+it.scale)?'':`<option selected>${it.scale}</option>`}</select></label></div><div class="note">Kesim haqiqiy oʻlchamda: eni ${it.mW.toFixed(1)} m.</div>`;
   if(it.t==='image'||it.t==='mat')h+=`<label style="font-size:13.5px"><input type="checkbox" data-cb="frame" ${it.frame?'checked':''}> Ramka</label>`+(it.src?`<div class="row"><button class="btn sm ${CROP===it.id?'':'ghost'}" id="iCrop">${CROP===it.id?'✓ Kesish tayyor':'✂ Kesish (crop)'}</button>${it.crop?'<button class="btn sm ghost" id="iCropR">Kesishni bekor qilish</button>':''}</div>`:'');
@@ -497,7 +498,7 @@ sv.addEventListener('pointerdown',e=>{if(e.button!==0)return;let P=mm(e);const p
     else{const f=polyD.pts[0];if(polyD.pts.length>2&&Math.hypot(P[0]-f[0],P[1]-f[1])<2.5/zoom){finishPoly();return;}const l=polyD.pts[polyD.pts.length-1];if(Math.hypot(P[0]-l[0],P[1]-l[1])>.3)polyD.pts.push(e.shiftKey?snap45(l,P):P);}renderPaper();return;}
   const base={id:uid(),op:1};
   if(tool==='text'){const it={...base,t:'text',x:P[0],y:P[1],w:80,h:8,text:'',ff:'Archivo',fs:14,col:'#141414',al:'l'};p.items.push(it);sel=it.id;e.preventDefault();setTool('select');renderAll();setTimeout(()=>openEditor(it,true),30);return;}
-  if(tool==='rect'||tool==='ellipse'||tool==='map'){const it={...base,t:tool,x:P[0],y:P[1],w:0,h:0,fill:tool==='map'?null:null,stroke:'#141414',sw:.35};if(tool==='map')Object.assign(it,{scale:1000,style:'line',lay:{design:true,data:true}});drag={k:'new',it,P};p.items.push(it);sel=it.id;return;}
+  if(tool==='rect'||tool==='ellipse'||tool==='map'){const it={...base,t:tool,x:P[0],y:P[1],w:0,h:0,fill:tool==='map'?null:null,stroke:'#141414',sw:.35};if(tool==='map')Object.assign(it,{scale:1000,style:'stil',lay:{design:true,data:true}});drag={k:'new',it,P};p.items.push(it);sel=it.id;return;}
   if(tool==='line'||tool==='arrow'){const it={...base,t:tool,pts:[P,P.slice()],stroke:'#141414',sw:.5};drag={k:'new',it,P};p.items.push(it);sel=it.id;return;}
   if(tool==='pen'){const it={...base,t:'pen',pts:[P],stroke:penCol,sw:penW};drag={k:'pen',it};p.items.push(it);sel=it.id;return;}});
 let penCol='#b3261e',penW=.7;
@@ -644,7 +645,7 @@ $('#zIn').onclick=()=>{zoom=Math.min(4,zoom*1.2);renderPaper();};$('#zOut').oncl
 $('#stage').addEventListener('wheel',e=>{if(e.ctrlKey){e.preventDefault();zoom=Math.max(.08,Math.min(4,zoom*(e.deltaY<0?1.1:1/1.1)));renderPaper();}},{passive:false});
 /* ---------- xarita oynasi ---------- */
 const TILE={line:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',dark:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',voy:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'};
-const TMAX={line:16,dark:16,voy:19,osm:19,sat:19};
+const TMAX={stil:20,line:16,dark:16,voy:19,osm:19,sat:19};
 const R=Math.PI/180,gx=(lon,z)=>(lon+180)/360*256*2**z,gy=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*256*2**z;
 const loadImg=u=>new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=u;});
 async function defaultCenter(){try{const s=JSON.parse(localStorage.getItem('kps_v1')||'null');const n=s&&s.design&&s.design.nodes&&s.design.nodes[0];if(n)return n.ll;if(s&&s.site&&s.site.center)return s.site.center;}catch(e){}return [41.3111,69.2797];}
@@ -662,7 +663,10 @@ async function mapCanvas(it,dpi){const lat=it.lat,lon=it.lon,mppT=it.scale*25.4/
   const cx=gx(lon,z),cy=gy(lat,z),x0=cx-wpx/2,y0=cy-hpx/2;
   const cv=document.createElement('canvas');cv.width=Math.max(1,outW);cv.height=Math.max(1,outH);const c=cv.getContext('2d');const k=cv.width/wpx;
   c.fillStyle=it.style==='dark'?'#1c1e21':'#ffffff';c.fillRect(0,0,cv.width,cv.height);
-  if(it.style!=='none'){const tx0=Math.floor(x0/256),tx1=Math.floor((x0+wpx)/256),ty0=Math.floor(y0/256),ty1=Math.floor((y0+hpx)/256);if((tx1-tx0+1)*(ty1-ty0+1)>600)throw new Error('xarita juda katta — masshtabni kattaroq oling');
+  if(it.style==='stil'){const ux=x=>x/(256*2**z)*360-180,uy=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/(256*2**z))))/R;
+    const im=await KPSMAP.snapshot([uy(y0+hpx),ux(x0),uy(y0),ux(x0+wpx)],Math.min(4096,Math.max(cv.width,cv.height))).then(u=>u&&loadImg(u));
+    if(im)c.drawImage(im,0,0,cv.width,cv.height);}
+  else if(it.style!=='none'){const tx0=Math.floor(x0/256),tx1=Math.floor((x0+wpx)/256),ty0=Math.floor(y0/256),ty1=Math.floor((y0+hpx)/256);if((tx1-tx0+1)*(ty1-ty0+1)>600)throw new Error('xarita juda katta — masshtabni kattaroq oling');
     const jobs=[];for(let tx=tx0;tx<=tx1;tx++)for(let ty=ty0;ty<=ty1;ty++){const u=TILE[it.style].replace('{s}','abcd'[(tx+ty)&3]).replace('{z}',z).replace('{x}',tx).replace('{y}',ty);jobs.push(loadImg(u).then(im=>{if(im)c.drawImage(im,(tx*256-x0)*k,(ty*256-y0)*k,256*k+.6,256*k+.6);}));}
     await Promise.all(jobs);}
   const P=([lo,la])=>[(gx(lo,z)-x0)*k,(gy(la,z)-y0)*k],lw=Math.max(1,dpi/96);
@@ -683,7 +687,7 @@ async function refreshMap(it){if(it.lat==null){const c=await defaultCenter();it.
   catch(e){toast('Xarita chizilmadi: '+e.message);}}
 function pickMap(it){const box=document.createElement('div');box.className='modal';box.innerHTML=`<div class="mbox"><header><b>Xarita oynasi joyi</b><span class="note">Xaritani suring va kattalashtiring — ramka varaqdagi oynaga teng (1:${it.scale}).</span><span class="sp"></span><select id="pkSc" class="btn sm ghost">${[200,500,1000,2000,2500,5000,10000,25000].map(v=>`<option ${it.scale==v?'selected':''}>${v}</option>`).join('')}</select><button class="btn sm ghost" id="pkX">Bekor</button><button class="btn sm dark" id="pkOk">Tayyor</button></header><div style="position:relative;flex:1;display:flex"><div id="pmap" style="flex:1"></div><div class="frame" id="pkF"></div></div></div>`;
   document.body.appendChild(box);
-  (async()=>{const c=it.lat!=null?[it.lat,it.lon]:await defaultCenter();const m=L.map('pmap',{zoomControl:true}).setView(c,16);L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19}).addTo(m);
+  (async()=>{const v=KPSMAP.getView(),c=it.lat!=null?[it.lat,it.lon]:v?[v.c[1],v.c[0]]:await defaultCenter();const m=L.map('pmap',{zoomControl:true}).setView(c,it.lat==null&&v?Math.round(v.z+1):16);KPSMAP.leaflet(m,{view:false});
     try{const d=(await getAll('kps_mat','mats')).find(x=>x.id==='design');if(d&&d.geojson)L.geoJSON(d.geojson,{interactive:false,style:f=>({color:f.properties.col||'#f0b429',weight:1,fillOpacity:.6,fillColor:f.properties.col||'#f0b429'})}).addTo(m);}catch(e){}
     const fr=box.querySelector('#pkF'),upd=()=>{const sc=+box.querySelector('#pkSc').value,mpp=156543.03392*Math.cos(m.getCenter().lat*R)/2**m.getZoom(),w=it.w/1000*sc/mpp,h=it.h/1000*sc/mpp;fr.style.width=w+'px';fr.style.height=h+'px';};
     m.on('zoom move',upd);box.querySelector('#pkSc').onchange=upd;upd();

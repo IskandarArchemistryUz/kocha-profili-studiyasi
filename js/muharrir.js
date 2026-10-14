@@ -88,12 +88,11 @@ let BLK=[];   // hosil qilingan kvartallar: {f:Feature<Polygon>, ha, per, anchor
 function fixSel(){if(S.sel&&((S.sel.t==='e'&&!edge(S.sel.id))||(S.sel.t==='n'&&!node(S.sel.id))||(S.sel.t==='bl'&&!bldRec(S.sel.zid,S.sel.bid))))S.sel=null;S.nb=null;S.arm=null;if(S.draw&&!node(S.draw))S.draw=null;}
 
 /* ---------- xarita ---------- */
-const STYLE={version:8,
-  sources:{sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Esri World Imagery'},
-    light:{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png'],tileSize:256,maxzoom:20,attribution:'© OpenStreetMap, © CARTO'}},
-  layers:[{id:'bg',type:'background',paint:{'background-color':'#e6e3db'}},{id:'sat',type:'raster',source:'sat',paint:{'raster-saturation':-.35,'raster-opacity':.9}},{id:'light',type:'raster',source:'light',layout:{visibility:'none'}}]};
+const STYLE=KPSMAP.mlStyle();   // umumiy fon xarita (js/basemap.js): Stil / OSM / Sunʼiy yoʻldosh / Fonsiz
 const map=new maplibregl.Map({container:'map',style:STYLE,center:[69.2797,41.3111],zoom:15.5,maxPitch:70,attributionControl:{compact:true},doubleClickZoom:false,dragRotate:true,preserveDrawingBuffer:true});   // albom uchun kanvasni rasmga olish
 map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-right');
+const KB=KPSMAP.maplibre(map,{control:false});
+{const sg=document.querySelector('[aria-label="Fon xarita"]');if(sg)sg.replaceWith(KPSMAP.control({down:true}));}
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
 const FC=f=>({type:'FeatureCollection',features:f||[]});
 let K=78271.517;   // metr → piksel: px = m · 2^z / (78271,517 · cos φ)
@@ -572,7 +571,7 @@ function setTool(t){S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t
 $$('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('#undo').onclick=undo;$('#redo').onclick=redo;
 $$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});applyView();setTimeout(render,650);});
-$$('[data-base]').forEach(b=>b.onclick=()=>{S.base=b.dataset.base;$$('[data-base]').forEach(x=>x.setAttribute('aria-pressed',x===b));if(S.view==='fg')return;map.setLayoutProperty('sat','visibility',S.base==='sat'?'visible':'none');map.setLayoutProperty('light','visibility',S.base==='light'?'visible':'none');});
+/* fon tugmalari — umumiy boshqaruvda (js/basemap.js) */
 
 /* ---------- yopishish ---------- */
 const SNAP=12;
@@ -675,10 +674,10 @@ function loadSite(){SITE=siteRing();if(map.getSource('site'))map.getSource('site
 const FG_HIDE=['sat','light','blocks-fill','blocks-line','corr-fill','road','axis','red','bsel','sel','road-hit','prev','wind','windc','shadow','blds','blds-line','dist','insp','walk','nodes','nbp-fill','nbp-line'];
 let FGON=false;
 function applyView(){if(!map.getLayer('fg'))return;const on=S.view==='fg';
-  if(on){FG_HIDE.forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');});map.setLayoutProperty('fg','visibility','visible');map.setPaintProperty('bg','background-color','#ffffff');}
+  if(on){FG_HIDE.forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');});map.setLayoutProperty('fg','visibility','visible');KB.suppress(true);map.setPaintProperty('kb-bg','background-color','#ffffff');}
   else if(FGON){FG_HIDE.forEach(id=>{if(map.getLayer(id)&&!['sat','light','wind'].includes(id))map.setLayoutProperty(id,'visibility','visible');});
-    map.setLayoutProperty('sat','visibility',S.base==='sat'?'visible':'none');map.setLayoutProperty('light','visibility',S.base==='light'?'visible':'none');
-    map.setLayoutProperty('wind','visibility',LENS.wind&&WIND?'visible':'none');map.setLayoutProperty('fg','visibility','none');map.setPaintProperty('bg','background-color','#e6e3db');}
+    KB.suppress(false);
+    map.setLayoutProperty('wind','visibility',LENS.wind&&WIND?'visible':'none');map.setLayoutProperty('fg','visibility','none');}
   FGON=on;['#labels','#dlabels'].forEach(q=>{const e=$(q);if(e)e.style.display=on?'none':'';});}
 /* rasm uchun geometriya (mahalliy metr) */
 function fgGeom(){const o=origin(),F=MRCHK.frame(o[1],o[0]),rings=[];BLK.forEach(b=>{if(b.r)b.r.blds.forEach(x=>rings.push(x.f.geometry.coordinates.map(r=>r.map(F.xy))));});

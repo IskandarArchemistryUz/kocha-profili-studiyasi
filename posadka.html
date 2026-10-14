@@ -72,12 +72,13 @@ details.fz{border-top:1px solid var(--line);padding-top:4px}details.fz>summary{c
 <main>
 <nav class="rail" aria-label="Asboblar" id="rail"></nav>
 <div class="mapw"><div id="map"></div><div id="map3"></div>
-<div class="basesw"><div class="seg"><button data-b="sat" aria-pressed="true">Sunʼiy yoʻldosh</button><button data-b="line" aria-pressed="false">Chizma</button></div></div>
+
 <div class="hint" id="hint"></div></div>
 <aside id="side"></aside>
 </main>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/basemap.js?v=1"></script>
 <script>
 (function(){
 'use strict';
@@ -102,9 +103,7 @@ const syncKP=()=>{P.p.ppl=KP.get('hh');P.p.park=KP.get('park');P.p.eff=KP.get('n
 KP.on(()=>{syncKP();try{save();render();}catch(e){}});
 /* ---- xarita ---- */
 const map=L.map('map',{zoomControl:true,doubleClickZoom:false}).setView(P.site?P.site[0]:P.center,P.site?18:16);
-const BASE={sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:18,attribution:'Esri World Imagery'}),line:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:16,attribution:'© OSM, © Esri'})};
-let base=BASE.sat.addTo(map);
-document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{map.removeLayer(base);base=BASE[b.dataset.b].addTo(map);base.bringToBack();document.querySelectorAll('[data-b]').forEach(x=>x.setAttribute('aria-pressed',x===b));});
+const KB=KPSMAP.leaflet(map);   // umumiy fon xarita va xarita holati (js/basemap.js)
 const G=L.layerGroup().addTo(map),E=L.layerGroup().addTo(map),T=L.layerGroup().addTo(map),AN=L.layerGroup().addTo(map);
 /* metrik proyeksiya */
 const lat0=()=>(P.site?P.site.reduce((a,p)=>a+p[0],0)/P.site.length:map.getCenter().lat),MX=()=>111320*Math.cos(lat0()*R),MY=110574;
