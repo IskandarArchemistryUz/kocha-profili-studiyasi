@@ -1,8 +1,10 @@
-/* Archemistry Lab — Master reja muharriri (1: koʻcha tarmogʻi · 2: kvartallar va zonalash · 3: generatsiya).
+/* Archemistry Lab — Master reja muharriri (1: koʻcha tarmogʻi · 2: kvartallar va zonalash · 3: generatsiya · 4: binolarni qoʻlda tahrirlash).
    Tuzilma: bitta loyiha hujjati (D) → hisob zanjiri (qizil chiziqlar → kvartallar → TEP) → bitta MapLibre xaritasi.
    Kvartallar saqlanmaydi — har safar «hudud − koʻchalar» dan hosil qilinadi. Zona kvartal ichidagi
    «langar» nuqtaga bogʻlanadi: koʻcha surilsa ham zona oʻz kvartalida qoladi.
    Har oʻzgarish act() orqali: undo/redo, saqlash va qayta chizish bir joyda.
+   4-bosqich: birinchi qoʻlda oʻzgarishda kvartal binolari zona yozuviga «pishiriladi» (blds, lock) — shundan keyin
+   generator ularni qayta chizmaydi; koʻcha surilsa ham binolar joyida qoladi, kvartaldan chiqqani qizil boʻladi.
    Hujjat: localStorage 'kps_mr_doc' (loyiha snapshotiga kiradi). Koordinatalar [lng, lat]. */
 (function(){
 'use strict';
@@ -81,7 +83,7 @@ let SITE=null;
 /* ---------- holat ---------- */
 const S={tool:'street',sel:null,draw:null,cursor:null,shift:false,view:'plan',base:'sat',drag:null};
 let BLK=[];   // hosil qilingan kvartallar: {f:Feature<Polygon>, ha, per, anchor:[lng,lat], z:zona yozuvi|null, name}
-function fixSel(){if(S.sel&&((S.sel.t==='e'&&!edge(S.sel.id))||(S.sel.t==='n'&&!node(S.sel.id))))S.sel=null;if(S.draw&&!node(S.draw))S.draw=null;}
+function fixSel(){if(S.sel&&((S.sel.t==='e'&&!edge(S.sel.id))||(S.sel.t==='n'&&!node(S.sel.id))||(S.sel.t==='bl'&&!bldRec(S.sel.zid,S.sel.bid))))S.sel=null;S.nb=null;S.arm=null;if(S.draw&&!node(S.draw))S.draw=null;}
 
 /* ---------- xarita ---------- */
 const STYLE={version:8,
@@ -97,7 +99,7 @@ let K=78271.517;   // metr → piksel: px = m · 2^z / (78271,517 · cos φ)
 const mpx=(prop,min)=>{const v=z=>['/',['*',['get',prop],2**z],K];const w=z=>min?['max',min,v(z)]:v(z);return ['interpolate',['exponential',2],['zoom'],10,w(10),24,w(24)];};
 
 function addLayers(){
-  ['site','blocks','bsel','corr','road','sel','nodes','prev','blds'].forEach(id=>map.addSource(id,{type:'geojson',data:FC()}));
+  ['site','blocks','bsel','corr','road','sel','nodes','prev','blds','nbp'].forEach(id=>map.addSource(id,{type:'geojson',data:FC()}));
   map.addLayer({id:'blocks-fill',type:'fill',source:'blocks',paint:{'fill-color':['get','c'],'fill-opacity':['case',['get','z'],.78,.35]}});
   map.addLayer({id:'blocks-line',type:'line',source:'blocks',paint:{'line-color':'#111','line-width':.8,'line-opacity':.45}});
   map.addLayer({id:'corr-fill',type:'fill',source:'corr',paint:{'fill-color':'#e4d9c3','fill-opacity':.92}});
@@ -109,8 +111,10 @@ function addLayers(){
   map.addLayer({id:'sel',type:'line',source:'sel',paint:{'line-color':'#2a6fb0','line-width':mpx('W',4),'line-opacity':.35}});
   map.addLayer({id:'road-hit',type:'line',source:'road',paint:{'line-color':'#000','line-opacity':0,'line-width':mpx('W',14)}});
   map.addLayer({id:'prev',type:'line',source:'prev',paint:{'line-color':'#f0b323','line-width':mpx('W',3),'line-opacity':.55}});
-  map.addLayer({id:'blds',type:'fill-extrusion',source:'blds',paint:{'fill-extrusion-color':['case',['get','s'],'#cfe0f2',['get','c']],'fill-extrusion-height':['get','h'],'fill-extrusion-base':0,'fill-extrusion-opacity':.96,'fill-extrusion-vertical-gradient':true}});
+  map.addLayer({id:'blds',type:'fill-extrusion',source:'blds',paint:{'fill-extrusion-color':['case',['get','bs'],'#7fb0e0',['get','out'],'#e8998c',['get','s'],'#cfe0f2',['get','c']],'fill-extrusion-height':['get','h'],'fill-extrusion-base':0,'fill-extrusion-opacity':.96,'fill-extrusion-vertical-gradient':true}});
   map.addLayer({id:'blds-line',type:'line',source:'blds',paint:{'line-color':'#111','line-width':.9,'line-opacity':['case',['==',['get','__p'],1],0,.85]}});
+  map.addLayer({id:'nbp-fill',type:'fill',source:'nbp',paint:{'fill-color':['case',['get','ok'],'#7fb0e0','#e8998c'],'fill-opacity':.55}});
+  map.addLayer({id:'nbp-line',type:'line',source:'nbp',paint:{'line-color':'#2a6fb0','line-width':1.6,'line-dasharray':[3,2]}});
   map.addLayer({id:'nodes',type:'circle',source:'nodes',paint:{'circle-radius':['case',['get','s'],7,5],'circle-color':['case',['get','s'],'#2a6fb0',['>=',['get','d'],3],'#111','#fff'],'circle-stroke-color':['case',['get','s'],'#fff','#111'],'circle-stroke-width':1.5}});
 }
 
@@ -147,6 +151,11 @@ function zoneRec(b,create){if(b.z)return D.zones.find(z=>z.id===b.z.id)||null;if
 const defG=typ=>{const t=MRGEN.TYP[typ];return {typ,far:t.far,fl:t.fl,sb:t.sb};};
 function genHTML(b){const z=b.z;if(!z||!GENZ.includes(z.z))return S.tool==='gen'?`<p class="note">${esc(T('Avval kvartalga turar joy, aralash, savdo yoki ijtimoiy zona bering (Z).'))}</p>`:'';
   const g=z.g;let h=`<div style="border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:10px"><span class="lb">Generatsiya</span>`;
+  if(z.lock&&z.blds){const r=b.r||{};
+    return h+`<p class="note"><b>${LOCK_SVG} ${esc(T('Qoʻlda tahrirlangan — qulflangan.'))}</b> ${esc(T('Koʻcha yoki parametrlar oʻzgarsa ham binolar joyida qoladi. Tahrirlash — B asbobi.'))}</p>
+      <div class="kv"><span>${esc(T('Binolar'))}</span><b>${r.blds?r.blds.length:0} · ${fmt(r.flAvg,1)} ${esc(T('qavat'))}</b><span>GFA</span><b>${fmt(r.gfa,0)} m²</b><span>FAR</span><b>${fmt(r.far,2)}</b><span>${esc(T('Qoplam'))}</span><b>${r.A?fmt(r.fp/r.A*100,0):'—'} %</b>${r.kv?`<span>${esc(T('Aholi'))}</span><b>${fmt(r.pop,0)}</b>`:''}</div>
+      ${r.nOut?`<p class="warnn">${esc(T('Kvartaldan chiqib ketgan binolar'))}: ${r.nOut}</p>`:''}
+      <button class="btn${S.arm===z.id?' bad':''}" id="genRe">${esc(T(S.arm===z.id?'Tasdiqlang: qoʻlda oʻzgarishlar yoʻqoladi':'Qayta generatsiya'))}</button><button class="btn" id="genOff">${esc(T('Binolarni olib tashlash'))}</button></div>`;}
   if(!g)return h+`<button class="btn dark" id="genGo">${esc(T('Binolarni generatsiya qilish'))}</button></div>`;
   const r=b.r||{};
   h+=`<div class="tseg" role="group" aria-label="${esc(T('Tipologiya'))}">${Object.entries(MRGEN.TYP).map(([k,t])=>`<button data-typ="${k}" aria-pressed="${g.typ===k}">${esc(T(t.n))}</button>`).join('')}</div>
@@ -156,7 +165,7 @@ function genHTML(b){const z=b.z;if(!z||!GENZ.includes(z.z))return S.tool==='gen'
     <div class="kv"><span>${esc(T('Binolar'))}</span><b>${r.blds?r.blds.length:0} · ${r.flAvg||0} ${esc(T('qavat'))}</b><span>GFA</span><b>${fmt(r.gfa,0)} m²</b><span>${esc(T('FAR (erishildi)'))}</span><b>${fmt(r.far,2)}</b><span>${esc(T('Qoplam'))}</span><b>${r.A?fmt(r.fp/r.A*100,0):'—'} %</b>${r.kv?`<span>${esc(T('Kvartiralar'))}</span><b>${fmt(r.kv,0)}</b><span>${esc(T('Aholi'))}</span><b>${fmt(r.pop,0)}</b><span>${esc(T('Netto zichlik'))} ${gi('brutto')}</span><b>${fmt(r.pop/b.ha,0)} ${esc(T('kishi/ga'))}</b>`:''}</div>
     ${r.capped?`<p class="warnn">${esc(T('Maks. qavat cheklovi tufayli maqsadli FAR ga yetmadi — qavatni oshiring yoki tipologiyani almashtiring.'))}</p>`:''}${r.note?`<p class="warnn">${esc(T(r.note))}</p>`:''}
     <p class="note">${esc(T('Binolar orasi va chuqurligi — taxmin; insolyatsiya va yongʻinga qarshi masofalar keyingi bosqichda tekshiriladi.'))}</p>
-    <button class="btn" id="genOff">${esc(T('Binolarni olib tashlash'))}</button></div>`;
+    <div class="brow"><button class="btn" id="genLock" title="${esc(T('Binolar hujjatga saqlanadi va generator ularni qayta chizmaydi'))}">${LOCK_SVG} ${esc(T('Qulflash'))}</button><button class="btn" id="genOff">${esc(T('Binolarni olib tashlash'))}</button></div></div>`;
   return h;}
 function bindGen(b){if(!b)return;const rec=()=>zoneRec(b,true);
   const go=$('#genGo');if(go)go.onclick=()=>act(()=>{rec().g=b.z&&b.z.z==='ijtimoiy'?{typ:'perimetr',far:.6,fl:3,sb:10}:defG(b.ha<1.5?'perimetr':'seksiya');});
@@ -164,8 +173,52 @@ function bindGen(b){if(!b)return;const rec=()=>zoneRec(b,true);
   [['#gFar','far',parseFloat],['#gFl','fl',v=>parseInt(v,10)],['#gSb','sb',v=>parseInt(v,10)]].forEach(([id,k,cv])=>{const i=$(id);if(!i)return;
     i.oninput=()=>{const lb=i.previousElementSibling&&i.previousElementSibling.querySelector('b');if(lb)lb.textContent=k==='sb'?i.value+' m':k==='far'?(+i.value).toFixed(1).replace('.',','):i.value;};
     i.onchange=()=>act(()=>{rec().g[k]=cv(i.value);});});
-  const off=$('#genOff');if(off)off.onclick=()=>act(()=>{delete rec().g;});}
-function setZone(b,k){const r=zoneRec(b,true);r.z=k;if(!GENZ.includes(k))delete r.g;if(!k&&!r.name)D.zones=D.zones.filter(z=>z.id!==r.id);}
+  const off=$('#genOff');if(off)off.onclick=()=>{S.arm=null;act(()=>{const r=rec();delete r.g;delete r.blds;delete r.bn;delete r.lock;});};
+  const lk=$('#genLock');if(lk)lk.onclick=()=>act(()=>{bake(b);});
+  const re=$('#genRe');if(re)re.onclick=()=>{const r=rec();if(S.arm!==r.id){S.arm=r.id;render();return;}S.arm=null;
+    act(()=>{delete r.blds;delete r.bn;delete r.lock;if(!r.g)r.g=r.z==='ijtimoiy'?{typ:'perimetr',far:.6,fl:3,sb:10}:defG(b.ha<1.5?'perimetr':'seksiya');});};}
+function setZone(b,k){const r=zoneRec(b,true);r.z=k;if(!GENZ.includes(k)){delete r.g;delete r.blds;delete r.bn;delete r.lock;}if(!k&&!r.name)D.zones=D.zones.filter(z=>z.id!==r.id);}
+/* ---------- 4-bosqich: binolar ---------- */
+const r7=v=>+v.toFixed(7);
+const cs7=cs=>cs.map(ring=>ring.map(p=>[r7(p[0]),r7(p[1])]));
+const blkOfZ=zid=>BLK.find(b=>b.z&&b.z.id===zid);
+/* tanlangan bino: {b, x} — x generatsiya qilingan yoki saqlangan bino ({f, fl, id, out}) */
+function bldRec(zid,bid){const b=blkOfZ(zid);if(!b||!b.r)return null;const x=b.r.blds.find(x=>x.id===bid);return x?{b,x}:null;}
+/* «pishirish»: generator natijasini hujjatga koʻchirish va kvartalni qulflash */
+function bake(b){const rec=zoneRec(b,true);if(rec.lock&&rec.blds)return rec;
+  rec.blds=(b.r?b.r.blds:[]).map((x,i)=>({id:i+1,cs:cs7(x.f.geometry.coordinates),fl:x.fl}));rec.bn=rec.blds.length+1;rec.lock=true;return rec;}
+function editBld(zid,bid,fn){const b=blkOfZ(zid);if(!b)return;act(()=>{const rec=bake(b),x=rec.blds.find(x=>x.id===bid);if(x)fn(x,rec);});}
+const polyOf=x=>turf.polygon(x.cs);
+const insideBlk=(f,blk)=>{try{const i=turf.intersect(turf.featureCollection([f,blk]));return !!i&&turf.area(i)>=turf.area(f)*.98;}catch(_){return false;}};
+function moveCs(cs,dxm,dym){const lat=cs[0][0][1],kx=1/(111320*Math.cos(lat*Math.PI/180)),ky=1/110540;return cs7(cs.map(r=>r.map(p=>[p[0]+dxm*kx,p[1]+dym*ky])));}
+function rotCs(cs,deg){const f=turf.polygon(cs),c=turf.centroid(f).geometry.coordinates;return cs7(turf.transformRotate(f,deg,{pivot:c}).geometry.coordinates);}
+/* yangi bino: ikki nuqtadan kvartalning asosiy yoʻnalishiga parallel toʻrtburchak */
+function rectFrom(b,p1,p2){const rotA=90-MRGEN.mainBearing(b.f);const q=turf.transformRotate(turf.point(p2),rotA,{pivot:p1}).geometry.coordinates;
+  const bb=[Math.min(p1[0],q[0]),Math.min(p1[1],q[1]),Math.max(p1[0],q[0]),Math.max(p1[1],q[1])];
+  const w=(bb[2]-bb[0])*111320*Math.cos(p1[1]*Math.PI/180),h=(bb[3]-bb[1])*110540;
+  return {f:turf.transformRotate(turf.bboxPolygon(bb),-rotA,{pivot:p1}),w,h};}
+const NBMIN=6;   // m — yangi binoning eng kichik tomoni
+function defFl(b){const g=b.z&&b.z.g;return g?Math.min(g.fl,Math.max(1,Math.round(b.r&&b.r.flAvg||g.fl))):5;}
+function bldPop(b,x){const res=RES_SHARE[b.z.z]||0;return turf.area(x.f)*x.fl*res*KP.get('netGross')/KP.get('unitM2')*KP.get('hh');}
+function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z.lock&&b.z.blds);
+  return `<div class="lb">${esc(T('Tanlangan bino'))} · ${esc(b.name)}</div>
+    <div class="fl" role="group" aria-label="${esc(T('Qavatlar'))}"><button id="flDn" aria-label="${esc(T('Qavatni kamaytirish'))}">−</button><b>${x.fl}</b><button id="flUp" aria-label="${esc(T('Qavatni oshirish'))}">+</button><span class="note" style="margin-left:10px">${esc(T('qavat'))} · ${fmt(x.fl*MRGEN.FH,1)} m</span></div>
+    <div class="kv"><span>${esc(T('Dogʻ maydoni'))}</span><b>${fmt(a,0)} m²</b><span>GFA</span><b>${fmt(a*x.fl,0)} m²</b>${pop?`<span>${esc(T('Aholi (taxmin)'))}</span><b>${fmt(pop,0)}</b>`:''}<span>${esc(T('Holat'))}</span><b>${esc(T(locked?'qoʻlda tahrirlangan':'generatsiya'))}</b></div>
+    ${x.out?`<p class="warnn">${esc(T('Bino kvartal chegarasidan (qizil chiziqdan) chiqib ketgan — koʻcha yerida qurilish mumkin emas.'))}</p>`:''}
+    <div class="brow"><button class="btn" id="bRotL" title="[">↺ 15°</button><button class="btn" id="bRotR" title="]">↻ 15°</button><button class="btn" id="bDup" title="Ctrl+D">${esc(T('Nusxa'))}</button><button class="btn bad" id="bDel" title="Delete">${esc(T('Oʻchirish'))}</button></div>
+    ${locked?'':`<p class="note">${esc(T('Birinchi oʻzgarishda kvartal qulflanadi: binolar saqlanadi va generator ularni qayta chizmaydi.'))}</p>`}
+    <div class="keys"><b>+ / −</b>${esc(T('qavat'))} · <b>←↑→↓</b>${esc(T('1 m surish'))} (<b>Shift</b> 5 m)<br><b>[ ]</b>${esc(T('burish'))} · <b>Ctrl+D</b>${esc(T('nusxa'))} · <b>Delete</b>${esc(T('oʻchirish'))}</div>
+    <button class="btn" id="desel">${esc(T('Tanlovni bekor qilish'))}</button>`;}
+function bindBld(o){if(!o)return;const on=(id,f)=>{const e=$(id);if(e)e.onclick=f;};
+  on('#flUp',()=>bldOp('fl',1));on('#flDn',()=>bldOp('fl',-1));on('#bRotL',()=>bldOp('rot',-15));on('#bRotR',()=>bldOp('rot',15));on('#bDup',()=>bldOp('dup'));on('#bDel',()=>bldOp('del'));}
+function bldOp(op,v){if(!S.sel||S.sel.t!=='bl')return;const {zid,bid}=S.sel;
+  if(op==='fl')editBld(zid,bid,x=>{x.fl=Math.max(1,Math.min(60,x.fl+v));});
+  else if(op==='rot')editBld(zid,bid,x=>{x.cs=rotCs(x.cs,v);});
+  else if(op==='mv')editBld(zid,bid,x=>{x.cs=moveCs(x.cs,v[0],v[1]);});
+  else if(op==='del'){S.sel=null;editBld(zid,bid,(x,rec)=>{rec.blds=rec.blds.filter(y=>y!==x);});}
+  else if(op==='dup')editBld(zid,bid,(x,rec)=>{const f=polyOf(x),br=MRGEN.mainBearing(f)+90;
+    const d=Math.min(60,Math.sqrt(turf.area(f))*.8+8);const n={id:rec.bn++,cs:cs7(turf.transformTranslate(f,d,br,{units:'meters'}).geometry.coordinates),fl:x.fl};rec.blds.push(n);S.sel={t:'bl',zid,bid:n.id};});}
+const LOCK_SVG='<svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true" style="vertical-align:-1px;margin-left:3px"><rect x="2" y="5" width="8" height="6" fill="currentColor"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
 let RQ=0;function render(){if(RQ)return;RQ=requestAnimationFrame(()=>{RQ=0;draw();});}
 function draw(){
   if(!map.getSource('road'))return;
@@ -178,20 +231,30 @@ function draw(){
   const sb=S.sel&&S.sel.t==='b'&&blockAt(S.sel.ll);if(S.sel&&S.sel.t==='b'&&!sb)S.sel=null;
   /* 3-bosqich: generatsiya — binolar saqlanmaydi, kvartal + parametrlardan har safar hosil boʻladi (kesh bilan) */
   const BC={turar:'#f7f3ea',aralash:'#f1dcc2',savdo:'#ecc9c1',ijtimoiy:'#dbe7f3'};const bf=[];const pitched=map.getPitch()>5?1:0;
-  BLK.forEach(b=>{b.g=null;b.r=null;const g=b.z&&b.z.g;if(!g||!GENZ.includes(b.z.z))return;const r=MRGEN.gen(b.f,g);if(!r)return;b.g=g;b.r=r;
-    const res=RES_SHARE[b.z.z]||0,net=r.gfa*res*KP.get('netGross');r.kv=net/KP.get('unitM2');r.pop=r.kv*KP.get('hh');
-    const sel=sb===b;r.blds.forEach(x=>bf.push(Object.assign({},x.f,{properties:{h:x.fl*MRGEN.FH,fl:x.fl,c:BC[b.z.z]||'#f7f3ea',s:sel,__p:pitched}})));});
+  const sbl=S.sel&&S.sel.t==='bl'?S.sel:null;
+  BLK.forEach(b=>{b.g=null;b.r=null;if(!b.z||!GENZ.includes(b.z.z))return;let r=null;
+    if(b.z.lock&&b.z.blds){   // qoʻlda tahrirlangan: hujjatdagi binolar
+      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f)};}));}
+    else{const g=b.z.g;if(!g)return;r=MRGEN.gen(b.f,g);if(!r)return;b.g=g;r.blds.forEach((x,i)=>{x.id=i+1;});}
+    b.r=r;
+    const res=RES_SHARE[b.z.z]||0,net=r.gfa*res*KP.get('netGross');r.kv=net/KP.get('unitM2');r.pop=r.kv*KP.get('hh');r.nOut=r.blds.filter(x=>x.out).length;
+    const sel=sb===b;r.blds.forEach(x=>bf.push(Object.assign({},x.f,{properties:{h:x.fl*MRGEN.FH,fl:x.fl,c:BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched}})));});
+  if(sbl&&!bldRec(sbl.zid,sbl.bid))S.sel=null;
   map.getSource('blds').setData(FC(bf));
-  map.getSource('bsel').setData(FC(sb?[turf.polygonToLine(sb.f)]:[]));
+  const sbo=S.sel&&S.sel.t==='bl'&&bldRec(S.sel.zid,S.sel.bid);
+  map.getSource('bsel').setData(FC(sb?[turf.polygonToLine(sb.f)]:sbo?[turf.polygonToLine(sbo.b.f)]:[]));
+  renderNb();
   const selF=S.sel&&S.sel.t==='e'?roads.filter(f=>f.properties.id===S.sel.id):[];
   map.getSource('sel').setData(FC(selF));
   const showN=S.tool==='street'||S.tool==='select';
   map.getSource('nodes').setData(FC(showN?D.nodes.map(n=>({type:'Feature',properties:{id:n.id,d:deg(n.id),s:!!(S.sel&&S.sel.t==='n'&&S.sel.id===n.id)||S.draw===n.id},geometry:{type:'Point',coordinates:n.ll}})):[]));
   renderPrev();renderPanel();renderKpi();renderBal();renderLabels();renderUndo();}
 function renderLabels(){const box=$('#labels');if(!box)return;const z=map.getZoom();
-  box.innerHTML=z<14.5?'':BLK.map(b=>{const p=map.project(b.anchor);const s=sizeOf(b.ha);return `<div class="blbl" style="left:${p.x}px;top:${p.y}px">${esc(b.name)}<small>${fmt(b.ha,2)} ga · <span style="color:${s.c}">${esc(T(s.k==='daha'?'daha':s.k==='mavze'?'mavze oʻlchami':s.k==='tuman'?'tuman oʻlchami':'juda katta'))}</span></small></div>`;}).join('');}
+  box.innerHTML=z<14.5?'':BLK.map(b=>{const p=map.project(b.anchor);const s=sizeOf(b.ha);return `<div class="blbl" style="left:${p.x}px;top:${p.y}px">${esc(b.name)}${b.z&&b.z.lock?`<span title="${esc(T('Qoʻlda tahrirlangan — qulflangan'))}">${LOCK_SVG}</span>`:''}<small>${fmt(b.ha,2)} ga · <span style="color:${s.c}">${esc(T(s.k==='daha'?'daha':s.k==='mavze'?'mavze oʻlchami':s.k==='tuman'?'tuman oʻlchami':'juda katta'))}</span></small></div>`;}).join('');}
 function renderPrev(){const src=map.getSource('prev');if(!src)return;const a=S.draw&&node(S.draw);
   if(a&&S.cursor){const p=preOf(D.preset);src.setData(FC([{type:'Feature',properties:{W:p.W},geometry:{type:'LineString',coordinates:[a.ll,S.cursor]}}]));}else src.setData(FC());}
+function renderNb(){const src=map.getSource('nbp');if(!src)return;const n=S.nb;
+  if(n&&n.cur){const b=blockAt(n.p1);if(b){const r=rectFrom(b,n.p1,n.cur),ok=r.w>=NBMIN&&r.h>=NBMIN&&insideBlk(r.f,b.f);r.f.properties={ok};src.setData(FC([r.f]));return;}}src.setData(FC());}
 function renderUndo(){$('#undo').disabled=!H.u.length;$('#redo').disabled=!H.r.length;}
 
 /* ---------- TEP ---------- */
@@ -249,11 +312,13 @@ function presetOpts(cur){const g={};MOD.presets.forEach(p=>(g[p.g]=g[p.g]||[]).p
   return Object.entries(g).map(([n,ps])=>`<optgroup label="${esc(T(n))}">${ps.map(p=>`<option value="${p.id}" ${p.id===cur?'selected':''}>${esc(T(p.n))} · ${fmt(p.W,1)} m</option>`).join('')}</optgroup>`).join('');}
 function stripBar(p){return `<div class="strips" title="${esc(T(p.n))}">${p.st.map(s=>`<i style="flex:${s[1]} 1 0;background:${(MOD.dk[s[0]]||{}).c||'#ccc'}" title="${esc(T((MOD.dk[s[0]]||{}).n||s[0]))} · ${fmt(s[1],2)} m"></i>`).join('')}</div>`;}
 function renderPanel(){
-  const st=S.tool==='gen'?3:S.tool==='zone'||(S.sel&&S.sel.t==='b')?1:0,ttl=st===3?'Generatsiya':st?'Kvartallar va zonalash':'Koʻcha tarmogʻi';
+  const st=S.tool==='bino'||(S.sel&&S.sel.t==='bl')?4:S.tool==='gen'?3:S.tool==='zone'||(S.sel&&S.sel.t==='b')?1:0,ttl=st===4?'Binolar':st===3?'Generatsiya':st?'Kvartallar va zonalash':'Koʻcha tarmogʻi';
   let h=`<div class="ph"><span class="lb">3 · Master reja · ${st+1} / 6</span><span class="lb">beta</span></div><h2>${esc(T(ttl))}</h2><div class="steps">${STEPS.map((s,i)=>`<i class="${i<=st?'on':''}" title="${esc(T(s))}"></i>`).join('')}</div><div class="bd">`;
   const sel=S.sel&&S.sel.t==='e'&&edge(S.sel.id),sb=S.sel&&S.sel.t==='b'&&blockAt(S.sel.ll);
   const zpal=cur=>`<div class="zp">${ZT.map(z=>`<button data-z="${z.k}" aria-pressed="${cur===z.k}"><i style="background:${z.c}"></i>${esc(T(z.n.split(' (')[0]))}</button>`).join('')}<button data-z="" aria-pressed="${cur===''}"><i style="background:#fff"></i>${esc(T('Zonasiz'))}</button></div>`;
-  if(sb){const z=sb.z&&ZK(sb.z.z);
+  const so=S.sel&&S.sel.t==='bl'&&bldRec(S.sel.zid,S.sel.bid);
+  if(so){h+=bldHTML(so);}
+  else if(sb){const z=sb.z&&ZK(sb.z.z);
     h+=`<div class="lb">Tanlangan kvartal</div><label><span class="lb" style="display:block;margin-bottom:6px">Nomi</span><input type="text" id="bName" value="${esc(sb.name)}"></label>
       <div class="kv"><span>Maydon</span><b>${fmt(sb.ha,2)} ga</b><span>Perimetr</span><b>${fmt(sb.per,0)} m</b><span>Zona</span><b>${esc(T(z?z.n.split(' (')[0]:'zonasiz'))}</b><span>ShNQ toifasi ${gi(sizeOf(sb.ha).k==='daha'?'daha':sizeOf(sb.ha).k==='mavze'?'mavze':'tuman',sb.ha)}</span><b style="color:${sizeOf(sb.ha).c}">${esc(T(sizeOf(sb.ha).n))}</b></div>
       ${sb.ha>10?`<p class="note">${esc(T(sb.ha>50?'Bu boʻlak turar joy tumani oʻlchamida. Uni ichki koʻchalar bilan mavze va dahalarga boʻling.':'Bu boʻlak dahadan katta — mavze oʻlchamida. 400 kishi/ga normasi butun mavze uchun hisoblanadi; ichidagi turar joy uchastkalarida zichlik yuqoriroq boʻladi.'))} ${gi('brutto')}</p>`:''}
@@ -264,7 +329,12 @@ function renderPanel(){
       <div style="display:flex;gap:8px"><button class="btn bad" id="delE">Oʻchirish</button><button class="btn" id="desel">Tanlovni bekor qilish</button></div>`;}
   else if(S.sel&&S.sel.t==='n'&&node(S.sel.id)){const n=node(S.sel.id);
     h+=`<div class="lb">Tanlangan tugun</div><div class="kv"><span>Ulangan koʻchalar</span><b>${deg(n.id)}</b></div><p class="note">Tugunni sudrab koʻchiring — ulangan koʻchalar ham siljiydi.</p><div style="display:flex;gap:8px"><button class="btn bad" id="delN">Tugunni oʻchirish</button><button class="btn" id="desel">Bekor qilish</button></div>`;}
-  else if(S.tool==='gen'){const nz=BLK.filter(b=>b.z&&['turar','aralash','savdo'].includes(b.z.z)),ng=nz.filter(b=>b.z.g).length;
+  else if(S.tool==='bino'){const nl=BLK.filter(b=>b.z&&b.z.lock).length,no=BLK.reduce((a,b)=>a+(b.r&&b.r.nOut||0),0);
+    h+=`<p class="note">${esc(T('Binoni bosing — tanlanadi; sudrab suring. Kvartal ichidagi boʻsh joyni ikki marta bosing (ikki burchak) — yangi bino, kvartal yoʻnalishiga parallel.'))}</p>
+      <div class="kv"><span>${esc(T('Qulflangan kvartallar'))}</span><b>${nl}</b><span>${esc(T('Kvartaldan chiqqan binolar'))}</span><b style="color:${no?'#b23a2e':'inherit'}">${no}</b></div>
+      <p class="note">${esc(T('Qoʻlda oʻzgartirilgan kvartal qulflanadi: koʻchalar surilsa ham binolar joyida qoladi, chegaradan chiqqanlari qizil boʻladi.'))}</p>
+      <div class="keys"><b>Esc</b>${esc(T('bekor'))} · <b>G</b>${esc(T('generatsiya'))} · <b>Ctrl+Z</b>${esc(T('bekor qilish'))}</div>`;}
+  else if(S.tool==='gen'){const nz=BLK.filter(b=>b.z&&['turar','aralash','savdo'].includes(b.z.z)),ng=nz.filter(b=>b.z.g||b.z.lock).length;
     h+=`<p class="note">Turar joy, aralash, savdo yoki ijtimoiy zonadagi kvartalni bosing — tipologiya, FAR va maksimal qavatni bering, binolar oʻzi joylashadi.</p>
       <div class="kv"><span>Turar joy, aralash va savdo kvartallari</span><b>${nz.length}</b><span>Binolari bor</span><b>${ng}</b></div>
       ${nz.length>ng?`<button class="btn dark" id="genAll">Qolgan ${nz.length-ng} ta kvartalga standart</button><p class="note">Standart: seksiyali qatorlar, FAR 2,5, 9 qavat (G8 modeli: PR 2,5, asosan 9 qavat), chekinish 6 m.</p>`:''}
@@ -286,17 +356,18 @@ function renderPanel(){
   const dn=$('#delN');if(dn)dn.onclick=()=>{const id=S.sel.id;S.sel=null;act(()=>delNode(id));};
   const ds=$('#desel');if(ds)ds.onclick=()=>{S.sel=null;render();};
   $$('#panel [data-z]').forEach(b=>b.onclick=()=>{const k=b.dataset.z;if(sb)act(()=>setZone(sb,k));else act(()=>{D.zcur=k;});});
-  bindGen(sb);const ga=$('#genAll');if(ga)ga.onclick=()=>act(()=>BLK.forEach(b=>{if(b.z&&['turar','aralash','savdo'].includes(b.z.z)&&!b.z.g){const r=zoneRec(b,true);r.g=defG('seksiya');}}));
+  bindGen(sb);bindBld(so);const ga=$('#genAll');if(ga)ga.onclick=()=>act(()=>BLK.forEach(b=>{if(b.z&&['turar','aralash','savdo'].includes(b.z.z)&&!b.z.g&&!b.z.lock){const r=zoneRec(b,true);r.g=defG('seksiya');}}));
   const bn=$('#bName');if(bn)bn.onchange=()=>act(()=>{const r=zoneRec(sb,true);r.name=bn.value.trim().slice(0,40)||undefined;if(!r.name)delete r.name;});
   hint();}
 function hint(){let t='';
   if(S.tool==='zone')t='Kvartalni bosing — joriy zona beriladi';
   else if(S.tool==='gen')t='Kvartalni bosing — binolar parametrlari';
+  else if(S.tool==='bino')t=S.nb?'Ikkinchi burchakni bosing · Esc — bekor':'Binoni bosing yoki sudrang · boʻsh joyda bosing — yangi bino';
   else if(S.tool==='street')t=S.draw?'Keyingi nuqtani bosing · Enter — tugatish · Shift — 15° qadam':'Koʻchaning boshlanish nuqtasini bosing';
   $('#hint').textContent=T(t);}
 
 /* ---------- asboblar ---------- */
-function setTool(t){S.tool=t;S.draw=null;S.cursor=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));map.getCanvas().style.cursor=t==='street'?'crosshair':'';$('#tip').textContent='';render();}
+function setTool(t){S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));map.getCanvas().style.cursor=t==='street'?'crosshair':'';$('#tip').textContent='';render();}
 $$('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('#undo').onclick=undo;$('#redo').onclick=redo;
 $$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});setTimeout(render,650);});
@@ -313,32 +384,68 @@ function resolvePoint(e){const px=e.point,n=snapNode(px);if(n)return {node:n,ll:
   if(S.shift&&S.draw){ll=angleSnap(node(S.draw).ll,ll);}return {ll};}
 
 /* ---------- sichqoncha ---------- */
+const bldAt=pt=>{try{return map.queryRenderedFeatures(pt,{layers:['blds']})[0]||null;}catch(_){return null;}};
 map.on('click',e=>{
-  if(S.drag)return;
+  if(S.drag||S.bdrag)return;
+  if(S.tool==='bino'){const ll=e.lngLat.toArray(),tip=$('#tip');
+    if(S.nb){const b=blockAt(S.nb.p1),r=b&&rectFrom(b,S.nb.p1,ll);S.nb=null;tip.textContent='';
+      if(r&&r.w>=NBMIN&&r.h>=NBMIN){const fl=defFl(b);act(()=>{const rec=bake(b),n={id:rec.bn++,cs:cs7(r.f.geometry.coordinates),fl};rec.blds.push(n);S.sel={t:'bl',zid:rec.id,bid:n.id};});}
+      else{tip.textContent=T('Kamida 6 × 6 m');tip.style.left=e.point.x+'px';tip.style.top=e.point.y+'px';}render();return;}
+    const f=bldAt(e.point);if(f){S.sel={t:'bl',zid:f.properties.zid,bid:f.properties.bid};render();return;}
+    const b=blockAt(ll);if(!b){S.sel=null;render();return;}
+    if(!b.z||!GENZ.includes(b.z.z)){tip.textContent=T('Avval zona bering (Z): turar joy, aralash, savdo yoki ijtimoiy');tip.style.left=e.point.x+'px';tip.style.top=e.point.y+'px';return;}
+    S.sel=null;S.nb={p1:ll,cur:null};render();return;}
   if(S.tool==='street'){const r=resolvePoint(e);
     act(()=>{let n=r.node||(r.edge?splitEdge(r.edge,r.ll):addNode(r.ll));if(S.draw&&node(S.draw)&&S.draw!==n.id)addEdgeX(S.draw,n.id,D.preset);S.draw=n.id;});
     render();return;}
   if(S.tool==='select'){const n=snapNode(e.point);if(n){S.sel={t:'n',id:n.id};render();return;}
     const f=map.queryRenderedFeatures(e.point,{layers:['road-hit']})[0];if(f){S.sel={t:'e',id:f.properties.id};render();return;}
+    const bf=bldAt(e.point);if(bf){S.sel={t:'bl',zid:bf.properties.zid,bid:bf.properties.bid};render();return;}
     const b=blockAt(e.lngLat.toArray());S.sel=b?{t:'b',ll:b.anchor}:null;render();return;}
   if(S.tool==='zone'){const b=blockAt(e.lngLat.toArray());if(b){const k=D.zcur||'';act(()=>setZone(b,k));}}
   if(S.tool==='gen'){const b=blockAt(e.lngLat.toArray());S.sel=b?{t:'b',ll:b.anchor}:null;render();}});
 map.on('dblclick',e=>{if(S.tool==='street'&&S.draw){e.preventDefault();endDraw();}});
 map.on('mousemove',e=>{
   if(S.drag){const n=node(S.drag.id);if(n){n.ll=e.lngLat.toArray();S.drag.moved=true;render();}return;}
+  if(S.bdrag){const d=S.bdrag,ll=e.lngLat.toArray();if(!d.moved){const px=map.project(d.p0);if(Math.hypot(px.x-e.point.x,px.y-e.point.y)<3)return;
+      const b=blkOfZ(d.zid);if(!b)return;const rec=bake(b),x=rec.blds.find(x=>x.id===d.bid);if(!x)return;d.x=x;d.cs=x.cs;d.moved=true;}
+    const lat=d.p0[1],dxm=(ll[0]-d.p0[0])*111320*Math.cos(lat*Math.PI/180),dym=(ll[1]-d.p0[1])*110540;d.x.cs=moveCs(d.cs,dxm,dym);render();
+    const tip=$('#tip');tip.textContent=`${fmt(Math.hypot(dxm,dym),1)} m`;tip.style.left=e.point.x+'px';tip.style.top=e.point.y+'px';return;}
+  if(S.tool==='bino'){const ll=e.lngLat.toArray();if(S.nb){S.nb.cur=ll;renderNb();const b=blockAt(S.nb.p1);if(b){const r=rectFrom(b,S.nb.p1,ll),tip=$('#tip');tip.textContent=`${fmt(r.w,1)} × ${fmt(r.h,1)} m`;tip.style.left=e.point.x+'px';tip.style.top=e.point.y+'px';}return;}
+    map.getCanvas().style.cursor=bldAt(e.point)?'move':blockAt(ll)?'crosshair':'';return;}
   if(S.tool==='street'){const r=resolvePoint(e);S.cursor=r.ll;renderPrev();
     const tip=$('#tip');if(S.draw&&node(S.draw)){const a=node(S.draw).ll,d=turf.distance(turf.point(a),turf.point(r.ll),{units:'meters'}),br=(turf.bearing(turf.point(a),turf.point(r.ll))+360)%360;
       tip.textContent=`${fmt(d,0)} m · ${fmt(br,0)}°${r.node?' · '+T('tugun'):r.edge?' · '+T('ulanadi'):''}`;tip.style.left=e.point.x+'px';tip.style.top=e.point.y+'px';}
     else{tip.textContent=r.node||r.edge?T(r.node?'tugun':'ulanadi'):'';tip.style.left=e.point.x+'px';tip.style.top=e.point.y+'px';}}
-  else if(S.tool==='select'){const n=snapNode(e.point),f=!n&&map.queryRenderedFeatures(e.point,{layers:['road-hit']})[0];map.getCanvas().style.cursor=n?'move':f?'pointer':'';}
+  else if(S.tool==='select'){const n=snapNode(e.point),f=!n&&map.queryRenderedFeatures(e.point,{layers:['road-hit']})[0];map.getCanvas().style.cursor=n?'move':f?'pointer':bldAt(e.point)?'move':'';}
   else if(S.tool==='zone'||S.tool==='gen'){map.getCanvas().style.cursor=blockAt(e.lngLat.toArray())?'pointer':'';}});
 map.on('move',()=>renderLabels());
-map.on('mousedown',e=>{if(S.tool!=='select')return;const n=snapNode(e.point);if(!n)return;e.preventDefault();map.dragPan.disable();S.drag={id:n.id,prev:JSON.stringify(D),moved:false};S.sel={t:'n',id:n.id};});
-window.addEventListener('mouseup',()=>{if(!S.drag)return;const d=S.drag;map.dragPan.enable();setTimeout(()=>{S.drag=null;},0);
+map.on('mousedown',e=>{if(S.tool!=='select'&&S.tool!=='bino')return;if(S.nb)return;
+  const n=S.tool==='select'&&snapNode(e.point);
+  if(!n){if(S.tool==='select'&&map.queryRenderedFeatures(e.point,{layers:['road-hit']})[0])return;const f=bldAt(e.point);if(!f)return;e.preventDefault();map.dragPan.disable();
+    const zid=f.properties.zid,bid=f.properties.bid;S.bdrag={zid,bid,prev:JSON.stringify(D),p0:e.lngLat.toArray(),moved:false};S.sel={t:'bl',zid,bid};render();return;}e.preventDefault();map.dragPan.disable();S.drag={id:n.id,prev:JSON.stringify(D),moved:false};S.sel={t:'n',id:n.id};});
+window.addEventListener('mouseup',()=>{if(S.bdrag){const d=S.bdrag;map.dragPan.enable();setTimeout(()=>{S.bdrag=null;},0);$('#tip').textContent='';
+    if(d.moved&&JSON.stringify(D)!==d.prev){H.u.push(d.prev);if(H.u.length>200)H.u.shift();H.r=[];save();}render();return;}
+  if(!S.drag)return;const d=S.drag;map.dragPan.enable();setTimeout(()=>{S.drag=null;},0);
   if(d.moved&&JSON.stringify(D)!==d.prev){H.u.push(d.prev);H.r=[];save();}render();});
 function endDraw(){S.draw=null;S.cursor=null;$('#tip').textContent='';render();}
 
 /* ---------- klaviatura ---------- */
+/* bino tanlanganida: capture bosqichida — xaritaning oʻq tugmalari bilan surishidan oldin */
+window.addEventListener('keydown',e=>{
+  if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if(e.key==='Escape'&&S.nb){S.nb=null;$('#tip').textContent='';render();e.stopPropagation();return;}
+  if(!S.sel||S.sel.t!=='bl'||e.altKey)return;
+  const st=e.shiftKey?5:1,A={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,st],ArrowDown:[0,-st]}[e.key];
+  let done=true;
+  if(A&&!e.ctrlKey&&!e.metaKey){const br=map.getBearing()*Math.PI/180;bldOp('mv',[A[0]*Math.cos(br)+A[1]*Math.sin(br),-A[0]*Math.sin(br)+A[1]*Math.cos(br)]);}
+  else if((e.key==='+'||e.key==='=')&&!e.ctrlKey&&!e.metaKey)bldOp('fl',1);
+  else if((e.key==='-'||e.key==='_')&&!e.ctrlKey&&!e.metaKey)bldOp('fl',-1);
+  else if(e.key==='['||e.key===']')bldOp('rot',(e.key===']'?1:-1)*(e.shiftKey?5:15));
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d')bldOp('dup');
+  else if(e.key==='Delete'||e.key==='Backspace')bldOp('del');
+  else done=false;
+  if(done){e.preventDefault();e.stopPropagation();}},true);
 window.addEventListener('keydown',e=>{
   if(e.key==='Shift')S.shift=true;
   if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
@@ -350,7 +457,8 @@ window.addEventListener('keydown',e=>{
   if(k==='v'&&!e.ctrlKey&&!e.metaKey)setTool('select');
   if(k==='z'&&!e.ctrlKey&&!e.metaKey)setTool('zone');
   if(k==='g'&&!e.ctrlKey&&!e.metaKey)setTool('gen');
-  if((e.key==='Delete'||e.key==='Backspace')&&S.sel&&S.sel.t!=='b'){e.preventDefault();const s=S.sel;S.sel=null;act(()=>s.t==='e'?delEdge(s.id):delNode(s.id));}});
+  if(k==='b'&&!e.ctrlKey&&!e.metaKey)setTool('bino');
+  if((e.key==='Delete'||e.key==='Backspace')&&S.sel&&(S.sel.t==='e'||S.sel.t==='n')){e.preventDefault();const s=S.sel;S.sel=null;act(()=>s.t==='e'?delEdge(s.id):delNode(s.id));}});
 window.addEventListener('keyup',e=>{if(e.key==='Shift')S.shift=false;});
 if(window.KP)KP.on(()=>render());
 window.addEventListener('storage',e=>{if(e.key==='kps_site'){loadSite();}if(e.key===KEY){load();fixSel();render();}});
@@ -374,5 +482,5 @@ async function init(){
   $('#emptyGo').onclick=()=>{$('#empty').hidden=true;};
 }
 init();
-window.MR={get D(){return D;},get BLK(){return BLK;},act,undo,redo,map,kpis,draw};   // sinov va keyingi bosqichlar uchun
+window.MR={get D(){return D;},get BLK(){return BLK;},get S(){return S;},act,undo,redo,map,kpis,draw,bake,bldOp,rectFrom};   // sinov va keyingi bosqichlar uchun
 })();
