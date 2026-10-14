@@ -128,7 +128,7 @@ function addLayers(){
   map.addLayer({id:'wind',type:'raster',source:'wind',layout:{visibility:'none'},paint:{'raster-opacity':.85,'raster-fade-duration':0,'raster-resampling':'linear'}});
   map.addLayer({id:'windc',type:'line',source:'windc',layout:{'line-cap':'round'},paint:{'line-color':'#1f6fb2','line-width':['interpolate',['linear'],['zoom'],14,2,17,5],'line-opacity':['get','o']}});
   map.addLayer({id:'shadow',type:'fill',source:'shadow',paint:{'fill-color':'#1f2b3d','fill-opacity':.4}});
-  map.addLayer({id:'blds',type:'fill-extrusion',source:'blds',paint:{'fill-extrusion-color':['case',['get','bs'],'#7fb0e0',['get','out'],'#e8998c',['get','s'],'#cfe0f2',['get','c']],'fill-extrusion-height':['get','h'],'fill-extrusion-base':0,'fill-extrusion-opacity':.96,'fill-extrusion-vertical-gradient':true}});
+  map.addLayer({id:'blds',type:'fill-extrusion',source:'blds',paint:{'fill-extrusion-color':['case',['get','bs'],'#7fb0e0',['get','out'],'#e8998c',['==',['get','nr'],1],'#8fb9cf',['get','s'],'#cfe0f2',['get','c']],'fill-extrusion-height':['get','h'],'fill-extrusion-base':['coalesce',['get','b'],0],'fill-extrusion-opacity':.96,'fill-extrusion-vertical-gradient':true}});
   map.addLayer({id:'blds-line',type:'line',source:'blds',paint:{'line-color':'#111','line-width':.9,'line-opacity':['case',['==',['get','__p'],1],0,.85]}});
   map.addLayer({id:'dist',type:'line',source:'dist',paint:{'line-color':['get','c'],'line-width':1.8,'line-dasharray':[3,2]}});
   map.addLayer({id:'insp',type:'circle',source:'insp',paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,2,17,5],'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':['interpolate',['linear'],['zoom'],14,0,16,1]}});
@@ -220,25 +220,55 @@ function rectFrom(b,p1,p2){const rotA=90-MRGEN.mainBearing(b.f);const q=turf.tra
   return {f:turf.transformRotate(turf.bboxPolygon(bb),-rotA,{pivot:p1}),w,h};}
 const NBMIN=6;   // m — yangi binoning eng kichik tomoni
 function defFl(b){const g=b.z&&b.z.g;return g?Math.min(g.fl,Math.max(1,Math.round(b.r&&b.r.flAvg||g.fl))):5;}
-function bldPop(b,x){const res=RES_SHARE[b.z.z]||0;return turf.area(x.f)*x.fl*res*KP.get('netGross')/KP.get('unitM2')*KP.get('hh');}
-function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z.lock&&b.z.blds);
+/* bino hajmi: pogʻonalar (N-qavatdan ichkariga X m) va pastki turar joy boʻlmagan qavatlar (nr) boʻyicha boʻlaklar
+   seg: [{f0,f1,poly,nr}] — f0..f1 qavatlar (0 — yer sathi), poly — shu qavatlardagi dogʻ */
+function bldMass(x){
+  const fl=x.fl,base=x.f,nr=Math.max(0,Math.min(fl,x.nr||0));
+  const T=(x.tiers||[]).filter(t=>t.from>1&&t.from<=fl&&t.in>0).sort((a,b)=>a.from-b.from);
+  const cuts=[0,...T.map(t=>t.from-1),fl].filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b);
+  if(nr>0&&nr<fl&&!cuts.includes(nr)){cuts.push(nr);cuts.sort((a,b)=>a-b);}
+  const seg=[];let gfa=0,res=0;
+  for(let i=0;i<cuts.length-1;i++){const f0=cuts[i],f1=cuts[i+1];if(f1<=f0)continue;
+    const t=T.filter(t=>t.from-1<=f0).pop();let poly=base;
+    if(t){try{const q=turf.buffer(base,-t.in,{units:'meters'});if(q&&q.geometry&&turf.area(q)>20)poly=q.geometry.type==='Polygon'?q:turf.polygon(q.geometry.coordinates[0]);}catch(_){}}
+    const a=turf.area(poly),n=f1-f0;gfa+=a*n;const isNr=f1<=nr;if(!isNr)res+=a*n;seg.push({f0,f1,poly,nr:isNr,a});}
+  return {seg,gfa,res};}
+function bldPop(b,x){const res=RES_SHARE[b.z.z]||0,m=bldMass(x),g=(x.nr!=null||(x.tiers&&x.tiers.length))&&res?m.res*(b.z.z==='turar'?1:res):m.gfa*res;return g*KP.get('netGross')/KP.get('unitM2')*KP.get('hh');}
+/* bino profili (kesim sxemasi): har qavat eni — dogʻ maydoniga mutanosib */
+function bldProfile(x){const m=bldMass(x),A=turf.area(x.f)||1,H=Math.min(150,Math.max(60,x.fl*6)),fh=H/x.fl,W=150;
+  return `<svg viewBox="0 0 ${W+40} ${H+14}" width="100%" style="max-width:260px;display:block" role="img" aria-label="${esc(T('Bino kesimi: qavatlar va pogʻonalar'))}">`+
+    m.seg.map(g=>{const w=W*Math.sqrt(g.a/A),x0=(W-w)/2;return `<rect x="${x0.toFixed(1)}" y="${(H-g.f1*fh).toFixed(1)}" width="${w.toFixed(1)}" height="${((g.f1-g.f0)*fh).toFixed(1)}" fill="${g.nr?'#8fb9cf':'#f1ebdd'}" stroke="#141414" stroke-width=".8"/>`;}).join('')+
+    `<line x1="0" y1="${H}" x2="${W}" y2="${H}" stroke="#141414" stroke-width="1.2"/>`+
+    m.seg.map(g=>`<text x="${W+4}" y="${(H-g.f1*fh+9).toFixed(1)}" font-size="8.5" font-family="IBM Plex Mono,monospace" fill="#5e5c58">${g.f1}</text>`).join('')+`</svg>`;}
+function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z.lock&&b.z.blds),m=bldMass(x),nr=x.nr||0,tiers=(x.tiers||[]).slice().sort((p,q)=>p.from-q.from);
   return `<div class="lb">${esc(T('Tanlangan bino'))} · ${esc(b.name)}</div>
     <div class="fl" role="group" aria-label="${esc(T('Qavatlar'))}"><button id="flDn" aria-label="${esc(T('Qavatni kamaytirish'))}">−</button><b>${x.fl}</b><button id="flUp" aria-label="${esc(T('Qavatni oshirish'))}">+</button><span class="note" style="margin-left:10px">${esc(T('qavat'))} · ${fmt(x.fl*MRGEN.FH,1)} m</span></div>
-    <div class="kv"><span>${esc(T('Dogʻ maydoni'))}</span><b>${fmt(a,0)} m²</b><span>GFA</span><b>${fmt(a*x.fl,0)} m²</b>${pop?`<span>${esc(T('Aholi (taxmin)'))}</span><b>${fmt(pop,0)}</b>`:''}<span>${esc(T('Holat'))}</span><b>${esc(T(locked?'qoʻlda tahrirlangan':'generatsiya'))}</b></div>
+    <div class="bsec"><span class="lb">${esc(T('Pastki qavatlar — turar joy emas'))}</span>
+      <div class="fl" role="group" aria-label="${esc(T('Turar joy boʻlmagan pastki qavatlar'))}"><button id="nrDn" aria-label="−">−</button><b>${nr}</b><button id="nrUp" aria-label="+">+</button><span class="note" style="margin-left:10px">${nr?esc(T('1–'+nr+'-qavat: tijorat, xizmat')):esc(T('hammasi turar joy'))}</span></div></div>
+    <div class="bsec"><span class="lb">${esc(T('Pogʻonalar'))}</span>
+      ${tiers.length?tiers.map((t,i)=>`<div class="tier"><label>${esc(T('qavatdan'))}<input type="number" min="2" max="${x.fl}" step="1" value="${t.from}" data-tf="${i}" aria-label="${esc(T('Pogʻona boshlanadigan qavat'))}"></label><label>${esc(T('ichkariga, m'))}<input type="number" min="0.5" max="30" step="0.5" value="${t.in}" data-ti="${i}" aria-label="${esc(T('Ichkariga chekinish, m'))}"></label><button class="x" data-td="${i}" aria-label="${esc(T('Pogʻonani oʻchirish'))}">×</button></div>`).join(''):`<p class="note" style="margin:0">${esc(T('Pogʻona yoʻq — bino butun balandligi boʻyicha bir xil dogʻda.'))}</p>`}
+      <button class="btn" id="tAdd" ${x.fl<3?'disabled':''}>+ ${esc(T('Pogʻona'))}</button></div>
+    <div class="bprof">${bldProfile(x)}</div>
+    <div class="kv"><span>${esc(T('Dogʻ maydoni'))}</span><b>${fmt(a,0)} m²</b><span>GFA</span><b>${fmt(m.gfa,0)} m²</b><span>${esc(T('Turar joy GFA'))}</span><b>${fmt(m.res,0)} m²</b>${pop?`<span>${esc(T('Aholi (taxmin)'))}</span><b>${fmt(pop,0)}</b>`:''}<span>${esc(T('Holat'))}</span><b>${esc(T(locked?'qoʻlda tahrirlangan':'generatsiya'))}</b></div>
     ${x.out?`<p class="warnn">${esc(T('Bino kvartal chegarasidan (qizil chiziqdan) chiqib ketgan — koʻcha yerida qurilish mumkin emas.'))}</p>`:''}
     <div class="brow"><button class="btn" id="bRotL" title="[">↺ 15°</button><button class="btn" id="bRotR" title="]">↻ 15°</button><button class="btn" id="bDup" title="Ctrl+D">${esc(T('Nusxa'))}</button><button class="btn bad" id="bDel" title="Delete">${esc(T('Oʻchirish'))}</button></div>
     ${locked?'':`<p class="note">${esc(T('Birinchi oʻzgarishda kvartal qulflanadi: binolar saqlanadi va generator ularni qayta chizmaydi.'))}</p>`}
     <div class="keys"><b>+ / −</b>${esc(T('qavat'))} · <b>←↑→↓</b>${esc(T('1 m surish'))} (<b>Shift</b> 5 m)<br><b>[ ]</b>${esc(T('burish'))} · <b>Ctrl+D</b>${esc(T('nusxa'))} · <b>Delete</b>${esc(T('oʻchirish'))}</div>
     <button class="btn" id="desel">${esc(T('Tanlovni bekor qilish'))}</button>`;}
 function bindBld(o){if(!o)return;const on=(id,f)=>{const e=$(id);if(e)e.onclick=f;};
-  on('#flUp',()=>bldOp('fl',1));on('#flDn',()=>bldOp('fl',-1));on('#bRotL',()=>bldOp('rot',-15));on('#bRotR',()=>bldOp('rot',15));on('#bDup',()=>bldOp('dup'));on('#bDel',()=>bldOp('del'));}
+  on('#flUp',()=>bldOp('fl',1));on('#flDn',()=>bldOp('fl',-1));
+  on('#nrUp',()=>editBld(S.sel.zid,S.sel.bid,x=>{x.nr=Math.min(x.fl-1,(x.nr||0)+1);}));on('#nrDn',()=>editBld(S.sel.zid,S.sel.bid,x=>{x.nr=Math.max(0,(x.nr||0)-1);}));
+  on('#tAdd',()=>editBld(S.sel.zid,S.sel.bid,x=>{const t=x.tiers||(x.tiers=[]);const last=t.reduce((a,b)=>Math.max(a,b.from),1);const from=Math.min(x.fl,Math.max(last+2,Math.ceil(x.fl*.7)));const prev=t.reduce((a,b)=>Math.max(a,b.in),0);t.push({from,in:prev+3});}));
+  $$('#panel [data-td]').forEach(b=>b.onclick=()=>{const i=+b.dataset.td;editBld(S.sel.zid,S.sel.bid,x=>{const t=(x.tiers||[]).slice().sort((p,q)=>p.from-q.from);t.splice(i,1);x.tiers=t;if(!t.length)delete x.tiers;});});
+  $$('#panel [data-tf]').forEach(inp=>inp.onchange=()=>{const i=+inp.dataset.tf;editBld(S.sel.zid,S.sel.bid,x=>{const t=x.tiers.slice().sort((p,q)=>p.from-q.from);t[i].from=Math.max(2,Math.min(x.fl,Math.round(+inp.value||2)));x.tiers=t;});});
+  $$('#panel [data-ti]').forEach(inp=>inp.onchange=()=>{const i=+inp.dataset.ti;editBld(S.sel.zid,S.sel.bid,x=>{const t=x.tiers.slice().sort((p,q)=>p.from-q.from);t[i].in=Math.max(.5,Math.min(30,+inp.value||1));x.tiers=t;});});on('#bRotL',()=>bldOp('rot',-15));on('#bRotR',()=>bldOp('rot',15));on('#bDup',()=>bldOp('dup'));on('#bDel',()=>bldOp('del'));}
 function bldOp(op,v){if(!S.sel||S.sel.t!=='bl')return;const {zid,bid}=S.sel;
-  if(op==='fl')editBld(zid,bid,x=>{x.fl=Math.max(1,Math.min(60,x.fl+v));});
+  if(op==='fl')editBld(zid,bid,x=>{x.fl=Math.max(1,Math.min(60,x.fl+v));if(x.nr)x.nr=Math.min(x.nr,x.fl-1);if(x.tiers){x.tiers=x.tiers.filter(t=>t.from<=x.fl);if(!x.tiers.length)delete x.tiers;}});
   else if(op==='rot')editBld(zid,bid,x=>{x.cs=rotCs(x.cs,v);});
   else if(op==='mv')editBld(zid,bid,x=>{x.cs=moveCs(x.cs,v[0],v[1]);});
   else if(op==='del'){S.sel=null;editBld(zid,bid,(x,rec)=>{rec.blds=rec.blds.filter(y=>y!==x);});}
   else if(op==='dup')editBld(zid,bid,(x,rec)=>{const f=polyOf(x),br=MRGEN.mainBearing(f)+90;
-    const d=Math.min(60,Math.sqrt(turf.area(f))*.8+8);const n={id:rec.bn++,cs:cs7(turf.transformTranslate(f,d,br,{units:'meters'}).geometry.coordinates),fl:x.fl};rec.blds.push(n);S.sel={t:'bl',zid,bid:n.id};});}
+    const d=Math.min(60,Math.sqrt(turf.area(f))*.8+8);const n={id:rec.bn++,cs:cs7(turf.transformTranslate(f,d,br,{units:'meters'}).geometry.coordinates),fl:x.fl};if(x.tiers)n.tiers=JSON.parse(JSON.stringify(x.tiers));if(x.nr)n.nr=x.nr;rec.blds.push(n);S.sel={t:'bl',zid,bid:n.id};});}
 /* ---------- 5-bosqich: tekshiruv linzalari ---------- */
 const LENS=(()=>{try{return Object.assign({sh:false,ins:false,dist:false,wind:false,walk:false,wt:'ijtimoiy'},JSON.parse(localStorage.getItem('kps_mr_lens')||'{}'));}catch(_){return {sh:false,ins:false,dist:false};}})();
 const saveLens=()=>{try{localStorage.setItem('kps_mr_lens',JSON.stringify(LENS));}catch(_){}};
@@ -445,11 +475,14 @@ function draw(){
   const sbl=S.sel&&S.sel.t==='bl'?S.sel:null;
   BLK.forEach(b=>{b.g=null;b.r=null;if(!b.z||!GENZ.includes(b.z.z))return;let r=null;
     if(b.z.lock&&b.z.blds){   // qoʻlda tahrirlangan: hujjatdagi binolar
-      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f)};}));}
+      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f),tiers:x.tiers,nr:x.nr};}));}
     else{const g=b.z.g;if(!g)return;r=MRGEN.gen(b.f,g);if(!r)return;b.g=g;r.blds.forEach((x,i)=>{x.id=i+1;});}
     b.r=r;
-    const res=RES_SHARE[b.z.z]||0,net=r.gfa*res*KP.get('netGross');r.kv=net/KP.get('unitM2');r.pop=r.kv*KP.get('hh');r.nOut=r.blds.filter(x=>x.out).length;
-    const sel=sb===b;r.blds.forEach(x=>bf.push(Object.assign({},x.f,{properties:{h:x.fl*MRGEN.FH,fl:x.fl,c:BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched}})));});
+    /* pogʻonalar va turar joy boʻlmagan pastki qavatlar hisobga olinadi */
+    let gfa=0,resG=0,expl=false;r.blds.forEach(x=>{const m=bldMass(x);x.seg=m.seg;x.gfa=m.gfa;x.res=m.res;gfa+=m.gfa;resG+=m.res;if(x.nr!=null||(x.tiers&&x.tiers.length))expl=true;});r.gfa=gfa;r.flAvg=r.fp?gfa/r.fp:0;r.far=r.A?gfa/r.A:0;
+    const res=RES_SHARE[b.z.z]||0,net=(expl&&res?resG*(b.z.z==='turar'?1:res):r.gfa*res)*KP.get('netGross');r.kv=net/KP.get('unitM2');r.pop=r.kv*KP.get('hh');r.nOut=r.blds.filter(x=>x.out).length;
+    const sel=sb===b;r.blds.forEach(x=>{const P={fl:x.fl,c:BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched};
+      x.seg.forEach((g,k)=>bf.push({type:'Feature',geometry:g.poly.geometry,properties:Object.assign({},P,{b:g.f0*MRGEN.FH,h:g.f1*MRGEN.FH,nr:g.nr?1:0,top:k>0?1:0})}));});});
   if(sbl&&!bldRec(sbl.zid,sbl.bid))S.sel=null;
   map.getSource('blds').setData(FC(bf));
   pubSoon();

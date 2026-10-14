@@ -105,7 +105,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .drawer iframe{width:100%;height:100%;border:0}
 /* telefon uchun pastki qadamlar paneli — faqat kichik ekranda */
 .stepsM{display:none}
-.step.tab{padding:0 16px;font:500 13px var(--f-mono);letter-spacing:.08em;text-transform:uppercase}.step.tab[aria-current="step"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+.steps:has(.tab){flex:none;overflow:visible;margin:0 auto 0 12px}.step.tab{flex:none;padding:0 16px;font:500 13px var(--f-mono);letter-spacing:.08em;text-transform:uppercase}.step.tab[aria-current="step"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
 .qw{position:relative;display:flex}.qm{position:absolute;top:calc(100% + 6px);right:0;z-index:900;background:var(--paper);border:1px solid var(--line);box-shadow:0 8px 24px #0002;display:grid;min-width:240px;padding:4px}
 .qm[hidden]{display:none}.qm button{border:0;background:none;text-align:left;padding:9px 12px;font:13px var(--f-sans,inherit);cursor:pointer}.qm button:hover{background:var(--bg)}
 /* planshet: qadam nomlari qisqaroq, koʻrsatma yashirin */
@@ -159,6 +159,8 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .gq .gl b{font-weight:600}.gq .gl small{display:block;color:var(--grey);font:11.5px var(--f-mono)}
 .helpb{width:30px;padding:0;font:600 14px var(--f-head)}
 @media (max-width:1550px){.gq input{width:150px}.pname{width:9em}}
+@media (max-width:1400px){.gq{display:none}}
+@media (max-width:1180px){.sst{display:none}.pname{width:7em}}
 @media (max-width:900px){.gq input{width:120px}.gq .gl{position:fixed;left:8px;right:8px;top:52px;width:auto}}
 </style>
 </head>
