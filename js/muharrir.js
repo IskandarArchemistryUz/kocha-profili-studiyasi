@@ -137,7 +137,7 @@ function addLayers(){
   map.addLayer({id:'wind',type:'raster',source:'wind',layout:{visibility:'none'},paint:{'raster-opacity':.85,'raster-fade-duration':0,'raster-resampling':'linear'}});
   map.addLayer({id:'windc',type:'line',source:'windc',layout:{'line-cap':'round'},paint:{'line-color':'#1f6fb2','line-width':['interpolate',['linear'],['zoom'],14,2,17,5],'line-opacity':['get','o']}});
   map.addLayer({id:'shadow',type:'fill',source:'shadow',paint:{'fill-color':'#1f2b3d','fill-opacity':.4}});
-  map.addLayer({id:'blds',type:'fill-extrusion',source:'blds',filter:['!=',['get','sl'],1],paint:{'fill-extrusion-color':['case',['==',['get','ef'],1],'#f0b323',['get','bs'],'#7fb0e0',['get','out'],'#e8998c',['==',['get','nr'],1],'#8fb9cf',['get','s'],'#cfe0f2',['get','c']],'fill-extrusion-height':['get','h'],'fill-extrusion-base':['coalesce',['get','b'],0],'fill-extrusion-opacity':.96,'fill-extrusion-vertical-gradient':false}});
+  map.addLayer({id:'blds',type:'fill-extrusion',source:'blds',filter:['!=',['get','sl'],1],paint:{'fill-extrusion-color':['case',['==',['get','rf'],1],['get','rc'],['==',['get','ef'],1],'#f0b323',['get','bs'],'#7fb0e0',['get','out'],'#e8998c',['==',['get','nr'],1],'#8fb9cf',['get','s'],'#cfe0f2',['get','c']],'fill-extrusion-height':['get','h'],'fill-extrusion-base':['coalesce',['get','b'],0],'fill-extrusion-opacity':.96,'fill-extrusion-vertical-gradient':false}});
   /* qavatlar orasidagi plita — qavat chiziqlari */
   map.addLayer({id:'blds-slab',type:'fill-extrusion',source:'blds',filter:['==',['get','sl'],1],paint:{'fill-extrusion-color':'#4a4a48','fill-extrusion-height':['get','h'],'fill-extrusion-base':['get','b'],'fill-extrusion-opacity':.96}});
   map.addLayer({id:'blds-line',type:'line',source:'blds',filter:['==',['get','o'],1],paint:{'line-color':'#111','line-width':.9,'line-opacity':['case',['==',['get','__p'],1],0,.85]}});
@@ -260,6 +260,30 @@ function feRing(){if(!S.fe)return null;const o=bldRec(S.fe.zid,S.fe.bid);if(!o)r
   const g=m.find(g=>g.f0<f&&f<=g.f1)||m[m.length-1];const below=f>1?(m.find(g=>g.f0<f-1&&f-1<=g.f1)||null):null;
   return {o,poly:g.poly,below:below&&below!==g?below.poly:null};}
 const LM=c=>({kx:111320*Math.cos(c[1]*Math.PI/180),ky:110540});
+/* ---------- arxitektura uslubi va tom ----------
+   Uslub — vizual taqdimot uchun tayyor toʻplam (devor/tom rangi, standart tom); meʼyor emas.
+   Tom MapLibre da qatlam-qatlam prizmalar bilan taxminlanadi (pogʻonali nishab) — hajm va siluet uchun, ishchi chizma emas. */
+const STY={
+  zamonaviy:{n:'Zamonaviy',wall:'#f2f0ea',roof:'#9c9a94',rf:'parapet'},
+  sovet:{n:'Sovet modernizmi',wall:'#e2e0da',roof:'#8a8984',rf:'flat'},
+  neoklassik:{n:'Neoklassik',wall:'#efe2c4',roof:'#6f7f86',rf:'mansard'},
+  milliy:{n:'Milliy (sharqona)',wall:'#e8d3ad',roof:'#2e7f8e',rf:'dome'},
+  yevropa:{n:'Anʼanaviy yevropa',wall:'#efe7da',roof:'#a5533b',rf:'gable',slope:35},
+  skandinav:{n:'Skandinav',wall:'#d8d0c2',roof:'#3a3a3a',rf:'gable',slope:42}};
+const ROOF={flat:'Tekis',parapet:'Parapet',gable:'Ikki nishabli',hip:'Toʻrt nishabli',mansard:'Mansard',dome:'Gumbaz'};
+function roofOf(x){const st=STY[x.sty]||null;return {rf:x.roof||(st&&st.rf)||'flat',slope:x.slope||(st&&st.slope)||30,wall:st&&st.wall,rc:(st&&st.roof)||'#8f8d88'};}
+/* tom boʻlaklari: [{poly, b, h}] — b/h tom tagidan, metrda */
+function roofParts(poly,R){const out=[];if(!poly||R.rf==='flat')return out;
+  let f=poly;try{if(f.geometry.type!=='Polygon')return out;}catch(_){return out;}
+  if(R.rf==='parapet'){try{const inr=turf.buffer(f,-.35,{units:'meters'});if(inr&&inr.geometry.type==='Polygon')out.push({poly:turf.polygon([f.geometry.coordinates[0],inr.geometry.coordinates[0].slice().reverse()]),b:0,h:1});}catch(_){}return out;}
+  const c=turf.centroid(f).geometry.coordinates,K=LM(c),rotA=90-MRGEN.mainBearing(f),rot=turf.transformRotate(f,rotA,{pivot:c}),bb=turf.bbox(rot);
+  const halfW=Math.max(1,(bb[3]-bb[1])*K.ky/2),tan=Math.tan(Math.max(5,Math.min(60,R.slope))*Math.PI/180),N=6;
+  if(R.rf==='gable'){const rh=halfW*tan;for(let i=0;i<N;i++){const k=1-i/N,q=turf.clone(rot);turf.coordEach(q,p=>{p[1]=c[1]+(p[1]-c[1])*k;});out.push({poly:turf.transformRotate(q,-rotA,{pivot:c}),b:i*rh/N,h:(i+1)*rh/N});}return out;}
+  if(R.rf==='hip'){const rh=halfW*tan;for(let i=0;i<N;i++){const d=halfW*i/N;let q=f;if(d>0){try{q=turf.buffer(f,-d,{units:'meters'});}catch(_){q=null;}}if(!q||turf.area(q)<4)break;q=q.geometry.type==='Polygon'?q:turf.polygon(q.geometry.coordinates[0]);out.push({poly:q,b:i*rh/N,h:(i+1)*rh/N});}return out;}
+  if(R.rf==='mansard'){[[.9,0,2.2],[1.8,2.2,3.2]].forEach(([d,b,h])=>{try{const q=turf.buffer(f,-d,{units:'meters'});if(q&&turf.area(q)>8)out.push({poly:q.geometry.type==='Polygon'?q:turf.polygon(q.geometry.coordinates[0]),b,h});}catch(_){}});return out;}
+  if(R.rf==='dome'){const r=Math.min(halfW*.8,12),drum=Math.max(.8,r*.25);out.push({poly:turf.circle(c,r*1.05,{units:'meters',steps:40}),b:0,h:drum});
+    for(let i=0;i<N;i++){const a0=i/N*Math.PI/2,a1=(i+1)/N*Math.PI/2;out.push({poly:turf.circle(c,r*Math.cos(a0),{units:'meters',steps:40}),b:drum+r*Math.sin(a0),h:drum+r*Math.sin(a1)});}return out;}
+  return out;}
 function feDraw(){const src=map.getSource('fe');if(!src)return;const r=S.fe&&feRing();if(!r){src.setData(FC());return;}
   const ring=(S.fed&&S.fed.cur)||r.poly.geometry.coordinates[0],open=ring.slice(0,-1),f=[];
   if(r.below)f.push({type:'Feature',properties:{k:'g'},geometry:{type:'LineString',coordinates:r.below.geometry.coordinates[0]}});
@@ -280,13 +304,27 @@ function feMove(e){const d=S.fed;if(!d)return;const ll=e.lngLat.toArray(),K=LM(d
     let s=dx*nx+dy*ny;s=S.shift?Math.round(s):Math.round(s*10)/10;
     /* tashqariga/ichkariga: markazga nisbatan */
     const c=turf.centroid(turf.polygon([d.orig])).geometry.coordinates,mid=[(A[0]+B[0])/2,(A[1]+B[1])/2],out=((mid[0]-c[0])*K.kx*nx+(mid[1]-c[1])*K.ky*ny)>0?1:-1;
-    [d.i,(d.i+1)%n].forEach(j=>{open[j]=[open[j][0]+s*nx/K.kx,open[j][1]+s*ny/K.ky];});
+    const W=FE.mode==='seg'?Math.max(.5,+FE.w||6):0;
+    if(W&&W<L-.2){/* faqat ushlangan joy atrofidagi W metrli qism: A … P1, P1', P2', P2 … B */
+      const t=Math.max(0,Math.min(1,((d.p0[0]-A[0])*K.kx*ex/L+(d.p0[1]-A[1])*K.ky*ey/L)/L)),h=W/L/2,t0=Math.max(0,Math.min(1-2*h,t-h)),t1=t0+2*h;
+      const at=u=>[A[0]+(B[0]-A[0])*u,A[1]+(B[1]-A[1])*u],off=p=>[p[0]+s*nx/K.kx,p[1]+s*ny/K.ky],P1=at(t0),P2=at(t1);
+      open.splice(d.i+1,0,P1,off(P1),off(P2),P2);d.segW=W;}
+    else [d.i,(d.i+1)%n].forEach(j=>{open[j]=[open[j][0]+s*nx/K.kx,open[j][1]+s*ny/K.ky];});
     tip.textContent=`${s*out>=0?T('tashqariga'):T('ichkariga')} ${fmt(Math.abs(s),1)} m`;}
   d.cur=[...open,open[0]];tip.style.left=e.point.x+'px';tip.style.top=e.point.y+'px';feDraw();}
 function feUp(){const d=S.fed;if(!d)return;S.fed=null;map.dragPan.enable();$('#tip').textContent='';if(!d.cur){feDraw();return;}
   const cs=cs7([d.cur,...d.holes]),fl=S.fe.fl;let ok=true;try{ok=turf.area(turf.polygon(cs))>12&&turf.kinks(turf.polygon(cs)).features.length===0;}catch(_){ok=false;}
   if(!ok){$('#tip').textContent=T('Shakl oʻzini kesib oʻtdi — bekor qilindi');setTimeout(()=>{$('#tip').textContent='';},1800);feDraw();return;}
-  editBld(S.fe.zid,S.fe.bid,x=>{if(fl===1){x.cs=cs;return;}const t=x.tiers||(x.tiers=[]);const e=t.find(t=>t.from===fl);if(e){e.cs=cs;delete e.in;}else t.push({from:fl,cs});});}
+  const to=FE.to&&FE.to>=fl?FE.to:0;
+  editBld(S.fe.zid,S.fe.bid,x=>{
+    /* «…qavatgacha»: undan yuqori qavat oldingi shaklida qoladi (agar u yerda pogʻona boʻlmasa) */
+    let keep=null;if(to&&to<x.fl){const m=bldMass(x).seg,g=m.find(g=>g.f0<to+1&&to+1<=g.f1);if(g)keep=cs7(g.poly.geometry.coordinates);}
+    const t=x.tiers||(x.tiers=[]);
+    if(fl===1)x.cs=cs;else{const e=t.find(t=>t.from===fl);if(e){e.cs=cs;delete e.in;}else t.push({from:fl,cs});}
+    if(keep&&!t.some(q=>q.from===to+1))t.push({from:to+1,cs:keep});
+    if(!t.length)delete x.tiers;});}
+/* fasad tahriri sozlamalari: butun devor yoki bo'lak (kenglik, m), qaysi qavatgacha */
+const FE={mode:'wall',w:6,to:0};
 function bldPop(b,x){const res=RES_SHARE[b.z.z]||0,m=bldMass(x),g=(x.nr!=null||(x.tiers&&x.tiers.length))&&res?m.res*(b.z.z==='turar'?1:res):m.gfa*res;return g*KP.get('netGross')/KP.get('unitM2')*KP.get('hh');}
 /* kvartirografiya (js/mr-kvartira.js): korpus oʻlchamlari — dogʻ perimetri va maydonidan (toʻgʻri toʻrtburchak uchun aniq) */
 const kvTypes=()=>(D.kvT&&D.kvT.length===KVART.TYPES0.length?D.kvT.map((t,i)=>Object.assign({},KVART.TYPES0[i],t)):KVART.TYPES0.map(t=>Object.assign({},t)));
@@ -345,8 +383,16 @@ function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z
       <button class="btn" id="tAdd" ${x.fl<3?'disabled':''}>+ ${esc(T('Pogʻona'))}</button></div>
     <div class="bsec"><span class="lb">${esc(T('Qavatni qoʻlda tahrirlash'))}</span>
       <div class="fl" role="group" aria-label="${esc(T('Tahrirlanadigan qavat'))}"><button id="feDn" aria-label="−">−</button><b>${S.fe&&S.fe.bid===x.id?S.fe.fl:Math.min(x.fl,2)}</b><button id="feUp" aria-label="+">+</button>
-        <button class="btn ${S.fe?'dark':''}" id="feGo" style="margin-left:8px">${esc(T(S.fe?'Tugatish':'✎ Tahrirlash'))}</button></div>
-      ${S.fe?`<p class="note" style="margin:0">${esc(T('Devorni (koʻk nuqta) ushlab suring — ichkariga yoki tashqariga; burchakni suring. Shift — 1 m qadam. Oʻzgarish shu qavatdan yuqoriga (keyingi pogʻonagacha) qoʻllanadi.'))}</p>${S.fe.fl>1&&(x.tiers||[]).some(t=>t.from===S.fe.fl)?`<button class="btn" id="feRst">${esc(T('Bu qavatni asl holiga'))}</button>`:''}`:''}</div>
+        <button class="btn ${S.fe?'dark':''}" id="feGo" style="margin-left:8px;width:auto;min-width:0;padding:0 12px;font-size:12px">${esc(T(S.fe?'Tugatish':'✎ Tahrirlash'))}</button></div>
+      ${S.fe?`<div class="seg" role="group" aria-label="${esc(T('Nimani surish'))}" style="margin:6px 0"><button data-fem="wall" aria-pressed="${FE.mode==='wall'}">${esc(T('Butun devor'))}</button><button data-fem="seg" aria-pressed="${FE.mode==='seg'}">${esc(T('Devor boʻlagi'))}</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">${FE.mode==='seg'?`<label class="note" style="display:grid;gap:2px">${esc(T('Boʻlak kengligi, m'))}<input type="number" id="feW" min="0.5" max="200" step="0.5" value="${FE.w}" style="width:80px"></label>`:''}
+        <label class="note" style="display:grid;gap:2px">${esc(T('…qavatgacha (boʻsh — tepagacha)'))}<input type="number" id="feTo" min="${S.fe.fl}" max="${x.fl}" step="1" value="${FE.to||''}" placeholder="${x.fl}" style="width:80px"></label></div>
+      <p class="note" style="margin:6px 0 0">${esc(T(FE.mode==='seg'?'Devorning kerakli joyini ushlab suring: shu joydan berilgan kenglikdagi qism chiqadi (eriker, balkon bloki) yoki kiradi (tokcha, lodjiya). Shift — 1 m qadam.':'Devorni (koʻk nuqta) ushlab suring — ichkariga yoki tashqariga; burchakni suring. Shift — 1 m qadam.'))} ${esc(T('Oʻzgarish shu qavatdan'))} ${FE.to&&FE.to<x.fl?esc(T(FE.to+'-qavatgacha')):esc(T('yuqoriga (keyingi pogʻonagacha)'))}.</p>${S.fe.fl>1&&(x.tiers||[]).some(t=>t.from===S.fe.fl)?`<button class="btn" id="feRst">${esc(T('Bu qavatni asl holiga'))}</button>`:''}`:''}</div>
+    <div class="bsec"><span class="lb">${esc(T('Uslub va tom'))}</span>
+      <div class="tseg" role="group" aria-label="${esc(T('Arxitektura uslubi'))}">${Object.entries(STY).map(([k,v])=>`<button data-sty="${k}" aria-pressed="${x.sty===k}" title="${esc(T(v.n))}"><i style="display:inline-block;width:10px;height:10px;background:${v.wall};border:1px solid ${v.roof};margin-right:5px;vertical-align:-1px"></i>${esc(T(v.n))}</button>`).join('')}</div>
+      <div class="seg" role="group" aria-label="${esc(T('Tom turi'))}" style="flex-wrap:wrap">${Object.entries(ROOF).map(([k,v])=>`<button data-roof="${k}" aria-pressed="${roofOf(x).rf===k}">${esc(T(v))}</button>`).join('')}</div>
+      ${['gable','hip'].includes(roofOf(x).rf)?`<label class="rng"><span>${esc(T('Nishab'))} <b>${roofOf(x).slope}°</b></span><input type="range" id="roofSl" min="10" max="60" step="1" value="${roofOf(x).slope}"></label>`:''}
+      <p class="note" style="margin:0">${esc(T('Uslub — taqdimot uchun rang va tom toʻplami. Tom 3D da pogʻonali taxmin bilan koʻrsatiladi.'))}</p></div>
     <div class="bprof">${bldProfile(x)}</div>
     ${kvHTML(b,x)}
     <div class="kv"><span>${esc(T('Dogʻ maydoni'))}</span><b>${fmt(a,0)} m²</b><span>GFA</span><b>${fmt(m.gfa,0)} m²</b><span>${esc(T('Turar joy GFA'))}</span><b>${fmt(m.res,0)} m²</b>${pop?`<span>${esc(T('Aholi (taxmin)'))}</span><b>${fmt(pop,0)}</b>`:''}<span>${esc(T('Holat'))}</span><b>${esc(T(locked?'qoʻlda tahrirlangan':'generatsiya'))}</b></div>
@@ -362,6 +408,11 @@ function bindBld(o){if(!o)return;const on=(id,f)=>{const e=$(id);if(e)e.onclick=
     S.fe={zid:S.sel.zid,bid:S.sel.bid,fl:Math.max(1,Math.min(o.x.fl,fl))};if(S.view!=='plan'){const pb=document.querySelector('[data-view="plan"]');if(pb)pb.click();}render();});
   const feSet=d=>{const o=fx();if(!o)return;if(S.fe){S.fe.fl=Math.max(1,Math.min(o.x.fl,S.fe.fl+d));render();}else{const el=$('#feDn').nextElementSibling;el.textContent=Math.max(1,Math.min(o.x.fl,(+el.textContent||1)+d));}};
   on('#feUp',()=>feSet(1));on('#feDn',()=>feSet(-1));
+  $$('#panel [data-fem]').forEach(b=>b.onclick=()=>{FE.mode=b.dataset.fem;render();});
+  $$('#panel [data-sty]').forEach(b=>b.onclick=()=>editBld(S.sel.zid,S.sel.bid,x=>{if(x.sty===b.dataset.sty){delete x.sty;}else{x.sty=b.dataset.sty;delete x.roof;delete x.slope;}}));
+  $$('#panel [data-roof]').forEach(b=>b.onclick=()=>editBld(S.sel.zid,S.sel.bid,x=>{x.roof=b.dataset.roof;}));
+  {const sl=$('#roofSl');if(sl)sl.onchange=()=>editBld(S.sel.zid,S.sel.bid,x=>{x.slope=Math.round(+sl.value);});}
+  {const w=$('#feW');if(w)w.onchange=()=>{FE.w=Math.max(.5,Math.min(200,+w.value||6));};const t=$('#feTo');if(t)t.onchange=()=>{const v=Math.round(+t.value||0);FE.to=v>0?v:0;render();};}
   on('#feRst',()=>editBld(S.fe.zid,S.fe.bid,x=>{x.tiers=(x.tiers||[]).filter(t=>t.from!==S.fe.fl);if(!x.tiers.length)delete x.tiers;}));
   on('#nrUp',()=>editBld(S.sel.zid,S.sel.bid,x=>{x.nr=Math.min(x.fl-1,(x.nr||0)+1);}));on('#nrDn',()=>editBld(S.sel.zid,S.sel.bid,x=>{x.nr=Math.max(0,(x.nr||0)-1);}));
   on('#tAdd',()=>editBld(S.sel.zid,S.sel.bid,x=>{const t=x.tiers||(x.tiers=[]);const last=t.reduce((a,b)=>Math.max(a,b.from),1);const from=Math.min(x.fl,Math.max(last+2,Math.ceil(x.fl*.7)));const prev=t.reduce((a,b)=>Math.max(a,b.in),0);t.push({from,in:prev+3});}));
@@ -583,7 +634,7 @@ function draw(){
   const sbl=S.sel&&S.sel.t==='bl'?S.sel:null;
   BLK.forEach(b=>{b.g=null;b.r=null;if(!b.z||!GENZ.includes(b.z.z))return;let r=null;
     if(b.z.lock&&b.z.blds){   // qoʻlda tahrirlangan: hujjatdagi binolar
-      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f),tiers:x.tiers,nr:x.nr,kv:x.kv};}));}
+      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f),tiers:x.tiers,nr:x.nr,kv:x.kv,sty:x.sty,roof:x.roof,slope:x.slope};}));}
     else{const g=b.z.g;if(!g)return;r=MRGEN.gen(b.f,g);if(!r)return;b.g=g;r.blds.forEach((x,i)=>{x.id=i+1;});}
     b.r=r;
     /* pogʻonalar va turar joy boʻlmagan pastki qavatlar hisobga olinadi */
@@ -594,12 +645,13 @@ function draw(){
       if(x.kv&&res){x.kvR=kvOf(x);if(x.kvR){r.kv+=x.kvR.n;r.kvExact++;return;}}
       r.kv+=(expl&&res?x.res*share:x.gfa*res)*KP.get('netGross')/KP.get('unitM2');});
     r.pop=r.kv*KP.get('hh');r.nOut=r.blds.filter(x=>x.out).length;
-    const sel=sb===b;r.blds.forEach(x=>{const P={fl:x.fl,c:BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched};
+    const sel=sb===b;r.blds.forEach(x=>{const RF=roofOf(x),P={fl:x.fl,c:RF.wall||BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched};
       const fe=S.fe&&S.fe.zid===b.z.id&&S.fe.bid===x.id?S.fe.fl:0;
       x.seg.forEach((g,k)=>{const FH=MRGEN.FH,base=Object.assign({},P,{nr:g.nr?1:0,top:k>0?1:0});
         if(!FLOORS){bf.push({type:'Feature',geometry:g.poly.geometry,properties:Object.assign({},base,{b:g.f0*FH,h:g.f1*FH,o:1})});return;}
         for(let f=g.f0;f<g.f1;f++){bf.push({type:'Feature',geometry:g.poly.geometry,properties:Object.assign({},base,{b:f*FH,h:(f+1)*FH-SLAB,o:f===g.f0?1:0,ef:fe===f+1?1:0})});
-          bf.push({type:'Feature',geometry:g.poly.geometry,properties:{sl:1,b:(f+1)*FH-SLAB,h:(f+1)*FH,zid:b.z.id,bid:x.id}});}});});});
+          bf.push({type:'Feature',geometry:g.poly.geometry,properties:{sl:1,b:(f+1)*FH-SLAB,h:(f+1)*FH,zid:b.z.id,bid:x.id}});}});
+      {const top=x.seg[x.seg.length-1];if(top)roofParts(top.poly,RF).forEach(q=>bf.push({type:'Feature',geometry:q.poly.geometry,properties:{rf:1,rc:RF.rc,zid:b.z.id,bid:x.id,s:sel,b:top.f1*MRGEN.FH+q.b,h:top.f1*MRGEN.FH+q.h}}));}});});
   if(sbl&&!bldRec(sbl.zid,sbl.bid))S.sel=null;
   if(S.fe&&!bldRec(S.fe.zid,S.fe.bid))S.fe=null;
   map.getSource('blds').setData(FC(bf));
