@@ -14,25 +14,28 @@ const PAL={
   use:{res:'#e9c46a',com:'#d77a61',off:'#d77a61',soc:'#8fb4c7',ind:'#b08bbb',green:'#b6c99a',mix:'#e4b08a',water:'#7ea6b8',other:'#c8cfd1'}
 };
 /* ---- ikonkalar (24×24, oq rangda doira ichida chiziladi) ---- */
+/* Xaritadagi xizmatlar: yagona ikonka tili (Ikonkalar doskasi) — 24×24 toʻr, chiziqli, toʻldirishsiz;
+   rangli doira ichida oq chiziq bilan chiziladi (ISTR — chiziq qalinligi, ikonka birligida). */
+const ISTR=1.8;
 const IC={
   dot:'',
-  bus:'M6 4h12a2 2 0 0 1 2 2v10h-2v2h-2v-2H8v2H6v-2H4V6a2 2 0 0 1 2-2zm0 3v4h12V7zm1 6.5a1.2 1.2 0 1 0 0 .1zm10 0a1.2 1.2 0 1 0 0 .1z',
-  metro:'M4 19 9 5l3 7 3-7 5 14h-3l-2-7-3 6-3-6-2 7z',
-  school:'M12 4 2 9l10 5 8-4v6h2V9zM6 13v3c2 2 10 2 12 0v-3l-6 3z',
-  health:'M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z',
-  food:'M5 6h14l-1.5 9h-11zM8 18a1.5 1.5 0 1 0 0 .1zm8 0a1.5 1.5 0 1 0 0 .1zM3 4h3l1 2H3z',
-  cafe:'M4 8h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zm12 1h2a2.5 2.5 0 0 1 0 5h-2v-2h2a.5.5 0 0 0 0-1h-2zM7 3h2v3H7zm4 0h2v3h-2z',
-  tree:'M12 2a6 6 0 0 1 5.6 8.2A5 5 0 0 1 14 18h-1v4h-2v-4h-1a5 5 0 0 1-3.6-7.8A6 6 0 0 1 12 2z',
-  park:'M12 3l5 7h-3l4 6h-5v5h-2v-5H6l4-6H7z',
-  sport:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 2c1.4 0 2.7.4 3.8 1.1L12 9 8.2 6.1A7 7 0 0 1 12 5zM5 12c0-1.4.4-2.7 1.1-3.8L9 12l-2.9 3.8A7 7 0 0 1 5 12zm7 7c-1.4 0-2.7-.4-3.8-1.1L12 15l3.8 2.9A7 7 0 0 1 12 19zm5.9-3.2L15 12l2.9-3.8A7 7 0 0 1 17.9 15.8z',
-  cult:'M12 3 3 8v2h18V8zM5 11h2v7H5zm4 0h2v7H9zm4 0h2v7h-2zm4 0h2v7h-2zM3 19h18v2H3z',
-  serv:'M4 7h16v12H4zm2 2v2h12V9zM9 4h6v3H9z',
-  cross:'M3 6h3v12H3zm5 0h3v12H8zm5 0h3v12h-3zm5 0h3v12h-3z',
-  wheel:'M11 3a2 2 0 1 1 0 .1zM10 7h2v5h5l2 6-2 .7-1.5-4.7H10zm-1.5 3.2.5 2A4 4 0 1 0 13.8 18l1.9.7A6 6 0 1 1 8.5 10.2z',
-  bld:'M5 21V5l7-3 7 3v16h-5v-5h-4v5zm4-14v2h2V7zm4 0v2h2V7zm-4 4v2h2v-2zm4 0v2h2v-2z',
-  warn:'M12 3 22 20H2zm-1 6v6h2V9zm0 7v2h2v-2z',
+  bus:'M7 4h10a2 2 0 0 1 2 2v11H5V6a2 2 0 0 1 2-2zM5 11h14M8 20v-3M16 20v-3',
+  metro:'M4 19 8 5l4 8 4-8 4 14',
+  school:'M3 9l9-5 9 5-9 5zM7 11.5v4c3 2 7 2 10 0v-4',
+  health:'M12 5v14M5 12h14',
+  food:'M5 9h14l-1.5 10h-11zM9 9l3-5 3 5',
+  cafe:'M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16',
+  tree:'M12 21v-6M12 15c-4 0-6-3-6-6a6 6 0 0 1 12 0c0 3-2 6-6 6z',
+  park:'M12 3l5 7h-3l4 6H6l4-6H7zM12 16v5',
+  sport:'M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0zM4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16',
+  cult:'M3 9l9-5 9 5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18',
+  serv:'M4 7h16v12H4zM9 7V4h6v3M4 12h16',
+  cross:'M3 7h18M3 17h18M6 9.5v5M10 9.5v5M14 9.5v5M18 9.5v5',
+  wheel:'M12.5 4.5a1.5 1.5 0 1 0-.01 0M11 8v5h5l2 5M9 10.5a5 5 0 1 0 6.5 6.5',
+  bld:'M5 21V8l7-4 7 4v13M10 21v-5h4v5M3 21h18',
+  warn:'M12 4l9 16H3zM12 10v4M12 17v.5',
   star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
-  bike:'M5 13a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm14-2a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM13 5h3v2h-1.6l1.8 4.7-1.9.7-.6-1.4-3.4 4H8.7l3.6-5.6L11.4 7H10V5z'
+  bike:'M9 17.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zM22 17.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zM5.5 17.5 9 10h6l3.5 7.5M12 17.5 9 10M14 6h2l-1 4'
 };
 const P2={};const path2=k=>P2[k]||(P2[k]=IC[k]?new Path2D(IC[k]):null);
 /* ---- saqlangan uslublar ---- */
@@ -52,7 +55,7 @@ const PtLayer=L.Layer.extend({
     const cf=this.ly.colorFn;for(const d of this.ly.data){const p=d.p||d;if(!b.contains(p))continue;const q=map.latLngToContainerPoint(p),col=cf?cf(d,st)||st.color:st.color;
       if(st.shape==='square'){g.fillStyle=col;g.fillRect(q.x-s,q.y-s,2*s,2*s);if(s>=3){g.strokeStyle='#fff';g.lineWidth=1;g.strokeRect(q.x-s,q.y-s,2*s,2*s);}continue;}
       g.beginPath();g.arc(q.x,q.y,s,0,7);g.fillStyle=col;g.fill();if(s>=3||ic){g.strokeStyle='#fff';g.lineWidth=s>=6?1.5:1;g.stroke();}
-      if(ic&&s>=5){const k=s*1.25/24;g.save();g.translate(q.x-12*k,q.y-12*k);g.scale(k,k);g.fillStyle='#fff';g.fill(ic,'evenodd');g.restore();}}}
+      if(ic&&s>=5){const k=s*1.25/24;g.save();g.translate(q.x-12*k,q.y-12*k);g.scale(k,k);g.strokeStyle='#fff';g.lineWidth=ISTR;g.lineCap=g.lineJoin='round';g.stroke(ic);g.restore();}}}
 });
 const RND=L.canvas({padding:.4});
 /* ---- qatlamlar reyestri ---- */
@@ -85,7 +88,7 @@ function renderPanel(){const groups={};ORDER.forEach(id=>{const l=LY[id];if(!l)r
       if(l.modes)h+=`<label>${T('Rang boʻyicha')}<select data-uk="mode">${Object.entries(l.modes).map(([k,v])=>`<option value="${k}" ${st.mode===k?'selected':''}>${esc(T(v))}</option>`).join('')}</select></label>`;
       if(l.kind!=='raster'&&!(l.modes&&st.mode&&st.mode!=='one'))h+=`<label>${T('Rang')}<input type="color" data-uk="color" value="${st.color}"></label>`;
       if(l.kind==='pt')h+=`<label>${T('Oʻlcham')}<input type="range" min="1" max="16" step=".5" data-uk="size" value="${st.size}"><output>${st.size}</output></label><label>${T('Shakl')}<select data-uk="shape"><option value="dot" ${st.shape==='dot'?'selected':''}>${T('nuqta')}</option><option value="square" ${st.shape==='square'?'selected':''}>${T('kvadrat')}</option><option value="icon" ${st.shape==='icon'?'selected':''}>${T('ikonka')}</option></select></label>`+
-        (st.shape==='icon'?`<div class="ui">${ICN.filter(k=>k!=='dot').map(k=>`<button data-uic="${k}" aria-pressed="${(st.icon||l.icon)===k}"><svg viewBox="0 0 24 24"><path d="${IC[k]}" fill-rule="evenodd"/></svg></button>`).join('')}</div>`:'');
+        (st.shape==='icon'?`<div class="ui">${ICN.filter(k=>k!=='dot').map(k=>`<button data-uic="${k}" aria-pressed="${(st.icon||l.icon)===k}"><svg viewBox="0 0 24 24"><path d="${IC[k]}"/></svg></button>`).join('')}</div>`:'');
       if(l.kind==='line')h+=`<label>${T('Qalinlik')}<input type="range" min=".5" max="8" step=".5" data-uk="size" value="${st.size}"><output>${st.size}</output></label>`;
       if(l.kind==='poly')h+=`<label>${T('Kontur')}<input type="range" min="0" max="4" step=".25" data-uk="size" value="${st.size}"><output>${st.size}</output></label>`;
       h+=`<label>${T('Shaffoflik')}<input type="range" min=".05" max="1" step=".05" data-uk="opacity" value="${st.opacity}"><output>${Math.round(st.opacity*100)}%</output></label>`;
@@ -104,7 +107,7 @@ function bindPanel(){PEL.addEventListener('input',e=>{const r=e.target.closest('
    ularning maʼnosi paneldagi rang namunasidan oʻqilmaydi. Panel yigʻilganda — toʻliq legenda. */
 function renderLegend(){const full=!PEL||PEL.classList.contains('min');const ls=ORDER.map(id=>LY[id]).filter(l=>l&&l.st.on&&!l.noLegend&&(full||(l.legend&&(l.legend(l.st)||[]).length)));if(!ls.length){LEL.hidden=true;return;}LEL.hidden=false;
   LEL.innerHTML=ls.map(l=>{const p=l.legend?l.legend(l.st):null;if(p&&p.length)return `<div class="lr"><span class="lt">${esc(T(l.name))}</span>${p.map(([c,t])=>`<span class="li"><i style="background:${c}"></i>${esc(T(t))}</span>`).join('')}</div>`;
-    const st=l.st,ic=st.shape==='icon'&&IC[st.icon||l.icon]?`<svg viewBox="0 0 24 24" style="width:14px;height:14px;background:${st.color};border-radius:50%;fill:#fff;padding:2px"><path d="${IC[st.icon||l.icon]}" fill-rule="evenodd"/></svg>`:`<i style="${swatch(l)};width:12px;height:${l.kind==='line'?3:12}px;display:inline-block;margin:0"></i>`;
+    const st=l.st,ic=st.shape==='icon'&&IC[st.icon||l.icon]?`<svg viewBox="0 0 24 24" style="width:14px;height:14px;background:${st.color};border-radius:50%;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;padding:2px"><path d="${IC[st.icon||l.icon]}"/></svg>`:`<i style="${swatch(l)};width:12px;height:${l.kind==='line'?3:12}px;display:inline-block;margin:0"></i>`;
     return `<div class="lr"><span class="li">${ic}${esc(T(l.name))}</span></div>`;}).join('');}
 /* ---- SVG eksport (albom uchun) ---- */
 function toSVG(bb,W){const MX=111320*Math.cos((bb[0]+bb[2])/2*Math.PI/180),MY=110574,x0=bb[1]*MX,y1=bb[2]*MY,k=W/((bb[3]-bb[1])*MX),H=(bb[2]-bb[0])*MY*k,P=p=>`${((p[1]*MX-x0)*k).toFixed(1)} ${((y1-p[0]*MY)*k).toFixed(1)}`;
@@ -113,7 +116,7 @@ function toSVG(bb,W){const MX=111320*Math.cos((bb[0]+bb[2])/2*Math.PI/180),MY=11
     if(l.kind==='raster'){const r=l.render(st),b=r.bounds;s+=`<image href="${r.url}" x="${((b[0][1]*MX-x0)*k).toFixed(1)}" y="${((y1-b[1][0]*MY)*k).toFixed(1)}" width="${((b[1][1]-b[0][1])*MX*k).toFixed(1)}" height="${((b[1][0]-b[0][0])*MY*k).toFixed(1)}" opacity="${st.opacity}" preserveAspectRatio="none"/>`;return;}
     if(l.kind==='pt'){const sz=(+st.size||4)*W/1000,ic=st.shape==='icon'&&IC[st.icon||l.icon];l.data.forEach(d=>{const p=d.p||d,c=l.colorFn?l.colorFn(d,st)||st.color:st.color,[x,y]=P(p).split(' ');
         s+=st.shape==='square'?`<rect x="${x-sz}" y="${y-sz}" width="${2*sz}" height="${2*sz}" fill="${c}" opacity="${st.opacity}"/>`:`<circle cx="${x}" cy="${y}" r="${sz.toFixed(1)}" fill="${c}" stroke="#fff" stroke-width="${(sz/5).toFixed(2)}" opacity="${st.opacity}"/>`;
-        if(ic&&sz>=4){const kk=sz*1.25/24;s+=`<path d="${IC[st.icon||l.icon]}" fill="#fff" fill-rule="evenodd" transform="translate(${(x-12*kk).toFixed(1)} ${(y-12*kk).toFixed(1)}) scale(${kk.toFixed(3)})"/>`;}});return;}
+        if(ic&&sz>=4){const kk=sz*1.25/24;s+=`<path d="${IC[st.icon||l.icon]}" fill="none" stroke="#fff" stroke-width="${ISTR}" stroke-linecap="round" stroke-linejoin="round" transform="translate(${(x-12*kk).toFixed(1)} ${(y-12*kk).toFixed(1)}) scale(${kk.toFixed(3)})"/>`;}});return;}
     l.data.forEach(f=>{const g=f.g||f,c=l.colorFn?l.colorFn(f,st)||st.color:st.color;if(!g.length)return;const d='M'+g.map(P).join('L');
       const da=l.kind==='line'&&l.dashFn&&l.dashFn(f);s+=l.kind==='line'?`<path d="${d}" fill="none" stroke="${c}" stroke-width="${(+st.size*W/1000).toFixed(2)}" opacity="${st.opacity}" stroke-linecap="round" stroke-linejoin="round"${da?` stroke-dasharray="${String(da).split(' ').map(v=>(+v*W/1000).toFixed(2)).join(' ')}"`:''}/>`:`<path d="${d}Z" fill="${c}" fill-opacity="${st.opacity}" stroke="${l.stroke||c}" stroke-width="${(+st.size*W/1000).toFixed(2)}"/>`;});});
   return {svg:s+'</svg>',W,H,legend:legendItems()};}
@@ -130,13 +133,13 @@ const css=document.createElement('style');css.textContent=`
 .ulyP .ur>button{border:0;background:none;color:#8a877f;cursor:pointer;font-size:13px;width:22px}
 .ulyP .us{background:#f1efea;padding:4px 10px 8px 28px;display:flex;flex-direction:column;gap:5px}.ulyP .us label{display:grid;grid-template-columns:70px minmax(0,1fr) 36px;align-items:center;gap:6px;font-size:12px;color:#555}
 .ulyP .us select{font:12px Archivo,sans-serif;border:1px solid #cfccc5;padding:1px 2px;grid-column:2/4}.ulyP .us input[type=color]{width:100%;height:20px;border:1px solid #cfccc5;padding:0;grid-column:2/4}.ulyP output{font:11px 'IBM Plex Mono',monospace;width:32px;text-align:right}
-.ulyP .ui{display:grid;grid-template-columns:repeat(auto-fill,minmax(26px,1fr));gap:2px}.ulyP .ui button{border:1px solid #dedcd7;background:#fff;padding:2px;cursor:pointer;aspect-ratio:1}.ulyP .ui button[aria-pressed=true]{background:#141414;border-color:#141414}.ulyP .ui button[aria-pressed=true] svg{fill:#fff}.ulyP .ui svg{width:100%;height:100%;fill:#333}
+.ulyP .ui{display:grid;grid-template-columns:repeat(auto-fill,minmax(26px,1fr));gap:2px}.ulyP .ui button{border:1px solid #dedcd7;background:#fff;padding:2px;cursor:pointer;aspect-ratio:1}.ulyP .ui button[aria-pressed=true]{background:#141414;border-color:#141414}.ulyP .ui button[aria-pressed=true] svg{stroke:#fff}.ulyP .ui svg{width:100%;height:100%;fill:none;stroke:#333;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .ulyP .un{font:11px/1.45 'IBM Plex Mono',monospace;color:#696969}
 .ulyL{position:absolute;right:12px;bottom:28px;z-index:600;background:rgba(255,255,255,.95);border:1px solid #dedcd7;padding:6px 10px;font-size:12px;display:flex;flex-direction:column;gap:3px;max-width:420px;max-height:45%;overflow:auto}
 .ulyL .lr{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}.ulyL .lt{color:#696969;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-right:2px}.ulyL .li{display:inline-flex;align-items:center;gap:5px}.ulyL .li i{width:11px;height:11px;display:inline-block}
 .uly-ras{image-rendering:auto}
 @media (max-width:860px){.ulyP{width:220px;max-height:60%}}`;document.head.appendChild(css);
-window.ULY={PAL,IC,LY,set,remove,clear,toSVG,legendItems,restyle,
+window.ULY={PAL,IC,ISTR,LY,set,remove,clear,toSVG,legendItems,restyle,
   init(map,mapEl,cb){MAP=map;if(!map.getPane('ulyPt')){map.createPane('ulyPt');map.getPane('ulyPt').style.zIndex=450;map.getPane('ulyPt').style.pointerEvents='none';}onChange=cb||onChange;PEL=document.createElement('div');PEL.className='ulyP';mapEl.appendChild(PEL);LEL=document.createElement('div');LEL.className='ulyL';LEL.hidden=true;mapEl.appendChild(LEL);bindPanel();renderPanel();},
   /* qiymat → rang (pogʻonali) */
   step(v,br,pal){let i=0;while(i<br.length&&v>br[i])i++;return pal[Math.min(i,pal.length-1)];},
