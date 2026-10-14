@@ -234,6 +234,47 @@ function bldMass(x){
     const a=turf.area(poly),n=f1-f0;gfa+=a*n;const isNr=f1<=nr;if(!isNr)res+=a*n;seg.push({f0,f1,poly,nr:isNr,a});}
   return {seg,gfa,res};}
 function bldPop(b,x){const res=RES_SHARE[b.z.z]||0,m=bldMass(x),g=(x.nr!=null||(x.tiers&&x.tiers.length))&&res?m.res*(b.z.z==='turar'?1:res):m.gfa*res;return g*KP.get('netGross')/KP.get('unitM2')*KP.get('hh');}
+/* kvartirografiya (js/mr-kvartira.js): korpus oʻlchamlari — dogʻ perimetri va maydonidan (toʻgʻri toʻrtburchak uchun aniq) */
+const kvTypes=()=>(D.kvT&&D.kvT.length===KVART.TYPES0.length?D.kvT.map((t,i)=>Object.assign({},KVART.TYPES0[i],t)):KVART.TYPES0.map(t=>Object.assign({},t)));
+function slabDims(poly){const a=turf.area(poly);let P=0;turf.flattenEach(poly,f=>{f.geometry.coordinates.forEach(r=>{P+=turf.length(turf.lineString(r),{units:'meters'});});});
+  const h=P/2,disc=Math.max(0,h*h-4*a),A=(h+Math.sqrt(disc))/2;return {A,D:A?a/A:0};}
+function kvOf(x){if(!x.kv)return null;const m=x.seg?{seg:x.seg}:bldMass(x);
+  const parts=m.seg.filter(g=>!g.nr).map(g=>Object.assign(slabDims(g.poly),{floors:g.f1-g.f0}));
+  if(!parts.length)return null;return KVART.building(parts,x.kv,kvTypes());}
+const KVDEF=()=>({sys:'sec',goal:.35,seed:1,pick:0});
+function kvHTML(b,x){
+  const res=(RES_SHARE[b.z.z]||0)>0;if(!res)return '';
+  const head=`<span class="lb">${esc(T('Kvartirografiya'))}</span>`;
+  if(!x.kv){const est=bldPop(b,x)/KP.get('hh');
+    return `<div class="bsec">${head}<p class="note" style="margin:0">${esc(T('Hozir xonadonlar GFA dan taxmin qilinadi'))}: ~${fmt(est,0)}.</p>
+      <div class="brow"><button class="btn dark" id="kvOn">${esc(T('Kvartirografiyani hisoblash'))}</button><button class="btn" id="kvAll" title="${esc(T('Barcha turar joy va aralash binolariga — kvartallar qulflanadi'))}">${esc(T('Barcha binolarga'))}</button></div></div>`;}
+  const R=x.kvR||kvOf(x),TY=kvTypes(),P=x.kv;
+  if(!R||!R.main)return `<div class="bsec">${head}<p class="warnn">${esc(T('Korpus juda kichik — kvartira sigʻmaydi.'))}</p><button class="btn" id="kvOff">${esc(T('Oʻchirish'))}</button></div>`;
+  const pick=Math.min(P.pick||0,R.main.V.length-1),m=bldMass(x),K=m.gfa?R.net/m.gfa:0,ud=R.main.G.ud;
+  const bad=TY.filter(t=>Math.max(t.min/ud,3.3)>t.max/ud).map(t=>t.name);
+  return `<div class="bsec">${head}
+    <div class="seg seg3" role="group" aria-label="${esc(T('Rejalash tizimi'))}">${Object.entries(KVART.SYS).map(([k,n])=>`<button data-kvs="${k}" aria-pressed="${(P.sys||'sec')===k}">${esc(T(n)).toUpperCase()}</button>`).join('')}</div>
+    <label class="kvg"><span>${esc(T('Nisbatga aniqlik'))}</span><input type="range" min="0" max="1" step="0.05" value="${P.goal??.35}" id="kvGoal" aria-label="${esc(T('Optimallash maqsadi'))}"><span>${esc(T('Maks. soni'))}</span></label>
+    <div class="kvv" role="group" aria-label="${esc(T('Variantlar'))}">${R.main.V.map((v,k)=>`<button data-kvp="${k}" aria-pressed="${k===pick}" title="${v.n} ${esc(T('kv/qavat'))} · ${esc(T('ogʻish'))} ${(v.err*100).toFixed(1)}%"><b>${'ABCDEF'[k]}</b><span>${v.n}</span><i>${v.counts.map((c,i)=>c?`<em style="flex:${c};background:${TY[i].color}"></em>`:'').join('')}</i></button>`).join('')}<button id="kvRe" title="${esc(T('Yangi variantlar'))}" aria-label="${esc(T('Yangi variantlar'))}">↻</button></div>
+    <div class="kvplan">${KVART.planSVG(R.main,pick,TY,268)}<span class="note">${esc(T('Tipik qavat'))} · ${fmt(R.main.G.A,1)} × ${fmt(R.main.G.D,1)} m${R.parts.length>1?` · ${esc(T('pogʻonalar alohida hisoblangan'))}`:''}</span></div>
+    <div class="kv"><span>${esc(T('Xonadonlar jami'))}</span><b>${fmt(R.n,0)}</b><span>${esc(T('Qavatda'))}</span><b>${R.perFl}</b><span>${esc(T('Sotiladigan maydon'))}</span><b>${fmt(R.net,0)} m²</b><span>${esc(T('Samaradorlik K'))}</span><b>${K.toFixed(2).replace('.',',')}</b><span>${esc(T('Aholi'))}</span><b>${fmt(R.n*KP.get('hh'),0)}</b></div>
+    <table class="kvt"><tr><th>${esc(T('Tur'))}</th><th>${esc(T('Maqsad'))}</th><th>${esc(T('Natija'))}</th><th>${esc(T('Soni'))}</th></tr>${TY.map((t,i)=>`<tr><td><i style="background:${t.color}"></i>${esc(T(t.name))}</td><td>${Math.round(R.tgt[i]*100)}%</td><td class="${Math.abs(R.share[i]-R.tgt[i])>.05?'off':''}">${Math.round(R.share[i]*100)}%</td><td>${fmt(R.counts[i],0)}</td></tr>`).join('')}</table>
+    ${bad.length?`<p class="warnn">${esc(bad.join(', '))}: ${fmt(ud,1)} m ${esc(T('chuqurlikda maydon oraligʻiga sigʻmaydi.'))}</p>`:''}${ud>9?`<p class="warnn">${esc(T('Kvartira chuqurligi'))} ${fmt(ud,1)} m — ${esc(T('tabiiy yorugʻlik uchun chuqur.'))}</p>`:''}
+    <details class="kvty"><summary>${esc(T('Kvartira turlari va maydonlari (butun loyiha)'))}</summary><table class="kvt">${TY.map((t,i)=>`<tr><td><i style="background:${t.color}"></i>${esc(T(t.name))}</td><td><input type="number" min="0" max="100" value="${t.target}" data-kt="${i}" aria-label="${esc(T(t.name))} ${esc(T('ulushi'))}">%</td><td><input type="number" min="15" max="250" value="${t.min}" data-kmin="${i}" aria-label="min m²">–<input type="number" min="15" max="300" value="${t.max}" data-kmax="${i}" aria-label="max m²"> m²</td></tr>`).join('')}</table><p class="note">${esc(T('Maydon oraliqlari namunaviy — loyiha normasiga moslang.'))}</p></details>
+    <div class="brow"><button class="btn" id="kvCsv">${esc(T('Jadval (CSV)'))}</button><button class="btn" id="kvOff">${esc(T('Taxminga qaytarish'))}</button></div></div>`;}
+function bindKv(){const z=S.sel&&S.sel.zid,bid=S.sel&&S.sel.bid;if(z==null)return;const ed=f=>editBld(z,bid,x=>{x.kv=Object.assign(KVDEF(),x.kv||{});f(x.kv,x);});const on=(id,f)=>{const e=$(id);if(e)e.onclick=f;};
+  on('#kvOn',()=>ed(()=>{}));on('#kvOff',()=>editBld(z,bid,x=>{delete x.kv;}));on('#kvRe',()=>ed(k=>{k.seed=(k.seed||1)+1;k.pick=0;}));
+  on('#kvAll',()=>act(()=>{BLK.forEach(b=>{if(!b.r||!b.z||!(RES_SHARE[b.z.z]>0))return;const rec=bake(b);rec.blds.forEach(x=>{if(!x.kv)x.kv=KVDEF();});});}));
+  $$('#panel [data-kvs]').forEach(b=>b.onclick=()=>ed(k=>{k.sys=b.dataset.kvs;k.pick=0;}));
+  $$('#panel [data-kvp]').forEach(b=>b.onclick=()=>ed(k=>{k.pick=+b.dataset.kvp;}));
+  const g=$('#kvGoal');if(g)g.onchange=()=>ed(k=>{k.goal=+g.value;k.pick=0;});
+  const setT=(i,key,v)=>act(()=>{const TY=kvTypes();TY[i][key]=v;if(TY[i].min>TY[i].max)TY[i].max=TY[i].min;D.kvT=TY.map(t=>({target:t.target,min:t.min,max:t.max}));});
+  $$('#panel [data-kt]').forEach(i=>i.onchange=()=>setT(+i.dataset.kt,'target',Math.max(0,+i.value||0)));
+  $$('#panel [data-kmin]').forEach(i=>i.onchange=()=>setT(+i.dataset.kmin,'min',Math.max(15,+i.value||15)));
+  $$('#panel [data-kmax]').forEach(i=>i.onchange=()=>setT(+i.dataset.kmax,'max',Math.max(15,+i.value||15)));
+  on('#kvCsv',()=>{const o=bldRec(z,bid);if(!o||!o.x.kvR)return;const R=o.x.kvR,TY=kvTypes(),pick=Math.min(o.x.kv.pick||0,R.main.V.length-1);
+    const L=['Boʻlak;Qavatlar;Tur;Maydon_m2;Eni_m;Chuqurligi_m'];R.parts.forEach((p,pi)=>{const v=p.V[Math.min(pick,p.V.length-1)];if(v)v.units.forEach(u=>L.push([pi+1,p.floors,u.type>=0?TY[u.type].name:'Texnik',u.area.toFixed(1),(u.b-u.a).toFixed(2),u.d.toFixed(2)].join(';')));});
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));a.download=`kvartirografiya-${(o.b.name||'K')}-${bid}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);});}
 /* bino profili (kesim sxemasi): har qavat eni — dogʻ maydoniga mutanosib */
 function bldProfile(x){const m=bldMass(x),A=turf.area(x.f)||1,H=Math.min(150,Math.max(60,x.fl*6)),fh=H/x.fl,W=150;
   return `<svg viewBox="0 0 ${W+40} ${H+14}" width="100%" style="max-width:260px;display:block" role="img" aria-label="${esc(T('Bino kesimi: qavatlar va pogʻonalar'))}">`+
@@ -249,6 +290,7 @@ function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z
       ${tiers.length?tiers.map((t,i)=>`<div class="tier"><label>${esc(T('qavatdan'))}<input type="number" min="2" max="${x.fl}" step="1" value="${t.from}" data-tf="${i}" aria-label="${esc(T('Pogʻona boshlanadigan qavat'))}"></label><label>${esc(T('ichkariga, m'))}<input type="number" min="0.5" max="30" step="0.5" value="${t.in}" data-ti="${i}" aria-label="${esc(T('Ichkariga chekinish, m'))}"></label><button class="x" data-td="${i}" aria-label="${esc(T('Pogʻonani oʻchirish'))}">×</button></div>`).join(''):`<p class="note" style="margin:0">${esc(T('Pogʻona yoʻq — bino butun balandligi boʻyicha bir xil dogʻda.'))}</p>`}
       <button class="btn" id="tAdd" ${x.fl<3?'disabled':''}>+ ${esc(T('Pogʻona'))}</button></div>
     <div class="bprof">${bldProfile(x)}</div>
+    ${kvHTML(b,x)}
     <div class="kv"><span>${esc(T('Dogʻ maydoni'))}</span><b>${fmt(a,0)} m²</b><span>GFA</span><b>${fmt(m.gfa,0)} m²</b><span>${esc(T('Turar joy GFA'))}</span><b>${fmt(m.res,0)} m²</b>${pop?`<span>${esc(T('Aholi (taxmin)'))}</span><b>${fmt(pop,0)}</b>`:''}<span>${esc(T('Holat'))}</span><b>${esc(T(locked?'qoʻlda tahrirlangan':'generatsiya'))}</b></div>
     ${x.out?`<p class="warnn">${esc(T('Bino kvartal chegarasidan (qizil chiziqdan) chiqib ketgan — koʻcha yerida qurilish mumkin emas.'))}</p>`:''}
     <div class="brow"><button class="btn" id="bRotL" title="[">↺ 15°</button><button class="btn" id="bRotR" title="]">↻ 15°</button><button class="btn" id="bDup" title="Ctrl+D">${esc(T('Nusxa'))}</button><button class="btn bad" id="bDel" title="Delete">${esc(T('Oʻchirish'))}</button></div>
@@ -256,7 +298,7 @@ function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z
     <div class="keys"><b>+ / −</b>${esc(T('qavat'))} · <b>←↑→↓</b>${esc(T('1 m surish'))} (<b>Shift</b> 5 m)<br><b>[ ]</b>${esc(T('burish'))} · <b>Ctrl+D</b>${esc(T('nusxa'))} · <b>Delete</b>${esc(T('oʻchirish'))}</div>
     <button class="btn" id="desel">${esc(T('Tanlovni bekor qilish'))}</button>`;}
 function bindBld(o){if(!o)return;const on=(id,f)=>{const e=$(id);if(e)e.onclick=f;};
-  on('#flUp',()=>bldOp('fl',1));on('#flDn',()=>bldOp('fl',-1));
+  on('#flUp',()=>bldOp('fl',1));on('#flDn',()=>bldOp('fl',-1));bindKv();
   on('#nrUp',()=>editBld(S.sel.zid,S.sel.bid,x=>{x.nr=Math.min(x.fl-1,(x.nr||0)+1);}));on('#nrDn',()=>editBld(S.sel.zid,S.sel.bid,x=>{x.nr=Math.max(0,(x.nr||0)-1);}));
   on('#tAdd',()=>editBld(S.sel.zid,S.sel.bid,x=>{const t=x.tiers||(x.tiers=[]);const last=t.reduce((a,b)=>Math.max(a,b.from),1);const from=Math.min(x.fl,Math.max(last+2,Math.ceil(x.fl*.7)));const prev=t.reduce((a,b)=>Math.max(a,b.in),0);t.push({from,in:prev+3});}));
   $$('#panel [data-td]').forEach(b=>b.onclick=()=>{const i=+b.dataset.td;editBld(S.sel.zid,S.sel.bid,x=>{const t=(x.tiers||[]).slice().sort((p,q)=>p.from-q.from);t.splice(i,1);x.tiers=t;if(!t.length)delete x.tiers;});});
@@ -475,12 +517,17 @@ function draw(){
   const sbl=S.sel&&S.sel.t==='bl'?S.sel:null;
   BLK.forEach(b=>{b.g=null;b.r=null;if(!b.z||!GENZ.includes(b.z.z))return;let r=null;
     if(b.z.lock&&b.z.blds){   // qoʻlda tahrirlangan: hujjatdagi binolar
-      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f),tiers:x.tiers,nr:x.nr};}));}
+      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f),tiers:x.tiers,nr:x.nr,kv:x.kv};}));}
     else{const g=b.z.g;if(!g)return;r=MRGEN.gen(b.f,g);if(!r)return;b.g=g;r.blds.forEach((x,i)=>{x.id=i+1;});}
     b.r=r;
     /* pogʻonalar va turar joy boʻlmagan pastki qavatlar hisobga olinadi */
     let gfa=0,resG=0,expl=false;r.blds.forEach(x=>{const m=bldMass(x);x.seg=m.seg;x.gfa=m.gfa;x.res=m.res;gfa+=m.gfa;resG+=m.res;if(x.nr!=null||(x.tiers&&x.tiers.length))expl=true;});r.gfa=gfa;r.flAvg=r.fp?gfa/r.fp:0;r.far=r.A?gfa/r.A:0;
-    const res=RES_SHARE[b.z.z]||0,net=(expl&&res?resG*(b.z.z==='turar'?1:res):r.gfa*res)*KP.get('netGross');r.kv=net/KP.get('unitM2');r.pop=r.kv*KP.get('hh');r.nOut=r.blds.filter(x=>x.out).length;
+    const res=RES_SHARE[b.z.z]||0,share=b.z.z==='turar'?1:res;
+    /* xonadonlar: kvartirografiya hisoblangan binoda — aniq soni, qolganlarida — GFA dan taxmin */
+    r.kv=0;r.kvExact=0;r.blds.forEach(x=>{x.kvR=null;
+      if(x.kv&&res){x.kvR=kvOf(x);if(x.kvR){r.kv+=x.kvR.n;r.kvExact++;return;}}
+      r.kv+=(expl&&res?x.res*share:x.gfa*res)*KP.get('netGross')/KP.get('unitM2');});
+    r.pop=r.kv*KP.get('hh');r.nOut=r.blds.filter(x=>x.out).length;
     const sel=sb===b;r.blds.forEach(x=>{const P={fl:x.fl,c:BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched};
       x.seg.forEach((g,k)=>bf.push({type:'Feature',geometry:g.poly.geometry,properties:Object.assign({},P,{b:g.f0*MRGEN.FH,h:g.f1*MRGEN.FH,nr:g.nr?1:0,top:k>0?1:0})}));});});
   if(sbl&&!bldRec(sbl.zid,sbl.bid))S.sel=null;
