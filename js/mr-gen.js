@@ -61,5 +61,7 @@ const cache=new Map();
 function gen(block,g){const key=JSON.stringify([block.geometry.coordinates,g]);if(cache.has(key))return cache.get(key);
   let r=null;try{r=generate(block,g);}catch(e){console.warn('[MR] gen',e);}
   cache.set(key,r);if(cache.size>400)cache.delete(cache.keys().next().value);return r;}
-return {gen,TYP,FH};
+/* qoʻlda tahrirlangan binolar uchun bir xil koʻrsatkichlar */
+function stats(block,blds){const A=area(block),fp=blds.reduce((a,x)=>a+area(x.f),0),gfa=blds.reduce((a,x)=>a+area(x.f)*x.fl,0);return {blds,fp,gfa,far:A?gfa/A:0,flAvg:fp?gfa/fp:0,capped:false,A};}
+return {gen,TYP,FH,stats,mainBearing};
 })();
