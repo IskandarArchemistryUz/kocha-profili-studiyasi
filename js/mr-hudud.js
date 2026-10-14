@@ -54,14 +54,16 @@ function areaTool(cfg){
     map.addLayer({id:L('fill'),type:'fill',source:L('src'),filter:['==',['get','k'],'a'],paint:{'fill-color':c,'fill-opacity':['case',['get','on'],cfg.fillOn,cfg.fillOff]}});
     map.addLayer({id:L('line'),type:'line',source:L('src'),filter:['==',['get','k'],'a'],paint:{'line-color':c,'line-width':['case',['get','on'],cfg.width+.6,cfg.width],'line-dasharray':cfg.dash,'line-opacity':['case',['get','on'],1,.75]}});
     map.addLayer({id:L('lab'),type:'symbol',source:L('src'),filter:['==',['get','k'],'t'],layout:{'text-field':['get','n'],'text-font':['Noto Sans Regular'],'text-size':11,'text-letter-spacing':.08,'text-anchor':'bottom-left','text-offset':[.4,-.3]},paint:{'text-color':c,'text-halo-color':'#fff','text-halo-width':1.4}});
+    /* chizish jarayonidagi chiziq — yaxlit va qalin (uzuq-uzuq chiziq kichik masshtabda koʻrinmay qolardi) */
+    map.addLayer({id:L('draft'),type:'line',source:L('src'),filter:['==',['get','k'],'d'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':c,'line-width':2.4}});
     map.addLayer({id:L('pts'),type:'circle',source:L('src'),filter:['==',['get','k'],'v'],paint:{'circle-radius':5,'circle-color':'#fff','circle-stroke-color':c,'circle-stroke-width':2}});
   }
   function draw(){
     if(!map||!map.getSource(L('src')))return;
     const f=[],r=ring();
     if(r&&r.length>1){
-      if(H.done||H.mode!=='poly')f.push({type:'Feature',properties:{k:'a',on},geometry:{type:'Polygon',coordinates:[[...r,r[0]]]}});
-      else if(on)f.push({type:'Feature',properties:{k:'a',on},geometry:{type:'LineString',coordinates:H.cur?[...r,H.cur]:r}});
+      if(H.done||H.mode!=='poly')f.push({type:'Feature',properties:{k:H.done||H.mode==='radius'?'a':'d',on},geometry:H.done||H.mode==='radius'?{type:'Polygon',coordinates:[[...r,r[0]]]}:{type:'LineString',coordinates:[...r,r[0]]}});
+      else if(on)f.push({type:'Feature',properties:{k:'d'},geometry:{type:'LineString',coordinates:H.cur?[...r,H.cur]:r}});
       /* yorliq — eng shimoli-gʻarbiy nuqtada */
       if(H.done||H.mode==='radius'){const p=r.reduce((a,b)=>b[1]-b[0]*.3>a[1]-a[0]*.3?b:a,r[0]);f.push({type:'Feature',properties:{k:'t',n:T(cfg.label).toUpperCase()},geometry:{type:'Point',coordinates:p}});}}
     if(on)handles().forEach(p=>f.push({type:'Feature',properties:{k:'v'},geometry:{type:'Point',coordinates:p}}));
@@ -78,6 +80,7 @@ function areaTool(cfg){
 
   function click(e){
     if(H.dragged){H.dragged=false;return;}
+    if(!H.done&&!H.poly.length&&!H.a)toTop();   // chizish boshlanganda qatlamlar eng ustida
     const ll=e.lngLat.toArray();
     if(H.mode==='radius'){if(H.center&&H.done)return;H.center=ll;H.done=true;commit();}
     else if(H.mode==='rect'){if(H.done)return;
@@ -139,7 +142,8 @@ function areaTool(cfg){
   }
   /* tashqaridan oʻzgarganda (boshqa oyna, bekor qilish) */
   function reload(){if(H.drag)return;const keep=on&&!H.done&&(H.a||H.poly.length);if(!keep)fromStore();draw();}
-  function active(v){on=!!v;if(on)fromStore();draw();}
+  function active(v){on=!!v;if(on){fromStore();toTop();}draw();}
+  function toTop(){if(!map)return;['fill','line','draft','lab','pts'].forEach(k=>{try{if(map.getLayer(L(k)))map.moveLayer(L(k));}catch(e){}});}
   return {init,active,click,move,dbl,key,html,bind,hint,reload,draw,setMode,get state(){return H;},stats,ring,next:null};
 }
 

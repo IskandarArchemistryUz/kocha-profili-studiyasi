@@ -159,7 +159,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .gq .gl b{font-weight:600}.gq .gl small{display:block;color:var(--grey);font:11.5px var(--f-mono)}
 .helpb{width:30px;padding:0;font:600 14px var(--f-head)}
 @media (max-width:1550px){.gq input{width:150px}.pname{width:9em}}
-@media (max-width:1400px){.gq{display:none}}
+@media (max-width:1400px){.gq{display:none}.top{gap:10px}.tools{gap:6px}.pname{width:8em}}
 @media (max-width:1180px){.sst{display:none}.pname{width:7em}}
 @media (max-width:900px){.gq input{width:120px}.gq .gl{position:fixed;left:8px;right:8px;top:52px;width:auto}}
 </style>
@@ -205,7 +205,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
    (kps_data — qatlamlar, kps_posadka — binolar, kps_mat — albom materiallari). */
 const STEPS=[
   {id:"loyiha", t:"Loyiha", subs:[
-    {id:"oyna", t:"Loyiha", page:"muharrir.html", hint:"Bitta oyna: U — uchastka, H — atrofdagi tahlil hududi, S — yoʻllar, Z/G — parsellar va binolar, B — binoni tahrirlash, A — tahlil qatlamlari."}]},
+    {id:"oyna", t:"Loyiha", page:"muharrir.html", hint:"U uchastka · H tahlil hududi · S yoʻllar · Z/G parsel va binolar · B bino · A tahlil"}]},
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
   /* chuqur asboblar — menyuda «Qoʻshimcha»; xarita va maʼlumot asosiy oyna bilan umumiy */
@@ -219,7 +219,7 @@ const STEPS=[
     {id:"profil", t:"Koʻcha profili", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."}]}
 ];
-const BUILD="65";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="66";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
