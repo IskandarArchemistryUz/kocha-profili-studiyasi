@@ -191,6 +191,7 @@ details[open] summary{margin-bottom:10px}
 </div>
 
 <script src="js/basemap.js?v=1"></script>
+<script src="js/layerbus.js?v=1"></script>
 <script>
 /* xarita kutubxonasini bir nechta manbadan yuklash; hech biri ochilmasa — tushunarli xabar */
 (function(){
@@ -252,6 +253,8 @@ onStyle(()=>{
     "fill-extrusion-height":["get","h"], "fill-extrusion-base":0, "fill-extrusion-opacity":0.92}});
   map.addSource("circle",{type:"geojson",data:fc([])});
   map.addLayer({id:"circle",type:"line",source:"circle",paint:{"line-color":"#1d1b18","line-width":1.2,"line-dasharray":[3,2]}});
+  /* natija asosiy oynaga (Tahlil qatlamlari) — har koʻrinish alohida qatlam */
+  if(window.KPSLAY) KPSLAY.mirror(map,{id:()=>"shamol-"+S.view, name:()=>"Shamol · "+((VIEWS.find(v=>v[0]===S.view)||[0,S.view])[1]), page:"shamol.html", sources:["heat","flow"], legend:()=>$("legend").hidden?"":$("legend").innerHTML});
 });
 function blankPNG(){ const c=document.createElement("canvas"); c.width=c.height=1; return c.toDataURL(); }
 const fc=f=>({type:"FeatureCollection",features:f});
