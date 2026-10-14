@@ -211,12 +211,12 @@ function setView(k,first){const o=S.opt;o.view=k;saveOpt();const R=S.data.R,eye=
 function render(){if(S&&S.ren&&S.cam){const cam=S.cam;// ikonkalar ekranda doimiy oʻlchamda
     if(S.gPin){const f=.034*S.opt.pinS,v=new THREE.Vector3();S.gPin.children.forEach(o=>{if(!o.isSprite)return;const k=cam.isOrthographicCamera?f*(cam.top-cam.bottom)/cam.zoom:f*2*Math.tan(cam.fov*Math.PI/360)*v.copy(o.position).sub(cam.position).length();if(o.userData.lbl){const a=o.userData.asp;o.scale.set(k*.62*a,k*.62,1);return;}const m=o.userData.ring?1.75:o.userData.key===S.pinSel?1.3:1;o.scale.set(k*m,k*m,1);});}
     if(S.gPlate&&S.gPlate.visible){const v=new THREE.Vector3();S.gPlate.children.forEach(o=>{if(!o.userData.lbl)return;let best=null,bx=1e9;S.data.ring.forEach(q=>{v.set(q[0],o.userData.y,-q[1]).project(cam);if(v.x<bx){bx=v.x;best=q;}});if(best)o.position.set(best[0],o.userData.y,-best[1]);});
-      const f=.034*S.opt.pinS;S.gPlate.children.forEach(o=>{if(!o.userData.lbl)return;const k=cam.isOrthographicCamera?f*(cam.top-cam.bottom)/cam.zoom:f*2*Math.tan(cam.fov*Math.PI/360)*v.copy(o.position).sub(cam.position).length();o.scale.set(k*.62*o.userData.asp,k*.62,1);});}
+      const f=.034;S.gPlate.children.forEach(o=>{if(!o.userData.lbl)return;const k=cam.isOrthographicCamera?f*(cam.top-cam.bottom)/cam.zoom:f*2*Math.tan(cam.fov*Math.PI/360)*v.copy(o.position).sub(cam.position).length();o.scale.set(k*o.userData.asp,k,1);});}
     S.ren.setClearColor(S.pal.bg);S.ren.render(S.sc,cam);}}
 const MAT={};
 function mat(k,col,extra){const m=MAT[k]||(MAT[k]=new THREE.MeshLambertMaterial(Object.assign({side:THREE.DoubleSide},extra||{})));m.color.set(col);return m;}
 function geo(pos,cols){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));if(cols)g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));g.computeVertexNormals();return g;}
-function grp(name){if(S[name]){S.root.remove(S[name]);S[name].traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.isSprite||o.userData.own)o.material.dispose();});}const g=new THREE.Group();g.name=name;S.root.add(g);S[name]=g;return g;}
+function grp(name){if(S[name]){S.root.remove(S[name]);S[name].traverse(o=>{if(o.geometry&&!o.userData.shared)o.geometry.dispose();if(o.isSprite||o.userData.own)o.material.dispose();});}const g=new THREE.Group();g.name=name;S.root.add(g);S[name]=g;return g;}
 function buildAll(){buildGround();buildRel();buildFlat();buildBlds();buildTrees();buildATrees();buildSites();buildPins();applyShadow();vis();applyLevels();}
 function buildGround(){const d=S.data,g=grp('gBase'),sh=new THREE.Shape(d.ring.map(p=>new THREE.Vector2(p[0],p[1])));
   const ex=new THREE.ExtrudeGeometry(sh,{depth:8,bevelEnabled:false,curveSegments:1});ex.rotateX(-Math.PI/2);ex.translate(0,-8,0);
@@ -380,6 +380,10 @@ function buildPlates(){const g=grp('gPlate'),ex=S.ex||0;if(ex<.01){g.visible=fal
   order.forEach(k=>{const yk=y[k];if(k!=='base'){if(k!=='ras'){const th=slabT(),eg=new THREE.ExtrudeGeometry(sh,{depth:th,bevelEnabled:false,curveSegments:1});eg.rotateX(-Math.PI/2);eg.translate(0,-th,0);
         const mt=mat('plTop',S.pal.ground),ms=mat('plSide',shade(S.pal.base,.92));[mt,ms].forEach(q=>{const tr=ex<.99;if(q.transparent!==tr)q.needsUpdate=true;q.transparent=tr;q.opacity=ex;});const m=new THREE.Mesh(eg,[mt,ms]);m.position.y=yk-.4;m.receiveShadow=true;g.add(m);}
       const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(ol,3));const l=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:'#8a877f',transparent:true,opacity:.9*ex}));l.position.y=yk-.3;l.userData.own=1;g.add(l);}
+    /* xizmatlar qatlamida — xarita (yoʻllar, suv, yashil) xira nusxasi: ikonkalar qayerda turgani koʻrinsin */
+    if(k==='pins'&&S.gFlat){S.gFlat.children.forEach(m=>{const l=m.userData.lay;if(!m.isMesh||!['road','rail','water','green','lu'].includes(l)||!m.visible)return;
+      const c=new THREE.Mesh(m.geometry,new THREE.MeshBasicMaterial({color:l==='road'||l==='rail'?'#8a877f':l==='water'?'#b9cfdc':'#d3dcc6',transparent:true,opacity:(l==='road'||l==='rail'?.75:.55)*ex,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2}));
+      c.position.y=yk+.12;c.position.x=m.position.x;c.position.z=m.position.z;c.rotation.copy(m.rotation);c.scale.copy(m.scale);c.renderOrder=4;c.userData.own=1;c.userData.shared=1;g.add(c);});}
     const t=lblTex(T(LVN[k==='base'&&!(S.data.rel&&S.opt.lay.rel)?'base0':k])),sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t.tx,depthTest:false,transparent:true,opacity:ex}));sp.center.set(1.08,.5);sp.userData={lbl:1,y:yk+(k==='pins'?0:2)+(k==='base'?relH()*.5:0),asp:t.asp};sp.renderOrder=12;g.add(sp);});
   // uchastka chegarasi har qatlamda (proyeksiya): ochroq qizil punktir va yengil boʻyoq; relyefda — sirt boʻylab
   if(S.opt.lay.site&&d.sites.length){const relOn=!!(d.rel&&S.opt.lay.rel),w=Math.max(1,d.R/260),col=new THREE.Color(S.pal.site);
