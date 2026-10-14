@@ -131,6 +131,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <h3>Zichlik setkasi</h3>
       <p class="note">Har katak uchun: qurilish dogʻi ulushi, qavatlar maydoni (GFA), qurilish zichligi koeffitsienti (FAR) va binolar soni. Binolar OSM dan; yuklangan bino qatlami qoʻshiladi va ustma-ust tushgan OSM binosi oʻrnini egallaydi. Aholi taxmini: turar joy va funksiyasi nomaʼlum 1–3 qavatli binolar qavatlar maydoni ÷ m²/kishi.</p>
       <div class="fields">
+        <label for="cshape">Setka shakli<select id="cshape"><option value="hex" selected>Oltiburchak</option><option value="sq">Kvadrat</option></select></label>
         <label for="cell">Katak, m<select id="cell"><option>100</option><option selected>200</option><option>250</option><option>500</option></select></label>
         <label for="metric">Koʻrsatkich<select id="metric"></select></label>
         <label for="bLayer">Bino qatlami (ixtiyoriy)<select id="bLayer"></select></label>
@@ -216,6 +217,10 @@ onStyle(()=>{
   map.addLayer({id:"util-line",type:"line",source:"util",filter:["==",["geometry-type"],"LineString"],layout:{visibility:"none","line-cap":"round"},paint:{"line-color":["get","c"],"line-width":["get","w"],"line-dasharray":[1,0]}});
   map.addLayer({id:"util-line-u",type:"line",source:"util",filter:["all",["==",["geometry-type"],"LineString"],["==",["get","u"],1]],layout:{visibility:"none"},paint:{"line-color":["get","c"],"line-width":["get","w"],"line-dasharray":[2,1.5]}});
   map.addLayer({id:"util-pt",type:"circle",source:"util",filter:["==",["geometry-type"],"Point"],layout:{visibility:"none"},paint:{"circle-color":["get","c"],"circle-radius":["get","r"],"circle-stroke-color":"#fff","circle-stroke-width":1}});
+  /* hudud tashqarisi xira — tahlil faqat doira ichida, tashqaridagi binolar va tarmoqlar aralashmasin */
+  map.addSource("outmask",{type:"geojson",data:fc([])});
+  map.addLayer({id:"outmask",type:"fill",source:"outmask",paint:{"fill-color":"#f4f3f1","fill-opacity":0.8}});
+  map.addLayer({id:"grid-lab",type:"symbol",source:"grid",filter:[">",["get","p"],0],minzoom:13.5,layout:{visibility:"none","text-field":["to-string",["get","p"]],"text-font":["Noto Sans Regular"],"text-size":["interpolate",["linear"],["zoom"],13.5,9,16,13],"text-allow-overlap":false},paint:{"text-color":"#141414","text-halo-color":"rgba(255,255,255,.85)","text-halo-width":1.4}});
   map.addSource("ring",{type:"geojson",data:fc([])});
   map.addLayer({id:"ring",type:"line",source:"ring",paint:{"line-color":"#141414","line-width":2.6}});
   initSite();
@@ -262,6 +267,8 @@ function applySiteChoice(){
   if(!r){ $("siteStatus").className="status warn"; $("siteStatus").textContent="Hudud chegarasi yoʻq. 1-qadamda hududni belgilab «Hisoblash» ni bosing yoki chegara qatlamini yuklang."; $("runBtn").disabled=true; return; }
   G.ring=r; const ring=r.concat([r[0]]);
   map.getSource("ring").setData(fc([{type:"Feature",properties:{},geometry:{type:"LineString",coordinates:ring}}]));
+  try{ const cl=ring.slice(); if(cl.length&&(cl[0][0]!==cl[cl.length-1][0]||cl[0][1]!==cl[cl.length-1][1])) cl.push(cl[0]);
+    map.getSource("outmask").setData(fc([{type:"Feature",properties:{},geometry:{type:"Polygon",coordinates:[[[-179,-85],[179,-85],[179,85],[-179,85],[-179,-85]],cl]}}])); }catch(e){}
   const bb=bbox(r); map.fitBounds([[bb[0],bb[1]],[bb[2],bb[3]]],{padding:50,duration:0});
   $("siteStatus").className="status"; $("siteStatus").textContent=`Maydon: ${f1(Math.abs(ringArea(r))/1e4)} ga. «Tahlilni hisoblash» ni bosing.`;
   $("runBtn").disabled=false;
@@ -411,7 +418,7 @@ function contours(){
 
 /* ---------- 1. Asos ---------- */
 function renderAsos(){
-  map.setLayoutProperty("ras","visibility","none"); map.setLayoutProperty("grid","visibility","none");
+  map.setLayoutProperty("ras","visibility","none"); map.setLayoutProperty("grid","visibility","none"); map.setLayoutProperty("grid-lab","visibility","none");
   map.setLayoutProperty("cont","visibility","none"); map.setLayoutProperty("cont-base","visibility","visible"); map.setLayoutProperty("bld","visibility","visible");
   legend(`<span class="t">Asos xarita</span><span class="it"><i style="background:#8f8a82"></i>binolar</span><span class="it"><i style="background:#9a958c;height:2px"></i>gorizontallar, ${G.civ} m (qalin — har ${G.civ*5} m)</span><span class="it"><i style="background:#141414;height:3px"></i>hudud chegarasi</span>`);
   const nb=G.bld.length, ha=G.maskN*G.mpp*G.mpp/1e4;
@@ -427,7 +434,7 @@ function renderBal(){
     const i=k%W, j=(k-i)/W, e=G.dem[k], ex=G.dem[k+1]??e, ey=G.dem[k+W]??e, sh=Math.max(-0.12,Math.min(0.12,((e-ex)+(e-ey))/(G.mpp*4)));
     const col=ramp(stops,t).map(v=>v*(1+sh)); d[k*4]=col[0]; d[k*4+1]=col[1]; d[k*4+2]=col[2]; d[k*4+3]=255; }
   x.putImageData(im,0,0); showRaster(c);
-  map.setLayoutProperty("grid","visibility","none"); map.setLayoutProperty("cont","visibility","visible"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","none");
+  map.setLayoutProperty("grid","visibility","none"); map.setLayoutProperty("grid-lab","visibility","none"); map.setLayoutProperty("cont","visibility","visible"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","none");
   legend(`<span class="t">Balandlik, m</span><div class="ramp" style="background:linear-gradient(90deg,#f6d3c4,#c97b6a,#5a2a26)"></div><div class="rl"><span>${fi(lo)}</span><span>${fi(hi)}</span></div><span class="it" style="color:#696969">gorizontallar har ${G.civ} m</span>`);
   let s=0,n=0; for(let k=0;k<G.dem.length;k++) if(G.mask[k]){ s+=G.dem[k]; n++; }
   $("tBal").innerHTML=rows(["Koʻrsatkich","Qiymat"],[["Eng past nuqta",fi(lo)+" m"],["Eng baland nuqta",fi(hi)+" m"],["Oʻrtacha",fi(s/n)+" m"],["Nisbiy farq",fi(hi-lo)+" m"],["Relyef aniqligi",`~${f1(G.mpp)} m/piksel (manba ~30 m)`]]);
@@ -441,7 +448,7 @@ function renderNis(){
   const c=newCanvas(), x=c.getContext("2d"), im=x.createImageData(G.W,G.H), d=im.data, cnt=new Array(br.length+1).fill(0);
   for(let k=0;k<G.slope.length;k++){ if(!G.mask[k]) continue; const ci=cls(G.slope[k]); cnt[ci]++; const col=hex(SL_COLS[ci]); d[k*4]=col[0]; d[k*4+1]=col[1]; d[k*4+2]=col[2]; d[k*4+3]=255; }
   x.putImageData(im,0,0); showRaster(c);
-  map.setLayoutProperty("grid","visibility","none"); map.setLayoutProperty("cont","visibility","visible"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","none");
+  map.setLayoutProperty("grid","visibility","none"); map.setLayoutProperty("grid-lab","visibility","none"); map.setLayoutProperty("cont","visibility","visible"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","none");
   const lab=i=> i===0?`0–${br[0]} %`: i===br.length?`> ${br[i-1]} %`:`${br[i-1]}–${br[i]} %`;
   legend(`<span class="t">Nishablik</span>`+cnt.map((_,i)=>`<span class="it"><i style="background:${SL_COLS[i]}"></i>${lab(i)}</span>`).join(""));
   const A=G.mpp*G.mpp/1e4, tot=cnt.reduce((a,b)=>a+b,0)||1;
@@ -470,7 +477,7 @@ function renderYer(){
   for(let k=0;k<G.mask.length;k++){ if(!G.mask[k]) continue; const v=(d[k*4]<<16)|(d[k*4+1]<<8)|d[k*4+2]; cn.set(v,(cn.get(v)||0)+1); }
   cn.forEach((n,v)=>{ const kk=key.get(v)||"_"; cnt[kk]=(cnt[kk]||0)+n; });
   showRaster(c);
-  map.setLayoutProperty("grid","visibility","none"); map.setLayoutProperty("cont","visibility","none"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","none");
+  map.setLayoutProperty("grid","visibility","none"); map.setLayoutProperty("grid-lab","visibility","none"); map.setLayoutProperty("cont","visibility","none"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","none");
   const used=LU.filter(([k])=>cnt[k]);
   legend(`<span class="t">Yer foydalanish</span>`+used.map(([k,n,col])=>`<span class="it"><i style="background:${col}"></i>${n}</span>`).join("")+`<span class="it"><i style="background:#f1efe9"></i>maʼlumot yoʻq</span>`);
   const tot=G.maskN||1;
@@ -484,7 +491,7 @@ function fillMetricSelect(){ const x=$("xLayer").value, f=$("xField").value; con
   if([...$("metric").options].some(o=>o.value===cur)) $("metric").value=cur; }
 $("xLayer").onchange=()=>{ const l=layerById($("xLayer").value); $("xField").innerHTML=l?fieldsOf(l.geojson,true).map(f=>`<option>${esc(f)}</option>`).join(""):""; fillMetricSelect(); if(G.done&&G.tab==="zich") renderZich(); };
 $("xField").onchange=()=>{ fillMetricSelect(); if(G.done&&G.tab==="zich") renderZich(); };
-["cell","metric","m2p"].forEach(id=>$(id).onchange=()=>{ if(G.done&&G.tab==="zich") renderZich(); });
+["cell","metric","m2p","cshape"].forEach(id=>$(id).onchange=()=>{ if(G.done&&G.tab==="zich") renderZich(); });
 $("bLayer").onchange=()=>{ if(G.done){ buildBuildings(); renderAll(); } };
 $("defF").value=KP.get("lvUnknown");
 $("defF").onchange=()=>{ KP.set("lvUnknown",$("defF").value); $("defF").value=KP.get("lvUnknown"); if(G.done){ buildBuildings(); renderAll(); } };
@@ -513,24 +520,36 @@ function buildBuildings(){
 function pip(p,r){ let c=false; for(let i=0,j=r.length-1;i<r.length;j=i++){ if(((r[i][1]>p[1])!==(r[j][1]>p[1]))&&(p[0]<(r[j][0]-r[i][0])*(p[1]-r[i][1])/(r[j][1]-r[i][1])+r[i][0])) c=!c; } return c; }
 const Z_COLS=["#fdf0e8","#f6d0bd","#eba98f","#d97a62","#b4503f","#7e2b26","#4a1514"];
 function renderZich(){
-  const cs=+$("cell").value, la0=(G.ring.reduce((a,p)=>a+p[1],0)/G.ring.length), kx=111320*Math.cos(la0*DEG), ky=110540;
+  const cs=+$("cell").value, HEX=($("cshape")||{}).value!=="sq", la0=(G.ring.reduce((a,p)=>a+p[1],0)/G.ring.length), kx=111320*Math.cos(la0*DEG), ky=110540;
   const bb=bbox(G.ring), x0=bb[0]*kx, y0=bb[1]*ky, nx=Math.ceil((bb[2]*kx-x0)/cs), ny=Math.ceil((bb[3]*ky-y0)/cs);
+  /* oltiburchak: maydoni kvadrat katak (cs²) bilan teng — natijalar taqqoslanadi. Uchli-tepa, aksial koordinatalar */
+  const hs=cs*Math.sqrt(2/(3*Math.sqrt(3))), hw=Math.sqrt(3)*hs;
+  const hexOf=(X,Y)=>{ const q=(Math.sqrt(3)/3*X-Y/3)/hs, r=(2/3*Y)/hs; let rx=Math.round(q), rz=Math.round(r), ry=Math.round(-q-r);
+    const dx=Math.abs(rx-q), dz=Math.abs(rz-r), dy=Math.abs(ry+q+r); if(dx>dy&&dx>dz) rx=-ry-rz; else if(dy<=dz) rz=-rx-ry; return [rx,rz]; };
+  const hexC=(q,r)=>[hs*Math.sqrt(3)*(q+r/2), hs*1.5*r];
+  const keyOf=(X,Y)=>{ if(HEX){ const h=hexOf(X-x0,Y-y0); return h; } const i=Math.floor((X-x0)/cs), j=Math.floor((Y-y0)/cs); if(i<0||j<0||i>=nx||j>=ny) return null; return [i,j]; };
   const cells=new Map(), get=(i,j)=>{ const k=i+","+j; let c=cells.get(k); if(!c){ c={i,j,fp:0,gfa:0,n:0,res:0,x:0}; cells.set(k,c);} return c; };
   G.bld.forEach(b=>{ const cx=b.ll.reduce((a,p)=>a+p[0],0)/b.ll.length, cy=b.ll.reduce((a,p)=>a+p[1],0)/b.ll.length;
-    const i=Math.floor((cx*kx-x0)/cs), j=Math.floor((cy*ky-y0)/cs); if(i<0||j<0||i>=nx||j>=ny) return;
-    const c=get(i,j); c.fp+=b.a; c.gfa+=b.a*b.fl; c.n++; if(b.lu==="turar"||(b.lu==="bino"&&b.fl<=3)) c.res+=b.a*b.fl; });
+    if(!pip([cx,cy],G.ring)) return; const k=keyOf(cx*kx,cy*ky); if(!k) return;
+    const c=get(k[0],k[1]); c.fp+=b.a; c.gfa+=b.a*b.fl; c.n++; if(b.lu==="turar"||(b.lu==="bino"&&b.fl<=3)) c.res+=b.a*b.fl; });
   const xl=layerById($("xLayer").value), xf=$("xField").value;
   if(xl&&xf) (xl.geojson.features||[]).forEach(f=>{ const v=parseFloat((f.properties||{})[xf]); if(!isFinite(v)) return; const g=f.geometry; if(!g) return;
     let pt=null; if(g.type==="Point") pt=g.coordinates; else { const r=featRings(f)[0]; if(r) pt=[r.reduce((a,p)=>a+p[0],0)/r.length, r.reduce((a,p)=>a+p[1],0)/r.length]; }
-    if(!pt) return; const i=Math.floor((pt[0]*kx-x0)/cs), j=Math.floor((pt[1]*ky-y0)/cs); if(i<0||j<0||i>=nx||j>=ny) return; get(i,j).x+=v; });
+    if(!pt||!pip(pt,G.ring)) return; const k=keyOf(pt[0]*kx,pt[1]*ky); if(!k) return; get(k[0],k[1]).x+=v; });
   const A=cs*cs, m2p=+$("m2p").value||25, M=$("metric").value||"far";
   const val=c=> M==="far"?c.gfa/A : M==="cov"?c.fp/A*100 : M==="gfa"?c.gfa/(A/1e4) : M==="n"?c.n : M==="pop"?c.res/m2p/(A/1e4) : c.x;
   const feats=[], vals=[];
-  for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+  const push=(c,ring)=>{ const v=val(c); vals.push(v); const pop=Math.round(c.res/m2p); feats.push({type:"Feature",properties:{v,p:pop>0?pop:0},geometry:{type:"Polygon",coordinates:[ring]}}); };
+  if(HEX){
+    const r1=Math.ceil((bb[3]*ky-y0)/(1.5*hs))+2, q0=-Math.ceil(r1/2)-2, q1=Math.ceil((bb[2]*kx-x0)/hw)+2;
+    for(let r=-1;r<=r1;r++) for(let q=q0;q<=q1;q++){ const c0=hexC(q,r), X=c0[0]+x0, Y=c0[1]+y0; if(X<x0-hw||X>bb[2]*kx+hw) continue;
+      const ctr=[X/kx,Y/ky]; const corners=[]; for(let k=0;k<6;k++){ const a=(60*k-30)*DEG; corners.push([(X+hs*Math.cos(a))/kx,(Y+hs*Math.sin(a))/ky]); }
+      if(!pip(ctr,G.ring)&&!corners.some(p=>pip(p,G.ring))) continue; corners.push(corners[0]);
+      push(cells.get(q+","+r)||{fp:0,gfa:0,n:0,res:0,x:0}, corners); }
+  } else for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
     const cx=(x0+(i+.5)*cs)/kx, cy=(y0+(j+.5)*cs)/ky; if(!pip([cx,cy],G.ring)) continue;
-    const c=cells.get(i+","+j)||{fp:0,gfa:0,n:0,res:0,x:0}; const v=val(c); vals.push(v);
     const X=a=>(x0+a*cs)/kx, Y=b=>(y0+b*cs)/ky;
-    feats.push({type:"Feature",properties:{v},geometry:{type:"Polygon",coordinates:[[[X(i),Y(j)],[X(i+1),Y(j)],[X(i+1),Y(j+1)],[X(i),Y(j+1)],[X(i),Y(j)]]]}});
+    push(cells.get(i+","+j)||{fp:0,gfa:0,n:0,res:0,x:0}, [[X(i),Y(j)],[X(i+1),Y(j)],[X(i+1),Y(j+1)],[X(i),Y(j+1)],[X(i),Y(j)]]);
   }
   // sinflar: nolga teng boʻlmaganlar boʻyicha kvantillar
   const nz=vals.filter(v=>v>0).sort((a,b)=>a-b), br=[];
@@ -538,11 +557,11 @@ function renderZich(){
   const cls=v=> v<=0?0 : 1+br.filter(b=>v>b).length;
   feats.forEach(f=>{ const k=cls(f.properties.v); f.properties.c=k===0?"rgba(255,255,255,0)":Z_COLS[Math.min(Z_COLS.length-1,k)]; });
   map.getSource("grid").setData(fc(feats));
-  map.setLayoutProperty("ras","visibility","none"); map.setLayoutProperty("grid","visibility","visible"); map.setLayoutProperty("cont","visibility","none"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","visible");
+  map.setLayoutProperty("ras","visibility","none"); map.setLayoutProperty("grid","visibility","visible"); map.setLayoutProperty("grid-lab","visibility","visible"); map.setLayoutProperty("cont","visibility","none"); map.setLayoutProperty("cont-base","visibility","none"); map.setLayoutProperty("bld","visibility","visible");
   const fmt=v=> M==="far"?f2(v): M==="n"?fi(v): f1(v);
   const labs=[`0 (boʻsh)`].concat(br.map((b,i)=>`${fmt(i?br[i-1]:0)} – ${fmt(b)}`)).concat(br.length?[`> ${fmt(br[br.length-1])}`]:[]);
   const mName=M==="x"?`Yuklangan: ${xf}`:METRICS.find(m=>m[0]===M)[1];
-  legend(`<span class="t">${esc(mName)} · katak ${cs} m</span>`+labs.map((l,i)=>`<span class="it"><i style="background:${i===0?"transparent":Z_COLS[Math.min(Z_COLS.length-1,i)]}"></i>${l}</span>`).join(""));
+  legend(`<span class="t">${esc(mName)} · ${HEX?"oltiburchak":"katak"} ${cs} m${HEX?" (maydoni "+cs+"×"+cs+")":""} · raqam — taxminiy aholi, kishi</span>`+labs.map((l,i)=>`<span class="it"><i style="background:${i===0?"transparent":Z_COLS[Math.min(Z_COLS.length-1,i)]}"></i>${l}</span>`).join(""));
   // umumiy koʻrsatkichlar
   const ha=G.maskN*G.mpp*G.mpp/1e4; let fp=0,gfa=0,n=0,res=0; G.bld.forEach(b=>{ const c=b.ll[0]; fp+=b.a; gfa+=b.a*b.fl; n++; if(b.lu==="turar"||(b.lu==="bino"&&b.fl<=3)) res+=b.a*b.fl; });
   const dflt=G.bld.filter(b=>b.hq==="default").length;
@@ -571,9 +590,14 @@ async function loadUtil(){const bb=bbox(G.ring),b=`${bb[1]-0.002},${bb[0]-0.002}
   try{const j=await Promise.any(OVERPASS.map(async(u,i)=>{const r=await fetch(u,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:acs[i].signal});if(!r.ok)throw new Error(r.status);const t=await r.json();if(!t.elements)throw new Error("boʻsh");return t;}));acs.forEach(a=>a.abort());G.utilOsm=j.elements;}
   catch(e){throw new Error("OSM serverlari javob bermadi — birozdan soʻng qayta urinib koʻring.");}finally{clearTimeout(tm);busy("");}}
 function utilFeatures(){const F=[],S={};const add=(k,len,n)=>{const s=S[k]||(S[k]={len:0,n:0});s.len+=len||0;s.n+=n||0;};
-  const line=(coords,k,props)=>{const segs=[];let cur=null,len=0;for(let i=1;i<coords.length;i++){const a=coords[i-1],b=coords[i],m=[(a[0]+b[0])/2,(a[1]+b[1])/2];if(inLL(m[0],m[1])){len+=mLen(a,b);if(cur&&cur[cur.length-1]===a)cur.push(b);else{cur=[a,b];segs.push(cur);}}else cur=null;}
+  /* kesma hudud chegarasi bilan kesishgan joylarda bo'linadi; faqat ichki bo'laklar qoladi */
+  const R=G.ring,cut=(a,b)=>{const ts=[0,1];for(let i=0,j=R.length-1;i<R.length;j=i++){const p=R[j],q=R[i],d1=[b[0]-a[0],b[1]-a[1]],d2=[q[0]-p[0],q[1]-p[1]],den=d1[0]*d2[1]-d1[1]*d2[0];if(Math.abs(den)<1e-18)continue;
+      const t=((p[0]-a[0])*d2[1]-(p[1]-a[1])*d2[0])/den,u=((p[0]-a[0])*d1[1]-(p[1]-a[1])*d1[0])/den;if(t>0&&t<1&&u>=0&&u<=1)ts.push(t);}
+    ts.sort((x,y)=>x-y);const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],o=[];for(let i=1;i<ts.length;i++){const m=at((ts[i-1]+ts[i])/2);if(pip(m,R))o.push([at(ts[i-1]),at(ts[i])]);}return o;};
+  const line=(coords,k,props)=>{const segs=[];let cur=null,len=0;for(let i=1;i<coords.length;i++){const pcs=cut(coords[i-1],coords[i]);if(!pcs.length){cur=null;continue;}
+      pcs.forEach(([a,b])=>{len+=mLen(a,b);if(cur&&cur[cur.length-1][0]===a[0]&&cur[cur.length-1][1]===a[1])cur.push(b);else{cur=[a,b];segs.push(cur);}});if(pcs[pcs.length-1][1][0]!==coords[i][0])cur=null;}
     if(!segs.length)return;add(k,len,1);segs.forEach(sg=>F.push({type:"Feature",properties:Object.assign({c:UTC[k],w:k==="tayanch"?1:k==="ariq"?1.6:k==="elektr"||k==="gaz"||k==="suv"?2.4:1.8,u:k==="kabel"?1:0,k},props||{}),geometry:{type:"LineString",coordinates:sg}}));};
-  const pt=(p,k)=>{if(!inLL(p[0],p[1]))return;add(k,0,1);F.push({type:"Feature",properties:{c:UTC[k],r:k==="tayanch"?2:k==="elektr_obj"||k==="suv_obj"||k==="kanal_obj"?5.5:4,k},geometry:{type:"Point",coordinates:p}});};
+  const pt=(p,k)=>{if(!pip(p,G.ring))return;add(k,0,1);F.push({type:"Feature",properties:{c:UTC[k],r:k==="tayanch"?2:k==="elektr_obj"||k==="suv_obj"||k==="kanal_obj"?5.5:4,k},geometry:{type:"Point",coordinates:p}});};
   (G.utilOsm||[]).forEach(e=>{const t=e.tags||{},k=utOf(t);if(!k||G.utOff[k])return;
     if(e.type==="node")pt([e.lon,e.lat],k);else if(e.geometry){const g=e.geometry.map(q=>[q.lon,q.lat]);const closed=g.length>3&&g[0][0]===g[g.length-1][0]&&g[0][1]===g[g.length-1][1];
       if(closed&&!/^(elektr|kabel|gaz|suv|kanal|issiq|quvur|ariq)$/.test(k)){let x=0,y=0;g.forEach(q=>{x+=q[0];y+=q[1];});pt([x/g.length,y/g.length],k);}else line(g,k);}});
@@ -583,7 +607,7 @@ function utilFeatures(){const F=[],S={};const add=(k,len,n)=>{const s=S[k]||(S[k
     const ps=g.type==="Point"?[g.coordinates]:g.type==="MultiPoint"?g.coordinates:[];ps.forEach(p=>pt(p,"user"));});
   return {F,S};}
 function renderMuh(){
-  ["ras","grid","cont"].forEach(id=>map.setLayoutProperty(id,"visibility","none"));map.setLayoutProperty("cont-base","visibility","visible");map.setLayoutProperty("bld","visibility","visible");
+  ["ras","grid","grid-lab","cont"].forEach(id=>map.setLayoutProperty(id,"visibility","none"));map.setLayoutProperty("cont-base","visibility","visible");map.setLayoutProperty("bld","visibility","visible");
   if(!G.utilOsm){if(!G.utilBusy){G.utilBusy=true;loadUtil().then(()=>{G.utilBusy=false;if(G.tab==="muh")renderMuh();}).catch(e=>{G.utilBusy=false;err(e.message);$("tMuh").innerHTML=`<tr><td>${esc(e.message)}</td></tr>`;});}
     $("tMuh").innerHTML=`<tr><td>Yuklanmoqda…</td></tr>`;return;}
   const {F,S}=utilFeatures();map.getSource("util").setData(fc(F));["util-line","util-line-u","util-pt"].forEach(id=>map.setLayoutProperty(id,"visibility","visible"));
