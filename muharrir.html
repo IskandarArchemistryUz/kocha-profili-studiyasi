@@ -66,6 +66,13 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .chk{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font:11px var(--mono);margin-top:8px}.chk i{display:inline-block;width:10px;height:10px;border-radius:50%}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fi{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}.fi input{height:30px;border:1px solid var(--line);padding:0 6px;font:13px var(--mono);min-width:0;width:100%;box-sizing:border-box}.chk b{flex-basis:100%;font-weight:400}
 .wt{width:100%;border-collapse:collapse;font:12px var(--mono)}.wt th,.wt td{text-align:right;padding:3px 2px;white-space:nowrap;border-bottom:1px solid var(--line)}.wt td:first-child,.wt th:first-child{text-align:left;font-family:inherit}.wt .mut{color:var(--muted);text-align:center}
+.seg3 button{font-size:10px;letter-spacing:0}
+.vtabs{display:flex;flex-wrap:wrap;gap:4px}.vtabs button{min-width:34px;height:30px;border:1px solid var(--ink);background:#fff;font:600 12px var(--mono);cursor:pointer}.vtabs button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.cmp{position:absolute;inset:16px;z-index:6;display:flex;align-items:flex-start;justify-content:center;pointer-events:none}.cmp[hidden]{display:none}
+.cbox{pointer-events:auto;background:#fff;border:1px solid var(--ink);padding:14px 16px;max-width:min(1100px,100%);max-height:100%;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.cbox .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.cbox .gx{border:0;background:none;font-size:22px;cursor:pointer}
+.cscroll{overflow-x:auto}.ct{border-collapse:collapse;font-size:13px}.ct th,.ct td{padding:5px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;vertical-align:top}.ct td:first-child{text-align:left;color:var(--muted)}
+.ct th{text-align:center;font-weight:500}.ct .cur{background:#f5f2ea}.ct input{width:90px;height:28px;border:1px solid var(--line);text-align:center;font:600 13px var(--mono)}.cfg svg{display:block;width:180px;height:auto;max-height:180px;border:1px solid var(--line);margin:0 auto 6px}
 .ramp{height:8px;margin-top:10px}.ramp-lbl{display:flex;justify-content:space-between;font:10.5px var(--mono);color:var(--muted)}.rose{flex:none}
 .warnn{font-size:13px;line-height:1.45;color:var(--fair);margin:0}
 .zp button{display:flex;align-items:center;gap:8px;height:36px;padding:0 8px;border:1px solid var(--line);background:#fff;cursor:pointer;text-align:left;font-size:13px}
@@ -112,12 +119,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="tip" id="tip"></div>
     <div id="gls" hidden role="dialog" aria-label="Atama izohi"></div>
     <div id="labels" style="position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden"></div>
+    <div class="cmp" id="cmp" hidden role="dialog" aria-label="Variantlarni solishtirish"></div>
     <div class="empty" id="empty" hidden><div><div class="lb hd">Hudud yoʻq</div><p class="note" style="color:var(--ink)">Avval 1-qadamda hududni belgilang — muharrir shu chegarani oladi. Hududsiz ham chizish mumkin: xaritani kerakli joyga suring.</p><p style="margin:14px 0 0"><button class="btn dark" id="emptyGo">Hududsiz davom etish</button></p></div></div>
   </main>
 
   <aside class="side" aria-label="Koʻrinish va qatlamlar">
+    <div><span class="lb hd">Variantlar</span><div id="vars"></div></div>
     <div><span class="lb hd">Koʻrinish</span>
-      <div class="seg" role="group" aria-label="Koʻrinish"><button data-view="plan" aria-pressed="true">REJA</button><button data-view="axo" aria-pressed="false">AKSONOMETRIYA</button></div></div>
+      <div class="seg seg3" role="group" aria-label="Koʻrinish"><button data-view="plan" aria-pressed="true">REJA</button><button data-view="axo" aria-pressed="false">AKSONOMETRIYA</button><button data-view="fg" aria-pressed="false" title="Figure-ground: binolar qora, ochiq joy oq (Nolli usuli)">FIGURE-GROUND</button></div></div>
     <div><span class="lb hd">Fon</span>
       <div class="seg" role="group" aria-label="Fon xarita"><button data-base="sat" aria-pressed="true">SUNʼIY YOʻLDOSH</button><button data-base="light" aria-pressed="false">OCH</button></div></div>
     <div><span class="lb hd">Shartli belgilar</span>
@@ -139,7 +148,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 <script src="js/mr-gen.js?v=2"></script>
 <script src="js/mr-check.js?v=1"></script>
 <script src="js/vent.js?v=1"></script>
-<script src="js/muharrir.js?v=8"></script>
-<script src="js/i18n.js?v=51"></script>
+<script src="js/muharrir.js?v=9"></script>
+<script src="js/i18n.js?v=52"></script>
 </body>
 </html>
