@@ -66,6 +66,8 @@ const TYP={
             an:'Mikrorayon «strochka» qurilishi: korpus chuqurligi 12–14 m (taxmin, analoglar bilan tekshirilsin); orasi meʼyoriy masofa'},
   perimetr:{n:'Perimetral kvartal', far:2, fl:7, sb:3, d:14, maxLen:80, pass:10,
             an:'Perimetral kvartal: 3–6 qavatda hovli va ichki fasadlar yetarli yoritiladi (Allies and Morrison); Eixample kvartali 113,3 m, ichida ≥800 m² bogʻ (Cerdà rejasi)'},
+  urban:   {n:'Urban blok (seksiyalar)', far:2, fl:8, sb:6, g:{sl:36,sd:18,pw:12,bk:'avto',bs:100,yopiq:false,flm:'teng'},
+            an:'Katta kvartal ichki koʻchalar bilan kichik bloklarga boʻlinadi, har blok perimetri boʻylab alohida seksiyalar teriladi (Vena Seestadt Aspern, Kopengagen Ørestad kabi ochiq perimetral bloklar). Seksiya oʻlchami, blok oʻlchami va ichki koʻcha kengligi — loyiha parametri; masofalar — ShNQ 2.07.01-23, 2-jadval'},
   minora:  {n:'Minoralar', far:2.5, fl:16, sb:8, a:24,
             an:'Nuqtali minoralar shaxmat tartibida; orasi meʼyoriy masofa va yongʻin oʻtish yoʻli boʻyicha'}};
 
@@ -132,7 +134,89 @@ function layout(typ,T,rot,inner,k,fl,seis,az){
     return {polys:parts(ring).filter(p=>area(p)>T.d*T.d),gap:need,why:'yopiq hovli: Hmax · 2,3',src:'court',court};}
   return {polys:[],gap:0,why:''};}
 
+/* ---------- urban blok: kvartal → kichik bloklar → perimetr boʻylab seksiyalar ----------
+   Hamma joylashtirish mahalliy metr tekisligida (x — kvartal yoʻnalishi boʻylab). Seksiyalar orasidagi masofa juftlik turiga qarab:
+   parallel va bir-biriga qaragan (proyeksiyalari ustma-ust) — uzun tomonlar: normGap (Hmax·kй / seysmik 2H) yoki yopiq hovlida Hmax·2,3;
+   parallel, bir chiziqda — toretslar: (H1+H2)·0,3 ≥ 6; perpendikulyar — uzun tomon ↔ torets: 0,6·Hmax ≥ 6.
+   Yopiq rejimda bir devor boʻylab yonma-yon (tegib turgan) seksiyalar bitta bino hisoblanadi. */
+function pipM(p,r){let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){if(((r[i][1]>p[1])!==(r[j][1]>p[1]))&&(p[0]<(r[j][0]-r[i][0])*(p[1]-r[i][1])/(r[j][1]-r[i][1])+r[i][0]))c=!c;}return c;}
+function segD(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy;let t=L?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy);}
+function segX(a,b,c,d){const o=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);return o(a,b,c)*o(a,b,d)<0&&o(c,d,a)*o(c,d,b)<0;}
+function rDist(P,Q){for(let i=0;i<4;i++)for(let j=0;j<4;j++)if(segX(P[i],P[(i+1)%4],Q[j],Q[(j+1)%4]))return 0;
+  if(pipM(P[0],Q)||pipM(Q[0],P))return 0;let m=1e9;for(let i=0;i<4;i++)for(let j=0;j<4;j++){m=Math.min(m,segD(P[i],Q[j],Q[(j+1)%4]),segD(Q[j],P[i],P[(i+1)%4]));}return m;}
+function urbanLayout(rotInner,k,c,fl,dmax,seis,az,P){
+  const H=(fl+dmax)*FH,ng=normGap(fl+dmax,seis,az),gLong=P.yopiq?Math.max(ng.g,H*2.3):ng.g,gEnd=Math.max(6,2*H*.3),gSide=Math.max(6,.6*H);
+  const toM=q=>[(q[0]-c[0])/k.x,(q[1]-c[1])/k.y],toL=q=>[c[0]+q[0]*k.x,c[1]+q[1]*k.y];
+  /* kichik bloklar: ichki koʻchalar (kenglik pw) bilan teng boʻlish */
+  const bb=turf.bbox(rotInner),W=(bb[2]-bb[0])/k.x,Hh=(bb[3]-bb[1])/k.y,bs=Math.max(40,P.bs||100),pw=Math.max(0,P.pw||0);
+  const nx=Math.max(1,Math.round((W+pw)/(bs+pw))),ny=Math.max(1,Math.round((Hh+pw)/(bs+pw)));let sub=rotInner;
+  for(let i=1;i<nx;i++){const x=bb[0]+(i*(W+pw)/nx-pw)*k.x;sub=diff(sub,turf.bboxPolygon([x,bb[1]-1e-4,x+pw*k.x,bb[3]+1e-4]))||sub;}
+  for(let j=1;j<ny;j++){const y=bb[1]+(j*(Hh+pw)/ny-pw)*k.y;sub=diff(sub,turf.bboxPolygon([bb[0]-1e-4,y,bb[2]+1e-4,y+pw*k.y]))||sub;}
+  const blocks=parts(sub).filter(p=>area(p)>P.sl*P.sd).map(p=>{let r=p.geometry.coordinates[0].slice(0,-1).map(toM);let a=0;for(let i=0;i<r.length;i++){const q=r[(i+1)%r.length];a+=r[i][0]*q[1]-q[0]*r[i][1];}if(a<0)r=r.reverse();return r;});
+  const outer=turf.simplify(rotInner,{tolerance:2*k.y}).geometry.coordinates[0].slice(0,-1).map(toM);
+  const placed=[];   // {R:[4 nuqta], u:[ux,uy], blk, edge}
+  const need=(A,B)=>{const pa=Math.abs(A.u[0]*B.u[0]+A.u[1]*B.u[1])>.7;
+    if(!pa)return gSide;
+    /* uzun oʻq boʻylab proyeksiyalar ustma-ust tushadimi */
+    const pr=R=>{const v=R.map(p=>p[0]*A.u[0]+p[1]*A.u[1]);return [Math.min(...v),Math.max(...v)];},a=pr(A.R),b=pr(B.R),ov=Math.min(a[1],b[1])-Math.max(a[0],b[0]);
+    return ov>2?gLong:gEnd;};
+  /* barcha bloklarning qirralari: avval kvartal tashqi frontiga (koʻchaga) qaragan qirralar, keyin uzunroqlari */
+  const onOuter=(a,b)=>{const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];return outer.some((v,i)=>segD(m,v,outer[(i+1)%outer.length])<2);};
+  const edges=[];blocks.forEach((poly,bi)=>{const n=poly.length;for(let i=0;i<n;i++){const a=poly[i],b=poly[(i+1)%n],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L>=P.sl*.8)edges.push({a,b,L,i,bi,o:onOuter(a,b)});}});
+  edges.sort((x,y)=>(y.o-x.o)||(y.L-x.L));
+  edges.forEach(e=>{const poly=blocks[e.bi],bi=e.bi,u=[(e.b[0]-e.a[0])/e.L,(e.b[1]-e.a[1])/e.L],nv=[-u[1],u[0]];   // CCW halqa: ichkari — chap tomon
+      /* qirra boʻylab ochkoʻz (greedy) siljitish: 1 m qadam bilan, joy topilsa — keyingi seksiya oraliqdan keyin; avval markazlashgan joy sinanadi */
+      const gap=P.yopiq?0:gEnd,m=Math.max(1,Math.floor((e.L+gap)/(P.sl+gap))),run=m*P.sl+(m-1)*gap,tc=(e.L-run)/2;
+      const tryAt=t=>{const p0=[e.a[0]+u[0]*t,e.a[1]+u[1]*t],p1=[p0[0]+u[0]*P.sl,p0[1]+u[1]*P.sl];
+        const R=[p0,p1,[p1[0]+nv[0]*P.sd,p1[1]+nv[1]*P.sd],[p0[0]+nv[0]*P.sd,p0[1]+nv[1]*P.sd]],C={R,u,blk:bi,edge:e.i};
+        const ctr=[(R[0][0]+R[2][0])/2,(R[0][1]+R[2][1])/2],ins=q=>pipM(q,poly)||Math.min(...poly.map((pp,ii)=>segD(q,pp,poly[(ii+1)%poly.length])))<.05;
+        if(!R.every(ins)||!pipM(ctr,poly))return false;
+        let ok=true;for(const D of placed){const d=rDist(R,D.R);if(P.yopiq&&D.blk===bi&&d<.3&&(D.edge===e.i||Math.abs(u[0]*D.u[0]+u[1]*D.u[1])<.3))continue;if(d+.01<need(C,D)){ok=false;break;}}
+        if(ok)placed.push(C);return ok;};
+      const n0=placed.length;for(let q=0;q<m;q++)tryAt(tc+q*(P.sl+gap));
+      if(placed.length-n0<m){/* markazlashgan joylashuv toʻliq sigʻmadi — chetdan boshlab qayta urinib koʻriladi */
+        placed.length=n0;for(let t=0;t<=e.L-P.sl+1e-6;){if(tryAt(t))t+=P.sl+gap;else t+=1;}}});
+  /* qavatlar rejimi */
+  const sec=placed.map(C=>{let d=0;const blk=blocks[C.blk];
+    if(P.flm==='burchak'){/* aksent — butun kvartal (koʻchalar chorrahasi) burchaklarida */const near=outer.some(v=>C.R.some(p=>Math.hypot(p[0]-v[0],p[1]-v[1])<P.sd*1.5));d=near?dmax:0;}
+    return {C,d};});
+  return {sec,blocks,toL,ng,gLong,gEnd,gSide,nSub:blocks.length,H};}
+function urbanGen(block,g,T){
+  const A=area(block),P=Object.assign({},T.g,g),seis=g.seis!==false,sbU=g.sb??T.sb;
+  const c=turf.centroid(block).geometry.coordinates,k=dm(c[1]),brg=mainBearing(block),rotA=90-brg,az=brg+90;
+  const back=f=>turf.transformRotate(f,-rotA,{pivot:c});
+  if(P.bk&&P.bk!=='avto'&&window.MRBLOK){const t=window.MRBLOK.byId(P.bk);if(t){P.bs=Math.round(Math.sqrt(t.bx*t.by));}}
+  const dmax=P.flm==='burchak'?3:P.flm==='janub'?4:0;
+  const maxFl=Math.max(1,Math.round(g.fl??T.fl)),far=Math.max(.05,g.far??T.far),target=far*A;
+  let best=null;
+  for(let fl=Math.min(3,maxFl);fl+dmax<=Math.max(maxFl,dmax+1);fl++){const H=(fl+dmax)*FH,sb=Math.max(sbU,Math.round(H*.25*10)/10),inner=inset(block,sb);if(!inner)break;
+    const rot=turf.transformRotate(inner,rotA,{pivot:c}),L=urbanLayout(rot,k,c,fl,dmax,seis,az,P);
+    /* janub rejimi: haqiqiy shimol boʻyicha — shimoldagi seksiyalar baland, janubdagilar past, hovliga quyosh tushadi */
+    const polys=L.sec.map(o=>back(turf.polygon([[...o.C.R.map(L.toL),L.toL(o.C.R[0])]])));
+    if(P.flm==='janub'&&polys.length){const ys=polys.map(p=>turf.centroid(p).geometry.coordinates[1]),lo=Math.min(...ys),hi=Math.max(...ys);L.sec.forEach((o,i)=>{o.d=hi>lo?Math.round(dmax*(ys[i]-lo)/(hi-lo)):0;});}
+    const blds=polys.map((p,i)=>({f:turf.truncate(p,{precision:7}),fl:fl+L.sec[i].d}));
+    const fp=blds.reduce((a,x)=>a+area(x.f),0),gfa=blds.reduce((a,x)=>a+area(x.f)*x.fl,0);
+    const r={fl,L,blds,fp,gfa,sb};if(!best||gfa>best.gfa*1.001)best=r;if(gfa>=target){best=r;break;}}
+  if(!best)return {blds:[],fp:0,gfa:0,far:0,flAvg:0,capped:false,A,rules:[],warn:['Qizil chiziqdan chekinish kvartalga sigʻmaydi'],note:''};
+  const L=best.L,gfa=best.gfa,fp=best.fp,H=L.H;
+  const rules=[
+    {t:'Qizil chiziqdan chekinish',v:best.sb+' m'+(best.sb>sbU?' (H · 0,25)':''),src:SRC.road},
+    {t:'Kichik bloklar',v:L.nSub+' ta · ≈ '+P.bs+' m · ichki koʻcha '+P.pw+' m',src:P.bk&&P.bk!=='avto'&&window.MRBLOK&&window.MRBLOK.byId(P.bk)?window.MRBLOK.byId(P.bk).src:'Loyiha parametri'},
+    {t:'Seksiya',v:P.sl+' × '+P.sd+' m',src:'Loyiha parametri'},
+    {t:'Qaragan uzun tomonlar',v:Math.round(L.gLong*10)/10+' m · '+(P.yopiq?'yopiq hovli: Hmax · 2,3':L.ng.why),src:P.yopiq?SRC.court:(SRC[L.ng.src]||SRC.t2)},
+    {t:'Toretslar orasi',v:Math.round(L.gEnd*10)/10+' m · (H1+H2) · 0,3',src:SRC.t2},
+    {t:'Uzun tomon ↔ torets',v:Math.round(L.gSide*10)/10+' m · 2 · Hmax · 0,3',src:SRC.t2},
+    H>=50?{t:'Yongʻin yoʻli',v:'≥ 6 m, devordan 8–10 m',src:SRC.fireHi}:{t:'Yongʻin masofasi',v:'≥ 6 m',src:SRC.fire},
+    {t:'Insolyatsiya',v:'linzada tekshiriladi (T)',src:SRC.ins},
+    {t:'Tipologiya',v:T.n,src:T.an}];
+  const warn=[];if(gfa<target*.95)warn.push('Seksiyalar meʼyoriy masofalar bilan maqsadli FAR ga yetmaydi — blok oʻlchamini kattalashtiring, ichki koʻchani toraytiring yoki qavatni oshiring.');
+  if(gfa/A>4.5)warn.push('UMN 4,5 dan oshdi (ShNQ 2.07.01-23, 66-band).');
+  if(!best.blds.length)warn.push('Bitta ham seksiya sigʻmadi — seksiya yoki blok oʻlchamini oʻzgartiring.');
+  if(L.nSub>1&&P.pw<L.gLong)warn.push('Ichki koʻchaning ikki tomonida bir-biriga qaragan seksiyalar uchun koʻcha kengligi kamida '+Math.round(L.gLong)+' m boʻlishi kerak (2-jadval) — hozir bir tomoni boʻsh yoki seksiyalar toretsi bilan turadi.');
+  return {blds:best.blds,fp,gfa,far:gfa/A,flAvg:fp?gfa/fp:0,capped:gfa<target*.95,A,rules,warn,note:''};}
+
 function generate(block,g){
+  if(g.typ==='urban')return urbanGen(block,g,TYP.urban);
   const T=Object.assign({},TYP[g.typ]);if(!T.n)return null;
   const A=area(block);if(A<300)return null;
   const seis=g.seis!==false,sbU=g.sb??T.sb;

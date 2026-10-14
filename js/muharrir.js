@@ -193,7 +193,16 @@ function computeBlocks(){
   return out;}
 const blockAt=ll=>BLK.find(b=>inPoly(ll,b.f));
 function zoneRec(b,create){if(b.z)return D.zones.find(z=>z.id===b.z.id)||null;if(!create)return null;const r={id:D.zid++,ll:b.anchor.map(v=>+v.toFixed(7)),z:''};D.zones.push(r);return r;}
-const defG=typ=>{const t=MRGEN.TYP[typ];return {typ,far:t.far,fl:t.fl,sb:t.sb};};
+const defG=typ=>{const t=MRGEN.TYP[typ];return Object.assign({typ,far:t.far,fl:t.fl,sb:t.sb},JSON.parse(JSON.stringify(t.g||{})));};
+function ubHTML(g){const n=(k,l,mn,mx,st)=>`<label class="note" style="display:grid;gap:2px">${esc(T(l))}<input type="number" data-ub="${k}" min="${mn}" max="${mx}" step="${st}" value="${g[k]}" style="width:100%"></label>`;
+  return `<div style="border:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:8px"><span class="lb">${esc(T('Urban blok'))}</span>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${n('sl','Seksiya uzunligi, m',12,90,1)}${n('sd','Seksiya chuqurligi, m',9,30,1)}</div>
+    <label class="note" style="display:grid;gap:2px">${esc(T('Kichik blok oʻlchami (analog)'))}<select data-ub="bk"><option value="avto" ${g.bk==='avto'?'selected':''}>${esc(T('Qoʻlda'))}</option>${window.MRBLOK?MRBLOK.L.filter(x=>x.bx<=250).map(x=>`<option value="${x.id}" ${g.bk===x.id?'selected':''}>${esc(T(x.n))} · ${x.bx}×${x.by}</option>`).join(''):''}</select></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${g.bk==='avto'?n('bs','Blok oʻlchami, m',40,300,5):'<span></span>'}${n('pw','Ichki koʻcha, m',0,40,1)}</div>
+    <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-ub="yopiq" ${g.yopiq?'checked':''}> ${esc(T('Yopiq perimetr (seksiyalar tutash, hovli Hmax · 2,3)'))}</label>
+    <span class="note">${esc(T('Qavatlar'))}</span>
+    <div class="seg" role="group" aria-label="${esc(T('Qavatlar rejimi'))}"><button data-flm="teng" aria-pressed="${g.flm==='teng'}">${esc(T('Bir xil'))}</button><button data-flm="burchak" aria-pressed="${g.flm==='burchak'}">${esc(T('Burchak aksenti +3'))}</button><button data-flm="janub" aria-pressed="${g.flm==='janub'}">${esc(T('Janubga pasayadi'))}</button></div>
+    <p class="note" style="margin:0">${esc(T('Har bir seksiyaning qavatini keyin B asbobida alohida oʻzgartirasiz (birinchi oʻzgarishda kvartal qulflanadi).'))}</p></div>`;}
 function genHTML(b){const z=b.z;if(!z||!GENZ.includes(z.z))return S.tool==='gen'?`<p class="note">${esc(T('Avval kvartalga turar joy, aralash, savdo yoki ijtimoiy zona bering (Z).'))}</p>`:'';
   const g=z.g;let h=`<div style="border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:10px"><span class="lb">Generatsiya</span>`;
   if(z.lock&&z.blds){const r=b.r||{};
@@ -205,8 +214,10 @@ function genHTML(b){const z=b.z;if(!z||!GENZ.includes(z.z))return S.tool==='gen'
   const r=b.r||{};
   h+=`<div class="tseg" role="group" aria-label="${esc(T('Tipologiya'))}">${Object.entries(MRGEN.TYP).map(([k,t])=>`<button data-typ="${k}" aria-pressed="${g.typ===k}">${esc(T(t.n))}</button>`).join('')}</div>
     <label class="rng"><span>FAR (maqsad) <b>${fmt(g.far,2)}</b></span><input type="range" id="gFar" min="0.2" max="6" step="0.1" value="${g.far}"></label>
+    <label class="note" style="display:flex;gap:6px;align-items:center;justify-content:space-between">${esc(T('yoki maqsadli GFA, m²'))}<input type="number" id="gGfa" min="100" step="1000" value="${Math.round(g.far*b.ha*1e4)}" style="width:110px"></label>
     <label class="rng"><span>${esc(T('Maks. qavat'))} <b>${g.fl}</b></span><input type="range" id="gFl" min="1" max="30" step="1" value="${g.fl}"></label>
     <label class="rng"><span>${esc(T('Qizil chiziqdan chekinish'))} <b>${g.sb} m</b></span><input type="range" id="gSb" min="0" max="20" step="1" value="${g.sb}"></label>
+    ${g.typ==='urban'?ubHTML(g):''}
     <div class="kv"><span>${esc(T('Binolar'))}</span><b>${r.blds?r.blds.length:0} · ${fmt(r.flAvg||0,1)} ${esc(T('qavat'))}</b><span>GFA</span><b>${fmt(r.gfa,0)} m²</b><span>${esc(T('FAR (erishildi)'))}</span><b>${fmt(r.far,2)}</b><span>${esc(T('Qoplam'))}</span><b>${r.A?fmt(r.fp/r.A*100,0):'—'} %</b>${r.kv?`<span>${esc(T('Kvartiralar'))}</span><b>${fmt(r.kv,0)}</b><span>${esc(T('Aholi'))}</span><b>${fmt(r.pop,0)}</b><span>${esc(T('Netto zichlik'))} ${gi('brutto')}</span><b>${fmt(r.pop/b.ha,0)} ${esc(T('kishi/ga'))}</b>`:''}</div>
     
     <label class="chk" style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="gSeis" ${g.seis!==false?'checked':''}> ${esc(T('Seysmik hudud (8+ ball): binolar orasi ≥ 2H'))}</label>
@@ -218,6 +229,10 @@ function bindGen(b){if(!b)return;const rec=()=>zoneRec(b,true);
   const go=$('#genGo');if(go)go.onclick=()=>act(()=>{rec().g=b.z&&b.z.z==='ijtimoiy'?{typ:'perimetr',far:.6,fl:3,sb:10}:defG(b.ha<1.5?'perimetr':'seksiya');});
   $$('#panel [data-typ]').forEach(x=>x.onclick=()=>act(()=>{const g=rec().g,t=x.dataset.typ;rec().g=Object.assign(defG(t),{sb:g.sb});}));
   {const sz=$('#gSeis');if(sz)sz.onchange=()=>act(()=>{rec().g.seis=sz.checked;});}
+  {const gg=$('#gGfa');if(gg)gg.onchange=()=>act(()=>{rec().g.far=Math.max(.05,Math.min(8,Math.round((+gg.value||0)/(b.ha*1e4)*100)/100));});}
+  /* urban blok parametrlari */
+  $$('#panel [data-ub]').forEach(i=>i.onchange=()=>act(()=>{const g=rec().g,k=i.dataset.ub;g[k]=i.type==='checkbox'?i.checked:i.type==='number'?Math.max(+i.min||0,Math.min(+i.max||999,+i.value||0)):i.value;}));
+  $$('#panel [data-flm]').forEach(x=>x.onclick=()=>act(()=>{rec().g.flm=x.dataset.flm;}));
   [['#gFar','far',parseFloat],['#gFl','fl',v=>parseInt(v,10)],['#gSb','sb',v=>parseInt(v,10)]].forEach(([id,k,cv])=>{const i=$(id);if(!i)return;
     i.oninput=()=>{const lb=i.previousElementSibling&&i.previousElementSibling.querySelector('b');if(lb)lb.textContent=k==='sb'?i.value+' m':k==='far'?(+i.value).toFixed(1).replace('.',','):i.value;};
     i.onchange=()=>act(()=>{rec().g[k]=cv(i.value);});});
