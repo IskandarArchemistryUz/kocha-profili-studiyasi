@@ -190,6 +190,7 @@ details[open] summary{margin-bottom:10px}
   </aside>
 </div>
 
+<script src="js/basemap.js?v=1"></script>
 <script>
 /* xarita kutubxonasini bir nechta manbadan yuklash; hech biri ochilmasa — tushunarli xabar */
 (function(){
@@ -230,10 +231,11 @@ const toLL=(x,y)=>[S.origin.lon+x/S.origin.kx, S.origin.lat+y/S.origin.ky];
 
 /* ---------- xarita ---------- */
 const map=new maplibregl.Map({
-  container:"map", style:"https://tiles.openfreemap.org/styles/positron",
+  container:"map", style:KPSMAP.mlStyle({buildings:false}),
   center:[69.2797,41.3111], zoom:14, pitch:55, bearing:-20, maxPitch:75, antialias:true, preserveDrawingBuffer:true
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
+const KB=KPSMAP.maplibre(map,{buildings:false});   // umumiy fon xarita va xarita holati (js/basemap.js)
 map.on("error",e=>{ if(e && e.error && /style|tiles/i.test(String(e.error.message||""))) err("Asos xarita yuklanmadi: "+e.error.message); });
 let centerMarker=null;
 const onStyle=fn=>{ let done=false; const go=()=>{ if(done) return; done=true; fn(); }; if(map.isStyleLoaded()) go(); else { map.once("style.load",go); map.once("load",go); } };

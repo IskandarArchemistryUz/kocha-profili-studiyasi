@@ -164,6 +164,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   </aside>
 </div>
 
+<script src="js/basemap.js?v=1"></script>
 <script>
 (function(){
   const urls=["https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"];
@@ -194,9 +195,10 @@ const y2lat=(y,z)=>{const n=Math.PI-2*Math.PI*y/(TS*2**z);return Math.atan(Math.
 const G={utOff:{}, utilOsm:null, ring:null, z:15, ox:0, oy:0, W:0, H:0, mpp:1, dem:null, slope:null, mask:null, osm:null, tab:"asos", layers:[], done:false};
 
 /* ---------- xarita ---------- */
-const map=new maplibregl.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[69.2797,41.3111],zoom:12,preserveDrawingBuffer:true,attributionControl:{compact:true}});
+const map=new maplibregl.Map({container:"map",style:KPSMAP.mlStyle(),center:[69.2797,41.3111],zoom:12,preserveDrawingBuffer:true,attributionControl:{compact:true}});
 map.addControl(new maplibregl.NavigationControl({showCompass:true}),"top-right");
 map.addControl(new maplibregl.ScaleControl({maxWidth:140,unit:"metric"}),"bottom-right");
+const KB=KPSMAP.maplibre(map);   // umumiy fon xarita va xarita holati (js/basemap.js)
 const blank=(()=>{const c=document.createElement("canvas");c.width=c.height=1;return c.toDataURL();})();
 const onStyle=fn=>{ let done=false; const go=()=>{ if(done) return; done=true; fn(); }; if(map.isStyleLoaded()) go(); else { map.once("style.load",go); map.once("load",go); } };
 onStyle(()=>{

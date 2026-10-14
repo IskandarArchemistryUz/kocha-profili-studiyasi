@@ -86,6 +86,7 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 </main>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/basemap.js?v=1"></script>
 <script src="js/uly.js?v=5"></script>
 <script src="js/ai3d.js?v=13"></script>
 <script>
@@ -97,12 +98,7 @@ const toast=m=>{const t=document.createElement('div');t.className='toast';t.text
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fi=v=>Math.round(v).toLocaleString('ru-RU'),f1=v=>(Math.round(v*10)/10).toLocaleString('ru-RU'),f2=v=>(Math.round(v*100)/100).toLocaleString('ru-RU');
 const map=L.map('map',{doubleClickZoom:false}).setView([41.3111,69.2797],14);
-const BASES={grey:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,attribution:'© OpenStreetMap, © Esri'}),
-  sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19,attribution:'© Esri, Maxar, Earthstar'}),
-  osm:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'}),none:L.layerGroup()};
-let BASE=localStorage.getItem('kps_ai_base')||'grey';if(!BASES[BASE])BASE='grey';BASES[BASE].addTo(map);
-(()=>{const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.innerHTML=[['grey','Kulrang'],['osm','OSM'],['sat','Sunʼiy yoʻldosh'],['none','Fonsiz']].map(([k,n])=>`<button data-b="${k}" aria-pressed="${k===BASE}">${n}</button>`).join('');
-  d.onclick=e=>{const b=e.target.closest('[data-b]');if(!b)return;map.removeLayer(BASES[BASE]);BASE=b.dataset.b;BASES[BASE].addTo(map);BASES[BASE].bringToBack&&BASES[BASE].bringToBack();localStorage.setItem('kps_ai_base',BASE);d.querySelectorAll('[data-b]').forEach(x=>x.setAttribute('aria-pressed',x===b));};L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
+const KB=KPSMAP.leaflet(map);   // umumiy fon xarita va xarita holati (js/basemap.js)
 ULY.init(map,document.querySelector('.mapw'));
 let SDRAW=null;const SL=L.layerGroup().addTo(map);
 (()=>{const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.style.marginTop='6px';d.style.clear='both';d.innerHTML='<button id="siteBtn" title="Yer uchastkasi chegarasini chizish (qizil shtrix-punktir)"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l12-4 4 12-13 4z" stroke-dasharray="3.5 2"/></svg>Uchastka</button>';L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
@@ -631,7 +627,7 @@ $('#askBtn').onclick=()=>ask($('#q').value);document.querySelectorAll('[data-qq]
 $('#runBtn').onclick=compute;
 $('#b3d').onclick=()=>{if(!LASTD){toast('Avval hududni hisoblang.');return;}if(!window.AI3D){toast('3D modul yuklanmadi.');return;}
   AI3D.open({D:LASTD,MX,MY,ULY,toast,sites:SITES,onSites:a=>{SITES=a;saveSites();laySites();siteRender();},clip:CLIP,mode:res&&res.mode,lv:KP.get('lvUnknown'),putMat:o=>new Promise((ok,no)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=ok;t.onerror=()=>no(t.error);};r.onerror=()=>no(r.error);})});};$('#albBtn').onclick=()=>{if(!res){toast('Avval hududni hisoblang.');return;}toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));};
-async function baseImg(bb){if(BASE==='none')return null;const U={grey:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}[BASE];if(!U)return null;
+async function baseImg(bb){const BASE=KPSMAP.base().mode;if(BASE==='none')return null;if(BASE==='stil')return KPSMAP.snapshot(bb);const U={sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',osm:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}[BASE];if(!U)return null;
   const lx=(lon,z)=>(lon+180)/360*2**z,ly=(lat,z)=>(1-Math.log(Math.tan(lat*R)+1/Math.cos(lat*R))/Math.PI)/2*2**z;let z=BASE==='grey'?16:17;
   while(z>11&&(Math.floor(lx(bb[3],z))-Math.floor(lx(bb[1],z))+1)*(Math.floor(ly(bb[0],z))-Math.floor(ly(bb[2],z))+1)>64)z--;
   const fx0=lx(bb[1],z),fx1=lx(bb[3],z),fy0=ly(bb[2],z),fy1=ly(bb[0],z),X0=Math.floor(fx0),X1=Math.floor(fx1),Y0=Math.floor(fy0),Y1=Math.floor(fy1);
