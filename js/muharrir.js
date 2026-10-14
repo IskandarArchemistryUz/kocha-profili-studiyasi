@@ -1,4 +1,4 @@
-/* Archemistry Lab — Master reja muharriri (1: koʻcha tarmogʻi · 2: kvartallar va zonalash · 3: generatsiya · 4: binolarni qoʻlda tahrirlash · 5: tekshiruv linzalari).
+/* Archemistry Lab — Master reja muharriri (1: koʻcha tarmogʻi · 2: kvartallar va zonalash · 3: generatsiya · 4: binolarni qoʻlda tahrirlash · 5: tekshiruv linzalari · 6: variantlar, figure-ground, albom).
    Tuzilma: bitta loyiha hujjati (D) → hisob zanjiri (qizil chiziqlar → kvartallar → TEP) → bitta MapLibre xaritasi.
    Kvartallar saqlanmaydi — har safar «hudud − koʻchalar» dan hosil qilinadi. Zona kvartal ichidagi
    «langar» nuqtaga bogʻlanadi: koʻcha surilsa ham zona oʻz kvartalida qoladi.
@@ -92,7 +92,7 @@ const STYLE={version:8,
   sources:{sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Esri World Imagery'},
     light:{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png'],tileSize:256,maxzoom:20,attribution:'© OpenStreetMap, © CARTO'}},
   layers:[{id:'bg',type:'background',paint:{'background-color':'#e6e3db'}},{id:'sat',type:'raster',source:'sat',paint:{'raster-saturation':-.35,'raster-opacity':.9}},{id:'light',type:'raster',source:'light',layout:{visibility:'none'}}]};
-const map=new maplibregl.Map({container:'map',style:STYLE,center:[69.2797,41.3111],zoom:15.5,maxPitch:70,attributionControl:{compact:true},doubleClickZoom:false,dragRotate:true});
+const map=new maplibregl.Map({container:'map',style:STYLE,center:[69.2797,41.3111],zoom:15.5,maxPitch:70,attributionControl:{compact:true},doubleClickZoom:false,dragRotate:true,preserveDrawingBuffer:true});   // albom uchun kanvasni rasmga olish
 map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-right');
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
 const FC=f=>({type:'FeatureCollection',features:f||[]});
@@ -124,6 +124,7 @@ function addLayers(){
   map.addLayer({id:'walk',type:'circle',source:'walk',paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,3,17,7],'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':1.2}});
   map.addLayer({id:'nbp-fill',type:'fill',source:'nbp',paint:{'fill-color':['case',['get','ok'],'#7fb0e0','#e8998c'],'fill-opacity':.55}});
   map.addLayer({id:'nbp-line',type:'line',source:'nbp',paint:{'line-color':'#2a6fb0','line-width':1.6,'line-dasharray':[3,2]}});
+  map.addLayer({id:'fg',type:'fill',source:'blds',layout:{visibility:'none'},paint:{'fill-color':'#111','fill-antialias':true}});
   map.addLayer({id:'nodes',type:'circle',source:'nodes',paint:{'circle-radius':['case',['get','s'],7,5],'circle-color':['case',['get','s'],'#2a6fb0',['>=',['get','d'],3],'#111','#fff'],'circle-stroke-color':['case',['get','s'],'#fff','#111'],'circle-stroke-width':1.5}});
 }
 
@@ -314,7 +315,7 @@ function renderLensMap(){if(!map.getSource('shadow'))return;const L=bldList(),o=
   else map.getSource('dist').setData(FC());
   /* insolyatsiya — ogʻir hisob: kechiktirilgan, surish paytida emas */
   if(LENS.ins&&L.some(b=>b.res)){const k=geo+c.md+c.wz+c.step;
-    if(k!==INSK&&!busy()){INSK=k;INS=null;clearTimeout(INST);INST=setTimeout(()=>{const t0=performance.now();const r=MRCHK.insolation(L,F,{md:c.md,lat:o[1],lng:o[0],wz:c.wz,step:c.step});r.L=L;r.ms=performance.now()-t0;INS=r;paintIns();renderPanel();renderLens();},250);}
+    if(k!==INSK&&!busy()){INSK=k;INS=null;clearTimeout(INST);INST=setTimeout(()=>{const t0=performance.now();const r=MRCHK.insolation(L,F,{md:c.md,lat:o[1],lng:o[0],wz:c.wz,step:c.step});r.L=L;r.ms=performance.now()-t0;INS=r;paintIns();scheduleSnap();renderPanel();renderLens();},250);}
     paintIns();}
   else{INSK='';INS=null;map.getSource('insp').setData(FC());}
   /* 15 daqiqa */
@@ -325,10 +326,10 @@ function renderLensMap(){if(!map.getSource('shadow'))return;const L=bldList(),o=
   const wl=map.getLayer('wind');
   if(LENS.wind){ensureRose();const w=windW();
     if(w){const cr=corridors(w);map.getSource('windc').setData(cr.fc);if(WIND)WIND.cshare=cr.share;
-      if(L.length){const k=geo+WS.season+WS.slice+WS.mode+WS.dir;if(k!==WINDK&&!busy()){WINDK=k;clearTimeout(WINDT);WINDT=setTimeout(()=>{const t0=performance.now();const r=windRun(L,F);r.ms=performance.now()-t0;r.cshare=cr.share;WIND=r;
-        map.getSource('wind').updateImage({url:r.url,coordinates:r.coords});map.setLayoutProperty('wind','visibility','visible');renderPanel();renderLens();},200);}}
+      if(L.length){const k=geo+WS.season+WS.slice+WS.mode+WS.dir;if(k!==WINDK&&!busy()){WINDK=k;WIND=null;clearTimeout(WINDT);WINDT=setTimeout(()=>{const t0=performance.now();const r=windRun(L,F);r.ms=performance.now()-t0;r.cshare=cr.share;WIND=r;scheduleSnap();
+        map.getSource('wind').updateImage({url:r.url,coordinates:r.coords});if(S.view!=='fg')map.setLayoutProperty('wind','visibility','visible');renderPanel();renderLens();},200);}}
       else{WIND=null;WINDK='';map.setLayoutProperty('wind','visibility','none');}}
-    if(WIND&&wl)map.setLayoutProperty('wind','visibility','visible');}
+    if(WIND&&wl&&S.view!=='fg')map.setLayoutProperty('wind','visibility','visible');}
   else{WINDK='';if(wl)map.setLayoutProperty('wind','visibility','none');map.getSource('windc').setData(FC());}
   renderDLabels();}
 function paintIns(){const src=map.getSource('insp');if(!src)return;const thr=+chk().ins;src.setData(FC(INS?INS.pts.map(p=>({type:'Feature',properties:{c:insColor(p.best,thr)},geometry:{type:'Point',coordinates:p.ll}})):[]));}
@@ -446,7 +447,7 @@ function draw(){
   map.getSource('sel').setData(FC(selF));
   const showN=S.tool==='street'||S.tool==='select';
   map.getSource('nodes').setData(FC(showN?D.nodes.map(n=>({type:'Feature',properties:{id:n.id,d:deg(n.id),s:!!(S.sel&&S.sel.t==='n'&&S.sel.id===n.id)||S.draw===n.id},geometry:{type:'Point',coordinates:n.ll}})):[]));
-  renderPrev();renderPanel();renderKpi();renderBal();renderLabels();renderUndo();renderLens();}
+  renderPrev();renderPanel();renderKpi();renderBal();renderLabels();renderUndo();renderLens();if(S.view==='fg')applyView();scheduleSnap();}
 function renderLabels(){const box=$('#labels');if(!box)return;const z=map.getZoom();
   box.innerHTML=z<14.5?'':BLK.map(b=>{const p=map.project(b.anchor);const s=sizeOf(b.ha);return `<div class="blbl" style="left:${p.x}px;top:${p.y}px">${esc(b.name)}${b.z&&b.z.lock?`<span title="${esc(T('Qoʻlda tahrirlangan — qulflangan'))}">${LOCK_SVG}</span>`:''}<small>${fmt(b.ha,2)} ga · <span style="color:${s.c}">${esc(T(s.k==='daha'?'daha':s.k==='mavze'?'mavze oʻlchami':s.k==='tuman'?'tuman oʻlchami':'juda katta'))}</span></small></div>`;}).join('');}
 function renderPrev(){const src=map.getSource('prev');if(!src)return;const a=S.draw&&node(S.draw);
@@ -570,8 +571,8 @@ function hint(){let t='';
 function setTool(t){S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));map.getCanvas().style.cursor=t==='street'?'crosshair':'';$('#tip').textContent='';render();}
 $$('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('#undo').onclick=undo;$('#redo').onclick=redo;
-$$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});setTimeout(render,650);});
-$$('[data-base]').forEach(b=>b.onclick=()=>{S.base=b.dataset.base;$$('[data-base]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.setLayoutProperty('sat','visibility',S.base==='sat'?'visible':'none');map.setLayoutProperty('light','visibility',S.base==='light'?'visible':'none');});
+$$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});applyView();setTimeout(render,650);});
+$$('[data-base]').forEach(b=>b.onclick=()=>{S.base=b.dataset.base;$$('[data-base]').forEach(x=>x.setAttribute('aria-pressed',x===b));if(S.view==='fg')return;map.setLayoutProperty('sat','visibility',S.base==='sat'?'visible':'none');map.setLayoutProperty('light','visibility',S.base==='light'?'visible':'none');});
 
 /* ---------- yopishish ---------- */
 const SNAP=12;
@@ -664,15 +665,101 @@ window.addEventListener('keydown',e=>{
   if((e.key==='Delete'||e.key==='Backspace')&&S.sel&&(S.sel.t==='e'||S.sel.t==='n')){e.preventDefault();const s=S.sel;S.sel=null;act(()=>s.t==='e'?delEdge(s.id):delNode(s.id));}});
 window.addEventListener('keyup',e=>{if(e.key==='Shift')S.shift=false;});
 if(window.KP)KP.on(()=>render());
-window.addEventListener('storage',e=>{if(e.key==='kps_site'){loadSite();}if(e.key===KEY){load();fixSel();render();}});
+window.addEventListener('storage',e=>{if(e.key==='kps_site'){loadSite();}if(e.key===KEY){load();fixSel();render();}if(e.key===VK){varsLoad();renderVars();}});
 
 /* ---------- ishga tushirish ---------- */
 function loadSite(){SITE=siteRing();if(map.getSource('site'))map.getSource('site').setData(SITE?FC([turf.lineString(SITE)]):FC());
   const c=SITE?turf.center(turf.polygon([SITE])).geometry.coordinates:null;if(c)K=78271.517*Math.cos(c[1]*Math.PI/180);return c;}
+/* ---------- 6-bosqich: figure-ground ---------- */
+/* Nolli usuli: binolar qora, qolgan hamma narsa (koʻcha, hovli, park) oq — shahar toʻqimasining zichligi va ochiq joylar ritmi */
+const FG_HIDE=['sat','light','blocks-fill','blocks-line','corr-fill','road','axis','red','bsel','sel','road-hit','prev','wind','windc','shadow','blds','blds-line','dist','insp','walk','nodes','nbp-fill','nbp-line'];
+let FGON=false;
+function applyView(){if(!map.getLayer('fg'))return;const on=S.view==='fg';
+  if(on){FG_HIDE.forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');});map.setLayoutProperty('fg','visibility','visible');map.setPaintProperty('bg','background-color','#ffffff');}
+  else if(FGON){FG_HIDE.forEach(id=>{if(map.getLayer(id)&&!['sat','light','wind'].includes(id))map.setLayoutProperty(id,'visibility','visible');});
+    map.setLayoutProperty('sat','visibility',S.base==='sat'?'visible':'none');map.setLayoutProperty('light','visibility',S.base==='light'?'visible':'none');
+    map.setLayoutProperty('wind','visibility',LENS.wind&&WIND?'visible':'none');map.setLayoutProperty('fg','visibility','none');map.setPaintProperty('bg','background-color','#e6e3db');}
+  FGON=on;['#labels','#dlabels'].forEach(q=>{const e=$(q);if(e)e.style.display=on?'none':'';});}
+/* rasm uchun geometriya (mahalliy metr) */
+function fgGeom(){const o=origin(),F=MRCHK.frame(o[1],o[0]),rings=[];BLK.forEach(b=>{if(b.r)b.r.blds.forEach(x=>rings.push(x.f.geometry.coordinates.map(r=>r.map(F.xy))));});
+  const site=SITE?SITE.map(F.xy):null,pts=(site||[]).concat(...rings.map(r=>r[0]));if(!pts.length)return null;
+  let bb=[Infinity,Infinity,-Infinity,-Infinity];pts.forEach(p=>{bb[0]=Math.min(bb[0],p[0]);bb[1]=Math.min(bb[1],p[1]);bb[2]=Math.max(bb[2],p[0]);bb[3]=Math.max(bb[3],p[1]);});
+  const m=Math.max(30,(bb[2]-bb[0])*.04);return {rings,site,bb:[bb[0]-m,bb[1]-m,bb[2]+m,bb[3]+m]};}
+function fgSVG(w){const G=fgGeom();if(!G)return '';const bw=G.bb[2]-G.bb[0],bh=G.bb[3]-G.bb[1],k=w/bw,h=Math.round(bh*k),X=x=>((x-G.bb[0])*k).toFixed(1),Y=y=>((G.bb[3]-y)*k).toFixed(1);
+  const d=G.rings.map(r=>r.map(ring=>'M'+ring.map(p=>X(p[0])+' '+Y(p[1])).join('L')+'Z').join('')).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#fff"/>${G.site?`<path d="M${G.site.map(p=>X(p[0])+' '+Y(p[1])).join('L')}Z" fill="none" stroke="#999" stroke-width=".8" stroke-dasharray="3 2"/>`:''}<path d="${d}" fill="#111" fill-rule="evenodd"/></svg>`;}
+function fgCanvas(W,title){const G=fgGeom();if(!G)return null;const bw=G.bb[2]-G.bb[0],bh=G.bb[3]-G.bb[1],k=W/bw,H=Math.round(bh*k)+90,c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d'),X=v=>(v-G.bb[0])*k,Y=v=>(G.bb[3]-v)*k;x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  if(G.site){x.setLineDash([12,8]);x.strokeStyle='#8a857c';x.lineWidth=2;x.beginPath();G.site.forEach((p,i)=>i?x.lineTo(X(p[0]),Y(p[1])):x.moveTo(X(p[0]),Y(p[1])));x.closePath();x.stroke();x.setLineDash([]);}
+  x.fillStyle='#111';G.rings.forEach(r=>{x.beginPath();r.forEach(ring=>{ring.forEach((p,i)=>i?x.lineTo(X(p[0]),Y(p[1])):x.moveTo(X(p[0]),Y(p[1])));x.closePath();});x.fill('evenodd');});
+  /* masshtab va shimol */
+  const y0=H-40,len=[50,100,200,500,1000].find(v=>v*k>W*.12)||1000;x.fillStyle='#111';x.fillRect(40,y0,len*k,6);x.font='22px sans-serif';x.fillText(`${len} m`,40+len*k+12,y0+8);
+  x.beginPath();x.moveTo(W-50,y0+10);x.lineTo(W-38,y0-26);x.lineTo(W-26,y0+10);x.closePath();x.fill();x.fillText('N',W-46,y0+34);
+  if(title){x.font='24px sans-serif';x.fillText(title,40,y0-24);}
+  return c;}
+/* TEP jadvali — rasm */
+const SUMROWS=[['Hudud','siteHa',v=>fmt(v,1)+' ga'],['Koʻchalar ulushi','corrPct',v=>fmt(v,1)+' %'],['Koʻcha zichligi','dens',v=>fmt(v,1)+' km/km²'],['Chorrahalar zichligi','interD',v=>fmt(v,0)+' /km²'],['Kvartallar','nB',v=>fmt(v,0)],['Binolar','nBld',v=>fmt(v,0)],['GFA','gfa',v=>fmt(v/1000,0)+' ming m²'],['FAR (hudud boʻyicha)','far',v=>fmt(v,2)],['Qoplam','cov',v=>fmt(v,0)+' %'],['Oʻrtacha qavat','flAvg',v=>fmt(v,1)],['Aholi','pop',v=>fmt(v,0)],['Zichlik (brutto)','pDens',v=>fmt(v,0)+' kishi/ga'],['Yashil zona ulushi','greenPct',v=>fmt(v,1)+' %'],
+  ['Insolyatsiya: talabdan past nuqtalar','insBad',v=>fmt(v*100,0)+' %'],['Eng kam uzluksiz insolyatsiya','insMin',v=>MRCHK.hm(v)],['Shamol: turgʻun ulush','windStag',v=>fmt(v*100,0)+' %'],['15 daqiqada: ijtimoiy','w_ijtimoiy',v=>fmt(v*100,0)+' %'],['15 daqiqada: park','w_yashil',v=>fmt(v*100,0)+' %'],['15 daqiqada: savdo','w_savdo',v=>fmt(v*100,0)+' %']];
+function summary(){const k=kpis(),o={};['siteHa','corrPct','dens','interD','nB','nBld','gfa','far','cov','flAvg','pop','pDens','greenPct'].forEach(n=>{if(k[n]!=null&&isFinite(k[n]))o[n]=k[n];});
+  if(LENS.ins&&INS&&INS.pts.length){o.insMin=Math.min(...INS.pts.map(p=>p.best));if(+chk().ins){o.insBad=INS.pts.filter(p=>p.best<+chk().ins).length/INS.pts.length;o.insThr=+chk().ins;}o.insMd=chk().md;}
+  if(LENS.wind&&WIND)o.windStag=WIND.stag;
+  if(LENS.walk&&WALK)WT.forEach(t=>{const M=WALK.t[t.k];if(M&&!M.none)o['w_'+t.k]=M.share[2];});
+  return o;}
+function tepCanvas(title,sum){const rows=SUMROWS.filter(r=>sum[r[1]]!=null),W=1400,RH=46,H=140+rows.length*RH,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111';x.font='600 34px sans-serif';x.fillText(title,40,64);x.font='26px sans-serif';
+  rows.forEach((r,i)=>{const y=130+i*RH;x.fillStyle='#d9d3c8';x.fillRect(40,y+12,W-80,1);x.fillStyle='#111';x.fillText(T(r[0]),40,y);x.textAlign='right';x.fillText(r[2](sum[r[1]]),W-40,y);x.textAlign='left';});
+  return c;}
+/* ---------- 6-bosqich: variantlar ---------- */
+/* Faol variant — doim kps_mr_doc (boshqa boʻlimlar shuni oʻqiydi); qolganlari kps_mr_vars da nusxa sifatida.
+   Har variant uchun TEP xulosasi va figure-ground eskizi saqlanadi — solishtirish ularni qayta hisoblamasdan koʻrsatadi. */
+const VK='kps_mr_vars';let VARS=null,SNT=0;
+function varsLoad(){try{VARS=JSON.parse(localStorage.getItem(VK)||'null');}catch(_){VARS=null;}
+  if(!VARS||!Array.isArray(VARS.items)||!VARS.items.length)VARS={cur:'v1',n:2,items:[{id:'v1',name:'A',doc:null,sum:null,fg:''}]};
+  if(!VARS.items.find(v=>v.id===VARS.cur))VARS.cur=VARS.items[0].id;}
+function varsSave(){try{localStorage.setItem(VK,JSON.stringify(VARS));}catch(e){console.warn('[MR] variantlar saqlanmadi',e);}}
+const curVar=()=>VARS.items.find(v=>v.id===VARS.cur);
+function snapVar(){if(!VARS)return;const v=curVar();v.doc=JSON.stringify(D);v.sum=summary();v.fg=fgSVG(180);v.t=Date.now();varsSave();if(!$('#cmp').hidden)renderCmp();}
+function scheduleSnap(){clearTimeout(SNT);SNT=setTimeout(()=>{if(!busy())snapVar();else scheduleSnap();},700);}
+function loadDoc(json){D=Object.assign(blank(),json?JSON.parse(json):{});D.chk=Object.assign(CHK0(),D.chk||{});H.u=[];H.r=[];S.sel=null;S.nb=null;S.draw=null;INSK='';INS=null;WINDK='';WIND=null;save();}
+function switchVar(id){if(!VARS||id===VARS.cur)return;snapVar();const v=VARS.items.find(x=>x.id===id);if(!v)return;VARS.cur=id;loadDoc(v.doc);varsSave();renderVars();render();}
+function nextName(){const used=new Set(VARS.items.map(v=>v.name));for(let i=0;i<26;i++){const n=String.fromCharCode(65+i);if(!used.has(n))return n;}return 'V'+VARS.n;}
+function dupVar(){snapVar();const c=curVar(),id='v'+(VARS.n++);VARS.items.push({id,name:nextName(),doc:c.doc,sum:c.sum,fg:c.fg,t:Date.now()});VARS.cur=id;H.u=[];H.r=[];varsSave();renderVars();render();}
+let VARM=null;   // oʻchirish uchun ikki bosqichli tasdiq
+function delVar(id){if(VARS.items.length<2)return;if(VARM!==id){VARM=id;renderCmp();return;}VARM=null;const wasCur=id===VARS.cur;VARS.items=VARS.items.filter(v=>v.id!==id);
+  if(wasCur){VARS.cur=VARS.items[0].id;loadDoc(VARS.items[0].doc);render();}varsSave();renderVars();renderCmp();}
+function renderVars(){const el=$('#vars');if(!el||!VARS)return;
+  el.innerHTML=`<div class="vtabs" role="group" aria-label="${esc(T('Variantlar'))}">${VARS.items.map(v=>`<button data-var="${v.id}" aria-pressed="${v.id===VARS.cur}" title="${esc(T('Variant'))} ${esc(v.name)}">${esc(v.name)}</button>`).join('')}<button id="varDup" title="${esc(T('Joriy variantdan nusxa — yangi variant'))}" aria-label="${esc(T('Yangi variant'))}">+</button></div>
+    <div class="brow" style="margin-top:8px"><button class="btn" id="varCmp" ${VARS.items.length<2?'disabled':''}>${esc(T('Solishtirish'))}</button><button class="btn dark" id="toAlb">${esc(T('Albomga →'))}</button></div><p class="note" id="albSt" aria-live="polite"></p>`;
+  $$('#vars [data-var]').forEach(b=>b.onclick=()=>switchVar(b.dataset.var));$('#varDup').onclick=dupVar;$('#varCmp').onclick=()=>{snapVar();$('#cmp').hidden=false;renderCmp();};$('#toAlb').onclick=toAlbum;}
+function renderCmp(){const el=$('#cmp');if(!el||el.hidden)return;const V=VARS.items;
+  const rows=SUMROWS.filter(r=>V.some(v=>v.sum&&v.sum[r[1]]!=null));
+  el.innerHTML=`<div class="cbox"><div class="ph"><span class="lb">${esc(T('Variantlarni solishtirish'))}</span><button class="gx" id="cmpX" aria-label="${esc(T('Yopish'))}">×</button></div>
+    <div class="cscroll"><table class="ct"><tr><th></th>${V.map(v=>`<th class="${v.id===VARS.cur?'cur':''}"><div class="cfg">${v.fg||''}</div><input type="text" data-vn="${v.id}" value="${esc(v.name)}" maxlength="24" aria-label="${esc(T('Variant nomi'))}"><div class="brow" style="justify-content:center;margin-top:6px">${v.id===VARS.cur?`<span class="note">${esc(T('ochiq'))}</span>`:`<button class="btn" data-vo="${v.id}">${esc(T('Ochish'))}</button>`}${V.length>1?`<button class="btn${VARM===v.id?' bad':''}" data-vd="${v.id}">${esc(T(VARM===v.id?'Tasdiqlang':'Oʻchirish'))}</button>`:''}</div></th>`).join('')}</tr>
+    ${rows.map(r=>`<tr><td>${esc(T(r[0]))}</td>${V.map(v=>`<td class="${v.id===VARS.cur?'cur':''}">${v.sum&&v.sum[r[1]]!=null?esc(r[2](v.sum[r[1]])):'—'}</td>`).join('')}</tr>`).join('')}</table></div>
+    <p class="note">${esc(T('Linzalar natijasi (insolyatsiya, shamol, 15 daqiqa) variantda shu linza yoqilgan holda saqlanadi; «—» — hali hisoblanmagan. Insolyatsiya talabi va sanasi har variantning oʻz sozlamasidan.'))}</p></div>`;
+  $('#cmpX').onclick=()=>{$('#cmp').hidden=true;VARM=null;};
+  $$('#cmp [data-vo]').forEach(b=>b.onclick=()=>{switchVar(b.dataset.vo);renderCmp();});
+  $$('#cmp [data-vd]').forEach(b=>b.onclick=()=>delVar(b.dataset.vd));
+  $$('#cmp [data-vn]').forEach(i=>i.onchange=()=>{const v=VARS.items.find(x=>x.id===i.dataset.vn);if(v){v.name=i.value.trim().slice(0,24)||v.name;varsSave();renderVars();}});}
+/* ---------- 6-bosqich: albomga ---------- */
+function matPut(o){return new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=res;t.onerror=()=>rej(t.error);};r.onerror=()=>rej(r.error);});}
+async function toAlbum(){const st=$('#albSt');
+  try{if(!BLK.length)throw new Error(T('avval koʻchalar va kvartallar kerak'));st.textContent=T('Tayyorlanmoqda…');snapVar();
+    const vn=curVar().name,t=new Date().toISOString(),id=Date.now().toString(36),to=ms=>new Promise(r=>setTimeout(r,ms));
+    map.triggerRepaint();await Promise.race([new Promise(r=>map.once('render',r)),to(900)]);await Promise.race([new Promise(r=>requestAnimationFrame(r)),to(200)]);
+    const cv=map.getCanvas(),src=cv.toDataURL('image/png'),view={plan:'reja',axo:'aksonometriya',fg:'figure-ground'}[S.view]||'',lens=[LENS.sh&&'soya '+MRCHK.hm(HR),LENS.ins&&'insolyatsiya',LENS.dist&&'masofalar',LENS.wind&&'shamol',LENS.walk&&'15 daqiqa'].filter(Boolean).join(', ');
+    const zl=ZT.filter(z=>BLK.some(b=>b.z&&b.z.z===z.k)).map(z=>({col:z.c,label:z.n,kind:'fill',on:true}));
+    await matPut({id:'mr'+id,kind:'png',name:`${T('Master reja')} — ${T('variant')} ${vn}`,src,thumb:src,aspect:cv.width/cv.height,sub:view+(lens?' · '+lens:''),t,legend:S.view==='fg'?[{col:'#111111',label:'Binolar',kind:'fill',on:true}]:zl.concat([{col:'#b23a2e',label:'Qizil chiziq',kind:'line',dash:true,on:true}])});
+    let n=1;const fc=fgCanvas(2400,`Figure-ground — ${T('variant')} ${vn}`);
+    if(fc){const s2=fc.toDataURL('image/png');await matPut({id:'mrfg'+id,kind:'png',name:`Figure-ground — ${T('variant')} ${vn}`,src:s2,thumb:s2,aspect:fc.width/fc.height,sub:T('binolar qora, ochiq joy oq'),t,legend:[{col:'#111111',label:'Binolar',kind:'fill',on:true}]});n++;}
+    const tc=tepCanvas(`${T('TEP')} — ${T('variant')} ${vn}`,curVar().sum||{}),s3=tc.toDataURL('image/png');
+    await matPut({id:'mrtep'+id,kind:'png',name:`${T('TEP')} — ${T('variant')} ${vn}`,src:s3,thumb:s3,aspect:tc.width/tc.height,sub:T('master reja muharriri'),t});n++;
+    st.textContent=`${n} ${T('ta material albomga yuborildi (Albom → Varaqlar).')}`;}
+  catch(e){st.textContent=T('Yuborilmadi')+': '+e.message;}}
 async function init(){
   try{MOD=await (await fetch('data/kocha-modullari.json?v=1')).json();}catch(e){MOD={dk:{},presets:[{id:'res',g:'—',n:'Koʻcha',W:15,lanes:2,st:[['lane',7,0]]}]};}
   MOD.presets.forEach(p=>PRE[p.id]=p);
-  load();
+  load();varsLoad();renderVars();
   map.on('load',()=>{
     SITE=siteRing();if(SITE)K=78271.517*Math.cos(turf.center(turf.polygon([SITE])).geometry.coordinates[1]*Math.PI/180);
     else if(D.nodes.length)K=78271.517*Math.cos(D.nodes[0].ll[1]*Math.PI/180);
@@ -685,5 +772,5 @@ async function init(){
   $('#emptyGo').onclick=()=>{$('#empty').hidden=true;};
 }
 init();
-window.MR={get D(){return D;},get BLK(){return BLK;},get S(){return S;},get INS(){return INS;},get WIND(){return WIND;},get WALK(){return WALK;},WS,get DST(){return DST;},LENS,setHr:h=>{HR=h;renderLensMap();},act,undo,redo,map,kpis,draw,bake,bldOp,rectFrom};   // sinov va keyingi bosqichlar uchun
+window.MR={get D(){return D;},get BLK(){return BLK;},get S(){return S;},get INS(){return INS;},get WIND(){return WIND;},get WALK(){return WALK;},get VARS(){return VARS;},snapVar,switchVar,dupVar,toAlbum,fgSVG,WS,get DST(){return DST;},LENS,setHr:h=>{HR=h;renderLensMap();},act,undo,redo,map,kpis,draw,bake,bldOp,rectFrom};   // sinov va keyingi bosqichlar uchun
 })();
