@@ -51,7 +51,10 @@ function prep(ctx){const D=ctx.D,MX=ctx.MX,MY=ctx.MY,ringLL=D.ring,c0=ringLL.red
   const convex=isConvex(ring),ins=p=>pip(p,ring),R=Math.max(...ring.map(p=>Math.hypot(p[0],p[1])));
   const use=t=>{const b=t.building||'';if(/^(apartments|residential|house|detached|semidetached_house|terrace|dormitory)$/.test(b))return 'res';if(/^(commercial|retail|supermarket|kiosk|hotel)$/.test(b)||t.shop)return 'com';if(b==='office'||t.office)return 'off';if(/^(school|kindergarten|university|college|hospital|clinic|public|civic|government|mosque|church)$/.test(b)||t.amenity)return 'soc';if(/^(industrial|warehouse|garages|garage|service)$/.test(b))return 'ind';return 'other';};
   const blds=[];((D.blds&&D.blds.elements)||[]).forEach(w=>{let g=(w.geometry||[]).map(q=>P([q.lat,q.lon]));if(g.length>3&&Math.hypot(g[0][0]-g[g.length-1][0],g[0][1]-g[g.length-1][1])<.01)g.pop();if(g.length<3)return;
-    const c=g.reduce((s,p)=>[s[0]+p[0]/g.length,s[1]+p[1]/g.length],[0,0]);if(!ins(c))return;const t=w.tags||{},lv=parseFloat(t['building:levels']),hh=parseFloat(String(t.height||'').replace(',','.'));
+    let c=g.reduce((s,p)=>[s[0]+p[0]/g.length,s[1]+p[1]/g.length],[0,0]);
+    /* chegarani kesib o'tgan bino chegara bo'yicha qirqiladi — doiradan tashqarida hajm qolmaydi */
+    if(!g.every(ins)){const cp=clipPoly(ccw(g),ring,convex);if(!cp||cp.length<3)return;g=cp;c=g.reduce((s,p)=>[s[0]+p[0]/g.length,s[1]+p[1]/g.length],[0,0]);}
+    const t=w.tags||{},lv=parseFloat(t['building:levels']),hh=parseFloat(String(t.height||'').replace(',','.'));
     blds.push({g:ccw(g),c,lv:lv>0?lv:null,h:hh>0?hh:null,u:use(t)});});
   const roads={major:[],minor:[],foot:[]};let roadKm=0;
   ((D.roads&&D.roads.elements)||[]).forEach(w=>{const t=w.tags||{},h=t.highway;if(!RW[h]||t.tunnel==='yes')return;const g=(w.geometry||[]).map(q=>P([q.lat,q.lon]));
@@ -150,13 +153,13 @@ function panel(){const o=S.opt,p=S.pal,d=S.data,el=S.ov.querySelector('#a3p');co
   pp.closest('.chip').setAttribute('aria-pressed',!!o.persp);sh.closest('.chip').setAttribute('aria-pressed',!!o.shadow);
   pp.onchange=e=>{o.persp=e.target.checked;pp.closest('.chip').setAttribute('aria-pressed',o.persp);setView(o.view);};
   sh.onchange=e=>{o.shadow=e.target.checked;sh.closest('.chip').setAttribute('aria-pressed',o.shadow);applyShadow();saveOpt();render();};
-  el.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{o.preset=b.dataset.pr;const pr=PRESET[o.preset];Object.assign(S.pal,PAL0,pr);delete S.pal.edges;restyle();panel();saveOpt();});
+  el.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{o.preset=b.dataset.pr;const pr=PRESET[o.preset];Object.assign(S.pal,PAL0,pr,o.cpal||{});delete S.pal.edges;restyle();panel();saveOpt();});
   el.querySelectorAll('[data-ly]').forEach(i=>i.onchange=()=>{L[i.dataset.ly]=i.checked?1:0;if(i.dataset.ly==='rel'&&L.rel&&S.ex>.01)ensureRel();vis();applyLevels();if(S.ex>.01)recenter();saveOpt();if(i.dataset.ly==='pins')setView(o.view);else render();});
   el.querySelectorAll('[data-bm]').forEach(b=>b.onclick=()=>{o.bmode=b.dataset.bm;buildBlds();panel();saveOpt();render();});
   const rng=(id,k,fn)=>{const i=el.querySelector(id);i.oninput=()=>{o[k]=+i.value;i.nextElementSibling.textContent=i.value;fn();render();};i.onchange=saveOpt;};
   rng('#a3lv','lv',buildBlds);rng('#a3fh','fh',buildBlds);{const i=el.querySelector('#a3ph');i.oninput=()=>{o.pinK=+i.value/S.data.R;i.nextElementSibling.textContent=i.value;buildPins();fitCam();render();};i.onchange=saveOpt;}rng('#a3ps','pinS',buildPins);
-  el.querySelectorAll('[data-pc]').forEach(i=>{i.onclick=e=>e.stopPropagation();i.oninput=()=>{S.pal[i.dataset.pc]=i.value;restyle();saveOpt();};});
-  el.querySelector('#a3rc').onclick=e=>{e.preventDefault();S.pal=Object.assign({},PAL0,PRESET[o.preset]);delete S.pal.edges;restyle();panel();saveOpt();};
+  el.querySelectorAll('[data-pc]').forEach(i=>{i.onclick=e=>e.stopPropagation();i.oninput=()=>{S.pal[i.dataset.pc]=i.value;(S.opt.cpal=S.opt.cpal||{})[i.dataset.pc]=i.value;restyle();saveOpt();};});
+  el.querySelector('#a3rc').onclick=e=>{e.preventDefault();o.cpal={};S.pal=Object.assign({},PAL0,PRESET[o.preset]);delete S.pal.edges;restyle();panel();saveOpt();};
   el.querySelector('#a3stl').onchange=e=>{o.stl=+e.target.value;saveOpt();};
   el.querySelectorAll('[data-exk]').forEach(b=>b.onclick=()=>setExplode(b.dataset.exk==='1'));
   {const i=el.querySelector('#a3exg');i.oninput=()=>{o.exGap=+i.value/S.data.R;i.nextElementSibling.textContent=i.value;applyLevels();recenter();render();};i.onchange=saveOpt;}
@@ -246,7 +249,7 @@ function buildBlds(){const g=grp('gBld'),pos=[],col=[],ed=[];S.data.blds.forEach
     for(let i=0;i<r.length;i++){const a=r[i],q=r[(i+1)%r.length];pos.push(a[0],0,-a[1],q[0],0,-q[1],q[0],h,-q[1],a[0],0,-a[1],q[0],h,-q[1],a[0],h,-a[1]);ed.push(a[0],h,-a[1],q[0],h,-q[1],a[0],0,-a[1],a[0],h,-a[1],a[0],0,-a[1],q[0],0,-q[1]);}
     for(let i=n0;i<pos.length;i+=3)col.push(...c);});
   if(!pos.length)return;const m=new THREE.Mesh(geo(pos,col),new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}));m.castShadow=true;m.receiveShadow=true;m.name='binolar';m.userData.lay='bld';g.add(m);
-  const eg=new THREE.BufferGeometry();eg.setAttribute('position',new THREE.Float32BufferAttribute(ed,3));const e=new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:S.pal.edge,transparent:true,opacity:S.opt.preset==='bw'?.9:.55}));e.name='kontur';e.userData.lay='bld';e.userData.edge=1;g.add(e);vis();}
+  const eg=new THREE.BufferGeometry();eg.setAttribute('position',new THREE.Float32BufferAttribute(ed,3));const e=new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:S.pal.edge,transparent:true,opacity:S.opt.preset==='bw'?.9:.55}));e.name='kontur';e.userData.lay='bld';e.userData.edge=1;g.add(e);vis();if(S.root&&S.data)try{g.position.y=levels().y.bld;}catch(_){}}
 function treeMesh(g,t,colKey,name){if(!t.length)return;const cr=new THREE.IcosahedronGeometry(1,1),tr=new THREE.CylinderGeometry(.18,.25,1,6);
   const mc=new THREE.InstancedMesh(cr,mat(colKey,S.pal[colKey],{side:THREE.FrontSide}),t.length),mt=new THREE.InstancedMesh(tr,mat('trunk','#8a7a62',{side:THREE.FrontSide}),t.length),M=new THREE.Matrix4(),q=new THREE.Quaternion(),sc=new THREE.Vector3();
   t.forEach((p,i)=>{const h=((Math.abs(p[0]*7.3+p[1]*3.1))%1)*.5+.8,r=3*h;M.compose(new THREE.Vector3(p[0],2.6*h+r*.8,-p[1]),q,sc.set(r,r*.95,r));mc.setMatrixAt(i,M);M.compose(new THREE.Vector3(p[0],1.6*h,-p[1]),q,sc.set(1,3.2*h,1));mt.setMatrixAt(i,M);});
@@ -259,7 +262,7 @@ function buildSites(){const g=grp('gSite'),d=S.data;const pts=[...d.sites,...(S.
   d.sites.forEach(r=>dashDot(r,d.R).forEach(sg=>ribbon(sg,w,.6,pos)));
   if(S.sdraw&&S.sdraw.length>1){const open=S.sdraw.slice();for(let i=1;i<open.length;i++)ribbon([open[i-1],open[i]],w*.8,.65,pos);}
   if(pos.length){const m=new THREE.Mesh(geo(pos),new THREE.MeshBasicMaterial({color:S.pal.site,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4}));m.name='uchastka';m.renderOrder=5;g.add(m);}
-  (S.sdraw||[]).forEach((p,i)=>{const c=new THREE.Mesh(new THREE.CircleGeometry(i===0&&S.sdraw.length>2?w*4:w*2.4,18),new THREE.MeshBasicMaterial({color:i===0&&S.sdraw.length>2?S.pal.site:'#ffffff',side:THREE.DoubleSide}));c.rotation.x=-Math.PI/2;c.position.set(p[0],.8,-p[1]);g.add(c);});vis();}
+  (S.sdraw||[]).forEach((p,i)=>{const c=new THREE.Mesh(new THREE.CircleGeometry(i===0&&S.sdraw.length>2?w*4:w*2.4,18),new THREE.MeshBasicMaterial({color:i===0&&S.sdraw.length>2?S.pal.site:'#ffffff',side:THREE.DoubleSide}));c.rotation.x=-Math.PI/2;c.position.set(p[0],.8,-p[1]);g.add(c);});vis();if(S.root&&S.data)try{g.position.y=levels().y.bld;}catch(_){}}
 function buildTrees(){const g=grp('gTree'),t=S.data.trees;if(!t.length)return;const cr=new THREE.IcosahedronGeometry(1,1),tr=new THREE.CylinderGeometry(.18,.25,1,6);
   const mc=new THREE.InstancedMesh(cr,mat('tree',S.pal.tree,{side:THREE.FrontSide}),t.length),mt=new THREE.InstancedMesh(tr,mat('trunk','#8a7a62',{side:THREE.FrontSide}),t.length),M=new THREE.Matrix4(),q=new THREE.Quaternion(),sc=new THREE.Vector3();
   t.forEach((p,i)=>{const h=((Math.abs(p[0]*7.3+p[1]*3.1))%1)*.5+.8,r=3*h;M.compose(new THREE.Vector3(p[0],2.6*h+r*.8,-p[1]),q,sc.set(r,r*.95,r));mc.setMatrixAt(i,M);M.compose(new THREE.Vector3(p[0],1.6*h,-p[1]),q,sc.set(1,3.2*h,1));mt.setMatrixAt(i,M);});

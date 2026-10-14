@@ -42,7 +42,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 .met b.poor{color:var(--bad)}.met abbr{text-decoration:none;cursor:help}
 .st{font-style:normal;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;border-radius:9px;padding:0 6px;margin-left:4px}.st.ok{color:var(--ok)}.st.fair{color:#95620f}.st.poor{color:var(--bad)}
 .verdict{font-size:15px;line-height:1.5;margin:6px 0 0}
-.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.kpi{border:1px solid var(--line);border-top:3px solid #b8b5ad;padding:8px 9px;display:flex;flex-direction:column;gap:2px}
+.kpis{display:grid;grid-template-columns:1fr;gap:6px}.kpi{display:grid!important;grid-template-columns:30px 1fr;gap:10px;align-items:start}.kpi .ki{color:var(--ink);padding-top:2px}.kpi .kq{display:block;font-size:13px;font-weight:600;color:var(--ink)}.kpi .kh{display:block;font-size:11.5px;line-height:1.35;color:var(--grey);margin-top:2px}.kpi .st{margin-left:8px;font-style:normal;font-size:11px}.kpi{border:1px solid var(--line);border-top:3px solid #b8b5ad;padding:8px 9px;display:flex;flex-direction:column;gap:2px}
 .kpi b{font-family:var(--mono);font-weight:500;font-size:20px;line-height:1.1}.kpi b small{font-size:12px;color:var(--grey)}.kpi span{font-size:12px;line-height:1.3;color:var(--txt)}
 .kpi.ok{border-top-color:var(--ok)}.kpi.fair{border-top-color:#95620f}.kpi.poor{border-top-color:var(--bad)}
 details.more>summary{cursor:pointer;list-style:none;font-size:11.5px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase;padding:6px 0;border-top:1px solid var(--line)}details.more>summary::before{content:'+ '}details.more[open]>summary::before{content:'− '}
@@ -89,7 +89,7 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 <script src="js/basemap.js?v=1"></script>
 <script src="js/project.js?v=2"></script>
 <script src="js/uly.js?v=5"></script>
-<script src="js/ai3d.js?v=14"></script>
+<script src="js/ai3d.js?v=15"></script>
 <script>
 (function(){
 'use strict';
@@ -100,23 +100,23 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const fi=v=>Math.round(v).toLocaleString('ru-RU'),f1=v=>(Math.round(v*10)/10).toLocaleString('ru-RU'),f2=v=>(Math.round(v*100)/100).toLocaleString('ru-RU');
 const map=L.map('map',{doubleClickZoom:false}).setView([41.3111,69.2797],14);
 const KB=KPSMAP.leaflet(map);   // umumiy fon xarita va xarita holati (js/basemap.js)
-ULY.init(map,document.querySelector('.mapw'));
+ULY.init(map,document.querySelector('.mapw'));if(map.zoomControl)map.zoomControl.setPosition('bottomright');
 let SDRAW=null;const SL=L.layerGroup().addTo(map);
-(()=>{const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.style.marginTop='6px';d.style.clear='both';d.innerHTML='<button id="siteBtn" title="Yer uchastkasi chegarasini chizish (qizil shtrix-punktir)"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l12-4 4 12-13 4z" stroke-dasharray="3.5 2"/></svg>Uchastka</button>';L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
+(()=>{if(window.parent!==window)return;const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.style.marginTop='6px';d.style.clear='both';d.innerHTML='<button id="siteBtn" title="Yer uchastkasi chegarasini chizish (qizil shtrix-punktir)"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l12-4 4 12-13 4z" stroke-dasharray="3.5 2"/></svg>Uchastka</button>';L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
 function siteRender(){SL.clearLayers();if(SDRAW&&SDRAW.length){L.polyline(SDRAW,{color:'#c62828',weight:2,dashArray:'14 5 2 5',interactive:false}).addTo(SL);SDRAW.forEach((p,i)=>L.circleMarker(p,{radius:i===0&&SDRAW.length>2?7:4,color:'#c62828',weight:2,fillColor:i===0&&SDRAW.length>2?'#c62828':'#fff',fillOpacity:1}).addTo(SL).on('click',e=>{L.DomEvent.stop(e);if(i===0)siteClose();}));}
-  SITES.forEach((x,k)=>L.polygon(x.pts,{color:'#c62828',weight:10,opacity:0,fill:false}).addTo(SL).on('click',e=>{if(SDRAW)return;L.DomEvent.stop(e);if(confirm('Bu uchastka chegarasi oʻchirilsinmi?')){SITES.splice(k,1);saveSites();laySites();siteRender();}}));}
+  if(!SITE_LOCK)SITES.forEach((x,k)=>L.polygon(x.pts,{color:'#c62828',weight:10,opacity:0,fill:false}).addTo(SL).on('click',e=>{if(SDRAW)return;L.DomEvent.stop(e);if(confirm('Bu uchastka chegarasi oʻchirilsinmi?')){SITES.splice(k,1);saveSites();laySites();siteRender();}}));}
 function siteHint(){const h=$('#hint');h.innerHTML=`<b>Uchastka chegarasi.</b> Burchaklarni bosing (${SDRAW.length}).${SDRAW.length>2?' Yopish — birinchi nuqta yoki Enter.':''}<button id="sClose" ${SDRAW.length>2?'':'disabled'}>Yopish</button><button id="sEsc">Bekor</button>`;$('#sClose').onclick=siteClose;$('#sEsc').onclick=()=>{SDRAW=null;siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');};}
 function siteClose(){if(!SDRAW||SDRAW.length<3)return;SITES.push({id:Date.now().toString(36),pts:SDRAW});SDRAW=null;saveSites();laySites();siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');toast('Uchastka chegarasi saqlandi — xaritada, albomda va 3D da koʻrinadi.');}
-setTimeout(()=>{$('#siteBtn').onclick=()=>{if(SDRAW){SDRAW=null;siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');return;}SDRAW=[];$('#siteBtn').setAttribute('aria-pressed','true');siteHint();};laySites();siteRender();},0);
+setTimeout(()=>{if($('#siteBtn'))$('#siteBtn').onclick=()=>{if(SDRAW){SDRAW=null;siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');return;}SDRAW=[];$('#siteBtn').setAttribute('aria-pressed','true');siteHint();};laySites();siteRender();},0);
 const A=L.layerGroup().addTo(map),O=L.layerGroup().addTo(map);
 let mode='radius',center=null,poly=[],done=false,res=null,aiText='',rectA=null,rectCur=null,DIRTY=true,CLIP=localStorage.getItem('kps_ai_clip')==='1';
 const KEY=()=>localStorage.getItem('kps_ai_key')||'',MODEL=()=>localStorage.getItem('kps_ai_model')||'claude-sonnet-5';
 /* loyiha ichida hudud chegarasi faqat asosiy oynada (H) chiziladi — bu yerda takrorlanmaydi */
 const SITE_LOCK=window.parent!==window;
-if(SITE_LOCK){const st=document.createElement('style');st.textContent='#modeSeg,#modeSeg+.km{display:none!important}';document.head.appendChild(st);}
+if(SITE_LOCK){const st=document.createElement('style');st.textContent='#modeSeg,#modeSeg+.km,#a3site{display:none!important}';document.head.appendChild(st);}
 function hint(){const h=$('#hint');
   if(SITE_LOCK){const has=mode==='radius'?!!center:(done&&poly.length>2);
-    h.innerHTML=has?'<b>Hudud asosiy oynadan olingan.</b> «Hisoblash» ni bosing. Chegarani oʻzgartirish — <a href="#" id="toHud">Hudud chegarasi</a>.':'<b>Hudud hali belgilanmagan.</b> Uni asosiy oynada chizing: <a href="#" id="toHud">Hudud chegarasi →</a>';
+    h.innerHTML=has?'Hudud — asosiy oynadan. <a href="#" id="toHud">Chegarani oʻzgartirish</a>':'<b>Hudud hali belgilanmagan.</b> Uni asosiy oynada chizing: <a href="#" id="toHud">Hudud chegarasi →</a>';
     const a=$('#toHud');if(a)a.onclick=ev=>{ev.preventDefault();try{parent.postMessage({kps:'go',href:'muharrir.html#hudud'},location.origin);}catch(er){}};return;}
 if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgartiring yoki «Hisoblash» ni bosing.':'<b>Doira.</b> Xaritada markazni bosing.';
   else if(mode==='rect')h.innerHTML=done?'<b>Toʻrtburchak tayyor.</b> «Hisoblash» ni bosing yoki qaytadan ikki burchakni bosing.':rectA?'<b>Toʻrtburchak.</b> Qarama-qarshi burchakni bosing.':'<b>Toʻrtburchak.</b> Birinchi burchakni bosing.';
@@ -126,8 +126,8 @@ if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgart
 function curRing(){if(LASTD&&LASTD.ring&&!DIRTY)return LASTD.ring;if(mode==='radius'&&center){const r=+$('#rKm').value*1000,mx=111320*Math.cos(center[0]*R),o=[];for(let i=0;i<72;i++){const a=i/72*2*Math.PI;o.push([center[0]+r*Math.sin(a)/MY,center[1]+r*Math.cos(a)/mx]);}return o;}return done&&poly.length>2?poly:null;}
 map.createPane('maskP');map.getPane('maskP').style.zIndex=620;map.getPane('maskP').style.pointerEvents='none';
 const MASK=L.layerGroup().addTo(map);
-function updMask(){MASK.clearLayers();if(!CLIP)return;const r=curRing();if(!r)return;const W=[[-85,-180],[-85,180],[85,180],[85,-180]];
-  L.polygon([W,r],{pane:'maskP',stroke:false,fillColor:'#f4f3f1',fillOpacity:1,interactive:false}).addTo(MASK);L.polygon(r,{pane:'maskP',color:'#141414',weight:1.2,dashArray:'6 5',fill:false,interactive:false}).addTo(MASK);}
+function updMask(){MASK.clearLayers();const r=curRing();if(!r)return;const W=[[-85,-180],[-85,180],[85,180],[85,-180]];
+  L.polygon([W,r],{pane:'maskP',stroke:false,fillColor:'#f4f3f1',fillOpacity:CLIP?1:.62,interactive:false}).addTo(MASK);L.polygon(r,{pane:'maskP',color:'#141414',weight:1.2,dashArray:'6 5',fill:false,interactive:false}).addTo(MASK);}
 let siteT=0;function publishSite(){clearTimeout(siteT);siteT=setTimeout(()=>{const r=curRing();if(!r||r.length<3)return;
   const ring=r.map(p=>[+(+p[0]).toFixed(6),+(+p[1]).toFixed(6)]);let prev=null;try{prev=JSON.parse(localStorage.getItem('kps_site')||'null');}catch(e){}
   if(prev&&JSON.stringify(prev.ring)===JSON.stringify(ring))return;   // oʻzgarmagan
@@ -424,8 +424,12 @@ function autoTrees(D){const E=D.E,out=[],SP={forest:6,wood:6,orchard:7,park:9,ga
       const p=[la+(j1-.5)*st*.7/MY,lo+(j2-.5)*st*.7/MX];if(!pip(p,r)||!D.inside(p)||inBld(p)||(veg&&!veg(p)))continue;out.push(p);}});
   return out;}
 /* ---- uchastka chegarasi (qizil shtrix-punktir) ---- */
-let SITES=[];try{SITES=JSON.parse(localStorage.getItem('kps_ai_sites')||'[]');}catch(e){}
-const saveSites=()=>{try{localStorage.setItem('kps_ai_sites',JSON.stringify(SITES));}catch(e){}};
+/* loyiha ichida (SITE_LOCK) uchastka — asosiy oynadagi chegara (kps_mr_doc → plot, [lat,lng]); bu yerda tahrirlanmaydi */
+function docSites(){try{const d=JSON.parse(localStorage.getItem('kps_mr_doc')||'null'),p=d&&d.plot;if(!p||!p.ring||p.ring.length<3)return [];
+  const o=[{id:'plot',pts:p.ring.map(q=>[+q[0],+q[1]])}];(p.parts||[]).forEach((q,i)=>o.push({id:'plot'+i,pts:q.ring.map(v=>[+v[0],+v[1]]),hole:!!q.hole}));return o;}catch(e){return [];}}
+let SITES=[];if(SITE_LOCK)SITES=docSites();else{try{SITES=JSON.parse(localStorage.getItem('kps_ai_sites')||'[]');}catch(e){}}
+const saveSites=()=>{if(SITE_LOCK)return;try{localStorage.setItem('kps_ai_sites',JSON.stringify(SITES));}catch(e){}};
+if(SITE_LOCK)window.addEventListener('storage',e=>{if(e.key==='kps_mr_doc'){SITES=docSites();laySites();siteRender();}});
 function laySites(){if(!SITES.length){ULY.remove&&ULY.LY.sites&&ULY.remove('sites');return;}
   ULY.set('sites',{name:'Uchastka chegarasi',group:'Loyiha',kind:'line',data:SITES.map(x=>x.pts.concat([x.pts[0]])),st:{color:'#c62828',size:2.2,opacity:1},dashFn:()=>'14 5 2.5 5',
     note:'Chizish: xarita oʻng tomonidagi «✎ Uchastka» tugmasi. Oʻchirish — chegarani bosing.'});}
@@ -562,7 +566,13 @@ function summary(){const good=[],bad=[],J=a=>a.map(x=>`<span>${x}</span>`).join(
 function metRow(n,k,u,mx,d){const v=res[k];if(v==null)return '';const s=stOf(k,v),b=BENCH[k];
   return `<div class="met"><span>${n}</span><b class="${s||''}">${typeof v==='number'?f1(v):v} ${u}</b><i>${b?`<u style="left:${Math.min(100,b.v/mx*100)}%"></u>`:''}<s class="${s||'na'}" style="width:${Math.min(100,v/mx*100)}%"></s></i><small>${d}${b?` · moʻljal ${b.v} <abbr title="${esc(b.src)}">ⓘ</abbr>`:''}${s?` <em class="st ${s}">${ST_T[s]}</em>`:''}</small></div>`;}
 function kpiCards(){return `<div class="kpis">${KPI.map(k=>{const m=MET.find(x=>x[1]===k);const v=res[k];if(!m||v==null)return '';const s=k==='transit_400m_coverage_pct'?(v>=80?'ok':v>=50?'fair':'poor'):stOf(k,v);
-  return `<div class="kpi ${s||''}"><b>${f1(v)}<small> ${m[2]}</small></b><span>${m[0]}</span></div>`;}).join('')}</div>`;}
+  const P=KPI_PLAIN[k]||{};return `<div class="kpi ${s||''}"><i class="ki" aria-hidden="true">${P.ic||''}</i><div><span class="kq">${P.q||m[0]}</span><b>${f1(v)}<small> ${m[2]}</small></b>${s?`<em class="st ${s}">${ST_T[s]}</em>`:''}<small class="kh">${P.h||''}</small></div></div>`;}).join('')}</div>`;}
+/* oddiy tilda: soha mutaxassisi bo'lmagan foydalanuvchi uchun savol va izoh */
+const KI=d=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const KPI_PLAIN={
+  transit_400m_coverage_pct:{q:'Bekat yaqinmi?',h:'Hududning qancha qismidan avtobus/metro bekatigacha 400 m dan kam (≈5 daqiqa piyoda). Moʻljal ≥ 80 %.',ic:KI('<rect x="5" y="3" width="14" height="14" rx="2"/><path d="M5 11h14M8 20l1-3M16 20l-1-3"/><circle cx="8.5" cy="14" r=".6"/><circle cx="15.5" cy="14" r=".6"/>')},
+  green_area_share_pct:{q:'Yashillik yetarlimi?',h:'Hududning necha foizi park, bogʻ, maysazor (OpenStreetMap). Moʻljal ≥ 15 %.',ic:KI('<path d="M12 21v-6"/><path d="M12 15c-4 0-6-3-6-6a6 6 0 0 1 12 0c0 3-2 6-6 6z"/>')},
+  intersection_density_per_km2:{q:'Piyoda yurish qulaymi?',h:'1 km² dagi chorrahalar soni: koʻp boʻlsa — kvartallar kichik, yoʻl qisqa. Moʻljal ≈ 100.',ic:KI('<path d="M3 8h18M3 16h18M8 3v18M16 3v18"/>')}};
 function md(t){return esc(t).replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h3>$1</h3>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^(?:- |\* )(.*)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`).split(/\n{2,}/).map(p=>/^<(h3|ul)/.test(p)?p:`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');}
 function prmBox(){const f=(id,k,st)=>{const m=KP.meta(k);return `<label title="${esc(m.src)}">${esc(m.l)}${m.u?', '+esc(m.u):''}<input id="${id}" type="number" step="${st}" value="${m.v}" style="width:100%${m.custom?';border-color:var(--ink)':''}"></label>`;};
   return `<div><div class="lbl">Loyiha parametrlari · barcha qadamlarda bir xil</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--grey)">${f('pSp','speed',0.1)}${f('pLv','lvUnknown',1)}${f('pMp','mppGross',1)}${f('pHh','hh',0.01)}</div><div class="note">Manba — maydon ustiga sichqonchani olib boring. Oʻzgartirsangiz, Joylashtirish va Master reja ham shu qiymatni oladi. Keyin «Hisoblash» ni qayta bosing.</div></div>`;}
@@ -586,7 +596,7 @@ function renderRes(){if(!res){$('#body').innerHTML=`<div class="empty"><h2>Hudud
   const sv=()=>{const d=[...document.querySelectorAll('details.more')].map(x=>x.open?1:0).join('');try{localStorage.setItem('kps_ai_more',d);}catch(e){}};
   const op=(i,def)=>{const d=localStorage.getItem('kps_ai_more')||'';return (d[i]!=null?d[i]==='1':def)?' open':'';};
   let h=`<div><h2>Hudud bahosi</h2><div class="sub">${esc(res.mode)} · ${f2(res.area_km2)} km² · OpenStreetMap</div><p class="verdict">${summary()}</p></div>${kpiCards()}
-  <details class="more"${op(0,true)}><summary>Barcha koʻrsatkichlar · ${MET.filter(m=>res[m[1]]!=null).length}</summary>`;
+  <details class="more"${op(0,false)}><summary>Barcha koʻrsatkichlar · ${MET.filter(m=>res[m[1]]!=null).length}</summary>`;
   MET.forEach(([n,k,u,mx,col,d])=>{h+=metRow(n,k,u,mx,d);});
   h+=`<div class="met"><span>Bekatlar · chorrahalar · xizmatlar</span><b>${res.transit_stops} · ${res.intersections} · ${res.services_poi}</b></div><div class="met"><span>Maktab · bogʻcha · sogʻliqni saqlash</span><b>${res.social.school} · ${res.social.kindergarten} · ${res.social.health}</b></div>
     <div class="note">Rang — xalqaro moʻljal bilan solishtirish (ⓘ — manba). Moʻljali yoʻq koʻrsatkich kulrang. Normativ (ShNQ) tekshiruv — «Master reja» panelida.</div></details>
@@ -698,9 +708,10 @@ function adoptSite(s){if(!s||!s.ring||s.ring.length<3)return false;
   if(mode==='radius'){center=[+s.center[0],+s.center[1]];if(s.r)$('#rKm').value=+(s.r/1000).toFixed(3);poly=[];done=false;}
   else{poly=s.ring.map(p=>[+p[0],+p[1]]);center=null;done=true;}
   rectA=null;rectCur=null;DIRTY=true;PV.clearLayers();drawArea();hint();return true;}
-window.addEventListener('storage',e=>{if(e.key!=='kps_site')return;const s=readSite();if(s&&s.src==='muharrir'){adoptSite(s);toast('Hudud Master reja oynasidan olindi — natijalar uchun «Hisoblash» ni bosing.');}});
+window.addEventListener('storage',e=>{if(e.key!=='kps_site')return;const s=readSite();if(s&&s.src==='muharrir'){adoptSite(s);toast('Hudud yangilandi — «Hisoblash» ni bosing.');}});
 (async()=>{const s=readSite();let last=null;try{last=await rdo('readonly',st=>st.get('last'));}catch(e){}
-  if(s&&s.src==='muharrir'&&(!last||s.t>Date.parse(last.t||0))){adoptSite(s);return;}
+  const auto=location.hash==='#auto';
+  if(s&&s.src==='muharrir'&&(auto||!last||s.t>Date.parse(last.t||0))){adoptSite(s);setTimeout(()=>{if(!$('#runBtn').disabled)compute();},150);return;}
   openRun('last',true).then(ok=>{if(ok)toast('Oxirgi tahlil tiklandi. Boshqalari — «Saqlanganlar» da.');}).catch(()=>{});})();
 })();
 </script>

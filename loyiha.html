@@ -210,16 +210,16 @@ const STEPS=[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
   /* chuqur asboblar — menyuda «Qoʻshimcha»; xarita va maʼlumot asosiy oyna bilan umumiy */
   {id:"qosh", t:"Qoʻshimcha", hidden:true, subs:[
-    {id:"chegara", t:"Hudud bahosi", page:"ai.html", hint:"Asosiy oynada chizilgan hudud shu yerga oʻtadi — «Hisoblash» ni bosing: aholi, xizmatlar, shamol guli. 3D va ikonkalar shu yerda."},
-    {id:"malumot", t:"Maʼlumot yuklash", page:"data.html", hint:"QGIS va boshqa dasturlardan GeoJSON, Shapefile, KML, CSV yuklang — qatlamlar Koʻcha studiyasi va albomda koʻrinadi."},
-    {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area", hint:"Sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi — hududni belgilab tahlil qiling."},
-    {id:"gis", t:"Relyef · zichlik · tarmoqlar", page:"gis.html", hint:"Balandlik, nishablik, yer foydalanish, zichlik setkasi va muhandislik tarmoqlari — 1-qadamdagi hudud ichida. Yuklangan GIS qatlamlar tahlilni boyitadi."},
-    {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat va loyiha taʼsiri bir joyda: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Asosiy oynadagi binolar avtomatik qoʻshiladi — «Farq» koʻrinishida loyiha qayerda havo almashinuvini yomonlashtirishini koʻring."},
-    {id:"loyiha", t:"Koʻcha tafsiloti · YHQ", page:"studio.html", app:"design", hint:"Asosiy oynadagi koʻchalar shu yerga avtomatik keladi — kesim, YHQ tekshiruvi, belgilar va oʻtish joylari. Modul almashtirilsa, asosiy oynada ham almashadi."},
-    {id:"profil", t:"Koʻcha profili", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."},
-    {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."}]}
+    {id:"chegara", t:"Hudud bahosi", page:"ai.html"},
+    {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
+    {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area"},
+    {id:"gis", t:"Relyef · zichlik · tarmoqlar", page:"gis.html"},
+    {id:"shamol", t:"Shamol", page:"shamol.html"},
+    {id:"loyiha", t:"Koʻcha tafsiloti · YHQ", page:"studio.html", app:"design"},
+    {id:"profil", t:"Koʻcha profili", page:"studio.html", app:"prof"},
+    {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="66";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="67";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -303,7 +303,7 @@ function renderNav(){
 ;
   $("qwrap").innerHTML=`<button class="btn qb" id="qBtn" aria-expanded="false" aria-haspopup="true" ${st.hidden?'aria-pressed="true"':""}>Qoʻshimcha ▾</button><div class="qm" id="qMenu" hidden role="menu">${STEPS.find(s=>s.hidden).subs.map((u,k)=>`<button role="menuitem" data-q="${k}">${u.t}</button>`).join("")}</div>`;
   $("subtabs").innerHTML = st.hidden ? `<button data-back>← Loyiha</button><button aria-pressed="true">${st.subs[j].t}</button>` : "";
-  $("hint").textContent=st.subs[j].hint;
+  $("hint").textContent=st.subs[j].hint||"";
   $("nextBtn").textContent = st.id==="loyiha" ? "Albom →" : "← Loyiha";
 }
 $("steps").onclick=e=>{ const b=e.target.closest("button[data-i]"); if(b) show(+b.dataset.i); };
