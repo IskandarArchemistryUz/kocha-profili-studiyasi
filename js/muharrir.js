@@ -23,6 +23,33 @@ const blank=()=>({v:1,nodes:[],edges:[],nid:1,eid:1,preset:'res',zones:[],zid:1,
 /* zonalar: rang yorugʻligi ham farq qiladi (faqat tusga tayanmaslik uchun) */
 const ZT=[{k:'turar',n:'Turar joy',c:'#f1dca6'},{k:'aralash',n:'Aralash (turar + savdo)',c:'#e6b483'},{k:'ijtimoiy',n:'Ijtimoiy (maktab, bogʻcha, poliklinika)',c:'#93b9dc'},{k:'savdo',n:'Savdo / ofis',c:'#dc8f83'},{k:'yashil',n:'Yashil hudud / park',c:'#9fcb88'},{k:'texnik',n:'Muhandislik / avtoturargoh',c:'#bdb8ae'}];
 const ZK=k=>ZT.find(z=>z.k===k);
+/* ---------- atamalar: ShNQ 2.07.01-23 boʻyicha (bandlar Archemistry Urban «Mavze, daha, kvartal» izohidan) ---------- */
+const SIZE=[{k:'daha',n:'Daha (kvartal)',max:10,c:'#2a63d4'},{k:'mavze',n:'Mavze',max:50,c:'#de5f7c'},{k:'tuman',n:'Turar joy tumani',max:250,c:'#4aa874'}];
+const sizeOf=ha=>ha==null?null:SIZE.find(x=>ha<=x.max)||{k:'katta',n:'Turar joy tumanidan katta',max:Infinity,c:'#56677d'};
+const GLOS={
+  daha:{t:'Daha (kvartal)',d:'Eng yaqin koʻchalar bilan chegaralangan hudud — eng kichik shaharsozlik elementi. Koʻchalar bilan boʻlinmagan, maydoni 10 ga gacha.',src:'ShNQ 2.07.01-23: 2-bob (taʼrif), 56-band (oʻlcham)',scale:1},
+  mavze:{t:'Mavze',d:'Daha, mahalla yoki ularning guruhi; qizil chiziqlar bilan chegaralangan, magistral yoki tuman koʻchalari bilan boʻlinmagan hudud, 10–50 ga. Koʻp qavatli kompleks qurilishda hisobiy aholi zichligi 400 kishi/ga dan oshmasligi kerak — bu chegara har uchastkaga emas, butun mavzega tegishli.',src:'ShNQ 2.07.01-23: 56-band (oʻlcham), 84-band (400 kishi/ga)',scale:1},
+  tuman:{t:'Turar joy tumani',d:'Umumiy markazga ega mavzelar guruhi; shahar ahamiyatidagi magistral koʻchalar, temir yoʻllar, tabiiy hududlar bilan boʻlinmagan, 50–250 ga. Maʼmuriy tuman (masalan, Chilonzor tumani) — boshqa tushuncha.',src:'ShNQ 2.07.01-23: 56-band',scale:1},
+  kvartal:{t:'Bu muharrirda «kvartal»',d:'Koʻchalar (qizil chiziqlar) orasidan avtomatik chiqqan yer boʻlagi. Uning ShNQ toifasi maydoniga qarab aniqlanadi: 10 ga gacha — daha (kvartal), 10–50 ga — mavze oʻlchami. Kundalik nutqdagi «9-kvartal» (Chilonzor) normativ maʼnoda mavze.',src:'Toifa chegaralari: ShNQ 2.07.01-23, 56-band',scale:1},
+  qizil:{t:'Qizil chiziq',d:'Koʻcha va boshqa umumiy foydalanishdagi hududni qurilish uchastkalaridan ajratuvchi chegara. Bu yerda qizil chiziqlar orasi = tanlangan koʻcha modulining toʻliq kengligi (qatnov qismi, trotuar, koʻkalamzor).',src:'Kenglik: koʻcha studiyasidagi YHQ modullari'},
+  brutto:{t:'Brutto va netto zichlik',d:'Brutto — aholi butun mavze maydoniga boʻlinadi: turar joy, maktab, bogʻcha, xizmat, koʻkalamzor va avtoturargohlar yeri qoʻshiladi. Netto — faqat turar joy uchastkasiga. Shu sababli 400 kishi/ga (brutto) normasida uchastkaning oʻzida netto zichlik 1,5–2 baravar yuqori boʻladi. «Uchastkam 1 ga — demak 400 kishi» degan talqin xato.',src:'ShNQ 2.07.01-23: 84-band; zichlik jadvali, 3-izoh'},
+  balans:{t:'Hudud balansi',d:'Hudud maydonining vazifalar boʻyicha taqsimoti: turar joy, ijtimoiy, savdo, yashil, koʻchalar. Yigʻindi hudud maydoniga teng boʻlishi kerak — boʻlmasa, biror yer hisobdan tushib qolgan.',src:''},
+  kocha:{t:'Koʻchalar ulushi va zichligi',d:'Koʻchalar ulushi — qizil chiziqlar orasidagi yer / hudud maydoni. Koʻcha zichligi — 1 km² ga necha km koʻcha. Ikkalasi ham piyoda yurish va transport tarmogʻining toʻrliligini koʻrsatadi: siyrak tarmoqda masofalar uzayadi, bir nechta keng koʻchaga yuk tushadi.',src:'Moʻljallar: UN-Habitat, Five Principles (2014) — ≥ 30 % yer, ≥ 18 km/km²'}};
+function scaleHTML(ha){if(ha==null)return '';const X=v=>Math.min(100,Math.log10(1+v)/Math.log10(1+300)*100);
+  let h='<div class="gsc" aria-hidden="true"><div class="gtr">';let a=0;SIZE.forEach(x=>{h+=`<i style="left:${X(a)}%;width:${X(x.max)-X(a)}%;background:${x.c}"></i>`;a=x.max;});
+  h+=`<b style="left:${X(ha)}%"></b></div><div class="gtk"><span style="left:${X(10)}%">10</span><span style="left:${X(50)}%">50</span><span style="left:${X(250)}%">250 ga</span></div></div>`;
+  const s=sizeOf(ha);return h+`<p class="gnow">${fmt(ha,2)} ga → <b style="color:${s.c}">${esc(T(s.n))}</b></p>`;}
+const gi=(k,ha)=>`<button class="gi" data-g="${k}"${ha!=null?` data-ha="${ha}"`:''} aria-label="${esc(T('Izoh'))}: ${esc(T((GLOS[k]||{}).t||k))}">i</button>`;
+function openGlos(btn){const box=$('#gls');const k=btn.dataset.g,g=GLOS[k];if(!g)return;
+  if(!box.hidden&&box.dataset.k===k+btn.dataset.ha){box.hidden=true;return;}
+  const ha=btn.dataset.ha!=null?+btn.dataset.ha:null;
+  box.innerHTML=`<div class="gh"><b>${esc(T(g.t))}</b><button class="gx" aria-label="${esc(T('Yopish'))}">×</button></div><p>${esc(T(g.d))}</p>${g.scale?scaleHTML(ha):''}${g.src?`<p class="gsrc">${esc(T(g.src))}</p>`:''}`;
+  box.dataset.k=k+btn.dataset.ha;box.hidden=false;
+  const r=btn.getBoundingClientRect(),m=$('.main').getBoundingClientRect();let x=r.left-m.left+r.width+8,y=r.top-m.top-8;
+  if(x+320>m.width)x=Math.max(8,r.left-m.left-328);if(y+260>m.height)y=Math.max(8,m.height-270);if(y<8)y=8;
+  if(r.top>m.bottom){x=Math.min(m.width-330,Math.max(8,r.left-m.left));y=m.height-280;}
+  box.style.left=x+'px';box.style.top=y+'px';box.querySelector('.gx').onclick=()=>{box.hidden=true;};}
+document.addEventListener('click',e=>{const b=e.target.closest('.gi');if(b){e.stopPropagation();openGlos(b);return;}if(!e.target.closest('#gls')){const g=$('#gls');if(g)g.hidden=true;}},true);
 let D=blank();
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&v.v===1&&Array.isArray(v.nodes))D=Object.assign(blank(),v);}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(D));}catch(e){}}
@@ -131,7 +158,7 @@ function draw(){
   map.getSource('nodes').setData(FC(showN?D.nodes.map(n=>({type:'Feature',properties:{id:n.id,d:deg(n.id),s:!!(S.sel&&S.sel.t==='n'&&S.sel.id===n.id)||S.draw===n.id},geometry:{type:'Point',coordinates:n.ll}})):[]));
   renderPrev();renderPanel();renderKpi();renderBal();renderLabels();renderUndo();}
 function renderLabels(){const box=$('#labels');if(!box)return;const z=map.getZoom();
-  box.innerHTML=z<14.5?'':BLK.map(b=>{const p=map.project(b.anchor);return `<div class="blbl" style="left:${p.x}px;top:${p.y}px">${esc(b.name)}<small>${fmt(b.ha,2)} ga</small></div>`;}).join('');}
+  box.innerHTML=z<14.5?'':BLK.map(b=>{const p=map.project(b.anchor);const s=sizeOf(b.ha);return `<div class="blbl" style="left:${p.x}px;top:${p.y}px">${esc(b.name)}<small>${fmt(b.ha,2)} ga · <span style="color:${s.c}">${esc(T(s.k==='daha'?'daha':s.k==='mavze'?'mavze oʻlchami':s.k==='tuman'?'tuman oʻlchami':'juda katta'))}</span></small></div>`;}).join('');}
 function renderPrev(){const src=map.getSource('prev');if(!src)return;const a=S.draw&&node(S.draw);
   if(a&&S.cursor){const p=preOf(D.preset);src.setData(FC([{type:'Feature',properties:{W:p.W},geometry:{type:'LineString',coordinates:[a.ll,S.cursor]}}]));}else src.setData(FC());}
 function renderUndo(){$('#undo').disabled=!H.u.length;$('#redo').disabled=!H.r.length;}
@@ -156,18 +183,18 @@ function renderBal(){const el=$('#bal');if(!el)return;const k=kpis(),tot=k.siteH
   if(!BLK.length||!tot){el.innerHTML=`<p class="note">${esc(T('Koʻchalar chizilgach kvartallar avtomatik chiqadi.'))}</p>`;$('#zleg').innerHTML='';return;}
   const roadHa=k.corrPct!=null?k.corrPct/100*tot:0,rows=[...ZT.map(z=>[z.n,k.zha[z.k]||0,z.c]),['Zonasiz kvartallar',k.zha._||0,'#ffffff'],['Koʻchalar (qizil chiziqlar orasi)',roadHa,'#55585c']].filter(r=>r[1]>0.005);
   el.innerHTML=`<div class="bbar">${rows.map(r=>`<i style="flex:${r[1]} 1 0;background:${r[2]}" title="${esc(T(r[0]))}"></i>`).join('')}</div>`+
-    `<div class="kv">${rows.map(r=>`<span>${esc(T(r[0]))}</span><b>${fmt(r[1],2)} ga · ${fmt(r[1]/tot*100,0)} %</b>`).join('')}</div>`;
+    `<div class="kv">${rows.map(r=>`<span>${esc(T(r[0]))}</span><b>${fmt(r[1],2)} ga · ${fmt(r[1]/tot*100,0)} %</b>`).join('')}</div><p class="note" style="margin-top:6px">${gi('balans')} ${esc(T('Hudud balansi nima?'))}</p>`;
   $('#zleg').innerHTML=ZT.map(z=>`<div class="lg"><i style="height:12px;background:${z.c};border:1px solid rgba(0,0,0,.2)"></i>${esc(T(z.n))}</div>`).join('');}
 function renderKpi(){const k=kpis();
-  const c=(v,l,cls)=>`<div class="kpi${cls?' '+cls:''}"><b>${v}</b><span>${esc(T(l))}</span></div>`;
+  const c=(v,l,cls,g,ha)=>`<div class="kpi${cls?' '+cls:''}"><b>${v}</b><span>${esc(T(l))}${g?' '+gi(g,ha):''}</span></div>`;
   const bm=(v,t,u,src)=>v==null?'—':`<i class="${v>=t?'ok':'wn'}" title="${esc(T(src))}">${fmt(v,1)}</i>`;
   $('#kpis').innerHTML=[
-    c(k.siteHa!=null?fmt(k.siteHa,1)+' ga':'—','Hudud'),
+    c(k.siteHa!=null?fmt(k.siteHa,1)+' ga':'—',k.siteHa!=null?'Hudud · '+sizeOf(k.siteHa).n.toLowerCase()+' oʻlchami':'Hudud','',k.siteHa!=null?(sizeOf(k.siteHa).k==='daha'?'daha':sizeOf(k.siteHa).k==='mavze'?'mavze':'tuman'):null,k.siteHa),
     c(fmt(k.lenKm,2)+' km','Koʻchalar uzunligi'),
     c(bm(k.dens,18,'km/km²','UN-Habitat, Five Principles (2014): ≥ 18 km/km²')+(k.dens!=null?' <small style="font-size:13px">km/km²</small>':''),'Koʻcha zichligi · moʻljal ≥ 18'),
-    c(bm(k.corrPct,30,'%','UN-Habitat, Five Principles (2014): koʻchalarga ≥ 30 % yer')+(k.corrPct!=null?' %':''),'Koʻchalar ulushi · moʻljal ≥ 30'),
+    c(bm(k.corrPct,30,'%','UN-Habitat, Five Principles (2014): koʻchalarga ≥ 30 % yer')+(k.corrPct!=null?' %':''),'Koʻchalar ulushi · moʻljal ≥ 30','','kocha'),
     c(k.inter!=null?`${k.inter} · ${bm(k.interD,80,'/km²','SDSN SDG indikatori i-70: 80–120 chorraha/km²')}`:'—','Chorrahalar · /km² · 80–120'),
-    c(k.nB?`${k.nB} · ${fmt(k.bHa/k.nB,2)} ga`:'—','Kvartallar · oʻrtacha'),
+    c(k.nB?`${k.nB} · ${fmt(k.bHa/k.nB,2)} ga`:'—','Kvartallar · oʻrtacha','','kvartal'),
     c(k.zha&&k.zha.turar?fmt(k.zha.turar+(k.zha.aralash||0),2)+' ga':'—','Turar joy + aralash'),
     c(k.greenPct!=null?bm(k.greenPct,15,'%','UN-Habitat, Five Principles (2014): ochiq jamoat joylariga 15–20 % yer')+' %':'—','Yashil zona · moʻljal 15–20'),
     c('—','GFA · FAR · 3-bosqich','off'),c('—','Aholi · 3-bosqich','off')].join('');}
@@ -184,7 +211,8 @@ function renderPanel(){
   const zpal=cur=>`<div class="zp">${ZT.map(z=>`<button data-z="${z.k}" aria-pressed="${cur===z.k}"><i style="background:${z.c}"></i>${esc(T(z.n.split(' (')[0]))}</button>`).join('')}<button data-z="" aria-pressed="${cur===''}"><i style="background:#fff"></i>${esc(T('Zonasiz'))}</button></div>`;
   if(sb){const z=sb.z&&ZK(sb.z.z);
     h+=`<div class="lb">Tanlangan kvartal</div><label><span class="lb" style="display:block;margin-bottom:6px">Nomi</span><input type="text" id="bName" value="${esc(sb.name)}"></label>
-      <div class="kv"><span>Maydon</span><b>${fmt(sb.ha,2)} ga</b><span>Perimetr</span><b>${fmt(sb.per,0)} m</b><span>Zona</span><b>${esc(T(z?z.n.split(' (')[0]:'zonasiz'))}</b></div>
+      <div class="kv"><span>Maydon</span><b>${fmt(sb.ha,2)} ga</b><span>Perimetr</span><b>${fmt(sb.per,0)} m</b><span>Zona</span><b>${esc(T(z?z.n.split(' (')[0]:'zonasiz'))}</b><span>ShNQ toifasi ${gi(sizeOf(sb.ha).k==='daha'?'daha':sizeOf(sb.ha).k==='mavze'?'mavze':'tuman',sb.ha)}</span><b style="color:${sizeOf(sb.ha).c}">${esc(T(sizeOf(sb.ha).n))}</b></div>
+      ${sb.ha>10?`<p class="note">${esc(T(sb.ha>50?'Bu boʻlak turar joy tumani oʻlchamida. Uni ichki koʻchalar bilan mavze va dahalarga boʻling.':'Bu boʻlak dahadan katta — mavze oʻlchamida. 400 kishi/ga normasi butun mavze uchun hisoblanadi; ichidagi turar joy uchastkalarida zichlik yuqoriroq boʻladi.'))} ${gi('brutto')}</p>`:''}
       <span class="lb">Zona</span>${zpal(z?z.k:'')}<button class="btn" id="desel">Tanlovni bekor qilish</button>`;}
   else if(sel){const p=preOf(sel.preset),l=edgeLine(sel);
     h+=`<div class="lb">Tanlangan koʻcha</div><div class="kv"><span>Uzunlik</span><b>${fmt(l?turf.length(l,{units:'meters'}):null,0)} m</b><span>Qizil chiziqlar orasi</span><b>${fmt(p.W,1)} m</b><span>Qatnov qismi</span><b>${fmt(roadW(p),1)} m</b></div>
@@ -193,11 +221,11 @@ function renderPanel(){
   else if(S.sel&&S.sel.t==='n'&&node(S.sel.id)){const n=node(S.sel.id);
     h+=`<div class="lb">Tanlangan tugun</div><div class="kv"><span>Ulangan koʻchalar</span><b>${deg(n.id)}</b></div><p class="note">Tugunni sudrab koʻchiring — ulangan koʻchalar ham siljiydi.</p><div style="display:flex;gap:8px"><button class="btn bad" id="delN">Tugunni oʻchirish</button><button class="btn" id="desel">Bekor qilish</button></div>`;}
   else if(S.tool==='zone'){
-    h+=`<p class="note">Kvartallar koʻchalar orasidan avtomatik chiqadi. Zonani tanlang va kvartallarni bosing.</p><span class="lb">Joriy zona</span>${zpal(D.zcur||'')}
+    h+=`<p class="note">Kvartallar koʻchalar orasidan avtomatik chiqadi ${gi('kvartal')}. Zonani tanlang va kvartallarni bosing.</p><span class="lb">Joriy zona</span>${zpal(D.zcur||'')}
       <p class="note">Koʻchani surish yoki qoʻshish zonani oʻchirmaydi: zona kvartal ichidagi nuqtaga bogʻlangan.</p><div class="keys"><b>V</b>tanlash · <b>S</b>koʻcha · <b>Ctrl+Z</b>bekor qilish</div>`;}
   else if(S.tool==='street'){const p=preOf(D.preset);
     h+=`<label><span class="lb" style="display:block;margin-bottom:6px">Koʻcha moduli</span><select id="drawPre">${presetOpts(D.preset)}</select></label>${stripBar(p)}
-      <div class="kv"><span>Qizil chiziqlar orasi</span><b>${fmt(p.W,1)} m</b><span>Boʻlaklar</span><b>${p.lanes}</b></div>
+      <div class="kv"><span>Qizil chiziqlar orasi ${gi('qizil')}</span><b>${fmt(p.W,1)} m</b><span>Boʻlaklar</span><b>${p.lanes}</b></div>
       <p class="note">Xaritada nuqtalarni bosing. Mavjud koʻcha yoki tugunga bossangiz — ulanadi va chorraha hosil boʻladi.</p>
       <div class="keys"><b>Enter</b>tugatish · <b>Esc</b>bekor<br><b>Shift</b>burchakni 15° ga yopishtirish<br><b>V</b>tanlash · <b>Ctrl+Z</b>bekor qilish</div>`;}
   else{h+=`<p class="note">Koʻcha yoki tugunni bosing — tanlanadi. Tugunni sudrab koʻchiring. <b>Delete</b> — oʻchirish.</p><div class="keys"><b>S</b>koʻcha chizish · <b>Ctrl+Z</b>bekor qilish</div>`;}
