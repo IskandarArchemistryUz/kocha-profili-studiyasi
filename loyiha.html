@@ -198,23 +198,26 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
    (kps_data — qatlamlar, kps_posadka — binolar, kps_mat — albom materiallari). */
 const STEPS=[
   {id:"hudud", t:"Hudud", subs:[
-    {id:"chegara", t:"Chegara va baho", page:"ai.html", hint:"Hududni doira, toʻrtburchak yoki erkin chegara bilan belgilang va «Hisoblash» ni bosing. 3D va ikonkalar shu yerda."},
+    {id:"xarita", t:"Hudud chegarasi", page:"muharrir.html", tool:"hudud", hint:"Asosiy oyna: hududni doira, toʻrtburchak yoki erkin chegara bilan belgilang. Shu xarita Koʻchalar va Binolar bosqichlarida ham oʻzgarmay qoladi."},
+    {id:"chegara", t:"Hudud bahosi", page:"ai.html", hint:"Asosiy oynada chizilgan hudud shu yerga oʻtadi — «Hisoblash» ni bosing: aholi, xizmatlar, shamol guli. 3D va ikonkalar shu yerda."},
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html", hint:"QGIS va boshqa dasturlardan GeoJSON, Shapefile, KML, CSV yuklang — qatlamlar Koʻcha studiyasi va albomda koʻrinadi."}]},
   {id:"tahlil", t:"Tahlil", subs:[
     {id:"tasnif", t:"Yer qoplami", page:"studio.html", app:"area", hint:"Sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi — hududni belgilab tahlil qiling."},
     {id:"gis", t:"Relyef · zichlik · tarmoqlar", page:"gis.html", hint:"Balandlik, nishablik, yer foydalanish, zichlik setkasi va muhandislik tarmoqlari — 1-qadamdagi hudud ichida. Yuklangan GIS qatlamlar tahlilni boyitadi."},
     {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Loyiha binolarining taʼsiri — 4-qadam «Binolar → Shamol taʼsiri»."}]},
   {id:"kocha", t:"Koʻchalar", subs:[
-    {id:"loyiha", t:"Loyiha chizish", page:"studio.html", app:"design", hint:"Koʻchalarni modullardan chizing; YHQ tekshiruvlari va 3D shu yerda."},
-    {id:"profil", t:"Profil", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."},
-    {id:"muharrir", t:"Master reja · beta", page:"muharrir.html", hint:"Koʻchalar → kvartallar → zonalar → binolar bitta xaritada; soya, insolyatsiya, shamol va 15 daqiqa linzalari; A/B variantlar, figure-ground va «Albomga →»."}]},
+    {id:"muharrir", t:"Koʻcha tarmogʻi", page:"muharrir.html", tool:"street", hint:"Asosiy oyna: koʻchalarni modullardan chizing — kvartallar avtomatik chiqadi. Batafsil koʻcha loyihasi va YHQ — «Koʻcha loyihasi · YHQ»."},
+    {id:"loyiha", t:"Koʻcha loyihasi · YHQ", page:"studio.html", app:"design", hint:"Koʻchalarni modullardan chizing; YHQ tekshiruvlari va 3D shu yerda."},
+    {id:"profil", t:"Profil", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."}]},
   {id:"bino", t:"Binolar", subs:[
-    {id:"posadka", t:"Joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."},
+    {id:"kvartal", t:"Kvartal va binolar", page:"muharrir.html", tool:"zone", hint:"Asosiy oyna: kvartallarga zona bering (Z), binolarni generatsiya qiling (G) yoki qoʻlda tahrirlang (B)."},
+    {id:"tekshiruv", t:"Tekshiruv", page:"muharrir.html", tool:"tek", hint:"Asosiy oyna: soya, insolyatsiya, masofalar, shamol va 15 daqiqa linzalari — binoni bosing."},
+    {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html", hint:"Uchastkani chizing va binolarni qoʻying: qavatlar, zichlik, xonadonlar, insolyatsiya. Tayyor boʻlsa «Albomga →»."},
     {id:"shamol", t:"Shamol taʼsiri", page:"shamol.html", hint:"Joylashtirishdagi binolar avtomatik qoʻshiladi. «Farq» — loyiha havo almashinuvini qayerda yomonlashtiradi. Binoni oʻzgartirsangiz, natija yangilanadi."}]},
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="60";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="61";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -252,7 +255,10 @@ function onFrameLoad(f){
     return;
   }
   if(f.dataset.wantApp) applyApp(f);
+  if(f.dataset.wantTool) sendTool(f);
 }
+/* bitta oyna (muharrir.html) bir nechta qadamda: qadam almashganda faqat asbob almashadi, xarita qayta yuklanmaydi */
+function sendTool(f){ try{ f.contentWindow.postMessage({kps:"tool",t:f.dataset.wantTool},location.origin); }catch(e){} }
 function applyApp(f){
   const app=f.dataset.wantApp; if(!app) return;
   try{ const b=f.contentDocument.querySelector('#appTabs button[data-app="'+app+'"]'); if(b){ b.click(); delete f.dataset.wantApp; } }catch(e){}
@@ -270,6 +276,7 @@ function show(i, j, src){
   Object.values(frames).forEach(x=>x.hidden = x!==f);
   try{ f.contentWindow.dispatchEvent(new Event("resize")); }catch(e){}   // yashirin turgan xaritalar oʻlchamini qayta oladi
   if(u.app){ f.dataset.wantApp=u.app; applyApp(f); }
+  if(u.tool){ f.dataset.wantTool=u.tool; sendTool(f); }
   renderNav();
   try{ history.replaceState(null,"","#"+st.id+"-"+u.id); }catch(e){}
 }
@@ -474,6 +481,7 @@ $("pname").addEventListener("input",()=>{ const c=cur(); if(c){ c.name=P.name; c
 
 /* --- qadam koʻrsatmalari: har boʻlim birinchi ochilganda qisqa «nima qilish kerak» --- */
 const GUIDE={
+ "hudud-xarita":["Bitta xarita — butun loyiha",["Chap panelda <b>Hudud</b> (H): oʻngda <b>Doira</b>, <b>Toʻrtburchak</b> yoki <b>Erkin chegara</b> ni tanlang va xaritada belgilang.","Chegarani nuqtalaridan sudrab tuzating — u barcha boʻlimlarga birdan oʻtadi.","Shu xarita <b>Koʻchalar</b> va <b>Binolar</b> bosqichlarida ham qoladi: qadam almashganda faqat asbob almashadi."]],
  "hudud-chegara":["Hududni belgilang",["Yuqorida <b>Doira</b>, <b>Toʻrtburchak</b> yoki <b>Erkin chegara</b> ni tanlang va xaritada hududni belgilang.","<b>Hisoblash</b> ni bosing — oʻngda koʻrsatkichlar chiqadi: aholi va xonadonlar, shamol guli, xizmatlar, yashil ulush.","Loyiha uchastkasi boʻlsa, <b>✎ Uchastka</b> bilan chizing. <b>3D / vektor</b> — maket va qatlamlarga ajratilgan koʻrinish."],"Hudud va uchastka keyingi barcha qadamlarda avtomatik ishlatiladi."],
  "hudud-malumot":["Oʻz maʼlumotingizni yuklang",["Shapefile, GeoPackage, GeoJSON, KML yoki CSV faylni tanlang (yoki butun papkani).","Koordinata tizimini tekshiring — Toshkent MSK ham bor.","Yuklangan qatlamlar Tahlil (zichlik, yer foydalanish, muhandislik) va albomda tanlanadi."],"Ixtiyoriy qadam — OSM maʼlumoti yetarli boʻlsa, oʻtkazib yuboring."],
  "tahlil-tasnif":["Yer qoplami",["Hudud avtomatik olinadi: sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi hisoblanadi.","<b>Faqat hudud ichi</b> — hududdan tashqarisini yashiradi.","<b>Albomga →</b> — xarita va jadval albomga ketadi."],""],
@@ -510,6 +518,7 @@ const FIND=[
  ["Koʻcha chizish va YHQ tekshiruvi","koʻcha улиц street yhq пдд chizish модул","kocha","loyiha",null,""],
  ["Koʻcha profili (kesim)","profil профил kesim разрез сечение","kocha","profil",null,""],
  ["3D maket va qatlamlarga ajratish","3d maket макет qatlam слой exploded vektor svg obj","hudud","chegara",null,"yuqoridagi «3D / vektor» tugmasi"],
+ ["Hudud chegarasi (doira, toʻrtburchak, erkin)","hudud граница территор chegara doira круг toʻrtburchak poligon polygon area","hudud","xarita",null,""],
  ["Uchastka chegarasi","uchastka участок chegara границ","hudud","chegara",null,"xaritadagi «✎ Uchastka»"],
  ["GIS fayl yuklash (Shapefile, GPKG)","yuklash загруз shapefile shp gpkg geopackage geojson kml gis fayl файл","hudud","malumot",null,""],
  ["Albom va PDF","albom альбом pdf varaq лист chop печат","albom","maket",null,""],
