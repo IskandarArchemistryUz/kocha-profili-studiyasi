@@ -79,6 +79,8 @@ function delEdge(id){D.edges=D.edges.filter(e=>e.id!==id);D.nodes=D.nodes.filter
 function delNode(id){D.edges=D.edges.filter(e=>e.a!==id&&e.b!==id);D.nodes=D.nodes.filter(n=>n.id!==id&&deg(n.id)>0);}
 
 /* ---------- hudud (1-qadamdan) ---------- */
+/* Uchastka (loyiha chegarasi) — hujjatda (D.plot); kps_site — faqat tahlil hududi */
+function plotRing(){const s=D&&D.plot;if(s&&s.ring&&s.ring.length>2){const r=s.ring.map(p=>[+p[1],+p[0]]);r.push(r[0]);return r;}return null;}
 function siteRing(){try{const s=JSON.parse(localStorage.getItem('kps_site')||'null');if(s&&s.ring&&s.ring.length>2){const r=s.ring.map(p=>[+p[1],+p[0]]);r.push(r[0]);return r;}}catch(e){}return null;}
 let SITE=null;
 
@@ -92,6 +94,16 @@ const STYLE=KPSMAP.mlStyle();   // umumiy fon xarita (js/basemap.js): Stil / OSM
 const map=new maplibregl.Map({container:'map',style:STYLE,center:[69.2797,41.3111],zoom:15.5,maxPitch:70,attributionControl:{compact:true},doubleClickZoom:false,dragRotate:true,preserveDrawingBuffer:true});   // albom uchun kanvasni rasmga olish
 map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-right');
 const KB=KPSMAP.maplibre(map,{control:false});
+const MRPLOT=MRHUD_areaTool({id:'plot',label:'Uchastka',modes:['poly','rect'],color:'#c2432b',dash:[6,2,1,2],width:2,fillOn:.06,fillOff:0,
+  about:'Siz loyihalayotgan yer. Yoʻllar, parsellar va binolar shu ichida; TEP shu maydon boʻyicha hisoblanadi.',
+  read:()=>D.plot||null,write:s=>act(()=>{if(s)D.plot=s;else delete D.plot;}),
+  extra:st=>st?`${MRHUD.ring()?'':`<button class="btn" data-pana>Atrofini tahlil qilish →</button>`}<button class="btn dark" data-pnext>Yoʻllarni chizish →</button>`:'',
+  bindExtra:root=>{const a=root.querySelector('[data-pana]');if(a)a.onclick=()=>{autoHud();setTool('hudud');};const n=root.querySelector('[data-pnext]');if(n)n.onclick=()=>setTool('street');}});
+/* uchastka atrofida tahlil hududi: markazdan eng uzoq burchakkacha + 300 m, kamida 500 m, 50 m ga yaxlitlab */
+function autoHud(){const r=plotRing();if(!r)return;const c=turf.centroid(turf.polygon([r])).geometry.coordinates;
+  const far=Math.max(...r.map(p=>turf.distance(turf.point(c),turf.point(p),{units:'meters'})));const R=Math.max(500,Math.ceil((far+300)/50)*50);
+  const mx=111320*Math.cos(c[1]*Math.PI/180),ring=[];for(let i=0;i<72;i++){const a=i/72*2*Math.PI;ring.push([+(c[1]+R*Math.sin(a)/110574).toFixed(6),+(c[0]+R*Math.cos(a)/mx).toFixed(6)]);}
+  try{localStorage.setItem('kps_site',JSON.stringify({t:Date.now(),mode:'radius',ring,center:[c[1],c[0]],r:R,areaM2:Math.round(Math.PI*R*R),src:'muharrir'}));}catch(e){}MRHUD.reload();}
 {const sg=document.querySelector('[aria-label="Fon xarita"]');if(sg)sg.replaceWith(KPSMAP.control({down:true}));}
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
 const FC=f=>({type:'FeatureCollection',features:f||[]});
@@ -420,6 +432,7 @@ const LOCK_SVG='<svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true"
 let RQ=0;function render(){if(RQ)return;RQ=requestAnimationFrame(()=>{RQ=0;draw();});}
 function draw(){
   if(!map.getSource('road'))return;
+  {const pr=JSON.stringify(D.plot||null);if(pr!==draw._p){draw._p=pr;SITE=plotRing();if(SITE)K=78271.517*Math.cos(turf.center(turf.polygon([SITE])).geometry.coordinates[1]*Math.PI/180);MRPLOT.reload();}}
   const roads=D.edges.map(e=>{const l=edgeLine(e);if(!l)return null;const p=preOf(e.preset);l.properties={id:e.id,rw:roadW(p),W:p.W};return l;}).filter(Boolean);
   map.getSource('road').setData(FC(roads));
   CORR=buildCorridor();
@@ -506,7 +519,7 @@ function renderKpi(){const k=kpis();
   const c=(v,l,cls,g,ha)=>`<div class="kpi${cls?' '+cls:''}"><b>${v}</b><span>${esc(T(l))}${g?' '+gi(g,ha):''}</span></div>`;
   const bm=(v,t,u,src)=>v==null?'—':`<i class="${v>=t?'ok':'wn'}" title="${esc(T(src))}">${fmt(v,1)}</i>`;
   $('#kpis').innerHTML=[
-    c(k.siteHa!=null?fmt(k.siteHa,1)+' ga':'—',k.siteHa!=null?'Hudud · '+sizeOf(k.siteHa).n.toLowerCase()+' oʻlchami':'Hudud','',k.siteHa!=null?(sizeOf(k.siteHa).k==='daha'?'daha':sizeOf(k.siteHa).k==='mavze'?'mavze':'tuman'):null,k.siteHa),
+    c(k.siteHa!=null?fmt(k.siteHa,1)+' ga':'—',k.siteHa!=null?'Uchastka · '+sizeOf(k.siteHa).n.toLowerCase()+' oʻlchami':'Uchastka chizilmagan (U)','',k.siteHa!=null?(sizeOf(k.siteHa).k==='daha'?'daha':sizeOf(k.siteHa).k==='mavze'?'mavze':'tuman'):null,k.siteHa),
     c(fmt(k.lenKm,2)+' km','Koʻchalar uzunligi'),
     c(bm(k.dens,18,'km/km²','UN-Habitat, Five Principles (2014): ≥ 18 km/km²')+(k.dens!=null?' <small style="font-size:13px">km/km²</small>':''),'Koʻcha zichligi · moʻljal ≥ 18'),
     c(bm(k.corrPct,30,'%','UN-Habitat, Five Principles (2014): koʻchalarga ≥ 30 % yer')+(k.corrPct!=null?' %':''),'Koʻchalar ulushi · moʻljal ≥ 30','','kocha'),
@@ -521,16 +534,17 @@ function renderKpi(){const k=kpis();
     c(k.pDens!=null&&k.pop?`<i class="${k.pDens<=400?'ok':'wn'}" title="${esc(T('ShNQ 2.07.01-23, 84-band: koʻp qavatli kompleks qurilishda mavze boʻyicha ≤ 400 kishi/ga (brutto)'))}">${fmt(k.pDens,0)}</i>`:'—','Zichlik, kishi/ga · ≤ 400',k.pDens!=null&&k.pop?'':'off','brutto')].join('');}
 
 /* ---------- panel ---------- */
-const STEPS=['Koʻchalar','Kvartallar','Zonalash','Generatsiya','Binolar','Tekshiruv'];
+const STEPS=['Yoʻllar','Parsellar','Zonalash','Generatsiya','Binolar','Tekshiruv'];
 function presetOpts(cur){const g={};MOD.presets.forEach(p=>(g[p.g]=g[p.g]||[]).push(p));
   return Object.entries(g).map(([n,ps])=>`<optgroup label="${esc(T(n))}">${ps.map(p=>`<option value="${p.id}" ${p.id===cur?'selected':''}>${esc(T(p.n))} · ${fmt(p.W,1)} m</option>`).join('')}</optgroup>`).join('');}
 function stripBar(p){return `<div class="strips" title="${esc(T(p.n))}">${p.st.map(s=>`<i style="flex:${s[1]} 1 0;background:${(MOD.dk[s[0]]||{}).c||'#ccc'}" title="${esc(T((MOD.dk[s[0]]||{}).n||s[0]))} · ${fmt(s[1],2)} m"></i>`).join('')}</div>`;}
 function renderPanel(){
   if(S.tool==='tahlil'){$('#panel').innerHTML=`<div class="ph"><span class="lb">2 · ${esc(T('Tahlil'))}</span><span class="phr"><span class="lb">beta</span></span></div><h2>${esc(T('Tahlil qatlamlari'))}</h2><div class="bd">${MRTX.html()}</div>`;MRTX.bind($('#panel'));hint();return;}
-  if(S.tool==='hudud'){$('#panel').innerHTML=`<div class="ph"><span class="lb">1 · ${esc(T('Hudud'))}</span><span class="phr"><span class="lb">beta</span></span></div><h2>${esc(T('Hudud chegarasi'))}</h2><div class="bd">${MRHUD.html()}</div>`;MRHUD.bind($('#panel'));hint();return;}
-  const st=S.tool==='tek'?5:S.tool==='bino'||(S.sel&&S.sel.t==='bl')?4:S.tool==='gen'?3:S.tool==='zone'||(S.sel&&S.sel.t==='b')?1:0,ttl=st===5?'Tekshiruv':st===4?'Binolar':st===3?'Generatsiya':st?'Kvartallar va zonalash':'Koʻcha tarmogʻi';
+  if(S.tool==='uchastka'){$('#panel').innerHTML=`<div class="ph"><span class="lb">${esc(T('Loyiha'))}</span><span class="phr"><span class="lb">U</span></span></div><h2>${esc(T('Uchastka'))}</h2><div class="bd">${MRPLOT.html()}</div>`;MRPLOT.bind($('#panel'));hint();return;}
+  if(S.tool==='hudud'){$('#panel').innerHTML=`<div class="ph"><span class="lb">${esc(T('Atrof'))}</span><span class="phr"><span class="lb">H</span></span></div><h2>${esc(T('Tahlil hududi'))}</h2><div class="bd">${MRHUD.html()}</div>`;MRHUD.bind($('#panel'));hint();return;}
+  const st=S.tool==='tek'?5:S.tool==='bino'||(S.sel&&S.sel.t==='bl')?4:S.tool==='gen'?3:S.tool==='zone'||(S.sel&&S.sel.t==='b')?1:0,ttl=st===5?'Tekshiruv':st===4?'Binolar':st===3?'Generatsiya':st?'Parsellar va zonalash':'Yoʻllar';
   const hasEx=window.MRANIM&&MRANIM.has(S.tool);
-  let h=`<div class="ph"><span class="lb">3 · Master reja · ${st+1} / 6</span><span class="phr">${hasEx?`<button class="qx" id="exQ" title="${esc(T('Koʻrib tushunish: qisqa sahna'))}" aria-label="${esc(T('Koʻrib tushunish'))}">?</button>`:''}<span class="lb">beta</span></span></div><h2>${esc(T(ttl))}</h2><div class="steps">${STEPS.map((s,i)=>`<i class="${i<=st?'on':''}" title="${esc(T(s))}"></i>`).join('')}</div><div class="bd">`;
+  let h=`<div class="ph"><span class="lb">${esc(T('Loyiha'))} · ${st+1} / 6</span><span class="phr">${hasEx?`<button class="qx" id="exQ" title="${esc(T('Koʻrib tushunish: qisqa sahna'))}" aria-label="${esc(T('Koʻrib tushunish'))}">?</button>`:''}<span class="lb">beta</span></span></div><h2>${esc(T(ttl))}</h2><div class="steps">${STEPS.map((s,i)=>`<i class="${i<=st?'on':''}" title="${esc(T(s))}"></i>`).join('')}</div><div class="bd">`;
   const sel=S.sel&&S.sel.t==='e'&&edge(S.sel.id),sb=S.sel&&S.sel.t==='b'&&blockAt(S.sel.ll);
   const zpal=cur=>`<div class="zp">${ZT.map(z=>`<button data-z="${z.k}" aria-pressed="${cur===z.k}"><i style="background:${z.c}"></i>${esc(T(z.n.split(' (')[0]))}</button>`).join('')}<button data-z="" aria-pressed="${cur===''}"><i style="background:#fff"></i>${esc(T('Zonasiz'))}</button></div>`;
   const so=S.sel&&S.sel.t==='bl'&&bldRec(S.sel.zid,S.sel.bid);
@@ -579,6 +593,7 @@ function renderPanel(){
   const bn=$('#bName');if(bn)bn.onchange=()=>act(()=>{const r=zoneRec(sb,true);r.name=bn.value.trim().slice(0,40)||undefined;if(!r.name)delete r.name;});
   hint();}
 function hint(){let t='';
+  if(S.tool==='uchastka')t=MRPLOT.hint();
   if(S.tool==='hudud')t=MRHUD.hint();
   if(S.tool==='tahlil')t=MRTX.hint();
   if(S.tool==='zone')t='Kvartalni bosing — joriy zona beriladi';
@@ -589,7 +604,7 @@ function hint(){let t='';
   $('#hint').textContent=T(t);}
 
 /* ---------- asboblar ---------- */
-function setTool(t){S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(window.MRANIM){if(MRANIM.open&&MRANIM.cur!==t)MRANIM.hide();MRANIM.first(t,$('.main'));}if(window.MRHUD)MRHUD.active(t==='hudud');if(window.MRTX)MRTX.active(t==='tahlil');map.getCanvas().style.cursor=t==='street'||t==='hudud'?'crosshair':'';$('#tip').textContent='';render();}
+function setTool(t){S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(window.MRANIM){if(MRANIM.open&&MRANIM.cur!==t)MRANIM.hide();MRANIM.first(t,$('.main'));}if(window.MRHUD)MRHUD.active(t==='hudud');MRPLOT.active(t==='uchastka');if(window.MRTX)MRTX.active(t==='tahlil');map.getCanvas().style.cursor=t==='street'||t==='hudud'||t==='uchastka'?'crosshair':'';$('#tip').textContent='';render();}
 $$('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('#undo').onclick=undo;$('#redo').onclick=redo;
 $$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});applyView();setTimeout(render,650);});
@@ -608,7 +623,8 @@ function resolvePoint(e){const px=e.point,n=snapNode(px);if(n)return {node:n,ll:
 /* ---------- sichqoncha ---------- */
 const bldAt=pt=>{try{return map.queryRenderedFeatures(pt,{layers:['blds']})[0]||null;}catch(_){return null;}};
 map.on('click',e=>{
-  if(S.drag||S.bdrag)return;
+  if((S.drag&&S.drag.moved)||S.bdrag)return;
+  if(S.tool==='uchastka'){MRPLOT.click(e);return;}
   if(S.tool==='hudud'){MRHUD.click(e);return;}
   if(S.tool==='tahlil')return;
   if(S.tool==='tek'){const f=bldAt(e.point);S.sel=f?{t:'bl',zid:f.properties.zid,bid:f.properties.bid}:null;render();return;}
@@ -629,11 +645,12 @@ map.on('click',e=>{
     const b=blockAt(e.lngLat.toArray());S.sel=b?{t:'b',ll:b.anchor}:null;render();return;}
   if(S.tool==='zone'){const b=blockAt(e.lngLat.toArray());if(b){const k=D.zcur||'';act(()=>setZone(b,k));}}
   if(S.tool==='gen'){const b=blockAt(e.lngLat.toArray());S.sel=b?{t:'b',ll:b.anchor}:null;render();}});
-map.on('dblclick',e=>{if(S.tool==='hudud'){MRHUD.dbl(e);return;}if(S.tool==='street'&&S.draw){e.preventDefault();endDraw();}});
+map.on('dblclick',e=>{if(S.tool==='uchastka'){MRPLOT.dbl(e);return;}if(S.tool==='hudud'){MRHUD.dbl(e);return;}if(S.tool==='street'&&S.draw){e.preventDefault();endDraw();}});
 map.on('mousemove',e=>{
+  if(S.tool==='uchastka'&&!S.drag){MRPLOT.move(e);return;}
   if(S.tool==='hudud'){MRHUD.move(e);return;}
   if(S.tool==='tahlil'){map.getCanvas().style.cursor='';return;}
-  if(S.drag){const n=node(S.drag.id);if(n){n.ll=e.lngLat.toArray();S.drag.moved=true;render();}return;}
+  if(S.drag){if(S.drag.p0&&!S.drag.moved&&Math.hypot(e.point.x-S.drag.p0.x,e.point.y-S.drag.p0.y)<4)return;const n=node(S.drag.id);if(n){n.ll=e.lngLat.toArray();S.drag.moved=true;render();}return;}
   if(S.bdrag){const d=S.bdrag,ll=e.lngLat.toArray();if(!d.moved){const px=map.project(d.p0);if(Math.hypot(px.x-e.point.x,px.y-e.point.y)<3)return;
       const b=blkOfZ(d.zid);if(!b)return;const rec=bake(b),x=rec.blds.find(x=>x.id===d.bid);if(!x)return;d.x=x;d.cs=x.cs;d.moved=true;}
     const lat=d.p0[1],dxm=(ll[0]-d.p0[0])*111320*Math.cos(lat*Math.PI/180),dym=(ll[1]-d.p0[1])*110540;d.x.cs=moveCs(d.cs,dxm,dym);render();
@@ -648,7 +665,8 @@ map.on('mousemove',e=>{
   else if(S.tool==='tek'){map.getCanvas().style.cursor=bldAt(e.point)?'pointer':'';}
   else if(S.tool==='zone'||S.tool==='gen'){map.getCanvas().style.cursor=blockAt(e.lngLat.toArray())?'pointer':'';}});
 map.on('move',()=>{renderLabels();renderDLabels();});
-map.on('mousedown',e=>{if(S.tool!=='select'&&S.tool!=='bino')return;if(S.nb)return;
+map.on('mousedown',e=>{if(S.tool==='street'&&!S.draw){const n=snapNode(e.point);if(n){e.preventDefault();map.dragPan.disable();S.drag={id:n.id,prev:JSON.stringify(D),moved:false,p0:e.point};}return;}
+  if(S.tool!=='select'&&S.tool!=='bino')return;if(S.nb)return;
   const n=S.tool==='select'&&snapNode(e.point);
   if(!n){if(S.tool==='select'&&map.queryRenderedFeatures(e.point,{layers:['road-hit']})[0])return;const f=bldAt(e.point);if(!f)return;e.preventDefault();map.dragPan.disable();
     const zid=f.properties.zid,bid=f.properties.bid;S.bdrag={zid,bid,prev:JSON.stringify(D),p0:e.lngLat.toArray(),moved:false};S.sel={t:'bl',zid,bid};render();return;}e.preventDefault();map.dragPan.disable();S.drag={id:n.id,prev:JSON.stringify(D),moved:false};S.sel={t:'n',id:n.id};});
@@ -680,8 +698,10 @@ window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();redo();return;}
+  if(S.tool==='uchastka'&&MRPLOT.key(e)){e.preventDefault();return;}
   if(S.tool==='hudud'&&MRHUD.key(e)){e.preventDefault();return;}
   if(e.key==='Enter'||e.key==='Escape'){if(S.draw){endDraw();}else if(e.key==='Escape'&&S.sel){S.sel=null;render();}return;}
+  if(k==='u'&&!e.ctrlKey&&!e.metaKey)setTool('uchastka');
   if(k==='h'&&!e.ctrlKey&&!e.metaKey)setTool('hudud');
   if(k==='a'&&!e.ctrlKey&&!e.metaKey)setTool('tahlil');
   if(k==='s'&&!e.ctrlKey&&!e.metaKey)setTool('street');
@@ -693,10 +713,10 @@ window.addEventListener('keydown',e=>{
   if((e.key==='Delete'||e.key==='Backspace')&&S.sel&&(S.sel.t==='e'||S.sel.t==='n')){e.preventDefault();const s=S.sel;S.sel=null;act(()=>s.t==='e'?delEdge(s.id):delNode(s.id));}});
 window.addEventListener('keyup',e=>{if(e.key==='Shift')S.shift=false;});
 if(window.KP)KP.on(()=>render());
-window.addEventListener('storage',e=>{if(e.key==='kps_site'){loadSite();}if(e.key===KEY){load();fixSel();render();}if(e.key===VK){varsLoad();renderVars();}});
+window.addEventListener('storage',e=>{if(e.key===KEY){load();fixSel();render();}if(e.key===VK){varsLoad();renderVars();}});
 
 /* ---------- ishga tushirish ---------- */
-function loadSite(){SITE=siteRing();if(map.getSource('site'))map.getSource('site').setData(SITE?FC([turf.lineString(SITE)]):FC());
+function loadSite(){SITE=plotRing();if(map.getSource('site'))map.getSource('site').setData(FC());
   const c=SITE?turf.center(turf.polygon([SITE])).geometry.coordinates:null;if(c)K=78271.517*Math.cos(c[1]*Math.PI/180);return c;}
 /* ---------- 6-bosqich: figure-ground ---------- */
 /* Nolli usuli: binolar qora, qolgan hamma narsa (koʻcha, hovli, park) oq — shahar toʻqimasining zichligi va ochiq joylar ritmi */
@@ -726,7 +746,7 @@ function fgCanvas(W,title){const G=fgGeom();if(!G)return null;const bw=G.bb[2]-G
   if(title){x.font='24px sans-serif';x.fillText(title,40,y0-24);}
   return c;}
 /* TEP jadvali — rasm */
-const SUMROWS=[['Hudud','siteHa',v=>fmt(v,1)+' ga'],['Koʻchalar ulushi','corrPct',v=>fmt(v,1)+' %'],['Koʻcha zichligi','dens',v=>fmt(v,1)+' km/km²'],['Chorrahalar zichligi','interD',v=>fmt(v,0)+' /km²'],['Kvartallar','nB',v=>fmt(v,0)],['Binolar','nBld',v=>fmt(v,0)],['GFA','gfa',v=>fmt(v/1000,0)+' ming m²'],['FAR (hudud boʻyicha)','far',v=>fmt(v,2)],['Qoplam','cov',v=>fmt(v,0)+' %'],['Oʻrtacha qavat','flAvg',v=>fmt(v,1)],['Aholi','pop',v=>fmt(v,0)],['Zichlik (brutto)','pDens',v=>fmt(v,0)+' kishi/ga'],['Yashil zona ulushi','greenPct',v=>fmt(v,1)+' %'],
+const SUMROWS=[['Uchastka','siteHa',v=>fmt(v,1)+' ga'],['Koʻchalar ulushi','corrPct',v=>fmt(v,1)+' %'],['Koʻcha zichligi','dens',v=>fmt(v,1)+' km/km²'],['Chorrahalar zichligi','interD',v=>fmt(v,0)+' /km²'],['Kvartallar','nB',v=>fmt(v,0)],['Binolar','nBld',v=>fmt(v,0)],['GFA','gfa',v=>fmt(v/1000,0)+' ming m²'],['FAR (hudud boʻyicha)','far',v=>fmt(v,2)],['Qoplam','cov',v=>fmt(v,0)+' %'],['Oʻrtacha qavat','flAvg',v=>fmt(v,1)],['Aholi','pop',v=>fmt(v,0)],['Zichlik (brutto)','pDens',v=>fmt(v,0)+' kishi/ga'],['Yashil zona ulushi','greenPct',v=>fmt(v,1)+' %'],
   ['Insolyatsiya: talabdan past nuqtalar','insBad',v=>fmt(v*100,0)+' %'],['Eng kam uzluksiz insolyatsiya','insMin',v=>MRCHK.hm(v)],['Shamol: turgʻun ulush','windStag',v=>fmt(v*100,0)+' %'],['15 daqiqada: ijtimoiy','w_ijtimoiy',v=>fmt(v*100,0)+' %'],['15 daqiqada: park','w_yashil',v=>fmt(v*100,0)+' %'],['15 daqiqada: savdo','w_savdo',v=>fmt(v*100,0)+' %']];
 function summary(){const k=kpis(),o={};['siteHa','corrPct','dens','interD','nB','nBld','gfa','far','cov','flAvg','pop','pDens','greenPct'].forEach(n=>{if(k[n]!=null&&isFinite(k[n]))o[n]=k[n];});
   if(LENS.ins&&INS&&INS.pts.length){o.insMin=Math.min(...INS.pts.map(p=>p.best));if(+chk().ins){o.insBad=INS.pts.filter(p=>p.best<+chk().ins).length/INS.pts.length;o.insThr=+chk().ins;}o.insMd=chk().md;}
@@ -787,23 +807,23 @@ async function toAlbum(){const st=$('#albSt');
 /* loyiha oynasi (loyiha.html) bosqich almashganda asbobni tanlaydi: {kps:'tool', t} */
 let LOADED=false,PENDING_TOOL=null;
 window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.kps!=='tool')return;const t=String(e.data.t||'');
-  if(!['hudud','tahlil','street','select','zone','gen','bino','tek'].includes(t))return;if(LOADED){if(S.tool!==t)setTool(t);}else PENDING_TOOL=t;});
+  if(!['uchastka','hudud','tahlil','street','select','zone','gen','bino','tek'].includes(t))return;if(LOADED){if(S.tool!==t)setTool(t);}else PENDING_TOOL=t;});
 async function init(){
   try{MOD=await (await fetch('data/kocha-modullari.json?v=1')).json();}catch(e){MOD={dk:{},presets:[{id:'res',g:'—',n:'Koʻcha',W:15,lanes:2,st:[['lane',7,0]]}]};}
   MOD.presets.forEach(p=>PRE[p.id]=p);
   load();varsLoad();renderVars();
   map.on('load',()=>{
-    SITE=siteRing();if(SITE)K=78271.517*Math.cos(turf.center(turf.polygon([SITE])).geometry.coordinates[1]*Math.PI/180);
+    SITE=plotRing();if(SITE)K=78271.517*Math.cos(turf.center(turf.polygon([SITE])).geometry.coordinates[1]*Math.PI/180);
     else if(D.nodes.length)K=78271.517*Math.cos(D.nodes[0].ll[1]*Math.PI/180);
     addLayers();const c=loadSite();
     const pts=D.nodes.map(n=>n.ll);
     if(pts.length>1){const b=turf.bbox(turf.multiPoint(pts));map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:120,duration:0});}
     else if(SITE){const b=turf.bbox(turf.lineString(SITE));map.fitBounds([[b[0],b[1]],[b[2],b[3]]],{padding:{top:60,bottom:60,left:340,right:60},duration:0});}
-    MRHUD.init({map,onSite:()=>{loadSite();render();},render:()=>{if(S.tool==='hudud')renderPanel();}});
+    MRPLOT.init({map,render:()=>{if(S.tool==='uchastka')renderPanel();}});
+    MRHUD.init({map,render:()=>{if(S.tool==='hudud')renderPanel();}});
     MRTX.init({map,render:()=>{if(S.tool==='tahlil')renderPanel();}});
-    MRHUD.next=()=>{setTool('street');try{parent!==window&&parent.postMessage({kps:'go',href:'muharrir.html#kocha'},location.origin);}catch(e){}};
     LOADED=true;
-    setTool(PENDING_TOOL||(!SITE&&!D.edges.length?'hudud':D.edges.length?'select':'street'));PENDING_TOOL=null;});
+    setTool(PENDING_TOOL||(!SITE&&!D.edges.length?'uchastka':D.edges.length?'select':'street'));PENDING_TOOL=null;});
   $('#emptyGo').onclick=()=>{$('#empty').hidden=true;};
 }
 init();
