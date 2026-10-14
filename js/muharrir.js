@@ -275,7 +275,13 @@ const STY={
   neoklassik:{n:'Neoklassik',wall:'#efe2c4',roof:'#6f7f86',rf:'mansard'},
   milliy:{n:'Milliy (sharqona)',wall:'#e8d3ad',roof:'#2e7f8e',rf:'dome'},
   yevropa:{n:'Anʼanaviy yevropa',wall:'#efe7da',roof:'#a5533b',rf:'gable',slope:35},
-  skandinav:{n:'Skandinav',wall:'#d8d0c2',roof:'#3a3a3a',rf:'gable',slope:42}};
+  skandinav:{n:'Skandinav',wall:'#d8d0c2',roof:'#3a3a3a',rf:'gable',slope:42},
+  /* vernakular (xalq meʼmorchiligi) — rang va tom shakli boʻyicha umumlashtirilgan taqdimot toʻplami */
+  paxsa:{n:'Paxsa / guvala (Xorazm, Buxoro)',wall:'#d6bf94',roof:'#b9a27a',rf:'flat'},
+  ayvon:{n:'Ayvonli hovli (Fargʻona)',wall:'#efe6d2',roof:'#8a6a4a',rf:'hip',slope:18},
+  ortayer:{n:'Oʻrta yer dengizi',wall:'#f6f3ec',roof:'#b5583a',rf:'hip',slope:22},
+  machiya:{n:'Machiya (Kioto)',wall:'#e8e0d0',roof:'#4b4b4b',rf:'gable',slope:25},
+  qishloq:{n:'Kirpich mahalla uyi',wall:'#c9876a',roof:'#7a7f86',rf:'gable',slope:20}};
 const ROOF={flat:'Tekis',parapet:'Parapet',gable:'Ikki nishabli',hip:'Toʻrt nishabli',mansard:'Mansard',dome:'Gumbaz'};
 function roofOf(x){const st=STY[x.sty]||null;return {rf:x.roof||(st&&st.rf)||'flat',slope:x.slope||(st&&st.slope)||30,wall:st&&st.wall,rc:(st&&st.roof)||'#8f8d88'};}
 /* tom boʻlaklari: [{poly, b, h}] — b/h tom tagidan, metrda */
@@ -723,6 +729,7 @@ function draw(){
     r.kv=0;r.kvExact=0;r.blds.forEach(x=>{x.kvR=null;
       if(x.kv&&res){x.kvR=kvOf(x);if(x.kvR){r.kv+=x.kvR.n;r.kvExact++;return;}}
       r.kv+=(expl&&res?x.res*share:x.gfa*res)*KP.get('netGross')/KP.get('unitM2');});
+    if(b.g&&(b.g.typ==='hovli'||b.g.typ==='ichki')&&!(b.z.lock&&b.z.blds))r.kv=r.blds.length;   // yakka uy — bitta xonadon
     r.pop=r.kv*KP.get('hh');r.nOut=r.blds.filter(x=>x.out).length;
     const sel=sb===b;r.blds.forEach(x=>{const RF=roofOf(x),P={fl:x.fl,c:RF.wall||BC[b.z.z]||'#f7f3ea',s:sel,zid:b.z.id,bid:x.id,bs:!!(sbl&&sbl.zid===b.z.id&&sbl.bid===x.id),out:!!x.out,__p:pitched};
       const fe=S.fe&&S.fe.zid===b.z.id&&S.fe.bid===x.id?S.fe.fl:0;
@@ -830,6 +837,31 @@ function bindPresetPicker(pick){const root=document.querySelector('.ppk');if(!ro
   root.querySelectorAll('[data-ppf]').forEach(b=>b.onclick=()=>{PP_OPEN=PP_OPEN===b.dataset.ppf?'':b.dataset.ppf;renderPanel();});
   root.querySelectorAll('[data-pre]').forEach(b=>b.onclick=()=>pick(b.dataset.pre));
   const qi=root.querySelector('#ppQ');if(qi)qi.oninput=()=>{PP_Q=qi.value;const pos=qi.selectionStart;renderPanel();const n=document.getElementById('ppQ');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(_){}}};}
+/* ---------- shahar toʻri shabloni: uchastka ichida analog shahar blok oʻlchamida koʻchalar ---------- */
+const TG={id:'barselona',ang:null,edge:false,mid:true};
+function tgAng(){const pf=plotFeature();if(TG.ang!=null)return TG.ang;if(!pf)return 0;try{const f=pf.geometry.type==='Polygon'?pf:turf.polygon(pf.geometry.coordinates[0]);return Math.round(MRGEN.mainBearing(f));}catch(_){return 0;}}
+function presetFor(w){let best=null;MOD.presets.forEach(p=>{if(p.g==='Konstruktor')return;if(!best||Math.abs(p.W-w)<Math.abs(best.W-w))best=p;});return best?best.id:D.preset;}
+function tgHTML(){if(!window.MRBLOK)return '';const t=MRBLOK.byId(TG.id)||MRBLOK.L[0],pf=plotFeature();
+  return `<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><span class="lb" style="display:block;margin-bottom:6px">${esc(T('Shahar toʻri shabloni'))}</span>
+    <select id="tgSel" style="width:100%">${MRBLOK.L.map(x=>`<option value="${x.id}" ${x.id===TG.id?'selected':''}>${esc(T(x.n))} · ${x.bx}×${x.by} m</option>`).join('')}</select>
+    <div class="kv" style="margin-top:6px"><span>${esc(T('Blok'))}</span><b>${t.bx} × ${t.by} m</b><span>${esc(T('Koʻcha (qizil chiziqlar)'))}</span><b>${t.w} m${t.mid?' + '+t.mid+' m':''}</b><span>${esc(T('Blok maydoni'))}</span><b>${fmt(t.bx*t.by/1e4,2)} ga</b></div>
+    <p class="note" style="margin:4px 0">${esc(T(t.note))}</p>
+    <label class="note" style="display:flex;gap:6px;align-items:center">${esc(T('Yoʻnalish, °'))} <input type="number" id="tgAng" min="0" max="179" step="1" value="${tgAng()}" style="width:70px"> <button class="btn" id="tgAuto" style="height:24px;padding:0 6px">${esc(T('avto'))}</button></label>
+    ${t.mid?`<label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="tgMid" ${TG.mid?'checked':''}> ${esc(T('Oʻrtadan kichik koʻcha'))} (${t.mid} m)</label>`:''}
+    <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="tgEdge" ${TG.edge?'checked':''}> ${esc(T('Uchastka chegarasi boʻylab ham koʻcha'))}</label>
+    <button class="btn dark" id="tgGo" style="width:100%;margin-top:6px" ${pf?'':'disabled'}>${esc(T(pf?'Toʻrni chizish':'Avval uchastkani chizing (U)'))}</button>
+    <details style="margin-top:6px"><summary class="note" style="cursor:pointer">${esc(T('Manba'))}</summary><p class="note" style="margin:4px 0">${esc(T(t.src))}</p></details></div>`;}
+function bindTg(){const sel=$('#tgSel');if(!sel)return;sel.onchange=()=>{TG.id=sel.value;renderPanel();};
+  const a=$('#tgAng');if(a)a.onchange=()=>{TG.ang=((Math.round(+a.value||0)%180)+180)%180;};const au=$('#tgAuto');if(au)au.onclick=()=>{TG.ang=null;renderPanel();};
+  const m=$('#tgMid');if(m)m.onchange=()=>{TG.mid=m.checked;};const e=$('#tgEdge');if(e)e.onchange=()=>{TG.edge=e.checked;};
+  const g=$('#tgGo');if(g)g.onclick=()=>{const pf=plotFeature(),t=MRBLOK.byId(TG.id);if(!pf||!t)return;
+    const poly=pf.geometry.type==='Polygon'?pf:turf.polygon(pf.geometry.coordinates.reduce((a,b)=>turf.area(turf.polygon(b))>turf.area(turf.polygon(a))?b:a));
+    const G=MRBLOK.grid(poly,t,tgAng(),{mid:TG.mid}),pm=presetFor(t.w),ps=t.mid?presetFor(t.mid):pm;
+    act(()=>{const put=(seg,pr)=>{const a=addNode(seg[0]),b=addNode(seg[1]);addEdgeX(a.id,b.id,pr);};
+      if(TG.edge){const r=poly.geometry.coordinates[0];for(let i=0;i<r.length-1;i++)put([r[i],r[i+1]],pm);}
+      G.main.forEach(s=>put(s,pm));G.mid.forEach(s=>put(s,ps));});
+    toastMsg(T('Toʻr chizildi')+': '+(G.main.length+G.mid.length)+' '+T('koʻcha')+' · '+T(t.n));};}
+function toastMsg(m){const h=$('#hint');if(h){h.textContent=m;}}
 function presetOpts(cur){const g={};MOD.presets.forEach(p=>(g[p.g]=g[p.g]||[]).push(p));
   return Object.entries(g).map(([n,ps])=>`<optgroup label="${esc(T(n))}">${ps.map(p=>`<option value="${p.id}" ${p.id===cur?'selected':''}>${esc(T(p.n))} · ${fmt(p.W,1)} m</option>`).join('')}</optgroup>`).join('');}
 function stripBar(p){return `<div class="strips" title="${esc(T(p.n))}">${p.st.map(s=>`<i style="flex:${s[1]} 1 0;background:${(MOD.dk[s[0]]||{}).c||'#ccc'}" title="${esc(T((MOD.dk[s[0]]||{}).n||s[0]))} · ${fmt(s[1],2)} m"></i>`).join('')}</div>`;}
@@ -873,12 +905,12 @@ function renderPanel(){
     h+=`<span class="lb" style="display:block;margin-bottom:6px">Koʻcha moduli</span>${presetPicker(D.preset)}${stripBar(p)}
       <div class="kv"><span>Qizil chiziqlar orasi ${gi('qizil')}</span><b>${fmt(p.W,1)} m</b><span>Boʻlaklar</span><b>${p.lanes}</b></div>
       <p class="note">Xaritada nuqtalarni bosing. Mavjud koʻcha yoki tugunga bossangiz — ulanadi va chorraha hosil boʻladi.</p>
-      <div class="keys"><b>Enter</b>tugatish · <b>Esc</b>bekor<br><b>Shift</b>burchakni 15° ga yopishtirish<br><b>V</b>tanlash · <b>Ctrl+Z</b>bekor qilish</div>`;}
+      <div class="keys"><b>Enter</b>tugatish · <b>Esc</b>bekor<br><b>Shift</b>burchakni 15° ga yopishtirish<br><b>V</b>tanlash · <b>Ctrl+Z</b>bekor qilish</div>${tgHTML()}`;}
   else{h+=`<p class="note">Koʻcha yoki tugunni bosing — tanlanadi. Tugunni sudrab koʻchiring. <b>Delete</b> — oʻchirish.</p><div class="keys"><b>S</b>koʻcha chizish · <b>Ctrl+Z</b>bekor qilish</div>`;}
   h+=`<div class="kv" style="border-top:1px solid var(--line);padding-top:10px"><span>Koʻchalar</span><b>${D.edges.length}</b><span>Kvartallar</span><b>${BLK.length}</b><span>Zonalangan</span><b>${BLK.filter(b=>b.z).length}</b></div></div>`;
   $('#panel').innerHTML=h;
   const dp=$('#drawPre');if(dp)dp.onchange=()=>act(()=>{D.preset=dp.value;});
-  bindPresetPicker(id=>act(()=>{D.preset=id;}));
+  bindPresetPicker(id=>act(()=>{D.preset=id;}));bindTg();
   const sp=$('#selPre');if(sp)sp.onchange=()=>act(()=>{edge(S.sel.id).preset=sp.value;D.preset=sp.value;});
   const de=$('#delE');if(de)de.onclick=()=>{const id=S.sel.id;S.sel=null;act(()=>delEdge(id));};
   const dn=$('#delN');if(dn)dn.onclick=()=>{const id=S.sel.id;S.sel=null;act(()=>delNode(id));};

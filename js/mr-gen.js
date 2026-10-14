@@ -14,29 +14,52 @@ window.MRGEN=(function(){
 'use strict';
 const FH=3.3;   // qavat balandligi, m (Joylashtirish boʻlimi bilan bir xil)
 
-/* ---------- meʼyoriy minimumlar ---------- */
+/* ---------- meʼyoriy minimumlar: ShNQ 2.07.01-23 ----------
+   79-band, 2-jadval (3 va undan yuqori qavatli turar joy binolari orasidagi masofalar; H — yer sathidan eng yuqori qavat
+   tomyopmasigacha):
+     deraza bor uzun tomon ↔ deraza bor uzun tomon ........ Hmax · kй (kй — 2-ilova diagrammasi)
+     deraza bor uzun tomon ↔ ён тарз (torets) .............. 2 · Hmax · 0,3
+     derazali torets ↔ derazali torets ...................... (H1+H2) · 0,3*    (* — I–II oʻtga chidamlilik, ≥ 6 m)
+     derazali ↔ derazasiz torets ............................ (H1+H2) · 0,25*;  derazasiz ↔ derazasiz — (H1+H2) · 0,15*
+     yoʻl tarafdagi hudud chegarasigacha ..................... H · 0,25
+     qoʻshni hudud chegarasigacha: uzun tomon H · kй/2, torets H · 0,25*
+   Izohlar: 3 — yopiq ichki hovli fasadlari orasi Hmax · 2,3; 6 — koʻp qavatli bino ↔ yakka uy ≥ H; 8 — seysmik 8+ ball:
+   uzun (parallel) tomonlar orasi ≥ 2 · Hmax. 18-bob, 56-jadval: I–III daraja, C0 binolar orasi ≥ 6 m (yongʻin).
+   75-band: yakka uy-joy uchastkasi 400 m²; 66-band: UMN ≤ 4,5. 56-band: daha — koʻchalar bilan boʻlinmagan ≤ 10 ga. */
 const SRC={
-  d0321:'ShNQ 2.07.01-03*, 21.1-band (2009) — 2.07.01-23 dagi k_y formulasi bilan tekshirilsin',
-  d0328:'ShNQ 2.07.01-03*, 28-band — birinchi qavatida kvartira boʻlgan turar joy, turar joy koʻchalari',
-  ins:'ShNQ 2.07.01-03*, 26*-band: 22.03–22.09 da kamida 2,5 soat uzluksiz (bolalar muassasalari — 3 soat). Linzada (T) hisoblanadi',
-  fire:'RF SP 4.13130.2013, 8.1.4 va 8.1.6-bandlar (ShNQ 2.01.02-04 bilan solishtirilsin)',
-  seis:'ShNQ 2.07.01-03*, 21.1-band: 8 ball va undan yuqori seysmik hududda — eng baland binoning ikki balandligidan kam emas (aniq matni tekshirilsin)'};
-/* uzun tomonlar orasidagi masofa (deraza—deraza): 2–3 qavat ≥15; 4–5 qavat ≥25–30; 9+ ≥40–45.
-   Oraliq qavatlar uchun chiziqli oraliq qiymat (meʼyorda yoʻq — interpolyatsiya). */
-function gapLong(fl){if(fl<=1)return 10;if(fl<=3)return 15;if(fl===4)return 25;if(fl===5)return 30;if(fl>=10)return 45;if(fl===9)return 40;return 30+(fl-5)*2.5;}
-/* uzun tomon — derazali torets: ≥10; derazali toretslar orasi (9+ qavat): 20–25 */
-function gapEnd(fl){return fl>=9?Math.min(25,20+(fl-9)):10;}
-/* yongʻin mashinasi oʻtish yoʻli: kenglik va devorgacha masofa (balandlikka qarab) */
-function fire(h){return {w:h<=13?3.5:h<=46?4.2:6,off:h<=28?5:8};}
-function normGap(fl,seis){const h=fl*FH,f=fire(h);let g=gapLong(fl),why='ShNQ 21.1 (uzun tomonlar)';
-  const gf=f.off*2+f.w;if(gf>g){g=gf;why='yongʻin oʻtish yoʻli';}
-  if(seis&&2*h>g){g=2*h;why='seysmik: 2H';}
-  return {g:Math.round(g*10)/10,why};}
+  t2:'ShNQ 2.07.01-23, 79-band, 2-jadval',
+  ky:'ShNQ 2.07.01-23, 2-ilova (kй diagrammasi, 10° sektorlar — oʻqilishi tekshirilsin)',
+  court:'ShNQ 2.07.01-23, 2-jadval, 3-izoh: yopiq ichki hovli fasadlari orasi Hmax · 2,3',
+  road:'ShNQ 2.07.01-23, 2-jadval: yoʻl tarafdagi hudud chegarasigacha H · 0,25',
+  seis:'ShNQ 2.07.01-23, 2-jadval, 8-izoh: seysmik 8 ball va undan yuqori — uzun tomonlar orasi ≥ 2 · Hmax',
+  fire:'ShNQ 2.07.01-23, 641-band, 56-jadval: I–III daraja, C0 — kamida 6 m',
+  fireHi:'ShNQ 2.01.02-04, 1-son oʻzgartirish, 1-ilova 3.10: 50 m dan baland binolarda yongʻin yoʻli ≥ 6 m, devordan 8–10 m; 3.12: front boʻylab har 100 m da oʻtish',
+  ijs:'ShNQ 2.07.01-23, 75-band: yakka tartibdagi uy-joy uchastkasi 400 m²; 74-band: tomorqa ≥ 200 m²',
+  umn:'ShNQ 2.07.01-23, 66-band: UMN (umumiy maydon / uchastka) 4,5 dan oshmasin',
+  ins:'ShNQ 2.07.01-23, 78-band: masofalar SanQvaN 0331-16 insolyatsiya talablari bilan ham tekshiriladi (linza — T)'};
+/* kй: fasad (deraza tomoni) normalining shimoldan burchagi; eng yaqin asosiy yoʻnalishdan ogʻish d (0–45°):
+   d<5 → 1,2; <15 → 1,5; <25 → 1,7; <35 → 1,9; aks holda 2,3 (diagrammada har chorakda 9 ta 10° sektor). */
+function ky(az){const a=((az%90)+90)%90,d=Math.min(a,90-a);return d<5?1.2:d<15?1.5:d<25?1.7:d<35?1.9:2.3;}
+const fireMin=h=>h>=50?{w:6,off:8}:{w:0,off:0};
+/* uzun tomonlar orasi: max(Hmax·kй, seysmik 2·Hmax, yongʻin) */
+function normGap(fl,seis,az){const H=fl*FH,k=ky(az??0);let g=H*k,why='Hmax · kй ('+k+')',src='ky';
+  if(fl<3){g=Math.max(6,g);}
+  if(seis&&2*H>g){g=2*H;why='seysmik: 2 · Hmax';src='seis';}
+  const f=fireMin(H);if(f.w&&2*f.off+f.w>g){g=2*f.off+f.w;why='yongʻin yoʻli (H ≥ 50 m)';src='fireHi';}
+  if(g<6){g=6;why='yongʻin: ≥ 6 m';src='fire';}
+  return {g:Math.round(g*10)/10,why,src,k};}
+/* uzun tomon ↔ torets: 0,6 · Hmax; derazali toretslar: (H1+H2)·0,3 ≥ 6 */
+function gapEnd(fl){const H=fl*FH;return Math.max(6,Math.round(2*H*.3*10)/10);}
+function gapEndEnd(fl){const H=fl*FH;return Math.max(6,Math.round(2*H*.3*10)/10);}
+const gapLong=(fl,az)=>normGap(fl,false,az).g;
+const fire=h=>fireMin(h);
 
 /* ---------- tipologiyalar: analoglardan olingan boshlangʻich parametrlar ---------- */
 const TYP={
-  hovli:   {n:'Hovli uylar', far:.25, fl:2, sb:3, plotW:20, plotD:30, w:12, d:10, edge:3,
-            an:'Mahalla tipidagi yakka uy: uchastka va uy oʻlchami — loyiha parametri; qoʻshni uchastka chegarasigacha ≥3 m (ShNQ 2.07.01-03*, 21.1)'},
+  hovli:   {n:'Hovli uylar', far:.25, fl:2, sb:3, plotW:16, plotD:25, w:12, d:10, edge:3,
+            an:'Mahalla tipidagi yakka uy: uchastka 16 × 25 = 400 m² (ShNQ 2.07.01-23, 75-band); uyning oʻlchami — loyiha parametri'},
+  ichki:   {n:'Ichki hovlili uy (mahalla)', far:.45, fl:2, sb:0, plotW:16, plotD:25, front:8, wing:4, side:3,
+            an:'Vernakular hovli uy: koʻchaga qaragan old qanot + yon qanot, ichkarida hovli. Uchastka 400 m² (ShNQ 2.07.01-23, 75-band); uylar juft-juft (653-band), juftlar orasi ≥ 6 m (56-jadval). Qanot oʻlchamlari — loyiha taxmini'},
   taunhaus:{n:'Taunhaus', far:.8, fl:3, sb:3, d:11, unit:6, maxLen:48, endGap:6,
             an:'Qatorli uylar: blok kengligi 4,5–6 m, ikki qavatli (Janubiy Avstraliya uy-joy trestining dizayn qoʻllanmasi, 2020); orqa bogʻ'},
   seksiya: {n:'Seksiyali qatorlar', far:1.6, fl:9, sb:6, d:13, maxLen:75,
@@ -75,60 +98,73 @@ function grid(rot,k,w,h,px,py,stagger){const bb=turf.bbox(rot),out=[];const W=(b
   return out;}
 
 /* ---------- generatsiya ---------- */
-function layout(typ,T,rot,inner,k,fl,seis){
-  const ng=normGap(fl,seis);
+function layout(typ,T,rot,inner,k,fl,seis,az){
+  const ng=normGap(fl,seis,az);
   if(typ==='hovli'){   // uchastkalar toʻri; uy uchastkaning koʻcha tomonida, chegaralardan ≥ edge
     const plots=grid(rot,k,T.plotW,T.plotD,T.plotW,T.plotD,false);
-    return {polys:plots.map(p=>{const b=turf.bbox(p),w=Math.min(T.w,T.plotW-2*T.edge),d=Math.min(T.d,T.plotD-2*T.edge);return rect(b[0]+((T.plotW-w)/2)*k.x,b[1]+T.edge*k.y,w,d,k);}),gap:T.edge*2,why:'qoʻshni uchastka chegarasidan 3 m'};}
-  if(typ==='taunhaus'){const p=rows(rot,k,T.d,ng.g,T.maxLen,T.endGap,T.unit*2);return {polys:p,gap:ng.g,why:ng.why};}
-  if(typ==='seksiya'){const p=rows(rot,k,T.d,ng.g,T.maxLen,gapEnd(fl),T.d*1.5);return {polys:p,gap:ng.g,why:ng.why,end:gapEnd(fl)};}
-  if(typ==='minora'){const s=T.a+ng.g;/* toʻgʻri toʻr: har ikki yoʻnalishda fasadlar orasi ≥ meʼyoriy masofa (diagonal yaqinlashuv yoʻq) */ return {polys:grid(rot,k,T.a,T.a,s,s,false),gap:ng.g,why:ng.why};}
+    return {polys:plots.map(p=>{const b=turf.bbox(p),w=Math.min(T.w,T.plotW-2*T.edge),d=Math.min(T.d,T.plotD-2*T.edge);return rect(b[0]+((T.plotW-w)/2)*k.x,b[1]+T.edge*k.y,w,d,k);}),gap:T.edge*2,why:'uchastka '+T.plotW+'×'+T.plotD+' m',src:'ijs'};}
+  if(typ==='ichki'){   // juft uylar: umumiy devor bir tomonda, ikkinchi tomonda chegaradan T.side (juftlar orasi 2·side ≥ 6 m)
+    const plots=grid(rot,k,T.plotW,T.plotD,T.plotW,T.plotD,false).sort((a,b)=>turf.bbox(a)[1]-turf.bbox(b)[1]||turf.bbox(a)[0]-turf.bbox(b)[0]);
+    const rowKey=p=>Math.round(turf.bbox(p)[1]/(T.plotD*k.y));let prevRow=null,i=0;const out=[];
+    plots.forEach(p=>{const r=rowKey(p);if(r!==prevRow){prevRow=r;i=0;}const b=turf.bbox(p),shL=(i%2)===1,x0=b[0]+(shL?0:T.side)*k.x,W=T.plotW-T.side,y0=b[1];i++;
+      const wx=shL?x0:x0+(W-T.wing)*k.x;   // yon qanot umumiy devor tomonida
+      const pts=shL?[[x0,y0],[x0+W*k.x,y0],[x0+W*k.x,y0+T.front*k.y],[x0+T.wing*k.x,y0+T.front*k.y],[x0+T.wing*k.x,y0+(T.plotD-6)*k.y],[x0,y0+(T.plotD-6)*k.y],[x0,y0]]
+                   :[[x0,y0],[x0+W*k.x,y0],[x0+W*k.x,y0+(T.plotD-6)*k.y],[wx,y0+(T.plotD-6)*k.y],[wx,y0+T.front*k.y],[x0,y0+T.front*k.y],[x0,y0]];
+      out.push(turf.polygon([pts]));});
+    return {polys:out,gap:2*T.side,why:'juftlar orasi '+(2*T.side)+' m',src:'fire'};}
+  if(typ==='taunhaus'){const p=rows(rot,k,T.d,ng.g,T.maxLen,Math.max(T.endGap,6),T.unit*2);return {polys:p,gap:ng.g,why:ng.why,src:ng.src};}
+  if(typ==='seksiya'){const p=rows(rot,k,T.d,ng.g,T.maxLen,gapEndEnd(fl),T.d*1.5);return {polys:p,gap:ng.g,why:ng.why,src:ng.src,end:gapEndEnd(fl)};}
+  if(typ==='minora'){const s=T.a+ng.g;/* toʻgʻri toʻr: har ikki yoʻnalishda fasadlar orasi ≥ meʼyoriy masofa (diagonal yaqinlashuv yoʻq) */ return {polys:grid(rot,k,T.a,T.a,s,s,false),gap:ng.g,why:ng.why,src:ng.src};}
   if(typ==='perimetr'){
     const hole=inset(rot,T.d);if(!hole)return {polys:[],gap:ng.g,why:ng.why,note:'kvartal perimetral binoga juda tor'};
     // hovli: qarama-qarshi ichki fasadlar orasi meʼyoriy masofadan kam boʻlmasin
     const hb=turf.bbox(hole),cw=(hb[2]-hb[0])/k.x,ch=(hb[3]-hb[1])/k.y,court=Math.min(cw,ch);
-    if(court<ng.g)return {polys:[],gap:ng.g,why:ng.why,court,note:`hovli ${Math.round(court)} m — ${fl} qavat uchun kamida ${ng.g} m kerak`};
+    const need=Math.round(fl*FH*2.3*10)/10;if(court<need)return {polys:[],gap:need,why:'yopiq hovli: Hmax · 2,3',src:'court',court,note:`hovli ${Math.round(court)} m — ${fl} qavat uchun kamida ${need} m kerak (Hmax · 2,3)`};
     let ring=diff(rot,hole);
     // uzun fasadlar o'tish joylari bilan bo'linadi (yongʻin, shamol oqimi — ShNQ 2.07.01-23, 49¹-band)
     const ib=turf.bbox(rot),W=(ib[2]-ib[0])/k.x,Hh=(ib[3]-ib[1])/k.y;
+    const pass=Math.max(T.pass,gapEndEnd(fl));   // toretslar orasi (H1+H2) · 0,3
     const cut=(L,along)=>{const n=Math.ceil(L/T.maxLen)-1;for(let i=1;i<=n;i++){const t=i/(n+1);
-      const r=along==='x'?turf.bboxPolygon([ib[0]+(t*W-T.pass/2)*k.x,ib[1]-1e-4,ib[0]+(t*W+T.pass/2)*k.x,ib[3]+1e-4])
-                         :turf.bboxPolygon([ib[0]-1e-4,ib[1]+(t*Hh-T.pass/2)*k.y,ib[2]+1e-4,ib[1]+(t*Hh+T.pass/2)*k.y]);
+      const r=along==='x'?turf.bboxPolygon([ib[0]+(t*W-pass/2)*k.x,ib[1]-1e-4,ib[0]+(t*W+pass/2)*k.x,ib[3]+1e-4])
+                         :turf.bboxPolygon([ib[0]-1e-4,ib[1]+(t*Hh-pass/2)*k.y,ib[2]+1e-4,ib[1]+(t*Hh+pass/2)*k.y]);
       ring=diff(ring,r)||ring;}};
     if(W>T.maxLen)cut(W,'x');if(Hh>T.maxLen)cut(Hh,'y');
-    return {polys:parts(ring).filter(p=>area(p)>T.d*T.d),gap:ng.g,why:ng.why,court};}
+    return {polys:parts(ring).filter(p=>area(p)>T.d*T.d),gap:need,why:'yopiq hovli: Hmax · 2,3',src:'court',court};}
   return {polys:[],gap:0,why:''};}
 
 function generate(block,g){
   const T=Object.assign({},TYP[g.typ]);if(!T.n)return null;
   const A=area(block);if(A<300)return null;
-  const seis=g.seis!==false;
-  const sb=g.sb??T.sb,inner=inset(block,sb);if(!inner)return {blds:[],fp:0,gfa:0,far:0,flAvg:0,capped:false,A,note:'chekinish juda katta',rules:[],warn:['Qizil chiziqdan chekinish kvartalga sigʻmaydi']};
-  const c=turf.centroid(block).geometry.coordinates,k=dm(c[1]),rotA=90-mainBearing(block);
-  const rot=turf.transformRotate(inner,rotA,{pivot:c});
+  const seis=g.seis!==false,sbU=g.sb??T.sb;
+  const c=turf.centroid(block).geometry.coordinates,k=dm(c[1]),brg=mainBearing(block),rotA=90-brg,az=brg+90;   // uzun fasad kvartal yoʻnalishida, derazalar normal boʻyicha
   const back=f=>turf.transformRotate(f,-rotA,{pivot:c});
+  /* qizil chiziqdan chekinish: foydalanuvchi qiymati va H · 0,25 dan kattasi (2-jadval, yoʻl tarafdagi chegara) */
+  const ins={};const innerFor=fl=>{const sb=Math.max(sbU,Math.round(fl*FH*.25*10)/10);if(!(sb in ins)){const inn=inset(block,sb);ins[sb]=inn?{inner:inn,rot:turf.transformRotate(inn,rotA,{pivot:c}),sb}:null;}return ins[sb];};
   const maxFl=Math.max(1,Math.round(g.fl??T.fl)),far=Math.max(.05,g.far??T.far),target=far*A;
-  /* qavat soni: maqsadli FAR ga yetadigan eng past qavat; har qavatda masofa qayta hisoblanadi (baland — kengroq oraliq) */
+  /* qavat soni: maqsadli FAR ga yetadigan eng past qavat; har qavatda masofa va chekinish qayta hisoblanadi */
   let best=null;
-  const lo=Math.min(maxFl,g.typ==='hovli'?1:g.typ==='taunhaus'?2:g.typ==='minora'?9:3);
-  for(let fl=lo;fl<=maxFl;fl++){const L=layout(g.typ,T,rot,inner,k,fl,seis);const fp=L.polys.reduce((a,p)=>a+area(p),0);
-    const r={fl,L,fp,gfa:fp*fl};if(!best||r.gfa>best.gfa*1.001)best=r;if(r.gfa>=target){best=r;break;}}
+  const lo=Math.min(maxFl,g.typ==='hovli'||g.typ==='ichki'?1:g.typ==='taunhaus'?2:g.typ==='minora'?9:3);
+  for(let fl=lo;fl<=maxFl;fl++){const I=innerFor(fl);if(!I)break;const L=layout(g.typ,T,I.rot,I.inner,k,fl,seis,az);const fp=L.polys.reduce((a,p)=>a+area(p),0);
+    const r={fl,L,fp,gfa:fp*fl,sb:I.sb};if(!best||r.gfa>best.gfa*1.001)best=r;if(r.gfa>=target){best=r;break;}}
+  if(!best)return {blds:[],fp:0,gfa:0,far:0,flAvg:0,capped:false,A,note:'chekinish juda katta',rules:[],warn:['Qizil chiziqdan chekinish kvartalga sigʻmaydi']};
   const L=best.L,fl=best.fl,polys=L.polys.map(back);
-  const fp=polys.reduce((a,p)=>a+area(p),0),gfa=fp*fl;
+  const fp=polys.reduce((a,p)=>a+area(p),0),gfa=fp*fl,H=fl*FH;
   const blds=polys.map(p=>({f:turf.truncate(p,{precision:7}),fl}));
-  const h=fl*FH,f=fire(h);
   const rules=[
-    {t:'Qizil chiziqdan chekinish',v:sb+' m',src:SRC.d0328+' — magistralda shovqin boʻyicha'},
-    g.typ==='hovli'?{t:'Uy — uchastka chegarasi',v:T.edge+' m',src:SRC.d0321}
-      :{t:'Binolar orasi (uzun tomonlar)',v:L.gap+' m · '+L.why,src:L.why.startsWith('yong')?SRC.fire:L.why.startsWith('seys')?SRC.seis:SRC.d0321},
-    L.end?{t:'Toretslar orasi',v:L.end+' m',src:SRC.d0321}:null,
-    L.court!=null?{t:'Hovli (ichki fasadlar orasi)',v:Math.round(L.court)+' m',src:SRC.d0321}:null,
-    g.typ!=='hovli'?{t:'Yongʻin oʻtish yoʻli',v:f.w+' m kenglik, devordan '+f.off+'–'+(f.off+3)+' m',src:SRC.fire}:null,
+    {t:'Qizil chiziqdan chekinish',v:best.sb+' m'+(best.sb>sbU?' (H · 0,25)':''),src:SRC.road},
+    g.typ==='hovli'?{t:'Yakka uy uchastkasi',v:L.why,src:SRC.ijs}
+      :g.typ==='ichki'?{t:'Uylar orasi',v:L.why,src:'ShNQ 2.07.01-23, 653-band (juft uylar) va 56-jadval (≥ 6 m)'}
+      :{t:'Binolar orasi (uzun tomonlar)',v:L.gap+' m · '+L.why,src:SRC[L.src]||SRC.t2},
+    L.end?{t:'Derazali toretslar orasi',v:L.end+' m · (H1+H2) · 0,3, ≥ 6',src:SRC.t2}:null,
+    L.court!=null?{t:'Hovli (ichki fasadlar orasi)',v:Math.round(L.court)+' m',src:SRC.court}:null,
+    H>=50?{t:'Yongʻin yoʻli',v:'≥ 6 m kenglik, devordan 8–10 m; har 100 m da oʻtish',src:SRC.fireHi}:{t:'Yongʻin masofasi',v:'≥ 6 m',src:SRC.fire},
+    {t:'UMN',v:'≤ 4,5',src:SRC.umn},
     {t:'Insolyatsiya',v:'linzada tekshiriladi (T)',src:SRC.ins},
     {t:'Tipologiya',v:T.n,src:T.an}].filter(Boolean);
   const warn=[];if(L.note)warn.push(L.note);
   if(gfa<target*.95)warn.push(fl>=maxFl?'Maks. qavat va meʼyoriy masofalar bilan maqsadli FAR ga yetib boʻlmaydi — FAR ni pasaytiring yoki tipologiyani almashtiring.':'Meʼyoriy masofalar bilan maqsadli FAR ga yetib boʻlmaydi.');
-  if(seis&&g.typ!=='hovli')warn.push('Seysmik talab (2H) yoqilgan — Toshkent 8–9 ball. Aniq band matni tekshirilsin.');
+  if(gfa/A>4.5)warn.push('UMN 4,5 dan oshdi (ShNQ 2.07.01-23, 66-band).');
+  if(seis&&g.typ!=='hovli'&&g.typ!=='ichki')warn.push('Seysmik hudud (8+ ball): uzun tomonlar orasi ≥ 2 · Hmax (2-jadval, 8-izoh).');
   return {blds,fp,gfa,far:gfa/A,flAvg:blds.length?fl:0,capped:gfa<target*.95&&fl>=maxFl,A,rules,warn,note:L.note||''};}
 
 const cache=new Map();
@@ -137,5 +173,5 @@ function gen(block,g){const key=JSON.stringify([block.geometry.coordinates,g]);i
   cache.set(key,r);if(cache.size>400)cache.delete(cache.keys().next().value);return r;}
 /* qoʻlda tahrirlangan binolar uchun bir xil koʻrsatkichlar */
 function stats(block,blds){const A=area(block),fp=blds.reduce((a,x)=>a+area(x.f),0),gfa=blds.reduce((a,x)=>a+area(x.f)*x.fl,0);return {blds,fp,gfa,far:A?gfa/A:0,flAvg:fp?gfa/fp:0,capped:false,A};}
-return {gen,TYP,FH,stats,mainBearing,NORM:{gapLong,gapEnd,fire,normGap,SRC}};
+return {gen,TYP,FH,stats,mainBearing,NORM:{ky,gapLong,gapEnd,gapEndEnd,fire,normGap,SRC}};
 })();
