@@ -19,6 +19,7 @@ header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none}.brand b{font-weight:500;font-size:14.5px;letter-spacing:.2em}.crumb{font-size:12.5px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
 .btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none}
 .btn.dark{background:var(--ink);color:var(--bg)}.btn.ghost{border-color:var(--line2)}.btn.sm{height:26px;padding:0 9px;font-size:12px}.btn:disabled{opacity:.4}
+.ti{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;margin-right:6px;flex:none}
 .seg{display:flex;border:1px solid var(--line2);border-radius:2px;overflow:hidden;background:#fff}.seg button{border:0;background:none;padding:0 11px;height:28px;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase}.seg button[aria-pressed=true]{background:var(--ink);color:#f4f3f1}
 .km{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:13.5px}.km input{width:58px;height:28px;border:1px solid var(--line2);border-radius:2px;padding:0 6px;font-family:var(--mono)}
 main{flex:1;display:grid;grid-template-columns:1fr 440px;min-height:0}
@@ -66,10 +67,10 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 <a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
 <span class="crumb" id="brandCrumb">/ 06 · AI · HUDUD BAHOSI</span><span class="sp"></span>
 <span class="crumb hide-s">HUDUD</span>
-<div class="seg" id="modeSeg"><button data-m="radius" aria-pressed="true" title="Doira: markazni bosing">Doira</button><button data-m="rect" aria-pressed="false" title="Toʻrtburchak: ikki burchakni bosing">Toʻrtburchak</button><button data-m="poly" aria-pressed="false" title="Erkin chegara: burchaklarni bosing">Erkin chegara</button></div>
+<div class="seg" id="modeSeg"><button data-m="radius" aria-pressed="true" title="Doira: markazni bosing"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 12h8"/></svg>Doira</button><button data-m="rect" aria-pressed="false" title="Toʻrtburchak: ikki burchakni bosing"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14"/></svg>Toʻrtburchak</button><button data-m="poly" aria-pressed="false" title="Erkin chegara: burchaklarni bosing"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l9-4 6 7-4 9-11-3z"/></svg>Erkin chegara</button></div>
 <label class="km">r =<input id="rKm" type="number" min="0.2" max="5" step="0.1" value="1">km</label>
 <label class="km" title="Hududdan tashqarini xaritada, albomda va 3D da kesib tashlash" style="font-family:inherit;font-size:12.5px;gap:6px;cursor:pointer"><input type="checkbox" id="clipCb"> Faqat hudud ichi</label>
-<button class="btn dark" id="runBtn">Hisoblash</button><button class="btn ghost" id="b3d" title="3D model va vektor illyustratsiya: qatlamlar, ranglar, yuklab olish (SVG, PNG, OBJ, DXF, STL, GLB, DAE)">3D / vektor</button>
+<button class="btn dark" id="runBtn">Hisoblash</button><button class="btn ghost" id="b3d" title="3D model va vektor illyustratsiya: qatlamlar, ranglar, yuklab olish (SVG, PNG, OBJ, DXF, STL, GLB, DAE)"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>3D / vektor</button>
 <div class="more-w"><button class="btn ghost" id="moreBtn" aria-expanded="false" aria-haspopup="true" title="Albomga, saqlanganlar, AI kaliti">⋯</button><div class="more-m" id="moreM" hidden role="menu"><button id="albBtn" role="menuitem" title="Xarita (yoqilgan qatlamlar, fon bilan), koʻrsatkichlar va 15 daqiqa jadvalini albomga yuborish">Albomga yuborish →</button><button id="savBtn" role="menuitem" title="Saqlangan tahlillar: qayta ochish, nomlash, oʻchirish">Saqlangan tahlillar</button><button id="keyBtn" role="menuitem">AI kaliti (Anthropic API)</button></div></div>
 </header>
 <main>
@@ -85,8 +86,8 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 </main>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/uly.js?v=4"></script>
-<script src="js/ai3d.js?v=12"></script>
+<script src="js/uly.js?v=5"></script>
+<script src="js/ai3d.js?v=13"></script>
 <script>
 (function(){
 'use strict';
@@ -104,7 +105,7 @@ let BASE=localStorage.getItem('kps_ai_base')||'grey';if(!BASES[BASE])BASE='grey'
   d.onclick=e=>{const b=e.target.closest('[data-b]');if(!b)return;map.removeLayer(BASES[BASE]);BASE=b.dataset.b;BASES[BASE].addTo(map);BASES[BASE].bringToBack&&BASES[BASE].bringToBack();localStorage.setItem('kps_ai_base',BASE);d.querySelectorAll('[data-b]').forEach(x=>x.setAttribute('aria-pressed',x===b));};L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
 ULY.init(map,document.querySelector('.mapw'));
 let SDRAW=null;const SL=L.layerGroup().addTo(map);
-(()=>{const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.style.marginTop='6px';d.style.clear='both';d.innerHTML='<button id="siteBtn" title="Yer uchastkasi chegarasini chizish (qizil shtrix-punktir)">✎ Uchastka</button>';L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
+(()=>{const c=L.control({position:'topright'});c.onAdd=()=>{const d=L.DomUtil.create('div','bsw');d.style.marginTop='6px';d.style.clear='both';d.innerHTML='<button id="siteBtn" title="Yer uchastkasi chegarasini chizish (qizil shtrix-punktir)"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l12-4 4 12-13 4z" stroke-dasharray="3.5 2"/></svg>Uchastka</button>';L.DomEvent.disableClickPropagation(d);return d;};c.addTo(map);})();
 function siteRender(){SL.clearLayers();if(SDRAW&&SDRAW.length){L.polyline(SDRAW,{color:'#c62828',weight:2,dashArray:'14 5 2 5',interactive:false}).addTo(SL);SDRAW.forEach((p,i)=>L.circleMarker(p,{radius:i===0&&SDRAW.length>2?7:4,color:'#c62828',weight:2,fillColor:i===0&&SDRAW.length>2?'#c62828':'#fff',fillOpacity:1}).addTo(SL).on('click',e=>{L.DomEvent.stop(e);if(i===0)siteClose();}));}
   SITES.forEach((x,k)=>L.polygon(x.pts,{color:'#c62828',weight:10,opacity:0,fill:false}).addTo(SL).on('click',e=>{if(SDRAW)return;L.DomEvent.stop(e);if(confirm('Bu uchastka chegarasi oʻchirilsinmi?')){SITES.splice(k,1);saveSites();laySites();siteRender();}}));}
 function siteHint(){const h=$('#hint');h.innerHTML=`<b>Uchastka chegarasi.</b> Burchaklarni bosing (${SDRAW.length}).${SDRAW.length>2?' Yopish — birinchi nuqta yoki Enter.':''}<button id="sClose" ${SDRAW.length>2?'':'disabled'}>Yopish</button><button id="sEsc">Bekor</button>`;$('#sClose').onclick=siteClose;$('#sEsc').onclick=()=>{SDRAW=null;siteRender();hint();$('#siteBtn').setAttribute('aria-pressed','false');};}

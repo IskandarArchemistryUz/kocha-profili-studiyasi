@@ -267,7 +267,7 @@ function buildTrees(){const g=grp('gTree'),t=S.data.trees;if(!t.length)return;co
 const ICT={};
 function iconTex(col,icon){const k=col+icon;if(ICT[k])return ICT[k];const cv=document.createElement('canvas');cv.width=cv.height=128;const c=cv.getContext('2d');
   c.beginPath();c.arc(64,64,58,0,7);c.fillStyle=col;c.fill();c.lineWidth=7;c.strokeStyle='#fff';c.stroke();const IC=(S.ctx.ULY.IC||{})[icon];
-  if(IC){c.save();c.translate(64-36,64-36);c.scale(3,3);c.fillStyle='#fff';c.fill(new Path2D(IC),'evenodd');c.restore();}else{c.beginPath();c.arc(64,64,16,0,7);c.fillStyle='#fff';c.fill();}
+  if(IC){c.save();c.translate(64-36,64-36);c.scale(3,3);c.strokeStyle='#fff';c.lineWidth=S.ctx.ULY.ISTR||1.8;c.lineCap=c.lineJoin='round';c.stroke(new Path2D(IC));c.restore();}else{c.beginPath();c.arc(64,64,16,0,7);c.fillStyle='#fff';c.fill();}
   const t=new THREE.CanvasTexture(cv);t.anisotropy=4;return ICT[k]=t;}
 function pinH(){return Math.round(S.data.R*(S.opt.pinK??.6)/10)*10;}
 /* koʻrinadigan ikonkalar: yashirilganlar va oʻchirilgan turlar chiqmaydi */
@@ -499,7 +499,7 @@ function toSVG(){const cam=S.cam,v=S.ov.querySelector('#a3v'),W=1800,H=Math.roun
   // ikonkalar — ustunda, hammasining ustida
   const pins=visPins();if(L.pins&&pins.length){const R0=13*S.opt.pinS,IC=S.ctx.ULY.IC||{},y0=Y.pins;pins.slice().sort((a,b)=>vz(a.x,y0+(a.top||0),-a.y)-vz(b.x,y0+(b.top||0),-b.y)).forEach(q=>{const g=pr(q.x,y0,-q.y),t=pr(q.x,y0+(q.top??pinTop(q)),-q.y);
     s+=`<line x1="${g[0].toFixed(1)}" y1="${g[1].toFixed(1)}" x2="${t[0].toFixed(1)}" y2="${t[1].toFixed(1)}" stroke="#3a3a3a" stroke-width="1.3"/><circle cx="${g[0].toFixed(1)}" cy="${g[1].toFixed(1)}" r="1.6" fill="#555"/><circle cx="${t[0].toFixed(1)}" cy="${t[1].toFixed(1)}" r="${R0}" fill="${q.col}" stroke="#fff" stroke-width="2"/>`;
-    if(IC[q.icon]){const k=R0*1.25/24;s+=`<path d="${IC[q.icon]}" fill="#fff" fill-rule="evenodd" transform="translate(${(t[0]-12*k).toFixed(1)} ${(t[1]-12*k).toFixed(1)}) scale(${k.toFixed(3)})"/>`;}});}
+    if(IC[q.icon]){const k=R0*1.25/24;s+=`<path d="${IC[q.icon]}" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" transform="translate(${(t[0]-12*k).toFixed(1)} ${(t[1]-12*k).toFixed(1)}) scale(${k.toFixed(3)})"/>`;}});}
   // legenda
   if(L.legend){const it=[];if(L.bld&&S.opt.bmode==='lv')[['1–2',SEQ[0]],['3–5',SEQ[1]],['6–9',SEQ[2]],['10–16',SEQ[3]],['17+',SEQ[4]]].forEach(([n,c])=>it.push([c,T('Qavatlar')+': '+n,'f']));
     else if(L.bld&&S.opt.bmode==='use')[['res','Turar joy'],['com','Savdo / ofis'],['soc','Ijtimoiy'],['ind','Sanoat / ombor'],['other','Boshqa']].forEach(([k,n])=>it.push([USEC[k],T(n),'f']));else if(L.bld)it.push([p.bld,T('Binolar'),'f']);
