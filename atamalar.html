@@ -1,0 +1,487 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Mavze, daha, kvartal va zichlik — Archemistry Lab</title>
+<meta name="description" content="ShNQ 2.07.01-23 boʻyicha shaharsozlik birliklari (daha, mavze, turar joy tumani) va 400 kishi/ga zichlik normasi — interaktiv izoh.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: chizma qog'ozi — chapda masshtabli chizma, o'ngda izoh paneli; ranglar sovet/o'zbek rejalashtirish chizmalari konvensiyasidan (turar joy — sariq, ijtimoiy — qizil, ko'kalam — yashil) */
+:root{
+  --bg:#edf0f4; --surface:#ffffff; --surface2:#f6f8fb;
+  --ink:#122033; --muted:#56677d; --line:#cbd3de; --line2:#a9b5c4;
+  --brand:#2a63d4; --brand-soft:rgba(42,99,212,.12);
+  --res:#f0bd45; --res-ink:#5c4300; --soc:#de5f7c; --green:#4aa874; --road:#d5dbe3;
+  --bad:#d23c3c; --bad-soft:rgba(210,60,60,.14); --ok:#2f9a5d;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0a101b; --surface:#101a29; --surface2:#142033;
+  --ink:#e2eaf5; --muted:#8ea2bd; --line:#22324a; --line2:#34496a;
+  --brand:#6aa2ff; --brand-soft:rgba(106,162,255,.14);
+  --res:#d6a537; --res-ink:#fff4d6; --soc:#e0718b; --green:#42a06b; --road:#1d2a3e;
+  --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.16); --ok:#4cc07f; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0a101b; --surface:#101a29; --surface2:#142033;
+  --ink:#e2eaf5; --muted:#8ea2bd; --line:#22324a; --line2:#34496a;
+  --brand:#6aa2ff; --brand-soft:rgba(106,162,255,.14);
+  --res:#d6a537; --res-ink:#fff4d6; --soc:#e0718b; --green:#42a06b; --road:#1d2a3e;
+  --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.16); --ok:#4cc07f; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:28px 56px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(24px,4vw,38px);line-height:1.15}
+h2{font-size:clamp(19px,2.6vw,25px);line-height:1.2}
+h3{font-size:15px;font-weight:500}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--brand)}
+.lede{max-width:68ch;color:var(--muted);font-size:16px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+header.top{display:flex;flex-direction:column;gap:12px}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:8px;max-width:76ch}
+.sec-head p{color:var(--muted)}
+
+.board{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.board{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.drawing{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:0;display:flex;flex-direction:column}
+.drawing svg{display:block;width:100%;height:auto;touch-action:manipulation}
+.drawing .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+
+/* level selector */
+.levels{display:flex;flex-direction:column;gap:6px}
+.lvl{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;text-align:left;width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:9px 11px;color:var(--ink);font:inherit;cursor:pointer}
+.lvl:hover{border-color:var(--line2)}
+.lvl:focus-visible,.btn:focus-visible,.seg button:focus-visible,input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.lvl[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft)}
+.lvl .sw{width:14px;height:14px;border-radius:2px;border:2px solid currentColor}
+.lvl .nm{font-weight:600}
+.lvl .nm small{font-weight:400;color:var(--muted);font-family:var(--f-mono);font-size:11px;margin-left:6px}
+.lvl .ha{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
+.facts dt{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.facts dd{margin:0;min-width:0}
+.note{font-size:13px;color:var(--muted);border-left:2px solid var(--line2);padding-left:10px}
+.warn{font-size:14px;background:var(--brand-soft);border-radius:5px;padding:10px 12px}
+
+/* controls */
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:4px}
+.seg button{flex:1 1 auto;background:none;border:0;border-radius:4px;padding:8px 10px;font:inherit;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line2)}
+.ctrl{display:flex;flex-direction:column;gap:4px}
+.ctrl label{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.ctrl label b{font-family:var(--f-mono);color:var(--ink);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--brand)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
+.check input{margin-top:3px;accent-color:var(--brand)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{background:var(--surface2);border:1px solid var(--line2);border-radius:5px;padding:7px 12px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+
+/* meters */
+.meters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.m{background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.m .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.m .v{font-family:var(--f-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.m .s{font-size:12px;color:var(--muted)}
+.m.bad .v{color:var(--bad)} .m.ok .v{color:var(--ok)}
+.capbar{display:flex;flex-direction:column;gap:6px}
+.capbar .track{position:relative;height:22px;background:var(--surface2);border:1px solid var(--line);border-radius:4px;overflow:visible}
+.capbar .seg-fill{position:absolute;top:0;bottom:0;border-right:1px solid var(--surface)}
+.capbar .capline{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink)}
+.capbar .cl{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.story{font-size:14.5px;min-height:4.6em}
+.story strong{font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:12px;height:12px;border-radius:2px;display:inline-block}
+
+/* lessons */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card .tag{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.card.myth .tag{color:var(--bad)} .card.fact .tag{color:var(--ok)} .card.world .tag{color:var(--brand)}
+.card p{font-size:14px;color:var(--muted)}
+.card p b{color:var(--ink);font-weight:600}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:400;background:var(--surface2)}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600;white-space:nowrap}
+footer{font-size:12.5px;color:var(--muted);max-width:90ch;border-top:1px solid var(--line);padding-top:14px}
+
+/* svg */
+svg text{font-family:var(--f-body)}
+.sv-lbl{font-family:var(--f-display);font-weight:500}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <a href="./" style="font-family:var(--f-mono);font-size:12px;color:var(--muted);text-decoration:none">← Archemistry Lab</a>
+  <span class="eyebrow">Archemistry Urban · shaharsozlik savodxonligi</span>
+  <h1>Mavze, daha, kvartal: qaysi masshtab va zichlik kimga tegishli?</h1>
+  <p class="lede">ShNQ 2.07.01-23 ning 84-bandi: ko'p qavatli kompleks qurilishda mavzening hisobiy aholi zichligi 400 kishi/ga dan oshmasligi kerak. Bu chegara har bir uchastkaga emas, butun mavzega tegishli. Pastdagi ikki interaktiv chizma buni ko'rsatadi: avval normadagi birliklarning haqiqiy o'lchami, keyin zichlik uchastkalar orasida qanday taqsimlanishi va «kim birinchi qursa» holati qanday yuzaga kelishi.</p>
+</header>
+
+<!-- ============ 1. MASSHTAB ============ -->
+<section id="masshtab">
+  <div class="sec-head">
+    <span class="eyebrow">1 · Masshtab</span>
+    <h2>Birliklar bir-birining ichida joylashadi</h2>
+    <p>Chizma real masshtabda: barcha to'rtburchaklar metrda chizilgan. Darajani tanlang, chizma o'sha birlikka yaqinlashadi. Taqqoslash uchun futbol maydoni (≈0,7 ga) va piyoda yurish radiuslari berilgan.</p>
+  </div>
+  <div class="board">
+    <div class="drawing">
+      <svg id="scaleSvg" viewBox="0 0 1600 1300" role="img" aria-label="Uchastka, kvartal, mavze va dahaning masshtabli taqqoslanishi"></svg>
+      <div class="bar">
+        <span id="scaleRuler">Masshtab chizig'i: 500 m</span>
+        <label class="check" style="margin:0"><input type="checkbox" id="radii" checked> piyoda radiuslari</label>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="levels" id="levels"></div>
+      <dl class="facts" id="facts"></dl>
+    </div>
+  </div>
+  <p class="warn"><b>Asosiy chalkashlik.</b> ShNQ 2.07.01-23 da tartib mana bunday: <b>daha (kvartal)</b> ≤10 ga → <b>mavze</b> 10–50 ga → <b>turar joy tumani</b> 50–250 ga (56-band). Kundalik nutqda esa so'zlar boshqacha ishlatiladi. Chilonzorning «9-kvartali» normativ ma'noda <b>mavze</b>, tarixiy «daha»lar esa butun shahar qismlari edi. 400 kishi/ga normasi <b>mavze</b>ning to'liq maydoniga hisoblanadi.</p>
+</section>
+
+<!-- ============ 2. ZICHLIK ============ -->
+<section id="zichlik">
+  <div class="sec-head">
+    <span class="eyebrow">2 · Zichlik simulyatori</span>
+    <h2>24 gektarlik mavze: 400 kishi/ga qanday taqsimlanadi?</h2>
+    <p class="mono" style="font-size:12.5px;color:var(--ink)">ShNQ 2.07.01-23, 84-band: «Ko'p qavatli kompleks qurilishda mavzelarning hisobiy aholi zichligi 400 kishi/ha dan oshmasligi lozim.»</p>
+    <p>Mavze ichida maktab, bog'chalar, park, ichki yo'llar va 8 ta turar joy uchastkasi bor. Norma butun 24 ga uchun: mavzeda jami qancha odam yashashi mumkinligini belgilaydi. Uch rejimni solishtiring.</p>
+  </div>
+  <div class="board">
+    <div class="drawing">
+      <svg id="simSvg" viewBox="-40 -40 680 480" role="img" aria-label="Mavze rejasi: turar joy uchastkalari, maktab, bog'chalar va park"></svg>
+      <div class="bar">
+        <div class="legend">
+          <span><i style="background:var(--res)"></i>turar joy</span>
+          <span><i style="background:var(--soc)"></i>maktab / bog'cha</span>
+          <span><i style="background:var(--green)"></i>park</span>
+          <span><i style="background:var(--road)"></i>yo'l</span>
+        </div>
+        <span id="simHint">Uchastkani bosing</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="seg" role="group" aria-label="Rejim">
+        <button id="m-plan" aria-pressed="true">Reja bo'yicha</button>
+        <button id="m-first" aria-pressed="false">Kim birinchi</button>
+        <button id="m-wrong" aria-pressed="false">Xato talqin</button>
+      </div>
+      <p class="story" id="story"></p>
+      <div class="ctrl">
+        <label for="dens">Hisobiy aholi zichligi (84-band: ≤400) <b><span id="densV">400</span> kishi/ga</b></label>
+        <input type="range" id="dens" min="150" max="600" step="10" value="400">
+      </div>
+      <div class="ctrl" id="devCtrl" hidden>
+        <label for="devF">Quruvchi xohlagan qavat <b><span id="devFV">16</span> qavat</b></label>
+        <input type="range" id="devF" min="5" max="30" step="1" value="16">
+        <label class="check"><input type="checkbox" id="enforce" checked> Norma qat'iy nazorat qilinadi (sig'im tugasa, ruxsat berilmaydi)</label>
+        <div class="btns">
+          <button class="btn primary" id="auto">Tasodifiy navbat</button>
+          <button class="btn" id="reset">Tozalash</button>
+        </div>
+      </div>
+      <div class="capbar">
+        <div class="cl"><span>Mavze sig'imi ishlatilishi</span><span id="capTxt" class="mono"></span></div>
+        <div class="track" id="track"></div>
+        <div class="cl"><span>0</span><span id="capMax" class="mono"></span></div>
+      </div>
+      <div class="meters">
+        <div class="m" id="mPop"><span class="k">Aholi</span><span class="v" id="vPop"></span><span class="s" id="sPop"></span></div>
+        <div class="m" id="mBr"><span class="k">Brutto zichlik</span><span class="v" id="vBr"></span><span class="s">butun 24 ga bo'yicha</span></div>
+        <div class="m" id="mNet"><span class="k">Netto zichlik</span><span class="v" id="vNet"></span><span class="s" id="sNet"></span></div>
+        <div class="m" id="mSch"><span class="k">Maktab yuklamasi</span><span class="v" id="vSch"></span><span class="s">loyiha sig'imiga nisbatan</span></div>
+        <div class="m" id="mFund" style="grid-column:1/-1"><span class="k">Uy-joy fondi zichligi</span><span class="v" id="vFund"></span><span class="s">jadval: ko'p qavatli 6000–6700, yuqori va baland 6700–7500 m²/ga</span></div>
+      </div>
+      <p class="note">Hisob farazlari: qurilish koeffitsienti 0,30; kvartiralar maydoni qavatlar maydonining 75%; bir kishiga 30 m² (1-jadval, ekonom sinf). Ko'kalamzor: park 2,7 ga va hovlilardagi taxminan 4,7 ga, jami ~30% (86-band talabi). Maktab va bog'cha mavzening rejadagi aholisiga mo'ljallangan.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. XULOSA ============ -->
+<section id="xulosa">
+  <div class="sec-head">
+    <span class="eyebrow">3 · Qoidalar aslida qanday ishlaydi</span>
+    <h2>Uchta noto'g'ri tushuncha va ularning javobi</h2>
+  </div>
+  <div class="cards">
+    <article class="card myth"><span class="tag">Noto'g'ri</span><h3>«Uchastkam 1 ga, demak 400 kishi joylashtira olaman»</h3>
+      <p>400 kishi/ga mavzening <b>brutto</b> ko'rsatkichi. Normaga ko'ra zichlik hisobiga turar joylar, maktab, bog'cha, kundalik xizmat, ko'kalamzor va avtoturargohlar maydoni qo'shiladi (zichlik jadvali, 3-izoh). Bu yerlarning ko'pida hech kim yashamaydi, shuning uchun turar joy uchastkasining o'zida zichlik (<b>netto</b>) 1,5–2 baravar yuqori bo'ladi. Simulyatordagi «Xato talqin» rejimi buni ko'rsatadi.</p></article>
+    <article class="card myth"><span class="tag">Noto'g'ri</span><h3>«Mavze bo'yicha hali sig'im bor, hammasini men olaman»</h3>
+      <p>Norma mavze bo'yicha umumiy chegara bo'lgani uchun, uchastkalar orasida taqsimlanmagan bo'lsa, birinchi quruvchi butun qoldiqni egallab oladi. Bu iqtisodda <b>umumiy resurs tragediyasi</b> deyiladi: maktab, kanalizatsiya va yo'l sig'imi hammaniki, lekin uni birinchi kelgan ishlatib qo'yadi.</p></article>
+    <article class="card fact"><span class="tag">To'g'ri tartib</span><h3>Sig'im batafsil reja orqali uchastkalarga bo'linadi</h3>
+      <p>400 kishi/ga mavze uchun yoziladi (84-band), uchastkaga emas. Uni uchastkalarga bo'lish shaharsozlik hujjatlari, ya'ni mavzening <b>batafsil rejalashtirish loyihasi</b> vazifasi: har uchastkaga qavatlilik, qurilish koeffitsienti va aholi soni beriladi. Shunda «kim birinchi» muammosi bo'lmaydi. Muammo batafsil reja yo'q yoki eskirgan joyda, ruxsatlar bittalab berilganda paydo bo'ladi.</p></article>
+    <article class="card fact"><span class="tag">Normalar o'zaro</span><h3>400 kishi/ga va m²/ga bir-biriga to'g'ri kelmaydi</h3>
+      <p>Jadvaldagi baland qavatli uchun eng katta qiymat 7500 m²/ga. 400 kishiga bo'lsak, <b>18,8 m²/kishi</b> chiqadi, bu 61-banddagi 16 m² ijtimoiy normaga yaqin. 1-jadvaldagi ekonom sinf (30 m²/kishi) bilan esa 400 × 30 = <b>12 000 m²/ga</b> bo'ladi. Ya'ni bugungi kvartira o'lchamlarida m²/ga chegarasi amalda 250 kishi/ga atrofida to'xtatadi. Bu mening arifmetik hisobim, rasmiy talqin emas.</p></article>
+    <article class="card world"><span class="tag">Xalqaro tajriba</span><h3>Germaniya, Nyu-York, Tokio</h3>
+      <p><b>Germaniya</b>: Bebauungsplan har bir uchastkaga GRZ/GFZ (qamrov va qavat maydoni koeffitsienti) yozadi. <b>Nyu-York</b>: ishlatilmagan qurilish huquqini qo'shni uchastkaga sotish mumkin (TDR, «air rights»). <b>Tokio</b>: har uchastka uchun maksimal FAR, ko'cha kengligiga bog'liq. Toshkent uchun xulosa: har mavze bo'yicha «qolgan sig'im» ochiq reyestri va infratuzilma to'lovi (impact fee).</p></article>
+  </div>
+
+  <div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Qurilish tipi (2-bob)</th><th>Qavatlar</th><th>Uy-joy fondi zichligi, m²/ga (jadval)</th><th>1000 kishiga turar joy zonasi (62-band, shahar)</th></tr></thead>
+      <tbody>
+        <tr><td>Kam qavatli</td><td class="mono">1–3</td><td class="mono">2200–4200</td><td class="mono">10–15 ga</td></tr>
+        <tr><td>O'rta qavatli</td><td class="mono">4–9</td><td class="mono">4200–6000</td><td class="mono">8 ga</td></tr>
+        <tr><td>Ko'p qavatli</td><td class="mono">10–16</td><td class="mono">6000–6700</td><td class="mono">8 ga</td></tr>
+        <tr><td>Yuqori qavatli</td><td class="mono">17–24</td><td class="mono" rowspan="2">6700–7500</td><td class="mono" rowspan="2">7 ga</td></tr>
+        <tr><td>Baland qavatli</td><td class="mono">25+</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Jadval izohi (3): zichlikni aniqlashda turar joylar, ta'lim muassasalari, kundalik xizmat obyektlari, ko'kalamzorlar va avtoturargohlar yer maydonlari qo'shib hisoblanadi; tuman va shahar ahamiyatidagi obyektlar hududi qo'shilmaydi. Jadval sarlavhasida «kam bo'lmagan», 2-izohda esa «yuqori bo'lmasligi kerak» deyilgan. Bu ikki ifodani normani ishlab chiquvchidan aniqlashtirish kerak.</p>
+  </div>
+</section>
+
+<footer>Manba: ShNQ 2.07.01-23 «Aholi punktlarining hududlarini rivojlantirish va qurishni shaharsozlik jihatidan rejalashtirish» (Qurilish vazirligining 20.05.2024 dagi 01/2-20-son buyrug'i; 1-jadval 09.12.2025 dagi 01/2-42-son buyruq tahririda; 86-band 06.04.2026 tahririda). Atamalar 2-bobdan, birliklar 56-banddan, zichlik 84-banddan va uy-joy fondi zichligi jadvalidan olingan. Simulyator rejasi, qurilish koeffitsienti 0,30, maktab yuklamasi va hovlilardagi ko'kalamzor ulushi illyustrativ farazlar.</footer>
+</div>
+
+<script>
+(function(){
+const NS="http://www.w3.org/2000/svg";
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const fmt=n=>Math.round(n).toLocaleString("ru-RU").replace(/,/g," ");
+const fmt1=n=>(Math.round(n*10)/10).toString().replace(".",",");
+
+/* =================== 1. SCALE =================== */
+const LV=[
+ {id:"plot",nm:"Yer uchastkasi",ru:"земельный участок",x:350,y:250,w:100,h:100,color:"var(--res)",ha:"kadastr",
+  f:{"ShNQ ta'rifi":"Yer fondining qayd etilgan chegara, maydon, manzil va huquqiy rejimga ega, davlat yer kadastrida aks ettiriladigan qismi (2-bob)","Misol":"1 ga (100×100 m)","Zichlik":"Uchastkaga alohida aholi zichligi normasi yozilmagan. 400 kishi/ga mavzega tegishli (84-band)","O'lchamlar":"Yakka tartibdagi uy-joy uchun 400 m² (75-band); tomorqa kamida 200 m² (74-band)"}},
+ {id:"kv",nm:"Daha (kvartal)",ru:"квартал",x:180,y:190,w:320,h:200,color:"var(--brand)",ha:"≤10 ga",
+  f:{"ShNQ ta'rifi":"Eng yaqin ko'chalar bilan chegaralangan hudud, eng kichik shaharsozlik elementi (2-bob)","O'lcham":"Ko'chalar bilan bo'linmagan, maydoni 10 ga gacha (56-band); misol 6,4 ga (320×200 m)","Ichida":"Bir necha uchastka, umumiy hovli","Diqqat":"Normada «daha» = kvartal. Toshkentning tarixiy 4 dahasi (Ko'kcha, Sebzor, Shayxontohur, Beshyog'och) bundan ancha katta bo'lgan, ularni normativ atama bilan aralashtirmang"}},
+ {id:"mz",nm:"Mavze",ru:"микрорайон",x:120,y:130,w:600,h:400,color:"var(--soc)",ha:"10–50 ga",
+  f:{"ShNQ ta'rifi":"Daha, mahalla yoki ularning guruhlari; qizil chiziqlar bilan chegaralangan, magistral yoki tuman ko'chalari bilan bo'linmagan hudud (56-band)","O'lcham":"10–50 ga (56-band); misol 30 ga","Turar joy mavzesi":"Magistral ko'chalarga tutash, turar joy binolari va maishiy xizmat korxonalari majmuasi; shahar turar joy qurilishining birlamchi birligi (2-bob)","Zichlik":"Ko'p qavatli kompleks qurilishda hisobiy aholi zichligi 400 kishi/ga dan oshmasligi kerak (84-band)","Ko'kalamzor":"Maktab va bog'cha uchastkalarisiz mavze maydonining kamida 30% (86-band)","Toshkent":"Chilonzor, Yunusobod, Sergeli raqamli «kvartal»lari normativ ma'noda mavze masshtabida"}},
+ {id:"dh",nm:"Turar joy tumani",ru:"жилой район",x:40,y:60,w:1500,h:1200,color:"var(--green)",ha:"50–250 ga",
+  f:{"ShNQ ta'rifi":"Umumiy markazga ega mavzelar guruhi; shahar ahamiyatidagi magistral ko'chalar, temir yo'llar, tabiiy hududlar bilan bo'linmagan (56-band)","O'lcham":"50–250 ga (56-band); misol 180 ga (1,5×1,2 km)","Ichida":"Jamoat, ma'muriy, ishlab chiqarish, kommunal va davriy xizmat obyektlari, ko'kalamzor hududlar (56-band)","Zichlik":"Turar joy tumanlarida tuman va shahar ahamiyatidagi obyektlarni hisobga olib zichlikni 20% gacha pasaytirish kerak (zichlik jadvali, 1-izoh)","Diqqat":"Ma'muriy tuman (Chilonzor tumani va h.k.) boshqa tushuncha"}}
+];
+const sv=document.getElementById("scaleSvg");
+const g=el("g",{},sv);
+// daha background + ghost mavzes
+el("rect",{x:40,y:60,width:1500,height:1200,fill:"var(--green)","fill-opacity":.07},g);
+[[120,130],[760,130],[120,690],[760,690]].forEach(([x,y],i)=>{
+  el("rect",{x,y,width:600,height:i===0?400:480,fill:"none",stroke:"var(--soc)","stroke-opacity":.45,"stroke-dasharray":"8 6","vector-effect":"non-scaling-stroke","stroke-width":1.2},g);
+});
+// daha centre
+el("rect",{x:730,y:560,width:120,height:90,fill:"var(--soc)","fill-opacity":.35},g);
+// ghost kvartals inside mavze
+for(let r=0;r<2;r++)for(let c=0;c<2;c++){if(r===0&&c===0)continue;
+  el("rect",{x:180+c*340,y:190+r*220,width:320,height:200-(r?60:0),fill:"none",stroke:"var(--brand)","stroke-opacity":.4,"stroke-dasharray":"5 4","vector-effect":"non-scaling-stroke"},g);}
+// ghost plots inside kvartal
+[[190,200],[350,200],[190,300]].forEach(([x,y])=>el("rect",{x,y,width:140,height:80,fill:"var(--res)","fill-opacity":.25},g));
+// football pitch 105x68
+const fp=el("g",{},g);
+el("rect",{x:200,y:300,width:105,height:68,fill:"var(--green)","fill-opacity":.55,stroke:"var(--ink)","stroke-opacity":.5,"vector-effect":"non-scaling-stroke"},fp);
+el("line",{x1:252.5,y1:300,x2:252.5,y2:368,stroke:"var(--ink)","stroke-opacity":.5,"vector-effect":"non-scaling-stroke"},fp);
+el("circle",{cx:252.5,cy:334,r:9.15,fill:"none",stroke:"var(--ink)","stroke-opacity":.5,"vector-effect":"non-scaling-stroke"},fp);
+const fpL=el("text",{x:200,y:296,fill:"var(--muted)"},fp);fpL.textContent="futbol maydoni ≈0,7 ga";
+// radii
+const rg=el("g",{},g);
+const r1=el("circle",{cx:420,cy:330,r:500,fill:"none",stroke:"var(--soc)","stroke-width":1.5,"stroke-dasharray":"2 5","vector-effect":"non-scaling-stroke"},rg);
+const r2=el("circle",{cx:790,cy:605,r:1000,fill:"none",stroke:"var(--green)","stroke-width":1.5,"stroke-dasharray":"2 5","vector-effect":"non-scaling-stroke"},rg);
+const r1L=el("text",{fill:"var(--soc)"},rg);r1L.textContent="500 m — maktab, bog'cha";
+const r2L=el("text",{fill:"var(--green)"},rg);r2L.textContent="1000 m — turar joy tumani markazi";
+// main level rects
+const lvR={},lvT={};
+LV.slice().reverse().forEach(l=>{
+  if(l.id!=="dh")el("rect",{x:l.x,y:l.y,width:l.w,height:l.h,fill:l.color,"fill-opacity":l.id==="plot"?.75:.1},g);
+  lvR[l.id]=el("rect",{x:l.x,y:l.y,width:l.w,height:l.h,fill:"none",stroke:l.color,"stroke-width":2.5,"vector-effect":"non-scaling-stroke"},g);
+});
+LV.forEach(l=>{const t=el("text",{class:"sv-lbl",fill:"var(--ink)"},g);t.textContent=l.nm+" · "+l.ha;lvT[l.id]=t;});
+// scale bar
+const sb=el("g",{},sv);const sbLine=el("rect",{fill:"var(--ink)"},sb);const sbT=el("text",{fill:"var(--ink)",class:"mono"},sb);
+
+let vb={x:0,y:0,w:1600,h:1300},cur="mz",anim;
+function target(id){const l=LV.find(v=>v.id===id);const pad=id==="dh"?1.06:1.45;
+  let w=l.w*pad,h=l.h*pad;const ar=1600/1300;if(w/h<ar)w=h*ar;else h=w/ar;
+  return {x:l.x+l.w/2-w/2,y:l.y+l.h/2-h/2,w,h};}
+function paint(){
+  sv.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const fs=vb.w/42;
+  LV.forEach(l=>{const t=lvT[l.id];const vis=l.w>vb.w*.12&&l.w<vb.w*1.2;
+    t.setAttribute("font-size",fs);t.setAttribute("x",Math.max(l.x,vb.x)+fs*.5);t.setAttribute("y",Math.max(l.y,vb.y)+fs*1.35);
+    t.setAttribute("opacity",vis?(l.id===cur?1:.65):0);
+    lvR[l.id].setAttribute("stroke-width",l.id===cur?4:2);});
+  fpL.setAttribute("font-size",fs*.7);fpL.setAttribute("opacity",vb.w<1200?1:0);
+  r1L.setAttribute("font-size",fs*.7);r2L.setAttribute("font-size",fs*.7);
+  r1L.setAttribute("x",420+500*.72);r1L.setAttribute("y",330+500*.72+fs);
+  r2L.setAttribute("x",790+1000*.5);r2L.setAttribute("y",605-1000*.87+fs*1.2);
+  // scale bar: nice length ~ 1/5 of view
+  const nice=[10,20,50,100,200,500,1000];const L=nice.reduce((a,b)=>Math.abs(b-vb.w/5)<Math.abs(a-vb.w/5)?b:a);
+  const bx=vb.x+vb.w*.04,by=vb.y+vb.h*.95;
+  sbLine.setAttribute("x",bx);sbLine.setAttribute("y",by);sbLine.setAttribute("width",L);sbLine.setAttribute("height",vb.h*.008);
+  sbT.setAttribute("x",bx);sbT.setAttribute("y",by-vb.h*.012);sbT.setAttribute("font-size",fs*.75);sbT.textContent=L>=1000?(L/1000)+" km":L+" m";
+  document.getElementById("scaleRuler").textContent="Masshtab chizig'i: "+sbT.textContent;
+}
+function go(id){cur=id;const t=target(id),s={...vb},t0=performance.now();
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;const D=reduce?1:650;
+  cancelAnimationFrame(anim);
+  const step=now=>{let k=Math.min(1,(now-t0)/D);k=1-Math.pow(1-k,3);
+    vb={x:s.x+(t.x-s.x)*k,y:s.y+(t.y-s.y)*k,w:s.w+(t.w-s.w)*k,h:s.h+(t.h-s.h)*k};paint();if(k<1)anim=requestAnimationFrame(step);};
+  anim=requestAnimationFrame(step);
+  document.querySelectorAll(".lvl").forEach(b=>b.setAttribute("aria-pressed",b.dataset.id===id));
+  const l=LV.find(v=>v.id===id);const f=document.getElementById("facts");f.innerHTML="";
+  for(const k in l.f){const dt=document.createElement("dt");dt.textContent=k;const dd=document.createElement("dd");dd.textContent=l.f[k];f.append(dt,dd);}
+}
+const lvBox=document.getElementById("levels");
+LV.forEach(l=>{const b=document.createElement("button");b.className="lvl";b.dataset.id=l.id;b.setAttribute("aria-pressed","false");
+  b.innerHTML=`<span class="sw" style="color:${l.color}"></span><span class="nm">${l.nm}<small>${l.ru}</small></span><span class="ha">${l.ha}</span>`;
+  b.onclick=()=>go(l.id);lvBox.appendChild(b);});
+document.getElementById("radii").onchange=e=>{rg.hidden=!e.target.checked;};
+vb=target("mz");go("mz");
+
+/* =================== 2. SIMULATOR =================== */
+const TOTAL_HA=24, COV=.30, EFF=.75, NORM=30; // NORM: 1-jadval, ekonom sinf, 30 m² kvartira maydoni / kishi
+const P=[
+ {id:"A",t:"res",x:0,y:0,w:140,h:90},{id:"B",t:"res",x:0,y:100,w:140,h:90},
+ {id:"C",t:"res",x:150,y:0,w:140,h:110},{id:"BG1",t:"soc",nm:"Bog'cha",x:150,y:120,w:140,h:70},
+ {id:"MK",t:"soc",nm:"Maktab",x:310,y:0,w:140,h:190},{id:"D",t:"res",x:460,y:0,w:140,h:190},
+ {id:"E",t:"res",x:0,y:210,w:140,h:190},{id:"PK",t:"green",nm:"Park",x:150,y:210,w:140,h:190},
+ {id:"F",t:"res",x:310,y:210,w:140,h:100},{id:"BG2",t:"soc",nm:"Bog'cha",x:310,y:320,w:140,h:80},
+ {id:"G",t:"res",x:460,y:210,w:140,h:90},{id:"H",t:"res",x:460,y:310,w:140,h:90}
+];
+P.forEach(p=>p.ha=p.w*p.h/1e4);
+const RES=P.filter(p=>p.t==="res");const RES_HA=RES.reduce((s,p)=>s+p.ha,0);
+const SEGC=["#e8a33d","#c98a2b","#f2c86b","#b07a22","#e3b452","#d49431","#f5d27f","#a86f1c"];
+const peopleOf=(ha,f)=>ha*1e4*COV*f*EFF/NORM;
+const floorsOf=(ha,pp)=>pp*NORM/(ha*1e4*COV*EFF);
+
+const S={mode:"plan",dens:400,devF:16,enforce:true,order:[]};
+const ss=document.getElementById("simSvg");
+const defs=el("defs",{},ss);
+const pat=el("pattern",{id:"hatch",width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"},defs);
+el("rect",{width:8,height:8,fill:"var(--bad-soft)"},pat);el("line",{x1:0,y1:0,x2:0,y2:8,stroke:"var(--bad)","stroke-width":2},pat);
+// streets
+el("rect",{x:-40,y:-40,width:680,height:480,fill:"var(--road)"},ss);
+el("rect",{x:0,y:0,width:600,height:400,fill:"var(--surface2)"},ss);
+el("rect",{x:-2,y:-2,width:604,height:404,fill:"none",stroke:"var(--soc)","stroke-width":2,"stroke-dasharray":"10 6"},ss);
+const sl=(x,y,txt,rot)=>{const t=el("text",{x,y,"font-size":12,fill:"var(--muted)","text-anchor":"middle",transform:rot?`rotate(${rot} ${x} ${y})`:""},ss);t.textContent=txt;};
+sl(300,-16,"MAGISTRAL KO'CHA");sl(300,426,"TUMAN KO'CHASI");sl(-18,200,"KO'CHA",-90);sl(618,200,"KO'CHA",90);
+el("rect",{x:0,y:190,width:600,height:20,fill:"var(--road)"},ss);
+el("rect",{x:290,y:0,width:20,height:400,fill:"var(--road)"},ss);
+const pg={};
+P.forEach(p=>{
+  const G=el("g",{tabindex:p.t==="res"?0:-1,role:p.t==="res"?"button":"img","aria-label":p.t==="res"?`Uchastka ${p.id}, ${fmt1(p.ha)} ga`:p.nm},ss);
+  const base=el("rect",{x:p.x+2,y:p.y+2,width:p.w-4,height:p.h-4,rx:2,fill:p.t==="res"?"var(--res)":p.t==="soc"?"var(--soc)":"var(--green)","fill-opacity":p.t==="res"?.25:.55},G);
+  const bld=el("rect",{fill:"var(--res)",rx:1},G);
+  const hatch=el("rect",{x:p.x+2,y:p.y+2,width:p.w-4,height:p.h-4,fill:"url(#hatch)",opacity:0},G);
+  const ring=el("rect",{x:p.x+2,y:p.y+2,width:p.w-4,height:p.h-4,rx:2,fill:"none",stroke:"var(--ink)","stroke-width":0},G);
+  const t1=el("text",{x:p.x+10,y:p.y+22,"font-size":15,"font-weight":600,fill:"var(--ink)",class:"sv-lbl"},G);
+  const t2=el("text",{x:p.x+10,y:p.y+40,"font-size":12,fill:"var(--ink)"},G);
+  const t3=el("text",{x:p.x+10,y:p.y+56,"font-size":12,fill:"var(--ink)"},G);
+  t1.textContent=p.t==="res"?p.id:p.nm;t2.textContent=fmt1(p.ha)+" ga";
+  pg[p.id]={G,base,bld,hatch,ring,t1,t2,t3};
+  if(p.t==="res"){G.style.cursor="pointer";
+    G.addEventListener("click",()=>clickPlot(p));
+    G.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();clickPlot(p);}});}
+});
+const ordBadge={};
+
+function clickPlot(p){
+  if(S.mode!=="first"){setMode("first");}
+  if(S.order.find(o=>o.id===p.id))return;
+  S.order.push({id:p.id});render();
+}
+function compute(){
+  const cap=S.dens*TOTAL_HA;const out={};
+  if(S.mode==="plan"){RES.forEach(p=>{const pp=cap*p.ha/RES_HA;out[p.id]={pp,f:floorsOf(p.ha,pp),st:"built"};});}
+  else if(S.mode==="wrong"){RES.forEach(p=>{const pp=S.dens*p.ha;out[p.id]={pp,f:floorsOf(p.ha,pp),st:"built"};});}
+  else{let used=0;S.order.forEach((o,i)=>{const p=P.find(q=>q.id===o.id);const want=peopleOf(p.ha,S.devF);const rem=cap-used;
+      if(!S.enforce||want<=rem){out[p.id]={pp:want,f:S.devF,st:"built",n:i+1};used+=want;}
+      else{const f=Math.floor(floorsOf(p.ha,rem));
+        if(f>=3){const pp=peopleOf(p.ha,f);out[p.id]={pp,f,st:"cut",n:i+1};used+=pp;}
+        else out[p.id]={pp:0,f:0,st:"rej",n:i+1};}});}
+  return {cap,out};
+}
+function render(){
+  const {cap,out}=compute();
+  let pop=0;RES.forEach(p=>{if(out[p.id])pop+=out[p.id].pp;});
+  // plots
+  RES.forEach(p=>{const o=out[p.id],v=pg[p.id];
+    v.hatch.setAttribute("opacity",o&&o.st==="rej"?1:0);
+    v.ring.setAttribute("stroke-width",o&&o.n?2:0);
+    if(o&&o.pp>0){const f=o.f;
+      const room=Math.max(14,p.h-70),bh=room*Math.min(1,.35+f/30),bw=Math.min(60,(p.w-30)*.45);
+      v.bld.setAttribute("x",p.x+p.w-10-bw);v.bld.setAttribute("y",p.y+p.h-8-bh);
+      v.bld.setAttribute("width",bw);v.bld.setAttribute("height",bh);
+      v.bld.setAttribute("fill-opacity",Math.min(1,.35+f/22));v.bld.setAttribute("opacity",1);
+      v.base.setAttribute("fill-opacity",.18+Math.min(.6,f/40));
+      v.t2.textContent=`${fmt1(p.ha)} ga · ${Math.max(1,Math.round(f))} qavat`;
+      v.t3.textContent=`${fmt(o.pp)} kishi${o.st==="cut"?" (qisqartirildi)":""}`;
+    }else{v.bld.setAttribute("opacity",0);v.base.setAttribute("fill-opacity",.18);
+      v.t2.textContent=fmt1(p.ha)+" ga";
+      v.t3.textContent=o&&o.st==="rej"?"RAD ETILDI — sig'im tugagan":(S.mode==="first"?"bo'sh — bosing":"");}
+    v.t1.textContent=p.id+(o&&o.n?`  #${o.n}`:"");
+  });
+  // capbar
+  const track=document.getElementById("track");track.innerHTML="";
+  const scaleMax=Math.max(cap,pop)*1.02;let acc=0;
+  const seq=S.mode==="first"?S.order.map(o=>o.id):RES.map(p=>p.id);
+  seq.forEach((id,i)=>{const o=out[id];if(!o||o.pp<=0)return;const d=document.createElement("div");d.className="seg-fill";
+    const over=acc+o.pp>cap+1;d.style.left=(acc/scaleMax*100)+"%";d.style.width=(o.pp/scaleMax*100)+"%";
+    d.style.background=over?"var(--bad)":SEGC[i%SEGC.length];d.title=`${id}: ${fmt(o.pp)} kishi`;track.appendChild(d);acc+=o.pp;});
+  const cl=document.createElement("div");cl.className="capline";cl.style.left=`calc(${cap/scaleMax*100}% - 1px)`;cl.title="Normativ sig'im";track.appendChild(cl);
+  document.getElementById("capTxt").textContent=Math.round(pop/cap*100)+"%";
+  document.getElementById("capMax").textContent="sig'im "+fmt(cap)+" kishi";
+  // meters
+  const br=pop/TOTAL_HA,nt=pop/RES_HA,sch=pop/cap*100;
+  document.getElementById("vPop").textContent=fmt(pop);
+  document.getElementById("sPop").textContent="sig'im: "+fmt(cap);
+  document.getElementById("vBr").textContent=fmt(br)+" /ga";
+  document.getElementById("vNet").textContent=fmt(nt)+" /ga";
+  document.getElementById("sNet").textContent="faqat "+fmt1(RES_HA)+" ga turar joy";
+  document.getElementById("vSch").textContent=Math.round(sch)+"%";
+  document.getElementById("mBr").className="m "+(br>S.dens*1.01?"bad":"");
+  document.getElementById("mSch").className="m "+(sch>101?"bad":sch>=90?"ok":"");
+  const fund=pop*NORM/TOTAL_HA;document.getElementById("vFund").textContent=fmt(fund)+" m²/ga";
+  document.getElementById("mFund").className="m "+(fund>7500?"bad":"");
+  document.getElementById("densV").textContent=S.dens;
+  document.getElementById("devFV").textContent=S.devF;
+  story(cap,pop,out);
+}
+function story(cap,pop,out){
+  const s=document.getElementById("story");const avgF=floorsOf(RES_HA,cap);
+  if(S.mode==="plan"){
+    s.innerHTML=`Sig'im <strong>${fmt(cap)} kishi</strong> (${S.dens} × 24 ga) batafsil rejada uchastka maydoniga mutanosib bo'linadi. Har bir uchastka o'z kvotasini oladi: taxminan <strong>${Math.round(avgF)} qavat</strong>. Turar joy uchastkasida zichlik ${fmt(pop/RES_HA)} kishi/ga, chunki maktab, park va yo'llar ham norma hisobiga kiradi. Navbat ahamiyatsiz.`;
+  }else if(S.mode==="wrong"){
+    s.innerHTML=`Har bir uchastka normani o'z maydoniga qo'llasa (${S.dens} × uchastka ga), mavzeda faqat <strong>${fmt(pop)} kishi</strong> yashaydi, ya'ni sig'imning ${Math.round(pop/cap*100)}%i. Brutto zichlik ${fmt(pop/TOTAL_HA)} kishi/ga bo'lib qoladi. Bu xato maktab va yo'llar hududini «ikki marta» chegirib tashlaydi.`;
+  }else{
+    const built=S.order.filter(o=>out[o.id]&&out[o.id].pp>0),rej=S.order.filter(o=>out[o.id]&&out[o.id].st==="rej");
+    const left=RES.length-S.order.length;const rem=Math.max(0,cap-pop);
+    if(!S.order.length){s.innerHTML=`BRL yo'q, ruxsatlar navbat bilan beriladi. Chizmadagi uchastkalarni istalgan tartibda bosing: har bir quruvchi <strong>${S.devF} qavat</strong> so'raydi. Mavze sig'imi: ${fmt(cap)} kishi.`;return;}
+    if(S.enforce){
+      s.innerHTML=`Birinchi <strong>${Math.min(built.length,S.order.length)} ta</strong> quruvchi sig'imning <strong>${Math.round(pop/cap*100)}%</strong>ini oldi. `+
+        (rej.length?`<strong>${rej.length} ta</strong> uchastka rad etildi: yer egasi bir xil huquqqa ega bo'lsa ham, navbati kech qolgan. `:"")+
+        (left?`Qolgan ${left} ta uchastka uchun ${fmt(rem)} kishi qoldi${rem>0?`, bu har biriga o'rtacha ~${fmt1(Math.max(0,floorsOf(RES_HA*left/RES.length,rem/left)))} qavat`:""}.`:"");
+    }else{
+      s.innerHTML=`Norma nazorat qilinmasa, hamma ${S.devF} qavat quradi. Mavzeda <strong>${fmt(pop)} kishi</strong>, maktab yuklamasi <strong>${Math.round(pop/cap*100)}%</strong>. Toshkentda ko'p uchraydigan holat: binolar qurilgan, lekin maktab, bog'cha va kanalizatsiya rejadagi aholiga mo'ljallangan.`;
+    }
+  }
+}
+function setMode(m){S.mode=m;["plan","first","wrong"].forEach(k=>document.getElementById("m-"+k).setAttribute("aria-pressed",k===m));
+  document.getElementById("devCtrl").hidden=m!=="first";
+  document.getElementById("simHint").textContent=m==="first"?"Uchastkalarni navbat bilan bosing":"Uchastkani bossangiz, «Kim birinchi» rejimi ochiladi";render();}
+["plan","first","wrong"].forEach(k=>document.getElementById("m-"+k).onclick=()=>setMode(k));
+document.getElementById("dens").oninput=e=>{S.dens=+e.target.value;render();};
+document.getElementById("devF").oninput=e=>{S.devF=+e.target.value;render();};
+document.getElementById("enforce").onchange=e=>{S.enforce=e.target.checked;render();};
+document.getElementById("reset").onclick=()=>{S.order=[];render();};
+document.getElementById("auto").onclick=()=>{const ids=RES.map(p=>p.id);for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
+  S.order=[];let i=0;const tick=()=>{if(i>=ids.length||S.mode!=="first")return;S.order.push({id:ids[i++]});render();setTimeout(tick,380);};tick();};
+render();
+})();
+</script>
+
+</body></html>
