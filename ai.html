@@ -87,6 +87,7 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/basemap.js?v=1"></script>
+<script src="js/project.js?v=1"></script>
 <script src="js/uly.js?v=5"></script>
 <script src="js/ai3d.js?v=13"></script>
 <script>
@@ -305,7 +306,7 @@ function fifteen(roads,poi,ring,inside,areaM2,bb){const NOWALK=/^(motorway|motor
   C15.forEach(([c,n])=>{const ms=ok.map(x=>x.m[c]).filter(v=>isFinite(v)).sort((a,b)=>a-b);sum.categories[n]={within_5min_pct:ok.length?+(ok.filter(x=>x.m[c]<=5).length/ok.length*100).toFixed(1):0,within_10min_pct:ok.length?+(ok.filter(x=>x.m[c]<=10).length/ok.length*100).toFixed(1):0,within_15min_pct:ok.length?+(ok.filter(x=>x.m[c]<=15).length/ok.length*100).toFixed(1):0,median_min:ms.length?+ms[Math.floor(ms.length/2)].toFixed(1):null,count:cnt[c]};});
   sum.index_avg_categories_15min=ok.length?+(ok.reduce((s,x)=>s+x.n,0)/ok.length).toFixed(2):0;sum.full_15min_city_share_pct=ok.length?+(ok.filter(x=>x.n===C15.length).length/ok.length*100).toFixed(1):0;
   sum.transit_400m_network_pct=ok.length?+(ok.filter(x=>x.m.transit*sp<=400).length/ok.length*100).toFixed(1):0;
-  try{const PZ=JSON.parse(localStorage.getItem('kps_posadka')||'null');if(PZ&&PZ.blds&&PZ.blds.length){const rows=[];PZ.blds.forEach((b,i)=>{let la=0,lo=0;b.poly.forEach(q=>{la+=q[0];lo+=q[1];});const c=[la/b.poly.length,lo/b.poly.length],q=snap(c);if(!q||q[1]>300){rows.push({i:i+1,use:b.use,kg:null,school:null,transit:null});return;}
+  try{const PZ=window.KPSPRJ?KPSPRJ.buildings().P:JSON.parse(localStorage.getItem('kps_posadka')||'null');if(PZ&&PZ.blds&&PZ.blds.length){const rows=[];PZ.blds.forEach((b,i)=>{let la=0,lo=0;b.poly.forEach(q=>{la+=q[0];lo+=q[1];});const c=[la/b.poly.length,lo/b.poly.length],q=snap(c);if(!q||q[1]>300){rows.push({i:i+1,use:b.use,kg:null,school:null,transit:null});return;}
       const g=k=>{const v=D[k][q[0]];return isFinite(v)?Math.round(v+q[1]):null;};rows.push({i:i+1,use:b.use,kg:g('kg'),school:g('school'),transit:g('transit')});});
     const mx=k=>{const v=rows.filter(r=>r.use==='res').map(r=>r[k]);return v.length&&v.every(x=>x!=null)?Math.max(...v):null;};
     sum.project_buildings={n:rows.length,max_to_kindergarten_m:mx('kg'),max_to_school_m:mx('school'),max_to_stop_m:mx('transit'),rows};}}catch(e){}

@@ -208,7 +208,7 @@ const STEPS=[
     {id:"shamol", t:"Shamol", page:"shamol.html", hint:"Mavjud holat: qayerda havo yaxshi aylanadi, qayerda turib qoladi. Loyiha binolarining taʼsiri — 4-qadam «Binolar → Shamol taʼsiri»."}]},
   {id:"kocha", t:"Koʻchalar", subs:[
     {id:"muharrir", t:"Koʻcha tarmogʻi", page:"muharrir.html", tool:"street", hint:"Asosiy oyna: koʻchalarni modullardan chizing — kvartallar avtomatik chiqadi. Batafsil koʻcha loyihasi va YHQ — «Koʻcha loyihasi · YHQ»."},
-    {id:"loyiha", t:"Koʻcha loyihasi · YHQ", page:"studio.html", app:"design", hint:"Koʻchalarni modullardan chizing; YHQ tekshiruvlari va 3D shu yerda."},
+    {id:"loyiha", t:"Koʻcha loyihasi · YHQ", page:"studio.html", app:"design", hint:"Asosiy oynadagi koʻchalar shu yerga avtomatik keladi — kesim, YHQ tekshiruvi, belgilar va oʻtish joylari. Modul almashtirilsa, asosiy oynada ham almashadi."},
     {id:"profil", t:"Profil", page:"studio.html", app:"prof", hint:"Koʻchani bosing — mavjud koʻndalang kesim aniqlanadi; loyiha profili bilan solishtiring."}]},
   {id:"bino", t:"Binolar", subs:[
     {id:"kvartal", t:"Kvartal va binolar", page:"muharrir.html", tool:"zone", hint:"Asosiy oyna: kvartallarga zona bering (Z), binolarni generatsiya qiling (G) yoki qoʻlda tahrirlang (B)."},
@@ -218,7 +218,7 @@ const STEPS=[
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]}
 ];
-const BUILD="62";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="63";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
