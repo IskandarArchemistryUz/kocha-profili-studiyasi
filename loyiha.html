@@ -545,6 +545,8 @@ document.addEventListener("click",e=>{if(!e.target.closest(".gq"))$("gl").hidden
 /* --- boshlash: #qadam-boʻlim havolasi yoki oxirgi holat --- */
 (async function(){
   const q=new URLSearchParams(location.search);
+  /* bosh sahifadagi «Hammasini zaxiralash» */
+  if(q.get("backup")){ history.replaceState(null,"",location.pathname+location.hash); setTimeout(()=>exportAll(),1500); }
   if(q.get("new")||q.get("p")){ history.replaceState(null,"",location.pathname+location.hash);
     if(RESTORE_FIRST){ await withCover(async()=>{ await restore(RESTORE_FIRST); }); return; }
     if(q.get("new")&&!FRESH&&!JUST_NEW){ await newProject(); return; }
