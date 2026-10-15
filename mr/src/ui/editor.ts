@@ -102,7 +102,7 @@ export class Editor {
       ib('back', 'Loyihalar', ICON.back, () => this.onExit()),
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, 'Archemistry Lab', h('small', {}, '· Master reja')),
       name, save, h('span', { class: 'sp' }),
-      h('div', { class: 'seg', role: 'group', 'aria-label': 'Atrof' }, h('button', { id: 'fadeBtn', 'aria-pressed': this.fadePref, title: 'Uchastka, hajm, fasad va kvartira qadamlarida atrofdagi shahar oq va yarim shaffof koʻrinadi', onclick: () => { this.fadePref = !this.fadePref; this.syncFade(); } }, 'Atrof xira')),
+      h('div', { class: 'seg', role: 'group', 'aria-label': 'Uslub', id: 'styleSeg' }, ...([['albom', 'Albom'], ['rangli', 'Rangli']] as const).map(([k, t]) => h('button', { 'data-style': k, 'aria-pressed': (k === 'albom') === this.albumPref, title: k === 'albom' ? 'Taqdimot koʻrinishi: oq binolar, och yoʻllar va daraxtlar, soyalar' : 'OSM ranglari va sunʼiy yoʻldosh tasviri', onclick: () => { this.albumPref = k === 'albom'; this.syncFade(); } }, t))),
       seg,
       ib('undo', 'Bekor qilish (Ctrl+Z)', ICON.undo, () => this.store.undo()),
       ib('redo', 'Qaytarish (Ctrl+Shift+Z)', ICON.redo, () => this.store.redo()));
@@ -146,12 +146,12 @@ export class Editor {
     this.last = c; this.renderKpi();
   }
 
-  /** atrofni xiralashtirish: foydalanuvchi tanlovi (yoqilgan) va qadam (loyiha ustida ishlanadigan qadamlar) */
-  private fadePref = true;
+  /** koʻrinish uslubi: «Albom» (taqdimot, sukut boʻyicha) yoki «Rangli» (OSM ranglari, sunʼiy yoʻldosh) */
+  private albumPref = (() => { try { return localStorage.getItem('mr-style') !== 'rangli'; } catch { return true; } })();
   private syncFade(): void {
-    const on = this.fadePref && ['parsel', 'hajm', 'fasad', 'kvartira', 'xizmat'].includes(this.step.id);
-    this.scene.setContextFade(on);
-    this.root.querySelector('#fadeBtn')?.setAttribute('aria-pressed', String(this.fadePref));
+    this.scene.setAlbum(this.albumPref);
+    try { localStorage.setItem('mr-style', this.albumPref ? 'albom' : 'rangli'); } catch { /* */ }
+    this.root.querySelectorAll('#styleSeg button').forEach(b => b.setAttribute('aria-pressed', String(((b as HTMLElement).dataset.style === 'albom') === this.albumPref)));
   }
 
   private renderAll(): void {

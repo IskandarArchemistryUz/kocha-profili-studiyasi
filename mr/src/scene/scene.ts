@@ -361,7 +361,7 @@ export class Scene3D {
     }
     this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted));
     this.scene.add(this.ctx.group);
-    if (this.fade) this.applyFade();
+    if (this.album) this.applyStyle();
     this.grid.forEach(g => g.visible = false);
     const T = cs.layers.relief ? b.terrain : null;
     this.ground.position.y = T ? T.min - T.h[((T.n - 1) >> 1) * T.n + ((T.n - 1) >> 1)] - h0 - 1 : -0.3;
@@ -373,27 +373,33 @@ export class Scene3D {
 
   get hasContext(): boolean { return !!this.ctx; }
 
-  private fade = false;
-  /** Atrof (kontekst va gorizont binolari) oq va yarim shaffof — loyiha ustida ishlaganda koʻzni chalgʻitmasin */
-  setContextFade(on: boolean): void { if (on === this.fade) return; this.fade = on; this.applyFade(); }
-  get contextFaded(): boolean { return this.fade; }
-  private applyFade(): void {
+  private album = false;
+  /**
+   * «Albom» uslubi (Planimetric kabi taqdimot koʻrinishi): atrof shaffof emas — oq binolar, och yoʻllar va daraxtlar,
+   * sunʼiy yoʻldosh tasviri yashiriladi, soyalar qoladi. Loyiha (binolar, zonalar) oʻz rangida.
+   * Shaffoflik ishlatilmaydi — yarim shaffof qatlamlar tartibi binolar ustida «arvoh» chiziqlar berardi.
+   */
+  setAlbum(on: boolean): void { if (on === this.album) return; this.album = on; this.applyStyle(); }
+  get albumOn(): boolean { return this.album; }
+  private applyStyle(): void {
+    const PAL: Record<string, number> = { relyef: 0xf1efea, yashil: 0xe1e9d6, suv: 0xcfdfe8, ariqlar: 0xcfdfe8, 'yoʻlaklar': 0xf8f7f4, trotuarlar: 0xf8f7f4, 'yoʻllar': 0xdfddd8, chiziqlar: 0xffffff, binolar: 0xfcfbf9, tomlar: 0xefece7, daraxtlar: 0xcbd9bf };
     const W = new THREE.Color(0xffffff), roots: THREE.Object3D[] = [...(this.ctx ? [this.ctx.group] : []), ...this.far];
-    type M = THREE.Material & { color?: THREE.Color; emissive?: THREE.Color; map?: THREE.Texture | null };
+    type M = THREE.Material & { color?: THREE.Color; map?: THREE.Texture | null };
     for (const root of roots) root.traverse(o => {
       const mm = (o as THREE.Mesh).material as M | M[] | undefined; if (!mm) return;
-      const ground = o === this.ctx?.ground;
       for (const m of Array.isArray(mm) ? mm : [mm]) {
-        const u = m.userData as { f0?: { t: boolean; o: number; c?: THREE.Color; e?: THREE.Color } };
-        u.f0 ??= { t: m.transparent, o: m.opacity, c: m.color?.clone(), e: m.emissive?.clone() };
-        const f = u.f0;
-        if (this.fade) {
-          if (ground) { m.color?.copy(f.c!).multiplyScalar(0.5); m.emissive?.setScalar(0.45); }
-          else { m.color?.copy(f.c!).lerp(W, 0.55); m.transparent = true; m.opacity = f.o * 0.4; }
-        } else { if (f.c) m.color?.copy(f.c); if (f.e) m.emissive?.copy(f.e); m.transparent = f.t; m.opacity = f.o; }
+        const u = m.userData as { s0?: { c?: THREE.Color; map?: THREE.Texture | null } };
+        u.s0 ??= { c: m.color?.clone(), map: m.map ?? null };
+        const f = u.s0;
+        if (this.album) {
+          const pal = PAL[o.name];
+          if (m.color && f.c) { if (pal != null) m.color.setHex(pal); else m.color.copy(f.c).lerp(W, o instanceof THREE.LineSegments ? 0.55 : 0.65); }
+          if ('map' in m && f.map) m.map = null;
+        } else { if (f.c) m.color?.copy(f.c); if ('map' in m && f.map) m.map = f.map; }
         m.needsUpdate = true;
       }
     });
+    this.scene.background = new THREE.Color(this.album ? 0xf6f5f2 : 0xf4f3f1);
     this.invalidate();
   }
 
@@ -507,7 +513,7 @@ export class Scene3D {
         new THREE.MeshLambertMaterial({ color: 0xf6f4ef }), new THREE.MeshLambertMaterial({ color: 0xf6f4ef }), new THREE.LineBasicMaterial({ color: 0xbdb8ae, transparent: true, opacity: 0.25 }));
       objs.forEach(o => { o.renderOrder = 10; this.scene.add(o); this.far.push(o); });
     }
-    if (this.fade) this.applyFade();
+    if (this.album) this.applyStyle();
     this.invalidate();
   }
   /** uchastka ichidagi mavjud (OSM) binolar */
