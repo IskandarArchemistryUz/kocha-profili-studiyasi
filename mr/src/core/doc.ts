@@ -54,6 +54,10 @@ export interface Settings {
   floorHeight: number;
   /** oʻrtacha kvartira (netto), m² — kvartiralar soni va avtoturargoh talabi uchun (taxmin, loyiha topshirigʻidan aniqlanadi) */
   aptNet: number;
+  /** kvartira miksi, %: 1, 2, 3, 4 xonali (fasad modullari boʻyicha rejalash — core/apartments.ts) */
+  aptMix: [number, number, number, number];
+  /** aholi yosh tarkibi uchun hudud (stat.uz SOATO kodi): tuman, shahar yoki viloyat */
+  district: string;
 }
 
 /** Atrofdagi shahar (kontekst) — faqat koʻrinish tanlovlari; maʼlumotning oʻzi keshda, hujjatda emas */
@@ -105,6 +109,8 @@ export const DEFAULT_SETTINGS: Settings = {
   netToGross: 0.75,
   floorHeight: 3.3,
   aptNet: 65,
+  aptMix: [20, 40, 30, 10],
+  district: '1726',
 };
 
 export function uid(prefix = ''): string {
@@ -119,7 +125,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
   return {
     schema: SCHEMA, id: uid('p_'), name, created: t, updated: t,
     origin: [...DEFAULT_ORIGIN] as LngLat,
-    settings: { ...DEFAULT_SETTINGS },
+    settings: { ...DEFAULT_SETTINGS, aptMix: [...DEFAULT_SETTINGS.aptMix] },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
     site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [],
   };
@@ -147,6 +153,9 @@ export function migrate(raw: unknown): Project {
   if (!isLL(d.origin)) throw new SchemaError('origin notoʻgʻri');
   const s = { ...DEFAULT_SETTINGS, ...(d.settings as object || {}) } as Settings;
   for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
+  if (!Array.isArray(s.aptMix) || s.aptMix.length !== 4 || !s.aptMix.every(v => isNum(v) && v >= 0) || !s.aptMix.some(v => v > 0)) s.aptMix = [...DEFAULT_SETTINGS.aptMix];
+  else s.aptMix = [...s.aptMix] as Settings['aptMix'];
+  if (typeof s.district !== 'string' || !/^\d{4,10}$/.test(s.district)) s.district = DEFAULT_SETTINGS.district;
   const cx = (d.context && typeof d.context === 'object' ? d.context : {}) as Partial<ContextSettings>;
   const context: ContextSettings = {
     radius: isNum(cx.radius) && cx.radius >= 100 && cx.radius <= 2000 ? cx.radius : DEFAULT_CONTEXT.radius,

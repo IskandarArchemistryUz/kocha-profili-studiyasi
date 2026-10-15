@@ -24,7 +24,9 @@ import { gridAngle, merge, split, subdivide, type GridMode } from '../core/parce
 import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
 import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
-import { INSOL_BINS } from '../scene/scene';
+import { INSOL_BINS, FACADE, type FacadeStyle } from '../scene/scene';
+import { planApartments, windowPoints, windowSun, evaluateApts, isWest, MOD_W, type AptStats, type SecPlan } from '../core/apartments';
+import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
@@ -126,6 +128,7 @@ export class Editor {
     if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site) void this.ensureContext();
     if (this.selStreet && !doc.streets.some(x => x.id === this.selStreet)) { this.selStreet = null; this.scene.selectStreet(null); }
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
+    if (p.buildings !== doc.buildings && this.apt.stats) this.clearApt();
     (this.el.name as HTMLInputElement).value = doc.name;
     this.scene.select(this.sel); this.scene.update(doc);
     this.renderAll(); this.recompute();
@@ -256,6 +259,7 @@ export class Editor {
     }
     body.append(h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Markaz'), h('span', { class: 'num', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`)));
 
+    body.append(this.districtField());
     const radius = h('div', { class: 'seg full', role: 'group', 'aria-label': 'Radius' }, ...[300, 500, 750, 1000].map(r => h('button', { 'aria-pressed': cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r } })) }, `${r} m`)));
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Atrof radiusi'), radius));
 
@@ -298,16 +302,21 @@ export class Editor {
     if (t) t.textContent = `${String(Math.floor(this.sunTime)).padStart(2, '0')}:${String(Math.round(this.sunTime % 1 * 60)).padStart(2, '0')} · balandlik ${fmt(p.alt, 1)}° · azimut ${fmt(p.az, 0)}°`;
   }
 
+  /** Loyiha binolari + saqlanadigan + atrofdagi mavjud binolar (qutidan `margin` m gacha) prizmalari */
+  private aroundPrisms(x0: number, y0: number, x1: number, y1: number, margin: number): { ring: XY[]; top: number }[] {
+    const doc = this.store.doc, fr = frame(doc.origin), b = this.ctxMgr.current, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rad = Math.hypot(x1 - x0, y1 - y0) / 2 + margin;
+    const keepIds = new Set(this.scene.inSite.map(x => x.id));
+    const extra = (b?.osm.buildings ?? []).map(x => ({ rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, id: x.id }))
+      .filter(x => !keepIds.has(x.id) && Math.hypot(x.rings[0][0][0] - cx, x.rings[0][0][1] - cy) < rad);
+    return this.scene.prisms(doc, extra);
+  }
+
   private async runInsolation(): Promise<void> {
     const doc = this.store.doc; if (!doc.site) return;
     const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     const cell = Math.max(2, Math.sqrt((x1 - x0) * (y1 - y0) / 7000));
-    const b = this.ctxMgr.current, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rad = Math.hypot(x1 - x0, y1 - y0) / 2 + 300;
-    const keepIds = new Set(this.scene.inSite.map(x => x.id));
-    const extra = (b?.osm.buildings ?? []).map(x => ({ rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, id: x.id }))
-      .filter(x => !keepIds.has(x.id) && Math.hypot(x.rings[0][0][0] - cx, x.rings[0][0][1] - cy) < rad);
-    const prisms = this.scene.prisms(doc, extra);
+    const prisms = this.aroundPrisms(x0, y0, x1, y1, 300);
     const inB = (p: XY) => prisms.some(pr => pointIn(p, [pr.ring]));
     const pts: XY[] = [];
     for (let x = x0 + cell / 2; x < x1; x += cell) for (let y = y0 + cell / 2; y < y1; y += cell) { const p: XY = [x, y]; if (pointIn(p, site) && !inB(p)) pts.push(p); }
@@ -442,9 +451,134 @@ export class Editor {
         h('div', { class: 'legend' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { class: 'sw', style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, t), h('span', { class: 'num' }, `${fmt(st.bins[i] * 100, 0)} %`)))),
         h('button', { class: 'btn', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, 'Xaritani yashirish'));
     }
-    body.append(h('p', { class: 'note' }, 'Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0331-16, 8.3-band — 22 mart – 22 sentabr davrida xonalarda uzluksiz 2,5 soat, uy atrofidagi hududda ≥ 0,5–1 soat. Hudud natijasi reyestrga qoʻshiladi; xonalar (deraza) — 4-bosqichda.'));
+    body.append(h('p', { class: 'note' }, 'Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0331-16, 8.3-band — 22 mart – 22 sentabr davrida xonalarda uzluksiz 2,5 soat, uy atrofidagi hududda ≥ 0,5–1 soat. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.'));
     this.windSection(body);
     queueMicrotask(() => this.applySun());
+  }
+
+  /* ---------- 4-bosqich: fasad va kvartiralar ---------- */
+  private roomDepth = 6;
+  private fasadPanel(body: HTMLElement): void {
+    const st = this.scene.facade;
+    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Fasad uslubi'),
+      h('div', { class: 'seg full', role: 'group', id: 'facSeg' }, ...([['yoq', 'Oddiy'], ['klassik', 'Klassik'], ['lenta', 'Lenta'], ['panorama', 'Panorama']] as const).map(([k, t]) => h('button', { 'aria-pressed': st === k, 'data-fac': k, onclick: () => { this.scene.setFacade(k as FacadeStyle); this.renderPanel(); } }, t)))));
+    if (st !== 'yoq') {
+      const f = FACADE[st], win = f.w * MOD_W * (f.head - f.sill), floor = MOD_W * this.roomDepth, k = floor / win;
+      const dep = h('input', { type: 'number', min: 3, max: 9, step: 0.1, value: this.roomDepth, id: 'roomDepth', style: 'width:5em' }) as HTMLInputElement;
+      dep.onchange = () => { const v = Number(dep.value); if (v >= 3 && v <= 9) { this.roomDepth = v; this.renderPanel(); } };
+      const okK = k >= 4.5 - 1e-6 && k <= 8 + 1e-6, okD = this.roomDepth <= 6 + 1e-6 && this.roomDepth <= 2 * MOD_W + 1e-6;
+      body.append(h('p', { class: 'muted' }, `${f.name}: deraza ${fmt(f.w * MOD_W, 1)} × ${fmt(f.head - f.sill, 2)} m, modul ${fmt(MOD_W, 1)} m`),
+        h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Xona chuqurligi, m'), dep),
+        h('div', { class: 'ctxst', id: 'facCheck' },
+          h('div', {}, h('span', { class: 'chip', 'data-s': okK ? 'pass' : 'fail' }, okK ? 'mos' : 'mos emas'), ` Yorugʻlik koeffitsiyenti 1:${fmt(k, 1)} (meʼyor 1:4,5 – 1:8, 8.2-band)`),
+          h('div', {}, h('span', { class: 'chip', 'data-s': okD ? 'pass' : 'fail' }, okD ? 'mos' : 'mos emas'), ` Xona chuqurligi ${fmt(this.roomDepth, 1)} m (≤ 6 m va ≤ 2 × eni, 8.7-band)`)));
+    }
+    const plans = planApartments(this.store.doc);
+    if (plans.length) {
+      let n = 0, hot = 0, west = 0;
+      plans.forEach(pl => { const used = new Set(pl.layout.apts.flatMap(a => a.mods)); pl.layout.mods.forEach((m, i) => { if (!used.has(i)) return; n++; if (m.az >= 90 && m.az <= 290) hot++; if (isWest(m.az)) west++; }); });
+      body.append(h('div', { class: 'ctxst' }, h('b', {}, `${fmt(n)} deraza moduli (bir qavatda)`), h('br'),
+        `${fmt(hot / n * 100, 0)} % — 90–290° ga qaragan: quyoshdan himoya qurilmasi kerak (9.3, 8.10–8.11-bandlar).`, h('br'),
+        `${fmt(west / n * 100, 0)} % — gʻarbga (200–290°): bu derazalarga yashash xonasi qoʻyilmaydi (9.2).`));
+    }
+    body.append(h('p', { class: 'note' }, 'Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina, ofis va mehmonxona — shisha fasad. Tom — tekis. Meʼyor: SanQvaN 0331-16, 8.2, 8.7, 8.10–8.11, 9.3-bandlar.'));
+  }
+
+  private aptMode: 'insol' | 'west' = 'insol';
+  private aptDate = '03-22';
+  private aptRelief = false;
+  private apt: { busy: boolean; stats: AptStats | null; plans: SecPlan[]; pts: { sec: number; f: number; m: number }[]; ms?: number; buildings?: unknown } = { busy: false, stats: null, plans: [], pts: [] };
+  private aptRules: Result[] = [];
+
+  private clearApt(): void { this.apt = { busy: false, stats: null, plans: [], pts: [] }; this.aptRules = []; this.scene.setFacadeMarks(null); }
+
+  private async runApts(): Promise<void> {
+    const doc = this.store.doc, fh = doc.settings.floorHeight;
+    const plans = planApartments(doc); if (!plans.length) { toast('Turar joy seksiyalari yoʻq'); return; }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    plans.forEach(p => p.ring.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }));
+    const prisms = this.aroundPrisms(x0, y0, x1, y1, 350);
+    const pts = windowPoints(plans), base = plans.map(p => Math.min(...p.ring.map(q => this.scene.H(q[0], q[1]))));
+    const P = pts.map(q => plans[q.sec].layout.mods[q.m].p), Z = pts.map(q => base[q.sec] + (plans[q.sec].z0 + q.f) * fh + 1.2), A = pts.map(q => plans[q.sec].layout.mods[q.m].az);
+    const [m, d] = this.aptDate.split('-').map(Number), steps = daySteps(2026, m, d, doc.origin[1], doc.origin[0], 10, 3);
+    this.apt = { busy: true, stats: null, plans, pts }; this.renderPanel();
+    const t0 = performance.now(); let res: { run: Float32Array; total: Float32Array };
+    try {
+      const w = new Worker(new URL('../workers/apt.worker.ts', import.meta.url), { type: 'module' });
+      res = await new Promise((ok, no) => { w.onmessage = e => { ok(e.data); w.terminate(); }; w.onerror = e => { no(e); w.terminate(); }; w.postMessage({ id: 1, pts: P, z: Z, az: A, prisms, steps }); });
+    } catch { res = windowSun(P, Z, A, prisms, steps); }
+    if (this.store.doc.buildings !== doc.buildings) { this.apt.busy = false; this.renderPanel(); return; }
+    const norm = { need: this.aptRelief ? 2.0 : 2.5 }, stats = evaluateApts(plans, pts, res.run, res.total, norm);
+    this.apt = { busy: false, stats, plans, pts, ms: performance.now() - t0, buildings: doc.buildings };
+    const pct = (a: number) => stats.apts ? a / stats.apts * 100 : 0;
+    const src = { doc: 'SanQvaN 0331-16', edition: '2016', verified: true };
+    this.aptRules = [
+      { id: 'insol-apartments', title: 'Kvartiralar insolyatsiyasi (derazalar)', source: { ...src, clause: '8.3–8.5-bandlar' },
+        status: stats.insolOk === stats.apts ? 'pass' : 'fail', value: pct(stats.insolOk), unit: '% kvartira', limit: '100 %',
+        note: `${fmt(stats.apts - stats.insolOk)} / ${fmt(stats.apts)} kvartira talabga javob bermaydi (${this.aptDate === '03-22' ? '22 mart' : '22 sentabr'}, uzluksiz ${fmt(norm.need, 1)} soat yoki uzlukli ${fmt(norm.need + 0.5, 1)} soat; 1–3 xonalida ≥ 1 xona, 4 xonalida ≥ 2 xona).${this.aptRelief ? ' Rekonstruksiya / murakkab sharoit: 0,5 soat qisqartirilgan (8.5).' : ''} Kvartiralar sxemasi fasad modullari boʻyicha.` },
+      { id: 'west-apartments', title: 'Yashash xonalari gʻarbga (kvartira boʻyicha)', source: { ...src, clause: '9.2-band' },
+        status: stats.westOk === stats.apts ? 'pass' : 'fail', value: pct(stats.westOk), unit: '% kvartira', limit: '100 %',
+        note: `${fmt(stats.apts - stats.westOk)} kvartirada gʻarbga (200–290°) qaragan yashash xonalari ruxsatdan koʻp (1 xonali — 0, 2 xonali — 1, 3 xonali — 2; 4 xonali uchun meʼyorda koʻrsatilmagan, 2 deb olindi).` },
+    ];
+    this.showApts(); this.renderPanel(); this.renderKpi();
+  }
+
+  private showApts(): void {
+    const A = this.apt, st = A.stats; if (!st) { this.scene.setFacadeMarks(null); return; }
+    const fh = this.store.doc.settings.floorHeight, base = A.plans.map(p => Math.min(...p.ring.map(q => this.scene.H(q[0], q[1]))));
+    const list = A.pts.map((q, i) => {
+      const pl = A.plans[q.sec], md = pl.layout.mods[q.m], c = st.cls[i], y = base[q.sec] + (pl.z0 + q.f) * fh;
+      const color = c === 3 ? 0xd6d2c8 : this.aptMode === 'insol' ? [0x3fa66b, 0xb7cf4f, 0xd9534f][c] : st.west[i] ? 0xd9534f : isWest(md.az) ? 0xf29a4a : 0x3fa66b;
+      return { a: md.a, b: md.b, y0: y + 0.8, y1: y + fh - 0.6, color };
+    });
+    this.scene.setFacadeMarks(list);
+  }
+
+  private kvartiraPanel(body: HTMLElement): void {
+    const doc = this.store.doc, mix = doc.settings.aptMix, plans = planApartments(doc);
+    const perFloor = plans.reduce((t, p) => t + p.layout.apts.length * (p.f1 - p.f0), 0);
+    const inputs = mix.map((v, i) => { const e = h('input', { type: 'number', min: 0, max: 100, step: 5, value: v, 'data-mix': i + 1, style: 'width:4.2em' }) as HTMLInputElement;
+      e.onchange = () => { const nv = [...mix] as typeof mix; nv[i] = Math.max(0, Number(e.value) || 0); this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptMix: nv } })); }; return e; });
+    const sum = mix.reduce((a, b) => a + b, 0);
+    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartira miksi, % (1 · 2 · 3 · 4 xonali)'),
+      h('div', { class: 'row', id: 'mixRow' }, ...inputs.map((e, i) => h('label', { class: 'field' }, h('span', { class: 'lb' }, `${i + 1} x`), e))),
+      sum !== 100 ? h('span', { class: 'note' }, `Yigʻindi ${sum} % — ulushlar nisbat sifatida olinadi.`) : ''));
+    if (!plans.length) { body.append(h('p', { class: 'note' }, 'Turar joy seksiyalari yoʻq. «Hajmlar» qadamida generatsiya qiling (yakka uylar va taunhauslar kvartirali emas).')); return; }
+    const resNet = this.last?.d.resNet ?? 0;
+    body.append(h('div', { class: 'ctxst', id: 'aptPlan' }, h('b', {}, `${fmt(perFloor)} kvartira`), ` · ${fmt(plans.length)} seksiya`, h('br'),
+      h('span', { class: 'muted' }, `Oʻrtacha ${resNet && perFloor ? fmt(resNet / perFloor, 0) : '—'} m² (netto) · fasad moduli ${fmt(MOD_W, 1)} m: k xonali = k xona + oshxona. Burchakda — ikki tomonlama. Reyestrdagi avtoturargoh talabi hali oʻrtacha ${doc.settings.aptNet} m² boʻyicha.`)));
+    body.append(
+      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Hisob sanasi (SanQvaN 8.3 davri chegarasi)'),
+        h('div', { class: 'seg full', role: 'group' }, ...([['03-22', '22 mart'], ['09-22', '22 sentabr']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptDate === k, onclick: () => { this.aptDate = k; this.renderPanel(); } }, t)))),
+      (() => { const c = h('input', { type: 'checkbox', checked: this.aptRelief, id: 'aptRelief' }) as HTMLInputElement; c.onchange = () => { this.aptRelief = c.checked; this.renderPanel(); }; return h('div', { class: 'chk', style: 'grid-template-columns:1fr' }, h('label', {}, c, 'Rekonstruksiya yoki murakkab sharoit (8.5: 2,0 soat)')); })(),
+      h('button', { class: 'btn primary', id: 'aptGo', disabled: this.apt.busy, onclick: () => void this.runApts() }, this.apt.busy ? 'Hisoblanmoqda…' : 'Derazalar insolyatsiyasi'));
+    const st = this.apt.stats;
+    if (st) {
+      const pct = (a: number, b = st.apts) => fmt(b ? a / b * 100 : 0, 0) + ' %';
+      body.append(
+        h('div', { class: 'seg full', role: 'group' }, ...([['insol', 'Insolyatsiya'], ['west', 'Gʻarb (9.2)']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptMode === k, 'data-am': k, onclick: () => { this.aptMode = k; this.showApts(); this.renderPanel(); } }, t))),
+        h('div', { class: 'ctxst', id: 'aptSt' }, h('b', {}, `${fmt(st.bothOk)} / ${fmt(st.apts)} kvartira mos (${pct(st.bothOk)})`), h('br'),
+          `Insolyatsiya: ${pct(st.insolOk)} · gʻarb qoidasi: ${pct(st.westOk)} · yashash xonalari: ${pct(st.roomsOk, st.rooms)}`, h('br'),
+          h('span', { class: 'muted' }, st.byRooms.map(r => `${r.k} xonali ${fmt(r.n)} (${pct(r.ok, r.n)} mos)`).join(' · ') + (this.apt.ms ? ` · ${fmt(this.apt.pts.length)} deraza, ${fmt(this.apt.ms / 1000, 1)} s` : ''))),
+        this.aptMode === 'insol'
+          ? h('div', { class: 'legend' }, ...[[0x3fa66b, 'Uzluksiz ≥ talab'], [0xb7cf4f, 'Faqat uzlukli (8.5)'], [0xd9534f, 'Yetarli emas'], [0xd6d2c8, 'Oshxona / yordamchi']].map(([c, t]) => h('div', {}, h('i', { class: 'sw', style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, String(t)))))
+          : h('div', { class: 'legend' }, ...[[0x3fa66b, 'Yashash xonasi'], [0xf29a4a, 'Gʻarbga, ruxsat doirasida'], [0xd9534f, 'Gʻarbga, ruxsatdan ortiq'], [0xd6d2c8, 'Oshxona / yordamchi']].map(([c, t]) => h('div', {}, h('i', { class: 'sw', style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, String(t))))));
+      const worst = st.bySec.filter(x => x.bad > 0).sort((a, b) => b.bad / b.apts - a.bad / a.apts).slice(0, 8);
+      if (worst.length) body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Eng muammoli seksiyalar'),
+        h('div', { class: 'list', id: 'aptWorst' }, ...worst.map(x => h('div', { class: 'it', onclick: () => { this.sel = x.bid; this.scene.select(x.bid); } },
+          h('b', {}, `${fmt(x.bad)} / ${fmt(x.apts)} kvartira mos emas`), h('small', {}, x.west ? `shundan ${fmt(x.west)} — gʻarb qoidasi` : 'insolyatsiya'))))));
+      body.append(h('button', { class: 'btn', onclick: () => { this.clearApt(); this.renderPanel(); this.renderKpi(); } }, 'Belgilarni yashirish'));
+    }
+    body.append(h('p', { class: 'note' }, 'Hisob: har qavatdagi har xona derazasi (pol + 1,2 m), 10 daqiqalik qadamlar, quyosh > 3° va fasad oldida; soya — loyiha binolari, saqlanadigan va atrofdagi (350 m) binolar. Yashash xonalari kvartiraning eng yaxshi derazalarini oladi, oshxona — gʻarbiy yoki shimoliy (optimistik sxema; aniq reja keyingi bosqichda). Balkon, lodjiya va deraza qiyaliklari soyasi hisobga olinmaydi. Meʼyor: SanQvaN 0331-16, 8.3–8.5, 9.2-bandlar (asl matndan).'));
+  }
+
+  private districtField(): HTMLElement {
+    const doc = this.store.doc, cur = doc.settings.district, r = demoRow(cur);
+    const sel = h('select', { id: 'district', onchange: (e: Event) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: (e.target as HTMLSelectElement).value } })) },
+      ...demoTree().map(t => h('optgroup', { label: t.region.name }, ...[t.region, ...t.parts].map(x => { const o = h('option', { value: x.code }, x.code === t.region.code ? `${x.name} (jami)` : x.name) as HTMLOptionElement; o.selected = x.code === cur; return o; }))));
+    const k = r ? perThousand(r) : null;
+    return h('div', { class: 'field', id: 'demoBox' }, h('span', { class: 'lb' }, 'Aholi yosh tarkibi (stat.uz)'), sel,
+      r && k ? h('span', { class: 'note' }, `${fmt(r.pop)} kishi (${DEMO.year}). 1000 kishiga: maktab yoshi (7–17) ${fmt(k.school, 0)}, maktabgacha (3–6) ${fmt(k.mtm, 0)}, 65+ — ${fmt(k.elderly, 0)}. Maktab va MTM tekshiruvida taqqoslanadi; 3–5 yosh qoldiq usulida hisoblangan.`) : '');
   }
 
   /* ---------- 3-bosqich: hajmlar va seksiya generatori ---------- */
@@ -740,7 +874,7 @@ export class Editor {
   /* ---------- qadamlar ---------- */
   private locked(s: StepDef): string | null {
     if (s.phase > BUILT_PHASE) return `${s.phase}-bosqichda quriladi`;
-    if (['hajm', 'kocha', 'parsel', 'yashil', 'quyosh'].includes(s.id) && !this.store.doc.site) return 'Avval uchastkani chizing';
+    if (['hajm', 'kocha', 'parsel', 'yashil', 'quyosh', 'fasad', 'kvartira'].includes(s.id) && !this.store.doc.site) return 'Avval uchastkani chizing';
     return null;
   }
   private done(s: StepDef): boolean {
@@ -820,6 +954,8 @@ export class Editor {
     if (s.id === 'hajm') this.hajmPanel(body);
     if (s.id === 'kocha') this.kochaPanel(body);
     if (s.id === 'quyosh') this.quyoshPanel(body);
+    if (s.id === 'fasad') this.fasadPanel(body);
+    if (s.id === 'kvartira') this.kvartiraPanel(body);
     if (s.id === 'parsel') this.parselPanel(body);
     if (s.id === 'yashil') this.yashilPanel(body);
     if (s.id === 'tekshiruv') body.append(this.register());
@@ -851,7 +987,7 @@ export class Editor {
   }
 
   private register(): HTMLElement {
-    const rs = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : [])];
+    const rs = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules];
     return h('table', { class: 'reg' },
       h('thead', {}, h('tr', {}, h('th', {}, 'Talab'), h('th', {}, 'Qiymat'), h('th', {}, 'Meʼyor'), h('th', {}, 'Natija'))),
       h('tbody', {}, ...rs.map(r => h('tr', { 'data-rule': r.id },
