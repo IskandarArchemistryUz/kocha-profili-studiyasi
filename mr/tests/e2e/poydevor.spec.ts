@@ -43,7 +43,7 @@ test('uchastka, bino, koʻrsatkichlar, undo/redo va yangilanish', async ({ page 
   await expect(page.locator('.save')).toHaveAttribute('data-s', 'saved', { timeout: 5000 });
   await page.reload();
   await expect(page.locator('#kSite b')).toHaveText('1,20');
-  await expect(page.locator('.list .it')).toHaveCount(1);
+  await expect(page.locator('#bldSt b')).toHaveText('1 bino/seksiya');
 });
 
 test('meʼyoriy reyestr: §84 natijasi chiqadi', async ({ page }) => {
@@ -75,8 +75,8 @@ test('eksport → import: fayldan nusxa ochiladi', async ({ page }) => {
 
 test('qulflangan qadam: bosqich raqami koʻrsatiladi', async ({ page }) => {
   await newProject(page);
-  await page.click('[data-step=quyosh]');
-  await expect(page.locator('.panel .locked')).toContainText('3-bosqichda');
+  await page.click('[data-step=fasad]');
+  await expect(page.locator('.panel .locked')).toContainText('4-bosqichda');
 });
 
 /** Regressiya: Akso → Reja oʻtishda kamera 3000 m uzoqlashib, uchastka nuqtadek kichrayib qolardi */

@@ -17,7 +17,10 @@ import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
-import type { Use } from '../core/doc';
+import type { Use, ZoneLabel } from '../core/doc';
+import { DEFAULT_GEN, generate, type GenParams } from '../core/generator';
+import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
+import { INSOL_BINS } from '../scene/scene';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
@@ -276,6 +279,140 @@ export class Editor {
     }
   }
 
+  /* ---------- 3-bosqich: quyosh, soyalar, insolyatsiya ---------- */
+  private sunDate = '04-22';
+  private sunTime = 14;
+  private insol: { busy: boolean; stats: { mean: number; ge2: number; ge3: number; bins: number[]; n: number; date: string } | null } = { busy: false, stats: null };
+  private sunW: Worker | null = null;
+
+  private applySun(): void {
+    const [m, d] = this.sunDate.split('-').map(Number), o = this.store.doc.origin;
+    const p = sunPosition(localToUtc(2026, m, d, this.sunTime), o[1], o[0]);
+    this.scene.setSun(p.alt, p.az);
+    const t = this.el.panel.querySelector<HTMLElement>('#sunInfo');
+    if (t) t.textContent = `${String(Math.floor(this.sunTime)).padStart(2, '0')}:${String(Math.round(this.sunTime % 1 * 60)).padStart(2, '0')} · balandlik ${fmt(p.alt, 1)}° · azimut ${fmt(p.az, 0)}°`;
+  }
+
+  private async runInsolation(): Promise<void> {
+    const doc = this.store.doc; if (!doc.site) return;
+    const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    const cell = Math.max(2, Math.sqrt((x1 - x0) * (y1 - y0) / 7000));
+    const b = this.ctxMgr.current, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rad = Math.hypot(x1 - x0, y1 - y0) / 2 + 300;
+    const keepIds = new Set(this.scene.inSite.map(x => x.id));
+    const extra = (b?.osm.buildings ?? []).map(x => ({ rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, id: x.id }))
+      .filter(x => !keepIds.has(x.id) && Math.hypot(x.rings[0][0][0] - cx, x.rings[0][0][1] - cy) < rad);
+    const prisms = this.scene.prisms(doc, extra);
+    const inB = (p: XY) => prisms.some(pr => pointIn(p, [pr.ring]));
+    const pts: XY[] = [];
+    for (let x = x0 + cell / 2; x < x1; x += cell) for (let y = y0 + cell / 2; y < y1; y += cell) { const p: XY = [x, y]; if (pointIn(p, site) && !inB(p)) pts.push(p); }
+    const z = pts.map(p => this.scene.H(p[0], p[1]));
+    const [m, d] = this.sunDate.split('-').map(Number), steps = daySteps(2026, m, d, doc.origin[1], doc.origin[0]);
+    this.insol = { busy: true, stats: null }; this.renderPanel();
+    let hours: Float32Array;
+    try {
+      this.sunW ??= new Worker(new URL('../workers/sun.worker.ts', import.meta.url), { type: 'module' });
+      hours = await new Promise<Float32Array>((ok, no) => { const w = this.sunW!; w.onmessage = e => ok(e.data.hours); w.onerror = e => no(e); w.postMessage({ id: 1, pts, z, prisms, steps }); });
+    } catch { hours = insolation(pts, z, prisms, steps); }
+    const bins = INSOL_BINS.map(() => 0); let sum = 0, ge2 = 0, ge3 = 0;
+    hours.forEach(hh => { sum += hh; if (hh >= 2) ge2++; if (hh >= 3) ge3++; let k = 0; INSOL_BINS.forEach(([t], i) => { if (hh >= t) k = i; }); bins[k]++; });
+    const n = hours.length || 1;
+    this.insol = { busy: false, stats: { mean: sum / n, ge2: ge2 / n, ge3: ge3 / n, bins: bins.map(v => v / n), n: hours.length, date: this.sunDate } };
+    this.scene.setInsolation(pts, hours, cell);
+    this.renderPanel();
+  }
+
+  private quyoshPanel(body: HTMLElement): void {
+    const DATES: [string, string][] = [['03-21', '21 mart'], ['04-22', '22 aprel'], ['06-22', '22 iyun'], ['09-22', '22 sentabr'], ['12-22', '22 dekabr']];
+    const time = h('input', { type: 'range', min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', style: 'width:100%' }) as HTMLInputElement;
+    time.oninput = () => { this.sunTime = Number(time.value); this.applySun(); };
+    body.append(
+      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Sana'), h('div', { class: 'seg full', role: 'group' }, ...DATES.map(([k, t]) => h('button', { 'aria-pressed': this.sunDate === k, 'data-date': k, onclick: () => { this.sunDate = k; this.applySun(); this.renderPanel(); } }, t)))),
+      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Vaqt (Toshkent, UTC+5)'), time, h('span', { class: 'num', id: 'sunInfo', style: 'font-size:12px' })),
+      h('button', { class: 'btn primary', id: 'insolGo', disabled: this.insol.busy, onclick: () => void this.runInsolation() }, this.insol.busy ? 'Hisoblanmoqda…' : 'Insolyatsiya xaritasi (uchastka)'));
+    const st = this.insol.stats;
+    if (st) {
+      const dt = DATES.find(x => x[0] === st.date)?.[1] ?? st.date;
+      body.append(h('div', { class: 'ctxst', id: 'insolSt' },
+        h('b', {}, `${dt}: oʻrtacha ${fmt(st.mean, 1)} soat quyosh`), h('br'),
+        `≥ 2 soat — uchastkaning ${fmt(st.ge2 * 100, 0)} %, ≥ 3 soat — ${fmt(st.ge3 * 100, 0)} % (${fmt(st.n)} nuqta, yer sathida)`),
+        h('div', { class: 'legend' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { class: 'sw', style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, t), h('span', { class: 'num' }, `${fmt(st.bins[i] * 100, 0)} %`)))),
+        h('button', { class: 'btn', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, 'Xaritani yashirish'));
+    }
+    body.append(h('p', { class: 'note' }, 'Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyoriy davomiylik SanQvaN 0331-16 / ShNQ 2.08.01-19 da — bu hujjatlar normalar papkasida yoʻq, shuning uchun «mos / mos emas» baholanmadi. Xonalar (deraza) insolyatsiyasi — 4-bosqichda.'));
+    queueMicrotask(() => this.applySun());
+  }
+
+  /* ---------- 3-bosqich: hajmlar va seksiya generatori ---------- */
+  private gen: GenParams = { ...DEFAULT_GEN };
+  private genNotes: string[] = [];
+
+  /** Kvartal uchun barqaror guruh id si: zona belgisi (yoʻq boʻlsa — yaratiladi) */
+  private blockLabel(i: number): ZoneLabel | null {
+    const b = this.plan().blocks[i]; if (!b) return null;
+    const fr = frame(this.store.doc.origin);
+    return this.store.doc.zones.find(z => z.id === b.labelId) ?? { id: uid('z_'), at: fr.toGeo(b.centroid), use: b.use };
+  }
+
+  private generateBlock(i: number, quiet = false): number {
+    const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
+    if (b.use === 'yashil' || b.use === 'texnik') { if (!quiet) toast(`K-${i + 1} — ${b.use} zona, binolar joylashtirilmaydi`); return 0; }
+    const fr = frame(this.store.doc.origin), r = generate(b.rings[0], this.gen, this.store.doc.settings.floorHeight);
+    this.genNotes = r.notes;
+    const use: Use = b.use === 'aralash' ? 'aralash' : b.use === 'ijtimoiy' || b.use === 'savdo' ? b.use : 'turar';
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: lab.id, label: { ...lab, gen: { ...this.gen } }, sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: use === 'turar' && x.kind === 'qator' ? 0 : x.nonRes, use, kind: x.kind })) }));
+    if (!quiet) toast(r.sections.length ? `K-${i + 1}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
+    return r.sections.length;
+  }
+
+  private hajmPanel(body: HTMLElement): void {
+    const doc = this.store.doc, fr = frame(doc.origin), plan = this.plan(), g = this.gen;
+    if (this.selBlock != null && !plan.blocks[this.selBlock]) this.selBlock = null;
+    const num = (id: string, label: string, v: number, min: number, max: number, step: number, set: (x: number) => void) => {
+      const inp = h('input', { type: 'number', id, min, max, step, value: v }) as HTMLInputElement;
+      inp.onchange = () => { const x = Number(inp.value); if (Number.isFinite(x)) set(Math.max(min, Math.min(max, x))); this.renderPanel(); };
+      return h('label', { class: 'field grow' }, h('span', { class: 'lb' }, label), inp);
+    };
+    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartal'),
+      h('select', { id: 'genBlock', onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
+        h('option', { value: '' }, '— sahnada bosing yoki tanlang —'),
+        ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `K-${i + 1} · ${fmt(b.area / 1e4, 2)} ga · ${b.use}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; }))));
+    body.append(
+      h('div', { class: 'seg full', role: 'group', 'aria-label': 'Tipologiya' }, ...([['perimetr', 'Perimetral (seksiyalar)'], ['qatorlar', 'Meridional qatorlar']] as const).map(([k, t]) => h('button', { 'aria-pressed': g.typology === k, 'data-typ': k, onclick: () => { g.typology = k; this.renderPanel(); } }, t))),
+      h('div', { class: 'row' }, num('gMax', 'Qavat, eng koʻp', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }), num('gMin', 'eng kam', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); })),
+      h('div', { class: 'row' }, num('gDepth', 'Chuqurlik, m', g.depth, 9, 24, 0.5, x => { g.depth = x; }), num('gLen', 'Seksiya, m', g.secLen, 15, 60, 1, x => { g.secLen = x; }), num('gSet', 'Chekinish, m', g.setback, 0, 20, 0.5, x => { g.setback = x; })),
+      g.typology === 'perimetr' ? h('label', { class: 'row', style: 'font-size:13px' }, (() => { const c = h('input', { type: 'checkbox', checked: g.passages, id: 'gPass' }) as HTMLInputElement; c.onchange = () => { g.passages = c.checked; }; return c; })(), 'Har ~100 m da hovliga oʻtish (6 m)') : '',
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { if (this.selBlock != null) this.generateBlock(this.selBlock); } }, 'Generatsiya'),
+        h('button', { class: 'btn', id: 'genAll', title: 'Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi', onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(`${n} seksiya generatsiya qilindi`); } }, 'Hammasi'),
+        h('button', { class: 'btn', id: 'genClear', disabled: this.selBlock == null, onclick: () => { const lab = this.selBlock != null ? this.blockLabel(this.selBlock) : null; if (lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: lab.id, sections: [] })); } }, 'Tozalash')));
+    if (this.genNotes.length) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
+    // tanlangan bino / seksiya
+    const sel = doc.buildings.find(b => b.id === this.sel);
+    const gens = doc.buildings.filter(b => b.gen).length;
+    body.append(h('div', { class: 'ctxst', id: 'bldSt' }, h('b', {}, `${doc.buildings.length} bino/seksiya`), gens ? ` · shundan generatsiya ${gens}` : '', h('br'), h('span', { class: 'muted' }, 'Seksiyani sahnada bosing — qavatini oʻzgartiring yoki oʻchiring.')));
+    if (sel) {
+      const kind = sel.gen ? ({ burchak: 'Burchak seksiyasi', oddiy: 'Oddiy seksiya', qator: 'Qator seksiyasi' } as Record<string, string>)[sel.gen.kind] : 'Bino';
+      body.append(h('div', { class: 'list' }, h('div', { class: 'it', 'aria-selected': true, 'data-bid': sel.id },
+        h('span', { class: 'grow' }, `${kind} · ${sel.floors} qavat${sel.nonRes ? ` (${sel.nonRes} noturar)` : ''}`),
+        h('button', { title: 'Qavat −', id: 'flMinus', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.id, patch: { floors: sel.floors - 1 } }, 'fl-' + sel.id)) }, '−'),
+        h('button', { title: 'Qavat +', id: 'flPlus', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.id, patch: { floors: sel.floors + 1 } }, 'fl-' + sel.id)) }, '+'),
+        h('button', { title: 'Oʻchirish', onclick: () => this.store.dispatch({ type: 'removeBuilding', id: sel.id }) }, '×'))));
+    }
+    // qoʻlda chizish
+    const fl = h('input', { type: 'number', min: 1, max: 60, value: this.floors, id: 'fl' }) as HTMLInputElement;
+    const nr = h('input', { type: 'number', min: 0, max: 10, value: this.nonRes, id: 'nr' }) as HTMLInputElement;
+    fl.onchange = () => { this.floors = Math.max(1, Math.min(60, Math.round(Number(fl.value) || 1))); };
+    nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
+    const drawing = this.tool instanceof RectTool;
+    body.append(h('details', { class: 'manual', open: drawing || !gens }, h('summary', {}, 'Qoʻlda bino chizish'),
+      h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Qavatlar'), fl), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Noturar pastki'), nr)),
+      h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
+        this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
+        this.el.hint.textContent = this.tool?.hint ?? '';
+      }, toast)) }, drawing ? 'Qoʻshishni toʻxtatish' : '＋ Bino chizish')));
+  }
+
   /* ---------- 2-bosqich: koʻchalar, parsellar, yashil ---------- */
   private plan(): PlanGeo {
     const d = this.store.doc;
@@ -409,7 +546,7 @@ export class Editor {
   /* ---------- qadamlar ---------- */
   private locked(s: StepDef): string | null {
     if (s.phase > BUILT_PHASE) return `${s.phase}-bosqichda quriladi`;
-    if (['hajm', 'kocha', 'parsel', 'yashil'].includes(s.id) && !this.store.doc.site) return 'Avval uchastkani chizing';
+    if (['hajm', 'kocha', 'parsel', 'yashil', 'quyosh'].includes(s.id) && !this.store.doc.site) return 'Avval uchastkani chizing';
     return null;
   }
   private done(s: StepDef): boolean {
@@ -433,7 +570,7 @@ export class Editor {
     this.setTool(null); this.step = s;
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
-    if (s.id !== 'parsel' && this.selBlock != null) { this.selBlock = null; this.scene.selectBlock(null); }
+    if (s.id !== 'parsel' && s.id !== 'hajm' && this.selBlock != null) { this.selBlock = null; this.scene.selectBlock(null); }
     this.renderAll();
   }
 
@@ -486,28 +623,9 @@ export class Editor {
         doc.site ? h('button', { class: 'btn danger', onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, 'Uchastkani oʻchirish') : '',
         h('p', { class: 'note' }, 'Chizish: bosing — nuqta, birinchi nuqtani bosing yoki Enter — yopish. Sudrab kamerani aylantirasiz.'));
     }
-    if (s.id === 'hajm') {
-      const fl = h('input', { type: 'number', min: 1, max: 60, value: this.floors, id: 'fl' }) as HTMLInputElement;
-      const nr = h('input', { type: 'number', min: 0, max: 10, value: this.nonRes, id: 'nr' }) as HTMLInputElement;
-      fl.onchange = () => { this.floors = Math.max(1, Math.min(60, Math.round(Number(fl.value) || 1))); };
-      nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
-      const drawing = this.tool instanceof RectTool;
-      const sel = doc.buildings.find(b => b.id === this.sel);
-      body.append(
-        h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Qavatlar'), fl), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Noturar pastki'), nr)),
-        h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
-          this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
-          this.el.hint.textContent = this.tool?.hint ?? '';
-        }, toast)) }, drawing ? 'Qoʻshishni toʻxtatish' : '＋ Bino chizish'),
-        doc.buildings.length ? h('div', { class: 'list', role: 'listbox', 'aria-label': 'Binolar' }, ...doc.buildings.map((b, k) => h('div', { class: 'it', role: 'option', 'aria-selected': b.id === this.sel, 'data-bid': b.id },
-          h('span', { class: 'grow', style: 'cursor:pointer', onclick: () => { this.sel = b.id === this.sel ? null : b.id; this.scene.select(this.sel); this.renderPanel(); } }, `${k + 1}-bino · ${b.floors} qavat`),
-          h('button', { title: 'Qavat −', 'aria-label': 'Qavat kamaytirish', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: b.floors - 1 } }, 'fl-' + b.id)) }, '−'),
-          h('button', { title: 'Qavat +', 'aria-label': 'Qavat oshirish', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: b.floors + 1 } }, 'fl-' + b.id)) }, '+'),
-          h('button', { title: 'Oʻchirish', 'aria-label': 'Binoni oʻchirish', onclick: () => this.store.dispatch({ type: 'removeBuilding', id: b.id }) }, '×')))) : h('p', { class: 'note' }, 'Binolar yoʻq.'),
-        sel ? h('p', { class: 'note' }, 'Tanlangan bino sahnada koʻk. Delete — oʻchirish.') : '',
-        h('p', { class: 'note' }, 'Bu qadam hozircha qoʻlda. 3-bosqichda ShNQ boʻyicha generator (tipologiyalar, masofalar, insolyatsiya) koʻchiriladi.'));
-    }
+    if (s.id === 'hajm') this.hajmPanel(body);
     if (s.id === 'kocha') this.kochaPanel(body);
+    if (s.id === 'quyosh') this.quyoshPanel(body);
     if (s.id === 'parsel') this.parselPanel(body);
     if (s.id === 'yashil') this.yashilPanel(body);
     if (s.id === 'tekshiruv') body.append(this.register());
@@ -587,6 +705,10 @@ export class Editor {
       }
       const id = this.scene.pickBuilding(e.clientX, e.clientY);
       this.sel = id; this.scene.select(id);
+      if (!id && this.step.id === 'hajm') {
+        const p = this.scene.pick(e.clientX, e.clientY);
+        if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); }
+      }
       if (id && this.step.id !== 'hajm' && !this.locked(STEPS[5])) this.step = STEPS[5];
       this.renderAll();
     });
