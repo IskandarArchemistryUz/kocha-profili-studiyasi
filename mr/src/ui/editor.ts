@@ -149,7 +149,7 @@ export class Editor {
   /** atrofni xiralashtirish: foydalanuvchi tanlovi (yoqilgan) va qadam (loyiha ustida ishlanadigan qadamlar) */
   private fadePref = true;
   private syncFade(): void {
-    const on = this.fadePref && ['parsel', 'hajm', 'fasad', 'kvartira'].includes(this.step.id);
+    const on = this.fadePref && ['parsel', 'hajm', 'fasad', 'kvartira', 'xizmat'].includes(this.step.id);
     this.scene.setContextFade(on);
     this.root.querySelector('#fadeBtn')?.setAttribute('aria-pressed', String(this.fadePref));
   }
@@ -637,9 +637,9 @@ export class Editor {
 
   private showSvc(): void {
     const S = this.svc, r = S.res?.find(x => x.kind === S.sel); if (!r || !S.net) { this.scene.setNetMap(null); return; }
-    const R = r.r, col = (d: number) => d <= R * 0.5 ? 0x1f8a57 : d <= R ? 0x6cc08b : d <= R * 1.5 ? 0xf2b04a : d < Infinity ? 0xd9534f : 0xb9b5ad;
+    const R = r.r, col = (d: number) => d <= R * 0.5 ? 0x1a9850 : d <= R ? 0x91cf60 : d <= R * 1.5 ? 0xfdae61 : d < Infinity ? 0xd73027 : 0xb9b5ad;
     const segs = S.net.segs.map(([a, b]) => ({ a: S.net!.xy[a], b: S.net!.xy[b], color: col(Math.min(r.D[a], r.D[b])) }));
-    const dots = [...(S.src[S.sel] ?? []).map(p => ({ p, color: 0x2a6fb0, size: 7 })), ...S.demand.map((d, i) => ({ p: d.p, color: r.dist[i] <= R ? 0x1f8a57 : 0xd9534f, size: 11 }))];
+    const dots = [...(S.src[S.sel] ?? []).map(p => ({ p, color: 0x2a6fb0, size: 9 })), ...S.demand.map((d, i) => ({ p: d.p, color: r.dist[i] <= R ? 0x1a9850 : 0xd73027, size: 12 }))];
     this.scene.setNetMap(segs, dots);
   }
 
@@ -659,7 +659,7 @@ export class Editor {
       body.append(h('div', { class: 'ctxst', id: 'svcSt' }, h('b', {}, `${def.name}: ${def.note}`), h('br'),
         far.length ? `${fmt(far.length)} / ${fmt(S.demand.length)} seksiya radiusdan tashqarida, eng uzoq ${Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : 'yetib boʻlmaydi'}` : `Barcha ${fmt(S.demand.length)} seksiya radius ichida`,
         r.far ? h('span', { class: 'muted' }, ` · ${r.far} ta obyekt tarmoqdan tashqarida (toʻgʻri masofa × 1,3)`) : ''),
-        h('div', { class: 'legend' }, ...[[0x1f8a57, `≤ ${r.r / 2} m`], [0x6cc08b, `≤ ${r.r} m`], [0xf2b04a, `≤ ${r.r * 1.5} m`], [0xd9534f, `> ${r.r * 1.5} m`], [0x2a6fb0, 'Obyekt (loyiha yoki OSM)']].map(([c, t]) => h('div', {}, h('i', { class: 'sw', style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, String(t))))),
+        h('div', { class: 'legend' }, ...[[0x1a9850, `≤ ${r.r / 2} m`], [0x91cf60, `≤ ${r.r} m`], [0xfdae61, `≤ ${r.r * 1.5} m`], [0xd73027, `> ${r.r * 1.5} m`], [0x2a6fb0, 'Obyekt (loyiha yoki OSM)']].map(([c, t]) => h('div', {}, h('i', { class: 'sw', style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, String(t))))),
         h('div', { class: 'row' }, h('button', { class: 'btn grow', onclick: () => void this.loadPoi(true) }, 'OSM dan yangilash'), h('button', { class: 'btn grow', onclick: () => { this.svc.res = null; this.svc.err = 'yashirildi'; this.scene.setNetMap(null); this.renderPanel(); } }, 'Yashirish')),
         h('p', { class: 'muted' }, `${fmt(S.poi?.pois.length ?? 0)} OSM obyekt, ${fmt(S.net?.segs.length ?? 0)} yoʻl boʻlagi · ${fmt(S.ms, 0)} ms`));
     } else if (S.err === 'yashirildi') { body.append(h('button', { class: 'btn primary', onclick: () => { this.svc.err = ''; void this.loadPoi(); } }, 'Xizmatlar tahlili')); }
