@@ -76,3 +76,18 @@ test('qulflangan qadam: bosqich raqami koʻrsatiladi', async ({ page }) => {
   await page.click('[data-step=kocha]');
   await expect(page.locator('.panel .locked')).toContainText('2-bosqichda');
 });
+
+/** Regressiya: Akso → Reja oʻtishda kamera 3000 m uzoqlashib, uchastka nuqtadek kichrayib qolardi */
+test('Reja koʻrinishi uchastkani ekranga moslab koʻrsatadi', async ({ page }) => {
+  await newProject(page);
+  await page.click('#rectSite');                                        // 120 × 100 m
+  await page.click('[data-view=plan]');
+  const r = await page.evaluate(() => {
+    const ed = (window as any).__mr, c: HTMLCanvasElement = ed.scene.renderer.domElement, b = c.getBoundingClientRect();
+    const a = ed.scene.pick(b.left + b.width / 2, b.top + b.height / 2), z = ed.scene.pick(b.left + b.width / 2 + 100, b.top + b.height / 2);
+    return { mPer100px: Math.hypot(z[0] - a[0], z[1] - a[1]), w: b.width };
+  });
+  const sitePx = 120 / r.mPer100px * 100;
+  expect(sitePx).toBeGreaterThan(r.w * 0.2);
+  expect(sitePx).toBeLessThan(r.w * 1.2);
+});
