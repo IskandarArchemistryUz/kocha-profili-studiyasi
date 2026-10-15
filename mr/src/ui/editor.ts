@@ -23,6 +23,7 @@ import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, subdivide, type GridMode } from '../core/parcels';
 import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
+import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { INSOL_BINS } from '../scene/scene';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
@@ -335,6 +336,95 @@ export class Editor {
     this.renderPanel();
   }
 
+  /* ---------- shamol ---------- */
+  private climate: Climate | null = null;
+  private windDir: number | null = null;
+  private wind: { busy: boolean; mode: 'ratio' | 'lawson'; stats: { cls: number[]; amp: number; n: number; dir: number; p95: number } | null; pts?: XY[]; ratio?: number[]; cell?: number } = { busy: false, mode: 'lawson', stats: null };
+  private windW: Worker | null = null;
+
+  private async loadClimate(): Promise<void> {
+    if (this.climate) return;
+    try { const r = await fetch('./climate/uz_climate.json'); this.climate = await r.json(); } catch { toast('Iqlim maʼlumoti yuklanmadi'); }
+    this.renderPanel();
+  }
+
+  private windRose(st: Station): SVGSVGElement {
+    const NS = 'http://www.w3.org/2000/svg', S = 170, c = S / 2, R = 72, svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${S} ${S}`); svg.setAttribute('width', '100%'); svg.setAttribute('class', 'rose');
+    const max = Math.max(...st.rose.map(r => r.reduce((a, b) => a + b, 0)));
+    const COLS = ['#d6e6f2', '#a9cbe3', '#72a7cf', '#3f7fb5', '#215a8f', '#0f3460'];
+    const el = (tag: string, a: Record<string, string | number>) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, String(a[k])); svg.appendChild(e); return e; };
+    [0.33, 0.66, 1].forEach(f => el('circle', { cx: c, cy: c, r: R * f, fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.6 }));
+    st.rose.forEach((bins, k) => {
+      let acc = 0; const a0 = (k * 22.5 - 9) * Math.PI / 180, a1 = (k * 22.5 + 9) * Math.PI / 180;
+      bins.forEach((v, b) => {
+        if (v <= 0) return; const r0 = R * Math.sqrt(acc / max), r1 = R * Math.sqrt((acc + v) / max); acc += v;
+        const P = (r: number, a: number) => `${c + r * Math.sin(a)},${c - r * Math.cos(a)}`;
+        el('path', { d: `M${P(r0, a0)} L${P(r1, a0)} A${r1},${r1} 0 0 1 ${P(r1, a1)} L${P(r0, a1)} A${r0},${r0} 0 0 0 ${P(r0, a0)} Z`, fill: COLS[b] });
+      });
+    });
+    [['Sh', 0], ['Shq', 90], ['J', 180], ['G', 270]].forEach(([t, d]) => { const a = Number(d) * Math.PI / 180, e = el('text', { x: c + (R + 9) * Math.sin(a), y: c - (R + 9) * Math.cos(a) + 3.5, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)' }); e.textContent = String(t); });
+    if (this.windDir != null) { const a = this.windDir * Math.PI / 180; el('line', { x1: c + R * Math.sin(a), y1: c - R * Math.cos(a), x2: c, y2: c, stroke: '#d9534f', 'stroke-width': 1.6, 'marker-end': '' }); }
+    return svg;
+  }
+
+  private async runWind(): Promise<void> {
+    const doc = this.store.doc, st = this.climate && nearestStation(this.climate, doc.origin[0], doc.origin[1]).s; if (!doc.site || !st) return;
+    const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    const m = 60, box: [number, number, number, number] = [x0 - m, y0 - m, x1 + m, y1 + m];
+    const ext = Math.hypot(box[2] - box[0], box[3] - box[1]) + 360, cell = Math.max(2, ext / 170);
+    const b = this.ctxMgr.current, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rad = ext / 2 + 50, keepIds = new Set(this.scene.inSite.map(x => x.id));
+    const extra = (b?.osm.buildings ?? []).map(x => ({ rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, id: x.id })).filter(x => !keepIds.has(x.id) && Math.hypot(x.rings[0][0][0] - cx, x.rings[0][0][1] - cy) < rad);
+    const rings = this.scene.prisms(doc, extra).map(p => p.ring);
+    const dir = this.windDir ?? prevailing(st).deg;
+    this.wind = { ...this.wind, busy: true, stats: null }; this.renderPanel();
+    const job: WindJob = { rings, box, fromDeg: dir, cell, steps: 2200 };
+    let out: WindOut;
+    try {
+      this.windW ??= new Worker(new URL('../workers/wind.worker.ts', import.meta.url), { type: 'module' });
+      out = await new Promise<WindOut>((ok, no) => { const w = this.windW!; w.onmessage = e => ok(e.data.out); w.onerror = e => no(e); w.postMessage({ id: 1, job }); });
+    } catch { out = windField(job); }
+    // uchastka va 40 m atrofi boʻyicha nuqtalar
+    const pts: XY[] = [], ratio: number[] = [], step = Math.max(2.5, cell), inB = (p: XY) => rings.some(r => pointIn(p, [r]));
+    for (let x = x0 - 40; x < x1 + 40; x += step) for (let y = y0 - 40; y < y1 + 40; y += step) { const p: XY = [x, y]; if (inB(p)) continue; pts.push(p); ratio.push(sampleWind(out, p)); }
+    const p95 = st.p95 * PED_FACTOR, cls = LAWSON.map(() => 0); let amp = 0, n = 0;
+    pts.forEach((p, i) => { if (!pointIn(p, site)) return; n++; cls[lawsonClass(ratio[i] * p95)]++; if (ratio[i] > 1.2) amp++; });
+    this.wind = { busy: false, mode: this.wind.mode, stats: { cls: cls.map(v => v / Math.max(1, n)), amp: amp / Math.max(1, n), n, dir, p95 }, pts, ratio, cell: step };
+    this.showWind(); this.renderPanel();
+  }
+
+  private showWind(): void {
+    const w = this.wind; if (!w.pts || !w.ratio || !w.stats) return;
+    const ramp = (r: number) => r < 0.4 ? 0x2b3a67 : r < 0.7 ? 0x4a6fa5 : r < 0.9 ? 0x7fb3c8 : r < 1.1 ? 0xe8e4c9 : r < 1.3 ? 0xf6c86b : r < 1.5 ? 0xf29a4a : 0xd9534f;
+    const cols = w.mode === 'ratio' ? w.ratio.map(ramp) : w.ratio.map(r => LAWSON[lawsonClass(r * w.stats!.p95)][1]);
+    this.scene.setGroundMap(w.pts, cols, w.cell);
+  }
+
+  private windSection(body: HTMLElement): void {
+    if (!this.climate) { void this.loadClimate(); body.append(h('p', { class: 'note' }, 'Iqlim maʼlumoti yuklanmoqda…')); return; }
+    const doc = this.store.doc, { s: st, km } = nearestStation(this.climate, doc.origin[0], doc.origin[1]), pv = prevailing(st);
+    const dir = this.windDir ?? pv.deg;
+    const sel = h('select', { id: 'windDir', onchange: (e: Event) => { this.windDir = Number((e.target as HTMLSelectElement).value); this.renderPanel(); } },
+      ...Array.from({ length: 16 }, (_, k) => { const o = h('option', { value: k * 22.5 }, `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ustun' : ''}`) as HTMLOptionElement; o.selected = Math.abs(k * 22.5 - dir) < 1; return o; }));
+    body.append(h('div', { class: 'field', id: 'windBox' }, h('span', { class: 'lb' }, 'Shamol'),
+      h('div', { class: 'ctxst' }, h('b', {}, `${st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`), h('br'), `Oʻrtacha ${fmt(st.mean, 1)} m/s · 5 % vaqt ${fmt(st.p95, 1)} m/s dan oshadi · shtil ${fmt(st.calm * 100, 0)} %`, h('br'),
+        h('span', { class: 'muted' }, `Ustun yoʻnalish: ${rumbName(pv.k)} (${fmt(pv.share * 100, 0)} %). Manba: EPW TMYx 2011–2025 (climate.onebuilding.org).`)),
+      this.windRose(st),
+      h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Hisob yoʻnalishi (qayerdan esadi)'), sel),
+      h('button', { class: 'btn primary', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)')));
+    const w = this.wind.stats;
+    if (w) {
+      body.append(h('div', { class: 'seg full', role: 'group' }, ...([['lawson', 'Qulaylik (Lawson)'], ['ratio', 'Tezlik nisbati']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.wind.mode === k, onclick: () => { this.wind.mode = k; this.showWind(); this.renderPanel(); } }, t))),
+        h('div', { class: 'ctxst', id: 'windSt' }, h('b', {}, `${rumbName(Math.round(w.dir / 22.5) % 16)} shamoli: uchastkaning ${fmt(w.amp * 100, 0)} % ida tezlik 1,2× dan oshadi`), h('br'), h('span', { class: 'muted' }, `Piyoda sathi (1,5 m) 5 % tezligi ochiq joyda ≈ ${fmt(w.p95, 1)} m/s`)),
+        this.wind.mode === 'lawson'
+          ? h('div', { class: 'legend' }, ...LAWSON.map(([, c, t], i) => h('div', {}, h('i', { class: 'sw', style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, t), h('span', { class: 'num' }, `${fmt(w.cls[i] * 100, 0)} %`))))
+          : h('div', { class: 'legend' }, ...[['< 0,4 pana', 0x2b3a67], ['0,7–0,9', 0x7fb3c8], ['0,9–1,1 ochiq joydek', 0xe8e4c9], ['1,3–1,5', 0xf29a4a], ['> 1,5 tezlashish', 0xd9534f]].map(([t, c]) => h('div', {}, h('i', { class: 'sw', style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, String(t))))),
+        h('button', { class: 'btn', onclick: () => { this.wind.stats = null; this.scene.setGroundMap(null); this.renderPanel(); } }, 'Xaritani yashirish'));
+    }
+    body.append(h('p', { class: 'note' }, 'Usul: 2D Lattice Boltzmann, piyoda sathida, bitta yoʻnalish. Bino ustidan oqish, turbulentlik va daraxtlar hisobga olinmaydi — dastlabki loyiha uchun sifat bahosi (tunnel, pana, burchak zonalari). Qulaylik mezoni — Lawson (LDDC), xalqaro amaliyot; Oʻzbekiston meʼyori emas.'));
+  }
+
   private quyoshPanel(body: HTMLElement): void {
     const DATES: [string, string][] = [['03-22', '22 mart'], ['04-22', '22 aprel'], ['06-22', '22 iyun'], ['09-22', '22 sentabr'], ['12-22', '22 dekabr']];
     const time = h('input', { type: 'range', min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', style: 'width:100%' }) as HTMLInputElement;
@@ -353,6 +443,7 @@ export class Editor {
         h('button', { class: 'btn', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, 'Xaritani yashirish'));
     }
     body.append(h('p', { class: 'note' }, 'Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0331-16, 8.3-band — 22 mart – 22 sentabr davrida xonalarda uzluksiz 2,5 soat, uy atrofidagi hududda ≥ 0,5–1 soat. Hudud natijasi reyestrga qoʻshiladi; xonalar (deraza) — 4-bosqichda.'));
+    this.windSection(body);
     queueMicrotask(() => this.applySun());
   }
 

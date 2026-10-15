@@ -353,11 +353,16 @@ export class Scene3D {
   private insol: THREE.Mesh | null = null;
   /** Insolyatsiya xaritasi: har nuqta — katakcha, soat boʻyicha rang; null — olib tashlash */
   setInsolation(pts: XY[] | null, hours?: Float32Array, cell = 3): void {
+    this.setGroundMap(pts, hours ? Array.from(hours, insolColor) : undefined, cell);
+  }
+
+  /** Yer sathidagi rangli xarita (insolyatsiya, shamol): har nuqta — katakcha */
+  setGroundMap(pts: XY[] | null, colors?: number[], cell = 3): void {
     if (this.insol) { this.scene.remove(this.insol); this.insol.geometry.dispose(); (this.insol.material as THREE.Material).dispose(); this.insol = null; }
-    if (pts && hours) {
+    if (pts && colors) {
       const pos: number[] = [], col: number[] = [], c = new THREE.Color(), h2 = cell / 2 * 0.96;
       pts.forEach((p, i) => {
-        c.setHex(insolColor(hours[i])); const y = this.H(p[0], p[1]) + 0.6;
+        c.setHex(colors[i]); const y = this.H(p[0], p[1]) + 0.6;
         const q = [[p[0] - h2, p[1] - h2], [p[0] + h2, p[1] - h2], [p[0] + h2, p[1] + h2], [p[0] - h2, p[1] - h2], [p[0] + h2, p[1] + h2], [p[0] - h2, p[1] + h2]];
         for (const v of q) { pos.push(v[0], y, -v[1]); col.push(c.r, c.g, c.b); }
       });

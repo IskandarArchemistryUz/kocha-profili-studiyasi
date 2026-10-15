@@ -55,3 +55,16 @@ test('tipologiyalar: minoralar va stilobat + yer osti parkovka → reyestrda ta�
   const v = await page.locator('.drawer [data-rule=parking] td.num').first().textContent();
   expect(Number(v!.replace(/\D/g, ''))).toBeGreaterThan(300);
 });
+
+test('shamol: shamol guli (EPW) va piyoda sathidagi oqim', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await page.click('[data-step=quyosh]');
+  await expect(page.locator('#windBox')).toContainText('Tashkent', { timeout: 15000 });
+  await expect(page.locator('#windBox .rose path').first()).toBeAttached();
+  await page.click('#windGo');
+  await expect(page.locator('#windSt')).toContainText('shamoli', { timeout: 90000 });
+  await expect(page.locator('.legend')).toContainText('Oʻtirish');
+});
