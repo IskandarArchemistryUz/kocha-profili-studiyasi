@@ -20,7 +20,7 @@ export interface ContextBundle {
   missing: string[];
 }
 
-export const cacheKey = (c: LngLat, r: number) => `ctx2:${c[0].toFixed(4)},${c[1].toFixed(4)},${Math.round(r)}`;
+export const cacheKey = (c: LngLat, r: number) => `ctx3:${c[0].toFixed(4)},${c[1].toFixed(4)},${Math.round(r)}`;
 
 export type Progress = (msg: string, frac: number) => void;
 
