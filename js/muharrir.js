@@ -298,7 +298,13 @@ const STY={
   machiya:{n:'Machiya (Kioto)',wall:'#e8e0d0',roof:'#4b4b4b',rf:'gable',slope:25},
   qishloq:{n:'Kirpich mahalla uyi',wall:'#c9876a',roof:'#7a7f86',rf:'gable',slope:20}};
 const ROOF={flat:'Tekis',parapet:'Parapet',gable:'Ikki nishabli',hip:'Toʻrt nishabli',mansard:'Mansard',dome:'Gumbaz'};
-function roofOf(x){const st=STY[x.sty]||null;return {rf:x.roof||(st&&st.rf)||'flat',slope:x.slope||(st&&st.slope)||30,wall:st&&st.wall,rc:(st&&st.roof)||'#8f8d88'};}
+function roofOf(x){const st=STY[x.sty]||null;return {rf:x.roof||(st&&st.rf)||'flat',slope:x.slope||(st&&st.slope)||30,wall:(x.fc&&x.fc.wall)||(st&&st.wall),rc:x.rc||(st&&st.roof)||'#8f8d88'};}
+/* Bino studiyasi (bino.html): kvartal qulflanadi, tanlov va atrof (qoʻshni binolar, kvartal) localStorage orqali uzatiladi */
+function openStudio(zid,bid){const b=blkOfZ(zid);if(!b)return;if(!(b.z.lock&&b.z.blds))act(()=>{bake(b);});
+  const o=bldRec(zid,bid);if(!o)return;const c=turf.centroid(o.x.f).geometry.coordinates,nb=[];
+  BLK.forEach(k=>{if(!k.r)return;k.r.blds.forEach(y=>{if(k===b&&y.id===bid)return;try{if(turf.distance(c,turf.centroid(y.f),{units:'meters'})<260)nb.push({cs:y.f.geometry.coordinates,fl:y.fl});}catch(_){}});});
+  try{localStorage.setItem('kps_bino_ctx',JSON.stringify({blk:b.f.geometry.coordinates[0],nb:nb.slice(0,160)}));localStorage.setItem('kps_bino_sel',JSON.stringify({zid,bid}));}catch(_){}
+  if(window.parent!==window)window.parent.postMessage({kps:'go',href:'bino.html'},location.origin);else location.href='bino.html';}
 /* tom boʻlaklari: [{poly, b, h}] — b/h tom tagidan, metrda */
 function roofParts(poly,R){const out=[];if(!poly||R.rf==='flat')return out;
   let f=poly;try{if(f.geometry.type!=='Polygon')return out;}catch(_){return out;}
@@ -402,6 +408,7 @@ function bldProfile(x){const m=bldMass(x),A=turf.area(x.f)||1,H=Math.min(150,Mat
     m.seg.map(g=>`<text x="${W+4}" y="${(H-g.f1*fh+9).toFixed(1)}" font-size="8.5" font-family="IBM Plex Mono,monospace" fill="#5e5c58">${g.f1}</text>`).join('')+`</svg>`;}
 function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z.lock&&b.z.blds),m=bldMass(x),nr=x.nr||0,tiers=(x.tiers||[]).slice().sort((p,q)=>p.from-q.from);
   return `<div class="lb">${esc(T('Tanlangan bino'))} · ${esc(b.name)}</div>
+    <button class="btn dark" id="toStudio" style="width:100%;margin:6px 0 10px" title="${esc(T('Fasad, derazalar, balkonlar, tom, kvartiralar va render — alohida ekranda'))}">${esc(T('Bino studiyasi →'))}</button>
     <div class="fl" role="group" aria-label="${esc(T('Qavatlar'))}"><button id="flDn" aria-label="${esc(T('Qavatni kamaytirish'))}">−</button><b>${x.fl}</b><button id="flUp" aria-label="${esc(T('Qavatni oshirish'))}">+</button><span class="note" style="margin-left:10px">${esc(T('qavat'))} · ${fmt(x.fl*MRGEN.FH,1)} m</span></div>
     <div class="bsec"><span class="lb">${esc(T('Pastki qavatlar — turar joy emas'))}</span>
       <div class="fl" role="group" aria-label="${esc(T('Turar joy boʻlmagan pastki qavatlar'))}"><button id="nrDn" aria-label="−">−</button><b>${nr}</b><button id="nrUp" aria-label="+">+</button><span class="note" style="margin-left:10px">${nr?esc(T('1–'+nr+'-qavat: tijorat, xizmat')):esc(T('hammasi turar joy'))}</span></div></div>
@@ -430,6 +437,7 @@ function bldHTML(o){const {b,x}=o,a=turf.area(x.f),pop=bldPop(b,x),locked=!!(b.z
     <button class="btn" id="desel">${esc(T('Tanlovni bekor qilish'))}</button>`;}
 function bindBld(o){if(!o)return;const on=(id,f)=>{const e=$(id);if(e)e.onclick=f;};
   on('#flUp',()=>bldOp('fl',1));on('#flDn',()=>bldOp('fl',-1));bindKv();
+  on('#toStudio',()=>openStudio(S.sel.zid,S.sel.bid));
   const fx=()=>bldRec(S.sel.zid,S.sel.bid);
   on('#feGo',()=>{if(S.fe){S.fe=null;render();return;}const o=fx();if(!o)return;const fl=+($('#feDn')&&$('#feDn').nextElementSibling.textContent)||1;
     S.fe={zid:S.sel.zid,bid:S.sel.bid,fl:Math.max(1,Math.min(o.x.fl,fl))};if(S.view!=='plan'){const pb=document.querySelector('[data-view="plan"]');if(pb)pb.click();}render();});
