@@ -6,6 +6,7 @@ import type { LngLat } from '../core/doc';
 import { cacheGet, cachePut } from '../storage/db';
 import { cacheKey, farKey, fetchContext, fetchFar, legacyKeys, refresh, type ContextBundle, type FarBundle, type Progress } from './load';
 import { PARSER_V } from './osm';
+import { fetchPoi, poiKey, type PoiBundle } from './poi';
 
 export class ContextManager {
   private w: Worker | null = null;
@@ -52,6 +53,13 @@ export class ContextManager {
     const k = farKey(center, radius);
     try { const c = await cacheGet<FarBundle>(k); if (c) return c; } catch { /* kesh */ }
     try { const b = await fetchFar(center, radius); void cachePut(k, b).catch(() => {}); return b; } catch (e) { console.warn('Uzoq kontekst yuklanmadi', e); return null; }
+  }
+
+  /** Ijtimoiy obyektlar (OSM): keshdan yoki tarmoqdan; force — kesh eʼtiborsiz */
+  async loadPoi(center: LngLat, force = false): Promise<PoiBundle> {
+    const k = poiKey(center);
+    if (!force) try { const c = await cacheGet<PoiBundle>(k); if (c) return c; } catch { /* kesh */ }
+    const b = await fetchPoi(center); void cachePut(k, b).catch(() => {}); return b;
   }
 
   private fetch(id: number, center: LngLat, radius: number, progress: Progress): Promise<ContextBundle> {

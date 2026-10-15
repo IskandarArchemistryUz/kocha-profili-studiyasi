@@ -73,10 +73,11 @@ test('eksport → import: fayldan nusxa ochiladi', async ({ page }) => {
   await expect(page.locator('.card', { hasText: 'Eksport sinovi' })).toHaveCount(2);
 });
 
-test('qulflangan qadam: bosqich raqami koʻrsatiladi', async ({ page }) => {
+test('uchastka chizilmaguncha loyiha qadamlari yopiq, keyin hammasi ochiq', async ({ page }) => {
   await newProject(page);
-  await page.click('[data-step=xizmat]');
-  await expect(page.locator('.panel .locked')).toContainText('5-bosqichda');
+  await expect(page.locator('[data-step=xizmat]')).toHaveAttribute('data-locked', '');
+  await page.click('[data-step=uchastka]'); await page.click('#rectSite');
+  await expect(page.locator('.rail [data-locked]')).toHaveCount(0);
 });
 
 /** Regressiya: Akso → Reja oʻtishda kamera 3000 m uzoqlashib, uchastka nuqtadek kichrayib qolardi */

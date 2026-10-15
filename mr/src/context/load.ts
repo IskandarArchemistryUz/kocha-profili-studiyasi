@@ -41,7 +41,7 @@ export function refresh(b: ContextBundle): ContextBundle {
 
 export type Progress = (msg: string, frac: number) => void;
 
-async function overpass(q: string, f: typeof fetch, onTry: (msg: string) => void): Promise<unknown> {
+export async function overpass(q: string, f: typeof fetch, onTry: (msg: string) => void): Promise<unknown> {
   let last: unknown = null;
   for (let k = 0; k < PLAN.length; k++) {
     const [i, wait] = PLAN[k];
