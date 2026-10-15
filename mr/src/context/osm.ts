@@ -20,6 +20,9 @@ export interface OsmData {
   trees: LngLat[];
 }
 
+/** Tahlilchi versiyasi: parseOverpass oʻzgarsa oshiriladi — keshdagi xom maʼlumot qayta tahlil qilinadi */
+export const PARSER_V = 4;
+
 export type BBox = [number, number, number, number]; // janub, gʻarb, shimol, sharq
 
 /** Markaz va radius (m) boʻyicha kvadrat chegara */

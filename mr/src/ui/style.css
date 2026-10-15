@@ -116,3 +116,5 @@ button{cursor:pointer}
 .chk{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:13px}.chk label{display:flex;gap:6px;align-items:center;cursor:pointer}
 .attr{position:absolute;right:8px;bottom:6px;font:10.5px var(--sans);color:var(--muted);background:rgba(255,255,255,.75);padding:2px 6px;border-radius:4px;z-index:4}
 .attr a{color:inherit}
+.ctxbadge{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:6;font:12px var(--sans);padding:6px 12px;border-radius:999px;background:var(--surface);box-shadow:var(--shadow);color:var(--muted)}
+.ctxbadge[data-s=err]{color:var(--bad);background:var(--bad-soft)}

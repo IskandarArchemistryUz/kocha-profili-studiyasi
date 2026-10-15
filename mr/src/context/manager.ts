@@ -4,7 +4,8 @@
  */
 import type { LngLat } from '../core/doc';
 import { cacheGet, cachePut } from '../storage/db';
-import { cacheKey, fetchContext, type ContextBundle, type Progress } from './load';
+import { cacheKey, fetchContext, legacyKeys, refresh, type ContextBundle, type Progress } from './load';
+import { PARSER_V } from './osm';
 
 export class ContextManager {
   private w: Worker | null = null;
@@ -18,14 +19,28 @@ export class ContextManager {
   }
 
   /** Faqat keshdan (sahifa yangilanganda) */
-  async fromCache(center: LngLat, radius: number): Promise<ContextBundle | null> {
-    try { const b = await cacheGet<ContextBundle>(cacheKey(center, radius)); if (b) this.current = b; return b; } catch { return null; }
+  /** Keshdan: joriy kalit (xom maʼlumot boʻlsa qayta tahlil qilinadi), boʻlmasa — oldingi versiya kalitlari (legacy=true) */
+  async fromCache(center: LngLat, radius: number, legacy = false): Promise<ContextBundle | null> {
+    try {
+      let b = await cacheGet<ContextBundle>(cacheKey(center, radius));
+      if (b) { const f = refresh(b); if (f !== b) { b = f; void cachePut(cacheKey(center, radius), b).catch(() => {}); } this.current = b; return b; }
+      if (legacy) for (const k of legacyKeys(center, radius)) { const o = await cacheGet<ContextBundle>(k); if (o) return o; }
+    } catch { /* kesh ochilmadi */ }
+    return null;
   }
 
   async load(center: LngLat, radius: number, progress: Progress, force = false): Promise<ContextBundle> {
     const id = ++this.seq;
-    if (!force) { const c = await this.fromCache(center, radius); if (c) return c; }
-    const b = await this.fetch(id, center, radius, progress);
+    if (!force) { const c = await this.fromCache(center, radius); if (c && c.pv === PARSER_V) return c; }
+    let b: ContextBundle;
+    try { b = await this.fetch(id, center, radius, progress); }
+    catch (e) {
+      // tarmoq ishlamadi: keshdagi har qanday nusxa — ogohlantirish bilan
+      const old = (await this.fromCache(center, radius)) ?? (await this.fromCache(center, radius, true));
+      if (id !== this.seq) throw new Error('eskirdi');
+      if (old) { this.current = { ...old, stale: (e as Error).message }; return this.current; }
+      throw e;
+    }
     if (id !== this.seq) throw new Error('eskirdi');
     this.current = b;
     try { await cachePut(cacheKey(center, radius), b); } catch (e) { console.warn('Kontekst keshga yozilmadi', e); }
