@@ -158,6 +158,11 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
 .gq .gl button:first-child{border-top:0}.gq .gl button:hover,.gq .gl button.on{background:var(--bg)}
 .gq .gl b{font-weight:600}.gq .gl small{display:block;color:var(--grey);font:11.5px var(--f-mono)}
 .helpb{width:30px;padding:0;font:600 14px var(--f-head)}
+/* v2: sodda sarlavha — logo · loyiha · mahsulotlar · ⋯ */
+body.nosub{grid-template-rows:auto minmax(0,1fr)}body.nosub .sub{display:none}
+.top .gq,#helpBtn,#mrBtn,.sst{display:none!important}
+.top{height:48px}.step.tab{font-size:12.5px!important}
+#qBtn{border-color:var(--line)}
 @media (max-width:1550px){.gq input{width:150px}.pname{width:9em}}
 @media (max-width:1400px){.gq{display:none}.top{gap:10px}.tools{gap:6px}.pname{width:8em}}
 @media (max-width:1180px){.sst{display:none}.pname{width:7em}}
@@ -177,7 +182,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
     <div class="qw" id="qwrap"></div>
     <div class="gq"><input id="gq" type="search" placeholder="Asbobni topish: shamol, aholi…" autocomplete="off" aria-label="Asbobni topish — qaysi qadamda nima borligini qidirish" title="Funksiyani qidiradi va kerakli qadamni ochadi. Xaritada joy qidirish — xarita ustidagi maydon."><div class="gl" id="gl" hidden></div></div>
     <button class="btn helpb" id="helpBtn" title="Bu qadamda nima qilinadi">?</button>
-    <div class="prwrap"><button class="btn" id="prBtn" aria-expanded="false" aria-controls="prm" title="Loyiha farazlari: kishi/xonadon, avtoturargoh, qavat… — barcha qadamlar shu qiymatlarni oladi">Parametrlar</button><div class="prm" id="prm" hidden role="dialog" aria-label="Loyiha parametrlari"></div></div>
+    <div class="prwrap"><button class="btn" id="prBtn" aria-expanded="false" aria-controls="prm" title="Loyiha farazlari: kishi/xonadon, avtoturargoh, qavat… — barcha qadamlar shu qiymatlarni oladi" aria-label="Loyiha parametrlari" style="width:32px;padding:0;font-size:16px">⚙</button><div class="prm" id="prm" hidden role="dialog" aria-label="Loyiha parametrlari"></div></div>
     <button class="btn" id="mrBtn" aria-pressed="false" title="Master reja koʻrsatkichlari va meʼyor tekshiruvi (ShNQ) — har qadamda ochiladi"><span>Master reja</span><span id="mrB"></span></button>
   </div>
 </header>
@@ -204,7 +209,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(-
    shuning uchun ish holati saqlanadi. Maʼlumot sahifalar orasida umumiy brauzer xotirasi orqali oʻtadi
    (kps_data — qatlamlar, kps_posadka — binolar, kps_mat — albom materiallari). */
 const STEPS=[
-  {id:"loyiha", t:"Loyiha", subs:[
+  {id:"loyiha", t:"Master reja", subs:[
     {id:"oyna", t:"Loyiha", page:"muharrir.html", hint:"U uchastka · H tahlil hududi · S yoʻllar · Z/G parsel va binolar · B bino · A tahlil"}]},
   /* Tahlil — atrofni baholashning hammasi bitta blokda: har bir tab bitta tahlil, xarita hududi umumiy (kps_site) */
   {id:"tahlil", t:"Tahlil", subs:[
@@ -216,16 +221,17 @@ const STEPS=[
     {id:"zich", t:"Zichlik", page:"gis.html", gtab:"zich"},
     {id:"muh", t:"Tarmoqlar", page:"gis.html", gtab:"muh"},
     {id:"shamol", t:"Shamol", page:"shamol.html"}]},
+  {id:"kocha", t:"Koʻcha", subs:[
+    {id:"loyiha", t:"Koʻcha loyihasi", page:"studio.html", app:"design"},
+    {id:"profil", t:"Mavjud profil", page:"studio.html", app:"prof"}]},
   {id:"albom", t:"Albom", subs:[
     {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
   /* chuqur asboblar — menyuda «Qoʻshimcha»; xarita va maʼlumot asosiy oyna bilan umumiy */
   {id:"qosh", t:"Qoʻshimcha", hidden:true, subs:[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
-    {id:"loyiha", t:"Koʻcha tafsiloti · YHQ", page:"studio.html", app:"design"},
-    {id:"profil", t:"Koʻcha profili", page:"studio.html", app:"prof"},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="71";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="72";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -233,7 +239,8 @@ const $=id=>document.getElementById(id);
 let P={name:"Yangi loyiha", step:0, sub:{}, seen:[0]};
 try{ const v=JSON.parse(localStorage.getItem("kps_project")||"null"); if(v&&typeof v==="object") P=Object.assign(P,v); }catch(e){}
 if(!P.lay2){ P.step=0; P.sub={}; P.lay2=1; }
-if(!P.lay3){ if(P.step===1) P.step=2; else if(P.step>1) P.step=0; P.lay3=1; }   // «Tahlil» qadami qo'shildi   // eski qadamlar (Hudud…Binolar) → bitta oyna
+if(!P.lay3){ if(P.step===1) P.step=2; else if(P.step>1) P.step=0; P.lay3=1; }   // «Tahlil» qadami qo'shildi
+if(!P.lay4){ if(P.step===2) P.step=3; else if(P.step>2) P.step=0; P.lay4=1; }   // «Koʻcha» mahsuloti qo'shildi   // eski qadamlar (Hudud…Binolar) → bitta oyna
 const saveP=()=>{ try{ localStorage.setItem("kps_project",JSON.stringify(P)); }catch(e){} };
 $("pname").value=P.name;
 $("pname").addEventListener("input",e=>{ P.name=e.target.value.trim()||"Yangi loyiha"; saveP(); document.title=P.name+" — Archemistry Lab"; });
@@ -318,7 +325,8 @@ function renderNav(){
   $("subtabs").innerHTML = st.hidden ? `<button data-back>← Loyiha</button><button aria-pressed="true">${st.subs[j].t}</button>`
     : st.subs.length>1 ? st.subs.map((u,k)=>`<button data-j="${k}" aria-pressed="${k===j}">${u.t}</button>`).join("") : "";
   $("hint").textContent=st.subs[j].hint||"";
-  $("nextBtn").textContent = st.id==="albom" ? "← Loyiha" : "Albom →";
+  document.body.classList.toggle("nosub", !st.hidden && st.subs.length<2);
+  $("nextBtn").hidden = true;
 }
 $("steps").onclick=e=>{ const b=e.target.closest("button[data-i]"); if(b) show(+b.dataset.i); };
 $("qwrap").onclick=e=>{ const q=e.target.closest("[data-q]"); if(q){ $("qMenu").hidden=true; show(STEPS.findIndex(s=>s.hidden),+q.dataset.q); return; }
@@ -526,7 +534,7 @@ const GUIDE={
 let GSEEN={};try{GSEEN=JSON.parse(localStorage.getItem("kps_guide_seen")||"{}");}catch(e){}
 const GOFF=()=>localStorage.getItem("kps_guide_off")==="1";
 function curKey(){const st=STEPS[P.step],u=st.subs[P.sub[st.id]||0];return st.id+"-"+u.id;}
-function showGuide(force){const k=curKey(),g=GUIDE[k],el=$("guide");if(!g||(!force&&(GSEEN[k]||GOFF()))){el.hidden=true;return;}
+function showGuide(force){const k=curKey(),g=GUIDE[k],el=$("guide");if(!g||!force){el.hidden=true;return;}   // v2: koʻrsatma faqat soʻralganda
   el.innerHTML=`<h3>${g[0]}</h3><ol>${g[1].map(x=>{const pl=x.replace(/<[^>]+>/g,"");const t=(window.KPS_LANG&&window.KPS_LANG!=="uz"&&window.kpsT)?window.kpsT(pl):pl;return `<li>${t!==pl?t:x}</li>`;}).join("")}</ol>${g[2]?`<div class="res">${g[2]}</div>`:""}<div class="gb"><button class="btn dark" id="gOk">Tushunarli</button><label><input type="checkbox" id="gOff" ${GOFF()?"checked":""}> koʻrsatmalarni boshqa koʻrsatmaslik</label></div>`;
   el.hidden=false;$("gOk").onclick=()=>{GSEEN[k]=1;try{localStorage.setItem("kps_guide_seen",JSON.stringify(GSEEN));localStorage.setItem("kps_guide_off",$("gOff").checked?"1":"0");}catch(e){}el.hidden=true;};}
 $("helpBtn").onclick=()=>{const el=$("guide");if(!el.hidden){el.hidden=true;return;}showGuide(true);};
@@ -547,7 +555,7 @@ const FIND=[
  ["Insolyatsiya","insolyatsiya инсоляц quyosh солн sun soya тень","loyiha","oyna",null,"chap panel — T (Tekshiruv) → Insolyatsiya"],
  ["Binolarni joylashtirish, TEP","bino здан joylashtirish размещ qavat этаж tep тэп xonadon квартир","loyiha","oyna",null,"chap panel — Z, G, B; TEP — pastki qatorda"],
  ["Koʻcha chizish va YHQ tekshiruvi","koʻcha улиц street yhq пдд chizish модул","loyiha","oyna",null,"chap panel — S (Yoʻllar); YHQ — Qoʻshimcha → Koʻcha tafsiloti"],
- ["Koʻcha profili (kesim)","profil профил kesim разрез сечение","qosh","profil",null,""],
+ ["Koʻcha profili (kesim)","profil профил kesim разрез сечение","kocha","profil",null,""],
  ["3D maket va qatlamlarga ajratish","3d maket макет qatlam слой exploded vektor svg obj","tahlil","baho",null,"yuqoridagi «3D / vektor» tugmasi"],
  ["Hudud chegarasi (doira, toʻrtburchak, erkin)","hudud граница территор chegara doira круг toʻrtburchak poligon polygon area","loyiha","oyna",null,""],
  ["Uchastka chegarasi","uchastka участок chegara границ","loyiha","oyna",null,"chap panel — U (Uchastka)"],

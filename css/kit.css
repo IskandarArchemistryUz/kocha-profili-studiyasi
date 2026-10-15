@@ -1,0 +1,27 @@
+/* Archemistry Lab — yagona interfeys toʻplami (v2).
+   Loyiha oynasi ichida (html.kps-embed) hamma boʻlim bir xil koʻrinadi:
+   — tepada sahifaning oʻz sarlavhasi yoʻq (navigatsiya — loyiha oynasining tablari);
+   — oʻngda 380 px panel: oq fon, 16 px chekka, bir xil sarlavha va boʻlim yorliqlari;
+   — tugmalar 32 px, ingichka qora chegara; asosiy tugma — qora;
+   — xarita boshqaruvi doim pastki oʻng burchakda. */
+html.kps-embed{--kit-ink:#141414;--kit-mut:#5e5c58;--kit-line:#dedbd4;--kit-paper:#fff;--kit-bg:#f4f3f1;--kit-sans:'Archivo','IBM Plex Sans',system-ui,sans-serif;--kit-mono:'IBM Plex Mono',ui-monospace,monospace}
+
+/* sahifa sarlavhalari: GIS va Shamol — yashirin; Hudud bahosi — ixcham asboblar qatori */
+html.kps-embed.kit-gis .app>header,html.kps-embed.kit-shamol .app>header{display:none!important}
+html.kps-embed.kit-gis .app,html.kps-embed.kit-shamol .app{grid-template-rows:minmax(0,1fr)!important}
+html.kps-embed.kit-ai body>header{height:44px;background:var(--kit-paper);border-bottom:1px solid var(--kit-line)}
+
+/* oʻng panel */
+html.kps-embed.kit-ai main,html.kps-embed.kit-gis .app,html.kps-embed.kit-shamol .app{grid-template-columns:minmax(0,1fr) 380px!important}
+html.kps-embed.kit-ai aside,html.kps-embed.kit-gis .app>aside,html.kps-embed.kit-shamol .app>aside{background:var(--kit-paper)!important;border-left:1px solid var(--kit-ink)!important;font-family:var(--kit-sans)}
+html.kps-embed aside h2,html.kps-embed aside h3{font:600 17px/1.25 var(--kit-sans)!important;letter-spacing:-.005em;margin:0 0 6px}
+html.kps-embed aside .lbl,html.kps-embed aside .lb,html.kps-embed aside .sec>h4,html.kps-embed aside legend{font:500 10.5px var(--kit-mono)!important;letter-spacing:.12em;text-transform:uppercase;color:var(--kit-mut)}
+html.kps-embed aside p.note,html.kps-embed aside .note{font-size:12.5px;line-height:1.45;color:var(--kit-mut)}
+
+/* tugmalar */
+html.kps-embed aside .btn,html.kps-embed body>header .btn{height:32px;border:1px solid var(--kit-ink);border-radius:2px;font:500 12px var(--kit-mono);letter-spacing:.04em}
+html.kps-embed aside .btn.dark,html.kps-embed body>header .btn.dark{background:var(--kit-ink);color:#fff}
+
+/* xarita boshqaruvi — pastki oʻngda (MapLibre va Leaflet) */
+html.kps-embed .maplibregl-ctrl-top-right{top:auto!important;bottom:28px!important}
+html.kps-embed .leaflet-top.leaflet-right{top:auto!important;bottom:22px!important}
