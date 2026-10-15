@@ -240,9 +240,9 @@ export class Scene3D {
       for (const [k, o] of ord) {
         const arr = sg.layers[k]; if (!arr?.length) continue;
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: PART_COL[k], depthTest: false, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: PART_COL[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
       }
-      sg.red.forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2, depthTest: false }); l.computeLineDistances(); this.world.add(l); });
+      sg.red.forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
       if (sg.trees.length) this.world.add(...treeMeshes(sg.trees, this.H));
     }
@@ -267,7 +267,7 @@ export class Scene3D {
         const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xa9adb3, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })); m.renderOrder = 6.5; this.world.add(m);
       } else {
         const l = line(densify(r, 6, true), 0x7a4fb0, 0.5, true, 8, this.H); (l.material as THREE.Material).dispose();
-        l.material = new THREE.LineDashedMaterial({ color: 0x7a4fb0, dashSize: 2, gapSize: 1.5, depthTest: false }); l.computeLineDistances(); this.world.add(l);
+        l.material = new THREE.LineDashedMaterial({ color: 0x7a4fb0, dashSize: 2, gapSize: 1.5 }); l.computeLineDistances(); this.world.add(l);
       }
     });
     // loyiha binolari / seksiyalari: noturar pastki qavatlar toʻq tasma, har seksiya alohida (chegaralari koʻrinadi)
@@ -302,7 +302,7 @@ export class Scene3D {
   setPreview(pts: XY[], closed = false): void {
     disposeGroup(this.prev);
     if (pts.length) {
-      this.prev.add(line(densify(pts, 10, closed), C.preview, 0.5, closed, 20, this.H));
+      this.prev.add(line(densify(pts, 10, closed), C.preview, 0.5, closed, 20, this.H, false));
       const dots = new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], this.H(p[0], p[1]) + 0.5, -p[1]))), new THREE.PointsMaterial({ color: C.preview, size: 7, sizeAttenuation: false, depthTest: false }));
       dots.renderOrder = 6; this.prev.add(dots);
     }
@@ -522,9 +522,10 @@ export class Scene3D {
   snapshot(): string { this.renderer.render(this.scene, this.cam); return this.renderer.domElement.toDataURL('image/png'); }
 }
 
-function line(pts: XY[], color: number, lift: number, closed: boolean, order: number, H: HeightFn = () => 0): THREE.Line {
+/** depth — binolar orqasida yashirinsin (reja chiziqlari); chizilayotgan shakl (preview) uchun false */
+function line(pts: XY[], color: number, lift: number, closed: boolean, order: number, H: HeightFn = () => 0, depth = true): THREE.Line {
   const v = pts.map(p => new THREE.Vector3(p[0], H(p[0], p[1]) + lift, -p[1])); if (closed && v.length) v.push(v[0].clone());
-  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({ color, depthTest: false }));
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({ color, depthTest: depth }));
   l.renderOrder = order; return l;
 }
 
