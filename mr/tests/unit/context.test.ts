@@ -104,3 +104,12 @@ describe('Sxema 2 va koʻchirish', () => {
     const k = apply(d, { type: 'moveProject', origin: to, carry: false }); expect(k.site).toEqual(d.site);
   });
 });
+
+import { clipLine } from '../../src/scene/context3d';
+describe('Chiziqni qirqish', () => {
+  it('kvadratdan chiqib-kiruvchi chiziq boʻlaklarga ajraladi', () => {
+    const r = clipLine([[-20, 0], [5, 0], [5, 20], [5, -20]], -10, -10, 10, 10);
+    expect(r).toEqual([[[-10, 0], [5, 0], [5, 10]], [[5, 10], [5, -10]]]);
+    expect(clipLine([[20, 20], [30, 30]], -10, -10, 10, 10)).toEqual([]);
+  });
+});

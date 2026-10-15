@@ -156,9 +156,7 @@ export class Scene3D {
     if (doc.site) {
       const rings = doc.site.rings.map(r => r.map(fr.toLocal));
       const sh = new THREE.Shape(rings[0].map(toV2)); rings.slice(1).forEach(h => sh.holes.push(new THREE.Path(h.map(toV2))));
-      const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2);
-      const P = g.attributes.position as THREE.BufferAttribute;
-      for (let i = 0; i < P.count; i++) P.setY(i, this.H(P.getX(i), -P.getZ(i)) + 0.25);
+      const g = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
       const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: C.site, transparent: true, opacity: this.ctx ? 0.6 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })); m.renderOrder = 6;
       this.world.add(m);
       rings.forEach(r => this.world.add(line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H)));
@@ -255,6 +253,32 @@ function line(pts: XY[], color: number, lift: number, closed: boolean, order: nu
   const v = pts.map(p => new THREE.Vector3(p[0], H(p[0], p[1]) + lift, -p[1])); if (closed && v.length) v.push(v[0].clone());
   const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({ color, depthTest: false }));
   l.renderOrder = order; return l;
+}
+
+/**
+ * Tekis shaklni relyefga yotqizish: uchburchaklarni qirrasi `maxEdge` m dan oshmaguncha boʻlib,
+ * har uchini relyef balandligiga koʻtaradi (aks holda katta uchburchak tepaliklar ichida yoʻqoladi).
+ */
+function drape(g0: THREE.BufferGeometry, H: HeightFn, lift: number, maxEdge: number): THREE.BufferGeometry {
+  const src = g0.index ? g0.toNonIndexed() : g0; g0.dispose();
+  const p = src.attributes.position as THREE.BufferAttribute;
+  type V = [number, number];
+  let tris: [V, V, V][] = [];
+  for (let i = 0; i < p.count; i += 3) tris.push([[p.getX(i), p.getY(i)], [p.getX(i + 1), p.getY(i + 1)], [p.getX(i + 2), p.getY(i + 2)]]);
+  src.dispose();
+  const L = (a: V, b: V) => Math.hypot(a[0] - b[0], a[1] - b[1]), M = (a: V, b: V): V => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  for (let guard = 0; guard < 12; guard++) {
+    let split = false; const nt: [V, V, V][] = [];
+    for (const [a, b, c] of tris) {
+      if (Math.max(L(a, b), L(b, c), L(c, a)) <= maxEdge || nt.length > 60000) { nt.push([a, b, c]); continue; }
+      split = true; const ab = M(a, b), bc = M(b, c), ca = M(c, a);
+      nt.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]);
+    }
+    tris = nt; if (!split) break;
+  }
+  const pos = new Float32Array(tris.length * 9); let k = 0;
+  for (const t of tris) for (const v of t) { pos[k++] = v[0]; pos[k++] = H(v[0], v[1]) + lift; pos[k++] = -v[1]; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); return g;
 }
 
 /** Relyefga yopishishi uchun uzun qirralarni boʻlish */

@@ -110,6 +110,26 @@ function buildingsGeo(list: { rings: XY[][]; h: number }[], H: HeightFn): { mesh
   return { mesh, edges };
 }
 
+/** Chiziqni toʻrtburchakka qirqish (Liang–Barsky, har segment) → ichkaridagi boʻlaklar */
+export function clipLine(pts: XY[], x0: number, y0: number, x1: number, y1: number): XY[][] {
+  const out: XY[][] = []; let cur: XY[] = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dy = b[1] - a[1];
+    let t0 = 0, t1 = 1, ok = true;
+    for (const [p, q] of [[-dx, a[0] - x0], [dx, x1 - a[0]], [-dy, a[1] - y0], [dy, y1 - a[1]]]) {
+      if (p === 0) { if (q < 0) { ok = false; break; } continue; }
+      const r = q / p; if (p < 0) { if (r > t1) { ok = false; break; } if (r > t0) t0 = r; } else { if (r < t0) { ok = false; break; } if (r < t1) t1 = r; }
+    }
+    if (!ok) { if (cur.length > 1) out.push(cur); cur = []; continue; }
+    const A: XY = [a[0] + dx * t0, a[1] + dy * t0], B: XY = [a[0] + dx * t1, a[1] + dy * t1];
+    if (!cur.length || t0 > 0) { if (cur.length > 1) out.push(cur); cur = [A]; }
+    cur.push(B);
+    if (t1 < 1) { out.push(cur); cur = []; }
+  }
+  if (cur.length > 1) out.push(cur);
+  return out;
+}
+
 /** Deterministik tasodif (har yuklashda daraxtlar bir joyda turishi uchun) */
 function rng(seed: number) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; }; }
 
@@ -161,11 +181,14 @@ export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; dispose(
 export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null): ContextScene {
   const g = new THREE.Group(); g.name = 'kontekst';
   const R = b.radius, L = cs.layers;
-  const clip = (pts: XY[]) => pts.some(p => Math.abs(p[0]) < R * 1.05 && Math.abs(p[1]) < R * 1.05);
+  const C0 = fr.toLocal(b.center);
+  const clip = (pts: XY[]) => pts.some(p => Math.abs(p[0] - C0[0]) < R * 1.05 && Math.abs(p[1] - C0[1]) < R * 1.05);
+  /** chiziqlarni kontekst kvadratiga qirqish (yer chegarasidan tashqariga chiqmasin) */
+  const cut = (ls: { pts: XY[]; w: number }[]) => ls.flatMap(l => clipLine(l.pts, C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R).map(pts => ({ pts, w: l.w })));
 
   // yer: relyef toʻri (+ sunʼiy yoʻldosh UV)
   const seg = Math.min(160, Math.max(40, Math.round(2 * R / 10)));
-  const geo = new THREE.PlaneGeometry(2 * R, 2 * R, seg, seg); geo.rotateX(-Math.PI / 2);
+  const geo = new THREE.PlaneGeometry(2 * R, 2 * R, seg, seg); geo.rotateX(-Math.PI / 2); geo.translate(C0[0], 0, -C0[1]);
   const P = geo.attributes.position as THREE.BufferAttribute, uv = geo.attributes.uv as THREE.BufferAttribute;
   for (let i = 0; i < P.count; i++) {
     const x = P.getX(i), y = -P.getZ(i);
@@ -190,19 +213,19 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   if (!sat && L.water) {
     const fg = fillGeo(b.osm.water.map(a => a.rings.map(r => r.map(fr.toLocal))).filter(r => clip(r[0])), H);
     if (fg) g.add(overlay(fg, flatMat(CC.water, 2), 2, 'suv'));
-    const wg = ribbonGeo(b.osm.waterways.filter(w => !/river|canal/.test(w.cls) || !b.osm.water.length).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w })).filter(l => clip(l.pts)), H);
+    const wg = ribbonGeo(cut(b.osm.waterways.filter(w => !/river|canal/.test(w.cls) || !b.osm.water.length).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w }))), H);
     if (wg) g.add(overlay(wg, flatMat(CC.water, 2), 2.01, 'suv'));
   }
   // yoʻllar: avval piyoda, keyin oddiy, keyin magistral (ustma-ust tartib)
   if (L.roads) {
     const groups: [(c: string) => boolean, number, number][] = [[c => FOOT.has(c), CC.foot, 3], [c => !FOOT.has(c) && !MAJOR.has(c), CC.road, 3.1], [c => MAJOR.has(c), CC.roadMajor, 3.2]];
     for (const [f, col, ord] of groups) {
-      const rg = ribbonGeo(b.osm.roads.filter(r => f(r.cls)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })).filter(l => clip(l.pts)), H);
+      const rg = ribbonGeo(cut(b.osm.roads.filter(r => f(r.cls)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w }))), H);
       if (rg) { const m = flatMat(col, ord); if (sat) { m.transparent = true; m.opacity = 0.55; } g.add(overlay(rg, m, ord, 'yoʻllar')); }
     }
   }
   if (L.rail) {
-    const rg = ribbonGeo(b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })).filter(l => clip(l.pts)), H);
+    const rg = ribbonGeo(cut(b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w }))), H);
     if (rg) g.add(overlay(rg, flatMat(CC.rail, 3.5), 3.5, 'temir yoʻl'));
   }
   // binolar
