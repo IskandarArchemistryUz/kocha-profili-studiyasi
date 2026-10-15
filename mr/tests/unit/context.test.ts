@@ -113,3 +113,21 @@ describe('Chiziqni qirqish', () => {
     expect(clipLine([[20, 20], [30, 30]], -10, -10, 10, 10)).toEqual([]);
   });
 });
+
+import { streetsGeo, sidewalkW } from '../../src/scene/streets3d';
+import { obb } from '../../src/scene/context3d';
+describe('Koʻcha modeli va tomlar', () => {
+  it('chorrahada chiziq chizilmaydi, magistralda zebra bor', () => {
+    const flat = () => 0;
+    const roads = [{ pts: [[-100, 0], [0, 0], [100, 0]] as [number, number][], cls: 'primary', w: 14, lanes: 4 }, { pts: [[0, -100], [0, 0], [0, 100]] as [number, number][], cls: 'residential', w: 7 }];
+    const g = streetsGeo(roads, flat);
+    expect(g.sidewalk.length).toBeGreaterThan(0); expect(g.major.length).toBeGreaterThan(0); expect(g.marks.length).toBeGreaterThan(0);
+    // chorraha markazi (±10 m) da hech qanday chiziq uchi yoʻq
+    for (let i = 0; i < g.marks.length; i += 3) { const x = g.marks[i], y = -g.marks[i + 2]; expect(Math.abs(x) < 8 && Math.abs(y) < 8).toBe(false); }
+    expect(sidewalkW('service')).toBe(0); expect(sidewalkW('primary')).toBe(4);
+  });
+  it('OBB: burilgan toʻrtburchak aniqlanadi', () => {
+    const c = Math.cos(0.5), s = Math.sin(0.5), r = [[0, 0], [10, 0], [10, 6], [0, 6]].map(([x, y]) => [x * c - y * s, x * s + y * c] as [number, number]);
+    const o = obb(r); expect(o.area).toBeCloseTo(60, 3);
+  });
+});

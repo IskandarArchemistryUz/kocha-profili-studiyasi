@@ -8,16 +8,16 @@ import type { Frame, XY } from '../core/geo';
 import type { ContextSettings } from '../core/doc';
 import type { ContextBundle } from '../context/load';
 import { imageryUV } from '../context/tiles';
+import { streetsGeo, type StreetIn } from './streets3d';
 
 export const CC = {
   ground: 0xe9e6df, bld: 0xffffff, bldEdge: 0x8f8a80, road: 0x9a9893, roadMajor: 0x84827d, foot: 0xd9d3c7,
-  rail: 0x6e6158, water: 0x9cc3df, green: 0xc5dca8, forest: 0xa9c98c, pitch: 0xb6d69a, crown: 0x7fa65a, trunk: 0x7a6650,
+  rail: 0x6e6158, water: 0x9cc3df, green: 0xc5dca8, forest: 0xa9c98c, pitch: 0xb6d69a, crown: 0x7fa65a, trunk: 0x7a6650, roof: 0xe3b4a2,
+  sidewalk: 0xd8d2c6, asphalt: 0x585b62, asphaltMajor: 0x4d5058, mark: 0xf4f4f0, waterSat: 0x5f9fd0,
 };
 
 export type HeightFn = (x: number, y: number) => number;
 
-const MAJOR = new Set(['motorway', 'trunk', 'primary', 'secondary', 'motorway_link', 'trunk_link', 'primary_link']);
-const FOOT = new Set(['footway', 'path', 'cycleway', 'steps', 'pedestrian', 'track', 'bridleway', 'corridor']);
 
 /** Overlay material: relyef ustida, chuqurlik testisiz, tartib boʻyicha chiziladi */
 function flatMat(color: number, order: number): THREE.MeshBasicMaterial {
@@ -71,12 +71,61 @@ function ribbonGeo(lines: { pts: XY[]; w: number }[], H: HeightFn, lift = 0.1): 
 }
 
 /** Binolar: devorlar + tom (uchburchaklangan), bitta geometriya; qirralar — alohida chiziqlar */
-function buildingsGeo(list: { rings: XY[][]; h: number }[], H: HeightFn): { mesh: THREE.BufferGeometry; edges: THREE.BufferGeometry } | null {
-  const pos: number[] = [], nor: number[] = [], ed: number[] = [];
+/** Eng kichik yuzali yoʻnaltirilgan toʻrtburchak (qirralar yoʻnalishlari boʻyicha) */
+export function obb(r: XY[]): { U: XY; V: XY; u0: number; u1: number; v0: number; v1: number; area: number } {
+  let best = { U: [1, 0] as XY, V: [0, 1] as XY, u0: 0, u1: 0, v0: 0, v1: 0, area: Infinity };
+  for (let i = 0; i < r.length; i++) {
+    const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 0.3) continue;
+    const U: XY = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], V: XY = [-U[1], U[0]];
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const p of r) { const u = p[0] * U[0] + p[1] * U[1], v = p[0] * V[0] + p[1] * V[1]; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+    const area = (u1 - u0) * (v1 - v0); if (area < best.area) best = { U, V, u0, u1, v0, v1, area };
+  }
+  return best;
+}
+
+const ROOFED = /^(house|detached|semidetached_house|bungalow|residential|yes|hut|cabin|terrace|farm|garage|shed|kiosk)$/;
+
+/** Kichik past uylarga toʻrt qiyali (hip) tom: devorlar — OBB, tom — alohida geometriya */
+function hipHouse(r: XY[], base: number, h: number, wall: { pos: number[]; nor: number[] }, roof: number[], ed: number[]): void {
+  const o = obb(r); let { U, V, u0, u1, v0, v1 } = o;
+  if (u1 - u0 < v1 - v0) { [U, V] = [V, [-U[0], -U[1]] as XY]; [u0, u1, v0, v1] = [v0, v1, -u1, -u0]; } // uzun oʻq — U
+  const P = (u: number, v: number): XY => [U[0] * u + V[0] * v, U[1] * u + V[1] * v];
+  const top = base + h, Lw = u1 - u0, S = v1 - v0, rh = Math.min(3.2, S * 0.32), oh = 0.35;
+  // devorlar
+  const rect = [P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)];
+  let sa = 0; for (let i = 0; i < 4; i++) { const a = rect[i], b = rect[(i + 1) % 4]; sa += a[0] * b[1] - b[0] * a[1]; }
+  const rr = sa > 0 ? rect : rect.slice().reverse();
+  for (let i = 0; i < 4; i++) {
+    const p = rr[i], q = rr[(i + 1) % 4], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy) || 1, n = [dy / L, 0, dx / L];
+    for (const w of [[p[0], base, -p[1]], [q[0], base, -q[1]], [q[0], top, -q[1]], [p[0], base, -p[1]], [q[0], top, -q[1]], [p[0], top, -p[1]]]) { wall.pos.push(...w); wall.nor.push(...n); }
+  }
+  // tom
+  const vm = (v0 + v1) / 2, A = P(u0 - oh, v0 - oh), B = P(u1 + oh, v0 - oh), C = P(u1 + oh, v1 + oh), D = P(u0 - oh, v1 + oh);
+  const ridge = Lw - S > 0.5, R1 = ridge ? P(u0 + S / 2, vm) : P((u0 + u1) / 2, vm), R2 = ridge ? P(u1 - S / 2, vm) : R1;
+  const e = top - 0.15, t = top + rh;
+  const V3 = (p: XY, y: number) => [p[0], y, -p[1]];
+  const tri = (a: number[], b: number[], c: number[]) => roof.push(...a, ...b, ...c);
+  tri(V3(A, e), V3(B, e), V3(R2, t)); if (ridge) tri(V3(A, e), V3(R2, t), V3(R1, t));
+  tri(V3(C, e), V3(D, e), V3(R1, t)); if (ridge) tri(V3(C, e), V3(R1, t), V3(R2, t));
+  tri(V3(D, e), V3(A, e), V3(R1, t)); tri(V3(B, e), V3(C, e), V3(R2, t));
+  for (const [a, b] of [[A, B], [B, C], [C, D], [D, A]] as [XY, XY][]) ed.push(...V3(a, e), ...V3(b, e));
+  for (const [a, b] of [[A, R1], [D, R1], [B, R2], [C, R2]] as [XY, XY][]) ed.push(...V3(a, e), ...V3(b, t));
+  if (ridge) ed.push(...V3(R1, t), ...V3(R2, t));
+}
+
+function buildingsGeo(list: { rings: XY[][]; h: number; kind?: string }[], H: HeightFn): { mesh: THREE.BufferGeometry; edges: THREE.BufferGeometry; roof: THREE.BufferGeometry | null } | null {
+  const pos: number[] = [], nor: number[] = [], ed: number[] = [], roof: number[] = [];
   for (const b of list) {
     const outer = b.rings[0]; if (!outer || outer.length < 3) continue;
     let base = Infinity; for (const p of outer) base = Math.min(base, H(p[0], p[1]));
     const top = base + b.h;
+    // past kichik uy, deyarli toʻrtburchak dogʻ → qiya tom
+    if (b.rings.length === 1 && outer.length <= 12 && b.h <= 8 && ROOFED.test(b.kind ?? 'yes')) {
+      let a = 0; for (let i = 0, j = outer.length - 1; i < outer.length; j = i++) a += outer[j][0] * outer[i][1] - outer[i][0] * outer[j][1];
+      const A = Math.abs(a) / 2, o = obb(outer);
+      if (A < 450 && A / o.area > 0.8 && Math.min(o.u1 - o.u0, o.v1 - o.v0) > 3) { hipHouse(outer, base, b.h, { pos, nor }, roof, ed); continue; }
+    }
     // devorlar (har halqa; tashqi CCW, teshik CW boʻlishi kerak — normallar yoʻnalishi uchun)
     b.rings.forEach((r0, ri) => {
       let a = 0; for (let i = 0, j = r0.length - 1; i < r0.length; j = i++) a += r0[j][0] * r0[i][1] - r0[i][0] * r0[j][1];
@@ -107,7 +156,9 @@ function buildingsGeo(list: { rings: XY[][]; h: number }[], H: HeightFn): { mesh
   const mesh = new THREE.BufferGeometry();
   mesh.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); mesh.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   const edges = new THREE.BufferGeometry(); edges.setAttribute('position', new THREE.Float32BufferAttribute(ed, 3));
-  return { mesh, edges };
+  let rg: THREE.BufferGeometry | null = null;
+  if (roof.length) { rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(roof, 3)); rg.computeVertexNormals(); }
+  return { mesh, edges, roof: rg };
 }
 
 /** Chiziqni toʻrtburchakka qirqish (Liang–Barsky, har segment) → ichkaridagi boʻlaklar */
@@ -210,19 +261,21 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
       const fg = fillGeo(polys, H); if (fg) g.add(overlay(fg, flatMat(col, 1), 1 + k * 0.01, 'yashil'));
     });
   }
-  if (!sat && L.water) {
+  if (L.water) {
+    const wc = sat ? CC.waterSat : CC.water;
     const fg = fillGeo(b.osm.water.map(a => a.rings.map(r => r.map(fr.toLocal))).filter(r => clip(r[0])), H);
-    if (fg) g.add(overlay(fg, flatMat(CC.water, 2), 2, 'suv'));
+    if (fg) g.add(overlay(fg, flatMat(wc, 2), 2, 'suv'));
     const wg = ribbonGeo(cut(b.osm.waterways.filter(w => !/river|canal/.test(w.cls) || !b.osm.water.length).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w }))), H);
-    if (wg) g.add(overlay(wg, flatMat(CC.water, 2), 2.01, 'suv'));
+    if (wg) g.add(overlay(wg, flatMat(wc, 2), 2.01, 'suv'));
   }
-  // yoʻllar: avval piyoda, keyin oddiy, keyin magistral (ustma-ust tartib)
+  // koʻchalar: trotuar → asfalt → chiziqlar (sunʼiy yoʻldosh ustida ham toʻliq koʻrinadi)
   if (L.roads) {
-    const groups: [(c: string) => boolean, number, number][] = [[c => FOOT.has(c), CC.foot, 3], [c => !FOOT.has(c) && !MAJOR.has(c), CC.road, 3.1], [c => MAJOR.has(c), CC.roadMajor, 3.2]];
-    for (const [f, col, ord] of groups) {
-      const rg = ribbonGeo(cut(b.osm.roads.filter(r => f(r.cls)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w }))), H);
-      if (rg) { const m = flatMat(col, ord); if (sat) { m.transparent = true; m.opacity = 0.55; } g.add(overlay(rg, m, ord, 'yoʻllar')); }
-    }
+    const sts: StreetIn[] = b.osm.roads.flatMap(r => clipLine(r.pts.map(fr.toLocal), C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
+      .map(pts => ({ pts, cls: r.cls, w: r.w, lanes: r.lanes, oneway: r.oneway })));
+    const sg = streetsGeo(sts, H);
+    const add = (arr: number[], col: number, ord: number, name: string) => { if (!arr.length) return; const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.add(overlay(geo, flatMat(col, ord), ord, name)); };
+    add(sg.foot, CC.foot, 3, 'yoʻlaklar'); add(sg.sidewalk, CC.sidewalk, 3.05, 'trotuarlar');
+    add(sg.asphalt, CC.asphalt, 3.1, 'yoʻllar'); add(sg.major, CC.asphaltMajor, 3.15, 'yoʻllar'); add(sg.marks, CC.mark, 3.3, 'chiziqlar');
   }
   if (L.rail) {
     const rg = ribbonGeo(cut(b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w }))), H);
@@ -230,12 +283,13 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   }
   // binolar
   if (L.buildings) {
-    const bl = b.osm.buildings.map(x => ({ rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h })).filter(x => clip(x.rings[0]));
+    const bl = b.osm.buildings.map(x => ({ rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, kind: x.kind })).filter(x => clip(x.rings[0]));
     const bg = buildingsGeo(bl, H);
     if (bg) {
       const m = new THREE.Mesh(bg.mesh, new THREE.MeshLambertMaterial({ color: CC.bld })); m.name = 'binolar'; m.castShadow = m.receiveShadow = true; m.renderOrder = 10;
       const e = new THREE.LineSegments(bg.edges, new THREE.LineBasicMaterial({ color: CC.bldEdge, transparent: true, opacity: 0.35 })); e.renderOrder = 11;
       g.add(m, e);
+      if (bg.roof) { const rm = new THREE.Mesh(bg.roof, new THREE.MeshLambertMaterial({ color: CC.roof, side: THREE.DoubleSide })); rm.name = 'tomlar'; rm.castShadow = rm.receiveShadow = true; rm.renderOrder = 10; g.add(rm); }
     }
   }
   // daraxtlar

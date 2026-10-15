@@ -7,7 +7,7 @@ import type { LngLat } from '../core/doc';
 
 export interface CtxBuilding { id: number; rings: LngLat[][]; h: number; hSrc: 'height' | 'levels' | 'taxmin'; kind: string }
 /** sub — highway=service uchun service=* (driveway, parking_aisle…): kvartal chegarasi boʻla oladimi */
-export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string }
+export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string; lanes?: number; oneway?: boolean }
 export interface CtxArea { id: number; rings: LngLat[][]; kind: string }
 
 export interface OsmData {
@@ -158,7 +158,10 @@ export function parseOverpass(json: { elements?: OsmEl[] }): OsmData {
       areas(e, pts).forEach((rings, i) => d.buildings.push({ id: e.type === 'way' ? e.id : e.id * 100 + i, rings, h, hSrc: src, kind: t.building }));
       continue;
     }
-    if (t.highway && e.type === 'way' && pts.length >= 2) { d.roads.push({ id: e.id, pts, cls: t.highway, w: roadWidth(t), ...(t.service ? { sub: t.service } : {}) }); continue; }
+    if (t.highway && e.type === 'way' && pts.length >= 2) { {
+      const lanes = num(t.lanes), oneway = /^(yes|1|true|-1)$/.test(t.oneway || '') || t.junction === 'roundabout';
+      d.roads.push({ id: e.id, pts, cls: t.highway, w: roadWidth(t), ...(t.service ? { sub: t.service } : {}), ...(lanes && lanes >= 1 && lanes <= 12 ? { lanes: Math.round(lanes) } : {}), ...(oneway ? { oneway } : {}) });
+    } continue; }
     if (t.railway && e.type === 'way' && pts.length >= 2) { d.rails.push({ id: e.id, pts, cls: t.railway, w: t.railway === 'tram' ? 2.6 : 3.2 }); continue; }
     if (t.natural === 'water') {
       areas(e, pts).forEach(rings => d.water.push({ id: e.id, rings, kind: t.water || 'water' }));
