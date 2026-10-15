@@ -231,10 +231,21 @@ export class Scene3D {
       }
     }
     this.ctx?.maskTrees(doc.site ? doc.site.rings[0].map(fr.toLocal) : null);
+    // parkovkalar: yer osti — siyohrang uzuq kontur, yer usti — kulrang maydon
+    doc.garages.forEach(gr => {
+      const r = gr.ring.map(fr.toLocal);
+      if (gr.kind === 'yer_usti') {
+        const sh = new THREE.Shape(r.map(toV2)), g = drape(new THREE.ShapeGeometry(sh), this.H, 0.35, this.ctx ? 8 : 1e9);
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xa9adb3, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })); m.renderOrder = 6.5; this.world.add(m);
+      } else {
+        const l = line(densify(r, 6, true), 0x7a4fb0, 0.5, true, 8, this.H); (l.material as THREE.Material).dispose();
+        l.material = new THREE.LineDashedMaterial({ color: 0x7a4fb0, dashSize: 2, gapSize: 1.5, depthTest: false }); l.computeLineDistances(); this.world.add(l);
+      }
+    });
     // loyiha binolari / seksiyalari: noturar pastki qavatlar toʻq tasma, har seksiya alohida (chegaralari koʻrinadi)
     const fh = doc.settings.floorHeight;
     doc.buildings.forEach(b => {
-      const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))), sel = b.id === this.selected;
+      const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected;
       const shape = new THREE.Shape(r.map(toV2));
       const part = (z0: number, z1: number, color: number) => {
         const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
@@ -242,8 +253,15 @@ export class Scene3D {
         m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
         const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.5 })); this.world.add(e);
       };
-      const nr = Math.min(b.nonRes, b.floors - 1);
+      if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
+        // past uylar — qiya tom bilan (kontekstdagi kabi)
+        const objs = buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh, kind: 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
+        objs.forEach(o => { o.userData.bid = b.id; o.castShadow = o.receiveShadow = true; this.world.add(o); });
+        return;
+      }
+      const nr = Math.min(b.nonRes, b.floors - (b.gen?.kind === 'stilobat' ? 0 : 1));
       if (nr > 0) part(0, nr * fh, BASE_COL[b.use] ?? 0x9c7b6e);
+      if (nr >= b.floors) return;
       part(nr * fh, b.floors * fh, USE_COL[b.use] ?? C.bld);
     });
     this.invalidate();

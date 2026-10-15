@@ -36,3 +36,18 @@ test('quyosh: vaqt surgichi va insolyatsiya xaritasi', async ({ page }) => {
   const mean = Number(txt.match(/oʻrtacha ([\d,]+)/)![1].replace(',', '.'));
   expect(mean).toBeGreaterThan(2); expect(mean).toBeLessThan(15);   // hovli va koʻchalar — qisman soyada
 });
+
+test('tipologiyalar: minoralar va stilobat + yer osti parkovka → reyestrda taʼminot', async ({ page }) => {
+  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '220'); await page.fill('#rh', '160'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
+  await page.click('[data-typ=blok_minora]');
+  await page.fill('#gSty', '1'); await page.press('#gSty', 'Tab');
+  await page.click('[data-park=yer_osti]');
+  await page.click('#genGo');
+  await expect(page.locator('#genNotes')).toContainText('Parkovka:');
+  await expect(page.locator('#genNotes')).toContainText('Parsel UMN');
+  await page.click('#kMore');
+  const v = await page.locator('.drawer [data-rule=parking] td.num').first().textContent();
+  expect(Number(v!.replace(/\D/g, ''))).toBeGreaterThan(300);
+});

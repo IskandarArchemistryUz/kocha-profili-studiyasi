@@ -25,14 +25,18 @@ export interface Building {
   /** pastki noturar qavatlar soni (doʻkon, xizmat) */
   nonRes: number;
   use: Use;
-  /** generator yaratgan seksiya: guruh (kvartal belgisi id si) va turi */
-  gen?: { grp: string; kind: 'burchak' | 'oddiy' | 'qator' };
+  /** generator yaratgan seksiya: guruh (kvartal belgisi yoki parsel id si) va turi */
+  gen?: { grp: string; kind: string };
+  /** pastki sathi, qavatlarda (stilobat ustidagi seksiyalar) */
+  z0?: number;
 }
 
 /** Loyiha koʻchasi: oʻq chizigʻi (ochiq siniq chiziq) + profil; qizil chiziqlar = oʻq ± kenglik/2 */
 export interface Street { id: string; axis: LngLat[]; profile: string; /** OSM dagi mavjud koʻcha loyihaga olingan boʻlsa — uning way id si (kontekstda u endi chizilmaydi) */ osm?: number }
 
 /** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
+export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti'; ring: Ring; levels: number; spaces: number }
+
 export interface Parcel { id: string; block: string; rings: Ring[]; use: Use }
 
 export interface ZoneLabel { id: string; at: LngLat; use: Use; /** shu kvartal uchun oxirgi generator parametrlari */ gen?: Record<string, unknown> }
@@ -82,6 +86,8 @@ export interface Project {
   buildings: Building[];
   streets: Street[];
   zones: ZoneLabel[];
+  /** parkovka inshootlari (generator): yer osti, stilobat ichida, yer usti */
+  garages: Garage[];
   /** kvartallarni parsellarga boʻlish: block — kvartal zona belgisi id si */
   parcels: Parcel[];
   /** uchastka ichidagi saqlanadigan mavjud (OSM) binolar id lari; qolganlari — buziladi */
@@ -115,7 +121,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
     origin: [...DEFAULT_ORIGIN] as LngLat,
     settings: { ...DEFAULT_SETTINGS },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
-    site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [],
+    site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [],
   };
 }
 
@@ -157,7 +163,7 @@ export function migrate(raw: unknown): Project {
   const bl = Array.isArray(d.buildings) ? d.buildings : [];
   const buildings: Building[] = bl.map((b: any, i: number) => {
     if (!b || typeof b.id !== 'string' || !isRing(b.footprint) || !isNum(b.floors) || b.floors < 1) throw new SchemaError(`buildings[${i}] notoʻgʻri`);
-    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: b.gen.kind } } : {}) };
+    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: String(b.gen.kind) } } : {}), ...(isNum(b.z0) && b.z0 > 0 ? { z0: b.z0 } : {}) };
   });
   const isLine = (v: unknown): v is LngLat[] => Array.isArray(v) && v.length >= 2 && v.every(isLL);
   const streets: Street[] = (Array.isArray(d.streets) ? d.streets : []).map((x: any, i: number) => {
@@ -166,12 +172,14 @@ export function migrate(raw: unknown): Project {
   });
   const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
   const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
+  const garages: Garage[] = (Array.isArray(d.garages) ? d.garages : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.grp === 'string' && isRing(x.ring) && isNum(x.spaces))
+    .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)) }));
   const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
     .map((x: any) => ({ id: x.id, block: x.block, rings: x.rings.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)), use: isUse(x.use) ? x.use : 'turar' }));
   return {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels,
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages,
   };
 }
