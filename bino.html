@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bino studiyasi — Archemistry Lab</title>
+<script src="js/beta.js?v=15"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f4f3f1;--surface:#fff;--sunk:#ebe9e4;--ink:#141414;--muted:#5e5c58;--line:#dedbd4;--acc:#f0b323;--sel:#2a6fb0;--bad:#b23a2e;--good:#2e7d4f;
+  --sans:'Archivo',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font:14px/1.4 var(--sans)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--sel);outline-offset:1px}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 330px;grid-template-rows:44px minmax(0,1fr) auto;height:100vh}
+.bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--surface);min-width:0}
+.bar select{height:30px;border:1px solid var(--line);background:var(--surface);padding:0 6px;max-width:260px}
+.seg{display:inline-flex;border:1px solid var(--line);background:var(--surface);flex-wrap:wrap}
+.seg button{border:0;border-left:1px solid var(--line);background:none;padding:5px 10px;font:500 12px var(--mono);letter-spacing:.03em}
+.seg button:first-child{border-left:0}.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.sp{flex:1}
+.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:var(--surface);font:500 12px var(--mono);letter-spacing:.03em;white-space:nowrap}
+.btn.dark{background:var(--ink);color:#fff}.btn:disabled{opacity:.4;cursor:default}
+.ib{width:30px;height:30px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;padding:0}
+.ib svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6}
+.lb{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sun{display:flex;align-items:center;gap:6px;font:12px var(--mono)}.sun input{width:110px}
+.view{position:relative;min-width:0;min-height:0;background:#eceae5;overflow:hidden}
+#c3{position:absolute;inset:0}
+#c3 canvas{display:block}
+.vnote{position:absolute;left:12px;bottom:8px;font:11px var(--mono);color:var(--muted);pointer-events:none}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px}
+.empty div{max-width:420px;background:var(--surface);border:1px solid var(--line);padding:22px}
+.empty h2{margin:0 0 8px;font:600 18px var(--sans)}
+.right{grid-row:2/4;grid-column:2;border-left:1px solid var(--ink);background:var(--surface);overflow:auto;display:flex;flex-direction:column}
+.tabs{display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:2}
+.tabs button{flex:1;border:0;border-bottom:2px solid transparent;background:none;padding:11px 4px;font:500 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tabs button[aria-selected=true]{border-bottom-color:var(--ink);color:var(--ink)}
+.pane{padding:12px 14px;display:flex;flex-direction:column;gap:14px}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sty{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sty button{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:center;border:1px solid var(--line);background:var(--surface);padding:6px;text-align:left;font:12px/1.2 var(--sans);min-height:42px}
+.sty button:hover{border-color:var(--ink)}.sty button[aria-pressed=true]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
+.sty i{width:26px;height:28px;display:block;border:1px solid rgba(0,0,0,.15);position:relative}
+.sty i b{position:absolute;left:-1px;right:-1px;top:-1px;height:9px}
+.rg{display:grid;grid-template-columns:1fr 54px;gap:2px 8px;align-items:center;font-size:13px}
+.rg input[type=range]{grid-column:1/-1;width:100%}
+.rg output{font:12px var(--mono);text-align:right}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-size:13px}
+.kv b{font:500 13px var(--mono)}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px}
+.clr{display:flex;align-items:center;gap:8px;font-size:13px}.clr input{width:36px;height:26px;padding:0;border:1px solid var(--line);background:none}
+.fl{display:flex;align-items:center;gap:0}
+.fl button{width:32px;height:30px;border:1px solid var(--ink);background:var(--surface);font-size:16px}
+.fl b{min-width:44px;height:30px;display:grid;place-items:center;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);font:500 14px var(--mono)}
+.note{font-size:12px;color:var(--muted);margin:0;line-height:1.45}
+.warn{font-size:12px;color:var(--bad);margin:0}
+.kvv{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.kvv button{border:1px solid var(--line);background:var(--surface);padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;font:11px var(--mono)}
+.kvv button[aria-pressed=true]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
+.kvv i{display:flex;width:100%;height:5px}.kvv i s{display:block;height:100%;text-decoration:none}
+.kvt{width:100%;border-collapse:collapse;font-size:12.5px}.kvt td,.kvt th{padding:4px 2px;border-bottom:1px solid var(--line);text-align:right}
+.kvt td:first-child,.kvt th:first-child{text-align:left}.kvt i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
+.kpis{grid-column:1;display:flex;border-top:1px solid var(--ink);background:var(--surface);overflow-x:auto}
+.kpi{flex:1;min-width:110px;padding:8px 14px;border-right:1px solid var(--line)}
+.kpi b{display:block;font:500 18px/1.2 var(--mono)}.kpi span{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:1000px){.app{grid-template-columns:minmax(0,1fr) 280px}.sun input{width:70px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <button class="btn" id="back" title="Master rejaga qaytish">← Master reja</button>
+    <select id="bSel" aria-label="Bino"></select>
+    <div class="seg" id="mSeg" role="group" aria-label="Koʻrinish"><button data-m="maket" aria-pressed="true">Maket</button><button data-m="render">Render</button></div>
+    <div class="seg" id="cSeg" role="group" aria-label="Kamera"><button data-c="p" aria-pressed="true">Perspektiva</button><button data-c="a">Aksonometriya</button></div>
+    <div class="sun" id="sun" title="Quyosh holati — soyalar shunga qarab"><select id="sMon" aria-label="Fasl"><option value="2">21 mart</option><option value="5" selected>21 iyun</option><option value="8">21 sentyabr</option><option value="11">21 dekabr</option></select><input type="range" id="sHr" min="6" max="20" step="0.25" value="15" aria-label="Soat"><span id="sHrT">15:00</span></div>
+    <span class="sp"></span>
+    <button class="ib" id="undo" title="Bekor qilish (Ctrl+Z)" aria-label="Bekor qilish"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/></svg></button>
+    <button class="ib" id="redo" title="Qaytarish (Ctrl+Shift+Z)" aria-label="Qaytarish"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/></svg></button>
+    <button class="btn" id="exPng">PNG</button><button class="btn dark" id="toAlb">Albomga →</button>
+  </div>
+  <main class="view" id="view"><div id="c3"></div>
+    <div class="empty" id="empty" hidden><div><h2>Bino tanlanmagan</h2><p class="note">Master rejada binoni bosing va oʻng paneldagi <b>«Bino studiyasi →»</b> tugmasini bosing. Generatsiya qilingan binolar shu yerda tahrirlanadi: fasad, tom, kvartiralar.</p><p style="margin:14px 0 0"><button class="btn dark" id="goMr">Master rejaga →</button></p></div></div>
+    <div class="vnote" id="vnote">sichqoncha — aylantirish · oʻng tugma — surish · gʻildirak — masshtab</div></main>
+  <footer class="kpis" id="kpis"></footer>
+  <aside class="right" aria-label="Bino parametrlari">
+    <div class="tabs" role="tablist"><button role="tab" data-t="hajm" aria-selected="false">Hajm</button><button role="tab" data-t="fasad" aria-selected="true">Fasad</button><button role="tab" data-t="kv" aria-selected="false">Kvartiralar</button></div>
+    <div class="pane" id="pane"></div>
+  </aside>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="js/mr-kvartira.js?v=1"></script>
+<script src="js/bino.js?v=1"></script>
+<script src="js/i18n.js?v=53"></script>
+</body>
+</html>

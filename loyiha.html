@@ -210,7 +210,8 @@ body.nosub{grid-template-rows:auto minmax(0,1fr)}body.nosub .sub{display:none}
    (kps_data — qatlamlar, kps_posadka — binolar, kps_mat — albom materiallari). */
 const STEPS=[
   {id:"loyiha", t:"Master reja", subs:[
-    {id:"oyna", t:"Loyiha", page:"muharrir.html", hint:"U uchastka · H tahlil hududi · S yoʻllar · Z/G parsel va binolar · B bino · A tahlil"}]},
+    {id:"oyna", t:"Loyiha", page:"muharrir.html", hint:"U uchastka · H tahlil hududi · S yoʻllar · Z/G parsel va binolar · B bino · A tahlil"},
+    {id:"bino", t:"Bino studiyasi", page:"bino.html"}]},
   /* Tahlil — atrofni baholashning hammasi bitta blokda: har bir tab bitta tahlil, xarita hududi umumiy (kps_site) */
   {id:"tahlil", t:"Tahlil", subs:[
     {id:"baho", t:"Baho", page:"ai.html"},
@@ -232,7 +233,7 @@ const STEPS=[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="73";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="74";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -528,6 +529,7 @@ const GUIDE={
  "tahlil-tasnif":["Yer qoplami",["Hudud avtomatik olinadi: sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi hisoblanadi.","<b>Faqat hudud ichi</b> — hududdan tashqarisini yashiradi.","<b>Albomga →</b> — xarita va jadval albomga ketadi."],""],
  "tahlil-gis":["Relyef, zichlik va tarmoqlar",["Tahlil hudud boʻyicha avtomatik boshlanadi.","Oʻngdagi tablar: <b>Balandlik</b>, <b>Nishab</b>, <b>Yer foyd.</b>, <b>Zichlik</b> (aholi bilan), <b>Tarmoqlar</b> (elektr, gaz, suv, kanalizatsiya, ariqlar).","<b>Albomga →</b> — joriy xaritani yuboradi."],""],
  "tahlil-shamol":["Shamol: mavjud holat",["<b>Binolar va shamolni yuklash</b> ni bosing (taxminan 30 soniya).","Fasl va kun vaqtini tanlang — qizil joylarda havo turib qoladi.","Loyiha binolarining taʼsiri — 4-qadam <b>Binolar → Shamol taʼsiri</b>."],"Shamol guli 1-qadam natijasida ham koʻrsatiladi."],
+ "loyiha-bino":["Bino studiyasi",["Master rejada binoni tanlang → <b>Bino studiyasi →</b>.","<b>Fasad</b>: uslub, derazalar, balkonlar, 1-qavat, devor. <b>Hajm</b>: qavatlar va tom. <b>Kvartiralar</b>: reja va 3D kesim.","Tepada <b>Render</b> — quyosh soyasi bilan; soat va faslni oʻzgartiring."],""],
  "kocha-kesim":["Koʻcha kesimi",["Chapdan shablonni tanlang.","Pastdagi tasmada elementni bosing, chetini sudrab kengligini, oʻzini sudrab tartibini oʻzgartiring.","Oʻngdagi roʻyxatdan element qoʻshing; tepada — Kesim / Reja / Aksonometriya."],""],
  "kocha-loyiha":["Koʻchani loyihalash",["Chap paneldan modulni tanlang va xaritada koʻchani chizing.","YHQ tekshiruvlari oʻng panelda, 3D koʻrinish pastda.","Xarita ustidagi <b>Albomga →</b> — chizmani yuboradi."],""],
  "kocha-profil":["Mavjud profil",["Koʻcha oʻqiga bosing — koʻndalang kesim OSM dan taxmin qilinadi.","Loyiha profili bilan solishtiring.","Profilni albomga yuboring."],""],
