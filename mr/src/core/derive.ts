@@ -87,7 +87,7 @@ export function derive(doc: Project): Derived {
     maktab: Math.ceil(schoolCap / 25), mtm: Math.ceil(mtmCap / 25), park: Math.floor(greenArea / 500),
   };
   const parkingReq = Object.values(parkingParts).reduce((a, b) => a + b, 0);
-  const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25);
+  const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + g.spaces, 0);
   return {
     apartments, schoolCap, mtmCap, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea,

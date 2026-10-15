@@ -18,7 +18,7 @@ import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile }
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
-import { DEFAULT_GEN, generate, type GenParams } from '../core/generator';
+import { DEFAULT_GEN, generate, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, subdivide, type GridMode } from '../core/parcels';
 import { computeWhole } from '../core/plan';
@@ -349,6 +349,7 @@ export class Editor {
   /* ---------- 3-bosqich: hajmlar va seksiya generatori ---------- */
   private gen: GenParams = { ...DEFAULT_GEN };
   private genNotes: string[] = [];
+  private genFar: number | null = null;
 
   /** Kvartal uchun barqaror guruh id si: zona belgisi (yoʻq boʻlsa — yaratiladi) */
   private blockLabel(i: number): ZoneLabel | null {
@@ -363,10 +364,12 @@ export class Editor {
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
     const g: GenParams = ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen;
     const fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, this.store.doc.settings.floorHeight);
-    this.genNotes = r.notes;
+    this.genNotes = r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
     const grp = b.parcelId ?? lab.id;
-    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, label: b.parcelId ? undefined : { ...lab, gen: { ...this.gen } }, sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use, kind: x.kind })) }));
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, label: b.parcelId ? undefined : { ...lab, gen: { ...this.gen } },
+      sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0 })),
+      garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
   }
@@ -384,21 +387,31 @@ export class Editor {
         h('option', { value: '' }, '— sahnada bosing yoki tanlang —'),
         ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; }))));
     body.append(
-      h('div', { class: 'seg full', role: 'group', 'aria-label': 'Tipologiya' }, ...([['perimetr', 'Perimetral (seksiyalar)'], ['qatorlar', 'Meridional qatorlar']] as const).map(([k, t]) => h('button', { 'aria-pressed': g.typology === k, 'data-typ': k, onclick: () => { g.typology = k; this.renderPanel(); } }, t))),
+      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Tipologiya'),
+        h('div', { class: 'chips', role: 'group', 'aria-label': 'Tipologiya' }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => h('button', { class: 'zchip', 'aria-pressed': g.typology === k, 'data-typ': k, style: '--c:var(--ink)', onclick: () => { g.typology = k; this.renderPanel(); } }, TYPO_NAME[k])))),
+      (() => {
+        const far = h('input', { type: 'range', min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', style: 'width:100%' }) as HTMLInputElement, ft = h('b', { class: 'num' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : 'oʻchiq');
+        far.oninput = () => { g.far = Number(far.value); ft.textContent = g.far > 0 ? fmt(g.far, 1) : 'oʻchiq'; };
+        return h('div', { class: 'field' }, h('div', { class: 'row' }, h('span', { class: 'grow', style: 'font-size:13px' }, 'Maqsadli UMN (FAR)'), ft), far,
+          h('span', { class: 'note' }, g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'));
+      })(),
       h('div', { class: 'row' }, num('gMax', 'Qavat, eng koʻp', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }), num('gMin', 'eng kam', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); })),
       h('div', { class: 'row' }, num('gDepth', 'Chuqurlik, m', g.depth, 9, 24, 0.5, x => { g.depth = x; }), num('gLen', 'Seksiya, m', g.secLen, 15, 60, 1, x => { g.secLen = x; }), num('gSet', 'Chekinish, m', g.setback, 0, 20, 0.5, x => { g.setback = x; })),
-      g.typology === 'perimetr' ? h('label', { class: 'row', style: 'font-size:13px' }, (() => { const c = h('input', { type: 'checkbox', checked: g.passages, id: 'gPass' }) as HTMLInputElement; c.onchange = () => { g.passages = c.checked; }; return c; })(), 'Har ~100 m da hovliga oʻtish (6 m)') : '',
+      ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('label', { class: 'row', style: 'font-size:13px' }, (() => { const c = h('input', { type: 'checkbox', checked: g.passages, id: 'gPass' }) as HTMLInputElement; c.onchange = () => { g.passages = c.checked; }; return c; })(), 'Har ~100 m da hovliga oʻtish (6 m)') : '',
+      ['minora', 'blok_minora', 'avto'].includes(g.typology) ? h('div', { class: 'row' }, num('gTower', 'Minora qavati', g.towerF ?? 16, 9, 60, 1, x => { g.towerF = x; })) : '',
+      h('div', { class: 'row' }, num('gSty', 'Stilobat, qavat', g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; }), num('gPL', 'Yer osti, sath', g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })),
+      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Parkovka'), h('div', { class: 'seg full', role: 'group' }, ...(Object.keys(PARK_NAME) as ParkingKind[]).map(k => h('button', { 'aria-pressed': (g.parking ?? 'yoq') === k, 'data-park': k, onclick: () => { g.parking = k; this.renderPanel(); } }, PARK_NAME[k])))),
       h('div', { class: 'row' },
         h('button', { class: 'btn primary grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { if (this.selBlock != null) this.generateBlock(this.selBlock); } }, 'Generatsiya'),
         h('button', { class: 'btn', id: 'genAll', title: 'Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi', onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(`${n} seksiya generatsiya qilindi`); } }, 'Hammasi'),
         h('button', { class: 'btn', id: 'genClear', disabled: this.selBlock == null, onclick: () => { const u = this.selBlock != null ? plan.blocks[this.selBlock] : null, lab = this.selBlock != null ? this.blockLabel(this.selBlock) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, 'Tozalash')));
-    if (this.genNotes.length) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
+    if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `Parsel UMN: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     // tanlangan bino / seksiya
     const sel = doc.buildings.find(b => b.id === this.sel);
     const gens = doc.buildings.filter(b => b.gen).length;
     body.append(h('div', { class: 'ctxst', id: 'bldSt' }, h('b', {}, `${doc.buildings.length} bino/seksiya`), gens ? ` · shundan generatsiya ${gens}` : '', h('br'), h('span', { class: 'muted' }, 'Seksiyani sahnada bosing — qavatini oʻzgartiring yoki oʻchiring.')));
     if (sel) {
-      const kind = sel.gen ? ({ burchak: 'Burchak seksiyasi', oddiy: 'Oddiy seksiya', qator: 'Qator seksiyasi' } as Record<string, string>)[sel.gen.kind] : 'Bino';
+      const kind = sel.gen ? (({ burchak: 'Burchak seksiyasi', oddiy: 'Oddiy seksiya', qator: 'Qator seksiyasi', uy: 'Yakka uy', taunhaus: 'Taunhaus', villa: 'Villa', minora: 'Minora', stilobat: 'Stilobat' } as Record<string, string>)[sel.gen.kind] ?? 'Seksiya') : 'Bino';
       body.append(h('div', { class: 'list' }, h('div', { class: 'it', 'aria-selected': true, 'data-bid': sel.id },
         h('span', { class: 'grow' }, `${kind} · ${sel.floors} qavat${sel.nonRes ? ` (${sel.nonRes} noturar)` : ''}`),
         h('button', { title: 'Qavat −', id: 'flMinus', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.id, patch: { floors: sel.floors - 1 } }, 'fl-' + sel.id)) }, '−'),

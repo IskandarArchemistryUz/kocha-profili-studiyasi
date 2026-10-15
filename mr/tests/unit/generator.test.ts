@@ -66,3 +66,32 @@ describe('Generator: real (notekis) kvartallar', () => {
     expect(r.notes.join(' ')).toContain('olib tashlandi');
   });
 });
+
+import { autoTypology, TYPO_NAME, type Typology } from '../../src/core/generator';
+describe('Tipologiyalar, UMN, stilobat, parkovka', () => {
+  const B = sq(200, 150);
+  it('har tipologiya seksiya beradi va ular kesishmaydi', () => {
+    for (const t of Object.keys(TYPO_NAME) as Typology[]) {
+      const r = generate(B, { ...DEFAULT_GEN, typology: t, maxF: 9, far: t === 'avto' ? 2 : 0 });
+      expect(r.sections.length, t).toBeGreaterThan(0);
+      const flat = r.sections.filter(s => s.kind !== 'stilobat');
+      for (let i = 0; i < flat.length; i++) for (let j = i + 1; j < flat.length; j++) expect(overlap(flat[i].ring, flat[j].ring), t).toBeLessThan(1);
+    }
+    expect(autoTypology(0.4)).toBe('yakka'); expect(autoTypology(1)).toBe('villa'); expect(autoTypology(2.5)).toBe('perimetr'); expect(autoTypology(4)).toBe('blok_minora');
+  });
+  it('maqsadli UMN: natija maqsadga yaqin', () => {
+    const r = generate(B, { ...DEFAULT_GEN, typology: 'perimetr', maxF: 25, minF: 3, far: 1.5, passages: false });
+    expect(r.far!).toBeGreaterThan(1.2); expect(r.far!).toBeLessThan(1.8);
+  });
+  it('stilobat: seksiyalar uning ustida, parkovka stilobat ichida', () => {
+    const r = generate(B, { ...DEFAULT_GEN, stylobate: 2, parking: 'stilobat' });
+    const pod = r.sections.find(s => s.kind === 'stilobat')!;
+    expect(pod.floors).toBe(2); expect(pod.use).toBe('avtoturargoh');
+    expect(r.sections.filter(s => s.kind !== 'stilobat').every(s => s.z0 === 2)).toBe(true);
+    expect(r.parking!.spaces).toBeGreaterThan(500);
+  });
+  it('yer osti parkovka sathlar bilan oʻsadi', () => {
+    const a = generate(B, { ...DEFAULT_GEN, parking: 'yer_osti', parkLevels: 1 }), b = generate(B, { ...DEFAULT_GEN, parking: 'yer_osti', parkLevels: 2 });
+    expect(b.parking!.spaces).toBe(2 * a.parking!.spaces);
+  });
+});

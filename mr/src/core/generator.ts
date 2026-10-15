@@ -11,8 +11,9 @@ import type { XY } from './geo';
 import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 
-export type Typology = 'perimetr' | 'qatorlar';
-export type SecKind = 'burchak' | 'oddiy' | 'qator';
+export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa';
+export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat';
+export type ParkingKind = 'yoq' | 'yer_osti' | 'stilobat' | 'yer_usti';
 
 export interface GenParams {
   typology: Typology;
@@ -28,13 +29,23 @@ export interface GenParams {
   passages: boolean;
   /** pastki noturar qavatlar (koʻchaga qaragan seksiyalarda) */
   nonRes: number;
+  /** maqsadli UMN (FAR); 0 — oʻchiq. Berilsa, qavatlar shu qiymatga yaqinlashtiriladi (maxF — yuqori chegara) */
+  far?: number;
+  /** minora qavati */
+  towerF?: number;
+  /** stilobat qavatlari (0 — yoʻq) */
+  stylobate?: number;
+  parking?: ParkingKind;
+  /** yer osti qavatlari */
+  parkLevels?: number;
 }
 
-export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1 };
+export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1 };
 
 /** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
-export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; face?: { p: XY; n: XY } }
-export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[] }
+export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string }
+export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number }
+export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[]; parking?: GenParking; typology?: Typology; far?: number }
 
 const sub = (a: XY, b: XY): XY => [a[0] - b[0], a[1] - b[1]];
 const add = (a: XY, b: XY): XY => [a[0] + b[0], a[1] + b[1]];
@@ -85,7 +96,7 @@ function minWidth(r: XY[]): number {
 
 const FLOOR_H = 3.3;
 
-export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult {
+export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult {
   const notes: string[] = [];
   const outer0 = inset(clean(block), g.setback);
   if (!outer0) return { sections: [], capFloors: null, notes: ['Kvartal juda tor yoki shakli murakkab — chekinishdan keyin joy qolmadi'] };
@@ -101,7 +112,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult
 }
 
 /** Istalgan shakl: uzun qirralardan boshlab qirra boʻylab seksiyalar, kvartalga qirqiladi, oldingilari bilan kesishmaydi */
-function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
+export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   const D = g.depth, n = A.length, sections: GenSection[] = [];
   const poly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
   let placed: Polygon[] = [];
@@ -253,3 +264,118 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
   if (!sections.length) notes.push('Qator sigʻmadi — chuqurlik yoki qavatni kamaytiring');
   return { sections, capFloors: Math.floor(gap / 2 / floorH), notes };
 }
+
+/* ====================== tipologiyalar ====================== */
+
+const aOf = (r: XY[]) => Math.abs(signedArea(r));
+const inside = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
+const longestAngle = (r: XY[]) => { let best = 0, bl = -1; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], L = len(sub(b, a)); if (L > bl) { bl = L; best = Math.atan2(b[1] - a[1], b[0] - a[0]); } } return best; };
+
+/** Nuqtali binolar (villa, minora) toʻri: kvadrat dogʻ `size`, oraliq `gap`, A ichiga toʻliq sigʻadiganlari; avoid — band joylar */
+function points(A: XY[], size: number, gap: number, avoid: XY[][] = []): XY[][] {
+  const ang = longestAngle(A), c = Math.cos(ang), s = Math.sin(ang), rot = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], un = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of A.map(rot)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  const step = size + gap, nx = Math.max(1, Math.floor((x1 - x0 + gap) / step)), ny = Math.max(1, Math.floor((y1 - y0 + gap) / step));
+  const ox = x0 + (x1 - x0 - (nx * step - gap)) / 2, oy = y0 + (y1 - y0 - (ny * step - gap)) / 2, out: XY[][] = [];
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+    const q = ([[0, 0], [size, 0], [size, size], [0, size]] as XY[]).map(p => un([ox + i * step + p[0], oy + j * step + p[1]]));
+    if (q.every(p => inside(p, A)) && !avoid.some(av => q.some(p => inside(p, av)) || av.some(p => inside(p, q)))) out.push(q);
+  }
+  return out;
+}
+
+/** Halqani markaziga nisbatan k marta kichraytirish */
+const shrink = (r: XY[], k: number): XY[] => { const c = r.reduce((a, p) => add(a, p), [0, 0] as XY); const m = mul(c, 1 / r.length); return r.map(p => add(m, mul(sub(p, m), k))); };
+
+function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenResult {
+  const notes: string[] = [];
+  const outer0 = inset(clean(block), g.setback);
+  if (!outer0) return { sections: [], capFloors: null, notes: ['Kvartal juda tor — chekinishdan keyin joy qolmadi'] };
+  const A = clean(outer0, 6), tf = Math.max(g.towerF ?? 16, g.minF);
+  switch (t) {
+    case 'yakka': case 'taunhaus': {
+      const D = t === 'yakka' ? 12 : 12, L = t === 'yakka' ? 20 : 7;
+      const r = edgeFill(A, { ...g, depth: D, secLen: L, minF: 1, maxF: 3 }, notes);
+      r.sections = r.sections.map(s => ({ ...s, ring: t === 'yakka' ? shrink(s.ring, 0.6) : s.ring, floors: t === 'yakka' ? 2 : 3, kind: t === 'yakka' ? 'uy' : 'taunhaus', nonRes: 0, face: undefined }));
+      if (t === 'yakka') notes.push('Yakka uylar: uchastka eni 20 m, uy dogʻi ~12×7 m, 2 qavat (75-band: yakka uy uchastkasi 400 m²)');
+      return r;
+    }
+    case 'villa': {
+      const H = g.maxF * floorH, gap = Math.max(18, 0.6 * H);
+      const sq = points(A, 20, gap);
+      notes.push(`Villalar orasi ${Math.round(gap)} m — derazali toretslar orasi (H1+H2)·0,3 (79-band 2-jadval) va ≥ 18 m`);
+      return { sections: sq.map(ring => ({ ring, floors: g.maxF, kind: 'villa' as SecKind, nonRes: 0 })), capFloors: null, notes };
+    }
+    case 'minora': {
+      const H = tf * floorH, gap = Math.max(25, 0.6 * H);
+      const sq = points(A, 24, gap);
+      notes.push(`Minoralar orasi ${Math.round(gap)} m — (H1+H2)·0,3 (79-band 2-jadval), ≥ 25 m`);
+      return { sections: sq.map(ring => ({ ring, floors: tf, kind: 'minora' as SecKind, nonRes: g.nonRes })), capFloors: null, notes };
+    }
+    case 'blok_minora': {
+      const r = generateBase(block, { ...g, typology: 'perimetr' }, floorH);
+      // shimoliy burchak(lar) — minora (janubiy hovliga soya tushmasin)
+      const corners = r.sections.map((s, i) => ({ s, i, y: s.ring.reduce((a, p) => a + p[1], 0) / s.ring.length })).filter(x => x.s.kind === 'burchak').sort((a, b) => b.y - a.y).slice(0, 2);
+      corners.forEach(c => { c.s.floors = tf; c.s.kind = 'minora'; });
+      if (corners.length) r.notes.push(`${corners.length} ta shimoliy burchak — ${tf} qavatli minora (hovliga soya tushirmasligi uchun shimolda)`);
+      return r;
+    }
+    case 'blok_villa': {
+      const r = generateBase(block, { ...g, typology: 'perimetr' }, floorH);
+      const court = inset(A, g.depth + 20);
+      if (court) {
+        const v = points(court, 18, Math.max(18, 0.6 * 5 * floorH), r.sections.map(s => s.ring));
+        r.sections.push(...v.map(ring => ({ ring, floors: Math.min(5, g.maxF), kind: 'villa' as SecKind, nonRes: 0 })));
+        if (v.length) r.notes.push(`Hovli ichida ${v.length} ta villa (≤ 5 qavat)`);
+      }
+      return r;
+    }
+    default: return generateBase(block, { ...g, typology: t === 'qatorlar' ? 'qatorlar' : 'perimetr' }, floorH);
+  }
+}
+
+/** UMN boʻyicha avtomatik tipologiya (Planimetric dagi kabi chegaralar: 0,6 / 1,3 / 3,5) */
+export function autoTypology(far: number): Typology { return far < 0.6 ? 'yakka' : far < 1.3 ? 'villa' : far < 3.5 ? 'perimetr' : 'blok_minora'; }
+
+const gfaOf = (r: GenResult) => r.sections.reduce((s, x) => s + aOf(x.ring) * x.floors, 0);
+
+/** Asosiy kirish: tipologiya, maqsadli UMN, stilobat va parkovka */
+export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult {
+  const site = aOf(clean(block));
+  const far = g.far ?? 0;
+  const t: Typology = g.typology === 'avto' ? autoTypology(far || 2) : g.typology;
+  let r: GenResult;
+  if (far > 0 && !['yakka', 'taunhaus'].includes(t)) {
+    // maxF ni minF…maxF oraligʻida tanlash: UMN maqsadga eng yaqin (oshmasdan afzal)
+    let best: GenResult | null = null, bd = Infinity;
+    for (let f = Math.max(1, g.minF); f <= Math.max(g.minF, g.maxF); f++) {
+      const gg = { ...g, maxF: f, towerF: Math.max(f, Math.min(g.towerF ?? 16, f + 6)) }, rr = typoCore(block, t, gg, floorH), v = gfaOf(rr) / site;
+      const d = Math.abs(v - far) + (v > far ? 0.15 : 0);
+      if (d < bd) { bd = d; best = rr; }
+    }
+    r = best ?? typoCore(block, t, g, floorH);
+  } else r = typoCore(block, t, g, floorH);
+  r.typology = t;
+  if (g.typology === 'avto') r.notes.unshift(`Avto: UMN ${String(far || 2).replace('.', ',')} → «${TYPO_NAME[t]}»`);
+  // stilobat: chekinish ichidagi butun maydon, seksiyalar uning ustida
+  const st = Math.max(0, Math.round(g.stylobate ?? 0)), outer = inset(clean(block), g.setback);
+  const podiumOk = st > 0 && outer && ['perimetr', 'qatorlar', 'minora', 'blok_minora'].includes(t);
+  if (podiumOk) {
+    r.sections = r.sections.map(s => ({ ...s, z0: st, nonRes: 0 }));
+    r.sections.unshift({ ring: clean(outer!, 6), floors: st, kind: 'stilobat', nonRes: st, use: g.parking === 'stilobat' ? 'avtoturargoh' : 'savdo' });
+  }
+  // parkovka
+  const pk = g.parking ?? 'yoq';
+  if (pk !== 'yoq' && outer) {
+    const A = clean(outer, 6), area = aOf(A), lv = Math.max(1, Math.round(g.parkLevels ?? 1));
+    if (pk === 'yer_osti') r.parking = { kind: pk, ring: A, levels: lv, spaces: Math.floor(area * 0.85 * lv / 30) };
+    else if (pk === 'stilobat') { if (podiumOk) r.parking = { kind: pk, ring: A, levels: st, spaces: Math.floor(area * 0.85 * st / 30) }; else r.notes.push('Stilobat ichida parkovka uchun stilobat qavatini kiriting'); }
+    else { const built = r.sections.filter(s => !s.z0 && s.kind !== 'stilobat').reduce((s, x) => s + aOf(x.ring), 0); r.parking = { kind: pk, ring: A, levels: 1, spaces: Math.floor(Math.max(0, area - built) * 0.35 / 25) }; }
+    if (r.parking) r.notes.push(`Parkovka: ${r.parking.spaces} joy (${PARK_NAME[pk]}${pk === 'yer_usti' ? ' — boʻsh hovlining 35 %, 413-band: 25 m²/joy' : ' — 30 m²/joy brutto, taxmin'})`);
+  }
+  r.far = (gfaOf(r)) / site;
+  return r;
+}
+
+export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Meridional qatorlar', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar' };
+export const PARK_NAME: Record<ParkingKind, string> = { yoq: 'Yoʻq', yer_osti: 'Yer osti', stilobat: 'Stilobat ichida', yer_usti: 'Yer usti' };
