@@ -58,4 +58,11 @@ describe('Generator: real (notekis) kvartallar', () => {
     expect(Math.max(...longs.map(s => s.floors))).toBeLessThanOrEqual(3);
     expect(r.notes.join(' ')).toContain('izoh 8');
   });
+  it('tor kvartal: minimal qavatga sigʻmaydigan qarshi qator olib tashlanadi', () => {
+    const r = generate(sq(160, 58), { ...DEFAULT_GEN, maxF: 9, minF: 5 });
+    // qatorlar orasi 58 − 12 − 30 = 16 m < 2·5·3,3 → bitta qator qoladi, qavatlar ≥ 5
+    expect(r.sections.length).toBeGreaterThan(2);
+    expect(Math.min(...r.sections.map(s => s.floors))).toBeGreaterThanOrEqual(5);
+    expect(r.notes.join(' ')).toContain('olib tashlandi');
+  });
 });

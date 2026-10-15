@@ -94,7 +94,8 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult
   // toza perimetr (L-burchaklar) faqat qavariq va yetarli keng kvartalda; aks holda — istalgan shakl uchun zaxira algoritm
   const allConvex = A.every((_, i) => cross(unit(sub(A[i], A[(i - 1 + A.length) % A.length])), unit(sub(A[(i + 1) % A.length], A[i]))) > -0.05);
   let r = allConvex && inset(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
-  if (!r || !r.sections.length) { notes.length = 0; r = edgeFill(A, g, notes); }
+  // hovli shunchalik torki, minimal qavat ham sigʻmaydi — yopiq perimetr oʻrniga qirralar boʻylab (qarshi qatorlar olib tashlanadi)
+  if (!r || !r.sections.length || (r.capFloors != null && r.capFloors < g.minF)) { notes.length = 0; r = edgeFill(A, g, notes); }
   facingCap(r, g, floorH);
   return r;
 }
@@ -144,18 +145,30 @@ function rayHit(p: XY, d: XY, r: XY[]): number {
  * (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8). Ikkala seksiya ham cheklanadi.
  */
 function facingCap(r: GenResult, g: GenParams, floorH: number): void {
-  let cut = 0, minCap = Infinity;
+  // 1) qarshidagi qator meʼyoriy minimal qavatga ham sigʻmasa — keyin joylashganini (qisqaroq qirra) olib tashlaymiz:
+  //    tor kvartalda bir tomonlama, lekin balandroq qurilish qavat soni 1–2 gacha tushirilgan ikki qatordan yaxshiroq
+  let removed = 0;
+  for (let guard = 0; guard < 200; guard++) {
+    let worst: [number, number] | null = null, wd = Infinity;
+    r.sections.forEach((s, i) => {
+      if (!s.face) return;
+      r.sections.forEach((o, k) => { if (k === i) return; const t = rayHit(s.face!.p, s.face!.n, o.ring); if (t < wd) { wd = t; worst = [i, k]; } });
+    });
+    if (!worst || wd / 2 / floorH >= g.minF) break;
+    const [i, k] = worst as [number, number]; r.sections.splice(Math.max(i, k), 1); removed++;
+  }
+  if (removed) r.notes.push(`${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (≥ 2·H, ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
+  // 2) qolganlarida — masofa boʻyicha qavat cheklovi
+  let cut = 0;
   r.sections.forEach((s, i) => {
     if (!s.face) return;
     let d = Infinity, j = -1;
     r.sections.forEach((o, k) => { if (k === i) return; const t = rayHit(s.face!.p, s.face!.n, o.ring); if (t < d) { d = t; j = k; } });
     if (!Number.isFinite(d) || d > 200) return;
-    const cap = Math.max(1, Math.floor(d / 2 / floorH));
-    minCap = Math.min(minCap, cap);
+    const cap = Math.max(g.minF, Math.floor(d / 2 / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
   });
-  if (cut) r.notes.push(`${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (≥ 2·H, ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
-  if (minCap < g.minF) r.notes.push(`Ayrim hovlilar tor: ${minCap} qavatdan baland boʻlmasligi kerak — chuqurlikni kamaytiring yoki «qatorlar» ni sinang`);
+  if (cut) r.notes.push(`${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (≥ 2·H, izoh 8)`);
 }
 
 function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
