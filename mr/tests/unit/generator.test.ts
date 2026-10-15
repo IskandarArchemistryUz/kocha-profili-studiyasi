@@ -43,3 +43,19 @@ describe('Seksiya generatori', () => {
     expect(generate(sq(20, 20), DEFAULT_GEN).sections).toHaveLength(0);
   });
 });
+
+describe('Generator: real (notekis) kvartallar', () => {
+  it('uchburchakka yaqin tor kvartal — zaxira algoritm seksiyalar beradi, kesishmaydi', () => {
+    const tri: XY[] = [[0, 0], [170, 10], [150, 60], [20, 70]];
+    const r = generate(tri, { ...DEFAULT_GEN, maxF: 12 });
+    expect(r.sections.length).toBeGreaterThan(3);
+    for (let i = 0; i < r.sections.length; i++) for (let j = i + 1; j < r.sections.length; j++) expect(overlap(r.sections[i].ring, r.sections[j].ring)).toBeLessThan(0.5);
+  });
+  it('qarshidagi seksiyagacha masofa qavatni cheklaydi (≥ 2·H)', () => {
+    const r = generate(sq(140, 64), { ...DEFAULT_GEN, maxF: 16, minF: 3 });
+    // shimol va janub qatorlari orasi ≈ 64 − 2·6 − 2·15 = 22 m → H ≤ 11 m → ≤ 3 qavat
+    const longs = r.sections.filter(s => s.kind === 'oddiy');
+    expect(Math.max(...longs.map(s => s.floors))).toBeLessThanOrEqual(3);
+    expect(r.notes.join(' ')).toContain('izoh 8');
+  });
+});
