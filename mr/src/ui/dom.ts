@@ -5,6 +5,8 @@ type Child = Node | string | number | null | undefined | false | Child[];
 export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = {}, ...kids: Child[]): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
+    // aria-* qiymati matn boʻlishi shart («true»/«false») — CSS va ekran oʻquvchilar shunga qaraydi
+    if (k.startsWith('aria-') && typeof v === 'boolean') { el.setAttribute(k, String(v)); continue; }
     if (v == null || v === false) continue;
     if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v as EventListener);
     else if (k === 'class') el.className = String(v);

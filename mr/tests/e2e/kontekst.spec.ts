@@ -72,3 +72,11 @@ test('koordinata bilan qidiruv tarmoqsiz ishlaydi', async ({ page }) => {
   await page.locator('.res .it').first().click();
   await expect(page.locator('#orig')).toHaveText('41.30000, 69.25000');
 });
+
+test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
+  await newProject(page);
+  await expect(page.locator('.seg.full button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'true');
+  await page.click('.seg.full button:has-text("750 m")');
+  await expect(page.locator('.seg.full button', { hasText: '750 m' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.seg.full button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'false');
+});
