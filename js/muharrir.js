@@ -742,7 +742,7 @@ function draw(){
   const sbl=S.sel&&S.sel.t==='bl'?S.sel:null;
   BLK.forEach(b=>{b.g=null;b.r=null;if(!b.z||!GENZ.includes(b.z.z))return;let r=null;
     if(b.z.lock&&b.z.blds){   // qoʻlda tahrirlangan: hujjatdagi binolar
-      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f),tiers:x.tiers,nr:x.nr,kv:x.kv,sty:x.sty,roof:x.roof,slope:x.slope};}));}
+      r=MRGEN.stats(b.f,b.z.blds.map(x=>{const f=polyOf(x);return {f,fl:x.fl,id:x.id,out:!insideBlk(f,b.f),tiers:x.tiers,nr:x.nr,kv:x.kv,sty:x.sty,roof:x.roof,slope:x.slope,fc:x.fc,rc:x.rc};}));}
     else{const g=b.z.g;if(!g)return;r=MRGEN.gen(b.f,g);if(!r)return;b.g=g;r.blds.forEach((x,i)=>{x.id=i+1;});}
     b.r=r;
     /* pogʻonalar va turar joy boʻlmagan pastki qavatlar hisobga olinadi */
@@ -969,6 +969,12 @@ function hint(){let t='';
 function setTool(t){S.fe=null;S.fed=null;S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(window.MRANIM){if(MRANIM.open&&MRANIM.cur!==t)MRANIM.hide();}if(window.MRHUD)MRHUD.active(t==='hudud');MRPLOT.active(t==='uchastka');if(window.MRTX)MRTX.active(t==='tahlil');map.getCanvas().style.cursor=t==='street'||t==='hudud'||t==='uchastka'?'crosshair':'';$('#tip').textContent='';render();}
 $$('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('#undo').onclick=undo;$('#redo').onclick=redo;
+/* 3D vizualizatsiya (js/mr-viz.js): binolar fasadi bilan, koʻchalar, kvartallar, daraxtlar */
+function vizData(){const blds=[],blocks=[];BLK.forEach(b=>{const bl=b.r?b.r.blds:[];bl.forEach(x=>blds.push(x));blocks.push({f:b.f,zz:b.z&&b.z.z,bf:bl.map(x=>x.f)});});
+  const streets=D.edges.map(e=>{const a=node(e.a),b=node(e.b);return a&&b?{a:a.ll,b:b.ll,w:(preOf(e.preset)||{}).W||15}:null;}).filter(Boolean);
+  let c=map.getCenter().toArray();try{const all=turf.featureCollection(blocks.map(b=>b.f));if(blocks.length)c=turf.center(all).geometry.coordinates;}catch(_){}
+  return {c,blds,blocks,streets};}
+{const vb=document.getElementById('vizBtn');if(vb)vb.onclick=()=>{if(!window.MRVIZ)return;if(!BLK.some(b=>b.r&&b.r.blds.length)){$('#tip').textContent=T('Avval binolarni generatsiya qiling yoki chizing.');return;}MRVIZ.open(vizData);};}
 $$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});applyView();setTimeout(render,650);});
 /* fon tugmalari — umumiy boshqaruvda (js/basemap.js) */
 
