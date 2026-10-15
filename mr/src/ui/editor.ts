@@ -45,6 +45,8 @@ export class Editor {
   private ctx: { busy: boolean; msg: string; frac: number; err: string } = { busy: false, msg: '', frac: 0, err: '' };
   private search: { q: string; busy: boolean; res: Place[]; err: string; pending: Place | null } = { q: '', busy: false, res: [], err: '', pending: null };
   private prevDoc: Project;
+  /** kvartal chegarasi: mayda — barcha koʻchalar (mahalla ichidagi servis yoʻllari ham), yirik — faqat asosiy koʻchalar */
+  private blockMode: 'mayda' | 'yirik' = 'mayda';
 
   constructor(host: HTMLElement, doc: Project, private onExit: () => void) {
     this.store = new Store(doc); this.prevDoc = doc;
@@ -180,9 +182,13 @@ export class Editor {
   private pickBlock(xy: XY): void {
     const b = this.ctxMgr.current, doc = this.store.doc; if (!b) return;
     const fr = frame(doc.origin);
-    const NOT = /^(footway|path|cycleway|steps|track|bridleway|corridor|service|construction|proposed|platform)$/;
+    const NOT = /^(footway|path|cycleway|steps|track|bridleway|corridor|construction|proposed|platform|raceway)$/;
+    const MINOR = /^(service|living_street|unclassified|pedestrian)$/;
+    const ok = (r: { cls: string; sub?: string }) => !NOT.test(r.cls)
+      && !(r.cls === 'service' && /driveway|parking_aisle|drive-through|emergency_access/.test(r.sub ?? ''))
+      && !(this.blockMode === 'yirik' && MINOR.test(r.cls));
     const bars: Barrier[] = [
-      ...b.osm.roads.filter(r => !NOT.test(r.cls)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })),
+      ...b.osm.roads.filter(ok).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })),
       ...b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w + 4 })),
       ...b.osm.waterways.filter(w => /river|canal/.test(w.cls)).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w })),
     ];
@@ -303,6 +309,8 @@ export class Editor {
           this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.setTool(null); this.scene.frameDoc(this.store.doc);
         }, toast)) }, drawing ? 'Chizishni toʻxtatish' : (doc.site ? '✎ Qaytadan chizish' : '✎ Sahnada chizish')),
         this.ctxMgr.current && doc.context.loaded && doc.context.layers.roads ? h('button', { class: this.tool instanceof ClickTool ? 'btn primary' : 'btn', id: 'pickBlock', onclick: () => this.tool instanceof ClickTool ? this.setTool(null) : this.setTool(new ClickTool('Yoʻllar orasidagi kvartal ichini bosing · Esc — bekor', xy => this.pickBlock(xy))) }, this.tool instanceof ClickTool ? 'Aniqlashni toʻxtatish' : '⌖ Kvartalni bosib aniqlash') : '',
+        this.ctxMgr.current && doc.context.loaded ? h('div', { class: 'seg full', role: 'group', 'aria-label': 'Kvartal chegarasi' },
+          ...([['mayda', 'Mayda: barcha koʻchalar'], ['yirik', 'Yirik: asosiy koʻchalar']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.blockMode === k, 'data-bm': k, onclick: () => { this.blockMode = k; this.renderPanel(); } }, t))) : '',
         h('div', { class: 'lb' }, 'yoki oʻlcham bilan, markazda'),
         h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Eni, m'), w), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Boʻyi, m'), hh),
           h('button', { class: 'btn', id: 'rectSite', style: 'align-self:end', onclick: () => {
