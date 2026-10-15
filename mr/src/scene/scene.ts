@@ -13,10 +13,12 @@ import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from '
 import { projectStreetsGeo } from './streets3d';
 import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
+import { USES } from '../core/uses';
 
-export const ZONE_COL: Record<string, number> = { turar: 0xf3d9a4, aralash: 0xf0b48a, ijtimoiy: 0xa9c8ea, savdo: 0xe99a9a, yashil: 0xa8d08d, texnik: 0xc9c3b8 };
-const USE_COL: Record<string, number> = { turar: 0xf4ece6, aralash: 0xf3e3d6, ijtimoiy: 0xe3ecf5, savdo: 0xf2dede, texnik: 0xe6e3dd, yashil: 0xe8f0df };
-const BASE_COL: Record<string, number> = { turar: 0xa8756b, aralash: 0xa8756b, ijtimoiy: 0x6f8fb0, savdo: 0xb05f5f, texnik: 0x8f8a80, yashil: 0x7da36a };
+export const ZONE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.color]));
+const tint = (c: number, k: number) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, f = (x: number) => Math.round(x + (255 - x) * k); return (f(r) << 16) | (f(g) << 8) | f(b); };
+const USE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.id === 'turar' ? 0xf4ece6 : tint(u.color, 0.72)]));
+const BASE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.base]));
 const PART_COL: Record<string, number> = { trotuar: 0xd8d2c6, yashil: 0x9cc77f, velo: 0xc9705a, parkovka: 0x8d9097, qatnov: 0x585b62, chiziq: 0xf4f4f0 };
 
 export const INSOL_BINS: [number, number, string][] = [[0, 0x2b3a67, '< 1 soat'], [1, 0x4a6fa5, '1–2'], [2, 0x7fb3c8, '2–3'], [3, 0xc9e4a5, '3–4'], [4, 0xf6e58d, '4–6'], [6, 0xf9b24e, '≥ 6']];

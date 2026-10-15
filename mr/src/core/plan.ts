@@ -7,7 +7,8 @@ import type { Project, Use } from './doc';
 import { frame, type XY } from './geo';
 import { profileById, profileWidth } from './profiles';
 
-export interface Block { rings: XY[][]; area: number; use: Use; labelId: string | null; centroid: XY }
+/** Rejaning birligi: butun kvartal yoki uning parseli. grp — generator guruhi (parsel id si yoki kvartal belgisi id si) */
+export interface Block { rings: XY[][]; area: number; use: Use; labelId: string | null; centroid: XY; parcelId?: string; blockKey: number }
 export interface PlanGeo { corridors: XY[][][]; corridorArea: number; blocks: Block[] }
 
 const close = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
@@ -70,11 +71,33 @@ export function computePlan(doc: Project): PlanGeo {
   const blocksMP = corrU.length ? tryOp(() => polygonClipping.difference(site, corrU), [site]) : [site];
   const area = (mp: MultiPolygon) => mp.reduce((s, p) => s + p.reduce((t, r, k) => t + (k ? -1 : 1) * Math.abs(ringArea(open(r))), 0), 0);
   const labels = doc.zones.map(z => ({ z, p: fr.toLocal(z.at) }));
-  const blocks: Block[] = blocksMP.map(p => {
+  const whole = blocksMP.map(p => {
     const rings = p.map(open);
     const a = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((s, h) => s + Math.abs(ringArea(h)), 0);
     const lab = labels.find(l => pointIn(l.p, rings));
-    return { rings, area: a, use: lab?.z.use ?? 'turar', labelId: lab?.z.id ?? null, centroid: interiorPoint(rings) };
+    return { rings, area: a, use: lab?.z.use ?? 'turar', labelId: lab?.z.id ?? null, centroid: interiorPoint(rings), blockKey: 0 } as Block;
   }).filter(b => b.area > 20).sort((a, b) => b.area - a.area);
+  whole.forEach((b, i) => { b.blockKey = i; });
+  // parsellarga boʻlingan kvartallar — parsellar bilan almashtiriladi (kvartal chegarasiga qirqib)
+  const blocks: Block[] = [];
+  for (const b of whole) {
+    const ps = b.labelId ? doc.parcels.filter(p => p.block === b.labelId) : [];
+    if (!ps.length) { blocks.push(b); continue; }
+    const bp: Polygon = b.rings.map(close);
+    for (const p of ps) {
+      let mp: MultiPolygon = [];
+      try { mp = polygonClipping.intersection(p.rings.map(r => close(r.map(fr.toLocal))), bp); } catch { continue; }
+      for (const q of mp) {
+        const rings = q.map(open), a = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((s, h) => s + Math.abs(ringArea(h)), 0);
+        if (a > 20) blocks.push({ rings, area: a, use: p.use, labelId: b.labelId, centroid: interiorPoint(rings), parcelId: p.id, blockKey: b.blockKey });
+      }
+    }
+  }
   return { corridors: corrU.map(p => p.map(open)), corridorArea: area(inSite), blocks };
+}
+
+/** Butun kvartal (parsellarsiz) — blockKey boʻyicha */
+export function computeWhole(doc: Project, key: number): { rings: XY[][]; centroid: XY } | null {
+  const d = { ...doc, parcels: [] }, b = computePlan(d).blocks.find(x => x.blockKey === key);
+  return b ? { rings: b.rings, centroid: b.centroid } : null;
 }

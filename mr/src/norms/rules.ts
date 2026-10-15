@@ -68,6 +68,39 @@ export const RULES: Rule[] = [
     },
   },
   {
+    id: 'school',
+    title: 'Maktab oʻrinlari',
+    source: { ...SHNQ_2_07_01, clause: '5-ilova (165–280 oʻrin / 1000 kishi); 549-band, 41-jadval (uchastka)' },
+    evaluate(d) {
+      if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
+      const lo = Math.ceil(d.population * 0.165), hi = Math.ceil(d.population * 0.28);
+      return { status: d.schoolCap >= lo ? 'pass' : 'fail', value: d.schoolCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.schoolCap < lo ? (1 - d.schoolCap / lo) * -100 : undefined,
+        note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellari maydonidan 41-jadval boʻyicha (20/15/10 m² oʻquvchiga). Yaqin atrofdagi mavjud maktablar hisobga olinmagan.` };
+    },
+  },
+  {
+    id: 'mtm',
+    title: 'MTM (bogʻcha) oʻrinlari',
+    source: { ...SHNQ_2_07_01, clause: '5-ilova (70–125 oʻrin / 1000 kishi); 543-band (uchastka)' },
+    evaluate(d) {
+      if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
+      const lo = Math.ceil(d.population * 0.07), hi = Math.ceil(d.population * 0.125);
+      return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
+        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).` };
+    },
+  },
+  {
+    id: 'parking',
+    title: 'Avtoturargoh joylari',
+    source: { ...SHNQ_2_07_01, clause: '416-band, 29-jadval; 413-band (ochiq — 25 m²/joy)' },
+    evaluate(d, doc) {
+      if (d.parkingReq <= 0) return { status: 'na', unit: 'joy', note: 'Talab yoʻq (binolar yoʻq)' };
+      const parts = Object.entries(d.parkingParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${v}`).join(', ');
+      return { status: d.parkingProv >= d.parkingReq ? 'pass' : 'fail', value: d.parkingProv, unit: 'joy', limit: `≥ ${d.parkingReq}`,
+        note: `Talab: ${parts} (Toshkent: kvartiraga 1). Taʼminot hozircha faqat «Avtoturargoh» parsellaridan (ochiq, 25 m²/joy); yer osti va stilobat parkovkasi — tipologiyalar bilan qoʻshiladi. Kvartiralar soni oʻrtacha ${doc.settings.aptNet} m² (netto) boʻyicha taxmin.` };
+    },
+  },
+  {
     id: 'green-per-person',
     title: 'Yashil hudud, kishi boshiga',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: 'band aniqlanmagan', verified: false },
