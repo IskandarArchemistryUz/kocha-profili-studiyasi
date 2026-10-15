@@ -222,6 +222,7 @@ const STEPS=[
     {id:"muh", t:"Tarmoqlar", page:"gis.html", gtab:"muh"},
     {id:"shamol", t:"Shamol", page:"shamol.html"}]},
   {id:"kocha", t:"Koʻcha", subs:[
+    {id:"kesim", t:"Kesim", page:"kocha.html"},
     {id:"loyiha", t:"Koʻcha loyihasi", page:"studio.html", app:"design"},
     {id:"profil", t:"Mavjud profil", page:"studio.html", app:"prof"}]},
   {id:"albom", t:"Albom", subs:[
@@ -231,7 +232,7 @@ const STEPS=[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="72";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="73";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -241,6 +242,7 @@ try{ const v=JSON.parse(localStorage.getItem("kps_project")||"null"); if(v&&type
 if(!P.lay2){ P.step=0; P.sub={}; P.lay2=1; }
 if(!P.lay3){ if(P.step===1) P.step=2; else if(P.step>1) P.step=0; P.lay3=1; }   // «Tahlil» qadami qo'shildi
 if(!P.lay4){ if(P.step===2) P.step=3; else if(P.step>2) P.step=0; P.lay4=1; }   // «Koʻcha» mahsuloti qo'shildi   // eski qadamlar (Hudud…Binolar) → bitta oyna
+if(!P.lay5){ P.sub=P.sub||{}; P.sub.kocha=0; P.lay5=1; }   // «Kesim» — Koʻchaning birinchi boʻlimi
 const saveP=()=>{ try{ localStorage.setItem("kps_project",JSON.stringify(P)); }catch(e){} };
 $("pname").value=P.name;
 $("pname").addEventListener("input",e=>{ P.name=e.target.value.trim()||"Yangi loyiha"; saveP(); document.title=P.name+" — Archemistry Lab"; });
@@ -526,6 +528,7 @@ const GUIDE={
  "tahlil-tasnif":["Yer qoplami",["Hudud avtomatik olinadi: sunʼiy yoʻldosh tasviridan asfalt, yashil va piyoda ulushi hisoblanadi.","<b>Faqat hudud ichi</b> — hududdan tashqarisini yashiradi.","<b>Albomga →</b> — xarita va jadval albomga ketadi."],""],
  "tahlil-gis":["Relyef, zichlik va tarmoqlar",["Tahlil hudud boʻyicha avtomatik boshlanadi.","Oʻngdagi tablar: <b>Balandlik</b>, <b>Nishab</b>, <b>Yer foyd.</b>, <b>Zichlik</b> (aholi bilan), <b>Tarmoqlar</b> (elektr, gaz, suv, kanalizatsiya, ariqlar).","<b>Albomga →</b> — joriy xaritani yuboradi."],""],
  "tahlil-shamol":["Shamol: mavjud holat",["<b>Binolar va shamolni yuklash</b> ni bosing (taxminan 30 soniya).","Fasl va kun vaqtini tanlang — qizil joylarda havo turib qoladi.","Loyiha binolarining taʼsiri — 4-qadam <b>Binolar → Shamol taʼsiri</b>."],"Shamol guli 1-qadam natijasida ham koʻrsatiladi."],
+ "kocha-kesim":["Koʻcha kesimi",["Chapdan shablonni tanlang.","Pastdagi tasmada elementni bosing, chetini sudrab kengligini, oʻzini sudrab tartibini oʻzgartiring.","Oʻngdagi roʻyxatdan element qoʻshing; tepada — Kesim / Reja / Aksonometriya."],""],
  "kocha-loyiha":["Koʻchani loyihalash",["Chap paneldan modulni tanlang va xaritada koʻchani chizing.","YHQ tekshiruvlari oʻng panelda, 3D koʻrinish pastda.","Xarita ustidagi <b>Albomga →</b> — chizmani yuboradi."],""],
  "kocha-profil":["Mavjud profil",["Koʻcha oʻqiga bosing — koʻndalang kesim OSM dan taxmin qilinadi.","Loyiha profili bilan solishtiring.","Profilni albomga yuboring."],""],
  "bino-posadka":["Binolarni joylashtirish",["Uchastka 1-qadamdan oʻtadi — kerak boʻlsa qayta chizing.","Bino qoʻshing va qavatini bering: zichlik, xonadonlar, aholi va insolyatsiya oʻngda hisoblanadi.","Xaritadagi <b>Shamol</b> oynasi — shamol guli; <b>Binolarning shamolga taʼsiri →</b> bilan tekshiring."],""],
