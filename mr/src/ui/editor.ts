@@ -31,6 +31,9 @@ import { analyze, boundaryPts, buildNet, svcDef, WALKABLE, type Demand, type Net
 import type { PoiBundle } from '../context/poi';
 import { centroid, area } from '../core/geo';
 import { toDxf } from '../core/dxf';
+import { tepRows, buildingRows, BUILDING_HEAD } from '../core/tep';
+import { toXlsx, type Sheet } from '../core/xlsx';
+import { reportHtml } from './report';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
@@ -666,6 +669,41 @@ export class Editor {
     body.append(h('p', { class: 'note' }, 'Meʼyor: ShNQ 2.07.01-23, 539-band, 38-jadval (shahar; asl matndan). Masofa seksiya markazidan obyekt uchastkasi chegarasigacha piyoda yoʻllar boʻylab; past zichlikdagi hududlar uchun kattaroq radiuslar (MTM 500, dorixona 800 m) hali qoʻllanmagan. 39-jadval (qizil chiziq va turar joygacha masofalar) — keyingi qadamda. OSM Toshkentda toʻliq emas: mavjud bogʻcha yoki maktab koʻrinmasa, «Parsellar» qadamida tegishli funksiyani bering.'));
   }
 
+  /* ---------- 5-bosqich: hisobot va TEP ---------- */
+  private allRules(): Result[] { return [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])]; }
+  private tep() {
+    const doc = this.store.doc, d = this.last?.d; if (!d) return [];
+    const demo = this.scene.inSite.length ? this.demolition() : null, st = this.apt.stats;
+    return tepRows(d, doc, demo, { ...(st ? { apts: st.apts, aptOk: st.bothOk } : {}), ...(this.svc.res ? { svc: this.svc.res.map(r => ({ name: svcDef(r.kind).name, r: r.r, share: r.share })) } : {}) });
+  }
+  private reportNotes(): string[] {
+    const s = this.store.doc.settings;
+    return [
+      `Aholi = kvartiralar netto maydoni ÷ ${s.m2PerPerson} m²/kishi; netto = turar joy GFA × ${s.netToGross}.`,
+      `Avtoturargoh talabi kvartiralar soniga koʻra (oʻrtacha ${s.aptNet} m²), yer osti/stilobat parkovka — 30 m²/joy brutto (taxmin).`,
+      'Mavjud binolar va koʻchalar — OpenStreetMap; balandligi yoʻqlari dogʻ maydoni va turi boʻyicha taxmin qilingan.',
+      ...(this.apt.stats ? ['Kvartiralar — fasad modullari (3,3 m) boʻyicha sxema; yashash xonalari eng yaxshi derazalarda (optimistik), balkon soyasi hisobga olinmagan.'] : []),
+      ...(this.svc.res ? ['Xizmat radiuslari piyoda yoʻllari boʻylab; OSM obyektlari toʻliq emas — qamrov pastki baho.'] : []),
+      'Shamol (agar hisoblangan boʻlsa) — 2D LBM, Lawson mezoni xalqaro amaliyotdan; Oʻzbekiston meʼyori emas.',
+    ];
+  }
+  private openReport(): void {
+    const w = window.open('', '_blank'); if (!w) { toast('Brauzer yangi oynani bloklayapti — ruxsat bering'); return; }
+    const shots = this.scene.captureViews(this.store.doc);
+    w.document.open(); w.document.write(reportHtml(this.store.doc, shots, this.tep(), this.allRules(), this.reportNotes())); w.document.close();
+  }
+  private tepXlsx(): Uint8Array {
+    const doc = this.store.doc, tep = this.tep(), rules = this.allRules();
+    const ST: Record<string, string> = { pass: 'mos', fail: 'mos emas', review: 'koʻrib chiqish', na: 'baholanmadi' };
+    const sheets: Sheet[] = [
+      { name: 'TEP', widths: [16, 52, 12, 16, 46], rows: [['Guruh', 'Koʻrsatkich', 'Birlik', 'Qiymat', 'Izoh'], ...tep.map(r => [r.g, r.name, r.unit, typeof r.v === 'number' ? Math.round(r.v * 100) / 100 : r.v, r.note ?? ''])] },
+      { name: 'Binolar', widths: [5, 26, 12, 10, 14, 18, 12, 12, 12], rows: [BUILDING_HEAD, ...buildingRows(doc)] },
+      { name: 'Reyestr', widths: [44, 34, 14, 16, 14, 70], rows: [['Talab', 'Manba', 'Qiymat', 'Meʼyor', 'Natija', 'Izoh'], ...rules.map(r => [r.title, `${r.source.doc}, ${r.source.clause}`, r.value != null ? Math.round(r.value * 100) / 100 : '', r.limit ? `${r.limit} ${r.unit ?? ''}` : '', ST[r.status], r.note ?? ''])] },
+      { name: 'Maʼlumot', widths: [30, 60], rows: [['Maydon', 'Qiymat'], ['Loyiha', doc.name], ['Sana', new Date().toLocaleDateString('ru-RU')], ['Markaz (kenglik, uzunlik)', `${doc.origin[1].toFixed(6)}, ${doc.origin[0].toFixed(6)}`], ['Qavat balandligi, m', doc.settings.floorHeight], ['Taʼminot, m²/kishi', doc.settings.m2PerPerson], ...this.reportNotes().map((n, i) => [`Taxmin ${i + 1}`, n])] },
+    ];
+    return toXlsx(sheets);
+  }
+
   /* ---------- 3-bosqich: hajmlar va seksiya generatori ---------- */
   private gen: GenParams = { ...DEFAULT_GEN };
   private genNotes: string[] = [];
@@ -1050,10 +1088,12 @@ export class Editor {
       body.append(
         h('button', { class: 'btn', id: 'exJson', onclick: () => download(`${safe(doc.name)}.archemistry.json`, exportJSON(this.store.doc)) }, 'Loyiha fayli (.json)'),
         h('button', { class: 'btn', id: 'exPng', onclick: () => download(`${safe(doc.name)}.png`, this.scene.snapshot()) }, 'Sahna rasmi (PNG)'),
+        h('button', { class: 'btn primary', id: 'exPdf', onclick: () => this.openReport() }, 'Hisobot (PDF)'),
+        h('button', { class: 'btn', id: 'exXlsx', onclick: () => download(`${safe(doc.name)}_TEP.xlsx`, new Blob([this.tepXlsx() as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })) }, 'TEP (Excel)'),
         h('button', { class: 'btn', id: 'exDxf', onclick: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } }, 'Reja va hajmlar (DXF)'),
         h('button', { class: 'btn', id: 'exGlb', onclick: () => void this.scene.exportGLB(false).then(b => download(`${safe(doc.name)}.glb`, b)).catch(e => toast(`GLB: ${(e as Error).message}`)) }, '3D model (GLB)'),
         this.scene.hasContext ? h('button', { class: 'btn', id: 'exGlbCtx', onclick: () => void this.scene.exportGLB(true).then(b => download(`${safe(doc.name)}_atrof.glb`, b)).catch(e => toast(`GLB: ${(e as Error).message}`)) }, '3D model atrof bilan (GLB)') : '',
-        h('p', { class: 'note' }, 'Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. DXF — mahalliy metrda (markaz koordinatasi faylda yozilgan), qatlamlar: uchastka, qizil chiziqlar, kvartallar funksiya boʻyicha, binolar balandligi bilan (AutoCAD/ArchiCAD da 3D). GLB — Blender, SketchUp, Rhino, ArchiCAD ochadi. PDF hisobot va Excel TEP — keyingi qadamda.'));
+        h('p', { class: 'note' }, 'Hisobot — yangi oynada: koʻrinishlar, TEP, meʼyoriy reyestr va taxminlar; «PDF saqlash» tugmasi A4 formatida saqlaydi. Excel — TEP, binolar va reyestr varaqlari. Kvartiralar va xizmatlar natijalari — tegishli qadamda hisoblangan boʻlsa qoʻshiladi. Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. DXF — mahalliy metrda (markaz koordinatasi faylda yozilgan), qatlamlar: uchastka, qizil chiziqlar, kvartallar funksiya boʻyicha, binolar balandligi bilan (AutoCAD/ArchiCAD da 3D). GLB — Blender, SketchUp, Rhino, ArchiCAD ochadi.'));
     }
   }
 
