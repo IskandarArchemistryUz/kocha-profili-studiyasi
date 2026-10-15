@@ -83,6 +83,27 @@ export function buildingHeight(t: Record<string, string>): { h: number; src: Ctx
   return { h: B_DEFAULT[t.building] ?? 9, src: 'taxmin' };
 }
 
+/**
+ * Teg yoʻq «building=yes» uchun dogʻ maydoni boʻyicha taxmin: mahalladagi kichik uylar 1–2 qavat,
+ * katta dogʻ — koʻp qavatli. (Toshkent OSM ida binolarning ~90 % balandliksiz.)
+ */
+export function heightByArea(kind: string, a: number, fallback: number): number {
+  if (!/^(yes|residential|house|detached)$/.test(kind)) return fallback;
+  if (a < 130) return 4;
+  if (a < 300) return 6.5;
+  if (kind === 'house' || kind === 'detached') return 7;
+  if (a < 700) return 9;
+  if (a < 1500) return 15;
+  return Math.max(fallback, 15);
+}
+
+export function ringAreaM2(r: LngLat[]): number {
+  if (r.length < 3) return 0;
+  const kx = 111_320 * Math.cos(r[0][1] * Math.PI / 180), ky = 111_132;
+  let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] * kx) * (r[i][1] * ky) - (r[i][0] * kx) * (r[j][1] * ky);
+  return Math.abs(a) / 2;
+}
+
 /* ---------- geometriya ---------- */
 
 interface OsmEl { type: 'node' | 'way' | 'relation'; id: number; lat?: number; lon?: number; tags?: Record<string, string>; geometry?: ({ lat: number; lon: number } | null)[]; members?: { type: string; role: string; geometry?: ({ lat: number; lon: number } | null)[] }[] }
@@ -155,7 +176,7 @@ export function parseOverpass(json: { elements?: OsmEl[] }): OsmData {
     const pts = e.type === 'way' ? toLL(e.geometry) : [];
     if (t.building && t.building !== 'no') {
       const { h, src } = buildingHeight(t);
-      areas(e, pts).forEach((rings, i) => d.buildings.push({ id: e.type === 'way' ? e.id : e.id * 100 + i, rings, h, hSrc: src, kind: t.building }));
+      areas(e, pts).forEach((rings, i) => d.buildings.push({ id: e.type === 'way' ? e.id : e.id * 100 + i, rings, h: src === 'taxmin' ? heightByArea(t.building, ringAreaM2(rings[0]), h) : h, hSrc: src, kind: t.building }));
       continue;
     }
     if (t.highway && e.type === 'way' && pts.length >= 2) { {

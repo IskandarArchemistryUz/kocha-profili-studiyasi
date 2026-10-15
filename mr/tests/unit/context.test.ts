@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseOverpass, stitch, roadWidth, buildingHeight, bboxAround, sampleLine } from '../../src/context/osm';
+import { heightByArea, parseOverpass, stitch, roadWidth, buildingHeight, bboxAround, sampleLine } from '../../src/context/osm';
 import { detectBlock } from '../../src/context/blocks';
 import { parseCoords } from '../../src/context/geocode';
 import { terrarium, mercPx, tileRange, imageryUV, terrainSampler } from '../../src/context/tiles';
@@ -23,7 +23,8 @@ describe('OSM tahlili', () => {
     ] as never });
     expect(d.buildings).toHaveLength(2);
     expect(d.buildings[0].h).toBeCloseTo(28.8); expect(d.buildings[0].hSrc).toBe('levels');
-    expect(d.buildings[1].h).toBe(24); expect(d.buildings[0].rings[0]).toHaveLength(4); // takror nuqta olib tashlandi
+    expect(d.buildings[1].h).toBe(24);
+    expect(heightByArea('yes', 100, 9)).toBe(4); expect(heightByArea('yes', 1200, 9)).toBe(15); expect(heightByArea('school', 100, 10)).toBe(10); expect(d.buildings[0].rings[0]).toHaveLength(4); // takror nuqta olib tashlandi
     expect(d.roads.map(r => r.w)).toEqual([21, 7]);
     expect(d.water).toHaveLength(1); expect(d.green).toHaveLength(1); expect(d.trees).toEqual([[69, 41]]); expect(d.rails).toHaveLength(1);
   });
