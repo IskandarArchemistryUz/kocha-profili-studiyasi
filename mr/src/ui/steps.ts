@@ -2,8 +2,8 @@
 export interface StepDef { id: string; n: number; title: string; lead: string; icon: string; phase: number }
 
 export const STEPS: StepDef[] = [
-  { id: 'hudud', n: 1, title: 'Hudud', lead: 'Loyiha qayerda joylashgani. Keyingi bosqichda — manzil qidiruvi va atrofdagi shahar 3D modeli.', phase: 0, icon: '<path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>' },
-  { id: 'uchastka', n: 2, title: 'Uchastka', lead: 'Loyihalanadigan yer chegarasi: sahnada nuqtalarni bosib chizing yoki oʻlchamini kiriting.', phase: 0, icon: '<path d="M4 7 9 4l11 4-2 11-12 1z"/>' },
+  { id: 'hudud', n: 1, title: 'Hudud', lead: 'Joyni toping va atrofdagi shaharni yuklang: OSM binolari, yoʻllar, suv, yashil hududlar, relyef va sunʼiy yoʻldosh tasviri.', phase: 0, icon: '<path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>' },
+  { id: 'uchastka', n: 2, title: 'Uchastka', lead: 'Loyihalanadigan yer chegarasi: yoʻllar orasidagi kvartalni bosib aniqlang, nuqtalab chizing yoki oʻlchamini kiriting.', phase: 0, icon: '<path d="M4 7 9 4l11 4-2 11-12 1z"/>' },
   { id: 'kocha', n: 3, title: 'Koʻchalar', lead: 'Qizil chiziqlar va koʻcha profillari.', phase: 2, icon: '<path d="M7 21 10 3M17 21 14 3M12 6v2M12 11v2M12 16v2"/>' },
   { id: 'parsel', n: 4, title: 'Parsellar va zonalar', lead: 'Kvartallar, funksiyalar, saqlanadigan kontekst.', phase: 2, icon: '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>' },
   { id: 'yashil', n: 5, title: 'Yashil karkas', lead: 'Park, bulvar, qirgʻoq.', phase: 2, icon: '<path d="M12 21v-6"/><path d="M12 15c-4 0-6-3-6-6 3 0 5 1 6 3 1-2 3-3 6-3 0 3-2 6-6 6z"/>' },
@@ -17,4 +17,4 @@ export const STEPS: StepDef[] = [
 ];
 
 /** Hozirgi qurilgan bosqich — undan kattasi «tez orada» deb koʻrsatiladi */
-export const BUILT_PHASE = 0;
+export const BUILT_PHASE = 1;

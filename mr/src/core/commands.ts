@@ -3,11 +3,15 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type LngLat, type Project, type Ring, type Settings, uid } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Settings, uid } from './doc';
+import { frame } from './geo';
 
 export type Command =
   | { type: 'rename'; name: string }
   | { type: 'setOrigin'; origin: LngLat }
+  /** hududni boshqa joyga koʻchirish; carry — uchastka va binolar ham yangi markazga koʻchadi (shakli saqlanadi) */
+  | { type: 'moveProject'; origin: LngLat; carry: boolean }
+  | { type: 'setContext'; patch: Partial<Omit<ContextSettings, 'layers'>> & { layers?: Partial<ContextSettings['layers']> } }
   | { type: 'setSite'; rings: Ring[] }
   | { type: 'clearSite' }
   | { type: 'addBuilding'; footprint: Ring; floors: number; nonRes?: number; use?: Building['use']; id?: string }
@@ -20,6 +24,8 @@ export function label(c: Command): string {
   switch (c.type) {
     case 'rename': return 'Nom oʻzgardi';
     case 'setOrigin': return 'Hudud markazi';
+    case 'moveProject': return 'Hudud koʻchirildi';
+    case 'setContext': return 'Kontekst';
     case 'setSite': return 'Uchastka chegarasi';
     case 'clearSite': return 'Uchastka oʻchirildi';
     case 'addBuilding': return 'Bino qoʻshildi';
@@ -42,6 +48,23 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       d.name = n.slice(0, 120); return d;
     }
     case 'setOrigin': d.origin = [c.origin[0], c.origin[1]]; return d;
+    case 'moveProject': {
+      const o: LngLat = [c.origin[0], c.origin[1]];
+      if (!(Math.abs(o[0]) <= 180 && Math.abs(o[1]) <= 90)) throw new CommandError('Koordinata notoʻgʻri');
+      d.origin = o;
+      if (c.carry) {
+        const a = frame(doc.origin), b = frame(o), mv = (r: Ring): Ring => r.map(p => b.toGeo(a.toLocal(p)));
+        if (doc.site) d.site = { rings: doc.site.rings.map(mv) };
+        d.buildings = doc.buildings.map(x => ({ ...x, footprint: mv(x.footprint) }));
+      }
+      return d;
+    }
+    case 'setContext': {
+      const { layers, ...rest } = c.patch;
+      const cx = { ...doc.context, ...rest, layers: { ...doc.context.layers, ...(layers || {}) } };
+      if (!(cx.radius >= 100 && cx.radius <= 2000)) throw new CommandError('Radius 100–2000 m oraligʻida boʻlsin');
+      d.context = cx; return d;
+    }
     case 'setSite': {
       if (!c.rings.length || c.rings.some(r => r.length < 3)) throw new CommandError('Chegara kamida 3 nuqtadan iborat boʻlsin');
       d.site = { rings: c.rings.map(copyRing) }; return d;
