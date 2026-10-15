@@ -19,6 +19,8 @@ export const ZONE_COL: Record<string, number> = Object.fromEntries(USES.map(u =>
 const tint = (c: number, k: number) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, f = (x: number) => Math.round(x + (255 - x) * k); return (f(r) << 16) | (f(g) << 8) | f(b); };
 const USE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.id === 'turar' ? 0xf4ece6 : tint(u.color, 0.72)]));
 const BASE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.base]));
+/** «Albom» uslubida loyiha koʻchalari: och, lekin atrofdan biroz toʻqroq (loyiha ajralib tursin) */
+const PART_ALB: Record<string, number> = { trotuar: 0xf2f0eb, yashil: 0xd3e3c4, velo: 0xe7c2b4, parkovka: 0xd9d7d2, qatnov: 0xc8c6c1, chiziq: 0xffffff };
 const PART_COL: Record<string, number> = { trotuar: 0xd8d2c6, yashil: 0x9cc77f, velo: 0xc9705a, parkovka: 0x8d9097, qatnov: 0x585b62, chiziq: 0xf4f4f0 };
 
 /** Fasad uslublari: deraza modulda (eni ulushi, tokcha va tepa balandligi, m) */
@@ -49,8 +51,8 @@ function facadeTex(kind: 'res' | 'shop' | 'glass', st: Exclude<FacadeStyle, 'yoq
 export const INSOL_BINS: [number, number, string][] = [[0, 0x2b3a67, '< 1 soat'], [1, 0x4a6fa5, '1–2'], [2, 0x7fb3c8, '2–3'], [3, 0xc9e4a5, '3–4'], [4, 0xf6e58d, '4–6'], [6, 0xf9b24e, '≥ 6']];
 export function insolColor(h: number): number { let c = INSOL_BINS[0][1]; for (const [t, col] of INSOL_BINS) if (h >= t) c = col; return c; }
 
-function treeMeshes(pts: XY[], H: HeightFn): THREE.Object3D[] {
-  const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color: 0x6f9f4c }), pts.length);
+function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] {
+  const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color }), pts.length);
   const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.25, 1, 5), new THREE.MeshLambertMaterial({ color: 0x7a6650 }), pts.length);
   const m4 = new THREE.Matrix4();
   pts.forEach((p, i) => {
@@ -240,11 +242,11 @@ export class Scene3D {
       for (const [k, o] of ord) {
         const arr = sg.layers[k]; if (!arr?.length) continue;
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: PART_COL[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: (this.album ? PART_ALB : PART_COL)[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
       }
       sg.red.forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
-      if (sg.trees.length) this.world.add(...treeMeshes(sg.trees, this.H));
+      if (sg.trees.length) this.world.add(...treeMeshes(sg.trees, this.H, this.album ? 0x9fbf86 : 0x6f9f4c));
     }
     // uchastka ichidagi mavjud binolar: saqlanadigan — oddiy, qolgani — buziladigan (shaffof qizil)
     if (this.ctx?.inSite.length) {
@@ -389,7 +391,7 @@ export class Scene3D {
    * sunʼiy yoʻldosh tasviri yashiriladi, soyalar qoladi. Loyiha (binolar, zonalar) oʻz rangida.
    * Shaffoflik ishlatilmaydi — yarim shaffof qatlamlar tartibi binolar ustida «arvoh» chiziqlar berardi.
    */
-  setAlbum(on: boolean): void { if (on === this.album) return; this.album = on; this.applyStyle(); }
+  setAlbum(on: boolean): void { if (on === this.album) return; this.album = on; this.applyStyle(); if (this.lastDoc) this.update(this.lastDoc); }
   get albumOn(): boolean { return this.album; }
   private applyStyle(): void {
     const PAL: Record<string, number> = { relyef: 0xf1efea, yashil: 0xe1e9d6, suv: 0xcfdfe8, ariqlar: 0xcfdfe8, 'yoʻlaklar': 0xf8f7f4, trotuarlar: 0xf8f7f4, 'yoʻllar': 0xdfddd8, chiziqlar: 0xffffff, binolar: 0xfcfbf9, tomlar: 0xefece7, daraxtlar: 0xcbd9bf };

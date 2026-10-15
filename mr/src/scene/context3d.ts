@@ -21,7 +21,8 @@ export type HeightFn = (x: number, y: number) => number;
 
 /** Overlay material: relyef ustida, chuqurlik testisiz, tartib boʻyicha chiziladi */
 function flatMat(color: number, order: number): THREE.MeshBasicMaterial {
-  const m = new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  // chuqurlik tekshiruvi bilan: binolar orqasidagi yoʻl ularni kesib koʻrinmasin; polygonOffset — yerdan ustun turishi uchun
+  const m = new THREE.MeshBasicMaterial({ color, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 - order, polygonOffsetUnits: -4 - order * 2 });
   m.userData.order = order; return m;
 }
 
