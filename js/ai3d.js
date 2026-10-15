@@ -119,9 +119,10 @@ async function open(ctx){if(!document.getElementById('a3css')){const st=document
   try{await load('three');await load('orbit');}catch(e){ov.querySelector('#a3b').textContent=T('3D kutubxonani yuklab boʻlmadi')+': '+e.message;return;}
   let pal;try{pal=Object.assign({},PAL0,JSON.parse(localStorage.getItem('kps_a3_pal')||'{}'));}catch(e){pal=Object.assign({},PAL0);}
   let opt={view:'sw',persp:false,shadow:true,preset:'none',lay:{},bmode:'one',lv:ctx.lv||2,fh:3.2,pinK:.6,pinS:1,stl:2000,explode:false,exGap:.6};try{Object.assign(opt,JSON.parse(localStorage.getItem('kps_a3_opt')||'{}'));}catch(e){}
-  S={ctx,ov,pal,opt,data:prep(ctx)};['pinHide','pinCatOff','pinCatH','pinOff'].forEach(k=>{if(!opt[k]||typeof opt[k]!=='object')opt[k]={};});S.ex=opt.explode?1:0;S.opt.lay=Object.assign({bld:1,tree:1,atree:1,site:1,road:1,rail:1,green:1,water:1,pins:1,ras:0,base:1,legend:1,lu:1,rel:1},S.opt.lay||{});if(S.opt.relK==null)S.opt.relK=3;
+  S={ctx,ov,pal,opt,data:prep(ctx)};['pinHide','pinCatOff','pinCatH','pinOff','txOff'].forEach(k=>{if(!opt[k]||typeof opt[k]!=='object')opt[k]={};});S.ex=opt.explode?1:0;S.opt.lay=Object.assign({bld:1,tree:1,atree:1,site:1,road:1,rail:1,green:1,water:1,pins:1,ras:0,base:1,legend:1,lu:1,rel:1},S.opt.lay||{});if(S.opt.relK==null)S.opt.relK=3;
   const d=S.data;ov.querySelector('#a3st').innerHTML=[['binolar',d.blds.length],['koʻchalar',d.roadKm.toFixed(1)+' km'],['daraxtlar',d.trees.length],['ikonkalar',d.pins.length],['maydon',d.areaKm2.toFixed(2)+' km²']].map(([n,v])=>`<span>${T(n)}<b>${v}</b></span>`).join('');
-  initGL();buildAll();panel();bindPointer();setView(S.opt.explode&&(S.opt.view==='top'||S.opt.view==='eye')?'sw':S.opt.view,true);ov.querySelector('#a3b').remove();if(S.opt.explode)ensureRel();}
+  initGL();buildAll();panel();bindPointer();setView(S.opt.explode&&(S.opt.view==='top'||S.opt.view==='eye')?'sw':S.opt.view,true);ov.querySelector('#a3b').remove();if(S.opt.explode)ensureRel();
+  loadTx();if(window.KPSLAY&&!window.__a3tx){window.__a3tx=1;KPSLAY.onChange(()=>{if(S)loadTx();});}}
 const saveOpt=()=>{try{localStorage.setItem('kps_a3_opt',JSON.stringify(S.opt));localStorage.setItem('kps_a3_pal',JSON.stringify(S.pal));}catch(e){}};
 
 function panel(){const o=S.opt,p=S.pal,d=S.data,el=S.ov.querySelector('#a3p');const L=o.lay;
@@ -133,6 +134,7 @@ function panel(){const o=S.opt,p=S.pal,d=S.data,el=S.ov.querySelector('#a3p');co
     ${row('bld','bld','Binolar',d.blds.length)}${row('tree','tree','Daraxtlar (OSM)',d.trees.length)}${row('atree','atree','Daraxtlar — avto, yashildan',d.atrees.length)}${row('site','site','Uchastka chegarasi',d.sites.length||'')}${row('road','road','Koʻchalar',d.roadKm.toFixed(1)+' km')}${sub('major','magistrallar')}${sub('foot','piyoda yoʻllari')}
     ${row('rail','rail','Temir yoʻl, aeroport',d.rails.length+d.runway.length||'')}${row('lu','','Yer foydalanish (OSM)',d.land.length||'')}${row('green','green','Yashil hududlar',d.green.length)}${row('water','water','Suv',d.water.length+d.canals.length||'')}
     ${row('pins','','Ikonkalar ustunda',d.pins.length)}${d.rasters.length?row('ras','','Tahlil qatlami yerda',d.rasters.length):''}${row('rel','','Relyef (ajratilganda)',S.data.rel?Math.round(S.data.rel.emax-S.data.rel.emin)+' m':'')}${row('base','base','Asos (plita)')}${row('','ground','Yer yuzasi')}${row('','bg','Fon')}${row('','edge','Kontur')}${row('legend','','Legenda (vektor)')}</div>
+  <div class="sec"><div class="lbl">${T('Tahlil qatlamlari — ajratilganda')}</div>${(S.tx||[]).length?(S.tx||[]).map(t=>`<label class="ly"><input type="checkbox" data-tx="${esc(t.id)}" ${o.txOff[t.id]?'':'checked'}><span></span><span>${esc(T(txName(t)))}${t.top?' ↑':''}</span><i>${S.txC&&S.txC[t.id]?'':'…'}</i></label>`).join('')+`<div class="nt">${T('Tahlil tablarida hisoblangan natijalar: shamol — eng tepada, qolganlari — relyef ostida. «Qatlamlarga ajratish» yoqilganda koʻrinadi.')}</div>`:`<div class="nt">${T('Tahlil tablarini (Yer qoplami, Relyef, Nishab, Yer foydalanish, Zichlik, Tarmoqlar, Shamol) bir marta oching — natija shu yerga alohida qatlam boʻlib qoʻshiladi.')}</div>`}</div>
   <div class="sec"><div class="lbl">${T('Binolar')}</div><div class="seg">${[['one','Bir rang'],['lv','Qavatlar'],['use','Funksiya']].map(([k,n])=>`<button data-bm="${k}" aria-pressed="${o.bmode===k}">${T(n)}</button>`).join('')}</div>
     <div class="rw"><span>${T('Tegsiz bino, qavat')}</span><input type="range" min="1" max="9" step="1" id="a3lv" value="${o.lv}"><output>${o.lv}</output></div>
     <div class="rw"><span>${T('Qavat balandligi, m')}</span><input type="range" min="2.7" max="4.5" step=".1" id="a3fh" value="${o.fh}"><output>${o.fh}</output></div></div>
@@ -154,6 +156,7 @@ function panel(){const o=S.opt,p=S.pal,d=S.data,el=S.ov.querySelector('#a3p');co
   pp.onchange=e=>{o.persp=e.target.checked;pp.closest('.chip').setAttribute('aria-pressed',o.persp);setView(o.view);};
   sh.onchange=e=>{o.shadow=e.target.checked;sh.closest('.chip').setAttribute('aria-pressed',o.shadow);applyShadow();saveOpt();render();};
   el.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{o.preset=b.dataset.pr;const pr=PRESET[o.preset];Object.assign(S.pal,PAL0,pr,o.cpal||{});delete S.pal.edges;restyle();panel();saveOpt();});
+  el.querySelectorAll('[data-tx]').forEach(i=>i.onchange=()=>{if(i.checked)delete o.txOff[i.dataset.tx];else o.txOff[i.dataset.tx]=1;saveOpt();buildTx();applyLevels();if(S.ex>.01)recenter();render();});
   el.querySelectorAll('[data-ly]').forEach(i=>i.onchange=()=>{L[i.dataset.ly]=i.checked?1:0;if(i.dataset.ly==='rel'&&L.rel&&S.ex>.01)ensureRel();vis();applyLevels();if(S.ex>.01)recenter();saveOpt();if(i.dataset.ly==='pins')setView(o.view);else render();});
   el.querySelectorAll('[data-bm]').forEach(b=>b.onclick=()=>{o.bmode=b.dataset.bm;buildBlds();panel();saveOpt();render();});
   const rng=(id,k,fn)=>{const i=el.querySelector(id);i.oninput=()=>{o[k]=+i.value;i.nextElementSibling.textContent=i.value;fn();render();};i.onchange=saveOpt;};
@@ -180,6 +183,8 @@ function initGL(){const v=S.ov.querySelector('#a3v'),W=v.clientWidth,H=v.clientH
   S.onR=()=>{if(!S)return;const W2=v.clientWidth,H2=v.clientHeight;ren.setSize(W2,H2);fitCam();render();};window.addEventListener('resize',S.onR);}
 function pinLift(){return S.opt.lay.pins&&visPins().length?pinStalk():0;}
 function liftAll(){return S.opt.view==='top'?0:pinLift()+levels().top;}
+function midY(){if(S.opt.view==='top')return 0;const L=levels();return (pinLift()+L.top+L.bot)*.4;}
+function spanY(){return S.opt.view==='top'?0:liftAll()-levels().bot;}
 /* ---------------- sichqoncha: ikonkalarni sudrash, uchastka chizish ---------------- */
 function bindPointer(){const el=S.ren.domElement,rc=new THREE.Raycaster(),ndc=new THREE.Vector2(),plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);let drag=null,down=null;
   const setN=e=>{const r=el.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);rc.setFromCamera(ndc,S.cam);};
@@ -203,13 +208,13 @@ function siteStart(){S.sdraw=[];S.ov.querySelector('#a3site').setAttribute('aria
 function siteCancel(){S.sdraw=null;S.ov.querySelector('#a3site').setAttribute('aria-pressed','false');buildSites();render();siteTip();}
 function siteFinish(){const sd=S.sdraw;if(!sd||sd.length<3)return;const pts=sd.map(S.data.inv);const all=(S.ctx.sites||[]).concat([{id:Date.now().toString(36),pts}]);S.ctx.sites=all;if(S.ctx.onSites)S.ctx.onSites(all);
   S.data.sites=all.map(x=>x.pts.map(S.data.P));S.opt.lay.site=1;siteCancel();panel();S.ctx.toast(T('Uchastka chegarasi saqlandi — xaritada ham koʻrinadi.'));}
-function fitCam(){const v=S.ov.querySelector('#a3v'),a=v.clientWidth/Math.max(1,v.clientHeight),R=S.data.R*1.12+liftAll()*.45,cam=S.cam;if(!cam)return;
+function fitCam(){const v=S.ov.querySelector('#a3v'),a=v.clientWidth/Math.max(1,v.clientHeight),R=S.data.R*1.12+spanY()*.45,cam=S.cam;if(!cam)return;
   if(cam.isOrthographicCamera){cam.left=-R*a;cam.right=R*a;cam.top=R;cam.bottom=-R;}else cam.aspect=a;cam.updateProjectionMatrix();}
 function setView(k,first){const o=S.opt;o.view=k;saveOpt();const R=S.data.R,eye=k==='eye';const persp=o.persp||eye;
   const cam=persp?new THREE.PerspectiveCamera(eye?55:30,1,1,R*40):new THREE.OrthographicCamera(-1,1,1,-1,-R*20,R*20);S.cam=cam;fitCam();
   const dir={nw:[-1,1,-1],ne:[1,1,-1],sw:[-1,1,1],se:[1,1,1],top:[0,1,.001],eye:[-1,.05,1]}[k]||[-1,1,1],dv=new THREE.Vector3(...dir).normalize();
   const dist=persp?(eye?R*.9:R/Math.tan(15*Math.PI/180)*1.15):R*4;cam.position.copy(dv.multiplyScalar(dist));if(eye)cam.position.y=Math.max(cam.position.y,1.7*6);
-  const tgt=new THREE.Vector3(0,eye?6:liftAll()*.4,0);S.cy=tgt.y;cam.lookAt(tgt);if(S.ctl)S.ctl.dispose();const ctl=new THREE.OrbitControls(cam,S.ren.domElement);ctl.target.copy(tgt);ctl.enableDamping=false;ctl.screenSpacePanning=true;ctl.maxPolarAngle=Math.PI*.495;
+  const tgt=new THREE.Vector3(0,eye?6:midY(),0);S.cy=tgt.y;cam.lookAt(tgt);if(S.ctl)S.ctl.dispose();const ctl=new THREE.OrbitControls(cam,S.ren.domElement);ctl.target.copy(tgt);ctl.enableDamping=false;ctl.screenSpacePanning=true;ctl.maxPolarAngle=Math.PI*.495;
   ctl.addEventListener('change',render);ctl.update();S.ctl=ctl;S.ov.querySelectorAll('[data-vw]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.vw===k));render();}
 function render(){if(S&&S.ren&&S.cam){const cam=S.cam;// ikonkalar ekranda doimiy oʻlchamda
     if(S.gPin){const f=.034*S.opt.pinS,v=new THREE.Vector3();S.gPin.children.forEach(o=>{if(!o.isSprite)return;const k=cam.isOrthographicCamera?f*(cam.top-cam.bottom)/cam.zoom:f*2*Math.tan(cam.fov*Math.PI/360)*v.copy(o.position).sub(cam.position).length();if(o.userData.lbl){const a=o.userData.asp;o.scale.set(k*.62*a,k*.62,1);return;}const m=o.userData.ring?1.75:o.userData.key===S.pinSel?1.3:1;o.scale.set(k*m,k*m,1);});}
@@ -358,7 +363,8 @@ function relContours(){const {r,Y}=relGrid(),out=[];if(!r)return out;const e=(i,
 
 /* ---------------- qatlamlarga ajratish ---------------- */
 const LVN={base:'Relyef',base0:'Asos',road:'Yoʻllar',land:'Yashil zona va yer foydalanish',ras:'Tahlil',bld:'Binolar',pins:'Xizmatlar'};
-function levels(){const L=S.opt.lay,d=S.data,g=(S.opt.exGap??.6)*d.R*(S.ex||0),order=['base'];
+function lvName(k){if(k.startsWith('tx:')){const t=(S.tx||[]).find(t=>'tx:'+t.id===k);return t?txName(t):k;}return T(LVN[k==='base'&&!(S.data.rel&&S.opt.lay.rel)?'base0':k]);}
+function levels(){let L=S.opt.lay,d=S.data,g=(S.opt.exGap??.6)*d.R*(S.ex||0),order=['base'];
   if((L.road&&(d.roads.major.length||d.roads.minor.length||d.roads.foot.length))||(L.rail&&(d.rails.length||d.runway.length||d.aero.length)))order.push('road');
   if((L.lu&&d.land.length)||(L.green&&d.green.length)||(L.water&&(d.water.length||d.canals.length))||(L.tree&&d.trees.length)||(L.atree&&d.atrees.length))order.push('land');
   if(L.ras&&d.rasters.length)order.push('ras');
@@ -367,9 +373,62 @@ function levels(){const L=S.opt.lay,d=S.data,g=(S.opt.exGap??.6)*d.R*(S.ex||0),o
   const y={base:0,road:0,land:0,ras:0,bld:0,pins:0};order.forEach((k,i)=>y[k]=i*g);
   // relyef balandligi boshqa qatlamlarni ustiga surmasin
   const rh=relH();if(rh>0)order.forEach((k,i)=>{if(i>0)y[k]+=rh;});
-  return {order,y,top:(order.length-1)*g+(order.length>1?rh:0)};}
+  let top=(order.length-1)*g+(order.length>1?rh:0),bot=0;
+  /* tahlil boʻlimlari natijalari (js/layerbus.js): shamol — eng tepada, qolganlari — relyef ostida */
+  if((S.ex||0)>.01){const tx=txOn(),dn=tx.filter(t=>!t.top),up=tx.filter(t=>t.top);
+    dn.forEach((t,j)=>{y['tx:'+t.id]=-(j+1)*g;});bot=-dn.length*g;
+    const t0=top+(order.includes('pins')?pinLift():0);up.forEach((t,j)=>{y['tx:'+t.id]=t0+(j+1)*g;});if(up.length)top=t0+up.length*g;
+    order=dn.map(t=>'tx:'+t.id).reverse().concat(order,up.map(t=>'tx:'+t.id));}
+  return {order,y,top,bot};}
+/* ---------------- tahlil qatlamlari (Yer qoplami, Relyef, Nishab, Yer foyd., Zichlik, Tarmoqlar, Shamol) ---------------- */
+const TXO=id=>({tasnif:0,'gis-balandlik':1,'gis-relyef':1,'gis-nishab':2,'gis-yer':3,'gis-zich':4,'gis-muh':5})[id]??(id.startsWith('shamol')?9:6);
+function txName(g){const n=String(g.name||g.id);return n.startsWith('Relyef · ')?n.slice(9):n;}
+function txOn(){return (S.tx||[]).filter(t=>!S.opt.txOff[t.id]&&S.txC&&S.txC[t.id]);}
+function pickTx(gs){gs=(gs||[]).filter(g=>g&&g.layers&&g.layers.length&&g.id!=='gis-asos');const sh=gs.filter(g=>g.id.startsWith('shamol')).sort((a,b)=>(b.t||0)-(a.t||0));
+  const out=gs.filter(g=>!g.id.startsWith('shamol')).concat(sh.slice(0,1));out.forEach(g=>{g.top=g.id.startsWith('shamol');});return out.sort((a,b)=>TXO(a.id)-TXO(b.id));}
+async function loadTx(){if(!window.KPSLAY||!S)return;const gs=pickTx(await KPSLAY.list());if(!S)return;S.tx=gs;S.txC=S.txC||{};
+  await Promise.all(gs.map(async g=>{const key=g.id+':'+g.t;if(S.txC[g.id]&&S.txC[g.id].key===key)return;try{S.txC[g.id]=Object.assign(await txCanvas(g),{key});}catch(e){console.warn('Tahlil qatlami chizilmadi',g.id,e);}}));
+  if(!S)return;buildTx();applyLevels();if(S.ex>.01)recenter();panel();render();}
+/* MapLibre ifodalari — oddiy hisoblovchi (get, case, match, interpolate, step, ==, all…) */
+function pcol(c){if(typeof c!=='string')return null;const x=document.createElement('canvas').getContext('2d');x.fillStyle='#000';x.fillStyle=c;const v=x.fillStyle;if(v[0]==='#')return [parseInt(v.slice(1,3),16),parseInt(v.slice(3,5),16),parseInt(v.slice(5,7),16),1];const m=v.match(/[\d.]+/g);return m?[+m[0],+m[1],+m[2],m[3]!=null?+m[3]:1]:null;}
+function lerpC(a,b,t){const A=pcol(a),B=pcol(b);if(!A||!B)return t<.5?a:b;return `rgba(${A.map((v,i)=>i<3?Math.round(v+(B[i]-v)*t):(v+(B[i]-v)*t).toFixed(3)).join(',')})`;}
+function ev(e,f){if(!Array.isArray(e))return e;const P=f.properties||{},op=e[0],a=i=>ev(e[i],f);
+  switch(op){case 'get':return P[e[1]];case 'has':return e[1] in P;case 'literal':return e[1];case 'zoom':return 15;case 'geometry-type':return (f.geometry||{}).type;
+    case 'to-number':return +a(1)||0;case 'to-string':return String(a(1)??'');case 'to-color':return a(1);
+    case 'coalesce':for(let i=1;i<e.length;i++){const v=a(i);if(v!=null)return v;}return null;
+    case '==':return a(1)==a(2);case '!=':return a(1)!=a(2);case '<':return a(1)<a(2);case '>':return a(1)>a(2);case '<=':return a(1)<=a(2);case '>=':return a(1)>=a(2);
+    case '!':return !a(1);case 'all':return e.slice(1).every((_,i)=>a(i+1));case 'any':return e.slice(1).some((_,i)=>a(i+1));
+    case '+':return e.slice(1).reduce((s,_,i)=>s+(+a(i+1)||0),0);case '*':return e.slice(1).reduce((s,_,i)=>s*(+a(i+1)||0),1);case '-':return e.length>2?a(1)-a(2):-a(1);case '/':return a(1)/a(2);
+    case 'case':{for(let i=1;i<e.length-1;i+=2)if(a(i))return a(i+1);return a(e.length-1);}
+    case 'match':{const v=a(1);for(let i=2;i<e.length-1;i+=2){const k=e[i];if(Array.isArray(k)?k.includes(v):k===v)return a(i+1);}return a(e.length-1);}
+    case 'step':{const v=a(1);let out=a(2);for(let i=3;i<e.length;i+=2){if(v>=a(i))out=a(i+1);else break;}return out;}
+    case 'interpolate':{const v=+a(2);const st=[];for(let i=3;i<e.length;i+=2)st.push([+a(i),a(i+1)]);if(!st.length)return null;if(v<=st[0][0])return st[0][1];for(let i=1;i<st.length;i++)if(v<=st[i][0]){const [x0,y0]=st[i-1],[x1,y1]=st[i],t=(v-x0)/((x1-x0)||1);return typeof y0==='number'?y0+(y1-y0)*t:lerpC(y0,y1,t);}return st[st.length-1][1];}
+    case 'rgb':return `rgb(${a(1)},${a(2)},${a(3)})`;case 'rgba':return `rgba(${a(1)},${a(2)},${a(3)},${a(4)})`;case 'concat':return e.slice(1).map((_,i)=>a(i+1)).join('');
+    default:return null;}}
+function txCanvas(g){const d=S.data,xs=d.ring.map(p=>p[0]),ys=d.ring.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),K=Math.min(3,2048/Math.max(x1-x0,y1-y0));
+  const cv=document.createElement('canvas');cv.width=Math.max(2,Math.round((x1-x0)*K));cv.height=Math.max(2,Math.round((y1-y0)*K));const c=cv.getContext('2d');
+  const X=ll=>{const q=d.P([ll[1],ll[0]]);return [(q[0]-x0)*K,(y1-q[1])*K];},MPP=2.5;
+  c.save();c.beginPath();d.ring.forEach((q,i)=>{const px=(q[0]-x0)*K,py=(y1-q[1])*K;i?c.lineTo(px,py):c.moveTo(px,py);});c.closePath();c.clip();
+  const imgs=Object.entries(g.sources).filter(([k,v])=>v.type==='image').map(([k,v])=>new Promise(ok=>{const im=new Image();im.onload=()=>ok([k,im]);im.onerror=()=>ok([k,null]);im.src=v.url;}));
+  return Promise.all(imgs).then(list=>{const IM=Object.fromEntries(list);
+    const path=(cs,close)=>{cs.forEach((p,i)=>{const q=X(p);i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]);});if(close)c.closePath();};
+    g.layers.forEach(l=>{const src=g.sources[l.source];if(!src)return;const pt=l.paint||{};
+      if(l.type==='raster'&&src.type==='image'){const im=IM[l.source];if(!im)return;const cs=src.coordinates.map(X),bx=Math.min(...cs.map(q=>q[0])),by=Math.min(...cs.map(q=>q[1])),bw=Math.max(...cs.map(q=>q[0]))-bx,bh=Math.max(...cs.map(q=>q[1]))-by;
+        c.globalAlpha=+ev(pt['raster-opacity'],{})||1;c.drawImage(im,bx,by,bw,bh);c.globalAlpha=1;return;}
+      if(src.type!=='geojson')return;const fs=(src.data&&src.data.features)||(src.data&&src.data.type==='Feature'?[src.data]:[]);
+      fs.forEach(f=>{if(!f||!f.geometry)return;if(l.filter&&!ev(l.filter,f))return;const G=f.geometry,ty=G.type;
+        if(l.type==='fill'&&/Polygon/.test(ty)){const col=ev(pt['fill-color']??'#000',f),op=ev(pt['fill-opacity']??1,f);c.globalAlpha=op==null?1:+op;c.fillStyle=col||'#000';c.beginPath();(ty==='Polygon'?[G.coordinates]:G.coordinates).forEach(pg=>pg.forEach(r=>path(r,true)));c.fill('evenodd');
+          const oc=pt['fill-outline-color']&&ev(pt['fill-outline-color'],f);if(oc){c.strokeStyle=oc;c.lineWidth=1;c.stroke();}c.globalAlpha=1;}
+        else if(l.type==='line'){const col=ev(pt['line-color']??'#000',f),op=ev(pt['line-opacity']??1,f),w=+ev(pt['line-width']??1,f)||1;c.globalAlpha=op==null?1:+op;c.strokeStyle=col||'#000';c.lineWidth=Math.max(1,w*MPP*K);c.lineCap='round';c.lineJoin='round';
+          const da=pt['line-dasharray'];c.setLineDash(Array.isArray(da)&&da.length===2&&da[1]>0?[da[0]*w*MPP*K,da[1]*w*MPP*K]:[]);
+          c.beginPath();const ls=ty==='LineString'?[G.coordinates]:ty==='MultiLineString'?G.coordinates:ty==='Polygon'?G.coordinates:ty==='MultiPolygon'?G.coordinates.flat():[];ls.forEach(r=>path(r,false));c.stroke();c.setLineDash([]);c.globalAlpha=1;}
+        else if(l.type==='circle'&&/Point/.test(ty)){const col=ev(pt['circle-color']??'#000',f),r=+ev(pt['circle-radius']??3,f)||3;c.fillStyle=col||'#000';(ty==='Point'?[G.coordinates]:G.coordinates).forEach(p=>{const q=X(p);c.beginPath();c.arc(q[0],q[1],Math.max(1.5,r*MPP*K*.6),0,Math.PI*2);c.fill();});}});});
+    c.restore();return {cv,box:{x0,x1,y0,y1}};});}
+function buildTx(){const g=grp('gTx'),d=S.data;const sh=new THREE.Shape(d.ring.map(p=>new THREE.Vector2(p[0],p[1])));
+  txOn().forEach(t=>{const C=S.txC[t.id],b=C.box,sg=new THREE.ShapeGeometry(sh),uv=sg.attributes.uv,pp=sg.attributes.position;for(let i=0;i<uv.count;i++)uv.setXY(i,(pp.getX(i)-b.x0)/(b.x1-b.x0),(pp.getY(i)-b.y0)/(b.y1-b.y0));sg.rotateX(-Math.PI/2);
+    const tex=new THREE.CanvasTexture(C.cv);tex.anisotropy=4;const m=new THREE.Mesh(sg,new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));m.userData={k:'tx:'+t.id,own:1};m.renderOrder=3;g.add(m);});}
 function relH(){const r=S.data.rel;return r&&S.opt.lay.rel&&(S.ex||0)>.01?(r.emax-r.emin)*S.opt.relK*(S.ex||0):0;}
-function applyLevels(){if(!S||!S.root)return;const {y}=levels();
+function applyLevels(){if(!S||!S.root)return;const {y}=levels();if(S.gTx)S.gTx.children.forEach(m=>{const yy=y[m.userData.k];m.visible=yy!=null&&(S.ex||0)>.01;if(yy!=null)m.position.y=yy+.25;m.material.opacity=S.ex||0;});
   if(S.gRas)S.gRas.position.y=y.ras;if(S.gFlat)S.gFlat.children.forEach(m=>{const l=m.userData.lay;m.position.y=(l==='green'||l==='water'||l==='lu')?y.land:(l==='road'||l==='rail')?y.road:0;});if(S.gRel){S.gRel.scale.y=Math.max(.001,S.ex||0);S.gRel.visible=!!S.opt.lay.rel&&(S.ex||0)>.01;}
   if(S.gTree)S.gTree.position.y=y.land;if(S.gATree)S.gATree.position.y=y.land;if(S.gBld)S.gBld.position.y=y.bld;if(S.gSite)S.gSite.position.y=y.bld;if(S.gPin)S.gPin.position.y=y.pins;buildPlates();}
 const LBT={};
@@ -378,7 +437,7 @@ function lblTex(t){if(LBT[t])return LBT[t];const cv=document.createElement('canv
 /* uchastkaning chekka nuqtalari (gʻarb, sharq, janub, shimol) — tik chiziqlar uchun */
 function siteCorners(r){const pick=[r.reduce((a,b)=>b[0]<a[0]?b:a),r.reduce((a,b)=>b[0]>a[0]?b:a),r.reduce((a,b)=>b[1]<a[1]?b:a),r.reduce((a,b)=>b[1]>a[1]?b:a)],out=[];pick.forEach(q=>{if(!out.some(o=>Math.hypot(o[0]-q[0],o[1]-q[1])<1))out.push(q);});return out;}
 function slabT(){return Math.max(3,S.data.R*.012);}
-function buildPlates(){const g=grp('gPlate'),ex=S.ex||0;if(ex<.01){g.visible=false;return;}const d=S.data,{order,y,top}=levels(),sh=new THREE.Shape(d.ring.map(p=>new THREE.Vector2(p[0],p[1])));
+function buildPlates(){const g=grp('gPlate'),ex=S.ex||0;if(ex<.01){g.visible=false;return;}const d=S.data,{order,y,top,bot}=levels(),sh=new THREE.Shape(d.ring.map(p=>new THREE.Vector2(p[0],p[1])));
   const ol=[];d.ring.forEach((q,i)=>{const r=d.ring[(i+1)%d.ring.length];ol.push(q[0],0,-q[1],r[0],0,-r[1]);});
   order.forEach(k=>{const yk=y[k];if(k!=='base'){if(k!=='ras'){const th=slabT(),eg=new THREE.ExtrudeGeometry(sh,{depth:th,bevelEnabled:false,curveSegments:1});eg.rotateX(-Math.PI/2);eg.translate(0,-th,0);
         const mt=mat('plTop',S.pal.ground),ms=mat('plSide',shade(S.pal.base,.92));[mt,ms].forEach(q=>{const tr=ex<.99;if(q.transparent!==tr)q.needsUpdate=true;q.transparent=tr;q.opacity=ex;});const m=new THREE.Mesh(eg,[mt,ms]);m.position.y=yk-.4;m.receiveShadow=true;g.add(m);}
@@ -387,7 +446,7 @@ function buildPlates(){const g=grp('gPlate'),ex=S.ex||0;if(ex<.01){g.visible=fal
     if(k==='pins'&&S.gFlat){S.gFlat.children.forEach(m=>{const l=m.userData.lay;if(!m.isMesh||!['road','rail','water','green','lu'].includes(l)||!m.visible)return;
       const c=new THREE.Mesh(m.geometry,new THREE.MeshBasicMaterial({color:l==='road'||l==='rail'?'#8a877f':l==='water'?'#b9cfdc':'#d3dcc6',transparent:true,opacity:(l==='road'||l==='rail'?.75:.55)*ex,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2}));
       c.position.y=yk+.12;c.position.x=m.position.x;c.position.z=m.position.z;c.rotation.copy(m.rotation);c.scale.copy(m.scale);c.renderOrder=4;c.userData.own=1;c.userData.shared=1;g.add(c);});}
-    const t=lblTex(T(LVN[k==='base'&&!(S.data.rel&&S.opt.lay.rel)?'base0':k])),sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t.tx,depthTest:false,transparent:true,opacity:ex}));sp.center.set(1.08,.5);sp.userData={lbl:1,y:yk+(k==='pins'?0:2)+(k==='base'?relH()*.5:0),asp:t.asp};sp.renderOrder=12;g.add(sp);});
+    const t=lblTex(lvName(k)),sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t.tx,depthTest:false,transparent:true,opacity:ex}));sp.center.set(1.08,.5);sp.userData={lbl:1,y:yk+(k==='pins'?0:2)+(k==='base'?relH()*.5:0),asp:t.asp};sp.renderOrder=12;g.add(sp);});
   // uchastka chegarasi har qatlamda (proyeksiya): ochroq qizil punktir va yengil boʻyoq; relyefda — sirt boʻylab
   if(S.opt.lay.site&&d.sites.length){const relOn=!!(d.rel&&S.opt.lay.rel),w=Math.max(1,d.R/260),col=new THREE.Color(S.pal.site);
     const hR=(x,yy)=>relAt(x,yy)*ex+.4;
@@ -398,10 +457,10 @@ function buildPlates(){const g=grp('gPlate'),ex=S.ex||0;if(ex<.01){g.visible=fal
     // tik punktir: uchastkaning chekka nuqtalaridan qatlamlar orqali
     const vp=[];d.sites.forEach(r=>{siteCorners(r).forEach(q=>{const y0=relOn?hR(q[0],q[1]):0;vp.push(q[0],y0,-q[1],q[0],y.bld+.6,-q[1]);});});
     if(vp.length&&y.bld>0){const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(vp,3));const l=new THREE.LineSegments(lg,new THREE.LineDashedMaterial({color:col,dashSize:Math.max(2,d.R/120),gapSize:Math.max(2,d.R/110),transparent:true,opacity:.75*ex}));l.computeLineDistances();l.userData.own=1;g.add(l);}}
-  if(top>0){const n=4,pp=[];for(let i=0;i<n;i++){const q=d.ring[Math.floor(i*d.ring.length/n)];pp.push(q[0],0,-q[1],q[0],top,-q[1]);}const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(pp,3));
+  if(top>0||bot<0){const n=4,pp=[];for(let i=0;i<n;i++){const q=d.ring[Math.floor(i*d.ring.length/n)];pp.push(q[0],bot||0,-q[1],q[0],top,-q[1]);}const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(pp,3));
     const l=new THREE.LineSegments(lg,new THREE.LineDashedMaterial({color:'#8a877f',dashSize:Math.max(2,d.R/90),gapSize:Math.max(2,d.R/70),transparent:true,opacity:.8*ex}));l.computeLineDistances();l.userData.own=1;g.add(l);}
   g.visible=true;}
-function recenter(){if(!S.cam||!S.ctl)return;const want=liftAll()*.4,dy=want-(S.cy??S.ctl.target.y);S.cam.position.y+=dy;S.ctl.target.y+=dy;S.cy=want;fitCam();S.ctl.update();}
+function recenter(){if(!S.cam||!S.ctl)return;const want=midY(),dy=want-(S.cy??S.ctl.target.y);S.cam.position.y+=dy;S.ctl.target.y+=dy;S.cy=want;fitCam();S.ctl.update();}
 function setExplode(on){const o=S.opt;o.explode=!!on;saveOpt();S.ov.querySelector('#a3exb').setAttribute('aria-pressed',o.explode);S.ov.querySelectorAll('[data-exk]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.exk==='1')===o.explode));
   if(o.explode&&(o.view==='top'||o.view==='eye'))setView('sw');applyShadow();if(o.explode)ensureRel();
   if(S.exAnim)cancelAnimationFrame(S.exAnim);const e0=S.ex||0,e1=o.explode?1:0,t0=performance.now();
@@ -468,7 +527,7 @@ function toSVG(){const cam=S.cam,v=S.ov.querySelector('#a3v'),W=1800,H=Math.roun
   const landFlat=y=>{if(L.green)flat(d.green,p.green,y+.05);if(L.water){flat(d.water,p.water,y+.08);rib(d.canals,p.water,y+.08);}};
   const walls=(ytop,ybot,col)=>{const r=d.ring,cd=new THREE.Vector3();cam.getWorldDirection(cd);for(let i=0;i<r.length;i++){const a=r[i],b=r[(i+1)%r.length],n3=new THREE.Vector3(b[1]-a[1],0,b[0]-a[0]);if(n3.dot(cd)>=0)continue;s+=`<path d="M${P2([a,b],ytop)}L${P2([b,a],ybot)}Z" fill="${col}" stroke="${col}" stroke-width=".6"/>`;}};
   const plate=(y)=>{walls(y-.4,y-.4-slabT(),shade(p.base,.86));s+=`<path d="${ringD(y-.4)}" fill="${p.ground}" stroke="#8a877f" stroke-width=".8"/>`;};
-  const label=(k,y)=>{let best=null,bx=1e9;d.ring.forEach(q=>{const c=pr(q[0],y,-q[1]);if(c[0]<bx){bx=c[0];best=c;}});const t=T(LVN[k==='base'&&!(d.rel&&L.rel)?'base0':k]),w=t.length*8.2+22;s+=`<g><rect x="${(best[0]-w-14).toFixed(1)}" y="${(best[1]-12).toFixed(1)}" width="${w.toFixed(1)}" height="24" fill="#141414"/><text x="${(best[0]-w-3).toFixed(1)}" y="${(best[1]+5).toFixed(1)}" font-size="13.5" fill="#fff">${esc(t)}</text></g>`;};
+  const label=(k,y)=>{let best=null,bx=1e9;d.ring.forEach(q=>{const c=pr(q[0],y,-q[1]);if(c[0]<bx){bx=c[0];best=c;}});const t=lvName(k),w=t.length*8.2+22;s+=`<g><rect x="${(best[0]-w-14).toFixed(1)}" y="${(best[1]-12).toFixed(1)}" width="${w.toFixed(1)}" height="24" fill="#141414"/><text x="${(best[0]-w-3).toFixed(1)}" y="${(best[1]+5).toFixed(1)}" font-size="13.5" fill="#fff">${esc(t)}</text></g>`;};
   // hajmlar (binolar, daraxtlar) — chuqurlik boʻyicha
   const camDir=new THREE.Vector3();cam.getWorldDirection(camDir);const lt=new THREE.Vector3(-.8,0,.5).normalize();
   const bldPrims=y0=>{const pr2=[];if(L.bld)d.blds.forEach(b=>{const h=bHeight(b),r=b.g,col=bColor(b);
@@ -484,6 +543,10 @@ function toSVG(){const cam=S.cam,v=S.ov.querySelector('#a3v'),W=1800,H=Math.roun
   const ghostRel=()=>{if(!(L.site&&d.sites.length))return;const kx=S.ex||0;d.sites.forEach(r=>{const pts=[];r.forEach((a,i)=>{const b=r[(i+1)%r.length],n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/4));for(let t=0;t<n;t++){const x=a[0]+(b[0]-a[0])*t/n,yy=a[1]+(b[1]-a[1])*t/n;pts.push(pr(x,relAt(x,yy)*kx+.4,-yy));}});
     s+=`<path d="M${pts.map(c=>c[0].toFixed(1)+' '+c[1].toFixed(1)).join('L')}Z" fill="none" stroke="${p.site}" stroke-opacity=".85" stroke-width="1.8" stroke-dasharray="14 6 3 6" stroke-linejoin="round"/>`;});};
   const site=y=>{if(L.site)d.sites.forEach(r=>{s+=`<path d="M${P2(r,y+.6)}Z" fill="none" stroke="${p.site}" stroke-width="2.4" stroke-dasharray="16 6 3 6" stroke-linejoin="round"/>`;});};
+  const txImg=(id,y)=>{const C=S.txC&&S.txC[id];if(!C||!cam.isOrthographicCamera)return;const b=C.box,o=pr(b.x0,y,-b.y1),exx=pr(b.x1,y,-b.y1),ey=pr(b.x0,y,-b.y0),cw=C.cv.width,ch=C.cv.height;
+    s+=`<image href="${C.cv.toDataURL('image/png')}" width="${cw}" height="${ch}" transform="matrix(${((exx[0]-o[0])/cw).toFixed(5)} ${((exx[1]-o[1])/cw).toFixed(5)} ${((ey[0]-o[0])/ch).toFixed(5)} ${((ey[1]-o[1])/ch).toFixed(5)} ${o[0].toFixed(2)} ${o[1].toFixed(2)})" preserveAspectRatio="none"/>`;};
+  const txLevel=k=>{const y=Y[k];plate(y);clipOpen(y);txImg(k.slice(3),y+.25);s+='</g>';ghost(y);label(k,y);};
+  if(ex)LV.order.filter(k=>k.startsWith('tx:')&&Y[k]<0).forEach(txLevel);
   // 1) asos: yer, (yigʻilganda — tahlil va landshaft ham), koʻchalar, temir yoʻl
   s+=`<path d="${ringD(0)}" fill="${p.ground}"/>`;clipOpen(0);
   if(!ex){ras(0);luFlat(0);landFlat(0);roadsAt(0);}
@@ -495,7 +558,7 @@ function toSVG(){const cam=S.cam,v=S.ov.querySelector('#a3v'),W=1800,H=Math.roun
   if(ex)label('base',relH()*.5);
   if(!ex){emit(bldPrims(0).concat(treePrims(0)));site(0);}
   else{// 2) yuqoriga qatlam-qatlam
-    LV.order.forEach(k=>{if(k==='base')return;const y=Y[k];
+    LV.order.forEach(k=>{if(k==='base'||k.startsWith('tx:'))return;const y=Y[k];
       if(k==='ras'){clipOpen(y);ras(y);s+='</g>';s+=`<path d="${ringD(y)}" fill="none" stroke="#8a877f" stroke-width="1"/>`;}
       if(k==='ras')ghost(y);
       if(k==='road'){plate(y);clipOpen(y);roadsAt(y);s+='</g>';ghost(y);}
@@ -507,6 +570,7 @@ function toSVG(){const cam=S.cam,v=S.ov.querySelector('#a3v'),W=1800,H=Math.roun
   const pins=visPins();if(L.pins&&pins.length){const R0=13*S.opt.pinS,IC=S.ctx.ULY.IC||{},y0=Y.pins;pins.slice().sort((a,b)=>vz(a.x,y0+(a.top||0),-a.y)-vz(b.x,y0+(b.top||0),-b.y)).forEach(q=>{const g=pr(q.x,y0,-q.y),t=pr(q.x,y0+(q.top??pinTop(q)),-q.y);
     s+=`<line x1="${g[0].toFixed(1)}" y1="${g[1].toFixed(1)}" x2="${t[0].toFixed(1)}" y2="${t[1].toFixed(1)}" stroke="#3a3a3a" stroke-width="1.3"/><circle cx="${g[0].toFixed(1)}" cy="${g[1].toFixed(1)}" r="1.6" fill="#555"/><circle cx="${t[0].toFixed(1)}" cy="${t[1].toFixed(1)}" r="${R0}" fill="${q.col}" stroke="#fff" stroke-width="2"/>`;
     if(IC[q.icon]){const k=R0*1.25/24;s+=`<path d="${IC[q.icon]}" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" transform="translate(${(t[0]-12*k).toFixed(1)} ${(t[1]-12*k).toFixed(1)}) scale(${k.toFixed(3)})"/>`;}});}
+  if(ex)LV.order.filter(k=>k.startsWith('tx:')&&Y[k]>0).forEach(txLevel);
   // legenda
   if(L.legend){const it=[];if(L.bld&&S.opt.bmode==='lv')[['1–2',SEQ[0]],['3–5',SEQ[1]],['6–9',SEQ[2]],['10–16',SEQ[3]],['17+',SEQ[4]]].forEach(([n,c])=>it.push([c,T('Qavatlar')+': '+n,'f']));
     else if(L.bld&&S.opt.bmode==='use')[['res','Turar joy'],['com','Savdo / ofis'],['soc','Ijtimoiy'],['ind','Sanoat / ombor'],['other','Boshqa']].forEach(([k,n])=>it.push([USEC[k],T(n),'f']));else if(L.bld)it.push([p.bld,T('Binolar'),'f']);
