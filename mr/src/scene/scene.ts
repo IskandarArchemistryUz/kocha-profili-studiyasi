@@ -320,6 +320,16 @@ export class Scene3D {
     this.frameAt(cx, cy, size);
   }
 
+  /** Hisobot uchun uch koʻrinish (reja, akso, perspektiva) — loyihaga moslab; joriy kamera keyin tiklanadi */
+  captureViews(doc: Project): Record<'plan' | 'axo' | 'persp', string> {
+    const mode = this.mode, t = this.ctl.target.clone(), pp = this.persp.position.clone(), op = this.ortho.position.clone(), os = this.ortho.userData.s, oz = this.ortho.zoom;
+    const out = {} as Record<'plan' | 'axo' | 'persp', string>;
+    for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); this.renderer.render(this.scene, this.cam); out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
+    this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz;
+    this.resize(); this.ctl.update(); this.invalidate();
+    return out;
+  }
+
   /** Markazga (0,0) qarab, radius `r` m ni koʻrsatish */
   frameRadius(r: number): void { if (r > 0) this.frameAt(0, 0, 2 * r); }
 

@@ -37,4 +37,13 @@ test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', as
   expect(glb.suggestedFilename()).toMatch(/\.glb$/);
   const buf = await (await import('node:fs/promises')).readFile((await glb.path())!);
   expect(buf.subarray(0, 4).toString()).toBe('glTF');
+  const [xl] = await Promise.all([page.waitForEvent('download'), page.click('#exXlsx')]);
+  expect(xl.suggestedFilename()).toMatch(/_TEP\.xlsx$/);
+  expect((await (await import('node:fs/promises')).readFile((await xl.path())!)).subarray(0, 2).toString()).toBe('PK');
+  const [rep] = await Promise.all([page.waitForEvent('popup'), page.click('#exPdf')]);
+  await expect(rep.locator('h2').nth(1)).toHaveText('Texnik-iqtisodiy koʻrsatkichlar');
+  await expect(rep.locator('body')).toContainText('Xizmat koʻrsatish radiuslari');
+  expect(await rep.locator('img').count()).toBe(3);
+  await rep.setViewportSize({ width: 900, height: 1200 });
+  await rep.screenshot({ path: 'test-results/hisobot.png', fullPage: true });
 });
