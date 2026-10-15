@@ -130,3 +130,4 @@ button{cursor:pointer}
 details.manual{border-top:1px solid var(--line);padding-top:8px;display:grid;gap:8px}details.manual summary{cursor:pointer;font-size:12.5px;color:var(--muted)}details.manual[open]{gap:8px}
 .legend{display:grid;gap:3px;font-size:12px}.legend div{display:flex;align-items:center;gap:6px}
 .chips .cg{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.04em;color:var(--muted);width:100%;margin-top:2px}
+.rose{max-width:190px;align-self:center}
