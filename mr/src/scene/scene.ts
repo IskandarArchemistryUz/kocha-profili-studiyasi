@@ -429,6 +429,35 @@ export class Scene3D {
     this.invalidate();
   }
 
+  private netObj: THREE.Object3D[] = [];
+  /** Piyoda tarmogʻi xaritasi (rangli qirralar) va nuqtalar (manbalar, seksiyalar); null — olib tashlash */
+  setNetMap(segs: { a: XY; b: XY; color: number }[] | null, dots: { p: XY; color: number; size?: number }[] = []): void {
+    this.netObj.forEach(o => { this.scene.remove(o); (o as THREE.Mesh).geometry.dispose(); ((o as THREE.Mesh).material as THREE.Material).dispose(); }); this.netObj = [];
+    if (segs?.length) {
+      const pos: number[] = [], col: number[] = [], c = new THREE.Color();
+      for (const s of segs) { c.setHex(s.color); for (const p of [s.a, s.b]) { pos.push(p[0], this.H(p[0], p[1]) + 1.2, -p[1]); col.push(c.r, c.g, c.b); } }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.95 })); l.renderOrder = 12; this.scene.add(l); this.netObj.push(l);
+    }
+    for (const size of [...new Set(dots.map(d => d.size ?? 9))]) {
+      const ds = dots.filter(d => (d.size ?? 9) === size), c = new THREE.Color(), col: number[] = [];
+      const g = new THREE.BufferGeometry().setFromPoints(ds.map(d => new THREE.Vector3(d.p[0], this.H(d.p[0], d.p[1]) + 2, -d.p[1])));
+      ds.forEach(d => { c.setHex(d.color); col.push(c.r, c.g, c.b); }); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      const pt = new THREE.Points(g, new THREE.PointsMaterial({ vertexColors: true, size, sizeAttenuation: false, depthTest: false })); pt.renderOrder = 13; this.scene.add(pt); this.netObj.push(pt);
+    }
+    this.invalidate();
+  }
+
+  /** GLB: loyiha qatlami (binolar, uchastka, koʻchalar); withCtx — atrofdagi kontekst ham. Y — yuqori, metr */
+  async exportGLB(withCtx = false): Promise<Blob> {
+    const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+    const root = new THREE.Group(); root.name = 'Archemistry';
+    const proj = this.world.clone(true); proj.name = 'loyiha'; root.add(proj);
+    if (withCtx && this.ctx) { const c = this.ctx.group.clone(true); c.name = 'atrof'; root.add(c); }
+    const buf = await new GLTFExporter().parseAsync(root, { binary: true, onlyVisible: true }) as ArrayBuffer;
+    return new Blob([buf], { type: 'model/gltf-binary' });
+  }
+
   private marks: THREE.Mesh | null = null;
   /** Fasaddagi rangli belgilar (deraza insolyatsiyasi): har biri — fasad tekisligidagi toʻrtburchak; null — olib tashlash */
   setFacadeMarks(list: { a: XY; b: XY; y0: number; y1: number; color: number }[] | null): void {

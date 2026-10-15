@@ -27,6 +27,10 @@ import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, 
 import { INSOL_BINS, FACADE, type FacadeStyle } from '../scene/scene';
 import { planApartments, windowPoints, windowSun, evaluateApts, isWest, MOD_W, type AptStats, type SecPlan } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
+import { analyze, boundaryPts, buildNet, svcDef, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
+import type { PoiBundle } from '../context/poi';
+import { centroid, area } from '../core/geo';
+import { toDxf } from '../core/dxf';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
@@ -592,6 +596,76 @@ export class Editor {
       r && k ? h('span', { class: 'note' }, `${fmt(r.pop)} kishi (${DEMO.year}). 1000 kishiga: maktab yoshi (7–17) ${fmt(k.school, 0)}, maktabgacha (3–6) ${fmt(k.mtm, 0)}, 65+ — ${fmt(k.elderly, 0)}. Maktab va MTM tekshiruvida taqqoslanadi; 3–5 yosh qoldiq usulida hisoblangan.`) : '');
   }
 
+  /* ---------- 5-bosqich: xizmatlar va piyoda ---------- */
+  private svc: { busy: boolean; err: string; poi: PoiBundle | null; res: SvcResult[] | null; sel: Svc; demand: Demand[]; net: Net | null; src: Record<string, XY[]>; ms: number; buildings?: unknown } = { busy: false, err: '', poi: null, res: null, sel: 'mtm', demand: [], net: null, src: {}, ms: 0 };
+  private svcRule: Result | null = null;
+
+  private async loadPoi(force = false): Promise<void> {
+    if (this.svc.busy) return;
+    this.svc.busy = true; this.svc.err = ''; this.renderPanel();
+    try { this.svc.poi = await this.ctxMgr.loadPoi(this.store.doc.origin, force); }
+    catch (e) { this.svc.err = `OSM obyektlari yuklanmadi: ${(e as Error).message}. Faqat loyiha obyektlari va kontekst yoʻllari bilan hisoblanadi.`; }
+    this.svc.busy = false; this.runServices();
+  }
+
+  private runServices(): void {
+    const doc = this.store.doc, fr = frame(doc.origin), t0 = performance.now();
+    const roads = this.svc.poi?.roads ?? (this.ctxMgr.current?.osm.roads ?? []).map(r => ({ cls: r.cls, pts: r.pts }));
+    const lines = roads.filter(r => WALKABLE(r.cls)).map(r => r.pts.map(fr.toLocal));
+    const net = buildNet(lines, doc.streets.map(st => st.axis.map(fr.toLocal)));
+    const demand: Demand[] = doc.buildings.filter(b => useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat' && b.floors > b.nonRes).map(b => {
+      const r = b.footprint.map(fr.toLocal); return { p: centroid(r), w: area(r) * (b.floors - b.nonRes) * useDef(b.use).res, bid: b.id };
+    });
+    const src: Record<string, { pts: XY[] }[]> = {}; const add = (k: Svc, pts: XY[]) => (src[k] ??= []).push({ pts });
+    const MAP: Partial<Record<Use, Svc>> = { maktab: 'maktab', mtm: 'mtm', poliklinika: 'poliklinika', savdo: 'savdo', sport: 'sport', ijtimoiy: 'mahalla' };
+    this.plan().blocks.forEach(b => { const k = MAP[b.use]; if (k) add(k, boundaryPts(b.rings[0])); });
+    doc.buildings.forEach(b => { const r = b.footprint.map(fr.toLocal); const k = MAP[b.use]; if (k) add(k, boundaryPts(r)); else if (b.nonRes > 0 && useDef(b.use).res > 0) add('savdo', [centroid(r)]); });
+    // OSM obyektlari: uchastka ichidagilari buziladi (saqlanadigan bino ichidagisi bundan mustasno)
+    const site = doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null, keep = new Set(doc.keep), kept = this.scene.inSite.filter(b => keep.has(b.id));
+    let dropped = 0;
+    (this.svc.poi?.pois ?? []).forEach(p => { const q = fr.toLocal(p.at); if (site && pointIn(q, site) && !kept.some(b => pointIn(q, b.rings))) { dropped++; return; } add(p.kind, [q]); });
+    const res = analyze(net, demand, src as Record<Svc, { pts: XY[] }[]>);
+    this.svc = { ...this.svc, res, demand, net, src: Object.fromEntries(Object.entries(src).map(([k, v]) => [k, v.flatMap(o => o.pts)])), ms: performance.now() - t0, buildings: doc.buildings };
+    const bad = res.filter(r => r.share < 0.999), fmtR = (r: SvcResult) => `${svcDef(r.kind).name} ${r.r} m — ${fmt(r.share * 100, 0)} %`;
+    this.svcRule = !demand.length ? null : {
+      id: 'service-radius', title: 'Xizmat koʻrsatish radiuslari (piyoda)', source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '539-band, 38-jadval (shahar)', verified: true },
+      status: !bad.length ? 'pass' : bad.some(r => r.share < 0.8) ? 'fail' : 'review', value: res.filter(r => r.share >= 0.999).length, unit: `/ ${res.length} tur`, limit: '7 / 7',
+      note: `Aholi ulushi (turar joy maydoni boʻyicha) radius ichida: ${res.map(fmtR).join('; ')}. Masofa — piyoda tarmogʻi boʻylab (OSM + loyiha koʻchalari). Manba: loyiha parsellari va OSM obyektlari${dropped ? ` (uchastka ichidagi ${dropped} ta OSM obyekti buziladi deb chiqarildi)` : ''}. OSM toʻliq emas — natija pastki baho.`,
+    };
+    this.showSvc(); this.renderPanel(); this.renderKpi();
+  }
+
+  private showSvc(): void {
+    const S = this.svc, r = S.res?.find(x => x.kind === S.sel); if (!r || !S.net) { this.scene.setNetMap(null); return; }
+    const R = r.r, col = (d: number) => d <= R * 0.5 ? 0x1f8a57 : d <= R ? 0x6cc08b : d <= R * 1.5 ? 0xf2b04a : d < Infinity ? 0xd9534f : 0xb9b5ad;
+    const segs = S.net.segs.map(([a, b]) => ({ a: S.net!.xy[a], b: S.net!.xy[b], color: col(Math.min(r.D[a], r.D[b])) }));
+    const dots = [...(S.src[S.sel] ?? []).map(p => ({ p, color: 0x2a6fb0, size: 7 })), ...S.demand.map((d, i) => ({ p: d.p, color: r.dist[i] <= R ? 0x1f8a57 : 0xd9534f, size: 11 }))];
+    this.scene.setNetMap(segs, dots);
+  }
+
+  private xizmatPanel(body: HTMLElement): void {
+    const S = this.svc;
+    if (!S.res && !S.busy && !S.err) queueMicrotask(() => void this.loadPoi());
+    if (S.busy) body.append(h('p', { class: 'note' }, 'OSM: maktab, bogʻcha, poliklinika, dorixona, doʻkonlar va 2 km piyoda yoʻllari yuklanmoqda…'));
+    if (S.err) body.append(h('p', { class: 'warn' }, S.err));
+    if (S.res) {
+      if (S.buildings !== this.store.doc.buildings) body.append(h('p', { class: 'warn' }, 'Loyiha oʻzgardi — natija eskirgan.'), h('button', { class: 'btn', onclick: () => this.runServices() }, 'Qayta hisoblash'));
+      body.append(h('table', { class: 'reg', id: 'svcTab' },
+        h('thead', {}, h('tr', {}, h('th', {}, 'Xizmat'), h('th', {}, 'Radius'), h('th', {}, 'Obyekt'), h('th', {}, 'Aholi'))),
+        h('tbody', {}, ...S.res.map(r => h('tr', { 'data-svc': r.kind, 'aria-selected': r.kind === S.sel, style: `cursor:pointer;${r.kind === S.sel ? 'background:var(--sel, #eef4fa)' : ''}`, onclick: () => { this.svc.sel = r.kind; this.showSvc(); this.renderPanel(); } },
+          h('td', {}, svcDef(r.kind).name), h('td', { class: 'num' }, `${r.r} m`), h('td', { class: 'num' }, String(r.sources)),
+          h('td', {}, h('span', { class: 'chip', 'data-s': r.share >= 0.999 ? 'pass' : r.share >= 0.8 ? 'review' : 'fail' }, `${fmt(r.share * 100, 0)} %`)))))));
+      const r = S.res.find(x => x.kind === S.sel)!, def = svcDef(S.sel), far = S.demand.map((_d, i) => r.dist[i]).filter(x => x > r.r);
+      body.append(h('div', { class: 'ctxst', id: 'svcSt' }, h('b', {}, `${def.name}: ${def.note}`), h('br'),
+        far.length ? `${fmt(far.length)} / ${fmt(S.demand.length)} seksiya radiusdan tashqarida, eng uzoq ${Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : 'yetib boʻlmaydi'}` : `Barcha ${fmt(S.demand.length)} seksiya radius ichida`,
+        r.far ? h('span', { class: 'muted' }, ` · ${r.far} ta obyekt tarmoqdan tashqarida (toʻgʻri masofa × 1,3)`) : ''),
+        h('div', { class: 'legend' }, ...[[0x1f8a57, `≤ ${r.r / 2} m`], [0x6cc08b, `≤ ${r.r} m`], [0xf2b04a, `≤ ${r.r * 1.5} m`], [0xd9534f, `> ${r.r * 1.5} m`], [0x2a6fb0, 'Obyekt (loyiha yoki OSM)']].map(([c, t]) => h('div', {}, h('i', { class: 'sw', style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, String(t))))),
+        h('div', { class: 'row' }, h('button', { class: 'btn grow', onclick: () => void this.loadPoi(true) }, 'OSM dan yangilash'), h('button', { class: 'btn grow', onclick: () => { this.svc.res = null; this.svc.err = 'yashirildi'; this.scene.setNetMap(null); this.renderPanel(); } }, 'Yashirish')),
+        h('p', { class: 'muted' }, `${fmt(S.poi?.pois.length ?? 0)} OSM obyekt, ${fmt(S.net?.segs.length ?? 0)} yoʻl boʻlagi · ${fmt(S.ms, 0)} ms`));
+    } else if (S.err === 'yashirildi') { body.append(h('button', { class: 'btn primary', onclick: () => { this.svc.err = ''; void this.loadPoi(); } }, 'Xizmatlar tahlili')); }
+    body.append(h('p', { class: 'note' }, 'Meʼyor: ShNQ 2.07.01-23, 539-band, 38-jadval (shahar; asl matndan). Masofa seksiya markazidan obyekt uchastkasi chegarasigacha piyoda yoʻllar boʻylab; past zichlikdagi hududlar uchun kattaroq radiuslar (MTM 500, dorixona 800 m) hali qoʻllanmagan. 39-jadval (qizil chiziq va turar joygacha masofalar) — keyingi qadamda. OSM Toshkentda toʻliq emas: mavjud bogʻcha yoki maktab koʻrinmasa, «Parsellar» qadamida tegishli funksiyani bering.'));
+  }
+
   /* ---------- 3-bosqich: hajmlar va seksiya generatori ---------- */
   private gen: GenParams = { ...DEFAULT_GEN };
   private genNotes: string[] = [];
@@ -885,7 +959,7 @@ export class Editor {
   /* ---------- qadamlar ---------- */
   private locked(s: StepDef): string | null {
     if (s.phase > BUILT_PHASE) return `${s.phase}-bosqichda quriladi`;
-    if (['hajm', 'kocha', 'parsel', 'yashil', 'quyosh', 'fasad', 'kvartira'].includes(s.id) && !this.store.doc.site) return 'Avval uchastkani chizing';
+    if (['hajm', 'kocha', 'parsel', 'yashil', 'quyosh', 'fasad', 'kvartira', 'xizmat'].includes(s.id) && !this.store.doc.site) return 'Avval uchastkani chizing';
     return null;
   }
   private done(s: StepDef): boolean {
@@ -909,6 +983,7 @@ export class Editor {
     this.setTool(null); this.step = s;
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
+    if (s.id !== 'xizmat') this.scene.setNetMap(null); else if (this.svc.res) this.showSvc();
     if (s.id !== 'parsel' && s.id !== 'hajm' && this.selBlock != null) { this.selBlock = null; this.scene.selectBlock(null); }
     this.renderAll();
   }
@@ -967,6 +1042,7 @@ export class Editor {
     if (s.id === 'quyosh') this.quyoshPanel(body);
     if (s.id === 'fasad') this.fasadPanel(body);
     if (s.id === 'kvartira') this.kvartiraPanel(body);
+    if (s.id === 'xizmat') this.xizmatPanel(body);
     if (s.id === 'parsel') this.parselPanel(body);
     if (s.id === 'yashil') this.yashilPanel(body);
     if (s.id === 'tekshiruv') body.append(this.register());
@@ -974,7 +1050,10 @@ export class Editor {
       body.append(
         h('button', { class: 'btn', id: 'exJson', onclick: () => download(`${safe(doc.name)}.archemistry.json`, exportJSON(this.store.doc)) }, 'Loyiha fayli (.json)'),
         h('button', { class: 'btn', id: 'exPng', onclick: () => download(`${safe(doc.name)}.png`, this.scene.snapshot()) }, 'Sahna rasmi (PNG)'),
-        h('p', { class: 'note' }, 'Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. PDF, DXF, GLB va Excel TEP — 5-bosqichda.'));
+        h('button', { class: 'btn', id: 'exDxf', onclick: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } }, 'Reja va hajmlar (DXF)'),
+        h('button', { class: 'btn', id: 'exGlb', onclick: () => void this.scene.exportGLB(false).then(b => download(`${safe(doc.name)}.glb`, b)).catch(e => toast(`GLB: ${(e as Error).message}`)) }, '3D model (GLB)'),
+        this.scene.hasContext ? h('button', { class: 'btn', id: 'exGlbCtx', onclick: () => void this.scene.exportGLB(true).then(b => download(`${safe(doc.name)}_atrof.glb`, b)).catch(e => toast(`GLB: ${(e as Error).message}`)) }, '3D model atrof bilan (GLB)') : '',
+        h('p', { class: 'note' }, 'Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. DXF — mahalliy metrda (markaz koordinatasi faylda yozilgan), qatlamlar: uchastka, qizil chiziqlar, kvartallar funksiya boʻyicha, binolar balandligi bilan (AutoCAD/ArchiCAD da 3D). GLB — Blender, SketchUp, Rhino, ArchiCAD ochadi. PDF hisobot va Excel TEP — keyingi qadamda.'));
     }
   }
 
@@ -998,7 +1077,7 @@ export class Editor {
   }
 
   private register(): HTMLElement {
-    const rs = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules];
+    const rs = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])];
     return h('table', { class: 'reg' },
       h('thead', {}, h('tr', {}, h('th', {}, 'Talab'), h('th', {}, 'Qiymat'), h('th', {}, 'Meʼyor'), h('th', {}, 'Natija'))),
       h('tbody', {}, ...rs.map(r => h('tr', { 'data-rule': r.id },
