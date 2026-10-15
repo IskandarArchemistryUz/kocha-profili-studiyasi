@@ -1,0 +1,26 @@
+name: Master reja — testlar
+on:
+  push:
+    branches: [main]
+    paths: ['mr/**', 'app/**', '.github/workflows/master-reja.yml']
+  pull_request:
+    paths: ['mr/**', 'app/**', '.github/workflows/master-reja.yml']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: mr } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: mr/package-lock.json }
+      - run: npm ci
+      - name: Birlik testlari
+        run: npm test
+      - name: Yigʻish (tur tekshiruvi bilan)
+        run: npm run build
+      - name: Saytdagi app/ yigʻilgan natija bilan bir xilmi
+        run: git diff --exit-code -- ../app || (echo "app/ eskirgan — mr ichida npm run build qiling va natijani commit qiling" && exit 1)
+      - run: npx playwright install --with-deps chromium
+      - name: E2E testlar
+        run: npm run e2e
+        env: { CI: 'true' }
