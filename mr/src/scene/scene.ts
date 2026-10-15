@@ -15,7 +15,12 @@ import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
 
 export const ZONE_COL: Record<string, number> = { turar: 0xf3d9a4, aralash: 0xf0b48a, ijtimoiy: 0xa9c8ea, savdo: 0xe99a9a, yashil: 0xa8d08d, texnik: 0xc9c3b8 };
+const USE_COL: Record<string, number> = { turar: 0xf4ece6, aralash: 0xf3e3d6, ijtimoiy: 0xe3ecf5, savdo: 0xf2dede, texnik: 0xe6e3dd, yashil: 0xe8f0df };
+const BASE_COL: Record<string, number> = { turar: 0xa8756b, aralash: 0xa8756b, ijtimoiy: 0x6f8fb0, savdo: 0xb05f5f, texnik: 0x8f8a80, yashil: 0x7da36a };
 const PART_COL: Record<string, number> = { trotuar: 0xd8d2c6, yashil: 0x9cc77f, velo: 0xc9705a, parkovka: 0x8d9097, qatnov: 0x585b62, chiziq: 0xf4f4f0 };
+
+export const INSOL_BINS: [number, number, string][] = [[0, 0x2b3a67, '< 1 soat'], [1, 0x4a6fa5, '1–2'], [2, 0x7fb3c8, '2–3'], [3, 0xc9e4a5, '3–4'], [4, 0xf6e58d, '4–6'], [6, 0xf9b24e, '≥ 6']];
+export function insolColor(h: number): number { let c = INSOL_BINS[0][1]; for (const [t, col] of INSOL_BINS) if (h >= t) c = col; return c; }
 
 function treeMeshes(pts: XY[], H: HeightFn): THREE.Object3D[] {
   const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color: 0x6f9f4c }), pts.length);
@@ -224,13 +229,20 @@ export class Scene3D {
       }
     }
     this.ctx?.maskTrees(doc.site ? doc.site.rings[0].map(fr.toLocal) : null);
+    // loyiha binolari / seksiyalari: noturar pastki qavatlar toʻq tasma, har seksiya alohida (chegaralari koʻrinadi)
+    const fh = doc.settings.floorHeight;
     doc.buildings.forEach(b => {
-      const r = b.footprint.map(fr.toLocal);
-      const g = new THREE.ExtrudeGeometry(new THREE.Shape(r.map(toV2)), { depth: b.floors * doc.settings.floorHeight, bevelEnabled: false });
-      g.rotateX(-Math.PI / 2); g.translate(0, Math.min(...r.map(p => this.H(p[0], p[1]))), 0);
-      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: b.id === this.selected ? C.bldSel : C.bld }));
-      m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
-      const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.55 })); this.world.add(e);
+      const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))), sel = b.id === this.selected;
+      const shape = new THREE.Shape(r.map(toV2));
+      const part = (z0: number, z1: number, color: number) => {
+        const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
+        const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : color }));
+        m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
+        const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.5 })); this.world.add(e);
+      };
+      const nr = Math.min(b.nonRes, b.floors - 1);
+      if (nr > 0) part(0, nr * fh, BASE_COL[b.use] ?? 0x9c7b6e);
+      part(nr * fh, b.floors * fh, USE_COL[b.use] ?? C.bld);
     });
     this.invalidate();
   }
@@ -308,6 +320,44 @@ export class Scene3D {
   }
 
   get hasContext(): boolean { return !!this.ctx; }
+
+  /** Quyosh holati (balandlik, azimut — shimoldan soat yoʻnalishida, °): yorugʻlik va soyalar */
+  setSun(alt: number, az: number): void {
+    const a = alt * Math.PI / 180, z = az * Math.PI / 180, up = Math.max(0.02, Math.sin(a));
+    const dir = new THREE.Vector3(Math.sin(z) * Math.cos(a), up, -Math.cos(z) * Math.cos(a)).normalize();
+    this.sun.position.copy(dir.multiplyScalar(1500));
+    this.sun.intensity = alt > 0 ? 0.6 + 1.2 * Math.min(1, Math.sin(a) * 1.6) : 0.15;
+    this.invalidate();
+  }
+
+  private insol: THREE.Mesh | null = null;
+  /** Insolyatsiya xaritasi: har nuqta — katakcha, soat boʻyicha rang; null — olib tashlash */
+  setInsolation(pts: XY[] | null, hours?: Float32Array, cell = 3): void {
+    if (this.insol) { this.scene.remove(this.insol); this.insol.geometry.dispose(); (this.insol.material as THREE.Material).dispose(); this.insol = null; }
+    if (pts && hours) {
+      const pos: number[] = [], col: number[] = [], c = new THREE.Color(), h2 = cell / 2 * 0.96;
+      pts.forEach((p, i) => {
+        c.setHex(insolColor(hours[i])); const y = this.H(p[0], p[1]) + 0.6;
+        const q = [[p[0] - h2, p[1] - h2], [p[0] + h2, p[1] - h2], [p[0] + h2, p[1] + h2], [p[0] - h2, p[1] - h2], [p[0] + h2, p[1] + h2], [p[0] - h2, p[1] + h2]];
+        for (const v of q) { pos.push(v[0], y, -v[1]); col.push(c.r, c.g, c.b); }
+      });
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      this.insol = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
+      this.insol.renderOrder = 7; this.scene.add(this.insol);
+    }
+    this.invalidate();
+  }
+
+  /** Soya va insolyatsiya hisobi uchun binolar prizmalari (loyiha + saqlanadigan va atrofdagi kontekst) */
+  prisms(doc: Project, extra: { rings: XY[][]; h: number }[]): { ring: XY[]; top: number }[] {
+    const fr = frame(doc.origin), fh = doc.settings.floorHeight, out: { ring: XY[]; top: number }[] = [];
+    const base = (r: XY[]) => Math.min(...r.map(p => this.H(p[0], p[1])));
+    doc.buildings.forEach(b => { const r = b.footprint.map(fr.toLocal); out.push({ ring: r, top: base(r) + b.floors * fh }); });
+    const keep = new Set(doc.keep);
+    (this.ctx?.inSite ?? []).filter(b => keep.has(b.id)).forEach(b => out.push({ ring: b.rings[0], top: base(b.rings[0]) + b.h }));
+    extra.forEach(b => out.push({ ring: b.rings[0], top: base(b.rings[0]) + b.h }));
+    return out;
+  }
 
   private far: THREE.Object3D[] = [];
   /** Gorizontgacha binolar (oddiy oq hajmlar, tomsiz, soyasiz); null — olib tashlash */

@@ -23,7 +23,9 @@ export type Command =
   | { type: 'removeStreet'; id: string }
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
-  | { type: 'setKeep'; keep: number[] };
+  | { type: 'setKeep'; keep: number[] }
+  /** generator natijasi: shu guruhdagi seksiyalarni almashtirish (boʻsh roʻyxat — tozalash); zona belgisiga parametrlar yoziladi */
+  | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: 'burchak' | 'oddiy' | 'qator' }[]; label?: ZoneLabel };
 
 /** Tarixda koʻrinadigan nom */
 export function label(c: Command): string {
@@ -43,6 +45,7 @@ export function label(c: Command): string {
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setZones': return 'Zona';
     case 'setKeep': return 'Saqlanadigan binolar';
+    case 'replaceGroup': return c.sections.length ? 'Seksiyalar generatsiyasi' : 'Seksiyalar tozalandi';
   }
 }
 
@@ -112,6 +115,15 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
     case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
+    case 'replaceGroup': {
+      const keep = doc.buildings.filter(b => b.gen?.grp !== c.grp);
+      d.buildings = [...keep, ...c.sections.map(x => {
+        const floors = Math.max(1, Math.round(x.floors));
+        return { id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind } };
+      })];
+      if (c.label) { const z = c.label; d.zones = [...doc.zones.filter(q => q.id !== z.id), { ...z, at: [z.at[0], z.at[1]] as LngLat }]; }
+      return d;
+    }
     case 'setSettings': {
       const s = { ...doc.settings, ...c.patch };
       for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight'] as const) if (!(s[k] > 0)) throw new CommandError(`${k} musbat boʻlsin`);
