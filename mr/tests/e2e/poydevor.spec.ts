@@ -4,6 +4,8 @@ async function newProject(page: Page) {
   await page.goto('./');
   await page.click('#newP');
   await expect(page).toHaveURL(/#\/p\/p_/);
+  await expect(page.locator('.panel h2')).toHaveText('Hudud');           // yangi loyiha — avval joy tanlanadi
+  await page.click('[data-step=uchastka]');
   await expect(page.locator('.panel h2')).toHaveText('Uchastka');
 }
 

@@ -61,3 +61,11 @@ export class RectTool implements Tool {
   key(e: KeyboardEvent): boolean { if (e.key === 'Escape') { this.cancel(); return true; } return false; }
   cancel(): void { this.a = null; this.scene.setPreview([]); }
 }
+
+/** Bitta bosish — natijani chaqiruvchi hal qiladi (masalan, kvartalni aniqlash) */
+export class ClickTool implements Tool {
+  constructor(readonly hint: string, private fn: (xy: XY) => void) {}
+  click(xy: XY): void { this.fn(xy); }
+  key(e: KeyboardEvent): boolean { return e.key === 'Escape'; }
+  cancel(): void { /* holat yoʻq */ }
+}

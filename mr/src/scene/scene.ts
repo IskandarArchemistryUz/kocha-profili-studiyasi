@@ -7,6 +7,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Project } from '../core/doc';
 import { frame, type XY } from '../core/geo';
+import type { ContextBundle } from '../context/load';
+import { terrainSampler } from '../context/tiles';
+import { buildContext, type ContextScene, type HeightFn } from './context3d';
 
 export type ViewMode = 'plan' | 'axo' | 'persp';
 
@@ -28,6 +31,13 @@ export class Scene3D {
   private mode: ViewMode = 'axo';
   private selected: string | null = null;
   private lastDoc: Project | null = null;
+  private grid: THREE.Object3D[] = [];
+  private ctx: ContextScene | null = null;
+  private ctxKey = '';
+  private tex: { blob: Blob; t: THREE.Texture } | null = null;
+  private sun!: THREE.DirectionalLight;
+  /** relyef balandligi (markazga nisbatan, m) — loyiha elementlari shu sathga qoʻyiladi */
+  H: HeightFn = () => 0;
   onPick?: (id: string | null) => void;
 
   constructor(private host: HTMLElement) {
@@ -41,14 +51,14 @@ export class Scene3D {
     const hemi = new THREE.HemisphereLight(0xffffff, 0xb9b2a4, 1.6); this.scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(-300, 500, 250); sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, near: 1, far: 2000 }); sun.shadow.bias = -0.0005;
-    this.scene.add(sun);
+    this.scene.add(sun); this.sun = sun;
 
     this.ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshLambertMaterial({ color: C.ground }));
     this.ground.rotation.x = -Math.PI / 2; this.ground.receiveShadow = true; this.ground.name = 'yer';
     this.scene.add(this.ground);
     const g1 = new THREE.GridHelper(2000, 200, C.grid, C.grid); g1.position.y = 0.01; (g1.material as THREE.Material).transparent = true; (g1.material as THREE.Material).opacity = 0.55;
     const g2 = new THREE.GridHelper(2000, 20, C.gridMajor, C.gridMajor); g2.position.y = 0.02;
-    this.scene.add(g1, g2, this.world, this.prev);
+    this.scene.add(g1, g2, this.world, this.prev); this.grid = [g1, g2];
 
     this.persp = new THREE.PerspectiveCamera(35, 1, 0.5, 20000);
     this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -10000, 10000);
@@ -117,6 +127,7 @@ export class Scene3D {
     const r = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     this.ray.setFromCamera(ndc, this.cam);
+    if (this.ctx) { const hit = this.ray.intersectObject(this.ctx.ground, false)[0]; if (hit) return [hit.point.x, -hit.point.z]; }
     const p = new THREE.Vector3();
     return this.ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p) ? [p.x, -p.z] : null;
   }
@@ -146,14 +157,17 @@ export class Scene3D {
       const rings = doc.site.rings.map(r => r.map(fr.toLocal));
       const sh = new THREE.Shape(rings[0].map(toV2)); rings.slice(1).forEach(h => sh.holes.push(new THREE.Path(h.map(toV2))));
       const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2);
-      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: C.site, transparent: true, opacity: 0.75, depthWrite: false })); m.position.y = 0.05; m.receiveShadow = true; m.renderOrder = 1;
+      const P = g.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < P.count; i++) P.setY(i, this.H(P.getX(i), -P.getZ(i)) + 0.25);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: C.site, transparent: true, opacity: this.ctx ? 0.6 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })); m.renderOrder = 6;
       this.world.add(m);
-      rings.forEach(r => this.world.add(line(r, C.siteLine, 0.12, true, 3)));
+      rings.forEach(r => this.world.add(line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H)));
     }
+    this.ctx?.maskTrees(doc.site ? doc.site.rings[0].map(fr.toLocal) : null);
     doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal);
       const g = new THREE.ExtrudeGeometry(new THREE.Shape(r.map(toV2)), { depth: b.floors * doc.settings.floorHeight, bevelEnabled: false });
-      g.rotateX(-Math.PI / 2);
+      g.rotateX(-Math.PI / 2); g.translate(0, Math.min(...r.map(p => this.H(p[0], p[1]))), 0);
       const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: b.id === this.selected ? C.bldSel : C.bld }));
       m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
       const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.55 })); this.world.add(e);
@@ -165,8 +179,8 @@ export class Scene3D {
   setPreview(pts: XY[], closed = false): void {
     disposeGroup(this.prev);
     if (pts.length) {
-      this.prev.add(line(pts, C.preview, 0.3, closed, 5));
-      const dots = new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], 0.3, -p[1]))), new THREE.PointsMaterial({ color: C.preview, size: 7, sizeAttenuation: false, depthTest: false }));
+      this.prev.add(line(densify(pts, 10, closed), C.preview, 0.5, closed, 20, this.H));
+      const dots = new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], this.H(p[0], p[1]) + 0.5, -p[1]))), new THREE.PointsMaterial({ color: C.preview, size: 7, sizeAttenuation: false, depthTest: false }));
       dots.renderOrder = 6; this.prev.add(dots);
     }
     this.invalidate();
@@ -180,7 +194,14 @@ export class Scene3D {
     if (!pts.length) return;
     const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2, size = Math.max(80, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-    const t = new THREE.Vector3(cx, 0, -cy), dist = size * 1.6;
+    this.frameAt(cx, cy, size);
+  }
+
+  /** Markazga (0,0) qarab, radius `r` m ni koʻrsatish */
+  frameRadius(r: number): void { if (r > 0) this.frameAt(0, 0, 2 * r); }
+
+  private frameAt(cx: number, cy: number, size: number): void {
+    const t = new THREE.Vector3(cx, this.H(cx, cy), -cy), dist = size * 1.6;
     this.ctl.target.copy(t);
     if (this.mode === 'persp') this.persp.position.copy(t).add(new THREE.Vector3(-0.55, 0.62, 0.75).normalize().multiplyScalar(dist));
     else {
@@ -190,13 +211,62 @@ export class Scene3D {
     this.resize(); this.ctl.update(); this.invalidate();
   }
 
+  /** Kontekstni oʻrnatish (null — olib tashlash). Loyiha markazi yoki koʻrinish sozlamalari oʻzgarsa qayta quriladi. */
+  async setContext(b: ContextBundle | null, doc: Project): Promise<void> {
+    const cs = doc.context;
+    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}` : '';
+    if (key === this.ctxKey) return;
+    this.ctxKey = key;
+    if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
+    if (!b) { this.H = () => 0; this.grid.forEach(g => g.visible = true); this.ground.position.y = 0; this.update(doc); return; }
+    const fr = frame(doc.origin);
+    // relyef markazi — loyiha markazi (kontekst keshi boshqa markazda olingan boʻlishi mumkin)
+    const base = terrainSampler(cs.layers.relief ? b.terrain : null);
+    const off = frame(b.center).toLocal(doc.origin), h0 = base(off[0], off[1]);
+    this.H = (x, y) => base(x + off[0], y + off[1]) - h0;
+    let tex: THREE.Texture | null = null;
+    if (cs.base === 'sputnik' && b.imagery) {
+      if (this.tex?.blob !== b.imagery.image) {
+        this.tex?.t.dispose();
+        const url = URL.createObjectURL(b.imagery.image);
+        try { const t = await new THREE.TextureLoader().loadAsync(url); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; this.tex = { blob: b.imagery.image, t }; }
+        finally { URL.revokeObjectURL(url); }
+        if (key !== this.ctxKey) return; // shu orada boshqa soʻrov keldi
+      }
+      tex = this.tex!.t;
+    }
+    this.ctx = buildContext(b, fr, cs, this.H, tex);
+    this.scene.add(this.ctx.group);
+    this.grid.forEach(g => g.visible = false);
+    const T = cs.layers.relief ? b.terrain : null;
+    this.ground.position.y = T ? T.min - T.h[((T.n - 1) >> 1) * T.n + ((T.n - 1) >> 1)] - h0 - 1 : -0.3;
+    const r = Math.max(300, b.radius);
+    Object.assign(this.sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, far: 4000 }); this.sun.shadow.mapSize.set(4096, 4096);
+    this.sun.shadow.map?.dispose(); (this.sun.shadow as { map: unknown }).map = null; this.sun.shadow.camera.updateProjectionMatrix();
+    this.update(doc);
+  }
+
+  get hasContext(): boolean { return !!this.ctx; }
+
   snapshot(): string { this.renderer.render(this.scene, this.cam); return this.renderer.domElement.toDataURL('image/png'); }
 }
 
-function line(pts: XY[], color: number, y: number, closed: boolean, order: number): THREE.Line {
-  const v = pts.map(p => new THREE.Vector3(p[0], y, -p[1])); if (closed && v.length) v.push(v[0].clone());
+function line(pts: XY[], color: number, lift: number, closed: boolean, order: number, H: HeightFn = () => 0): THREE.Line {
+  const v = pts.map(p => new THREE.Vector3(p[0], H(p[0], p[1]) + lift, -p[1])); if (closed && v.length) v.push(v[0].clone());
   const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({ color, depthTest: false }));
   l.renderOrder = order; return l;
+}
+
+/** Relyefga yopishishi uchun uzun qirralarni boʻlish */
+function densify(pts: XY[], step: number, closed = false): XY[] {
+  const out: XY[] = [], n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i]; out.push(a);
+    if (i === n - 1 && !closed) break;
+    const b = pts[(i + 1) % n], L = Math.hypot(b[0] - a[0], b[1] - a[1]), k = Math.floor(L / step);
+    for (let j = 1; j < k; j++) out.push([a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k]);
+  }
+  return out;
 }
 
 function disposeGroup(g: THREE.Group): void {

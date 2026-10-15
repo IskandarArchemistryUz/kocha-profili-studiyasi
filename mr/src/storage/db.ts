@@ -57,6 +57,13 @@ export async function listProjects(): Promise<ProjectMeta[]> {
     .sort((a, b) => b.updated.localeCompare(a.updated));
 }
 
+/* ---------- kesh (kontekst, plitkalar) ---------- */
+export async function cacheGet<T>(k: string): Promise<T | null> {
+  const r = await tx<{ k: string; v: T } | undefined>(STORES.cache, 'readonly', s => s.get(k));
+  return r ? r.v : null;
+}
+export async function cachePut<T>(k: string, v: T): Promise<void> { await tx(STORES.cache, 'readwrite', s => s.put({ k, v, t: Date.now() })); }
+
 /* ---------- fayl ---------- */
 export const FILE_KIND = 'archemistry-master-reja';
 

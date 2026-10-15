@@ -105,3 +105,14 @@ button{cursor:pointer}
 .empty{padding:28px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);text-align:center}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;z-index:50}
 @media (max-width:760px){.panel{left:12px;top:auto;bottom:84px;width:calc(100% - 24px);max-height:45%}.rail{top:auto;bottom:84px;left:auto;right:12px;height:auto;max-height:45%}}
+
+/* 1-bosqich: kontekst */
+.seg.full{display:flex}.seg.full button{flex:1;padding:0 6px}
+.prog{height:4px;background:var(--sunk);border-radius:2px;overflow:hidden}.prog i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.ctxst{font-size:12.5px;line-height:1.45}.ctxst b{font-weight:600}
+.warn{font-size:12.5px;color:var(--warn);background:var(--warn-soft);padding:6px 8px;border-radius:var(--r);margin:0}
+.err{font-size:12.5px;color:var(--bad);background:var(--bad-soft);padding:6px 8px;border-radius:var(--r);margin:0}
+.res .it{cursor:pointer;flex-direction:column;align-items:flex-start;gap:0}.res .it:hover{background:var(--sunk)}.res .it small{color:var(--muted);font-size:11.5px}
+.chk{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:13px}.chk label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.attr{position:absolute;right:8px;bottom:6px;font:10.5px var(--sans);color:var(--muted);background:rgba(255,255,255,.75);padding:2px 6px;border-radius:4px;z-index:4}
+.attr a{color:inherit}

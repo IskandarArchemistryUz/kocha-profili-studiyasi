@@ -3,7 +3,7 @@
  * Hujjatda faqat inson qarorlari saqlanadi (chegara, koʻcha, bino…). Maydon, aholi, zichlik va boshqalar
  * core/derive.ts da har safar shu hujjatdan hisoblanadi va hech qachon hujjatga yozilmaydi.
  */
-export const SCHEMA = 1;
+export const SCHEMA = 2;
 
 /** [uzunlik, kenglik] — WGS84, GeoJSON tartibida */
 export type LngLat = [number, number];
@@ -39,6 +39,22 @@ export interface Settings {
   floorHeight: number;
 }
 
+/** Atrofdagi shahar (kontekst) — faqat koʻrinish tanlovlari; maʼlumotning oʻzi keshda, hujjatda emas */
+export interface ContextSettings {
+  /** markazdan radius, m */
+  radius: number;
+  /** yer qoplami: oddiy maket yoki sunʼiy yoʻldosh tasviri */
+  base: 'maket' | 'sputnik';
+  layers: { buildings: boolean; roads: boolean; rail: boolean; water: boolean; green: boolean; trees: boolean; relief: boolean };
+  /** kontekst yuklanganmi (sahifa yangilanganda keshdan avtomatik tiklash uchun) */
+  loaded: boolean;
+}
+
+export const DEFAULT_CONTEXT: ContextSettings = {
+  radius: 500, base: 'maket', loaded: false,
+  layers: { buildings: true, roads: true, rail: true, water: true, green: true, trees: true, relief: true },
+};
+
 export interface Project {
   schema: number;
   id: string;
@@ -48,6 +64,7 @@ export interface Project {
   /** sahna markazi — barcha mahalliy koordinatalar shundan hisoblanadi */
   origin: LngLat;
   settings: Settings;
+  context: ContextSettings;
   site: Site | null;
   buildings: Building[];
 }
@@ -77,6 +94,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
     schema: SCHEMA, id: uid('p_'), name, created: t, updated: t,
     origin: [...DEFAULT_ORIGIN] as LngLat,
     settings: { ...DEFAULT_SETTINGS },
+    context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
     site: null, buildings: [],
   };
 }
@@ -96,12 +114,20 @@ export function migrate(raw: unknown): Project {
   const d = raw as Record<string, unknown>;
   if (!isNum(d.schema)) throw new SchemaError('Sxema versiyasi yoʻq');
   if (d.schema > SCHEMA) throw new SchemaError(`Hujjat yangiroq versiyada (${d.schema}); ilovani yangilang`);
-  // kelajakdagi migratsiyalar shu yerda: if (d.schema === 1) { …; d.schema = 2 }
+  // 1 → 2: kontekst sozlamalari qoʻshildi (standart qiymatlar bilan)
+  // kelajakdagi migratsiyalar shu yerda: if (d.schema === 2) { …; d.schema = 3 }
   if (typeof d.id !== 'string' || !d.id) throw new SchemaError('id yoʻq');
   if (typeof d.name !== 'string') throw new SchemaError('name yoʻq');
   if (!isLL(d.origin)) throw new SchemaError('origin notoʻgʻri');
   const s = { ...DEFAULT_SETTINGS, ...(d.settings as object || {}) } as Settings;
   for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
+  const cx = (d.context && typeof d.context === 'object' ? d.context : {}) as Partial<ContextSettings>;
+  const context: ContextSettings = {
+    radius: isNum(cx.radius) && cx.radius >= 100 && cx.radius <= 2000 ? cx.radius : DEFAULT_CONTEXT.radius,
+    base: cx.base === 'sputnik' ? 'sputnik' : 'maket',
+    loaded: cx.loaded === true,
+    layers: { ...DEFAULT_CONTEXT.layers, ...(cx.layers || {}) },
+  };
   let site: Site | null = null;
   if (d.site != null) {
     const r = (d.site as Site).rings;
@@ -117,6 +143,6 @@ export function migrate(raw: unknown): Project {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, site, buildings,
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings,
   };
 }

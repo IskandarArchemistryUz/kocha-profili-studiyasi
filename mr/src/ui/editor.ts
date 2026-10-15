@@ -12,7 +12,12 @@ import { Compute, type Computed } from '../workers/compute';
 import type { Result } from '../norms/rules';
 import { h, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
-import { PolygonTool, RectTool, type Tool } from './tools';
+import { ClickTool, PolygonTool, RectTool, type Tool } from './tools';
+import { ContextManager } from '../context/manager';
+import type { ContextBundle } from '../context/load';
+import { summary } from '../context/osm';
+import { geocode, type Place } from '../context/geocode';
+import { detectBlock, type Barrier } from '../context/blocks';
 
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
@@ -36,10 +41,14 @@ export class Editor {
   private root: HTMLElement;
   private el: Record<string, HTMLElement> = {};
   private off: (() => void)[] = [];
+  private ctxMgr = new ContextManager();
+  private ctx: { busy: boolean; msg: string; frac: number; err: string } = { busy: false, msg: '', frac: 0, err: '' };
+  private search: { q: string; busy: boolean; res: Place[]; err: string; pending: Place | null } = { q: '', busy: false, res: [], err: '', pending: null };
+  private prevDoc: Project;
 
   constructor(host: HTMLElement, doc: Project, private onExit: () => void) {
-    this.store = new Store(doc);
-    this.step = STEPS.find(s => s.id === (doc.site ? 'hajm' : 'uchastka'))!;
+    this.store = new Store(doc); this.prevDoc = doc;
+    this.step = STEPS.find(s => s.id === (doc.site ? 'hajm' : doc.context.loaded ? 'uchastka' : 'hudud'))!;
     this.root = this.build();
     host.replaceChildren(this.root);
     this.scene = new Scene3D(this.el.scene);
@@ -48,6 +57,7 @@ export class Editor {
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
     this.bindScene(); this.bindKeys();
     this.renderAll(); this.recompute();
+    if (doc.context.loaded) void this.ensureContext();
   }
 
   dispose(): void { this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.scene.dispose(); }
@@ -75,8 +85,10 @@ export class Editor {
     const drawer = h('div', { class: 'drawer', hidden: true });
     const hint = h('div', { class: 'hint', hidden: true });
     const scene = h('div', { id: 'scene' });
-    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi);
-    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, drawer, hint, scene, stage });
+    const attr = h('div', { class: 'attr', hidden: true });
+    attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span>';
+    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, attr);
+    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, drawer, hint, scene, stage, attr });
     return h('div', { class: 'app' }, top, stage);
   }
 
@@ -90,6 +102,8 @@ export class Editor {
   }
 
   private onChange(doc: Project): void {
+    const p = this.prevDoc; this.prevDoc = doc;
+    if (p.origin !== doc.origin || p.context !== doc.context) void this.ensureContext();
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
     (this.el.name as HTMLInputElement).value = doc.name;
     this.scene.select(this.sel); this.scene.update(doc);
@@ -107,6 +121,122 @@ export class Editor {
     (this.root.querySelector('#redo') as HTMLButtonElement).disabled = !this.store.canRedo;
     (this.root.querySelector('#undo') as HTMLButtonElement).title = this.store.canUndo ? `Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)` : 'Bekor qilish (Ctrl+Z)';
     this.renderRail(); this.renderPanel();
+  }
+
+  /* ---------- kontekst ---------- */
+  /** Hujjatdagi holatga mos kontekstni koʻrsatish: kerak boʻlsa keshdan yoki tarmoqdan yuklash */
+  private async ensureContext(force = false): Promise<void> {
+    const doc = this.store.doc, cs = doc.context;
+    if (!cs.loaded) { this.showContext(null); return; }
+    const cur = this.ctxMgr.current;
+    const covers = (b: ContextBundle | null) => !!b && b.radius >= cs.radius && dist(b.center, doc.origin) + cs.radius <= b.radius + 60;
+    if (!force && covers(cur)) { this.showContext(cur); return; }
+    if (this.ctx.busy && !force) return;
+    this.ctx = { busy: true, msg: 'Keshdan…', frac: 0.02, err: '' }; this.renderPanel();
+    try {
+      const b = await this.ctxMgr.load(doc.origin, cs.radius, (msg, frac) => { this.ctx.msg = msg; this.ctx.frac = frac; this.renderCtxProgress(); }, force);
+      this.ctx = { busy: false, msg: '', frac: 1, err: '' };
+      if (this.store.doc.origin === doc.origin) this.showContext(b);
+    } catch (e) {
+      const m = (e as Error).message;
+      if (m === 'eskirdi') return;
+      this.ctx = { busy: false, msg: '', frac: 0, err: m };
+    }
+    this.renderPanel();
+  }
+
+  private showContext(b: ContextBundle | null): void {
+    const doc = this.store.doc;
+    void this.scene.setContext(b, doc).then(() => { if (b && !this.framedCtx) { this.framedCtx = true; if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); } });
+    this.el.attr.hidden = !b;
+    (this.el.attr.querySelector('.sat') as HTMLElement).hidden = doc.context.base !== 'sputnik';
+  }
+  private framedCtx = false;
+
+  private renderCtxProgress(): void {
+    const bar = this.el.panel.querySelector<HTMLElement>('.prog i'), t = this.el.panel.querySelector<HTMLElement>('#ctxMsg');
+    if (bar) bar.style.width = `${Math.round(this.ctx.frac * 100)}%`; if (t) t.textContent = this.ctx.msg;
+  }
+
+  private async doSearch(q: string): Promise<void> {
+    if (!q.trim()) return;
+    this.search = { ...this.search, q, busy: true, err: '', res: [] }; this.renderPanel();
+    try { this.search.res = await geocode(q, this.store.doc.origin); if (!this.search.res.length) this.search.err = 'Hech narsa topilmadi. Koʻcha, mahalla yoki «41.311, 69.279» koʻrinishida yozing.'; }
+    catch (e) { this.search.err = (e as Error).message || 'Qidiruvda xato'; }
+    this.search.busy = false; this.renderPanel();
+  }
+
+  private goTo(p: Place, carry: boolean | null): void {
+    const doc = this.store.doc;
+    if (carry === null && (doc.site || doc.buildings.length)) { this.search.pending = p; this.renderPanel(); return; }
+    this.search.pending = null; this.search.res = [];
+    this.framedCtx = false;
+    this.run(() => this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }));
+    this.scene.frameRadius(doc.site && carry ? 0 : 250);
+    if (doc.site && carry) this.scene.frameDoc(this.store.doc);
+  }
+
+  /** Kvartalni bosib aniqlash: yoʻllar, temir yoʻl va suv — toʻsiq */
+  private pickBlock(xy: XY): void {
+    const b = this.ctxMgr.current, doc = this.store.doc; if (!b) return;
+    const fr = frame(doc.origin);
+    const NOT = /^(footway|path|cycleway|steps|track|bridleway|corridor|service|construction|proposed|platform)$/;
+    const bars: Barrier[] = [
+      ...b.osm.roads.filter(r => !NOT.test(r.cls)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })),
+      ...b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w + 4 })),
+      ...b.osm.waterways.filter(w => /river|canal/.test(w.cls)).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w })),
+    ];
+    const res = detectBlock(bars, b.osm.water.map(a => a.rings[0].map(fr.toLocal)), xy, { window: Math.min(1400, 2 * doc.context.radius + 200) });
+    if (!res.ok) { toast(res.reason); return; }
+    this.run(() => this.store.dispatch({ type: 'setSite', rings: [res.ring.map(fr.toGeo)] }));
+    this.setTool(null); this.scene.frameDoc(this.store.doc);
+    toast(`Kvartal aniqlandi: ${fmt(res.area / 1e4, 2)} ga. Chegarani yoʻl chetidan oladi — kerak boʻlsa qaytadan chizing.`);
+  }
+
+  private hududPanel(body: HTMLElement): void {
+    const doc = this.store.doc, cs = doc.context, b = this.ctxMgr.current, S = this.search;
+    const q = h('input', { type: 'search', id: 'q', placeholder: 'Manzil, mahalla yoki 41.311, 69.279', value: S.q, 'aria-label': 'Manzil qidiruvi' }) as HTMLInputElement;
+    q.addEventListener('keydown', e => { if (e.key === 'Enter') void this.doSearch(q.value); });
+    body.append(
+      h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Qidirish'), q),
+        h('button', { class: 'btn', id: 'qGo', style: 'align-self:end', disabled: S.busy, onclick: () => void this.doSearch(q.value) }, S.busy ? '…' : 'Topish')));
+    if (S.err) body.append(h('p', { class: 'err' }, S.err));
+    if (S.pending) {
+      const p = S.pending;
+      body.append(h('div', { class: 'warn' }, `«${p.name}» ga oʻtilmoqda. Chizilgan uchastka va binolar bilan nima qilamiz?`),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn primary grow', id: 'mvCarry', onclick: () => this.goTo(p, true) }, 'Ular ham koʻchsin'),
+          h('button', { class: 'btn grow', id: 'mvOnly', onclick: () => this.goTo(p, false) }, 'Joyida qolsin')),
+        h('button', { class: 'btn', onclick: () => { this.search.pending = null; this.renderPanel(); } }, 'Bekor qilish'));
+    } else if (S.res.length) {
+      body.append(h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Qidiruv natijalari' }, ...S.res.map(p => h('div', { class: 'it', role: 'option', onclick: () => this.goTo(p, null) }, h('b', {}, p.name), h('small', {}, p.detail)))));
+    }
+    body.append(h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Markaz'), h('span', { class: 'num', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`)));
+
+    const radius = h('div', { class: 'seg full', role: 'group', 'aria-label': 'Radius' }, ...[300, 500, 750, 1000].map(r => h('button', { 'aria-pressed': cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r } })) }, `${r} m`)));
+    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Atrof radiusi'), radius));
+
+    if (this.ctx.busy) body.append(h('div', { class: 'field' }, h('div', { class: 'prog' }, h('i', { style: `width:${Math.round(this.ctx.frac * 100)}%` })), h('span', { class: 'note', id: 'ctxMsg' }, this.ctx.msg)));
+    else if (!cs.loaded) body.append(h('button', { class: 'btn primary', id: 'ctxLoad', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: true } })) }, 'Atrofni yuklash (OSM, relyef, sunʼiy yoʻldosh)'));
+    if (this.ctx.err) body.append(h('p', { class: 'err', id: 'ctxErr' }, this.ctx.err), h('button', { class: 'btn', onclick: () => void this.ensureContext(true) }, 'Qayta urinish'));
+
+    if (cs.loaded && b && !this.ctx.busy) {
+      const s = summary(b.osm), est = b.osm.buildings.filter(x => x.hSrc === 'taxmin').length;
+      body.append(h('div', { class: 'ctxst', id: 'ctxSt' },
+        h('b', {}, `${fmt(s.buildings)} bino`), ` · ${fmt(s.roadKm, 1)} km yoʻl · ${fmt(b.osm.water.length + b.osm.waterways.length)} suv obyekti · ${fmt(b.osm.green.length)} yashil hudud`, h('br'),
+        h('span', { class: 'muted' }, `OSM, ${new Date(b.fetched).toLocaleDateString('ru-RU')}. ${est ? `${fmt(est)} ta binoning balandligi OSM da yoʻq — turi boʻyicha taxmin qilingan.` : ''}`)));
+      if (b.missing.length) body.append(h('p', { class: 'warn' }, `Yuklanmadi: ${b.missing.join(', ')}. Qolgan qatlamlar ishlaydi.`));
+      const L = cs.layers, names: [keyof typeof L, string][] = [['buildings', 'Binolar'], ['roads', 'Yoʻllar'], ['rail', 'Temir yoʻl'], ['water', 'Suv'], ['green', 'Yashil hududlar'], ['trees', 'Daraxtlar*'], ['relief', 'Relyef']];
+      body.append(
+        h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Yer qoplami'),
+          h('div', { class: 'seg full', role: 'group' }, ...([['maket', 'Maket'], ['sputnik', 'Sunʼiy yoʻldosh']] as const).map(([k, t]) => h('button', { 'aria-pressed': cs.base === k, 'data-base': k, disabled: k === 'sputnik' && !b.imagery, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })) }, t)))),
+        h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Qatlamlar'),
+          h('div', { class: 'chk' }, ...names.map(([k, t]) => { const c = h('input', { type: 'checkbox', checked: L[k], 'data-layer': k }) as HTMLInputElement; c.onchange = () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: c.checked } } })); return h('label', {}, c, t); }))),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn grow', onclick: () => void this.ensureContext(true) }, 'OSM dan yangilash'),
+          h('button', { class: 'btn grow', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, 'Yashirish')),
+        h('p', { class: 'note' }, '* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.'));
+    }
   }
 
   /* ---------- qadamlar ---------- */
@@ -161,19 +291,7 @@ export class Editor {
 
   private panelBody(s: StepDef, body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin);
-    if (s.id === 'hudud') {
-      const lat = h('input', { type: 'number', step: '0.0001', value: doc.origin[1].toFixed(5), id: 'lat' }) as HTMLInputElement;
-      const lng = h('input', { type: 'number', step: '0.0001', value: doc.origin[0].toFixed(5), id: 'lng' }) as HTMLInputElement;
-      body.append(
-        h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Kenglik'), lat), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Uzunlik'), lng)),
-        h('button', { class: 'btn', onclick: () => {
-          const o: LngLat = [Number(lng.value), Number(lat.value)];
-          if (!(Math.abs(o[0]) <= 180 && Math.abs(o[1]) <= 90)) { toast('Koordinata notoʻgʻri'); return; }
-          if (doc.site || doc.buildings.length) { toast('Uchastka chizilgan — markazni oʻzgartirish 1-bosqichda (koʻchirish bilan) qoʻshiladi'); return; }
-          this.run(() => this.store.dispatch({ type: 'setOrigin', origin: o }));
-        } }, 'Markazni qoʻyish'),
-        h('p', { class: 'note' }, 'Hozircha koordinata qoʻlda. 1-bosqichda: manzil qidiruvi, OSM binolari, yoʻllar, suv, relyef va sunʼiy yoʻldosh tasviri.'));
-    }
+    if (s.id === 'hudud') this.hududPanel(body);
     if (s.id === 'uchastka') {
       const area = this.last?.d.siteHa ?? 0;
       const w = h('input', { type: 'number', min: 10, max: 2000, value: 120, id: 'rw' }) as HTMLInputElement;
@@ -184,6 +302,7 @@ export class Editor {
         h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawSite', onclick: () => drawing ? this.setTool(null) : this.setTool(new PolygonTool(this.scene, r => {
           this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.setTool(null); this.scene.frameDoc(this.store.doc);
         }, toast)) }, drawing ? 'Chizishni toʻxtatish' : (doc.site ? '✎ Qaytadan chizish' : '✎ Sahnada chizish')),
+        this.ctxMgr.current && doc.context.loaded && doc.context.layers.roads ? h('button', { class: this.tool instanceof ClickTool ? 'btn primary' : 'btn', id: 'pickBlock', onclick: () => this.tool instanceof ClickTool ? this.setTool(null) : this.setTool(new ClickTool('Yoʻllar orasidagi kvartal ichini bosing · Esc — bekor', xy => this.pickBlock(xy))) }, this.tool instanceof ClickTool ? 'Aniqlashni toʻxtatish' : '⌖ Kvartalni bosib aniqlash') : '',
         h('div', { class: 'lb' }, 'yoki oʻlcham bilan, markazda'),
         h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Eni, m'), w), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Boʻyi, m'), hh),
           h('button', { class: 'btn', id: 'rectSite', style: 'align-self:end', onclick: () => {
@@ -289,4 +408,5 @@ export class Editor {
   }
 }
 
+const dist = (a: LngLat, b: LngLat) => { const f = frame(a).toLocal(b); return Math.hypot(f[0], f[1]); };
 const safe = (s: string) => s.replace(/[^\p{L}\p{N}_ -]+/gu, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'loyiha';
