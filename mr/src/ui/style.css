@@ -118,3 +118,7 @@ button{cursor:pointer}
 .attr a{color:inherit}
 .ctxbadge{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:6;font:12px var(--sans);padding:6px 12px;border-radius:999px;background:var(--surface);box-shadow:var(--shadow);color:var(--muted)}
 .ctxbadge[data-s=err]{color:var(--bad);background:var(--bad-soft)}
+.pbar{display:flex;align-items:center;gap:0;height:10px;margin-top:4px;width:100%}.pbar i{height:10px;display:block}.pbar span{font:10.5px var(--mono);color:var(--muted);margin-left:6px;white-space:nowrap}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none;border:1px solid rgba(0,0,0,.12)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.zchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
+.zchip::before{content:'';width:10px;height:10px;border-radius:50%;background:var(--c)}.zchip[aria-pressed=true]{border-color:var(--ink);background:var(--sunk);font-weight:600}

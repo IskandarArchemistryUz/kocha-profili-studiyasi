@@ -20,7 +20,7 @@ export function sidewalkW(cls: string): number {
   return 2.2;
 }
 
-class Buf {
+export class Buf {
   p: number[] = [];
   constructor(private H: HeightFn, private lift: number) {}
   tri(a: XY, b: XY, c: XY) { for (const v of [a, b, c]) this.p.push(v[0], this.H(v[0], v[1]) + this.lift, -v[1]); }
@@ -35,9 +35,10 @@ class Buf {
     }
   }
   disc(c: XY, r: number) { const n = r > 5 ? 16 : 10; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, b = (i + 1) / n * Math.PI * 2; this.tri(c, [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r], [c[0] + Math.cos(b) * r, c[1] + Math.sin(b) * r]); } }
-  ribbon(pts: XY[], r: number) {
-    for (let i = 1; i < pts.length; i++) { this.band(pts[i - 1], pts[i], -r, r); this.disc(pts[i], r); }
-    if (pts.length) this.disc(pts[0], r);
+  /** caps=false — uchlar toʻgʻri kesilgan (loyiha koʻchalari), true — yumaloq (OSM: uzilgan boʻlaklar ulansin) */
+  ribbon(pts: XY[], r: number, caps = true) {
+    for (let i = 1; i < pts.length; i++) { this.band(pts[i - 1], pts[i], -r, r); if (caps || i < pts.length - 1) this.disc(pts[i], r); }
+    if (pts.length && caps) this.disc(pts[0], r);
   }
 }
 
@@ -100,4 +101,75 @@ export function streetsGeo(list: StreetIn[], H: HeightFn): StreetGeo {
     }
   }
   return { sidewalk: sw.p, asphalt: as.p, major: mj.p, foot: ft.p, marks: mk.p };
+}
+
+/* ---------- loyiha koʻchalari (profil boʻyicha) ---------- */
+import type { Part } from '../core/profiles';
+
+export interface ProjStreet { id: string; axis: XY[]; parts: Part[] }
+export interface ProjStreetGeo { layers: Record<string, number[]>; trees: XY[]; red: XY[][] }
+
+const segDist = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]); };
+const lineDist = (p: XY, l: XY[]) => { let m = Infinity; for (let i = 1; i < l.length; i++) m = Math.min(m, segDist(p, l[i - 1], l[i])); return m; };
+
+/** Qizil chiziq: oʻqdan ±half siljigan siniq chiziq (boʻgʻinlarda burchak kesishmasi) */
+export function offsetLine(axis: XY[], d: number): XY[] {
+  const n = axis.length, out: XY[] = [];
+  const nrm = (a: XY, b: XY): XY => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; };
+  for (let i = 0; i < n; i++) {
+    const n0 = i > 0 ? nrm(axis[i - 1], axis[i]) : null, n1 = i < n - 1 ? nrm(axis[i], axis[i + 1]) : null;
+    let m: XY = n0 && n1 ? [n0[0] + n1[0], n0[1] + n1[1]] : (n0 ?? n1)!;
+    const ml = Math.hypot(m[0], m[1]) || 1; m = [m[0] / ml, m[1] / ml];
+    const cos = n0 && n1 ? Math.max(0.35, m[0] * n0[0] + m[1] * n0[1]) : 1;
+    out.push([axis[i][0] + m[0] * d / cos, axis[i][1] + m[1] * d / cos]);
+  }
+  return out;
+}
+
+export function projectStreetsGeo(list: ProjStreet[], H: HeightFn): ProjStreetGeo {
+  const L: Record<string, Buf> = {}, layer = (k: string, lift: number) => (L[k] ??= new Buf(H, lift));
+  const trees: XY[] = [], red: XY[][] = [];
+  // chorraha: oʻq nuqtasi boshqa koʻcha oʻqiga yaqin (≤ uning yarim kengligi)
+  const half = (s: ProjStreet) => s.parts.reduce((a, p) => a + p.w, 0) / 2;
+  const nearOther = (p: XY, self: ProjStreet) => list.some(o => o !== self && lineDist(p, o.axis) <= half(o) + 0.5);
+  for (const s of list) {
+    const W = half(s) * 2;
+    red.push(offsetLine(s.axis, W / 2), offsetLine(s.axis, -W / 2));
+    // asos: butun kenglik — trotuar rangida (boʻgʻinlarda doira)
+    layer('trotuar', 0.08).ribbon(s.axis, W / 2, false);
+    let o = -W / 2;
+    for (const p of s.parts) {
+      const o0 = o, o1 = o + p.w; o = o1;
+      if (p.k === 'trotuar') continue;
+      const b = layer(p.k === 'ajratuvchi' ? 'yashil' : p.k, p.k === 'qatnov' ? 0.12 : 0.1);
+      for (let i = 1; i < s.axis.length; i++) b.band(s.axis[i - 1], s.axis[i], o0, o1);
+      if (p.k === 'qatnov') for (let i = 0; i < s.axis.length; i++) {
+        const c = s.axis[i], end = i === 0 || i === s.axis.length - 1;
+        // ichki boʻgʻinda asfalt yaxlit; chorrahada (boshqa koʻcha ustida) — butun kenglikda asfalt
+        if (!end) {
+          const mid = (o0 + o1) / 2, prev = s.axis[i - 1], next = s.axis[i + 1], dx = next[0] - prev[0], dy = next[1] - prev[1], Ln = Math.hypot(dx, dy) || 1;
+          b.disc([c[0] - dy / Ln * mid, c[1] + dx / Ln * mid], p.w / 2 + 0.3);
+        }
+        if (nearOther(c, s)) layer('qatnov', 0.12).disc(c, W / 2 - 0.5);
+      }
+      if ((p.k === 'yashil' && p.w >= 1.4) || (p.k === 'ajratuvchi' && p.w >= 3)) {
+        const mid = (o0 + o1) / 2;
+        for (let i = 1; i < s.axis.length; i++) {
+          const a = s.axis[i - 1], c = s.axis[i], dx = c[0] - a[0], dy = c[1] - a[1], Ls = Math.hypot(dx, dy); if (Ls < 4) continue;
+          for (let t = 4; t < Ls - 3; t += 8) { const q: XY = [a[0] + dx / Ls * t - dy / Ls * mid, a[1] + dy / Ls * t + dx / Ls * mid]; if (!nearOther(q, s)) trees.push(q); }
+        }
+      }
+      if (p.k === 'qatnov' && (p.lanes ?? 1) >= 2) {
+        const lanes = p.lanes!, lw = p.w / lanes, mk = layer('chiziq', 0.14);
+        for (let i = 1; i < s.axis.length; i++) {
+          const a = s.axis[i - 1], c = s.axis[i], dx = c[0] - a[0], dy = c[1] - a[1], Ls = Math.hypot(dx, dy); if (Ls < 4) continue;
+          const ux = dx / Ls, uy = dy / Ls, P = (t: number): XY => [a[0] + ux * t, a[1] + uy * t];
+          const t0 = nearOther(a, s) ? W / 2 + 4 : 0, t1 = Ls - (nearOther(c, s) ? W / 2 + 4 : 0);
+          for (let k = 1; k < lanes; k++) { const off = o0 + k * lw; for (let t = t0; t < t1; t += 9) { const m = P(t + 1.5); if (nearOther([m[0] - uy * off, m[1] + ux * off], s)) continue; mk.band(P(t), P(Math.min(t1, t + 3)), off - 0.07, off + 0.07); } }
+        }
+      }
+    }
+  }
+  const layers: Record<string, number[]> = {}; for (const k in L) layers[k] = L[k].p;
+  return { layers, trees, red };
 }

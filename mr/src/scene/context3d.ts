@@ -226,11 +226,22 @@ function treePositions(b: ContextBundle, fr: Frame, R: number, avoid: (p: XY) =>
   return out;
 }
 
-export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; dispose(): void; maskTrees(ring: XY[] | null): void }
+export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; dispose(): void; maskTrees(ring: XY[] | null): void }
 
 /** Butun kontekst sahnasini qurish */
-export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null): ContextScene {
+export interface CtxBld { id: number; rings: XY[][]; h: number; kind?: string }
+
+/** Bitta yoki bir nechta binoning geometriyasi (loyiha uchastkasidagi mavjud binolar uchun) */
+export function buildingMeshes(list: CtxBld[], H: HeightFn, mat: THREE.Material, roofMat: THREE.Material, edgeMat: THREE.LineBasicMaterial): THREE.Object3D[] {
+  const g = buildingsGeo(list, H); if (!g) return [];
+  const out: THREE.Object3D[] = [new THREE.Mesh(g.mesh, mat), new THREE.LineSegments(g.edges, edgeMat)];
+  if (g.roof) out.push(new THREE.Mesh(g.roof, roofMat));
+  return out;
+}
+
+export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null, site: XY[] | null = null): ContextScene {
   const g = new THREE.Group(); g.name = 'kontekst';
+  const inSite: CtxBld[] = [];
   const R = b.radius, L = cs.layers;
   const C0 = fr.toLocal(b.center);
   const clip = (pts: XY[]) => pts.some(p => Math.abs(p[0] - C0[0]) < R * 1.05 && Math.abs(p[1] - C0[1]) < R * 1.05);
@@ -283,7 +294,11 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   }
   // binolar
   if (L.buildings) {
-    const bl = b.osm.buildings.map(x => ({ rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, kind: x.kind })).filter(x => clip(x.rings[0]));
+    const all = b.osm.buildings.map(x => ({ id: x.id, rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, kind: x.kind })).filter(x => clip(x.rings[0]));
+    // uchastka ichidagilar (markazi boʻyicha) — alohida: saqlash/buzish qarori loyihada
+    const cen = (r: XY[]): XY => { let x = 0, y = 0; r.forEach(p => { x += p[0]; y += p[1]; }); return [x / r.length, y / r.length]; };
+    const bl = site ? all.filter(x => !pip(cen(x.rings[0]), site)) : all;
+    if (site) inSite.push(...all.filter(x => pip(cen(x.rings[0]), site)));
     const bg = buildingsGeo(bl, H);
     if (bg) {
       const m = new THREE.Mesh(bg.mesh, new THREE.MeshLambertMaterial({ color: CC.bld })); m.name = 'binolar'; m.castShadow = m.receiveShadow = true; m.renderOrder = 10;
@@ -316,7 +331,7 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     }
   }
   return {
-    group: g, ground,
+    group: g, ground, inSite,
     /** Loyiha uchastkasi ichidagi kontekst daraxtlarini yashirish (uchastka loyihalanadi) */
     maskTrees(ring) {
       const crown = g.getObjectByName('daraxtlar') as THREE.InstancedMesh | undefined; if (!crown) return;

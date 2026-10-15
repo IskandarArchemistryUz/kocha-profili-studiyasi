@@ -12,7 +12,12 @@ import { Compute, type Computed } from '../workers/compute';
 import type { Result } from '../norms/rules';
 import { h, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
-import { ClickTool, PolygonTool, RectTool, type Tool } from './tools';
+import { ClickTool, LineTool, PolygonTool, RectTool, type Tool } from './tools';
+import { computePlan, pointIn, type PlanGeo } from '../core/plan';
+import { PROFILES, profileById, profileWidth } from '../core/profiles';
+import { ZONE_COL } from '../scene/scene';
+import type { Use } from '../core/doc';
+import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
 import { summary } from '../context/osm';
@@ -47,6 +52,10 @@ export class Editor {
   private prevDoc: Project;
   /** kvartal chegarasi: mayda — barcha koʻchalar (mahalla ichidagi servis yoʻllari ham), yirik — faqat asosiy koʻchalar */
   private blockMode: 'mayda' | 'yirik' = 'mayda';
+  private profile = 'mahalla-12';
+  private selStreet: string | null = null;
+  private selBlock: number | null = null;
+  private planCache: { doc: Project; plan: PlanGeo } | null = null;
 
   constructor(host: HTMLElement, doc: Project, private onExit: () => void) {
     this.store = new Store(doc); this.prevDoc = doc;
@@ -106,7 +115,8 @@ export class Editor {
 
   private onChange(doc: Project): void {
     const p = this.prevDoc; this.prevDoc = doc;
-    if (p.origin !== doc.origin || p.context !== doc.context) void this.ensureContext();
+    if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site) void this.ensureContext();
+    if (this.selStreet && !doc.streets.some(x => x.id === this.selStreet)) { this.selStreet = null; this.scene.selectStreet(null); }
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
     (this.el.name as HTMLInputElement).value = doc.name;
     this.scene.select(this.sel); this.scene.update(doc);
@@ -255,15 +265,124 @@ export class Editor {
     }
   }
 
+  /* ---------- 2-bosqich: koʻchalar, parsellar, yashil ---------- */
+  private plan(): PlanGeo {
+    const d = this.store.doc;
+    if (this.planCache?.doc !== d) this.planCache = { doc: d, plan: computePlan(d) };
+    return this.planCache.plan;
+  }
+
+  private profileBar(id: string): HTMLElement {
+    const p = profileById(id), W = profileWidth(p);
+    const C: Record<string, string> = { trotuar: '#d8d2c6', yashil: '#9cc77f', velo: '#c9705a', parkovka: '#8d9097', qatnov: '#585b62', ajratuvchi: '#9cc77f' };
+    return h('div', { class: 'pbar', title: p.parts.map(x => `${x.k} ${fmt(x.w, 1)} m${x.lanes ? ` (${x.lanes} qator)` : ''}`).join(' · ') },
+      ...p.parts.map(x => h('i', { style: `flex:${x.w};background:${C[x.k]}` })), h('span', {}, `${fmt(W, 1)} m`));
+  }
+
+  /** Koʻcha uchini mavjud koʻcha oʻqiga yopishtirish (≤ 6 m) — chorrahalar ulanishi uchun */
+  private snapStreet = (p: XY): XY => {
+    const fr = frame(this.store.doc.origin); let best: XY = p, bd = 6;
+    for (const st of this.store.doc.streets) {
+      const a = st.axis.map(fr.toLocal);
+      for (const v of a) { const d = Math.hypot(v[0] - p[0], v[1] - p[1]); if (d < bd) { bd = d; best = v; } }
+      for (let i = 1; i < a.length; i++) {
+        const u = a[i - 1], w = a[i], dx = w[0] - u[0], dy = w[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2));
+        const q: XY = [u[0] + t * dx, u[1] + t * dy], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd - 1.5) { bd = d; best = q; }
+      }
+    }
+    return best;
+  };
+
+  private kochaPanel(body: HTMLElement): void {
+    const doc = this.store.doc, fr = frame(doc.origin), drawing = this.tool instanceof LineTool;
+    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Profil (yangi koʻcha uchun)'),
+      h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Profillar' }, ...PROFILES.map(p => h('div', { class: 'it', role: 'option', 'aria-selected': this.profile === p.id, 'data-prof': p.id, onclick: () => { this.profile = p.id; if (this.selStreet) this.run(() => this.store.dispatch({ type: 'updateStreet', id: this.selStreet!, patch: { profile: p.id } })); else this.renderPanel(); } },
+        h('b', {}, `${p.name} · ${fmt(profileWidth(p), 0)} m`), h('small', {}, p.note), this.profileBar(p.id))))));
+    body.append(h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawStreet', onclick: () => drawing ? this.setTool(null) : this.setTool(new LineTool(this.scene, r => {
+      this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
+      if (this.tool) this.el.hint.textContent = this.tool.hint;
+    }, toast, this.snapStreet)) }, drawing ? 'Chizishni tugatish' : '＋ Koʻcha chizish'));
+    if (doc.streets.length) {
+      const len = (a: XY[]) => a.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - a[i][0], p[1] - a[i][1]), 0);
+      body.append(h('div', { class: 'list', role: 'listbox', 'aria-label': 'Koʻchalar' }, ...doc.streets.map((st, k) => {
+        const p = profileById(st.profile);
+        return h('div', { class: 'it', role: 'option', 'aria-selected': st.id === this.selStreet, 'data-sid': st.id },
+          h('span', { class: 'grow', style: 'cursor:pointer', onclick: () => this.pickStreet(st.id === this.selStreet ? null : st.id) }, `${k + 1}. ${p.name} · ${fmt(profileWidth(p), 0)} m · ${fmt(len(st.axis.map(fr.toLocal)))} m`),
+          h('button', { title: 'Oʻchirish', 'aria-label': 'Koʻchani oʻchirish', onclick: () => this.run(() => this.store.dispatch({ type: 'removeStreet', id: st.id })) }, '×'));
+      })));
+      const d = this.last?.d;
+      if (d) body.append(h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Koʻchalar uchastkada'), h('b', { class: 'num', id: 'stArea' }, `${fmt(d.streetArea / 1e4, 2)} ga · ${fmt(d.siteHa ? d.streetArea / 1e4 / d.siteHa * 100 : 0, 0)} %`)));
+      if (this.selStreet) body.append(h('p', { class: 'note' }, 'Tanlangan koʻcha koʻk. Yuqoridan profil tanlasangiz — shu koʻchaga qoʻllanadi. Delete — oʻchirish.'));
+    } else body.append(h('p', { class: 'note' }, 'Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.'));
+    body.append(h('p', { class: 'note' }, 'Qizil chiziqlar orasidagi kenglik = profil kengligi. Profillar namunaviy (taxmin) — ShNQ 2.07.01-23 koʻcha toifalari jadvali bilan hali solishtirilmagan.'));
+  }
+
+  private pickStreet(id: string | null): void { this.selStreet = id; this.scene.selectStreet(id); const st = this.store.doc.streets.find(x => x.id === id); if (st) this.profile = st.profile; this.renderPanel(); }
+
+  private setBlockUse(i: number, use: Use): void {
+    const plan = this.plan(), b = plan.blocks[i]; if (!b) return;
+    const fr = frame(this.store.doc.origin);
+    const zones = this.store.doc.zones.filter(z => !pointIn(fr.toLocal(z.at), b.rings));
+    zones.push({ id: uid('z_'), at: fr.toGeo(b.centroid), use });
+    this.run(() => this.store.dispatch({ type: 'setZones', zones }));
+  }
+
+  private demolition(): { all: number; kept: number; gone: number; foot: number; floorArea: number } {
+    const doc = this.store.doc, list = this.scene.inSite;
+    const keep = new Set(doc.keep); let foot = 0, fa = 0, gone = 0;
+    for (const x of list) if (!keep.has(x.id)) { gone++; let a = 0; const r = x.rings[0]; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += r[j][0] * r[i][1] - r[i][0] * r[j][1]; a = Math.abs(a) / 2; foot += a; fa += a * Math.max(1, Math.round(x.h / 3.2)); }
+    return { all: list.length, kept: list.length - gone, gone, foot, floorArea: fa };
+  }
+
+  private parselPanel(body: HTMLElement): void {
+    const plan = this.plan();
+    const USES: [Use, string][] = [['turar', 'Turar joy'], ['aralash', 'Aralash'], ['ijtimoiy', 'Ijtimoiy'], ['savdo', 'Savdo / ofis'], ['yashil', 'Yashil'], ['texnik', 'Texnik']];
+    const name = (u: Use) => USES.find(x => x[0] === u)?.[1] ?? u;
+    if (this.selBlock != null && !plan.blocks[this.selBlock]) this.selBlock = null;
+    body.append(h('div', { class: 'list', role: 'listbox', 'aria-label': 'Kvartallar' }, ...plan.blocks.map((b, i) => h('div', { class: 'it', role: 'option', 'aria-selected': i === this.selBlock, 'data-block': i, style: 'cursor:pointer', onclick: () => { this.selBlock = i === this.selBlock ? null : i; this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
+      h('i', { class: 'sw', style: `background:#${(ZONE_COL[b.use] ?? 0xcccccc).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, `K-${i + 1} · ${fmt(b.area / 1e4, 2)} ga`), h('small', { class: 'muted' }, name(b.use))))));
+    if (this.selBlock != null) {
+      const i = this.selBlock, b = plan.blocks[i];
+      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, `K-${i + 1} funksiyasi`),
+        h('div', { class: 'chips' }, ...USES.map(([u, t]) => h('button', { class: 'zchip', 'aria-pressed': b.use === u, 'data-use': u, style: `--c:#${ZONE_COL[u].toString(16).padStart(6, '0')}`, onclick: () => this.setBlockUse(i, u) }, t)))));
+    } else body.append(h('p', { class: 'note' }, 'Kvartalni roʻyxatdan yoki sahnada bosib tanlang.'));
+    const dm = this.demolition();
+    if (dm.all) {
+      body.append(h('div', { class: 'field', id: 'demo' }, h('span', { class: 'lb' }, 'Uchastkadagi mavjud binolar'),
+        h('div', { class: 'ctxst' }, h('b', {}, `${dm.all} bino`), ` · saqlanadi ${dm.kept} · `, h('b', { style: 'color:var(--bad)' }, `buziladi ${dm.gone}`),
+          dm.gone ? h('div', { class: 'muted' }, `Buziladigan dogʻ ${fmt(dm.foot)} m², taxminiy maydon ~${fmt(dm.floorArea)} m² (OSM balandligi/taxmin boʻyicha). Koʻchirish hisobi — 5-bosqichda.`) : ''),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn grow', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id) })) }, 'Hammasini saqlash'),
+          h('button', { class: 'btn grow', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, 'Hammasini buzish')),
+        h('p', { class: 'note' }, 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil.')));
+    }
+  }
+
+  private yashilPanel(body: HTMLElement): void {
+    const plan = this.plan(), d = this.last?.d, rule = this.last?.results.find(r => r.id === 'green-per-person');
+    const green = plan.blocks.map((b, i) => ({ b, i })).filter(x => x.b.use === 'yashil');
+    body.append(h('div', { class: 'ctxst', id: 'greenSt' },
+      h('b', {}, `Yashil kvartallar: ${green.length} · ${fmt((d?.greenArea ?? 0) / 1e4, 2)} ga`), h('br'),
+      `Uchastkaning ${fmt((d?.greenShare ?? 0) * 100, 0)} % · kishi boshiga ${d?.population ? fmt(d.greenPerPerson, 1) + ' m²' : '— (aholi yoʻq)'}`,
+      rule ? h('div', {}, h('span', { class: 'chip', 'data-s': rule.status }, `meʼyor ${rule.limit} m²/kishi`)) : ''));
+    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartalni yashil qilish / qaytarish'),
+      h('div', { class: 'list' }, ...plan.blocks.map((b, i) => {
+        const c = h('input', { type: 'checkbox', checked: b.use === 'yashil', 'data-green': i }) as HTMLInputElement;
+        c.onchange = () => this.setBlockUse(i, c.checked ? 'yashil' : 'turar');
+        return h('label', { class: 'it' }, c, h('span', { class: 'grow' }, `K-${i + 1} · ${fmt(b.area / 1e4, 2)} ga`));
+      }))));
+    body.append(h('p', { class: 'note' }, 'Koʻchalardagi yashil tasmalar va daraxtlar bu hisobga kirmaydi. Meʼyor manbasi reyestrda — band raqami hali tekshirilmagan.'));
+  }
+
   /* ---------- qadamlar ---------- */
   private locked(s: StepDef): string | null {
     if (s.phase > BUILT_PHASE) return `${s.phase}-bosqichda quriladi`;
-    if (s.id === 'hajm' && !this.store.doc.site) return 'Avval uchastkani chizing';
+    if (['hajm', 'kocha', 'parsel', 'yashil'].includes(s.id) && !this.store.doc.site) return 'Avval uchastkani chizing';
     return null;
   }
   private done(s: StepDef): boolean {
     const d = this.store.doc;
-    return s.id === 'uchastka' ? !!d.site : s.id === 'hajm' ? d.buildings.length > 0 : false;
+    return s.id === 'uchastka' ? !!d.site : s.id === 'hajm' ? d.buildings.length > 0 : s.id === 'kocha' ? d.streets.length > 0 : s.id === 'parsel' ? d.zones.length > 0 : s.id === 'yashil' ? d.zones.some(z => z.use === 'yashil') : false;
   }
 
   private renderRail(): void {
@@ -279,7 +398,10 @@ export class Editor {
   go(s: StepDef): void {
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
-    this.setTool(null); this.step = s; this.renderAll();
+    this.setTool(null); this.step = s;
+    if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
+    if (s.id !== 'parsel' && this.selBlock != null) { this.selBlock = null; this.scene.selectBlock(null); }
+    this.renderAll();
   }
 
   private setTool(t: Tool | null): void {
@@ -352,6 +474,9 @@ export class Editor {
         sel ? h('p', { class: 'note' }, 'Tanlangan bino sahnada koʻk. Delete — oʻchirish.') : '',
         h('p', { class: 'note' }, 'Bu qadam hozircha qoʻlda. 3-bosqichda ShNQ boʻyicha generator (tipologiyalar, masofalar, insolyatsiya) koʻchiriladi.'));
     }
+    if (s.id === 'kocha') this.kochaPanel(body);
+    if (s.id === 'parsel') this.parselPanel(body);
+    if (s.id === 'yashil') this.yashilPanel(body);
     if (s.id === 'tekshiruv') body.append(this.register());
     if (s.id === 'eksport') {
       body.append(
@@ -377,7 +502,7 @@ export class Editor {
       k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens'),
       h('button', { class: 'more', id: 'kMore', 'aria-expanded': open, onclick: () => { this.el.drawer.hidden = !this.el.drawer.hidden; this.renderKpi(); } }, open ? 'Meʼyorlar ▾' : 'Meʼyorlar ▴'));
     if (open) this.el.drawer.replaceChildren(h('h3', {}, 'Meʼyoriy reyestr'), this.register());
-    if (this.step.id === 'tekshiruv' || this.step.id === 'uchastka') this.renderPanel();
+    if (['tekshiruv', 'uchastka', 'kocha', 'yashil'].includes(this.step.id)) this.renderPanel();
   }
 
   private register(): HTMLElement {
@@ -401,6 +526,21 @@ export class Editor {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;
       if (this.tool) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { this.tool.click(p, e); if (this.tool) this.el.hint.textContent = this.tool.hint; } return; }
+      if (this.step.id === 'parsel') {
+        const cid = this.scene.pickContextBuilding(e.clientX, e.clientY);
+        if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k] })); return; }
+        const p = this.scene.pick(e.clientX, e.clientY);
+        if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); this.renderPanel(); }
+        return;
+      }
+      if (this.step.id === 'kocha') {
+        const p = this.scene.pick(e.clientX, e.clientY), fr = frame(this.store.doc.origin);
+        if (p) {
+          const hit = this.store.doc.streets.find(st => { const a = st.axis.map(fr.toLocal), w = profileWidth(profileById(st.profile)) / 2; for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); if (Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]) <= w) return true; } return false; });
+          this.pickStreet(hit?.id ?? null);
+        }
+        return;
+      }
       const id = this.scene.pickBuilding(e.clientX, e.clientY);
       this.sel = id; this.scene.select(id);
       if (id && this.step.id !== 'hajm' && !this.locked(STEPS[5])) this.step = STEPS[5];
@@ -416,6 +556,7 @@ export class Editor {
       const z = e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey);
       if (z && !e.shiftKey) { e.preventDefault(); this.store.undo(); }
       else if ((z && e.shiftKey) || (e.key.toLowerCase() === 'y' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); this.store.redo(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.store.dispatch({ type: 'removeBuilding', id: this.sel }); }
       else if (e.key === 'Escape' && this.sel) { this.sel = null; this.scene.select(null); this.renderPanel(); }
     };

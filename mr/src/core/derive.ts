@@ -5,6 +5,7 @@
  */
 import type { Project } from './doc';
 import { frame, polyArea, ringLocal, area } from './geo';
+import { computePlan } from './plan';
 
 export interface Derived {
   /** uchastka maydoni, ga (teshiklar ayirilgan) */
@@ -29,6 +30,15 @@ export interface Derived {
   /** UMN / FAR = GFA / uchastka */
   far: number;
   avgFloors: number;
+  /** koʻchalar (qizil chiziqlar orasi) uchastka ichida, m² */
+  streetArea: number;
+  /** kvartallar soni va funksiya boʻyicha maydon, m² */
+  blocks: number;
+  zoneArea: Record<string, number>;
+  /** yashil zona maydoni, m²; kishi boshiga va ulushi */
+  greenArea: number;
+  greenPerPerson: number;
+  greenShare: number;
 }
 
 const RES_SHARE: Record<string, number> = { turar: 1, aralash: 0.7, ijtimoiy: 0, savdo: 0, yashil: 0, texnik: 0 };
@@ -47,7 +57,12 @@ export function derive(doc: Project): Derived {
   const resNet = resGfa * s.netToGross;
   const population = s.m2PerPerson > 0 ? resNet / s.m2PerPerson : 0;
   const siteHa = siteM2 / 1e4;
+  const plan = computePlan(doc), zoneArea: Record<string, number> = {};
+  plan.blocks.forEach(b => { zoneArea[b.use] = (zoneArea[b.use] ?? 0) + b.area; });
+  const greenArea = zoneArea.yashil ?? 0;
   return {
+    streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea,
+    greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
     siteHa, buildings: doc.buildings.length, footprint, gfa, resGfa, resNet, population,
     density: siteHa > 0 ? population / siteHa : 0,
     housingDensity: siteHa > 0 ? resNet / siteHa : 0,
