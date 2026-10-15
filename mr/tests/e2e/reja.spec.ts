@@ -26,14 +26,14 @@ test('koʻcha chiziladi → ikki kvartal → zona → yashil hisob', async ({ pa
   await expect(page.locator('[data-block]')).toHaveCount(2);
   await page.locator('[data-block="1"]').click();
   await page.click('[data-use=yashil]');
-  await expect(page.locator('[data-block]').filter({ hasText: 'Yashil' })).toHaveCount(1);
+  await expect(page.locator('[data-block]').filter({ hasText: 'Park' })).toHaveCount(1);
 
   await page.click('[data-step=yashil]');
   await expect(page.locator('#greenSt')).toContainText('Yashil kvartallar: 1');
 
   await page.keyboard.press('Control+z');               // zona bekor
   await page.click('[data-step=parsel]');
-  await expect(page.locator('[data-block]').filter({ hasText: 'Yashil' })).toHaveCount(0);
+  await expect(page.locator('[data-block]').filter({ hasText: 'Park' })).toHaveCount(0);
 
   await expect(page.locator('.save')).toHaveAttribute('data-s', 'saved', { timeout: 5000 });
   await page.reload();
@@ -57,4 +57,26 @@ test('uchastkadagi mavjud binolar: buzish va saqlash', async ({ page, context })
   await expect(page.locator('#demo')).toContainText('buziladi 8');
   await page.click('#keepAll');
   await expect(page.locator('#demo')).toContainText('buziladi 0');
+});
+
+test('parsellar: boʻlish, funksiya (maktab), kesish, butun kvartal; reyestrda maktab va parkovka', async ({ page }) => {
+  await newSite(page, 300, 200);
+  await page.click('[data-step=parsel]');
+  await page.locator('[data-block="0"]').click();
+  await page.locator('#pSize').fill('1');
+  await page.click('[data-grid=ns]');
+  await page.click('#pSplit');
+  await expect(page.locator('[data-block]')).toHaveCount(6);
+  await page.locator('[data-block="0"]').click();
+  await page.click('[data-use=maktab]');
+  await expect(page.locator('[data-block]').filter({ hasText: 'Maktab' })).toHaveCount(1);
+  await page.click('[data-step=hajm]'); await page.click('#genAll');
+  await page.click('#kMore');
+  await expect(page.locator('.drawer [data-rule=school]')).toContainText('oʻrin');
+  await expect(page.locator('.drawer [data-rule=parking] .chip')).toHaveAttribute('data-s', 'fail');
+  await page.click('#kMore');
+  await page.click('[data-step=parsel]');
+  await page.locator('[data-block="1"]').click();
+  await page.click('#pClear');
+  await expect(page.locator('[data-block]')).toHaveCount(1);
 });

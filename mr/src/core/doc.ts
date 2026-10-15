@@ -15,7 +15,8 @@ export interface Site {
   rings: Ring[];
 }
 
-export type Use = 'turar' | 'aralash' | 'ijtimoiy' | 'savdo' | 'yashil' | 'texnik';
+import { isUse, type Use } from './uses';
+export type { Use };
 
 export interface Building {
   id: string;
@@ -32,6 +33,8 @@ export interface Building {
 export interface Street { id: string; axis: LngLat[]; profile: string; /** OSM dagi mavjud koʻcha loyihaga olingan boʻlsa — uning way id si (kontekstda u endi chizilmaydi) */ osm?: number }
 
 /** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
+export interface Parcel { id: string; block: string; rings: Ring[]; use: Use }
+
 export interface ZoneLabel { id: string; at: LngLat; use: Use; /** shu kvartal uchun oxirgi generator parametrlari */ gen?: Record<string, unknown> }
 
 export interface Settings {
@@ -45,6 +48,8 @@ export interface Settings {
   netToGross: number;
   /** qavat balandligi, m */
   floorHeight: number;
+  /** oʻrtacha kvartira (netto), m² — kvartiralar soni va avtoturargoh talabi uchun (taxmin, loyiha topshirigʻidan aniqlanadi) */
+  aptNet: number;
 }
 
 /** Atrofdagi shahar (kontekst) — faqat koʻrinish tanlovlari; maʼlumotning oʻzi keshda, hujjatda emas */
@@ -77,6 +82,8 @@ export interface Project {
   buildings: Building[];
   streets: Street[];
   zones: ZoneLabel[];
+  /** kvartallarni parsellarga boʻlish: block — kvartal zona belgisi id si */
+  parcels: Parcel[];
   /** uchastka ichidagi saqlanadigan mavjud (OSM) binolar id lari; qolganlari — buziladi */
   keep: number[];
 }
@@ -91,6 +98,7 @@ export const DEFAULT_SETTINGS: Settings = {
   m2PerPerson: 18,
   netToGross: 0.75,
   floorHeight: 3.3,
+  aptNet: 65,
 };
 
 export function uid(prefix = ''): string {
@@ -107,7 +115,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
     origin: [...DEFAULT_ORIGIN] as LngLat,
     settings: { ...DEFAULT_SETTINGS },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
-    site: null, buildings: [], streets: [], zones: [], keep: [],
+    site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [],
   };
 }
 
@@ -132,7 +140,7 @@ export function migrate(raw: unknown): Project {
   if (typeof d.name !== 'string') throw new SchemaError('name yoʻq');
   if (!isLL(d.origin)) throw new SchemaError('origin notoʻgʻri');
   const s = { ...DEFAULT_SETTINGS, ...(d.settings as object || {}) } as Settings;
-  for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
+  for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
   const cx = (d.context && typeof d.context === 'object' ? d.context : {}) as Partial<ContextSettings>;
   const context: ContextSettings = {
     radius: isNum(cx.radius) && cx.radius >= 100 && cx.radius <= 2000 ? cx.radius : DEFAULT_CONTEXT.radius,
@@ -149,19 +157,21 @@ export function migrate(raw: unknown): Project {
   const bl = Array.isArray(d.buildings) ? d.buildings : [];
   const buildings: Building[] = bl.map((b: any, i: number) => {
     if (!b || typeof b.id !== 'string' || !isRing(b.footprint) || !isNum(b.floors) || b.floors < 1) throw new SchemaError(`buildings[${i}] notoʻgʻri`);
-    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: (b.use || 'turar') as Use, ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: b.gen.kind } } : {}) };
+    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: b.gen.kind } } : {}) };
   });
   const isLine = (v: unknown): v is LngLat[] => Array.isArray(v) && v.length >= 2 && v.every(isLL);
   const streets: Street[] = (Array.isArray(d.streets) ? d.streets : []).map((x: any, i: number) => {
     if (!x || typeof x.id !== 'string' || !isLine(x.axis)) throw new SchemaError(`streets[${i}] notoʻgʻri`);
     return { id: x.id, axis: x.axis.map((p: LngLat) => [p[0], p[1]] as LngLat), profile: typeof x.profile === 'string' ? x.profile : 'mahalla-15', ...(isNum(x.osm) ? { osm: x.osm } : {}) };
   });
-  const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: (z.use || 'turar') as Use, ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
+  const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
   const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
+  const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
+    .map((x: any) => ({ id: x.id, block: x.block, rings: x.rings.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)), use: isUse(x.use) ? x.use : 'turar' }));
   return {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep,
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels,
   };
 }

@@ -3,7 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Settings, type Street, type ZoneLabel, uid } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Parcel, type Settings, type Street, type ZoneLabel, uid } from './doc';
 import { frame } from './geo';
 
 export type Command =
@@ -24,6 +24,9 @@ export type Command =
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
   | { type: 'setKeep'; keep: number[] }
+  /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
+  | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
+  | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use'>> }
   /** generator natijasi: shu guruhdagi seksiyalarni almashtirish (boʻsh roʻyxat — tozalash); zona belgisiga parametrlar yoziladi */
   | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: 'burchak' | 'oddiy' | 'qator' }[]; label?: ZoneLabel };
 
@@ -45,6 +48,8 @@ export function label(c: Command): string {
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setZones': return 'Zona';
     case 'setKeep': return 'Saqlanadigan binolar';
+    case 'setParcels': return 'Parsellar';
+    case 'updateParcel': return 'Parsel funksiyasi';
     case 'replaceGroup': return c.sections.length ? 'Seksiyalar generatsiyasi' : 'Seksiyalar tozalandi';
   }
 }
@@ -72,6 +77,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
         d.buildings = doc.buildings.map(x => ({ ...x, footprint: mv(x.footprint) }));
         d.streets = doc.streets.map(x => ({ ...x, axis: mv(x.axis) }));
         d.zones = doc.zones.map(z => ({ ...z, at: mv([z.at])[0] }));
+        d.parcels = doc.parcels.map(p => ({ ...p, rings: p.rings.map(mv) }));
         d.keep = []; // koʻchirilgan joyda boshqa binolar
       }
       return d;
@@ -115,6 +121,18 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
     case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
+    case 'setParcels': {
+      d.parcels = [...doc.parcels.filter(p => p.block !== c.block), ...c.parcels.map(p => ({ id: p.id, block: c.block, rings: p.rings.map(copyRing), use: p.use }))];
+      // shu kvartaldagi eski parsellarning seksiyalari yaroqsiz — olib tashlanadi
+      const gone = new Set(doc.parcels.filter(p => p.block === c.block && !c.parcels.some(q => q.id === p.id)).map(p => p.id));
+      if (gone.size) d.buildings = doc.buildings.filter(b => !b.gen || !gone.has(b.gen.grp));
+      if (c.label) { const z = c.label; d.zones = [...doc.zones.filter(q => q.id !== z.id), { ...z, at: [z.at[0], z.at[1]] as LngLat }]; }
+      return d;
+    }
+    case 'updateParcel': {
+      const i = doc.parcels.findIndex(p => p.id === c.id); if (i < 0) throw new CommandError('Parsel topilmadi');
+      d.parcels = doc.parcels.slice(); d.parcels[i] = { ...doc.parcels[i], ...c.patch }; return d;
+    }
     case 'replaceGroup': {
       const keep = doc.buildings.filter(b => b.gen?.grp !== c.grp);
       d.buildings = [...keep, ...c.sections.map(x => {
@@ -126,7 +144,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     }
     case 'setSettings': {
       const s = { ...doc.settings, ...c.patch };
-      for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight'] as const) if (!(s[k] > 0)) throw new CommandError(`${k} musbat boʻlsin`);
+      for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!(s[k] > 0)) throw new CommandError(`${k} musbat boʻlsin`);
       d.settings = s; return d;
     }
   }

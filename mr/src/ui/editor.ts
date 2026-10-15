@@ -19,6 +19,9 @@ import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
 import { DEFAULT_GEN, generate, type GenParams } from '../core/generator';
+import { USES, useDef } from '../core/uses';
+import { gridAngle, merge, split, subdivide, type GridMode } from '../core/parcels';
+import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
 import { INSOL_BINS } from '../scene/scene';
 import { uid } from '../core/doc';
@@ -356,12 +359,15 @@ export class Editor {
 
   private generateBlock(i: number, quiet = false): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
-    if (b.use === 'yashil' || b.use === 'texnik') { if (!quiet) toast(`K-${i + 1} — ${b.use} zona, binolar joylashtirilmaydi`); return 0; }
-    const fr = frame(this.store.doc.origin), r = generate(b.rings[0], this.gen, this.store.doc.settings.floorHeight);
+    const ud = useDef(b.use), name = this.unitName(i);
+    if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
+    const g: GenParams = ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen;
+    const fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, this.store.doc.settings.floorHeight);
     this.genNotes = r.notes;
-    const use: Use = b.use === 'aralash' ? 'aralash' : b.use === 'ijtimoiy' || b.use === 'savdo' ? b.use : 'turar';
-    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: lab.id, label: { ...lab, gen: { ...this.gen } }, sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: use === 'turar' && x.kind === 'qator' ? 0 : x.nonRes, use, kind: x.kind })) }));
-    if (!quiet) toast(r.sections.length ? `K-${i + 1}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
+    const use: Use = b.use;
+    const grp = b.parcelId ?? lab.id;
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, label: b.parcelId ? undefined : { ...lab, gen: { ...this.gen } }, sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use, kind: x.kind })) }));
+    if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
   }
 
@@ -376,7 +382,7 @@ export class Editor {
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartal'),
       h('select', { id: 'genBlock', onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
         h('option', { value: '' }, '— sahnada bosing yoki tanlang —'),
-        ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `K-${i + 1} · ${fmt(b.area / 1e4, 2)} ga · ${b.use}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; }))));
+        ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; }))));
     body.append(
       h('div', { class: 'seg full', role: 'group', 'aria-label': 'Tipologiya' }, ...([['perimetr', 'Perimetral (seksiyalar)'], ['qatorlar', 'Meridional qatorlar']] as const).map(([k, t]) => h('button', { 'aria-pressed': g.typology === k, 'data-typ': k, onclick: () => { g.typology = k; this.renderPanel(); } }, t))),
       h('div', { class: 'row' }, num('gMax', 'Qavat, eng koʻp', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }), num('gMin', 'eng kam', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); })),
@@ -385,7 +391,7 @@ export class Editor {
       h('div', { class: 'row' },
         h('button', { class: 'btn primary grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { if (this.selBlock != null) this.generateBlock(this.selBlock); } }, 'Generatsiya'),
         h('button', { class: 'btn', id: 'genAll', title: 'Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi', onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(`${n} seksiya generatsiya qilindi`); } }, 'Hammasi'),
-        h('button', { class: 'btn', id: 'genClear', disabled: this.selBlock == null, onclick: () => { const lab = this.selBlock != null ? this.blockLabel(this.selBlock) : null; if (lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: lab.id, sections: [] })); } }, 'Tozalash')));
+        h('button', { class: 'btn', id: 'genClear', disabled: this.selBlock == null, onclick: () => { const u = this.selBlock != null ? plan.blocks[this.selBlock] : null, lab = this.selBlock != null ? this.blockLabel(this.selBlock) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, 'Tozalash')));
     if (this.genNotes.length) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
     // tanlangan bino / seksiya
     const sel = doc.buildings.find(b => b.id === this.sel);
@@ -490,6 +496,7 @@ export class Editor {
 
   private setBlockUse(i: number, use: Use): void {
     const plan = this.plan(), b = plan.blocks[i]; if (!b) return;
+    if (b.parcelId) { this.run(() => this.store.dispatch({ type: 'updateParcel', id: b.parcelId!, patch: { use } })); return; }
     const fr = frame(this.store.doc.origin);
     const zones = this.store.doc.zones.filter(z => !pointIn(fr.toLocal(z.at), b.rings));
     zones.push({ id: uid('z_'), at: fr.toGeo(b.centroid), use });
@@ -503,18 +510,91 @@ export class Editor {
     return { all: list.length, kept: list.length - gone, gone, foot, floorArea: fa };
   }
 
+  /** Birlik nomi: K-2 (butun kvartal) yoki K-2.3 (parsel) */
+  private unitName(i: number): string {
+    const plan = this.plan(), b = plan.blocks[i]; if (!b) return '';
+    if (!b.parcelId) return `K-${b.blockKey + 1}`;
+    const same = plan.blocks.filter(x => x.blockKey === b.blockKey);
+    return `K-${b.blockKey + 1}.${same.indexOf(b) + 1}`;
+  }
+
+  private parcelSize = 1.0;
+  private gridMode: GridMode = 'street';
+  private gridAngleDeg = 0;
+
+  /** Tanlangan birlik joylashgan kvartalni (butunini) parsellarga boʻlish */
+  private subdivideSel(): void {
+    const plan = this.plan(), u = this.selBlock != null ? plan.blocks[this.selBlock] : null; if (!u) return;
+    const fr = frame(this.store.doc.origin), whole = computeWhole(this.store.doc, u.blockKey); if (!whole) return;
+    const lab = this.store.doc.zones.find(z => z.id === u.labelId) ?? { id: uid('z_'), at: fr.toGeo(whole.centroid), use: u.use };
+    const cells = subdivide(whole.rings, this.parcelSize * 1e4, gridAngle(whole.rings, this.gridMode, this.gridAngleDeg));
+    if (cells.length < 2) { toast('Kvartal shu oʻlchamdan kichik — parsel oʻlchamini kamaytiring'); return; }
+    this.run(() => this.store.dispatch({ type: 'setParcels', block: lab.id, label: lab, parcels: cells.map(r => ({ id: uid('pc_'), rings: r.map(x => x.map(fr.toGeo)), use: u.use })) }));
+    this.selBlock = null; this.scene.selectBlock(null);
+    toast(`${cells.length} ta parsel`);
+  }
+
+  /** Parsellar hujjatdagi koʻrinishi: tanlangan birlikning kvartali boʻyicha (yoʻq boʻlsa — butun kvartal bitta parsel) */
+  private blockParcels(u: { labelId: string | null; blockKey: number; use: Use }): { lab: ZoneLabel; list: { id: string; rings: XY[][]; use: Use }[] } | null {
+    const doc = this.store.doc, fr = frame(doc.origin), whole = computeWhole(doc, u.blockKey); if (!whole) return null;
+    const lab = doc.zones.find(z => z.id === u.labelId) ?? { id: uid('z_'), at: fr.toGeo(whole.centroid), use: u.use };
+    const ps = doc.parcels.filter(p => p.block === lab.id);
+    return { lab, list: ps.length ? ps.map(p => ({ id: p.id, rings: p.rings.map(r => r.map(fr.toLocal)), use: p.use })) : [{ id: uid('pc_'), rings: whole.rings, use: u.use }] };
+  }
+
+  private commitParcels(lab: ZoneLabel, list: { id: string; rings: XY[][]; use: Use }[]): void {
+    const fr = frame(this.store.doc.origin);
+    this.run(() => this.store.dispatch({ type: 'setParcels', block: lab.id, label: lab, parcels: list.map(p => ({ id: p.id, rings: p.rings.map(r => r.map(fr.toGeo)), use: p.use })) }));
+    this.selBlock = null; this.scene.selectBlock(null);
+  }
+
   private parselPanel(body: HTMLElement): void {
     const plan = this.plan();
-    const USES: [Use, string][] = [['turar', 'Turar joy'], ['aralash', 'Aralash'], ['ijtimoiy', 'Ijtimoiy'], ['savdo', 'Savdo / ofis'], ['yashil', 'Yashil'], ['texnik', 'Texnik']];
-    const name = (u: Use) => USES.find(x => x[0] === u)?.[1] ?? u;
     if (this.selBlock != null && !plan.blocks[this.selBlock]) this.selBlock = null;
-    body.append(h('div', { class: 'list', role: 'listbox', 'aria-label': 'Kvartallar' }, ...plan.blocks.map((b, i) => h('div', { class: 'it', role: 'option', 'aria-selected': i === this.selBlock, 'data-block': i, style: 'cursor:pointer', onclick: () => { this.selBlock = i === this.selBlock ? null : i; this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
-      h('i', { class: 'sw', style: `background:#${(ZONE_COL[b.use] ?? 0xcccccc).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, `K-${i + 1} · ${fmt(b.area / 1e4, 2)} ga`), h('small', { class: 'muted' }, name(b.use))))));
+    body.append(h('div', { class: 'list', role: 'listbox', 'aria-label': 'Kvartallar va parsellar' }, ...plan.blocks.map((b, i) => h('div', { class: 'it', role: 'option', 'aria-selected': i === this.selBlock, 'data-block': i, style: 'cursor:pointer', onclick: () => { this.selBlock = i === this.selBlock ? null : i; this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
+      h('i', { class: 'sw', style: `background:#${(ZONE_COL[b.use] ?? 0xcccccc).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`), h('small', { class: 'muted' }, useDef(b.use).name)))));
     if (this.selBlock != null) {
-      const i = this.selBlock, b = plan.blocks[i];
-      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, `K-${i + 1} funksiyasi`),
-        h('div', { class: 'chips' }, ...USES.map(([u, t]) => h('button', { class: 'zchip', 'aria-pressed': b.use === u, 'data-use': u, style: `--c:#${ZONE_COL[u].toString(16).padStart(6, '0')}`, onclick: () => this.setBlockUse(i, u) }, t)))));
-    } else body.append(h('p', { class: 'note' }, 'Kvartalni roʻyxatdan yoki sahnada bosib tanlang.'));
+      const i = this.selBlock, b = plan.blocks[i], groups = [...new Set(USES.map(u => u.group))];
+      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, `${this.unitName(i)} funksiyasi`),
+        ...groups.map(g => h('div', { class: 'chips' }, h('span', { class: 'cg' }, g), ...USES.filter(u => u.group === g).map(u => h('button', { class: 'zchip', 'aria-pressed': b.use === u.id, 'data-use': u.id, style: `--c:#${u.color.toString(16).padStart(6, '0')}`, onclick: () => this.setBlockUse(i, u.id) }, u.name))))));
+      // parsellarga boʻlish
+      const size = h('input', { type: 'range', min: 0.1, max: 3, step: 0.05, value: this.parcelSize, id: 'pSize', style: 'width:100%' }) as HTMLInputElement;
+      const sizeT = h('b', { class: 'num' }, `${fmt(this.parcelSize, 2)} ga`);
+      size.oninput = () => { this.parcelSize = Number(size.value); sizeT.textContent = `${fmt(this.parcelSize, 2)} ga`; };
+      const ang = h('input', { type: 'number', min: -90, max: 90, step: 1, value: this.gridAngleDeg, id: 'pAng', style: 'width:64px' }) as HTMLInputElement;
+      ang.onchange = () => { this.gridAngleDeg = Number(ang.value) || 0; };
+      const cutting = this.tool instanceof LineTool, merging = this.tool instanceof ClickTool;
+      body.append(h('div', { class: 'field', id: 'parcelBox' }, h('span', { class: 'lb' }, 'Parsellar'),
+        h('div', { class: 'row' }, h('span', { class: 'grow', style: 'font-size:13px' }, 'Parsel oʻlchami'), sizeT), size,
+        h('div', { class: 'seg full', role: 'group', 'aria-label': 'Toʻr' }, ...([['ns', 'Shimol–janub'], ['angle', 'Burchak'], ['street', 'Koʻcha boʻylab']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.gridMode === k, 'data-grid': k, onclick: () => { this.gridMode = k; this.renderPanel(); } }, t))),
+        this.gridMode === 'angle' ? h('label', { class: 'row', style: 'font-size:13px' }, 'Burchak, °', ang) : '',
+        h('button', { class: 'btn primary', id: 'pSplit', onclick: () => this.subdivideSel() }, 'Kvartalni parsellarga boʻlish'),
+        h('div', { class: 'row' },
+          h('button', { class: cutting ? 'btn primary grow' : 'btn grow', id: 'pCut', onclick: () => {
+            if (cutting) { this.setTool(null); return; }
+            this.setTool(new LineTool(this.scene, r => {
+              const u = this.plan().blocks[this.selBlock ?? -1]; const bp = u && this.blockParcels(u); if (!u || !bp) return;
+              const target = bp.list.find(p => (u.parcelId ? p.id === u.parcelId : true)) ?? bp.list[0];
+              const parts = split(target.rings, r[0], r[r.length - 1]);
+              if (parts.length < 2) { toast('Chiziq parselni kesib oʻtmadi'); return; }
+              this.commitParcels(bp.lab, [...bp.list.filter(p => p !== target), ...parts.map(rr => ({ id: uid('pc_'), rings: rr, use: target.use }))]);
+              this.setTool(null);
+            }, toast));
+          } }, cutting ? 'Kesish…' : 'Kesish'),
+          h('button', { class: merging ? 'btn primary grow' : 'btn grow', id: 'pMerge', disabled: !b.parcelId, onclick: () => {
+            if (merging) { this.setTool(null); return; }
+            this.setTool(new ClickTool('Qoʻshni parselni bosing · Esc — bekor', xy => {
+              const plan2 = this.plan(), u = plan2.blocks[this.selBlock ?? -1], o = plan2.blocks.find(x => x.parcelId && x.blockKey === u?.blockKey && x !== u && pointIn(xy, x.rings));
+              const bp = u && this.blockParcels(u); if (!u || !o || !bp) { toast('Shu kvartaldagi qoʻshni parselni bosing'); return; }
+              const A = bp.list.find(p => p.id === u.parcelId), B = bp.list.find(p => p.id === o.parcelId); if (!A || !B) return;
+              const m = merge(A.rings, B.rings); if (!m) { toast('Parsellar qoʻshni emas'); return; }
+              this.commitParcels(bp.lab, [...bp.list.filter(p => p !== A && p !== B), { id: A.id, rings: m, use: A.use }]);
+              this.setTool(null);
+            }));
+          } }, 'Birlashtirish'),
+          h('button', { class: 'btn grow', id: 'pClear', disabled: !b.parcelId, onclick: () => { const bp = this.blockParcels(b); if (bp) { this.run(() => this.store.dispatch({ type: 'setParcels', block: bp.lab.id, parcels: [] })); this.selBlock = null; this.scene.selectBlock(null); } } }, 'Butun kvartal')),
+        h('p', { class: 'note' }, 'Kesish — tanlangan parsel ustida chiziq chizing (2 nuqta, Enter). Kvartalni qayta boʻlish undagi parsellar seksiyalarini oʻchiradi.')));
+    } else body.append(h('p', { class: 'note' }, 'Kvartal yoki parselni roʻyxatdan yoki sahnada bosib tanlang.'));
     const dm = this.demolition();
     if (dm.all) {
       body.append(h('div', { class: 'field', id: 'demo' }, h('span', { class: 'lb' }, 'Uchastkadagi mavjud binolar'),
@@ -538,7 +618,7 @@ export class Editor {
       h('div', { class: 'list' }, ...plan.blocks.map((b, i) => {
         const c = h('input', { type: 'checkbox', checked: b.use === 'yashil', 'data-green': i }) as HTMLInputElement;
         c.onchange = () => this.setBlockUse(i, c.checked ? 'yashil' : 'turar');
-        return h('label', { class: 'it' }, c, h('span', { class: 'grow' }, `K-${i + 1} · ${fmt(b.area / 1e4, 2)} ga`));
+        return h('label', { class: 'it' }, c, h('span', { class: 'grow' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`));
       }))));
     body.append(h('p', { class: 'note' }, 'Koʻchalardagi yashil tasmalar va daraxtlar bu hisobga kirmaydi. Meʼyor manbasi reyestrda — band raqami hali tekshirilmagan.'));
   }
@@ -664,7 +744,7 @@ export class Editor {
         h('td', {}, h('b', {}, r.title), h('br'), h('span', { class: 'muted' }, `${r.source.doc}, ${r.source.clause}${r.source.verified ? '' : ' (tekshirilsin)'}`), r.note ? h('div', { class: 'note' }, r.note) : null),
         h('td', { class: 'num' }, r.value != null ? `${fmt(r.value)} ${r.unit ?? ''}` : '—'),
         h('td', { class: 'num' }, r.limit ? `${r.limit} ${r.unit ?? ''}` : '—'),
-        h('td', {}, h('span', { class: 'chip', 'data-s': r.status }, STATUS_TXT[r.status] + (r.delta ? ` +${fmt(r.delta)} %` : '')))))));
+        h('td', {}, h('span', { class: 'chip', 'data-s': r.status }, STATUS_TXT[r.status] + (r.delta ? ` ${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '')))))));
   }
 
   /* ---------- sahna bilan muloqot ---------- */
