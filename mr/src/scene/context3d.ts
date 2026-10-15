@@ -195,7 +195,7 @@ function pip(p: XY, r: XY[]): boolean {
  * Taxminiy daraxtlar faqat koʻrinish uchun; hisob-kitobda ishlatilmaydi.
  */
 function treePositions(b: ContextBundle, fr: Frame, R: number, avoid: (p: XY) => boolean): XY[] {
-  const out: XY[] = b.osm.trees.map(fr.toLocal);
+  const out: XY[] = b.osm.trees.map(fr.toLocal).filter(p => Math.abs(p[0]) < R && Math.abs(p[1]) < R);
   const rnd = rng(Math.round(b.center[0] * 1e4) ^ Math.round(b.center[1] * 1e4));
   const MAXT = 14000;
   for (const a of b.osm.green) {
