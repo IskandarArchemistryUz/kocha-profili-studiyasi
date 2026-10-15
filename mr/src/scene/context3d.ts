@@ -239,7 +239,7 @@ export function buildingMeshes(list: CtxBld[], H: HeightFn, mat: THREE.Material,
   return out;
 }
 
-export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null, site: XY[] | null = null): ContextScene {
+export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null, site: XY[] | null = null, skipRoads: Set<number> = new Set()): ContextScene {
   const g = new THREE.Group(); g.name = 'kontekst';
   const inSite: CtxBld[] = [];
   const R = b.radius, L = cs.layers;
@@ -260,6 +260,13 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   geo.computeVertexNormals();
   const sat = cs.base === 'sputnik' && imageTex;
   const groundMat = sat ? new THREE.MeshLambertMaterial({ map: imageTex }) : new THREE.MeshLambertMaterial({ color: CC.ground });
+  // sunʼiy yoʻldosh tasviri biroz xira va ochroq: model (binolar, koʻchalar) oldinga chiqsin
+  if (sat) groundMat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      float lum_ = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum_), 0.4);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.91, 0.88), 0.28);`);
+  };
   const ground = new THREE.Mesh(geo, groundMat); ground.name = 'relyef'; ground.receiveShadow = true; ground.renderOrder = 0;
   g.add(ground);
 
@@ -276,12 +283,13 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     const wc = sat ? CC.waterSat : CC.water;
     const fg = fillGeo(b.osm.water.map(a => a.rings.map(r => r.map(fr.toLocal))).filter(r => clip(r[0])), H);
     if (fg) g.add(overlay(fg, flatMat(wc, 2), 2, 'suv'));
-    const wg = ribbonGeo(cut(b.osm.waterways.filter(w => !/river|canal/.test(w.cls) || !b.osm.water.length).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w }))), H);
-    if (wg) g.add(overlay(wg, flatMat(wc, 2), 2.01, 'suv'));
+    // kanal va ariqlar: trotuar ustida, asfaltdan pastda (Toshkentda ariqlar koʻpincha koʻcha boʻyida oqadi)
+    const wg = ribbonGeo(cut(b.osm.waterways.map(w => ({ pts: w.pts.map(fr.toLocal), w: Math.max(1.6, w.w) }))), H, 0.095);
+    if (wg) g.add(overlay(wg, flatMat(wc, 3.07), 3.07, 'ariqlar'));
   }
   // koʻchalar: trotuar → asfalt → chiziqlar (sunʼiy yoʻldosh ustida ham toʻliq koʻrinadi)
   if (L.roads) {
-    const sts: StreetIn[] = b.osm.roads.flatMap(r => clipLine(r.pts.map(fr.toLocal), C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
+    const sts: StreetIn[] = b.osm.roads.filter(r => !skipRoads.has(r.id)).flatMap(r => clipLine(r.pts.map(fr.toLocal), C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
       .map(pts => ({ pts, cls: r.cls, w: r.w, lanes: r.lanes, oneway: r.oneway })));
     const sg = streetsGeo(sts, H);
     const add = (arr: number[], col: number, ord: number, name: string) => { if (!arr.length) return; const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.add(overlay(geo, flatMat(col, ord), ord, name)); };

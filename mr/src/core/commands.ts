@@ -18,7 +18,7 @@ export type Command =
   | { type: 'updateBuilding'; id: string; patch: Partial<Omit<Building, 'id'>> }
   | { type: 'removeBuilding'; id: string }
   | { type: 'setSettings'; patch: Partial<Settings> }
-  | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string }
+  | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
   | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
   | { type: 'removeStreet'; id: string }
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
@@ -102,7 +102,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'removeBuilding': d.buildings = doc.buildings.filter(b => b.id !== c.id); return d;
     case 'addStreet': {
       if (c.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');
-      d.streets = [...doc.streets, { id: c.id ?? uid('s_'), axis: c.axis.map(p => [p[0], p[1]] as LngLat), profile: c.profile }]; return d;
+      d.streets = [...doc.streets, { id: c.id ?? uid('s_'), axis: c.axis.map(p => [p[0], p[1]] as LngLat), profile: c.profile, ...(c.osm != null ? { osm: c.osm } : {}) }]; return d;
     }
     case 'updateStreet': {
       const i = doc.streets.findIndex(s => s.id === c.id); if (i < 0) throw new CommandError('Koʻcha topilmadi');

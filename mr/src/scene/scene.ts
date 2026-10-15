@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { Project } from '../core/doc';
+import type { LngLat, Project } from '../core/doc';
 import { frame, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
@@ -74,7 +74,7 @@ export class Scene3D {
     sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, near: 1, far: 2000 }); sun.shadow.bias = -0.0005;
     this.scene.add(sun); this.sun = sun;
 
-    this.ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshLambertMaterial({ color: C.ground }));
+    this.ground = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), new THREE.MeshLambertMaterial({ color: C.ground }));
     this.ground.rotation.x = -Math.PI / 2; this.ground.receiveShadow = true; this.ground.name = 'yer';
     this.scene.add(this.ground);
     const g1 = new THREE.GridHelper(2000, 200, C.grid, C.grid); g1.position.y = 0.01; (g1.material as THREE.Material).transparent = true; (g1.material as THREE.Material).opacity = 0.55;
@@ -274,7 +274,8 @@ export class Scene3D {
   /** Kontekstni oʻrnatish (null — olib tashlash). Loyiha markazi yoki koʻrinish sozlamalari oʻzgarsa qayta quriladi. */
   async setContext(b: ContextBundle | null, doc: Project): Promise<void> {
     const cs = doc.context;
-    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}` : '';
+    const adopted = doc.streets.filter(x => x.osm != null).map(x => x.osm!);
+    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}` : '';
     if (key === this.ctxKey) return;
     this.ctxKey = key;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
@@ -295,7 +296,7 @@ export class Scene3D {
       }
       tex = this.tex!.t;
     }
-    this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null);
+    this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted));
     this.scene.add(this.ctx.group);
     this.grid.forEach(g => g.visible = false);
     const T = cs.layers.relief ? b.terrain : null;
@@ -307,6 +308,20 @@ export class Scene3D {
   }
 
   get hasContext(): boolean { return !!this.ctx; }
+
+  private far: THREE.Object3D[] = [];
+  /** Gorizontgacha binolar (oddiy oq hajmlar, tomsiz, soyasiz); null — olib tashlash */
+  setFar(list: { rings: LngLat[][]; h: number }[] | null, doc: Project): void {
+    this.far.forEach(o => { this.scene.remove(o); const m = o as THREE.Mesh; m.geometry.dispose(); (m.material as THREE.Material).dispose(); });
+    this.far = [];
+    if (list?.length) {
+      const fr = frame(doc.origin), y0 = this.ground.position.y + 0.2;
+      const objs = buildingMeshes(list.map((b, i) => ({ id: i, rings: b.rings.map(r => r.map(fr.toLocal)), h: b.h, kind: 'far' })), () => y0,
+        new THREE.MeshLambertMaterial({ color: 0xf6f4ef }), new THREE.MeshLambertMaterial({ color: 0xf6f4ef }), new THREE.LineBasicMaterial({ color: 0xbdb8ae, transparent: true, opacity: 0.25 }));
+      objs.forEach(o => { o.renderOrder = 10; this.scene.add(o); this.far.push(o); });
+    }
+    this.invalidate();
+  }
   /** uchastka ichidagi mavjud (OSM) binolar */
   get inSite(): { id: number; rings: XY[][]; h: number }[] { return this.ctx?.inSite ?? []; }
 

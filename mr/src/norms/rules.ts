@@ -6,6 +6,7 @@
  */
 import type { Derived } from '../core/derive';
 import type { Project } from '../core/doc';
+import { CATS, checkProfile, profileById } from '../core/profiles';
 
 export type Status = 'pass' | 'fail' | 'review' | 'na';
 
@@ -53,6 +54,17 @@ export const RULES: Rule[] = [
         delta: v > hi ? (v / hi - 1) * 100 : undefined,
         note: v < lo ? 'Pastki chegaradan kam — yer samarasiz ishlatilmoqdami?' : 'Hududiy birlik (mavze, kvartal) band matnidan tekshirilsin.',
       };
+    },
+  },
+  {
+    id: 'street-profiles',
+    title: 'Koʻcha profillari (kenglik, tasmalar, piyoda yoʻlagi)',
+    source: { ...SHNQ_2_07_01, clause: '310-band, 20-jadval va 1-izoh; 338, 404-bandlar' },
+    evaluate(_d, doc) {
+      if (!doc.streets.length) return { status: 'na', note: 'Loyiha koʻchalari yoʻq' };
+      const bad: string[] = [];
+      doc.streets.forEach((s, i) => { const p = profileById(s.profile); checkProfile(p).forEach(x => bad.push(`${i + 1}. ${p.name} (${CATS[p.cat].name}): ${x.what} ${x.value}, meʼyor ${x.norm}`)); });
+      return { status: bad.length ? 'fail' : 'pass', value: doc.streets.length - new Set(bad.map(b => b.split('.')[0])).size, unit: `/ ${doc.streets.length} mos`, note: bad.length ? bad.join('; ') : 'Barcha koʻchalar oʻz toifasi meʼyoriga mos.' };
     },
   },
   {
