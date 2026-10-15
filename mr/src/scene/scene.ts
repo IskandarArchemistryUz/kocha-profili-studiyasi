@@ -80,20 +80,28 @@ export class Scene3D {
 
   setView(m: ViewMode, first = false): void {
     const target = first ? new THREE.Vector3() : this.ctl.target.clone();
-    const dist = first ? 420 : Math.max(60, this.cam.position.distanceTo(target));
+    /* Koʻrinadigan maydonning yarim balandligi (metr) — kamera turiga bogʻliq emas.
+       Ortho kamera doim 3000 m uzoqda turadi, shuning uchun masofa emas, s/zoom olinadi. */
+    const tanH = Math.tan(THREE.MathUtils.degToRad(this.persp.fov / 2));
+    const half = first ? 190
+      : this.cam === this.ortho ? ((this.ortho.userData.s as number) || 200) / (this.ortho.zoom || 1)
+      : this.cam.position.distanceTo(target) * tanH;
+    const h = Math.max(25, half);
     this.mode = m;
     this.ctl.dispose();
     if (m === 'persp') {
       this.cam = this.persp;
-      this.persp.position.copy(target).add(new THREE.Vector3(-0.55, 0.62, 0.75).normalize().multiplyScalar(dist));
+      this.persp.position.copy(target).add(new THREE.Vector3(-0.55, 0.62, 0.75).normalize().multiplyScalar(h / tanH));
     } else {
       this.cam = this.ortho;
-      this.ortho.userData.s = dist * 0.45; this.ortho.zoom = 1;
+      this.ortho.userData.s = h; this.ortho.zoom = 1;
       const dir = m === 'plan' ? new THREE.Vector3(0, 1, 0.0001) : new THREE.Vector3(-1, 1.15, 1).normalize();
       this.ortho.position.copy(target).add(dir.multiplyScalar(3000));
     }
     this.ctl = new OrbitControls(this.cam, this.renderer.domElement);
     this.ctl.target.copy(target); this.ctl.enableDamping = false; this.ctl.screenSpacePanning = true;
+    this.ctl.zoomSpeed = 2.2; this.ctl.zoomToCursor = true;
+    this.ctl.minZoom = 0.05; this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 6000;
     this.ctl.maxPolarAngle = Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     this.ctl.addEventListener('change', () => this.invalidate());
