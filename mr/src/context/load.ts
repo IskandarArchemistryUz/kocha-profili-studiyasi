@@ -3,10 +3,12 @@
  * Yuklash va tahlil workerda; natija IndexedDB keshiga yoziladi va sahifa yangilanganda tarmoqsiz tiklanadi.
  */
 import type { LngLat } from '../core/doc';
-import { bboxAround, overpassQuery, parseOverpass, type OsmData } from './osm';
+import { bboxAround, overpassQuery, parseOverpass, PARSER_V, type OsmData } from './osm';
 import { loadImagery, loadTerrain, type Imagery, type TerrainGrid } from './tiles';
 
-export const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+export const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+/** urinishlar: [server, oldin kutish (ms)] — bepul serverlar tez-tez «band» (429/503/504) qaytaradi */
+const PLAN: [number, number][] = [[0, 0], [1, 0], [0, 4000], [1, 4000], [0, 12000]];
 
 export interface ContextBundle {
   v: 1;
@@ -14,20 +16,37 @@ export interface ContextBundle {
   radius: number;
   fetched: string;
   osm: OsmData;
+  /** tahlilchi versiyasi — oʻzgarsa, xom maʼlumotdan qayta tahlil qilinadi (tarmoqsiz) */
+  pv?: number;
+  /** Overpass xom javobi */
+  raw?: unknown;
+  /** tarmoq ishlamadi — eski nusxa koʻrsatilmoqda */
+  stale?: string;
   terrain: TerrainGrid | null;
   imagery: Imagery | null;
   /** qaysi qism yuklanmadi (foydalanuvchiga aytiladi) */
   missing: string[];
 }
 
-export const cacheKey = (c: LngLat, r: number) => `ctx4:${c[0].toFixed(4)},${c[1].toFixed(4)},${Math.round(r)}`;
+const pos = (c: LngLat, r: number) => `${c[0].toFixed(4)},${c[1].toFixed(4)},${Math.round(r)}`;
+export const cacheKey = (c: LngLat, r: number) => `ctx:${pos(c, r)}`;
+/** oldingi versiyalar kaliti — tarmoq ishlamasa zaxira sifatida */
+export const legacyKeys = (c: LngLat, r: number) => ['ctx4', 'ctx3', 'ctx2', 'ctx1'].map(v => `${v}:${pos(c, r)}`);
+
+/** Keshdagi toʻplamni joriy tahlilchiga keltirish (xom maʼlumot boʻlsa — qayta tahlil) */
+export function refresh(b: ContextBundle): ContextBundle {
+  if (b.pv === PARSER_V || !b.raw) return b;
+  return { ...b, osm: parseOverpass(b.raw as never), pv: PARSER_V };
+}
 
 export type Progress = (msg: string, frac: number) => void;
 
-async function overpass(q: string, f: typeof fetch, onTry: (i: number) => void): Promise<unknown> {
+async function overpass(q: string, f: typeof fetch, onTry: (msg: string) => void): Promise<unknown> {
   let last: unknown = null;
-  for (let i = 0; i < OVERPASS.length; i++) {
-    onTry(i);
+  for (let k = 0; k < PLAN.length; k++) {
+    const [i, wait] = PLAN[k];
+    if (wait) { onTry(`OSM server band — ${Math.round(wait / 1000)} s dan keyin qayta urinish (${k + 1}/${PLAN.length})…`); await new Promise(r => setTimeout(r, wait)); }
+    else if (k) onTry(`OSM: zaxira server…`);
     try {
       const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60_000);
       const r = await f(OVERPASS[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
@@ -43,7 +62,8 @@ async function overpass(q: string, f: typeof fetch, onTry: (i: number) => void):
 export async function fetchContext(center: LngLat, radius: number, progress: Progress = () => {}, f: typeof fetch = fetch.bind(globalThis)): Promise<ContextBundle> {
   const bb = bboxAround(center, radius), missing: string[] = [];
   progress('OSM: binolar, yoʻllar, suv, yashil hududlar…', 0.05);
-  const osmP = overpass(overpassQuery(bb), f, i => i && progress(`OSM: zaxira server ${i + 1}…`, 0.1)).then(j => { progress('OSM tahlil qilinmoqda…', 0.55); return parseOverpass(j as never); });
+  let raw: unknown = null;
+  const osmP = overpass(overpassQuery(bb), f, m => progress(m, 0.1)).then(j => { raw = j; progress('OSM tahlil qilinmoqda…', 0.55); return parseOverpass(j as never); });
   const terrP = loadTerrain(center, radius, bb, f).catch(() => null);
   let done = 0;
   const imgP = loadImagery(radius, bb, f, () => { done++; if (done % 8 === 0) progress(`Sunʼiy yoʻldosh tasviri: ${done} plitka…`, 0.3); }).catch(() => null);
@@ -51,5 +71,5 @@ export async function fetchContext(center: LngLat, radius: number, progress: Pro
   if (!terrain) missing.push('relyef');
   if (!imagery) missing.push('sunʼiy yoʻldosh tasviri');
   progress('Tayyor', 1);
-  return { v: 1, center, radius, fetched: new Date().toISOString(), osm, terrain, imagery, missing };
+  return { v: 1, center, radius, fetched: new Date().toISOString(), osm, pv: PARSER_V, raw, terrain, imagery, missing };
 }

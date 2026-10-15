@@ -80,3 +80,18 @@ test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   await expect(page.locator('.seg.full button', { hasText: '750 m' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.seg.full button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'false');
 });
+
+test('OSM serveri band boʻlsa — keshdagi nusxa ogohlantirish bilan', async ({ page, context }) => {
+  test.setTimeout(60_000);
+  const hits = { overpass: 0 };
+  await mockNet(context, hits);
+  await newProject(page);
+  await page.click('#ctxLoad');
+  await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 15000 });
+  await context.unroute(/overpass|interpreter/);
+  await context.route(/overpass|interpreter/, r => r.fulfill({ status: 503, body: 'busy' }));
+  await page.click('button:has-text("OSM dan yangilash")');
+  await expect(page.locator('.ctxbadge')).toBeVisible();
+  await expect(page.locator('#ctxStale')).toBeVisible({ timeout: 40000 });
+  await expect(page.locator('#ctxSt')).toContainText('24 bino');
+});

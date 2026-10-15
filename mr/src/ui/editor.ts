@@ -87,10 +87,11 @@ export class Editor {
     const drawer = h('div', { class: 'drawer', hidden: true });
     const hint = h('div', { class: 'hint', hidden: true });
     const scene = h('div', { id: 'scene' });
+    const badge = h('div', { class: 'ctxbadge', hidden: true, role: 'status' });
     const attr = h('div', { class: 'attr', hidden: true });
     attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span>';
-    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, attr);
-    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, drawer, hint, scene, stage, attr });
+    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, attr, badge);
+    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, drawer, hint, scene, stage, attr, badge });
     return h('div', { class: 'app' }, top, stage);
   }
 
@@ -134,7 +135,7 @@ export class Editor {
     const covers = (b: ContextBundle | null) => !!b && b.radius >= cs.radius && dist(b.center, doc.origin) + cs.radius <= b.radius + 60;
     if (!force && covers(cur)) { this.showContext(cur); return; }
     if (this.ctx.busy && !force) return;
-    this.ctx = { busy: true, msg: 'Keshdan…', frac: 0.02, err: '' }; this.renderPanel();
+    this.ctx = { busy: true, msg: 'Keshdan…', frac: 0.02, err: '' }; this.renderPanel(); this.renderBadge();
     try {
       const b = await this.ctxMgr.load(doc.origin, cs.radius, (msg, frac) => { this.ctx.msg = msg; this.ctx.frac = frac; this.renderCtxProgress(); }, force);
       this.ctx = { busy: false, msg: '', frac: 1, err: '' };
@@ -144,7 +145,7 @@ export class Editor {
       if (m === 'eskirdi') return;
       this.ctx = { busy: false, msg: '', frac: 0, err: m };
     }
-    this.renderPanel();
+    this.renderPanel(); this.renderBadge();
   }
 
   private showContext(b: ContextBundle | null): void {
@@ -155,7 +156,15 @@ export class Editor {
   }
   private framedCtx = false;
 
+  private renderBadge(): void {
+    const b = this.el.badge, c = this.ctx;
+    b.hidden = !c.busy && !c.err;
+    b.dataset.s = c.err ? 'err' : 'busy';
+    b.textContent = c.err ? 'Atrof yuklanmadi — «Hudud» qadamida qayta urining' : (c.msg || 'Atrof yuklanmoqda…');
+  }
+
   private renderCtxProgress(): void {
+    this.renderBadge();
     const bar = this.el.panel.querySelector<HTMLElement>('.prog i'), t = this.el.panel.querySelector<HTMLElement>('#ctxMsg');
     if (bar) bar.style.width = `${Math.round(this.ctx.frac * 100)}%`; if (t) t.textContent = this.ctx.msg;
   }
@@ -231,6 +240,7 @@ export class Editor {
       body.append(h('div', { class: 'ctxst', id: 'ctxSt' },
         h('b', {}, `${fmt(s.buildings)} bino`), ` · ${fmt(s.roadKm, 1)} km yoʻl · ${fmt(b.osm.water.length + b.osm.waterways.length)} suv obyekti · ${fmt(b.osm.green.length)} yashil hudud`, h('br'),
         h('span', { class: 'muted' }, `OSM, ${new Date(b.fetched).toLocaleDateString('ru-RU')}. ${est ? `${fmt(est)} ta binoning balandligi OSM da yoʻq — dogʻ maydoni va turi boʻyicha taxmin qilingan (kichik uylar — 1–2 qavat).` : ''}`)));
+      if (b.stale) body.append(h('p', { class: 'warn', id: 'ctxStale' }, `OSM serveri hozir javob bermadi — keshdagi ${new Date(b.fetched).toLocaleDateString('ru-RU')} nusxasi koʻrsatilmoqda. Keyinroq «OSM dan yangilash» ni bosing.`));
       if (b.missing.length) body.append(h('p', { class: 'warn' }, `Yuklanmadi: ${b.missing.join(', ')}. Qolgan qatlamlar ishlaydi.`));
       const L = cs.layers, names: [keyof typeof L, string][] = [['buildings', 'Binolar'], ['roads', 'Yoʻllar'], ['rail', 'Temir yoʻl'], ['water', 'Suv'], ['green', 'Yashil hududlar'], ['trees', 'Daraxtlar*'], ['relief', 'Relyef']];
       body.append(

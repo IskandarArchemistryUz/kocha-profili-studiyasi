@@ -132,3 +132,14 @@ describe('Koʻcha modeli va tomlar', () => {
     const o = obb(r); expect(o.area).toBeCloseTo(60, 3);
   });
 });
+
+import { refresh } from '../../src/context/load';
+import { PARSER_V } from '../../src/context/osm';
+describe('Kesh: tahlilchi yangilansa tarmoqsiz qayta tahlil', () => {
+  it('xom maʼlumotdan qayta tahlil qilinadi', () => {
+    const raw = { elements: [{ type: 'way', id: 1, tags: { building: 'yes' }, geometry: [{ lat: 41, lon: 69 }, { lat: 41.0001, lon: 69 }, { lat: 41.0001, lon: 69.0001 }, { lat: 41, lon: 69 }] }] };
+    const old = { v: 1 as const, center: [69, 41] as [number, number], radius: 300, fetched: '', osm: { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] }, pv: 1, raw, terrain: null, imagery: null, missing: [] };
+    const r = refresh(old); expect(r.pv).toBe(PARSER_V); expect(r.osm.buildings).toHaveLength(1); expect(r.osm.buildings[0].h).toBe(4);
+    expect(refresh(r)).toBe(r);
+  });
+});
