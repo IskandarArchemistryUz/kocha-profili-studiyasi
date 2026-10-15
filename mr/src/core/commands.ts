@@ -3,7 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Settings, uid } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Settings, type Street, type ZoneLabel, uid } from './doc';
 import { frame } from './geo';
 
 export type Command =
@@ -17,7 +17,13 @@ export type Command =
   | { type: 'addBuilding'; footprint: Ring; floors: number; nonRes?: number; use?: Building['use']; id?: string }
   | { type: 'updateBuilding'; id: string; patch: Partial<Omit<Building, 'id'>> }
   | { type: 'removeBuilding'; id: string }
-  | { type: 'setSettings'; patch: Partial<Settings> };
+  | { type: 'setSettings'; patch: Partial<Settings> }
+  | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string }
+  | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
+  | { type: 'removeStreet'; id: string }
+  /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
+  | { type: 'setZones'; zones: ZoneLabel[] }
+  | { type: 'setKeep'; keep: number[] };
 
 /** Tarixda koʻrinadigan nom */
 export function label(c: Command): string {
@@ -32,6 +38,11 @@ export function label(c: Command): string {
     case 'updateBuilding': return 'Bino oʻzgardi';
     case 'removeBuilding': return 'Bino oʻchirildi';
     case 'setSettings': return 'Sozlamalar';
+    case 'addStreet': return 'Koʻcha qoʻshildi';
+    case 'updateStreet': return 'Koʻcha oʻzgardi';
+    case 'removeStreet': return 'Koʻcha oʻchirildi';
+    case 'setZones': return 'Zona';
+    case 'setKeep': return 'Saqlanadigan binolar';
   }
 }
 
@@ -56,6 +67,9 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
         const a = frame(doc.origin), b = frame(o), mv = (r: Ring): Ring => r.map(p => b.toGeo(a.toLocal(p)));
         if (doc.site) d.site = { rings: doc.site.rings.map(mv) };
         d.buildings = doc.buildings.map(x => ({ ...x, footprint: mv(x.footprint) }));
+        d.streets = doc.streets.map(x => ({ ...x, axis: mv(x.axis) }));
+        d.zones = doc.zones.map(z => ({ ...z, at: mv([z.at])[0] }));
+        d.keep = []; // koʻchirilgan joyda boshqa binolar
       }
       return d;
     }
@@ -86,6 +100,18 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       d.buildings = doc.buildings.slice(); d.buildings[i] = b; return d;
     }
     case 'removeBuilding': d.buildings = doc.buildings.filter(b => b.id !== c.id); return d;
+    case 'addStreet': {
+      if (c.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');
+      d.streets = [...doc.streets, { id: c.id ?? uid('s_'), axis: c.axis.map(p => [p[0], p[1]] as LngLat), profile: c.profile }]; return d;
+    }
+    case 'updateStreet': {
+      const i = doc.streets.findIndex(s => s.id === c.id); if (i < 0) throw new CommandError('Koʻcha topilmadi');
+      const s = { ...doc.streets[i], ...c.patch }; if (s.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');
+      d.streets = doc.streets.slice(); d.streets[i] = s; return d;
+    }
+    case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
+    case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
+    case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
     case 'setSettings': {
       const s = { ...doc.settings, ...c.patch };
       for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight'] as const) if (!(s[k] > 0)) throw new CommandError(`${k} musbat boʻlsin`);

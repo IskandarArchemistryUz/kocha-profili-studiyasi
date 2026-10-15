@@ -93,7 +93,7 @@ describe('Qidiruv va plitkalar', () => {
 describe('Sxema 2 va koʻchirish', () => {
   it('1-sxemadagi hujjat kontekst sozlamalari bilan ochiladi', () => {
     const p = blankProject(); const old: Record<string, unknown> = { ...p, schema: 1 }; delete old.context;
-    const m = migrate(old); expect(m.schema).toBe(2); expect(m.context.radius).toBe(500); expect(m.context.loaded).toBe(false);
+    const m = migrate(old); expect(m.schema).toBe(3); expect(m.streets).toEqual([]); expect(m.context.radius).toBe(500); expect(m.context.loaded).toBe(false);
   });
   it('moveProject: uchastka shakli va maydoni saqlanadi', () => {
     let d = blankProject(); const fr = frame(d.origin);

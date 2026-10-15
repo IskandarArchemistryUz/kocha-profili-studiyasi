@@ -69,3 +69,29 @@ export class ClickTool implements Tool {
   key(e: KeyboardEvent): boolean { return e.key === 'Escape'; }
   cancel(): void { /* holat yoʻq */ }
 }
+
+/** Ochiq siniq chiziq (koʻcha oʻqi): bosish — nuqta, Enter yoki ikki marta bosish — tugatish; uchlar boshqa koʻchalarga yopishadi */
+export class LineTool implements Tool {
+  private pts: XY[] = [];
+  private cur: XY | null = null;
+  constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private snap: (p: XY) => XY = p => p) {}
+  get hint(): string { return this.pts.length < 2 ? 'Koʻcha oʻqi: nuqtalarni bosing · uchlar boshqa koʻchaga yopishadi · Esc — bekor' : 'Enter yoki ikki marta bosish — tugatish · Backspace — oxirgisi · Esc — bekor'; }
+  click(xy: XY, e: PointerEvent): void {
+    if (this.pts.length >= 2 && e.detail >= 2) { this.finish(); return; }
+    this.pts.push(this.snap(xy)); this.draw();
+  }
+  move(xy: XY): void { this.cur = this.snap(xy); this.draw(); }
+  key(e: KeyboardEvent): boolean {
+    if (e.key === 'Enter') { this.finish(); return true; }
+    if (e.key === 'Backspace') { this.pts.pop(); this.draw(); return true; }
+    if (e.key === 'Escape') { this.cancel(); return true; }
+    return false;
+  }
+  private finish(): void {
+    const p = this.pts.filter((q, i) => i === 0 || Math.hypot(q[0] - this.pts[i - 1][0], q[1] - this.pts[i - 1][1]) > 0.5);
+    if (p.length < 2) { this.err('Kamida 2 nuqta kerak'); return; }
+    this.pts = []; this.scene.setPreview([]); this.done(p);
+  }
+  private draw(): void { this.scene.setPreview(this.cur && this.pts.length ? [...this.pts, this.cur] : this.pts, false); }
+  cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
+}

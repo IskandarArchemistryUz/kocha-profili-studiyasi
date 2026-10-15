@@ -9,7 +9,26 @@ import type { Project } from '../core/doc';
 import { frame, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
-import { buildContext, type ContextScene, type HeightFn } from './context3d';
+import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from './context3d';
+import { projectStreetsGeo } from './streets3d';
+import { computePlan } from '../core/plan';
+import { profileById } from '../core/profiles';
+
+export const ZONE_COL: Record<string, number> = { turar: 0xf3d9a4, aralash: 0xf0b48a, ijtimoiy: 0xa9c8ea, savdo: 0xe99a9a, yashil: 0xa8d08d, texnik: 0xc9c3b8 };
+const PART_COL: Record<string, number> = { trotuar: 0xd8d2c6, yashil: 0x9cc77f, velo: 0xc9705a, parkovka: 0x8d9097, qatnov: 0x585b62, chiziq: 0xf4f4f0 };
+
+function treeMeshes(pts: XY[], H: HeightFn): THREE.Object3D[] {
+  const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color: 0x6f9f4c }), pts.length);
+  const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.25, 1, 5), new THREE.MeshLambertMaterial({ color: 0x7a6650 }), pts.length);
+  const m4 = new THREE.Matrix4();
+  pts.forEach((p, i) => {
+    const y = H(p[0], p[1]), s = 2.4 + ((i * 37) % 10) / 10, h = 3.5 + ((i * 53) % 10) / 5;
+    m4.compose(new THREE.Vector3(p[0], y + h + s * 0.6, -p[1]), new THREE.Quaternion(), new THREE.Vector3(s, s, s)); crown.setMatrixAt(i, m4);
+    m4.compose(new THREE.Vector3(p[0], y + h / 2 + 0.3, -p[1]), new THREE.Quaternion(), new THREE.Vector3(1, h + 0.6, 1)); trunk.setMatrixAt(i, m4);
+  });
+  crown.castShadow = true; crown.renderOrder = 12; trunk.renderOrder = 12;
+  return [crown, trunk];
+}
 
 export type ViewMode = 'plan' | 'axo' | 'persp';
 
@@ -30,6 +49,8 @@ export class Scene3D {
   private raf = 0;
   private mode: ViewMode = 'axo';
   private selected: string | null = null;
+  private selBlock: number | null = null;
+  private selStreet: string | null = null;
   private lastDoc: Project | null = null;
   private grid: THREE.Object3D[] = [];
   private ctx: ContextScene | null = null;
@@ -147,6 +168,16 @@ export class Scene3D {
   }
 
   select(id: string | null): void { this.selected = id; if (this.lastDoc) this.update(this.lastDoc); }
+  selectBlock(i: number | null): void { this.selBlock = i; if (this.lastDoc) this.update(this.lastDoc); }
+  selectStreet(id: string | null): void { this.selStreet = id; if (this.lastDoc) this.update(this.lastDoc); }
+
+  /** Ekran nuqtasidagi uchastka ichidagi mavjud bino (OSM id) */
+  pickContextBuilding(clientX: number, clientY: number): number | null {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.cam);
+    const hit = this.ray.intersectObjects(this.world.children.filter(o => o.userData.cid != null && (o as THREE.Mesh).isMesh), false)[0];
+    return hit ? (hit.object.userData.cid as number) : null;
+  }
 
   update(doc: Project): void {
     this.lastDoc = doc;
@@ -155,11 +186,42 @@ export class Scene3D {
     const toV2 = (p: XY) => new THREE.Vector2(p[0], p[1]);
     if (doc.site) {
       const rings = doc.site.rings.map(r => r.map(fr.toLocal));
-      const sh = new THREE.Shape(rings[0].map(toV2)); rings.slice(1).forEach(h => sh.holes.push(new THREE.Path(h.map(toV2))));
-      const g = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
-      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: C.site, transparent: true, opacity: this.ctx ? 0.6 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })); m.renderOrder = 6;
-      this.world.add(m);
+      // kvartallar (uchastka − koʻcha koridorlari), funksiya rangida
+      const plan = computePlan(doc);
+      plan.blocks.forEach((b, i) => {
+        const sh = new THREE.Shape(b.rings[0].map(toV2)); b.rings.slice(1).forEach(h => sh.holes.push(new THREE.Path(h.map(toV2))));
+        const g = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
+        const sel = i === this.selBlock;
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: ZONE_COL[b.use] ?? C.site, transparent: true, opacity: sel ? 0.9 : this.ctx ? 0.62 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+        m.renderOrder = 6; m.userData.block = i; this.world.add(m);
+        if (sel) b.rings.forEach(r => this.world.add(line(densify(r, 10, true), C.preview, 0.45, true, 8, this.H)));
+      });
       rings.forEach(r => this.world.add(line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H)));
+    }
+    // loyiha koʻchalari: profil boʻlaklari, chiziqlar, daraxtlar, qizil chiziqlar
+    if (doc.streets.length) {
+      const sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H);
+      const ord: [string, number][] = [['trotuar', 9], ['yashil', 9.1], ['velo', 9.1], ['parkovka', 9.1], ['qatnov', 9.2], ['chiziq', 9.3]];
+      for (const [k, o] of ord) {
+        const arr = sg.layers[k]; if (!arr?.length) continue;
+        const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: PART_COL[k], depthTest: false, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
+      }
+      sg.red.forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2, depthTest: false }); l.computeLineDistances(); this.world.add(l); });
+      doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
+      if (sg.trees.length) this.world.add(...treeMeshes(sg.trees, this.H));
+    }
+    // uchastka ichidagi mavjud binolar: saqlanadigan — oddiy, qolgani — buziladigan (shaffof qizil)
+    if (this.ctx?.inSite.length) {
+      const keep = new Set(doc.keep);
+      for (const b of this.ctx.inSite) {
+        const k = keep.has(b.id);
+        const objs = buildingMeshes([b], this.H,
+          k ? new THREE.MeshLambertMaterial({ color: 0xffffff }) : new THREE.MeshBasicMaterial({ color: 0xd9534f, transparent: true, opacity: 0.18, depthWrite: false }),
+          k ? new THREE.MeshLambertMaterial({ color: 0xe3b4a2, side: THREE.DoubleSide }) : new THREE.MeshBasicMaterial({ color: 0xd9534f, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide }),
+          new THREE.LineBasicMaterial({ color: k ? 0x8f8a80 : 0xc0392b, transparent: true, opacity: k ? 0.4 : 0.7 }));
+        objs.forEach(o => { o.userData.cid = b.id; if (k) { o.castShadow = o.receiveShadow = true; } o.renderOrder = 10; this.world.add(o); });
+      }
     }
     this.ctx?.maskTrees(doc.site ? doc.site.rings[0].map(fr.toLocal) : null);
     doc.buildings.forEach(b => {
@@ -212,7 +274,7 @@ export class Scene3D {
   /** Kontekstni oʻrnatish (null — olib tashlash). Loyiha markazi yoki koʻrinish sozlamalari oʻzgarsa qayta quriladi. */
   async setContext(b: ContextBundle | null, doc: Project): Promise<void> {
     const cs = doc.context;
-    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}` : '';
+    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}` : '';
     if (key === this.ctxKey) return;
     this.ctxKey = key;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
@@ -233,7 +295,7 @@ export class Scene3D {
       }
       tex = this.tex!.t;
     }
-    this.ctx = buildContext(b, fr, cs, this.H, tex);
+    this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null);
     this.scene.add(this.ctx.group);
     this.grid.forEach(g => g.visible = false);
     const T = cs.layers.relief ? b.terrain : null;
@@ -245,6 +307,8 @@ export class Scene3D {
   }
 
   get hasContext(): boolean { return !!this.ctx; }
+  /** uchastka ichidagi mavjud (OSM) binolar */
+  get inSite(): { id: number; rings: XY[][]; h: number }[] { return this.ctx?.inSite ?? []; }
 
   snapshot(): string { this.renderer.render(this.scene, this.cam); return this.renderer.domElement.toDataURL('image/png'); }
 }

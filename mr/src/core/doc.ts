@@ -3,7 +3,7 @@
  * Hujjatda faqat inson qarorlari saqlanadi (chegara, koʻcha, bino…). Maydon, aholi, zichlik va boshqalar
  * core/derive.ts da har safar shu hujjatdan hisoblanadi va hech qachon hujjatga yozilmaydi.
  */
-export const SCHEMA = 2;
+export const SCHEMA = 3;
 
 /** [uzunlik, kenglik] — WGS84, GeoJSON tartibida */
 export type LngLat = [number, number];
@@ -25,6 +25,12 @@ export interface Building {
   nonRes: number;
   use: Use;
 }
+
+/** Loyiha koʻchasi: oʻq chizigʻi (ochiq siniq chiziq) + profil; qizil chiziqlar = oʻq ± kenglik/2 */
+export interface Street { id: string; axis: LngLat[]; profile: string }
+
+/** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
+export interface ZoneLabel { id: string; at: LngLat; use: Use }
 
 export interface Settings {
   /** amaldagi meʼyorlar toʻplami */
@@ -67,6 +73,10 @@ export interface Project {
   context: ContextSettings;
   site: Site | null;
   buildings: Building[];
+  streets: Street[];
+  zones: ZoneLabel[];
+  /** uchastka ichidagi saqlanadigan mavjud (OSM) binolar id lari; qolganlari — buziladi */
+  keep: number[];
 }
 
 /** Toshkent markazi — hudud tanlanmaguncha boshlangʻich nuqta */
@@ -95,7 +105,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
     origin: [...DEFAULT_ORIGIN] as LngLat,
     settings: { ...DEFAULT_SETTINGS },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
-    site: null, buildings: [],
+    site: null, buildings: [], streets: [], zones: [], keep: [],
   };
 }
 
@@ -114,7 +124,7 @@ export function migrate(raw: unknown): Project {
   const d = raw as Record<string, unknown>;
   if (!isNum(d.schema)) throw new SchemaError('Sxema versiyasi yoʻq');
   if (d.schema > SCHEMA) throw new SchemaError(`Hujjat yangiroq versiyada (${d.schema}); ilovani yangilang`);
-  // 1 → 2: kontekst sozlamalari qoʻshildi (standart qiymatlar bilan)
+  // 1 → 2: kontekst sozlamalari qoʻshildi (standart qiymatlar bilan); 2 → 3: koʻchalar, zonalar, saqlanadigan binolar
   // kelajakdagi migratsiyalar shu yerda: if (d.schema === 2) { …; d.schema = 3 }
   if (typeof d.id !== 'string' || !d.id) throw new SchemaError('id yoʻq');
   if (typeof d.name !== 'string') throw new SchemaError('name yoʻq');
@@ -139,10 +149,17 @@ export function migrate(raw: unknown): Project {
     if (!b || typeof b.id !== 'string' || !isRing(b.footprint) || !isNum(b.floors) || b.floors < 1) throw new SchemaError(`buildings[${i}] notoʻgʻri`);
     return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: (b.use || 'turar') as Use };
   });
+  const isLine = (v: unknown): v is LngLat[] => Array.isArray(v) && v.length >= 2 && v.every(isLL);
+  const streets: Street[] = (Array.isArray(d.streets) ? d.streets : []).map((x: any, i: number) => {
+    if (!x || typeof x.id !== 'string' || !isLine(x.axis)) throw new SchemaError(`streets[${i}] notoʻgʻri`);
+    return { id: x.id, axis: x.axis.map((p: LngLat) => [p[0], p[1]] as LngLat), profile: typeof x.profile === 'string' ? x.profile : 'mahalla-12' };
+  });
+  const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: (z.use || 'turar') as Use }));
+  const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
   return {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings,
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep,
   };
 }

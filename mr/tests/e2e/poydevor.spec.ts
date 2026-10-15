@@ -75,8 +75,8 @@ test('eksport → import: fayldan nusxa ochiladi', async ({ page }) => {
 
 test('qulflangan qadam: bosqich raqami koʻrsatiladi', async ({ page }) => {
   await newProject(page);
-  await page.click('[data-step=kocha]');
-  await expect(page.locator('.panel .locked')).toContainText('2-bosqichda');
+  await page.click('[data-step=quyosh]');
+  await expect(page.locator('.panel .locked')).toContainText('3-bosqichda');
 });
 
 /** Regressiya: Akso → Reja oʻtishda kamera 3000 m uzoqlashib, uchastka nuqtadek kichrayib qolardi */

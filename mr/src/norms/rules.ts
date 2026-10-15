@@ -55,6 +55,19 @@ export const RULES: Rule[] = [
       };
     },
   },
+  {
+    id: 'green-per-person',
+    title: 'Yashil hudud, kishi boshiga',
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: 'band aniqlanmagan', verified: false },
+    evaluate(d) {
+      if (d.population <= 0) return { status: 'na', unit: 'm²/kishi', limit: '≥ 17', note: 'Turar joy binolari yoʻq' };
+      const v = d.greenPerPerson, lim = 17;
+      return {
+        status: v >= lim ? 'pass' : 'review', value: v, unit: 'm²/kishi', limit: '≥ 17',
+        note: '17–19 m²/kishi — Abdurauf Fitrat KZ hujjatidagi umumshahar yashillik normasi; bu loyiha ichidagi «yashil» zonalar bilan solishtirildi. Band va hisob birligi tekshirilsin.',
+      };
+    },
+  },
 ];
 
 export function evaluateAll(d: Derived, doc: Project, rules: Rule[] = RULES): Result[] {
