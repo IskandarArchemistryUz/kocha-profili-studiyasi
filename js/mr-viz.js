@@ -27,7 +27,7 @@ async function open(get){GET=get;if(!OV){const st=document.createElement('style'
     <div class="seg" data-g="m"><button data-m="maket">${esc(T('Maket'))}</button><button data-m="render">${esc(T('Render'))}</button></div>
     <div class="seg" data-g="c"><button data-c="p">${esc(T('Perspektiva'))}</button><button data-c="a">${esc(T('Aksonometriya'))}</button></div>
     <div class="sun"><select id="vzMon"><option value="2">${esc(T('21 mart'))}</option><option value="5">${esc(T('21 iyun'))}</option><option value="8">${esc(T('21 sentyabr'))}</option><option value="11">${esc(T('21 dekabr'))}</option></select><input type="range" id="vzHr" min="6" max="20" step="0.25"><span id="vzHrT"></span></div>
-    <span class="sp"></span><button class="btn" id="vzPng">PNG</button><button class="btn dark" id="vzAlb">${esc(T('Albomga →'))}</button><button class="btn" id="vzX">✕ ${esc(T('Yopish'))}</button></div>
+    <span class="sp"></span><button class="btn dark" id="vzAi" title="${esc(T('Nano Banana, GPT Image va boshqa modellar bilan fotorealistik vizualizatsiya'))}">✦ ${esc(T('AI render'))}</button><button class="btn" id="vzPng">PNG</button><button class="btn dark" id="vzAlb">${esc(T('Albomga →'))}</button><button class="btn" id="vzX">✕ ${esc(T('Yopish'))}</button></div>
     <div class="cv" id="vzCv"><div class="ld" id="vzLd">${esc(T('3D tayyorlanmoqda…'))}</div><div class="nt">${esc(T('sichqoncha — aylantirish · oʻng tugma — surish · gʻildirak — masshtab · Esc — yopish'))}</div></div>`;
   document.body.appendChild(OV);sync();
   OV.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{UI.m=b.dataset.m;saveUI();sync();DIRTY=true;});
@@ -35,12 +35,13 @@ async function open(get){GET=get;if(!OV){const st=document.createElement('style'
   OV.querySelector('#vzMon').onchange=e=>{UI.mon=+e.target.value;saveUI();light();};
   OV.querySelector('#vzHr').oninput=e=>{UI.hr=+e.target.value;OV.querySelector('#vzHrT').textContent=hm(UI.hr);saveUI();light();};
   OV.querySelector('#vzX').onclick=close;OV.querySelector('#vzPng').onclick=()=>{const u=png();if(!u)return;const a=document.createElement('a');a.href=u;a.download='vizualizatsiya.png';document.body.appendChild(a);a.click();a.remove();};
-  OV.querySelector('#vzAlb').onclick=toAlb;document.addEventListener('keydown',esck);
+  OV.querySelector('#vzAlb').onclick=toAlb;
+  OV.querySelector('#vzAi').onclick=()=>{if(!window.AIRENDER)return;AIRENDER.open({grab:png,kind:'reja',title:T('Master reja'),onAlbum:(src,name,pr)=>matPut({id:'air'+Date.now().toString(36),kind:'png',name:'AI · '+name,src,thumb:src,aspect:1.5,sub:pr.slice(0,160),t:new Date().toISOString()})});};document.addEventListener('keydown',esck);
   try{await libs();}catch(e){OV.querySelector('#vzLd').textContent=T('3D kutubxonasi yuklanmadi — internetni tekshiring.');return;}
   if(!window.BINO3D){OV.querySelector('#vzLd').textContent=T('3D moduli topilmadi.');return;}
   init();DATA=GET();DIRTY=true;}
 function esck(e){if(e.key==='Escape')close();}
-function close(){cancelAnimationFrame(RAF);RAF=0;document.removeEventListener('keydown',esck);if(R3){R3.dispose();R3.forceContextLoss&&R3.forceContextLoss();}R3=null;CAM=null;CTRL=null;ROOT=null;if(OV)OV.remove();OV=null;}
+function close(){if(window.AIRENDER)AIRENDER.close();cancelAnimationFrame(RAF);RAF=0;document.removeEventListener('keydown',esck);if(R3){R3.dispose();R3.forceContextLoss&&R3.forceContextLoss();}R3=null;CAM=null;CTRL=null;ROOT=null;if(OV)OV.remove();OV=null;}
 function sync(){if(!OV)return;OV.querySelectorAll('[data-m]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===UI.m));OV.querySelectorAll('[data-c]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.c===UI.c));
   OV.querySelector('#vzMon').value=UI.mon;OV.querySelector('#vzHr').value=UI.hr;OV.querySelector('#vzHrT').textContent=hm(UI.hr);}
 function init(){const box=OV.querySelector('#vzCv');R3=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R3.setPixelRatio(Math.min(2,devicePixelRatio||1));

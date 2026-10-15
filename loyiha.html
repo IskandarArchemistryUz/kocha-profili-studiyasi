@@ -233,7 +233,7 @@ const STEPS=[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="75";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="76";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -319,6 +319,16 @@ function go(href){
   show(hit[0], hit[1], (href.includes("?")||(!sameStudio&&href!==page)) ? href : undefined);
 }
 window.addEventListener("message",e=>{ if(e.origin!==location.origin||!e.data||e.data.kps!=="go") return; go(String(e.data.href)); });
+/* «Barcha tahlillarni hisoblash» (Baho → 3D): Tahlil tablari navbat bilan ochiladi — har biri natijasini qatlam shinasiga
+   (kps_layers_ping) eʼlon qilguncha kutiladi, keyin Baho ga qaytiladi; 3D sxema qatlamlarni oʻzi oladi. */
+let TXRUN=false;
+function waitPing(pred,ms){return new Promise(ok=>{let done=false;const f=e=>{if(e.key!=="kps_layers_ping")return;let id="";try{id=JSON.parse(e.newValue).id||"";}catch(_){}if(pred(id))fin(true);};
+  const fin=v=>{if(done)return;done=true;window.removeEventListener("storage",f);clearTimeout(t);ok(v);};window.addEventListener("storage",f);const t=setTimeout(()=>fin(false),ms);});}
+async function runAllTx(){if(TXRUN)return;TXRUN=true;const si=STEPS.findIndex(s=>s.id==="tahlil"),subs=STEPS[si].subs,seq=subs.map((u,j)=>({u,j})).filter(o=>o.u.id!=="baho");
+  const want=u=>u.gtab?(id=>id==="gis-"+u.gtab):u.page==="shamol.html"?(id=>id.startsWith("shamol")):u.app==="area"?(id=>id==="tasnif"):(()=>false);
+  let ok=0;for(let k=0;k<seq.length;k++){const {u,j}=seq[k];ltoast(`Tahlillar ${k+1}/${seq.length}: ${u.t}…`);show(si,j);if(await waitPing(want(u),u.page==="shamol.html"?60000:35000))ok++;await new Promise(r=>setTimeout(r,1200));}
+  show(si,0);TXRUN=false;ltoast(`Tayyor: ${ok}/${seq.length} tahlil 3D sxemaga qoʻshildi.`);}
+window.addEventListener("message",e=>{ if(e.origin===location.origin&&e.data&&e.data.kps==="txAll") runAllTx(); });
 
 function renderNav(){
   const i=P.step, st=STEPS[i], j=P.sub[st.id]||0;

@@ -183,6 +183,7 @@ window.addEventListener('storage',e=>{if(e.key===KEY||e.key===SEL||e.key===CTXK)
 function png(){if(!R3)return null;R3.render(SC,CAM);return R3.domElement.toDataURL('image/png');}
 $('#exPng').onclick=()=>{const u=png();if(!u)return;const a=document.createElement('a');a.href=u;a.download='bino.png';document.body.appendChild(a);a.click();a.remove();};
 function matPut(o){return new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=res;t.onerror=()=>rej(t.error);};r.onerror=()=>rej(r.error);});}
+$('#aiR').onclick=()=>{if(!window.AIRENDER||!cur())return;const x=cur().x;AIRENDER.open({grab:png,kind:'bino',title:T('Bino')+' '+x.id,onAlbum:(src,name,pr)=>matPut({id:'air'+Date.now().toString(36),kind:'png',name:'AI · '+name,src,thumb:src,aspect:1.5,sub:pr.slice(0,160),t:new Date().toISOString()})});};
 $('#toAlb').onclick=()=>{const u=png(),o=cur(),b=$('#toAlb');if(!u||!o)return;const x=o.x,st=STY[x.sty];
   matPut({id:'bn'+Date.now().toString(36),kind:'png',name:T('Bino')+` ${x.id} · ${x.fl} ${T('qavat')}`+(st?' · '+T(st.n):''),src:u,thumb:u,aspect:box.clientWidth/box.clientHeight,sub:`GFA ${fmt(STAT.gfa)} m² · ${T('derazalar')} ${Math.round(STAT.wwr*100)} %`,t:new Date().toISOString()})
   .then(()=>{b.textContent=T('Yuborildi ✓');setTimeout(()=>{b.textContent=T('Albomga →');},1800);}).catch(()=>{b.textContent=T('Xato');});};
