@@ -76,3 +76,24 @@ export function isSimple(r: XY[]): boolean {
   }
   return Math.abs(signedArea(r)) > 1e-6;
 }
+
+/** Eng kichik yuzali yoʻnaltirilgan toʻrtburchak: U — uzun oʻq birlik vektori, L × S — oʻlchamlari */
+export function obb2(r: XY[]): { U: XY; L: number; S: number } {
+  let best = { U: [1, 0] as XY, L: 0, S: 0, A: Infinity };
+  for (let i = 0; i < r.length; i++) {
+    const a = r[i], b = r[(i + 1) % r.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 0.3) continue;
+    const u: XY = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const p of r) { const x = p[0] * u[0] + p[1] * u[1], y = -p[0] * u[1] + p[1] * u[0]; u0 = Math.min(u0, x); u1 = Math.max(u1, x); v0 = Math.min(v0, y); v1 = Math.max(v1, y); }
+    const A = (u1 - u0) * (v1 - v0);
+    if (A < best.A) best = (u1 - u0) >= (v1 - v0) ? { U: u, L: u1 - u0, S: v1 - v0, A } : { U: [-u[1], u[0]], L: v1 - v0, S: u1 - u0, A };
+  }
+  return { U: best.U, L: best.L, S: best.S };
+}
+
+/** Uzun fasadlar normallarining azimutlari (°, shimoldan soat yoʻnalishida) */
+export function longFacadeAzimuths(r: XY[]): [number, number] {
+  const { U } = obb2(r), n: XY = [-U[1], U[0]];
+  const az = (v: XY) => ((Math.atan2(v[0], v[1]) * 180 / Math.PI) + 360) % 360;
+  return [az(n), az([-n[0], -n[1]])];
+}

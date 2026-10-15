@@ -283,7 +283,8 @@ export class Editor {
   }
 
   /* ---------- 3-bosqich: quyosh, soyalar, insolyatsiya ---------- */
-  private sunDate = '04-22';
+  private sunDate = '03-22';
+  private insolRule: Result | null = null;
   private sunTime = 14;
   private insol: { busy: boolean; stats: { mean: number; ge2: number; ge3: number; bins: number[]; n: number; date: string } | null } = { busy: false, stats: null };
   private sunW: Worker | null = null;
@@ -320,13 +321,22 @@ export class Editor {
     const bins = INSOL_BINS.map(() => 0); let sum = 0, ge2 = 0, ge3 = 0;
     hours.forEach(hh => { sum += hh; if (hh >= 2) ge2++; if (hh >= 3) ge3++; let k = 0; INSOL_BINS.forEach(([t], i) => { if (hh >= t) k = i; }); bins[k]++; });
     const n = hours.length || 1;
+    let ge05 = 0, ge1 = 0; hours.forEach(hh => { if (hh >= 0.5) ge05++; if (hh >= 1) ge1++; });
+    const inPeriod = this.sunDate === '03-22' || this.sunDate === '09-22';
+    this.insolRule = {
+      id: 'insol-territory', title: 'Uy atrofidagi hudud insolyatsiyasi',
+      source: { doc: 'SanQvaN 0331-16', edition: '2016', clause: '8.3-band (22.03–22.09: hududda ≥ 0,5–1 soat)', verified: true },
+      ...(!inPeriod ? { status: 'na' as const, note: 'Davr chegarasi — 22 mart yoki 22 sentabr sanasini tanlab hisoblang (eng qisqa kun).' }
+        : { status: (ge1 === n ? 'pass' : ge05 === n ? 'review' : 'fail') as Result['status'], value: ge1 / n * 100, unit: '% ≥ 1 soat', limit: '100 %',
+            note: `${fmt(ge05 / n * 100, 0)} % nuqta ≥ 0,5 soat, ${fmt(ge1 / n * 100, 0)} % — ≥ 1 soat (uchastka yer sathi, binolar dogʻidan tashqari). Xonalar uchun 2,5 soat uzluksiz — 4-bosqichda (deraza nuqtalari boʻyicha).` }),
+    };
     this.insol = { busy: false, stats: { mean: sum / n, ge2: ge2 / n, ge3: ge3 / n, bins: bins.map(v => v / n), n: hours.length, date: this.sunDate } };
     this.scene.setInsolation(pts, hours, cell);
     this.renderPanel();
   }
 
   private quyoshPanel(body: HTMLElement): void {
-    const DATES: [string, string][] = [['03-21', '21 mart'], ['04-22', '22 aprel'], ['06-22', '22 iyun'], ['09-22', '22 sentabr'], ['12-22', '22 dekabr']];
+    const DATES: [string, string][] = [['03-22', '22 mart'], ['04-22', '22 aprel'], ['06-22', '22 iyun'], ['09-22', '22 sentabr'], ['12-22', '22 dekabr']];
     const time = h('input', { type: 'range', min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', style: 'width:100%' }) as HTMLInputElement;
     time.oninput = () => { this.sunTime = Number(time.value); this.applySun(); };
     body.append(
@@ -342,7 +352,7 @@ export class Editor {
         h('div', { class: 'legend' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { class: 'sw', style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, t), h('span', { class: 'num' }, `${fmt(st.bins[i] * 100, 0)} %`)))),
         h('button', { class: 'btn', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, 'Xaritani yashirish'));
     }
-    body.append(h('p', { class: 'note' }, 'Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyoriy davomiylik SanQvaN 0331-16 / ShNQ 2.08.01-19 da — bu hujjatlar normalar papkasida yoʻq, shuning uchun «mos / mos emas» baholanmadi. Xonalar (deraza) insolyatsiyasi — 4-bosqichda.'));
+    body.append(h('p', { class: 'note' }, 'Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0331-16, 8.3-band — 22 mart – 22 sentabr davrida xonalarda uzluksiz 2,5 soat, uy atrofidagi hududda ≥ 0,5–1 soat. Hudud natijasi reyestrga qoʻshiladi; xonalar (deraza) — 4-bosqichda.'));
     queueMicrotask(() => this.applySun());
   }
 
@@ -750,7 +760,7 @@ export class Editor {
   }
 
   private register(): HTMLElement {
-    const rs = this.last?.results ?? [];
+    const rs = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : [])];
     return h('table', { class: 'reg' },
       h('thead', {}, h('tr', {}, h('th', {}, 'Talab'), h('th', {}, 'Qiymat'), h('th', {}, 'Meʼyor'), h('th', {}, 'Natija'))),
       h('tbody', {}, ...rs.map(r => h('tr', { 'data-rule': r.id },

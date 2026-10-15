@@ -240,18 +240,19 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
 }
 
 function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
-  // meridional qatorlar (uzun oʻqi shimol–janub): Toshkentda sharq va gʻarb fasadlari quyosh oladi
+  // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0331-16, 9.4-band — eng qulay yoʻnalish;
+  // 9.2-band — yashash xonalari derazalari gʻarbga (200–290°) qaratilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
   const D = g.depth, H = g.maxF * floorH, gap = Math.max(2 * H, 20); // izoh 8: ≥ 2·Hmax
-  notes.push(`Qatorlar orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
+  notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0331-16, 9.4-band); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const p of A) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
   const poly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
   const sections: GenSection[] = [];
-  const count = Math.max(1, Math.floor((x1 - x0 - D) / (D + gap)) + 1), used = (count - 1) * (D + gap) + D, xs = x0 + (x1 - x0 - used) / 2;
+  const count = Math.max(1, Math.floor((y1 - y0 - D) / (D + gap)) + 1), used = (count - 1) * (D + gap) + D, ys = y0 + (y1 - y0 - used) / 2;
   for (let k = 0; k < count; k++) {
-    const bx = xs + k * (D + gap);
-    for (let y = y0; y < y1 - 6; y += g.secLen) {
-      const rect: Polygon = [[[bx, y], [bx + D, y], [bx + D, Math.min(y1, y + g.secLen)], [bx, Math.min(y1, y + g.secLen)], [bx, y]]];
+    const by = ys + k * (D + gap);
+    for (let x = x0; x < x1 - 6; x += g.secLen) {
+      const rect: Polygon = [[[x, by], [Math.min(x1, x + g.secLen), by], [Math.min(x1, x + g.secLen), by + D], [x, by + D], [x, by]]];
       let parts: [number, number][][][] = [];
       try { parts = polygonClipping.intersection(rect, poly); } catch { continue; }
       for (const p of parts) {
@@ -377,5 +378,5 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult
   return r;
 }
 
-export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Meridional qatorlar', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar' };
+export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar' };
 export const PARK_NAME: Record<ParkingKind, string> = { yoq: 'Yoʻq', yer_osti: 'Yer osti', stilobat: 'Stilobat ichida', yer_usti: 'Yer usti' };
