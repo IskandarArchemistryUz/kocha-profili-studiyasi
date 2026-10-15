@@ -147,6 +147,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'setSettings': {
       const s = { ...doc.settings, ...c.patch };
       for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!(s[k] > 0)) throw new CommandError(`${k} musbat boʻlsin`);
+      if (s.aptMix.length !== 4 || s.aptMix.some(v => !(v >= 0)) || !s.aptMix.some(v => v > 0)) throw new CommandError('Kvartira miksi notoʻgʻri');
       d.settings = s; return d;
     }
   }

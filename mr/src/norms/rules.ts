@@ -7,6 +7,14 @@
 import type { Derived } from '../core/derive';
 import type { Project } from '../core/doc';
 import { CATS, checkProfile, profileById } from '../core/profiles';
+import { DEMO, demoRow, perThousand } from '../core/demography';
+
+/** stat.uz boʻyicha haqiqiy yosh tarkibidan ehtiyoj (izoh uchun) */
+function demoNote(doc: Project, pop: number, kind: 'school' | 'mtm'): string {
+  const r = demoRow(doc.settings.district); if (!r) return '';
+  const k = perThousand(r)[kind], need = Math.round(pop * k / 1000);
+  return ` Haqiqiy yosh tarkibi (stat.uz, ${r.name}, ${DEMO.year}): ${kind === 'school' ? '7–17' : '3–6'} yoshlilar 1000 kishiga ${Math.round(k)} → loyiha aholisi uchun ≈ ${need} ${kind === 'school' ? 'oʻquvchi' : 'bola'} (100 % qamrov).`;
+}
 
 export type Status = 'pass' | 'fail' | 'review' | 'na';
 
@@ -71,22 +79,22 @@ export const RULES: Rule[] = [
     id: 'school',
     title: 'Maktab oʻrinlari',
     source: { ...SHNQ_2_07_01, clause: '5-ilova (165–280 oʻrin / 1000 kishi); 549-band, 41-jadval (uchastka)' },
-    evaluate(d) {
+    evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
       const lo = Math.ceil(d.population * 0.165), hi = Math.ceil(d.population * 0.28);
       return { status: d.schoolCap >= lo ? 'pass' : 'fail', value: d.schoolCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.schoolCap < lo ? (1 - d.schoolCap / lo) * -100 : undefined,
-        note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellari maydonidan 41-jadval boʻyicha (20/15/10 m² oʻquvchiga). Yaqin atrofdagi mavjud maktablar hisobga olinmagan.` };
+        note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellari maydonidan 41-jadval boʻyicha (20/15/10 m² oʻquvchiga). Yaqin atrofdagi mavjud maktablar hisobga olinmagan.${demoNote(doc, d.population, 'school')}` };
     },
   },
   {
     id: 'mtm',
     title: 'MTM (bogʻcha) oʻrinlari',
     source: { ...SHNQ_2_07_01, clause: '5-ilova (70–125 oʻrin / 1000 kishi); 543-band (uchastka)' },
-    evaluate(d) {
+    evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
       const lo = Math.ceil(d.population * 0.07), hi = Math.ceil(d.population * 0.125);
       return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
-        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).` };
+        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${demoNote(doc, d.population, 'mtm')}` };
     },
   },
   {

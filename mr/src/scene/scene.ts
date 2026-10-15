@@ -21,6 +21,31 @@ const USE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, 
 const BASE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.base]));
 const PART_COL: Record<string, number> = { trotuar: 0xd8d2c6, yashil: 0x9cc77f, velo: 0xc9705a, parkovka: 0x8d9097, qatnov: 0x585b62, chiziq: 0xf4f4f0 };
 
+/** Fasad uslublari: deraza modulda (eni ulushi, tokcha va tepa balandligi, m) */
+export type FacadeStyle = 'yoq' | 'klassik' | 'lenta' | 'panorama';
+export const FACADE: Record<Exclude<FacadeStyle, 'yoq'>, { name: string; w: number; sill: number; head: number }> = {
+  klassik: { name: 'Klassik (alohida derazalar)', w: 0.5, sill: 0.9, head: 2.4 },
+  lenta: { name: 'Lenta (gorizontal)', w: 0.86, sill: 0.9, head: 2.3 },
+  panorama: { name: 'Panorama (poldan shiftgacha)', w: 0.9, sill: 0.1, head: 2.85 },
+};
+const texCache = new Map<string, THREE.CanvasTexture>();
+/** Bitta modul (eni modW, balandligi fh) uchun takrorlanadigan deraza teksturasi */
+function facadeTex(kind: 'res' | 'shop' | 'glass', st: Exclude<FacadeStyle, 'yoq'>, fh: number, modW: number, aniso: number): THREE.CanvasTexture {
+  const key = `${kind}|${st}|${fh}|${modW}`; const hit = texCache.get(key); if (hit) return hit;
+  const S = 128, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d')!;
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, S, S);
+  const f = kind === 'shop' ? { w: 0.86, sill: 0.15, head: Math.min(fh - 0.5, 3.2) } : kind === 'glass' ? { w: 0.94, sill: 0.05, head: fh - 0.25 } : FACADE[st];
+  const x0 = (1 - f.w) / 2 * S, x1 = (1 + f.w) / 2 * S, y0 = (1 - f.head / fh) * S, y1 = (1 - f.sill / fh) * S;
+  g.fillStyle = kind === 'shop' ? '#5d7180' : '#7d93a3'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+  g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x0, y0, (x1 - x0) * 0.35, y1 - y0);
+  g.strokeStyle = '#4b5a64'; g.lineWidth = 2; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  if (kind === 'res' && st !== 'panorama') { g.fillStyle = '#c9c4ba'; g.fillRect(x0 - 2, y1, x1 - x0 + 4, 3); }
+  g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, S - 2, S, 2); // qavatlararo chiziq
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
+  t.repeat.set(1 / modW, -1 / fh); t.offset.set(0, 1 / fh);
+  texCache.set(key, t); return t;
+}
+
 export const INSOL_BINS: [number, number, string][] = [[0, 0x2b3a67, '< 1 soat'], [1, 0x4a6fa5, '1–2'], [2, 0x7fb3c8, '2–3'], [3, 0xc9e4a5, '3–4'], [4, 0xf6e58d, '4–6'], [6, 0xf9b24e, '≥ 6']];
 export function insolColor(h: number): number { let c = INSOL_BINS[0][1]; for (const [t, col] of INSOL_BINS) if (h >= t) c = col; return c; }
 
@@ -39,7 +64,7 @@ function treeMeshes(pts: XY[], H: HeightFn): THREE.Object3D[] {
 
 export type ViewMode = 'plan' | 'axo' | 'persp';
 
-const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b4, siteLine: 0xc0392b, bld: 0xf7f6f2, bldSel: 0xcfe0f1, edge: 0x3c3c3c, preview: 0x2a6fb0 };
+const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b4, siteLine: 0xc0392b, bld: 0xf7f6f2, bldSel: 0xcfe0f1, roof: 0xdedad2, edge: 0x3c3c3c, preview: 0x2a6fb0 };
 
 export class Scene3D {
   readonly renderer: THREE.WebGLRenderer;
@@ -64,6 +89,8 @@ export class Scene3D {
   private ctxKey = '';
   private tex: { blob: Blob; t: THREE.Texture } | null = null;
   private sun!: THREE.DirectionalLight;
+  /** fasad uslubi (koʻrinish tanlovi, hujjatda emas) */
+  facade: FacadeStyle = 'klassik';
   /** relyef balandligi (markazga nisbatan, m) — loyiha elementlari shu sathga qoʻyiladi */
   H: HeightFn = () => 0;
   onPick?: (id: string | null) => void;
@@ -176,6 +203,7 @@ export class Scene3D {
 
   select(id: string | null): void { this.selected = id; if (this.lastDoc) this.update(this.lastDoc); }
   selectBlock(i: number | null): void { this.selBlock = i; if (this.lastDoc) this.update(this.lastDoc); }
+  setFacade(st: FacadeStyle): void { this.facade = st; if (this.lastDoc) this.update(this.lastDoc); }
   selectStreet(id: string | null): void { this.selStreet = id; if (this.lastDoc) this.update(this.lastDoc); }
 
   /** Ekran nuqtasidagi uchastka ichidagi mavjud bino (OSM id) */
@@ -243,13 +271,15 @@ export class Scene3D {
       }
     });
     // loyiha binolari / seksiyalari: noturar pastki qavatlar toʻq tasma, har seksiya alohida (chegaralari koʻrinadi)
-    const fh = doc.settings.floorHeight;
+    const fh = doc.settings.floorHeight, aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected;
       const shape = new THREE.Shape(r.map(toV2));
-      const part = (z0: number, z1: number, color: number) => {
+      const part = (z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null) => {
         const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
-        const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : color }));
+        const wall = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : color });
+        if (kind && this.facade !== 'yoq') wall.map = facadeTex(kind, this.facade, fh, 3.3, aniso);
+        const m = new THREE.Mesh(g, [new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : C.roof }), wall]);
         m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
         const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.5 })); this.world.add(e);
       };
@@ -260,9 +290,10 @@ export class Scene3D {
         return;
       }
       const nr = Math.min(b.nonRes, b.floors - (b.gen?.kind === 'stilobat' ? 0 : 1));
-      if (nr > 0) part(0, nr * fh, BASE_COL[b.use] ?? 0x9c7b6e);
+      const parking = b.gen?.kind === 'stilobat' && b.use === 'avtoturargoh', office = b.use === 'ofis' || b.use === 'mehmonxona';
+      if (nr > 0) part(0, nr * fh, BASE_COL[b.use] ?? 0x9c7b6e, parking ? null : 'shop');
       if (nr >= b.floors) return;
-      part(nr * fh, b.floors * fh, USE_COL[b.use] ?? C.bld);
+      part(nr * fh, b.floors * fh, USE_COL[b.use] ?? C.bld, office ? 'glass' : 'res');
     });
     this.invalidate();
   }
@@ -373,11 +404,31 @@ export class Scene3D {
     this.invalidate();
   }
 
+  private marks: THREE.Mesh | null = null;
+  /** Fasaddagi rangli belgilar (deraza insolyatsiyasi): har biri — fasad tekisligidagi toʻrtburchak; null — olib tashlash */
+  setFacadeMarks(list: { a: XY; b: XY; y0: number; y1: number; color: number }[] | null): void {
+    if (this.marks) { this.scene.remove(this.marks); this.marks.geometry.dispose(); (this.marks.material as THREE.Material).dispose(); this.marks = null; }
+    if (list?.length) {
+      const pos: number[] = [], col: number[] = [], c = new THREE.Color();
+      for (const q of list) {
+        const dx = q.b[0] - q.a[0], dy = q.b[1] - q.a[1], l = Math.hypot(dx, dy) || 1, n = [dy / l * 0.12, -dx / l * 0.12], k = 0.14;
+        const a = [q.a[0] + dx * k + n[0], q.a[1] + dy * k + n[1]], b = [q.b[0] - dx * k + n[0], q.b[1] - dy * k + n[1]];
+        c.setHex(q.color);
+        const v = [[a, q.y0], [b, q.y0], [b, q.y1], [a, q.y0], [b, q.y1], [a, q.y1]] as [number[], number][];
+        for (const [p, y] of v) { pos.push(p[0], y, -p[1]); col.push(c.r, c.g, c.b); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      this.marks = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+      this.marks.renderOrder = 8; this.scene.add(this.marks);
+    }
+    this.invalidate();
+  }
+
   /** Soya va insolyatsiya hisobi uchun binolar prizmalari (loyiha + saqlanadigan va atrofdagi kontekst) */
   prisms(doc: Project, extra: { rings: XY[][]; h: number }[]): { ring: XY[]; top: number }[] {
     const fr = frame(doc.origin), fh = doc.settings.floorHeight, out: { ring: XY[]; top: number }[] = [];
     const base = (r: XY[]) => Math.min(...r.map(p => this.H(p[0], p[1])));
-    doc.buildings.forEach(b => { const r = b.footprint.map(fr.toLocal); out.push({ ring: r, top: base(r) + b.floors * fh }); });
+    doc.buildings.forEach(b => { const r = b.footprint.map(fr.toLocal); out.push({ ring: r, top: base(r) + ((b.z0 ?? 0) + b.floors) * fh }); });
     const keep = new Set(doc.keep);
     (this.ctx?.inSite ?? []).filter(b => keep.has(b.id)).forEach(b => out.push({ ring: b.rings[0], top: base(b.rings[0]) + b.h }));
     extra.forEach(b => out.push({ ring: b.rings[0], top: base(b.rings[0]) + b.h }));

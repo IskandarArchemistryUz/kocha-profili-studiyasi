@@ -66,7 +66,8 @@ export function derive(doc: Project): Derived {
   let footprint = 0, gfa = 0, resGfa = 0; const gfaByUse: Record<string, number> = {};
   for (const b of doc.buildings) {
     const a = area(ringLocal(fr, b.footprint));
-    footprint += a; gfa += a * b.floors;
+    if (!b.z0) footprint += a; // stilobat ustidagi seksiyalar dogʻi stilobatniki ichida — ikki marta sanalmaydi
+    gfa += a * b.floors;
     resGfa += a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
     const nonResGfa = a * b.floors - a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
     gfaByUse[b.use] = (gfaByUse[b.use] ?? 0) + nonResGfa;
