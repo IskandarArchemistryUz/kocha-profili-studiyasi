@@ -824,7 +824,7 @@ function capHTML(k){if(!k.cap||!k.pop)return '';const u=k.pop/k.cap,over=u>1;
 function renderKpi(){const k=kpis();
   const c=(v,l,cls,g,ha)=>`<div class="kpi${cls?' '+cls:''}"><b>${v}</b><span>${esc(T(l))}${g?' '+gi(g,ha):''}</span></div>`;
   const bm=(v,t,u,src)=>v==null?'—':`<i class="${v>=t?'ok':'wn'}" title="${esc(T(src))}">${fmt(v,1)}</i>`;
-  $('#kpis').innerHTML=[
+  const all=[
     c(k.siteHa!=null?fmt(k.siteHa,1)+' ga':'—',k.siteHa!=null?'Uchastka · '+sizeOf(k.siteHa).n.toLowerCase()+' oʻlchami':'Uchastka chizilmagan (U)','',k.siteHa!=null?(sizeOf(k.siteHa).k==='daha'?'daha':sizeOf(k.siteHa).k==='mavze'?'mavze':'tuman'):null,k.siteHa),
     c(fmt(k.lenKm,2)+' km','Koʻchalar uzunligi'),
     c(bm(k.dens,18,'km/km²','UN-Habitat, Five Principles (2014): ≥ 18 km/km²')+(k.dens!=null?' <small style="font-size:13px">km/km²</small>':''),'Koʻcha zichligi · moʻljal ≥ 18'),
@@ -837,10 +837,20 @@ function renderKpi(){const k=kpis();
     c(k.far!=null?`${fmt(k.far,2)} · ${fmt(k.cov,0)} %`:'—','FAR · qoplam (hudud boʻyicha)',k.far!=null?'':'off'),
     c(k.flAvg?fmt(k.flAvg,1):'—','Oʻrtacha qavat',k.flAvg?'':'off'),
     c(k.pop?`${fmt(k.pop,0)} · ${fmt(k.kv,0)} kv`:'—','Aholi · kvartiralar',k.pop?'':'off'),
-    c(k.pDens!=null&&k.pop?`<i class="${k.pDens<=400?'ok':'wn'}" title="${esc(T('ShNQ 2.07.01-23, 84-band: koʻp qavatli kompleks qurilishda mavze boʻyicha ≤ 400 kishi/ga (brutto)'))}">${fmt(k.pDens,0)}</i>`:'—','Zichlik, kishi/ga · ≤ 400',k.pDens!=null&&k.pop?'':'off','brutto')].join('');}
+    c(k.pDens!=null&&k.pop?`<i class="${k.pDens<=400?'ok':'wn'}" title="${esc(T('ShNQ 2.07.01-23, 84-band: koʻp qavatli kompleks qurilishda mavze boʻyicha ≤ 400 kishi/ga (brutto)'))}">${fmt(k.pDens,0)}</i>`:'—','Zichlik, kishi/ga · ≤ 400',k.pDens!=null&&k.pop?'':'off','brutto')];
+  const PRI=[0,8,9,10,11,12,7];$('#kpis').innerHTML=PRI.map(i=>all[i]).join('');const ka=$('#kpiAll');if(ka)ka.innerHTML=all.filter((_,i)=>!PRI.includes(i)).join('');}
 
 /* ---------- panel ---------- */
 const STEPS=['Yoʻllar','Parsellar','Zonalash','Generatsiya','Binolar','Tekshiruv'];
+/* v2: yagona qadamlar oqimi — relsdagi tartib bilan bir xil */
+const FLOW=[['uchastka','Uchastka'],['hudud','Atrof'],['street','Yoʻllar'],['zone','Zonalar'],['gen','Binolar'],['bino','Tahrir'],['tek','Tekshiruv']];
+function flowIdx(t){const i=FLOW.findIndex(f=>f[0]===t);return i<0?-1:i;}
+function stepHead(t,title,extra){const i=flowIdx(t),n=FLOW.length;
+  return `<div class="ph"><span class="lb">${i>=0?esc(T('Qadam'))+' '+(i+1)+' / '+n:esc(T('Tanlash'))}</span><span class="phr">${extra||''}</span></div><h2>${esc(T(title))}</h2>`+
+    (i>=0?`<div class="steps">${FLOW.map((f,k)=>`<i class="${k<=i?'on':''}" data-go="${f[0]}" title="${k+1}. ${esc(T(f[1]))}"></i>`).join('')}</div>`:'');}
+function stepFoot(t){const i=flowIdx(t);if(i<0)return '';const nx=FLOW[i+1],pv=FLOW[i-1];
+  return `<div class="pf">${pv?`<button class="btn" data-go="${pv[0]}">← ${esc(T(pv[1]))}</button>`:''}${nx?`<button class="btn dark" data-go="${nx[0]}">${esc(T(nx[1]))} →</button>`:`<button class="btn dark" id="pfAlb">${esc(T('Albomga'))} →</button>`}</div>`;}
+function bindFlow(){$$('#panel [data-go]').forEach(b=>b.onclick=()=>setTool(b.dataset.go));const a=$('#pfAlb');if(a)a.onclick=()=>{if(typeof toAlbum==='function')toAlbum();};}
 /* modul tanlash: oilalar bo'yicha yig'iladigan ro'yxat + qidiruv (uzun ochiladigan ro'yxat o'rniga) */
 let PP_OPEN=null,PP_Q='';
 function presetPicker(cur){const g={};MOD.presets.forEach(p=>(g[p.g]=g[p.g]||[]).push(p));const cp=MOD.presets.find(p=>p.id===cur);if(PP_OPEN==null)PP_OPEN=cp?cp.g:'';
@@ -881,12 +891,13 @@ function presetOpts(cur){const g={};MOD.presets.forEach(p=>(g[p.g]=g[p.g]||[]).p
   return Object.entries(g).map(([n,ps])=>`<optgroup label="${esc(T(n))}">${ps.map(p=>`<option value="${p.id}" ${p.id===cur?'selected':''}>${esc(T(p.n))} · ${fmt(p.W,1)} m</option>`).join('')}</optgroup>`).join('');}
 function stripBar(p){return `<div class="strips" title="${esc(T(p.n))}">${p.st.map(s=>`<i style="flex:${s[1]} 1 0;background:${(MOD.dk[s[0]]||{}).c||'#ccc'}" title="${esc(T((MOD.dk[s[0]]||{}).n||s[0]))} · ${fmt(s[1],2)} m"></i>`).join('')}</div>`;}
 function renderPanel(){
-  if(S.tool==='tahlil'){$('#panel').innerHTML=`<div class="ph"><span class="lb">2 · ${esc(T('Tahlil'))}</span><span class="phr"><span class="lb">beta</span></span></div><h2>${esc(T('Tahlil qatlamlari'))}</h2><div class="bd">${MRTX.html()}</div>`;MRTX.bind($('#panel'));hint();return;}
-  if(S.tool==='uchastka'){$('#panel').innerHTML=`<div class="ph"><span class="lb">${esc(T('Loyiha'))}</span><span class="phr"><span class="lb">U</span></span></div><h2>${esc(T('Uchastka'))}</h2><div class="bd">${MRPLOT.html()}</div>`;MRPLOT.bind($('#panel'));hint();return;}
-  if(S.tool==='hudud'){$('#panel').innerHTML=`<div class="ph"><span class="lb">${esc(T('Atrof'))}</span><span class="phr"><span class="lb">H</span></span></div><h2>${esc(T('Tahlil hududi'))}</h2><div class="bd">${MRHUD.html()}</div>`;MRHUD.bind($('#panel'));hint();return;}
+  if(S.tool==='tahlil'){$('#panel').innerHTML=`${stepHead('tahlil','Tahlil qatlamlari')}<div class="bd">${MRTX.html()}</div>`;MRTX.bind($('#panel'));hint();return;}
+  if(S.tool==='uchastka'){$('#panel').innerHTML=`${stepHead('uchastka','Uchastka')}<div class="bd">${MRPLOT.html()}</div>${stepFoot('uchastka')}`;MRPLOT.bind($('#panel'));bindFlow();hint();return;}
+  if(S.tool==='hudud'){$('#panel').innerHTML=`${stepHead('hudud','Atrof — tahlil hududi')}<div class="bd">${MRHUD.html()}</div>${stepFoot('hudud')}`;MRHUD.bind($('#panel'));bindFlow();hint();return;}
   const st=S.tool==='tek'?5:S.tool==='bino'||(S.sel&&S.sel.t==='bl')?4:S.tool==='gen'?3:S.tool==='zone'||(S.sel&&S.sel.t==='b')?1:0,ttl=st===5?'Tekshiruv':st===4?'Binolar':st===3?'Generatsiya':st?'Parsellar va zonalash':'Yoʻllar';
   const hasEx=window.MRANIM&&MRANIM.has(S.tool);
-  let h=`<div class="ph"><span class="lb">${esc(T('Loyiha'))} · ${st+1} / 6</span><span class="phr">${hasEx?`<button class="qx" id="exQ" title="${esc(T('Koʻrib tushunish: qisqa sahna'))}" aria-label="${esc(T('Koʻrib tushunish'))}">?</button>`:''}<span class="lb">beta</span></span></div><h2>${esc(T(ttl))}</h2><div class="steps">${STEPS.map((s,i)=>`<i class="${i<=st?'on':''}" title="${esc(T(s))}"></i>`).join('')}</div><div class="bd">`;
+  const ft=S.tool==='select'?(S.sel&&S.sel.t==='bl'?'bino':S.sel&&S.sel.t==='b'?'zone':'street'):S.tool;
+  let h=`${stepHead(S.tool==='select'?'select':S.tool,S.tool==='select'?'Tanlash':ttl,hasEx?`<button class="qx" id="exQ" title="${esc(T('Koʻrib tushunish: qisqa sahna'))}" aria-label="${esc(T('Koʻrib tushunish'))}">?</button>`:'')}<div class="bd">`;
   const sel=S.sel&&S.sel.t==='e'&&edge(S.sel.id),sb=S.sel&&S.sel.t==='b'&&blockAt(S.sel.ll);
   const zpal=cur=>`<div class="zp">${ZT.map(z=>`<button data-z="${z.k}" aria-pressed="${cur===z.k}"><i style="background:${z.c}"></i>${esc(T(z.n.split(' (')[0]))}</button>`).join('')}<button data-z="" aria-pressed="${cur===''}"><i style="background:#fff"></i>${esc(T('Zonasiz'))}</button></div>`;
   const so=S.sel&&S.sel.t==='bl'&&bldRec(S.sel.zid,S.sel.bid);
@@ -923,7 +934,7 @@ function renderPanel(){
       <div class="keys"><b>Enter</b>tugatish · <b>Esc</b>bekor<br><b>Shift</b>burchakni 15° ga yopishtirish<br><b>V</b>tanlash · <b>Ctrl+Z</b>bekor qilish</div>${tgHTML()}`;}
   else{h+=`<p class="note">Koʻcha yoki tugunni bosing — tanlanadi. Tugunni sudrab koʻchiring. <b>Delete</b> — oʻchirish.</p><div class="keys"><b>S</b>koʻcha chizish · <b>Ctrl+Z</b>bekor qilish</div>`;}
   h+=`<div class="kv" style="border-top:1px solid var(--line);padding-top:10px"><span>Koʻchalar</span><b>${D.edges.length}</b><span>Kvartallar</span><b>${BLK.length}</b><span>Zonalangan</span><b>${BLK.filter(b=>b.z).length}</b></div></div>`;
-  $('#panel').innerHTML=h;
+  $('#panel').innerHTML=h+stepFoot(ft);bindFlow();
   const dp=$('#drawPre');if(dp)dp.onchange=()=>act(()=>{D.preset=dp.value;});
   bindPresetPicker(id=>act(()=>{D.preset=id;}));bindTg();
   const sp=$('#selPre');if(sp)sp.onchange=()=>act(()=>{edge(S.sel.id).preset=sp.value;D.preset=sp.value;});
@@ -947,7 +958,7 @@ function hint(){let t='';
   $('#hint').textContent=T(t);}
 
 /* ---------- asboblar ---------- */
-function setTool(t){S.fe=null;S.fed=null;S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(window.MRANIM){if(MRANIM.open&&MRANIM.cur!==t)MRANIM.hide();MRANIM.first(t,$('.main'));}if(window.MRHUD)MRHUD.active(t==='hudud');MRPLOT.active(t==='uchastka');if(window.MRTX)MRTX.active(t==='tahlil');map.getCanvas().style.cursor=t==='street'||t==='hudud'||t==='uchastka'?'crosshair':'';$('#tip').textContent='';render();}
+function setTool(t){S.fe=null;S.fed=null;S.tool=t;S.draw=null;S.cursor=null;S.nb=null;S.arm=null;if(t!=='gen'&&t!=='select'&&S.sel&&S.sel.t==='b')S.sel=null;if(t!=='bino'&&t!=='select'&&t!=='tek'&&S.sel&&S.sel.t==='bl')S.sel=null;if(t==='tek'&&!LENS.ins&&!LENS.dist&&!LENS.sh){LENS.ins=LENS.dist=true;saveLens();}if(t!=='select'&&t!=='street'&&S.sel&&(S.sel.t==='e'||S.sel.t==='n'))S.sel=null;$$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(window.MRANIM){if(MRANIM.open&&MRANIM.cur!==t)MRANIM.hide();}if(window.MRHUD)MRHUD.active(t==='hudud');MRPLOT.active(t==='uchastka');if(window.MRTX)MRTX.active(t==='tahlil');map.getCanvas().style.cursor=t==='street'||t==='hudud'||t==='uchastka'?'crosshair':'';$('#tip').textContent='';render();}
 $$('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('#undo').onclick=undo;$('#redo').onclick=redo;
 $$('[data-view]').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;$$('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));map.easeTo(S.view==='axo'?{pitch:55,bearing:-25,duration:600}:{pitch:0,bearing:0,duration:600});applyView();setTimeout(render,650);});
@@ -1184,4 +1195,11 @@ window.MR={get D(){return D;},get BLK(){return BLK;},get S(){return S;},get INS(
     n.textContent=s&&s.ring?(T('Tahlil hududi')+': '+(s.mode==='radius'&&s.r?T('doira')+' r = '+s.r.toLocaleString('ru-RU')+' m':Math.round((s.areaM2||0)/1e4)+' '+T('ga'))):(plotRing()?T('Uchastka atrofida avtomatik doira olinadi (chetidan +300 m).'):T('Avval uchastkani (U) yoki tahlil hududini (H) chizing.'));};
   b.onclick=()=>{if(!site()){if(plotRing())autoHud();else{setTool('hudud');return;}}try{parent.postMessage({kps:'go',href:'ai.html#auto'},location.origin);}catch(e){}};
   upd();window.addEventListener('storage',e=>{if(e.key==='kps_site')upd();});setInterval(upd,3000);})();
+
+/* v2: qatlamlar kartasi, pastki «Batafsil», TEP, tahlil qatlamlari */
+(function(){const t=document.getElementById('sideT'),b=document.getElementById('sbody');if(t&&b){const set=on=>{b.hidden=!on;t.setAttribute('aria-expanded',String(on));t.textContent=T('Qatlamlar')+(on?' ▴':' ▾');try{localStorage.setItem('kps_mr_side',on?'1':'0');}catch(_){}};
+    let on=false;try{on=localStorage.getItem('kps_mr_side')==='1';}catch(_){}set(on);t.onclick=()=>set(b.hidden);}
+  const m=document.getElementById('kMore'),d=document.getElementById('drawer');if(m&&d)m.onclick=()=>{d.hidden=!d.hidden;m.setAttribute('aria-expanded',String(!d.hidden));m.textContent=T('Batafsil')+(d.hidden?' ▴':' ▾');};
+  const tp=document.getElementById('tepGo');if(tp)tp.onclick=()=>{try{parent.postMessage({kps:'go',href:'masterreja.html'},location.origin);}catch(_){}};
+  const tx=document.getElementById('txGo');if(tx)tx.onclick=()=>setTool('tahlil');})();
 })();
