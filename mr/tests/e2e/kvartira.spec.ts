@@ -5,6 +5,9 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await expect(page.locator('#fadeBtn')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('#fadeBtn'); await expect(page.locator('#fadeBtn')).toHaveAttribute('aria-pressed', 'false');
+  await page.click('#fadeBtn');
   await page.click('[data-step=fasad]');
   await expect(page.locator('#facCheck')).toContainText('1:');
   await page.click('[data-fac=panorama]');

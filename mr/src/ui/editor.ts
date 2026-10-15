@@ -97,7 +97,9 @@ export class Editor {
     const top = h('div', { class: 'top' },
       ib('back', 'Loyihalar', ICON.back, () => this.onExit()),
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, 'Archemistry Lab', h('small', {}, '· Master reja')),
-      name, save, h('span', { class: 'sp' }), seg,
+      name, save, h('span', { class: 'sp' }),
+      h('div', { class: 'seg', role: 'group', 'aria-label': 'Atrof' }, h('button', { id: 'fadeBtn', 'aria-pressed': this.fadePref, title: 'Uchastka, hajm, fasad va kvartira qadamlarida atrofdagi shahar oq va yarim shaffof koʻrinadi', onclick: () => { this.fadePref = !this.fadePref; this.syncFade(); } }, 'Atrof xira')),
+      seg,
       ib('undo', 'Bekor qilish (Ctrl+Z)', ICON.undo, () => this.store.undo()),
       ib('redo', 'Qaytarish (Ctrl+Shift+Z)', ICON.redo, () => this.store.redo()));
     const rail = h('nav', { class: 'rail', 'aria-label': 'Qadamlar' });
@@ -140,7 +142,16 @@ export class Editor {
     this.last = c; this.renderKpi();
   }
 
+  /** atrofni xiralashtirish: foydalanuvchi tanlovi (yoqilgan) va qadam (loyiha ustida ishlanadigan qadamlar) */
+  private fadePref = true;
+  private syncFade(): void {
+    const on = this.fadePref && ['parsel', 'hajm', 'fasad', 'kvartira'].includes(this.step.id);
+    this.scene.setContextFade(on);
+    this.root.querySelector('#fadeBtn')?.setAttribute('aria-pressed', String(this.fadePref));
+  }
+
   private renderAll(): void {
+    this.syncFade();
     (this.root.querySelector('#undo') as HTMLButtonElement).disabled = !this.store.canUndo;
     (this.root.querySelector('#redo') as HTMLButtonElement).disabled = !this.store.canRedo;
     (this.root.querySelector('#undo') as HTMLButtonElement).title = this.store.canUndo ? `Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)` : 'Bekor qilish (Ctrl+Z)';
