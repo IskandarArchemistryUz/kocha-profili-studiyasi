@@ -32,7 +32,8 @@ export interface GenParams {
 
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1 };
 
-export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number }
+/** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
+export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; face?: { p: XY; n: XY } }
 export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[] }
 
 const sub = (a: XY, b: XY): XY => [a[0] - b[0], a[1] - b[1]];
@@ -89,7 +90,72 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult
   const outer0 = inset(clean(block), g.setback);
   if (!outer0) return { sections: [], capFloors: null, notes: ['Kvartal juda tor yoki shakli murakkab — chekinishdan keyin joy qolmadi'] };
   const A = clean(outer0, Math.max(6, g.depth * 0.6));
-  return g.typology === 'qatorlar' ? rows(A, g, floorH, notes) : perimeter(A, g, floorH, notes);
+  if (g.typology === 'qatorlar') return rows(A, g, floorH, notes);
+  // toza perimetr (L-burchaklar) faqat qavariq va yetarli keng kvartalda; aks holda — istalgan shakl uchun zaxira algoritm
+  const allConvex = A.every((_, i) => cross(unit(sub(A[i], A[(i - 1 + A.length) % A.length])), unit(sub(A[(i + 1) % A.length], A[i]))) > -0.05);
+  let r = allConvex && inset(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
+  if (!r || !r.sections.length) { notes.length = 0; r = edgeFill(A, g, notes); }
+  facingCap(r, g, floorH);
+  return r;
+}
+
+/** Istalgan shakl: uzun qirralardan boshlab qirra boʻylab seksiyalar, kvartalga qirqiladi, oldingilari bilan kesishmaydi */
+function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
+  const D = g.depth, n = A.length, sections: GenSection[] = [];
+  const poly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
+  let placed: Polygon[] = [];
+  const order = A.map((_, i) => i).sort((a, b) => len(sub(A[(b + 1) % n], A[b])) - len(sub(A[(a + 1) % n], A[a])));
+  const southward = (N: XY) => N[1] > 0.55; // ichkari normal shimolga → qirra janubda
+  for (const i of order) {
+    const a = A[i], b = A[(i + 1) % n], L = len(sub(b, a)); if (L < Math.min(g.secLen * 0.6, 14)) continue;
+    const u = unit(sub(b, a)), N: XY = [-u[1], u[0]], m = Math.max(1, Math.round(L / g.secLen)), step = L / m;
+    for (let k = 0; k < m; k++) {
+      const oa = add(a, mul(u, k * step)), ob = add(a, mul(u, (k + 1) * step));
+      const rect: Polygon = [[oa, ob, add(ob, mul(N, D)), add(oa, mul(N, D)), oa].map(p => [p[0], p[1]] as [number, number])];
+      let piece: [number, number][][][] = [];
+      try { piece = polygonClipping.intersection(rect, poly); if (placed.length && piece.length) piece = polygonClipping.difference(piece, ...placed); } catch { continue; }
+      let best: XY[] | null = null, ba = 0;
+      for (const pp of piece) { const r = pp[0].slice(0, -1).map(q => [q[0], q[1]] as XY), ar = Math.abs(signedArea(r)); if (ar > ba) { ba = ar; best = r; } }
+      if (!best || ba < 0.45 * D * step || ba < 80) continue;
+      const ring = signedArea(best) < 0 ? best.reverse() : best;
+      placed.push([[...ring, ring[0]].map(p => [p[0], p[1]] as [number, number])]);
+      const fromEnd = Math.min(k, m - 1 - k) / Math.max(1, (m - 1) / 2);
+      const top = southward(N) ? Math.max(g.minF, Math.round((g.maxF + g.minF) / 2)) : g.maxF;
+      sections.push({ ring, floors: Math.max(g.minF, Math.round(top - (top - g.minF) * Math.min(1, fromEnd))), kind: 'oddiy', nonRes: g.nonRes, face: { p: add(mul(add(oa, ob), 0.5), mul(N, D)), n: N } });
+    }
+  }
+  if (!sections.length) notes.push('Seksiya joylashmadi — chuqurlik yoki chekinishni kamaytiring');
+  return { sections, capFloors: null, notes };
+}
+
+/** Koʻpburchakka nur boʻyicha kirish masofasi */
+function rayHit(p: XY, d: XY, r: XY[]): number {
+  let best = Infinity;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const a = r[j], b = r[i], ex = b[0] - a[0], ey = b[1] - a[1], den = d[0] * ey - d[1] * ex; if (Math.abs(den) < 1e-12) continue;
+    const t = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den, s = ((a[0] - p[0]) * d[1] - (a[1] - p[1]) * d[0]) / den;
+    if (t > 0.5 && s >= 0 && s <= 1 && t < best) best = t;
+  }
+  return best;
+}
+
+/**
+ * Qarshidagi seksiyagacha masofa → qavat cheklovi: seysmik 8+ ballda parallel uzun tomonlar orasi ≥ 2·Hmax
+ * (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8). Ikkala seksiya ham cheklanadi.
+ */
+function facingCap(r: GenResult, g: GenParams, floorH: number): void {
+  let cut = 0, minCap = Infinity;
+  r.sections.forEach((s, i) => {
+    if (!s.face) return;
+    let d = Infinity, j = -1;
+    r.sections.forEach((o, k) => { if (k === i) return; const t = rayHit(s.face!.p, s.face!.n, o.ring); if (t < d) { d = t; j = k; } });
+    if (!Number.isFinite(d) || d > 200) return;
+    const cap = Math.max(1, Math.floor(d / 2 / floorH));
+    minCap = Math.min(minCap, cap);
+    for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
+  });
+  if (cut) r.notes.push(`${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (≥ 2·H, ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
+  if (minCap < g.minF) r.notes.push(`Ayrim hovlilar tor: ${minCap} qavatdan baland boʻlmasligi kerak — chuqurlikni kamaytiring yoki «qatorlar» ni sinang`);
 }
 
 function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
@@ -141,7 +207,7 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
         // burchakdan uzoqlashgan sari pasayadi (zinapoya)
         const fromCorner = Math.min(ta - t0, t1 - tb) / Math.max(1, span / 2);
         const top = edgeMax(i), f = Math.round(top - (top - minF) * Math.min(1, fromCorner * 1.4));
-        sections.push({ ring, floors: Math.max(minF, f), kind: 'oddiy', nonRes: g.nonRes });
+        sections.push({ ring, floors: Math.max(minF, f), kind: 'oddiy', nonRes: g.nonRes, face: { p: add(mul(add(oa, ob), 0.5), mul(N(i), D)), n: N(i) } });
       }
     }
   }
