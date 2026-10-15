@@ -31,10 +31,10 @@ describe('Seksiya generatori', () => {
     const tot = (r: typeof a) => r.sections.reduce((s, x) => s + area(x.ring), 0);
     expect(tot(a)).toBeLessThan(tot(b));
   });
-  it('qatorlar: oraliq ≥ 2·Hmax, kvartal ichida', () => {
-    const r = generate(sq(200, 120), { ...DEFAULT_GEN, typology: 'qatorlar', maxF: 9 });
+  it('qatorlar: sharq–gʻarb, oraliq ≥ 2·Hmax', () => {
+    const r = generate(sq(120, 200), { ...DEFAULT_GEN, typology: 'qatorlar', maxF: 9 });
     expect(r.sections.length).toBeGreaterThan(2);
-    const xs = [...new Set(r.sections.map(s => Math.round(Math.min(...s.ring.map(p => p[0])))))].sort((a, b) => a - b);
+    const xs = [...new Set(r.sections.map(s => Math.round(Math.min(...s.ring.map(p => p[1])))))].sort((a, b) => a - b);
     for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(15 + 2 * 9 * 3.3 - 0.5);
   });
   it('yordamchilar: inset va clean', () => {

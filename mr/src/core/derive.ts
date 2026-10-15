@@ -4,7 +4,7 @@
  * ehtiyojlar keyingi bosqichlarda aynan shu sondan olinadi (KZ hujjatlaridagi «5 xil aholi» xatosi shu bilan yopiladi).
  */
 import type { Project } from './doc';
-import { frame, polyArea, ringLocal, area } from './geo';
+import { frame, polyArea, ringLocal, area, longFacadeAzimuths, obb2 } from './geo';
 import { computePlan } from './plan';
 import { useDef } from './uses';
 
@@ -46,6 +46,8 @@ export interface Derived {
   schoolCap: number; mtmCap: number;
   /** avtoturargoh: talab (416-band, 29-jadval) va taʼminot (413-band, ochiq — 25 m²/joy) */
   parkingReq: number; parkingProv: number; parkingParts: Record<string, number>;
+  /** turar joy seksiyalari va ulardan uzun fasadi gʻarbga (200–290°) qaraganlari — SanQvaN 0331-16, 9.2-band */
+  resSections: number; westFacing: number;
 }
 
 /** 41-jadval: oʻquvchiga 20 m² (≤ 660), 15 m² (661–989), 10 m² (> 989) → maydonga sigʻadigan eng koʻp oʻquvchi */
@@ -88,7 +90,16 @@ export function derive(doc: Project): Derived {
   };
   const parkingReq = Object.values(parkingParts).reduce((a, b) => a + b, 0);
   const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + g.spaces, 0);
+  let resSections = 0, westFacing = 0;
+  for (const b of doc.buildings) {
+    if (useDef(b.use).res <= 0 || b.gen?.kind === 'stilobat') continue;
+    const r = ringLocal(fr, b.footprint), o = obb2(r);
+    if (o.L < o.S * 1.25) continue; // kvadratga yaqin (villa, minora) — barcha tomonga derazalar, alohida baholanmaydi
+    resSections++;
+    if (longFacadeAzimuths(r).some(a => a >= 200 && a <= 290)) westFacing++;
+  }
   return {
+    resSections, westFacing,
     apartments, schoolCap, mtmCap, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,

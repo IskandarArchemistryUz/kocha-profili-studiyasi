@@ -101,6 +101,16 @@ export const RULES: Rule[] = [
     },
   },
   {
+    id: 'west-facing',
+    title: 'Yashash xonalari yoʻnalishi (gʻarb 200–290°)',
+    source: { doc: 'SanQvaN 0331-16', edition: '2016', clause: '9.2, 9.4-bandlar', verified: true },
+    evaluate(d) {
+      if (!d.resSections) return { status: 'na', note: 'Choʻziq turar joy seksiyalari yoʻq' };
+      return { status: d.westFacing ? 'review' : 'pass', value: d.westFacing, unit: `/ ${d.resSections} seksiya`, limit: '0',
+        note: d.westFacing ? 'Bu seksiyalarning bir uzun fasadi gʻarbga qaraydi: yashash xonalari derazalari u tomonga qaratilmasligi kerak (istisno: 2 xonalida — 1 xona, 3 xonalida — ≤ 2 xona). Kvartira rejasida tekshiriladi (4-bosqich). Eng qulay — kenglik boʻylab joylashuv (9.4).' : 'Uzun fasadlar gʻarbiy sektorga qaramaydi.' };
+    },
+  },
+  {
     id: 'green-per-person',
     title: 'Yashil hudud, kishi boshiga',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: 'band aniqlanmagan', verified: false },

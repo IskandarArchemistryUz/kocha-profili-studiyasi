@@ -35,6 +35,10 @@ test('quyosh: vaqt surgichi va insolyatsiya xaritasi', async ({ page }) => {
   const txt = (await page.locator('#insolSt').textContent())!;
   const mean = Number(txt.match(/oʻrtacha ([\d,]+)/)![1].replace(',', '.'));
   expect(mean).toBeGreaterThan(2); expect(mean).toBeLessThan(15);   // hovli va koʻchalar — qisman soyada
+  await page.click('[data-date="03-22"]'); await page.click('#insolGo');
+  await expect(page.locator('#insolSt')).toContainText('22 mart', { timeout: 30000 });
+  await page.click('#kMore');
+  await expect(page.locator('.drawer [data-rule=insol-territory]')).toContainText('SanQvaN 0331-16');
 });
 
 test('tipologiyalar: minoralar va stilobat + yer osti parkovka → reyestrda taʼminot', async ({ page }) => {
