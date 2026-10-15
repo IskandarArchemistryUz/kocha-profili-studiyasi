@@ -4,7 +4,7 @@
  */
 import type { LngLat } from '../core/doc';
 import { cacheGet, cachePut } from '../storage/db';
-import { cacheKey, fetchContext, legacyKeys, refresh, type ContextBundle, type Progress } from './load';
+import { cacheKey, farKey, fetchContext, fetchFar, legacyKeys, refresh, type ContextBundle, type FarBundle, type Progress } from './load';
 import { PARSER_V } from './osm';
 
 export class ContextManager {
@@ -45,6 +45,13 @@ export class ContextManager {
     this.current = b;
     try { await cachePut(cacheKey(center, radius), b); } catch (e) { console.warn('Kontekst keshga yozilmadi', e); }
     return b;
+  }
+
+  /** Gorizontgacha binolar: keshdan yoki tarmoqdan (xato boʻlsa — jim, null) */
+  async loadFar(center: LngLat, radius: number): Promise<FarBundle | null> {
+    const k = farKey(center, radius);
+    try { const c = await cacheGet<FarBundle>(k); if (c) return c; } catch { /* kesh */ }
+    try { const b = await fetchFar(center, radius); void cachePut(k, b).catch(() => {}); return b; } catch (e) { console.warn('Uzoq kontekst yuklanmadi', e); return null; }
   }
 
   private fetch(id: number, center: LngLat, radius: number, progress: Progress): Promise<ContextBundle> {

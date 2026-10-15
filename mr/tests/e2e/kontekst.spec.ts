@@ -19,7 +19,7 @@ function city() {
 }
 
 async function mockNet(ctx: BrowserContext, hits: { overpass: number }) {
-  await ctx.route(/overpass|interpreter/, r => { hits.overpass++; return r.fulfill({ json: city() }); });
+  await ctx.route(/overpass|interpreter/, r => { if (decodeURIComponent(r.request().postData() || '').includes('highway')) hits.overpass++; return r.fulfill({ json: city() }); });
   await ctx.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
   await ctx.route(/nominatim/, r => r.fulfill({ json: [{ lat: '41.2856', lon: '69.2034', name: 'Chilonzor', display_name: 'Chilonzor, Toshkent, Oʻzbekiston' }] }));
 }
@@ -94,4 +94,35 @@ test('OSM serveri band boʻlsa — keshdagi nusxa ogohlantirish bilan', async ({
   await expect(page.locator('.ctxbadge')).toBeVisible();
   await expect(page.locator('#ctxStale')).toBeVisible({ timeout: 40000 });
   await expect(page.locator('#ctxSt')).toContainText('24 bino');
+});
+
+/** Dunyo nuqtasi (mahalliy x, y) → ekran koordinatasi (sahna kamerasi orqali) */
+async function screenOf(page: Page, x: number, y: number) {
+  return page.evaluate(([x, y]) => {
+    const sc = (window as any).__mr.scene, cam = sc.cam, c = sc.renderer.domElement.getBoundingClientRect();
+    cam.updateMatrixWorld(); const V = cam.matrixWorldInverse.elements, P = cam.projectionMatrix.elements, w = [x, sc.H(x, y), -y, 1];
+    const mul = (M: number[], v: number[]) => [0, 1, 2, 3].map(r => M[r] * v[0] + M[4 + r] * v[1] + M[8 + r] * v[2] + M[12 + r] * v[3]);
+    const q = mul(P, mul(V, w));
+    return { x: c.left + (q[0] / q[3] + 1) / 2 * c.width, y: c.top + (1 - q[1] / q[3]) / 2 * c.height };
+  }, [x, y]);
+}
+
+test('mavjud OSM koʻchasini loyihaga olish: profil, meʼyor tekshiruvi, kontekstda yashiriladi', async ({ page, context }) => {
+  await mockNet(context, { overpass: 0 });
+  await newProject(page);
+  await page.click('#ctxLoad');
+  await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 15000 });
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '300'); await page.fill('#rh', '300'); await page.click('#rectSite');
+  await page.click('[data-step=kocha]');
+  await page.click('[data-prof=tuman-40]');
+  await page.click('[data-view=plan]');
+  const p = await screenOf(page, 75, 20);                 // x=75 dagi koʻcha (residential)
+  await page.mouse.click(p.x, p.y);
+  await expect(page.locator('#osmPick')).toContainText('residential');
+  await page.click('#adoptOsm');
+  await expect(page.locator('[data-sid]')).toHaveCount(1);
+  await expect(page.locator('#stNorm')).toContainText('Tuman ahamiyatidagi magistral');
+  await expect(page.locator('#stNorm')).toContainText('Meʼyorga mos');
+  await page.click('[data-step=parsel]');
+  await expect(page.locator('[data-block]')).toHaveCount(2);
 });

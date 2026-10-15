@@ -7,7 +7,7 @@ import type { LngLat } from '../core/doc';
 
 export interface CtxBuilding { id: number; rings: LngLat[][]; h: number; hSrc: 'height' | 'levels' | 'taxmin'; kind: string }
 /** sub — highway=service uchun service=* (driveway, parking_aisle…): kvartal chegarasi boʻla oladimi */
-export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string; lanes?: number; oneway?: boolean }
+export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string; lanes?: number; oneway?: boolean; name?: string }
 export interface CtxArea { id: number; rings: LngLat[][]; kind: string }
 
 export interface OsmData {
@@ -21,7 +21,7 @@ export interface OsmData {
 }
 
 /** Tahlilchi versiyasi: parseOverpass oʻzgarsa oshiriladi — keshdagi xom maʼlumot qayta tahlil qilinadi */
-export const PARSER_V = 4;
+export const PARSER_V = 5;
 
 export type BBox = [number, number, number, number]; // janub, gʻarb, shimol, sharq
 
@@ -184,7 +184,7 @@ export function parseOverpass(json: { elements?: OsmEl[] }): OsmData {
     }
     if (t.highway && e.type === 'way' && pts.length >= 2) { {
       const lanes = num(t.lanes), oneway = /^(yes|1|true|-1)$/.test(t.oneway || '') || t.junction === 'roundabout';
-      d.roads.push({ id: e.id, pts, cls: t.highway, w: roadWidth(t), ...(t.service ? { sub: t.service } : {}), ...(lanes && lanes >= 1 && lanes <= 12 ? { lanes: Math.round(lanes) } : {}), ...(oneway ? { oneway } : {}) });
+      d.roads.push({ id: e.id, pts, cls: t.highway, w: roadWidth(t), ...(t.service ? { sub: t.service } : {}), ...(lanes && lanes >= 1 && lanes <= 12 ? { lanes: Math.round(lanes) } : {}), ...(oneway ? { oneway } : {}), ...(t.name ? { name: t.name } : {}) });
     } continue; }
     if (t.railway && e.type === 'way' && pts.length >= 2) { d.rails.push({ id: e.id, pts, cls: t.railway, w: t.railway === 'tram' ? 2.6 : 3.2 }); continue; }
     if (t.natural === 'water') {
@@ -193,7 +193,7 @@ export function parseOverpass(json: { elements?: OsmEl[] }): OsmData {
     }
     if (t.waterway && e.type === 'way' && pts.length >= 2) {
       const w = num(t.width) ?? ({ river: 25, canal: 12, stream: 4, ditch: 2, drain: 2 } as Record<string, number>)[t.waterway] ?? 3;
-      d.waterways.push({ id: e.id, pts, cls: t.waterway, w }); continue;
+      d.waterways.push({ id: e.id, pts, cls: t.waterway, w, ...(t.name ? { name: t.name } : {}) }); continue;
     }
     if (t.natural === 'tree_row' && e.type === 'way') { d.trees.push(...sampleLine(pts, 8)); continue; }
     const greenKind = (t.landuse && GREEN_LANDUSE.test(t.landuse) && t.landuse) || (t.leisure && GREEN_LEISURE.test(t.leisure) && t.leisure) || (t.natural && /^(wood|scrub|grassland)$/.test(t.natural) && t.natural);

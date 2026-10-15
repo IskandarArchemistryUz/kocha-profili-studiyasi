@@ -73,3 +73,18 @@ export async function fetchContext(center: LngLat, radius: number, progress: Pro
   progress('Tayyor', 1);
   return { v: 1, center, radius, fetched: new Date().toISOString(), osm, pv: PARSER_V, raw, terrain, imagery, missing };
 }
+
+/* ---------- uzoq kontekst (gorizont): faqat binolar, kattaroq radiusda ---------- */
+export interface FarBundle { center: LngLat; radius: number; outer: number; fetched: string; buildings: { rings: LngLat[][]; h: number }[] }
+export const farKey = (c: LngLat, r: number) => `far1:${pos(c, r)}`;
+export const farRadius = (r: number) => Math.min(2200, Math.max(1200, r * 2.6));
+
+export async function fetchFar(center: LngLat, radius: number, f: typeof fetch = fetch.bind(globalThis)): Promise<FarBundle> {
+  const outer = farRadius(radius), bb = bboxAround(center, outer), q = `[out:json][timeout:120][bbox:${bb.map(v => v.toFixed(6)).join(',')}];way["building"];out geom qt;`;
+  const j = await overpass(q, f, () => {});
+  const osm = parseOverpass(j as never), inner = bboxAround(center, radius);
+  // asosiy kvadrat ichidagilar allaqachon batafsil chizilgan
+  const inSq = (p: LngLat) => p[1] > inner[0] && p[1] < inner[2] && p[0] > inner[1] && p[0] < inner[3];
+  const buildings = osm.buildings.filter(b => !inSq(b.rings[0][0])).map(b => ({ rings: [b.rings[0].map(p => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6] as LngLat)], h: b.h }));
+  return { center, radius, outer, fetched: new Date().toISOString(), buildings };
+}

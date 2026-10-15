@@ -14,8 +14,9 @@ import { h, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { ClickTool, LineTool, PolygonTool, RectTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
-import { PROFILES, profileById, profileWidth } from '../core/profiles';
+import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { ZONE_COL } from '../scene/scene';
+import { clipLine } from '../scene/context3d';
 import type { Use } from '../core/doc';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
@@ -52,7 +53,7 @@ export class Editor {
   private prevDoc: Project;
   /** kvartal chegarasi: mayda — barcha koʻchalar (mahalla ichidagi servis yoʻllari ham), yirik — faqat asosiy koʻchalar */
   private blockMode: 'mayda' | 'yirik' = 'mayda';
-  private profile = 'mahalla-12';
+  private profile = 'mahalla-15';
   private selStreet: string | null = null;
   private selBlock: number | null = null;
   private planCache: { doc: Project; plan: PlanGeo } | null = null;
@@ -160,11 +161,21 @@ export class Editor {
 
   private showContext(b: ContextBundle | null): void {
     const doc = this.store.doc;
-    void this.scene.setContext(b, doc).then(() => { if (b && !this.framedCtx) { this.framedCtx = true; if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); } });
+    void this.scene.setContext(b, doc).then(() => {
+      if (b && !this.framedCtx) { this.framedCtx = true; if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); }
+      // gorizont: kattaroq radiusdagi binolar (fon rejimida, xatoda jim)
+      const fk = b && doc.context.layers.buildings ? `${b.center.join(',')}|${b.radius}|${doc.origin.join(',')}` : '';
+      if (fk === this.farKey) return;
+      this.farKey = fk; this.scene.setFar(null, doc);
+      if (b && fk) void this.ctxMgr.loadFar(b.center, b.radius).then(f => { if (this.farKey === fk && f) this.scene.setFar(f.buildings, this.store.doc); });
+    });
     this.el.attr.hidden = !b;
     (this.el.attr.querySelector('.sat') as HTMLElement).hidden = doc.context.base !== 'sputnik';
   }
   private framedCtx = false;
+  private farKey = '';
+  /** Koʻchalar qadamida bosilgan OSM koʻchasi (loyihaga olish uchun) */
+  private osmPick: { id: number; cls: string; w: number; name?: string; pts: LngLat[] } | null = null;
 
   private renderBadge(): void {
     const b = this.el.badge, c = this.ctx;
@@ -297,7 +308,22 @@ export class Editor {
     const doc = this.store.doc, fr = frame(doc.origin), drawing = this.tool instanceof LineTool;
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Profil (yangi koʻcha uchun)'),
       h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Profillar' }, ...PROFILES.map(p => h('div', { class: 'it', role: 'option', 'aria-selected': this.profile === p.id, 'data-prof': p.id, onclick: () => { this.profile = p.id; if (this.selStreet) this.run(() => this.store.dispatch({ type: 'updateStreet', id: this.selStreet!, patch: { profile: p.id } })); else this.renderPanel(); } },
-        h('b', {}, `${p.name} · ${fmt(profileWidth(p), 0)} m`), h('small', {}, p.note), this.profileBar(p.id))))));
+        h('b', {}, `${p.name} · ${fmt(profileWidth(p), 1)} m `, normChip(p)), h('small', {}, `${CATS[p.cat].name} · ${p.note}`), this.profileBar(p.id))))));
+    if (this.osmPick) {
+      const o = this.osmPick, L = o.pts.map(fr.toLocal).reduce((acc, q, i, a) => i ? acc + Math.hypot(q[0] - a[i - 1][0], q[1] - a[i - 1][1]) : 0, 0);
+      body.append(h('div', { class: 'osmbox', id: 'osmPick' },
+        h('b', {}, o.name ? `«${o.name}»` : 'Nomsiz koʻcha'), h('div', { class: 'muted' }, `OSM: ${o.cls} · qatnov ~${fmt(o.w, 1)} m · ${fmt(L)} m`),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn primary grow', id: 'adoptOsm', onclick: () => {
+            // kontekst kvadratiga qirqib, eng uzun boʻlagi olinadi
+            const R = this.store.doc.context.radius, pieces = clipLine(o.pts.map(fr.toLocal), -R, -R, R, R).sort((a, b) => b.length - a.length);
+            const axis = (pieces[0] ?? o.pts.map(fr.toLocal)).map(fr.toGeo);
+            this.run(() => this.store.dispatch({ type: 'addStreet', axis, profile: this.profile, osm: o.id }));
+            this.osmPick = null; this.scene.setPreview([]); this.pickStreet(this.store.doc.streets[this.store.doc.streets.length - 1]?.id ?? null);
+          } }, `Loyihaga olish: ${profileById(this.profile).name}`),
+          h('button', { class: 'btn', onclick: () => { this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); } }, '×')),
+        h('p', { class: 'note' }, 'Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi.')));
+    }
     body.append(h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawStreet', onclick: () => drawing ? this.setTool(null) : this.setTool(new LineTool(this.scene, r => {
       this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
@@ -312,9 +338,15 @@ export class Editor {
       })));
       const d = this.last?.d;
       if (d) body.append(h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Koʻchalar uchastkada'), h('b', { class: 'num', id: 'stArea' }, `${fmt(d.streetArea / 1e4, 2)} ga · ${fmt(d.siteHa ? d.streetArea / 1e4 / d.siteHa * 100 : 0, 0)} %`)));
-      if (this.selStreet) body.append(h('p', { class: 'note' }, 'Tanlangan koʻcha koʻk. Yuqoridan profil tanlasangiz — shu koʻchaga qoʻllanadi. Delete — oʻchirish.'));
+      if (this.selStreet) {
+        const st = doc.streets.find(x => x.id === this.selStreet), p = st && profileById(st.profile), iss = p ? checkProfile(p) : [];
+        if (p) body.append(h('div', { class: iss.length ? 'err' : 'okbox', id: 'stNorm' },
+          h('b', {}, `${CATS[p.cat].name}`), h('div', { class: 'muted' }, `ShNQ 2.07.01-23, ${CATS[p.cat].clause}`),
+          ...(iss.length ? iss.map(x => h('div', {}, `${x.what}: ${x.value} — meʼyor ${x.norm}`)) : [h('div', {}, 'Meʼyorga mos.')])));
+        body.append(h('p', { class: 'note' }, `Tanlangan koʻcha koʻk${st?.osm != null ? ' (OSM dan olingan)' : ''}. Yuqoridan profil tanlasangiz — shu koʻchaga qoʻllanadi. Delete — oʻchirish.`));
+      }
     } else body.append(h('p', { class: 'note' }, 'Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.'));
-    body.append(h('p', { class: 'note' }, 'Qizil chiziqlar orasidagi kenglik = profil kengligi. Profillar namunaviy (taxmin) — ShNQ 2.07.01-23 koʻcha toifalari jadvali bilan hali solishtirilmagan.'));
+    body.append(h('p', { class: 'note' }, 'Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'));
   }
 
   private pickStreet(id: string | null): void { this.selStreet = id; this.scene.selectStreet(id); const st = this.store.doc.streets.find(x => x.id === id); if (st) this.profile = st.profile; this.renderPanel(); }
@@ -400,6 +432,7 @@ export class Editor {
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
     this.setTool(null); this.step = s;
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
+    if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
     if (s.id !== 'parsel' && this.selBlock != null) { this.selBlock = null; this.scene.selectBlock(null); }
     this.renderAll();
   }
@@ -537,7 +570,18 @@ export class Editor {
         const p = this.scene.pick(e.clientX, e.clientY), fr = frame(this.store.doc.origin);
         if (p) {
           const hit = this.store.doc.streets.find(st => { const a = st.axis.map(fr.toLocal), w = profileWidth(profileById(st.profile)) / 2; for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); if (Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]) <= w) return true; } return false; });
-          this.pickStreet(hit?.id ?? null);
+          if (hit) { this.osmPick = null; this.scene.setPreview([]); this.pickStreet(hit.id); }
+          else {
+            const b = this.ctxMgr.current, adopted = new Set(this.store.doc.streets.map(x => x.osm));
+            let best: typeof this.osmPick = null, bd = Infinity;
+            for (const r of b?.osm.roads ?? []) {
+              if (adopted.has(r.id) || /^(footway|path|cycleway|steps|track|bridleway|corridor)$/.test(r.cls)) continue;
+              const a = r.pts.map(fr.toLocal);
+              for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)), dd = Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]); if (dd <= r.w / 2 + 3 && dd < bd) { bd = dd; best = { id: r.id, cls: r.cls, w: r.w, name: r.name, pts: r.pts }; } }
+            }
+            this.osmPick = best; this.scene.setPreview(best ? best.pts.map(fr.toLocal) : []);
+            this.pickStreet(null);
+          }
         }
         return;
       }
@@ -567,5 +611,6 @@ export class Editor {
   }
 }
 
+const normChip = (p: Profile) => { const n = checkProfile(p).length; return h('span', { class: 'chip', 'data-s': p.cat === 'piyoda' ? 'review' : n ? 'fail' : 'pass', title: n ? `${n} ta chetlanish` : 'ShNQ 2.07.01-23 ga mos' }, p.cat === 'piyoda' ? 'hisob boʻyicha' : n ? `${n} chetlanish` : 'ShNQ ✓'); };
 const dist = (a: LngLat, b: LngLat) => { const f = frame(a).toLocal(b); return Math.hypot(f[0], f[1]); };
 const safe = (s: string) => s.replace(/[^\p{L}\p{N}_ -]+/gu, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'loyiha';
