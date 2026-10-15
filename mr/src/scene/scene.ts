@@ -361,6 +361,7 @@ export class Scene3D {
     }
     this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted));
     this.scene.add(this.ctx.group);
+    if (this.fade) this.applyFade();
     this.grid.forEach(g => g.visible = false);
     const T = cs.layers.relief ? b.terrain : null;
     this.ground.position.y = T ? T.min - T.h[((T.n - 1) >> 1) * T.n + ((T.n - 1) >> 1)] - h0 - 1 : -0.3;
@@ -371,6 +372,30 @@ export class Scene3D {
   }
 
   get hasContext(): boolean { return !!this.ctx; }
+
+  private fade = false;
+  /** Atrof (kontekst va gorizont binolari) oq va yarim shaffof — loyiha ustida ishlaganda koʻzni chalgʻitmasin */
+  setContextFade(on: boolean): void { if (on === this.fade) return; this.fade = on; this.applyFade(); }
+  get contextFaded(): boolean { return this.fade; }
+  private applyFade(): void {
+    const W = new THREE.Color(0xffffff), roots: THREE.Object3D[] = [...(this.ctx ? [this.ctx.group] : []), ...this.far];
+    type M = THREE.Material & { color?: THREE.Color; emissive?: THREE.Color; map?: THREE.Texture | null };
+    for (const root of roots) root.traverse(o => {
+      const mm = (o as THREE.Mesh).material as M | M[] | undefined; if (!mm) return;
+      const ground = o === this.ctx?.ground;
+      for (const m of Array.isArray(mm) ? mm : [mm]) {
+        const u = m.userData as { f0?: { t: boolean; o: number; c?: THREE.Color; e?: THREE.Color } };
+        u.f0 ??= { t: m.transparent, o: m.opacity, c: m.color?.clone(), e: m.emissive?.clone() };
+        const f = u.f0;
+        if (this.fade) {
+          if (ground) { m.color?.copy(f.c!).multiplyScalar(0.5); m.emissive?.setScalar(0.45); }
+          else { m.color?.copy(f.c!).lerp(W, 0.55); m.transparent = true; m.opacity = f.o * 0.4; }
+        } else { if (f.c) m.color?.copy(f.c); if (f.e) m.emissive?.copy(f.e); m.transparent = f.t; m.opacity = f.o; }
+        m.needsUpdate = true;
+      }
+    });
+    this.invalidate();
+  }
 
   /** Quyosh holati (balandlik, azimut — shimoldan soat yoʻnalishida, °): yorugʻlik va soyalar */
   setSun(alt: number, az: number): void {
@@ -446,6 +471,7 @@ export class Scene3D {
         new THREE.MeshLambertMaterial({ color: 0xf6f4ef }), new THREE.MeshLambertMaterial({ color: 0xf6f4ef }), new THREE.LineBasicMaterial({ color: 0xbdb8ae, transparent: true, opacity: 0.25 }));
       objs.forEach(o => { o.renderOrder = 10; this.scene.add(o); this.far.push(o); });
     }
+    if (this.fade) this.applyFade();
     this.invalidate();
   }
   /** uchastka ichidagi mavjud (OSM) binolar */
