@@ -39,6 +39,7 @@ import { tepRows, buildingRows, BUILDING_HEAD } from '../core/tep';
 import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
 import { JOBS_NOTE } from '../core/jobs';
+import { landscape } from '../core/landscape';
 import { MATS, ROOFS, PV, pitchedRoof, pvEstimate, type Mat, type Roof } from '../core/roof';
 import { pushEdge } from '../core/tiers';
 import type { Shade } from '../core/doc';
@@ -290,12 +291,13 @@ export class Editor {
       this.sunW ??= new Worker(new URL('../workers/sun.worker.ts', import.meta.url), { type: 'module' });
       sun = await new Promise<Float32Array>((ok, no) => { const w = this.sunW!; w.onmessage = e => ok(e.data.hours); w.onerror = e => no(e); w.postMessage({ id: 2, pts, z, prisms, steps }); });
     } catch { sun = insolation(pts, z, prisms, steps); }
-    const plan = computePlan(doc);
+    const plan = computePlan(doc), yardsL = doc.settings.yards ? landscape(doc) : [];
     const { cover, canopy } = coverClassifier({
       streets: doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })),
       blocks: plan.blocks.map(b => ({ rings: b.rings, use: b.use })), site: doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null,
       roads: (sc?.roads ?? []).filter(r => !doc.streets.some(s => s.osm === r.id)), green: sc?.green ?? [], water: sc?.water ?? [],
-      trees: [...(sc?.trees ?? []).filter(t => !doc.site || !pointIn(t, doc.site.rings.map(r => r.map(fr.toLocal)))), ...projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0).trees],
+      yards: yardsL.map(y => ({ green: y.green, hard: [...y.paving, ...y.paths, ...y.play.map(q => [q.ring])] })),
+      trees: [...(sc?.trees ?? []).filter(t => !doc.site || !pointIn(t, doc.site.rings.map(r => r.map(fr.toLocal)))), ...projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0).trees, ...yardsL.flatMap(y => y.trees)],
     });
     const T = pts.map((p, i) => surfaceT(cover(p), total ? 1 - sun[i] / total : 0, canopy(p)));
     this.scene.setGroundMap(pts, T.map(heatColor), cell);
@@ -1389,19 +1391,34 @@ export class Editor {
   }
 
   private yashilPanel(body: HTMLElement): void {
-    const plan = this.plan(), d = this.last?.d, rule = this.last?.results.find(r => r.id === 'green-per-person');
-    const green = plan.blocks.map((b, i) => ({ b, i })).filter(x => x.b.use === 'yashil');
-    body.append(h('div', { class: 'ctxst', id: 'greenSt' },
-      h('b', {}, `Yashil kvartallar: ${green.length} · ${fmt((d?.greenArea ?? 0) / 1e4, 2)} ga`), h('br'),
-      `Uchastkaning ${fmt((d?.greenShare ?? 0) * 100, 0)} % · kishi boshiga ${d?.population ? fmt(d.greenPerPerson, 1) + ' m²' : '— (aholi yoʻq)'}`,
-      rule ? h('div', {}, h('span', { class: 'chip', 'data-s': rule.status }, `meʼyor ${rule.limit} m²/kishi`)) : ''));
-    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartalni yashil qilish / qaytarish'),
-      h('div', { class: 'list' }, ...plan.blocks.map((b, i) => {
-        const c = h('input', { type: 'checkbox', checked: b.use === 'yashil', 'data-green': i }) as HTMLInputElement;
-        c.onchange = () => this.setBlockUse(i, c.checked ? 'yashil' : 'turar');
-        return h('label', { class: 'it' }, c, h('span', { class: 'grow' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`));
-      }))));
-    body.append(h('p', { class: 'note' }, 'Koʻchalardagi yashil tasmalar va daraxtlar bu hisobga kirmaydi. Meʼyor manbasi reyestrda — band raqami hali tekshirilmagan.'));
+    const plan = this.plan(), d = this.last?.d, doc = this.store.doc, R = (id: string) => this.last?.results.find(r => r.id === id);
+    const chip = (id: string, t: string) => { const r = R(id); return r ? h('span', { class: 'chip', 'data-s': r.status, title: r.note ?? '' }, t) : ''; };
+    const row = (k: string, v: string, c: HTMLElement | string = '') => h('div', { class: 'brow' }, h('span', {}, k), h('b', { class: 'num' }, v), c);
+    const yt = h('input', { type: 'checkbox', checked: doc.settings.yards, id: 'yardsOn' }) as HTMLInputElement;
+    yt.onchange = () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: yt.checked } }));
+    body.append(
+      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Yashillik balansi'),
+        h('div', { class: 'balance', id: 'greenSt' },
+          row('Yashil kvartallar (park, skver)', `${fmt(d?.greenArea ?? 0)} m²`),
+          row('Hovlilar maysasi', `${fmt(d?.yardGreen ?? 0)} m²`),
+          row('Maydonchalar va yoʻlaklar (87-band)', `${fmt(d?.yardPlay ?? 0)} m²`),
+          row('Yashillik darajasi', `${fmt((d?.greenShareTotal ?? 0) * 100, 0)} %`, chip('green-86', '86-band: ≥ 25 %')),
+          row('Umumiy foydalanish, kishi boshiga', d?.population ? `${fmt(d.greenPerPerson, 1)} m²` : '—', chip('green-36', '36-jadval: ≥ 3')),
+          row('Hovli maydonchalari', d?.playNeed ? `${fmt(d.playGot)} / ${fmt(d.playNeed)} m²` : '—', chip('play-89', '4-jadval')),
+          row('Daraxtlar: hovlida / koʻchada', `${fmt(d?.yardTrees ?? 0)} / ${fmt(this.streetTrees())}`),
+          d?.greenRoof ? row('Yashil tomlar (hisobga kirmaydi)', `${fmt(d.greenRoof)} m²`) : '')),
+      h('label', { class: 'row', style: 'font-size:13px' }, yt, 'Hovlilarni avtomatik obodonlashtirish: trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'),
+      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartalni yashil qilish / qaytarish'),
+        h('div', { class: 'list' }, ...plan.blocks.map((b, i) => {
+          const c = h('input', { type: 'checkbox', checked: b.use === 'yashil', 'data-green': i }) as HTMLInputElement;
+          c.onchange = () => this.setBlockUse(i, c.checked ? 'yashil' : 'turar');
+          return h('label', { class: 'it' }, c, h('span', { class: 'grow' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`), h('small', { class: 'muted' }, useDef(b.use).name));
+        }))),
+      h('p', { class: 'note' }, 'Hovlilar: binolar atrofida 3 m trotuar; 4-jadval maydonchalari binolardan meʼyoriy masofada (bolalar ≥ 10 m, kattalar ≥ 6, sport ≥ 10, xoʻjalik ≥ 20); qolgani maysa, daraxtlar binodan ≥ 5 m. Bu eskiz — joylashuvni loyihachi aniqlaydi.'));
+  }
+  private streetTrees(): number {
+    const doc = this.store.doc, fr = frame(doc.origin);
+    return doc.streets.length ? projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0).trees.length : 0;
   }
 
   /* ---------- qadamlar ---------- */
@@ -1412,7 +1429,7 @@ export class Editor {
   }
   private done(s: StepDef): boolean {
     const d = this.store.doc;
-    return s.id === 'uchastka' ? !!d.site : s.id === 'hajm' ? d.buildings.length > 0 : s.id === 'kocha' ? d.streets.length > 0 : s.id === 'parsel' ? d.zones.length > 0 : s.id === 'yashil' ? d.zones.some(z => z.use === 'yashil') : false;
+    return s.id === 'uchastka' ? !!d.site : s.id === 'hajm' ? d.buildings.length > 0 : s.id === 'kocha' ? d.streets.length > 0 : s.id === 'parsel' ? d.zones.length > 0 : s.id === 'yashil' ? (d.zones.some(z => z.use === 'yashil') || (d.settings.yards && d.buildings.length > 0)) : false;
   }
 
   private renderRail(): void {

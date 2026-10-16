@@ -34,7 +34,8 @@ describe('Reja: koʻchalar va kvartallar', () => {
     const dd = derive(d);
     expect(dd.greenArea).toBeCloseTo(9250, -1);
     expect(dd.greenPerPerson).toBeCloseTo(9250 / dd.population, 3);
-    expect(evaluateAll(dd, d).find(r => r.id === 'green-per-person')!.status).toBe('pass');
+    expect(evaluateAll(dd, d).find(r => r.id === 'green-36')!.status).toBe('pass');
+    expect(evaluateAll(dd, d).find(r => r.id === 'green-86')!.status).toBe('pass');
   });
   it('kesishgan koʻchalar — toʻrt kvartal; koridor uchlari toʻgʻri', () => {
     let { d, fr } = withSite();

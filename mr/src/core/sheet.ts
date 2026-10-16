@@ -10,6 +10,7 @@ import { computePlan } from './plan';
 import { useDef, USES } from './uses';
 import { profileById, profileWidth, type PartKind } from './profiles';
 import { offsetLine, projectStreetsGeo } from '../scene/streets3d';
+import { landscape } from './landscape';
 
 export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat';
 export type Paper = 'A4' | 'A3' | 'A2' | 'A1';
@@ -169,6 +170,20 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#b9b5ab" stroke-width="${lw(0.12)}"/>`).join(''));
   } else if (K !== 'figura') {
     g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#b9b5ab" stroke-width="${lw(0.13)}"/>`).join(''));
+  }
+
+  // 2b. hovlilar (obodonlashtirish)
+  if (doc.settings.yards && (K === 'bosh' || K === 'landshaft')) {
+    const yards = landscape(doc), L2 = K === 'landshaft';
+    const out: string[] = [];
+    for (const y of yards) {
+      y.green.forEach(p => out.push(`<path d="${polyD(p)}" fill="${L2 ? '#cfe3bc' : '#eef3e8'}" fill-rule="evenodd"/>`));
+      y.paths.forEach(p => out.push(`<path d="${polyD(p)}" fill="#ffffff" stroke="#c9c4b9" stroke-width="${lw(0.1)}" fill-rule="evenodd"/>`));
+      y.play.forEach(q => out.push(`<path d="${ringD(q.ring)}" fill="${L2 ? ({ bolalar: '#f6dcae', kattalar: '#efe6d3', sport: '#bcd9c2', xojalik: '#e2ded6' } as Record<string, string>)[q.kind] : '#ffffff'}" stroke="#8f8676" stroke-width="${lw(0.15)}"/>`));
+    }
+    g('Hovlilar', out.join(''));
+    if (o.show.trees) g('Hovli_daraxtlari', yards.flatMap(y => y.trees).map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.6, 2.8 * k))}" fill="${L2 ? '#9cc27f' : '#ffffff'}" stroke="${L2 ? '#5f8f3e' : '#7d8a6a'}" stroke-width="${lw(0.12)}"/>`).join(''));
+    if (yards.some(y => y.play.length)) legend.push({ type: 'fill', fill: L2 ? '#f6dcae' : '#ffffff', stroke: '#8f8676', label: 'Hovli maydonchalari (4-jadval)' });
   }
 
   // 3. loyiha koʻchalari: har tasma — oʻqdan siljigan siniq chiziq, kengligi tasma kengligida

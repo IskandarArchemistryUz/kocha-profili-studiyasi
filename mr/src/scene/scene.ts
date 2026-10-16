@@ -15,6 +15,7 @@ import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
 import { MATS, pitchedRoof } from '../core/roof';
 import { seams, seamEdges } from '../core/seams';
+import { landscape } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
 import { USES } from '../core/uses';
 
@@ -349,6 +350,25 @@ export class Scene3D {
         if (sel) b.rings.forEach(r => this.world.add(line(densify(r, 10, true), C.preview, 0.45, true, 8, this.H)));
       });
       rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
+      // hovlilar: trotuar, maysa, yoʻlaklar, maydonchalar, daraxtlar
+      if (doc.settings.yards) {
+        const alb = this.album, plainS = st === 'arctic' || st === 'minimal';
+        const col = { pave: plainS ? 0xf4f3f0 : alb ? 0xf1eee8 : 0xdcd6cb, green: plainS ? 0xeceee8 : alb ? 0xd5e4c4 : 0xa9cc8c, path: plainS ? 0xf7f6f4 : alb ? 0xf6f3ee : 0xe7e0d2,
+          bolalar: plainS ? 0xf0ede8 : 0xf0c58a, kattalar: plainS ? 0xf0ede8 : 0xeadfc8, sport: plainS ? 0xe9ece6 : 0x8fbf98, xojalik: plainS ? 0xeeeeee : 0xcfcac1 };
+        const fill = (mp: XY[][][], c: number, lift: number, order: number) => mp.forEach(poly => {
+          if (!poly[0] || poly[0].length < 3) return;
+          const sh = new THREE.Shape(poly[0].map(toV2)); poly.slice(1).forEach(hh => sh.holes.push(new THREE.Path(hh.map(toV2))));
+          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, lift, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5 - order, polygonOffsetUnits: -5 - order }));
+          m.renderOrder = 6.2 + order * 0.01; this.world.add(m);
+        });
+        const yards = landscape(doc), trees: XY[] = [];
+        for (const y of yards) {
+          fill(y.paving, col.pave, 0.32, 1); fill(y.green, col.green, 0.33, 2); fill(y.paths, col.path, 0.34, 3);
+          for (const q of y.play) { fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H)); }
+          trees.push(...y.trees);
+        }
+        if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c));
+      }
     }
     tag(2);
     // loyiha koʻchalari: profil boʻlaklari, chiziqlar, daraxtlar, qizil chiziqlar

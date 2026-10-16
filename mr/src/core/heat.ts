@@ -35,6 +35,8 @@ export interface HeatInputs {
   green: { rings: XY[][]; kind: string }[];
   water: XY[][][];
   trees: XY[];
+  /** hovlilar (core/landscape.ts) */
+  yards?: { green: XY[][][]; hard: XY[][][] }[];
 }
 
 type BB = [number, number, number, number];
@@ -51,6 +53,7 @@ export function coverClassifier(I: HeatInputs): { cover: (p: XY) => Cover; canop
   // loyiha koʻchalari: har tasma — oʻqdan siljigan chiziq ± yarim kenglik
   const strips = I.streets.flatMap(s => { const W = s.parts.reduce((a, p) => a + p.w, 0); let o = -W / 2; return s.parts.map(p => { const mid = o + p.w / 2; o += p.w; const line = offsetLine(s.axis, mid); return { line, half: p.w / 2, k: p.k, bb: bbOf(line, p.w / 2 + 0.5) }; }); });
   const blocks = I.blocks.map(b => ({ ...b, bb: bbOf(b.rings[0]) }));
+  const yardsIx = (I.yards ?? []).map(y => ({ ...y, bb: bbOf([...y.green, ...y.hard].flatMap(q => q[0] ?? [])) }));
   const sw = (c: string) => /^(motorway|trunk|primary|secondary)/.test(c) ? 4 : /^tertiary/.test(c) ? 3 : /^(service|footway|path|steps|track|pedestrian|cycleway)/.test(c) ? 0 : 2.2;
   const roads = I.roads.map(r => ({ ...r, s: sw(r.cls), foot: /^(footway|path|steps|pedestrian|cycleway)$/.test(r.cls), bb: bbOf(r.pts, r.w / 2 + 4.5) }));
   const green = I.green.map(g => ({ ...g, bb: bbOf(g.rings[0]), wood: /wood|forest|scrub|orchard/.test(g.kind) }));
@@ -63,6 +66,7 @@ export function coverClassifier(I: HeatInputs): { cover: (p: XY) => Cover; canop
     const inSite = !!site && inBB(p, siteBB!) && inPoly(p, site);
     for (const s of strips) if (inBB(p, s.bb) && lineDist(p, s.line) <= s.half) return s.k === 'yashil' || s.k === 'ajratuvchi' ? 'maysa' : s.k === 'trotuar' ? 'trotuar' : 'asfalt';
     if (inSite) {
+      for (const y of yardsIx) if (inBB(p, y.bb)) { if (y.green.some(g => inPoly(p, g))) return 'maysa'; if (y.hard.some(g => inPoly(p, g))) return 'trotuar'; }
       for (const b of blocks) if (inBB(p, b.bb) && inPoly(p, b.rings)) return b.use === 'yashil' || b.use === 'sport' ? 'maysa' : b.use === 'maydon' ? 'trotuar' : b.use === 'avtoturargoh' ? 'asfalt' : 'hovli';
       return 'hovli';
     }
