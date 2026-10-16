@@ -27,7 +27,7 @@ import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
 import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { INSOL_BINS, FACADE, type FacadeStyle } from '../scene/scene';
-import { floorPlanSvg, allPlansSvg } from '../core/floorplan';
+import { floorPlanSvg, allPlansSvg, sectionChecks } from '../core/floorplan';
 import { planApartments, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
 import { SOCIAL, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
@@ -984,7 +984,7 @@ export class Editor {
       h('div', { class: 'seg full', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name)))));
     if (!plans.length) { body.append(h('p', { class: 'note' }, 'Turar joy seksiyalari yoʻq. «Hajmlar» qadamida generatsiya qiling (yakka uylar va taunhauslar kvartirali emas).')); return; }
     body.append(h('div', { class: 'ctxst', id: 'aptPlan' }, h('b', {}, `${fmt(perFloor)} kvartira`), ` · ${fmt(plans.length)} seksiya`, sm.forced ? h('span', { class: 'chip', 'data-s': 'review', style: 'margin-left:6px' }, `${fmt(sm.forced)} miksdan tashqari`) : '', h('br'),
-      h('span', { class: 'muted' }, `Fasad moduli ${fmt(MOD_W, 1)} m: k xonali = k xona + oshxona${size === 'S' ? '' : ' (+1 modul)'}. Burchakda — ikki tomonlama. «Miksdan tashqari» — qator oxirida joy yetmay kichraytirilgan. Shu son reyestrdagi avtoturargoh talabiga (kvartiraga 1 joy) ham olinadi.`)));
+      h('span', { class: 'muted' }, `Reja qoidadan: kirish → zina-lift → koridor → har kvartiraga koridordan eshik va fasadga deraza (modul ${fmt(MOD_W, 1)} m). Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (kvartiraga 1 joy) ham olinadi.`)));
     // 3D koʻrinish va qavat slideri
     const maxF = Math.max(1, ...plans.map(p => p.z0 + p.f1)), fh = doc.settings.floorHeight;
     const fl = h('input', { type: 'range', min: 1, max: maxF, step: 1, value: this.aptFloor ?? maxF, id: 'aptFloor', style: 'flex:1' }) as HTMLInputElement, flT = h('b', { class: 'num', style: 'width:5em;text-align:right' }, this.aptFloor ? `${this.aptFloor} / ${maxF}` : 'hammasi');
@@ -994,13 +994,18 @@ export class Editor {
     // seksiya rejasi: tanlangan bino (yoki birinchisi), qavat — slider boʻyicha
     { const sel = plans.find(p => p.bid === this.sel) ?? plans[0], si = plans.indexOf(sel), fl0 = Math.max(sel.z0 + sel.f0 + 1, Math.min(sel.z0 + sel.f1, this.aptFloor ?? (sel.z0 + sel.f1)));
       const name = (pl: SecPlan, i: number) => `${i + 1}-seksiya · ${useDef(doc.buildings.find(b => b.id === pl.bid)?.use ?? 'turar').name}`;
-      const res = floorPlanSvg(sel, { scale: 200, dims: true, title: name(sel, si), floor: fl0 });
+      const res = floorPlanSvg(sel, { scale: 200, dims: true, title: name(sel, si), floor: fl0, fh: doc.settings.floorHeight });
+      const allBad = plans.reduce((t, p) => t + sectionChecks(p, doc.settings.floorHeight).filter(c => c.ok === false).length, 0);
       const sheet = h('div', { class: 'planbox', id: 'planBox', html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') });
       body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, `Seksiya rejasi · ${name(sel, si)} · ${fl0}-qavat (sxema)`), sheet,
         h('div', { class: 'row' },
           h('button', { class: 'btn grow', id: 'planSvg', onclick: () => download(`${safe(doc.name)}_seksiya${si + 1}_q${fl0}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG'),
           h('button', { class: 'btn grow', id: 'plansAll', title: 'Barcha seksiyalarning shu qavat rejalari — bitta SVG', onclick: () => { const all = allPlansSvg(plans, fl0, 200, name); if (all) download(`${safe(doc.name)}_rejalar_q${fl0}.svg`, all, 'image/svg+xml'); else toast('Bu qavatda seksiya yoʻq'); } }, 'Hammasi — SVG')),
-        h('span', { class: 'note' }, 'Sahnada seksiyani bosing — uning rejasi. Yadro (zina + lift) markazda, koridor uzun oʻq boʻylab (chuqurlik > 11 m), kvartiralar — fasad modullari × yarim chuqurlik. Xonalar ichki rejasi emas.')));
+        h('span', { class: 'note' }, 'Sahnada seksiyani bosing — uning rejasi. Chuqurlik ≥ 13 m — oʻrta koridor (ikki tomonlama), < 13 m — orqa fasad boʻylab koridor. Torets va burchakda — katta kvartira. Kvartira boʻla olmagan qism — «texnik». Xonalar ichki rejasi emas.')),
+        h('div', { class: 'field', id: 'planChecks' }, h('span', { class: 'lb' }, `Reja qoidalari · ${name(sel, si)}${allBad ? ` · barcha seksiyalarda ${allBad} ta buzilish` : ''}`),
+          h('table', { class: 'reg' }, h('tbody', {}, ...res.checks.map(c => h('tr', { 'data-check': c.id },
+            h('td', {}, h('span', { class: 'chip', 'data-s': c.ok === true ? 'pass' : c.ok === false ? 'fail' : 'review' }, c.ok === true ? 'mos' : c.ok === false ? 'mos emas' : 'tekshirilsin')),
+            h('td', {}, h('b', {}, c.title), h('br'), h('span', { class: 'muted' }, `${c.value} · meʼyor: ${c.norm}`), h('br'), h('span', { class: 'muted', style: 'font-size:11px' }, c.source))))))));
     }
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, '3D da kvartiralar'),
       h('div', { class: 'seg full', role: 'group', id: 'apt3d' }, ...([['yoq', 'Yoʻq'], ['tur', 'Turi boʻyicha'], ['insol', 'Insolyatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.apt3d === k, 'data-a3d': k, onclick: () => { this.apt3d = k; this.renderPanel(); } }, t))),
@@ -1128,7 +1133,22 @@ export class Editor {
   }
 
   /* ---------- 5-bosqich: hisobot va TEP ---------- */
-  private allRules(): Result[] { return [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])]; }
+  private allRules(): Result[] { return [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])]; }
+  /** Seksiya rejalari qoidalari (barcha seksiyalar boʻyicha): koridordan kirish, zinalar soni, koridor uzunligi */
+  private planRuleCache: { doc: unknown; rules: Result[] } | null = null;
+  private planRules(): Result[] {
+    const doc = this.store.doc; if (this.planRuleCache?.doc === doc) return this.planRuleCache.rules;
+    const plans = planApartments(doc), all = plans.map(p => sectionChecks(p, doc.settings.floorHeight));
+    const agg = (id: string): { bad: number; vals: string[] } => { let bad = 0; const vals: string[] = []; all.forEach((cs, i) => { const c = cs.find(x => x.id === id); if (c && c.ok === false) { bad++; vals.push(`${i + 1}-seksiya: ${c.value}`); } }); return { bad, vals }; };
+    const SHNQ = { doc: 'ShNQ 2.01.02-04', edition: '2004', verified: true };
+    const mk = (id: string, chk: string, title: string, source: Result['source'], okNote: string): Result => { const a = agg(chk); return { id, title, source, status: !plans.length ? 'na' : a.bad ? 'fail' : 'pass', value: plans.length - a.bad, unit: `/ ${plans.length} seksiya`, limit: 'hammasi', note: a.bad ? a.vals.join('; ') : okNote }; };
+    const rules = plans.length ? [
+      mk('plan-access', 'mop', 'Kvartiralarga kirish — faqat umumiy koridordan', { doc: 'Rejalash qoidasi', clause: 'zina-lift → koridor → kvartira', edition: '—', verified: true }, 'Har seksiya rejasida har kvartira eshigi MOP ga chiqadi, deraza fasadda; boshqa kvartira orqali kirish yoʻq.'),
+      mk('plan-stairs', 'stairs', 'Evakuatsiya zinalari soni', { ...SHNQ, clause: '5.13' }, 'Qavatdagi kvartiralar maydoni > 500 m² boʻlgan seksiyalarda 2 ta zina.'),
+      mk('plan-corridor', 'len', 'Umumiy koridor uzunligi', { ...SHNQ, clause: '5.25' }, 'Koridorlar ≤ 60 m (uzunrogʻi 2-tur toʻsiq bilan boʻlinadi).'),
+    ] : [];
+    this.planRuleCache = { doc, rules }; return rules;
+  }
   private tep() {
     const doc = this.store.doc, d = this.last?.d; if (!d) return [];
     const demo = this.scene.inSite.length ? this.demolition() : null, st = this.apt.stats;
@@ -1858,7 +1878,7 @@ export class Editor {
 
   private regFilter: 'all' | 'fail' = 'all';
   private register(): HTMLElement {
-    const all = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])];
+    const all = this.allRules();
     const bad = all.filter(r => r.status === 'fail').length, rs = this.regFilter === 'fail' ? all.filter(r => r.status === 'fail' || r.status === 'review') : all;
     const val = (r: typeof all[number]) => r.value != null ? `${fmt(r.value)} ${r.unit ?? ''}` : '—';
     return h('div', { class: 'regw' },
