@@ -16,6 +16,7 @@ export interface Site {
 }
 
 import { isUse, type Use } from './uses';
+import { COMP_DEFAULT, type CompParams } from './compensation';
 export type { Use };
 
 export interface Building {
@@ -61,6 +62,8 @@ export interface Settings {
   aptMix: [number, number, number, number];
   /** aholi yosh tarkibi uchun hudud (stat.uz SOATO kodi): tuman, shahar yoki viloyat */
   district: string;
+  /** koʻchirish xarajati parametrlari (core/compensation.ts) */
+  comp: CompParams;
 }
 
 /** Atrofdagi shahar (kontekst) — faqat koʻrinish tanlovlari; maʼlumotning oʻzi keshda, hujjatda emas */
@@ -116,6 +119,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aptNet: 65,
   aptMix: [20, 40, 30, 10],
   district: '1726',
+  comp: { ...COMP_DEFAULT },
 };
 
 export function uid(prefix = ''): string {
@@ -130,7 +134,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
   return {
     schema: SCHEMA, id: uid('p_'), name, created: t, updated: t,
     origin: [...DEFAULT_ORIGIN] as LngLat,
-    settings: { ...DEFAULT_SETTINGS, aptMix: [...DEFAULT_SETTINGS.aptMix] },
+    settings: { ...DEFAULT_SETTINGS, aptMix: [...DEFAULT_SETTINGS.aptMix], comp: { ...COMP_DEFAULT } },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
     site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [], pois: [],
   };
@@ -160,6 +164,9 @@ export function migrate(raw: unknown): Project {
   for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
   if (!Array.isArray(s.aptMix) || s.aptMix.length !== 4 || !s.aptMix.every(v => isNum(v) && v >= 0) || !s.aptMix.some(v => v > 0)) s.aptMix = [...DEFAULT_SETTINGS.aptMix];
   else s.aptMix = [...s.aptMix] as Settings['aptMix'];
+  s.comp = { ...COMP_DEFAULT, ...(s.comp && typeof s.comp === 'object' ? s.comp : {}) };
+  if (s.comp.regime !== 'orq781' && s.comp.regime !== 'orq1149') s.comp.regime = 'orq781';
+  for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
   if (typeof s.district !== 'string' || !/^\d{4,10}$/.test(s.district)) s.district = DEFAULT_SETTINGS.district;
   const cx = (d.context && typeof d.context === 'object' ? d.context : {}) as Partial<ContextSettings>;
   const context: ContextSettings = {
