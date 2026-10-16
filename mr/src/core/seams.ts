@@ -40,3 +40,30 @@ export function seamEdges(A: Prism3, s: SeamInfo, bands: number[] = []): [number
   }
   return out;
 }
+
+/**
+ * Qirraning qoʻshni seksiya bilan yopilgan qismlari (qismiy chok): har interval — qirra boʻylab [s0, s1] (m) va
+ * qoʻshnining tepasi. Qoʻshnining shu qirra bilan bir chiziqda yotgan qirralari (torets devor uzun devorga oʻrtasidan tegsa ham).
+ */
+export function edgeCover(A: Prism3, list: Prism3[], tol = 0.3): { s0: number; s1: number; top: number }[][] {
+  const n = A.ring.length, out: { s0: number; s1: number; top: number }[][] = [];
+  for (let k = 0; k < n; k++) {
+    const a = A.ring[k], b = A.ring[(k + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const iv: { s0: number; s1: number; top: number }[] = [];
+    for (const B of list) {
+      if (B === A || B.base > A.base + 0.1 || B.top <= A.base + 0.1) continue;
+      const m = B.ring.length;
+      for (let j = 0; j < m; j++) {
+        const p = B.ring[j], q = B.ring[(j + 1) % m];
+        // bir chiziqda: ikkala uch ham A qirrasining toʻgʻri chizigʻiga yaqin
+        const d = (r: XY) => Math.abs((r[0] - a[0]) * uy - (r[1] - a[1]) * ux);
+        if (d(p) > tol || d(q) > tol) continue;
+        const sp = (p[0] - a[0]) * ux + (p[1] - a[1]) * uy, sq = (q[0] - a[0]) * ux + (q[1] - a[1]) * uy;
+        const s0 = Math.max(0, Math.min(sp, sq)), s1 = Math.min(L, Math.max(sp, sq));
+        if (s1 - s0 > 0.2) iv.push({ s0, s1, top: B.top });
+      }
+    }
+    out.push(iv);
+  }
+  return out;
+}

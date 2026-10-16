@@ -24,12 +24,21 @@ export interface PartIn {
   bal: Bal | null;
   /** qirra qoʻshni bino bilan umumiy — chizilmaydi */
   skip: (k: number) => boolean;
+  /** qirraning qoʻshni bilan qisman yopilgan qismlari: [s0, s1] qirra boʻylab, top — qoʻshni tepasi (absolyut) */
+  cover?: (k: number) => { s0: number; s1: number; top: number }[];
   /** pastki qavat raqami (0 — yer qavati; balkon va tasma shunga koʻra) */
   floor0: number;
   bands: boolean;
 }
 
 const MOD = 3.3;
+/** [0, L] dan yopilgan intervallarni olib tashlab, ochiq boʻlaklar (pad — chetdan chekinish) */
+function runs(L: number, cov: { s0: number; s1: number }[], pad: number): [number, number][] {
+  const out: [number, number][] = []; let s = pad;
+  for (const c of [...cov].sort((a, b) => a.s0 - b.s0)) { if (c.s0 - 0.05 > s) out.push([s, c.s0 - 0.05]); s = Math.max(s, c.s1 + 0.05); }
+  if (L - pad > s) out.push([s, L - pad]);
+  return out;
+}
 const SHOP: WinSpec = { id: 'shop', w: 0.86, sill: 0.15, head: 3.0 };
 
 export function emptyGeo(): FacadeGeo { return { wall: { pos: [], uv: [] }, trim: { pos: [], uv: [] }, glass: { pos: [], uv: [] }, frame: { pos: [], uv: [] }, sill: { pos: [], uv: [] }, slab: { pos: [], uv: [] }, rail: { pos: [], uv: [] }, bar: { pos: [], uv: [] } }; }
@@ -85,19 +94,27 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
         const zb = P.z0 + f * P.fh, absF = P.floor0 + f, fh = P.fh;
         const shop = P.kind === 'shop', sp = shop ? { ...SHOP, head: Math.min(fh - 0.45, SHOP.head) } : P.spec;
         const holes: [number, number][][] = [], wins: { x0: number; x1: number; sill: number; head: number; arch: boolean; door: boolean; j: number }[] = [];
+        const cov = P.cover?.(k) ?? [], zTop = zb + fh - 0.05;
+        // shu qavatda yopilgan interval bilan kesishadimi (m — qoʻshimcha chet)
+        const covered = (x0: number, x1: number, m = 0) => cov.some(c => c.top >= zTop && x1 + m > c.s0 && x0 - m < c.s1);
         for (let j = 0; j < nm; j++) {
-          const c = (j + 0.5) * bw, isBal = !!balEdge && absF >= 1 && (P.bal === 'uzluksiz' || P.bal === 'fransuz' || j % 2 === 0);
+          const c = (j + 0.5) * bw;
+          if (covered(c - bw * 0.45, c + bw * 0.45, 0.25)) continue;   // qoʻshni seksiya devori ortida — deraza yoʻq
+          const isBal = !!balEdge && absF >= 1 && (P.bal === 'uzluksiz' || P.bal === 'fransuz' || j % 2 === 0);
           let w = Math.min(sp.w * bw, bw - 0.3), sill = sp.sill, head = Math.min(sp.head, fh - 0.15), arch = !!sp.arch && !shop;
           const door = isBal && P.bal !== 'fransuz';
           if (door) { sill = 0.05; head = Math.min(fh - 0.25, Math.max(head, 2.4)); w = Math.min(Math.max(w, 1.4), bw - 0.4); arch = false; }
           if (isBal && P.bal === 'fransuz') { sill = Math.min(sill, 0.1); head = Math.min(fh - 0.25, Math.max(head, 2.3)); }
           if (w < 0.5 || head - sill < 0.6) continue;
           const x0 = c - w / 2, x1 = c + w / 2;
+          if (door && covered(x0, x1, 1.6)) { // balkon qoʻshni devoriga urilardi — oddiy deraza
+            const w2 = Math.min(sp.w * bw, bw - 0.3); holes.push(holeOf(c - w2 / 2, c + w2 / 2, sp.sill, Math.min(sp.head, fh - 0.15), !!sp.arch && !shop)); wins.push({ x0: c - w2 / 2, x1: c + w2 / 2, sill: sp.sill, head: Math.min(sp.head, fh - 0.15), arch: !!sp.arch && !shop, door: false, j }); continue;
+          }
           holes.push(holeOf(x0, x1, sill, head, arch)); wins.push({ x0, x1, sill, head, arch, door, j });
         }
         // devor yuzasi (teshiklar bilan), UV — metr
         const contour: [number, number][] = [[0, 0], [L, 0], [L, fh], [0, fh]];
-        const key = `${L.toFixed(2)}|${fh}|${sp.id}|${shop}|${P.bal}|${absF >= 1}|${nm}`;
+        const key = `${L.toFixed(2)}|${fh}|${sp.id}|${shop}|${P.bal}|${absF >= 1}|${nm}|${wins.map(w => `${w.x0.toFixed(2)}-${w.x1.toFixed(2)}-${w.sill}-${w.head}-${w.arch ? 1 : 0}`).join(',')}`;
         const flat = contour.concat(...holes), faces = triangulate(contour, holes, key);
         for (const t of faces) push('wall', t.map(i => V(flat[i][0], zb + flat[i][1], 0)), t.map(i => [u0 + flat[i][0], zb + flat[i][1]] as [number, number]));
         // derazalar
@@ -128,8 +145,8 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
         if (balEdge && absF >= 1) {
           const kind = P.bal!;
           if (kind === 'uzluksiz') {
-            const d = 1.5; box('slab', 0.1, L - 0.1, zb - 0.1, zb + 0.08, 0, d);
-            box('rail', 0.1, L - 0.1, zb + 0.08, zb + 1.1, d - 0.03, d); box('bar', 0.1, L - 0.1, zb + 1.08, zb + 1.13, d - 0.05, d + 0.01);
+            const d = 1.5;
+            for (const [r0, r1] of runs(L, cov.filter(c => c.top >= zTop), 0.1)) { if (r1 - r0 < 1) continue; box('slab', r0, r1, zb - 0.1, zb + 0.08, 0, d); box('rail', r0, r1, zb + 0.08, zb + 1.1, d - 0.03, d); box('bar', r0, r1, zb + 1.08, zb + 1.13, d - 0.05, d + 0.01); }
           } else for (const wn of wins) {
             if (kind === 'fransuz') { box('bar', wn.x0, wn.x1, zb + 0.95, zb + 1.0, 0.02, 0.07); for (let s = wn.x0 + 0.1; s < wn.x1; s += 0.12) box('bar', s, s + 0.02, zb + 0.1, zb + 0.95, 0.03, 0.05); continue; }
             if (!wn.door) continue;
@@ -154,10 +171,10 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
           }
         }
         // qavatlararo tasma
-        if (P.bands && f > 0) box('trim', 0, L, zb - 0.12, zb + 0.12, 0, 0.06);
+        if (P.bands && f > 0) for (const [r0, r1] of runs(L, cov.filter(c => c.top >= zTop), 0)) box('trim', r0, r1, zb - 0.12, zb + 0.12, 0, 0.06);
       }
       // karniz (qism tepasida)
-      if (P.bands) box('trim', 0, L, P.z0 + P.floors * P.fh - 0.25, P.z0 + P.floors * P.fh, 0, 0.1);
+      { const zt = P.z0 + P.floors * P.fh; if (P.bands) for (const [r0, r1] of runs(L, (P.cover?.(k) ?? []).filter(c => c.top >= zt - 0.05), 0)) box('trim', r0, r1, zt - 0.25, zt, 0, 0.1); }
     }
   }
   return G;
