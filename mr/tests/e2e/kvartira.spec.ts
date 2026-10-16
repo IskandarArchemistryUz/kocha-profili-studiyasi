@@ -43,6 +43,7 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await expect(page.locator('#planBox svg')).toBeVisible();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#planSvg')]);
   expect(dl.suggestedFilename()).toMatch(/seksiya.*\.svg$/);
+  if (shots) await dl.saveAs(`${shots}/reja.svg`);
   if (shots) await page.screenshot({ path: `${shots}/apt_reja.png` });
   await page.locator('#aptFloor').fill('3'); await page.locator('#aptFloor').dispatchEvent('input');
   if (shots) await page.screenshot({ path: `${shots}/apt_qavat.png` });

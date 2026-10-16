@@ -22,8 +22,11 @@ describe('Kvartiralar', () => {
   });
   it('qoʻshni seksiyaga tegib turgan devor — berk', () => {
     const L = layoutSection(rect(0, 0, 30, 12), p => p[0] > 30);
-    expect(L.mods.filter(m => m.blind).every(m => Math.abs(m.az - 90) < 1)).toBe(true);
+    // berk: sharqiy torets (qoʻshni) va zina-lift yadrosi oʻrni (shimoliy fasad oʻrtasi, ~2 modul)
+    expect(L.mods.filter(m => m.blind).every(m => Math.abs(m.az - 90) < 1 || Math.abs(m.az - 0) < 1)).toBe(true);
     expect(L.mods.filter(m => Math.abs(m.az - 90) < 1).every(m => m.blind)).toBe(true);
+    expect(L.mods.filter(m => Math.abs(m.az) < 1 && m.blind).length).toBeGreaterThanOrEqual(1);
+    expect(L.mods.filter(m => Math.abs(m.az - 180) < 1).every(m => !m.blind)).toBe(true);   // janubiy fasad ochiq
   });
   it('miks: 100 % ikki xonali → hammasi 2 xonali (oxirgisidan tashqari)', () => {
     const L = layoutSection(rect(0, 0, 60, 12), () => false, [0, 100, 0, 0]);

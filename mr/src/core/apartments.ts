@@ -14,7 +14,7 @@
  *  9.2 — yashash xonalari derazalari 200–290° ga qaratilmaydi; istisno: 2 xonalida — 1 xona, 3 xonalida — ≤ 2 xona.
  */
 import type { XY } from './geo';
-import { signedArea } from './geo';
+import { signedArea, obb2 } from './geo';
 import type { Prism, SunStep } from './sun';
 
 export interface Module { a: XY; b: XY; /** deraza nuqtasi (fasaddan 0,3 m tashqarida) */ p: XY; /** tashqi normal azimuti, ° */ az: number; blind: boolean }
@@ -41,11 +41,26 @@ function mixPicker(mix: number[]): () => number {
   return () => { n++; let k = 0, best = -Infinity; w.forEach((s, i) => { const d = s * n - placed[i]; if (s > 0 && d > best) { best = d; k = i; } }); placed[k]++; return k + 1; };
 }
 
+/** Seksiya oʻqlari va zina-lift yadrosining oʻrni (OBB): back — orqa fasad tomoni (+1: v1, −1: v0), yadro u ∈ [um ± cw/2] shu fasadda */
+export function sectionFrame(ring0: XY[], blindAt: (p: XY) => boolean): { U: XY; V: XY; L: number; S: number; u0: number; u1: number; v0: number; v1: number; um: number; vm: number; back: 1 | -1; cw: number; cd: number; P: (u: number, v: number) => XY; corridor: boolean } {
+  const r = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, { U, L, S } = obb2(r), V: XY = [-U[1], U[0]];
+  let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+  for (const p of r) { const u = p[0] * U[0] + p[1] * U[1], v = p[0] * V[0] + p[1] * V[1]; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+  const P = (u: number, v: number): XY => [U[0] * u + V[0] * v, U[1] * u + V[1] * v], um = (u0 + u1) / 2, vm = (v0 + v1) / 2;
+  // orqa fasad: qoʻshni bino tegib turgan (berk) yoki shimolga qaragan tomon — zina shu yerda (yashash xonalari janubda qolsin)
+  const score = (v: number, out: number) => { let s = 0; for (let t = 0.2; t <= 0.8; t += 0.3) { const q = P(u0 + (u1 - u0) * t, v + out * 0.8); if (blindAt(q)) s += 3; } const n: XY = [V[0] * out, V[1] * out], azd = ((Math.atan2(n[0], n[1]) * 180 / Math.PI) + 360) % 360; if (azd >= 300 || azd <= 60) s += 1; return s; };
+  const back: 1 | -1 = score(v1, 1) >= score(v0, -1) ? 1 : -1;
+  return { U, V, L, S, u0, u1, v0, v1, um, vm, back, cw: Math.min(6.6, L * 0.4), cd: Math.min(3.0, S * 0.3), P, corridor: L > 42 };
+}
+
 /**
  * Seksiya rejasi. ring — mahalliy XY; blindAt(p) — nuqta qoʻshni binoning ichidami (berk devor).
+ * Zina-lift yadrosi joylashgan fasad qismi ham berk (zinaga deraza) — kvartiralar shu yerda boʻlinadi.
  */
 export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M'): Layout {
   const ring = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, mods: Module[] = [];
+  const F = sectionFrame(ring, blindAt);
+  const coreAt = (p: XY) => { if (F.corridor) return false; const u = p[0] * F.U[0] + p[1] * F.U[1], v = p[0] * F.V[0] + p[1] * F.V[1]; return Math.abs(u - F.um) < F.cw / 2 - 0.2 && Math.abs(v - (F.back > 0 ? F.v1 : F.v0)) < 1.0; };
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i], b = ring[(i + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
     const cnt = Math.floor(l / modW + 0.2); if (cnt < 1) continue;
@@ -53,7 +68,7 @@ export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: num
     for (let k = 0; k < cnt; k++) {
       const ma: XY = [a[0] + dx * k / cnt, a[1] + dy * k / cnt], mb: XY = [a[0] + dx * (k + 1) / cnt, a[1] + dy * (k + 1) / cnt];
       const mid: XY = [(ma[0] + mb[0]) / 2, (ma[1] + mb[1]) / 2];
-      mods.push({ a: ma, b: mb, p: [mid[0] + n[0] * 0.3, mid[1] + n[1] * 0.3], az: az(n), blind: blindAt([mid[0] + n[0] * 0.8, mid[1] + n[1] * 0.8]) || w < 2.4 });
+      mods.push({ a: ma, b: mb, p: [mid[0] + n[0] * 0.3, mid[1] + n[1] * 0.3], az: az(n), blind: blindAt([mid[0] + n[0] * 0.8, mid[1] + n[1] * 0.8]) || w < 2.4 || coreAt(mid) });
     }
   }
   // ochiq modullarning uzluksiz qatorlari (berk devor yoki boshlanish nuqtasi bilan uziladi)
@@ -152,7 +167,7 @@ export function aptSummary(plans: SecPlan[]): { total: number; forced: number; b
   for (const pl of plans) { const nf = pl.f1 - pl.f0; for (const a of pl.layout.apts) { total += nf; if (a.forced) forced += nf; const e = byK.get(a.rooms) ?? { n: 0, area: 0 }; e.n += nf; e.area += aptArea(a.mods.length, pl.halfDepth) * nf; byK.set(a.rooms, e); } }
   return { total, forced, byK: [1, 2, 3, 4].map(k => { const e = byK.get(k); return { k, n: e?.n ?? 0, share: total && e ? e.n / total : 0, area: e && e.n ? e.area / e.n : 0 }; }) };
 }
-import { frame, obb2 } from './geo';
+import { frame } from './geo';
 import { useDef } from './uses';
 
 export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number }
@@ -175,10 +190,28 @@ export function planApartments(doc: Project): SecPlan[] {
     // berk devor: qoʻshni seksiya shu sathda tegib tursa
     const blindAt = (p: XY) => all.some(o => o !== s && p[0] >= o.bb[0] && p[0] <= o.bb[2] && p[1] >= o.bb[1] && p[1] <= o.bb[3] && (o.b.z0 ?? 0) < top && (o.b.z0 ?? 0) + o.b.floors > z0 + b.nonRes && inside(p, o.r));
     const layout = layoutSection(s.r, blindAt, mix, MOD_W, doc.settings.aptSize ?? 'M');
-    const { S } = obb2(s.r), halfDepth = Math.max(4, Math.min(9, S / 2));
+    const halfDepth = Math.max(4, Math.min(9, sectionDepth(s.r, layout.mods) / 2));
     if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth });
   }
   return out;
+}
+
+/** Seksiya chuqurligi: modul oʻrtasidan ichki normal boʻylab qarshi devorgacha masofa — 30-protsentil (L shaklda tor qanot eni) */
+export function sectionDepth(ring: XY[], mods: Module[]): number {
+  const r = signedArea(ring) < 0 ? [...ring].reverse() : ring, ds: number[] = [];
+  for (const m of mods) {
+    if (m.blind) continue;
+    const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], l = Math.hypot(dx, dy) || 1, n: XY = [-dy / l, dx / l], p: XY = [(m.a[0] + m.b[0]) / 2 + n[0] * 0.05, (m.a[1] + m.b[1]) / 2 + n[1] * 0.05];
+    let best = Infinity;
+    for (let i = 0; i < r.length; i++) {
+      const a = r[i], b = r[(i + 1) % r.length], ex = b[0] - a[0], ey = b[1] - a[1], den = n[0] * ey - n[1] * ex; if (Math.abs(den) < 1e-9) continue;
+      const t = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den, u = ((a[0] - p[0]) * n[1] - (a[1] - p[1]) * n[0]) / den;
+      if (t > 0.1 && u >= 0 && u <= 1 && t < best) best = t;
+    }
+    if (isFinite(best)) ds.push(best);
+  }
+  if (!ds.length) return obb2(r).S;
+  ds.sort((a, b) => a - b); return ds[Math.floor(ds.length * 0.3)];   // pastki kvartil — L shaklda tor qanot eni olinsin
 }
 
 /** Hisob nuqtalari: har seksiya × turar qavat × kvartiraga tegishli modul */
