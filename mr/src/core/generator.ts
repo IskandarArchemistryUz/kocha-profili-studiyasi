@@ -116,6 +116,7 @@ export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   const D = g.depth, n = A.length, sections: GenSection[] = [];
   const poly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
   let placed: Polygon[] = [];
+  const meta: { edge: number; first: boolean; last: boolean }[] = [];
   const order = A.map((_, i) => i).sort((a, b) => len(sub(A[(b + 1) % n], A[b])) - len(sub(A[(a + 1) % n], A[a])));
   const southward = (N: XY) => N[1] > 0.55; // ichkari normal shimolga → qirra janubda
   for (const i of order) {
@@ -134,9 +135,12 @@ export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
       const fromEnd = Math.min(k, m - 1 - k) / Math.max(1, (m - 1) / 2);
       const top = southward(N) ? Math.max(g.minF, Math.round((g.maxF + g.minF) / 2)) : g.maxF;
       sections.push({ ring, floors: Math.max(g.minF, Math.round(top - (top - g.minF) * Math.min(1, fromEnd))), kind: 'oddiy', nonRes: g.nonRes, face: { p: add(mul(add(oa, ob), 0.5), mul(N, D)), n: N } });
+      meta.push({ edge: i, first: k === 0, last: k === m - 1 });
     }
   }
   if (!sections.length) notes.push('Seksiya joylashmadi — chuqurlik yoki chekinishni kamaytiring');
+  const merged = mergeCorners(A, sections, meta);
+  if (merged) notes.push(`${merged} ta burchak — bitta L-shakl bino (ikki seksiya birlashtirildi)`);
   return { sections, capFloors: null, notes };
 }
 
@@ -237,6 +241,28 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
   }
   if (!sections.length) notes.push('Seksiya joylashmadi — parametrlarni kamaytiring');
   return { sections, capFloors: cap, notes };
+}
+
+/**
+ * Qirralar boʻylab joylangan seksiyalar burchakda (yoʻnalish ≥ 25° oʻzgarganda) bitta L-shakl binoga birlashtiriladi:
+ * oldingi qirraning oxirgi seksiyasi + keyingi qirraning birinchi seksiyasi, umumiy devori boʻlsa. Qavati — kattasi.
+ */
+function mergeCorners(A: XY[], S: GenSection[], meta: { edge: number; first: boolean; last: boolean }[]): number {
+  const n = A.length, gone = new Set<number>(); let cnt = 0;
+  for (let v = 0; v < n; v++) {
+    const pe = (v - 1 + n) % n, u1 = unit(sub(A[v], A[pe])), u2 = unit(sub(A[(v + 1) % n], A[v]));
+    if (u1[0] * u2[0] + u1[1] * u2[1] > Math.cos(25 * Math.PI / 180)) continue;   // deyarli toʻgʻri davom — burchak emas
+    const a = meta.findIndex((m, i) => m.edge === pe && m.last && !gone.has(i)), b = meta.findIndex((m, i) => m.edge === v && m.first && !gone.has(i));
+    if (a < 0 || b < 0 || a === b) continue;
+    let u: [number, number][][][] = [];
+    try { u = polygonClipping.union([[...S[a].ring, S[a].ring[0]].map(p => [p[0], p[1]] as [number, number])], [[...S[b].ring, S[b].ring[0]].map(p => [p[0], p[1]] as [number, number])]); } catch { continue; }
+    if (u.length !== 1 || u[0].length !== 1) continue;   // tegmaydi yoki teshikli
+    const ring0 = u[0][0].slice(0, -1).map(q => [q[0], q[1]] as XY), ring = signedArea(ring0) < 0 ? ring0.reverse() : ring0;
+    S[a] = { ...S[a], ring, floors: Math.max(S[a].floors, S[b].floors), kind: 'burchak' };
+    gone.add(b); cnt++;
+  }
+  if (gone.size) { const keep = S.filter((_, i) => !gone.has(i)); S.length = 0; S.push(...keep); }
+  return cnt;
 }
 
 function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
