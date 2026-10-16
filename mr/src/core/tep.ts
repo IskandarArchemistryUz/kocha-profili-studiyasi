@@ -38,7 +38,9 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Ijtimoiy', 'Maktab oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.schoolCap, `talab ≥ ${Math.ceil(d.population * 0.165)} (5-ilova)`);
   add('Ijtimoiy', 'MTM oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.mtmCap, `talab ≥ ${Math.ceil(d.population * 0.07)} (5-ilova)`);
   add('Yashil', 'Yashil zonalar', 'm²', d.greenArea);
-  add('Yashil', 'Yashil zona, kishi boshiga', 'm²/kishi', d.greenPerPerson);
+  add('Yashil', 'Yashil zona, kishi boshiga', 'm²/kishi', d.greenPerPerson, '36-jadval: ≥ 3–4');
+  if (d.yardGreen > 0) { add('Yashil', 'Hovlilar maysasi', 'm²', d.yardGreen); add('Yashil', 'Hovli maydonchalari', 'm²', d.playGot, `talab ${Math.round(d.playNeed)} (4-jadval)`); add('Yashil', 'Hovli daraxtlari', 'ta', d.yardTrees); }
+  add('Yashil', 'Yashillik darajasi (86-band)', '%', d.greenShareTotal * 100, '≥ 25');
   if (d.greenRoof > 0) add('Yashil', 'Yashil tomlar', 'm²', d.greenRoof);
   if (d.solarRoof > 0) { const pv = pvEstimate(d.solarRoof); add('Energiya', 'Quyosh panellari quvvati (taxmin)', 'kWp', pv.kwp, `tomning ${PV.cover * 100} % i, ${PV.kwpPerM2} kWp/m²`); add('Energiya', 'Yillik ishlab chiqarish (taxmin)', 'MWh/yil', pv.mwh, `~${PV.yield} kWh/kWp (Toshkent)`); }
   add('Transport', 'Avtoturargoh talabi', 'joy', d.parkingReq, '416-band, 29-jadval');

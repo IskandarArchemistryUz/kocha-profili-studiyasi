@@ -79,6 +79,8 @@ export interface Settings {
   district: string;
   /** koʻchirish xarajati parametrlari (core/compensation.ts) */
   comp: CompParams;
+  /** hovlilarni avtomatik obodonlashtirish (core/landscape.ts) */
+  yards: boolean;
 }
 
 /** Atrofdagi shahar (kontekst) — faqat koʻrinish tanlovlari; maʼlumotning oʻzi keshda, hujjatda emas */
@@ -137,6 +139,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aptMix: [20, 40, 30, 10],
   district: '1726',
   comp: { ...COMP_DEFAULT },
+  yards: true,
 };
 
 export function uid(prefix = ''): string {
@@ -184,6 +187,7 @@ export function migrate(raw: unknown): Project {
   s.comp = { ...COMP_DEFAULT, ...(s.comp && typeof s.comp === 'object' ? s.comp : {}) };
   if (s.comp.regime !== 'orq781' && s.comp.regime !== 'orq1149') s.comp.regime = 'orq781';
   for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
+  if (typeof s.yards !== 'boolean') s.yards = true;
   if (typeof s.district !== 'string' || !/^\d{4,10}$/.test(s.district)) s.district = DEFAULT_SETTINGS.district;
   const cx = (d.context && typeof d.context === 'object' ? d.context : {}) as Partial<ContextSettings>;
   const context: ContextSettings = {

@@ -137,22 +137,43 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (doc.settings.comp.regime !== 'orq1149') return { status: 'na', note: 'Koʻchirish rejimi — OʻRQ-781 (jamoat ehtiyojlari uchun olib qoʻyish). Renovatsiya rejimida tekshiriladi.' };
       if (d.siteHa <= 0) return { status: 'na', unit: '%', limit: '≥ 25' };
-      const v = d.greenShare * 100;
+      const v = d.greenShareTotal * 100;
       return { status: v >= 25 ? 'pass' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
-        note: 'Renovatsiya loyihasida qamrab olingan hududning kamida toʻrtdan bir qismi yashil zonalardan iborat boʻlishi kerak. Hisob: «Park / bogʻ» funksiyali kvartal va parsellar ÷ uchastka.' };
+        note: 'Renovatsiya loyihasida qamrab olingan hududning kamida toʻrtdan bir qismi yashil zonalardan iborat boʻlishi kerak. Hisob: yashil kvartallar, hovli maysasi va (87-band) maydonchalar ÷ hudud.' };
     },
   },
   {
-    id: 'green-per-person',
-    title: 'Yashil hudud, kishi boshiga',
-    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: 'band aniqlanmagan', verified: false },
+    id: 'green-86',
+    title: 'Turar joy zonasining yashil hududi (≥ 25 %)',
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '86, 87, 474-bandlar', verified: true },
     evaluate(d) {
-      if (d.population <= 0) return { status: 'na', unit: 'm²/kishi', limit: '≥ 17', note: 'Turar joy binolari yoʻq' };
-      const v = d.greenPerPerson, lim = 17;
-      return {
-        status: v >= lim ? 'pass' : 'review', value: v, unit: 'm²/kishi', limit: '≥ 17',
-        note: '17–19 m²/kishi — Abdurauf Fitrat KZ hujjatidagi umumshahar yashillik normasi; bu loyiha ichidagi «yashil» zonalar bilan solishtirildi. Band va hisob birligi tekshirilsin.',
-      };
+      if (d.greenBase <= 0) return { status: 'na', unit: '%', limit: '≥ 25' };
+      const v = d.greenShareTotal * 100;
+      return { status: v >= 25 ? 'pass' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
+        note: `Hisob: yashil kvartallar ${Math.round(d.greenArea)} m² + hovli maysasi ${Math.round(d.yardGreen)} m² + maydoncha va yoʻlaklar ${Math.round(d.yardPlay)} m² (87-band: uchastkaning 30 % idan oshmasa) ÷ mavze maydoni (maktab va MTM uchastkalarisiz, 86-band) ${Math.round(d.greenBase)} m².` };
+    },
+  },
+  {
+    id: 'green-36',
+    title: 'Mavzedagi umumiy foydalanishdagi yashil hudud, kishi boshiga',
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '486-band, 36-jadval (eng yirik va katta shaharlar)', verified: true },
+    evaluate(d) {
+      if (d.population <= 0) return { status: 'na', unit: 'm²/kishi', limit: '3–4', note: 'Turar joy binolari yoʻq' };
+      const v = d.greenPerPerson;
+      return { status: v >= 3 ? 'pass' : 'fail', value: v, unit: 'm²/kishi', limit: '≥ 3', delta: v < 3 ? (v / 3 - 1) * 100 : undefined,
+        note: '36-jadval: mavzelardagi yashil hududlar 3–4 m²/kishi (shu jumladan xiyobonlar 1, uy guruhlari va mahalla markazlari bogʻlari 1–1,5). Hisob: «Park / bogʻ» kvartal va parsellari ÷ aholi; hovlilar bu yerga kirmaydi.' };
+    },
+  },
+  {
+    id: 'play-89',
+    title: 'Hovli maydonchalari (bolalar, kattalar, sport, xoʻjalik)',
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '89-band, 4-jadval; 90–92-bandlar', verified: true },
+    evaluate(d, doc) {
+      if (d.population <= 0) return { status: 'na', unit: 'm²', limit: '3,1 m²/kishi' };
+      if (!doc.settings.yards) return { status: 'na', note: 'Hovli obodonlashtirish oʻchirilgan (5-qadam).' };
+      const v = d.playNeed > 0 ? d.playGot / d.playNeed * 100 : 0;
+      return { status: v >= 99 ? 'pass' : v >= 50 ? 'review' : 'fail', value: d.playGot, unit: 'm²', limit: `${Math.round(d.playNeed)} (3,1 m²/kishi)`,
+        note: `Talab: bolalar 0,7 + kattalar 0,1 + sport 2,0 + xoʻjalik 0,3 m²/kishi; joylashtirilgan ${Math.round(v)} %. 90-band: chang boʻronli hududlarda yoki mavze sport majmuasi boʻlsa — ikki baravargacha qisqartirish mumkin; 92-band: zichlik > 7000 m²/ga — tomlarga joylashtirish.` };
     },
   },
 ];

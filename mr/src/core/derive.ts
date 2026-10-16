@@ -10,6 +10,7 @@ import { useDef } from './uses';
 import { planApartments } from './apartments';
 import { jobsFrom } from './jobs';
 import { tieredGfa } from './tiers';
+import { landscape, greenBalance, PLAY_NORM } from './landscape';
 
 export interface Derived {
   /** uchastka maydoni, ga (teshiklar ayirilgan) */
@@ -59,6 +60,10 @@ export interface Derived {
   jobs: number; jobsRatio: number;
   /** yashil va quyosh panelli tomlar maydoni, m² */
   greenRoof: number; solarRoof: number;
+  /** hovli obodonlashtirish va yashillik balansi (core/landscape.ts) */
+  yardGreen: number; yardPlay: number; greenCounted: number; greenBase: number; greenShareTotal: number; yardTrees: number;
+  /** 4-jadval maydonchalari: talab va joylashtirilgan, m² */
+  playNeed: number; playGot: number;
 }
 
 /** 41-jadval: oʻquvchiga 20 m² (≤ 660), 15 m² (661–989), 10 m² (> 989) → maydonga sigʻadigan eng koʻp oʻquvchi */
@@ -127,8 +132,10 @@ export function derive(doc: Project): Derived {
     if (longFacadeAzimuths(r).some(a => a >= 200 && a <= 290)) westFacing++;
   }
   const jobs = jobsFrom(gfaByUse);
+  const yards = doc.settings.yards ? landscape(doc) : [], gb = greenBalance(doc, yards);
+  const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + y.areas.play, 0);
   return {
-    resSections, westFacing, greenRoof, solarRoof, jobs, jobsRatio: population > 0 ? jobs / population : 0,
+    resSections, westFacing, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
