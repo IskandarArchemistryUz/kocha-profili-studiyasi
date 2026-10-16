@@ -36,6 +36,7 @@ import { tepRows, buildingRows, BUILDING_HEAD } from '../core/tep';
 import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
 import { JOBS_NOTE } from '../core/jobs';
+import { MATS, ROOFS, PV, pitchedRoof, pvEstimate, type Mat, type Roof } from '../core/roof';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import type { TerrainGrid } from '../context/tiles';
@@ -681,6 +682,7 @@ export class Editor {
           h('div', {}, h('span', { class: 'chip', 'data-s': okK ? 'pass' : 'fail' }, okK ? 'mos' : 'mos emas'), ` Yorugʻlik koeffitsiyenti 1:${fmt(k, 1)} (meʼyor 1:4,5 – 1:8, 8.2-band)`),
           h('div', {}, h('span', { class: 'chip', 'data-s': okD ? 'pass' : 'fail' }, okD ? 'mos' : 'mos emas'), ` Xona chuqurligi ${fmt(this.roomDepth, 1)} m (≤ 6 m va ≤ 2 × eni, 8.7-band)`)));
     }
+    body.append(this.looksSection());
     const plans = planApartments(this.store.doc);
     if (plans.length) {
       let n = 0, hot = 0, west = 0;
@@ -689,7 +691,41 @@ export class Editor {
         `${fmt(hot / n * 100, 0)} % — 90–290° ga qaragan: quyoshdan himoya qurilmasi kerak (9.3, 8.10–8.11-bandlar).`, h('br'),
         `${fmt(west / n * 100, 0)} % — gʻarbga (200–290°): bu derazalarga yashash xonasi qoʻyilmaydi (9.2).`));
     }
-    body.append(h('p', { class: 'note' }, 'Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina, ofis va mehmonxona — shisha fasad. Tom — tekis. Meʼyor: SanQvaN 0331-16, 8.2, 8.7, 8.10–8.11, 9.3-bandlar.'));
+    body.append(h('p', { class: 'note' }, 'Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina, ofis va mehmonxona — shisha fasad. Material va tom — Albom va Rangli uslublarida koʻrinadi. Meʼyor: SanQvaN 0331-16, 8.2, 8.7, 8.10–8.11, 9.3-bandlar.'));
+  }
+
+  /* ---------- fasad materiali va tom turi ---------- */
+  private lookTarget: 'sel' | 'use' | 'all' = 'all';
+  private lookUse = 'turar';
+  private looksSection(): HTMLElement {
+    const doc = this.store.doc, fr = frame(doc.origin), sel = doc.buildings.find(b => b.id === this.sel);
+    const uses = [...new Set(doc.buildings.map(b => b.use))];
+    if (this.lookTarget === 'sel' && !sel) this.lookTarget = 'all';
+    if (!uses.includes(this.lookUse as Use) && uses.length) this.lookUse = uses[0];
+    const ids = () => this.lookTarget === 'sel' && sel ? [sel.id] : this.lookTarget === 'use' ? doc.buildings.filter(b => b.use === this.lookUse).map(b => b.id) : doc.buildings.map(b => b.id);
+    const apply = (patch: { mat?: Mat; roof?: Roof }) => { const list = ids(); if (!list.length) { toast('Binolar yoʻq'); return; } this.run(() => this.store.dispatch({ type: 'styleBuildings', ids: list, ...patch })); };
+    const cur = (k: 'mat' | 'roof') => { const v = new Set(doc.buildings.filter(b => ids().includes(b.id)).map(b => b[k] ?? (k === 'mat' ? 'suvoq' : 'tekis'))); return v.size === 1 ? [...v][0] : null; };
+    const useSel = h('select', { id: 'lookUse', disabled: this.lookTarget !== 'use' }, ...uses.map(u => h('option', { value: u, selected: u === this.lookUse }, useDef(u).name))) as HTMLSelectElement;
+    useSel.onchange = () => { this.lookUse = useSel.value; this.renderPanel(); };
+    const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+    const solar = doc.buildings.filter(b => b.roof === 'quyosh').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0), pv = pvEstimate(solar);
+    const green = doc.buildings.filter(b => b.roof === 'yashil').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0);
+    const flatFallback = doc.buildings.filter(b => (b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir') && !pitchedRoof(b.footprint.map(fr.toLocal), b.roof)).length;
+    return h('div', { class: 'looks', id: 'looks' },
+      h('div', { class: 'lb' }, 'Material va tom — qaysi binolarga'),
+      h('div', { class: 'seg full', role: 'group', id: 'lookSeg' },
+        h('button', { 'data-look': 'sel', 'aria-pressed': this.lookTarget === 'sel', disabled: !sel, title: sel ? '' : 'Sahnada binoni bosing', onclick: () => { this.lookTarget = 'sel'; this.renderPanel(); } }, 'Tanlangan'),
+        h('button', { 'data-look': 'use', 'aria-pressed': this.lookTarget === 'use', onclick: () => { this.lookTarget = 'use'; this.renderPanel(); } }, 'Funksiya'),
+        h('button', { 'data-look': 'all', 'aria-pressed': this.lookTarget === 'all', onclick: () => { this.lookTarget = 'all'; this.renderPanel(); } }, 'Hammasi')),
+      this.lookTarget === 'use' ? useSel : '',
+      h('div', { class: 'lb' }, 'Fasad materiali'),
+      h('div', { class: 'swatches' }, ...MATS.map(m => h('button', { 'data-mat': m.id, 'aria-pressed': cur('mat') === m.id, title: m.name, onclick: () => apply({ mat: m.id }) }, h('i', { style: `background:${hex(m.color)}` }), m.name))),
+      h('div', { class: 'lb' }, 'Tom'),
+      h('div', { class: 'chips' }, ...ROOFS.map(r => h('button', { class: 'zchip', style: `--c:${({ tekis: '#d9d6cf', yashil: '#93b873', quyosh: '#26364f' } as Record<string, string>)[r.id] ?? '#b9765c'}`, 'data-roof': r.id, 'aria-pressed': cur('roof') === r.id, onclick: () => apply({ roof: r.id }) }, r.name))),
+      (solar > 0 || green > 0 || flatFallback > 0) ? h('div', { class: 'ctxst', id: 'roofSt' },
+        solar > 0 ? h('div', {}, h('b', {}, `Quyosh panellari: ${fmt(pv.kwp)} kWp, ~${fmt(pv.mwh)} MWh/yil`), ` (taxmin: tomning ${PV.cover * 100} %, ${PV.kwpPerM2} kWp/m², ~${PV.yield} kWh/kWp)`) : '',
+        green > 0 ? h('div', {}, `Yashil tomlar: ${fmt(green)} m²`) : '',
+        flatFallback > 0 ? h('div', { class: 'muted' }, `${flatFallback} ta murakkab shakldagi seksiyada qiya tom qurilmadi — tekis koʻrsatiladi.`) : '') : '');
   }
 
   private aptMode: 'insol' | 'west' = 'insol';

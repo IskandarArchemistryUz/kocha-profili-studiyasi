@@ -7,6 +7,7 @@ import type { Project } from './doc';
 import { frame, area } from './geo';
 import { useDef } from './uses';
 import type { CompResult } from './compensation';
+import { pvEstimate, PV } from './roof';
 
 export interface TepRow { g: string; name: string; unit: string; v: number | string | null; note?: string }
 export interface Demolition { gone: number; kept: number; foot: number; floorArea: number }
@@ -38,6 +39,8 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Ijtimoiy', 'MTM oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.mtmCap, `talab ≥ ${Math.ceil(d.population * 0.07)} (5-ilova)`);
   add('Yashil', 'Yashil zonalar', 'm²', d.greenArea);
   add('Yashil', 'Yashil zona, kishi boshiga', 'm²/kishi', d.greenPerPerson);
+  if (d.greenRoof > 0) add('Yashil', 'Yashil tomlar', 'm²', d.greenRoof);
+  if (d.solarRoof > 0) { const pv = pvEstimate(d.solarRoof); add('Energiya', 'Quyosh panellari quvvati (taxmin)', 'kWp', pv.kwp, `tomning ${PV.cover * 100} % i, ${PV.kwpPerM2} kWp/m²`); add('Energiya', 'Yillik ishlab chiqarish (taxmin)', 'MWh/yil', pv.mwh, `~${PV.yield} kWh/kWp (Toshkent)`); }
   add('Transport', 'Avtoturargoh talabi', 'joy', d.parkingReq, '416-band, 29-jadval');
   add('Transport', 'Avtoturargoh taʼminoti', 'joy', d.parkingProv);
   for (const x of extra?.svc ?? []) add('Xizmatlar', `${x.name} — ${x.r} m radiusda aholi`, '%', x.share * 100, '539-band, 38-jadval');

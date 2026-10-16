@@ -13,6 +13,7 @@ import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from '
 import { projectStreetsGeo } from './streets3d';
 import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
+import { MATS, pitchedRoof } from '../core/roof';
 import { USES } from '../core/uses';
 
 export const ZONE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.color]));
@@ -309,11 +310,16 @@ export class Scene3D {
     doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected;
       const shape = new THREE.Shape(r.map(toV2));
-      const part = (z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null) => {
+      const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
+      const part = (z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false) => {
         const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
+        if (top && b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
         const wall = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : color });
         if (kind && this.facade !== 'yoq' && !plain && st !== 'funksiya') wall.map = facadeTex(kind, this.facade, fh, 3.3, aniso);
-        const m = new THREE.Mesh(g, [new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof }), wall]);
+        const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
+        if (top && !sel && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
+        if (top && !sel && roofK === 'quyosh' && !plain) { cap.color.setHex(0xffffff); cap.map = solarTex(); }
+        const m = new THREE.Mesh(g, [cap, wall]);
         m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
         const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: st === 'minimal' ? 0.9 : st === 'arctic' ? 0.22 : 0.5 })); this.world.add(e);
       };
@@ -327,9 +333,17 @@ export class Scene3D {
       const parking = b.gen?.kind === 'stilobat' && b.use === 'avtoturargoh', office = b.use === 'ofis' || b.use === 'mehmonxona';
       const baseC = plain ? (st === 'minimal' ? 0xe6e6e6 : 0xf0eee9) : st === 'funksiya' ? tint(BASE_COL[b.use] ?? 0x9c7b6e, 0.15) : BASE_COL[b.use] ?? 0x9c7b6e;
       const topC = plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : USE_COL[b.use] ?? C.bld;
-      if (nr > 0) part(0, nr * fh, baseC, parking ? null : 'shop');
-      if (nr >= b.floors) return;
-      part(nr * fh, b.floors * fh, topC, office ? 'glass' : 'res');
+      if (nr > 0) part(0, nr * fh, baseC, parking ? null : 'shop', nr >= b.floors);
+      if (nr < b.floors) part(nr * fh, b.floors * fh, topC, office ? 'glass' : 'res', true);
+      if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
+        const pr = pitchedRoof(r, roofK); if (!pr) return;
+        const g = new THREE.BufferGeometry(), y0 = base + b.floors * fh, v: number[] = [];
+        for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], y0 + pr.tris[i + 2], -pr.tris[i + 1]);
+        g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+        const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xf3f1ec : 0xb9765c, side: THREE.DoubleSide }));
+        m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
+        this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: 0.45 })));
+      }
     });
     if (this.floorLabels) doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal); if (area(r) < 40) return;
@@ -672,6 +686,17 @@ export class Scene3D {
     c.position.set(...v.pos); this.ctl.target.set(...v.target); if (v.mode !== 'persp') { this.ortho.zoom = v.zoom; this.ortho.updateProjectionMatrix(); }
     this.ctl.update(); this.invalidate();
   }
+}
+
+let solarT: THREE.CanvasTexture | null = null;
+/** Quyosh panellari: 2 × 1 m modullar (tom UV si — metrda) */
+function solarTex(): THREE.CanvasTexture {
+  if (solarT) return solarT;
+  const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d')!;
+  g.fillStyle = '#d9d6cf'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#26364f'; g.fillRect(4, 4, 120, 56);
+  g.strokeStyle = 'rgba(160,185,215,.55)'; g.lineWidth = 1.5; for (let x = 34; x < 124; x += 30) { g.beginPath(); g.moveTo(x, 4); g.lineTo(x, 60); g.stroke(); } g.beginPath(); g.moveTo(4, 32); g.lineTo(124, 32); g.stroke();
+  solarT = new THREE.CanvasTexture(c); solarT.wrapS = solarT.wrapT = THREE.RepeatWrapping; solarT.repeat.set(0.5, 1); solarT.colorSpace = THREE.SRGBColorSpace;
+  return solarT;
 }
 
 /** Matnli yorliq (ekranda doimiy oʻlchamda) */

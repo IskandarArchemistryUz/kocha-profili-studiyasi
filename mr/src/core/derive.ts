@@ -56,6 +56,8 @@ export interface Derived {
   resSections: number; westFacing: number;
   /** ish oʻrinlari (taxmin, core/jobs.ts) va aholiga nisbati */
   jobs: number; jobsRatio: number;
+  /** yashil va quyosh panelli tomlar maydoni, m² */
+  greenRoof: number; solarRoof: number;
 }
 
 /** 41-jadval: oʻquvchiga 20 m² (≤ 660), 15 m² (661–989), 10 m² (> 989) → maydonga sigʻadigan eng koʻp oʻquvchi */
@@ -71,11 +73,12 @@ export function mtmCapacity(a: number): number { return a / 35 > 100 ? Math.floo
 export function derive(doc: Project): Derived {
   const fr = frame(doc.origin);
   const siteM2 = doc.site ? polyArea(doc.site.rings.map(r => ringLocal(fr, r))) : 0;
-  let footprint = 0, gfa = 0, resGfa = 0; const gfaByUse: Record<string, number> = {};
+  let footprint = 0, gfa = 0, resGfa = 0, greenRoof = 0, solarRoof = 0; const gfaByUse: Record<string, number> = {};
   for (const b of doc.buildings) {
     const a = area(ringLocal(fr, b.footprint));
     if (!b.z0) footprint += a; // stilobat ustidagi seksiyalar dogʻi stilobatniki ichida — ikki marta sanalmaydi
     gfa += a * b.floors;
+    if (b.roof === 'yashil') greenRoof += a; if (b.roof === 'quyosh') solarRoof += a;
     resGfa += a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
     const nonResGfa = a * b.floors - a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
     gfaByUse[b.use] = (gfaByUse[b.use] ?? 0) + nonResGfa;
@@ -122,7 +125,7 @@ export function derive(doc: Project): Derived {
   }
   const jobs = jobsFrom(gfaByUse);
   return {
-    resSections, westFacing, jobs, jobsRatio: population > 0 ? jobs / population : 0,
+    resSections, westFacing, greenRoof, solarRoof, jobs, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
