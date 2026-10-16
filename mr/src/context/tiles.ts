@@ -110,8 +110,11 @@ export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' 
   const z = radius <= 1200 ? 16 : 15;
   const m = await mosaic(bb, z, kind === 'sputnik' ? IMAGERY_URL : CARTO_URL, f);
   if (!m.ok) return null;
-  const image = 'convertToBlob' in m.cv ? await (m.cv as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.88 })
-    : await new Promise<Blob>((ok, no) => (m.cv as HTMLCanvasElement).toBlob(b => b ? ok(b) : no(new Error('toBlob')), 'image/jpeg', 0.88));
+  // yuklanmagan plitkalar qora emas — fon rangida
+  const out = canvas(m.W, m.H), oc = out.getContext('2d') as OffscreenCanvasRenderingContext2D;
+  oc.fillStyle = kind === 'sputnik' ? '#8a8f86' : '#f2efe9'; oc.fillRect(0, 0, m.W, m.H); oc.drawImage(m.cv as OffscreenCanvas, 0, 0);
+  const image = 'convertToBlob' in out ? await (out as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.88 })
+    : await new Promise<Blob>((ok, no) => (out as HTMLCanvasElement).toBlob(b => b ? ok(b) : no(new Error('toBlob')), 'image/jpeg', 0.88));
   return { image, z, x0: m.x0, y0: m.y0, W: m.W, H: m.H };
 }
 /** Mercator piksel → geografik nuqta */
