@@ -897,6 +897,30 @@ export class Scene3D {
     this.invalidate();
   }
 
+  /** Kvartiralar «terisi»: har kvartira moduli — fasaddan 0,12 m tashqarida, ichkariga depth m, qavat balandligida (rangi — turi yoki insolyatsiya) */
+  private aptBoxes: THREE.Mesh | null = null;
+  setAptBoxes(list: { a: XY; b: XY; y0: number; y1: number; color: number; depth: number }[] | null): void {
+    if (this.aptBoxes) { this.scene.remove(this.aptBoxes); this.aptBoxes.geometry.dispose(); (this.aptBoxes.material as THREE.Material).dispose(); this.aptBoxes = null; }
+    if (list?.length) {
+      const pos: number[] = [], col: number[] = [], c = new THREE.Color();
+      const quad = (p: number[][], y: number[]) => { for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(p[i][0], y[i], -p[i][1]); col.push(c.r, c.g, c.b); } };
+      for (const q of list) {
+        const dx = q.b[0] - q.a[0], dy = q.b[1] - q.a[1], l = Math.hypot(dx, dy) || 1, nx = dy / l, ny = -dx / l;   // tashqi normal
+        const o = 0.12, k = 0.02;
+        const a0 = [q.a[0] + dx * k + nx * o, q.a[1] + dy * k + ny * o], b0 = [q.b[0] - dx * k + nx * o, q.b[1] - dy * k + ny * o];
+        const a1 = [a0[0] - nx * (o + q.depth), a0[1] - ny * (o + q.depth)], b1 = [b0[0] - nx * (o + q.depth), b0[1] - ny * (o + q.depth)];
+        c.setHex(q.color);
+        quad([a0, b0, b0, a0], [q.y0, q.y0, q.y1, q.y1]);            // old yuz
+        quad([a0, a0, a1, a1], [q.y0, q.y1, q.y1, q.y0]);            // yon
+        quad([b0, b1, b1, b0], [q.y0, q.y0, q.y1, q.y1]);
+        quad([a0, b0, b1, a1], [q.y1, q.y1, q.y1, q.y1]);            // tepa
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+      this.aptBoxes = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); this.aptBoxes.renderOrder = 9; this.aptBoxes.castShadow = false; this.scene.add(this.aptBoxes);
+    }
+    this.invalidate();
+  }
+
   /** Soya va insolyatsiya hisobi uchun binolar prizmalari (loyiha + saqlanadigan va atrofdagi kontekst) */
   prisms(doc: Project, extra: { rings: XY[][]; h: number }[]): { ring: XY[]; top: number }[] {
     const fr = frame(doc.origin), fh = doc.settings.floorHeight, out: { ring: XY[]; top: number }[] = [];
