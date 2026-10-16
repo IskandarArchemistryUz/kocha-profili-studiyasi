@@ -582,6 +582,16 @@ export class Scene3D {
     return new Blob([buf], { type: 'model/gltf-binary' });
   }
 
+  /** OBJ (Wavefront): faqat sirtlar (chiziqlar va yorliqlarsiz); Y — yuqori, metr */
+  async exportOBJ(withCtx = false): Promise<string> {
+    const { OBJExporter } = await import('three/addons/exporters/OBJExporter.js');
+    const root = new THREE.Group(); root.name = 'Archemistry';
+    const add = (src: THREE.Object3D, name: string) => { const g = new THREE.Group(); g.name = name; src.updateMatrixWorld(true); src.traverse(o => { const m = o as THREE.Mesh; if (!m.isMesh || !m.visible) return; if ((m as unknown as THREE.InstancedMesh).isInstancedMesh) return; const c = new THREE.Mesh(m.geometry, m.material); c.name = m.name || name; m.matrixWorld.decompose(c.position, c.quaternion, c.scale); g.add(c); }); root.add(g); };
+    add(this.world, 'loyiha');
+    if (withCtx && this.ctx) add(this.ctx.group, 'atrof');
+    return new OBJExporter().parse(root);
+  }
+
   private marks: THREE.Mesh | null = null;
   /** Fasaddagi rangli belgilar (deraza insolyatsiyasi): har biri — fasad tekisligidagi toʻrtburchak; null — olib tashlash */
   setFacadeMarks(list: { a: XY; b: XY; y0: number; y1: number; color: number }[] | null): void {
