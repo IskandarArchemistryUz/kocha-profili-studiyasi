@@ -44,7 +44,7 @@ export function cleanRing(r0: XY[], minEdge = 0.6): XY[] {
 }
 
 /** Barcha tomondan cheginish — koʻpburchakdan qirra koridorlarini ayirish (botiq shakllarda ham toza, tikanlarsiz) */
-function insetAll(c: XY[], d: number): XY[] | null {
+function insetAll(c: XY[], d: number, minArea = 20): XY[] | null {
   const n = c.length, poly: Polygon = [[...c, c[0]].map(p => [p[0], p[1]] as [number, number])];
   const cors: Polygon[] = [];
   for (let k = 0; k < n; k++) {
@@ -56,14 +56,14 @@ function insetAll(c: XY[], d: number): XY[] | null {
   try { res = d > 0 ? polygonClipping.difference(poly, ...cors) : polygonClipping.union(poly, ...cors); } catch { return null; }
   let best: XY[] | null = null, ba = 0;
   for (const pp of res) { const ring = pp[0].slice(0, -1).map(q => [q[0], q[1]] as XY), ar = Math.abs(signedArea(ring)); if (ar > ba) { ba = ar; best = ring; } }
-  if (!best || ba < 20) return null;
+  if (!best || ba < minArea) return null;
   const out = cleanRing(signedArea(best) < 0 ? best.reverse() : best);
   return out.length >= 3 ? out : null;
 }
 
-export function insetRing(r: XY[], d: number, edge?: number): XY[] | null {
+export function insetRing(r: XY[], d: number, edge?: number, minArea = 20): XY[] | null {
   const c = ccw(r), flip = c !== r, n = c.length;
-  if (edge == null) return insetAll(c, d);
+  if (edge == null) return insetAll(c, d, minArea);
   const e = flip ? (n - 2 - edge + n) % n : edge;   // teskari tartibda qirra raqami
   const out = offsetEdges(c, c.map((_, k) => (k === e ? d : 0)), d < 0);
   return out ? cleanRing(out, 0.3) : null;
