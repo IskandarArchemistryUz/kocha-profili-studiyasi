@@ -12,10 +12,11 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await page.click('[data-style=albom]'); await page.click('#stylePop');
   await expect(page.locator('.pop')).toHaveCount(0);
   await page.click('[data-step=fasad]');
+  await page.click('[data-row=win]'); await page.click('[data-win=klassik]');
   await expect(page.locator('#facCheck')).toContainText('1:');
-  await page.click('[data-fac=panorama]');
+  await page.click('[data-win=panorama]');
   await expect(page.locator('#facCheck')).toContainText('mos emas');   // panorama — yorugʻlik 1:4,5 dan koʻp
-  await page.click('[data-fac=klassik]');
+  await page.click('[data-win=klassik]');
   await page.click('[data-step=kvartira]');
   await expect(page.locator('#aptPlan')).toContainText('kvartira');
   const n0 = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));

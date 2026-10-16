@@ -5,7 +5,7 @@ import './ui/style.css';
 import { blankProject, uid } from './core/doc';
 import { listProjects, getProject, putProject, deleteProject, importJSON, type ProjectMeta } from './storage/db';
 import { Editor } from './ui/editor';
-import { h, toast } from './ui/dom';
+import { h, toast, icl, IC } from './ui/dom';
 
 const root = document.getElementById('root')!;
 let editor: Editor | null = null;
@@ -37,11 +37,11 @@ async function home(): Promise<void> {
   };
   const created = (t: string) => new Date(t).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
   root.replaceChildren(h('main', { class: 'home' },
-    h('a', { class: 'lb', href: '../index.html', style: 'text-decoration:none' }, '← Archemistry Lab'),
+    h('a', { class: 'lb', href: '../index.html', style: 'text-decoration:none' }, ...icl(IC.back, 'Archemistry Lab')),
     h('h1', {}, 'Master reja'),
     h('p', { class: 'lead' }, 'Uchastkadan meʼyoriy tekshiruvgacha — bitta 3D oynada. Har bir koʻrsatkich bitta modeldan hisoblanadi va ShNQ bandiga bogʻlanadi. Bu 0-bosqich: poydevor.'),
     h('div', { class: 'row' },
-      h('button', { class: 'btn primary', id: 'newP', onclick: async () => { const p = blankProject(); await putProject(p); location.hash = `#/p/${p.id}`; } }, '＋ Yangi loyiha'),
+      h('button', { class: 'btn primary', id: 'newP', onclick: async () => { const p = blankProject(); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, 'Yangi loyiha')),
       h('button', { class: 'btn', onclick: () => file.click() }, 'Fayldan ochish'), file),
     list.length ? h('div', { class: 'cards', id: 'cards' }, ...list.map(p => h('a', { class: 'card', href: `#/p/${p.id}`, 'data-pid': p.id },
       h('b', {}, p.name), h('small', {}, `oʻzgargan: ${created(p.updated)}`),

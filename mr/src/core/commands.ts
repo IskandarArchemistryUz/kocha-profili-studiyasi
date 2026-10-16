@@ -17,6 +17,10 @@ export type Command =
   | { type: 'addBuilding'; footprint: Ring; floors: number; nonRes?: number; use?: Building['use']; id?: string }
   | { type: 'updateBuilding'; id: string; patch: Partial<Omit<Building, 'id'>> }
   | { type: 'removeBuilding'; id: string }
+  /** tanlanganlarni oʻchirish: loyiha binolari va atrofdagi (OSM) binolar — bitta qadam */
+  | { type: 'deleteSelection'; ids: string[]; ctx: number[] }
+  /** atrofdagi olib tashlangan binolar roʻyxatini almashtirish (qaytarish) */
+  | { type: 'setRemoved'; removed: number[] }
   | { type: 'setSettings'; patch: Partial<Settings> }
   | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
   | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
@@ -27,7 +31,7 @@ export type Command =
   | { type: 'addPoi'; poi: ManualPoi }
   | { type: 'removePoi'; id: string }
   /** bir nechta binoga material va/yoki tom turi */
-  | { type: 'styleBuildings'; ids: string[]; mat?: Building['mat']; roof?: Building['roof']; win?: Building['win']; bal?: Building['bal'] }
+  | { type: 'styleBuildings'; ids: string[]; mat?: Building['mat']; roof?: Building['roof']; win?: Building['win'] | 'yoq'; bal?: Building['bal']; parapet?: number; shade?: Building['shade'] | 'yoq' }
   | { type: 'addView'; view: SavedView }
   | { type: 'removeView'; id: string }
   /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
@@ -48,6 +52,8 @@ export function label(c: Command): string {
     case 'addBuilding': return 'Bino qoʻshildi';
     case 'updateBuilding': return 'Bino oʻzgardi';
     case 'removeBuilding': return 'Bino oʻchirildi';
+    case 'deleteSelection': return `Oʻchirildi: ${c.ids.length + c.ctx.length} ta obyekt`;
+    case 'setRemoved': return 'Atrof binolari qaytarildi';
     case 'setSettings': return 'Sozlamalar';
     case 'addStreet': return 'Koʻcha qoʻshildi';
     case 'updateStreet': return 'Koʻcha oʻzgardi';
@@ -56,7 +62,7 @@ export function label(c: Command): string {
     case 'setKeep': return 'Saqlanadigan binolar';
     case 'addPoi': return 'Xizmat obyekti qoʻshildi';
     case 'removePoi': return 'Xizmat obyekti oʻchirildi';
-    case 'styleBuildings': return c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : 'Fasad materiali';
+    case 'styleBuildings': return c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : c.parapet != null ? 'Parapet' : c.shade ? 'Quyosh himoyasi' : 'Fasad materiali';
     case 'addView': return 'Koʻrinish saqlandi';
     case 'removeView': return 'Koʻrinish oʻchirildi';
     case 'setParcels': return 'Parsellar';
@@ -121,6 +127,12 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       d.buildings = doc.buildings.slice(); d.buildings[i] = b; return d;
     }
     case 'removeBuilding': d.buildings = doc.buildings.filter(b => b.id !== c.id); return d;
+    case 'deleteSelection': {
+      const ids = new Set(c.ids); d.buildings = doc.buildings.filter(b => !ids.has(b.id));
+      const rm = [...new Set([...(doc.removed ?? []), ...c.ctx])]; if (rm.length) d.removed = rm;
+      if (c.ctx.length) d.keep = doc.keep.filter(k => !c.ctx.includes(k)); return d;
+    }
+    case 'setRemoved': { if (c.removed.length) d.removed = [...new Set(c.removed)]; else delete d.removed; return d; }
     case 'addStreet': {
       if (c.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');
       d.streets = [...doc.streets, { id: c.id ?? uid('s_'), axis: c.axis.map(p => [p[0], p[1]] as LngLat), profile: c.profile, ...(c.osm != null ? { osm: c.osm } : {}) }]; return d;
@@ -135,7 +147,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
-    case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}) } : b); return d; }
+    case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}) } : b); return d; }
     case 'addView': d.views = [...doc.views, { ...c.view, pos: [...c.view.pos] as SavedView['pos'], target: [...c.view.target] as SavedView['target'] }]; return d;
     case 'removeView': d.views = doc.views.filter(x => x.id !== c.id); return d;
     case 'setParcels': {

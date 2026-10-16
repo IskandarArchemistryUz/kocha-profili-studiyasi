@@ -17,7 +17,7 @@ test('qismiy chok: torets devor uzun devor oʻrtasida — yopilgan qismda deraza
   await page.click('#drawBld');
   await expect(page.locator('#bldSt')).toContainText('2 bino');
   await page.click('[data-step=fasad]');
-  await page.click('#balTypes [data-bal=ochiq]'); await page.click('[data-mat=gisht]');
+  await page.click('[data-row=bal]'); await page.click('[data-bal=ochiq]'); await page.click('[data-row=mat]'); await page.click('[data-mat=gisht]');
   await page.click('[data-view=axo]');
   await page.mouse.move(cx, cy); await page.mouse.wheel(0, -500); await page.waitForTimeout(300); if (shots) await page.screenshot({ path: `${shots}/chok.png` }); await page.mouse.wheel(0, -700);
   await page.waitForTimeout(500);

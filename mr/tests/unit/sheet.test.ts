@@ -35,6 +35,15 @@ describe('Grafika varaqlari', () => {
     expect(svg).toContain('M 1:1000');
     expect(svg).toMatch(/>9<\/text>/);                // qavatlar soni
   });
+  it('Illustrator uchun: har qatlam yuqori darajadagi i:layer guruhi, kesish qatlam ichida; olib tashlangan atrof binosi yoʻq', () => {
+    const { svg } = sheetSvg(project(), ctx, opts(), new Date(), true);
+    expect(svg).toContain('xmlns:i="http://ns.adobe.com/AdobeIllustrator/10.0/"');
+    for (const id of ['Fon', 'Atrof_binolar', 'Yangi_binolar', 'Sarlavha']) expect(svg).toMatch(new RegExp(`<g id="${id}" i:layer="yes"`));
+    expect(svg).not.toMatch(/<g clip-path="url\(#vp\)"><g id=/);
+    const n = (x: string) => (x.match(/<path/g) ?? []).length;
+    const p = project(); p.removed = [2];
+    expect(n(sheetSvg(p, ctx, opts()).svg)).toBeLessThan(n(sheetSvg(project(), ctx, opts()).svg));
+  });
   it('uchastka ichidagi saqlanmagan mavjud bino — buziladigan qatlamida', () => {
     const p = project(), { svg } = sheetSvg(p, ctx, opts());
     expect(svg).toContain('Buziladigan binolar (1)');

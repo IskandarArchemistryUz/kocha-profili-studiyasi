@@ -43,6 +43,15 @@ describe('buyruqlar va tarix', () => {
     const d2 = apply(d, { type: 'rename', name: 'B' });
     expect(d.name).toBe('A'); expect(d2.name).toBe('B');
   });
+  it('tanlanganlarni oʻchirish: loyiha binolari va atrof binolari bitta qadamda; qaytarish', () => {
+    let d = blankProject();
+    d = apply(d, { type: 'addBuilding', id: 'b1', footprint: [[0, 0], [0.0002, 0], [0.0002, 0.0002], [0, 0.0002]], floors: 3 });
+    d = apply(d, { type: 'setKeep', keep: [7, 9] });
+    const d2 = apply(d, { type: 'deleteSelection', ids: ['b1'], ctx: [7, 11] });
+    expect(d2.buildings.length).toBe(0); expect(d2.removed).toEqual([7, 11]); expect(d2.keep).toEqual([9]);
+    expect(migrate(JSON.parse(JSON.stringify(d2))).removed).toEqual([7, 11]);
+    expect(apply(d2, { type: 'setRemoved', removed: [] }).removed).toBeUndefined();
+  });
   it('notoʻgʻri buyruq rad etiladi', () => {
     const d = blankProject();
     expect(() => apply(d, { type: 'rename', name: '  ' })).toThrow(CommandError);

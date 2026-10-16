@@ -280,7 +280,7 @@ Photorealistic, natural materials, no text, no watermark.`
 function ui(box){const css=document.createElement('style');css.textContent=`
 #m3Bar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:2px;background:#fff;border:1px solid #dedcd7;box-shadow:0 6px 20px rgba(0,0,0,.08);padding:4px;z-index:5}
 #m3Bar button{border:0;background:none;height:34px;padding:0 10px;font:12.5px Archivo,sans-serif;letter-spacing:.06em;display:flex;align-items:center;gap:6px;color:#141414;cursor:pointer}#m3Bar button[aria-pressed=true]{background:#141414;color:#f4f3f1}#m3Bar .dv{width:1px;background:#dedcd7;margin:4px 3px}
-#m3Bar svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5}
+#m3Bar svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 #m3Sun{position:absolute;left:14px;top:14px;background:#fff;border:1px solid #dedcd7;padding:10px 12px;z-index:5;width:270px;font:13.5px Archivo,sans-serif;display:flex;flex-direction:column;gap:8px}
 #m3Sun .r{display:flex;gap:6px;align-items:center}#m3Sun input[type=range]{flex:1}#m3Sun select{font:13.5px Archivo,sans-serif;border:1px solid #cfccc5;padding:3px}
 #m3Sun .b{border:1px solid #cfccc5;background:#fff;padding:4px 8px;font:12px Archivo,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}#m3Sun .b[aria-pressed=true]{background:#141414;color:#fff;border-color:#141414}

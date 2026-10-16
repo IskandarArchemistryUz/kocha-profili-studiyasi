@@ -15,7 +15,7 @@
 *{box-sizing:border-box}html,body{margin:0;height:100%}
 body{font:14.5px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 a{color:inherit;text-decoration:none}button,input,select{font:inherit;color:inherit}button{cursor:pointer}
-header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line)}
+header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);min-width:0;overflow:hidden}header .btn{white-space:nowrap;flex:none}header #sQ{min-width:120px;width:clamp(120px,14vw,220px)!important}header #pName{min-width:90px}@media (max-width:1500px){header{gap:8px}header .crumb{display:none}}
 .brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:500;font-size:14.5px;letter-spacing:.2em}.crumb{font-size:12.5px;letter-spacing:.14em;color:var(--grey)}.sp{flex:1}
 #pName{border:1px solid transparent;background:transparent;font-size:15px;font-weight:500;padding:4px 6px;width:220px;border-radius:2px}#pName:hover,#pName:focus{border-color:var(--line2);background:#fff}
 .btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:transparent;border-radius:2px;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
@@ -24,7 +24,7 @@ header{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 
 main{flex:1;display:grid;grid-template-columns:56px 1fr 350px;min-height:0}
 .rail{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:10px}
 .rail button{width:40px;height:40px;border:0;background:none;border-radius:2px;display:grid;place-items:center;position:relative}.rail button:hover{background:var(--bg)}.rail button[aria-pressed=true]{background:var(--ink);color:#fff}
-.rail svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rail svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .rail .k{position:absolute;right:3px;bottom:2px;font:10.5px var(--mono);opacity:.6}
 .mapw{position:relative;min-width:0;overflow:hidden}#map,#map3{position:absolute;inset:0}#map3{display:none;z-index:650;background:#e9e6df}.v3d #map{visibility:hidden}.v3d .basesw{display:none}
 .hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:600;background:var(--ink);color:#f4f3f1;padding:9px 14px;font-size:14px;border-radius:2px;max-width:640px}

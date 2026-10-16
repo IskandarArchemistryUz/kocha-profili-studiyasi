@@ -50,3 +50,17 @@ export function download(name: string, data: string | Blob, type = 'application/
   const a = h('a', { href: url, download: name }); document.body.appendChild(a); a.click(); a.remove();
   if (!url.startsWith('data:')) setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/** Yagona ikonka tili (dizayn «Ikonkalar»): 24 × 24, chiziq 1,75, uchlar yumaloq, rang — matn rangi */
+export const IC = {
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  pencil: '<path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3"/>',
+  back: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  next: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  chevDown: '<path d="M6 9l6 6 6-6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+};
+/** ikonka + matn (tugma ichida) */
+export function icl(icon: string, label: string): (Node | string)[] { const s = svgIcon(icon); s.classList.add('ic'); return [s, label]; }

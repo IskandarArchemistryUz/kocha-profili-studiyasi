@@ -35,7 +35,7 @@ button{cursor:pointer}
 .btn:disabled{opacity:.4;cursor:default;border-color:var(--line)}
 .ib{width:32px;height:32px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);display:grid;place-items:center;padding:0}
 .ib:hover{border-color:var(--ink)}.ib:disabled{opacity:.35;cursor:default;border-color:var(--line)}
-.ib svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ib svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
 .seg button{border:0;border-left:1px solid var(--line);background:none;padding:0 12px;height:30px;font:500 12.5px var(--sans)}
 .seg button:first-child{border-left:0}.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
@@ -59,7 +59,7 @@ button{cursor:pointer}
 /* qadamlar qatori */
 .rail{position:absolute;left:12px;top:12px;bottom:72px;width:52px;background:var(--surface);border-radius:10px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;z-index:5;overflow-y:auto}
 .rail button{position:relative;width:40px;height:40px;border:0;border-radius:8px;background:none;display:grid;place-items:center;color:var(--ink)}
-.rail button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rail button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .rail button .n{position:absolute;left:3px;top:2px;font:500 8.5px var(--mono);color:var(--muted)}
 .rail button:hover{background:var(--sunk)}
 .rail button[aria-current=step]{background:var(--accent);color:#fff}.rail button[aria-current=step] .n{color:#dbe7f4}
@@ -183,7 +183,7 @@ details.manual{border-top:1px solid var(--line);padding-top:8px;display:grid;gap
 
 .typos{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
 .typo{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:7px 4px 6px;display:grid;justify-items:center;gap:4px;font-size:11px;line-height:1.15;text-align:center}
-.typo svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round;color:var(--muted)}
+.typo svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linejoin:round;color:var(--muted)}
 .typo:hover{border-color:var(--ink)}.typo[aria-pressed=true]{border-color:var(--ink);background:var(--ink);color:#fff}.typo[aria-pressed=true] svg{color:#fff}
 
 /* bino muharriri */
@@ -239,7 +239,7 @@ html,body{background:var(--bg);-webkit-font-smoothing:antialiased;letter-spacing
 .btn:disabled{opacity:.38;background:var(--fill)}
 .ib{width:36px;height:36px;border:0;background:var(--fill);border-radius:var(--r-pill)}
 .ib:hover{border-color:transparent;background:var(--fill-2)}.ib:disabled{opacity:.32}
-.ib svg{width:17px;height:17px;stroke-width:1.7}
+.ib svg{width:17px;height:17px;stroke-width:1.75}
 .ib.sm{width:30px;height:30px;background:none}.ib.sm:hover{background:var(--fill)}
 
 /* segmentlangan boshqaruv: kulrang tagi, oq «tabletka» */
@@ -277,7 +277,7 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border:0;border-radiu
 .rail{top:80px;bottom:84px;width:56px;border-radius:18px;padding:8px 0;gap:4px;box-shadow:var(--sh-float);background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);scrollbar-width:none}
 .rail::-webkit-scrollbar{display:none}
 .rail button{width:44px;height:44px;border-radius:var(--r-md);flex-shrink:0}
-.rail button svg{width:19px;height:19px;stroke-width:1.7}
+.rail button svg{width:20px;height:20px;stroke-width:1.75}
 .rail button .n{left:4px;top:3px;font:600 8.5px var(--sans)}
 .rail button:hover{background:var(--fill)}
 .rail button[aria-current=step]{background:var(--ink);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18)}.rail button[aria-current=step] .n{color:rgba(255,255,255,.6)}
@@ -350,7 +350,7 @@ details[open]>:not(summary){animation:accIn .3s var(--ease)}
 /* tanlash kartalari: tipologiya, variantlar, materiallar, koʻrinishlar */
 .typos{gap:8px}
 .typo{border:0;background:var(--grouped);border-radius:var(--r-md);padding:10px 4px 8px;font:500 11px/1.15 var(--sans);gap:6px;box-shadow:inset 0 0 0 .5px var(--hairline)}
-.typo svg{width:28px;height:28px;stroke-width:1.4}
+.typo svg{width:24px;height:24px;stroke-width:1.75}
 .typo:hover{background:var(--fill);border-color:transparent}
 .typo[aria-pressed=true]{background:var(--ink);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .opts{gap:6px}
@@ -425,7 +425,7 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 /* oʻng pastki burchak: xarita va qatlamlar */
 .mapctl{position:absolute;right:12px;bottom:12px;z-index:6;display:flex;flex-direction:column;gap:6px;align-items:stretch}
 .mapbtn{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 11px;border:0;border-radius:var(--r-pill);background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:var(--sh-float);font:600 13px var(--sans);color:var(--ink);transition:transform .25s var(--spring),background-color .2s}
-.mapbtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mapbtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .mapbtn:hover{background:#fff}.mapbtn:active{transform:scale(.95)}
 .mapbtn[aria-expanded=true]{background:var(--ink);color:#fff}
 .pop[data-dir=up]{transform-origin:bottom right}
@@ -447,7 +447,7 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 .panel[data-mode=bino] header h2{font-size:19px}
 .panel[data-mode=bino] header p{margin:0}
 .back{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:4px 6px 4px 0;font:600 13px var(--sans);color:var(--sel);border-radius:var(--r-xs)}
-.back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .back:hover{text-decoration:underline}
 .panel .ibody{display:flex;flex-direction:column;gap:12px}
 .panel .ibody .col.grow{min-width:0}
@@ -527,3 +527,68 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 .alb-tot{background:#fff;border:1px solid var(--line);border-radius:10px;padding:4px 10px}.alb-tot div{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--hairline,#eee)}.alb-tot div:last-child{border:0}
 .alb-info .sp{flex:1}.alb-info .row{gap:6px}.alb-info .grow{flex:1}
 @media (max-width:900px){.alb{grid-template-columns:1fr}.alb-side{display:none}.alb-sheet{grid-template-columns:1fr}}
+/* ramka bilan tanlash (Shift + sudrash) */
+.selbox{position:fixed;z-index:40;pointer-events:none;border:1.5px solid #2a6fb0;background:rgba(42,111,176,.10);border-radius:3px}
+
+/* ===== Fasad va tom (dizayn B) va bino paneli (Hajm A) ===== */
+.fpv{border-radius:16px;background:var(--bg);overflow:hidden}
+.fpv svg{display:block;width:100%;max-height:230px}
+.fpv svg path,.fpv svg rect{transition:all .45s var(--ease)}
+.fsub{margin:-4px 0 0 2px;font-size:12px}
+.flist{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--sh-card);overflow:hidden}
+.flist>*+*,.flist #roofSt>*+*,.flist>#roofSt{border-top:.5px solid var(--hairline)}
+.frow{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 12px;border:0;background:transparent;font:inherit;font-size:14px;color:var(--ink);text-align:left;cursor:pointer;transition:background-color .16s}
+button.frow:hover{background:var(--grouped)}
+.frow.static{cursor:default;font-size:13px;align-items:flex-start;padding-top:9px;padding-bottom:9px}
+.frow.static .col{gap:1px}.frow.static small{font-size:11.5px;line-height:1.35}
+.frow>svg{width:16px;height:16px;fill:none;stroke:#a19e97;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;transition:transform .3s var(--ease)}
+.frow[aria-expanded=true]>svg{transform:rotate(180deg)}
+.fic{width:32px;height:32px;border-radius:9px;background:var(--grouped);display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden}
+.fic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.fic svg[viewBox^="0 0 32"],.fic svg[viewBox^="0 0 40"]{width:32px;height:32px;stroke:none}
+.fval{color:var(--muted);font-size:13.5px;text-align:right}
+.fstrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:2px 12px 12px}
+.fnote{margin:-4px 12px 10px !important}
+.ftile{position:relative;min-width:0;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px 4px;border:0;border-radius:14px;background:var(--grouped);font:inherit;font-size:11.5px;line-height:1.2;color:var(--ink-2);text-align:center;cursor:pointer;transition:transform .32s var(--spring),box-shadow .16s,background-color .16s}
+.ftile:hover{background:var(--fill)}
+.ftile:active{transform:scale(.95)}
+.ftile:disabled{opacity:.4;cursor:default}
+.ftile[aria-pressed=true]{background:#fff;color:var(--ink);font-weight:600;box-shadow:inset 0 0 0 2px var(--ink)}
+.ftile>svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.ftile .fsw{width:100%;height:26px;border-radius:7px;overflow:hidden;display:block}.ftile .fsw svg{display:block;width:100%;height:100%}
+.ftile .ck{position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:999px;background:var(--ink);display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.4);transition:opacity .16s,transform .32s var(--spring)}
+.ftile[aria-pressed=true] .ck{opacity:1;transform:scale(1)}
+.ftile .ck svg{width:10px;height:10px;stroke:#fff;stroke-width:3;fill:none}
+.ftiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ftiles .ftile{min-height:62px}
+.unit{display:inline-flex;align-items:center;gap:4px}.unit input{width:4.2em;height:30px;border:0;border-radius:8px;background:var(--fill);padding:0 6px;font:500 13px var(--sans);text-align:right}.unit small{color:var(--muted)}
+.grow-row{display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 8px 6px 12px;font-size:13.5px}
+.stepper{display:inline-flex;align-items:center;height:32px;background:var(--fill);border-radius:10px}
+.stepper button{width:36px;height:32px;border:0;background:transparent;font:400 18px var(--sans);color:var(--ink);cursor:pointer;border-radius:10px;transition:transform .3s var(--spring)}
+.stepper button:active:not(:disabled){transform:scale(.88)}.stepper button:disabled{opacity:.3;cursor:default}
+.stepper b{min-width:28px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.stepper i{width:.5px;height:16px;background:rgba(0,0,0,.15)}
+.hrow{display:flex;gap:10px;align-items:flex-end}.msec{flex:none}
+.rtiles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rtiles>div{padding:9px 12px;border-radius:12px;background:var(--grouped);display:flex;flex-direction:column;gap:2px}
+.rtiles small{font-size:11.5px;color:var(--muted)}.rtiles b{font-size:18px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.panel footer .muted.grow{align-self:center;flex:1}.panel footer #iToFasad{flex:none;gap:6px}
+#iToFasad svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.ihead .ib svg{width:16px;height:16px}
+/* sahnadagi bino asboblari */
+.btools{position:absolute;z-index:6;transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:4px;border-radius:14px;background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);box-shadow:var(--sh-float);white-space:nowrap}
+.btools .ib{width:32px;height:32px;background:transparent;border:0}
+.btools .ib:hover{background:var(--fill)}
+.btools .ib.danger{color:var(--bad)}
+.btools .sep{width:.5px;height:20px;background:rgba(0,0,0,.14);margin:0 3px}
+.btools .num{font-size:12px;min-width:22px;text-align:center}
+.btools .chip.sel{background:#ecf2f9;color:var(--sel);font:600 12px var(--sans);padding:3px 8px;border-radius:999px}
+.ihead .inav{margin-top:4px;gap:2px}.ihead .inav .lb{margin:0}.ihead .inav .num{font-size:12px;min-width:44px;text-align:center;white-space:nowrap}
+.ihead .back{white-space:nowrap}
+/* matn yonidagi ikonka (bitta til: 24 × 24, 1,75) */
+svg.ic,.btn>svg,.dd>svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
+.btn{gap:6px}
+.home>a.lb{display:inline-flex;align-items:center;gap:6px}
+.list .it button svg,.dhead .ib svg,#albClose svg,.osmbox .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round}
+/* qatordagi maydonlar torayishi mumkin — tugma panel chetidan chiqmasin */
+.row>.field.grow{min-width:0;flex:1 1 0}.row>.field.grow input{width:100%;min-width:0}

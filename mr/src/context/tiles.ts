@@ -8,6 +8,8 @@ import type { BBox } from './osm';
 
 export const TERRAIN_URL = (z: number, x: number, y: number) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 export const IMAGERY_URL = (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+/** Fon xaritasi (atrof yuklanmaganda joy tanlash uchun): CARTO Voyager — © OpenStreetMap hissachilari, © CARTO */
+export const CARTO_URL = (z: number, x: number, y: number) => `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
 
 /** Global Mercator piksel koordinatasi (256 px plitka) */
 export function mercPx(p: LngLat, z: number): [number, number] {
@@ -99,6 +101,23 @@ export async function loadImagery(radius: number, bb: BBox, f: typeof fetch = fe
   const image = 'convertToBlob' in m.cv ? await (m.cv as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.86 })
     : await new Promise<Blob>((ok, no) => (m.cv as HTMLCanvasElement).toBlob(b => b ? ok(b) : no(new Error('toBlob')), 'image/jpeg', 0.86));
   return { image, z, x0: m.x0, y0: m.y0, W: m.W, H: m.H };
+}
+
+/** Fon xaritasi: atrof yuklanguncha sahna ostida (maket — CARTO, sunʼiy yoʻldosh — Esri) */
+export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' | 'sputnik', f: typeof fetch = fetch): Promise<Imagery | null> {
+  const dLat = radius / 110_540, dLng = radius / latK(center[1]);
+  const bb: BBox = [center[1] - dLat, center[0] - dLng, center[1] + dLat, center[0] + dLng];   // janub, gʻarb, shimol, sharq
+  const z = radius <= 1200 ? 16 : 15;
+  const m = await mosaic(bb, z, kind === 'sputnik' ? IMAGERY_URL : CARTO_URL, f);
+  if (!m.ok) return null;
+  const image = 'convertToBlob' in m.cv ? await (m.cv as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.88 })
+    : await new Promise<Blob>((ok, no) => (m.cv as HTMLCanvasElement).toBlob(b => b ? ok(b) : no(new Error('toBlob')), 'image/jpeg', 0.88));
+  return { image, z, x0: m.x0, y0: m.y0, W: m.W, H: m.H };
+}
+/** Mercator piksel → geografik nuqta */
+export function pxToLngLat(px: number, py: number, z: number): LngLat {
+  const n = 256 * 2 ** z;
+  return [px / n * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * py / n))) * 180 / Math.PI];
 }
 
 /** Tasvirdagi UV (0..1) — geografik nuqta uchun */
