@@ -42,7 +42,7 @@ const badness = (a: number) => (isWest(a) ? 2 : 0) + Math.cos(a * Math.PI / 180)
  * Fasad ~3,3 m li modullarga (derazalar) boʻlinadi; kvartiralar QAVAT REJASIDAN olinadi (sectionplan.ts):
  * avval zina-lift yadrosi va koridor, keyin har kvartira koridorga eshik va fasadga deraza bilan.
  */
-export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M'): Layout {
+export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M', court: XY | null = null): Layout {
   const ring = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, mods: Module[] = [];
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i], b = ring[(i + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
@@ -54,7 +54,7 @@ export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: num
       mods.push({ a: ma, b: mb, p: [mid[0] + n[0] * 0.3, mid[1] + n[1] * 0.3], az: az(n), blind: blindAt([mid[0] + n[0] * 0.8, mid[1] + n[1] * 0.8]) || w < 2.4 });
     }
   }
-  const plan = rulePlan(ring, mods, mix, size);
+  const plan = rulePlan(ring, mods, mix, size, court);
   const apts: Apt[] = plan.apts.map(a => ({ rooms: a.rooms, mods: a.mods, living: [...a.mods].sort((x, y) => badness(mods[x].az) - badness(mods[y].az)).slice(0, a.rooms), area: a.area * 0.85 }));
   return { mods, apts, plan };
 }
@@ -147,12 +147,16 @@ export function planApartments(doc: Project): SecPlan[] {
   });
   const inside = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
   const out: SecPlan[] = [];
+  // hovli tomoni: uchastka (yoki barcha binolar) markazi — yadro va kirish shu tomonda
+  const site = doc.site?.rings[0]?.map(fr.toLocal);
+  const pts = site && site.length >= 3 ? site : all.flatMap(x => x.r);
+  const court: XY | null = pts.length ? [pts.reduce((t, p) => t + p[0], 0) / pts.length, pts.reduce((t, p) => t + p[1], 0) / pts.length] : null;
   for (const s of all) {
     const b = s.b; if (useDef(b.use).res <= 0 || b.floors - b.nonRes < 1) continue;
     const z0 = b.z0 ?? 0, top = z0 + b.floors;
     // berk devor: qoʻshni seksiya shu sathda tegib tursa
     const blindAt = (p: XY) => all.some(o => o !== s && p[0] >= o.bb[0] && p[0] <= o.bb[2] && p[1] >= o.bb[1] && p[1] <= o.bb[3] && (o.b.z0 ?? 0) < top && (o.b.z0 ?? 0) + o.b.floors > z0 + b.nonRes && inside(p, o.r));
-    const layout = layoutSection(s.r, blindAt, mix, MOD_W, doc.settings.aptSize ?? 'M');
+    const layout = layoutSection(s.r, blindAt, mix, MOD_W, doc.settings.aptSize ?? 'M', court);
     const halfDepth = Math.max(4, Math.min(9, sectionDepth(s.r, layout.mods) / 2));
     if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth });
   }

@@ -34,10 +34,11 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await page.click('[data-a3d=insol]');
   await expect(page.locator('[data-a3d=insol]')).toHaveAttribute('aria-pressed', 'true');
   if (shots) await page.screenshot({ path: `${shots}/apt_insol.png` });
+  const nM = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));   // shu miksda M
   await page.click('[data-size=L]');
   await expect(page.locator('[data-size=L]')).toHaveAttribute('aria-pressed', 'true');
   const nL = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));
-  expect(nL).toBeLessThanOrEqual(n0 * 1.05);   // L — kattaroq kvartiralar; modul toʻrida kichik sakrash boʻlishi mumkin
+  expect(nL).toBeLessThanOrEqual(nM);   // L — kattaroq kvartiralar
   await page.click('[data-size=M]');
   // seksiya rejasi: SVG koʻrinadi, yuklab olinadi
   await expect(page.locator('#planBox svg')).toBeVisible();

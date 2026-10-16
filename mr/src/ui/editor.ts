@@ -984,7 +984,7 @@ export class Editor {
       h('div', { class: 'seg full', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name)))));
     if (!plans.length) { body.append(h('p', { class: 'note' }, 'Turar joy seksiyalari yoʻq. «Hajmlar» qadamida generatsiya qiling (yakka uylar va taunhauslar kvartirali emas).')); return; }
     body.append(h('div', { class: 'ctxst', id: 'aptPlan' }, h('b', {}, `${fmt(perFloor)} kvartira`), ` · ${fmt(plans.length)} seksiya`, sm.forced ? h('span', { class: 'chip', 'data-s': 'review', style: 'margin-left:6px' }, `${fmt(sm.forced)} miksdan tashqari`) : '', h('br'),
-      h('span', { class: 'muted' }, `Reja qoidadan: kirish → zina-lift → koridor → har kvartiraga koridordan eshik va fasadga deraza (modul ${fmt(MOD_W, 1)} m). Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (kvartiraga 1 joy) ham olinadi.`)));
+      h('span', { class: 'muted' }, `Reja qoidadan: seksiya → hovlidan kirish → zina-lift → qisqa koridor → har kvartiraga eshik, fasadga deraza (modul ${fmt(MOD_W, 1)} m), qorongʻi kvartira yoʻq. Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (kvartiraga 1 joy) ham olinadi.`)));
     // 3D koʻrinish va qavat slideri
     const maxF = Math.max(1, ...plans.map(p => p.z0 + p.f1)), fh = doc.settings.floorHeight;
     const fl = h('input', { type: 'range', min: 1, max: maxF, step: 1, value: this.aptFloor ?? maxF, id: 'aptFloor', style: 'flex:1' }) as HTMLInputElement, flT = h('b', { class: 'num', style: 'width:5em;text-align:right' }, this.aptFloor ? `${this.aptFloor} / ${maxF}` : 'hammasi');
@@ -1001,7 +1001,7 @@ export class Editor {
         h('div', { class: 'row' },
           h('button', { class: 'btn grow', id: 'planSvg', onclick: () => download(`${safe(doc.name)}_seksiya${si + 1}_q${fl0}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG'),
           h('button', { class: 'btn grow', id: 'plansAll', title: 'Barcha seksiyalarning shu qavat rejalari — bitta SVG', onclick: () => { const all = allPlansSvg(plans, fl0, 200, name); if (all) download(`${safe(doc.name)}_rejalar_q${fl0}.svg`, all, 'image/svg+xml'); else toast('Bu qavatda seksiya yoʻq'); } }, 'Hammasi — SVG')),
-        h('span', { class: 'note' }, 'Sahnada seksiyani bosing — uning rejasi. Chuqurlik ≥ 13 m — oʻrta koridor (ikki tomonlama), < 13 m — orqa fasad boʻylab koridor. Torets va burchakda — katta kvartira. Kvartira boʻla olmagan qism — «texnik». Xonalar ichki rejasi emas.')),
+        h('span', { class: 'note' }, 'Sahnada binoni bosing — uning rejasi. Bino seksiyalarga boʻlinadi (≤ 36 m, oraligʻida yongʻin devori): har seksiyaning oʻz zina-lifti va qisqa koridori. Yadro — hovli tomonda, burchakda — ichki burchakda (zina hovli fasadida). Chuqurlik ≥ 13 m — oʻrta koridor, < 13 m — hovli fasadi boʻylab. Xonalar ichki rejasi emas.')),
         h('div', { class: 'field', id: 'planChecks' }, h('span', { class: 'lb' }, `Reja qoidalari · ${name(sel, si)}${allBad ? ` · barcha seksiyalarda ${allBad} ta buzilish` : ''}`),
           h('table', { class: 'reg' }, h('tbody', {}, ...res.checks.map(c => h('tr', { 'data-check': c.id },
             h('td', {}, h('span', { class: 'chip', 'data-s': c.ok === true ? 'pass' : c.ok === false ? 'fail' : 'review' }, c.ok === true ? 'mos' : c.ok === false ? 'mos emas' : 'tekshirilsin')),

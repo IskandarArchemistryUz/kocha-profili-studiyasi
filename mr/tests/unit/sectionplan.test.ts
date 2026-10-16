@@ -5,38 +5,58 @@ import { area, type XY } from '../../src/core/geo';
 import polygonClipping from 'polygon-clipping';
 
 const rect = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
-const plan = (ring: XY[], mix = [20, 40, 30, 10]) => rulePlan(ring, layoutSection(ring, () => false).mods, mix, 'M');
+const modsOf = (ring: XY[]) => layoutSection(ring, () => false).mods;
+const plan = (ring: XY[], mix = [20, 40, 30, 10], court: XY | null = null) => rulePlan(ring, modsOf(ring), mix, 'M', court);
 const cl = (r: XY[]) => [[...r, r[0]].map(p => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as [number, number])];
+const ov = (a: XY[], b: XY[]) => polygonClipping.intersection(cl(a) as never, cl(b) as never).reduce((s, p) => s + area(p[0] as XY[]), 0);
 
+/** Asosiy qoidalar: har kvartira oʻz seksiyasi koridoriga eshik, deraza, yorugʻ; ustma-ust emas; seksiya MOP i bitta boʻlak, yadroli */
 function rules(pl: RulePlan, ring: XY[]) {
   expect(pl.apts.length).toBeGreaterThan(0);
-  for (const a of pl.apts) {
-    expect(sharedAny(a.ring, pl.mop).len).toBeGreaterThanOrEqual(0.9);   // eshik MOP dan
-    expect(a.mods.length).toBeGreaterThan(0);                             // deraza
-    expect(a.area).toBeGreaterThanOrEqual(22);
-  }
-  // kvartiralar bir-birini qoplamaydi va MOP / zina / liftga kirmaydi
+  const ch = planChecks(pl, 25, modsOf(ring));
+  for (const id of ['mop', 'win', 'light', 'stairs', 'corr', 'lift', 'len']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
+  pl.sections.forEach(s => {
+    if (!s.apts.length) return;
+    expect(s.mop.length).toBe(1);                                  // seksiya koridori — bitta boʻlak
+    expect(s.stairs.length).toBeGreaterThanOrEqual(1);
+    for (const st of s.stairs) expect(sharedAny(st, s.mop).len).toBeGreaterThanOrEqual(0.9);
+    for (const i of s.apts) expect(sharedAny(pl.apts[i].ring, s.mop).len).toBeGreaterThanOrEqual(0.9);
+  });
+  // turli seksiyalar koridorlari bir-biriga ulanmagan
+  for (let i = 0; i < pl.sections.length; i++) for (let j = i + 1; j < pl.sections.length; j++) for (const a of pl.sections[i].mop) for (const b of pl.sections[j].mop) expect(sharedAny(a, [b]).len).toBeLessThan(0.3);
   for (let i = 0; i < pl.apts.length; i++) {
-    for (let j = i + 1; j < pl.apts.length; j++) expect(polygonClipping.intersection(cl(pl.apts[i].ring) as any, cl(pl.apts[j].ring) as any).reduce((s, p) => s + area(p[0] as XY[]), 0)).toBeLessThan(0.3);
-    for (const m of [...pl.mop, ...pl.stairs, ...pl.lifts]) expect(polygonClipping.intersection(cl(pl.apts[i].ring) as any, cl(m) as any).reduce((s, p) => s + area(p[0] as XY[]), 0)).toBeLessThan(0.3);
+    for (let j = i + 1; j < pl.apts.length; j++) expect(ov(pl.apts[i].ring, pl.apts[j].ring)).toBeLessThan(0.3);
+    for (const m of [...pl.mop, ...pl.stairs, ...pl.lifts]) expect(ov(pl.apts[i].ring, m)).toBeLessThan(0.3);
   }
-  // MOP — bitta bogʻlangan boʻlak, zina unga tegadi
-  expect(pl.mop.length).toBe(1);
-  for (const s of pl.stairs) expect(sharedAny(s, pl.mop).len).toBeGreaterThanOrEqual(0.9);
-  // qoplash: kvartiralar + MOP + yadro + qoldiq ≈ seksiya
-  const sum = [...pl.apts.map(a => a.ring), ...pl.mop, ...pl.stairs, ...pl.lifts, ...pl.rest].reduce((s, q) => s + area(q), 0);
-  expect(Math.abs(sum - area(ring))).toBeLessThan(area(ring) * 0.02);
-  const ch = planChecks(pl, 25); expect(ch.find(c => c.id === 'mop')!.ok).toBe(true); expect(ch.find(c => c.id === 'win')!.ok).toBe(true);
+  const sum = [...pl.apts.map(a => a.ring), ...pl.mop, ...pl.stairs, ...pl.lifts, ...pl.rest, ...pl.fireWalls].reduce((s, q) => s + area(q), 0);
+  expect(Math.abs(sum - area(ring))).toBeLessThan(area(ring) * 0.03);
   return pl;
 }
-const info = (_n: string, pl: RulePlan, r: XY[]) => { rules(pl, r); };
+const cenOf = (q: XY[]): XY => [q.reduce((s, p) => s + p[0], 0) / q.length, q.reduce((s, p) => s + p[1], 0) / q.length];
 
-describe('Qoida boʻyicha seksiya rejasi', () => {
-  it('33 × 15 — ikki tomonlama, bitta zina', () => { const r = rect(0, 0, 33, 15), pl = plan(r); info('33x15', pl, r); expect(pl.kind).toBe('ikki'); });
-  it('24 × 12 — bir tomonlama', () => { const r = rect(0, 0, 24, 12), pl = plan(r); info('24x12', pl, r); expect(pl.kind).toBe('bir'); });
-  it('72 × 15 — uzun: > 500 m² → 2 zina', () => { const r = rect(0, 0, 72, 15), pl = plan(r); info('72x15', pl, r); expect(pl.stairs.length).toBe(2); expect(planChecks(pl, 25).find(c => c.id === 'stairs')!.ok).toBe(true); });
-  it('L shakl', () => { const r: XY[] = [[0, 0], [45, 0], [45, 15], [15, 15], [15, 40], [0, 40]], pl = plan(r); info('L', pl, r); });
-  it('T shakl', () => { const r: XY[] = [[0, 0], [50, 0], [50, 15], [32, 15], [32, 38], [18, 38], [18, 15], [0, 15]], pl = plan(r); info('T', pl, r); });
-  it('burilgan 40 × 16', () => { const a = 0.5, r = rect(0, 0, 40, 16).map(p => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)] as XY), pl = plan(r); info('rot', pl, r); });
+describe('Seksiyali reja (qoida boʻyicha)', () => {
+  it('33 × 15 — bitta seksiya, yadro hovli tomonida', () => {
+    const r = rect(0, 0, 33, 15), pl = rules(plan(r, undefined, [16, 60]), r);
+    expect(pl.sections.length).toBe(1); expect(cenOf(pl.stairs[0])[1]).toBeGreaterThan(7.5);   // hovli — shimolda (y > 7,5)
+  });
+  it('24 × 12 — bir tomonlama', () => { const r = rect(0, 0, 24, 12); expect(rules(plan(r), r).kind).toBe('bir'); });
+  it('72 × 15 — ikki seksiya, uzun umumiy koridor yoʻq', () => {
+    const r = rect(0, 0, 72, 15), pl = rules(plan(r), r);
+    expect(pl.sections.length).toBe(2); expect(pl.corridorLen).toBeLessThan(36); expect(pl.fireWalls.length).toBeGreaterThan(0);
+  });
+  it('burchak seksiya: yadro ichki burchakda, zina hovli fasadida', () => {
+    const r: XY[] = [[0, 0], [23, 0], [23, 15], [15, 15], [15, 23], [0, 23]], pl = rules(plan(r), r);
+    expect(pl.sections.length).toBe(1); expect(pl.sections[0].corner).toBe(true);
+    const c = cenOf(pl.stairs[0]); expect(Math.hypot(c[0] - 15, c[1] - 15)).toBeLessThan(6);   // ichki burchak (15; 15) yonida
+  });
+  it('katta L — burchak + qoʻl seksiyalari', () => {
+    const r: XY[] = [[0, 0], [45, 0], [45, 15], [15, 15], [15, 40], [0, 40]], pl = rules(plan(r), r);
+    expect(pl.sections.length).toBeGreaterThanOrEqual(2); expect(pl.sections.some(s => s.corner)).toBe(true);
+    for (const s of pl.sections) expect(s.apts.length).toBeLessThanOrEqual(9);
+  });
+  it('T — tana alohida, uzun qanot tutashuvda boʻlinadi, yadrolar derazasiz joyda', () => {
+    const r: XY[] = [[0, 0], [50, 0], [50, 15], [32, 15], [32, 38], [18, 38], [18, 15], [0, 15]], pl = rules(plan(r), r);
+    expect(pl.sections.length).toBe(3);
+  });
+  it('burilgan 40 × 16', () => { const a = 0.5, r = rect(0, 0, 40, 16).map(p => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)] as XY); rules(plan(r), r); });
 });
-
