@@ -11,7 +11,7 @@ const ccw = (r: XY[]) => (signedArea(r) < 0 ? [...r].reverse() : r);
 const inter = (p1: XY, d1: XY, p2: XY, d2: XY): XY | null => { const den = d1[0] * d2[1] - d1[1] * d2[0]; if (Math.abs(den) < 1e-9) return null; const t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / den; return [p1[0] + d1[0] * t, p1[1] + d1[1] * t]; };
 
 /** Qirralarni ichkariga siljitish: d[k] — k-qirra uchun masofa (CCW halqa) */
-function offsetEdges(r0: XY[], d: number[], grow = false): XY[] | null {
+export function offsetEdges(r0: XY[], d: number[], grow = false): XY[] | null {
   const r = r0, n = r.length, lines: { p: XY; v: XY }[] = [];
   for (let k = 0; k < n; k++) {
     const a = r[k], b = r[(k + 1) % n], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, v: XY = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], nIn: XY = [-v[1], v[0]];
