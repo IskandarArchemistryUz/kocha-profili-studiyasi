@@ -108,7 +108,7 @@ export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S
   const wantK = mixPicker(mix);
   // 1) qanotlar (toʻgʻri toʻrtburchaklar)
   const wingsR: XY[][] = [];
-  const rec = (q: XY[], d: number) => { const o = obb2(q); if (area(q) / (o.L * o.S) >= 0.9 || d > 3) { wingsR.push(q); return; } const sp = splitAtReflex(q); if (!sp) { wingsR.push(q); return; } sp.forEach(x => rec(x, d + 1)); };
+  const rec = (q: XY[], d: number) => { const o = obb2(q); if (area(q) / (o.L * o.S) >= 0.9 || d > 3) { wingsR.push(q); return; } const sp = splitAtReflex(q); if (!sp || sp.some(x => area(x) < 60 || obb2(x).S < 4)) { wingsR.push(q); return; }   /* mayda qanot (< 60 m² yoki eni < 4 m) — alohida seksiya emas, butun shakl bitta qanot */ sp.forEach(x => rec(x, d + 1)); };
   rec(r, 0);
   const rc = acen(r);
   const blindNear = (p: XY) => mods.some(m => m.blind && Math.hypot((m.a[0] + m.b[0]) / 2 - p[0], (m.a[1] + m.b[1]) / 2 - p[1]) < 2.5);

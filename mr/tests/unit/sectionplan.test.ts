@@ -63,6 +63,10 @@ describe('Seksiyali reja (qoida boʻyicha)', () => {
     const r: XY[] = [[0, 0], [45, 0], [25, 16], [0, 16]], pl = rules(plan(r), r);
     for (const st of [...pl.stairs, ...pl.lifts]) expect(Math.abs(ov(st, r) - area(st))).toBeLessThan(0.3);
   });
+  it('mayda kesikli minora — bitta seksiya, bitta yadro (kesik alohida seksiya emas)', () => {
+    const r: XY[] = [[0, 0], [6.4, -20.15], [20.68, -15.64], [12.7, 9.49], [4.36, -2.91]], pl = rules(plan(r, [40, 30, 20, 10], [-40, 10]), r);
+    expect(pl.sections.length).toBe(1); expect(pl.fireWalls.length).toBe(0);
+  });
   it('burilgan 40 × 16', () => { const a = 0.5, r = rect(0, 0, 40, 16).map(p => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)] as XY); rules(plan(r), r); });
   it('qoʻlda tahrir: birlashtirish, boʻlish, devorni surish, xonalar, texnik — qoidalar saqlanadi', () => {
     const r = rect(0, 0, 38, 15), mods = modsOf(r), pl = rulePlan(r, mods, [20, 40, 30, 10], 'M', [19, 40]), n0 = pl.apts.length;
