@@ -192,3 +192,13 @@ details.manual{border-top:1px solid var(--line);padding-top:8px;display:grid;gap
 .opts{display:grid;gap:4px}.opts button{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:6px 10px;display:grid}
 .opts button small{font-size:11px;color:var(--muted)}.opts button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
 @media (max-width:760px){.insp{left:12px;right:12px;width:auto;top:auto;bottom:80px;max-height:45vh}}
+
+/* asboblar va menyu */
+.rail button.tool[aria-pressed=true]{background:var(--ink);color:#fff}
+.toolpanel{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:8px 12px;display:flex;align-items:center;gap:10px;font-size:12.5px;max-width:calc(100% - 140px);flex-wrap:wrap}
+.toolpanel input[type=range]{width:160px}
+.cmenu{position:fixed;z-index:60;min-width:220px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:5px;display:grid}
+.cmenu button{display:flex;justify-content:space-between;gap:16px;border:0;background:none;text-align:left;padding:7px 10px;border-radius:6px;font-size:13px}
+.cmenu button:hover{background:var(--sunk)}.cmenu button.danger{color:var(--bad)}
+.cmenu kbd{font:500 11px var(--mono);color:var(--muted)}.cmenu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.cm-h{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 10px 4px}

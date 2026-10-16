@@ -200,9 +200,39 @@ export class Scene3D {
     this.ctl.minZoom = 0.05; this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 6000;
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
+    else if (this.hand) this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
     this.ctl.addEventListener('change', () => this.invalidate());
     this.ctl.update();
     this.resize();
+  }
+
+  /** «Qoʻl»: chap tugma — surish (oʻng — aylantirish) */
+  private hand = false;
+  setHand(on: boolean): void {
+    this.hand = on; if (this.mode === 'plan') return;
+    this.ctl.mouseButtons = on ? { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE } : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+  }
+
+  /** Kesim: gorizontal (balandlik, m — yer sathidan) yoki vertikal (chiziq, chap tomoni koʻrinadi); null — olib tashlash */
+  section: { kind: 'h'; z: number } | { kind: 'v'; a: XY; b: XY } | null = null;
+  setSection(s: { kind: 'h'; z: number } | { kind: 'v'; a: XY; b: XY } | null): void {
+    this.section = s;
+    if (!s) this.renderer.clippingPlanes = [];
+    else if (s.kind === 'h') this.renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), s.z)];
+    else {
+      const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], L = Math.hypot(dx, dy) || 1;
+      // chapdagi tomon qoladi: chap normal (−dy, dx) → three: (−dy, 0, −dx)
+      const n = new THREE.Vector3(-dy / L, 0, -dx / L);
+      this.renderer.clippingPlanes = [new THREE.Plane().setFromNormalAndCoplanarPoint(n, new THREE.Vector3(s.a[0], 0, -s.a[1]))];
+    }
+    this.invalidate();
+  }
+
+  /** Kamerani bitta binoga yaqinlashtirish */
+  frameBuilding(doc: Project, id: string): void {
+    const b = doc.buildings.find(x => x.id === id); if (!b) return;
+    const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), xs = r.map(p => p[0]), ys = r.map(p => p[1]);
+    this.frameAt((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, Math.max(40, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), b.floors * doc.settings.floorHeight) * 1.6);
   }
 
   /** Chizish asboblari uchun: sichqonchani chap tugma bilan surishni vaqtincha oʻchirish */
