@@ -35,6 +35,11 @@ import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type Co
 import { tepRows, buildingRows, BUILDING_HEAD } from '../core/tep';
 import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
+import { JOBS_NOTE } from '../core/jobs';
+import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
+import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
+import type { TerrainGrid } from '../context/tiles';
+import { projectStreetsGeo } from '../scene/streets3d';
 import { openGraphics } from './graphics';
 import { sheetSvg, SHEET_DEFAULT, type SheetCtx, type SheetKind } from '../core/sheet';
 import { uid } from '../core/doc';
@@ -110,6 +115,7 @@ export class Editor {
       name, save, h('span', { class: 'sp' }),
       this.popBtn('stylePop', 'Uslub', () => this.stylePop()),
       this.popBtn('camPop', 'Kamera', () => this.camPop()),
+      this.popBtn('layPop', 'Qatlamlar', () => this.layPop()),
       h('button', { class: 'btn', id: 'gxOpen', title: 'Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG', onclick: () => this.openGraphics() }, 'Grafika'),
       seg,
       ib('undo', 'Bekor qilish (Ctrl+Z)', ICON.undo, () => this.store.undo()),
@@ -178,7 +184,7 @@ export class Editor {
     return b;
   }
   private closePop(): void { if (!this.pop) return; this.root.querySelector(`#${this.pop.dataset.for}`)?.setAttribute('aria-expanded', 'false'); this.pop.remove(); this.pop = null; }
-  private refreshPop(): void { const p = this.pop; if (!p) return; const id = p.dataset.for!; p.replaceChildren(id === 'stylePop' ? this.stylePop() : this.camPop()); }
+  private refreshPop(): void { const p = this.pop; if (!p) return; const id = p.dataset.for!; p.replaceChildren(id === 'stylePop' ? this.stylePop() : id === 'layPop' ? this.layPop() : this.camPop()); }
 
   private stylePop(): HTMLElement {
     const gap = h('input', { type: 'range', min: '0.2', max: '1.5', step: '0.05', value: String(this.scene.explodeGap), id: 'exGap', 'aria-label': 'Qatlamlar oraligʻi' }) as HTMLInputElement;
@@ -192,6 +198,117 @@ export class Editor {
       h('label', { class: 'row', style: 'font-size:13px' }, ex, 'Portlatilgan qatlamlar'),
       h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Qatlamlar oraligʻi'), gap),
       h('p', { class: 'note' }, 'Qatlamlar: 1 atrof → 2 koʻchalar → 3 kvartallar va zonalar → 4 binolar. Taqdimot uchun aksonometriyada yaxshi koʻrinadi.'));
+  }
+
+  /* ---------- tahliliy qatlamlar: qavatlar soni, yuza qizishi, suv bosish (HAND), namlik (TWI) ---------- */
+  private mapKind: 'yoq' | 'issiq' | 'hand' | 'twi' = 'yoq';
+  private mapInfo: { title: string; bins: { color: number; label: string }[]; stats: string[]; note: string } | null = null;
+  private mapBusy = false;
+  private hydroCache: { key: string; hy: Hydro; g: TerrainGrid; c0: XY } | null = null;
+  private layPop(): HTMLElement {
+    const fl = h('input', { type: 'checkbox', checked: this.scene.floorLabels, id: 'flOn' }) as HTMLInputElement;
+    fl.onchange = () => this.scene.setFloorLabels(fl.checked);
+    const opt = (k: typeof this.mapKind, t: string, note: string) => h('button', { 'data-map': k, 'aria-pressed': this.mapKind === k, disabled: this.mapBusy, onclick: () => void this.runMap(k) }, h('b', {}, t), h('small', {}, note));
+    return h('div', { class: 'popbody' },
+      h('div', { class: 'lb' }, 'Binolar'),
+      h('label', { class: 'row', style: 'font-size:13px' }, fl, 'Qavatlar soni (raqam)'),
+      h('div', { class: 'lb' }, 'Yer sathi xaritasi'),
+      h('div', { class: 'opts' },
+        opt('yoq', 'Yoʻq', 'xaritani olib tashlash'),
+        opt('issiq', 'Yuza qizishi', 'taxmin: qoplama + soya, 15 iyul 11–17'),
+        opt('hand', 'Suv bosish xavfi (HAND)', 'drenajdan balandlik, relyef boʻyicha'),
+        opt('twi', 'Namlik (TWI)', 'suv yigʻiladigan pastliklar')),
+      this.mapBusy ? h('p', { class: 'note', id: 'mapBusy' }, 'Hisoblanmoqda…') : '',
+      h('p', { class: 'note' }, 'Xarita loyiha oʻzgarsa avtomatik yangilanmaydi — qayta tanlang. Insolyatsiya va shamol xaritalari ham shu qatlamni ishlatadi.'));
+  }
+  private renderMapLegend(): void {
+    let el = this.el.stage.querySelector<HTMLDivElement>('.maplegend');
+    if (!this.mapInfo) { el?.remove(); return; }
+    if (!el) { el = h('div', { class: 'maplegend', role: 'status' }); this.el.stage.append(el); }
+    const m = this.mapInfo, hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+    el.replaceChildren(h('b', {}, m.title), h('div', { class: 'legend' }, ...m.bins.map(b => h('div', {}, h('i', { style: `background:${hex(b.color)}` }), b.label))),
+      ...m.stats.map(t => h('div', { class: 'st' }, t)), h('div', { class: 'nt' }, m.note),
+      h('button', { class: 'ib sm', title: 'Yopish', 'aria-label': 'Xaritani olib tashlash', onclick: () => void this.runMap('yoq') }, '×'));
+  }
+  private async runMap(k: 'yoq' | 'issiq' | 'hand' | 'twi'): Promise<void> {
+    this.mapKind = k;
+    if (k === 'yoq') { this.scene.setGroundMap(null); this.mapInfo = null; this.renderMapLegend(); this.refreshPop(); return; }
+    this.mapBusy = true; this.refreshPop();
+    try { if (k === 'issiq') await this.heatMap(); else this.hydroMap(k); }
+    catch (e) { toast((e as Error).message); this.mapKind = 'yoq'; this.mapInfo = null; this.scene.setGroundMap(null); }
+    finally { this.mapBusy = false; this.refreshPop(); this.renderMapLegend(); }
+  }
+  /** hisob oynasi: uchastka (+ chekka) yoki markaz atrofida 250 m */
+  private mapWindow(margin: number): [number, number, number, number] {
+    const doc = this.store.doc, fr = frame(doc.origin);
+    const pts = [...(doc.site?.rings[0] ?? []), ...doc.buildings.flatMap(b => b.footprint)].map(fr.toLocal);
+    if (!pts.length) return [-250, -250, 250, 250];
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    return [Math.min(...xs) - margin, Math.min(...ys) - margin, Math.max(...xs) + margin, Math.max(...ys) + margin];
+  }
+  private async heatMap(): Promise<void> {
+    const doc = this.store.doc, fr = frame(doc.origin), sc = this.sheetCtx();
+    const [x0, y0, x1, y1] = this.mapWindow(120), cell = Math.max(4, Math.sqrt((x1 - x0) * (y1 - y0) / 14000));
+    const prisms = this.aroundPrisms(x0, y0, x1, y1, 150);
+    const pb = prisms.map(pr => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of pr.ring) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); } return [a, b, c, d]; });
+    const inB = (p: XY) => prisms.some((pr, i) => p[0] >= pb[i][0] && p[0] <= pb[i][2] && p[1] >= pb[i][1] && p[1] <= pb[i][3] && pointIn(p, [pr.ring]));
+    const pts: XY[] = [];
+    for (let x = x0 + cell / 2; x < x1; x += cell) for (let y = y0 + cell / 2; y < y1; y += cell) { const p: XY = [x, y]; if (!inB(p)) pts.push(p); }
+    const z = pts.map(p => this.scene.H(p[0], p[1]));
+    const steps = [] as { alt: number; az: number; dt: number }[];
+    for (let t = 11; t <= 17.001; t += 0.5) { const q = sunPosition(localToUtc(2026, 7, 15, t), doc.origin[1], doc.origin[0]); if (q.alt > 3) steps.push({ alt: q.alt, az: q.az, dt: 0.5 }); }
+    const total = steps.reduce((a, s) => a + s.dt, 0);
+    let sun: Float32Array;
+    try {
+      this.sunW ??= new Worker(new URL('../workers/sun.worker.ts', import.meta.url), { type: 'module' });
+      sun = await new Promise<Float32Array>((ok, no) => { const w = this.sunW!; w.onmessage = e => ok(e.data.hours); w.onerror = e => no(e); w.postMessage({ id: 2, pts, z, prisms, steps }); });
+    } catch { sun = insolation(pts, z, prisms, steps); }
+    const plan = computePlan(doc);
+    const { cover, canopy } = coverClassifier({
+      streets: doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })),
+      blocks: plan.blocks.map(b => ({ rings: b.rings, use: b.use })), site: doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null,
+      roads: (sc?.roads ?? []).filter(r => !doc.streets.some(s => s.osm === r.id)), green: sc?.green ?? [], water: sc?.water ?? [],
+      trees: [...(sc?.trees ?? []).filter(t => !doc.site || !pointIn(t, doc.site.rings.map(r => r.map(fr.toLocal)))), ...projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0).trees],
+    });
+    const T = pts.map((p, i) => surfaceT(cover(p), total ? 1 - sun[i] / total : 0, canopy(p)));
+    this.scene.setGroundMap(pts, T.map(heatColor), cell);
+    const site = doc.site?.rings.map(r => r.map(fr.toLocal));
+    const inS = site ? pts.map(p => pointIn(p, site)) : pts.map(() => true);
+    const S = T.filter((_, i) => inS[i]), O = T.filter((_, i) => !inS[i]), mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+    this.mapInfo = {
+      title: 'Yuza qizishi (taxmin), °C', bins: HEAT_BINS,
+      stats: [`Uchastka: oʻrtacha ${fmt(mean(S), 1)} °C · ≥ 52 °C — ${fmt(S.filter(t => t >= 52).length / (S.length || 1) * 100, 0)} %`, ...(O.length ? [`Atrof (120 m): oʻrtacha ${fmt(mean(O), 1)} °C`] : [])],
+      note: '15 iyul, 11:00–17:00: qoplama turi (OSM va loyiha) + binolar soyasi + daraxt toji. Sunʼiy yoʻldosh oʻlchovi emas — variantlarni solishtirish uchun.',
+    };
+  }
+  private hydroMap(k: 'hand' | 'twi'): void {
+    const b = this.ctxMgr.current, doc = this.store.doc, fr = frame(doc.origin);
+    if (!b?.terrain) throw new Error('Relyef yuklanmagan: 1-qadamda atrofni yuklang (relyef qatlami bilan)');
+    const key = `${b.fetched}|${doc.origin.join(',')}`;
+    if (this.hydroCache?.key !== key) {
+      const g = b.terrain, c0 = fr.toLocal(g.center);
+      const lines = b.osm.waterways.map(w => w.pts.map(p => { const q = fr.toLocal(p); return [q[0] - c0[0], q[1] - c0[1]] as XY; }));
+      this.hydroCache = { key, hy: hydrology(g, lines), g, c0 };
+    }
+    const { hy, g, c0 } = this.hydroCache, pts: XY[] = [], cols: number[] = [], vals: number[] = [];
+    for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) {
+      const c = j * g.n + i, x = -g.radius + i * g.step, y = -g.radius + j * g.step; if (x * x + y * y > g.radius * g.radius) continue;
+      const v = k === 'hand' ? hy.hand[c] : hy.twi[c];
+      const bin = k === 'hand' ? HAND_BINS.find(q => v < q.max) : TWI_BINS.find(q => v >= q.min);
+      if (!bin) continue;
+      pts.push([x + c0[0], y + c0[1]]); cols.push(bin.color); vals.push(v);
+    }
+    this.scene.setGroundMap(pts, cols, g.step);
+    const site = doc.site?.rings.map(r => r.map(fr.toLocal));
+    let stats: string[] = [];
+    if (site) {
+      let n = 0, a = 0, bb = 0;
+      for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { const p: XY = [-g.radius + i * g.step + c0[0], -g.radius + j * g.step + c0[1]]; if (!pointIn(p, site)) continue; n++; const v = k === 'hand' ? hy.hand[j * g.n + i] : hy.twi[j * g.n + i]; if (k === 'hand' ? v < 1 : v >= 12) a++; if (k === 'hand' ? v < 2 : v >= 10) bb++; }
+      stats = [k === 'hand' ? `Uchastka: < 1 m — ${fmt(a / (n || 1) * 100, 0)} %, < 2 m — ${fmt(bb / (n || 1) * 100, 0)} %` : `Uchastka: TWI ≥ 12 — ${fmt(a / (n || 1) * 100, 0)} %, ≥ 10 — ${fmt(bb / (n || 1) * 100, 0)} %`];
+    }
+    this.mapInfo = k === 'hand'
+      ? { title: 'Suv bosish xavfi — HAND', bins: HAND_BINS, stats, note: 'Drenaj (OSM soy, kanal, ariq yoki oqim ≥ 2 ga) ustidan balandlik, relyef 10 m. Skrining: yomgʻir kanalizatsiyasi hisobga olinmaydi.' }
+      : { title: 'Topografik namlik indeksi — TWI', bins: TWI_BINS, stats, note: 'ln(a / tan β): yuqori qiymat — suv yigʻiladigan, yerosti suvi yaqin pastliklar. Relyef 10 m.' };
   }
 
   private frameId = 'erkin';
@@ -772,6 +889,7 @@ export class Editor {
     const s = this.store.doc.settings;
     return [
       `Aholi = kvartiralar netto maydoni ÷ ${s.m2PerPerson} m²/kishi; netto = turar joy GFA × ${s.netToGross}.`,
+      JOBS_NOTE,
       `Avtoturargoh talabi kvartiralar soniga koʻra (${this.last?.d.aptSource === 'sxema' ? 'kvartira sxemasidan' : `oʻrtacha ${s.aptNet} m² taxmin`}), yer osti/stilobat parkovka — 30 m²/joy brutto (taxmin).`,
       'Mavjud binolar va koʻchalar — OpenStreetMap; balandligi yoʻqlari dogʻ maydoni va turi boʻyicha taxmin qilingan.',
       ...(this.apt.stats ? ['Kvartiralar — fasad modullari (3,3 m) boʻyicha sxema; yashash xonalari eng yaxshi derazalarda (optimistik), balkon soyasi hisobga olinmagan.'] : []),
@@ -1274,6 +1392,7 @@ export class Editor {
       k('Oʻrt. qavat', d.avgFloors ? fmt(d.avgFloors, 1) : '—'),
       k('Aholi', d.population ? fmt(d.population) : '—', undefined, 'kPop'),
       k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens'),
+      k('Ish oʻrni', d.jobs >= 1 ? fmt(d.jobs) : '—', undefined, 'kJobs'),
       h('button', { class: 'more', id: 'kMore', 'aria-expanded': open, onclick: () => { this.el.drawer.hidden = !this.el.drawer.hidden; this.renderKpi(); } }, open ? 'Meʼyorlar ▾' : 'Meʼyorlar ▴'));
     if (open) this.el.drawer.replaceChildren(h('h3', {}, 'Meʼyoriy reyestr'), this.register());
     if (['tekshiruv', 'uchastka', 'kocha', 'yashil'].includes(this.step.id)) this.renderPanel();

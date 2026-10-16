@@ -161,3 +161,8 @@ details.manual{border-top:1px solid var(--line);padding-top:8px;display:grid;gap
 .vgo{flex:1;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:5px 9px;display:grid}.vgo:hover{border-color:var(--ink)}.vgo small{font-size:11px;color:var(--muted)}
 .ib.sm{width:28px;height:auto;font-size:16px}
 .frame{position:absolute;z-index:3;pointer-events:none;box-shadow:0 0 0 9999px rgba(20,20,20,.38);outline:1px solid rgba(255,255,255,.9)}
+
+.maplegend{position:absolute;right:12px;bottom:84px;z-index:5;width:250px;background:var(--surface);border-radius:10px;box-shadow:var(--shadow);padding:10px 12px;display:grid;gap:6px;font-size:12px}
+.maplegend>b{font-size:13px;padding-right:24px}.maplegend .legend i{width:14px;height:10px;border-radius:2px;display:inline-block}
+.maplegend .st{font-family:var(--mono);font-size:11.5px}.maplegend .nt{color:var(--muted);font-size:11px}
+.maplegend .ib{position:absolute;top:6px;right:6px}

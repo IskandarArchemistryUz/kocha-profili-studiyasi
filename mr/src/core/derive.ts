@@ -8,6 +8,7 @@ import { frame, polyArea, ringLocal, area, longFacadeAzimuths, obb2, type XY } f
 import { computePlan } from './plan';
 import { useDef } from './uses';
 import { planApartments } from './apartments';
+import { jobsFrom } from './jobs';
 
 export interface Derived {
   /** uchastka maydoni, ga (teshiklar ayirilgan) */
@@ -53,6 +54,8 @@ export interface Derived {
   parkingReq: number; parkingProv: number; parkingParts: Record<string, number>;
   /** turar joy seksiyalari va ulardan uzun fasadi gʻarbga (200–290°) qaraganlari — SanQvaN 0331-16, 9.2-band */
   resSections: number; westFacing: number;
+  /** ish oʻrinlari (taxmin, core/jobs.ts) va aholiga nisbati */
+  jobs: number; jobsRatio: number;
 }
 
 /** 41-jadval: oʻquvchiga 20 m² (≤ 660), 15 m² (661–989), 10 m² (> 989) → maydonga sigʻadigan eng koʻp oʻquvchi */
@@ -117,8 +120,9 @@ export function derive(doc: Project): Derived {
     resSections++;
     if (longFacadeAzimuths(r).some(a => a >= 200 && a <= 290)) westFacing++;
   }
+  const jobs = jobsFrom(gfaByUse);
   return {
-    resSections, westFacing,
+    resSections, westFacing, jobs, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,

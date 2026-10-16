@@ -32,6 +32,8 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Turar joy', 'Aholi', 'kishi', Math.round(d.population), `${s.m2PerPerson} m²/kishi`);
   add('Turar joy', 'Aholi zichligi', 'kishi/ga', d.density, 'ShNQ 2.07.01-23, 84-band: ≤ 400');
   add('Turar joy', 'Uy-joy fondi zichligi', 'm²/ga', d.housingDensity, '82-band, 3-jadval');
+  add('Iqtisod', 'Ish oʻrinlari (taxmin)', 'ta', Math.round(d.jobs), 'noturar GFA ÷ bandlik zichligi (core/jobs.ts)');
+  if (d.population > 0) add('Iqtisod', 'Ish oʻrinlari aholiga nisbati', '', d.jobsRatio, '1,0 dan past — yotoqxona tuman');
   add('Ijtimoiy', 'Maktab oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.schoolCap, `talab ≥ ${Math.ceil(d.population * 0.165)} (5-ilova)`);
   add('Ijtimoiy', 'MTM oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.mtmCap, `talab ≥ ${Math.ceil(d.population * 0.07)} (5-ilova)`);
   add('Yashil', 'Yashil zonalar', 'm²', d.greenArea);

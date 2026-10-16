@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { LngLat, Project } from '../core/doc';
-import { frame, type XY } from '../core/geo';
+import { frame, centroid, area, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
 import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from './context3d';
@@ -152,7 +152,7 @@ export class Scene3D {
 
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
-    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; this.renderer.render(this.scene, this.rcam()); } };
+    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
     loop();
   }
 
@@ -331,6 +331,11 @@ export class Scene3D {
       if (nr >= b.floors) return;
       part(nr * fh, b.floors * fh, topC, office ? 'glass' : 'res');
     });
+    if (this.floorLabels) doc.buildings.forEach(b => {
+      const r = b.footprint.map(fr.toLocal); if (area(r) < 40) return;
+      const c = centroid(r), top = Math.min(...r.map(p => this.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh;
+      const sp = labelSprite(String((b.z0 ?? 0) + b.floors), true); sp.position.set(c[0], top + 2, -c[1]); this.world.add(sp);
+    });
     tag(3);
     this.applyExplode();
     this.invalidate();
@@ -362,7 +367,7 @@ export class Scene3D {
   captureViews(doc: Project): Record<'plan' | 'axo' | 'persp', string> {
     const mode = this.mode, t = this.ctl.target.clone(), pp = this.persp.position.clone(), op = this.ortho.position.clone(), os = this.ortho.userData.s, oz = this.ortho.zoom;
     const out = {} as Record<'plan' | 'axo' | 'persp', string>;
-    for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); this.renderer.render(this.scene, this.rcam()); out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
+    for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); { const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
     this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz;
     this.resize(); this.ctl.update(); this.invalidate();
     return out;
@@ -454,8 +459,19 @@ export class Scene3D {
     this.invalidate();
   }
 
+  /** Yorliqlar ekranda doimiy piksel oʻlchamida (ortho kamerada sizeAttenuation ishlamaydi — shu yerda hisoblanadi) */
+  private fitSprites(cam: THREE.Camera): void {
+    const H = this.host.clientHeight || 1, P = cam as THREE.PerspectiveCamera & THREE.OrthographicCamera;
+    const k = P.isOrthographicCamera ? (P.top - P.bottom) / (P.zoom || 1) / H : 2 / (P.projectionMatrix.elements[5] * H);
+    const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) o.scale.set(px[0] * k, px[1] * k, 1); };
+    this.world.children.forEach(fit); this.explodeLabels.forEach(fit);
+  }
+
   /* ---------- portlatilgan qatlamlar ---------- */
   exploded = false;
+  /** binolar ustida qavatlar soni */
+  floorLabels = false;
+  setFloorLabels(on: boolean): void { this.floorLabels = on; if (this.lastDoc) this.update(this.lastDoc); }
   private explodeStep = 0;
   explodeGap = 0.6;
   private explodeLabels: THREE.Object3D[] = [];
@@ -469,7 +485,7 @@ export class Scene3D {
     const step = this.exploded ? Math.max(12, size * 0.22 * this.explodeGap) : 0;
     const dy = 1.5 * (step - this.explodeStep); this.explodeStep = step;
     if (dy) { this.ctl.target.y += dy; this.cam.position.y += dy; this.ctl.update(); }
-    this.world.children.forEach(o => { const L = o.userData.layer as number | undefined; o.position.y = L ? L * step : 0; });
+    this.world.children.forEach(o => { const L = o.userData.layer as number | undefined; o.userData.y0 ??= o.position.y; o.position.y = (o.userData.y0 as number) + (L ? L * step : 0); });
     if (this.exploded && !box.isEmpty()) {
       const x = box.max.x + size * 0.06, z = box.max.z;
       EXPLODE_NAMES.forEach((name, i) => {
@@ -602,7 +618,7 @@ export class Scene3D {
 
   /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
   snapshot(ratio = 0): string {
-    this.renderer.render(this.scene, this.rcam());
+    { const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); }
     const c = this.renderer.domElement; if (!ratio) return c.toDataURL('image/png');
     const r = this.frameRect(ratio), k = c.width / (c.clientWidth || c.width), o = document.createElement('canvas');
     o.width = Math.round(r.w * k); o.height = Math.round(r.h * k);
@@ -659,15 +675,15 @@ export class Scene3D {
 }
 
 /** Matnli yorliq (ekranda doimiy oʻlchamda) */
-function labelSprite(text: string): THREE.Sprite {
-  const c = document.createElement('canvas'), g = c.getContext('2d')!, fs = 30;
+function labelSprite(text: string, badge = false): THREE.Sprite {
+  const c = document.createElement('canvas'), g = c.getContext('2d')!, fs = badge ? 26 : 30;
   g.font = `600 ${fs}px Archivo, system-ui, sans-serif`; const w = Math.ceil(g.measureText(text).width) + 28;
   c.width = w; c.height = fs + 22; g.font = `600 ${fs}px Archivo, system-ui, sans-serif`;
-  g.fillStyle = 'rgba(255,255,255,0.94)'; g.strokeStyle = '#1d1d1b'; g.lineWidth = 2; g.beginPath(); g.roundRect(1, 1, w - 2, c.height - 2, 10); g.fill(); g.stroke();
-  g.fillStyle = '#1d1d1b'; g.textBaseline = 'middle'; g.fillText(text, 14, c.height / 2 + 1);
+  g.fillStyle = badge ? '#1d1d1b' : 'rgba(255,255,255,0.94)'; g.strokeStyle = '#1d1d1b'; g.lineWidth = 2; g.beginPath(); g.roundRect(1, 1, w - 2, c.height - 2, badge ? c.height / 2 : 10); g.fill(); g.stroke();
+  g.fillStyle = badge ? '#ffffff' : '#1d1d1b'; g.textBaseline = 'middle'; g.fillText(text, 14, c.height / 2 + 1);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false }));
-  const k = 0.00042; sp.scale.set(c.width * k, c.height * k, 1); sp.center.set(0, 0); sp.renderOrder = 50;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: badge, sizeAttenuation: false }));
+  const k = badge ? 0.5 : 0.55; sp.userData.px = [c.width * k, c.height * k]; sp.center.set(badge ? 0.5 : 0, 0); sp.renderOrder = 50;
   return sp;
 }
 
