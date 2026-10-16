@@ -1,10 +1,20 @@
 /* Archemistry Lab · Master reja — yagona dizayn tizimi.
    Bitta panel joyi, bitta tugma uslubi, bitta shrift juftligi. Ranglar faqat shu tokenlar orqali. */
 :root{
-  --paper:#f4f3f1; --surface:#ffffff; --sunk:#ebe9e4; --ink:#141414; --muted:#5e5c58; --line:#dedbd4;
-  --accent:#2a6fb0; --accent-soft:#e6eef7; --ok:#2e7d4f; --ok-soft:#e5f2ea; --bad:#b23a2e; --bad-soft:#f7e6e3; --warn:#9a6a00; --warn-soft:#f8efd9;
+  /* yuzalar — ui.css (dizayn tizimi, iOS uslubi) */
+  --bg:#f2f1ee; --paper:var(--bg); --surface:#ffffff; --grouped:#f7f6f3; --fill:#ecebe8; --fill-2:#e3e1dc; --sunk:var(--fill);
+  --hairline:rgba(20,20,20,.09); --line:var(--hairline);
+  --ink:#141414; --ink-2:#3a3936; --muted:#6b6965;
+  --brand:#f0b323; --sel:#2a6fb0; --accent:var(--sel); --accent-soft:#e7eff8;
+  --ok:#2b7449; --ok-soft:#e4f1e9; --warn:#95620f; --warn-soft:#f8eed8; --bad:#b23a2e; --bad-soft:#f7e5e2;
   --site:#c0392b; --sans:'Archivo',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
-  --r:6px; --shadow:0 1px 2px rgba(0,0,0,.06),0 6px 24px rgba(0,0,0,.08);
+  --r-xs:6px; --r-sm:9px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px; --r:var(--r-sm);
+  --sh-card:0 0 0 .5px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
+  --sh-float:0 0 0 .5px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.09);
+  --sh-pop:0 0 0 .5px rgba(0,0,0,.08),0 18px 48px rgba(0,0,0,.16);
+  --shadow:var(--sh-float);
+  --spring:cubic-bezier(.34,1.56,.64,1); --ease:cubic-bezier(.32,.72,0,1);
+  --glass:rgba(255,255,255,.82);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font:14px/1.45 var(--sans)}
@@ -209,3 +219,204 @@ details.tpl{border-top:1px solid var(--line);padding-top:8px}details.tpl summary
 
 .balance{display:grid;gap:2px;font-size:12.5px;background:var(--sunk);border-radius:8px;padding:8px 10px}
 .brow{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center}.brow .chip{grid-column:1 / -1;justify-self:start;margin-bottom:3px}
+
+/* ============================================================
+   iOS qatlami — ui.css dizayn tizimi asosida yagona koʻrinish.
+   Faqat vizual: sinf va id lar oʻzgarmaydi.
+   ============================================================ */
+html,body{background:var(--bg);-webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+:focus-visible{outline:2px solid var(--sel);outline-offset:2px;border-radius:var(--r-xs)}
+.lb{font:600 11px var(--sans);letter-spacing:.02em;text-transform:none;color:var(--muted)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.14);border-radius:8px;border:2px solid transparent;background-clip:padding-box}::-webkit-scrollbar-track{background:none}
+
+/* tugmalar: toʻldirilgan, chegarasiz, bosilganda kichrayadi */
+.btn,.ib,.seg button,.typo,.opts button,.vgo,.gx-kinds button,.swatches button,.stp button,.pad button,.floors button,.zchip,.rail button,.cmenu button,.kpi .more{transition:transform .25s var(--spring),background-color .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease),opacity .2s}
+.btn:active:not(:disabled),.ib:active:not(:disabled),.typo:active,.opts button:active,.vgo:active,.swatches button:active,.stp button:active:not(:disabled),.pad button:active,.zchip:active,.rail button:active:not([data-locked]),.gx-kinds button:active{transform:scale(.95)}
+.btn{height:36px;padding:0 14px;border:0;background:var(--fill);border-radius:var(--r-pill);font:600 13px var(--sans)}
+.btn:hover{border-color:transparent;background:var(--fill-2)}
+.btn.primary{background:var(--ink);color:#fff}.btn.primary:hover{background:#2c2c2c}
+.btn.danger{background:var(--bad-soft);color:var(--bad)}.btn.danger:hover{background:#f1d6d1}
+.btn:disabled{opacity:.38;background:var(--fill)}
+.ib{width:36px;height:36px;border:0;background:var(--fill);border-radius:var(--r-pill)}
+.ib:hover{border-color:transparent;background:var(--fill-2)}.ib:disabled{opacity:.32}
+.ib svg{width:17px;height:17px;stroke-width:1.7}
+.ib.sm{width:30px;height:30px;background:none}.ib.sm:hover{background:var(--fill)}
+
+/* segmentlangan boshqaruv: kulrang tagi, oq «tabletka» */
+.seg{border:0;background:var(--fill);border-radius:var(--r-sm);padding:2px;gap:2px;overflow:visible}
+.seg button{border:0!important;height:30px;border-radius:7px;font:600 12.5px var(--sans);color:var(--ink-2)}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 .5px rgba(0,0,0,.04),0 3px 8px rgba(0,0,0,.12),0 3px 1px rgba(0,0,0,.04)}
+
+/* maydonlar: toʻldirilgan, chegarasiz, fokusda koʻk halqa */
+.field{gap:6px}
+.field input,.field select,.popbody input[type=text],.gx-side select,.gx-side input[type=text],.panel input[type=text],.panel input[type=number],.panel select,.insp input,.insp select{height:36px;border:0;border-radius:var(--r-sm);padding:0 10px;background:var(--fill);transition:box-shadow .2s var(--ease),background-color .2s}
+.field input:focus,.field select:focus,.popbody input:focus,.panel input:focus,.panel select:focus,.insp input:focus,.gx-side input:focus,.gx-side select:focus{outline:none;background:var(--surface);box-shadow:0 0 0 2px var(--sel)}
+input[type=checkbox]{accent-color:var(--sel);width:16px;height:16px}
+input[type=range]{-webkit-appearance:none;appearance:none;height:26px;background:none;accent-color:var(--sel)}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:var(--fill-2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.06),0 3px 8px rgba(0,0,0,.15),0 3px 1px rgba(0,0,0,.06)}
+input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:var(--fill-2)}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border:0;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15)}
+
+/* ilova qobigʻi: sahna butun ekran, ustida suzuvchi shisha panellar */
+.app{display:block}
+.stage{position:absolute;inset:0}
+.top{position:absolute;top:12px;left:12px;right:12px;height:56px;z-index:20;gap:8px;padding:0 10px;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border:0;border-radius:18px;box-shadow:var(--sh-float);overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.top::-webkit-scrollbar{display:none}
+.top>*{flex-shrink:0}.top .sp{flex:1 1 0;min-width:4px}
+.top .seg{background:rgba(118,118,128,.12)}
+.brand{font:700 14px var(--sans);letter-spacing:-.01em;gap:6px}
+.brand::before{content:'';width:10px;height:10px;border-radius:3px;background:var(--brand);box-shadow:0 0 0 .5px rgba(0,0,0,.1)}
+.brand small{font:500 13px var(--sans);letter-spacing:0;text-transform:none}
+.pname{height:34px;border:0;border-radius:var(--r-sm);font:600 14px var(--sans);padding:0 10px;transition:background-color .2s,box-shadow .2s}
+.pname:hover{background:var(--fill)}.pname:focus{background:var(--surface);box-shadow:0 0 0 2px var(--sel);outline:none}
+.save{font:500 12px var(--sans)}.save i{transition:background-color .3s}
+
+/* qadamlar qatori: suzuvchi panel */
+.rail{top:80px;bottom:84px;width:56px;border-radius:18px;padding:8px 0;gap:4px;box-shadow:var(--sh-float);background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.rail button{width:44px;height:44px;border-radius:var(--r-md);flex-shrink:0}
+.rail button svg{width:19px;height:19px;stroke-width:1.7}
+.rail button .n{left:4px;top:3px;font:600 8.5px var(--sans)}
+.rail button:hover{background:var(--fill)}
+.rail button[aria-current=step]{background:var(--ink);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18)}.rail button[aria-current=step] .n{color:rgba(255,255,255,.6)}
+.rail button[data-locked]{color:#bdbab3}
+.rail button[data-done]::after{right:6px;top:6px;width:7px;height:7px;box-shadow:0 0 0 2px var(--surface)}
+.rail hr{width:24px;border-top:1px solid var(--hairline);margin:6px 0}
+.rail button.tool[aria-pressed=true]{background:var(--sel);color:#fff}
+
+/* qadam paneli */
+.panel{left:80px;top:80px;width:318px;max-height:calc(100% - 164px);border-radius:var(--r-xl);box-shadow:var(--sh-float);overflow:hidden;animation:sheetIn .38s var(--ease)}
+.panel header{padding:18px 18px 12px;border-bottom:0}
+.panel header .lb{margin-bottom:4px;font:600 11.5px var(--sans);color:var(--muted)}
+.panel header h2{font:700 21px/1.15 var(--sans);letter-spacing:-.015em}
+.panel header p{margin-top:8px;font-size:13px;line-height:1.45}
+.panel .body{padding:4px 18px 18px;gap:16px;scrollbar-width:thin}
+.panel footer{padding:12px 18px 16px;border-top:.5px solid var(--hairline);background:var(--grouped)}
+.panel footer .btn{height:40px}
+.locked{border:0;background:var(--grouped);border-radius:var(--r-md);padding:14px 16px}
+.kbd{border:0;background:var(--fill);border-radius:5px;padding:1px 5px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.08)}
+
+/* guruhlangan roʻyxatlar (iOS «inset grouped») */
+.list{border:0;background:var(--grouped);border-radius:var(--r-md);overflow:hidden}
+.list .it{padding:9px 12px;border-top:.5px solid var(--hairline)}
+.list .it[aria-selected=true]{background:var(--accent-soft)}
+.list .it button{border-radius:6px}.list .it button:hover{background:var(--fill)}
+.res .it:hover{background:var(--fill)}
+
+/* koʻrsatkichlar, maslahat, tortma */
+.hint{bottom:84px;background:rgba(28,28,30,.88);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:500 12.5px var(--sans);padding:8px 14px;border-radius:var(--r-pill);box-shadow:var(--sh-float)}
+.kpi{border-radius:18px;box-shadow:var(--sh-float);background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);padding:4px;scrollbar-width:none}
+.kpi::-webkit-scrollbar{display:none}
+.kpi .k{border-left:0;padding:6px 14px;border-radius:var(--r-md);position:relative}
+.kpi .k+.k::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:.5px;background:var(--hairline)}
+.kpi .k b{font:600 17px/1.2 var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .k span{font:500 11px var(--sans);letter-spacing:0;text-transform:none}
+.kpi .more{border-left:0;border-radius:var(--r-md);font:600 12.5px var(--sans);color:var(--sel);margin-left:2px}
+.kpi .more:hover{background:var(--fill)}
+.drawer{bottom:84px;border-radius:var(--r-xl);box-shadow:var(--sh-pop);padding:16px 18px;animation:sheetIn .38s var(--ease)}
+.drawer h3{font:700 17px var(--sans);letter-spacing:-.01em}
+.reg th{font:600 11px var(--sans);letter-spacing:0;text-transform:none;border-bottom:.5px solid var(--hairline)}
+.reg td{border-bottom:.5px solid var(--hairline)}
+.chip{font:600 11px var(--sans);padding:3px 8px;border-radius:var(--r-pill)}
+.chip[data-s=na]{background:var(--fill)}
+.view{top:80px}
+
+/* bosh sahifa */
+.home h1{font:700 34px/1.1 var(--sans);letter-spacing:-.02em}
+.cards{gap:14px}
+.card{border:0;border-radius:var(--r-lg);padding:16px;box-shadow:var(--sh-card);transition:transform .3s var(--spring),box-shadow .25s var(--ease)}
+.card:hover{transform:translateY(-2px);box-shadow:var(--sh-float)}
+.empty{border:0;background:var(--grouped);border-radius:var(--r-lg)}
+.toast{background:rgba(28,28,30,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:11px 18px;border-radius:var(--r-pill);font:500 13px var(--sans);box-shadow:var(--sh-pop);animation:toastIn .45s var(--spring)}
+
+/* kontekst va zonalar */
+.prog{height:5px;background:var(--fill);border-radius:var(--r-pill)}.prog i{border-radius:var(--r-pill);background:var(--sel);transition:width .4s var(--ease)}
+.warn,.err,.okbox{padding:9px 12px;border-radius:var(--r-md);line-height:1.4}
+.ctxbadge{top:80px;font:500 12.5px var(--sans);padding:8px 14px;box-shadow:var(--sh-float);background:var(--glass);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.attr{border-radius:var(--r-pill);padding:3px 8px;background:rgba(255,255,255,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.zchip{border:0;background:var(--fill);padding:6px 12px;font:500 12.5px var(--sans)}
+.zchip[aria-pressed=true]{background:var(--ink);color:#fff;font-weight:600}
+.osmbox{border:0;background:var(--accent-soft);border-radius:var(--r-md);padding:10px 12px}
+details.manual{border-top:.5px solid var(--hairline);padding-top:10px}
+details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:'';width:6px;height:6px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(-45deg);transition:transform .25s var(--ease);margin:0 3px 0 1px;flex:none}
+details[open]>summary::before{transform:rotate(45deg)}
+details[open]>:not(summary){animation:accIn .3s var(--ease)}
+.chips .cg{font:600 11px var(--sans);text-transform:none;letter-spacing:0}
+
+/* tanlash kartalari: tipologiya, variantlar, materiallar, koʻrinishlar */
+.typos{gap:8px}
+.typo{border:0;background:var(--grouped);border-radius:var(--r-md);padding:10px 4px 8px;font:500 11px/1.15 var(--sans);gap:6px;box-shadow:inset 0 0 0 .5px var(--hairline)}
+.typo svg{width:28px;height:28px;stroke-width:1.4}
+.typo:hover{background:var(--fill);border-color:transparent}
+.typo[aria-pressed=true]{background:var(--ink);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.opts{gap:6px}
+.opts button,.popbody .opts button,.gx-kinds button,.vgo{border:0;background:var(--grouped);border-radius:var(--r-md);padding:9px 12px;box-shadow:inset 0 0 0 .5px var(--hairline);gap:2px}
+.opts button:hover,.gx-kinds button:hover,.vgo:hover{background:var(--fill);border-color:transparent}
+.opts button[aria-pressed=true],.popbody .opts button[aria-pressed=true],.gx-kinds button[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px var(--sel)}
+.swatches{gap:6px}
+.swatches button{border:0;background:var(--grouped);border-radius:var(--r-sm);padding:6px 3px;box-shadow:inset 0 0 0 .5px var(--hairline)}
+.swatches button i{border-radius:5px;height:18px}
+.swatches button[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--sel);background:var(--accent-soft)}
+.balance{background:var(--grouped);border-radius:var(--r-md);padding:10px 12px;box-shadow:inset 0 0 0 .5px var(--hairline)}
+.psec{border:0;border-radius:var(--r-md);background:var(--grouped);box-shadow:inset 0 0 0 .5px var(--hairline)}
+details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
+.looks{border-top:.5px solid var(--hairline);padding-top:12px}
+
+/* suzuvchi oynalar */
+.pop{border:0;border-radius:var(--r-lg);box-shadow:var(--sh-pop);padding:14px;background:rgba(255,255,255,.94);-webkit-backdrop-filter:saturate(180%) blur(24px);backdrop-filter:saturate(180%) blur(24px);animation:popIn .32s var(--spring);transform-origin:top center}
+.popbody{gap:10px}
+.maplegend{bottom:84px;border-radius:var(--r-lg);box-shadow:var(--sh-float);padding:12px 14px;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);animation:popIn .32s var(--spring)}
+.maplegend .legend i{border-radius:3px}
+.insp{top:80px;width:304px;max-height:calc(100% - 176px);border-radius:var(--r-xl);box-shadow:var(--sh-float);padding:14px;gap:12px;animation:sheetInR .38s var(--ease)}
+.ihead b{font:700 16px var(--sans);letter-spacing:-.01em}
+.stp{grid-template-columns:1fr 32px 44px 32px}
+.stp button{height:32px;border:0;background:var(--fill);border-radius:var(--r-sm);font-size:16px}
+.stp button:hover:not(:disabled){background:var(--fill-2)}
+.stp b{font:600 15px var(--sans);font-variant-numeric:tabular-nums}
+.pad{grid-template-columns:repeat(3,32px);grid-template-rows:repeat(3,30px);gap:4px}
+.pad button{border:0;background:var(--fill);border-radius:var(--r-sm)}.pad button:hover{background:var(--fill-2)}
+.floors{gap:3px}
+.floors button{border:0;background:var(--fill);border-radius:6px;font:600 11px var(--sans);min-height:24px}
+.floors button.nr{background:var(--fill-2)}.floors button[aria-pressed=true]{background:var(--sel);color:#fff}
+.toolpanel{top:80px;border-radius:var(--r-pill);box-shadow:var(--sh-float);padding:6px 8px 6px 16px;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);animation:popIn .32s var(--spring)}
+.cmenu{border:0;border-radius:14px;box-shadow:var(--sh-pop);padding:6px;background:rgba(255,255,255,.9);-webkit-backdrop-filter:saturate(180%) blur(24px);backdrop-filter:saturate(180%) blur(24px);animation:popIn .22s var(--spring);transform-origin:top left}
+.cmenu button{border-radius:var(--r-sm);padding:8px 12px}
+.cmenu button:hover{background:var(--sel);color:#fff}.cmenu button:hover kbd{color:rgba(255,255,255,.7)}
+.cmenu button.danger:hover{background:var(--bad);color:#fff}
+.cmenu hr{border-top:.5px solid var(--hairline)}
+.cm-h{font:600 11px var(--sans);letter-spacing:0;text-transform:none}
+
+/* grafika muharriri */
+.gx{background:var(--bg);animation:fadeIn .25s var(--ease)}
+.gx-side{border-right:0;box-shadow:var(--sh-card);padding:20px;gap:12px}
+.gx-head h2{font:700 24px var(--sans);letter-spacing:-.02em}
+.gx-bar{border-bottom:0;background:transparent;padding:14px 20px}
+.gx-view svg{border-radius:4px;box-shadow:var(--sh-float)}
+
+/* harakat */
+@keyframes popIn{from{opacity:0;transform:scale(.94) translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes sheetIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+@keyframes sheetInR{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes accIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,10px) scale(.96)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+@media (max-width:760px){
+  .top{left:8px;right:8px;top:8px;height:52px}
+  .panel{left:8px;top:auto;bottom:84px;width:calc(100% - 16px);max-height:45%}
+  .rail{top:auto;bottom:84px;left:auto;right:8px;height:auto;max-height:45%}
+  .insp{left:8px;right:8px;width:auto;top:auto;bottom:80px;max-height:45vh}
+}
+.insp{overflow-x:hidden}
+.insp .col.grow{min-width:0}
+.insp .col .btn{white-space:normal;height:auto;min-height:36px;padding:8px 14px;line-height:1.25;text-align:left;justify-content:flex-start}
+.insp .col select,.insp .col input{max-width:100%;min-width:0}
+.toast{bottom:100px}
+/* raqamlar: Archivo, jadvalli raqamlar (mono — faqat kod uchun) */
+.num,.maplegend .st,.pbar span,.card small{font-family:var(--sans);font-variant-numeric:tabular-nums}
+.num{font-weight:600}
