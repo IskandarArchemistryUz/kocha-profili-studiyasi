@@ -81,3 +81,25 @@ describe('Hosilaviy: stilobat', () => {
     expect(d.gfa).toBeCloseTo(6400 * 2 + 400 * 10, -1);
   });
 });
+
+import { evaluateAll } from '../../src/norms/rules';
+import { mtmNeedPerThousand, demoRow } from '../../src/core/demography';
+describe('39-jadval va 542-band', () => {
+  it('MTM binosi loyiha koʻchasi qizil chizigʻidan 25 m dan yaqin — mos emas', () => {
+    const p: Project = blankProject('t'); const fr = frame(p.origin);
+    p.site = { rings: [rect(-150, -150, 150, 150).map(fr.toGeo)] };
+    p.streets = [{ id: 's', axis: [[-150, 0], [150, 0]].map(q => fr.toGeo(q as XY)), profile: 'mahalla-15' }];   // qizil chiziqlar y = ±7,5
+    p.buildings = [
+      { id: 'm', footprint: rect(-20, 20, 20, 40).map(fr.toGeo), floors: 2, nonRes: 0, use: 'mtm' },   // 12,5 m
+      { id: 'k', footprint: rect(-20, -80, 20, -40).map(fr.toGeo), floors: 3, nonRes: 0, use: 'maktab' }, // 32,5 m
+    ];
+    const d = derive(p), r = evaluateAll(d, p).find(x => x.id === 'red-line-39')!;
+    expect(d.redLineSocial.find(x => x.bid === 'm')!.d).toBeCloseTo(12.5, 1);
+    expect(d.redLineSocial.find(x => x.bid === 'k')!.d).toBeCloseTo(32.5, 1);
+    expect(r.status).toBe('fail');
+  });
+  it('MTM ehtiyoji (542-band) oqilona oraliqda', () => {
+    const r = demoRow('1726')!, need = mtmNeedPerThousand(r);
+    expect(need).toBeGreaterThan(60); expect(need).toBeLessThan(140);
+  });
+});

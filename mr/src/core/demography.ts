@@ -23,3 +23,11 @@ export function perThousand(r: DemoRow): { school: number; mtm: number; elderly:
   const k = 1000 / r.pop;
   return { school: (r.a6_7 / 2 + r.a8_15 + r.a16_17) * k, mtm: (r.a3_5 + r.a6_7 / 2) * k, elderly: (r.a65) * k };
 }
+
+/**
+ * MTM oʻrinlariga ehtiyoj, 1000 kishiga — ShNQ 2.07.01-23, 542-band: qamrov 1–5 yoshlilar 85 %, 5 yoshdan kattalar 100 %.
+ * 1–2 yosh = 0–2 guruhining 2/3 qismi; 6 yosh = 6–7 guruhining yarmi (7 yoshda maktabga boradi).
+ */
+export function mtmNeedPerThousand(r: DemoRow): number {
+  return (0.85 * (r.a0_2 * 2 / 3 + r.a3_5) + r.a6_7 / 2) * 1000 / r.pop;
+}

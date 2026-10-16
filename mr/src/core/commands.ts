@@ -3,7 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, uid } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, type ManualPoi, uid } from './doc';
 import { frame } from './geo';
 
 export type Command =
@@ -24,6 +24,8 @@ export type Command =
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
   | { type: 'setKeep'; keep: number[] }
+  | { type: 'addPoi'; poi: ManualPoi }
+  | { type: 'removePoi'; id: string }
   /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
   | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use'>> }
@@ -48,6 +50,8 @@ export function label(c: Command): string {
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setZones': return 'Zona';
     case 'setKeep': return 'Saqlanadigan binolar';
+    case 'addPoi': return 'Xizmat obyekti qoʻshildi';
+    case 'removePoi': return 'Xizmat obyekti oʻchirildi';
     case 'setParcels': return 'Parsellar';
     case 'updateParcel': return 'Parsel funksiyasi';
     case 'replaceGroup': return c.sections.length ? 'Seksiyalar generatsiyasi' : 'Seksiyalar tozalandi';
@@ -122,6 +126,8 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
     case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
+    case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
+    case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
     case 'setParcels': {
       d.parcels = [...doc.parcels.filter(p => p.block !== c.block), ...c.parcels.map(p => ({ id: p.id, block: c.block, rings: p.rings.map(copyRing), use: p.use }))];
       // shu kvartaldagi eski parsellarning seksiyalari yaroqsiz — olib tashlanadi

@@ -27,7 +27,7 @@ import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, 
 import { INSOL_BINS, FACADE, type FacadeStyle } from '../scene/scene';
 import { planApartments, windowPoints, windowSun, evaluateApts, isWest, MOD_W, type AptStats, type SecPlan } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
-import { analyze, boundaryPts, buildNet, svcDef, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
+import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
 import { centroid, area } from '../core/geo';
 import { toDxf } from '../core/dxf';
@@ -564,7 +564,7 @@ export class Editor {
     if (!plans.length) { body.append(h('p', { class: 'note' }, 'Turar joy seksiyalari yoʻq. «Hajmlar» qadamida generatsiya qiling (yakka uylar va taunhauslar kvartirali emas).')); return; }
     const resNet = this.last?.d.resNet ?? 0;
     body.append(h('div', { class: 'ctxst', id: 'aptPlan' }, h('b', {}, `${fmt(perFloor)} kvartira`), ` · ${fmt(plans.length)} seksiya`, h('br'),
-      h('span', { class: 'muted' }, `Oʻrtacha ${resNet && perFloor ? fmt(resNet / perFloor, 0) : '—'} m² (netto) · fasad moduli ${fmt(MOD_W, 1)} m: k xonali = k xona + oshxona. Burchakda — ikki tomonlama. Reyestrdagi avtoturargoh talabi hali oʻrtacha ${doc.settings.aptNet} m² boʻyicha.`)));
+      h('span', { class: 'muted' }, `Oʻrtacha ${resNet && perFloor ? fmt(resNet / perFloor, 0) : '—'} m² (netto) · fasad moduli ${fmt(MOD_W, 1)} m: k xonali = k xona + oshxona. Burchakda — ikki tomonlama. Shu son reyestrdagi avtoturargoh talabiga (kvartiraga 1 joy) ham olinadi.`)));
     body.append(
       h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Hisob sanasi (SanQvaN 8.3 davri chegarasi)'),
         h('div', { class: 'seg full', role: 'group' }, ...([['03-22', '22 mart'], ['09-22', '22 sentabr']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptDate === k, onclick: () => { this.aptDate = k; this.renderPanel(); } }, t)))),
@@ -602,6 +602,8 @@ export class Editor {
   /* ---------- 5-bosqich: xizmatlar va piyoda ---------- */
   private svc: { busy: boolean; err: string; poi: PoiBundle | null; res: SvcResult[] | null; sel: Svc; demand: Demand[]; net: Net | null; src: Record<string, XY[]>; ms: number; buildings?: unknown } = { busy: false, err: '', poi: null, res: null, sel: 'mtm', demand: [], net: null, src: {}, ms: 0 };
   private svcRule: Result | null = null;
+  private poiKind: Svc = 'mtm';
+  private poiName = '';
 
   private async loadPoi(force = false): Promise<void> {
     if (this.svc.busy) return;
@@ -627,6 +629,7 @@ export class Editor {
     const site = doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null, keep = new Set(doc.keep), kept = this.scene.inSite.filter(b => keep.has(b.id));
     let dropped = 0;
     (this.svc.poi?.pois ?? []).forEach(p => { const q = fr.toLocal(p.at); if (site && pointIn(q, site) && !kept.some(b => pointIn(q, b.rings))) { dropped++; return; } add(p.kind, [q]); });
+    doc.pois.forEach(p => add(p.kind, [fr.toLocal(p.at)]));   // qoʻlda belgilangan mavjud obyektlar
     const res = analyze(net, demand, src as Record<Svc, { pts: XY[] }[]>);
     this.svc = { ...this.svc, res, demand, net, src: Object.fromEntries(Object.entries(src).map(([k, v]) => [k, v.flatMap(o => o.pts)])), ms: performance.now() - t0, buildings: doc.buildings };
     const bad = res.filter(r => r.share < 0.999), fmtR = (r: SvcResult) => `${svcDef(r.kind).name} ${r.r} m — ${fmt(r.share * 100, 0)} %`;
@@ -666,6 +669,21 @@ export class Editor {
         h('div', { class: 'row' }, h('button', { class: 'btn grow', onclick: () => void this.loadPoi(true) }, 'OSM dan yangilash'), h('button', { class: 'btn grow', onclick: () => { this.svc.res = null; this.svc.err = 'yashirildi'; this.scene.setNetMap(null); this.renderPanel(); } }, 'Yashirish')),
         h('p', { class: 'muted' }, `${fmt(S.poi?.pois.length ?? 0)} OSM obyekt, ${fmt(S.net?.segs.length ?? 0)} yoʻl boʻlagi · ${fmt(S.ms, 0)} ms`));
     } else if (S.err === 'yashirildi') { body.append(h('button', { class: 'btn primary', onclick: () => { this.svc.err = ''; void this.loadPoi(); } }, 'Xizmatlar tahlili')); }
+    // qoʻlda obyekt qoʻshish (OSM da yoʻq bogʻcha, maktab…)
+    const doc = this.store.doc, fr = frame(doc.origin);
+    const kindSel = h('select', { id: 'poiKind' }, ...SERVICES.map(x => { const o = h('option', { value: x.id }, x.name) as HTMLOptionElement; o.selected = x.id === this.poiKind; return o; })) as HTMLSelectElement;
+    kindSel.onchange = () => { this.poiKind = kindSel.value as Svc; };
+    const nameIn = h('input', { id: 'poiName', placeholder: 'Nomi (ixtiyoriy), masalan 45-MTM', value: this.poiName }) as HTMLInputElement;
+    nameIn.oninput = () => { this.poiName = nameIn.value; };
+    const placing = this.tool instanceof ClickTool && this.tool.hint.startsWith('Obyekt');
+    body.append(h('div', { class: 'field', id: 'poiBox' }, h('span', { class: 'lb' }, 'Mavjud obyektni qoʻlda qoʻshish'),
+      h('div', { class: 'row' }, kindSel, nameIn),
+      h('button', { class: placing ? 'btn primary' : 'btn', id: 'poiAdd', onclick: () => placing ? this.setTool(null) : this.setTool(new ClickTool('Obyekt joyini bosing (kirish yoki uchastka chegarasi) · Esc — tugatish', xy => {
+        this.run(() => this.store.dispatch({ type: 'addPoi', poi: { id: uid('poi_'), kind: this.poiKind, at: fr.toGeo(xy), ...(this.poiName.trim() ? { name: this.poiName.trim() } : {}) } }));
+        this.poiName = ''; if (this.svc.res) this.runServices();
+      })) }, placing ? 'Qoʻshishni tugatish' : '＋ Xaritada belgilash'),
+      doc.pois.length ? h('div', { class: 'list', id: 'poiList' }, ...doc.pois.map(p => h('div', { class: 'it' }, h('b', {}, svcDef(p.kind).name), h('small', {}, p.name ?? 'nomsiz'),
+        h('button', { class: 'btn', 'aria-label': 'Oʻchirish', onclick: (e: Event) => { e.stopPropagation(); this.run(() => this.store.dispatch({ type: 'removePoi', id: p.id })); if (this.svc.res) this.runServices(); } }, '×')))) : ''));
     body.append(h('p', { class: 'note' }, 'Meʼyor: ShNQ 2.07.01-23, 539-band, 38-jadval (shahar; asl matndan). Masofa seksiya markazidan obyekt uchastkasi chegarasigacha piyoda yoʻllar boʻylab; past zichlikdagi hududlar uchun kattaroq radiuslar (MTM 500, dorixona 800 m) hali qoʻllanmagan. 39-jadval (qizil chiziq va turar joygacha masofalar) — keyingi qadamda. OSM Toshkentda toʻliq emas: mavjud bogʻcha yoki maktab koʻrinmasa, «Parsellar» qadamida tegishli funksiyani bering.'));
   }
 
@@ -680,7 +698,7 @@ export class Editor {
     const s = this.store.doc.settings;
     return [
       `Aholi = kvartiralar netto maydoni ÷ ${s.m2PerPerson} m²/kishi; netto = turar joy GFA × ${s.netToGross}.`,
-      `Avtoturargoh talabi kvartiralar soniga koʻra (oʻrtacha ${s.aptNet} m²), yer osti/stilobat parkovka — 30 m²/joy brutto (taxmin).`,
+      `Avtoturargoh talabi kvartiralar soniga koʻra (${this.last?.d.aptSource === 'sxema' ? 'kvartira sxemasidan' : `oʻrtacha ${s.aptNet} m² taxmin`}), yer osti/stilobat parkovka — 30 m²/joy brutto (taxmin).`,
       'Mavjud binolar va koʻchalar — OpenStreetMap; balandligi yoʻqlari dogʻ maydoni va turi boʻyicha taxmin qilingan.',
       ...(this.apt.stats ? ['Kvartiralar — fasad modullari (3,3 m) boʻyicha sxema; yashash xonalari eng yaxshi derazalarda (optimistik), balkon soyasi hisobga olinmagan.'] : []),
       ...(this.svc.res ? ['Xizmat radiuslari piyoda yoʻllari boʻylab; OSM obyektlari toʻliq emas — qamrov pastki baho.'] : []),
