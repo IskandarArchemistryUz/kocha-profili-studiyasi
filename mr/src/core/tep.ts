@@ -6,11 +6,12 @@ import type { Derived } from './derive';
 import type { Project } from './doc';
 import { frame, area } from './geo';
 import { useDef } from './uses';
+import type { CompResult } from './compensation';
 
 export interface TepRow { g: string; name: string; unit: string; v: number | string | null; note?: string }
 export interface Demolition { gone: number; kept: number; foot: number; floorArea: number }
 
-export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extra?: { apts?: number; aptOk?: number; svc?: { name: string; r: number; share: number }[] }): TepRow[] {
+export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extra?: { apts?: number; aptOk?: number; svc?: { name: string; r: number; share: number }[]; comp?: CompResult; regime?: string; priceSource?: string }): TepRow[] {
   const s = doc.settings, R: TepRow[] = [], add = (g: string, name: string, unit: string, v: TepRow['v'], note?: string) => R.push({ g, name, unit, v, ...(note ? { note } : {}) });
   add('Hudud', 'Uchastka maydoni', 'ga', d.siteHa);
   add('Hudud', 'Koʻchalar (qizil chiziqlar orasi)', 'm²', d.streetArea);
@@ -43,6 +44,17 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
     add('Buzish', 'Buziladigan binolar dogʻi', 'm²', demo.foot);
     add('Buzish', 'Buziladigan binolar qavatlar maydoni (taxmin)', 'm²', demo.floorArea, 'OSM balandligi ÷ 3,2 m');
     add('Buzish', 'Saqlanadigan mavjud binolar', 'ta', demo.kept);
+  }
+  const c = extra?.comp;
+  if (c) {
+    const law = extra?.regime === 'orq1149' ? 'OʻRQ-1149 (renovatsiya)' : 'OʻRQ-781 (olib qoʻyish)';
+    add('Koʻchirish', 'Koʻchiriladigan xonadonlar (taxmin)', 'ta', c.households);
+    add('Koʻchirish', 'Bozor qiymati', '$', c.market, extra?.priceSource ? `narx: ${extra.priceSource}` : 'narx kiritilmagan');
+    add('Koʻchirish', `Noqulaylik uchun ${c.pct} %`, '$', c.inconvenience, law);
+    add('Koʻchirish', 'Ijara, koʻchish, boy berilgan foyda', '$', c.rent + c.moving + c.profit);
+    add('Koʻchirish', 'Jami (dastlabki baho, baholovchi xulosasi emas)', '$', c.total, c.missing.length ? `narxi yoʻq: ${c.missing.join(', ')}` : undefined);
+    if (d.gfa > 0) add('Koʻchirish', 'Jami, loyiha GFA ga', '$/m²', c.total / d.gfa);
+    add('Koʻchirish', 'Qaytariladigan turar joy maydoni', 'm²', c.resArea, d.resNet > 0 ? `loyiha kvartiralarining ${Math.round(c.resArea / d.resNet * 100)} %` : undefined);
   }
   return R;
 }

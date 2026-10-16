@@ -131,6 +131,18 @@ export const RULES: Rule[] = [
     },
   },
   {
+    id: 'renov-green-7',
+    title: 'Renovatsiya hududida yashil zona (≥ 1/4)',
+    source: { doc: 'OʻRQ-1149 «Shaharsozlik renovatsiyasi toʻgʻrisida»', edition: '10.06.2026 (kuchga kirishi 12.12.2026)', clause: '7-modda', verified: true },
+    evaluate(d, doc) {
+      if (doc.settings.comp.regime !== 'orq1149') return { status: 'na', note: 'Koʻchirish rejimi — OʻRQ-781 (jamoat ehtiyojlari uchun olib qoʻyish). Renovatsiya rejimida tekshiriladi.' };
+      if (d.siteHa <= 0) return { status: 'na', unit: '%', limit: '≥ 25' };
+      const v = d.greenShare * 100;
+      return { status: v >= 25 ? 'pass' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
+        note: 'Renovatsiya loyihasida qamrab olingan hududning kamida toʻrtdan bir qismi yashil zonalardan iborat boʻlishi kerak. Hisob: «Park / bogʻ» funksiyali kvartal va parsellar ÷ uchastka.' };
+    },
+  },
+  {
     id: 'green-per-person',
     title: 'Yashil hudud, kishi boshiga',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: 'band aniqlanmagan', verified: false },

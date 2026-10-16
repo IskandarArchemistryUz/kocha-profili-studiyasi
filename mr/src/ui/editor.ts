@@ -31,6 +31,7 @@ import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand
 import type { PoiBundle } from '../context/poi';
 import { centroid, area } from '../core/geo';
 import { toDxf } from '../core/dxf';
+import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
 import { tepRows, buildingRows, BUILDING_HEAD } from '../core/tep';
 import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
@@ -692,7 +693,8 @@ export class Editor {
   private tep() {
     const doc = this.store.doc, d = this.last?.d; if (!d) return [];
     const demo = this.scene.inSite.length ? this.demolition() : null, st = this.apt.stats;
-    return tepRows(d, doc, demo, { ...(st ? { apts: st.apts, aptOk: st.bothOk } : {}), ...(this.svc.res ? { svc: this.svc.res.map(r => ({ name: svcDef(r.kind).name, r: r.r, share: r.share })) } : {}) });
+    const cr = this.scene.inSite.length ? this.comp() : null;
+    return tepRows(d, doc, demo, { ...(cr ? { comp: cr, regime: doc.settings.comp.regime, priceSource: doc.settings.comp.priceSource } : {}), ...(st ? { apts: st.apts, aptOk: st.bothOk } : {}), ...(this.svc.res ? { svc: this.svc.res.map(r => ({ name: svcDef(r.kind).name, r: r.r, share: r.share })) } : {}) });
   }
   private reportNotes(): string[] {
     const s = this.store.doc.settings;
@@ -702,6 +704,7 @@ export class Editor {
       'Mavjud binolar va koʻchalar — OpenStreetMap; balandligi yoʻqlari dogʻ maydoni va turi boʻyicha taxmin qilingan.',
       ...(this.apt.stats ? ['Kvartiralar — fasad modullari (3,3 m) boʻyicha sxema; yashash xonalari eng yaxshi derazalarda (optimistik), balkon soyasi hisobga olinmagan.'] : []),
       ...(this.svc.res ? ['Xizmat radiuslari piyoda yoʻllari boʻylab; OSM obyektlari toʻliq emas — qamrov pastki baho.'] : []),
+      ...(this.scene.inSite.some(x => !new Set(this.store.doc.keep).has(x.id)) ? [`Koʻchirish xarajati — dastlabki baho (${this.store.doc.settings.comp.regime === 'orq1149' ? 'OʻRQ-1149, 40–42-moddalar: noqulaylik 12 %, foyda 2 yil' : 'OʻRQ-781, 23–25-moddalar: noqulaylik 5 %, foyda 1 yil'}); bozor qiymati — ${this.store.doc.settings.comp.priceSource || 'kiritilgan narx'}; baholovchi xulosasi emas (OʻRQ-781, 29-modda).`] : []),
       'Shamol (agar hisoblangan boʻlsa) — 2D LBM, Lawson mezoni xalqaro amaliyotdan; Oʻzbekiston meʼyori emas.',
     ];
   }
@@ -988,12 +991,63 @@ export class Editor {
     if (dm.all) {
       body.append(h('div', { class: 'field', id: 'demo' }, h('span', { class: 'lb' }, 'Uchastkadagi mavjud binolar'),
         h('div', { class: 'ctxst' }, h('b', {}, `${dm.all} bino`), ` · saqlanadi ${dm.kept} · `, h('b', { style: 'color:var(--bad)' }, `buziladi ${dm.gone}`),
-          dm.gone ? h('div', { class: 'muted' }, `Buziladigan dogʻ ${fmt(dm.foot)} m², taxminiy maydon ~${fmt(dm.floorArea)} m² (OSM balandligi/taxmin boʻyicha). Koʻchirish hisobi — 5-bosqichda.`) : ''),
+          dm.gone ? h('div', { class: 'muted' }, `Buziladigan dogʻ ${fmt(dm.foot)} m², taxminiy maydon ~${fmt(dm.floorArea)} m² (OSM balandligi/taxmin boʻyicha). Koʻchirish xarajati — pastda.`) : ''),
         h('div', { class: 'row' },
           h('button', { class: 'btn grow', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id) })) }, 'Hammasini saqlash'),
           h('button', { class: 'btn grow', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, 'Hammasini buzish')),
         h('p', { class: 'note' }, 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil.')));
+      if (dm.gone) this.compSection(body);
     }
+  }
+
+  /* ---------- koʻchirish xarajati (OʻRQ-781 / OʻRQ-1149) ---------- */
+  private demoList(): DemoBuilding[] {
+    const keep = new Set(this.store.doc.keep);
+    return this.scene.inSite.filter(x => !keep.has(x.id)).map(x => ({ id: x.id, area: area(x.rings[0]), h: x.h, kind: (x as { kind?: string }).kind }));
+  }
+  private comp(): CompResult | null { const l = this.demoList(); return l.length ? compensation(l, this.store.doc.settings.comp) : null; }
+  private monitorMsg = '';
+  private async loadMonitoring(): Promise<void> {
+    this.monitorMsg = 'Yuklanmoqda…'; this.renderPanel();
+    try {
+      const r = await fetch(MONITORING_URL, { cache: 'no-store' }); if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const m = parseMonitoring(await r.text()); if (!m || (!m.flat && !m.house)) throw new Error('maʼlumot yoʻq');
+      const c = this.store.doc.settings.comp, near = !!(m.flatNear || m.houseNear);
+      this.run(() => this.store.dispatch({ type: 'setSettings', patch: { comp: { ...c, priceFlat: m.flatNear ?? m.flat ?? c.priceFlat, priceHouse: m.houseNear ?? m.house ?? c.priceHouse, priceSource: `uybor.uz, Mirobod, ${m.date}${near ? ' — Fitrat atrofi 1,5 km median' : ' — tuman median'} (soʻralgan narx)` } } }));
+      this.monitorMsg = `Tuman median: kvartira ${m.flat ?? '—'}, hovli ${m.house ?? '—'} $/m²; atrof 1,5 km: ${m.flatNear ?? '—'} / ${m.houseNear ?? '—'} $/m² (${m.date}).`;
+    } catch (e) { this.monitorMsg = `Monitoring maʼlumoti olinmadi: ${(e as Error).message}. Narxni qoʻlda kiriting.`; }
+    this.renderPanel();
+  }
+  private compSection(body: HTMLElement): void {
+    const c = this.store.doc.settings.comp, R = this.comp(); if (!R) return;
+    const set = (patch: Partial<CompParams>) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { comp: { ...c, ...patch } } }));
+    const num = (k: keyof CompParams, label: string, step = 1) => { const e = h('input', { type: 'number', min: 0, step, value: c[k] as number, 'data-comp': k, style: 'width:100%' }) as HTMLInputElement;
+      e.onchange = () => { const v = Number(e.value); if (!(v >= 0)) return;
+        const src = k === 'priceFlat' || k === 'priceHouse' ? 'qoʻlda' : k === 'priceNonres' && c.priceSource && !c.priceSource.includes('noturar') ? `${c.priceSource}; noturar — qoʻlda` : c.priceSource;
+        set({ [k]: v, priceSource: src } as Partial<CompParams>); };
+      return h('label', { class: 'field', style: 'min-width:0' }, h('span', { class: 'lb' }, label), e); };
+    const grid = (...kids: HTMLElement[]) => h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px' }, ...kids);
+    const usd = (v: number) => fmt(Math.round(v));
+    const NAME: Record<string, string> = { hovli: 'Hovli uylar', kvartira: 'Koʻp kvartirali', noturar: 'Noturar' };
+    const gfa = this.last?.d.gfa ?? 0, resNet = this.last?.d.resNet ?? 0;
+    body.append(h('div', { class: 'field', id: 'compBox' }, h('span', { class: 'lb' }, 'Koʻchirish xarajati (dastlabki baho)'),
+      h('div', { class: 'seg full', role: 'group' }, ...([['orq781', '781: olib qoʻyish'], ['orq1149', '1149: renovatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': c.regime === k, 'data-regime': k, onclick: () => set({ regime: k }) }, t))),
+      grid(num('priceFlat', 'Kvartira, $/m²', 10), num('priceHouse', 'Hovli, $/m²', 10), num('priceNonres', 'Noturar, $/m²', 10), h('button', { class: 'btn', id: 'compMon', style: 'align-self:end', onclick: () => void this.loadMonitoring() }, 'Monitoringdan')),
+      h('span', { class: 'muted', id: 'compSrc' }, c.priceSource ? `Manba: ${c.priceSource}` : 'Manba: kiritilmagan'),
+      this.monitorMsg ? h('p', { class: 'note' }, this.monitorMsg) : '',
+      grid(num('rentRate', 'Ijara, $/m²·oy', 0.5), num('rentMonths', 'Ijara, oy'), num('movingPerHh', 'Koʻchish, $/xonadon', 10), num('profitRate', 'Foyda, $/m²·yil', 5)),
+      h('table', { class: 'reg', id: 'compTab', style: 'font-size:12px' },
+        h('thead', {}, h('tr', {}, h('th', {}, 'Toifa (bino)'), h('th', {}, 'm²'), h('th', {}, 'Xon.'), h('th', {}, '$'))),
+        h('tbody', {},
+          ...R.rows.map(r => h('tr', {}, h('td', {}, `${NAME[r.kind]} (${r.n})`), h('td', { class: 'num' }, fmt(Math.round(r.floorArea))), h('td', { class: 'num' }, r.households ? String(r.households) : '—'), h('td', { class: 'num' }, R.missing.includes(r.kind) ? 'narx yoʻq' : usd(r.market)))),
+          h('tr', {}, h('td', { colspan: 3 }, `Noqulaylik uchun ${R.pct} % (${c.regime === 'orq1149' ? '1149: 41-modda' : '781: 23-modda'})`), h('td', { class: 'num' }, usd(R.inconvenience))),
+          h('tr', {}, h('td', { colspan: 3 }, `Vaqtinchalik ijara (${c.rentMonths} oy) va koʻchish`), h('td', { class: 'num' }, c.rentRate || c.movingPerHh ? usd(R.rent + R.moving) : 'kiritilmagan')),
+          h('tr', {}, h('td', { colspan: 3 }, `Noturar: boy berilgan foyda (${R.profitYears} yil)`), h('td', { class: 'num' }, c.profitRate ? usd(R.profit) : 'kiritilmagan')),
+          h('tr', {}, h('td', { colspan: 3 }, h('b', {}, 'Jami')), h('td', { class: 'num' }, h('b', {}, usd(R.total)))))),
+      h('div', { class: 'ctxst' }, gfa ? `Loyiha GFA ning har m² iga ${fmt(R.total / gfa, 0)} $. ` : '',
+        `Qaytariladigan turar joy maydoni ≈ ${fmt(Math.round(R.resArea))} m² (${R.households} xonadon)${resNet ? ` — loyiha kvartiralarining ${fmt(R.resArea / resNet * 100, 0)} %` : ''}${c.regime === 'orq1149' ? ' (42-modda: beriladigan maydon avvalgisidan kam boʻlmasligi kerak)' : ' (25-modda: teng qiymatli, ijtimoiy normadan kam boʻlmagan)'}.`),
+      R.missing.length ? h('p', { class: 'warn' }, `Narx kiritilmagan: ${R.missing.map(k => NAME[k]).join(', ')} — jami toʻliq emas.`) : '',
+      h('p', { class: 'note' }, 'Bu baholovchi xulosasi emas (OʻRQ-781, 29-modda: qiymatni baholovchi tashkilot belgilaydi). Bozor qiymati — eʼlonlardagi soʻralgan narx yoki kiritilgan qiymat × maydon; maydon OSM dogʻi va balandligidan taxmin, kvartirada ×' + fmt(c.flatNet, 2) + '. Yerga boʻlgan huquq va dov-daraxtlar alohida hisoblanmagan (hovli narxida yer bor). Yangi uy 24 oydan kechiksa — kuniga 0,05 % penya (781: 24-modda; 1149: 43–44-moddalar). OʻRQ-1149 12.12.2026 dan kuchga kiradi; avariya uyi uchun 4/5 rozilik shart emas (36-modda).')));
   }
 
   private yashilPanel(body: HTMLElement): void {
