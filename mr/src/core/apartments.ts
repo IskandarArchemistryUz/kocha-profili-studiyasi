@@ -18,11 +18,17 @@ import { signedArea } from './geo';
 import type { Prism, SunStep } from './sun';
 
 export interface Module { a: XY; b: XY; /** deraza nuqtasi (fasaddan 0,3 m tashqarida) */ p: XY; /** tashqi normal azimuti, ° */ az: number; blind: boolean }
-export interface Apt { rooms: number; /** modullar indekslari */ mods: number[]; /** yashash xonalari modullari */ living: number[] }
+export interface Apt { rooms: number; /** modullar indekslari */ mods: number[]; /** yashash xonalari modullari */ living: number[]; /** qator oxirida joy yetmay kichraytirilgan — miksdan tashqari */ forced?: boolean }
 export interface Layout { mods: Module[]; apts: Apt[] }
 
 export const MIX_DEFAULT: [number, number, number, number] = [20, 40, 30, 10];
 export const MOD_W = 3.3;
+/** Kvartira oʻlchami: k xonali kvartiraga qoʻshimcha modullar (S — ixcham, M — oʻrtacha, L — keng) */
+export type AptSize = 'S' | 'M' | 'L';
+export const APT_SIZES: { id: AptSize; name: string; note: string }[] = [{ id: 'S', name: 'S', note: 'ixcham: k xona + oshxona' }, { id: 'M', name: 'M', note: '3–4 xonalida +1 modul' }, { id: 'L', name: 'L', note: 'har kvartiraga +1 modul' }];
+export const extraMods = (size: AptSize, rooms: number) => size === 'L' ? 1 : size === 'M' && rooms >= 3 ? 1 : 0;
+/** Kvartira netto maydoni, m² — TAXMIN: modullar × 3,3 m × seksiya yarim chuqurligi × 0,8 (devorlar, umumiy joylar) */
+export const aptArea = (mods: number, halfDepth: number) => mods * MOD_W * halfDepth * 0.8;
 
 const az = (n: XY) => ((Math.atan2(n[0], n[1]) * 180 / Math.PI) + 360) % 360;
 export const isWest = (a: number) => a >= 200 && a <= 290;
@@ -38,7 +44,7 @@ function mixPicker(mix: number[]): () => number {
 /**
  * Seksiya rejasi. ring — mahalliy XY; blindAt(p) — nuqta qoʻshni binoning ichidami (berk devor).
  */
-export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W): Layout {
+export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M'): Layout {
   const ring = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, mods: Module[] = [];
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i], b = ring[(i + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
@@ -62,9 +68,9 @@ export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: num
   for (const run of runs) {
     let pos = 0, want = next();
     while (pos < run.length) {
-      const left = run.length - pos;
-      if (left >= want + 1) { apts.push(mkApt(run.slice(pos, pos + want + 1), want, mods)); pos += want + 1; want = next(); continue; }
-      if (left >= 2) { apts.push(mkApt(run.slice(pos), left - 1, mods)); pos = run.length; continue; }
+      const left = run.length - pos, need = want + 1 + extraMods(size, want);
+      if (left >= need) { apts.push(mkApt(run.slice(pos, pos + need), want, mods)); pos += need; want = next(); continue; }
+      if (left >= 2) { const a = mkApt(run.slice(pos), Math.min(want, left - 1), mods); a.forced = true; apts.push(a); pos = run.length; continue; }
       // bitta modul qoldi — oldingi kvartiraga (yordamchi xona) yoki zinapoya derazasi
       if (apts.length && run.includes(apts[apts.length - 1].mods[0])) apts[apts.length - 1].mods.push(run[pos]);
       pos = run.length;
@@ -139,10 +145,17 @@ export const westAllowed = (k: number) => (k <= 1 ? 0 : k === 2 ? 1 : 2);
 
 /* ---------------- loyiha boʻyicha ---------------- */
 import type { Project } from './doc';
-import { frame } from './geo';
+
+/** Kvartiralar jamlanmasi: turlari boʻyicha soni, oʻrtacha maydoni, miksdan tashqari */
+export function aptSummary(plans: SecPlan[]): { total: number; forced: number; byK: { k: number; n: number; share: number; area: number }[] } {
+  const byK = new Map<number, { n: number; area: number }>(); let total = 0, forced = 0;
+  for (const pl of plans) { const nf = pl.f1 - pl.f0; for (const a of pl.layout.apts) { total += nf; if (a.forced) forced += nf; const e = byK.get(a.rooms) ?? { n: 0, area: 0 }; e.n += nf; e.area += aptArea(a.mods.length, pl.halfDepth) * nf; byK.set(a.rooms, e); } }
+  return { total, forced, byK: [1, 2, 3, 4].map(k => { const e = byK.get(k); return { k, n: e?.n ?? 0, share: total && e ? e.n / total : 0, area: e && e.n ? e.area / e.n : 0 }; }) };
+}
+import { frame, obb2 } from './geo';
 import { useDef } from './uses';
 
-export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number }
+export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number }
 
 const SKIP = new Set(['stilobat', 'uy', 'taunhaus']);
 
@@ -161,8 +174,9 @@ export function planApartments(doc: Project): SecPlan[] {
     const z0 = b.z0 ?? 0, top = z0 + b.floors;
     // berk devor: qoʻshni seksiya shu sathda tegib tursa
     const blindAt = (p: XY) => all.some(o => o !== s && p[0] >= o.bb[0] && p[0] <= o.bb[2] && p[1] >= o.bb[1] && p[1] <= o.bb[3] && (o.b.z0 ?? 0) < top && (o.b.z0 ?? 0) + o.b.floors > z0 + b.nonRes && inside(p, o.r));
-    const layout = layoutSection(s.r, blindAt, mix);
-    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0 });
+    const layout = layoutSection(s.r, blindAt, mix, MOD_W, doc.settings.aptSize ?? 'M');
+    const { S } = obb2(s.r), halfDepth = Math.max(4, Math.min(9, S / 2));
+    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth });
   }
   return out;
 }

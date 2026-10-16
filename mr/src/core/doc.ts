@@ -79,6 +79,8 @@ export interface Settings {
   aptNet: number;
   /** kvartira miksi, %: 1, 2, 3, 4 xonali (fasad modullari boʻyicha rejalash — core/apartments.ts) */
   aptMix: [number, number, number, number];
+  /** kvartira oʻlchami (modullar soni) */
+  aptSize: 'S' | 'M' | 'L';
   /** aholi yosh tarkibi uchun hudud (stat.uz SOATO kodi): tuman, shahar yoki viloyat */
   district: string;
   /** koʻchirish xarajati parametrlari (core/compensation.ts) */
@@ -141,6 +143,7 @@ export const DEFAULT_SETTINGS: Settings = {
   floorHeight: 3.3,
   aptNet: 65,
   aptMix: [20, 40, 30, 10],
+  aptSize: 'M',
   district: '1726',
   comp: { ...COMP_DEFAULT },
   yards: true,
@@ -188,6 +191,7 @@ export function migrate(raw: unknown): Project {
   for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
   if (!Array.isArray(s.aptMix) || s.aptMix.length !== 4 || !s.aptMix.every(v => isNum(v) && v >= 0) || !s.aptMix.some(v => v > 0)) s.aptMix = [...DEFAULT_SETTINGS.aptMix];
   else s.aptMix = [...s.aptMix] as Settings['aptMix'];
+  if (!['S', 'M', 'L'].includes(s.aptSize as string)) s.aptSize = 'M';
   s.comp = { ...COMP_DEFAULT, ...(s.comp && typeof s.comp === 'object' ? s.comp : {}) };
   if (s.comp.regime !== 'orq781' && s.comp.regime !== 'orq1149') s.comp.regime = 'orq781';
   for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
