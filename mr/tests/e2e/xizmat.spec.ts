@@ -41,6 +41,11 @@ test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', as
   await page.click('[data-step=eksport]');
   const [dxf] = await Promise.all([page.waitForEvent('download'), page.click('#exDxf')]);
   expect(dxf.suggestedFilename()).toMatch(/\.dxf$/);
+  const [ifc] = await Promise.all([page.waitForEvent('download'), page.click('#exIfc')]);
+  expect(ifc.suggestedFilename()).toMatch(/\.ifc$/);
+  expect((await (await import('node:fs/promises')).readFile((await ifc.path())!, 'utf8')).startsWith('ISO-10303-21;')).toBe(true);
+  const [obj] = await Promise.all([page.waitForEvent('download'), page.click('#exObj')]);
+  expect((await (await import('node:fs/promises')).readFile((await obj.path())!, 'utf8'))).toMatch(/^v /m);
   const [glb] = await Promise.all([page.waitForEvent('download'), page.click('#exGlb')]);
   expect(glb.suggestedFilename()).toMatch(/\.glb$/);
   const buf = await (await import('node:fs/promises')).readFile((await glb.path())!);
