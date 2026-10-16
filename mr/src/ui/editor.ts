@@ -12,7 +12,7 @@ import { Compute, type Computed } from '../workers/compute';
 import type { Result } from '../norms/rules';
 import { h, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
-import { ClickTool, LineTool, PolygonTool, RectTool, type Tool } from './tools';
+import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { ZONE_COL } from '../scene/scene';
@@ -53,6 +53,14 @@ import { summary } from '../context/osm';
 import { geocode, type Place } from '../context/geocode';
 import { detectBlock, type Barrier } from '../context/blocks';
 
+type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
+const TOOLS: [ToolMode, string, string][] = [
+  ['select', 'Tanlash (V)', '<path d="M5 3l14 8-6 2-3 6z"/>'],
+  ['hand', 'Qoʻl — surish (H)', '<path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.6 14a1.6 1.6 0 0 1 2.6-1.8L8 14"/>'],
+  ['measure', 'Chizgʻich (M)', '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>'],
+  ['section', 'Kesim (S)', '<path d="M3 12h18" stroke-dasharray="3 2"/><path d="M6 12V6h12v6M6 12v6h12v-6" opacity=".45"/>'],
+  ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
+];
 /** Tipologiya piktogrammalari (yuqoridan koʻrinish, 24×24) */
 const TYPO_ICON: Record<string, string> = {
   avto: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2"/><path d="M8 16l4-9 4 9M9.5 13h5"/>',
@@ -1409,6 +1417,83 @@ export class Editor {
       const b = h('button', { 'aria-label': `${s.n}. ${s.title}${lk ? ' — ' + lk : ''}`, title: `${s.n}. ${s.title}${lk ? '\n' + lk : ''}`, 'data-step': s.id, 'aria-current': s === this.step ? 'step' : null, 'data-locked': !!lk, 'data-done': this.done(s), onclick: () => this.go(s) }, h('span', { class: 'n' }, s.n));
       b.append(svgIcon(s.icon)); r.append(b);
     });
+    r.append(h('hr'));
+    for (const [k, t, ic] of TOOLS) {
+      const b = h('button', { class: 'tool', 'data-tool': k, 'aria-label': t, title: t, 'aria-pressed': this.mode === k, onclick: () => this.setMode(k) }); b.append(svgIcon(ic)); r.append(b);
+    }
+  }
+
+  /* ---------- asboblar: tanlash, qoʻl, chizgʻich, kesim, pipetka ---------- */
+  private mode: ToolMode = 'select';
+  private copied: { use: Use; floors: number; nonRes: number; mat?: Mat; roof?: Roof; parapet?: number; shade?: Shade; from: string } | null = null;
+  private setMode(k: ToolMode): void {
+    if (this.mode === 'measure' || this.mode === 'section') this.setTool(null);
+    this.mode = this.mode === k && k !== 'select' ? 'select' : k;
+    this.scene.setHand(this.mode === 'hand');
+    if (this.mode === 'measure') this.setTool(new MeasureTool(this.scene, fmt));
+    if (this.mode !== 'pipette') this.copied = null;
+    this.renderRail(); this.renderToolPanel();
+  }
+  private renderToolPanel(): void {
+    let el = this.el.stage.querySelector<HTMLElement>('.toolpanel');
+    const S = this.scene.section;
+    if (this.mode !== 'section' && this.mode !== 'pipette') { el?.remove(); return; }
+    if (!el) { el = h('div', { class: 'toolpanel', role: 'toolbar' }); this.el.stage.append(el); }
+    if (this.mode === 'pipette') {
+      el.replaceChildren(h('b', {}, 'Pipetka'), h('span', { id: 'pipSt' }, this.copied ? `Nusxa: ${this.copied.from} — endi boshqa binolarni bosing (Esc — tugatish)` : 'Namuna binoni bosing: funksiya, qavatlar, material, tom, parapet, quyosh himoyasi nusxalanadi'));
+      return;
+    }
+    const zIn = h('input', { type: 'range', min: 1, max: 120, step: 0.5, value: S?.kind === 'h' ? S.z : 10, id: 'secZ', 'aria-label': 'Kesim balandligi' }) as HTMLInputElement;
+    const zT = h('b', { class: 'num' }, `${fmt(S?.kind === 'h' ? S.z : 10, 1)} m`);
+    zIn.oninput = () => { this.scene.setSection({ kind: 'h', z: Number(zIn.value) }); zT.textContent = `${fmt(Number(zIn.value), 1)} m`; };
+    el.replaceChildren(h('b', {}, 'Kesim'),
+      h('div', { class: 'seg' },
+        h('button', { 'aria-pressed': S?.kind === 'h', id: 'secH', onclick: () => { this.setTool(null); this.scene.setSection({ kind: 'h', z: Number(zIn.value) }); this.renderToolPanel(); } }, 'Gorizontal'),
+        h('button', { 'aria-pressed': S?.kind === 'v', id: 'secV', onclick: () => { this.setTool(new SectionLineTool(this.scene, (a, b) => { this.scene.setSection({ kind: 'v', a, b }); this.setTool(null); this.renderToolPanel(); })); } }, 'Vertikal (chizish)')),
+      S?.kind === 'h' ? h('span', { class: 'row' }, zIn, zT) : '',
+      h('button', { class: 'btn', id: 'secOff', disabled: !S, onclick: () => { this.scene.setSection(null); this.renderToolPanel(); } }, 'Olib tashlash'));
+  }
+  /** pipetka: namuna → boshqa binolarga */
+  private pipette(id: string): void {
+    const doc = this.store.doc, b = doc.buildings.find(x => x.id === id); if (!b) return;
+    if (!this.copied) { this.copied = { use: b.use, floors: b.floors, nonRes: b.nonRes, mat: b.mat, roof: b.roof, parapet: b.parapet, shade: b.shade, from: `${useDef(b.use).name}, ${b.floors} qavat` }; this.renderToolPanel(); return; }
+    const { from: _f, ...patch } = this.copied; void _f;
+    this.run(() => this.store.dispatch({ type: 'updateBuilding', id, patch }));
+  }
+
+  /* ---------- oʻng tugma menyusi ---------- */
+  private ctxMenu(x: number, y: number): void {
+    document.querySelector('.cmenu')?.remove();
+    const doc = this.store.doc, id = this.scene.pickBuilding(x, y), b = id ? doc.buildings.find(q => q.id === id) : null;
+    const item = (t: string, fn: () => void, kbd = '', danger = false) => h('button', { class: danger ? 'danger' : '', onclick: () => { m.remove(); fn(); } }, h('span', {}, t), kbd ? h('kbd', {}, kbd) : '');
+    const m = h('div', { class: 'cmenu', role: 'menu' });
+    if (b) {
+      const sel = () => { this.sel = b.id; this.scene.select(b.id); };
+      m.append(h('div', { class: 'cm-h' }, `${useDef(b.use).name} · ${b.floors} qavat`),
+        item('Tahrirlash', () => { sel(); this.inspTab = 'hajm'; this.renderAll(); }),
+        item('Qavat qoʻshish', () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: b.floors + 1 } })), '+'),
+        item('Qavat olib tashlash', () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: Math.max(1, b.floors - 1) } })), '−'),
+        item('Qavatlar va terrasa…', () => { sel(); this.inspTab = 'qavat'; this.renderAll(); }, 'PgUp'),
+        item('Fasad va tom…', () => { sel(); this.inspTab = 'fasad'; this.renderAll(); }),
+        h('hr'),
+        item('Uslubni nusxalash (pipetka)', () => { this.mode = 'pipette'; this.copied = null; this.renderRail(); this.pipette(b.id); }, 'I'),
+        this.copied ? item(`Uslubni qoʻyish (${this.copied.from})`, () => this.pipette(b.id)) : '',
+        item('Nusxa (yoniga)', () => { sel(); this.renderAll(); (this.el.stage.querySelector('#iDup') as HTMLButtonElement | null)?.click(); }),
+        item('Yaqinlashtirish', () => this.scene.frameBuilding(this.store.doc, b.id), 'F'),
+        h('hr'),
+        item('Oʻchirish', () => this.store.dispatch({ type: 'removeBuilding', id: b.id }), 'Del', true));
+    } else {
+      m.append(h('div', { class: 'cm-h' }, 'Sahna'),
+        item('Loyihani koʻrsatish', () => this.scene.frameDoc(this.store.doc)),
+        item('Chizgʻich', () => this.setMode('measure'), 'M'),
+        item('Kesim', () => this.setMode('section'), 'S'),
+        this.scene.section ? item('Kesimni olib tashlash', () => { this.scene.setSection(null); this.renderToolPanel(); }) : '',
+        item('Sahna rasmi (PNG)', () => download(`${safe(doc.name)}.png`, this.scene.snapshot())));
+    }
+    document.body.append(m);
+    const w = m.offsetWidth, hh = m.offsetHeight; m.style.left = `${Math.min(x, innerWidth - w - 8)}px`; m.style.top = `${Math.min(y, innerHeight - hh - 8)}px`;
+    const off = (e: Event) => { if (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Escape') return; m.remove(); document.removeEventListener('pointerdown', off, true); document.removeEventListener('keydown', off); };
+    setTimeout(() => { document.addEventListener('pointerdown', (e: PointerEvent) => { if (!m.contains(e.target as Node)) off(e); }, { capture: true, once: true }); document.addEventListener('keydown', off); }, 0);
   }
 
   go(s: StepDef): void {
@@ -1425,7 +1510,7 @@ export class Editor {
   private setTool(t: Tool | null): void {
     this.tool?.cancel(); this.tool = t;
     /* chizish rejada aniq: sharq–shimol oʻqlari ekran oʻqlari bilan mos */
-    if (t && this.scene.view !== 'plan') this.setView('plan');
+    if (t && this.scene.view !== 'plan' && !(t as { anyView?: boolean }).anyView) this.setView('plan');
     this.el.hint.hidden = !t; if (t) this.el.hint.textContent = t.hint;
     this.renderPanel();
   }
@@ -1549,7 +1634,10 @@ export class Editor {
     let down: { x: number; y: number } | null = null;
     // bino muharriri: devorni itarish / binoni siljitish (sichqoncha bilan)
     let drag: { id: string; p0: XY; r0: XY[]; edge: number; n: XY } | null = null, raf = 0, pend: XY | null = null;
+    let rdown: { x: number; y: number } | null = null;
+    c.addEventListener('contextmenu', e => e.preventDefault());
     c.addEventListener('pointerdown', e => {
+      if (e.button === 2) { rdown = { x: e.clientX, y: e.clientY }; return; }
       if (e.button !== 0) return;
       down = { x: e.clientX, y: e.clientY };
       if (this.dragMode === 'yoq' || !this.sel || this.tool) return;
@@ -1575,7 +1663,9 @@ export class Editor {
       if (!this.tool?.move) return; const p = this.scene.pick(e.clientX, e.clientY); if (p) this.tool.move(p);
     });
     c.addEventListener('pointerup', e => {
+      if (e.button === 2) { if (rdown && Math.hypot(e.clientX - rdown.x, e.clientY - rdown.y) < 5 && !this.tool) this.ctxMenu(e.clientX, e.clientY); rdown = null; return; }
       if (drag) { drag = null; pend = null; down = null; this.scene.setOrbit(true); return; }
+      if (this.mode === 'pipette' && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 5) { down = null; const id = this.scene.pickBuilding(e.clientX, e.clientY); if (id) this.pipette(id); return; }
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;
       if (this.tool) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { this.tool.click(p, e); if (this.tool) this.el.hint.textContent = this.tool.hint; } return; }
@@ -1628,6 +1718,9 @@ export class Editor {
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.store.dispatch({ type: 'removeBuilding', id: this.sel }); }
       else if (e.key === 'Escape' && this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); }
+      else if (!typing && !e.ctrlKey && !e.metaKey && ['v', 'h', 'm', 's', 'i'].includes(e.key.toLowerCase())) { this.setMode(({ v: 'select', h: 'hand', m: 'measure', s: 'section', i: 'pipette' } as Record<string, ToolMode>)[e.key.toLowerCase()]); }
+      else if (!typing && e.key.toLowerCase() === 'f' && this.sel) this.scene.frameBuilding(this.store.doc, this.sel);
+      else if (e.key === 'Escape' && this.mode !== 'select') this.setMode('select');
       else if ((e.key === 'PageUp' || e.key === 'PageDown') && this.sel) {
         const b = this.store.doc.buildings.find(x => x.id === this.sel); if (!b) return; e.preventDefault();
         this.inspTab = 'qavat'; const f = (this.scene.selFloor ?? b.floors) + (e.key === 'PageUp' ? 1 : -1);

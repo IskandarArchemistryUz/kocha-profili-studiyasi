@@ -95,3 +95,40 @@ export class LineTool implements Tool {
   private draw(): void { this.scene.setPreview(this.cur && this.pts.length ? [...this.pts, this.cur] : this.pts, false); }
   cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
 }
+
+/** Chizgʻich: nuqtalar orasidagi masofa (yer sathida), 3 va undan koʻp nuqtada — yuza ham; istalgan koʻrinishda ishlaydi */
+export class MeasureTool implements Tool {
+  readonly anyView = true;
+  private pts: XY[] = [];
+  private cur: XY | null = null;
+  private fixed = false;
+  constructor(private scene: Scene3D, private fmt: (v: number, d?: number) => string) {}
+  get hint(): string {
+    const all = this.cur && !this.fixed ? [...this.pts, this.cur] : this.pts;
+    if (!all.length) return 'Chizgʻich: nuqtalarni bosing · Enter — tugatish · Esc — tozalash';
+    let L = 0; for (let i = 1; i < all.length; i++) L += Math.hypot(all[i][0] - all[i - 1][0], all[i][1] - all[i - 1][1]);
+    const seg = all.length >= 2 ? Math.hypot(all[all.length - 1][0] - all[all.length - 2][0], all[all.length - 1][1] - all[all.length - 2][1]) : 0;
+    const A = all.length >= 3 ? area(all) : 0;
+    return `Oxirgi kesma ${this.fmt(seg, 1)} m · jami ${this.fmt(L, 1)} m${A > 1 ? ` · yopilsa ${this.fmt(A)} m²` : ''}${this.fixed ? ' · yangi oʻlchov — bosing' : ' · Enter — tugatish'}`;
+  }
+  click(xy: XY): void { if (this.fixed) { this.pts = []; this.fixed = false; } this.pts.push(xy); this.draw(); }
+  move(xy: XY): void { if (this.fixed) return; this.cur = xy; this.draw(); }
+  key(e: KeyboardEvent): boolean {
+    if (e.key === 'Enter') { this.fixed = true; this.cur = null; this.draw(); return true; }
+    if (e.key === 'Backspace') { this.pts.pop(); this.draw(); return true; }
+    return false;
+  }
+  private draw(): void { this.scene.setPreview(this.cur && this.pts.length && !this.fixed ? [...this.pts, this.cur] : this.pts, false); }
+  cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
+}
+
+/** Vertikal kesim chizigʻi: ikki nuqta */
+export class SectionLineTool implements Tool {
+  private a: XY | null = null;
+  constructor(private scene: Scene3D, private done: (a: XY, b: XY) => void) {}
+  get hint(): string { return this.a ? 'Kesim chizigʻining ikkinchi nuqtasi · Esc — bekor' : 'Vertikal kesim: chiziqning birinchi nuqtasini bosing (koʻrinadigan tomon — chiziqdan chapda)'; }
+  click(xy: XY): void { if (!this.a) { this.a = xy; return; } const a = this.a; this.a = null; this.scene.setPreview([]); this.done(a, xy); }
+  move(xy: XY): void { if (this.a) this.scene.setPreview([this.a, xy], false); }
+  key(e: KeyboardEvent): boolean { return e.key === 'Escape'; }
+  cancel(): void { this.a = null; this.scene.setPreview([]); }
+}
