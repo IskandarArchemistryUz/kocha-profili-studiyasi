@@ -4,7 +4,8 @@
  * va 20-jadvalning 1-izohi (qizil chiziqlardagi kenglik: magistral yoʻllar 50–100, magistral koʻchalar 40–100,
  * mahalliy koʻcha va yoʻllar 15–30 m); 338-band (oʻtish yoʻli 5,5 m, trotuar 1,5 m); 404-band (velo yoʻlak ≥ 1,2 / 1,5 / 1,0 m).
  */
-export type PartKind = 'trotuar' | 'yashil' | 'velo' | 'parkovka' | 'qatnov' | 'ajratuvchi';
+import { PRESET_PROFILES } from './presets';
+export type PartKind = 'trotuar' | 'yashil' | 'velo' | 'parkovka' | 'qatnov' | 'ajratuvchi' | 'avtobus' | 'tramvay';
 export interface Part { k: PartKind; w: number; lanes?: number }
 
 /** ShNQ toifasi (20-jadval qatorlari) */
@@ -34,7 +35,7 @@ export const PROFILES: Profile[] = [
 
 /** eski (2-bosqich) profil id lari → yangilari */
 const ALIAS: Record<string, string> = { 'servis-9': 'otish-8', 'mahalla-12': 'mahalla-15', 'tuman-30': 'tuman-40' };
-export const profileById = (id: string): Profile => PROFILES.find(p => p.id === (ALIAS[id] ?? id)) ?? PROFILES[1];
+export const profileById = (id: string): Profile => PROFILES.find(p => p.id === (ALIAS[id] ?? id)) ?? PRESET_PROFILES.find(p => p.id === id) ?? PROFILES[1];
 export const profileWidth = (p: Profile): number => p.parts.reduce((s, x) => s + x.w, 0);
 
 export interface Issue { what: string; value: string; norm: string }

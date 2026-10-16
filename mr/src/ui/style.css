@@ -202,3 +202,7 @@ details.manual{border-top:1px solid var(--line);padding-top:8px;display:grid;gap
 .cmenu button:hover{background:var(--sunk)}.cmenu button.danger{color:var(--bad)}
 .cmenu kbd{font:500 11px var(--mono);color:var(--muted)}.cmenu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
 .cm-h{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 10px 4px}
+
+.psec{margin-top:4px;border-radius:6px;overflow:hidden;background:#fbfaf8;border:1px solid var(--line)}.psec svg{display:block}
+details.tpl{border-top:1px solid var(--line);padding-top:8px}details.tpl summary{cursor:pointer;font-size:12.5px;font-weight:600;padding:4px 0}
+.tplg{display:grid;gap:4px;margin-top:8px}

@@ -71,7 +71,7 @@ export const FLOOR_RAMP: { max: number; color: string; label: string }[] = [
 ];
 const floorColor = (f: number) => FLOOR_RAMP.find(r => f <= r.max)!.color;
 
-const PART_COL: Record<PartKind, string> = { trotuar: '#ffffff', yashil: '#dfe9d3', velo: '#f2d9cf', parkovka: '#ecebe7', qatnov: '#e4e2dd', ajratuvchi: '#dfe9d3' };
+const PART_COL: Record<PartKind, string> = { trotuar: '#ffffff', yashil: '#dfe9d3', velo: '#f2d9cf', parkovka: '#ecebe7', qatnov: '#e4e2dd', ajratuvchi: '#dfe9d3', avtobus: '#f0d9d3', tramvay: '#e2dfd8' };
 
 const pip = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 
