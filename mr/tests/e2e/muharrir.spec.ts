@@ -9,7 +9,7 @@ test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', a
   await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!;
   await page.mouse.click(bb.x + bb.width * 0.62, bb.y + bb.height * 0.32);
-  await expect(page.locator('.insp')).toBeVisible();
+  await expect(page.locator('.panel[data-mode=bino]')).toBeVisible();
   const gfa0 = Number((await page.locator('#kGfa b').textContent())!.replace(/\D/g, ''));
   const f0 = Number(await page.locator('#iFloors').textContent());
   await page.click('[aria-label="Qavatlar +"]');

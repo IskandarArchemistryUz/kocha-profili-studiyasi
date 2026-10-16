@@ -34,6 +34,7 @@ test('qatlamlar: qavatlar soni, yuza qizishi, HAND (relyefsiz — ogohlantirish)
   await expect(page.locator('.maplegend')).toHaveCount(0);
   await page.click('[data-map=issiq]');
   await expect(page.locator('.maplegend')).toBeVisible({ timeout: 60000 });
+  await page.click('#layPop');   // oynani yopish
   await page.click('.maplegend .ib');
   await expect(page.locator('.maplegend')).toHaveCount(0);
 });

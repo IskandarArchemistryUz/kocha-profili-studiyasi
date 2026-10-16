@@ -95,3 +95,16 @@ describe('Tipologiyalar, UMN, stilobat, parkovka', () => {
     expect(b.parking!.spaces).toBe(2 * a.parking!.spaces);
   });
 });
+
+describe('botiq kvartal: burchaklar', () => {
+  it('qirralar boʻylab joylashda burchak seksiyalari bitta L-shakl binoga birlashadi', () => {
+    // L shakldagi kvartal (botiq) — zaxira algoritm
+    const L: XY[] = [[0, 0], [200, 0], [200, 90], [90, 90], [90, 200], [0, 200]];
+    const r = generate(L, { ...DEFAULT_GEN, maxF: 9, minF: 5, passages: false });
+    const c = r.sections.filter(s => s.kind === 'burchak');
+    expect(c.length).toBeGreaterThan(0);
+    // birlashgan dogʻ toʻrtburchak emas (≥ 6 uch)
+    expect(Math.max(...c.map(s => s.ring.length))).toBeGreaterThanOrEqual(6);
+    expect(r.notes.join(' ')).toContain('L-shakl');
+  });
+});

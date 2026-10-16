@@ -13,7 +13,9 @@ import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from '
 import { projectStreetsGeo } from './streets3d';
 import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
-import { MATS, pitchedRoof } from '../core/roof';
+import { MATS, roofParts } from '../core/roof';
+import { winDef, type Bal } from '../core/facade';
+import { MOD_W } from '../core/apartments';
 import { seams, seamEdges } from '../core/seams';
 import { landscape } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
@@ -35,17 +37,21 @@ export const FACADE: Record<Exclude<FacadeStyle, 'yoq'>, { name: string; w: numb
   panorama: { name: 'Panorama (poldan shiftgacha)', w: 0.9, sill: 0.1, head: 2.85 },
 };
 const texCache = new Map<string, THREE.CanvasTexture>();
+type WinSpec = { id: string; w: number; sill: number; head: number; arch?: boolean };
 /** Bitta modul (eni modW, balandligi fh) uchun takrorlanadigan deraza teksturasi */
-function facadeTex(kind: 'res' | 'shop' | 'glass', st: Exclude<FacadeStyle, 'yoq'>, fh: number, modW: number, aniso: number): THREE.CanvasTexture {
-  const key = `${kind}|${st}|${fh}|${modW}`; const hit = texCache.get(key); if (hit) return hit;
+function facadeTex(kind: 'res' | 'shop' | 'glass', spec: WinSpec, fh: number, modW: number, aniso: number): THREE.CanvasTexture {
+  const key = `${kind}|${spec.id}|${fh}|${modW}`; const hit = texCache.get(key); if (hit) return hit;
   const S = 128, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d')!;
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, S, S);
-  const f = kind === 'shop' ? { w: 0.86, sill: 0.15, head: Math.min(fh - 0.5, 3.2) } : kind === 'glass' ? { w: 0.94, sill: 0.05, head: fh - 0.25 } : FACADE[st];
-  const x0 = (1 - f.w) / 2 * S, x1 = (1 + f.w) / 2 * S, y0 = (1 - f.head / fh) * S, y1 = (1 - f.sill / fh) * S;
-  g.fillStyle = kind === 'shop' ? '#5d7180' : '#7d93a3'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
-  g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x0, y0, (x1 - x0) * 0.35, y1 - y0);
-  g.strokeStyle = '#4b5a64'; g.lineWidth = 2; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
-  if (kind === 'res' && st !== 'panorama') { g.fillStyle = '#c9c4ba'; g.fillRect(x0 - 2, y1, x1 - x0 + 4, 3); }
+  const f = kind === 'shop' ? { w: 0.86, sill: 0.15, head: Math.min(fh - 0.5, 3.2), arch: false } : kind === 'glass' ? { w: 0.94, sill: 0.05, head: fh - 0.25, arch: false } : spec;
+  const x0 = (1 - f.w) / 2 * S, x1 = (1 + f.w) / 2 * S, y0 = (1 - Math.min(f.head, fh - 0.1) / fh) * S, y1 = (1 - f.sill / fh) * S, ww = x1 - x0;
+  const shape = () => { g.beginPath(); if (f.arch) { const r = ww / 2; g.moveTo(x0, y1); g.lineTo(x0, y0 + r); g.arc(x0 + r, y0 + r, r, Math.PI, 0); g.lineTo(x1, y1); g.closePath(); } else g.rect(x0, y0, ww, y1 - y0); };
+  g.fillStyle = kind === 'shop' ? '#5d7180' : '#7d93a3'; shape(); g.fill();
+  g.save(); shape(); g.clip(); g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x0, y0, ww * 0.35, y1 - y0); g.restore();
+  g.strokeStyle = '#4b5a64'; g.lineWidth = 2; shape(); g.stroke();
+  // rom (impost) — keng derazalarda
+  if (kind === 'res' && ww > S * 0.35) { g.lineWidth = 1.5; g.beginPath(); g.moveTo((x0 + x1) / 2, y0 + (f.arch ? ww / 2 : 0)); g.lineTo((x0 + x1) / 2, y1); g.stroke(); }
+  if (kind === 'res' && f.sill > 0.3) { g.fillStyle = '#c9c4ba'; g.fillRect(x0 - 2, y1, ww + 4, 3); }
   g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, S - 2, S, 2); // qavatlararo chiziq
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso;
   t.repeat.set(1 / modW, -1 / fh); t.offset.set(0, 1 / fh);
@@ -314,6 +320,55 @@ export class Scene3D {
     }
   }
 
+  /**
+   * Balkonlar: deraza teksturasi bilan bir xil modul toʻrida (ExtrudeGeometry yon devor UV — mahalliy x yoki y koordinata),
+   * har 2-modulda (uzluksiz — butun qirra boʻylab). InstancedMesh: plita, panjara, shisha, lodjiya devorlari.
+   */
+  private balconies(kind: Bal, tiers: TierPart[], from: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, plain: boolean): void {
+    const slab: THREE.Matrix4[] = [], rail: THREE.Matrix4[] = [], glass: THREE.Matrix4[] = [], q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
+    const box = (arr: THREE.Matrix4[], cx: number, cy: number, z: number, ang: number, sx: number, sy: number, sz: number) => { q.setFromAxisAngle(Y, ang); arr.push(new THREE.Matrix4().compose(new THREE.Vector3(cx, z, -cy), q, new THREE.Vector3(sx, sy, sz))); };
+    tiers.forEach((t, ti) => {
+      const f0 = Math.max(t.f0, from), f1 = t.f1; if (f1 <= f0) return;
+      const ring = t.ring, n = ring.length, ccw = signedArea(ring) > 0;
+      for (let k = 0; k < n; k++) {
+        if (shared(ti, k)) continue;
+        const a = ring[k], b = ring[(k + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); if (L < 6) continue;
+        const ux = dx / L, uy = dy / L, ox = ccw ? uy : -uy, oy = ccw ? -ux : ux, ang = Math.atan2(dy, dx);
+        const P = (s: number, d: number): XY => [a[0] + ux * s + ox * d, a[1] + uy * s + oy * d];
+        if (kind === 'uzluksiz') {
+          for (let f = f0; f < f1; f++) { const z = base + f * fh, d = 1.5, m = P(L / 2, d / 2); box(slab, m[0], m[1], z + 0.08, ang, L - 0.4, 0.16, d); const r = P(L / 2, d); box(glass, r[0], r[1], z + 0.6, ang, L - 0.4, 1.0, 0.04); }
+          continue;
+        }
+        // deraza modullari markazlari: tekstura u = x (|dx| > |dy|) yoki y, modul markazi (j + 0,5)·MOD_W
+        const useX = Math.abs(dx) > Math.abs(dy), ua = useX ? a[0] : a[1], ub = useX ? b[0] : b[1], lo = Math.min(ua, ub), hi = Math.max(ua, ub);
+        const cs: number[] = [];
+        for (let j = Math.ceil(lo / MOD_W - 0.5); (j + 0.5) * MOD_W <= hi; j++) { const s = ((j + 0.5) * MOD_W - ua) / (ub - ua) * L; if (s > 1.2 && s < L - 1.2 && (kind === 'fransuz' || ((j % 2) + 2) % 2 === 0)) cs.push(s); }
+        const bw = Math.min(MOD_W * 0.85, MOD_W * Math.abs(L / (ub - ua || 1)) * 0.85);
+        for (const s of cs) for (let f = f0; f < f1; f++) {
+          const z = base + f * fh;
+          if (kind === 'fransuz') { const m = P(s, 0.18); box(slab, m[0], m[1], z + 0.06, ang, bw * 0.6, 0.1, 0.36); box(rail, m[0] + ox * 0.17, m[1] + oy * 0.17, z + 0.55, ang, bw * 0.6, 0.9, 0.03); continue; }
+          const d = kind === 'lodjiya' ? 0.7 : 1.2, m = P(s, d / 2), fr = P(s, d);
+          box(slab, m[0], m[1], z + 0.08, ang, bw, 0.16, d);
+          if (kind === 'lodjiya') {
+            for (const sd of [-1, 1]) { const w2 = P(s + sd * bw / 2, d / 2); box(slab, w2[0], w2[1], z + fh / 2, ang, 0.18, fh, d); }
+            box(glass, fr[0], fr[1], z + 0.15 + (fh - 0.3) / 2, ang, bw - 0.2, fh - 0.3, 0.05);
+          } else {
+            box(kind === 'shisha' ? glass : rail, fr[0], fr[1], z + 0.6, ang, bw, 1.0, 0.04);
+            for (const sd of [-1, 1]) { const w2 = P(s + sd * bw / 2, d / 2); box(kind === 'shisha' ? glass : rail, w2[0], w2[1], z + 0.6, ang, 0.04, 1.0, d); }
+          }
+        }
+      }
+    });
+    const add = (arr: THREE.Matrix4[], mat: THREE.Material, cast: boolean) => {
+      if (!arr.length) return;
+      const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, arr.length); arr.forEach((m, i) => im.setMatrixAt(i, m));
+      im.castShadow = cast; im.receiveShadow = true; this.world.add(im);
+    };
+    add(slab, new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : 0xe4e0d8 }), true);
+    add(rail, new THREE.MeshLambertMaterial({ color: plain ? 0xb9b6b0 : 0x55595e, transparent: true, opacity: 0.42, depthWrite: false }), false);
+    add(glass, new THREE.MeshLambertMaterial({ color: plain ? 0xe4ebef : 0xb7cddb, transparent: true, opacity: 0.45, depthWrite: false }), false);
+  }
+
   /** buziladigan mavjud binolar sahnada koʻrsatilmaydi (parsellar qadamidan keyin) */
   hideGone = false;
   setHideGone(on: boolean): void { if (on === this.hideGone) return; this.hideGone = on; if (this.lastDoc) this.update(this.lastDoc); }
@@ -425,14 +480,16 @@ export class Scene3D {
       const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
         const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
         if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
-        const wall = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim ? 0xf4f3f0 : color });
-        if (kind && this.facade !== 'yoq' && !plain && st !== 'funksiya' && !dim) wall.map = facadeTex(kind, this.facade, fh, 3.3, aniso);
+        const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
+        const spec: WinSpec | null = b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null;
+        if (kind && spec && !plain && st !== 'funksiya' && !dim) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
         const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
         if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
         if (top && !sel && !dim && roofK === 'quyosh' && !plain) { cap.color.setHex(0xffffff); cap.map = solarTex(); }
         const m = new THREE.Mesh(g, [cap, wall]);
         m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
-        if (outline) this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), edgeMat()));
+        if (sel) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: 0x2a6fb0, depthTest: false, transparent: true, opacity: 0.9 })); e.renderOrder = 30; this.world.add(e); }
+        else if (outline) this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), edgeMat()));
       };
       const edgeMat = () => new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : st === 'minimal' ? 0.9 : st === 'arctic' ? 0.22 : 0.5 });
       if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
@@ -457,16 +514,25 @@ export class Scene3D {
       const shared = (ti: number, k: number) => ti === 0 && SM[smOf.get(b.id)!].edgeTop[k] >= base + (tiers[0].f1 * fh) - 0.05;
       // quyosh himoyasi
       if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
+      // balkonlar (turar qavatlarda, 2-qavatdan)
+      if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain);
       const topZ = base + (last?.f1 ?? b.floors) * fh;
       if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
-        const pr = pitchedRoof(last.ring, roofK);
-        if (pr) {
-          const g = new THREE.BufferGeometry(), v: number[] = [];
-          for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], topZ + pr.tris[i + 2], -pr.tris[i + 1]);
-          g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
-          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xf3f1ec : 0xb9765c, side: THREE.DoubleSide }));
+        const parts = roofParts(last.ring, roofK);
+        if (parts) {
+          const v: number[] = [], w: number[] = [];
+          for (const pr of parts) { for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], topZ + pr.tris[i + 2], -pr.tris[i + 1]); for (let i = 0; i < pr.walls.length; i += 3) w.push(pr.walls[i], topZ + pr.walls[i + 2], -pr.walls[i + 1]); }
+          // tom rangi uslubga koʻra: Albom — xira terrakota, Rangli — toʻyingan, Arctic/Minimal — oq, Funksiya — zona rangi
+          const rc = dim ? 0xf1efea : plain ? 0xf3f1ec : st === 'funksiya' ? tint(ZONE_COL[b.use] ?? C.bld, 0.35) : this.album ? 0xcfb2a3 : 0xb9765c;
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: rc, side: THREE.DoubleSide }));
           m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
-          this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: 0.45 })));
+          this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : 0.45 })));
+          if (w.length) {
+            const gw = new THREE.BufferGeometry(); gw.setAttribute('position', new THREE.Float32BufferAttribute(w, 3)); gw.computeVertexNormals();
+            const wc = dim ? 0xf4f3f0 : (b.mat && !plain && st !== 'funksiya') ? MATS.find(x => x.id === b.mat)!.color : topC;
+            const mw = new THREE.Mesh(gw, new THREE.MeshLambertMaterial({ color: wc, side: THREE.DoubleSide })); mw.castShadow = true; mw.userData.bid = b.id; this.world.add(mw);
+          }
         }
       } else if (b.parapet) {
         // parapet: tom chetidagi devorcha (qoʻshni seksiya bilan umumiy chokda — yoʻq)
@@ -607,7 +673,9 @@ export class Scene3D {
         const u = m.userData as { s0?: { c?: THREE.Color; map?: THREE.Texture | null } };
         u.s0 ??= { c: m.color?.clone(), map: m.map ?? null };
         const f = u.s0;
-        if (S) {
+        const sat = !!f.map && !!this.tex && f.map === this.tex.t;   // sunʼiy yoʻldosh tasviri — har uslubda saqlanadi
+        if (S && sat) { if (f.c) m.color?.copy(f.c); m.map = f.map; }
+        else if (S) {
           const pal = S.pal[o.name], isLine = o instanceof THREE.LineSegments;
           if (m.color && f.c) { if (isLine && S.line != null) m.color.setHex(S.line); else if (pal != null) m.color.setHex(pal); else m.color.copy(f.c).lerp(W, isLine ? 0.55 : S.lerp); }
           if ('map' in m && f.map) m.map = null;

@@ -16,7 +16,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineToo
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { PRESET_PROFILES } from '../core/presets';
-import { sectionSvg } from './section';
+import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
@@ -41,7 +41,8 @@ import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
 import { JOBS_NOTE } from '../core/jobs';
 import { landscape } from '../core/landscape';
-import { MATS, ROOFS, PV, pitchedRoof, pvEstimate, type Mat, type Roof } from '../core/roof';
+import { MATS, ROOFS, PV, roofParts, pvEstimate, type Mat, type Roof } from '../core/roof';
+import { WINS, BALS, WIN_ICON, BAL_ICON, type Win, type Bal } from '../core/facade';
 import { pushEdge } from '../core/tiers';
 import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
@@ -92,6 +93,8 @@ const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
   back: '<path d="M15 6 9 12l6 6"/>',
+  map: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  layers: '<path d="M4 18h16"/><path d="M4 12h16"/><path d="M4 6h16"/><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="7" cy="18" r="1.6"/>',
 };
 
 const STATUS_TXT: Record<Result['status'], string> = { pass: 'mos', fail: 'mos emas', review: 'koʻrib chiqish', na: 'baholanmadi' };
@@ -152,9 +155,7 @@ export class Editor {
       ib('back', 'Loyihalar', ICON.back, () => this.onExit()),
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, 'Archemistry Lab', h('small', {}, '· Master reja')),
       name, save, h('span', { class: 'sp' }),
-      this.popBtn('stylePop', 'Uslub', () => this.stylePop()),
       this.popBtn('camPop', 'Kamera', () => this.camPop()),
-      this.popBtn('layPop', 'Qatlamlar', () => this.layPop()),
       h('button', { class: 'btn', id: 'gxOpen', title: 'Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG', onclick: () => this.openGraphics() }, 'Grafika'),
       seg,
       ib('undo', 'Bekor qilish (Ctrl+Z)', ICON.undo, () => this.store.undo()),
@@ -168,7 +169,11 @@ export class Editor {
     const badge = h('div', { class: 'ctxbadge', hidden: true, role: 'status' });
     const attr = h('div', { class: 'attr', hidden: true });
     attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span>';
-    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, attr, badge);
+    // oʻng pastki burchak: xarita (fon va uslub) va tahliliy qatlamlar
+    const mapctl = h('div', { class: 'mapctl' },
+      this.popBtn('stylePop', 'Xarita', () => this.stylePop(), 'up', ICON.map),
+      this.popBtn('layPop', 'Qatlamlar', () => this.layPop(), 'up', ICON.layers));
+    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, attr, badge, mapctl);
     Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, drawer, hint, scene, stage, attr, badge });
     return h('div', { class: 'app' }, top, stage);
   }
@@ -205,21 +210,23 @@ export class Editor {
     this.scene.setStyle(this.stylePref);
     try { localStorage.setItem('mr-style', this.stylePref); } catch { /* */ }
     document.querySelectorAll('[data-style]').forEach(b => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.style === this.stylePref)));
-    const sb = this.root.querySelector('#stylePop span'); if (sb) sb.textContent = STYLES.find(x => x.id === this.stylePref)!.name;
   }
 
   /* ---------- yuqori paneldagi ochiluvchi oynalar: uslub va kamera ---------- */
   private pop: HTMLElement | null = null;
-  private popBtn(id: string, label: string, body: () => HTMLElement): HTMLElement {
-    const b = h('button', { class: 'btn popbtn', id, 'aria-haspopup': 'true', 'aria-expanded': false, onclick: (e: MouseEvent) => {
+  private popBtn(id: string, label: string, body: () => HTMLElement, dir: 'down' | 'up' = 'down', icon?: string): HTMLElement {
+    const b = h('button', { class: icon ? 'mapbtn popbtn' : 'btn popbtn', id, title: label, 'aria-haspopup': 'true', 'aria-expanded': false, onclick: (e: MouseEvent) => {
       e.stopPropagation();
       const was = this.pop?.dataset.for === id; this.closePop(); if (was) return;
-      const p = h('div', { class: 'pop', 'data-for': id, role: 'dialog', 'aria-label': label }); p.append(body());
+      const p = h('div', { class: 'pop', 'data-for': id, 'data-dir': dir, role: 'dialog', 'aria-label': label }); p.append(body());
       p.addEventListener('click', ev => ev.stopPropagation());
-      const r = b.getBoundingClientRect(); p.style.top = `${r.bottom + 6}px`; p.style.left = `${Math.max(8, Math.min(window.innerWidth - 330, r.left))}px`;
+      const r = b.getBoundingClientRect();
+      if (dir === 'up') { p.style.bottom = `${window.innerHeight - r.top + 8}px`; p.style.right = `${Math.max(8, window.innerWidth - r.right)}px`; p.style.maxHeight = `${r.top - 20}px`; }
+      else { p.style.top = `${r.bottom + 6}px`; p.style.left = `${Math.max(8, Math.min(window.innerWidth - 330, r.left))}px`; }
       document.body.append(p); this.pop = p; b.setAttribute('aria-expanded', 'true');
       const off = (ev: MouseEvent) => { if (!ev.isTrusted) return; this.closePop(); document.removeEventListener('click', off); }; setTimeout(() => document.addEventListener('click', off), 0);
-    } }, h('span', {}, label), ' ▾');
+    } });
+    if (icon) b.append(svgIcon(icon), h('span', {}, label)); else b.append(h('span', {}, label), ' ▾');
     return b;
   }
   private closePop(): void { if (!this.pop) return; this.root.querySelector(`#${this.pop.dataset.for}`)?.setAttribute('aria-expanded', 'false'); this.pop.remove(); this.pop = null; }
@@ -231,7 +238,12 @@ export class Editor {
     const ex = h('input', { type: 'checkbox', checked: this.scene.exploded, id: 'exOn' }) as HTMLInputElement;
     ex.onchange = () => { this.scene.setExploded(ex.checked, +gap.value); gap.disabled = !ex.checked; };
     gap.disabled = !ex.checked;
+    const cs = this.store.doc.context, img = !!this.ctxMgr.current?.imagery;
     return h('div', { class: 'popbody' },
+      h('div', { class: 'lb' }, 'Fon xaritasi'),
+      h('div', { class: 'basesw', role: 'group', id: 'baseSw' }, ...([['maket', 'Maket', 'oq relyef, OSM qatlamlari'], ['sputnik', 'Sunʼiy yoʻldosh', img ? 'Esri World Imagery' : 'atrof yuklanmagan']] as const).map(([k, t, n]) =>
+        h('button', { 'data-base': k, 'aria-pressed': cs.base === k, disabled: k === 'sputnik' && !img, onclick: () => { this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })); this.refreshPop(); } }, h('i', { class: `thumb ${k}` }), h('b', {}, t), h('small', {}, n)))),
+      h('p', { class: 'note' }, 'Fon va uslub faqat koʻrinishga taʼsir qiladi — loyiha, hisob-kitob va meʼyorlar oʻzgarmaydi.'),
       h('div', { class: 'lb' }, 'Uslub'),
       h('div', { class: 'opts' }, ...STYLES.map(x => h('button', { 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, h('b', {}, x.name), h('small', {}, x.note)))),
       h('label', { class: 'row', style: 'font-size:13px' }, ex, 'Portlatilgan qatlamlar'),
@@ -392,11 +404,11 @@ export class Editor {
   private dragMode: 'yoq' | 'push' | 'move' = 'yoq';
   private tierInset = 3;
   private tierEdge: number | null = null;
+  /** bino tanlangan (parsellar qadamidan tashqari) — chap panel bino muharririga aylanadi */
+  private inspOn(): boolean { return !!this.sel && this.step.id !== 'parsel' && this.store.doc.buildings.some(x => x.id === this.sel); }
   private renderInspector(): void {
-    const doc = this.store.doc, b = doc.buildings.find(x => x.id === this.sel);
-    let el = this.el.stage.querySelector<HTMLElement>('.insp');
-    if (!b || this.step.id === 'parsel') { el?.remove(); if (this.scene.selFloor != null) this.scene.setSelFloor(null); if (!b) this.dragMode = 'yoq'; return; }
-    if (!el) { el = h('aside', { class: 'insp', 'aria-label': 'Bino muharriri' }); this.el.stage.append(el); }
+    const doc = this.store.doc, b = doc.buildings.find(x => x.id === this.sel), el = this.el.panel;
+    if (!b || !this.inspOn()) { if (this.scene.selFloor != null) this.scene.setSelFloor(null); if (!b) this.dragMode = 'yoq'; if (el.dataset.mode === 'bino') this.renderPanel(); return; }
     const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), u = useDef(b.use);
     const upd = (patch: Partial<Omit<typeof b, 'id'>>, key?: string) => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch }, key));
     const stepper = (label: string, v: number, min: number, max: number, set: (v: number) => void, id: string) => h('div', { class: 'stp' }, h('span', {}, label),
@@ -451,6 +463,7 @@ export class Editor {
       body.append(
         h('div', { class: 'lb' }, 'Fasad materiali'),
         h('div', { class: 'swatches' }, ...MATS.map(m => h('button', { 'data-imat': m.id, 'aria-pressed': (b.mat ?? 'suvoq') === m.id, title: m.name, onclick: () => upd({ mat: m.id }) }, h('i', { style: `background:${hex(m.color)}` }), m.name))),
+        ...this.facadePickers(b.win ?? null, b.bal ?? 'yoq', p => upd(p.bal === 'yoq' ? { bal: undefined } : p), 'i'),
         h('div', { class: 'lb' }, 'Tom'),
         h('div', { class: 'chips' }, ...ROOFS.map(x => h('button', { class: 'zchip', style: '--c:var(--muted)', 'data-iroof': x.id, 'aria-pressed': (b.roof ?? 'tekis') === x.id, onclick: () => upd({ roof: x.id }) }, x.name))),
         h('div', { class: 'lb' }, 'Parapet'),
@@ -458,16 +471,31 @@ export class Editor {
         h('div', { class: 'lb' }, 'Quyosh himoyasi (90–290° fasadlar, SanQvaN 9.3)'),
         h('div', { class: 'opts' }, ...([['', 'Yoʻq', ''], ['avto', 'Avtomatik', 'janub — naves, sharq/gʻarb — lamellar'], ['gorizontal', 'Gorizontal naves', 'har qavat ustida, 0,7 m'], ['vertikal', 'Vertikal lamellar', '1,65 m qadam, 0,55 m'], ['panjara', 'Panjara (mashrabiya)', 'fasaddan 0,35 m oldinda']] as const).map(([k, t, n2]) => h('button', { 'data-shade': k || 'yoq', 'aria-pressed': (b.shade ?? '') === k, onclick: () => upd({ shade: (k || undefined) as Shade | undefined }) }, h('b', {}, t), n2 ? h('small', {}, n2) : ''))));
     }
+    const close = () => { this.sel = null; this.scene.select(null); this.dragMode = 'yoq'; this.renderAll(); };
+    const ids = doc.buildings.map(x => x.id), at = ids.indexOf(b.id);
+    const go = (d: number) => { const id = ids[(at + d + ids.length) % ids.length]; this.sel = id; this.scene.select(id); this.renderAll(); };
+    const gfa = area(r) * b.floors;
+    const keep = el.dataset.mode === 'bino' && el.dataset.bid === b.id ? el.querySelector('.body')?.scrollTop ?? 0 : 0;
+    el.dataset.mode = 'bino'; el.dataset.bid = b.id;
     el.replaceChildren(
-      h('div', { class: 'ihead' }, h('div', {}, h('div', { class: 'lb' }, kind), h('b', {}, `${u.name} · ${(b.z0 ?? 0) + b.floors} qavat`)), h('button', { class: 'ib sm', 'aria-label': 'Yopish', title: 'Yopish (Esc)', onclick: () => { this.sel = null; this.scene.select(null); this.renderAll(); } }, '×')),
-      tabs, body);
+      h('header', { class: 'ihead' },
+        h('div', { class: 'row' }, h('button', { class: 'back', id: 'iBack', onclick: close }, svgIcon(ICON.back), `${this.step.n}-qadam: ${this.step.title}`), h('span', { class: 'sp' }), h('button', { class: 'ib sm', 'aria-label': 'Yopish', title: 'Yopish (Esc)', onclick: close }, '×')),
+        h('span', { class: 'lb' }, `${kind} · ${at + 1} / ${ids.length}`),
+        h('h2', {}, `${u.name} · ${(b.z0 ?? 0) + b.floors} qavat`),
+        h('p', {}, `Dogʻ ${fmt(area(r))} m² · GFA ≈ ${fmt(gfa)} m²`),
+        tabs),
+      h('div', { class: 'body' }, body),
+      h('footer', {},
+        h('button', { class: 'btn', title: 'Oldingi bino', onclick: () => go(-1) }, '← Oldingi bino'),
+        h('button', { class: 'btn', title: 'Keyingi bino', onclick: () => go(1) }, 'Keyingisi →')));
+    if (keep) el.querySelector('.body')!.scrollTop = keep;
   }
 
   /** parsellar qadamida buziladiganlar foydalanuvchi tanloviga koʻra, keyingi qadamlarda — yashirin */
   private goneHidden = false;
   private syncGone(): void { const ip = STEPS.findIndex(x => x.id === 'parsel'), i = STEPS.indexOf(this.step); this.scene.setHideGone(i > ip || this.goneHidden); }
   private renderAll(): void {
-    this.syncFade(); this.syncGone(); this.renderInspector();
+    this.syncFade(); this.syncGone();
     (this.root.querySelector('#undo') as HTMLButtonElement).disabled = !this.store.canUndo;
     (this.root.querySelector('#redo') as HTMLButtonElement).disabled = !this.store.canRedo;
     (this.root.querySelector('#undo') as HTMLButtonElement).title = this.store.canUndo ? `Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)` : 'Bekor qilish (Ctrl+Z)';
@@ -812,6 +840,17 @@ export class Editor {
     body.append(h('p', { class: 'note' }, 'Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina, ofis va mehmonxona — shisha fasad. Material va tom — Albom va Rangli uslublarida koʻrinadi. Meʼyor: SanQvaN 0331-16, 8.2, 8.7, 8.10–8.11, 9.3-bandlar.'));
   }
 
+  /** Deraza va balkon turlari — piktogrammali plitkalar (cur: joriy qiymat yoki null — aralash) */
+  private facadePickers(win: Win | null, bal: Bal | null, set: (p: { win?: Win; bal?: Bal }) => void, pre = ''): HTMLElement[] {
+    const tile = (attr: string, id: string, name: string, note: string, icon: string, on: boolean, fn: () => void) => { const b = h('button', { class: 'typo', [attr]: id, 'aria-pressed': on, title: note ? `${name} — ${note}` : name, onclick: fn }); b.append(svgIcon(icon), h('span', {}, name)); return b; };
+    return [
+      h('div', { class: 'lb' }, 'Derazalar'),
+      h('div', { class: 'typos', id: pre + 'winTypes' }, ...WINS.map(w => tile('data-win', w.id, w.name, w.note, WIN_ICON[w.id], win === w.id, () => set({ win: w.id })))),
+      h('div', { class: 'lb' }, 'Balkonlar'),
+      h('div', { class: 'typos', id: pre + 'balTypes' }, ...BALS.map(x => tile('data-bal', x.id, x.name, x.note, BAL_ICON[x.id], bal === x.id, () => set({ bal: x.id })))),
+    ];
+  }
+
   /* ---------- fasad materiali va tom turi ---------- */
   private lookTarget: 'sel' | 'use' | 'all' = 'all';
   private lookUse = 'turar';
@@ -821,14 +860,14 @@ export class Editor {
     if (this.lookTarget === 'sel' && !sel) this.lookTarget = 'all';
     if (!uses.includes(this.lookUse as Use) && uses.length) this.lookUse = uses[0];
     const ids = () => this.lookTarget === 'sel' && sel ? [sel.id] : this.lookTarget === 'use' ? doc.buildings.filter(b => b.use === this.lookUse).map(b => b.id) : doc.buildings.map(b => b.id);
-    const apply = (patch: { mat?: Mat; roof?: Roof }) => { const list = ids(); if (!list.length) { toast('Binolar yoʻq'); return; } this.run(() => this.store.dispatch({ type: 'styleBuildings', ids: list, ...patch })); };
-    const cur = (k: 'mat' | 'roof') => { const v = new Set(doc.buildings.filter(b => ids().includes(b.id)).map(b => b[k] ?? (k === 'mat' ? 'suvoq' : 'tekis'))); return v.size === 1 ? [...v][0] : null; };
+    const apply = (patch: { mat?: Mat; roof?: Roof; win?: Win; bal?: Bal }) => { const list = ids(); if (!list.length) { toast('Binolar yoʻq'); return; } this.run(() => this.store.dispatch({ type: 'styleBuildings', ids: list, ...patch })); };
+    const cur = (k: 'mat' | 'roof' | 'win' | 'bal') => { const v = new Set(doc.buildings.filter(b => ids().includes(b.id)).map(b => b[k] ?? ({ mat: 'suvoq', roof: 'tekis', win: null, bal: 'yoq' } as Record<string, string | null>)[k])); return v.size === 1 ? [...v][0] : null; };
     const useSel = h('select', { id: 'lookUse', disabled: this.lookTarget !== 'use' }, ...uses.map(u => h('option', { value: u, selected: u === this.lookUse }, useDef(u).name))) as HTMLSelectElement;
     useSel.onchange = () => { this.lookUse = useSel.value; this.renderPanel(); };
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     const solar = doc.buildings.filter(b => b.roof === 'quyosh').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0), pv = pvEstimate(solar);
     const green = doc.buildings.filter(b => b.roof === 'yashil').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0);
-    const flatFallback = doc.buildings.filter(b => (b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir') && !pitchedRoof(b.footprint.map(fr.toLocal), b.roof)).length;
+    const flatFallback = doc.buildings.filter(b => (b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir') && !roofParts(b.footprint.map(fr.toLocal), b.roof)).length;
     return h('div', { class: 'looks', id: 'looks' },
       h('div', { class: 'lb' }, 'Material va tom — qaysi binolarga'),
       h('div', { class: 'seg full', role: 'group', id: 'lookSeg' },
@@ -838,6 +877,7 @@ export class Editor {
       this.lookTarget === 'use' ? useSel : '',
       h('div', { class: 'lb' }, 'Fasad materiali'),
       h('div', { class: 'swatches' }, ...MATS.map(m => h('button', { 'data-mat': m.id, 'aria-pressed': cur('mat') === m.id, title: m.name, onclick: () => apply({ mat: m.id }) }, h('i', { style: `background:${hex(m.color)}` }), m.name))),
+      ...this.facadePickers(cur('win') as Win | null, (cur('bal') ?? null) as Bal | null, p => apply(p)),
       h('div', { class: 'lb' }, 'Tom'),
       h('div', { class: 'chips' }, ...ROOFS.map(r => h('button', { class: 'zchip', style: `--c:${({ tekis: '#d9d6cf', yashil: '#93b873', quyosh: '#26364f' } as Record<string, string>)[r.id] ?? '#b9765c'}`, 'data-roof': r.id, 'aria-pressed': cur('roof') === r.id, onclick: () => apply({ roof: r.id }) }, r.name))),
       (solar > 0 || green > 0 || flatFallback > 0) ? h('div', { class: 'ctxst', id: 'roofSt' },
@@ -1223,6 +1263,15 @@ export class Editor {
     return h('div', { class: 'it', role: 'option', 'aria-selected': this.profile === p.id, 'data-prof': p.id, onclick: () => { this.profile = p.id; if (this.selStreet) this.run(() => this.store.dispatch({ type: 'updateStreet', id: this.selStreet!, patch: { profile: p.id } })); else this.renderPanel(); } },
       h('b', {}, `${p.name} · ${fmt(profileWidth(p), 1)} m `, normChip(p)), h('small', {}, `${CATS[p.cat].name} · ${p.note}`), this.profileBar(p.id));
   }
+  /** Koʻcha kesimi — katta koʻrinishda (pastdagi oyna) */
+  private openSection(p: Profile): void {
+    const d = this.el.drawer;
+    d.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, `${p.name} · ${fmt(profileWidth(p), 1)} m`), h('button', { class: 'ib sm', 'aria-label': 'Yopish', onclick: () => { d.hidden = true; } }, '×')),
+      h('p', { class: 'muted' }, `${CATS[p.cat].name} · ${p.note}`),
+      h('div', { class: 'secsvg', html: sectionSvg(p.parts, 900, 0, true, false) }),
+      h('div', { class: 'list' }, ...p.parts.map(x => h('div', { class: 'it' }, h('i', { class: 'sw', style: `background:${({ trotuar: '#ECE9E2', yashil: '#D9E6CC', ajratuvchi: '#D9E6CC', velo: '#CDE2D4', parkovka: '#DDDCD8', qatnov: '#DDDCD8', avtobus: '#E8DDD7', tramvay: '#E8DDD7' } as Record<string, string>)[x.k]}` }), h('span', { class: 'grow' }, `${PART_NAME[x.k]}${x.lanes && x.lanes > 1 ? ` · ${x.lanes} qator` : ''}`), h('b', { class: 'num' }, `${fmt(x.w, 2)} m`)))));
+    d.hidden = false; d.dataset.kind = 'section';
+  }
   private profileBar(id: string): HTMLElement {
     const p = profileById(id);
     return h('div', { class: 'psec', title: p.parts.map(x => `${x.k} ${fmt(x.w, 1)} m${x.lanes ? ` (${x.lanes} qator)` : ''}`).join(' · '), html: sectionSvg(p.parts) });
@@ -1244,6 +1293,11 @@ export class Editor {
 
   private kochaPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), drawing = this.tool instanceof LineTool;
+    // tanlangan koʻcha (yoki yangi koʻcha profili) — katta koʻndalang kesim
+    { const st = doc.streets.find(x => x.id === this.selStreet), p = profileById(st?.profile ?? this.profile);
+      body.append(h('div', { class: 'secbig', id: 'secBig', title: 'Kattalashtirish', onclick: () => this.openSection(p) },
+        h('div', { class: 'row' }, h('b', { class: 'grow' }, `${st ? 'Tanlangan koʻcha' : 'Yangi koʻcha'}: ${p.name}`), h('span', { class: 'muted' }, `${fmt(profileWidth(p), 1)} m ⤢`)),
+        h('div', { class: 'secsvg', html: sectionSvg(p.parts, 300, 0, true, false) }))); }
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Profil (yangi koʻcha uchun)'),
       h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Profillar' }, ...PROFILES.map(p => this.profItem(p))),
       (() => { const groups = [...new Set(PRESET_PROFILES.map(p => p.group))], open = PRESET_PROFILES.some(p => p.id === this.profile);
@@ -1610,7 +1664,11 @@ export class Editor {
   }
 
   private renderPanel(): void {
+    if (this.inspOn()) { this.renderInspector(); return; }
     const s = this.step, i = STEPS.indexOf(s), p = this.el.panel;
+    p.dataset.mode = 'step';
+    if (this.scene.selFloor != null) this.scene.setSelFloor(null);
+    if (!this.sel) this.dragMode = 'yoq';
     const prev = STEPS[i - 1], next = STEPS[i + 1];
     const body = h('div', { class: 'body' });
     const lk = s.phase > BUILT_PHASE ? this.locked(s) : null;
@@ -1706,20 +1764,29 @@ export class Editor {
       k('Aholi', d.population ? fmt(d.population) : '—', undefined, 'kPop'),
       k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens'),
       k('Ish oʻrni', d.jobs >= 1 ? fmt(d.jobs) : '—', undefined, 'kJobs'),
-      h('button', { class: 'more', id: 'kMore', 'aria-expanded': open, onclick: () => { this.el.drawer.hidden = !this.el.drawer.hidden; this.renderKpi(); } }, open ? 'Meʼyorlar ▾' : 'Meʼyorlar ▴'));
-    if (open) this.el.drawer.replaceChildren(h('h3', {}, 'Meʼyoriy reyestr'), this.register());
+      h('button', { class: 'more', id: 'kMore', 'aria-expanded': open, onclick: () => { const reg = this.el.drawer.dataset.kind !== 'section'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, open && this.el.drawer.dataset.kind !== 'section' ? 'Meʼyorlar ▾' : 'Meʼyorlar ▴'));
+    if (open && this.el.drawer.dataset.kind !== 'section') this.el.drawer.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, 'Meʼyoriy reyestr'), h('button', { class: 'ib sm', 'aria-label': 'Yopish', onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); } }, '×')), this.register());
     if (['tekshiruv', 'uchastka', 'kocha', 'yashil'].includes(this.step.id)) this.renderPanel();
   }
 
+  private regFilter: 'all' | 'fail' = 'all';
   private register(): HTMLElement {
-    const rs = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])];
-    return h('table', { class: 'reg' },
-      h('thead', {}, h('tr', {}, h('th', {}, 'Talab'), h('th', {}, 'Qiymat'), h('th', {}, 'Meʼyor'), h('th', {}, 'Natija'))),
-      h('tbody', {}, ...rs.map(r => h('tr', { 'data-rule': r.id },
-        h('td', {}, h('b', {}, r.title), h('br'), h('span', { class: 'muted' }, `${r.source.doc}, ${r.source.clause}${r.source.verified ? '' : ' (tekshirilsin)'}`), r.note ? h('div', { class: 'note' }, r.note) : null),
-        h('td', { class: 'num' }, r.value != null ? `${fmt(r.value)} ${r.unit ?? ''}` : '—'),
-        h('td', { class: 'num' }, r.limit ? `${r.limit} ${r.unit ?? ''}` : '—'),
-        h('td', {}, h('span', { class: 'chip', 'data-s': r.status }, STATUS_TXT[r.status] + (r.delta ? ` ${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '')))))));
+    const all = [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])];
+    const bad = all.filter(r => r.status === 'fail').length, rs = this.regFilter === 'fail' ? all.filter(r => r.status === 'fail' || r.status === 'review') : all;
+    const val = (r: typeof all[number]) => r.value != null ? `${fmt(r.value)} ${r.unit ?? ''}` : '—';
+    return h('div', { class: 'regw' },
+      h('div', { class: 'seg', role: 'group', id: 'regSeg' },
+        h('button', { 'aria-pressed': this.regFilter === 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `Hammasi · ${all.length}`),
+        h('button', { 'aria-pressed': this.regFilter === 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `Mos emas · ${bad}`)),
+      h('div', { class: 'reg' }, ...rs.map(r => h('div', { class: 'rrow', 'data-rule': r.id },
+        h('div', { class: 'rmain' },
+          h('b', {}, r.title),
+          h('span', { class: 'muted' }, `${r.source.doc}, ${r.source.clause}${r.source.verified ? '' : ' (tekshirilsin)'}`),
+          r.note ? h('details', { class: 'rnote' }, h('summary', {}, 'Izoh'), h('div', { class: 'note' }, r.note)) : null),
+        h('div', { class: 'rval' },
+          h('span', { class: 'chip', 'data-s': r.status }, STATUS_TXT[r.status] + (r.delta ? ` ${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '')),
+          h('b', { class: 'num' }, val(r)),
+          h('small', { class: 'muted' }, r.limit ? `meʼyor ${r.limit} ${r.unit ?? ''}` : '')))))); 
   }
 
   /* ---------- sahna bilan muloqot ---------- */
@@ -1795,7 +1862,7 @@ export class Editor {
         const p = this.scene.pick(e.clientX, e.clientY);
         if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); }
       }
-      if (id && this.step.id === 'fasad') this.lookTarget = 'sel';
+      if (id && this.step.id === 'fasad') { this.lookTarget = 'sel'; this.inspTab = 'fasad'; }
       else if (id && ['hudud', 'uchastka', 'kocha', 'yashil'].includes(this.step.id) && !this.locked(STEPS[5])) this.step = STEPS[5];
       this.renderAll();
     });

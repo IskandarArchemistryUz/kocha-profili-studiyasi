@@ -1,37 +1,78 @@
 /**
- * Koʻcha kesimi illyustratsiyasi (urban:STREET uslubida): binolar fasadi, trotuar (koʻtarilgan), daraxtlar, mashinalar,
- * avtobus, tramvay, velosipedchi, piyodalar va har tasma kengligi. Sof SVG matn — panelda va hisobotda ishlatiladi.
+ * Koʻcha koʻndalang kesimi — Koʻcha profili studiyasidagi (js/app.js, sectionSVG) chizma uslubi:
+ * binolar konturi va qavat chiziqlari, koʻtarilgan trotuar, siluetlar (piyodalar, daraxtlar, velosipedchi,
+ * yengil mashina, avtobus, tramvay), tasma kengliklari va nomlari. Sof SVG matn — panelda va hisobotda.
+ * Siluetlar: silh.json (studiyadagi bilan bir xil manba).
  */
-import type { Part } from '../core/profiles';
+import type { Part, PartKind } from '../core/profiles';
+import SILH_RAW from './silh.json';
 
-const COL: Record<string, string> = { trotuar: '#e9e4da', yashil: '#c9dcb4', ajratuvchi: '#c9dcb4', velo: '#e9b9a9', parkovka: '#b9bbbf', qatnov: '#8c8f95', avtobus: '#c46a5d', tramvay: '#9a9a96' };
-const n1 = (v: number) => (Math.round(v * 10) / 10).toString().replace('.', ',');
+const SILH = SILH_RAW as Record<string, { w: number; d: string }>;
+const INK = '#141414';
+const SURF: Record<PartKind, string> = { trotuar: '#ECE9E2', yashil: '#D9E6CC', ajratuvchi: '#D9E6CC', velo: '#CDE2D4', parkovka: '#DDDCD8', qatnov: '#DDDCD8', avtobus: '#E8DDD7', tramvay: '#E8DDD7' };
+export const PART_NAME: Record<PartKind, string> = { trotuar: 'Piyoda', yashil: 'Yashil', ajratuvchi: 'Ajratuvchi', velo: 'Velo', parkovka: 'Parkovka', qatnov: 'Qatnov', avtobus: 'Avtobus', tramvay: 'Tramvay' };
+const PPL = ['6b', '1', '7', '16', '6e', '17', '22', '6a'];
+const n1 = (v: number) => (Math.round(v * 100) / 100).toString().replace('.', ',');
 
-export function sectionSvg(parts: Part[], W = 300, H = 84, dims = true): string {
-  const total = parts.reduce((s, p) => s + p.w, 0) || 1, fac = 10, k = (W - 2 * fac) / total, y0 = H - (dims ? 24 : 12), out: string[] = [];
-  const raised = (kk: string) => kk === 'trotuar' || kk === 'yashil' || kk === 'ajratuvchi';
-  // binolar
-  out.push(`<rect x="0" y="${y0 - 44}" width="${fac}" height="44" fill="#ece9e3" stroke="#bdb8ad" stroke-width=".6"/><rect x="${W - fac}" y="${y0 - 44}" width="${fac}" height="44" fill="#ece9e3" stroke="#bdb8ad" stroke-width=".6"/>`);
-  for (let i = 0; i < 4; i++) out.push(`<rect x="3" y="${y0 - 39 + i * 9}" width="4" height="5" fill="#cfd8de"/><rect x="${W - 7}" y="${y0 - 39 + i * 9}" width="4" height="5" fill="#cfd8de"/>`);
-  let x = fac;
-  parts.forEach((p, idx) => {
-    const w = p.w * k, top = raised(p.k) ? y0 - 2.5 : y0;
-    out.push(`<rect x="${x.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${H - top - (dims ? 14 : 4)}" fill="${COL[p.k] ?? '#ddd'}"/>`);
-    const cx = x + w / 2;
-    if (p.k === 'yashil' || p.k === 'ajratuvchi') {
-      if (p.w >= 1.4) { const r = Math.min(13, Math.max(5, w * 0.55)); out.push(`<rect x="${(cx - 0.8).toFixed(1)}" y="${top - 16}" width="1.6" height="16" fill="#8a7358"/><circle cx="${cx.toFixed(1)}" cy="${top - 16 - r * 0.7}" r="${r.toFixed(1)}" fill="#a8c98e" stroke="#7aa35f" stroke-width=".6" opacity=".95"/>`); }
-      else out.push(`<ellipse cx="${cx.toFixed(1)}" cy="${top - 2}" rx="${Math.max(1.5, w * 0.4).toFixed(1)}" ry="2.5" fill="#94bb79"/>`);
+function silh(id: string, cx: number, foot: number, hM: number, sc: number, o: { fill?: string; stroke?: string; sw?: number; flip?: boolean } = {}): string {
+  const s = SILH[id]; if (!s) return '';
+  const k = hM * sc / 100, wp = s.w * k;
+  const tf = o.flip ? `translate(${(cx + wp / 2).toFixed(1)} ${(foot - hM * sc).toFixed(1)}) scale(${(-k).toFixed(4)} ${k.toFixed(4)})` : `translate(${(cx - wp / 2).toFixed(1)} ${(foot - hM * sc).toFixed(1)}) scale(${k.toFixed(4)})`;
+  return `<path d="${s.d}" transform="${tf}" fill="${o.fill ?? '#80858a'}"${o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw ?? 0.9}" vector-effect="non-scaling-stroke" stroke-linejoin="round"` : ''}/>`;
+}
+
+/** Qatnov qismini qatorlarga ajratish (har qatorda mashina) */
+const expand = (parts: Part[]): { k: PartKind; w: number; lane?: boolean }[] => parts.flatMap(p => p.k === 'qatnov' && (p.lanes ?? 1) > 1 ? Array.from({ length: p.lanes! }, (_, i) => ({ k: p.k, w: p.w / p.lanes!, lane: i > 0 })) : [{ k: p.k, w: p.w }]);
+
+/**
+ * W — chizma eni (px), compact — roʻyxat uchun (nomlarsiz, pastroq).
+ * Balandlik masshtabdan: 9,5 m osmon + 50 px oʻlchamlar.
+ */
+export function sectionSvg(parts: Part[], W = 300, _H = 0, dims = true, compact = W <= 320): string {
+  // masshtab: kenglikka sigʻadi, lekin balandlik eni ~0,4 dan oshmasin (tor koʻchada chetlarda binolar kengayadi)
+  const total = parts.reduce((s, p) => s + p.w, 0) || 1, m0 = compact ? 14 : 24, sc = Math.min((W - 2 * m0) / total, W / (compact ? 26 : 15)), x0 = (W - total * sc) / 2;
+  const skyM = compact ? 7.5 : 9.5, base = (compact ? 8 : 16) + skyM * sc, H = base + (dims ? (compact ? 30 : 50) : 10);
+  let surf = '', kerb = '', back = '', mid = '', front = '', lab = '', ticks = '', path = '';
+  // binolar — kontur va qavat chiziqlari
+  const bh = Math.min(base - 4, 7 * sc), xr = x0 + total * sc + 4;
+  ([[0, x0 - 4], [xr, W - xr]] as const).forEach(([bx, bw]) => {
+    if (bw <= 0) return;
+    back += `<rect x="${bx.toFixed(1)}" y="${(base - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="#f4f3f1" stroke="${INK}" stroke-width=".9"/>`;
+    for (let f = 1; f * 3.3 * sc < bh - 2; f++) back += `<line x1="${bx.toFixed(1)}" y1="${(base - f * 3.3 * sc).toFixed(1)}" x2="${(bx + bw).toFixed(1)}" y2="${(base - f * 3.3 * sc).toFixed(1)}" stroke="${INK}" stroke-width=".4" opacity=".35"/>`;
+  });
+  let x = x0;
+  // oʻlchamlar asl tasmalar boʻyicha, siluetlar — qatorlar boʻyicha
+  const E = expand(parts);
+  E.forEach((e, i) => {
+    const w = e.w * sc, cx = x + w / 2, raised = e.k === 'trotuar' || e.k === 'yashil' || e.k === 'ajratuvchi';
+    const top = raised ? base - 0.15 * sc : base, m = (v: number) => v * sc;
+    surf += `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${(base + 8 - top).toFixed(1)}" fill="${SURF[e.k]}"/>`;
+    path += `${path ? 'L' : 'M'}${x.toFixed(1)} ${top.toFixed(1)}L${(x + w).toFixed(1)} ${top.toFixed(1)}`;
+    if (e.lane) kerb += `<line x1="${x.toFixed(1)}" y1="${(base - 0.4).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(base + 3).toFixed(1)}" stroke="#fff" stroke-width="1.2" stroke-dasharray="2 2"/>`;
+    if (e.k === 'qatnov' || (e.k === 'parkovka' && e.w >= 1.8)) front += silh('F_car', cx, top, 1.45, sc, { fill: '#fff', stroke: INK });
+    if (e.k === 'avtobus') front += silh('F_bus', cx, top, 3.15, sc, { fill: '#fff', stroke: INK });
+    if (e.k === 'tramvay') {
+      front += silh('F_tram', cx, top, 4.4, sc, { fill: '#fff', stroke: INK });
+      kerb += `<line x1="${(cx - m(0.72)).toFixed(1)}" y1="${top}" x2="${(cx - m(0.72)).toFixed(1)}" y2="${top + 2}" stroke="${INK}" stroke-width="2"/><line x1="${(cx + m(0.72)).toFixed(1)}" y1="${top}" x2="${(cx + m(0.72)).toFixed(1)}" y2="${top + 2}" stroke="${INK}" stroke-width="2"/>`;
     }
-    if (p.k === 'trotuar') { const n = Math.max(1, Math.min(3, Math.floor(p.w / 2.2))); for (let i = 0; i < n; i++) { const px = x + w * (i + 0.5) / n; out.push(`<circle cx="${px.toFixed(1)}" cy="${top - 13}" r="1.8" fill="#4a4a46"/><path d="M${px.toFixed(1)} ${top - 11}v6.5M${(px - 2).toFixed(1)} ${top}l2-5 2 5M${(px - 2.4).toFixed(1)} ${top - 8.5}h4.8" stroke="#4a4a46" stroke-width="1.1" fill="none"/>`); } }
-    if (p.k === 'velo') out.push(`<circle cx="${(cx - 3).toFixed(1)}" cy="${top - 2.6}" r="2.4" fill="none" stroke="#3e3e3a" stroke-width=".9"/><circle cx="${(cx + 3).toFixed(1)}" cy="${top - 2.6}" r="2.4" fill="none" stroke="#3e3e3a" stroke-width=".9"/><path d="M${(cx - 3).toFixed(1)} ${top - 2.6}l3 -4 3 4M${cx.toFixed(1)} ${top - 6.6}v-3" stroke="#3e3e3a" stroke-width=".9" fill="none"/><circle cx="${cx.toFixed(1)}" cy="${top - 11}" r="1.6" fill="#3e3e3a"/>`);
-    if (p.k === 'qatnov') { const L = p.lanes ?? 1, lw = w / L; for (let i = 0; i < L; i++) { const lx = x + lw * i; const cw = Math.min(lw * 0.72, 22); out.push(`<rect x="${(lx + (lw - cw) / 2).toFixed(1)}" y="${top - 8}" width="${cw.toFixed(1)}" height="6.5" rx="2" fill="${i % 2 ? '#e6e3dc' : '#ffffff'}" stroke="#55585e" stroke-width=".7"/><rect x="${(lx + (lw - cw) / 2 + cw * 0.22).toFixed(1)}" y="${top - 11}" width="${(cw * 0.56).toFixed(1)}" height="3.4" rx="1.4" fill="#cfd8de" stroke="#55585e" stroke-width=".6"/>`); if (i) out.push(`<path d="M${lx.toFixed(1)} ${top + 1}v6" stroke="#fff" stroke-width="1" stroke-dasharray="2 2"/>`); } }
-    if (p.k === 'parkovka') { const cw = Math.min(w * 0.8, 18); out.push(`<rect x="${(cx - cw / 2).toFixed(1)}" y="${top - 7}" width="${cw.toFixed(1)}" height="5.5" rx="2" fill="#d9d6cf" stroke="#55585e" stroke-width=".7"/>`); }
-    if (p.k === 'avtobus') { const bw = Math.min(w * 0.85, 26); out.push(`<rect x="${(cx - bw / 2).toFixed(1)}" y="${top - 17}" width="${bw.toFixed(1)}" height="15.5" rx="2.5" fill="#d8695a" stroke="#7b2f26" stroke-width=".7"/><rect x="${(cx - bw / 2 + 2).toFixed(1)}" y="${top - 15}" width="${(bw - 4).toFixed(1)}" height="5" fill="#f3e2df"/>`); }
-    if (p.k === 'tramvay') { const bw = Math.min(w * 0.85, 26); out.push(`<rect x="${(cx - bw / 2).toFixed(1)}" y="${top - 18}" width="${bw.toFixed(1)}" height="16" rx="3" fill="#f2c94c" stroke="#7a6420" stroke-width=".7"/><path d="M${cx.toFixed(1)} ${top - 18}l-4 -6h8" stroke="#555" stroke-width=".8" fill="none"/><rect x="${(cx - bw / 2 + 2).toFixed(1)}" y="${top - 15.5}" width="${(bw - 4).toFixed(1)}" height="5" fill="#fbf2d0"/>`); }
-    if (dims && w >= 14) out.push(`<text x="${cx.toFixed(1)}" y="${H - 3}" font-size="8" text-anchor="middle" fill="#6b6965">${n1(p.w)}</text>`);
-    if (idx) out.push(`<path d="M${x.toFixed(1)} ${H - 13}v4" stroke="#b9b5ab" stroke-width=".6"/>`);
+    if (e.k === 'velo') { const n = e.w >= 2.6 ? 2 : 1; for (let j = 0; j < n; j++) front += silh('F_cyclist', x + w * (j + 1) / (n + 1), top, 1.78, sc); }
+    if (e.k === 'trotuar') { const n = Math.max(1, Math.min(3, Math.floor(e.w / 1.4))); for (let j = 0; j < n; j++) front += silh(PPL[(i * 3 + j) % PPL.length], x + w * (j + 1) / (n + 1), top, 1.72, sc, { flip: (i + j) % 2 === 1 }); }
+    if ((e.k === 'yashil' && e.w >= 0.8) || (e.k === 'ajratuvchi' && e.w >= 1.5)) mid += silh(i % 2 ? '32' : '31', cx, top, e.k === 'ajratuvchi' ? 4.6 : 6.6, sc, { fill: '#cfdcbf', stroke: '#93ab80', sw: 0.6 });
+    else if (e.k === 'yashil' || e.k === 'ajratuvchi') mid += silh('45', cx, top, 0.7, sc, { fill: '#b9cfa6' });
     x += w;
   });
-  if (dims) out.push(`<path d="M${fac} ${H - 11}H${W - fac}" stroke="#b9b5ab" stroke-width=".6"/>`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Koʻcha kesimi, ${n1(total)} m" font-family="IBM Plex Mono, monospace">${out.join('')}</svg>`;
+  // tasma chegaralari, kengliklari va nomlari
+  if (dims) {
+    let xx = x0;
+    parts.forEach(p => {
+      const w = p.w * sc, cx = xx + w / 2;
+      ticks += `<line x1="${xx.toFixed(1)}" y1="${base + 11}" x2="${xx.toFixed(1)}" y2="${base + 17}" stroke="currentColor" stroke-width=".7"/>`;
+      if (w >= (compact ? 14 : 16)) lab += `<text x="${cx.toFixed(1)}" y="${base + (compact ? 26 : 28)}" font-size="${compact ? 8.5 : 10}" text-anchor="middle" font-family="Archivo, system-ui, sans-serif" fill="currentColor">${n1(p.w)}${p.lanes && p.lanes > 1 && !compact ? ` (${p.lanes})` : ''}</text>`;
+      if (!compact && w >= 34) lab += `<text x="${cx.toFixed(1)}" y="${base + 41}" font-size="9" text-anchor="middle" fill="currentColor" opacity=".7">${PART_NAME[p.k]}</text>`;
+      xx += w;
+    });
+    ticks += `<line x1="${xx.toFixed(1)}" y1="${base + 11}" x2="${xx.toFixed(1)}" y2="${base + 17}" stroke="currentColor" stroke-width=".7"/><line x1="${x0}" y1="${base + 14}" x2="${xx.toFixed(1)}" y2="${base + 14}" stroke="currentColor" stroke-width=".6"/>`;
+  }
+  const ground = `<path d="M0 ${base.toFixed(1)}H${x0}${path.replace(/^M/, 'L')}L${x.toFixed(1)} ${base.toFixed(1)}L${W} ${base.toFixed(1)}" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H.toFixed(1)}" width="100%" role="img" aria-label="Koʻcha kesimi, ${n1(total)} m" font-family="Archivo, system-ui, sans-serif" style="color:#3a3936">${back}${surf}${ground}${kerb}${mid}${front}${ticks}${lab}</svg>`;
 }
