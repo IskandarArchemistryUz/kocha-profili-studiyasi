@@ -9,6 +9,7 @@ import { computePlan } from './plan';
 import { useDef } from './uses';
 import { planApartments } from './apartments';
 import { jobsFrom } from './jobs';
+import { tieredGfa } from './tiers';
 
 export interface Derived {
   /** uchastka maydoni, ga (teshiklar ayirilgan) */
@@ -75,12 +76,14 @@ export function derive(doc: Project): Derived {
   const siteM2 = doc.site ? polyArea(doc.site.rings.map(r => ringLocal(fr, r))) : 0;
   let footprint = 0, gfa = 0, resGfa = 0, greenRoof = 0, solarRoof = 0; const gfaByUse: Record<string, number> = {};
   for (const b of doc.buildings) {
-    const a = area(ringLocal(fr, b.footprint));
+    const r = ringLocal(fr, b.footprint), a = area(r);
     if (!b.z0) footprint += a; // stilobat ustidagi seksiyalar dogʻi stilobatniki ichida — ikki marta sanalmaydi
-    gfa += a * b.floors;
+    // cheginishlar (terrasalar) boʻlsa — oʻrtacha qavat maydoni kamayadi; turar/noturar ulushi shu nisbatda
+    const g = b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) : a * b.floors, k = g / (a * b.floors || 1);
+    gfa += g;
     if (b.roof === 'yashil') greenRoof += a; if (b.roof === 'quyosh') solarRoof += a;
-    resGfa += a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
-    const nonResGfa = a * b.floors - a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
+    resGfa += k * a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
+    const nonResGfa = g - k * a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
     gfaByUse[b.use] = (gfaByUse[b.use] ?? 0) + nonResGfa;
   }
   const s = doc.settings;
