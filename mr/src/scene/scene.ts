@@ -65,6 +65,32 @@ function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] 
 }
 
 export type ViewMode = 'plan' | 'axo' | 'persp';
+export type SceneStyle = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal';
+export const STYLES: { id: SceneStyle; name: string; note: string }[] = [
+  { id: 'albom', name: 'Albom', note: 'oq binolar, och yoʻllar va daraxtlar, soyalar' },
+  { id: 'rangli', name: 'Rangli', note: 'OSM ranglari, sunʼiy yoʻldosh tasviri' },
+  { id: 'arctic', name: 'Arctic', note: 'oq gil model, yumshoq soyalar' },
+  { id: 'funksiya', name: 'Funksiya', note: 'har funksiya oʻz rangida' },
+  { id: 'minimal', name: 'Minimal', note: 'oq-qora grafika' },
+];
+/** kadr nisbatlari (eni/boʻyi) */
+export const FRAMES: { id: string; name: string; r: number }[] = [
+  { id: 'erkin', name: 'Erkin', r: 0 }, { id: '16:9', name: '16:9', r: 16 / 9 }, { id: '3:2', name: '3:2', r: 1.5 }, { id: '4:3', name: '4:3', r: 4 / 3 },
+  { id: '1:1', name: '1:1', r: 1 }, { id: '4:5', name: '4:5', r: 0.8 }, { id: '9:16', name: '9:16', r: 9 / 16 }, { id: 'A', name: 'A · √2', r: Math.SQRT2 },
+];
+export const LENSES = [18, 24, 28, 35, 50, 85];
+const lensFov = (mm: number) => 2 * Math.atan(24 / (2 * mm)) * 180 / Math.PI;
+/** uslubga qarab atrof ranglari (null — «Rangli»: asl ranglar) */
+const STYLE_PAL: Record<Exclude<SceneStyle, 'rangli'>, { pal: Record<string, number>; lerp: number; line: number | null; bg: number }> = {
+  albom: { pal: { relyef: 0xf1efea, yashil: 0xe1e9d6, suv: 0xcfdfe8, ariqlar: 0xcfdfe8, 'yoʻlaklar': 0xf8f7f4, trotuarlar: 0xf8f7f4, 'yoʻllar': 0xdfddd8, chiziqlar: 0xffffff, binolar: 0xfcfbf9, tomlar: 0xefece7, daraxtlar: 0xcbd9bf }, lerp: 0.65, line: null, bg: 0xf6f5f2 },
+  funksiya: { pal: { relyef: 0xf1efea, yashil: 0xe1e9d6, suv: 0xcfdfe8, ariqlar: 0xcfdfe8, 'yoʻlaklar': 0xf8f7f4, trotuarlar: 0xf8f7f4, 'yoʻllar': 0xdfddd8, chiziqlar: 0xffffff, binolar: 0xf4f2ee, tomlar: 0xe9e6e0, daraxtlar: 0xcbd9bf }, lerp: 0.65, line: null, bg: 0xf6f5f2 },
+  arctic: { pal: { relyef: 0xf7f6f3, yashil: 0xeef0ea, suv: 0xe4ebef, ariqlar: 0xe4ebef, 'yoʻlaklar': 0xfbfaf8, trotuarlar: 0xfbfaf8, 'yoʻllar': 0xecebe7, chiziqlar: 0xffffff, binolar: 0xffffff, tomlar: 0xf6f5f2, daraxtlar: 0xeef1ea }, lerp: 0.88, line: null, bg: 0xfafaf8 },
+  minimal: { pal: { relyef: 0xffffff, yashil: 0xf1f1f1, suv: 0xe6e6e6, ariqlar: 0xe6e6e6, 'yoʻlaklar': 0xfafafa, trotuarlar: 0xfafafa, 'yoʻllar': 0xdedede, chiziqlar: 0xffffff, binolar: 0xf7f7f7, tomlar: 0xededed, daraxtlar: 0xd8d8d8 }, lerp: 0.9, line: 0x6a6a6a, bg: 0xffffff },
+};
+const PART_ARC: Record<string, number> = { trotuar: 0xf8f7f4, yashil: 0xeaeee4, velo: 0xf1e6e1, parkovka: 0xeeedea, qatnov: 0xe6e5e1, chiziq: 0xffffff };
+const PART_MIN: Record<string, number> = { trotuar: 0xfafafa, yashil: 0xececec, velo: 0xe4e4e4, parkovka: 0xe2e2e2, qatnov: 0xcfcfcf, chiziq: 0xffffff };
+/** «portlatilgan» qatlamlar: 0 — atrof, 1 — koʻchalar, 2 — kvartallar, 3 — binolar */
+export const EXPLODE_NAMES = ['Atrof', 'Koʻchalar', 'Kvartallar va zonalar', 'Binolar'];
 
 const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b4, siteLine: 0xc0392b, bld: 0xf7f6f2, bldSel: 0xcfe0f1, roof: 0xdedad2, edge: 0x3c3c3c, preview: 0x2a6fb0 };
 
@@ -126,7 +152,7 @@ export class Scene3D {
 
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
-    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; this.renderer.render(this.scene, this.cam); } };
+    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; this.renderer.render(this.scene, this.rcam()); } };
     loop();
   }
 
@@ -169,7 +195,7 @@ export class Scene3D {
     this.ctl.target.copy(target); this.ctl.enableDamping = false; this.ctl.screenSpacePanning = true;
     this.ctl.zoomSpeed = 2.2; this.ctl.zoomToCursor = true;
     this.ctl.minZoom = 0.05; this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 6000;
-    this.ctl.maxPolarAngle = Math.PI * 0.49;
+    this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     this.ctl.addEventListener('change', () => this.invalidate());
     this.ctl.update();
@@ -183,7 +209,7 @@ export class Scene3D {
   pick(clientX: number, clientY: number): XY | null {
     const r = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
-    this.ray.setFromCamera(ndc, this.cam);
+    this.ray.setFromCamera(ndc, this.rcam());
     if (this.ctx) { const hit = this.ray.intersectObject(this.ctx.ground, false)[0]; if (hit) return [hit.point.x, -hit.point.z]; }
     const p = new THREE.Vector3();
     return this.ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p) ? [p.x, -p.z] : null;
@@ -192,14 +218,14 @@ export class Scene3D {
   /** Ekran nuqtasidagi bino (bosish bilan tanlash) */
   pickBuilding(clientX: number, clientY: number): string | null {
     const r = this.renderer.domElement.getBoundingClientRect();
-    this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.cam);
+    this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.rcam());
     const hit = this.ray.intersectObjects(this.world.children.filter(o => o.userData.bid), false)[0];
     return hit ? (hit.object.userData.bid as string) : null;
   }
 
   /** Ekranda nuqtalar orasidagi piksel masofasi (chizishda yopish uchun) */
   screenDist(a: XY, clientX: number, clientY: number): number {
-    const v = new THREE.Vector3(a[0], 0, -a[1]).project(this.cam), r = this.renderer.domElement.getBoundingClientRect();
+    const v = new THREE.Vector3(a[0], 0, -a[1]).project(this.rcam()), r = this.renderer.domElement.getBoundingClientRect();
     return Math.hypot((v.x + 1) / 2 * r.width + r.left - clientX, (1 - v.y) / 2 * r.height + r.top - clientY);
   }
 
@@ -211,7 +237,7 @@ export class Scene3D {
   /** Ekran nuqtasidagi uchastka ichidagi mavjud bino (OSM id) */
   pickContextBuilding(clientX: number, clientY: number): number | null {
     const r = this.renderer.domElement.getBoundingClientRect();
-    this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.cam);
+    this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.rcam());
     const hit = this.ray.intersectObjects(this.world.children.filter(o => o.userData.cid != null && (o as THREE.Mesh).isMesh), false)[0];
     return hit ? (hit.object.userData.cid as number) : null;
   }
@@ -221,6 +247,8 @@ export class Scene3D {
     disposeGroup(this.world);
     const fr = frame(doc.origin);
     const toV2 = (p: XY) => new THREE.Vector2(p[0], p[1]);
+    const tag = (L: number) => { for (const o of this.world.children) o.userData.layer ??= L; };
+    const st = this.style, plain = st === 'arctic' || st === 'minimal';
     if (doc.site) {
       const rings = doc.site.rings.map(r => r.map(fr.toLocal));
       // kvartallar (uchastka − koʻcha koridorlari), funksiya rangida
@@ -229,12 +257,13 @@ export class Scene3D {
         const sh = new THREE.Shape(b.rings[0].map(toV2)); b.rings.slice(1).forEach(h => sh.holes.push(new THREE.Path(h.map(toV2))));
         const g = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
         const sel = i === this.selBlock;
-        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: ZONE_COL[b.use] ?? C.site, transparent: true, opacity: sel ? 0.9 : this.ctx ? 0.62 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
-        m.renderOrder = 6; m.userData.block = i; this.world.add(m);
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st === 'minimal' ? 0xeeeeee : st === 'arctic' ? tint(ZONE_COL[b.use] ?? C.site, 0.55) : ZONE_COL[b.use] ?? C.site, transparent: true, opacity: sel ? 0.9 : plain ? 0.55 : this.ctx ? 0.62 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+        m.renderOrder = 6; m.userData.block = i; m.userData.layer = 2; this.world.add(m);
         if (sel) b.rings.forEach(r => this.world.add(line(densify(r, 10, true), C.preview, 0.45, true, 8, this.H)));
       });
-      rings.forEach(r => this.world.add(line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H)));
+      rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
     }
+    tag(2);
     // loyiha koʻchalari: profil boʻlaklari, chiziqlar, daraxtlar, qizil chiziqlar
     if (doc.streets.length) {
       const sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H);
@@ -242,12 +271,13 @@ export class Scene3D {
       for (const [k, o] of ord) {
         const arr = sg.layers[k]; if (!arr?.length) continue;
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: (this.album ? PART_ALB : PART_COL)[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL)[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
       }
       sg.red.forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
-      if (sg.trees.length) this.world.add(...treeMeshes(sg.trees, this.H, this.album ? 0x9fbf86 : 0x6f9f4c));
+      if (sg.trees.length) this.world.add(...treeMeshes(sg.trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c));
     }
+    tag(1);
     // uchastka ichidagi mavjud binolar: saqlanadigan — oddiy, qolgani — buziladigan (shaffof qizil)
     if (this.ctx?.inSite.length) {
       const keep = new Set(doc.keep);
@@ -261,6 +291,7 @@ export class Scene3D {
       }
     }
     this.ctx?.maskTrees(doc.site ? doc.site.rings[0].map(fr.toLocal) : null);
+    tag(3);
     // parkovkalar: yer osti — siyohrang uzuq kontur, yer usti — kulrang maydon
     doc.garages.forEach(gr => {
       const r = gr.ring.map(fr.toLocal);
@@ -272,6 +303,7 @@ export class Scene3D {
         l.material = new THREE.LineDashedMaterial({ color: 0x7a4fb0, dashSize: 2, gapSize: 1.5 }); l.computeLineDistances(); this.world.add(l);
       }
     });
+    tag(2);
     // loyiha binolari / seksiyalari: noturar pastki qavatlar toʻq tasma, har seksiya alohida (chegaralari koʻrinadi)
     const fh = doc.settings.floorHeight, aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     doc.buildings.forEach(b => {
@@ -280,23 +312,27 @@ export class Scene3D {
       const part = (z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null) => {
         const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
         const wall = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : color });
-        if (kind && this.facade !== 'yoq') wall.map = facadeTex(kind, this.facade, fh, 3.3, aniso);
-        const m = new THREE.Mesh(g, [new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : C.roof }), wall]);
+        if (kind && this.facade !== 'yoq' && !plain && st !== 'funksiya') wall.map = facadeTex(kind, this.facade, fh, 3.3, aniso);
+        const m = new THREE.Mesh(g, [new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof }), wall]);
         m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
-        const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.5 })); this.world.add(e);
+        const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: st === 'minimal' ? 0.9 : st === 'arctic' ? 0.22 : 0.5 })); this.world.add(e);
       };
       if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
         // past uylar — qiya tom bilan (kontekstdagi kabi)
-        const objs = buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh, kind: 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
+        const objs = buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh, kind: 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
         objs.forEach(o => { o.userData.bid = b.id; o.castShadow = o.receiveShadow = true; this.world.add(o); });
         return;
       }
       const nr = Math.min(b.nonRes, b.floors - (b.gen?.kind === 'stilobat' ? 0 : 1));
       const parking = b.gen?.kind === 'stilobat' && b.use === 'avtoturargoh', office = b.use === 'ofis' || b.use === 'mehmonxona';
-      if (nr > 0) part(0, nr * fh, BASE_COL[b.use] ?? 0x9c7b6e, parking ? null : 'shop');
+      const baseC = plain ? (st === 'minimal' ? 0xe6e6e6 : 0xf0eee9) : st === 'funksiya' ? tint(BASE_COL[b.use] ?? 0x9c7b6e, 0.15) : BASE_COL[b.use] ?? 0x9c7b6e;
+      const topC = plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : USE_COL[b.use] ?? C.bld;
+      if (nr > 0) part(0, nr * fh, baseC, parking ? null : 'shop');
       if (nr >= b.floors) return;
-      part(nr * fh, b.floors * fh, USE_COL[b.use] ?? C.bld, office ? 'glass' : 'res');
+      part(nr * fh, b.floors * fh, topC, office ? 'glass' : 'res');
     });
+    tag(3);
+    this.applyExplode();
     this.invalidate();
   }
 
@@ -326,7 +362,7 @@ export class Scene3D {
   captureViews(doc: Project): Record<'plan' | 'axo' | 'persp', string> {
     const mode = this.mode, t = this.ctl.target.clone(), pp = this.persp.position.clone(), op = this.ortho.position.clone(), os = this.ortho.userData.s, oz = this.ortho.zoom;
     const out = {} as Record<'plan' | 'axo' | 'persp', string>;
-    for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); this.renderer.render(this.scene, this.cam); out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
+    for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); this.renderer.render(this.scene, this.rcam()); out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
     this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz;
     this.resize(); this.ctl.update(); this.invalidate();
     return out;
@@ -391,10 +427,12 @@ export class Scene3D {
    * sunʼiy yoʻldosh tasviri yashiriladi, soyalar qoladi. Loyiha (binolar, zonalar) oʻz rangida.
    * Shaffoflik ishlatilmaydi — yarim shaffof qatlamlar tartibi binolar ustida «arvoh» chiziqlar berardi.
    */
-  setAlbum(on: boolean): void { if (on === this.album) return; this.album = on; this.applyStyle(); if (this.lastDoc) this.update(this.lastDoc); }
+  style: SceneStyle = 'rangli';
+  setAlbum(on: boolean): void { this.setStyle(on ? 'albom' : 'rangli'); }
+  setStyle(st: SceneStyle): void { if (st === this.style) return; this.style = st; this.album = st !== 'rangli'; this.applyStyle(); if (this.lastDoc) this.update(this.lastDoc); }
   get albumOn(): boolean { return this.album; }
   private applyStyle(): void {
-    const PAL: Record<string, number> = { relyef: 0xf1efea, yashil: 0xe1e9d6, suv: 0xcfdfe8, ariqlar: 0xcfdfe8, 'yoʻlaklar': 0xf8f7f4, trotuarlar: 0xf8f7f4, 'yoʻllar': 0xdfddd8, chiziqlar: 0xffffff, binolar: 0xfcfbf9, tomlar: 0xefece7, daraxtlar: 0xcbd9bf };
+    const S = this.style === 'rangli' ? null : STYLE_PAL[this.style];
     const W = new THREE.Color(0xffffff), roots: THREE.Object3D[] = [...(this.ctx ? [this.ctx.group] : []), ...this.far];
     type M = THREE.Material & { color?: THREE.Color; map?: THREE.Texture | null };
     for (const root of roots) root.traverse(o => {
@@ -403,15 +441,46 @@ export class Scene3D {
         const u = m.userData as { s0?: { c?: THREE.Color; map?: THREE.Texture | null } };
         u.s0 ??= { c: m.color?.clone(), map: m.map ?? null };
         const f = u.s0;
-        if (this.album) {
-          const pal = PAL[o.name];
-          if (m.color && f.c) { if (pal != null) m.color.setHex(pal); else m.color.copy(f.c).lerp(W, o instanceof THREE.LineSegments ? 0.55 : 0.65); }
+        if (S) {
+          const pal = S.pal[o.name], isLine = o instanceof THREE.LineSegments;
+          if (m.color && f.c) { if (isLine && S.line != null) m.color.setHex(S.line); else if (pal != null) m.color.setHex(pal); else m.color.copy(f.c).lerp(W, isLine ? 0.55 : S.lerp); }
           if ('map' in m && f.map) m.map = null;
         } else { if (f.c) m.color?.copy(f.c); if ('map' in m && f.map) m.map = f.map; }
         m.needsUpdate = true;
       }
     });
-    this.scene.background = new THREE.Color(this.album ? 0xf6f5f2 : 0xf4f3f1);
+    this.scene.background = new THREE.Color(S ? S.bg : 0xf4f3f1);
+    (this.ground.material as THREE.MeshLambertMaterial).color.setHex(this.style === 'minimal' || this.style === 'arctic' ? 0xf7f6f4 : C.ground);
+    this.invalidate();
+  }
+
+  /* ---------- portlatilgan qatlamlar ---------- */
+  exploded = false;
+  private explodeStep = 0;
+  explodeGap = 0.6;
+  private explodeLabels: THREE.Object3D[] = [];
+  setExploded(on: boolean, gap = this.explodeGap): void { this.exploded = on; this.explodeGap = gap; this.applyExplode(); }
+  private applyExplode(): void {
+    this.explodeLabels.forEach(o => { this.scene.remove(o); const m = o as THREE.Sprite | THREE.Line; m.geometry?.dispose(); const mat = m.material as THREE.SpriteMaterial; mat.map?.dispose(); mat.dispose(); });
+    this.explodeLabels = [];
+    // qatlam oraligʻi: uchastka (yoki binolar) oʻlchamiga nisbatan
+    const box = new THREE.Box3(); this.world.children.forEach(o => { if (o.userData.layer != null) box.expandByObject(o); });
+    const size = box.isEmpty() ? 200 : Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
+    const step = this.exploded ? Math.max(12, size * 0.22 * this.explodeGap) : 0;
+    const dy = 1.5 * (step - this.explodeStep); this.explodeStep = step;
+    if (dy) { this.ctl.target.y += dy; this.cam.position.y += dy; this.ctl.update(); }
+    this.world.children.forEach(o => { const L = o.userData.layer as number | undefined; o.position.y = L ? L * step : 0; });
+    if (this.exploded && !box.isEmpty()) {
+      const x = box.max.x + size * 0.06, z = box.max.z;
+      EXPLODE_NAMES.forEach((name, i) => {
+        const sp = labelSprite(`${i + 1}  ${name}`); sp.position.set(x, i * step + 4, z); this.scene.add(sp); this.explodeLabels.push(sp);
+      });
+      const corners: [number, number][] = [[box.min.x, box.min.z], [box.max.x, box.min.z], [box.min.x, box.max.z], [box.max.x, box.max.z]];
+      for (const [cx, cz] of corners) {
+        const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(cx, 0, cz), new THREE.Vector3(cx, 3 * step + 2, cz)]), new THREE.LineDashedMaterial({ color: 0x9a978f, dashSize: 2, gapSize: 2 }));
+        l.computeLineDistances(); this.scene.add(l); this.explodeLabels.push(l);
+      }
+    }
     this.invalidate();
   }
 
@@ -531,7 +600,75 @@ export class Scene3D {
   /** uchastka ichidagi mavjud (OSM) binolar */
   get inSite(): { id: number; rings: XY[][]; h: number }[] { return this.ctx?.inSite ?? []; }
 
-  snapshot(): string { this.renderer.render(this.scene, this.cam); return this.renderer.domElement.toDataURL('image/png'); }
+  /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
+  snapshot(ratio = 0): string {
+    this.renderer.render(this.scene, this.rcam());
+    const c = this.renderer.domElement; if (!ratio) return c.toDataURL('image/png');
+    const r = this.frameRect(ratio), k = c.width / (c.clientWidth || c.width), o = document.createElement('canvas');
+    o.width = Math.round(r.w * k); o.height = Math.round(r.h * k);
+    o.getContext('2d')!.drawImage(c, r.x * k, r.y * k, r.w * k, r.h * k, 0, 0, o.width, o.height);
+    return o.toDataURL('image/png');
+  }
+  /** kadr toʻrtburchagi (CSS piksel, kanvas ichida) */
+  frameRect(ratio: number): { x: number; y: number; w: number; h: number } {
+    const W = this.host.clientWidth || 1, H = this.host.clientHeight || 1, pad = 0.92;
+    let w = W * pad, h = w / ratio; if (h > H * pad) { h = H * pad; w = h * ratio; }
+    return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+  }
+
+  /* ---------- kamera: obyektiv, koʻz sathi, 2 nuqtali perspektiva, saqlangan koʻrinishlar ---------- */
+  lens = 35;
+  twoPoint = false;
+  private rc = new THREE.PerspectiveCamera();
+  /** Chizish kamerasi: 2 nuqtali perspektivada — gorizontal qaraydi, nishon kadr markaziga linza siljishi bilan keltiriladi */
+  private rcam(): THREE.Camera {
+    if (!this.twoPoint || this.cam !== this.persp) return this.cam;
+    const rc = this.rc, t = this.ctl.target, W = this.host.clientWidth || 1, H = this.host.clientHeight || 1;
+    rc.fov = this.persp.fov; rc.aspect = this.persp.aspect; rc.near = this.persp.near; rc.far = this.persp.far;
+    rc.position.copy(this.persp.position); rc.clearViewOffset();
+    rc.lookAt(t.x, this.persp.position.y, t.z); rc.updateMatrixWorld(); rc.updateProjectionMatrix();
+    const yt = Math.max(-3, Math.min(3, t.clone().project(rc).y));
+    rc.setViewOffset(W, H, 0, -yt * H / 2, W, H); rc.updateProjectionMatrix();
+    return rc;
+  }
+  setLens(mm: number): void { this.lens = mm; this.persp.fov = lensFov(mm); this.persp.updateProjectionMatrix(); this.invalidate(); }
+  setTwoPoint(on: boolean): void { this.twoPoint = on; this.invalidate(); }
+  /** Piyoda koʻzi: yerdan 1,6 m, hozirgi yoʻnalishda nishon tomon qaraydi */
+  eyeLevel(): void {
+    if (this.mode !== 'persp') this.setView('persp');
+    const t = this.ctl.target, p = this.persp.position, dx = t.x - p.x, dz = t.z - p.z, L = Math.hypot(dx, dz) || 1;
+    // kamera binolar tashqarisida: loyiha qamrovi radiusidan nariroqda
+    const box = new THREE.Box3(); this.world.children.forEach(o => { if ((o as THREE.Mesh).isMesh && o.userData.bid != null) box.expandByObject(o); });
+    const R = box.isEmpty() ? 60 : Math.hypot(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
+    const c = box.isEmpty() ? t : box.getCenter(new THREE.Vector3());
+    const d = R + 45, ex = c.x - dx / L * d, ez = c.z - dz / L * d;
+    const gy = (x: number, z: number) => this.H(x, -z) + 1.6;
+    p.set(ex, gy(ex, ez), ez); this.ctl.target.set(c.x, gy(c.x, c.z) + 2, c.z);
+    this.ctl.update(); this.invalidate();
+  }
+  getCamera(): Omit<import('../core/doc').SavedView, 'id' | 'name' | 'frame'> {
+    const c = this.cam === this.persp ? this.persp : this.ortho, t = this.ctl.target;
+    return { mode: this.mode, pos: [c.position.x, c.position.y, c.position.z], target: [t.x, t.y, t.z], zoom: this.ortho.zoom, lens: this.lens, twoPoint: this.twoPoint };
+  }
+  setCamera(v: Pick<import('../core/doc').SavedView, 'mode' | 'pos' | 'target' | 'zoom' | 'lens' | 'twoPoint'>): void {
+    this.setView(v.mode); this.setLens(v.lens); this.twoPoint = v.twoPoint;
+    const c = v.mode === 'persp' ? this.persp : this.ortho;
+    c.position.set(...v.pos); this.ctl.target.set(...v.target); if (v.mode !== 'persp') { this.ortho.zoom = v.zoom; this.ortho.updateProjectionMatrix(); }
+    this.ctl.update(); this.invalidate();
+  }
+}
+
+/** Matnli yorliq (ekranda doimiy oʻlchamda) */
+function labelSprite(text: string): THREE.Sprite {
+  const c = document.createElement('canvas'), g = c.getContext('2d')!, fs = 30;
+  g.font = `600 ${fs}px Archivo, system-ui, sans-serif`; const w = Math.ceil(g.measureText(text).width) + 28;
+  c.width = w; c.height = fs + 22; g.font = `600 ${fs}px Archivo, system-ui, sans-serif`;
+  g.fillStyle = 'rgba(255,255,255,0.94)'; g.strokeStyle = '#1d1d1b'; g.lineWidth = 2; g.beginPath(); g.roundRect(1, 1, w - 2, c.height - 2, 10); g.fill(); g.stroke();
+  g.fillStyle = '#1d1d1b'; g.textBaseline = 'middle'; g.fillText(text, 14, c.height / 2 + 1);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false }));
+  const k = 0.00042; sp.scale.set(c.width * k, c.height * k, 1); sp.center.set(0, 0); sp.renderOrder = 50;
+  return sp;
 }
 
 /** depth — binolar orqasida yashirinsin (reja chiziqlari); chizilayotgan shakl (preview) uchun false */
