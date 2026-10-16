@@ -1345,7 +1345,7 @@ export class Editor {
           this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
           this.el.hint.textContent = this.tool?.hint ?? '';
         }, toast)) }, drawing ? 'Toʻxtatish' : '＋ Toʻrtburchak'),
-        h('button', { class: drawingP ? 'btn primary grow' : 'btn grow', id: 'drawPoly', title: 'Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish', onclick: () => drawingP ? this.setTool(null) : this.setTool(new PolygonTool(this.scene, r => {
+        h('button', { class: drawingP ? 'btn primary grow' : 'btn grow', id: 'drawPoly', title: 'Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish', onclick: () => drawingP ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
           this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
           this.setTool(new PolygonTool(this.scene, r2 => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r2.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); }, toast, 20));
         }, toast, 20)) }, drawingP ? 'Toʻxtatish' : '＋ Erkin shakl')),
@@ -1442,7 +1442,7 @@ export class Editor {
           h('button', { class: 'btn', onclick: () => { this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); } }, '×')),
         h('p', { class: 'note' }, 'Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi.')));
     }
-    body.append(h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawStreet', onclick: () => drawing ? this.setTool(null) : this.setTool(new LineTool(this.scene, r => {
+    body.append(h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawStreet', onclick: () => drawing ? this.endTool() : this.setTool(new LineTool(this.scene, r => {
       this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
     }, toast, this.snapStreet)) }, drawing ? 'Chizishni tugatish' : '＋ Koʻcha chizish'));
@@ -1779,6 +1779,8 @@ export class Editor {
     this.renderAll();
   }
 
+  /** «Tugatish» tugmasi: chizilgan nuqtalar saqlanadi, keyin asbob oʻchadi */
+  private endTool(): void { this.tool?.commit?.(); this.setTool(null); }
   private setTool(t: Tool | null): void {
     this.tool?.cancel(); this.tool = t; this.scene.setSnapMark(null);
     /* chizish rejada aniq: sharq–shimol oʻqlari ekran oʻqlari bilan mos */
@@ -1820,7 +1822,7 @@ export class Editor {
       const drawing = this.tool instanceof PolygonTool;
       body.append(
         doc.site ? h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Uchastka maydoni'), h('b', { class: 'num', id: 'siteHa' }, `${fmt(area, 2)} ga`)) : h('p', { class: 'note' }, 'Uchastka hali chizilmagan.'),
-        h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawSite', onclick: () => drawing ? this.setTool(null) : this.setTool(new PolygonTool(this.scene, r => {
+        h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawSite', onclick: () => drawing ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
           this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.setTool(null); this.scene.frameDoc(this.store.doc);
         }, toast)) }, drawing ? 'Chizishni toʻxtatish' : (doc.site ? '✎ Qaytadan chizish' : '✎ Sahnada chizish')),
         this.ctxMgr.current && doc.context.loaded && doc.context.layers.roads ? h('button', { class: this.tool instanceof ClickTool ? 'btn primary' : 'btn', id: 'pickBlock', onclick: () => this.tool instanceof ClickTool ? this.setTool(null) : this.setTool(new ClickTool('Yoʻllar orasidagi kvartal ichini bosing · Esc — bekor', xy => this.pickBlock(xy))) }, this.tool instanceof ClickTool ? 'Aniqlashni toʻxtatish' : '⌖ Kvartalni bosib aniqlash') : '',
