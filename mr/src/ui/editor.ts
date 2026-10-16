@@ -29,7 +29,7 @@ import { planApartments, windowPoints, windowSun, evaluateApts, isWest, MOD_W, t
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
 import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
-import { centroid, area } from '../core/geo';
+import { centroid, area, signedArea } from '../core/geo';
 import { toDxf } from '../core/dxf';
 import { toIfc } from '../core/ifc';
 import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
@@ -38,6 +38,8 @@ import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
 import { JOBS_NOTE } from '../core/jobs';
 import { MATS, ROOFS, PV, pitchedRoof, pvEstimate, type Mat, type Roof } from '../core/roof';
+import { pushEdge } from '../core/tiers';
+import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import type { TerrainGrid } from '../context/tiles';
@@ -362,11 +364,87 @@ export class Editor {
     const q = this.scene.frameRect(r); Object.assign(el.style, { left: `${q.x}px`, top: `${q.y}px`, width: `${q.w}px`, height: `${q.h}px` });
   }
 
+  /* ---------- bino muharriri (tanlangan bino; har qadamda) ---------- */
+  private inspTab: 'hajm' | 'qavat' | 'fasad' = 'hajm';
+  private dragMode: 'yoq' | 'push' | 'move' = 'yoq';
+  private tierInset = 3;
+  private tierEdge: number | null = null;
+  private renderInspector(): void {
+    const doc = this.store.doc, b = doc.buildings.find(x => x.id === this.sel);
+    let el = this.el.stage.querySelector<HTMLElement>('.insp');
+    if (!b || this.step.id === 'parsel') { el?.remove(); if (this.scene.selFloor != null) this.scene.setSelFloor(null); if (!b) this.dragMode = 'yoq'; return; }
+    if (!el) { el = h('aside', { class: 'insp', 'aria-label': 'Bino muharriri' }); this.el.stage.append(el); }
+    const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), u = useDef(b.use);
+    const upd = (patch: Partial<Omit<typeof b, 'id'>>, key?: string) => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch }, key));
+    const stepper = (label: string, v: number, min: number, max: number, set: (v: number) => void, id: string) => h('div', { class: 'stp' }, h('span', {}, label),
+      h('button', { 'aria-label': `${label} −`, disabled: v <= min, onclick: () => set(v - 1) }, '−'), h('b', { id }, String(v)), h('button', { 'aria-label': `${label} +`, disabled: v >= max, onclick: () => set(v + 1) }, '+'));
+    const kind = b.gen ? (({ burchak: 'Burchak seksiyasi', oddiy: 'Oddiy seksiya', qator: 'Qator seksiyasi', uy: 'Yakka uy', taunhaus: 'Taunhaus', villa: 'Villa', minora: 'Minora', stilobat: 'Stilobat' } as Record<string, string>)[b.gen.kind] ?? 'Seksiya') : 'Bino';
+    const c = centroid(r), moveBy = (dx: number, dy: number) => upd({ footprint: r.map(p => fr.toGeo([p[0] + dx, p[1] + dy])) }, 'mv-' + b.id);
+    const rot = (deg: number) => { const a = deg * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a); upd({ footprint: r.map(p => fr.toGeo([c[0] + (p[0] - c[0]) * cs - (p[1] - c[1]) * sn, c[1] + (p[0] - c[0]) * sn + (p[1] - c[1]) * cs])) }, 'rot-' + b.id); };
+    const tabs = h('div', { class: 'seg full', role: 'tablist' }, ...([['hajm', 'Hajm'], ['qavat', 'Qavatlar'], ['fasad', 'Fasad va tom']] as const).map(([k, t]) => h('button', { role: 'tab', 'aria-pressed': this.inspTab === k, 'data-itab': k, onclick: () => { this.inspTab = k; if (k !== 'qavat') this.scene.setSelFloor(null); this.renderInspector(); } }, t)));
+    const body = h('div', { class: 'ibody' });
+    if (this.inspTab === 'hajm') {
+      const useSel = h('select', { id: 'iUse' }, ...USES.filter(x => x.build).map(x => h('option', { value: x.id, selected: x.id === b.use }, x.name))) as HTMLSelectElement;
+      useSel.onchange = () => upd({ use: useSel.value as Use });
+      body.append(
+        h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Funksiya'), useSel),
+        stepper('Qavatlar', b.floors, 1, 60, v => upd({ floors: v }, 'fl-' + b.id), 'iFloors'),
+        stepper('Noturar qavatlar (pastda)', b.nonRes, 0, Math.max(0, b.floors - 1), v => upd({ nonRes: v }, 'nr-' + b.id), 'iNonRes'),
+        stepper('Stilobat ustida (qavat)', b.z0 ?? 0, 0, 10, v => upd({ z0: v || undefined }, 'z0-' + b.id), 'iZ0'),
+        h('div', { class: 'lb' }, 'Sichqoncha bilan'),
+        h('div', { class: 'seg full', id: 'dragSeg' }, ...([['yoq', 'Tanlash'], ['push', 'Devorni itarish'], ['move', 'Siljitish']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.dragMode === k, 'data-drag': k, onclick: () => { this.dragMode = k; this.renderInspector(); } }, t))),
+        this.dragMode === 'push' ? h('p', { class: 'note' }, 'Binoning devorini bosib torting — devor oʻz normali boʻyicha suriladi (Ctrl+Z bilan qaytadi).') : this.dragMode === 'move' ? h('p', { class: 'note' }, 'Binoni bosib sudrang.') : '',
+        h('div', { class: 'row' },
+          h('div', { class: 'pad' }, h('button', { title: 'Shimolga 1 m', onclick: () => moveBy(0, 1) }, '↑'), h('button', { title: 'Gʻarbga 1 m', onclick: () => moveBy(-1, 0) }, '←'), h('button', { title: 'Janubga 1 m', onclick: () => moveBy(0, -1) }, '↓'), h('button', { title: 'Sharqqa 1 m', onclick: () => moveBy(1, 0) }, '→')),
+          h('div', { class: 'col' }, h('button', { class: 'btn', id: 'rotL', onclick: () => rot(5) }, '⟲ 5°'), h('button', { class: 'btn', id: 'rotR', onclick: () => rot(-5) }, '⟳ 5°'))),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn grow', id: 'iDup', onclick: () => { const id = uid('b_'); this.run(() => { this.store.dispatch({ type: 'addBuilding', id, footprint: r.map(p => fr.toGeo([p[0] + 8, p[1] - 8])), floors: b.floors, nonRes: b.nonRes, use: b.use }); const { id: _i, footprint: _f, gen: _g, ...rest } = b; void _i; void _f; void _g; this.store.dispatch({ type: 'updateBuilding', id, patch: rest }); }); this.sel = id; this.scene.select(id); this.renderAll(); } }, 'Nusxa'),
+          h('button', { class: 'btn grow danger', id: 'iDel', onclick: () => this.store.dispatch({ type: 'removeBuilding', id: b.id }) }, 'Oʻchirish')));
+    } else if (this.inspTab === 'qavat') {
+      const f = Math.min(this.scene.selFloor ?? b.floors, b.floors);
+      if (this.scene.selFloor !== f) this.scene.setSelFloor(f);
+      const floors = h('div', { class: 'floors', id: 'iFloorList' }, ...Array.from({ length: b.floors }, (_, i) => b.floors - i).map(n => h('button', { 'aria-pressed': n === f, 'data-floor': n, class: n <= b.nonRes ? 'nr' : '', onclick: () => { this.scene.setSelFloor(n); this.renderInspector(); } }, String((b.z0 ?? 0) + n))));
+      const ins = h('input', { type: 'number', min: 0.5, max: 12, step: 0.5, value: this.tierInset, id: 'tInset', style: 'width:5em' }) as HTMLInputElement;
+      ins.onchange = () => { this.tierInset = Math.max(0.5, Number(ins.value) || 3); };
+      const n = r.length, az = (k: number) => { const a = r[k], q = r[(k + 1) % n], ccw = signedArea(r) > 0, ox = (ccw ? 1 : -1) * (q[1] - a[1]), oy = (ccw ? -1 : 1) * (q[0] - a[0]); return ((Math.atan2(ox, oy) * 180 / Math.PI) + 360) % 360; };
+      const side = (a: number) => ['shimol', 'shimoli-sharq', 'sharq', 'janubi-sharq', 'janub', 'janubi-gʻarb', 'gʻarb', 'shimoli-gʻarb'][Math.round(a / 45) % 8];
+      const edgeSel = h('select', { id: 'tEdge' }, h('option', { value: '' }, 'Barcha tomondan'), ...r.map((_, k) => h('option', { value: String(k), selected: this.tierEdge === k }, `${k + 1}-devor · ${side(az(k))} (${Math.round(Math.hypot(r[(k + 1) % n][0] - r[k][0], r[(k + 1) % n][1] - r[k][1]))} m)`))) as HTMLSelectElement;
+      edgeSel.onchange = () => { this.tierEdge = edgeSel.value === '' ? null : Number(edgeSel.value); };
+      const tiers = b.tiers ?? [];
+      body.append(
+        h('div', { class: 'row', style: 'align-items:flex-start;gap:10px' }, floors,
+          h('div', { class: 'col grow' },
+            h('b', { id: 'iFloorT' }, `${(b.z0 ?? 0) + f}-qavat`), h('span', { class: 'muted', style: 'font-size:12px' }, f <= b.nonRes ? 'noturar' : 'turar / asosiy'),
+            h('span', { class: 'muted', style: 'font-size:11.5px' }, 'PgUp / PgDn — qavat'),
+            h('div', { class: 'lb', style: 'margin-top:6px' }, 'Shu qavatdan yuqorisi'),
+            h('label', { class: 'row', style: 'font-size:12.5px' }, 'Cheginish, m', ins), edgeSel,
+            h('button', { class: 'btn primary', id: 'tAdd', disabled: f < 2, onclick: () => upd({ tiers: [...tiers.filter(t => t.from !== f), { from: f, inset: this.tierInset, ...(this.tierEdge != null ? { edge: this.tierEdge } : {}) }] }) }, 'Terrasa (cheginish)'),
+            h('button', { class: 'btn', id: 'tCut', disabled: f < 2, onclick: () => upd({ floors: f - 1 }) }, 'Shu qavatdan yuqorisini olib tashlash'),
+            h('button', { class: 'btn', id: 'tNonRes', onclick: () => upd({ nonRes: Math.min(f, b.floors - 1) }) }, 'Shu qavatgacha — noturar'))),
+        tiers.length ? h('div', { class: 'list', id: 'tierList' }, ...[...tiers].sort((x, y) => x.from - y.from).map(t => h('div', { class: 'it' }, h('span', { class: 'grow' }, `${(b.z0 ?? 0) + t.from}-qavatdan: ${fmt(t.inset, 1)} m ${t.edge != null ? `(${t.edge + 1}-devor)` : '(barcha tomon)'}`), h('button', { title: 'Oʻchirish', onclick: () => upd({ tiers: tiers.filter(x => x !== t) }) }, '×')))) : '',
+        h('p', { class: 'note' }, 'Terrasalar GFA va aholi hisobiga kiradi. Kvartira sxemasi pastki qavat dogʻi boʻyicha (taxmin).'));
+    } else {
+      const hex = (cc: number) => '#' + cc.toString(16).padStart(6, '0');
+      body.append(
+        h('div', { class: 'lb' }, 'Fasad materiali'),
+        h('div', { class: 'swatches' }, ...MATS.map(m => h('button', { 'data-imat': m.id, 'aria-pressed': (b.mat ?? 'suvoq') === m.id, title: m.name, onclick: () => upd({ mat: m.id }) }, h('i', { style: `background:${hex(m.color)}` }), m.name))),
+        h('div', { class: 'lb' }, 'Tom'),
+        h('div', { class: 'chips' }, ...ROOFS.map(x => h('button', { class: 'zchip', style: '--c:var(--muted)', 'data-iroof': x.id, 'aria-pressed': (b.roof ?? 'tekis') === x.id, onclick: () => upd({ roof: x.id }) }, x.name))),
+        h('div', { class: 'lb' }, 'Parapet'),
+        h('div', { class: 'seg full', id: 'iParapet' }, ...[0, 0.6, 1.0, 1.2].map(v => h('button', { 'aria-pressed': (b.parapet ?? 0) === v, 'data-par': v, onclick: () => upd({ parapet: v || undefined }) }, v ? `${fmt(v, 1)} m` : 'Yoʻq'))),
+        h('div', { class: 'lb' }, 'Quyosh himoyasi (90–290° fasadlar, SanQvaN 9.3)'),
+        h('div', { class: 'opts' }, ...([['', 'Yoʻq', ''], ['avto', 'Avtomatik', 'janub — naves, sharq/gʻarb — lamellar'], ['gorizontal', 'Gorizontal naves', 'har qavat ustida, 0,7 m'], ['vertikal', 'Vertikal lamellar', '1,65 m qadam, 0,55 m'], ['panjara', 'Panjara (mashrabiya)', 'fasaddan 0,35 m oldinda']] as const).map(([k, t, n2]) => h('button', { 'data-shade': k || 'yoq', 'aria-pressed': (b.shade ?? '') === k, onclick: () => upd({ shade: (k || undefined) as Shade | undefined }) }, h('b', {}, t), n2 ? h('small', {}, n2) : ''))));
+    }
+    el.replaceChildren(
+      h('div', { class: 'ihead' }, h('div', {}, h('div', { class: 'lb' }, kind), h('b', {}, `${u.name} · ${(b.z0 ?? 0) + b.floors} qavat`)), h('button', { class: 'ib sm', 'aria-label': 'Yopish', title: 'Yopish (Esc)', onclick: () => { this.sel = null; this.scene.select(null); this.renderAll(); } }, '×')),
+      tabs, body);
+  }
+
   /** parsellar qadamida buziladiganlar foydalanuvchi tanloviga koʻra, keyingi qadamlarda — yashirin */
   private goneHidden = false;
   private syncGone(): void { const ip = STEPS.findIndex(x => x.id === 'parsel'), i = STEPS.indexOf(this.step); this.scene.setHideGone(i > ip || this.goneHidden); }
   private renderAll(): void {
-    this.syncFade(); this.syncGone();
+    this.syncFade(); this.syncGone(); this.renderInspector();
     (this.root.querySelector('#undo') as HTMLButtonElement).disabled = !this.store.canUndo;
     (this.root.querySelector('#redo') as HTMLButtonElement).disabled = !this.store.canRedo;
     (this.root.querySelector('#undo') as HTMLButtonElement).title = this.store.canUndo ? `Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)` : 'Bekor qilish (Ctrl+Z)';
@@ -1469,9 +1547,35 @@ export class Editor {
   private bindScene(): void {
     const c = this.scene.renderer.domElement;
     let down: { x: number; y: number } | null = null;
-    c.addEventListener('pointerdown', e => { if (e.button === 0) down = { x: e.clientX, y: e.clientY }; });
-    c.addEventListener('pointermove', e => { if (!this.tool?.move) return; const p = this.scene.pick(e.clientX, e.clientY); if (p) this.tool.move(p); });
+    // bino muharriri: devorni itarish / binoni siljitish (sichqoncha bilan)
+    let drag: { id: string; p0: XY; r0: XY[]; edge: number; n: XY } | null = null, raf = 0, pend: XY | null = null;
+    c.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      down = { x: e.clientX, y: e.clientY };
+      if (this.dragMode === 'yoq' || !this.sel || this.tool) return;
+      const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), g0 = this.scene.pick(e.clientX, e.clientY);
+      if (!hit || hit.id !== this.sel || !g0 || (this.dragMode === 'push' && !hit.wall)) return;
+      const doc = this.store.doc, fr = frame(doc.origin), b = doc.buildings.find(x => x.id === this.sel)!, r0 = b.footprint.map(fr.toLocal), n = r0.length;
+      let edge = 0, bd = Infinity;
+      for (let k = 0; k < n; k++) { const a = r0[k], q = r0[(k + 1) % n], dx = q[0] - a[0], dy = q[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((hit.p[0] - a[0]) * dx + (hit.p[1] - a[1]) * dy) / L2)), d = Math.hypot(a[0] + t * dx - hit.p[0], a[1] + t * dy - hit.p[1]); if (d < bd) { bd = d; edge = k; } }
+      const a = r0[edge], q = r0[(edge + 1) % n], L = Math.hypot(q[0] - a[0], q[1] - a[1]) || 1, ccw = signedArea(r0) > 0;
+      drag = { id: b.id, p0: g0, r0, edge, n: [(ccw ? 1 : -1) * (q[1] - a[1]) / L, (ccw ? -1 : 1) * (q[0] - a[0]) / L] };
+      this.scene.setOrbit(false); c.setPointerCapture(e.pointerId);
+    });
+    const applyDrag = () => {
+      raf = 0; if (!drag || !pend) return;
+      const doc = this.store.doc, fr = frame(doc.origin), dx = pend[0] - drag.p0[0], dy = pend[1] - drag.p0[1];
+      let r: XY[] | null;
+      if (this.dragMode === 'move') r = drag.r0.map(p => [p[0] + dx, p[1] + dy] as XY);
+      else { const d = Math.round((dx * drag.n[0] + dy * drag.n[1]) * 2) / 2; r = d ? pushEdge(drag.r0, drag.edge, d) : drag.r0; }
+      if (r) this.run(() => this.store.dispatch({ type: 'updateBuilding', id: drag!.id, patch: { footprint: r!.map(fr.toGeo) } }, `drag-${drag!.id}-${drag!.p0.join()}`));
+    };
+    c.addEventListener('pointermove', e => {
+      if (drag) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { pend = p; if (!raf) raf = requestAnimationFrame(applyDrag); } return; }
+      if (!this.tool?.move) return; const p = this.scene.pick(e.clientX, e.clientY); if (p) this.tool.move(p);
+    });
     c.addEventListener('pointerup', e => {
+      if (drag) { drag = null; pend = null; down = null; this.scene.setOrbit(true); return; }
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;
       if (this.tool) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { this.tool.click(p, e); if (this.tool) this.el.hint.textContent = this.tool.hint; } return; }
@@ -1523,7 +1627,12 @@ export class Editor {
       else if ((z && e.shiftKey) || (e.key.toLowerCase() === 'y' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); this.store.redo(); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.store.dispatch({ type: 'removeBuilding', id: this.sel }); }
-      else if (e.key === 'Escape' && this.sel) { this.sel = null; this.scene.select(null); this.renderPanel(); }
+      else if (e.key === 'Escape' && this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); }
+      else if ((e.key === 'PageUp' || e.key === 'PageDown') && this.sel) {
+        const b = this.store.doc.buildings.find(x => x.id === this.sel); if (!b) return; e.preventDefault();
+        this.inspTab = 'qavat'; const f = (this.scene.selFloor ?? b.floors) + (e.key === 'PageUp' ? 1 : -1);
+        this.scene.setSelFloor(Math.max(1, Math.min(b.floors, f))); this.renderInspector();
+      }
     };
     window.addEventListener('keydown', onKey);
     const onUnload = () => { this.saver.flush(); };

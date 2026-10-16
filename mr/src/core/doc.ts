@@ -18,6 +18,7 @@ export interface Site {
 import { isUse, type Use } from './uses';
 import { COMP_DEFAULT, type CompParams } from './compensation';
 import { isMat, isRoof, type Mat, type Roof } from './roof';
+import type { Tier } from './tiers';
 export type { Use };
 
 export interface Building {
@@ -34,7 +35,14 @@ export interface Building {
   /** fasad materiali va tom turi (yoʻq — odatiy: suvoq, tekis) */
   mat?: Mat;
   roof?: Roof;
+  /** qavatlardan cheginish (terrasa): from — qavat raqami (1 dan), inset — m, edge — faqat shu devor */
+  tiers?: Tier[];
+  /** parapet balandligi, m */
+  parapet?: number;
+  /** quyosh himoyasi: avto — fasad yoʻnalishiga koʻra (janub — naves, sharq/gʻarb — lamellar) */
+  shade?: Shade;
 }
+export type Shade = 'avto' | 'gorizontal' | 'vertikal' | 'panjara';
 
 /** Loyiha koʻchasi: oʻq chizigʻi (ochiq siniq chiziq) + profil; qizil chiziqlar = oʻq ± kenglik/2 */
 export interface Street { id: string; axis: LngLat[]; profile: string; /** OSM dagi mavjud koʻcha loyihaga olingan boʻlsa — uning way id si (kontekstda u endi chizilmaydi) */ osm?: number }
@@ -193,7 +201,7 @@ export function migrate(raw: unknown): Project {
   const bl = Array.isArray(d.buildings) ? d.buildings : [];
   const buildings: Building[] = bl.map((b: any, i: number) => {
     if (!b || typeof b.id !== 'string' || !isRing(b.footprint) || !isNum(b.floors) || b.floors < 1) throw new SchemaError(`buildings[${i}] notoʻgʻri`);
-    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: String(b.gen.kind) } } : {}), ...(isNum(b.z0) && b.z0 > 0 ? { z0: b.z0 } : {}), ...(isMat(b.mat) ? { mat: b.mat } : {}), ...(isRoof(b.roof) ? { roof: b.roof } : {}) };
+    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: String(b.gen.kind) } } : {}), ...(isNum(b.z0) && b.z0 > 0 ? { z0: b.z0 } : {}), ...(isMat(b.mat) ? { mat: b.mat } : {}), ...(isRoof(b.roof) ? { roof: b.roof } : {}), ...(Array.isArray(b.tiers) ? { tiers: b.tiers.filter((t: any) => t && isNum(t.from) && isNum(t.inset) && t.inset > 0).map((t: any) => ({ from: Math.round(t.from), inset: t.inset, ...(isNum(t.edge) ? { edge: Math.round(t.edge) } : {}) })) } : {}), ...(isNum(b.parapet) && b.parapet > 0 && b.parapet <= 3 ? { parapet: b.parapet } : {}), ...(['avto', 'gorizontal', 'vertikal', 'panjara'].includes(b.shade) ? { shade: b.shade } : {}) };
   });
   const isLine = (v: unknown): v is LngLat[] => Array.isArray(v) && v.length >= 2 && v.every(isLL);
   const streets: Street[] = (Array.isArray(d.streets) ? d.streets : []).map((x: any, i: number) => {

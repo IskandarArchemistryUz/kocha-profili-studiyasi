@@ -5,8 +5,8 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { LngLat, Project } from '../core/doc';
-import { frame, centroid, area, type XY } from '../core/geo';
+import type { LngLat, Project, Shade } from '../core/doc';
+import { frame, centroid, area, signedArea, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
 import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from './context3d';
@@ -15,6 +15,7 @@ import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
 import { MATS, pitchedRoof } from '../core/roof';
 import { seams, seamEdges } from '../core/seams';
+import { tierParts, type TierPart } from '../core/tiers';
 import { USES } from '../core/uses';
 
 export const ZONE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.color]));
@@ -225,10 +226,61 @@ export class Scene3D {
     return hit ? (hit.object.userData.bid as string) : null;
   }
 
+  /** Bino sirtidagi nuqta: id, mahalliy XY, devormi (normal gorizontal) */
+  pickBuildingHit(clientX: number, clientY: number): { id: string; p: XY; wall: boolean } | null {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.rcam());
+    const hit = this.ray.intersectObjects(this.world.children.filter(o => o.userData.bid), false)[0]; if (!hit) return null;
+    const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    return { id: hit.object.userData.bid as string, p: [hit.point.x, -hit.point.z], wall: Math.abs(n.y) < 0.5 };
+  }
+  /** Kamera boshqaruvini vaqtincha oʻchirish (sudrash paytida) */
+  setOrbit(on: boolean): void { this.ctl.enabled = on; }
+
   /** Ekranda nuqtalar orasidagi piksel masofasi (chizishda yopish uchun) */
   screenDist(a: XY, clientX: number, clientY: number): number {
     const v = new THREE.Vector3(a[0], 0, -a[1]).project(this.rcam()), r = this.renderer.domElement.getBoundingClientRect();
     return Math.hypot((v.x + 1) / 2 * r.width + r.left - clientX, (1 - v.y) / 2 * r.height + r.top - clientY);
+  }
+
+  /** tanlangan binoning tanlangan qavati (1 dan) — muharrirda */
+  selFloor: number | null = null;
+  setSelFloor(f: number | null): void { this.selFloor = f; if (this.lastDoc) this.update(this.lastDoc); }
+
+  /**
+   * Quyosh himoyasi: naveslar (gorizontal), lamellar (vertikal) yoki panjara — 90–290° ga qaragan fasadlarda (SanQvaN 0331-16, 9.3).
+   * avto: janub (135–225°) — naves, sharq va gʻarb — vertikal lamellar.
+   */
+  private shading(kind: Shade, tiers: TierPart[], nr: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, color: number): void {
+    const M: THREE.Matrix4[] = [], q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), lattice: number[] = [], luv: number[] = [];
+    const box = (cx: number, cy: number, z: number, ang: number, sx: number, sy: number, sz: number) => { q.setFromAxisAngle(Y, ang); M.push(new THREE.Matrix4().compose(new THREE.Vector3(cx, z, -cy), q, new THREE.Vector3(sx, sy, sz))); };
+    tiers.forEach((t, ti) => {
+      const f0 = Math.max(t.f0, nr), f1 = t.f1; if (f1 <= f0) return;
+      const ring = t.ring, n = ring.length, ccw = signedArea(ring) > 0;
+      for (let k = 0; k < n; k++) {
+        if (shared(ti, k)) continue;
+        const a = ring[k], b = ring[(k + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); if (L < 3) continue;
+        const ux = dx / L, uy = dy / L, ox = ccw ? uy : -uy, oy = ccw ? -ux : ux;   // tashqi normal
+        const az = ((Math.atan2(ox, oy) * 180 / Math.PI) + 360) % 360, ang = Math.atan2(dy, dx);
+        let k2: 'gorizontal' | 'vertikal' | 'panjara' | null = kind === 'avto' ? (az >= 135 && az <= 225 ? 'gorizontal' : (az >= 60 && az < 135) || (az > 225 && az <= 300) ? 'vertikal' : null) : az >= 90 && az <= 290 ? kind : null;
+        if (!k2) continue;
+        if (k2 === 'gorizontal') for (let f = f0; f < f1; f++) { const d = 0.7; box(a[0] + dx / 2 + ox * d / 2, a[1] + dy / 2 + oy * d / 2, base + (f + 1) * fh - 0.45, ang, L - 0.3, 0.08, d); }
+        if (k2 === 'vertikal') { const d = 0.55, h = (f1 - f0) * fh, z = base + f0 * fh + h / 2; for (let s = 0.9; s < L - 0.5; s += 1.65) box(a[0] + ux * s + ox * d / 2, a[1] + uy * s + oy * d / 2, z, ang, 0.08, h, d); }
+        if (k2 === 'panjara') {
+          const o = 0.35, z0 = base + f0 * fh, z1 = base + f1 * fh, P = (p: XY): XY => [p[0] + ox * o, p[1] + oy * o], A2 = P(a), B2 = P(b);
+          lattice.push(A2[0], z0, -A2[1], B2[0], z0, -B2[1], B2[0], z1, -B2[1], A2[0], z0, -A2[1], B2[0], z1, -B2[1], A2[0], z1, -A2[1]);
+          const u = L / 1.2, w = (z1 - z0) / 1.2; luv.push(0, 0, u, 0, u, w, 0, 0, u, w, 0, w);
+        }
+      }
+    });
+    if (M.length) {
+      const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color }), M.length);
+      M.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = true; im.receiveShadow = true; this.world.add(im);
+    }
+    if (lattice.length) {
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(lattice, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(luv, 2)); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: latticeTex(), alphaTest: 0.5, side: THREE.DoubleSide, color })); m.castShadow = true; this.world.add(m);
+    }
   }
 
   /** buziladigan mavjud binolar sahnada koʻrsatilmaydi (parsellar qadamidan keyin) */
@@ -313,16 +365,16 @@ export class Scene3D {
     const fh = doc.settings.floorHeight, aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     // qoʻshni seksiyalar choklari (umumiy devor, bir xil balandlikdagi tom) — chizilmaydi
     const flat = (b: Project['buildings'][number]) => !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus'));
-    const P3 = doc.buildings.map(b => { const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; return { ring: r, base, top: base + b.floors * fh }; });
-    const SM = seams(P3.filter((_, i) => flat(doc.buildings[i]))), smOf = new Map<string, number>(); let si = 0; doc.buildings.forEach((b, i) => { if (flat(b)) smOf.set(b.id, si++); void i; });
+    const TP = doc.buildings.map(b => tierParts(b.footprint.map(fr.toLocal), b.floors, b.tiers));
+    const P3 = doc.buildings.map((b, i) => { const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; return { ring: r, base, top: base + (TP[i][0]?.f1 ?? b.floors) * fh }; });
+    const SM = seams(P3.filter((_, i) => flat(doc.buildings[i]))), smOf = new Map<string, number>(); let si = 0; doc.buildings.forEach(b => { if (flat(b)) smOf.set(b.id, si++); });
     const focus = this.selected && doc.buildings.some(b => b.id === this.selected);
-    doc.buildings.forEach(b => {
+    doc.buildings.forEach((b, bi) => {
       const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected, dim = focus && !sel;
-      const shape = new THREE.Shape(r.map(toV2));
       const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
-      const part = (z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false) => {
-        const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
-        if (top && b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
+      const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
+        const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
+        if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
         const wall = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim ? 0xf4f3f0 : color });
         if (kind && this.facade !== 'yoq' && !plain && st !== 'funksiya' && !dim) wall.map = facadeTex(kind, this.facade, fh, 3.3, aniso);
         const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
@@ -330,6 +382,7 @@ export class Scene3D {
         if (top && !sel && !dim && roofK === 'quyosh' && !plain) { cap.color.setHex(0xffffff); cap.map = solarTex(); }
         const m = new THREE.Mesh(g, [cap, wall]);
         m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
+        if (outline) this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), edgeMat()));
       };
       const edgeMat = () => new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : st === 'minimal' ? 0.9 : st === 'arctic' ? 0.22 : 0.5 });
       if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
@@ -342,19 +395,51 @@ export class Scene3D {
       const parking = b.gen?.kind === 'stilobat' && b.use === 'avtoturargoh', office = b.use === 'ofis' || b.use === 'mehmonxona';
       const baseC = dim ? 0xebe9e4 : plain ? (st === 'minimal' ? 0xe6e6e6 : 0xf0eee9) : st === 'funksiya' ? tint(BASE_COL[b.use] ?? 0x9c7b6e, 0.15) : BASE_COL[b.use] ?? 0x9c7b6e;
       const topC = dim ? 0xf4f3f0 : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : USE_COL[b.use] ?? C.bld;
-      if (nr > 0) part(0, nr * fh, baseC, parking ? null : 'shop', nr >= b.floors);
-      if (nr < b.floors) part(nr * fh, b.floors * fh, topC, office ? 'glass' : 'res', true);
-      { const k = smOf.get(b.id)!, A = P3[doc.buildings.indexOf(b)], segs = seamEdges(A, SM[k], nr > 0 && nr < b.floors ? [A.base + nr * fh] : []);
+      const tiers = TP[bi], last = tiers[tiers.length - 1];
+      tiers.forEach((t, ti) => {
+        const up = ti > 0;   // yuqori pogʻonalar — toʻliq kontur bilan
+        if (t.f0 < nr) part(t.ring, t.f0 * fh, Math.min(t.f1, nr) * fh, baseC, parking ? null : 'shop', t === last && t.f1 <= nr, up);
+        if (t.f1 > nr) part(t.ring, Math.max(t.f0, nr) * fh, t.f1 * fh, topC, office ? 'glass' : 'res', t === last, up);
+      });
+      { const k = smOf.get(b.id)!, A = P3[bi], f1 = tiers[0]?.f1 ?? b.floors, segs = seamEdges(A, SM[k], nr > 0 && nr < f1 ? [A.base + nr * fh] : []);
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(segs.flatMap(([x, y, z]) => [x, z, -y]), 3));
         this.world.add(new THREE.LineSegments(g, edgeMat())); }
+      const shared = (ti: number, k: number) => ti === 0 && SM[smOf.get(b.id)!].edgeTop[k] >= base + (tiers[0].f1 * fh) - 0.05;
+      // quyosh himoyasi
+      if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
+      const topZ = base + (last?.f1 ?? b.floors) * fh;
       if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
-        const pr = pitchedRoof(r, roofK); if (!pr) return;
-        const g = new THREE.BufferGeometry(), y0 = base + b.floors * fh, v: number[] = [];
-        for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], y0 + pr.tris[i + 2], -pr.tris[i + 1]);
-        g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
-        const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xf3f1ec : 0xb9765c, side: THREE.DoubleSide }));
-        m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
-        this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: 0.45 })));
+        const pr = pitchedRoof(last.ring, roofK);
+        if (pr) {
+          const g = new THREE.BufferGeometry(), v: number[] = [];
+          for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], topZ + pr.tris[i + 2], -pr.tris[i + 1]);
+          g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xf3f1ec : 0xb9765c, side: THREE.DoubleSide }));
+          m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
+          this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: 0.45 })));
+        }
+      } else if (b.parapet) {
+        // parapet: tom chetidagi devorcha (qoʻshni seksiya bilan umumiy chokda — yoʻq)
+        const ring = last.ring, n = ring.length, ccw = signedArea(ring) > 0, v: number[] = [], th = 0.25, ph = b.parapet;
+        for (let k = 0; k < n; k++) {
+          if (shared(tiers.length - 1, k)) continue;
+          const a2 = ring[k], b2 = ring[(k + 1) % n], L = Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) || 1, nx = (ccw ? -1 : 1) * -(b2[1] - a2[1]) / L * th, ny = (ccw ? -1 : 1) * (b2[0] - a2[0]) / L * th;
+          const ai: XY = [a2[0] - nx, a2[1] - ny], bi2: XY = [b2[0] - nx, b2[1] - ny];
+          const quad = (p: XY, q: XY, z0: number, z1: number) => { v.push(p[0], z0, -p[1], q[0], z0, -q[1], q[0], z1, -q[1], p[0], z0, -p[1], q[0], z1, -q[1], p[0], z1, -p[1]); };
+          quad(a2, b2, topZ, topZ + ph); quad(bi2, ai, topZ, topZ + ph);
+          v.push(a2[0], topZ + ph, -a2[1], b2[0], topZ + ph, -b2[1], bi2[0], topZ + ph, -bi2[1], a2[0], topZ + ph, -a2[1], bi2[0], topZ + ph, -bi2[1], ai[0], topZ + ph, -ai[1]);
+        }
+        if (v.length) {
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : C.roof, side: THREE.DoubleSide })); m.castShadow = true; m.userData.bid = b.id; this.world.add(m);
+        }
+      }
+      // tanlangan qavat — yarim shaffof qatlam
+      if (sel && this.selFloor != null && this.selFloor >= 1 && this.selFloor <= b.floors) {
+        const f = this.selFloor, t = tiers.find(x => f > x.f0 && f <= x.f1) ?? last;
+        const g = new THREE.ExtrudeGeometry(new THREE.Shape(t.ring.map(toV2)), { depth: fh - 0.1, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.scale(1.004, 1, 1.004); g.translate(0, base + (f - 1) * fh + 0.05, 0);
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x2a6fb0, transparent: true, opacity: 0.45, depthWrite: false })); m.renderOrder = 20; this.world.add(m);
+        this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({ color: 0x2a6fb0 })));
       }
     });
     if (this.floorLabels) doc.buildings.forEach(b => {
@@ -710,6 +795,16 @@ export class Scene3D {
   }
 }
 
+let latT: THREE.CanvasTexture | null = null;
+/** Panjara (mashrabiya) — 1,2 m katak, shaffof teshiklar */
+function latticeTex(): THREE.CanvasTexture {
+  if (latT) return latT;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 64); g.globalCompositeOperation = 'destination-out';
+  g.beginPath(); g.moveTo(32, 6); g.lineTo(58, 32); g.lineTo(32, 58); g.lineTo(6, 32); g.closePath(); g.fill();
+  latT = new THREE.CanvasTexture(c); latT.wrapS = latT.wrapT = THREE.RepeatWrapping; latT.colorSpace = THREE.SRGBColorSpace;
+  return latT;
+}
 let solarT: THREE.CanvasTexture | null = null;
 /** Quyosh panellari: 2 × 1 m modullar (tom UV si — metrda) */
 function solarTex(): THREE.CanvasTexture {
