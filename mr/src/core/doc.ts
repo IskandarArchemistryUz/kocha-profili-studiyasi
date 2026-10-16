@@ -45,6 +45,16 @@ export interface Building {
   /** deraza va balkon turi (yoʻq — loyihaning umumiy fasad uslubi, balkonsiz) */
   win?: Win;
   bal?: Bal;
+  /** qoʻlda tahrirlangan tipik qavat rejasi; key — oyoq izi va kvartira sozlamalari (oʻzgarsa tahrir eskiradi) */
+  planEdit?: PlanEdit;
+}
+export type PlanRoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash';
+export interface PlanEdit { key: string; apts: { ring: LngLat[]; rooms: number }[]; rooms: { ring: LngLat[]; kind: PlanRoomKind }[] }
+const ROOM_KINDS: PlanRoomKind[] = ['texnik', 'ombor', 'savdo', 'velo', 'zal', 'tozalash'];
+function cleanPlanEdit(v: any): PlanEdit | null {
+  if (!v || typeof v.key !== 'string' || !Array.isArray(v.apts) || !Array.isArray(v.rooms)) return null;
+  const ok = (r: unknown): r is LngLat[] => Array.isArray(r) && r.length >= 3 && r.every((p: any) => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  return { key: v.key, apts: v.apts.filter((a: any) => a && ok(a.ring) && Number.isFinite(a.rooms)).map((a: any) => ({ ring: a.ring.map((p: any) => [p[0], p[1]] as LngLat), rooms: Math.max(1, Math.min(6, Math.round(a.rooms))) })), rooms: v.rooms.filter((q: any) => q && ok(q.ring) && ROOM_KINDS.includes(q.kind)).map((q: any) => ({ ring: q.ring.map((p: any) => [p[0], p[1]] as LngLat), kind: q.kind })) };
 }
 export type Shade = 'avto' | 'gorizontal' | 'vertikal' | 'panjara';
 
@@ -213,7 +223,7 @@ export function migrate(raw: unknown): Project {
   const bl = Array.isArray(d.buildings) ? d.buildings : [];
   const buildings: Building[] = bl.map((b: any, i: number) => {
     if (!b || typeof b.id !== 'string' || !isRing(b.footprint) || !isNum(b.floors) || b.floors < 1) throw new SchemaError(`buildings[${i}] notoʻgʻri`);
-    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: String(b.gen.kind) } } : {}), ...(isNum(b.z0) && b.z0 > 0 ? { z0: b.z0 } : {}), ...(isMat(b.mat) ? { mat: b.mat } : {}), ...(isRoof(b.roof) ? { roof: b.roof } : {}), ...(Array.isArray(b.tiers) ? { tiers: b.tiers.filter((t: any) => t && isNum(t.from) && isNum(t.inset) && t.inset !== 0 && Math.abs(t.inset) <= 12).map((t: any) => ({ from: Math.round(t.from), inset: t.inset, ...(isNum(t.edge) ? { edge: Math.round(t.edge) } : {}) })) } : {}), ...(isNum(b.parapet) && b.parapet > 0 && b.parapet <= 3 ? { parapet: b.parapet } : {}), ...(['avto', 'gorizontal', 'vertikal', 'panjara'].includes(b.shade) ? { shade: b.shade } : {}), ...(isWin(b.win) ? { win: b.win } : {}), ...(isBal(b.bal) && b.bal !== 'yoq' ? { bal: b.bal } : {}) };
+    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: String(b.gen.kind) } } : {}), ...(isNum(b.z0) && b.z0 > 0 ? { z0: b.z0 } : {}), ...(isMat(b.mat) ? { mat: b.mat } : {}), ...(isRoof(b.roof) ? { roof: b.roof } : {}), ...(Array.isArray(b.tiers) ? { tiers: b.tiers.filter((t: any) => t && isNum(t.from) && isNum(t.inset) && t.inset !== 0 && Math.abs(t.inset) <= 12).map((t: any) => ({ from: Math.round(t.from), inset: t.inset, ...(isNum(t.edge) ? { edge: Math.round(t.edge) } : {}) })) } : {}), ...(isNum(b.parapet) && b.parapet > 0 && b.parapet <= 3 ? { parapet: b.parapet } : {}), ...(['avto', 'gorizontal', 'vertikal', 'panjara'].includes(b.shade) ? { shade: b.shade } : {}), ...(isWin(b.win) ? { win: b.win } : {}), ...(isBal(b.bal) && b.bal !== 'yoq' ? { bal: b.bal } : {}), ...((() => { const pe = cleanPlanEdit(b.planEdit); return pe ? { planEdit: pe } : {}; })()) };
   });
   const isLine = (v: unknown): v is LngLat[] => Array.isArray(v) && v.length >= 2 && v.every(isLL);
   const streets: Street[] = (Array.isArray(d.streets) ? d.streets : []).map((x: any, i: number) => {

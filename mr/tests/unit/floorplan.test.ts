@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { layoutSection, type SecPlan } from '../../src/core/apartments';
-import { floorPlanSvg, allPlansSvg, sectionPlan, sectionChecks } from '../../src/core/floorplan';
+import { floorPlanSvg, allPlansSvg, sectionPlan, sectionChecks, buildingFloorsSvg, floorGroups } from '../../src/core/floorplan';
 import type { XY } from '../../src/core/geo';
 
 const rect: XY[] = [[0, 0], [33, 0], [33, 15], [0, 15]];
@@ -22,6 +22,16 @@ describe('Seksiya rejasi (chizma)', () => {
   });
   it('barcha seksiyalar — bitta SVG', () => {
     const s = allPlansSvg([mk(rect), mk(rect.map(p => [p[0] + 50, p[1]] as XY))], 2, 200, (_, i) => `S${i + 1}`);
-    expect(s).toContain('S1'); expect(s).toContain('S2'); expect(s).toContain('Seksiyalar rejalari');
+    expect(s).toContain('S1'); expect(s).toContain('S2'); expect(s).toContain('Rejalar');
+  });
+  it('qavatlar: 1-qavat noturar — savdo va yashovchilar xonalari, turar qavatda balkonlar', () => {
+    const s = mk([[0, 0], [33, 0], [33, 15], [0, 15]]);   // f0 = 1 (1-qavat noturar), f1 = 9
+    expect(floorGroups(s).map(g => [g.from, g.to, g.type])).toEqual([[1, 1, 'ground'], [2, 9, 'typical']]);
+    const g = floorPlanSvg(s, { scale: 200, dims: true, title: 'S', floor: 1 });
+    expect(g.plan.apts.length).toBe(0); expect(g.plan.rooms.some(q => q.kind === 'savdo')).toBe(true); expect(g.plan.rooms.some(q => q.kind === 'tozalash')).toBe(true);
+    expect(g.svg).toContain('savdo / xizmat'); expect(g.svg).toContain('tozalash anjomlari');
+    const t = floorPlanSvg(s, { scale: 200, dims: true, title: 'S', floor: 5, bal: 'ochiq' });
+    expect(t.plan.apts.length).toBeGreaterThan(3); expect(t.svg).toContain('balkon ×0,3');
+    const all = buildingFloorsSvg(s, 200, 'B1'); expect(all).toContain('1-qavat'); expect(all).toContain('2–9-qavatlar');
   });
 });

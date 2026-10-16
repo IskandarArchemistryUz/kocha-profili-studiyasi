@@ -43,13 +43,31 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   // seksiya rejasi: SVG koʻrinadi, yuklab olinadi
   await expect(page.locator('#planBox svg')).toBeVisible();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#planSvg')]);
-  expect(dl.suggestedFilename()).toMatch(/seksiya.*\.svg$/);
+  expect(dl.suggestedFilename()).toMatch(/bino.*\.svg$/);
   if (shots) await dl.saveAs(`${shots}/reja.svg`);
-  // reja qoidalari: har kvartiraga koridordan kirish — mos
-  await expect(page.locator('#planChecks [data-check=mop] .chip')).toHaveText('mos');
-  await expect(page.locator('#planChecks [data-check=win] .chip')).toHaveText('mos');
-  await expect(page.locator('#planChecks [data-check=stairs]')).toContainText('5.13');
-  await page.locator('#planChecks').scrollIntoViewIfNeeded();
+  // qavat tanlash: 1-qavat — savdo va yashovchilar xonalari (agar noturar boʻlsa) yoki kirish qavati
+  await expect(page.locator('#planBld option')).not.toHaveCount(0);
+  await page.locator('#planFloor').selectOption('1');
+  await expect(page.locator('#planBox svg')).toContainText('1-qavat');
+  if (shots) await page.screenshot({ path: `${shots}/apt_q1.png` });
+  await page.locator('#planFloor').selectOption('3');
+  // tahrir: kvartirani texnik xonaga aylantirish → kvartiralar soni kamayadi; tahrirni oʻchirish → qaytadi
+  const nBefore = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));
+  await page.click('#planEditBtn');
+  await expect(page.locator('#planEdit')).toBeVisible();
+  await page.locator('#peSvg [data-apt="0"]').click();
+  await page.click('#peTex');
+  await expect(page.locator('#peMsg')).toContainText('kvartira');
+  if (shots) await page.screenshot({ path: `${shots}/apt_edit.png` });
+  await page.click('#peSave');
+  await expect(page.locator('#planEdit')).toHaveCount(0);
+  const nAfter = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));
+  expect(nAfter).toBeLessThan(nBefore);
+  await page.click('#planEditClear');
+  await expect(page.locator('#aptPlan b')).toHaveText(new RegExp(String(nBefore).replace(/(\d)(?=(\d{3})+$)/g, '$1.?')));
+  await page.locator('#planBox').scrollIntoViewIfNeeded();
+  await page.click('#aptGo');   // tahrirdan keyin insolyatsiya natijasi eskirgan — qayta hisoblash
+  await expect(page.locator('#aptSt')).toContainText('kvartira mos', { timeout: 90000 });
   if (shots) await page.screenshot({ path: `${shots}/apt_reja.png` });
   await page.locator('#aptFloor').fill('3'); await page.locator('#aptFloor').dispatchEvent('input');
   if (shots) await page.screenshot({ path: `${shots}/apt_qavat.png` });
@@ -57,7 +75,7 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await page.click('#kMore');
   await expect(page.locator('.drawer [data-rule=insol-apartments]')).toContainText('8.3–8.5');
   await expect(page.locator('.drawer [data-rule=west-apartments]')).toContainText('9.2');
-  await expect(page.locator('.drawer [data-rule=plan-access]')).toContainText('koridor');
+  await expect(page.locator('.drawer [data-rule=plan-access]')).toContainText('koridor');   // reyestrda qoladi
   await expect(page.locator('.drawer [data-rule=plan-stairs]')).toContainText('5.13');
   await expect(page.locator('.drawer [data-rule=school]')).toContainText('stat.uz');
 });

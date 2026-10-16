@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { layoutSection } from '../../src/core/apartments';
-import { rulePlan, planChecks, sharedAny, type RulePlan } from '../../src/core/sectionplan';
+import { rulePlan, planChecks, sharedAny, editMerge, editSplit, editShift, editRooms, editKind, editRoomToApt, type RulePlan } from '../../src/core/sectionplan';
 import { area, type XY } from '../../src/core/geo';
 import polygonClipping from 'polygon-clipping';
 
@@ -22,13 +22,14 @@ function rules(pl: RulePlan, ring: XY[]) {
     for (const st of s.stairs) expect(sharedAny(st, s.mop).len).toBeGreaterThanOrEqual(0.9);
     for (const i of s.apts) expect(sharedAny(pl.apts[i].ring, s.mop).len).toBeGreaterThanOrEqual(0.9);
   });
+  for (const q of pl.rooms) expect(sharedAny(q.ring, pl.sections[q.sec].mop).len).toBeGreaterThanOrEqual(0.9);   // texnik xonaga ham koridordan kirish
   // turli seksiyalar koridorlari bir-biriga ulanmagan
   for (let i = 0; i < pl.sections.length; i++) for (let j = i + 1; j < pl.sections.length; j++) for (const a of pl.sections[i].mop) for (const b of pl.sections[j].mop) expect(sharedAny(a, [b]).len).toBeLessThan(0.3);
   for (let i = 0; i < pl.apts.length; i++) {
     for (let j = i + 1; j < pl.apts.length; j++) expect(ov(pl.apts[i].ring, pl.apts[j].ring)).toBeLessThan(0.3);
     for (const m of [...pl.mop, ...pl.stairs, ...pl.lifts]) expect(ov(pl.apts[i].ring, m)).toBeLessThan(0.3);
   }
-  const sum = [...pl.apts.map(a => a.ring), ...pl.mop, ...pl.stairs, ...pl.lifts, ...pl.rest, ...pl.fireWalls].reduce((s, q) => s + area(q), 0);
+  const sum = [...pl.apts.map(a => a.ring), ...pl.mop, ...pl.stairs, ...pl.lifts, ...pl.rest, ...pl.fireWalls, ...pl.rooms.map(q => q.ring)].reduce((s, q) => s + area(q), 0);
   expect(Math.abs(sum - area(ring))).toBeLessThan(area(ring) * 0.03);
   return pl;
 }
@@ -59,4 +60,17 @@ describe('Seksiyali reja (qoida boʻyicha)', () => {
     expect(pl.sections.length).toBe(3);
   });
   it('burilgan 40 × 16', () => { const a = 0.5, r = rect(0, 0, 40, 16).map(p => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)] as XY); rules(plan(r), r); });
+  it('qoʻlda tahrir: birlashtirish, boʻlish, devorni surish, xonalar, texnik — qoidalar saqlanadi', () => {
+    const r = rect(0, 0, 38, 15), mods = modsOf(r), pl = rulePlan(r, mods, [20, 40, 30, 10], 'M', [19, 40]), n0 = pl.apts.length;
+    const nb = (i: number) => pl.apts.findIndex((b, j) => j !== i && sharedAny(pl.apts[i].ring, [b.ring]).len > 2);
+    const i = pl.apts.findIndex((_, k) => nb(k) >= 0), j = nb(i);
+    const m = editMerge(pl, i, j, mods); expect(m.ok).toBe(true); if (!m.ok) return;
+    expect(m.plan.apts.length).toBe(n0 - 1); rules(m.plan, r);
+    const big = m.plan.apts.reduce((b, a, k) => a.area > m.plan.apts[b].area ? k : b, 0);
+    const sp = editSplit(m.plan, big, mods); expect(sp.ok).toBe(true); if (sp.ok) { expect(sp.plan.apts.length).toBe(n0); rules(sp.plan, r); }
+    const sh = editShift(pl, i, j, 3.3, mods); if (sh.ok) { expect(sh.plan.apts[i].area).toBeGreaterThan(pl.apts[i].area); rules(sh.plan, r); } else expect(sh.why).toBeTruthy();
+    expect(editRooms(pl, i, 9, mods).ok).toBe(false);
+    const tx = editKind(pl, i, 'texnik', mods); expect(tx.ok).toBe(true); if (tx.ok) { expect(tx.plan.rooms.length).toBe(pl.rooms.length + 1); const back = editRoomToApt(tx.plan, tx.plan.rooms.length - 1, mods); expect(back.ok).toBe(true); }
+    expect(editMerge(pl, 0, 0, mods).ok).toBe(false);
+  });
 });
