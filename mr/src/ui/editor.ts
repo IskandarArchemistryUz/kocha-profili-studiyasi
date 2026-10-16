@@ -51,6 +51,19 @@ import { summary } from '../context/osm';
 import { geocode, type Place } from '../context/geocode';
 import { detectBlock, type Barrier } from '../context/blocks';
 
+/** Tipologiya piktogrammalari (yuqoridan koʻrinish, 24×24) */
+const TYPO_ICON: Record<string, string> = {
+  avto: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2"/><path d="M8 16l4-9 4 9M9.5 13h5"/>',
+  yakka: '<rect x="3" y="4" width="6" height="6"/><rect x="15" y="4" width="6" height="6"/><rect x="3" y="14" width="6" height="6"/><rect x="15" y="14" width="6" height="6"/>',
+  taunhaus: '<rect x="3" y="5" width="18" height="5"/><path d="M7.5 5v5M12 5v5M16.5 5v5"/><rect x="3" y="14" width="18" height="5"/><path d="M7.5 14v5M12 14v5M16.5 14v5"/>',
+  villa: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
+  perimetr: '<path d="M3 3h18v18H3z"/><path d="M8 8h8v8H8z"/><path d="M3 3l5 5M21 3l-5 5M3 21l5-5M21 21l-5-5" stroke-width="0.8"/>',
+  qatorlar: '<rect x="3" y="3" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="17" width="18" height="4"/>',
+  minora: '<rect x="3" y="3" width="6" height="6"/><rect x="15" y="3" width="6" height="6"/><rect x="9" y="15" width="6" height="6"/>',
+  blok_minora: '<path d="M3 7h14v14H3z"/><path d="M7 11h6v6H7z"/><rect x="15" y="3" width="6" height="6" fill="currentColor"/>',
+  blok_villa: '<path d="M3 3h11v4H7v7H3z"/><rect x="15" y="10" width="6" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="17" width="5" height="4"/>',
+};
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa' };
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
@@ -349,8 +362,11 @@ export class Editor {
     const q = this.scene.frameRect(r); Object.assign(el.style, { left: `${q.x}px`, top: `${q.y}px`, width: `${q.w}px`, height: `${q.h}px` });
   }
 
+  /** parsellar qadamida buziladiganlar foydalanuvchi tanloviga koʻra, keyingi qadamlarda — yashirin */
+  private goneHidden = false;
+  private syncGone(): void { const ip = STEPS.findIndex(x => x.id === 'parsel'), i = STEPS.indexOf(this.step); this.scene.setHideGone(i > ip || this.goneHidden); }
   private renderAll(): void {
-    this.syncFade();
+    this.syncFade(); this.syncGone();
     (this.root.querySelector('#undo') as HTMLButtonElement).disabled = !this.store.canUndo;
     (this.root.querySelector('#redo') as HTMLButtonElement).disabled = !this.store.canRedo;
     (this.root.querySelector('#undo') as HTMLButtonElement).title = this.store.canUndo ? `Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)` : 'Bekor qilish (Ctrl+Z)';
@@ -996,7 +1012,7 @@ export class Editor {
         ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; }))));
     body.append(
       h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Tipologiya'),
-        h('div', { class: 'chips', role: 'group', 'aria-label': 'Tipologiya' }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => h('button', { class: 'zchip', 'aria-pressed': g.typology === k, 'data-typ': k, style: '--c:var(--ink)', onclick: () => { g.typology = k; this.renderPanel(); } }, TYPO_NAME[k])))),
+        h('div', { class: 'typos', role: 'group', 'aria-label': 'Tipologiya' }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => { const b = h('button', { class: 'typo', 'aria-pressed': g.typology === k, 'data-typ': k, title: TYPO_NAME[k], onclick: () => { g.typology = k; this.renderPanel(); } }); b.append(svgIcon(TYPO_ICON[k]), h('span', {}, TYPO_SHORT[k])); return b; }))),
       (() => {
         const far = h('input', { type: 'range', min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', style: 'width:100%' }) as HTMLInputElement, ft = h('b', { class: 'num' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : 'oʻchiq');
         far.oninput = () => { g.far = Number(far.value); ft.textContent = g.far > 0 ? fmt(g.far, 1) : 'oʻchiq'; };
@@ -1218,13 +1234,14 @@ export class Editor {
     } else body.append(h('p', { class: 'note' }, 'Kvartal yoki parselni roʻyxatdan yoki sahnada bosib tanlang.'));
     const dm = this.demolition();
     if (dm.all) {
-      body.append(h('div', { class: 'field', id: 'demo' }, h('span', { class: 'lb' }, 'Uchastkadagi mavjud binolar'),
+      body.prepend(h('div', { class: 'field', id: 'demo' }, h('span', { class: 'lb' }, 'Uchastkadagi mavjud binolar'),
         h('div', { class: 'ctxst' }, h('b', {}, `${dm.all} bino`), ` · saqlanadi ${dm.kept} · `, h('b', { style: 'color:var(--bad)' }, `buziladi ${dm.gone}`),
           dm.gone ? h('div', { class: 'muted' }, `Buziladigan dogʻ ${fmt(dm.foot)} m², taxminiy maydon ~${fmt(dm.floorArea)} m² (OSM balandligi/taxmin boʻyicha). Koʻchirish xarajati — pastda.`) : ''),
         h('div', { class: 'row' },
           h('button', { class: 'btn grow', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id) })) }, 'Hammasini saqlash'),
           h('button', { class: 'btn grow', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, 'Hammasini buzish')),
-        h('p', { class: 'note' }, 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil.')));
+        dm.gone ? h('button', { class: this.goneHidden ? 'btn primary' : 'btn', id: 'goneHide', onclick: () => { this.goneHidden = !this.goneHidden; this.syncGone(); this.renderPanel(); } }, this.goneHidden ? `Buziladiganlar olib tashlangan (${dm.gone}) — qaytarish` : `Buziladiganlarni sahnadan olib tashlash (${dm.gone})`) : '',
+        h('p', { class: 'note' }, this.goneHidden ? 'Buziladigan binolar sahnada koʻrinmaydi; hisob va koʻchirish xarajati saqlanadi. Qaytarib, binoni bosib saqlash ↔ buzishni almashtirasiz.' : 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil. Keyingi qadamlarda ular avtomatik olib tashlanadi.')));
       if (dm.gone) this.compSection(body);
     }
   }
@@ -1490,7 +1507,8 @@ export class Editor {
         const p = this.scene.pick(e.clientX, e.clientY);
         if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); }
       }
-      if (id && this.step.id !== 'hajm' && !this.locked(STEPS[5])) this.step = STEPS[5];
+      if (id && this.step.id === 'fasad') this.lookTarget = 'sel';
+      else if (id && ['hudud', 'uchastka', 'kocha', 'yashil'].includes(this.step.id) && !this.locked(STEPS[5])) this.step = STEPS[5];
       this.renderAll();
     });
   }
