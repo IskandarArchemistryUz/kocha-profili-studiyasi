@@ -23,8 +23,8 @@ const tint = (c: number, k: number) => { const r = (c >> 16) & 255, g = (c >> 8)
 const USE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.id === 'turar' ? 0xf4ece6 : tint(u.color, 0.72)]));
 const BASE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.base]));
 /** «Albom» uslubida loyiha koʻchalari: och, lekin atrofdan biroz toʻqroq (loyiha ajralib tursin) */
-const PART_ALB: Record<string, number> = { trotuar: 0xf2f0eb, yashil: 0xd3e3c4, velo: 0xe7c2b4, parkovka: 0xd9d7d2, qatnov: 0xc8c6c1, chiziq: 0xffffff };
-const PART_COL: Record<string, number> = { trotuar: 0xd8d2c6, yashil: 0x9cc77f, velo: 0xc9705a, parkovka: 0x8d9097, qatnov: 0x585b62, chiziq: 0xf4f4f0 };
+const PART_ALB: Record<string, number> = { avtobus: 0xd8b7ae, tramvay: 0xcfcbc2, trotuar: 0xf2f0eb, yashil: 0xd3e3c4, velo: 0xe7c2b4, parkovka: 0xd9d7d2, qatnov: 0xc8c6c1, chiziq: 0xffffff };
+const PART_COL: Record<string, number> = { avtobus: 0xa5473c, tramvay: 0x6b6c72, trotuar: 0xd8d2c6, yashil: 0x9cc77f, velo: 0xc9705a, parkovka: 0x8d9097, qatnov: 0x585b62, chiziq: 0xf4f4f0 };
 
 /** Fasad uslublari: deraza modulda (eni ulushi, tokcha va tepa balandligi, m) */
 export type FacadeStyle = 'yoq' | 'klassik' | 'lenta' | 'panorama';
@@ -90,8 +90,8 @@ const STYLE_PAL: Record<Exclude<SceneStyle, 'rangli'>, { pal: Record<string, num
   arctic: { pal: { relyef: 0xf7f6f3, yashil: 0xeef0ea, suv: 0xe4ebef, ariqlar: 0xe4ebef, 'yoʻlaklar': 0xfbfaf8, trotuarlar: 0xfbfaf8, 'yoʻllar': 0xecebe7, chiziqlar: 0xffffff, binolar: 0xffffff, tomlar: 0xf6f5f2, daraxtlar: 0xeef1ea }, lerp: 0.88, line: null, bg: 0xfafaf8 },
   minimal: { pal: { relyef: 0xffffff, yashil: 0xf1f1f1, suv: 0xe6e6e6, ariqlar: 0xe6e6e6, 'yoʻlaklar': 0xfafafa, trotuarlar: 0xfafafa, 'yoʻllar': 0xdedede, chiziqlar: 0xffffff, binolar: 0xf7f7f7, tomlar: 0xededed, daraxtlar: 0xd8d8d8 }, lerp: 0.9, line: 0x6a6a6a, bg: 0xffffff },
 };
-const PART_ARC: Record<string, number> = { trotuar: 0xf8f7f4, yashil: 0xeaeee4, velo: 0xf1e6e1, parkovka: 0xeeedea, qatnov: 0xe6e5e1, chiziq: 0xffffff };
-const PART_MIN: Record<string, number> = { trotuar: 0xfafafa, yashil: 0xececec, velo: 0xe4e4e4, parkovka: 0xe2e2e2, qatnov: 0xcfcfcf, chiziq: 0xffffff };
+const PART_ARC: Record<string, number> = { avtobus: 0xf0e4df, tramvay: 0xebe9e4, trotuar: 0xf8f7f4, yashil: 0xeaeee4, velo: 0xf1e6e1, parkovka: 0xeeedea, qatnov: 0xe6e5e1, chiziq: 0xffffff };
+const PART_MIN: Record<string, number> = { avtobus: 0xc4c4c4, tramvay: 0xc9c9c9, trotuar: 0xfafafa, yashil: 0xececec, velo: 0xe4e4e4, parkovka: 0xe2e2e2, qatnov: 0xcfcfcf, chiziq: 0xffffff };
 /** «portlatilgan» qatlamlar: 0 — atrof, 1 — koʻchalar, 2 — kvartallar, 3 — binolar */
 export const EXPLODE_NAMES = ['Atrof', 'Koʻchalar', 'Kvartallar va zonalar', 'Binolar'];
 
@@ -354,7 +354,7 @@ export class Scene3D {
     // loyiha koʻchalari: profil boʻlaklari, chiziqlar, daraxtlar, qizil chiziqlar
     if (doc.streets.length) {
       const sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H);
-      const ord: [string, number][] = [['trotuar', 9], ['yashil', 9.1], ['velo', 9.1], ['parkovka', 9.1], ['qatnov', 9.2], ['chiziq', 9.3]];
+      const ord: [string, number][] = [['trotuar', 9], ['yashil', 9.1], ['velo', 9.1], ['parkovka', 9.1], ['qatnov', 9.2], ['avtobus', 9.2], ['tramvay', 9.2], ['chiziq', 9.3]];
       for (const [k, o] of ord) {
         const arr = sg.layers[k]; if (!arr?.length) continue;
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));

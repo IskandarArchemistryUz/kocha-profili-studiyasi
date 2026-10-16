@@ -15,6 +15,8 @@ import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
+import { PRESET_PROFILES } from '../core/presets';
+import { sectionSvg } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
@@ -1149,11 +1151,13 @@ export class Editor {
     return this.planCache.plan;
   }
 
+  private profItem(p: Profile): HTMLElement {
+    return h('div', { class: 'it', role: 'option', 'aria-selected': this.profile === p.id, 'data-prof': p.id, onclick: () => { this.profile = p.id; if (this.selStreet) this.run(() => this.store.dispatch({ type: 'updateStreet', id: this.selStreet!, patch: { profile: p.id } })); else this.renderPanel(); } },
+      h('b', {}, `${p.name} · ${fmt(profileWidth(p), 1)} m `, normChip(p)), h('small', {}, `${CATS[p.cat].name} · ${p.note}`), this.profileBar(p.id));
+  }
   private profileBar(id: string): HTMLElement {
-    const p = profileById(id), W = profileWidth(p);
-    const C: Record<string, string> = { trotuar: '#d8d2c6', yashil: '#9cc77f', velo: '#c9705a', parkovka: '#8d9097', qatnov: '#585b62', ajratuvchi: '#9cc77f' };
-    return h('div', { class: 'pbar', title: p.parts.map(x => `${x.k} ${fmt(x.w, 1)} m${x.lanes ? ` (${x.lanes} qator)` : ''}`).join(' · ') },
-      ...p.parts.map(x => h('i', { style: `flex:${x.w};background:${C[x.k]}` })), h('span', {}, `${fmt(W, 1)} m`));
+    const p = profileById(id);
+    return h('div', { class: 'psec', title: p.parts.map(x => `${x.k} ${fmt(x.w, 1)} m${x.lanes ? ` (${x.lanes} qator)` : ''}`).join(' · '), html: sectionSvg(p.parts) });
   }
 
   /** Koʻcha uchini mavjud koʻcha oʻqiga yopishtirish (≤ 6 m) — chorrahalar ulanishi uchun */
@@ -1173,8 +1177,10 @@ export class Editor {
   private kochaPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), drawing = this.tool instanceof LineTool;
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Profil (yangi koʻcha uchun)'),
-      h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Profillar' }, ...PROFILES.map(p => h('div', { class: 'it', role: 'option', 'aria-selected': this.profile === p.id, 'data-prof': p.id, onclick: () => { this.profile = p.id; if (this.selStreet) this.run(() => this.store.dispatch({ type: 'updateStreet', id: this.selStreet!, patch: { profile: p.id } })); else this.renderPanel(); } },
-        h('b', {}, `${p.name} · ${fmt(profileWidth(p), 1)} m `, normChip(p)), h('small', {}, `${CATS[p.cat].name} · ${p.note}`), this.profileBar(p.id))))));
+      h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Profillar' }, ...PROFILES.map(p => this.profItem(p))),
+      (() => { const groups = [...new Set(PRESET_PROFILES.map(p => p.group))], open = PRESET_PROFILES.some(p => p.id === this.profile);
+        return h('details', { class: 'tpl', id: 'tplBox', open }, h('summary', {}, `Boshqa shablonlar · ${PRESET_PROFILES.length} ta (Koʻcha studiyasidan)`),
+          ...groups.map(g => h('div', { class: 'tplg' }, h('div', { class: 'lb' }, g), h('div', { class: 'list res', role: 'listbox', 'aria-label': g }, ...PRESET_PROFILES.filter(p => p.group === g).map(p => this.profItem(p)))))); })()));
     if (this.osmPick) {
       const o = this.osmPick, L = o.pts.map(fr.toLocal).reduce((acc, q, i, a) => i ? acc + Math.hypot(q[0] - a[i - 1][0], q[1] - a[i - 1][1]) : 0, 0);
       body.append(h('div', { class: 'osmbox', id: 'osmPick' },
