@@ -17,7 +17,7 @@ import { MATS, roofParts } from '../core/roof';
 import { winDef, type Bal } from '../core/facade';
 import { buildFacade, emptyGeo, matTexture, tileTexture, roofUV, type PartIn, type FacadeGeo, type Layer } from './facade3d';
 import { MOD_W } from '../core/apartments';
-import { seams, seamEdges } from '../core/seams';
+import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
 import { landscape } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
 import { USES } from '../core/uses';
@@ -325,14 +325,15 @@ export class Scene3D {
   detail = true;
   setDetail(on: boolean): void { if (on === this.detail) return; this.detail = on; if (this.lastDoc) this.update(this.lastDoc); }
   private facCache = new Map<string, { res: FacadeGeo; shop: FacadeGeo }>();
-  private facadeGeo(b: Project['buildings'][number], tiers: TierPart[], nr: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, spec: WinSpec, parking: boolean, baseC: number, topC: number): void {
+  private facadeGeo(b: Project['buildings'][number], tiers: TierPart[], nr: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, spec: WinSpec, parking: boolean, baseC: number, topC: number, P3: Prism3[]): void {
     const resP: PartIn[] = [], shopP: PartIn[] = [];
+    const covAll = tiers.map(t => edgeCover({ ring: t.ring, base: base + t.f0 * fh, top: base + t.f1 * fh }, P3));
     tiers.forEach((t, ti) => {
-      const skip = (k: number) => shared(ti, k);
-      if (t.f0 < nr && !parking) shopP.push({ ring: t.ring, z0: base + t.f0 * fh, floors: Math.min(t.f1, nr) - t.f0, fh, kind: 'shop', spec, bal: null, skip, floor0: t.f0, bands: false });
-      if (t.f1 > nr) { const f0 = Math.max(t.f0, nr); resP.push({ ring: t.ring, z0: base + f0 * fh, floors: t.f1 - f0, fh, kind: 'res', spec, bal: b.bal ?? null, skip, floor0: f0, bands: b.mat !== 'shisha' && b.mat !== 'metall' }); }
+      const skip = (k: number) => shared(ti, k), cover = (k: number) => covAll[ti][k];
+      if (t.f0 < nr && !parking) shopP.push({ ring: t.ring, z0: base + t.f0 * fh, floors: Math.min(t.f1, nr) - t.f0, fh, kind: 'shop', spec, bal: null, skip, cover, floor0: t.f0, bands: false });
+      if (t.f1 > nr) { const f0 = Math.max(t.f0, nr); resP.push({ ring: t.ring, z0: base + f0 * fh, floors: t.f1 - f0, fh, kind: 'res', spec, bal: b.bal ?? null, skip, cover, floor0: f0, bands: b.mat !== 'shisha' && b.mat !== 'metall' }); }
     });
-    const key = JSON.stringify([resP.map(p => [p.ring, p.z0, p.floors, p.ring.map((_, k) => p.skip(k))]), shopP.map(p => [p.ring, p.z0, p.floors]), fh, spec, b.bal, b.mat]);
+    const key = JSON.stringify([resP.map(p => [p.ring, p.z0, p.floors, p.ring.map((_, k) => [p.skip(k), p.cover?.(k)])]), shopP.map(p => [p.ring, p.z0, p.floors]), fh, spec, b.bal, b.mat]);
     let G = this.facCache.get(key);
     if (!G) { G = { res: buildFacade(resP, emptyGeo()), shop: buildFacade(shopP, emptyGeo()) }; if (this.facCache.size > 600) this.facCache.clear(); this.facCache.set(key, G); }
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
@@ -561,7 +562,7 @@ export class Scene3D {
       // quyosh himoyasi
       if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
       // balkonlar (turar qavatlarda, 2-qavatdan)
-      if (det) this.facadeGeo(b, tiers, nr, base, fh, shared, spec!, parking, baseC, topC);
+      if (det) this.facadeGeo(b, tiers, nr, base, fh, shared, spec!, parking, baseC, topC, P3.filter((_, i) => i !== bi));
       else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain);
       const topZ = base + (last?.f1 ?? b.floors) * fh;
       if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {

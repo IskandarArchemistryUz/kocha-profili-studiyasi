@@ -26,3 +26,18 @@ describe('Seksiya choklari', () => {
     expect(sp.edgeTop.every(v => v === -Infinity)).toBe(true); expect(st.edgeTop.every(v => v === -Infinity)).toBe(true);
   });
 });
+
+import { edgeCover } from '../../src/core/seams';
+describe('qismiy chok (torets devor uzun devor oʻrtasida)', () => {
+  it('uzun devorning faqat tegib turgan qismi yopiladi', () => {
+    const A = { ring: [[0, 0], [40, 0], [40, 12], [0, 12]] as [number, number][], base: 0, top: 30 };
+    const B = { ring: [[15, 12], [25, 12], [25, 30], [15, 30]] as [number, number][], base: 0, top: 24 };   // A ning shimoliy devoriga 15–25 m oraligʻida tegadi
+    const cov = edgeCover(A, [A, B]);
+    const north = cov[2];   // [40,12] → [0,12] qirrasi
+    expect(north).toHaveLength(1);
+    expect(Math.min(north[0].s0, north[0].s1)).toBeCloseTo(15, 1);
+    expect(Math.max(north[0].s0, north[0].s1)).toBeCloseTo(25, 1);
+    expect(north[0].top).toBe(24);
+    expect(cov[0]).toHaveLength(0);
+  });
+});
