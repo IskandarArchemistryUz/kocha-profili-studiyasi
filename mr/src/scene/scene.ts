@@ -15,6 +15,7 @@ import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
 import { MATS, roofParts } from '../core/roof';
 import { winDef, type Bal } from '../core/facade';
+import { buildFacade, emptyGeo, matTexture, tileTexture, roofUV, type PartIn, type FacadeGeo, type Layer } from './facade3d';
 import { MOD_W } from '../core/apartments';
 import { seams, seamEdges } from '../core/seams';
 import { landscape } from '../core/landscape';
@@ -320,6 +321,48 @@ export class Scene3D {
     }
   }
 
+  /** geometrik fasad yoqilgan (Kamera/uslub oynasidan oʻchirish mumkin — kuchsiz kompyuterlar uchun) */
+  detail = true;
+  setDetail(on: boolean): void { if (on === this.detail) return; this.detail = on; if (this.lastDoc) this.update(this.lastDoc); }
+  private facCache = new Map<string, { res: FacadeGeo; shop: FacadeGeo }>();
+  private facadeGeo(b: Project['buildings'][number], tiers: TierPart[], nr: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, spec: WinSpec, parking: boolean, baseC: number, topC: number): void {
+    const resP: PartIn[] = [], shopP: PartIn[] = [];
+    tiers.forEach((t, ti) => {
+      const skip = (k: number) => shared(ti, k);
+      if (t.f0 < nr && !parking) shopP.push({ ring: t.ring, z0: base + t.f0 * fh, floors: Math.min(t.f1, nr) - t.f0, fh, kind: 'shop', spec, bal: null, skip, floor0: t.f0, bands: false });
+      if (t.f1 > nr) { const f0 = Math.max(t.f0, nr); resP.push({ ring: t.ring, z0: base + f0 * fh, floors: t.f1 - f0, fh, kind: 'res', spec, bal: b.bal ?? null, skip, floor0: f0, bands: b.mat !== 'shisha' && b.mat !== 'metall' }); }
+    });
+    const key = JSON.stringify([resP.map(p => [p.ring, p.z0, p.floors, p.ring.map((_, k) => p.skip(k))]), shopP.map(p => [p.ring, p.z0, p.floors]), fh, spec, b.bal, b.mat]);
+    let G = this.facCache.get(key);
+    if (!G) { G = { res: buildFacade(resP, emptyGeo()), shop: buildFacade(shopP, emptyGeo()) }; if (this.facCache.size > 600) this.facCache.clear(); this.facCache.set(key, G); }
+    const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const MAT_C = (id?: string) => id ? MATS.find(m => m.id === id)?.color : undefined;
+    const lam = (o: THREE.MeshLambertMaterialParameters) => new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, ...o });
+    const add = (g: FacadeGeo, wallC: number, matId: string, shop: boolean) => {
+      const tex = matTexture(matId, wallC, aniso), light = matId === 'gisht' || matId === 'terrakota' || matId === 'yogoch';
+      const mats: Record<Layer, THREE.Material> = {
+        wall: lam(tex ? { map: tex.t } : { color: wallC }),
+        trim: lam({ color: tint(wallC, light ? 0.45 : 0.25) }),
+        glass: new THREE.MeshPhongMaterial({ color: shop ? 0x6f8796 : 0x86a0b0, specular: 0x8899aa, shininess: 80, side: THREE.DoubleSide }),
+        frame: lam({ color: shop ? 0x2e3236 : light ? 0xf1e6dc : 0x43484e }),
+        sill: lam({ color: 0xe2ddd4 }),
+        slab: lam({ color: 0xebe4dc }),
+        rail: new THREE.MeshPhongMaterial({ color: 0xcfe0ea, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide, shininess: 90 }),
+        bar: lam({ color: 0x3a3d42 }),
+      };
+      (Object.keys(mats) as Layer[]).forEach(L => {
+        const d = g[L]; if (!d.pos.length) { mats[L].dispose(); return; }
+        const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(d.pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(d.uv, 2)); geo.computeVertexNormals();
+        const m = new THREE.Mesh(geo, mats[L]); m.castShadow = L === 'wall' || L === 'slab' || L === 'trim'; m.receiveShadow = L !== 'rail'; m.userData.bid = b.id;
+        if (L === 'rail') m.renderOrder = 12;
+        this.world.add(m);
+      });
+    };
+    const resC = MAT_C(b.mat) ?? topC;
+    add(G.res, resC, b.mat ?? 'suvoq', false);
+    add(G.shop, baseC, 'suvoq', true);
+  }
+
   /**
    * Balkonlar: deraza teksturasi bilan bir xil modul toʻrida (ExtrudeGeometry yon devor UV — mahalliy x yoki y koordinata),
    * har 2-modulda (uzluksiz — butun qirra boʻylab). InstancedMesh: plita, panjara, shisha, lodjiya devorlari.
@@ -477,12 +520,15 @@ export class Scene3D {
     doc.buildings.forEach((b, bi) => {
       const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected, dim = focus && !sel;
       const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
+      const spec: WinSpec | null = b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null;
+      // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar (uzoqdan ham, taqdimot uchun)
+      const det = this.detail && !!spec && tinted && !dim && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
       const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
         const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
         if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
         const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
-        const spec: WinSpec | null = b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null;
         if (kind && spec && !plain && st !== 'funksiya' && !dim) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
+        if (det && (kind === 'res' || kind === 'shop')) wall.visible = false;   // devorni geometrik fasad almashtiradi
         const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
         if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
         if (top && !sel && !dim && roofK === 'quyosh' && !plain) { cap.color.setHex(0xffffff); cap.map = solarTex(); }
@@ -515,7 +561,8 @@ export class Scene3D {
       // quyosh himoyasi
       if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
       // balkonlar (turar qavatlarda, 2-qavatdan)
-      if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain);
+      if (det) this.facadeGeo(b, tiers, nr, base, fh, shared, spec!, parking, baseC, topC);
+      else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain);
       const topZ = base + (last?.f1 ?? b.floors) * fh;
       if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
         const parts = roofParts(last.ring, roofK);
@@ -525,7 +572,9 @@ export class Scene3D {
           // tom rangi uslubga koʻra: Albom — xira terrakota, Rangli — toʻyingan, Arctic/Minimal — oq, Funksiya — zona rangi
           const rc = dim ? 0xf1efea : plain ? 0xf3f1ec : st === 'funksiya' ? tint(ZONE_COL[b.use] ?? C.bld, 0.35) : this.album ? 0xcfb2a3 : 0xb9765c;
           const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
-          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: rc, side: THREE.DoubleSide }));
+          const tiles = !plain && st !== 'funksiya' && !dim && this.detail;
+          if (tiles) g.setAttribute('uv', new THREE.Float32BufferAttribute(roofUV(v), 2));
+          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial(tiles ? { map: tileTexture(rc, aniso), side: THREE.DoubleSide } : { color: rc, side: THREE.DoubleSide }));
           m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
           this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : 0.45 })));
           if (w.length) {

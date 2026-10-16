@@ -130,6 +130,7 @@ export class Editor {
     this.root = this.build();
     host.replaceChildren(this.root);
     this.scene = new Scene3D(this.el.scene);
+    try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
     this.scene.update(doc); this.scene.frameDoc(doc);
     this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'; });
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
@@ -246,6 +247,7 @@ export class Editor {
       h('p', { class: 'note' }, 'Fon va uslub faqat koʻrinishga taʼsir qiladi — loyiha, hisob-kitob va meʼyorlar oʻzgarmaydi.'),
       h('div', { class: 'lb' }, 'Uslub'),
       h('div', { class: 'opts' }, ...STYLES.map(x => h('button', { 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, h('b', {}, x.name), h('small', {}, x.note)))),
+      (() => { const c = h('input', { type: 'checkbox', checked: this.scene.detail, id: 'detOn' }) as HTMLInputElement; c.onchange = () => { this.scene.setDetail(c.checked); try { localStorage.setItem('mr-detail', c.checked ? '1' : '0'); } catch { /* */ } }; return h('label', { class: 'row', style: 'font-size:13px' }, c, 'Batafsil fasad (derazalar, romlar, balkonlar — 3D)'); })(),
       h('label', { class: 'row', style: 'font-size:13px' }, ex, 'Portlatilgan qatlamlar'),
       h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Qatlamlar oraligʻi'), gap),
       h('p', { class: 'note' }, 'Qatlamlar: 1 atrof → 2 koʻchalar → 3 kvartallar va zonalar → 4 binolar. Taqdimot uchun aksonometriyada yaxshi koʻrinadi.'));
