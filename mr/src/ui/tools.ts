@@ -14,6 +14,18 @@ export interface Tool {
   move?(xy: XY): void;
   key?(e: KeyboardEvent): boolean;
   cancel(): void;
+  /** «Tugatish» tugmasi: boshlangan chizmani saqlash (yetarli nuqta boʻlsa) */
+  commit?(): void;
+}
+
+/** Ikki marta bosish: Chrome pointerup da e.detail = 0 boʻladi — vaqt (≤ 400 ms) va masofa (≤ 8 px) boʻyicha aniqlanadi */
+class Dbl {
+  private t = 0; private x = 0; private y = 0;
+  is(e: PointerEvent): boolean {
+    const now = e.timeStamp || performance.now(), d = now - this.t < 400 && Math.hypot(e.clientX - this.x, e.clientY - this.y) < 8;
+    this.t = d ? 0 : now; this.x = e.clientX; this.y = e.clientY;
+    return d || e.detail >= 2;
+  }
 }
 
 /** Erkin koʻpburchak: bosib nuqta qoʻyish; birinchi nuqtani bosish, Enter yoki ikki marta bosish — yopish */
@@ -21,13 +33,15 @@ export class PolygonTool implements Tool {
   readonly snapTo = true;
   private pts: XY[] = [];
   private cur: XY | null = null;
+  private dbl = new Dbl();
   constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private minArea = 50) {}
   get hint(): string {
     return this.pts.length < 3 ? 'Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor'
       : 'Birinchi nuqtani bosing yoki Enter — yopish · Backspace — oxirgisi · Esc — bekor';
   }
   click(xy: XY, e: PointerEvent): void {
-    if (this.pts.length >= 3 && (this.scene.screenDist(this.pts[0], e.clientX, e.clientY) < 12 || e.detail >= 2)) { this.finish(); return; }
+    const dbl = this.dbl.is(e);
+    if (this.pts.length >= 3 && (this.scene.screenDist(this.pts[0], e.clientX, e.clientY) < 12 || dbl)) { this.finish(); return; }
     this.pts.push(xy); this.draw();
   }
   move(xy: XY): void { this.cur = xy; this.draw(); }
@@ -43,6 +57,7 @@ export class PolygonTool implements Tool {
     if (area(this.pts) < this.minArea) { this.err(`Maydon juda kichik (< ${this.minArea} m²)`); return; }
     const r = signedArea(this.pts) < 0 ? this.pts.slice().reverse() : this.pts; this.pts = []; this.scene.setPreview([]); this.done(r);
   }
+  commit(): void { if (this.pts.length >= 3) this.finish(); }
   private draw(): void { this.scene.setPreview(this.cur && this.pts.length ? [...this.pts, this.cur] : this.pts, false, true); }
   cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
 }
@@ -78,10 +93,11 @@ export class ClickTool implements Tool {
 export class LineTool implements Tool {
   private pts: XY[] = [];
   private cur: XY | null = null;
+  private dbl = new Dbl();
   constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private snap: (p: XY) => XY = p => p) {}
-  get hint(): string { return this.pts.length < 2 ? 'Koʻcha oʻqi: nuqtalarni bosing · uchlar boshqa koʻchaga yopishadi · Esc — bekor' : 'Enter yoki ikki marta bosish — tugatish · Backspace — oxirgisi · Esc — bekor'; }
+  get hint(): string { return this.pts.length < 2 ? 'Koʻcha oʻqi: nuqtalarni bosing · uchlar boshqa koʻchaga yopishadi · Esc — bekor' : 'Ikki marta bosish, Enter yoki «Chizishni tugatish» — saqlash · Backspace — oxirgisi · Esc — bekor'; }
   click(xy: XY, e: PointerEvent): void {
-    if (this.pts.length >= 2 && e.detail >= 2) { this.finish(); return; }
+    if (this.dbl.is(e) && this.pts.length >= 2) { this.finish(); return; }
     this.pts.push(this.snap(xy)); this.draw();
   }
   move(xy: XY): void { this.cur = this.snap(xy); this.draw(); }
@@ -96,6 +112,7 @@ export class LineTool implements Tool {
     if (p.length < 2) { this.err('Kamida 2 nuqta kerak'); return; }
     this.pts = []; this.scene.setPreview([]); this.done(p);
   }
+  commit(): void { if (this.pts.length >= 2) this.finish(); }
   private draw(): void { this.scene.setPreview(this.cur && this.pts.length ? [...this.pts, this.cur] : this.pts, false); }
   cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
 }

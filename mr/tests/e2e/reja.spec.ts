@@ -80,3 +80,21 @@ test('parsellar: boʻlish, funksiya (maktab), kesish, butun kvartal; reyestrda m
   await page.click('#pClear');
   await expect(page.locator('[data-block]')).toHaveCount(1);
 });
+
+test('koʻcha: ikki marta bosish va «Chizishni tugatish» chiziqni saqlaydi', async ({ page }) => {
+  await newSite(page);
+  await page.click('[data-step=kocha]');
+  await page.click('#drawStreet');
+  const box = (await page.locator('#scene canvas').boundingBox())!;
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+  // ikki marta bosish — tugatish (Chrome pointerup da e.detail = 0)
+  await page.mouse.click(cx - box.width * 0.12, cy - box.height * 0.3);
+  await page.mouse.dblclick(cx - box.width * 0.12, cy + box.height * 0.3);
+  await expect(page.locator('[data-sid]')).toHaveCount(1);
+  // tugma — chizilgan nuqtalar saqlanadi, asbob oʻchadi
+  await page.mouse.click(cx + box.width * 0.12, cy - box.height * 0.3);
+  await page.mouse.click(cx + box.width * 0.12, cy + box.height * 0.3);
+  await page.click('#drawStreet');
+  await expect(page.locator('[data-sid]')).toHaveCount(2);
+  await expect(page.locator('#drawStreet')).toContainText('Koʻcha chizish');
+});
