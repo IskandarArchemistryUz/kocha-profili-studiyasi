@@ -29,7 +29,7 @@ export function seams(list: Prism3[], tol = 0.3): SeamInfo[] {
 
 /** Seksiya qirralari (chiziq kesmalari, [x, y, z] juftliklar): faqat koʻrinadigan qismlar */
 export function seamEdges(A: Prism3, s: SeamInfo, bands: number[] = []): [number, number, number][] {
-  const out: [number, number, number][] = [], n = A.ring.length, eps = 0.05;
+  const out: [number, number, number][] = [], n = A.ring.length, eps = 0.6;   // relyef farqi (poydevor sathi) chok hisoblanmasin
   const hz = (z: number, filter: (k: number) => boolean) => { for (let k = 0; k < n; k++) if (filter(k)) { const a = A.ring[k], b = A.ring[(k + 1) % n]; out.push([a[0], a[1], z], [b[0], b[1], z]); } };
   hz(A.top, k => s.edgeTop[k] < A.top - eps);
   hz(A.base, k => s.edgeTop[k] === -Infinity);

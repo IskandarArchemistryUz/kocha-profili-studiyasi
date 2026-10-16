@@ -8,6 +8,8 @@ import type { Scene3D } from '../scene/scene';
 
 export interface Tool {
   readonly hint: string;
+  /** nuqtalar uchlar va qirralarga yopishsin (muharrir snapPt ni qoʻllaydi) */
+  readonly snapTo?: boolean;
   click(xy: XY, e: PointerEvent): void;
   move?(xy: XY): void;
   key?(e: KeyboardEvent): boolean;
@@ -16,6 +18,7 @@ export interface Tool {
 
 /** Erkin koʻpburchak: bosib nuqta qoʻyish; birinchi nuqtani bosish, Enter yoki ikki marta bosish — yopish */
 export class PolygonTool implements Tool {
+  readonly snapTo = true;
   private pts: XY[] = [];
   private cur: XY | null = null;
   constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private minArea = 50) {}
@@ -40,12 +43,13 @@ export class PolygonTool implements Tool {
     if (area(this.pts) < this.minArea) { this.err(`Maydon juda kichik (< ${this.minArea} m²)`); return; }
     const r = signedArea(this.pts) < 0 ? this.pts.slice().reverse() : this.pts; this.pts = []; this.scene.setPreview([]); this.done(r);
   }
-  private draw(): void { this.scene.setPreview(this.cur && this.pts.length ? [...this.pts, this.cur] : this.pts, false); }
+  private draw(): void { this.scene.setPreview(this.cur && this.pts.length ? [...this.pts, this.cur] : this.pts, false, true); }
   cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
 }
 
 /** Toʻgʻri toʻrtburchak: ikki burchak (sharq–shimol oʻqlari boʻyicha) */
 export class RectTool implements Tool {
+  readonly snapTo = true;
   private a: XY | null = null;
   constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private minSide = 4) {}
   get hint(): string { return this.a ? 'Qarama-qarshi burchakni bosing · Esc — bekor' : 'Birinchi burchakni bosing'; }
@@ -57,7 +61,7 @@ export class RectTool implements Tool {
     if (w < this.minSide || h < this.minSide) { this.err(`Tomonlari kamida ${this.minSide} m boʻlsin`); return; }
     this.done(signedArea(r) < 0 ? r.reverse() : r);
   }
-  move(xy: XY): void { if (this.a) this.scene.setPreview(this.rect(this.a, xy), true); }
+  move(xy: XY): void { if (this.a) this.scene.setPreview(this.rect(this.a, xy), true, true); }
   key(e: KeyboardEvent): boolean { if (e.key === 'Escape') { this.cancel(); return true; } return false; }
   cancel(): void { this.a = null; this.scene.setPreview([]); }
 }
@@ -99,6 +103,7 @@ export class LineTool implements Tool {
 /** Chizgʻich: nuqtalar orasidagi masofa (yer sathida), 3 va undan koʻp nuqtada — yuza ham; istalgan koʻrinishda ishlaydi */
 export class MeasureTool implements Tool {
   readonly anyView = true;
+  readonly snapTo = true;
   private pts: XY[] = [];
   private cur: XY | null = null;
   private fixed = false;
@@ -118,7 +123,7 @@ export class MeasureTool implements Tool {
     if (e.key === 'Backspace') { this.pts.pop(); this.draw(); return true; }
     return false;
   }
-  private draw(): void { this.scene.setPreview(this.cur && this.pts.length && !this.fixed ? [...this.pts, this.cur] : this.pts, false); }
+  private draw(): void { this.scene.setPreview(this.cur && this.pts.length && !this.fixed ? [...this.pts, this.cur] : this.pts, false, true); }
   cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
 }
 
