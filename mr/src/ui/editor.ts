@@ -1791,7 +1791,9 @@ export class Editor {
     this.showAptBoxes();
     if (this.inspOn()) { this.renderInspector(); return; }
     const s = this.step, i = STEPS.indexOf(s), p = this.el.panel;
-    p.dataset.mode = 'step';
+    // shu qadam qayta chizilsa (bino tanlash, qavat) — panel aylantirish joyi saqlanadi
+    const keep = p.dataset.mode === 'step' && p.dataset.step === s.id ? p.querySelector('.body')?.scrollTop ?? 0 : 0;
+    p.dataset.mode = 'step'; p.dataset.step = s.id;
     if (this.scene.selFloor != null) this.scene.setSelFloor(null);
     if (!this.sel) this.dragMode = 'yoq';
     const prev = STEPS[i - 1], next = STEPS[i + 1];
@@ -1805,6 +1807,7 @@ export class Editor {
       h('footer', {},
         h('button', { class: 'btn', disabled: !prev, onclick: () => prev && this.go(prev) }, '← Oldingi'),
         h('button', { class: 'btn primary', disabled: !next, onclick: () => next && this.go(next) }, 'Keyingi →')));
+    if (keep) body.scrollTop = keep;
   }
 
   private panelBody(s: StepDef, body: HTMLElement): void {
