@@ -175,7 +175,7 @@ export class Editor {
     const scene = h('div', { id: 'scene' });
     const badge = h('div', { class: 'ctxbadge', hidden: true, role: 'status' });
     const attr = h('div', { class: 'attr', hidden: true });
-    attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span><span class="carto" hidden> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></span>';
+    attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span><span class="carto" hidden> · Fon: Esri, HERE, Garmin</span>';
     // oʻng pastki burchak: xarita (fon va uslub) va tahliliy qatlamlar
     const mapctl = h('div', { class: 'mapctl' },
       this.popBtn('stylePop', 'Xarita', () => this.stylePop(), 'up', ICON.map),

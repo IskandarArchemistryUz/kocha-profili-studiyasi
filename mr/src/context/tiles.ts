@@ -8,8 +8,9 @@ import type { BBox } from './osm';
 
 export const TERRAIN_URL = (z: number, x: number, y: number) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 export const IMAGERY_URL = (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
-/** Fon xaritasi (atrof yuklanmaganda joy tanlash uchun): CARTO Voyager — © OpenStreetMap hissachilari, © CARTO */
-export const CARTO_URL = (z: number, x: number, y: number) => `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+/** Fon xaritasi (atrof yuklanmaganda joy tanlash uchun): Esri Light Gray Canvas — asos va yozuvlar (kalitsiz) */
+export const GRAY_URL = (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${y}/${x}`;
+export const GRAY_REF_URL = (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/${z}/${y}/${x}`;
 
 /** Global Mercator piksel koordinatasi (256 px plitka) */
 export function mercPx(p: LngLat, z: number): [number, number] {
@@ -108,8 +109,9 @@ export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' 
   const dLat = radius / 110_540, dLng = radius / latK(center[1]);
   const bb: BBox = [center[1] - dLat, center[0] - dLng, center[1] + dLat, center[0] + dLng];   // janub, gʻarb, shimol, sharq
   const z = radius <= 1200 ? 16 : 15;
-  const m = await mosaic(bb, z, kind === 'sputnik' ? IMAGERY_URL : CARTO_URL, f);
+  const m = await mosaic(bb, z, kind === 'sputnik' ? IMAGERY_URL : GRAY_URL, f);
   if (!m.ok) return null;
+  if (kind === 'maket') { const r = await mosaic(bb, z, GRAY_REF_URL, f); if (r.ok) m.cx.drawImage(r.cv as OffscreenCanvas, 0, 0); }   // joy nomlari
   // yuklanmagan plitkalar qora emas — fon rangida
   const out = canvas(m.W, m.H), oc = out.getContext('2d') as OffscreenCanvasRenderingContext2D;
   oc.fillStyle = kind === 'sputnik' ? '#8a8f86' : '#f2efe9'; oc.fillRect(0, 0, m.W, m.H); oc.drawImage(m.cv as OffscreenCanvas, 0, 0);
