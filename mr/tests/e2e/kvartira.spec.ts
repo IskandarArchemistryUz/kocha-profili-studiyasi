@@ -45,22 +45,26 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#planSvg')]);
   expect(dl.suggestedFilename()).toMatch(/bino.*\.svg$/);
   if (shots) await dl.saveAs(`${shots}/reja.svg`);
-  // qavat tanlash: 1-qavat — savdo va yashovchilar xonalari (agar noturar boʻlsa) yoki kirish qavati
-  await expect(page.locator('#planBld option')).not.toHaveCount(0);
-  await page.locator('#planFloor').selectOption('1');
+  // qavat stepper: 1-qavat — savdo + yashovchilar xonalari (noturar boʻlsa) yoki kirish qavati
+  for (let i = 0; i < 30 && !(await page.locator('#planDown').isDisabled()); i++) await page.click('#planDown');
+  await expect(page.locator('#planFloorLbl')).toContainText('1-qavat');
   await expect(page.locator('#planBox svg')).toContainText('1-qavat');
   if (shots) await page.screenshot({ path: `${shots}/apt_q1.png` });
-  await page.locator('#planFloor').selectOption('3');
-  // tahrir: kvartirani texnik xonaga aylantirish → kvartiralar soni kamayadi; tahrirni oʻchirish → qaytadi
+  await page.click('#planUp'); await page.click('#planUp');
+  // albom: 3-qavat; kvartirani texnik xonaga aylantirish → kvartiralar soni kamayadi; «Asl reja» → qaytadi
   const nBefore = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));
   await page.click('#planEditBtn');
-  await expect(page.locator('#planEdit')).toBeVisible();
-  await page.locator('#peSvg [data-apt="0"]').click();
-  await page.click('#peTex');
-  await expect(page.locator('#peMsg')).toContainText('kvartira');
-  if (shots) await page.screenshot({ path: `${shots}/apt_edit.png` });
-  await page.click('#peSave');
-  await expect(page.locator('#planEdit')).toHaveCount(0);
+  await expect(page.locator('#album')).toBeVisible();
+  await expect(page.locator('#albStack .alb-floor')).not.toHaveCount(0);
+  await page.locator('#albPlan [data-apt="0"]').click();
+  await page.click('#albTex');
+  await page.click('#albMode-devor');
+  const box = await page.locator('#albPlan [data-apt="1"]').boundingBox();
+  if (box) await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5);
+  if (shots) await page.screenshot({ path: `${shots}/apt_album.png` });
+  await page.click('#albSave');
+  await page.click('#albClose');
+  await expect(page.locator('#album')).toHaveCount(0);
   const nAfter = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));
   expect(nAfter).toBeLessThan(nBefore);
   await page.click('#planEditClear');

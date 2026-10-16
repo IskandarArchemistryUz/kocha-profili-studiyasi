@@ -41,9 +41,9 @@ describe('Seksiyali reja (qoida boʻyicha)', () => {
     expect(pl.sections.length).toBe(1); expect(cenOf(pl.stairs[0])[1]).toBeGreaterThan(7.5);   // hovli — shimolda (y > 7,5)
   });
   it('24 × 12 — bir tomonlama', () => { const r = rect(0, 0, 24, 12); expect(rules(plan(r), r).kind).toBe('bir'); });
-  it('72 × 15 — ikki seksiya, uzun umumiy koridor yoʻq', () => {
+  it('72 × 15 — uch seksiya (25–30 m), uzun umumiy koridor yoʻq', () => {
     const r = rect(0, 0, 72, 15), pl = rules(plan(r), r);
-    expect(pl.sections.length).toBe(2); expect(pl.corridorLen).toBeLessThan(36); expect(pl.fireWalls.length).toBeGreaterThan(0);
+    expect(pl.sections.length).toBe(3); expect(pl.corridorLen).toBeLessThan(30); expect(pl.fireWalls.length).toBeGreaterThan(0);
   });
   it('burchak seksiya: yadro ichki burchakda, zina hovli fasadida', () => {
     const r: XY[] = [[0, 0], [23, 0], [23, 15], [15, 15], [15, 23], [0, 23]], pl = rules(plan(r), r);
@@ -59,14 +59,18 @@ describe('Seksiyali reja (qoida boʻyicha)', () => {
     const r: XY[] = [[0, 0], [50, 0], [50, 15], [32, 15], [32, 38], [18, 38], [18, 15], [0, 15]], pl = rules(plan(r), r);
     expect(pl.sections.length).toBe(3);
   });
+  it('trapetsiya — yadro bino ichida', () => {
+    const r: XY[] = [[0, 0], [45, 0], [25, 16], [0, 16]], pl = rules(plan(r), r);
+    for (const st of [...pl.stairs, ...pl.lifts]) expect(Math.abs(ov(st, r) - area(st))).toBeLessThan(0.3);
+  });
   it('burilgan 40 × 16', () => { const a = 0.5, r = rect(0, 0, 40, 16).map(p => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)] as XY); rules(plan(r), r); });
   it('qoʻlda tahrir: birlashtirish, boʻlish, devorni surish, xonalar, texnik — qoidalar saqlanadi', () => {
     const r = rect(0, 0, 38, 15), mods = modsOf(r), pl = rulePlan(r, mods, [20, 40, 30, 10], 'M', [19, 40]), n0 = pl.apts.length;
-    const nb = (i: number) => pl.apts.findIndex((b, j) => j !== i && sharedAny(pl.apts[i].ring, [b.ring]).len > 2);
+    const nb = (i: number) => pl.apts.findIndex((b, j) => j !== i && b.sec === pl.apts[i].sec && sharedAny(pl.apts[i].ring, [b.ring]).len > 2);
     const i = pl.apts.findIndex((_, k) => nb(k) >= 0), j = nb(i);
     const m = editMerge(pl, i, j, mods); expect(m.ok).toBe(true); if (!m.ok) return;
     expect(m.plan.apts.length).toBe(n0 - 1); rules(m.plan, r);
-    const big = m.plan.apts.reduce((b, a, k) => a.area > m.plan.apts[b].area ? k : b, 0);
+    const big = i;   // birlashtirilgan kvartira — qayta ikkiga
     const sp = editSplit(m.plan, big, mods); expect(sp.ok).toBe(true); if (sp.ok) { expect(sp.plan.apts.length).toBe(n0); rules(sp.plan, r); }
     const sh = editShift(pl, i, j, 3.3, mods); if (sh.ok) { expect(sh.plan.apts[i].area).toBeGreaterThan(pl.apts[i].area); rules(sh.plan, r); } else expect(sh.why).toBeTruthy();
     expect(editRooms(pl, i, 9, mods).ok).toBe(false);

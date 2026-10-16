@@ -27,8 +27,9 @@ import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
 import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { INSOL_BINS, FACADE, type FacadeStyle } from '../scene/scene';
-import { floorPlanSvg, allPlansSvg, sectionChecks, buildingFloorsSvg, floorGroups, FLOOR_NAME } from '../core/floorplan';
-import { openPlanEditor } from './planedit';
+import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME } from '../core/floorplan';
+import { openAlbum, genplanSvg } from './album';
+import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
 import { SOCIAL, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
@@ -409,7 +410,7 @@ export class Editor {
   private tierInset = 3;
   private tierEdge: number | null = null;
   /** bino tanlangan (parsellar qadamidan tashqari) — chap panel bino muharririga aylanadi */
-  private inspOn(): boolean { return !!this.sel && this.step.id !== 'parsel' && this.store.doc.buildings.some(x => x.id === this.sel); }
+  private inspOn(): boolean { return !!this.sel && this.step.id !== 'parsel' && this.step.id !== 'kvartira' && this.store.doc.buildings.some(x => x.id === this.sel); }
   private renderInspector(): void {
     const doc = this.store.doc, b = doc.buildings.find(x => x.id === this.sel), el = this.el.panel;
     if (!b || !this.inspOn()) { if (this.scene.selFloor != null) this.scene.setSelFloor(null); if (!b) this.dragMode = 'yoq'; if (el.dataset.mode === 'bino') this.renderPanel(); return; }
@@ -905,20 +906,22 @@ export class Editor {
     if (this.step.id !== 'kvartira' || this.apt3d === 'yoq') { this.scene.setAptBoxes(null); return; }
     const doc = this.store.doc, plans = planApartments(doc), fh = doc.settings.floorHeight, st = this.apt.stats, A = this.apt;
     const idx = new Map<string, number>(); if (st) A.pts.forEach((q, i) => idx.set(`${q.sec}|${q.f}|${q.m}`, i));
-    const list: { a: XY; b: XY; y0: number; y1: number; color: number; depth: number }[] = [];
+    const list: { a: XY; b: XY; y0: number; y1: number; color: number; depth: number }[] = [], caps: { ring: XY[]; y: number; color: number }[] = [];
     plans.forEach((pl, sec) => {
       const base = Math.min(...pl.ring.map(q => this.scene.H(q[0], q[1])));
-      for (let f = pl.f0; f < pl.f1; f++) for (const a of pl.layout.apts) {
+      for (let f = pl.f0; f < pl.f1; f++) pl.layout.apts.forEach((a, ai) => {
         let color = Editor.APT_COL[Math.min(4, a.rooms)] ?? 0x888888;
         if (this.apt3d === 'insol') {
           if (!st) color = 0xcfcac1;
           else { const ok = a.living.map(m => st.cls[idx.get(`${sec}|${f}|${m}`) ?? -1] ?? 2); const good = ok.filter(c => c === 0 || c === 1).length; color = good >= Math.min(a.living.length, a.rooms >= 4 ? 2 : 1) ? (ok.every(c => c === 0) ? 0x3fa66b : 0xb7cf4f) : 0xd9534f; }
         }
-        const y = base + (pl.z0 + f) * fh;
-        for (const m of a.mods) { const md = pl.layout.mods[m]; list.push({ a: md.a, b: md.b, y0: y + 0.06, y1: y + fh - 0.06, color, depth: pl.halfDepth }); }
-      }
+        const y = base + (pl.z0 + f) * fh, ring = pl.layout.plan?.apts[ai]?.ring;
+        // kvartira rejadagi chegarasi boʻyicha — fasaddagi qismi (burchak seksiyasida ham toʻgʻri)
+        if (ring) { for (const [p, q] of facadeSegs(ring, pl.ring)) list.push({ a: p, b: q, y0: y + 0.06, y1: y + fh - 0.06, color, depth: 0.25 }); caps.push({ ring, y: y + 0.08, color }); }
+        else for (const m of a.mods) { const md = pl.layout.mods[m]; list.push({ a: md.a, b: md.b, y0: y + 0.06, y1: y + fh - 0.06, color, depth: pl.halfDepth }); }
+      });
     });
-    this.scene.setAptBoxes(list);
+    this.scene.setAptBoxes(list, caps);
   }
   private aptDate = '03-22';
   private aptRelief = false;
@@ -983,7 +986,7 @@ export class Editor {
         h('small', { class: 'muted' }, got.n ? `${fmt(got.n)} · ${fmt(got.share * 100, 0)} % · ~${fmt(got.area, 0)} m²` : '—'));
     });
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartira miksi (maqsad → natija: soni · ulushi · oʻrtacha netto m²)'), h('div', { class: 'mix', id: 'mixRow' }, ...rows),
-      h('span', { class: 'note' }, 'Ulushlar nisbat sifatida olinadi (yigʻindi 100 % boʻlishi shart emas). Maydon — taxmin: modullar × 3,3 m × seksiya yarim chuqurligi × 0,8.')));
+      h('span', { class: 'note' }, 'Ulushlar nisbat sifatida olinadi (yigʻindi 100 % boʻlishi shart emas). Maydon — rejadagi kvartira maydoni × 0,85 (devorlar), balkonsiz.')));
     const size = doc.settings.aptSize ?? 'M';
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartira oʻlchami'),
       h('div', { class: 'seg full', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name)))));
@@ -996,36 +999,31 @@ export class Editor {
     const g0 = doc.site ? Math.min(...doc.site.rings[0].map(q => { const l = frame(doc.origin).toLocal(q); return this.scene.H(l[0], l[1]); })) : 0;
     fl.oninput = () => { const v = Number(fl.value); this.aptFloor = v >= maxF ? null : v; flT.textContent = this.aptFloor ? `${v} / ${maxF}` : 'hammasi'; this.scene.setSection(this.aptFloor ? { kind: 'h', z: g0 + v * fh + 0.3 } : null); };
     fl.onchange = () => this.renderPanel();
-    // qavat rejasi: tanlangan bino va qavat (1-qavat va noturar qavatlar — oʻz rejasi); tahrirlash
+    // blok → qavat → reja (dizayn: «Kvartiralar A»): genplanda bino, qavat ‹ › , reja eskizi; «Albomda ochish» — toʻliq ekran, tahrir
     { if (this.sel && this.sel !== this.planSelSeen && plans.some(p => p.bid === this.sel)) { this.planBid = this.sel; this.planFloor = null; } this.planSelSeen = this.sel;
       const sel = plans.find(p => p.bid === this.planBid) ?? plans[0], si = plans.indexOf(sel);
       this.planBid = sel.bid;
-      const groups = floorGroups(sel), fl0 = Math.max(1, Math.min(sel.f1, this.planFloor ?? (groups.find(g => g.type === 'typical')?.from ?? 1)));
-      const b = doc.buildings.find(x => x.id === sel.bid);
+      const groups = floorGroups(sel), typ = groups.find(g => g.type === 'typical')?.from ?? 1, fl0 = Math.max(1, Math.min(sel.f1, this.planFloor ?? typ)), ft = floorTypeOf(sel, fl0);
       const name = (pl: SecPlan, i: number) => `${i + 1}-bino · ${useDef(doc.buildings.find(x => x.id === pl.bid)?.use ?? 'turar').name}`;
       const optOf = (pl: SecPlan) => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(x => x.id === pl.bid)?.bal ?? null });
-      const res = floorPlanSvg(sel, { scale: 200, dims: true, title: name(sel, si), floor: fl0, ...optOf(sel) });
-      const bSel = h('select', { id: 'planBld', onchange: (e: Event) => { this.planBid = (e.target as HTMLSelectElement).value; this.planFloor = null; this.scene.select(this.planBid); this.renderPanel(); } }, ...plans.map((pl, i) => h('option', { value: pl.bid, selected: pl === sel }, `${name(pl, i)} · ${pl.f1} qavat`))) as HTMLSelectElement;
-      const fSel = h('select', { id: 'planFloor', onchange: (e: Event) => { this.planFloor = Number((e.target as HTMLSelectElement).value); this.renderPanel(); } },
-        ...groups.flatMap(g => Array.from({ length: g.to - g.from + 1 }, (_, k) => g.from + k).map(f => h('option', { value: f, selected: f === fl0 }, `${f}-qavat — ${FLOOR_NAME[g.type]}`)))) as HTMLSelectElement;
-      const sheet = h('div', { class: 'planbox', id: 'planBox', html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') });
-      const edit = () => {
-        const typ = groups.find(g => g.type === 'typical') ?? groups[groups.length - 1];
-        openPlanEditor({ sec: sel, generated: sel.genPlan ?? sel.layout.plan!, plan: sel.layout.plan!, title: name(sel, si), floor: typ.from, fh: doc.settings.floorHeight, bal: b?.bal ?? null, size: doc.settings.aptSize ?? 'M',
-          onSave: pl => { const fr = frame(doc.origin); this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: pl && b ? { key: planKey(doc, b), apts: pl.apts.map(a => ({ ring: a.ring.map(fr.toGeo), rooms: a.rooms })), rooms: pl.rooms.map(q => ({ ring: q.ring.map(fr.toGeo), kind: q.kind })) } : undefined } })); this.clearApt(); this.renderPanel(); } });
-      };
-      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Qavat rejasi'),
-        h('div', { class: 'row' }, bSel, fSel),
-        sel.edited === 'eskirgan' ? h('p', { class: 'warn' }, 'Bu binoning qoʻlda tahrirlangan rejasi eskirgan (bino yoki kvartira sozlamalari oʻzgardi) — generatsiya qilingan reja koʻrsatilmoqda.') : sel.edited === 'ok' ? h('p', { class: 'note' }, 'Reja qoʻlda tahrirlangan.') : null,
-        sheet,
+      const res = floorPlanSvg(sel, { scale: 200, dims: false, title: name(sel, si), floor: fl0, ...optOf(sel) });
+      const pick = (b: string) => { this.planBid = b; this.planFloor = null; this.scene.select(b); this.renderPanel(); };
+      const setF = (f: number) => { this.planFloor = Math.max(1, Math.min(sel.f1, f)); this.renderPanel(); };
+      const album = () => openAlbum({ plans, bid: sel.bid, floor: fl0, fh: doc.settings.floorHeight, size: doc.settings.aptSize ?? 'M', docName: safe(doc.name), name, opt: optOf, download,
+        onSave: (b2, pl) => { const fr = frame(doc.origin), bb = this.store.doc.buildings.find(x => x.id === b2); this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b2, patch: { planEdit: pl && bb ? { key: planKey(this.store.doc, bb), apts: pl.apts.map(a => ({ ring: a.ring.map(fr.toGeo), rooms: a.rooms })), rooms: pl.rooms.map(q => ({ ring: q.ring.map(fr.toGeo), kind: q.kind })) } : undefined } })); this.clearApt(); },
+        onClose: (b2, f) => { this.planBid = b2; this.planFloor = f; this.renderPanel(); } });
+      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Bino · genplanda yoki sahnada bosing'), h('div', { class: 'gpbox', id: 'planGp' }, genplanSvg(plans, sel.bid, name, pick)),
+        h('div', { class: 'row' }, h('b', { style: 'flex:1' }, name(sel, si)), h('small', { class: 'muted' }, `${sel.f1} qavat`))));
+      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Qavat'),
+        h('div', { class: 'row fstep' },
+          h('button', { class: 'btn ib', id: 'planDown', 'aria-label': 'Pastki qavat', disabled: fl0 <= 1, onclick: () => setF(fl0 - 1) }, '‹'),
+          h('div', { class: 'fsel', id: 'planFloorLbl' }, h('b', { class: 'num' }, `${fl0}-qavat`), h('small', {}, FLOOR_NAME[ft])),
+          h('button', { class: 'btn ib', id: 'planUp', 'aria-label': 'Yuqori qavat', disabled: fl0 >= sel.f1, onclick: () => setF(fl0 + 1) }, '›')),
+        h('div', { class: 'planbox', id: 'planBox', title: 'Albomda ochish', onclick: album, html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
+        sel.edited === 'eskirgan' ? h('p', { class: 'warn' }, 'Qoʻlda tahrirlangan reja eskirgan (bino yoki kvartira sozlamalari oʻzgardi) — generatsiya qilingan reja koʻrsatilmoqda.', h('button', { class: 'btn', id: 'planEditClear', style: 'margin-top:6px', onclick: () => { this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: undefined } })); this.clearApt(); this.renderPanel(); } }, 'Tahrirni oʻchirish')) : sel.edited === 'ok' ? h('div', { class: 'row' }, h('small', { class: 'muted', style: 'flex:1' }, 'Reja qoʻlda tahrirlangan'), h('button', { class: 'btn', id: 'planEditClear', onclick: () => { this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: undefined } })); this.clearApt(); this.renderPanel(); } }, 'Asl reja')) : '',
         h('div', { class: 'row' },
-          h('button', { class: 'btn grow primary', id: 'planEditBtn', onclick: edit, title: 'Kvartiralarni birlashtirish, boʻlish, devorni surish, xonalar soni' }, 'Tahrirlash'),
-          h('button', { class: 'btn grow', id: 'planSvg', onclick: () => download(`${safe(doc.name)}_bino${si + 1}_q${fl0}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG')),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn grow', id: 'planFloors', title: 'Shu binoning barcha qavatlari (bir xillari bitta varaqda)', onclick: () => download(`${safe(doc.name)}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(sel, 200, name(sel, si), optOf(sel)), 'image/svg+xml') }, 'Barcha qavatlar — SVG'),
-          h('button', { class: 'btn grow', id: 'plansAll', title: 'Barcha binolarning shu qavat rejalari — bitta SVG', onclick: () => { const all = allPlansSvg(plans, fl0, 200, name, optOf); if (all) download(`${safe(doc.name)}_rejalar_q${fl0}.svg`, all, 'image/svg+xml'); else toast('Bu qavatda bino yoʻq'); } }, 'Hamma binolar — SVG')),
-        sel.edited ? h('button', { class: 'btn', id: 'planEditClear', onclick: () => { this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: undefined } })); this.clearApt(); this.renderPanel(); } }, 'Tahrirni oʻchirish — generatsiya qilingan reja') : null,
-        h('span', { class: 'note' }, 'Bino seksiyalarga boʻlinadi (≤ 36 m, oraligʻida yongʻin devori): har seksiyaning oʻz zina-lifti va qisqa koridori; yadro — hovli tomonda, burchakda — ichki burchakda. 1-qavat noturar boʻlsa: koʻcha tomoni savdo, hovli tomoni yashovchilar xonalari (zal, velo-kolyaska, omborlar, tozalash anjomlari ombori — ShNQ 2.08.01-19, 3.14). Balkon maydoni koeffitsiyent bilan (2-ilova 3-band).')));
+          h('button', { class: 'btn grow primary', id: 'planEditBtn', onclick: album }, 'Albomda ochish'),
+          h('button', { class: 'btn', id: 'planSvg', onclick: () => download(`${safe(doc.name)}_bino${si + 1}_q${fl0}.svg`, floorPlanSvg(sel, { scale: 200, dims: true, title: name(sel, si), floor: fl0, ...optOf(sel) }).svg, 'image/svg+xml') }, 'SVG'))));
     }
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, '3D da kvartiralar'),
       h('div', { class: 'seg full', role: 'group', id: 'apt3d' }, ...([['yoq', 'Yoʻq'], ['tur', 'Turi boʻyicha'], ['insol', 'Insolyatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.apt3d === k, 'data-a3d': k, onclick: () => { this.apt3d = k; this.renderPanel(); } }, t))),

@@ -6,7 +6,7 @@
  */
 import { area, obb2, type XY } from './geo';
 import { type SecPlan } from './apartments';
-import { rulePlan, planChecks, floorVariant, sharedEdge, type RulePlan, type PlanCheck, type FloorType, type RoomKind } from './sectionplan';
+import { rulePlan, planChecks, floorVariant, sharedEdge, facadeSegs, type RulePlan, type PlanCheck, type FloorType, type RoomKind } from './sectionplan';
 import type { Bal } from './facade';
 
 export const APT_FILL: Record<number, string> = { 1: '#f6d58f', 2: '#f4b08a', 3: '#9bd3b8', 4: '#8fa5cc' };
@@ -24,12 +24,12 @@ export function floorTypeOf(pl: SecPlan, floor: number): FloorType { return floo
 export const FLOOR_NAME: Record<FloorType, string> = { ground: 'savdo + yashovchilar xonalari', nonres: 'savdo / ofis', first: 'kirish qavati', typical: 'turar qavat' };
 /** Balkon maydoni koeffitsiyenti — ShNQ 2.08.01-19, 2-ilova 3-band (2022-y. 22-son buyruq tahriri): balkon, terrasa — 0,3; oynalangan lodjiya — 1,0 */
 export const BAL_K: Partial<Record<Bal, number>> = { ochiq: 0.3, shisha: 0.3, uzluksiz: 0.3, lodjiya: 1.0 };
-export interface PlanResult { svg: string; widthMm: number; heightMm: number; apts: { rooms: number; area: number; ring: XY[] }[]; plan: RulePlan; checks: PlanCheck[]; type: FloorType }
+export interface PlanResult { svg: string; widthMm: number; heightMm: number; apts: { rooms: number; area: number; ring: XY[] }[]; plan: RulePlan; checks: PlanCheck[]; type: FloorType;
+  /** chizma ↔ reja koordinatalari (tahrir oynasi uchun) */ toSvg: (p: XY) => [number, number]; toPlan: (x: number, y: number) => XY }
 
 const n1 = (v: number) => (Math.round(v * 100) / 100).toString().replace('.', ',');
 const cen = (r: XY[]): XY => [r.reduce((s, p) => s + p[0], 0) / r.length, r.reduce((s, p) => s + p[1], 0) / r.length];
 const pin = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
-const lerp = (a: XY, b: XY, t: number): XY => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 /** yorliq nuqtasi: koʻpburchak ichida chegaradan eng uzoq nuqta (L shaklda markaz tashqarida qolmasin) */
 function labelPt(r: XY[]): XY {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of r) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
@@ -48,7 +48,7 @@ export function sectionChecks(pl: SecPlan, fh = 3): PlanCheck[] { return planChe
 export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   // chizma OBB oʻqlariga buriladi: uzun tomon gorizontal (oʻlcham zanjirlari va oʻqlar toʻgʻri)
   const { U } = obb2(pl0.ring), V: XY = [-U[1], U[0]], T = (p: XY): XY => [p[0] * U[0] + p[1] * U[1], p[0] * V[0] + p[1] * V[1]], TR = (r: XY[]) => r.map(T);
-  const ft = floorTypeOf(pl0, o.floor), PT = o.plan ?? sectionPlan(pl0), P0 = floorVariant(PT, ft), checks = planChecks(PT, (pl0.z0 + pl0.f1 - 1) * (o.fh ?? 3), pl0.layout.mods);
+  const ft = floorTypeOf(pl0, o.floor), PT = o.plan ?? sectionPlan(pl0), P0 = floorVariant(PT, ft, pl0.layout.mods), checks = planChecks(PT, (pl0.z0 + pl0.f1 - 1) * (o.fh ?? 3), pl0.layout.mods);
   const G: RulePlan = { ...P0, stairs: P0.stairs.map(TR), lifts: P0.lifts.map(TR), mop: P0.mop.map(TR), rest: P0.rest.map(TR), fireWalls: P0.fireWalls.map(TR), rooms: P0.rooms.map(q => ({ ...q, ring: TR(q.ring), door: T(q.door) })), apts: P0.apts.map(a => ({ ...a, ring: TR(a.ring), door: T(a.door), wet: TR(a.wet), walls: a.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]) })) };
   const mods = pl0.layout.mods.map(m => ({ ...m, a: T(m.a), b: T(m.b) }));
   const northDeg = Math.atan2(U[0], U[1]) * 180 / Math.PI;   // shimol yoʻnalishi chizmada
@@ -65,29 +65,38 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   out.push(`<text x="${pad + 5}" y="9" font-size="4.2" font-weight="600" fill="#141414">${esc(o.title)}</text>`);
   // MOP (koridor, lift oldi)
   for (const q of G.mop) out.push(`<path d="${path(q)}" fill="#ece9e2" stroke="#141414" stroke-width="0.3"/>`);
-  // balkonlar (3D bilan bir xil: ≥ 6 m devorlarda har 2-modul; lodjiya 0,9 m, balkon 1,3 m, uzluksiz terrasa 1,5 m)
+  // balkonlar — rejadagi deraza modullari oʻrtasida (deraza bilan bir oʻqda): har 2-modulda, ≥ 6 m devorlarda; lodjiya 0,9 m, balkon 1,3 m, uzluksiz terrasa 1,5 m
   const bals: XY[][] = [], balLines: [XY, XY][] = [];
   if (o.bal && o.bal !== 'yoq' && ft === 'typical') {
-    const ccw = r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p[0] * q[1] - q[0] * p[1]; }, 0) > 0;
     const inApt = (p: XY) => G.apts.some(a => pin(p, a.ring));
-    for (let i = 0; i < r.length; i++) {
-      const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 6) continue;
-      const ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, ox = ccw ? uy : -uy, oy = ccw ? -ux : ux, nm = Math.max(1, Math.round(L / 3.3)), bw = L / nm;
-      const at = (t: number, d: number): XY => [a[0] + ux * t + ox * d, a[1] + uy * t + oy * d];
-      const blindAt = (t: number) => mods.some(m => m.blind && Math.hypot((m.a[0] + m.b[0]) / 2 - at(t, 0)[0], (m.a[1] + m.b[1]) / 2 - at(t, 0)[1]) < bw / 2);
-      if (o.bal === 'uzluksiz') { if (inApt(at(L / 2, -1))) bals.push([at(0.1, 0), at(L - 0.1, 0), at(L - 0.1, 1.5), at(0.1, 1.5)]); continue; }
-      for (let j = 0; j < nm; j++) {
-        const c = (j + 0.5) * bw; if (blindAt(c) || !inApt(at(c, -1))) continue;
-        if (o.bal === 'fransuz') { balLines.push([at(c - 0.7, 0.12), at(c + 0.7, 0.12)]); continue; }
-        if (j % 2) continue;
-        const w2 = Math.min(bw - 0.2, 2.8) / 2, d = o.bal === 'lodjiya' ? 0.9 : 1.3;
-        bals.push([at(c - w2, 0), at(c + w2, 0), at(c + w2, d), at(c - w2, d)]);
-      }
-    }
+    let run = 0;
+    mods.forEach((m, i) => {
+      const prev = mods[i - 1], cont = !!prev && Math.hypot(prev.b[0] - m.a[0], prev.b[1] - m.a[1]) < 0.05 && Math.abs((prev.b[0] - prev.a[0]) * (m.b[1] - m.a[1]) - (prev.b[1] - prev.a[1]) * (m.b[0] - m.a[0])) < 0.05;
+      run = cont ? run + 1 : 0;
+      const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l, ox = uy, oy = -ux;   // modullar CCW halqada — tashqi normal oʻngda
+      const c: XY = [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2], at = (t: number, d: number): XY => [c[0] + ux * t + ox * d, c[1] + uy * t + oy * d];
+      if (m.blind || !inApt(at(0, -0.6))) return;
+      // devor uzunligi (shu yoʻnalishdagi modullar qatori) ≥ 6 m
+      let L = l; for (let j = i - 1; j >= 0 && Math.abs((mods[j].b[0] - mods[j].a[0]) * dy - (mods[j].b[1] - mods[j].a[1]) * dx) < 0.05 * l; j--) L += Math.hypot(mods[j].b[0] - mods[j].a[0], mods[j].b[1] - mods[j].a[1]);
+      for (let j = i + 1; j < mods.length && Math.abs((mods[j].b[0] - mods[j].a[0]) * dy - (mods[j].b[1] - mods[j].a[1]) * dx) < 0.05 * l; j++) L += Math.hypot(mods[j].b[0] - mods[j].a[0], mods[j].b[1] - mods[j].a[1]);
+      if (L < 6) return;
+      if (o.bal === 'uzluksiz') { bals.push([at(-l / 2, 0), at(l / 2, 0), at(l / 2, 1.5), at(-l / 2, 1.5)]); return; }
+      if (o.bal === 'fransuz') { balLines.push([at(-0.7, 0.12), at(0.7, 0.12)]); return; }
+      if (run % 2) return;
+      const w2 = Math.min(l - 0.2, 2.8) / 2, d = o.bal === 'lodjiya' ? 0.9 : 1.3;
+      bals.push([at(-w2, 0), at(w2, 0), at(w2, d), at(-w2, d)]);
+    });
   }
   const balOf = (ring: XY[]) => bals.filter(q => pin([(q[0][0] + q[1][0]) / 2 * 1 + ((q[0][0] + q[1][0]) / 2 - (q[2][0] + q[3][0]) / 2) * 0.5, (q[0][1] + q[1][1]) / 2 + ((q[0][1] + q[1][1]) / 2 - (q[2][1] + q[3][1]) / 2) * 0.5], ring)).reduce((t, q) => t + area(q), 0) * (BAL_K[o.bal ?? 'yoq'] ?? 0);
   for (const q of bals) out.push(`<path d="${path(q)}" fill="#fff" stroke="#141414" stroke-width="0.3"/>`);
   for (const [p, q] of balLines) out.push(seg(p, q, 'stroke="#141414" stroke-width="0.35"'));
+  // palisadnik (1-qavat kvartiralari, hovli tomoni): 3,5 m, panjara 0,8 m — Strelka katalogi, «Первый этаж»: rekreatsiya uchun 3–4 m
+  if (ft === 'first') for (const a of G.apts) { if (!a.court) continue;
+    for (const [p, q] of facadeSegs(a.ring, r)) { const l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l < 2.5) continue; const ux = (q[0] - p[0]) / l, uy = (q[1] - p[1]) / l, ox = uy, oy = -ux, D = 3.5;
+      const blindHere = mods.some(m => m.blind && Math.hypot((m.a[0] + m.b[0]) / 2 - (p[0] + q[0]) / 2, (m.a[1] + m.b[1]) / 2 - (p[1] + q[1]) / 2) < l / 2); if (blindHere) continue;
+      const g4: XY[] = [[p[0] + ux * 0.15, p[1] + uy * 0.15], [q[0] - ux * 0.15, q[1] - uy * 0.15], [q[0] - ux * 0.15 + ox * D, q[1] - uy * 0.15 + oy * D], [p[0] + ux * 0.15 + ox * D, p[1] + uy * 0.15 + oy * D]];
+      out.push(`<path d="${path(g4)}" fill="#e3eed8" stroke="#6f8f55" stroke-width="0.3" stroke-dasharray="0.8 0.5"/>`);
+      const c = cen(g4); out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="1.6" text-anchor="middle" fill="#4d6b38">palisadnik</text>`); } }
   // kvartira boʻlmagan xonalar
   G.rooms.forEach((q, i) => {
     out.push(`<path d="${path(q.ring)}" fill="${ROOM_FILL[q.kind]}" stroke="${o.selRoom === i ? '#0a84ff' : '#141414'}" stroke-width="${o.selRoom === i ? 1.2 : 0.4}" data-room="${i}"/>`);
@@ -114,15 +123,36 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   }
   // qolgan — texnik / ombor (shtrix)
   for (const q of G.rest) { const cc = cen(q); out.push(`<path d="${path(q)}" fill="url(#hatch)" stroke="#141414" stroke-width="0.3"/>`); if (area(q) > 8) out.push(`<text x="${X(cc[0])}" y="${Y(cc[1])}" font-size="1.8" text-anchor="middle" fill="#6b6965">texnik</text>`); }
-  // zinalar (marshlar) va liftlar (×)
-  for (const s of G.stairs) {
-    out.push(`<path d="${path(s)}" fill="#d9d5cc" stroke="#141414" stroke-width="0.5"/>`);
-    const [a, b, c2, d] = s.length >= 4 ? s : [s[0], s[1], s[2], s[2]], long = Math.hypot(b[0] - a[0], b[1] - a[1]) >= Math.hypot(d[0] - a[0], d[1] - a[1]);
-    const [p0, p1, q0, q1] = long ? [a, b, d, c2] : [a, d, b, c2];
-    for (let i = 1; i < 12; i++) { const t = i / 12; out.push(seg(lerp(p0, p1, t), lerp(q0, q1, t), 'stroke="#141414" stroke-width="0.15"')); }
-    out.push(seg(lerp(p0, q0, 0.5), lerp(p1, q1, 0.5), 'stroke="#141414" stroke-width="0.3"'));
+  // zinalar: ikki marsh (oraligʻida 0,1 m boʻshliq), ikki uchida maydoncha, pogʻonalar 0,3 m, yoʻnalish strelkasi
+  const MOPS = G.mop;
+  for (const st of G.stairs) {
+    out.push(`<path d="${path(st)}" fill="#f4f2ee" stroke="#141414" stroke-width="0.5"/>`);
+    if (st.length !== 4) continue;
+    const [a, b, , d] = st, e1 = Math.hypot(b[0] - a[0], b[1] - a[1]), e2 = Math.hypot(d[0] - a[0], d[1] - a[1]);
+    const [o0, L, W2, uL, uW] = e1 >= e2 ? [a, e1, e2, [(b[0] - a[0]) / e1, (b[1] - a[1]) / e1], [(d[0] - a[0]) / e2, (d[1] - a[1]) / e2]] as const : [a, e2, e1, [(d[0] - a[0]) / e2, (d[1] - a[1]) / e2], [(b[0] - a[0]) / e1, (b[1] - a[1]) / e1]] as const;
+    const P2 = (t: number, w: number): XY => [o0[0] + uL[0] * t + uW[0] * w, o0[1] + uL[1] * t + uW[1] * w];
+    const land = Math.min(1.4, L * 0.22), f0 = land, f1 = L - land, mid = W2 / 2;
+    for (let t = f0; t <= f1 + 1e-6; t += 0.3) out.push(seg(P2(t, 0), P2(t, mid - 0.05), 'stroke="#141414" stroke-width="0.15"'), seg(P2(t, mid + 0.05), P2(t, W2), 'stroke="#141414" stroke-width="0.15"'));
+    out.push(`<path d="${path([P2(f0, mid - 0.05), P2(f1, mid - 0.05), P2(f1, mid + 0.05), P2(f0, mid + 0.05)])}" fill="#141414"/>`);
+    // strelka: birinchi marsh boʻylab yuqoriga, ikkinchisida qaytish
+    const s0 = P2(f0 + 0.2, mid / 2), s1 = P2(f1, mid / 2), s2 = P2(f1, mid + mid / 2), s3 = P2(f0 + 1.2, mid + mid / 2);
+    out.push(`<path d="M${X(s0[0])} ${Y(s0[1])}L${X(s1[0])} ${Y(s1[1])}L${X(s2[0])} ${Y(s2[1])}L${X(s3[0])} ${Y(s3[1])}" fill="none" stroke="#141414" stroke-width="0.22"/>`);
+    const ah = P2(f0 + 1.2 - 0.0, mid + mid / 2), ah1 = P2(f0 + 1.6, mid + mid / 2 - 0.25), ah2 = P2(f0 + 1.6, mid + mid / 2 + 0.25);
+    out.push(`<path d="M${X(ah[0])} ${Y(ah[1])}L${X(ah1[0])} ${Y(ah1[1])}L${X(ah2[0])} ${Y(ah2[1])}Z" fill="#141414"/>`);
+    out.push(`<circle cx="${X(s0[0])}" cy="${Y(s0[1])}" r="0.5" fill="#141414"/>`);
   }
-  for (const l of G.lifts) out.push(`<path d="${path(l)}" fill="#bdb8ae" stroke="#141414" stroke-width="0.4"/>`, seg(l[0], l[2], 'stroke="#141414" stroke-width="0.2"'), seg(l[1], l[3], 'stroke="#141414" stroke-width="0.2"'));
+  // liftlar: shaxta (qalin devor), kabina, eshik — lift oldi tomonida, qarshi yuk (orqada)
+  for (const lf of G.lifts) {
+    out.push(`<path d="${path(lf)}" fill="#fff" stroke="#141414" stroke-width="0.7"/>`);
+    if (lf.length !== 4) continue;
+    let fi = 0, fl = 0; for (let i = 0; i < 4; i++) { const sl = MOPS.reduce((t, mq) => t + sharedEdge([lf[i], lf[(i + 1) % 4]], mq).len, 0); if (sl > fl) { fl = sl; fi = i; } }
+    const A = lf[fi], B = lf[(fi + 1) % 4], C = lf[(fi + 2) % 4], wl = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, dl = Math.hypot(C[0] - B[0], C[1] - B[1]) || 1;
+    const ex: XY = [(B[0] - A[0]) / wl, (B[1] - A[1]) / wl], ey: XY = [(C[0] - B[0]) / dl, (C[1] - B[1]) / dl], Q = (x: number, y: number): XY => [A[0] + ex[0] * x + ey[0] * y, A[1] + ex[1] * x + ey[1] * y];
+    out.push(`<path d="${path([Q(0.25, 0.2), Q(wl - 0.25, 0.2), Q(wl - 0.25, dl - 0.45), Q(0.25, dl - 0.45)])}" fill="#e8e5df" stroke="#141414" stroke-width="0.25"/>`);
+    out.push(seg(Q(0.25, 0.2), Q(wl - 0.25, dl - 0.45), 'stroke="#141414" stroke-width="0.15"'), seg(Q(wl - 0.25, 0.2), Q(0.25, dl - 0.45), 'stroke="#141414" stroke-width="0.15"'));
+    out.push(`<path d="${path([Q(wl * 0.3, dl - 0.35), Q(wl * 0.7, dl - 0.35), Q(wl * 0.7, dl - 0.15), Q(wl * 0.3, dl - 0.15)])}" fill="#141414"/>`);
+    out.push(seg(Q(wl / 2 - 0.45, 0), Q(wl / 2 + 0.45, 0), 'stroke="#fff" stroke-width="0.8"'), seg(Q(wl / 2 - 0.45, 0.06), Q(wl / 2 + 0.45, 0.06), 'stroke="#141414" stroke-width="0.25"'));
+  }
   // seksiyalar orasidagi yongʻin devorlari
   for (const q of G.fireWalls) out.push(`<path d="${path(q)}" fill="#141414" stroke="#141414" stroke-width="0.3"/>`);
   // tashqi devor
@@ -133,7 +163,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
       out.push(seg(a, t, `stroke="${col}" stroke-width="0.45"`), `<path d="M${X(t[0])} ${Y(t[1])}L${X(t[0] - inward[0] * 0.8 + px * 0.5)} ${Y(t[1] - inward[1] * 0.8 + py * 0.5)}L${X(t[0] - inward[0] * 0.8 - px * 0.5)} ${Y(t[1] - inward[1] * 0.8 - py * 0.5)}Z" fill="${col}"/>`); };
     const inw = (ring: XY[], m: XY): XY => { const c = cen(ring), dx = c[0] - m[0], dy = c[1] - m[1]; let best: XY = [0, 0], bl = 0; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]), t = ((m[0] - a[0]) * (b[0] - a[0]) + (m[1] - a[1]) * (b[1] - a[1])) / (l * l || 1), d = Math.hypot(a[0] + (b[0] - a[0]) * t - m[0], a[1] + (b[1] - a[1]) * t - m[1]); if (t >= 0 && t <= 1 && d < 0.1 && l > bl) { bl = l; let nx = -(b[1] - a[1]) / l, ny = (b[0] - a[0]) / l; if (nx * dx + ny * dy < 0) { nx = -nx; ny = -ny; } best = [nx, ny]; } } return best; };
     for (const q of G.rooms) if (q.kind === 'savdo') { const s2 = sharedEdge(q.ring, r); if (s2.len > 1.5) arrow(s2.mid, inw(q.ring, s2.mid), '#0a5bd8'); }
-    for (const s3 of G.stairs) { const s2 = sharedEdge(s3, r); if (s2.len > 1) arrow(s2.mid, inw(s3, s2.mid), '#141414'); }
+    for (const q of G.mop) for (const [p1, p2] of facadeSegs(q, r)) { const l = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]); if (l > 1 && l < 8) { const m: XY = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]; arrow(m, inw(q, m), '#141414'); } }
   }
   // derazalar: kvartira modullari oʻrtasida 1,6 m
   const used = new Set(G.apts.flatMap(a => a.mods));
@@ -162,7 +192,9 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const bad = checks.filter(c => c.ok === false).length;
   out.push(`<text x="${(W - 4).toFixed(1)}" y="${(H - 2).toFixed(1)}" font-size="2.2" text-anchor="end" fill="#6b6965">M 1:${o.scale} · ${o.floor}-qavat (${FLOOR_NAME[ft]}) · ${bad ? `${bad} ta qoida buzilgan` : 'qoidalar bajarilgan'}${bals.length ? ' · balkon ×' + String(BAL_K[o.bal!] ?? 0).replace('.', ',') + ' (ShNQ 2.08.01-19, 2-ilova)' : ''} · sxema</text>`);
   const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(1)}mm" height="${H.toFixed(1)}mm" viewBox="0 0 ${W.toFixed(1)} ${H.toFixed(1)}" font-family="Archivo, system-ui, sans-serif">${out.join('')}</svg>`;
-  return { svg, widthMm: W, heightMm: H, apts: P0.apts.map(a => ({ rooms: a.rooms, area: a.area * 0.85, ring: a.ring })), plan: P0, checks, type: ft };
+  return { svg, widthMm: W, heightMm: H, apts: P0.apts.map(a => ({ rooms: a.rooms, area: a.area * 0.85, ring: a.ring })), plan: P0, checks, type: ft,
+    toSvg: (p: XY) => { const q = T(p); return [Number(X(q[0])), Number(Y(q[1]))]; },
+    toPlan: (sx: number, sy: number) => { const u = (sx - pad - 5) / k + x0, v = y1 - (sy - pad - 12) / k; return [U[0] * u + V[0] * v, U[1] * u + V[1] * v]; } };
 }
 
 /** Rejalar toʻplami — bitta SVG varaq, toʻrga joylangan */

@@ -883,7 +883,7 @@ export class Scene3D {
     if (this.marks) { this.scene.remove(this.marks); this.marks.geometry.dispose(); (this.marks.material as THREE.Material).dispose(); this.marks = null; }
     if (list?.length) {
       const pos: number[] = [], col: number[] = [], c = new THREE.Color();
-      for (const q of list) {
+      for (const q of list ?? []) {
         const dx = q.b[0] - q.a[0], dy = q.b[1] - q.a[1], l = Math.hypot(dx, dy) || 1, n = [dy / l * 0.12, -dx / l * 0.12], k = 0.14;
         const a = [q.a[0] + dx * k + n[0], q.a[1] + dy * k + n[1]], b = [q.b[0] - dx * k + n[0], q.b[1] - dy * k + n[1]];
         c.setHex(q.color);
@@ -899,12 +899,12 @@ export class Scene3D {
 
   /** Kvartiralar «terisi»: har kvartira moduli — fasaddan 0,12 m tashqarida, ichkariga depth m, qavat balandligida (rangi — turi yoki insolyatsiya) */
   private aptBoxes: THREE.Mesh | null = null;
-  setAptBoxes(list: { a: XY; b: XY; y0: number; y1: number; color: number; depth: number }[] | null): void {
+  setAptBoxes(list: { a: XY; b: XY; y0: number; y1: number; color: number; depth: number }[] | null, caps: { ring: XY[]; y: number; color: number }[] = []): void {
     if (this.aptBoxes) { this.scene.remove(this.aptBoxes); this.aptBoxes.geometry.dispose(); (this.aptBoxes.material as THREE.Material).dispose(); this.aptBoxes = null; }
-    if (list?.length) {
+    if (list?.length || caps.length) {
       const pos: number[] = [], col: number[] = [], c = new THREE.Color();
       const quad = (p: number[][], y: number[]) => { for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(p[i][0], y[i], -p[i][1]); col.push(c.r, c.g, c.b); } };
-      for (const q of list) {
+      for (const q of list ?? []) {
         const dx = q.b[0] - q.a[0], dy = q.b[1] - q.a[1], l = Math.hypot(dx, dy) || 1, nx = dy / l, ny = -dx / l;   // tashqi normal
         const o = 0.12, k = 0.02;
         const a0 = [q.a[0] + dx * k + nx * o, q.a[1] + dy * k + ny * o], b0 = [q.b[0] - dx * k + nx * o, q.b[1] - dy * k + ny * o];
@@ -914,6 +914,12 @@ export class Scene3D {
         quad([a0, a0, a1, a1], [q.y0, q.y1, q.y1, q.y0]);            // yon
         quad([b0, b1, b1, b0], [q.y0, q.y0, q.y1, q.y1]);
         quad([a0, b0, b1, a1], [q.y1, q.y1, q.y1, q.y1]);            // tepa
+      }
+      // kvartira poli (qavat kesimida zonalar koʻrinadi)
+      for (const cp of caps) {
+        let tris: number[][] = []; try { tris = THREE.ShapeUtils.triangulateShape(cp.ring.map(p => new THREE.Vector2(p[0], p[1])), []); } catch { continue; }
+        c.setHex(cp.color);
+        for (const t of tris) for (const i of t) { const p = cp.ring[i]; pos.push(p[0], cp.y, -p[1]); col.push(c.r, c.g, c.b); }
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
       this.aptBoxes = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); this.aptBoxes.renderOrder = 9; this.aptBoxes.castShadow = false; this.scene.add(this.aptBoxes);
