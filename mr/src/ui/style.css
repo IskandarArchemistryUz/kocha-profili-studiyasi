@@ -43,7 +43,7 @@ button{cursor:pointer}
 .save i{width:7px;height:7px;border-radius:50%;background:var(--ok)}.save[data-s=pending] i{background:var(--warn)}.save[data-s=error] i{background:var(--bad)}
 .sp{flex:1}
 .stage{position:relative;min-height:0;overflow:hidden}
-#scene{position:absolute;inset:0}
+#scene{position:absolute;inset:0;overflow:hidden}
 #scene canvas{display:block;width:100%;height:100%}
 
 /* qadamlar qatori */
@@ -148,3 +148,16 @@ details.manual{border-top:1px solid var(--line);padding-top:8px;display:grid;gap
 .gx-view{min-height:0;padding:24px;display:grid;place-items:center;overflow:hidden}
 .gx-view svg{width:100%;height:100%;max-height:calc(100vh - 110px);background:#fff;box-shadow:var(--shadow)}
 @media (max-width:760px){.gx{grid-template-columns:1fr;grid-template-rows:auto 1fr}.gx-side{max-height:45vh}}
+
+/* uslub va kamera oynalari */
+.popbtn span{font-weight:600}
+.pop{position:fixed;z-index:40;width:320px;max-height:calc(100vh - 80px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px}
+.popbody{display:flex;flex-direction:column;gap:9px}.popbody>*{flex-shrink:0}.popbody .note{font-size:11.5px;color:var(--muted);margin:0}
+.popbody .opts{display:grid;gap:4px}.popbody .opts button{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:6px 10px;display:grid}
+.popbody .opts button small{font-size:11px;color:var(--muted)}.popbody .opts button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
+.seg.wrap{flex-wrap:wrap}.seg.wrap button{padding:0 8px;flex:1 0 auto}
+.popbody input[type=text]{flex:1;height:32px;border:1px solid var(--line);border-radius:var(--r);padding:0 8px;min-width:0}
+.views{display:grid;gap:4px}.vrow{display:flex;gap:4px;align-items:stretch}
+.vgo{flex:1;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:5px 9px;display:grid}.vgo:hover{border-color:var(--ink)}.vgo small{font-size:11px;color:var(--muted)}
+.ib.sm{width:28px;height:auto;font-size:16px}
+.frame{position:absolute;z-index:3;pointer-events:none;box-shadow:0 0 0 9999px rgba(20,20,20,.38);outline:1px solid rgba(255,255,255,.9)}

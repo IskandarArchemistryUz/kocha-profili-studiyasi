@@ -6,7 +6,7 @@ import type { LngLat, Project } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError } from '../core/commands';
 import { frame, type XY } from '../core/geo';
-import { Scene3D, type ViewMode } from '../scene/scene';
+import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
 import type { Result } from '../norms/rules';
@@ -108,7 +108,8 @@ export class Editor {
       ib('back', 'Loyihalar', ICON.back, () => this.onExit()),
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, 'Archemistry Lab', h('small', {}, '· Master reja')),
       name, save, h('span', { class: 'sp' }),
-      h('div', { class: 'seg', role: 'group', 'aria-label': 'Uslub', id: 'styleSeg' }, ...([['albom', 'Albom'], ['rangli', 'Rangli']] as const).map(([k, t]) => h('button', { 'data-style': k, 'aria-pressed': (k === 'albom') === this.albumPref, title: k === 'albom' ? 'Taqdimot koʻrinishi: oq binolar, och yoʻllar va daraxtlar, soyalar' : 'OSM ranglari va sunʼiy yoʻldosh tasviri', onclick: () => { this.albumPref = k === 'albom'; this.syncFade(); } }, t))),
+      this.popBtn('stylePop', 'Uslub', () => this.stylePop()),
+      this.popBtn('camPop', 'Kamera', () => this.camPop()),
       h('button', { class: 'btn', id: 'gxOpen', title: 'Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG', onclick: () => this.openGraphics() }, 'Grafika'),
       seg,
       ib('undo', 'Bekor qilish (Ctrl+Z)', ICON.undo, () => this.store.undo()),
@@ -154,11 +155,79 @@ export class Editor {
   }
 
   /** koʻrinish uslubi: «Albom» (taqdimot, sukut boʻyicha) yoki «Rangli» (OSM ranglari, sunʼiy yoʻldosh) */
-  private albumPref = (() => { try { return localStorage.getItem('mr-style') !== 'rangli'; } catch { return true; } })();
+  private stylePref: SceneStyle = (() => { try { const v = localStorage.getItem('mr-style'); return STYLES.some(x => x.id === v) ? v as SceneStyle : 'albom'; } catch { return 'albom'; } })();
   private syncFade(): void {
-    this.scene.setAlbum(this.albumPref);
-    try { localStorage.setItem('mr-style', this.albumPref ? 'albom' : 'rangli'); } catch { /* */ }
-    this.root.querySelectorAll('#styleSeg button').forEach(b => b.setAttribute('aria-pressed', String(((b as HTMLElement).dataset.style === 'albom') === this.albumPref)));
+    this.scene.setStyle(this.stylePref);
+    try { localStorage.setItem('mr-style', this.stylePref); } catch { /* */ }
+    document.querySelectorAll('[data-style]').forEach(b => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.style === this.stylePref)));
+    const sb = this.root.querySelector('#stylePop span'); if (sb) sb.textContent = STYLES.find(x => x.id === this.stylePref)!.name;
+  }
+
+  /* ---------- yuqori paneldagi ochiluvchi oynalar: uslub va kamera ---------- */
+  private pop: HTMLElement | null = null;
+  private popBtn(id: string, label: string, body: () => HTMLElement): HTMLElement {
+    const b = h('button', { class: 'btn popbtn', id, 'aria-haspopup': 'true', 'aria-expanded': false, onclick: (e: MouseEvent) => {
+      e.stopPropagation();
+      const was = this.pop?.dataset.for === id; this.closePop(); if (was) return;
+      const p = h('div', { class: 'pop', 'data-for': id, role: 'dialog', 'aria-label': label }); p.append(body());
+      p.addEventListener('click', ev => ev.stopPropagation());
+      const r = b.getBoundingClientRect(); p.style.top = `${r.bottom + 6}px`; p.style.left = `${Math.max(8, Math.min(window.innerWidth - 330, r.left))}px`;
+      document.body.append(p); this.pop = p; b.setAttribute('aria-expanded', 'true');
+      const off = (ev: MouseEvent) => { if (!ev.isTrusted) return; this.closePop(); document.removeEventListener('click', off); }; setTimeout(() => document.addEventListener('click', off), 0);
+    } }, h('span', {}, label), ' ▾');
+    return b;
+  }
+  private closePop(): void { if (!this.pop) return; this.root.querySelector(`#${this.pop.dataset.for}`)?.setAttribute('aria-expanded', 'false'); this.pop.remove(); this.pop = null; }
+  private refreshPop(): void { const p = this.pop; if (!p) return; const id = p.dataset.for!; p.replaceChildren(id === 'stylePop' ? this.stylePop() : this.camPop()); }
+
+  private stylePop(): HTMLElement {
+    const gap = h('input', { type: 'range', min: '0.2', max: '1.5', step: '0.05', value: String(this.scene.explodeGap), id: 'exGap', 'aria-label': 'Qatlamlar oraligʻi' }) as HTMLInputElement;
+    gap.oninput = () => this.scene.setExploded(this.scene.exploded, +gap.value);
+    const ex = h('input', { type: 'checkbox', checked: this.scene.exploded, id: 'exOn' }) as HTMLInputElement;
+    ex.onchange = () => { this.scene.setExploded(ex.checked, +gap.value); gap.disabled = !ex.checked; };
+    gap.disabled = !ex.checked;
+    return h('div', { class: 'popbody' },
+      h('div', { class: 'lb' }, 'Uslub'),
+      h('div', { class: 'opts' }, ...STYLES.map(x => h('button', { 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, h('b', {}, x.name), h('small', {}, x.note)))),
+      h('label', { class: 'row', style: 'font-size:13px' }, ex, 'Portlatilgan qatlamlar'),
+      h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Qatlamlar oraligʻi'), gap),
+      h('p', { class: 'note' }, 'Qatlamlar: 1 atrof → 2 koʻchalar → 3 kvartallar va zonalar → 4 binolar. Taqdimot uchun aksonometriyada yaxshi koʻrinadi.'));
+  }
+
+  private frameId = 'erkin';
+  private frameWatch = false;
+  private camPop(): HTMLElement {
+    const sc = this.scene, doc = this.store.doc;
+    const name = h('input', { type: 'text', placeholder: `Koʻrinish ${doc.views.length + 1}`, id: 'vName' }) as HTMLInputElement;
+    const tp = h('input', { type: 'checkbox', checked: sc.twoPoint, id: 'twoPt' }) as HTMLInputElement;
+    tp.onchange = () => { if (tp.checked && sc.view !== 'persp') this.setView('persp'); sc.setTwoPoint(tp.checked); };
+    const save = () => {
+      const v = { id: uid('v'), name: name.value.trim() || `Koʻrinish ${doc.views.length + 1}`, frame: this.frameId, ...sc.getCamera() };
+      this.run(() => this.store.dispatch({ type: 'addView', view: v })); this.refreshPop();
+    };
+    const vname = (m: string) => m === 'persp' ? 'Persp' : m === 'axo' ? 'Akso' : 'Reja';
+    return h('div', { class: 'popbody' },
+      h('div', { class: 'lb' }, 'Obyektiv (perspektiva)'),
+      h('div', { class: 'seg wrap', id: 'lensSeg' }, ...LENSES.map(mm => h('button', { 'data-lens': mm, 'aria-pressed': sc.lens === mm, onclick: () => { sc.setLens(mm); this.refreshPop(); } }, `${mm} mm`))),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn grow', id: 'eyeLvl', title: 'Piyoda koʻzi: yerdan 1,6 m', onclick: () => { sc.eyeLevel(); this.el.seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === 'persp'))); } }, 'Koʻz sathi (1,6 m)')),
+      h('label', { class: 'row', style: 'font-size:13px' }, tp, '2 nuqtali perspektiva (vertikallar tik)'),
+      h('div', { class: 'lb' }, 'Kadr'),
+      h('div', { class: 'seg wrap', id: 'frameSeg' }, ...FRAMES.map(f => h('button', { 'data-frame': f.id, 'aria-pressed': this.frameId === f.id, onclick: () => { this.frameId = f.id; this.syncFrame(); this.refreshPop(); } }, f.name))),
+      h('div', { class: 'lb' }, 'Saqlangan koʻrinishlar'),
+      doc.views.length ? h('div', { class: 'views' }, ...doc.views.map(v => h('div', { class: 'vrow' },
+        h('button', { class: 'vgo', 'data-view-id': v.id, onclick: () => { sc.setCamera(v); this.frameId = v.frame; this.syncFrame(); this.el.seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v.mode))); this.refreshPop(); } }, h('b', {}, v.name), h('small', {}, `${vname(v.mode)}${v.mode === 'persp' ? ` · ${v.lens} mm${v.twoPoint ? ' · 2 nuqta' : ''}` : ''} · ${FRAMES.find(f => f.id === v.frame)?.name ?? 'Erkin'}`)),
+        h('button', { class: 'ib sm', title: 'Oʻchirish', 'aria-label': `${v.name} — oʻchirish`, onclick: () => { this.run(() => this.store.dispatch({ type: 'removeView', id: v.id })); this.refreshPop(); } }, '×')))) : h('p', { class: 'note' }, 'Hali yoʻq. Kamerani joylang va saqlang — loyiha bilan birga saqlanadi.'),
+      h('div', { class: 'row' }, name, h('button', { class: 'btn primary', id: 'vSave', onclick: save }, 'Saqlash')),
+      h('button', { class: 'btn', id: 'shotFrame', onclick: () => download(`${safe(doc.name)}_kadr.png`, sc.snapshot(FRAMES.find(f => f.id === this.frameId)?.r ?? 0)) }, 'Kadrdagi rasm (PNG)'));
+  }
+  /** kadr chegarasi sahna ustida (tashqarisi xiralashgan) */
+  private syncFrame(): void {
+    const r = FRAMES.find(f => f.id === this.frameId)?.r ?? 0;
+    let el = this.el.scene.querySelector<HTMLDivElement>('.frame');
+    if (!r) { el?.remove(); return; }
+    if (!el) { el = h('div', { class: 'frame', 'aria-hidden': 'true' }); this.el.scene.append(el); if (!this.frameWatch) { this.frameWatch = true; window.addEventListener('resize', () => this.syncFrame()); } }
+    const q = this.scene.frameRect(r); Object.assign(el.style, { left: `${q.x}px`, top: `${q.y}px`, width: `${q.w}px`, height: `${q.h}px` });
   }
 
   private renderAll(): void {

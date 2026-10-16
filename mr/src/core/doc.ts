@@ -43,6 +43,9 @@ export interface Parcel { id: string; block: string; rings: Ring[]; use: Use }
 /** Qoʻlda qoʻshilgan mavjud xizmat obyekti (OSM da yoʻq bogʻcha, maktab…) — xizmat radiuslari tahlilida manba */
 export interface ManualPoi { id: string; kind: 'mtm' | 'maktab' | 'poliklinika' | 'dorixona' | 'savdo' | 'sport' | 'mahalla'; at: LngLat; name?: string }
 
+/** Saqlangan kamera koʻrinishi (mahalliy metr, three.js oʻqlari: y — yuqoriga, z = −shimol) */
+export interface SavedView { id: string; name: string; mode: 'plan' | 'axo' | 'persp'; pos: [number, number, number]; target: [number, number, number]; zoom: number; lens: number; twoPoint: boolean; frame: string }
+
 export interface ZoneLabel { id: string; at: LngLat; use: Use; /** shu kvartal uchun oxirgi generator parametrlari */ gen?: Record<string, unknown> }
 
 export interface Settings {
@@ -104,6 +107,8 @@ export interface Project {
   keep: number[];
   /** qoʻlda belgilangan mavjud xizmat obyektlari */
   pois: ManualPoi[];
+  /** saqlangan kamera koʻrinishlari (taqdimot uchun) */
+  views: SavedView[];
 }
 
 /** Toshkent markazi — hudud tanlanmaguncha boshlangʻich nuqta */
@@ -136,7 +141,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
     origin: [...DEFAULT_ORIGIN] as LngLat,
     settings: { ...DEFAULT_SETTINGS, aptMix: [...DEFAULT_SETTINGS.aptMix], comp: { ...COMP_DEFAULT } },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
-    site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [], pois: [],
+    site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [], pois: [], views: [],
   };
 }
 
@@ -200,10 +205,13 @@ export function migrate(raw: unknown): Project {
   const PK = ['mtm', 'maktab', 'poliklinika', 'dorixona', 'savdo', 'sport', 'mahalla'];
   const pois: ManualPoi[] = (Array.isArray(d.pois) ? d.pois : []).filter((x: any) => x && typeof x.id === 'string' && PK.includes(x.kind) && isLL(x.at))
     .map((x: any) => ({ id: x.id, kind: x.kind, at: [x.at[0], x.at[1]] as LngLat, ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}) }));
+  const v3 = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every(isNum);
+  const views: SavedView[] = (Array.isArray(d.views) ? d.views : []).filter((x: any) => x && typeof x.id === 'string' && v3(x.pos) && v3(x.target) && ['plan', 'axo', 'persp'].includes(x.mode))
+    .map((x: any) => ({ id: x.id, name: String(x.name ?? 'Koʻrinish').slice(0, 60), mode: x.mode, pos: [...x.pos] as [number, number, number], target: [...x.target] as [number, number, number], zoom: isNum(x.zoom) && x.zoom > 0 ? x.zoom : 1, lens: isNum(x.lens) && x.lens >= 10 && x.lens <= 200 ? x.lens : 35, twoPoint: x.twoPoint === true, frame: typeof x.frame === 'string' ? x.frame : 'erkin' }));
   return {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois,
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois, views,
   };
 }
