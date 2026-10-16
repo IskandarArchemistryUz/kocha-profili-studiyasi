@@ -338,7 +338,7 @@ export class Scene3D {
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     const fr = frame(origin), a = fr.toLocal(pxToLngLat(img.x0, img.y0, img.z)), c = fr.toLocal(pxToLngLat(img.x0 + img.W, img.y0 + img.H, img.z));
     const g = new THREE.PlaneGeometry(c[0] - a[0], a[1] - c[1]); g.rotateX(-Math.PI / 2); g.translate((a[0] + c[0]) / 2, 0.02, -(a[1] + c[1]) / 2);
-    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, depthWrite: false })); mesh.renderOrder = -1; mesh.name = 'fon-xarita';
+    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })); mesh.renderOrder = 1; mesh.name = 'fon-xarita';
     this.scene.add(mesh); this.baseMap = { mesh, blob: img.image }; this.grid.forEach(gr => gr.visible = false); this.invalidate();
   }
   /** Kamera boshqaruvini vaqtincha oʻchirish (sudrash paytida) */
