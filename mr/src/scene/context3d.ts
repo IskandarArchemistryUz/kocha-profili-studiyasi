@@ -227,7 +227,7 @@ function treePositions(b: ContextBundle, fr: Frame, R: number, avoid: (p: XY) =>
   return out;
 }
 
-export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; dispose(): void; maskTrees(ring: XY[] | null): void }
+export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; /** uchastkadan tashqaridagi koʻrinadigan binolar (tanlash uchun) */ blds: CtxBld[]; dispose(): void; maskTrees(ring: XY[] | null): void }
 
 /** Butun kontekst sahnasini qurish */
 export interface CtxBld { id: number; rings: XY[][]; h: number; kind?: string }
@@ -240,9 +240,9 @@ export function buildingMeshes(list: CtxBld[], H: HeightFn, mat: THREE.Material,
   return out;
 }
 
-export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null, site: XY[] | null = null, skipRoads: Set<number> = new Set()): ContextScene {
+export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null, site: XY[] | null = null, skipRoads: Set<number> = new Set(), removed: Set<number> = new Set()): ContextScene {
   const g = new THREE.Group(); g.name = 'kontekst';
-  const inSite: CtxBld[] = [];
+  const inSite: CtxBld[] = [], blds: CtxBld[] = [];
   const R = b.radius, L = cs.layers;
   const C0 = fr.toLocal(b.center);
   const clip = (pts: XY[]) => pts.some(p => Math.abs(p[0] - C0[0]) < R * 1.05 && Math.abs(p[1] - C0[1]) < R * 1.05);
@@ -303,11 +303,12 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   }
   // binolar
   if (L.buildings) {
-    const all = b.osm.buildings.map(x => ({ id: x.id, rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, kind: x.kind })).filter(x => clip(x.rings[0]));
+    const all = b.osm.buildings.map(x => ({ id: x.id, rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, kind: x.kind })).filter(x => clip(x.rings[0]) && !removed.has(x.id));
     // uchastka ichidagilar (markazi boʻyicha) — alohida: saqlash/buzish qarori loyihada
     const cen = (r: XY[]): XY => { let x = 0, y = 0; r.forEach(p => { x += p[0]; y += p[1]; }); return [x / r.length, y / r.length]; };
     const bl = site ? all.filter(x => !pip(cen(x.rings[0]), site)) : all;
     if (site) inSite.push(...all.filter(x => pip(cen(x.rings[0]), site)));
+    blds.push(...bl);
     const bg = buildingsGeo(bl, H);
     if (bg) {
       const m = new THREE.Mesh(bg.mesh, new THREE.MeshLambertMaterial({ color: CC.bld })); m.name = 'binolar'; m.castShadow = m.receiveShadow = true; m.renderOrder = 10;
@@ -340,7 +341,7 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     }
   }
   return {
-    group: g, ground, inSite,
+    group: g, ground, inSite, blds,
     /** Loyiha uchastkasi ichidagi kontekst daraxtlarini yashirish (uchastka loyihalanadi) */
     maskTrees(ring) {
       const crown = g.getObjectByName('daraxtlar') as THREE.InstancedMesh | undefined; if (!crown) return;

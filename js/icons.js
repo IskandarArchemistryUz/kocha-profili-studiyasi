@@ -1,5 +1,5 @@
 /* Archemistry Lab — yagona ikonka tili (dizayn: «Ikonkalar — yagona uslub»).
-   Qoida: 24 × 24 toʻr, 1,5 px chiziq, uchlar va burchaklar round, toʻldirish yoʻq,
+   Qoida: 24 × 24 toʻr, 1,75 px chiziq, uchlar va burchaklar round, toʻldirish yoʻq,
    chegara chizigʻi shtrix 3,5 / 2, faol holat — qora fon, oq chiziq.
    Bir xil vazifa — bir xil belgi: «Bino» Hudud, Binolar, Master reja va 3D da bitta ikonka.
    KIC.P — <svg> ichki qismi; KIC.D — faqat path (kanvas va Path2D uchun, xizmat belgilari). */

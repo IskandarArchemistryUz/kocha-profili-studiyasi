@@ -1,6 +1,6 @@
 /**
  * Grafika muharriri: toʻliq ekranli oyna — chapda varaq sozlamalari, oʻngda jonli koʻrinish.
- * Eksport: SVG (qatlamlar bilan, mm da) va PNG (150/300 dpi).
+ * Eksport: SVG (qatlamlar bilan, mm da), Illustrator uchun SVG (har qatlam — Illustrator qatlami) va PNG (150/300 dpi).
  */
 import type { Project } from '../core/doc';
 import { sheetSvg, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetOpts, type Paper } from '../core/sheet';
@@ -13,6 +13,11 @@ function loadOpts(): SheetOpts {
 }
 const saveOpts = (o: SheetOpts) => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch { /* yoʻq */ } };
 const safe = (s: string) => s.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60) || 'loyiha';
+
+/** Illustrator uchun varaq (oxirgi sozlamalar bilan): har qatlam — alohida Illustrator qatlami, mm da */
+export function downloadIllustrator(doc: Project, ctx: SheetCtx | null, o: SheetOpts = loadOpts()): void {
+  download(`${safe(doc.name)}_${o.kind}_illustrator.svg`, sheetSvg(doc, ctx, o, new Date(), true).svg, 'image/svg+xml');
+}
 
 export function openGraphics(doc: Project, ctx: SheetCtx | null): void {
   const o = loadOpts();
@@ -74,8 +79,9 @@ export function openGraphics(doc: Project, ctx: SheetCtx | null): void {
     h('div', { class: 'chk' }, chk('context', 'Atrof (OSM)'), chk('trees', 'Daraxtlar'), chk('labels', 'Yozuvlar, qavatlar'), chk('demolished', 'Buziladigan binolar')),
     h('div', { class: 'gx-actions' },
       h('button', { class: 'btn primary', id: 'gxSvg', onclick: () => download(`${safe(doc.name)}_${o.kind}.svg`, last.svg, 'image/svg+xml') }, 'SVG (qatlamlar bilan)'),
+      h('button', { class: 'btn', id: 'gxAi', onclick: () => downloadIllustrator(doc, ctx, o) }, 'Adobe Illustrator uchun (SVG, qatlamlar)'),
       h('div', { class: 'row' }, h('button', { class: 'btn grow', id: 'gxPng', onclick: () => png(150) }, 'PNG 150 dpi'), h('button', { class: 'btn grow', onclick: () => png(300) }, 'PNG 300 dpi'))),
-    h('p', { class: 'note' }, 'SVG haqiqiy oʻlchamda (mm): Illustrator yoki Inkscape da har qatlam alohida — atrof, koʻchalar, binolar, yozuvlar. Masshtab «avtomatik» boʻlsa — uchastka sigʻadigan eng yirik standart masshtab tanlanadi.'),
+    h('p', { class: 'note' }, 'SVG haqiqiy oʻlchamda (mm). «Illustrator uchun» faylini Illustrator da Fayl → Ochish bilan oching: atrof, koʻchalar, binolar, yozuvlar — alohida qatlamlar (Layers). Inkscape oddiy SVG ni ham qatlam bilan ochadi. Masshtab «avtomatik» boʻlsa — uchastka sigʻadigan eng yirik standart masshtab tanlanadi.'),
   );
 
   const wrap = h('div', { class: 'gx', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Grafika muharriri' },

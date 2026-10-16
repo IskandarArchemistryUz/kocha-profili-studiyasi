@@ -82,7 +82,7 @@ export function niceLen(maxM: number): number {
   return [...steps].reverse().find(s => s <= maxM) ?? 10;
 }
 
-export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date = new Date()): SheetResult {
+export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date = new Date(), ai = false): SheetResult {
   const fr = frame(doc.origin), fh = doc.settings.floorHeight;
   const [pw, ph] = o.landscape ? PAPERS[o.paper] : [PAPERS[o.paper][1], PAPERS[o.paper][0]];
   const M = 10, TB = o.show.title ? 22 : 0; // chekka va pastki sarlavha boʻlagi, mm
@@ -111,7 +111,8 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const lw = (mm: number) => n2(mm); // chiziq qalinligi, mm (masshtabga bogʻliq emas)
 
   const K = o.kind, L: string[] = [], legend: LegendItem[] = [];
-  const g = (id: string, body: string, attrs = '') => { if (body) L.push(`<g id="${id}" inkscape:groupmode="layer" inkscape:label="${id}"${attrs}>${body}</g>`); };
+  // Illustrator: har qatlam — yuqori darajadagi <g i:layer="yes"> (Fayl → Ochish da alohida qatlam), kesish — qatlam ichida
+  const g = (id: string, body: string, attrs = '') => { if (body) L.push(ai ? `<g id="${id}" i:layer="yes" inkscape:groupmode="layer" inkscape:label="${id}"><g clip-path="url(#vp)"${attrs}>${body}</g></g>` : `<g id="${id}" inkscape:groupmode="layer" inkscape:label="${id}"${attrs}>${body}</g>`); };
 
   // ranglar
   const C = {
@@ -144,7 +145,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
         + roads.filter(r => sw(r.cls) > 0).map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#e9e7e2" stroke-width="${n2(r.w * k)}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), outside);
     }
     if (K !== 'figura' && ctx.rails.length) g('Atrof_temir_yol', ctx.rails.filter(vis).map(l => `<path d="${lineD(l)}" fill="none" stroke="#9a978f" stroke-width="${lw(0.35)}" stroke-dasharray="3 1.2"/>`).join(''), outside);
-    const cb = ctx.buildings.filter(b => b.rings[0] && vis(b.rings[0]));
+    const rmv = new Set(doc.removed ?? []), cb = ctx.buildings.filter(b => b.rings[0] && vis(b.rings[0]) && !rmv.has(b.id));
     const kept = cb.filter(b => !inSite(centroid(b.rings[0])) || keep.has(b.id));
     const gone = cb.filter(b => inSite(centroid(b.rings[0])) && !keep.has(b.id));
     g('Atrof_binolar', kept.map(b => {
@@ -250,17 +251,17 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
 
   // varaq bezaklari (kesilmaydi)
   const A: string[] = [];
-  if (o.show.frame) A.push(`<g id="Ramka" inkscape:groupmode="layer" inkscape:label="Ramka"><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="none" stroke="#1d1d1b" stroke-width="0.35"/></g>`);
+  if (o.show.frame) A.push(`<g id="Ramka" ${ai ? 'i:layer="yes" ' : ''}inkscape:groupmode="layer" inkscape:label="Ramka"><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="none" stroke="#1d1d1b" stroke-width="0.35"/></g>`);
   if (o.show.north) {
     const nx = vx + vw - 12, ny = vy + 14;
-    A.push(`<g id="Shimol" inkscape:groupmode="layer" inkscape:label="Shimol"><circle cx="${nx}" cy="${ny}" r="7" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.3"/><path d="M${nx},${ny - 6}L${nx + 2.6},${ny + 4}L${nx},${ny + 2.4}Z" fill="#1d1d1b"/><path d="M${nx},${ny - 6}L${nx - 2.6},${ny + 4}L${nx},${ny + 2.4}Z" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.25"/><text x="${nx}" y="${ny - 7.8}" font-size="3" font-weight="700" text-anchor="middle" fill="#1d1d1b">N</text></g>`);
+    A.push(`<g id="Shimol" ${ai ? 'i:layer="yes" ' : ''}inkscape:groupmode="layer" inkscape:label="Shimol"><circle cx="${nx}" cy="${ny}" r="7" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.3"/><path d="M${nx},${ny - 6}L${nx + 2.6},${ny + 4}L${nx},${ny + 2.4}Z" fill="#1d1d1b"/><path d="M${nx},${ny - 6}L${nx - 2.6},${ny + 4}L${nx},${ny + 2.4}Z" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.25"/><text x="${nx}" y="${ny - 7.8}" font-size="3" font-weight="700" text-anchor="middle" fill="#1d1d1b">N</text></g>`);
   }
   if (o.show.scaleBar) {
     const len = niceLen(Math.min(vw * 0.3, 80) / k), seg = len / 4, bx = vx + 6, by = vy + vh - 8, out: string[] = [];
     for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(bx + i * seg * k)}" y="${by}" width="${n2(seg * k)}" height="1.4" fill="${i % 2 ? '#ffffff' : '#1d1d1b'}" stroke="#1d1d1b" stroke-width="0.2"/>`);
     for (let i = 0; i <= 4; i += 2) out.push(`<text x="${n2(bx + i * seg * k)}" y="${by - 1.2}" font-size="2.2" text-anchor="middle" fill="#1d1d1b">${i * seg}</text>`);
     out.push(`<text x="${n2(bx + len * k + 2)}" y="${by + 1.3}" font-size="2.2" fill="#1d1d1b">m · M 1:${scale}</text>`);
-    A.push(`<g id="Masshtab" inkscape:groupmode="layer" inkscape:label="Masshtab"><rect x="${bx - 3}" y="${by - 5}" width="${n2(len * k + 26)}" height="8" fill="#ffffff" fill-opacity="0.85"/>${out.join('')}</g>`);
+    A.push(`<g id="Masshtab" ${ai ? 'i:layer="yes" ' : ''}inkscape:groupmode="layer" inkscape:label="Masshtab"><rect x="${bx - 3}" y="${by - 5}" width="${n2(len * k + 26)}" height="8" fill="#ffffff" fill-opacity="0.85"/>${out.join('')}</g>`);
   }
   if (o.show.legend && legend.length) {
     const rowH = 4.6, w = 56, hgt = 7 + legend.length * rowH, lx = vx + vw - w - 4, ly = vy + vh - hgt - 4, out: string[] = [];
@@ -273,12 +274,12 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       if (it.type === 'tree') out.push(`<circle cx="${sx + 3}" cy="${n2(y + 1.3)}" r="1.4" fill="#ffffff" stroke="#7d8a6a" stroke-width="0.15"/>`);
       out.push(`<text x="${sx + 8}" y="${n2(y + 2.3)}" font-size="2.3" fill="#1d1d1b">${esc(it.label)}</text>`);
     });
-    A.push(`<g id="Shartli_belgilar" inkscape:groupmode="layer" inkscape:label="Shartli belgilar">${out.join('')}</g>`);
+    A.push(`<g id="Shartli_belgilar" ${ai ? 'i:layer="yes" ' : ''}inkscape:groupmode="layer" inkscape:label="Shartli belgilar">${out.join('')}</g>`);
   }
   if (o.show.title) {
     const ty = ph - M - TB + 4, kindName = SHEET_KINDS.find(s => s.id === K)!.name;
     const d = date.toLocaleDateString('ru-RU');
-    A.push(`<g id="Sarlavha" inkscape:groupmode="layer" inkscape:label="Sarlavha"><path d="M${vx},${ty - 1}H${vx + vw}" stroke="#1d1d1b" stroke-width="0.35"/>`
+    A.push(`<g id="Sarlavha" ${ai ? 'i:layer="yes" ' : ''}inkscape:groupmode="layer" inkscape:label="Sarlavha"><path d="M${vx},${ty - 1}H${vx + vw}" stroke="#1d1d1b" stroke-width="0.35"/>`
       + `<text x="${vx}" y="${ty + 6}" font-size="5.2" font-weight="700" fill="#1d1d1b">${esc(o.title || doc.name)}</text>`
       + `<text x="${vx}" y="${ty + 12}" font-size="3" fill="#55524b">${esc(kindName)} · M 1:${scale} · ${d}</text>`
       + `<text x="${vx + vw}" y="${ty + 6}" font-size="2.6" text-anchor="end" fill="#55524b">Archemistry Lab · Master reja</text>`
@@ -286,11 +287,11 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   }
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${pw}mm" height="${ph}mm" viewBox="0 0 ${pw} ${ph}" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"${ai ? ' xmlns:i="http://ns.adobe.com/AdobeIllustrator/10.0/"' : ''} width="${pw}mm" height="${ph}mm" viewBox="0 0 ${pw} ${ph}" font-family="Helvetica, Arial, sans-serif">
 <title>${esc((o.title || doc.name) + ' — ' + SHEET_KINDS.find(s => s.id === K)!.name)}</title>
 <defs><clipPath id="vp"><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}"/></clipPath>${site ? `<mask id="tashqari" maskUnits="userSpaceOnUse" x="0" y="0" width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" fill="#fff"/><path d="${polyD(site)}" fill="#000" fill-rule="evenodd"/></mask>` : ''}</defs>
-<rect width="${pw}" height="${ph}" fill="${C.bg}"/>
-<g clip-path="url(#vp)">${L.join('\n')}</g>
+${ai ? `<g id="Fon" i:layer="yes" inkscape:groupmode="layer" inkscape:label="Fon"><rect width="${pw}" height="${ph}" fill="${C.bg}"/></g>` : `<rect width="${pw}" height="${ph}" fill="${C.bg}"/>`}
+${ai ? L.join('\n') : `<g clip-path="url(#vp)">${L.join('\n')}</g>`}
 ${A.join('\n')}
 </svg>`;
   return { svg, scale, widthMm: pw, heightMm: ph, legend };

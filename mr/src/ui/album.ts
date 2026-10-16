@@ -4,7 +4,7 @@
  * Tahrir tipik qavatda: tanlash (A, B) → birlashtirish, boʻlish, devorni surish, xonalar soni, texnik; «Devor chizish» —
  * magnitli devor (modul chegarasiga tortiladi) va ikki tomondagi masofalar. Tahrir barcha turar qavatlarga qoʻllanadi.
  */
-import { h, toast, fmt } from './dom';
+import { h, toast, fmt, svgIcon, IC } from './dom';
 import { MOD_W, type SecPlan } from '../core/apartments';
 import { floorPlanSvg, floorGroups, floorTypeOf, buildingFloorsSvg, allPlansSvg, FLOOR_NAME, ROOM_LABEL, APT_FILL, type PlanOpts } from '../core/floorplan';
 import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, editRoomToApt, floorVariant, wallPreview, planChecks, type RulePlan, type EditResult, type RoomKind } from '../core/sectionplan';
@@ -75,7 +75,7 @@ export function openAlbum(o: AlbumOpts): void {
       h('button', { class: 'btn', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG'),
       h('button', { class: 'btn', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), plan: planOf(pl) }), 'image/svg+xml') }, 'Barcha qavatlar'),
       h('button', { class: 'btn', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); } }, 'Hamma binolar'),
-      h('button', { class: 'btn ib', id: 'albClose', 'aria-label': 'Yopish', onclick: close }, '×'));
+      h('button', { class: 'btn ib', id: 'albClose', 'aria-label': 'Yopish', onclick: close }, svgIcon(IC.x)));
     prevB.toggleAttribute('disabled', floor <= 1); nextB.toggleAttribute('disabled', floor >= pl.f1);
     // reja
     const res = floorPlanSvg(pl, { scale: 100, dims: false, title: `${o.name(pl, si)} · ${floor}-qavat`, floor, ...o.opt(pl), plan: P, sel: editable ? sel : [], selRoom: editable ? selRoom : -1 });

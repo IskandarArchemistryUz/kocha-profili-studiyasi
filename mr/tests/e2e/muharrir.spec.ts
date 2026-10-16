@@ -12,7 +12,7 @@ test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', a
   await expect(page.locator('.panel[data-mode=bino]')).toBeVisible();
   const gfa0 = Number((await page.locator('#kGfa b').textContent())!.replace(/\D/g, ''));
   const f0 = Number(await page.locator('#iFloors').textContent());
-  await page.click('[aria-label="Qavatlar +"]');
+  await page.click('[aria-label="Qavatlar — oshirish"]');
   await expect(page.locator('#iFloors')).toHaveText(String(f0 + 1));
   await page.click('[data-itab=qavat]');
   await page.click(`[data-floor="${f0 - 2}"]`);
@@ -23,10 +23,17 @@ test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', a
   await page.click('#tAdd');
   await expect(page.locator('#tierList')).toContainText('3,0 m');
   if (shots) await page.screenshot({ path: `${shots}/insp_qavat.png` });
-  await page.click('[data-itab=fasad]');
-  await page.click('[data-par="1"]'); await page.click('[data-shade=avto]');
+  // fasad va tom — alohida qadam (tanlangan bino bilan)
+  await page.click('[data-itab=hajm]');
+  await expect(page.locator('.btools')).toBeVisible();
+  if (shots) await page.screenshot({ path: `${shots}/insp_hajm.png` });
+  await page.click('#iToFasad');
+  await expect(page.locator('[data-look=sel]')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('[data-row=par]'); await page.click('[data-par="1"]');
+  await page.click('[data-row=shade]'); await page.click('[data-shade=avto]');
   await expect(page.locator('[data-shade=avto]')).toHaveAttribute('aria-pressed', 'true');
   if (shots) await page.screenshot({ path: `${shots}/insp_fasad.png` });
+  await page.click('[data-step=hajm]');
   const gfa1 = Number((await page.locator('#kGfa b').textContent())!.replace(/\D/g, ''));
   expect(gfa1).not.toBe(gfa0);
   // siljitish: sichqoncha bilan

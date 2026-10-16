@@ -9,17 +9,17 @@ test('fasad materiali va tom turlari: hammasi / funksiya / tanlangan, quyosh pan
   await page.click('[data-typ=qatorlar]'); await page.click('#genGo');
   await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
   await page.click('[data-step=fasad]');
-  await page.click('[data-mat=gisht]');
+  await page.click('[data-mat=gisht]');   // «Material» qatori sukut boʻyicha ochiq
   await expect(page.locator('[data-mat=gisht]')).toHaveAttribute('aria-pressed', 'true');
-  await page.click('[data-roof=ikki]');
+  await page.click('[data-row=roof]'); await page.click('[data-roof=ikki]');
   await expect(page.locator('[data-roof=ikki]')).toHaveAttribute('aria-pressed', 'true');
   if (shots) await page.screenshot({ path: `${shots}/tom_ikki.png` });
-  await page.click('[data-roof=quyosh]');
+  await page.click('[data-row=cover]'); await page.click('[data-cover=quyosh]');
   await expect(page.locator('#roofSt')).toContainText('kWp');
   if (shots) await page.screenshot({ path: `${shots}/tom_quyosh.png` });
   await page.click('[data-look=use]');
   await expect(page.locator('#lookUse')).toBeVisible();
-  await page.click('[data-roof=yashil]');
+  await page.click('[data-cover=yashil]');
   await expect(page.locator('#roofSt')).toContainText('Yashil tomlar');
   await page.keyboard.press('Control+z');
   await expect(page.locator('#roofSt')).toContainText('Quyosh panellari');
