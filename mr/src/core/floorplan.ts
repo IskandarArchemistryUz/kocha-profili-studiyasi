@@ -7,19 +7,19 @@
 import polygonClipping, { type Polygon, type MultiPolygon } from 'polygon-clipping';
 import { area, obb2, signedArea, type XY } from './geo';
 import { MOD_W, aptArea, sectionFrame, type SecPlan } from './apartments';
-import { insetRing } from './tiers';
+import { splitAtReflex } from './roof';
 
 export const APT_FILL: Record<number, string> = { 1: '#f6d58f', 2: '#f4b08a', 3: '#9bd3b8', 4: '#8fa5cc' };
 export interface PlanOpts { scale: number; /** oʻqlar va oʻlchamlar */ dims: boolean; title: string; floor: number }
-export interface PlanResult { svg: string; widthMm: number; heightMm: number; apts: { rooms: number; area: number; ring: XY[] }[]; core: XY[]; corridor: XY[]; kind: 'seksiya' | 'koridor' }
+export interface PlanResult { svg: string; widthMm: number; heightMm: number; apts: { rooms: number; area: number; ring: XY[] }[]; core: XY[]; corridor: XY[][]; kind: 'seksiya' | 'koridor' }
 
 const close = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
 export const ROOM_NAMES: Record<string, string> = { M: 'mehmonxona', Y: 'yotoqxona', O: 'oshxona', S: 'sanuzel + dahliz' };
 const openR = (r: [number, number][]): XY[] => r.slice(0, -1).map(p => [p[0], p[1]]);
 const n1 = (v: number) => (Math.round(v * 100) / 100).toString().replace('.', ',');
 
-export interface PlanApt { rooms: number; area: number; ring: XY[]; mods: number[]; forced?: boolean; entry: XY; /** xonalar: modul boʻyicha tur (M — mehmonxona, Y — yotoqxona, O — oshxona) */ roomOf: Record<number, 'M' | 'Y' | 'O'>; /** sanuzel + dahliz zonasi (kirish yonida) */ wet: XY[] }
-export interface PlanGeo { kind: 'seksiya' | 'koridor'; core: XY[]; lobby: XY[]; corridor: XY[]; apts: PlanApt[]; /** kvartiralarga kirmagan ichki qism (ombor, texnik) */ rest: XY[][] }
+export interface PlanApt { rooms: number; area: number; ring: XY[]; mods: number[]; forced?: boolean; entry: XY; /** xonalar: modul boʻyicha tur (M — mehmonxona, Y — yotoqxona, O — oshxona) */ roomOf: Record<number, 'M' | 'Y' | 'O'>; /** sanuzel + dahliz zonasi (kirish yonida) */ wet: XY[]; /** ichki qoldiq qoʻshilgan */ grown?: boolean }
+export interface PlanGeo { kind: 'seksiya' | 'koridor'; core: XY[]; lobby: XY[]; /** koridor boʻlaklari (L shaklda bir nechta) */ corridor: XY[][]; apts: PlanApt[]; /** kvartiralarga kirmagan ichki qism (ombor, texnik) */ rest: XY[][] }
 
 const lerp = (a: XY, b: XY, t: number): XY => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 /** nuqtadan toʻrtburchak (halqa) chegarasidagi eng yaqin nuqta */
@@ -47,26 +47,75 @@ export function planGeometry(pl: SecPlan, blindAt: (p: XY) => boolean = () => fa
   const F = sectionFrame(r, blindAt), { S, u0, u1, v0, v1, um, vm, back, cw, cd, P } = F;
   const apts0 = pl.layout.apts, mods = pl.layout.mods;
   const corridorKind = F.corridor || apts0.length > 8;
-  let core: XY[], lobby: XY[], corridor: XY[] = [];
+  let core: XY[], lobby: XY[], corridor: XY[][] = [];
   if (corridorKind) {
     core = [P(um - cw / 2, vm - cd / 2), P(um + cw / 2, vm - cd / 2), P(um + cw / 2, vm + cd / 2), P(um - cw / 2, vm + cd / 2)];
-    const kw = 1.6; corridor = [P(u0 + 0.6, vm - kw / 2), P(u1 - 0.6, vm - kw / 2), P(u1 - 0.6, vm + kw / 2), P(u0 + 0.6, vm + kw / 2)];
-    lobby = corridor;
+    const kw = 1.6; corridor = [[P(u0 + 0.6, vm - kw / 2), P(u1 - 0.6, vm - kw / 2), P(u1 - 0.6, vm + kw / 2), P(u0 + 0.6, vm + kw / 2)]];
+    lobby = corridor[0];
   } else {
-    const vb = back > 0 ? v1 - 0.3 : v0 + 0.3, vIn = vb - back * cd;            // yadro fasadga yopishgan
-    core = [P(um - cw / 2, vb), P(um + cw / 2, vb), P(um + cw / 2, vIn), P(um - cw / 2, vIn)];
-    const lw = Math.min(cw, 5.4), ld = Math.min(3.6, Math.max(2.4, S * 0.25)), vL = vIn - back * ld;   // maydoncha yadro oldida
-    lobby = [P(um - lw / 2, vIn), P(um + lw / 2, vIn), P(um + lw / 2, vL), P(um - lw / 2, vL)];
-    // 4 tadan koʻp kvartira yoki murakkab (L) shakl — oʻrta chiziq boʻylab koridor: seksiya konturini (yarim chuqurlik − 0,75) ga cheginish
-    if (apts0.length > 4 || r.length > 4) { const sp = insetRing(r, pl.halfDepth - 0.75, undefined, 4); if (sp && area(sp) > 4) corridor = sp; }
-    // maydoncha koridorgacha choʻziladi (ulanish)
-    if (corridor.length) { const vs = corridor.map(p => p[0] * F.V[0] + p[1] * F.V[1]), near = back > 0 ? Math.max(...vs) : Math.min(...vs); if (Math.abs(near - vIn) < 8 && (back > 0 ? near < vIn : near > vIn)) lobby = [P(um - lw / 2, vIn), P(um + lw / 2, vIn), P(um + lw / 2, near), P(um - lw / 2, near)]; }
+    // yadro va maydoncha eni — orqa fasaddagi berk modullar oraligʻi (kvartiralar devori yadro devori bilan bir chiziqda)
+    const vBack = back > 0 ? v1 : v0, uv = (p: XY): [number, number] => [p[0] * F.U[0] + p[1] * F.U[1], p[0] * F.V[0] + p[1] * F.V[1]];
+    let cu0 = um - cw / 2, cu1 = um + cw / 2;
+    for (const m of mods) { if (!m.blind) continue; const [ua, va] = uv(m.a), [ub, vb2] = uv(m.b); if (Math.abs(va - vBack) > 1 || Math.abs(vb2 - vBack) > 1) continue; const lo = Math.min(ua, ub), hi = Math.max(ua, ub); if (hi > um - cw / 2 - 0.5 && lo < um + cw / 2 + 0.5) { cu0 = Math.min(cu0, lo); cu1 = Math.max(cu1, hi); } }
+    const vb = back > 0 ? v1 : v0, vIn = vb - back * cd;            // yadro fasadga yopishgan
+    core = [P(cu0, vb), P(cu1, vb), P(cu1, vIn), P(cu0, vIn)];
+    const umC = (cu0 + cu1) / 2, lw = cu1 - cu0, ld = Math.min(3.6, Math.max(2.4, S * 0.25)), vL = vIn - back * ld;   // maydoncha yadro oldida, yadro enida
+    lobby = [P(cu0, vIn), P(cu1, vIn), P(cu1, vL), P(cu0, vL)];
+    // 4 tadan koʻp kvartira yoki murakkab (L) shakl — koridor: shakl toʻgʻri toʻrtburchak qanotlarga boʻlinadi,
+    // har qanotda uzun oʻq boʻylab oʻrta chiziq (1,5 m); qanotlar tugunda tutashadi, erkin uchlari torets kvartirasi uchun ~5,5 m qisqaradi
+    if (apts0.length > 4 || r.length > 4) {
+      const wings: XY[][] = [];
+      const rec = (q: XY[], depth: number) => { const o = obb2(q); if (area(q) / (o.L * o.S) >= 0.9 || depth > 3) { wings.push(q); return; } const sp = splitAtReflex(q); if (!sp) { wings.push(q); return; } sp.forEach(x => rec(x, depth + 1)); };
+      rec(r, 0);
+      type Seg = { a: XY; b: XY; dir: XY };
+      const segs: Seg[] = wings.map(q => {
+        const o = obb2(q), Uq = o.U, Vq: XY = [-Uq[1], Uq[0]];
+        let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+        for (const p of q) { const u = p[0] * Uq[0] + p[1] * Uq[1], v = p[0] * Vq[0] + p[1] * Vq[1]; a0 = Math.min(a0, u); a1 = Math.max(a1, u); b0 = Math.min(b0, v); b1 = Math.max(b1, v); }
+        const bc = (b0 + b1) / 2, PP = (u: number): XY => [Uq[0] * u + Vq[0] * bc, Uq[1] * u + Vq[1] * bc];
+        return { a: PP(a0), b: PP(a1), dir: Uq };
+      }).filter((sg, i) => Math.hypot(sg.b[0] - sg.a[0], sg.b[1] - sg.a[1]) > 4 && obb2(wings[i]).S > 11);   // tor qanot (≤ 11 m) — bir tomonlama, koridorsiz
+      // uchlarni moslash: boshqa qanot oʻrta chizigʻi bilan kesishsa — shu nuqtagacha (tugun), aks holda 5,5 m qisqartirish
+      const meet = (p: XY, d: XY, q: Seg): number | null => { const e: XY = [q.b[0] - q.a[0], q.b[1] - q.a[1]], den = d[0] * e[1] - d[1] * e[0]; if (Math.abs(den) < 1e-6) return null; const t = ((q.a[0] - p[0]) * e[1] - (q.a[1] - p[1]) * e[0]) / den, u = ((q.a[0] - p[0]) * d[1] - (q.a[1] - p[1]) * d[0]) / den; return u > -0.6 && u < 1.6 ? t : null; };
+      const pieces: Polygon[] = [];
+      for (const sg of segs) {
+        const L2 = Math.hypot(sg.b[0] - sg.a[0], sg.b[1] - sg.a[1]), d: XY = [(sg.b[0] - sg.a[0]) / L2, (sg.b[1] - sg.a[1]) / L2];
+        let t0 = Math.min(5.5, L2 / 2 - 1), t1 = L2 - t0;
+        for (const o of segs) { if (o === sg) continue; const t = meet(sg.a, d, o); if (t == null) continue; if (t < L2 / 2) t0 = Math.min(t0, t - 0.75); else t1 = Math.max(t1, t + 0.75); }
+        if (t1 - t0 < 2) continue;
+        const nx = -d[1] * 0.75, ny = d[0] * 0.75, A2: XY = [sg.a[0] + d[0] * t0, sg.a[1] + d[1] * t0], B2: XY = [sg.a[0] + d[0] * t1, sg.a[1] + d[1] * t1];
+        pieces.push([[[A2[0] + nx, A2[1] + ny], [B2[0] + nx, B2[1] + ny], [B2[0] - nx, B2[1] - ny], [A2[0] - nx, A2[1] - ny], [A2[0] + nx, A2[1] + ny]]]);
+      }
+      if (pieces.length) {
+        try { const u = pieces.length > 1 ? polygonClipping.union(pieces[0], ...pieces.slice(1)) : [pieces[0]]; corridor = polygonClipping.difference(polygonClipping.intersection(u, ringP), [close(core)]).map(pp => openR(pp[0])).filter(q => area(q) > 3); } catch { corridor = []; }
+      }
+    }
+    // maydoncha koridorgacha choʻziladi: maydoncha oʻqi (u = umC) koridorni kesib oʻtgan eng yaqin nuqtagacha;
+    // kesmasa — eng yaqin koridor boʻlagi oʻz oʻqi boʻylab maydoncha oʻqigacha uzaytiriladi
+    if (corridor.length) {
+      const vOn = (q: XY[]): number | null => { let best: number | null = null; for (let i = 0; i < q.length; i++) { const a2 = q[i], b2 = q[(i + 1) % q.length], ua = a2[0] * F.U[0] + a2[1] * F.U[1], ub = b2[0] * F.U[0] + b2[1] * F.U[1]; if ((ua - umC) * (ub - umC) > 0 || ua === ub) continue; const t = (umC - ua) / (ub - ua), v = (a2[0] + (b2[0] - a2[0]) * t) * F.V[0] + (a2[1] + (b2[1] - a2[1]) * t) * F.V[1]; if ((back > 0 ? v < vIn : v > vIn) && (best == null || Math.abs(v - vIn) < Math.abs(best - vIn))) best = v; } return best; };
+      let hit: number | null = null; for (const q of corridor) { const v = vOn(q); if (v != null && (hit == null || Math.abs(v - vIn) < Math.abs(hit - vIn))) hit = v; }
+      if (hit == null) {
+        // eng yaqin boʻlak — uzaytirish
+        const lc = P(umC, vL); let bi = 0, bd = Infinity; corridor.forEach((q, i) => { const c2 = nearestOnRing(lc, q), d = Math.hypot(c2[0] - lc[0], c2[1] - lc[1]); if (d < bd) { bd = d; bi = i; } });
+        const q = corridor[bi], o = obb2(q), Uq = o.U, Vq: XY = [-Uq[1], Uq[0]];
+        let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity; for (const p of q) { const u = p[0] * Uq[0] + p[1] * Uq[1], v = p[0] * Vq[0] + p[1] * Vq[1]; a0 = Math.min(a0, u); a1 = Math.max(a1, u); b0 = Math.min(b0, v); b1 = Math.max(b1, v); }
+        const lu = lc[0] * Uq[0] + lc[1] * Uq[1], e0 = Math.min(a0, lu - lw / 2), e1 = Math.max(a1, lu + lw / 2), PQ = (u: number, v: number): XY => [Uq[0] * u + Vq[0] * v, Uq[1] * u + Vq[1] * v];
+        try { const ext = polygonClipping.intersection([close([PQ(e0, b0), PQ(e1, b0), PQ(e1, b1), PQ(e0, b1)])], ringP); const nq = largest(polygonClipping.difference(ext, [close(core)])); if (nq.length >= 3) { corridor[bi] = nq; hit = vOn(nq); } } catch { /* */ }
+      }
+      if (hit != null && Math.abs(hit - vIn) < 16) {
+        // yadro oldida maydoncha (yadro enida, ld) + koridorgacha 1,8 m li oʻtish yoʻlagi
+        const far = Math.abs(hit - vIn) > ld + 0.5;
+        if (!far) lobby = [P(cu0, vIn), P(cu1, vIn), P(cu1, hit), P(cu0, hit)];
+        else { try { const u = polygonClipping.union([close([P(cu0, vIn), P(cu1, vIn), P(cu1, vL), P(cu0, vL)])], [close([P(umC - 0.9, vL + back * 0.01), P(umC + 0.9, vL + back * 0.01), P(umC + 0.9, hit), P(umC - 0.9, hit)])]); const lq = largest(u); if (lq.length >= 3) lobby = lq; } catch { /* */ } }
+      }
+    }
   }
-  const cut: Polygon[] = [[close(core)], [close(lobby)], ...(corridor.length && !corridorKind ? [[close(corridor)] as Polygon] : [])];
-  const access: XY[][] = corridor.length ? [lobby, corridor] : [lobby];
+  const cut: Polygon[] = [[close(core)], [close(lobby)], ...(!corridorKind ? corridor.map(q => [close(q)] as Polygon) : [])];
+  const access: XY[][] = [lobby, ...corridor];
 
   const taken: Polygon[] = [];
-  const apts: PlanApt[] = apts0.map(a => {
+  let apts: PlanApt[] = apts0.map(a => {
     const first = mods[a.mods[0]], last = mods[a.mods[a.mods.length - 1]];
     let ring: XY[] = [];
     {
@@ -99,9 +148,23 @@ export function planGeometry(pl: SecPlan, blindAt: (p: XY) => boolean = () => fa
     return { rooms: a.rooms, area: aptArea(a.mods.length, pl.halfDepth), ring, mods: a.mods, forced: a.forced, entry, roomOf, wet };
   }).filter(a => a.ring.length);
   // kvartira maydoni — rejadagi haqiqiy koʻpburchak boʻyicha (sxema), netto 0,85
-  for (const a of apts) a.area = area(a.ring) * 0.85;
   let rest: XY[][] = [];
   try { const subs = [...cut, ...taken]; rest = polygonClipping.difference(ringP, subs[0], ...subs.slice(1)).map(pp => openR(pp[0])).filter(q => area(q) > 2); } catch { rest = []; }
+  // juda kichik boʻlaklar (< 20 m²) kvartira emas — qoldiq sifatida qoʻshni kvartiraga beriladi
+  for (let i = apts.length - 1; i >= 0; i--) if (area(apts[i].ring) < 20) { rest.push(apts[i].ring); apts.splice(i, 1); }
+  // qolgan ichki qism — unga tegib turgan eng koʻp xonali kvartiraga qoʻshiladi (burchakda 3–4 xonali kvartira, eshiklar toʻplanmasin)
+  const touches = (a: XY[], b: XY[]) => a.some(p => { const q = nearestOnRing(p, b); return Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.3; }) || b.some(p => { const q = nearestOnRing(p, a); return Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.3; });
+  rest = rest.filter(q => {
+    const cand = apts.filter(a => touches(a.ring, q)).sort((x, y) => y.rooms - x.rooms || area(y.ring) - area(x.ring))[0];
+    if (!cand || area(q) > area(cand.ring) * 1.5) return true;
+    try { const u = largest(polygonClipping.union([close(cand.ring)], [close(q)])); if (u.length >= 3) { cand.ring = u; cand.grown = true; return false; } } catch { /* */ }
+    return true;
+  });
+  for (const a of apts) {
+    a.area = area(a.ring) * 0.85;
+    // kattalashgan kvartira — xonalar soni maydonga koʻra (TAXMIN: ≤ 45 m² — 1, ≤ 62 — 2, ≤ 85 — 3, katta — 4 xonali)
+    if (a.grown) { const k = a.area <= 45 ? 1 : a.area <= 62 ? 2 : a.area <= 85 ? 3 : 4; if (k > a.rooms) a.rooms = k; }
+  }
   return { kind: corridorKind ? 'koridor' : 'seksiya', core, lobby, corridor, apts, rest };
 }
 
@@ -141,7 +204,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   for (const q of G.rest) { const cc = q.reduce((s, p) => [s[0] + p[0], s[1] + p[1]] as XY, [0, 0]).map(x => x / q.length); out.push(`<path d="${path(q)}" fill="url(#hatch)" stroke="#141414" stroke-width="0.3"/>`); if (area(q) > 8) out.push(`<text x="${X(cc[0])}" y="${Y(cc[1])}" font-size="1.8" text-anchor="middle" fill="#6b6965">ombor / texnik</text>`); }
   // maydoncha / koridor va yadro
   out.push(`<path d="${path(G.lobby)}" fill="#f1efea" stroke="#141414" stroke-width="0.3"/>`);
-  if (G.corridor.length) out.push(`<path d="${path(G.corridor)}" fill="#f1efea" stroke="#141414" stroke-width="0.3"/>`);
+  for (const q of G.corridor) out.push(`<path d="${path(q)}" fill="#f1efea" stroke="#141414" stroke-width="0.3"/>`);
   out.push(`<path d="${path(G.core)}" fill="#cfcac1" stroke="#141414" stroke-width="0.5"/>`);
   { // zina (chap yarmi) va lift (oʻng yarmi)
     const c = G.core;

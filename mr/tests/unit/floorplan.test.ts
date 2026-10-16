@@ -20,11 +20,11 @@ describe('Seksiya rejasi', () => {
     expect(G.apts.reduce((s, a) => s + A(a.ring), 0)).toBeLessThanOrEqual(33 * 15 - A(G.core) - A(G.lobby) + 1);
     // har kvartira kirishi maydoncha yoki koridorga tegadi
     const near = (p: XY, rr: XY[]) => Math.min(...rr.map((v, i) => { const w = rr[(i + 1) % rr.length], dx = w[0] - v[0], dy = w[1] - v[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - v[0]) * dx + (p[1] - v[1]) * dy) / L2)); return Math.hypot(v[0] + t * dx - p[0], v[1] + t * dy - p[1]); }));
-    for (const a of G.apts) expect(Math.min(near(a.entry, G.lobby), G.corridor.length ? near(a.entry, G.corridor) : 99)).toBeLessThan(0.6);
+    for (const a of G.apts) expect(Math.min(near(a.entry, G.lobby), ...G.corridor.map(c => near(a.entry, c)))).toBeLessThan(0.6);
   });
   it('uzun seksiya (> 42 m) — koridor turi', () => {
     const long: XY[] = [[0, 0], [60, 0], [60, 15], [0, 15]];
-    const G = planGeometry(mk(long)); expect(G.kind).toBe('koridor'); expect(G.corridor).toHaveLength(4);
+    const G = planGeometry(mk(long)); expect(G.kind).toBe('koridor'); expect(G.corridor[0]).toHaveLength(4);
   });
   it('burilgan seksiya — chizma OBB ga tekislanadi, SVG mm da, oʻlcham va oʻqlar bor', () => {
     const a = Math.PI / 6, rot = rect.map(p => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)] as XY);
