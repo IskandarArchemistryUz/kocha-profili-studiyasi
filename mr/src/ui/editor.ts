@@ -142,7 +142,7 @@ export class Editor {
     this.bindScene(); this.bindKeys();
     { let raf = 0; this.scene.onView = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (this.el.scene.querySelector('.btools')) this.syncBTools(); }); }; }
     this.renderAll(); this.recompute();
-    if (doc.context.loaded) void this.ensureContext();
+    void this.ensureContext();   // yuklanmagan boʻlsa — fon xaritasi
   }
 
   dispose(): void { this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.scene.dispose(); }
