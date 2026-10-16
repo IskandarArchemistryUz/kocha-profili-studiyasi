@@ -27,8 +27,9 @@ import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
 import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { INSOL_BINS, FACADE, type FacadeStyle } from '../scene/scene';
-import { floorPlanSvg, allPlansSvg, sectionChecks } from '../core/floorplan';
-import { planApartments, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
+import { floorPlanSvg, allPlansSvg, sectionChecks, buildingFloorsSvg, floorGroups, FLOOR_NAME } from '../core/floorplan';
+import { openPlanEditor } from './planedit';
+import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
 import { SOCIAL, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
 import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
@@ -894,6 +895,10 @@ export class Editor {
   /** 3D da kvartiralar: yoʻq / turi boʻyicha / insolyatsiya boʻyicha */
   private apt3d: 'yoq' | 'tur' | 'insol' = 'tur';
   private aptFloor: number | null = null;
+  /** qavat rejasi: tanlangan bino va qavat */
+  private planBid: string | null = null;
+  private planFloor: number | null = null;
+  private planSelSeen: string | null = null;
   static readonly APT_COL: Record<number, number> = { 1: 0xf2b134, 2: 0xf08a4b, 3: 0x4fb08a, 4: 0x3f5b8a };
   /** kvartira «terisi» 3D da (turi yoki insolyatsiya natijasi boʻyicha) */
   private showAptBoxes(): void {
@@ -991,21 +996,36 @@ export class Editor {
     const g0 = doc.site ? Math.min(...doc.site.rings[0].map(q => { const l = frame(doc.origin).toLocal(q); return this.scene.H(l[0], l[1]); })) : 0;
     fl.oninput = () => { const v = Number(fl.value); this.aptFloor = v >= maxF ? null : v; flT.textContent = this.aptFloor ? `${v} / ${maxF}` : 'hammasi'; this.scene.setSection(this.aptFloor ? { kind: 'h', z: g0 + v * fh + 0.3 } : null); };
     fl.onchange = () => this.renderPanel();
-    // seksiya rejasi: tanlangan bino (yoki birinchisi), qavat — slider boʻyicha
-    { const sel = plans.find(p => p.bid === this.sel) ?? plans[0], si = plans.indexOf(sel), fl0 = Math.max(sel.z0 + sel.f0 + 1, Math.min(sel.z0 + sel.f1, this.aptFloor ?? (sel.z0 + sel.f1)));
-      const name = (pl: SecPlan, i: number) => `${i + 1}-seksiya · ${useDef(doc.buildings.find(b => b.id === pl.bid)?.use ?? 'turar').name}`;
-      const res = floorPlanSvg(sel, { scale: 200, dims: true, title: name(sel, si), floor: fl0, fh: doc.settings.floorHeight });
-      const allBad = plans.reduce((t, p) => t + sectionChecks(p, doc.settings.floorHeight).filter(c => c.ok === false).length, 0);
+    // qavat rejasi: tanlangan bino va qavat (1-qavat va noturar qavatlar — oʻz rejasi); tahrirlash
+    { if (this.sel && this.sel !== this.planSelSeen && plans.some(p => p.bid === this.sel)) { this.planBid = this.sel; this.planFloor = null; } this.planSelSeen = this.sel;
+      const sel = plans.find(p => p.bid === this.planBid) ?? plans[0], si = plans.indexOf(sel);
+      this.planBid = sel.bid;
+      const groups = floorGroups(sel), fl0 = Math.max(1, Math.min(sel.f1, this.planFloor ?? (groups.find(g => g.type === 'typical')?.from ?? 1)));
+      const b = doc.buildings.find(x => x.id === sel.bid);
+      const name = (pl: SecPlan, i: number) => `${i + 1}-bino · ${useDef(doc.buildings.find(x => x.id === pl.bid)?.use ?? 'turar').name}`;
+      const optOf = (pl: SecPlan) => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(x => x.id === pl.bid)?.bal ?? null });
+      const res = floorPlanSvg(sel, { scale: 200, dims: true, title: name(sel, si), floor: fl0, ...optOf(sel) });
+      const bSel = h('select', { id: 'planBld', onchange: (e: Event) => { this.planBid = (e.target as HTMLSelectElement).value; this.planFloor = null; this.scene.select(this.planBid); this.renderPanel(); } }, ...plans.map((pl, i) => h('option', { value: pl.bid, selected: pl === sel }, `${name(pl, i)} · ${pl.f1} qavat`))) as HTMLSelectElement;
+      const fSel = h('select', { id: 'planFloor', onchange: (e: Event) => { this.planFloor = Number((e.target as HTMLSelectElement).value); this.renderPanel(); } },
+        ...groups.flatMap(g => Array.from({ length: g.to - g.from + 1 }, (_, k) => g.from + k).map(f => h('option', { value: f, selected: f === fl0 }, `${f}-qavat — ${FLOOR_NAME[g.type]}`)))) as HTMLSelectElement;
       const sheet = h('div', { class: 'planbox', id: 'planBox', html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') });
-      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, `Seksiya rejasi · ${name(sel, si)} · ${fl0}-qavat (sxema)`), sheet,
+      const edit = () => {
+        const typ = groups.find(g => g.type === 'typical') ?? groups[groups.length - 1];
+        openPlanEditor({ sec: sel, generated: sel.genPlan ?? sel.layout.plan!, plan: sel.layout.plan!, title: name(sel, si), floor: typ.from, fh: doc.settings.floorHeight, bal: b?.bal ?? null, size: doc.settings.aptSize ?? 'M',
+          onSave: pl => { const fr = frame(doc.origin); this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: pl && b ? { key: planKey(doc, b), apts: pl.apts.map(a => ({ ring: a.ring.map(fr.toGeo), rooms: a.rooms })), rooms: pl.rooms.map(q => ({ ring: q.ring.map(fr.toGeo), kind: q.kind })) } : undefined } })); this.clearApt(); this.renderPanel(); } });
+      };
+      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Qavat rejasi'),
+        h('div', { class: 'row' }, bSel, fSel),
+        sel.edited === 'eskirgan' ? h('p', { class: 'warn' }, 'Bu binoning qoʻlda tahrirlangan rejasi eskirgan (bino yoki kvartira sozlamalari oʻzgardi) — generatsiya qilingan reja koʻrsatilmoqda.') : sel.edited === 'ok' ? h('p', { class: 'note' }, 'Reja qoʻlda tahrirlangan.') : null,
+        sheet,
         h('div', { class: 'row' },
-          h('button', { class: 'btn grow', id: 'planSvg', onclick: () => download(`${safe(doc.name)}_seksiya${si + 1}_q${fl0}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG'),
-          h('button', { class: 'btn grow', id: 'plansAll', title: 'Barcha seksiyalarning shu qavat rejalari — bitta SVG', onclick: () => { const all = allPlansSvg(plans, fl0, 200, name); if (all) download(`${safe(doc.name)}_rejalar_q${fl0}.svg`, all, 'image/svg+xml'); else toast('Bu qavatda seksiya yoʻq'); } }, 'Hammasi — SVG')),
-        h('span', { class: 'note' }, 'Sahnada binoni bosing — uning rejasi. Bino seksiyalarga boʻlinadi (≤ 36 m, oraligʻida yongʻin devori): har seksiyaning oʻz zina-lifti va qisqa koridori. Yadro — hovli tomonda, burchakda — ichki burchakda (zina hovli fasadida). Chuqurlik ≥ 13 m — oʻrta koridor, < 13 m — hovli fasadi boʻylab. Xonalar ichki rejasi emas.')),
-        h('div', { class: 'field', id: 'planChecks' }, h('span', { class: 'lb' }, `Reja qoidalari · ${name(sel, si)}${allBad ? ` · barcha seksiyalarda ${allBad} ta buzilish` : ''}`),
-          h('table', { class: 'reg' }, h('tbody', {}, ...res.checks.map(c => h('tr', { 'data-check': c.id },
-            h('td', {}, h('span', { class: 'chip', 'data-s': c.ok === true ? 'pass' : c.ok === false ? 'fail' : 'review' }, c.ok === true ? 'mos' : c.ok === false ? 'mos emas' : 'tekshirilsin')),
-            h('td', {}, h('b', {}, c.title), h('br'), h('span', { class: 'muted' }, `${c.value} · meʼyor: ${c.norm}`), h('br'), h('span', { class: 'muted', style: 'font-size:11px' }, c.source))))))));
+          h('button', { class: 'btn grow primary', id: 'planEditBtn', onclick: edit, title: 'Kvartiralarni birlashtirish, boʻlish, devorni surish, xonalar soni' }, 'Tahrirlash'),
+          h('button', { class: 'btn grow', id: 'planSvg', onclick: () => download(`${safe(doc.name)}_bino${si + 1}_q${fl0}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG')),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn grow', id: 'planFloors', title: 'Shu binoning barcha qavatlari (bir xillari bitta varaqda)', onclick: () => download(`${safe(doc.name)}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(sel, 200, name(sel, si), optOf(sel)), 'image/svg+xml') }, 'Barcha qavatlar — SVG'),
+          h('button', { class: 'btn grow', id: 'plansAll', title: 'Barcha binolarning shu qavat rejalari — bitta SVG', onclick: () => { const all = allPlansSvg(plans, fl0, 200, name, optOf); if (all) download(`${safe(doc.name)}_rejalar_q${fl0}.svg`, all, 'image/svg+xml'); else toast('Bu qavatda bino yoʻq'); } }, 'Hamma binolar — SVG')),
+        sel.edited ? h('button', { class: 'btn', id: 'planEditClear', onclick: () => { this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: undefined } })); this.clearApt(); this.renderPanel(); } }, 'Tahrirni oʻchirish — generatsiya qilingan reja') : null,
+        h('span', { class: 'note' }, 'Bino seksiyalarga boʻlinadi (≤ 36 m, oraligʻida yongʻin devori): har seksiyaning oʻz zina-lifti va qisqa koridori; yadro — hovli tomonda, burchakda — ichki burchakda. 1-qavat noturar boʻlsa: koʻcha tomoni savdo, hovli tomoni yashovchilar xonalari (zal, velo-kolyaska, omborlar, tozalash anjomlari ombori — ShNQ 2.08.01-19, 3.14). Balkon maydoni koeffitsiyent bilan (2-ilova 3-band).')));
     }
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, '3D da kvartiralar'),
       h('div', { class: 'seg full', role: 'group', id: 'apt3d' }, ...([['yoq', 'Yoʻq'], ['tur', 'Turi boʻyicha'], ['insol', 'Insolyatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.apt3d === k, 'data-a3d': k, onclick: () => { this.apt3d = k; this.renderPanel(); } }, t))),

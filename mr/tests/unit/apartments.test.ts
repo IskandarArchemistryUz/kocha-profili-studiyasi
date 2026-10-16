@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { layoutSection, windowSun, roomOk, westAllowed, roomsNeeded, planApartments, windowPoints, evaluateApts, isWest } from '../../src/core/apartments';
+import { layoutSection, windowSun, roomOk, westAllowed, roomsNeeded, planApartments, windowPoints, evaluateApts, isWest, planKey } from '../../src/core/apartments';
+import { editMerge, sharedAny } from '../../src/core/sectionplan';
+import { migrate } from '../../src/core/doc';
 import { daySteps } from '../../src/core/sun';
 import { blankProject, type Project } from '../../src/core/doc';
 import { frame, type XY } from '../../src/core/geo';
@@ -102,5 +104,17 @@ describe('39-jadval va 542-band', () => {
   it('MTM ehtiyoji (542-band) oqilona oraliqda', () => {
     const r = demoRow('1726')!, need = mtmNeedPerThousand(r);
     expect(need).toBeGreaterThan(60); expect(need).toBeLessThan(140);
+  });
+  it('qoʻlda tahrirlangan reja saqlanadi, qoʻllanadi va bino oʻzgarsa eskiradi', () => {
+    const p: Project = blankProject('t'); const fr = frame(p.origin);
+    p.buildings = [{ id: 'a', footprint: rect(0, 0, 38, 15).map(fr.toGeo), floors: 9, nonRes: 0, use: 'turar' }];
+    const [s0] = planApartments(p), pl = s0.layout.plan!, n0 = pl.apts.length;
+    const j = pl.apts.findIndex((b, k) => k > 0 && sharedAny(pl.apts[0].ring, [b.ring]).len > 2);
+    const m = editMerge(pl, 0, j, s0.layout.mods); expect(m.ok).toBe(true); if (!m.ok) return;
+    p.buildings[0].planEdit = { key: planKey(p, p.buildings[0]), apts: m.plan.apts.map(a => ({ ring: a.ring.map(fr.toGeo), rooms: a.rooms })), rooms: m.plan.rooms.map(q => ({ ring: q.ring.map(fr.toGeo), kind: q.kind })) };
+    const q = migrate(JSON.parse(JSON.stringify(p)));   // sxema orqali saqlanadi
+    const [s1] = planApartments(q); expect(s1.edited).toBe('ok'); expect(s1.layout.apts.length).toBe(n0 - 1); expect(s1.genPlan!.apts.length).toBe(n0);
+    q.settings = { ...q.settings, aptMix: [100, 0, 0, 0] };
+    expect(planApartments(q)[0].edited).toBe('eskirgan');
   });
 });

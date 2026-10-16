@@ -16,7 +16,7 @@
 import type { XY } from './geo';
 import { signedArea, obb2 } from './geo';
 import type { Prism, SunStep } from './sun';
-import { rulePlan, type RulePlan } from './sectionplan';
+import { rulePlan, applyEdit, type RulePlan } from './sectionplan';
 
 export interface Module { a: XY; b: XY; /** deraza nuqtasi (fasaddan 0,3 m tashqarida) */ p: XY; /** tashqi normal azimuti, ° */ az: number; blind: boolean }
 export interface Apt { rooms: number; /** modullar indekslari */ mods: number[]; /** yashash xonalari modullari */ living: number[]; /** qator oxirida joy yetmay kichraytirilgan — miksdan tashqari */ forced?: boolean; /** rejadagi umumiy maydon, m² (yalpi × 0,85) */ area?: number }
@@ -55,8 +55,11 @@ export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: num
     }
   }
   const plan = rulePlan(ring, mods, mix, size, court);
-  const apts: Apt[] = plan.apts.map(a => ({ rooms: a.rooms, mods: a.mods, living: [...a.mods].sort((x, y) => badness(mods[x].az) - badness(mods[y].az)).slice(0, a.rooms), area: a.area * 0.85 }));
-  return { mods, apts, plan };
+  return { mods, apts: aptsOf(plan, mods), plan };
+}
+/** Rejadagi kvartiralar → insolyatsiya va hisob uchun roʻyxat (yashash xonalari — eng yaxshi yoʻnalishdagi derazalar) */
+export function aptsOf(plan: RulePlan, mods: Module[]): Apt[] {
+  return plan.apts.map(a => ({ rooms: a.rooms, mods: a.mods, living: [...a.mods].sort((x, y) => badness(mods[x].az) - badness(mods[y].az)).slice(0, a.rooms), area: a.area * 0.85 }));
 }
 
 
@@ -133,10 +136,16 @@ export function aptSummary(plans: SecPlan[]): { total: number; forced: number; b
 import { frame } from './geo';
 import { useDef } from './uses';
 
-export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number }
+export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** qoʻlda tahrir: qoʻllandi yoki bino oʻzgargani uchun eskirdi */ edited?: 'ok' | 'eskirgan'; /** tahrirdan oldingi (generatsiya qilingan) reja */ genPlan?: RulePlan; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number }
 
 const SKIP = new Set(['stilobat', 'uy', 'taunhaus']);
 
+/** Tahrir kaliti: oyoq izi, kvartira miksi va oʻlchami — shulardan biri oʻzgarsa saqlangan tahrir eskiradi */
+export function planKey(doc: Project, b: { footprint: [number, number][] }): string {
+  const s = JSON.stringify([b.footprint.map(p => [Math.round(p[0] * 1e6), Math.round(p[1] * 1e6)]), doc.settings.aptMix, doc.settings.aptSize ?? 'M']);
+  let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
 /** Turar joy seksiyalari rejasi (uylar, taunhauslar va stilobat — kvartirali emas) */
 export function planApartments(doc: Project): SecPlan[] {
   const fr = frame(doc.origin), mix = doc.settings.aptMix;
@@ -156,9 +165,18 @@ export function planApartments(doc: Project): SecPlan[] {
     const z0 = b.z0 ?? 0, top = z0 + b.floors;
     // berk devor: qoʻshni seksiya shu sathda tegib tursa
     const blindAt = (p: XY) => all.some(o => o !== s && p[0] >= o.bb[0] && p[0] <= o.bb[2] && p[1] >= o.bb[1] && p[1] <= o.bb[3] && (o.b.z0 ?? 0) < top && (o.b.z0 ?? 0) + o.b.floors > z0 + b.nonRes && inside(p, o.r));
-    const layout = layoutSection(s.r, blindAt, mix, MOD_W, doc.settings.aptSize ?? 'M', court);
+    const size = doc.settings.aptSize ?? 'M', layout = layoutSection(s.r, blindAt, mix, MOD_W, size, court);
+    // qoʻlda tahrir: kalit mos boʻlsa — tahrirlangan reja
+    let edited: 'ok' | 'eskirgan' | undefined, genPlan: RulePlan | undefined;
+    if (b.planEdit) {
+      if (b.planEdit.key === planKey(doc, b) && layout.plan) {
+        genPlan = layout.plan;
+        layout.plan = applyEdit(layout.plan, { apts: b.planEdit.apts.map(a => ({ ring: a.ring.map(fr.toLocal), rooms: a.rooms })), rooms: b.planEdit.rooms.map(q => ({ ring: q.ring.map(fr.toLocal), kind: q.kind })) }, layout.mods, size);
+        layout.apts = aptsOf(layout.plan, layout.mods); edited = 'ok';
+      } else edited = 'eskirgan';
+    }
     const halfDepth = Math.max(4, Math.min(9, sectionDepth(s.r, layout.mods) / 2));
-    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth });
+    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth, ...(edited ? { edited } : {}), ...(genPlan ? { genPlan } : {}) });
   }
   return out;
 }
