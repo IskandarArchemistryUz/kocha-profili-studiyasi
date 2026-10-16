@@ -29,6 +29,7 @@ import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, 
 import { INSOL_BINS, FACADE, type FacadeStyle } from '../scene/scene';
 import { planApartments, windowPoints, windowSun, evaluateApts, isWest, MOD_W, type AptStats, type SecPlan } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
+import { SOCIAL, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
 import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
 import { centroid, area, signedArea } from '../core/geo';
@@ -56,6 +57,16 @@ import { summary } from '../context/osm';
 import { geocode, type Place } from '../context/geocode';
 import { detectBlock, type Barrier } from '../context/blocks';
 
+/** Ijtimoiy bino modullari piktogrammalari */
+const MOD_ICON: Record<string, string> = {
+  taroq: '<path d="M3 5h18v4H3z"/><path d="M5 9v10h4V9M10 9v10h4V9M15 9v10h4V9"/>',
+  hovli: '<path d="M3 3h18v18H3z"/><path d="M8 8h8v8H8z"/>',
+  kompakt: '<rect x="3" y="6" width="18" height="12"/><rect x="9" y="10" width="6" height="4" stroke-dasharray="2 1"/>',
+  chiziq: '<rect x="2" y="9" width="5" height="6"/><rect x="8" y="10" width="5" height="6"/><rect x="14" y="9" width="5" height="6"/><path d="M2 19h20" stroke-dasharray="2 2"/>',
+  u: '<path d="M3 4h5v12h8V4h5v16H3z"/>',
+  blok: '<rect x="2" y="8" width="20" height="8"/>',
+  l: '<path d="M3 4h6v10h12v6H3z"/>',
+};
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
   ['select', 'Tanlash (V)', '<path d="M5 3l14 8-6 2-3 6z"/>'],
@@ -1076,6 +1087,7 @@ export class Editor {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
     const ud = useDef(b.use), name = this.unitName(i);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
+    if (isSocial(b.use)) return this.generateSocial(i, quiet);
     const g: GenParams = ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen;
     const fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, this.store.doc.settings.floorHeight);
     this.genNotes = r.notes; this.genFar = r.far ?? null;
@@ -1086,6 +1098,53 @@ export class Editor {
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
+  }
+
+  /* ---------- ijtimoiy binolar (maktab, MTM, poliklinika) ---------- */
+  private socMod: Record<SocialUse, Module> = { maktab: 'taroq', mtm: 'chiziq', poliklinika: 'blok' };
+  private socM2: Record<SocialUse, number> = { maktab: SOCIAL.maktab.m2, mtm: SOCIAL.mtm.m2, poliklinika: SOCIAL.poliklinika.m2 };
+  private socFloors: Record<SocialUse, number> = { maktab: SOCIAL.maktab.floors, mtm: SOCIAL.mtm.floors, poliklinika: SOCIAL.poliklinika.floors };
+  private socCap: Record<string, number> = {};
+  /** sigʻim: ehtiyoj (loyiha aholisi × stat.uz yosh tarkibi) va parsel maydoni (41-jadval / 543-band) dan kichigi */
+  private socTarget(i: number): { use: SocialUse; demand: number; plot: number; cap: number } | null {
+    const b = this.plan().blocks[i]; if (!b || !isSocial(b.use)) return null;
+    const pop = this.last?.d.population ?? 0, demand = Math.round(socialDemand(b.use, pop, demoRow(this.store.doc.settings.district))), plot = plotCapacity(b.use, b.area);
+    const key = `${b.parcelId ?? b.labelId ?? String(i)}|${b.use}`, typical = { maktab: 1000, mtm: 240, poliklinika: 500 }[b.use], auto = demand > 0 ? Math.min(demand, plot) : Math.min(plot, typical);
+    return { use: b.use, demand, plot, cap: this.socCap[key] ?? Math.max(b.use === 'poliklinika' ? 50 : 40, auto) };
+  }
+  private generateSocial(i: number, quiet = false): number {
+    const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i), t = this.socTarget(i); if (!b || !lab || !t) return 0;
+    const doc = this.store.doc, fr = frame(doc.origin), ring = b.rings[0], n = ring.length;
+    // 39-jadval: qizil chiziqqa (loyiha koʻchasi koridori yoki uchastka chegarasi) yaqin qirralardan 25 m, qolganidan 6 m
+    const lines = [...plan.corridors.flatMap(mp => mp), ...(doc.site?.rings.map(r => r.map(fr.toLocal)) ?? [])];
+    const near = (p: XY) => lines.some(r => { for (let k = 0; k < r.length; k++) { const a = r[k], q = r[(k + 1) % r.length], dx = q[0] - a[0], dy = q[1] - a[1], L2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); if (Math.hypot(a[0] + dx * u - p[0], a[1] + dy * u - p[1]) < 1.5) return true; } return false; });
+    const red = t.use !== 'poliklinika' ? 25 : 6;
+    const sb = ring.map((p, k) => near([(p[0] + ring[(k + 1) % n][0]) / 2, (p[1] + ring[(k + 1) % n][1]) / 2]) ? red : 6);
+    const sp = socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], this.socFloors[t.use], sb);
+    this.genNotes = [`${SOCIAL[t.use].name}: ${fmt(t.cap)} ${SOCIAL[t.use].unit} · ${fmt(sp.gfa)} m² GFA · ${this.socFloors[t.use]} qavat (taxmin ${this.socM2[t.use]} m²/${SOCIAL[t.use].unit})`, ...sp.notes]; this.genFar = null;
+    if (!sp.sections.length) { if (!quiet) toast(sp.notes[0] ?? 'Joylashmadi'); return 0; }
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: b.parcelId ?? lab.id, label: b.parcelId ? undefined : lab,
+      sections: sp.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: 0, use: t.use, kind: 'ijtimoiy' })), garage: null }));
+    if (!quiet) toast(`${this.unitName(i)}: ${SOCIAL[t.use].name.toLowerCase()} — ${fmt(t.cap)} ${SOCIAL[t.use].unit}, ${fmt(sp.gfa)} m²`);
+    return sp.sections.length;
+  }
+  private socialSection(i: number): HTMLElement | '' {
+    const t = this.socTarget(i); if (!t) return '';
+    const S = SOCIAL[t.use], b = this.plan().blocks[i], key = `${b.parcelId ?? b.labelId ?? String(i)}|${b.use}`;
+    const cap = h('input', { type: 'number', min: 10, max: 5000, step: 10, value: t.cap, id: 'socCap', style: 'width:6em' }) as HTMLInputElement;
+    cap.onchange = () => { this.socCap[key] = Math.max(10, Number(cap.value) || t.cap); this.renderPanel(); };
+    const m2 = h('input', { type: 'number', min: 4, max: 40, step: 0.5, value: this.socM2[t.use], id: 'socM2', style: 'width:5em' }) as HTMLInputElement;
+    m2.onchange = () => { this.socM2[t.use] = Math.max(4, Number(m2.value) || S.m2); this.renderPanel(); };
+    return h('div', { class: 'field soc', id: 'socBox' }, h('span', { class: 'lb' }, `${S.name} — avtomat`),
+      h('div', { class: 'balance' },
+        h('div', { class: 'brow' }, h('span', {}, `Ehtiyoj (loyiha aholisi, stat.uz)`), h('b', { class: 'num' }, t.demand ? `${fmt(t.demand)} ${S.unit}` : '—')),
+        h('div', { class: 'brow' }, h('span', {}, t.use === 'maktab' ? 'Parsel sigʻimi (41-jadval)' : t.use === 'mtm' ? 'Parsel sigʻimi (543-band)' : 'Parsel sigʻimi (45-jadval, taxmin)'), h('b', { class: 'num' }, `${fmt(t.plot)} ${S.unit}`))),
+      h('label', { class: 'row', style: 'font-size:12.5px' }, h('span', { class: 'grow' }, `Sigʻim, ${S.unit}`), cap),
+      h('div', { class: 'typos', role: 'group', 'aria-label': 'Modul' }, ...S.modules.map(m => { const bt = h('button', { class: 'typo', 'data-mod': m.id, 'aria-pressed': this.socMod[t.use] === m.id, title: m.note, onclick: () => { this.socMod[t.use] = m.id; this.renderPanel(); } }); bt.append(svgIcon(MOD_ICON[m.id]), h('span', {}, m.name)); return bt; })),
+      h('p', { class: 'note' }, S.modules.find(m => m.id === this.socMod[t.use])!.note),
+      h('div', { class: 'row' }, h('label', { class: 'row', style: 'font-size:12.5px' }, 'm²/', S.unit.split('/')[0], m2),
+        h('div', { class: 'stp', style: 'grid-template-columns:auto 28px 30px 28px' }, h('span', {}, 'Qavat'), h('button', { disabled: this.socFloors[t.use] <= 1, onclick: () => { this.socFloors[t.use]--; this.renderPanel(); } }, '−'), h('b', { id: 'socFl' }, String(this.socFloors[t.use])), h('button', { disabled: this.socFloors[t.use] >= S.maxFloors, onclick: () => { this.socFloors[t.use]++; this.renderPanel(); } }, '+'))),
+      h('p', { class: 'note' }, `Qizil chiziqdan ${t.use === 'poliklinika' ? '6' : '25'} m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — taxmin (ShNQ 2.08.02-23 da maktab va MTM binosi maydoni berilmagan; xalqaro va MDH tipik loyihalari oraligʻi).`));
   }
 
   private hajmPanel(body: HTMLElement): void {
@@ -1100,7 +1159,14 @@ export class Editor {
       h('select', { id: 'genBlock', onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
         h('option', { value: '' }, '— sahnada bosing yoki tanlang —'),
         ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; }))));
-    body.append(
+    const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
+    if (socI != null) {
+      body.append(this.socialSection(socI),
+        h('div', { class: 'row' }, h('button', { class: 'btn primary grow', id: 'genGo', onclick: () => this.generateSocial(socI) }, 'Joylashtirish'),
+          h('button', { class: 'btn', id: 'genAll', title: 'Barcha kvartallar', onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(`${n} seksiya generatsiya qilindi`); } }, 'Hammasi'),
+          h('button', { class: 'btn', id: 'genClear', onclick: () => { const u = plan.blocks[socI], lab = this.blockLabel(socI); if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, 'Tozalash')));
+      if (this.genNotes.length) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
+    } else body.append(
       h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Tipologiya'),
         h('div', { class: 'typos', role: 'group', 'aria-label': 'Tipologiya' }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => { const b = h('button', { class: 'typo', 'aria-pressed': g.typology === k, 'data-typ': k, title: TYPO_NAME[k], onclick: () => { g.typology = k; this.renderPanel(); } }); b.append(svgIcon(TYPO_ICON[k]), h('span', {}, TYPO_SHORT[k])); return b; }))),
       (() => {
@@ -1119,7 +1185,7 @@ export class Editor {
         h('button', { class: 'btn primary grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { if (this.selBlock != null) this.generateBlock(this.selBlock); } }, 'Generatsiya'),
         h('button', { class: 'btn', id: 'genAll', title: 'Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi', onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(`${n} seksiya generatsiya qilindi`); } }, 'Hammasi'),
         h('button', { class: 'btn', id: 'genClear', disabled: this.selBlock == null, onclick: () => { const u = this.selBlock != null ? plan.blocks[this.selBlock] : null, lab = this.selBlock != null ? this.blockLabel(this.selBlock) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, 'Tozalash')));
-    if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `Parsel UMN: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
+    if (socI == null && (this.genNotes.length || this.genFar != null)) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `Parsel UMN: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     // tanlangan bino / seksiya
     const sel = doc.buildings.find(b => b.id === this.sel);
     const gens = doc.buildings.filter(b => b.gen).length;
@@ -1227,11 +1293,16 @@ export class Editor {
 
   private setBlockUse(i: number, use: Use): void {
     const plan = this.plan(), b = plan.blocks[i]; if (!b) return;
-    if (b.parcelId) { this.run(() => this.store.dispatch({ type: 'updateParcel', id: b.parcelId!, patch: { use } })); return; }
-    const fr = frame(this.store.doc.origin);
-    const zones = this.store.doc.zones.filter(z => !pointIn(fr.toLocal(z.at), b.rings));
-    zones.push({ id: uid('z_'), at: fr.toGeo(b.centroid), use });
-    this.run(() => this.store.dispatch({ type: 'setZones', zones }));
+    if (b.parcelId) this.run(() => this.store.dispatch({ type: 'updateParcel', id: b.parcelId!, patch: { use } }));
+    else {
+      const fr = frame(this.store.doc.origin);
+      const old = this.store.doc.zones.find(z => z.id === b.labelId) ?? this.store.doc.zones.find(z => pointIn(fr.toLocal(z.at), b.rings));
+      const zones = this.store.doc.zones.filter(z => !pointIn(fr.toLocal(z.at), b.rings));
+      zones.push({ ...(old ?? {}), id: old?.id ?? uid('z_'), at: fr.toGeo(b.centroid), use });
+      this.run(() => this.store.dispatch({ type: 'setZones', zones }));
+    }
+    // ijtimoiy funksiya berilsa — bino avtomatik joylashtiriladi
+    if (isSocial(use)) { const j = this.plan().blocks.findIndex(x => pointIn(b.centroid, x.rings) && x.use === use); if (j >= 0) this.generateSocial(j); }
   }
 
   private demolition(): { all: number; kept: number; gone: number; foot: number; floorArea: number } {
