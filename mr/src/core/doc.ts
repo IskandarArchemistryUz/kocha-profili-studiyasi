@@ -39,6 +39,9 @@ export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat'
 
 export interface Parcel { id: string; block: string; rings: Ring[]; use: Use }
 
+/** Qoʻlda qoʻshilgan mavjud xizmat obyekti (OSM da yoʻq bogʻcha, maktab…) — xizmat radiuslari tahlilida manba */
+export interface ManualPoi { id: string; kind: 'mtm' | 'maktab' | 'poliklinika' | 'dorixona' | 'savdo' | 'sport' | 'mahalla'; at: LngLat; name?: string }
+
 export interface ZoneLabel { id: string; at: LngLat; use: Use; /** shu kvartal uchun oxirgi generator parametrlari */ gen?: Record<string, unknown> }
 
 export interface Settings {
@@ -96,6 +99,8 @@ export interface Project {
   parcels: Parcel[];
   /** uchastka ichidagi saqlanadigan mavjud (OSM) binolar id lari; qolganlari — buziladi */
   keep: number[];
+  /** qoʻlda belgilangan mavjud xizmat obyektlari */
+  pois: ManualPoi[];
 }
 
 /** Toshkent markazi — hudud tanlanmaguncha boshlangʻich nuqta */
@@ -127,7 +132,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
     origin: [...DEFAULT_ORIGIN] as LngLat,
     settings: { ...DEFAULT_SETTINGS, aptMix: [...DEFAULT_SETTINGS.aptMix] },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
-    site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [],
+    site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [], pois: [],
   };
 }
 
@@ -185,10 +190,13 @@ export function migrate(raw: unknown): Project {
     .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)) }));
   const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
     .map((x: any) => ({ id: x.id, block: x.block, rings: x.rings.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)), use: isUse(x.use) ? x.use : 'turar' }));
+  const PK = ['mtm', 'maktab', 'poliklinika', 'dorixona', 'savdo', 'sport', 'mahalla'];
+  const pois: ManualPoi[] = (Array.isArray(d.pois) ? d.pois : []).filter((x: any) => x && typeof x.id === 'string' && PK.includes(x.kind) && isLL(x.at))
+    .map((x: any) => ({ id: x.id, kind: x.kind, at: [x.at[0], x.at[1]] as LngLat, ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}) }));
   return {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages,
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois,
   };
 }

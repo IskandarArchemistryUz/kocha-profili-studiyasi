@@ -25,6 +25,14 @@ test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', as
   const mtm = page.locator('#svcTab tr[data-svc=mtm] .chip'), sch = page.locator('#svcTab tr[data-svc=maktab] .chip');
   const v = Number((await mtm.textContent())!.replace(/\D/g, '')); expect(v).toBeGreaterThan(0); expect(v).toBeLessThan(100);
   await expect(sch).toHaveText('0 %');
+  // OSM da yoʻq bogʻchani qoʻlda qoʻshish — uchastka markazida → MTM qamrovi oshadi
+  await page.selectOption('#poiKind', 'mtm'); await page.fill('#poiName', 'Sinov MTM');
+  await page.click('#poiAdd');
+  const box = (await page.locator('#scene canvas').boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#poiList')).toContainText('Sinov MTM');
+  await expect(mtm).toHaveText('100 %');
   await page.click('#svcTab tr[data-svc=maktab]');
   await expect(page.locator('#svcSt')).toContainText('radiusdan tashqarida');
   await page.click('#kMore');

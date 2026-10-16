@@ -1,3 +1,4 @@
+import { planApartments } from '../../src/core/apartments';
 import { describe, it, expect } from 'vitest';
 import { subdivide, split, merge, gridAngle, areaOf } from '../../src/core/parcels';
 import { blankProject } from '../../src/core/doc';
@@ -55,7 +56,10 @@ describe('Xizmatlar va avtoturargoh (ShNQ 2.07.01-23)', () => {
     d = apply(d, { type: 'setSite', rings: [sq(200, 100).map(p => fr.toGeo([p[0] - 100, p[1] - 50]))] });
     d = apply(d, { type: 'addBuilding', footprint: sq(60, 15).map(p => fr.toGeo(p)), floors: 10, nonRes: 0 });
     const dd = derive(d), rs = evaluateAll(dd, d);
-    expect(dd.apartments).toBeCloseTo(60 * 15 * 10 * 0.75 / 65, 3);
+    // kvartiralar soni seksiya sxemasidan (fasad modullari), oʻrtacha maydon taxmini emas
+    expect(dd.aptSource).toBe('sxema');
+    expect(dd.apartments).toBe(planApartments(d).reduce((t, p) => t + p.layout.apts.length * (p.f1 - p.f0), 0));
+    expect(dd.resNet / dd.apartments).toBeGreaterThan(35); expect(dd.resNet / dd.apartments).toBeLessThan(90);
     expect(dd.parkingReq).toBe(Math.ceil(dd.apartments));
     expect(rs.find(r => r.id === 'parking')!.status).toBe('fail');
     expect(rs.find(r => r.id === 'school')!.status).toBe('fail');

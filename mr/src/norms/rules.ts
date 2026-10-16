@@ -7,13 +7,14 @@
 import type { Derived } from '../core/derive';
 import type { Project } from '../core/doc';
 import { CATS, checkProfile, profileById } from '../core/profiles';
-import { DEMO, demoRow, perThousand } from '../core/demography';
+import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 
 /** stat.uz boʻyicha haqiqiy yosh tarkibidan ehtiyoj (izoh uchun) */
 function demoNote(doc: Project, pop: number, kind: 'school' | 'mtm'): string {
   const r = demoRow(doc.settings.district); if (!r) return '';
-  const k = perThousand(r)[kind], need = Math.round(pop * k / 1000);
-  return ` Haqiqiy yosh tarkibi (stat.uz, ${r.name}, ${DEMO.year}): ${kind === 'school' ? '7–17' : '3–6'} yoshlilar 1000 kishiga ${Math.round(k)} → loyiha aholisi uchun ≈ ${need} ${kind === 'school' ? 'oʻquvchi' : 'bola'} (100 % qamrov).`;
+  if (kind === 'school') { const k = perThousand(r).school; return ` Haqiqiy yosh tarkibi (stat.uz, ${r.name}, ${DEMO.year}): 7–17 yoshlilar 1000 kishiga ${Math.round(k)} → loyiha aholisi uchun ≈ ${Math.round(pop * k / 1000)} oʻquvchi (100 % qamrov).`; }
+  const k = mtmNeedPerThousand(r);
+  return ` Haqiqiy yosh tarkibi (stat.uz, ${r.name}, ${DEMO.year}) va 542-band qamrovi (1–5 yosh — 85 %, 5 yoshdan katta — 100 %): 1000 kishiga ${Math.round(k)} oʻrin → loyiha aholisi uchun ≈ ${Math.round(pop * k / 1000)} oʻrin.`;
 }
 
 export type Status = 'pass' | 'fail' | 'review' | 'na';
@@ -105,7 +106,18 @@ export const RULES: Rule[] = [
       if (d.parkingReq <= 0) return { status: 'na', unit: 'joy', note: 'Talab yoʻq (binolar yoʻq)' };
       const parts = Object.entries(d.parkingParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${v}`).join(', ');
       return { status: d.parkingProv >= d.parkingReq ? 'pass' : 'fail', value: d.parkingProv, unit: 'joy', limit: `≥ ${d.parkingReq}`,
-        note: `Talab: ${parts} (Toshkent: kvartiraga 1). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). Kvartiralar soni oʻrtacha ${doc.settings.aptNet} m² (netto) boʻyicha taxmin.` };
+        note: `Talab: ${parts} (Toshkent: kvartiraga 1). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${d.aptSource === 'sxema' ? `Kvartiralar soni — seksiyalarning kvartira sxemasidan (miks ${doc.settings.aptMix.join('/')} %; yakka uy va taunhaus — 1 xonadon).` : `Kvartiralar soni oʻrtacha ${doc.settings.aptNet} m² (netto) boʻyicha taxmin (sxema yoʻq).`}` };
+    },
+  },
+  {
+    id: 'red-line-39',
+    title: 'Maktab va MTM binosidan qizil chiziqqacha',
+    source: { ...SHNQ_2_07_01, clause: '539-band, 39-jadval (shahar: 25 m)' },
+    evaluate(d) {
+      if (!d.redLineSocial.length) return { status: 'na', unit: 'm', limit: '≥ 25', note: 'Loyiha koʻchalari yonida maktab yoki MTM binosi yoʻq. Mavjud (OSM) koʻchalar qizil chizigʻi hisobga olinmaydi.' };
+      const min = Math.min(...d.redLineSocial.map(x => x.d)), bad = d.redLineSocial.filter(x => x.d < 25);
+      return { status: bad.length ? 'fail' : 'pass', value: min, unit: 'm', limit: '≥ 25',
+        note: `${d.redLineSocial.length} ta bino tekshirildi, ${bad.length} tasi 25 m dan yaqin (${bad.map(x => `${x.use === 'mtm' ? 'MTM' : 'maktab'} ${Math.round(x.d * 10) / 10} m`).join(', ') || '—'}). Masofa bino devoridan loyiha koʻchasi qizil chizigʻigacha; turar joy binolarigacha — insolyatsiya va yoritish meʼyorlari boʻyicha (39-jadval).` };
     },
   },
   {
