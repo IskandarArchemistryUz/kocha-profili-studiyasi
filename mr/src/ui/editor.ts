@@ -35,6 +35,8 @@ import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type Co
 import { tepRows, buildingRows, BUILDING_HEAD } from '../core/tep';
 import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
+import { openGraphics } from './graphics';
+import { sheetSvg, SHEET_DEFAULT, type SheetCtx, type SheetKind } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
@@ -107,6 +109,7 @@ export class Editor {
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, 'Archemistry Lab', h('small', {}, '· Master reja')),
       name, save, h('span', { class: 'sp' }),
       h('div', { class: 'seg', role: 'group', 'aria-label': 'Uslub', id: 'styleSeg' }, ...([['albom', 'Albom'], ['rangli', 'Rangli']] as const).map(([k, t]) => h('button', { 'data-style': k, 'aria-pressed': (k === 'albom') === this.albumPref, title: k === 'albom' ? 'Taqdimot koʻrinishi: oq binolar, och yoʻllar va daraxtlar, soyalar' : 'OSM ranglari va sunʼiy yoʻldosh tasviri', onclick: () => { this.albumPref = k === 'albom'; this.syncFade(); } }, t))),
+      h('button', { class: 'btn', id: 'gxOpen', title: 'Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG', onclick: () => this.openGraphics() }, 'Grafika'),
       seg,
       ib('undo', 'Bekor qilish (Ctrl+Z)', ICON.undo, () => this.store.undo()),
       ib('redo', 'Qaytarish (Ctrl+Shift+Z)', ICON.redo, () => this.store.redo()));
@@ -711,7 +714,9 @@ export class Editor {
   private openReport(): void {
     const w = window.open('', '_blank'); if (!w) { toast('Brauzer yangi oynani bloklayapti — ruxsat bering'); return; }
     const shots = this.scene.captureViews(this.store.doc);
-    w.document.open(); w.document.write(reportHtml(this.store.doc, shots, this.tep(), this.allRules(), this.reportNotes())); w.document.close();
+    const ctx = this.sheetCtx(), doc = this.store.doc, so = (kind: SheetKind) => ({ ...SHEET_DEFAULT, kind, paper: 'A4' as const, show: { ...SHEET_DEFAULT.show, title: false } });
+    const sheets = doc.site || doc.buildings.length ? (['bosh', 'zona'] as SheetKind[]).map(k => { const r = sheetSvg(doc, ctx, so(k)); return { name: `${k === 'bosh' ? 'Bosh reja' : 'Zonalash'}, M 1:${r.scale}`, svg: r.svg }; }) : [];
+    w.document.open(); w.document.write(reportHtml(doc, shots, this.tep(), this.allRules(), this.reportNotes(), sheets)); w.document.close();
   }
   private tepXlsx(): Uint8Array {
     const doc = this.store.doc, tep = this.tep(), rules = this.allRules();
@@ -1161,6 +1166,7 @@ export class Editor {
         h('button', { class: 'btn', id: 'exJson', onclick: () => download(`${safe(doc.name)}.archemistry.json`, exportJSON(this.store.doc)) }, 'Loyiha fayli (.json)'),
         h('button', { class: 'btn', id: 'exPng', onclick: () => download(`${safe(doc.name)}.png`, this.scene.snapshot()) }, 'Sahna rasmi (PNG)'),
         h('button', { class: 'btn primary', id: 'exPdf', onclick: () => this.openReport() }, 'Hisobot (PDF)'),
+        h('button', { class: 'btn', id: 'exGx', onclick: () => this.openGraphics() }, 'Varaqlar: bosh reja, zonalash… (SVG/PNG)'),
         h('button', { class: 'btn', id: 'exXlsx', onclick: () => download(`${safe(doc.name)}_TEP.xlsx`, new Blob([this.tepXlsx() as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })) }, 'TEP (Excel)'),
         h('button', { class: 'btn', id: 'exDxf', onclick: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } }, 'Reja va hajmlar (DXF)'),
         h('button', { class: 'btn', id: 'exGlb', onclick: () => void this.scene.exportGLB(false).then(b => download(`${safe(doc.name)}.glb`, b)).catch(e => toast(`GLB: ${(e as Error).message}`)) }, '3D model (GLB)'),
@@ -1168,6 +1174,22 @@ export class Editor {
         h('p', { class: 'note' }, 'Hisobot — yangi oynada: koʻrinishlar, TEP, meʼyoriy reyestr va taxminlar; «PDF saqlash» tugmasi A4 formatida saqlaydi. Excel — TEP, binolar va reyestr varaqlari. Kvartiralar va xizmatlar natijalari — tegishli qadamda hisoblangan boʻlsa qoʻshiladi. Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. DXF — mahalliy metrda (markaz koordinatasi faylda yozilgan), qatlamlar: uchastka, qizil chiziqlar, kvartallar funksiya boʻyicha, binolar balandligi bilan (AutoCAD/ArchiCAD da 3D). GLB — Blender, SketchUp, Rhino, ArchiCAD ochadi.'));
     }
   }
+
+  /** Grafika varaqlari uchun atrof — mahalliy metrda */
+  private sheetCtx(): SheetCtx | null {
+    const b = this.ctxMgr.current; if (!b) return null;
+    const fr = frame(this.store.doc.origin), L = (r: LngLat[]) => r.map(fr.toLocal), o = b.osm;
+    return {
+      buildings: o.buildings.map(x => ({ id: x.id, rings: x.rings.map(L), h: x.h })),
+      roads: o.roads.map(x => ({ id: x.id, pts: L(x.pts), w: x.w, cls: x.cls })),
+      rails: o.rails.map(x => L(x.pts)),
+      water: o.water.map(x => x.rings.map(L)),
+      waterways: o.waterways.map(x => ({ pts: L(x.pts), w: x.w })),
+      green: o.green.map(x => ({ rings: x.rings.map(L), kind: x.kind })),
+      trees: o.trees.map(fr.toLocal),
+    };
+  }
+  private openGraphics(): void { openGraphics(this.store.doc, this.sheetCtx()); }
 
   /* ---------- koʻrsatkichlar va meʼyorlar ---------- */
   private renderKpi(): void {

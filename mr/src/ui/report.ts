@@ -10,7 +10,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const num = (v: number, d = 0) => v.toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: 0 }).replace(/ /g, ' ');
 const STATUS: Record<string, [string, string]> = { pass: ['mos', '#1f7a4d'], fail: ['mos emas', '#b3261e'], review: ['koʻrib chiqish', '#a15c00'], na: ['baholanmadi', '#6b6b6b'] };
 
-export function reportHtml(doc: Project, shots: Record<'plan' | 'axo' | 'persp', string>, tep: TepRow[], rules: Result[], notes: string[]): string {
+export function reportHtml(doc: Project, shots: Record<'plan' | 'axo' | 'persp', string>, tep: TepRow[], rules: Result[], notes: string[], sheets: { name: string; svg: string }[] = []): string {
   const date = new Date().toLocaleDateString('ru-RU');
   const fmtV = (r: TepRow) => r.v == null ? '—' : typeof r.v === 'string' ? esc(r.v) : num(r.v, Math.abs(r.v) < 10 ? 2 : r.unit === '%' ? 1 : 0);
   const groups = [...new Set(tep.map(r => r.g))];
@@ -25,6 +25,7 @@ main { max-width: 186mm; margin: 0 auto; padding: 8mm 0; }
 h1 { font-size: 20pt; margin: 0 0 2mm; letter-spacing: -.01em; } h2 { font-size: 12.5pt; margin: 8mm 0 3mm; border-bottom: 1.5px solid #1d1d1b; padding-bottom: 1mm; }
 .meta { color: #555; font-size: 9.5pt; } .kick { font: 600 8pt/1 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: #8a857c; }
 img { width: 100%; display: block; border: 1px solid #ddd; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 4mm; }
+img.sheet { border: 0; }
 .cap { font-size: 8.5pt; color: #666; margin-top: 1mm; }
 table { width: 100%; border-collapse: collapse; font-size: 9.5pt; } th, td { text-align: left; padding: 1.6mm 2mm; border-bottom: .6px solid #ddd; vertical-align: top; }
 th { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: #666; } td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -42,6 +43,7 @@ tr.g td { background: #f3f1ec; font-weight: 600; } .sm { font-size: 8.5pt; color
 <h2>Hajmiy-fazoviy yechim</h2>
 <img src="${shots.axo}" alt="Aksonometriya"><div class="cap">Aksonometriya</div>
 <div class="two"><div><img src="${shots.plan}" alt="Reja"><div class="cap">Bosh reja</div></div><div><img src="${shots.persp}" alt="Perspektiva"><div class="cap">Perspektiva</div></div></div>
+${sheets.map((x, i) => `<h2 class="pb">${i ? '' : 'Grafik varaqlar · '}${esc(x.name)}</h2><img class="sheet" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(x.svg)}" alt="${esc(x.name)}">`).join('\n')}
 <h2 class="pb">Texnik-iqtisodiy koʻrsatkichlar</h2>
 <table><thead><tr><th>Koʻrsatkich</th><th>Birlik</th><th style="text-align:right">Qiymat</th><th>Izoh</th></tr></thead><tbody>
 ${groups.map(g => `<tr class="g"><td colspan="4">${esc(g)}</td></tr>` + tep.filter(r => r.g === g).map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.unit)}</td><td class="n">${fmtV(r)}</td><td class="sm">${esc(r.note ?? '')}</td></tr>`).join('')).join('')}
