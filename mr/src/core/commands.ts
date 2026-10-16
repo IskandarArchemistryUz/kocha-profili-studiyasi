@@ -26,6 +26,8 @@ export type Command =
   | { type: 'setKeep'; keep: number[] }
   | { type: 'addPoi'; poi: ManualPoi }
   | { type: 'removePoi'; id: string }
+  /** bir nechta binoga material va/yoki tom turi */
+  | { type: 'styleBuildings'; ids: string[]; mat?: Building['mat']; roof?: Building['roof'] }
   | { type: 'addView'; view: SavedView }
   | { type: 'removeView'; id: string }
   /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
@@ -54,6 +56,7 @@ export function label(c: Command): string {
     case 'setKeep': return 'Saqlanadigan binolar';
     case 'addPoi': return 'Xizmat obyekti qoʻshildi';
     case 'removePoi': return 'Xizmat obyekti oʻchirildi';
+    case 'styleBuildings': return c.roof ? 'Tom turi' : 'Fasad materiali';
     case 'addView': return 'Koʻrinish saqlandi';
     case 'removeView': return 'Koʻrinish oʻchirildi';
     case 'setParcels': return 'Parsellar';
@@ -132,6 +135,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
+    case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}) } : b); return d; }
     case 'addView': d.views = [...doc.views, { ...c.view, pos: [...c.view.pos] as SavedView['pos'], target: [...c.view.target] as SavedView['target'] }]; return d;
     case 'removeView': d.views = doc.views.filter(x => x.id !== c.id); return d;
     case 'setParcels': {
