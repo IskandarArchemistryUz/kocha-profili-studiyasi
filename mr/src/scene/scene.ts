@@ -265,12 +265,12 @@ export class Scene3D {
   }
 
   /** Bino sirtidagi nuqta: id, mahalliy XY, devormi (normal gorizontal) */
-  pickBuildingHit(clientX: number, clientY: number): { id: string; p: XY; wall: boolean } | null {
+  pickBuildingHit(clientX: number, clientY: number): { id: string; p: XY; wall: boolean; y: number } | null {
     const r = this.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.rcam());
     const hit = this.ray.intersectObjects(this.world.children.filter(o => o.userData.bid), false)[0]; if (!hit) return null;
     const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
-    return { id: hit.object.userData.bid as string, p: [hit.point.x, -hit.point.z], wall: Math.abs(n.y) < 0.5 };
+    return { id: hit.object.userData.bid as string, p: [hit.point.x, -hit.point.z], wall: Math.abs(n.y) < 0.5, y: hit.point.y };
   }
   /** Kamera boshqaruvini vaqtincha oʻchirish (sudrash paytida) */
   setOrbit(on: boolean): void { this.ctl.enabled = on; }
@@ -619,15 +619,35 @@ export class Scene3D {
   }
 
   /** Chizilayotgan shakl (koʻk chiziq + nuqtalar) */
-  setPreview(pts: XY[], closed = false): void {
+  /** labels — har kesma uzunligi chiziqning oʻzida (chizgʻich, chizish) */
+  setPreview(pts: XY[], closed = false, labels = false): void {
     disposeGroup(this.prev);
     if (pts.length) {
       this.prev.add(line(densify(pts, 10, closed), C.preview, 0.5, closed, 20, this.H, false));
       const dots = new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], this.H(p[0], p[1]) + 0.5, -p[1]))), new THREE.PointsMaterial({ color: C.preview, size: 7, sizeAttenuation: false, depthTest: false }));
       dots.renderOrder = 6; this.prev.add(dots);
+      if (labels) {
+        const n = closed ? pts.length : pts.length - 1;
+        for (let i = 0; i < n; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 0.05) continue;
+          const sp = labelSprite(`${(Math.round(L * 10) / 10).toString().replace('.', ',')} m`, true), m: XY = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          sp.position.set(m[0], this.H(m[0], m[1]) + 0.8, -m[1]); sp.center.set(0.5, 0.5); (sp.material as THREE.SpriteMaterial).depthTest = false; this.prev.add(sp);
+        }
+        if (closed && pts.length >= 3) { const c = centroid(pts), sp = labelSprite(`${Math.round(area(pts)).toLocaleString('ru-RU')} m²`); sp.position.set(c[0], this.H(c[0], c[1]) + 0.8, -c[1]); sp.center.set(0.5, 0.5); this.prev.add(sp); }
+      }
     }
     this.invalidate();
   }
+  /** yopishish belgisi (kursor ostida): nuqta — uch, halqa — qirra */
+  setSnapMark(p: XY | null, kind: 'uch' | 'qirra' = 'uch'): void {
+    if (this.snapMark) { this.scene.remove(this.snapMark); (this.snapMark.material as THREE.Material).dispose(); this.snapMark.geometry.dispose(); this.snapMark = null; }
+    if (p) {
+      const g = kind === 'uch' ? new THREE.RingGeometry(0.9, 1.3, 24) : new THREE.RingGeometry(0.5, 0.75, 24); g.rotateX(-Math.PI / 2);
+      this.snapMark = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: kind === 'uch' ? 0xd9534f : 0x2a6fb0, depthTest: false, side: THREE.DoubleSide })); this.snapMark.position.set(p[0], this.H(p[0], p[1]) + 0.6, -p[1]); this.snapMark.renderOrder = 60; this.scene.add(this.snapMark);
+    }
+    this.invalidate();
+  }
+  private snapMark: THREE.Mesh | null = null;
 
   /** Kamerani hujjatdagi obyektlarga moslash */
   frameDoc(doc: Project): void {
@@ -743,7 +763,7 @@ export class Scene3D {
     const H = this.host.clientHeight || 1, P = cam as THREE.PerspectiveCamera & THREE.OrthographicCamera;
     const k = P.isOrthographicCamera ? (P.top - P.bottom) / (P.zoom || 1) / H : 2 / (P.projectionMatrix.elements[5] * H);
     const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) o.scale.set(px[0] * k, px[1] * k, 1); };
-    this.world.children.forEach(fit); this.explodeLabels.forEach(fit);
+    this.world.children.forEach(fit); this.prev.children.forEach(fit); this.explodeLabels.forEach(fit);
   }
 
   /* ---------- portlatilgan qatlamlar ---------- */

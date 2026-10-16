@@ -403,7 +403,7 @@ export class Editor {
 
   /* ---------- bino muharriri (tanlangan bino; har qadamda) ---------- */
   private inspTab: 'hajm' | 'qavat' | 'fasad' = 'hajm';
-  private dragMode: 'yoq' | 'push' | 'move' = 'yoq';
+  private dragMode: 'yoq' | 'push' | 'move' | 'floor' = 'yoq';
   private tierInset = 3;
   private tierEdge: number | null = null;
   /** bino tanlangan (parsellar qadamidan tashqari) — chap panel bino muharririga aylanadi */
@@ -452,13 +452,14 @@ export class Editor {
         h('div', { class: 'row', style: 'align-items:flex-start;gap:10px' }, floors,
           h('div', { class: 'col grow' },
             h('b', { id: 'iFloorT' }, `${(b.z0 ?? 0) + f}-qavat`), h('span', { class: 'muted', style: 'font-size:12px' }, f <= b.nonRes ? 'noturar' : 'turar / asosiy'),
-            h('span', { class: 'muted', style: 'font-size:11.5px' }, 'PgUp / PgDn — qavat'),
+            h('span', { class: 'muted', style: 'font-size:11.5px' }, 'PgUp / PgDn — qavat · sahnada qavatni bosing'),
+            h('button', { class: this.dragMode === 'floor' ? 'btn primary' : 'btn', id: 'floorDrag', 'aria-pressed': this.dragMode === 'floor', title: 'Binoda qavat devorini bosib torting: ichkariga — terrasa, tashqariga — konsol (shu qavatdan yuqorisi)', onclick: () => { this.dragMode = this.dragMode === 'floor' ? 'yoq' : 'floor'; this.renderInspector(); } }, this.dragMode === 'floor' ? '✓ Qavat devorini sudrash' : 'Qavat devorini sudrash'),
             h('div', { class: 'lb', style: 'margin-top:6px' }, 'Shu qavatdan yuqorisi'),
             h('label', { class: 'row', style: 'font-size:12.5px' }, 'Cheginish, m', ins), edgeSel,
             h('button', { class: 'btn primary', id: 'tAdd', disabled: f < 2, onclick: () => upd({ tiers: [...tiers.filter(t => t.from !== f), { from: f, inset: this.tierInset, ...(this.tierEdge != null ? { edge: this.tierEdge } : {}) }] }) }, 'Terrasa (cheginish)'),
             h('button', { class: 'btn', id: 'tCut', disabled: f < 2, onclick: () => upd({ floors: f - 1 }) }, 'Shu qavatdan yuqorisini olib tashlash'),
             h('button', { class: 'btn', id: 'tNonRes', onclick: () => upd({ nonRes: Math.min(f, b.floors - 1) }) }, 'Shu qavatgacha — noturar'))),
-        tiers.length ? h('div', { class: 'list', id: 'tierList' }, ...[...tiers].sort((x, y) => x.from - y.from).map(t => h('div', { class: 'it' }, h('span', { class: 'grow' }, `${(b.z0 ?? 0) + t.from}-qavatdan: ${fmt(t.inset, 1)} m ${t.edge != null ? `(${t.edge + 1}-devor)` : '(barcha tomon)'}`), h('button', { title: 'Oʻchirish', onclick: () => upd({ tiers: tiers.filter(x => x !== t) }) }, '×')))) : '',
+        tiers.length ? h('div', { class: 'list', id: 'tierList' }, ...[...tiers].sort((x, y) => x.from - y.from).map(t => h('div', { class: 'it' }, h('span', { class: 'grow' }, `${(b.z0 ?? 0) + t.from}-qavatdan: ${t.inset > 0 ? `${fmt(t.inset, 1)} m ichkariga` : `${fmt(-t.inset, 1)} m tashqariga`} ${t.edge != null ? `(${t.edge + 1}-devor)` : '(barcha tomon)'}`), h('button', { title: 'Oʻchirish', onclick: () => upd({ tiers: tiers.filter(x => x !== t) }) }, '×')))) : '',
         h('p', { class: 'note' }, 'Terrasalar GFA va aholi hisobiga kiradi. Kvartira sxemasi pastki qavat dogʻi boʻyicha (taxmin).'));
     } else {
       const hex = (cc: number) => '#' + cc.toString(16).padStart(6, '0');
@@ -1245,13 +1246,19 @@ export class Editor {
     const nr = h('input', { type: 'number', min: 0, max: 10, value: this.nonRes, id: 'nr' }) as HTMLInputElement;
     fl.onchange = () => { this.floors = Math.max(1, Math.min(60, Math.round(Number(fl.value) || 1))); };
     nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
-    const drawing = this.tool instanceof RectTool;
-    body.append(h('details', { class: 'manual', open: drawing || !gens }, h('summary', {}, 'Qoʻlda bino chizish'),
+    const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm';
+    body.append(h('details', { class: 'manual', open: drawing || drawingP || !gens }, h('summary', {}, 'Qoʻlda bino chizish'),
       h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Qavatlar'), fl), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Noturar pastki'), nr)),
-      h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
-        this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
-        this.el.hint.textContent = this.tool?.hint ?? '';
-      }, toast)) }, drawing ? 'Qoʻshishni toʻxtatish' : '＋ Bino chizish')));
+      h('div', { class: 'row' },
+        h('button', { class: drawing ? 'btn primary grow' : 'btn grow', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
+          this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
+          this.el.hint.textContent = this.tool?.hint ?? '';
+        }, toast)) }, drawing ? 'Toʻxtatish' : '＋ Toʻrtburchak'),
+        h('button', { class: drawingP ? 'btn primary grow' : 'btn grow', id: 'drawPoly', title: 'Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish', onclick: () => drawingP ? this.setTool(null) : this.setTool(new PolygonTool(this.scene, r => {
+          this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
+          this.setTool(new PolygonTool(this.scene, r2 => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r2.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); }, toast, 20));
+        }, toast, 20)) }, drawingP ? 'Toʻxtatish' : '＋ Erkin shakl')),
+      h('p', { class: 'note' }, 'Uchlar va qirralarga yopishadi (Shift — oʻchiq). Kesma uzunligi chiziqda koʻrinadi.')));
   }
 
   /* ---------- 2-bosqich: koʻchalar, parsellar, yashil ---------- */
@@ -1277,6 +1284,30 @@ export class Editor {
   private profileBar(id: string): HTMLElement {
     const p = profileById(id);
     return h('div', { class: 'psec', title: p.parts.map(x => `${x.k} ${fmt(x.w, 1)} m${x.lanes ? ` (${x.lanes} qator)` : ''}`).join(' · '), html: sectionSvg(p.parts) });
+  }
+
+  /**
+   * Yopishish (privyazka): binolar va uchastka uchlariga (≤ 2 m), qirralariga (≤ 1,2 m), koʻcha qizil chiziqlari va oʻqlariga;
+   * Shift bosilganda — oʻchiq. Belgisi sahnada: qizil halqa — uch, koʻk — qirra.
+   */
+  private shiftDown = false;
+  private snapPt(p: XY, mark = false): XY {
+    if (this.shiftDown) { if (mark) this.scene.setSnapMark(null); return p; }
+    const doc = this.store.doc, fr = frame(doc.origin), rings: XY[][] = [];
+    for (const b of doc.buildings) rings.push(b.footprint.map(fr.toLocal));
+    if (doc.site) for (const r of doc.site.rings) rings.push(r.map(fr.toLocal));
+    const open: XY[][] = doc.streets.map(st => st.axis.map(fr.toLocal));
+    let best: XY = p, bd = 2, kind: 'uch' | 'qirra' = 'uch';
+    for (const r of [...rings, ...open]) for (const v of r) { const d = Math.hypot(v[0] - p[0], v[1] - p[1]); if (d < bd) { bd = d; best = v; } }
+    if (bd >= 2) {
+      let ed = 1.2;
+      const seg = (a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)), q: XY = [a[0] + t * dx, a[1] + t * dy], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < ed) { ed = d; best = q; kind = 'qirra'; } };
+      for (const r of rings) for (let i = 0; i < r.length; i++) seg(r[i], r[(i + 1) % r.length]);
+      for (const r of open) for (let i = 1; i < r.length; i++) seg(r[i - 1], r[i]);
+      if (ed >= 1.2) { if (mark) this.scene.setSnapMark(null); return p; }
+    }
+    if (mark) this.scene.setSnapMark(best, kind);
+    return best;
   }
 
   /** Koʻcha uchini mavjud koʻcha oʻqiga yopishtirish (≤ 6 m) — chorrahalar ulanishi uchun */
@@ -1658,7 +1689,7 @@ export class Editor {
   }
 
   private setTool(t: Tool | null): void {
-    this.tool?.cancel(); this.tool = t;
+    this.tool?.cancel(); this.tool = t; this.scene.setSnapMark(null);
     /* chizish rejada aniq: sharq–shimol oʻqlari ekran oʻqlari bilan mos */
     if (t && this.scene.view !== 'plan' && !(t as { anyView?: boolean }).anyView) this.setView('plan');
     this.el.hint.hidden = !t; if (t) this.el.hint.textContent = t.hint;
@@ -1796,7 +1827,7 @@ export class Editor {
     const c = this.scene.renderer.domElement;
     let down: { x: number; y: number } | null = null;
     // bino muharriri: devorni itarish / binoni siljitish (sichqoncha bilan)
-    let drag: { id: string; p0: XY; r0: XY[]; edge: number; n: XY } | null = null, raf = 0, pend: XY | null = null;
+    let drag: { id: string; p0: XY; r0: XY[]; edge: number; n: XY; floor: number; tiers0: { from: number; inset: number; edge?: number }[] } | null = null, raf = 0, pend: XY | null = null;
     let rdown: { x: number; y: number } | null = null;
     c.addEventListener('contextmenu', e => e.preventDefault());
     c.addEventListener('pointerdown', e => {
@@ -1805,25 +1836,39 @@ export class Editor {
       down = { x: e.clientX, y: e.clientY };
       if (this.dragMode === 'yoq' || !this.sel || this.tool) return;
       const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), g0 = this.scene.pick(e.clientX, e.clientY);
-      if (!hit || hit.id !== this.sel || !g0 || (this.dragMode === 'push' && !hit.wall)) return;
+      if (!hit || hit.id !== this.sel || !g0 || ((this.dragMode === 'push' || this.dragMode === 'floor') && !hit.wall)) return;
       const doc = this.store.doc, fr = frame(doc.origin), b = doc.buildings.find(x => x.id === this.sel)!, r0 = b.footprint.map(fr.toLocal), n = r0.length;
+      let floor = 0;
+      if (this.dragMode === 'floor') {
+        const fh = doc.settings.floorHeight, base = Math.min(...r0.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh;
+        floor = Math.max(1, Math.min(b.floors, Math.floor((hit.y - base) / fh) + 1));
+        this.scene.setSelFloor(floor); this.renderInspector();
+        if (floor < 2) { toast('1-qavat sudralmaydi — «Devorni itarish» dan foydalaning'); return; }
+      }
       let edge = 0, bd = Infinity;
       for (let k = 0; k < n; k++) { const a = r0[k], q = r0[(k + 1) % n], dx = q[0] - a[0], dy = q[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((hit.p[0] - a[0]) * dx + (hit.p[1] - a[1]) * dy) / L2)), d = Math.hypot(a[0] + t * dx - hit.p[0], a[1] + t * dy - hit.p[1]); if (d < bd) { bd = d; edge = k; } }
       const a = r0[edge], q = r0[(edge + 1) % n], L = Math.hypot(q[0] - a[0], q[1] - a[1]) || 1, ccw = signedArea(r0) > 0;
-      drag = { id: b.id, p0: g0, r0, edge, n: [(ccw ? 1 : -1) * (q[1] - a[1]) / L, (ccw ? -1 : 1) * (q[0] - a[0]) / L] };
+      drag = { id: b.id, p0: g0, r0, edge, n: [(ccw ? 1 : -1) * (q[1] - a[1]) / L, (ccw ? -1 : 1) * (q[0] - a[0]) / L], floor, tiers0: b.tiers ?? [] };
       this.scene.setOrbit(false); c.setPointerCapture(e.pointerId);
     });
     const applyDrag = () => {
       raf = 0; if (!drag || !pend) return;
       const doc = this.store.doc, fr = frame(doc.origin), dx = pend[0] - drag.p0[0], dy = pend[1] - drag.p0[1];
       let r: XY[] | null;
+      if (this.dragMode === 'floor') {
+        // shu qavatdan yuqorisi: + tashqariga (konsol), − ichkariga (terrasa) — faqat shu devor
+        const d = Math.round((dx * drag.n[0] + dy * drag.n[1]) * 2) / 2, f = drag.floor, e = drag.edge;
+        const tiers = [...drag.tiers0.filter(t => !(t.from === f && t.edge === e)), ...(d ? [{ from: f, inset: Math.max(-12, Math.min(12, -d)), edge: e }] : [])];
+        this.run(() => this.store.dispatch({ type: 'updateBuilding', id: drag!.id, patch: { tiers } }, `fdrag-${drag!.id}-${drag!.p0.join()}`));
+        return;
+      }
       if (this.dragMode === 'move') r = drag.r0.map(p => [p[0] + dx, p[1] + dy] as XY);
       else { const d = Math.round((dx * drag.n[0] + dy * drag.n[1]) * 2) / 2; r = d ? pushEdge(drag.r0, drag.edge, d) : drag.r0; }
       if (r) this.run(() => this.store.dispatch({ type: 'updateBuilding', id: drag!.id, patch: { footprint: r!.map(fr.toGeo) } }, `drag-${drag!.id}-${drag!.p0.join()}`));
     };
     c.addEventListener('pointermove', e => {
       if (drag) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { pend = p; if (!raf) raf = requestAnimationFrame(applyDrag); } return; }
-      if (!this.tool?.move) return; const p = this.scene.pick(e.clientX, e.clientY); if (p) this.tool.move(p);
+      if (!this.tool?.move) return; const p0 = this.scene.pick(e.clientX, e.clientY); if (p0) this.tool.move(this.tool.snapTo ? this.snapPt(p0, true) : p0);
     });
     c.addEventListener('pointerup', e => {
       if (e.button === 2) { if (rdown && Math.hypot(e.clientX - rdown.x, e.clientY - rdown.y) < 5 && !this.tool) this.ctxMenu(e.clientX, e.clientY); rdown = null; return; }
@@ -1831,7 +1876,7 @@ export class Editor {
       if (this.mode === 'pipette' && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 5) { down = null; const id = this.scene.pickBuilding(e.clientX, e.clientY); if (id) this.pipette(id); return; }
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;
-      if (this.tool) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { this.tool.click(p, e); if (this.tool) this.el.hint.textContent = this.tool.hint; } return; }
+      if (this.tool) { const p0 = this.scene.pick(e.clientX, e.clientY); if (p0) { this.tool.click(this.tool.snapTo ? this.snapPt(p0) : p0, e); if (this.tool) this.el.hint.textContent = this.tool.hint; } return; }
       if (this.step.id === 'parsel') {
         const cid = this.scene.pickContextBuilding(e.clientX, e.clientY);
         if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k] })); return; }
@@ -1859,6 +1904,10 @@ export class Editor {
         return;
       }
       const id = this.scene.pickBuilding(e.clientX, e.clientY);
+      if (id && id === this.sel && this.inspTab === 'qavat') {   // tanlangan binoda qavatni bosish — shu qavat
+        const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), b = this.store.doc.buildings.find(x => x.id === id);
+        if (hit && b) { const fr = frame(this.store.doc.origin), r = b.footprint.map(fr.toLocal), fh = this.store.doc.settings.floorHeight, base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; this.scene.setSelFloor(Math.max(1, Math.min(b.floors, Math.floor((hit.y - base) / fh) + 1))); this.renderInspector(); return; }
+      }
       this.sel = id; this.scene.select(id);
       if (!id && this.step.id === 'hajm') {
         const p = this.scene.pick(e.clientX, e.clientY);
@@ -1891,6 +1940,9 @@ export class Editor {
       }
     };
     window.addEventListener('keydown', onKey);
+    const onShift = (e: KeyboardEvent) => { this.shiftDown = e.shiftKey; };
+    window.addEventListener('keydown', onShift); window.addEventListener('keyup', onShift);
+    this.off.push(() => window.removeEventListener('keydown', onShift), () => window.removeEventListener('keyup', onShift));
     const onUnload = () => { this.saver.flush(); };
     window.addEventListener('pagehide', onUnload);
     this.off.push(() => window.removeEventListener('keydown', onKey), () => window.removeEventListener('pagehide', onUnload));

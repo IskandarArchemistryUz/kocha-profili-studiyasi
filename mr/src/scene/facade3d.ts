@@ -95,8 +95,9 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
         const shop = P.kind === 'shop', sp = shop ? { ...SHOP, head: Math.min(fh - 0.45, SHOP.head) } : P.spec;
         const holes: [number, number][][] = [], wins: { x0: number; x1: number; sill: number; head: number; arch: boolean; door: boolean; j: number }[] = [];
         const cov = P.cover?.(k) ?? [], zTop = zb + fh - 0.05;
-        // shu qavatda yopilgan interval bilan kesishadimi (m — qoʻshimcha chet)
-        const covered = (x0: number, x1: number, m = 0) => cov.some(c => c.top >= zTop && x1 + m > c.s0 && x0 - m < c.s1);
+        // shu qavatda yopilgan interval bilan kesishadimi (m — qoʻshimcha chet); qoʻshni tepasi 0,6 m gacha past boʻlsa ham yopiq (relyef farqi)
+        const covF = cov.filter(c => c.top >= zTop - 0.6);
+        const covered = (x0: number, x1: number, m = 0) => covF.some(c => x1 + m > c.s0 && x0 - m < c.s1);
         for (let j = 0; j < nm; j++) {
           const c = (j + 0.5) * bw;
           if (covered(c - bw * 0.45, c + bw * 0.45, 0.25)) continue;   // qoʻshni seksiya devori ortida — deraza yoʻq
@@ -112,11 +113,14 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
           }
           holes.push(holeOf(x0, x1, sill, head, arch)); wins.push({ x0, x1, sill, head, arch, door, j });
         }
-        // devor yuzasi (teshiklar bilan), UV — metr
-        const contour: [number, number][] = [[0, 0], [L, 0], [L, fh], [0, fh]];
-        const key = `${L.toFixed(2)}|${fh}|${sp.id}|${shop}|${P.bal}|${absF >= 1}|${nm}|${wins.map(w => `${w.x0.toFixed(2)}-${w.x1.toFixed(2)}-${w.sill}-${w.head}-${w.arch ? 1 : 0}`).join(',')}`;
-        const flat = contour.concat(...holes), faces = triangulate(contour, holes, key);
-        for (const t of faces) push('wall', t.map(i => V(flat[i][0], zb + flat[i][1], 0)), t.map(i => [u0 + flat[i][0], zb + flat[i][1]] as [number, number]));
+        // devor yuzasi (teshiklar bilan), UV — metr; qoʻshni seksiya yopgan oraliqda devor chizilmaydi
+        for (const [r0, r1] of runs(L, covF, 0)) {
+          const contour: [number, number][] = [[r0, 0], [r1, 0], [r1, fh], [r0, fh]];
+          const hs = holes.filter(hh => hh[0][0] >= r0 - 1e-6 && hh[1][0] <= r1 + 1e-6);
+          const key = `${r0.toFixed(2)}|${r1.toFixed(2)}|${fh}|${sp.id}|${shop}|${P.bal}|${absF >= 1}|${nm}|${hs.map(hh => `${hh[0][0].toFixed(2)}-${hh[1][0].toFixed(2)}-${hh[0][1]}-${hh[hh.length - 1][1]}-${hh.length}`).join(',')}`;
+          const flat = contour.concat(...hs), faces = triangulate(contour, hs, key);
+          for (const t of faces) push('wall', t.map(i => V(flat[i][0], zb + flat[i][1], 0)), t.map(i => [u0 + flat[i][0], zb + flat[i][1]] as [number, number]));
+        }
         // derazalar
         for (const wn of wins) {
           const hp = holeOf(wn.x0, wn.x1, wn.sill, wn.head, wn.arch), m = hp.length, dep = shop ? 0.12 : 0.2, dg = -dep + 0.04;
@@ -146,7 +150,7 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
           const kind = P.bal!;
           if (kind === 'uzluksiz') {
             const d = 1.5;
-            for (const [r0, r1] of runs(L, cov.filter(c => c.top >= zTop), 0.1)) { if (r1 - r0 < 1) continue; box('slab', r0, r1, zb - 0.1, zb + 0.08, 0, d); box('rail', r0, r1, zb + 0.08, zb + 1.1, d - 0.03, d); box('bar', r0, r1, zb + 1.08, zb + 1.13, d - 0.05, d + 0.01); }
+            for (const [r0, r1] of runs(L, covF, 0.1)) { if (r1 - r0 < 1) continue; box('slab', r0, r1, zb - 0.1, zb + 0.08, 0, d); box('rail', r0, r1, zb + 0.08, zb + 1.1, d - 0.03, d); box('bar', r0, r1, zb + 1.08, zb + 1.13, d - 0.05, d + 0.01); }
           } else for (const wn of wins) {
             if (kind === 'fransuz') { box('bar', wn.x0, wn.x1, zb + 0.95, zb + 1.0, 0.02, 0.07); for (let s = wn.x0 + 0.1; s < wn.x1; s += 0.12) box('bar', s, s + 0.02, zb + 0.1, zb + 0.95, 0.03, 0.05); continue; }
             if (!wn.door) continue;
@@ -171,10 +175,10 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
           }
         }
         // qavatlararo tasma
-        if (P.bands && f > 0) for (const [r0, r1] of runs(L, cov.filter(c => c.top >= zTop), 0)) box('trim', r0, r1, zb - 0.12, zb + 0.12, 0, 0.06);
+        if (P.bands && f > 0) for (const [r0, r1] of runs(L, covF, 0)) box('trim', r0, r1, zb - 0.12, zb + 0.12, 0, 0.06);
       }
       // karniz (qism tepasida)
-      { const zt = P.z0 + P.floors * P.fh; if (P.bands) for (const [r0, r1] of runs(L, (P.cover?.(k) ?? []).filter(c => c.top >= zt - 0.05), 0)) box('trim', r0, r1, zt - 0.25, zt, 0, 0.1); }
+      { const zt = P.z0 + P.floors * P.fh; if (P.bands) for (const [r0, r1] of runs(L, (P.cover?.(k) ?? []).filter(c => c.top >= zt - 0.6), 0)) box('trim', r0, r1, zt - 0.25, zt, 0, 0.1); }
     }
   }
   return G;
