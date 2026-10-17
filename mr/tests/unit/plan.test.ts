@@ -53,7 +53,7 @@ describe('Reja: koʻchalar va kvartallar', () => {
     const o = offsetLine([[0, 0], [10, 0], [10, 10]], 2);
     expect(o[0]).toEqual([0, 2]); expect(o[1][0]).toBeCloseTo(8); expect(o[1][1]).toBeCloseTo(2);
     const g = projectStreetsGeo([{ id: 'a', axis: [[0, 0], [100, 0]], parts: PROFILES[3].parts }], () => 0);
-    expect(g.layers.qatnov.length).toBeGreaterThan(0); expect(g.red).toHaveLength(2); expect(g.trees.length).toBeGreaterThan(10);
+    expect(g.layers.qatnov.length).toBeGreaterThan(0); expect(g.red).toHaveLength(1); expect(g.red[0].length).toBe(4);   // koridor konturi — bitta yopiq toʻrtburchak expect(g.trees.length).toBeGreaterThan(10);
   });
   it('3-sxema: koʻchalar, zonalar, keep fayldan qayta oʻqiladi', () => {
     let { d, fr } = withSite();

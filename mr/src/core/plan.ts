@@ -16,6 +16,13 @@ const open = (r: [number, number][]): XY[] => r.slice(0, -1).map(p => [p[0], p[1
 
 /** Siniq chiziq atrofidagi koridor (segment toʻrtburchaklari + boʻgʻinlarda doira), toʻgʻri uchlar */
 export function corridor(axis: XY[], half: number): MultiPolygon {
+  // burchaklari kesishgan (miter) yaxlit koʻpburchak — qizil chiziqlar toʻgʻri burchakli; oʻz-oʻzini kessa polygon-clipping normallashtiradi
+  if (axis.length >= 2) {
+    try {
+      const L = offsetLine(axis, half), Rr = offsetLine(axis, -half).reverse();
+      const ring = [...L, ...Rr]; if (ring.length >= 3) { const u = polygonClipping.union([close(ring)]); if (u.length) return u; }
+    } catch { /* zaxira: toʻrtburchak + doira */ }
+  }
   const parts: Polygon[] = [];
   for (let i = 1; i < axis.length; i++) {
     const a = axis[i - 1], b = axis[i], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); if (L < 0.01) continue;
@@ -26,6 +33,27 @@ export function corridor(axis: XY[], half: number): MultiPolygon {
   }
   if (!parts.length) return [];
   return safeUnion(parts);
+}
+
+/** Qizil chiziq: oʻqdan ±d siljigan siniq chiziq (boʻgʻinlarda burchak kesishmasi, oʻtkir burchakda cheklangan) */
+export function offsetLine(axis: XY[], d: number): XY[] {
+  const n = axis.length, out: XY[] = [];
+  const nrm = (a: XY, b: XY): XY => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; };
+  for (let i = 0; i < n; i++) {
+    const n0 = i > 0 ? nrm(axis[i - 1], axis[i]) : null, n1 = i < n - 1 ? nrm(axis[i], axis[i + 1]) : null;
+    let m: XY = n0 && n1 ? [n0[0] + n1[0], n0[1] + n1[1]] : (n0 ?? n1)!;
+    const ml = Math.hypot(m[0], m[1]) || 1; m = [m[0] / ml, m[1] / ml];
+    const cos = n0 && n1 ? Math.max(0.35, m[0] * n0[0] + m[1] * n0[1]) : 1;
+    out.push([axis[i][0] + m[0] * d / cos, axis[i][1] + m[1] * d / cos]);
+  }
+  return out;
+}
+
+/** Koʻchalar koridorlari birlashmasining konturlari (qizil chiziqlar): chorrahada kesishmaydi, T-ulanishda uzilib ulanadi */
+export function corridorOutlines(list: { axis: XY[]; half: number }[]): XY[][] {
+  const corr = list.map(s => corridor(s.axis, s.half)).filter(m => m.length);
+  if (!corr.length) return [];
+  return safeUnion(corr).flatMap(p => p.map(open)).filter(r => r.length >= 3);
 }
 
 /** Birlashtirish; aniqlik xatosida — bittadan qoʻshib, muammoli boʻlakni biroz kattalashtirib qayta */
