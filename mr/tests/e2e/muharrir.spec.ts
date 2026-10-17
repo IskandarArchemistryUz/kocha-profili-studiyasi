@@ -12,9 +12,9 @@ test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', a
   await page.mouse.click(bb.x + bb.width * 0.62, bb.y + bb.height * 0.32);
   await expect(page.locator('.panel[data-mode=bino]')).toBeVisible();
   const gfa0 = Number((await page.locator('#kGfa b').textContent())!.replace(/\D/g, ''));
-  const f0 = Number(await page.locator('#iFloors').textContent());
+  const f0 = Number(await page.locator('#iFloors').inputValue());
   await page.click('[aria-label="Qavatlar — oshirish"]');
-  await expect(page.locator('#iFloors')).toHaveText(String(f0 + 1));
+  await expect(page.locator('#iFloors')).toHaveValue(String(f0 + 1));
   await page.click('[data-itab=qavat]');
   await page.click(`[data-floor="${f0 - 2}"]`);
   await expect(page.locator('#iFloorT')).toContainText(`${f0 - 2}-qavat`);
