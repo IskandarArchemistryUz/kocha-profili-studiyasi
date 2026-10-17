@@ -567,6 +567,11 @@ export class Editor {
   /** Hujjatdagi holatga mos kontekstni koʻrsatish: kerak boʻlsa keshdan yoki tarmoqdan yuklash */
   private async ensureContext(force = false): Promise<void> {
     const doc = this.store.doc, cs = doc.context;
+    // cheksiz xaritada uchastka loyiha markazidan uzoqda chizilgan boʻlsa — markaz uchastkaga koʻchadi (atrof shu yerda yuklanadi)
+    if (doc.site?.rings[0]?.length) {
+      const r = doc.site.rings[0], c: LngLat = [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length];
+      if (dist(doc.origin, c) > (cs.loaded ? Math.min(300, cs.radius * 0.3) : 150)) { this.run(() => this.store.dispatch({ type: 'setOrigin', origin: c })); this.scene.frameDoc(this.store.doc); return; }
+    }
     if (!cs.loaded) { this.showContext(null); void this.showBaseMap(); return; }
     const cur = this.ctxMgr.current;
     const covers = (b: ContextBundle | null) => !!b && b.radius >= cs.radius && dist(b.center, doc.origin) + cs.radius <= b.radius + 60;
@@ -620,8 +625,8 @@ export class Editor {
   private async drawLive(c: XY, r: number, key: string): Promise<void> {
     const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs();
     this.live ??= new LiveBase(2048);
-    this.liveAt = { c, r: r * 1.3, key };
-    const img = await this.live.render(frame(doc.origin).toGeo(c), r * 1.3, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
+    this.liveAt = { c, r: r * 1.15, key };
+    const img = await this.live.render(frame(doc.origin).toGeo(c), r * 1.15, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
     if (this.baseKey !== key || this.store.doc.context.loaded) return;
     if (!img) { this.baseFail = true; this.baseKey = ''; this.liveAt = null; void this.showBaseMap(); return; }
     const first = !this.scene.hasBaseMap;
@@ -1982,7 +1987,8 @@ export class Editor {
         h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Eni, m'), w), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Boʻyi, m'), hh),
           h('button', { class: 'btn', id: 'rectSite', style: 'align-self:end', onclick: () => {
             const a = Number(w.value), b = Number(hh.value); if (!(a >= 10 && b >= 10)) { toast('Kamida 10 m'); return; }
-            const r: XY[] = [[-a / 2, -b / 2], [a / 2, -b / 2], [a / 2, b / 2], [-a / 2, b / 2]];
+            const m = this.scene.viewExtent().c;   // ekran markazida (xarita surilgan boʻlsa ham)
+            const r: XY[] = [[-a / 2, -b / 2], [a / 2, -b / 2], [a / 2, b / 2], [-a / 2, b / 2]].map(([x, y]) => [x + m[0], y + m[1]] as XY);
             this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.scene.frameDoc(this.store.doc);
           } }, 'Qoʻyish')),
         doc.site ? h('button', { class: 'btn danger', onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, 'Uchastkani oʻchirish') : '',
