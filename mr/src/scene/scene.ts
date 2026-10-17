@@ -118,7 +118,7 @@ export class Scene3D {
   private ray = new THREE.Raycaster();
   private dirty = true;
   private raf = 0;
-  private mode: ViewMode = 'axo';
+  private mode: ViewMode = 'plan';
   private selected: string | null = null;
   private selBlock: number | null = null;
   private selStreet: string | null = null;
@@ -159,7 +159,7 @@ export class Scene3D {
     this.cam = this.persp;
     this.ctl = new OrbitControls(this.persp, this.renderer.domElement);
     this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); });
-    this.setView('axo', true);
+    this.setView('plan', true);
 
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
@@ -211,8 +211,8 @@ export class Scene3D {
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     else if (this.hand) this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-    this.ctl.addEventListener('change', () => this.invalidate());
-    this.ctl.update();
+    this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); });
+    this.ctl.update(); this.onView?.();
     this.resize();
   }
 
@@ -327,19 +327,36 @@ export class Scene3D {
     this.invalidate();
   }
   /** Fon xaritasi (atrof yuklanmaganda): tikilgan plitkalar yer tekisligida */
-  private baseMap: { mesh: THREE.Mesh; blob: Blob } | null = null;
-  async setBaseMap(img: { image: Blob; nw: LngLat; se: LngLat } | null, origin: LngLat): Promise<void> {
-    if (img && this.baseMap?.blob === img.image) return;
-    if (this.baseMap) { this.scene.remove(this.baseMap.mesh); this.baseMap.mesh.geometry.dispose(); const m = this.baseMap.mesh.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); this.baseMap = null; }
-    this.grid.forEach(g => g.visible = !img && !this.ctx);
-    if (!img) { this.invalidate(); return; }
-    const url = URL.createObjectURL(img.image);
-    let t: THREE.Texture; try { t = await new THREE.TextureLoader().loadAsync(url); } finally { URL.revokeObjectURL(url); }
+  private baseMap: { mesh: THREE.Mesh; blob: Blob | null } | null = null;
+  /** img — 2D kanvas (jonli vektor xarita) yoki tasvir (zaxira plitkalar); bg — atrofdagi yer rangi */
+  async setBaseMap(img: { canvas?: HTMLCanvasElement; image?: Blob; nw: LngLat; se: LngLat; bg?: string } | null, origin: LngLat): Promise<void> {
+    if (img && img.image && this.baseMap?.blob === img.image) return;
+    const old = this.baseMap;
+    if (!img) {
+      if (old) { this.scene.remove(old.mesh); old.mesh.geometry.dispose(); const m = old.mesh.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); this.baseMap = null; }
+      (this.ground.material as THREE.MeshLambertMaterial).color.set(C.ground);
+      this.grid.forEach(g => g.visible = !this.ctx); this.invalidate(); return;
+    }
+    let t: THREE.Texture;
+    if (img.canvas) t = new THREE.CanvasTexture(img.canvas);
+    else { const url = URL.createObjectURL(img.image!); try { t = await new THREE.TextureLoader().loadAsync(url); } finally { URL.revokeObjectURL(url); } }
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     const fr = frame(origin), a = fr.toLocal(img.nw), c = fr.toLocal(img.se);
     const g = new THREE.PlaneGeometry(c[0] - a[0], a[1] - c[1]); g.rotateX(-Math.PI / 2); g.translate((a[0] + c[0]) / 2, 0.02, -(a[1] + c[1]) / 2);
     const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })); mesh.renderOrder = 1; mesh.name = 'fon-xarita';
-    this.scene.add(mesh); this.baseMap = { mesh, blob: img.image }; this.grid.forEach(gr => gr.visible = false); this.invalidate();
+    this.scene.add(mesh); this.baseMap = { mesh, blob: img.image ?? null };
+    if (old) { this.scene.remove(old.mesh); old.mesh.geometry.dispose(); const m = old.mesh.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); }
+    if (img.bg) (this.ground.material as THREE.MeshLambertMaterial).color.set(img.bg);
+    this.grid.forEach(gr => gr.visible = false); this.invalidate();
+  }
+  get hasBaseMap(): boolean { return !!this.baseMap; }
+  /** Koʻrinayotgan yer: markaz (mahalliy XY) va yarim oʻlcham (m) — fon xaritasini chizish uchun */
+  viewExtent(): { c: XY; r: number } {
+    const t = this.ctl.target, w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
+    let half: number;
+    if (this.cam === this.ortho) { const s = ((this.ortho.userData.s as number) || 200) / (this.ortho.zoom || 1); half = s * Math.max(1, w / h); if (this.mode !== 'plan') half *= 1.6; }
+    else half = this.cam.position.distanceTo(t) * Math.tan(THREE.MathUtils.degToRad(this.persp.fov / 2)) * Math.max(1, w / h) * 2.2;
+    return { c: [t.x, -t.z], r: half * 1.25 };
   }
   /** Kamera boshqaruvini vaqtincha oʻchirish (sudrash paytida) */
   setOrbit(on: boolean): void { this.ctl.enabled = on; }
@@ -592,12 +609,12 @@ export class Scene3D {
       const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
       const spec: WinSpec | null = b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null;
       // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar (uzoqdan ham, taqdimot uchun)
-      const det = this.detail && !!spec && tinted && !dim && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
+      const det = this.detail && !!spec && st !== 'funksiya' && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
       const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
         const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
         if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
         const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
-        if (kind && spec && !plain && st !== 'funksiya' && !dim) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
+        if (kind && spec && !plain && st !== 'funksiya') wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
         if (det && (kind === 'res' || kind === 'shop')) wall.visible = false;   // devorni geometrik fasad almashtiradi
         const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
         if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);

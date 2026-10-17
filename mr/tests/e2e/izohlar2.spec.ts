@@ -8,6 +8,7 @@ test('chap paneldagi bino muharriri, deraza/balkon turlari, tomlar, xarita boshq
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
   // binoni bosish — chap panel muharrirga aylanadi, oʻngda panel yoʻq
+  await page.click('[data-view=axo]');   // quyidagi nuqtalar aksonometriya uchun (standart koʻrinish — Reja)
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!;
   await page.mouse.click(bb.x + bb.width * 0.62, bb.y + bb.height * 0.32);
   await expect(page.locator('.panel[data-mode=bino]')).toBeVisible();
