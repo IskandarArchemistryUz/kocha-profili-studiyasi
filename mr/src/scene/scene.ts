@@ -14,7 +14,7 @@ import { projectStreetsGeo } from './streets3d';
 import { computePlan } from '../core/plan';
 import { profileById } from '../core/profiles';
 import { MATS, roofParts } from '../core/roof';
-import { winDef, type Bal } from '../core/facade';
+import { winDef, balAt, strSeed, type Bal, type BalPat } from '../core/facade';
 import { buildFacade, emptyGeo, matTexture, tileTexture, roofUV, type PartIn, type FacadeGeo, type Layer } from './facade3d';
 import { MOD_W } from '../core/apartments';
 import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
@@ -417,9 +417,9 @@ export class Scene3D {
     tiers.forEach((t, ti) => {
       const skip = (k: number) => shared(ti, k), cover = (k: number) => covAll[ti][k];
       if (t.f0 < nr && !parking) shopP.push({ ring: t.ring, z0: base + t.f0 * fh, floors: Math.min(t.f1, nr) - t.f0, fh, kind: 'shop', spec, bal: null, skip, cover, floor0: t.f0, bands: false });
-      if (t.f1 > nr) { const f0 = Math.max(t.f0, nr); resP.push({ ring: t.ring, z0: base + f0 * fh, floors: t.f1 - f0, fh, kind: 'res', spec, bal: b.bal ?? null, skip, cover, floor0: f0, bands: b.mat !== 'shisha' && b.mat !== 'metall' }); }
+      if (t.f1 > nr) { const f0 = Math.max(t.f0, nr); resP.push({ ring: t.ring, z0: base + f0 * fh, floors: t.f1 - f0, fh, kind: 'res', spec, bal: b.bal ?? null, skip, cover, floor0: f0, bands: b.mat !== 'shisha' && b.mat !== 'metall', pat: b.winPat, bpat: b.balPat, seed: strSeed(b.id), topF: b.floors }); }
     });
-    const key = JSON.stringify([resP.map(p => [p.ring, p.z0, p.floors, p.ring.map((_, k) => [p.skip(k), p.cover?.(k)])]), shopP.map(p => [p.ring, p.z0, p.floors]), fh, spec, b.bal, b.mat]);
+    const key = JSON.stringify([resP.map(p => [p.ring, p.z0, p.floors, p.ring.map((_, k) => [p.skip(k), p.cover?.(k)])]), shopP.map(p => [p.ring, p.z0, p.floors]), fh, spec, b.bal, b.mat, b.winPat, b.balPat, b.winPat === 'tasodifiy' || b.balPat === 'tasodifiy' ? b.id : '']);
     let G = this.facCache.get(key);
     if (!G) { G = { res: buildFacade(resP, emptyGeo()), shop: buildFacade(shopP, emptyGeo()) }; if (this.facCache.size > 600) this.facCache.clear(); this.facCache.set(key, G); }
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
@@ -454,7 +454,7 @@ export class Scene3D {
    * Balkonlar: deraza teksturasi bilan bir xil modul toʻrida (ExtrudeGeometry yon devor UV — mahalliy x yoki y koordinata),
    * har 2-modulda (uzluksiz — butun qirra boʻylab). InstancedMesh: plita, panjara, shisha, lodjiya devorlari.
    */
-  private balconies(kind: Bal, tiers: TierPart[], from: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, plain: boolean): void {
+  private balconies(kind: Bal, tiers: TierPart[], from: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, plain: boolean, bpat?: BalPat, seed = 0): void {
     const slab: THREE.Matrix4[] = [], rail: THREE.Matrix4[] = [], glass: THREE.Matrix4[] = [], q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
     const box = (arr: THREE.Matrix4[], cx: number, cy: number, z: number, ang: number, sx: number, sy: number, sz: number) => { q.setFromAxisAngle(Y, ang); arr.push(new THREE.Matrix4().compose(new THREE.Vector3(cx, z, -cy), q, new THREE.Vector3(sx, sy, sz))); };
     tiers.forEach((t, ti) => {
@@ -472,9 +472,11 @@ export class Scene3D {
         // deraza modullari markazlari: tekstura u = x (|dx| > |dy|) yoki y, modul markazi (j + 0,5)·MOD_W
         const useX = Math.abs(dx) > Math.abs(dy), ua = useX ? a[0] : a[1], ub = useX ? b[0] : b[1], lo = Math.min(ua, ub), hi = Math.max(ua, ub);
         const cs: number[] = [];
-        for (let j = Math.ceil(lo / MOD_W - 0.5); (j + 0.5) * MOD_W <= hi; j++) { const s = ((j + 0.5) * MOD_W - ua) / (ub - ua) * L; if (s > 1.2 && s < L - 1.2 && (kind === 'fransuz' || ((j % 2) + 2) % 2 === 0)) cs.push(s); }
+        for (let j = Math.ceil(lo / MOD_W - 0.5); (j + 0.5) * MOD_W <= hi; j++) { const s = ((j + 0.5) * MOD_W - ua) / (ub - ua) * L; if (s > 1.2 && s < L - 1.2) cs.push(s); }
+        const jOf = (s: number) => Math.round(s / MOD_W);
         const bw = Math.min(MOD_W * 0.85, MOD_W * Math.abs(L / (ub - ua || 1)) * 0.85);
         for (const s of cs) for (let f = f0; f < f1; f++) {
+          if (kind !== 'fransuz' && !balAt(bpat, jOf(s), f, seed, k)) continue;
           const z = base + f * fh;
           if (kind === 'fransuz') { const m = P(s, 0.18); box(slab, m[0], m[1], z + 0.06, ang, bw * 0.6, 0.1, 0.36); box(rail, m[0] + ox * 0.17, m[1] + oy * 0.17, z + 0.55, ang, bw * 0.6, 0.9, 0.03); continue; }
           const d = kind === 'lodjiya' ? 0.7 : 1.2, m = P(s, d / 2), fr = P(s, d);
@@ -609,7 +611,7 @@ export class Scene3D {
       const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
       const spec: WinSpec | null = b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null;
       // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar (uzoqdan ham, taqdimot uchun)
-      const det = this.detail && !!spec && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
+      const det = (this.detail || !!b.winPat || !!b.balPat) && !!spec && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
       const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
         const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
         if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
@@ -649,7 +651,7 @@ export class Scene3D {
       if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
       // balkonlar (turar qavatlarda, 2-qavatdan)
       if (det) this.facadeGeo(b, tiers, nr, base, fh, shared, spec!, parking, baseC, topC, P3.filter((_, i) => i !== bi));
-      else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain);
+      else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain, b.balPat, strSeed(b.id));
       const topZ = base + (last?.f1 ?? b.floors) * fh;
       if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
         const parts = roofParts(last.ring, roofK);
@@ -735,6 +737,22 @@ export class Scene3D {
   }
   private snapMark: THREE.Mesh | null = null;
 
+  /** Tahrirlash tutqichlari (koʻcha uchlari, blok burchaklari): v — tutqich, m — oraliq (yangi nuqta qoʻshish) */
+  private handles: THREE.Points[] = [];
+  private static dotTex: THREE.Texture | null = null;
+  setHandles(v: XY[], m: XY[] = []): void {
+    for (const p of this.handles) { this.scene.remove(p); p.geometry.dispose(); (p.material as THREE.Material).dispose(); }
+    this.handles = [];
+    if (!Scene3D.dotTex) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!; x.beginPath(); x.arc(32, 32, 26, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 9; x.strokeStyle = '#2a6fb0'; x.stroke(); Scene3D.dotTex = new THREE.CanvasTexture(c); Scene3D.dotTex.colorSpace = THREE.SRGBColorSpace; }
+    const mk = (pts: XY[], size: number, op: number) => {
+      if (!pts.length) return;
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts.flatMap(p => [p[0], this.H(p[0], p[1]) + 0.8, -p[1]]), 3));
+      const o = new THREE.Points(g, new THREE.PointsMaterial({ size, sizeAttenuation: false, map: Scene3D.dotTex, transparent: true, opacity: op, depthTest: false, alphaTest: 0.1 }));
+      o.renderOrder = 70; o.name = 'tutqich'; this.scene.add(o); this.handles.push(o);
+    };
+    mk(m, 9, 0.55); mk(v, 14, 1); this.invalidate();
+  }
+
   /** Kamerani hujjatdagi obyektlarga moslash */
   frameDoc(doc: Project): void {
     const fr = frame(doc.origin), pts: XY[] = [];
@@ -773,7 +791,7 @@ export class Scene3D {
   /** Kontekstni oʻrnatish (null — olib tashlash). Loyiha markazi yoki koʻrinish sozlamalari oʻzgarsa qayta quriladi. */
   async setContext(b: ContextBundle | null, doc: Project): Promise<void> {
     const cs = doc.context;
-    const adopted = doc.streets.filter(x => x.osm != null).map(x => x.osm!);
+    const adopted = [...doc.streets.filter(x => x.osm != null).map(x => x.osm!), ...(doc.removedRoads ?? [])];
     const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}` : '';
     if (key === this.ctxKey) return;
     this.ctxKey = key;

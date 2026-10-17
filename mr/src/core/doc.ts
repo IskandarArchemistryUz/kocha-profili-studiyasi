@@ -19,7 +19,7 @@ import { isUse, type Use } from './uses';
 import { COMP_DEFAULT, type CompParams } from './compensation';
 import { isMat, isRoof, type Mat, type Roof } from './roof';
 import type { Tier } from './tiers';
-import { isWin, isBal, type Win, type Bal } from './facade';
+import { isWin, isBal, isWinPat, isBalPat, type Win, type Bal, type WinPat, type BalPat } from './facade';
 export type { Use };
 
 export interface Building {
@@ -45,6 +45,9 @@ export interface Building {
   /** deraza va balkon turi (yoʻq — loyihaning umumiy fasad uslubi, balkonsiz) */
   win?: Win;
   bal?: Bal;
+  /** parametrik joylashuv: derazalar va balkonlar (yoʻq — qator / har 2-modul) */
+  winPat?: WinPat;
+  balPat?: BalPat;
   /** qoʻlda tahrirlangan tipik qavat rejasi; key — oyoq izi va kvartira sozlamalari (oʻzgarsa tahrir eskiradi) */
   planEdit?: PlanEdit;
 }
@@ -137,6 +140,8 @@ export interface Project {
   keep: number[];
   /** atrofdagi (OSM) binolar — foydalanuvchi sahnadan olib tashlagan (id lar) */
   removed?: number[];
+  /** atrofdagi (OSM) yoʻllar — foydalanuvchi olib tashlagan (id lar): sahnada, kvartal chegarasida va chizmada yoʻq */
+  removedRoads?: number[];
   /** qoʻlda belgilangan mavjud xizmat obyektlari */
   pois: ManualPoi[];
   /** saqlangan kamera koʻrinishlari (taqdimot uchun) */
@@ -225,7 +230,7 @@ export function migrate(raw: unknown): Project {
   const bl = Array.isArray(d.buildings) ? d.buildings : [];
   const buildings: Building[] = bl.map((b: any, i: number) => {
     if (!b || typeof b.id !== 'string' || !isRing(b.footprint) || !isNum(b.floors) || b.floors < 1) throw new SchemaError(`buildings[${i}] notoʻgʻri`);
-    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: String(b.gen.kind) } } : {}), ...(isNum(b.z0) && b.z0 > 0 ? { z0: b.z0 } : {}), ...(isMat(b.mat) ? { mat: b.mat } : {}), ...(isRoof(b.roof) ? { roof: b.roof } : {}), ...(Array.isArray(b.tiers) ? { tiers: b.tiers.filter((t: any) => t && isNum(t.from) && isNum(t.inset) && t.inset !== 0 && Math.abs(t.inset) <= 12).map((t: any) => ({ from: Math.round(t.from), inset: t.inset, ...(isNum(t.edge) ? { edge: Math.round(t.edge) } : {}) })) } : {}), ...(isNum(b.parapet) && b.parapet > 0 && b.parapet <= 3 ? { parapet: b.parapet } : {}), ...(['avto', 'gorizontal', 'vertikal', 'panjara'].includes(b.shade) ? { shade: b.shade } : {}), ...(isWin(b.win) ? { win: b.win } : {}), ...(isBal(b.bal) && b.bal !== 'yoq' ? { bal: b.bal } : {}), ...((() => { const pe = cleanPlanEdit(b.planEdit); return pe ? { planEdit: pe } : {}; })()) };
+    return { id: b.id, footprint: b.footprint.map((p: LngLat) => [p[0], p[1]] as LngLat), floors: Math.round(b.floors), nonRes: isNum(b.nonRes) ? Math.max(0, Math.min(b.floors, Math.round(b.nonRes))) : 0, use: isUse(b.use) ? b.use : 'turar', ...(b.gen && typeof b.gen.grp === 'string' ? { gen: { grp: b.gen.grp, kind: String(b.gen.kind) } } : {}), ...(isNum(b.z0) && b.z0 > 0 ? { z0: b.z0 } : {}), ...(isMat(b.mat) ? { mat: b.mat } : {}), ...(isRoof(b.roof) ? { roof: b.roof } : {}), ...(Array.isArray(b.tiers) ? { tiers: b.tiers.filter((t: any) => t && isNum(t.from) && isNum(t.inset) && t.inset !== 0 && Math.abs(t.inset) <= 12).map((t: any) => ({ from: Math.round(t.from), inset: t.inset, ...(isNum(t.edge) ? { edge: Math.round(t.edge) } : {}) })) } : {}), ...(isNum(b.parapet) && b.parapet > 0 && b.parapet <= 3 ? { parapet: b.parapet } : {}), ...(['avto', 'gorizontal', 'vertikal', 'panjara'].includes(b.shade) ? { shade: b.shade } : {}), ...(isWin(b.win) ? { win: b.win } : {}), ...(isWinPat(b.winPat) && b.winPat !== 'qator' ? { winPat: b.winPat } : {}), ...(isBalPat(b.balPat) && b.balPat !== 'har2' ? { balPat: b.balPat } : {}), ...(isBal(b.bal) && b.bal !== 'yoq' ? { bal: b.bal } : {}), ...((() => { const pe = cleanPlanEdit(b.planEdit); return pe ? { planEdit: pe } : {}; })()) };
   });
   const isLine = (v: unknown): v is LngLat[] => Array.isArray(v) && v.length >= 2 && v.every(isLL);
   const streets: Street[] = (Array.isArray(d.streets) ? d.streets : []).map((x: any, i: number) => {
@@ -235,6 +240,7 @@ export function migrate(raw: unknown): Project {
   const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
   const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
   const removed: number[] = (Array.isArray(d.removed) ? d.removed : []).filter(isNum);
+  const removedRoads: number[] = (Array.isArray(d.removedRoads) ? d.removedRoads : []).filter(isNum);
   const garages: Garage[] = (Array.isArray(d.garages) ? d.garages : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.grp === 'string' && isRing(x.ring) && isNum(x.spaces))
     .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)) }));
   const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
@@ -249,6 +255,6 @@ export function migrate(raw: unknown): Project {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois, views, ...(removed.length ? { removed } : {}),
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(removedRoads.length ? { removedRoads } : {}),
   };
 }

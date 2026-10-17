@@ -23,6 +23,55 @@ export const BALS: { id: Bal; name: string; note: string }[] = [
   { id: 'uzluksiz', name: 'Uzluksiz terrasa', note: 'butun fasad boʻylab 1,5 m (yarus)' },
 ];
 export const isWin = (v: unknown): v is Win => WINS.some(x => x.id === v);
+
+/**
+ * Parametrik joylashuv (qavat × modul toʻri boʻyicha): derazalar — qator, shaxmat (har qavatda yarim modul siljish), juft, ritm (2 + boʻsh),
+ * tasodifiy (bino id siga bogʻliq — har safar bir xil), gradient (pastdan tepaga kengayadi); balkonlar — qaysi modul/qavatda.
+ */
+export type WinPat = 'qator' | 'shaxmat' | 'juft' | 'ritm' | 'tasodifiy' | 'gradient';
+export type BalPat = 'har2' | 'hammasi' | 'shaxmat' | 'ustun' | 'qavat' | 'tasodifiy';
+export const WIN_PATS: { id: WinPat; name: string; note: string }[] = [
+  { id: 'qator', name: 'Qator', note: 'har modulda, ustma-ust' },
+  { id: 'shaxmat', name: 'Shaxmat', note: 'har ikkinchi qavat yarim modul siljigan' },
+  { id: 'juft', name: 'Juft', note: 'ikkitadan guruh, oraliq kengroq' },
+  { id: 'ritm', name: 'Ritm 2+1', note: 'ikki deraza, bitta yaxlit devor' },
+  { id: 'tasodifiy', name: 'Tasodifiy', note: 'kenglik va joy oʻzgaradi (bino boʻyicha barqaror)' },
+  { id: 'gradient', name: 'Gradient', note: 'pastda tor, tepada keng' },
+];
+export const BAL_PATS: { id: BalPat; name: string; note: string }[] = [
+  { id: 'har2', name: 'Har 2-modul', note: 'standart' },
+  { id: 'hammasi', name: 'Har modul', note: '' },
+  { id: 'shaxmat', name: 'Shaxmat', note: 'qavatma-qavat almashadi' },
+  { id: 'ustun', name: 'Ustunlar', note: 'har 3-modulda vertikal' },
+  { id: 'qavat', name: 'Har 2-qavat', note: 'yarus' },
+  { id: 'tasodifiy', name: 'Tasodifiy', note: '~40 %' },
+];
+export const isWinPat = (v: unknown): v is WinPat => WIN_PATS.some(x => x.id === v);
+export const isBalPat = (v: unknown): v is BalPat => BAL_PATS.some(x => x.id === v);
+/** barqaror psevdotasodif [0, 1) */
+export function hash01(...n: number[]): number { let h = 2166136261; for (const x of n) { h ^= Math.floor(x) + 0x9e3779b9; h = Math.imul(h, 16777619); h ^= h >>> 13; } return ((h >>> 0) % 100000) / 100000; }
+export function strSeed(s: string): number { let h = 7; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 2654435761); return h >>> 0; }
+/** j — modul, nm — modullar soni, f — qavat (absolyut), t — balandlik ulushi 0..1, k — qirra; on — deraza bormi, off — markaz siljishi (modul ulushida), wk — kenglik koeffitsiyenti */
+export function winAt(p: WinPat | undefined, j: number, nm: number, f: number, t: number, seed: number, k: number): { on: boolean; off: number; wk: number } {
+  switch (p) {
+    case 'shaxmat': { const off = f % 2 ? 0.5 : 0; return { on: !(off && j === nm - 1), off, wk: 0.9 }; }
+    case 'juft': return { on: true, off: j % 2 ? -0.17 : 0.17, wk: 0.72 };
+    case 'ritm': return { on: j % 3 !== 2, off: j % 3 === 0 ? 0.12 : j % 3 === 1 ? -0.12 : 0, wk: 1.1 };
+    case 'tasodifiy': { const r = hash01(seed, k, j, f); return { on: r > 0.14, off: (hash01(seed, k, j, f, 1) - 0.5) * 0.3, wk: 0.65 + 0.6 * hash01(seed, k, j, f, 2) }; }
+    case 'gradient': return { on: true, off: 0, wk: 0.55 + 0.6 * Math.max(0, Math.min(1, t)) };
+    default: return { on: true, off: 0, wk: 1 };
+  }
+}
+export function balAt(p: BalPat | undefined, j: number, f: number, seed: number, k: number): boolean {
+  switch (p) {
+    case 'hammasi': return true;
+    case 'shaxmat': return (j + f) % 2 === 0;
+    case 'ustun': return j % 3 === 1;
+    case 'qavat': return f % 2 === 0;
+    case 'tasodifiy': return hash01(seed, k, j, f, 3) < 0.4;
+    default: return j % 2 === 0;
+  }
+}
 export const isBal = (v: unknown): v is Bal => BALS.some(x => x.id === v);
 export const winDef = (id: Win) => WINS.find(x => x.id === id)!;
 
