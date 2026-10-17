@@ -9,7 +9,8 @@
 <script src="js/beta.js?v=15"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="js/cdn.js?v=1"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" onerror="KLIB.css(this)">
 <style>
 :root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--line2:#cfccc5;--bad:#b3261e;--ok:#2e7d4f;--ai:#7b61d1;--mono:'IBM Plex Mono',ui-monospace,monospace}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
@@ -62,6 +63,7 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 @media (max-width:860px){main{grid-template-columns:1fr;grid-template-rows:45% 55%}}
 </style>
 <link rel="stylesheet" href="css/kit.css?v=1"><script>document.documentElement.classList.add("kit-ai")</script>
+<script src="js/icons.js?v=2"></script>
 </head>
 <body>
 <header>
@@ -72,14 +74,14 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 <label class="km">r =<input id="rKm" type="number" min="0.2" max="5" step="0.1" value="1">km</label>
 <label class="km" title="Hududdan tashqarini xaritada, albomda va 3D da kesib tashlash" style="font-family:inherit;font-size:12.5px;gap:6px;cursor:pointer"><input type="checkbox" id="clipCb"> Faqat hudud ichi</label>
 <button class="btn dark" id="runBtn">Hisoblash</button><button class="btn ghost" id="b3d" title="3D model va vektor illyustratsiya: qatlamlar, ranglar, yuklab olish (SVG, PNG, OBJ, DXF, STL, GLB, DAE)"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>3D / vektor</button>
-<div class="more-w"><button class="btn ghost" id="moreBtn" aria-expanded="false" aria-haspopup="true" title="Albomga, saqlanganlar, AI kaliti">⋯</button><div class="more-m" id="moreM" hidden role="menu"><button id="albBtn" role="menuitem" title="Xarita (yoqilgan qatlamlar, fon bilan), koʻrsatkichlar va 15 daqiqa jadvalini albomga yuborish">Albomga yuborish →</button><button id="savBtn" role="menuitem" title="Saqlangan tahlillar: qayta ochish, nomlash, oʻchirish">Saqlangan tahlillar</button><button id="keyBtn" role="menuitem">AI kaliti (Anthropic API)</button></div></div>
+<div class="more-w"><button class="btn ghost" id="moreBtn" aria-expanded="false" aria-haspopup="true" title="Albomga, saqlanganlar, AI kaliti"><i data-i="more"></i></button><div class="more-m" id="moreM" hidden role="menu"><button id="albBtn" role="menuitem" title="Xarita (yoqilgan qatlamlar, fon bilan), koʻrsatkichlar va 15 daqiqa jadvalini albomga yuborish">Albomga yuborish<i data-i="arrow-right" data-p="a"></i></button><button id="savBtn" role="menuitem" title="Saqlangan tahlillar: qayta ochish, nomlash, oʻchirish">Saqlangan tahlillar</button><button id="keyBtn" role="menuitem">AI kaliti (Anthropic API)</button></div></div>
 </header>
 <main>
 <div class="mapw"><div id="map"></div><div class="hint" id="hint"></div>
-<div class="legend" id="lgd" hidden style="display:none"><label><input type="checkbox" id="l15" checked> 15 daqiqa</label><label><input type="checkbox" id="lIso" checked> piyoda qamrovi</label><label><input type="checkbox" id="lPoi" checked> POI</label><span><b style="color:#e8775f">●</b> chorrahalar</span><span><b style="color:#1d6fa5">■</b> bekatlar</span><span><b style="color:#2e7d4f">■</b> yashil</span><span><b style="color:#7b61d1">●</b> xizmatlar</span></div></div>
+<div class="legend" id="lgd" hidden style="display:none"><label><input type="checkbox" id="l15" checked> 15 daqiqa</label><label><input type="checkbox" id="lIso" checked> piyoda qamrovi</label><label><input type="checkbox" id="lPoi" checked> POI</label><span><b style="display:inline-block;width:8px;height:8px;vertical-align:1px;background:#e8775f;border-radius:50%"></b> chorrahalar</span><span><b style="display:inline-block;width:8px;height:8px;vertical-align:1px;background:#1d6fa5"></b> bekatlar</span><span><b style="display:inline-block;width:8px;height:8px;vertical-align:1px;background:#2e7d4f"></b> yashil</span><span><b style="display:inline-block;width:8px;height:8px;vertical-align:1px;background:#7b61d1;border-radius:50%"></b> xizmatlar</span></div></div>
 <aside>
 <div class="top">
-<div class="ask"><textarea id="q" aria-label="Soʻrov">Shu hudud boʻyicha urbanistik baho ber: kuchli va zaif tomonlar, piyoda va jamoat transporti nuqtai nazaridan tavsiyalar.</textarea><button id="askBtn" aria-label="AI dan soʻrash">↑</button></div>
+<div class="ask"><textarea id="q" aria-label="Soʻrov">Shu hudud boʻyicha urbanistik baho ber: kuchli va zaif tomonlar, piyoda va jamoat transporti nuqtai nazaridan tavsiyalar.</textarea><button id="askBtn" aria-label="AI dan soʻrash"><i data-i="arrow-up"></i></button></div>
 <div class="chips"><button data-qq="Piyoda harakati nuqtai nazaridan baho ber: ulanganlik, xizmatlarga yaqinlik, trotuarlar.">Piyoda</button><button data-qq="Velosiped tarmogʻi uchun imkoniyatlar va toʻsiqlarni baholang.">Velo</button><button data-qq="Jamoat transporti qamrovi va bekatlar joylashuvi boʻyicha baho ber.">Jamoat transporti</button><button data-qq="15 daqiqalik shahar tamoyili boʻyicha baho ber: kundalik xizmatlar yetarlimi?">15 daqiqa</button><button data-qq="Yashil infratuzilma va issiqlik oroli xavfi boʻyicha baho ber.">Yashil va iqlim</button></div>
 </div>
 <div class="body" id="body"></div>
@@ -87,15 +89,17 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 </main>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>KLIB.need('leaflet')</script>
 <script src="js/basemap.js?v=1"></script>
 <script src="js/project.js?v=2"></script>
-<script src="js/uly.js?v=5"></script>
+<script>KLIB.need('leaflet',['js/uly.js?v=5'])</script>
 <script src="js/layerbus.js?v=1"></script>
 <script src="js/ai3d.js?v=17"></script>
 <script>
 (function(){
 'use strict';
 document.getElementById('logoP').setAttribute('d','M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z');
+if(!KLIB.ok('leaflet'))return;   // kutubxona yuklanmadi — xabar js/cdn.js da
 const $=s=>document.querySelector(s),R=Math.PI/180;
 const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),5000);};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -118,11 +122,11 @@ const SITE_LOCK=window.parent!==window;
 if(SITE_LOCK){const st=document.createElement('style');st.textContent='#modeSeg,#modeSeg+.km,#a3site{display:none!important}';document.head.appendChild(st);}
 function hint(){const h=$('#hint');
   if(SITE_LOCK){const has=mode==='radius'?!!center:(done&&poly.length>2);
-    h.innerHTML=has?'Hudud — asosiy oynadan. <a href="#" id="toHud">Chegarani oʻzgartirish</a>':'<b>Hudud hali belgilanmagan.</b> Uni asosiy oynada chizing: <a href="#" id="toHud">Hudud chegarasi →</a>';
+    h.innerHTML=has?'Hudud — asosiy oynadan. <a href="#" id="toHud">Chegarani oʻzgartirish</a>':'<b>Hudud hali belgilanmagan.</b> Uni asosiy oynada chizing: <a href="#" id="toHud">Hudud chegarasi'+KIC.i('arrow-right','a')+'</a>';
     const a=$('#toHud');if(a)a.onclick=ev=>{ev.preventDefault();try{parent.postMessage({kps:'go',href:'muharrir.html#hudud'},location.origin);}catch(er){}};return;}
 if(mode==='radius')h.innerHTML=center?'<b>Markaz tanlandi.</b> Radiusni oʻzgartiring yoki «Hisoblash» ni bosing.':'<b>Doira.</b> Xaritada markazni bosing.';
   else if(mode==='rect')h.innerHTML=done?'<b>Toʻrtburchak tayyor.</b> «Hisoblash» ni bosing yoki qaytadan ikki burchakni bosing.':rectA?'<b>Toʻrtburchak.</b> Qarama-qarshi burchakni bosing.':'<b>Toʻrtburchak.</b> Birinchi burchakni bosing.';
-  else h.innerHTML=done?'<b>Chegara tayyor.</b> Nuqtalarni sudrab tuzating, «+» — nuqta qoʻshish. «Hisoblash» ni bosing.<button id="hCl">Qaytadan</button>':`<b>Erkin chegara.</b> Burchaklarni bosing (${poly.length}).${poly.length>2?' Yopish — birinchi nuqtani bosing yoki Enter.':''}`+(poly.length>2?'<button id="hClose">Yopish</button>':'')+(poly.length?'<button id="hUndo">Oxirgi nuqta ⌫</button><button id="hCl">Tozalash</button>':'');
+  else h.innerHTML=done?'<b>Chegara tayyor.</b> Nuqtalarni sudrab tuzating, «+» — nuqta qoʻshish. «Hisoblash» ni bosing.<button id="hCl">Qaytadan</button>':`<b>Erkin chegara.</b> Burchaklarni bosing (${poly.length}).${poly.length>2?' Yopish — birinchi nuqtani bosing yoki Enter.':''}`+(poly.length>2?'<button id="hClose">Yopish</button>':'')+(poly.length?'<button id="hUndo">Oxirgi nuqta'+KIC.i('backspace','a')+'</button><button id="hCl">Tozalash</button>':'');
   if($('#hClose'))$('#hClose').onclick=closePoly;if($('#hUndo'))$('#hUndo').onclick=undoPt;
   if($('#hCl'))$('#hCl').onclick=()=>{poly=[];done=false;PV.clearLayers();DIRTY=true;drawArea();hint();};}
 function curRing(){if(LASTD&&LASTD.ring&&!DIRTY)return LASTD.ring;if(mode==='radius'&&center){const r=+$('#rKm').value*1000,mx=111320*Math.cos(center[0]*R),o=[];for(let i=0;i<72;i++){const a=i/72*2*Math.PI;o.push([center[0]+r*Math.sin(a)/MY,center[1]+r*Math.cos(a)/mx]);}return o;}return done&&poly.length>2?poly:null;}
@@ -606,7 +610,7 @@ function renderRes(){if(!res){$('#body').innerHTML=`<div class="empty"><h2>Hudud
     <details class="more"${op(2,false)}><summary>Zichlik va aholi</summary>${secDens()}${secOff()}</details>
     <details class="more"${op(3,false)}><summary>Ekologiya, ochiqlik, tasvir tahlili</summary>${secEnv()}${secAcc()}${secCV()}</details><div class="note">${res.notes.map(esc).join('<br>')}</div>`;
   h+=`<div><div class="lbl" style="color:var(--ai)">AI xulosasi · qoralama, tekshiring</div><div class="ai" id="aiOut">${aiText?md(aiText):(KEY()?'<span class="note">Yuqoridagi soʻrovni yuboring (↑) yoki tugmalardan birini tanlang.</span>':'<span class="note">AI xulosasi ixtiyoriy. Kalitni kiritish — yuqoridagi «⋯» → «AI kaliti».</span>')}</div></div>
-    ${prmBox()}<div class="chips"><button id="svRun">Saqlash</button><button id="toMk">Albomga →</button><button id="cpJ">JSON nusxa</button></div>`;
+    ${prmBox()}<div class="chips"><button id="svRun">Saqlash</button><button id="toMk">Albomga${KIC.i('arrow-right','a')}</button><button id="cpJ">JSON nusxa</button></div>`;
   $('#body').innerHTML=h;bindKey();bind15();bindCV();bindOff();windLoad();document.querySelectorAll('details.more').forEach(x=>x.addEventListener('toggle',sv));
   $('#svRun').onclick=()=>{const n=prompt('Tahlil nomi:',CUR_ID&&CUR_ID!=='last'&&CUR_NAME?CUR_NAME:defName());if(n==null)return;saveRun(CUR_ID&&CUR_ID!=='last'?CUR_ID:'r'+Date.now().toString(36),n).then(()=>toast('Saqlandi: '+n+'. «Saqlanganlar» dan qayta ochasiz.')).catch(e=>toast('Saqlanmadi: '+(e.message||e)));};
   $('#toMk').onclick=()=>toMaket().catch(e=>toast('Albomga yuborilmadi: '+(e.message||e)));$('#cpJ').onclick=()=>{navigator.clipboard.writeText(JSON.stringify(res,null,2));toast('Koʻrsatkichlar nusxalandi.');};}
@@ -628,7 +632,7 @@ function roseSVG(f,sz){const c=sz/2,R=c-14,mx=Math.max(...f,.01);let s=`<svg wid
 async function windLoad(){const el=$('#wRose');if(!el)return;const c=siteCenter();if(!c){el.textContent='Hudud markazi topilmadi.';return;}
   try{const w=await windData(c);if(!$('#wRose'))return;const top=(f)=>f.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]);const Y=w.yil,t=top(Y.freq),ty=top(w.yoz.freq)[0],tq=top(w.qish.freq)[0];
     $('#wRose').outerHTML=`<div id="wRose" style="display:flex;gap:12px;align-items:center">${roseSVG(Y.freq,124)}<div style="font-size:12.5px;line-height:1.55"><b>Asosiy:</b> ${WN[t[0][1]]} tomondan ${Math.round(t[0][0]*100)} %<br><b>Ikkinchi:</b> ${WN[t[1][1]]} ${Math.round(t[1][0]*100)} %<br>Yozda: ${WN[ty[1]]} · qishda: ${WN[tq[1]]}<br>Shtil: ${Math.round(Y.calm*100)} % · oʻrtacha ${Y.mean.toFixed(1)} m/s
-      <div style="margin-top:6px"><a href="shamol.html" class="btn sm ghost" style="text-decoration:none">Batafsil: shamol va turgʻunlik →</a></div></div></div>`;}
+      <div style="margin-top:6px"><a href="shamol.html" class="btn sm ghost" style="text-decoration:none">Batafsil: shamol va turgʻunlik${KIC.i('arrow-right','a')}</a></div></div></div>`;}
   catch(e){if($('#wRose'))$('#wRose').textContent='Shamol maʼlumoti yuklanmadi: '+(e.message||e);}}
 function keyBox(){return `<div class="keybox"><b>AI xulosasi uchun Anthropic API kaliti</b><span class="note">Sayt serversiz ishlaydi: soʻrov brauzeringizdan toʻgʻridan-toʻgʻri Anthropic API ga ketadi. Kalit faqat shu brauzerda saqlanadi; har soʻrov kalit egasining hisobidan toʻlanadi. Kalit: console.anthropic.com → API Keys.</span>
   <input type="password" id="kIn" placeholder="sk-ant-..." value="${esc(KEY())}"><select id="kMod"><option value="${esc(MODEL())}">${esc(MODEL())}</option></select><div style="display:flex;gap:6px"><button class="btn sm dark" id="kSave">Saqlash</button><button class="btn sm ghost" id="kDel">Oʻchirish</button></div></div>`;}
@@ -689,9 +693,9 @@ async function openRun(id,quiet){const r=await rdo('readonly',st=>st.get(id));if
 async function runsUI(){let rows=[];try{rows=await listRuns();}catch(e){toast('Saqlanganlarni oʻqib boʻlmadi: '+(e.message||e));return;}
   const d=s=>new Date(s).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   $('#body').innerHTML=`<div><h2>Saqlangan tahlillar</h2><div class="sub">Brauzerda saqlanadi (IndexedDB) · OSM maʼlumotlari bilan birga — qayta ochilganda internetsiz tiklanadi</div></div>
-  ${res?'<div><button class="btn sm ghost" id="rvBack">← Natijaga qaytish</button></div>':''}
+  ${res?'<div><button class="btn sm ghost" id="rvBack">'+KIC.i('arrow-left','b')+'Natijaga qaytish</button></div>':''}
   ${rows.length?rows.map(r=>`<div class="met" style="grid-template-columns:1fr auto"><span><b style="font-family:inherit;font-weight:500">${esc(r.id==='last'?'Oxirgi tahlil (avto)':r.name)}</b><br><span class="note">${esc(r.label||'')} · ${r.area!=null?f2(r.area)+' km²':''} · ${d(r.t)}${r.hasAI?' · AI xulosasi bor':''}</span></span>
-    <span style="display:flex;gap:4px;align-items:center"><button class="btn sm dark" data-ro="${esc(r.id)}">Ochish</button>${r.id==='last'?'':`<button class="btn sm ghost" data-rn="${esc(r.id)}" title="Nomini oʻzgartirish">✎</button>`}<button class="btn sm ghost" data-rd="${esc(r.id)}" title="Oʻchirish" style="color:var(--bad);border-color:var(--bad)">✕</button></span></div>`).join(''):'<div class="note">Hali saqlangan tahlil yoʻq. Hisoblagandan keyin «Saqlash» ni bosing; oxirgi tahlil avtomatik saqlanadi.</div>'}`;
+    <span style="display:flex;gap:4px;align-items:center"><button class="btn sm dark" data-ro="${esc(r.id)}">Ochish</button>${r.id==='last'?'':`<button class="btn sm ghost" data-rn="${esc(r.id)}" title="Nomini oʻzgartirish">${KIC.i('pencil')}</button>`}<button class="btn sm ghost" data-rd="${esc(r.id)}" title="Oʻchirish" style="color:var(--bad);border-color:var(--bad)">${KIC.i('x')}</button></span></div>`).join(''):'<div class="note">Hali saqlangan tahlil yoʻq. Hisoblagandan keyin «Saqlash» ni bosing; oxirgi tahlil avtomatik saqlanadi.</div>'}`;
   if($('#rvBack'))$('#rvBack').onclick=renderRes;
   document.querySelectorAll('[data-ro]').forEach(b=>b.onclick=()=>openRun(b.dataset.ro).catch(e=>toast('Ochilmadi: '+(e.message||e))));
   document.querySelectorAll('[data-rd]').forEach(b=>b.onclick=async()=>{if(!confirm('Oʻchirilsinmi?'))return;await rdo('readwrite',st=>st.delete(b.dataset.rd));if(CUR_ID===b.dataset.rd){CUR_ID=null;CUR_NAME=null;}runsUI();});

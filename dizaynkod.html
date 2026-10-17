@@ -101,6 +101,7 @@ button.primary{text-transform:uppercase;letter-spacing:.1em;font-size:13px}
 @media (max-width:560px){header.kps{padding:0 16px;gap:12px}header.kps .brand i,header.kps .crumb{display:none}.page{padding:12px 16px 32px}}
 </style>
 
+<script src="js/icons.js?v=2"></script>
 </head>
 <body>
 <header class="kps"><a class="brand" href="./"><svg width="26" height="25" viewBox="0 0 103.45 100" aria-hidden="true"><path d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z" fill="#696969" fill-rule="evenodd"/></svg><b>ARCHEMISTRY</b><i>LAB</i></a>
@@ -654,7 +655,7 @@ const ADVICE={yoritish_turi:"Butun fon yonadigan quti (lightbox) devor yozuvida 
 const esc=t=>String(t??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 function renderSteps(){
   const can=n=>n===1||(n===2&&S.src)||(n>=3&&S.F);
-  document.getElementById('steps').innerHTML=STEPS.map((t,i)=>{const n=i+1;return`<li><button data-step="${n}" ${n===S.step?'aria-current="step"':''} class="${n<S.step?'done':''}" ${can(n)?'':'disabled'}><span class="n">${n<S.step?'✓':n}</span>${t}</button></li>`;}).join("");
+  document.getElementById('steps').innerHTML=STEPS.map((t,i)=>{const n=i+1;return`<li><button data-step="${n}" ${n===S.step?'aria-current="step"':''} class="${n<S.step?'done':''}" ${can(n)?'':'disabled'}><span class="n">${n<S.step?KIC.i('check','',14):n}</span>${t}</button></li>`;}).join("");
 }
 document.getElementById('steps').addEventListener('click',e=>{const b=e.target.closest('[data-step]');if(!b||b.disabled)return;go(+b.dataset.step);});
 function go(n){resetZoom();
@@ -674,7 +675,7 @@ function renderCard(){
     <label class="drop" for="file"><b>Rasmni tanlang</b>JPG yoki PNG<input type="file" id="file" accept="image/*"></label>
     <div class="row"><button id="rot">Rasmni 90° burish</button></div>
     <label class="f" for="tip">Do'kon qayerda joylashgan?<select id="tip">${tipOptions()}</select></label>
-    ${STUDIO?`<p class="hint" style="margin:-4px 0 10px"><a href="dizaynkod-joy.html" style="text-decoration:underline">Bilmaysizmi? Xaritada aniqlang →</a>${S.tipFromMap?" · tip xaritadan olindi":""}</p>`:""}
+    ${STUDIO?`<p class="hint" style="margin:-4px 0 10px"><a href="dizaynkod-joy.html" style="text-decoration:underline">Bilmaysizmi? Xaritada aniqlang${KIC.i('arrow-right','a',14)}</a>${S.tipFromMap?" · tip xaritadan olindi":""}</p>`:""}
     <label class="chk"><input type="checkbox" id="meros" ${S.meros?"checked":""}> Bino madaniy meros obyekti yoki tarixiy bino</label>
     <label class="chk"><input type="checkbox" id="visorPass" ${S.visorPass?"checked":""}> Kirish ustida visor (soyabon) bor va u fasad pasportida ko'rsatilgan</label>
     <div class="nav"><button class="primary" id="next" ${S.src?"":"disabled"}>Keyingi: eshikni belgilash</button></div>`;}
@@ -704,7 +705,7 @@ function renderCard(){
       <div class="row"><button id="addWin">Deraza yoki vitrina qo'shish</button><button id="delWin" ${S.windows.length?"":"disabled"}>Oxirgisini o'chirish</button></div>
       ${t2?`<label class="chk"><input type="checkbox" id="show2" ${S.show2?"checked":""}> Peshlavhani 2-qavat darajasiga ham qo'yishni ko'rib chiqaman (bu joyda ruxsat bor)</label>`:""}
     </div></details>
-    <div class="nav"><button id="sub3back">← Do'kon qavati</button><button class="primary" id="next">Keyingi: peshlavha</button></div>`;dims();}
+    <div class="nav"><button id="sub3back">${KIC.i('arrow-left','b')}Do'kon qavati</button><button class="primary" id="next">Keyingi: peshlavha</button></div>`;dims();}
   if(S.step===4){renderSignCard(C);}
   bindCard();
 }
@@ -734,11 +735,11 @@ function renderSignCard(C){
     s.mode==="text"?`<label class="f" for="f_letterH">O'zbekcha harf balandligi: <b id="o_letterH">${s.letterH} sm</b><input type="range" id="f_letterH" min="8" max="90" value="${s.letterH}"></label>
     ${s.alt?`<label class="f" for="f_altH">Ikkinchi til harf balandligi: <b id="o_altH">${s.altH||s.letterH} sm</b><input type="range" id="f_altH" min="5" max="90" value="${s.altH||s.letterH}"></label>
     <div class="f">Tillar joylashuvi<div class="row" style="margin-top:4px"><button id="lyY" aria-pressed="${s.layout!=="ostma"}">Yonma-yon</button><button id="lyO" aria-pressed="${s.layout==="ostma"}">Ostma-ost</button></div>
-    ${s.layout==="ostma"?`<div class="row" style="margin-top:6px;grid-template-columns:repeat(3,1fr)"><button data-al="chap" aria-pressed="${(s.align||"chap")==="chap"}">⇤ Chap</button><button data-al="markaz" aria-pressed="${s.align==="markaz"}">↔ Markaz</button><button data-al="ong" aria-pressed="${s.align==="ong"}">O'ng ⇥</button></div>`:""}
+    ${s.layout==="ostma"?`<div class="row" style="margin-top:6px;grid-template-columns:repeat(3,1fr)"><button data-al="chap" aria-pressed="${(s.align||"chap")==="chap"}">${KIC.i('align-left','b')}Chap</button><button data-al="markaz" aria-pressed="${s.align==="markaz"}">${KIC.i('align-center','b')}Markaz</button><button data-al="ong" aria-pressed="${s.align==="ong"}">O'ng${KIC.i('align-right','a')}</button></div>`:""}
     <small style="color:var(--muted)">${s.layout==="ostma"?"Hujjat ikki xil: «yuqoridan yoki chapdan» deydi, keyingi bandda «birining ostiga qo'yish taqiqlanadi» (101-bet). Bosh me'mor ko'rib chiqadi.":"Hujjat talab qiladigan joylashuv (101-bet)."}</small></div>`:""}
     ${panel?"":s.tlogo?`<label class="f" for="f_tlogoH">Logotip balandligi: <b id="o_tlogoH">${s.tlogoH||Math.round(s.lh)} sm</b><input type="range" id="f_tlogoH" min="10" max="150" value="${s.tlogoH||Math.round(s.lh)}"></label><div class="row"><button id="tlogoDel">Logotipni olib tashlash</button></div>`:
       `<label class="f" for="f_tlogo">Logotip qo'shish (ixtiyoriy) — matn chap tomonida<input type="file" id="f_tlogo" accept="image/png,image/svg+xml,image/jpeg"></label>`}`:""}
-  ${s.type!=="axborot_plitasi"?`<div class="f">Joylashuv<div class="row" style="margin-top:4px"><button data-pos="chap">⇤ Chap chet</button><button data-pos="eshik">Eshik o'qi</button><button data-pos="markaz">Fasad markazi</button><button data-pos="ong">O'ng chet ⇥</button></div></div>`:""}
+  ${s.type!=="axborot_plitasi"?`<div class="f">Joylashuv<div class="row" style="margin-top:4px"><button data-pos="chap">${KIC.i('align-left','b')}Chap chet</button><button data-pos="eshik">Eshik o'qi</button><button data-pos="markaz">Fasad markazi</button><button data-pos="ong">O'ng chet${KIC.i('align-right','a')}</button></div></div>`:""}
   <p class="lead" style="font-size:13px">Peshlavhani rasm ustida suring. G'ildirak — yaqinlashtirish, bo'sh joyni tortish — rasmni surish. Alt bosilsa magnit o'chadi.</p>
   <label class="chk"><input type="checkbox" id="snapChk" ${S.snap?"checked":""}> Magnit: eshik o'qi, zona chetlari va boshqa yozuvlarga yopishadi</label>
   <h3 class="sec">3 · Yoritish</h3>
@@ -863,7 +864,7 @@ async function toAlbum(){if(!S.F||!S.signs.length){alert("Avval peshlavhani joyl
   await put({id:'pv'+id+'f',kind:'png',name:'Peshlavha — fasad · '+nm,src:f.src,thumb:f.src,aspect:f.aspect,mW:S.W/100,sub:'joy tipi '+S.tip+(bad?' · '+bad+' ta xato':' · mos'),t});
   const cs='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(c.svg);
   await put({id:'pv'+id+'c',kind:'svg',name:'Peshlavha — tekshiruv · '+nm,src:cs,thumb:cs,aspect:c.aspect,sub:'dizayn-kod talablari',t});
-  const b=document.getElementById('toAlbum');if(b){b.textContent="Albomga yuborildi ✓ — «Albom → Loyihadan»";setTimeout(()=>{const x=document.getElementById('toAlbum');if(x)x.textContent="Albomga yuborish";},4000);}}
+  const b=document.getElementById('toAlbum');if(b){b.innerHTML=KIC.i("check","b")+"Albomga yuborildi — «Albom → Loyihadan»";setTimeout(()=>{const x=document.getElementById('toAlbum');if(x)x.textContent="Albomga yuborish";},4000);}}
 
 /* dvigatel natijalarini UIga ulash */
 function renderResults(){for(const i of S.items||[])i.sid=i.label==="Butun fasad"?null:+i.label.split("#")[1];renderVerdict();}

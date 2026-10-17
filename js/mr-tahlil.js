@@ -54,8 +54,8 @@ function html(){
   h+=`<div class="txl">${GR.map(g=>{const s=ST[g.id]||{};return `<div class="txg" data-g="${esc(g.id)}">
     <label class="txh"><input type="checkbox" data-on ${s.on?'checked':''}><b>${esc(T(g.name))}</b><small>${ago(g.t)}</small></label>
     ${s.on?`<div class="txo"><span>${T('Shaffoflik')}</span><input type="range" min="0.1" max="1" step="0.05" value="${s.op??1}" data-op aria-label="${T('Shaffoflik')}"></div><div class="txleg">${cleanLegend(g.legend)}</div>`:''}
-    <div class="txb"><button class="btn" data-go="${esc(g.page)}">${T('Yangilash →')}</button><button class="btn" data-del title="${T('Roʻyxatdan olib tashlash')}">×</button></div></div>`;}).join('')}</div>`;
-  h+=`<span class="lb" style="display:block;margin:12px 0 6px">${T('Tahlilni hisoblash')}</span><div style="display:flex;flex-wrap:wrap;gap:6px">${PAGES.map(([p,n])=>`<button class="btn" data-go="${p}">${T(n)} →</button>`).join('')}</div>`;
+    <div class="txb"><button class="btn" data-go="${esc(g.page)}">${T('Yangilash')}${KIC.i('arrow-right','a')}</button><button class="btn" data-del title="${T('Roʻyxatdan olib tashlash')}">${KIC.i('x','',14)}</button></div></div>`;}).join('')}</div>`;
+  h+=`<span class="lb" style="display:block;margin:12px 0 6px">${T('Tahlilni hisoblash')}</span><div style="display:flex;flex-wrap:wrap;gap:6px">${PAGES.map(([p,n])=>`<button class="btn" data-go="${p}">${T(n)}${KIC.i('arrow-right','a')}</button>`).join('')}</div>`;
   return h;
 }
 function bind(root){
