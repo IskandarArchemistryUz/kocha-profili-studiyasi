@@ -8,6 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions: { contents: read, pull-requests: write, issues: write }
     defaults: { run: { working-directory: mr } }
     steps:
       - uses: actions/checkout@v4
@@ -30,4 +31,5 @@ jobs:
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
           { echo '**E2E yiqildi** — urinish ${{ github.run_attempt }}:'; echo '```'; grep -E "✘|Error:|Expected|Received|expect\(|waiting for|Timeout" e2e.log | head -60; echo '```'; } > /tmp/c.md || true
-          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/c.md || true
+          cat /tmp/c.md >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/c.md
