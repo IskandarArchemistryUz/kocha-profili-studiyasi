@@ -87,7 +87,7 @@ export function openGraphics(doc: Project, ctx: SheetCtx | null): void {
   const wrap = h('div', { class: 'gx', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Grafika muharriri' },
     side,
     h('div', { class: 'gx-main' },
-      h('div', { class: 'gx-bar' }, info, h('span', { class: 'sp' }), h('button', { class: 'btn', id: 'gxClose', onclick: close }, 'Yopish (Esc)')),
+      h('div', { class: 'gx-bar' }, info, h('span', { class: 'spacer' }), h('button', { class: 'btn', id: 'gxClose', onclick: close }, 'Yopish (Esc)')),
       view));
   document.body.append(wrap);
   document.addEventListener('keydown', onKey);
