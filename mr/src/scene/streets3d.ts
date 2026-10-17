@@ -197,7 +197,7 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
   const nearOther = (p: XY, self: ProjStreet) => targets(self).some(r => lineDist(p, r.pts) <= r.w / 2 + r.sw + 0.5);
   const T = new Map<ProjStreet, ReturnType<typeof trimAtRoads>>(); for (const s of list) T.set(s, trimAtRoads(s.axis, targets(s)));
   // qizil chiziqlar: koridorlar birlashmasining konturi — chorrahada kesishmaydi, uchlari yoʻl chetida
-  const red = corridorOutlines(list.map(s => ({ axis: T.get(s)!.body, half: half(s) })));
+  const red = corridorOutlines(list.map(s => ({ axis: T.get(s)!.body, half: half(s) })), asTargets(osm).map(r => ({ axis: r.pts, half: r.w / 2 + r.sw })));
   for (const s of list) {
     const W = half(s) * 2, { body, road, hit } = T.get(s)!;
     // asos: butun kenglik — trotuar rangida (boʻgʻinlarda doira)

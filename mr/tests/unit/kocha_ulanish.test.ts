@@ -49,3 +49,18 @@ describe('koʻchalar ulanishi', () => {
     expect(t.body).toEqual([[0, 80], [0, 30]]);
   });
 });
+
+describe('qizil chiziq OSM yoʻl zonasini kesib oʻtmaydi', () => {
+  it('yoʻldan oʻtib ketgan uch — kontur yoʻl chetida (w/2 + trotuar) tugaydi', () => {
+    // koʻcha (0,80)→(0,−4): uchi OSM oʻqidan (y=0) 4 m oʻtgan; OSM secondary w=13, trotuar 4 → zona ±10,5
+    const out = corridorOutlines([{ axis: [[0, 80], [0, -4]], half: 5 }], [{ axis: [[-200, 0], [200, 0]], half: 10.5 }]);
+    expect(out.length).toBe(1);
+    const minY = Math.min(...out[0].map(p => p[1]));
+    expect(minY).toBeCloseTo(10.5, 3);
+  });
+  it('yoʻlni kesib oʻtuvchi koʻcha — ikki boʻlak, yoʻl zonasida kontur yoʻq', () => {
+    const out = corridorOutlines([{ axis: [[0, 80], [0, -80]], half: 5 }], [{ axis: [[-200, 0], [200, 0]], half: 10.5 }]);
+    expect(out.length).toBe(2);
+    expect(out.every(r => r.every(p => Math.abs(p[1]) >= 10.5 - 1e-6))).toBe(true);
+  });
+});
