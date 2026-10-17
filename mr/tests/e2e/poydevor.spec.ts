@@ -53,7 +53,7 @@ test('meʼyoriy reyestr: §84 natijasi chiqadi', async ({ page }) => {
   await drawBuilding(page);
   await page.click('#kMore');
   const row = page.locator('.drawer [data-rule=density-84]');
-  await expect(row).toContainText('ShNQ 2.07.01-23, 84-band');
+  await expect(row).toContainText('ShNQ 2.07.01-23 · 84-band');
   await expect(row.locator('.chip')).toHaveAttribute('data-s', /pass|fail/);
 });
 
