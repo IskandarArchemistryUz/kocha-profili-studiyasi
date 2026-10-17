@@ -533,6 +533,31 @@ button.secbig:hover{box-shadow:var(--sh-card),inset 0 0 0 1.5px var(--sel)}
 .btn-block.btn-lg{white-space:normal;height:auto;min-height:var(--h-lg);padding:8px 14px;line-height:1.2}
 .secbig .secsvg svg{max-height:170px}
 .gcard2 .psec{height:46px}.gcard2 .psec svg{width:100%;height:100%}
-/* ds2 da yoʻq: tungi rejimda rangli izohlar matni (ds2.css ga koʻchirish uchun taklif) */
-[data-theme=dark] .note.warn{color:var(--warn)}[data-theme=dark] .note.bad{color:var(--bad)}[data-theme=dark] .note.ok{color:var(--ok)}
 @media (max-width:1180px){.kpibar .kpi span{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}}
+/* stepper: oʻrtadagi son maydoni (ds2 .stepper span oʻrniga) */
+.stepper .stp-in{width:46px;height:100%;border:0;background:transparent;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink);padding:0;appearance:textfield;-moz-appearance:textfield}
+.stepper .stp-in::-webkit-inner-spin-button,.stepper .stp-in::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.stepper .stp-in:focus{outline:none;box-shadow:inset 0 0 0 2px var(--sel);border-radius:6px}
+.stepper .stp-u{font-size:11px;color:var(--muted);margin:0 2px 0 -6px}
+.stepper button:disabled{opacity:.3;cursor:default}
+
+/* ===== 2-bosqich (b): 5–8 qadamlar (MR-Q2) ===== */
+.tile svg.pg{width:36px;height:36px;stroke:none;fill:none}
+.tiles .tile{min-height:72px}
+.frowin{padding:4px 10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--grouped)}
+.frowin .tile[aria-pressed=true] .pg .f1{fill:#55524d}
+button.li.frow{min-height:48px}
+.li .fic{width:32px;height:32px;border-radius:9px;background:var(--grouped);display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden}
+.li .fic svg.pg{width:28px;height:28px}
+.fpv{border-radius:var(--r-card);background:var(--grouped);overflow:hidden}
+.fpv svg{display:block;width:100%;max-height:200px}
+.leg{padding:2px 2px}
+.group .li .stepper{flex:none}
+.rose{max-width:180px;align-self:center}
+[data-theme=dark] .fpv svg,[data-theme=dark] .rose{filter:none}
+details.manual{border-top:0;padding-top:0;display:block}
+.tile>span{max-width:100%;overflow-wrap:anywhere;hyphens:auto}
+.tiles.c4 .tile>span{font-size:10.5px}
+.li .k{overflow-wrap:anywhere}
+.range{margin:0 11px}
+@media (max-width:1180px){.kpibar{bottom:70px}.drawer{bottom:126px}.kpibar.all{bottom:70px}}

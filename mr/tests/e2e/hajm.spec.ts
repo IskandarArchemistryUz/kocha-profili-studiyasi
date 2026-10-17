@@ -66,5 +66,5 @@ test('shamol: shamol guli (EPW) va piyoda sathidagi oqim', async ({ page }) => {
   await expect(page.locator('#windBox .rose path').first()).toBeAttached();
   await page.click('#windGo');
   await expect(page.locator('#windSt')).toContainText('shamoli', { timeout: 90000 });
-  await expect(page.locator('.legend')).toContainText('Oʻtirish');
+  await expect(page.locator('.leg')).toContainText('Oʻtirish');
 });
