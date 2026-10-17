@@ -143,3 +143,25 @@ describe('Kesh: tahlilchi yangilansa tarmoqsiz qayta tahlil', () => {
     expect(refresh(r)).toBe(r);
   });
 });
+
+import { overpass, OVERPASS } from '../../src/context/load';
+describe('overpass — zaxira serverlar', () => {
+  const res = (body: unknown, ok = true, status = 200) => ({ ok, status, json: async () => body }) as unknown as Response;
+  it('birinchi guruhda bittasi band boʻlsa — ikkinchisining javobi olinadi', async () => {
+    const calls: string[] = [];
+    const f = (async (u: string) => { calls.push(u); return u === OVERPASS[0] ? res({ remark: 'too busy' }, false, 504) : res({ elements: [1] }); }) as unknown as typeof fetch;
+    const j = await overpass('q', f, () => {}) as { elements: number[] };
+    expect(j.elements).toEqual([1]);
+    expect(calls.sort()).toEqual([OVERPASS[0], OVERPASS[1]].sort());
+  });
+  it('elements boʻlmagan javob (rate limit remark) — xato, keyingi guruhga oʻtadi', async () => {
+    let n = 0;
+    const f = (async (u: string) => { n++; return u === OVERPASS[3] ? res({ elements: [] }) : res({ remark: 'runtime error: rate_limited' }); }) as unknown as typeof fetch;
+    const j = await overpass('q', f, () => {}) as { elements: number[] };
+    expect(j.elements).toEqual([]); expect(n).toBe(4);
+  });
+  it('hammasi yiqilsa — tushunarli xato', async () => {
+    const f = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    await expect(overpass('q', f, () => {})).rejects.toThrow(/OSM serverlari javob bermadi/);
+  }, 30000);
+});
