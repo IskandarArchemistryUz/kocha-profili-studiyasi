@@ -104,3 +104,32 @@ test('uzoqda qoʻyilgan uchastka — loyiha markazi unga koʻchadi', async ({ pa
   const d = await page.evaluate(() => { const doc = (window as any).__mr.store.doc, r = doc.site.rings[0], c = [r.reduce((a: number, p: number[]) => a + p[0], 0) / r.length, r.reduce((a: number, p: number[]) => a + p[1], 0) / r.length]; return [(c[0] - doc.origin[0]) * 84000, (c[1] - doc.origin[1]) * 111000]; });
   expect(Math.hypot(d[0], d[1])).toBeLessThan(20);
 });
+
+/** Yangi koʻcha uchi atrofdagi (OSM) yoʻl oʻqiga yopishadi — mavjud yoʻllarga ulanadi */
+test('koʻcha uchi OSM yoʻliga yopishadi', async ({ page }) => {
+  await newProject(page);
+  const r = await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180);
+    ed.store.dispatch({ type: 'setContext', patch: { loaded: true } });
+    ed.ctxMgr.current = { osm: { roads: [{ id: 1, cls: 'primary', w: 20, pts: [[o[0] - 200 / mx, o[1] + 100 / 111132], [o[0] + 200 / mx, o[1] + 100 / 111132]] }, { id: 2, cls: 'footway', w: 3, pts: [[o[0] - 200 / mx, o[1] - 50 / 111132], [o[0] + 200 / mx, o[1] - 50 / 111132]] }] } };
+    return { a: ed.snapStreet([10, 90]), b: ed.snapStreet([10, 75]), c: ed.snapStreet([10, -49]) };
+  });
+  expect(r.a[1]).toBeCloseTo(100, 0);   // qatnov ichida bosildi → oʻqqa
+  expect(r.b).toEqual([10, 75]);         // 25 m uzoqda — yopishmaydi
+  expect(r.c).toEqual([10, -49]);        // piyoda yoʻlakka yopishmaydi
+});
+
+test('«Uchlarini mavjud yoʻllarga ulash» — qisqa qolgan koʻcha OSM yoʻlgacha uzayadi', async ({ page }) => {
+  await newProject(page);
+  await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132];
+    ed.store.dispatch({ type: 'setContext', patch: { loaded: true } });
+    ed.ctxMgr.current = { osm: { roads: [{ id: 1, cls: 'primary', w: 20, pts: [g(-200, 100), g(200, 100)] }] } };
+    ed.store.dispatch({ type: 'addStreet', axis: [g(0, -50), g(0, 85)], profile: 'mahalla-15' });
+  });
+  await page.click('#rectSite'); await page.click('[data-step=kocha]');
+  await page.click('#connEnds');
+  const y = await page.evaluate(() => { const ed = (window as any).__mr, st = ed.store.doc.streets[0]; return (st.axis[st.axis.length - 1][1] - ed.store.doc.origin[1]) * 111132; });
+  expect(y).toBeCloseTo(100, 0);
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.streets[0].axis.length)).toBe(3);
+});
