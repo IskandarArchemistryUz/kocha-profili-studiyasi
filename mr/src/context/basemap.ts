@@ -9,6 +9,13 @@ import { mapStyle } from './mapstyle';
 export interface BaseImage { canvas: HTMLCanvasElement; nw: LngLat; se: LngLat }
 type ML = typeof import('maplibre-gl');
 
+/** Ekranga mos oʻlcham: tekstura ≈ ekran piksellari (retinada ham tiniq), lekin 3072² dan oshmaydi — katta kanvas sekin va xotirani koʻp oladi */
+export function liveSize(host: HTMLElement): [number, number] {
+  const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1)), px = Math.max(host.clientWidth, host.clientHeight, 800);
+  const P = Math.min(3072, Math.max(1536, Math.round(px * dpr * 1.15)));
+  return [Math.round(P / dpr), dpr];
+}
+
 export class LiveBase {
   private ml: ML | null = null;
   private map: import('maplibre-gl').Map | null = null;
@@ -16,14 +23,14 @@ export class LiveBase {
   private styleKey = '';
   private busy: Promise<BaseImage | null> | null = null;
   private next: { center: LngLat; radius: number; style: string; pal: string; labels: boolean } | null = null;
-  constructor(private W = 2048) {}
+  constructor(private W = 2048, private dpr = 1) {}
 
   /** center atrofida 2·radius metrli kvadrat; parallel soʻrovlardan faqat oxirgisi bajariladi */
   async render(center: LngLat, radius: number, style: 'stil' | 'sat', pal: string, labels: boolean): Promise<BaseImage | null> {
     this.next = { center, radius, style, pal, labels };
     while (this.busy) { await this.busy.catch(() => null); }
     const job = this.next; this.next = null; if (!job) return null;
-    this.busy = this.draw(job).finally(() => { this.busy = null; });
+    this.busy = this.draw(job).catch(() => null).finally(() => { this.busy = null; });
     return this.busy;
   }
 
@@ -35,15 +42,15 @@ export class LiveBase {
       this.box = document.createElement('div');
       Object.assign(this.box.style, { position: 'fixed', left: '-99999px', top: '0', width: `${W}px`, height: `${W}px`, pointerEvents: 'none' });
       document.body.append(this.box);
-      this.map = new this.ml.Map({ container: this.box, style: mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never, center: j.center as [number, number], zoom: z, interactive: false, attributionControl: false, pixelRatio: Math.min(2, Math.max(1, window.devicePixelRatio || 1)), fadeDuration: 0, canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true } } as never);
+      this.map = new this.ml.Map({ container: this.box, style: mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never, center: j.center as [number, number], zoom: z, interactive: false, attributionControl: false, pixelRatio: this.dpr, fadeDuration: 0, canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true } } as never);
       this.styleKey = key;
     } else {
       if (key !== this.styleKey) { this.map.setStyle(mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never); this.styleKey = key; }
       this.map.jumpTo({ center: j.center as [number, number], zoom: z });
     }
     const map = this.map;
-    const ok = await new Promise<boolean>(res => { const t = setTimeout(() => res(false), 15000); map.once('idle', () => { clearTimeout(t); res(true); }); map.triggerRepaint(); });
-    if (!ok) return null;
+    // plitkalar tushguncha kutiladi (8 s); sekin tarmoqda — tushgani bilan chiziladi, keyingi surishda toʻldiriladi (null — faqat haqiqiy xatoda)
+    await new Promise<void>(res => { const t = setTimeout(res, 8000); map.once('idle', () => { clearTimeout(t); res(); }); map.triggerRepaint(); });
     const src = map.getCanvas(), cv = document.createElement('canvas'); cv.width = src.width; cv.height = src.height;
     cv.getContext('2d')!.drawImage(src, 0, 0);
     const b = map.getBounds();

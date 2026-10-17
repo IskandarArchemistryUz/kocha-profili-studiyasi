@@ -133,3 +133,13 @@ test('«Uchlarini mavjud yoʻllarga ulash» — qisqa qolgan koʻcha OSM yoʻlga
   expect(y).toBeCloseTo(100, 0);
   expect(await page.evaluate(() => (window as any).__mr.store.doc.streets[0].axis.length)).toBe(3);
 });
+
+/** Xarita surilib «Atrofni yuklash» bosilsa — loyiha markazi ekran markaziga koʻchadi (Amir Temur xiyoboni qolib ketmaydi) */
+test('«Atrofni yuklash» — markaz ekran markaziga koʻchadi', async ({ page }) => {
+  await page.goto('./'); await page.click('#newP'); await expect(page.locator('.panel h2')).toHaveText('Hudud');
+  await page.waitForTimeout(1500);   // fon xaritasi kelib kamerani moslashi mumkin — undan keyin suriladi
+  // surish va bosish bir vaqtda (fon xaritasi kelganda kamera qayta moslanishi oldini olish uchun)
+  const o0 = await page.evaluate(() => { const ed = (window as any).__mr; ed.scene.ctl.target.set(1500, 0, -900); ed.scene.ctl.update(); const o = ed.store.doc.origin; (document.querySelector('#ctxLoad') as HTMLButtonElement).click(); return o; });
+  const d = await page.evaluate(([o]) => { const ed = (window as any).__mr, o1 = ed.store.doc.origin; return [(o1[0] - o[0]) * 84000, (o1[1] - o[1]) * 111132, ed.store.doc.context.loaded]; }, [o0]);
+  expect(d[0]).toBeGreaterThan(1400); expect(d[1]).toBeGreaterThan(800); expect(d[2]).toBe(true);
+});
