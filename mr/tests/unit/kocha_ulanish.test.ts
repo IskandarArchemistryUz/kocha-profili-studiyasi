@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { corridorOutlines } from '../../src/core/plan';
-import { trimAtRoads, projectStreetsGeo } from '../../src/scene/streets3d';
+import { trimAtRoads, projectStreetsGeo, asTargets, curbFillets } from '../../src/scene/streets3d';
 import type { XY } from '../../src/core/geo';
 
 const segX = (r: XY[][], x0: number, x1: number) => r.flat().filter(p => Math.abs(p[0] - x0) < 1e-6 || Math.abs(p[0] - x1) < 1e-6);
@@ -24,7 +24,7 @@ describe('koʻchalar ulanishi', () => {
   });
   it('OSM yoʻlga ulangan uch: trotuar/daraxt qismi yoʻlning tashqi chetida, qatnov qismi asfaltga kiradi', () => {
     const osm = [{ pts: [[-200, 0], [200, 0]] as XY[], cls: 'secondary', w: 13 }];
-    const t = trimAtRoads([[0, 80], [0, 0]], osm);   // uch — OSM oʻqida
+    const t = trimAtRoads([[0, 80], [0, 0]], asTargets(osm));   // uch — OSM oʻqida
     expect(t.body[1][1]).toBeCloseTo(6.5 + 4, 1);     // w/2 + trotuar (secondary: 4 m)
     expect(t.road[1][1]).toBeCloseTo(6.5 - 0.3, 1);   // asfaltga 0,3 m
     expect(t.body[0]).toEqual([0, 80]);                // ulanmagan uch oʻzgarmaydi
@@ -33,8 +33,19 @@ describe('koʻchalar ulanishi', () => {
     expect(g.trees.every(p => p[1] > 10.5)).toBe(true);
     void segX;
   });
+  it('bordyur kesigi: ikki burchak yoyi, yoʻl asfalti cheti va kiruvchi asfalt cheti orasida', () => {
+    // kiruvchi koʻcha y oʻqi boʻylab pastga (0,80)→(0,0); asfalt ±3; yoʻl y=0, w=13 → cheti y=6,5
+    const f = curbFillets([0, 0], [0, 80], -3, 3, { pts: [[-200, 0], [200, 0]], w: 13, sw: 4 });
+    expect(f.length).toBe(2);
+    for (const poly of f) {
+      expect(poly[0][1]).toBeCloseTo(6.5, 3);                          // burchak yoʻl chetida
+      expect(Math.abs(poly[0][0])).toBeCloseTo(3, 3);                  // va kiruvchi asfalt chetida
+      expect(poly.every(p => p[1] >= 6.5 - 1e-6 && Math.abs(p[0]) >= 3 - 1e-6)).toBe(true);   // yoy tashqi burchakda (trotuar tomonida)
+      expect(Math.max(...poly.map(p => Math.abs(p[0])))).toBeCloseTo(9, 1);                   // R = 6 → tangent 6 m
+    }
+  });
   it('OSM yoʻlga ulanmagan uch — qisqarmaydi', () => {
-    const t = trimAtRoads([[0, 80], [0, 30]], [{ pts: [[-200, 0], [200, 0]] as XY[], cls: 'residential', w: 7 }]);
+    const t = trimAtRoads([[0, 80], [0, 30]], asTargets([{ pts: [[-200, 0], [200, 0]] as XY[], cls: 'residential', w: 7 }]));
     expect(t.body).toEqual([[0, 80], [0, 30]]);
   });
 });

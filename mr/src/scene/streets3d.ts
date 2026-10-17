@@ -114,57 +114,107 @@ export interface ProjStreetGeo { layers: Record<string, number[]>; trees: XY[]; 
 const segDist = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]); };
 const lineDist = (p: XY, l: XY[]) => { let m = Infinity; for (let i = 1; i < l.length; i++) m = Math.min(m, segDist(p, l[i - 1], l[i])); return m; };
 
+/** Ulanish nishoni: boshqa yoʻl (OSM yoki loyiha koʻchasi) — oʻqi, qatnov kengligi w, qatnovdan qizil chiziqgacha sw */
+export interface RoadTarget { pts: XY[]; w: number; sw: number }
+const ASPH = /^(qatnov|avtobus|tramvay|parkovka|velo)$/;
+export const asTargets = (osm: StreetIn[]): RoadTarget[] => osm.filter(r => !FOOT.test(r.cls)).map(r => ({ pts: r.pts, w: r.w, sw: sidewalkW(r.cls) }));
+
 /**
- * Koʻcha uchi mavjud (OSM) yoʻlga ulangan boʻlsa — oʻqni yoʻl chetigacha qisqartirish: body — trotuar/yashil/daraxtlar yoʻlning
- * tashqi (trotuar) chetida tugaydi, road — qatnov qismi OSM asfaltiga 0,3 m kirib ulanadi. Ulanmagan uch — oʻzgarmaydi.
+ * Koʻcha uchi boshqa yoʻlga ulangan boʻlsa — oʻqni yoʻl chetigacha qisqartirish: body — trotuar/yashil/daraxtlar yoʻlning tashqi
+ * (qizil chiziq) chetida tugaydi, road — qatnov qismi uning asfaltiga 0,3 m kirib ulanadi. Ulanmagan uch — oʻzgarmaydi.
+ * hit — har uch uchun ulangan yoʻl (bordyur kesigi uchun).
  */
-export function trimAtRoads(axis: XY[], osm: StreetIn[]): { body: XY[]; road: XY[] } {
-  if (axis.length < 2 || !osm.length) return { body: axis, road: axis };
+export function trimAtRoads(axis: XY[], tg: RoadTarget[]): { body: XY[]; road: XY[]; hit: [RoadTarget | null, RoadTarget | null] } {
+  const hit: [RoadTarget | null, RoadTarget | null] = [null, null];
+  if (axis.length < 2 || !tg.length) return { body: axis, road: axis, hit };
   const cut = (a: XY[], atStart: boolean, outer: boolean): XY[] => {
     const e = atStart ? a[0] : a[a.length - 1], prev = atStart ? a[1] : a[a.length - 2];
-    let best: { d: number; R: number } | null = null;
-    for (const r of osm) { if (FOOT.test(r.cls)) continue; const d = lineDist(e, r.pts), R = r.w / 2 + (outer ? sidewalkW(r.cls) : -0.3); if (d <= r.w / 2 + sidewalkW(r.cls) + 1 && (!best || d < best.d)) best = { d, R }; }
+    let best: { d: number; r: RoadTarget } | null = null;
+    for (const r of tg) { const d = lineDist(e, r.pts); if (d <= r.w / 2 + r.sw + 1 && (!best || d < best.d)) best = { d, r }; }
     if (!best) return a;
-    // uchdan orqaga (prev tomon) yurib, OSM oʻqidan masofa R boʻlgan nuqta (ikkilik qidiruv)
+    const R = (r: RoadTarget) => r.w / 2 + (outer ? r.sw : -0.3);
+    // uchdan orqaga (prev tomon) yurib, yoʻl oʻqidan masofa R boʻlgan nuqta (ikkilik qidiruv)
     const dx = prev[0] - e[0], dy = prev[1] - e[1], L = Math.hypot(dx, dy); if (L < 0.5) return a;
-    const dist = (t: number) => { const q: XY = [e[0] + dx * t, e[1] + dy * t]; let m = Infinity; for (const r of osm) if (!FOOT.test(r.cls)) m = Math.min(m, lineDist(q, r.pts) - (r.w / 2 + (outer ? sidewalkW(r.cls) : -0.3))); return m; };
+    const dist = (t: number) => { const q: XY = [e[0] + dx * t, e[1] + dy * t]; let m = Infinity; for (const r of tg) m = Math.min(m, lineDist(q, r.pts) - R(r)); return m; };
     if (dist(1) <= 0) return a;   // butun segment yoʻl ichida — qisqartirilmaydi
     let lo = 0, hi = 1; for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; if (dist(m) <= 0) lo = m; else hi = m; }
     const t = Math.min(hi, 0.95), q: XY = [e[0] + dx * t, e[1] + dy * t];
+    hit[atStart ? 0 : 1] = best.r;
     return atStart ? [q, ...a.slice(1)] : [...a.slice(0, -1), q];
   };
-  return { body: cut(cut(axis, true, true), false, true), road: cut(cut(axis, true, false), false, false) };
+  return { body: cut(cut(axis, true, true), false, true), road: cut(cut(axis, true, false), false, false), hit };
+}
+
+/** Yoʻl oʻqining nuqtaga eng yaqin segmenti */
+function nearestSeg(p: XY, pts: XY[]): [XY, XY] {
+  let best: [XY, XY] = [pts[0], pts[1]], bd = Infinity;
+  for (let i = 1; i < pts.length; i++) { const d = segDist(p, pts[i - 1], pts[i]); if (d < bd) { bd = d; best = [pts[i - 1], pts[i]]; } }
+  return best;
+}
+
+/**
+ * Bordyur kesigi (chorraha burchagi): kiruvchi koʻcha asfalti cheti bilan ulanadigan yoʻl asfalti cheti orasidagi burchak
+ * R radiusli yoy bilan toʻldiriladi — natijada trotuar kirish joyida uziladi, asfalt silliq ulanadi (Rejada ham, Aksoda ham).
+ * end — kiruvchi oʻqning yoʻl ichidagi uchi, prev — undan oldingi nuqta, eL/eR — kiruvchi asfalt chetlari (oʻqdan siljish, chap/oʻng).
+ */
+export function curbFillets(end: XY, prev: XY, eL: number, eR: number, tg: RoadTarget, R = 6): XY[][] {
+  const [a, b] = nearestSeg(end, tg.pts), dx = end[0] - prev[0], dy = end[1] - prev[1], L = Math.hypot(dx, dy); if (L < 0.5) return [];
+  const u: XY = [dx / L, dy / L], n: XY = [-u[1], u[0]];               // kiruvchi: yoʻnalish va chap normal
+  const vx = b[0] - a[0], vy = b[1] - a[1], VL = Math.hypot(vx, vy) || 1, v: XY = [vx / VL, vy / VL], m: XY = [-v[1], v[0]];
+  // yoʻl asfalt cheti — loyiha tomonida (prev tomon)
+  const side = Math.sign((prev[0] - a[0]) * m[0] + (prev[1] - a[1]) * m[1]) || 1;
+  const E: XY = [a[0] + m[0] * side * tg.w / 2, a[1] + m[1] * side * tg.w / 2];   // chet chizigʻi nuqtasi (yoʻnalishi v)
+  const out: XY[][] = [];
+  const den = u[0] * v[1] - u[1] * v[0]; if (Math.abs(den) < 1e-6) return [];
+  const isect = (P: XY): XY => { const s2 = ((E[0] - P[0]) * v[1] - (E[1] - P[1]) * v[0]) / den; return [P[0] + u[0] * s2, P[1] + u[1] * s2]; };
+  const X = isect(prev);                                                 // oʻqning yoʻl cheti bilan kesishmasi
+  for (const off of [eL, eR]) {
+    const C = isect([prev[0] + n[0] * off, prev[1] + n[1] * off]);      // asfalt cheti bilan kesishmasi (burchak)
+    const back: XY = [-u[0], -u[1]];                                     // burchakdan loyiha tomon
+    const sg = Math.sign((C[0] - X[0]) * v[0] + (C[1] - X[1]) * v[1]) || 1, w2: XY = [v[0] * sg, v[1] * sg];   // yoʻl cheti boʻylab, oʻqdan uzoqlashib
+    const cos = back[0] * w2[0] + back[1] * w2[1], th = Math.acos(Math.max(-1, Math.min(1, cos)));
+    if (th < 0.3 || th > Math.PI - 0.3) continue;
+    const t = Math.min(14, R / Math.tan(th / 2)), bis: XY = [back[0] + w2[0], back[1] + w2[1]], bl = Math.hypot(bis[0], bis[1]) || 1;
+    const O: XY = [C[0] + bis[0] / bl * R / Math.sin(th / 2), C[1] + bis[1] / bl * R / Math.sin(th / 2)];
+    const T1: XY = [C[0] + back[0] * t, C[1] + back[1] * t], T2: XY = [C[0] + w2[0] * t, C[1] + w2[1] * t];
+    let a1 = Math.atan2(T2[1] - O[1], T2[0] - O[0]), a2 = Math.atan2(T1[1] - O[1], T1[0] - O[0]);
+    if (a2 - a1 > Math.PI) a2 -= 2 * Math.PI; if (a1 - a2 > Math.PI) a2 += 2 * Math.PI;
+    const poly: XY[] = [C, T2];
+    for (let k = 1; k < 8; k++) { const ang = a1 + (a2 - a1) * k / 8; poly.push([O[0] + Math.cos(ang) * R, O[1] + Math.sin(ang) * R]); }
+    poly.push(T1); out.push(poly);
+  }
+  return out;
 }
 
 export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn[] = []): ProjStreetGeo {
   const L: Record<string, Buf> = {}, layer = (k: string, lift: number) => (L[k] ??= new Buf(H, lift));
   const trees: XY[] = [];
-  // chorraha: oʻq nuqtasi boshqa koʻcha oʻqiga yaqin (≤ uning yarim kengligi)
   const half = (s: ProjStreet) => s.parts.reduce((a, p) => a + p.w, 0) / 2;
-  const nearOther = (p: XY, self: ProjStreet) => list.some(o => o !== self && lineDist(p, o.axis) <= half(o) + 0.5) || osm.some(r => !FOOT.test(r.cls) && lineDist(p, r.pts) <= r.w / 2 + sidewalkW(r.cls) + 0.5);
-  const T = new Map<ProjStreet, { body: XY[]; road: XY[] }>(); for (const s of list) T.set(s, trimAtRoads(s.axis, osm));
-  // qizil chiziqlar: koridorlar birlashmasining konturi — chorrahada kesishmaydi, uchlari OSM yoʻl chetida
+  const asph = (s: ProjStreet) => s.parts.filter(p => ASPH.test(p.k)).reduce((a, p) => a + p.w, 0);
+  /** s uchun ulanish nishonlari: OSM yoʻllari + boshqa loyiha koʻchalari (qatnov kengligi va qizil chiziqgacha masofa bilan) */
+  const targets = (s: ProjStreet): RoadTarget[] => [...asTargets(osm), ...list.filter(o => o !== s).map(o => ({ pts: o.axis, w: asph(o), sw: half(o) - asph(o) / 2 }))];
+  // chorraha: nuqta boshqa koʻcha/yoʻl koridori ichida
+  const nearOther = (p: XY, self: ProjStreet) => targets(self).some(r => lineDist(p, r.pts) <= r.w / 2 + r.sw + 0.5);
+  const T = new Map<ProjStreet, ReturnType<typeof trimAtRoads>>(); for (const s of list) T.set(s, trimAtRoads(s.axis, targets(s)));
+  // qizil chiziqlar: koridorlar birlashmasining konturi — chorrahada kesishmaydi, uchlari yoʻl chetida
   const red = corridorOutlines(list.map(s => ({ axis: T.get(s)!.body, half: half(s) })));
   for (const s of list) {
-    const W = half(s) * 2, body = T.get(s)!.body, road = T.get(s)!.road;
+    const W = half(s) * 2, { body, road, hit } = T.get(s)!;
     // asos: butun kenglik — trotuar rangida (boʻgʻinlarda doira)
     layer('trotuar', 0.08).ribbon(body, W / 2, false);
-    let o = -W / 2;
+    let o = -W / 2, aL = Infinity, aR = -Infinity;
+    for (const p of s.parts) { const o0 = o, o1 = o + p.w; o = o1; if (ASPH.test(p.k)) { aL = Math.min(aL, o0); aR = Math.max(aR, o1); } }
+    o = -W / 2;
     for (const p of s.parts) {
       const o0 = o, o1 = o + p.w; o = o1;
       if (p.k === 'trotuar') continue;
       const b = layer(p.k === 'ajratuvchi' ? 'yashil' : p.k, p.k === 'qatnov' ? 0.12 : 0.1);
-      const ax = p.k === 'qatnov' || p.k === 'avtobus' || p.k === 'tramvay' ? road : body;
+      const ax = ASPH.test(p.k) ? road : body;
       for (let i = 1; i < ax.length; i++) b.band(ax[i - 1], ax[i], o0, o1);
-      if (p.k === 'qatnov') for (let i = 0; i < road.length; i++) {
-        const c = road[i], end = i === 0 || i === road.length - 1;
-        // ichki boʻgʻinda asfalt yaxlit; chorrahada (boshqa koʻcha ustida) — butun kenglikda asfalt
-        if (!end) {
-          const mid = (o0 + o1) / 2, prev = road[i - 1], next = road[i + 1], dx = next[0] - prev[0], dy = next[1] - prev[1], Ln = Math.hypot(dx, dy) || 1;
-          b.disc([c[0] - dy / Ln * mid, c[1] + dx / Ln * mid], p.w / 2 + 0.3);
-        }
-        // loyiha koʻchalari chorrahasi — butun kenglikda asfalt; OSM yoʻlga ulangan uchda doira kerak emas (asfalt u yerda bor)
-        if (list.some(o => o !== s && lineDist(c, o.axis) <= half(o) + 0.5)) layer('qatnov', 0.12).disc(c, W / 2 - 0.5);
+      if (p.k === 'qatnov') for (let i = 1; i < road.length - 1; i++) {
+        // ichki boʻgʻinda asfalt yaxlit
+        const c = road[i], mid = (o0 + o1) / 2, prev = road[i - 1], next = road[i + 1], dx = next[0] - prev[0], dy = next[1] - prev[1], Ln = Math.hypot(dx, dy) || 1;
+        b.disc([c[0] - dy / Ln * mid, c[1] + dx / Ln * mid], p.w / 2 + 0.3);
       }
       if ((p.k === 'yashil' && p.w >= 1.4) || (p.k === 'ajratuvchi' && p.w >= 3)) {
         const mid = (o0 + o1) / 2;
@@ -178,10 +228,17 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
         for (let i = 1; i < road.length; i++) {
           const a = road[i - 1], c = road[i], dx = c[0] - a[0], dy = c[1] - a[1], Ls = Math.hypot(dx, dy); if (Ls < 4) continue;
           const ux = dx / Ls, uy = dy / Ls, P = (t: number): XY => [a[0] + ux * t, a[1] + uy * t];
-          const t0 = nearOther(a, s) ? W / 2 + 4 : 0, t1 = Ls - (nearOther(c, s) ? W / 2 + 4 : 0);
+          const t0 = i === 1 && hit[0] ? 4 : 0, t1 = Ls - (i === road.length - 1 && hit[1] ? 4 : 0);
           for (let k = 1; k < lanes; k++) { const off = o0 + k * lw; for (let t = t0; t < t1; t += 9) { const m = P(t + 1.5); if (nearOther([m[0] - uy * off, m[1] + ux * off], s)) continue; mk.band(P(t), P(Math.min(t1, t + 3)), off - 0.07, off + 0.07); } }
         }
       }
+    }
+    // bordyur kesigi: ulangan uchlarda asfalt burchaklari yoy bilan toʻldiriladi (trotuar uziladi)
+    if (aL < aR) for (const [k, tgt] of hit.entries()) {
+      if (!tgt || s.axis.length < 2) continue;
+      const end = k === 0 ? s.axis[0] : s.axis[s.axis.length - 1], prev = k === 0 ? s.axis[1] : s.axis[s.axis.length - 2];
+      const q = layer('qatnov', 0.12);
+      for (const poly of curbFillets(end, prev, aL, aR, tgt)) for (let i = 1; i < poly.length - 1; i++) q.tri(poly[0], poly[i], poly[i + 1]);
     }
   }
   const layers: Record<string, number[]> = {}; for (const k in L) layers[k] = L[k].p;
