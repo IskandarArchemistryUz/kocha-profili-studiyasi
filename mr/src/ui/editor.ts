@@ -1528,19 +1528,62 @@ export class Editor {
     return best;
   }
 
-  /** Koʻcha uchini mavjud koʻcha oʻqiga yopishtirish (≤ 6 m) — chorrahalar ulanishi uchun */
+  /**
+   * Koʻcha uchini mavjud koʻchaga yopishtirish — chorrahalar ulanishi uchun:
+   * 1) loyiha koʻchalari oʻqi (≤ 6 m); 2) atrofdagi (OSM) yoʻllar oʻqi — yoʻl qatnov qismi ichida yoki chetidan ≤ 6 m bosilsa.
+   * Shift — oʻchiq. Sahnada belgi: qizil halqa — uch, koʻk — oʻqdagi nuqta.
+   */
   private snapStreet = (p: XY): XY => {
-    const fr = frame(this.store.doc.origin); let best: XY = p, bd = 6;
-    for (const st of this.store.doc.streets) {
-      const a = st.axis.map(fr.toLocal);
-      for (const v of a) { const d = Math.hypot(v[0] - p[0], v[1] - p[1]); if (d < bd) { bd = d; best = v; } }
+    if (this.shiftDown) { this.scene.setSnapMark(null); return p; }
+    const doc = this.store.doc, fr = frame(doc.origin); let best: XY = p, bd = Infinity, kind: 'uch' | 'qirra' = 'uch';
+    /** a — oʻq; tol — oʻqqa masofa chegarasi, vTol — uchga */
+    const near = (a: XY[], tol: number, vTol: number): void => {
+      for (const v of a) { const d = Math.hypot(v[0] - p[0], v[1] - p[1]); if (d <= vTol && d < bd) { bd = d; best = v; kind = 'uch'; } }
       for (let i = 1; i < a.length; i++) {
         const u = a[i - 1], w = a[i], dx = w[0] - u[0], dy = w[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2));
-        const q: XY = [u[0] + t * dx, u[1] + t * dy], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd - 1.5) { bd = d; best = q; }
+        const q: XY = [u[0] + t * dx, u[1] + t * dy], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d <= tol && d < bd - 1.5) { bd = d; best = q; kind = 'qirra'; }
+      }
+    };
+    for (const st of doc.streets) near(st.axis.map(fr.toLocal), 6, 6);
+    if (best === p) {
+      const b = this.ctxMgr.current, adopted = new Set(doc.streets.map(x => x.osm));
+      if (b && doc.context.loaded && doc.context.layers.roads) for (const r of b.osm.roads) {
+        if (adopted.has(r.id) || /^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) continue;
+        near(r.pts.map(fr.toLocal), r.w / 2 + 6, 8);
       }
     }
+    this.scene.setSnapMark(best === p ? null : best, kind);
     return best;
   };
+
+  /** Mavjud koʻchalar uchlarini davom ettirib, ≤ 40 m dagi eng yaqin yoʻl oʻqiga (OSM yoki loyiha koʻchasi) ulash */
+  private connectStreetEnds(): number {
+    const doc = this.store.doc, fr = frame(doc.origin), b = this.ctxMgr.current, adopted = new Set(doc.streets.map(x => x.osm));
+    const targets: { id: string; a: XY[] }[] = doc.streets.map(st => ({ id: st.id, a: st.axis.map(fr.toLocal) }));
+    if (b && doc.context.loaded) for (const r of b.osm.roads) if (!adopted.has(r.id) && !/^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) targets.push({ id: `osm${r.id}`, a: r.pts.map(fr.toLocal) });
+    /** E nuqtadan D yoʻnalishda nur — eng yaqin kesishish (t ≤ 40 m) */
+    const onAxis = (E: XY, self: string): boolean => targets.some(t => t.id !== self && t.a.some((u, i) => { if (!i) return false; const v = t.a[i - 1], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, k = Math.max(0, Math.min(1, ((E[0] - u[0]) * dx + (E[1] - u[1]) * dy) / L2)); return Math.hypot(u[0] + k * dx - E[0], u[1] + k * dy - E[1]) < 1; }));
+    const ray = (E: XY, D: XY, self: string): XY | null => {
+      if (onAxis(E, self)) return null;   // allaqachon ulangan
+      let bt = 40, hit: XY | null = null;
+      for (const t of targets) { if (t.id === self) continue; for (let i = 1; i < t.a.length; i++) {
+        const u = t.a[i - 1], v = t.a[i], sx = v[0] - u[0], sy = v[1] - u[1], den = D[0] * sy - D[1] * sx; if (Math.abs(den) < 1e-9) continue;
+        const wx = u[0] - E[0], wy = u[1] - E[1], tt = (wx * sy - wy * sx) / den, ss = (wx * D[1] - wy * D[0]) / den;
+        if (tt > 0.3 && tt < bt && ss >= -0.02 && ss <= 1.02) { bt = tt; hit = [E[0] + D[0] * tt, E[1] + D[1] * tt]; }
+      } }
+      return hit;
+    };
+    let n = 0;
+    this.run(() => { for (const st of doc.streets) {
+      const a = st.axis.map(fr.toLocal); if (a.length < 2) continue;
+      const dir = (p: XY, q: XY): XY => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [(q[0] - p[0]) / L, (q[1] - p[1]) / L]; };
+      const h1 = ray(a[a.length - 1], dir(a[a.length - 2], a[a.length - 1]), st.id), h0 = ray(a[0], dir(a[1], a[0]), st.id);
+      if (!h0 && !h1) continue;
+      const na = [...(h0 ? [h0] : []), ...a, ...(h1 ? [h1] : [])]; n += (h0 ? 1 : 0) + (h1 ? 1 : 0);
+      this.store.dispatch({ type: 'updateStreet', id: st.id, patch: { axis: na.map(fr.toGeo) } });
+    } });
+    return n;
+  }
 
   private kochaPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), drawing = this.tool instanceof LineTool;
@@ -1553,6 +1596,7 @@ export class Editor {
       this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
     }, toast, this.snapStreet)) }, ...(drawing ? icl(IC.check, 'Chizishni tugatish') : icl(IC.plus, 'Koʻcha chizish'))));
+    if (doc.streets.length) body.append(h('button', { class: 'btn', id: 'connEnds', title: 'Uchi yoʻlga yetmay qolgan koʻchalarni davom ettirib, 40 m gacha yaqin yoʻl oʻqiga ulaydi', onclick: () => { const n = this.connectStreetEnds(); toast(n ? `${n} ta uch mavjud yoʻllarga ulandi` : 'Ulanadigan uch topilmadi (40 m ichida yoʻl yoʻq)'); } }, 'Uchlarini mavjud yoʻllarga ulash'));
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Profil (yangi koʻcha uchun)'),
       h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Profillar' }, ...PROFILES.map(p => this.profItem(p))),
       (() => { const groups = [...new Set(PRESET_PROFILES.map(p => p.group))], open = PRESET_PROFILES.some(p => p.id === this.profile);
