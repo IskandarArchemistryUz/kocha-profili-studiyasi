@@ -14,6 +14,48 @@ import type { Project } from './doc';
 import { frame, area, type XY } from './geo';
 import { computePlan, corridor, safeUnion, pointIn } from './plan';
 import { useDef } from './uses';
+import { inset, clean } from './generator';
+
+/**
+ * Ochiq joylar eskizi (generator): park — halqa va diagonal yoʻlaklar, markazda maydoncha, daraxtlar toʻri (9 m);
+ * skver/maydon — markazda qoplama maydon (kvartalning ~45 %), chetlarida daraxt qatorlari, qolgani maysa; sport — maydonchalar.
+ * 86-bandda yashil hudud balansiga kiradi (yashil kvartal butunlay). Eskiz — loyihachi aniqlashtiradi.
+ */
+function openSpace(blk: { rings: XY[][]; area: number; use: string; centroid: XY }, bi: number): Yard | null {
+  const outer = clean(blk.rings[0], 4); if (outer.length < 3 || blk.area < 400) return null;
+  const B: Polygon = [close(outer)], c = blk.centroid;
+  let paving: MultiPolygon = [], paths: MultiPolygon = [];
+  const play: Yard['play'] = [];
+  if (blk.use === 'yashil') {
+    const loop = inset(outer, Math.min(6, Math.sqrt(blk.area) * 0.08));
+    if (loop) paths.push(...corridor([...loop, loop[0]], 1.25));
+    // diagonallar: markazdan halqaning har 2-chi uchiga
+    if (loop) loop.forEach((p, i) => { if (i % 2 === 0) paths.push(...corridor([c, p], 1)); });
+    const R = Math.max(5, Math.min(14, Math.sqrt(blk.area) * 0.09)), circ: XY[] = []; for (let k = 0; k < 20; k++) circ.push([c[0] + Math.cos(k / 20 * Math.PI * 2) * R, c[1] + Math.sin(k / 20 * Math.PI * 2) * R]);
+    paving = [[close(circ)]];
+  } else if (blk.use === 'maydon') {
+    const pl = inset(outer, Math.sqrt(blk.area) * 0.16); if (pl) paving = [[close(clean(pl, 3))]];
+  } else {
+    // sport: 2–3 ta maydoncha (≤ 40 m), markaz atrofida
+    const a = Math.min(1800, blk.area * 0.22); let dx = -Math.sqrt(a) * 0.6;
+    for (let k = 0; k < 3; k++, dx += Math.sqrt(a) * 1.25) { const r = rectAt([c[0] + dx, c[1]], a); if (r.every(q => pointIn(q, blk.rings))) play.push({ kind: 'sport', ring: r, need: a, area: a }); }
+  }
+  const taken: MultiPolygon = play.length ? safeUnion(play.map(p => [close(p.ring)] as Polygon)) : [];
+  const clipB = (m: MultiPolygon) => m.length ? tryOp(() => polygonClipping.intersection(m, B), [] as MultiPolygon) : [];
+  paving = clipB(paving); paths = clipB(paths.length ? safeUnion(paths) : []);
+  const green = tryOp(() => polygonClipping.difference(B, ...[paving, paths, taken].filter(m => m.length)), [B]);
+  const gR = toMP(green), pR = toMP(paving), trees: XY[] = [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of outer) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+  const step = blk.use === 'yashil' ? 9 : 7;
+  for (let x = x0 + 4; x < x1; x += step) for (let y = y0 + 4; y < y1; y += step) {
+    const p: XY = [x + ((Math.round(y) * 7) % 3) - 1, y + ((Math.round(x) * 5) % 3) - 1];
+    if (!gR.some(q => pointIn(p, q))) continue;
+    if (blk.use === 'maydon' && !pR.some(q => ringD(p, q[0]) < 6)) continue;   // skver: daraxtlar maydon chetida qator
+    if (ringD(p, outer) < 2.5) continue;
+    trees.push(p);
+  }
+  return { block: bi, paving: pR, green: gR, paths: toMP(paths), play, trees, areas: { block: blk.area, paving: mpArea(paving), green: mpArea(green), play: play.reduce((t, q) => t + q.area, 0), paths: mpArea(paths) } };
+}
 
 export const PLAY_NORM = { bolalar: 0.7, kattalar: 0.1, sport: 2.0, xojalik: 0.3 };
 const RES_USES = new Set(['turar', 'aralash']);
@@ -48,6 +90,7 @@ function landscapeRaw(doc: Project): Yard[] {
   const fr = frame(doc.origin), plan = computePlan(doc), out: Yard[] = [];
   const bl = doc.buildings.map(b => ({ b, r: b.footprint.map(fr.toLocal) }));
   plan.blocks.forEach((blk, bi) => {
+    if (blk.use === 'yashil' || blk.use === 'maydon' || blk.use === 'sport') { const y = openSpace(blk, bi); if (y) out.push(y); return; }
     if (!RES_USES.has(blk.use)) return;
     const own = bl.filter(x => pointIn(x.r.reduce((s, p) => [s[0] + p[0] / x.r.length, s[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings) && !x.b.z0);
     if (!own.length) return;
@@ -123,7 +166,9 @@ export function greenBalance(doc: Project, yards: Yard[]): { blocksGreen: number
   // 86-band: maktab va MTM uchastkalarisiz
   const base = plan.blocks.filter(b => b.use !== 'maktab' && b.use !== 'mtm').reduce((t, b) => t + b.area, 0) + plan.corridorArea;
   let yardGreen = 0, yardPlay = 0;
-  for (const y of yards) { yardGreen += y.areas.green; const pp = y.areas.play + y.areas.paths; yardPlay += pp <= 0.3 * y.areas.block ? pp : 0.3 * y.areas.block; }
+  const greenBlocks = new Set(plan.blocks.map((b, i) => b.use === 'yashil' ? i : -1).filter(i => i >= 0));
+  // yashil kvartal butunlay hisoblangan — uning hovli eskizi (yoʻlaklar, maysa) ikkinchi marta qoʻshilmaydi
+  for (const y of yards) { if (greenBlocks.has(y.block)) continue; yardGreen += y.areas.green; const pp = y.areas.play + y.areas.paths; yardPlay += pp <= 0.3 * y.areas.block ? pp : 0.3 * y.areas.block; }
   const counted = blocksGreen + yardGreen + yardPlay;
   return { blocksGreen, yardGreen, yardPlay, counted, base, share: base > 0 ? counted / base : 0, trees: yards.reduce((t, y) => t + y.trees.length, 0) };
 }

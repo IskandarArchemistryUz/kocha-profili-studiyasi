@@ -20,7 +20,7 @@ export interface GridParams {
   w: number; h: number;
   /** oʻq burchagi, ° (null — avtomatik: uchastkaning eng uzun tomoni) */
   angle: number | null;
-  /** toʻr siljishi, modul ulushida (0..1) */
+  /** toʻr siljishi, modul ulushida (0 — chiziqlar chegaradan butun modulda; 0,5 — yarim modul) */
   offU: number; offV: number;
   /** har n-chi chiziq — asosiy koʻcha profili (0 — hammasi ikkilamchi) */
   mainEvery: number;
@@ -28,7 +28,7 @@ export interface GridParams {
   minEdge: number;
   profiles: { main: string; minor: string };
 }
-export const DEFAULT_GRID: GridParams = { w: 113, h: 113, angle: null, offU: 0.5, offV: 0.5, mainEvery: 3, minEdge: 0.45, profiles: { main: 'turar-20', minor: 'mahalla-15' } };
+export const DEFAULT_GRID: GridParams = { w: 113, h: 113, angle: null, offU: 0, offV: 0, mainEvery: 3, minEdge: 0.45, profiles: { main: 'turar-20', minor: 'mahalla-15' } };
 
 export interface GridStreet { axis: XY[]; profile: string; main: boolean }
 
@@ -69,9 +69,10 @@ export function gridStreets(site: XY[], g: GridParams): GridStreet[] {
     for (const seg of clipSeg(a, b, ring)) { const L = Math.hypot(seg[1][0] - seg[0][0], seg[1][1] - seg[0][1]); if (L >= modulAlong * 0.6 && L >= 30) out.push({ axis: seg, profile: main ? g.profiles.main : g.profiles.minor, main }); }
   };
   // v boʻylab chiziqlar (u yoʻnalishida yotadi) — oraliq h; u boʻylab chiziqlar (v yoʻnalishida) — oraliq w
+  /** chiziqlar: span moduldan butun songa boʻlinmasa, bloklar tenglashtiriladi (chetki yarim bloklar qolmasin); off — modul ulushida siljish */
   const place = (lo: number, hi: number, step: number, off: number): { c: number; k: number }[] => {
-    const span = hi - lo, n = Math.floor(span / step), rest = span - n * step, start = lo + rest * off, cs: { c: number; k: number }[] = [];
-    for (let k = 0; k <= n; k++) { const c = start + k * step; if (c - lo < step * g.minEdge || hi - c < step * g.minEdge) continue; cs.push({ c, k }); }
+    const span = hi - lo, n = Math.max(1, Math.round(span / step)), st = span / n, cs: { c: number; k: number }[] = [];
+    for (let k = 0; k <= n; k++) { const c = lo + (k + off) * st; if (c - lo < st * g.minEdge || hi - c < st * g.minEdge) continue; cs.push({ c, k }); }
     return cs;
   };
   // asosiy koʻcha — toʻrning har n-chi chizigʻi (chetlari tashlangan boʻlsa ham sanoq toʻr boʻyicha)
@@ -86,7 +87,7 @@ export function gridVariants(site: XY[], base: GridParams): { name: string; g: G
   return [
     { name: 'Uzun tomon boʻylab', g: { ...base, angle: a } },
     { name: 'Koʻndalang', g: { ...base, angle: a + 90 } },
-    { name: 'Siljigan', g: { ...base, angle: a, offU: 0, offV: 1 } },
+    { name: 'Siljigan', g: { ...base, angle: a, offU: 0.5, offV: 0.5 } },
     { name: '45°', g: { ...base, angle: a + 45 } },
   ];
 }

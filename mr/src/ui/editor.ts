@@ -21,7 +21,7 @@ import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
-import { DEFAULT_GEN, generate, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
+import { DEFAULT_GEN, generate, usePreset, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, subdivide, type GridMode } from '../core/parcels';
 import { computeWhole } from '../core/plan';
@@ -95,9 +95,12 @@ const TYPO_ICON: Record<string, string> = {
   qatorlar: '<rect x="3" y="3" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="17" width="18" height="4"/>',
   minora: '<rect x="3" y="3" width="6" height="6"/><rect x="15" y="3" width="6" height="6"/><rect x="9" y="15" width="6" height="6"/>',
   blok_minora: '<path d="M3 7h14v14H3z"/><path d="M7 11h6v6H7z"/><rect x="15" y="3" width="6" height="6" fill="currentColor"/>',
+  ofis_plita: '<rect x="3" y="4" width="18" height="5"/><rect x="3" y="15" width="18" height="5"/><path d="M6 4v5M9 4v5M12 4v5M15 4v5M18 4v5M6 15v5M9 15v5M12 15v5M15 15v5M18 15v5"/>',
+  ofis_minora: '<path d="M3 15h18v6H3z"/><rect x="5" y="3" width="5" height="12"/><rect x="14" y="5" width="5" height="10"/>',
+  savdo_blok: '<rect x="3" y="3" width="18" height="10"/><path d="M3 17h18M6 15v4M10 15v4M14 15v4M18 15v4" stroke-dasharray="1 1"/>',
   blok_villa: '<path d="M3 3h11v4H7v7H3z"/><rect x="15" y="10" width="6" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="17" width="5" height="4"/>',
 };
-const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa' };
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
@@ -1365,7 +1368,7 @@ export class Editor {
     const ud = useDef(b.use), name = this.unitName(i);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
-    const g: GenParams = ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen;
+    const g: GenParams = usePreset(b.use, this.gen) ?? (ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen);
     const fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, this.store.doc.settings.floorHeight);
     this.genNotes = r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
