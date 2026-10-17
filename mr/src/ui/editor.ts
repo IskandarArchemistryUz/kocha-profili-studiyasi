@@ -1243,9 +1243,9 @@ export class Editor {
     this.svc = { ...this.svc, res, demand, net, src: Object.fromEntries(Object.entries(src).map(([k, v]) => [k, v.flatMap(o => o.pts)])), ms: performance.now() - t0, buildings: doc.buildings };
     const bad = res.filter(r => r.share < 0.999), fmtR = (r: SvcResult) => `${svcDef(r.kind).name} ${r.r} m — ${fmt(r.share * 100, 0)} %`;
     this.svcRule = !demand.length ? null : {
-      id: 'service-radius', title: 'Xizmat koʻrsatish radiuslari (piyoda)', source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '539-band, 38-jadval (shahar)', verified: true },
-      status: !bad.length ? 'pass' : bad.some(r => r.share < 0.8) ? 'fail' : 'review', value: res.filter(r => r.share >= 0.999).length, unit: `/ ${res.length} tur`, limit: '7 / 7',
-      note: `Aholi ulushi (turar joy maydoni boʻyicha) radius ichida: ${res.map(fmtR).join('; ')}. Masofa — piyoda tarmogʻi boʻylab (OSM + loyiha koʻchalari). Manba: loyiha parsellari va OSM obyektlari${dropped ? ` (uchastka ichidagi ${dropped} ta OSM obyekti buziladi deb chiqarildi)` : ''}. OSM toʻliq emas — natija pastki baho.`,
+      id: 'service-radius', title: 'Xizmat koʻrsatish radiuslari (piyoda)', source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '539-band, 38-jadval (shahar); bekatlar — 382-band', verified: true },
+      status: !bad.length ? 'pass' : bad.some(r => r.share < 0.8) ? 'fail' : 'review', value: res.filter(r => r.share >= 0.999).length, unit: `/ ${res.length} tur`, limit: `${res.length} / ${res.length}`,
+      note: `Aholi ulushi (turar joy maydoni boʻyicha) radius ichida: ${res.map(fmtR).join('; ')}. Masofa — piyoda tarmogʻi boʻylab (OSM + loyiha koʻchalari). Manba: loyiha parsellari va OSM obyektlari${dropped ? ` (uchastka ichidagi ${dropped} ta OSM obyekti buziladi deb chiqarildi)` : ''}. Metro 800 m — taxmin (ShNQ da yoʻq). OSM toʻliq emas — natija pastki baho.`,
     };
     this.showSvc(); this.renderPanel(); this.renderKpi();
   }
@@ -1293,7 +1293,7 @@ export class Editor {
       })) }, ...(placing ? ['Qoʻshishni tugatish'] : icl(IC.plus, 'Xaritada belgilash'))),
       doc.pois.length ? h('div', { class: 'list', id: 'poiList' }, ...doc.pois.map(p => h('div', { class: 'it' }, h('b', {}, svcDef(p.kind).name), h('small', {}, p.name ?? 'nomsiz'),
         h('button', { class: 'btn', 'aria-label': 'Oʻchirish', onclick: (e: Event) => { e.stopPropagation(); this.run(() => this.store.dispatch({ type: 'removePoi', id: p.id })); if (this.svc.res) this.runServices(); } }, svgIcon(IC.x))))) : ''));
-    body.append(h('p', { class: 'note' }, 'Meʼyor: ShNQ 2.07.01-23, 539-band, 38-jadval (shahar; asl matndan). Masofa seksiya markazidan obyekt uchastkasi chegarasigacha piyoda yoʻllar boʻylab; past zichlikdagi hududlar uchun kattaroq radiuslar (MTM 500, dorixona 800 m) hali qoʻllanmagan. 39-jadval (qizil chiziq va turar joygacha masofalar) — keyingi qadamda. OSM Toshkentda toʻliq emas: mavjud bogʻcha yoki maktab koʻrinmasa, «Parsellar» qadamida tegishli funksiyani bering.'));
+    body.append(h('p', { class: 'note' }, 'Meʼyor: ShNQ 2.07.01-23, 539-band, 38-jadval (shahar; asl matndan); jamoat transporti bekati — 382-band (≤ 400 m; markazda 250, dam olish zonasida 800 — 383-band), metro kirishi 800 m — taxmin. Masofa seksiya markazidan obyekt uchastkasi chegarasigacha piyoda yoʻllar boʻylab; past zichlikdagi hududlar uchun kattaroq radiuslar (MTM 500, dorixona 800 m) hali qoʻllanmagan. 39-jadval (qizil chiziq va turar joygacha masofalar) — keyingi qadamda. OSM Toshkentda toʻliq emas: mavjud bogʻcha yoki maktab koʻrinmasa, «Parsellar» qadamida tegishli funksiyani bering.'));
   }
 
   /* ---------- 5-bosqich: hisobot va TEP ---------- */
