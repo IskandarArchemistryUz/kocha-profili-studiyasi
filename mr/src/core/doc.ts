@@ -100,6 +100,8 @@ export interface Settings {
   comp: CompParams;
   /** hovlilarni avtomatik obodonlashtirish (core/landscape.ts) */
   yards: boolean;
+  /** bekatgacha radius (core/transit.ts): shahar toifasi (null — stat.uz aholisidan andoza), umumshahar markazi, relyef tuzatmasi */
+  transit: { cat: 'engyirik' | 'yirik' | 'katta' | 'orta' | 'kichik' | null; center: boolean; relief: boolean };
 }
 
 /** Atrofdagi shahar (kontekst) — faqat koʻrinish tanlovlari; maʼlumotning oʻzi keshda, hujjatda emas */
@@ -164,6 +166,7 @@ export const DEFAULT_SETTINGS: Settings = {
   district: '1726',
   comp: { ...COMP_DEFAULT },
   yards: true,
+  transit: { cat: null, center: false, relief: true },
 };
 
 export function uid(prefix = ''): string {
@@ -178,7 +181,7 @@ export function blankProject(name = 'Yangi loyiha', now = new Date()): Project {
   return {
     schema: SCHEMA, id: uid('p_'), name, created: t, updated: t,
     origin: [...DEFAULT_ORIGIN] as LngLat,
-    settings: { ...DEFAULT_SETTINGS, aptMix: [...DEFAULT_SETTINGS.aptMix], comp: { ...COMP_DEFAULT } },
+    settings: { ...DEFAULT_SETTINGS, aptMix: [...DEFAULT_SETTINGS.aptMix], comp: { ...COMP_DEFAULT }, transit: { ...DEFAULT_SETTINGS.transit } },
     context: { ...DEFAULT_CONTEXT, layers: { ...DEFAULT_CONTEXT.layers } },
     site: null, buildings: [], streets: [], zones: [], keep: [], parcels: [], garages: [], pois: [], views: [],
   };
@@ -213,6 +216,8 @@ export function migrate(raw: unknown): Project {
   if (s.comp.regime !== 'orq781' && s.comp.regime !== 'orq1149') s.comp.regime = 'orq781';
   for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
   if (typeof s.yards !== 'boolean') s.yards = true;
+  { const t = (s.transit && typeof s.transit === 'object' ? s.transit : {}) as Partial<Settings['transit']>;
+    s.transit = { cat: ['engyirik', 'yirik', 'katta', 'orta', 'kichik'].includes(t.cat as string) ? t.cat! : null, center: t.center === true, relief: t.relief !== false }; }
   if (typeof s.district !== 'string' || !/^\d{4,10}$/.test(s.district)) s.district = DEFAULT_SETTINGS.district;
   const cx = (d.context && typeof d.context === 'object' ? d.context : {}) as Partial<ContextSettings>;
   const context: ContextSettings = {

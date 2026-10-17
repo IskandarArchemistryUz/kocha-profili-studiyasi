@@ -40,6 +40,7 @@ import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
 import { SOCIAL, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
 import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
+import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
 import { centroid, area, signedArea } from '../core/geo';
 import { toDxf } from '../core/dxf';
 import { toIfc } from '../core/ifc';
@@ -92,6 +93,7 @@ const ICON = {
 
 const DL = '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', EYE = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6"/>', SUN = '<path d="M8.5 12a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>', WALK = '<path d="M11.5 4.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M10 21l2.2-6.2 2.8 2.7V21M8.5 11.5L12 8.5l2.8 2 2.7 1M12 8.5l-1.8 6.3"/>';
 const chev = () => { const s = svgIcon('<path d="M9 6l6 6-6 6"/>'); s.classList.add('chev'); return s; };
+const rTxt = (r: SvcResult) => r.rMin !== r.rMax ? `${r.rMin}–${r.rMax} m` : `${r.r} m`;
 const STATUS_TXT: Record<Result['status'], string> = { pass: 'mos', fail: 'mos emas', review: 'koʻrib chiqish', na: 'baholanmadi' };
 
 export class Editor {
@@ -1233,6 +1235,9 @@ export class Editor {
   /* ---------- 5-bosqich: xizmatlar va piyoda ---------- */
   private svc: { busy: boolean; err: string; poi: PoiBundle | null; res: SvcResult[] | null; sel: Svc; demand: Demand[]; net: Net | null; src: Record<string, XY[]>; ms: number; buildings?: unknown } = { busy: false, err: '', poi: null, res: null, sel: 'mtm', demand: [], net: null, src: {}, ms: 0 };
   private svcRule: Result | null = null;
+  /** bekatgacha radius tafsiloti (core/transit.ts) — oxirgi hisobdan */
+  private svcTr: { cat: CityCat; auto: boolean; city: ReturnType<typeof cityOf>; dh: number; relief: boolean; blocks: { i: number; use: Use; zone: StopZone; r: number }[] } | null = null;
+  private trCatOpen = false;
   private poiKind: Svc = 'mtm';
   private poiName = '';
 
@@ -1252,22 +1257,36 @@ export class Editor {
     const demand: Demand[] = doc.buildings.filter(b => useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat' && b.floors > b.nonRes).map(b => {
       const r = b.footprint.map(fr.toLocal); return { p: centroid(r), w: area(r) * (b.floors - b.nonRes) * useDef(b.use).res, bid: b.id };
     });
+    const blocks = this.plan().blocks;
     const src: Record<string, { pts: XY[] }[]> = {}; const add = (k: Svc, pts: XY[]) => (src[k] ??= []).push({ pts });
     const MAP: Partial<Record<Use, Svc>> = { maktab: 'maktab', mtm: 'mtm', poliklinika: 'poliklinika', savdo: 'savdo', sport: 'sport', ijtimoiy: 'mahalla' };
-    this.plan().blocks.forEach(b => { const k = MAP[b.use]; if (k) add(k, boundaryPts(b.rings[0])); });
+    blocks.forEach(b => { const k = MAP[b.use]; if (k) add(k, boundaryPts(b.rings[0])); });
     doc.buildings.forEach(b => { const r = b.footprint.map(fr.toLocal); const k = MAP[b.use]; if (k) add(k, boundaryPts(r)); else if (b.nonRes > 0 && useDef(b.use).res > 0) add('savdo', [centroid(r)]); });
     // OSM obyektlari: uchastka ichidagilari buziladi (saqlanadigan bino ichidagisi bundan mustasno)
     const site = doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null, keep = new Set(doc.keep), kept = this.scene.inSite.filter(b => keep.has(b.id));
     let dropped = 0;
     (this.svc.poi?.pois ?? []).forEach(p => { const q = fr.toLocal(p.at); if (site && pointIn(q, site) && !kept.some(b => pointIn(q, b.rings))) { dropped++; return; } add(p.kind, [q]); });
     doc.pois.forEach(p => add(p.kind, [fr.toLocal(p.at)]));   // qoʻlda belgilangan mavjud obyektlar
+    // bekatgacha radius: hudud turi (kvartal funksiyasidan), shahar toifasi, markaz, relyef — ShNQ 2.07.01-23, 382–383-band
+    const T = doc.settings.transit, city = cityOf(doc.settings.district), cat: CityCat = T.cat ?? cityCategory(city?.pop ?? 0);
+    const relief = !!this.ctxMgr.current?.terrain && doc.context.layers.relief;
+    const stops = (src.bekat ?? []).flatMap(o => o.pts);
+    let dh = 0;
+    if (T.relief && relief && stops.length) for (const d of demand) {
+      let best: XY | null = null, bd = Infinity; for (const q of stops) { const x = Math.hypot(q[0] - d.p[0], q[1] - d.p[1]); if (x < bd) { bd = x; best = q; } }
+      if (best && bd <= 1500) dh = Math.max(dh, Math.abs(this.scene.H(d.p[0], d.p[1]) - this.scene.H(best[0], best[1])));
+    }
+    dh = Math.round(dh);
+    const blockOf = (p: XY) => blocks.find(b => pointIn(p, b.rings));
+    for (const d of demand) { const b = blockOf(d.p); d.r = { bekat: stopRadius(stopZone(b?.use ?? 'turar'), cat, T.center, dh).r }; }
+    this.svcTr = { cat, auto: !T.cat, city, dh, relief, blocks: blocks.map((b, i) => ({ i, use: b.use, zone: stopZone(b.use), r: stopRadius(stopZone(b.use), cat, T.center, dh).r })) };
     const res = analyze(net, demand, src as Record<Svc, { pts: XY[] }[]>);
     this.svc = { ...this.svc, res, demand, net, src: Object.fromEntries(Object.entries(src).map(([k, v]) => [k, v.flatMap(o => o.pts)])), ms: performance.now() - t0, buildings: doc.buildings };
-    const bad = res.filter(r => r.share < 0.999), fmtR = (r: SvcResult) => `${svcDef(r.kind).name} ${r.r} m — ${fmt(r.share * 100, 0)} %`;
+    const bad = res.filter(r => r.share < 0.999), fmtR = (r: SvcResult) => `${svcDef(r.kind).name} ${rTxt(r)} — ${fmt(r.share * 100, 0)} %`;
     this.svcRule = !demand.length ? null : {
       id: 'service-radius', title: 'Xizmat koʻrsatish radiuslari (piyoda)', source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '539-band, 38-jadval (shahar); bekatlar — 382-band', verified: true },
       status: !bad.length ? 'pass' : bad.some(r => r.share < 0.8) ? 'fail' : 'review', value: res.filter(r => r.share >= 0.999).length, unit: `/ ${res.length} tur`, limit: `${res.length} / ${res.length}`,
-      note: `Aholi ulushi (turar joy maydoni boʻyicha) radius ichida: ${res.map(fmtR).join('; ')}. Masofa — piyoda tarmogʻi boʻylab (OSM + loyiha koʻchalari). Manba: loyiha parsellari va OSM obyektlari${dropped ? ` (uchastka ichidagi ${dropped} ta OSM obyekti buziladi deb chiqarildi)` : ''}. Metro 800 m — taxmin (ShNQ da yoʻq). OSM toʻliq emas — natija pastki baho.`,
+      note: `Aholi ulushi (turar joy maydoni boʻyicha) radius ichida: ${res.map(fmtR).join('; ')}. Masofa — piyoda tarmogʻi boʻylab (OSM + loyiha koʻchalari). Manba: loyiha parsellari va OSM obyektlari${dropped ? ` (uchastka ichidagi ${dropped} ta OSM obyekti buziladi deb chiqarildi)` : ''}. Bekat radiusi: shahar toifasi «${catName(cat)}»${T.cat ? ' (qoʻlda)' : ' (andoza)'}, ${T.center ? 'umumshahar markazi, ' : ''}hudud turi kvartal funksiyasidan${dh ? `, relyef tuzatmasi −${Math.round(dh / 10 * 50)} m (farq ${dh} m)` : ''} — 382–383-band. Metro 800 m — taxmin (ShNQ da yoʻq). OSM toʻliq emas — natija pastki baho.`,
     };
     this.showSvc(); this.renderPanel(); this.renderKpi();
   }
@@ -1276,8 +1295,43 @@ export class Editor {
     const S = this.svc, r = S.res?.find(x => x.kind === S.sel); if (!r || !S.net) { this.scene.setNetMap(null); return; }
     const R = r.r, col = (d: number) => d <= R * 0.5 ? 0x1a9850 : d <= R ? 0x91cf60 : d <= R * 1.5 ? 0xfdae61 : d < Infinity ? 0xd73027 : 0xb9b5ad;
     const segs = S.net.segs.map(([a, b]) => ({ a: S.net!.xy[a], b: S.net!.xy[b], color: col(Math.min(r.D[a], r.D[b])) }));
-    const dots = [...(S.src[S.sel] ?? []).map(p => ({ p, color: 0x2a6fb0, size: 9 })), ...S.demand.map((d, i) => ({ p: d.p, color: r.dist[i] <= R ? 0x1a9850 : 0xd73027, size: 12 }))];
+    const dots = [...(S.src[S.sel] ?? []).map(p => ({ p, color: 0x2a6fb0, size: 9 })), ...S.demand.map((d, i) => ({ p: d.p, color: r.dist[i] <= r.rd[i] ? 0x1a9850 : 0xd73027, size: 12 }))];
     this.scene.setNetMap(segs, dots);
+  }
+
+  /** Bekatgacha radius (MR-Q3): shahar toifasi, hudud turlari, markaz va relyef — ShNQ 2.07.01-23, 382–383-band */
+  private transitBox(): HTMLElement {
+    const doc = this.store.doc, T = doc.settings.transit, X = this.svcTr;
+    if (!X) return h('span');
+    const set = (patch: Partial<typeof T>) => { this.run(() => this.store.dispatch({ type: 'setSettings', patch: { transit: { ...T, ...patch } } })); this.runServices(); };
+    const big = X.cat === 'engyirik' || X.cat === 'yirik', base0 = stopRadius('odatiy', X.cat, T.center, 0).base;
+    const tbl = (head: string[], rows: (string | Node)[][]) => h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, ...head.map(x => h('th', {}, x)))), h('tbody', {}, ...rows.map(r => h('tr', {}, ...r.map((c, i) => h('td', i === 1 ? { class: 'num' } : {}, c))))));
+    const catSel = this.trCatOpen ? select({ id: 'trCat', 'aria-label': tr('Shahar toifasi'), onchange: v => { this.trCatOpen = false; set({ cat: v === '' ? null : v as CityCat }); } },
+      [{ value: '', label: `${tr('Avtomatik (andoza)')}${X.city ? ` · ${catName(cityCategory(X.city.pop))}` : ''}`, selected: !T.cat }, ...CITY_CATS.map(c => ({ value: c.id, label: `${tr(c.name)} · ${c.range}`, selected: T.cat === c.id }))]) : '';
+    const shown = X.blocks.filter(b => useDef(b.use).res > 0 || b.zone !== 'odatiy');
+    return h('div', { class: 'group', id: 'trBox', style: 'padding:12px;display:flex;flex-direction:column;gap:10px' },
+      h('div', { class: 'row', style: 'align-items:baseline;gap:8px' }, h('b', { style: 'font-size:13.5px;flex:1' }, tr('Bekatgacha radius')), h('span', { class: 'norm' }, svgIcon(IC.book), '382–383-band')),
+      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Shahar toifasi'),
+        h('span', { class: 'sub' }, X.city ? `${X.city.name} · ${fmt(X.city.pop)} ${tr('kishi')} (stat.uz, ${DEMO.year})${X.city.city ? '' : ` — ${tr('shahar emas, toifani tekshiring')}`}` : tr('hudud tanlanmagan'))),
+        h('span', { class: 'v', id: 'trCatV' }, tr(catName(X.cat))), h('span', { class: `chip ${X.auto ? 'warn' : 'na'}` }, X.auto ? tr('andoza') : tr('qoʻlda')))),
+      tbl([tr('Toifa'), tr('Aholi')], CITY_CATS.map(c => [tr(c.name), c.range])),
+      h('span', { class: 't-small' }, tr('Aholi soni stat.uz dan avtomatik (1-qadamdagi hudud). Chegaralar — SNiP 2.07.01-89 asosidagi andoza, manba tasdiqlanmagan; ShNQ 2.07.01-23 matnida berilmagan. Asl manba topilsa — almashtiriladi.')),
+      this.trCatOpen ? catSel : h('button', { class: 'btn btn-sm', id: 'trCatEdit', style: 'align-self:flex-start', onclick: () => { this.trCatOpen = true; this.renderPanel(); } }, ...icl(IC.pencil, tr('Toifani qoʻlda oʻzgartirish'))),
+      tbl([tr('Hudud'), tr('Radius'), tr('Band')], [
+        [tr('Turar joy, ishxona (odatdagi)'), '400 m', '382'],
+        [tr('Yakka tartibdagi uy-joy'), h('span', {}, '600 m', h('br'), h('span', { class: 't-small' }, `${tr('oʻrta, kichik')}: 800`)), tr('382, 2-qism')],
+        [h('span', {}, tr('Umumshahar markazi'), h('br'), h('span', { class: 't-small' }, tr('eng yirik, yirik shaharlarda'))), '250 m', '383'],
+        [tr('Ommaviy dam olish va sport zonasi'), '800 m', '383']]),
+      shown.length ? h('div', { class: 'glabel' }, h('span', {}, tr('Kvartallar boʻyicha')), h('span', {}, tr('funksiyadan avtomatik'))) : '',
+      shown.length ? h('div', { class: 'group flat', id: 'trBlocks' }, ...shown.map(b => h('div', { class: 'li' }, h('span', { class: 'k' }, `${this.unitName(b.i)} · ${useDef(b.use).name}`, h('span', { class: 'sub' }, tr(ZONE_NAME[b.zone]))), h('span', { class: 'v' }, `${b.r} m`)))) : '',
+      h('div', { class: 'group' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Loyiha umumshahar markazida'), h('span', { class: 'sub' }, tr('yoqilsa — 250 m (faqat eng yirik va yirik shahar)'))),
+          sw({ id: 'trCenter', label: tr('Loyiha umumshahar markazida'), on: T.center, disabled: !big && !T.center, onchange: v => set({ center: v }) })),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Murakkab relyef tuzatmasi'), h('span', { class: 'sub' }, tr('har 10 m balandlik farqiga −50 m · relyef: 1-qadam'))),
+          sw({ id: 'trRelief', label: tr('Murakkab relyef tuzatmasi'), on: T.relief, onchange: v => set({ relief: v }) }))),
+      T.relief ? h('span', { class: 't-small', id: 'trDh' }, !X.relief ? tr('Relyef yuklanmagan (1-qadam, «Atrofni yuklash») — tuzatma qoʻllanmadi.')
+        : X.dh ? tf('Uchastka va bekat orasidagi eng katta farq ${X.dh} m → radius −${cut} m (${base} → ${r} m).', { 'X.dh': X.dh, cut: Math.round(X.dh / 10 * 50), base: base0, r: stopRadius('odatiy', X.cat, T.center, X.dh).r })
+        : tr('Uchastka va bekatlar orasida sezilarli balandlik farqi yoʻq.')) : '');
   }
 
   private xizmatPanel(body: HTMLElement): void {
@@ -1291,12 +1345,13 @@ export class Editor {
       body.append(h('div', { class: 'group' }, h('table', { class: 'tbl', id: 'svcTab' },
         h('thead', {}, h('tr', {}, h('th', {}, tr('Xizmat')), h('th', {}, tr('Radius')), h('th', {}, tr('Obyekt')), h('th', {}, tr('Aholi')))),
         h('tbody', {}, ...S.res.map(r => h('tr', { 'data-svc': r.kind, 'aria-selected': r.kind === S.sel, style: `cursor:pointer;${r.kind === S.sel ? 'background:var(--sel-soft)' : ''}`, onclick: () => { this.svc.sel = r.kind; this.showSvc(); this.renderPanel(); } },
-          h('td', {}, tr(svcDef(r.kind).name)), h('td', { class: 'num', style: 'white-space:nowrap' }, `${r.r} m`), h('td', { class: 'num' }, String(r.sources)),
+          h('td', {}, tr(svcDef(r.kind).name)), h('td', { class: 'num', style: 'white-space:nowrap' }, rTxt(r)), h('td', { class: 'num' }, String(r.sources)),
           h('td', {}, h('span', { class: `chip ${cls(r.share)[0]}`, 'data-s': cls(r.share)[1] }, `${fmt(r.share * 100, 0)} %`))))))));
-      const r = S.res.find(x => x.kind === S.sel)!, def = svcDef(S.sel), far = S.demand.map((_d, i) => r.dist[i]).filter(x => x > r.r);
+      const r = S.res.find(x => x.kind === S.sel)!, def = svcDef(S.sel), far = S.demand.map((_d, i) => r.dist[i] > r.rd[i] ? r.dist[i] : -1).filter(x => x >= 0);
       body.append(h('div', { class: 'col', id: 'svcSt' }, h('b', { style: 'font-size:12.5px' }, `${tr(def.name)}: ${tr(def.note)}`),
         h('span', { class: 't-small' }, far.length ? tf('${fmt(far.length)} / ${fmt(S.demand.length)} seksiya radiusdan tashqarida, eng uzoq ${Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + \' m\' : \'yetib boʻlmaydi\'}', { 'fmt(far.length)': fmt(far.length), 'fmt(S.demand.length)': fmt(S.demand.length), "Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : 'yetib boʻlmaydi'": Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : tr('yetib boʻlmaydi') }) : tf('Barcha ${fmt(S.demand.length)} seksiya radius ichida', { 'fmt(S.demand.length)': fmt(S.demand.length) }),
           r.far ? tf(' · ${r.far} ta obyekt tarmoqdan tashqarida (toʻgʻri masofa × 1,3)', { 'r.far': r.far }) : '')),
+        this.transitBox(),
         h('div', { class: 'leg' }, ...([[0x1a9850, `≤ ${r.r / 2} m`], [0x91cf60, `≤ ${r.r} m`], [0xfdae61, `≤ ${r.r * 1.5} m`], [0xd73027, `> ${r.r * 1.5} m`], [0x2a6fb0, tr('Obyekt (loyiha yoki OSM)')]] as [number, string][]).map(([c, t]) => h('div', {}, h('i', { style: `background:${hex(c)}` }), h('span', {}, t)))),
         h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, h('button', { class: 'btn btn-sm', onclick: () => void this.loadPoi(true) }, ...icl(DL, tr('OSM dan yangilash'))), h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { this.svc.res = null; this.svc.err = 'yashirildi'; this.scene.setNetMap(null); this.renderPanel(); } }, ...icl(EYE, tr('Yashirish')))),
         h('span', { class: 't-small' }, `${fmt(S.poi?.pois.length ?? 0)} ${tr('OSM obyekt')}, ${fmt(S.net?.segs.length ?? 0)} ${tr('yoʻl boʻlagi')} · ${fmt(S.ms, 0)} ms`));

@@ -31,6 +31,15 @@ test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', as
   await expect(page.locator('#svcTab tr[data-svc=bekat] td').nth(1)).toHaveText('400 m');
   await expect(page.locator('#svcTab tr[data-svc=metro] td').nth(1)).toHaveText('800 m');
   const bk = Number((await page.locator('#svcTab tr[data-svc=bekat] .chip').textContent())!.replace(/\D/g, '')); expect(bk).toBeGreaterThan(0);
+  // bekatgacha radius: Toshkent — eng yirik (andoza); umumshahar markazi → 250 m; qoʻlda «Oʻrta» → markaz qoidasi amal qilmaydi
+  await expect(page.locator('#trCatV')).toHaveText('Eng yirik');
+  await page.click('#trCenter');
+  await expect(page.locator('#svcTab tr[data-svc=bekat] td').nth(1)).toHaveText('250 m');
+  await page.click('#trCatEdit'); await page.selectOption('#trCat', 'orta');
+  await expect(page.locator('#trCatV')).toHaveText('Oʻrta');
+  await expect(page.locator('#svcTab tr[data-svc=bekat] td').nth(1)).toHaveText('400 m');
+  await page.click('#trCatEdit'); await page.selectOption('#trCat', ''); await page.click('#trCenter');
+  await expect(page.locator('#svcTab tr[data-svc=bekat] td').nth(1)).toHaveText('400 m');
   // OSM da yoʻq bogʻchani qoʻlda qoʻshish — uchastka markazida → MTM qamrovi oshadi
   await page.selectOption('#poiKind', 'mtm'); await page.fill('#poiName', 'Sinov MTM');
   await page.click('#poiAdd');
