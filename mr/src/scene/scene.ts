@@ -740,8 +740,10 @@ export class Scene3D {
   /** Tahrirlash tutqichlari (koʻcha uchlari, blok burchaklari): v — tutqich, m — oraliq (yangi nuqta qoʻshish) */
   private handles: THREE.Points[] = [];
   private static dotTex: THREE.Texture | null = null;
-  setHandles(v: XY[], m: XY[] = []): void {
-    for (const p of this.handles) { this.scene.remove(p); p.geometry.dispose(); (p.material as THREE.Material).dispose(); }
+  private static dotTex2: THREE.Texture | null = null;
+  /** v — nuqta tutqichlari, m — oraliq (yangi nuqta), fl — qavat tutqichi (bino tepasida, toʻq sariq) */
+  setHandles(v: XY[], m: XY[] = [], fl: { c: XY; z: number } | null = null): void {
+    for (const p of this.handles) { this.scene.remove(p); p.geometry.dispose(); (p.material as THREE.Material).dispose(); }   // Line ham shu roʻyxatda (geometry/material bir xil)
     this.handles = [];
     if (!Scene3D.dotTex) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!; x.beginPath(); x.arc(32, 32, 26, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 9; x.strokeStyle = '#2a6fb0'; x.stroke(); Scene3D.dotTex = new THREE.CanvasTexture(c); Scene3D.dotTex.colorSpace = THREE.SRGBColorSpace; }
     const mk = (pts: XY[], size: number, op: number) => {
@@ -750,7 +752,17 @@ export class Scene3D {
       const o = new THREE.Points(g, new THREE.PointsMaterial({ size, sizeAttenuation: false, map: Scene3D.dotTex, transparent: true, opacity: op, depthTest: false, alphaTest: 0.1 }));
       o.renderOrder = 70; o.name = 'tutqich'; this.scene.add(o); this.handles.push(o);
     };
-    mk(m, 9, 0.55); mk(v, 14, 1); this.invalidate();
+    mk(m, 9, 0.55); mk(v, 14, 1);
+    if (fl) {
+      if (!Scene3D.dotTex2) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!; x.beginPath(); x.arc(32, 32, 26, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 9; x.strokeStyle = '#d9822b'; x.stroke(); x.fillStyle = '#d9822b'; x.beginPath(); x.moveTo(32, 14); x.lineTo(42, 26); x.lineTo(22, 26); x.fill(); x.beginPath(); x.moveTo(32, 50); x.lineTo(42, 38); x.lineTo(22, 38); x.fill(); Scene3D.dotTex2 = new THREE.CanvasTexture(c); Scene3D.dotTex2.colorSpace = THREE.SRGBColorSpace; }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([fl.c[0], fl.z, -fl.c[1]], 3));
+      const o = new THREE.Points(g, new THREE.PointsMaterial({ size: 22, sizeAttenuation: false, map: Scene3D.dotTex2, transparent: true, depthTest: false, alphaTest: 0.1 }));
+      o.renderOrder = 71; o.name = 'tutqich'; this.scene.add(o); this.handles.push(o);
+      // tutqichdan tomgacha ingichka chiziq
+      const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(fl.c[0], fl.z - 1.5, -fl.c[1]), new THREE.Vector3(fl.c[0], fl.z, -fl.c[1])]);
+      const ln = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0xd9822b, depthTest: false })); ln.renderOrder = 70; ln.name = 'tutqich'; this.scene.add(ln); this.handles.push(ln as unknown as THREE.Points);
+    }
+    this.invalidate();
   }
 
   /** Kamerani hujjatdagi obyektlarga moslash */

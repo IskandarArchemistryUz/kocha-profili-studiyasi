@@ -460,7 +460,7 @@ export class Editor {
       const sec = Array.from({ length: tot }, (_, i) => { const y = H - 2 - (i + 1) * q, kind2 = i < z0 ? '#c9c3b8' : i - z0 < b.nonRes ? '#8d877d' : '#e3d7bd'; return `<rect x="${i < z0 ? 4 : 14}" y="${y + 0.5}" width="${i < z0 ? 56 : 36}" height="${q - 1}" rx="1.5" fill="${kind2}"/>`; }).join('');
       body.append(
         h('div', { class: 'lb' }, 'Funksiya'), fn,
-        h('div', { class: 'lb' }, 'Balandlik'),
+        h('div', { class: 'lb' }, 'Balandlik'), h('p', { class: 'note', id: 'bldEditHint', style: 'margin:0 0 6px' }, 'Sahnada: tom ustidagi toʻq sariq tutqichni yuqori/pastga sudrang — qavatlar; burchak tutqichlari — oyoq izi.'),
         h('div', { class: 'hrow' },
           h('div', { class: 'flist grow' },
             stepper('Qavatlar', b.floors, 1, 60, v => upd({ floors: v }, 'fl-' + b.id), 'iFloors'),
@@ -549,8 +549,11 @@ export class Editor {
         ib('Nusxa (yoniga)', 'M8 8h11v11H8zM5 15V5h10', dup, 'iDup'), ib('Oʻchirish', 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13', () => this.store.dispatch({ type: 'removeBuilding', id: b.id }), 'iDel', 'danger')) as HTMLDivElement;
       host.append(el);
     }
-    const top = Math.max(...r.map(p => this.scene.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh + 4, sp = this.scene.toScreen(c[0], c[1], top), hr = host.getBoundingClientRect();
-    Object.assign(el.style, { left: `${Math.max(150, Math.min(hr.width - 150, sp.x - hr.left))}px`, top: `${Math.max(64, Math.min(hr.height - 60, sp.y - hr.top - 52))}px` });
+    // panel bino va uning tutqichlari (burchaklar, qavat tutqichi) ustiga tushmasin: ekrandagi eng yuqori nuqtadan 46 px tepada
+    const base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, top = base + b.floors * fh + 2.5, hr = host.getBoundingClientRect();
+    const pts = [...r.map(p => this.scene.toScreen(p[0], p[1], base)), ...r.map(p => this.scene.toScreen(p[0], p[1], top)), this.scene.toScreen(c[0], c[1], top)];
+    const minY = Math.min(...pts.map(p => p.y)), cx = this.scene.toScreen(c[0], c[1], top).x;
+    Object.assign(el.style, { left: `${Math.max(150, Math.min(hr.width - 150, cx - hr.left))}px`, top: `${Math.max(64, Math.min(hr.height - 60, minY - hr.top - 46))}px` });
   }
 
   /** parsellar qadamida buziladiganlar foydalanuvchi tanloviga koʻra, keyingi qadamlarda — yashirin */
@@ -1574,20 +1577,40 @@ export class Editor {
     const hit = this.store.doc.streets.find(st => { const a = st.axis.map(fr.toLocal), w = profileWidth(profileById(st.profile)) / 2; for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); if (Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]) <= w) return true; } return false; });
     return hit?.id ?? null;
   }
-  /** tanlangan koʻcha nuqtalari — tutqichlar (sudrash), oraliqlari — yangi nuqta */
-  private syncHandles(): void {
-    const doc = this.store.doc, st = this.step.id === 'kocha' && !this.tool ? doc.streets.find(x => x.id === this.selStreet) : null;
-    if (!st) { this.scene.setHandles([]); return; }
-    const a = st.axis.map(frame(doc.origin).toLocal);
-    this.scene.setHandles(a, a.slice(1).map((q, i) => [(q[0] + a[i][0]) / 2, (q[1] + a[i][1]) / 2] as XY));
+  /**
+   * Tutqichlar (sudrash bilan tahrirlash): qadam va tanlovga koʻra — koʻcha oʻqi (Koʻchalar), uchastka chegarasi (Uchastka),
+   * parsel chegarasi (Parsellar), bino oyoq izi (Hajmlar). closed — halqa; apply — yangi nuqtalar hujjatga; floor — qavat tutqichi (bino tepasida).
+   */
+  private handleSet(): { id: string; pts: XY[]; closed: boolean; min: number; street?: boolean; apply: (pts: XY[], key: string) => void; floor?: { c: XY; z: number; bid: string } } | null {
+    const doc = this.store.doc, fr = frame(doc.origin); if (this.tool) return null;
+    const st = this.step.id;
+    if (st === 'kocha') { const s = doc.streets.find(x => x.id === this.selStreet); if (!s) return null;
+      return { id: s.id, pts: s.axis.map(fr.toLocal), closed: false, min: 2, street: true, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateStreet', id: s.id, patch: { axis: pts.map(fr.toGeo) } }, key)) }; }
+    if (st === 'uchastka' && doc.site) { const r = doc.site.rings;
+      return { id: 'site', pts: r[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'setSite', rings: [pts.map(fr.toGeo), ...r.slice(1)] }, key)) }; }
+    if (st === 'parsel' && this.selBlock != null) { const b = this.plan().blocks[this.selBlock], pc = b?.parcelId ? doc.parcels.find(p => p.id === b.parcelId) : null; if (!pc) return null;
+      return { id: pc.id, pts: pc.rings[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateParcel', id: pc.id, patch: { rings: [pts.map(fr.toGeo), ...pc.rings.slice(1)] } }, key)) }; }
+    if (st === 'hajm' && this.sel) { const b = doc.buildings.find(x => x.id === this.sel); if (!b) return null;
+      const r = b.footprint.map(fr.toLocal), fh = doc.settings.floorHeight, base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh;
+      const c: XY = [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length];
+      return { id: b.id, pts: r, closed: true, min: 3, floor: { c, z: base + b.floors * fh + 1.5, bid: b.id }, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { footprint: pts.map(fr.toGeo) } }, key)) }; }
+    return null;
   }
-  /** ekrandagi (x, y) ga eng yaqin tutqich: i — nuqta indeksi; ins — oraliqdan yangi nuqta */
-  private handleAt(x: number, y: number): { id: string; i: number; ins: boolean } | null {
-    const doc = this.store.doc, st = this.step.id === 'kocha' && !this.tool ? doc.streets.find(z => z.id === this.selStreet) : null; if (!st) return null;
-    const a = st.axis.map(frame(doc.origin).toLocal); let best: { id: string; i: number; ins: boolean } | null = null, bd = 12;
-    const test = (p: XY, i: number, ins: boolean, tol: number) => { const s2 = this.scene.toScreen(p[0], p[1], this.scene.H(p[0], p[1]) + 0.8), d = Math.hypot(s2.x - x, s2.y - y); if (d < Math.min(bd, tol)) { bd = d; best = { id: st.id, i, ins }; } };
-    a.forEach((p, i) => test(p, i, false, 12));
-    a.slice(1).forEach((q, i) => test([(q[0] + a[i][0]) / 2, (q[1] + a[i][1]) / 2], i + 1, true, 9));
+  private syncHandles(): void {
+    const hs = this.handleSet();
+    if (!hs) { this.scene.setHandles([]); return; }
+    const a = hs.pts, n = a.length, mids: XY[] = [];
+    for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n]; mids.push([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]); }
+    this.scene.setHandles(a, mids, hs.floor ? { c: hs.floor.c, z: hs.floor.z } : null);
+  }
+  /** ekrandagi (x, y) ga eng yaqin tutqich: i — nuqta indeksi; ins — oraliqdan yangi nuqta; floor — qavat tutqichi */
+  private handleAt(x: number, y: number): { i: number; ins: boolean; floor?: boolean } | null {
+    const hs = this.handleSet(); if (!hs) return null;
+    const a = hs.pts, n = a.length; let best: { i: number; ins: boolean; floor?: boolean } | null = null, bd = 12;
+    const test = (p: XY, z: number, i: number, ins: boolean, tol: number, floor = false) => { const s2 = this.scene.toScreen(p[0], p[1], z), d = Math.hypot(s2.x - x, s2.y - y); if (d < Math.min(bd, tol)) { bd = d; best = { i, ins, floor }; } };
+    if (hs.floor) test(hs.floor.c, hs.floor.z, -1, false, 14, true);
+    a.forEach((p, i) => test(p, this.scene.H(p[0], p[1]) + 0.8, i, false, 12));
+    for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n], m: XY = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; test(m, this.scene.H(m[0], m[1]) + 0.8, i, true, 9); }
     return best;
   }
 
@@ -1788,6 +1811,7 @@ export class Editor {
             }));
           } }, 'Birlashtirish'),
           h('button', { class: 'btn grow', id: 'pClear', disabled: !b.parcelId, onclick: () => { const bp = this.blockParcels(b); if (bp) { this.run(() => this.store.dispatch({ type: 'setParcels', block: bp.lab.id, parcels: [] })); this.selBlock = null; this.scene.selectBlock(null); } } }, 'Butun kvartal')),
+        b.parcelId ? h('p', { class: 'note', id: 'parcelEditHint' }, 'Parsel chegarasini sahnada burchaklaridan sudrab toʻgʻrilang (oraliq nuqta — yangi burchak, ikki marta bosish — oʻchirish).') : '',
         h('p', { class: 'note' }, 'Kesish — tanlangan parsel ustida chiziq chizing (2 nuqta, Enter). Kvartalni qayta boʻlish undagi parsellar seksiyalarini oʻchiradi.')));
     } else body.append(h('p', { class: 'note' }, 'Kvartal yoki parselni roʻyxatdan yoki sahnada bosib tanlang.'));
     const dm = this.demolition();
@@ -2081,7 +2105,8 @@ export class Editor {
             this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.scene.frameDoc(this.store.doc);
           } }, 'Qoʻyish')),
         doc.site ? h('button', { class: 'btn danger', onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, 'Uchastkani oʻchirish') : '',
-        h('p', { class: 'note' }, 'Chizish: bosing — nuqta, birinchi nuqtani bosing yoki Enter — yopish. Sudrab kamerani aylantirasiz.'));
+        h('p', { class: 'note' }, 'Chizish: bosing — nuqta, birinchi nuqtani bosing yoki Enter — yopish. Sudrab kamerani aylantirasiz.'),
+        doc.site ? h('p', { class: 'note', id: 'siteEditHint' }, 'Tahrirlash: burchaklarni sudrang · oraliqdagi kichik nuqta — yangi burchak · burchakni ikki marta bosish — oʻchirish.') : '');
     }
     if (s.id === 'hajm') this.hajmPanel(body);
     if (s.id === 'kocha') this.kochaPanel(body);
@@ -2173,15 +2198,15 @@ export class Editor {
     let drag: { id: string; p0: XY; r0: XY[]; edge: number; n: XY; floor: number; tiers0: { from: number; inset: number; edge?: number }[] } | null = null, raf = 0, pend: XY | null = null;
     let rdown: { x: number; y: number } | null = null;
     // koʻcha nuqtasini sudrash (uchlari yoʻllarga yopishadi)
-    let hdrag: { id: string; i: number; a0: XY[]; key: string } | null = null;
+    let hdrag: { hs: NonNullable<ReturnType<Editor['handleSet']>>; i: number; a0: XY[]; key: string } | null = null;
+    let fdrag: { id: string; y0: number; floors0: number; pxPerM: number; key: string } | null = null;
     // Shift + sudrash — ramka bilan tanlash
     let box: { x: number; y: number; el: HTMLDivElement } | null = null;
     c.addEventListener('contextmenu', e => e.preventDefault());
     // koʻcha nuqtasini ikki marta bosish — nuqta oʻchadi (kamida 2 nuqta qoladi)
     c.addEventListener('dblclick', e => {
-      const hd = this.handleAt(e.clientX, e.clientY); if (!hd || hd.ins) return;
-      const st = this.store.doc.streets.find(x => x.id === hd.id); if (!st || st.axis.length <= 2) return;
-      this.run(() => this.store.dispatch({ type: 'updateStreet', id: hd.id, patch: { axis: st.axis.filter((_, k) => k !== hd.i) } }));
+      const hd = this.handleAt(e.clientX, e.clientY), hs = this.handleSet(); if (!hd || hd.ins || hd.floor || !hs || hs.pts.length <= hs.min) return;
+      hs.apply(hs.pts.filter((_, k) => k !== hd.i), `hdel-${Date.now()}`);
     });
     c.addEventListener('pointerdown', e => {
       if (e.button === 2) { rdown = { x: e.clientX, y: e.clientY }; return; }
@@ -2191,11 +2216,16 @@ export class Editor {
         const el = h('div', { class: 'selbox', 'aria-hidden': 'true' }) as HTMLDivElement; document.body.append(el);
         box = { x: e.clientX, y: e.clientY, el }; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return;
       }
-      { const hd = this.handleAt(e.clientX, e.clientY);
-        if (hd) {
-          const st = this.store.doc.streets.find(x => x.id === hd.id)!, a = st.axis.map(frame(this.store.doc.origin).toLocal);
-          if (hd.ins) a.splice(hd.i, 0, [(a[hd.i - 1][0] + a[hd.i][0]) / 2, (a[hd.i - 1][1] + a[hd.i][1]) / 2]);
-          hdrag = { id: hd.id, i: hd.i, a0: a, key: `sv-${hd.id}-${Date.now()}` }; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return;
+      { const hd = this.handleAt(e.clientX, e.clientY), hs = hd && this.handleSet();
+        if (hd && hs) {
+          if (hd.floor && hs.floor) {
+            // qavat tutqichi: vertikal sudrash — qavatlar soni (ekran piksel / metr tepaga qarab)
+            const b = this.store.doc.buildings.find(x => x.id === hs.floor!.bid)!, s0 = this.scene.toScreen(hs.floor.c[0], hs.floor.c[1], hs.floor.z), s1 = this.scene.toScreen(hs.floor.c[0], hs.floor.c[1], hs.floor.z + 10);
+            fdrag = { id: b.id, y0: e.clientY, floors0: b.floors, pxPerM: (s0.y - s1.y) / 10 > 0.8 ? (s0.y - s1.y) / 10 : 14 / this.store.doc.settings.floorHeight /* Rejada balandlik koʻrinmaydi — bir qavat = 14 px */, key: `fl-${b.id}-${Date.now()}` }; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return;
+          }
+          const a = hs.pts.slice(), n = a.length;
+          if (hd.ins) { const p = a[hd.i - 1], q = a[hd.i % n]; a.splice(hd.i, 0, [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]); }
+          hdrag = { hs, i: hd.i, a0: a, key: `hv-${hs.id}-${Date.now()}` }; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return;
         } }
       if (this.dragMode === 'yoq' || !this.sel || this.tool) return;
       const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), g0 = this.scene.pick(e.clientX, e.clientY);
@@ -2232,11 +2262,16 @@ export class Editor {
     c.addEventListener('pointermove', e => {
       if (box) { Object.assign(box.el.style, { left: `${Math.min(box.x, e.clientX)}px`, top: `${Math.min(box.y, e.clientY)}px`, width: `${Math.abs(e.clientX - box.x)}px`, height: `${Math.abs(e.clientY - box.y)}px` }); return; }
       if (drag) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { pend = p; if (!raf) raf = requestAnimationFrame(applyDrag); } return; }
+      if (fdrag) {
+        const fh = this.store.doc.settings.floorHeight, fl = Math.max(1, Math.min(60, fdrag.floors0 + Math.round((fdrag.y0 - e.clientY) / fdrag.pxPerM / fh))), fd = fdrag;
+        const b = this.store.doc.buildings.find(x => x.id === fd.id); if (b && b.floors !== fl) this.run(() => this.store.dispatch({ type: 'updateBuilding', id: fd.id, patch: { floors: fl, nonRes: Math.min(b.nonRes, fl) } }, fd.key));
+        return;
+      }
       if (hdrag) {
         const p0 = this.scene.pick(e.clientX, e.clientY); if (!p0) return;
-        const end = hdrag.i === 0 || hdrag.i === hdrag.a0.length - 1, p = end ? this.snapStreet(p0, hdrag.id) : this.snapPt(p0, true);
-        const a = hdrag.a0.map((q, k) => k === hdrag!.i ? p : q), fr = frame(this.store.doc.origin), hd = hdrag;
-        this.run(() => this.store.dispatch({ type: 'updateStreet', id: hd.id, patch: { axis: a.map(fr.toGeo) } }, hd.key)); return;
+        const hs = hdrag.hs, end = !hs.closed && (hdrag.i === 0 || hdrag.i === hdrag.a0.length - 1), p = hs.street && end ? this.snapStreet(p0, hs.id) : this.snapPt(p0, true);
+        const a = hdrag.a0.map((q, k) => k === hdrag!.i ? p : q);
+        hs.apply(a, hdrag.key); return;
       }
       if (!this.tool?.move) return; const p0 = this.scene.pick(e.clientX, e.clientY); if (p0) this.tool.move(this.tool.snapTo ? this.snapPt(p0, true) : p0);
     });
@@ -2258,7 +2293,7 @@ export class Editor {
         return;
       }
       if (drag) { drag = null; pend = null; down = null; this.scene.setOrbit(true); return; }
-      if (hdrag) { hdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); return; }
+      if (hdrag || fdrag) { hdrag = null; fdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); return; }
       if (this.mode === 'pipette' && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 5) { down = null; const id = this.scene.pickBuilding(e.clientX, e.clientY); if (id) this.pipette(id); return; }
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;

@@ -64,3 +64,16 @@ describe('qizil chiziq OSM yoʻl zonasini kesib oʻtmaydi', () => {
     expect(out.every(r => r.every(p => Math.abs(p[1]) >= 10.5 - 1e-6))).toBe(true);
   });
 });
+
+import { splitOutside } from '../../src/scene/streets3d';
+describe('yoʻlni kesib oʻtuvchi koʻcha — trotuar yoʻl zonasida yoʻq', () => {
+  it('ikki boʻlak, zona (±10,5) ichida nuqta yoʻq', () => {
+    const parts = splitOutside([[0, 80], [0, -80]], [{ pts: [[-200, 0], [200, 0]], w: 13, sw: 4 }]);
+    expect(parts.length).toBe(2);
+    expect(parts.every(p => p.every(q => Math.abs(q[1]) >= 10.4))).toBe(true);
+    expect(parts[0][0]).toEqual([0, 80]); expect(parts[1][parts[1].length - 1]).toEqual([0, -80]);
+  });
+  it('yoʻlga tegmasa — oʻzgarmaydi', () => {
+    expect(splitOutside([[0, 80], [0, 30]], [{ pts: [[-200, 0], [200, 0]], w: 13, sw: 4 }])).toEqual([[[0, 80], [0, 30]]]);
+  });
+});
