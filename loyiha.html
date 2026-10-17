@@ -223,18 +223,17 @@ const STEPS=[
     {id:"zich", t:"Zichlik", page:"gis.html", gtab:"zich"},
     {id:"muh", t:"Tarmoqlar", page:"gis.html", gtab:"muh"},
     {id:"shamol", t:"Shamol", page:"shamol.html"}]},
-  {id:"kocha", t:"Koʻcha", subs:[
-    {id:"kesim", t:"Kesim", page:"kocha.html"},
+  {id:"kocha", t:"Transport", subs:[
     {id:"loyiha", t:"Koʻcha loyihasi", page:"studio.html", app:"design"},
     {id:"profil", t:"Mavjud profil", page:"studio.html", app:"prof"}]},
   {id:"albom", t:"Albom", subs:[
-    {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
+    {id:"maket", t:"Albom", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
   /* chuqur asboblar — menyuda «Qoʻshimcha»; xarita va maʼlumot asosiy oyna bilan umumiy */
   {id:"qosh", t:"Qoʻshimcha", hidden:true, subs:[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="76";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="77";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -541,7 +540,6 @@ const GUIDE={
  "tahlil-gis":["Relyef, zichlik va tarmoqlar",["Tahlil hudud boʻyicha avtomatik boshlanadi.","Oʻngdagi tablar: <b>Balandlik</b>, <b>Nishab</b>, <b>Yer foyd.</b>, <b>Zichlik</b> (aholi bilan), <b>Tarmoqlar</b> (elektr, gaz, suv, kanalizatsiya, ariqlar).","<b>Albomga →</b> — joriy xaritani yuboradi."],""],
  "tahlil-shamol":["Shamol: mavjud holat",["<b>Binolar va shamolni yuklash</b> ni bosing (taxminan 30 soniya).","Fasl va kun vaqtini tanlang — qizil joylarda havo turib qoladi.","Loyiha binolarining taʼsiri — 4-qadam <b>Binolar → Shamol taʼsiri</b>."],"Shamol guli 1-qadam natijasida ham koʻrsatiladi."],
  "loyiha-bino":["Bino studiyasi",["Master rejada binoni tanlang → <b>Bino studiyasi →</b>.","<b>Fasad</b>: uslub, derazalar, balkonlar, 1-qavat, devor. <b>Hajm</b>: qavatlar va tom. <b>Kvartiralar</b>: reja va 3D kesim.","Tepada <b>Render</b> — quyosh soyasi bilan; soat va faslni oʻzgartiring."],""],
- "kocha-kesim":["Koʻcha kesimi",["Chapdan shablonni tanlang.","Pastdagi tasmada elementni bosing, chetini sudrab kengligini, oʻzini sudrab tartibini oʻzgartiring.","Oʻngdagi roʻyxatdan element qoʻshing; tepada — Kesim / Reja / Aksonometriya."],""],
  "kocha-loyiha":["Koʻchani loyihalash",["Chap paneldan modulni tanlang va xaritada koʻchani chizing.","YHQ tekshiruvlari oʻng panelda, 3D koʻrinish pastda.","Xarita ustidagi <b>Albomga →</b> — chizmani yuboradi."],""],
  "kocha-profil":["Mavjud profil",["Koʻcha oʻqiga bosing — koʻndalang kesim OSM dan taxmin qilinadi.","Loyiha profili bilan solishtiring.","Profilni albomga yuboring."],""],
  "bino-posadka":["Binolarni joylashtirish",["Uchastka 1-qadamdan oʻtadi — kerak boʻlsa qayta chizing.","Bino qoʻshing va qavatini bering: zichlik, xonadonlar, aholi va insolyatsiya oʻngda hisoblanadi.","Xaritadagi <b>Shamol</b> oynasi — shamol guli; <b>Binolarning shamolga taʼsiri →</b> bilan tekshiring."],""],

@@ -12,6 +12,13 @@ let editor: Editor | null = null;
 
 async function route(): Promise<void> {
   editor?.dispose(); editor = null;
+  // bosh sahifadan: #/yangi — yangi loyiha, #/namuna — namuna loyiha (data/ dan nusxa)
+  if (location.hash === '#/yangi') { const p = blankProject(); await putProject(p); location.replace(`#/p/${p.id}`); return; }
+  if (location.hash === '#/namuna') {
+    try { const r = await fetch('../data/namuna-mahalla.archemistry.json'); if (!r.ok) throw new Error(String(r.status)); const p = importJSON(await r.text(), () => uid('p_')); await putProject(p); location.replace(`#/p/${p.id}`); }
+    catch (e) { toast('Namuna loyiha yuklanmadi: ' + (e as Error).message); location.replace('#/'); }
+    return;
+  }
   const m = location.hash.match(/^#\/p\/([\w-]+)$/);
   if (m) {
     let doc = null;

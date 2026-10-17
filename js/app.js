@@ -573,7 +573,7 @@ document.getElementById('expSvg').onclick=()=>{const W=640,mx=Math.max(sum(S.pro
   const inner=s=>s.replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
   dl(`kocha-kesim-${slug()}.svg`,`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${2*h+50}" style="color:#1c2628;background:#fff"><text x="24" y="16" font-size="13" font-weight="600">${S.site?.name||'Namuna'} — mavjud holat</text><g transform="translate(0,20)">${inner(a)}</g><text x="24" y="${h+40}" font-size="13" font-weight="600">Loyiha</text><g transform="translate(0,${h+44})">${inner(b)}</g></svg>`,'image/svg+xml');};
 document.getElementById('imp').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j.prof)throw 0;S=Object.assign(sample(),j);
-  _id=Math.max(0,...S.prof.ex.map(e=>e.id),...S.prof.pr.map(e=>e.id));renderAll();if(S.site?.center)map.setView(S.site.center,17);toast('Loyiha ochildi');}catch(e){toast('Fayl oʻqilmadi: bu Koʻcha Profili Studiyasi loyihasi emas.');}};r.readAsText(f);ev.target.value='';};
+  _id=Math.max(0,...S.prof.ex.map(e=>e.id),...S.prof.pr.map(e=>e.id));renderAll();if(S.site?.center)map.setView(S.site.center,17);toast('Loyiha ochildi');}catch(e){toast('Fayl oʻqilmadi: bu Archemistry Lab · Transport infratuzilmasi loyihasi emas.');}};r.readAsText(f);ev.target.value='';};
 document.getElementById('resetAll').onclick=()=>{const prev=clone(S);S=sample();renderAll();map.setView([41.3111,69.2797],14);toast('Namuna tiklandi',()=>{S=prev;renderAll();save();});};
 
 let tt;function toast(msg,undo,lbl){const t=document.getElementById('toast');t.innerHTML=`<span>${msg}</span>`+(undo?`<button type="button">${lbl||'Qaytarish'}</button>`:'');t.hidden=false;
@@ -2695,7 +2695,7 @@ function bindFile(el){const q=s=>el.querySelector(s),ds=DS();if(!q('#fileBox'))r
   q('#fileBox').addEventListener('toggle',()=>{ds.fileOpen=q('#fileBox').open;save();});
   q('#pName').onchange=e=>{ds.name=e.target.value.trim();save();};
   q('#fSave').onclick=saveProjectFile;q('#fBrow').onclick=saveInBrowser;
-  q('#fOpen').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j.prof&&!j.design)throw 0;loadState(j);toast('Loyiha ochildi.');}catch(e){toast('Fayl oʻqilmadi: bu Koʻcha Profili Studiyasi loyihasi emas.');}};r.readAsText(f);ev.target.value='';};
+  q('#fOpen').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j.prof&&!j.design)throw 0;loadState(j);toast('Loyiha ochildi.');}catch(e){toast('Fayl oʻqilmadi: bu Archemistry Lab · Transport infratuzilmasi loyihasi emas.');}};r.readAsText(f);ev.target.value='';};
   el.querySelectorAll('[data-lo]').forEach(b=>b.onclick=()=>{const v=readSaves()[b.dataset.lo];if(v){loadState(JSON.parse(v.d));toast(`«${b.dataset.lo}» ochildi.`);}});
   el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{const all=readSaves();delete all[b.dataset.rm];try{localStorage.setItem('kps_saves',JSON.stringify(all));}catch(e){}renderDesignPanel();});
   q('#ePng').onclick=()=>exportPNG(+q('#eScale').value,q('#eSat').checked);q('#eSvg').onclick=()=>exportSVG(q('#eSat').checked);if(q('#eAlb'))q('#eAlb').onclick=sendToMaket;
@@ -2728,7 +2728,7 @@ async function exportPNG(ppm,withSat){const g=exportGeom();if(!g){toast('Loyiha 
     x.save();x.translate(q[0],q[1]);x.rotate((sn.rot||0)*Math.PI/180);x.globalAlpha=sn.st==='remove'?.45:1;x.drawImage(im,-sz/2,-sz/2,sz,sz);x.restore();
     if(sn.st==='remove'){x.strokeStyle='#d01c2a';x.lineWidth=2;x.beginPath();x.moveTo(q[0]-sz/2,q[1]-sz/2);x.lineTo(q[0]+sz/2,q[1]+sz/2);x.moveTo(q[0]+sz/2,q[1]-sz/2);x.lineTo(q[0]-sz/2,q[1]+sz/2);x.stroke();}}
   // sarlavha, masshtab, shimol
-  x.fillStyle='#fff';x.fillRect(0,H,W,60);x.fillStyle='#1c2628';x.font='600 16px Arial';x.textAlign='left';x.fillText(projName(),16,H+26);x.font='12px Arial';x.fillText(`Koʻcha Profili Studiyasi · ${new Date().toLocaleDateString('ru-RU')} · 1 m = ${f1(ppm)} px`,16,H+46);
+  x.fillStyle='#fff';x.fillRect(0,H,W,60);x.fillStyle='#1c2628';x.font='600 16px Arial';x.textAlign='left';x.fillText(projName(),16,H+26);x.font='12px Arial';x.fillText(`Archemistry Lab · Transport infratuzilmasi · ${new Date().toLocaleDateString('ru-RU')} · 1 m = ${f1(ppm)} px`,16,H+46);
   const sb=[10,20,50,100,200].find(v=>v*ppm>80)||200;x.fillRect(W-40-sb*ppm,H+30,sb*ppm,6);x.textAlign='right';x.fillText(sb+' m',W-40,H+24);
   x.beginPath();x.moveTo(W-20,H+12);x.lineTo(W-26,H+32);x.lineTo(W-14,H+32);x.closePath();x.fill();x.fillText('N',W-15,H+48);
   cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`${fslug()}.png`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);},'image/png');}
@@ -2743,7 +2743,7 @@ async function exportSVG(withSat){const g=exportGeom();if(!g){toast('Loyiha boʻ
   let bg='';if(withSat){const s=await satForBBox(g);if(s){const {im,z,bb}=s;const c2=document.createElement('canvas'),sw=gxf(bb.e,z)-gxf(bb.w,z),shh=gyf(bb.s,z)-gyf(bb.n,z);c2.width=Math.round(sw);c2.height=Math.round(shh);c2.getContext('2d').drawImage(im.cv,gxf(bb.w,z)-im.ox,gyf(bb.n,z)-im.oy,sw,shh,0,0,c2.width,c2.height);
     const p0=X(toXY([bb.n,bb.w],g.o)).split(',').map(Number),p1=X(toXY([bb.s,bb.e],g.o)).split(',').map(Number);bg=`<g id="Sunʼiy_yoʻldosh" inkscape:groupmode="layer" inkscape:label="Sunʼiy yoʻldosh"><image x="${p0[0]}" y="${p0[1]}" width="${p1[0]-p0[0]}" height="${p1[1]-p0[1]}" href="${c2.toDataURL('image/jpeg',.85)}"/></g>`;}}
   const order=['Piyoda','Yashil','Avto_yol','Jamoat_transporti','Velo','Chiziqlar_va_belgilar','Yol_belgilari'];
-  const svg=`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${W.toFixed(1)}mm" height="${H.toFixed(1)}mm" viewBox="0 0 ${W.toFixed(2)} ${H.toFixed(2)}">\n<!-- ${projName()} · 1 birlik = 1 m (1:1000 da mm) · Koʻcha Profili Studiyasi -->\n<rect width="100%" height="100%" fill="#ece7dc"/>${bg}\n`+
+  const svg=`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${W.toFixed(1)}mm" height="${H.toFixed(1)}mm" viewBox="0 0 ${W.toFixed(2)} ${H.toFixed(2)}">\n<!-- ${projName()} · 1 birlik = 1 m (1:1000 da mm) · Archemistry Lab · Transport infratuzilmasi -->\n<rect width="100%" height="100%" fill="#ece7dc"/>${bg}\n`+
     order.filter(k=>groups[k]).map(k=>`<g id="${k}" inkscape:groupmode="layer" inkscape:label="${k.replace(/_/g,' ')}">\n${groups[k].join('\n')}\n</g>`).join('\n')+'\n</svg>';
   dl(`${fslug()}.svg`,svg,'image/svg+xml');}
 /* UTM (WGS84) */
@@ -2770,7 +2770,7 @@ function exportDXF(crs){const g=exportGeom();if(!g){toast('Loyiha boʻsh.');retu
   w(0,'ENDSEC');w(0,'EOF');
   dl(`${fslug()}${crs==='utm'?'-utm':''}.dxf`,out.join('\r\n')+'\r\n','application/dxf');toast(crs==='utm'?`DXF: UTM zona ${u.zone}N koordinatalarida.`:'DXF: mahalliy koordinatalarda (metr).');}
 function exportCSV(){const ds=DS(),o=origin(),st=designStats(),{marks}=buildShapes(),rows=[];const r=(...a)=>rows.push(a.join(';'));
-  r('Koʻcha Profili Studiyasi',projName(),new Date().toLocaleDateString('ru-RU'));r('');
+  r('Archemistry Lab · Transport infratuzilmasi',projName(),new Date().toLocaleDateString('ru-RU'));r('');
   r('MAYDONLAR','m2','%');if(st&&st.tot)Object.entries(DCAT).forEach(([k,[n]])=>r(n,Math.round(st.cnt[k]/st.tot*st.m2),(st.cnt[k]/st.tot*100).toFixed(1)));r('Jami',st?Math.round(st.m2):0,100);r('');
   r('KOʻCHALAR','Modul','Uzunlik, m','Eni, m','Boʻlaklar','Harakat','Oʻtish joylari','Obyektlar');
   ds.segs.forEach((sg,i)=>{const lay=layOf(sg);r(sg.name||('Koʻcha '+(i+1)),sg.st?'Tahrirlangan':(PRESETS[sg.p]?.n||sg.p),lineLen(segLL(sg)).toFixed(1),lay.W.toFixed(2),lay.lanes,{two:'ikki tomonlama',fwd:'bir tomonlama',back:'bir tomonlama'}[trafficMode(sg)]||'-',(sg.xw||[]).length,(sg.att||[]).map(a=>ATT[a.t].n).join(', '));});r('');
@@ -2853,7 +2853,7 @@ async function open3D(){
   V3={stop(){run=false;document.removeEventListener('keydown',onKey);window.removeEventListener('resize',onRes);ren.dispose();}};
 }
 function exportOBJ(root){
-  const TH=THREE,v=new TH.Vector3();let obj=`# Koʻcha Profili Studiyasi — ${projName()}\n# birlik: metr; Y — yuqoriga, X — sharq, -Z — shimol\nmtllib ${fslug()}.mtl\n`,mtl='# Koʻcha Profili Studiyasi\n',vo=1;const used={};
+  const TH=THREE,v=new TH.Vector3();let obj=`# Archemistry Lab · Transport infratuzilmasi — ${projName()}\n# birlik: metr; Y — yuqoriga, X — sharq, -Z — shimol\nmtllib ${fslug()}.mtl\n`,mtl='# Archemistry Lab · Transport infratuzilmasi\n',vo=1;const used={};
   root.updateMatrixWorld(true);
   root.traverse(m=>{if(!m.isMesh)return;const geo=m.geometry,pos=geo.attributes.position,col='#'+m.material.color.getHexString(),mn='m_'+col.slice(1);
     if(!used[mn]){used[mn]=1;const c=m.material.color;mtl+=`newmtl ${mn}\nKd ${c.r.toFixed(3)} ${c.g.toFixed(3)} ${c.b.toFixed(3)}\nKa 0 0 0\nd ${m.material.opacity??1}\n\n`;}
