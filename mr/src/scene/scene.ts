@@ -8,7 +8,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { LngLat, Project, Shade } from '../core/doc';
 import { frame, centroid, area, signedArea, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
-import { terrainSampler, pxToLngLat, type Imagery } from '../context/tiles';
+import { terrainSampler } from '../context/tiles';
 import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from './context3d';
 import { projectStreetsGeo } from './streets3d';
 import { computePlan } from '../core/plan';
@@ -328,7 +328,7 @@ export class Scene3D {
   }
   /** Fon xaritasi (atrof yuklanmaganda): tikilgan plitkalar yer tekisligida */
   private baseMap: { mesh: THREE.Mesh; blob: Blob } | null = null;
-  async setBaseMap(img: Imagery | null, origin: LngLat): Promise<void> {
+  async setBaseMap(img: { image: Blob; nw: LngLat; se: LngLat } | null, origin: LngLat): Promise<void> {
     if (img && this.baseMap?.blob === img.image) return;
     if (this.baseMap) { this.scene.remove(this.baseMap.mesh); this.baseMap.mesh.geometry.dispose(); const m = this.baseMap.mesh.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); this.baseMap = null; }
     this.grid.forEach(g => g.visible = !img && !this.ctx);
@@ -336,7 +336,7 @@ export class Scene3D {
     const url = URL.createObjectURL(img.image);
     let t: THREE.Texture; try { t = await new THREE.TextureLoader().loadAsync(url); } finally { URL.revokeObjectURL(url); }
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-    const fr = frame(origin), a = fr.toLocal(pxToLngLat(img.x0, img.y0, img.z)), c = fr.toLocal(pxToLngLat(img.x0 + img.W, img.y0 + img.H, img.z));
+    const fr = frame(origin), a = fr.toLocal(img.nw), c = fr.toLocal(img.se);
     const g = new THREE.PlaneGeometry(c[0] - a[0], a[1] - c[1]); g.rotateX(-Math.PI / 2); g.translate((a[0] + c[0]) / 2, 0.02, -(a[1] + c[1]) / 2);
     const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })); mesh.renderOrder = 1; mesh.name = 'fon-xarita';
     this.scene.add(mesh); this.baseMap = { mesh, blob: img.image }; this.grid.forEach(gr => gr.visible = false); this.invalidate();

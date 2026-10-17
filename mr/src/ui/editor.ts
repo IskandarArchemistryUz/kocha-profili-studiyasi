@@ -53,6 +53,7 @@ import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
+import { renderVectorBase } from '../context/basemap';
 import { projectStreetsGeo } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
 import { sheetSvg, SHEET_DEFAULT, type SheetCtx, type SheetKind } from '../core/sheet';
@@ -584,11 +585,14 @@ export class Editor {
     const doc = this.store.doc, key = `${doc.origin.join(',')}|${doc.context.base}`;
     if (key === this.baseKey) return; this.baseKey = key;
     try {
-      const img = await loadBaseMap(doc.origin, 1500, doc.context.base === 'sputnik' ? 'sputnik' : 'maket');
+      // maket — OpenFreeMap vektor xaritasi (zamonaviy, kalitsiz); boʻlmasa — Esri plitkalari
+      const sat = doc.context.base === 'sputnik';
+      let img = sat ? null : await renderVectorBase(doc.origin, 1200).catch(() => null), src = 'Fon: © OpenMapTiles · OpenFreeMap';
+      if (!img) { img = await loadBaseMap(doc.origin, 1500, sat ? 'sputnik' : 'maket'); src = 'Fon: Esri, HERE, Garmin'; }
       if (this.baseKey !== key || this.store.doc.context.loaded) return;
       await this.scene.setBaseMap(img, doc.origin);
       this.el.attr.hidden = !img; (this.el.attr.querySelector('.sat') as HTMLElement).hidden = doc.context.base !== 'sputnik';
-      (this.el.attr.querySelector('.carto') as HTMLElement).hidden = doc.context.base === 'sputnik';
+      const cb = this.el.attr.querySelector('.carto') as HTMLElement; cb.hidden = sat; cb.textContent = ` · ${src}`;
       if (img && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
     } catch { this.baseKey = ''; }
   }
