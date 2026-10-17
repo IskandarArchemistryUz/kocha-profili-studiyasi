@@ -65,7 +65,8 @@ import { logoSvg } from './logo';
 import { PALETTES, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
-import { sheetSvg, SHEET_DEFAULT, type SheetCtx, type SheetKind } from '../core/sheet';
+import { norm as normSheet } from './sheets';
+import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
@@ -163,7 +164,7 @@ export class Editor {
       h('span', { class: 'svcbadge' }, h('i'), tr('Master reja')),
       name, save, h('span', { class: 'spacer' }),
       this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
-      h('button', { class: 'btn', id: 'gxOpen', title: tr('Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG'), onclick: () => this.openGraphics() }, tr('Grafika')),
+      h('button', { class: 'btn', id: 'gxOpen', title: tr('Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG'), onclick: () => this.startFrame() }, tr('Grafika')),
       seg, lang, theme);
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
@@ -205,6 +206,8 @@ export class Editor {
 
   private onChange(doc: Project): void {
     const p = this.prevDoc; this.prevDoc = doc;
+    // faqat varaqlar oʻzgargan boʻlsa (Varaqlar oynasi) — sahna va panel qayta chizilmaydi
+    if ((Object.keys(doc) as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
     if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed) void this.ensureContext();
     if (this.marked.b.length || this.marked.c.length) { const rm = new Set(doc.removed ?? []); this.setMarked(this.marked.b.filter(id => doc.buildings.some(b => b.id === id)), this.marked.c.filter(id => !rm.has(id)), doc); }
     if (this.selStreet && !doc.streets.some(x => x.id === this.selStreet)) { this.selStreet = null; this.scene.selectStreet(null); }
@@ -2296,6 +2299,7 @@ export class Editor {
   go(s: StepDef): void {
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
+    if (this.sframe) this.endFrame();
     this.setTool(null); this.step = s; this.panelOpen = true;
     this.closePop(); if (this.el.drawer.dataset.kind === 'section') this.el.drawer.hidden = true;   // oldingi qadamning ochiq oynalari yopiladi
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
@@ -2319,6 +2323,7 @@ export class Editor {
   private panelOpen = true;
   private renderPanel(): void {
     this.showAptBoxes(); this.syncBTools(); this.syncHandles();
+    if (this.sframe) { this.el.panel.classList.remove('shut'); this.root?.classList.remove('pshut'); this.renderFramePanel(); return; }
     const shut = !this.panelOpen && !this.inspOn(); this.el.panel.classList.toggle('shut', shut); this.root?.classList.toggle('pshut', shut);
     if (this.inspOn()) { this.renderInspector(); return; }
     const s = this.step, i = STEPS.indexOf(s), p = this.el.panel;
@@ -2383,21 +2388,125 @@ export class Editor {
     }
   }
 
+  /* ---------- Varaq ramkasi (MR-Varaqlar-V3): xaritada joylash → «Varaqni ochish» ---------- */
+  private sframe: { o: SheetOpts; dim: boolean; north: boolean; idx: number | null } | null = null;
+  private frameDrag: { mode: 'move' | 'rot' | 'scale'; p0: XY; c0: XY; rot0: number; d0: number; s0: number } | null = null;
+  private frameOff: (() => void) | null = null;
+  private startFrame(idx: number | null = null): void {
+    const doc = this.store.doc, fr = frame(doc.origin);
+    const base = idx != null && doc.sheets?.[idx] ? normSheet(doc.sheets[idx].opts) : normSheet({ ...(doc.sheets?.[0]?.opts ?? {}), kind: 'zona', stamp: {} });
+    let c = base.center;
+    if (!c) { const pts = [...(doc.site?.rings[0] ?? []), ...doc.buildings.flatMap(b => b.footprint)].map(fr.toLocal); c = pts.length ? [(Math.min(...pts.map(p => p[0])) + Math.max(...pts.map(p => p[0]))) / 2, (Math.min(...pts.map(p => p[1])) + Math.max(...pts.map(p => p[1]))) / 2] : [0, 0]; }
+    if (base.paper === 'fit') base.paper = 'A1';
+    if (!base.scale) { const ha = doc.site ? Math.abs(area(doc.site.rings[0].map(fr.toLocal))) / 1e4 : 1; base.scale = recommendScale(ha, base.kind).scale; }
+    this.sframe = { o: { ...base, center: c, rot: base.rot ?? 0 }, dim: true, north: !(base.rot), idx };
+    this.setTool(null); this.closePop();
+    if (!this.frameOff) {
+      const host = this.el.scene;
+      const down = (e: PointerEvent) => {
+        const F = this.sframe; if (!F || e.button !== 0) return;
+        const p = this.scene.pick(e.clientX, e.clientY); if (!p) return;
+        const g = this.frameGeom(); if (!g) return;
+        const loc = (q: XY): XY => { const dx = q[0] - g.c[0], dy = q[1] - g.c[1]; return [dx * Math.cos(-g.rot) - dy * Math.sin(-g.rot), dx * Math.sin(-g.rot) + dy * Math.cos(-g.rot)]; };
+        const u = loc(p), tolM = Math.max(6, g.w / 40);
+        const knob: XY = [0, g.h / 2 + Math.max(10, g.h * 0.06)];
+        const corner = [[-1, -1], [1, -1], [1, 1], [-1, 1]].some(([a, b]) => Math.hypot(u[0] - a * g.w / 2, u[1] - b * g.h / 2) < tolM);
+        let mode: 'move' | 'rot' | 'scale' | null = null;
+        if (!F.north && Math.hypot(u[0] - knob[0], u[1] - knob[1]) < tolM) mode = 'rot';
+        else if (corner) mode = 'scale';
+        else if (Math.abs(u[0]) <= g.w / 2 && Math.abs(u[1]) <= g.h / 2) mode = 'move';
+        if (!mode) return;
+        e.stopPropagation(); e.preventDefault(); host.setPointerCapture(e.pointerId); this.scene.setOrbit(false);
+        this.frameDrag = { mode, p0: p, c0: [...g.c] as XY, rot0: g.rot, d0: Math.hypot(p[0] - g.c[0], p[1] - g.c[1]), s0: F.o.scale };
+      };
+      const move = (e: PointerEvent) => {
+        const D = this.frameDrag, F = this.sframe; if (!D || !F) return;
+        const p = this.scene.pick(e.clientX, e.clientY); if (!p) return;
+        if (D.mode === 'move') F.o.center = [D.c0[0] + p[0] - D.p0[0], D.c0[1] + p[1] - D.p0[1]];
+        else if (D.mode === 'rot') { const a = Math.atan2(p[1] - D.c0[1], p[0] - D.c0[0]) - Math.PI / 2; F.o.rot = Math.round(a * 180 / Math.PI); }
+        else { const k = Math.hypot(p[0] - D.c0[0], p[1] - D.c0[1]) / (D.d0 || 1), i0 = SCALES.indexOf(D.s0); let s2 = D.s0; if (k > 1.18 && i0 >= 0 && i0 < SCALES.length - 1) s2 = SCALES[i0 + 1]; else if (k < 0.85 && i0 > 0) s2 = SCALES[i0 - 1]; F.o.scale = s2; }
+        this.syncFrame3d();
+      };
+      const up = (e: PointerEvent) => { if (!this.frameDrag) return; this.frameDrag = null; this.scene.setOrbit(true); try { host.releasePointerCapture(e.pointerId); } catch { /* */ } this.renderFramePanel(); };
+      host.addEventListener('pointerdown', down, true); host.addEventListener('pointermove', move, true); host.addEventListener('pointerup', up, true);
+      this.frameOff = () => { host.removeEventListener('pointerdown', down, true); host.removeEventListener('pointermove', move, true); host.removeEventListener('pointerup', up, true); };
+    }
+    this.syncFrame3d(); this.renderPanel();
+    const g = this.frameGeom(); if (g) this.scene.frameRings([[[g.c[0] - g.w, g.c[1] - g.h], [g.c[0] + g.w, g.c[1] + g.h]]]);
+  }
+  private frameGeom(): { c: XY; w: number; h: number; col: number; rot: number } | null {
+    const F = this.sframe; if (!F) return null;
+    const L = sheetLayout(F.o), m = F.o.scale / 1000;
+    return { c: F.o.center!, w: L.vw * m, h: L.vh * m, col: L.col ? (L.col + L.gap) * m : 0, rot: (F.o.rot ?? 0) * Math.PI / 180 };
+  }
+  private syncFrame3d(): void { const g = this.frameGeom(); this.scene.setSheetFrame(g ? { ...g, dim: this.sframe!.dim } : null); }
+  private endFrame(): void { this.sframe = null; this.frameDrag = null; this.frameOff?.(); this.frameOff = null; this.scene.setOrbit(true); this.scene.setSheetFrame(null); this.renderPanel(); }
+  /** ramkani toʻplamga yozish: mavjud varaqni yangilash yoki yangisini qoʻshish → indeks */
+  private commitFrame(): number {
+    const F = this.sframe!, doc = this.store.doc, sheets = [...(doc.sheets?.length ? doc.sheets : [])];
+    const rec = { id: F.idx != null && sheets[F.idx] ? sheets[F.idx].id : uid('sh_'), opts: JSON.parse(JSON.stringify({ ...F.o, rot: F.north ? 0 : F.o.rot })) };
+    let i: number; if (F.idx != null && sheets[F.idx]) { sheets[F.idx] = rec; i = F.idx; } else { sheets.push(rec); i = sheets.length - 1; }
+    this.run(() => this.store.dispatch({ type: 'setSheets', sheets }));
+    return i;
+  }
+  private renderFramePanel(): void {
+    const F = this.sframe!, o = F.o, p = this.el.panel, doc = this.store.doc;
+    p.dataset.mode = 'frame';
+    const n = (doc.sheets?.length ?? 0) + (F.idx == null ? 1 : 0), num = `MR-${String((F.idx ?? (doc.sheets?.length ?? 0)) + 1).padStart(2, '0')}`;
+    const set = (patch: Partial<SheetOpts>) => { Object.assign(F.o, patch); this.syncFrame3d(); this.renderFramePanel(); };
+    const L = sheetLayout(o), m = o.scale / 1000, r = sheetSvg(doc, this.sheetCtx(), { ...o, rot: F.north ? 0 : o.rot }, new Date(), false, tr);
+    const tile = (attrs: Record<string, unknown>, t: string) => h('button', { class: 'tile', ...attrs }, h('span', {}, t));
+    p.replaceChildren(
+      h('header', {}, h('div', { class: 'sp-step' }, h('span', {}, `${tr('Varaq ramkasi')} · ${num}`), h('span', { class: 'sp-prog' }, h('i', { style: 'width:100%' }))), h('h2', {}, tr('Varaq ramkasi')),
+        h('p', {}, tr('Varaq chegarasini toʻgʻridan-toʻgʻri xaritada joylang: ramka = format × masshtab.'))),
+      h('div', { class: 'body' },
+        h('div', { class: 'tiles c3', id: 'frKind' }, ...SHEET_KINDS.map(k => tile({ 'data-kind': k.id, 'aria-pressed': o.kind === k.id, onclick: () => set({ kind: k.id }) }, tr(k.name)))),
+        h('div', { class: 'field' }, h('label', {}, tr('Format')), h('div', { class: 'seg sm', id: 'frPaper' }, ...(['A4', 'A3', 'A2', 'A1', 'A0'] as const).map(x => h('button', { 'aria-pressed': o.paper === x, onclick: () => set({ paper: x }) }, x)))),
+        h('div', { class: 'field' }, h('label', {}, tr('Yoʻnalish')), h('div', { class: 'seg sm' }, h('button', { 'aria-pressed': o.landscape, onclick: () => set({ landscape: true }) }, tr('Yotiq')), h('button', { 'aria-pressed': !o.landscape, onclick: () => set({ landscape: false }) }, tr('Tik')))),
+        h('div', { class: 'field' }, h('label', {}, tr('Masshtab')), h('div', { class: 'tiles c3', id: 'frScale' }, ...SCALES.map(v => tile({ 'data-scale': v, 'aria-pressed': o.scale === v, onclick: () => set({ scale: v }) }, `1:${v.toLocaleString('ru-RU')}`)))),
+        h('div', { class: 'row', style: 'gap:6px;align-items:flex-start' }, h('span', { class: 't-small', style: 'flex:1' }, tr('Ramkani suring va aylantiring. Burchakni tortsangiz — masshtab keyingi standartga oʻtadi.')), h('span', { class: 'chip warn' }, tr('andoza'))),
+        h('div', { class: 'group' },
+          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Ramkadan tashqarini xiralashtirish')), sw({ id: 'frDim', label: tr('Ramkadan tashqarini xiralashtirish'), on: F.dim, onchange: v => { F.dim = v; this.syncFrame3d(); } })),
+          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Shimol — varaq tepasida')), sw({ id: 'frNorth', label: tr('Shimol — varaq tepasida'), on: F.north, onchange: v => { F.north = v; if (v) F.o.rot = 0; this.syncFrame3d(); this.renderFramePanel(); } }))),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Oldindan koʻrish'))),
+        h('div', { class: 'planbox', id: 'frPrev', html: r.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
+        h('span', { class: 't-small', id: 'frInfo' }, `${o.paper} · 1:${o.scale.toLocaleString('ru-RU')} · ${fmt(L.vw * m, 0)} × ${fmt(L.vh * m, 0)} m · ${r.labels.full} / ${r.labels.total} ${tr('yozuv')} · ${tr('matn')} ${r.minText >= 2.5 ? '≥' : '<'} 2,5 mm`)),
+      h('footer', {},
+        h('button', { class: 'btn', id: 'frCancel', onclick: () => this.endFrame() }, tr('Bekor')),
+        h('button', { class: 'btn', id: 'frMore', title: tr('Bu ramkani toʻplamga qoʻshib, yangi ramka'), onclick: () => { this.commitFrame(); const g = this.frameGeom()!; this.sframe = { ...F, idx: null, o: { ...F.o, center: [g.c[0] + g.w * 0.6, g.c[1]], stamp: {} } }; this.syncFrame3d(); this.renderFramePanel(); } }, tr('Yana varaq')),
+        h('button', { class: 'btn btn-primary', id: 'frOpen', onclick: () => { const i = this.commitFrame(); this.endFrame(); this.openGraphics(i); } }, tr('Varaqni ochish'))));
+    void n;
+  }
+
   /** Grafika varaqlari uchun atrof — mahalliy metrda */
   private sheetCtx(): SheetCtx | null {
     const b = this.ctxMgr.current; if (!b) return null;
     const fr = frame(this.store.doc.origin), L = (r: LngLat[]) => r.map(fr.toLocal), o = b.osm;
     return {
       buildings: o.buildings.map(x => ({ id: x.id, rings: x.rings.map(L), h: x.h })),
-      roads: o.roads.map(x => ({ id: x.id, pts: L(x.pts), w: x.w, cls: x.cls })),
+      roads: o.roads.map(x => ({ id: x.id, pts: L(x.pts), w: x.w, cls: x.cls, ...(x.name ? { name: x.name } : {}) })),
       rails: o.rails.map(x => L(x.pts)),
       water: o.water.map(x => x.rings.map(L)),
       waterways: o.waterways.map(x => ({ pts: L(x.pts), w: x.w })),
       green: o.green.map(x => ({ rings: x.rings.map(L), kind: x.kind })),
       trees: o.trees.map(fr.toLocal),
+      stops: [...(this.svc.poi?.pois ?? []).filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' })), ...this.store.doc.pois.filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' }))],
     };
   }
-  private openGraphics(): void { openGraphics(this.store.doc, this.sheetCtx()); }
+  private openGraphics(start?: number): void {
+    const doc = this.store.doc;
+    openGraphics({ doc, ctx: this.sheetCtx(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
+      axo: (look, viewId, detail, ratio) => {
+        const sc = this.scene, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic' };
+        sc.setStyle(map[look ?? 'oq']); sc.setDetail(look === 'qoralama' ? false : detail);
+        const v = doc.views.find(x => x.id === viewId); if (v) sc.setCamera(v); else { if (sc.view !== 'axo') sc.setView('axo'); sc.frameDoc(this.store.doc); }
+        const url = sc.snapshot(ratio);
+        sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam);
+        return url;
+      },
+      save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
+      dxf: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } });
+  }
 
   /* ---------- xarita yozuvlari: masshtab chipi, qisqargan yozuvlar, «Yer uchastkalari» jadvali (4.1) ---------- */
   private plotFilter: 'all' | 'short' = 'all';
@@ -2651,6 +2760,7 @@ export class Editor {
       if (z && !e.shiftKey) { e.preventDefault(); this.store.undo(); }
       else if ((z && e.shiftKey) || (e.key.toLowerCase() === 'y' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); this.store.redo(); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && (this.marked.b.length || this.marked.c.length)) { e.preventDefault(); this.deleteMarked(); }
+      else if (e.key === 'Escape' && this.sframe && !document.querySelector('.gx')) this.endFrame();
       else if (e.key === 'Escape' && (this.marked.b.length || this.marked.c.length)) this.setMarked([], []);
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.osmPick) { e.preventDefault(); this.removeOsmRoad(this.osmPick.id); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }

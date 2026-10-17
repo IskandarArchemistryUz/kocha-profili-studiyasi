@@ -148,7 +148,14 @@ export interface Project {
   pois: ManualPoi[];
   /** saqlangan kamera koʻrinishlari (taqdimot uchun) */
   views: SavedView[];
+  /** Varaqlar toʻplami (MR-Varaqlar V2/V3): har varaq — sozlamalar (core/sheet.ts SheetOpts) */
+  sheets?: SheetDoc[];
+  /** saqlangan varaq uslublari («Mening uslubim») */
+  sheetStyles?: { id: string; name: string; opts: Record<string, unknown> }[];
 }
+
+/** Varaq: sozlamalar oddiy obyekt sifatida saqlanadi (sxema core/sheet.ts da), yaroqsizlari ochilganda sukut bilan toʻldiriladi */
+export interface SheetDoc { id: string; opts: Record<string, unknown> }
 
 /** Toshkent markazi — hudud tanlanmaguncha boshlangʻich nuqta */
 export const DEFAULT_ORIGIN: LngLat = [69.2797, 41.3111];
@@ -261,5 +268,7 @@ export function migrate(raw: unknown): Project {
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
     origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(removedRoads.length ? { removedRoads } : {}),
+    ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
+    ...(() => { const st = (Array.isArray(d.sheetStyles) ? d.sheetStyles : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.name === 'string' && x.opts && typeof x.opts === 'object').slice(0, 30).map((x: any) => ({ id: x.id, name: x.name.slice(0, 60), opts: JSON.parse(JSON.stringify(x.opts)) })); return st.length ? { sheetStyles: st } : {}; })(),
   };
 }

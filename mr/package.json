@@ -19,10 +19,13 @@
   },
   "dependencies": {
     "@mapbox/vector-tile": "^3.0.0",
+    "dejavu-fonts-ttf": "^2.37.3",
     "fflate": "^0.8.2",
+    "jspdf": "^4.2.1",
     "maplibre-gl": "^5.6.0",
     "pbf": "^5.1.2",
     "polygon-clipping": "^0.15.7",
+    "svg2pdf.js": "^2.8.1",
     "three": "^0.186.1"
   }
 }
