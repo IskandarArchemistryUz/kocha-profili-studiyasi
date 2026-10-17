@@ -61,6 +61,7 @@ export const IC = {
   chevDown: '<path d="M6 9l6 6 6-6"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  info: '<path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 11v5M12 7.5v.5"/>',
 };
 /** ikonka + matn (tugma ichida) */
 export function icl(icon: string, label: string): (Node | string)[] { const s = svgIcon(icon); s.classList.add('ic'); return [s, label]; }

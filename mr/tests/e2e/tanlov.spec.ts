@@ -21,7 +21,7 @@ test('Shift + ramka bilan koʻp tanlash, Delete; chizishda oʻng tugma menyusi; 
   await page.keyboard.press('Control+z');
   await expect.poll(async () => Number((await page.locator('#bldSt b').first().textContent())!.replace(/\D/g, ''))).toBe(n0);
   // koʻcha chizishda oʻng tugma — «Chizishni tugatish»
-  await page.click('[data-step=kocha]'); await page.click('#drawStreet');
+  await page.click('[data-step=kocha]'); await page.click('[data-ktab=chiz]'); await page.click('#drawStreet');
   const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
   await page.mouse.click(cx - bb.width * 0.12, cy - bb.height * 0.3); await page.mouse.click(cx - bb.width * 0.12, cy + bb.height * 0.3);
   await page.mouse.click(cx + 40, cy, { button: 'right' });

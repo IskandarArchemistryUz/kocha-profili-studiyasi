@@ -14,6 +14,7 @@ import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
+import { check, range, select } from './controls';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
@@ -733,62 +734,58 @@ export class Editor {
     toast(`Kvartal aniqlandi: ${fmt(res.area / 1e4, 2)} ga. Chegarani yoʻl chetidan oladi — kerak boʻlsa qaytadan chizing.`);
   }
 
+  /* ===== 1-qadam: Hudud (MR-Q1) ===== */
   private hududPanel(body: HTMLElement): void {
     const doc = this.store.doc, cs = doc.context, b = this.ctxMgr.current, S = this.search;
-    const q = h('input', { type: 'search', id: 'q', placeholder: 'Manzil, mahalla yoki 41.311, 69.279', value: S.q, 'aria-label': 'Manzil qidiruvi' }) as HTMLInputElement;
+    const q = h('input', { type: 'search', class: 'input', id: 'q', placeholder: tr('Manzil, mahalla yoki 41.311, 69.279'), value: S.q, 'aria-label': tr('Manzil qidiruvi') }) as HTMLInputElement;
     q.addEventListener('keydown', e => { if (e.key === 'Enter') void this.doSearch(q.value); });
-    body.append(
-      h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Qidirish'), q),
-        h('button', { class: 'btn', id: 'qGo', style: 'align-self:end', disabled: S.busy, onclick: () => void this.doSearch(q.value) }, S.busy ? '…' : 'Topish')));
-    if (S.err) body.append(h('p', { class: 'err' }, S.err));
-    if (!cs.loaded && !S.pending && !S.res.length) body.append(h('p', { class: 'note' }, 'Yoki xaritada joyni oʻng tugma bilan bosing → «Loyiha markazini shu yerga koʻchirish». Fon: «Xarita» tugmasida — maket yoki sunʼiy yoʻldosh.'));
+    body.append(h('div', { class: 'row' }, h('div', { class: 'field grow' }, h('label', {}, tr('Qidirish')), q),
+      h('button', { class: 'btn btn-primary', id: 'qGo', style: 'align-self:end', disabled: S.busy, onclick: () => void this.doSearch(q.value) }, S.busy ? '…' : tr('Topish'))));
+    if (S.err) body.append(h('div', { class: 'note bad' }, S.err));
+    if (!cs.loaded && !S.pending && !S.res.length) body.append(h('div', { class: 'note' }, tr('Yoki xaritada joyni oʻng tugma bilan bosing → «Loyiha markazini shu yerga koʻchirish». Fon: «Xarita» tugmasida — maket yoki sunʼiy yoʻldosh.')));
     if (S.pending) {
       const p = S.pending;
-      body.append(h('div', { class: 'warn' }, `«${p.name}» ga oʻtilmoqda. Chizilgan uchastka va binolar bilan nima qilamiz?`),
+      body.append(h('div', { class: 'note warn' }, tf('«${p.name}» ga oʻtilmoqda. Chizilgan uchastka va binolar bilan nima qilamiz?', { 'p.name': p.name })),
         h('div', { class: 'row' },
-          h('button', { class: 'btn primary grow', id: 'mvCarry', onclick: () => this.goTo(p, true) }, 'Ular ham koʻchsin'),
-          h('button', { class: 'btn grow', id: 'mvOnly', onclick: () => this.goTo(p, false) }, 'Joyida qolsin')),
-        h('button', { class: 'btn', onclick: () => { this.search.pending = null; this.renderPanel(); } }, 'Bekor qilish'));
+          h('button', { class: 'btn btn-primary btn-sm', id: 'mvCarry', onclick: () => this.goTo(p, true) }, tr('Ular ham koʻchsin')),
+          h('button', { class: 'btn btn-sm', id: 'mvOnly', onclick: () => this.goTo(p, false) }, tr('Joyida qolsin')),
+          h('button', { class: 'btn btn-ghost btn-sm', onclick: () => { this.search.pending = null; this.renderPanel(); } }, tr('Bekor qilish'))));
     } else if (S.res.length) {
-      body.append(h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Qidiruv natijalari' }, ...S.res.map(p => h('div', { class: 'it', role: 'option', onclick: () => this.goTo(p, null) }, h('b', {}, p.name), h('small', {}, p.detail)))));
+      body.append(h('div', { class: 'group res', role: 'listbox', 'aria-label': tr('Qidiruv natijalari') }, ...S.res.map(p => h('button', { class: 'li it', role: 'option', onclick: () => this.goTo(p, null) }, h('span', { class: 'k' }, p.name, h('span', { class: 'sub' }, p.detail))))));
     }
-    body.append(h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Markaz'), h('span', { class: 'num', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`)));
-
-    body.append(this.districtField());
-    const radius = h('div', { class: 'seg full', role: 'group', 'aria-label': 'Radius' }, ...[300, 500, 750, 1000].map(r => h('button', { 'aria-pressed': cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r } })) }, `${r} m`)));
-    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Atrof radiusi'), radius));
-
-    if (this.ctx.busy) body.append(h('div', { class: 'field' }, h('div', { class: 'prog' }, h('i', { style: `width:${Math.round(this.ctx.frac * 100)}%` })), h('span', { class: 'note', id: 'ctxMsg' }, this.ctx.msg)));
-    else if (!cs.loaded) body.append(h('button', { class: 'btn primary', id: 'ctxLoad', onclick: () => this.run(() => {
+    body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Loyiha markazi'), h('span', { class: 'sub' }, tr('Xaritada oʻng tugma → «Markazni shu yerga koʻchirish»'))), h('span', { class: 'v mono', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`))));
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Atrof radiusi'))),
+      h('div', { class: 'seg', role: 'group', 'aria-label': tr('Radius') }, ...[300, 500, 750, 1000].map(r => h('button', { 'aria-pressed': cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r } })) }, `${r} m`))));
+    if (this.ctx.busy) body.append(h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(this.ctx.frac * 100)}%;background:var(--svc)` })), h('span', { class: 't-small', id: 'ctxMsg' }, this.ctx.msg));
+    else if (!cs.loaded) body.append(h('button', { class: 'btn btn-primary btn-block btn-lg', id: 'ctxLoad', onclick: () => this.run(() => {
       // xarita surilgan boʻlsa — loyiha markazi ekran markaziga koʻchadi (atrof shu yerda yuklanadi), aks holda eski markaz (Amir Temur) qolib ketardi
       const c = this.scene.viewExtent().c;
       if (!doc.site && !doc.buildings.length && Math.hypot(c[0], c[1]) > 60) { this.framedCtx = false; this.store.dispatch({ type: 'moveProject', origin: frame(doc.origin).toGeo(c), carry: false }); }
       this.store.dispatch({ type: 'setContext', patch: { loaded: true } });
-    }) }, 'Atrofni yuklash (OSM, relyef, sunʼiy yoʻldosh)'), h('p', { class: 'note' }, 'Atrof ekran markazidagi joy atrofida yuklanadi — xaritani kerakli joyga suring.'));
-    if (this.ctx.err) body.append(h('p', { class: 'err', id: 'ctxErr' }, this.ctx.err), h('button', { class: 'btn', onclick: () => void this.ensureContext(true) }, 'Qayta urinish'));
-
+    }) }, tr('Atrofni yuklash (OSM, relyef, sunʼiy yoʻldosh)')), h('span', { class: 't-small' }, tr('Atrof ekran markazidagi joy atrofida yuklanadi — xaritani kerakli joyga suring.')));
+    if (this.ctx.err) body.append(h('div', { class: 'note bad', id: 'ctxErr' }, this.ctx.err, ' ', h('button', { class: 'btn btn-sm', onclick: () => void this.ensureContext(true) }, tr('Qayta urinish'))));
     if (cs.loaded && b && !this.ctx.busy) {
       const s = summary(b.osm), est = b.osm.buildings.filter(x => x.hSrc === 'taxmin').length;
-      body.append(h('div', { class: 'ctxst', id: 'ctxSt' },
-        h('b', {}, `${fmt(s.buildings)} bino`), ` · ${fmt(s.roadKm, 1)} km yoʻl · ${fmt(b.osm.water.length + b.osm.waterways.length)} suv obyekti · ${fmt(b.osm.green.length)} yashil hudud`, h('br'),
-        h('span', { class: 'muted' }, `OSM, ${new Date(b.fetched).toLocaleDateString('ru-RU')}. ${est ? `${fmt(est)} ta binoning balandligi OSM da yoʻq — dogʻ maydoni va turi boʻyicha taxmin qilingan (kichik uylar — 1–2 qavat).` : ''}`)));
-      if (b.stale) body.append(h('p', { class: 'warn', id: 'ctxStale' }, `OSM serveri hozir javob bermadi — keshdagi ${new Date(b.fetched).toLocaleDateString('ru-RU')} nusxasi koʻrsatilmoqda. Keyinroq «OSM dan yangilash» ni bosing.`));
-      if (b.missing.length) body.append(h('p', { class: 'warn' }, `Yuklanmadi: ${b.missing.join(', ')}. Qolgan qatlamlar ishlaydi.`));
+      body.append(h('div', { class: 'group' }, h('div', { class: 'li', id: 'ctxSt' }, h('span', { class: 'k' }, h('b', {}, `${fmt(s.buildings)} ${tr('bino')}`), ` · ${fmt(s.roadKm, 1)} ${tr('km yoʻl')}`,
+        h('span', { class: 'sub' }, `${fmt(b.osm.water.length + b.osm.waterways.length)} ${tr('suv obyekti')} · ${fmt(b.osm.green.length)} ${tr('yashil hudud')} · OSM, ${new Date(b.fetched).toLocaleDateString('ru-RU')}.${est ? ' ' + tf('${fmt(est)} ta binoning balandligi OSM da yoʻq — dogʻ maydoni va turi boʻyicha taxmin qilingan (kichik uylar — 1–2 qavat).', { 'fmt(est)': fmt(est) }) : ''}`)))));
+      if (b.stale) body.append(h('div', { class: 'note warn', id: 'ctxStale' }, tf('OSM serveri hozir javob bermadi — keshdagi ${new Date(b.fetched).toLocaleDateString(\'ru-RU\')} nusxasi koʻrsatilmoqda. Keyinroq «OSM dan yangilash» ni bosing.', { "new Date(b.fetched).toLocaleDateString('ru-RU')": new Date(b.fetched).toLocaleDateString('ru-RU') })));
+      if (b.missing.length) body.append(h('div', { class: 'note warn' }, tf('Yuklanmadi: ${b.missing.join(\', \')}. Qolgan qatlamlar ishlaydi.', { "b.missing.join(', ')": b.missing.join(', ') })));
       const L = cs.layers, names: [keyof typeof L, string][] = [['buildings', 'Binolar'], ['roads', 'Yoʻllar'], ['rail', 'Temir yoʻl'], ['water', 'Suv'], ['green', 'Yashil hududlar'], ['trees', 'Daraxtlar*'], ['relief', 'Relyef']];
       body.append(
-        h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Yer qoplami'),
-          h('div', { class: 'seg full', role: 'group' }, ...([['maket', 'Maket'], ['sputnik', 'Sunʼiy yoʻldosh']] as const).map(([k, t]) => h('button', { 'aria-pressed': cs.base === k, 'data-base': k, disabled: k === 'sputnik' && !b.imagery, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })) }, t)))),
-        h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Qatlamlar'),
-          h('div', { class: 'chk' }, ...names.map(([k, t]) => { const c = h('input', { type: 'checkbox', checked: L[k], 'data-layer': k }) as HTMLInputElement; c.onchange = () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: c.checked } } })); return h('label', {}, c, t); }))),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Yer qoplami'))),
+        h('div', { class: 'seg sm', role: 'group' }, ...([['maket', 'Maket'], ['sputnik', 'Sunʼiy yoʻldosh']] as const).map(([k, t]) => h('button', { 'aria-pressed': cs.base === k, 'data-base': k, disabled: k === 'sputnik' && !b.imagery, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })) }, tr(t)))),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Qatlamlar'))),
+        h('div', { class: 'group', role: 'group', 'aria-label': tr('Qatlamlar') }, ...names.map(([k, t]) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: L[k], 'data-layer': k, onchange: v => this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: v } } })) })))),
+        h('span', { class: 't-small' }, tr('* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.')),
         h('div', { class: 'row' },
-          h('button', { class: 'btn grow', onclick: () => void this.ensureContext(true) }, 'OSM dan yangilash'),
-          h('button', { class: 'btn grow', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, 'Yashirish')),
-        h('p', { class: 'note' }, '* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.'));
+          h('button', { class: 'btn btn-sm', onclick: () => void this.ensureContext(true) }, tr('OSM dan yangilash')),
+          h('button', { class: 'btn btn-sm btn-ghost', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, tr('Yashirish'))));
     }
+    body.append(this.districtField());
     const rmN = doc.removed?.length ?? 0;
-    body.append(h('div', { class: 'ctxst', id: 'rmSt' },
-      rmN ? h('div', { class: 'row' }, h('span', { class: 'grow' }, `Sahnadan olib tashlangan atrof binolari: ${rmN} ta`), h('button', { class: 'btn sm', id: 'rmBack', onclick: () => this.restoreRemoved() }, 'Qaytarish')) : '',
-      h('span', { class: 'muted' }, 'Atrofdagi binoni bosing (Shift — bir nechtasini, Shift + sudrash — ramka bilan) va Delete ni bosing — sahnadan olib tashlanadi. Oʻng tugma — menyu.')));
+    body.append(h('div', { id: 'rmSt', class: 'col' },
+      rmN ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Olib tashlangan atrof binolari')), h('span', { class: 'v' }, `${rmN} ta`), h('button', { class: 'btn btn-sm', id: 'rmBack', onclick: () => this.restoreRemoved() }, tr('Qaytarish')))) : '',
+      h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Atrofdagi binoni qanday olib tashlayman')), h('div', {}, tr('Atrofdagi binoni bosing (Shift — bir nechtasini, Shift + sudrash — ramka bilan) va Delete ni bosing — sahnadan olib tashlanadi. Oʻng tugma — menyu.')))));
   }
 
   /* ---------- 3-bosqich: quyosh, soyalar, insolyatsiya ---------- */
@@ -1221,11 +1218,11 @@ export class Editor {
 
   private districtField(): HTMLElement {
     const doc = this.store.doc, cur = doc.settings.district, r = demoRow(cur);
-    const sel = h('select', { id: 'district', onchange: (e: Event) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: (e.target as HTMLSelectElement).value } })) },
-      ...demoTree().map(t => h('optgroup', { label: t.region.name }, ...[t.region, ...t.parts].map(x => { const o = h('option', { value: x.code }, x.code === t.region.code ? `${x.name} (jami)` : x.name) as HTMLOptionElement; o.selected = x.code === cur; return o; }))));
+    const sel = h('select', { class: 'select', id: 'district', 'aria-label': tr('Aholi yosh tarkibi (stat.uz)'), onchange: (e: Event) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: (e.target as HTMLSelectElement).value } })) },
+      ...demoTree().map(t => h('optgroup', { label: t.region.name }, ...[t.region, ...t.parts].map(x => { const o = h('option', { value: x.code }, x.code === t.region.code ? `${x.name} (${tr('jami')})` : x.name) as HTMLOptionElement; o.selected = x.code === cur; return o; }))));
     const k = r ? perThousand(r) : null;
-    return h('div', { class: 'field', id: 'demoBox' }, h('span', { class: 'lb' }, 'Aholi yosh tarkibi (stat.uz)'), sel,
-      r && k ? h('span', { class: 'note' }, `${fmt(r.pop)} kishi (${DEMO.year}). 1000 kishiga: maktab yoshi (7–17) ${fmt(k.school, 0)}, maktabgacha (3–6) ${fmt(k.mtm, 0)}, 65+ — ${fmt(k.elderly, 0)}. Maktab va MTM tekshiruvida taqqoslanadi; 3–5 yosh qoldiq usulida hisoblangan.`) : '');
+    return h('div', { class: 'col', id: 'demoBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Aholi yosh tarkibi')), h('span', {}, 'stat.uz')), sel,
+      r && k ? h('span', { class: 't-small' }, tf('${fmt(r.pop)} kishi (${DEMO.year}). 1000 kishiga: maktab yoshi (7–17) ${fmt(k.school, 0)}, maktabgacha (3–6) ${fmt(k.mtm, 0)}, 65+ — ${fmt(k.elderly, 0)}. Maktab va MTM tekshiruvida taqqoslanadi; 3–5 yosh qoldiq usulida hisoblangan.', { 'fmt(r.pop)': fmt(r.pop), 'DEMO.year': DEMO.year, 'fmt(k.school, 0)': fmt(k.school, 0), 'fmt(k.mtm, 0)': fmt(k.mtm, 0), 'fmt(k.elderly, 0)': fmt(k.elderly, 0) })) : '');
   }
 
   /* ---------- 5-bosqich: xizmatlar va piyoda ---------- */
@@ -1525,10 +1522,6 @@ export class Editor {
     return this.planCache.plan;
   }
 
-  private profItem(p: Profile): HTMLElement {
-    return h('div', { class: 'it', role: 'option', 'aria-selected': this.profile === p.id, 'data-prof': p.id, onclick: () => { this.profile = p.id; if (this.selStreet) this.run(() => this.store.dispatch({ type: 'updateStreet', id: this.selStreet!, patch: { profile: p.id } })); else this.renderPanel(); } },
-      h('b', {}, `${p.name} · ${fmt(profileWidth(p), 1)} m `, normChip(p)), h('small', {}, `${CATS[p.cat].name} · ${p.note}`), this.profileBar(p.id));
-  }
   /** Koʻcha kesimi — katta koʻrinishda (pastdagi oyna) */
   private openSection(p: Profile): void {
     const d = this.el.drawer;
@@ -1648,7 +1641,7 @@ export class Editor {
   private grid: GridParams = { ...DEFAULT_GRID };
   private gridPreset = 'barselona';
   private gridVar = 0;
-  private gridOpen = false;
+  private compOpen = true;
   private gridThumb(site: XY[], g: GridParams, w = 112, hh = 80): string {
     const xs = site.map(p => p[0]), ys = site.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const k = Math.min((w - 8) / Math.max(1, x1 - x0), (hh - 8) / Math.max(1, y1 - y0)), ox = (w - (x1 - x0) * k) / 2, oy = (hh - (y1 - y0) * k) / 2;
@@ -1656,42 +1649,41 @@ export class Editor {
     const lines = gridStreets(site, g).map(st => `<path d="M${P(st.axis[0])}L${P(st.axis[1])}" stroke="${st.main ? '#1a1c1e' : '#6f6a60'}" stroke-width="${st.main ? 1.6 : 0.9}"/>`).join('');
     return `<svg viewBox="0 0 ${w} ${hh}" width="${w}" height="${hh}"><path d="M${site.map(P).join('L')}Z" fill="#f3e3b4" stroke="#c0392b" stroke-width="0.8"/>${lines}</svg>`;
   }
-  private gridPanel(): HTMLElement {
+  /** Toʻr yorligʻi: blok moduli, oʻlcham, joylashuv varianti, burilish, profillar, qoʻllash */
+  private gridPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), site = doc.site!.rings[0].map(fr.toLocal), g = this.grid;
     const has = doc.streets.some(s => s.gen === 'grid');
-    const box = h('details', { class: 'tpl gridgen', id: 'gridBox', open: this.gridOpen || (!doc.streets.length && !this.tool) }, h('summary', {}, `Koʻcha toʻri generatsiyasi${has ? ' · qoʻllangan' : ''}`));
-    (box as HTMLDetailsElement).ontoggle = () => { this.gridOpen = (box as HTMLDetailsElement).open; };
-    const vars = gridVariants(site, g);
+    const box = h('div', { class: 'col', id: 'gridBox' });
+    const vars = gridVariants(site, g), pre = GRID_PRESETS.find(p => p.id === this.gridPreset);
     const apply = () => {
       const v = vars[this.gridVar] ?? vars[0], sts = gridStreets(site, v.g);
-      if (!sts.length) { toast('Uchastka tanlangan modul uchun kichik — modulni kichraytiring'); return; }
+      if (!sts.length) { toast(tr('Uchastka tanlangan modul uchun kichik — modulni kichraytiring')); return; }
       this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: sts.map(st => ({ axis: st.axis.map(fr.toGeo), profile: st.profile })) }));
-      const n = this.connectStreetEnds(); toast(`${sts.length} ta koʻcha · ${this.plan().blocks.length} kvartal${n ? ` · ${n} uch yoʻllarga ulandi` : ''}`);
+      const n = this.connectStreetEnds(); toast(`${sts.length} ${tr('ta koʻcha')} · ${this.plan().blocks.length} ${tr('kvartal')}${n ? ` · ${n} ${tr('uch yoʻllarga ulandi')}` : ''}`);
     };
-    const num = (lbl: string, key: 'w' | 'h', min: number, max: number) => { const inp = h('input', { type: 'number', min, max, step: 1, value: g[key], 'aria-label': lbl }) as HTMLInputElement; inp.onchange = () => { const v = Number(inp.value); if (v >= min && v <= max) { g[key] = v; this.gridPreset = ''; this.renderPanel(); } }; return h('label', { class: 'field grow' }, h('span', { class: 'lb' }, lbl), inp); };
-    const ang = h('input', { type: 'range', min: -90, max: 90, step: 5, value: g.angle == null ? 0 : Math.round(g.angle - autoAngle(site)), id: 'gridAng', 'aria-label': 'Burilish' }) as HTMLInputElement;
-    ang.oninput = () => { g.angle = autoAngle(site) + Number(ang.value); this.gridVar = 0; (box.querySelector('#gridAngV') as HTMLElement).textContent = `${ang.value}°`; };
-    ang.onchange = () => this.renderPanel();
-    const mainSel = h('select', { id: 'gridMain' }, ...[[0, 'Hammasi ikkilamchi'], [2, 'Har 2-chisi asosiy'], [3, 'Har 3-chisi asosiy'], [4, 'Har 4-chisi asosiy']].map(([v, t]) => h('option', { value: v, selected: g.mainEvery === v }, t as string))) as HTMLSelectElement;
-    mainSel.onchange = () => { g.mainEvery = Number(mainSel.value); this.renderPanel(); };
-    const prof = (key: 'main' | 'minor', lbl: string) => { const sel = h('select', { 'aria-label': lbl }, ...PROFILES.map(p => h('option', { value: p.id, selected: g.profiles[key] === p.id }, `${p.name} · ${fmt(profileWidth(p), 0)} m`))) as HTMLSelectElement; sel.onchange = () => { g.profiles = { ...g.profiles, [key]: sel.value }; this.renderPanel(); }; return h('label', { class: 'field grow' }, h('span', { class: 'lb' }, lbl), sel); };
+    const num = (lbl: string, key: 'w' | 'h', min: number, max: number) => { const inp = h('input', { type: 'number', class: 'input', min, max, step: 1, value: g[key], 'aria-label': lbl }) as HTMLInputElement; inp.onchange = () => { const v = Number(inp.value); if (v >= min && v <= max) { g[key] = v; this.gridPreset = ''; this.renderPanel(); } }; return h('div', { class: 'field grow' }, h('label', {}, lbl), h('span', { class: 'unit' }, inp, h('span', {}, 'm'))); };
+    const angV = g.angle == null ? 0 : Math.round(g.angle - autoAngle(site));
+    const angT = h('b', { class: 'num', id: 'gridAngV', style: 'min-width:64px;text-align:right' }, `${angV}°${angV === 0 ? ' · avto' : ''}`);
+    const ang = range({ min: -90, max: 90, step: 5, value: angV, id: 'gridAng', 'aria-label': tr('Burilish'), oninput: v => { g.angle = autoAngle(site) + v; this.gridVar = 0; angT.textContent = `${v}°${v === 0 ? ' · avto' : ''}`; }, onchange: () => this.renderPanel() });
+    const mainSel = select({ id: 'gridMain', 'aria-label': tr('Asosiy koʻchalar'), onchange: v => { g.mainEvery = Number(v); this.renderPanel(); } }, [[0, 'Hammasi ikkilamchi'], [2, 'Har 2-chisi asosiy'], [3, 'Har 3-chisi asosiy'], [4, 'Har 4-chisi asosiy']].map(([v, t]) => ({ value: String(v), label: tr(t as string), selected: g.mainEvery === v })));
+    const profRow = (key: 'main' | 'minor', lbl: string) => { const p = profileById(g.profiles[key]), iss = checkProfile(p).length;
+      const sel = select({ 'aria-label': lbl, onchange: v => { g.profiles = { ...g.profiles, [key]: v }; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: g.profiles[key] === x.id })));
+      return h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 'chip' }, lbl), h('span', { class: 'k' }, p.name, h('span', { class: 'sub' }, p.note)), h('span', { class: iss ? 'chip warn' : 'chip ok' }, h('i'), iss ? `${iss} ${tr('chetlanish')}` : 'ShNQ ✓'), h('span', { class: 'v' }, `${fmt(profileWidth(p), 0)} m`), h('div', { style: 'flex-basis:100%' }, sel)); };
     box.append(
-      h('p', { class: 'note' }, 'Tahlil qilingan shahar bloklari moduli boʻyicha uchastka ichida koʻcha toʻri; kvartallar oʻzi hosil boʻladi. Keyin koʻchalarni sudrab, keraksizini oʻchirib toʻgʻrilaysiz.'),
-      h('div', { class: 'lb' }, 'Blok moduli'),
-      h('div', { class: 'gridpre', role: 'listbox', 'aria-label': 'Blok modullari' }, ...GRID_PRESETS.map(p => h('button', { class: 'gtile', 'data-gpre': p.id, 'aria-pressed': this.gridPreset === p.id, title: `${p.note} · ${p.src}`, onclick: () => { this.gridPreset = p.id; g.w = p.w; g.h = p.h; this.renderPanel(); } },
-        h('span', { class: 'th', html: this.gridThumb(site, { ...g, w: p.w, h: p.h, angle: autoAngle(site) }, 96, 64) }), h('b', {}, p.name), h('small', {}, `${p.w} × ${p.h} m`)))),
-      h('div', { class: 'row' }, num('Eni, m', 'w', 40, 600), num('Boʻyi, m', 'h', 40, 600), h('button', { class: 'ib sm', title: 'Eni ↔ boʻyi', 'aria-label': 'Almashtirish', style: 'align-self:end', onclick: () => { const t = g.w; g.w = g.h; g.h = t; this.renderPanel(); } }, svgIcon('<path d="M7 7h11l-3-3M17 17H6l3 3"/>'))),
-      h('div', { class: 'lb' }, 'Variant'),
-      h('div', { class: 'gridvar', role: 'listbox', 'aria-label': 'Variantlar' }, ...vars.map((v, i) => h('button', { class: 'gtile', 'data-gvar': i, 'aria-pressed': this.gridVar === i, onclick: () => { this.gridVar = i; this.renderPanel(); } },
-        h('span', { class: 'th', html: this.gridThumb(site, v.g, 96, 64) }), h('b', {}, v.name), h('small', {}, `${gridStreets(site, v.g).length} koʻcha`)))),
-      h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Burilish ', h('span', { id: 'gridAngV' }, `${ang.value}°`)), ang),
-      h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Asosiy koʻchalar'), mainSel)),
-      h('div', { class: 'row' }, prof('main', 'Asosiy profil'), prof('minor', 'Ikkilamchi profil')),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Blok moduli')), h('span', {}, pre ? `${pre.name} · ${g.w} × ${g.h} m` : `${g.w} × ${g.h} m`)),
+      h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Blok modullari') }, ...GRID_PRESETS.map(p => h('button', { class: 'tile', 'data-gpre': p.id, 'aria-pressed': this.gridPreset === p.id, title: `${p.note} · ${p.src}`, onclick: () => { this.gridPreset = p.id; g.w = p.w; g.h = p.h; this.renderPanel(); } },
+        h('span', { class: 'th', html: this.gridThumb(site, { ...g, w: p.w, h: p.h, angle: autoAngle(site) }, 64, 44) }), h('span', {}, p.name), h('span', { class: 'sub' }, `${p.w} × ${p.h}`)))),
+      h('div', { class: 'row', style: 'align-items:flex-end' }, num(tr('Eni'), 'w', 40, 600), h('button', { class: 'btn icon-btn', title: tr('Eni ↔ boʻyi'), 'aria-label': tr('Almashtirish'), onclick: () => { const t = g.w; g.w = g.h; g.h = t; this.renderPanel(); } }, svgIcon('<path d="M7 7h11l-3-3M17 17H6l3 3"/>')), num(tr('Boʻyi'), 'h', 40, 600)),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Joylashuv'))),
+      h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Variantlar') }, ...vars.map((v, i) => h('button', { class: 'tile', 'data-gvar': i, 'aria-pressed': this.gridVar === i, onclick: () => { this.gridVar = i; this.renderPanel(); } },
+        h('span', { class: 'th', html: this.gridThumb(site, v.g, 64, 44) }), h('span', {}, tr(v.name)), h('span', { class: 'sub' }, `${gridStreets(site, v.g).length} ${tr('koʻcha')}`)))),
+      h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Burilish')), h('div', { class: 'grow' }, ang), angT),
+      h('div', { class: 'group' }, profRow('main', tr('Asosiy')), profRow('minor', tr('Ikkilamchi')), h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 't-small', style: 'flex-basis:100%' }, tr('Asosiy koʻchalar')), mainSel)),
       h('div', { class: 'row' },
-        h('button', { class: 'btn primary grow', id: 'gridApply', onclick: apply }, has ? 'Qayta qoʻllash' : 'Qoʻllash'),
-        has ? h('button', { class: 'btn', id: 'gridClear', onclick: () => this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: [] })) }, 'Toʻrni olib tashlash') : ''),
-      h('p', { class: 'note' }, 'Qoʻllashda avvalgi toʻr koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi. Uchlari 40 m ichidagi mavjud yoʻllarga ulanadi.'));
-    return box;
+        h('button', { class: 'btn btn-primary btn-lg grow', id: 'gridApply', onclick: apply }, tr(has ? 'Qayta qoʻllash' : 'Toʻrni qoʻllash')),
+        has ? h('button', { class: 'btn btn-lg icon-btn', id: 'gridClear', title: tr('Toʻrni olib tashlash'), 'aria-label': tr('Toʻrni olib tashlash'), onclick: () => this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: [] })) }, svgIcon(IC.trash)) : ''),
+      h('span', { class: 't-small' }, tr('Avvalgi toʻr almashtiriladi, qoʻlda chizilganlar qoladi. Uchlari 40 m ichidagi yoʻllarga ulanadi.')));
+    body.append(box);
   }
 
   /** Mavjud koʻchalar uchlarini davom ettirib, ≤ 40 m dagi eng yaqin yoʻl oʻqiga (OSM yoki loyiha koʻchasi) ulash */
@@ -1723,61 +1715,143 @@ export class Editor {
     return n;
   }
 
+  /* ===== 2-qadam: Uchastka (MR-Q1) ===== */
+  private uchastkaPanel(body: HTMLElement): void {
+    const doc = this.store.doc, fr = frame(doc.origin), area = this.last?.d.siteHa ?? 0;
+    const w = h('input', { type: 'number', class: 'input', min: 10, max: 2000, value: 120, id: 'rw', 'aria-label': tr('Eni, m') }) as HTMLInputElement;
+    const hh = h('input', { type: 'number', class: 'input', min: 10, max: 2000, value: 100, id: 'rh', 'aria-label': tr('Boʻyi, m') }) as HTMLInputElement;
+    const drawing = this.tool instanceof PolygonTool, picking = this.tool instanceof ClickTool;
+    body.append(doc.site
+      ? h('div', { class: 'group flat', style: 'padding:10px 12px;display:flex;align-items:center;gap:10px' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', { id: 'siteHa' }, `${fmt(area, 2)} ga`), h('span', {}, tr('Uchastka maydoni'))), h('span', { class: 'chip ok' }, h('i'), tr('Yopiq')))
+      : h('div', { class: 'note' }, tr('Uchastka hali chizilmagan.')));
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Chizish'))));
+    if (drawing) body.append(h('button', { class: 'btn btn-primary btn-block', id: 'drawSite', onclick: () => this.endTool() }, tr('Chizishni toʻxtatish')),
+      h('span', { class: 't-small' }, tr('Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor')));
+    else body.append(h('div', { class: 'row' },
+      h('button', { class: 'btn grow', id: 'drawSite', onclick: () => this.setTool(new PolygonTool(this.scene, r => {
+        this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.setTool(null); this.scene.frameDoc(this.store.doc);
+      }, toast)) }, ...icl(IC.pencil, tr(doc.site ? 'Qaytadan chizish' : 'Sahnada chizish'))),
+      doc.site ? h('button', { class: 'btn icon-btn btn-danger', 'aria-label': tr('Uchastkani oʻchirish'), title: tr('Uchastkani oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, svgIcon(IC.trash)) : ''));
+    if (this.ctxMgr.current && doc.context.loaded) {
+      body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartalni bosib aniqlash'))));
+      if (doc.context.layers.roads) body.append(h('button', { class: picking ? 'btn btn-primary btn-block' : 'btn btn-block', id: 'pickBlock', onclick: () => picking ? this.setTool(null) : this.setTool(new ClickTool(tr('Yoʻllar orasidagi kvartal ichini bosing · Esc — bekor'), xy => this.pickBlock(xy))) }, tr(picking ? 'Aniqlashni toʻxtatish' : '⌖ Kvartalni bosib aniqlash')));
+      body.append(h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kvartal chegarasi') },
+        ...([['mayda', 'Mayda: barcha koʻchalar'], ['yirik', 'Yirik: asosiy koʻchalar']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.blockMode === k, 'data-bm': k, onclick: () => { this.blockMode = k; this.renderPanel(); } }, tr(t)))));
+    }
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('yoki oʻlcham bilan, markazda'))),
+      h('div', { class: 'row', style: 'align-items:flex-end' },
+        h('div', { class: 'field grow' }, h('label', {}, tr('Eni')), h('span', { class: 'unit' }, w, h('span', {}, 'm'))),
+        h('div', { class: 'field grow' }, h('label', {}, tr('Boʻyi')), h('span', { class: 'unit' }, hh, h('span', {}, 'm'))),
+        h('button', { class: 'btn', id: 'rectSite', onclick: () => {
+          const a = Number(w.value), b = Number(hh.value); if (!(a >= 10 && b >= 10)) { toast(tr('Kamida 10 m')); return; }
+          const m = this.scene.viewExtent().c;   // ekran markazida (xarita surilgan boʻlsa ham)
+          const r: XY[] = [[-a / 2, -b / 2], [a / 2, -b / 2], [a / 2, b / 2], [-a / 2, b / 2]].map(([x, y]) => [x + m[0], y + m[1]] as XY);
+          this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.scene.frameDoc(this.store.doc);
+        } }, tr('Qoʻyish'))),
+      h('span', { class: 't-small' }, '10–2000 m.'));
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Tahrirlash'))),
+      h('div', { class: 'group flat', id: doc.site ? 'siteEditHint' : undefined },
+        ...([['Burchakni surish', 'sudrash'], ['Yangi burchak', 'oraliq nuqta'], ['Burchakni oʻchirish', '2× bosish'], ['Yopishishni oʻchirish', 'Shift']] as const).map(([k, v]) => h('div', { class: 'li' }, h('span', { class: 'k' }, tr(k)), h('span', { class: 'kbd' }, tr(v))))),
+      h('span', { class: 't-small' }, tr('Chizish: bosing — nuqta, birinchi nuqtani bosing yoki Enter — yopish. Sudrab kamerani aylantirasiz.')));
+  }
+
+  /* ===== 3-qadam: Koʻchalar (MR-Kocha, B uslub: Toʻr · Profillar · Chizish) ===== */
+  /** null — avtomatik: koʻcha yoʻq boʻlsa «Toʻr», bor boʻlsa «Chizish» (roʻyxat va meʼyor shu yerda) */
+  private kochaTab: 'tor' | 'prof' | 'chiz' | null = null;
+  private profQ = '';
+  private profGroup = 'all';
   private kochaPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), drawing = this.tool instanceof LineTool;
     // tanlangan koʻcha (yoki yangi koʻcha profili) — katta koʻndalang kesim
-    { const st = doc.streets.find(x => x.id === this.selStreet), p = profileById(st?.profile ?? this.profile);
-      body.append(h('div', { class: 'secbig', id: 'secBig', title: 'Kattalashtirish', onclick: () => this.openSection(p) },
-        h('div', { class: 'row' }, h('b', { class: 'grow' }, `${st ? 'Tanlangan koʻcha' : 'Yangi koʻcha'}: ${p.name}`), h('span', { class: 'muted' }, `${fmt(profileWidth(p), 1)} m ⤢`)),
-        h('div', { class: 'secsvg', html: sectionSvg(p.parts, 300, 0, true, false) }))); }
-    if (this.selStreet) body.append(h('p', { class: 'note', id: 'stEditHint' }, 'Tahrirlash: nuqtalarni sudrang (uchlari yoʻllarga yopishadi) · oraliqdagi kichik nuqta — yangi burilish · nuqtani ikki marta bosish — oʻchirish · Delete — koʻchani oʻchirish.'));
-    if (doc.site) body.append(this.gridPanel());
-    body.append(h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawStreet', onclick: () => drawing ? this.endTool() : this.setTool(new LineTool(this.scene, r => {
-      this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
-      if (this.tool) this.el.hint.textContent = this.tool.hint;
-    }, toast, this.snapStreet)) }, ...(drawing ? icl(IC.check, 'Chizishni tugatish') : icl(IC.plus, 'Koʻcha chizish'))));
-    if (doc.streets.length) body.append(h('button', { class: 'btn', id: 'connEnds', title: 'Uchi yoʻlga yetmay qolgan koʻchalarni davom ettirib, 40 m gacha yaqin yoʻl oʻqiga ulaydi', onclick: () => { const n = this.connectStreetEnds(); toast(n ? `${n} ta uch mavjud yoʻllarga ulandi` : 'Ulanadigan uch topilmadi (40 m ichida yoʻl yoʻq)'); } }, 'Uchlarini mavjud yoʻllarga ulash'));
-    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Profil (yangi koʻcha uchun)'),
-      h('div', { class: 'list res', role: 'listbox', 'aria-label': 'Profillar' }, ...PROFILES.map(p => this.profItem(p))),
-      (() => { const groups = [...new Set(PRESET_PROFILES.map(p => p.group))], open = PRESET_PROFILES.some(p => p.id === this.profile);
-        return h('details', { class: 'tpl', id: 'tplBox', open }, h('summary', {}, `Boshqa shablonlar · ${PRESET_PROFILES.length} ta (Koʻcha studiyasidan)`),
-          ...groups.map(g => h('div', { class: 'tplg' }, h('div', { class: 'lb' }, g), h('div', { class: 'list res', role: 'listbox', 'aria-label': g }, ...PRESET_PROFILES.filter(p => p.group === g).map(p => this.profItem(p)))))); })()));
+    const stSel = doc.streets.find(x => x.id === this.selStreet), p0 = profileById(stSel?.profile ?? this.profile);
+    body.append(h('button', { class: 'group secbig', id: 'secBig', title: tr('Kattalashtirish'), onclick: () => this.openSection(p0) },
+      h('div', { class: 'row' }, h('b', { class: 'grow' }, `${tr(stSel ? 'Tanlangan koʻcha' : 'Yangi koʻcha')}: ${p0.name}`), h('span', { class: 't-small' }, `${fmt(profileWidth(p0), 1)} m ⤢`)),
+      h('div', { class: 'secsvg', html: sectionSvg(p0.parts, 300, 0, true, false) })));
+    if (stSel) {
+      const iss = checkProfile(p0);
+      body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, `${tr('Tanlangan')}: ${p0.name} · ${fmt(profileWidth(p0), 0)} m`, h('span', { class: 'sub' }, `ShNQ 2.07.01-23, ${CATS[p0.cat].clause}${stSel.osm != null ? ' · OSM' : ''}`)), h('span', { class: iss.length ? 'chip bad' : 'chip ok' }, h('i'), iss.length ? `${iss.length} ${tr('chetlanish')}` : tr('mos')))),
+        h('span', { class: 't-small', id: 'stEditHint' }, tr('Nuqtalarni sudrang · oraliq nuqta — burilish · 2× bosish — oʻchirish · Delete — oʻchirish')));
+    }
+    if (this.kochaTab == null) this.kochaTab = doc.streets.length ? 'chiz' : 'tor';
+    if (drawing && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
+    if (this.osmPick && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
+    const nProf = PROFILES.length + PRESET_PROFILES.length;
+    body.append(h('div', { class: 'seg', role: 'tablist', 'aria-label': tr('Boʻlimlar') }, ...([['tor', tr('Toʻr')], ['prof', `${tr('Profillar')} · ${nProf}`], ['chiz', tr('Chizish')]] as const).map(([k, t]) => h('button', { role: 'tab', 'data-ktab': k, 'aria-pressed': this.kochaTab === k, 'aria-selected': this.kochaTab === k, onclick: () => { this.kochaTab = k; this.renderPanel(); } }, t))));
+    if (this.kochaTab === 'tor') { if (doc.site) this.gridPanel(body); else body.append(h('div', { class: 'note' }, tr('Avval uchastkani chizing'))); }
+    if (this.kochaTab === 'prof') this.profilesTab(body, stSel?.id ?? null);
+    if (this.kochaTab === 'chiz') this.drawTab(body, fr, drawing);
+  }
+
+  /** Profillar yorligʻi: qidiruv, guruh filtrlari, kartochkalar (nom, kenglik, meʼyor chipi, mini kesim) */
+  private profilesTab(body: HTMLElement, selId: string | null): void {
+    const all: (Profile & { group?: string })[] = [...PROFILES, ...PRESET_PROFILES];
+    const groups: { id: string; name: string; list: (Profile & { group?: string })[] }[] = [{ id: 'asosiy', name: tr('Asosiy'), list: PROFILES }, ...[...new Set(PRESET_PROFILES.map(p => p.group))].map(g => ({ id: g, name: g, list: PRESET_PROFILES.filter(p => p.group === g) }))];
+    const q = this.profQ.trim().toLowerCase();
+    const match = (p: Profile) => !q || p.name.toLowerCase().includes(q) || p.note.toLowerCase().includes(q) || CATS[p.cat].name.toLowerCase().includes(q);
+    const inp = h('input', { type: 'search', class: 'input', id: 'profQ', placeholder: tr('Profil qidirish'), value: this.profQ, 'aria-label': tr('Profil qidirish') }) as HTMLInputElement;
+    inp.oninput = () => { this.profQ = inp.value; const keep = inp.selectionStart; this.renderPanel(); const n = this.el.panel.querySelector<HTMLInputElement>('#profQ'); if (n) { n.focus(); n.setSelectionRange(keep, keep); } };
+    body.append(inp);
+    body.append(h('div', { class: 'ugrp' }, h('div', {}, h('button', { class: 'uchip', 'aria-pressed': this.profGroup === 'all', 'data-pgrp': 'all', onclick: () => { this.profGroup = 'all'; this.renderPanel(); } }, `${tr('Hammasi')} · ${all.length}`),
+      ...groups.map(g => h('button', { class: 'uchip', 'aria-pressed': this.profGroup === g.id, 'data-pgrp': g.id, onclick: () => { this.profGroup = g.id; this.renderPanel(); } }, `${g.name} · ${g.list.length}`)))));
+    const pick = (p: Profile) => { this.profile = p.id; if (selId) this.run(() => this.store.dispatch({ type: 'updateStreet', id: selId, patch: { profile: p.id } })); else this.renderPanel(); };
+    let shown = 0;
+    for (const g of groups) {
+      if (this.profGroup !== 'all' && this.profGroup !== g.id) continue;
+      const list = g.list.filter(match); if (!list.length) continue; shown += list.length;
+      body.append(h('div', { class: 'glabel' }, h('span', {}, g.name), h('span', {}, `${list.length} ta`)),
+        h('div', { class: 'gc2', role: 'listbox', 'aria-label': g.name }, ...list.map(p => { const iss = checkProfile(p).length, piy = p.cat === 'piyoda';
+          return h('button', { class: 'gcard2', role: 'option', 'aria-selected': this.profile === p.id, 'aria-pressed': this.profile === p.id, 'data-prof': p.id, title: `${CATS[p.cat].name} · ${p.note}`, onclick: () => pick(p) },
+            h('b', {}, p.name), this.profileBar(p.id),
+            h('span', { class: 'pm' }, h('span', { class: 'num' }, `${fmt(profileWidth(p), 1)} m`), h('span', { class: piy ? 'chip warn' : iss ? 'chip warn' : 'chip ok' }, piy ? tr('hisob boʻyicha') : iss ? `${iss} ${tr('chetlanish')}` : 'ShNQ ✓'))); })));
+    }
+    if (!shown) body.append(h('div', { class: 'empty' }, h('span', {}, tr('Hech narsa topilmadi'))));
+    body.append(h('span', { class: 't-small' }, tr('Koʻcha tanlangan boʻlsa — bosilgan profil shu koʻchaga qoʻllanadi; aks holda yangi koʻcha uchun.')));
+  }
+
+  /** Chizish yorligʻi: koʻcha chizish, uchlarni ulash, OSM yoʻli, koʻchalar roʻyxati, meʼyor */
+  private drawTab(body: HTMLElement, fr: ReturnType<typeof frame>, drawing: boolean): void {
+    const doc = this.store.doc;
+    body.append(h('div', { class: 'row' },
+      h('button', { class: drawing ? 'btn btn-primary grow' : 'btn btn-primary grow', id: 'drawStreet', onclick: () => drawing ? this.endTool() : this.setTool(new LineTool(this.scene, r => {
+        this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
+        if (this.tool) this.el.hint.textContent = this.tool.hint;
+      }, toast, this.snapStreet)) }, ...(drawing ? icl(IC.check, tr('Chizishni tugatish')) : icl(IC.plus, tr('Koʻcha chizish')))),
+      doc.streets.length ? h('button', { class: 'btn grow', id: 'connEnds', title: tr('Uchi yoʻlga yetmay qolgan koʻchalarni davom ettirib, 40 m gacha yaqin yoʻl oʻqiga ulaydi'), onclick: () => { const n = this.connectStreetEnds(); toast(n ? tf('${n} ta uch mavjud yoʻllarga ulandi', { n }) : tr('Ulanadigan uch topilmadi (40 m ichida yoʻl yoʻq)')); } }, tr('Uchlarini yoʻllarga ulash')) : ''));
+    if (drawing) body.append(h('span', { class: 't-small' }, tr('Nuqtalarni bosing · uchlar boshqa koʻchaga yopishadi · 2× bosish yoki Enter — saqlash · Backspace — oxirgisi · Esc — bekor')),
+      h('div', { class: 'group flat' }, ...([['Koʻcha oʻqi', 'bosish'], ['Saqlash', 'Enter'], ['Oxirgi nuqta', 'Backspace'], ['Bekor', 'Esc']] as const).map(([k, v]) => h('div', { class: 'li' }, h('span', { class: 'k' }, tr(k)), h('span', { class: 'kbd' }, tr(v))))));
     if (this.osmPick) {
       const o = this.osmPick, L = o.pts.map(fr.toLocal).reduce((acc, q, i, a) => i ? acc + Math.hypot(q[0] - a[i - 1][0], q[1] - a[i - 1][1]) : 0, 0);
-      body.append(h('div', { class: 'osmbox', id: 'osmPick' },
-        h('b', {}, o.name ? `«${o.name}»` : 'Nomsiz koʻcha'), h('div', { class: 'muted' }, `OSM: ${o.cls} · qatnov ~${fmt(o.w, 1)} m · ${fmt(L)} m`),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn primary grow', id: 'adoptOsm', onclick: () => {
+      body.append(h('div', { class: 'group', id: 'osmPick' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, o.name ? `«${o.name}»` : tr('Nomsiz koʻcha'), h('span', { class: 'sub' }, `OSM: ${o.cls} · ${tr('qatnov')} ~${fmt(o.w, 1)} m · ${fmt(L)} m`))),
+        h('div', { class: 'li', style: 'flex-wrap:wrap' },
+          h('button', { class: 'btn btn-primary btn-block', id: 'adoptOsm', onclick: () => {
             // kontekst kvadratiga qirqib, eng uzun boʻlagi olinadi
             const R = this.store.doc.context.radius, pieces = clipLine(o.pts.map(fr.toLocal), -R, -R, R, R).sort((a, b) => b.length - a.length);
             const axis = (pieces[0] ?? o.pts.map(fr.toLocal)).map(fr.toGeo);
             this.run(() => this.store.dispatch({ type: 'addStreet', axis, profile: this.profile, osm: o.id }));
             this.osmPick = null; this.scene.setPreview([]); this.pickStreet(this.store.doc.streets[this.store.doc.streets.length - 1]?.id ?? null);
-          } }, `Loyihaga olish: ${profileById(this.profile).name}`),
-          h('button', { class: 'btn', onclick: () => { this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); } }, svgIcon(IC.x))),
-        h('button', { class: 'btn danger', id: 'rmOsmRoad', onclick: () => this.removeOsmRoad(o.id) }, ...icl(IC.trash, 'Bu yoʻlni olib tashlash (Delete)')),
-        h('p', { class: 'note' }, 'Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi. Olib tashlansa — sahnada, kvartal chegarasida va chizmada boʻlmaydi.')));
+          } }, `${tr('Loyihaga olish')}: ${profileById(this.profile).name}`),
+          h('button', { class: 'btn btn-danger btn-sm', id: 'rmOsmRoad', onclick: () => this.removeOsmRoad(o.id) }, ...icl(IC.trash, tr('Bu yoʻlni olib tashlash (Delete)'))),
+          h('button', { class: 'btn btn-ghost btn-sm', onclick: () => { this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); } }, tr('Bekor')))),
+        h('span', { class: 't-small' }, tr('Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi. Olib tashlansa — sahnada, kvartal chegarasida va chizmada boʻlmaydi.')));
     }
-    if (doc.removedRoads?.length) body.append(h('button', { class: 'btn', id: 'restoreRoads', onclick: () => this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [] })) }, `Olib tashlangan yoʻllarni qaytarish (${doc.removedRoads.length})`));
+    if (doc.removedRoads?.length) body.append(h('button', { class: 'btn btn-block btn-sm', id: 'restoreRoads', onclick: () => this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [] })) }, tf('Olib tashlangan yoʻllarni qaytarish (${doc.removedRoads.length})', { 'doc.removedRoads.length': doc.removedRoads.length })));
     if (doc.streets.length) {
-      const len = (a: XY[]) => a.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - a[i][0], p[1] - a[i][1]), 0);
-      body.append(h('div', { class: 'list', role: 'listbox', 'aria-label': 'Koʻchalar' }, ...doc.streets.map((st, k) => {
-        const p = profileById(st.profile);
-        return h('div', { class: 'it', role: 'option', 'aria-selected': st.id === this.selStreet, 'data-sid': st.id },
-          h('span', { class: 'grow', style: 'cursor:pointer', onclick: () => this.pickStreet(st.id === this.selStreet ? null : st.id) }, `${k + 1}. ${p.name} · ${fmt(profileWidth(p), 0)} m · ${fmt(len(st.axis.map(fr.toLocal)))} m`),
-          h('button', { title: 'Oʻchirish', 'aria-label': 'Koʻchani oʻchirish', onclick: () => this.run(() => this.store.dispatch({ type: 'removeStreet', id: st.id })) }, svgIcon(IC.x)));
-      })));
-      const d = this.last?.d;
-      if (d) body.append(h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Koʻchalar uchastkada'), h('b', { class: 'num', id: 'stArea' }, `${fmt(d.streetArea / 1e4, 2)} ga · ${fmt(d.siteHa ? d.streetArea / 1e4 / d.siteHa * 100 : 0, 0)} %`)));
+      const len = (a: XY[]) => a.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - a[i][0], p[1] - a[i][1]), 0), d = this.last?.d;
+      body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Koʻchalar')), d ? h('span', { id: 'stArea' }, `${fmt(d.streetArea / 1e4, 2)} ga · ${fmt(d.siteHa ? d.streetArea / 1e4 / d.siteHa * 100 : 0, 0)} %`) : ''),
+        h('div', { class: 'group', role: 'listbox', 'aria-label': tr('Koʻchalar') }, ...doc.streets.map((st, k) => {
+          const p = profileById(st.profile);
+          return h('div', { class: 'li', role: 'option', 'aria-selected': st.id === this.selStreet, 'data-sid': st.id, style: st.id === this.selStreet ? 'background:var(--sel-soft)' : '' },
+            h('span', { class: 'k', style: 'cursor:pointer', onclick: () => this.pickStreet(st.id === this.selStreet ? null : st.id) }, `${k + 1}. ${p.name} · ${fmt(profileWidth(p), 0)} m`, h('span', { class: 'sub' }, `${fmt(len(st.axis.map(fr.toLocal)))} m`)),
+            h('button', { class: 'btn icon-btn btn-sm btn-ghost', title: tr('Oʻchirish'), 'aria-label': tr('Koʻchani oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'removeStreet', id: st.id })) }, svgIcon(IC.x)));
+        })));
       if (this.selStreet) {
         const st = doc.streets.find(x => x.id === this.selStreet), p = st && profileById(st.profile), iss = p ? checkProfile(p) : [];
-        if (p) body.append(h('div', { class: iss.length ? 'err' : 'okbox', id: 'stNorm' },
-          h('b', {}, `${CATS[p.cat].name}`), h('div', { class: 'muted' }, `ShNQ 2.07.01-23, ${CATS[p.cat].clause}`),
-          ...(iss.length ? iss.map(x => h('div', {}, `${x.what}: ${x.value} — meʼyor ${x.norm}`)) : [h('div', {}, 'Meʼyorga mos.')])));
-        body.append(h('p', { class: 'note' }, `Tanlangan koʻcha koʻk${st?.osm != null ? ' (OSM dan olingan)' : ''}. Yuqoridan profil tanlasangiz — shu koʻchaga qoʻllanadi. Delete — oʻchirish.`));
+        if (p) body.append(h('div', { class: iss.length ? 'note bad' : 'note ok', id: 'stNorm' }, h('b', {}, `${CATS[p.cat].name}`), ` · ShNQ 2.07.01-23, ${CATS[p.cat].clause}`, h('br'),
+          ...(iss.length ? iss.map(x => h('div', {}, `${x.what}: ${x.value} — ${tr('meʼyor')} ${x.norm}`)) : [tr('Meʼyorga mos.')])));
       }
-    } else body.append(h('p', { class: 'note' }, 'Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.'));
-    body.append(h('p', { class: 'note' }, 'Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'));
+    } else body.append(h('div', { class: 'note' }, tr('Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.')));
+    body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Mavjud koʻchani tahrirlash')), h('div', {}, tr('Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'))));
   }
 
   private pickStreet(id: string | null): void { this.selStreet = id; this.scene.selectStreet(id); const st = this.store.doc.streets.find(x => x.id === id); if (st) this.profile = st.profile; this.renderPanel(); }
@@ -1857,71 +1931,77 @@ export class Editor {
     this.selBlock = null; this.scene.selectBlock(null);
   }
 
+  /* ===== 4-qadam: Parsellar va zonalar (MR-Q1) ===== */
   private parselPanel(body: HTMLElement): void {
     const plan = this.plan();
     if (this.selBlock != null && !plan.blocks[this.selBlock]) this.selBlock = null;
-    body.append(h('div', { class: 'list', role: 'listbox', 'aria-label': 'Kvartallar va parsellar' }, ...plan.blocks.map((b, i) => h('div', { class: 'it', role: 'option', 'aria-selected': i === this.selBlock, 'data-block': i, style: 'cursor:pointer', onclick: () => { this.selBlock = i === this.selBlock ? null : i; this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
-      h('i', { class: 'sw', style: `background:#${(ZONE_COL[b.use] ?? 0xcccccc).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`), h('small', { class: 'muted' }, useDef(b.use).name)))));
-    if (this.selBlock != null) {
+    const dm = this.demolition();
+    if (dm.all) {
+      body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Uchastkadagi mavjud binolar'))),
+        h('div', { class: 'group', id: 'demo' },
+          h('div', { class: 'li' }, h('span', { class: 'k' }, `${dm.all} ${tr('bino')}`, h('span', { class: 'sub' }, `${tr('saqlanadi')} ${dm.kept} · ${tr('buziladi')} ${dm.gone}${dm.gone ? ` · ${tr('dogʻ')} ${fmt(dm.foot)} m² · ~${fmt(dm.floorArea)} m²` : ''}`))),
+          h('div', { class: 'li', style: 'flex-wrap:wrap;gap:6px' },
+            h('button', { class: 'btn btn-sm', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id) })) }, tr('Hammasini saqlash')),
+            h('button', { class: 'btn btn-sm', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, tr('Hammasini buzish')),
+            dm.gone ? h('button', { class: this.goneHidden ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-ghost', id: 'goneHide', 'aria-pressed': this.goneHidden, onclick: () => { this.goneHidden = !this.goneHidden; this.syncGone(); this.renderPanel(); } }, this.goneHidden ? `${tr('Buziladiganlar yashirilgan')} (${dm.gone})` : `${tr('Buziladiganlarni yashirish')} (${dm.gone})`) : '')),
+        h('span', { class: 't-small' }, tr(this.goneHidden ? 'Buziladigan binolar sahnada koʻrinmaydi; hisob va koʻchirish xarajati saqlanadi. Qaytarib, binoni bosib saqlash ↔ buzishni almashtirasiz.' : 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil. Keyingi qadamlarda ular avtomatik olib tashlanadi.')));
+    }
+    const tot = plan.blocks.filter(b => !b.parcelId).length + new Set(plan.blocks.filter(b => b.parcelId).map(b => b.blockKey)).size;
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartallar va parsellar')), h('span', {}, `${tot} ta · ${fmt(plan.blocks.reduce((s, b) => s + b.area, 0) / 1e4, 2)} ga`)),
+      h('div', { class: 'group', role: 'listbox', 'aria-label': tr('Kvartallar va parsellar') }, ...plan.blocks.map((b, i) => h('button', { class: 'li', role: 'option', 'aria-selected': i === this.selBlock, 'data-block': i, style: i === this.selBlock ? 'background:var(--sel-soft)' : '', onclick: () => { this.selBlock = i === this.selBlock ? null : i; this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
+        h('i', { class: 'sw', style: `background:#${(ZONE_COL[b.use] ?? 0xcccccc).toString(16).padStart(6, '0')}` }), h('span', { class: 'k' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, h('span', { class: 'sub' }, useDef(b.use).name))))));
+    if (this.selBlock == null) { body.append(h('div', { class: 'note' }, tr('Kvartal yoki parselni roʻyxatdan yoki sahnada bosib tanlang.'))); }
+    else {
       const i = this.selBlock, b = plan.blocks[i], groups = [...new Set(USES.map(u => u.group))];
-      body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, `${this.unitName(i)} funksiyasi`),
-        ...groups.map(g => h('div', { class: 'chips' }, h('span', { class: 'cg' }, g), ...USES.filter(u => u.group === g).map(u => h('button', { class: 'zchip', 'aria-pressed': b.use === u.id, 'data-use': u.id, style: `--c:#${u.color.toString(16).padStart(6, '0')}`, onclick: () => this.setBlockUse(i, u.id) }, u.name))))));
+      body.append(h('div', { class: 'glabel' }, h('span', {}, `${this.unitName(i)} ${tr('funksiyasi')}`), h('span', {}, `${USES.length} ta · ${groups.length} ${tr('guruh')}`)),
+        ...groups.map(g => h('div', { class: 'ugrp' }, h('span', {}, g), h('div', {}, ...USES.filter(u => u.group === g).map(u => h('button', { class: 'uchip', 'aria-pressed': b.use === u.id, 'data-use': u.id, onclick: () => this.setBlockUse(i, u.id) }, h('i', { style: `background:#${u.color.toString(16).padStart(6, '0')}` }), u.name))))),
+        h('span', { class: 't-small' }, tr('Maktab, MTM yoki poliklinika berilsa — bino avtomatik joylashadi.')));
       // parsellarga boʻlish
-      const size = h('input', { type: 'range', min: 0.1, max: 3, step: 0.05, value: this.parcelSize, id: 'pSize', style: 'width:100%' }) as HTMLInputElement;
-      const sizeT = h('b', { class: 'num' }, `${fmt(this.parcelSize, 2)} ga`);
-      size.oninput = () => { this.parcelSize = Number(size.value); sizeT.textContent = `${fmt(this.parcelSize, 2)} ga`; };
-      size.onchange = () => this.renderPanel();
-      const ang = h('input', { type: 'number', min: -90, max: 90, step: 1, value: this.gridAngleDeg, id: 'pAng', style: 'width:64px' }) as HTMLInputElement;
-      ang.onchange = () => { this.gridAngleDeg = Number(ang.value) || 0; };
+      const sizeT = h('b', { class: 'num', style: 'min-width:56px;text-align:right' }, `${fmt(this.parcelSize, 2)} ga`);
+      const size = range({ min: 0.1, max: 3, step: 0.05, value: this.parcelSize, id: 'pSize', 'aria-label': tr('Parsel oʻlchami'), oninput: v => { this.parcelSize = v; sizeT.textContent = `${fmt(v, 2)} ga`; }, onchange: () => this.renderPanel() });
+      const ang = h('input', { type: 'number', class: 'input', min: -90, max: 90, step: 1, value: this.gridAngleDeg, id: 'pAng', 'aria-label': tr('Burchak, °') }) as HTMLInputElement;
+      ang.onchange = () => { this.gridAngleDeg = Number(ang.value) || 0; this.renderPanel(); };
       const cutting = this.tool instanceof LineTool, merging = this.tool instanceof ClickTool;
-      body.append(h('div', { class: 'field', id: 'parcelBox' }, h('span', { class: 'lb' }, 'Parsellar'),
-        h('div', { class: 'row' }, h('span', { class: 'grow', style: 'font-size:13px' }, 'Parsel oʻlchami'), sizeT), size,
-        h('div', { class: 'seg full', role: 'group', 'aria-label': 'Toʻr' }, ...([['ns', 'Shimol–janub'], ['angle', 'Burchak'], ['street', 'Koʻcha boʻylab']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.gridMode === k, 'data-grid': k, onclick: () => { this.gridMode = k; this.renderPanel(); } }, t))),
-        this.gridMode === 'angle' ? h('label', { class: 'row', style: 'font-size:13px' }, 'Burchak, °', ang) : '',
-        ...(() => { const pv = this.parcelVars(); if (!pv || !pv.vars.length) return [h('p', { class: 'note' }, 'Kvartal shu oʻlchamdan kichik — parsel oʻlchamini kamaytiring.')];
+      const pb = h('div', { class: 'col', id: 'parcelBox' },
+        h('div', { class: 'glabel' }, h('span', {}, tr('Parsellar')), h('span', {}, tr('Oʻlchami'))),
+        h('div', { class: 'row' }, h('div', { class: 'grow' }, size), sizeT),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Toʻr yoʻnalishi'))),
+        h('div', { class: 'tiles', role: 'group', 'aria-label': tr('Toʻr') }, ...([['ns', 'Shimol–janub', '<path d="M12 4v16M8 8l4-4 4 4"/>'], ['angle', 'Burchak', '<path d="M5 19h14M5 19V5M5 19l10-10"/>'], ['street', 'Koʻcha boʻylab', '<path d="M4 8h16M4 16h16M9 4v16" stroke-dasharray="2 2"/>']] as const).map(([k, t, ic]) => h('button', { class: 'tile', 'aria-pressed': this.gridMode === k, 'data-grid': k, onclick: () => { this.gridMode = k; this.renderPanel(); } }, svgIcon(ic), h('span', {}, tr(t))))),
+        this.gridMode === 'angle' ? h('div', { class: 'field' }, h('label', {}, tr('Burchak')), h('span', { class: 'unit' }, ang, h('span', {}, '°'))) : '',
+        ...(() => { const pv = this.parcelVars(); if (!pv || !pv.vars.length) return [h('div', { class: 'note' }, tr('Kvartal shu oʻlchamdan kichik — parsel oʻlchamini kamaytiring.'))];
           if (!pv.vars.some(v => v.id === this.parcelMethod)) this.parcelMethod = pv.vars[0].id;
-          return [h('div', { class: 'lb' }, 'Boʻlish usuli'), h('div', { class: 'gridgen' }, h('div', { class: 'gridvar', role: 'listbox', 'aria-label': 'Boʻlish usullari' }, ...pv.vars.map(v => h('button', { class: 'gtile', 'data-pvar': v.id, 'aria-pressed': this.parcelMethod === v.id, title: v.note, onclick: () => { this.parcelMethod = v.id; this.renderPanel(); } },
-            h('span', { class: 'th', html: this.parcelThumb(pv.whole.rings, v.cells) }), h('b', {}, v.name), h('small', {}, `${v.cells.length} parsel`)))))]; })(),
-        h('button', { class: 'btn primary', id: 'pSplit', onclick: () => this.subdivideSel() }, 'Kvartalni parsellarga boʻlish'),
+          return [h('div', { class: 'glabel' }, h('span', {}, tr('Boʻlish usuli'))), h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Boʻlish usullari') }, ...pv.vars.map(v => h('button', { class: 'tile', 'data-pvar': v.id, 'aria-pressed': this.parcelMethod === v.id, title: v.note, onclick: () => { this.parcelMethod = v.id; this.renderPanel(); } },
+            h('span', { class: 'th', html: this.parcelThumb(pv.whole.rings, v.cells, 64, 44) }), h('span', {}, v.name), h('span', { class: 'sub' }, `${v.cells.length} ${tr('parsel')}`))))]; })(),
+        h('button', { class: 'btn btn-primary btn-block', id: 'pSplit', onclick: () => this.subdivideSel() }, tr('Kvartalni parsellarga boʻlish')),
         h('div', { class: 'row' },
-          h('button', { class: cutting ? 'btn primary grow' : 'btn grow', id: 'pCut', onclick: () => {
+          h('button', { class: cutting ? 'btn btn-sm btn-primary grow' : 'btn btn-sm grow', id: 'pCut', 'aria-pressed': cutting, onclick: () => {
             if (cutting) { this.setTool(null); return; }
             this.setTool(new LineTool(this.scene, r => {
               const u = this.plan().blocks[this.selBlock ?? -1]; const bp = u && this.blockParcels(u); if (!u || !bp) return;
               const target = bp.list.find(p => (u.parcelId ? p.id === u.parcelId : true)) ?? bp.list[0];
               const parts = split(target.rings, r[0], r[r.length - 1]);
-              if (parts.length < 2) { toast('Chiziq parselni kesib oʻtmadi'); return; }
+              if (parts.length < 2) { toast(tr('Chiziq parselni kesib oʻtmadi')); return; }
               this.commitParcels(bp.lab, [...bp.list.filter(p => p !== target), ...parts.map(rr => ({ id: uid('pc_'), rings: rr, use: target.use }))]);
               this.setTool(null);
             }, toast));
-          } }, cutting ? 'Kesish…' : 'Kesish'),
-          h('button', { class: merging ? 'btn primary grow' : 'btn grow', id: 'pMerge', disabled: !b.parcelId, onclick: () => {
+          } }, tr(cutting ? 'Kesish…' : 'Kesish')),
+          h('button', { class: merging ? 'btn btn-sm btn-primary grow' : 'btn btn-sm grow', id: 'pMerge', 'aria-pressed': merging, disabled: !b.parcelId, onclick: () => {
             if (merging) { this.setTool(null); return; }
-            this.setTool(new ClickTool('Qoʻshni parselni bosing · Esc — bekor', xy => {
+            this.setTool(new ClickTool(tr('Qoʻshni parselni bosing · Esc — bekor'), xy => {
               const plan2 = this.plan(), u = plan2.blocks[this.selBlock ?? -1], o = plan2.blocks.find(x => x.parcelId && x.blockKey === u?.blockKey && x !== u && pointIn(xy, x.rings));
-              const bp = u && this.blockParcels(u); if (!u || !o || !bp) { toast('Shu kvartaldagi qoʻshni parselni bosing'); return; }
+              const bp = u && this.blockParcels(u); if (!u || !o || !bp) { toast(tr('Shu kvartaldagi qoʻshni parselni bosing')); return; }
               const A = bp.list.find(p => p.id === u.parcelId), B = bp.list.find(p => p.id === o.parcelId); if (!A || !B) return;
-              const m = merge(A.rings, B.rings); if (!m) { toast('Parsellar qoʻshni emas'); return; }
+              const m = merge(A.rings, B.rings); if (!m) { toast(tr('Parsellar qoʻshni emas')); return; }
               this.commitParcels(bp.lab, [...bp.list.filter(p => p !== A && p !== B), { id: A.id, rings: m, use: A.use }]);
               this.setTool(null);
             }));
-          } }, 'Birlashtirish'),
-          h('button', { class: 'btn grow', id: 'pClear', disabled: !b.parcelId, onclick: () => { const bp = this.blockParcels(b); if (bp) { this.run(() => this.store.dispatch({ type: 'setParcels', block: bp.lab.id, parcels: [] })); this.selBlock = null; this.scene.selectBlock(null); } } }, 'Butun kvartal')),
-        b.parcelId ? h('p', { class: 'note', id: 'parcelEditHint' }, 'Parsel chegarasini sahnada burchaklaridan sudrab toʻgʻrilang (oraliq nuqta — yangi burchak, ikki marta bosish — oʻchirish).') : '',
-        h('p', { class: 'note' }, 'Kesish — tanlangan parsel ustida chiziq chizing (2 nuqta, Enter). Kvartalni qayta boʻlish undagi parsellar seksiyalarini oʻchiradi.')));
-    } else body.append(h('p', { class: 'note' }, 'Kvartal yoki parselni roʻyxatdan yoki sahnada bosib tanlang.'));
-    const dm = this.demolition();
-    if (dm.all) {
-      body.prepend(h('div', { class: 'field', id: 'demo' }, h('span', { class: 'lb' }, 'Uchastkadagi mavjud binolar'),
-        h('div', { class: 'ctxst' }, h('b', {}, `${dm.all} bino`), ` · saqlanadi ${dm.kept} · `, h('b', { style: 'color:var(--bad)' }, `buziladi ${dm.gone}`),
-          dm.gone ? h('div', { class: 'muted' }, `Buziladigan dogʻ ${fmt(dm.foot)} m², taxminiy maydon ~${fmt(dm.floorArea)} m² (OSM balandligi/taxmin boʻyicha). Koʻchirish xarajati — pastda.`) : ''),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn grow', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id) })) }, 'Hammasini saqlash'),
-          h('button', { class: 'btn grow', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, 'Hammasini buzish')),
-        dm.gone ? h('button', { class: this.goneHidden ? 'btn primary' : 'btn', id: 'goneHide', onclick: () => { this.goneHidden = !this.goneHidden; this.syncGone(); this.renderPanel(); } }, this.goneHidden ? `Buziladiganlar olib tashlangan (${dm.gone}) — qaytarish` : `Buziladiganlarni sahnadan olib tashlash (${dm.gone})`) : '',
-        h('p', { class: 'note' }, this.goneHidden ? 'Buziladigan binolar sahnada koʻrinmaydi; hisob va koʻchirish xarajati saqlanadi. Qaytarib, binoni bosib saqlash ↔ buzishni almashtirasiz.' : 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil. Keyingi qadamlarda ular avtomatik olib tashlanadi.')));
-      if (dm.gone) this.compSection(body);
+          } }, tr('Birlashtirish')),
+          h('button', { class: 'btn btn-sm grow', id: 'pClear', disabled: !b.parcelId, onclick: () => { const bp = this.blockParcels(b); if (bp) { this.run(() => this.store.dispatch({ type: 'setParcels', block: bp.lab.id, parcels: [] })); this.selBlock = null; this.scene.selectBlock(null); } } }, tr('Butun kvartal'))),
+        b.parcelId ? h('span', { class: 't-small', id: 'parcelEditHint' }, tr('Parsel chegarasini sahnada burchaklaridan sudrab toʻgʻrilang (oraliq nuqta — yangi burchak, ikki marta bosish — oʻchirish).')) : '',
+        h('span', { class: 't-small' }, tr('Kesish — tanlangan parsel ustida chiziq chizing (2 nuqta, Enter). Kvartalni qayta boʻlish undagi parsellar seksiyalarini oʻchiradi.')));
+      body.append(pb);
     }
+    if (dm.all && dm.gone) this.compSection(body);
   }
 
   /* ---------- koʻchirish xarajati (OʻRQ-781 / OʻRQ-1149) ---------- */
@@ -1945,33 +2025,33 @@ export class Editor {
   private compSection(body: HTMLElement): void {
     const c = this.store.doc.settings.comp, R = this.comp(); if (!R) return;
     const set = (patch: Partial<CompParams>) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { comp: { ...c, ...patch } } }));
-    const num = (k: keyof CompParams, label: string, step = 1) => { const e = h('input', { type: 'number', min: 0, step, value: c[k] as number, 'data-comp': k, style: 'width:100%' }) as HTMLInputElement;
+    const num = (k: keyof CompParams, label: string, unit: string, step = 1) => { const e = h('input', { type: 'number', class: 'input', min: 0, step, value: c[k] as number, 'data-comp': k, 'aria-label': `${label}, ${unit}` }) as HTMLInputElement;
       e.onchange = () => { const v = Number(e.value); if (!(v >= 0)) return;
         const src = k === 'priceFlat' || k === 'priceHouse' ? 'qoʻlda' : k === 'priceNonres' && c.priceSource && !c.priceSource.includes('noturar') ? `${c.priceSource}; noturar — qoʻlda` : c.priceSource;
         set({ [k]: v, priceSource: src } as Partial<CompParams>); };
-      return h('label', { class: 'field', style: 'min-width:0' }, h('span', { class: 'lb' }, label), e); };
-    const grid = (...kids: HTMLElement[]) => h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px' }, ...kids);
+      return h('div', { class: 'field', style: 'min-width:0' }, h('label', {}, label), h('span', { class: 'unit' }, e, h('span', {}, unit))); };
     const usd = (v: number) => fmt(Math.round(v));
-    const NAME: Record<string, string> = { hovli: 'Hovli uylar', kvartira: 'Koʻp kvartirali', noturar: 'Noturar' };
+    const NAME: Record<string, string> = { hovli: tr('Hovli uylar'), kvartira: tr('Koʻp kvartirali'), noturar: tr('Noturar') };
     const gfa = this.last?.d.gfa ?? 0, resNet = this.last?.d.resNet ?? 0;
-    body.append(h('div', { class: 'field', id: 'compBox' }, h('span', { class: 'lb' }, 'Koʻchirish xarajati (dastlabki baho)'),
-      h('div', { class: 'seg full', role: 'group' }, ...([['orq781', '781: olib qoʻyish'], ['orq1149', '1149: renovatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': c.regime === k, 'data-regime': k, onclick: () => set({ regime: k }) }, t))),
-      grid(num('priceFlat', 'Kvartira, $/m²', 10), num('priceHouse', 'Hovli, $/m²', 10), num('priceNonres', 'Noturar, $/m²', 10), h('button', { class: 'btn', id: 'compMon', style: 'align-self:end', onclick: () => void this.loadMonitoring() }, 'Monitoringdan')),
-      h('span', { class: 'muted', id: 'compSrc' }, c.priceSource ? `Manba: ${c.priceSource}` : 'Manba: kiritilmagan'),
-      this.monitorMsg ? h('p', { class: 'note' }, this.monitorMsg) : '',
-      grid(num('rentRate', 'Ijara, $/m²·oy', 0.5), num('rentMonths', 'Ijara, oy'), num('movingPerHh', 'Koʻchish, $/xonadon', 10), num('profitRate', 'Foyda, $/m²·yil', 5)),
-      h('table', { class: 'reg', id: 'compTab', style: 'font-size:12px' },
-        h('thead', {}, h('tr', {}, h('th', {}, 'Toifa (bino)'), h('th', {}, 'm²'), h('th', {}, 'Xon.'), h('th', {}, '$'))),
-        h('tbody', {},
-          ...R.rows.map(r => h('tr', {}, h('td', {}, `${NAME[r.kind]} (${r.n})`), h('td', { class: 'num' }, fmt(Math.round(r.floorArea))), h('td', { class: 'num' }, r.households ? String(r.households) : '—'), h('td', { class: 'num' }, R.missing.includes(r.kind) ? 'narx yoʻq' : usd(r.market)))),
-          h('tr', {}, h('td', { colspan: 3 }, `Noqulaylik uchun ${R.pct} % (${c.regime === 'orq1149' ? '1149: 41-modda' : '781: 23-modda'})`), h('td', { class: 'num' }, usd(R.inconvenience))),
-          h('tr', {}, h('td', { colspan: 3 }, `Vaqtinchalik ijara (${c.rentMonths} oy) va koʻchish`), h('td', { class: 'num' }, c.rentRate || c.movingPerHh ? usd(R.rent + R.moving) : 'kiritilmagan')),
-          h('tr', {}, h('td', { colspan: 3 }, `Noturar: boy berilgan foyda (${R.profitYears} yil)`), h('td', { class: 'num' }, c.profitRate ? usd(R.profit) : 'kiritilmagan')),
-          h('tr', {}, h('td', { colspan: 3 }, h('b', {}, 'Jami')), h('td', { class: 'num' }, h('b', {}, usd(R.total)))))),
-      h('div', { class: 'ctxst' }, gfa ? `Loyiha GFA ning har m² iga ${fmt(R.total / gfa, 0)} $. ` : '',
-        `Qaytariladigan turar joy maydoni ≈ ${fmt(Math.round(R.resArea))} m² (${R.households} xonadon)${resNet ? ` — loyiha kvartiralarining ${fmt(R.resArea / resNet * 100, 0)} %` : ''}${c.regime === 'orq1149' ? ' (42-modda: beriladigan maydon avvalgisidan kam boʻlmasligi kerak)' : ' (25-modda: teng qiymatli, ijtimoiy normadan kam boʻlmagan)'}.`),
-      R.missing.length ? h('p', { class: 'warn' }, `Narx kiritilmagan: ${R.missing.map(k => NAME[k]).join(', ')} — jami toʻliq emas.`) : '',
-      h('p', { class: 'note' }, 'Bu baholovchi xulosasi emas (OʻRQ-781, 29-modda: qiymatni baholovchi tashkilot belgilaydi). Bozor qiymati — eʼlonlardagi soʻralgan narx yoki kiritilgan qiymat × maydon; maydon OSM dogʻi va balandligidan taxmin, kvartirada ×' + fmt(c.flatNet, 2) + '. Yerga boʻlgan huquq va dov-daraxtlar alohida hisoblanmagan (hovli narxida yer bor). Yangi uy 24 oydan kechiksa — kuniga 0,05 % penya (781: 24-modda; 1149: 43–44-moddalar). OʻRQ-1149 12.12.2026 dan kuchga kiradi; avariya uyi uchun 4/5 rozilik shart emas (36-modda).')));
+    body.append(h('details', { class: 'how', id: 'compBox', open: this.compOpen }, h('summary', { onclick: () => { this.compOpen = !this.compOpen; } }, svgIcon(IC.info), tr('Koʻchirish xarajati (dastlabki baho)')),
+      h('div', { class: 'col' },
+        h('div', { class: 'seg sm', role: 'group' }, ...([['orq781', '781: olib qoʻyish'], ['orq1149', '1149: renovatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': c.regime === k, 'data-regime': k, onclick: () => set({ regime: k }) }, t))),
+        h('div', { class: 'row3' }, num('priceFlat', tr('Kvartira'), '$/m²', 10), num('priceHouse', tr('Hovli'), '$/m²', 10), num('priceNonres', tr('Noturar'), '$/m²', 10)),
+        h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', id: 'compMon', onclick: () => void this.loadMonitoring() }, tr('Monitoringdan')), h('span', { class: 't-small', id: 'compSrc' }, c.priceSource ? `${tr('Manba')}: ${c.priceSource}` : tr('Manba: kiritilmagan'))),
+        this.monitorMsg ? h('div', { class: 'note' }, this.monitorMsg) : '',
+        h('div', { class: 'row2' }, num('rentRate', tr('Ijara'), '$/m²·oy', 0.5), num('rentMonths', tr('Ijara'), tr('oy')), num('movingPerHh', tr('Koʻchish'), '$/xon.', 10), num('profitRate', tr('Foyda'), '$/m²·yil', 5)),
+        h('table', { class: 'tbl', id: 'compTab' },
+          h('thead', {}, h('tr', {}, h('th', {}, tr('Toifa')), h('th', {}, 'm²'), h('th', {}, tr('Xon.')), h('th', {}, '$'))),
+          h('tbody', {},
+            ...R.rows.map(r => h('tr', {}, h('td', {}, `${NAME[r.kind]} (${r.n})`), h('td', { class: 'num' }, fmt(Math.round(r.floorArea))), h('td', { class: 'num' }, r.households ? String(r.households) : '—'), h('td', { class: 'num' }, R.missing.includes(r.kind) ? tr('narx yoʻq') : usd(r.market)))),
+            h('tr', {}, h('td', { colspan: 3 }, `${tr('Noqulaylik uchun')} ${R.pct} % (${c.regime === 'orq1149' ? '1149: 41-modda' : '781: 23-modda'})`), h('td', { class: 'num' }, usd(R.inconvenience))),
+            h('tr', {}, h('td', { colspan: 3 }, `${tr('Vaqtinchalik ijara')} (${c.rentMonths} ${tr('oy')}) ${tr('va koʻchish')}`), h('td', { class: 'num' }, c.rentRate || c.movingPerHh ? usd(R.rent + R.moving) : tr('kiritilmagan'))),
+            h('tr', {}, h('td', { colspan: 3 }, `${tr('Noturar: boy berilgan foyda')} (${R.profitYears} ${tr('yil')})`), h('td', { class: 'num' }, c.profitRate ? usd(R.profit) : tr('kiritilmagan'))),
+            h('tr', {}, h('td', { colspan: 3 }, h('b', {}, tr('Jami'))), h('td', { class: 'num' }, h('b', {}, usd(R.total)))))),
+        h('span', { class: 't-small' }, gfa ? `${tr('Loyiha GFA ning har m² iga')} ${fmt(R.total / gfa, 0)} $. ` : '',
+          `${tr('Qaytariladigan turar joy maydoni')} ≈ ${fmt(Math.round(R.resArea))} m² (${R.households} ${tr('xonadon')})${resNet ? ` — ${tr('loyiha kvartiralarining')} ${fmt(R.resArea / resNet * 100, 0)} %` : ''}${c.regime === 'orq1149' ? ' (42-modda: ' + tr('beriladigan maydon avvalgisidan kam boʻlmasligi kerak') + ')' : ' (25-modda: ' + tr('teng qiymatli, ijtimoiy normadan kam boʻlmagan') + ')'}.`),
+        R.missing.length ? h('div', { class: 'note warn' }, `${tr('Narx kiritilmagan')}: ${R.missing.map(k => NAME[k]).join(', ')} — ${tr('jami toʻliq emas')}.`) : '',
+        h('span', { class: 't-small' }, tr('Bu baholovchi xulosasi emas (OʻRQ-781, 29-modda: qiymatni baholovchi tashkilot belgilaydi).') + ' ' + tr('Bozor qiymati — eʼlonlardagi soʻralgan narx yoki kiritilgan qiymat × maydon; maydon OSM dogʻi va balandligidan taxmin') + `, ${tr('kvartirada')} ×${fmt(c.flatNet, 2)}. ` + tr('Yerga boʻlgan huquq va dov-daraxtlar alohida hisoblanmagan (hovli narxida yer bor). Yangi uy 24 oydan kechiksa — kuniga 0,05 % penya (781: 24-modda; 1149: 43–44-moddalar). OʻRQ-1149 12.12.2026 dan kuchga kiradi; avariya uyi uchun 4/5 rozilik shart emas (36-modda).')))));
   }
 
   private yashilPanel(body: HTMLElement): void {
@@ -2185,33 +2265,9 @@ export class Editor {
   }
 
   private panelBody(s: StepDef, body: HTMLElement): void {
-    const doc = this.store.doc, fr = frame(doc.origin);
+    const doc = this.store.doc;
     if (s.id === 'hudud') this.hududPanel(body);
-    if (s.id === 'uchastka') {
-      const area = this.last?.d.siteHa ?? 0;
-      const w = h('input', { type: 'number', min: 10, max: 2000, value: 120, id: 'rw' }) as HTMLInputElement;
-      const hh = h('input', { type: 'number', min: 10, max: 2000, value: 100, id: 'rh' }) as HTMLInputElement;
-      const drawing = this.tool instanceof PolygonTool;
-      body.append(
-        doc.site ? h('div', { class: 'row' }, h('span', { class: 'lb grow' }, 'Uchastka maydoni'), h('b', { class: 'num', id: 'siteHa' }, `${fmt(area, 2)} ga`)) : h('p', { class: 'note' }, 'Uchastka hali chizilmagan.'),
-        h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawSite', onclick: () => drawing ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
-          this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.setTool(null); this.scene.frameDoc(this.store.doc);
-        }, toast)) }, ...(drawing ? ['Chizishni toʻxtatish'] : icl(IC.pencil, doc.site ? 'Qaytadan chizish' : 'Sahnada chizish'))),
-        this.ctxMgr.current && doc.context.loaded && doc.context.layers.roads ? h('button', { class: this.tool instanceof ClickTool ? 'btn primary' : 'btn', id: 'pickBlock', onclick: () => this.tool instanceof ClickTool ? this.setTool(null) : this.setTool(new ClickTool('Yoʻllar orasidagi kvartal ichini bosing · Esc — bekor', xy => this.pickBlock(xy))) }, this.tool instanceof ClickTool ? 'Aniqlashni toʻxtatish' : '⌖ Kvartalni bosib aniqlash') : '',
-        this.ctxMgr.current && doc.context.loaded ? h('div', { class: 'seg full', role: 'group', 'aria-label': 'Kvartal chegarasi' },
-          ...([['mayda', 'Mayda: barcha koʻchalar'], ['yirik', 'Yirik: asosiy koʻchalar']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.blockMode === k, 'data-bm': k, onclick: () => { this.blockMode = k; this.renderPanel(); } }, t))) : '',
-        h('div', { class: 'lb' }, 'yoki oʻlcham bilan, markazda'),
-        h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Eni, m'), w), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Boʻyi, m'), hh),
-          h('button', { class: 'btn', id: 'rectSite', style: 'align-self:end', onclick: () => {
-            const a = Number(w.value), b = Number(hh.value); if (!(a >= 10 && b >= 10)) { toast('Kamida 10 m'); return; }
-            const m = this.scene.viewExtent().c;   // ekran markazida (xarita surilgan boʻlsa ham)
-            const r: XY[] = [[-a / 2, -b / 2], [a / 2, -b / 2], [a / 2, b / 2], [-a / 2, b / 2]].map(([x, y]) => [x + m[0], y + m[1]] as XY);
-            this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.scene.frameDoc(this.store.doc);
-          } }, 'Qoʻyish')),
-        doc.site ? h('button', { class: 'btn danger', onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, 'Uchastkani oʻchirish') : '',
-        h('p', { class: 'note' }, 'Chizish: bosing — nuqta, birinchi nuqtani bosing yoki Enter — yopish. Sudrab kamerani aylantirasiz.'),
-        doc.site ? h('p', { class: 'note', id: 'siteEditHint' }, 'Tahrirlash: burchaklarni sudrang · oraliqdagi kichik nuqta — yangi burchak · burchakni ikki marta bosish — oʻchirish.') : '');
-    }
+    if (s.id === 'uchastka') this.uchastkaPanel(body);
     if (s.id === 'hajm') this.hajmPanel(body);
     if (s.id === 'kocha') this.kochaPanel(body);
     if (s.id === 'quyosh') this.quyoshPanel(body);
@@ -2489,6 +2545,5 @@ export class Editor {
   }
 }
 
-const normChip = (p: Profile) => { const n = checkProfile(p).length; return h('span', { class: 'chip', 'data-s': p.cat === 'piyoda' ? 'review' : n ? 'fail' : 'pass', title: n ? `${n} ta chetlanish` : 'ShNQ 2.07.01-23 ga mos' }, p.cat === 'piyoda' ? 'hisob boʻyicha' : n ? `${n} chetlanish` : 'ShNQ ✓'); };
 const dist = (a: LngLat, b: LngLat) => { const f = frame(a).toLocal(b); return Math.hypot(f[0], f[1]); };
 const safe = (s: string) => s.replace(/[^\p{L}\p{N}_ -]+/gu, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'loyiha';

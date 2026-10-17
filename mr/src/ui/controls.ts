@@ -5,7 +5,7 @@
  */
 import { h, svgIcon } from './dom';
 
-type Attrs = Record<string, string | number | boolean | null | undefined>;
+type Attrs = Record<string, string | number | boolean | null | undefined | ((...a: any[]) => void)>;
 
 /** Belgilash: [✓] matn — ichida yashirin <input type=checkbox> */
 export function check(label: string | Node, attrs: Attrs & { checked?: boolean; onchange?: (v: boolean) => void }): HTMLLabelElement {

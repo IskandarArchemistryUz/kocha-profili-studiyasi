@@ -11,8 +11,8 @@ test('koʻcha chiziladi → ikki kvartal → zona → yashil hisob', async ({ pa
   await newSite(page);
   await page.click('[data-step=kocha]');
   await expect(page.locator('.panel h2')).toHaveText('Koʻchalar');
-  await page.click('[data-prof=turar-20]');
-  await page.click('#drawStreet');                       // reja koʻrinishiga oʻtadi
+  await page.click('[data-ktab=prof]'); await page.click('[data-prof=turar-20]');
+  await page.click('[data-ktab=chiz]'); await page.click('#drawStreet');                       // reja koʻrinishiga oʻtadi
   const box = (await page.locator('#scene canvas').boundingBox())!;
   const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   await page.mouse.click(cx, cy - box.height * 0.36);
@@ -91,7 +91,7 @@ test('parsellar: boʻlish, funksiya (maktab), kesish, butun kvartal; reyestrda m
 
 test('koʻcha: ikki marta bosish va «Chizishni tugatish» chiziqni saqlaydi', async ({ page }) => {
   await newSite(page);
-  await page.click('[data-step=kocha]');
+  await page.click('[data-step=kocha]'); await page.click('[data-ktab=chiz]');
   await page.click('#drawStreet');
   const box = (await page.locator('#scene canvas').boundingBox())!;
   const cx = box.x + box.width / 2, cy = box.y + box.height / 2;

@@ -506,3 +506,33 @@ body{background:var(--bg)}
 [data-theme=dark] .hint,[data-theme=dark] .tip{background:#3a3937}
 [data-theme=dark] .planbox,[data-theme=dark] .gridgen .gtile .th svg,[data-theme=dark] .alb-sheet{background:var(--surface)}
 [data-theme=dark] .btools{background:var(--glass)}
+
+/* ===== 2-bosqich: qadam panellari ichi (MR-Q1, MR-Kocha) ===== */
+.col{display:flex;flex-direction:column;gap:8px}
+button.secbig{width:100%;border:0;padding:10px 12px 6px;text-align:left;cursor:zoom-in;display:flex;flex-direction:column;gap:6px;font:inherit;color:var(--ink);background:var(--surface)}
+button.secbig:hover{box-shadow:var(--sh-card),inset 0 0 0 1.5px var(--sel)}
+.secbig .row{width:100%}
+.tile .th{display:block;line-height:0;width:100%}.tile .th svg{width:100%;height:auto;border-radius:6px;background:var(--surface)}
+.tile[aria-pressed=true] .th svg{box-shadow:0 0 0 1px rgba(255,255,255,.4)}
+.tiles.c4 .tile{padding:6px 3px;font-size:11px}
+.gcard2 .psec{margin:0;padding:0;background:var(--surface);border-radius:6px;overflow:hidden}.gcard2 .psec svg{display:block;width:100%;height:auto}
+.gcard2[aria-pressed=true] .psec{box-shadow:0 0 0 .5px var(--hairline)}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)}
+.li .sw{margin-right:2px}
+.ck .k{flex:1}
+.group .li.it{cursor:pointer}
+.how>summary{list-style:none}.how>summary::-webkit-details-marker{display:none}
+.how>summary::before{content:none}
+.how .col{padding-top:4px}
+.how .tbl td,.how .tbl th{padding:5px 4px}
+.unit .input[type=number]{appearance:textfield;-moz-appearance:textfield}
+.unit .input::-webkit-inner-spin-button,.unit .input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.sp-body .empty{align-self:stretch}
+.field .unit input,.unit .input{padding-right:34px;text-align:right}
+.row .btn.grow{min-width:0;white-space:normal;height:auto;min-height:var(--h-md);padding:6px 12px;line-height:1.2}
+.btn-block.btn-lg{white-space:normal;height:auto;min-height:var(--h-lg);padding:8px 14px;line-height:1.2}
+.secbig .secsvg svg{max-height:170px}
+.gcard2 .psec{height:46px}.gcard2 .psec svg{width:100%;height:100%}
+/* ds2 da yoʻq: tungi rejimda rangli izohlar matni (ds2.css ga koʻchirish uchun taklif) */
+[data-theme=dark] .note.warn{color:var(--warn)}[data-theme=dark] .note.bad{color:var(--bad)}[data-theme=dark] .note.ok{color:var(--ok)}
+@media (max-width:1180px){.kpibar .kpi span{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}}
