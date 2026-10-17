@@ -957,7 +957,7 @@ export class Scene3D {
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     plan.blocks.forEach((b, i) => {
       const n = (idx.get(b.blockKey) ?? 0) + 1; idx.set(b.blockKey, n);
-      const code = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`, use = tr(USE_LABEL[b.use] ?? useDef(b.use).name), ar = fmtA(b.area);
+      const code = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`, use = tr(USE_LABEL[b.use] ?? useDef(b.use).name), ar = tr(fmtA(b.area));
       const halo = hex(tint(ZONE_COL[b.use] ?? C.site, 0.45));
       if (i === this.selBlock) {
         // tanlangan: oq kartochka — toʻliq + UMN, qavat

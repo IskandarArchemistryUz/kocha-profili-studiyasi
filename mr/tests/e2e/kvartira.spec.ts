@@ -18,7 +18,7 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await expect(page.locator('#facCheck')).toContainText('mos emas');   // panorama — yorugʻlik 1:4,5 dan koʻp
   await page.click('[data-win=klassik]');
   await page.click('[data-step=kvartira]');
-  await expect(page.locator('#aptPlan')).toContainText('kvartira');
+  await expect(page.locator('#aptPlan')).toContainText('xonadon');
   const n0 = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));
   expect(n0).toBeGreaterThan(50);
   // faqat 1 xonali → kvartiralar koʻpayadi
@@ -27,7 +27,7 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   expect(n1).toBeGreaterThan(n0);
   await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z');
   await page.click('#aptGo');
-  await expect(page.locator('#aptSt')).toContainText('kvartira mos', { timeout: 90000 });
+  await expect(page.locator('#aptSt')).toContainText('xonadon mos', { timeout: 90000 });
   await page.click('[data-am=west]');
   await expect(page.locator('#aptSt')).toContainText('gʻarb qoidasi');
   // 3D kvartiralar: turi / insolyatsiya; oʻlcham; qavat slideri
@@ -72,7 +72,7 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await expect(page.locator('#aptPlan b')).toHaveText(new RegExp(String(nBefore).replace(/(\d)(?=(\d{3})+$)/g, '$1.?')));
   await page.locator('#planBox').scrollIntoViewIfNeeded();
   await page.click('#aptGo');   // tahrirdan keyin insolyatsiya natijasi eskirgan — qayta hisoblash
-  await expect(page.locator('#aptSt')).toContainText('kvartira mos', { timeout: 90000 });
+  await expect(page.locator('#aptSt')).toContainText('xonadon mos', { timeout: 90000 });
   if (shots) await page.screenshot({ path: `${shots}/apt_reja.png` });
   await page.locator('#aptFloor').fill('3'); await page.locator('#aptFloor').dispatchEvent('input');
   if (shots) await page.screenshot({ path: `${shots}/apt_qavat.png` });
