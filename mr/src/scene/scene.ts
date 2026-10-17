@@ -11,7 +11,7 @@ import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
 import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from './context3d';
 import { projectStreetsGeo } from './streets3d';
-import { computePlan } from '../core/plan';
+import { computePlan, interiorPoint } from '../core/plan';
 import { profileById } from '../core/profiles';
 import { MATS, roofParts } from '../core/roof';
 import { winDef, balAt, strSeed, type Bal, type BalPat } from '../core/facade';
@@ -20,7 +20,7 @@ import { MOD_W } from '../core/apartments';
 import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
 import { landscape } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
-import { USES } from '../core/uses';
+import { USES, useDef } from '../core/uses';
 
 export const ZONE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.color]));
 const tint = (c: number, k: number) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, f = (x: number) => Math.round(x + (255 - x) * k); return (f(r) << 16) | (f(g) << 8) | f(b); };
@@ -538,6 +538,17 @@ export class Scene3D {
         else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
       });
       rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
+      // kvartal / parsel yozuvi: nomi (K-2 yoki K-2.3), funksiyasi, maydoni — har koʻrinishda; kichik kvartalda (ekranda yozuvdan tor) yashiriladi
+      if (this.blockLabels) {
+        const idx = new Map<number, number>();
+        plan.blocks.forEach(b => {
+          const n = (idx.get(b.blockKey) ?? 0) + 1; idx.set(b.blockKey, n);
+          const name = b.parcelId ? `K-${b.blockKey + 1}.${n}` : `K-${b.blockKey + 1}`;
+          const ar = b.area >= 2000 ? `${(b.area / 1e4).toFixed(2).replace('.', ',')} ga` : `${Math.round(b.area).toLocaleString('ru-RU')} m²`;
+          const sp = labelCard([name, useDef(b.use).name, ar]), c = interiorPoint(b.rings);
+          sp.position.set(c[0], this.H(c[0], c[1]) + 0.6, -c[1]); sp.userData.layer = 2; sp.userData.minExt = minExtent(b.rings[0]); this.world.add(sp);
+        });
+      }
       // hovlilar: trotuar, maysa, yoʻlaklar, maydonchalar, daraxtlar
       if (doc.settings.yards) {
         const alb = this.album, plainS = st === 'arctic' || st === 'minimal';
@@ -879,12 +890,15 @@ export class Scene3D {
   private fitSprites(cam: THREE.Camera): void {
     const H = this.host.clientHeight || 1, P = cam as THREE.PerspectiveCamera & THREE.OrthographicCamera;
     const k = P.isOrthographicCamera ? (P.top - P.bottom) / (P.zoom || 1) / H : 2 / (P.projectionMatrix.elements[5] * H);
-    const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) o.scale.set(px[0] * k, px[1] * k, 1); };
+    const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) { o.scale.set(px[0] * k, px[1] * k, 1); const me = o.userData.minExt as number | undefined; if (me != null) o.visible = me / k >= px[0] * 0.85; } };
     this.world.children.forEach(fit); this.prev.children.forEach(fit); this.explodeLabels.forEach(fit);
   }
 
   /* ---------- portlatilgan qatlamlar ---------- */
   exploded = false;
+  /** kvartal va parsel yozuvlari (nomi, funksiyasi, maydoni) */
+  blockLabels = true;
+  setBlockLabels(on: boolean): void { this.blockLabels = on; if (this.lastDoc) this.update(this.lastDoc); }
   /** binolar ustida qavatlar soni */
   floorLabels = false;
   setFloorLabels(on: boolean): void { this.floorLabels = on; if (this.lastDoc) this.update(this.lastDoc); }
@@ -1162,6 +1176,32 @@ function labelSprite(text: string, badge = false): THREE.Sprite {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: badge, sizeAttenuation: false }));
   const k = badge ? 0.5 : 0.55; sp.userData.px = [c.width * k, c.height * k]; sp.center.set(badge ? 0.5 : 0, 0); sp.renderOrder = 50;
   return sp;
+}
+
+/** Koʻp qatorli yorliq (kvartal kartochkasi): birinchi qator qalin; ekranda doimiy oʻlchamda, markazi nuqtada */
+function labelCard(lines: string[]): THREE.Sprite {
+  const c = document.createElement('canvas'), g = c.getContext('2d')!, fs = 22, lh = 27, pad = 12;
+  const font = (i: number) => `${i === 0 ? 700 : 500} ${fs}px Archivo, system-ui, sans-serif`;
+  let w = 0; lines.forEach((t, i) => { g.font = font(i); w = Math.max(w, g.measureText(t).width); });
+  c.width = Math.ceil(w) + pad * 2; c.height = lh * lines.length + pad;
+  g.fillStyle = 'rgba(255,255,255,0.9)'; g.strokeStyle = 'rgba(29,29,27,0.55)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(1, 1, c.width - 2, c.height - 2, 8); g.fill(); g.stroke();
+  g.textBaseline = 'middle'; g.textAlign = 'center';
+  lines.forEach((t, i) => { g.font = font(i); g.fillStyle = i === 0 ? '#1d1d1b' : '#4a4843'; g.fillText(t, c.width / 2, pad / 2 + lh * (i + 0.5)); });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false }));
+  sp.userData.px = [c.width * 0.5, c.height * 0.5]; sp.center.set(0.5, 0.5); sp.renderOrder = 49;
+  return sp;
+}
+/** Halqaning eng tor kengligi (OBB qisqa tomoni), m — yozuv sigʻish tekshiruvi uchun */
+function minExtent(r: XY[]): number {
+  let best = Infinity;
+  for (let i = 0; i < r.length; i++) {
+    const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+    let lo = Infinity, hi = -Infinity, lo2 = Infinity, hi2 = -Infinity;
+    for (const p of r) { const t = p[0] * u[0] + p[1] * u[1], v = -p[0] * u[1] + p[1] * u[0]; lo = Math.min(lo, t); hi = Math.max(hi, t); lo2 = Math.min(lo2, v); hi2 = Math.max(hi2, v); }
+    best = Math.min(best, hi - lo, hi2 - lo2);
+  }
+  return best;
 }
 
 /** depth — binolar orqasida yashirinsin (reja chiziqlari); chizilayotgan shakl (preview) uchun false */

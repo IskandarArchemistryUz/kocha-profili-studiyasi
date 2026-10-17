@@ -279,10 +279,13 @@ export class Editor {
   private layPop(): HTMLElement {
     const fl = h('input', { type: 'checkbox', checked: this.scene.floorLabels, id: 'flOn' }) as HTMLInputElement;
     fl.onchange = () => this.scene.setFloorLabels(fl.checked);
+    const bl = h('input', { type: 'checkbox', checked: this.scene.blockLabels, id: 'blOn' }) as HTMLInputElement;
+    bl.onchange = () => this.scene.setBlockLabels(bl.checked);
     const opt = (k: typeof this.mapKind, t: string, note: string) => h('button', { 'data-map': k, 'aria-pressed': this.mapKind === k, disabled: this.mapBusy, onclick: () => void this.runMap(k) }, h('b', {}, t), h('small', {}, note));
     return h('div', { class: 'popbody' },
-      h('div', { class: 'lb' }, 'Binolar'),
-      h('label', { class: 'row', style: 'font-size:13px' }, fl, 'Qavatlar soni (raqam)'),
+      h('div', { class: 'lb' }, 'Yozuvlar'),
+      h('label', { class: 'row', style: 'font-size:13px' }, bl, 'Kvartal va parsel: nomi, funksiyasi, maydoni'),
+      h('label', { class: 'row', style: 'font-size:13px' }, fl, 'Qavatlar soni (binolar ustida)'),
       h('div', { class: 'lb' }, 'Yer sathi xaritasi'),
       h('div', { class: 'opts' },
         opt('yoq', 'Yoʻq', 'xaritani olib tashlash'),

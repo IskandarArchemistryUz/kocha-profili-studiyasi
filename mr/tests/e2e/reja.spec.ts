@@ -116,6 +116,12 @@ test('koʻcha toʻri generatsiyasi: preset, variant, qoʻllash, olib tashlash', 
   const n = await page.evaluate(() => (window as any).__mr.store.doc.streets.filter((s: any) => s.gen === 'grid').length);
   expect(n).toBeGreaterThanOrEqual(6);
   expect(await page.evaluate(() => (window as any).__mr.plan().blocks.length)).toBeGreaterThanOrEqual(12);
+  // har kvartalda yozuv (nomi, funksiyasi, maydoni); Qatlamlar → oʻchirilsa yoʻqoladi
+  const labels = () => page.evaluate(() => { const ed = (window as any).__mr; return { n: ed.scene.world.children.filter((o: any) => o.isSprite && o.userData.minExt != null).length, b: ed.plan().blocks.length }; });
+  const L = await labels(); expect(L.n).toBe(L.b);
+  await page.evaluate(() => (window as any).__mr.scene.setBlockLabels(false));
+  expect((await labels()).n).toBe(0);
+  await page.evaluate(() => (window as any).__mr.scene.setBlockLabels(true));
   // qoʻlda chizilgan koʻcha qayta qoʻllashda qoladi
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); ed.store.dispatch({ type: 'addStreet', axis: [[o[0] - 50 / mx, o[1]], [o[0] + 50 / mx, o[1]]], profile: 'otish-8' }); });
   await page.click('[data-gpre=barselona]'); await page.click('#gridApply');
