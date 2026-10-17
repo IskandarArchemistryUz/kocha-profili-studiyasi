@@ -5,6 +5,8 @@
 import type { Project } from '../core/doc';
 import { sheetSvg, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetOpts, type Paper } from '../core/sheet';
 import { h, download, toast } from './dom';
+import { check, select } from './controls';
+import { tr } from '../i18n';
 
 const KEY = 'mr-sheet';
 function loadOpts(): SheetOpts {
@@ -22,7 +24,7 @@ export function downloadIllustrator(doc: Project, ctx: SheetCtx | null, o: Sheet
 export function openGraphics(doc: Project, ctx: SheetCtx | null): void {
   const o = loadOpts();
   const view = h('div', { class: 'gx-view', id: 'gxView' });
-  const info = h('div', { class: 'gx-info lb' });
+  const info = h('div', { class: 'gx-info t-small' });
   const side = h('aside', { class: 'gx-side' });
   const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
@@ -36,22 +38,21 @@ export function openGraphics(doc: Project, ctx: SheetCtx | null): void {
   };
 
   const seg = <T extends string | number | boolean>(items: [T, string][], get: () => T, set: (v: T) => void, id: string) => {
-    const box = h('div', { class: 'seg', role: 'group', id });
+    const box = h('div', { class: 'seg sm', role: 'group', id });
     const sync = () => box.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-pressed', String(items[i][0] === get())));
     items.forEach(([v, t]) => box.append(h('button', { 'data-v': String(v), onclick: () => { set(v); sync(); render(); } }, t)));
     sync(); return box;
   };
-  const chk = (k: keyof SheetOpts['show'], t: string) => { const c = h('input', { type: 'checkbox', checked: o.show[k], 'data-show': k }) as HTMLInputElement; c.onchange = () => { o.show[k] = c.checked; render(); }; return h('label', {}, c, t); };
+  const chk = (k: keyof SheetOpts['show'], t: string) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: o.show[k], 'data-show': k, onchange: v => { o.show[k] = v; render(); } }));
 
-  const kinds = h('div', { class: 'gx-kinds', role: 'radiogroup', 'aria-label': 'Varaq turi' });
+  const kinds = h('div', { class: 'tiles c2 gx-kinds', role: 'radiogroup', 'aria-label': tr('Varaq turi') });
   const syncKinds = () => kinds.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === o.kind)));
-  for (const k of SHEET_KINDS) kinds.append(h('button', { 'data-kind': k.id, title: k.note, onclick: () => { o.kind = k.id; syncKinds(); render(); } }, h('b', {}, k.name), h('small', {}, k.note)));
+  for (const k of SHEET_KINDS) kinds.append(h('button', { class: 'tile', 'data-kind': k.id, title: k.note, onclick: () => { o.kind = k.id; syncKinds(); render(); } }, h('b', {}, tr(k.name)), h('span', { class: 'sub' }, tr(k.note))));
   syncKinds();
 
-  const title = h('input', { type: 'text', value: o.title, placeholder: doc.name, id: 'gxTitle' }) as HTMLInputElement;
+  const title = h('input', { class: 'input', type: 'text', value: o.title, placeholder: doc.name, id: 'gxTitle', 'aria-label': tr('Sarlavha') }) as HTMLInputElement;
   title.oninput = () => { o.title = title.value; render(); };
-  const scaleSel = h('select', { id: 'gxScale' }, h('option', { value: '0' }, 'Avtomatik'), ...SCALES.map(s => h('option', { value: String(s) }, `1:${s}`))) as HTMLSelectElement;
-  scaleSel.value = String(o.scale); scaleSel.onchange = () => { o.scale = +scaleSel.value; render(); };
+  const scaleSel = select({ id: 'gxScale', 'aria-label': tr('Masshtab'), onchange: v => { o.scale = +v; render(); } }, [{ value: '0', label: tr('Avtomatik'), selected: !o.scale }, ...SCALES.map(sc => ({ value: String(sc), label: `1:${sc}`, selected: o.scale === sc }))]);
 
   const png = (dpi: number) => {
     const img = new Image(), url = URL.createObjectURL(new Blob([last.svg], { type: 'image/svg+xml' }));
@@ -66,28 +67,27 @@ export function openGraphics(doc: Project, ctx: SheetCtx | null): void {
   };
 
   side.append(
-    h('div', { class: 'gx-head' }, h('div', { class: 'lb' }, 'Grafika'), h('h2', {}, 'Varaqlar')),
-    h('div', { class: 'lb' }, 'Varaq turi'), kinds,
-    h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Sarlavha'), title),
-    h('div', { class: 'gx-two' },
-      h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Masshtab'), scaleSel),
-      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Format'), seg((['A4', 'A3', 'A2', 'A1'] as Paper[]).map(p => [p, p] as [Paper, string]), () => o.paper, v => { o.paper = v; }, 'gxPaper'))),
-    seg([[true, 'Albom'], [false, 'Kitob']], () => o.landscape, v => { o.landscape = v; }, 'gxOrient'),
-    h('div', { class: 'lb' }, 'Bezaklar'),
-    h('div', { class: 'chk' }, chk('title', 'Sarlavha'), chk('scaleBar', 'Masshtab chizgʻichi'), chk('north', 'Shimol'), chk('legend', 'Shartli belgilar'), chk('frame', 'Ramka'), chk('grid', 'Koordinata toʻri')),
-    h('div', { class: 'lb' }, 'Qatlamlar'),
-    h('div', { class: 'chk' }, chk('context', 'Atrof (OSM)'), chk('trees', 'Daraxtlar'), chk('labels', 'Yozuvlar, qavatlar'), chk('demolished', 'Buziladigan binolar')),
-    h('div', { class: 'gx-actions' },
-      h('button', { class: 'btn primary', id: 'gxSvg', onclick: () => download(`${safe(doc.name)}_${o.kind}.svg`, last.svg, 'image/svg+xml') }, 'SVG (qatlamlar bilan)'),
-      h('button', { class: 'btn', id: 'gxAi', onclick: () => downloadIllustrator(doc, ctx, o) }, 'Adobe Illustrator uchun (SVG, qatlamlar)'),
-      h('div', { class: 'row' }, h('button', { class: 'btn grow', id: 'gxPng', onclick: () => png(150) }, 'PNG 150 dpi'), h('button', { class: 'btn grow', onclick: () => png(300) }, 'PNG 300 dpi'))),
-    h('p', { class: 'note' }, 'SVG haqiqiy oʻlchamda (mm). «Illustrator uchun» faylini Illustrator da Fayl → Ochish bilan oching: atrof, koʻchalar, binolar, yozuvlar — alohida qatlamlar (Layers). Inkscape oddiy SVG ni ham qatlam bilan ochadi. Masshtab «avtomatik» boʻlsa — uchastka sigʻadigan eng yirik standart masshtab tanlanadi.'),
+    h('div', { class: 'gx-head' }, tr('Grafika') !== tr('Varaqlar') ? h('span', { class: 't-small' }, tr('Grafika')) : '', h('h2', { class: 't-title' }, tr('Varaqlar'))),
+    h('div', { class: 'glabel' }, h('span', {}, tr('Varaq turi'))), kinds,
+    h('div', { class: 'field' }, h('label', { for: 'gxTitle' }, tr('Sarlavha')), title),
+    h('div', { class: 'row2' },
+      h('div', { class: 'field' }, h('label', { for: 'gxScale' }, tr('Masshtab')), scaleSel),
+      h('div', { class: 'field' }, h('label', {}, tr('Format')), seg((['A4', 'A3', 'A2', 'A1'] as Paper[]).map(p => [p, p] as [Paper, string]), () => o.paper, v => { o.paper = v; }, 'gxPaper'))),
+    seg([[true, tr('Albom')], [false, tr('Kitob')]], () => o.landscape, v => { o.landscape = v; }, 'gxOrient'),
+    h('div', { class: 'glabel' }, h('span', {}, tr('Bezaklar'))),
+    h('div', { class: 'group' }, chk('title', 'Sarlavha'), chk('scaleBar', 'Masshtab chizgʻichi'), chk('north', 'Shimol'), chk('legend', 'Shartli belgilar'), chk('frame', 'Ramka'), chk('grid', 'Koordinata toʻri')),
+    h('div', { class: 'glabel' }, h('span', {}, tr('Qatlamlar'))),
+    h('div', { class: 'group' }, chk('context', 'Atrof (OSM)'), chk('trees', 'Daraxtlar'), chk('labels', 'Yozuvlar, qavatlar'), chk('demolished', 'Buziladigan binolar')),
+    h('button', { class: 'btn btn-primary btn-sm btn-block', id: 'gxSvg', onclick: () => download(`${safe(doc.name)}_${o.kind}.svg`, last.svg, 'image/svg+xml') }, tr('SVG (qatlamlar bilan)')),
+    h('button', { class: 'btn btn-sm btn-block', id: 'gxAi', onclick: () => downloadIllustrator(doc, ctx, o) }, tr('Adobe Illustrator uchun (SVG, qatlamlar)')),
+    h('div', { class: 'row2' }, h('button', { class: 'btn btn-sm', id: 'gxPng', onclick: () => png(150) }, 'PNG 150 dpi'), h('button', { class: 'btn btn-sm', onclick: () => png(300) }, 'PNG 300 dpi')),
+    h('span', { class: 't-small' }, tr('SVG haqiqiy oʻlchamda (mm). «Illustrator uchun» faylini Illustrator da Fayl → Ochish bilan oching: atrof, koʻchalar, binolar, yozuvlar — alohida qatlamlar (Layers). Inkscape oddiy SVG ni ham qatlam bilan ochadi. Masshtab «avtomatik» boʻlsa — uchastka sigʻadigan eng yirik standart masshtab tanlanadi.')),
   );
 
-  const wrap = h('div', { class: 'gx', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Grafika muharriri' },
+  const wrap = h('div', { class: 'gx', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Grafika muharriri') },
     side,
     h('div', { class: 'gx-main' },
-      h('div', { class: 'gx-bar' }, info, h('span', { class: 'spacer' }), h('button', { class: 'btn', id: 'gxClose', onclick: close }, 'Yopish (Esc)')),
+      h('div', { class: 'gx-bar' }, info, h('span', { class: 'spacer' }), h('button', { class: 'btn btn-sm btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)'))),
       view));
   document.body.append(wrap);
   document.addEventListener('keydown', onKey);

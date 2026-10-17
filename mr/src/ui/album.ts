@@ -5,6 +5,8 @@
  * magnitli devor (modul chegarasiga tortiladi) va ikki tomondagi masofalar. Tahrir barcha turar qavatlarga qoʻllanadi.
  */
 import { h, toast, fmt, svgIcon, IC } from './dom';
+import { tr } from '../i18n';
+const CH_L = '<path d="M15 6l-6 6 6 6"/>', CH_R = '<path d="M9 6l6 6-6 6"/>';
 import { MOD_W, type SecPlan } from '../core/apartments';
 import { floorPlanSvg, floorGroups, floorTypeOf, buildingFloorsSvg, allPlansSvg, FLOOR_NAME, ROOM_LABEL, APT_FILL, type PlanOpts } from '../core/floorplan';
 import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, editRoomToApt, floorVariant, wallPreview, planChecks, type RulePlan, type EditResult, type RoomKind } from '../core/sectionplan';
@@ -31,7 +33,7 @@ export function openAlbum(o: AlbumOpts): void {
 
   const ov = h('div', { class: 'alb', id: 'album', role: 'dialog', 'aria-label': 'Qavat albomi' });
   const side = h('aside', { class: 'alb-side' }), bar = h('div', { class: 'alb-bar' }), host = h('div', { class: 'alb-plan', id: 'albPlan' }), info = h('section', { class: 'alb-info' });
-  const prevB = h('button', { class: 'btn ib', 'aria-label': 'Pastki qavat', id: 'albPrev', onclick: () => go(-1) }, '‹'), nextB = h('button', { class: 'btn ib', 'aria-label': 'Yuqori qavat', id: 'albNext', onclick: () => go(1) }, '›');
+  const prevB = h('button', { class: 'btn icon-btn', 'aria-label': tr('Pastki qavat'), id: 'albPrev', onclick: () => go(-1) }, svgIcon(CH_L)), nextB = h('button', { class: 'btn icon-btn', 'aria-label': tr('Yuqori qavat'), id: 'albNext', onclick: () => go(1) }, svgIcon(CH_R));
   ov.append(side, h('main', { class: 'alb-main' }, bar, h('div', { class: 'alb-book' }, prevB, h('div', { class: 'alb-sheet' }, host, info), nextB)));
   document.body.append(ov);
 
@@ -61,21 +63,21 @@ export function openAlbum(o: AlbumOpts): void {
         h('span', { class: 'alb-fmark', style: `background:${dirty.has(pl.bid) && floorTypeOf(pl, f) === 'typical' ? '#f0b323' : pl.edited === 'ok' && floorTypeOf(pl, f) === 'typical' ? '#0a84ff' : 'transparent'}` })));
     }
     side.replaceChildren(
-      h('div', { class: 'alb-head' }, h('button', { class: 'btn ib', 'aria-label': 'Sahnaga qaytish', onclick: close }, '‹'), h('div', {}, h('small', { class: 'muted' }, '9-qadam'), h('b', {}, 'Kvartiralar'))),
-      h('div', { class: 'alb-gpbox' }, genplan()),
-      h('div', { class: 'alb-row' }, h('span', { class: 'lb' }, `${o.name(pl, si)} — kesim`), h('small', { class: 'muted' }, `${pl.f1} qavat`)),
+      h('div', { class: 'alb-head' }, h('button', { class: 'btn icon-btn btn-sm', 'aria-label': tr('Sahnaga qaytish'), onclick: close }, svgIcon(CH_L)), h('div', {}, h('span', { class: 't-small' }, tr('9-qadam')), h('br'), h('b', {}, tr('Kvartiralar')))),
+      h('div', { class: 'group flat alb-gpbox' }, genplan()),
+      h('div', { class: 'glabel' }, h('span', {}, `${o.name(pl, si)} — ${tr('kesim')}`), h('span', {}, `${pl.f1} ${tr('qavat')}`)),
       stack,
-      h('div', { class: 'alb-legend' }, ...[1, 2, 3, 4].map(k => h('span', {}, h('i', { style: `background:${APT_FILL[k]}` }), `${k}x`)), h('span', {}, h('i', { style: `background:${ROOM_COL.savdo}` }), 'savdo'), h('span', {}, h('i', { style: `background:${ROOM_COL.velo}` }), 'yashovchilar')));
+      h('div', { class: 'leg alb-legend' }, ...[1, 2, 3, 4].map(k => h('div', {}, h('i', { style: `background:${APT_FILL[k]}` }), h('span', {}, `${k}x`))), h('div', {}, h('i', { style: `background:${ROOM_COL.savdo}` }), h('span', {}, tr('savdo'))), h('div', {}, h('i', { style: `background:${ROOM_COL.velo}` }), h('span', {}, tr('yashovchilar')))));
     // yuqori panel
     const groups = floorGroups(pl), tf = typFloor(pl);
     bar.replaceChildren(
-      h('b', { class: 'alb-title' }, 'Qavat albomi'), h('span', { class: 'chip', style: 'background:var(--accent-soft)' }, o.name(pl, si)), h('small', { class: 'muted' }, `Varaq ${floor} / ${pl.f1} · ${FLOOR_NAME[ft]}`),
+      h('b', { class: 'alb-title' }, tr('Qavat albomi')), h('span', { class: 'chip' }, o.name(pl, si)), h('span', { class: 't-small' }, `${tr('Varaq')} ${floor} / ${pl.f1} · ${tr(FLOOR_NAME[ft])}`),
       h('span', { class: 'spacer' }),
-      editable ? h('div', { class: 'seg', role: 'group', 'aria-label': 'Asbob' }, ...([['tanlash', 'Tanlash'], ['devor', 'Devor chizish']] as const).map(([k, t]) => h('button', { 'aria-pressed': mode === k, id: `albMode-${k}`, onclick: () => { mode = k; sel = []; selRoom = -1; msg = ''; render(); } }, t))) : '',
-      h('button', { class: 'btn', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG'),
-      h('button', { class: 'btn', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), plan: planOf(pl) }), 'image/svg+xml') }, 'Barcha qavatlar'),
-      h('button', { class: 'btn', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); } }, 'Hamma binolar'),
-      h('button', { class: 'btn ib', id: 'albClose', 'aria-label': 'Yopish', onclick: close }, svgIcon(IC.x)));
+      editable ? h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Asbob') }, ...([['tanlash', 'Tanlash'], ['devor', 'Devor chizish']] as const).map(([k, t]) => h('button', { 'aria-pressed': mode === k, id: `albMode-${k}`, onclick: () => { mode = k; sel = []; selRoom = -1; msg = ''; render(); } }, tr(t)))) : '',
+      h('button', { class: 'btn btn-sm', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml') }, tr('Reja — SVG')),
+      h('button', { class: 'btn btn-sm', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), plan: planOf(pl) }), 'image/svg+xml') }, tr('Barcha qavatlar')),
+      h('button', { class: 'btn btn-sm', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); } }, tr('Hamma binolar')),
+      h('button', { class: 'btn icon-btn btn-sm btn-ghost', id: 'albClose', 'aria-label': tr('Yopish'), onclick: close }, svgIcon(IC.x)));
     prevB.toggleAttribute('disabled', floor <= 1); nextB.toggleAttribute('disabled', floor >= pl.f1);
     // reja
     const res = floorPlanSvg(pl, { scale: 100, dims: false, title: `${o.name(pl, si)} · ${floor}-qavat`, floor, ...o.opt(pl), plan: P, sel: editable ? sel : [], selRoom: editable ? selRoom : -1 });
@@ -115,27 +117,27 @@ export function openAlbum(o: AlbumOpts): void {
     const small = groups.reduce((t, g) => t + (g.to - g.from + 1) * variant(pl, g.from).apts.filter(a => a.rooms <= 2).length, 0);
     const ch = planChecks(P, (pl.z0 + pl.f1 - 1) * o.fh, pl.layout.mods), bad = ch.filter(c => c.ok === false);
     const one = sel.length === 1, two = sel.length === 2, sa = one ? P.apts[sel[0]] : null;
-    const btn = (id: string, t: string, on: () => void, dis = false, title = '') => h('button', { class: 'btn', id, disabled: dis, title, onclick: on }, t);
+    const btn = (id: string, t: string, on: () => void, dis = false, title = '') => h('button', { class: 'btn btn-sm', id, disabled: dis, title: tr(title), onclick: on }, tr(t));
     info.replaceChildren(
-      h('span', { class: 'lb' }, 'Shu qavatda'),
-      h('div', { class: 'alb-counts' }, ...[1, 2, 3, 4].map(n => h('div', {}, h('i', { style: `background:${APT_FILL[n]}` }), h('b', { class: 'num' }, k[n - 1]), h('small', {}, `${n} xonali`)))),
-      V.rooms.length ? h('small', { class: 'muted' }, V.rooms.map(q => ROOM_LABEL[q.kind]).filter((x, i, a) => a.indexOf(x) === i).join(' · ')) : '',
-      h('span', { class: 'lb' }, 'Tahrir'),
-      !editable ? h('p', { class: 'note' }, `${floor}-qavat rejasi tipik qavatdan kelib chiqadi (${FLOOR_NAME[ft]}). Tahrir uchun ${tf}-qavatni oching.`, h('button', { class: 'btn', style: 'margin-top:6px', onclick: () => { floor = tf; render(); } }, `${tf}-qavatga`))
-        : mode === 'devor' ? h('p', { class: 'note' }, 'Kvartira ustida yuring: devor koʻk — modul chegarasiga tortildi, toʻq sariq — erkin (0,1 m qadam). Bosing — kvartira ikkiga boʻlinadi. Ikki tomondagi masofa koʻrsatiladi.')
+      h('div', { class: 'glabel' }, h('span', {}, tr('Shu qavatda'))),
+      h('div', { class: 'row2 alb-counts' }, ...[1, 2, 3, 4].map(n => h('div', { class: 'group flat', style: 'padding:9px 12px' }, h('div', { class: 'kpi' }, h('b', {}, h('i', { style: `background:${APT_FILL[n]}` }), String(k[n - 1])), h('span', {}, `${n} ${tr('xonali')}`))))),
+      V.rooms.length ? h('div', { class: 'opts' }, h('b', {}, `${tr('Xonalar')}:`), ' ' + V.rooms.map(q => tr(ROOM_LABEL[q.kind])).filter((x, i, a) => a.indexOf(x) === i).join(' · ')) : '',
+      h('div', { class: 'glabel' }, h('span', {}, tr('Tahrir'))),
+      !editable ? h('div', { class: 'note' }, `${floor}-qavat rejasi tipik qavatdan kelib chiqadi (${FLOOR_NAME[ft]}). Tahrir uchun ${tf}-qavatni oching.`, h('button', { class: 'btn btn-sm', style: 'margin-top:6px;display:flex', onclick: () => { floor = tf; render(); } }, `${tf}-${tr('qavatga')}`))
+        : mode === 'devor' ? h('div', { class: 'note' }, 'Kvartira ustida yuring: devor koʻk — modul chegarasiga tortildi, toʻq sariq — erkin (0,1 m qadam). Bosing — kvartira ikkiga boʻlinadi. Ikki tomondagi masofa koʻrsatiladi.')
         : h('div', { class: 'alb-edit' },
-          sa ? h('div', { class: 'alb-selc' }, h('i', { style: `background:${APT_FILL[Math.min(4, sa.rooms)]}` }), h('b', {}, `${sa.rooms} xonali`), h('span', { class: 'num' }, `${fmt(sa.area * 0.85, 1)} m² · ${sa.mods.length} deraza`)) : two ? h('div', { class: 'alb-selc' }, h('b', {}, 'A va B tanlandi')) : h('p', { class: 'note' }, 'Kvartirani bosing; ikkinchisini ham — A va B.'),
-          h('div', { class: 'row wrap' }, btn('albMerge', 'Birlashtirish', () => apply(editMerge(P, sel[0], sel[1], pl.layout.mods, o.size)), !two), btn('albSplit', 'Ikkiga boʻlish', () => apply(editSplit(P, sel[0], pl.layout.mods, o.size)), !one)),
-          h('div', { class: 'row wrap' }, btn('albToB', 'Devor → B', () => apply(editShift(P, sel[0], sel[1], MOD_W, pl.layout.mods, o.size)), !two, 'A bir modulga kattalashadi'), btn('albToA', 'Devor → A', () => apply(editShift(P, sel[1], sel[0], MOD_W, pl.layout.mods, o.size)), !two, 'B bir modulga kattalashadi')),
-          h('div', { class: 'row wrap' }, ...[1, 2, 3, 4].map(n => btn(`albR${n}`, `${n}x`, () => apply(editRooms(P, sel[0], n, pl.layout.mods)), !one)), btn('albTex', 'Texnik', () => apply(editKind(P, sel[0], 'texnik', pl.layout.mods, o.size)), !one), btn('albApt', 'Kvartiraga', () => apply(editRoomToApt(P, selRoom, pl.layout.mods, o.size)), selRoom < 0))),
-      msg ? h('p', { class: msgBad ? 'warn' : 'note', id: 'albMsg' }, msg) : h('p', { class: 'note', id: 'albMsg' }, bad.length ? `Qoida buzilgan: ${bad.map(c => c.title.toLowerCase()).join('; ')}` : 'Qoidalar bajarilgan: har kvartiraga koridordan eshik, deraza, yorugʻlik.'),
-      h('span', { class: 'lb' }, 'Bino jami'),
-      h('div', { class: 'alb-tot' }, h('div', {}, h('span', {}, 'Kvartiralar'), h('b', { class: 'num' }, fmt(allApts))), h('div', {}, h('span', {}, '1–2 xonali ulushi'), h('b', { class: 'num' }, `${allApts ? Math.round(small / allApts * 100) : 0} %`)), h('div', {}, h('span', {}, 'Seksiyalar'), h('b', { class: 'num' }, P.sections.length))),
+          sa ? h('div', { class: 'alb-selc' }, h('i', { style: `background:${APT_FILL[Math.min(4, sa.rooms)]}` }), h('b', {}, `${sa.rooms} xonali`), h('span', { class: 'num' }, `${fmt(sa.area * 0.85, 1)} m² · ${sa.mods.length} deraza`)) : two ? h('div', { class: 'alb-selc' }, h('b', {}, tr('A va B tanlandi'))) : h('div', { class: 'note' }, tr('Kvartirani bosing; ikkinchisini ham — A va B.')),
+          h('div', { class: 'row2' }, btn('albMerge', 'Birlashtirish', () => apply(editMerge(P, sel[0], sel[1], pl.layout.mods, o.size)), !two), btn('albSplit', 'Ikkiga boʻlish', () => apply(editSplit(P, sel[0], pl.layout.mods, o.size)), !one)),
+          h('div', { class: 'row2' }, btn('albToB', 'Devor → B', () => apply(editShift(P, sel[0], sel[1], MOD_W, pl.layout.mods, o.size)), !two, 'A bir modulga kattalashadi'), btn('albToA', 'Devor → A', () => apply(editShift(P, sel[1], sel[0], MOD_W, pl.layout.mods, o.size)), !two, 'B bir modulga kattalashadi')),
+          h('div', { class: 'row4' }, ...[1, 2, 3, 4].map(n => btn(`albR${n}`, `${n}x`, () => apply(editRooms(P, sel[0], n, pl.layout.mods)), !one))), h('div', { class: 'row2' }, btn('albTex', 'Texnik', () => apply(editKind(P, sel[0], 'texnik', pl.layout.mods, o.size)), !one), btn('albApt', 'Kvartiraga', () => apply(editRoomToApt(P, selRoom, pl.layout.mods, o.size)), selRoom < 0))),
+      msg ? h('div', { class: msgBad ? 'note warn' : 'note', id: 'albMsg' }, msg) : h('div', { class: bad.length ? 'note bad' : 'note ok', id: 'albMsg' }, bad.length ? `${tr('Qoida buzilgan')}: ${bad.map(c => c.title.toLowerCase()).join('; ')}` : tr('Qoidalar bajarilgan: har kvartiraga koridordan eshik, deraza, yorugʻlik.')),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Bino jami'))),
+      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Kvartiralar')), h('span', { class: 'v' }, fmt(allApts))), h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1–2 xonali ulushi')), h('span', { class: 'v' }, `${allApts ? Math.round(small / allApts * 100) : 0} %`)), h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Seksiyalar')), h('span', { class: 'v' }, String(P.sections.length)))),
       h('span', { class: 'spacer' }),
       h('div', { class: 'row' },
         btn('albUndo', 'Orqaga', () => { const hs = hist.get(bid); const p = hs?.pop(); if (p) { work.set(bid, p); dirty.add(bid); sel = []; render(); } }, !(hist.get(bid)?.length)),
         btn('albReset', 'Asl reja', () => { (hist.get(bid) ?? hist.set(bid, []).get(bid)!).push(planOf(pl)); work.set(bid, genOf(pl)); dirty.add(bid); sel = []; render(); }),
-        h('button', { class: 'btn primary grow', id: 'albSave', disabled: !dirty.size, onclick: () => { for (const b of dirty) { const s2 = o.plans.find(p => p.bid === b)!; const w = work.get(b)!; o.onSave(b, w === genOf(s2) ? null : w); } dirty.clear(); closeArmed = false; toast('Reja saqlandi — barcha turar qavatlarga qoʻllandi'); render(); } }, dirty.size ? `Saqlash (${dirty.size})` : 'Saqlangan')));
+        h('button', { class: 'btn btn-primary btn-sm grow', id: 'albSave', disabled: !dirty.size, onclick: () => { for (const b of dirty) { const s2 = o.plans.find(p => p.bid === b)!; const w = work.get(b)!; o.onSave(b, w === genOf(s2) ? null : w); } dirty.clear(); closeArmed = false; toast('Reja saqlandi — barcha turar qavatlarga qoʻllandi'); render(); } }, dirty.size ? `Saqlash (${dirty.size})` : 'Saqlangan')));
     msgBad = false;
   }
   render();
