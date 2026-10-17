@@ -3,8 +3,9 @@
  * Yuklash va tahlil workerda; natija IndexedDB keshiga yoziladi va sahifa yangilanganda tarmoqsiz tiklanadi.
  */
 import type { LngLat } from '../core/doc';
-import { bboxAround, overpassQuery, parseOverpass, PARSER_V, type OsmData } from './osm';
+import { bboxAround, overpassQuery, parseOverpass, PARSER_V, type BBox, type OsmData } from './osm';
 import { loadImagery, loadTerrain, type Imagery, type TerrainGrid } from './tiles';
+import { fetchOfm } from './ofm';
 
 export const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 /** urinishlar: [serverlar guruhi (parallel — birinchi javob olinadi), oldin kutish (ms)] — bepul serverlar tez-tez «band» (429/503/504) qaytaradi */
@@ -61,18 +62,37 @@ export async function overpass(q: string, f: typeof fetch, onTry: (msg: string) 
   throw new Error('OSM serverlari javob bermadi' + (last ? ` (${String((last as Error).message || last)})` : '') + '. Birozdan keyin qayta urinib koʻring.');
 }
 
+/** Overpass shuncha vaqt javob bermasa — OpenFreeMap plitkalari (tez, lekin teglari kam) */
+export const OVERPASS_WAIT = 9000;
+/**
+ * OSM maʼlumoti: Overpass (toʻliq teglar) va OpenFreeMap (tez) parallel; Overpass `wait` ms ichida javob bersa — u,
+ * aks holda tayyor boʻlgan OFM; Overpass butunlay yiqilsa — OFM; ikkalasi ham yiqilsa — Overpass xatosi.
+ */
+export async function osmWithFallback(bb: BBox, f: typeof fetch, onTry: (m: string) => void, wait = OVERPASS_WAIT): Promise<{ osm: OsmData; raw: unknown; src: 'overpass' | 'ofm' }> {
+  const ovp = overpass(overpassQuery(bb), f, onTry).then(j => ({ osm: parseOverpass(j as never), raw: j, src: 'overpass' as const }));
+  const ofm = fetchOfm(bb, f).then(osm => ({ osm, raw: null, src: 'ofm' as const }));
+  ovp.catch(() => {}); ofm.catch(() => {});
+  const timer = new Promise<'vaqt'>(r => setTimeout(() => r('vaqt'), wait));
+  const first = await Promise.race([ovp.catch(() => 'xato' as const), timer]);
+  if (first !== 'vaqt' && first !== 'xato') return first;
+  if (first === 'vaqt') onTry('OSM serveri sekin — OpenFreeMap plitkalaridan…');
+  try { return await ofm; } catch { /* OFM ham yoʻq — Overpassni kutamiz */ }
+  return ovp;
+}
+
 /** Tarmoqdan toʻliq yuklash (worker yoki asosiy oqimda) */
 export async function fetchContext(center: LngLat, radius: number, progress: Progress = () => {}, f: typeof fetch = fetch.bind(globalThis)): Promise<ContextBundle> {
   const bb = bboxAround(center, radius), missing: string[] = [];
   progress('OSM: binolar, yoʻllar, suv, yashil hududlar…', 0.05);
-  let raw: unknown = null;
-  const osmP = overpass(overpassQuery(bb), f, m => progress(m, 0.1)).then(j => { raw = j; progress('OSM tahlil qilinmoqda…', 0.55); return parseOverpass(j as never); });
+  let raw: unknown = null; const srcBox = { src: 'overpass' as 'overpass' | 'ofm' };
+  const osmP = osmWithFallback(bb, f, m => progress(m, 0.1), OVERPASS_WAIT).then(r => { raw = r.raw; srcBox.src = r.src; progress('OSM tahlil qilinmoqda…', 0.55); return r.osm; });
   const terrP = loadTerrain(center, radius, bb, f).catch(() => null);
   let done = 0;
   const imgP = loadImagery(radius, bb, f, () => { done++; if (done % 8 === 0) progress(`Sunʼiy yoʻldosh tasviri: ${done} plitka…`, 0.3); }).catch(() => null);
   const [osm, terrain, imagery] = await Promise.all([osmP, terrP, imgP]);
   if (!terrain) missing.push('relyef');
   if (!imagery) missing.push('sunʼiy yoʻldosh tasviri');
+  if (srcBox.src === 'ofm') missing.push('OSM teglari (Overpass javob bermadi — OpenFreeMap plitkalari: balandliklar taxminiy, daraxtlar yoʻq)');
   progress('Tayyor', 1);
   return { v: 1, center, radius, fetched: new Date().toISOString(), osm, pv: PARSER_V, raw, terrain, imagery, missing };
 }
@@ -84,8 +104,8 @@ export const farRadius = (r: number) => Math.min(2200, Math.max(1200, r * 2.6));
 
 export async function fetchFar(center: LngLat, radius: number, f: typeof fetch = fetch.bind(globalThis)): Promise<FarBundle> {
   const outer = farRadius(radius), bb = bboxAround(center, outer), q = `[out:json][timeout:120][bbox:${bb.map(v => v.toFixed(6)).join(',')}];way["building"];out geom qt;`;
-  const j = await overpass(q, f, () => {});
-  const osm = parseOverpass(j as never), inner = bboxAround(center, radius);
+  // gorizont uchun aniq teglar shart emas — avval tez OpenFreeMap, boʻlmasa Overpass
+  const osm = await fetchOfm(bb, f).catch(async () => parseOverpass(await overpass(q, f, () => {}) as never)), inner = bboxAround(center, radius);
   // asosiy kvadrat ichidagilar allaqachon batafsil chizilgan
   const inSq = (p: LngLat) => p[1] > inner[0] && p[1] < inner[2] && p[0] > inner[1] && p[0] < inner[3];
   const buildings = osm.buildings.filter(b => !inSq(b.rings[0][0])).map(b => ({ rings: [b.rings[0].map(p => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6] as LngLat)], h: b.h }));

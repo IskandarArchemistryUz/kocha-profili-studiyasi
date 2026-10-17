@@ -165,3 +165,12 @@ describe('overpass — zaxira serverlar', () => {
     await expect(overpass('q', f, () => {})).rejects.toThrow(/OSM serverlari javob bermadi/);
   }, 30000);
 });
+
+import { tilesFor } from '../../src/context/ofm';
+describe('OpenFreeMap plitkalari', () => {
+  it('Toshkent markazi, 1 km radius — z14 da 2×2 yoki 3×3 plitka', () => {
+    const t = tilesFor(bboxAround([69.2797, 41.3111], 1000));
+    expect(t.length).toBeGreaterThanOrEqual(4); expect(t.length).toBeLessThanOrEqual(9);
+    expect(t.every(x => x.x > 11300 && x.x < 11400 && x.y > 6100 && x.y < 6150)).toBe(true);
+  });
+});
