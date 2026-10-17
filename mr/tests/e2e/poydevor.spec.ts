@@ -76,7 +76,7 @@ test('eksport → import: fayldan nusxa ochiladi', async ({ page }) => {
 test('uchastka chizilmaguncha loyiha qadamlari yopiq, keyin hammasi ochiq', async ({ page }) => {
   await newProject(page);
   await expect(page.locator('[data-step=xizmat]')).toHaveAttribute('data-locked', '');
-  await page.click('[data-step=uchastka]'); await page.click('#rectSite');
+  await page.click('#rectSite');   // newProject allaqachon «Uchastka»da (qayta bosish panelni yopadi)
   await expect(page.locator('.rail [data-locked]')).toHaveCount(0);
 });
 

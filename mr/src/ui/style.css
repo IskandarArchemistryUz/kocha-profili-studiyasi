@@ -267,7 +267,7 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border:0;border-radiu
 .top>*{flex-shrink:0}.top .sp{flex:1 1 0;min-width:4px}
 .top .seg{background:rgba(118,118,128,.12)}
 .brand{font:700 14px var(--sans);letter-spacing:-.01em;gap:6px}
-.brand::before{content:'';width:10px;height:10px;border-radius:3px;background:var(--brand);box-shadow:0 0 0 .5px rgba(0,0,0,.1)}
+.brand .logo{flex:none;color:var(--ink,#141414)}
 .brand small{font:500 13px var(--sans);letter-spacing:0;text-transform:none}
 .pname{height:34px;border:0;border-radius:var(--r-sm);font:600 14px var(--sans);padding:0 10px;transition:background-color .2s,box-shadow .2s}
 .pname:hover{background:var(--fill)}.pname:focus{background:var(--surface);box-shadow:0 0 0 2px var(--sel);outline:none}
@@ -434,6 +434,11 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 .basesw button:active:not(:disabled){transform:scale(.96)}
 .basesw button[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--sel);background:var(--accent-soft)}
 .basesw button:disabled{opacity:.45;cursor:default}
+.palsw{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.palsw button{border:0;background:none;padding:2px;display:grid;gap:3px;justify-items:center;border-radius:var(--r-md);cursor:pointer}
+.palsw i{display:block;width:100%;aspect-ratio:1.4;border-radius:8px;box-shadow:inset 0 0 0 .5px var(--hairline)}
+.palsw small{font-size:10.5px;color:var(--fg2,#666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.palsw button[aria-pressed=true] i{box-shadow:0 0 0 2px var(--sel)}
 .basesw b{font-size:12.5px}.basesw small{font-size:10.5px;color:var(--muted)}
 .thumb{display:block;height:54px;border-radius:8px;margin-bottom:4px;background-size:cover}
 .thumb.maket{background:linear-gradient(135deg,#f4f3f0 0 40%,#e9e7e1 40% 46%,#f4f3f0 46% 70%,#dfe8d4 70%);box-shadow:inset 0 0 0 .5px rgba(0,0,0,.08)}
@@ -488,7 +493,9 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 .maplegend{top:80px;bottom:auto;max-height:calc(100% - 180px);overflow:auto}
 .panel[data-mode=bino] header .seg button{padding:0 6px;white-space:nowrap;font-size:12px}
 /* pastki oyna chap panel bilan toʻqnashmasin */
-@media (min-width:761px){.drawer{left:410px;right:12px;width:auto;max-width:960px;transform:none;animation:drawerIn2 .38s var(--ease)}}
+@media (min-width:761px){.drawer{--dl:max(410px,calc(50% - 480px));left:var(--dl);right:auto;width:min(960px,calc(100% - var(--dl) - 12px));max-width:none;transform:none;animation:drawerIn2 .38s var(--ease)}.pshut .drawer{--dl:max(76px,calc(50% - 480px))}}
+.panel.shut{display:none}
+.rail button[aria-current=step][aria-expanded=false]{background:var(--accent-soft,#e7eef7);color:var(--accent)}
 @keyframes drawerIn2{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 /* kvartira miksi */
 .mix{display:flex;flex-direction:column;gap:6px}

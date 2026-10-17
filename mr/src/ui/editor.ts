@@ -53,7 +53,9 @@ import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
-import { renderVectorBase } from '../context/basemap';
+import { LiveBase } from '../context/basemap';
+import { logoSvg } from './logo';
+import { PALETTES, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
 import { sheetSvg, SHEET_DEFAULT, type SheetCtx, type SheetKind } from '../core/sheet';
@@ -141,7 +143,7 @@ export class Editor {
     this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'; });
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
     this.bindScene(); this.bindKeys();
-    { let raf = 0; this.scene.onView = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (this.el.scene.querySelector('.btools')) this.syncBTools(); }); }; }
+    { let raf = 0; this.scene.onView = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (this.el.scene.querySelector('.btools')) this.syncBTools(); this.followBase(); }); }; }
     this.renderAll(); this.recompute();
     void this.ensureContext();   // yuklanmagan boʻlsa — fon xaritasi
   }
@@ -158,10 +160,10 @@ export class Editor {
     const saveT = h('span', {}, 'saqlandi');
     const save = h('span', { class: 'save', 'data-s': 'saved' }, h('i'), saveT);
     const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Koʻrinish' },
-      ...([['plan', 'Reja'], ['axo', 'Akso'], ['persp', 'Persp']] as [ViewMode, string][]).map(([k, t]) => h('button', { 'data-view': k, 'aria-pressed': k === 'axo', onclick: () => this.setView(k) }, t)));
+      ...([['plan', 'Reja'], ['axo', 'Akso'], ['persp', 'Persp']] as [ViewMode, string][]).map(([k, t]) => h('button', { 'data-view': k, 'aria-pressed': k === 'plan', onclick: () => this.setView(k) }, t)));
     const top = h('div', { class: 'top' },
       ib('back', 'Loyihalar', ICON.back, () => this.onExit()),
-      h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, 'Archemistry Lab', h('small', {}, '· Master reja')),
+      h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, logoSvg(18), 'Archemistry Lab', h('small', {}, '· Master reja')),
       name, save, h('span', { class: 'sp' }),
       this.popBtn('camPop', 'Kamera', () => this.camPop()),
       h('button', { class: 'btn', id: 'gxOpen', title: 'Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG', onclick: () => this.openGraphics() }, 'Grafika'),
@@ -250,8 +252,12 @@ export class Editor {
     const cs = this.store.doc.context, img = !!this.ctxMgr.current?.imagery;
     return h('div', { class: 'popbody' },
       h('div', { class: 'lb' }, 'Fon xaritasi'),
-      h('div', { class: 'basesw', role: 'group', id: 'baseSw' }, ...([['maket', 'Maket', 'oq relyef, OSM qatlamlari'], ['sputnik', 'Sunʼiy yoʻldosh', img || !cs.loaded ? 'Esri World Imagery' : 'atrofni qayta yuklang']] as const).map(([k, t, n]) =>
+      h('div', { class: 'basesw', role: 'group', id: 'baseSw' }, ...([['maket', cs.loaded ? 'Maket' : 'Stilistik', cs.loaded ? 'oq relyef, OSM qatlamlari' : 'cheksiz vektor xarita'], ['sputnik', 'Sunʼiy yoʻldosh', img || !cs.loaded ? 'Esri World Imagery' : 'atrofni qayta yuklang']] as const).map(([k, t, n]) =>
         h('button', { 'data-base': k, 'aria-pressed': cs.base === k, disabled: k === 'sputnik' && !img && cs.loaded, onclick: () => { this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })); this.refreshPop(); } }, h('i', { class: `thumb ${k}` }), h('b', {}, t), h('small', {}, n)))),
+      cs.loaded || cs.base === 'sputnik' ? '' : h('div', { class: 'palsw', role: 'group', id: 'palSw', 'aria-label': 'Xarita uslubi' }, ...Object.entries(PALETTES).map(([k, p]) =>
+        h('button', { 'data-pal': k, title: p.n, 'aria-pressed': basePrefs().pal === k, onclick: () => { setBasePrefs({ pal: k }); void this.showBaseMap(); this.refreshPop(); } },
+          h('i', { style: `background:linear-gradient(135deg, ${p.bg} 0 45%, ${p.bld} 45% 70%, ${p.water} 70%)` }), h('small', {}, p.n)))),
+      cs.loaded || cs.base === 'sputnik' ? '' : (() => { const c = h('input', { type: 'checkbox', checked: basePrefs().labels, id: 'palLab' }) as HTMLInputElement; c.onchange = () => { setBasePrefs({ labels: c.checked }); void this.showBaseMap(); }; return h('label', { class: 'row', style: 'font-size:13px' }, c, 'Koʻcha va joy nomlari'); })(),
       h('p', { class: 'note' }, 'Fon va uslub faqat koʻrinishga taʼsir qiladi — loyiha, hisob-kitob va meʼyorlar oʻzgarmaydi.'),
       h('div', { class: 'lb' }, 'Uslub'),
       h('div', { class: 'opts' }, ...STYLES.map(x => h('button', { 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, h('b', {}, x.name), h('small', {}, x.note)))),
@@ -579,27 +585,53 @@ export class Editor {
     this.renderPanel(); this.renderBadge();
   }
 
-  /** Fon xaritasi — atrof yuklanguncha (joy tanlash uchun); maket yoki sunʼiy yoʻldosh */
+  /** Fon xaritasi — atrof yuklanguncha (joy tanlash uchun): cheksiz stilistik xarita kamera ortidan yuradi */
   private baseKey = '';
+  private live: LiveBase | null = null;
+  private liveAt: { c: XY; r: number; key: string } | null = null;
+  private liveT = 0;
+  private baseFail = false;
   private async showBaseMap(): Promise<void> {
-    const doc = this.store.doc, key = `${doc.origin.join(',')}|${doc.context.base}`;
-    if (key === this.baseKey) return; this.baseKey = key;
-    try {
-      // maket — OpenFreeMap vektor xaritasi (zamonaviy, kalitsiz); boʻlmasa — Esri plitkalari
+    const doc = this.store.doc, key = `${doc.origin.join(',')}|${doc.context.base}|${basePrefs().pal}|${basePrefs().labels}`;
+    if (key === this.baseKey) return; this.baseKey = key; this.liveAt = null;
+    if (!navigator.webdriver && !this.baseFail) { this.followBase(true); return; }
+    try {   // zaxira: Esri plitkalari, bir martalik rasm
       const sat = doc.context.base === 'sputnik';
-      // avtomatik testlarda (navigator.webdriver) ikkinchi WebGL kontekst ochilmaydi
-      let img = sat || navigator.webdriver ? null : await renderVectorBase(doc.origin, 1200).catch(() => null), src = 'Fon: © OpenMapTiles · OpenFreeMap';
-      if (!img) { img = await loadBaseMap(doc.origin, 1500, sat ? 'sputnik' : 'maket'); src = 'Fon: Esri, HERE, Garmin'; }
+      const img = await loadBaseMap(doc.origin, 1500, sat ? 'sputnik' : 'maket');
       if (this.baseKey !== key || this.store.doc.context.loaded) return;
       await this.scene.setBaseMap(img, doc.origin);
-      this.el.attr.hidden = !img; (this.el.attr.querySelector('.sat') as HTMLElement).hidden = doc.context.base !== 'sputnik';
-      const cb = this.el.attr.querySelector('.carto') as HTMLElement; cb.hidden = sat; cb.textContent = ` · ${src}`;
+      this.baseAttr(sat, 'Fon: Esri, HERE, Garmin');
       if (img && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
     } catch { this.baseKey = ''; }
   }
+  private baseAttr(sat: boolean, src: string): void {
+    this.el.attr.hidden = false; (this.el.attr.querySelector('.sat') as HTMLElement).hidden = !sat;
+    const cb = this.el.attr.querySelector('.carto') as HTMLElement; cb.hidden = sat; cb.textContent = ` · ${src}`;
+  }
+  /** kamera surilsa/yaqinlashsa — fon xaritasini qayta chizish (kechiktirib) */
+  private followBase(now = false): void {
+    const doc = this.store.doc;
+    if (doc.context.loaded || !this.baseKey || navigator.webdriver || this.baseFail) return;
+    const v = this.scene.viewExtent(), r = Math.min(8000, Math.max(300, v.r)), key = this.baseKey, L = this.liveAt;
+    if (L && L.key === key && Math.hypot(v.c[0] - L.c[0], v.c[1] - L.c[1]) < L.r * 0.3 && r < L.r * 1.25 && r > L.r * 0.5) return;
+    clearTimeout(this.liveT);
+    this.liveT = window.setTimeout(() => void this.drawLive(v.c, r, key), now ? 0 : 250);
+  }
+  private async drawLive(c: XY, r: number, key: string): Promise<void> {
+    const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs();
+    this.live ??= new LiveBase(2048);
+    this.liveAt = { c, r: r * 1.3, key };
+    const img = await this.live.render(frame(doc.origin).toGeo(c), r * 1.3, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
+    if (this.baseKey !== key || this.store.doc.context.loaded) return;
+    if (!img) { this.baseFail = true; this.baseKey = ''; this.liveAt = null; void this.showBaseMap(); return; }
+    const first = !this.scene.hasBaseMap;
+    await this.scene.setBaseMap({ ...img, bg: sat ? '#2b2d2f' : PALETTES[pr.pal].bg }, doc.origin);
+    this.baseAttr(sat, 'Fon: © OpenMapTiles · OpenFreeMap');
+    if (first && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
+  }
   private showContext(b: ContextBundle | null): void {
     const doc = this.store.doc;
-    if (b) { this.baseKey = ''; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
+    if (b) { this.baseKey = ''; this.liveAt = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
     void this.scene.setContext(b, doc).then(() => {
       if (b && !this.framedCtx) { this.framedCtx = true; if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); }
       // gorizont: kattaroq radiusdagi binolar (fon rejimida, xatoda jim)
@@ -1776,7 +1808,7 @@ export class Editor {
     STEPS.forEach((s, i) => {
       if (i === 2 || i === 6 || i === 10) r.append(h('hr'));
       const lk = this.locked(s);
-      const b = h('button', { 'aria-label': `${s.n}. ${s.title}${lk ? ' — ' + lk : ''}`, title: `${s.n}. ${s.title}${lk ? '\n' + lk : ''}`, 'data-step': s.id, 'aria-current': s === this.step ? 'step' : null, 'data-locked': !!lk, 'data-done': this.done(s), onclick: () => this.go(s) }, h('span', { class: 'n' }, s.n));
+      const b = h('button', { 'aria-label': `${s.n}. ${s.title}${lk ? ' — ' + lk : ''}`, title: `${s.n}. ${s.title}${lk ? '\n' + lk : ''}`, 'data-step': s.id, 'aria-current': s === this.step ? 'step' : null, 'aria-expanded': s === this.step ? this.panelOpen : null, 'data-locked': !!lk, 'data-done': this.done(s), onclick: () => { if (s === this.step && this.panelOpen) { this.panelOpen = false; this.renderRail(); this.renderPanel(); } else this.go(s); } }, h('span', { class: 'n' }, s.n));
       b.append(svgIcon(s.icon)); r.append(b);
     });
     r.append(h('hr'));
@@ -1886,7 +1918,7 @@ export class Editor {
   go(s: StepDef): void {
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
-    this.setTool(null); this.step = s;
+    this.setTool(null); this.step = s; this.panelOpen = true;
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
     if (s.id !== 'xizmat') this.scene.setNetMap(null); else if (this.svc.res) this.showSvc();
@@ -1904,8 +1936,11 @@ export class Editor {
     this.renderPanel();
   }
 
+  /** chap panel: faol qadamni qayta bossa — yopiladi, yana bossa — ochiladi */
+  private panelOpen = true;
   private renderPanel(): void {
     this.showAptBoxes(); this.syncBTools();
+    const shut = !this.panelOpen && !this.inspOn(); this.el.panel.classList.toggle('shut', shut); this.root?.classList.toggle('pshut', shut);
     if (this.inspOn()) { this.renderInspector(); return; }
     const s = this.step, i = STEPS.indexOf(s), p = this.el.panel;
     // shu qadam qayta chizilsa (bino tanlash, qavat) — panel aylantirish joyi saqlanadi

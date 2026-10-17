@@ -7,6 +7,7 @@ test('asboblar: chizgʻich, kesim, pipetka, qoʻl, oʻng tugma menyusi', async (
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await page.click('[data-view=axo]');   // quyidagi nuqtalar aksonometriya uchun (standart koʻrinish — Reja)
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!;
   // chizgʻich
   await page.click('[data-tool=measure]');
