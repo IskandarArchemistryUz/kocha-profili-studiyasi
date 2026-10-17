@@ -31,7 +31,12 @@ test('grafika: varaqlar (bosh reja, zonalash, figure-ground), SVG yuklab olish',
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  // V3: xaritada varaq ramkasi → «Varaqni ochish»
   await page.click('#gxOpen');
+  await expect(page.locator('.panel[data-mode=frame]')).toBeVisible();
+  await page.click('#frScale [data-scale="1000"]');
+  await expect(page.locator('#frInfo')).toContainText('1:1');
+  await page.click('#frOpen');
   const view = page.locator('#gxView svg');
   await expect(view.locator('#Yangi_binolar')).toBeAttached();
   await expect(view.locator('#Atrof_binolar')).toBeAttached();
@@ -47,10 +52,19 @@ test('grafika: varaqlar (bosh reja, zonalash, figure-ground), SVG yuklab olish',
   if (shots) await page.screenshot({ path: `${shots}/gx_figura.png` });
   await page.click('[data-kind=landshaft]'); if (shots) await page.screenshot({ path: `${shots}/gx_landshaft.png` });
   await page.click('[data-kind=qavat]'); if (shots) await page.screenshot({ path: `${shots}/gx_qavat.png` });
-  await page.selectOption('#gxScale', '2000');
+  await page.click('#gxScale [data-scale="2000"]');
   await expect(page.locator('.gx-info')).toContainText('M 1:2000');
+  // varaqlar toʻplami (V2): 5 varaq, varaq qoʻshish; tekshiruv; yozuvlar jadvali
+  await expect(page.locator('[data-sheet]')).toHaveCount(1);
+  await page.click('#shAdd'); await expect(page.locator('[data-sheet]')).toHaveCount(2);
+  await expect(view.locator('#Shtamp')).toBeAttached();
+  await page.click('#shChecks'); await expect(page.locator('.sh-menu [data-check=labels]')).toBeVisible(); await page.keyboard.press('Escape');
+  await page.click('#gxDl');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#gxSvg')]);
   expect(dl.suggestedFilename()).toMatch(/_qavat\.svg$/);
+  await page.click('#gxDl');
+  const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#gxPdf')]);
+  expect(pdf.suggestedFilename()).toMatch(/\.pdf$/);
   await page.keyboard.press('Escape');
   await expect(page.locator('.gx')).toHaveCount(0);
 });

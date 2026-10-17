@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sheetSvg, niceLen, SHEET_DEFAULT, type SheetCtx, type SheetOpts } from '../../src/core/sheet';
+import { sheetSvg, sheetChecks, recommendScale, niceLen, SHEET_DEFAULT, type SheetCtx, type SheetOpts } from '../../src/core/sheet';
 import { blankProject, type Project } from '../../src/core/doc';
 import { frame, type XY } from '../../src/core/geo';
 
@@ -55,11 +55,32 @@ describe('Grafika varaqlari', () => {
     expect(f).toContain('fill="#1d1d1b"'); expect(f).not.toContain('id="Loyiha_kochalari"'); expect(f).not.toContain('id="Atrof_yollar"');
     const z = sheetSvg(project(), ctx, opts({ kind: 'zona' }));
     expect(z.legend.map(l => l.label)).toEqual(expect.arrayContaining(['Koʻp qavatli turar joy', 'Park / bogʻ']));
-    expect(z.svg).toContain('id="Zona_nomlari"');
+    expect(z.svg).toContain('id="Yer_uchastkalari_yozuvlari"');
   });
   it('atrofsiz ham ishlaydi; bezaklar oʻchiriladi', () => {
     const { svg } = sheetSvg(project(), null, opts({ show: { ...SHEET_DEFAULT.show, legend: false, north: false, title: false } }));
     expect(svg).not.toContain('id="Shimol"'); expect(svg).not.toContain('id="Sarlavha"'); expect(svg).toContain('id="Yangi_binolar"');
   });
   it('masshtab chizgʻichi uzunligi', () => { expect(niceLen(95)).toBe(50); expect(niceLen(130)).toBe(100); expect(niceLen(3)).toBe(10); });
+  it('MR-Varaqlar: oʻng ustun (shartli belgilar, jadval, shtamp), yozuvlar mm da, tekshiruv', () => {
+    const r = sheetSvg(project(), ctx, opts({ kind: 'zona', stamp: { author: 'I. Soliyev', num: 'MR-02', index: 2, total: 5 } }));
+    for (const id of ['Shartli_belgilar', 'Yer_uchastkalari_jadvali', 'Shtamp', 'Yer_uchastkalari_yozuvlari']) expect(r.svg).toContain(`id="${id}"`);
+    expect(r.svg).toContain('I. Soliyev'); expect(r.svg).toContain('2 / 5');
+    expect(r.plots.length).toBe(2); expect(r.labels.total).toBe(2);
+    expect(r.minText).toBeGreaterThanOrEqual(2.5);
+    const ch = sheetChecks(r, opts({ kind: 'zona', stamp: { author: 'x' } }));
+    expect(ch.find(c => c.id === 'scale')!.ok).toBe(false);   // avto — «andoza»
+    expect(ch.find(c => c.id === 'text')!.ok).toBe(true);
+    expect(ch.find(c => c.id === 'fit')!.ok).toBe(true);
+  });
+  it('format A0 va «Moslash», burilish, qatlamni oʻchirish, vaziyat sxemasi', () => {
+    expect(sheetSvg(project(), ctx, opts({ paper: 'A0' })).widthMm).toBe(1189);
+    const f = sheetSvg(project(), ctx, opts({ paper: 'fit', scale: 1000 }));
+    expect(f.scale).toBe(1000); expect(f.widthMm).toBeLessThan(420);
+    expect(sheetSvg(project(), ctx, opts({ rot: 30 })).svg).toContain('rotate(-30');
+    expect(sheetSvg(project(), ctx, opts({ layers: { ctx: { on: false } } })).svg).not.toContain('id="Atrof_binolar"');
+    const v = sheetSvg(project(), ctx, opts({ kind: 'vaziyat' }));
+    expect(v.scale).toBeGreaterThanOrEqual(2000); expect(v.svg).not.toContain('id="Qizil_chiziqlar"');
+    expect(recommendScale(10, 'bosh').scale).toBe(1000); expect(recommendScale(34.5, 'zona').scale).toBe(2000); expect(recommendScale(80, 'bosh').scale).toBe(5000); expect(recommendScale(5, 'vaziyat').scale).toBe(10000);
+  });
 });

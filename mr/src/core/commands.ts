@@ -3,7 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, type ManualPoi, type SavedView, uid } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid } from './doc';
 import { frame } from './geo';
 
 export type Command =
@@ -36,6 +36,8 @@ export type Command =
   /** bir nechta binoga material va/yoki tom turi */
   | { type: 'styleBuildings'; ids: string[]; mat?: Building['mat']; roof?: Building['roof']; win?: Building['win'] | 'yoq'; bal?: Building['bal']; parapet?: number; shade?: Building['shade'] | 'yoq'; winPat?: Building['winPat'] | 'qator'; balPat?: Building['balPat'] | 'har2' }
   | { type: 'addView'; view: SavedView }
+  /** varaqlar toʻplami va saqlangan uslublar (MR-Varaqlar) */
+  | { type: 'setSheets'; sheets?: SheetDoc[]; styles?: Project['sheetStyles'] }
   | { type: 'removeView'; id: string }
   /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
@@ -69,6 +71,7 @@ export function label(c: Command): string {
     case 'removePoi': return 'Xizmat obyekti oʻchirildi';
     case 'styleBuildings': return c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : c.parapet != null ? 'Parapet' : c.shade ? 'Quyosh himoyasi' : 'Fasad materiali';
     case 'addView': return 'Koʻrinish saqlandi';
+    case 'setSheets': return 'Varaqlar';
     case 'removeView': return 'Koʻrinish oʻchirildi';
     case 'setParcels': return 'Parsellar';
     case 'updateParcel': return 'Parsel funksiyasi';
@@ -155,6 +158,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
     case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}), ...(c.winPat ? { winPat: c.winPat === 'qator' ? undefined : c.winPat } : {}), ...(c.balPat ? { balPat: c.balPat === 'har2' ? undefined : c.balPat } : {}) } : b); return d; }
+    case 'setSheets': { if (c.sheets) d.sheets = c.sheets.map(x => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); if (c.styles) d.sheetStyles = c.styles.map(x => ({ ...x, opts: JSON.parse(JSON.stringify(x.opts)) })); return d; }
     case 'addView': d.views = [...doc.views, { ...c.view, pos: [...c.view.pos] as SavedView['pos'], target: [...c.view.target] as SavedView['target'] }]; return d;
     case 'removeView': d.views = doc.views.filter(x => x.id !== c.id); return d;
     case 'setParcels': {

@@ -904,6 +904,33 @@ export class Scene3D {
     this.fitLabels(cam, k);
   }
 
+  /* ---------- varaq ramkasi (MR-Varaqlar-V3): xaritada haqiqiy oʻlchamdagi ramka ---------- */
+  private frameG = new THREE.Group();
+  /** f: koʻrinadigan chizma maydoni markazi, eni/boʻyi (m), oʻng ustun eni (m), burilish (rad); dim — tashqarini xiralashtirish */
+  setSheetFrame(f: { c: XY; w: number; h: number; col: number; rot: number; dim: boolean } | null): void {
+    disposeGroup(this.frameG); if (!this.frameG.parent) this.scene.add(this.frameG);
+    if (f) {
+      const cs = Math.cos(f.rot), sn = Math.sin(f.rot), P = (u: number, v: number): XY => [f.c[0] + u * cs - v * sn, f.c[1] + u * sn + v * cs];
+      const rect = (u0: number, v0: number, u1: number, v1: number): XY[] => [P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)];
+      const hw = f.w / 2, hh = f.h / 2, R = rect(-hw, -hh, hw, hh);
+      const z = (p: XY) => this.H(p[0], p[1]) + 1.2;
+      const ln = (pts: XY[], col: number, dash = false) => { const g = new THREE.BufferGeometry().setFromPoints([...pts, pts[0]].map(p => new THREE.Vector3(p[0], z(p), -p[1]))); const m = dash ? new THREE.LineDashedMaterial({ color: col, dashSize: Math.max(4, f.w / 60), gapSize: Math.max(3, f.w / 90), depthTest: false }) : new THREE.LineBasicMaterial({ color: col, depthTest: false }); const l = new THREE.Line(g, m); if (dash) l.computeLineDistances(); l.renderOrder = 80; this.frameG.add(l); };
+      ln(R, 0x141414); ln(rect(-hw - 0.4, -hh - 0.4, hw + 0.4, hh + 0.4), 0x141414);
+      if (f.col > 0) ln(rect(hw, -hh, hw + f.col, hh), 0x6b6965, true);
+      if (f.dim) {
+        const big = Math.max(f.w, f.h) * 40, sh = new THREE.Shape([new THREE.Vector2(f.c[0] - big, f.c[1] - big), new THREE.Vector2(f.c[0] + big, f.c[1] - big), new THREE.Vector2(f.c[0] + big, f.c[1] + big), new THREE.Vector2(f.c[0] - big, f.c[1] + big)]);
+        sh.holes.push(new THREE.Path(R.map(p => new THREE.Vector2(p[0], p[1]))));
+        const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); g.translate(0, 0.9, 0);
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.28, depthWrite: false, depthTest: false })); m.renderOrder = 79; this.frameG.add(m);
+      }
+      // tutqichlar: burchaklar (masshtab) va burish
+      const dot = (p: XY, col: number, r: number) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 20), new THREE.MeshBasicMaterial({ color: col, depthTest: false })); m.rotation.x = -Math.PI / 2; m.position.set(p[0], z(p) + 0.1, -p[1]); m.renderOrder = 81; this.frameG.add(m); };
+      const r0 = Math.max(2, f.w / 90);
+      R.forEach(p => dot(p, 0xffffff, r0 * 1.25)); R.forEach(p => dot(p, 0x141414, r0 * 0.8));
+      const knob = P(0, hh + Math.max(10, f.h * 0.06)); ln([P(0, hh), knob], 0x141414); dot(knob, 0x141414, r0 * 1.1);
+    }
+    this.invalidate();
+  }
   /* ---------- xarita yozuvlari (inventar 4.1, maket «MR-Yozuvlar») ---------- */
   /** «Daha va yer uchastkasi» rejimi: avtomatik yoki eng yuqori daraja */
   labelMode: LabelMode = (() => { try { const v = localStorage.getItem('mr-labels'); return (['auto', 'full', 'codeArea', 'code', 'off'] as const).find(x => x === v) ?? 'auto'; } catch { return 'auto'; } })();
