@@ -112,7 +112,7 @@ document.documentElement.classList.add('kps-embed');
 var st=document.createElement('style');
 st.textContent='html.kps-embed header .brand,html.kps-embed header .crumb,html.kps-embed #brandCrumb,html.kps-embed #kbBtn,html.kps-embed #kbPn,html.kps-embed #kpsLang{display:none!important}';
 document.head.appendChild(st);
-var PAGES=['index.html','studio.html','ai.html','posadka.html','maket.html','masterreja.html','data.html','shamol.html','gis.html','kocha.html'];
+var PAGES=['index.html','studio.html','ai.html','posadka.html','maket.html','masterreja.html','data.html','shamol.html','gis.html'];
 document.addEventListener('click',function(e){
   var a=e.target&&e.target.closest&&e.target.closest('a[href]');if(!a||a.target==='_blank'||a.hasAttribute('download'))return;
   var u;try{u=new URL(a.getAttribute('href'),location.href);}catch(x){return;}

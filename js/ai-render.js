@@ -49,16 +49,16 @@ function open(o){O=o;if(!document.getElementById('airCss')){const s=document.cre
   if(PN){PN.remove();PN=null;}PN=document.createElement('aside');PN.className='air';document.body.appendChild(PN);render();}
 function close(){if(PN)PN.remove();PN=null;}
 function render(){if(!PN)return;const P=PROV[ST.prov],model=ST.model[ST.prov]||P.models[0],key=ST.key[ST.prov]||'';
-  PN.innerHTML=`<div class="hd"><b>✦ ${esc(T('AI render'))}</b><button class="btn" id="airX">✕</button></div><div class="bd">
+  PN.innerHTML=`<div class="hd"><b>${KIC.i('sparkle','b')}${esc(T('AI render'))}</b><button class="btn" id="airX" aria-label="${esc(T('Yopish'))}">${KIC.i('x')}</button></div><div class="bd">
     <p class="nt">${esc(T('Joriy 3D koʻrinish rasmini generativ modelga yuboradi: geometriya (binolar, koʻchalar, kamera) saqlanadi, materiallar, yorugʻlik, odamlar va muhit qoʻshiladi.'))}</p>
     <div><span class="lb">${esc(T('Model'))}</span><select id="airP">${Object.entries(PROV).map(([k,v])=>`<option value="${k}" ${k===ST.prov?'selected':''}>${esc(T(v.n))}</option>`).join('')}</select>
       <input type="text" id="airM" list="airML" value="${esc(model)}" style="margin-top:6px" aria-label="${esc(T('Model nomi'))}"><datalist id="airML">${P.models.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></div>
     <div><span class="lb">${esc(T('API kaliti'))}</span><input type="password" id="airK" value="${esc(key)}" placeholder="${esc(T('kalitni shu yerga qoʻying'))}" autocomplete="off">
-      <p class="nt" style="margin-top:4px">${esc(T('Kalit faqat shu brauzerda saqlanadi va toʻgʻridan-toʻgʻri provayderga yuboriladi. Toʻlov — sizning hisobingizdan.'))} <a href="${P.key}" target="_blank" rel="noopener">${esc(T('Kalit olish'))} ↗</a></p></div>
+      <p class="nt" style="margin-top:4px">${esc(T('Kalit faqat shu brauzerda saqlanadi va toʻgʻridan-toʻgʻri provayderga yuboriladi. Toʻlov — sizning hisobingizdan.'))} <a href="${P.key}" target="_blank" rel="noopener">${esc(T('Kalit olish'))}${KIC.i('external','a',14)}</a></p></div>
     <div><span class="lb">${esc(T('Uslub'))}</span><div class="st">${STY.map(([k,n])=>`<button data-st="${k}" aria-pressed="${ST.sty===k}">${esc(T(n))}</button>`).join('')}</div></div>
     <div><span class="lb">${esc(T('Qoʻshimcha (ixtiyoriy)'))}</span><textarea id="airE" placeholder="${esc(T('masalan: ikkinchi plandagi bogʻda bolalar maydonchasi, fasadlar terrakota gʻisht'))}">${esc(ST.extra)}</textarea></div>
     <label class="nt" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="airKeep" ${ST.keep?'checked':''}> ${esc(T('Geometriyani qatʼiy saqlash (bino soni, qavatlar, joylashuv)'))}</label>
-    <button class="btn dark" id="airGo" ${BUSY?'disabled':''}>${esc(T(BUSY?'Yaratilmoqda… (20–60 soniya)':'Render qilish ✦'))}</button>
+    <button class="btn dark" id="airGo" ${BUSY?'disabled':''}>${BUSY?esc(T('Yaratilmoqda… (20–60 soniya)')):esc(T('Render qilish'))+KIC.i('sparkle','a')}</button>
     <p class="er" id="airErr" hidden></p>
     ${RES.length?`<div><span class="lb">${esc(T('Natijalar'))}</span><div class="gal">${RES.map((r,i)=>`<img src="${r.src}" data-i="${i}" alt="${esc(r.name)}" title="${esc(r.name)}">`).join('')}</div><p class="nt" style="margin-top:4px">${esc(T('Rasmni bosing — kattalashtirish, asl bilan solishtirish, albomga yuborish.'))}</p></div>`:''}
   </div>`;
@@ -112,11 +112,11 @@ async function openrouter(key,model,P,img){const j=await jfetch('https://openrou
   throw new Error(T('Model rasm qaytarmadi')+(m.content?': '+String(m.content).slice(0,240):''));}
 /* koʻrish: katta, asl bilan solishtirish (sudraladigan ajratgich), albom, yuklab olish */
 function view(i){const r=RES[i];if(!r)return;const V=document.createElement('div');V.className='airv';let cmp=false;
-  const draw=()=>{V.innerHTML=`<div class="airtb"><span>${esc(r.name)}</span><button id="airvC" class="${cmp?'on':''}">${esc(T('Asl bilan solishtirish'))}</button><button id="airvD">${esc(T('Yuklab olish'))}</button>${O.onAlbum?`<button id="airvA">${esc(T('Albomga →'))}</button>`:''}<button id="airvX">✕</button></div>
+  const draw=()=>{V.innerHTML=`<div class="airtb"><span>${esc(r.name)}</span><button id="airvC" class="${cmp?'on':''}">${esc(T('Asl bilan solishtirish'))}</button><button id="airvD">${esc(T('Yuklab olish'))}</button>${O.onAlbum?`<button id="airvA">${esc(T('Albomga'))}${KIC.i('arrow-right','a')}</button>`:''}<button id="airvX" aria-label="${esc(T('Yopish'))}">${KIC.i('x')}</button></div>
     <div class="airim">${cmp?`<div class="aircmp"><img src="${r.src}" id="airvI"><div class="b" style="width:50%"><img src="${r.orig}"></div><i style="left:50%"></i></div>`:`<img src="${r.src}">`}</div>`;
     V.querySelector('#airvX').onclick=()=>V.remove();V.querySelector('#airvC').onclick=()=>{cmp=!cmp;draw();};
     V.querySelector('#airvD').onclick=()=>{const a=document.createElement('a');a.href=r.src;a.download='ai-render.png';document.body.appendChild(a);a.click();a.remove();};
-    const al=V.querySelector('#airvA');if(al)al.onclick=()=>{al.disabled=true;Promise.resolve(O.onAlbum(r.src,r.name,r.prompt)).then(()=>{al.textContent=T('Yuborildi ✓');}).catch(e=>{al.textContent=T('Xato');al.disabled=false;});};
+    const al=V.querySelector('#airvA');if(al)al.onclick=()=>{al.disabled=true;Promise.resolve(O.onAlbum(r.src,r.name,r.prompt)).then(()=>{al.innerHTML=KIC.i('check','b')+esc(T('Yuborildi'));}).catch(e=>{al.textContent=T('Xato');al.disabled=false;});};
     if(cmp){const box=V.querySelector('.aircmp'),b=box.querySelector('.b'),ln=box.querySelector('i'),im=box.querySelector('#airvI');
       const fit=()=>{b.querySelector('img').style.width=im.clientWidth+'px';b.querySelector('img').style.height=im.clientHeight+'px';};im.onload=fit;fit();
       box.onpointermove=e=>{if(!(e.buttons&1)&&e.pointerType==='mouse'&&!box._d)return;const rc=box.getBoundingClientRect(),x=Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width));b.style.width=x*100+'%';ln.style.left=x*100+'%';};

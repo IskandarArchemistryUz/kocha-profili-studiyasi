@@ -3,113 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Koʻcha kesimi — Archemistry Lab</title>
-<script src="js/beta.js?v=15"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root{--paper:#f4f3f1;--surface:#fff;--sunk:#ebe9e4;--ink:#141414;--muted:#5e5c58;--line:#dedbd4;--acc:#f0b323;--sel:#2a6fb0;--bad:#b23a2e;--good:#2e7d4f;
-  --sans:'Archivo',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace}
-*{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font:14px/1.4 var(--sans)}
-button,input,select{font:inherit;color:inherit}
-button{cursor:pointer}
-:focus-visible{outline:2px solid var(--sel);outline-offset:1px}
-.app{display:grid;grid-template-columns:240px minmax(0,1fr) 270px;grid-template-rows:44px minmax(0,1fr) auto;height:100vh}
-/* asboblar qatori */
-.bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--surface);min-width:0}
-.seg{display:inline-flex;border:1px solid var(--line);background:var(--surface)}
-.seg button{border:0;border-left:1px solid var(--line);background:none;padding:5px 11px;font:500 12px var(--mono);letter-spacing:.03em}
-.seg button:first-child{border-left:0}.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
-.sp{flex:1}
-.btn{height:30px;padding:0 12px;border:1px solid var(--ink);background:var(--surface);font:500 12px var(--mono);letter-spacing:.03em;white-space:nowrap}
-.btn.dark{background:var(--ink);color:#fff}.btn:disabled{opacity:.4;cursor:default}
-.ib{width:30px;height:30px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;padding:0}
-.ib svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
-.lb{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-/* chap: shablonlar */
-.left{grid-row:2/4;border-right:1px solid var(--line);background:var(--surface);overflow:auto;padding:10px}
-.left input[type=search]{width:100%;height:30px;border:1px solid var(--line);padding:0 8px;margin:6px 0 8px}
-.grp{margin-top:8px}.grp>button:not(.tpl){width:100%;display:flex;justify-content:space-between;border:0;background:none;padding:6px 2px;font:500 12.5px var(--sans);text-align:left}
-.grp>button:not(.tpl) small{font:11px var(--mono);color:var(--muted)}
-.tpl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:baseline;width:100%;border:1px solid var(--line);background:var(--surface);padding:8px;margin:0 0 6px;text-align:left}
-[hidden]{display:none!important}
-.tpl:hover{border-color:var(--ink)}.tpl[aria-pressed=true]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
-.tpl .st{grid-column:1/-1;display:flex;width:100%;height:14px;border:1px solid rgba(0,0,0,.12)}.tpl .st i{display:block;height:100%}
-.tpl b{font:500 12.5px/1.3 var(--sans)}.tpl small{font:11px var(--mono);color:var(--muted);white-space:nowrap}
-/* markaz */
-.view{position:relative;min-width:0;min-height:0;background:#fbfaf8;overflow:hidden}
-.view svg{width:100%;height:100%;display:block;cursor:grab}
-.vtop{position:absolute;left:12px;top:10px;display:flex;gap:8px;align-items:center;z-index:2}
-.vnote{position:absolute;left:12px;bottom:8px;font:11px var(--mono);color:var(--muted)}
-/* pastki tasma */
-.strip{grid-column:2;border-top:1px solid var(--ink);background:var(--surface);padding:8px 12px 10px;display:flex;flex-direction:column;gap:6px}
-.shead{display:flex;align-items:center;gap:10px;font:12px var(--mono)}
-.used{flex:1;height:4px;background:var(--line);position:relative}.used i{position:absolute;left:0;top:0;bottom:0;background:var(--sel)}
-.used.over i{background:var(--bad)}
-.row{display:flex;height:64px;border:1px solid var(--line);position:relative;user-select:none}
-.el{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;border-right:1px solid rgba(0,0,0,.18);overflow:hidden;cursor:grab;min-width:8px}
-.el .nm{font:500 10.5px/1.15 var(--sans);text-align:center;padding:0 3px;max-height:24px;overflow:hidden}
-.el .w{font:500 11px var(--mono)}
-.el.dk{color:#fff}.el.sel{box-shadow:inset 0 0 0 2px var(--sel);z-index:1}
-.el .h{position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:2}
-.el.drop-l{box-shadow:inset 3px 0 0 var(--acc)}.el.drop-r{box-shadow:inset -3px 0 0 var(--acc)}
-.bld{width:34px;display:flex;align-items:center;justify-content:center;background:var(--sunk);font:11px var(--mono);color:var(--muted);flex:none}
-/* oʻng: elementlar va xususiyatlar */
-.right{grid-row:2/4;grid-column:3;border-left:1px solid var(--line);background:var(--surface);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
-.card{border:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:8px}
-.card h3{margin:0;font:600 15px var(--sans)}
-.kv{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-size:13px}
-.kv input,.kv select{width:90px;height:28px;border:1px solid var(--line);padding:0 6px;text-align:right;font:13px var(--mono)}
-.pal{display:flex;flex-direction:column;gap:2px}
-.pal .pg{margin-top:8px}
-.pi{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;border:0;background:none;padding:5px 4px;text-align:left;font:13px var(--sans)}
-.pi:hover{background:var(--sunk)}.pi i{width:22px;height:14px;border:1px solid rgba(0,0,0,.15)}.pi small{font:11px var(--mono);color:var(--muted)}
-.note{font-size:12px;color:var(--muted);margin:0}
-.warn{font-size:12px;color:var(--bad);margin:0}
-@media (max-width:1100px){.app{grid-template-columns:200px minmax(0,1fr) 230px}}
-</style>
+<title>Transport infratuzilmasi — Archemistry Lab</title>
+<meta http-equiv="refresh" content="0; url=studio.html">
+<link rel="canonical" href="studio.html">
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f2f1ee;color:#141414;font:15px Archivo,system-ui,sans-serif}a{color:#2a6fb0}</style>
 </head>
 <body>
-<div class="app">
-  <div class="bar">
-    <a class="ib" id="toHome" href="./" title="Bosh sahifa — Archemistry Lab" aria-label="Bosh sahifa" style="display:grid;place-items:center;color:inherit"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></a><script>if(window.top!==window)document.getElementById('toHome').hidden=true;</script>
-    <div class="seg" id="vSeg" role="group" aria-label="Koʻrinish"><button data-v="kesim" aria-pressed="true">Kesim</button><button data-v="reja">Reja</button><button data-v="axo">Aksonometriya</button></div>
-    <div class="seg" id="dSeg" role="group" aria-label="Yoʻnalish" hidden><button data-d="0" aria-pressed="true">old chap</button><button data-d="1">old oʻng</button><button data-d="2">orqa chap</button><button data-d="3">orqa oʻng</button></div>
-    <span class="sp"></span>
-    <button class="ib" id="undo" title="Bekor qilish (Ctrl+Z)" aria-label="Bekor qilish"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/></svg></button>
-    <button class="ib" id="redo" title="Qaytarish (Ctrl+Shift+Z)" aria-label="Qaytarish"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/></svg></button>
-    <button class="btn" id="exSvg">SVG</button><button class="btn" id="exPng">PNG</button><button class="btn dark" id="toAlb">Albomga →</button>
-  </div>
-
-  <aside class="left" aria-label="Shablonlar">
-    <span class="lb">Shablonlar</span>
-    <input type="search" id="q" placeholder="Qidirish: velo, BRT, 24 m…" autocomplete="off">
-    <div id="tpls"></div>
-  </aside>
-
-  <main class="view" id="view"><svg id="svg" role="img" aria-label="Koʻcha"></svg>
-    <div class="vnote" id="vnote">gʻildirak — masshtab · sudrash — surish</div></main>
-
-  <section class="strip" aria-label="Koʻcha elementlari">
-    <div class="shead"><span id="usedT"></span><div class="used" id="used"><i></i></div>
-      <button class="btn" id="fit" title="Elementlarni qizil chiziqlar orasiga moslab kengaytirish/qisqartirish">Kenglikka moslash</button>
-      <button class="btn" id="mirror" title="Chap yarmini oʻngga koʻzgu qilib qoʻyish">Koʻzgu</button>
-      <button class="btn" id="clear">Tozalash</button></div>
-    <div class="row" id="row"></div>
-  </section>
-
-  <aside class="right" aria-label="Element">
-    <div class="card" id="prop"></div>
-    <div class="card"><span class="lb">Koʻcha</span>
-      <div class="kv"><span>Qizil chiziqlar orasi, m</span><input type="number" id="W" min="3" max="120" step="0.1">
-        <span>Chap bino, qavat</span><input type="number" id="hl" min="0" max="40" step="1">
-        <span>Oʻng bino, qavat</span><input type="number" id="hr" min="0" max="40" step="1"></div></div>
-    <div class="card"><span class="lb">Elementlar — bosing yoki tasmaga sudrang</span><div class="pal" id="pal"></div></div>
-    <p class="note">Oʻlchamlar — namuna qiymat; loyiha meʼyoriy hujjatlar bilan tasdiqlanadi.</p>
-  </aside>
-</div>
-<script src="js/kesim.js?v=2"></script>
-<script src="js/i18n.js?v=53"></script>
+<p>Koʻcha kesimi asbobi «Transport infratuzilmasi» bilan birlashtirildi. <a href="studio.html">Oʻtish</a></p>
+<script>location.replace('studio.html'+location.hash);</script>
 </body>
 </html>

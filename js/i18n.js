@@ -9,6 +9,12 @@ function sw(){if(document.getElementById('kpsLang'))return;var h=document.queryS
   var sp=h.querySelector('.sp, .spacer, [class*="sp"]');var last=h.lastElementChild;if(sp&&sp.nextSibling)h.insertBefore(d,sp.nextSibling);else h.appendChild(d);}
 document.documentElement.lang=L;window.kpsT=function(x){return x;};
 if(L==='uz'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',sw);else sw();return;}
+/* belgilar ikonkaga almashtirilgan matnlar («Albomga →» → «Albomga» + SVG): chetdagi belgisiz kalitlar ham tarjima qilinadi */
+(function(){var G='[\\s\\u2190-\\u21FF\\u2300-\\u23FF\\u25A0-\\u25FF\\u2600-\\u27BF\\u27F0-\\u27FF\\u2900-\\u297F\\u29C9\\u2B00-\\u2BFF]+',E=new RegExp('^'+G+'|'+G+'$','g');
+  Object.keys(DICT).forEach(function(l){var d=DICT[l];Object.keys(d).forEach(function(k){var s=k.replace(E,'');if(s&&s!==k&&!(s in d))d[s]=String(d[k]).replace(E,'');});});
+  var X={en:{'Xarita kutubxonasi yuklanmadi — internet yoki tarmoq cheklovini tekshiring va sahifani yangilang':'Map library failed to load — check your internet connection or network restrictions and reload the page','3D kutubxonasi yuklanmadi — internet yoki tarmoq cheklovini tekshiring va sahifani yangilang':'3D library failed to load — check your internet connection or network restrictions and reload the page'},
+    ru:{'Xarita kutubxonasi yuklanmadi — internet yoki tarmoq cheklovini tekshiring va sahifani yangilang':'Библиотека карты не загрузилась — проверьте интернет или сетевые ограничения и обновите страницу','3D kutubxonasi yuklanmadi — internet yoki tarmoq cheklovini tekshiring va sahifani yangilang':'3D-библиотека не загрузилась — проверьте интернет или сетевые ограничения и обновите страницу'}};
+  Object.keys(X).forEach(function(l){if(DICT[l])Object.keys(X[l]).forEach(function(k){if(!(k in DICT[l]))DICT[l][k]=X[l][k];});});})();
 var D=DICT[L]||{},NUM=/\d+(?:[.,]\d+)?/g,DN={},FR=[];
 Object.keys(D).forEach(function(k){if(/\d/.test(k))DN[k.replace(NUM,'#')]=k;if(k.length>=7&&/\s/.test(k))FR.push(k);});FR.sort(function(a,b){return b.length-a.length;});
 var LET=/[A-Za-zʻʼ'Ѐ-ӿ]/;

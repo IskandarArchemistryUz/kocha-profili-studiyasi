@@ -98,12 +98,12 @@ function markSeen(k){try{const s=seen();s[k]=1;localStorage.setItem(SEEN_KEY,JSO
 function ensure(host){if(el)return el;const st=document.createElement('style');st.textContent=CSS;document.head.appendChild(st);
   el=document.createElement('figure');el.className='xa';el.hidden=true;el.setAttribute('role','dialog');(host||document.body).appendChild(el);return el;}
 function show(k,host){const s=SC[k];if(!s)return false;ensure(host);cur=k;clearTimeout(timer);
-  el.innerHTML=`<button class="xx" aria-label="${esc(T('Yopish'))}">×</button><svg viewBox="0 0 380 240" role="img" aria-label="${esc(T(s.t))}">${s.svg}</svg>
+  el.innerHTML=`<button class="xx" aria-label="${esc(T('Yopish'))}">${KIC.i('x')}</button><svg viewBox="0 0 380 240" role="img" aria-label="${esc(T(s.t))}">${s.svg}</svg>
     <figcaption><span class="xk">${esc(T(s.k))}</span><span class="xt">${esc(T(s.t))}</span><span class="xd">${esc(T(s.d))}</span>
-    <div class="xb"><button data-x="ok">${esc(T('Tushunarli'))}</button><button data-x="pz">${esc(T('❚❚ Toʻxtatish'))}</button></div></figcaption>`;
+    <div class="xb"><button data-x="ok">${esc(T('Tushunarli'))}</button><button data-x="pz">${KIC.i('pause','b',14)}${esc(T('Toʻxtatish'))}</button></div></figcaption>`;
   el.classList.remove('pz');el.hidden=false;markSeen(k);
   el.querySelector('.xx').onclick=hide;el.querySelector('[data-x=ok]').onclick=hide;
-  el.querySelector('[data-x=pz]').onclick=e=>{const p=el.classList.toggle('pz');e.target.textContent=T(p?'▶ Davom ettirish':'❚❚ Toʻxtatish');};
+  el.querySelector('[data-x=pz]').onclick=e=>{const p=el.classList.toggle('pz');e.currentTarget.innerHTML=KIC.i(p?'play':'pause','b',14)+esc(T(p?'Davom ettirish':'Toʻxtatish'));};
   timer=setTimeout(()=>{if(cur===k)hide();},14000);   // 3 marta koʻrsatib, oʻzi yopiladi
   return true;}
 function hide(){if(el)el.hidden=true;cur=null;clearTimeout(timer);}

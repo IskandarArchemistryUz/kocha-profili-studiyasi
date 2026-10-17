@@ -168,13 +168,14 @@ body.nosub{grid-template-rows:auto minmax(0,1fr)}body.nosub .sub{display:none}
 @media (max-width:1180px){.sst{display:none}.pname{width:7em}}
 @media (max-width:900px){.gq input{width:120px}.gq .gl{position:fixed;left:8px;right:8px;top:52px;width:auto}}
 </style>
+<script src="js/icons.js?v=2"></script>
 </head>
 <body>
 <header class="top">
   <a class="brand" href="./" title="Bosh sahifa">
     <svg width="21" height="20" viewBox="0 0 103.45 100" aria-hidden="true"><path d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z" fill="#696969" fill-rule="evenodd"/></svg>ARCHEMISTRY
   </a>
-  <div class="pwrap"><input class="pname" id="pname" aria-label="Loyiha nomi" value="Yangi loyiha"><button class="pmenu-btn" id="pmBtn" aria-expanded="false" aria-label="Loyihalar roʻyxati">▾</button>
+  <div class="pwrap"><input class="pname" id="pname" aria-label="Loyiha nomi" value="Yangi loyiha"><button class="pmenu-btn" id="pmBtn" aria-expanded="false" aria-label="Loyihalar roʻyxati"><i data-i="chevron-down"></i></button>
     <div class="pmenu" id="pmenu" hidden><div class="ph">Loyihalar · shu brauzerda</div><div id="plist"></div><div class="pf"><button class="btn dark" id="pNew">+ Yangi loyiha</button></div><div class="pf2"><button class="btn" id="pExp" title="Ochiq loyihani bitta faylga saqlash — boshqa kompyuterda yoki kesh tozalangandan keyin qayta ochish uchun">Faylga saqlash</button><button class="btn" id="pImp" title="Avval saqlangan .archemistry.json faylni yangi loyiha sifatida ochish">Fayldan ochish</button></div><div class="pf2" style="grid-template-columns:1fr"><button class="btn" id="pExpAll" title="Barcha loyihalarni bitta zaxira faylga saqlash">Barcha loyihalarni zaxiralash</button></div><div class="pnote">Loyihalar shu brauzerda saqlanadi. Kesh tozalansa yoki boshqa kompyuterga oʻtsangiz — faylga saqlab qoʻying.</div><input type="file" id="pFile" accept=".json,application/json" hidden></div></div>
   <button class="sst" id="sst" title="Loyiha holati — bosing: faylga saqlash"></button>
   <nav class="steps" id="steps" aria-label="Loyiha qadamlari"></nav>
@@ -182,7 +183,7 @@ body.nosub{grid-template-rows:auto minmax(0,1fr)}body.nosub .sub{display:none}
     <div class="qw" id="qwrap"></div>
     <div class="gq"><input id="gq" type="search" placeholder="Asbobni topish: shamol, aholi…" autocomplete="off" aria-label="Asbobni topish — qaysi qadamda nima borligini qidirish" title="Funksiyani qidiradi va kerakli qadamni ochadi. Xaritada joy qidirish — xarita ustidagi maydon."><div class="gl" id="gl" hidden></div></div>
     <button class="btn helpb" id="helpBtn" title="Bu qadamda nima qilinadi">?</button>
-    <div class="prwrap"><button class="btn" id="prBtn" aria-expanded="false" aria-controls="prm" title="Loyiha farazlari: kishi/xonadon, avtoturargoh, qavat… — barcha qadamlar shu qiymatlarni oladi" aria-label="Loyiha parametrlari" style="width:32px;padding:0;font-size:16px">⚙</button><div class="prm" id="prm" hidden role="dialog" aria-label="Loyiha parametrlari"></div></div>
+    <div class="prwrap"><button class="btn" id="prBtn" aria-expanded="false" aria-controls="prm" title="Loyiha farazlari: kishi/xonadon, avtoturargoh, qavat… — barcha qadamlar shu qiymatlarni oladi" aria-label="Loyiha parametrlari" style="width:32px;padding:0;font-size:16px;display:inline-flex;align-items:center;justify-content:center"><i data-i="settings"></i></button><div class="prm" id="prm" hidden role="dialog" aria-label="Loyiha parametrlari"></div></div>
     <button class="btn" id="mrBtn" aria-pressed="false" title="Master reja koʻrsatkichlari va meʼyor tekshiruvi (ShNQ) — har qadamda ochiladi"><span>Master reja</span><span id="mrB"></span></button>
   </div>
 </header>
@@ -195,7 +196,7 @@ body.nosub{grid-template-rows:auto minmax(0,1fr)}body.nosub .sub{display:none}
 <main class="stage">
   <div class="frames" id="frames"><div class="loading" id="loading" hidden>Yuklanmoqda…</div><div class="guide" id="guide" hidden></div></div>
   <aside class="drawer" id="drawer" aria-label="Master reja">
-    <div class="dh"><span>Master reja · koʻrsatkichlar</span><button id="mrClose" aria-label="Yopish">×</button></div>
+    <div class="dh"><span>Master reja · koʻrsatkichlar</span><button id="mrClose" aria-label="Yopish"><i data-i="x"></i></button></div>
     <div id="mrHost"></div>
   </aside>
 </main>
@@ -222,18 +223,17 @@ const STEPS=[
     {id:"zich", t:"Zichlik", page:"gis.html", gtab:"zich"},
     {id:"muh", t:"Tarmoqlar", page:"gis.html", gtab:"muh"},
     {id:"shamol", t:"Shamol", page:"shamol.html"}]},
-  {id:"kocha", t:"Koʻcha", subs:[
-    {id:"kesim", t:"Kesim", page:"kocha.html"},
+  {id:"kocha", t:"Transport", subs:[
     {id:"loyiha", t:"Koʻcha loyihasi", page:"studio.html", app:"design"},
     {id:"profil", t:"Mavjud profil", page:"studio.html", app:"prof"}]},
   {id:"albom", t:"Albom", subs:[
-    {id:"maket", t:"Varaqlar", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
+    {id:"maket", t:"Albom", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
   /* chuqur asboblar — menyuda «Qoʻshimcha»; xarita va maʼlumot asosiy oyna bilan umumiy */
   {id:"qosh", t:"Qoʻshimcha", hidden:true, subs:[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
     {id:"posadka", t:"Uchastkada joylashtirish", page:"posadka.html"}]}
 ];
-const BUILD="76";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
+const BUILD="77";   // boʻlim sahifalari brauzer keshidan eski nusxada ochilmasligi uchun; har chiqarishda oshiriladi
 const PAGE_TO = {}; STEPS.forEach((s,i)=>s.subs.forEach((u,j)=>{ const k=u.page+(u.app?"#"+u.app:""); if(!PAGE_TO[k]) PAGE_TO[k]=[i,j]; if(!PAGE_TO[u.page]) PAGE_TO[u.page]=[i,j]; }));
 const $=id=>document.getElementById(id);
 
@@ -334,8 +334,8 @@ function renderNav(){
   const i=P.step, st=STEPS[i], j=P.sub[st.id]||0;
   $("stepsM").innerHTML=$("steps").innerHTML=STEPS.map((s,k)=>s.hidden?"":`<button class="step tab" data-i="${k}" ${k===i?'aria-current="step"':""}><span class="t">${s.t}</span></button>`).join("")
 ;
-  $("qwrap").innerHTML=`<button class="btn qb" id="qBtn" aria-expanded="false" aria-haspopup="true" ${st.hidden?'aria-pressed="true"':""}>Qoʻshimcha ▾</button><div class="qm" id="qMenu" hidden role="menu">${STEPS.find(s=>s.hidden).subs.map((u,k)=>`<button role="menuitem" data-q="${k}">${u.t}</button>`).join("")}</div>`;
-  $("subtabs").innerHTML = st.hidden ? `<button data-back>← Loyiha</button><button aria-pressed="true">${st.subs[j].t}</button>`
+  $("qwrap").innerHTML=`<button class="btn qb" id="qBtn" aria-expanded="false" aria-haspopup="true" ${st.hidden?'aria-pressed="true"':""}>Qoʻshimcha${KIC.i('chevron-down','a')}</button><div class="qm" id="qMenu" hidden role="menu">${STEPS.find(s=>s.hidden).subs.map((u,k)=>`<button role="menuitem" data-q="${k}">${u.t}</button>`).join("")}</div>`;
+  $("subtabs").innerHTML = st.hidden ? `<button data-back>${KIC.i('arrow-left','b')}Loyiha</button><button aria-pressed="true">${st.subs[j].t}</button>`
     : st.subs.length>1 ? st.subs.map((u,k)=>`<button data-j="${k}" aria-pressed="${k===j}">${u.t}</button>`).join("") : "";
   $("hint").textContent=st.subs[j].hint||"";
   document.body.classList.toggle("nosub", !st.hidden && st.subs.length<2);
@@ -359,7 +359,7 @@ function openDrawer(on){
 function ensureMr(){ if(mrFrame) return; mrFrame=document.createElement("iframe"); mrFrame.title="Master reja"; mrFrame.src="masterreja.html?b="+BUILD; $("mrHost").appendChild(mrFrame); $("mrHost").style.height="100%"; }
 function renderMrB(){ const el=$("mrB"); if(!el) return; let s=null; try{ s=JSON.parse(localStorage.getItem("kps_mr_sum")||"null"); }catch(e){}
   if(!s||!s.has){ el.innerHTML=""; $("mrBtn").title="Master reja koʻrsatkichlari va meʼyor tekshiruvi (ShNQ). Hisob uchun 4-qadamda binolarni joylashtiring."; return; }
-  const t=[s.bad?`<span class="mb bad" title="meʼyorga mos emas">${s.bad} mos emas</span>`:"", s.na?`<span class="mb na" title="maʼlumot yetarli emas">${s.na} nomaʼlum</span>`:"", !s.bad&&!s.na&&s.ok?`<span class="mb ok">✓ hammasi mos</span>`:""].join("");
+  const t=[s.bad?`<span class="mb bad" title="meʼyorga mos emas">${s.bad} mos emas</span>`:"", s.na?`<span class="mb na" title="maʼlumot yetarli emas">${s.na} nomaʼlum</span>`:"", !s.bad&&!s.na&&s.ok?`<span class="mb ok">${KIC.i('check','b',14)}hammasi mos</span>`:""].join("");
   el.innerHTML=t; $("mrBtn").title=`Meʼyor tekshiruvi: ${s.ok} mos, ${s.bad} mos emas${s.first?" (birinchisi: "+s.first+")":""}, ${s.na} tasi uchun maʼlumot yetarli emas. Bosing — batafsil.`; }
 window.addEventListener("storage",e=>{ if(e.key==="kps_mr_sum") renderMrB(); });
 $("mrBtn").onclick=()=>openDrawer(!$("drawer").classList.contains("open"));
@@ -540,7 +540,6 @@ const GUIDE={
  "tahlil-gis":["Relyef, zichlik va tarmoqlar",["Tahlil hudud boʻyicha avtomatik boshlanadi.","Oʻngdagi tablar: <b>Balandlik</b>, <b>Nishab</b>, <b>Yer foyd.</b>, <b>Zichlik</b> (aholi bilan), <b>Tarmoqlar</b> (elektr, gaz, suv, kanalizatsiya, ariqlar).","<b>Albomga →</b> — joriy xaritani yuboradi."],""],
  "tahlil-shamol":["Shamol: mavjud holat",["<b>Binolar va shamolni yuklash</b> ni bosing (taxminan 30 soniya).","Fasl va kun vaqtini tanlang — qizil joylarda havo turib qoladi.","Loyiha binolarining taʼsiri — 4-qadam <b>Binolar → Shamol taʼsiri</b>."],"Shamol guli 1-qadam natijasida ham koʻrsatiladi."],
  "loyiha-bino":["Bino studiyasi",["Master rejada binoni tanlang → <b>Bino studiyasi →</b>.","<b>Fasad</b>: uslub, derazalar, balkonlar, 1-qavat, devor. <b>Hajm</b>: qavatlar va tom. <b>Kvartiralar</b>: reja va 3D kesim.","Tepada <b>Render</b> — quyosh soyasi bilan; soat va faslni oʻzgartiring."],""],
- "kocha-kesim":["Koʻcha kesimi",["Chapdan shablonni tanlang.","Pastdagi tasmada elementni bosing, chetini sudrab kengligini, oʻzini sudrab tartibini oʻzgartiring.","Oʻngdagi roʻyxatdan element qoʻshing; tepada — Kesim / Reja / Aksonometriya."],""],
  "kocha-loyiha":["Koʻchani loyihalash",["Chap paneldan modulni tanlang va xaritada koʻchani chizing.","YHQ tekshiruvlari oʻng panelda, 3D koʻrinish pastda.","Xarita ustidagi <b>Albomga →</b> — chizmani yuboradi."],""],
  "kocha-profil":["Mavjud profil",["Koʻcha oʻqiga bosing — koʻndalang kesim OSM dan taxmin qilinadi.","Loyiha profili bilan solishtiring.","Profilni albomga yuboring."],""],
  "bino-posadka":["Binolarni joylashtirish",["Uchastka 1-qadamdan oʻtadi — kerak boʻlsa qayta chizing.","Bino qoʻshing va qavatini bering: zichlik, xonadonlar, aholi va insolyatsiya oʻngda hisoblanadi.","Xaritadagi <b>Shamol</b> oynasi — shamol guli; <b>Binolarning shamolga taʼsiri →</b> bilan tekshiring."],""],
@@ -580,7 +579,7 @@ const FIND=[
 function findOpen(r){$("gl").hidden=true;$("gq").value="";
   if(!r[2]){openDrawer(true);return;}const i=STEPS.findIndex(s=>s.id===r[2]),j=STEPS[i].subs.findIndex(u=>u.id===r[3]);show(i,j);
   if(r[4]){const f=frames["gis.html"];let n=0;const t=setInterval(()=>{n++;try{const b=f&&f.contentDocument&&f.contentDocument.querySelector('#tabs [data-t="'+r[4]+'"]');if(b){b.click();clearInterval(t);}}catch(e){}if(n>40)clearInterval(t);},250);}
-  if(r[5])setTimeout(()=>{const h=$("hint");h.textContent="→ "+r[5];h.style.color="var(--acc)";setTimeout(()=>{h.style.color="";},6000);},200);}
+  if(r[5])setTimeout(()=>{const h=$("hint");h.textContent=r[5];h.insertAdjacentHTML("afterbegin",KIC.i("arrow-right","b",14));h.style.color="var(--acc)";setTimeout(()=>{h.style.color="";},6000);},200);}
 function findRender(){const q=$("gq").value.trim().toLowerCase(),gl=$("gl");if(q.length<2){gl.hidden=true;return;}
   const hits=FIND.filter(r=>(r[0]+" "+r[1]).toLowerCase().split(/\s+/).some(w=>w.startsWith(q)||w.includes(q))||r[0].toLowerCase().includes(q)).slice(0,7);
   gl.innerHTML=hits.length?hits.map((r,i)=>{const st=STEPS.find(s=>s.id===r[2]);return `<button data-f="${FIND.indexOf(r)}" class="${i?"":"on"}"><b>${r[0]}</b><small>${st?(STEPS.indexOf(st)+1)+" · "+st.t+" → "+st.subs.find(u=>u.id===r[3]).t:"Master reja"}${r[5]?" · "+r[5]:""}</small></button>`;}).join(""):`<button disabled><small>Topilmadi — boshqa soʻz bilan urinib koʻring</small></button>`;gl.hidden=false;}
