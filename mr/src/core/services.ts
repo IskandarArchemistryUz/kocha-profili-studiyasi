@@ -112,8 +112,10 @@ export function boundaryPts(r: XY[], step = 25): XY[] {
 export const WALKABLE = (cls: string) => !/^(motorway|motorway_link|trunk_link|construction|proposed|raceway|bus_guideway)$/.test(cls);
 
 /* ---------------- tahlil ---------------- */
-export interface Demand { p: XY; w: number; bid: string }
-export interface SvcResult { kind: Svc; r: number; sources: number; share: number; dist: number[]; D: Float64Array; far: number }
+/** r — shu seksiya uchun radiusni almashtirish (masalan bekat: hudud turi va relyef boʻyicha, core/transit.ts) */
+export interface Demand { p: XY; w: number; bid: string; r?: Partial<Record<Svc, number>> }
+/** r — asosiy (aholi vazni boʻyicha eng koʻp) radius; rd — har seksiya radiusi; rMin/rMax — oraligʻi */
+export interface SvcResult { kind: Svc; r: number; rMin: number; rMax: number; rd: number[]; sources: number; share: number; dist: number[]; D: Float64Array; far: number }
 
 /**
  * Har xizmat turi uchun: aholi (seksiyalar, vazni — turar joy GFA) ning radius ichidagi ulushi.
@@ -123,13 +125,16 @@ export function analyze(net: Net, demand: Demand[], sources: Record<Svc, { pts: 
   return SERVICES.map(def => {
     const objs = sources[def.id] ?? [], all = objs.flatMap(o => o.pts);
     const onNet = all.filter(p => snap(net, p)), off = all.filter(p => !snap(net, p));
-    const D = distances(net, onNet, def.r * 3);
+    const rd = demand.map(d => d.r?.[def.id] ?? def.r), rMax = rd.length ? Math.max(...rd) : def.r, rMin = rd.length ? Math.min(...rd) : def.r;
+    const D = distances(net, onNet, rMax * 3);
     let cov = 0, tot = 0;
-    const dist = demand.map(d => {
+    const wByR = new Map<number, number>();
+    const dist = demand.map((d, i) => {
       let x = distAt(net, D, d.p, all.filter(q => Math.hypot(q[0] - d.p[0], q[1] - d.p[1]) < 60));
       for (const q of off) x = Math.min(x, Math.hypot(q[0] - d.p[0], q[1] - d.p[1]) * 1.3);
-      tot += d.w; if (x <= def.r) cov += d.w; return x;
+      tot += d.w; if (x <= rd[i]) cov += d.w; wByR.set(rd[i], (wByR.get(rd[i]) ?? 0) + d.w); return x;
     });
-    return { kind: def.id, r: def.r, sources: objs.length, share: tot ? cov / tot : 0, dist, D, far: off.length };
+    const r = [...wByR].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? def.r;
+    return { kind: def.id, r, rMin, rMax, rd, sources: objs.length, share: tot ? cov / tot : 0, dist, D, far: off.length };
   });
 }
