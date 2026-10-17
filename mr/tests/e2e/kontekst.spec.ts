@@ -21,6 +21,7 @@ function city() {
 async function mockNet(ctx: BrowserContext, hits: { overpass: number }) {
   await ctx.route(/overpass|interpreter/, r => { if (decodeURIComponent(r.request().postData() || '').includes('highway')) hits.overpass++; return r.fulfill({ json: city() }); });
   await ctx.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
+  await ctx.route(/openfreemap\.org/, r => r.fulfill({ status: 404, body: '' }));   // OFM zaxirasi testda yoʻq — Overpass (mock) sinaladi
   await ctx.route(/nominatim/, r => r.fulfill({ json: [{ lat: '41.2856', lon: '69.2034', name: 'Chilonzor', display_name: 'Chilonzor, Toshkent, Oʻzbekiston' }] }));
 }
 
