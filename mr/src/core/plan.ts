@@ -50,10 +50,14 @@ export function offsetLine(axis: XY[], d: number): XY[] {
 }
 
 /** Koʻchalar koridorlari birlashmasining konturlari (qizil chiziqlar): chorrahada kesishmaydi, T-ulanishda uzilib ulanadi */
-export function corridorOutlines(list: { axis: XY[]; half: number }[]): XY[][] {
+export function corridorOutlines(list: { axis: XY[]; half: number }[], cutters: { axis: XY[]; half: number }[] = []): XY[][] {
   const corr = list.map(s => corridor(s.axis, s.half)).filter(m => m.length);
   if (!corr.length) return [];
-  return safeUnion(corr).flatMap(p => p.map(open)).filter(r => r.length >= 3);
+  let u = safeUnion(corr);
+  // mavjud (OSM) yoʻllar zonasi (qatnov + trotuar) koridorlardan olib tashlanadi — qizil chiziq yoʻl chetida tugaydi, uni kesib oʻtmaydi
+  const cut = cutters.map(c => corridor(c.axis, c.half)).filter(m => m.length);
+  if (cut.length) { try { u = polygonClipping.difference(u, safeUnion(cut)); } catch { /* aniqlik xatosi — kesilmagan kontur */ } }
+  return u.flatMap(p => p.map(open)).filter(r => r.length >= 3);
 }
 
 /** Birlashtirish; aniqlik xatosida — bittadan qoʻshib, muammoli boʻlakni biroz kattalashtirib qayta */
