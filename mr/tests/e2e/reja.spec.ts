@@ -79,6 +79,14 @@ test('parsellar: boʻlish, funksiya (maktab), kesish, butun kvartal; reyestrda m
   await page.locator('[data-block="1"]').click();
   await page.click('#pClear');
   await expect(page.locator('[data-block]')).toHaveCount(1);
+  // boʻlish usullari: 4 variant koʻrinadi; perimetr — frontal parsellar + yadro
+  await page.locator('[data-block="0"]').click();
+  await expect(page.locator('[data-pvar]')).toHaveCount(4);
+  await page.click('[data-pvar=perimetr]');
+  await expect(page.locator('[data-pvar=perimetr]')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('#pSplit');
+  const n = await page.locator('[data-block]').count();
+  expect(n).toBeGreaterThanOrEqual(5);
 });
 
 test('koʻcha: ikki marta bosish va «Chizishni tugatish» chiziqni saqlaydi', async ({ page }) => {

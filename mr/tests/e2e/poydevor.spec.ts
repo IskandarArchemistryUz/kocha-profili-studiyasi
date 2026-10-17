@@ -98,8 +98,8 @@ test('Reja koʻrinishi uchastkani ekranga moslab koʻrsatadi', async ({ page }) 
 /** Cheksiz xarita: joy surilib, uchastka uzoqda qoʻyilsa — loyiha markazi uchastkaga koʻchadi (atrof shu yerda yuklanadi) */
 test('uzoqda qoʻyilgan uchastka — loyiha markazi unga koʻchadi', async ({ page }) => {
   await newProject(page);
-  const o0 = await page.evaluate(() => { const ed = (window as any).__mr; ed.scene.ctl.target.set(2000, 0, -1500); ed.scene.ctl.update(); return ed.store.doc.origin; });
-  await page.click('#rectSite');
+  // kamera surish va tugma bosish bir evaluate ichida — orada asos xarita/kamera animatsiyasi nishonni qaytarib qoʻymasin (CI flake)
+  const o0 = await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin.slice(); ed.scene.ctl.target.set(2000, 0, -1500); ed.scene.ctl.update(); (document.querySelector('#rectSite') as HTMLElement).click(); return o; });
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.origin[0])).not.toBe(o0[0]);
   const d = await page.evaluate(() => { const doc = (window as any).__mr.store.doc, r = doc.site.rings[0], c = [r.reduce((a: number, p: number[]) => a + p[0], 0) / r.length, r.reduce((a: number, p: number[]) => a + p[1], 0) / r.length]; return [(c[0] - doc.origin[0]) * 84000, (c[1] - doc.origin[1]) * 111000]; });
   expect(Math.hypot(d[0], d[1])).toBeLessThan(20);
