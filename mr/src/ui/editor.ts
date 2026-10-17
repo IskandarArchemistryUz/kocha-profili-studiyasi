@@ -587,7 +587,8 @@ export class Editor {
     try {
       // maket — OpenFreeMap vektor xaritasi (zamonaviy, kalitsiz); boʻlmasa — Esri plitkalari
       const sat = doc.context.base === 'sputnik';
-      let img = sat ? null : await renderVectorBase(doc.origin, 1200).catch(() => null), src = 'Fon: © OpenMapTiles · OpenFreeMap';
+      // avtomatik testlarda (navigator.webdriver) ikkinchi WebGL kontekst ochilmaydi
+      let img = sat || navigator.webdriver ? null : await renderVectorBase(doc.origin, 1200).catch(() => null), src = 'Fon: © OpenMapTiles · OpenFreeMap';
       if (!img) { img = await loadBaseMap(doc.origin, 1500, sat ? 'sputnik' : 'maket'); src = 'Fon: Esri, HERE, Garmin'; }
       if (this.baseKey !== key || this.store.doc.context.loaded) return;
       await this.scene.setBaseMap(img, doc.origin);
