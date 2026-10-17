@@ -105,7 +105,7 @@ export async function loadImagery(radius: number, bb: BBox, f: typeof fetch = fe
 }
 
 /** Fon xaritasi: atrof yuklanguncha sahna ostida (maket — CARTO, sunʼiy yoʻldosh — Esri) */
-export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' | 'sputnik', f: typeof fetch = fetch): Promise<Imagery | null> {
+export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' | 'sputnik', f: typeof fetch = fetch): Promise<{ image: Blob; nw: LngLat; se: LngLat } | null> {
   const dLat = radius / 110_540, dLng = radius / latK(center[1]);
   const bb: BBox = [center[1] - dLat, center[0] - dLng, center[1] + dLat, center[0] + dLng];   // janub, gʻarb, shimol, sharq
   const z = radius <= 1200 ? 16 : 15;
@@ -117,7 +117,7 @@ export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' 
   oc.fillStyle = kind === 'sputnik' ? '#8a8f86' : '#f2efe9'; oc.fillRect(0, 0, m.W, m.H); oc.drawImage(m.cv as OffscreenCanvas, 0, 0);
   const image = 'convertToBlob' in out ? await (out as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.88 })
     : await new Promise<Blob>((ok, no) => (out as HTMLCanvasElement).toBlob(b => b ? ok(b) : no(new Error('toBlob')), 'image/jpeg', 0.88));
-  return { image, z, x0: m.x0, y0: m.y0, W: m.W, H: m.H };
+  return { image, nw: pxToLngLat(m.x0, m.y0, z), se: pxToLngLat(m.x0 + m.W, m.y0 + m.H, z) };
 }
 /** Mercator piksel → geografik nuqta */
 export function pxToLngLat(px: number, py: number, z: number): LngLat {
