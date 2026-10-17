@@ -127,7 +127,7 @@ test('«Uchlarini mavjud yoʻllarga ulash» — qisqa qolgan koʻcha OSM yoʻlga
     ed.ctxMgr.current = { osm: { roads: [{ id: 1, cls: 'primary', w: 20, pts: [g(-200, 100), g(200, 100)] }] } };
     ed.store.dispatch({ type: 'addStreet', axis: [g(0, -50), g(0, 85)], profile: 'mahalla-15' });
   });
-  await page.click('#rectSite'); await page.click('[data-step=kocha]');
+  await page.click('#rectSite'); await page.click('[data-step=kocha]'); await page.click('[data-ktab=chiz]');
   await page.click('#connEnds');
   const y = await page.evaluate(() => { const ed = (window as any).__mr, st = ed.store.doc.streets[0]; return (st.axis[st.axis.length - 1][1] - ed.store.doc.origin[1]) * 111132; });
   expect(y).toBeCloseTo(100, 0);

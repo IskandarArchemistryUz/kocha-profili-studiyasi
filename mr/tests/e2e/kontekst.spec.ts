@@ -76,10 +76,10 @@ test('koordinata bilan qidiruv tarmoqsiz ishlaydi', async ({ page }) => {
 
 test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   await newProject(page);
-  await expect(page.locator('.seg.full button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'true');
-  await page.click('.seg.full button:has-text("750 m")');
-  await expect(page.locator('.seg.full button', { hasText: '750 m' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.seg.full button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('[aria-label=Radius] button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'true');
+  await page.click('[aria-label=Radius] button:has-text("750 m")');
+  await expect(page.locator('[aria-label=Radius] button', { hasText: '750 m' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[aria-label=Radius] button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('OSM serveri band boʻlsa — keshdagi nusxa ogohlantirish bilan', async ({ page, context }) => {
@@ -115,7 +115,7 @@ test('mavjud OSM koʻchasini loyihaga olish: profil, meʼyor tekshiruvi, konteks
   await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 15000 });
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '300'); await page.fill('#rh', '300'); await page.click('#rectSite');
   await page.click('[data-step=kocha]');
-  await page.click('[data-prof=tuman-40]');
+  await page.click('[data-ktab=prof]'); await page.click('[data-prof=tuman-40]');
   await page.click('[data-view=plan]');
   const p = await screenOf(page, 75, 20);                 // x=75 dagi koʻcha (residential)
   await page.mouse.click(p.x, p.y);
