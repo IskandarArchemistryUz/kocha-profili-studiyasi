@@ -130,7 +130,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
 
   // 1. atrof (yoʻllar va yashil hududlar uchastka ichida chizilmaydi — u yer qayta loyihalanadi)
   const outside = site ? ' mask="url(#tashqari)"' : '';
-  const keep = new Set(doc.keep), adopted = new Set(doc.streets.filter(s => s.osm != null).map(s => s.osm!));
+  const keep = new Set(doc.keep), adopted = new Set([...doc.streets.filter(s => s.osm != null).map(s => s.osm!), ...(doc.removedRoads ?? [])]);
   if (ctx && o.show.context) {
     if (K !== 'figura') {
       g('Atrof_yashil', ctx.green.filter(a => a.rings[0] && vis(a.rings[0])).map(a => `<path d="${polyD(a.rings)}" fill="${/wood|forest|scrub/.test(a.kind) ? C.wood : C.green}" fill-rule="evenodd"/>`).join(''), outside);

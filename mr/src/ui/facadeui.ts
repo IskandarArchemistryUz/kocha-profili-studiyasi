@@ -2,7 +2,7 @@
  * «Fasad va tom» paneli (dizayn: «Fasad va tom · B — Sozlamalar roʻyxati»):
  * bitta ikonka tili (fasad koʻrinishi, 24 × 24, pastda pol chizigʻi), jonli fasad koʻrinishi va tanlov roʻyxatlari.
  */
-import type { Win, Bal } from '../core/facade';
+import { WIN_PATS, BAL_PATS, type Win, type Bal, type WinPat, type BalPat } from '../core/facade';
 import type { Mat, Roof } from '../core/roof';
 import type { Shade } from '../core/doc';
 
@@ -30,6 +30,22 @@ export const BAL_OPTS: { id: Bal; n: string; d: string }[] = [
   { id: 'lodjiya', n: 'Lodjiya', d: F + 'M8 21V8h8v13M8 16h8' },
   { id: 'fransuz', n: 'Fransuz balkoni', d: F + 'M9 6h6v15M12 6v15M8 14h8v4H8z' },
   { id: 'uzluksiz', n: 'Uzluksiz terrasa', d: 'M1 21h22M5 21V5h14v16M9 6h6v7H9zM1 15h22M1 15v4M23 15v4M6 15v4M11 15v4M16 15v4' },
+];
+export const WINPAT_OPTS: { id: WinPat; n: string; d: string }[] = [
+  { id: 'qator', n: WIN_PATS.find(x => x.id === 'qator')!.name, d: F + 'M7 7h3v3h-3zM14 7h3v3h-3zM7 13h3v3h-3zM14 13h3v3h-3z' },
+  { id: 'shaxmat', n: WIN_PATS.find(x => x.id === 'shaxmat')!.name, d: F + 'M6 7h3v3h-3zM12 7h3v3h-3zM9 13h3v3h-3zM15 13h3v3h-3z' },
+  { id: 'juft', n: WIN_PATS.find(x => x.id === 'juft')!.name, d: F + 'M6 7h2.5v3h-2.5zM9.5 7h2.5v3h-2.5zM6 13h2.5v3h-2.5zM9.5 13h2.5v3h-2.5z' },
+  { id: 'ritm', n: WIN_PATS.find(x => x.id === 'ritm')!.name, d: F + 'M6 7h3v3h-3zM10.5 7h3v3h-3zM6 13h3v3h-3zM10.5 13h3v3h-3z' },
+  { id: 'tasodifiy', n: WIN_PATS.find(x => x.id === 'tasodifiy')!.name, d: F + 'M6 7h4v3h-4zM14 8h2v2h-2zM8 13h2v3h-2zM13 14h4v2h-4z' },
+  { id: 'gradient', n: WIN_PATS.find(x => x.id === 'gradient')!.name, d: F + 'M6 6h5v4h-5zM13 6h5v4h-5zM7.5 14h2v3h-2zM14.5 14h2v3h-2z' },
+];
+export const BALPAT_OPTS: { id: BalPat; n: string; d: string }[] = [
+  { id: 'har2', n: BAL_PATS.find(x => x.id === 'har2')!.name, d: F + 'M7 7h3v3h-3zM6 11h5M7 13h3v3h-3zM6 17h5' },
+  { id: 'hammasi', n: BAL_PATS.find(x => x.id === 'hammasi')!.name, d: F + 'M7 7h3v3h-3zM6 11h5M14 7h3v3h-3zM13 11h5M7 13h3v3h-3zM6 17h5M14 13h3v3h-3zM13 17h5' },
+  { id: 'shaxmat', n: BAL_PATS.find(x => x.id === 'shaxmat')!.name, d: F + 'M7 7h3v3h-3zM6 11h5M14 13h3v3h-3zM13 17h5' },
+  { id: 'ustun', n: BAL_PATS.find(x => x.id === 'ustun')!.name, d: F + 'M10.5 7h3v3h-3zM9.5 11h5M10.5 13h3v3h-3zM9.5 17h5' },
+  { id: 'qavat', n: BAL_PATS.find(x => x.id === 'qavat')!.name, d: F + 'M7 13h3v3h-3zM6 17h5M14 13h3v3h-3zM13 17h5' },
+  { id: 'tasodifiy', n: BAL_PATS.find(x => x.id === 'tasodifiy')!.name, d: F + 'M14 7h3v3h-3zM13 11h5M7 13h3v3h-3zM6 17h5' },
 ];
 export const SHAPE_OPTS: { id: RoofShape; n: string; d: string }[] = [
   { id: 'tekis', n: 'Tekis', d: 'M3 21h18M5 21V9h14v12M4 9h16' },

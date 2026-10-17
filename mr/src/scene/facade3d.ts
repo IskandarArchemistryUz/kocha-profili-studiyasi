@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import type { XY } from '../core/geo';
-import type { Bal } from '../core/facade';
+import { winAt, balAt, type Bal, type WinPat, type BalPat } from '../core/facade';
 
 export interface WinSpec { id: string; w: number; sill: number; head: number; arch?: boolean }
 /** Qatlamlar: wall — devor va qiyaliklar (UV — metr), trim — qavat tasmalari, glass, frame, sill, slab — balkon plitasi, rail — toʻsiq shishasi/metall, bar — tutqich */
@@ -29,6 +29,11 @@ export interface PartIn {
   /** pastki qavat raqami (0 — yer qavati; balkon va tasma shunga koʻra) */
   floor0: number;
   bands: boolean;
+  /** parametrik joylashuv; seed — bino id dan; topF — binoning eng yuqori qavati (gradient uchun) */
+  pat?: WinPat;
+  bpat?: BalPat;
+  seed?: number;
+  topF?: number;
 }
 
 const MOD = 3.3;
@@ -99,10 +104,13 @@ export function buildFacade(parts: PartIn[], G: FacadeGeo = emptyGeo()): FacadeG
         const covF = cov.filter(c => c.top >= zTop - 0.6);
         const covered = (x0: number, x1: number, m = 0) => covF.some(c => x1 + m > c.s0 && x0 - m < c.s1);
         for (let j = 0; j < nm; j++) {
-          const c = (j + 0.5) * bw;
+          const wa = shop ? { on: true, off: 0, wk: 1 } : winAt(P.pat, j, nm, absF, P.topF ? absF / Math.max(1, P.topF - 1) : 0, P.seed ?? 0, k);
+          const isBal = !!balEdge && absF >= 1 && (P.bal === 'uzluksiz' || P.bal === 'fransuz' || balAt(P.bpat, j, absF, P.seed ?? 0, k));
+          if (!wa.on && !isBal) continue;
+          const c = (j + 0.5 + (isBal ? 0 : wa.off)) * bw;
           if (covered(c - bw * 0.45, c + bw * 0.45, 0.25)) continue;   // qoʻshni seksiya devori ortida — deraza yoʻq
-          const isBal = !!balEdge && absF >= 1 && (P.bal === 'uzluksiz' || P.bal === 'fransuz' || j % 2 === 0);
-          let w = Math.min(sp.w * bw, bw - 0.3), sill = sp.sill, head = Math.min(sp.head, fh - 0.15), arch = !!sp.arch && !shop;
+          let w = Math.min(sp.w * bw * (isBal ? 1 : wa.wk), bw - 0.3), sill = sp.sill, head = Math.min(sp.head, fh - 0.15), arch = !!sp.arch && !shop;
+          if (c - w / 2 < 0.15 || c + w / 2 > L - 0.15) continue;
           const door = isBal && P.bal !== 'fransuz';
           if (door) { sill = 0.05; head = Math.min(fh - 0.25, Math.max(head, 2.4)); w = Math.min(Math.max(w, 1.4), bw - 0.4); arch = false; }
           if (isBal && P.bal === 'fransuz') { sill = Math.min(sill, 0.1); head = Math.min(fh - 0.25, Math.max(head, 2.3)); }

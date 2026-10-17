@@ -46,7 +46,7 @@ import { JOBS_NOTE } from '../core/jobs';
 import { landscape } from '../core/landscape';
 import { MATS, PV, roofParts, pvEstimate, type Mat, type Roof } from '../core/roof';
 import { winDef, type Win, type Bal } from '../core/facade';
-import { facadePreview, matSwatch, roofShape, roofCover, roofOf, WIN_OPTS, BAL_OPTS, SHAPE_OPTS, COVER_OPTS, PARAPET_OPTS, SHADE_OPTS, USE_ICON, USE_SHORT } from './facadeui';
+import { facadePreview, matSwatch, roofShape, roofCover, roofOf, WIN_OPTS, BAL_OPTS, WINPAT_OPTS, BALPAT_OPTS, SHAPE_OPTS, COVER_OPTS, PARAPET_OPTS, SHADE_OPTS, USE_ICON, USE_SHORT } from './facadeui';
 import type { Command } from '../core/commands';
 import { pushEdge, tieredGfa } from '../core/tiers';
 import type { Shade } from '../core/doc';
@@ -334,7 +334,7 @@ export class Editor {
     const { cover, canopy } = coverClassifier({
       streets: doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })),
       blocks: plan.blocks.map(b => ({ rings: b.rings, use: b.use })), site: doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null,
-      roads: (sc?.roads ?? []).filter(r => !doc.streets.some(s => s.osm === r.id)), green: sc?.green ?? [], water: sc?.water ?? [],
+      roads: (sc?.roads ?? []).filter(r => !doc.streets.some(s => s.osm === r.id) && !(doc.removedRoads ?? []).includes(r.id)), green: sc?.green ?? [], water: sc?.water ?? [],
       yards: yardsL.map(y => ({ green: y.green, hard: [...y.paving, ...y.paths, ...y.play.map(q => [q.ring])] })),
       trees: [...(sc?.trees ?? []).filter(t => !doc.site || !pointIn(t, doc.site.rings.map(r => r.map(fr.toLocal)))), ...projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0).trees, ...yardsL.flatMap(y => y.trees)],
     });
@@ -437,7 +437,8 @@ export class Editor {
   private tierInset = 3;
   private tierEdge: number | null = null;
   /** bino tanlangan (parsellar, fasad va kvartiralar qadamidan tashqari) — chap panel bino muharririga aylanadi */
-  private inspOn(): boolean { return !!this.sel && !['parsel', 'kvartira', 'fasad'].includes(this.step.id) && this.store.doc.buildings.some(x => x.id === this.sel); }
+  /** bino inspektori faqat «Hajmlar» qadamida — boshqa qadamga oʻtilsa, oʻsha qadam oynasi koʻrinadi (ustma-ust qolmaydi) */
+  private inspOn(): boolean { return !!this.sel && this.step.id === 'hajm' && this.store.doc.buildings.some(x => x.id === this.sel); }
   private renderInspector(): void {
     const doc = this.store.doc, b = doc.buildings.find(x => x.id === this.sel), el = this.el.panel;
     if (!b || !this.inspOn()) { if (this.scene.selFloor != null) this.scene.setSelFloor(null); if (!b) this.dragMode = 'yoq'; this.syncBTools(); if (el.dataset.mode === 'bino') this.renderPanel(); return; }
@@ -694,7 +695,7 @@ export class Editor {
       && !(r.cls === 'service' && /driveway|parking_aisle|drive-through|emergency_access/.test(r.sub ?? ''))
       && !(this.blockMode === 'yirik' && MINOR.test(r.cls));
     const bars: Barrier[] = [
-      ...b.osm.roads.filter(ok).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })),
+      ...b.osm.roads.filter(r => ok(r) && !(doc.removedRoads ?? []).includes(r.id)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })),
       ...b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w + 4 })),
       ...b.osm.waterways.filter(w => /river|canal/.test(w.cls)).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w })),
     ];
@@ -946,7 +947,7 @@ export class Editor {
       const m = new Map<T, number>(); list.forEach(b => { const v = f(b); m.set(v, (m.get(v) ?? 0) + 1); });
       const top = [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null; return { v: m.size === 1 ? top : null, top };
     };
-    const mat = pick(b => b.mat ?? 'suvoq'), win = pick(b => b.win ?? 'yoq'), bal = pick(b => b.bal ?? 'yoq'), shape = pick(b => roofShape(b.roof)), cover = pick(b => roofCover(b.roof)), par = pick(b => b.parapet ?? 0), shd = pick(b => b.shade ?? 'yoq');
+    const mat = pick(b => b.mat ?? 'suvoq'), win = pick(b => b.win ?? 'yoq'), bal = pick(b => b.bal ?? 'yoq'), shape = pick(b => roofShape(b.roof)), cover = pick(b => roofCover(b.roof)), par = pick(b => b.parapet ?? 0), shd = pick(b => b.shade ?? 'yoq'), wpat = pick(b => b.winPat ?? 'qator'), bpat = pick(b => b.balPat ?? 'har2');
     const any = list.length > 0;
     // jonli fasad koʻrinishi
     body.append(h('div', { class: 'fpv', id: 'facPreview', html: facadePreview({ mat: (mat.top ?? 'suvoq') as Mat, win: (win.top ?? 'yoq') as Win | 'yoq', bal: (bal.top ?? 'yoq') as Bal, shape: shape.top ?? 'tekis', cover: cover.top ?? 'oddiy', parapet: par.top ?? 0, shade: (shd.top ?? 'yoq') as Shade | 'yoq' }) }));
@@ -969,8 +970,14 @@ export class Editor {
         opts: MATS.map(m => ({ key: 'mat', val: m.id, n: m.name, on: mat.v === m.id, sw: matSwatch(m.id), set: () => apply({ mat: m.id }) })) },
       { id: 'win', k: 'Derazalar', v: nm(WIN_OPTS, win.v), icon: WIN_OPTS.find(x => x.id === (win.top ?? 'yoq'))!.d,
         opts: WIN_OPTS.map(w => ({ key: 'win', val: w.id, n: w.n, on: win.v === w.id, d: w.d, set: () => apply({ win: w.id }) })) },
+      { id: 'wpat', k: 'Derazalar joylashuvi', v: nm(WINPAT_OPTS, wpat.v), icon: WINPAT_OPTS.find(x => x.id === (wpat.top ?? 'qator'))!.d,
+        note: 'Parametrik: shaxmat, juft, ritm, tasodifiy (bino boʻyicha barqaror), gradient. Tanlansa — batafsil 3D fasad shu binolarda yoqiladi.',
+        opts: WINPAT_OPTS.map(x => ({ key: 'wpat', val: x.id, n: x.n, on: wpat.v === x.id, d: x.d, set: () => apply({ winPat: x.id }) })) },
       { id: 'bal', k: 'Balkonlar', v: nm(BAL_OPTS, bal.v), icon: BAL_OPTS.find(x => x.id === (bal.top ?? 'yoq'))!.d,
         opts: BAL_OPTS.map(x => ({ key: 'bal', val: x.id, n: x.n, on: bal.v === x.id, d: x.d, set: () => apply({ bal: x.id }) })) },
+      { id: 'bpat', k: 'Balkonlar joylashuvi', v: nm(BALPAT_OPTS, bpat.v), icon: BALPAT_OPTS.find(x => x.id === (bpat.top ?? 'har2'))!.d,
+        note: bal.top === 'yoq' ? 'Avval balkon turini tanlang.' : undefined,
+        opts: BALPAT_OPTS.map(x => ({ key: 'bpat', val: x.id, n: x.n, on: bpat.v === x.id, d: x.d, dis: bal.top === 'yoq', set: () => apply({ balPat: x.id }) })) },
       { id: 'roof', k: 'Tom shakli', v: nm(SHAPE_OPTS, shape.v), icon: SHAPE_OPTS.find(x => x.id === (shape.top ?? 'tekis'))!.d,
         opts: SHAPE_OPTS.map(x => ({ key: 'roof', val: x.id, n: x.n, on: shape.v === x.id, d: x.d, set: () => apply({ roof: roofOf(x.id, x.id === 'tekis' ? (cover.v ?? 'oddiy') : 'oddiy') }) })) },
       { id: 'cover', k: 'Tom qoplamasi', v: flatOnly && shape.v != null ? '—' : nm(COVER_OPTS, cover.v), icon: COVER_OPTS.find(x => x.id === (cover.top ?? 'oddiy'))!.d,
@@ -1533,7 +1540,7 @@ export class Editor {
    * 1) loyiha koʻchalari oʻqi (≤ 6 m); 2) atrofdagi (OSM) yoʻllar oʻqi — yoʻl qatnov qismi ichida yoki chetidan ≤ 6 m bosilsa.
    * Shift — oʻchiq. Sahnada belgi: qizil halqa — uch, koʻk — oʻqdagi nuqta.
    */
-  private snapStreet = (p: XY): XY => {
+  private snapStreet = (p: XY, skip?: string): XY => {
     if (this.shiftDown) { this.scene.setSnapMark(null); return p; }
     const doc = this.store.doc, fr = frame(doc.origin); let best: XY = p, bd = Infinity, kind: 'uch' | 'qirra' = 'uch';
     /** a — oʻq; tol — oʻqqa masofa chegarasi, vTol — uchga */
@@ -1544,9 +1551,9 @@ export class Editor {
         const q: XY = [u[0] + t * dx, u[1] + t * dy], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d <= tol && d < bd - 1.5) { bd = d; best = q; kind = 'qirra'; }
       }
     };
-    for (const st of doc.streets) near(st.axis.map(fr.toLocal), 6, 6);
+    for (const st of doc.streets) if (st.id !== skip) near(st.axis.map(fr.toLocal), 6, 6);
     if (best === p) {
-      const b = this.ctxMgr.current, adopted = new Set(doc.streets.map(x => x.osm));
+      const b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
       if (b && doc.context.loaded && doc.context.layers.roads) for (const r of b.osm.roads) {
         if (adopted.has(r.id) || /^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) continue;
         near(r.pts.map(fr.toLocal), r.w / 2 + 6, 8);
@@ -1556,9 +1563,38 @@ export class Editor {
     return best;
   };
 
+  /** p nuqtadagi loyiha koʻchasi (profil kengligi ichida) */
+  private streetAt(p: XY): string | null {
+    const fr = frame(this.store.doc.origin);
+    const hit = this.store.doc.streets.find(st => { const a = st.axis.map(fr.toLocal), w = profileWidth(profileById(st.profile)) / 2; for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); if (Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]) <= w) return true; } return false; });
+    return hit?.id ?? null;
+  }
+  /** tanlangan koʻcha nuqtalari — tutqichlar (sudrash), oraliqlari — yangi nuqta */
+  private syncHandles(): void {
+    const doc = this.store.doc, st = this.step.id === 'kocha' && !this.tool ? doc.streets.find(x => x.id === this.selStreet) : null;
+    if (!st) { this.scene.setHandles([]); return; }
+    const a = st.axis.map(frame(doc.origin).toLocal);
+    this.scene.setHandles(a, a.slice(1).map((q, i) => [(q[0] + a[i][0]) / 2, (q[1] + a[i][1]) / 2] as XY));
+  }
+  /** ekrandagi (x, y) ga eng yaqin tutqich: i — nuqta indeksi; ins — oraliqdan yangi nuqta */
+  private handleAt(x: number, y: number): { id: string; i: number; ins: boolean } | null {
+    const doc = this.store.doc, st = this.step.id === 'kocha' && !this.tool ? doc.streets.find(z => z.id === this.selStreet) : null; if (!st) return null;
+    const a = st.axis.map(frame(doc.origin).toLocal); let best: { id: string; i: number; ins: boolean } | null = null, bd = 12;
+    const test = (p: XY, i: number, ins: boolean, tol: number) => { const s2 = this.scene.toScreen(p[0], p[1], this.scene.H(p[0], p[1]) + 0.8), d = Math.hypot(s2.x - x, s2.y - y); if (d < Math.min(bd, tol)) { bd = d; best = { id: st.id, i, ins }; } };
+    a.forEach((p, i) => test(p, i, false, 12));
+    a.slice(1).forEach((q, i) => test([(q[0] + a[i][0]) / 2, (q[1] + a[i][1]) / 2], i + 1, true, 9));
+    return best;
+  }
+
+  /** atrofdagi (OSM) yoʻlni olib tashlash — masalan, uchastka ichidagi kichik koʻcha */
+  private removeOsmRoad(id: number): void {
+    this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [...(this.store.doc.removedRoads ?? []), id] }));
+    this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); toast('Yoʻl olib tashlandi · Ctrl+Z — qaytarish');
+  }
+
   /** Mavjud koʻchalar uchlarini davom ettirib, ≤ 40 m dagi eng yaqin yoʻl oʻqiga (OSM yoki loyiha koʻchasi) ulash */
   private connectStreetEnds(): number {
-    const doc = this.store.doc, fr = frame(doc.origin), b = this.ctxMgr.current, adopted = new Set(doc.streets.map(x => x.osm));
+    const doc = this.store.doc, fr = frame(doc.origin), b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
     const targets: { id: string; a: XY[] }[] = doc.streets.map(st => ({ id: st.id, a: st.axis.map(fr.toLocal) }));
     if (b && doc.context.loaded) for (const r of b.osm.roads) if (!adopted.has(r.id) && !/^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) targets.push({ id: `osm${r.id}`, a: r.pts.map(fr.toLocal) });
     /** E nuqtadan D yoʻnalishda nur — eng yaqin kesishish (t ≤ 40 m) */
@@ -1592,6 +1628,7 @@ export class Editor {
       body.append(h('div', { class: 'secbig', id: 'secBig', title: 'Kattalashtirish', onclick: () => this.openSection(p) },
         h('div', { class: 'row' }, h('b', { class: 'grow' }, `${st ? 'Tanlangan koʻcha' : 'Yangi koʻcha'}: ${p.name}`), h('span', { class: 'muted' }, `${fmt(profileWidth(p), 1)} m ⤢`)),
         h('div', { class: 'secsvg', html: sectionSvg(p.parts, 300, 0, true, false) }))); }
+    if (this.selStreet) body.append(h('p', { class: 'note', id: 'stEditHint' }, 'Tahrirlash: nuqtalarni sudrang (uchlari yoʻllarga yopishadi) · oraliqdagi kichik nuqta — yangi burilish · nuqtani ikki marta bosish — oʻchirish · Delete — koʻchani oʻchirish.'));
     body.append(h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawStreet', onclick: () => drawing ? this.endTool() : this.setTool(new LineTool(this.scene, r => {
       this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
@@ -1615,8 +1652,10 @@ export class Editor {
             this.osmPick = null; this.scene.setPreview([]); this.pickStreet(this.store.doc.streets[this.store.doc.streets.length - 1]?.id ?? null);
           } }, `Loyihaga olish: ${profileById(this.profile).name}`),
           h('button', { class: 'btn', onclick: () => { this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); } }, svgIcon(IC.x))),
-        h('p', { class: 'note' }, 'Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi.')));
+        h('button', { class: 'btn danger', id: 'rmOsmRoad', onclick: () => this.removeOsmRoad(o.id) }, ...icl(IC.trash, 'Bu yoʻlni olib tashlash (Delete)')),
+        h('p', { class: 'note' }, 'Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi. Olib tashlansa — sahnada, kvartal chegarasida va chizmada boʻlmaydi.')));
     }
+    if (doc.removedRoads?.length) body.append(h('button', { class: 'btn', id: 'restoreRoads', onclick: () => this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [] })) }, `Olib tashlangan yoʻllarni qaytarish (${doc.removedRoads.length})`));
     if (doc.streets.length) {
       const len = (a: XY[]) => a.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - a[i][0], p[1] - a[i][1]), 0);
       body.append(h('div', { class: 'list', role: 'listbox', 'aria-label': 'Koʻchalar' }, ...doc.streets.map((st, k) => {
@@ -1968,6 +2007,7 @@ export class Editor {
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
     this.setTool(null); this.step = s; this.panelOpen = true;
+    this.closePop(); if (this.el.drawer.dataset.kind === 'section') this.el.drawer.hidden = true;   // oldingi qadamning ochiq oynalari yopiladi
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
     if (s.id !== 'xizmat') this.scene.setNetMap(null); else if (this.svc.res) this.showSvc();
@@ -1988,7 +2028,7 @@ export class Editor {
   /** chap panel: faol qadamni qayta bossa — yopiladi, yana bossa — ochiladi */
   private panelOpen = true;
   private renderPanel(): void {
-    this.showAptBoxes(); this.syncBTools();
+    this.showAptBoxes(); this.syncBTools(); this.syncHandles();
     const shut = !this.panelOpen && !this.inspOn(); this.el.panel.classList.toggle('shut', shut); this.root?.classList.toggle('pshut', shut);
     if (this.inspOn()) { this.renderInspector(); return; }
     const s = this.step, i = STEPS.indexOf(s), p = this.el.panel;
@@ -2127,9 +2167,17 @@ export class Editor {
     // bino muharriri: devorni itarish / binoni siljitish (sichqoncha bilan)
     let drag: { id: string; p0: XY; r0: XY[]; edge: number; n: XY; floor: number; tiers0: { from: number; inset: number; edge?: number }[] } | null = null, raf = 0, pend: XY | null = null;
     let rdown: { x: number; y: number } | null = null;
+    // koʻcha nuqtasini sudrash (uchlari yoʻllarga yopishadi)
+    let hdrag: { id: string; i: number; a0: XY[]; key: string } | null = null;
     // Shift + sudrash — ramka bilan tanlash
     let box: { x: number; y: number; el: HTMLDivElement } | null = null;
     c.addEventListener('contextmenu', e => e.preventDefault());
+    // koʻcha nuqtasini ikki marta bosish — nuqta oʻchadi (kamida 2 nuqta qoladi)
+    c.addEventListener('dblclick', e => {
+      const hd = this.handleAt(e.clientX, e.clientY); if (!hd || hd.ins) return;
+      const st = this.store.doc.streets.find(x => x.id === hd.id); if (!st || st.axis.length <= 2) return;
+      this.run(() => this.store.dispatch({ type: 'updateStreet', id: hd.id, patch: { axis: st.axis.filter((_, k) => k !== hd.i) } }));
+    });
     c.addEventListener('pointerdown', e => {
       if (e.button === 2) { rdown = { x: e.clientX, y: e.clientY }; return; }
       if (e.button !== 0) return;
@@ -2138,6 +2186,12 @@ export class Editor {
         const el = h('div', { class: 'selbox', 'aria-hidden': 'true' }) as HTMLDivElement; document.body.append(el);
         box = { x: e.clientX, y: e.clientY, el }; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return;
       }
+      { const hd = this.handleAt(e.clientX, e.clientY);
+        if (hd) {
+          const st = this.store.doc.streets.find(x => x.id === hd.id)!, a = st.axis.map(frame(this.store.doc.origin).toLocal);
+          if (hd.ins) a.splice(hd.i, 0, [(a[hd.i - 1][0] + a[hd.i][0]) / 2, (a[hd.i - 1][1] + a[hd.i][1]) / 2]);
+          hdrag = { id: hd.id, i: hd.i, a0: a, key: `sv-${hd.id}-${Date.now()}` }; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return;
+        } }
       if (this.dragMode === 'yoq' || !this.sel || this.tool) return;
       const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), g0 = this.scene.pick(e.clientX, e.clientY);
       if (!hit || hit.id !== this.sel || !g0 || ((this.dragMode === 'push' || this.dragMode === 'floor') && !hit.wall)) return;
@@ -2173,6 +2227,12 @@ export class Editor {
     c.addEventListener('pointermove', e => {
       if (box) { Object.assign(box.el.style, { left: `${Math.min(box.x, e.clientX)}px`, top: `${Math.min(box.y, e.clientY)}px`, width: `${Math.abs(e.clientX - box.x)}px`, height: `${Math.abs(e.clientY - box.y)}px` }); return; }
       if (drag) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { pend = p; if (!raf) raf = requestAnimationFrame(applyDrag); } return; }
+      if (hdrag) {
+        const p0 = this.scene.pick(e.clientX, e.clientY); if (!p0) return;
+        const end = hdrag.i === 0 || hdrag.i === hdrag.a0.length - 1, p = end ? this.snapStreet(p0, hdrag.id) : this.snapPt(p0, true);
+        const a = hdrag.a0.map((q, k) => k === hdrag!.i ? p : q), fr = frame(this.store.doc.origin), hd = hdrag;
+        this.run(() => this.store.dispatch({ type: 'updateStreet', id: hd.id, patch: { axis: a.map(fr.toGeo) } }, hd.key)); return;
+      }
       if (!this.tool?.move) return; const p0 = this.scene.pick(e.clientX, e.clientY); if (p0) this.tool.move(this.tool.snapTo ? this.snapPt(p0, true) : p0);
     });
     c.addEventListener('pointerup', e => {
@@ -2193,6 +2253,7 @@ export class Editor {
         return;
       }
       if (drag) { drag = null; pend = null; down = null; this.scene.setOrbit(true); return; }
+      if (hdrag) { hdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); return; }
       if (this.mode === 'pipette' && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 5) { down = null; const id = this.scene.pickBuilding(e.clientX, e.clientY); if (id) this.pipette(id); return; }
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;
@@ -2209,10 +2270,10 @@ export class Editor {
       if (this.step.id === 'kocha') {
         const p = this.scene.pick(e.clientX, e.clientY), fr = frame(this.store.doc.origin);
         if (p) {
-          const hit = this.store.doc.streets.find(st => { const a = st.axis.map(fr.toLocal), w = profileWidth(profileById(st.profile)) / 2; for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); if (Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]) <= w) return true; } return false; });
-          if (hit) { this.osmPick = null; this.scene.setPreview([]); this.pickStreet(hit.id); }
+          const hit = this.streetAt(p);
+          if (hit) { this.osmPick = null; this.scene.setPreview([]); this.pickStreet(hit); }
           else {
-            const b = this.ctxMgr.current, adopted = new Set(this.store.doc.streets.map(x => x.osm));
+            const b = this.ctxMgr.current, adopted = new Set([...this.store.doc.streets.map(x => x.osm), ...(this.store.doc.removedRoads ?? [])]);
             let best: typeof this.osmPick = null, bd = Infinity;
             for (const r of b?.osm.roads ?? []) {
               if (adopted.has(r.id) || /^(footway|path|cycleway|steps|track|bridleway|corridor)$/.test(r.cls)) continue;
@@ -2226,6 +2287,8 @@ export class Editor {
         return;
       }
       const id = this.scene.pickBuilding(e.clientX, e.clientY);
+      // loyiha koʻchasi bosildi — «Koʻchalar» qadamiga oʻtib, shu koʻcha tanlanadi (tutqichlar bilan tahrirlash)
+      if (!id) { const p = this.scene.pick(e.clientX, e.clientY), sid = p ? this.streetAt(p) : null; if (sid && !this.locked(STEPS.find(x => x.id === 'kocha')!)) { this.go(STEPS.find(x => x.id === 'kocha')!); this.pickStreet(sid); return; } }
       // atrofdagi (OSM) bino — tanlanadi (Delete bilan olib tashlanadi)
       if (!id) { const cid = this.scene.pickAnyContext(e.clientX, e.clientY); if (cid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked([], [cid]); return; } }
       if (this.marked.b.length || this.marked.c.length) this.setMarked([], []);
@@ -2254,6 +2317,7 @@ export class Editor {
       else if ((z && e.shiftKey) || (e.key.toLowerCase() === 'y' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); this.store.redo(); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && (this.marked.b.length || this.marked.c.length)) { e.preventDefault(); this.deleteMarked(); }
       else if (e.key === 'Escape' && (this.marked.b.length || this.marked.c.length)) this.setMarked([], []);
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.osmPick) { e.preventDefault(); this.removeOsmRoad(this.osmPick.id); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.store.dispatch({ type: 'removeBuilding', id: this.sel }); }
       else if (e.key === 'Escape' && this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); }
