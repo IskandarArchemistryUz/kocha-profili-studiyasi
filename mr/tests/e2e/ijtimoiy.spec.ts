@@ -15,7 +15,7 @@ test('ijtimoiy binolar: funksiya berilganda maktab avtomatik, modullar, MTM', as
   await expect(page.locator('#genNotes')).toContainText('oʻquvchi');
   if (shots) await page.screenshot({ path: `${shots}/maktab_taroq.png` });
   await page.click('[data-mod=hovli]'); await page.click('#genGo');
-  await expect(page.locator('#genNotes')).toContainText('m² GFA');
+  await expect(page.locator('#genNotes')).toContainText('umumiy maydon (GFA)');
   if (shots) await page.screenshot({ path: `${shots}/maktab_hovli.png` });
   await page.fill('#socCap', '600'); await page.press('#socCap', 'Tab'); await page.click('#genGo');
   await expect(page.locator('#genNotes')).toContainText('600 oʻquvchi');

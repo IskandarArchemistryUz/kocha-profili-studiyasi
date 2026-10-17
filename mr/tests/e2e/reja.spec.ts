@@ -29,7 +29,7 @@ test('koʻcha chiziladi → ikki kvartal → zona → yashil hisob', async ({ pa
   await expect(page.locator('[data-block]').filter({ hasText: 'Park' })).toHaveCount(1);
 
   await page.click('[data-step=yashil]');
-  await expect(page.locator('#greenSt')).not.toContainText('Yashil kvartallar (park, skver)0 m²');
+  await expect(page.locator('#greenSt')).not.toContainText('Yashil dahalar (park, skver)0 m²');
 
   await page.keyboard.press('Control+z');               // zona bekor
   await page.click('[data-step=parsel]');

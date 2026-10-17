@@ -589,3 +589,4 @@ details.manual{border-top:0;padding-top:0;display:block}
 @media (max-width:1180px){.sh-body{grid-template-columns:76px 300px minmax(0,1fr)}.sh-list .sh-lh,.sh-list>.t-small,.sh-item b,.sh-item .t-small:not(.mono),.sh-item .sh-acts,#shAdd span,#shAlbum{display:none}.sh-item{grid-template-columns:1fr;text-align:center;padding:10px 4px}.sh-top .brand b,.sh-top .svcbadge{display:none}}
 #lblMode{flex-wrap:wrap;height:auto}#lblMode button{flex:1 1 auto;min-height:28px}
 @media (max-width:1180px){.sh-item[aria-selected=true] .sh-acts{display:none}#shAdd{font-size:0;gap:0}.sh-list>.spacer{display:none}}
+#shMode button { font-size: 12px; padding-inline: 6px; white-space: nowrap; }

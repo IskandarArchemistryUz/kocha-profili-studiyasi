@@ -190,6 +190,7 @@ export class Editor {
   /** Til almashtirish: barcha panellar qayta chiziladi (matnlar i18n dan) */
   private setLang(l: Lang): void {
     setLang(l);
+    this.scene.update(this.store.doc);   // xaritadagi yozuvlar (canvas) — yangi tilda
     this.root.querySelectorAll('#langSw button').forEach(b => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.lang === l)));
     this.el.saveT.textContent = tr(this.el.save.dataset.s === 'saved' ? 'saqlandi' : this.el.save.dataset.s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!');
     this.closePop(); this.renderAll(); this.renderKpi(); this.renderToolPanel();
@@ -264,12 +265,12 @@ export class Editor {
       h('div', { class: 'glabel' }, h('span', {}, tr('Fon xaritasi'))),
       h('div', { class: 'tiles c2', role: 'group', id: 'baseSw' }, ...([['maket', cs.loaded ? 'Maket' : 'Stilistik', cs.loaded ? 'oq relyef, OSM qatlamlari' : 'cheksiz vektor xarita'], ['sputnik', 'Sunʼiy yoʻldosh', img || !cs.loaded ? 'Esri World Imagery' : 'atrofni qayta yuklang']] as const).map(([k, t, n]) =>
         tile({ 'data-base': k, 'aria-pressed': cs.base === k, disabled: k === 'sputnik' && !img && cs.loaded, onclick: () => { this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })); this.refreshPop(); } }, tr(t), tr(n)))),
-      pal ? h('div', { class: 'glabel' }, h('span', {}, tr('Xarita uslubi')), h('span', {}, `${Object.keys(PALETTES).length} ${tr('ta')}`)) : '',
+      pal ? h('div', { class: 'glabel' }, h('span', {}, tr('Xarita uslubi')), h('span', {}, tf('${n} ta', { n: Object.keys(PALETTES).length }))) : '',
       pal ? h('div', { class: 'ugrp', role: 'group', id: 'palSw', 'aria-label': tr('Xarita uslubi') }, h('div', {}, ...Object.entries(PALETTES).map(([k, p]) =>
         h('button', { class: 'uchip', 'data-pal': k, title: p.n, 'aria-pressed': basePrefs().pal === k, onclick: () => { setBasePrefs({ pal: k }); void this.showBaseMap(); this.refreshPop(); } },
           h('i', { style: `background:linear-gradient(135deg, ${p.bg} 0 45%, ${p.bld} 45% 70%, ${p.water} 70%)` }), tr(p.n))))) : '',
       pal ? h('div', { class: 'group' }, li(tr('Koʻcha va joy nomlari'), '', sw({ id: 'palLab', label: tr('Koʻcha va joy nomlari'), on: basePrefs().labels, onchange: v => { setBasePrefs({ labels: v }); void this.showBaseMap(); } }))) : '',
-      h('div', { class: 'glabel' }, h('span', {}, tr('Uslub')), h('span', {}, `${STYLES.length} ${tr('ta')}`)),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Uslub')), h('span', {}, tf('${n} ta', { n: STYLES.length }))),
       h('div', { class: 'tiles c2' }, ...STYLES.map(x => tile({ 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, tr(x.name), tr(x.note)))),
       h('div', { class: 'group' },
         li(tr('Batafsil fasad (3D)'), tr('derazalar, romlar, balkonlar'), sw({ id: 'detOn', label: tr('Batafsil fasad (3D)'), on: this.scene.detail, onchange: v => { this.scene.setDetail(v); try { localStorage.setItem('mr-detail', v ? '1' : '0'); } catch { /* */ } } })),
@@ -511,7 +512,7 @@ export class Editor {
       body.append(
         h('div', { class: 'row', style: 'align-items:flex-start;gap:10px' }, floors,
           h('div', { class: 'col grow' },
-            h('div', {}, h('b', { id: 'iFloorT' }, `${(b.z0 ?? 0) + f}-${tr('qavat')}`), h('div', { class: 't-small' }, `${tr(f <= b.nonRes ? 'noturar' : 'turar / asosiy')} · ${tr('PgUp / PgDn — qavat · sahnada qavatni bosing')}`)),
+            h('div', {}, h('b', { id: 'iFloorT' }, tf('${n}-qavat', { n: (b.z0 ?? 0) + f })), h('div', { class: 't-small' }, `${tr(f <= b.nonRes ? 'noturar' : 'turar / asosiy')} · ${tr('PgUp / PgDn — qavat · sahnada qavatni bosing')}`)),
             h('button', { class: this.dragMode === 'floor' ? 'btn btn-sm btn-primary' : 'btn btn-sm', id: 'floorDrag', 'aria-pressed': this.dragMode === 'floor', title: tr('Binoda qavat devorini bosib torting: ichkariga — terrasa, tashqariga — konsol (shu qavatdan yuqorisi)'), onclick: () => { this.dragMode = this.dragMode === 'floor' ? 'yoq' : 'floor'; this.renderInspector(); } }, ...icl(this.dragMode === 'floor' ? IC.check : '<path d="M8 5l-4 4 4 4M4 9h11a5 5 0 0 1 0 10h-3"/>', tr('Qavat devorini sudrash'))),
             h('div', { class: 'glabel' }, h('span', {}, tr('Shu qavatdan yuqorisi'))),
             h('div', { class: 'field' }, h('label', { for: 'tInset' }, tr('Cheginish')), h('span', { class: 'unit' }, ins, h('span', {}, 'm'))),
@@ -1191,7 +1192,7 @@ export class Editor {
         h('div', { class: 'row' }, h('b', { style: 'flex:1;font-size:13px' }, name(sel, si)), h('span', { class: 't-small' }, `${sel.f1} ${tr('qavat')}`)),
         h('div', { class: 'row', style: 'align-items:center;gap:8px' },
           h('button', { class: 'btn icon-btn btn-sm', id: 'planDown', 'aria-label': tr('Pastki qavat'), disabled: fl0 <= 1, onclick: () => setF(fl0 - 1) }, svgIcon('<path d="M15 6l-6 6 6 6"/>')),
-          h('span', { id: 'planFloorLbl', style: 'flex:1;text-align:center;font-size:13px' }, h('b', {}, `${fl0}-${tr('qavat')}`), ` · ${tr(FLOOR_NAME[ft])}`),
+          h('span', { id: 'planFloorLbl', style: 'flex:1;text-align:center;font-size:13px' }, h('b', {}, tf('${n}-qavat', { n: fl0 })), ` · ${tr(FLOOR_NAME[ft])}`),
           h('button', { class: 'btn icon-btn btn-sm', id: 'planUp', 'aria-label': tr('Yuqori qavat'), disabled: fl0 >= sel.f1, onclick: () => setF(fl0 + 1) }, svgIcon('<path d="M9 6l6 6-6 6"/>'))),
         h('div', { class: 'planbox', id: 'planBox', title: tr('Albomda ochish'), onclick: album, html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
         h('div', { class: 'row', style: 'gap:6px' },
@@ -2584,11 +2585,11 @@ export class Editor {
         const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + r.unit : ''}` : '', dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
         return h('div', { class: 'rrow', 'data-rule': r.id },
           h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { if (!r.note) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
-            h('span', { class: 'k' }, h('span', {}, r.title), h('span', { class: 'sub mono' }, `${r.source.doc} · ${r.source.clause}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
+            h('span', { class: 'k' }, h('span', {}, tr(r.title)), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
             h('span', { class: 'rval' },
               h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value)}${slash(r.unit) ? ' ' + r.unit : ''}`) : st),
-              lim ? h('span', { class: 't-small' }, lim) : '', dl ? h('span', { class: 't-small' }, dl) : '')),
-          r.note ? h('div', { class: 'rnote', hidden: !open }, r.note) : '');
+              lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),
+          r.note ? h('div', { class: 'rnote', hidden: !open }, tr(r.note)) : '');
       })),
       h('span', { class: 't-small' }, tr('Har qatorda «Izoh» ochiladi. Shartli qatorlar tegishli hisobdan keyin chiqadi.')));
   }

@@ -49,8 +49,8 @@ test('tipologiyalar: minoralar va stilobat + yer osti parkovka â†’ reyestrda taÊ
   await page.fill('#gSty', '1'); await page.press('#gSty', 'Tab');
   await page.click('[data-park=yer_osti]');
   await page.click('#genGo');
-  await expect(page.locator('#genNotes')).toContainText('Parkovka:');
-  await expect(page.locator('#genNotes')).toContainText('Parsel UMN');
+  await expect(page.locator('#genNotes')).toContainText('Avtoturargoh:');
+  await expect(page.locator('#genNotes')).toContainText('Yer uchastkasi UMN');
   await page.click('#kMore');
   const v = await page.locator('.drawer [data-rule=parking] .num').first().textContent();
   expect(Number(v!.replace(/\D/g, ''))).toBeGreaterThan(300);

@@ -1,4 +1,5 @@
 /** Kichik DOM yordamchilari — freymvorksiz, lekin bir xil uslubda */
+import { trSvg, getLang } from '../i18n';
 type Attrs = Record<string, string | number | boolean | null | undefined | ((e: any) => void)>;
 type Child = Node | string | number | null | undefined | false | Child[];
 
@@ -34,7 +35,7 @@ export function svgIcon(d: string): SVGSVGElement {
 /** Sonlar oʻzbek/rus odatida: 12 345,6 */
 export function fmt(v: number, d = 0): string {
   if (!Number.isFinite(v)) return '—';
-  return v.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
+  return v.toLocaleString(getLang() === 'en' ? 'en-US' : 'ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
 let toastT: ReturnType<typeof setTimeout> | undefined;
@@ -46,6 +47,7 @@ export function toast(msg: string): void {
 }
 
 export function download(name: string, data: string | Blob, type = 'application/json'): void {
+  if (typeof data === 'string' && type.includes('svg')) data = trSvg(data);   // chizma ichidagi yozuvlar — tanlangan tilda
   const url = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
   const a = h('a', { href: url, download: name }); document.body.appendChild(a); a.click(); a.remove();
   if (!url.startsWith('data:')) setTimeout(() => URL.revokeObjectURL(url), 2000);

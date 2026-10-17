@@ -419,7 +419,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
         out.push(`<text x="${x0}" y="${n2(y + 3.5)}" font-size="${T(3)}" font-weight="700" fill="#1d1d1b">${esc(tr('Yer uchastkalari'))}</text>`);
         const yh = y + 7.5; out.push(`<text x="${x0}" y="${n2(yh)}" font-size="${T(2.5)}" fill="#6b6965">${esc(tr('kod'))}</text><text x="${x0 + 18}" y="${n2(yh)}" font-size="${T(2.5)}" fill="#6b6965">${esc(tr('funksiya'))}</text><text x="${x0 + w}" y="${n2(yh)}" font-size="${T(2.5)}" text-anchor="end" fill="#6b6965">ga</text>`);
         shown.forEach((r, i) => { const yy = yh + (i + 1) * rowH; out.push(`<rect x="${x0}" y="${n2(yy - 2.4)}" width="2.6" height="2.6" fill="${r.color}" stroke="#9a978f" stroke-width="0.1"/><text x="${x0 + 3.6}" y="${n2(yy)}" font-size="${T(2.5)}" font-family="IBM Plex Mono, Menlo, monospace" fill="#1d1d1b">${esc(r.code)}</text><text x="${x0 + 18}" y="${n2(yy)}" font-size="${T(2.5)}" fill="#1d1d1b">${esc(r.use)}</text><text x="${x0 + w}" y="${n2(yy)}" font-size="${T(2.5)}" text-anchor="end" font-family="IBM Plex Mono, Menlo, monospace" fill="#1d1d1b">${r.ha.toFixed(2).replace('.', ',')}</text>`); });
-        if (shown.length < plots.length) out.push(`<text x="${x0}" y="${n2(yh + (shown.length + 1) * rowH)}" font-size="${T(2.5)}" fill="#6b6965">… ${plots.length} ${esc(tr('ta'))}</text>`);
+        if (shown.length < plots.length) out.push(`<text x="${x0}" y="${n2(yh + (shown.length + 1) * rowH)}" font-size="${T(2.5)}" fill="#6b6965">… ${esc(tr(`${plots.length} ta`))}</text>`);
         lay('Yer_uchastkalari_jadvali', 'Yer uchastkalari jadvali', out.join(''));
       }
     }

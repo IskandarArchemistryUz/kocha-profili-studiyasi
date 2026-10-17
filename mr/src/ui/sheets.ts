@@ -14,7 +14,7 @@ import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KI
 import { LABEL_MODES, type LabelMode } from '../core/labels';
 import { h, download, toast, svgIcon, icl, IC, fmt } from './dom';
 import { check, select, stepper, sw } from './controls';
-import { tr, tf } from '../i18n';
+import { tr, tf, trSvg } from '../i18n';
 import { logoSvg } from './logo';
 
 export interface SheetsHost {
@@ -104,7 +104,7 @@ export function openGraphics(host: SheetsHost): void {
     if (o.mode === 'qavat') {
       if (!plans.length) return { label: 'M —', body: (vx, vy, vw, vh) => `<text x="${vx + vw / 2}" y="${vy + vh / 2}" font-size="5" text-anchor="middle" fill="#6b6965">${tr('Turar joy seksiyalari yoʻq')}</text>` };
       const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), pl = plans[bi];
-      const title = `${bi + 1}-${tr('bino')} · ${tr(useDef(doc.buildings.find(b => b.id === pl.bid)?.use ?? 'turar').name)}`;
+      const title = `${tf('${n}-bino', { n: bi + 1 })} · ${tr(useDef(doc.buildings.find(b => b.id === pl.bid)?.use ?? 'turar').name)}`;
       const L = sheetLayout(o), probe = buildingFloorsSvg(pl, 200, title), m = probe.match(/width="([\d.]+)mm" height="([\d.]+)mm"/), W = m ? +m[1] : 400, H = m ? +m[2] : 300;
       const sc = [100, 200, 500, 1000].find(v => W * 200 / v <= L.vw && H * 200 / v <= L.vh) ?? 1000;
       let svg = buildingFloorsSvg(pl, sc, title).replace(/^<\?xml[^>]*>\s*/, '');
@@ -121,7 +121,7 @@ export function openGraphics(host: SheetsHost): void {
     }
     return undefined;
   };
-  const run = (o: SheetOpts, i = cur): SheetResult => { const st = o.stamp ?? {}; return sheetSvg(doc, host.ctx, { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, innerOf(o)); };
+  const run = (o: SheetOpts, i = cur): SheetResult => { const st = o.stamp ?? {}; const r = sheetSvg(doc, host.ctx, { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, innerOf(o)); r.svg = trSvg(r.svg); return r; };
   let last = run(O());
 
   const set = (patch: Partial<SheetOpts>) => { const o = { ...O(), ...patch }; sheets[cur] = { ...sheets[cur], opts: o as unknown as Record<string, unknown> }; persist(); render(); };

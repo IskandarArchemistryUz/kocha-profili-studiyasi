@@ -8,7 +8,8 @@ import { blankProject, uid } from './core/doc';
 import { listProjects, getProject, putProject, deleteProject, importJSON, type ProjectMeta } from './storage/db';
 import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
-import { tr } from './i18n';
+import { tr, autoTranslate } from './i18n';
+autoTranslate();
 
 const root = document.getElementById('root')!;
 let editor: Editor | null = null;
