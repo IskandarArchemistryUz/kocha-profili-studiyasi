@@ -53,7 +53,7 @@ import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
-import { LiveBase } from '../context/basemap';
+import { LiveBase, liveSize } from '../context/basemap';
 import { logoSvg } from './logo';
 import { PALETTES, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo } from '../scene/streets3d';
@@ -625,7 +625,7 @@ export class Editor {
   }
   private async drawLive(c: XY, r: number, key: string): Promise<void> {
     const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs();
-    this.live ??= new LiveBase(2048);
+    this.live ??= new LiveBase(...liveSize(this.el.scene));
     this.liveAt = { c, r: r * 1.15, key };
     const img = await this.live.render(frame(doc.origin).toGeo(c), r * 1.15, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
     if (this.baseKey !== key || this.store.doc.context.loaded) return;
@@ -732,7 +732,12 @@ export class Editor {
     body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Atrof radiusi'), radius));
 
     if (this.ctx.busy) body.append(h('div', { class: 'field' }, h('div', { class: 'prog' }, h('i', { style: `width:${Math.round(this.ctx.frac * 100)}%` })), h('span', { class: 'note', id: 'ctxMsg' }, this.ctx.msg)));
-    else if (!cs.loaded) body.append(h('button', { class: 'btn primary', id: 'ctxLoad', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: true } })) }, 'Atrofni yuklash (OSM, relyef, sunʼiy yoʻldosh)'));
+    else if (!cs.loaded) body.append(h('button', { class: 'btn primary', id: 'ctxLoad', onclick: () => this.run(() => {
+      // xarita surilgan boʻlsa — loyiha markazi ekran markaziga koʻchadi (atrof shu yerda yuklanadi), aks holda eski markaz (Amir Temur) qolib ketardi
+      const c = this.scene.viewExtent().c;
+      if (!doc.site && !doc.buildings.length && Math.hypot(c[0], c[1]) > 60) { this.framedCtx = false; this.store.dispatch({ type: 'moveProject', origin: frame(doc.origin).toGeo(c), carry: false }); }
+      this.store.dispatch({ type: 'setContext', patch: { loaded: true } });
+    }) }, 'Atrofni yuklash (OSM, relyef, sunʼiy yoʻldosh)'), h('p', { class: 'note' }, 'Atrof ekran markazidagi joy atrofida yuklanadi — xaritani kerakli joyga suring.'));
     if (this.ctx.err) body.append(h('p', { class: 'err', id: 'ctxErr' }, this.ctx.err), h('button', { class: 'btn', onclick: () => void this.ensureContext(true) }, 'Qayta urinish'));
 
     if (cs.loaded && b && !this.ctx.busy) {
