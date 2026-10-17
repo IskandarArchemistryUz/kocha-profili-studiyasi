@@ -535,6 +535,7 @@ export class Scene3D {
         const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st === 'minimal' ? 0xeeeeee : st === 'arctic' ? tint(ZONE_COL[b.use] ?? C.site, 0.55) : ZONE_COL[b.use] ?? C.site, transparent: true, opacity: sel ? 0.9 : plain ? 0.55 : this.ctx ? 0.62 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
         m.renderOrder = 6; m.userData.block = i; m.userData.layer = 2; this.world.add(m);
         if (sel) b.rings.forEach(r => this.world.add(line(densify(r, 10, true), C.preview, 0.45, true, 8, this.H)));
+        else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
       });
       rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
       // hovlilar: trotuar, maysa, yoʻlaklar, maydonchalar, daraxtlar

@@ -23,7 +23,7 @@ import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
 import { DEFAULT_GEN, generate, usePreset, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { USES, useDef } from '../core/uses';
-import { gridAngle, merge, split, subdivide, type GridMode } from '../core/parcels';
+import { gridAngle, merge, split, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
 import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
@@ -1794,13 +1794,29 @@ export class Editor {
   private parcelSize = 1.0;
   private gridMode: GridMode = 'street';
   private gridAngleDeg = 0;
+  private parcelMethod: ParcelMethod = 'tor';
 
-  /** Tanlangan birlik joylashgan kvartalni (butunini) parsellarga boʻlish */
+  /** Tanlangan birlikning kvartali uchun boʻlish variantlari */
+  private parcelVars(): { whole: { rings: XY[][]; centroid: XY }; vars: ParcelVariant[] } | null {
+    const plan = this.plan(), u = this.selBlock != null ? plan.blocks[this.selBlock] : null; if (!u) return null;
+    const whole = computeWhole(this.store.doc, u.blockKey); if (!whole) return null;
+    return { whole, vars: parcelVariants(whole.rings, this.parcelSize * 1e4, gridAngle(whole.rings, this.gridMode, this.gridAngleDeg)) };
+  }
+  private parcelThumb(whole: XY[][], cells: XY[][][], w = 96, hh = 64): string {
+    const site = whole[0], xs = site.map(p => p[0]), ys = site.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const k = Math.min((w - 8) / Math.max(1, x1 - x0), (hh - 8) / Math.max(1, y1 - y0)), ox = (w - (x1 - x0) * k) / 2, oy = (hh - (y1 - y0) * k) / 2;
+    const P = (p: XY) => `${(ox + (p[0] - x0) * k).toFixed(1)},${(oy + (y1 - p[1]) * k).toFixed(1)}`;
+    const d = (r: XY[]) => `M${r.map(P).join('L')}Z`;
+    return `<svg viewBox="0 0 ${w} ${hh}" width="${w}" height="${hh}"><path d="${d(site)}" fill="#f3e3b4"/>${cells.map(c => `<path d="${c.map(d).join('')}" fill="#f3e3b4" stroke="#6f6a60" stroke-width="0.9" fill-rule="evenodd"/>`).join('')}<path d="${d(site)}" fill="none" stroke="#c0392b" stroke-width="0.9"/></svg>`;
+  }
+
+  /** Tanlangan birlik joylashgan kvartalni (butunini) parsellarga boʻlish — tanlangan usulda */
   private subdivideSel(): void {
     const plan = this.plan(), u = this.selBlock != null ? plan.blocks[this.selBlock] : null; if (!u) return;
-    const fr = frame(this.store.doc.origin), whole = computeWhole(this.store.doc, u.blockKey); if (!whole) return;
+    const fr = frame(this.store.doc.origin), pv = this.parcelVars(); if (!pv) return;
+    const { whole } = pv;
     const lab = this.store.doc.zones.find(z => z.id === u.labelId) ?? { id: uid('z_'), at: fr.toGeo(whole.centroid), use: u.use };
-    const cells = subdivide(whole.rings, this.parcelSize * 1e4, gridAngle(whole.rings, this.gridMode, this.gridAngleDeg));
+    const cells = (pv.vars.find(v => v.id === this.parcelMethod) ?? pv.vars[0])?.cells ?? [];
     if (cells.length < 2) { toast('Kvartal shu oʻlchamdan kichik — parsel oʻlchamini kamaytiring'); return; }
     this.run(() => this.store.dispatch({ type: 'setParcels', block: lab.id, label: lab, parcels: cells.map(r => ({ id: uid('pc_'), rings: r.map(x => x.map(fr.toGeo)), use: u.use })) }));
     this.selBlock = null; this.scene.selectBlock(null);
@@ -1834,6 +1850,7 @@ export class Editor {
       const size = h('input', { type: 'range', min: 0.1, max: 3, step: 0.05, value: this.parcelSize, id: 'pSize', style: 'width:100%' }) as HTMLInputElement;
       const sizeT = h('b', { class: 'num' }, `${fmt(this.parcelSize, 2)} ga`);
       size.oninput = () => { this.parcelSize = Number(size.value); sizeT.textContent = `${fmt(this.parcelSize, 2)} ga`; };
+      size.onchange = () => this.renderPanel();
       const ang = h('input', { type: 'number', min: -90, max: 90, step: 1, value: this.gridAngleDeg, id: 'pAng', style: 'width:64px' }) as HTMLInputElement;
       ang.onchange = () => { this.gridAngleDeg = Number(ang.value) || 0; };
       const cutting = this.tool instanceof LineTool, merging = this.tool instanceof ClickTool;
@@ -1841,6 +1858,10 @@ export class Editor {
         h('div', { class: 'row' }, h('span', { class: 'grow', style: 'font-size:13px' }, 'Parsel oʻlchami'), sizeT), size,
         h('div', { class: 'seg full', role: 'group', 'aria-label': 'Toʻr' }, ...([['ns', 'Shimol–janub'], ['angle', 'Burchak'], ['street', 'Koʻcha boʻylab']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.gridMode === k, 'data-grid': k, onclick: () => { this.gridMode = k; this.renderPanel(); } }, t))),
         this.gridMode === 'angle' ? h('label', { class: 'row', style: 'font-size:13px' }, 'Burchak, °', ang) : '',
+        ...(() => { const pv = this.parcelVars(); if (!pv || !pv.vars.length) return [h('p', { class: 'note' }, 'Kvartal shu oʻlchamdan kichik — parsel oʻlchamini kamaytiring.')];
+          if (!pv.vars.some(v => v.id === this.parcelMethod)) this.parcelMethod = pv.vars[0].id;
+          return [h('div', { class: 'lb' }, 'Boʻlish usuli'), h('div', { class: 'gridgen' }, h('div', { class: 'gridvar', role: 'listbox', 'aria-label': 'Boʻlish usullari' }, ...pv.vars.map(v => h('button', { class: 'gtile', 'data-pvar': v.id, 'aria-pressed': this.parcelMethod === v.id, title: v.note, onclick: () => { this.parcelMethod = v.id; this.renderPanel(); } },
+            h('span', { class: 'th', html: this.parcelThumb(pv.whole.rings, v.cells) }), h('b', {}, v.name), h('small', {}, `${v.cells.length} parsel`)))))]; })(),
         h('button', { class: 'btn primary', id: 'pSplit', onclick: () => this.subdivideSel() }, 'Kvartalni parsellarga boʻlish'),
         h('div', { class: 'row' },
           h('button', { class: cutting ? 'btn primary grow' : 'btn grow', id: 'pCut', onclick: () => {
