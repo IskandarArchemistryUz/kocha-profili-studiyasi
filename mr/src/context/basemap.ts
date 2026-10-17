@@ -35,7 +35,7 @@ export class LiveBase {
       this.box = document.createElement('div');
       Object.assign(this.box.style, { position: 'fixed', left: '-99999px', top: '0', width: `${W}px`, height: `${W}px`, pointerEvents: 'none' });
       document.body.append(this.box);
-      this.map = new this.ml.Map({ container: this.box, style: mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never, center: j.center as [number, number], zoom: z, interactive: false, attributionControl: false, pixelRatio: 1, fadeDuration: 0, canvasContextAttributes: { preserveDrawingBuffer: true } } as never);
+      this.map = new this.ml.Map({ container: this.box, style: mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never, center: j.center as [number, number], zoom: z, interactive: false, attributionControl: false, pixelRatio: 1, fadeDuration: 0, canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true } } as never);
       this.styleKey = key;
     } else {
       if (key !== this.styleKey) { this.map.setStyle(mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never); this.styleKey = key; }
