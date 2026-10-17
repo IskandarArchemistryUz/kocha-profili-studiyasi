@@ -15,12 +15,13 @@ import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
+import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, type GridParams } from '../core/gridgen';
 import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
-import { DEFAULT_GEN, generate, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
+import { DEFAULT_GEN, generate, usePreset, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, subdivide, type GridMode } from '../core/parcels';
 import { computeWhole } from '../core/plan';
@@ -94,9 +95,12 @@ const TYPO_ICON: Record<string, string> = {
   qatorlar: '<rect x="3" y="3" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="17" width="18" height="4"/>',
   minora: '<rect x="3" y="3" width="6" height="6"/><rect x="15" y="3" width="6" height="6"/><rect x="9" y="15" width="6" height="6"/>',
   blok_minora: '<path d="M3 7h14v14H3z"/><path d="M7 11h6v6H7z"/><rect x="15" y="3" width="6" height="6" fill="currentColor"/>',
+  ofis_plita: '<rect x="3" y="4" width="18" height="5"/><rect x="3" y="15" width="18" height="5"/><path d="M6 4v5M9 4v5M12 4v5M15 4v5M18 4v5M6 15v5M9 15v5M12 15v5M15 15v5M18 15v5"/>',
+  ofis_minora: '<path d="M3 15h18v6H3z"/><rect x="5" y="3" width="5" height="12"/><rect x="14" y="5" width="5" height="10"/>',
+  savdo_blok: '<rect x="3" y="3" width="18" height="10"/><path d="M3 17h18M6 15v4M10 15v4M14 15v4M18 15v4" stroke-dasharray="1 1"/>',
   blok_villa: '<path d="M3 3h11v4H7v7H3z"/><rect x="15" y="10" width="6" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="17" width="5" height="4"/>',
 };
-const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa' };
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
@@ -1364,7 +1368,7 @@ export class Editor {
     const ud = useDef(b.use), name = this.unitName(i);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
-    const g: GenParams = ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen;
+    const g: GenParams = usePreset(b.use, this.gen) ?? (ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen);
     const fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, this.store.doc.settings.floorHeight);
     this.genNotes = r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
@@ -1620,6 +1624,56 @@ export class Editor {
     this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); toast('Yoʻl olib tashlandi · Ctrl+Z — qaytarish');
   }
 
+  /* ---------- koʻcha toʻri generatori (uchastka → bloklar) ---------- */
+  private grid: GridParams = { ...DEFAULT_GRID };
+  private gridPreset = 'barselona';
+  private gridVar = 0;
+  private gridOpen = false;
+  private gridThumb(site: XY[], g: GridParams, w = 112, hh = 80): string {
+    const xs = site.map(p => p[0]), ys = site.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const k = Math.min((w - 8) / Math.max(1, x1 - x0), (hh - 8) / Math.max(1, y1 - y0)), ox = (w - (x1 - x0) * k) / 2, oy = (hh - (y1 - y0) * k) / 2;
+    const P = (p: XY) => `${(ox + (p[0] - x0) * k).toFixed(1)},${(oy + (y1 - p[1]) * k).toFixed(1)}`;
+    const lines = gridStreets(site, g).map(st => `<path d="M${P(st.axis[0])}L${P(st.axis[1])}" stroke="${st.main ? '#1a1c1e' : '#6f6a60'}" stroke-width="${st.main ? 1.6 : 0.9}"/>`).join('');
+    return `<svg viewBox="0 0 ${w} ${hh}" width="${w}" height="${hh}"><path d="M${site.map(P).join('L')}Z" fill="#f3e3b4" stroke="#c0392b" stroke-width="0.8"/>${lines}</svg>`;
+  }
+  private gridPanel(): HTMLElement {
+    const doc = this.store.doc, fr = frame(doc.origin), site = doc.site!.rings[0].map(fr.toLocal), g = this.grid;
+    const has = doc.streets.some(s => s.gen === 'grid');
+    const box = h('details', { class: 'tpl gridgen', id: 'gridBox', open: this.gridOpen || (!doc.streets.length && !this.tool) }, h('summary', {}, `Koʻcha toʻri generatsiyasi${has ? ' · qoʻllangan' : ''}`));
+    (box as HTMLDetailsElement).ontoggle = () => { this.gridOpen = (box as HTMLDetailsElement).open; };
+    const vars = gridVariants(site, g);
+    const apply = () => {
+      const v = vars[this.gridVar] ?? vars[0], sts = gridStreets(site, v.g);
+      if (!sts.length) { toast('Uchastka tanlangan modul uchun kichik — modulni kichraytiring'); return; }
+      this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: sts.map(st => ({ axis: st.axis.map(fr.toGeo), profile: st.profile })) }));
+      const n = this.connectStreetEnds(); toast(`${sts.length} ta koʻcha · ${this.plan().blocks.length} kvartal${n ? ` · ${n} uch yoʻllarga ulandi` : ''}`);
+    };
+    const num = (lbl: string, key: 'w' | 'h', min: number, max: number) => { const inp = h('input', { type: 'number', min, max, step: 1, value: g[key], 'aria-label': lbl }) as HTMLInputElement; inp.onchange = () => { const v = Number(inp.value); if (v >= min && v <= max) { g[key] = v; this.gridPreset = ''; this.renderPanel(); } }; return h('label', { class: 'field grow' }, h('span', { class: 'lb' }, lbl), inp); };
+    const ang = h('input', { type: 'range', min: -90, max: 90, step: 5, value: g.angle == null ? 0 : Math.round(g.angle - autoAngle(site)), id: 'gridAng', 'aria-label': 'Burilish' }) as HTMLInputElement;
+    ang.oninput = () => { g.angle = autoAngle(site) + Number(ang.value); this.gridVar = 0; (box.querySelector('#gridAngV') as HTMLElement).textContent = `${ang.value}°`; };
+    ang.onchange = () => this.renderPanel();
+    const mainSel = h('select', { id: 'gridMain' }, ...[[0, 'Hammasi ikkilamchi'], [2, 'Har 2-chisi asosiy'], [3, 'Har 3-chisi asosiy'], [4, 'Har 4-chisi asosiy']].map(([v, t]) => h('option', { value: v, selected: g.mainEvery === v }, t as string))) as HTMLSelectElement;
+    mainSel.onchange = () => { g.mainEvery = Number(mainSel.value); this.renderPanel(); };
+    const prof = (key: 'main' | 'minor', lbl: string) => { const sel = h('select', { 'aria-label': lbl }, ...PROFILES.map(p => h('option', { value: p.id, selected: g.profiles[key] === p.id }, `${p.name} · ${fmt(profileWidth(p), 0)} m`))) as HTMLSelectElement; sel.onchange = () => { g.profiles = { ...g.profiles, [key]: sel.value }; this.renderPanel(); }; return h('label', { class: 'field grow' }, h('span', { class: 'lb' }, lbl), sel); };
+    box.append(
+      h('p', { class: 'note' }, 'Tahlil qilingan shahar bloklari moduli boʻyicha uchastka ichida koʻcha toʻri; kvartallar oʻzi hosil boʻladi. Keyin koʻchalarni sudrab, keraksizini oʻchirib toʻgʻrilaysiz.'),
+      h('div', { class: 'lb' }, 'Blok moduli'),
+      h('div', { class: 'gridpre', role: 'listbox', 'aria-label': 'Blok modullari' }, ...GRID_PRESETS.map(p => h('button', { class: 'gtile', 'data-gpre': p.id, 'aria-pressed': this.gridPreset === p.id, title: `${p.note} · ${p.src}`, onclick: () => { this.gridPreset = p.id; g.w = p.w; g.h = p.h; this.renderPanel(); } },
+        h('span', { class: 'th', html: this.gridThumb(site, { ...g, w: p.w, h: p.h, angle: autoAngle(site) }, 96, 64) }), h('b', {}, p.name), h('small', {}, `${p.w} × ${p.h} m`)))),
+      h('div', { class: 'row' }, num('Eni, m', 'w', 40, 600), num('Boʻyi, m', 'h', 40, 600), h('button', { class: 'ib sm', title: 'Eni ↔ boʻyi', 'aria-label': 'Almashtirish', style: 'align-self:end', onclick: () => { const t = g.w; g.w = g.h; g.h = t; this.renderPanel(); } }, svgIcon('<path d="M7 7h11l-3-3M17 17H6l3 3"/>'))),
+      h('div', { class: 'lb' }, 'Variant'),
+      h('div', { class: 'gridvar', role: 'listbox', 'aria-label': 'Variantlar' }, ...vars.map((v, i) => h('button', { class: 'gtile', 'data-gvar': i, 'aria-pressed': this.gridVar === i, onclick: () => { this.gridVar = i; this.renderPanel(); } },
+        h('span', { class: 'th', html: this.gridThumb(site, v.g, 96, 64) }), h('b', {}, v.name), h('small', {}, `${gridStreets(site, v.g).length} koʻcha`)))),
+      h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Burilish ', h('span', { id: 'gridAngV' }, `${ang.value}°`)), ang),
+      h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Asosiy koʻchalar'), mainSel)),
+      h('div', { class: 'row' }, prof('main', 'Asosiy profil'), prof('minor', 'Ikkilamchi profil')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary grow', id: 'gridApply', onclick: apply }, has ? 'Qayta qoʻllash' : 'Qoʻllash'),
+        has ? h('button', { class: 'btn', id: 'gridClear', onclick: () => this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: [] })) }, 'Toʻrni olib tashlash') : ''),
+      h('p', { class: 'note' }, 'Qoʻllashda avvalgi toʻr koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi. Uchlari 40 m ichidagi mavjud yoʻllarga ulanadi.'));
+    return box;
+  }
+
   /** Mavjud koʻchalar uchlarini davom ettirib, ≤ 40 m dagi eng yaqin yoʻl oʻqiga (OSM yoki loyiha koʻchasi) ulash */
   private connectStreetEnds(): number {
     const doc = this.store.doc, fr = frame(doc.origin), b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
@@ -1657,6 +1711,7 @@ export class Editor {
         h('div', { class: 'row' }, h('b', { class: 'grow' }, `${st ? 'Tanlangan koʻcha' : 'Yangi koʻcha'}: ${p.name}`), h('span', { class: 'muted' }, `${fmt(profileWidth(p), 1)} m ⤢`)),
         h('div', { class: 'secsvg', html: sectionSvg(p.parts, 300, 0, true, false) }))); }
     if (this.selStreet) body.append(h('p', { class: 'note', id: 'stEditHint' }, 'Tahrirlash: nuqtalarni sudrang (uchlari yoʻllarga yopishadi) · oraliqdagi kichik nuqta — yangi burilish · nuqtani ikki marta bosish — oʻchirish · Delete — koʻchani oʻchirish.'));
+    if (doc.site) body.append(this.gridPanel());
     body.append(h('button', { class: drawing ? 'btn primary' : 'btn', id: 'drawStreet', onclick: () => drawing ? this.endTool() : this.setTool(new LineTool(this.scene, r => {
       this.run(() => this.store.dispatch({ type: 'addStreet', axis: r.map(fr.toGeo), profile: this.profile }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;

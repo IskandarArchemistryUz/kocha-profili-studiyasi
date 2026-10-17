@@ -26,6 +26,8 @@ export type Command =
   | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
   | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
   | { type: 'removeStreet'; id: string }
+  /** koʻcha toʻri generatsiyasi: avvalgi generatsiya koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi */
+  | { type: 'setGridStreets'; streets: { axis: LngLat[]; profile: string }[] }
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
   | { type: 'setKeep'; keep: number[] }
@@ -60,6 +62,7 @@ export function label(c: Command): string {
     case 'addStreet': return 'Koʻcha qoʻshildi';
     case 'updateStreet': return 'Koʻcha oʻzgardi';
     case 'removeStreet': return 'Koʻcha oʻchirildi';
+    case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
     case 'setZones': return 'Zona';
     case 'setKeep': return 'Saqlanadigan binolar';
     case 'addPoi': return 'Xizmat obyekti qoʻshildi';
@@ -146,6 +149,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       d.streets = doc.streets.slice(); d.streets[i] = s; return d;
     }
     case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
+    case 'setGridStreets': d.streets = [...doc.streets.filter(s => s.gen !== 'grid'), ...c.streets.map(s => ({ id: uid('s_'), axis: s.axis.map(p => [p[0], p[1]] as LngLat), profile: s.profile, gen: 'grid' as const }))]; return d;
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
     case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
