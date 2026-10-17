@@ -1,5 +1,6 @@
 /**
- * Ijtimoiy va savdo obyektlari (OSM): bogʻcha, maktab, poliklinika, dorixona, kundalik savdo, sport, mahalla markazi.
+ * Ijtimoiy va savdo obyektlari (OSM): bogʻcha, maktab, poliklinika, dorixona, kundalik savdo, sport, mahalla markazi;
+ * jamoat transporti bekatlari (avtobus/trolleybus/tramvay) va metro kirishlari.
  * Asosiy kontekstdan alohida soʻrov va kesh (poi1:) — xizmat radiuslari 1500 m gacha, kontekst esa 300–1000 m.
  * OSM Toshkentda toʻliq emas (ayniqsa bogʻchalar): natija «kamida shuncha» deb oʻqiladi.
  */
@@ -13,7 +14,7 @@ export interface Poi { id: string; kind: Svc; at: LngLat; name?: string }
 export interface PoiBundle { center: LngLat; radius: number; fetched: string; pois: Poi[]; roads: { cls: string; pts: LngLat[] }[] }
 
 export const POI_R = 2000;
-export const poiKey = (c: LngLat) => `poi2:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
+export const poiKey = (c: LngLat) => `poi3:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
 
 const SHOP = /^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$/;
 export function classify(t: Record<string, string>): Svc | null {
@@ -25,6 +26,9 @@ export function classify(t: Record<string, string>): Svc | null {
   if (a === 'marketplace' || (t.shop && SHOP.test(t.shop))) return 'savdo';
   if (t.leisure && /^(sports_centre|fitness_centre|stadium|sports_hall)$/.test(t.leisure)) return 'sport';
   if (a === 'community_centre' || a === 'townhall') return 'mahalla';
+  // jamoat transporti: metro kirishi (yoki kirishi chizilmagan stansiya), yer usti bekatlari
+  if (t.railway === 'subway_entrance' || (t.railway === 'station' && (t.station === 'subway' || t.subway === 'yes'))) return 'metro';
+  if (t.highway === 'bus_stop' || t.railway === 'tram_stop' || (t.public_transport === 'platform' && (t.bus === 'yes' || t.trolleybus === 'yes' || t.tram === 'yes'))) return 'bekat';
   return null;
 }
 
@@ -32,7 +36,7 @@ type El = { type: string; id: number; lat?: number; lon?: number; center?: { lat
 export function parsePoi(j: { elements?: El[] }): Poi[] {
   const out: Poi[] = [];
   for (const e of j.elements || []) {
-    const t = e.tags || {}; if (t.highway && !t.amenity && !t.shop) continue;
+    const t = e.tags || {}; if (t.highway && t.highway !== 'bus_stop' && !t.amenity && !t.shop) continue;   // yoʻllar (out geom) — POI emas
     const k = classify(t); if (!k) continue;
     const p = e.type === 'node' ? (e.lat != null ? { lat: e.lat, lon: e.lon! } : null) : e.center; if (!p) continue;
     out.push({ id: `${e.type[0]}${e.id}`, kind: k, at: [p.lon, p.lat], ...(t.name ? { name: t.name } : {}) });
@@ -54,6 +58,11 @@ export async function fetchPoi(center: LngLat, f: typeof fetch = fetch.bind(glob
   nwr["shop"~"^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$"];
   nwr["leisure"~"^(sports_centre|fitness_centre|stadium|sports_hall)$"];
   way["building"~"^(school|kindergarten|hospital)$"];
+  node["highway"="bus_stop"];
+  node["railway"~"^(tram_stop|subway_entrance)$"];
+  nwr["public_transport"="platform"]["bus"="yes"];
+  nwr["public_transport"="platform"]["trolleybus"="yes"];
+  nwr["railway"="station"]["station"="subway"];
 );out center qt;
 way["highway"]["area"!="yes"]["highway"!~"^(motorway|motorway_link|construction|proposed|raceway|bus_guideway)$"];out geom qt;`;
   const j = await overpass(q, f, () => {}) as { elements?: El[] };

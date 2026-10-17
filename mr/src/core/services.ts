@@ -6,10 +6,10 @@
  */
 import type { XY } from './geo';
 
-export type Svc = 'mtm' | 'maktab' | 'poliklinika' | 'dorixona' | 'savdo' | 'sport' | 'mahalla';
+export type Svc = 'mtm' | 'maktab' | 'poliklinika' | 'dorixona' | 'savdo' | 'sport' | 'mahalla' | 'bekat' | 'metro';
 
 export interface SvcDef { id: Svc; name: string; r: number; note: string }
-/** 38-jadval, shahar aholi punktlari ustuni */
+/** 38-jadval, shahar aholi punktlari ustuni; bekatlar — 382–383-band */
 export const SERVICES: SvcDef[] = [
   { id: 'mtm', name: 'MTM (bogʻcha)', r: 300, note: '300 m; past zichlikdagi (1–2 qavatli, tomorqali) hududda 500 m' },
   { id: 'maktab', name: 'Maktab', r: 500, note: 'II bosqich (V–IX) 500 m; I bosqich (I–IV) 300 m, III bosqich (X–XI) 800 m' },
@@ -18,6 +18,8 @@ export const SERVICES: SvcDef[] = [
   { id: 'savdo', name: 'Kundalik savdo', r: 500, note: 'mahalliy markazlar, kundalik qatnov 300–500 m (yuqori chegara olindi)' },
   { id: 'sport', name: 'Sport, sogʻlomlashtirish', r: 500, note: 'hordiq va jismoniy-sogʻlomlashtirish obyektlari 500 m' },
   { id: 'mahalla', name: 'Mahalla markazi', r: 500, note: 'jamoat idoralari 500 m' },
+  { id: 'bekat', name: 'Jamoat transporti bekati', r: 400, note: '382-band: uy yoki ishxonadan bekatgacha ≤ 400 m; 383-band: umumshahar markazida ≤ 250 m, dam olish zonalarida ≤ 800 m. Avtobus, trolleybus, tramvay' },
+  { id: 'metro', name: 'Metro bekati (kirish)', r: 800, note: 'ShNQ da metro uchun alohida radius berilmagan; 800 m (≈ 10 min piyoda) — taxmin, xalqaro amaliyot. Manba — metro kirishlari' },
 ];
 export const svcDef = (k: Svc) => SERVICES.find(s => s.id === k)!;
 

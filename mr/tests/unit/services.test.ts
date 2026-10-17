@@ -40,6 +40,14 @@ describe('Xizmatlar: piyoda tarmogʻi', () => {
     expect(classify({ building: 'school' })).toBe('maktab');
     expect(classify({ shop: 'supermarket' })).toBe('savdo');
     expect(classify({ shop: 'car' })).toBeNull();
+    // jamoat transporti: bekatlar va metro kirishlari
+    expect(classify({ highway: 'bus_stop' })).toBe('bekat');
+    expect(classify({ railway: 'tram_stop' })).toBe('bekat');
+    expect(classify({ public_transport: 'platform', trolleybus: 'yes' })).toBe('bekat');
+    expect(classify({ railway: 'subway_entrance' })).toBe('metro');
+    expect(classify({ railway: 'station', station: 'subway' })).toBe('metro');
+    expect(classify({ railway: 'station' })).toBeNull();
+    expect(parsePoi({ elements: [{ type: 'node', id: 1, lat: 41.3, lon: 69.2, tags: { highway: 'bus_stop', name: 'Bekat' } }, { type: 'way', id: 2, tags: { highway: 'residential' }, geometry: [] }] }).map(p => p.kind)).toEqual(['bekat']);
     const j: Parameters<typeof parsePoi>[0] = { elements: [{ type: 'node', id: 1, lat: 41.3, lon: 69.2, tags: { amenity: 'pharmacy' } }, { type: 'way', id: 2, center: { lat: 41.31, lon: 69.21 }, tags: { amenity: 'school', name: '110-maktab' } }, { type: 'way', id: 3, tags: { highway: 'residential' }, geometry: [{ lat: 41.3, lon: 69.2 }, { lat: 41.301, lon: 69.2 }] }] };
     expect(parsePoi(j).map(p => p.kind)).toEqual(['dorixona', 'maktab']);
     expect(parseRoads(j)).toHaveLength(1);

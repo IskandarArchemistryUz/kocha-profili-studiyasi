@@ -10,6 +10,8 @@ function fixture(): unknown {
   }
   el.push({ type: 'node', id: 9001, lat: c[1] + 150 * my, lon: c[0] + 150 * mx, tags: { amenity: 'kindergarten', name: 'Sinov bogʻchasi' } });
   el.push({ type: 'node', id: 9002, lat: c[1] - 900 * my, lon: c[0] - 900 * mx, tags: { amenity: 'school' } });
+  el.push({ type: 'node', id: 9003, lat: c[1] + 200 * my, lon: c[0] - 100 * mx, tags: { highway: 'bus_stop', name: 'Sinov bekati' } });
+  el.push({ type: 'node', id: 9004, lat: c[1] - 500 * my, lon: c[0] + 500 * mx, tags: { railway: 'subway_entrance' } });
   return { elements: el };
 }
 
@@ -25,6 +27,10 @@ test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', as
   const mtm = page.locator('#svcTab tr[data-svc=mtm] .chip'), sch = page.locator('#svcTab tr[data-svc=maktab] .chip');
   const v = Number((await mtm.textContent())!.replace(/\D/g, '')); expect(v).toBeGreaterThan(0); expect(v).toBeLessThan(100);
   await expect(sch).toHaveText('0 %');
+  // bekat 400 m, metro kirishi 800 m — jadvalda; bekat ~300 m da → qamrov > 0
+  await expect(page.locator('#svcTab tr[data-svc=bekat] td').nth(1)).toHaveText('400 m');
+  await expect(page.locator('#svcTab tr[data-svc=metro] td').nth(1)).toHaveText('800 m');
+  const bk = Number((await page.locator('#svcTab tr[data-svc=bekat] .chip').textContent())!.replace(/\D/g, '')); expect(bk).toBeGreaterThan(0);
   // OSM da yoʻq bogʻchani qoʻlda qoʻshish — uchastka markazida → MTM qamrovi oshadi
   await page.selectOption('#poiKind', 'mtm'); await page.fill('#poiName', 'Sinov MTM');
   await page.click('#poiAdd');

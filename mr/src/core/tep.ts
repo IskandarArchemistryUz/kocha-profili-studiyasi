@@ -45,7 +45,7 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   if (d.solarRoof > 0) { const pv = pvEstimate(d.solarRoof); add('Energiya', 'Quyosh panellari quvvati (taxmin)', 'kWp', pv.kwp, `tomning ${PV.cover * 100} % i, ${PV.kwpPerM2} kWp/m²`); add('Energiya', 'Yillik ishlab chiqarish (taxmin)', 'MWh/yil', pv.mwh, `~${PV.yield} kWh/kWp (Toshkent)`); }
   add('Transport', 'Avtoturargoh talabi', 'joy', d.parkingReq, '416-band, 29-jadval');
   add('Transport', 'Avtoturargoh taʼminoti', 'joy', d.parkingProv);
-  for (const x of extra?.svc ?? []) add('Xizmatlar', `${x.name} — ${x.r} m radiusda aholi`, '%', x.share * 100, '539-band, 38-jadval');
+  for (const x of extra?.svc ?? []) add('Xizmatlar', `${x.name} — ${x.r} m radiusda aholi`, '%', x.share * 100, /bekat/i.test(x.name) ? '382-band' : /metro/i.test(x.name) ? 'taxmin (800 m)' : '539-band, 38-jadval');
   if (demo) {
     add('Buzish', 'Buziladigan mavjud binolar', 'ta', demo.gone);
     add('Buzish', 'Buziladigan binolar dogʻi', 'm²', demo.foot);
