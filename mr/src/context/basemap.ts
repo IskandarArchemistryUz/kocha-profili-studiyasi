@@ -29,13 +29,13 @@ export class LiveBase {
 
   private async draw(j: { center: LngLat; radius: number; style: string; pal: string; labels: boolean }): Promise<BaseImage | null> {
     if (!this.ml) this.ml = (await import('maplibre-gl')).default as unknown as ML;
-    const W = this.W, mPerPx = (2 * j.radius) / W, z = Math.log2(78271.517 * Math.cos(j.center[1] * Math.PI / 180) / mPerPx);
+    const W = this.W, mPerPx = (2 * j.radius) / W,  /* W — CSS piksel; kanvas W·dpr (retina — tiniq) */ z = Math.log2(78271.517 * Math.cos(j.center[1] * Math.PI / 180) / mPerPx);
     const key = `${j.style}|${j.pal}|${j.labels}`;
     if (!this.map) {
       this.box = document.createElement('div');
       Object.assign(this.box.style, { position: 'fixed', left: '-99999px', top: '0', width: `${W}px`, height: `${W}px`, pointerEvents: 'none' });
       document.body.append(this.box);
-      this.map = new this.ml.Map({ container: this.box, style: mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never, center: j.center as [number, number], zoom: z, interactive: false, attributionControl: false, pixelRatio: 1, fadeDuration: 0, canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true } } as never);
+      this.map = new this.ml.Map({ container: this.box, style: mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never, center: j.center as [number, number], zoom: z, interactive: false, attributionControl: false, pixelRatio: Math.min(2, Math.max(1, window.devicePixelRatio || 1)), fadeDuration: 0, canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true } } as never);
       this.styleKey = key;
     } else {
       if (key !== this.styleKey) { this.map.setStyle(mapStyle(j.style as 'stil' | 'sat', j.pal, j.labels) as never); this.styleKey = key; }

@@ -356,7 +356,7 @@ export class Scene3D {
     let half: number;
     if (this.cam === this.ortho) { const s = ((this.ortho.userData.s as number) || 200) / (this.ortho.zoom || 1); half = s * Math.max(1, w / h); if (this.mode !== 'plan') half *= 1.6; }
     else half = this.cam.position.distanceTo(t) * Math.tan(THREE.MathUtils.degToRad(this.persp.fov / 2)) * Math.max(1, w / h) * 2.2;
-    return { c: [t.x, -t.z], r: half * 1.25 };
+    return { c: [t.x, -t.z], r: half * 1.08 };
   }
   /** Kamera boshqaruvini vaqtincha oʻchirish (sudrash paytida) */
   setOrbit(on: boolean): void { this.ctl.enabled = on; }
