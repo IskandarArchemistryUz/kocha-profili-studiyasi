@@ -11,7 +11,7 @@ let UI={m:'render',mon:5,hr:16,c:'p'};try{Object.assign(UI,JSON.parse(localStora
 const saveUI=()=>{try{localStorage.setItem(UIK,JSON.stringify(UI));}catch(_){}};
 let OV=null,R3,SC,CAM,CTRL,SUN,HEMI,ROOT,GET=null,DATA=null,DIRTY=false,RAF=0,SIZE=200,CTR=null;
 function load(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s);});}
-async function libs(){if(!window.THREE)await load('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');if(!THREE.OrbitControls)await load('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');}
+async function libs(){if(window.KLIB){await KLIB.load('three');await KLIB.load('orbit');return;}if(!window.THREE)await load('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');if(!THREE.OrbitControls)await load('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');}
 const CSS=`.vz{position:fixed;inset:0;z-index:4000;background:#eceae5;display:grid;grid-template-rows:44px minmax(0,1fr);font:14px/1.4 Archivo,system-ui,sans-serif;color:#141414}
 .vz .bar{display:flex;align-items:center;gap:10px;padding:0 12px;background:#fff;border-bottom:1px solid #141414}
 .vz .bar b{font:600 15px Archivo,system-ui,sans-serif;margin-right:6px}
@@ -27,7 +27,7 @@ async function open(get){GET=get;if(!OV){const st=document.createElement('style'
     <div class="seg" data-g="m"><button data-m="maket">${esc(T('Maket'))}</button><button data-m="render">${esc(T('Render'))}</button></div>
     <div class="seg" data-g="c"><button data-c="p">${esc(T('Perspektiva'))}</button><button data-c="a">${esc(T('Aksonometriya'))}</button></div>
     <div class="sun"><select id="vzMon"><option value="2">${esc(T('21 mart'))}</option><option value="5">${esc(T('21 iyun'))}</option><option value="8">${esc(T('21 sentyabr'))}</option><option value="11">${esc(T('21 dekabr'))}</option></select><input type="range" id="vzHr" min="6" max="20" step="0.25"><span id="vzHrT"></span></div>
-    <span class="sp"></span><button class="btn dark" id="vzAi" title="${esc(T('Nano Banana, GPT Image va boshqa modellar bilan fotorealistik vizualizatsiya'))}">✦ ${esc(T('AI render'))}</button><button class="btn" id="vzPng">PNG</button><button class="btn dark" id="vzAlb">${esc(T('Albomga →'))}</button><button class="btn" id="vzX">✕ ${esc(T('Yopish'))}</button></div>
+    <span class="sp"></span><button class="btn dark" id="vzAi" title="${esc(T('Nano Banana, GPT Image va boshqa modellar bilan fotorealistik vizualizatsiya'))}">${KIC.i('sparkle','b')}${esc(T('AI render'))}</button><button class="btn" id="vzPng">PNG</button><button class="btn dark" id="vzAlb">${esc(T('Albomga'))}${KIC.i('arrow-right','a')}</button><button class="btn" id="vzX">${KIC.i('x','b')}${esc(T('Yopish'))}</button></div>
     <div class="cv" id="vzCv"><div class="ld" id="vzLd">${esc(T('3D tayyorlanmoqda…'))}</div><div class="nt">${esc(T('sichqoncha — aylantirish · oʻng tugma — surish · gʻildirak — masshtab · Esc — yopish'))}</div></div>`;
   document.body.appendChild(OV);sync();
   OV.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{UI.m=b.dataset.m;saveUI();sync();DIRTY=true;});
@@ -94,6 +94,6 @@ function png(){if(!R3||!CAM)return null;R3.render(SC,CAM);return R3.domElement.t
 function matPut(o){return new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.onupgradeneeded=()=>r.result.createObjectStore('mats',{keyPath:'id'});r.onsuccess=()=>{const t=r.result.transaction('mats','readwrite');t.objectStore('mats').put(o);t.oncomplete=res;t.onerror=()=>rej(t.error);};r.onerror=()=>rej(r.error);});}
 function toAlb(){const u=png(),b=OV.querySelector('#vzAlb');if(!u)return;const cv=R3.domElement;
   matPut({id:'vz'+Date.now().toString(36),kind:'png',name:T('3D vizualizatsiya')+' · '+T(UI.m==='render'?'Render':'Maket'),src:u,thumb:u,aspect:cv.width/cv.height,sub:`${DATA.blds.length} ${T('bino')}`,t:new Date().toISOString()})
-  .then(()=>{b.textContent=T('Yuborildi ✓');setTimeout(()=>{if(OV)b.textContent=T('Albomga →');},1800);}).catch(()=>{b.textContent=T('Xato');});}
+  .then(()=>{b.innerHTML=KIC.i('check','b')+esc(T('Yuborildi'));setTimeout(()=>{if(OV)b.innerHTML=esc(T('Albomga'))+KIC.i('arrow-right','a');},1800);}).catch(()=>{b.textContent=T('Xato');});}
 window.MRVIZ={open,close,get open_(){return !!OV;}};
 })();

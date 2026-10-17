@@ -9,7 +9,8 @@
 <script src="js/beta.js?v=15"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="js/cdn.js?v=1"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" onerror="KLIB.css(this)">
 <style>
 :root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--line2:#cfccc5;--bad:#b3261e;--ok:#2e7d4f;--mono:'IBM Plex Mono',ui-monospace,monospace;--res:#c9b8f0;--com:#f2c27b;--soc:#9fc6e8;--off:#bdbdbd}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
@@ -59,6 +60,7 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 .blk{border:0;background:none;text-align:left;padding:0;font:14px Archivo;cursor:pointer;color:var(--ink)}.blk:hover{text-decoration:underline}
 details.fz{border-top:1px solid var(--line);padding-top:4px}details.fz>summary{cursor:pointer;list-style:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);padding:6px 0}details.fz>summary::before{content:'+ '}details.fz[open]>summary::before{content:'− '}
 </style>
+<script src="js/icons.js?v=2"></script>
 </head>
 <body>
 <header>
@@ -67,7 +69,7 @@ details.fz{border-top:1px solid var(--line);padding-top:4px}details.fz>summary{c
 <span class="sp"></span>
 <form id="sForm" style="display:flex"><input id="sQ" placeholder="Xaritada joy: manzil yoki koordinata" style="height:30px;border:1px solid var(--line2);border-radius:2px;padding:0 8px;width:220px;background:#fff"></form>
 <div class="seg" role="group" aria-label="Koʻrinish"><button data-v="2d" aria-pressed="true">Reja</button><button data-v="3d" aria-pressed="false">3D</button></div>
-<button class="btn ghost" id="toMk">Albomga →</button><button class="btn dark" id="csv">Hisobot · CSV</button><button class="btn ghost" id="gjIn" title="GeoJSON import">GeoJSON ↑</button><input type="file" id="gjFile" accept=".geojson,.json,application/geo+json" style="display:none"><button class="btn ghost" id="gjson">GeoJSON ↓</button>
+<button class="btn ghost" id="toMk">Albomga<i data-i="arrow-right" data-p="a"></i></button><button class="btn dark" id="csv">Hisobot · CSV</button><button class="btn ghost" id="gjIn" title="GeoJSON import">GeoJSON<i data-i="upload" data-p="a"></i></button><input type="file" id="gjFile" accept=".geojson,.json,application/geo+json" style="display:none"><button class="btn ghost" id="gjson">GeoJSON<i data-i="download" data-p="a"></i></button>
 </header>
 <main>
 <nav class="rail" aria-label="Asboblar" id="rail"></nav>
@@ -78,11 +80,13 @@ details.fz{border-top:1px solid var(--line);padding-top:4px}details.fz>summary{c
 </main>
 <div id="toasts"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>KLIB.need('leaflet')</script>
 <script src="js/basemap.js?v=1"></script>
 <script>
 (function(){
 'use strict';
 document.getElementById('logoP').setAttribute('d','M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z');
+if(!KLIB.ok('leaflet'))return;   // kutubxona yuklanmadi — xabar js/cdn.js da
 const $=s=>document.querySelector(s),R=Math.PI/180;
 const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),4200);};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -166,7 +170,7 @@ function render(){G.clearLayers();E.clearLayers();T.eachLayer(l=>{if(!l.options|
   P.greens.forEach(g=>L.polygon(g.poly,{color:'#4f7f3c',weight:1,fillColor:'#8cc37a',fillOpacity:.55,interactive:tool==='sel'}).on('click',e=>{L.DomEvent.stop(e);if(tool!=='sel')return;sel={t:'g',id:g.id};render();}).addTo(G));
   P.parks.forEach(g=>{L.polygon(g.poly,{color:'#696969',weight:1,fillColor:'#d6d4cf',fillOpacity:.8,interactive:tool==='sel'}).on('click',e=>{L.DomEvent.stop(e);if(tool!=='sel')return;sel={t:'p',id:g.id};render();}).addTo(G);const c=cent(g.poly);L.marker(c,{interactive:false,icon:L.divIcon({className:'blab',html:'P · '+Math.floor(area(g.poly)/25),iconSize:null,iconAnchor:[14,7]})}).addTo(G);});
   (P.meas||[]).forEach((m,i)=>{const del=e=>{L.DomEvent.stop(e);P.meas.splice(i,1);commit();};L.polyline([m.a,m.b],{color:'#f0b429',weight:3,dashArray:'6 4'}).on('contextmenu',del).addTo(G);
-    L.marker([(m.a[0]+m.b[0])/2,(m.a[1]+m.b[1])/2],{icon:L.divIcon({className:'mlab',html:f1(dist(m.a,m.b))+' m<b title="Oʻchirish">×</b>',iconSize:null,iconAnchor:[-6,10]})}).on('click',del).addTo(G);});
+    L.marker([(m.a[0]+m.b[0])/2,(m.a[1]+m.b[1])/2],{icon:L.divIcon({className:'mlab',html:f1(dist(m.a,m.b))+' m<b title="Oʻchirish">'+KIC.i('x','',12)+'</b>',iconSize:null,iconAnchor:[-6,10]})}).on('click',del).addTo(G);});
   (P.ctx||[]).forEach(x=>L.polygon(x.poly,{color:'#8a877f',weight:.8,fillColor:'#cfccc5',fillOpacity:.6,interactive:false}).addTo(G));
   P.blds.forEach(b=>{const on=sel&&sel.t==='b'&&sel.id===b.id;L.polygon(b.poly,{color:on?'#141414':'#6a5a9a',weight:on?2.5:1.2,fillColor:USES[b.use][1],fillOpacity:.92,interactive:tool==='sel'}).on('click',e=>{L.DomEvent.stop(e);if(tool!=='sel')return;sel={t:'b',id:b.id};render();}).addTo(G);
     L.marker(cent(b.poly),{interactive:false,icon:L.divIcon({className:'blab',html:`${b.fl} qav.`,iconSize:null,iconAnchor:[16,7]})}).addTo(G);});
@@ -174,7 +178,7 @@ function render(){G.clearLayers();E.clearLayers();T.eachLayer(l=>{if(!l.options|
       m.on('drag',ev=>{const q=ev.target.getLatLng(),sn=snapLL([q.lat,q.lng],ev,s.poly);s.poly[i]=sn.p;if(sn.k)ev.target.setLatLng(sn.p);showSnap(sn);G.clearLayers();render.light();});m.on('dragend',()=>showSnap(null));m.on('dragend',()=>commit());});
     s.poly.forEach((p,i)=>{const q=s.poly[(i+1)%s.poly.length],len=dist(p,q);if(len<1)return;const mid=[(p[0]+q[0])/2,(p[1]+q[1])/2];
       L.marker(mid,{icon:L.divIcon({className:'elab',html:f1(len)+' m',iconSize:null,iconAnchor:[-4,-4]})}).on('click',e=>{L.DomEvent.stop(e);const v=prompt(kpsT('Tomon uzunligi, m:'),String(Math.round(len*100)/100));if(v==null)return;const Ln=parseFloat(String(v).replace(',','.'));if(!(Ln>0.3))return;setEdgeLen(s.poly,i,Ln);commit();}).addTo(E);});
-    const c=cent(s.poly),mv=L.marker(c,{draggable:true,icon:L.divIcon({className:'',html:'<div style="width:16px;height:16px;border-radius:50%;background:#141414;color:#fff;font-size:12.5px;display:grid;place-items:center">✥</div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(E);
+    const c=cent(s.poly),mv=L.marker(c,{draggable:true,icon:L.divIcon({className:'',html:'<div style="width:16px;height:16px;border-radius:50%;background:#141414;color:#fff;font-size:12.5px;display:grid;place-items:center">'+KIC.i('move','',12)+'</div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(E);
     let st=null;mv.on('dragstart',()=>{st={c:c.slice(),poly:s.poly.map(p=>p.slice())};});mv.on('drag',ev=>{const q=ev.target.getLatLng(),d=[q.lat-st.c[0],q.lng-st.c[1]];let mvd=st.poly.map(p=>[p[0]+d[0],p[1]+d[1]]);if(!(ev.originalEvent&&ev.originalEvent.altKey)){let bo=null,bdist=1e9;mvd.forEach(p=>{const sn=snapLL(p,null,s.poly);if(sn.k){const a=map.latLngToContainerPoint(p),b=map.latLngToContainerPoint(sn.p),dd=Math.hypot(a.x-b.x,a.y-b.y);if(dd<bdist){bdist=dd;bo=[sn.p[0]-p[0],sn.p[1]-p[1]];}}});if(bo)mvd=mvd.map(p=>[p[0]+bo[0],p[1]+bo[1]]);}s.poly=mvd;if(sel.t==='s')P.site=s.poly;else if(sel.t==='b')P.blds.find(b=>b.id===sel.id).poly=s.poly;G.clearLayers();render.light();});mv.on('dragend',()=>commit());}
   drawAnalysis();renderSide();if(view==='3d')upd3d();}
 render.light=()=>{const keep=sel;const s=selObj();P.site&&L.polygon(P.site,{color:'#e8775f',weight:2.5,dashArray:'8 5',fillOpacity:.04,interactive:false}).addTo(G);P.greens.forEach(g=>L.polygon(g.poly,{color:'#4f7f3c',weight:1,fillColor:'#8cc37a',fillOpacity:.55,interactive:false}).addTo(G));P.parks.forEach(g=>L.polygon(g.poly,{color:'#696969',weight:1,fillColor:'#d6d4cf',fillOpacity:.8,interactive:false}).addTo(G));P.blds.forEach(b=>L.polygon(b.poly,{color:'#6a5a9a',weight:1.2,fillColor:USES[b.use][1],fillOpacity:.92,interactive:false}).addTo(G));};
@@ -244,7 +248,7 @@ function gj3(){const f=[];const c=x=>x.map(p=>[p[1],p[0]]).concat([[x[0][1],x[0]
   P.greens.forEach(g=>f.push({type:'Feature',properties:{h:.3,b:0,c:'#8cc37a'},geometry:{type:'Polygon',coordinates:[c(g.poly)]}}));
   P.parks.forEach(g=>f.push({type:'Feature',properties:{h:.1,b:0,c:'#c9c6bf'},geometry:{type:'Polygon',coordinates:[c(g.poly)]}}));
   if(P.site)f.push({type:'Feature',properties:{line:1},geometry:{type:'LineString',coordinates:c(P.site)}});return {type:'FeatureCollection',features:f};}
-async function open3d(){try{if(!window.maplibregl){const l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(l);await loadScript('https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js');}}catch(e){toast('3D ochilmadi: '+e.message);return;}
+async function open3d(){try{if(!window.maplibregl){const l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(l);await (window.KLIB?KLIB.load('maplibre'):loadScript('https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js'));}}catch(e){toast('3D ochilmadi: '+e.message);return;}
   const c=map.getCenter();if(M3){M3.resize();M3.jumpTo({center:[c.lng,c.lat]});upd3d();return;}
   M3=new maplibregl.Map({container:'map3',maxPitch:80,style:'https://tiles.openfreemap.org/styles/liberty',center:[c.lng,c.lat],zoom:map.getZoom()-1,pitch:55,bearing:-20,antialias:true});
   M3.on('error',e=>console.warn('3D',e&&e.error&&e.error.message));M3.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
@@ -308,7 +312,7 @@ function openPlan(b){b.plan=b.plan||{cells:[]};planSet(b);const fr=localFrame(b.
     <label class="note" style="display:flex;gap:4px;align-items:center">qadam<select id="plStep">${[.1,.3,.5,.6,1.2].map(v=>`<option value="${v}" ${b.plan.set.step==v?'selected':''}>${String(v).replace('.',',')} m</option>`).join('')}</select></label>
     <label class="note" style="display:flex;gap:4px;align-items:center">oʻqlar<input id="plAx" type="number" step="0.3" min="0" value="${b.plan.set.ax||''}" placeholder="—" style="width:52px">×<input id="plAy" type="number" step="0.3" min="0" value="${b.plan.set.ay||''}" placeholder="—" style="width:52px"></label>
     <label class="note" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="plSn" ${b.plan.set.snapE?'checked':''}>chetlarga bogʻlash</label>
-    <button class="btn sm ghost" id="plAlb">Albomga →</button><button class="btn sm ghost" id="plUndo">Bekor (Ctrl+Z)</button><button class="btn sm dark" id="plOk">Tayyor</button></div>
+    <button class="btn sm ghost" id="plAlb">Albomga${KIC.i('arrow-right','a')}</button><button class="btn sm ghost" id="plUndo">Bekor (Ctrl+Z)</button><button class="btn sm dark" id="plOk">Tayyor</button></div>
     <div class="cv" id="plCv"></div><div class="pn" id="plPn"></div></div>`;document.body.appendChild(w);
   b.plan.walls=b.plan.walls||[];PL.hist=[JSON.stringify({c:b.plan.cells,d:b.plan.dims,w:b.plan.walls})];
   w.querySelectorAll('[data-pt]').forEach(x=>x.onclick=()=>{PL.tool=x.dataset.pt;PL.rul=null;PL.pp=null;PL.wp=null;if(PL.tool==='rect'||PL.tool==='poly'){if(PL.k==='core'||!RT[PL.pal].includes(PL.k))PL.k=RT[PL.pal][0];}plDraw();});$('#plUse').onchange=e=>{PL.pal=e.target.value;PL.k=RT[PL.pal][0];plDraw();};$('#plOk').onclick=closePlan;$('#plAlb').onclick=planToAlbum;$('#plUndo').onclick=plUndo;
@@ -688,7 +692,7 @@ const putMat=o=>new Promise((res,rej)=>{const r=indexedDB.open('kps_mat',1);r.on
   const Ctl=L.Control.extend({options:{position:'bottomleft'},onAdd(){const d=L.DomUtil.create('div');d.id='pzWind';d.style.cssText='background:#fff;border:1px solid #141414;padding:8px 10px;font:12px/1.45 "IBM Plex Sans",sans-serif;max-width:230px';L.DomEvent.disableClickPropagation(d);return d;}});
   map.addControl(new Ctl());
   function draw(){const d=document.getElementById('pzWind');if(!d)return;let w=null;try{w=JSON.parse(localStorage.getItem('kps_wind_rose')||'null');}catch(e){}
-    const link='<a href="shamol.html#bino" style="display:inline-block;margin-top:5px;color:#141414;font-weight:600">Binolarning shamolga taʼsiri →</a>';
+    const link='<a href="shamol.html#bino" style="display:inline-block;margin-top:5px;color:#141414;font-weight:600">Binolarning shamolga taʼsiri'+KIC.i('arrow-right','a')+'</a>';
     if(!w||!w.yil){d.innerHTML='<b>Shamol</b><br><span style="color:#696969">Shamol guli 1-qadamda «Hisoblash» dan keyin chiqadi.</span><br>'+link;return;}
     const f=w.yil.freq,c=34,R=30,mx=Math.max(...f,.01);let s='<svg width="68" height="68" viewBox="0 0 68 68" style="float:left;margin-right:8px">';
     f.forEach((v,i)=>{const a0=(i*22.5-9)*Math.PI/180,a1=(i*22.5+9)*Math.PI/180,r=3+(R-3)*v/mx;s+=`<path d="M${c} ${c}L${(c+Math.sin(a0)*r).toFixed(1)} ${(c-Math.cos(a0)*r).toFixed(1)}L${(c+Math.sin(a1)*r).toFixed(1)} ${(c-Math.cos(a1)*r).toFixed(1)}Z" fill="${v===mx?'#1d6fa5':'#9fbdd1'}"/>`;});

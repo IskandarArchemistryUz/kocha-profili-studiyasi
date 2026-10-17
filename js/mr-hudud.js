@@ -153,7 +153,7 @@ function areaTool(cfg){
     ${st?`<div class="kv"><span>${T('Maydon')}</span><b>${fmt(st.area/1e4,2)} ${T('ga')}</b><span>${T('Perimetr')}</span><b>${fmt(st.per)} m</b></div>`:''}
     ${cfg.multi&&H.done&&H.mode!=='radius'?`<div style="margin-top:10px;border-top:1px solid var(--line,#ddd);padding-top:8px"><div class="lb" style="margin-bottom:6px">${T('Murakkab chegara')}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" data-asub="0" title="${T('Asosiy chegaradan ajralgan alohida yer boʻlagi')}" ${H.sub&&!H.sub.hole?'aria-pressed="true"':''}>+ ${T('Qism (eksklav)')}</button><button class="btn" data-asub="1" title="${T('Uchastka ichidagi loyihaga kirmaydigan joy (masalan, saqlanadigan bino yoki boshqa egalik)')}" ${H.sub&&H.sub.hole?'aria-pressed="true"':''}>− ${T('Teshik (anklav)')}</button></div>
-      ${H.extra.length?`<div style="margin-top:6px;display:grid;gap:3px">${H.extra.map((x,i)=>{const a=turf.area(turf.polygon([[...x.ring,x.ring[0]]]))/1e4;return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px"><span>${x.hole?'− '+T('Teshik'):'+ '+T('Qism')} ${i+1} · ${fmt(a,2)} ${T('ga')}</span><button class="btn" data-axdel="${i}" style="height:22px;padding:0 6px" aria-label="${T('Oʻchirish')}">×</button></div>`;}).join('')}</div>`:''}</div>`:''}
+      ${H.extra.length?`<div style="margin-top:6px;display:grid;gap:3px">${H.extra.map((x,i)=>{const a=turf.area(turf.polygon([[...x.ring,x.ring[0]]]))/1e4;return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px"><span>${x.hole?'− '+T('Teshik'):'+ '+T('Qism')} ${i+1} · ${fmt(a,2)} ${T('ga')}</span><button class="btn" data-axdel="${i}" style="height:22px;padding:0 6px" aria-label="${T('Oʻchirish')}">${KIC.i('x','',14)}</button></div>`;}).join('')}</div>`:''}</div>`:''}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${H.done?`<button class="btn" data-anew>${T('Qayta chizish')}</button><button class="btn" data-adel>${T('Oʻchirish')}</button>`:''}${(cfg.extra&&cfg.extra(st))||''}</div>`;
   }
   function bind(root){
@@ -184,7 +184,7 @@ window.MRHUD=areaTool({id:'hud',label:'Tahlil hududi',modes:['radius','rect','po
   about:'Uchastka atrofidagi hudud — faqat tahlil uchun: Hudud bahosi, Yer qoplami, Relyef, Shamol shu hudud boʻyicha hisoblanadi. Loyiha chegarasi emas.',
   read:readSite,
   write:s=>{try{if(s)localStorage.setItem('kps_site',JSON.stringify(s));else localStorage.removeItem('kps_site');}catch(e){}},
-  extra:st=>st?`<button class="btn" data-ago>${T('Hudud bahosi →')}</button>`:'',
+  extra:st=>st?`<button class="btn" data-ago>${T('Hudud bahosi')}${KIC.i('arrow-right','a')}</button>`:'',
   bindExtra:root=>{const g=root.querySelector('[data-ago]');if(g)g.onclick=()=>{try{parent.postMessage({kps:'go',href:'ai.html#auto'},location.origin);}catch(e){}};}});
 window.addEventListener('storage',e=>{if(e.key==='kps_site')window.MRHUD.reload();});
 window.MRHUD_areaTool=areaTool;

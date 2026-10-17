@@ -80,9 +80,9 @@ let PEL=null,LEL=null,open={};
 const ICN=Object.keys(IC);
 function refresh(){if(PEL)renderPanel();if(LEL)renderLegend();onChange();}
 function renderPanel(){const groups={};ORDER.forEach(id=>{const l=LY[id];if(!l)return;(groups[l.group||T('Boshqa')]=groups[l.group||T('Boshqa')]||[]).push(l);});
-  let h=`<div class="uh"><b>${T('Qatlamlar')}</b><span style="flex:1"></span><button data-ua="none" title="${T('Hammasini oʻchirish')}">${T('oʻchirish')}</button><button data-ua="min" title="${T('Yigʻish')}">${PEL.classList.contains('min')?'▸':'▾'}</button></div><div class="ub">`;
+  let h=`<div class="uh"><b>${T('Qatlamlar')}</b><span style="flex:1"></span><button data-ua="none" title="${T('Hammasini oʻchirish')}">${T('oʻchirish')}</button><button data-ua="min" title="${T('Yigʻish')}">${PEL.classList.contains('min')?KIC.i('chevron-right'):KIC.i('chevron-down')}</button></div><div class="ub">`;
   Object.entries(groups).forEach(([g,ls])=>{h+=`<div class="ug">${esc(T(g))}</div>`;ls.forEach(l=>{const st=l.st,n=l.count!=null?l.count:(l.data||[]).length;
-    h+=`<div class="ur${open[l.id]?' op':''}" data-id="${l.id}"><label><input type="checkbox" data-uk="on" ${st.on?'checked':''}><span class="sw" style="${swatch(l)}"></span><span class="nm">${esc(T(l.name))}</span>${n?`<span class="ct">${n>999?Math.round(n/100)/10+'k':n}</span>`:''}</label><button data-uk="x" title="${T('Sozlash')}">⚙</button></div>`;
+    h+=`<div class="ur${open[l.id]?' op':''}" data-id="${l.id}"><label><input type="checkbox" data-uk="on" ${st.on?'checked':''}><span class="sw" style="${swatch(l)}"></span><span class="nm">${esc(T(l.name))}</span>${n?`<span class="ct">${n>999?Math.round(n/100)/10+'k':n}</span>`:''}</label><button data-uk="x" title="${T('Sozlash')}">${KIC.i('settings','',14)}</button></div>`;
     if(open[l.id]){h+=`<div class="us" data-id="${l.id}">`;
       if(l.kind!=='raster'||l.palettes)h+=l.palettes?`<label>${T('Palitra')}<select data-uk="pal">${Object.entries(l.palettes).map(([k,v])=>`<option value="${k}" ${st.pal===k?'selected':''}>${esc(T(v))}</option>`).join('')}</select></label>`:'';
       if(l.modes)h+=`<label>${T('Rang boʻyicha')}<select data-uk="mode">${Object.entries(l.modes).map(([k,v])=>`<option value="${k}" ${st.mode===k?'selected':''}>${esc(T(v))}</option>`).join('')}</select></label>`;

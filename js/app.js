@@ -288,11 +288,11 @@ function renderPlan(){
   const ico=(bg,tx)=>L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div style="width:24px;height:24px;border-radius:50%;background:${bg};border:2px solid #1c2628;box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:grab;display:flex;align-items:center;justify-content:center;font:700 14.5px sans-serif;color:#1c2628">${tx}</div>`});
   const soon=()=>{if(!drP)drP=requestAnimationFrame(()=>{drP=0;drawPlanStrips(stripsG);});};
   const done=()=>{if(w==='ex')S.row=+sum(p).toFixed(2);renderAll();save();};
-  const mkH=side=>{const off=S.site.off||0,tot=sum(p);const m=L.marker(P(side>0?off+tot/2:off-tot/2),{draggable:true,zIndexOffset:1000,icon:ico('#fff','↔'),title:'Chetni sudrang — chekka element eni oʻzgaradi'}).addTo(planL);
+  const mkH=side=>{const off=S.site.off||0,tot=sum(p);const m=L.marker(P(side>0?off+tot/2:off-tot/2),{draggable:true,zIndexOffset:1000,icon:ico('#fff',KIC.i('width','',14)),title:'Chetni sudrang — chekka element eni oʻzgaradi'}).addTo(planL);
     m.on('drag',ev=>{const dn=proj(ev.target.getLatLng()),it=side>0?p[0]:p[p.length-1],o0=S.site.off||0,t0=sum(p),edge=side>0?o0+t0/2:o0-t0/2;
       const nw=Math.max(.3,+(it.w+side*(dn-edge)).toFixed(2)),real=nw-it.w;it.w=nw;S.site.off=+(o0+side*real/2).toFixed(3);soon();});
     m.on('dragend',done);};
-  const mkC=()=>{const m=L.marker(P(S.site.off||0),{draggable:true,zIndexOffset:1000,icon:ico('#f4c542','✥'),title:'Butun profilni koʻndalangiga siljiting'}).addTo(planL);
+  const mkC=()=>{const m=L.marker(P(S.site.off||0),{draggable:true,zIndexOffset:1000,icon:ico('#f4c542',KIC.i('move','',14)),title:'Butun profilni koʻndalangiga siljiting'}).addTo(planL);
     m.on('drag',ev=>{S.site.off=+proj(ev.target.getLatLng()).toFixed(2);soon();});m.on('dragend',done);};
   mkH(1);mkH(-1);mkC();
 }
@@ -383,7 +383,7 @@ function renderMeasure(){measL.clearLayers();const m=S.measure;if(!m)return;
   const vi=L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div style="width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #b3412f;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>'});
   let line=null,labM=null;
   const upd=()=>{if(!m.b)return;m.d=map.distance(m.a,m.b);line.setLatLngs([m.a,m.b]);labM.setLatLng([(m.a[0]+m.b[0])/2,(m.a[1]+m.b[1])/2]);labM.setIcon(labIcon());};
-  const labIcon=()=>L.divIcon({className:'',html:`<span class="m-label">${f2(m.d)} m <b class="mx" title="Oʻchirish">✕</b></span>`,iconSize:null});
+  const labIcon=()=>L.divIcon({className:'',html:`<span class="m-label">${f2(m.d)} m <b class="mx" title="Oʻchirish">${KIC.i('x','',12)}</b></span>`,iconSize:null});
   if(m.b){line=L.polyline([m.a,m.b],{color:'#b3412f',weight:3,bubblingMouseEvents:false}).on('contextmenu',menu).bindTooltip('Oʻng tugma — menyu; uchlarini sudrang',{sticky:true}).addTo(measL);
     labM=L.marker([(m.a[0]+m.b[0])/2,(m.a[1]+m.b[1])/2],{icon:labIcon(),zIndexOffset:800}).addTo(measL);
     labM.on('click',e=>{if(e.originalEvent&&e.originalEvent.target.closest('.mx')){stopE(e);del();}});labM.on('contextmenu',menu);}
@@ -434,7 +434,7 @@ function renderEditor(){
   if(sel){
     h+=`<div class="selbox"><select id="selK" aria-label="Element turi">${LIBG.map(([g,ks])=>`<optgroup label="${g}">${ks.map(k=>`<option value="${k}" ${k===sel.k?'selected':''}>${LIB[k].n}</option>`).join('')}</optgroup>`).join('')}</select>
     <input id="selW" type="number" step="0.05" min="0.2" value="${sel.w}" class="num" aria-label="Kenglik, m"><span class="small">m</span>
-    <button class="btn sm" data-act="left" aria-label="Chapga">←</button><button class="btn sm" data-act="right" aria-label="Oʻngga">→</button>
+    <button class="btn sm" data-act="left" aria-label="Chapga">${KIC.i('arrow-left')}</button><button class="btn sm" data-act="right" aria-label="Oʻngga">${KIC.i('arrow-right')}</button>
     <button class="btn sm" data-act="dup">Nusxa</button><button class="btn sm" data-act="del" style="color:var(--bad)">Oʻchirish</button></div>`;
   } else h+=`<div class="small">Elementni tanlang yoki pastdan qoʻshing. Yangi element tanlangan elementdan keyin qoʻyiladi.</div>`;
   h+=`<div><div class="pal-h">Qoʻshish</div>${LIBG.map(([g,ks])=>`<div class="small" style="margin:8px 0 4px;font-weight:600">${g}</div><div class="palette">${ks.map(k=>`<button data-add="${k}"><span class="sw" style="background:${LIB[k].col}"></span>${LIB[k].n}</button>`).join('')}</div>`).join('')}</div>`;
@@ -817,7 +817,7 @@ function renderAreaPanel(){
     <label for="pRm">Yoʻl kengligi koeffitsiyenti</label><span class="num" id="vRm">${A.P.roadMul}</span><input id="pRm" type="range" min="0.6" max="1.6" step="0.05" value="${A.P.roadMul}" style="grid-column:1/-1">`}
     <label for="pZ">Tasvir zoom</label><select id="pZ" class="btn sm"><option value="auto">avto</option><option>17</option><option>18</option><option>19</option></select>
   </div>${A.cache?'<button class="btn sm primary" id="aRecl" style="margin-top:8px">Parametrlar bilan qayta tasniflash</button>':''}</details>`;
-  if(r&&!A.busy) h+=`<div class="tools"><button class="btn" id="aCsv">Natija (.csv)</button><button class="btn" id="aPng">Tasnif xaritasi (.png)</button><button class="btn" id="aGeo">Hudud chegarasi (.geojson)</button><button class="btn dark" id="aAlb">Albomga →</button></div>`;
+  if(r&&!A.busy) h+=`<div class="tools"><button class="btn" id="aCsv">Natija (.csv)</button><button class="btn" id="aPng">Tasnif xaritasi (.png)</button><button class="btn" id="aGeo">Hudud chegarasi (.geojson)</button><button class="btn dark" id="aAlb">Albomga${KIC.i('arrow-right','a')}</button></div>`;
   el.innerHTML=h;
   const q=s=>el.querySelector(s);
   el.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{A.tool=b.dataset.tool;A.pts=[];drawArea();renderHint();renderAreaPanel();});
@@ -1003,7 +1003,7 @@ function renderMeas(){
       <div class="small">${it.runs.map(r=>{const c=AC.find(x=>x.k===r.k);return (c?c.n.split(' (')[0]:r.k)+' '+f1(r.len);}).join(' · ')}</div>
       <button class="btn sm primary" data-prof="${i}">Profilga → loyihalash</button>`;}
     const name={dist:'Masofa',area:'Maydon',cut:'Kesim'}[it.type];
-    return `<div class="mitem"><div class="h"><span>${name}</span><span class="v">${v}</span><button class="x" data-del="${i}" aria-label="Oʻchirish">✕</button></div>${extra}</div>`;
+    return `<div class="mitem"><div class="h"><span>${name}</span><span class="v">${v}</span><button class="x" data-del="${i}" aria-label="Oʻchirish">${KIC.i('x','',14)}</button></div>${extra}</div>`;
   }).join('')+(M.items.length?`<button class="btn sm" id="mClr">Hammasini tozalash</button>`:'');
   el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{M.items.splice(+b.dataset.del,1);saveMeas();renderMeas();});
   el.querySelectorAll('[data-prof]').forEach(b=>b.onclick=()=>cutToProfile(M.items[+b.dataset.prof]));
@@ -1889,7 +1889,7 @@ function renderDesignPanel(){
   let h=`<div class="itabs" role="tablist">${[['prop','Xususiyatlar'],['check','Tekshiruv'],['stats','Hisob'],['file','Fayl']].map(([k,n])=>`<button role="tab" data-it="${k}" aria-selected="${tab===k}">${n}${k==='check'&&nbad?`<span class="cnt">${nbad}</span>`:''}</button>`).join('')}</div>`;
   if(tab==='prop'&&sel&&sel.t==='signs'){const L2=(ds.signs||[]).filter(x=>sel.ids.includes(x.id)),codes=[...new Set(L2.map(x=>x.c))];
     h+=`<div class="ihead"><div class="badge"><svg class="ic"><use href="#i-sign"/></svg></div><div style="flex:1"><h2>${L2.length} ta belgi tanlangan</h2><p>${codes.slice(0,8).join(', ')}${codes.length>8?'…':''}</p></div></div>
-    <div class="tools" style="flex-wrap:wrap"><button class="btn sm" data-ms="exist">Mavjud deb belgilash</button><button class="btn sm" data-ms="new">Yangi deb belgilash</button><button class="btn sm" data-ms="remove">Olib tashlanadi</button><button class="btn sm" data-ms="rot">↻ 90°</button><button class="btn sm" id="msNone">Bekor qilish (Esc)</button><button class="btn sm" id="msDel" style="color:var(--bad)">Hammasini oʻchirish</button></div>
+    <div class="tools" style="flex-wrap:wrap"><button class="btn sm" data-ms="exist">Mavjud deb belgilash</button><button class="btn sm" data-ms="new">Yangi deb belgilash</button><button class="btn sm" data-ms="remove">Olib tashlanadi</button><button class="btn sm" data-ms="rot">${KIC.i('rotate-cw','b')}90°</button><button class="btn sm" id="msNone">Bekor qilish (Esc)</button><button class="btn sm" id="msDel" style="color:var(--bad)">Hammasini oʻchirish</button></div>
     <p class="small">Belgilarni birga suring — bittasini sudrasangiz, tanlanganlar hammasi siljiydi. Shift+bosish — qoʻshish/olib tashlash. Shift+sudrash xaritada — ramka bilan tanlash. Ctrl+A — barcha belgilar.</p>`;}
   else if(tab==='prop'){
     if(selOk){
@@ -2083,17 +2083,17 @@ function segEditorHTML(sg,si){
   const lay=layOf(sg),len=lineLen(segLL(sg)),st=segStrips(sg),tm=trafficMode(sg);
   let h=`<div class="kv"><span>${sg.name?sg.name:'Koʻcha'}</span><b class="num">${fmtD(len)}</b><span>kenglik</span><b class="num">${f2(lay.W)} m</b><span>boʻlaklar</span><b class="num">${lay.lanes}</b></div>
   <div class="sec-h">Koʻndalang kesim — elementni bosing</div>
-  <div class="xbar">${lay.st.map((x,i)=>`<button data-spick="${i}" title="${DK[x.k].n} · ${f2(x.w)} m" style="flex:${x.w} 1 0;background:${DK[x.k].col};${i===si?'box-shadow:inset 0 0 0 3px var(--hl)':''}" class="${DK[x.k].road||x.k==='bike'?'dk':''}">${x.w>=1.6?f1(x.w):''}${DK[x.k].road&&x.dir?`<i>${x.dir>0?'↓':'↑'}</i>`:''}</button>`).join('')}</div>
+  <div class="xbar">${lay.st.map((x,i)=>`<button data-spick="${i}" title="${DK[x.k].n} · ${f2(x.w)} m" style="flex:${x.w} 1 0;background:${DK[x.k].col};${i===si?'box-shadow:inset 0 0 0 3px var(--hl)':''}" class="${DK[x.k].road||x.k==='bike'?'dk':''}">${x.w>=1.6?f1(x.w):''}${DK[x.k].road&&x.dir?`<i>${x.dir>0?KIC.i('arrow-down','',12):KIC.i('arrow-up','',12)}</i>`:''}</button>`).join('')}</div>
   <div class="small">Chapdan oʻngga — sariq strelka yoʻnalishiga qarab. ↓ strelka boʻylab, ↑ qarshi.</div>
   <div class="sec-h">Harakat</div>
-  <div class="segc">${[['two','⇄ Ikki tomonlama'],['fwd','→ Bir tomonlama'],['back','← Teskari']].map(([k,n])=>`<button data-tm="${k}" aria-pressed="${tm===k}">${n}</button>`).join('')}</div>`;
+  <div class="segc">${[['two',KIC.i('swap','b')+'Ikki tomonlama'],['fwd',KIC.i('arrow-right','b')+'Bir tomonlama'],['back',KIC.i('arrow-left','b')+'Teskari']].map(([k,n])=>`<button data-tm="${k}" aria-pressed="${tm===k}">${n}</button>`).join('')}</div>`;
   if(si!=null&&st[si]){const [k,w,dir]=st[si],mv=DK[k].road||k==='bike';
     h+=`<div class="panelbox"><div class="pb-h"><b>Element ${si+1} / ${st.length}</b><span class="sw" style="background:${DK[k].col}"></span></div>
     <div class="fgrid"><label for="eK">Turi</label><select id="eK">${Object.entries(DK).map(([kk,d])=>`<option value="${kk}" ${kk===k?'selected':''}>${d.n}</option>`).join('')}</select>
     <label for="eW">Eni, m</label><input id="eW" type="number" step="0.05" min="0.3" value="${w}" class="num">
     ${mv?`<label for="eD">Yoʻnalish</label><select id="eD"><option value="1" ${dir>0?'selected':''}>↓ strelka boʻylab</option><option value="-1" ${dir<0?'selected':''}>↑ qarshi</option>${k==='bike'||k==='bus'?`<option value="0" ${!dir?'selected':''}>⇅ ikki tomonlama</option>`:''}</select>`:''}
     ${si<st.length-1?`<label for="eMk">Oʻngdagi chiziq</label><select id="eMk">${MK_OPTS.map(([v,n])=>`<option value="${v}" ${(sg.mk&&sg.mk[si]||'')===v?'selected':''}>${n}</option>`).join('')}</select>`:''}</div>
-    <div class="tools"><button class="btn sm" data-ea="left" title="Chapga surish">◀ Chapga</button><button class="btn sm" data-ea="right" title="Oʻngga surish">Oʻngga ▶</button><button class="btn sm" data-ea="dup">Nusxa</button><button class="btn sm" data-ea="del" style="color:var(--bad)">Oʻchirish</button></div></div>`;}
+    <div class="tools"><button class="btn sm" data-ea="left" title="Chapga surish">${KIC.i('arrow-left','b')}Chapga</button><button class="btn sm" data-ea="right" title="Oʻngga surish">Oʻngga${KIC.i('arrow-right','a')}</button><button class="btn sm" data-ea="dup">Nusxa</button><button class="btn sm" data-ea="del" style="color:var(--bad)">Oʻchirish</button></div></div>`;}
   h+=`<div class="sec-h">Element qoʻshish</div><div class="addrow"><select id="eAddK">${Object.entries(DK).map(([kk,d])=>`<option value="${kk}">${d.n}</option>`).join('')}</select><button class="btn sm primary" id="eAdd">+ Qoʻshish</button></div>
   <div class="sec-h">Koʻcha</div>
   <div class="fgrid"><label for="dSegP">Modul</label><select id="dSegP"><option value="">Modul bilan almashtirish…</option>${Object.entries(PRESETS).map(([k,p])=>`<option value="${k}">${p.n}</option>`).join('')}</select>
@@ -2275,7 +2275,7 @@ function profileToDesign(){
   toast('Koʻcha xaritada tahrirlanadigan modulga aylandi. Istalgan elementni bosing yoki chegaralarni sudrang.');
 }
 {const _rs=renderSite;renderSite=function(){_rs();const el=document.getElementById('site');if(!S.site||!S.site.full)return;
-  const b=document.createElement('button');b.className='btn primary';b.style.marginTop='8px';b.textContent='Xaritada tahrirlash (chiziqlar, elementlar, belgilar) →';b.onclick=profileToDesign;el.appendChild(b);};}
+  const b=document.createElement('button');b.className='btn primary';b.style.marginTop='8px';b.innerHTML='Xaritada tahrirlash (chiziqlar, elementlar, belgilar)'+KIC.i('arrow-right','a');b.onclick=profileToDesign;el.appendChild(b);};}
 {const _sa=setApp;setApp=function(a){_sa(a);[editL,signL].forEach(l=>a==='design'?l.addTo(map):map.removeLayer(l));if(a==='design')renderDesign();};}
 
 /* =====================================================================
@@ -2541,7 +2541,7 @@ function openVertexMenu(e,sg,vi){stopE(e);const ds=DS(),cur=sg.rad&&sg.rad[vi]!=
     {t:'Nuqtani oʻchirish',danger:1,f:()=>{sg.pts.splice(vi,1);if(sg.rad)sg.rad.splice(vi,1);ds.sel={t:'seg',id:sg.id,strip:null};afterDesign();}},...tail(e.latlng)]);}
 function openSignMenu(e,sn){stopE(e);const ds=DS(),set=f=>()=>{f();ds.sel={t:'sign',id:sn.id};afterDesign();};
   openMenu(e.containerPoint,[{h:`Belgi ${sn.c} · ${signDef(sn.c)[1]}`},{row:Object.entries(ST_LBL).map(([k,n])=>[n,set(()=>sn.st=k),sn.st===k])},
-    {row:[['↺ 45°',set(()=>sn.rot=((sn.rot||0)-45+540)%360-180)],['↻ 45°',set(()=>sn.rot=((sn.rot||0)+45+540)%360-180)],['0°',set(()=>sn.rot=0)]]},
+    {row:[[KIC.i('rotate-ccw','b')+'45°',set(()=>sn.rot=((sn.rot||0)-45+540)%360-180)],[KIC.i('rotate-cw','b')+'45°',set(()=>sn.rot=((sn.rot||0)+45+540)%360-180)],['0°',set(()=>sn.rot=0)]]},
     sn.c==='3.24'?{row:[20,30,40,50,60,70].map(v=>[v+' km/soat',set(()=>sn.val=v),sn.val===v])}:null,
     {t:'Nusxa (yoniga)',f:()=>{ds.signs.push({...sn,id:ds.sid2++,ll:[sn.ll[0]+.00003,sn.ll[1]+.00003],auto:0});afterDesign();}},
     {t:'Oʻchirish',danger:1,f:()=>{ds.sel={t:'sign',id:sn.id};delSel();}},...tail(e.latlng)]);}
@@ -2569,7 +2569,7 @@ map.on('contextmenu',e=>{
     const o=origin(),xy=segXY(sg,o),q=toXY([ll.lat,ll.lng],o),pr=project(xy,q),T=cumLen(xy).pop();
     const tm=trafficMode(sg);
     openMenu(pt,[{h:`${sg.name?sg.name+' · ':''}koʻcha · ${f1(lay.W)} m`},
-      {row:[['⇄ Ikki tomonlama',set(()=>setTraffic(sg,'two')),tm==='two'],['→ Bir tomonlama',set(()=>setTraffic(sg,'fwd')),tm==='fwd'],['← Teskari',set(()=>setTraffic(sg,'back')),tm==='back']]},
+      {row:[[KIC.i('swap','b')+'Ikki tomonlama',set(()=>setTraffic(sg,'two')),tm==='two'],[KIC.i('arrow-right','b')+'Bir tomonlama',set(()=>setTraffic(sg,'fwd')),tm==='fwd'],[KIC.i('arrow-left','b')+'Teskari',set(()=>setTraffic(sg,'back')),tm==='back']]},
       {t:'Shu yerga piyoda oʻtish joyi',f:()=>{sg.xw=sg.xw||[];sg.xw.push({f:pr.s/T,w:ds.thr.cw,type:ds.xwType||'zebra'});ds.sel={t:'xw',id:sg.id,i:sg.xw.length-1};afterDesign();}},
       {t:'Shu yerga burilish nuqtasi qoʻshish',f:()=>{const ll2=segLL(sg),Pp=ll2.map(x=>toXY(x,o));let bi=0,bd=1e9;for(let i=0;i<Pp.length-1;i++){const d=project([Pp[i],Pp[i+1]],q).d;if(d<bd){bd=d;bi=i;}}
         sg.pts.splice(bi,0,[ll.lat,ll.lng]);sg.rad=sg.rad||[];while(sg.rad.length<sg.pts.length-1)sg.rad.push(0);sg.rad.splice(bi,0,ds.drawR||0);ds.tool='select';ds.sel={t:'seg',id:sg.id,strip:null,v:bi};afterDesign();}},
@@ -2685,9 +2685,9 @@ function fileHTML(){const saves=readSaves(),keys=Object.keys(saves).sort((a,b)=>
   return `<details class="card" style="padding:10px" ${DS().fileOpen?'open':''} id="fileBox"><summary>Fayl: saqlash, ochish, yuklab olish</summary>
   <div class="field" style="margin-top:8px"><label for="pName">Loyiha nomi</label><input id="pName" value="${projName().replace(/"/g,'&quot;')}"></div>
   <div class="pal-h" style="margin-top:10px">Loyiha</div><div class="tools"><button class="btn sm primary" id="fSave">Faylga saqlash (.json)</button><label class="btn sm" for="fOpen">Fayldan ochish…</label><input id="fOpen" type="file" accept=".json" hidden><button class="btn sm" id="fBrow">Brauzerda saqlash</button></div>
-  ${keys.length?`<div style="margin-top:6px;display:grid;gap:4px">${keys.map(k=>`<div style="display:flex;gap:6px;align-items:center;font-size:13.5px"><span style="flex:1">${k} <span class="small">${saves[k].t.slice(0,16).replace('T',' ')}</span></span><button class="btn sm" data-lo="${k.replace(/"/g,'&quot;')}">Ochish</button><button class="btn sm" data-rm="${k.replace(/"/g,'&quot;')}" style="color:var(--bad)">✕</button></div>`).join('')}</div>`:''}
+  ${keys.length?`<div style="margin-top:6px;display:grid;gap:4px">${keys.map(k=>`<div style="display:flex;gap:6px;align-items:center;font-size:13.5px"><span style="flex:1">${k} <span class="small">${saves[k].t.slice(0,16).replace('T',' ')}</span></span><button class="btn sm" data-lo="${k.replace(/"/g,'&quot;')}">Ochish</button><button class="btn sm" data-rm="${k.replace(/"/g,'&quot;')}" style="color:var(--bad)">${KIC.i('x','',14)}</button></div>`).join('')}</div>`:''}
   <div class="pal-h" style="margin-top:10px">Rasm</div><div class="tools"><select id="eScale" class="btn sm">${[[2,'2 px/m'],[4,'4 px/m'],[8,'8 px/m (yuqori)'],[12,'12 px/m']].map(([v,n])=>`<option value="${v}" ${v===4?'selected':''}>${n}</option>`).join('')}</select>
-    <label class="small"><input type="checkbox" id="eSat" checked> Sunʼiy yoʻldosh fonda</label><button class="btn sm" id="ePng">PNG</button><button class="btn sm" id="eSvg">SVG (vektor, qatlamli)</button><button class="btn sm primary" id="eAlb">Albomga →</button></div>
+    <label class="small"><input type="checkbox" id="eSat" checked> Sunʼiy yoʻldosh fonda</label><button class="btn sm" id="ePng">PNG</button><button class="btn sm" id="eSvg">SVG (vektor, qatlamli)</button><button class="btn sm primary" id="eAlb">Albomga${KIC.i('arrow-right','a')}</button></div>
   <div class="pal-h" style="margin-top:10px">CAD / GIS (ArchiCAD, AutoCAD, QGIS)</div><div class="tools"><select id="eCrs" class="btn sm"><option value="local">Mahalliy koordinata (0,0 — birinchi tugun), metr</option><option value="utm">UTM WGS84 (Toshkent — 42N), metr</option></select>
     <button class="btn sm" id="eDxf">DXF (qatlamlar bilan)</button><button class="btn sm" id="dGeo2">GeoJSON</button><button class="btn sm" id="eCsv">Hisob-kitob (.csv)</button></div>
   <p class="small" style="margin:6px 0 0">ArchiCAD: <i>Fayl → Qoʻshimcha fayl → DXF/DWG</i> orqali; qatlamlar (ROAD, SIDEWALK, GREEN, MARKINGS, SIGNS…) saqlanadi. 3D model — «3D koʻrinish»dan OBJ.</p></details>`;}
@@ -2793,7 +2793,7 @@ async function open3D(){
       <button class="btn sm" id="v3o">OBJ + MTL (ArchiCAD, SketchUp, Blender)</button><button class="btn sm primary" id="v3x">Yopish (Esc)</button></div><div id="v3c" style="flex:1;position:relative"></div>`;
     document.body.appendChild(ov);}
   ov.hidden=false;const info=ov.querySelector('#v3i');
-  try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');}
+  try{if(window.KLIB){await KLIB.load('three');await KLIB.load('orbit');}else{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');}}
   catch(e){info.textContent='3D kutubxonasi yuklanmadi — internet aloqasini tekshiring.';return;}
   if(V3){V3.stop();}
   const host=ov.querySelector('#v3c');host.innerHTML='';
@@ -2974,6 +2974,7 @@ if(!S.helpSeen&&!document.documentElement.classList.contains('kps-embed')){S.hel
 /* ===== 3D shahar: MapLibre GL + OpenFreeMap (OSM vektor) — binolar hajmda ===== */
 const ML_V='4.7.1';
 function loadMapLibre(){if(window.maplibregl)return Promise.resolve();
+  if(window.KLIB){const l=document.createElement('link');l.rel='stylesheet';l.href=KLIB.LIB.maplibre.css[0];l.onerror=()=>KLIB.css(l);document.head.appendChild(l);return KLIB.load('maplibre');}
   return new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href=`https://cdn.jsdelivr.net/npm/maplibre-gl@${ML_V}/dist/maplibre-gl.css`;document.head.appendChild(l);
     const sc=document.createElement('script');sc.src=`https://cdn.jsdelivr.net/npm/maplibre-gl@${ML_V}/dist/maplibre-gl.js`;sc.onload=res;sc.onerror=()=>rej(new Error('MapLibre yuklanmadi'));document.head.appendChild(sc);});}
 let ML3=null;
@@ -3014,7 +3015,7 @@ async function openCity3D(){
   const wrap=document.querySelector('.mapwrap');let box=document.getElementById('ml3d');
   if(!box){box=document.createElement('div');box.id='ml3d';box.className='ml3d';box.innerHTML=`<div class="mlmap" id="mlmap"></div>
     <div class="mlbar"><b>3D shahar</b><label><input type="checkbox" id="mlSat" checked> Sunʼiy yoʻldosh</label><label><input type="checkbox" id="mlBld" checked> Binolar</label><label><input type="checkbox" id="mlDes" checked> Loyiha</label>
-    <label>Balandlik ×<input type="range" id="mlH" min="0.5" max="3" step="0.25" value="1" style="width:80px"></label><label><input type="checkbox" id="mlTer"> Relyef</label><label>×<input type="range" id="mlTx" min="1" max="5" step="0.5" value="2" style="width:70px"></label><label><input type="checkbox" id="mlCon"> Gorizontallar</label><label><input type="checkbox" id="mlTr"> Daraxtlar (sunʼiy yoʻldoshdan)</label><span id="mlSt" class="small"></span><button class="btn sm" id="mlClose">✕ Yopish</button></div>
+    <label>Balandlik ×<input type="range" id="mlH" min="0.5" max="3" step="0.25" value="1" style="width:80px"></label><label><input type="checkbox" id="mlTer"> Relyef</label><label>×<input type="range" id="mlTx" min="1" max="5" step="0.5" value="2" style="width:70px"></label><label><input type="checkbox" id="mlCon"> Gorizontallar</label><label><input type="checkbox" id="mlTr"> Daraxtlar (sunʼiy yoʻldoshdan)</label><span id="mlSt" class="small"></span><button class="btn sm" id="mlClose">${KIC.i('x','b')}Yopish</button></div>
     <div class="mlnote">Oʻng tugma (yoki Ctrl) bilan sudrang — aylantirish va qiyalik. Bino balandligi OSM dagi <i>height</i> / <i>building:levels</i> teglaridan; teg yoʻq binolar past koʻrinadi. Manba: © OpenStreetMap, OpenFreeMap; relyef — AWS Terrain Tiles (SRTM va boshqa ochiq DEM); daraxtlar — Esri tasviridan yashillik indeksi boʻyicha taxmin.</div>`;
     wrap.appendChild(box);}
   box.hidden=false;
@@ -3271,7 +3272,7 @@ async function openConcept3D(src,opt){
   else Object.assign(ov.style,{inset:'0',left:'',top:'',width:'',height:'',zIndex:3000});
   const srcTxt=src==='seg'?('Loyiha koʻchasi'+(segById(DS().sel.id).name?' · '+segById(DS().sel.id).name:'')):((src||S.active)==='ex'?'Mavjud holat':'Loyiha profili')+(S.site&&S.site.name?' · '+S.site.name:'');
   ov.querySelector('#c3src').textContent=srcTxt;
-  try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');}
+  try{if(window.KLIB){await KLIB.load('three');await KLIB.load('orbit');}else{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');}}
   catch(e){toast('3D kutubxonasi yuklanmadi — internetni tekshiring.');ov.hidden=true;return;}
   const TH=THREE,host=ov.querySelector('#c3c');
   const q=id=>ov.querySelector(id);
@@ -3301,7 +3302,7 @@ async function openConcept3D(src,opt){
   const setView=v=>{C3.view=v;dl.position.set(...(v==='front'?[25,50,120]:[40,70,25]));if(v==='iso')fitOrtho([90,80,105]);else if(v==='isoR')fitOrtho([-60,80,-115]);else if(v==='front')fitOrtho([0,0,300]);else if(v==='top')fitOrtho([0,300,.01],[-1,0,0]);else if(!eye(v)){C3.view='iso';q('#c3v').value='iso';fitOrtho([90,80,105]);}};
   const iso=()=>setView(C3.view);
   const rebuild=(keepCam)=>{if(built)scene.remove(built.sc);Object.assign(C3COL,C3PAL[C3.pal]||C3PAL.pastel);ren.setClearColor(C3COL.bg,1);built=c3Build(TH,strips,null);scene.add(built.sc);
-    if(!keepCam||AC3===pcam)iso();{const sh=c3Sight(strips)||'';q('#c3sight').innerHTML=sh?'<button id="c3sx" title="Yopish" style="float:right;border:0;background:none;cursor:pointer;font-size:15px;color:#888">✕</button><b>Koʻrinish tahlili</b><br>'+sh:'';q('#c3sight').hidden=!sh||C3.sightOff;const bx=q('#c3sx');if(bx)bx.onclick=()=>{C3.sightOff=true;q('#c3sight').hidden=true;};}
+    if(!keepCam||AC3===pcam)iso();{const sh=c3Sight(strips)||'';q('#c3sight').innerHTML=sh?'<button id="c3sx" title="Yopish" style="float:right;border:0;background:none;cursor:pointer;font-size:15px;color:#888">'+KIC.i('x')+'</button><b>Koʻrinish tahlili</b><br>'+sh:'';q('#c3sight').hidden=!sh||C3.sightOff;const bx=q('#c3sx');if(bx)bx.onclick=()=>{C3.sightOff=true;q('#c3sight').hidden=true;};}
     S.c3={floors:C3.floors,ppl:C3.ppl,dims:C3.dims,bL:C3.bL,bR:C3.bR,pal:C3.pal,shrub:C3.shrub};save();};
   await c3LoadAssets(TH);
   rebuild();
@@ -3327,7 +3328,7 @@ async function openConcept3D(src,opt){
   r.innerHTML='<button class="btn" data-c3="ex">3D gʻoya — mavjud</button><button class="btn" data-c3="pr">3D gʻoya — loyiha</button>';
   r.querySelectorAll('[data-c3]').forEach(b=>b.onclick=()=>openConcept3D(b.dataset.c3));el.appendChild(r);};}
 {const _rdp=renderDesignPanel;renderDesignPanel=function(){_rdp();const ds=DS();if(!(ds.sel&&ds.sel.t==='seg'&&(ds.itab||'prop')==='prop'))return;
-  const h=document.getElementById('designPanel');if(!h||h.querySelector('#c3seg'))return;const b=document.createElement('button');b.id='c3seg';b.className='btn';b.style.cssText='width:100%;margin:8px 0';b.textContent='3D gʻoya (izometrik kesim) →';b.onclick=()=>openConcept3D('seg');
+  const h=document.getElementById('designPanel');if(!h||h.querySelector('#c3seg'))return;const b=document.createElement('button');b.id='c3seg';b.className='btn';b.style.cssText='width:100%;margin:8px 0';b.innerHTML='3D gʻoya (izometrik kesim)'+KIC.i('arrow-right','a');b.onclick=()=>openConcept3D('seg');
   const anchor=h.querySelector('.kv')||h.firstElementChild;if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(b,anchor.nextSibling);else h.appendChild(b);};}
 
 
@@ -3353,7 +3354,7 @@ async function openAssetManager(onChange){
   const draw=async()=>{let recs=[];try{recs=await ADB.all();}catch(e){md.innerHTML='<div class="asbox">Brauzer modellarni saqlashga ruxsat bermadi.</div>';return;}
     md.innerHTML=`<div class="asbox"><div class="ashead"><b>Modellar</b><span class="small">PNG/SVG (orqa foni shaffof) — 2D, GLB — 3D. Faqat shu brauzerda saqlanadi. Oʻlcham avtomatik moslanadi.</span><button class="btn sm" id="asX">Yopish</button></div>
       <div class="asgrid">${Object.entries(ACATD).map(([k,v])=>{const its=recs.filter(r=>r.cat===k);return `<div class="ascat" data-cat="${k}"><div class="ascat-h"><b>${v.n}</b><span class="small">${v.m==='h'?'balandligi':'uzunligi'} ≈ ${f1(v.s)} m</span></div>
-        <div class="asits">${its.map(r=>`<div class="asit" title="${r.name}">${r.kind==='img'?`<img data-img="${r.id}">`:`<div class="as3d">3D<br><small>${(r.name||'').slice(0,14)}</small></div>`}<div class="asit-b">${r.kind==='glb'?`<button data-rot="${r.id}" title="Yoʻnalishni 90° burish">↻ ${r.rot||0}°</button>`:''}<button data-del="${r.id}" title="Oʻchirish">✕</button></div></div>`).join('')}
+        <div class="asits">${its.map(r=>`<div class="asit" title="${r.name}">${r.kind==='img'?`<img data-img="${r.id}">`:`<div class="as3d">3D<br><small>${(r.name||'').slice(0,14)}</small></div>`}<div class="asit-b">${r.kind==='glb'?`<button data-rot="${r.id}" title="Yoʻnalishni 90° burish">${KIC.i('rotate-cw','b')}${r.rot||0}°</button>`:''}<button data-del="${r.id}" title="Oʻchirish">${KIC.i('x','',14)}</button></div></div>`).join('')}
         <label class="asadd">+<input type="file" accept=".png,.svg,.webp,.glb,image/png,image/svg+xml,image/webp,model/gltf-binary" multiple hidden></label></div></div>`;}).join('')}</div></div>`;
     md.querySelectorAll('img[data-img]').forEach(im=>{const r=recs.find(x=>x.id===+im.dataset.img);if(r)im.src=URL.createObjectURL(r.blob);});
     md.querySelector('#asX').onclick=()=>md.remove();md.onclick=e=>{if(e.target===md)md.remove();};
@@ -3411,14 +3412,14 @@ function renderInfoBox(){const L2=document.getElementById('ibL');if(!L2)return;l
     const preOpts=cur=>{const g={};Object.entries(PRESETS).forEach(([k,v])=>{(g[v.g]=g[v.g]||[]).push([k,v.n]);});return Object.entries(g).map(([gn,it])=>`<optgroup label="${gn}">${it.map(([k,n])=>`<option value="${k}" ${k===cur?'selected':''}>${n}</option>`).join('')}</optgroup>`).join('');};
     if(segSel){const sg=segSel,lay=layOf(sg),tm=trafficMode(sg);
       h=ibTitle('i-street','Koʻcha')+`<input id="ibName" class="ib-in" placeholder="Nomi" value="${(sg.name||'').replace(/"/g,'&quot;')}">`+ibSel('ibPre',(sg.st?'<option value="">Tahrirlangan kesim</option>':'')+preOpts(sg.st?'':sg.p),'', 'Modul')+
-        `<span class="ib-v num">${f1(lay.W)} m</span>`+ibSeg('ibtm',[['two','⇄'],['fwd','→'],['back','←']],tm)+
-        `<span class="ib-sp"></span><button class="ib-b" id="ibRev" title="Oʻqni teskari qilish">⇆</button><button class="ib-b" id="ib3d" title="3D gʻoya"><svg class="ic"><use href="#i-cube"/></svg></button><button class="ib-b" id="ibDup" title="Dublikat (Ctrl+D)">⧉</button><button class="ib-b bad" id="ibDel" title="Oʻchirish (Delete)">✕</button>`;}
+        `<span class="ib-v num">${f1(lay.W)} m</span>`+ibSeg('ibtm',[['two',KIC.i('swap')],['fwd',KIC.i('arrow-right')],['back',KIC.i('arrow-left')]],tm)+
+        `<span class="ib-sp"></span><button class="ib-b" id="ibRev" title="Oʻqni teskari qilish">${KIC.i('swap')}</button><button class="ib-b" id="ib3d" title="3D gʻoya"><svg class="ic"><use href="#i-cube"/></svg></button><button class="ib-b" id="ibDup" title="Dublikat (Ctrl+D)">${KIC.i('copy')}</button><button class="ib-b bad" id="ibDel" title="Oʻchirish (Delete)">${KIC.i('x')}</button>`;}
     else if(nodeSel){const n=nodeSel,k=nodeKind(n);
       h=ibTitle('i-round','Tugun')+ibSeg('ibnt',[['auto','Avto'],['x','Tartibga solinmagan'],['sig','Svetoforli'],['round','Halqa']],n.type||'auto')+(k==='x'||k==='sig'?ibSel('ibKr',[3,6,10,15,20].map(r=>`<option value="${r}" ${(n.kr??6)===r?'selected':''}>${r} m</option>`).join(''),'','Bordyur radiusi'):'')+
-        (n.type==='round'?ibSel('ibRt',Object.entries(RTYPES).map(([rk,r])=>`<option value="${rk}" ${n.rtype===rk?'selected':''}>${r.n}</option>`).join(''),'','Halqa'):'')+`<span class="ib-sp"></span><button class="ib-b bad" id="ibDel" title="Oʻchirish">✕</button>`;}
-    else if(sel&&SELNAME[sel.t]){h=ibTitle(SELICON[sel.t]||'i-select',SELNAME[sel.t])+`<span class="ib-hint">Batafsil sozlamalar oʻng panelda</span><span class="ib-sp"></span><button class="ib-b" id="ibDup" title="Dublikat">⧉</button><button class="ib-b bad" id="ibDel" title="Oʻchirish">✕</button>`;}
+        (n.type==='round'?ibSel('ibRt',Object.entries(RTYPES).map(([rk,r])=>`<option value="${rk}" ${n.rtype===rk?'selected':''}>${r.n}</option>`).join(''),'','Halqa'):'')+`<span class="ib-sp"></span><button class="ib-b bad" id="ibDel" title="Oʻchirish">${KIC.i('x')}</button>`;}
+    else if(sel&&SELNAME[sel.t]){h=ibTitle(SELICON[sel.t]||'i-select',SELNAME[sel.t])+`<span class="ib-hint">Batafsil sozlamalar oʻng panelda</span><span class="ib-sp"></span><button class="ib-b" id="ibDup" title="Dublikat">${KIC.i('copy')}</button><button class="ib-b bad" id="ibDel" title="Oʻchirish">${KIC.i('x')}</button>`;}
     else{const t=ds.tool,tt=T[t]||T.select;h=ibTitle(tt[2],tt[1]);
-      if(t==='draw')h+=ibSel('ibPre',preOpts(ds.preset),'','Modul')+ibSeg('ibone',[['0','⇄ Ikki tomonlama'],['1','→ Bir tomonlama']],ds.drawOne?'1':'0')+ibSel('ibR',RQ.map(r=>`<option value="${r}" ${(ds.drawR||0)===r?'selected':''}>${r?r+' m':'oʻtkir'}</option>`).join(''),'','Burilish')+`<label class="ib-chk"><input type="checkbox" id="ibKeep" ${ds.keepDraw?'checked':''}> Davom ettirish</label>`;
+      if(t==='draw')h+=ibSel('ibPre',preOpts(ds.preset),'','Modul')+ibSeg('ibone',[['0',KIC.i('swap','b')+'Ikki tomonlama'],['1',KIC.i('arrow-right','b')+'Bir tomonlama']],ds.drawOne?'1':'0')+ibSel('ibR',RQ.map(r=>`<option value="${r}" ${(ds.drawR||0)===r?'selected':''}>${r?r+' m':'oʻtkir'}</option>`).join(''),'','Burilish')+`<label class="ib-chk"><input type="checkbox" id="ibKeep" ${ds.keepDraw?'checked':''}> Davom ettirish</label>`;
       else if(t==='xwalk')h+=ibSel('ibXt',XWT.map(([k,n])=>`<option value="${k}" ${(ds.xwType||'zebra')===k?'selected':''}>${n}</option>`).join(''),'','Turi');
       else if(t==='round')h+=ibSel('ibRt2',Object.entries(RTYPES).map(([k,r])=>`<option value="${k}" ${(ds.rtype||'r2')===k?'selected':''}>${r.n}</option>`).join(''),'','Halqa turi');
       else if(t==='obj')h+=ibSel('ibAt',Object.entries(ATT).map(([k,v])=>`<option value="${k}" ${(ds.attType||'bus')===k?'selected':''}>${v.n}</option>`).join(''),'','Obyekt');
@@ -3503,7 +3504,7 @@ function planSVG(p,sc,Wv,Hv){
 function renderPWS(){
   let tb=document.getElementById('pvTabs'),ws=document.getElementById('pws');
   if(!tb){const mw=document.querySelector('.mapwrap');tb=document.createElement('div');tb.id='pvTabs';tb.className='pvtabs';tb.setAttribute('role','tablist');mw.appendChild(tb);
-    ws=document.createElement('div');ws.id='pws';ws.className='pws';ws.innerHTML=`<div class="pws-head"><span class="pws-t" id="pwsT"></span><span class="pws-sp"></span><div class="pws-sw" id="pwsSw"></div><button class="btn sm" id="pwsSvg">SVG</button><button class="btn sm" id="pwsPng">PNG</button><button class="btn sm primary" id="pwsMk" title="Albom va taqdimot boʻlimiga material sifatida yuborish">Albomga →</button></div><div class="pws-draw" id="pwsDraw"></div><div class="pws-con" id="pwsCon"></div>`;mw.appendChild(ws);
+    ws=document.createElement('div');ws.id='pws';ws.className='pws';ws.innerHTML=`<div class="pws-head"><span class="pws-t" id="pwsT"></span><span class="pws-sp"></span><div class="pws-sw" id="pwsSw"></div><button class="btn sm" id="pwsSvg">SVG</button><button class="btn sm" id="pwsPng">PNG</button><button class="btn sm primary" id="pwsMk" title="Albom va taqdimot boʻlimiga material sifatida yuborish">Albomga${KIC.i('arrow-right','a')}</button></div><div class="pws-draw" id="pwsDraw"></div><div class="pws-con" id="pwsCon"></div>`;mw.appendChild(ws);
     ws.querySelector('#pwsSvg').onclick=()=>{const sv=ws.querySelector('#pwsDraw svg');if(!sv)return;const b=new Blob([sv.outerHTML],{type:'image/svg+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`kesim-${S.pv}.svg`;a.click();};
     ws.querySelector('#pwsMk').onclick=sendToMaket;
     ws.querySelector('#pwsPng').onclick=()=>{const sv=ws.querySelector('#pwsDraw svg');if(!sv)return;const vb=sv.viewBox.baseVal,k=3,cv=document.createElement('canvas');cv.width=vb.width*k;cv.height=vb.height*k;const im=new Image();im.onload=()=>{const c=cv.getContext('2d');c.fillStyle='#fbfaf8';c.fillRect(0,0,cv.width,cv.height);c.drawImage(im,0,0,cv.width,cv.height);const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`profil-${S.pv}.png`;a.click();};im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sv.outerHTML.replace('<svg ','<svg style="color:#141414" '));};}
@@ -3560,7 +3561,7 @@ async function loadDataLayers(){try{const db=await new Promise((res,rej)=>{const
   vis.forEach(o=>L.geoJSON(o.geojson,{interactive:false,style:()=>({color:o.color,weight:1.4,fillColor:o.color,fillOpacity:.12}),pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:3,color:o.color,weight:1,fillOpacity:.7,interactive:false})}).addTo(dataL));
   let b=document.getElementById('dataBtn');
   if(!b){b=document.createElement('div');b.id='dataBtn';b.className='databtn';document.querySelector('.mapwrap').appendChild(b);}
-  b.hidden=!a.length;b.innerHTML=`<button id="dataTg" aria-pressed="${dataOn}">Yuklangan qatlamlar · ${vis.length}</button><a href="data.html" title="Maʼlumotlar boʻlimi">↗</a>`;
+  b.hidden=!a.length;b.innerHTML=`<button id="dataTg" aria-pressed="${dataOn}">Yuklangan qatlamlar · ${vis.length}</button><a href="data.html" title="Maʼlumotlar boʻlimi">${KIC.i('external')}</a>`;
   b.querySelector('#dataTg').onclick=()=>{dataOn=!dataOn;dataOn?dataL.addTo(map):map.removeLayer(dataL);b.querySelector('#dataTg').setAttribute('aria-pressed',dataOn);};
   if(!dataOn)map.removeLayer(dataL);
 }catch(e){}}
@@ -3617,7 +3618,7 @@ loadDataLayers();window.addEventListener('focus',loadDataLayers);
   const btn=document.createElement('button'); btn.id='isoBtn'; btn.type='button'; btn.textContent='Faqat hudud ichi';
   document.querySelector('.mapwrap').appendChild(btn);
   // loyiha chizish va profil: xarita ustida doim koʻrinadigan «Albomga →»
-  const ab=document.createElement('button'); ab.id='albFloat'; ab.type='button'; ab.textContent='Albomga →'; ab.onclick=sendToMaket;
+  const ab=document.createElement('button'); ab.id='albFloat'; ab.type='button'; ab.innerHTML='Albomga'+KIC.i('arrow-right','a'); ab.onclick=sendToMaket;
   document.querySelector('.mapwrap').appendChild(ab);
   function drawIso(){ if(mask){ map.removeLayer(mask); mask=null; } btn.setAttribute('aria-pressed',iso); const r=siteRing(); btn.hidden=!r;
     if(!iso||!r) return; const world=[[85,-180],[85,180],[-85,180],[-85,-180]];
