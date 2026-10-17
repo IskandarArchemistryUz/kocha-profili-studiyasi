@@ -227,7 +227,7 @@ function treePositions(b: ContextBundle, fr: Frame, R: number, avoid: (p: XY) =>
   return out;
 }
 
-export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; /** uchastkadan tashqaridagi koʻrinadigan binolar (tanlash uchun) */ blds: CtxBld[]; dispose(): void; maskTrees(ring: XY[] | null): void }
+export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; /** uchastkadan tashqaridagi koʻrinadigan binolar (tanlash uchun) */ blds: CtxBld[]; /** koʻrsatilgan OSM yoʻllari (mahalliy) — loyiha koʻchalari ularga ulanadi */ roads: StreetIn[]; dispose(): void; maskTrees(ring: XY[] | null): void }
 
 /** Butun kontekst sahnasini qurish */
 export interface CtxBld { id: number; rings: XY[][]; h: number; kind?: string }
@@ -289,9 +289,11 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     if (wg) g.add(overlay(wg, flatMat(wc, 3.07), 3.07, 'ariqlar'));
   }
   // koʻchalar: trotuar → asfalt → chiziqlar (sunʼiy yoʻldosh ustida ham toʻliq koʻrinadi)
+  const shownRoads: StreetIn[] = [];
   if (L.roads) {
     const sts: StreetIn[] = b.osm.roads.filter(r => !skipRoads.has(r.id)).flatMap(r => clipLine(r.pts.map(fr.toLocal), C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
       .map(pts => ({ pts, cls: r.cls, w: r.w, lanes: r.lanes, oneway: r.oneway })));
+    shownRoads.push(...sts);
     const sg = streetsGeo(sts, H);
     const add = (arr: number[], col: number, ord: number, name: string) => { if (!arr.length) return; const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.add(overlay(geo, flatMat(col, ord), ord, name)); };
     add(sg.foot, CC.foot, 3, 'yoʻlaklar'); add(sg.sidewalk, CC.sidewalk, 3.05, 'trotuarlar');
@@ -341,7 +343,7 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     }
   }
   return {
-    group: g, ground, inSite, blds,
+    group: g, ground, inSite, blds, roads: shownRoads,
     /** Loyiha uchastkasi ichidagi kontekst daraxtlarini yashirish (uchastka loyihalanadi) */
     maskTrees(ring) {
       const crown = g.getObjectByName('daraxtlar') as THREE.InstancedMesh | undefined; if (!crown) return;
