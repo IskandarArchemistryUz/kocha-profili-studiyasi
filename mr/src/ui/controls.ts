@@ -45,17 +45,18 @@ export function range(attrs: Attrs & { min: number; max: number; step?: number; 
   return box;
 }
 
-/** Qadam (− qiymat +) — ichida <input type=number> (yashirin), qiymat koʻrsatiladi */
-export function stepper(attrs: Attrs & { min: number; max: number; step?: number; value: number; fmt?: (v: number) => string; onchange?: (v: number) => void; label: string }): HTMLDivElement {
-  const { fmt, onchange, label, ...rest } = attrs, step = Number(rest.step ?? 1);
-  const inp = h('input', { type: 'number', class: 'vh', 'aria-label': label, ...rest }) as HTMLInputElement;
-  const val = h('span', { class: 'num' }, (fmt ?? String)(Number(inp.value)));
-  const set = (v: number) => { v = Math.min(Number(inp.max), Math.max(Number(inp.min), v)); inp.value = String(v); val.textContent = (fmt ?? String)(v); dec.disabled = v <= Number(inp.min); inc.disabled = v >= Number(inp.max); onchange?.(v); };
+/** Qadam (− qiymat +): oʻrtada tahrirlanadigan son maydoni (id shu maydonda — klaviatura va testlar uchun) */
+export function stepper(attrs: Attrs & { min: number; max: number; step?: number; value: number; onchange?: (v: number) => void; label: string; unit?: string }): HTMLDivElement {
+  const { onchange, label, unit, ...rest } = attrs, step = Number(rest.step ?? 1);
+  const inp = h('input', { type: 'number', class: 'stp-in num', 'aria-label': label, ...rest }) as HTMLInputElement;
+  const clamp = (v: number) => Math.min(Number(inp.max), Math.max(Number(inp.min), Math.round(v / step) * step));
+  const sync = () => { const v = Number(inp.value); dec.disabled = v <= Number(inp.min); inc.disabled = v >= Number(inp.max); };
+  const set = (v: number) => { v = clamp(v); inp.value = String(Math.round(v * 1000) / 1000); sync(); onchange?.(v); };
   const dec = h('button', { type: 'button', 'aria-label': `${label} — kamaytirish`, onclick: () => set(Number(inp.value) - step) }, '−') as HTMLButtonElement;
   const inc = h('button', { type: 'button', 'aria-label': `${label} — oshirish`, onclick: () => set(Number(inp.value) + step) }, '+') as HTMLButtonElement;
-  inp.addEventListener('change', () => set(Number(inp.value)));
-  dec.disabled = Number(inp.value) <= Number(inp.min); inc.disabled = Number(inp.value) >= Number(inp.max);
-  return h('div', { class: 'stepper' }, dec, val, inc, inp);
+  inp.addEventListener('change', () => { const v = Number(inp.value); if (Number.isFinite(v)) set(v); else { inp.value = String(attrs.value); sync(); } });
+  sync();
+  return h('div', { class: 'stepper' }, dec, inp, unit ? h('span', { class: 'stp-u' }, unit) : '', inc);
 }
 
 /** Segment (2–5 variant) — tugmalar aria-pressed bilan */

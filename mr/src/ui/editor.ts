@@ -14,7 +14,8 @@ import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
-import { check, range, select } from './controls';
+import { check, range, select, stepper, sw } from './controls';
+import { pg } from './pictos';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
@@ -50,7 +51,7 @@ import { JOBS_NOTE } from '../core/jobs';
 import { landscape } from '../core/landscape';
 import { MATS, PV, roofParts, pvEstimate, type Mat, type Roof } from '../core/roof';
 import { winDef, type Win, type Bal } from '../core/facade';
-import { facadePreview, matSwatch, roofShape, roofCover, roofOf, WIN_OPTS, BAL_OPTS, WINPAT_OPTS, BALPAT_OPTS, SHAPE_OPTS, COVER_OPTS, PARAPET_OPTS, SHADE_OPTS, USE_ICON, USE_SHORT } from './facadeui';
+import { facadePreview, roofShape, roofCover, roofOf, WIN_OPTS, BAL_OPTS, WINPAT_OPTS, BALPAT_OPTS, SHAPE_OPTS, COVER_OPTS, PARAPET_OPTS, SHADE_OPTS, USE_ICON, USE_SHORT } from './facadeui';
 import type { Command } from '../core/commands';
 import { pushEdge, tieredGfa } from '../core/tiers';
 import type { Shade } from '../core/doc';
@@ -70,16 +71,6 @@ import { summary } from '../context/osm';
 import { geocode, type Place } from '../context/geocode';
 import { detectBlock, type Barrier } from '../context/blocks';
 
-/** Ijtimoiy bino modullari piktogrammalari */
-const MOD_ICON: Record<string, string> = {
-  taroq: '<path d="M3 5h18v4H3z"/><path d="M5 9v10h4V9M10 9v10h4V9M15 9v10h4V9"/>',
-  hovli: '<path d="M3 3h18v18H3z"/><path d="M8 8h8v8H8z"/>',
-  kompakt: '<rect x="3" y="6" width="18" height="12"/><rect x="9" y="10" width="6" height="4" stroke-dasharray="2 1"/>',
-  chiziq: '<rect x="2" y="9" width="5" height="6"/><rect x="8" y="10" width="5" height="6"/><rect x="14" y="9" width="5" height="6"/><path d="M2 19h20" stroke-dasharray="2 2"/>',
-  u: '<path d="M3 4h5v12h8V4h5v16H3z"/>',
-  blok: '<rect x="2" y="8" width="20" height="8"/>',
-  l: '<path d="M3 4h6v10h12v6H3z"/>',
-};
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
   ['select', 'Tanlash (V)', '<path d="M5 3l14 8-6 2-3 6z"/>'],
@@ -88,21 +79,6 @@ const TOOLS: [ToolMode, string, string][] = [
   ['section', 'Kesim (S)', '<path d="M3 12h18" stroke-dasharray="3 2"/><path d="M6 12V6h12v6M6 12v6h12v-6" opacity=".45"/>'],
   ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
 ];
-/** Tipologiya piktogrammalari (yuqoridan koʻrinish, 24×24) */
-const TYPO_ICON: Record<string, string> = {
-  avto: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2"/><path d="M8 16l4-9 4 9M9.5 13h5"/>',
-  yakka: '<rect x="3" y="4" width="6" height="6"/><rect x="15" y="4" width="6" height="6"/><rect x="3" y="14" width="6" height="6"/><rect x="15" y="14" width="6" height="6"/>',
-  taunhaus: '<rect x="3" y="5" width="18" height="5"/><path d="M7.5 5v5M12 5v5M16.5 5v5"/><rect x="3" y="14" width="18" height="5"/><path d="M7.5 14v5M12 14v5M16.5 14v5"/>',
-  villa: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
-  perimetr: '<path d="M3 3h18v18H3z"/><path d="M8 8h8v8H8z"/><path d="M3 3l5 5M21 3l-5 5M3 21l5-5M21 21l-5-5"/>',
-  qatorlar: '<rect x="3" y="3" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="17" width="18" height="4"/>',
-  minora: '<rect x="3" y="3" width="6" height="6"/><rect x="15" y="3" width="6" height="6"/><rect x="9" y="15" width="6" height="6"/>',
-  blok_minora: '<path d="M3 7h14v14H3z"/><path d="M7 11h6v6H7z"/><rect x="15" y="3" width="6" height="6" fill="currentColor"/>',
-  ofis_plita: '<rect x="3" y="4" width="18" height="5"/><rect x="3" y="15" width="18" height="5"/><path d="M6 4v5M9 4v5M12 4v5M15 4v5M18 4v5M6 15v5M9 15v5M12 15v5M15 15v5M18 15v5"/>',
-  ofis_minora: '<path d="M3 15h18v6H3z"/><rect x="5" y="3" width="5" height="12"/><rect x="14" y="5" width="5" height="10"/>',
-  savdo_blok: '<rect x="3" y="3" width="18" height="10"/><path d="M3 17h18M6 15v4M10 15v4M14 15v4M18 15v4" stroke-dasharray="1 1"/>',
-  blok_villa: '<path d="M3 3h11v4H7v7H3z"/><rect x="15" y="10" width="6" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="17" width="5" height="4"/>',
-};
 const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
@@ -912,48 +888,57 @@ export class Editor {
   }
 
   private windSection(body: HTMLElement): void {
-    if (!this.climate) { void this.loadClimate(); body.append(h('p', { class: 'note' }, 'Iqlim maʼlumoti yuklanmoqda…')); return; }
+    if (!this.climate) { void this.loadClimate(); body.append(h('span', { class: 't-small' }, tr('Iqlim maʼlumoti yuklanmoqda…'))); return; }
     const doc = this.store.doc, { s: st, km } = nearestStation(this.climate, doc.origin[0], doc.origin[1]), pv = prevailing(st);
     const dir = this.windDir ?? pv.deg;
-    const sel = h('select', { id: 'windDir', onchange: (e: Event) => { this.windDir = Number((e.target as HTMLSelectElement).value); this.renderPanel(); } },
-      ...Array.from({ length: 16 }, (_, k) => { const o = h('option', { value: k * 22.5 }, `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ustun' : ''}`) as HTMLOptionElement; o.selected = Math.abs(k * 22.5 - dir) < 1; return o; }));
-    body.append(h('div', { class: 'field', id: 'windBox' }, h('span', { class: 'lb' }, 'Shamol'),
-      h('div', { class: 'ctxst' }, h('b', {}, `${st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`), h('br'), `Oʻrtacha ${fmt(st.mean, 1)} m/s · 5 % vaqt ${fmt(st.p95, 1)} m/s dan oshadi · shtil ${fmt(st.calm * 100, 0)} %`, h('br'),
-        h('span', { class: 'muted' }, `Ustun yoʻnalish: ${rumbName(pv.k)} (${fmt(pv.share * 100, 0)} %). Manba: EPW TMYx 2011–2025 (climate.onebuilding.org).`)),
+    const sel = select({ id: 'windDir', 'aria-label': tr('Hisob yoʻnalishi (qayerdan esadi)'), onchange: v => { this.windDir = Number(v); this.renderPanel(); } },
+      Array.from({ length: 16 }, (_, k) => ({ value: String(k * 22.5), label: `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ' + tr('ustun') : ''}`, selected: Math.abs(k * 22.5 - dir) < 1 })));
+    body.append(h('div', { class: 'col', id: 'windBox' },
+      h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', {}, `${st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`)),
+      h('div', { class: 'group flat', style: 'padding:10px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px' },
+        h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.mean, 1)} m/s`), h('span', {}, `${tr('oʻrtacha')} · ${tr('shtil')} ${fmt(st.calm * 100, 0)} %`)),
+        h('div', { class: 'kpi' }, h('b', {}, `${rumbName(pv.k)}`), h('span', {}, `${tr('ustun yoʻnalish')} · ${fmt(pv.share * 100, 0)} %`)),
+        h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.p95, 1)} m/s`), h('span', {}, tr('5 % vaqt oshadi')))),
       this.windRose(st),
-      h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Hisob yoʻnalishi (qayerdan esadi)'), sel),
-      h('button', { class: 'btn primary', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)')));
+      h('span', { class: 't-small' }, tr('Manba: EPW TMYx 2011–2025 (climate.onebuilding.org).')),
+      h('div', { class: 'field' }, h('label', {}, tr('Hisob yoʻnalishi (qayerdan esadi)')), sel),
+      h('button', { class: 'btn btn-block', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, tr(this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)'))));
     const w = this.wind.stats;
     if (w) {
-      body.append(h('div', { class: 'seg full', role: 'group' }, ...([['lawson', 'Qulaylik (Lawson)'], ['ratio', 'Tezlik nisbati']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.wind.mode === k, onclick: () => { this.wind.mode = k; this.showWind(); this.renderPanel(); } }, t))),
-        h('div', { class: 'ctxst', id: 'windSt' }, h('b', {}, `${rumbName(Math.round(w.dir / 22.5) % 16)} shamoli: uchastkaning ${fmt(w.amp * 100, 0)} % ida tezlik 1,2× dan oshadi`), h('br'), h('span', { class: 'muted' }, `Piyoda sathi (1,5 m) 5 % tezligi ochiq joyda ≈ ${fmt(w.p95, 1)} m/s`)),
+      body.append(h('div', { class: 'seg sm', role: 'group' }, ...([['lawson', 'Qulaylik (Lawson)'], ['ratio', 'Tezlik nisbati']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.wind.mode === k, onclick: () => { this.wind.mode = k; this.showWind(); this.renderPanel(); } }, tr(t)))),
+        h('div', { class: 'col', id: 'windSt' }, h('b', { style: 'font-size:12.5px' }, tf('${rumbName(Math.round(w.dir / 22.5) % 16)} shamoli: uchastkaning ${fmt(w.amp * 100, 0)} % ida tezlik 1,2× dan oshadi', { 'rumbName(Math.round(w.dir / 22.5) % 16)': rumbName(Math.round(w.dir / 22.5) % 16), 'fmt(w.amp * 100, 0)': fmt(w.amp * 100, 0) })), h('span', { class: 't-small' }, tf('Piyoda sathi (1,5 m) 5 % tezligi ochiq joyda ≈ ${fmt(w.p95, 1)} m/s', { 'fmt(w.p95, 1)': fmt(w.p95, 1) }))),
         this.wind.mode === 'lawson'
-          ? h('div', { class: 'legend' }, ...LAWSON.map(([, c, t], i) => h('div', {}, h('i', { class: 'sw', style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, t), h('span', { class: 'num' }, `${fmt(w.cls[i] * 100, 0)} %`))))
-          : h('div', { class: 'legend' }, ...[['< 0,4 pana', 0x2b3a67], ['0,7–0,9', 0x7fb3c8], ['0,9–1,1 ochiq joydek', 0xe8e4c9], ['1,3–1,5', 0xf29a4a], ['> 1,5 tezlashish', 0xd9534f]].map(([t, c]) => h('div', {}, h('i', { class: 'sw', style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, String(t))))),
-        h('button', { class: 'btn', onclick: () => { this.wind.stats = null; this.scene.setGroundMap(null); this.renderPanel(); } }, 'Xaritani yashirish'));
+          ? h('div', { class: 'leg' }, ...LAWSON.map(([, c, t], i) => h('div', {}, h('i', { style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', {}, tr(t)), h('b', {}, `${fmt(w.cls[i] * 100, 0)} %`))))
+          : h('div', { class: 'leg' }, ...[['< 0,4 pana', 0x2b3a67], ['0,7–0,9', 0x7fb3c8], ['0,9–1,1 ochiq joydek', 0xe8e4c9], ['1,3–1,5', 0xf29a4a], ['> 1,5 tezlashish', 0xd9534f]].map(([t, c]) => h('div', {}, h('i', { style: `background:#${(c as number).toString(16).padStart(6, '0')}` }), h('span', {}, tr(String(t)))))),
+        h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { this.wind.stats = null; this.scene.setGroundMap(null); this.renderPanel(); } }, tr('Xaritani yashirish')));
     }
-    body.append(h('p', { class: 'note' }, 'Usul: 2D Lattice Boltzmann, piyoda sathida, bitta yoʻnalish. Bino ustidan oqish, turbulentlik va daraxtlar hisobga olinmaydi — dastlabki loyiha uchun sifat bahosi (tunnel, pana, burchak zonalari). Qulaylik mezoni — Lawson (LDDC), xalqaro amaliyot; Oʻzbekiston meʼyori emas.'));
   }
 
+  /* ===== 7-qadam: Quyosh va shamol (MR-Q2) ===== */
   private quyoshPanel(body: HTMLElement): void {
-    const DATES: [string, string][] = [['03-22', '22 mart'], ['04-22', '22 aprel'], ['06-22', '22 iyun'], ['09-22', '22 sentabr'], ['12-22', '22 dekabr']];
-    const time = h('input', { type: 'range', min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', style: 'width:100%' }) as HTMLInputElement;
-    time.oninput = () => { this.sunTime = Number(time.value); this.applySun(); };
+    const DATES: [string, string, string][] = [['03-22', '22 mart', '22 mar'], ['04-22', '22 aprel', '22 apr'], ['06-22', '22 iyun', '22 iyn'], ['09-22', '22 sentabr', '22 sen'], ['12-22', '22 dekabr', '22 dek']];
     body.append(
-      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Sana'), h('div', { class: 'seg full', role: 'group' }, ...DATES.map(([k, t]) => h('button', { 'aria-pressed': this.sunDate === k, 'data-date': k, onclick: () => { this.sunDate = k; this.applySun(); this.renderPanel(); } }, t)))),
-      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Vaqt (Toshkent, UTC+5)'), time, h('span', { class: 'num', id: 'sunInfo', style: 'font-size:12px' })),
-      h('button', { class: 'btn primary', id: 'insolGo', disabled: this.insol.busy, onclick: () => void this.runInsolation() }, this.insol.busy ? 'Hisoblanmoqda…' : 'Insolyatsiya xaritasi (uchastka)'));
+      h('div', { class: 'glabel' }, h('span', {}, tr('Sana'))),
+      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Sana') }, ...DATES.map(([k, t, s]) => h('button', { 'aria-pressed': this.sunDate === k, 'data-date': k, title: tr(t), onclick: () => { this.sunDate = k; this.applySun(); this.renderPanel(); } }, tr(s)))),
+      h('div', { class: 'group flat', style: 'padding:10px 12px;display:flex;flex-direction:column;gap:6px' },
+        h('span', { class: 'num', id: 'sunInfo', style: 'font-size:13px;font-weight:600' }),
+        range({ min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', 'aria-label': tr('Vaqt (Toshkent, UTC+5)'), oninput: v => { this.sunTime = v; this.applySun(); } }),
+        h('div', { class: 'row t-small' }, h('span', {}, '05:00'), h('span', { class: 'grow', style: 'text-align:center' }, tr('Vaqt (Toshkent, UTC+5)')), h('span', {}, '20:00'))),
+      h('button', { class: 'btn btn-primary btn-block', id: 'insolGo', disabled: this.insol.busy, onclick: () => void this.runInsolation() }, tr(this.insol.busy ? 'Hisoblanmoqda…' : 'Insolyatsiya xaritasi (uchastka)')));
     const st = this.insol.stats;
     if (st) {
       const dt = DATES.find(x => x[0] === st.date)?.[1] ?? st.date;
-      body.append(h('div', { class: 'ctxst', id: 'insolSt' },
-        h('b', {}, `${dt}: oʻrtacha ${fmt(st.mean, 1)} soat quyosh`), h('br'),
-        `≥ 2 soat — uchastkaning ${fmt(st.ge2 * 100, 0)} %, ≥ 3 soat — ${fmt(st.ge3 * 100, 0)} % (${fmt(st.n)} nuqta, yer sathida)`),
-        h('div', { class: 'legend' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { class: 'sw', style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', { class: 'grow' }, t), h('span', { class: 'num' }, `${fmt(st.bins[i] * 100, 0)} %`)))),
-        h('button', { class: 'btn', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, 'Xaritani yashirish'));
+      body.append(h('div', { class: 'col', id: 'insolSt' },
+        h('b', { style: 'font-size:12.5px' }, `${tr(dt)}: ${tr('oʻrtacha')} ${fmt(st.mean, 1)} ${tr('soat quyosh')}`),
+        h('span', { class: 't-small' }, `≥ 2 ${tr('soat')} — ${tr('uchastkaning')} ${fmt(st.ge2 * 100, 0)} %, ≥ 3 ${tr('soat')} — ${fmt(st.ge3 * 100, 0)} % (${fmt(st.n)} ${tr('nuqta, yer sathida')})`)),
+        h('div', { class: 'leg' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', {}, tr(t)), h('b', {}, `${fmt(st.bins[i] * 100, 0)} %`)))),
+        h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, tr('Xaritani yashirish')));
     }
-    body.append(h('p', { class: 'note' }, 'Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0331-16, 8.3-band — 22 mart – 22 sentabr davrida xonalarda uzluksiz 2,5 soat, uy atrofidagi hududda ≥ 0,5–1 soat. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.'));
+    body.append(h('span', { class: 'norm' }, svgIcon(IC.book), 'SanQvaN 0331-16 · 8.3-band'));
     this.windSection(body);
+    body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Usul va cheklovlar')), h('div', { class: 'col' },
+      h('span', {}, tr('Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0331-16, 8.3-band — 22 mart – 22 sentabr davrida xonalarda uzluksiz 2,5 soat, uy atrofidagi hududda ≥ 0,5–1 soat. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.')),
+      h('span', {}, tr('Usul: 2D Lattice Boltzmann, piyoda sathida, bitta yoʻnalish. Bino ustidan oqish, turbulentlik va daraxtlar hisobga olinmaydi — dastlabki loyiha uchun sifat bahosi (tunnel, pana, burchak zonalari). Qulaylik mezoni — Lawson (LDDC), xalqaro amaliyot; Oʻzbekiston meʼyori emas.')))));
     queueMicrotask(() => this.applySun());
   }
 
@@ -970,7 +955,7 @@ export class Editor {
     if (!uses.includes(this.lookUse as Use) && uses.length) this.lookUse = uses[0];
     const ids = () => this.lookTarget === 'sel' && sel ? [sel.id] : this.lookTarget === 'use' ? doc.buildings.filter(b => b.use === this.lookUse).map(b => b.id) : doc.buildings.map(b => b.id);
     const list = doc.buildings.filter(b => ids().includes(b.id));
-    const apply = (patch: Omit<Extract<Command, { type: 'styleBuildings' }>, 'type' | 'ids'>) => { const l = ids(); if (!l.length) { toast('Binolar yoʻq'); return; } this.run(() => this.store.dispatch({ type: 'styleBuildings', ids: l, ...patch })); };
+    const apply = (patch: Omit<Extract<Command, { type: 'styleBuildings' }>, 'type' | 'ids'>) => { const l = ids(); if (!l.length) { toast(tr('Binolar yoʻq')); return; } this.run(() => this.store.dispatch({ type: 'styleBuildings', ids: l, ...patch })); };
     // joriy qiymat: hammasida bir xil boʻlsa — oʻsha, aks holda «aralash» (null); koʻrinish uchun — eng koʻp uchragani
     const pick = <T,>(f: (b: Project['buildings'][number]) => T): { v: T | null; top: T | null } => {
       const m = new Map<T, number>(); list.forEach(b => { const v = f(b); m.set(v, (m.get(v) ?? 0) + 1); });
@@ -979,80 +964,83 @@ export class Editor {
     const mat = pick(b => b.mat ?? 'suvoq'), win = pick(b => b.win ?? 'yoq'), bal = pick(b => b.bal ?? 'yoq'), shape = pick(b => roofShape(b.roof)), cover = pick(b => roofCover(b.roof)), par = pick(b => b.parapet ?? 0), shd = pick(b => b.shade ?? 'yoq'), wpat = pick(b => b.winPat ?? 'qator'), bpat = pick(b => b.balPat ?? 'har2');
     const any = list.length > 0;
     // jonli fasad koʻrinishi
-    body.append(h('div', { class: 'fpv', id: 'facPreview', html: facadePreview({ mat: (mat.top ?? 'suvoq') as Mat, win: (win.top ?? 'yoq') as Win | 'yoq', bal: (bal.top ?? 'yoq') as Bal, shape: shape.top ?? 'tekis', cover: cover.top ?? 'oddiy', parapet: par.top ?? 0, shade: (shd.top ?? 'yoq') as Shade | 'yoq' }) }));
+    body.append(h('div', { class: 'fpv', id: 'facPreview', role: 'img', 'aria-label': tr('Fasad koʻrinishi'), html: facadePreview({ mat: (mat.top ?? 'suvoq') as Mat, win: (win.top ?? 'yoq') as Win | 'yoq', bal: (bal.top ?? 'yoq') as Bal, shape: shape.top ?? 'tekis', cover: cover.top ?? 'oddiy', parapet: par.top ?? 0, shade: (shd.top ?? 'yoq') as Shade | 'yoq' }) }));
     // qaysi binolarga
-    const useSel = h('select', { id: 'lookUse' }, ...uses.map(u => h('option', { value: u, selected: u === this.lookUse }, useDef(u).name))) as HTMLSelectElement;
-    useSel.onchange = () => { this.lookUse = useSel.value; this.renderPanel(); };
-    body.append(h('div', { class: 'seg full', role: 'group', id: 'lookSeg', 'aria-label': 'Qaysi binolarga' },
-      h('button', { 'data-look': 'sel', 'aria-pressed': this.lookTarget === 'sel', disabled: !sel, title: sel ? '' : 'Sahnada binoni bosing', onclick: () => { this.lookTarget = 'sel'; this.renderPanel(); } }, 'Tanlangan'),
-      h('button', { 'data-look': 'use', 'aria-pressed': this.lookTarget === 'use', onclick: () => { this.lookTarget = 'use'; this.renderPanel(); } }, 'Funksiya'),
-      h('button', { 'data-look': 'all', 'aria-pressed': this.lookTarget === 'all', onclick: () => { this.lookTarget = 'all'; this.renderPanel(); } }, 'Hammasi')),
+    const useSel = select({ id: 'lookUse', 'aria-label': tr('Funksiya'), onchange: v => { this.lookUse = v; this.renderPanel(); } }, uses.map(u => ({ value: u, label: useDef(u).name, selected: u === this.lookUse })));
+    body.append(h('div', { class: 'group flat', style: 'padding:8px;display:flex;flex-direction:column;gap:8px' },
+      h('div', { class: 'seg', role: 'group', id: 'lookSeg', 'aria-label': tr('Qaysi binolarga') },
+        h('button', { 'data-look': 'sel', 'aria-pressed': this.lookTarget === 'sel', disabled: !sel, title: sel ? '' : tr('Sahnada binoni bosing'), onclick: () => { this.lookTarget = 'sel'; this.renderPanel(); } }, tr('Tanlangan')),
+        h('button', { 'data-look': 'use', 'aria-pressed': this.lookTarget === 'use', onclick: () => { this.lookTarget = 'use'; this.renderPanel(); } }, tr('Funksiya')),
+        h('button', { 'data-look': 'all', 'aria-pressed': this.lookTarget === 'all', onclick: () => { this.lookTarget = 'all'; this.renderPanel(); } }, tr('Hammasi'))),
       this.lookTarget === 'use' ? useSel : '',
-      h('p', { class: 'muted fsub' }, any ? `${list.length} ta bino${this.lookTarget === 'sel' && sel ? ` · ${useDef(sel.use).name}` : ''}` : 'Binolar yoʻq — 6-qadamda hajmlarni yarating'));
-    // roʻyxat: har qator — joriy qiymat, bosilsa variantlar tasmasi ochiladi
-    type Opt = { key: string; val: string; n: string; on: boolean; d?: string; sw?: string; dis?: boolean; set: () => void };
-    const mk = (o: Opt) => { const b = h('button', { class: 'ftile', [`data-${o.key}`]: o.val, 'aria-pressed': o.on, disabled: !!o.dis || !any, title: o.n, onclick: o.set }); b.append(o.sw ? h('span', { class: 'fsw', html: o.sw }) : svgIcon(`<path d="${o.d}"/>`), h('span', {}, o.n), h('i', { class: 'ck', html: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>' })); return b; };
-    const nm = <T,>(arr: { id?: T; v?: T; n: string }[], v: T | null) => v == null ? 'aralash' : arr.find(x => (x.id ?? x.v) === v)?.n ?? '—';
+      any ? h('span', { class: 't-small' }, `${list.length} ${tr('ta bino')}${this.lookTarget === 'sel' && sel ? ` · ${useDef(sel.use).name}` : ''}`) : ''));
+    if (!any) body.append(h('div', { class: 'empty' }, h('span', {}, tr('Binolar yoʻq — 6-qadamda hajmlarni yarating')), h('button', { class: 'btn btn-sm', onclick: () => this.go(STEPS.find(x => x.id === 'hajm')!) }, `6 · ${tr('Hajmlar')}`)));
+    // roʻyxat: har qator — joriy qiymat, bosilsa variant plitkalari ochiladi
+    type Opt = { key: string; val: string; n: string; on: boolean; g: string; gk: string | number; html?: string; dis?: boolean; set: () => void };
+    const mk = (o: Opt) => h('button', { class: 'tile', [`data-${o.key}`]: o.val, 'aria-pressed': o.on, disabled: !!o.dis || !any, title: o.n, onclick: o.set, html: (o.html ?? pg(o.g, o.gk)) + `<span>${o.n}</span>` });
+    const nm = <T,>(arr: { id?: T; v?: T; n: string }[], v: T | null) => v == null ? tr('aralash') : tr(arr.find(x => (x.id ?? x.v) === v)?.n ?? '—');
     const flatOnly = shape.v != null ? shape.v !== 'tekis' : list.some(b => roofShape(b.roof) !== 'tekis');
-    const rows: { id: string; k: string; v: string; icon: string | null; sw?: string; opts: Opt[]; note?: string }[] = [
-      { id: 'mat', k: 'Material', v: mat.v ? MATS.find(m => m.id === mat.v)!.name : 'aralash', icon: null, sw: matSwatch((mat.top ?? 'suvoq') as Mat, 32, 32),
-        opts: MATS.map(m => ({ key: 'mat', val: m.id, n: m.name, on: mat.v === m.id, sw: matSwatch(m.id), set: () => apply({ mat: m.id }) })) },
-      { id: 'win', k: 'Derazalar', v: nm(WIN_OPTS, win.v), icon: WIN_OPTS.find(x => x.id === (win.top ?? 'yoq'))!.d,
-        opts: WIN_OPTS.map(w => ({ key: 'win', val: w.id, n: w.n, on: win.v === w.id, d: w.d, set: () => apply({ win: w.id }) })) },
-      { id: 'wpat', k: 'Derazalar joylashuvi', v: nm(WINPAT_OPTS, wpat.v), icon: WINPAT_OPTS.find(x => x.id === (wpat.top ?? 'qator'))!.d,
+    const rows: { id: string; k: string; v: string; ic: string; opts: Opt[]; note?: string; cols: number }[] = [
+      { id: 'mat', k: 'Material', v: mat.v ? MATS.find(m => m.id === mat.v)!.name : tr('aralash'), ic: pg('mat', mat.top ?? 'suvoq', 28), cols: 4,
+        opts: MATS.map(m => ({ key: 'mat', val: m.id, n: m.name, on: mat.v === m.id, g: 'mat', gk: m.id, set: () => apply({ mat: m.id }) })) },
+      { id: 'win', k: 'Derazalar', v: nm(WIN_OPTS, win.v), ic: pg('win', win.top ?? 'yoq', 28), cols: 4,
+        opts: WIN_OPTS.map(w => ({ key: 'win', val: w.id, n: tr(w.n), on: win.v === w.id, g: 'win', gk: w.id, set: () => apply({ win: w.id }) })) },
+      { id: 'wpat', k: 'Derazalar joylashuvi', v: nm(WINPAT_OPTS, wpat.v), ic: pg('wpat', wpat.top ?? 'qator', 28), cols: 3,
         note: 'Parametrik: shaxmat, juft, ritm, tasodifiy (bino boʻyicha barqaror), gradient. Tanlansa — batafsil 3D fasad shu binolarda yoqiladi.',
-        opts: WINPAT_OPTS.map(x => ({ key: 'wpat', val: x.id, n: x.n, on: wpat.v === x.id, d: x.d, set: () => apply({ winPat: x.id }) })) },
-      { id: 'bal', k: 'Balkonlar', v: nm(BAL_OPTS, bal.v), icon: BAL_OPTS.find(x => x.id === (bal.top ?? 'yoq'))!.d,
-        opts: BAL_OPTS.map(x => ({ key: 'bal', val: x.id, n: x.n, on: bal.v === x.id, d: x.d, set: () => apply({ bal: x.id }) })) },
-      { id: 'bpat', k: 'Balkonlar joylashuvi', v: nm(BALPAT_OPTS, bpat.v), icon: BALPAT_OPTS.find(x => x.id === (bpat.top ?? 'har2'))!.d,
+        opts: WINPAT_OPTS.map(x => ({ key: 'wpat', val: x.id, n: tr(x.n), on: wpat.v === x.id, g: 'wpat', gk: x.id, set: () => apply({ winPat: x.id }) })) },
+      { id: 'bal', k: 'Balkonlar', v: nm(BAL_OPTS, bal.v), ic: pg('bal', bal.top ?? 'yoq', 28), cols: 3,
+        opts: BAL_OPTS.map(x => ({ key: 'bal', val: x.id, n: tr(x.n), on: bal.v === x.id, g: 'bal', gk: x.id, set: () => apply({ bal: x.id }) })) },
+      { id: 'bpat', k: 'Balkonlar joylashuvi', v: nm(BALPAT_OPTS, bpat.v), ic: pg('bpat', bpat.top ?? 'har2', 28), cols: 3,
         note: bal.top === 'yoq' ? 'Avval balkon turini tanlang.' : undefined,
-        opts: BALPAT_OPTS.map(x => ({ key: 'bpat', val: x.id, n: x.n, on: bpat.v === x.id, d: x.d, dis: bal.top === 'yoq', set: () => apply({ balPat: x.id }) })) },
-      { id: 'roof', k: 'Tom shakli', v: nm(SHAPE_OPTS, shape.v), icon: SHAPE_OPTS.find(x => x.id === (shape.top ?? 'tekis'))!.d,
-        opts: SHAPE_OPTS.map(x => ({ key: 'roof', val: x.id, n: x.n, on: shape.v === x.id, d: x.d, set: () => apply({ roof: roofOf(x.id, x.id === 'tekis' ? (cover.v ?? 'oddiy') : 'oddiy') }) })) },
-      { id: 'cover', k: 'Tom qoplamasi', v: flatOnly && shape.v != null ? '—' : nm(COVER_OPTS, cover.v), icon: COVER_OPTS.find(x => x.id === (cover.top ?? 'oddiy'))!.d,
+        opts: BALPAT_OPTS.map(x => ({ key: 'bpat', val: x.id, n: tr(x.n), on: bpat.v === x.id, g: 'bpat', gk: x.id, dis: bal.top === 'yoq', set: () => apply({ balPat: x.id }) })) },
+      { id: 'roof', k: 'Tom shakli', v: nm(SHAPE_OPTS, shape.v), ic: pg('roof', shape.top ?? 'tekis', 28), cols: 4,
+        opts: SHAPE_OPTS.map(x => ({ key: 'roof', val: x.id, n: tr(x.n), on: shape.v === x.id, g: 'roof', gk: x.id, set: () => apply({ roof: roofOf(x.id, x.id === 'tekis' ? (cover.v ?? 'oddiy') : 'oddiy') }) })) },
+      { id: 'cover', k: 'Tom qoplamasi', v: flatOnly && shape.v != null ? '—' : nm(COVER_OPTS, cover.v), ic: pg('cover', cover.top ?? 'oddiy', 28), cols: 3,
         note: flatOnly ? 'Yashil tom va quyosh paneli tekis tomga qoʻyiladi — tanlansa tom tekis boʻladi.' : undefined,
-        opts: COVER_OPTS.map(x => ({ key: 'cover', val: x.id, n: x.n, on: cover.v === x.id && !flatOnly, d: x.d, set: () => apply({ roof: roofOf('tekis', x.id) }) })) },
-      { id: 'par', k: 'Parapet', v: nm(PARAPET_OPTS, par.v), icon: PARAPET_OPTS.find(x => x.v === (par.top ?? 0))?.d ?? PARAPET_OPTS[0].d,
-        opts: PARAPET_OPTS.map(x => ({ key: 'par', val: String(x.v), n: x.n, on: par.v === x.v, d: x.d, set: () => apply({ parapet: x.v }) })) },
-      { id: 'shade', k: 'Quyosh himoyasi', v: nm(SHADE_OPTS, shd.v), icon: SHADE_OPTS.find(x => x.id === (shd.top ?? 'yoq'))!.d,
+        opts: COVER_OPTS.map(x => ({ key: 'cover', val: x.id, n: tr(x.n), on: cover.v === x.id && !flatOnly, g: 'cover', gk: x.id, set: () => apply({ roof: roofOf('tekis', x.id) }) })) },
+      { id: 'par', k: 'Parapet', v: nm(PARAPET_OPTS, par.v), ic: pg('par', par.top ?? 0, 28), cols: 4,
+        opts: PARAPET_OPTS.map(x => ({ key: 'par', val: String(x.v), n: tr(x.n), on: par.v === x.v, g: 'par', gk: x.v, set: () => apply({ parapet: x.v }) })) },
+      { id: 'shade', k: 'Quyosh himoyasi', v: nm(SHADE_OPTS, shd.v), ic: pg('shade', shd.top ?? 'yoq', 28), cols: 3,
         note: 'SanQvaN 0331-16, 9.3: 90–290° ga qaragan fasadlarda. Avtomatik — janubda naves, sharq va gʻarbda lamellar.',
-        opts: SHADE_OPTS.map(x => ({ key: 'shade', val: x.id, n: x.n, on: shd.v === x.id, d: x.d, set: () => apply({ shade: x.id }) })) },
+        opts: SHADE_OPTS.map(x => ({ key: 'shade', val: x.id, n: tr(x.n), on: shd.v === x.id, g: 'shade', gk: x.id, set: () => apply({ shade: x.id }) })) },
     ];
-    body.append(h('div', { class: 'flist', id: 'looks' }, ...rows.map(r => {
+    body.append(h('div', { class: 'group', id: 'looks' }, ...rows.flatMap(r => {
       const open = this.facOpen === r.id;
-      const head = h('button', { class: 'frow', 'data-row': r.id, 'aria-expanded': open, onclick: () => { this.facOpen = open ? null : r.id; this.renderPanel(); } },
-        h('span', { class: 'fic', html: r.sw ?? '' }, ...(r.icon && !r.sw ? [svgIcon(`<path d="${r.icon}"/>`)] : [])), h('span', { class: 'grow' }, r.k), h('span', { class: 'fval' }, r.v), svgIcon('<path d="M6 9l6 6 6-6"/>'));
-      return h('div', { class: open ? 'fgrp open' : 'fgrp' }, head, open ? h('div', { class: 'fstrip', id: `strip-${r.id}` }, ...r.opts.map(mk)) : '', open && r.note ? h('p', { class: 'note fnote' }, r.note) : '');
+      const head = h('button', { class: 'li frow', 'data-row': r.id, 'aria-expanded': open, onclick: () => { this.facOpen = open ? null : r.id; this.renderPanel(); } },
+        h('span', { class: 'fic', html: r.ic }), h('span', { class: 'k' }, tr(r.k)), h('span', { class: 'v' }, r.v), svgIcon(open ? '<path d="M6 15l6-6 6 6"/>' : '<path d="M6 9l6 6 6-6"/>'));
+      head.lastElementChild?.setAttribute('class', 'chev');
+      return [head, open ? h('div', { class: 'frowin', id: `strip-${r.id}` }, h('div', { class: r.cols === 4 ? 'tiles c4' : 'tiles' }, ...r.opts.map(mk)), r.note ? h('span', { class: 't-small' }, tr(r.note)) : '') : ''];
     })));
     // tekshiruv — oxirida bitta guruhda, har birida band
     const ws = win.top && win.top !== 'yoq' ? winDef(win.top as Win) : null;
-    const dep = h('input', { type: 'number', min: 3, max: 9, step: 0.1, value: this.roomDepth, id: 'roomDepth', 'aria-label': 'Xona chuqurligi, m' }) as HTMLInputElement;
+    const dep = h('input', { type: 'number', class: 'input', min: 3, max: 9, step: 0.1, value: this.roomDepth, id: 'roomDepth', 'aria-label': tr('Xona chuqurligi, m'), style: 'width:76px' }) as HTMLInputElement;
     dep.onchange = () => { const v = Number(dep.value); if (v >= 3 && v <= 9) { this.roomDepth = v; this.renderPanel(); } };
     const chk: HTMLElement[] = [];
-    const row = (t: string, s: string, st: 'ok' | 'warn' | 'bad' | 'na', v: string, extra?: HTMLElement) => chk.push(h('div', { class: 'frow static' }, h('span', { class: 'grow col' }, h('b', {}, t), h('small', { class: 'muted' }, s)), extra ?? '', h('span', { class: 'chip', 'data-s': st === 'ok' ? 'pass' : st === 'na' ? 'na' : 'fail' }, v)));
+    const ch = (st: 'ok' | 'warn' | 'bad' | 'na', v: string) => h('span', { class: `chip ${st}`, 'data-s': st === 'ok' ? 'pass' : st === 'na' ? 'na' : st === 'warn' ? 'review' : 'fail' }, h('i'), v);
+    const row = (t: string, s: string, st: 'ok' | 'warn' | 'bad' | 'na', v: string, extra?: HTMLElement) => chk.push(h('div', { class: 'li' }, h('span', { class: 'k' }, t, h('span', { class: 'sub' }, s)), extra ?? '', ch(st, v)));
     if (ws) {
       const k = MOD_W * this.roomDepth / (ws.w * MOD_W * (ws.head - ws.sill)), okK = k >= 4.5 - 1e-6 && k <= 8 + 1e-6;
-      row(`Yorugʻlik koeffitsiyenti 1:${fmt(k, 1)}`, `${ws.name}: deraza ${fmt(ws.w * MOD_W, 1)} × ${fmt(ws.head - ws.sill, 2)} m · meʼyor 1:4,5 – 1:8 · 8.2-band`, okK ? 'ok' : 'bad', okK ? 'mos' : 'mos emas');
+      row(`${tr('Yorugʻlik koeffitsiyenti')} 1:${fmt(k, 1)}`, `${tr(ws.name)}: ${tr('deraza')} ${fmt(ws.w * MOD_W, 1)} × ${fmt(ws.head - ws.sill, 2)} m · ${tr('meʼyor')} 1:4,5 – 1:8 · 8.2-band`, okK ? 'ok' : 'bad', tr(okK ? 'mos' : 'mos emas'));
     }
     const okD = this.roomDepth <= 6 + 1e-6 && this.roomDepth <= 2 * MOD_W + 1e-6;
-    row('Xona chuqurligi', '≤ 6 m va ≤ 2 × eni · SanQvaN 8.7', okD ? 'ok' : 'bad', okD ? 'mos' : 'mos emas', h('span', { class: 'unitf' }, dep, h('small', {}, 'm')));
+    row(tr('Xona chuqurligi'), `≤ 6 m va ≤ 2 × eni · SanQvaN 8.7`, okD ? 'ok' : 'bad', tr(okD ? 'mos' : 'mos emas'), h('span', { class: 'unit', style: 'width:76px' }, dep, h('span', {}, 'm')));
     const plans = planApartments(doc);
     if (plans.length) {
       let n = 0, hot = 0, west = 0;
       plans.forEach(pl => { const used = new Set(pl.layout.apts.flatMap(a => a.mods)); pl.layout.mods.forEach((m, i) => { if (!used.has(i)) return; n++; if (m.az >= 90 && m.az <= 290) hot++; if (isWest(m.az)) west++; }); });
       const shaded = doc.buildings.some(b => b.shade);
-      row('Quyoshdan himoya kerak', `${fmt(hot / n * 100, 0)} % deraza 90–290° ga qaragan · 9.3, 8.10–8.11`, hot === 0 || shaded ? 'ok' : 'warn', hot === 0 ? 'kerak emas' : shaded ? 'bor' : `${fmt(hot / n * 100, 0)} %`);
-      row('Gʻarbga qaragan derazalar', `${fmt(west / n * 100, 0)} % · yashash xonasi qoʻyilmaydi · 9.2 · ${fmt(n)} modul bir qavatda`, west === 0 ? 'ok' : 'warn', `${fmt(west / n * 100, 0)} %`);
+      row(tr('Quyoshdan himoya kerak'), `${fmt(hot / n * 100, 0)} % ${tr('deraza 90–290° ga qaragan')} · 9.3, 8.10–8.11`, hot === 0 || shaded ? 'ok' : 'warn', hot === 0 ? tr('kerak emas') : shaded ? tr('bor') : `${fmt(hot / n * 100, 0)} %`);
+      row(tr('Gʻarbga qaragan derazalar'), `${fmt(west / n * 100, 0)} % · ${tr('yashash xonasi qoʻyilmaydi')} · 9.2 · ${fmt(n)} ${tr('modul bir qavatda')}`, west === 0 ? 'ok' : 'warn', `${fmt(west / n * 100, 0)} %`);
     }
     const solar = doc.buildings.filter(b => b.roof === 'quyosh').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0), pv = pvEstimate(solar);
     const green = doc.buildings.filter(b => b.roof === 'yashil').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0);
     const flatFallback = doc.buildings.filter(b => (b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir') && !roofParts(b.footprint.map(fr.toLocal), b.roof)).length;
     const roofSt: HTMLElement[] = [];
-    if (solar > 0) roofSt.push(h('div', { class: 'frow static' }, h('span', { class: 'grow col' }, h('b', {}, 'Quyosh panellari'), h('small', { class: 'muted' }, `taxmin: tomning ${PV.cover * 100} %, ${PV.kwpPerM2} kWp/m², ~${PV.yield} kWh/kWp`)), h('span', { class: 'chip', 'data-s': 'pass' }, `${fmt(pv.kwp)} kWp · ~${fmt(pv.mwh)} MWh/yil`)));
-    if (green > 0) roofSt.push(h('div', { class: 'frow static' }, h('span', { class: 'grow col' }, h('b', {}, 'Yashil tomlar'), h('small', { class: 'muted' }, 'yashil maydon hisobiga alohida koʻrsatiladi')), h('span', { class: 'chip', 'data-s': 'pass' }, `${fmt(green)} m²`)));
-    if (flatFallback > 0) roofSt.push(h('div', { class: 'frow static' }, h('span', { class: 'grow col' }, h('b', {}, 'Qiya tom qurilmadi'), h('small', { class: 'muted' }, `${flatFallback} ta murakkab shakldagi seksiyada — tekis koʻrsatiladi`)), h('span', { class: 'chip', 'data-s': 'review' }, String(flatFallback))));
-    body.append(h('div', { class: 'lb' }, 'Tekshiruv'), h('div', { class: 'flist', id: 'facCheck' }, ...chk, roofSt.length ? h('div', { id: 'roofSt' }, ...roofSt) : ''),
-      h('p', { class: 'note' }, 'Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina. Meʼyor: SanQvaN 0331-16, 8.2, 8.7, 8.10–8.11, 9.2, 9.3-bandlar.'));
+    if (solar > 0) roofSt.push(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Quyosh panellari'), h('span', { class: 'sub' }, `${tr('taxmin')}: ${tr('tomning')} ${PV.cover * 100} %, ${PV.kwpPerM2} kWp/m², ~${PV.yield} kWh/kWp`)), ch('ok', `${fmt(pv.kwp)} kWp · ~${fmt(pv.mwh)} MWh/yil`)));
+    if (green > 0) roofSt.push(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Yashil tomlar'), h('span', { class: 'sub' }, tr('yashil maydon hisobiga alohida koʻrsatiladi'))), ch('ok', `${fmt(green)} m²`)));
+    if (flatFallback > 0) roofSt.push(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qiya tom qurilmadi'), h('span', { class: 'sub' }, `${flatFallback} ${tr('ta murakkab shakldagi seksiyada — tekis koʻrsatiladi')}`)), ch('warn', String(flatFallback))));
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Tekshiruv'))), h('div', { class: 'group', id: 'facCheck' }, ...chk, roofSt.length ? h('div', { id: 'roofSt', style: 'display:contents' }, ...roofSt) : ''),
+      h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Fasad koʻrinishi haqida')), h('div', {}, tr('Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina. Meʼyor: SanQvaN 0331-16, 8.2, 8.7, 8.10–8.11, 9.2, 9.3-bandlar.'))));
   }
 
   private aptMode: 'insol' | 'west' = 'insol';
@@ -1428,91 +1416,92 @@ export class Editor {
   private socialSection(i: number): HTMLElement | '' {
     const t = this.socTarget(i); if (!t) return '';
     const S = SOCIAL[t.use], b = this.plan().blocks[i], key = `${b.parcelId ?? b.labelId ?? String(i)}|${b.use}`;
-    const cap = h('input', { type: 'number', min: 10, max: 5000, step: 10, value: t.cap, id: 'socCap', style: 'width:6em' }) as HTMLInputElement;
-    cap.onchange = () => { this.socCap[key] = Math.max(10, Number(cap.value) || t.cap); this.renderPanel(); };
-    const m2 = h('input', { type: 'number', min: 4, max: 40, step: 0.5, value: this.socM2[t.use], id: 'socM2', style: 'width:5em' }) as HTMLInputElement;
-    m2.onchange = () => { this.socM2[t.use] = Math.max(4, Number(m2.value) || S.m2); this.renderPanel(); };
-    return h('div', { class: 'field soc', id: 'socBox' }, h('span', { class: 'lb' }, `${S.name} — avtomat`),
-      h('div', { class: 'balance' },
-        h('div', { class: 'brow' }, h('span', {}, `Ehtiyoj (loyiha aholisi, stat.uz)`), h('b', { class: 'num' }, t.demand ? `${fmt(t.demand)} ${S.unit}` : '—')),
-        h('div', { class: 'brow' }, h('span', {}, t.use === 'maktab' ? 'Parsel sigʻimi (41-jadval)' : t.use === 'mtm' ? 'Parsel sigʻimi (543-band)' : 'Parsel sigʻimi (45-jadval, taxmin)'), h('b', { class: 'num' }, `${fmt(t.plot)} ${S.unit}`))),
-      h('label', { class: 'row', style: 'font-size:12.5px' }, h('span', { class: 'grow' }, `Sigʻim, ${S.unit}`), cap),
-      h('div', { class: 'typos', role: 'group', 'aria-label': 'Modul' }, ...S.modules.map(m => { const bt = h('button', { class: 'typo', 'data-mod': m.id, 'aria-pressed': this.socMod[t.use] === m.id, title: m.note, onclick: () => { this.socMod[t.use] = m.id; this.renderPanel(); } }); bt.append(svgIcon(MOD_ICON[m.id]), h('span', {}, m.name)); return bt; })),
-      h('p', { class: 'note' }, S.modules.find(m => m.id === this.socMod[t.use])!.note),
-      h('div', { class: 'row' }, h('label', { class: 'row', style: 'font-size:12.5px' }, 'm²/', S.unit.split('/')[0], m2),
-        h('div', { class: 'stp', style: 'grid-template-columns:auto 28px 30px 28px' }, h('span', {}, 'Qavat'), h('button', { disabled: this.socFloors[t.use] <= 1, onclick: () => { this.socFloors[t.use]--; this.renderPanel(); } }, '−'), h('b', { id: 'socFl' }, String(this.socFloors[t.use])), h('button', { disabled: this.socFloors[t.use] >= S.maxFloors, onclick: () => { this.socFloors[t.use]++; this.renderPanel(); } }, '+'))),
-      h('p', { class: 'note' }, `Qizil chiziqdan ${t.use === 'poliklinika' ? '6' : '25'} m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — taxmin (ShNQ 2.08.02-23 da maktab va MTM binosi maydoni berilmagan; xalqaro va MDH tipik loyihalari oraligʻi).`));
+    const unit0 = S.unit.split('/')[0];
+    return h('div', { class: 'col soc', id: 'socBox' }, h('div', { class: 'glabel' }, h('span', {}, `${S.name} — ${tr('avtomat')}`)),
+      h('div', { class: 'group' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Ehtiyoj'), h('span', { class: 'sub' }, tr('loyiha aholisi, stat.uz'))), h('span', { class: 'v' }, t.demand ? `${fmt(t.demand)} ${S.unit}` : '—')),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Parsel sigʻimi'), h('span', { class: 'sub' }, t.use === 'maktab' ? '41-jadval' : t.use === 'mtm' ? '543-band' : '45-jadval, taxmin')), h('span', { class: 'v' }, `${fmt(t.plot)} ${S.unit}`)),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Sigʻim'), h('span', { class: 'sub' }, S.unit)), stepper({ id: 'socCap', label: `${tr('Sigʻim')}, ${S.unit}`, min: 10, max: 5000, step: 10, value: t.cap, onchange: v => { this.socCap[key] = Math.max(10, v); this.renderPanel(); } })),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, `m² / ${unit0}`), stepper({ id: 'socM2', label: `m²/${unit0}`, min: 4, max: 40, step: 0.5, value: this.socM2[t.use], onchange: v => { this.socM2[t.use] = Math.max(4, v); this.renderPanel(); } })),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qavat'), h('span', { class: 'sub' }, `1–${S.maxFloors}`)), stepper({ id: 'socFl', label: tr('Qavat'), min: 1, max: S.maxFloors, step: 1, value: this.socFloors[t.use], onchange: v => { this.socFloors[t.use] = v; this.renderPanel(); } }))),
+      h('div', { class: 'glabel' }, h('span', {}, `${tr('Modul')} · ${S.name.toLowerCase()}`)),
+      h('div', { class: S.modules.length > 2 ? 'tiles' : 'tiles c2', role: 'group', 'aria-label': tr('Modul') }, ...S.modules.map(m => h('button', { class: 'tile', 'data-mod': m.id, 'aria-pressed': this.socMod[t.use] === m.id, title: m.note, onclick: () => { this.socMod[t.use] = m.id; this.renderPanel(); }, html: pg('soc', m.id) + `<span>${m.name}</span>` }))),
+      h('span', { class: 't-small' }, S.modules.find(m => m.id === this.socMod[t.use])!.note),
+      h('span', { class: 't-small' }, tf('Qizil chiziqdan ${t.use === \'poliklinika\' ? \'6\' : \'25\'} m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — taxmin (ShNQ 2.08.02-23 da maktab va MTM binosi maydoni berilmagan; xalqaro va MDH tipik loyihalari oraligʻi).', { "t.use === 'poliklinika' ? '6' : '25'": t.use === 'poliklinika' ? '6' : '25' })));
   }
 
+  /* ===== 6-qadam: Hajmlar (MR-Q2) ===== */
   private hajmPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), plan = this.plan(), g = this.gen;
     if (this.selBlock != null && !plan.blocks[this.selBlock]) this.selBlock = null;
-    const num = (id: string, label: string, v: number, min: number, max: number, step: number, set: (x: number) => void) => {
-      const inp = h('input', { type: 'number', id, min, max, step, value: v }) as HTMLInputElement;
-      inp.onchange = () => { const x = Number(inp.value); if (Number.isFinite(x)) set(Math.max(min, Math.min(max, x))); this.renderPanel(); };
-      return h('label', { class: 'field grow' }, h('span', { class: 'lb' }, label), inp);
-    };
-    body.append(h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartal'),
-      h('select', { id: 'genBlock', onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
-        h('option', { value: '' }, '— sahnada bosing yoki tanlang —'),
-        ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; }))));
+    const stp = (id: string, k: string, sub: string, v: number, min: number, max: number, step: number, set: (x: number) => void, unit?: string) =>
+      h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), stepper({ id, label: k, min, max, step, value: v, unit, onchange: x => { set(x); this.renderPanel(); } }));
+    body.append(h('select', { class: 'select', id: 'genBlock', 'aria-label': tr('Kvartal'), onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
+        h('option', { value: '' }, tr('— sahnada bosing yoki tanlang —')),
+        ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; })),
+      h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')));
+    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(tf('${n} seksiya generatsiya qilindi', { n })); } }, tr('Hammasi'));
+    const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
     if (socI != null) {
       body.append(this.socialSection(socI),
-        h('div', { class: 'row' }, h('button', { class: 'btn primary grow', id: 'genGo', onclick: () => this.generateSocial(socI) }, 'Joylashtirish'),
-          h('button', { class: 'btn', id: 'genAll', title: 'Barcha kvartallar', onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(`${n} seksiya generatsiya qilindi`); } }, 'Hammasi'),
-          h('button', { class: 'btn', id: 'genClear', onclick: () => { const u = plan.blocks[socI], lab = this.blockLabel(socI); if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, 'Tozalash')));
-      if (this.genNotes.length) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
-    } else body.append(
-      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Tipologiya'),
-        h('div', { class: 'typos', role: 'group', 'aria-label': 'Tipologiya' }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => { const b = h('button', { class: 'typo', 'aria-pressed': g.typology === k, 'data-typ': k, title: TYPO_NAME[k], onclick: () => { g.typology = k; this.renderPanel(); } }); b.append(svgIcon(TYPO_ICON[k]), h('span', {}, TYPO_SHORT[k])); return b; }))),
-      (() => {
-        const far = h('input', { type: 'range', min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', style: 'width:100%' }) as HTMLInputElement, ft = h('b', { class: 'num' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : 'oʻchiq');
-        far.oninput = () => { g.far = Number(far.value); ft.textContent = g.far > 0 ? fmt(g.far, 1) : 'oʻchiq'; };
-        return h('div', { class: 'field' }, h('div', { class: 'row' }, h('span', { class: 'grow', style: 'font-size:13px' }, 'Maqsadli UMN (FAR)'), ft), far,
-          h('span', { class: 'note' }, g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'));
-      })(),
-      h('div', { class: 'row' }, num('gMax', 'Qavat, eng koʻp', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }), num('gMin', 'eng kam', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); })),
-      h('div', { class: 'row' }, num('gDepth', 'Chuqurlik, m', g.depth, 9, 24, 0.5, x => { g.depth = x; }), num('gLen', 'Seksiya, m', g.secLen, 15, 60, 1, x => { g.secLen = x; }), num('gSet', 'Chekinish, m', g.setback, 0, 20, 0.5, x => { g.setback = x; })),
-      ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('label', { class: 'row', style: 'font-size:13px' }, (() => { const c = h('input', { type: 'checkbox', checked: g.passages, id: 'gPass' }) as HTMLInputElement; c.onchange = () => { g.passages = c.checked; }; return c; })(), 'Har ~100 m da hovliga oʻtish (6 m)') : '',
-      ['minora', 'blok_minora', 'avto'].includes(g.typology) ? h('div', { class: 'row' }, num('gTower', 'Minora qavati', g.towerF ?? 16, 9, 60, 1, x => { g.towerF = x; })) : '',
-      h('div', { class: 'row' }, num('gSty', 'Stilobat, qavat', g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; }), num('gPL', 'Yer osti, sath', g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })),
-      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Parkovka'), h('div', { class: 'seg full', role: 'group' }, ...(Object.keys(PARK_NAME) as ParkingKind[]).map(k => h('button', { 'aria-pressed': (g.parking ?? 'yoq') === k, 'data-park': k, onclick: () => { g.parking = k; this.renderPanel(); } }, PARK_NAME[k])))),
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { if (this.selBlock != null) this.generateBlock(this.selBlock); } }, 'Generatsiya'),
-        h('button', { class: 'btn', id: 'genAll', title: 'Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi', onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(`${n} seksiya generatsiya qilindi`); } }, 'Hammasi'),
-        h('button', { class: 'btn', id: 'genClear', disabled: this.selBlock == null, onclick: () => { const u = this.selBlock != null ? plan.blocks[this.selBlock] : null, lab = this.selBlock != null ? this.blockLabel(this.selBlock) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, 'Tozalash')));
-    if (socI == null && (this.genNotes.length || this.genFar != null)) body.append(h('div', { class: 'warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `Parsel UMN: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
-    // tanlangan bino / seksiya
-    const sel = doc.buildings.find(b => b.id === this.sel);
-    const gens = doc.buildings.filter(b => b.gen).length;
-    body.append(h('div', { class: 'ctxst', id: 'bldSt' }, h('b', {}, `${doc.buildings.length} bino/seksiya`), gens ? ` · shundan generatsiya ${gens}` : '', h('br'), h('span', { class: 'muted' }, 'Seksiyani sahnada bosing — qavatini oʻzgartiring yoki oʻchiring.')));
+        h('div', { class: 'row' }, h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => this.generateSocial(socI) }, tr('Joylashtirish')), allBtn(), clearBtn(socI)));
+      if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
+    } else {
+      const ft = h('b', { class: 'num', style: 'min-width:48px;text-align:right' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : tr('oʻchiq'));
+      body.append(
+        h('div', { class: 'glabel' }, h('span', {}, tr('Tipologiya')), h('span', {}, `${Object.keys(TYPO_NAME).length} ta`)),
+        h('div', { class: 'tiles', role: 'group', 'aria-label': tr('Tipologiya') }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, title: tr(TYPO_NAME[k]), onclick: () => { g.typology = k; this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }))),
+        h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Maqsadli UMN (FAR)')), h('div', { class: 'grow' }, range({ min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', 'aria-label': tr('Maqsadli UMN (FAR)'), oninput: v => { g.far = v; ft.textContent = v > 0 ? fmt(v, 1) : tr('oʻchiq'); } })), ft),
+        h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)')),
+        h('div', { class: 'group' },
+          stp('gMax', tr('Qavat, eng koʻp'), '1–40', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }),
+          stp('gMin', tr('eng kam'), '1–40', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); }),
+          stp('gDepth', tr('Chuqurlik'), '9–24 m', g.depth, 9, 24, 0.5, x => { g.depth = x; }, 'm'),
+          stp('gLen', tr('Seksiya uzunligi'), '15–60 m', g.secLen, 15, 60, 1, x => { g.secLen = x; }, 'm'),
+          stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm'),
+          stp('gSty', tr('Stilobat'), tr('qavat'), g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; }),
+          stp('gPL', tr('Yer osti'), tr('sath'), g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })),
+        ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Har ~100 m da hovliga oʻtish (6 m)')), sw({ id: 'gPass', label: tr('Har ~100 m da hovliga oʻtish (6 m)'), on: g.passages, onchange: v => { g.passages = v; } }))) : '',
+        ['minora', 'blok_minora', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, stp('gTower', tr('Minora qavati'), '9–60', g.towerF ?? 16, 9, 60, 1, x => { g.towerF = x; })) : '',
+        h('div', { class: 'glabel' }, h('span', {}, tr('Parkovka'))),
+        h('div', { class: 'tiles c4', role: 'group', 'aria-label': tr('Parkovka') }, ...(Object.keys(PARK_NAME) as ParkingKind[]).map(k => h('button', { class: 'tile', 'aria-pressed': (g.parking ?? 'yoq') === k, 'data-park': k, onclick: () => { g.parking = k; this.renderPanel(); }, html: pg('park', k) + `<span>${tr(PARK_NAME[k])}</span>` }))),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { if (this.selBlock != null) this.generateBlock(this.selBlock); } }, tr('Variant taklif qil')),
+          allBtn(), clearBtn(this.selBlock)));
+      if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
+    }
+    // binolar soni va tanlangan seksiya
+    const sel = doc.buildings.find(b => b.id === this.sel), gens = doc.buildings.filter(b => b.gen).length;
+    body.append(h('div', { class: 'group' }, h('div', { class: 'li', id: 'bldSt' }, h('span', { class: 'k' }, h('b', {}, `${doc.buildings.length} ${tr('bino/seksiya')}`), gens ? ` · ${tr('shundan generatsiya')} ${gens}` : '', h('span', { class: 'sub' }, tr('Seksiyani sahnada bosing — qavatini oʻzgartiring yoki oʻchiring.'))))));
     if (sel) {
+      // (amalda koʻrinmaydi — bino tanlanganda inspektor panelni egallaydi; kelajakdagi «Loyiha bosqichlari» uchun saqlanadi)
       const kind = sel.gen ? (({ burchak: 'Burchak seksiyasi', oddiy: 'Oddiy seksiya', qator: 'Qator seksiyasi', uy: 'Yakka uy', taunhaus: 'Taunhaus', villa: 'Villa', minora: 'Minora', stilobat: 'Stilobat' } as Record<string, string>)[sel.gen.kind] ?? 'Seksiya') : 'Bino';
-      body.append(h('div', { class: 'list' }, h('div', { class: 'it', 'aria-selected': true, 'data-bid': sel.id },
-        h('span', { class: 'grow' }, `${kind} · ${sel.floors} qavat${sel.nonRes ? ` (${sel.nonRes} noturar)` : ''}`),
-        h('button', { title: 'Qavat −', id: 'flMinus', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.id, patch: { floors: sel.floors - 1 } }, 'fl-' + sel.id)) }, '−'),
-        h('button', { title: 'Qavat +', id: 'flPlus', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.id, patch: { floors: sel.floors + 1 } }, 'fl-' + sel.id)) }, '+'),
-        h('button', { title: 'Oʻchirish', onclick: () => this.store.dispatch({ type: 'removeBuilding', id: sel.id }) }, svgIcon(IC.x)))));
+      body.append(h('div', { class: 'group' }, h('div', { class: 'li', 'aria-selected': true, 'data-bid': sel.id },
+        h('span', { class: 'k' }, `${tr(kind)} · ${sel.floors} ${tr('qavat')}${sel.nonRes ? ` (${sel.nonRes} ${tr('noturar')})` : ''}`),
+        h('button', { class: 'btn btn-sm icon-btn', title: tr('Qavat −'), 'aria-label': tr('Qavat −'), id: 'flMinus', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.id, patch: { floors: sel.floors - 1 } }, 'fl-' + sel.id)) }, '−'),
+        h('button', { class: 'btn btn-sm icon-btn', title: tr('Qavat +'), 'aria-label': tr('Qavat +'), id: 'flPlus', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.id, patch: { floors: sel.floors + 1 } }, 'fl-' + sel.id)) }, '+'),
+        h('button', { class: 'btn btn-sm icon-btn btn-ghost', title: tr('Oʻchirish'), 'aria-label': tr('Oʻchirish'), onclick: () => this.store.dispatch({ type: 'removeBuilding', id: sel.id }) }, svgIcon(IC.x)))));
     }
     // qoʻlda chizish
-    const fl = h('input', { type: 'number', min: 1, max: 60, value: this.floors, id: 'fl' }) as HTMLInputElement;
-    const nr = h('input', { type: 'number', min: 0, max: 10, value: this.nonRes, id: 'nr' }) as HTMLInputElement;
+    const fl = h('input', { type: 'number', class: 'input', min: 1, max: 60, value: this.floors, id: 'fl', 'aria-label': tr('Qavatlar') }) as HTMLInputElement;
+    const nr = h('input', { type: 'number', class: 'input', min: 0, max: 10, value: this.nonRes, id: 'nr', 'aria-label': tr('Noturar pastki') }) as HTMLInputElement;
     fl.onchange = () => { this.floors = Math.max(1, Math.min(60, Math.round(Number(fl.value) || 1))); };
     nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
     const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm';
-    body.append(h('details', { class: 'manual', open: drawing || drawingP || !gens }, h('summary', {}, 'Qoʻlda bino chizish'),
-      h('div', { class: 'row' }, h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Qavatlar'), fl), h('label', { class: 'field grow' }, h('span', { class: 'lb' }, 'Noturar pastki'), nr)),
-      h('div', { class: 'row' },
-        h('button', { class: drawing ? 'btn primary grow' : 'btn grow', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
-          this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
-          this.el.hint.textContent = this.tool?.hint ?? '';
-        }, toast)) }, ...(drawing ? ['Toʻxtatish'] : icl(IC.plus, 'Toʻrtburchak'))),
-        h('button', { class: drawingP ? 'btn primary grow' : 'btn grow', id: 'drawPoly', title: 'Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish', onclick: () => drawingP ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
-          this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
-          this.setTool(new PolygonTool(this.scene, r2 => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r2.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); }, toast, 20));
-        }, toast, 20)) }, ...(drawingP ? ['Toʻxtatish'] : icl(IC.plus, 'Erkin shakl')))),
-      h('p', { class: 'note' }, 'Uchlar va qirralarga yopishadi (Shift — oʻchiq). Kesma uzunligi chiziqda koʻrinadi.')));
+    body.append(h('details', { class: 'how manual', open: drawing || drawingP || !gens }, h('summary', {}, svgIcon(IC.pencil), tr('Qoʻlda bino chizish')),
+      h('div', { class: 'col' },
+        h('div', { class: 'row2' }, h('div', { class: 'field' }, h('label', {}, tr('Qavatlar')), fl), h('div', { class: 'field' }, h('label', {}, tr('Noturar pastki')), nr)),
+        h('div', { class: 'row' },
+          h('button', { class: drawing ? 'btn btn-primary grow' : 'btn grow', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
+            this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
+            this.el.hint.textContent = this.tool?.hint ?? '';
+          }, toast)) }, ...(drawing ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Toʻrtburchak')))),
+          h('button', { class: drawingP ? 'btn btn-primary grow' : 'btn grow', id: 'drawPoly', title: tr('Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish'), onclick: () => drawingP ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
+            this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
+            this.setTool(new PolygonTool(this.scene, r2 => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r2.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); }, toast, 20));
+          }, toast, 20)) }, ...(drawingP ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Erkin shakl'))))),
+        h('span', { class: 't-small' }, tr('Uchlar va qirralarga yopishadi (Shift — oʻchiq). Kesma uzunligi chiziqda koʻrinadi.')))));
   }
 
   /* ---------- 2-bosqich: koʻchalar, parsellar, yashil ---------- */
@@ -2054,31 +2043,32 @@ export class Editor {
         h('span', { class: 't-small' }, tr('Bu baholovchi xulosasi emas (OʻRQ-781, 29-modda: qiymatni baholovchi tashkilot belgilaydi).') + ' ' + tr('Bozor qiymati — eʼlonlardagi soʻralgan narx yoki kiritilgan qiymat × maydon; maydon OSM dogʻi va balandligidan taxmin') + `, ${tr('kvartirada')} ×${fmt(c.flatNet, 2)}. ` + tr('Yerga boʻlgan huquq va dov-daraxtlar alohida hisoblanmagan (hovli narxida yer bor). Yangi uy 24 oydan kechiksa — kuniga 0,05 % penya (781: 24-modda; 1149: 43–44-moddalar). OʻRQ-1149 12.12.2026 dan kuchga kiradi; avariya uyi uchun 4/5 rozilik shart emas (36-modda).')))));
   }
 
+  /* ===== 5-qadam: Yashil karkas (MR-Q2) ===== */
   private yashilPanel(body: HTMLElement): void {
     const plan = this.plan(), d = this.last?.d, doc = this.store.doc, R = (id: string) => this.last?.results.find(r => r.id === id);
-    const chip = (id: string, t: string) => { const r = R(id); return r ? h('span', { class: 'chip', 'data-s': r.status, title: r.note ?? '' }, t) : ''; };
-    const row = (k: string, v: string, c: HTMLElement | string = '') => h('div', { class: 'brow' }, h('span', {}, k), h('b', { class: 'num' }, v), c);
-    const yt = h('input', { type: 'checkbox', checked: doc.settings.yards, id: 'yardsOn' }) as HTMLInputElement;
-    yt.onchange = () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: yt.checked } }));
+    const chip = (id: string, t: string) => { const r = R(id); if (!r) return ''; const c = r.status === 'pass' ? 'ok' : r.status === 'fail' ? 'bad' : r.status === 'review' ? 'warn' : 'na'; return h('span', { class: `chip ${c}`, 'data-s': r.status, title: r.note ?? '' }, h('i'), t); };
+    const row = (k: string, sub: string, v: string, c: HTMLElement | string = '') => h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), h('span', { class: 'v' }, v), c);
+    const share = (d?.greenShareTotal ?? 0) * 100;
     body.append(
-      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Yashillik balansi'),
-        h('div', { class: 'balance', id: 'greenSt' },
-          row('Yashil kvartallar (park, skver)', `${fmt(d?.greenArea ?? 0)} m²`),
-          row('Hovlilar maysasi', `${fmt(d?.yardGreen ?? 0)} m²`),
-          row('Maydonchalar va yoʻlaklar (87-band)', `${fmt(d?.yardPlay ?? 0)} m²`),
-          row('Yashillik darajasi', `${fmt((d?.greenShareTotal ?? 0) * 100, 0)} %`, chip('green-86', '86-band: ≥ 25 %')),
-          row('Umumiy foydalanish, kishi boshiga', d?.population ? `${fmt(d.greenPerPerson, 1)} m²` : '—', chip('green-36', '36-jadval: ≥ 3')),
-          row('Hovli maydonchalari', d?.playNeed ? `${fmt(d.playGot)} / ${fmt(d.playNeed)} m²` : '—', chip('play-89', '4-jadval')),
-          row('Daraxtlar: hovlida / koʻchada', `${fmt(d?.yardTrees ?? 0)} / ${fmt(this.streetTrees())}`),
-          d?.greenRoof ? row('Yashil tomlar (hisobga kirmaydi)', `${fmt(d.greenRoof)} m²`) : '')),
-      h('label', { class: 'row', style: 'font-size:13px' }, yt, 'Hovlilarni avtomatik obodonlashtirish: trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'),
-      h('div', { class: 'field' }, h('span', { class: 'lb' }, 'Kvartalni yashil qilish / qaytarish'),
-        h('div', { class: 'list' }, ...plan.blocks.map((b, i) => {
-          const c = h('input', { type: 'checkbox', checked: b.use === 'yashil', 'data-green': i }) as HTMLInputElement;
-          c.onchange = () => this.setBlockUse(i, c.checked ? 'yashil' : 'turar');
-          return h('label', { class: 'it' }, c, h('span', { class: 'grow' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`), h('small', { class: 'muted' }, useDef(b.use).name));
-        }))),
-      h('p', { class: 'note' }, 'Hovlilar: binolar atrofida 3 m trotuar; 4-jadval maydonchalari binolardan meʼyoriy masofada (bolalar ≥ 10 m, kattalar ≥ 6, sport ≥ 10, xoʻjalik ≥ 20); qolgani maysa, daraxtlar binodan ≥ 5 m. Bu eskiz — joylashuvni loyihachi aniqlaydi.'));
+      h('div', { class: 'group flat', style: 'padding:12px;display:flex;flex-direction:column;gap:8px' },
+        h('div', { class: 'row' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', {}, `${fmt(share, 0)} %`), h('span', {}, tr('Yashillik darajasi'))), chip('green-86', `${tr('meʼyor')} ≥ 25 %`)),
+        h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, share)}%;background:${share >= 25 ? 'var(--ok)' : 'var(--bad)'}` }), h('b', { style: 'left:25%' })),
+        h('span', { class: 'norm' }, svgIcon(IC.book), 'ShNQ 2.07.01-23 · 86-band')),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Yashillik balansi'))),
+      h('div', { class: 'group', id: 'greenSt' },
+        row(tr('Yashil kvartallar (park, skver)'), '', `${fmt(d?.greenArea ?? 0)} m²`),
+        row(tr('Hovlilar maysasi'), '', `${fmt(d?.yardGreen ?? 0)} m²`),
+        row(tr('Maydonchalar va yoʻlaklar (87-band)'), '', `${fmt(d?.yardPlay ?? 0)} m²`),
+        row(tr('Umumiy foydalanish, kishi boshiga'), '36-jadval', d?.population ? `${fmt(d.greenPerPerson, 1)} m²` : '—', chip('green-36', '≥ 3')),
+        row(tr('Hovli maydonchalari'), '4-jadval', d?.playNeed ? `${fmt(d.playGot)} / ${fmt(d.playNeed)} m²` : '—', chip('play-89', '4-jadval')),
+        row(tr('Daraxtlar: hovlida / koʻchada'), '', `${fmt(d?.yardTrees ?? 0)} / ${fmt(this.streetTrees())}`),
+        d?.greenRoof ? row(tr('Yashil tomlar (hisobga kirmaydi)'), '', `${fmt(d.greenRoof)} m²`) : ''),
+      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Hovlilarni avtomatik obodonlashtirish'), h('span', { class: 'sub' }, tr('trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'))),
+        sw({ id: 'yardsOn', label: tr('Hovlilarni avtomatik obodonlashtirish: trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'), on: doc.settings.yards, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: v } })) }))),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Kvartalni yashil qilish / qaytarish')), h('span', {}, tr('yoqilsa — Park / bogʻ'))),
+      h('div', { class: 'group' }, ...plan.blocks.map((b, i) => h('div', { class: 'li' }, h('span', { class: 'k' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, h('span', { class: 'sub' }, useDef(b.use).name)),
+        sw({ 'data-green': i, label: `${this.unitName(i)} — ${tr('Park / bogʻ')}`, on: b.use === 'yashil', onchange: v => this.setBlockUse(i, v ? 'yashil' : 'turar') })))),
+      h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Hovli qanday tuziladi')), h('div', {}, tr('Hovlilar: binolar atrofida 3 m trotuar; 4-jadval maydonchalari binolardan meʼyoriy masofada (bolalar ≥ 10 m, kattalar ≥ 6, sport ≥ 10, xoʻjalik ≥ 20); qolgani maysa, daraxtlar binodan ≥ 5 m. Bu eskiz — joylashuvni loyihachi aniqlaydi.'))));
   }
   private streetTrees(): number {
     const doc = this.store.doc, fr = frame(doc.origin);
