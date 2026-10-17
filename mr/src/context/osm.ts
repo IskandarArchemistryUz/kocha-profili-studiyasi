@@ -5,7 +5,7 @@
  */
 import type { LngLat } from '../core/doc';
 
-export interface CtxBuilding { id: number; rings: LngLat[][]; h: number; hSrc: 'height' | 'levels' | 'taxmin'; kind: string }
+export interface CtxBuilding { id: number; rings: LngLat[][]; h: number; hSrc: 'height' | 'levels' | 'taxmin'; kind: string; /** uy raqami (addr:housenumber) */ num?: string }
 /** sub — highway=service uchun service=* (driveway, parking_aisle…): kvartal chegarasi boʻla oladimi */
 export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string; lanes?: number; oneway?: boolean; name?: string }
 export interface CtxArea { id: number; rings: LngLat[][]; kind: string }
@@ -179,7 +179,7 @@ export function parseOverpass(json: { elements?: OsmEl[] }): OsmData {
     const pts = e.type === 'way' ? toLL(e.geometry) : [];
     if (t.building && t.building !== 'no') {
       const { h, src } = buildingHeight(t);
-      areas(e, pts).forEach((rings, i) => d.buildings.push({ id: e.type === 'way' ? e.id : e.id * 100 + i, rings, h: src === 'taxmin' ? heightByArea(t.building, ringAreaM2(rings[0]), h) : h, hSrc: src, kind: t.building }));
+      areas(e, pts).forEach((rings, i) => d.buildings.push({ id: e.type === 'way' ? e.id : e.id * 100 + i, rings, h: src === 'taxmin' ? heightByArea(t.building, ringAreaM2(rings[0]), h) : h, hSrc: src, kind: t.building, ...(t['addr:housenumber'] ? { num: String(t['addr:housenumber']).slice(0, 12) } : {}) }));
       continue;
     }
     if (t.highway && e.type === 'way' && pts.length >= 2) { {

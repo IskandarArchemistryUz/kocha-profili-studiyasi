@@ -21,6 +21,8 @@ import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
 import { landscape } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
 import { USES, useDef } from '../core/uses';
+import { freeRect, modeMax, screenScale, mainAngle, type FreeRect, type LabelMode } from '../core/labels';
+import { tr } from '../i18n';
 
 export const ZONE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.color]));
 const tint = (c: number, k: number) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, f = (x: number) => Math.round(x + (255 - x) * k); return (f(r) << 16) | (f(g) << 8) | f(b); };
@@ -243,6 +245,12 @@ export class Scene3D {
     const b = doc.buildings.find(x => x.id === id); if (!b) return;
     const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), xs = r.map(p => p[0]), ys = r.map(p => p[1]);
     this.frameAt((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, Math.max(40, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), b.floors * doc.settings.floorHeight) * 1.6);
+  }
+
+  /** Halqa(lar)ga yaqinlashtirish (yer uchastkalari jadvalidan) */
+  frameRings(rings: XY[][]): void {
+    const pts = rings.flat(), xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    this.frameAt((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, Math.max(60, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 1.5);
   }
 
   /** Chizish asboblari uchun: sichqonchani chap tugma bilan surishni vaqtincha oʻchirish */
@@ -538,17 +546,8 @@ export class Scene3D {
         else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
       });
       rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
-      // kvartal / parsel yozuvi: nomi (K-2 yoki K-2.3), funksiyasi, maydoni — har koʻrinishda; kichik kvartalda (ekranda yozuvdan tor) yashiriladi
-      if (this.blockLabels) {
-        const idx = new Map<number, number>();
-        plan.blocks.forEach(b => {
-          const n = (idx.get(b.blockKey) ?? 0) + 1; idx.set(b.blockKey, n);
-          const name = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`;
-          const ar = b.area >= 2000 ? `${(b.area / 1e4).toFixed(2).replace('.', ',')} ga` : `${Math.round(b.area).toLocaleString('ru-RU')} m²`;
-          const sp = labelCard([name, useDef(b.use).name, ar]), c = interiorPoint(b.rings);
-          sp.position.set(c[0], this.H(c[0], c[1]) + 0.6, -c[1]); sp.userData.layer = 2; sp.userData.minExt = minExtent(b.rings[0]); this.world.add(sp);
-        });
-      }
+      // daha va yer uchastkasi yozuvlari (4.1): yerga yotadi, boʻsh joyda, masshtabga qarab qisqaradi; tanlanganida — oq kartochka
+      this.buildLabels(doc, plan, fr);
       // hovlilar: trotuar, maysa, yoʻlaklar, maydonchalar, daraxtlar
       if (doc.settings.yards) {
         const alb = this.album, plainS = st === 'arctic' || st === 'minimal';
@@ -711,7 +710,7 @@ export class Scene3D {
     if (this.floorLabels) doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal); if (area(r) < 40) return;
       const c = centroid(r), top = Math.min(...r.map(p => this.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh;
-      const sp = labelSprite(String((b.z0 ?? 0) + b.floors), true); sp.position.set(c[0], top + 2, -c[1]); this.world.add(sp);
+      const sp = labelSprite(String((b.z0 ?? 0) + b.floors), true); sp.position.set(c[0], top + 2, -c[1]); sp.userData.floorLbl = true; this.world.add(sp);
     });
     tag(3);
     this.applyExplode();
@@ -828,7 +827,7 @@ export class Scene3D {
     const adopted = [...doc.streets.filter(x => x.osm != null).map(x => x.osm!), ...(doc.removedRoads ?? [])];
     const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}` : '';
     if (key === this.ctxKey) return;
-    this.ctxKey = key;
+    this.ctxKey = key; this.bundle = b;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
     if (!b) { this.H = () => 0; this.grid.forEach(g => g.visible = !this.baseMap); this.ground.position.y = 0; this.update(doc); return; }
     const fr = frame(doc.origin);
@@ -902,6 +901,138 @@ export class Scene3D {
     const k = P.isOrthographicCamera ? (P.top - P.bottom) / (P.zoom || 1) / H : 2 / (P.projectionMatrix.elements[5] * H);
     const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) { o.scale.set(px[0] * k, px[1] * k, 1); const me = o.userData.minExt as number | undefined; if (me != null) o.visible = me / k >= px[0] * 0.85; } };
     this.world.children.forEach(fit); this.prev.children.forEach(fit); this.explodeLabels.forEach(fit);
+    this.fitLabels(cam, k);
+  }
+
+  /* ---------- xarita yozuvlari (inventar 4.1, maket «MR-Yozuvlar») ---------- */
+  /** «Daha va yer uchastkasi» rejimi: avtomatik yoki eng yuqori daraja */
+  labelMode: LabelMode = (() => { try { const v = localStorage.getItem('mr-labels'); return (['auto', 'full', 'codeArea', 'code', 'off'] as const).find(x => x === v) ?? 'auto'; } catch { return 'auto'; } })();
+  setLabelMode(m: LabelMode): void { this.labelMode = m; try { localStorage.setItem('mr-labels', m); } catch { /* */ } this.invalidate(); }
+  /** atrofdagi koʻcha nomlari (oʻq boʻylab) va binolar raqami (OSM) */
+  streetNames = true;
+  houseNums = false;
+  setStreetNames(on: boolean): void { this.streetNames = on; if (this.lastDoc) this.update(this.lastDoc); }
+  setHouseNums(on: boolean): void { this.houseNums = on; if (this.lastDoc) this.update(this.lastDoc); }
+  /** yozuvlar holati oʻzgarganda (masshtab, qisqargan yozuvlar) */
+  onLabels: ((s: LabelStats) => void) | null = null;
+  labelStats: LabelStats = { scale: 0, levels: [], short: 0, hidden: 0 };
+  private glabs: GLab[] = [];
+  private bundle: ContextBundle | null = null;
+  private glabKey = '';
+
+  private buildLabels(doc: Project, plan: ReturnType<typeof computePlan>, fr: ReturnType<typeof frame>): void {
+    this.glabs.forEach(g => Object.values(g.tex).forEach(t => t?.t.dispose())); this.glabs = []; this.glabKey = '';
+    const obst = doc.buildings.map(b => b.footprint.map(fr.toLocal));
+    const keep = new Set(doc.keep);
+    const kept = this.inSite.filter(b => keep.has(b.id)).map(b => b.rings[0]);
+    const idx = new Map<number, number>(), hasParcels = new Set(plan.blocks.filter(b => b.parcelId).map(b => b.blockKey));
+    const fmtA = (a: number) => a >= 2000 ? `${(a / 1e4).toFixed(2).replace('.', ',')} ga` : `${Math.round(a).toLocaleString('ru-RU')} m²`;
+    const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+    plan.blocks.forEach((b, i) => {
+      const n = (idx.get(b.blockKey) ?? 0) + 1; idx.set(b.blockKey, n);
+      const code = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`, use = tr(USE_LABEL[b.use] ?? useDef(b.use).name), ar = fmtA(b.area);
+      const halo = hex(tint(ZONE_COL[b.use] ?? C.site, 0.45));
+      if (i === this.selBlock) {
+        // tanlangan: oq kartochka — toʻliq + UMN, qavat
+        let gfa = 0, fl = 0;
+        doc.buildings.forEach(q => { const r = q.footprint.map(fr.toLocal), c = centroid(r); if (b.rings.some(rr => pointInRing(c, rr))) { gfa += area(r) * q.floors; fl = Math.max(fl, (q.z0 ?? 0) + q.floors); } });
+        const sp = labelCard([code, tr(useDef(b.use).name), ar, ...(gfa ? [`UMN ${(gfa / b.area).toFixed(2).replace('.', ',')} · ${fl} ${tr('qavat')}`] : [])]), c = interiorPoint(b.rings);
+        sp.position.set(c[0], this.H(c[0], c[1]) + 0.6, -c[1]); sp.userData.layer = 2; this.world.add(sp);
+      }
+      const rect = freeRect(b.rings, [...obst, ...kept]);
+      this.addGlab({ kind: 'block', block: i, daha: b.blockKey, rect, lines: { 1: [code], 2: [code, ar], 3: [code, use, ar] }, halo, hidden: i === this.selBlock });
+    });
+    // daha kodi: uchastkalarining hech biri koʻrinmaganda — eng katta uchastka joyida
+    for (const key of hasParcels) {
+      const bl = plan.blocks.map((b, i) => ({ b, i })).filter(x => x.b.blockKey === key).sort((a, c) => c.b.area - a.b.area)[0];
+      const g = this.glabs.find(q => q.kind === 'block' && q.block === bl.i);
+      this.addGlab({ kind: 'daha', block: -1, daha: key, rect: g?.rect ?? null, lines: { 1: [`D-${key + 1}`] }, halo: g?.halo ?? '#ffffff', hidden: false });
+    }
+    // atrofdagi koʻcha nomlari va uy raqamlari (OSM)
+    const B = this.bundle;
+    if (B && this.streetNames) {
+      const seen = new Set<string>(), removed = new Set([...doc.streets.filter(x => x.osm != null).map(x => x.osm!), ...(doc.removedRoads ?? [])]);
+      for (const r of B.osm.roads) {
+        if (!r.name || removed.has(r.id)) continue;
+        const pts = r.pts.map(fr.toLocal); let best = -1, L = 0;
+        for (let k = 1; k < pts.length; k++) { const l = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); if (l > L) { L = l; best = k; } }
+        if (best < 0 || L < 30) continue;
+        const a = pts[best - 1], c = pts[best], m: XY = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2], key = `${r.name}|${Math.round(m[0] / 120)}|${Math.round(m[1] / 120)}`;
+        if (seen.has(key) || Math.hypot(m[0], m[1]) > B.radius) continue; seen.add(key);
+        this.addGlab({ kind: 'street', block: -1, daha: null, rect: { c: m, w: L * 0.9, h: Math.max(6, r.w), ang: mainAngle([a, c]) }, lines: { 1: [r.name] }, halo: '#ffffff', hidden: false });
+      }
+    }
+    if (B && this.houseNums) {
+      const rm = new Set(doc.removed ?? []);
+      for (const q of B.osm.buildings) {
+        if (!q.num || rm.has(q.id)) continue;
+        const r = q.rings[0].map(fr.toLocal), c = centroid(r);
+        if (Math.hypot(c[0], c[1]) > B.radius) continue;
+        this.addGlab({ kind: 'num', block: -1, daha: null, rect: { c, w: minExtent(r) * 0.9, h: minExtent(r) * 0.9, ang: 0 }, lines: { 1: [q.num] }, halo: '#ffffff', hidden: false, z: q.h + 0.4 });
+      }
+    }
+  }
+
+  private addGlab(o: Omit<GLab, 'g' | 'mesh' | 'tex' | 'level'> & { z?: number }): void {
+    if (!o.rect) { this.glabs.push({ ...o, g: null, mesh: null, tex: {}, level: 0 }); return; }
+    const g = new THREE.Group(), mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 }));
+    mesh.rotation.x = -Math.PI / 2; mesh.renderOrder = 30; mesh.visible = false; g.add(mesh);
+    const c = o.rect.c; g.position.set(c[0], (o.z ?? 0) + this.H(c[0], c[1]) + 0.45, -c[1]); g.rotation.y = o.rect.ang;
+    g.userData.layer = o.kind === 'street' || o.kind === 'num' ? 0 : 2; g.userData.glab = o.kind;
+    this.world.add(g);
+    this.glabs.push({ ...o, g, mesh, tex: {}, level: 0 });
+  }
+
+  private glabTex(gl: GLab, lv: 1 | 2 | 3): { t: THREE.Texture; w: number; h: number } | null {
+    const lines = gl.lines[lv]; if (!lines) return null;
+    if (gl.tex[lv]) return gl.tex[lv]!;
+    const small = gl.kind === 'street' || gl.kind === 'num';
+    const font = (i: number) => small ? '500 22px Archivo, system-ui, sans-serif' : i === 0 ? '700 24px "IBM Plex Mono", ui-monospace, monospace' : i === lines.length - 1 && lines.length > 1 ? '500 22px "IBM Plex Mono", ui-monospace, monospace' : '500 22px Archivo, system-ui, sans-serif';
+    const lh = (i: number) => (!small && i === 0 ? 24 : 22), gap = 0.35 * 22, pad = 6;
+    const c = document.createElement('canvas'), x = c.getContext('2d')!;
+    let w = 0; lines.forEach((t, i) => { x.font = font(i); w = Math.max(w, x.measureText(t).width); });
+    c.width = Math.ceil(w) + pad * 2; c.height = Math.ceil(lines.reduce((s2, _t, i) => s2 + lh(i), 0) + gap * (lines.length - 1)) + pad * 2;
+    x.textAlign = 'center'; x.textBaseline = 'top'; x.lineJoin = 'round'; x.lineWidth = 6; x.strokeStyle = gl.halo; x.fillStyle = '#1d1d1b';
+    let y = pad; lines.forEach((t, i) => { x.font = font(i); x.strokeText(t, c.width / 2, y); x.fillText(t, c.width / 2, y); y += lh(i) + gap; });
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    gl.tex[lv] = { t, w: c.width / 2, h: c.height / 2 }; return gl.tex[lv]!;
+  }
+
+  /** Har kadrda: masshtab (m/px) boʻyicha daraja tanlash, oʻlchamni moslash; qavat raqamlari faqat ≥ 1:2000 da */
+  private fitLabels(cam: THREE.Camera, k: number): void {
+    const persp = !(cam as THREE.OrthographicCamera).isOrthographicCamera, cp = cam.position, v = new THREE.Vector3();
+    const scale = screenScale(persp ? k * cp.distanceTo(this.ctl.target) : k);
+    this.world.children.forEach(o => { if (o.userData.floorLbl) o.visible = scale <= 2000; });
+    const max = this.blockLabels ? modeMax(this.labelMode) : 0;
+    const levels: number[] = [];
+    const kk = (g: THREE.Object3D) => persp ? k * cp.distanceTo(g.getWorldPosition(v)) : k;
+    const place = (gl: GLab, lv: 0 | 1 | 2 | 3, kx: number) => {
+      gl.level = lv; if (!gl.mesh) return;
+      if (!lv) { gl.mesh.visible = false; return; }
+      const T = this.glabTex(gl, lv as 1 | 2 | 3)!, m = gl.mesh.material as THREE.MeshBasicMaterial;
+      if (m.map !== T.t) { m.map = T.t; m.needsUpdate = true; }
+      gl.mesh.scale.set(T.w * kx, T.h * kx, 1); gl.mesh.visible = true;
+    };
+    for (const gl of this.glabs) {
+      if (gl.kind !== 'block') continue;
+      let lv: 0 | 1 | 2 | 3 = 0;
+      if (gl.g && gl.rect && !gl.hidden) {
+        const kx = kk(gl.g);
+        for (let L = max; L >= 1; L--) { const T = this.glabTex(gl, L as 1 | 2 | 3); if (T && T.w * kx <= gl.rect.w && T.h * kx <= gl.rect.h) { lv = L as 1 | 2 | 3; break; } }
+        // qoʻlda tanlangan daraja sigʻmasa ham — eng kami kod (avtomatikda yashiriladi)
+        place(gl, lv, kx);
+      } else place(gl, 0, 1);
+      levels[gl.block] = gl.hidden ? 3 : lv;
+    }
+    for (const gl of this.glabs) {
+      if (gl.kind === 'block' || !gl.g || !gl.rect) continue;
+      const kx = kk(gl.g);
+      if (gl.kind === 'daha') { const any = this.glabs.some(q => q.kind === 'block' && q.daha === gl.daha && q.level > 0); const T = this.glabTex(gl, 1)!; place(gl, max && !any && T.w * kx <= gl.rect.w && T.h * kx <= gl.rect.h ? 1 : 0, kx); continue; }
+      const T = this.glabTex(gl, 1)!, lim = gl.kind === 'street' ? 5000 : 1500;
+      place(gl, scale <= lim && T.w * kx <= gl.rect.w && T.h * kx <= gl.rect.h * (gl.kind === 'street' ? 3 : 1) ? 1 : 0, kx);
+    }
+    const short = levels.filter(l => l < 3).length, hidden = levels.filter(l => l === 0).length, key = `${Math.round(scale / 100)}|${levels.join(',')}`;
+    if (key !== this.glabKey) { this.glabKey = key; this.labelStats = { scale, levels, short, hidden }; this.onLabels?.(this.labelStats); }
   }
 
   /* ---------- portlatilgan qatlamlar ---------- */
@@ -1174,6 +1305,11 @@ function solarTex(): THREE.CanvasTexture {
   solarT = new THREE.CanvasTexture(c); solarT.wrapS = solarT.wrapT = THREE.RepeatWrapping; solarT.repeat.set(0.5, 1); solarT.colorSpace = THREE.SRGBColorSpace;
   return solarT;
 }
+
+export interface LabelStats { scale: number; levels: number[]; short: number; hidden: number }
+interface GLab { kind: 'block' | 'daha' | 'street' | 'num'; block: number; daha: number | null; rect: FreeRect | null; lines: Partial<Record<1 | 2 | 3, string[]>>; halo: string; hidden: boolean; g: THREE.Group | null; mesh: THREE.Mesh | null; tex: Partial<Record<1 | 2 | 3, { t: THREE.Texture; w: number; h: number }>>; level: number }
+/** Yozuvdagi qisqa funksiya nomi (3-daraja) */
+const USE_LABEL: Record<string, string> = { turar: 'Turar joy', yakka: 'Yakka uylar', aralash: 'Aralash', maktab: 'Maktab', mtm: 'MTM', poliklinika: 'Poliklinika', ijtimoiy: 'Ijtimoiy', savdo: 'Savdo', ofis: 'Ofis', mehmonxona: 'Mehmonxona', sport: 'Sport', yashil: 'Park', maydon: 'Skver', avtoturargoh: 'Avtoturargoh', texnik: 'Muhandislik' };
 
 /** Matnli yorliq (ekranda doimiy oʻlchamda) */
 function labelSprite(text: string, badge = false): THREE.Sprite {

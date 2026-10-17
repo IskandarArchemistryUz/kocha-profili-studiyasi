@@ -544,3 +544,10 @@ details.manual{border-top:0;padding-top:0;display:block}
 .alb-floor[aria-pressed=true]{color:var(--surface)}
 [data-theme="dark"] .check.on svg{stroke:var(--surface)}
 [data-theme="dark"] .check.on svg{stroke:var(--surface)}
+/* xarita yozuvlari: masshtab chipi va qisqargan yozuvlar (4.1) */
+.lblbar{position:absolute;right:12px;bottom:76px;z-index:11;display:flex;align-items:center;gap:6px}
+.lblbar .chip{height:28px;padding:0 10px;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:var(--sh-float);font-family:var(--mono);font-size:12px;color:var(--ink)}
+.lblbar .btn{background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:var(--sh-float)}
+@media (max-width:1180px){.lblbar{bottom:132px}}
+#plotList .li{min-height:38px;font-size:13px}#plotList .mono{font-size:12px}
+.drawer[data-kind=plots]{top:76px;bottom:132px;width:340px;max-height:none}
