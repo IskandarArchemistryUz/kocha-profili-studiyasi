@@ -70,7 +70,7 @@ export function openAlbum(o: AlbumOpts): void {
     const groups = floorGroups(pl), tf = typFloor(pl);
     bar.replaceChildren(
       h('b', { class: 'alb-title' }, 'Qavat albomi'), h('span', { class: 'chip', style: 'background:var(--accent-soft)' }, o.name(pl, si)), h('small', { class: 'muted' }, `Varaq ${floor} / ${pl.f1} · ${FLOOR_NAME[ft]}`),
-      h('span', { class: 'sp' }),
+      h('span', { class: 'spacer' }),
       editable ? h('div', { class: 'seg', role: 'group', 'aria-label': 'Asbob' }, ...([['tanlash', 'Tanlash'], ['devor', 'Devor chizish']] as const).map(([k, t]) => h('button', { 'aria-pressed': mode === k, id: `albMode-${k}`, onclick: () => { mode = k; sel = []; selRoom = -1; msg = ''; render(); } }, t))) : '',
       h('button', { class: 'btn', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml') }, 'Reja — SVG'),
       h('button', { class: 'btn', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), plan: planOf(pl) }), 'image/svg+xml') }, 'Barcha qavatlar'),
@@ -131,7 +131,7 @@ export function openAlbum(o: AlbumOpts): void {
       msg ? h('p', { class: msgBad ? 'warn' : 'note', id: 'albMsg' }, msg) : h('p', { class: 'note', id: 'albMsg' }, bad.length ? `Qoida buzilgan: ${bad.map(c => c.title.toLowerCase()).join('; ')}` : 'Qoidalar bajarilgan: har kvartiraga koridordan eshik, deraza, yorugʻlik.'),
       h('span', { class: 'lb' }, 'Bino jami'),
       h('div', { class: 'alb-tot' }, h('div', {}, h('span', {}, 'Kvartiralar'), h('b', { class: 'num' }, fmt(allApts))), h('div', {}, h('span', {}, '1–2 xonali ulushi'), h('b', { class: 'num' }, `${allApts ? Math.round(small / allApts * 100) : 0} %`)), h('div', {}, h('span', {}, 'Seksiyalar'), h('b', { class: 'num' }, P.sections.length))),
-      h('span', { class: 'sp' }),
+      h('span', { class: 'spacer' }),
       h('div', { class: 'row' },
         btn('albUndo', 'Orqaga', () => { const hs = hist.get(bid); const p = hs?.pop(); if (p) { work.set(bid, p); dirty.add(bid); sel = []; render(); } }, !(hist.get(bid)?.length)),
         btn('albReset', 'Asl reja', () => { (hist.get(bid) ?? hist.set(bid, []).get(bid)!).push(planOf(pl)); work.set(bid, genOf(pl)); dirty.add(bid); sel = []; render(); }),

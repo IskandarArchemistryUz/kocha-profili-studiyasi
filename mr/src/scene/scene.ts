@@ -543,7 +543,7 @@ export class Scene3D {
         const idx = new Map<number, number>();
         plan.blocks.forEach(b => {
           const n = (idx.get(b.blockKey) ?? 0) + 1; idx.set(b.blockKey, n);
-          const name = b.parcelId ? `K-${b.blockKey + 1}.${n}` : `K-${b.blockKey + 1}`;
+          const name = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`;
           const ar = b.area >= 2000 ? `${(b.area / 1e4).toFixed(2).replace('.', ',')} ga` : `${Math.round(b.area).toLocaleString('ru-RU')} m²`;
           const sp = labelCard([name, useDef(b.use).name, ar]), c = interiorPoint(b.rings);
           sp.position.set(c[0], this.H(c[0], c[1]) + 0.6, -c[1]); sp.userData.layer = 2; sp.userData.minExt = minExtent(b.rings[0]); this.world.add(sp);
@@ -801,6 +801,8 @@ export class Scene3D {
   /** Markazga (0,0) qarab, radius `r` m ni koʻrsatish */
   frameRadius(r: number): void { if (r > 0) this.frameAt(0, 0, 2 * r); }
 
+  /** Ekranning panellar yopgan qismi (px): moslashda loyiha koʻrinadigan qismning markaziga qoʻyiladi */
+  viewInset = { left: 0, right: 0 };
   private frameAt(cx: number, cy: number, size: number): void {
     const t = new THREE.Vector3(cx, this.H(cx, cy), -cy), dist = size * 1.6;
     this.ctl.target.copy(t);
@@ -809,7 +811,15 @@ export class Scene3D {
       const dir = this.mode === 'plan' ? new THREE.Vector3(0, 1, 0.0001) : new THREE.Vector3(-1, 1.15, 1).normalize();
       this.ortho.position.copy(t).add(dir.multiplyScalar(3000)); this.ortho.userData.s = dist * 0.45; this.ortho.zoom = 1;
     }
-    this.resize(); this.ctl.update(); this.invalidate();
+    this.resize();
+    // chap/oʻng panellar ostida qolmasin: kamera va nishon ekran boʻylab (inset.left − inset.right) / 2 px ga suriladi
+    const shiftPx = (this.viewInset.left - this.viewInset.right) / 2, hpx = this.host.clientHeight || 1;
+    if (Math.abs(shiftPx) > 1) {
+      const cam = this.cam, wpp = cam === this.ortho ? 2 * ((this.ortho.userData.s as number) || 200) / hpx : 2 * dist * Math.tan(this.persp.fov * Math.PI / 360) / hpx;
+      const fwd = new THREE.Vector3(); cam.getWorldDirection(fwd); const right = new THREE.Vector3().crossVectors(fwd, cam.up).normalize();
+      const d = right.multiplyScalar(-shiftPx * wpp); this.ctl.target.add(d); cam.position.add(d);
+    }
+    this.ctl.update(); this.invalidate();
   }
 
   /** Kontekstni oʻrnatish (null — olib tashlash). Loyiha markazi yoki koʻrinish sozlamalari oʻzgarsa qayta quriladi. */

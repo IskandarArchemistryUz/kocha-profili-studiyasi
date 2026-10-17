@@ -71,6 +71,8 @@ test('parsel burchagi tutqichdan suriladi', async ({ page }) => {
   await page.locator('#pSize').fill('1'); await page.click('[data-grid=ns]'); await page.click('#pSplit');
   await page.locator('[data-block="0"]').click();
   await expect(page.locator('#parcelEditHint')).toBeVisible();
+  await page.keyboard.press('Tab');   // panel yigʻiladi (Tab) — burchak tutqichi panel ostida qolmasin
+  await expect(page.locator('.panel.sp')).toHaveClass(/shut/);
   const v0 = await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), b = ed.plan().blocks[ed.selBlock], pc = ed.store.doc.parcels.find((p: any) => p.id === b.parcelId); return pc.rings[0].map((p: number[]) => [(p[0] - o[0]) * mx, (p[1] - o[1]) * 111132]); });
   // birinchi burchakni 10 m ichkariga (markaz tomon) surish
   const c = [v0.reduce((a: number, p: number[]) => a + p[0], 0) / v0.length, v0.reduce((a: number, p: number[]) => a + p[1], 0) / v0.length];

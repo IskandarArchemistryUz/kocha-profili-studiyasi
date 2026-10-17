@@ -1,7 +1,9 @@
 /**
  * Kirish nuqtasi: marshrutlash (#/ — loyihalar roʻyxati, #/p/<id> — loyiha oynasi).
  */
+import './ui/ds2.css';
 import './ui/style.css';
+import './ui/theme';
 import { blankProject, uid } from './core/doc';
 import { listProjects, getProject, putProject, deleteProject, importJSON, type ProjectMeta } from './storage/db';
 import { Editor } from './ui/editor';
@@ -53,7 +55,7 @@ async function home(): Promise<void> {
     list.length ? h('div', { class: 'cards', id: 'cards' }, ...list.map(p => h('a', { class: 'card', href: `#/p/${p.id}`, 'data-pid': p.id },
       h('b', {}, p.name), h('small', {}, `oʻzgargan: ${created(p.updated)}`),
       h('small', {}, `${p.hasSite ? 'uchastka bor' : 'uchastka yoʻq'} · ${p.buildings} bino`),
-      h('div', { class: 'row' }, h('span', { class: 'sp' }), h('button', { class: 'btn danger', 'data-del': p.id, onclick: async (e: Event) => {
+      h('div', { class: 'row' }, h('span', { class: 'spacer' }), h('button', { class: 'btn danger', 'data-del': p.id, onclick: async (e: Event) => {
         e.preventDefault(); e.stopPropagation();
         if (!confirm(`«${p.name}» oʻchirilsinmi? Buni qaytarib boʻlmaydi.`)) return;
         await deleteProject(p.id); home();

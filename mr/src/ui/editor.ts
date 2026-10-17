@@ -12,6 +12,8 @@ import { Compute, type Computed } from '../workers/compute';
 import type { Result } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
+import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
+import { toggleTheme, isDark, onTheme } from './theme';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
@@ -106,6 +108,8 @@ const ICON = {
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
   back: '<path d="M15 6 9 12l6 6"/>',
   map: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   layers: '<path d="M4 18h16"/><path d="M4 12h16"/><path d="M4 6h16"/><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="7" cy="18" r="1.6"/>',
 };
 
@@ -144,7 +148,7 @@ export class Editor {
     this.scene = new Scene3D(this.el.scene);
     try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
     this.scene.update(doc); this.scene.frameDoc(doc);
-    this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'; });
+    this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = tr(s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'); });
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
     this.bindScene(); this.bindKeys();
     { let raf = 0; this.scene.onView = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (this.el.scene.querySelector('.btools')) this.syncBTools(); this.followBase(); }); }; }
@@ -160,36 +164,50 @@ export class Editor {
     const name = h('input', { class: 'pname', value: doc.name, 'aria-label': 'Loyiha nomi', maxlength: 120 }) as HTMLInputElement;
     name.addEventListener('change', () => this.run(() => this.store.dispatch({ type: 'rename', name: name.value }), () => { name.value = this.store.doc.name; }));
     name.addEventListener('keydown', e => { if (e.key === 'Enter') name.blur(); });
-    const ib = (id: string, title: string, icon: string, fn: () => void) => { const b = h('button', { class: 'ib', id, title, 'aria-label': title, onclick: fn }); b.append(svgIcon(icon)); return b; };
-    const saveT = h('span', {}, 'saqlandi');
-    const save = h('span', { class: 'save', 'data-s': 'saved' }, h('i'), saveT);
-    const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Koʻrinish' },
-      ...([['plan', 'Reja'], ['axo', 'Akso'], ['persp', 'Persp']] as [ViewMode, string][]).map(([k, t]) => h('button', { 'data-view': k, 'aria-pressed': k === 'plan', onclick: () => this.setView(k) }, t)));
-    const top = h('div', { class: 'top' },
-      ib('back', 'Loyihalar', ICON.back, () => this.onExit()),
-      h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, logoSvg(18), 'Archemistry Lab', h('small', {}, '· Master reja')),
-      name, save, h('span', { class: 'sp' }),
-      this.popBtn('camPop', 'Kamera', () => this.camPop()),
-      h('button', { class: 'btn', id: 'gxOpen', title: 'Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG', onclick: () => this.openGraphics() }, 'Grafika'),
-      seg,
-      ib('undo', 'Bekor qilish (Ctrl+Z)', ICON.undo, () => this.store.undo()),
-      ib('redo', 'Qaytarish (Ctrl+Shift+Z)', ICON.redo, () => this.store.redo()));
-    const rail = h('nav', { class: 'rail', 'aria-label': 'Qadamlar' });
-    const panel = h('section', { class: 'panel', 'aria-live': 'polite' });
-    const kpi = h('div', { class: 'kpi', role: 'group', 'aria-label': 'Koʻrsatkichlar' });
+    const ib = (id: string, title: string, icon: string, fn: () => void, cls = 'ib') => { const b = h('button', { class: cls, id, title, 'aria-label': title, onclick: fn }); b.append(svgIcon(icon)); return b; };
+    const saveT = h('span', {}, tr('saqlandi'));
+    const save = h('span', { class: 'save', 'data-s': 'saved', role: 'status' }, h('i'), saveT);
+    const seg = h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Koʻrinish') },
+      ...([['plan', 'Reja'], ['axo', 'Akso'], ['persp', 'Persp']] as [ViewMode, string][]).map(([k, t]) => h('button', { 'data-view': k, 'aria-pressed': k === 'plan', onclick: () => this.setView(k) }, tr(t))));
+    // til: uz · en · ru (butun interfeys qayta chiziladi)
+    const lang = h('div', { class: 'seg sm langsw', role: 'group', 'aria-label': 'Til', id: 'langSw' },
+      ...LANGS.map(l => h('button', { 'data-lang': l.id, 'aria-pressed': l.id === getLang(), onclick: () => this.setLang(l.id) }, l.name)));
+    const theme = ib('themeBtn', isDark() ? 'Yorugʻ rejim' : 'Tungi rejim', isDark() ? ICON.sun : ICON.moon, () => toggleTheme(), 'ib sm');
+    this.off.push(onTheme(() => { theme.replaceChildren(svgIcon(isDark() ? ICON.sun : ICON.moon)); theme.title = theme.ariaLabel = isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'; }));
+    const top = h('div', { class: 'top glassbar' },
+      ib('back', tr('Loyihalar'), ICON.back, () => this.onExit(), 'ib sm'),
+      h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, logoSvg(18), 'Archemistry Lab'),
+      h('span', { class: 'svcbadge' }, h('i'), tr('Master reja')),
+      name, save, h('span', { class: 'spacer' }),
+      this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
+      h('button', { class: 'btn', id: 'gxOpen', title: tr('Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG'), onclick: () => this.openGraphics() }, tr('Grafika')),
+      seg, lang, theme);
+    const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
+    const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
+    const kpi = h('div', { class: 'kpibar glassbar', role: 'group', 'aria-label': tr('Koʻrsatkichlar') });
+    // asboblar: pastda markazda (7-qoida) — tanlash, qoʻl, chizgʻich, kesim, pipetka, bekor/qaytarish
+    const tb = h('div', { class: 'tb glassbar', role: 'toolbar', 'aria-label': tr('Asboblar') });
     const drawer = h('div', { class: 'drawer', hidden: true });
     const hint = h('div', { class: 'hint', hidden: true });
     const scene = h('div', { id: 'scene' });
     const badge = h('div', { class: 'ctxbadge', hidden: true, role: 'status' });
     const attr = h('div', { class: 'attr', hidden: true });
     attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span><span class="carto" hidden> · Fon: Esri, HERE, Garmin</span>';
-    // oʻng pastki burchak: xarita (fon va uslub) va tahliliy qatlamlar
+    // tepada oʻngda: xarita (fon va uslub) va tahliliy qatlamlar
     const mapctl = h('div', { class: 'mapctl' },
-      this.popBtn('stylePop', 'Xarita', () => this.stylePop(), 'up', ICON.map),
-      this.popBtn('layPop', 'Qatlamlar', () => this.layPop(), 'up', ICON.layers));
-    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, attr, badge, mapctl);
-    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, drawer, hint, scene, stage, attr, badge });
+      this.popBtn('stylePop', tr('Xarita'), () => this.stylePop(), 'down', ICON.map),
+      this.popBtn('layPop', tr('Qatlamlar'), () => this.layPop(), 'down', ICON.layers));
+    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, tb, attr, badge, mapctl);
+    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, tb, drawer, hint, scene, stage, attr, badge });
     return h('div', { class: 'app' }, top, stage);
+  }
+
+  /** Til almashtirish: barcha panellar qayta chiziladi (matnlar i18n dan) */
+  private setLang(l: Lang): void {
+    setLang(l);
+    this.root.querySelectorAll('#langSw button').forEach(b => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.lang === l)));
+    this.el.saveT.textContent = tr(this.el.save.dataset.s === 'saved' ? 'saqlandi' : this.el.save.dataset.s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!');
+    this.closePop(); this.renderAll(); this.renderKpi(); this.renderToolPanel();
   }
 
   private run(fn: () => void, onErr?: () => void): void {
@@ -230,13 +248,14 @@ export class Editor {
   /* ---------- yuqori paneldagi ochiluvchi oynalar: uslub va kamera ---------- */
   private pop: HTMLElement | null = null;
   private popBtn(id: string, label: string, body: () => HTMLElement, dir: 'down' | 'up' = 'down', icon?: string): HTMLElement {
-    const b = h('button', { class: icon ? 'mapbtn popbtn' : 'btn popbtn', id, title: label, 'aria-haspopup': 'true', 'aria-expanded': false, onclick: (e: MouseEvent) => {
+    const b = h('button', { class: icon ? 'mapbtn glassbar popbtn' : 'btn popbtn', id, title: label, 'aria-haspopup': 'true', 'aria-expanded': false, onclick: (e: MouseEvent) => {
       e.stopPropagation();
       const was = this.pop?.dataset.for === id; this.closePop(); if (was) return;
       const p = h('div', { class: 'pop', 'data-for': id, 'data-dir': dir, role: 'dialog', 'aria-label': label }); p.append(body());
       p.addEventListener('click', ev => ev.stopPropagation());
       const r = b.getBoundingClientRect();
       if (dir === 'up') { p.style.bottom = `${window.innerHeight - r.top + 8}px`; p.style.right = `${Math.max(8, window.innerWidth - r.right)}px`; p.style.maxHeight = `${r.top - 20}px`; }
+      else if (icon) { p.style.top = `${r.bottom + 6}px`; p.style.right = `${Math.max(8, window.innerWidth - r.right)}px`; p.style.maxHeight = `${window.innerHeight - r.bottom - 20}px`; }
       else { p.style.top = `${r.bottom + 6}px`; p.style.left = `${Math.max(8, Math.min(window.innerWidth - 330, r.left))}px`; }
       document.body.append(p); this.pop = p; b.setAttribute('aria-expanded', 'true');
       const off = (ev: MouseEvent) => { if (!ev.isTrusted) return; this.closePop(); document.removeEventListener('click', off); }; setTimeout(() => document.addEventListener('click', off), 0);
@@ -264,7 +283,7 @@ export class Editor {
       cs.loaded || cs.base === 'sputnik' ? '' : (() => { const c = h('input', { type: 'checkbox', checked: basePrefs().labels, id: 'palLab' }) as HTMLInputElement; c.onchange = () => { setBasePrefs({ labels: c.checked }); void this.showBaseMap(); }; return h('label', { class: 'row', style: 'font-size:13px' }, c, 'Koʻcha va joy nomlari'); })(),
       h('p', { class: 'note' }, 'Fon va uslub faqat koʻrinishga taʼsir qiladi — loyiha, hisob-kitob va meʼyorlar oʻzgarmaydi.'),
       h('div', { class: 'lb' }, 'Uslub'),
-      h('div', { class: 'opts' }, ...STYLES.map(x => h('button', { 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, h('b', {}, x.name), h('small', {}, x.note)))),
+      h('div', { class: 'optl' }, ...STYLES.map(x => h('button', { 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, h('b', {}, x.name), h('small', {}, x.note)))),
       (() => { const c = h('input', { type: 'checkbox', checked: this.scene.detail, id: 'detOn' }) as HTMLInputElement; c.onchange = () => { this.scene.setDetail(c.checked); try { localStorage.setItem('mr-detail', c.checked ? '1' : '0'); } catch { /* */ } }; return h('label', { class: 'row', style: 'font-size:13px' }, c, 'Batafsil fasad (derazalar, romlar, balkonlar — 3D)'); })(),
       h('label', { class: 'row', style: 'font-size:13px' }, ex, 'Portlatilgan qatlamlar'),
       h('label', { class: 'field' }, h('span', { class: 'lb' }, 'Qatlamlar oraligʻi'), gap),
@@ -287,7 +306,7 @@ export class Editor {
       h('label', { class: 'row', style: 'font-size:13px' }, bl, 'Kvartal va parsel: nomi, funksiyasi, maydoni'),
       h('label', { class: 'row', style: 'font-size:13px' }, fl, 'Qavatlar soni (binolar ustida)'),
       h('div', { class: 'lb' }, 'Yer sathi xaritasi'),
-      h('div', { class: 'opts' },
+      h('div', { class: 'optl' },
         opt('yoq', 'Yoʻq', 'xaritani olib tashlash'),
         opt('issiq', 'Yuza qizishi', 'taxmin: qoplama + soya, 15 iyul 11–17'),
         opt('hand', 'Suv bosish xavfi (HAND)', 'drenajdan balandlik, relyef boʻyicha'),
@@ -516,7 +535,7 @@ export class Editor {
     const fas = STEPS.find(x => x.id === 'fasad')!;
     el.replaceChildren(
       h('header', { class: 'ihead' },
-        h('div', { class: 'row' }, h('button', { class: 'back', id: 'iBack', onclick: close }, svgIcon(ICON.back), `${this.step.n}-qadam: ${this.step.title}`), h('span', { class: 'sp' }),
+        h('div', { class: 'row' }, h('button', { class: 'back', id: 'iBack', onclick: close }, svgIcon(ICON.back), `${this.step.n}-qadam: ${this.step.title}`), h('span', { class: 'spacer' }),
           h('button', { class: 'ib sm', 'aria-label': 'Yopish', title: 'Yopish (Esc)', onclick: close }, svgIcon('<path d="M6 6l12 12M18 6L6 18"/>'))),
         h('div', { class: 'row inav' }, h('span', { class: 'lb grow' }, kind),
           h('button', { class: 'ib sm', 'aria-label': 'Oldingi bino', title: 'Oldingi bino', onclick: () => go(-1) }, svgIcon('<path d="M19 12H5M11 6l-6 6 6 6"/>')), h('span', { class: 'muted num' }, `${at + 1} / ${ids.length}`),
@@ -568,10 +587,8 @@ export class Editor {
   private syncGone(): void { const ip = STEPS.findIndex(x => x.id === 'parsel'), i = STEPS.indexOf(this.step); this.scene.setHideGone(i > ip || this.goneHidden); }
   private renderAll(): void {
     this.syncFade(); this.syncGone();
-    (this.root.querySelector('#undo') as HTMLButtonElement).disabled = !this.store.canUndo;
-    (this.root.querySelector('#redo') as HTMLButtonElement).disabled = !this.store.canRedo;
-    (this.root.querySelector('#undo') as HTMLButtonElement).title = this.store.canUndo ? `Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)` : 'Bekor qilish (Ctrl+Z)';
     this.renderRail(); this.renderPanel();
+    const u = this.root.querySelector('#undo') as HTMLButtonElement | null; if (u) u.title = u.ariaLabel = this.store.canUndo ? tf('Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)', { 'this.store.undoLabel': this.store.undoLabel }) : tr('Bekor qilish (Ctrl+Z)');
   }
 
   /* ---------- kontekst ---------- */
@@ -1021,7 +1038,7 @@ export class Editor {
       row(`Yorugʻlik koeffitsiyenti 1:${fmt(k, 1)}`, `${ws.name}: deraza ${fmt(ws.w * MOD_W, 1)} × ${fmt(ws.head - ws.sill, 2)} m · meʼyor 1:4,5 – 1:8 · 8.2-band`, okK ? 'ok' : 'bad', okK ? 'mos' : 'mos emas');
     }
     const okD = this.roomDepth <= 6 + 1e-6 && this.roomDepth <= 2 * MOD_W + 1e-6;
-    row('Xona chuqurligi', '≤ 6 m va ≤ 2 × eni · SanQvaN 8.7', okD ? 'ok' : 'bad', okD ? 'mos' : 'mos emas', h('span', { class: 'unit' }, dep, h('small', {}, 'm')));
+    row('Xona chuqurligi', '≤ 6 m va ≤ 2 × eni · SanQvaN 8.7', okD ? 'ok' : 'bad', okD ? 'mos' : 'mos emas', h('span', { class: 'unitf' }, dep, h('small', {}, 'm')));
     const plans = planApartments(doc);
     if (plans.length) {
       let n = 0, hot = 0, west = 0;
@@ -1789,9 +1806,9 @@ export class Editor {
   /** Birlik nomi: K-2 (butun kvartal) yoki K-2.3 (parsel) */
   private unitName(i: number): string {
     const plan = this.plan(), b = plan.blocks[i]; if (!b) return '';
-    if (!b.parcelId) return `K-${b.blockKey + 1}`;
+    if (!b.parcelId) return `D-${b.blockKey + 1}`;
     const same = plan.blocks.filter(x => x.blockKey === b.blockKey);
-    return `K-${b.blockKey + 1}.${same.indexOf(b) + 1}`;
+    return `D-${b.blockKey + 1}.${same.indexOf(b) + 1}`;
   }
 
   private parcelSize = 1.0;
@@ -2003,14 +2020,22 @@ export class Editor {
     const r = this.el.rail; r.replaceChildren();
     STEPS.forEach((s, i) => {
       if (i === 2 || i === 6 || i === 10) r.append(h('hr'));
-      const lk = this.locked(s);
-      const b = h('button', { 'aria-label': `${s.n}. ${s.title}${lk ? ' — ' + lk : ''}`, title: `${s.n}. ${s.title}${lk ? '\n' + lk : ''}`, 'data-step': s.id, 'aria-current': s === this.step ? 'step' : null, 'aria-expanded': s === this.step ? this.panelOpen : null, 'data-locked': !!lk, 'data-done': this.done(s), onclick: () => { if (s === this.step && this.panelOpen) { this.panelOpen = false; this.renderRail(); this.renderPanel(); } else this.go(s); } }, h('span', { class: 'n' }, s.n));
-      b.append(svgIcon(s.icon)); r.append(b);
+      const lk = this.locked(s), title = tr(s.title);
+      const b = h('button', { class: `rb${lk ? ' locked' : ''}`, 'aria-label': `${s.n}. ${title}${lk ? ' — ' + lk : ''}`, title: `${s.n}. ${title}${lk ? '\n' + lk : ''}`, 'data-step': s.id, 'aria-current': s === this.step ? 'step' : null, 'aria-expanded': s === this.step ? this.panelOpen : null, 'data-locked': !!lk, 'data-done': this.done(s), onclick: () => { if (s === this.step && this.panelOpen) { this.panelOpen = false; this.renderRail(); this.renderPanel(); } else this.go(s); } });
+      b.append(svgIcon(s.icon), h('span', { class: 'n' }, s.n)); r.append(b);
     });
-    r.append(h('hr'));
+    this.renderToolbar();
+  }
+  /** pastdagi asboblar paneli: 5 asbob + bekor/qaytarish (7-qoida) */
+  private renderToolbar(): void {
+    const tb = this.el.tb; if (!tb) return; tb.replaceChildren();
     for (const [k, t, ic] of TOOLS) {
-      const b = h('button', { class: 'tool', 'data-tool': k, 'aria-label': t, title: t, 'aria-pressed': this.mode === k, onclick: () => this.setMode(k) }); b.append(svgIcon(ic)); r.append(b);
+      const b = h('button', { class: 'rb tool', 'data-tool': k, 'aria-label': tr(t), title: tr(t), 'aria-pressed': this.mode === k, onclick: () => this.setMode(k) }); b.append(svgIcon(ic)); tb.append(b);
     }
+    const canU = this.store.canUndo, canR = this.store.canRedo;
+    const u = h('button', { class: 'rb', id: 'undo', disabled: !canU, 'aria-label': tr('Bekor qilish (Ctrl+Z)'), title: tr('Bekor qilish (Ctrl+Z)'), onclick: () => this.store.undo() }); u.append(svgIcon(ICON.undo));
+    const rd = h('button', { class: 'rb', id: 'redo', disabled: !canR, 'aria-label': tr('Qaytarish (Ctrl+Shift+Z)'), title: tr('Qaytarish (Ctrl+Shift+Z)'), onclick: () => this.store.redo() }); rd.append(svgIcon(ICON.redo));
+    tb.append(h('span', { class: 'sepv' }), u, rd);
   }
 
   /* ---------- asboblar: tanlash, qoʻl, chizgʻich, kesim, pipetka ---------- */
@@ -2022,7 +2047,7 @@ export class Editor {
     this.scene.setHand(this.mode === 'hand');
     if (this.mode === 'measure') this.setTool(new MeasureTool(this.scene, fmt));
     if (this.mode !== 'pipette') this.copied = null;
-    this.renderRail(); this.renderToolPanel();
+    this.renderToolbar(); this.renderToolPanel();
   }
   private renderToolPanel(): void {
     let el = this.el.stage.querySelector<HTMLElement>('.toolpanel');
@@ -2088,7 +2113,7 @@ export class Editor {
         item('Qavatlar va terrasa…', () => { sel(); this.inspTab = 'qavat'; this.renderAll(); }, 'PgUp'),
         item('Fasad va tom…', () => { sel(); this.lookTarget = 'sel'; this.go(STEPS.find(x => x.id === 'fasad')!); }),
         h('hr'),
-        item('Uslubni nusxalash (pipetka)', () => { this.mode = 'pipette'; this.copied = null; this.renderRail(); this.pipette(b.id); }, 'I'),
+        item('Uslubni nusxalash (pipetka)', () => { this.mode = 'pipette'; this.copied = null; this.renderToolbar(); this.pipette(b.id); }, 'I'),
         this.copied ? item(`Uslubni qoʻyish (${this.copied.from})`, () => this.pipette(b.id)) : '',
         item('Nusxa (yoniga)', () => { sel(); this.renderAll(); (this.el.stage.querySelector('#iDup') as HTMLButtonElement | null)?.click(); }),
         item('Yaqinlashtirish', () => this.scene.frameBuilding(this.store.doc, b.id), 'F'),
@@ -2148,14 +2173,14 @@ export class Editor {
     const prev = STEPS[i - 1], next = STEPS[i + 1];
     const body = h('div', { class: 'body' });
     const lk = s.phase > BUILT_PHASE ? this.locked(s) : null;
-    if (lk) body.append(h('div', { class: 'locked' }, `Bu qadam ${s.phase}-bosqichda quriladi. Reja va darvoza shartlari — «Yadro arxitekturasi» hujjatida.`));
+    if (lk) body.append(h('div', { class: 'locked' }, tf('Bu qadam ${s.phase}-bosqichda quriladi. Reja va darvoza shartlari — «Yadro arxitekturasi» hujjatida.', { 's.phase': s.phase })));
     else this.panelBody(s, body);
     p.replaceChildren(
-      h('header', {}, h('span', { class: 'lb' }, `${s.n}-qadam / 12`), h('h2', {}, s.title), h('p', {}, s.lead)),
+      h('header', {}, h('div', { class: 'sp-step' }, h('span', {}, tf('${s.n}-qadam / 12', { 's.n': s.n })), h('span', { class: 'sp-prog' }, h('i', { style: `width:${Math.round(s.n / 12 * 100)}%` }))), h('h2', {}, tr(s.title)), h('p', {}, tr(s.lead))),
       body,
       h('footer', {},
-        h('button', { class: 'btn', disabled: !prev, onclick: () => prev && this.go(prev) }, ...icl(IC.back, 'Oldingi')),
-        h('button', { class: 'btn primary', disabled: !next, onclick: () => next && this.go(next) }, 'Keyingi', svgIcon(IC.next))));
+        h('button', { class: 'btn', disabled: !prev, onclick: () => prev && this.go(prev) }, ...icl(IC.back, tr('Oldingi'))),
+        h('button', { class: 'btn primary', disabled: !next, onclick: () => next && this.go(next) }, tr('Keyingi'), svgIcon(IC.next))));
     if (keep) body.scrollTop = keep;
   }
 
@@ -2230,22 +2255,26 @@ export class Editor {
   private openGraphics(): void { openGraphics(this.store.doc, this.sheetCtx()); }
 
   /* ---------- koʻrsatkichlar va meʼyorlar ---------- */
+  /** koʻrsatkichlar: 4 asosiy koʻrinadi, «Barcha koʻrsatkichlar» — 8 ta; «Meʼyorlar» — pastki oyna (reyestr) */
+  private kpiAll = false;
   private renderKpi(): void {
     const c = this.last; if (!c) return;
     const d = c.d, dens = c.results.find(r => r.id === 'density-84');
-    const k = (label: string, v: string, s?: string, id?: string) => h('div', { class: 'k', 'data-s': s, id }, h('b', {}, v), h('span', {}, label));
+    const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));
     const open = !this.el.drawer.hidden;
+    this.el.kpi.classList.toggle('all', this.kpiAll);
     this.el.kpi.replaceChildren(
       k('Uchastka, ga', d.siteHa ? fmt(d.siteHa, 2) : '—', undefined, 'kSite'),
       k('GFA, m²', d.gfa ? fmt(d.gfa) : '—', undefined, 'kGfa'),
-      k('UMN (FAR)', d.far ? fmt(d.far, 2) : '—'),
-      k('Qurilish zichligi', d.gsi ? fmt(d.gsi * 100, 0) + ' %' : '—'),
-      k('Oʻrt. qavat', d.avgFloors ? fmt(d.avgFloors, 1) : '—'),
-      k('Aholi', d.population ? fmt(d.population) : '—', undefined, 'kPop'),
-      k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens'),
-      k('Ish oʻrni', d.jobs >= 1 ? fmt(d.jobs) : '—', undefined, 'kJobs'),
-      h('button', { class: 'more', id: 'kMore', 'aria-expanded': open, onclick: () => { const reg = this.el.drawer.dataset.kind !== 'section'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, open && this.el.drawer.dataset.kind !== 'section' ? 'Meʼyorlar ▾' : 'Meʼyorlar ▴'));
-    if (open && this.el.drawer.dataset.kind !== 'section') this.el.drawer.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, 'Meʼyoriy reyestr'), h('button', { class: 'ib sm', 'aria-label': 'Yopish', onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); } }, svgIcon(IC.x))), this.register());
+      k('UMN (FAR)', d.far ? fmt(d.far, 2) : '—', undefined, undefined, false, true),
+      k('Qurilish zichligi', d.gsi ? fmt(d.gsi * 100, 0) + ' %' : '—', undefined, undefined, true),
+      k('Oʻrt. qavat', d.avgFloors ? fmt(d.avgFloors, 1) : '—', undefined, undefined, true),
+      k('Aholi', d.population ? fmt(d.population) : '—', undefined, 'kPop', false, true),
+      k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens', true),
+      k('Ish oʻrni', d.jobs >= 1 ? fmt(d.jobs) : '—', undefined, 'kJobs', true),
+      h('button', { class: 'ib sm', id: 'kAll', 'aria-label': tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), title: tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), 'aria-pressed': this.kpiAll, onclick: () => { this.kpiAll = !this.kpiAll; this.renderKpi(); } }, svgIcon(this.kpiAll ? '<path d="M15 6l-6 6 6 6"/>' : '<path d="M9 6l6 6-6 6"/>')),
+      h('button', { class: `btn more${open && this.el.drawer.dataset.kind !== 'section' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open, onclick: () => { const reg = this.el.drawer.dataset.kind !== 'section'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar')));
+    if (open && this.el.drawer.dataset.kind !== 'section') this.el.drawer.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, tr('Meʼyoriy reyestr')), h('button', { class: 'ib sm', 'aria-label': tr('Yopish'), onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); } }, svgIcon(IC.x))), this.register());
     if (['tekshiruv', 'uchastka', 'kocha', 'yashil'].includes(this.step.id)) this.renderPanel();
   }
 
@@ -2431,6 +2460,7 @@ export class Editor {
       const typing = (e.target as HTMLElement)?.matches?.('input,textarea,select');
       if (!typing && this.tool?.key?.(e)) { e.preventDefault(); if (this.tool) this.el.hint.textContent = this.tool.hint; if (e.key === 'Escape') this.setTool(null); return; }
       if (typing) return;
+      if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey && !(document.activeElement && document.activeElement !== document.body && this.root.contains(document.activeElement) && document.activeElement.closest('.panel,.pop,.drawer'))) { e.preventDefault(); this.panelOpen = !this.panelOpen; this.closePop(); this.renderRail(); this.renderPanel(); return; }
       const z = e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey);
       if (z && !e.shiftKey) { e.preventDefault(); this.store.undo(); }
       else if ((z && e.shiftKey) || (e.key.toLowerCase() === 'y' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); this.store.redo(); }
