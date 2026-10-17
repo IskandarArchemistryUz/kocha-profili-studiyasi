@@ -6,9 +6,9 @@ import type { LngLat } from '../core/doc';
 import { bboxAround, overpassQuery, parseOverpass, PARSER_V, type OsmData } from './osm';
 import { loadImagery, loadTerrain, type Imagery, type TerrainGrid } from './tiles';
 
-export const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
-/** urinishlar: [server, oldin kutish (ms)] — bepul serverlar tez-tez «band» (429/503/504) qaytaradi */
-const PLAN: [number, number][] = [[0, 0], [1, 0], [0, 4000], [1, 4000], [0, 12000]];
+export const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+/** urinishlar: [serverlar guruhi (parallel — birinchi javob olinadi), oldin kutish (ms)] — bepul serverlar tez-tez «band» (429/503/504) qaytaradi */
+const PLAN: [number[], number][] = [[[0, 1], 0], [[2, 3], 0], [[0, 1, 2, 3], 4000], [[0, 1, 2, 3], 10000]];
 
 export interface ContextBundle {
   v: 1;
@@ -44,16 +44,19 @@ export type Progress = (msg: string, frac: number) => void;
 export async function overpass(q: string, f: typeof fetch, onTry: (msg: string) => void): Promise<unknown> {
   let last: unknown = null;
   for (let k = 0; k < PLAN.length; k++) {
-    const [i, wait] = PLAN[k];
-    if (wait) { onTry(`OSM server band — ${Math.round(wait / 1000)} s dan keyin qayta urinish (${k + 1}/${PLAN.length})…`); await new Promise(r => setTimeout(r, wait)); }
-    else if (k) onTry(`OSM: zaxira server…`);
-    try {
-      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60_000);
+    const [srv, wait] = PLAN[k];
+    if (wait) { onTry(`OSM serverlari band — ${Math.round(wait / 1000)} s dan keyin qayta urinish (${k + 1}/${PLAN.length})…`); await new Promise(r => setTimeout(r, wait)); }
+    else if (k) onTry('OSM: zaxira serverlar…');
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60_000);
+    const one = async (i: number): Promise<unknown> => {
       const r = await f(OVERPASS[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
-      clearTimeout(t);
-      if (!r.ok) { last = new Error(`Overpass ${r.status}`); continue; }
-      return await r.json();
-    } catch (e) { last = e; }
+      if (!r.ok) throw new Error(`Overpass ${r.status}`);
+      const j = await r.json() as { elements?: unknown[]; remark?: string };
+      if (!Array.isArray(j.elements)) throw new Error(j.remark ? `Overpass: ${j.remark.slice(0, 80)}` : 'Overpass: boʻsh javob');
+      return j;
+    };
+    try { const j = await Promise.any(srv.map(one)); ctl.abort(); clearTimeout(t); return j; }   // birinchi muvaffaqiyatli javob; qolganlari toʻxtatiladi
+    catch (e) { last = (e as AggregateError).errors?.[0] ?? e; clearTimeout(t); }
   }
   throw new Error('OSM serverlari javob bermadi' + (last ? ` (${String((last as Error).message || last)})` : '') + '. Birozdan keyin qayta urinib koʻring.');
 }
