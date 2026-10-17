@@ -609,12 +609,12 @@ export class Scene3D {
       const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
       const spec: WinSpec | null = b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null;
       // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar (uzoqdan ham, taqdimot uchun)
-      const det = this.detail && !!spec && st !== 'funksiya' && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
+      const det = this.detail && !!spec && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
       const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
         const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
         if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
         const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
-        if (kind && spec && !plain && st !== 'funksiya') wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
+        if (kind && spec && !plain) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
         if (det && (kind === 'res' || kind === 'shop')) wall.visible = false;   // devorni geometrik fasad almashtiradi
         const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
         if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
