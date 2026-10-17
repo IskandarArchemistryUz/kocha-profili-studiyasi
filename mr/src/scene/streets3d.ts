@@ -186,6 +186,27 @@ export function curbFillets(end: XY, prev: XY, eL: number, eR: number, tg: RoadT
   return out;
 }
 
+/** Siniq chiziqni yoʻl zonalaridan (oʻq ± R) tashqaridagi boʻlaklarga ajratish — koʻcha yoʻlni kesib oʻtsa, trotuar/yashil u yerda chizilmaydi */
+export function splitOutside(axis: XY[], tg: RoadTarget[]): XY[][] {
+  if (axis.length < 2 || !tg.length) return [axis];
+  const inside = (p: XY) => tg.some(r => lineDist(p, r.pts) < r.w / 2 + r.sw - 0.05);
+  const out: XY[][] = []; let cur: XY[] = [];
+  let was = inside(axis[0]); if (!was) cur.push(axis[0]);
+  for (let i = 1; i < axis.length; i++) {
+    const a = axis[i - 1], b = axis[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / 0.5));
+    let prev: XY = a;
+    for (let k = 1; k <= n; k++) {
+      const q: XY = [a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n], now = inside(q);
+      if (now && !was) { cur.push(prev); if (cur.length >= 2) out.push(cur); cur = []; }   // zonaga kirdi — chegara nuqtasi bilan yopiladi
+      else if (!now && was) cur = [q];                                                    // zonadan chiqdi
+      was = now; prev = q;
+    }
+    if (!was) cur.push(b);   // segment oxiri tashqarida — asl uch
+  }
+  if (cur.length >= 2) out.push(cur);
+  return out;
+}
+
 export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn[] = []): ProjStreetGeo {
   const L: Record<string, Buf> = {}, layer = (k: string, lift: number) => (L[k] ??= new Buf(H, lift));
   const trees: XY[] = [];
@@ -200,8 +221,10 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
   const red = corridorOutlines(list.map(s => ({ axis: T.get(s)!.body, half: half(s) })), asTargets(osm).map(r => ({ axis: r.pts, half: r.w / 2 + r.sw })));
   for (const s of list) {
     const W = half(s) * 2, { body, road, hit } = T.get(s)!;
+    // oʻrtasi OSM yoʻlni kesib oʻtsa — yoʻl zonasida trotuar/yashil yoʻq (uchlari allaqachon qisqartirilgan)
+    const bodies = splitOutside(body, asTargets(osm));
     // asos: butun kenglik — trotuar rangida (boʻgʻinlarda doira)
-    layer('trotuar', 0.08).ribbon(body, W / 2, false);
+    for (const bp of bodies) layer('trotuar', 0.08).ribbon(bp, W / 2, false);
     let o = -W / 2, aL = Infinity, aR = -Infinity;
     for (const p of s.parts) { const o0 = o, o1 = o + p.w; o = o1; if (ASPH.test(p.k)) { aL = Math.min(aL, o0); aR = Math.max(aR, o1); } }
     o = -W / 2;
@@ -209,8 +232,7 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
       const o0 = o, o1 = o + p.w; o = o1;
       if (p.k === 'trotuar') continue;
       const b = layer(p.k === 'ajratuvchi' ? 'yashil' : p.k, p.k === 'qatnov' ? 0.12 : 0.1);
-      const ax = ASPH.test(p.k) ? road : body;
-      for (let i = 1; i < ax.length; i++) b.band(ax[i - 1], ax[i], o0, o1);
+      for (const ax of ASPH.test(p.k) ? [road] : bodies) for (let i = 1; i < ax.length; i++) b.band(ax[i - 1], ax[i], o0, o1);
       if (p.k === 'qatnov') for (let i = 1; i < road.length - 1; i++) {
         // ichki boʻgʻinda asfalt yaxlit
         const c = road[i], mid = (o0 + o1) / 2, prev = road[i - 1], next = road[i + 1], dx = next[0] - prev[0], dy = next[1] - prev[1], Ln = Math.hypot(dx, dy) || 1;

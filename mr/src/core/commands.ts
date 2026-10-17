@@ -37,7 +37,7 @@ export type Command =
   | { type: 'removeView'; id: string }
   /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
-  | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use'>> }
+  | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use' | 'rings'>> }
   /** generator natijasi: shu guruhdagi seksiyalarni almashtirish (boʻsh roʻyxat — tozalash); zona belgisiga parametrlar yoziladi */
   | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: string; z0?: number }[]; label?: ZoneLabel; garage?: Omit<Garage, 'id' | 'grp'> | null };
 
