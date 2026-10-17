@@ -98,3 +98,20 @@ test('koʻcha: ikki marta bosish va «Chizishni tugatish» chiziqni saqlaydi', a
   await expect(page.locator('[data-sid]')).toHaveCount(2);
   await expect(page.locator('#drawStreet')).toContainText('Koʻcha chizish');
 });
+
+test('koʻcha toʻri generatsiyasi: preset, variant, qoʻllash, olib tashlash', async ({ page }) => {
+  await newSite(page, 420, 330);
+  await page.click('[data-step=kocha]');
+  await expect(page.locator('#gridBox')).toBeVisible();
+  await page.click('[data-gpre=portlend]'); await page.click('[data-gvar="1"]'); await page.click('#gridApply');
+  await expect(page.locator('#gridClear')).toBeVisible();
+  const n = await page.evaluate(() => (window as any).__mr.store.doc.streets.filter((s: any) => s.gen === 'grid').length);
+  expect(n).toBeGreaterThanOrEqual(6);
+  expect(await page.evaluate(() => (window as any).__mr.plan().blocks.length)).toBeGreaterThanOrEqual(12);
+  // qoʻlda chizilgan koʻcha qayta qoʻllashda qoladi
+  await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); ed.store.dispatch({ type: 'addStreet', axis: [[o[0] - 50 / mx, o[1]], [o[0] + 50 / mx, o[1]]], profile: 'otish-8' }); });
+  await page.click('[data-gpre=barselona]'); await page.click('#gridApply');
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.streets.filter((s: any) => s.gen !== 'grid').length)).toBe(1);
+  await page.click('#gridClear');
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.streets.length)).toBe(1);
+});
