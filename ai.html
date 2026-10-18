@@ -11,8 +11,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="js/cdn.js?v=1"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" onerror="KLIB.css(this)">
+<script src="js/eko.js?v=1"></script>
+<link rel="stylesheet" href="css/ds2.css?v=2">
 <style>
-:root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--line2:#cfccc5;--bad:#b3261e;--ok:#2e7d4f;--ai:#7b61d1;--mono:'IBM Plex Mono',ui-monospace,monospace}
+:root{/* 2026-10-18: tokenlar — css/ds2.css */--grey:var(--muted);--txt:var(--ink-2);--line:var(--hairline);--line2:var(--fill-2);--ai:#7b61d1}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
 body{font:14.5px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 a{color:inherit}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
@@ -64,11 +66,13 @@ header{gap:9px;overflow:hidden}.crumb,.km,.btn{white-space:nowrap}.seg{flex:none
 </style>
 <link rel="stylesheet" href="css/kit.css?v=1"><script>document.documentElement.classList.add("kit-ai")</script>
 <script src="js/icons.js?v=2"></script>
+<link rel="stylesheet" href="css/eko.css?v=1">
+<link rel="stylesheet" href="css/joy.css?v=1">
 </head>
-<body>
-<header>
-<a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
-<span class="crumb" id="brandCrumb">/ 06 · AI · HUDUD BAHOSI</span><span class="sp"></span>
+<body class="ds2 joy joy-ai">
+<header class="eko" data-svc="joy"></header>
+<header class="jbar">
+<svg style="display:none" aria-hidden="true"><path id="logoP"/></svg><nav class="joy-nav" aria-label="Joyshunos"><a href="gis.html">GIS tahlil</a><a href="shamol.html">Shamol</a><a href="posadka.html">Joylashtirish</a><a href="ai.html" class="on" aria-current="page">Hudud bahosi</a></nav><span class="sp"></span>
 <span class="crumb hide-s">HUDUD</span>
 <div class="seg" id="modeSeg"><button data-m="radius" aria-pressed="true" title="Doira: markazni bosing"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 12h8"/></svg>Doira</button><button data-m="rect" aria-pressed="false" title="Toʻrtburchak: ikki burchakni bosing"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14"/></svg>Toʻrtburchak</button><button data-m="poly" aria-pressed="false" title="Erkin chegara: burchaklarni bosing"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l9-4 6 7-4 9-11-3z"/></svg>Erkin chegara</button></div>
 <label class="km">r =<input id="rKm" type="number" min="0.2" max="5" step="0.1" value="1">km</label>
