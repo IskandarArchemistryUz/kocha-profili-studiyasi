@@ -476,6 +476,10 @@ type AxoMod = typeof import('./axo');
 let AX: AxoMod | null = null;
 let axo: InstanceType<AxoMod['Axo']> | null = null;
 let axBundle: { key: string; b: ContextBundle } | null = null, axMsg = '', axSat = false, axBusy = false;
+/** 3D uslub: Master rejadagi uslublar bilan bir xil (kalit umumiy — «mr-style») yoki xarita palitrasi */
+type AxSt = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal' | 'palitra';
+const AX_STYLES: [AxSt, string, string][] = [['albom', 'Qogʻoz', 'oq binolar, soyalar'], ['rangli', 'Shahar ranglari', 'OSM ranglari, sunʼiy yoʻldosh'], ['arctic', 'Gips maket', 'oq gil model'], ['funksiya', 'Funksional', 'funksiya ranglari'], ['minimal', 'Chizma', 'oq-qora grafika'], ['palitra', 'Xarita palitrasi', '7 ta uslubdan']];
+let axStyle: AxSt = (() => { try { const v = localStorage.getItem('joy-axstyle') ?? localStorage.getItem('mr-style'); return AX_STYLES.some(x => x[0] === v) ? v as AxSt : 'albom'; } catch { return 'albom'; } })();
 const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean } | null; } catch { return null; } })() ?? {};
 function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate })); } catch { /* */ } }
 function renderMode(): void {
@@ -525,7 +529,7 @@ function axBuild(): void {
     const cat = CATS.find(c => c.id === S.cat) ?? CATS[0];
     for (const c of D.comp.v ?? []) if (c.d <= S.r) pins.push({ at: c.at, label: c.name || tr(cat.name), col: '#7a5a3c' });
     const w = D.wind.v;
-    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark(), pal: PALETTES[palKey()], site: S.site ?? null });
+    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark(), pal: PALETTES[palKey()], site: S.site ?? null, style: axStyle });
     renderNotes();
   }, 150);
 }
@@ -558,7 +562,8 @@ function renderAxo(): void {
       h('button', { type: 'button', class: 'btn btn-sm btn-ghost', disabled: !a.flowDeg.some(v => v != null), onclick: () => a.resetWind() }, tr('Shamolni tiklash')),
       h('button', { type: 'button', class: 'btn btn-sm btn-ghost', disabled: !a.pinMoves.size, onclick: () => { a.resetPins(); renderAxo(); } }, tr('Belgilarni tiklash'))),
     h('div', { class: 'glabel' }, tr('Uslub')),
-    (() => { const m = palMenu(() => { axBuild(); renderAxo(); renderBase(); }); m.classList.add('inline'); return m; })(),
+    h('div', { class: 'joy-sty', role: 'group', 'aria-label': tr('Uslub') }, ...AX_STYLES.map(([k, n, sub]) => h('button', { type: 'button', 'data-sty': k, 'aria-pressed': axStyle === k, onclick: () => { axStyle = k; try { localStorage.setItem('joy-axstyle', k); } catch { /* */ } axBuild(); renderAxo(); } }, h('b', {}, tr(n)), h('span', {}, tr(sub))))),
+    ...(axStyle === 'palitra' ? [(() => { const m = palMenu(() => { axBuild(); renderAxo(); renderBase(); }); m.classList.add('inline'); return m; })()] : []),
     h('div', { class: 'glabel' }, tr('Qatlamlar · pastdan yuqoriga')),
     h('ol', { class: 'joy-axlist' }, ...a.order.map((id, i) => {
       const L = A.AX_LAYERS.find(l => l.id === id)!;

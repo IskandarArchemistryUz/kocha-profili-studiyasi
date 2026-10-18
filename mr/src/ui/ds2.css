@@ -112,7 +112,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .tile:active{transform:scale(.96)}
 .tile svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .tile[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
-.tile .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.tile .sub{font-family:var(--sans);font-size:11.5px;line-height:1.3;color:var(--muted)}
 .tile[aria-pressed="true"] .sub{color:#cfcdc8}
 
 /* ——— Chip va meʼyor belgisi ——— */

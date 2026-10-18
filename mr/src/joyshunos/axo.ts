@@ -14,6 +14,8 @@ import { buildContext } from '../scene/context3d';
 import { sunPosition, localToUtc } from '../core/sun';
 import { tr } from '../i18n';
 import type { Palette } from '../context/mapstyle';
+import { STYLE_PAL, type SceneStyle } from '../scene/styles';
+import { CC } from '../scene/context3d';
 
 export type AxLayer = 'relyef' | 'kochalar' | 'yashil' | 'binolar' | 'xizmat' | 'shamol' | 'quyosh';
 export const AX_LAYERS: { id: AxLayer; name: string; sub: string; color: string }[] = [
@@ -28,7 +30,9 @@ export const AX_LAYERS: { id: AxLayer; name: string; sub: string; color: string 
 export type AxView = 'plan' | 'axo' | 'persp';
 export interface AxPin { at: LngLat; label: string; col: string }
 export interface AxWind { petals: number[]; rose: number[][]; bins: number[]; mean: number }
-export interface AxInput { bundle: ContextBundle; center: LngLat; r: number; pins: AxPin[]; wind: AxWind | null; sat: boolean; dark: boolean; pal: Palette; site: LngLat[] | null }
+export interface AxInput { bundle: ContextBundle; center: LngLat; r: number; pins: AxPin[]; wind: AxWind | null; sat: boolean; dark: boolean; pal: Palette; site: LngLat[] | null; style: AxStyle }
+/** 3D uslub: Master rejadagi 5 uslub yoki xarita palitrasi */
+export type AxStyle = SceneStyle | 'palitra';
 /** Shamol yoʻnalishlari (asosiy, ikkinchi, uchinchi): sektor azimuti, ulushi, oʻrtacha tezligi */
 export interface AxFlow { deg: number; share: number; v: number; col: string; moved?: boolean }
 export const FLOW_COLS = ['#2f8a5f', '#3a7bd5', '#e07b39'];
@@ -157,8 +161,9 @@ export class Axo {
     // kontekst (OSM): qismlari qatlamlarga taqsimlanadi
     const ctxR = inp.bundle.radius;
     let tex: THREE.Texture | null = null;
-    if (inp.sat && inp.bundle.imagery) { tex = new THREE.Texture(); tex.colorSpace = THREE.SRGBColorSpace; void createImageBitmap(inp.bundle.imagery.image).then(bm => { tex!.image = bm; tex!.needsUpdate = true; this.dirty = this.sdirty = true; }).catch(() => {}); }
-    const cs = buildContext(inp.bundle, fr, { radius: ctxR, base: inp.sat ? 'sputnik' : 'maket', layers: { buildings: true, roads: true, rail: true, water: true, green: true, trees: true, relief: true }, loaded: true }, H, tex);
+    const sat = inp.sat || inp.style === 'rangli';
+    if (sat && inp.bundle.imagery) { tex = new THREE.Texture(); tex.colorSpace = THREE.SRGBColorSpace; void createImageBitmap(inp.bundle.imagery.image).then(bm => { tex!.image = bm; tex!.needsUpdate = true; this.dirty = this.sdirty = true; }).catch(() => {}); }
+    const cs = buildContext(inp.bundle, fr, { radius: ctxR, base: sat ? 'sputnik' : 'maket', layers: { buildings: true, roads: true, rail: true, water: true, green: true, trees: true, relief: true }, loaded: true }, H, tex);
     let last: AxLayer = 'kochalar';
     for (const o of [...cs.group.children]) {
       const L: AxLayer = NAME2LAYER[o.name] ?? (o.name ? 'kochalar' : last); last = L;
@@ -169,12 +174,13 @@ export class Axo {
     const clipR = ctxR * 0.98;
     for (const id of ['relyef', 'kochalar', 'yashil', 'binolar'] as AxLayer[]) this.groups.get(id)!.traverse(o => { const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(m) ? m : m ? [m] : []).forEach(x => circleClip(x, clipR)); });
     const ground = cs.ground; ground.receiveShadow = true;
-    this.paint(inp.pal, inp.sat, ground);
+    this.P = this.effPal(inp);
+    if (inp.style === 'palitra') this.paint(inp.pal, inp.sat, ground); else this.paintStyle(inp.style);
     this.groups.get('binolar')!.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
     // eng past relyef nuqtasi — plastinkalar shu sathda
     let hmin = Infinity; for (let i = -20; i <= 20; i++) for (let j = -20; j <= 20; j++) { const x = i / 20 * clipR, y = j / 20 * clipR; if (x * x + y * y <= clipR * clipR) hmin = Math.min(hmin, H(x, y)); }
     this.slabTop = Number.isFinite(hmin) ? hmin - 0.3 : -0.3;
-    this.slabs(clipR, inp.pal, inp.dark);
+    this.slabs(clipR, this.P, inp.dark);
     this.rings(H);
     this.pins(fr, H, inp.pins);
     this.site(fr, inp.site);
@@ -187,7 +193,27 @@ export class Axo {
     this.fitOrtho(); this.setView(this.view, true); this.applyLayers(); this.setTime(this.day, this.hour);
   }
 
-  /** Palitra (Master rejadagi 7 uslub): yer, koʻchalar, yashil, suv, binolar */
+  /** Joriy uslubning ranglari (SVG eksporti va disklar uchun) */
+  P: Palette = { n: '', bg: '#f1efea', water: '#cfdfe8', park: '#e1e9d6', road: '#ffffff', rc: '#dcd6ca', bld: '#ffffff', bl: '#8f8a80', bw: .5, rail: '#cbc4b6', label: '#6f6a60' };
+  private effPal(inp: AxInput): Palette {
+    const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+    if (inp.style === 'palitra') return inp.pal;
+    if (inp.style === 'rangli') return { n: 'Shahar ranglari', bg: hex(CC.ground), water: hex(CC.water), park: hex(CC.green), road: hex(CC.asphalt), rc: hex(CC.sidewalk), bld: hex(CC.bld), bl: hex(CC.bldEdge), bw: .5, rail: hex(CC.rail), label: '#3a3936' };
+    const S = STYLE_PAL[inp.style].pal, line = STYLE_PAL[inp.style].line;
+    return { n: inp.style, bg: hex(S.relyef), water: hex(S.suv), park: hex(S.yashil), road: hex(S['yoʻllar']), rc: hex(S.trotuarlar), bld: hex(S.binolar), bl: hex(line ?? 0x9a958c), bw: .5, rail: '#c9c4bb', label: '#5d5a54' };
+  }
+  /** Master reja uslubi: kontekst qismlari nomi boʻyicha (rangli — asl OSM ranglari) */
+  private paintStyle(st: SceneStyle): void {
+    if (st === 'rangli') return;
+    const S = STYLE_PAL[st], W = new THREE.Color(0xffffff);
+    for (const g of this.groups.values()) g.traverse(o => {
+      const m = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined; if (!m?.color || o.parent?.userData.slab || o.userData.slab) return;
+      const isLine = o instanceof THREE.LineSegments, pal = S.pal[o.name];
+      if (isLine && S.line != null) m.color.setHex(S.line); else if (pal != null) m.color.setHex(pal); else m.color.lerp(W, isLine ? 0.55 : S.lerp);
+      if (m.map && !(o.name === 'relyef')) m.map = null;
+    });
+  }
+  /** Palitra (xarita uslubi): yer, koʻchalar, yashil, suv, binolar */
   private paint(P: Palette, sat: boolean, ground: THREE.Mesh): void {
     const set = (o: THREE.Object3D, c: string, op?: number) => { const m = (o as THREE.Mesh).material as THREE.MeshBasicMaterial; if (!m?.color) return; m.color.set(c); if (op != null) { m.transparent = true; m.opacity = op; } };
     if (!sat) set(ground, P.bg);
