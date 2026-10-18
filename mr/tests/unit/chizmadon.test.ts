@@ -1,0 +1,72 @@
+import { describe, it, expect } from 'vitest';
+import { blankDoc, normDoc, blankPage, bbox, fitTo, mapScale, cid } from '../../src/chizmadon/model';
+import { pageSvg, smoothD, along } from '../../src/chizmadon/render';
+import { pageChecks, applyFix, isRed, chromatic } from '../../src/chizmadon/check';
+import { TEMPLATES, TPL_GROUPS, demoDiagram } from '../../src/chizmadon/templates';
+import { ICONS, ICON_GROUPS, TREES, FLOWS, ZONES, MOBILITY, DASHES, PALETTES, FONTS, TOOLS } from '../../src/chizmadon/catalog';
+
+describe('Chizmadon — kutubxona (eski Albom inventari)', () => {
+  it('sonlar inventarga mos', () => {
+    expect(TOOLS).toHaveLength(14); expect(FLOWS).toHaveLength(7); expect(ZONES).toHaveLength(7); expect(MOBILITY).toHaveLength(8);
+    expect(DASHES).toHaveLength(6); expect(ICON_GROUPS).toHaveLength(6); expect(ICONS.length).toBeGreaterThanOrEqual(45);
+    expect(TREES).toHaveLength(12); expect(PALETTES).toHaveLength(8); expect(FONTS).toHaveLength(6);
+    expect(TEMPLATES).toHaveLength(24); expect(TPL_GROUPS).toHaveLength(5);
+    expect(TPL_GROUPS.map(g => TEMPLATES.filter(t => t.group === g).length)).toEqual([7, 3, 3, 5, 6]);
+  });
+});
+
+describe('Chizmadon — hujjat', () => {
+  it('normDoc: yaroqsiz kirish → sukut; elementlar saqlanadi', () => {
+    expect(normDoc(null).pages).toHaveLength(1);
+    const d = blankDoc('X'); d.pages[0].els.push({ id: 'a', t: 'rect', layer: d.pages[0].layers[0].id, x: 1, y: 2, w: 3, h: 4, style: { fill: '#ff0000' } });
+    const n = normDoc(JSON.parse(JSON.stringify(d)));
+    expect(n.pages[0].els[0]).toMatchObject({ id: 'a', t: 'rect', x: 1, w: 3 });
+    expect(normDoc({ pages: [{ els: [{ t: 'nope' }, { t: 'text', text: 'a' }] }] }).pages[0].els).toHaveLength(1);
+  });
+  it('fitTo va xarita masshtabi', () => {
+    const e = { id: cid(), t: 'map' as const, layer: 'l', x: 0, y: 0, w: 100, h: 50, scale: 2000, natW: 100, style: {} };
+    const f = fitTo(e, bbox(e), [0, 0, 50, 25]);
+    expect(f.w).toBe(50); expect(mapScale(f)).toBe(4000);
+  });
+});
+
+describe('Chizmadon — SVG', () => {
+  it('varaq mm da, har qatlam guruh, barcha element turlari chiziladi', () => {
+    const p = demoDiagram(blankPage('T'));
+    const L = p.layers[2].id;
+    p.els.push({ id: 't1', t: 'text', layer: L, x: 10, y: 10, w: 50, h: 10, text: 'Salom\nDunyo', style: { size: 12 } });
+    p.els.push({ id: 'i1', t: 'icon', layer: L, x: 100, y: 100, w: 10, h: 10, icon: 'metro', look: 'pin', style: { stroke: '#2f6da8' } });
+    p.els.push({ id: 'r1', t: 'row', layer: L, pts: [[10, 200], [200, 200]], row: { kind: 'tree', gap: 10, size: 6, tree: 'chinor' }, style: {} });
+    p.els.push({ id: 'm1', t: 'map', layer: L, x: 200, y: 20, w: 80, h: 60, svg: '<rect id="a" x="0" y="0" width="10" height="10" fill="url(#a)"/>', vb: [0, 0, 10, 10], style: {} });
+    p.els.push({ id: 'l1', t: 'line', layer: L, pts: [[0, 0], [50, 50]], style: { deco: 'rail', head: 'both' } });
+    const { svg, w, h } = pageSvg(p, { num: { i: 1, total: 3 }, stamp: { title: 'Loyiha', author: 'I', date: '18.10.2026' } });
+    expect([w, h]).toEqual([420, 297]);
+    expect(svg).toContain('width="420mm"');
+    expect((svg.match(/data-layer=/g) ?? []).length).toBe(2);
+    expect(svg).toContain('<tspan'); expect(svg).toContain('Shtamp'); expect(svg).toContain('id="cmm1a"');
+    expect(svg).not.toContain('<filter'); expect(svg).not.toContain('<pattern');
+    expect(() => new DOMParserLike(svg)).not.toThrow();
+  });
+  it('silliq egri va teng oraliq', () => {
+    expect(smoothD([[0, 0], [10, 0], [20, 10]])).toMatch(/^M0 0C/);
+    expect(along([[0, 0], [100, 0]], 25)).toHaveLength(5);
+  });
+});
+
+describe('Chizmadon — 7 bandli tekshiruv', () => {
+  it('qizil faqat xavf uchun; tuzatish ishlaydi', () => {
+    const p = blankPage('T'); const L = p.layers[1].id;
+    p.els.push({ id: 'z', t: 'zone', layer: L, pts: [[0, 0], [10, 0], [10, 10]], style: { fill: '#e0261e' } });
+    expect(isRed('#e0261e')).toBe(true); expect(chromatic('#808080')).toBe(false);
+    const c = pageChecks(p); expect(c).toHaveLength(7); expect(c.find(x => x.id === 6)!.ok).toBe(false);
+    const f = applyFix(p, 6, 'asosiy'); expect(pageChecks(f).find(x => x.id === 6)!.ok).toBe(true);
+    const g = applyFix(f, 4, 'asosiy'); expect(g.els.some(e => e.t === 'legend')).toBe(true);
+    expect(pageChecks(g).find(x => x.id === 4)!.ok).toBe(true);
+  });
+  it('namunalar quriladi (loyiha xaritasi bilan)', () => {
+    const ctx = { title: 'Fitrat', place: 'Toshkent', date: '18.10.2026', author: 'I', map: { svg: '<rect width="10" height="10"/>', vb: [0, 0, 400, 300] as [number, number, number, number], w: 400, h: 300, scale: 2000 } };
+    for (const t of TEMPLATES) { const p = t.build(ctx); expect(p.els.length).toBeGreaterThan(0); expect(pageSvg(p).svg.length).toBeGreaterThan(100); }
+  });
+});
+
+class DOMParserLike { constructor(s: string) { let d = 0; for (const m of s.matchAll(/<(\/?)([a-zA-Z]+)[^>]*?(\/?)>/g)) { if (m[3]) continue; d += m[1] ? -1 : 1; if (d < 0) throw new Error('teg'); } if (d !== 0) throw new Error('yopilmagan: ' + d); } }
