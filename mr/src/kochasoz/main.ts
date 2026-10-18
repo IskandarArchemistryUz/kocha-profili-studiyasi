@@ -72,10 +72,11 @@ const ICON = {
   save: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   open: '<path d="M4 7h6l2 2h8v10H4zM4 7V5h6"/>',
 };
-const SERVICES: { id: string; name: string; href: string; color: string; cur?: boolean }[] = [
+const SERVICES: { id: string; name: string; href: string; color: string; cur?: boolean; beta?: boolean }[] = [
   { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
   { id: 'ks', name: 'Koʻchasoz', href: './kochasoz.html', color: 'var(--svc-ks)', cur: true },
   { id: 'joy', name: 'Joyshunos', href: './joyshunos.html', color: 'var(--svc-joy)' },
+  { id: 'ren', name: 'Render', href: './render.html', color: 'var(--svc-ren)', beta: true },
   { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
   { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
 ];
@@ -93,7 +94,7 @@ function renderHeader(): void {
   header.replaceChildren(
     h('a', { class: 'brand', href: '../index.html', title: tr('Bosh sahifa') }, logoSvg(20), h('span', {}, 'Archemistry Lab')),
     h('span', { class: 'vr' }),
-    h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name)))),
+    h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
     ...(BETA ? [(() => { const b = ib('ksGrafika', 'Grafik kutubxona', ICON.lib, () => go('grafika')); b.setAttribute('aria-pressed', String(cur === 'grafika')); return b; })()] : []),
     (() => { const b = ib('ksVaraq', 'Albom varagʻi', ICON.sheet, () => go('varaq')); b.setAttribute('aria-pressed', String(cur === 'varaq')); return b; })(),
@@ -195,9 +196,22 @@ stage.addEventListener('click', e => {
     if (lbl === 'SVG') exportSvg(svg, name);
     else if (lbl === 'PDF') void exportPdf(svg, name);
     else if (lbl === 'DXF') toast(tr('DXF: varaqni Chizmadonga yuboring — u yerdan DXF/PDF/PPTX eksporti bor'));
+    else if (btn.dataset.ren) void varaqToRender(svg, name);
     else if (btn.classList.contains('btn-primary')) sendToChizmadon(svg, name);
   }
 });
+
+/** Varaq (SVG) → PNG → Render studiyasi (asos rasm, «Koʻcha») */
+async function varaqToRender(svg: SVGSVGElement, name: string): Promise<void> {
+  try {
+    const vb = svg.viewBox.baseVal, W = 2400, H = Math.round(W * (vb.height || 1) / (vb.width || 1));
+    const c = svg.cloneNode(true) as SVGSVGElement; c.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); c.setAttribute('width', String(W)); c.setAttribute('height', String(H));
+    const u = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(c)], { type: 'image/svg+xml' })), im = new Image(); im.src = u; await im.decode();
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H); URL.revokeObjectURL(u);
+    const { sendToRender } = await import('../render/inbox');
+    await sendToRender({ name, from: 'ks', subj: 'kocha', img: cv.toDataURL('image/png'), w: W, h: H });
+  } catch (e) { toast(`Render: ${(e as Error).message}`); }
+}
 
 /** A (tarmoq) da tanlangan koʻcha toifasi → B dagi mos tayyor kesim (B ochilganda qoʻllanadi) */
 const NET_TPL: Record<string, string> = { sh1: 'Magistral · tramvayli', sh2: 'Avtobus koridori', tm: 'Tuman koʻchasi', mh: 'Mahalla koʻchasi', pd: 'Piyoda koʻchasi' };

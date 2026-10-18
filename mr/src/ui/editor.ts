@@ -2403,6 +2403,10 @@ export class Editor {
           await cachePut('joy-inbox', { name: `${safe(doc.name)}.glb`, buf: await b.arrayBuffer(), origin: doc.origin });
           location.href = './joyshunos.html#/axo';
         }).catch(e => toast(`Joyshunos: ${(e as Error).message}`)) }, ...icl(CUBE, tr('Joyshunosga yuborish (diagramma)'))),
+        h('button', { class: 'btn btn-block', id: 'exRen', title: tr('Joriy 3D koʻrinish (kamera, uslub, quyosh) Render studiyasida asos rasm boʻladi — AI render, referenslar bilan'), onclick: () => void (async () => {
+          const img = this.scene.snapshot(); const { sendToRender } = await import('../render/inbox');
+          await sendToRender({ name: doc.name, from: 'mr', subj: 'reja', img });
+        })().catch(e => toast(`Render: ${(e as Error).message}`)) }, ...icl('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>', tr('Render studiyasiga (joriy kadr)'))),
         h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Fayllar haqida')), h('div', {}, tr('Hisobot — yangi oynada: koʻrinishlar, TEP, meʼyoriy reyestr va taxminlar; «PDF saqlash» tugmasi A4 formatida saqlaydi. Excel — TEP, binolar va reyestr varaqlari. Kvartiralar va xizmatlar natijalari — tegishli qadamda hisoblangan boʻlsa qoʻshiladi. Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. DXF — mahalliy metrda (markaz koordinatasi faylda yozilgan), qatlamlar: uchastka, qizil chiziqlar, kvartallar funksiya boʻyicha, binolar balandligi bilan (AutoCAD/ArchiCAD da 3D). GLB — Blender, SketchUp, Rhino, ArchiCAD ochadi. OBJ — har qanday 3D dastur (Rhino, SketchUp, 3ds Max). IFC4 — har seksiya IfcBuilding, har qavat IfcBuildingStorey va hajm (IfcBuildingElementProxy), «Archemistry_Bino» xususiyatlari: funksiya, qavatlar, GFA, material, tom; uchastka WGS84 koordinatasi bilan.'))));
     }
   }

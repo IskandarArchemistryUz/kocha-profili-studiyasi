@@ -164,3 +164,4 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 /* panel ichidagi bloklar siqilmaydi (aks holda .group overflow:hidden bilan 0 balandlikka tushadi) */
 .ws aside.panel>*{flex-shrink:0}
 .ws .ks-dd svg,.ws .ks-acc svg{width:16px;height:16px;flex:none}
+.eko .svc em.beta{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--r-pill);background:var(--warn-soft);color:var(--warn)}

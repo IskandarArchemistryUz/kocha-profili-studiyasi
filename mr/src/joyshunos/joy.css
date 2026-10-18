@@ -236,3 +236,4 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-step .btn{min-width:28px;padding:2px 8px}
 .joy-rep{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .joy-rep .t-small{margin-right:auto}
+.eko .svc em.beta{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--r-pill);background:var(--warn-soft);color:var(--warn)}
