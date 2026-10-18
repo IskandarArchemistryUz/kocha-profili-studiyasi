@@ -38,11 +38,16 @@ async function route(): Promise<void> {
     document.title = `${doc.name} — Archemistry Lab · Master reja`;
     editor = new Editor(root, doc, () => { location.hash = '#/'; });
     (window as any).__mr = editor; // e2e testlar uchun
-    if (m[2]) editor.openCh();
+    if (m[2]) editor.openCh(takeKsInbox());
     return;
   }
   document.title = 'Archemistry Lab · Master reja';
   await home();
+}
+
+/** Koʻchasozdan kelgan varaq (app/kochasoz.html → «Chizmadonga yuborish») — bir marta olinadi */
+function takeKsInbox(): Parameters<Editor['openCh']>[0] {
+  try { const v = localStorage.getItem('ks-chz-inbox'); if (!v) return undefined; localStorage.removeItem('ks-chz-inbox'); return JSON.parse(v); } catch { return undefined; }
 }
 
 async function home(): Promise<void> {

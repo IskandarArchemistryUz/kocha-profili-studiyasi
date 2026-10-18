@@ -34,6 +34,7 @@ test('bosh sahifa: jonli model, til, tungi rejim, barcha asboblar', async ({ pag
   // asboblar: 5 karta, Chizmadon ilovaga, oʻtish davri roʻyxatida 14 eski sahifa
   await expect(page.locator('.tools .tool')).toHaveCount(5);
   await expect(page.locator('#tCh')).toHaveAttribute('href', 'app/#/chizmadon');
+  await expect(page.locator('#tKs')).toHaveAttribute('href', 'app/kochasoz.html');
   await expect(page.locator('#allTools a')).toHaveCount(14);
   for (const a of await page.locator('#allTools a').all()) { const href = (await a.getAttribute('href'))!; expect(existsSync(join(ROOT, href))).toBe(true); }
   // til: en → sarlavha va tugma tarjima, kalit saqlanadi (ilova va eski sahifalar uchun)

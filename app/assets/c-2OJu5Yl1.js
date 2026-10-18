@@ -1,0 +1,50 @@
+var e=`<div class="ws ws-c">
+  <div class="mtabs" style="position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(236,235,232,.9); z-index: 3;">
+    <sc-for list="{{modes}}" as="m"><button class="mtab" aria-pressed="{{m.p}}"><b>{{m.k}}</b>{{m.n}}</button></sc-for>
+  </div>
+  <aside class="panel" style="position: absolute; top: 76px; left: 12px; width: 262px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; z-index: 2;">
+    <div><span class="t-foot">Chorraha</span><b style="display: block; font-size: 17px;">{{title}}</b><span class="t-foot">{{sub}}</span></div>
+    <span class="lbl">Asosiy koʻcha · gorizontal</span>
+    <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{tA}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}">{{c.n}}</button></sc-for></div>
+    <span class="lbl">Kesishuvchi koʻcha</span>
+    <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{tB}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}">{{c.n}}</button></sc-for></div>
+    <div class="group white"><div class="row"><span style="flex: 1;">Kesishish burchagi</span><div class="stepper"><button onClick="{{aD}}" aria-label="Kesishish burchagi — kamaytirish">−</button><span class="v">{{ang}}</span><button onClick="{{aU}}" aria-label="Kesishish burchagi — oshirish">+</button></div></div><div class="row"><span style="flex: 1;">Burilish radiusi</span><div class="stepper"><button onClick="{{rD}}" aria-label="Burilish radiusi — kamaytirish">−</button><span class="v">{{R}}</span><button onClick="{{rU}}" aria-label="Burilish radiusi — oshirish">+</button></div></div></div>
+    <span class="lbl">Hisobiy tezlik · asosiy / kesishuvchi</span>
+    <div class="seg sm"><sc-for list="{{vA}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
+    <div class="seg sm"><sc-for list="{{vB}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
+    <span class="lbl">Sharoit va boshqaruv</span>
+    <div class="seg sm"><sc-for list="{{rek}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
+    <div class="seg sm"><sc-for list="{{ctl}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
+    <span class="lbl">Elementlar</span>
+    <div class="group white" style="padding: 4px;"><sc-for list="{{opts}}" as="i"><button class="itm" onClick="{{i.tog}}"><span class="check {{i.c}}" style="width: 20px; height: 20px;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span style="flex: 1;">{{i.n}}</span><span class="t-foot">{{i.src}}</span></button></sc-for></div>
+    <span class="lbl">Burilish izi · dizayn avtomobili</span>
+    <div class="seg sm"><sc-for list="{{tdir}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
+    <div class="seg sm"><sc-for list="{{veh}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
+    <span class="t-foot">{{vehNote}}</span>
+    <div class="group white" style="padding: 4px 10px;"><div class="lim" style="font-size: 11px; color: #8f8a80;"><span style="flex: 1;">Avtomobil</span><span style="width: 44px; text-align: right;">Ri</span><span style="width: 44px; text-align: right;">Ro</span><span style="width: 54px; text-align: right;">Boʻlak</span><span style="width: 50px; text-align: right;">R 1+1</span></div><sc-for list="{{cmp}}" as="r"><div class="lim" style="font-size: 12px;"><span style="flex: 1; display: flex; align-items: center; gap: 6px;"><i style="width: 10px; height: 10px; border-radius: 50%; background: {{r.c}}; flex: none;"></i>{{r.n}}</span><span class="num" style="width: 44px; text-align: right;">{{r.ri}}</span><span class="num" style="width: 44px; text-align: right;">{{r.ro}}</span><b class="num" style="width: 54px; text-align: right; color: {{r.sc}};">{{r.ln}}</b><span class="num" style="width: 50px; text-align: right;">{{r.rk}}</span></div></sc-for><span class="t-foot">R 1+1 — avtomobil oʻz boʻlagidan chiqmay burilishi uchun eng kichik bordyur radiusi (andoza hisob).</span></div>
+  </aside>
+  <main style="position: absolute; top: 124px; left: 286px; right: 372px; bottom: 12px;">
+    <div class="card" style="position: absolute; inset: 0; overflow: hidden; border-radius: 22px;">
+      <div style="position: absolute; top: 12px; right: 14px; z-index: 2;"><div class="seg sm" style="width: 150px;"><sc-for list="{{gfx}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div></div>
+      <svg viewBox="0 0 784 860" style="position: absolute; inset: 0; width: 100%; height: 100%;" role="img" aria-label="{{alt}}">
+        <rect width="784" height="860" fill="#ffffff"></rect>
+        <sc-for list="{{draw}}" as="p"><path d="{{p.d}}" fill="{{p.f}}" stroke="{{p.s}}" stroke-width="{{p.w}}" stroke-dasharray="{{p.da}}" opacity="{{p.o}}" stroke-linecap="round" stroke-linejoin="round" transform="{{p.t}}"></path></sc-for>
+        <sc-for list="{{txt_m}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="middle" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for><sc-for list="{{txt_s}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="start" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for><sc-for list="{{txt_e}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="end" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for>
+      </svg>
+    </div>
+  </main>
+  <aside class="panel" style="position: absolute; top: 76px; right: 12px; width: 348px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; z-index: 2;">
+    <span class="lbl">Qatlamlar · koʻrsatish / yashirish</span>
+    <div class="group white" style="padding: 4px;"><sc-for list="{{lay}}" as="i"><button class="itm" onClick="{{i.tog}}"><span class="check {{i.c}}" style="width: 20px; height: 20px;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span style="flex: 1;">{{i.n}}</span><span class="t-foot">{{i.src}}</span></button></sc-for></div>
+    <span class="lbl">Koʻrsatkichlar</span>
+    <div class="group white" style="padding: 6px 10px;"><sc-for list="{{mets}}" as="l"><div class="lim"><span>{{l.n}}</span><b>{{l.v}}</b></div></sc-for></div>
+    <span class="lbl">Tekshiruv · {{okCount}}</span>
+    <div class="group white" style="padding: 2px 10px;"><sc-for list="{{checks}}" as="r"><div class="chk"><i style="background: {{r.c}};"></i><span style="flex: 1;">{{r.n}}<span class="src">{{r.src}}</span></span><b class="num" style="color: {{r.c}};">{{r.v}}</b></div></sc-for></div>
+    <span class="lbl">Toʻqnashuv nuqtalari</span>
+    <div class="group white" style="padding: 6px 10px;"><sc-for list="{{cfl}}" as="l"><div class="lim" style="justify-content: flex-start; gap: 8px;"><i style="width: 12px; height: 12px; border-radius: 50%; border: 2.5px solid {{l.c}}; flex: none;"></i><span>{{l.n}}</span></div></sc-for><span class="t-foot">Dizayn avtomobili izi boʻyicha · «Hammasi»da — avtobus.</span></div>
+    <div class="note">{{note}}</div>
+    <span class="lbl">Belgilar</span>
+    <div class="group white" style="padding: 6px 10px;"><sc-for list="{{signs}}" as="l"><div class="lim" style="justify-content: flex-start; gap: 8px;"><i style="width: 14px; height: 14px; border-radius: {{l.r}}; background: {{l.c}}; border: 2px solid {{l.b}}; flex: none;"></i><span>{{l.n}}</span></div></sc-for><span class="t-foot">YHQ ilovasidagi raqamlar hali tekshirilmagan — faqat nomlar.</span></div>
+  </aside>
+</div>
+`;export{e as default};

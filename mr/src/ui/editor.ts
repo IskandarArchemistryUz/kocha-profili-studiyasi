@@ -62,6 +62,7 @@ import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
 import { LiveBase, liveSize } from '../context/basemap';
 import { logoSvg } from './logo';
+import { openInKochasoz } from '../kochasoz/fromMr';
 import { PALETTES, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
@@ -1940,6 +1941,8 @@ export class Editor {
         const st = doc.streets.find(x => x.id === this.selStreet), p = st && profileById(st.profile), iss = p ? checkProfile(p) : [];
         if (p) body.append(h('div', { class: iss.length ? 'note bad' : 'note ok', id: 'stNorm' }, h('b', {}, `${CATS[p.cat].name}`), ` · ShNQ 2.07.01-23, ${CATS[p.cat].clause}`, h('br'),
           ...(iss.length ? iss.map(x => h('div', {}, `${x.what}: ${x.value} — ${tr('meʼyor')} ${x.norm}`)) : [tr('Meʼyorga mos.')])));
+        if (p) body.append(h('button', { class: 'btn btn-block', id: 'stKs', title: tr('Koʻchasoz: kesim muharriri — Dizayn-kod zonalari, muhandislik tarmoqlari, reja, aksonometriya, albom varagʻi'), onclick: () => openInKochasoz(p, `${doc.name} · ${p.name}`) },
+          h('i', { style: 'width:8px;height:8px;border-radius:4px;background:var(--svc-ks);flex:none' }), tr('Koʻchasozda ochish (kesim)')));
       }
     } else body.append(h('div', { class: 'note' }, tr('Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.')));
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Mavjud koʻchani tahrirlash')), h('div', {}, tr('Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'))));
