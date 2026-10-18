@@ -33,6 +33,8 @@ import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
 import { nearestStation, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
+import { initStats } from '../core/stats';
+initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
 type Group = 'yer' | 'iqlim' | 'shahar' | 'biznes';

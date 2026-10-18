@@ -76,6 +76,7 @@ import type { ContextBundle } from '../context/load';
 import { summary } from '../context/osm';
 import { geocode, type Place } from '../context/geocode';
 import { detectBlock, type Barrier } from '../context/blocks';
+import { track } from '../core/stats';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
@@ -613,6 +614,7 @@ export class Editor {
     const cur = this.ctxMgr.current;
     const covers = (b: ContextBundle | null) => !!b && b.radius >= cs.radius && dist(b.center, doc.origin) + cs.radius <= b.radius + 60;
     if (!force && covers(cur)) { this.showContext(cur); return; }
+    track('mr/calc/area');
     if (this.ctx.busy && !force) return;
     this.ctx = { busy: true, msg: 'Keshdan…', frac: 0.02, err: '' }; this.renderPanel(); this.renderBadge();
     try {
@@ -887,6 +889,7 @@ export class Editor {
   }
 
   private async runWind(): Promise<void> {
+    track('mr/calc/wind');
     const doc = this.store.doc, st = this.climate && nearestStation(this.climate, doc.origin[0], doc.origin[1]).s; if (!doc.site || !st) return;
     const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
@@ -1114,6 +1117,7 @@ export class Editor {
   private clearApt(): void { this.apt = { busy: false, stats: null, plans: [], pts: [] }; this.aptRules = []; this.scene.setFacadeMarks(null); }
 
   private async runApts(): Promise<void> {
+    track('mr/calc/flats');
     const doc = this.store.doc, fh = doc.settings.floorHeight;
     const plans = planApartments(doc); if (!plans.length) { toast('Turar joy seksiyalari yoʻq'); return; }
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -2314,7 +2318,7 @@ export class Editor {
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
     if (this.sframe) this.endFrame();
-    this.setTool(null); this.step = s; this.panelOpen = true;
+    this.setTool(null); this.step = s; this.panelOpen = true; track(`mr/step/${s.id}`, true);
     this.closePop(); if (this.el.drawer.dataset.kind === 'section') this.el.drawer.hidden = true;   // oldingi qadamning ochiq oynalari yopiladi
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
