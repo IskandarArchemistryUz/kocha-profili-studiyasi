@@ -78,14 +78,8 @@ function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] 
 }
 
 export type ViewMode = 'plan' | 'axo' | 'persp';
-export type SceneStyle = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal';
-export const STYLES: { id: SceneStyle; name: string; note: string }[] = [
-  { id: 'albom', name: 'Qogʻoz', note: 'oq binolar, och yoʻllar va daraxtlar, soyalar — taqdimot' },
-  { id: 'rangli', name: 'Shahar ranglari', note: 'OSM ranglari, sunʼiy yoʻldosh tasviri bilan' },
-  { id: 'arctic', name: 'Gips maket', note: 'oq gil model, yumshoq soyalar' },
-  { id: 'funksiya', name: 'Funksional', note: 'har funksiya oʻz rangida' },
-  { id: 'minimal', name: 'Chizma', note: 'oq-qora grafika' },
-];
+import { STYLE_PAL, type SceneStyle } from './styles';
+export { STYLES, type SceneStyle } from './styles';
 /** kadr nisbatlari (eni/boʻyi) */
 export const FRAMES: { id: string; name: string; r: number }[] = [
   { id: 'erkin', name: 'Erkin', r: 0 }, { id: '16:9', name: '16:9', r: 16 / 9 }, { id: '3:2', name: '3:2', r: 1.5 }, { id: '4:3', name: '4:3', r: 4 / 3 },
@@ -93,13 +87,6 @@ export const FRAMES: { id: string; name: string; r: number }[] = [
 ];
 export const LENSES = [18, 24, 28, 35, 50, 85];
 const lensFov = (mm: number) => 2 * Math.atan(24 / (2 * mm)) * 180 / Math.PI;
-/** uslubga qarab atrof ranglari (null — «Rangli»: asl ranglar) */
-const STYLE_PAL: Record<Exclude<SceneStyle, 'rangli'>, { pal: Record<string, number>; lerp: number; line: number | null; bg: number }> = {
-  albom: { pal: { relyef: 0xf1efea, yashil: 0xe1e9d6, suv: 0xcfdfe8, ariqlar: 0xcfdfe8, 'yoʻlaklar': 0xf8f7f4, trotuarlar: 0xf8f7f4, 'yoʻllar': 0xdfddd8, chiziqlar: 0xffffff, binolar: 0xfcfbf9, tomlar: 0xefece7, daraxtlar: 0xcbd9bf }, lerp: 0.65, line: null, bg: 0xf6f5f2 },
-  funksiya: { pal: { relyef: 0xf1efea, yashil: 0xe1e9d6, suv: 0xcfdfe8, ariqlar: 0xcfdfe8, 'yoʻlaklar': 0xf8f7f4, trotuarlar: 0xf8f7f4, 'yoʻllar': 0xdfddd8, chiziqlar: 0xffffff, binolar: 0xf4f2ee, tomlar: 0xe9e6e0, daraxtlar: 0xcbd9bf }, lerp: 0.65, line: null, bg: 0xf6f5f2 },
-  arctic: { pal: { relyef: 0xf7f6f3, yashil: 0xeef0ea, suv: 0xe4ebef, ariqlar: 0xe4ebef, 'yoʻlaklar': 0xfbfaf8, trotuarlar: 0xfbfaf8, 'yoʻllar': 0xecebe7, chiziqlar: 0xffffff, binolar: 0xffffff, tomlar: 0xf6f5f2, daraxtlar: 0xeef1ea }, lerp: 0.88, line: null, bg: 0xfafaf8 },
-  minimal: { pal: { relyef: 0xffffff, yashil: 0xf1f1f1, suv: 0xe6e6e6, ariqlar: 0xe6e6e6, 'yoʻlaklar': 0xfafafa, trotuarlar: 0xfafafa, 'yoʻllar': 0xdedede, chiziqlar: 0xffffff, binolar: 0xf7f7f7, tomlar: 0xededed, daraxtlar: 0xd8d8d8 }, lerp: 0.9, line: 0x6a6a6a, bg: 0xffffff },
-};
 const PART_ARC: Record<string, number> = { avtobus: 0xf0e4df, tramvay: 0xebe9e4, trotuar: 0xf8f7f4, yashil: 0xeaeee4, velo: 0xf1e6e1, parkovka: 0xeeedea, qatnov: 0xe6e5e1, chiziq: 0xffffff };
 const PART_MIN: Record<string, number> = { avtobus: 0xc4c4c4, tramvay: 0xc9c9c9, trotuar: 0xfafafa, yashil: 0xececec, velo: 0xe4e4e4, parkovka: 0xe2e2e2, qatnov: 0xcfcfcf, chiziq: 0xffffff };
 /** «portlatilgan» qatlamlar: 0 — atrof, 1 — koʻchalar, 2 — kvartallar, 3 — binolar */

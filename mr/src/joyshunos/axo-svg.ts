@@ -16,7 +16,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;
 
 export function axoSvg(a: Axo, layered: boolean): string {
   const st = a.exportState(), inp = st.inp; if (!inp) throw new Error(tr('Sahna hali tayyor emas'));
-  const { cam, w, h, groups, R, clipR, slabTop, H } = st, P = inp.pal, fr = frame(inp.center);
+  const { cam, w, h, groups, R, clipR, slabTop, H } = st, P = a.P, fr = frame(inp.center);
   const off = (id: AxLayer) => groups.get(id)!.position.y;
   const v3 = new THREE.Vector3();
   /** mahalliy (x — sharq, y — shimol, z — balandlik) → ekran */
