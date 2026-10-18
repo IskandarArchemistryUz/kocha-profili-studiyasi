@@ -71,9 +71,16 @@ test('saytda: faqat Kesim (Kesim, Reja koʻrinishlari) va Varaq; qolganlari «Te
   await page.locator('.ws-b .ks-bb').nth(1).click();
   expect(await page.evaluate(() => (window as any).__ks.m.inst.state.bL)).toBe(bL + 1);
   // tayyor kesimlar: Master reja profillari guruhi
-  await page.locator('.ws-b .ks-tgs .chipb', { hasText: 'Asosiy' }).click();
+  await page.locator('.ws-b .ks-dd').click();
+  await page.locator('.ws-b .ks-menu button', { hasText: 'Asosiy' }).click();
+  await expect(page.locator('.ws-b .ks-menu')).toHaveCount(0);
   await page.locator('.ws-b .tpl', { hasText: 'Mahalla koʻchasi' }).click();
   await expect(page.locator('.ws-b aside').first()).toContainText('Mahalla koʻchasi');
+  // «Tayyor kesimlar» boʻlimi yigʻiladi
+  await page.locator('.ws-b .ks-acc').click();
+  await expect(page.locator('.ws-b .tpl')).toHaveCount(0);
+  await page.locator('.ws-b .ks-acc').click();
+  await expect(page.locator('.ws-b .tpl').first()).toBeVisible();
   expect(errs).toEqual([]);
 });
 
