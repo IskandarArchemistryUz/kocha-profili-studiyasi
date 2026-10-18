@@ -233,3 +233,35 @@ test('A3: issiqlik oroli (MODIS, beta) va quyosh/soya xaritada', async ({ page }
   await page.screenshot({ path: 'test-results/joy-a3-dark.png' });
   expect(errs).toEqual([]);
 });
+
+test('C: joy pasporti hisoboti — SVG (qatlamli), PDF va Chizmadonga', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  const errs: string[] = [];
+  await open(page, errs);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator('[data-layer=piyoda] .switch').click();
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15/, { timeout: 30_000 });
+  await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('—', { timeout: 30_000 });
+  await page.waitForTimeout(7500);   // sinovda fon plitkalari yoʻq — oddiy fon bilan davom etadi
+  const dl = page.waitForEvent('download');
+  await page.locator('#repSvg').click();
+  const d = await dl; expect(d.suggestedFilename()).toMatch(/^joy-pasporti-.*\.svg$/);
+  const svg = readFileSync((await d.path())!, 'utf8');
+  for (const s of ['inkscape:label="01 Xarita"', 'inkscape:label="03 Pasport"', 'inkscape:label="09 Shtamp"', '<image', 'Xizmatlar', 'Piyoda yetish', 'Joy pasporti'.toUpperCase(), 'ShNQ 2.07.01-23']) expect(svg).toContain(s);
+  const v = await context.newPage(); await v.setViewportSize({ width: 1588, height: 1123 });
+  await v.setContent(`<body style="margin:0;background:#888">${svg.replace(/width="420mm" height="297mm"/, 'width="1588" height="1123"')}</body>`);
+  await v.screenshot({ path: 'test-results/joy-c-sheet.png' }); await v.close();
+  // PDF
+  const dp = page.waitForEvent('download', { timeout: 60_000 });
+  await page.locator('#repPdf').click();
+  expect((await dp).suggestedFilename()).toMatch(/\.pdf$/);
+  // Chizmadonga
+  await page.locator('#repChz').click();
+  await expect(page).toHaveURL(/#\/p\/[\w-]+\/chizmadon$/, { timeout: 30_000 });
+  await expect(page.locator('.gx.ch')).toBeVisible({ timeout: 20_000 });
+  expect(await page.evaluate(() => localStorage.getItem('ks-chz-inbox'))).toBeNull();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'test-results/joy-c-chz.png' });
+  expect(errs).toEqual([]);
+});
