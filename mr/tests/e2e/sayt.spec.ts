@@ -71,6 +71,9 @@ test('narxlar: hisoblagich, maydon koeffitsiyenti, valyuta, til', async ({ page 
   await expect(page.locator('[data-pre="kom"]')).toHaveAttribute('aria-pressed', 'false');
   await page.click('[data-pre="all"]'); await expect(page.locator('#cTot')).toHaveText('49');
   await expect(page.locator('#cSum')).toContainText(/162\s000/);
+  // koeffitsiyent faqat MR fayllariga: (12+8+3+5+10) × 2 + (10+1) = 87
+  await page.click('[data-k="2"]'); await expect(page.locator('#cTot')).toHaveText('87');
+  await expect(page.locator('#cFormula')).toContainText('38 × 2');
   await page.click('[data-cur="usd"]'); await expect(page.locator('[data-usd="$10"]')).toHaveText('$10');
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   await expect(page.locator('h1')).toContainText('бесплатно');
