@@ -1,5 +1,6 @@
 /** Kichik DOM yordamchilari — freymvorksiz, lekin bir xil uslubda */
 import { trSvg, getLang } from '../i18n';
+import { needWm, wmFile } from '../core/wm';
 type Attrs = Record<string, string | number | boolean | null | undefined | ((e: any) => void)>;
 type Child = Node | string | number | null | undefined | false | Child[];
 
@@ -48,6 +49,11 @@ export function toast(msg: string): void {
 
 export function download(name: string, data: string | Blob, type = 'application/json'): void {
   if (typeof data === 'string' && type.includes('svg')) data = trSvg(data);   // chizma ichidagi yozuvlar — tanlangan tilda
+  // bepul yuklash — setkasimon belgi (SVG, PNG, DXF); egasi uchun — belgisiz
+  if (needWm() && /\.(svg|png|jpe?g|dxf)$/i.test(name)) { void wmFile(name, data, type).then(d => save(name, d, type)).catch(() => save(name, data, type)); return; }
+  save(name, data, type);
+}
+function save(name: string, data: string | Blob, type: string): void {
   const url = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
   const a = h('a', { href: url, download: name }); document.body.appendChild(a); a.click(); a.remove();
   if (!url.startsWith('data:')) setTimeout(() => URL.revokeObjectURL(url), 2000);

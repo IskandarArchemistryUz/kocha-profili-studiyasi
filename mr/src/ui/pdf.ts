@@ -1,4 +1,5 @@
 /** Vektor PDF: jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari). Varaqlar va Chizmadon uchun umumiy. */
+import { wmSvg } from '../core/wm';
 export interface PdfPage { svg: string; widthMm: number; heightMm: number }
 /* ---------- PDF (vektor): jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari) ---------- */
 let pdfLib: Promise<{ jsPDF: typeof import('jspdf').jsPDF; svg2pdf: typeof import('svg2pdf.js').svg2pdf; fonts: [string, string] }> | null = null;
@@ -20,7 +21,7 @@ export async function svgPdf(pages: PdfPage[], name: string): Promise<void> {
   for (let i = 0; i < pages.length; i++) {
     const r = pages[i];
     if (i) pdf.addPage([r.widthMm, r.heightMm], r.widthMm > r.heightMm ? 'landscape' : 'portrait');
-    const el = new DOMParser().parseFromString(r.svg.replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"'), 'image/svg+xml').documentElement;
+    const el = new DOMParser().parseFromString(wmSvg(r.svg).replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"'), 'image/svg+xml').documentElement;
     const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-99999px;top:0'; host.append(el); document.body.append(host);
     try { await svg2pdf(el as unknown as Element, pdf, { x: 0, y: 0, width: r.widthMm, height: r.heightMm }); } finally { host.remove(); }
   }
