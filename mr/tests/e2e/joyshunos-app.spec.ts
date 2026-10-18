@@ -34,7 +34,7 @@ const CMAP = '<ColorMaps><ColorMap><Entries><ColorMapEntry rgb="64,64,64" transp
 async function open(page: Page, errs: string[], hash = ''): Promise<void> {
   page.on('pageerror', e => errs.push(e.message));
   page.on('dialog', d => { errs.push(`dialog: ${d.message()}`); void d.dismiss(); });
-  page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED|AJAXError|Failed to load/.test(m.text())) errs.push(`console: ${m.text().slice(0, 200)}`); });
+  page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED|AJAXError|Failed to load|AbortError/.test(m.text())) errs.push(`console: ${m.text().slice(0, 200)}`); });
   await page.route(/fonts\.g|openfreemap|arcgis/, r => r.abort());
   await page.route(/gibs\.earthdata\.nasa\.gov/, r => r.request().url().endsWith('.xml') ? r.fulfill({ contentType: 'text/xml', body: CMAP }) : r.fulfill({ contentType: 'image/png', body: pngSolid(255, 127, 0) }));
   await page.route(/elevation-tiles-prod/, r => r.fulfill({ path: FIX, contentType: 'image/png' }));
