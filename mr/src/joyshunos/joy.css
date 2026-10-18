@@ -1,0 +1,122 @@
+/* Joyshunos — kanvasdagi «Joy-A» maketi, ds2 tokenlarida. Xarita butun ekranni egallaydi; panellar ustida suzadi. */
+html,body{height:100%}
+body.joy-body{overflow:hidden;font-size:14px;line-height:1.45}
+#joy{position:fixed;inset:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+.joy-map,.joy-map.maplibregl-map{position:absolute;inset:0;background:var(--fill)}
+.joy-maperr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ——— ekotizim sarlavhasi (Koʻchasoz bilan bir xil) ——— */
+.eko{position:absolute;top:12px;left:12px;right:12px;height:52px;border-radius:18px;display:flex;align-items:center;gap:10px;padding:0 10px 0 14px;z-index:5}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:var(--sh-float)}
+.eko .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap;color:var(--ink);text-decoration:none}
+.eko .vr{width:.5px;height:22px;background:var(--hairline)}
+.eko .svc{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--fill)}
+.eko .svc a{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:var(--r-pill);font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap}
+.eko .svc a:hover{color:var(--ink)}
+.eko .svc a.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 .5px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.06)}
+.eko .svc i{width:8px;height:8px;border-radius:4px;flex:none}
+.eko .sp{flex:1}
+.eko .langsw{width:108px}
+
+/* ——— chap panel: qidiruv va qatlamlar ——— */
+.joy-lp{position:absolute;top:76px;left:12px;width:286px;max-height:calc(100% - 88px);overflow-y:auto;padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;z-index:4;scrollbar-width:thin}
+.joy-lp>*{flex-shrink:0}
+.joy-search{position:relative;display:flex;align-items:center}
+.joy-search .ic{position:absolute;left:12px;color:var(--muted);pointer-events:none}
+.joy-search .input{padding-left:36px;height:40px;border-radius:var(--r-tile)}
+.joy-search .t-small{position:absolute;right:12px}
+.joy-res{display:flex;flex-direction:column;padding:4px;border-radius:var(--r-tile);background:var(--grouped)}
+.joy-res button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 10px;border:0;border-radius:8px;background:transparent;text-align:left;cursor:pointer}
+.joy-res button:hover{background:var(--fill)}
+.joy-res b{font-size:13px;font-weight:600}.joy-res span{font-size:11.5px;color:var(--muted)}
+.joy-g{display:flex;flex-direction:column}
+.joy-gl{margin:10px 4px 4px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.joy-l{display:flex;align-items:center;gap:10px;min-height:36px;padding:0 4px}
+.joy-l .sq{width:12px;height:12px;border-radius:3px;flex:none}
+.joy-l .nm{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.joy-l .src{font-size:11px;color:var(--muted);white-space:nowrap}
+.joy-l .switch{width:38px;height:24px}.joy-l .switch i{width:20px;height:20px}.joy-l .switch.on i{transform:translateX(14px)}
+.joy-l.soon .nm,.joy-l.soon .sq{opacity:.55}
+em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;padding:2px 7px;border-radius:var(--r-pill);background:var(--warn-soft);color:var(--warn)}
+.joy-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
+.joy-tools .btn{padding:0 6px;font-size:12.5px;gap:5px}
+.joy-old{margin-top:6px;border-radius:var(--r-tile);background:var(--grouped)}
+.joy-old summary{display:flex;align-items:center;justify-content:space-between;gap:8px;height:36px;padding:0 12px;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;list-style:none}
+.joy-old summary::-webkit-details-marker{display:none}
+.joy-old[open] summary .ic{transform:rotate(180deg)}
+.joy-old div{display:flex;flex-direction:column;padding:0 6px 8px}
+.joy-old a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:8px;font-size:13px;color:var(--ink);text-decoration:none}
+.joy-old a:hover{background:var(--fill)}
+.joy-old a .ic{width:14px;height:14px;color:var(--muted)}
+
+/* ——— oʻng ustun: joy pasporti ——— */
+.joy-rp{position:absolute;top:76px;right:12px;bottom:12px;width:316px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;z-index:4;scrollbar-width:thin;padding:2px 2px 6px}
+.joy-rp>*{flex-shrink:0}
+.joy-card{background:var(--surface);border-radius:18px;box-shadow:var(--sh-float);padding:14px 16px;display:flex;flex-direction:column;gap:4px;position:relative}
+.joy-card header{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.joy-card header .sq{width:9px;height:9px;border-radius:2px;flex:none}
+.joy-card header .nm{flex:1;min-width:0}
+.joy-card header .chip{font-size:11px;font-weight:600;height:20px}
+.joy-card .big{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.joy-card .big.skel{height:30px;width:60%;border-radius:8px;background:linear-gradient(90deg,var(--fill),var(--grouped),var(--fill));background-size:200% 100%;animation:joysk 1.2s linear infinite}
+@keyframes joysk{to{background-position:-200% 0}}
+.joy-card .sub{font-size:12.5px;line-height:1.45;color:var(--muted)}
+.joy-card .sub.err{color:var(--bad)}
+.joy-card .src{display:inline-block;margin-top:4px;font-size:11px;color:var(--faint)}
+.joy-card>.btn{align-self:flex-start;margin-top:4px}
+.joy-card.head{gap:6px}
+.joy-card.head .ttl{margin:0;font-size:21px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+.joy-card.head .ttl .r{color:var(--muted);font-weight:600}
+.joy-card.head .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.joy-card.head .chip.mono{font-size:11px}
+.joy-card.head .seg{flex:1;min-width:150px}
+.joy-card.soonc .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.joy-card.soonc .chip{font-size:11px}.joy-card.soonc .chip i{width:6px;height:6px;border-radius:2px}
+.joy-norm{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.joy-norm li{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:baseline;font-size:12px;color:var(--ink-2);padding:3px 0;border-top:.5px solid var(--hairline)}
+.joy-norm li b{font-variant-numeric:tabular-nums;font-weight:600}
+.joy-norm li em{font-style:normal;font-size:11px;color:var(--muted);min-width:56px;text-align:right}
+.joy-norm li.ok b{color:var(--ok)}.joy-norm li.warn b{color:var(--warn)}
+.joy-catw{position:relative;margin-top:2px}
+.joy-cat{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:0;border-radius:8px;background:var(--fill);font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer}
+.joy-cat .ic{width:14px;height:14px}
+.joy-menu{position:absolute;top:32px;left:0;z-index:3;min-width:230px;padding:4px;border-radius:var(--r-tile);background:var(--surface);box-shadow:var(--sh-pop);display:flex;flex-direction:column}
+.joy-menu button{border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:8px;font-size:13px;cursor:pointer}
+.joy-menu button:hover{background:var(--fill)}
+.joy-menu button[aria-selected="true"]{font-weight:600;background:var(--grouped)}
+
+/* ——— xarita ustida ——— */
+.joy-ask{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);width:min(620px,calc(100% - 680px));min-width:360px;height:52px;border-radius:var(--r-pill);display:flex;align-items:center;gap:10px;padding:0 8px 0 18px;z-index:4}
+.joy-ask>.ic{color:var(--svc-joy)}
+.joy-ask .q{flex:1;min-width:0;border:0;background:transparent;font-size:14px;color:var(--ink);outline:none}
+.joy-ask .q:disabled{color:var(--muted)}
+.joy-base{position:absolute;left:310px;top:76px;padding:3px;border-radius:var(--r-ctl);z-index:3}
+.joy-base .seg{background:transparent;height:30px;width:220px}
+.joy-legend{position:absolute;left:310px;top:122px;max-width:300px;padding:10px 12px;border-radius:var(--r-card);z-index:3;display:flex;flex-direction:column;gap:8px;font-size:11.5px}
+.joy-legend[hidden]{display:none}
+.joy-legend .lg{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.joy-legend .lg b{width:100%;font-size:11px;font-weight:600;color:var(--muted)}
+.joy-legend span{display:inline-flex;align-items:center;gap:5px}
+.joy-legend i{width:12px;height:9px;border-radius:2px}.joy-legend i.dot{width:8px;height:8px;border-radius:50%}
+.joy-rose{pointer-events:none;opacity:.9}
+.joy-rlab{writing-mode:vertical-rl;margin-left:6px;font-size:11px;font-weight:700;color:#c0643a;white-space:nowrap;text-shadow:0 0 3px var(--surface),0 0 3px var(--surface),0 0 3px var(--surface);pointer-events:none}
+.maplibregl-ctrl-bottom-right{right:340px}
+.maplibregl-ctrl-group{border-radius:var(--r-ctl)!important;overflow:hidden;box-shadow:var(--sh-float)!important}
+[data-theme="dark"] .maplibregl-ctrl-group{background:var(--surface)}
+[data-theme="dark"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
+[data-theme="dark"] .maplibregl-ctrl-attrib{background:rgba(29,29,28,.7);color:var(--muted)}
+[data-theme="dark"] .maplibregl-ctrl-attrib a{color:var(--muted)}
+
+/* ——— planshet ——— */
+@media (max-width:1280px){
+  .joy-lp{width:256px}
+  .joy-rp{width:292px}
+  .joy-base,.joy-legend{left:280px}
+  .maplibregl-ctrl-bottom-right{right:316px}
+  .joy-ask{width:calc(100% - 600px);min-width:300px;bottom:76px}
+  .eko .svc a{padding:0 9px}
+}
+@media (max-width:1100px){.eko .brand span{display:none}.eko .svc a{font-size:12px;padding:0 8px}}
+@media (max-width:900px){.eko .svc a{font-size:0;gap:0;width:30px;justify-content:center;padding:0}.eko .svc a i{width:10px;height:10px;border-radius:5px}}
+@media (prefers-reduced-motion:reduce){#joy *{transition:none!important;animation:none!important}}

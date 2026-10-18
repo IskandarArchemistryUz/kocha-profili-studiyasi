@@ -65,7 +65,9 @@ body.site{font-size:15px;line-height:1.5}
 .tool b{font-size:20px;letter-spacing:-.01em}
 .tool small{font-size:13.5px;color:var(--muted);line-height:1.45}
 .tool .dot{display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:6px;vertical-align:1px}
-.site a.tool.main{grid-row:span 2;background:#141414;color:#f4f3f1;padding:22px}
+.tool.wide{grid-column:2/-1;flex-direction:row;align-items:center}
+.tool.wide .art{height:96px;width:180px;flex:none}
+.site a.tool.main{grid-row:span 3;background:#141414;color:#f4f3f1;padding:22px}
 .tool.main small,.tool.main .eyebrow{color:#b9b5ad}
 .tool.main b{font-size:28px}
 .tool.main .bars{margin-top:auto;display:flex;align-items:flex-end;gap:12px;height:140px;padding:0 10px;border-bottom:1px solid #4a4945;position:relative}
