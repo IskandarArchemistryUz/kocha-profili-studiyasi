@@ -17,6 +17,7 @@ import { pageSvg, textHeight, legendHeight, iconGlyph, esc } from './render';
 import { pageChecks, applyFix } from './check';
 import { TEMPLATES, TPL_GROUPS, type TplCtx } from './templates';
 import { TOOLS, type Tool, FLOWS, BANDS, ZONES, MOBILITY, DASHES, ICON_GROUPS, iconById, LOOKS, TREES, PALETTES, paletteById, FONTS, TEXT_KINDS } from './catalog';
+import { wmCanvas } from '../core/wm';
 
 export interface ChHost {
   /** loyiha nomi va joyi (sarlavha, namunalar) */
@@ -806,7 +807,7 @@ export function openChizmadon(host: ChHost): void {
       const pp = new PptxGen(), out = pagesOut(), f = out[0];
       pp.defineLayout({ name: 'CH', width: f.widthMm / 25.4, height: f.heightMm / 25.4 }); pp.layout = 'CH'; pp.title = d.title;
       for (const p of out) {
-        const c = await rasterize(p.svg, p.widthMm, p.heightMm, 150), s = pp.addSlide();
+        const c = wmCanvas(await rasterize(p.svg, p.widthMm, p.heightMm, 150)), s = pp.addSlide();
         const k = Math.min(f.widthMm / p.widthMm, f.heightMm / p.heightMm), w = p.widthMm * k / 25.4, hh = p.heightMm * k / 25.4;
         s.addImage({ data: c.toDataURL('image/png'), x: (f.widthMm / 25.4 - w) / 2, y: (f.heightMm / 25.4 - hh) / 2, w, h: hh });
       }

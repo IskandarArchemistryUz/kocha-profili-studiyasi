@@ -34,6 +34,7 @@ import { svcDef, type Svc } from '../core/services';
 import { nearestStation, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
+import { wmFile, wmRaster } from '../core/wm';
 initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
@@ -923,7 +924,8 @@ function renderNotes(): void {
 let expOpen = false;
 let axSyncTime: () => void = () => {};
 function fileName(ext: string): string { return `joyshunos-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}.${ext}`; }
-function save2(name: string, b: Blob): void { const u = URL.createObjectURL(b), x = document.createElement('a'); x.href = u; x.download = name; document.body.append(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+function save2(name: string, b0: Blob): void { void wmFile(name, b0, b0.type).then(b => save2raw(name, b as Blob)); }
+function save2raw(name: string, b: Blob): void { const u = URL.createObjectURL(b), x = document.createElement('a'); x.href = u; x.download = name; document.body.append(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
 async function doExport(k: 'svgL' | 'svg' | 'glb' | 'obj' | 'chz'): Promise<void> {
   expOpen = false; renderAxo(); if (!axo) return;
   try {
@@ -979,7 +981,7 @@ async function exportPng(): Promise<void> {
   if (!axo) return;
   const b = document.getElementById('axPng') as HTMLButtonElement | null; if (b) { b.disabled = true; b.textContent = '…'; }
   try {
-    const blob = await axo.png(3840), u = URL.createObjectURL(blob), a = document.createElement('a');
+    const blob = await wmRaster(await axo.png(3840)), u = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = u; a.download = `joyshunos-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}.png`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
   } catch (e) { alert((e as Error).message); }
   if (b) { b.disabled = false; b.textContent = 'PNG · 4K'; }

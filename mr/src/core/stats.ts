@@ -3,6 +3,8 @@
    Yuboriladi: faqat hodisa nomi, masalan «ev/mr/step/hajm» yoki «ev/export/mr/dxf». Loyiha, joy, matn — yuborilmaydi.
    Mahalliy kompyuterda, avtomatik testlarda va «Do Not Track» yoqilganda — hech narsa yuborilmaydi. */
 
+import { initOwner } from './wm';
+
 const CODE = 'archemistry';
 type GC = { count: (o: { path: string; title?: string; event?: boolean }) => void };
 const W = window as unknown as { goatcounter?: GC & { no_onload?: boolean } };
@@ -51,6 +53,7 @@ export function pageview(view: string): void {
 
 /** Har bir xizmat sahifasida bir marta chaqiriladi: skript yuklanadi, sahifa koʻrish va yuklab olishlar sanaladi */
 export function initStats(service: string, view = ''): void {
+  void initOwner();
   if (!enabled()) return;
   load();
   pageview(view);

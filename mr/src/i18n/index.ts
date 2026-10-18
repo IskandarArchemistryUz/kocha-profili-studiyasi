@@ -85,9 +85,13 @@ export function brand(s: string, l: Lang = lang): string {
   return s;
 }
 
+/** Tarjimasiz satrlarni yigʻish (faqat tekshiruv uchun): localStorage «i18n-miss» = 1 boʻlsa — window.__i18nMiss */
+const MISS: Set<string> | null = (() => { try { if (localStorage.getItem('i18n-miss') === '1') { const s = new Set<string>(); (window as unknown as { __i18nMiss: Set<string> }).__i18nMiss = s; return s; } } catch { /* */ } return null; })();
+
 export function tr(key: string): string {
   const O = OUTS[lang]; if (O.has(key)) return key;   // allaqachon tarjima qilingan matn — qayta tarjima qilinmaydi
   const r = brand(S[key] ? raw(key) : dyn(key, 0));
+  if (MISS && r === key && lang !== 'uz' && /\p{L}{3}/u.test(key)) MISS.add(key);
   if (r !== key) { if (O.size > 20000) O.clear(); O.add(r); }
   return r;
 }
