@@ -28,9 +28,19 @@ export const walkMin = (m: number) => Math.max(1, Math.round(m / 83));
 /* ---------------- relyef va nishab ---------------- */
 export interface TerrainStats { min: number; max: number; center: number; slopeMean: number; slopeP90: number; slopeMax: number; downhill: number | null }
 
-/** Har katak nishabi, % (markaziy ayirmalar) */
+/** Relyef toʻrini silliqlash (3×3 oʻrtacha, 2 marta) — z14 plitkalaridagi 1 m lik pogʻonalar nishabni sunʼiy oshirmasin */
+export function smoothH(g: TerrainGrid, passes = 2): Float32Array {
+  const { n } = g; let a = Float32Array.from(g.h);
+  for (let p = 0; p < passes; p++) {
+    const b = new Float32Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { let s = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const x = i + di, y = j + dj; if (x < 0 || y < 0 || x >= n || y >= n) continue; s += a[y * n + x]; c++; } b[j * n + i] = s / c; }
+    a = b;
+  }
+  return a;
+}
+/** Har katak nishabi, % (silliqlangan toʻr, markaziy ayirmalar) */
 export function slopeGrid(g: TerrainGrid): Float32Array {
-  const { n, step, h } = g, s = new Float32Array(n * n);
+  const { n, step } = g, h = smoothH(g), s = new Float32Array(n * n);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     const i0 = Math.max(0, i - 1), i1 = Math.min(n - 1, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(n - 1, j + 1);
     const dx = (h[j * n + i1] - h[j * n + i0]) / ((i1 - i0) * step), dy = (h[j1 * n + i] - h[j0 * n + i]) / ((j1 - j0) * step);

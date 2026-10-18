@@ -31,7 +31,7 @@ async function open(page: Page, errs: string[], hash = ''): Promise<void> {
   await page.route(/overpass|kumi\.systems|mail\.ru|private\.coffee/, async r => {
     const body = decodeURIComponent(r.request().postData() || '');
     const el = body.includes('way["building"]') ? city() : body.includes('"amenity"="cafe"') ? ring(9, 950, () => ({ amenity: 'cafe' })) : body.includes('pharmacy"]') ? ring(3, 900, () => ({ amenity: 'pharmacy' }))
-      : [...ring(12, 1800, i => ({ amenity: ['school', 'kindergarten', 'pharmacy', 'clinic'][i % 4] })), ...ring(10, 1500, () => ({ highway: 'bus_stop' }))];
+      : [...ring(12, 1800, i => ({ amenity: ['school', 'kindergarten', 'pharmacy', 'clinic'][i % 4] })), ...ring(10, 1500, () => ({ highway: 'bus_stop' })), ...(city() as { tags: Record<string, string> }[]).filter(e => e.tags.highway)];
     await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: el }) });
   });
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.removeItem('joy-state'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
@@ -42,8 +42,8 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('.eko .svc a.on')).toHaveText(/Joyshunos/);
   await expect(page.locator('.joy-l')).toHaveCount(12);
-  await expect(page.locator('.joy-l .switch')).toHaveCount(5);
-  await expect(page.locator('.joy-l em.soon')).toHaveCount(7);
+  await expect(page.locator('.joy-l .switch')).toHaveCount(8);
+  await expect(page.locator('.joy-l em.soon')).toHaveCount(4);
   // pasport: manzil, relyef, shamol, xizmatlar, raqobatchilar
   await expect(page.locator('.joy-card.head .ttl')).toContainText('Amir Temur shoh koʻchasi, 21');
   await expect(page.locator('[data-card=relyef] .big')).toHaveText(/\d+–\d+ m/);
@@ -52,6 +52,14 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/);
   await expect(page.locator('[data-card=xizmat] .joy-norm li')).toHaveCount(4);
   await expect(page.locator('[data-card=raqobat] .big')).toHaveText(/^\d+ ta$/);
+  // A2: piyoda yetish, odamlar oqimi (beta), shovqin (beta)
+  for (const id of ['piyoda', 'oqim', 'shovqin']) await page.locator(`[data-layer=${id}] .switch`).click();
+  await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15 daqiqa/, { timeout: 20_000 });
+  await expect(page.locator('[data-card=piyoda] .joy-norm li')).toHaveCount(5);
+  await expect(page.locator('[data-card=oqim] .big')).toHaveText(/^(Past|Oʻrtacha|Yuqori)$/, { timeout: 20_000 });
+  await expect(page.locator('[data-card=shovqin] .big')).toHaveText(/dB\(A\)/, { timeout: 20_000 });
+  await expect(page.locator('[data-card=oqim] .chip.beta')).toBeVisible();
+  await expect(page.locator('.joy-l em.soon')).toHaveCount(4);
   // raqobatchilar turi — oʻz menyusi (brauzerning select emas)
   await page.locator('.joy-cat').click();
   await page.locator('.joy-menu button', { hasText: 'Dorixona' }).click();
