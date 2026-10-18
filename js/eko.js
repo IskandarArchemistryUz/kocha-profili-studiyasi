@@ -12,7 +12,7 @@
   var SVC = [
     ['mr', 'Master reja', 'app/', '--svc-mr'],
     ['ks', 'Koʻchasoz', 'app/kochasoz.html', '--svc-ks'],
-    ['joy', 'Joyshunos', 'gis.html', '--svc-joy'],
+    ['joy', 'Joyshunos', 'app/joyshunos.html', '--svc-joy'],
     ['dk', 'Dizayn-kod', 'dizaynkod.html', '--svc-dk'],
     ['chz', 'Chizmadon', 'app/#/chizmadon', '--svc-chz']
   ];

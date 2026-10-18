@@ -31,8 +31,9 @@ test('bosh sahifa: jonli model, til, tungi rejim, barcha asboblar', async ({ pag
   for (let i = 0; i < 6; i++) await page.click('#flPlus');
   await expect(page.locator('#kPop')).toHaveClass(/bad/);
   await expect(page.locator('#blds .bl')).toHaveCount(3);
-  // asboblar: 5 karta, Chizmadon ilovaga, oʻtish davri roʻyxatida 14 eski sahifa
-  await expect(page.locator('.tools .tool')).toHaveCount(5);
+  // asboblar: 6 karta (Joyshunos qoʻshildi), Chizmadon ilovaga, oʻtish davri roʻyxatida 14 eski sahifa
+  await expect(page.locator('.tools .tool')).toHaveCount(6);
+  await expect(page.locator('#tJoy')).toHaveAttribute('href', 'app/joyshunos.html');
   await expect(page.locator('#tCh')).toHaveAttribute('href', 'app/#/chizmadon');
   await expect(page.locator('#tKs')).toHaveAttribute('href', 'app/kochasoz.html');
   await expect(page.locator('#allTools a')).toHaveCount(14);

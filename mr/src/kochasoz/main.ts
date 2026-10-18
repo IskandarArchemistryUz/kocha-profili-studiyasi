@@ -75,7 +75,7 @@ const ICON = {
 const SERVICES: { id: string; name: string; href: string; color: string; cur?: boolean }[] = [
   { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
   { id: 'ks', name: 'Koʻchasoz', href: './kochasoz.html', color: 'var(--svc-ks)', cur: true },
-  { id: 'joy', name: 'Joyshunos', href: '../gis.html', color: 'var(--svc-joy)' },
+  { id: 'joy', name: 'Joyshunos', href: './joyshunos.html', color: 'var(--svc-joy)' },
   { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
   { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
 ];
