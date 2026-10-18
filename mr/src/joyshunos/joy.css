@@ -210,3 +210,13 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-time #axAnim[aria-pressed="true"]{color:#2f8a5f}
 .joy-card.head .seg{min-width:200px}
 @media (max-width:1100px){.joy-mode{right:170px}.joy-mode .seg{width:210px}}
+
+/* ——— chizish, uchastka, eksport ——— */
+.joy-tools .btn[aria-pressed="true"],.joy-site .btn[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.joy-site{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.joy-site .row{display:flex;gap:6px;flex-wrap:wrap}
+#joyMeasure{font-variant-numeric:tabular-nums}
+.joy-card.head .chip.site{align-self:flex-start;background:#f9e3dd;color:#b23a2e}
+.joy-axl .row.wrap{flex-wrap:wrap;gap:6px;justify-content:flex-start}
+.joy-exw{position:relative}
+.joy-menu.up{top:auto;bottom:40px;left:auto;right:0;min-width:240px}
