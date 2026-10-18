@@ -1,0 +1,53 @@
+/* Archemistry Lab — eski (vanilla) sahifalar uchun ekotizim qobigʻi: sarlavha, ds2 boshqaruvlari, tungi rejim.
+   Tartib: css/ds2.css (tokenlar) → sahifaning oʻz <style> i → shu fayl. Bu yerda faqat ds2 tokenlari ishlatiladi. */
+
+/* ——— sarlavha (Koʻchasoz bilan bir xil) ——— */
+header.eko{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:10px;height:52px;margin:12px 12px 0;padding:0 10px 0 14px;border:0;border-radius:18px;background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:var(--sh-float);font-family:var(--sans)}
+header.eko .eko-brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap;color:var(--ink);text-decoration:none}
+header.eko .eko-vr{width:.5px;height:22px;background:var(--hairline)}
+header.eko .eko-svc{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--fill)}
+header.eko .eko-svc a{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:var(--r-pill);font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap}
+header.eko .eko-svc a:hover{color:var(--ink)}
+header.eko .eko-svc a.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 .5px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.06)}
+header.eko .eko-svc i{width:8px;height:8px;border-radius:4px;flex:none}
+header.eko .eko-sp{flex:1}
+header.eko .eko-lang{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;width:108px;height:28px;padding:2px;border-radius:var(--r-ctl);background:var(--fill)}
+header.eko .eko-lang button{border:0;border-radius:8px;background:transparent;font:500 12px var(--sans);color:var(--ink-2);cursor:pointer;padding:0}
+header.eko .eko-lang button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.09)}
+header.eko .eko-ib,header.eko .eko-extra a,header.eko .eko-extra button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;min-width:30px;padding:0 10px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--ink);font:600 12.5px var(--sans);text-decoration:none;cursor:pointer;letter-spacing:0;text-transform:none}
+header.eko .eko-ib{padding:0;width:30px}
+header.eko .eko-ib:hover,header.eko .eko-extra a:hover,header.eko .eko-extra button:hover{background:var(--fill)}
+header.eko svg:not([viewBox="0 0 103.45 100"]){width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+header.eko .eko-extra{display:flex;gap:4px}
+header.eko :focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+@media (max-width:1100px){header.eko .eko-brand span{display:none}header.eko .eko-svc a{padding:0 9px;font-size:12px}}
+@media (max-width:860px){header.eko .eko-svc a{font-size:0;gap:0;width:30px;justify-content:center;padding:0}header.eko .eko-svc i{width:10px;height:10px;border-radius:5px}}
+
+/* ——— ds2 boshqaruvlari: brauzerning oʻz koʻrinishi oʻrniga (6-qoida) ——— */
+.ds2 input[type=checkbox],.ds2 input[type=radio]{-webkit-appearance:none;appearance:none;width:20px;height:20px;margin:0;flex:none;border-radius:6px;background:var(--surface);box-shadow:inset 0 0 0 1.5px #c9c6bf;cursor:pointer;display:inline-grid;place-items:center;vertical-align:-4px;transition:background-color var(--t-fast)}
+.ds2 input[type=radio]{border-radius:50%}
+.ds2 input[type=checkbox]:checked{background:var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12l5 5 9-10' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat;box-shadow:none}
+.ds2 input[type=radio]:checked{background:var(--surface);box-shadow:inset 0 0 0 6px var(--ink)}
+[data-theme="dark"] .ds2 input[type=checkbox]:checked{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12l5 5 9-10' fill='none' stroke='%231d1d1c' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+[data-theme="dark"] .ds2 input[type=checkbox],[data-theme="dark"] .ds2 input[type=radio]{box-shadow:inset 0 0 0 1.5px #55534f}
+.ds2 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer}
+.ds2 input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:var(--fill-2)}
+.ds2 input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--fill-2)}
+.ds2 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-9px;border-radius:50%;background:#fff;box-shadow:0 .5px 4px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+.ds2 input[type=range]::-moz-range-thumb{width:24px;height:24px;border:0;border-radius:50%;background:#fff;box-shadow:0 .5px 4px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+.ds2 select{-webkit-appearance:none;appearance:none;background:var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5' fill='none' stroke='%236b6965' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 10px center/16px no-repeat !important;padding-right:34px !important}
+.ds2 input[type=number]{-moz-appearance:textfield}
+.ds2 input[type=number]::-webkit-inner-spin-button,.ds2 input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ds2 input[type=text],.ds2 input[type=number],.ds2 input[type=search],.ds2 select{height:38px;border:0 !important;border-radius:var(--r-ctl) !important;background-color:var(--fill);color:var(--ink);font:14px var(--sans);padding:0 12px;outline:none;transition:box-shadow var(--t-fast),background-color var(--t-fast)}
+.ds2 input[type=number]{font-family:var(--mono)}
+.ds2 input[type=text]:focus,.ds2 input[type=number]:focus,.ds2 input[type=search]:focus,.ds2 select:focus{background-color:var(--surface);box-shadow:0 0 0 2px var(--sel)}
+.ds2 ::placeholder{color:var(--faint)}
+.ds2 :focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+/* yupqa aylantirish chizigʻi */
+.ds2 *{scrollbar-width:thin;scrollbar-color:var(--fill-2) transparent}
+.ds2 ::-webkit-scrollbar{width:8px;height:8px}
+.ds2 ::-webkit-scrollbar-thumb{background:var(--fill-2);border-radius:4px;border:2px solid transparent;background-clip:padding-box}
+.ds2 ::-webkit-scrollbar-track{background:transparent}
+.ds2 input[type=file]{font:13px var(--sans);color:var(--muted);max-width:100%}
+.ds2 input[type=file]::file-selector-button{margin-right:10px;height:34px;padding:0 14px;border:0;border-radius:var(--r-ctl);background:var(--ink);color:var(--surface);font:600 13px var(--sans);cursor:pointer}
+.ds2 input[type=file]::file-selector-button:hover{background:var(--ink-2)}

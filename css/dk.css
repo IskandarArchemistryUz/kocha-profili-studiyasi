@@ -1,0 +1,114 @@
+/* Dizayn-kod · Peshlavha studiyasi — ds2 koʻrinishi (kanvas: arxiv «Dizayn-kod · peshlavha» doskasi).
+   Mantiq va hisob oʻzgarmaydi — faqat koʻrinish. Tokenlar: css/ds2.css. */
+body.dk{background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans);min-height:100vh}
+body.dk .page{padding:14px 12px 16px}
+
+/* sarlavha qatori: nom va manba chapda, qadamlar oʻngda */
+body.dk .top{display:flex;align-items:center;gap:16px;margin:0 2px 12px;flex-wrap:nowrap}
+body.dk .top h1{font:700 19px/1.2 var(--sans);letter-spacing:-.01em;white-space:nowrap}
+body.dk .top .src{font:12px var(--sans);color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.dk ol.steps{display:flex;gap:2px;margin:0 0 0 auto;padding:3px;border-radius:var(--r-pill);background:var(--fill);flex:none}
+body.dk ol.steps button,body.dk ol.steps a{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 14px 0 6px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--muted);font:600 13px var(--sans);letter-spacing:0;text-transform:none;text-decoration:none;cursor:pointer;white-space:nowrap}
+body.dk ol.steps button:hover:not(:disabled),body.dk ol.steps a:hover{color:var(--ink)}
+body.dk ol.steps .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:transparent;color:var(--ok);font:600 11px var(--mono)}
+body.dk ol.steps .n svg{width:14px;height:14px}
+body.dk ol.steps button[aria-current="step"]{background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+body.dk ol.steps button[aria-current="step"] .n{background:var(--ink);color:var(--surface)}
+body.dk ol.steps button:not(.done):not([aria-current]) .n{color:var(--muted);background:var(--surface)}
+body.dk ol.steps button:disabled{opacity:.5;cursor:default}
+
+/* ish maydoni */
+body.dk .wrap{grid-template-columns:minmax(0,1fr) 380px;gap:12px;height:calc(100vh - 64px - 12px - 60px - 16px)!important;min-height:520px}
+body.dk .stage{background:var(--surface);border-radius:var(--r-panel);box-shadow:var(--sh-card)}
+body.dk .card{background:var(--surface);border:0;border-radius:var(--r-panel);box-shadow:var(--sh-float);padding:16px;gap:12px}
+body.dk .card h2{font:700 17px/1.25 var(--sans)}
+body.dk .card h3.sec{font:600 13px var(--sans);letter-spacing:0;text-transform:none;color:var(--ink);border-top:0;margin:4px 0 -4px;padding-top:6px}
+body.dk .lead{font-size:13px;color:var(--muted)}
+body.dk label.f{font-size:12.5px;font-weight:600;color:var(--ink)}
+body.dk .hint,body.dk .card p.hint{font-size:12.5px;color:var(--muted)}
+
+/* tugmalar */
+body.dk .page button{font:600 13px var(--sans);border:0;border-radius:var(--r-ctl);background:var(--fill);color:var(--ink);padding:0 14px;min-height:36px;cursor:pointer;letter-spacing:0;text-transform:none;transition:background-color var(--t-fast),transform var(--t-mid) var(--spring)}
+body.dk .page button:hover:not(:disabled){background:var(--fill-2);border-color:transparent}
+body.dk .page button:active:not(:disabled){transform:scale(.97)}
+body.dk .page button.primary{background:var(--ink);color:var(--surface);text-transform:none;letter-spacing:0;font-size:14px}
+body.dk .page button.primary:hover:not(:disabled){background:var(--ink-2)}
+body.dk .page button:disabled{opacity:.4}
+body.dk .row button[aria-pressed="true"]{background:var(--surface);box-shadow:0 0 0 1.5px var(--ink);border-color:transparent}
+/* peshlavha turlari — chip */
+body.dk .types{display:flex;flex-wrap:wrap;gap:6px}
+body.dk .types button{text-align:left;font-size:13px;padding:7px 12px;line-height:1.25;border-radius:14px;min-height:0;max-width:100%}
+body.dk .types button[aria-pressed="true"]{background:var(--ink);color:var(--surface);box-shadow:none}
+body.dk .types button[aria-pressed="true"] small{color:inherit;opacity:.72}
+body.dk .types small{font-size:11px;color:var(--muted)}
+body.dk .nav{border-top:.5px solid var(--hairline);padding-top:12px;gap:8px}
+body.dk .nav button{min-height:44px;flex:1;border-radius:var(--r-tile)}
+
+/* holat */
+body.dk .verdict{border-radius:var(--r-tile);padding:12px 14px}
+body.dk .verdict b{font-size:15px}
+body.dk .prob{border:0;border-left:0;border-radius:var(--r-tile);background:var(--surface);box-shadow:var(--sh-card);padding:10px 12px;position:relative}
+body.dk .prob::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--bad)}
+body.dk .prob.warn::before{background:var(--warn)}
+body.dk .prob .t{font-size:13.5px}
+body.dk .prob .m{font-size:12.5px}
+body.dk .prob .src{font:11px var(--mono);color:var(--muted)}
+body.dk .prob button{background:var(--sel-soft);color:var(--sel);min-height:30px;padding:0 12px;font-size:12.5px}
+body.dk .mini{border-bottom:.5px solid var(--hairline)}
+body.dk .mini .s{border-radius:var(--r-pill);padding:1px 8px}
+body.dk details.more summary{color:var(--sel)}
+body.dk .dims{background:var(--grouped);border-radius:var(--r-ctl);font-family:var(--mono)}
+body.dk .drop{border:1.5px dashed var(--fill-2);border-radius:var(--r-card);background:var(--grouped);color:var(--muted)}
+body.dk .chk{font-size:13.5px;align-items:center}
+body.dk .chk input{margin-top:0}
+
+/* chizma ustidagi yozuvlar */
+body.dk .zoombar{border:0;border-radius:var(--r-pill);background:var(--glass);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:var(--sh-float);padding:4px;right:14px;bottom:14px}
+body.dk .zoombar button{background:transparent;min-height:30px;padding:0 10px;border-radius:var(--r-pill);font-size:14px}
+body.dk .zoombar button:hover{background:var(--fill)}
+body.dk .hintbar{left:50%;right:auto;top:auto;bottom:16px;transform:translateX(-50%);background:rgba(28,28,27,.92);color:#fff;border:0;border-radius:10px;padding:6px 12px;font-size:12px}
+body.dk .hintbar:empty{display:none}
+body.dk .sample{top:14px;bottom:auto;left:14px;border-radius:var(--r-pill);padding:4px 10px;font:600 11.5px var(--sans)}
+
+@media (max-width:1180px){body.dk .wrap{grid-template-columns:minmax(0,1fr) 340px}body.dk ol.steps button,body.dk ol.steps a{padding:0 10px 0 4px;font-size:12px}}
+@media (max-width:1180px){body.dk .top{flex-wrap:wrap}body.dk ol.steps{order:3;margin:0;max-width:100%;overflow-x:auto}body.dk .top .src{flex:1 1 300px}}
+@media (max-width:1180px){body.dk .wrap{height:calc(100vh - 64px - 12px - 104px - 16px)!important}}
+@media (max-width:900px){body.dk .wrap{height:auto!important}}
+
+/* ——— Joy tipi (dizaynkod-joy.html): 1-qadam, xarita ——— */
+body.dkj{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+body.dkj .dkj-top{margin:12px 14px 10px}
+body.dkj main{flex:1;min-height:0;display:grid;grid-template-columns:380px minmax(0,1fr);gap:12px;padding:0 12px 12px}
+body.dkj aside{border:0;border-radius:var(--r-panel);background:var(--surface);box-shadow:var(--sh-float)}
+body.dkj .ah h1{font:700 17px/1.25 var(--sans)}
+body.dkj .ah p{font-size:13px;color:var(--muted)}
+body.dkj .blk{border-top:.5px solid var(--hairline)}
+body.dkj .blk h3{font:600 13px var(--sans);letter-spacing:0;text-transform:none;color:var(--ink)}
+body.dkj .srch input{height:38px;border:0;border-radius:var(--r-ctl);background:var(--fill)}
+body.dkj .btn{height:36px;border:0;border-radius:var(--r-ctl);background:var(--fill);color:var(--ink);font:600 13px var(--sans);letter-spacing:0;text-transform:none;padding:0 14px}
+body.dkj .btn:hover{background:var(--fill-2)}
+body.dkj .btn.dark{background:var(--ink);color:var(--surface)}
+body.dkj .btn.wide{height:44px;border-radius:var(--r-tile);font-size:14px}
+body.dkj .opt{border:0;border-radius:var(--r-tile);background:var(--grouped);align-items:center}
+body.dkj .opt:hover{background:var(--fill)}
+body.dkj .opt.on{background:var(--surface);box-shadow:0 0 0 1.5px var(--ink)}
+body.dkj .opt small{font-family:var(--sans);font-size:12px}
+body.dkj .seg{gap:6px}
+body.dkj .seg button{border:0;border-radius:var(--r-tile);background:var(--grouped);color:var(--ink)}
+body.dkj .seg button[aria-pressed=true]{background:var(--surface);box-shadow:0 0 0 1.5px var(--ink)}
+body.dkj .est{border-radius:var(--r-ctl)}
+body.dkj .res{border:0;border-radius:var(--r-card);background:var(--grouped);padding:14px}
+body.dkj .why li{border-top:.5px solid var(--hairline)}
+body.dkj .mapwrap{border-radius:var(--r-panel);overflow:hidden;box-shadow:var(--sh-card)}
+body.dkj #map{background:var(--fill)}
+body.dkj .basesw{border:0;border-radius:var(--r-pill);background:var(--glass);box-shadow:var(--sh-float);padding:3px}
+body.dkj .basesw button{border-radius:var(--r-pill);letter-spacing:0;text-transform:none;font:600 12px var(--sans);color:var(--muted)}
+body.dkj .basesw button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+body.dkj .legend{border:0;border-radius:var(--r-card);background:var(--glass);box-shadow:var(--sh-float);color:var(--ink)}
+body.dkj .maphint{border-radius:var(--r-pill);background:rgba(28,28,27,.92);color:#fff;font-size:13px}
+body.dkj .leaflet-container{font-family:var(--sans)}
+@media (max-width:1180px){body.dkj main{grid-template-columns:340px minmax(0,1fr)}}
+@media (max-width:820px){body.dkj{height:auto;overflow:auto}body.dkj main{grid-template-columns:1fr}}
+body.dk ol.steps{list-style:none}
+body.dkj ol.steps a .n{color:var(--muted);background:var(--surface)}
+body.dkj .legend{bottom:56px}

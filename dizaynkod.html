@@ -4,18 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dizayn-kod: peshlavha — Archemistry Lab</title>
+<script src="js/eko.js?v=1"></script>
 <script src="js/beta.js?v=15"></script>
+<link rel="stylesheet" href="css/ds2.css?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Sans:wght@600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Sans:wght@600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 /* Layout: ustada 4 qadamli yo'l; chapda katta rasm, o'ngda faqat joriy qadamning bitta kartasi */
 :root{
-  --bg:#f4f3f1; --surface:#FFFFFF; --sunk:#ecebe7; --fg:#141414; --muted:#696969; --line:#dedcd7;
-  --accent:#141414; --accent-soft:#ecebe7; --on-accent:#f4f3f1;
-  --ok:#25744A; --ok-soft:#DDF0E4; --warn:#8A5A00; --warn-soft:#F7EACB; --bad:#B3261E; --bad-soft:#F9E1DE;
-  --f-ui:Archivo,"Segoe UI",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  color-scheme:light;
+  /* 2026-10-18: tokenlar — css/ds2.css (tungi rejim ham); bu yerda faqat eski nomlar → ds2 */
+  --fg:var(--ink); --sunk:var(--fill); --line:var(--hairline); --accent:var(--ink); --accent-soft:var(--fill); --on-accent:var(--surface);
+  --f-ui:var(--sans); --f-mono:var(--mono);
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-ui);margin:0}
@@ -100,20 +100,19 @@ ol.steps button{text-transform:uppercase;letter-spacing:.12em;font-size:12.5px}
 button.primary{text-transform:uppercase;letter-spacing:.1em;font-size:13px}
 @media (max-width:560px){header.kps{padding:0 16px;gap:12px}header.kps .brand i,header.kps .crumb{display:none}.page{padding:12px 16px 32px}}
 </style>
+<link rel="stylesheet" href="css/eko.css?v=1">
+<link rel="stylesheet" href="css/dk.css?v=1">
 
 <script src="js/icons.js?v=2"></script>
 </head>
-<body>
-<header class="kps"><a class="brand" href="./"><svg width="26" height="25" viewBox="0 0 103.45 100" aria-hidden="true"><path d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z" fill="#696969" fill-rule="evenodd"/></svg><b>ARCHEMISTRY</b><i>LAB</i></a>
-<span class="crumb">/ 07 · DIZAYN-KOD · PESHLAVHA</span><span class="sp"></span>
-<a class="hb" href="index.html#bolimlar">Boʻlimlar</a></header>
+<body class="ds2 dk">
+<header class="eko" data-svc="dk"></header>
 <div class="page">
 <div class="top">
   <h1>Peshlavha Studiyasi</h1>
   <span class="src">Toshkent Dizayn-kodi · VII-19-17-14-0-K/26, 2-ilova, P2.3 §2 · qoidalar v<span id="ver"></span></span>
+  <ol class="steps" id="steps"></ol>
 </div>
-
-<ol class="steps" id="steps"></ol>
 
 <div class="wrap">
   <div class="stage">
@@ -655,7 +654,8 @@ const ADVICE={yoritish_turi:"Butun fon yonadigan quti (lightbox) devor yozuvida 
 const esc=t=>String(t??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 function renderSteps(){
   const can=n=>n===1||(n===2&&S.src)||(n>=3&&S.F);
-  document.getElementById('steps').innerHTML=STEPS.map((t,i)=>{const n=i+1;return`<li><button data-step="${n}" ${n===S.step?'aria-current="step"':''} class="${n<S.step?'done':''}" ${can(n)?'':'disabled'}><span class="n">${n<S.step?KIC.i('check','',14):n}</span>${t}</button></li>`;}).join("");
+  /* 2026-10-18: «Joy tipi» — umumiy yoʻlning 1-qadami (xarita sahifasi, dizaynkod-joy.html); peshlavha qadamlari 2–5 */
+  document.getElementById('steps').innerHTML=`<li><a class="jstep done" href="dizaynkod-joy.html" title="Joy tipini xaritada aniqlash"><span class="n">${KIC.i('check','',14)}</span>Joy tipi · ${S.tip}</a></li>`+STEPS.map((t,i)=>{const n=i+1;return`<li><button data-step="${n}" ${n===S.step?'aria-current="step"':''} class="${n<S.step?'done':''}" ${can(n)?'':'disabled'}><span class="n">${n<S.step?KIC.i('check','',14):n+1}</span>${t}</button></li>`;}).join("");
 }
 document.getElementById('steps').addEventListener('click',e=>{const b=e.target.closest('[data-step]');if(!b||b.disabled)return;go(+b.dataset.step);});
 function go(n){resetZoom();
