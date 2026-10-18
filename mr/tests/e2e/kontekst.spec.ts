@@ -1,4 +1,4 @@
-import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from './fx';
 
 /** Sinov shahri: markaz atrofida har 150 m da koʻcha (x, y = ±75, ±225, ±375), kvartallarda binolar, bitta park */
 const O = [69.2797, 41.3111];

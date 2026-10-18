@@ -195,6 +195,23 @@ Object.assign(window.HOME_D,{
 "Shartnoma va hisob-faktura — kelishiladi: archemistry.uzbekistan@gmail.com.":["Contract and invoice by agreement: archemistry.uzbekistan@gmail.com.","Договор и счёт-фактура — по договорённости: archemistry.uzbekistan@gmail.com."],
 "Narxlar — batafsil":["Pricing — details","Цены — подробно"],"Qahva uchun":["Buy me a coffee","На кофе"]
 });
+/* beta paneli (js/beta.js) */
+Object.assign(window.HOME_D,{
+"Portal sinov rejimida va hamma uchun bepul. Xato topsangiz yoki gʻoyangiz boʻlsa — yozing, tez tuzatamiz.":["The portal is in beta and free for everyone. Found a bug or have an idea — write to us, we fix things fast.","Портал в тестовом режиме и бесплатен для всех. Нашли ошибку или есть идея — напишите, быстро исправим."],
+"Fikr va taklif":["Feedback and ideas","Отзывы и предложения"],"Telegramda yuborish":["Send via Telegram","Отправить в Telegram"],"Batafsil soʻrovnoma (Google Form)":["Detailed survey (Google Form)","Подробная анкета (Google Form)"],
+"Matnni nusxalash":["Copy text","Скопировать текст"],"Xato haqida xabar":["Bug report","Сообщить об ошибке"],
+"Tugma sahifa, brauzer va soʻnggi xatolar haqidagi texnik maʼlumotni matnga qoʻshadi — shaxsiy maʼlumot yuborilmaydi.":["Adds technical info about the page, browser and recent errors to the text — no personal data is sent.","Добавляет в текст техническую информацию о странице, браузере и последних ошибках — личные данные не отправляются."],
+"Xato maʼlumotini qoʻshish":["Add error details","Добавить данные об ошибке"],"Nima yoqdi, nima yetishmayapti, nima noqulay?":["What do you like, what is missing, what is inconvenient?","Что нравится, чего не хватает, что неудобно?"],
+"Yuklab olish":["Downloads","Загрузки"],"Yuklab olish faqat soʻrovnomadan oʻtganlar uchun. Soʻrovnomani toʻldiring — kod olasiz.":["Downloads are for survey participants. Fill in the survey to get a code.","Загрузки — для участников опроса. Заполните анкету — получите код."],
+"Soʻrovnomani toʻldirish →":["Fill in the survey →","Заполнить анкету →"],"Yuklab olish ochiq ✓":["Downloads unlocked ✓","Загрузки открыты ✓"],"Yuklab olish yopiq.":["Downloads locked.","Загрузки закрыты."],
+"Cheklanmagan (egasi).":["Unlimited (owner).","Без ограничений (владелец)."],"Kiritish":["Enter","Ввести"],"Kod topilmadi. Harflarni tekshiring.":["Code not found. Check the letters.","Код не найден. Проверьте буквы."],
+"Kod qabul qilindi — yuklab olish ochildi.":["Code accepted — downloads unlocked.","Код принят — загрузки открыты."],"Brauzer kodni tekshira olmadi.":["The browser could not verify the code.","Браузер не смог проверить код."],
+"Yuklab olish soʻrovnomadan keyin":["Downloads after the survey","Загрузки — после опроса"],
+"Soʻrovnomani toʻldiring, kod oling va shu yerga kiriting.":["Fill in the survey, get a code and enter it here.","Заполните анкету, получите код и введите его здесь."],
+"Fayllarni yuklab olish faqat soʻrovnomadan oʻtgan foydalanuvchilar uchun ochiq. Portalda ishlash — tahlil, chizish va koʻrish — cheklanmagan.":["File downloads are open to survey participants only. Working in the portal — analysis, drawing and viewing — is unlimited.","Скачивание файлов открыто только участникам опроса. Работа в портале — анализ, черчение и просмотр — без ограничений."],
+"Egasi rejimi yoqildi — yuklab olish cheklanmagan.":["Owner mode on — downloads unlimited.","Режим владельца включён — загрузки без ограничений."],
+"Oʻzbekcha":["Oʻzbekcha","Oʻzbekcha"]
+});
 /* raqamli qoliplar: «12 t.», «1,06 ga», «3 900 soʻm / tanga · $4» */
 window.HOME_RX=[
  [/^(.*\d) t\.$/,"$1 c.","$1 м."],

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fx';
 
 /** Chizmadon (CH-Yagona): muharrir, panellar, kutubxona, tekshiruv, albom, eksport, Varaqlardan xarita */
 async function project(page: Page): Promise<void> {

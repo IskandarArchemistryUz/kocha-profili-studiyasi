@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fx';
 
 async function newSite(page: Page, w = 120, h = 100) {
   await page.goto('./'); await page.click('#newP');

@@ -21,7 +21,10 @@
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'
   };
-  function lang() { var l = ls.get('kps_lang') || ls.get('mr-lang') || 'uz'; return ['uz', 'en', 'ru'].indexOf(l) < 0 ? 'uz' : l; }
+  function lang() { var l = ls.get('kps_lang') || ls.get('mr-lang') || 'en'; return ['uz', 'en', 'ru'].indexOf(l) < 0 ? 'en' : l; }   // sukut — inglizcha
+  /* xizmat nomlari (mr/src/i18n/index.ts dagi BRAND bilan bir xil) */
+  var NM = { en: { 'Koʻchasoz': 'Street Designer', 'Joyshunos': 'Site Explorer', 'Chizmadon': 'Sheet Studio', 'Master reja': 'Master plan', 'Dizayn-kod': 'Design code' }, ru: { 'Koʻchasoz': 'Конструктор улиц', 'Joyshunos': 'Анализ места', 'Chizmadon': 'Студия листов', 'Master reja': 'Мастер-план', 'Dizayn-kod': 'Дизайн-код' } };
+  function nm(s) { var m = NM[lang()]; return m && m[s] || s; }
   function T(s) { return window.kpsT ? window.kpsT(s) : s; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function render(h) {
@@ -32,7 +35,7 @@
       '<a class="eko-brand" href="index.html" title="Bosh sahifa"><svg viewBox="0 0 103.45 100" width="21" height="20" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + LOGO + '"/></svg><span>Archemistry Lab</span></a>' +
       '<span class="eko-vr"></span>' +
       '<nav class="eko-svc" aria-label="Xizmatlar">' + SVC.map(function (s) {
-        return '<a href="' + s[2] + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(s[1]) + (s[4] ? '<em class="beta">beta</em>' : '') + '</a>';
+        return '<a href="' + s[2] + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(nm(s[1])) + (s[4] ? '<em class="beta">beta</em>' : '') + '</a>';
       }).join('') + '</nav>' +
       '<span class="eko-sp"></span>' + ex +
       '<div class="eko-lang" id="kpsLang" data-noi18n role="group" aria-label="Til / Language / Язык">' + ['uz', 'en', 'ru'].map(function (k) {

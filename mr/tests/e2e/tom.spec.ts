@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('fasad materiali va tom turlari: hammasi / funksiya / tanlangan, quyosh panellari, TEP', async ({ page }) => {
   test.setTimeout(120_000);

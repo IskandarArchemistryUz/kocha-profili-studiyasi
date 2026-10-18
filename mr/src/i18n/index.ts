@@ -15,7 +15,7 @@ const KEY = 'mr-lang';
 const S = (data as unknown as { strings: Record<string, [string, string, string]> }).strings;
 const IDX: Record<Lang, number> = { uz: 0, en: 1, ru: 2 };
 
-let lang: Lang = (() => { try { const v = localStorage.getItem(KEY) ?? localStorage.getItem('kps_lang'); if (v === 'uz' || v === 'en' || v === 'ru') return v; } catch { /* */ } return 'uz'; })();   // sukut — oʻzbekcha; foydalanuvchi tanlovi saqlanadi
+let lang: Lang = (() => { try { const v = localStorage.getItem(KEY) ?? localStorage.getItem('kps_lang'); if (v === 'uz' || v === 'en' || v === 'ru') return v; } catch { /* */ } return 'en'; })();   // sukut — inglizcha; foydalanuvchi tanlovi saqlanadi
 const subs = new Set<() => void>();
 
 export const getLang = (): Lang => lang;
@@ -74,9 +74,20 @@ export function uzTerms(s: string): string {
  *  3) son + birlik (ga, m², qavat, oʻrin, kishi/ga …) — glossariy boʻyicha.
  * Natija keshlanadi (til boʻyicha).
  */
+/** Xizmat nomlari inglizcha va ruscha (sayt: js/site.js dagi BRAND bilan bir xil). Oʻzbekchada — asl nom. */
+export const BRAND: Record<'en' | 'ru', [RegExp, string][]> = {
+  en: [[/Koʻchasoz\p{L}*/gu, 'Street Designer'], [/Joyshunos\p{L}*/gu, 'Site Explorer'], [/Chizmadon\p{L}*/gu, 'Sheet Studio']],
+  ru: [[/Koʻchasoz\p{L}*/gu, 'Конструктор улиц'], [/Joyshunos\p{L}*/gu, 'Анализ места'], [/Chizmadon\p{L}*/gu, 'Студия листов']],
+};
+export function brand(s: string, l: Lang = lang): string {
+  if (l === 'uz' || !s) return s;
+  for (const [re, to] of BRAND[l]) s = s.replace(re, to);
+  return s;
+}
+
 export function tr(key: string): string {
   const O = OUTS[lang]; if (O.has(key)) return key;   // allaqachon tarjima qilingan matn — qayta tarjima qilinmaydi
-  const r = S[key] ? raw(key) : dyn(key, 0);
+  const r = brand(S[key] ? raw(key) : dyn(key, 0));
   if (r !== key) { if (O.size > 20000) O.clear(); O.add(r); }
   return r;
 }

@@ -28,7 +28,7 @@ q('[data-k]').forEach(function(b){b.addEventListener('click',function(){k=+b.get
 /* valyuta */
 var cur='uzs';try{cur=localStorage.getItem('ks-cur')||'uzs';}catch(e){}
 function money(){q('[data-cur]').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-cur')===cur));});
-  q('[data-uzs]').forEach(function(el){var v=el.getAttribute(cur==='usd'?'data-usd':'data-uzs');el.textContent=t(v)!==v?t(v):v.replace('soʻm',t('soʻm'));});
+  q('[data-uzs]').forEach(function(el){var v=el.getAttribute(cur==='usd'?'data-usd':'data-uzs');var o=t(v)!==v?t(v):v.replace('soʻm',t('soʻm'));if(document.documentElement.lang==='en')o=o.replace(/(\d) (\d{3})/g,'$1,$2');el.textContent=o;});
   pro();}
 /* Pro obuna: oylik 149 000 soʻm; yillik −20 % (oyiga 119 200, yiliga 1 430 400). USD — 30 talik toʻplam kursi bilan (≈ 9 900 soʻm / $) */
 var per='m',PRO=149000,RATE_USD=9900;

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 /** Markaz atrofida yoʻllar va uchastka ichida 3 ta mavjud bino (hovli, koʻp kvartirali, doʻkon) */
 function fixture(): unknown {

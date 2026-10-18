@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('erkin shakl bino, yopishish va kesma yorliqlari, toza terrasa, qavat devorini sudrash', async ({ page }) => {
   test.setTimeout(150_000);

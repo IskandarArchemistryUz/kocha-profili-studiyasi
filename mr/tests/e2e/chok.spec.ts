@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('qismiy chok: torets devor uzun devor oʻrtasida — yopilgan qismda deraza va balkon yoʻq', async ({ page }) => {
   test.setTimeout(120_000);

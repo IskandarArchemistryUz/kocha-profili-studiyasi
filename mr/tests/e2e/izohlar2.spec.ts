@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('chap paneldagi bino muharriri, deraza/balkon turlari, tomlar, xarita boshqaruvi, reyestr, koʻcha kesimi', async ({ page }) => {
   test.setTimeout(150_000);

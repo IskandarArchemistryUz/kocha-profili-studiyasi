@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 /** Toshkent markazi atrofida 100 m li yoʻl toʻri va bitta bogʻcha (OSM javobi oʻrniga) */
 function fixture(): unknown {
