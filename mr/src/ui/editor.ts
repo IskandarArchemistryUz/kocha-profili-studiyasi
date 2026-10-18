@@ -66,6 +66,8 @@ import { PALETTES, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
 import { norm as normSheet } from './sheets';
+import { openChizmadon } from '../chizmadon/ui';
+import type { ChInbox } from '../chizmadon/model';
 import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
@@ -97,6 +99,13 @@ const DL = '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', EYE = '<path d="M2 12s3.
 const chev = () => { const s = svgIcon('<path d="M9 6l6 6-6 6"/>'); s.classList.add('chev'); return s; };
 const rTxt = (r: SvcResult) => r.rMin !== r.rMax ? `${r.rMin}–${r.rMax} m` : `${r.r} m`;
 const STATUS_TXT: Record<Result['status'], string> = { pass: 'mos', fail: 'mos emas', review: 'koʻrib chiqish', na: 'baholanmadi' };
+
+/** Varaq SVG idan xarita qismi (hoshiya 10 mm, oʻng ustunsiz) — Chizmadon «Xarita oynasi» uchun */
+function mapOnly(svg: string, scale: number): { svg: string; vb: [number, number, number, number]; w: number; h: number; scale: number } | null {
+  const m = /<svg[^>]*\swidth="([\d.]+)mm"[^>]*\sheight="([\d.]+)mm"[^>]*>/.exec(svg); if (!m) return null;
+  const W = Number(m[1]), H = Number(m[2]), inner = svg.slice(svg.indexOf(m[0]) + m[0].length).replace(/<\/svg>\s*$/, '');
+  return { svg: inner, vb: [10, 10, W - 20, H - 20], w: W - 20, h: H - 20, scale };
+}
 
 export class Editor {
   readonly store: Store;
@@ -165,6 +174,7 @@ export class Editor {
       name, save, h('span', { class: 'spacer' }),
       this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
       h('button', { class: 'btn', id: 'gxOpen', title: tr('Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG'), onclick: () => this.startFrame() }, tr('Grafika')),
+      h('button', { class: 'btn', id: 'chOpen', title: tr('Chizmadon: taqdimot albomi va tahlil diagrammalari'), onclick: () => this.openCh() }, 'Chizmadon'),
       seg, lang, theme);
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
@@ -2377,6 +2387,7 @@ export class Editor {
         h('div', { class: 'glabel' }, h('span', {}, tr('Chizmalar'))),
         h('div', { class: 'group' },
           row('exGx', IMG, tr('Varaqlar: bosh reja, zonalash…'), tr('Grafika oynasini ochadi'), 'SVG · PNG', () => this.openGraphics()),
+          row('exCh', '<path d="M4 4h16v16H4zM8 15l3-3 2 2 3-4"/>', tr('Chizmadon: taqdimot albomi'), tr('erkin varaqlar, diagrammalar, namunalar'), 'PDF · PPTX', () => this.openCh()),
           row('exAi', '<path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/>', tr('Illustrator: bosh reja'), tr('qatlamli'), 'SVG', () => downloadIllustrator(this.store.doc, this.sheetCtx())),
           row('exDxf', '<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>', tr('Reja va hajmlar'), tr('mahalliy metr, qatlamlar'), 'DXF', () => download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'))),
         h('div', { class: 'glabel' }, h('span', {}, tr('3D va BIM'))),
@@ -2494,6 +2505,23 @@ export class Editor {
       stops: [...(this.svc.poi?.pois ?? []).filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' })), ...this.store.doc.pois.filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' }))],
     };
   }
+  /** Chizmadon (CH-Yagona): albom loyiha bilan saqlanadi; Varaqlardan kelgan xarita — «Loyihadan» */
+  private openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
+    const doc = this.store.doc;
+    openChizmadon({
+      project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', data: doc.chizmadon, incoming,
+      save: d => this.run(() => this.store.dispatch({ type: 'setChizmadon', data: d as unknown as Record<string, unknown> }, 'chizmadon')),
+      tik: () => this.tep().filter(r => r.v != null && r.v !== '').slice(0, 14).map(r => [r.name, r.unit, typeof r.v === 'number' ? fmt(r.v, Math.abs(r.v) < 10 ? 2 : 0) : String(r.v)]),
+      siteMap: () => {
+        const d2 = this.store.doc; if (!d2.site && !d2.buildings.length) return undefined;
+        const o: SheetOpts = { ...SHEET_DEFAULT, kind: 'zona', show: { ...SHEET_DEFAULT.show, title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false, scaleBar: false, north: false } };
+        const r = sheetSvg(d2, this.sheetCtx(), o, new Date(), false, tr);
+        return mapOnly(r.svg, r.scale) ?? undefined;
+      },
+      scene: () => { try { return this.scene.snapshot(); } catch { return null; } },
+    });
+  }
+
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
     openGraphics({ doc, ctx: this.sheetCtx(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
@@ -2506,6 +2534,7 @@ export class Editor {
         return url;
       },
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
+      toChizmadon: (svg, name, scale) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale }); },
       dxf: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } });
   }
 
@@ -2753,6 +2782,7 @@ export class Editor {
 
   private bindKeys(): void {
     const onKey = (e: KeyboardEvent) => {
+      if (document.querySelector('.gx')) return;   // Varaqlar / Chizmadon oynasi ochiq — oʻz klaviaturasi bor
       const typing = (e.target as HTMLElement)?.matches?.('input,textarea,select');
       if (!typing && this.tool?.key?.(e)) { e.preventDefault(); if (this.tool) this.el.hint.textContent = this.tool.hint; if (e.key === 'Escape') this.setTool(null); return; }
       if (typing) return;

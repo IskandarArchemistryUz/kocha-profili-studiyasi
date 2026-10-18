@@ -1,4 +1,4 @@
-import{O as e,T as t,a as n,h as r,k as i,o as a}from"./index-A1O5AGpK.js";var o=class{parse(o){let s=``,c=0,l=0,u=0,d=new i,f=new n,p=new i,m=new e,h=[];function g(e){let t=0,n=0,i=0,a=e.geometry,o=new r,f=a.getAttribute(`position`),g=a.getAttribute(`normal`),_=a.getAttribute(`uv`),v=a.getIndex();if(s+=`o `+e.name+`
+import{O as e,T as t,a as n,h as r,k as i,o as a}from"./index-Dpfl3ljz.js";var o=class{parse(o){let s=``,c=0,l=0,u=0,d=new i,f=new n,p=new i,m=new e,h=[];function g(e){let t=0,n=0,i=0,a=e.geometry,o=new r,f=a.getAttribute(`position`),g=a.getAttribute(`normal`),_=a.getAttribute(`uv`),v=a.getIndex();if(s+=`o `+e.name+`
 `,e.material&&e.material.name&&(s+=`usemtl `+e.material.name+`
 `),f!==void 0)for(let n=0,r=f.count;n<r;n++,t++)d.fromBufferAttribute(f,n),d.applyMatrix4(e.matrixWorld),s+=`v `+d.x+` `+d.y+` `+d.z+`
 `;if(_!==void 0)for(let e=0,t=_.count;e<t;e++,i++)m.fromBufferAttribute(_,e),s+=`vt `+m.x+` `+m.y+`

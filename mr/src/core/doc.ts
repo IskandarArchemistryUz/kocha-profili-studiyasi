@@ -152,6 +152,8 @@ export interface Project {
   sheets?: SheetDoc[];
   /** saqlangan varaq uslublari («Mening uslubim») */
   sheetStyles?: { id: string; name: string; opts: Record<string, unknown> }[];
+  /** Chizmadon albomi (taqdimot va diagramma muharriri): sxema — chizmadon/model.ts, ochilganda tozalanadi */
+  chizmadon?: Record<string, unknown>;
 }
 
 /** Varaq: sozlamalar oddiy obyekt sifatida saqlanadi (sxema core/sheet.ts da), yaroqsizlari ochilganda sukut bilan toʻldiriladi */
@@ -269,6 +271,7 @@ export function migrate(raw: unknown): Project {
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
     origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(removedRoads.length ? { removedRoads } : {}),
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
+    ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
     ...(() => { const st = (Array.isArray(d.sheetStyles) ? d.sheetStyles : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.name === 'string' && x.opts && typeof x.opts === 'object').slice(0, 30).map((x: any) => ({ id: x.id, name: x.name.slice(0, 60), opts: JSON.parse(JSON.stringify(x.opts)) })); return st.length ? { sheetStyles: st } : {}; })(),
   };
 }
