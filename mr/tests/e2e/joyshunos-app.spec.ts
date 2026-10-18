@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { deflateSync } from 'node:zlib';
 
 /** Joyshunos (app/joyshunos.html, «Joy-A» maketi): qatlamlar paneli, joy pasporti, radius, raqobatchilar turi, qidiruv, saqlanish.
  *  Tarmoq soxtalashtiriladi: relyef plitkasi — fixtures/terrarium.png, Overpass va Nominatim — sunʼiy javoblar. */
@@ -20,11 +21,22 @@ function city(): unknown[] {
   el.push({ type: 'way', id: k++, tags: { leisure: 'park' }, geometry: [ll(-90, -90), ll(90, -90), ll(90, 90), ll(-90, 90), ll(-90, -90)] });
   return el;
 }
+/** Bir rangli 256×256 PNG (GIBS plitkasi oʻrnida) */
+function pngSolid(r: number, g: number, b: number): Buffer {
+  const crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (buf: Buffer) => { let c = 0xffffffff; for (const x of buf) c = crcT[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (t: string, d: Buffer) => { const len = Buffer.alloc(4); len.writeUInt32BE(d.length); const td = Buffer.concat([Buffer.from(t), d]); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([len, td, cr]); };
+  const W = 256, hdr = Buffer.alloc(13); hdr.writeUInt32BE(W, 0); hdr.writeUInt32BE(W, 4); hdr[8] = 8; hdr[9] = 6;
+  const raw = Buffer.alloc((W * 4 + 1) * W); for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) { const o = y * (W * 4 + 1) + 1 + x * 4; raw[o] = r; raw[o + 1] = x < 140 ? g : 190; raw[o + 2] = b; raw[o + 3] = 255; }
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', hdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+const CMAP = '<ColorMaps><ColorMap><Entries><ColorMapEntry rgb="64,64,64" transparent="true"/><ColorMapEntry rgb="255,190,0" transparent="false" value="[312.80,313.40)"/><ColorMapEntry rgb="255,127,0" transparent="false" value="[324.80,325.40)"/></Entries></ColorMap></ColorMaps>';
 async function open(page: Page, errs: string[], hash = ''): Promise<void> {
   page.on('pageerror', e => errs.push(e.message));
   page.on('dialog', d => { errs.push(`dialog: ${d.message()}`); void d.dismiss(); });
   page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED|AJAXError|Failed to load/.test(m.text())) errs.push(`console: ${m.text().slice(0, 200)}`); });
   await page.route(/fonts\.g|openfreemap|arcgis/, r => r.abort());
+  await page.route(/gibs\.earthdata\.nasa\.gov/, r => r.request().url().endsWith('.xml') ? r.fulfill({ contentType: 'text/xml', body: CMAP }) : r.fulfill({ contentType: 'image/png', body: pngSolid(255, 127, 0) }));
   await page.route(/elevation-tiles-prod/, r => r.fulfill({ path: FIX, contentType: 'image/png' }));
   await page.route(/nominatim\.openstreetmap\.org\/reverse/, r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ address: { road: 'Amir Temur shoh koʻchasi', house_number: '21' } }) }));
   await page.route(/nominatim\.openstreetmap\.org\/search/, r => r.fulfill({ contentType: 'application/json', body: '[]' }));
@@ -42,8 +54,8 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('.eko .svc a.on')).toHaveText(/Joyshunos/);
   await expect(page.locator('.joy-l')).toHaveCount(12);
-  await expect(page.locator('.joy-l .switch')).toHaveCount(8);
-  await expect(page.locator('.joy-l em.soon')).toHaveCount(4);
+  await expect(page.locator('.joy-l .switch')).toHaveCount(10);
+  await expect(page.locator('.joy-l em.soon')).toHaveCount(2);
   // pasport: manzil, relyef, shamol, xizmatlar, raqobatchilar
   await expect(page.locator('.joy-card.head .ttl')).toContainText('Amir Temur shoh koʻchasi, 21');
   await expect(page.locator('[data-card=relyef] .big')).toHaveText(/\d+–\d+ m/);
@@ -59,7 +71,6 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await expect(page.locator('[data-card=oqim] .big')).toHaveText(/^(Past|Oʻrtacha|Yuqori)$/, { timeout: 20_000 });
   await expect(page.locator('[data-card=shovqin] .big')).toHaveText(/dB\(A\)/, { timeout: 20_000 });
   await expect(page.locator('[data-card=oqim] .chip.beta')).toBeVisible();
-  await expect(page.locator('.joy-l em.soon')).toHaveCount(4);
   // raqobatchilar turi — oʻz menyusi (brauzerning select emas)
   await page.locator('.joy-cat').click();
   await page.locator('.joy-menu button', { hasText: 'Dorixona' }).click();
@@ -192,5 +203,33 @@ test('B2: lineyka, uchastka (1-qadamdan), aksonometriyada quyoshni sudrash, mode
   await page.locator('#axExp').click();
   dl = page.waitForEvent('download'); await page.locator('#exGlb').click();
   expect((await dl).suggestedFilename()).toMatch(/\.glb$/);
+  expect(errs).toEqual([]);
+});
+
+test('A3: issiqlik oroli (MODIS, beta) va quyosh/soya xaritada', async ({ page }) => {
+  test.setTimeout(150_000);
+  const errs: string[] = [];
+  await open(page, errs);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const id of ['issiqlik', 'quyosh']) await page.locator(`[data-layer=${id}] .switch`).click();
+  await expect(page.locator('[data-card=issiqlik] .big')).toHaveText(/°C/, { timeout: 30_000 });
+  await expect(page.locator('[data-card=issiqlik] .chip.beta')).toBeVisible();
+  await expect(page.locator('[data-card=issiqlik] .sub')).toContainText('8 kunlik kompozit');
+  await expect(page.locator('[data-card=quyosh] .big')).toHaveText(/soat$/, { timeout: 60_000 });
+  // kun: 22 mart — SanQvaN meʼyori satri chiqadi; soat stepper
+  await page.locator('[data-card=quyosh] .seg button', { hasText: '22 mart' }).click();
+  await expect(page.locator('[data-card=quyosh] .sub')).toContainText('SanQvaN 0331-16', { timeout: 60_000 });
+  const h0 = await page.locator('#sunHour').textContent();
+  await page.locator('[data-card=quyosh] .joy-step button').last().click();
+  await expect(page.locator('#sunHour')).not.toHaveText(h0!);
+  await expect(page.locator('.joy-legend')).toContainText('Quyoshli soatlar');
+  await expect(page.locator('.joy-legend')).toContainText('Yer yuzasi harorati');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: 'test-results/joy-a3.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: 'test-results/joy-a3-dark.png' });
   expect(errs).toEqual([]);
 });
