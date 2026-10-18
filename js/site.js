@@ -70,7 +70,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){lm.hidden=t
 /* tungi rejim */
 var tb=document.getElementById('themeBtn');
 var MOON='<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',SUN='<path d="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
-function syncTheme(){if(!tb)return;var d=document.documentElement.dataset.theme==='dark';tb.querySelector('svg').innerHTML=d?SUN:MOON;}
+function syncTheme(){if(!tb||tb.querySelector('.moon'))return;var d=document.documentElement.dataset.theme==='dark';tb.querySelector('svg').innerHTML=d?SUN:MOON;}
 if(tb)tb.onclick=function(){var d=document.documentElement.dataset.theme!=='dark';document.documentElement.dataset.theme=d?'dark':'light';try{localStorage.setItem('mr-theme',d?'dark':'light');}catch(e){}syncTheme();model();};
 syncTheme();
 
@@ -116,6 +116,18 @@ if(box2)try{var rq=indexedDB.open('archemistry-mr');
     var q=db.transaction('projects','readonly').objectStore('projects').getAll();
     q.onsuccess=function(){db.close();PL=(q.result||[]).sort(function(a,b){return String(b.updated).localeCompare(String(a.updated));});renderProjects();};
     q.onerror=function(){db.close();PL=[];renderProjects();};};}catch(e){PL=[];renderProjects();}
+/* minimal sahifa: «Fikr» paneli — tanlov, pochta orqali yuborish, beta paneli */
+var fbK='Taklif';
+[].forEach.call(document.querySelectorAll('[data-fb]'),function(c){c.addEventListener('click',function(){fbK=c.getAttribute('data-fb');
+  [].forEach.call(document.querySelectorAll('[data-fb]'),function(x){x.setAttribute('aria-pressed',String(x===c));});});});
+var fs=document.getElementById('fbSend');
+if(fs)fs.onclick=function(){var tx=document.getElementById('fbTxt'),v=(tx&&tx.value||'').trim();
+  location.href='mailto:archemistry.uzbekistan@gmail.com?subject='+encodeURIComponent('['+fbK+'] Archemistry Lab')+'&body='+encodeURIComponent(v+'\n\n— '+location.href);};
+var fbb=document.getElementById('fbBeta');if(fbb)fbb.onclick=function(){if(window.KPS_openPanel)KPS_openPanel();};
+/* avvalgi versiya loyihalari bor boʻlsa — bosh sahifada eslatma (roʻyxat «Batafsil» sahifasida) */
+var on=document.getElementById('oldNote');
+if(on){try{var R0=JSON.parse(localStorage.getItem('kps_projects')||'null');var nn=R0&&Array.isArray(R0.list)?R0.list.length:0;
+  if(nn){on.hidden=false;on.innerHTML=t('Avvalgi versiya loyihalari')+': '+nn+' — <a href="haqida.html#loyihalar">'+t('Batafsil sahifada')+'</a>';}}catch(e){}}
 apply();
 })();
 

@@ -150,10 +150,56 @@ window.HOME_D={
 "≤ 15 ga · ×1":["≤ 15 ha · ×1","≤ 15 га · ×1"],"15–60 ga · ×1,5":["15–60 ha · ×1.5","15–60 га · ×1,5"],"> 60 ga · ×2":["> 60 ha · ×2","> 60 га · ×2"],
 "soʻm":["som","сум"],"Hozir — shu brauzerda. Server ishga tushgach — hisobingizda. Istalgan paytda .json faylga bepul eksport qilasiz.":["For now — in this browser. After the server launch — in your account. You can export to a .json file for free at any time.","Пока — в этом браузере. После запуска сервера — в аккаунте. В любой момент можно бесплатно экспортировать в .json."]
 };
+/* minimal sahifalar (bosh sahifa · minimal A, narxlar · minimal) */
+Object.assign(window.HOME_D,{
+"Kesim, chorraha, tarmoq — ShNQ va dizayn-kod bilan.":["Section, intersection, network — with ShNQ and the design code.","Профиль, перекрёсток, сеть — по ШНК и дизайн-коду."],
+"Joy pasporti: aholi, xizmatlar, relyef, issiqlik.":["Place passport: population, amenities, terrain, heat.","Паспорт места: население, сервисы, рельеф, жара."],
+"Varaqdan taqdimot albomigacha.":["From sheet to presentation album.","От листа до презентационного альбома."],
+"Fasad va hajm — shahar qoidalari bilan.":["Facade and massing — with city rules.","Фасад и объём — по правилам города."],
+"Kadrni yuboring — tayyor tasvir. · beta":["Send a view — get a finished image. · beta","Отправьте кадр — получите готовое изображение. · beta"],
+"Aloqa va fikr":["Contact and feedback","Связь и отзывы"],"Nima yetmayapti?":["What is missing?","Чего не хватает?"],"Xato topdim":["Found a bug","Нашёл ошибку"],"Taklif":["Idea","Предложение"],"Hamkorlik":["Partnership","Сотрудничество"],
+"Javob — pochtaga":["Reply by email","Ответ — на почту"],"Yuborish":["Send","Отправить"],"Pochta":["Email","Почта"],"beta guruhi":["beta group","бета-группа"],"Beta":["Beta","Бета"],"Kod va yuklab olish":["Code and downloads","Код и загрузки"],"Fikr":["Feedback","Отзыв"],
+"Qisqa yozing — sahifa va qadam oʻzi biriktiriladi":["Write briefly — the page link is attached automatically","Напишите коротко — ссылка на страницу добавится сама"],
+"meʼyor bilan.":["with the norms.","по нормам."],"Atrofdan albomgacha. Har raqam — ShNQ bandi bilan.":["From context to album. Every figure — with its ShNQ clause.","От окружения до альбома. Каждая цифра — с пунктом ШНК."],
+"Boshlash":["Start","Начать"],"bepul ·":["free ·","бесплатно ·"],"namuna":["sample","пример"],
+"01 Atrof":["01 Context","01 Окружение"],"02 Koʻchalar":["02 Streets","02 Улицы"],"03 Yer uchastkalari":["03 Land plots","03 Участки"],"04 Hajmlar":["04 Massing","04 Объёмы"],"4 qatlam":["4 layers","4 слоя"],
+"Toʻrt qatlam: atrof, koʻchalar, yer uchastkalari, hajmlar":["Four layers: context, streets, land plots, massing","Четыре слоя: окружение, улицы, участки, объёмы"],
+"Chizing":["Draw","Нарисуйте"],"Atrof, koʻcha, uchastka, bino":["Context, street, plot, building","Окружение, улица, участок, здание"],"Tekshiring":["Check","Проверьте"],"Har raqam — meʼyor bandi bilan":["Every figure — with its norm clause","Каждая цифра — с пунктом нормы"],
+"Topshiring":["Deliver","Сдайте"],"Varaq, albom, DXF":["Sheet, album, DXF","Лист, альбом, DXF"],"© Archemistry Lab · Toshkent":["© Archemistry Lab · Tashkent","© Archemistry Lab · Ташкент"],
+"Batafsil":["More","Подробнее"],"Barcha asboblar":["All tools","Все инструменты"],"Loyihalarim":["My projects","Мои проекты"],
+"Loyihalar hozircha shu brauzerda saqlanadi":["Projects are stored in this browser for now","Проекты пока хранятся в этом браузере"],
+"Avvalgi versiya loyihalari":["Previous-version projects","Проекты предыдущей версии"],"Batafsil sahifada":["on the More page","на странице «Подробнее»"],
+"Tanga muddatsiz. Obuna — ixtiyoriy. Bitta hisob — hamma xizmatda.":["Coins never expire. Subscription is optional. One account for all services.","Монеты не сгорают. Подписка — по желанию. Один аккаунт для всех сервисов."],
+"Qoralama: tanga, obuna va hisob server ishga tushgach ishlaydi. Hozir hamma imkoniyat bepul, loyihalar shu brauzerda saqlanadi.":["Draft: coins, subscription and accounts will work once the server is live. Right now everything is free and projects are stored in this browser.","Черновик: монеты, подписка и аккаунт заработают после запуска сервера. Сейчас всё бесплатно, проекты хранятся в этом браузере."],
+"Tariflar":["Plans","Тарифы"],"Oylik":["Monthly","Помесячно"],"Yillik −20 %":["Yearly −20%","Годовой −20 %"],"Davr":["Period","Период"],"Valyuta":["Currency","Валюта"],
+"12 qadam, 3D, meʼyoriy tekshiruv":["12 steps, 3D, norm check","12 шагов, 3D, нормативная проверка"],"Haftasiga 3 sinov":["3 trials a week","3 пробы в неделю"],"Fayl — setkasimon belgi bilan":["Files with a grid watermark","Файлы — с сеточным знаком"],
+"Tanga":["Coins","Монеты"],"soʻm · 30 tanga":["som · 30 coins","сум · 30 монет"],"· 30 tanga":["· 30 coins","· 30 монет"],"Obunasiz, muddatsiz":["No subscription, no expiry","Без подписки, без срока"],
+"Toza PDF, SVG, PNG, DXF, IFC":["Clean PDF, SVG, PNG, DXF, IFC","Чистые PDF, SVG, PNG, DXF, IFC"],"Master reja: ×1 · ×1,5 · ×2 maydonga qarab":["Master plan: ×1 · ×1.5 · ×2 by area","Мастер-план: ×1 · ×1,5 · ×2 по площади"],
+"Pro":["Pro","Pro"],"tavsiya":["recommended","рекомендуем"],"soʻm / oy":["som / month","сум / мес."],"/ oy":["/ month","/ мес."],"yiliga":["per year","в год"],
+"Har oy 50 tanga":["50 coins every month","50 монет каждый месяц"],"Sinovlar — cheklovsiz":["Unlimited trials","Пробы — без ограничений"],"Navbatsiz hisob, loyiha tarixi":["Priority computing, project history","Расчёт без очереди, история проекта"],
+"Obuna · tez orada":["Subscribe · coming soon","Подписка · скоро"],"Jamoa":["Team","Команда"],"Kelishiladi":["By agreement","По договорённости"],"3+ oʻrin, umumiy hisob":["3+ seats, shared account","3+ места, общий счёт"],
+"Shartnoma va hisob-faktura":["Contract and invoice","Договор и счёт-фактура"],"Oʻz meʼyorlari, oʻqitish":["Your own norms, training","Свои нормы, обучение"],
+"Qoʻmitaga topshirish — albom, DXF, TIK, hisobot":["Committee submission — album, DXF, TEI, report","Сдача в комитет — альбом, DXF, ТЭП, отчёт"],"28 · 42 · 56 tanga":["28 · 42 · 56 coins","28 · 42 · 56 монет"],"≤ 15 · 15–60 · > 60 ga":["≤ 15 · 15–60 · > 60 ha","≤ 15 · 15–60 · > 60 га"],
+"Hisoblagich, atrof eksporti va toʻliq narxlar roʻyxati →":["Calculator, context export and the full price list →","Калькулятор, экспорт окружения и полный прайс →"],
+"Obuna shartmi?":["Is a subscription required?","Подписка обязательна?"],
+"Yoʻq. Bepul ishlaysiz, kerak paytda tanga olasiz. Pro — tez-tez ishlaydiganlar uchun: oylik tanga va cheklovsiz sinov. Istalgan payt bekor qilinadi, yigʻilgan tanga qoladi.":["No. You work for free and buy coins when needed. Pro is for frequent users: monthly coins and unlimited trials. Cancel any time — accumulated coins stay.","Нет. Работаете бесплатно и покупаете монеты при необходимости. Pro — для тех, кто работает часто: ежемесячные монеты и пробы без ограничений. Отмена в любой момент, накопленные монеты остаются."],
+"Ekranda — bepul. Xonadonlar hisobi (boʻlish + derazalar insolyatsiyasi) haftalik sinovga kiradi, keyin 2 tanga.":["Free on screen. The apartment calculation (splitting + window insolation) counts as a weekly trial, then 2 coins.","На экране — бесплатно. Расчёт квартир (деление + инсоляция окон) входит в недельные пробы, затем 2 монеты."],
+"Bepul fayl qanday chiqadi?":["What do free files look like?","Как выглядит бесплатный файл?"],
+"PNG, PDF va SVG — setkasimon «ARCHEMISTRY · BEPUL» belgisi bilan. DXF, IFC va Excel — faqat tanga bilan.":["PNG, PDF and SVG carry an “ARCHEMISTRY · FREE” grid watermark. DXF, IFC and Excel are coins-only.","PNG, PDF и SVG — с сеточным знаком «ARCHEMISTRY · БЕСПЛАТНО». DXF, IFC и Excel — только за монеты."],
+"Narx maydonga bogʻliqmi?":["Does the price depend on area?","Цена зависит от площади?"],
+"Master reja toza fayllari: 15 ga gacha ×1, 15–60 ga ×1,5, 60 ga dan katta ×2.":["Clean master plan files: up to 15 ha ×1, 15–60 ha ×1.5, over 60 ha ×2.","Чистые файлы мастер-плана: до 15 га ×1, 15–60 га ×1,5, больше 60 га ×2."],
+"Atrofni yuklab olsa boʻladimi?":["Can I download the context?","Можно скачать окружение?"],
+"Ha, 8 km² gacha: 1 km² — sinov ichida, 4 km² — 2 tanga, 8 km² — 4 tanga. DXF, SVG, GLB, GeoJSON.":["Yes, up to 8 km²: 1 km² — within trials, 4 km² — 2 coins, 8 km² — 4 coins. DXF, SVG, GLB, GeoJSON.","Да, до 8 км²: 1 км² — в рамках проб, 4 км² — 2 монеты, 8 км² — 4 монеты. DXF, SVG, GLB, GeoJSON."],
+"Hech qachon. Bitta hisob — hamma xizmatlarda. Shu holatni qayta yuklash bepul.":["Never. One account across all services. Re-downloading the same state is free.","Никогда. Один аккаунт во всех сервисах. Повторная выгрузка того же состояния бесплатна."],
+"Tashkilot uchun?":["For organisations?","Для организаций?"],
+"Shartnoma va hisob-faktura — kelishiladi: archemistry.uzbekistan@gmail.com.":["Contract and invoice by agreement: archemistry.uzbekistan@gmail.com.","Договор и счёт-фактура — по договорённости: archemistry.uzbekistan@gmail.com."],
+"Narxlar — batafsil":["Pricing — details","Цены — подробно"],"Qahva uchun":["Buy me a coffee","На кофе"]
+});
 /* raqamli qoliplar: «12 t.», «1,06 ga», «3 900 soʻm / tanga · $4» */
 window.HOME_RX=[
  [/^(.*\d) t\.$/,"$1 c.","$1 м."],
  [/^(.*\d) ga$/,"$1 ha","$1 га"],
+ [/^(.*\d) tanga$/,"$1 coins","$1 монет"],
  [/^(.*\d) soʻm \/ tanga · (.+)$/,"$1 som / coin · $2","$1 сум / монета · $2"],
  [/^(.*\d) soʻm$/,"$1 som","$1 сум"]
 ];

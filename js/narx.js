@@ -28,7 +28,17 @@ q('[data-k]').forEach(function(b){b.addEventListener('click',function(){k=+b.get
 /* valyuta */
 var cur='uzs';try{cur=localStorage.getItem('ks-cur')||'uzs';}catch(e){}
 function money(){q('[data-cur]').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-cur')===cur));});
-  q('[data-uzs]').forEach(function(el){var v=el.getAttribute(cur==='usd'?'data-usd':'data-uzs');el.textContent=cur==='usd'?v:v.replace('soʻm',t('soʻm'));});}
+  q('[data-uzs]').forEach(function(el){var v=el.getAttribute(cur==='usd'?'data-usd':'data-uzs');el.textContent=t(v)!==v?t(v):v.replace('soʻm',t('soʻm'));});
+  pro();}
+/* Pro obuna: oylik 149 000 soʻm; yillik −20 % (oyiga 119 200, yiliga 1 430 400). USD — 30 talik toʻplam kursi bilan (≈ 9 900 soʻm / $) */
+var per='m',PRO=149000,RATE_USD=9900;
+function pro(){var P=document.getElementById('proP');if(!P)return;
+  q('[data-per]').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-per')===per));});
+  var m=per==='y'?Math.round(PRO*0.8):PRO,U=document.getElementById('proU'),Y=document.getElementById('proY');
+  if(cur==='usd'){P.textContent='$'+Math.round(m/RATE_USD);U.textContent=t('/ oy');}
+  else{P.textContent=nf(m);U.textContent=t('soʻm / oy');}
+  Y.hidden=per!=='y';Y.textContent=per==='y'?t('yiliga')+' '+(cur==='usd'?'$'+Math.round(m*12/RATE_USD):nf(m*12)+' '+t('soʻm')):'';}
+q('[data-per]').forEach(function(b){b.addEventListener('click',function(){per=b.getAttribute('data-per');pro();});});
 q('[data-cur]').forEach(function(b){b.addEventListener('click',function(){cur=b.getAttribute('data-cur');try{localStorage.setItem('ks-cur',cur);}catch(e){}money();});});
 /* til almashsa — raqam formati va soʻzlar */
 new MutationObserver(function(){draw();money();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});

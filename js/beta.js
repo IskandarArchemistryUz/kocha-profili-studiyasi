@@ -42,7 +42,9 @@ function donateHtml(){return '<div class="s" id="kbDon"><a class="b k" href="'+C
 function coffee(){var w=document.getElementById('kbCofW');if(!w){w=document.createElement('div');w.id='kbCofW';document.body.appendChild(w);}
   w.innerHTML='<a id="kbCofS" href="'+CFG.donate+'" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v3M12 3v3"/></svg>Qahva uchun</a>';}
 function ui(){css();
-  var home=/(^|\/)(index\.html)?$/.test(location.pathname);var b=document.createElement('button');b.id='kbBtn';b.type='button';b.title='Fikr bildirish · xato haqida xabar';if(!home)b.className='c';b.innerHTML=(home?'BETA · Fikr bildirish':'β')+'<span id="kbDot"'+(ERR.length?'':' hidden')+'></span>';document.body.appendChild(b);
+  /* sahifaning oʻz «Fikr» tugmasi boʻlsa ([data-kb-own]) — beta tugmasi, qahva va sariq qator chiqmaydi; panel KPS_openPanel() orqali ochiladi */
+  var own=!!document.querySelector('[data-kb-own]');
+  var home=/(^|\/)(index\.html)?$/.test(location.pathname);var b=document.createElement('button');b.id='kbBtn';b.type='button';b.title='Fikr bildirish · xato haqida xabar';if(!home)b.className='c';b.innerHTML=(home?'BETA · Fikr bildirish':'β')+'<span id="kbDot"'+(ERR.length?'':' hidden')+'></span>';if(own)b.hidden=true;document.body.appendChild(b);
   var p=document.createElement('div');p.id='kbPn';p.hidden=true;
   p.innerHTML='<div class="h"><button class="x" id="kbX" aria-label="Yopish"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><b>Archemistry Lab</b><span class="tag">BETA</span><div class="n">Portal sinov rejimida va hamma uchun bepul. Xato topsangiz yoki gʻoyangiz boʻlsa — yozing, tez tuzatamiz.</div></div>'+
    '<div class="s"><div class="l">Fikr va taklif</div><textarea id="kbTxt" placeholder="Nima yoqdi, nima yetishmayapti, nima noqulay?"></textarea>'+
@@ -62,8 +64,8 @@ function ui(){css();
   var kc=document.getElementById('kbCard');if(kc)kc.onclick=function(){copy(CFG.card.replace(/\s/g,''),function(){kc.textContent='Nusxalandi ✓';setTimeout(function(){kc.textContent='Nusxalash';},1800);});};
   window.KPS_openPanel=function(sec){p.hidden=false;var el=sec&&document.getElementById(sec);if(el)el.scrollIntoView({block:'nearest'});};
   var tg=document.getElementById('kbTg');if(tg)tg.onclick=function(){copy(T().value||info(),function(){window.open(CFG.tg,'_blank','noopener');});tg.textContent='Matn nusxalandi — Telegramda joylang (Ctrl+V)';};
-  if(home&&CFG.donate)coffee();
-  if(home&&!localStorage.getItem('kps_beta_bar')){var bar=document.createElement('div');bar.id='kbBar';
+  if(home&&CFG.donate&&!own)coffee();
+  if(home&&!own&&!localStorage.getItem('kps_beta_bar')){var bar=document.createElement('div');bar.id='kbBar';
     bar.innerHTML='<span>Archemistry Lab — beta: hamma uchun bepul, sinov rejimida. Xato yoki gʻoya boʻlsa, pastdagi «Fikr bildirish» tugmasi orqali yozing.</span><button aria-label="Yopish"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
     document.body.insertBefore(bar,document.body.firstChild);bar.querySelector('button').onclick=function(){bar.remove();try{localStorage.setItem('kps_beta_bar','1');}catch(e){}};}
 }
