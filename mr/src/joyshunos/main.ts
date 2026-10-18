@@ -166,6 +166,7 @@ const SERVICES = [
   { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
   { id: 'ks', name: 'Koʻchasoz', href: './kochasoz.html', color: 'var(--svc-ks)' },
   { id: 'joy', name: 'Joyshunos', href: './joyshunos.html', color: 'var(--svc-joy)', cur: true },
+  { id: 'ren', name: 'Render', href: './render.html', color: 'var(--svc-ren)', beta: true },
   { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
   { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
 ];
@@ -189,7 +190,7 @@ function renderHeader(): void {
   header.replaceChildren(
     h('a', { class: 'brand', href: '../index.html', title: tr('Bosh sahifa') }, logoSvg(20), h('span', {}, 'Archemistry Lab')),
     h('span', { class: 'vr' }),
-    h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name)))),
+    h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
     h('div', { class: 'seg sm langsw', role: 'group', 'aria-label': tr('Til'), id: 'langSw' },
       ...LANGS.map(l => h('button', { type: 'button', 'data-lang': l.id, 'aria-pressed': l.id === getLang(), onclick: () => setLang(l.id as Lang) }, l.name))),
@@ -887,7 +888,8 @@ function renderAxo(): void {
         h('button', { type: 'button', role: 'menuitem', id: 'exSvg', onclick: () => doExport('svg') }, tr('SVG · oddiy')),
         h('button', { type: 'button', role: 'menuitem', id: 'exGlb', onclick: () => doExport('glb') }, tr('Massing · GLB')),
         h('button', { type: 'button', role: 'menuitem', id: 'exObj', onclick: () => doExport('obj') }, tr('Massing · OBJ')),
-        h('button', { type: 'button', role: 'menuitem', id: 'exChz', onclick: () => doExport('chz') }, tr('Chizmadonga yuborish'))));
+        h('button', { type: 'button', role: 'menuitem', id: 'exChz', onclick: () => doExport('chz') }, tr('Chizmadonga yuborish')),
+        h('button', { type: 'button', role: 'menuitem', id: 'exRen', onclick: () => void toRender() }, tr('Render studiyasiga'))));
       return w; })(),
     h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'axPng', onclick: () => void exportPng() }, 'PNG · 4K'),
   );
@@ -962,6 +964,15 @@ async function restoreModel(): Promise<void> {
     if (Math.hypot(off[0], off[1]) < S.r * 1.5) await loadModel(m.name, m.buf, off); } catch { /* */ }
 }
 
+/** Joriy aksonometriya kadri → Render studiyasi (asos rasm) */
+async function toRender(): Promise<void> {
+  expOpen = false; renderAxo(); if (!axo) return;
+  try {
+    const blob = await axo.png(2048), img = await new Promise<string>((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
+    const { sendToRender } = await import('../render/inbox');
+    await sendToRender({ name: D.addr.v ?? `${S.c[1].toFixed(4)}, ${S.c[0].toFixed(4)}`, from: 'joy', subj: 'joy', img });
+  } catch (e) { toast(`Render: ${(e as Error).message}`); }
+}
 async function exportPng(): Promise<void> {
   if (!axo) return;
   const b = document.getElementById('axPng') as HTMLButtonElement | null; if (b) { b.disabled = true; b.textContent = '…'; }

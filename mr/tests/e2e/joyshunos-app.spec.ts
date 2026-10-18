@@ -203,6 +203,12 @@ test('B2: lineyka, uchastka (1-qadamdan), aksonometriyada quyoshni sudrash, mode
   await page.locator('#axExp').click();
   dl = page.waitForEvent('download'); await page.locator('#exGlb').click();
   expect((await dl).suggestedFilename()).toMatch(/\.glb$/);
+  // Render studiyasiga — joriy aksonometriya kadri asos rasm boʻladi
+  await page.locator('#axExp').click();
+  await page.locator('#exRen').click();
+  await expect(page).toHaveURL(/render\.html/, { timeout: 30_000 });
+  await expect(page.locator('.ren-base .fr')).toHaveText('Joyshunos');
+  await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Aksonometriya');
   expect(errs).toEqual([]);
 });
 

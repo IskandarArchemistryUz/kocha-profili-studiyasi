@@ -24,7 +24,7 @@ test('peshlavha studiyasi: sarlavha, qadamlar, tungi rejim, til', async ({ page 
   await page.route(/fonts\.g|cdnjs|jsdelivr|unpkg|openstreetmap|arcgis|overpass/, r => r.abort());
   await page.goto(`http://127.0.0.1:${PORT}/dizaynkod.html`);
   await expect(page.locator('header.eko .eko-svc a.on')).toHaveText(/Dizayn-kod/);
-  await expect(page.locator('header.eko .eko-svc a')).toHaveCount(5);
+  await expect(page.locator('header.eko .eko-svc a')).toHaveCount(6);
   await expect(page.locator('#kpsLang button')).toHaveCount(3);
   const steps = page.locator('#steps li');
   await expect(steps).toHaveCount(5);

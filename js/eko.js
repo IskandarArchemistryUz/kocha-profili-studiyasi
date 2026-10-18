@@ -13,6 +13,7 @@
     ['mr', 'Master reja', 'app/', '--svc-mr'],
     ['ks', 'Koʻchasoz', 'app/kochasoz.html', '--svc-ks'],
     ['joy', 'Joyshunos', 'app/joyshunos.html', '--svc-joy'],
+    ['ren', 'Render', 'app/render.html', '--svc-ren', 'beta'],
     ['dk', 'Dizayn-kod', 'dizaynkod.html', '--svc-dk'],
     ['chz', 'Chizmadon', 'app/#/chizmadon', '--svc-chz']
   ];
@@ -31,7 +32,7 @@
       '<a class="eko-brand" href="index.html" title="Bosh sahifa"><svg viewBox="0 0 103.45 100" width="21" height="20" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + LOGO + '"/></svg><span>Archemistry Lab</span></a>' +
       '<span class="eko-vr"></span>' +
       '<nav class="eko-svc" aria-label="Xizmatlar">' + SVC.map(function (s) {
-        return '<a href="' + s[2] + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(s[1]) + '</a>';
+        return '<a href="' + s[2] + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(s[1]) + (s[4] ? '<em class="beta">beta</em>' : '') + '</a>';
       }).join('') + '</nav>' +
       '<span class="eko-sp"></span>' + ex +
       '<div class="eko-lang" id="kpsLang" data-noi18n role="group" aria-label="Til / Language / Язык">' + ['uz', 'en', 'ru'].map(function (k) {

@@ -28,7 +28,7 @@ for (const [f, name] of PAGES) {
     await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
     await page.goto(`http://127.0.0.1:${PORT}/${f}.html`);
     await expect(page.locator('header.eko .eko-svc a.on')).toHaveText(/Joyshunos/);
-    await expect(page.locator('header.eko .eko-svc a')).toHaveCount(5);
+    await expect(page.locator('header.eko .eko-svc a')).toHaveCount(6);
     await expect(page.locator('.joy-nav a')).toHaveCount(4);
     await expect(page.locator('.joy-nav a.on')).toHaveText(name);
     await expect(page.locator('.joy-nav a.on')).toHaveAttribute('href', `${f}.html`);

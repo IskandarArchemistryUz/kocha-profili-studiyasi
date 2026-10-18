@@ -1,0 +1,140 @@
+/* Render studiyasi — kanvasdagi «Render studiyasi — maket» (R-1, R-2), ds2 tokenlarida. */
+html,body{height:100%}
+body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
+#ren{position:fixed;inset:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+.ic,#ren svg{flex:none}
+#ren .btn svg,#ren .ren-sel svg,#ren .role svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#ren .sp{flex:1}
+#ren code{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.mono{font-family:var(--mono)}
+
+/* ——— ekotizim sarlavhasi (Joyshunos, Koʻchasoz bilan bir xil) ——— */
+.eko{position:absolute;top:12px;left:12px;right:12px;height:52px;border-radius:18px;display:flex;align-items:center;gap:10px;padding:0 10px 0 14px;z-index:5}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:var(--sh-float)}
+.eko .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap;color:var(--ink);text-decoration:none}
+.eko .vr{width:.5px;height:22px;background:var(--hairline)}
+.eko .svc{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--fill)}
+.eko .svc a{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:var(--r-pill);font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap}
+.eko .svc a:hover{color:var(--ink)}
+.eko .svc a.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 .5px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.06)}
+.eko .svc i{width:8px;height:8px;border-radius:4px;flex:none}
+.eko .svc em.beta,.eko-svc em.beta{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--r-pill);background:var(--warn-soft);color:var(--warn)}
+.eko .langsw{width:108px}
+.icon-btn{width:36px;padding:0}
+
+/* ——— uch ustun ——— */
+.ren-body{position:absolute;top:76px;left:12px;right:12px;bottom:12px;display:flex;gap:12px;min-height:0}
+.ren-lp,.ren-rp{flex:none;overflow-y:auto;scrollbar-width:thin;padding:16px;display:flex;flex-direction:column;gap:10px}
+.ren-lp{width:300px}.ren-rp{width:340px}
+.ren-lp>*,.ren-rp>*{flex-shrink:0}
+.ren-lp .ttl,.ren-rp .ttl{margin:0;font-size:22px;line-height:26px;font-weight:600;letter-spacing:-.02em}
+.ren-rp .hd{display:flex;align-items:center;gap:8px}.ren-rp .hd .ttl{flex:1}
+#ren .glabel code{font-size:11px;white-space:nowrap}
+.ren-sec{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.ren-sec+.ren-sec{border-top:.5px solid var(--hairline);padding-top:12px}
+.ren-sec .row{display:flex;gap:6px}.ren-sec .row .btn{flex:1}
+.ren-base{display:flex;flex-direction:column;gap:6px}
+.ren-base img{width:100%;max-height:180px;object-fit:contain;border-radius:var(--r-tile);background:var(--fill);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.ren-base .cap{display:flex;align-items:center;gap:6px;font-size:12px;min-width:0}
+.ren-base .cap i{width:7px;height:7px;border-radius:4px;flex:none}
+.ren-base .cap b{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ren-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;aspect-ratio:16/9;border:1.5px dashed var(--hairline);border-radius:var(--r-tile);background:var(--grouped);color:var(--ink-2);font:600 13px var(--sans);cursor:pointer}
+.ren-empty svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6}
+.ren-pickl{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;padding:4px;border-radius:var(--r-tile);background:var(--grouped)}
+.ren-src{display:flex;align-items:center;gap:4px}
+.ren-src .pick{flex:1;min-width:0;display:flex;gap:10px;align-items:center;padding:6px;border:0;border-radius:10px;background:transparent;text-align:left;cursor:pointer;color:var(--ink);font-family:inherit}
+.ren-src .pick:hover{background:var(--fill)}
+.ren-src .pick[aria-pressed=true]{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.ren-src img{width:52px;height:38px;object-fit:cover;border-radius:7px;background:var(--fill);flex:none}
+.ren-src .tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ren-src .tx b{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ren-src .tx span{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--muted)}
+.ren-src .tx i{width:6px;height:6px;border-radius:3px;flex:none}
+.ren-refs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ren-refs .ref{position:relative;display:flex;flex-direction:column;gap:4px}
+.ren-refs .im{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:var(--fill)}
+.ren-refs .im img{width:100%;height:100%;object-fit:cover;display:block}
+.ren-refs .del{position:absolute;top:4px;right:4px;width:24px;height:24px;border:0;border-radius:12px;background:rgba(255,255,255,.92);display:grid;place-items:center;cursor:pointer;color:#141414}
+.ren-refs .del svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2}
+.ren-refs .role{display:flex;align-items:center;justify-content:center;gap:4px;height:28px;border:0;border-radius:8px;background:var(--ink);color:var(--surface);font:600 12px var(--sans);cursor:pointer}
+.ren-refs .add{aspect-ratio:1/1;border:1.5px dashed var(--hairline);border-radius:10px;background:var(--grouped);font:600 12.5px var(--sans);color:var(--ink-2);cursor:pointer}
+.ren-menu{position:absolute;z-index:8;top:calc(100% + 4px);left:0;right:0;display:flex;flex-direction:column;padding:4px;border-radius:12px;background:var(--surface);box-shadow:var(--sh-pop)}
+.ren-menu button{height:32px;border:0;border-radius:8px;background:transparent;text-align:left;padding:0 10px;font:13px var(--sans);color:var(--ink);cursor:pointer}
+.ren-menu button:hover{background:var(--fill)}
+.ren-menu button[aria-selected=true]{font-weight:600;background:var(--grouped)}
+.ren-old{border-top:.5px solid var(--hairline);padding-top:10px;font-size:12px}
+.ren-old summary{font-weight:600;color:var(--ink-2);cursor:pointer}
+.ren-old a{display:block;margin-top:8px;color:var(--sel)}
+
+/* ——— markaz ——— */
+.ren-stage{position:relative;flex:1;min-width:0;border-radius:var(--r-panel);background:var(--fill);overflow:hidden;box-shadow:0 0 0 .5px var(--hairline)}
+.ren-frame{position:absolute;inset:60px 16px 64px;display:grid;place-items:center;min-height:0}
+.ren-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,.12)}
+.ren-top{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ren-top .chip.big{height:32px;padding:0 12px;font-size:13px;background:var(--glass);box-shadow:var(--sh-card)}
+.ren-top .seg{width:auto}.ren-top .seg button{padding:0 12px}
+.ren-tools{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:var(--r-pill);width:max-content;max-width:calc(100% - 28px);white-space:nowrap}
+.ren-tools .btn{border-radius:var(--r-pill)}
+#ren em.soon{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--r-pill);background:var(--warn-soft);color:var(--warn)}
+.ren-busy{position:absolute;inset:auto 0 70px;margin:auto;width:max-content;display:flex;gap:10px;align-items:center;padding:10px 16px;border-radius:var(--r-pill);background:var(--ink);color:var(--surface);font-size:13px;font-weight:600;box-shadow:var(--sh-pop)}
+.spin{width:14px;height:14px;border-radius:7px;border:2px solid currentColor;border-right-color:transparent;animation:ren-spin .8s linear infinite}
+@keyframes ren-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.ren-hello{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+.ren-hello h2{margin:0;font-size:22px;font-weight:600}
+.ren-hello p{margin:0;max-width:440px;color:var(--ink-2);font-size:13.5px}
+.ren-cmp{position:relative;max-width:100%;max-height:100%;display:inline-block;cursor:ew-resize;touch-action:none;user-select:none;outline:none}
+.ren-cmp:focus-visible{box-shadow:0 0 0 2px var(--sel)}
+.ren-cmp>img{display:block;max-width:100%;max-height:calc(100vh - 220px);object-fit:contain}
+.ren-cmp .b{position:absolute;inset:0 auto 0 0;overflow:hidden}
+.ren-cmp .b img{display:block;max-width:none;object-fit:cover}
+.ren-cmp .bar{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.3)}
+.ren-cmp .bar span{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:3px 7px;border-radius:var(--r-pill);background:#fff;color:#141414;font:600 11px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap}
+
+/* ——— oʻng panel ——— */
+.ren-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ren-chips button{height:28px;padding:0 10px;border:0;border-radius:8px;background:var(--fill);color:var(--ink);font:600 12px var(--sans);cursor:pointer}
+.ren-chips button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+.ren-sty .tile{min-height:36px;align-items:flex-start;padding:6px 10px;font-size:12.5px;font-weight:600;text-align:left}
+.ren-ta{height:auto;min-height:56px;padding:8px 10px;resize:vertical;font-family:var(--sans);line-height:1.4}
+.ren-row{display:flex;align-items:center;gap:10px}.ren-row .glabel{flex:1;margin:0 4px}
+.ren-row .seg{width:132px}
+.ren-key{border-radius:var(--r-tile);background:var(--grouped);padding:10px 12px}
+.ren-key summary{font-size:13px;font-weight:600;cursor:pointer}
+.ren-key .need{font-style:normal;margin-left:6px;font-size:11px;color:var(--warn)}
+.ren-key .in{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.ren-key .fl{display:flex;flex-direction:column;gap:4px}.ren-key .fl span{font-size:11px;font-weight:600;color:var(--muted)}
+.ren-key .input{background:var(--surface);height:32px;font-size:12px}
+.ren-key a{color:var(--sel);display:inline-flex;align-items:center;gap:3px}
+.ren-key a svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2}
+.ren-selw{position:relative}
+.ren-sel{width:100%;height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border:0;border-radius:var(--r-ctl);background:var(--surface);color:var(--ink);font:600 13px var(--sans);cursor:pointer;box-shadow:inset 0 0 0 .5px var(--hairline)}
+.ren-gal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ren-gal button{padding:0;border:0;border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:var(--fill);cursor:zoom-in}
+.ren-gal button[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--ink)}
+.ren-gal img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ——— natija oynasi (R-2) ——— */
+.ren-over{position:fixed;inset:0;z-index:20;background:var(--bg)}
+.ren-vh{gap:10px}
+.ren-vh .nm{display:flex;flex-direction:column;min-width:0}
+.ren-vh .nm b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
+.ren-vh .seg{width:auto}.ren-vh .seg button{padding:0 10px}
+.ren-vb{position:absolute;top:76px;left:12px;right:12px;bottom:12px;display:flex;gap:12px}
+.ren-vstage{flex:1;min-width:0;border-radius:var(--r-panel);background:var(--fill);display:grid;place-items:center;padding:16px;overflow:hidden}
+.ren-vstage>.ren-img{max-height:calc(100vh - 140px)}
+.ren-yon{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;align-items:center}
+.ren-yon figure{margin:0;display:flex;flex-direction:column;gap:6px;align-items:center}
+.ren-yon img{max-width:100%;max-height:calc(100vh - 180px);object-fit:contain;border-radius:6px}
+.ren-yon figcaption{font-size:12px;font-weight:600;color:var(--muted)}
+.ren-va{width:320px;flex:none;padding:16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.ren-va h3{margin:0;font-size:15px;font-weight:600}
+.ren-va dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px}
+.ren-va dt{color:var(--muted)}.ren-va dd{margin:0}
+.ren-va .mono{white-space:pre-wrap;word-break:break-word}
+
+/* ——— planshet ——— */
+@media (max-width:1180px){
+  .ren-lp{width:252px}.ren-rp{width:300px}
+  .eko .svc a{padding:0 9px}
+}

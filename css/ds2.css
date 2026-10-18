@@ -26,7 +26,7 @@
   --bad:#b23a2e;  --bad-soft:#f9e8e5;
   --na:#6b6965;   --na-soft:#ecebe8;
   /* ——— Xizmat rangi (faqat logotip yonidagi nuqta, faol rail, grafik urgʻu) ——— */
-  --svc-mr:#141414; --svc-ks:#4c5bd4; --svc-joy:#c0643a; --svc-dk:#0f8a7e; --svc-chz:#8b4a9c;
+  --svc-mr:#141414; --svc-ks:#4c5bd4; --svc-joy:#c0643a; --svc-dk:#0f8a7e; --svc-chz:#8b4a9c; --svc-ren:#c08a1e;
   --svc:var(--svc-mr);
   /* ——— Maʼlumot qatlamlari (har xizmatda bir xil maʼno) ——— */
   --d-sun:#e8a317; --d-wind:#3f8f6b; --d-flow:#4c5bd4; --d-heat:#c2416b;
@@ -50,7 +50,7 @@
 [data-theme="dark"]{
   --bg:#121212; --surface:#1d1d1c; --grouped:#252523; --fill:#2c2c2a; --fill-2:#363633; --hairline:rgba(255,255,255,.1); --glass:rgba(29,29,28,.84);
   --ink:#f2f1ee; --ink-2:#d6d3cc; --muted:#a3a09a; --faint:#6b6965; --sel:#6fa4dc; --sel-soft:#1f2b38;
-  --ok:#6cc08f; --ok-soft:#1d2e24; --warn:#e0b25a; --warn-soft:#33291a; --bad:#ef7d70; --bad-soft:#3a201d; --svc-mr:#f2f1ee;
+  --ok:#6cc08f; --ok-soft:#1d2e24; --warn:#e0b25a; --warn-soft:#33291a; --bad:#ef7d70; --bad-soft:#3a201d; --svc-mr:#f2f1ee; --svc-ren:#e0ad4a;
 }
 
 *{box-sizing:border-box}
