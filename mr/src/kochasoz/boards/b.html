@@ -11,12 +11,18 @@
     <span class="lbl">Dizayn-kod turi · 3.4</span>
     <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{uks}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}" title="{{c.t}}">{{c.n}}</button></sc-for></div>
     <div class="group white" style="padding: 6px 10px;"><sc-for list="{{lims}}" as="l"><div class="lim"><span>{{l.n}}</span><b>{{l.v}}</b></div></sc-for></div>
-    <span class="lbl" style="margin-top: 2px;">Tayyor kesimlar</span>
-    <div class="ks-tgs" style="display: flex; flex-wrap: wrap; gap: 4px;"><sc-for list="{{tgs}}" as="g"><button class="chipb" aria-pressed="{{g.p}}" onClick="{{g.pick}}">{{g.n}}</button></sc-for></div>
-    <sc-for list="{{tpls}}" as="t"><button class="tpl" aria-pressed="{{t.p}}" onClick="{{t.pick}}">
+    <section class="ks-sec">
+      <button class="ks-acc" type="button" aria-expanded="{{tOpen}}" onClick="{{tToggle}}"><span class="lbl">Tayyor kesimlar</span><span class="t-foot num">{{tCount}}</span><svg class="ic sm chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <sc-if value="{{tOpenB}}"><div class="ks-acc-body">
+        <div class="ks-dd-wrap"><button class="ks-dd" type="button" aria-haspopup="listbox" aria-expanded="{{tgMenu}}" onClick="{{tgToggle}}"><span>{{tgCur}}</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+          <sc-if value="{{tgMenuB}}"><div class="ks-menu" role="listbox"><sc-for list="{{tgs}}" as="g"><button type="button" role="option" aria-selected="{{g.p}}" onClick="{{g.pick}}"><span>{{g.n}}</span><span class="t-foot num">{{g.c}}</span></button></sc-for></div></sc-if>
+        </div>
+        <sc-for list="{{tpls}}" as="t"><button class="tpl" aria-pressed="{{t.p}}" onClick="{{t.pick}}">
       <svg viewBox="0 0 230 62" style="width: 100%; display: block;" aria-hidden="true"><sc-for list="{{t.th}}" as="q"><path d="{{q.d}}" fill="{{q.f}}" stroke="{{q.s}}" stroke-width="{{q.w}}"></path></sc-for></svg>
       <span style="display: flex; justify-content: space-between; font-size: 12.5px;"><b style="font-weight: 600;">{{t.n}}</b><span class="t-foot num">{{t.w}} m · {{t.u}}</span></span>
     </button></sc-for>
+      </div></sc-if>
+    </section>
     <span class="lbl" style="margin-top: 2px;">Binolar</span>
     <div class="group"><div class="row" style="min-height: 38px;"><span style="flex: 1;">Chap · qavat</span><div class="stepper" style="height: 28px;"><button onClick="{{bLd}}" style="height: 28px;" aria-label="Chap bino qavatini kamaytirish">−</button><span class="v">{{bL}}</span><button onClick="{{bLu}}" style="height: 28px;" aria-label="Chap bino qavatini oshirish">+</button></div></div><div class="row" style="min-height: 38px;"><span style="flex: 1;">Oʻng · qavat</span><div class="stepper" style="height: 28px;"><button onClick="{{bRd}}" style="height: 28px;" aria-label="Oʻng bino qavatini kamaytirish">−</button><span class="v">{{bR}}</span><button onClick="{{bRu}}" style="height: 28px;" aria-label="Oʻng bino qavatini oshirish">+</button></div></div></div>
   </aside>
