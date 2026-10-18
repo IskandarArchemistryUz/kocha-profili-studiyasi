@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 /** Joyshunos (app/joyshunos.html, «Joy-A» maketi): qatlamlar paneli, joy pasporti, radius, raqobatchilar turi, qidiruv, saqlanish.
@@ -22,6 +22,8 @@ function city(): unknown[] {
 }
 async function open(page: Page, errs: string[], hash = ''): Promise<void> {
   page.on('pageerror', e => errs.push(e.message));
+  page.on('dialog', d => { errs.push(`dialog: ${d.message()}`); void d.dismiss(); });
+  page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED|AJAXError|Failed to load/.test(m.text())) errs.push(`console: ${m.text().slice(0, 200)}`); });
   await page.route(/fonts\.g|openfreemap|arcgis/, r => r.abort());
   await page.route(/elevation-tiles-prod/, r => r.fulfill({ path: FIX, contentType: 'image/png' }));
   await page.route(/nominatim\.openstreetmap\.org\/reverse/, r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ address: { road: 'Amir Temur shoh koʻchasi', house_number: '21' } }) }));
@@ -140,5 +142,41 @@ test('aksonometriya: sahna, izohlar, vaqt, portlatish, qatlam tartibi, PNG', asy
   await expect(page.locator('.joy-lp')).toBeVisible();
   await page.goto('./joyshunos.html#/axo');
   await expect(page.locator('.joy-axl .seg button', { hasText: 'Yoyilgan' })).toHaveAttribute('aria-pressed', 'true');
+  expect(errs).toEqual([]);
+});
+
+test('B2: lineyka, uchastka (1-qadamdan), aksonometriyada quyoshni sudrash, model, SVG (qatlamli) va massing eksporti', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errs: string[] = [];
+  await page.addInitScript(() => { try { localStorage.setItem('kps_site', JSON.stringify({ ring: [[41.3105, 69.279], [41.3105, 69.2805], [41.3118, 69.2805], [41.3118, 69.279]] })); } catch { /* */ } });
+  await open(page, errs);
+  // lineyka: ikki nuqta + Enter
+  await page.locator('#tRuler').click();
+  await page.mouse.click(620, 420); await page.mouse.click(820, 430); await page.keyboard.press('Enter');
+  await expect(page.locator('#joyMeasure')).toContainText(/Uzunlik: [\d\s ]+ m/);
+  // uchastka — 1-qadamdan
+  await page.locator('#tSiteK').click();
+  await expect(page.locator('.joy-card.head .chip.site')).toContainText('ga');
+  // aksonometriya
+  await page.locator('#joyMode [data-mode=axo]').click();
+  await expect.poll(() => page.evaluate(() => { const a = (window as unknown as { joyAxo?: { siteRing(): unknown } }).joyAxo; return a ? !!a.siteRing() : false; }), { timeout: 40_000 }).toBe(true);
+  // quyoshni sudrash → vaqt oʻzgaradi
+  const t0 = (await page.locator('#axTm').textContent())!;
+  const sun = await page.evaluate(() => { const a = (window as unknown as { joyAxo: { sunMarks: { position: { clone(): { y: number; project(c: unknown): { x: number; y: number } } } }[]; groups: Map<string, { position: { y: number } }>; ortho: unknown; renderer: { domElement: HTMLCanvasElement } } }).joyAxo;
+    const v = a.sunMarks[0].position.clone(); v.y += a.groups.get('quyosh')!.position.y; const p = v.project(a.ortho); const r = a.renderer.domElement.getBoundingClientRect(); return [(p.x + 1) / 2 * r.width + r.left, (1 - p.y) / 2 * r.height + r.top]; });
+  await page.mouse.move(sun[0], sun[1]); await page.mouse.down(); await page.mouse.move(sun[0] - 120, sun[1] - 30, { steps: 6 }); await page.mouse.up();
+  await expect(page.locator('#axTm')).not.toHaveText(t0);
+  // model (OBJ)
+  const fc = page.waitForEvent('filechooser'); await page.locator('#axModel').click(); await (await fc).setFiles(join(process.cwd(), 'tests/e2e/fixtures/kub.obj'));
+  await expect.poll(() => page.evaluate(() => (window as unknown as { joyAxo: { hasModel(): boolean } }).joyAxo.hasModel()), { timeout: 30_000 }).toBe(true);
+  // SVG (Illustrator qatlamlari)
+  await page.locator('#axExp').click();
+  let dl = page.waitForEvent('download'); await page.locator('#exSvgL').click();
+  const svgPath = await (await dl).path(); const txt = readFileSync(svgPath!, 'utf8');
+  expect(txt).toContain('inkscape:groupmode="layer"'); expect((txt.match(/data-name="0\d /g) ?? []).length).toBeGreaterThanOrEqual(5);
+  // massing GLB
+  await page.locator('#axExp').click();
+  dl = page.waitForEvent('download'); await page.locator('#exGlb').click();
+  expect((await dl).suggestedFilename()).toMatch(/\.glb$/);
   expect(errs).toEqual([]);
 });

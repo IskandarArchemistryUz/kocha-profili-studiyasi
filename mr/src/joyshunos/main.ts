@@ -22,6 +22,7 @@ import { overpass } from '../context/load';
 import { ContextManager } from '../context/manager';
 import type { PoiBundle } from '../context/poi';
 import type { ContextBundle } from '../context/load';
+import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
 import { nearestStation, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
@@ -52,7 +53,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { c: LngLat; r: number; on: LayerId[]; cat: string; base: 'stil' | 'sat'; z?: number }
+interface State { c: LngLat; r: number; on: LayerId[]; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null }
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
 const S: State = (() => {
   try { const o = JSON.parse(localStorage.getItem('joy-state') || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
@@ -99,7 +100,7 @@ const ask = h('div', { class: 'joy-ask glass', id: 'joyAsk' });
 const baseSw = h('div', { class: 'joy-base glass', id: 'joyBase' });
 const legend = h('div', { class: 'joy-legend glass', id: 'joyLegend', hidden: true });
 const modeSw = h('div', { class: 'joy-mode glass', id: 'joyMode' });
-const axoEl = h('div', { class: 'joy-axo', id: 'joyAxo', hidden: true });
+const axoEl = h('div', { class: 'joy-axo', id: 'joyAxoView', hidden: true });
 const axL = h('aside', { class: 'joy-axl panel', id: 'joyAxL' }), axN = h('aside', { class: 'joy-notes glass', id: 'joyNotes' }), axT = h('div', { class: 'joy-time glass', id: 'joyTime' });
 root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, axL, axN, axT, modeSw);
 
@@ -138,7 +139,18 @@ function renderLeft(): void {
         l.ready ? sw(isOn(l.id), tr(l.name), () => toggle(l.id)) : h('em', { class: 'soon', title: tr('Manba ulanmoqda — keyingi bosqichda') }, tr('Tez orada')),
       )),
     ))),
-    h('div', { class: 'joy-tools' }, ...([['Lineyka', ICON.ruler], ['Maydon', ICON.area], ['Kesim', ICON.cut]] as const).map(([n, d]) => { const b = h('button', { type: 'button', class: 'btn', disabled: true, title: `${tr(n)} — ${tr('Tez orada')}` }, ic(d), tr(n)); return b; })),
+    h('div', { class: 'joy-tools' },
+      h('button', { type: 'button', class: 'btn', id: 'tRuler', 'aria-pressed': drawing?.kind === 'ruler', title: tr('Masofani oʻlchash: nuqtalarni bosing, ikki marta bosish yoki Enter — tugatish'), onclick: () => startDraw('ruler') }, ic(ICON.ruler), tr('Lineyka')),
+      h('button', { type: 'button', class: 'btn', id: 'tArea', 'aria-pressed': drawing?.kind === 'area', title: tr('Maydonni oʻlchash: burchaklarni bosing, ikki marta bosish yoki Enter — tugatish'), onclick: () => startDraw('area') }, ic(ICON.area), tr('Maydon')),
+      h('button', { type: 'button', class: 'btn', disabled: true, title: `${tr('Kesim')} — ${tr('Tez orada')}` }, ic(ICON.cut), tr('Kesim'))),
+    h('div', { class: 'joy-site' },
+      h('div', { class: 'glabel' }, tr('Uchastka (loyiha hududi)')),
+      S.site ? h('div', { class: 't-small' }, tf('${a} ga · perimetr ${p} m — xaritada va aksonometriyaning har qatlamida', { a: fmt(ringArea(S.site) / 10000, 2), p: fmt(ringPerim(S.site)) })) : h('div', { class: 't-small' }, tr('Chizilmagan. Chizing yoki 1-qadamdagi hududni oling.')),
+      h('div', { class: 'row' },
+        h('button', { type: 'button', class: 'btn btn-sm', id: 'tSite', 'aria-pressed': drawing?.kind === 'site', onclick: () => startDraw('site') }, tr(S.site ? 'Qayta chizish' : 'Chizish')),
+        kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'tSiteK', title: tr('Joyshunos va Master rejaning 1-qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) setSite(r, false); } }, tr('1-qadamdan')) : null,
+        S.site ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'tSiteX', onclick: () => setSite(null, false) }, tr('Tozalash')) : null)),
+    measure ? h('div', { class: 'note', id: 'joyMeasure' }, measure) : null,
     h('details', { class: 'joy-old' },
       h('summary', {}, tr('Toʻliq asboblar (avvalgi koʻrinish)'), ic(ICON.chev)),
       h('div', {}, ...OLD.map(([n, u]) => h('a', { href: u }, tr(n), ic(ICON.ext))))),
@@ -156,6 +168,57 @@ function toggle(id: LayerId): void {
   S.on = isOn(id) ? S.on.filter(x => x !== id) : [...S.on, id]; save();
   renderLeft(); renderRight(); paint();
   if (isOn(id)) ensure();
+}
+
+/* ---------------- chizish: lineyka, maydon, uchastka ---------------- */
+type DrawKind = 'ruler' | 'area' | 'site';
+let drawing: { kind: DrawKind; pts: LngLat[] } | null = null, measure = '';
+const kxy = (c: LngLat) => [111_320 * Math.cos(c[1] * Math.PI / 180), 111_132] as const;
+function ringArea(r: LngLat[]): number { const [kx, ky] = kxy(r[0]); let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += (p[0] * kx) * (q[1] * ky) - (q[0] * kx) * (p[1] * ky); } return Math.abs(a / 2); }
+function lineLen(r: LngLat[]): number { let L = 0; for (let i = 1; i < r.length; i++) L += distM(r[i - 1], r[i]); return L; }
+function ringPerim(r: LngLat[]): number { return lineLen([...r, r[0]]); }
+/** Ekotizimdagi umumiy hudud («kps_site»: ring — [kenglik, uzunlik]) */
+function kpsSite(): LngLat[] | null { try { const o = JSON.parse(localStorage.getItem('kps_site') || 'null'); if (o && Array.isArray(o.ring) && o.ring.length > 2) return o.ring.map((p: number[]) => [+p[1], +p[0]] as LngLat); } catch { /* */ } return null; }
+function setSite(r: LngLat[] | null, write = true): void {
+  S.site = r; save();
+  if (write) try { if (r) localStorage.setItem('kps_site', JSON.stringify({ t: Date.now(), mode: 'poly', ring: r.map(p => [+p[1].toFixed(6), +p[0].toFixed(6)]), center: null, r: null, areaM2: Math.round(ringArea(r)), src: 'joyshunos' })); } catch { /* */ }
+  renderLeft(); renderRight(); paintDraw(); if (mode === 'axo') axBuild();
+}
+function startDraw(k: DrawKind): void {
+  drawing = drawing?.kind === k ? null : { kind: k, pts: [] }; measure = drawing ? tr(k === 'ruler' ? 'Nuqtalarni bosing; ikki marta bosish yoki Enter — tugatish, Esc — bekor.' : 'Burchaklarni bosing; ikki marta bosish, Enter yoki birinchi nuqta — yopish, Esc — bekor.') : '';
+  if (map) { if (drawing) map.doubleClickZoom.disable(); else map.doubleClickZoom.enable(); map.getCanvas().style.cursor = drawing ? 'crosshair' : ''; }
+  renderLeft(); paintDraw();
+}
+function finishDraw(): void {
+  const d = drawing; if (!d) return;
+  if (d.kind === 'ruler') { measure = d.pts.length > 1 ? tf('Uzunlik: ${l} m (${n} nuqta)', { l: fmt(lineLen(d.pts)), n: d.pts.length }) : ''; }
+  else if (d.pts.length > 2) {
+    if (d.kind === 'area') measure = tf('Maydon: ${a} m² (${h} ga) · perimetr ${p} m', { a: fmt(ringArea(d.pts)), h: fmt(ringArea(d.pts) / 10000, 2), p: fmt(ringPerim(d.pts)) });
+    else { measure = ''; setSite(d.pts); }
+  }
+  lastShape = d.kind === 'site' ? null : { kind: d.kind, pts: d.pts };
+  drawing = null; if (map) { map.doubleClickZoom.enable(); map.getCanvas().style.cursor = ''; }
+  renderLeft(); paintDraw();
+}
+let lastShape: { kind: DrawKind; pts: LngLat[] } | null = null;
+function drawClick(c: LngLat, px: { x: number; y: number }): void {
+  const d = drawing!; 
+  if (d.kind !== 'ruler' && d.pts.length > 2 && map) { const f = map.project(d.pts[0] as [number, number]); if (Math.hypot(f.x - px.x, f.y - px.y) < 10) { finishDraw(); return; } }
+  d.pts.push(c);
+  measure = d.kind === 'ruler' ? tf('Uzunlik: ${l} m', { l: fmt(lineLen(d.pts)) }) : d.pts.length > 2 ? tf('Maydon: ${a} m² (${h} ga)', { a: fmt(ringArea(d.pts)), h: fmt(ringArea(d.pts) / 10000, 2) }) : tr('Yana burchak bosing…');
+  renderLeft(); paintDraw();
+}
+function paintDraw(): void {
+  const m = map; if (!m || !m.getSource('joy-draw')) return;
+  const feats: unknown[] = [], sh = drawing ?? lastShape;
+  if (sh && sh.pts.length) {
+    const closed = sh.kind !== 'ruler' && (!drawing || sh.pts.length > 2);
+    feats.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: closed && !drawing ? [...sh.pts, sh.pts[0]] : sh.pts } });
+    if (sh.kind !== 'ruler' && sh.pts.length > 2) feats.push({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...sh.pts, sh.pts[0]]] } });
+    sh.pts.forEach(p => feats.push(pt(p, { v: 1 })));
+  }
+  (m.getSource('joy-draw') as GeoJSONSource).setData(fc(feats) as never);
+  (m.getSource('joy-site') as GeoJSONSource).setData(fc(S.site ? [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...S.site, S.site[0]]] } }] : []) as never);
 }
 
 /* ---------------- oʻng ustun: joy pasporti ---------------- */
@@ -179,7 +242,8 @@ function renderRight(): void {
     h('div', { class: 'meta' },
       h('span', { class: 'chip mono' }, `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Radius') }, ...RADII.map(r => h('button', { type: 'button', 'aria-pressed': r === S.r, onclick: () => setRadius(r) }, `${r} m`)))),
-    h('div', { class: 't-small' }, tf('${r} m — taxminan ${m} daqiqa piyoda (toʻgʻri chiziqda). Xaritani bosib boshqa nuqtani tanlang.', { r: S.r, m: walkMin(S.r) }))));
+    h('div', { class: 't-small' }, tf('${r} m — taxminan ${m} daqiqa piyoda (toʻgʻri chiziqda). Xaritani bosib boshqa nuqtani tanlang.', { r: S.r, m: walkMin(S.r) })),
+    S.site ? h('div', { class: 'chip site' }, tf('Uchastka: ${a} ga', { a: fmt(ringArea(S.site) / 10000, 2) })) : null));
 
   if (isOn('relyef') || isOn('nishab')) {
     const t = D.ter.v?.s;
@@ -316,7 +380,8 @@ async function initMap(): Promise<void> {
   map.on('style.load', () => { addOverlays(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
-  map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } pick([+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]); });
+  map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else pick(c); });
+  map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } });
   map.on('moveend', () => { S.z = +map!.getZoom().toFixed(2); save(); });
   const roseEl = h('div', { class: 'joy-rose', 'aria-hidden': 'true' }), labEl = h('div', { class: 'joy-rlab' });
   rose = new ml.Marker({ element: roseEl }).setLngLat(S.c as [number, number]);
@@ -331,7 +396,12 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-hs', type: 'hillshade', source: 'joy-dem', layout: { visibility: 'none' }, paint: { 'hillshade-exaggeration': 0.55, 'hillshade-shadow-color': isDark() ? '#000000' : '#6b5a48', 'hillshade-highlight-color': '#ffffff' } } as never, before);
   m.addSource('joy-slope', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-slope', type: 'raster', source: 'joy-slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8, 'raster-fade-duration': 0 } } as never, before);
-  for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  m.addLayer({ id: 'joy-site-f', type: 'fill', source: 'joy-site', paint: { 'fill-color': '#d2492f', 'fill-opacity': 0.12 } });
+  m.addLayer({ id: 'joy-site', type: 'line', source: 'joy-site', paint: { 'line-color': '#d2492f', 'line-width': 2, 'line-dasharray': [3, 2] } });
+  m.addLayer({ id: 'joy-draw-f', type: 'fill', source: 'joy-draw', filter: ['==', '$type', 'Polygon'], paint: { 'fill-color': '#2a6fb0', 'fill-opacity': 0.12 } });
+  m.addLayer({ id: 'joy-draw-l', type: 'line', source: 'joy-draw', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#2a6fb0', 'line-width': 2 } });
+  m.addLayer({ id: 'joy-draw-p', type: 'circle', source: 'joy-draw', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 4, 'circle-color': '#fff', 'circle-stroke-color': '#2a6fb0', 'circle-stroke-width': 2 } });
   m.addLayer({ id: 'joy-ring-f', type: 'fill', source: 'joy-ring', paint: { 'fill-color': ACC, 'fill-opacity': 0.05 } });
   m.addLayer({ id: 'joy-ring', type: 'line', source: 'joy-ring', paint: { 'line-color': ACC, 'line-width': 1.6, 'line-dasharray': [3, 2.2] } });
   m.addLayer({ id: 'joy-poi', type: 'circle', source: 'joy-poi', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 3, 17, 6], 'circle-color': ['get', 'col'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-opacity': ['case', ['get', 'in'], 1, 0.35], 'circle-stroke-opacity': ['case', ['get', 'in'], 1, 0.35] } } as never);
@@ -343,6 +413,7 @@ let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '';
 function paint(): void {
+  paintDraw();
   const m = map; if (!m || !m.getSource('joy-ring')) return;
   (m.getSource('joy-ring') as GeoJSONSource).setData({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [circleRing(S.c, S.r)] } } as never);
   (m.getSource('joy-c') as GeoJSONSource).setData(fc([pt(S.c)]) as never);
@@ -426,7 +497,8 @@ async function enterAxo(): Promise<void> {
     if (Array.isArray(AXST.order) && AXST.order.length === AX.AX_LAYERS.length) axo.order = AXST.order as typeof axo.order;
     if (AXST.vis) Object.assign(axo.vis, AXST.vis);
     axo.exploded = !!AXST.ex; if (AXST.gap) axo.gap = AXST.gap; if (AXST.day != null) axo.day = AXST.day; if (AXST.hour != null) axo.hour = AXST.hour; if (AXST.anim === false) axo.animate = false;
-    axo.onChange = () => renderNotes();
+    axo.onChange = () => { renderNotes(); axSyncTime(); };
+    void takeInbox().then(() => restoreModel());
     (window as unknown as { joyAxo: unknown }).joyAxo = axo;
   }
   // maʼlumot: kontekst (binolar, yoʻllar, relyef) + xizmatlar, raqobatchilar, shamol
@@ -453,7 +525,7 @@ function axBuild(): void {
     const cat = CATS.find(c => c.id === S.cat) ?? CATS[0];
     for (const c of D.comp.v ?? []) if (c.d <= S.r) pins.push({ at: c.at, label: c.name || tr(cat.name), col: '#7a5a3c' });
     const w = D.wind.v;
-    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark(), pal: PALETTES[palKey()] });
+    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark(), pal: PALETTES[palKey()], site: S.site ?? null });
     renderNotes();
   }, 150);
 }
@@ -475,6 +547,16 @@ function renderAxo(): void {
       h('button', { type: 'button', 'aria-label': tr('Kamaytirish'), onclick: () => { a.setExplode(a.exploded, Math.max(60, a.gap - 40)); axSave(); renderAxo(); } }, '−'), h('span', {}, String(a.gap)),
       h('button', { type: 'button', 'aria-label': tr('Oshirish'), onclick: () => { a.setExplode(a.exploded, Math.min(600, a.gap + 40)); axSave(); renderAxo(); } }, '+'))),
     h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fon') }, ...([[false, 'Maket'], [true, 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': axSat === k, onclick: () => { axSat = k; axBuild(); renderAxo(); } }, tr(n)))),
+    h('div', { class: 'glabel' }, tr('Loyiha')),
+    h('div', { class: 'row wrap' },
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'axModel', title: tr('OBJ yoki GLB (metr, Y — yuqoriga); markaz — tanlangan nuqta'), onclick: () => pickModel() }, tr('Model yuklash')),
+      a.hasModel() ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', title: tr('Modelni 15° burish'), onclick: () => { a.modelRot = (a.modelRot + 15) % 360; a.placeModel(); } }, '↻ 15°') : null,
+      a.hasModel() ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => { a.setModel(null); void cacheDel('joy-model'); renderAxo(); } }, tr('Olib tashlash')) : null),
+    h('div', { class: 't-small' }, S.site ? tf('Uchastka: ${a} ga — har qatlamda qizil punktir', { a: fmt(ringArea(S.site) / 10000, 2) }) : tr('Uchastka xaritada chiziladi (chap panel → Uchastka).')),
+    h('div', { class: 't-small' }, tr('Ushlab suring: quyosh — vaqtni oʻzgartiradi, shamol strelkasi — yoʻnalishni buradi, belgi — joyini koʻchiradi.')),
+    h('div', { class: 'row wrap' },
+      h('button', { type: 'button', class: 'btn btn-sm btn-ghost', disabled: !a.flowDeg.some(v => v != null), onclick: () => a.resetWind() }, tr('Shamolni tiklash')),
+      h('button', { type: 'button', class: 'btn btn-sm btn-ghost', disabled: !a.pinMoves.size, onclick: () => { a.resetPins(); renderAxo(); } }, tr('Belgilarni tiklash'))),
     h('div', { class: 'glabel' }, tr('Uslub')),
     (() => { const m = palMenu(() => { axBuild(); renderAxo(); renderBase(); }); m.classList.add('inline'); return m; })(),
     h('div', { class: 'glabel' }, tr('Qatlamlar · pastdan yuqoriga')),
@@ -509,10 +591,17 @@ function renderAxo(): void {
     h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', title: tr('Yaqinlashtirish'), 'aria-label': tr('Yaqinlashtirish'), onclick: () => a.zoomBy(1.25) }, '+'),
     h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', title: tr('Uzoqlashtirish'), 'aria-label': tr('Uzoqlashtirish'), onclick: () => a.zoomBy(0.8) }, '−'),
     h('button', { type: 'button', class: 'btn btn-sm btn-ghost', title: tr('Koʻrinishni tiklash'), onclick: () => a.reset() }, tr('Markaz')),
-    h('button', { type: 'button', class: 'btn btn-sm', disabled: true, title: tr('Tez orada') }, 'SVG'),
-    h('button', { type: 'button', class: 'btn btn-sm', disabled: true, title: tr('Tez orada') }, tr('Chizmadonga')),
+    (() => { const w = h('div', { class: 'joy-exw' }, h('button', { type: 'button', class: 'btn btn-sm', id: 'axExp', 'aria-expanded': expOpen, onclick: () => { expOpen = !expOpen; renderAxo(); } }, tr('Eksport'), ic(ICON.chev)));
+      if (expOpen) w.append(h('div', { class: 'joy-menu up', role: 'menu' },
+        h('button', { type: 'button', role: 'menuitem', id: 'exSvgL', onclick: () => doExport('svgL') }, tr('SVG · Illustrator (qatlamlar)')),
+        h('button', { type: 'button', role: 'menuitem', id: 'exSvg', onclick: () => doExport('svg') }, tr('SVG · oddiy')),
+        h('button', { type: 'button', role: 'menuitem', id: 'exGlb', onclick: () => doExport('glb') }, tr('Massing · GLB')),
+        h('button', { type: 'button', role: 'menuitem', id: 'exObj', onclick: () => doExport('obj') }, tr('Massing · OBJ')),
+        h('button', { type: 'button', role: 'menuitem', id: 'exChz', onclick: () => doExport('chz') }, tr('Chizmadonga yuborish'))));
+      return w; })(),
     h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'axPng', onclick: () => void exportPng() }, 'PNG · 4K'),
   );
+  axSyncTime = renderAxoTime;
   function renderAxoTime(): void { if (!a) return; const p = (a.hour - 5) / 15 * 100; (rng.querySelector('em') as HTMLElement).style.width = `${p}%`; (rng.querySelector('i') as HTMLElement).style.left = `${p}%`; rng.setAttribute('aria-valuenow', String(a.hour)); const t = document.getElementById('axTm'); if (t) t.textContent = hh(a.hour); }
   renderNotes();
 }
@@ -537,6 +626,52 @@ function renderNotes(): void {
     h('p', { class: 't-small' }, tr('Binolar balandligi OSM dan; yozilmaganlari qavat soni yoki maydoniga qarab taxmin qilingan.')),
   );
 }
+let expOpen = false;
+let axSyncTime: () => void = () => {};
+function fileName(ext: string): string { return `joyshunos-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}.${ext}`; }
+function save2(name: string, b: Blob): void { const u = URL.createObjectURL(b), x = document.createElement('a'); x.href = u; x.download = name; document.body.append(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+async function doExport(k: 'svgL' | 'svg' | 'glb' | 'obj' | 'chz'): Promise<void> {
+  expOpen = false; renderAxo(); if (!axo) return;
+  try {
+    if (k === 'glb' || k === 'obj') { save2(fileName(k), await axo.massing(k)); return; }
+    const { axoSvg } = await import('./axo-svg'), txt = axoSvg(axo, k === 'svgL');
+    if (k === 'chz') {
+      const { sendToChizmadon } = await import('../kochasoz/io');
+      const el = new DOMParser().parseFromString(txt, 'image/svg+xml').documentElement as unknown as SVGSVGElement;
+      sendToChizmadon(el, `Joyshunos · ${D.addr.v ?? S.c.join(', ')}`); return;
+    }
+    save2(fileName(k === 'svgL' ? 'ai.svg' : 'svg'), new Blob([txt], { type: 'image/svg+xml' }));
+  } catch (e) { alert((e as Error).message); }
+}
+/** Model: OBJ yoki GLB (fayldan) — IndexedDB da saqlanadi va keyingi ochilishda tiklanadi */
+function pickModel(): void {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.obj,.glb,.gltf,model/gltf-binary';
+  inp.onchange = async () => { const f = inp.files?.[0]; if (!f) return; const buf = await f.arrayBuffer(); await loadModel(f.name, buf); void cachePut('joy-model', { name: f.name, buf: buf.slice(0), center: S.c }).catch(() => {}); };
+  inp.click();
+}
+async function loadModel(name: string, buf: ArrayBuffer, offset: [number, number] = [0, 0]): Promise<void> {
+  if (!axo) return;
+  try {
+    let obj: import('three').Object3D;
+    if (/\.obj$/i.test(name)) { const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js'); obj = new OBJLoader().parse(new TextDecoder().decode(buf)); }
+    else { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); obj = (await new GLTFLoader().parseAsync(buf, '')).scene; }
+    axo.modelOff = offset; axo.setModel(obj); renderAxo();
+  } catch (e) { alert(`${tr('Model ochilmadi')}: ${(e as Error).message}`); }
+}
+/** Master rejadan yuborilgan model («joy-inbox»): markaz va model joyi */
+async function takeInbox(): Promise<void> {
+  try {
+    const box = await cacheGet<{ name: string; buf: ArrayBuffer; origin: LngLat }>('joy-inbox'); if (!box) return;
+    await cacheDel('joy-inbox'); await cachePut('joy-model', { name: box.name, buf: box.buf, center: box.origin });
+    if (Math.abs(box.origin[0] - S.c[0]) > 1e-6 || Math.abs(box.origin[1] - S.c[1]) > 1e-6) pick(box.origin);
+  } catch { /* */ }
+}
+async function restoreModel(): Promise<void> {
+  try { const m = await cacheGet<{ name: string; buf: ArrayBuffer; center: LngLat }>('joy-model'); if (!m || !axo) return;
+    const k = 111_320 * Math.cos(S.c[1] * Math.PI / 180), off: [number, number] = [(m.center[0] - S.c[0]) * k, (m.center[1] - S.c[1]) * 111_132];
+    if (Math.hypot(off[0], off[1]) < S.r * 1.5) await loadModel(m.name, m.buf, off); } catch { /* */ }
+}
+
 async function exportPng(): Promise<void> {
   if (!axo) return;
   const b = document.getElementById('axPng') as HTMLButtonElement | null; if (b) { b.disabled = true; b.textContent = '…'; }
@@ -551,7 +686,15 @@ function renderAll(): void { renderHeader(); renderLeft(); renderRight(); render
 renderAll();
 onLang(() => { renderAll(); paint(); document.documentElement.lang = getLang(); });
 onTheme(() => { renderHeader(); restyle(); if (mode === 'axo') axBuild(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && catOpen) { catOpen = false; renderRight(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && catOpen) { catOpen = false; renderRight(); }
+  const d = drawing;
+  if (d && !(e.target as HTMLElement)?.closest?.('input,textarea')) {
+    if (e.key === 'Escape') { drawing = null; measure = ''; if (map) { map.doubleClickZoom.enable(); map.getCanvas().style.cursor = ''; } renderLeft(); paintDraw(); }
+    if (e.key === 'Enter') finishDraw();
+    if (e.key === 'Backspace') { d.pts.pop(); renderLeft(); paintDraw(); }
+  }
+});
 void initMap().catch(e => { mapEl.append(h('div', { class: 'joy-maperr note warn' }, tr('Xarita yuklanmadi'), ': ', String((e as Error).message || e))); });
 ensure();
 if (mode === 'axo') void enterAxo();

@@ -63,6 +63,7 @@ export async function cacheGet<T>(k: string): Promise<T | null> {
   return r ? r.v : null;
 }
 export async function cachePut<T>(k: string, v: T): Promise<void> { await tx(STORES.cache, 'readwrite', s => s.put({ k, v, t: Date.now() })); }
+export async function cacheDel(k: string): Promise<void> { await tx(STORES.cache, 'readwrite', s => s.delete(k)); }
 
 /* ---------- fayl ---------- */
 export const FILE_KIND = 'archemistry-master-reja';
