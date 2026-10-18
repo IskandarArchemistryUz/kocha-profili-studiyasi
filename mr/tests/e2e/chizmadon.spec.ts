@@ -95,3 +95,10 @@ test('Chizmadon: albom (24 namuna), PDF, Varaqlardan xarita oynasi', async ({ pa
   await page.click('#chDl'); await page.click('#chExSvg');
   expect((await dl2).suggestedFilename()).toMatch(/\.svg$/);
 });
+
+test('bosh sahifadan: #/chizmadon — oxirgi loyiha Chizmadon bilan ochiladi', async ({ page }) => {
+  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
+  await page.goto('./#/chizmadon');
+  await expect(page.locator('.gx.ch')).toBeVisible();
+  await expect(page).toHaveURL(/#\/p\/[\w-]+\/chizmadon$/);
+});

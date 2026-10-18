@@ -23,7 +23,14 @@ async function route(): Promise<void> {
     catch (e) { toast('Namuna loyiha yuklanmadi: ' + (e as Error).message); location.replace('#/'); }
     return;
   }
-  const m = location.hash.match(/^#\/p\/([\w-]+)$/);
+  // bosh sahifadan: #/chizmadon — oxirgi loyiha Chizmadon oynasi bilan (loyiha boʻlmasa — yangi)
+  if (location.hash === '#/chizmadon') {
+    let list: ProjectMeta[] = []; try { list = await listProjects(); } catch { /* */ }
+    const last = [...list].sort((a, b) => String(b.updated).localeCompare(String(a.updated)))[0];
+    if (last) { location.replace(`#/p/${last.id}/chizmadon`); return; }
+    const p = blankProject(); await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
+  }
+  const m = location.hash.match(/^#\/p\/([\w-]+)(\/chizmadon)?$/);
   if (m) {
     let doc = null;
     try { doc = await getProject(m[1]); } catch (e) { console.error(e); toast('Loyihani ochib boʻlmadi: ' + (e as Error).message); }
@@ -31,6 +38,7 @@ async function route(): Promise<void> {
     document.title = `${doc.name} — Archemistry Lab · Master reja`;
     editor = new Editor(root, doc, () => { location.hash = '#/'; });
     (window as any).__mr = editor; // e2e testlar uchun
+    if (m[2]) editor.openCh();
     return;
   }
   document.title = 'Archemistry Lab · Master reja';

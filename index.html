@@ -4,268 +4,140 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Archemistry Lab — shahar loyihasi bitta oynada</title>
+<meta name="description" content="Master reja, Koʻchasoz, Dizayn-kod, Chizmadon va Atamalar: uchastkadan meʼyoriy tekshiruvgacha — bitta loyihada, ShNQ bandlari bilan.">
+<script>/* mavzu va til — sahifa chizilishidan oldin (ilova bilan umumiy kalitlar) */
+(function(){var t='auto',l='uz';try{t=localStorage.getItem('mr-theme')||'auto';l=localStorage.getItem('mr-lang')||localStorage.getItem('kps_lang')||'uz';}catch(e){}
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.lang=['uz','en','ru'].indexOf(l)<0?'uz':l;})();</script>
 <script src="js/beta.js?v=15"></script>
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Archemistry Lab">
-<meta property="og:title" content="Archemistry Lab — shahar loyihasi bitta brauzerda (beta)">
-<meta property="og:description" content="Master reja hisoblari, koʻcha profili, binolarni joylashtirish, 3D, insolyatsiya, qavat rejasi va albom. Bepul beta.">
-<meta property="og:image" content="https://iskandararchemistryuz.github.io/kocha-profili-studiyasi/assets/og.jpg">
-<meta property="og:url" content="https://iskandararchemistryuz.github.io/kocha-profili-studiyasi/">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="description" content="Hudud tahlili, koʻcha profili, binolarni joylashtirish va albom — bitta brauzerda.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 103.45 100%22%3E%3Cpath fill=%22%23696969%22 fill-rule=%22evenodd%22 d=%22M0.18%2099.88C0.05%2099.75%20-0.00%2099.62%200.02%2099.50C0.04%2099.41%209.94%2083.09%2022.02%2063.24C34.11%2043.39%2044.08%2027.00%2044.19%2026.82C44.29%2026.63%2044.36%2026.42%2044.34%2026.33C44.31%2026.25%2040.81%2020.46%2036.56%2013.47C32.30%206.48%2028.80%200.68%2028.78%200.58C28.76%200.46%2028.81%200.33%2028.95%200.20L29.15%200.00L46.81%200.00L64.48%20-0.00L64.66%200.14C64.77%200.24%2064.84%200.37%2064.84%200.52C64.84%200.68%2063.31%203.25%2059.55%209.40C55.65%2015.80%2054.27%2018.13%2054.27%2018.30C54.27%2018.47%2060.60%2028.92%2078.87%2058.93C92.40%2081.14%20103.49%2099.40%20103.51%2099.50C103.53%2099.62%20103.48%2099.74%20103.34%2099.88L103.14%20100.08L51.76%20100.08L0.38%20100.08L0.18%2099.88ZM84.67%2098.63C86.09%2097.94%2086.73%2096.21%2086.07%2094.85C85.63%2093.94%2049.16%2034.17%2048.84%2033.84C47.73%2032.69%2045.86%2032.72%2044.74%2033.91C44.40%2034.26%207.73%2094.44%207.50%2095.02C7.38%2095.30%207.34%2095.60%207.34%2096.04L7.34%2096.67L7.55%2097.13C7.93%2097.97%208.55%2098.54%209.35%2098.79L9.68%2098.89L46.94%2098.88L84.21%2098.86L84.67%2098.63ZM52.47%2011.63C52.97%2011.50%2053.52%2011.19%2053.86%2010.84C54.10%2010.58%2057.46%205.09%2057.73%204.51C57.87%204.21%2057.91%203.98%2057.91%203.56L57.92%203.00L57.68%202.53C57.42%202.01%2057.09%201.67%2056.56%201.39L56.23%201.21L51.76%201.21L47.30%201.21L46.88%201.45C46.10%201.88%2045.69%202.53%2045.63%203.42C45.61%203.76%2045.63%204.09%2045.69%204.28C45.81%204.65%2049.38%2010.53%2049.67%2010.84C50.15%2011.34%2051.04%2011.74%2051.73%2011.75C51.88%2011.75%2052.21%2011.70%2052.47%2011.63Z%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#f2f1ee;--surface:#fff;--grouped:#f7f6f3;--fill:#ecebe8;--fill-2:#e3e1dc;--hair:rgba(20,20,20,.08);--ink:#141414;--ink-2:#3a3936;--muted:#6b6965;--brand:#f0b323;--brand-soft:#fbf1d6;--sel:#2a6fb0;--sel-soft:#ecf2f9;--ok:#2b7449;--ok-soft:#e6f2ea;--ai:#6b52c4;--ai-soft:#efebfa;--warn:#95620f;--bad:#b23a2e;
---sh-card:0 0 0 .5px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);--spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.32,.72,0,1);--mono:'IBM Plex Mono',ui-monospace,monospace;--sans:Archivo,-apple-system,'Segoe UI',system-ui,sans-serif}
-*{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;flex-direction:column}
-a{color:inherit;text-decoration:none}
-.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}.ic.sm{width:16px;height:16px}.ic.lg{width:24px;height:24px}
-.w{max-width:1240px;width:100%;margin:0 auto;padding:0 24px}
-div.top{position:sticky;top:0;z-index:5;background:rgba(242,241,238,.82);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);border-bottom:.5px solid var(--hair)}
-div.top .w{height:64px;display:flex;align-items:center;gap:22px}
-.brand{display:flex;align-items:center;gap:10px}.brand b{font-weight:600;font-size:15px;letter-spacing:.2em}.brand i{font:400 12px var(--mono);font-style:normal;letter-spacing:.16em;color:var(--muted)}
-.navl{display:flex;gap:2px;margin-left:8px}.navl a{padding:7px 12px;border-radius:9px;font-size:14px;font-weight:500}.navl a:hover{background:var(--fill)}
-.sp{flex:1}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:12px;background:var(--fill);color:var(--ink);font:600 15px var(--sans);cursor:pointer;white-space:nowrap;transition:transform .34s var(--spring),background-color .16s}
-.btn:hover{background:var(--fill-2)}.btn:active{transform:scale(.95)}.btn:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid rgba(42,111,176,.45);outline-offset:2px}
-.btn-sm{height:32px;padding:0 12px;font-size:13px;border-radius:9px}.btn-lg{height:50px;padding:0 22px;font-size:16px;border-radius:16px}
-.btn-primary{background:var(--ink);color:#fff}.btn-primary:hover{background:#2c2b29}.btn-line{background:#fff;box-shadow:inset 0 0 0 1px #e6e4df}.btn-line:hover{background:var(--grouped)}
-.btn .arr{transition:transform .2s ease}.btn:hover .arr{transform:translateX(3px)}
-.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--fill);color:var(--ink-2);white-space:nowrap}.chip.brand{background:var(--brand);color:var(--ink);height:22px}
-.card{background:var(--surface);border-radius:16px;box-shadow:var(--sh-card)}
-main{padding-top:32px;padding-bottom:72px;display:flex;flex-direction:column;gap:88px}
-.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:40px;align-items:center}
-.hero .tx{display:flex;flex-direction:column;gap:22px}
-.beta{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 4px;border-radius:999px;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.08);font-size:13px}
-h1{margin:0;font-size:clamp(46px,5.6vw,68px);line-height:1;font-weight:600;letter-spacing:-.035em}
-.lead{margin:0;font-size:18px;line-height:1.5;color:var(--ink-2);max-width:30em}
-.cta{display:flex;gap:10px;flex-wrap:wrap}
-.chk{display:flex;gap:18px;flex-wrap:wrap;padding-top:6px}.chk span{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
-figure.fig{margin:0;padding:18px;background:#fff;border-radius:30px;box-shadow:0 0 0 .5px rgba(0,0,0,.05),0 20px 60px rgba(0,0,0,.07);display:flex;flex-direction:column;gap:12px}
-.lbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.lchip{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 8px;border:0;border-radius:999px;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.12);font:500 13px var(--sans);color:var(--ink-2);cursor:pointer;transition:transform .3s var(--spring),background-color .16s,color .16s}
-.lchip:active{transform:scale(.94)}.lchip[aria-pressed=true]{background:var(--ink);color:#fff}.lchip .sw{width:12px;height:12px;border-radius:4px}
-.stage{position:relative;aspect-ratio:1400/1180;overflow:hidden;border-radius:18px;background:#fff}
-.stage img{position:absolute;left:0;right:0;margin:auto;max-width:100%;transition:opacity .6s var(--ease),transform .8s var(--ease)}
-.stage .a{top:50%;width:100%;height:auto;transform:translateY(-50%)}
-.stage .b{top:0;bottom:0;height:100%;width:auto;opacity:0;transform:scale(.94)}
-.stage[data-ex=true] .a{opacity:0;transform:translateY(-50%) scale(1.04)}.stage[data-ex=true] .b{opacity:1;transform:none}
-.stage .tag{position:absolute;right:8px;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 0 0 .5px rgba(0,0,0,.1);font:600 12px var(--sans);opacity:0;transition:opacity .4s ease,background-color .2s,color .2s;pointer-events:none}
-.stage[data-ex=true] .tag{opacity:1}.stage .tag.on{background:var(--ink);color:#fff}
-.info{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:12px;background:var(--grouped)}.info>i{width:36px;height:36px;border-radius:11px;flex:none;transition:background-color .3s}.info b{display:block;font-size:14px}.info b+span{font-size:12.5px;color:var(--muted)}
-.sh{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}.sh h2{margin:0;font-size:34px;line-height:1.1;font-weight:600;letter-spacing:-.025em}.sh .sub{font-size:13px;color:var(--muted)}
-section{display:flex;flex-direction:column;gap:18px;scroll-margin-top:84px}
-.steps4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.stepc{padding:18px;display:flex;flex-direction:column;gap:12px;transition:transform .3s var(--spring),box-shadow .2s}.stepc:hover{transform:translateY(-3px);box-shadow:0 0 0 .5px rgba(0,0,0,.06),0 14px 34px rgba(0,0,0,.08)}
-.stepc .hd{display:flex;justify-content:space-between;align-items:center}.ico{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:none}.stepc .n{font-size:28px;font-weight:600;color:#e3e1dc;font-variant-numeric:tabular-nums}
-.stepc b{font-size:19px;letter-spacing:-.01em}.stepc p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
-.plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.pcard{padding:14px;display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:14px;align-items:center;transition:transform .3s var(--spring),box-shadow .2s}.pcard:hover{transform:translateY(-2px);box-shadow:0 0 0 .5px rgba(0,0,0,.06),0 12px 28px rgba(0,0,0,.08)}
-.pcard .th{width:72px;height:72px;border-radius:14px;background:var(--bg);display:flex;align-items:center;justify-content:center}
-.pcard b{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pcard small{display:block;font-size:12.5px;color:var(--muted);margin-top:3px}.pcard>.ic{color:#a19e97}
-.pempty{padding:20px 22px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;grid-column:1/-1}.pempty>span:first-child{color:var(--muted);font-size:14.5px}
-details.old{background:#fff;border-radius:16px;box-shadow:var(--sh-card);padding:2px 16px}
-details.old summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;min-height:48px;font-size:14.5px;font-weight:500}details.old summary::-webkit-details-marker{display:none}
-details.old summary .ic{transition:transform .3s var(--ease);color:#a19e97}details.old[open] summary .ic{transform:rotate(180deg)}details.old summary small{color:var(--muted);font-weight:400;font-size:12.5px}
-.prow{display:grid;grid-template-columns:minmax(0,1fr) 44px;border-top:.5px solid var(--hair)}.prow>a{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:16px;align-items:center;padding:12px 4px}
-.prow .th{width:56px;height:56px;background:var(--bg);border-radius:12px;display:block;overflow:hidden}.prow .info{background:none;padding:0;display:flex;flex-direction:column;gap:5px;align-items:flex-start;border-radius:0}
-.prow .nm{font-size:16px;font-weight:600}.prow .pl{font-size:12.5px;color:var(--muted)}.prow .pl:empty{display:none}
-.bar{display:flex;gap:3px;align-items:center}.bar i{width:24px;height:4px;border-radius:2px;background:var(--fill-2)}.bar i.d{background:var(--ink)}.bar i.c{background:var(--brand)}.bar span{font-size:12px;color:var(--muted);margin-left:8px;white-space:nowrap}
-.rt{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:12px;color:var(--muted)}.rt b{display:inline-flex;align-items:center;gap:4px;color:var(--ink);font-size:13px;font-weight:600}.rt span{white-space:nowrap}svg.i{vertical-align:-3px}
-.del{border:0;background:none;color:var(--muted);cursor:pointer;border-radius:9px}.del:hover{background:#f9e8e5;color:var(--bad)}.del.arm{font-size:10.5px;color:#fff;background:var(--bad);line-height:1.25}
-.empty{padding:14px 4px;font-size:13.5px;color:var(--muted);border-top:.5px solid var(--hair)}
-.bk{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 12px;padding:12px 14px;border-radius:12px;background:var(--brand-soft);color:var(--warn)}.bk[hidden]{display:none}.bk span{flex:1 1 300px;font-size:13.5px;color:#5e4210}.bk a{height:32px;padding:0 12px;border-radius:9px;background:#fff;box-shadow:inset 0 0 0 1px #ecd9a4;font:600 13px var(--sans);display:inline-flex;align-items:center;color:var(--ink)}
-.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
-.tool{padding:18px;display:flex;gap:14px;align-items:flex-start;transition:transform .3s var(--spring),box-shadow .2s}.tool:hover{transform:translateY(-3px);box-shadow:0 0 0 .5px rgba(0,0,0,.06),0 14px 34px rgba(0,0,0,.08)}
-.tool b{display:block;font-size:16px}.tool small{display:block;font-size:13.5px;line-height:1.4;color:var(--muted);margin-top:4px}
-.tool .go{margin-left:auto;color:#a19e97;transition:transform .25s ease}.tool:hover .go{transform:translate(3px,-3px)}
-footer{border-top:.5px solid var(--hair);margin-top:auto}footer .w{padding-top:18px;padding-bottom:18px;display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
-@media (max-width:900px){.hero{grid-template-columns:1fr}.steps4{grid-template-columns:1fr 1fr}.navl{display:none}}
-@media (max-width:560px){.w{padding-left:16px;padding-right:16px}.steps4{grid-template-columns:1fr}div.top .btn .t{display:none}main{gap:64px}.prow>a{grid-template-columns:44px minmax(0,1fr)}.prow .th{width:44px;height:44px}.rt{display:none}.sh h2{font-size:28px}}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/ds2.css?v=2">
+<link rel="stylesheet" href="css/site.css?v=1">
 </head>
-<body>
-<div class="top"><header class="w">
-  <a class="brand" href="./" aria-label="Archemistry Lab — bosh sahifa"><svg width="26" height="25" viewBox="0 0 103.45 100" aria-hidden="true"><path d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z" fill="#141414" fill-rule="evenodd"/></svg><b>ARCHEMISTRY</b><i>LAB</i></a>
-  <nav class="navl" aria-label="Asosiy"><a href="#qanday">Qanday ishlaydi</a><a href="#loyihalar">Loyihalar</a><a href="#asboblar">Asboblar</a></nav>
-  <span class="sp"></span>
-  <a class="btn btn-sm btn-primary" href="app/#/yangi"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="t">Yangi loyiha</span></a>
-</header></div>
-<main class="w">
-  <section class="hero">
-    <div class="tx">
-      <span class="beta"><span class="chip brand">Beta</span>Hamma uchun bepul</span>
-      <h1>Shahar loyihasi<br>bitta oynada</h1>
-      <p class="lead">Uchastkadan meʼyoriy tekshiruvgacha — har bir qatlam bitta modelda. Qavatni oʻzgartirsangiz, aholi, maktab va avtoturargoh ehtiyoji shu zahoti qayta hisoblanadi.</p>
-      <div class="cta"><a class="btn btn-lg btn-primary" href="app/#/yangi">Yangi loyiha <svg class="ic sm arr" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn btn-lg btn-line" href="app/#/namuna">Namuna loyihani ochish</a></div>
-      <div class="chk"><span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>ShNQ 2.07.01-23</span><span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>SanQvaN 0331-16</span><span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>Maʼlumot brauzeringizda</span></div>
+<body class="site">
+<header class="top">
+  <div class="w">
+    <a class="brand" href="./" aria-label="Archemistry Lab"><svg viewBox="0 0 103.45 100" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.550 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z"/></svg>Archemistry Lab</a>
+    <nav class="nav" aria-label="Asosiy menyu" data-ta="aria-label:Asosiy menyu">
+      <a href="#asboblar" data-t="Master reja">Master reja</a>
+      <a href="#asboblar" data-t="Asboblar">Asboblar</a>
+      <a href="#loyihalar" data-t="Loyihalar">Loyihalar</a>
+      <a href="atamalar.html" data-t="Atamalar">Atamalar</a>
+    </nav>
+    <div class="tright">
+      <div class="lang"><button type="button" id="langBtn" aria-haspopup="true" aria-expanded="false" title="Til" data-ta="title:Til"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3"/></svg><span id="langCode">UZ</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="menu" id="langMenu" hidden role="menu"><button data-lang="uz" role="menuitemradio">Oʻzbekcha<span></span></button><button data-lang="en" role="menuitemradio">English<span></span></button><button data-lang="ru" role="menuitemradio">Русский<span></span></button></div></div>
+      <button class="icbtn" type="button" id="themeBtn" title="Tungi rejim" data-ta="title:Tungi rejim" aria-label="Tungi rejim"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+      <a class="btn btn-ghost" href="app/" data-t="Loyihalarim">Loyihalarim</a>
+      <a class="btn btn-primary" href="app/#/yangi" id="ctaTop" data-t="Bepul boshlash">Bepul boshlash</a>
     </div>
-    <figure class="fig" aria-label="Namuna loyiha: qatlamlar">
-      <div class="lbar" role="group" aria-label="Qatlamlar">
-        <button class="lchip" data-l="0" aria-pressed="false"><span class="sw" style="background:#cfc9bf"></span>Binolar</button>
-        <button class="lchip" data-l="1" aria-pressed="false"><span class="sw" style="background:#f3c97f"></span>Kvartallar va zonalar</button>
-        <button class="lchip" data-l="2" aria-pressed="false"><span class="sw" style="background:#9cbf86"></span>Koʻchalar</button>
-        <span class="sp"></span>
-        <button class="btn btn-sm" id="exBtn" aria-pressed="false">Qatlamlarga ajratish</button>
+  </div>
+</header>
+
+<main>
+  <section class="w hero">
+    <div class="copy">
+      <span class="eyebrow" data-t="Master reja · shahar loyihasi uchun">Master reja · shahar loyihasi uchun</span>
+      <h1 class="h1" data-t="Bir qavat qoʻshing — maktab yetadimi, koʻrasiz.">Bir qavat qoʻshing — maktab yetadimi, koʻrasiz.</h1>
+      <p class="lead" data-t="Uchastkani chizing, binolarni qoʻying. Aholi, maktab va bogʻcha oʻrni, avtoturargoh har oʻzgarishda oʻzi qayta hisoblanadi — meʼyor bandi bilan.">Uchastkani chizing, binolarni qoʻying. Aholi, maktab va bogʻcha oʻrni, avtoturargoh har oʻzgarishda oʻzi qayta hisoblanadi — meʼyor bandi bilan.</p>
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href="app/#/yangi" id="ctaNew"><span data-t="Bepul boshlash">Bepul boshlash</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-lg" href="app/#/namuna" id="ctaDemo" data-t="Namuna loyiha">Namuna loyiha</a>
       </div>
-      <div class="stage" id="stage" data-ex="false">
-        <img class="a" src="assets/bosh/yigilgan.webp" alt="Namuna loyiha aksonometriyada: perimetral kvartallar, minora, maktab va park" width="1400" height="902">
-        <img class="b" src="assets/bosh/qatlamlar.webp" alt="Shu loyiha qatlamlarga ajratilgan: binolar, kvartallar va zonalar, koʻchalar" width="1400" height="1571" loading="lazy">
-        <span class="tag" data-t="0" style="top:20%">Binolar</span><span class="tag" data-t="1" style="top:46%">Kvartallar va zonalar</span><span class="tag" data-t="2" style="top:72%">Koʻchalar</span>
+      <span class="fine" data-t="Roʻyxatdan oʻtish shart emas · loyihalar brauzeringizda saqlanadi">Roʻyxatdan oʻtish shart emas · loyihalar brauzeringizda saqlanadi</span>
+    </div>
+    <div class="model" id="model" aria-live="polite">
+      <div class="mh"><span data-t="Sinab koʻring — qavatlar soni">Sinab koʻring — qavatlar soni</span>
+        <div class="stepper" role="group" aria-label="Qavatlar soni" data-ta="aria-label:Qavatlar soni"><button type="button" id="flMinus" aria-label="Qavat −">−</button><input class="stp-in num" id="fl" type="number" min="2" max="16" value="7" aria-label="Qavatlar" data-ta="aria-label:Qavatlar"><button type="button" id="flPlus" aria-label="Qavat +">+</button></div></div>
+      <div class="iso-wrap">
+      <svg class="iso" viewBox="0 0 520 330" role="img" aria-label="Uchastka aksonometriyasi" data-ta="aria-label:Uchastka aksonometriyasi">
+        <polygon points="260,60 470,165 260,270 50,165" fill="var(--grouped)" stroke="#c0392b" stroke-width="1.4" stroke-dasharray="7 5"/>
+        <polygon points="260,195 330,230 260,265 190,230" fill="#cfe2c0"/>
+        <g id="blds"></g>
+      </svg>
+      <div class="kp k1" id="kPop"><div class="l" data-t="Aholi">Aholi</div><div class="v num" id="vPop">—</div><div class="s" id="sDens">—</div></div>
+      <div class="kp k2"><div class="l" data-t="Maktab oʻrni kerak">Maktab oʻrni kerak</div><div class="v num" id="vSch">—</div><div class="s" data-t="165 / 1000 aholi">165 / 1000 aholi</div></div>
+      <div class="kp k3"><div class="l" data-t="Bogʻcha oʻrni">Bogʻcha oʻrni</div><div class="v num" id="vMtm">—</div><div class="s" data-t="70 / 1000 aholi">70 / 1000 aholi</div></div>
+      <div class="kp k4"><div class="l" data-t="Avtoturargoh">Avtoturargoh</div><div class="v num" id="vPk">—</div><div class="s" data-t="1 joy / xonadon (Toshkent)">1 joy / xonadon (Toshkent)</div></div>
       </div>
-      <div class="info" id="info"><i style="background:#ecebe8"></i><span><b>Ilovadagi haqiqiy model</b><span>Bu rasm — Master reja ilovasida chizilgan namuna loyiha («Qogʻoz» uslubi). Qatlamni tanlang.</span></span></div>
-    </figure>
+      <div class="foot" id="mFoot"></div>
+    </div>
   </section>
 
-  <section id="qanday">
-    <div class="sh"><h2>Toʻrt qadamda</h2><span class="sub">har qadam oldingisining maʼlumotini oladi</span></div>
-    <div class="steps4">
-      <article class="card stepc"><div class="hd"><span class="ico" style="background:var(--brand-soft);color:var(--warn)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21zM9.5 9.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0"/></svg></span><span class="n">1</span></div><b>Hudud va uchastka</b><p>Joyni toping, atrofni yuklang: OSM binolari, yoʻllar, relyef va sunʼiy yoʻldosh tasviri.</p></article>
-      <article class="card stepc"><div class="hd"><span class="ico" style="background:var(--sel-soft);color:var(--sel)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21L9 3M19 21L15 3M12 5v2M12 11v2M12 17v2"/></svg></span><span class="n">2</span></div><b>Koʻchalar va zonalar</b><p>Koʻcha profilini tanlang — qizil chiziqlar, kvartallar va funksiyalar oʻzi hosil boʻladi.</p></article>
-      <article class="card stepc"><div class="hd"><span class="ico" style="background:var(--ok-soft);color:var(--ok)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V8l7-4 7 4v13M10 21v-5h4v5M3 21h18"/></svg></span><span class="n">3</span></div><b>Hajmlar va kvartiralar</b><p>Seksiyalar, qavat rejalari, insolyatsiya va fasad — meʼyor bandlari bilan.</p></article>
-      <article class="card stepc"><div class="hd"><span class="ico" style="background:var(--ai-soft);color:var(--ai)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM8 12l3 3 5-6"/></svg></span><span class="n">4</span></div><b>Tekshiruv va albom</b><p>Barcha meʼyorlar bitta jadvalda; varaqlar, DXF, IFC, 3D va Illustrator uchun eksport.</p></article>
+  <section class="w sec" id="asboblar">
+    <div class="sec-h"><div><span class="eyebrow" data-t="Bitta loyiha — bir nechta asbob">Bitta loyiha — bir nechta asbob</span><h2 class="h2" style="margin-top:8px" data-t="Master reja markazda. Qolganlari unga ulanadi.">Master reja markazda. Qolganlari unga ulanadi.</h2></div>
+      <span class="side" data-t="Har bir asbobni alohida ham ochish mumkin — maʼlumot baribir bitta loyihada qoladi.">Har bir asbobni alohida ham ochish mumkin — maʼlumot baribir bitta loyihada qoladi.</span></div>
+    <div class="tools">
+      <a class="tool main" href="app/" id="tMr">
+        <span class="eyebrow" data-t="Asosiy asbob">Asosiy asbob</span>
+        <b data-t="Master reja">Master reja</b>
+        <small data-t="Hududdan natijagacha: uchastka, koʻchalar, zonalar, hajmlar, quyosh, xonadonlar, xizmatlar va meʼyoriy tekshiruv — bitta 3D modelda.">Hududdan natijagacha: uchastka, koʻchalar, zonalar, hajmlar, quyosh, xonadonlar, xizmatlar va meʼyoriy tekshiruv — bitta 3D modelda.</small>
+        <div class="bars" aria-hidden="true"><i style="height:62%"></i><i style="height:92%"></i><i style="height:48%"></i><i style="height:74%"></i><em id="tMrPop">—</em></div>
+        <span class="btn btn-sm go" data-t="Ochish →">Ochish →</span>
+      </a>
+      <a class="tool" href="studio.html" id="tKs">
+        <span class="art" aria-hidden="true"><svg viewBox="0 0 300 150"><rect x="0" y="40" width="300" height="70" fill="var(--fill-2)"/><rect x="0" y="34" width="300" height="8" fill="var(--fill)"/><rect x="0" y="108" width="300" height="8" fill="var(--fill)"/><path d="M0 75H300" stroke="#fff" stroke-width="3" stroke-dasharray="16 12"/><rect x="120" y="50" width="38" height="16" rx="4" fill="#4c5bd4"/><rect x="190" y="84" width="54" height="16" rx="4" fill="#141414"/><circle cx="40" cy="22" r="11" fill="#9cbf86"/><circle cx="150" cy="22" r="11" fill="#9cbf86"/><circle cx="260" cy="22" r="11" fill="#9cbf86"/></svg></span>
+        <span class="tx"><span class="eyebrow"><i class="dot" style="background:var(--svc-ks)"></i><span data-t="Transport va koʻcha">Transport va koʻcha</span></span><b data-t="Koʻchasoz">Koʻchasoz</b><small data-t="Koʻcha kesimi, chorrahalar, jamoat transporti. Master rejadagi har bir koʻcha shu yerda ochiladi.">Koʻcha kesimi, chorrahalar, jamoat transporti. Master rejadagi har bir koʻcha shu yerda ochiladi.</small></span>
+      </a>
+      <a class="tool" href="dizaynkod.html" id="tDk">
+        <span class="art" aria-hidden="true"><svg viewBox="0 0 300 150"><rect x="40" y="20" width="110" height="112" fill="var(--surface)" stroke="var(--faint)"/><g fill="#8fb5d6"><rect x="56" y="38" width="18" height="16"/><rect x="84" y="38" width="18" height="16"/><rect x="112" y="38" width="18" height="16"/><rect x="56" y="66" width="18" height="16"/><rect x="84" y="66" width="18" height="16"/><rect x="112" y="66" width="18" height="16"/></g><rect x="40" y="98" width="110" height="34" fill="#f3d9a4"/><rect x="180" y="34" width="80" height="12" rx="6" fill="#d99a78"/><rect x="180" y="56" width="70" height="12" rx="6" fill="#f3d9a4"/><rect x="180" y="78" width="80" height="12" rx="6" fill="var(--fill-2)"/><path d="M190 108l10 10 20-22" stroke="#0f8a7e" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="tx"><span class="eyebrow"><i class="dot" style="background:var(--svc-dk)"></i><span data-t="Fasad va muhit qoidalari">Fasad va muhit qoidalari</span></span><b data-t="Dizayn-kod">Dizayn-kod</b><small data-t="Material, rang, balandlik va reklama qoidalari — peshlavha va joy tipi boʻyicha tekshiruv.">Material, rang, balandlik va reklama qoidalari — peshlavha va joy tipi boʻyicha tekshiruv.</small></span>
+      </a>
+      <a class="tool" href="app/#/chizmadon" id="tCh">
+        <span class="art" aria-hidden="true"><svg viewBox="0 0 300 150"><rect x="104" y="14" width="112" height="84" fill="var(--surface)" stroke="var(--faint)"/><rect x="96" y="22" width="112" height="84" fill="var(--surface)" stroke="var(--faint)"/><rect x="88" y="30" width="112" height="84" fill="var(--surface)" stroke="var(--faint)"/><rect x="98" y="42" width="56" height="40" fill="#dde8f2"/><path d="M104 76V54h10v22M120 76V48h10v28M136 76V60h10v16" stroke="#2f6da8" stroke-width="3" fill="none"/><rect x="164" y="96" width="30" height="12" fill="#f0b323"/></svg></span>
+        <span class="tx"><span class="eyebrow"><i class="dot" style="background:var(--svc-chz)"></i><span data-t="Barcha chizmalar bir joyda">Barcha chizmalar bir joyda</span></span><b>Chizmadon</b><small data-t="Istalgan asbobdan «Chizmadonga yuborish» — varaqlar, shtamp, 24 namuna, PDF, PPTX va SVG.">Istalgan asbobdan «Chizmadonga yuborish» — varaqlar, shtamp, 24 namuna, PDF, PPTX va SVG.</small></span>
+      </a>
+      <a class="tool" href="atamalar.html" id="tAt">
+        <span class="art" aria-hidden="true"><svg viewBox="0 0 300 150"><rect x="50" y="22" width="200" height="106" rx="16" fill="var(--surface)"/><rect x="72" y="44" width="80" height="12" rx="6" fill="var(--ink)"/><rect x="190" y="44" width="38" height="12" rx="6" fill="var(--sel-soft)"/><rect x="72" y="72" width="150" height="9" rx="4" fill="var(--fill-2)"/><rect x="72" y="92" width="110" height="9" rx="4" fill="var(--fill-2)"/></svg></span>
+        <span class="tx"><span class="eyebrow"><i class="dot" style="background:var(--muted)"></i><span data-t="Ochiq lugʻat">Ochiq lugʻat</span></span><b data-t="Atamalar">Atamalar</b><small data-t="Shaharsozlik atamalari: taʼrif, meʼyor bandi, chizma. Hamma uchun bepul.">Shaharsozlik atamalari: taʼrif, meʼyor bandi, chizma. Hamma uchun bepul.</small></span>
+      </a>
+    </div>
+    <div class="chain" aria-label="Qanday ulanadi" data-ta="aria-label:Qanday ulanadi"><span class="eyebrow" style="flex-basis:100%" data-t="Qanday ulanadi">Qanday ulanadi</span><b data-t="Master reja">Master reja</b><span class="ln"></span><span data-t="koʻchani bosing">koʻchani bosing</span><span class="ln"></span><b data-t="Koʻchasoz">Koʻchasoz</b><span class="ln"></span><span data-t="kesim tayyor">kesim tayyor</span><span class="ln"></span><b data-t="Chizmadonga yuborish">Chizmadonga yuborish</b><span class="ln"></span><b>PDF · PPTX · SVG</b></div>
+  </section>
+
+  <section class="w sec" style="padding-top:8px">
+    <div class="free">
+      <div><h2 class="h2" style="font-size:30px" data-t="Asosiy ish — bepul.">Asosiy ish — bepul.</h2>
+        <p data-t="Chizish, tahrirlash, aholi, maktab va avtoturargoh hisobi, quyosh va shamol tahlili, varaqlar va eksport — hammasi brauzerda ishlaydi.">Chizish, tahrirlash, aholi, maktab va avtoturargoh hisobi, quyosh va shamol tahlili, varaqlar va eksport — hammasi brauzerda ishlaydi.</p>
+        <div class="chips"><span class="chip ok"><i></i><span data-t="Karta shart emas">Karta shart emas</span></span><span class="chip ok"><i></i><span data-t="Roʻyxatdan oʻtish shart emas">Roʻyxatdan oʻtish shart emas</span></span><span class="chip ok"><i></i><span data-t="Loyiha faylga saqlanadi">Loyiha faylga saqlanadi</span></span></div></div>
+      <div class="side"><a class="btn btn-primary btn-lg" href="app/#/yangi" data-t="Bepul boshlash">Bepul boshlash</a></div>
     </div>
   </section>
 
-  <section id="loyihalar">
-    <div class="sh"><h2>Davom ettirish</h2><span class="sub" id="pcnt">shu brauzerda</span></div>
+  <section class="w sec" id="loyihalar">
+    <div class="sec-h"><div><h2 class="h2" style="font-size:30px" data-t="Loyihalaringiz">Loyihalaringiz</h2></div><span class="side" id="pcnt" data-t="shu brauzerda saqlanadi">shu brauzerda saqlanadi</span></div>
     <div class="plist" id="plist"></div>
-    <details class="old" id="oldBox"><summary><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>Avvalgi versiya loyihalari <small id="cnt"></small></summary>
-      <div class="bk" id="bk" hidden><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3L2.5 20h19zM12 10v4.5M12 17.5h.01"/></svg><span id="bkT"></span><a href="loyiha.html?backup=1">Hammasini zaxiralash</a></div>
+    <details class="old" id="oldBox" hidden><summary><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><span data-t="Avvalgi versiya loyihalari">Avvalgi versiya loyihalari</span> <small id="cnt" class="muted"></small></summary>
+      <div class="bk" id="bk" hidden><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3L2.5 20h19zM12 10v4.5M12 17.5h.01"/></svg><span id="bkT"></span><a class="btn btn-sm" href="loyiha.html?backup=1" data-t="Hammasini zaxiralash">Hammasini zaxiralash</a></div>
       <div id="rec"></div>
     </details>
   </section>
 
-  <section id="asboblar">
-    <div class="sh"><h2>Alohida asboblar</h2><span class="sub">loyihasiz ham ishlaydi</span></div>
-    <div class="tools">
-      <a class="card tool" href="app/"><span class="ico" style="background:var(--ok-soft);color:var(--ok)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V8l7-4 7 4v13M10 21v-5h4v5M3 21h18"/></svg></span><span><b>Master reja</b><small>12 qadam: uchastkadan meʼyoriy tekshiruv va albomgacha.</small></span><svg class="ic sm go" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-      <a class="card tool" href="studio.html"><span class="ico" style="background:var(--sel-soft);color:var(--sel)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21L9 3M19 21L15 3M12 5v2M12 11v2M12 17v2"/></svg></span><span><b>Transport infratuzilmasi</b><small>Koʻcha profili, tarmoq, chorrahalar va jamoat transporti.</small></span><svg class="ic sm go" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-      <a class="card tool" href="dizaynkod.html"><span class="ico" style="background:var(--brand-soft);color:var(--warn)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5zM8.5 7h2M13.5 7h2M8.5 11h2M13.5 11h2M8.5 15h2M13.5 15h2"/></svg></span><span><b>Dizayn-kod</b><small>Fasad, peshlavha va koʻcha muhiti boʻyicha qoidalar.</small></span><svg class="ic sm go" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-      <a class="card tool" href="atamalar.html"><span class="ico" style="background:var(--ai-soft);color:var(--ai)"><svg class="ic lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></span><span><b>Atamalar</b><small>Shaharsozlik atamalari — interaktiv izoh bilan.</small></span><svg class="ic sm go" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-    </div>
+  <section class="w sec" id="hammasi" style="padding-top:8px">
+    <details class="old" id="allBox"><summary><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><span data-t="Barcha asboblar (oʻtish davri)">Barcha asboblar (oʻtish davri)</span> <small class="muted" data-t="yangi dizaynga koʻchirilmoqda">yangi dizaynga koʻchirilmoqda</small></summary>
+      <div class="all" id="allTools">
+        <a href="studio.html"><b data-t="Transport infratuzilmasi">Transport infratuzilmasi</b><span data-t="koʻcha profili, tarmoq, chorrahalar">koʻcha profili, tarmoq, chorrahalar</span><code>studio.html</code></a>
+        <a href="kocha.html"><b data-t="Koʻcha kesimi">Koʻcha kesimi</b><span data-t="profil va YHQ tekshiruvi">profil va YHQ tekshiruvi</span><code>kocha.html</code></a>
+        <a href="dizaynkod.html"><b data-t="Dizayn-kod: peshlavha">Dizayn-kod: peshlavha</b><span data-t="reklama va peshlavha qoidalari">reklama va peshlavha qoidalari</span><code>dizaynkod.html</code></a>
+        <a href="dizaynkod-joy.html"><b data-t="Dizayn-kod: joy tipi">Dizayn-kod: joy tipi</b><span data-t="joy tipi boʻyicha qoidalar">joy tipi boʻyicha qoidalar</span><code>dizaynkod-joy.html</code></a>
+        <a href="gis.html"><b data-t="GIS tahlil">GIS tahlil</b><span data-t="hudud qatlamlari, relyef, issiqlik">hudud qatlamlari, relyef, issiqlik</span><code>gis.html</code></a>
+        <a href="shamol.html"><b data-t="Shamol tahlili">Shamol tahlili</b><span data-t="shamol guli va oqim">shamol guli va oqim</span><code>shamol.html</code></a>
+        <a href="ai.html"><b data-t="Hudud bahosi va AI">Hudud bahosi va AI</b><span data-t="baho va AI render">baho va AI render</span><code>ai.html</code></a>
+        <a href="bino.html"><b data-t="Bino studiyasi">Bino studiyasi</b><span data-t="hajm, fasad, AI render">hajm, fasad, AI render</span><code>bino.html</code></a>
+        <a href="posadka.html"><b data-t="Joylashtirish">Joylashtirish</b><span data-t="joylashtirish, masofalar, narx">joylashtirish, masofalar, narx</span><code>posadka.html</code></a>
+        <a href="data.html"><b data-t="Maʼlumotlar">Maʼlumotlar</b><span data-t="Shapefile, GeoPackage, GeoJSON, KML, CSV">Shapefile, GeoPackage, GeoJSON, KML, CSV</span><code>data.html</code></a>
+        <a href="muharrir.html"><b data-t="Master reja muharriri (eski)">Master reja muharriri (eski)</b><span data-t="avvalgi versiya">avvalgi versiya</span><code>muharrir.html</code></a>
+        <a href="masterreja.html"><b data-t="Master reja kartalari (eski)">Master reja kartalari (eski)</b><span data-t="avvalgi versiya">avvalgi versiya</span><code>masterreja.html</code></a>
+        <a href="maket.html"><b data-t="Albom (eski)">Albom (eski)</b><span data-t="oʻrnini Chizmadon egallaydi">oʻrnini Chizmadon egallaydi</span><code>maket.html</code></a>
+        <a href="loyiha.html"><b data-t="Loyiha (eski)">Loyiha (eski)</b><span data-t="avvalgi versiya loyihalari">avvalgi versiya loyihalari</span><code>loyiha.html</code></a>
+      </div>
+    </details>
   </section>
 </main>
-<footer><div class="w"><span>Archemistry Urban · Toshkent</span><span class="sp"></span><span>Maʼlumotlar faqat brauzeringizda saqlanadi</span></div></footer>
-<script>
-/* Qahramon: qatlamlar — yigʻilgan / ajratilgan, tanlangan qatlam izohi */
-(function(){
-  var st=document.getElementById('stage'),btn=document.getElementById('exBtn'),info=document.getElementById('info'),chips=[].slice.call(document.querySelectorAll('.lchip')),tags=[].slice.call(st.querySelectorAll('.tag'));
-  var L=[['#cfc9bf','Binolar','Seksiyalar generatsiyasi: perimetral kvartal, minora, maktab. Qavatlar, kvartiralar va insolyatsiya — har seksiyada.'],
-         ['#f3c97f','Kvartallar va zonalar','Koʻchalar uchastkani kvartallarga boʻladi; har kvartal — funksiya, hovli va yashillik balansi.'],
-         ['#9cbf86','Koʻchalar','Profil ShNQ 2.07.01-23 boʻyicha: qatnov qismi, trotuar, daraxtlar qatori va qizil chiziqlar.']];
-  function ex(on){st.dataset.ex=on;btn.setAttribute('aria-pressed',on);btn.textContent=on?'Yigʻish':'Qatlamlarga ajratish';if(!on){chips.forEach(function(x){x.setAttribute('aria-pressed','false');});tags.forEach(function(t){t.classList.remove('on');});}}
-  btn.onclick=function(){ex(st.dataset.ex!=='true');};
-  chips.forEach(function(c){c.onclick=function(){var i=+c.dataset.l,on=c.getAttribute('aria-pressed')!=='true';
-    chips.forEach(function(x){x.setAttribute('aria-pressed',String(x===c&&on));});tags.forEach(function(t){t.classList.toggle('on',on&&+t.dataset.t===i);});
-    if(on){ex(true);chips.forEach(function(x){x.setAttribute('aria-pressed',String(x===c));});tags.forEach(function(t){t.classList.toggle('on',+t.dataset.t===i);});
-      info.querySelector('i').style.background=L[i][0];info.querySelector('b').textContent=L[i][1];info.querySelector('b').nextElementSibling.textContent=L[i][2];}};});
-})();
-/* Master reja loyihalari (IndexedDB «archemistry-mr», ilova bilan bir manba) */
-(function(){
-  var box=document.getElementById('plist'),esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
-  var empty='<div class="card pempty"><span>Hali loyiha yoʻq. Yangi loyiha oching yoki namunani koʻring.</span><span class="cta"><a class="btn btn-sm btn-primary" href="app/#/yangi">Yangi loyiha</a><a class="btn btn-sm" href="app/#/namuna">Namuna</a></span></div>';
-  function thumb(p){var r=p.site&&p.site.rings&&p.site.rings[0];if(!r||r.length<3)return '<svg class="ic" viewBox="0 0 24 24" style="color:#a19e97"><path d="M5 8l10-4 5 11-12 5z" stroke-dasharray="3 2"/></svg>';
-    var xs=r.map(function(q){return q[0];}),ys=r.map(function(q){return q[1];}),x0=Math.min.apply(0,xs),x1=Math.max.apply(0,xs),y0=Math.min.apply(0,ys),y1=Math.max.apply(0,ys),k=Math.cos((y0+y1)/2*Math.PI/180),w=(x1-x0)*k||1e-6,h=(y1-y0)||1e-6,s=44/Math.max(w,h),ox=(56-w*s)/2,oy=(56-h*s)/2;
-    var d=r.map(function(q,i){return (i?'L':'M')+(ox+(q[0]-x0)*k*s).toFixed(1)+' '+(oy+(y1-q[1])*s).toFixed(1);}).join('')+'Z';
-    return '<svg viewBox="0 0 56 56" width="56" height="56"><path d="'+d+'" fill="#fff" stroke="#c0392b" stroke-width="1" stroke-dasharray="3 2"/></svg>';}
-  function when(t){try{return new Date(t).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'});}catch(e){return '';}}
-  try{var rq=indexedDB.open('archemistry-mr');
-    rq.onupgradeneeded=function(){rq.transaction.abort();};
-    rq.onerror=function(){box.innerHTML=empty;};
-    rq.onsuccess=function(){var db=rq.result;if(!db.objectStoreNames.contains('projects')){db.close();box.innerHTML=empty;return;}
-      var q=db.transaction('projects','readonly').objectStore('projects').getAll();
-      q.onsuccess=function(){db.close();var L=(q.result||[]).sort(function(a,b){return String(b.updated).localeCompare(String(a.updated));});
-        document.getElementById('pcnt').textContent=(L.length?L.length+' ta · ':'')+'shu brauzerda';
-        box.innerHTML=L.length?L.slice(0,9).map(function(p){var nb=(p.buildings||[]).length;return '<a class="card pcard" href="app/#/p/'+encodeURIComponent(p.id)+'"><span class="th">'+thumb(p)+'</span><span><b>'+esc(p.name||'Loyiha')+'</b><small>'+esc(when(p.updated))+'</small><small>'+(p.site?'uchastka bor':'uchastka yoʻq')+' · '+nb+' bino</small></span><svg class="ic sm" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></a>';}).join(''):empty;};
-      q.onerror=function(){db.close();box.innerHTML=empty;};};}catch(e){box.innerHTML=empty;}
-})();
-</script>
+
+<footer class="sf"><div class="w"><span>© Archemistry Lab · Archemistry Urban, Toshkent</span><a href="atamalar.html" data-t="Atamalar">Atamalar</a><a href="#hammasi" data-t="Barcha asboblar">Barcha asboblar</a><span class="sp"></span><span data-t="Til:">Til:</span><button data-lang="uz">Oʻzbekcha</button><button data-lang="en">English</button><button data-lang="ru">Русский</button></div></footer>
+
 <script src="js/project.js?v=2"></script>
-<script>
-(function(){
-  var el=document.getElementById('rec'),esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
-  var ST=['Uchastka','Tahlil','Yoʻllar','Binolar','Albom'],R=null,MON=['yan','fev','mar','apr','may','iyn','iyl','avg','sen','okt','noy','dek'];
-  try{R=JSON.parse(localStorage.getItem('kps_projects')||'null');}catch(e){}
-  if(!R||!Array.isArray(R.list))R={active:null,list:[]};
-  function when(t){var d=new Date(t);if(isNaN(d))return '';var n=new Date(),hm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2),day=864e5,
-      d0=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();
-    if(d.getTime()>=d0)return 'bugun, '+hm;if(d.getTime()>=d0-day)return 'kecha, '+hm;
-    return d.getDate()+' '+MON[d.getMonth()]+(d.getFullYear()!==n.getFullYear()?' '+d.getFullYear():'');}
-  function bar(done){if(!done)return '<span class="bar"></span>';var n=done.filter(Boolean).length,nx=done.indexOf(false),h='';
-    for(var i=0;i<5;i++)h+='<i class="'+(done[i]?'d':i===nx?'c':'')+'"></i>';
-    return '<span class="bar" aria-label="5 dan '+n+' tasi bajarilgan">'+h+'<span>'+(n?n+'/5 · '+(nx<0?'tayyor':'keyingi: '+ST[nx]):'boshlanmagan')+'</span></span>';}
-  var XI='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-  function render(){
-    var list=R.list.slice().sort(function(a,b){return String(b.t).localeCompare(String(a.t));});
-    document.getElementById('cnt').textContent=(list.length?'· '+list.length+' ta':'');
-    el.innerHTML=list.length?list.map(function(x){return '<div class="prow" data-pid="'+esc(x.id)+'"><a href="loyiha.html?p='+encodeURIComponent(x.id)+'"><span class="th" aria-hidden="true"></span><span class="info"><span class="nm">'+esc(x.name)+'</span><span class="pl"></span>'+bar(null)+'</span><span class="rt"><b>Ochish <svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></b><span>'+esc(when(x.t))+'</span></span></a><button class="del" type="button" data-del="'+esc(x.id)+'" aria-label="Oʻchirish: '+esc(x.name)+'" title="Loyihani oʻchirish">'+XI+'</button></div>';}).join(''):'<div class="empty">Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.</div>';
-    var nz=list.filter(function(x){return !x.exp;}).length;
-    document.getElementById('bk').hidden=!nz;
-    document.getElementById('bkT').innerHTML='<b>'+nz+' ta loyiha zaxirasiz.</b> Ular faqat shu brauzerda — kesh tozalansa yoki boshqa kompyuterga oʻtsangiz yoʻqoladi.';
-    return list;}
-  var list=render();document.getElementById('oldBox').hidden=!list.length;
-  /* oʻchirish: birinchi bosish — «Oʻchirilsinmi?», 4 soniya ichida ikkinchi bosish — oʻchiriladi */
-  var armed=null,armT=0;
-  function idb(name,store,fn){return new Promise(function(ok){try{var r=indexedDB.open(name,1);r.onupgradeneeded=function(){r.result.createObjectStore(store,(window.KPSPRJ&&KPSPRJ.IDB_OPT[name])||{keyPath:'id'});};
-    r.onsuccess=function(){var db=r.result;if(!db.objectStoreNames.contains(store)){db.close();ok();return;}var t=db.transaction(store,'readwrite');fn(t.objectStore(store));t.oncomplete=function(){db.close();ok();};t.onerror=function(){db.close();ok();};};r.onerror=function(){ok();};}catch(e){ok();}});}
-  async function delProject(id){
-    if(R.active===id&&window.KPSPRJ){   /* ochiq turgan loyiha: uning jonli maʼlumoti tozalanadi */
-      KPSPRJ.LS_KEYS.forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
-      for(var i=0;i<KPSPRJ.IDB_ALL.length;i++){var a=KPSPRJ.IDB_ALL[i];await idb(a[0],a[1],function(os){os.clear();});}
-      R.active=null;}
-    await idb('kps_projects','snap',function(os){os.delete(id);});
-    R.list=R.list.filter(function(x){return x.id!==id;});
-    try{localStorage.setItem('kps_projects',JSON.stringify(R));}catch(e){}
-    var row=el.querySelector('.prow[data-pid="'+id.replace(/"/g,'')+'"]');if(row)row.remove();
-    var nz=R.list.filter(function(x){return !x.exp;}).length;document.getElementById('bk').hidden=!nz;document.getElementById('bkT').querySelector('b').textContent=nz+' ta loyiha zaxirasiz.';
-    document.getElementById('cnt').textContent=(R.list.length?'· '+R.list.length+' ta':'');
-    if(!el.querySelector('.prow'))el.innerHTML='<div class="empty">Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.</div>';}
-  el.addEventListener('click',function(e){var b=e.target.closest('[data-del]');if(!b)return;e.preventDefault();var id=b.getAttribute('data-del');
-    if(armed===b){clearTimeout(armT);armed=null;b.disabled=true;delProject(id);return;}
-    if(armed){armed.classList.remove('arm');armed.innerHTML=XI;}
-    armed=b;b.classList.add('arm');b.textContent='Oʻchi\u00adrilsinmi?';b.setAttribute('aria-label','Tasdiqlash: yana bosing');
-    armT=setTimeout(function(){if(armed===b){b.classList.remove('arm');b.innerHTML=XI;b.setAttribute('aria-label','Oʻchirish');armed=null;}},4000);});
-  /* har loyiha: hudud eskizi, joy nomi, shakl va maydon */
-  function J(v){try{return v?JSON.parse(v):null;}catch(e){return null;}}
-  function countIdb(name,store){return new Promise(function(ok){try{var r=indexedDB.open(name,1);r.onupgradeneeded=function(){r.result.createObjectStore(store,{keyPath:'id'});};r.onsuccess=function(){var db=r.result;if(!db.objectStoreNames.contains(store)){db.close();ok(0);return;}var q=db.transaction(store,'readonly').objectStore(store).count();q.onsuccess=function(){db.close();ok(q.result);};q.onerror=function(){db.close();ok(0);};};r.onerror=function(){ok(0);};}catch(e){ok(0);}});}
-  /* loyiha maʼlumoti: ochiq loyiha — jonli, qolganlari — nusxadan */
-  function dataOf(x){
-    if(x.id===R.active){var g=function(k){return localStorage.getItem(k);};return countIdb('kps_maket','docs').then(function(n){return {g:g,album:n};});}
-    return new Promise(function(ok){try{var r=indexedDB.open('kps_projects',1);r.onupgradeneeded=function(){r.result.createObjectStore('snap',{keyPath:'id'});};
-      r.onsuccess=function(){var db=r.result;if(!db.objectStoreNames.contains('snap')){db.close();ok(null);return;}var q=db.transaction('snap','readonly').objectStore('snap').get(x.id);
-        q.onsuccess=function(){db.close();var v=q.result;if(!v){ok(null);return;}var ls=v.ls||{};ok({g:function(k){return ls[k]||null;},album:((v.idb||{})['kps_maket/docs']||[]).length});};q.onerror=function(){db.close();ok(null);};};r.onerror=function(){ok(null);};}catch(e){ok(null);}});}
-  function siteOf(x){if(x.id===R.active){try{return Promise.resolve(JSON.parse(localStorage.getItem('kps_site')||'null'));}catch(e){return Promise.resolve(null);}}
-    return new Promise(function(ok){try{var r=indexedDB.open('kps_projects',1);r.onupgradeneeded=function(){r.result.createObjectStore('snap',{keyPath:'id'});};
-      r.onsuccess=function(){var db=r.result;if(!db.objectStoreNames.contains('snap')){db.close();ok(null);return;}var q=db.transaction('snap','readonly').objectStore('snap').get(x.id);
-        q.onsuccess=function(){db.close();var v=q.result;try{ok(v&&v.ls&&v.ls.kps_site?JSON.parse(v.ls.kps_site):null);}catch(e){ok(null);}};q.onerror=function(){db.close();ok(null);};};r.onerror=function(){ok(null);};}catch(e){ok(null);}});}
-  function thumb(ring){var la=ring.map(function(p){return p[0];}),lo=ring.map(function(p){return p[1];}),a0=Math.min.apply(0,la),a1=Math.max.apply(0,la),o0=Math.min.apply(0,lo),o1=Math.max.apply(0,lo);
-    var k=Math.cos((a0+a1)/2*Math.PI/180),w=(o1-o0)*k||1e-6,h=(a1-a0)||1e-6,sc=40/Math.max(w,h),ox=(56-w*sc)/2,oy=(56-h*sc)/2;
-    var d=ring.map(function(p,i){return (i?'L':'M')+(ox+(p[1]-o0)*k*sc).toFixed(1)+' '+(oy+(a1-p[0])*sc).toFixed(1);}).join('')+'Z';
-    return '<svg viewBox="0 0 56 56" width="56" height="56"><path d="'+d+'" fill="#fbfaf7" stroke="#141414" stroke-width="1" stroke-dasharray="3 2"/></svg>';}
-  function areaOf(st){if(st.areaM2)return st.areaM2;var r=st.ring,lat=r.reduce(function(s,p){return s+p[0];},0)/r.length,mx=111320*Math.cos(lat*Math.PI/180),my=110574,s=0;
-    for(var i=0;i<r.length;i++){var a=r[i],b=r[(i+1)%r.length];s+=a[1]*mx*b[0]*my-b[1]*mx*a[0]*my;}return Math.abs(s)/2;}
-  function shape(st){var a=areaOf(st),A=a>=1e6?(a/1e6).toLocaleString('ru-RU',{maximumFractionDigits:1})+' km²':(a/1e4).toLocaleString('ru-RU',{maximumFractionDigits:a<1e6?(a<1e5?2:1):0})+' ga';
-    var f=st.mode==='radius'&&st.r?(st.r>=1000?(st.r/1000).toLocaleString('ru-RU')+' km':st.r+' m')+' doira':st.mode==='rect'?'toʻrtburchak':'erkin chegara';return f+' · '+A;}
-  function place(c){var key='kps_geo_'+c[0].toFixed(3)+','+c[1].toFixed(3),v=null;try{v=localStorage.getItem(key);}catch(e){}if(v)return Promise.resolve(v);
-    return fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=uz&lat='+c[0].toFixed(5)+'&lon='+c[1].toFixed(5)).then(function(r){return r.ok?r.json():null;}).then(function(j){
-      var a=j&&j.address||{},n=[a.suburb||a.city_district||a.neighbourhood||a.quarter||a.village||a.town,a.city||a.county||a.state].filter(Boolean).filter(function(x,i,arr){return arr.indexOf(x)===i;}).join(', ');
-      if(n){try{localStorage.setItem(key,n);}catch(e){}}return n;}).catch(function(){return '';});}
-  var q=Promise.resolve();
-  list.forEach(function(x){dataOf(x).then(function(d){if(!d)return;var row=el.querySelector('.prow[data-pid="'+x.id.replace(/"/g,'')+'"]');if(!row)return;
-    var doc=J(d.g('kps_mr_doc'))||{},hud=J(d.g('kps_site')),mb=J(d.g('kps_mr_blds')),pz=J(d.g('kps_posadka')),plot=doc.plot&&doc.plot.ring&&doc.plot.ring.length>2?doc.plot:null,hs=hud&&hud.ring&&hud.ring.length>2?hud:null;
-    var done=[!!plot,!!hs||!!d.g('kps_area_sum'),!!(doc.edges&&doc.edges.length),!!((mb&&mb.blds&&mb.blds.length)||(pz&&pz.blds&&pz.blds.length)),d.album>0];
-    row.querySelector('.bar').outerHTML=bar(done);
-    var st=plot||hs;if(!st)return;
-    row.querySelector('.th').innerHTML=thumb(st.ring);var pl=row.querySelector('.pl'),sh=plot?'uchastka '+shape(plot).split(' · ').pop():'tahlil hududi · '+shape(st);pl.textContent=sh;
-    var c=st.center||[st.ring.reduce(function(s,p){return s+p[0];},0)/st.ring.length,st.ring.reduce(function(s,p){return s+p[1];},0)/st.ring.length];
-    q=q.then(function(){return place(c).then(function(n){pl.textContent=(n?n+' · ':'')+sh;return new Promise(function(r){setTimeout(r,1100);});});});});});   /* Nominatim: ≤ 1 soʻrov/soniya */
-})();
-</script>
-<script src="js/i18n.js?v=53"></script>
+<script src="js/site.js?v=1"></script>
 </body>
 </html>
