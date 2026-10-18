@@ -2,10 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 
 /** Koʻchasoz (app/kochasoz.html): kanvas maketlari A, B, C, E, Grafika, Varaq — rejimlar, kesim tahriri, saqlash, A→B, Varaq→Chizmadon */
 const errs: string[] = [];
-async function open(page: Page, hash: string): Promise<void> {
+async function open(page: Page, hash: string, q = ''): Promise<void> {
   page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto(`./kochasoz.html#/${hash}`);
+  await page.goto(`./kochasoz.html${q}#/${hash}`);
   await expect(page.locator('.ws')).toBeVisible();
 }
 const blk = (page: Page) => page.locator('.ws-b .blk');
@@ -27,9 +27,9 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
   // zona qoʻshish (Velo)
   await page.locator('.ws-b .chipb', { hasText: '+ Velo' }).click();
   await expect(blk(page)).toHaveCount(n0 + 1);
-  // koʻrinish: Akso, Chizma
-  await page.locator('.ws-b main .seg button').nth(2).click();
-  await expect(page.locator('.ws-b main .seg button').nth(2)).toHaveAttribute('aria-pressed', 'true');
+  // koʻrinish: Reja
+  await page.locator('.ws-b main .seg').first().getByRole('button', { name: 'Reja' }).click();
+  await expect(page.locator('.ws-b main .seg').first().getByRole('button', { name: 'Reja' })).toHaveAttribute('aria-pressed', 'true');
   // qayta yuklash — saqlangan
   await page.waitForTimeout(400);
   await page.reload(); await expect(page.locator('.ws-b')).toBeVisible();
@@ -43,8 +43,21 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
   expect(errs).toEqual([]);
 });
 
-test('rejimlar: A tarmoq → B, C chorraha, E mikromodel, Grafika, Varaq', async ({ page }) => {
-  await open(page, 'a');
+test('saytda: faqat Kesim (Kesim, Reja koʻrinishlari) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
+  await open(page, 'c');
+  await expect(page).toHaveURL(/#\/b$/);                                   // tayyor boʻlmagan rejim → B
+  await expect(page.locator('.ws-b .mtab[aria-disabled=true]')).toHaveCount(4);
+  await expect(page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).locator('em.soon')).toHaveText('Tez orada');
+  await page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).click({ force: true });   // aria-disabled — bosilsa ham oʻtmaydi
+  await expect(page).toHaveURL(/#\/b$/);
+  await expect(page.locator('.ws-b main .seg').first().locator('button')).toHaveText(['Kesim', 'Reja']);
+  await expect(page.locator('#ksGrafika')).toHaveCount(0);
+  await expect(page.locator('#ksVaraq')).toBeVisible();
+  expect(errs).toEqual([]);
+});
+
+test('beta: A tarmoq → B, C chorraha, E mikromodel, Grafika, Varaq', async ({ page }) => {
+  await open(page, 'a', '?beta');
   await expect(page.locator('.ws-a .mtab[aria-pressed=true]')).toContainText('Tarmoq');
   await page.locator('.ws-a .mtab', { hasText: 'Chorraha' }).click();
   await expect(page.locator('.ws-c')).toBeVisible();
