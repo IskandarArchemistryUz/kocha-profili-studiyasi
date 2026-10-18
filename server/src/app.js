@@ -1,0 +1,116 @@
+/* HTTP API (Fastify). Sayt (archemistry.uz) va API (api.archemistry.uz) bir domen ostida —
+   sessiya HttpOnly cookie da, SameSite=Lax. */
+import Fastify from 'fastify';
+import cookie from '@fastify/cookie';
+import cors from '@fastify/cors';
+import { makeAuth, AuthError } from './auth.js';
+import { makeWallet, WalletError } from './wallet.js';
+import { ITEMS, TRIALS, TRIALS_PER_WEEK, PACKS, priceOf, PriceError } from './prices.js';
+
+export const COOKIE = 'ks_sess';
+
+/**
+ * @param {object} o
+ * @param {object} o.db           db.js dagi interfeys
+ * @param {string} o.pepper       OTP xeshi uchun maxfiy qoʻshimcha
+ * @param {string} o.secret       ruxsatnoma imzosi uchun kalit
+ * @param {(t:{kind:string,value:string}, code:string)=>Promise<void>} o.send  kod yuboruvchi
+ * @param {string[]} o.origins    ruxsat etilgan sayt manzillari (CORS)
+ * @param {string} [o.cookieDomain] masalan '.archemistry.uz'
+ * @param {boolean} [o.secure]    cookie Secure (ishda — true)
+ */
+export async function buildApp({ db, pepper, secret, send, origins, cookieDomain, secure = true, now, logger = false }) {
+  const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
+  const auth = makeAuth({ db, pepper, send, now });
+  const wallet = makeWallet({ db, secret, now });
+
+  await app.register(cookie);
+  await app.register(cors, { origin: origins, credentials: true, methods: ['GET', 'POST'] });
+
+  const setSession = (reply, token) => reply.setCookie(COOKIE, token, {
+    httpOnly: true, secure, sameSite: 'lax', path: '/', domain: cookieDomain, maxAge: 60 * 864e2,
+  });
+
+  // IP boʻyicha oddiy cheklov: kod soʻrash — daqiqasiga 5 ta
+  const hits = new Map();
+  const limited = (ip, max = 5, winMs = 60e3) => {
+    const t = Date.now(), a = (hits.get(ip) || []).filter((x) => t - x < winMs);
+    a.push(t); hits.set(ip, a);
+    if (hits.size > 5e4) hits.clear();
+    return a.length > max;
+  };
+
+  app.setErrorHandler((err, req, reply) => {
+    if (err instanceof AuthError || err instanceof WalletError || err instanceof PriceError) {
+      const status = err.code === 'insufficient' ? 402 : err.code === 'rate' || err.code === 'cooldown' ? 429 : 400;
+      return reply.code(status).send({ error: err.code ?? 'bad_request', message: err.message, need: err.need, balance: err.balance });
+    }
+    if (err.validation) return reply.code(400).send({ error: 'bad_request', message: err.message });
+    req.log.error(err);
+    return reply.code(500).send({ error: 'server', message: 'server xatosi' });
+  });
+
+  async function requireUser(req, reply) {
+    const u = await auth.userByToken(req.cookies[COOKIE]);
+    if (!u) { reply.code(401).send({ error: 'auth', message: 'tizimga kiring' }); return null; }
+    return u;
+  }
+
+  app.get('/health', async () => ({ ok: true }));
+
+  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, packs: PACKS }));
+
+  app.post('/quote', async (req) => {
+    const { items, areaHa } = req.body ?? {};
+    return priceOf(items, areaHa);
+  });
+
+  app.post('/auth/code', async (req, reply) => {
+    if (limited(req.ip)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
+    const r = await auth.requestCode(req.body?.target);
+    return { sent: true, kind: r.kind };
+  });
+
+  app.post('/auth/verify', async (req, reply) => {
+    if (limited('v:' + req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
+    const r = await auth.verifyCode(req.body?.target, req.body?.code);
+    setSession(reply, r.token);
+    return { ok: true, isNew: r.isNew };
+  });
+
+  app.post('/auth/logout', async (req, reply) => {
+    await auth.logout(req.cookies[COOKIE]);
+    reply.clearCookie(COOKIE, { path: '/', domain: cookieDomain });
+    return { ok: true };
+  });
+
+  app.get('/me', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    return { id: u.id, email: u.email, phone: u.phone, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id) };
+  });
+
+  app.get('/me/history', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    return { items: await wallet.history(u.id) };
+  });
+
+  app.post('/export/ticket', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    const { items, areaHa, stateHash } = req.body ?? {};
+    return wallet.exportTicket(u.id, { items, areaHa, stateHash });
+  });
+
+  app.post('/export/verify', async (req) => {
+    const t = wallet.verifyTicket(req.body?.ticket);
+    return t ? { valid: true, items: t.items, stateHash: t.stateHash, expires: t.expires } : { valid: false };
+  });
+
+  app.post('/trial', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    return wallet.useTrial(u.id, req.body?.kind, req.body?.ref);
+  });
+
+  app.decorate('wallet', wallet);
+  app.decorate('auth', auth);
+  return app;
+}
