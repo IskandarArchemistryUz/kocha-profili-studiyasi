@@ -430,32 +430,38 @@ export default class Component extends DCLogic {
       var G = 372, DEP = 4.2, GB = G + 6 + DEP * px;
       add('M8 ' + G + 'H' + HW + 'V' + GB + 'H8Z', line ? '#ffffff' : '#f6f2ea', null, 0); add('M8 ' + GB + 'H' + HW, null, INK, 0.8); for (var hx = 8; hx < HW; hx += 7) add('M' + hx + ' ' + (GB + 6) + 'L' + (hx + 6) + ' ' + GB, null, LIGHT, 0.6);
       [[8, X(-SB)], [X(rl + SB), HW]].forEach(function (bx) { add('M' + bx[0] + ' ' + G + 'H' + bx[1] + 'V' + (G + 3.2 * px) + 'H' + bx[0] + 'Z', line ? '#fff' : '#ebe7df', INK, 0.8); for (var hh = bx[0] - 3.2 * px; hh < bx[1]; hh += 6) { var xa = Math.max(bx[0], hh), xb = Math.min(bx[1], hh + 3.2 * px); if (xb > xa) add('M' + xa.toFixed(1) + ' ' + (G + 3.2 * px - (xa - hh)).toFixed(1) + 'L' + xb.toFixed(1) + ' ' + (G + 3.2 * px - (xb - hh)).toFixed(1), null, LIGHT, 0.5); } });
-      /* binolar: 1-qavat 4,2 m (vitrina), keyingilari 3,2 m; sigʻmasa — uzilish belgisi; yonida «N qavat · H m» va − / + */
-      var BB = [], HCAP = G - 92;
+      /* binolar — kesimdagi oddiy hajm: kontur, qavat yopmalari, qavat raqamlari va sath belgisi; chuqurligi ≤ 14 m,
+         qolgani uzilish chizigʻi bilan. Baland bino sigʻmasa — gorizontal uzilish. Ichida «N qavat · ≈ H m» va − / + */
+      var BB = [], HCAP = G - 34;
       [[-1, s.bL], [1, s.bR]].forEach(function (b) {
         var nF = b[1], hM = 4.2 + (nF - 1) * 3.2, full = hM * px, cut = full > HCAP, h = cut ? HCAP : full;
-        var x1 = b[0] < 0 ? X(-SB) : X(rl + SB), x0 = b[0] < 0 ? 8 : x1, w = b[0] < 0 ? x1 - 8 : HW - x1, fx = x1, ins = b[0] < 0 ? -1 : 1;
+        var fx = b[0] < 0 ? X(-SB) : X(rl + SB), room = b[0] < 0 ? fx - 8 : HW - fx, wB = Math.min(room, 14 * px), deep = room > wB + 2;
+        var xa = b[0] < 0 ? fx - wB : fx, xb = b[0] < 0 ? fx : fx + wB, xo = b[0] < 0 ? xa : xb, ytop = G - h;
         function fy(k) { return G - (k === 0 ? 0 : (4.2 + (k - 1) * 3.2) * px); }
-        add('M' + x0 + ' ' + (G - h) + 'h' + w + 'v' + h + 'h' + (-w) + 'Z', line ? '#fff' : '#f3f2ef', INK, 1.1);
-        /* qavatlar (yopma) */
-        var BRK = cut ? G - h + 26 : -1, top = cut ? nF - 1 : nF;
-        for (var f = 1; f < nF; f++) { var yy = fy(f); if (yy <= G - h + 2) break; if (cut && yy < BRK + 8 && yy > BRK - 30) continue; add('M' + x0 + ' ' + yy + 'h' + w, null, '#cfcbc3', 0.7); }
-        /* derazalar fasadda: 1-qavat — vitrina */
-        var gw = Math.min(w - 4, 1.6 * px), WX = function (ww) { return ins < 0 ? fx - ww - 1.5 : fx + 1.5; };
-        add('M' + WX(gw) + ' ' + (G - 0.3 * px) + 'h' + gw + 'V' + (G - 3.5 * px) + 'h' + (-gw) + 'Z', line ? '#fff' : '#cfd9e0', INK, 0.8);
-        for (var f2 = 1; f2 < nF; f2++) { var yb = fy(f2) - 0.8 * px, ya = fy(f2) - 2.5 * px; if (ya < G - h + 3) break; if (cut && ya < BRK + 10 && yb > BRK - 10) continue; add('M' + WX(gw * 0.8) + ' ' + yb + 'h' + gw * 0.8 + 'V' + ya + 'h' + (-gw * 0.8) + 'Z', line ? '#fff' : '#dfe6eb', INK, 0.7); }
-        if (cut) { var zz = 'M' + x0 + ' ' + BRK, n = Math.max(4, Math.round(w / 14)); for (var q = 1; q <= n; q++) zz += 'L' + (x0 + w * (q - 0.5) / n) + ' ' + (BRK + (q % 2 ? -5 : 5)) + 'L' + (x0 + w * q / n) + ' ' + BRK; add(zz + 'V' + (BRK - 12) + 'H' + x0 + 'Z', '#ffffff', null, 0); add(zz, null, INK, 0.9); }
-        add('M' + x0 + ' ' + (G - h) + 'h' + w, null, INK, 1.6);
-        add('M' + (b[0] < 0 ? x1 - 6 : x1) + ' ' + (G - h - 2.5) + 'h6', null, INK, 1.2);
-        /* yozuv va tugmalar binoning koʻcha tomondagi yuqori burchagida */
-        /* yozuv va − / + — bino ichida, uzilish belgisidan pastda, markazda */
-        var lx = x0 + w / 2, ly = G - h + (cut ? 50 : 20);
-        add(Rr(lx - 30, ly - 13, 60, 52, 6), '#ffffff', '#d6d3cc', 0.6, 0.94);
-        tx(lx, ly, nF + ' qavat', 11, '#141414', 700, 'Archivo, sans-serif', 'middle');
-        tx(lx, ly + 12, '≈ ' + fm(Math.round(hM * 10) / 10) + ' m', 8.5, LIGHT, 400, 'IBM Plex Mono, monospace', 'middle');
-        var bx0 = lx - 25, side = b[0] < 0 ? 'bL' : 'bR';
-        BB.push({ x: bx0, y: ly + 17, t: '−', on: function () { var o = {}; o[side] = Math.max(1, self.state[side] - 1); self.setState(o); } });
-        BB.push({ x: bx0 + 28, y: ly + 17, t: '+', on: function () { var o = {}; o[side] = Math.min(30, self.state[side] + 1); self.setState(o); } });
+        var BRK = cut ? ytop + Math.min(40, h * 0.25) : -1;
+        add('M' + xa + ' ' + ytop + 'H' + xb + 'V' + G + 'H' + xa + 'Z', line ? '#fff' : '#f4f3f0', null, 0);
+        /* yopmalar */
+        for (var f = 1; f < nF; f++) { var yy = fy(f); if (yy <= ytop + 1) break; if (cut && yy < BRK + 14 && yy > BRK - 14) continue; add('M' + xa + ' ' + yy + 'H' + xb, null, '#cfcbc3', f === 1 ? 1 : 0.7); }
+        /* qavat raqamlari — fasad yonida, qavat oʻrtasida */
+        var fh = 3.2 * px, nx = b[0] < 0 ? fx - 5 : fx + 5, an = b[0] < 0 ? 'end' : 'start';
+        if (fh >= 9) for (var f3 = 1; f3 <= nF; f3++) { var y0 = fy(f3 - 1), y1 = f3 === nF ? G - full : fy(f3), ym = (y0 + y1) / 2 + 3; if (y1 < ytop - 1 || (cut && ym > BRK - 10 && ym < BRK + 16)) continue; tx(nx, ym, String(f3), 7.5, LIGHT, 500, 'IBM Plex Mono, monospace', an); }
+        if (cut) tx(nx, ytop + 10, String(nF), 7.5, LIGHT, 500, 'IBM Plex Mono, monospace', an);
+        /* kontur: fasad va tom — qalin; ichki tomon — uzilish yoki chegara */
+        add('M' + fx + ' ' + G + 'V' + ytop + 'H' + xo, null, INK, 1.5);
+        if (deep) { var zx2 = 'M' + xo + ' ' + ytop, m = Math.max(3, Math.round(h / 18)); for (var q = 1; q <= m; q++) zx2 += 'L' + (xo + (q % 2 ? 4 : -4)) + ' ' + (ytop + h * (q - 0.5) / m) + 'L' + xo + ' ' + (ytop + h * q / m); add(zx2, null, '#a19e97', 0.8); }
+        else add('M' + xo + ' ' + ytop + 'V' + G, null, INK, 0.8);
+        if (cut) { var zz = 'M' + xa + ' ' + BRK, n = Math.max(4, Math.round(wB / 12)); for (var q2 = 1; q2 <= n; q2++) zz += 'L' + (xa + wB * (q2 - 0.5) / n) + ' ' + (BRK + (q2 % 2 ? -4 : 4)) + 'L' + (xa + wB * q2 / n) + ' ' + BRK; add(zz + 'V' + (BRK - 9) + 'H' + xa + 'Z', line ? '#fff' : '#f4f3f0', null, 0); add(zz, null, '#8f8a80', 0.8); }
+        /* sath belgisi: tom ustida, fasad tomonda */
+        var tkx = b[0] < 0 ? fx + 2 : fx - 2; add('M' + tkx + ' ' + ytop + 'h' + (b[0] < 0 ? 10 : -10) + 'M' + (tkx + (b[0] < 0 ? 4 : -4)) + ' ' + (ytop - 4) + 'l' + (b[0] < 0 ? -3 : 3) + ' 4l' + (b[0] < 0 ? 3 : -3) + ' 0z', null, INK, 0.8);
+        tx(b[0] < 0 ? fx + 14 : fx - 14, ytop + 3, '+' + fm(Math.round(hM * 10) / 10), 7.5, INK, 500, 'IBM Plex Mono, monospace', b[0] < 0 ? 'start' : 'end');
+        /* yozuv va − / + — binoning ichki (koʻchadan uzoq) yuqori burchagida */
+        var cw2 = 62, lx = b[0] < 0 ? Math.max(xa + 6, fx - 22 - cw2) : Math.min(xb - 6 - cw2, fx + 22), ly = (cut ? BRK + 12 : ytop + 8);
+        if (wB < cw2 + 30) lx = (xa + xb) / 2 - cw2 / 2;
+        add(Rr(lx, ly, cw2, 46, 6), '#ffffff', '#d6d3cc', 0.6, 0.95);
+        tx(lx + cw2 / 2, ly + 14, nF + ' qavat', 10.5, '#141414', 700, 'Archivo, sans-serif', 'middle');
+        var side = b[0] < 0 ? 'bL' : 'bR';
+        BB.push({ x: lx + 6, y: ly + 22, t: '−', on: function () { var o = {}; o[side] = Math.max(1, self.state[side] - 1); self.setState(o); } });
+        BB.push({ x: lx + cw2 - 28, y: ly + 22, t: '+', on: function () { var o = {}; o[side] = Math.min(30, self.state[side] + 1); self.setState(o); } });
       });
       add('M' + X(-SB) + ' ' + G + 'H' + X(0) + 'V' + (G + 3) + 'H' + X(-SB) + 'Z', line ? '#fff' : '#e9e6df', INK, 0.8); add('M' + X(rl) + ' ' + G + 'H' + X(rl + SB) + 'V' + (G + 3) + 'H' + X(rl) + 'Z', line ? '#fff' : '#e9e6df', INK, 0.8);
       var pIdx = (s.tplName.length * 3) % 7, PPL = ['ayol_yurgan', 'erkak_yurgan', 'ona_bola', 'telefon', 'ayol_koylak', 'ryukzak', 'erkak_turgan', 'aravacha', 'ayol_sumka', 'qariya', 'yuguruvchi', 'erkak_palto', 'ayol_palto', 'qol_kotargan', 'erkak_3'];
