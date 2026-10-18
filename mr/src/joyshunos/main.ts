@@ -14,7 +14,7 @@ import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, fmt } from '../ui/dom';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
-import { mapStyle, basePrefs } from '../context/mapstyle';
+import { mapStyle, basePrefs, setBasePrefs, PALETTES } from '../context/mapstyle';
 import { geocode, type Place } from '../context/geocode';
 import { bboxAround } from '../context/osm';
 import { loadTerrain, TERRAIN_URL, type TerrainGrid } from '../context/tiles';
@@ -48,7 +48,7 @@ const GROUPS: [Group, string][] = [['yer', 'Yer'], ['iqlim', 'Iqlim'], ['shahar'
 const SVC_KINDS: Svc[] = ['maktab', 'mtm', 'poliklinika', 'dorixona', 'savdo', 'sport', 'bekat', 'metro'];
 const SVC_COL: Record<Svc, string> = { maktab: '#2f6da8', mtm: '#e08a3c', poliklinika: '#c2416b', dorixona: '#2b7449', savdo: '#8b4a9c', sport: '#0f8a7e', mahalla: '#6b6965', bekat: '#4c5bd4', metro: '#141414' };
 const SVC_SHORT: Record<Svc, string> = { maktab: 'maktab', mtm: 'bogʻcha', poliklinika: 'poliklinika', dorixona: 'dorixona', savdo: 'savdo', sport: 'sport', mahalla: 'mahalla', bekat: 'bekat', metro: 'metro' };
-const RADII = [300, 500, 800];
+const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
@@ -63,7 +63,7 @@ const isOn = (id: LayerId) => S.on.includes(id);
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
-const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number }> } =
+const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[] }> } =
   { addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' } };
 const ctx = new ContextManager();
 let climate: Climate | null = null;
@@ -235,8 +235,11 @@ function renderAsk(): void {
     h('button', { type: 'button', class: 'btn btn-primary btn-sm', disabled: true, title: tr('Server ishga tushgach') }, tr('Soʻrash')));
 }
 function renderBase(): void {
+  const P = PALETTES[palKey()];
   baseSw.replaceChildren(h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fon xarita') },
-    ...([['stil', 'Stil'], ['sat', 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': S.base === k, onclick: () => { S.base = k; save(); renderBase(); restyle(); } }, tr(n)))));
+    ...([['stil', 'Stil'], ['sat', 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': S.base === k, onclick: () => { S.base = k; save(); renderBase(); restyle(); } }, tr(n)))),
+    h('button', { type: 'button', class: 'joy-palbtn', id: 'palBtn', 'aria-expanded': palOpen, title: tr('Xarita uslubi'), onclick: () => { palOpen = !palOpen; renderBase(); } }, h('i', { style: `background:linear-gradient(135deg, ${P.bg} 0 45%, ${P.bld} 45% 70%, ${P.water} 70%)` }), tr(P.n), ic(ICON.chev)),
+    ...(palOpen ? [palMenu(() => { palOpen = false; S.base = 'stil'; save(); renderBase(); restyle(); })] : []));
 }
 
 /* ---------------- maʼlumot yuklash ---------------- */
@@ -277,7 +280,7 @@ function ensure(): void {
   });
   if (isOn('shamol') && D.wind.st === 'idle') run('wind', async () => {
     if (!climate) { const res = await fetch('./climate/uz_climate.json'); if (!res.ok) throw new Error(`${res.status}`); climate = await res.json() as Climate; }
-    const { s, km } = nearestStation(climate, c[0], c[1]); return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km };
+    const { s, km } = nearestStation(climate, c[0], c[1]); return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km, bins: climate.bins };
   });
 }
 const memo = new Map<string, Comp[]>();
@@ -295,9 +298,14 @@ let map: MLMap | null = null;
 let rose: Marker | null = null, rlab: Marker | null = null;
 const fc = (features: unknown[]) => ({ type: 'FeatureCollection', features });
 const pt = (c: LngLat, p: Record<string, unknown> = {}) => ({ type: 'Feature', properties: p, geometry: { type: 'Point', coordinates: c } });
-function style(): unknown {
-  const pal = isDark() ? 'dark' : basePrefs().pal;
-  return mapStyle(S.base, pal === 'dark' && !isDark() ? 'arch' : pal, basePrefs().labels);
+/** Palitra: foydalanuvchi tanlovi; tungi rejimda sukut boʻyicha «Grafit» */
+function palKey(): string { const p = basePrefs().pal; return isDark() && p === 'arch' ? 'dark' : p; }
+function style(): unknown { return mapStyle(S.base, palKey(), basePrefs().labels); }
+let palOpen = false;
+function palMenu(onPick: () => void): HTMLElement {
+  const cur = palKey();
+  return h('div', { class: 'joy-pal', role: 'listbox', 'aria-label': tr('Xarita uslubi') }, ...Object.entries(PALETTES).map(([k, p]) => h('button', { type: 'button', role: 'option', 'aria-selected': k === cur, 'data-pal': k, title: tr(p.n), onclick: () => { setBasePrefs({ pal: k }); onPick(); } },
+    h('i', { style: `background:linear-gradient(135deg, ${p.bg} 0 45%, ${p.bld} 45% 70%, ${p.water} 70%)` }), tr(p.n))));
 }
 async function initMap(): Promise<void> {
   const ml = (await import('maplibre-gl')).default;
@@ -397,8 +405,8 @@ type AxoMod = typeof import('./axo');
 let AX: AxoMod | null = null;
 let axo: InstanceType<AxoMod['Axo']> | null = null;
 let axBundle: { key: string; b: ContextBundle } | null = null, axMsg = '', axSat = false, axBusy = false;
-const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number } | null; } catch { return null; } })() ?? {};
-function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour })); } catch { /* */ } }
+const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean } | null; } catch { return null; } })() ?? {};
+function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate })); } catch { /* */ } }
 function renderMode(): void {
   modeSw.replaceChildren(h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') },
     ...([['map', 'Xarita'], ['axo', 'Aksonometriya']] as const).map(([k, n]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, onclick: () => setMode(k) }, tr(n)))));
@@ -417,7 +425,7 @@ async function enterAxo(): Promise<void> {
     if (AXST.view === 'plan' || AXST.view === 'axo' || AXST.view === 'persp') axo.view = AXST.view;
     if (Array.isArray(AXST.order) && AXST.order.length === AX.AX_LAYERS.length) axo.order = AXST.order as typeof axo.order;
     if (AXST.vis) Object.assign(axo.vis, AXST.vis);
-    axo.exploded = !!AXST.ex; if (AXST.gap) axo.gap = AXST.gap; if (AXST.day != null) axo.day = AXST.day; if (AXST.hour != null) axo.hour = AXST.hour;
+    axo.exploded = !!AXST.ex; if (AXST.gap) axo.gap = AXST.gap; if (AXST.day != null) axo.day = AXST.day; if (AXST.hour != null) axo.hour = AXST.hour; if (AXST.anim === false) axo.animate = false;
     axo.onChange = () => renderNotes();
     (window as unknown as { joyAxo: unknown }).joyAxo = axo;
   }
@@ -444,8 +452,8 @@ function axBuild(): void {
     for (const p of D.poi.v?.pois ?? []) if (SVC_KINDS.includes(p.kind) && distM(S.c, p.at) <= S.r) pins.push({ at: p.at, label: p.name || tr(SVC_SHORT[p.kind]), col: SVC_COL[p.kind] });
     const cat = CATS.find(c => c.id === S.cat) ?? CATS[0];
     for (const c of D.comp.v ?? []) if (c.d <= S.r) pins.push({ at: c.at, label: c.name || tr(cat.name), col: '#7a5a3c' });
-    const w = D.wind.v?.w;
-    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, petals: w?.petals ?? null, prevailing: w ? w.k * 22.5 : null, sat: axSat, dark: isDark() });
+    const w = D.wind.v;
+    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark(), pal: PALETTES[palKey()] });
     renderNotes();
   }, 150);
 }
@@ -464,15 +472,17 @@ function renderAxo(): void {
     h('div', { class: 'seg vw', role: 'group', 'aria-label': tr('Koʻrinish') }, ...([['plan', 'Reja'], ['axo', 'Aksonometriya'], ['persp', '3D']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': a.view === k, onclick: () => { a.setView(k); axSave(); renderAxo(); } }, tr(n)))),
     h('div', { class: 'seg', role: 'group', 'aria-label': tr('Qatlamlar') }, ...([[false, 'Yigʻilgan'], [true, 'Yoyilgan']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': a.exploded === k, onclick: () => { a.setExplode(k); axSave(); renderAxo(); } }, tr(n)))),
     h('div', { class: 'row' }, h('span', { class: 't-small' }, tr('Oraliq')), h('div', { class: 'stepper' },
-      h('button', { type: 'button', 'aria-label': tr('Kamaytirish'), onclick: () => { a.setExplode(a.exploded, Math.max(20, a.gap - 10)); axSave(); renderAxo(); } }, '−'), h('span', {}, String(a.gap)),
-      h('button', { type: 'button', 'aria-label': tr('Oshirish'), onclick: () => { a.setExplode(a.exploded, Math.min(160, a.gap + 10)); axSave(); renderAxo(); } }, '+'))),
+      h('button', { type: 'button', 'aria-label': tr('Kamaytirish'), onclick: () => { a.setExplode(a.exploded, Math.max(60, a.gap - 40)); axSave(); renderAxo(); } }, '−'), h('span', {}, String(a.gap)),
+      h('button', { type: 'button', 'aria-label': tr('Oshirish'), onclick: () => { a.setExplode(a.exploded, Math.min(600, a.gap + 40)); axSave(); renderAxo(); } }, '+'))),
     h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fon') }, ...([[false, 'Maket'], [true, 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': axSat === k, onclick: () => { axSat = k; axBuild(); renderAxo(); } }, tr(n)))),
+    h('div', { class: 'glabel' }, tr('Uslub')),
+    (() => { const m = palMenu(() => { axBuild(); renderAxo(); renderBase(); }); m.classList.add('inline'); return m; })(),
     h('div', { class: 'glabel' }, tr('Qatlamlar · pastdan yuqoriga')),
     h('ol', { class: 'joy-axlist' }, ...a.order.map((id, i) => {
       const L = A.AX_LAYERS.find(l => l.id === id)!;
       return h('li', { 'data-ax': id, class: a.vis[id] ? '' : 'off' },
         h('button', { type: 'button', class: `check${a.vis[id] ? ' on' : ''}`, role: 'checkbox', 'aria-checked': a.vis[id], 'aria-label': tr(L.name), onclick: () => { a.vis[id] = !a.vis[id]; re(); } }, svgIcon('<path d="M5 12l5 5 9-10"/>')),
-        h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), h('i', { style: `background:${L.color}` }), h('span', { class: 'nm' }, tr(L.name)),
+        h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), h('i', { style: `background:${L.color}` }), h('span', { class: 'nm' }, tr(L.name), a.exploded && (id === 'shamol' || id === 'quyosh') ? h('small', {}, tr('yigʻilganda koʻrinadi')) : null),
         h('button', { type: 'button', class: 'mv', title: tr('Pastga'), 'aria-label': tr('Pastga'), disabled: i === 0, onclick: () => { [a.order[i - 1], a.order[i]] = [a.order[i], a.order[i - 1]]; re(); } }, '↓'),
         h('button', { type: 'button', class: 'mv', title: tr('Yuqoriga'), 'aria-label': tr('Yuqoriga'), disabled: i === a.order.length - 1, onclick: () => { [a.order[i + 1], a.order[i]] = [a.order[i], a.order[i + 1]]; re(); } }, '↑'));
     })),
@@ -495,6 +505,7 @@ function renderAxo(): void {
     h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kun') }, ...A.SUN_DAYS.map(([, , n], k) => h('button', { type: 'button', 'aria-pressed': a.day === k, onclick: () => { a.setTime(k, a.hour); axSave(); renderAxo(); } }, tr(n)))),
     rng, h('b', { class: 'tm', id: 'axTm' }, hh(hr)),
     h('span', { class: 'vr' }),
+    h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'axAnim', 'aria-pressed': a.animate, title: tr('Shamol strelkalari harakati'), onclick: () => { a.animate = !a.animate; axSave(); renderAxo(); } }, a.animate ? tr('❚❚ Shamol') : tr('▶ Shamol')),
     h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', title: tr('Yaqinlashtirish'), 'aria-label': tr('Yaqinlashtirish'), onclick: () => a.zoomBy(1.25) }, '+'),
     h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', title: tr('Uzoqlashtirish'), 'aria-label': tr('Uzoqlashtirish'), onclick: () => a.zoomBy(0.8) }, '−'),
     h('button', { type: 'button', class: 'btn btn-sm btn-ghost', title: tr('Koʻrinishni tiklash'), onclick: () => a.reset() }, tr('Markaz')),
@@ -520,7 +531,8 @@ function renderNotes(): void {
     row(tr('Shamol'), w ? `${tr(dir8(w.k * 22.5))} · ${fmt(w.share * 100)} %` : '—'),
     row(tr('Radius'), `${S.r} m`),
     h('div', { class: 'glabel' }, tr('Izohlar')),
-    h('ul', {}, it('#e8a317', 'Quyosh yoʻli (soatlar)'), it('#e8a317', 'Quyosh', 'big'), it('#3f8f6b', 'Shamol guli'), it('#3f8f6b', 'Ustun shamol yoʻnalishi', 'bar'),
+    h('ul', {}, it('#e8a317', 'Quyosh yoʻli (soatlar)'), it('#e0532c', 'Quyosh', 'big'), it('#3f8f6b', 'Shamol guli'),
+      ...(a?.flows ?? []).map((f, i) => h('li', {}, h('i', { class: 'bar', style: `background:${f.col}` }), tf('Shamol ${n}: ${d} · ${p} % · ${v} m/s', { n: i + 1, d: tr(dir8(f.deg)), p: fmt(f.share * 100), v: fmt(f.v, 1) }))),
       it('#4c5bd4', 'Xizmatlar'), it('#7a5a3c', 'Raqobatchilar'), it('#c0643a', 'Masofa halqalari', 'ring'), it('#6b6965', 'Binolar soyasi', 'sq')),
     h('p', { class: 't-small' }, tr('Binolar balandligi OSM dan; yozilmaganlari qavat soni yoki maydoniga qarab taxmin qilingan.')),
   );

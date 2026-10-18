@@ -111,10 +111,10 @@ export function parseComp(j: { elements?: El[] }, c: LngLat): Comp[] {
 }
 
 /* ---------------- shamol ---------------- */
-export interface WindSum { k: number; share: number; mean: number; calm: number; petals: number[] }
+export interface WindSum { k: number; share: number; mean: number; calm: number; petals: number[]; rose: number[][] }
 /** 16 sektor ulushi (barcha tezliklar), ustun yoʻnalish, oʻrtacha tezlik, tinch payt ulushi */
 export function windSummary(s: Station): WindSum {
   const petals = s.rose.map(r => r.reduce((a, b) => a + b, 0));
   let k = 0; petals.forEach((v, i) => { if (v > petals[k]) k = i; });
-  return { k, share: petals[k], mean: s.mean, calm: s.calm, petals };
+  return { k, share: petals[k], mean: s.mean, calm: s.calm, petals, rose: s.rose };
 }

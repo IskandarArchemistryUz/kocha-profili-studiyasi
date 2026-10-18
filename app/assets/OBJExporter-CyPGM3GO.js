@@ -1,4 +1,4 @@
-import{D as e,Mt as t,Nt as n,O as r,Q as i,xt as a}from"./sun-CGX2v12E.js";var o=class{parse(o){let s=``,c=0,l=0,u=0,d=new n,f=new e,p=new n,m=new t,h=[];function g(e){let t=0,n=0,r=0,a=e.geometry,o=new i,f=a.getAttribute(`position`),g=a.getAttribute(`normal`),_=a.getAttribute(`uv`),v=a.getIndex();if(s+=`o `+e.name+`
+import{D as e,Mt as t,Nt as n,O as r,Q as i,xt as a}from"./sun-B-Gripjy.js";var o=class{parse(o){let s=``,c=0,l=0,u=0,d=new n,f=new e,p=new n,m=new t,h=[];function g(e){let t=0,n=0,r=0,a=e.geometry,o=new i,f=a.getAttribute(`position`),g=a.getAttribute(`normal`),_=a.getAttribute(`uv`),v=a.getIndex();if(s+=`o `+e.name+`
 `,e.material&&e.material.name&&(s+=`usemtl `+e.material.name+`
 `),f!==void 0)for(let n=0,r=f.count;n<r;n++,t++)d.fromBufferAttribute(f,n),d.applyMatrix4(e.matrixWorld),s+=`v `+d.x+` `+d.y+` `+d.z+`
 `;if(_!==void 0)for(let e=0,t=_.count;e<t;e++,r++)m.fromBufferAttribute(_,e),s+=`vt `+m.x+` `+m.y+`
