@@ -227,3 +227,6 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-sty span{font-size:11px;color:var(--muted);line-height:1.25}
 .joy-sty button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 .joy-sty button[aria-pressed="true"] span{color:color-mix(in srgb,var(--surface) 70%,transparent)}
+
+.joy-l .src em.beta,.joy-card header .chip.beta{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.02em;padding:1px 6px;border-radius:var(--r-pill);background:var(--sel-soft);color:var(--sel);margin-left:4px}
+.joy-card header .chip.beta{margin-left:0}
