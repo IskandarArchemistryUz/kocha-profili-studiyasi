@@ -21,6 +21,7 @@ import { loadTerrain, TERRAIN_URL, type TerrainGrid } from '../context/tiles';
 import { overpass } from '../context/load';
 import { ContextManager } from '../context/manager';
 import type { PoiBundle } from '../context/poi';
+import type { ContextBundle } from '../context/load';
 import { svcDef, type Svc } from '../core/services';
 import { nearestStation, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
@@ -97,7 +98,10 @@ const right = h('aside', { class: 'joy-rp', id: 'joyRight', 'aria-label': tr('Jo
 const ask = h('div', { class: 'joy-ask glass', id: 'joyAsk' });
 const baseSw = h('div', { class: 'joy-base glass', id: 'joyBase' });
 const legend = h('div', { class: 'joy-legend glass', id: 'joyLegend', hidden: true });
-root.replaceChildren(mapEl, header, left, right, ask, baseSw, legend);
+const modeSw = h('div', { class: 'joy-mode glass', id: 'joyMode' });
+const axoEl = h('div', { class: 'joy-axo', id: 'joyAxo', hidden: true });
+const axL = h('aside', { class: 'joy-axl panel', id: 'joyAxL' }), axN = h('aside', { class: 'joy-notes glass', id: 'joyNotes' }), axT = h('div', { class: 'joy-time glass', id: 'joyTime' });
+root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, axL, axN, axT, modeSw);
 
 const ic = (d: string, cls = 'ic') => { const s = svgIcon(d); s.classList.add(cls); return s; };
 function renderHeader(): void {
@@ -236,7 +240,7 @@ function renderBase(): void {
 }
 
 /* ---------------- maʼlumot yuklash ---------------- */
-function setRadius(r: number): void { S.r = r; save(); D.comp = { st: 'idle' }; D.ter = { st: 'idle' }; renderRight(); paint(); frame(600); ensure(); }
+function setRadius(r: number): void { S.r = r; save(); D.comp = { st: 'idle' }; D.ter = { st: 'idle' }; renderRight(); paint(); frame(600); ensure(); if (mode === 'axo') void enterAxo(); }
 /** Doirani panellar orasidagi boʻsh joyga sigʻdirish */
 function frame(duration = 0): void {
   if (!map) return;
@@ -250,10 +254,11 @@ function pick(c: LngLat, fly = false): void {
   renderLeft(); renderRight(); paint();
   if (fly) frame(900);
   ensure();
+  if (mode === 'axo') void enterAxo();
 }
 function run<T>(k: keyof typeof D, job: () => Promise<T>): void {
   const my = seq; (D[k] as Ld<T>) = { st: 'load' };
-  job().then(v => { if (my !== seq) return; (D[k] as Ld<T>) = { st: 'ok', v }; renderRight(); paint(); })
+  job().then(v => { if (my !== seq) return; (D[k] as Ld<T>) = { st: 'ok', v }; renderRight(); paint(); if (mode === 'axo' && k !== 'ter') { if (k === 'addr') renderAxo(); else axBuild(); } })
     .catch(e => { if (my !== seq) return; (D[k] as Ld<T>) = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); });
 }
 function ensure(): void {
@@ -385,10 +390,156 @@ function roseSvg(p: number[]): string {
 }
 
 /* ---------------- ishga tushirish ---------------- */
-function renderAll(): void { renderHeader(); renderLeft(); renderRight(); renderAsk(); renderBase(); document.title = `${tr('Joyshunos')} · Archemistry Lab`; }
+/* ================= Aksonometriya («Joy-B» + «Joy-D») ================= */
+type Mode = 'map' | 'axo';
+let mode: Mode = location.hash.startsWith('#/axo') ? 'axo' : 'map';
+type AxoMod = typeof import('./axo');
+let AX: AxoMod | null = null;
+let axo: InstanceType<AxoMod['Axo']> | null = null;
+let axBundle: { key: string; b: ContextBundle } | null = null, axMsg = '', axSat = false, axBusy = false;
+const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number } | null; } catch { return null; } })() ?? {};
+function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour })); } catch { /* */ } }
+function renderMode(): void {
+  modeSw.replaceChildren(h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') },
+    ...([['map', 'Xarita'], ['axo', 'Aksonometriya']] as const).map(([k, n]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, onclick: () => setMode(k) }, tr(n)))));
+  root.classList.toggle('mode-axo', mode === 'axo'); axoEl.hidden = mode !== 'axo';
+}
+function setMode(m: Mode): void {
+  mode = m; history.replaceState(null, '', m === 'axo' ? '#/axo' : location.pathname + location.search);
+  renderMode();
+  if (m === 'axo') void enterAxo(); else { map?.resize(); }
+}
+async function enterAxo(): Promise<void> {
+  renderAxo();
+  if (!AX) { axMsg = tr('3D sahna yuklanmoqda…'); renderAxo(); AX = await import('./axo'); }
+  if (!axo) {
+    axo = new AX.Axo(axoEl);
+    if (AXST.view === 'plan' || AXST.view === 'axo' || AXST.view === 'persp') axo.view = AXST.view;
+    if (Array.isArray(AXST.order) && AXST.order.length === AX.AX_LAYERS.length) axo.order = AXST.order as typeof axo.order;
+    if (AXST.vis) Object.assign(axo.vis, AXST.vis);
+    axo.exploded = !!AXST.ex; if (AXST.gap) axo.gap = AXST.gap; if (AXST.day != null) axo.day = AXST.day; if (AXST.hour != null) axo.hour = AXST.hour;
+    axo.onChange = () => renderNotes();
+    (window as unknown as { joyAxo: unknown }).joyAxo = axo;
+  }
+  // maʼlumot: kontekst (binolar, yoʻllar, relyef) + xizmatlar, raqobatchilar, shamol
+  if (D.poi.st === 'idle') run('poi', () => ctx.loadPoi(S.c));
+  if (D.comp.st === 'idle') ensureComp();
+  if (D.wind.st === 'idle') ensureWind();
+  const R = S.r + 100, key = `${S.c.join()}|${R}`;
+  if (axBundle?.key !== key && !axBusy) {
+    axBusy = true; axMsg = tr('Binolar va relyef yuklanmoqda (OSM)…'); renderAxo();
+    const my = seq;
+    try { const b = await ctx.load(S.c, R, (m, f) => { axMsg = `${tr(m)} ${Math.round(f * 100)} %`; renderAxoMsg(); }); if (my === seq) axBundle = { key, b }; axMsg = ''; }
+    catch (e) { axMsg = `${tr('Kontekst yuklanmadi')}: ${(e as Error).message}`; }
+    axBusy = false;
+  }
+  axBuild(); renderAxo();
+}
+let axT0: ReturnType<typeof setTimeout> | undefined;
+function axBuild(): void {
+  clearTimeout(axT0);
+  axT0 = setTimeout(() => {
+    if (!axo || !axBundle || mode !== 'axo') return;
+    const pins: { at: LngLat; label: string; col: string }[] = [];
+    for (const p of D.poi.v?.pois ?? []) if (SVC_KINDS.includes(p.kind) && distM(S.c, p.at) <= S.r) pins.push({ at: p.at, label: p.name || tr(SVC_SHORT[p.kind]), col: SVC_COL[p.kind] });
+    const cat = CATS.find(c => c.id === S.cat) ?? CATS[0];
+    for (const c of D.comp.v ?? []) if (c.d <= S.r) pins.push({ at: c.at, label: c.name || tr(cat.name), col: '#7a5a3c' });
+    const w = D.wind.v?.w;
+    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, petals: w?.petals ?? null, prevailing: w ? w.k * 22.5 : null, sat: axSat, dark: isDark() });
+    renderNotes();
+  }, 150);
+}
+function ensureComp(): void { const keep = S.on; if (!isOn('raqobat')) S.on = [...S.on, 'raqobat']; ensure(); S.on = keep; }
+function ensureWind(): void { const keep = S.on; if (!isOn('shamol')) S.on = [...S.on, 'shamol']; ensure(); S.on = keep; }
+const axMsgEl = h('div', { class: 'joy-axmsg' });
+function renderAxoMsg(): void { axMsgEl.textContent = axMsg; axMsgEl.hidden = !axMsg; if (!axMsgEl.isConnected) axoEl.append(axMsgEl); }
+function renderAxo(): void {
+  renderAxoMsg();
+  const A = AX, a = axo;
+  if (!A || !a) { axL.replaceChildren(h('div', { class: 't-small' }, tr('Yuklanmoqda…'))); axT.replaceChildren(); renderNotes(); return; }
+  const re = () => { a.applyLayers(); axSave(); renderAxo(); };
+  axL.replaceChildren(
+    h('div', { class: 't-small' }, tr('Joyshunos · diagramma')),
+    h('div', { class: 'ttl' }, D.addr.v ?? `${S.c[1].toFixed(4)}, ${S.c[0].toFixed(4)}`),
+    h('div', { class: 'seg vw', role: 'group', 'aria-label': tr('Koʻrinish') }, ...([['plan', 'Reja'], ['axo', 'Aksonometriya'], ['persp', '3D']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': a.view === k, onclick: () => { a.setView(k); axSave(); renderAxo(); } }, tr(n)))),
+    h('div', { class: 'seg', role: 'group', 'aria-label': tr('Qatlamlar') }, ...([[false, 'Yigʻilgan'], [true, 'Yoyilgan']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': a.exploded === k, onclick: () => { a.setExplode(k); axSave(); renderAxo(); } }, tr(n)))),
+    h('div', { class: 'row' }, h('span', { class: 't-small' }, tr('Oraliq')), h('div', { class: 'stepper' },
+      h('button', { type: 'button', 'aria-label': tr('Kamaytirish'), onclick: () => { a.setExplode(a.exploded, Math.max(20, a.gap - 10)); axSave(); renderAxo(); } }, '−'), h('span', {}, String(a.gap)),
+      h('button', { type: 'button', 'aria-label': tr('Oshirish'), onclick: () => { a.setExplode(a.exploded, Math.min(160, a.gap + 10)); axSave(); renderAxo(); } }, '+'))),
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fon') }, ...([[false, 'Maket'], [true, 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': axSat === k, onclick: () => { axSat = k; axBuild(); renderAxo(); } }, tr(n)))),
+    h('div', { class: 'glabel' }, tr('Qatlamlar · pastdan yuqoriga')),
+    h('ol', { class: 'joy-axlist' }, ...a.order.map((id, i) => {
+      const L = A.AX_LAYERS.find(l => l.id === id)!;
+      return h('li', { 'data-ax': id, class: a.vis[id] ? '' : 'off' },
+        h('button', { type: 'button', class: `check${a.vis[id] ? ' on' : ''}`, role: 'checkbox', 'aria-checked': a.vis[id], 'aria-label': tr(L.name), onclick: () => { a.vis[id] = !a.vis[id]; re(); } }, svgIcon('<path d="M5 12l5 5 9-10"/>')),
+        h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), h('i', { style: `background:${L.color}` }), h('span', { class: 'nm' }, tr(L.name)),
+        h('button', { type: 'button', class: 'mv', title: tr('Pastga'), 'aria-label': tr('Pastga'), disabled: i === 0, onclick: () => { [a.order[i - 1], a.order[i]] = [a.order[i], a.order[i - 1]]; re(); } }, '↓'),
+        h('button', { type: 'button', class: 'mv', title: tr('Yuqoriga'), 'aria-label': tr('Yuqoriga'), disabled: i === a.order.length - 1, onclick: () => { [a.order[i + 1], a.order[i]] = [a.order[i], a.order[i + 1]]; re(); } }, '↑'));
+    })),
+    h('p', { class: 't-small' }, tr('Yoyilgan rejimda qatlamlar bir-biridan koʻtariladi; tartibini oʻqlar bilan almashtiring. Sichqoncha: chap — aylantirish, oʻng — surish, gʻildirak — masshtab.')),
+  );
+  // vaqt qatori
+  const hr = a.hour, pct = (hr - 5) / 15 * 100;
+  const rng = h('div', { class: 'range', role: 'slider', tabindex: 0, 'aria-label': tr('Soat'), 'aria-valuemin': 5, 'aria-valuemax': 20, 'aria-valuenow': hr }, h('b'), h('em', { style: `width:${pct}%` }), h('i', { style: `left:${pct}%` }));
+  const setH = (v: number) => { a.setTime(a.day, Math.round(Math.min(20, Math.max(5, v)) * 4) / 4); axSave(); renderAxoTime(); };
+  rng.addEventListener('pointerdown', e => {
+    const box = rng.getBoundingClientRect(), mv = (ev: PointerEvent) => setH(5 + (ev.clientX - box.left) / box.width * 15);
+    mv(e as PointerEvent); rng.setPointerCapture((e as PointerEvent).pointerId);
+    const up = () => { rng.removeEventListener('pointermove', mv as EventListener); rng.removeEventListener('pointerup', up); };
+    rng.addEventListener('pointermove', mv as EventListener); rng.addEventListener('pointerup', up);
+  });
+  rng.addEventListener('keydown', e => { if (e.key === 'ArrowRight') setH(a.hour + 0.25); if (e.key === 'ArrowLeft') setH(a.hour - 0.25); });
+  const hh = (v: number) => `${Math.floor(v)}:${String(Math.round((v % 1) * 60)).padStart(2, '0')}`;
+  axT.replaceChildren(
+    h('span', { class: 't-small' }, tr('Vaqt')),
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kun') }, ...A.SUN_DAYS.map(([, , n], k) => h('button', { type: 'button', 'aria-pressed': a.day === k, onclick: () => { a.setTime(k, a.hour); axSave(); renderAxo(); } }, tr(n)))),
+    rng, h('b', { class: 'tm', id: 'axTm' }, hh(hr)),
+    h('span', { class: 'vr' }),
+    h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', title: tr('Yaqinlashtirish'), 'aria-label': tr('Yaqinlashtirish'), onclick: () => a.zoomBy(1.25) }, '+'),
+    h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', title: tr('Uzoqlashtirish'), 'aria-label': tr('Uzoqlashtirish'), onclick: () => a.zoomBy(0.8) }, '−'),
+    h('button', { type: 'button', class: 'btn btn-sm btn-ghost', title: tr('Koʻrinishni tiklash'), onclick: () => a.reset() }, tr('Markaz')),
+    h('button', { type: 'button', class: 'btn btn-sm', disabled: true, title: tr('Tez orada') }, 'SVG'),
+    h('button', { type: 'button', class: 'btn btn-sm', disabled: true, title: tr('Tez orada') }, tr('Chizmadonga')),
+    h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'axPng', onclick: () => void exportPng() }, 'PNG · 4K'),
+  );
+  function renderAxoTime(): void { if (!a) return; const p = (a.hour - 5) / 15 * 100; (rng.querySelector('em') as HTMLElement).style.width = `${p}%`; (rng.querySelector('i') as HTMLElement).style.left = `${p}%`; rng.setAttribute('aria-valuenow', String(a.hour)); const t = document.getElementById('axTm'); if (t) t.textContent = hh(a.hour); }
+  renderNotes();
+}
+function renderNotes(): void {
+  if (mode !== 'axo') return;
+  const a = axo, A = AX, s = a?.sunInfo(), w = D.wind.v?.w, dayName = a && A ? tr(A.SUN_DAYS[a.day][2]) : '—', hrs = a ? a.hour : null;
+  const hh = (v: number) => `${Math.floor(v)}:${String(Math.round((v % 1) * 60)).padStart(2, '0')}`;
+  const row = (k: string, v: string) => h('div', { class: 'kv' }, h('span', {}, k), h('b', {}, v));
+  const it = (c: string, n: string, kind = 'dot') => h('li', {}, h('i', { class: kind, style: `background:${c}` }), tr(n));
+  axN.replaceChildren(
+    h('div', { class: 'ttl' }, 'Archemistry Lab'),
+    row(tr('Joylashuv'), `${S.c[1].toFixed(4)}, ${S.c[0].toFixed(4)}`),
+    row(tr('Kun'), dayName),
+    row(tr('Vaqt'), hrs != null ? `${hh(hrs)} (UTC+5)` : '—'),
+    row(tr('Quyosh'), s ? (s.alt > 0 ? tf('balandlik ${a}°, azimut ${z}°', { a: fmt(s.alt), z: fmt(s.az) }) : tr('ufqdan past')) : '—'),
+    row(tr('Shamol'), w ? `${tr(dir8(w.k * 22.5))} · ${fmt(w.share * 100)} %` : '—'),
+    row(tr('Radius'), `${S.r} m`),
+    h('div', { class: 'glabel' }, tr('Izohlar')),
+    h('ul', {}, it('#e8a317', 'Quyosh yoʻli (soatlar)'), it('#e8a317', 'Quyosh', 'big'), it('#3f8f6b', 'Shamol guli'), it('#3f8f6b', 'Ustun shamol yoʻnalishi', 'bar'),
+      it('#4c5bd4', 'Xizmatlar'), it('#7a5a3c', 'Raqobatchilar'), it('#c0643a', 'Masofa halqalari', 'ring'), it('#6b6965', 'Binolar soyasi', 'sq')),
+    h('p', { class: 't-small' }, tr('Binolar balandligi OSM dan; yozilmaganlari qavat soni yoki maydoniga qarab taxmin qilingan.')),
+  );
+}
+async function exportPng(): Promise<void> {
+  if (!axo) return;
+  const b = document.getElementById('axPng') as HTMLButtonElement | null; if (b) { b.disabled = true; b.textContent = '…'; }
+  try {
+    const blob = await axo.png(3840), u = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = u; a.download = `joyshunos-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}.png`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+  } catch (e) { alert((e as Error).message); }
+  if (b) { b.disabled = false; b.textContent = 'PNG · 4K'; }
+}
+
+function renderAll(): void { renderHeader(); renderLeft(); renderRight(); renderAsk(); renderBase(); renderMode(); if (mode === 'axo') renderAxo(); document.title = `${tr('Joyshunos')} · Archemistry Lab`; }
 renderAll();
 onLang(() => { renderAll(); paint(); document.documentElement.lang = getLang(); });
-onTheme(() => { renderHeader(); restyle(); });
+onTheme(() => { renderHeader(); restyle(); if (mode === 'axo') axBuild(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && catOpen) { catOpen = false; renderRight(); } });
 void initMap().catch(e => { mapEl.append(h('div', { class: 'joy-maperr note warn' }, tr('Xarita yuklanmadi'), ': ', String((e as Error).message || e))); });
 ensure();
+if (mode === 'axo') void enterAxo();
