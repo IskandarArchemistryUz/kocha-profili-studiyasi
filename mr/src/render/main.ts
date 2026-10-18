@@ -14,6 +14,8 @@ import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
 import { PROV, STY, SUBJECTS, FIDELITY, ROLES, RUN, NoImage, buildPrompt, loadState, saveState, modelOf, shrink, type ProvId, type RefRole, type Subject, type Fidelity } from './providers';
 import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
+import { initStats, track } from '../core/stats';
+initStats('ren');
 
 const ICON = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -192,6 +194,7 @@ function renderRight(): void {
 /* ---------------- render ---------------- */
 async function go(): Promise<void> {
   const b = base(); if (!b || busy) return;
+  track('ren/run');
   const key = (A.key[A.prov] || '').trim(), model = modelOf(A);
   if (!key) { err = tr('API kalitini kiriting.'); keyOpen = true; renderRight(); return; }
   err = ''; busy = true;

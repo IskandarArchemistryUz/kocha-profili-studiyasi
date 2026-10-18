@@ -9,6 +9,8 @@ import { listProjects, getProject, putProject, deleteProject, importJSON, type P
 import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
 import { tr, autoTranslate } from './i18n';
+import { initStats } from './core/stats';
+initStats('mr', /chizmadon/.test(location.hash) ? 'chizmadon' : '');
 autoTranslate();
 
 const root = document.getElementById('root')!;

@@ -12,6 +12,8 @@ import { logoSvg } from '../ui/logo';
 import { tr, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { mount, type DCLogic, type Mounted } from './dc';
 import { exportSvg, exportPdf, sendToChizmadon, saveJson, openJson } from './io';
+import { initStats } from '../core/stats';
+initStats('ks');
 
 type BoardId = 'a' | 'b' | 'c' | 'e' | 'grafika' | 'varaq';
 interface BoardDef { load: () => Promise<{ default: new (p?: Record<string, unknown>) => DCLogic }>; tpl: () => Promise<{ default: string }>; title: string }
