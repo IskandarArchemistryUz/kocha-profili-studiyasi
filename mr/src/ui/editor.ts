@@ -2506,7 +2506,7 @@ export class Editor {
     };
   }
   /** Chizmadon (CH-Yagona): albom loyiha bilan saqlanadi; Varaqlardan kelgan xarita — «Loyihadan» */
-  private openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
+  openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
     const doc = this.store.doc;
     openChizmadon({
       project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', data: doc.chizmadon, incoming,

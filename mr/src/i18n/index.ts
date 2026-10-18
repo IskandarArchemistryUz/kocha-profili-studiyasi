@@ -15,11 +15,11 @@ const KEY = 'mr-lang';
 const S = (data as unknown as { strings: Record<string, [string, string, string]> }).strings;
 const IDX: Record<Lang, number> = { uz: 0, en: 1, ru: 2 };
 
-let lang: Lang = (() => { try { const v = localStorage.getItem(KEY); if (v === 'uz' || v === 'en' || v === 'ru') return v; } catch { /* */ } return 'uz'; })();   // sukut — oʻzbekcha; foydalanuvchi tanlovi saqlanadi
+let lang: Lang = (() => { try { const v = localStorage.getItem(KEY) ?? localStorage.getItem('kps_lang'); if (v === 'uz' || v === 'en' || v === 'ru') return v; } catch { /* */ } return 'uz'; })();   // sukut — oʻzbekcha; foydalanuvchi tanlovi saqlanadi
 const subs = new Set<() => void>();
 
 export const getLang = (): Lang => lang;
-export function setLang(l: Lang): void { if (l === lang) return; lang = l; try { localStorage.setItem(KEY, l); } catch { /* */ } document.documentElement.lang = l; subs.forEach(f => f()); }
+export function setLang(l: Lang): void { if (l === lang) return; lang = l; try { localStorage.setItem(KEY, l); localStorage.setItem('kps_lang', l); } catch { /* eski sahifalar (js/i18n.js) ham shu tilda */ } document.documentElement.lang = l; subs.forEach(f => f()); }
 export function onLang(f: () => void): () => void { subs.add(f); return () => subs.delete(f); }
 
 /** ${…} boʻlaklarga ajratish: [matn, ifoda, matn, ifoda, …] */
