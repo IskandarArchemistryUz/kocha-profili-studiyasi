@@ -25,6 +25,30 @@ const BOARDS: Record<BoardId, BoardDef> = {
 };
 const MODE_KEY: Record<string, BoardId | 'd'> = { A: 'a', B: 'b', C: 'c', D: 'd', E: 'e' };
 
+/* ---------- tayyor qismlar (2026-10-18, Iskandar: «tayyor qismlarni chiqaramiz, tayyormaslarini yashirib — tez orada») ----------
+ * Saytda: B (Kesim va Reja koʻrinishlari) va Albom varagʻi. Qolganlari — «Tez orada» belgisi bilan, bosilmaydi;
+ * Grafik kutubxona — butunlay yashirin. «?beta» bilan ochilsa (brauzerda eslab qolinadi) — hammasi ochiq, ishlab chiqish uchun. */
+const BETA = (() => {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.has('beta')) localStorage.setItem('ks-beta', q.get('beta') === '0' ? '0' : '1');
+    return localStorage.getItem('ks-beta') === '1';
+  } catch { return false; }
+})();
+const READY_BOARDS = new Set<BoardId>(['b', 'varaq']);
+const READY_MODES = new Set(['B']);
+const READY_VIEWS = new Set([0, 1]);   // B: Kesim, Reja
+const ready = (id: BoardId) => BETA || READY_BOARDS.has(id);
+const SOON = () => tr('Tez orada');
+/** Shablon qiymatlari: tayyor boʻlmagan rejim tugmalariga belgi, B koʻrinishlaridan faqat tayyorlari */
+function gate(v: Record<string, unknown>): Record<string, unknown> {
+  if (BETA) return v;
+  const o = { ...v };
+  if (Array.isArray(o.modes)) o.modes = (o.modes as { k: string }[]).map(m => READY_MODES.has(m.k) ? m : { ...m, dis: 'true', soon: SOON() });
+  if (Array.isArray(o.views)) o.views = (o.views as unknown[]).filter((_x, i) => READY_VIEWS.has(i));
+  return o;
+}
+
 /* ---------- saqlash ---------- */
 /** B va Varaq uchun umumiy koʻcha (kesim) maʼlumoti */
 const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'gfx', 'showU'];
@@ -69,7 +93,7 @@ function renderHeader(): void {
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name)))),
     h('span', { class: 'sp' }),
-    (() => { const b = ib('ksGrafika', 'Grafik kutubxona', ICON.lib, () => go('grafika')); b.setAttribute('aria-pressed', String(cur === 'grafika')); return b; })(),
+    ...(BETA ? [(() => { const b = ib('ksGrafika', 'Grafik kutubxona', ICON.lib, () => go('grafika')); b.setAttribute('aria-pressed', String(cur === 'grafika')); return b; })()] : []),
     (() => { const b = ib('ksVaraq', 'Albom varagʻi', ICON.sheet, () => go('varaq')); b.setAttribute('aria-pressed', String(cur === 'varaq')); return b; })(),
     ib('ksSave', 'Koʻchasoz faylini saqlash (.json)', ICON.save, () => saveJson(allState())),
     ib('ksOpen', 'Faylni ochish', ICON.open, () => openJson(o => { restoreAll(o); toast(tr('Fayl ochildi')); })),
@@ -82,8 +106,8 @@ function renderHeader(): void {
 
 /* ---------- marshrut ---------- */
 function route(): { id: BoardId } {
-  const m = /^#\/(a|b|c|e|grafika|varaq)\b/.exec(location.hash);
-  return { id: (m?.[1] as BoardId) ?? 'b' };
+  const m = /^#\/(a|b|c|e|grafika|varaq)\b/.exec(location.hash), id = (m?.[1] as BoardId) ?? 'b';
+  return { id: ready(id) ? id : 'b' };
 }
 function go(id: BoardId): void { location.hash = `#/${id}`; }
 
@@ -106,10 +130,12 @@ async function show(): Promise<void> {
     const { pendingTpl: _p, ...rest } = street; LS.set('ks-street', rest);
   }
   if (id === 'varaq') inst.state = { ...inst.state, sel: -1, selU: -1 };
+  if (id === 'b' && !BETA && !READY_VIEWS.has(inst.state.view as number)) inst.state = { ...inst.state, view: 0 };
   let t: ReturnType<typeof setTimeout> | undefined;
   inst.__changed = () => { clearTimeout(t); t = setTimeout(() => persist(id, inst), 200); };
   stage.dataset.board = id;
-  const m = mount(stage, tpl.default, inst);
+  if (location.hash !== `#/${id}`) history.replaceState(null, '', `#/${id}`);
+  const m = mount(stage, tpl.default, inst, gate);
   current = { id, m };
   (window as unknown as { __ks: unknown }).__ks = current;   // e2e testlar uchun
 }
@@ -137,6 +163,7 @@ stage.addEventListener('click', e => {
   const tab = t.closest('.mtab');
   if (tab) {
     const k = MODE_KEY[tab.querySelector('b')?.textContent?.trim() ?? ''];
+    if (tab.getAttribute('aria-disabled') === 'true') { toast(tr('Tez orada — bu boʻlim hali ishlab chiqilmoqda')); return; }
     if (k === 'd') { toast(tr('D · Koʻcha muhiti — maketi hali chizilmagan')); return; }
     if (k) go(k);
     return;

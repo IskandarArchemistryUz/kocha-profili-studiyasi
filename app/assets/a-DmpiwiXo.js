@@ -1,6 +1,6 @@
 var e=`<div class="ws ws-a">
   <div class="mtabs" style="position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(236,235,232,.9); z-index: 3;">
-    <sc-for list="{{modes}}" as="m"><button class="mtab" aria-pressed="{{m.p}}"><b>{{m.k}}</b>{{m.n}}</button></sc-for>
+    <sc-for list="{{modes}}" as="m"><button class="mtab" aria-pressed="{{m.p}}" aria-disabled="{{m.dis}}"><b>{{m.k}}</b>{{m.n}}<em class="soon">{{m.soon}}</em></button></sc-for>
   </div>
   <aside class="panel" style="position: absolute; top: 76px; left: 12px; width: 262px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; z-index: 2;">
     <div><span class="t-foot">Tarmoq</span><b style="display: block; font-size: 17px;">Namuna hudud</b><span class="t-foot">1,5 × 1,6 km · {{nStreets}} ta koʻcha</span></div>

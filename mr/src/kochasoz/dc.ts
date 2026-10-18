@@ -153,7 +153,8 @@ function morph(live: Node, next: Node): void {
 export interface Mounted { inst: DCLogic; root: HTMLElement; render: () => void; destroy: () => void }
 
 /** Shablonni host ichiga oʻrnatish */
-export function mount(host: HTMLElement, template: string, inst: DCLogic): Mounted {
+/** post — bogʻlanish qiymatlarini qobiq tomonidan oʻzgartirish (masalan, tayyor boʻlmagan rejimlar belgisi) */
+export function mount(host: HTMLElement, template: string, inst: DCLogic, post?: (v: Record<string, unknown>) => Record<string, unknown>): Mounted {
   const tpl = document.createElement('template');
   tpl.innerHTML = template;
   const src = tpl.content;
@@ -164,7 +165,7 @@ export function mount(host: HTMLElement, template: string, inst: DCLogic): Mount
   const render = () => {
     raf = 0;
     let vals: Record<string, unknown>;
-    try { vals = inst.renderVals(); } catch (e) { console.error(e); return; }
+    try { vals = inst.renderVals(); if (post) vals = post(vals); } catch (e) { console.error(e); return; }
     const frag = document.createElement('div');
     build(src, [{ props: inst.props }, vals], frag, false);
     if (!root.firstChild) { frag.childNodes.forEach(adopt); root.append(...Array.from(frag.childNodes)); }

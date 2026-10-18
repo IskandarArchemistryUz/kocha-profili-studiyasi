@@ -109,3 +109,15 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 @media (max-width:1180px){
   .ws-varaq>div:first-child>.t-foot,.ws-grafika>div:first-child>.t-foot{display:none}
 }
+/* tayyor boʻlmagan rejim — «Tez orada» */
+.ws .mtab em.soon{font-style:normal;font-size:10px;font-weight:600;letter-spacing:.02em;padding:2px 7px;border-radius:var(--r-pill);background:var(--fill);color:var(--muted);margin-left:2px}
+.ws .mtab em.soon:empty{display:none}
+.ws .mtab[aria-disabled="true"]{cursor:default;color:var(--faint)}
+.ws .mtab[aria-disabled="true"]:hover{color:var(--faint)}
+.ws .mtab[aria-disabled="true"] b{color:var(--faint)}
+@media (max-width:1180px){ .ws .mtab em.soon{display:none} }
+.ws .mtab[aria-disabled="true"]{padding:0 9px;gap:6px}
+.ws .mtab em.soon{font-size:9.5px;padding:1px 6px}
+@media (min-width:1281px){ .ws .mtabs{left:calc(286px + (100% - 658px) / 2) !important} }
+/* B: koʻrinish tanlagich oʻngda (chizma sarlavhasini yopmaydi) */
+.ws-b main .card>div:first-child>.seg:first-child{order:3}
