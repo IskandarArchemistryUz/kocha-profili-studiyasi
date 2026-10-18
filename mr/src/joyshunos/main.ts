@@ -25,6 +25,10 @@ import { frame as geoFrame } from '../core/geo';
 import { distAt, type Net } from '../core/services';
 import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
+import { loadLst, lstStats, lstTile, parseCmap, LST_CMAP, LST_BINS, lstColor, type LstGrid, type Px } from './heat';
+import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
+import { daySteps, insolation, sunPosition, localToUtc, type Prism } from '../core/sun';
+import type { XY } from '../core/geo';
 import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
 import { nearestStation, type Climate } from '../core/wind';
@@ -38,8 +42,8 @@ const LAYERS: LayerDef[] = [
   { id: 'relyef', g: 'yer', name: 'Relyef', src: 'AWS Terrain', color: '#8b7a6a', ready: true },
   { id: 'nishab', g: 'yer', name: 'Nishab', src: 'relyefdan', color: '#eaa56b', ready: true },
   { id: 'yuza', g: 'yer', name: 'Yuza tasnifi', src: 'yoʻldosh', color: '#b9cfa6', ready: false },
-  { id: 'issiqlik', g: 'yer', name: 'Issiqlik oroli', src: 'Landsat', color: '#d9503f', ready: false },
-  { id: 'quyosh', g: 'iqlim', name: 'Quyosh va soya', src: 'brauzer', color: '#e8a317', ready: false },
+  { id: 'issiqlik', g: 'yer', name: 'Issiqlik oroli', src: 'MODIS', color: '#d9503f', ready: true, beta: true },
+  { id: 'quyosh', g: 'iqlim', name: 'Quyosh va soya', src: 'OSM', color: '#e8a317', ready: true },
   { id: 'shamol', g: 'iqlim', name: 'Shamol', src: 'EPW', color: '#3f8f6b', ready: true },
   { id: 'shovqin', g: 'iqlim', name: 'Shovqin', src: 'model', color: '#c2416b', ready: true, beta: true },
   { id: 'xizmat', g: 'shahar', name: 'Xizmatlar', src: 'OSM', color: '#2a9d8f', ready: true },
@@ -56,7 +60,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { c: LngLat; r: number; on: LayerId[]; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null }
+interface State { c: LngLat; r: number; on: LayerId[]; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number }
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
 const S: State = (() => {
   try { const o = JSON.parse(localStorage.getItem('joy-state') || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
@@ -67,8 +71,8 @@ const isOn = (id: LayerId) => S.on.includes(id);
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
-const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[] }> } =
-  { addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' } };
+const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[] }>; lst: Ld<LstGrid> } =
+  { addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
 type NetM = { key: string; net: Net; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
@@ -103,6 +107,45 @@ function computeNet(): void {
     } catch (e) { console.warn('Joyshunos model', e); }
     nmBusy = false; renderRight(); paint(); computeNet();
   }, 30);
+}
+/* ---------- quyosh va soya (binolar — kontekst toʻplamidan, aksonometriya bilan umumiy) ---------- */
+const sunDay = () => SUN_DAYS_MAP[S.sd ?? 1] ?? SUN_DAYS_MAP[1];
+const sunHour = () => S.sh ?? 10;
+type SunM = { key: string; prisms: Prism[]; pts: XY[]; idx: number[]; n: number; step: number; hours?: Float32Array };
+let SM: SunM | null = null, sunBusy = false, sunW: Worker | null = null;
+function sunPrisms(): Prism[] {
+  const b = axBundle?.b; if (!b) return [];
+  const fr = geoFrame(S.c), lim = S.r + 350, out: Prism[] = [];
+  for (const bd of b.osm.buildings) { const r = bd.rings[0]; if (!r || r.length < 3) continue; const ring = r.map(p => fr.toLocal(p)); if (Math.hypot(ring[0][0], ring[0][1]) > lim) continue; out.push({ ring, top: bd.h }); }
+  return out;
+}
+function computeSun(): void {
+  if (!isOn('quyosh') || !axBundle || sunBusy) return;
+  const [m, d] = sunDay(), key = `${axBundle.key}|${S.r}|${m}-${d}`;
+  if (SM?.key === key && SM.hours) return;
+  if (SM?.key !== key) { const prisms = sunPrisms(), step = Math.max(6, S.r / 45); SM = { key, prisms, step, ...sunPoints(prisms, S.r, step) }; }
+  const sm = SM, steps = daySteps(2026, m, d, S.c[1], S.c[0], 20), z = sm.pts.map(() => 0);
+  sunBusy = true;
+  const done = (hrs: Float32Array) => { sunBusy = false; if (SM !== sm) { computeSun(); return; } sm.hours = hrs; renderRight(); paint(); };
+  try {
+    sunW ??= new Worker(new URL('../workers/sun.worker.ts', import.meta.url), { type: 'module' });
+    sunW.onmessage = e => done(e.data.hours as Float32Array);
+    sunW.onerror = () => { sunW = null; setTimeout(() => done(insolation(sm.pts, z, sm.prisms, steps)), 10); };
+    sunW.postMessage({ id: 1, pts: sm.pts, z, prisms: sm.prisms, steps });
+  } catch { setTimeout(() => done(insolation(sm.pts, z, sm.prisms, steps)), 10); }
+}
+/** Binolar va relyef toʻplami (OSM) — aksonometriya va quyosh qatlami uchun bitta */
+async function needCtx(): Promise<void> {
+  const R = S.r + 100, key = `${S.c.join()}|${R}`;
+  if (axBundle?.key === key || axBusy) return;
+  axBusy = true; axMsg = tr('Binolar va relyef yuklanmoqda (OSM)…'); if (mode === 'axo') renderAxo();
+  const my = seq;
+  try { const b = await ctx.load(S.c, R, (m, f) => { axMsg = `${tr(m)} ${Math.round(f * 100)} %`; if (mode === 'axo') renderAxoMsg(); }); if (my === seq) axBundle = { key, b }; axMsg = ''; }
+  catch (e) { axMsg = `${tr('Kontekst yuklanmadi')}: ${(e as Error).message}`; }
+  axBusy = false;
+  if (my !== seq) { void needCtx(); return; }
+  computeSun(); renderRight(); paint();
+  if (mode === 'axo') { axBuild(); renderAxo(); }
 }
 let climate: Climate | null = null;
 let seq = 0;
@@ -339,6 +382,32 @@ function renderRight(): void {
         h('span', { class: 'src' }, tr('Model: yoʻl toifasidan manba darajasi, chiziqli tarqalish (3 dB / ikki baravar). Binolar toʻsiqligi, tezlik va oqim hisobga olinmagan. JSST: Environmental Noise Guidelines for the European Region (2018), yoʻl transporti Lden 53 dB.'))] : [],
       null, g ? undefined : busy));
   }
+  if (isOn('issiqlik')) {
+    const g = D.lst.v, st = g ? lstStats(g, S.r) : null, sg = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 1)}`;
+    cards.push(card(L('issiqlik'), 'NASA GIBS', st && !Number.isNaN(st.inside) ? `≈ ${fmt(st.inside, 1)} °C` : '—',
+      g && st ? [tf('Yer yuzasi harorati (LST), ${y} yil iyul–avgust, kunduzi ≈ 10:30 — ${k} ta 8 kunlik kompozit oʻrtachasi.', { y: g.year, k: g.used }), h('br'),
+        Number.isNaN(st.delta) ? '' : tf('Atrofdagi 6 km oʻrtachasidan farq: ${d} °C', { d: sg(st.delta) }), h('br'),
+        h('span', { class: 'src' }, tr('NASA GIBS · MODIS Terra MOD11A2 (1 km). Havo harorati emas — sirt harorati; 1 km piksel — mahalla darajasi, alohida bino emas.'))] : [],
+      null, D.lst));
+  }
+  if (isOn('quyosh')) {
+    const [m, d, dn] = sunDay(), hr = sunHour(), sp = sunPosition(localToUtc(2026, m, d, hr), S.c[1], S.c[0]);
+    const hs = SM?.hours ? sunStats(SM.pts, SM.hours) : null, hh = (v: number) => `${String(Math.floor(v)).padStart(2, '0')}:${v % 1 ? '30' : '00'}`;
+    const busySun: Ld<unknown> = axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
+    const el = card(L('quyosh'), tr('OSM binolar'), hs ? tf('${h} soat', { h: fmt(hs.at, 1) }) : '—',
+      hs ? [tf('Markazdagi nuqtada quyosh — ${d} kuni. Doira ichidagi ochiq hudud: oʻrtacha ${m} soat; ≥ 3 soat — ${a} %.', { d: tr(dn), m: fmt(hs.mean, 1), a: fmt(hs.ge3 * 100) }), h('br'),
+        m === 3 ? h('span', {}, tf('SanQvaN 0331-16, 8.3-band (22.03–22.09: hududda ≥ 0,5–1 soat): ≥ 1 soat — ${a} %, ≥ 0,5 soat — ${b} %.', { a: fmt(hs.ge1 * 100), b: fmt(hs.ge05 * 100) }), h('br')) :'',
+        sp.alt > 0 ? tf('Soat ${t}: quyosh balandligi ${a}°, azimut ${z}° — soyalar xaritada.', { t: hh(hr), a: fmt(sp.alt), z: fmt(sp.az) }) : tf('Soat ${t}: quyosh ufqdan past.', { t: hh(hr) }), h('br'),
+        h('span', { class: 'src' }, tr('Binolar — OSM (balandlik: height / qavatlar / taxmin). Relyef va daraxtlar hisobga olinmagan. Hisob Master rejadagi insolyatsiya bilan bir xil (20 daqiqa qadam).'))] : [],
+      null, hs ? undefined : busySun);
+    el.querySelector('header')!.after(h('div', { class: 'joy-sunctl' },
+      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kun') }, ...SUN_DAYS_MAP.map(([, , n], i) => h('button', { type: 'button', 'aria-pressed': (S.sd ?? 1) === i, onclick: () => { S.sd = i; save(); renderRight(); paint(); computeSun(); } }, tr(n)))),
+      h('div', { class: 'joy-step', role: 'group', 'aria-label': tr('Soat') },
+        h('button', { type: 'button', class: 'btn btn-sm', 'aria-label': tr('Oldingi soat'), onclick: () => { S.sh = Math.max(5, hr - 0.5); save(); renderRight(); paint(); } }, '‹'),
+        h('b', { class: 'mono', id: 'sunHour' }, hh(hr)),
+        h('button', { type: 'button', class: 'btn btn-sm', 'aria-label': tr('Keyingi soat'), onclick: () => { S.sh = Math.min(20, hr + 0.5); save(); renderRight(); paint(); } }, '›'))));
+    cards.push(el);
+  }
   const soonOn = LAYERS.filter(l => !l.ready);
   cards.push(h('article', { class: 'joy-card soonc' }, h('div', { class: 't-small' }, tr('Keyingi bosqichda')),
     h('div', { class: 'chips' }, ...soonOn.map(l => h('span', { class: 'chip' }, h('i', { style: `background:${l.color}` }), tr(l.name))))));
@@ -349,6 +418,7 @@ function retry(id: LayerId): void {
   if (id === 'xizmat') D.poi = { st: 'idle' };
   if (id === 'raqobat') D.comp = { st: 'idle' };
   if (id === 'shamol') D.wind = { st: 'idle' };
+  if (id === 'issiqlik') D.lst = { st: 'idle' };
   ensure();
 }
 
@@ -378,7 +448,7 @@ function frame(duration = 0): void {
 }
 function pick(c: LngLat, fly = false): void {
   S.c = c; save(); seq++;
-  D.addr = { st: 'idle' }; D.ter = { st: 'idle' }; D.poi = { st: 'idle' }; D.comp = { st: 'idle' }; D.wind = { st: 'idle' }; NM = null;
+  D.addr = { st: 'idle' }; D.ter = { st: 'idle' }; D.poi = { st: 'idle' }; D.comp = { st: 'idle' }; D.wind = { st: 'idle' }; D.lst = { st: 'idle' }; NM = null; SM = null;
   renderLeft(); renderRight(); paint();
   if (fly) frame(900);
   ensure();
@@ -389,6 +459,19 @@ function run<T>(k: keyof typeof D, job: () => Promise<T>): void {
   job().then(v => { if (my !== seq) return; (D[k] as Ld<T>) = { st: 'ok', v }; if (k === 'poi') computeNet(); renderRight(); paint(); if (mode === 'axo' && k !== 'ter') { if (k === 'addr') renderAxo(); else axBuild(); } })
     .catch(e => { if (my !== seq) return; (D[k] as Ld<T>) = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); });
 }
+let cmap: Promise<Map<number, number>> | null = null;
+async function getTile(date: string, z: number, x: number, y: number): Promise<Px | null> {
+  const r = await fetch(lstTile(date, z, x, y)); if (!r.ok) return null;
+  const bm = await createImageBitmap(await r.blob()), cv = document.createElement('canvas'); cv.width = bm.width; cv.height = bm.height;
+  const g = cv.getContext('2d', { willReadFrequently: true })!; g.drawImage(bm, 0, 0);
+  return { w: bm.width, h: bm.height, data: g.getImageData(0, 0, bm.width, bm.height).data };
+}
+async function lstJob(c: LngLat): Promise<LstGrid> {
+  cmap ??= fetch(LST_CMAP).then(r => { if (!r.ok) throw new Error(`GIBS ${r.status}`); return r.text(); }).then(parseCmap).catch(e => { cmap = null; throw e; });
+  const g = await loadLst(c, 6000, 250, await cmap, getTile);
+  if (!g.used) throw new Error(tr('sunʼiy yoʻldosh maʼlumoti yoʻq'));
+  return g;
+}
 function ensure(): void {
   const c = S.c, r = S.r;
   if (D.addr.st === 'idle') run('addr', () => reverse(c));
@@ -398,6 +481,8 @@ function ensure(): void {
   });
   if ((isOn('xizmat') || isOn('piyoda') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
   computeNet();
+  if (isOn('issiqlik') && D.lst.st === 'idle') run('lst', () => lstJob(c));
+  if (isOn('quyosh')) { if (axBundle?.key === `${c.join()}|${r + 100}`) computeSun(); else void needCtx(); }
   if (isOn('raqobat') && D.comp.st === 'idle') run('comp', async () => {
     const cat = CATS.find(x => x.id === S.cat) ?? CATS[0], key = `joy-comp:${cat.id}:${c[0].toFixed(4)},${c[1].toFixed(4)}:${r}`;
     const hit = memo.get(key); if (hit) return hit;
@@ -459,6 +544,11 @@ function addOverlays(): void {
   m.addSource('joy-slope', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-slope', type: 'raster', source: 'joy-slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8, 'raster-fade-duration': 0 } } as never, before);
   for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  for (const id of ['joy-heat', 'joy-sun', 'joy-shadow']) m.addSource(id, { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
+  m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
+  m.addLayer({ id: 'joy-sun', type: 'raster', source: 'joy-sun', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } } as never, before);
+  m.addLayer({ id: 'joy-shadow', type: 'raster', source: 'joy-shadow', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.4, 'raster-fade-duration': 0 } } as never, before);
+  heatKey = sunKey = shadowKey = '';
   m.addSource('joy-noise', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-noise', type: 'raster', source: 'joy-noise', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
   m.addLayer({ id: 'joy-walk', type: 'line', source: 'joy-walk', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['match', ['get', 'b'], 0, '#3f3a9e', 1, '#7b74d6', '#b9b4ef'], 'line-width': ['match', ['get', 'b'], 0, 3.5, 1, 2.6, 2] } } as never);
@@ -503,11 +593,29 @@ function paint(): void {
   (m.getSource('joy-walk') as GeoJSONSource).setData(fc(wf.reverse()) as never);
   (m.getSource('joy-flow') as GeoJSONSource).setData(fc(ff.sort((x, y) => ((x as { properties: { f: number } }).properties.f - (y as { properties: { f: number } }).properties.f))) as never);
   if (nm && isOn('shovqin') && nm.noise) {
-    const k = `${nm.key}|n`; if (k !== noiseKey) { noiseKey = k; const im = gridImage(nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) ? null : noiseColor(v), 190); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
+    const k = `${nm.key}|n`; if (k !== noiseKey) { noiseKey = k; const im = gridImage(nm.noise.v, nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) ? null : noiseColor(v), 190); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
     m.setLayoutProperty('joy-noise', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-noise', 'visibility', 'none');
+  // issiqlik oroli — yozgi LST (6 km doira)
+  const upd = (id: string, im: { url: string; coords: [number, number][] }) => (m.getSource(id) as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords });
+  const lg0 = D.lst.v;
+  if (isOn('issiqlik') && lg0) { const k = `${S.c.join()}|${lg0.year}`; if (k !== heatKey) { heatKey = k; upd('joy-heat', gridImage(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : lstColor(v), 220, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
+  else m.setLayoutProperty('joy-heat', 'visibility', 'none');
+  // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
+  const sm = SM;
+  if (isOn('quyosh') && sm?.hours) {
+    const k = `${sm.key}|h`; if (k !== sunKey) { sunKey = k; const v = new Float32Array(sm.n * sm.n).fill(NaN); sm.idx.forEach((o, i) => { v[o] = sm.hours![i]; }); upd('joy-sun', gridImage(v, sm.n, sm.step, (sm.n - 1) / 2 * sm.step, x => Number.isNaN(x) ? null : sunColor(x), 200)); }
+    m.setLayoutProperty('joy-sun', 'visibility', 'visible');
+  } else m.setLayoutProperty('joy-sun', 'visibility', 'none');
+  if (isOn('quyosh') && sm) {
+    const [mm, dd] = sunDay(), hr = sunHour(), k = `${sm.key}|${hr}`;
+    if (k !== shadowKey) { shadowKey = k; const sp = sunPosition(localToUtc(2026, mm, dd, hr), S.c[1], S.c[0]); upd('joy-shadow', shadowImage(sm.prisms, sp.alt, sp.az, S.r)); }
+    m.setLayoutProperty('joy-shadow', 'visibility', 'visible');
+  } else m.setLayoutProperty('joy-shadow', 'visibility', 'none');
   // legenda: nishab va xizmatlar
   const lg: Node[] = [];
+  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Yer yuzasi harorati, °C (yoz)')), ...LST_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
+  if (sm?.hours && isOn('quyosh')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
   if (nm?.reach && isOn('piyoda')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
@@ -524,18 +632,33 @@ function paint(): void {
     rlab.setLngLat([S.c[0] + S.r / kx, S.c[1]]);
   }
 }
-let noiseKey = '';
-/** Markazga nisbatan toʻr (n×n, qadam step, radius R) → rasm (doira tashqarisi shaffof) */
-function gridImage(n: number, step: number, R: number, col: (v: number) => string | null, alpha = 200): { url: string; coords: [number, number][] } {
-  const g = NM!.noise!, cv = document.createElement('canvas'); cv.width = cv.height = n;
-  const cx = cv.getContext('2d')!, img = cx.createImageData(n, n);
+let noiseKey = '', heatKey = '', sunKey = '', shadowKey = '';
+/** Markazga nisbatan toʻr (n×n, qadam step, yarim kenglik R) → rasm; clip — shu radiusdan tashqari shaffof */
+function gridImage(vals: Float32Array, n: number, step: number, R: number, col: (v: number) => string | null, alpha = 200, clip?: number): { url: string; coords: [number, number][] } {
+  const cv = document.createElement('canvas'); cv.width = cv.height = n;
+  const cx = cv.getContext('2d')!, img = cx.createImageData(n, n), c0 = (n - 1) / 2;
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const c = col(g.v[j * n + i]); if (!c) continue; const o = ((n - 1 - j) * n + i) * 4;
+    if (clip != null && Math.hypot((i - c0) * step, (j - c0) * step) > clip) continue;
+    const c = col(vals[j * n + i]); if (!c) continue; const o = ((n - 1 - j) * n + i) * 4;
     img.data[o] = parseInt(c.slice(1, 3), 16); img.data[o + 1] = parseInt(c.slice(3, 5), 16); img.data[o + 2] = parseInt(c.slice(5, 7), 16); img.data[o + 3] = alpha;
   }
   cx.putImageData(img, 0, 0);
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132, H = R + step / 2;
   return { url: cv.toDataURL(), coords: [[S.c[0] - H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] - H / ky], [S.c[0] - H / kx, S.c[1] - H / ky]] };
+}
+/** Soyalar rasmi: r doirasi ichida, ~1 m piksel (koʻpi bilan 2048) */
+function shadowImage(prisms: Prism[], alt: number, az: number, r: number): { url: string; coords: [number, number][] } {
+  const R = r, px = Math.min(2048, Math.ceil(2 * R)), k = px / (2 * R), cv = document.createElement('canvas'); cv.width = cv.height = px;
+  const g = cv.getContext('2d')!;
+  if (alt > 0.5) {
+    g.save(); g.beginPath(); g.arc(px / 2, px / 2, R * k, 0, Math.PI * 2); g.clip();
+    g.fillStyle = '#1b1b1b';
+    // har koʻpburchak alohida — yoʻnalishi har xil boʻlsa ham ustma-ust tushganda teshik qolmaydi
+    for (const pr of prisms) for (const poly of shadowOf(pr, alt, az)) { g.beginPath(); poly.forEach((p, i) => { const x = px / 2 + p[0] * k, y = px / 2 - p[1] * k; if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.closePath(); g.fill(); }
+    g.restore();
+  }
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
+  return { url: cv.toDataURL(), coords: [[S.c[0] - R / kx, S.c[1] + R / ky], [S.c[0] + R / kx, S.c[1] + R / ky], [S.c[0] + R / kx, S.c[1] - R / ky], [S.c[0] - R / kx, S.c[1] - R / ky]] };
 }
 function slopeImage(g: TerrainGrid, r: number): { url: string; coords: [number, number][] } {
   const sl = slopeGrid(g), n = g.n, cv = document.createElement('canvas'); cv.width = cv.height = n;
@@ -602,14 +725,7 @@ async function enterAxo(): Promise<void> {
   if (D.poi.st === 'idle') run('poi', () => ctx.loadPoi(S.c));
   if (D.comp.st === 'idle') ensureComp();
   if (D.wind.st === 'idle') ensureWind();
-  const R = S.r + 100, key = `${S.c.join()}|${R}`;
-  if (axBundle?.key !== key && !axBusy) {
-    axBusy = true; axMsg = tr('Binolar va relyef yuklanmoqda (OSM)…'); renderAxo();
-    const my = seq;
-    try { const b = await ctx.load(S.c, R, (m, f) => { axMsg = `${tr(m)} ${Math.round(f * 100)} %`; renderAxoMsg(); }); if (my === seq) axBundle = { key, b }; axMsg = ''; }
-    catch (e) { axMsg = `${tr('Kontekst yuklanmadi')}: ${(e as Error).message}`; }
-    axBusy = false;
-  }
+  await needCtx();
   axBuild(); renderAxo();
 }
 let axT0: ReturnType<typeof setTimeout> | undefined;
