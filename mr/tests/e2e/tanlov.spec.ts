@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('Shift + ramka bilan koʻp tanlash, Delete; chizishda oʻng tugma menyusi; Illustrator eksporti', async ({ page }) => {
   test.setTimeout(120_000);

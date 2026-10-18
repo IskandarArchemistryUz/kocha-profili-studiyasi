@@ -288,3 +288,15 @@ body.min{margin:0;background:#fff}
 @media (hover:none){.st .dots .nm{visibility:visible;opacity:1;transform:none}.st .axz .lb{opacity:1}}
 @media (max-width:640px){.st .mpl,.st .pk{grid-template-columns:1fr}.st .st3{flex-wrap:wrap;gap:18px}.st .st3 .sep{display:none}}
 .st.th .mnav button.tm{border:0;padding:0}
+/* nuqtali fon (kanvas «minimal A2»): sichqoncha atrofida nuqtalar kattalashadi — js/site.js */
+.st.th{--dot:#dcd9d2}
+[data-theme=dark] .st.th{--dot:rgba(255,255,255,.16)}
+.st.th.dotbg{background-color:var(--bg);background-image:radial-gradient(circle,var(--dot) 1px,transparent 1.3px);background-size:22px 22px;background-position:11px 11px}
+.st.th.dotfx{position:relative}
+.st.th.dotfx canvas.dotcv{position:absolute;left:0;top:0;pointer-events:none;z-index:0}
+.st.th.dotfx > section,.st.th.dotfx > header,.st.th.dotfx > footer,.st.th.dotfx > nav,.st.th.dotfx > p{position:relative;z-index:1}
+.st.th.dotfx > nav.dots{position:absolute;z-index:4}
+@media (max-width:1100px){.st.th.dotfx > nav.dots{position:relative}}
+/* tarjima tugaguncha (inglizcha/ruscha) — oʻzbekcha matn koʻrinib qolmasin */
+html.i18n .st{visibility:hidden}
+.st.th.dotfx > header{z-index:10}

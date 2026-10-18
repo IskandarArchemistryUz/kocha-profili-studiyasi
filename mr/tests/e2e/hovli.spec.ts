@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('hovli obodonlashtirish va yashillik balansi', async ({ page }) => {
   test.setTimeout(120_000);

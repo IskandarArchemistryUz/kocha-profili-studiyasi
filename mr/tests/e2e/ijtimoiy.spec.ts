@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('ijtimoiy binolar: funksiya berilganda maktab avtomatik, modullar, MTM', async ({ page }) => {
   test.setTimeout(120_000);

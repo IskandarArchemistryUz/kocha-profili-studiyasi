@@ -176,7 +176,7 @@ export class Editor {
       name, save, h('span', { class: 'spacer' }),
       this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
       h('button', { class: 'btn', id: 'gxOpen', title: tr('Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG'), onclick: () => this.startFrame() }, tr('Grafika')),
-      h('button', { class: 'btn', id: 'chOpen', title: tr('Chizmadon: taqdimot albomi va tahlil diagrammalari'), onclick: () => this.openCh() }, 'Chizmadon'),
+      h('button', { class: 'btn', id: 'chOpen', title: tr('Chizmadon: taqdimot albomi va tahlil diagrammalari'), onclick: () => this.openCh() }, tr('Chizmadon')),
       seg, lang, theme);
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });

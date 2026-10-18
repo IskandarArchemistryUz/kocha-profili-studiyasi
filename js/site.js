@@ -42,15 +42,19 @@ var D={
 "Hisob: 1 xonadonga 3,54 kishi; maktab — ShNQ 2.07.01-23, 5-ilova (165–280 / 1000, quyi chegara); bogʻcha — 5-ilova (70–125 / 1000); avtoturargoh — 29-jadval (Toshkent).":["Calculation: 3.54 people per apartment; school — ShNQ 2.07.01-23, annex 5 (165–280 / 1,000, lower bound); kindergarten — annex 5 (70–125 / 1,000); parking — table 29 (Tashkent).","Расчёт: 3,54 чел. на квартиру; школа — ШНК 2.07.01-23, прил. 5 (165–280 / 1000, нижняя граница); детсад — прил. 5 (70–125 / 1000); машино-места — табл. 29 (Ташкент)."]
 };
 if(window.HOME_D){for(var hk in window.HOME_D)D[hk]=window.HOME_D[hk];}
-var LANGS=['uz','en','ru'],lang='uz';try{lang=localStorage.getItem('mr-lang')||localStorage.getItem('kps_lang')||'uz';}catch(e){}if(LANGS.indexOf(lang)<0)lang='uz';
-function t(s){if(lang==='uz')return s;var v=D[s];return v?(v[lang==='en'?0:1]||s):s;}
+var LANGS=['uz','en','ru'],lang='en';try{lang=localStorage.getItem('mr-lang')||localStorage.getItem('kps_lang')||'en';}catch(e){}if(LANGS.indexOf(lang)<0)lang='en';   // sukut — inglizcha
+/* xizmat nomlari inglizcha va ruscha (mr/src/i18n/index.ts dagi BRAND bilan bir xil) */
+var BRAND={en:[[/Koʻchasoz\w*/g,'Street Designer'],[/Joyshunos\w*/g,'Site Explorer'],[/Chizmadon\w*/g,'Sheet Studio']],ru:[[/Koʻchasoz\w*/g,'Конструктор улиц'],[/Joyshunos\w*/g,'Анализ места'],[/Chizmadon\w*/g,'Студия листов']]};
+function brand(x){var b=BRAND[lang];if(!b||!x)return x;for(var i=0;i<b.length;i++)x=x.replace(b[i][0],b[i][1]);return x;}
+window.ALT_BRAND=brand;
+function t(s){if(lang==='uz')return s;var v=D[s];return brand(v?(v[lang==='en'?0:1]||s):s);}
 window.ALT=t;
 /* matn tugunlari: asl oʻzbekcha matn tugunning oʻzida saqlanadi (__uz), boʻshliqlar oʻz joyida qoladi */
 var SKIP={SCRIPT:1,STYLE:1,NOSCRIPT:1,TEXTAREA:1,INPUT:1,svg:0};
 function walk(root){var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:function(n){var p=n.parentNode;if(!p||SKIP[p.nodeName]||p.closest('[data-t],[data-noi18n]'))return NodeFilter.FILTER_REJECT;return /\S/.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}}),n,L=[];
   while((n=w.nextNode()))L.push(n);
   L.forEach(function(n){if(n.__uz===undefined){var k=n.nodeValue.replace(/\s+/g,' ').trim(),rx=null;
-      if(!D[k]){(window.HOME_RX||[]).some(function(r){if(r[0].test(k)){rx=r;return true;}return false;});if(!rx)return;}
+      if(!D[k]){(window.HOME_RX||[]).some(function(r){if(r[0].test(k)){rx=r;return true;}return false;});if(!rx&&!/Koʻchasoz|Joyshunos|Chizmadon/.test(k))return;}
       n.__uz=n.nodeValue;n.__k=k;n.__rx=rx;}
     var m=n.__uz.match(/^(\s*)[\s\S]*?(\s*)$/),v=lang==='uz'?null:n.__rx?n.__k.replace(n.__rx[0],n.__rx[lang==='en'?1:2]):t(n.__k);
     if(v&&lang==='en'&&n.__rx)v=v.replace(/(\d) (\d{3})/g,'$1,$2').replace(/(\d),(\d{1,2})(?!\d)/g,'$1.$2');
@@ -60,7 +64,7 @@ function apply(){document.documentElement.lang=lang;walk(document.body);
   [].forEach.call(document.querySelectorAll('[data-ta]'),function(el){el.getAttribute('data-ta').split(';').forEach(function(p){var i=p.indexOf(':');el.setAttribute(p.slice(0,i),t(p.slice(i+1)));});});
   var lc=document.getElementById('langCode');if(lc)lc.textContent=lang.toUpperCase();
   [].forEach.call(document.querySelectorAll('[data-lang]'),function(b){var on=b.getAttribute('data-lang')===lang;b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-checked',String(on));var s=b.querySelector('span');if(s)s.textContent=on?'✓':'';});
-  model();}
+  model();document.documentElement.classList.remove('i18n');}
 function setLang(l){lang=l;try{localStorage.setItem('mr-lang',l);localStorage.setItem('kps_lang',l);}catch(e){}apply();renderProjects();}
 var lb=document.getElementById('langBtn'),lm=document.getElementById('langMenu');
 if(lb&&lm){lb.onclick=function(e){e.stopPropagation();lm.hidden=!lm.hidden;lb.setAttribute('aria-expanded',String(!lm.hidden));};
@@ -128,6 +132,22 @@ var fbb=document.getElementById('fbBeta');if(fbb)fbb.onclick=function(){if(windo
 var on=document.getElementById('oldNote');
 if(on){try{var R0=JSON.parse(localStorage.getItem('kps_projects')||'null');var nn=R0&&Array.isArray(R0.list)?R0.list.length:0;
   if(nn){on.hidden=false;on.innerHTML=t('Avvalgi versiya loyihalari')+': '+nn+' — <a href="haqida.html#loyihalar">'+t('Batafsil sahifada')+'</a>';}}catch(e){}}
+/* nuqtali fon: sichqoncha atrofida nuqtalar kattalashadi (kanvas «minimal A2»). Harakat kamaytirilgan rejimda va sensorli ekranda — oddiy fon. */
+(function(){var root=document.querySelector('.st.dotfx'),cv=root&&root.querySelector('canvas.dotcv');if(!cv||!cv.getContext)return;
+  if((window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||(window.matchMedia&&matchMedia('(hover: none)').matches)){cv.remove();return;}
+  var ctx=cv.getContext('2d'),G=22,R=150,W=0,H=0,mx=-9999,my=-9999,tx=-9999,ty=-9999,raf=0;
+  function size(){var dpr=window.devicePixelRatio||1;W=root.offsetWidth;H=root.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);kick();}
+  function draw(){raf=0;var moving=Math.abs(tx-mx)+Math.abs(ty-my)>.3;mx+=(tx-mx)*.2;my+=(ty-my)*.2;if(tx<-9000){mx=my=-9999;}
+    ctx.clearRect(0,0,W,H);if(mx<-9000)return;
+    ctx.fillStyle=getComputedStyle(root).getPropertyValue('--dot').trim()||'#dcd9d2';
+    var x0=Math.max(G/2,Math.floor((mx-R)/G)*G+G/2),x1=Math.min(W,mx+R),y0=Math.max(G/2,Math.floor((my-R)/G)*G+G/2),y1=Math.min(H,my+R);
+    for(var y=y0;y<y1;y+=G)for(var x=x0;x<x1;x+=G){var d=Math.sqrt((x-mx)*(x-mx)+(y-my)*(y-my));if(d>=R)continue;var k=1-d/R,r=1+2.4*k*k;ctx.globalAlpha=.7+.3*k;ctx.beginPath();ctx.arc(x,y,r,0,6.2832);ctx.fill();}
+    ctx.globalAlpha=1;if(moving)kick();}
+  function kick(){if(!raf)raf=requestAnimationFrame(draw);}
+  root.addEventListener('mousemove',function(e){var r=root.getBoundingClientRect();tx=e.clientX-r.left;ty=e.clientY-r.top;if(mx<-9000){mx=tx;my=ty;}kick();});
+  root.addEventListener('mouseleave',function(){tx=ty=-9999;kick();});
+  if(window.ResizeObserver)new ResizeObserver(size).observe(root);else window.addEventListener('resize',size);
+  size();})();
 apply();
 })();
 

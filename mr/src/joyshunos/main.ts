@@ -692,7 +692,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
       kicker: tr('Joy pasporti'), title: addr, meta: `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)} · ${S.r} m · ${tf('${m} daqiqa piyoda', { m: walkMin(S.r) })} · ${date}`,
       map: shot ? { url: shot.url, mPerMm: shot.side / mapS, rose: w ? roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null, ringLabel: tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) }) } : null,
       legends: collectLegends(), cards: collectCards(),
-      stamp: { org: 'Archemistry Lab', service: 'Joyshunos', placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'),
+      stamp: { org: 'Archemistry Lab', service: tr('Joyshunos'), placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'),
         sources: tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · EPW TMYx (climate.onebuilding.org) · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0331-16'),
         note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
       labels: { north: tr('Sh'), more: tr('Davomi keyingi varaqda →'), noMap: tr('Xarita surati olinmadi') },

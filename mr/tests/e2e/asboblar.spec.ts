@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('asboblar: chizgʻich, kesim, pipetka, qoʻl, oʻng tugma menyusi', async ({ page }) => {
   test.setTimeout(120_000);

@@ -103,7 +103,7 @@ export function openChizmadon(host: ChHost): void {
   }
 
   /* ---------- qobiq ---------- */
-  const wrap = h('div', { class: 'gx ch', role: 'dialog', 'aria-label': 'Chizmadon' });
+  const wrap = h('div', { class: 'gx ch', role: 'dialog', 'aria-label': tr('Chizmadon') });
   const head = h('header', { class: 'sh-top glassbar ch-top' });
   const body = h('div', { class: 'ch-body' });
   wrap.append(head, body);
@@ -117,7 +117,7 @@ export function openChizmadon(host: ChHost): void {
   const dlBtn = h('button', { class: 'btn btn-primary', id: 'chDl', onclick: (e: Event) => { e.stopPropagation(); exportMenu(dlBtn); } }, ...icl(I.dl, tr('Yuklab olish')));
   head.append(
     h('button', { class: 'btn btn-ghost icon-btn', id: 'chBack', 'aria-label': tr('Master rejaga qaytish'), title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>')),
-    h('span', { class: 'brand' }, logoSvg(18), h('b', {}, 'Archemistry Lab')), h('span', { class: 'svcbadge ch-badge' }, h('i'), 'Chizmadon'),
+    h('span', { class: 'brand' }, logoSvg(18), h('b', {}, 'Archemistry Lab')), h('span', { class: 'svcbadge ch-badge' }, h('i'), tr('Chizmadon')),
     h('span', { class: 'sh-name' }, `${host.project} · `, (() => { const i = h('input', { class: 'ch-title', id: 'chTitle', value: d.title, 'aria-label': tr('Albom nomi'), maxlength: 120 }) as HTMLInputElement; i.addEventListener('change', () => { d.title = i.value.trim() || d.title; dirty(); }); return i; })()),
     saveChip, h('span', { class: 'spacer' }), modeSeg, tabBtn, dlBtn);
 

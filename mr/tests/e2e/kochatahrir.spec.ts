@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('koʻcha tahriri: tutqichni sudrash, oraliqdan nuqta qoʻshish, ikki marta bosib oʻchirish; boshqa qadamdan bosib tanlash', async ({ page }) => {
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');

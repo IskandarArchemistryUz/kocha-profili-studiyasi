@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', async ({ page }) => {
   test.setTimeout(120_000);

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async ({ page }) => {
   const shots = process.env.GX_SHOTS;

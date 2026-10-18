@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 import { writeFileSync } from 'node:fs';
 
 /** Atrof: yoʻllar toʻri, kvartallarda binolar, park va daraxtlar */

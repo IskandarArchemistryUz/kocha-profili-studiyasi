@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fx';
 
 test('uslublar, portlatilgan qatlamlar, kamera: obyektiv, koʻz sathi, 2 nuqta, kadr, saqlangan koʻrinish', async ({ page }) => {
   test.setTimeout(120_000);
