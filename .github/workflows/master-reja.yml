@@ -2,9 +2,9 @@ name: Master reja — testlar
 on:
   push:
     branches: [main]
-    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'css/**', 'js/site.js', '.github/workflows/master-reja.yml']
+    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'js/eko.js', 'css/**', 'js/site.js', '.github/workflows/master-reja.yml']
   pull_request:
-    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'css/**', 'js/site.js', '.github/workflows/master-reja.yml']
+    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'js/eko.js', 'css/**', 'js/site.js', '.github/workflows/master-reja.yml']
 jobs:
   test:
     runs-on: ubuntu-latest
