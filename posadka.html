@@ -11,8 +11,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="js/cdn.js?v=1"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" onerror="KLIB.css(this)">
+<script src="js/eko.js?v=1"></script>
+<link rel="stylesheet" href="css/ds2.css?v=2">
 <style>
-:root{--ink:#141414;--grey:#696969;--txt:#3c3c3c;--bg:#f4f3f1;--line:#dedcd7;--line2:#cfccc5;--bad:#b3261e;--ok:#2e7d4f;--mono:'IBM Plex Mono',ui-monospace,monospace;--res:#c9b8f0;--com:#f2c27b;--soc:#9fc6e8;--off:#bdbdbd}
+:root{/* 2026-10-18: tokenlar — css/ds2.css */--grey:var(--muted);--txt:var(--ink-2);--line:var(--hairline);--line2:var(--fill-2);--res:#c9b8f0;--com:#f2c27b;--soc:#9fc6e8;--off:#bdbdbd}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
 body{font:14.5px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 a{color:inherit;text-decoration:none}button,input,select{font:inherit;color:inherit}button{cursor:pointer}
@@ -61,11 +63,13 @@ h2{margin:0;font-size:24px;font-weight:500;letter-spacing:-.01em}.sub{font-famil
 details.fz{border-top:1px solid var(--line);padding-top:4px}details.fz>summary{cursor:pointer;list-style:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);padding:6px 0}details.fz>summary::before{content:'+ '}details.fz[open]>summary::before{content:'− '}
 </style>
 <script src="js/icons.js?v=2"></script>
+<link rel="stylesheet" href="css/eko.css?v=1">
+<link rel="stylesheet" href="css/joy.css?v=1">
 </head>
-<body>
-<header>
-<a class="brand" href="./"><svg width="22" height="21" viewBox="0 0 103.45 100" aria-hidden="true"><path id="logoP" fill="#696969" fill-rule="evenodd" d=""/></svg><b>ARCHEMISTRY</b></a>
-<span class="crumb">/ 03 · JOYLASHTIRISH</span><input id="pName" aria-label="Loyiha nomi" value="Yangi uchastka">
+<body class="ds2 joy joy-posadka">
+<header class="eko" data-svc="joy"></header>
+<header class="jbar">
+<svg style="display:none" aria-hidden="true"><path id="logoP"/></svg><nav class="joy-nav" aria-label="Joyshunos"><a href="gis.html">GIS tahlil</a><a href="shamol.html">Shamol</a><a href="posadka.html" class="on" aria-current="page">Joylashtirish</a><a href="ai.html">Hudud bahosi</a></nav><input id="pName" aria-label="Loyiha nomi" value="Yangi uchastka">
 <span class="sp"></span>
 <form id="sForm" style="display:flex"><input id="sQ" placeholder="Xaritada joy: manzil yoki koordinata" style="height:30px;border:1px solid var(--line2);border-radius:2px;padding:0 8px;width:220px;background:#fff"></form>
 <div class="seg" role="group" aria-label="Koʻrinish"><button data-v="2d" aria-pressed="true">Reja</button><button data-v="3d" aria-pressed="false">3D</button></div>

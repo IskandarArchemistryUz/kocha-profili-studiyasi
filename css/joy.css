@@ -1,0 +1,192 @@
+/* Joyshunos — GIS tahlil, Shamol, Joylashtirish, Hudud bahosi: ds2 koʻrinishi (kanvas: «Joy-A» doskasi).
+   Mantiq, hisob va maʼlumot oʻzgarmaydi — faqat koʻrinish. Tartib: css/ds2.css → sahifa <style> → kit.css → eko.css → shu fayl.
+   Loyiha oynasi ichida (html.kps-embed) ekotizim sarlavhasi va xizmat ichki menyusi yashiriladi. */
+
+/* ——— sahifa: ekotizim sarlavhasi + asboblar qatori + ish maydoni ——— */
+html:has(body.joy),body.joy{height:100%}
+body.joy{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans);display:flex;flex-direction:column;overflow:hidden}
+body.joy>header.eko{flex:none;grid-column:auto}
+body.joy .app{flex:1;height:auto!important;min-height:0;gap:10px 12px;padding:10px 12px 12px}
+body.joy>main{flex:1;min-height:0;gap:12px;padding:0 12px 12px}
+
+/* asboblar qatori (eski sarlavha): xizmat ichki menyusi + sahifa asboblari */
+body.joy header.jbar{height:50px;min-height:50px;margin:0;padding:0 8px 0 6px;border:0;border-radius:16px;background:var(--surface);box-shadow:var(--sh-card);display:flex;flex-wrap:nowrap;align-items:center;gap:10px;font-family:var(--sans);overflow:visible;min-width:0}
+body.joy>header.jbar{margin:10px 12px}
+body.joy header.jbar .crumb{font:500 12px var(--sans);letter-spacing:0;color:var(--muted)}
+body.joy .joy-nav{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--fill);flex:none}
+body.joy .joy-nav a{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:var(--r-pill);font:600 13px var(--sans);color:var(--muted);text-decoration:none;white-space:nowrap}
+body.joy .joy-nav a:hover{color:var(--ink)}
+body.joy .joy-nav a.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 .5px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.08)}
+body.joy .joy-nav a.on::before{content:"";width:7px;height:7px;border-radius:4px;background:var(--svc-joy);margin-right:7px}
+/* Shamol: koʻrsatkichlar — chip */
+body.joy .stats{gap:4px;flex-wrap:nowrap;overflow:hidden;font:12px var(--sans)}
+body.joy .stats span{border:0;margin:0;padding:4px 10px;border-radius:var(--r-pill);background:var(--fill);white-space:nowrap}
+body.joy .stats b{font:600 12px var(--mono)}
+body.joy #srcInfo{font:12px var(--sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+
+/* ——— xarita va panel ——— */
+body.joy .mapwrap,body.joy .mapw{border-radius:var(--r-panel);overflow:hidden;box-shadow:var(--sh-card);background:var(--fill);isolation:isolate}
+body.joy aside{border:0!important;border-radius:var(--r-panel);background:var(--surface)!important;box-shadow:var(--sh-float);overflow:auto;font-family:var(--sans)}
+body.joy-ai aside{overflow:hidden}
+body.joy section{border-bottom:.5px solid var(--hairline);padding:16px}
+body.joy section:last-child{border-bottom:0}
+body.joy aside h2{font:600 12.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+body.joy-posadka aside h2,body.joy-ai aside h2{font:700 20px/1.2 var(--sans);letter-spacing:-.01em;color:var(--ink)}
+body.joy aside h3{font:700 17px/1.25 var(--sans)}
+body.joy p.note,body.joy .note{font:12.5px/1.5 var(--sans);color:var(--muted)}
+body.joy .sub{font:12.5px var(--sans);color:var(--muted)}
+body.joy .lbl{font:600 12px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+body.joy .status{font:12px var(--sans);color:var(--muted)}
+body.joy .status.warn{color:var(--bad)}
+body.joy details summary,body.joy details.fz>summary,body.joy details.more>summary{font:600 12.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--ink)}
+body.joy details.fz>summary,body.joy details.more>summary{border-color:var(--hairline)}
+
+/* GIS tahlil turlari: 6 ta — segment guruh (2 qator) */
+body.joy .tabs{margin:12px 12px 4px;padding:3px;gap:2px;border:0;border-radius:var(--r-tile);background:var(--fill);top:8px}
+body.joy .tabs button{border:0!important;border-radius:9px;padding:8px 2px;font:600 12px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+body.joy .tabs button:hover{color:var(--ink)}
+body.joy .tabs button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+
+/* ——— tugmalar ——— */
+body.joy .btn{height:34px;padding:0 14px;border:0;border-radius:var(--r-ctl);background:var(--fill);color:var(--ink);font:600 13px var(--sans);letter-spacing:0!important;text-transform:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;text-decoration:none;transition:background-color var(--t-fast),transform var(--t-mid) var(--spring)}
+body.joy .btn:hover:not(:disabled){background:var(--fill-2)}
+body.joy .btn:active:not(:disabled){transform:scale(.97)}
+body.joy .btn.dark,body.joy .btn.solid{background:var(--ink);color:var(--surface)}
+body.joy .btn.dark:hover:not(:disabled),body.joy .btn.solid:hover:not(:disabled){background:var(--ink-2)}
+body.joy .btn.ghost{background:transparent}
+body.joy .btn.ghost:hover:not(:disabled){background:var(--fill)}
+body.joy .btn.sm{height:28px;padding:0 10px;font-size:12px}
+body.joy header.jbar .btn{height:32px;padding:0 12px}
+body.joy .btn svg,body.joy .btn i svg{flex:none}
+body.joy .filebtn{border:1.5px dashed var(--fill-2);border-radius:var(--r-ctl);padding:7px 12px;font:600 12.5px var(--sans)}
+body.joy .towers td button{font-family:var(--sans)}
+
+/* segment */
+body.joy .seg{display:flex;gap:2px;padding:3px;border:0;border-radius:var(--r-ctl);background:var(--fill);overflow:visible}
+body.joy .seg button{border:0!important;border-radius:8px;background:transparent;color:var(--muted);font:600 12.5px var(--sans);letter-spacing:0;text-transform:none;padding:0 11px;height:28px;cursor:pointer}
+body.joy aside .seg button{height:30px}
+body.joy .seg button:hover{color:var(--ink)}
+body.joy .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+
+/* maydonlar */
+body.joy .fields label,body.joy .f label,body.joy .ofs label{font:600 12px var(--sans);color:var(--ink-2);gap:5px}
+body.joy .fields input[type=number],body.joy .fields select{height:36px}
+body.joy .grid input,body.joy .f input,body.joy .f select,body.joy .ofs input,body.joy .keybox input,body.joy .keybox select,body.joy .fpw .hd select,body.joy .fpw .hd input{border:0;border-radius:8px;background-color:var(--fill);color:var(--ink);height:32px;padding:0 8px}
+body.joy header.jbar input:not([type]),body.joy header.jbar input[type=text]{height:32px!important;border:0!important;border-radius:var(--r-ctl)!important;background:var(--fill)!important;color:var(--ink);font:13px var(--sans);padding:0 10px}
+body.joy header.jbar #pName{background:transparent!important;font:600 14px var(--sans)}
+body.joy header.jbar #pName:hover,body.joy header.jbar #pName:focus{background:var(--fill)!important}
+body.joy .km{font:12.5px var(--mono);gap:6px}
+body.joy .km input[type=number]{width:62px;height:32px;padding:0 8px}
+body.joy .chk{font-size:13.5px}
+
+/* jadval */
+body.joy table td,body.joy table th{border-bottom:.5px solid var(--hairline)}
+body.joy table th{font:600 11.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+body.joy .kv{border-bottom:.5px solid var(--hairline)}
+body.joy .bar,body.joy .prog,body.joy .met i{background:var(--fill)}
+body.joy .met{border-bottom:.5px solid var(--hairline)}
+
+/* ——— xarita ustidagi qatlamlar ——— */
+body.joy .legend{border:0;border-radius:var(--r-card);background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:var(--sh-float);color:var(--ink);font:12px var(--sans);padding:10px 12px}
+body.joy .legend .t{font:600 12px var(--sans);letter-spacing:0}
+body.joy .legend .rl,body.joy .ramp-lbl{font:11px var(--mono)}
+body.joy .busy,body.joy .hint,body.joy .toast,body.joy .err{border-radius:var(--r-pill);background:rgba(28,28,27,.92);color:#fff;font:500 13px var(--sans);padding:8px 14px;box-shadow:var(--sh-float)}
+body.joy .err{background:var(--bad);border-radius:12px}
+body.joy .hint{border-radius:12px}
+body.joy .hint button{border-radius:8px}
+body.joy .centerpin,body.joy .scalebar{border:0;border-radius:var(--r-ctl);background:var(--glass);box-shadow:var(--sh-card);font:12px var(--sans);color:var(--ink);padding:6px 10px}
+body.joy .v23{border:0;border-radius:var(--r-pill);background:var(--glass);box-shadow:var(--sh-float);padding:3px;gap:2px;overflow:visible}
+body.joy .v23 button{border:0;border-radius:var(--r-pill);width:38px;height:30px;color:var(--muted);font:600 12px var(--sans)}
+body.joy .v23 button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+/* fon xarita boshqaruvi (js/basemap.js) */
+body.joy .kbm-seg{border:0;border-radius:var(--r-pill);background:var(--glass);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:var(--sh-float);padding:3px;gap:2px}
+body.joy .kbm-seg button{border:0!important;border-radius:var(--r-pill);font:600 12px var(--sans);letter-spacing:0;color:var(--muted);padding:5px 11px}
+body.joy .kbm-seg button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+body.joy .kbm-pop{border:0;border-radius:var(--r-card);background:var(--surface);color:var(--ink);box-shadow:var(--sh-pop);padding:14px}
+body.joy .kbm-pop h5{font:600 12px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+body.joy .kbm-pals button,body.joy .kbm-row button{border:0;border-radius:8px;background:var(--fill);color:var(--ink)}
+body.joy .basesw button,body.joy .bsw button{border-radius:var(--r-pill);font:600 12px var(--sans)}
+body.joy .bsw{border:0;border-radius:var(--r-pill);background:var(--glass);box-shadow:var(--sh-float);padding:3px;gap:2px}
+body.joy .bsw button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+/* MapLibre / Leaflet tugmalari */
+body.joy .maplibregl-ctrl-group,body.joy .leaflet-bar{border:0!important;border-radius:var(--r-ctl)!important;overflow:hidden;box-shadow:var(--sh-float)!important}
+body.joy .leaflet-bar a{border-bottom-color:var(--hairline)}
+body.joy .leaflet-container,body.joy .maplibregl-map{font-family:var(--sans)}
+
+/* ——— Joylashtirish (posadka) ——— */
+body.joy-posadka>main{grid-template-columns:56px minmax(0,1fr) 350px}
+body.joy .rail{border:0;border-radius:var(--r-panel);background:var(--surface);box-shadow:var(--sh-card);padding:10px 0}
+body.joy .rail button{border-radius:var(--r-ctl);color:var(--ink-2)}
+body.joy .rail button:hover{background:var(--fill)}
+body.joy .rail button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+body.joy #map3{background:var(--fill)}
+body.joy .sel{border:0;border-radius:var(--r-card);background:var(--grouped);padding:14px}
+body.joy .uses button,body.joy .ktyp button,body.joy .stb{border:0;border-radius:8px;background:var(--fill);color:var(--ink)}
+body.joy .uses button[aria-pressed=true],body.joy .ktyp button[aria-pressed=true],body.joy .stb[aria-pressed=true]{background:var(--surface);box-shadow:0 0 0 1.5px var(--ink)}
+body.joy .fpw{background:rgba(0,0,0,.35)}
+body.joy .fpw .box{border:0;border-radius:var(--r-panel);background:var(--surface);overflow:hidden;box-shadow:var(--sh-pop)}
+body.joy .fpw .hd{border-bottom:.5px solid var(--hairline)}
+body.joy .fpw .cv{background:var(--bg)}
+body.joy .fpw .pn{border-left:.5px solid var(--hairline)}
+body.joy .blk{font-family:var(--sans);color:var(--ink)}
+body.joy .facd,body.joy details.fz{border-top:.5px solid var(--hairline)}
+
+/* ——— Hudud bahosi (ai) ——— */
+body.joy .top{border-bottom:.5px solid var(--hairline)}
+body.joy .ask{border:0;border-radius:var(--r-tile);background:var(--fill);padding:8px 8px 8px 12px}
+body.joy .ask textarea{color:var(--ink)}
+body.joy .ask button{border-radius:var(--r-ctl);background:var(--ink);color:var(--surface)}
+body.joy .chips button{border:0;border-radius:var(--r-pill);background:var(--fill);color:var(--ink);font:500 13px var(--sans)}
+body.joy .chips button:hover{background:var(--fill-2)}
+body.joy .kpi{border:0;border-top:3px solid var(--faint);border-radius:var(--r-tile);background:var(--grouped);padding:10px 12px}
+body.joy .kpi.ok{border-top-color:var(--ok)}body.joy .kpi.fair{border-top-color:var(--warn)}body.joy .kpi.poor{border-top-color:var(--bad)}
+body.joy .keybox,body.joy .cvbox{border:0;border-radius:var(--r-card);background:var(--grouped);padding:14px}
+body.joy .more-m{border:0;border-radius:var(--r-card);background:var(--surface);box-shadow:var(--sh-pop);overflow:hidden;padding:4px}
+body.joy .more-m button{border:0;border-radius:8px;font:500 14px var(--sans);color:var(--ink)}
+body.joy .more-m button:hover{background:var(--fill)}
+body.joy-ai .legend{bottom:64px}
+
+/* ——— loyiha oynasi ichida: oʻz sarlavhasi yoʻq, chekkasiz (css/kit.css) ——— */
+html.kps-embed body.joy>header.eko,html.kps-embed body.joy .joy-nav{display:none!important}
+html.kps-embed body.joy .app,html.kps-embed body.joy>main{padding:0;gap:0}
+html.kps-embed body.joy>header.jbar{margin:0;border-radius:0;box-shadow:none;border-bottom:.5px solid var(--hairline)}
+html.kps-embed body.joy .mapwrap,html.kps-embed body.joy .mapw,html.kps-embed body.joy aside,html.kps-embed body.joy .rail{border-radius:0;box-shadow:none}
+
+/* ——— planshet ——— */
+@media (max-width:1280px){body.joy-ai>main{grid-template-columns:minmax(0,1fr) 360px}body.joy header.jbar .crumb.hide-s{display:none}}
+@media (max-width:1180px){
+  body.joy .joy-nav a{padding:0 10px;font-size:12px}
+  body.joy .app{grid-template-columns:minmax(0,1fr) 360px!important}
+  body.joy-posadka>main{grid-template-columns:52px minmax(0,1fr) 320px}
+  body.joy header.jbar{overflow-x:auto;scrollbar-width:none}
+  body.joy .stats{display:none}
+}
+@media (max-width:860px){
+  body.joy{height:auto;overflow:auto}
+  body.joy .app{grid-template-columns:1fr!important;grid-template-rows:auto 65vh auto}
+  body.joy>main{grid-template-columns:1fr!important;grid-template-rows:60vh auto}
+}
+
+/* ——— qoʻshimcha: boʻsh legenda, qatlamlar paneli (js/uly.js), shamol kartasi, tungi rejimda xarita tugmalari ——— */
+body.joy .legend[hidden],body.joy .legend:empty{display:none!important}
+body.joy .ulyP{border:0;border-radius:var(--r-card);background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:var(--sh-float);font:13px var(--sans);color:var(--ink);overflow:hidden}
+body.joy .ulyP .uh{border-bottom:.5px solid var(--hairline);padding:9px 12px}
+body.joy .ulyP .uh b{font:600 13px var(--sans);letter-spacing:0;text-transform:none}
+body.joy .ulyP .uh button,body.joy .ulyP .ct,body.joy .ulyP .ur>button{color:var(--muted)}
+body.joy .ulyP .ug{font:600 11.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted);padding:10px 12px 3px}
+body.joy .ulyP .ur{padding:1px 8px 1px 12px}
+body.joy .ulyP .ur:hover{background:var(--fill)}
+body.joy .ulyP .ur.op,body.joy .ulyP .us{background:var(--grouped)}
+body.joy .ulyP .us label{color:var(--ink-2)}
+body.joy .ulyP .us select{height:30px;font-size:12px}
+body.joy .ulyP .sw{border-radius:3px}
+body.joy #pzWind{background:var(--glass)!important;border:0!important;border-radius:var(--r-card);box-shadow:var(--sh-float);padding:10px 12px!important;font:12px/1.45 var(--sans)!important;color:var(--ink)}
+body.joy #pzWind a{color:var(--ink)!important}
+body.joy header.jbar #pName{min-width:130px}
+[data-theme="dark"] body.joy .leaflet-bar a,[data-theme="dark"] body.joy .maplibregl-ctrl-group{background-color:var(--surface);color:var(--ink)}
+[data-theme="dark"] body.joy .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
+[data-theme="dark"] body.joy .maplibregl-ctrl-group button+button{border-top-color:var(--hairline)}
+body.joy-ai .empty{align-items:stretch;text-align:left;font-size:13.5px}
+body.joy-posadka .hint{top:14px;bottom:auto}
+body.joy-ai .hint{bottom:64px}
+@media (max-width:1180px){body.joy header.jbar{height:auto;min-height:50px;flex-wrap:wrap;padding:6px 8px 6px 6px;row-gap:6px;overflow:visible}}
