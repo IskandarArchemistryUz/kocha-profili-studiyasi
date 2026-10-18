@@ -37,6 +37,7 @@ const BETA = (() => {
 })();
 const READY_BOARDS = new Set<BoardId>(['b', 'varaq']);
 const READY_MODES = new Set(['B']);
+const HIDDEN_MODES = new Set(['E']);
 const READY_VIEWS = new Set([0, 1]);   // B: Kesim, Reja
 const ready = (id: BoardId) => BETA || READY_BOARDS.has(id);
 const SOON = () => tr('Tez orada');
@@ -44,7 +45,8 @@ const SOON = () => tr('Tez orada');
 function gate(v: Record<string, unknown>): Record<string, unknown> {
   if (BETA) return v;
   const o = { ...v };
-  if (Array.isArray(o.modes)) o.modes = (o.modes as { k: string }[]).map(m => READY_MODES.has(m.k) ? m : { ...m, dis: 'true', soon: SOON() });
+  /* Mikromodel saytda umuman koʻrinmaydi (Iskandar, 10:24: «alohida takomillashtiramiz, keyin chiqaramiz») */
+  if (Array.isArray(o.modes)) o.modes = (o.modes as { k: string }[]).filter(m => !HIDDEN_MODES.has(m.k)).map(m => READY_MODES.has(m.k) ? m : { ...m, dis: 'true', soon: SOON() });
   if (Array.isArray(o.views)) o.views = (o.views as unknown[]).filter((_x, i) => READY_VIEWS.has(i));
   return o;
 }
@@ -54,7 +56,7 @@ function gate(v: Record<string, unknown>): Record<string, unknown> {
 const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'gfx', 'showU'];
 const SHARED: Partial<Record<BoardId, string[]>> = { b: STREET, varaq: STREET, c: ['TPL'] };
 /** faqat oʻsha oynada kerak (saqlanmaydi): tanlangan zona/tarmoq */
-const VOLATILE = new Set(['sel', 'selU']);
+const VOLATILE = new Set(['sel', 'selU', 'vw']);
 const LS = { get(k: string): Record<string, unknown> | null { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
   set(k: string, v: unknown): void { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* toʻla */ } } };
 const pick = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
@@ -137,7 +139,17 @@ async function show(): Promise<void> {
   if (location.hash !== `#/${id}`) history.replaceState(null, '', `#/${id}`);
   const m = mount(stage, tpl.default, inst, gate);
   current = { id, m };
+  if (id === 'b') fitWidth(inst);
   (window as unknown as { __ks: unknown }).__ks = current;   // e2e testlar uchun
+}
+/** B: kesim chizmasi kartani toʻldiradi — viewBox eni karta nisbatiga qarab (pastki qator shu bilan bir vertikalda) */
+let ro: ResizeObserver | null = null;
+function fitWidth(inst: DCLogic): void {
+  ro?.disconnect();
+  const card = stage.querySelector<HTMLElement>('.ws-b main > .card');
+  if (!card || typeof ResizeObserver === 'undefined') return;
+  const upd = () => { const r = card.getBoundingClientRect(); if (r.width < 50 || r.height < 50) return; const vw = Math.round(680 * r.width / r.height); if (vw !== (inst.state as { vw?: number }).vw) inst.setState({ vw }); };
+  ro = new ResizeObserver(upd); ro.observe(card); upd();
 }
 function persist(id: BoardId, inst: DCLogic): void {
   const st = inst.state as Record<string, unknown>, shared = SHARED[id] ?? [];

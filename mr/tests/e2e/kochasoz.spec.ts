@@ -46,13 +46,34 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
 test('saytda: faqat Kesim (Kesim, Reja koʻrinishlari) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
   await open(page, 'c');
   await expect(page).toHaveURL(/#\/b$/);                                   // tayyor boʻlmagan rejim → B
-  await expect(page.locator('.ws-b .mtab[aria-disabled=true]')).toHaveCount(4);
+  await expect(page.locator('.ws-b .mtab[aria-disabled=true]')).toHaveCount(3);
+  await expect(page.locator('.ws-b .mtab', { hasText: 'Mikromodel' })).toHaveCount(0);       // butunlay yashirin
   await expect(page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).locator('em.soon')).toHaveText('Tez orada');
   await page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).click({ force: true });   // aria-disabled — bosilsa ham oʻtmaydi
   await expect(page).toHaveURL(/#\/b$/);
   await expect(page.locator('.ws-b main .seg').first().locator('button')).toHaveText(['Kesim', 'Reja']);
   await expect(page.locator('#ksGrafika')).toHaveCount(0);
   await expect(page.locator('#ksVaraq')).toBeVisible();
+  // zona chegarasini pastki qatorda sudrash: qoʻshni zona hisobidan, umumiy kenglik oʻzgarmaydi
+  const w = () => page.evaluate(() => (window as any).__ks.m.inst.state.els.map((e: [string, number]) => e[1]));
+  const w0 = await w(), sum = (a: number[]) => Math.round(a.reduce((x, y) => x + y, 0) * 100) / 100;
+  const hb = (await page.locator('.ws-b .ks-sh').nth(1).boundingBox())!;
+  await page.mouse.move(hb.x + 6, hb.y + 20); await page.mouse.down(); await page.mouse.move(hb.x + 40, hb.y + 20, { steps: 4 }); await page.mouse.up();
+  const w1 = await w(); expect(w1[1]).toBeGreaterThan(w0[1]); expect(w1[2]).toBeLessThan(w0[2]); expect(sum(w1)).toBe(sum(w0));
+  // tarmoq: avto joylash, sudrash → meʼyor javobi chiqadi
+  await page.locator('.ws-b .tb', { hasText: 'Avto joylash' }).click();
+  const ub = (await page.locator('.ws-b .ub').first().boundingBox())!;
+  await page.mouse.move(ub.x + 8, ub.y + 8); await page.mouse.down(); await page.mouse.move(ub.x + 60, ub.y + 8, { steps: 4 }); await page.mouse.up();
+  await expect(page.locator('.ws-b .ks-ufb')).toHaveText(/^[✓✕]/);
+  // bino qavati chizmada: + tugmasi
+  await page.locator('.ws-b main .seg').first().getByRole('button', { name: 'Kesim' }).click();
+  const bL = await page.evaluate(() => (window as any).__ks.m.inst.state.bL);
+  await page.locator('.ws-b .ks-bb').nth(1).click();
+  expect(await page.evaluate(() => (window as any).__ks.m.inst.state.bL)).toBe(bL + 1);
+  // tayyor kesimlar: Master reja profillari guruhi
+  await page.locator('.ws-b .ks-tgs .chipb', { hasText: 'Asosiy' }).click();
+  await page.locator('.ws-b .tpl', { hasText: 'Mahalla koʻchasi' }).click();
+  await expect(page.locator('.ws-b aside').first()).toContainText('Mahalla koʻchasi');
   expect(errs).toEqual([]);
 });
 

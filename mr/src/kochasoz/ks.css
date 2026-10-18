@@ -121,3 +121,24 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 @media (min-width:1281px){ .ws .mtabs{left:calc(286px + (100% - 658px) / 2) !important} }
 /* B: koʻrinish tanlagich oʻngda (chizma sarlavhasini yopmaydi) */
 .ws-b main .card>div:first-child>.seg:first-child{order:3}
+
+/* ——— Kesim: chizma bilan bir vertikaldagi pastki qator, sudrash ——— */
+.ws-b .ks-strip{position:relative;height:58px;margin:0 -12px}
+.ws-b .ks-strip .blk{position:absolute;top:0;margin-left:1px}
+.ws-b .ks-sh{position:absolute;top:-4px;bottom:-4px;width:12px;margin-left:-6px;cursor:ew-resize;z-index:2;border-radius:4px}
+.ws-b .ks-sh::after{content:"";position:absolute;left:5px;top:14px;bottom:14px;width:2px;border-radius:1px;background:var(--svc-ks);opacity:0;transition:opacity .15s}
+.ws-b .ks-sh:hover::after,.ks-dragging .ws-b .ks-sh::after{opacity:.9}
+.ws-b .ks-ustrip{margin:0 -12px;border-radius:0 !important}
+.ws-b .ub{width:auto;min-width:22px;padding:0 4px;margin-left:0;transform:translateX(-50%);cursor:grab;touch-action:none}
+.ws-b .ks-hnd{fill:var(--svc-ks);opacity:0;cursor:ew-resize;touch-action:none}
+.ws-b .ks-hnd:hover{opacity:.18}
+.ws-b .ks-uh{fill:transparent;cursor:move;touch-action:none}
+.ws-b .ks-bb{cursor:pointer}
+.ws-b .ks-bb rect{fill:#fff;stroke:#2f2e2b;stroke-width:.8}
+.ws-b .ks-bb text{font:700 12px var(--sans);fill:#2f2e2b;pointer-events:none}
+.ws-b .ks-bb:hover rect{fill:#4c5bd4;stroke:#4c5bd4}.ws-b .ks-bb:hover text{fill:#fff}
+.ws-b .ks-ufb{font-size:12px;font-weight:600;line-height:1.35}
+.ks-dragging,.ks-dragging *{cursor:grabbing !important;user-select:none}
+.ws-b .ks-tgs{flex-wrap:nowrap !important;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
+.ws-b .ks-tgs .chipb{flex:none}
+.ws-b aside .ks-tgs{flex:none;min-height:32px}
