@@ -234,3 +234,5 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-step{display:inline-flex;align-items:center;gap:6px}
 .joy-step b{min-width:44px;text-align:center;font-size:13px}
 .joy-step .btn{min-width:28px;padding:2px 8px}
+.joy-rep{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.joy-rep .t-small{margin-right:auto}

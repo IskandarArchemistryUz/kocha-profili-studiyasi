@@ -11,7 +11,7 @@ import './joy.css';
 import type { Map as MLMap, GeoJSONSource, Marker } from 'maplibre-gl';
 import type { LngLat } from '../core/doc';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
-import { h, svgIcon, fmt } from '../ui/dom';
+import { h, svgIcon, fmt, toast } from '../ui/dom';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { mapStyle, basePrefs, setBasePrefs, PALETTES } from '../context/mapstyle';
@@ -25,7 +25,7 @@ import { frame as geoFrame } from '../core/geo';
 import { distAt, type Net } from '../core/services';
 import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
-import { loadLst, lstStats, lstTile, parseCmap, LST_CMAP, LST_BINS, lstColor, type LstGrid, type Px } from './heat';
+import { loadLst, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, type LstGrid, type Px } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
 import { daySteps, insolation, sunPosition, localToUtc, type Prism } from '../core/sun';
 import type { XY } from '../core/geo';
@@ -324,7 +324,12 @@ function renderRight(): void {
       h('span', { class: 'chip mono' }, `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Radius') }, ...RADII.map(r => h('button', { type: 'button', 'aria-pressed': r === S.r, onclick: () => setRadius(r) }, `${r} m`)))),
     h('div', { class: 't-small' }, tf('${r} m — taxminan ${m} daqiqa piyoda (toʻgʻri chiziqda). Xaritani bosib boshqa nuqtani tanlang.', { r: S.r, m: walkMin(S.r) })),
-    S.site ? h('div', { class: 'chip site' }, tf('Uchastka: ${a} ga', { a: fmt(ringArea(S.site) / 10000, 2) })) : null));
+    S.site ? h('div', { class: 'chip site' }, tf('Uchastka: ${a} ga', { a: fmt(ringArea(S.site) / 10000, 2) })) : null,
+    h('div', { class: 'joy-rep' },
+      h('span', { class: 't-small' }, tr('Hisobot (A3)')),
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'repPdf', disabled: repBusy, onclick: () => void report('pdf') }, tr('PDF')),
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'repSvg', disabled: repBusy, title: tr('Illustrator uchun qatlamli SVG'), onclick: () => void report('svg') }, 'SVG'),
+      h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'repChz', disabled: repBusy, onclick: () => void report('chz') }, tr('Chizmadonga')))));
 
   if (isOn('relyef') || isOn('nishab')) {
     const t = D.ter.v?.s;
@@ -599,7 +604,7 @@ function paint(): void {
   // issiqlik oroli — yozgi LST (6 km doira)
   const upd = (id: string, im: { url: string; coords: [number, number][] }) => (m.getSource(id) as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords });
   const lg0 = D.lst.v;
-  if (isOn('issiqlik') && lg0) { const k = `${S.c.join()}|${lg0.year}`; if (k !== heatKey) { heatKey = k; upd('joy-heat', gridImage(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : lstColor(v), 220, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
+  if (isOn('issiqlik') && lg0) { const k = `${S.c.join()}|${lg0.year}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', gridImage(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : devColor(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
   // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
   const sm = SM;
@@ -614,7 +619,7 @@ function paint(): void {
   } else m.setLayoutProperty('joy-shadow', 'visibility', 'none');
   // legenda: nishab va xizmatlar
   const lg: Node[] = [];
-  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Yer yuzasi harorati, °C (yoz)')), ...LST_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
+  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
   if (sm?.hours && isOn('quyosh')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
   if (nm?.reach && isOn('piyoda')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
@@ -631,6 +636,77 @@ function paint(): void {
     e.textContent = tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) });
     rlab.setLngLat([S.c[0] + S.r / kx, S.c[1]]);
   }
+}
+/* ---------------- C: joy pasporti hisoboti (A3) ---------------- */
+let repBusy = false;
+/** Xarita surati: doira kvadratga sigʻadigan qilib, keyin kamera qaytariladi */
+async function captureMap(): Promise<{ url: string; mPerMm: number; side: number } | null> {
+  const m = map; if (!m) return null;
+  const cam = { center: m.getCenter(), zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() };
+  const cv = m.getCanvas(), dpr = cv.width / cv.clientWidth, side = Math.min(cv.clientWidth, cv.clientHeight) - 24;
+  const span = S.r * 2.3, z = Math.log2(156543.03392 * Math.cos(S.c[1] * Math.PI / 180) * side / span);
+  m.jumpTo({ center: S.c as [number, number], zoom: Math.min(19, z), bearing: 0, pitch: 0 });
+  await new Promise<void>(res => { const t = setTimeout(res, 8000); m.once('idle', () => { clearTimeout(t); res(); }); });
+  const url = await new Promise<string>(res => { m.once('render', () => {
+    const W = Math.round(side * dpr), out = document.createElement('canvas'), k = Math.min(1, 1800 / W); out.width = out.height = Math.round(W * k);
+    const g = out.getContext('2d')!; g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
+    g.drawImage(cv, Math.round((cv.width - W) / 2), Math.round((cv.height - W) / 2), W, W, 0, 0, out.width, out.height);
+    try { res(out.toDataURL('image/jpeg', 0.86)); } catch { res(''); }
+  }); m.triggerRepaint(); });
+  m.jumpTo(cam);
+  const mPerPx = 156543.03392 * Math.cos(S.c[1] * Math.PI / 180) / 2 ** Math.min(19, z);
+  return url ? { url, mPerMm: 0, side: side * mPerPx } : null;
+}
+/** Ekrandagi pasport kartalari → hisobot maʼlumoti (ekran bilan bir xil matn va til) */
+function collectCards(): import('./report').RepCard[] {
+  return [...right.querySelectorAll<HTMLElement>('.joy-card[data-card]')].map(el => {
+    const sub = el.querySelector('.sub'), txt = (n: Element | null | undefined) => (n?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const norms = [...el.querySelectorAll('.joy-norm li')].map(li => ({ k: txt(li.querySelector('span')), v: txt(li.querySelector('b')), lim: txt(li.querySelector('em')), ok: li.classList.contains('ok') }));
+    const text: string[] = [];
+    if (sub) { const c = sub.cloneNode(true) as HTMLElement; c.querySelectorAll('ul, .src').forEach(x => x.remove()); c.querySelectorAll('br').forEach(b => b.replaceWith('\n')); c.textContent!.split('\n').map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean).forEach(t => text.push(t)); }
+    const chips = el.querySelectorAll('header .chip:not(.beta)');
+    const sq = el.querySelector<HTMLElement>('header .sq');
+    return { id: el.dataset.card!, name: txt(el.querySelector('header .nm')), color: sq?.style.background || ACC, chip: txt(chips[chips.length - 1]), beta: !!el.querySelector('header .chip.beta'), big: txt(el.querySelector('.big')), text, norms, src: [...(sub?.querySelectorAll('.src') ?? [])].map(txt).join(' ') };
+  }).filter(c => c.big && c.big !== '—');
+}
+function collectLegends(): import('./report').RepLegend[] {
+  return [...legend.querySelectorAll('.lg')].map(lg => ({ title: lg.querySelector('b')?.textContent ?? '', items: [...lg.querySelectorAll('span')].map(sp => {
+    const i = sp.querySelector('i') as HTMLElement | null, st = i?.getAttribute('style') ?? '', m = /#[0-9a-f]{6}/i.exec(st);
+    return [m ? m[0] : (i ? getComputedStyle(i).backgroundColor : '#999'), (sp.textContent ?? '').trim()] as [string, string];
+  }) }));
+}
+async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
+  if (repBusy) return;
+  repBusy = true; renderRight(); toast(tr('Hisobot tayyorlanmoqda…'));
+  try {
+    const R = await import('./report');
+    const shot = await captureMap().catch(() => null);
+    const S0 = R.A3, mapS = S0[1] - 10 - 30 - 20 - 6 - 4;
+    const w = isOn('shamol') ? D.wind.v : undefined;
+    const date = new Date().toISOString().slice(0, 10);
+    const addr = D.addr.st === 'ok' ? D.addr.v! : `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`;
+    const inp: import('./report').RepInput = {
+      kicker: tr('Joy pasporti'), title: addr, meta: `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)} · ${S.r} m · ${tf('${m} daqiqa piyoda', { m: walkMin(S.r) })} · ${date}`,
+      map: shot ? { url: shot.url, mPerMm: shot.side / mapS, rose: w ? roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null, ringLabel: tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) }) } : null,
+      legends: collectLegends(), cards: collectCards(),
+      stamp: { org: 'Archemistry Lab', service: 'Joyshunos', placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'),
+        sources: tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · EPW TMYx (climate.onebuilding.org) · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0331-16'),
+        note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
+      labels: { north: tr('Sh'), more: tr('Davomi keyingi varaqda →'), noMap: tr('Xarita surati olinmadi') },
+    };
+    const pages = R.passportSheets(inp, kind === 'chz');
+    const name = `joy-pasporti-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
+    if (kind === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(svg => ({ svg, widthMm: S0[0], heightMm: S0[1] })), `${name}.pdf`); }
+    else if (kind === 'svg') save2(`${name}.svg`, new Blob([pages[0]], { type: 'image/svg+xml' }));
+    else {
+      const inner = pages[0].replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+      const vh = +(/viewBox="0 0 [\d.]+ ([\d.]+)"/.exec(pages[0])?.[1] ?? S0[1]);
+      try { localStorage.setItem('ks-chz-inbox', JSON.stringify({ name: `${tr('Joy pasporti')} · ${addr}`, kind: 'sheet', svg: inner, vb: [0, 0, S0[0], vh], w: S0[0], h: vh })); }
+      catch { toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); return; }
+      location.href = './#/chizmadon';
+    }
+  } catch (e) { toast(`${tr('Hisobot tayyorlanmadi')}: ${(e as Error).message}`); }
+  finally { repBusy = false; renderRight(); }
 }
 let noiseKey = '', heatKey = '', sunKey = '', shadowKey = '';
 /** Markazga nisbatan toʻr (n×n, qadam step, yarim kenglik R) → rasm; clip — shu radiusdan tashqari shaffof */

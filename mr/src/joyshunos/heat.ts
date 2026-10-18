@@ -84,3 +84,8 @@ export function lstStats(g: LstGrid, r: number): { at: number; inside: number; r
 /** Harorat rangi (°C) — sovuqdan issiqqa */
 export const LST_BINS: [number, string, string][] = [[-99, '#3b5bab', '< 30'], [30, '#5aa0c8', '30–35'], [35, '#a7d3b5', '35–40'], [40, '#f2e08a', '40–45'], [45, '#f4a259', '45–50'], [50, '#d9503f', '50–55'], [55, '#8e1f2f', '≥ 55']];
 export function lstColor(t: number): string { let c = LST_BINS[0][1]; for (const [v, col] of LST_BINS) if (t >= v) c = col; return c; }
+
+/** Mahalliy issiqlik orolini koʻrsatish uchun: 6 km oʻrtachasidan farq (°C) — mutlaq shkala shahar ichida bir xil rang beradi */
+export const LST_DEV_BINS: [number, string, string][] = [[-99, '#2c6fb0', '< −3'], [-3, '#79b0d6', '−3…−1,5'], [-1.5, '#cfe3ee', '−1,5…−0,5'], [-0.5, '#f4f1e6', '±0,5'], [0.5, '#f7c9a0', '0,5…1,5'], [1.5, '#ee8a5a', '1,5…3'], [3, '#c43b2e', '> 3']];
+export function devColor(d: number): string { let c = LST_DEV_BINS[0][1]; for (const [v, col] of LST_DEV_BINS) if (d >= v) c = col; return c; }
+export function lstMean(g: LstGrid): number { let s = 0, n = 0; const c = (g.n - 1) / 2; for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { const v = g.v[j * g.n + i]; if (Number.isNaN(v) || Math.hypot(i - c, j - c) * g.step > g.R) continue; s += v; n++; } return n ? s / n : NaN; }
