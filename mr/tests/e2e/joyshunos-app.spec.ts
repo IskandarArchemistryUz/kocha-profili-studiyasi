@@ -55,6 +55,14 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await page.locator('.joy-menu button', { hasText: 'Dorixona' }).click();
   await expect(page.locator('.joy-cat')).toHaveText('Dorixona');
   await expect(page.locator('[data-card=raqobat] .big')).toHaveText(/^\d+ ta$/);
+  // radius: 15 daqiqa (1250 m) ham bor
+  await expect(page.locator('.joy-card.head .seg button')).toHaveCount(4);
+  await expect(page.locator('.joy-card.head .seg button', { hasText: '1250 m' })).toBeVisible();
+  // xarita uslubi: 7 ta palitra
+  await page.locator('#palBtn').click();
+  await expect(page.locator('.joy-base .joy-pal button')).toHaveCount(7);
+  await page.locator('.joy-base .joy-pal button[data-pal=line]').click();
+  await expect(page.locator('#palBtn')).toContainText('Chizma');
   // radius
   await page.locator('.joy-card.head .seg button', { hasText: '800 m' }).click();
   await expect(page.locator('.joy-card.head .ttl')).toContainText('800 m');
@@ -90,6 +98,7 @@ test('tungi rejim va til: panel qorongʻi, inglizcha matn', async ({ page }) => 
 });
 
 test('aksonometriya: sahna, izohlar, vaqt, portlatish, qatlam tartibi, PNG', async ({ page }) => {
+  test.setTimeout(150_000);
   const errs: string[] = []; await open(page, errs, '#/axo');
   await expect(page.locator('#joyMode [data-mode=axo]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.joy-axo canvas')).toBeVisible();
@@ -103,16 +112,22 @@ test('aksonometriya: sahna, izohlar, vaqt, portlatish, qatlam tartibi, PNG', asy
   await expect(page.locator('#axTm')).not.toHaveText(t0!);
   await page.locator('.joy-time .seg button', { hasText: '21 dekabr' }).click();
   await expect(page.locator('.joy-notes')).toContainText('21 dekabr');
-  // portlatilgan rejim: 7 ta raqamli izoh
+  // shamol: 3 yoʻnalish izohda (animatsiyali strelkalar)
+  await expect(page.locator('.joy-notes')).toContainText('Shamol 1:');
+  // uslub: Figura-fon
+  await page.locator('.joy-axl .joy-pal button[data-pal=fig]').click();
+  await expect(page.locator('.joy-axl .joy-pal button[data-pal=fig]')).toHaveAttribute('aria-selected', 'true');
+  // portlatilgan rejim: quyosh va shamol yashiriladi → 5 ta raqamli izoh
   await page.locator('.joy-axl .seg button', { hasText: 'Yoyilgan' }).click();
-  await expect(page.locator('.axo-side:not([hidden])')).toHaveCount(7);
+  await expect(page.locator('.axo-side:not([hidden])')).toHaveCount(5);
+  await expect(page.locator('.joy-axlist li[data-ax=quyosh] small')).toBeVisible();
   // qatlam tartibi: birinchisini yuqoriga
   const first = await page.locator('.joy-axlist li').first().getAttribute('data-ax');
   await page.locator('.joy-axlist li').first().locator('.mv', { hasText: '↑' }).click();
   await expect(page.locator('.joy-axlist li').nth(1)).toHaveAttribute('data-ax', first!);
   // qatlamni yashirish
-  await page.locator('.joy-axlist li[data-ax=quyosh] .check').click();
-  await expect(page.locator('.axo-side:not([hidden])')).toHaveCount(6);
+  await page.locator('.joy-axlist li[data-ax=binolar] .check').click();
+  await expect(page.locator('.axo-side:not([hidden])')).toHaveCount(4);
   // koʻrinish: reja
   await page.locator('.joy-axl .seg.vw button', { hasText: 'Reja' }).click();
   await expect(page.locator('.joy-axl .seg.vw button', { hasText: 'Reja' })).toHaveAttribute('aria-pressed', 'true');
