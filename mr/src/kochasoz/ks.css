@@ -1,0 +1,111 @@
+/* Koʻchasoz — kanvas maketlari (KS-*.dc.html) uslublari, ds2 tokenlarida. Chizma («qogʻoz») tungi rejimda ham oq qoladi. */
+html,body{height:100%}
+body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
+#ks{position:fixed;inset:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+.ks-stage,.dc-root{position:absolute;inset:0}
+.ws{position:absolute;inset:0;overflow:hidden;font-family:var(--sans);color:var(--ink);font-size:14px;line-height:1.45}
+.ws-grafika{overflow-y:auto}
+.ws-grafika>*{min-width:0}
+
+/* ——— ekotizim sarlavhasi ——— */
+.eko{position:absolute;top:12px;left:12px;right:12px;height:52px;border-radius:18px;display:flex;align-items:center;gap:10px;padding:0 10px 0 14px;z-index:5}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:var(--sh-float)}
+.eko .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap;color:var(--ink);text-decoration:none}
+.eko .vr{width:.5px;height:22px;background:var(--hairline)}
+.eko .svc{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--fill)}
+.eko .svc a{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:var(--r-pill);font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap}
+.eko .svc a:hover{color:var(--ink)}
+.eko .svc a.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 .5px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.06)}
+.eko .svc i{width:8px;height:8px;border-radius:4px;flex:none}
+.eko .sp{flex:1}
+.eko .btn[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.eko .langsw{width:108px}
+.eko a.btn{text-decoration:none;color:var(--ink)}
+
+/* ——— maket toʻplamidan (ui.css) ds2 da yoʻqlari ——— */
+.ws .t-foot{font-size:12px;line-height:1.35;color:var(--muted)}
+.ws .lbl{font-size:13px;font-weight:600;color:var(--ink)}
+.ws .num{font-variant-numeric:tabular-nums}
+.ws .card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card)}
+.ws .group{background:var(--grouped);border-radius:12px;overflow:hidden;box-shadow:none}
+.ws .group.white{background:var(--surface);box-shadow:var(--sh-card)}
+.ws .row{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 14px;position:relative}
+.ws .group>.row+.row::before{content:"";position:absolute;top:0;left:14px;right:0;height:.5px;background:var(--hairline)}
+.ws .stepper .v{min-width:30px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums;padding:0 4px}
+.ws .stepper .div{width:.5px;min-width:0;height:18px;background:var(--hairline)}
+.ws .stepper{height:30px}
+.ws .check{width:20px;height:20px}
+.ws a{color:inherit}
+
+/* ——— maket uslublari (helmet) ——— */
+.ws .mtab{display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border:0;border-radius:var(--r-pill);background:transparent;font:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+.ws .mtab:hover{color:var(--ink)}
+.ws .mtab[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.ws .mtab b{font-family:var(--mono);font-size:11px;color:var(--svc-ks)}
+.ws .chipb{height:28px;padding:0 10px;border:0;border-radius:var(--r-pill);background:var(--fill);font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.ws .chipb:hover{background:var(--fill-2)}
+.ws .chipb[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.ws .tpl{display:flex;flex-direction:column;gap:4px;width:100%;padding:8px;border:0;border-radius:14px;background:var(--grouped);font:inherit;color:var(--ink);cursor:pointer;text-align:left;transition:box-shadow .16s;flex:none}
+.ws .tpl svg{background:#fff;border-radius:8px}
+.ws .tpl[aria-pressed="true"]{box-shadow:0 0 0 2px var(--svc-ks);background:var(--surface)}
+.ws .blk{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:58px;border:0;border-radius:8px;font:inherit;font-size:10.5px;color:#141414;cursor:pointer;overflow:hidden;padding:0 2px;transition:box-shadow .15s;min-width:0}
+.ws .blk[aria-pressed="true"]{box-shadow:0 0 0 2px var(--svc-ks)}
+.ws .blk .w{font-family:var(--mono);font-size:11px;font-weight:600}
+.ws .blk svg{stroke:#141414}
+.ws .ub{position:absolute;top:6px;width:22px;height:22px;margin-left:-11px;border-radius:11px;border:1.5px solid;background:#fff;font:600 9.5px/19px var(--mono);text-align:center;cursor:pointer;padding:0}
+.ws .ub[aria-pressed="true"]{color:#fff !important}
+.ws .ucat{display:flex;align-items:center;gap:10px;width:100%;padding:6px 4px;border:0;background:transparent;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;text-align:left;border-radius:8px}
+.ws .ucat:hover{background:var(--fill)}
+.ws .ucat .bd{width:24px;height:24px;border-radius:7px;border:1.5px solid;font:600 9.5px/21px var(--mono);text-align:center;flex:none}
+.ws .itm{display:flex;align-items:center;gap:10px;width:100%;padding:7px 6px;border:0;background:transparent;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;text-align:left;border-radius:8px}
+.ws .itm:hover{background:var(--fill)}
+.ws .tb{height:30px;padding:0 11px;border:0;border-radius:var(--r-pill);background:var(--fill);font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
+.ws .tb.on{background:var(--svc-ks);color:#fff}
+.ws .chk{display:flex;gap:8px;align-items:flex-start;padding:6px 2px;border-bottom:1px solid var(--hairline);font-size:12.5px;line-height:1.3}
+.ws .chk:last-child{border-bottom:0}
+.ws .chk i{flex:none;width:9px;height:9px;border-radius:5px;margin-top:4px}
+.ws .chk .src{display:block;color:var(--muted);font-size:11px;font-family:var(--mono)}
+.ws .lim{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;color:var(--ink-2)}
+.ws .lim b{font-family:var(--mono);font-weight:600;text-align:right}
+.ws .lay{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:12px;background:transparent;font:inherit;font-size:13.5px;color:var(--ink);cursor:pointer;text-align:left}
+.ws .lay:hover{background:var(--fill)}
+.ws .tg{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:0;border-radius:var(--r-pill);background:var(--glass);box-shadow:0 0 0 .5px rgba(0,0,0,.08);font:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.ws .tg[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.ws .big{font-size:26px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ws .meter{height:8px;border-radius:4px;background:var(--fill);overflow:hidden}.ws .meter i{display:block;height:100%;border-radius:4px}
+.ws button:focus-visible,.eko :focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+/* chizma kartasi — qogʻoz */
+.ws main .card:has(>svg),.ws-varaq [role=img]{background:#fff}
+[data-theme="dark"] .ws main .card:has(>svg){box-shadow:0 0 0 .5px rgba(255,255,255,.12)}
+
+/* ——— planshet (≤ 1280): panellar torayadi ——— */
+@media (max-width:1280px){
+  .ws aside.panel:first-of-type{width:236px !important}
+  .ws aside.panel:last-of-type{width:300px !important}
+  .ws main{left:258px !important;right:322px !important}
+  .eko .svc a{padding:0 9px}
+}
+@media (max-width:1100px){
+  .eko .brand span{display:none}
+  .eko .svc a{font-size:12px;padding:0 8px}
+}
+@media (max-width:900px){
+  .eko .svc a{font-size:0;gap:0;width:30px;justify-content:center;padding:0}
+  .eko .svc a i{width:10px;height:10px;border-radius:5px}
+}
+@media (prefers-reduced-motion:reduce){.ws *{transition:none !important;animation:none !important}}
+.ws svg.ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ws main .card .seg{width:auto !important;grid-auto-columns:auto}
+.ws main .card .seg button{padding:0 10px}
+.ws .check.on svg{stroke:var(--surface)}
+.ws main>.card:last-child>div:first-child{flex-wrap:wrap;row-gap:6px}
+@media (max-width:1280px){ .ws .mtabs{left:calc(258px + (100% - 580px) / 2) !important} }
+@media (max-width:1180px){
+  .ws .mtabs{left:258px !important;right:322px !important;transform:none !important;overflow-x:auto;scrollbar-width:none}
+  .ws .mtabs .mtab{padding:0 10px;font-size:12px;gap:5px}
+}
+.ws-varaq>div:first-child>b,.ws-grafika>div:first-child>b{white-space:nowrap}
+.ws-varaq>div:first-child>div:first-of-type{min-width:0;overflow-x:auto;scrollbar-width:none}
+@media (max-width:1180px){
+  .ws-varaq>div:first-child>.t-foot,.ws-grafika>div:first-child>.t-foot{display:none}
+}

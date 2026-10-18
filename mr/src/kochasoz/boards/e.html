@@ -1,0 +1,44 @@
+<div class="ws ws-e">
+  <div class="mtabs" style="position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(236,235,232,.9); z-index: 3;">
+    <sc-for list="{{modes}}" as="m"><button class="mtab" aria-pressed="{{m.p}}"><b>{{m.k}}</b>{{m.n}}</button></sc-for>
+  </div>
+  <aside class="panel" style="position: absolute; top: 76px; left: 12px; width: 262px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; z-index: 2;">
+    <div><span class="t-foot">Mikromodel</span><b style="display: block; font-size: 17px;">{{title}}</b><span class="t-foot">Tor koʻcha · bitta umumiy boʻlak, choʻntaklarda oʻtib ketish</span></div>
+    <span class="lbl">Koʻcha</span>
+    <div class="group white"><sc-for list="{{par1}}" as="r"><div class="row" style="min-height: 40px;"><span style="flex: 1; font-size: 13px;">{{r.n}}</span><div class="stepper" style="height: 28px;"><button onClick="{{r.dn}}" style="height: 28px;" aria-label="Kamaytirish">−</button><span class="v" style="min-width: 58px;">{{r.v}}</span><button onClick="{{r.up}}" style="height: 28px;" aria-label="Oshirish">+</button></div></div></sc-for></div>
+    <span class="lbl">Oqim · eng gavjum soat</span>
+    <div class="group white"><sc-for list="{{par2}}" as="r"><div class="row" style="min-height: 40px;"><span style="flex: 1; font-size: 13px;">{{r.n}}</span><div class="stepper" style="height: 28px;"><button onClick="{{r.dn}}" style="height: 28px;" aria-label="Kamaytirish">−</button><span class="v" style="min-width: 58px;">{{r.v}}</span><button onClick="{{r.up}}" style="height: 28px;" aria-label="Oshirish">+</button></div></div></sc-for></div>
+    <span class="t-foot" style="color: #b23a2e;">Andoza qiymatlar — kamera hisoblari bilan almashtiring.</span>
+    <span class="lbl">Bir tomonlama boʻlsa · aylanma yoʻl</span>
+    <div class="group white"><sc-for list="{{par3}}" as="r"><div class="row" style="min-height: 40px;"><span style="flex: 1; font-size: 13px;">{{r.n}}</span><div class="stepper" style="height: 28px;"><button onClick="{{r.dn}}" style="height: 28px;" aria-label="Kamaytirish">−</button><span class="v" style="min-width: 58px;">{{r.v}}</span><button onClick="{{r.up}}" style="height: 28px;" aria-label="Oshirish">+</button></div></div></sc-for></div>
+    <span class="lbl">Ssenariy (koʻrinish uchun)</span>
+    <div style="display: flex; flex-direction: column; gap: 5px;"><sc-for list="{{scn}}" as="c"><button class="tpl" aria-pressed="{{c.p}}" onClick="{{c.pick}}" style="padding: 9px 10px;"><b style="font-size: 13px; font-weight: 600;">{{c.n}}</b><span class="t-foot">{{c.d}}</span></button></sc-for></div>
+  </aside>
+  <main style="position: absolute; top: 124px; left: 286px; right: 372px; bottom: 12px; display: flex; flex-direction: column; gap: 10px;">
+    <div class="card" style="flex: 1; min-height: 0; position: relative; overflow: hidden; border-radius: 22px;">
+      <svg viewBox="0 0 784 760" style="position: absolute; inset: 0; width: 100%; height: 100%;" role="img" aria-label="{{alt}}">
+        <rect width="784" height="760" fill="#ffffff"></rect>
+        <sc-for list="{{draw}}" as="p"><path d="{{p.d}}" fill="{{p.f}}" stroke="{{p.s}}" stroke-width="{{p.w}}" stroke-dasharray="{{p.da}}" opacity="{{p.o}}" stroke-linecap="round" stroke-linejoin="round"></path></sc-for>
+        <sc-for list="{{txt_m}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="middle" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for><sc-for list="{{txt_s}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="start" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for><sc-for list="{{txt_e}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="end" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for>
+      </svg>
+    </div>
+    <div class="card" style="padding: 10px 14px; border-radius: 18px; display: flex; align-items: center; gap: 8px;">
+      <span class="t-foot">Vaqt</span><b class="num" style="font-size: 15px; min-width: 64px;">{{clock}}</b>
+      <button class="tb" onClick="{{tB}}">−1 min</button><button class="tb" onClick="{{tF}}">+1 min</button>
+      <div style="flex: 1; height: 6px; border-radius: 3px; background: #ecebe8; position: relative;"><i style="position: absolute; left: 0; top: 0; bottom: 0; width: {{tW}}; background: #4c5bd4; border-radius: 3px;"></i></div>
+      <sc-for list="{{tP}}" as="b"><button class="tb" onClick="{{b.pick}}">{{b.n}}</button></sc-for>
+    </div>
+  </main>
+  <aside class="panel" style="position: absolute; top: 76px; right: 12px; width: 348px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; z-index: 2;">
+    <span class="lbl">Natija · 1 soat</span>
+    <div class="group white" style="padding: 8px 10px;">
+      <div class="lim" style="color: #8f8a80; font-size: 11px;"><span>Koʻrsatkich</span><span style="display: flex; gap: 0;"><b style="width: 64px; text-align: right; font-weight: 600;">Hozir</b><b style="width: 64px; text-align: right; font-weight: 600;">Bir tom.</b><b style="width: 64px; text-align: right; font-weight: 600;">Turargohsiz</b></span></div>
+      <sc-for list="{{tab}}" as="r"><div class="lim"><span>{{r.n}}</span><span style="display: flex;"><b style="width: 64px; text-align: right; color: {{r.c0}};">{{r.v0}}</b><b style="width: 64px; text-align: right; color: {{r.c1}};">{{r.v1}}</b><b style="width: 64px; text-align: right; color: {{r.c2}};">{{r.v2}}</b></span></div></sc-for>
+    </div>
+    <div class="note">{{verdict}}</div>
+    <span class="lbl">Model qanday ishlaydi</span>
+    <div class="group white" style="padding: 8px 12px; font-size: 12.5px; line-height: 1.45; color: #3a3936;"><sc-for list="{{how}}" as="h"><div style="padding: 3px 0;">· {{h.t}}</div></sc-for></div>
+    <span class="lbl">Keyingi qadam</span>
+    <div class="group white" style="padding: 8px 12px; font-size: 12.5px; line-height: 1.45; color: #3a3936;"><sc-for list="{{next}}" as="h"><div style="padding: 3px 0;">· {{h.t}}</div></sc-for></div>
+  </aside>
+</div>
