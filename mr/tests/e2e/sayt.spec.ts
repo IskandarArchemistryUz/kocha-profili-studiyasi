@@ -19,10 +19,10 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => { srv?.close(); });
 
-test('bosh sahifa v4: jonli model, ekotizim, til, tungi rejim, eski boʻlimlar', async ({ page }) => {
+test('batafsil (v4): jonli model, ekotizim, til, tungi rejim, eski boʻlimlar', async ({ page }) => {
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g|nominatim/, r => r.abort());
-  await page.goto(`http://127.0.0.1:${PORT}/index.html`);
+  await page.goto(`http://127.0.0.1:${PORT}/haqida.html`);
   await expect(page.locator('h1')).toContainText('Master reja');
   // jonli model: 7 qavat — 267 xonadon, 946 kishi, maktab 157 (5-ilova), avtoturargoh 267 (xonadonga 1)
   const num = async (id: string) => Number((await page.locator(id).textContent())!.replace(/\D/g, ''));
@@ -58,10 +58,10 @@ test('bosh sahifa v4: jonli model, ekotizim, til, tungi rejim, eski boʻlimlar',
   expect(errs).toEqual([]);
 });
 
-test('narxlar: hisoblagich, maydon koeffitsiyenti, valyuta, til', async ({ page }) => {
+test('narxlar batafsil: hisoblagich, maydon koeffitsiyenti, valyuta, til', async ({ page }) => {
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto(`http://127.0.0.1:${PORT}/narxlar.html`);
+  await page.goto(`http://127.0.0.1:${PORT}/narxlar-batafsil.html`);
   // andoza: «Qoʻmitaga topshirish» (12+8+3+5 = 28) × 1,5 = 42
   await expect(page.locator('#cTot')).toHaveText('42');
   await expect(page.locator('[data-pre="kom"]')).toHaveAttribute('aria-pressed', 'true');
@@ -78,6 +78,49 @@ test('narxlar: hisoblagich, maydon koeffitsiyenti, valyuta, til', async ({ page 
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   await expect(page.locator('h1')).toContainText('бесплатно');
   await expect(page.locator('#cSum')).toContainText('сум');
+  await expect(page.locator('.draft')).toBeVisible();
+  expect(errs).toEqual([]);
+});
+
+test('bosh sahifa · minimal: xizmatlar, Boshlash, fikr, til, tungi rejim', async ({ page }) => {
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.route(/fonts\.g|goatcounter|gc\.zgo/, r => r.abort());
+  await page.goto(`http://127.0.0.1:${PORT}/index.html`);
+  await expect(page.locator('h1')).toContainText('meʼyor bilan');
+  await expect(page.locator('#ctaNew')).toHaveAttribute('href', 'app/#/yangi');
+  const hrefs = await page.locator('nav.dots a.d').evaluateAll(a => a.map(x => x.getAttribute('href')));
+  expect(hrefs).toEqual(['app/kochasoz.html', 'app/joyshunos.html', 'app/#/chizmadon', 'dizaynkod.html', 'app/render.html']);
+  for (const a of await page.locator('a[href]').all()) expect(await a.getAttribute('href')).not.toBe('#');
+  for (const h of ['haqida.html', 'narxlar.html', 'haqida.html#hammasi', 'app/']) await expect(page.locator(`footer a[href="${h}"]`)).toHaveCount(1);
+  // beta tugmasi va sariq qator chiqmaydi — sahifaning oʻz «Fikr» tugmasi bor
+  await expect(page.locator('#kbBtn')).toBeHidden(); await expect(page.locator('#kbBar')).toHaveCount(0);
+  await page.locator('.fab').hover(); await page.click('[data-fb="Xato topdim"]');
+  await expect(page.locator('[data-fb="Xato topdim"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('#fbBeta'); await expect(page.locator('#kbPn')).toBeVisible();
+  // til va tungi rejim
+  await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
+  await expect(page.locator('h1')).toContainText('по нормам'); await expect(page.locator('#ctaNew')).toHaveText('Начать');
+  const th0 = await page.locator('html').getAttribute('data-theme');
+  await page.click('#themeBtn'); await expect(page.locator('html')).not.toHaveAttribute('data-theme', th0!);
+  // avvalgi versiya loyihalari — eslatma
+  await page.evaluate(() => localStorage.setItem('kps_projects', JSON.stringify({ active: null, list: [{ id: 'a', name: 'X', t: 1 }] })));
+  await page.reload(); await expect(page.locator('#oldNote')).toBeVisible();
+  await expect(page.locator('#oldNote a')).toHaveAttribute('href', 'haqida.html#loyihalar');
+  expect(errs).toEqual([]);
+});
+
+test('narxlar · minimal: tariflar, Pro yillik, valyuta, batafsil havola', async ({ page }) => {
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.route(/fonts\.g|goatcounter|gc\.zgo/, r => r.abort());
+  await page.goto(`http://127.0.0.1:${PORT}/narxlar.html`);
+  await expect(page.locator('.mpc')).toHaveCount(4);
+  await expect(page.locator('#proP')).toHaveText(/149\s000/);
+  await page.click('[data-per="y"]'); await expect(page.locator('#proP')).toHaveText(/119\s200/);
+  await expect(page.locator('#proY')).toContainText(/1\s430\s400/);
+  await page.click('[data-cur="usd"]'); await expect(page.locator('[data-usd="$10"]').first()).toHaveText('$10');
+  await expect(page.locator('#proP')).toHaveText('$12');
+  await expect(page.locator('.mb[disabled]')).toHaveCount(2);
+  await expect(page.locator('a.more')).toHaveAttribute('href', 'narxlar-batafsil.html');
   await expect(page.locator('.draft')).toBeVisible();
   expect(errs).toEqual([]);
 });
