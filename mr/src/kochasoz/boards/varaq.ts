@@ -2,6 +2,7 @@
 /* Koʻchasoz · KS-Varaq — kanvas maketidagi (Archemistry Lab, «Koʻchasoz» sahifasi, KS-Varaq.dc.html) mantiq aynan koʻchirilgan.
    Hisob-kitob va chizma shu yerda; qobiq, saqlash, til va tungi rejim — ../dc.ts va ../main.ts. */
 import { DCLogic } from '../dc';
+import BComp from './b';
 import UA_ from './ua.json';
 export default class Component extends DCLogic {
   constructor(p) { super(p); this.state = {"PL": [{"t": "parklet", "z": 4, "y": 15, "l": 6}, {"t": "yuklash", "z": 8, "y": 9, "l": 8}, {"t": "taksi", "z": 8, "y": 24, "l": 6}, {"t": "velopark", "z": 2, "y": 8, "l": 5}, {"t": "shpalera", "z": 6, "y": 10, "l": 12}, {"t": "terrasa", "z": 12, "y": 5, "l": 6}], "els": [["front", 3, {"kafe": true}], ["piy", 3, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["qat", 3.5, {"zebra": true}], ["med", 4, {"daraxt": true, "fonar": true}], ["qat", 3.5, {"zebra": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 3, {}], ["front", 3, {"kafe": true}]], "rl": 35.2, "tplName": "Tuman koʻchasi", "TPL": [["Magistral · tramvayli", null, [["front", 2, {"kafe": true}], ["piy", 5, {}], ["velo", 1.8, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["qat", 3.25, {}], ["qat", 3.25, {"zebra": true}], ["med", 2.5, {"fonar": true}], ["tram", 3.1, {"tayanch": true}], ["tram", 3.1, {"tayanch": true}], ["med", 2.5, {"fonar": true}], ["qat", 3.25, {"zebra": true}], ["qat", 3.25, {}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["velo", 1.8, {}], ["piy", 5, {}], ["front", 2, {"kafe": true}]], "sh2", "U2", [{"t": "terrasa", "z": 0, "y": 4, "l": 7}, {"t": "velopark", "z": 3, "y": 22, "l": 5}, {"t": "samokat", "z": 3, "y": 29, "l": 3}, {"t": "shpalera", "z": 7, "y": 12, "l": 10}, {"t": "buta", "z": 10, "y": 20, "l": 4}, {"t": "gul", "z": 17, "y": 6, "l": 1}, {"t": "orindiq", "z": 14, "y": 16, "l": 2}]], ["Tuman koʻchasi", null, [["front", 3, {"kafe": true}], ["piy", 3, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["qat", 3.5, {"zebra": true}], ["med", 4, {"daraxt": true, "fonar": true}], ["qat", 3.5, {"zebra": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 3, {}], ["front", 3, {"kafe": true}]], "tm", "U3", [{"t": "parklet", "z": 4, "y": 15, "l": 6}, {"t": "yuklash", "z": 8, "y": 9, "l": 8}, {"t": "taksi", "z": 8, "y": 24, "l": 6}, {"t": "velopark", "z": 2, "y": 8, "l": 5}, {"t": "shpalera", "z": 6, "y": 10, "l": 12}, {"t": "terrasa", "z": 12, "y": 5, "l": 6}]], ["Avtobus koridori", null, [["front", 1, {}], ["piy", 5, {}], ["velo", 1.8, {}], ["yash", 3, {"daraxt": true, "velot": true}], ["mebel", 0.6, {"fonar": true}], ["bus", 3.75, {"bekat": true}], ["qat", 3.25, {"zebra": true}], ["med", 4, {"fonar": true, "orolcha": true}], ["qat", 3.25, {"zebra": true}], ["bus", 3.75, {"bekat": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "velot": true}], ["velo", 1.8, {}], ["piy", 5, {}], ["front", 1, {}]], "sh2", "U2", [{"t": "bekat", "z": 3, "y": 12, "l": 10}, {"t": "velopark", "z": 11, "y": 8, "l": 5}, {"t": "samokat", "z": 11, "y": 16, "l": 3}]], ["Mahalla koʻchasi", null, [["front", 1.1, {"gul": true}], ["piy", 2.25, {}], ["yash", 3, {"daraxt": true, "buta": true}], ["mebel", 0.5, {"fonar": true}], ["qat", 3, {}], ["qat", 3, {}], ["mebel", 0.5, {"fonar": true}], ["yash", 3, {"daraxt": true, "buta": true}], ["piy", 2.25, {}], ["front", 1.1, {"gul": true}]], "mh", "M1", [{"t": "buta", "z": 2, "y": 6, "l": 4}, {"t": "orindiq", "z": 7, "y": 12, "l": 2}, {"t": "gul", "z": 9, "y": 5, "l": 1}]], ["Piyoda koʻchasi", null, [["front", 2, {"kafe": true}], ["piy", 5, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.5, {"fonar": true}], ["mebel", 0.5, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 5, {}], ["front", 2, {"kafe": true}]], "pd", "U5", [{"t": "terrasa", "z": 0, "y": 3, "l": 10}, {"t": "terrasa", "z": 7, "y": 12, "l": 8}, {"t": "velopark", "z": 2, "y": 14, "l": 5}, {"t": "orindiq", "z": 5, "y": 8, "l": 2}]]], "sk": "tm", "uk": "U3", "sel": 999, "selU": -1, "view": 1, "gfx": 0, "showU": true, "bL": 7, "bR": 9, "U": []}; }
@@ -729,35 +730,44 @@ export default class Component extends DCLogic {
       ucat: UC.map(function (c) { var n = U.filter(function (u) { return u.k === c[0]; }).length; return { k: c[0], n: c[1], c: c[2], f: '≥' + fm(c[4]), has: n ? '✓' : '', add: function () { var N = self.state.U.map(function (u) { return Object.assign({}, u); }); N.push({ k: c[0], x: place(c[0], N), d: c[3] }); self.setState({ U: N, selU: N.length - 1, showU: true }); } }; })
     };
     }
-    var base = Object.assign({}, s, { sel: 999, selU: -1, showU: true });
-    function autoU(st) { var cap = {}; var fk = { state: st, setState: function (o) { Object.assign(cap, o); } }; ksRender(st, fk).auto(); return cap.U || []; }
-    if (!s.U || !s.U.length) base.U = autoU(base);
-    var sec = ksRender(Object.assign({}, base, { view: 0 }), self), pl = ksRender(Object.assign({}, base, { view: 1 }), self);
-    var UCd = function (q) { return sec._UC.filter(function (u) { return u[0] === q; })[0]; }, SKP = sec._SKP, DKP = sec._DKP;
-    var AX = axoDraw(base, s.gfx, UCd, 22, 548, 552, 276), D = AX.D, TT = AX.TT, bmax = AX.bmax, rl = base.rl;
+    /* 2026-10-18: varaq B (Kesim) muharririning oʻz chizmasidan foydalanadi — bir xil koʻrinish va tekshiruv.
+       Aksonometriya olib tashlandi (Iskandar: «aksonometriyani olib tashlash»); kesim va reja bir masshtabda. */
+    var base = Object.assign({}, s, { sel: 999, selU: -1, showU: true, vw: 784 });
+    function bRender(st) { var b = new BComp({}), cap = {}; b.state = Object.assign({}, b.state, st); b.setState = function (o) { Object.assign(cap, typeof o === 'function' ? o(b.state) : o); }; var v = b.renderVals(); v._cap = cap; return v; }
+    if (!s.U || !s.U.length) { var a0 = bRender(Object.assign({}, base, { view: 0 })); a0.auto(); base.U = a0._cap.U || []; }
+    var sec = bRender(Object.assign({}, base, { view: 0 })), pl = bRender(Object.assign({}, base, { view: 1 }));
+    var SKP = sec._SKP, DKP = sec._DKP, rl = base.rl, px = sec._px;
+    // ===== joylashuv: chap ustun — kesim (yuqorida) va reja (pastda), bitta masshtab =====
+    var LX = 16, LW = 676, TOP = 16, BOT = 826, MMU = 420 / 1188;          // 1 varaq birligi = 0,354 mm
+    var eS = sec._ext, eP = pl._ext, hS = eS[1] - eS[0], hP = eP[1] - eP[0];
+    var kFit = Math.min((BOT - TOP - 18) / (hS + hP), LW / 784);
+    var NICE = [100, 125, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000], N = NICE.filter(function (n) { return 1000 / (n * px * MMU) <= kFit; })[0] || 2000;
+    var k = 1000 / (N * px * MMU), xo = LX + (LW - 784 * k) / 2;
+    var secTf = 'translate(' + xo.toFixed(1) + ' ' + (TOP - eS[0] * k).toFixed(1) + ') scale(' + k.toFixed(4) + ')';
+    var plTop = TOP + hS * k + 18, plTf = 'translate(' + xo.toFixed(1) + ' ' + (plTop - eP[0] * k).toFixed(1) + ') scale(' + k.toFixed(4) + ')';
     // ===== varaq ramkasi, tekshiruv, shtamp =====
     var SD = [], ST = [];
     function S(d, f, st, w, o) { SD.push({ d: d, f: f || 'none', s: st || 'none', w: w || 0, o: o == null ? 1 : o, da: '', t: '' }); }
     function ST1(x, y, t, fs, c, fw, an, ff) { ST.push({ x: String(x), y: String(y), t: t, fs: fs || 9, c: c || '#141414', fw: fw || 400, ff: ff || 'Archivo, sans-serif', a: an || 'start' }); }
+    function cut(t, n) { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
     S('M8 8H1180V832H8Z', null, '#141414', 1.2);
-    S('M590 8V640M590 304H1180M8 532H590', null, '#d9d6cf', 0.8);
-    ST1(22, 546, 'Aksonometriya · 28 m uchastka', 12, '#141414', 700); ST1(22, 559, 'Yer osti tarmoqlari old kesimda; qavatlar ' + Math.min(base.bL, bmax) + ' tagacha qisqartirilgan', 8.5, '#8f8a80');
-    // tekshiruv
-    ST1(600, 322, 'Meʼyoriy tekshiruv · ' + sec.okCount, 12, '#141414', 700);
-    var cy = 342; sec.checks.slice(0, 18).forEach(function (r) { S(El(606, cy - 3, 3, 3), r.c, null, 0); ST1(614, cy, r.n.length > 44 ? r.n.slice(0, 43) + '…' : r.n, 8.5, '#141414'); ST1(842, cy, (r.src || '').length > 46 ? r.src.slice(0, 45) + '…' : (r.src || ''), 7, '#8f8a80'); ST1(1170, cy, String(r.v), 8.5, r.c, 700, 'end', 'IBM Plex Mono, monospace'); S('M600 ' + (cy + 4.5) + 'H1172', null, '#f0eee9', 0.6); cy += 15.5; });
+    S('M700 8V832M8 ' + (plTop - 9).toFixed(1) + 'H700', null, '#d9d6cf', 0.8);
+    // tekshiruv (oʻng ustun)
+    ST1(714, 34, 'Meʼyoriy tekshiruv · ' + sec.okCount, 12, '#141414', 700);
+    var cy = 56; sec.checks.slice(0, 34).forEach(function (r) { S(El(718, cy - 3, 3, 3), r.c, null, 0); ST1(726, cy, cut(r.n, 60), 8.2, '#141414'); ST1(726, cy + 10, cut(r.src, 70), 6.6, '#8f8a80', 400, 'start', 'IBM Plex Mono, monospace'); ST1(1168, cy, cut(r.v, 14), 8.5, r.c, 700, 'end', 'IBM Plex Mono, monospace'); S('M714 ' + (cy + 14.5) + 'H1170', null, '#f0eee9', 0.6); cy += 20; });
     // shtamp
-    var sx = 600, sy = 640; S('M' + sx + ' ' + sy + 'H1180V832H' + sx + 'Z', null, '#141414', 1); S('M' + sx + ' ' + (sy + 44) + 'H1180M' + sx + ' ' + (sy + 120) + 'H1180M900 ' + (sy + 44) + 'V832M1060 ' + (sy + 120) + 'V832', null, '#141414', 0.6);
+    var sx = 700, sy = 640; S('M' + sx + ' ' + sy + 'H1180V832H' + sx + 'Z', null, '#141414', 1); S('M' + sx + ' ' + (sy + 44) + 'H1180M' + sx + ' ' + (sy + 120) + 'H1180M960 ' + (sy + 44) + 'V832M1080 ' + (sy + 120) + 'V832', null, '#141414', 0.6);
     ST1(sx + 12, sy + 20, 'Archemistry Lab', 15, '#141414', 700); ST1(sx + 12, sy + 35, 'Koʻchasoz · koʻcha profili', 9.5, '#8f8a80');
     ST1(1168, sy + 20, 'KS-01', 15, '#141414', 700, 'end', 'IBM Plex Mono, monospace'); ST1(1168, sy + 35, 'Varaq 1 / 1 · A3', 9, '#8f8a80', 400, 'end');
-    ST1(sx + 12, sy + 64, base.tplName, 12, '#141414', 700); ST1(sx + 12, sy + 80, 'ShNQ toifasi: ' + SKP[base.sk][0] + ' (2.07.06-24, 1-jadval)', 8.5, '#3a3936'); ST1(sx + 12, sy + 94, 'Dizayn-kod turi: ' + base.uk + ' · ' + DKP[base.uk][6].split(' (')[0], 8.5, '#3a3936'); ST1(sx + 12, sy + 108, 'Qizil chiziqlar orasi ' + String(rl).replace('.', ',') + ' m · tarmoqlar ' + (base.U || []).length + ' ta', 8.5, '#3a3936');
-    ST1(912, sy + 64, 'Masshtab', 8, '#8f8a80'); ST1(912, sy + 80, '≈ 1:' + (Math.round(1 / (0.72 * (740 / (rl + 9)) * (420 / 1188) / 1000) / 50) * 50), 12, '#141414', 700, 'start', 'IBM Plex Mono, monospace'); ST1(912, sy + 98, 'Sana: 2026-10', 8.5, '#3a3936'); ST1(912, sy + 112, 'Holat: eskiz', 8.5, '#3a3936');
-    ST1(sx + 12, sy + 140, 'Manbalar: ShNQ 2.07.01-23 (8, 9, 20, 35-jadval); ShNQ 2.07.06-24 (1-jadval, 109-band);', 7.5, '#3a3936'); ST1(sx + 12, sy + 152, 'Toshkent Dizayn-kodi, VII-19-17-14-0-K/26 (3.4, 7.4.1, 13.4).', 7.5, '#3a3936');
-    ST1(sx + 12, sy + 172, 'Tarmoq chuqurliklari — andoza. Loyiha emas, tahliliy eskiz.', 7.5, '#b23a2e');
-    ST1(1072, sy + 140, 'Tayyorladi', 7.5, '#8f8a80'); ST1(1072, sy + 156, 'Archemistry Lab', 9, '#141414', 700);
+    ST1(sx + 12, sy + 64, cut(base.tplName, 34), 12, '#141414', 700); ST1(sx + 12, sy + 80, 'ShNQ toifasi: ' + SKP[base.sk][0] + ' (2.07.06-24, 1-jadval)', 8.5, '#3a3936'); ST1(sx + 12, sy + 94, cut('Dizayn-kod turi: ' + base.uk + ' · ' + DKP[base.uk][6].split(' (')[0], 46), 8.5, '#3a3936'); ST1(sx + 12, sy + 108, 'Qizil chiziqlar orasi ' + String(rl).replace('.', ',') + ' m · tarmoqlar ' + (base.U || []).length + ' ta', 8.5, '#3a3936');
+    ST1(972, sy + 64, 'Masshtab (A3)', 8, '#8f8a80'); ST1(972, sy + 80, '1:' + N, 12, '#141414', 700, 'start', 'IBM Plex Mono, monospace'); ST1(972, sy + 94, 'kesim va reja', 8, '#8f8a80'); ST1(1092, sy + 64, 'Sana: 2026-10', 8, '#3a3936'); ST1(1092, sy + 78, 'Holat: eskiz', 8, '#3a3936');
+    ST1(sx + 12, sy + 140, 'Manbalar: ShNQ 2.07.01-23 (8, 9, 20, 35-jadval);', 7.5, '#3a3936'); ST1(sx + 12, sy + 152, 'ShNQ 2.07.06-24 (1-jadval, 109-band);', 7.5, '#3a3936'); ST1(sx + 12, sy + 164, 'Toshkent Dizayn-kodi, VII-19-17-14-0-K/26 (3.4, 7.4.1, 13.4).', 7.5, '#3a3936');
+    ST1(sx + 12, sy + 182, 'Tarmoq chuqurliklari — andoza. Loyiha emas, tahliliy eskiz.', 7.5, '#b23a2e');
+    ST1(1092, sy + 140, 'Tayyorladi', 7.5, '#8f8a80'); ST1(1092, sy + 156, 'Archemistry Lab', 9, '#141414', 700);
     return {
-      alt: 'Albom varagʻi: ' + base.tplName,
-      secD: sec.draw, secT: sec.txt, plD: pl.draw, plT: pl.txt, axD: D, axT: TT, shD: SD, shT: ST,
-      tpls: s.TPL.map(function (t) { return { n: t[0], p: s.tplName === t[0] ? 'true' : 'false', pick: function () { var w = 0; t[2].forEach(function (e) { w += e[1]; }); self.setState({ els: t[2].map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }), rl: Math.round(w * 100) / 100, tplName: t[0], sk: t[3], uk: t[4], U: [] }); } }; }),
+      alt: 'Albom varagʻi: ' + base.tplName, secTf: secTf, plTf: plTf,
+      secD: sec.draw, secT: sec.txt, plD: pl.draw, plT: pl.txt, axD: [], axT: [], shD: SD, shT: ST,
+      tpls: s.TPL.map(function (t) { return { n: t[0], p: s.tplName === t[0] ? 'true' : 'false', pick: function () { var w = 0; t[2].forEach(function (e) { w += e[1]; }); self.setState({ els: t[2].map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }), rl: Math.round(w * 100) / 100, tplName: t[0], sk: t[3], uk: t[4], U: [], PL: (t[5] || []).map(function (p) { return Object.assign({}, p); }) }); } }; }),
       gfx: [['Rangli', 0], ['Chizma', 1]].map(function (v) { return { n: v[0], p: s.gfx === v[1] ? 'true' : 'false', pick: function () { self.setState({ gfx: v[1] }); } }; })
     };
     })();
