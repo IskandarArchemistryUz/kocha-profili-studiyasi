@@ -5,7 +5,7 @@ import './ui/ds2.css';
 import './ui/style.css';
 import './ui/theme';
 import { blankProject, uid } from './core/doc';
-import { listProjects, getProject, putProject, deleteProject, importJSON, type ProjectMeta } from './storage/db';
+import { listProjects, getProject, putProject, deleteProject, importJSON, importJSONWithLayers, putLayerData, type ProjectMeta } from './storage/db';
 import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
 import { tr, autoTranslate } from './i18n';
@@ -58,7 +58,11 @@ async function home(): Promise<void> {
   const file = h('input', { type: 'file', accept: '.json,application/json', hidden: true, id: 'file' }) as HTMLInputElement;
   file.onchange = async () => {
     const f = file.files?.[0]; if (!f) return;
-    try { const p = importJSON(await f.text(), () => uid('p_')); await putProject(p); location.hash = `#/p/${p.id}`; }
+    try {
+      const { project: p, layers } = importJSONWithLayers(await f.text(), () => uid('p_'));
+      for (const [lid, fs] of Object.entries(layers)) await putLayerData(p.id, lid, fs);
+      await putProject(p); location.hash = `#/p/${p.id}`;
+    }
     catch (e) { toast((e as Error).message); }
   };
   const created = (t: string) => new Date(t).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });

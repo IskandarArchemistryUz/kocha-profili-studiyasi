@@ -10,6 +10,8 @@ import { frame, centroid, area, signedArea, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
 import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from './context3d';
+import { applyVisibility, buildUserLayer, geomKey, type UL3D } from './userlayers3d';
+import type { ULFeature } from '../core/userlayers';
 import { projectStreetsGeo } from './streets3d';
 import { computePlan, interiorPoint } from '../core/plan';
 import { profileById } from '../core/profiles';
@@ -808,11 +810,21 @@ export class Scene3D {
     this.ctl.update(); this.invalidate();
   }
 
+  /** Import qilingan binolar bilan ustma-ust tushgan OSM binolari — dublikat chizilmasin (hujjatdagi «removed» dan alohida) */
+  private hideOsm = new Set<number>();
+  private hideOsmKey = '';
+  /** true — kontekstni qayta qurish kerak (chaqiruvchi setContext ni qayta chaqiradi) */
+  setHiddenOsm(ids: number[]): boolean {
+    const k = ids.slice().sort((a, b) => a - b).join(',');
+    if (k === this.hideOsmKey) return false;
+    this.hideOsm = new Set(ids); this.hideOsmKey = k; return true;
+  }
+
   /** Kontekstni oʻrnatish (null — olib tashlash). Loyiha markazi yoki koʻrinish sozlamalari oʻzgarsa qayta quriladi. */
   async setContext(b: ContextBundle | null, doc: Project): Promise<void> {
     const cs = doc.context;
     const adopted = [...doc.streets.filter(x => x.osm != null).map(x => x.osm!), ...(doc.removedRoads ?? [])];
-    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}` : '';
+    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}|${this.hideOsmKey}` : '';
     if (key === this.ctxKey) return;
     this.ctxKey = key; this.bundle = b;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
@@ -833,7 +845,7 @@ export class Scene3D {
       }
       tex = this.tex!.t;
     }
-    this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted), new Set(doc.removed ?? []));
+    this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted), new Set([...(doc.removed ?? []), ...this.hideOsm]));
     this.scene.add(this.ctx.group);
     if (this.album) this.applyStyle();
     this.grid.forEach(g => g.visible = false);
@@ -887,7 +899,7 @@ export class Scene3D {
     const H = this.host.clientHeight || 1, P = cam as THREE.PerspectiveCamera & THREE.OrthographicCamera;
     const k = P.isOrthographicCamera ? (P.top - P.bottom) / (P.zoom || 1) / H : 2 / (P.projectionMatrix.elements[5] * H);
     const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) { o.scale.set(px[0] * k, px[1] * k, 1); const me = o.userData.minExt as number | undefined; if (me != null) o.visible = me / k >= px[0] * 0.85; } };
-    this.world.children.forEach(fit); this.prev.children.forEach(fit); this.explodeLabels.forEach(fit);
+    this.world.children.forEach(fit); this.prev.children.forEach(fit); this.explodeLabels.forEach(fit); for (const x of this.ul.values()) x.u.labels.forEach(fit);
     this.fitLabels(cam, k);
   }
 
@@ -1238,6 +1250,34 @@ export class Scene3D {
     if (this.album) this.applyStyle();
     this.invalidate();
   }
+  /* ---------- foydalanuvchi qatlamlari (import qilingan) ---------- */
+  private ul = new Map<string, { key: string; data: ULFeature[]; u: UL3D }>();
+  /** Hujjatdagi qatlam tavsiflari + obyektlar (yuklanganlari): kerak boʻlsa qayta quriladi, aks holda faqat koʻrinish */
+  setUserLayers(doc: Project, data: Map<string, ULFeature[]>): void {
+    const metas = doc.userLayers ?? [], live = new Set<string>();
+    const fr = frame(doc.origin), base = `${doc.origin.join(',')}|${this.ctxKey}|${doc.settings.floorHeight}`;
+    for (const m of metas) {
+      const d = data.get(m.id); if (!d) continue;
+      live.add(m.id);
+      const key = `${base}|${geomKey(m)}`, cur = this.ul.get(m.id);
+      if (!cur || cur.key !== key || cur.data !== d) {
+        if (cur) { this.scene.remove(cur.u.group); cur.u.dispose(); }
+        const u = buildUserLayer(m, d, fr, this.H, doc.settings.floorHeight, t => labelSprite(t));
+        this.scene.add(u.group); this.ul.set(m.id, { key, data: d, u });
+      }
+      applyVisibility(this.ul.get(m.id)!.u, m);
+    }
+    for (const [id, x] of this.ul) if (!live.has(id)) { this.scene.remove(x.u.group); x.u.dispose(); this.ul.delete(id); }
+    // qatlamlar tartibi: hujjatdagi tartib (keyingisi — ustida)
+    metas.forEach((m, i) => { const x = this.ul.get(m.id); if (x) x.u.group.renderOrder = i; });
+    this.invalidate();
+  }
+  /** Qatlam hududini koʻrsatish (bbox: gʻarb, janub, sharq, shimol) */
+  frameBBox(origin: LngLat, bb: [number, number, number, number]): void {
+    const fr = frame(origin), a = fr.toLocal([bb[0], bb[1]]), b = fr.toLocal([bb[2], bb[3]]);
+    this.frameAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.max(b[0] - a[0], b[1] - a[1]) * 1.1);
+  }
+
   /** uchastka ichidagi mavjud (OSM) binolar */
   get inSite(): { id: number; rings: XY[][]; h: number }[] { return this.ctx?.inSite ?? []; }
 

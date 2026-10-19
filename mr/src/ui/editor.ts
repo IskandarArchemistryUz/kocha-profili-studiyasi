@@ -58,6 +58,7 @@ import type { Command } from '../core/commands';
 import { pushEdge, tieredGfa } from '../core/tiers';
 import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
+import { UserLayersUI } from './userlayersui';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
 import { LiveBase, liveSize } from '../context/basemap';
@@ -133,6 +134,8 @@ export class Editor {
   private selStreet: string | null = null;
   private selBlock: number | null = null;
   private planCache: { doc: Project; plan: PlanGeo } | null = null;
+  /** «Mening qatlamlarim»: import qilingan binolar, chegaralar, yer, chiziqlar */
+  private ul!: UserLayersUI;
 
   constructor(host: HTMLElement, doc: Project, private onExit: () => void) {
     this.store = new Store(doc); this.prevDoc = doc;
@@ -143,6 +146,8 @@ export class Editor {
     this.scene.onLabels = () => this.renderLblBar();
     try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
     this.scene.update(doc); this.scene.frameDoc(doc);
+    this.ul = new UserLayersUI({ store: this.store, scene: this.scene, run: fn => this.run(fn), refresh: () => this.refreshPop(), bundle: () => (this.store.doc.context.loaded ? this.ctxMgr.current : null), redrawContext: () => { if (this.store.doc.context.loaded) this.showContext(this.ctxMgr.current); } });
+    this.ul.sync(doc);
     this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = tr(s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'); });
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
     this.bindScene(); this.bindKeys();
@@ -151,7 +156,7 @@ export class Editor {
     void this.ensureContext();   // yuklanmagan boʻlsa — fon xaritasi
   }
 
-  dispose(): void { this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.scene.dispose(); }
+  dispose(): void { this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
 
   /* ---------- qobiq ---------- */
   private build(): HTMLElement {
@@ -228,6 +233,7 @@ export class Editor {
     if (p.buildings !== doc.buildings && this.apt.stats) this.clearApt();
     (this.el.name as HTMLInputElement).value = doc.name;
     this.scene.select(this.sel); this.scene.update(doc);
+    if (p.userLayers !== doc.userLayers || p.origin !== doc.origin || p.settings.floorHeight !== doc.settings.floorHeight) this.ul.sync(doc);
     this.renderAll(); this.recompute();
   }
 
@@ -301,6 +307,7 @@ export class Editor {
     const opt = (k: typeof this.mapKind, t: string, note: string) => h('button', { class: 'tile', 'data-map': k, 'aria-pressed': this.mapKind === k, disabled: this.mapBusy, onclick: () => void this.runMap(k) }, h('b', {}, tr(t)), h('span', { class: 'sub' }, tr(note)));
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     return h('div', { class: 'popbody' },
+      this.ul.section(),
       h('div', { class: 'glabel' }, h('span', {}, tr('Yozuvlar'))),
       h('div', { class: 'col', style: 'gap:6px' }, h('span', { class: 't-small', style: 'font-weight:600;color:var(--ink-2)' }, tr('Daha va yer uchastkasi')),
         h('div', { class: 'seg sm', id: 'lblMode', role: 'group', 'aria-label': tr('Daha va yer uchastkasi') }, ...LABEL_MODES.map(m => h('button', { 'data-lmode': m.id, 'aria-pressed': this.scene.labelMode === m.id, onclick: () => { this.scene.setLabelMode(m.id); this.refreshPop(); } }, tr(m.name)))),
@@ -677,6 +684,7 @@ export class Editor {
     const doc = this.store.doc;
     if (b) { this.baseKey = ''; this.liveAt = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
     void this.scene.setContext(b, doc).then(() => {
+      this.ul.sync(this.store.doc);
       if (b && !this.framedCtx) { this.framedCtx = true; if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); }
       // gorizont: kattaroq radiusdagi binolar (fon rejimida, xatoda jim)
       const fk = b && doc.context.layers.buildings ? `${b.center.join(',')}|${b.radius}|${doc.origin.join(',')}` : '';
@@ -791,6 +799,10 @@ export class Editor {
           h('button', { class: 'btn btn-sm', onclick: () => void this.ensureContext(true) }, tr('OSM dan yangilash')),
           h('button', { class: 'btn btn-sm btn-ghost', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, tr('Yashirish'))));
     }
+    { const U = doc.userLayers ?? [];
+      body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Oʻz maʼlumotlarim')), h('span', {}, U.length ? tf('${n} ta qatlam', { n: U.length }) : '')),
+        h('button', { class: 'btn btn-sm', id: 'ulOpen', onclick: () => { const b = this.root.querySelector<HTMLElement>('#layPop'); if (this.pop?.dataset.for !== 'layPop') b?.click(); if (!U.length) this.ul.pick(); } }, tr(U.length ? 'Qatlamlarni boshqarish' : 'Fayldan qatlam qoʻshish (GeoJSON)')),
+        h('span', { class: 't-small' }, tr('OSM da binolar boʻlmasa — oʻzingiznikini qoʻying: Archicad yoki QGIS dan binolar, aholi punkti va mahalla chegaralari, yer uchastkalari. Ular atrof radiusiga bogʻliq emas — butun hudud koʻrinadi.'))); }
     body.append(this.districtField());
     const rmN = doc.removed?.length ?? 0;
     body.append(h('div', { id: 'rmSt', class: 'col' },
@@ -2388,7 +2400,7 @@ export class Editor {
         h('span', { class: 't-small' }, tr('Yangi oynada: koʻrinishlar, TEP, meʼyoriy reyestr va taxminlar; «PDF saqlash» tugmasi A4 formatida saqlaydi.')),
         h('div', { class: 'glabel' }, h('span', {}, tr('Loyiha'))),
         h('div', { class: 'group' },
-          row('exJson', '<path d="M6 3h8l5 5v13H6zM14 3v5h5"/>', tr('Loyiha fayli'), tr('boshqa kompyuterda «Fayldan ochish»'), 'JSON', () => download(`${safe(doc.name)}.archemistry.json`, exportJSON(this.store.doc))),
+          row('exJson', '<path d="M6 3h8l5 5v13H6zM14 3v5h5"/>', tr('Loyiha fayli'), tr('boshqa kompyuterda «Fayldan ochish»'), 'JSON', () => void this.ul.exportData(this.store.doc).then(L => download(`${safe(doc.name)}.archemistry.json`, exportJSON(this.store.doc, L)))),
           row('exXlsx', '<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"/>', tr('TEP va reyestr'), tr('TEP · Binolar · Reyestr · Maʼlumot'), 'XLSX', () => download(`${safe(doc.name)}_TEP.xlsx`, new Blob([this.tepXlsx() as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))),
           row('exPng', IMG, tr('Sahna rasmi'), '', 'PNG', () => download(`${safe(doc.name)}.png`, this.scene.snapshot()))),
         h('div', { class: 'glabel' }, h('span', {}, tr('Chizmalar'))),

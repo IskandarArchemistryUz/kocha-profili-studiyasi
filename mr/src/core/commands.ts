@@ -5,6 +5,7 @@
  */
 import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid } from './doc';
 import { frame } from './geo';
+import type { UserLayerMeta } from './userlayers';
 
 export type Command =
   | { type: 'rename'; name: string }
@@ -39,6 +40,10 @@ export type Command =
   /** varaqlar toʻplami va saqlangan uslublar (MR-Varaqlar) */
   | { type: 'setSheets'; sheets?: SheetDoc[]; styles?: Project['sheetStyles'] }
   | { type: 'setChizmadon'; data: Record<string, unknown> }
+  /** import qilingan qatlam tavsifi (obyektlar IndexedDB ga oldindan yoziladi) */
+  | { type: 'addUserLayer'; meta: UserLayerMeta }
+  | { type: 'updateUserLayer'; id: string; patch: Partial<Omit<UserLayerMeta, 'id'>> }
+  | { type: 'removeUserLayer'; id: string }
   | { type: 'removeView'; id: string }
   /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
@@ -74,6 +79,9 @@ export function label(c: Command): string {
     case 'addView': return 'Koʻrinish saqlandi';
     case 'setSheets': return 'Varaqlar';
     case 'setChizmadon': return 'Chizmadon';
+    case 'addUserLayer': return `Qatlam qoʻshildi: ${c.meta.name}`;
+    case 'updateUserLayer': return 'Qatlam sozlamasi';
+    case 'removeUserLayer': return 'Qatlam olib tashlandi';
     case 'removeView': return 'Koʻrinish oʻchirildi';
     case 'setParcels': return 'Parsellar';
     case 'updateParcel': return 'Parsel funksiyasi';
@@ -161,6 +169,24 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
     case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}), ...(c.winPat ? { winPat: c.winPat === 'qator' ? undefined : c.winPat } : {}), ...(c.balPat ? { balPat: c.balPat === 'har2' ? undefined : c.balPat } : {}) } : b); return d; }
     case 'setChizmadon': d.chizmadon = JSON.parse(JSON.stringify(c.data)); return d;
+    case 'addUserLayer': {
+      const L = doc.userLayers ?? [];
+      if (L.some(x => x.id === c.meta.id)) throw new CommandError('Bu qatlam allaqachon bor');
+      if (L.length >= 40) throw new CommandError('Qatlamlar soni 40 tadan oshmasin');
+      d.userLayers = [...L, JSON.parse(JSON.stringify(c.meta))]; return d;
+    }
+    case 'updateUserLayer': {
+      const L = doc.userLayers ?? [], i = L.findIndex(x => x.id === c.id);
+      if (i < 0) throw new CommandError('Qatlam topilmadi');
+      const m = { ...L[i], ...JSON.parse(JSON.stringify(c.patch)) };
+      if (m.opacity != null) m.opacity = Math.max(0, Math.min(1, m.opacity));
+      d.userLayers = L.slice(); d.userLayers[i] = m; return d;
+    }
+    case 'removeUserLayer': {
+      const L = (doc.userLayers ?? []).filter(x => x.id !== c.id);
+      if (L.length) d.userLayers = L; else delete d.userLayers;
+      return d;
+    }
     case 'setSheets': { if (c.sheets) d.sheets = c.sheets.map(x => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); if (c.styles) d.sheetStyles = c.styles.map(x => ({ ...x, opts: JSON.parse(JSON.stringify(x.opts)) })); return d; }
     case 'addView': d.views = [...doc.views, { ...c.view, pos: [...c.view.pos] as SavedView['pos'], target: [...c.view.target] as SavedView['target'] }]; return d;
     case 'removeView': d.views = doc.views.filter(x => x.id !== c.id); return d;
