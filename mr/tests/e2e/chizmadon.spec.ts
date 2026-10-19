@@ -164,3 +164,43 @@ test('Chizmadon: inglizcha va ruscha — tarjimasiz satr yoʻq', async ({ page }
     console.log(lang, 'MISS', JSON.stringify(miss.slice(0, 60)));
   }
 });
+
+test('Chizmadon: bogʻlash — xarita boshqa varaqning kichik katagiga koʻchsa, uch shakl birga koʻchadi va kichrayadi', async ({ page }) => {
+  test.setTimeout(150_000);
+  await project(page);
+  await openCh(page); await page.click('#chStGo');
+  // eng katta joylashuv katagi va boshqa varaqdagi kichikroq joylashuv katagi
+  const cells = await page.evaluate(() => [...document.querySelectorAll('#chPages .ch-pg')].length);
+  const find = async () => {
+    const out: { pi: number; id: string; area: number }[] = [];
+    for (let i = 0; i < cells; i++) {
+      await page.click(`#chPages .ch-pg >> nth=${i}`);
+      for (const el of await page.locator('.ch-page [data-el^="loc"]').all()) { const b = (await el.boundingBox())!; out.push({ pi: i, id: (await el.getAttribute('data-el'))!, area: b.width * b.height }); }
+    }
+    return out;
+  };
+  const locs = await find(); expect(locs.length).toBeGreaterThanOrEqual(2);
+  const src = locs.reduce((a, b) => (b.area > a.area ? b : a)), dst = locs.filter(l => l.pi !== src.pi).sort((a, b) => a.area - b.area)[0] ?? locs.filter(l => l.id !== src.id).sort((a, b) => a.area - b.area)[0];
+  await page.click(`#chPages .ch-pg >> nth=${src.pi}`);
+  const mb = (await page.locator(`.ch-page [data-el="${src.id}"]`).boundingBox())!, P = (fx: number, fy: number) => [mb.x + mb.width * fx, mb.y + mb.height * fy] as const;
+  await page.click('[data-tool=arrow]'); await page.mouse.move(...P(.3, .5)); await page.mouse.down(); await page.mouse.move(...P(.6, .4), { steps: 4 }); await page.mouse.up();
+  await page.click('[data-tool=icon]'); await page.mouse.click(...P(.5, .6));
+  await page.click('[data-tool=rect]'); await page.mouse.move(...P(.25, .25)); await page.mouse.down(); await page.mouse.move(...P(.4, .4), { steps: 4 }); await page.mouse.up();
+  await expect(els(page)).toHaveCount(3);
+  const w0 = (await els(page).nth(2).boundingBox())!.width / mb.width;
+  // manba materialni boshqa varaqdagi kichik katakka sudrash
+  await page.click(`#chPages .ch-pg >> nth=${dst.pi}`);
+  const vb = (await page.locator('.ch-view').boundingBox())!, db = (await page.locator(`.ch-page [data-el="${dst.id}"]`).boundingBox())!;
+  await page.dragAndDrop(`#chMats [data-mat="${src.id}"]`, '.ch-view', { targetPosition: { x: db.x + db.width / 2 - vb.x, y: db.y + db.height / 2 - vb.y } });
+  await expect(page.locator(`.ch-page [data-el="${src.id}"]`)).toHaveCount(1);
+  await expect(els(page)).toHaveCount(3);
+  const nb = (await page.locator(`.ch-page [data-el="${src.id}"]`).boundingBox())!;
+  for (const e of await els(page).all()) { const b = (await e.boundingBox())!; expect(b.x).toBeGreaterThanOrEqual(nb.x - 3); expect(b.x + b.width).toBeLessThanOrEqual(nb.x + nb.width + 3); expect(b.y).toBeGreaterThanOrEqual(nb.y - 3); expect(b.y + b.height).toBeLessThanOrEqual(nb.y + nb.height + 3); }
+  expect((await els(page).nth(2).boundingBox())!.width / nb.width).toBeCloseTo(w0, 1);
+  if (shots) await page.screenshot({ path: `${shots}/ch_kochdi.png` });
+  // material oʻchsa — shakllar yashirinadi, «Shu varaqqa» qaytaradi
+  await page.click(`#chMats [data-mat="${src.id}"] .switch`);
+  await expect(els(page)).toHaveCount(0);
+  if (!(await page.locator('[data-sec=qatlam].open').count())) await page.click('[data-sec=qatlam] .ch-sh');
+  await page.click('#chRescue'); await expect(els(page)).toHaveCount(3);
+});

@@ -80,3 +80,29 @@ describe('Chizmadon — 7 bandli tekshiruv', () => {
 });
 
 class DOMParserLike { constructor(s: string) { let d = 0; for (const m of s.matchAll(/<(\/?)([a-zA-Z]+)[^>]*?(\/?)>/g)) { if (m[3]) continue; d += m[1] ? -1 : 1; if (d < 0) throw new Error('teg'); } if (d !== 0) throw new Error('yopilmagan: ' + d); } }
+
+import { sheetChecks, lab, dE, svgTones } from '../../src/chizmadon/check';
+describe('Chizmadon — tekshiruv, 9 band', () => {
+  const base = { empty: 0, left: [] as string[], hasMap: false, hasLegend: false, share: 0.2 };
+  const svg = (...c: string[]) => `<svg>${c.map(x => `<rect fill="${x}"/>`).join('')}<rect fill="#ffffff"/><rect fill="#141414"/></svg>`;
+  it('9 band, toza varaq — hammasi bajarildi', () => {
+    const r = sheetChecks({ ...base, svg: svg('#c0643a', '#3f6fa8', '#4f9a6e') });
+    expect(r).toHaveLength(9); expect(r.map(c => c.group)).toEqual(['Joylashuv', 'Joylashuv', 'Rang', 'Rang', 'Rang', 'Rang', 'Rang', 'Rang', 'Rang']);
+    expect(r.filter(c => c.st !== 'o').map(c => c.id)).toEqual([]);
+  });
+  it('ataylab yaqin ikki rang — «Toifalar ajraladi» xato (ΔE CIE76 < 12)', () => {
+    expect(dE(lab('#3f6fa8'), lab('#4472ab'))).toBeLessThan(12);
+    const r = sheetChecks({ ...base, svg: svg('#3f6fa8', '#4472ab') });
+    expect(r.find(c => c.id === 5)).toMatchObject({ st: 'f', fix: 3 });
+  });
+  it('joylashuv, tonlar, toʻyingan maydon, legenda, qizil, urgʻu, kulrang', () => {
+    const r = sheetChecks({ empty: 2, left: ['Harorat'], hasMap: true, hasLegend: false, share: 0.75, svg: svg('#e61919', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6') });
+    const st = Object.fromEntries(r.map(c => [c.id, c.st]));
+    expect(st).toMatchObject({ 1: 'f', 2: 'f', 3: 'f', 4: 'f', 6: 'w', 8: 'w', 9: 'w' });
+    expect(sheetChecks({ ...base, share: null, svg: '' }).find(c => c.id === 4)!.st).toBe('p');
+    // bir xil yorqinlik, turli ton → kulrangda qoʻshiladi
+    const g = sheetChecks({ ...base, svg: svg('#c0643a', '#4f8a9a') }).find(c => c.id === 7)!;
+    expect(Math.abs(lab('#c0643a')[0] - lab('#4f8a9a')[0])).toBeLessThan(4); expect(g.st).toBe('w');
+    expect(svgTones('<rect fill="#808080"/><rect fill="#C0643A"/>')).toEqual(['#c0643a']);
+  });
+});

@@ -11,13 +11,13 @@
  */
 import { h, svgIcon, icl, IC, toast, download } from '../ui/dom';
 import { sw, stepper, seg } from '../ui/controls';
-import { tr, tf, trSvg } from '../i18n';
+import { tr, tf, trSvg, getLang } from '../i18n';
 import { logoSvg } from '../ui/logo';
 import { svgPdf } from '../ui/pdf';
 import { openColor } from '../ui/colorpicker';
 import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale } from './model';
 import { pageSvg, textHeight, legendHeight } from './render';
-import { pageChecks, applyFix } from './check';
+import { pageChecks, applyFix, sheetChecks, type Check9 } from './check';
 import { TEMPLATES, TPL_GROUPS, type TplCtx } from './templates';
 import { TOOLS, type Tool, FLOWS, BANDS, ZONES, MOBILITY, DASHES, ICON_GROUPS, iconById, LOOKS, TREES, PALETTES, paletteById, FONTS, TEXT_KINDS } from './catalog';
 import { wmCanvas } from '../core/wm';
@@ -26,7 +26,7 @@ import { familyById, accepts, placements, type Material } from './autolayout';
 import { buildAlbum, inner, slotAt, setCustomPal, type Album } from './album';
 import { renderPage, LIB, PAL, setSheetTr } from './sheet';
 import { siteMaterials, projectMaterials } from './materials';
-import { loadGeo, resolve, presets, placeName, rName, dName, autoNote, type Resolved } from './location';
+import { loadGeo, loadWorld, world, resolve, presets, placeName, rName, dName, autoNote, setLocLang, locSearch, parseCoord, interiorPt, uzMini, worldMini, type Resolved, type LocHit } from './location';
 import { rebase, reanchor, bindTo } from './bind';
 
 export interface ChHost {
@@ -77,7 +77,7 @@ const fmtName = (k: string) => (LAYOUTS.formats[k]?.name ?? k).replace(' landsha
 
 export function openChizmadon(host: ChHost): void {
   document.querySelector('.gx.ch')?.remove();
-  setSheetTr(tr, tf);
+  setSheetTr(tr, tf); setLocLang(getLang());
   let d: ChDoc = normDoc(host.data, '');
   if (!d.title) d.title = tr('Taqdimot albomi');
   let tool: Tool = 'select';
@@ -404,7 +404,7 @@ export function openChizmadon(host: ChHost): void {
   function rescue(): void {
     if (!isAuto()) return; commit();
     const pr = pageRect(d.cur);
-    for (const e of hiddenHand()) e.a = { el: null, pi: d.cur, r0: e.a?.r0 ?? { ...pr } };
+    for (const e of hiddenHand()) e.a = { el: null, pi: d.cur, r0: { ...pr } }; // geometriya oxirgi koʻrsatilgan joyida qoladi
     relayout(false); dirty(); renderAll(); toast(tr('Yashirin shakllar shu varaqqa koʻchirildi'));
   }
   function styleSec(): (HTMLElement | string)[] {
@@ -458,12 +458,39 @@ export function openChizmadon(host: ChHost): void {
     return out;
   }
   function placeSec(): (HTMLElement | string)[] {
-    const s = site(), lat = h('input', { class: 'input num', id: 'chLat', value: s.lat.toFixed(4), 'aria-label': tr('Kenglik') }) as HTMLInputElement, lon = h('input', { class: 'input num', id: 'chLon', value: s.lon.toFixed(4), 'aria-label': tr('Uzunlik') }) as HTMLInputElement;
-    const go = () => { const a = Number(lat.value.replace(',', '.')), b = Number(lon.value.replace(',', '.')); if (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 85 && Math.abs(b) <= 180) setSite(a, b); else toast(tr('Koordinata notoʻgʻri')); };
-    lat.addEventListener('change', go); lon.addEventListener('change', go);
-    return [whereBox(), h('div', { class: 'row2' }, fieldV('Kenglik', lat), fieldV('Uzunlik', lon)),
+    const s = site();
+    return [locBox('L'), miniMap(), whereBox(),
       h('div', { class: 'ch-chips', id: 'chPresets' }, ...presets().map(p => h('button', { class: 'chip', 'data-preset': p.label, 'aria-pressed': p.lat === s.lat && p.lon === s.lon, onclick: () => setSite(p.lat, p.lon) }, tr(p.label)))),
       host.origin ? h('button', { class: 'btn btn-sm', id: 'chSiteProj', onclick: () => setSite(Math.round(host.origin![1] * 1e4) / 1e4, Math.round(host.origin![0] * 1e4) / 1e4) }, ...icl(I.pin, tr('Loyiha nuqtasi'))) : ''];
+  }
+  /* joy qidirish: viloyat, tuman, davlat (tarmoqsiz) yoki koordinata */
+  const LOCQ: Record<'L' | 'S', string> = { L: '', S: '' };
+  let mapk: 'uz' | 'w' | null = null;
+  function locBox(sfx: 'L' | 'S'): HTMLElement {
+    const inp = h('input', { class: 'input', id: `chLocQ${sfx}`, value: LOCQ[sfx], placeholder: tr('Shahar, tuman, davlat yoki 41.31, 69.28'), autocomplete: 'off', spellcheck: 'false', 'aria-label': tr('Joy qidirish') }) as HTMLInputElement;
+    const res = h('div', { class: 'group ch-locres', id: `chLocR${sfx}`, role: 'listbox' });
+    let hits: LocHit[] = [];
+    const fill = () => {
+      const q = inp.value; LOCQ[sfx] = q; const c = parseCoord(q);
+      if (c) { hits = []; res.replaceChildren(h('button', { class: 'li', 'data-coord': `${c.lat},${c.lon}`, onclick: () => setSite(c.lat, c.lon) }, h('span', { class: 'k' }, `${c.lat}°, ${c.lon}°`, h('span', { class: 'sub' }, tr('koordinata'))), svgIcon(I.right))); return; }
+      hits = locSearch(q);
+      if (!q.trim()) { res.replaceChildren(); return; }
+      if (!hits.length) { res.replaceChildren(h('div', { class: 'li' }, h('span', { class: 'k' }, h('span', { class: 'sub' }, tr('Topilmadi. Koordinata kiriting: 41.31, 69.28'))))); return; }
+      res.replaceChildren(...hits.map((e, i) => h('button', { class: 'li', 'data-loc': i, onclick: () => pickHit(e) }, h('span', { class: 'k' }, tr(e.t), h('span', { class: 'sub' }, e.kind === 'c' ? tr('davlat') : tr(e.s))), svgIcon(I.right))));
+    };
+    inp.addEventListener('input', () => { fill(); if (!world()) void loadWorld().then(w => { if (w && document.body.contains(inp)) fill(); }); });
+    inp.addEventListener('keydown', ev => { if (ev.key !== 'Enter') return; ev.preventDefault(); const c = parseCoord(inp.value); if (c) setSite(c.lat, c.lon); else if (hits[0]) pickHit(hits[0]); });
+    if (LOCQ[sfx]) queueMicrotask(fill);
+    return h('div', { class: 'ch-locq' }, inp, res);
+  }
+  function pickHit(e: LocHit): void { const p = interiorPt(e.g); LOCQ.L = LOCQ.S = ''; setSite(Math.round(p[1] * 1e4) / 1e4, Math.round(p[0] * 1e4) / 1e4); }
+  function miniMap(): HTMLElement {
+    const k = mapk ?? (R && !R.inside ? 'w' : 'uz');
+    if (k === 'w' && !world()) void loadWorld().then(w => { if (w) renderLeft(); });
+    const m = k === 'uz' ? uzMini(R) : worldMini(R);
+    const box = h('div', { class: 'ch-mini', id: 'chMini', title: tr('Bosib nuqta tanlang'), html: m.svg });
+    box.addEventListener('click', ev => { const svg = box.querySelector('svg'); if (!svg) return; const r = svg.getBoundingClientRect(); const q = m.pick((ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height); setSite(q.lat, q.lon); });
+    return h('div', { class: 'ch-minibox' }, seg([{ id: 'uz', label: tr('Oʻzbekiston') }, { id: 'w', label: tr('Dunyo') }], k, v => { mapk = v; renderLeft(); }, { id: 'chMapK', class: 'seg sm wide' }), box);
   }
   function whereBox(): HTMLElement {
     const s = site();
@@ -472,15 +499,15 @@ export function openChizmadon(host: ChHost): void {
       h('span', { class: 'mono' }, `${Math.abs(s.lat).toFixed(4)}° ${s.lat >= 0 ? 'N' : 'S'} · ${Math.abs(s.lon).toFixed(4)}° ${s.lon >= 0 ? 'E' : 'W'}`));
   }
   function setSite(lat: number, lon: number): void {
+    mapk = null;
     autoMut(() => { d.auto.site = { lat, lon }; });
-    if (R) toast(tr(placeName(R)) || tr('Nuqta tanlandi'));
+    if (R && !R.inside && !world()) void loadWorld().then(w => { if (w && document.body.contains(wrap)) { relayout(false); renderAll(); if (R) toast(tr(placeName(R))); } });
+    else if (R) toast(tr(placeName(R)) || tr('Nuqta tanlandi'));
   }
   const lineSample = (s: ChEl['style']) => `<path d="M2 5H38" stroke="${s.stroke}" stroke-width="${Math.max(1, (s.width ?? 1) * 1.6)}" stroke-linecap="round"${s.dash && s.dash !== 'solid' ? ` stroke-dasharray="${s.dash === 'dot' ? '0 4' : s.dash === 'long' ? '9 3' : s.dash === 'dashdot' ? '6 2 0 2' : s.dash === 'dash2dot' ? '6 2 0 2 0 2' : '4 3'}"` : ''}/>${s.deco === 'rail' ? '<path d="M6 2v6M12 2v6M18 2v6M24 2v6M30 2v6" stroke="#4a4a48"/>' : ''}`;
   const flowSample = (s: ChEl['style']) => `<path d="M2 7C14 7 22 3 34 3" fill="none" stroke="${s.stroke}" stroke-width="${s.band === 'nuqta' ? 2.5 : 4}" stroke-linecap="round"${s.band === 'nuqta' ? ' stroke-dasharray="0 4"' : s.band === 'punktir' ? ' stroke-dasharray="5 3"' : ''}/>`;
   const lbl = (t: string, v?: string) => h('div', { class: 'glabel' }, h('span', {}, tr(t)), v != null ? h('span', {}, v) : '');
   const field = (label: string, ctrl: HTMLElement) => h('div', { class: 'li' }, h('span', { class: 'k' }, tr(label)), ctrl);
-  /** yorliq tepada (tor ustun uchun) */
-  const fieldV = (label: string, ctrl: HTMLElement) => h('label', { class: 'ch-fv' }, h('span', {}, tr(label)), ctrl);
   /** Rang qatori: palitra + qora/oq + boshqa rang (tanlash uskunasi) */
   const colorRow = (cur: string | undefined, set: (c: string) => void, allowNone = false, id = '', title = 'Rang') => h('div', { class: 'ch-colors', ...(id ? { id } : {}) },
     ...(allowNone ? [h('button', { class: 'ch-c none', title: tr('Yoʻq'), 'aria-label': tr('Yoʻq'), 'aria-pressed': !cur || cur === 'none', onclick: () => set('none') })] : []),
@@ -536,7 +563,8 @@ export function openChizmadon(host: ChHost): void {
   function varaqTab(): HTMLElement[] {
     const out: HTMLElement[] = [];
     if (isAuto() && LAST) {
-      const pi = d.cur, pk = LAST.PG.pages[pi];
+      const pi = d.cur, pk = LAST.PG.pages[pi], f = fam(), fk = fmtOf(f);
+      out.push(lbl('Format'), h('div', { class: 'seg sm', id: 'chFmtR' }, ...f.formats.map(k => h('button', { 'data-fmt': k, 'aria-pressed': k === fk, onclick: () => autoMut(() => { d.auto.fmt[f.id] = k; }) }, tr(fmtName(k))))));
       out.push(h('div', { class: 'ch-eh' }, h('b', { class: 't-title' }, `${tf('${n}-varaq', { n: pi + 1 })} · ${tr('shablon')}`), h('span', { class: 't-small' }, tr('ball · tanlangani ✓'))),
         h('div', { class: 'group', id: 'chAlts' }, ...(pk.alts ?? [pk]).map(a => h('button', { class: 'li', 'data-force': `${pi}:${a.page.id}`, 'aria-pressed': a.page.id === pk.page.id, onclick: () => autoMut(() => { d.auto.force[pi] = a.page.id; for (const k of Object.keys(d.auto.force)) if (+k > pi) delete d.auto.force[+k]; d.auto.ov = d.auto.ov.filter(o => o.pi < pi); }) },
           h('span', { class: 'k' }, tr(a.page.title), h('span', { class: 'sub' }, tf('${a}/${b} katak', { a: a.assign.size, b: a.assign.size + a.empty.size }))), h('span', { class: 'num t-small' }, String(Math.round(a.score))), a.page.id === pk.page.id ? svgIcon(I.check) : h('span', { class: 'ch-w16' })))),
@@ -704,14 +732,45 @@ export function openChizmadon(host: ChHost): void {
         h('button', { class: 'btn btn-sm', id: 'chSeq', onclick: () => paletteSeq() }, tr('Palitra ketma-ket'))),
       h('div', { class: 'note' }, tr('Burchakdagi tutqich — hammasini birga kattalashtirish, tepadagi doira — burish. Ctrl+G guruhlash, Ctrl+Shift+G ajratish.'))];
   }
+  /** Varaq rasmidagi toʻyingan piksellar ulushi (4-band): 360 px rasm, oq fon hisobga olinmaydi; natija keshda */
+  const RC = new Map<string, number | null>();
+  function rasterShare(key: string, svg: string, W: number, H: number): number | null {
+    if (RC.has(key)) return RC.get(key)!;
+    RC.set(key, null); if (RC.size > 60) RC.delete(RC.keys().next().value!);
+    const cw = 360, ch = Math.max(1, Math.round(360 * H / W)), img = new Image(), url = URL.createObjectURL(new Blob([svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ` width="${cw}" height="${ch}"`)], { type: 'image/svg+xml' }));
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = cw; c.height = ch; const g = c.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch); g.drawImage(img, 0, 0, cw, ch);
+        const px = g.getImageData(0, 0, cw, ch).data; let ink = 0, sat = 0;
+        for (let i = 0; i < px.length; i += 4) { const r = px[i], gg = px[i + 1], b = px[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b); if (mx > 244 && mn > 236) continue; ink++; if ((mx - mn) / Math.max(1, mx) > 0.3 && mx > 60) sat++; }
+        RC.set(key, ink ? sat / ink : 0);
+      } catch { RC.set(key, -1); }
+      URL.revokeObjectURL(url); if (d.ui.rightTab === 'tekshiruv') renderRight();
+    };
+    img.onerror = () => { RC.set(key, -1); URL.revokeObjectURL(url); if (d.ui.rightTab === 'tekshiruv') renderRight(); };
+    img.src = url; return null;
+  }
   function checkTab(): HTMLElement[] {
-    const cs = pageChecks(P(), tr);
-    return [h('div', { class: 'ch-eh' }, h('b', { class: 't-title' }, tr('Tekshiruv')), h('span', { class: 't-small' }, `${cs.filter(c => c.ok).length} / ${cs.length} · ${tr(P().name)}`)),
-      h('div', { class: 'group', id: 'chChecks' }, ...cs.map(c => h('div', { class: 'li', 'data-check': c.id },
-        h('span', { class: `chip ${c.ok ? 'ok' : 'warn'}`, 'aria-label': tr(c.ok ? 'mos' : 'ogohlantirish') }, h('i'), String(c.id)),
-        h('span', { class: 'k' }, c.title, h('span', { class: 'sub' }, c.note)),
-        c.fix ? h('button', { class: 'btn btn-sm', 'data-fix': c.id, onclick: () => { mut(p => { const f = applyFix(p, c.id, d.palette); p.els = f.els; p.layers.splice(0, p.layers.length, ...f.layers); }); toast(tr('Tuzatildi')); } }, c.fix) : ''))),
-      h('div', { class: 'group' }, field('Kulrang sinov', sw({ id: 'chGray', label: tr('Kulrang sinov'), on: gray, onchange: v => { gray = v; renderCanvas(); renderRight(); } }))),
+    if (!allPages().length) return [];
+    const o = pageOut(d.cur, 'k'), p = P(), auto = isAuto(), pk = auto ? LAST!.PG.pages[d.cur] : null;
+    const key = `${d.cur}:${o.svg.length}:${o.svg.slice(-160)}`;
+    const mapRoles = new Set(['locator', 'plan']);
+    const hasMap = (pk ? [...pk.assign.values()].some(m => mapRoles.has(m.role)) : false) || p.els.some(e => e.t === 'map');
+    const hasLegend = (LAST?.PG.pages ?? []).some(q => [...q.assign.values()].some(m => m.role === 'legend')) || allPages().some(q => q.els.some(e => e.t === 'legend'));
+    const cs = sheetChecks({ svg: o.svg, empty: pk ? pk.empty.size : 0, left: auto ? (LAST?.PG.left ?? []).map(m => m.name) : [], hasMap, hasLegend, share: rasterShare(key, o.svg, o.widthMm, o.heightMm) }, tr);
+    const ok = cs.filter(c => c.st === 'o').length;
+    const old = pageChecks(p, tr);
+    const mark = (s: string) => s === 'o' ? h('span', { class: 'ch-okm', 'aria-label': tr('bajarildi') }, svgIcon('<path d="M5 12l5 5 9-10"/>')) : s === 'f' ? h('span', { class: 'ch-fm', 'aria-label': tr('xato') }, svgIcon(I.x)) : s === 'p' ? h('span', { class: 'ch-pm', 'aria-label': tr('hisoblanmoqda…') }) : h('span', { class: 'ch-wm', 'aria-label': tr('ogohlantirish') }, svgIcon(I.warn));
+    const row = (c: Check9) => h('div', { class: 'li', 'data-check': c.id, 'data-st': c.st },
+      h('span', { class: 'k' }, c.title, h('span', { class: 'sub' }, c.note, ...(c.sw ?? []).map(x => h('i', { class: 'ch-dotc', style: `background:${x}`, title: x })))),
+      c.fix && old.some(q => q.id === c.fix && q.fix) && p.els.length ? h('button', { class: 'btn btn-sm', 'data-fix': c.fix, onclick: () => { mut(pp => { const f = applyFix(pp, c.fix!, d.palette); pp.els = f.els; }); toast(tr('Tuzatildi')); } }, old.find(q => q.id === c.fix)!.fix!) : '',
+      mark(c.st));
+    const grp = (g: Check9['group']) => h('div', { class: 'group', 'data-cgroup': g }, ...cs.filter(c => c.group === g).map(row));
+    return [h('div', { class: 'ch-eh ch-eh-row' }, h('b', { class: 't-title' }, tr('Tekshiruv')), h('span', { class: `chip ${ok === cs.length ? 'ok' : 'warn'}`, id: 'chCheckSum' }, h('i'), `${ok} / ${cs.length}`)),
+      lbl('Joylashuv'), grp('Joylashuv'),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Rang · 7 band')), h('button', { class: 'btn btn-sm', id: 'chGray', 'aria-pressed': gray, onclick: () => { gray = !gray; renderCanvas(); renderRight(); } }, tr(gray ? 'Kulrang sinov ✓' : 'Kulrang sinov'))),
+      h('div', { id: 'chChecks' }, grp('Rang')),
+      h('details', { class: 'ch-how' }, h('summary', {}, tr('Qanday tanlanadi')), h('div', {}, tr('Dvigatel maketdagi hamma varaq turini sinaydi: toʻlgan katak ball qoʻshadi, boʻsh katak ball ayiradi. Kam varaq, boʻsh katak yoʻq va joysiz material qolmagan ketma-ketlik tanlanadi. Rang bandlari varaqdagi hamma rangdan (qoʻlda chizilganlar ham) hisoblanadi; «asos jimroq» — varaq rasmidagi toʻyingan piksellar ulushi.'))),
       h('span', { class: 't-small' }, tr('Kulrang sinov varaqni kulrangda koʻrsatadi — toifalar yorqinlik boʻyicha ham ajralishi kerak.'))];
   }
 
@@ -1098,14 +1157,11 @@ export function openChizmadon(host: ChHost): void {
     startEl.hidden = d.auto.started;
     if (d.auto.started) { startEl.replaceChildren(); return; }
     const f = fam(), fk = fmtOf(f), mats = MATS.filter(m => m.role !== 'title'), s = site();
-    const lat = h('input', { class: 'input num', id: 'chSLat', value: s.lat.toFixed(4), 'aria-label': tr('Kenglik') }) as HTMLInputElement, lon = h('input', { class: 'input num', id: 'chSLon', value: s.lon.toFixed(4), 'aria-label': tr('Uzunlik') }) as HTMLInputElement;
-    const go = () => { const a = Number(lat.value.replace(',', '.')), b = Number(lon.value.replace(',', '.')); if (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 85 && Math.abs(b) <= 180) setSite(a, b); };
-    lat.addEventListener('change', go); lon.addEventListener('change', go);
     const box = h('div', { class: 'ch-stbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Albomni tuzish') },
       h('div', { class: 'ch-sttop' }, h('b', {}, tr('Chizmadon')), h('span', { class: 't-small' }, tr('Kirdingiz — tayyor materiallar tanlangan maketga oʻzi joylanadi. Yoqmasa, keyin shu oynada tahrirlaysiz.')),
         h('button', { class: 'btn btn-ghost icon-btn', id: 'chStClose', 'aria-label': tr('Yopish'), onclick: () => startGo() }, svgIcon(I.x))),
       h('div', { class: 'ch-stbody' },
-        h('div', { class: 'ch-stl' }, h('b', { class: 'ch-sth' }, tr('Loyiha hududi')), whereBox(), h('div', { class: 'row2' }, fieldV('Kenglik', lat), fieldV('Uzunlik', lon)),
+        h('div', { class: 'ch-stl' }, h('b', { class: 'ch-sth' }, tr('Loyiha hududi')), locBox('S'), whereBox(),
           h('div', { class: 'ch-chips' }, ...presets().map(p => h('button', { class: 'chip', 'aria-pressed': p.lat === s.lat && p.lon === s.lon, onclick: () => setSite(p.lat, p.lon) }, tr(p.label)))),
           h('b', { class: 'ch-sth' }, tr('Loyihadan tayyor')),
           h('div', { class: 'group', id: 'chStMats' }, ...mats.map(m => h('button', { class: 'li ch-ck', 'data-vis': m.id, 'aria-pressed': m.visible, onclick: () => autoMut(() => { matSet(m.id).visible = !m.visible; d.auto.force = {}; }) }, h('span', { class: 'cb' }, m.visible ? svgIcon('<path d="M5 12l5 5 9-10"/>') : ''), h('span', { class: 'k' }, tr(m.name)))))),

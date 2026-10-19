@@ -147,3 +147,17 @@ describe('Chizmadon — materialni katakka sudrash (applyOv)', () => {
     expect(PG.left.some(e => e.id === lost.id)).toBe(false);
   });
 });
+
+import { TEMPLATES } from '../../src/chizmadon/templates';
+import { TPL_MAP } from '../../src/chizmadon/migrate';
+describe('Chizmadon — eski 24 namuna → 7 oila (koʻchirish jadvali)', () => {
+  it('har namuna uchun mavjud oila va varaq turi', () => {
+    expect(Object.keys(TPL_MAP).sort()).toEqual(TEMPLATES.map(t => t.id).sort());
+    for (const [id, m] of Object.entries(TPL_MAP)) {
+      const f = LAYOUTS.families.find(x => x.id === m.fam);
+      expect(f, id).toBeTruthy(); expect(f!.pages.some(p => p.id === m.page), `${id} → ${m.page}`).toBe(true);
+    }
+    const q = Object.values(TPL_MAP).map(m => m.q);
+    expect(q.filter(x => x === 'boʻshliq')).toHaveLength(2);
+  });
+});
