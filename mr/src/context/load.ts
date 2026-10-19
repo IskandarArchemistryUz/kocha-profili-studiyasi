@@ -80,13 +80,16 @@ export async function osmWithFallback(bb: BBox, f: typeof fetch, onTry: (m: stri
   return ovp;
 }
 
+/** Relyef toʻri qadami, m: katta hududda siyrakroq (toʻr ~600×600 dan oshmasin) */
+export const terrainStep = (r: number) => (r <= 2000 ? 10 : r <= 4000 ? 15 : 20);
+
 /** Tarmoqdan toʻliq yuklash (worker yoki asosiy oqimda) */
 export async function fetchContext(center: LngLat, radius: number, progress: Progress = () => {}, f: typeof fetch = fetch.bind(globalThis)): Promise<ContextBundle> {
   const bb = bboxAround(center, radius), missing: string[] = [];
   progress('OSM: binolar, yoʻllar, suv, yashil hududlar…', 0.05);
   let raw: unknown = null; const srcBox = { src: 'overpass' as 'overpass' | 'ofm' };
   const osmP = osmWithFallback(bb, f, m => progress(m, 0.1), OVERPASS_WAIT).then(r => { raw = r.raw; srcBox.src = r.src; progress('OSM tahlil qilinmoqda…', 0.55); return r.osm; });
-  const terrP = loadTerrain(center, radius, bb, f).catch(() => null);
+  const terrP = loadTerrain(center, radius, bb, f, terrainStep(radius)).catch(() => null);   // katta hudud — siyrakroq toʻr (xotira)
   let done = 0;
   const imgP = loadImagery(radius, bb, f, () => { done++; if (done % 8 === 0) progress(`Sunʼiy yoʻldosh tasviri: ${done} plitka…`, 0.3); }).catch(() => null);
   const [osm, terrain, imagery] = await Promise.all([osmP, terrP, imgP]);

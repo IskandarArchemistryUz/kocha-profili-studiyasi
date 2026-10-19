@@ -270,6 +270,19 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   };
   const ground = new THREE.Mesh(geo, groundMat); ground.name = 'relyef'; ground.receiveShadow = true; ground.renderOrder = 0;
   g.add(ground);
+  // atrof chegarasi (chegara boʻyicha yuklanganda): uzuq chiziq
+  if (cs.area && cs.area.length >= 3) {
+    const pts: THREE.Vector3[] = [];
+    const loc = cs.area.map(fr.toLocal);
+    for (let i = 0; i <= loc.length; i++) {
+      const a = loc[i % loc.length], b = loc[(i + 1) % loc.length], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 25));
+      if (i === loc.length) break;
+      for (let k = 0; k < n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n; pts.push(new THREE.Vector3(x, H(x, y) + 1.2, -y)); }
+    }
+    pts.push(pts[0].clone());
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0xe0281e, dashSize: 18, gapSize: 7, depthTest: false }));
+    line.computeLineDistances(); line.renderOrder = 60; line.name = 'atrof chegarasi'; g.add(line);
+  }
 
   // yashil va suv (sunʼiy yoʻldoshda — tasvirning oʻzi koʻrsatadi)
   if (!sat && L.green) {

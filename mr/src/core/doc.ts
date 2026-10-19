@@ -114,7 +114,11 @@ export interface ContextSettings {
   layers: { buildings: boolean; roads: boolean; rail: boolean; water: boolean; green: boolean; trees: boolean; relief: boolean };
   /** kontekst yuklanganmi (sahifa yangilanganda keshdan avtomatik tiklash uchun) */
   loaded: boolean;
+  /** atrof chegarasi (ixtiyoriy): berilsa — atrof shu poligon qutisi boʻyicha yuklanadi va unga qirqiladi; radius — qutining yarmi */
+  area?: LngLat[] | null;
 }
+/** Atrof radiusi chegaralari, m: oddiy (radius tugmalari) va chegara boʻyicha (katta hudud) */
+export const CTX_R_MIN = 100, CTX_R_MAX = 6000;
 
 export const DEFAULT_CONTEXT: ContextSettings = {
   radius: 500, base: 'maket', loaded: false,
@@ -247,10 +251,11 @@ export function migrate(raw: unknown): Project {
   if (typeof s.district !== 'string' || !/^\d{4,10}$/.test(s.district)) s.district = DEFAULT_SETTINGS.district;
   const cx = (d.context && typeof d.context === 'object' ? d.context : {}) as Partial<ContextSettings>;
   const context: ContextSettings = {
-    radius: isNum(cx.radius) && cx.radius >= 100 && cx.radius <= 2000 ? cx.radius : DEFAULT_CONTEXT.radius,
+    radius: isNum(cx.radius) && cx.radius >= CTX_R_MIN && cx.radius <= CTX_R_MAX ? cx.radius : DEFAULT_CONTEXT.radius,
     base: cx.base === 'sputnik' ? 'sputnik' : 'maket',
     loaded: cx.loaded === true,
     layers: { ...DEFAULT_CONTEXT.layers, ...(cx.layers || {}) },
+    ...(Array.isArray(cx.area) && isRing(cx.area) ? { area: cx.area.map(p => [p[0], p[1]] as LngLat) } : {}),
   };
   let site: Site | null = null;
   if (d.site != null) {
