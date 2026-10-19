@@ -15,7 +15,7 @@ describe('Chizmadon — avtomatik albom', () => {
     expect(R.inside).toBe(true); expect(R.reg?.n).toBe('Tashkent'); expect(placeName(R)).toBe('Yakkasaroy tumani');
     expect(autoNote(R)).toMatch(/^Tush paytida quyosh yozda 72,\d°/); expect(autoNote(R)).toContain('Janubiy');
   });
-  it('7 oila × hamma format: hudud materiallari bilan SVG xatosiz, chegaralar chiziladi', () => {
+  it('8 oila × hamma format: hudud materiallari bilan SVG xatosiz, chegaralar chiziladi', () => {
     const p = presets()[0], R = resolve(p.lat, p.lon), mats = siteMaterials(() => R, {});
     for (const f of LAYOUTS.families) for (const fmt of f.formats) {
       const A = buildAlbum({ fam: f, fmt, pal: f.pal ?? 'arch', mats, R });

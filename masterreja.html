@@ -204,7 +204,7 @@ async function toAlbum(ids){const o=calc(),t=new Date().toISOString();let n=0;fo
     await putRec('kps_mat','mats',{id:'mrp_'+id+'_'+uid(),kind:'svg',name:'Master reja — '+c.t,src:tb.src,thumb:tb.src,aspect:tb.aspect,sub:'hisob paneli',t});n++;
     if(id==='clim'&&EXT.clim){for(const [nm,sv] of [['Iqlim diagrammasi',climSVG(EXT.clim)],['Shamollar guli',roseSVG(EXT.clim.rose)]]){const s2=sv.replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');const vb=s2.match(/viewBox="0 0 (\d+) (\d+)"/);await putRec('kps_mat','mats',{id:'mrp_'+uid(),kind:'svg',name:nm,src:svgURL(s2),thumb:svgURL(s2),aspect:vb?vb[1]/vb[2]:1,sub:'Open-Meteo',t});n++;}}
     if(id==='demo'){const pv=pyrSVG(o);if(pv){const s2=pv.replace(/^<div class="charts">|<\/div>$/g,'').replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');await putRec('kps_mat','mats',{id:'mrp_'+uid(),kind:'svg',name:'Yosh tuzilmasi',src:svgURL(s2),thumb:svgURL(s2),aspect:3,sub:'hisob paneli',t});n++;}}}
-  toast(n?n+' ta material albomga yuborildi.':'Yuboriladigan hisob yoʻq.',n?'Albomni ochish':null,()=>window.open('maket.html','_blank'));}
+  toast(n?n+' ta material albomga yuborildi.':'Yuboriladigan hisob yoʻq.',n?'Chizmadonni ochish':null,()=>window.open('app/#/chizmadon','_blank'));}
 $('#allAlb').onclick=()=>toAlbum(CARDS.map(c=>c.id));
 /* ---- AI xulosa ---- */
 $('#aiBtn').onclick=async()=>{const key=localStorage.getItem('kps_ai_key');if(!key){toast('AI kaliti kiritilmagan — Hudud tahlili sahifasida «AI kaliti».');return;}const o=calc(),b=$('#aiBtn');b.disabled=true;b.textContent='AI yozmoqda…';

@@ -2,7 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { blankDoc, normDoc, blankPage, bbox, fitTo, mapScale, cid } from '../../src/chizmadon/model';
 import { pageSvg, smoothD, along } from '../../src/chizmadon/render';
 import { pageChecks, applyFix, isRed, chromatic } from '../../src/chizmadon/check';
-import { TEMPLATES, TPL_GROUPS, demoDiagram } from '../../src/chizmadon/templates';
+import { LAYOUTS, buildLayoutPage } from '../../src/chizmadon/layouts';
+import { pageSize, type ChPage, type ChEl } from '../../src/chizmadon/model';
+
+/** Tahlil diagrammasi misoli (zona, oqim, shartli belgilar) — SVG testi uchun */
+function demoDiagram(p: ChPage): ChPage {
+  const [W, H] = pageSize(p), L = p.layers.map(l => l.id), add = (e: Omit<ChEl, 'id'>) => p.els.push({ id: cid(), ...e } as ChEl);
+  const zone = (pts: [number, number][], fill: string, name: string) => add({ t: 'zone', layer: L[1], pts, name, preset: name, style: { fill, opacity: 0.5, halo: 5 } });
+  const flow = (pts: [number, number][], stroke: string, w: number, name: string, band: 'lenta' | 'toliq' = 'toliq') => add({ t: 'flow', layer: L[1], pts, name, preset: name, style: { stroke, width: w, band, head: 'end', smooth: true, opacity: 0.85 } });
+  zone([[W * 0.2, H * 0.4], [W * 0.35, H * 0.3], [W * 0.42, H * 0.5], [W * 0.3, H * 0.62]], '#8cc47a', 'Yashil zona');
+  zone([[W * 0.5, H * 0.55], [W * 0.62, H * 0.5], [W * 0.66, H * 0.66], [W * 0.54, H * 0.7]], '#e9a3c9', 'Markaz');
+  flow([[W * 0.1, H * 0.8], [W * 0.4, H * 0.6], [W * 0.75, H * 0.35]], '#f0a35e', 7, 'Asosiy oqim', 'lenta');
+  flow([[W * 0.3, H * 0.15], [W * 0.33, H * 0.5], [W * 0.4, H * 0.85]], '#6fae8e', 5, 'Yashil koridor');
+  add({ t: 'legend', layer: L[2], x: W * 0.8, y: H * 0.2, w: 70, h: 40, text: 'Shartli belgilar', style: { size: 9 } });
+  return p;
+}
 import { ICONS, ICON_GROUPS, TREES, FLOWS, ZONES, MOBILITY, DASHES, PALETTES, FONTS, TOOLS } from '../../src/chizmadon/catalog';
 
 describe('Chizmadon — kutubxona (eski Albom inventari)', () => {
@@ -10,8 +24,8 @@ describe('Chizmadon — kutubxona (eski Albom inventari)', () => {
     expect(TOOLS).toHaveLength(14); expect(FLOWS).toHaveLength(7); expect(ZONES).toHaveLength(7); expect(MOBILITY).toHaveLength(8);
     expect(DASHES).toHaveLength(6); expect(ICON_GROUPS).toHaveLength(6); expect(ICONS.length).toBeGreaterThanOrEqual(45);
     expect(TREES).toHaveLength(12); expect(PALETTES).toHaveLength(8); expect(FONTS).toHaveLength(6);
-    expect(TEMPLATES).toHaveLength(24); expect(TPL_GROUPS).toHaveLength(5);
-    expect(TPL_GROUPS.map(g => TEMPLATES.filter(t => t.group === g).length)).toEqual([7, 3, 3, 5, 6]);
+    // namunalar — maket oilalari (eski 24 namuna oʻrnida): 8 oila, shu jumladan Portfolio
+    expect(LAYOUTS.families.map(f => f.id)).toEqual(['kz', 'mr', 'tq', 'st', 'kp', 'kl', 'iu', 'pf']);
   });
 });
 
@@ -75,7 +89,7 @@ describe('Chizmadon — 7 bandli tekshiruv', () => {
   });
   it('namunalar quriladi (loyiha xaritasi bilan)', () => {
     const ctx = { title: 'Fitrat', place: 'Toshkent', date: '18.10.2026', author: 'I', map: { svg: '<rect width="10" height="10"/>', vb: [0, 0, 400, 300] as [number, number, number, number], w: 400, h: 300, scale: 2000 } };
-    for (const t of TEMPLATES) { const p = t.build(ctx); expect(p.els.length).toBeGreaterThan(0); expect(pageSvg(p).svg.length).toBeGreaterThan(100); }
+    for (const f of LAYOUTS.families) for (const pg of f.pages) for (const fmt of f.formats) { const p = buildLayoutPage(f.id, pg.id, fmt, ctx); expect(p.els.length, `${pg.id} ${fmt}`).toBeGreaterThan(0); expect(pageSvg(p).svg.length).toBeGreaterThan(100); }
   });
 });
 

@@ -46,6 +46,7 @@ export const TXT = {
   kpi: [["12,9", "ga", "Hudud maydoni"], ["4 230", "", "Yangi xonadon"], ["16 900", "kishi", "Aholi, prognoz"], ["2,1", "", "UMN (FAR)"], ["32", "%", "Yashillik"], ["5", "daq", "Bog'chagacha piyoda"], ["400", "ming m²", "Umumiy maydon (GFA)"], ["5 200", "joy", "Avtoturargoh"]],
   check: [["UMN (FAR)", "≤ 2,5", "2,1", 1], ["Aholi zichligi, kishi/ga", "≤ 450", "412", 1], ["Yashillik, %", "≥ 25", "32", 1], ["Avtoturargoh, joy/xonadon", "≥ 0,7", "0,62", 0], ["Maktab, o'rin/1000", "≥ 120", "134", 1], ["Bog'cha, o'rin/1000", "≥ 70", "58", 0], ["Insolyatsiya, soat", "≥ 2,0", "2,5", 1], ["Qavatlilik, eng ko'p", "≤ 16", "16", 1]],
   docs: [["ShNQ 2.07.01", "Shaharsozlik. Shahar va qishloqlarni rejalash"], ["ShNQ 2.08.01", "Turar joy binolari"], ["ShNQ 2.04.02", "Suv ta'minoti. Tashqi tarmoqlar"], ["ShNQ 2.04.03", "Kanalizatsiya. Tashqi tarmoqlar"], ["ShNQ 2.04.07", "Issiqlik tarmoqlari"], ["ShNQ 2.01.03", "Seysmik hududlarda qurilish"], ["QMQ 2.07.01", "Ko'kalamzorlashtirish"], ["Qaror № —", "Hududni kompleks rivojlantirish to'g'risida"]],
+  abbr: [["APZ", "Arxitektura-rejalashtirish topshirigʻi"], ["GFA", "Umumiy maydon"], ["OSM", "OpenStreetMap"], ["QMQ", "Qurilish meʼyorlari va qoidalari"], ["SanQvaN", "Sanitariya qoidalari va normalari"], ["ShNQ", "Shaharsozlik normalari va qoidalari"], ["TIK", "Texnik-iqtisodiy koʻrsatkichlar"]],
   kv: [["Hudud", "Hudud nomi"], ["Maydon", "12,9 ga"], ["Mavjud aholi", "2 071 kishi"], ["Uylar", "57 KQU + 19 YKU"], ["Ko'chiriladi", "834 oila"], ["Seysmiklik", "8 ball"], ["Huquqiy rejim", "KZ, tasdiqlangan"]],
   swot: [["Kuchli tomonlar", ["Markaziy joylashuv", "Metro 750 m", "Tarixiy qatlam", "Tayyor ko'cha to'ri"]], ["Zaif tomonlar", ["Eskirgan uy-joy", "Yashillik tanqisligi", "Avtoturargoh yo'q", "Tarmoqlar eskirgan"]], ["Imkoniyatlar", ["Kanal bo'yi bog'i", "Faol birinchi qavat", "Piyoda markaz", "Ijtimoiy klaster"]], ["Xavflar", ["Ko'chirish muddati", "Tarmoq quvvati", "Narx o'sishi", "Shovqin"]]],
   esg: [["Ekologiya", ["Yashillik 32 %", "Yomg'ir suvini yig'ish", "Issiqlik orolini kamaytirish"]], ["Ijtimoiy", ["5 daqiqada bog'cha", "Hovli — piyodalar uchun", "MGN uchun to'siqsiz muhit"]], ["Boshqaruv", ["Ochiq TIK hisoboti", "Aholi bilan kelishuv", "Bosqichli monitoring"]]],
@@ -345,12 +346,13 @@ function draw(s?: any, r?: any, ctx?: any) {
       let rows, colsX;
       if (k === "docs") { rows = TXT.docs; colsX = [0, 0.3]; g += hdr("Normativ asoslar", y); y += 6 * u; }
       else if (k === "kv") { rows = TXT.kv; colsX = [0, 0.45]; g += hdr("Huquqiy va texnik holat", y); y += 6 * u; }
+      else if (k === "abbr") { rows = TXT.abbr; colsX = [0, 0.22]; g += hdr("Qisqartmalar", y); y += 6 * u; }
       else if (k === "compare") { rows = [["Ko'rsatkich", "Hozir", "Loyiha"], ["Aholi, kishi", "2 071", "16 900"], ["Xonadonlar", "531", "4 230"], ["Avtoturargoh", "100", "5 200"], ["Yashillik, m²", "8 400", "41 300"], ["Tijorat, m²", "—", "22 600"], ["Ijtimoiy obyekt", "1", "6"]]; colsX = [0, 0.5, 0.76]; }
       else if (k === "long") { rows = [["№", "Maydon, ga", "Funksiya"]].concat(Array.from({ length: 22 }, (_, j) => [String(j + 1), (0.4 + ((j * 37) % 23) / 10).toFixed(2).replace(".", ","), ["Turar joy", "Tijorat", "Ijtimoiy", "Bog'", "Aralash"][j % 5]])); colsX = [0, 0.18, 0.55]; }
       else { rows = [["Ko'rsatkich", "Birlik", "Qiymat"]].concat(TXT.kpi.map((q: any) => [q[2], q[1] || "—", q[0]])); colsX = [0, 0.6, 0.8]; }
       const rh = Math.min(6.5 * u, (r.y + r.h - pad - y) / rows.length);
       rows.forEach((row: any, j: any) => { const yy = y + j * rh; if (yy + rh > r.y + r.h - pad + 0.5) return; const head = (k === "compare" || k === "long" || k === "basic") && j === 0;
-        row.forEach((cell: any, c: any) => { g += T(x + w * colsX[c] + (c && k === "compare" ? 0 : 0), yy + rh * 0.66, cell, { s: (head ? 2.2 : 2.45) * u, w: head ? 600 : (c === 0 && k !== "long" ? 500 : 400), c: head ? mut : c === 0 && k === "docs" ? P.acc : ink, mono: k === "docs" && c === 0 || (k !== "kv" && k !== "docs" && c > 0 && /\d/.test(cell)) }); });
+        row.forEach((cell: any, c: any) => { g += T(x + w * colsX[c] + (c && k === "compare" ? 0 : 0), yy + rh * 0.66, cell, { s: (head ? 2.2 : 2.45) * u, w: head ? 600 : (c === 0 && k !== "long" ? 500 : 400), c: head ? mut : c === 0 && (k === "docs" || k === "abbr") ? P.acc : ink, mono: (k === "docs" || k === "abbr") && c === 0 || (k !== "kv" && k !== "docs" && k !== "abbr" && c > 0 && /\d/.test(cell)) }); });
         g += L0(x, yy + rh, x + w, yy + rh, ln, 0.15 * u); });
       return g;
     }

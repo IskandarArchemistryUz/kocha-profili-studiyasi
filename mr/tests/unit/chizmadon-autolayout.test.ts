@@ -17,9 +17,9 @@ const mats = (): Material[] => ([
 ] as Omit<Material, 'visible' | 'accent' | 'scale'>[]).map(e => ({ visible: true, accent: null, scale: 1, ...e }));
 
 describe('Chizmadon — maketlar kutubxonasi', () => {
-  it('7 oila, 72 varaq turi; har katak roli maʼlum', () => {
-    expect(LAYOUTS.families).toHaveLength(7);
-    expect(LAYOUTS.families.reduce((a, f) => a + f.pages.length, 0)).toBe(72);
+  it('8 oila, 80 varaq turi; har katak roli maʼlum', () => {
+    expect(LAYOUTS.families).toHaveLength(8);
+    expect(LAYOUTS.families.reduce((a, f) => a + f.pages.length, 0)).toBe(80);
     for (const f of LAYOUTS.families) {
       for (const k of f.formats) expect(LAYOUTS.formats[k], `${f.id}:${k}`).toBeTruthy();
       for (const p of f.pages) for (const s of p.slots) expect(LAYOUTS.roles[s.role], `${p.id}:${s.role}`).toBeTruthy();
@@ -148,16 +148,14 @@ describe('Chizmadon — materialni katakka sudrash (applyOv)', () => {
   });
 });
 
-import { TEMPLATES } from '../../src/chizmadon/templates';
 import { TPL_MAP } from '../../src/chizmadon/migrate';
-describe('Chizmadon — eski 24 namuna → 7 oila (koʻchirish jadvali)', () => {
-  it('har namuna uchun mavjud oila va varaq turi', () => {
-    expect(Object.keys(TPL_MAP).sort()).toEqual(TEMPLATES.map(t => t.id).sort());
+describe('Chizmadon — eski 24 namuna → 8 oila (koʻchirish jadvali)', () => {
+  it('har eski namuna uchun mavjud oila va varaq turi, boʻshliq yoʻq', () => {
+    expect(Object.keys(TPL_MAP)).toHaveLength(24);
     for (const [id, m] of Object.entries(TPL_MAP)) {
       const f = LAYOUTS.families.find(x => x.id === m.fam);
       expect(f, id).toBeTruthy(); expect(f!.pages.some(p => p.id === m.page), `${id} → ${m.page}`).toBe(true);
     }
-    const q = Object.values(TPL_MAP).map(m => m.q);
-    expect(q.filter(x => x === 'boʻshliq')).toHaveLength(2);
+    expect(Object.values(TPL_MAP).filter(m => m.q === 'boʻshliq')).toHaveLength(0);
   });
 });

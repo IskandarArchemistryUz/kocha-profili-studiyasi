@@ -17,11 +17,11 @@ async function openCh(page: Page): Promise<void> {
   await expect(page.locator('#chStMats [data-vis="loc1"]')).toBeVisible();   // chegaralar yuklandi
 }
 
-test('Chizmadon: kirish oynasi → avtomatik albom, 7 oila, format, hamma varaqlar', async ({ page }) => {
+test('Chizmadon: kirish oynasi → avtomatik albom, 8 oila, format, hamma varaqlar', async ({ page }) => {
   test.setTimeout(150_000);
   await project(page);
   await openCh(page);
-  await expect(page.locator('#chStFams [data-fam]')).toHaveCount(7);
+  await expect(page.locator('#chStFams [data-fam]')).toHaveCount(8);
   if (shots) await page.screenshot({ path: `${shots}/ch_kirish.png` });
   await page.click('#chStGo');
   await expect(page.locator('.ch-start .ch-stbox')).toHaveCount(0);
@@ -186,4 +186,40 @@ test('Chizmadon: bogʻlash — xarita boshqa varaqning kichik katagiga koʻchsa,
   await expect(els(page)).toHaveCount(0);
   if (!(await page.locator('[data-sec=qatlam].open').count())) await page.click('[data-sec=qatlam] .ch-sh');
   await page.click('#chRescue'); await expect(els(page)).toHaveCount(3);
+});
+
+test('Chizmadon: eski Albomdan oʻtkazish va yangi namunalar (TIK, mundarija, Portfolio)', async ({ page }) => {
+  test.setTimeout(150_000);
+  await project(page);
+  // eski albom (maket.html) va «Albomga» yuborilgan material — brauzer bazasida
+  await page.evaluate(async () => {
+    const put = (db: string, store: string, key: string, o: unknown) => new Promise<void>((ok, no) => { const r = indexedDB.open(db, 1); r.onupgradeneeded = () => r.result.createObjectStore(store, { keyPath: key }); r.onsuccess = () => { const t = r.result.transaction(store, 'readwrite'); t.objectStore(store).put(o); t.oncomplete = () => { r.result.close(); ok(); }; t.onerror = () => no(t.error); }; });
+    await put('kps_maket', 'docs', 'id', { id: 'main', name: 'Eski albom', meta: {}, pages: [{ id: 'a', fmt: 'A3', orient: 'L', tb: true, items: [
+      { id: '1', t: 'rect', x: 20, y: 20, w: 120, h: 80, fill: '#8cc37a', stroke: '#141414', sw: 0.5 },
+      { id: '2', t: 'text', x: 20, y: 120, w: 200, h: 12, text: 'Eski sarlavha', fs: 24, b: true },
+      { id: '3', t: 'legend', x: 300, y: 20, w: 80, h: 30, title: 'Belgilar', entries: [{ label: 'Bogʻ', col: '#8cc37a' }] }] }] });
+    await put('kps_mat', 'mats', 'id', { id: 'm1', kind: 'svg', name: 'Kesim', src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 20 10%22%3E%3Crect width=%2220%22 height=%2210%22 fill=%22%23c0643a%22/%3E%3C/svg%3E', aspect: 2, t: '2026-10-19' });
+  });
+  await openCh(page); await page.click('#chStGo');
+  if (!(await page.locator('[data-sec=varaq].open').count())) await page.click('[data-sec=varaq] .ch-sh');
+  await expect(page.locator('#chLegacy')).toContainText('1');
+  const n0 = await page.locator('#chPages .ch-pg').count();
+  await page.click('#chLegacyGo');
+  await expect(page.locator('#chPages .ch-pg')).toHaveCount(n0 + 1);
+  await expect(page.locator('#chLegacy')).toHaveCount(0);
+  await expect(page.locator('.ch-page text', { hasText: 'Eski sarlavha' })).toHaveCount(1);
+  await expect(page.locator('.ch-page text', { hasText: 'Belgilar' })).toHaveCount(1);
+  if (shots) await page.screenshot({ path: `${shots}/ch_eski_albom.png` });
+  // material bazadan olindi — qayta taklif qilinmaydi
+  expect(await page.evaluate(() => new Promise<number>(ok => { const r = indexedDB.open('kps_mat'); r.onsuccess = () => { const q = r.result.transaction('mats').objectStore('mats').count(); q.onsuccess = () => ok(q.result); }; }))).toBe(0);
+  // yangi namunalar
+  for (const id of ['mr-tik', 'st-toc', 'pf-cover', 'pf-about']) {
+    const k = await page.locator('#chPages .ch-pg').count();
+    await page.click('#chAddTpl'); await page.click(`#chTplMenu [data-tpl=${id}]`);
+    await expect(page.locator('#chPages .ch-pg')).toHaveCount(k + 1);
+  }
+  await expect(page.locator('#chTplMenu')).toHaveCount(0);
+  await page.click('#chAddTpl'); await expect(page.locator('#chTplMenu [data-fam=pf]')).toHaveCount(6);
+  if (shots) await page.screenshot({ path: `${shots}/ch_namuna_menyu.png` });
+  await page.keyboard.press('Escape');
 });
