@@ -518,3 +518,5 @@ export function renderPage(LIB: any, fam: LFamily, page: LPage, fmt: string, opt
 }
 
 export { D2R, n2, esc, rng, hash, T, R0, L0, para, wrap, mapArt, chartArt, picArt, axonArt, clip };
+/** Katak toʻrtburchagi (mm) — dvigatel ramkasi boʻyicha (iu oilasining maxsus ramkasi ham) */
+export const slotRectOf = (fam: LFamily, page: LPage, fmt: string, s: any): { x: number; y: number; w: number; h: number } => rect(frame(fmt, fam.chrome, page, LIB, fam.orient, fam), s);

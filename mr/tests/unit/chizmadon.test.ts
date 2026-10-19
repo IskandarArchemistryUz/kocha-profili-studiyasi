@@ -17,11 +17,21 @@ describe('Chizmadon — kutubxona (eski Albom inventari)', () => {
 
 describe('Chizmadon — hujjat', () => {
   it('normDoc: yaroqsiz kirish → sukut; elementlar saqlanadi', () => {
-    expect(normDoc(null).pages).toHaveLength(1);
-    const d = blankDoc('X'); d.pages[0].els.push({ id: 'a', t: 'rect', layer: d.pages[0].layers[0].id, x: 1, y: 2, w: 3, h: 4, style: { fill: '#ff0000' } });
+    expect(normDoc(null).pages).toHaveLength(0); expect(normDoc(null).v).toBe(2); expect(normDoc(null).auto.fam).toBe('mr');
+    const d = blankDoc('X'); d.pages.push(blankPage('Varaq 1')); d.pages[0].els.push({ id: 'a', t: 'rect', layer: d.pages[0].layers[0].id, x: 1, y: 2, w: 3, h: 4, style: { fill: '#ff0000' } });
     const n = normDoc(JSON.parse(JSON.stringify(d)));
     expect(n.pages[0].els[0]).toMatchObject({ id: 'a', t: 'rect', x: 1, w: 3 });
     expect(normDoc({ pages: [{ els: [{ t: 'nope' }, { t: 'text', text: 'a' }] }] }).pages[0].els).toHaveLength(1);
+  });
+  it('normDoc: eski (v1) albom — varaqlari erkin varaq, kirish oynasisiz; bogʻlanish va avto holat saqlanadi', () => {
+    const v1 = normDoc({ v: 1, pages: [{ els: [] }, { els: [] }], cur: 1 });
+    expect(v1.v).toBe(1); expect(v1.auto.started).toBe(true); expect(v1.pages).toHaveLength(2); expect(v1.cur).toBe(1);
+    const d = blankDoc(); d.auto.fam = 'kz'; d.auto.force = { 1: 'kz-swot' }; d.auto.mats.loc1 = { visible: false, accent: '#123456' };
+    d.hand.push({ id: 'h', t: 'rect', layer: d.handLayers[0].id, x: 1, y: 1, w: 2, h: 2, style: {}, a: { el: 'loc1', pi: 0, r0: { x: 0, y: 0, w: 10, h: 10 } } });
+    const n = normDoc(JSON.parse(JSON.stringify(d)));
+    expect(n.auto.fam).toBe('kz'); expect(n.auto.force[1]).toBe('kz-swot'); expect(n.auto.mats.loc1).toEqual({ visible: false, accent: '#123456' });
+    expect(n.hand[0].a).toEqual({ el: 'loc1', pi: 0, r0: { x: 0, y: 0, w: 10, h: 10 } });
+    expect(normDoc({ v: 2, hand: [{ t: 'rect', a: { el: 5, pi: -3, r0: { x: 0, y: 0, w: 0, h: 1 } } }] }).hand[0].a).toEqual({ el: null, pi: 0, r0: null });
   });
   it('fitTo va xarita masshtabi', () => {
     const e = { id: cid(), t: 'map' as const, layer: 'l', x: 0, y: 0, w: 100, h: 50, scale: 2000, natW: 100, style: {} };

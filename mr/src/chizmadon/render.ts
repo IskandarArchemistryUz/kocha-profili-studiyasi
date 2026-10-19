@@ -293,10 +293,12 @@ export interface PageOpts {
   idp?: string;
   /** Illustrator qatlam belgilari */
   ai?: boolean;
+  /** maket varagʻi (sheet.ts) — oq fon oʻrniga, qoʻlda chizilganlar ostida */
+  bg?: string;
 }
 export function pageSvg(page: ChPage, o: PageOpts = {}): { svg: string; w: number; h: number } {
   const [W, H] = pageSize(page), R: RenderCtx = { idp: o.idp ?? 'c', tr: o.tr ?? (s => s) };
-  let body = `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`;
+  let body = o.bg ? `<g id="${esc(R.idp + 'Maket')}" data-bg="1"${o.ai ? ' inkscape:groupmode="layer" inkscape:label="Maket"' : ''}>${o.bg}</g>` : `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`;
   if (o.grid) { let g = ''; for (let x = 5; x < W; x += 5) g += `M${x} 0V${H}`; for (let y = 5; y < H; y += 5) g += `M0 ${y}H${W}`; body += `<path d="${g}" stroke="#e7e6e2" stroke-width="0.12"/>`; }
   for (const L of page.layers) {
     if (!L.visible) continue;

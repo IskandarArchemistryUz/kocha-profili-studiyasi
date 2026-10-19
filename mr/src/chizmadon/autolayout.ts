@@ -9,7 +9,8 @@
 import { LAYOUTS, type LFamily, type LPage, type LRole, type LSlot } from './layouts';
 
 /** Material roli — qaysi katak turlariga tushishi shundan aniqlanadi */
-export type MRole = 'title' | 'locator' | 'legend' | 'table' | 'chart' | 'text' | 'image';
+/** plan — loyiha xaritasi (bosh reja, Varaqlardan); image — render, foto, sahna rasmi */
+export type MRole = 'title' | 'locator' | 'legend' | 'table' | 'chart' | 'text' | 'image' | 'plan';
 
 /** Chizish konteksti: varaq birligi (u, mm), palitra va h.k. — render.ts beradi */
 export interface MatCtx { u: number; P: Record<string, string>; [k: string]: unknown }
@@ -30,8 +31,8 @@ export interface Material {
 
 /** Katak roli → qabul qiladigan material rollari (birinchisi — afzal) */
 export const ACCEPT: Partial<Record<LRole, MRole[]>> = {
-  title: ['title'], figure: ['image', 'locator', 'chart', 'table'], render: ['image'], photo: ['image'],
-  locator: ['locator'], map: ['locator', 'image'], map_small: ['locator', 'chart'], module: ['chart', 'locator', 'table', 'text'],
+  title: ['title'], figure: ['image', 'plan', 'locator', 'chart', 'table'], render: ['image'], photo: ['image'],
+  locator: ['locator'], map: ['plan', 'locator', 'image'], map_small: ['locator', 'chart', 'plan'], module: ['chart', 'locator', 'plan', 'table', 'text'],
   chart: ['chart'], table: ['table'], kpi: ['table'], checklist: ['table'], lead: ['text'], text: ['text', 'legend'],
   note: ['text', 'legend'], caption: ['text'], legend: ['legend'], section: ['image'], axon: ['image'],
 };
