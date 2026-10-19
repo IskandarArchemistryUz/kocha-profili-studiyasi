@@ -32,7 +32,7 @@ export interface Material {
 /** Katak roli → qabul qiladigan material rollari (birinchisi — afzal) */
 export const ACCEPT: Partial<Record<LRole, MRole[]>> = {
   title: ['title'], figure: ['image', 'plan', 'locator', 'chart', 'table'], render: ['image'], photo: ['image'],
-  locator: ['locator'], map: ['plan', 'locator', 'image'], map_small: ['locator', 'chart', 'plan'], module: ['chart', 'locator', 'plan', 'table', 'text'],
+  locator: ['locator'], map: ['plan', 'locator'], map_small: ['locator', 'chart', 'plan'], module: ['chart', 'locator', 'plan', 'table', 'text'],
   chart: ['chart'], table: ['table'], kpi: ['table'], checklist: ['table'], lead: ['text'], text: ['text', 'legend'],
   note: ['text', 'legend'], caption: ['text'], legend: ['legend'], section: ['image'], axon: ['image'],
 };
