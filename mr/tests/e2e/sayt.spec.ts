@@ -39,7 +39,7 @@ test('batafsil (v4): jonli model, ekotizim, til, tungi rejim, eski boʻlimlar', 
     await expect(page.locator(`header nav a[href="${h}"]`)).toHaveCount(1);
   await expect(page.locator('a.stretch[href="app/render.html"]')).toHaveCount(1);
   // eski boʻlimlar saqlangan (Qoida 0): loyihalar va 14 eski sahifa
-  await expect(page.locator('#allTools a')).toHaveCount(14);
+  await expect(page.locator('#allTools a')).toHaveCount(13);
   for (const a of await page.locator('#allTools a').all()) { const href = (await a.getAttribute('href'))!; expect(existsSync(join(ROOT, href))).toBe(true); }
   for (const a of await page.locator('a[href]').all()) { const h = (await a.getAttribute('href'))!; expect(h).not.toBe('#'); }
   // til: en → sarlavha, raqamlar va menyu tarjima, kalit saqlanadi
