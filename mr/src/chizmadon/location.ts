@@ -63,7 +63,10 @@ export function sun(lat: number, dec: number, H: number): { alt: number; az: num
 export const dayLen = (lat: number, dec: number): number => { const x = -Math.tan(lat * D2R) * Math.tan(dec * D2R); return 2 * Math.acos(Math.max(-1, Math.min(1, x))) / D2R / 15; };
 export const decl = (n: number): number => 23.44 * Math.sin(2 * Math.PI * (284 + n) / 365);
 const MID = [15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349];
-export const hm = (h: number): string => { const H = Math.floor(h), M = Math.round((h - H) * 60); return H + ' s ' + String(M).padStart(2, '0') + ' daq'; };
+type TF = (k: string, v: Record<string, unknown>) => string;
+const tf0: TF = (k, v) => k.replace(/\$\{(\w+)\}/g, (_m, n: string) => String(v[n] ?? ''));
+/** «9 s 01 daq» (tf — tarjima bilan) */
+export const hm = (h: number, tf: TF = tf0): string => { let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60) { H++; M = 0; } return tf('${h} s ${m} daq', { h: H, m: String(M).padStart(2, '0') }); };
 export const f1 = (x: number): string => x.toFixed(1).replace('.', ',');
 
 /* ---------- maʼlumot yuklash ---------- */
@@ -114,7 +117,9 @@ export function resolve(lat: number, lon: number): Resolved {
 /** Joy nomi qisqa: tuman / viloyat / davlat */
 export const placeName = (R: Resolved): string => (R.inside ? (R.dis ? dName(R.dis.n) : R.reg ? rName(R.reg.n) : 'Oʻzbekiston') : R.cn);
 /** Avtomatik xulosa matni (quyosh boʻyicha fasad tavsiyasi) */
-export function autoNote(R: Resolved): string {
+export function autoNote(R: Resolved, tf: TF = tf0): string {
   const d = 1 / Math.tan(R.sumAlt * D2R), lit = Math.max(0, 1 - d * Math.tan(R.winAlt * D2R));
-  return `Tush paytida quyosh yozda ${f1(R.sumAlt)}°, qishda ${f1(R.winAlt)}° balandlikda: farq ${f1(R.sumAlt - R.winAlt)}°. ${R.south ? 'Shimoliy' : 'Janubiy'} fasadda har 1 m deraza balandligiga ${d.toFixed(2).replace('.', ',')} m chiqma yozgi tush quyoshini toʻliq toʻsadi, qishda esa derazaning ${Math.round(lit * 100)}% qismi quyoshda qoladi. ` + (R.winLen < 9.5 ? `Qishki kun ${hm(R.winLen)} — insolyatsiya talabini qishki kun boʻyicha tekshiring.` : `Qishki kun ${hm(R.winLen)}; bino oraligʻini qishki past quyosh boʻyicha belgilang.`);
+  return tf('Tush paytida quyosh yozda ${a}°, qishda ${b}° balandlikda: farq ${c}°.', { a: f1(R.sumAlt), b: f1(R.winAlt), c: f1(R.sumAlt - R.winAlt) }) + ' '
+    + tf(R.south ? 'Shimoliy fasadda har 1 m deraza balandligiga ${d} m chiqma yozgi tush quyoshini toʻliq toʻsadi, qishda esa derazaning ${p}% qismi quyoshda qoladi.' : 'Janubiy fasadda har 1 m deraza balandligiga ${d} m chiqma yozgi tush quyoshini toʻliq toʻsadi, qishda esa derazaning ${p}% qismi quyoshda qoladi.', { d: d.toFixed(2).replace('.', ','), p: Math.round(lit * 100) }) + ' '
+    + tf(R.winLen < 9.5 ? 'Qishki kun ${t} — insolyatsiya talabini qishki kun boʻyicha tekshiring.' : 'Qishki kun ${t}; bino oraligʻini qishki past quyosh boʻyicha belgilang.', { t: hm(R.winLen, tf) });
 }

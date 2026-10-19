@@ -2536,7 +2536,7 @@ export class Editor {
   openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
     const doc = this.store.doc;
     openChizmadon({
-      project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', data: doc.chizmadon, incoming,
+      project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', origin: [doc.origin[0], doc.origin[1]], data: doc.chizmadon, incoming,
       save: d => this.run(() => this.store.dispatch({ type: 'setChizmadon', data: d as unknown as Record<string, unknown> }, 'chizmadon')),
       tik: () => this.tep().filter(r => r.v != null && r.v !== '').slice(0, 14).map(r => [r.name, r.unit, typeof r.v === 'number' ? fmt(r.v, Math.abs(r.v) < 10 ? 2 : 0) : String(r.v)]),
       siteMap: () => {

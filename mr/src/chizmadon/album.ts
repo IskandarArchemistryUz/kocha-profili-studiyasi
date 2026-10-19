@@ -5,7 +5,7 @@
  */
 import { type LFamily } from './layouts';
 import { type Material, type Paginated, type Fill, paginate, applyOv, type Ov } from './autolayout';
-import { renderPage, LIB, PAL, T, L0, n2, slotRectOf, type Frame } from './sheet';
+import { renderPage, LIB, PAL, T, L0, n2, slotRectOf, str0, type Frame } from './sheet';
 import type { Cell } from './bind';
 import type { ChRect } from './model';
 import { drawEl } from './materials';
@@ -58,7 +58,7 @@ export function buildAlbum(a: AlbumIn): Album {
         const draw = (rr: ChRect, bare: boolean) => (el.render ? el.render(rr, c, bare) : drawEl(el, rr, c, a.R, bare));
         // tahlil moduli: «N. Sarlavha» + material (sarlavhasiz)
         let svg = s.role === 'module'
-          ? T(r.x, r.y + 4 * ctx.u, `${++modN}. ${el.title}`, { s: 3.4 * ctx.u, w: 700, c: el.accent || ctx.P.acc }) + draw({ x: r.x, y: r.y + 7 * ctx.u, w: r.w, h: r.h - 8 * ctx.u }, true)
+          ? T(r.x, r.y + 4 * ctx.u, `${++modN}. ${str0(el.title)}`, { s: 3.4 * ctx.u, w: 700, c: el.accent || ctx.P.acc, raw: 1 }) + draw({ x: r.x, y: r.y + 7 * ctx.u, w: r.w, h: r.h - 8 * ctx.u }, true)
           : draw(r, false);
         if (a.sel === el.id) svg += `<rect x="${n2(r.x - 1.2)}" y="${n2(r.y - 1.2)}" width="${n2(r.w + 2.4)}" height="${n2(r.h + 2.4)}" rx="${n2(1.5 * ctx.u)}" fill="none" stroke="#2a6fb0" stroke-width="${n2(0.6 * ctx.u)}" data-sel="1"/>`;
         return `<g data-el="${el.id}" data-k="${k}"><rect x="${n2(r.x)}" y="${n2(r.y)}" width="${n2(r.w)}" height="${n2(r.h)}" fill="#fff" fill-opacity="0"/>${svg}</g>`;

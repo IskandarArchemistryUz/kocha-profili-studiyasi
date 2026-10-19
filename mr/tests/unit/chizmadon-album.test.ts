@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { readFileSync } from 'fs';
+import GEOJ from '../../public/chizmadon/uz-geo.json';
 import { LAYOUTS } from '../../src/chizmadon/layouts';
 import { buildAlbum, slotAt, setCustomPal } from '../../src/chizmadon/album';
 import { siteMaterials, projectMaterials } from '../../src/chizmadon/materials';
 import { setGeo, resolve, presets, autoNote, placeName } from '../../src/chizmadon/location';
 import { PAL } from '../../src/chizmadon/sheet';
 
-beforeAll(() => { setGeo(JSON.parse(readFileSync('public/chizmadon/uz-geo.json', 'utf8'))); });
+beforeAll(() => { setGeo(JSON.parse(JSON.stringify(GEOJ))); });
 
 describe('Chizmadon — avtomatik albom', () => {
   it('Toshkent nuqtasi: viloyat va tuman topiladi, janubiy fasad tavsiyasi', () => {

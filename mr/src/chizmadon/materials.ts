@@ -6,7 +6,7 @@
  * Har material katak toʻrtburchagiga mm da chiziladi (render). Chizuvchilar prototip app_core.js dan koʻchirilgan.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { T, R0, L0, para, n2 } from './sheet';
+import { T, R0, L0, para, n2, stf } from './sheet';
 import { type Resolved, geo, world, uzBB, rings, bbHit, rName, dName, sun, hm, f1, autoNote } from './location';
 import type { Material, MRole, Rect } from './autolayout';
 import type { ChMatSet, ChInbox, ChEl, ChPage } from './model';
@@ -22,7 +22,7 @@ function DP(P?: any) { return { land: P.land, line: "#b7b0a9", border: P.ink, hl
 function fitProj(bb?: any, x?: any, y?: any, w?: any, h?: any, pad?: any) { const lat0 = (bb[1] + bb[3]) / 2, kx = Math.cos(lat0 * D2R); const bw = (bb[2] - bb[0]) * kx, bh = bb[3] - bb[1]; const s = Math.min((w - 2 * pad) / bw, (h - 2 * pad) / bh); const ox = x + (w - bw * s) / 2, oy = y + (h - bh * s) / 2; return (pt: any) => [ox + (pt[0] - bb[0]) * kx * s, oy + (bb[3] - pt[1]) * s]; }
 function gpath(g?: any, pr?: any) { let d = ""; for (const poly of rings(g)) for (const r of poly) { r.forEach((pt: any, i: any) => { const q = pr(pt); d += (i ? "L" : "M") + n2(q[0]) + " " + n2(q[1]); }); d += "Z"; } return d; }
 const marker = (q?: any, u?: any, c?: any) => `<circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="${n2(2.6 * u)}" fill="none" stroke="${c}" stroke-width="${n2(0.5 * u)}"/><circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="${n2(1 * u)}" fill="${c}"/>`;
-function head(el?: any, x?: any, y?: any, u?: any, Q?: any, sub?: any, bare?: any) { if (bare) return ""; let s = T(x, y + 3 * u, (el.title || "").toUpperCase(), { s: 2.4 * u, c: Q.mut, ls: 0.35 * u, w: 600 }); if (sub) s += T(x, y + 7.6 * u, sub, { s: 3.5 * u, c: Q.ink, w: 600 }); return s; }
+function head(el?: any, x?: any, y?: any, u?: any, Q?: any, sub?: any, bare?: any) { if (bare) return ""; let s = T(x, y + 3 * u, (el.title || ""), { s: 2.4 * u, c: Q.mut, ls: 0.35 * u, w: 600, up: 1 }); if (sub) s += T(x, y + 7.6 * u, sub, { s: 3.5 * u, c: Q.ink, w: 600 }); return s; }
 
 export function drawEl(el?: any, r?: any, ctx?: any, R?: any, bare?: any) {
   const P = ctx.P, Q = DP(P), u = ctx.u * el.scale, hl = el.accent || Q.hl;
@@ -63,7 +63,7 @@ export function drawEl(el?: any, r?: any, ctx?: any, R?: any, bare?: any) {
   }
   if (el.role === "legend") {
     const it = [[Q.hl, "Hudud nuqtasi va tanlangan chegara", "dot"], [Q.land, "Viloyatlar / tumanlar", "box"], [Q.border, "Davlat chegarasi", "line"], [Q.summer, "Yozgi quyosh yoʻli", "line"], [Q.equi, "Teng kunlik", "line"], [Q.winter, "Qishki quyosh yoʻli", "line"]];
-    let g = T(x, y + 3 * u, el.title.toUpperCase(), { s: 2.4 * u, c: Q.mut, ls: 0.35 * u, w: 600 });
+    let g = T(x, y + 3 * u, el.title, { s: 2.4 * u, c: Q.mut, ls: 0.35 * u, w: 600, up: 1 });
     const wide = w > h * 2.2, cols = wide ? 3 : 1, cw = w / cols, lh = Math.min(5.4 * u, (h - 7 * u) / Math.ceil(it.length / cols));
     it.forEach((q: any, k: any) => { const cx = x + (k % cols) * cw, cy = y + 8 * u + Math.floor(k / cols) * lh; if (cy > y + h) return;
       if (q[2] === "dot") g += `<circle cx="${n2(cx + 1.5 * u)}" cy="${n2(cy - 0.9 * u)}" r="${n2(1.2 * u)}" fill="${q[0]}"/>`;
@@ -75,7 +75,7 @@ export function drawEl(el?: any, r?: any, ctx?: any, R?: any, bare?: any) {
   let g = head(el, x, y, u, Q, null, bare);
   const by = y + top, bh = h - top;
   if (el.kind === "passport") {
-    const rows = [["Davlat", R.cn], ["Viloyat", R.inside ? (R.reg ? rName(R.reg.n) : "—") : "ulanmagan"], ["Tuman", R.inside ? (R.dis ? dName(R.dis.n) : "—") : "ulanmagan"], ["Kenglik", Math.abs(R.lat).toFixed(4) + (R.lat >= 0 ? "° N" : "° S")], ["Uzunlik", Math.abs(R.lon).toFixed(4) + (R.lon >= 0 ? "° E" : "° W")], ["Tuman maydoni", R.dArea ? "≈ " + f1(R.dArea) + " km²" : "—"], ["Qishki kun", hm(R.winLen)]];
+    const rows = [["Davlat", R.cn], ["Viloyat", R.inside ? (R.reg ? rName(R.reg.n) : "—") : "ulanmagan"], ["Tuman", R.inside ? (R.dis ? dName(R.dis.n) : "—") : "ulanmagan"], ["Kenglik", Math.abs(R.lat).toFixed(4) + (R.lat >= 0 ? "° N" : "° S")], ["Uzunlik", Math.abs(R.lon).toFixed(4) + (R.lon >= 0 ? "° E" : "° W")], ["Tuman maydoni", R.dArea ? "≈ " + f1(R.dArea) + " km²" : "—"], ["Qishki kun", hm(R.winLen, stf)]];
     const rh = Math.min(bh / rows.length, 7.5 * u);
     rows.forEach((q: any, i: any) => { const yy = by + rh * (i + 0.7); g += T(x, yy, q[0], { s: 2.6 * u, c: Q.mut }) + T(x + w, yy, q[1], { s: 2.8 * u, c: Q.ink, a: "end", w: 500 }); if (i < rows.length - 1) g += L0(x, by + rh * (i + 1), x + w, by + rh * (i + 1), Q.grid, 0.2 * u); });
     return g;
@@ -100,11 +100,11 @@ export function drawEl(el?: any, r?: any, ctx?: any, R?: any, bare?: any) {
     vals.forEach((v: any, i: any) => { g += `<circle cx="${n2(X(i))}" cy="${n2(Y(v))}" r="${n2(0.7 * u)}" fill="#fff" stroke="${c}" stroke-width="${n2(0.35 * u)}"/>`; });
     const sy = by + bh - 1 * u;
     if (isT) g += T(x, sy - 3.6 * u, "NAMUNA", { s: 3 * u, w: 700, c: Q.hl, ls: 0.4 * u }) + T(x, sy, "ERA5 ulanmagan — raqamlar koʻrsatish uchun", { s: 2.3 * u, c: Q.mut });
-    else g += T(x, sy - 3.6 * u, hm(R.sumLen), { s: 3.4 * u, w: 600 }) + T(x, sy, R.south ? "22-dekabr" : "22-iyun", { s: 2.3 * u, c: Q.summer }) + T(x + w / 2, sy - 3.6 * u, hm(R.winLen), { s: 3.4 * u, w: 600 }) + T(x + w / 2, sy, R.south ? "22-iyun" : "22-dekabr", { s: 2.3 * u, c: Q.winter });
+    else g += T(x, sy - 3.6 * u, hm(R.sumLen, stf), { s: 3.4 * u, w: 600 }) + T(x, sy, R.south ? "22-dekabr" : "22-iyun", { s: 2.3 * u, c: Q.summer }) + T(x + w / 2, sy - 3.6 * u, hm(R.winLen, stf), { s: 3.4 * u, w: 600 }) + T(x + w / 2, sy, R.south ? "22-iyun" : "22-dekabr", { s: 2.3 * u, c: Q.winter });
     return g;
   }
   if (el.kind === "note") {
-    const txt = el.text != null ? el.text : autoNote(R), fs = Math.min(3.2 * u, Math.max(2.4 * u, Math.sqrt(w * bh / Math.max(1, txt.length)) * 0.55));
+    const txt = el.text != null ? el.text : autoNote(R, stf), fs = Math.min(3.2 * u, Math.max(2.4 * u, Math.sqrt(w * bh / Math.max(1, txt.length)) * 0.55));
     g += para(x, by, w, bh - 4 * u, txt, fs, Q.ink, 1.42, true);
     return g + T(x, by + bh, el.text != null ? "qoʻlda tahrirlangan" : "avtomatik matn · qoida boʻyicha", { s: 2.2 * u, c: el.text != null ? Q.hl : Q.mut });
   }
@@ -172,7 +172,7 @@ function fitMap(id: string, src: { svg?: string; src?: string; vb?: [number, num
     e.svg = src.svg; e.vb = [vb[0] + (vb[2] - vw) / 2, vb[1] + (vb[3] - vh) / 2, vw, vh];
     if (src.scale) { e.scale = Math.round(src.scale / k); e.natW = r.w; }
   } else e.src = src.src;
-  return elSvg(e, DUMMY, { idp: 'mt', tr: s => s });
+  return elSvg(e, DUMMY, { idp: `mt${id}`, tr: s => s }).replace(/ data-id="[^"]*"/g, '');
 }
 function tableArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string, string> }, m: Material, bare?: boolean): string {
   const u = ctx.u * m.scale, Q = DP(ctx.P); let g = bare ? '' : head(m, r.x, r.y, u, Q, null, false);
