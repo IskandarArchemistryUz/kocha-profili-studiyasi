@@ -28,7 +28,7 @@ describe('Chizmadon — avtomatik albom', () => {
     const p = presets()[0], R = resolve(p.lat, p.lon);
     const mats = [...siteMaterials(() => R, { temp: { visible: false } }), ...projectMaterials({ plan: { svg: '<rect width="100" height="80" fill="#cde"/>', vb: [0, 0, 100, 80], w: 100, h: 80, scale: 2000 }, tik: [['Maydon', 'ga', '12,9']], scene: 'data:image/png;base64,AA' }, {})];
     const A = buildAlbum({ fam: LAYOUTS.families.find(f => f.id === 'mr')!, fmt: 'A3L', pal: 'arch', mats, R });
-    expect(A.PG.left.map(m => m.id)).toEqual([]);
+    expect(A.PG.left.filter(m => m.role !== 'legend' && m.role !== 'text')).toEqual([]); // kichiklar (legenda, matn) joysiz qolishi mumkin — banner
     const where = (id: string) => A.pages.flatMap(ap => [...ap.fill.assign.entries()].filter(([, m]) => m.id === id).map(([k]) => ap.fill.page.slots[k].role))[0];
     expect(['map', 'map_small', 'figure', 'module']).toContain(where('p:plan')); expect(['table', 'kpi', 'checklist']).toContain(where('p:tik')); expect(['render', 'photo', 'figure']).toContain(where('p:scene'));
     expect(where('temp')).toBeUndefined();
