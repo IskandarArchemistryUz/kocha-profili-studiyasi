@@ -145,7 +145,7 @@ export class Scene3D {
     const g2 = new THREE.GridHelper(2000, 20, C.gridMajor, C.gridMajor); g2.position.y = 0.02;
     this.scene.add(g1, g2, this.world, this.prev); this.grid = [g1, g2];
 
-    this.persp = new THREE.PerspectiveCamera(35, 1, 0.5, 20000);
+    this.persp = new THREE.PerspectiveCamera(35, 1, 0.5, 40000);
     this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -10000, 10000);
     this.cam = this.persp;
     this.ctl = new OrbitControls(this.persp, this.renderer.domElement);
@@ -198,7 +198,7 @@ export class Scene3D {
     this.ctl = new OrbitControls(this.cam, this.renderer.domElement);
     this.ctl.target.copy(target); this.ctl.enableDamping = false; this.ctl.screenSpacePanning = true;
     this.ctl.zoomSpeed = 2.2; this.ctl.zoomToCursor = true;
-    this.ctl.minZoom = 0.05; this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 6000;
+    this.ctl.minZoom = 0.05; this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 16000;   // katta hudud (chegara boʻyicha, 12 km gacha)
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     else if (this.hand) this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
@@ -766,8 +766,8 @@ export class Scene3D {
   }
 
   /** Kamerani hujjatdagi obyektlarga moslash */
-  frameDoc(doc: Project): void {
-    const fr = frame(doc.origin), pts: XY[] = [];
+  frameDoc(doc: Project, extra: LngLat[] = []): void {
+    const fr = frame(doc.origin), pts: XY[] = extra.map(fr.toLocal);
     doc.site?.rings.forEach(r => r.forEach(p => pts.push(fr.toLocal(p))));
     doc.buildings.forEach(b => b.footprint.forEach(p => pts.push(fr.toLocal(p))));
     if (!pts.length) return;
