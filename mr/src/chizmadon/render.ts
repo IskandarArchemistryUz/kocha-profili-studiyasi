@@ -314,3 +314,6 @@ export function pageSvg(page: ChPage, o: PageOpts = {}): { svg: string; w: numbe
   const ns = `xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${o.ai ? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"' : ''}`;
   return { svg: `<svg ${ns} width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">${body}</svg>`, w: W, h: H };
 }
+
+/** Maket oilalari (bitta oyna): varaq dvigateli — sheet.ts */
+export { renderPage as renderLayoutPage, PAL as LAYOUT_PAL, LIB as LAYOUT_LIB } from './sheet';
