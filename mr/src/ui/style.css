@@ -668,3 +668,16 @@ details.manual{border-top:0;padding-top:0;display:block}
 .ch-tools .rb:disabled{opacity:.35;cursor:default}
 .ch-tools .rb{width:36px;height:36px}
 .ch-panel .sh-item b,.ch-panel .sh-item .t-small{display:block!important}.ch-panel .sh-item[aria-selected=true] .sh-acts{display:flex!important}
+/* «Mening qatlamlarim» (Qatlamlar oynasi) */
+.pop[data-for="layPop"]{width:372px}
+.ulsec .li .ib{width:30px;height:30px;flex:none}
+.ulsec .li .ib svg{width:16px;height:16px}
+.ulsec .li .k{overflow:hidden;text-overflow:ellipsis}
+.ulrow{display:flex;flex-direction:column}
+.ulsw{position:relative;display:inline-flex;cursor:pointer;flex:none}
+.ulsw i{width:16px;height:16px;border-radius:5px;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.25)}
+.ulsw input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.ulcats div{gap:8px}.ulcats div > span{flex:1;min-width:0}.ulcats .switch{transform:scale(.8);transform-origin:right center}
+.ultbl td.num{text-align:right;font-variant-numeric:tabular-nums}.ultbl th:not(:first-child){text-align:right}
+.ulform .field{display:flex;flex-direction:column;gap:4px}
+.ulform .seg button{font-size:11.5px}

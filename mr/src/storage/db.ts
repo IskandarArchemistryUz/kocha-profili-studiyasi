@@ -65,11 +65,23 @@ export async function cacheGet<T>(k: string): Promise<T | null> {
 export async function cachePut<T>(k: string, v: T): Promise<void> { await tx(STORES.cache, 'readwrite', s => s.put({ k, v, t: Date.now() })); }
 export async function cacheDel(k: string): Promise<void> { await tx(STORES.cache, 'readwrite', s => s.delete(k)); }
 
+/* ---------- foydalanuvchi qatlamlari (import qilingan obyektlar; hujjatda faqat tavsif) ---------- */
+const ulKey = (project: string, layer: string) => `ul:${project}:${layer}`;
+export async function putLayerData(project: string, layer: string, features: unknown[]): Promise<void> { await tx(STORES.assets, 'readwrite', s => s.put({ id: ulKey(project, layer), features, t: Date.now() })); }
+export async function getLayerData<T>(project: string, layer: string): Promise<T[] | null> {
+  const r = await tx<{ features: T[] } | undefined>(STORES.assets, 'readonly', s => s.get(ulKey(project, layer)));
+  return r ? r.features : null;
+}
+export async function deleteLayerData(project: string, layer: string): Promise<void> { await tx(STORES.assets, 'readwrite', s => s.delete(ulKey(project, layer))); }
+
 /* ---------- fayl ---------- */
 export const FILE_KIND = 'archemistry-master-reja';
 
-export function exportJSON(doc: Project): string {
-  return JSON.stringify({ kind: FILE_KIND, exported: new Date().toISOString(), project: doc }, null, 1);
+/** layers — import qilingan qatlamlar obyektlari (qatlam id → obyektlar): fayl boshqa kompyuterda toʻliq ochilishi uchun */
+export function exportJSON(doc: Project, layers?: Record<string, unknown[]>): string {
+  const L = layers && Object.keys(layers).length ? layers : null;
+  // katta qatlamlar bilan chiroyli formatlash fayldagi joyni 3 baravar oshiradi — u holda ixcham yoziladi
+  return JSON.stringify({ kind: FILE_KIND, exported: new Date().toISOString(), project: doc, ...(L ? { layers: L } : {}) }, null, L ? 0 : 1);
 }
 
 /** Fayldan oʻqish; nusxa sifatida ochish uchun yangi id beriladi (mavjud loyiha ustiga yozilmaydi) */
@@ -79,6 +91,15 @@ export function importJSON(text: string, newId: () => string): Project {
   if (!j || j.kind !== FILE_KIND || !j.project) throw new Error('Bu Archemistry Master reja fayli emas');
   const p = migrate(j.project);
   return { ...p, id: newId() };
+}
+
+/** Fayldan ochish: loyiha + qatlamlar obyektlari (faqat hujjatda tavsifi bor qatlamlar) */
+export function importJSONWithLayers(text: string, newId: () => string): { project: Project; layers: Record<string, unknown[]> } {
+  const project = importJSON(text, newId);
+  let layers: Record<string, unknown[]> = {};
+  try { const j = JSON.parse(text); if (j.layers && typeof j.layers === 'object') layers = j.layers; } catch { /* importJSON allaqachon tekshirdi */ }
+  const ids = new Set((project.userLayers ?? []).map(l => l.id));
+  return { project, layers: Object.fromEntries(Object.entries(layers).filter(([k, v]) => ids.has(k) && Array.isArray(v))) };
 }
 
 /* ---------- avtosaqlash ---------- */

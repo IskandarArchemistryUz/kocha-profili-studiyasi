@@ -19,6 +19,7 @@ import { isUse, type Use } from './uses';
 import { COMP_DEFAULT, type CompParams } from './compensation';
 import { isMat, isRoof, type Mat, type Roof } from './roof';
 import type { Tier } from './tiers';
+import { isULKind, type UserLayerMeta } from './userlayers';
 import { isWin, isBal, isWinPat, isBalPat, type Win, type Bal, type WinPat, type BalPat } from './facade';
 export type { Use };
 
@@ -154,6 +155,8 @@ export interface Project {
   sheetStyles?: { id: string; name: string; opts: Record<string, unknown> }[];
   /** Chizmadon albomi (taqdimot va diagramma muharriri): sxema — chizmadon/model.ts, ochilganda tozalanadi */
   chizmadon?: Record<string, unknown>;
+  /** fayldan import qilingan qatlamlar tavsifi (binolar, chegaralar, yer, chiziqlar); obyektlar — IndexedDB da (core/userlayers.ts) */
+  userLayers?: UserLayerMeta[];
 }
 
 /** Varaq: sozlamalar oddiy obyekt sifatida saqlanadi (sxema core/sheet.ts da), yaroqsizlari ochilganda sukut bilan toʻldiriladi */
@@ -201,6 +204,20 @@ export class SchemaError extends Error {}
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isLL = (v: unknown): v is LngLat => Array.isArray(v) && v.length === 2 && isNum(v[0]) && isNum(v[1]) && Math.abs(v[0]) <= 180 && Math.abs(v[1]) <= 90;
 const isRing = (v: unknown): v is Ring => Array.isArray(v) && v.length >= 3 && v.every(isLL);
+
+/** Qatlam tavsiflari: yaroqsizlari tashlanadi (obyektlar alohida saqlanadi — tavsif yoʻqolsa, qatlam koʻrinmaydi, xolos) */
+function cleanUserLayers(v: unknown): UserLayerMeta[] {
+  if (!Array.isArray(v)) return [];
+  const str = (x: unknown) => typeof x === 'string' ? x : null, col = (x: unknown, d: number) => isNum(x) && x >= 0 && x <= 0xffffff ? Math.round(x) : d;
+  return v.filter((m: any) => m && typeof m.id === 'string' && isULKind(m.kind) && Array.isArray(m.bbox) && m.bbox.length === 4 && m.bbox.every(isNum)).slice(0, 40).map((m: any) => ({
+    id: m.id, name: String(m.name ?? 'Qatlam').slice(0, 120), kind: m.kind, file: String(m.file ?? '').slice(0, 200), added: typeof m.added === 'string' ? m.added : new Date().toISOString(),
+    count: isNum(m.count) ? m.count : 0, bbox: [m.bbox[0], m.bbox[1], m.bbox[2], m.bbox[3]] as [number, number, number, number],
+    visible: m.visible !== false, opacity: isNum(m.opacity) ? Math.max(0, Math.min(1, m.opacity)) : 1,
+    catField: str(m.catField), nameField: str(m.nameField), heightField: str(m.heightField), floorsField: str(m.floorsField),
+    cats: (Array.isArray(m.cats) ? m.cats : []).filter((c: any) => c && typeof c.v === 'string').slice(0, 40).map((c: any) => ({ v: c.v, label: String(c.label ?? c.v).slice(0, 80), color: col(c.color, 0xd8d3c8), on: c.on !== false, n: isNum(c.n) ? c.n : 0 })),
+    colorBy: m.colorBy === 'bir' ? 'bir' : 'toifa', color: col(m.color, 0xf4f2ee), labels: m.labels === true,
+  }));
+}
 
 /**
  * Tashqaridan kelgan (fayl, IndexedDB) hujjatni tekshiradi va joriy sxemaga keltiradi.
@@ -272,6 +289,7 @@ export function migrate(raw: unknown): Project {
     origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, zones, keep, parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(removedRoads.length ? { removedRoads } : {}),
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
     ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
+    ...(() => { const ul = cleanUserLayers(d.userLayers); return ul.length ? { userLayers: ul } : {}; })(),
     ...(() => { const st = (Array.isArray(d.sheetStyles) ? d.sheetStyles : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.name === 'string' && x.opts && typeof x.opts === 'object').slice(0, 30).map((x: any) => ({ id: x.id, name: x.name.slice(0, 60), opts: JSON.parse(JSON.stringify(x.opts)) })); return st.length ? { sheetStyles: st } : {}; })(),
   };
 }
