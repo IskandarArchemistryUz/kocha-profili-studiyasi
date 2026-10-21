@@ -25,10 +25,14 @@ export async function buyDialog(): Promise<void> {
   const go = h('button', { class: 'btn btn-primary btn-block', id: 'tbGo', type: 'button' }, tr('Toʻlovga oʻtish')) as HTMLButtonElement;
   const note = h('p', { class: 't-small kd-hint' }, tr('Toʻlov Payme, Click yoki Multicard sahifasida amalga oshiriladi. Karta maʼlumotlari bizga kelmaydi.'));
   let list: Pack[] = [], enabled: Prov[] = [];
+  /** Multicard yolgʻiz boʻlsa — uning sahifasida Payme va Click ham borligini aytamiz */
+  const label = (p: typeof PROVIDERS[number]) => p.id === 'multicard' && enabled.length === 1
+    ? [h('b', {}, tr('Karta, Payme yoki Click')), h('span', { class: 'sub' }, 'Uzcard, Humo, Visa, Mastercard')]
+    : [h('b', {}, p.name), p.sub ? h('span', { class: 'sub' }, p.sub) : ''];
   const sync = () => {
     packs.replaceChildren(...list.map(p => h('button', { class: 'tb-pack', type: 'button', 'data-pack': p.id, 'aria-pressed': String(p.id === pack), onclick: () => { pack = p.id; sync(); } },
       h('b', { class: 'mono' }, fmt(p.coins)), h('span', { class: 'sub' }, tr('tanga')), h('span', { class: 'tb-price mono' }, tf('${s} soʻm', { s: fmt(p.uzs) })))));
-    provs.replaceChildren(...PROVIDERS.filter(p => enabled.includes(p.id)).map(p => h('button', { class: 'tb-prov', type: 'button', 'data-prov': p.id, 'aria-pressed': String(p.id === prov), onclick: () => { prov = p.id; sync(); } }, h('b', {}, p.name), p.sub ? h('span', { class: 'sub' }, p.sub) : '')));
+    provs.replaceChildren(...PROVIDERS.filter(p => enabled.includes(p.id)).map(p => h('button', { class: 'tb-prov', type: 'button', 'data-prov': p.id, 'aria-pressed': String(p.id === prov), onclick: () => { prov = p.id; sync(); } }, ...label(p))));
     go.disabled = busy || !prov || !list.length; go.textContent = tr(busy ? '…' : 'Toʻlovga oʻtish');
   };
   go.onclick = async () => {

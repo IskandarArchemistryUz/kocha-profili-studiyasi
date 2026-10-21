@@ -38,6 +38,16 @@ test('tanga: toʻplam va Click tanlanadi → toʻlov sahifasi → qaytishda bala
   expect(page.url()).not.toContain('tolov=');
 });
 
+test('tanga: faqat Multicard ulangan — bitta tugma «Karta, Payme yoki Click»', async ({ page }) => {
+  await mockApi(page, { payme: false, click: false });
+  await page.goto('./'); await page.click('#newP');
+  await page.click('#acctPop'); await page.click('#acctBuy');
+  await expect(page.locator('#tanga .tb-prov')).toHaveCount(1);
+  await expect(page.locator('[data-prov=multicard]')).toContainText('Karta, Payme yoki Click');
+  await expect(page.locator('[data-prov=multicard]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#tbGo')).toBeEnabled();
+});
+
 test('tanga: xorijiy karta (Multicard) tanlanadi', async ({ page }) => {
   const st = await mockApi(page);
   await page.goto('./'); await page.click('#newP');
