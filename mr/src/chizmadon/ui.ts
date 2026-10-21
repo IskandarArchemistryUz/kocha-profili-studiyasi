@@ -18,10 +18,11 @@ import { openColor } from '../ui/colorpicker';
 import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale } from './model';
 import { pageSvg, textHeight, legendHeight } from './render';
 import { pageChecks, applyFix, sheetChecks, type Check9 } from './check';
-import { TEMPLATES, TPL_GROUPS, type TplCtx } from './templates';
+import { LAYOUTS, buildLayoutPage, type LFamily, type TplCtx } from './layouts';
+import { legacyPending, legacyTaken, convertMaketDoc, matToInbox } from './legacy';
 import { TOOLS, type Tool, FLOWS, BANDS, ZONES, MOBILITY, DASHES, ICON_GROUPS, iconById, LOOKS, TREES, PALETTES, paletteById, FONTS, TEXT_KINDS } from './catalog';
 import { wmCanvas } from '../core/wm';
-import { LAYOUTS, type LFamily } from './layouts';
+
 import { familyById, accepts, placements, type Material } from './autolayout';
 import { buildAlbum, inner, slotAt, setCustomPal, type Album } from './album';
 import { renderPage, LIB, PAL, setSheetTr } from './sheet';
@@ -362,13 +363,31 @@ export function openChizmadon(host: ChHost): void {
       h('div', { class: 'row2' },
         h('button', { class: 'btn btn-sm', id: 'chAddPage', onclick: () => addPage(blankPage(`${tr('Varaq')} ${allPages().length + 1}`, 'A3', true)) }, ...icl(IC.plus, tr('Boʻsh varaq'))),
         h('button', { class: 'btn btn-sm', id: 'chAddTpl', onclick: (e: Event) => { e.stopPropagation(); tplMenu(e.currentTarget as HTMLElement); } }, ...icl(IC.plus, tr('Namuna')))),
-      h('span', { class: 't-small' }, tr('Maket varaqlari loyihadan avtomatik tuziladi; boʻsh varaq va namunalar albom oxiriga qoʻshiladi.'))];
+      h('span', { class: 't-small' }, tr('Maket varaqlari loyihadan avtomatik tuziladi; boʻsh varaq va namunalar albom oxiriga qoʻshiladi.')),
+      LEG && (LEG.doc || LEG.mats.length) ? h('div', { class: 'note', id: 'chLegacy' },
+        h('b', {}, tr('Eski Albomdan')), ' ', tf('${p} varaq, ${m} material — Chizmadonga oʻtkazish mumkin.', { p: LEG.doc ? LEG.doc.pages.length : 0, m: LEG.mats.length }), ' ',
+        h('button', { class: 'btn btn-sm', id: 'chLegacyGo', onclick: () => void takeLegacy() }, tr('Oʻtkazish'))) : ''];
+  }
+  /** Eski Albom (maket.html): varaqlar — erkin varaq, yuborilgan materiallar — «Loyihadan» */
+  let LEG: Awaited<ReturnType<typeof legacyPending>> | null = null;
+  async function takeLegacy(): Promise<void> {
+    const L = LEG; if (!L) return;
+    commit();
+    const conv = L.doc ? convertMaketDoc(L.doc) : { pages: [], skipped: 0, name: '' };
+    d.pages.push(...conv.pages);
+    for (const m of L.mats) { const it = matToInbox(m); if (!it) continue; const x: ChInbox = { ...it, id: cid('i'), at: new Date().toISOString() }; d.inbox.push(x); d.auto.mats[`i:${x.id}`] = { visible: false }; }
+    if (d.inbox.length > 30) d.inbox.splice(0, d.inbox.length - 30);
+    await legacyTaken(L.doc, L.mats); LEG = null;
+    if (conv.pages.length) { d.cur = nAuto + d.pages.length - conv.pages.length; if (d.auto.view === 'all') d.auto.view = 'one'; }
+    sel.clear(); dirty(); relayout(false); renderAll();
+    toast(tf('Oʻtkazildi: ${p} varaq, ${m} material', { p: conv.pages.length, m: L.mats.length }) + (conv.skipped ? ' · ' + tf('${n} ta element tanilmadi', { n: conv.skipped }) : ''));
   }
   function tplMenu(anchor: HTMLElement): void {
     wrap.querySelector('.ch-menu')?.remove();
     const ctx0 = tplCtx();
-    const m = h('div', { class: 'menu ch-menu ch-tplmenu', role: 'menu', id: 'chTplMenu' }, ...TPL_GROUPS.flatMap(g => [h('div', { class: 'mh' }, tr(g)),
-      ...TEMPLATES.filter(t => t.group === g).map(t => h('button', { class: 'mi', 'data-tpl': t.id, onclick: () => { m.remove(); const p = t.build(ctx0); p.name = tr(t.name); addPage(p); toast(tf('«${n}» qoʻshildi', { n: tr(t.name) })); } }, h('span', {}, tr(t.name)), h('span', { class: 'd' }, `${t.paper} · ${tr(t.landscape ? 'yotiq' : 'tik')}`)))]));
+    // namunalar — maket oilalarining varaq turlari (layouts.ts); varaq oilaning birinchi formatida, erkin varaq boʻlib qoʻshiladi
+    const m = h('div', { class: 'menu ch-menu ch-tplmenu', role: 'menu', id: 'chTplMenu' }, ...LAYOUTS.families.flatMap(f => [h('div', { class: 'mh' }, tr(f.name)),
+      ...f.pages.map(pg => h('button', { class: 'mi', 'data-tpl': pg.id, 'data-fam': f.id, title: tr(pg.desc), onclick: () => { m.remove(); const p = buildLayoutPage(f.id, pg.id, f.formats[0], ctx0); p.name = tr(pg.title); addPage(p); toast(tf('«${n}» qoʻshildi', { n: tr(pg.title) })); } }, h('span', {}, tr(pg.title)), h('span', { class: 'd' }, tr(LAYOUTS.formats[f.formats[0]].name))))]));
     m.addEventListener('click', e => e.stopPropagation()); wrap.append(m);
     const r = anchor.getBoundingClientRect(); m.style.left = `${Math.min(r.left, innerWidth - m.offsetWidth - 8)}px`; m.style.top = `${Math.max(8, Math.min(r.bottom + 6, innerHeight - m.offsetHeight - 8))}px`;
     setTimeout(() => document.addEventListener('click', () => m.remove(), { once: true }), 0);
@@ -1279,6 +1298,7 @@ export function openChizmadon(host: ChHost): void {
   relayout(false);
   renderAll();
   setHint();
+  void legacyPending().then(L => { if (!document.body.contains(wrap) || (!L.doc && !L.mats.length)) return; LEG = L; renderLeft(); });
   if (!saved) dirty();
   // Oʻzbekiston chegaralari kelgach — hudud materiallari va qidiruv (tarmoqsiz fayl)
   void loadGeo().then(g => { if (!g || !document.body.contains(wrap)) return; relayout(false); if (host.incoming) { const id = `i:${d.inbox[d.inbox.length - 1].id}`; const p = PLACE[id]; if (p) d.cur = p.pi; } renderAll(); });

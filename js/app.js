@@ -3467,7 +3467,7 @@ function kpsMatPut(o){return new Promise((res,rej)=>{const r=indexedDB.open('kps
 async function sendToMaket(){const t=new Date().toISOString();try{await kpsMatPut({id:'design',kind:'design',geojson:designGeoJSON(),cats:Object.assign({},...Object.entries(DCAT).map(([k,v])=>({[k]:v})),{mark:['Yoʻl chiziqlari','#ffffff'],other:['Boshqa (shakllar, belgilar)','#9a9a9a']}),t});
   let n=0,first=null;if(S.pv==='axo'||S.pv==='eye'){const cv=C3.ren&&C3.ren.domElement;if(!cv){toast('3D hali tayyor emas.');return;}const src=cv.toDataURL('image/png'),id='m'+Date.now().toString(36);await kpsMatPut({id,kind:'png',name:(S.pv==='axo'?'Aksonometriya':'Koʻz koʻrinishi')+' — '+(S.active==='ex'?'mavjud':'loyiha'),src,thumb:src,aspect:cv.width/cv.height,sub:'3D gʻoya',t});n=1;first=id;}
   else for(const m of PWS_LAST){const id='m'+Date.now().toString(36)+n;const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(m.svg.replace('<svg ','<svg style="color:#141414" ').replace(/ vector-effect="non-scaling-stroke"/g,''));await kpsMatPut({id,kind:'svg',name:m.name,src,thumb:src,mW:m.mW,aspect:m.aspect,sub:m.sub,legend:m.legend||null,t});n++;first=first||id;}
-  toast(`${n} ta material Albomga yuborildi.`,()=>window.open('maket.html','_blank'),'Albomni ochish');}catch(e){toast('Yuborilmadi: '+e.message);}}
+  toast(`${n} ta material Albomga yuborildi.`,()=>window.open('app/#/chizmadon','_blank'),'Chizmadonni ochish');}catch(e){toast('Yuborilmadi: '+e.message);}}
 function setPV(v){S.pv=v;save();renderPWS();}
 function planSVG(p,sc,Wv,Hv){
   const tot=sum(p),x0=Math.max(30,(Wv-tot*sc)/2),Lm=(Hv-40)/sc,INK='#141414';let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Wv} ${Hv}" font-family="Archivo, system-ui, sans-serif">`;

@@ -226,8 +226,8 @@ const STEPS=[
   {id:"kocha", t:"Transport", subs:[
     {id:"loyiha", t:"Koʻcha loyihasi", page:"studio.html", app:"design"},
     {id:"profil", t:"Mavjud profil", page:"studio.html", app:"prof"}]},
-  {id:"albom", t:"Albom", subs:[
-    {id:"maket", t:"Albom", page:"maket.html", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar shu yerda varaqlarga teriladi."}]},
+  {id:"albom", t:"Chizmadon", subs:[
+    {id:"maket", t:"Chizmadon", page:"app/", href:"app/#/chizmadon", hint:"Oldingi qadamlarda «Albomga» bilan yuborilgan xaritalar va kesimlar Chizmadonda (yangi oynada) «Eski Albomdan → Oʻtkazish» orqali varaqlarga tushadi."}]},
   /* chuqur asboblar — menyuda «Qoʻshimcha»; xarita va maʼlumot asosiy oyna bilan umumiy */
   {id:"qosh", t:"Qoʻshimcha", hidden:true, subs:[
     {id:"malumot", t:"Maʼlumot yuklash", page:"data.html"},
@@ -294,6 +294,7 @@ function show(i, j, src){
   i=Math.max(0,Math.min(STEPS.length-1,i)); const st=STEPS[i];
   if(j==null) j=P.sub[st.id]||0; j=Math.max(0,Math.min(st.subs.length-1,j));
   const u=st.subs[j];
+  if(u.href){ window.open(u.href,"_blank"); return; }   // Chizmadon — alohida ilova (app/), yangi oynada ochiladi
   const firstBino = st.id==="bino" && !P.mrAuto; if(firstBino){ P.mrAuto=1; }
   P.step=i; P.sub[st.id]=j; if(!P.seen.includes(i)) P.seen.push(i); saveP();
   if(firstBino && innerWidth>=1400) setTimeout(()=>openDrawer(true),600); { const c=REG.list&&REG.list.find(x=>x.id===REG.active); if(c){ c.t=new Date().toISOString(); c.step=i; localStorage.setItem("kps_projects",JSON.stringify(REG)); } }
@@ -544,7 +545,7 @@ const GUIDE={
  "kocha-profil":["Mavjud profil",["Koʻcha oʻqiga bosing — koʻndalang kesim OSM dan taxmin qilinadi.","Loyiha profili bilan solishtiring.","Profilni albomga yuboring."],""],
  "bino-posadka":["Binolarni joylashtirish",["Uchastka 1-qadamdan oʻtadi — kerak boʻlsa qayta chizing.","Bino qoʻshing va qavatini bering: zichlik, xonadonlar, aholi va insolyatsiya oʻngda hisoblanadi.","Xaritadagi <b>Shamol</b> oynasi — shamol guli; <b>Binolarning shamolga taʼsiri →</b> bilan tekshiring."],""],
  "bino-shamol":["Binolarning shamolga taʼsiri",["Joylashtirishdagi binolar avtomatik qoʻshiladi.","<b>Binolar va shamolni yuklash</b> → <b>Farq</b>: qizil — loyiha sababli havo kamaygan joylar.","Binoni oʻzgartirsangiz, natija bir necha soniyada yangilanadi."],""],
- "albom-maket":["Albom",["Chapda — barcha qadamlardan yuborilgan materiallar.","Varaqqa sudrang, sarlavha va afsona qoʻshing.","PDF yoki PNG qilib yuklab oling."],""]};
+ "albom-maket":["Chizmadon",["Chizmadon yangi oynada ochiladi.","«Eski Albomdan → Oʻtkazish» — yuborilgan materiallar va eski albom varaqlari olinadi.","PDF yoki PNG qilib yuklab oling."],""]};
 let GSEEN={};try{GSEEN=JSON.parse(localStorage.getItem("kps_guide_seen")||"{}");}catch(e){}
 const GOFF=()=>localStorage.getItem("kps_guide_off")==="1";
 function curKey(){const st=STEPS[P.step],u=st.subs[P.sub[st.id]||0];return st.id+"-"+u.id;}
@@ -574,7 +575,7 @@ const FIND=[
  ["Hudud chegarasi (doira, toʻrtburchak, erkin)","hudud граница территор chegara doira круг toʻrtburchak poligon polygon area","loyiha","oyna",null,""],
  ["Uchastka chegarasi","uchastka участок chegara границ","loyiha","oyna",null,"chap panel — U (Uchastka)"],
  ["GIS fayl yuklash (Shapefile, GPKG)","yuklash загруз shapefile shp gpkg geopackage geojson kml gis fayl файл","qosh","malumot",null,""],
- ["Albom va PDF","albom альбом pdf varaq лист chop печат","albom","maket",null,""],
+ ["Chizmadon va PDF","chizmadon albom альбом pdf varaq лист chop печат","albom","maket",null,""],
  ["Master reja koʻrsatkichlari","master reja мастер-план koʻrsatkich показат","",null,null,"tepada «Master reja» tugmasi"]];
 function findOpen(r){$("gl").hidden=true;$("gq").value="";
   if(!r[2]){openDrawer(true);return;}const i=STEPS.findIndex(s=>s.id===r[2]),j=STEPS[i].subs.findIndex(u=>u.id===r[3]);show(i,j);
