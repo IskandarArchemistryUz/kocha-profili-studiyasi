@@ -126,7 +126,7 @@ var fbK='Taklif';
   [].forEach.call(document.querySelectorAll('[data-fb]'),function(x){x.setAttribute('aria-pressed',String(x===c));});});});
 var fs=document.getElementById('fbSend');
 if(fs)fs.onclick=function(){var tx=document.getElementById('fbTxt'),v=(tx&&tx.value||'').trim();
-  location.href='mailto:archemistry.uzbekistan@gmail.com?subject='+encodeURIComponent('['+fbK+'] Archemistry Lab')+'&body='+encodeURIComponent(v+'\n\n— '+location.href);};
+  location.href='mailto:info@archemistry.uz?subject='+encodeURIComponent('['+fbK+'] Archemistry Lab')+'&body='+encodeURIComponent(v+'\n\n— '+location.href);};
 var fbb=document.getElementById('fbBeta');if(fbb)fbb.onclick=function(){if(window.KPS_openPanel)KPS_openPanel();};
 /* avvalgi versiya loyihalari bor boʻlsa — bosh sahifada eslatma (roʻyxat «Batafsil» sahifasida) */
 var on=document.getElementById('oldNote');
