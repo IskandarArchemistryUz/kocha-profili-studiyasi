@@ -778,3 +778,10 @@ details.manual{border-top:0;padding-top:0;display:block}
 .tb-prov .sub{font-weight:400;font-size:11px;color:var(--muted)}
 .tb-prov[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .tb-pack:focus-visible,.tb-prov:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* loyihalar sahifasi: hisob qatori */
+.home-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.home-acct{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.home-acct[hidden]{display:none}
+.home-acct .who{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.home-acct .mono{color:var(--muted)}

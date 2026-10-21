@@ -85,6 +85,7 @@ import { authRequired } from '../account/config';
 import { needsLogin, ensureLogin } from '../account/gate';
 import { check as checkAuth, current as currentUser, onAuth, logout } from '../account/session';
 import { loginDialog } from '../account/login';
+import { isOwner } from '../core/wm';
 import { buyDialog } from '../account/buy';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
@@ -280,7 +281,7 @@ export class Editor {
       box.replaceChildren(b);
     };
     draw(); this.off.push(onAuth(draw));
-    if (authRequired()) void checkAuth();
+    if (authRequired() && !isOwner()) void checkAuth();
     return box;
   }
 
