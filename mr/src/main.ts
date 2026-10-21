@@ -94,7 +94,7 @@ async function home(): Promise<void> {
     catch (e) { toast((e as Error).message); }
   };
   const created = (t: string) => new Date(t).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
-  const TRASH = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', OPEN = '<path d="M4 7h6l2 2h8v10H4zM4 7V5h6"/>', DEMO_IC = '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/>';
+  const TRASH = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', OPEN = '<path d="M4 7h6l2 2h8v10H4zM4 7V5h6"/>';
   root.replaceChildren(h('main', { class: 'home' },
     h('div', { class: 'home-top' },
       h('a', { class: 'btn btn-ghost btn-sm', href: '../index.html', style: 'text-decoration:none' }, ...icl(IC.back, 'Archemistry Lab')),
@@ -103,8 +103,7 @@ async function home(): Promise<void> {
     h('p', { class: 't-small lead' }, tr('Uchastkadan meʼyoriy tekshiruvgacha — bitta 3D oynada. Har bir koʻrsatkich bitta modeldan hisoblanadi va ShNQ bandiga bogʻlanadi.')),
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
       h('button', { class: 'btn btn-primary btn-lg', id: 'newP', onclick: async () => { const p = blankProject(); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, tr('Yangi loyiha'))),
-      h('button', { class: 'btn btn-lg', id: 'openFile', onclick: () => file.click() }, ...icl(OPEN, tr('Fayldan ochish'))), file,
-      h('a', { class: 'btn btn-lg btn-ghost', id: 'demoP', href: '#/namuna', style: 'text-decoration:none' }, ...icl(DEMO_IC, tr('Namuna loyiha')))),
+      h('button', { class: 'btn btn-lg', id: 'openFile', onclick: () => file.click() }, ...icl(OPEN, tr('Fayldan ochish'))), file),
     list.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...list.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id },
       h('b', {}, p.name),
       h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr(p.hasSite ? 'uchastka bor' : 'uchastka yoʻq')} · ${p.buildings} ${tr('bino')}`),
