@@ -68,7 +68,9 @@ echo "== 7/8 Nginx va HTTPS"
 cp "$APP/server/deploy/nginx-api.conf" /etc/nginx/sites-available/$DOMAIN
 ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
 rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl reload nginx
+nginx -t
+systemctl enable --now nginx   # baʼzi obrazlarda Nginx oʻrnatilgan, lekin ishga tushmagan
+systemctl reload nginx
 if [ ! -d /etc/letsencrypt/live/$DOMAIN ]; then
   certbot --nginx -d $DOMAIN --non-interactive --agree-tos --register-unsafely-without-email --redirect \
     || echo "!! HTTPS sertifikati olinmadi: api.archemistry.uz DNS yozuvi shu serverga koʻrsatayotganini tekshiring va qayta ishga tushiring"
