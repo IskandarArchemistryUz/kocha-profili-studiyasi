@@ -12,7 +12,7 @@ hdr = hdr.replace(' aria-current="page"', '')
 foot = body_line[body_line.index('<footer class="mfoot">'):body_line.index('</footer>') + 9]
 
 EDITION = '21.10.2026'
-MAIL = 'archemistry.uzbekistan@gmail.com'
+MAIL = 'info@archemistry.uz'
 REQ = {
  'uz': 'YaTT Soliyev Iskandar Jaxongir oʻgʻli · davlat roʻyxatidan oʻtkazilgan: 08.08.2025, № 7066967 · STIR 563413523 · manzil: Toshkent shahri, Yakkasaroy tumani, Kichik xalqa yoʻli, 28-uy · hisob raqami 20218000907288528001, ATIB «Ipak Yoʻli» Yakkasaroy filiali, MFO 01028 · pochta ' + MAIL + ' · telefon +998 99 430 11 77',
  'en': 'Individual entrepreneur Iskandar Jaxongir oʻgʻli Soliyev · state registration: 08.08.2025, No. 7066967 · TIN 563413523 · address: 28 Kichik Xalqa Yoʻli, Yakkasaroy district, Tashkent, Uzbekistan · account 20218000907288528001, JSCB “Ipak Yuli”, Yakkasaroy branch, bank code (MFO) 01028 · email ' + MAIL + ' · phone +998 99 430 11 77',
@@ -148,7 +148,7 @@ PRIV = {
   'Zaxira nusxalar 14 kun saqlanadi.']),
  ('4. Kimga beriladi', 'ul', [
   '<b>Google</b> — Google bilan kirishni tanlasangiz;',
-  '<b>pochta xizmati</b> — kirish kodini yuborish uchun;',
+  '<b>pochta xizmati</b> (Zoho Mail) — kirish kodini yuborish uchun;',
   '<b>Payme, Click, Multicard</b> — toʻlov uchun;',
   'xarita manbalari (OpenStreetMap, OpenFreeMap, Esri, AWS relyef plitkalari) — xarita yuklanganda brauzeringiz ularga toʻgʻridan-toʻgʻri murojaat qiladi va IP manzilingizni koʻradi;',
   'davlat organlariga — faqat qonunda belgilangan hollarda.'], 'Maʼlumot sotilmaydi. Faqat xizmat ishlashi uchun zarur hajmda:'),
@@ -175,7 +175,7 @@ PRIV = {
   'Backups are kept for 14 days.']),
  ('4. Who receives data', 'ul', [
   '<b>Google</b> — if you choose to sign in with Google;',
-  '<b>email service</b> — to send sign-in codes;',
+  '<b>email service</b> (Zoho Mail) — to send sign-in codes;',
   '<b>Payme, Click, Multicard</b> — for payments;',
   'map sources (OpenStreetMap, OpenFreeMap, Esri, AWS terrain tiles) — when maps load, your browser contacts them directly and they see your IP address;',
   'state authorities — only in cases established by law.'], 'Data is never sold. It is shared only to the extent necessary for the Service to work:'),
@@ -202,7 +202,7 @@ PRIV = {
   'Резервные копии хранятся 14 дней.']),
  ('4. Кому передаются', 'ul', [
   '<b>Google</b> — если вы выбрали вход через Google;',
-  '<b>почтовый сервис</b> — для отправки кода входа;',
+  '<b>почтовый сервис</b> (Zoho Mail) — для отправки кода входа;',
   '<b>Payme, Click, Multicard</b> — для оплаты;',
   'источники карт (OpenStreetMap, OpenFreeMap, Esri, тайлы рельефа AWS) — при загрузке карты ваш браузер обращается к ним напрямую, и они видят ваш IP-адрес;',
   'государственным органам — только в случаях, установленных законом.'], 'Данные не продаются. Передаются только в объёме, необходимом для работы Сервиса:'),

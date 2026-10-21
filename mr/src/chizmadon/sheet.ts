@@ -52,7 +52,7 @@ export const TXT = {
   esg: [["Ekologiya", ["Yashillik 32 %", "Yomg'ir suvini yig'ish", "Issiqlik orolini kamaytirish"]], ["Ijtimoiy", ["5 daqiqada bog'cha", "Hovli — piyodalar uchun", "MGN uchun to'siqsiz muhit"]], ["Boshqaruv", ["Ochiq TIK hisoboti", "Aholi bilan kelishuv", "Bosqichli monitoring"]]],
   phases: [["I bosqich", "2026–2028", "Ko'chirish fondi, tarmoqlar, 1-daha"], ["II bosqich", "2028–2031", "2–3-dahalar, maktab, bog'"], ["III bosqich", "2031–2034", "Markaziy maydon, tijorat fronti"]],
   rules: ["Uslub", "Hajm", "Qavatlilik", "Tom", "Material", "Rang", "Fasad ritmi", "To'siq"],
-  contacts: ["Archemistry Lab", "archemistry.uzbekistan@gmail.com", "archemistry.uz", "2026"]
+  contacts: ["Archemistry Lab", "info@archemistry.uz", "archemistry.uz", "2026"]
 };
 
 /* ---------- geometriya ---------- */

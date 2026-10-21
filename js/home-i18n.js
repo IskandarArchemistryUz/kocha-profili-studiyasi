@@ -142,7 +142,7 @@ window.HOME_D={
 "Loyihalar qayerda saqlanadi?":["Where are projects stored?","Где хранятся проекты?"],
 "Hozir — shu brauzerda. Server ishga tushgach — hisobingizda. Istalgan paytda .json faylga bepul eksport qilasiz.":["For now — in this browser. After the server launch — in your account. You can export to a .json file for free at any time.","Пока — в этом браузере. После запуска сервера — в аккаунте. В любой момент можно бесплатно экспортировать в .json."],
 "Talaba, oʻqituvchi yoki tashkilot?":["Student, teacher or organisation?","Студент, преподаватель или организация?"],
-"Talaba va oʻqituvchi — oyiga 10 tanga bepul (tasdiqlangandan keyin). Tashkilot — shartnoma va hisob-faktura: archemistry.uzbekistan@gmail.com.":["Students and teachers — 10 free coins a month (after verification). Organisations — contract and invoice: archemistry.uzbekistan@gmail.com.","Студенты и преподаватели — 10 бесплатных монет в месяц (после подтверждения). Организации — договор и счёт-фактура: archemistry.uzbekistan@gmail.com."],
+"Talaba va oʻqituvchi — oyiga 10 tanga bepul (tasdiqlangandan keyin). Tashkilot — shartnoma va hisob-faktura: info@archemistry.uz.":["Students and teachers — 10 free coins a month (after verification). Organisations — contract and invoice: info@archemistry.uz.","Студенты и преподаватели — 10 бесплатных монет в месяц (после подтверждения). Организации — договор и счёт-фактура: info@archemistry.uz."],
 "xonadon":["apartments","квартир"],
 "Park":["Park","Парк"],"Rasm · misol loyiha varagʻi":["Image · sample project sheet","Изображение · лист примера проекта"],
 "atrof eksporti — binolar, yoʻllar, relyef":["context export — buildings, roads, terrain","экспорт окружения — здания, дороги, рельеф"],
@@ -193,7 +193,7 @@ Object.assign(window.HOME_D,{
 "Ha, 8 km² gacha: 1 km² — sinov ichida, 4 km² — 2 tanga, 8 km² — 4 tanga. DXF, SVG, GLB, GeoJSON.":["Yes, up to 8 km²: 1 km² — within trials, 4 km² — 2 coins, 8 km² — 4 coins. DXF, SVG, GLB, GeoJSON.","Да, до 8 км²: 1 км² — в рамках проб, 4 км² — 2 монеты, 8 км² — 4 монеты. DXF, SVG, GLB, GeoJSON."],
 "Hech qachon. Bitta hisob — hamma xizmatlarda. Shu holatni qayta yuklash bepul.":["Never. One account across all services. Re-downloading the same state is free.","Никогда. Один аккаунт во всех сервисах. Повторная выгрузка того же состояния бесплатна."],
 "Tashkilot uchun?":["For organisations?","Для организаций?"],
-"Shartnoma va hisob-faktura — kelishiladi: archemistry.uzbekistan@gmail.com.":["Contract and invoice by agreement: archemistry.uzbekistan@gmail.com.","Договор и счёт-фактура — по договорённости: archemistry.uzbekistan@gmail.com."],
+"Shartnoma va hisob-faktura — kelishiladi: info@archemistry.uz.":["Contract and invoice by agreement: info@archemistry.uz.","Договор и счёт-фактура — по договорённости: info@archemistry.uz."],
 "Narxlar — batafsil":["Pricing — details","Цены — подробно"],"Qahva uchun":["Buy me a coffee","На кофе"]
 });
 /* beta paneli (js/beta.js) */
