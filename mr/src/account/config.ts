@@ -1,9 +1,9 @@
 /**
  * Hisob (api.archemistry.uz) sozlamasi.
- * AUTH_REQUIRED — server ishga tushib, pochta va Google tekshirilgach yoqiladi (server/deploy/README.md, 7-band).
+ * AUTH_REQUIRED — yoqilgan (21.10.2026: pochta kodi va Google ishlaydi). Brauzerda oʻchirish — localStorage kps_auth=0.
  * Sinov uchun brauzerda: localStorage.kps_auth = '1' (yoqish) yoki '0' (oʻchirish); kps_api — boshqa API manzili.
  */
-export const AUTH_REQUIRED = false;
+export const AUTH_REQUIRED = true;
 export const API_BASE = 'https://api.archemistry.uz';
 
 const ls = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };

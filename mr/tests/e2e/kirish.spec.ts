@@ -62,10 +62,35 @@ test('kirish: tungi rejim va 1024 px, server javob bermasa — tushunarli xabar'
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/kirish_1024_dark.png` });
 });
 
-test('kirish talab qilinmasa (hozirgi holat) — hamma qadam ochiq, «Kirish» tugmasi yoʻq', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('kps_owner', '0'); });
+test('kirish oʻchirilsa (kps_auth=0) — hamma qadam ochiq, «Kirish» tugmasi yoʻq', async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('kps_owner', '0'); localStorage.setItem('kps_auth', '0'); });
+  await page.goto('./'); await expect(page.locator('#homeAcct')).toBeHidden();
   await page.goto('./'); await page.click('#newP');
   await expect(page.locator('#acctBox')).toBeHidden();
   await page.click('[data-step=uchastka]'); await page.click('#rectSite'); await page.click('[data-step=kocha]');
   await expect(page.locator('.panel h2')).toHaveText('Koʻchalar');
+});
+
+test('kirish: loyihalar sahifasida «Kirish» → hisob qatori → chiqish', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('./');
+  await expect(page.locator('#homeIn')).toBeVisible();
+  await page.click('#homeIn'); await expect(page.locator('#kirish')).toBeVisible();
+  await page.fill('#kdEmail', 'ali@mail.uz'); await page.click('#kdGo');
+  await page.fill('#kdCode', '123456'); await page.click('#kdGo');
+  await expect(page.locator('#kirish')).toHaveCount(0);
+  await expect(page.locator('#homeAcct .who')).toHaveText('ali@mail.uz');
+  await expect(page.locator('#homeBal')).toContainText('50');
+  if (process.env.GX_SHOTS) {
+    await page.screenshot({ path: `${process.env.GX_SHOTS}/home-acct.png` });
+    await page.setViewportSize({ width: 1024, height: 700 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(600);
+    await page.screenshot({ path: `${process.env.GX_SHOTS}/home-acct_1024_dark.png` });
+  }
+  await page.click('#homeOut'); await expect(page.locator('#homeIn')).toBeVisible();
+});
+
+test('kirish: sukut boʻyicha yoqilgan, egasi rejimida loyihalar sahifasida hisob qatori yashirin', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('#newP')).toBeVisible();
+  await expect(page.locator('#homeAcct')).toBeHidden();
 });
