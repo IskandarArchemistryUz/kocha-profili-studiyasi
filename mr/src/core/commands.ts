@@ -3,7 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid, CTX_R_MIN, CTX_R_MAX } from './doc';
 import { frame } from './geo';
 import type { UserLayerMeta } from './userlayers';
 
@@ -121,7 +121,8 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'setContext': {
       const { layers, ...rest } = c.patch;
       const cx = { ...doc.context, ...rest, layers: { ...doc.context.layers, ...(layers || {}) } };
-      if (!(cx.radius >= 100 && cx.radius <= 2000)) throw new CommandError('Radius 100–2000 m oraligʻida boʻlsin');
+      if (!(cx.radius >= CTX_R_MIN && cx.radius <= CTX_R_MAX)) throw new CommandError('Radius 100–6000 m oraligʻida boʻlsin');
+      if (cx.area && cx.area.length < 3) throw new CommandError('Atrof chegarasi kamida 3 nuqta');
       d.context = cx; return d;
     }
     case 'setSite': {

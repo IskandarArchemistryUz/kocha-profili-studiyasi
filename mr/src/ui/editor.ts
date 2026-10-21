@@ -59,6 +59,9 @@ import { pushEdge, tieredGfa } from '../core/tiers';
 import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { UserLayersUI } from './userlayersui';
+import { parseBoundary, areaFrame, clipOsmToArea, ringAreaM2, BOUNDARY_ACCEPT, AREA_FREE_RADIUS, type Boundary } from '../core/boundary';
+import { CTX_R_MIN, CTX_R_MAX } from '../core/doc';
+import type { ULFeature } from '../core/userlayers';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
 import { LiveBase, liveSize } from '../context/basemap';
@@ -618,14 +621,14 @@ export class Editor {
       if (dist(doc.origin, c) > (cs.loaded ? Math.min(300, cs.radius * 0.3) : 150)) { this.run(() => this.store.dispatch({ type: 'setOrigin', origin: c })); this.scene.frameDoc(this.store.doc); return; }
     }
     if (!cs.loaded) { this.showContext(null); void this.showBaseMap(); return; }
-    const cur = this.ctxMgr.current;
-    const covers = (b: ContextBundle | null) => !!b && b.radius >= cs.radius && dist(b.center, doc.origin) + cs.radius <= b.radius + 60;
+    const cur = this.ctxMgr.current, C = cs.area ? areaFrame(cs.area).center : doc.origin;   // chegara boʻyicha — atrof markazi chegara qutisi markazida
+    const covers = (b: ContextBundle | null) => !!b && b.radius >= cs.radius && dist(b.center, C) + cs.radius <= b.radius + 60;
     if (!force && covers(cur)) { this.showContext(cur); return; }
     track('mr/calc/area');
     if (this.ctx.busy && !force) return;
     this.ctx = { busy: true, msg: 'Keshdan…', frac: 0.02, err: '' }; this.renderPanel(); this.renderBadge();
     try {
-      const b = await this.ctxMgr.load(doc.origin, cs.radius, (msg, frac) => { this.ctx.msg = msg; this.ctx.frac = frac; this.renderCtxProgress(); }, force);
+      const b = await this.ctxMgr.load(C, cs.radius, (msg, frac) => { this.ctx.msg = msg; this.ctx.frac = frac; this.renderCtxProgress(); }, force);
       this.ctx = { busy: false, msg: '', frac: 1, err: '' };
       if (this.store.doc.origin === doc.origin) this.showContext(b);
     } catch (e) {
@@ -680,14 +683,23 @@ export class Editor {
     this.baseAttr(sat, 'Fon: © OpenMapTiles · OpenFreeMap');
     if (first && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
   }
-  private showContext(b: ContextBundle | null): void {
-    const doc = this.store.doc;
+  /** Chegara boʻyicha yuklangan atrof — poligonga qirqilgan nusxa (eslab qolinadi) */
+  private clipMemo: { b: ContextBundle; a: LngLat[]; v: ContextBundle } | null = null;
+  private ctxView(b: ContextBundle | null): ContextBundle | null {
+    const a = this.store.doc.context.area;
+    if (!b || !a) return b;
+    if (this.clipMemo?.b === b && this.clipMemo.a === a) return this.clipMemo.v;
+    const v = { ...b, osm: clipOsmToArea(b.osm, a) };
+    this.clipMemo = { b, a, v }; return v;
+  }
+  private showContext(b0: ContextBundle | null): void {
+    const doc = this.store.doc, b = this.ctxView(b0);
     if (b) { this.baseKey = ''; this.liveAt = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
     void this.scene.setContext(b, doc).then(() => {
       this.ul.sync(this.store.doc);
-      if (b && !this.framedCtx) { this.framedCtx = true; if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); }
+      if (b && !this.framedCtx) { this.framedCtx = true; if (doc.context.area) this.scene.frameDoc(this.store.doc, doc.context.area); else if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); }
       // gorizont: kattaroq radiusdagi binolar (fon rejimida, xatoda jim)
-      const fk = b && doc.context.layers.buildings ? `${b.center.join(',')}|${b.radius}|${doc.origin.join(',')}` : '';
+      const fk = b && doc.context.layers.buildings && !doc.context.area ? `${b.center.join(',')}|${b.radius}|${doc.origin.join(',')}` : '';
       if (fk === this.farKey) return;
       this.farKey = fk; this.scene.setFar(null, doc);
       if (b && fk) void this.ctxMgr.loadFar(b.center, b.radius).then(f => { if (this.farKey === fk && f) this.scene.setFar(f.buildings, this.store.doc); });
@@ -726,7 +738,7 @@ export class Editor {
     if (carry === null && (doc.site || doc.buildings.length)) { this.search.pending = p; this.renderPanel(); return; }
     this.search.pending = null; this.search.res = [];
     this.framedCtx = false;
-    this.run(() => this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }));
+    this.run(() => { this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }); if (doc.context.area) this.store.dispatch({ type: 'setContext', patch: { area: null, radius: 500 } }); });
     this.scene.frameRadius(doc.site && carry ? 0 : 250);
     if (doc.site && carry) this.scene.frameDoc(this.store.doc);
   }
@@ -752,9 +764,58 @@ export class Editor {
     toast(`Kvartal aniqlandi: ${fmt(res.area / 1e4, 2)} ga. Chegarani yoʻl chetidan oladi — kerak boʻlsa qaytadan chizing.`);
   }
 
+  /* ---------- chegara fayli (uchastka va atrof hududi) ---------- */
+  /** Fayl tanlash oynasi → chegara (GeoJSON, KML/KMZ, DXF; WGS84 yoki UTM avtomatik) */
+  private pickBoundary(then: (b: Boundary, file: string) => void): void {
+    const inp = h('input', { type: 'file', accept: BOUNDARY_ACCEPT, hidden: true, id: 'bndFile' }) as HTMLInputElement;
+    inp.addEventListener('change', async () => {
+      const f = inp.files?.[0]; inp.remove(); if (!f) return;
+      try { then(parseBoundary(f.name, new Uint8Array(await f.arrayBuffer())), f.name); }
+      catch (e) { toast(tr((e as Error).message || 'Faylni oʻqib boʻlmadi')); }
+    });
+    this.root.append(inp); inp.click();
+  }
+  /** Atrofni chegara ichida yuklash: markaz — chegara qutisi markazi, radius — qutining yarmi + zaxira */
+  private applyArea(ring: LngLat[]): void {
+    const F = areaFrame(ring), doc = this.store.doc;
+    if (F.radius > CTX_R_MAX) { toast(tf('Hudud juda katta: ${a} km. Brauzerda ${m} km gacha yuklanadi — chegarani kichikroq qismlarga boʻling.', { a: fmt(2 * F.radius / 1000, 1), m: fmt(2 * CTX_R_MAX / 1000, 0) })); return; }
+    this.framedCtx = false;
+    this.run(() => {
+      if (!doc.site && !doc.buildings.length) this.store.dispatch({ type: 'moveProject', origin: F.center, carry: false });
+      this.store.dispatch({ type: 'setContext', patch: { area: ring.map(p => [p[0], p[1]] as LngLat), radius: Math.max(CTX_R_MIN, F.radius), loaded: true } });
+    });
+  }
+  /** Katta hudud — Pro belgisi va izoh (hozircha ochiq) */
+  private proNote(id: string, text: string): HTMLElement {
+    return h('div', { class: 'note', id }, h('span', { class: 'chip', style: 'margin-right:6px' }, 'Pro'), text);
+  }
+  /** «Hudud»: chegara ichini yuklash — fayldan, uchastkadan yoki oʻz qatlamidan */
+  private areaBlock(): HTMLElement {
+    const doc = this.store.doc, cs = doc.context, box = h('div', { class: 'col', id: 'areaBox' });
+    box.append(h('div', { class: 'glabel' }, h('span', {}, tr('yoki chegara ichini yuklash')), h('span', { class: 'chip' }, 'Pro')));
+    if (cs.area) {
+      const ha = ringAreaM2(cs.area) / 1e4, side = 2 * cs.radius / 1000;
+      box.append(h('div', { class: 'group' }, h('div', { class: 'li', id: 'areaSt' }, h('span', { class: 'k' }, h('b', {}, tf('Chegara: ${a} ga', { a: fmt(ha, ha < 100 ? 1 : 0) })), h('span', { class: 'sub' }, tf('Atrof ${s} × ${s} km kvadratda yuklanadi va chegaraga qirqiladi.', { s: fmt(side, 1) }))),
+        h('button', { class: 'btn btn-sm btn-ghost', id: 'areaOff', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { area: null, radius: Math.min(1000, Math.max(300, Math.round(cs.radius / 250) * 250)) } })) }, tr('Olib tashlash')))));
+      if (cs.radius > AREA_FREE_RADIUS) box.append(this.proNote('areaPro', tf('Katta hudud: radius ${r} m — bepul reja ${f} m gacha. Hozircha ochiq; obuna ulanganda Pro rejada boʻladi.', { r: fmt(cs.radius), f: fmt(AREA_FREE_RADIUS) })));
+    }
+    const polys = (doc.userLayers ?? []).filter(m => m.kind === 'chegara' || m.kind === 'yer').map(m => ({ m, ring: this.largestRing(this.ul.data.get(m.id)) })).filter(x => x.ring);
+    box.append(h('div', { class: 'row', style: 'flex-wrap:wrap' },
+      h('button', { class: 'btn btn-sm', id: 'areaFile', onclick: () => this.pickBoundary((b, f) => { toast(tf('«${f}»: ${a} ga, ${c}', { f, a: fmt(b.areaHa, 1), c: b.crs === 'wgs84' ? 'WGS84' : `UTM ${b.crs.slice(3)}N` })); this.applyArea(b.rings[0]); }) }, ...icl(IC.plus, tr('Chegara fayli'))),
+      doc.site ? h('button', { class: 'btn btn-sm', id: 'areaSite', onclick: () => this.applyArea(doc.site!.rings[0]) }, tr('Uchastka chegarasi')) : '',
+      ...polys.map(({ m, ring }) => h('button', { class: 'btn btn-sm', 'data-areaul': m.id, title: tr('Qatlamdagi eng katta poligon'), onclick: () => this.applyArea(ring!) }, tf('«${n}» qatlamidan', { n: m.name })))));
+    box.append(h('span', { class: 't-small' }, tr('GeoJSON, KML/KMZ yoki DXF (yopiq polilayn). Koordinatalar: WGS84 yoki UTM 42N/41N — avtomatik aniqlanadi. 12 × 12 km gacha.')));
+    return box;
+  }
+  private largestRing(fs: ULFeature[] | undefined): LngLat[] | null {
+    let best: LngLat[] | null = null, A = 0;
+    for (const f of fs ?? []) for (const p of f.polys ?? []) { const a = ringAreaM2(p[0]); if (a > A) { A = a; best = p[0]; } }
+    return best;
+  }
+
   /* ===== 1-qadam: Hudud (MR-Q1) ===== */
   private hududPanel(body: HTMLElement): void {
-    const doc = this.store.doc, cs = doc.context, b = this.ctxMgr.current, S = this.search;
+    const doc = this.store.doc, cs = doc.context, b = this.ctxView(this.ctxMgr.current), S = this.search;   // chegara boʻyicha — qirqilgan
     const q = h('input', { type: 'search', class: 'input', id: 'q', placeholder: tr('Manzil, mahalla yoki 41.311, 69.279'), value: S.q, 'aria-label': tr('Manzil qidiruvi') }) as HTMLInputElement;
     q.addEventListener('keydown', e => { if (e.key === 'Enter') void this.doSearch(q.value); });
     body.append(h('div', { class: 'row' }, h('div', { class: 'field grow' }, h('label', {}, tr('Qidirish')), q),
@@ -773,7 +834,8 @@ export class Editor {
     }
     body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Loyiha markazi'), h('span', { class: 'sub' }, tr('Xaritada oʻng tugma → «Markazni shu yerga koʻchirish»'))), h('span', { class: 'v mono', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`))));
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Atrof radiusi'))),
-      h('div', { class: 'seg', role: 'group', 'aria-label': tr('Radius') }, ...[300, 500, 750, 1000].map(r => h('button', { 'aria-pressed': cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r } })) }, `${r} m`))));
+      h('div', { class: 'seg', role: 'group', 'aria-label': tr('Radius') }, ...[300, 500, 750, 1000].map(r => h('button', { 'aria-pressed': !cs.area && cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r, area: null } })) }, `${r} m`))));
+    body.append(this.areaBlock());
     if (this.ctx.busy) body.append(h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(this.ctx.frac * 100)}%;background:var(--svc)` })), h('span', { class: 't-small', id: 'ctxMsg' }, this.ctx.msg));
     else if (!cs.loaded) body.append(h('button', { class: 'btn btn-primary btn-block btn-lg', id: 'ctxLoad', onclick: () => this.run(() => {
       // xarita surilgan boʻlsa — loyiha markazi ekran markaziga koʻchadi (atrof shu yerda yuklanadi), aks holda eski markaz (Amir Temur) qolib ketardi
@@ -1840,6 +1902,13 @@ export class Editor {
         this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.setTool(null); this.scene.frameDoc(this.store.doc);
       }, toast)) }, ...icl(IC.pencil, tr(doc.site ? 'Qaytadan chizish' : 'Sahnada chizish'))),
       doc.site ? h('button', { class: 'btn icon-btn btn-danger', 'aria-label': tr('Uchastkani oʻchirish'), title: tr('Uchastkani oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, svgIcon(IC.trash)) : ''));
+    if (!drawing) body.append(h('div', { class: 'glabel' }, h('span', {}, tr('yoki fayldan yuklash')), h('span', { class: 'chip' }, 'Pro')),
+      h('button', { class: 'btn btn-block', id: 'siteFile', onclick: () => this.pickBoundary((b, f) => {
+        this.framedCtx = false;
+        this.run(() => this.store.dispatch({ type: 'setSite', rings: [b.rings[0]] })); this.scene.frameDoc(this.store.doc);
+        toast(tf('«${f}»: uchastka ${a} ga, ${c}${x}', { f, a: fmt(b.areaHa, 2), c: b.crs === 'wgs84' ? 'WGS84' : `UTM ${b.crs.slice(3)}N`, x: b.polys > 1 ? tf(' (${n} ta poligondan eng kattasi)', { n: b.polys }) : '' }));
+      }) }, ...icl(IC.plus, tr('Chegarani fayldan yuklash'))),
+      h('span', { class: 't-small' }, tr('GeoJSON, KML/KMZ yoki DXF. Koordinatalar: WGS84 yoki UTM 42N/41N — avtomatik aniqlanadi. Oʻzbekistondan tashqaridagi chegara qabul qilinmaydi. Hozircha ochiq; obuna ulanganda Pro rejada boʻladi.')));
     if (this.ctxMgr.current && doc.context.loaded) {
       body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartalni bosib aniqlash'))));
       if (doc.context.layers.roads) body.append(h('button', { class: picking ? 'btn btn-primary btn-block' : 'btn btn-block', id: 'pickBlock', onclick: () => picking ? this.setTool(null) : this.setTool(new ClickTool(tr('Yoʻllar orasidagi kvartal ichini bosing · Esc — bekor'), xy => this.pickBlock(xy))) }, tr(picking ? 'Aniqlashni toʻxtatish' : '⌖ Kvartalni bosib aniqlash')));
