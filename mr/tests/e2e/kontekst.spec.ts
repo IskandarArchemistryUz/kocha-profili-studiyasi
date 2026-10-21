@@ -127,3 +127,48 @@ test('mavjud OSM koʻchasini loyihaga olish: profil, meʼyor tekshiruvi, konteks
   await page.click('[data-step=parsel]');
   await expect(page.locator('[data-block]')).toHaveCount(2);
 });
+
+test('chegara: uchastka fayldan (DXF, UTM 42N) va atrof chegara ichida (KML)', async ({ page, context }) => {
+  await mockNet(context, { overpass: 0 });
+  await newProject(page);
+  // uchastka: 200 × 150 m, UTM 42N metrlarda — avtomatik aniqlanadi
+  await page.click('[data-step=uchastka]');
+  const E = 523400, N = 4572500, pts = [[E, N], [E + 200, N], [E + 200, N + 150], [E, N + 150]];
+  const dxf = ['0', 'SECTION', '2', 'ENTITIES', '0', 'LWPOLYLINE', '8', 'chegara', '90', '4', '70', '1', ...pts.flatMap(p => ['10', String(p[0]), '20', String(p[1])]), '0', 'ENDSEC', '0', 'EOF'].join('\n');
+  let fc = page.waitForEvent('filechooser'); await page.click('#siteFile');
+  await (await fc).setFiles({ name: 'uchastka.dxf', mimeType: 'application/dxf', buffer: Buffer.from(dxf) });
+  await expect(page.locator('#kSite b')).toHaveText(/^(2,9\d|3,0\d)$/);
+  await expect(page.locator('.toast').last()).toContainText('UTM 42N');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/chegara_uchastka.png` });
+  // uchastka joyida yangi loyiha: atrof chegara ichida — KML (WGS84)
+  await page.click('[aria-label="Uchastkani oʻchirish"]');
+  await page.click('[data-step=hudud]');
+  const ring = [ll(-100, -100), ll(400, -100), ll(400, 300), ll(-100, 300), ll(-100, -100)];
+  const kml = `<kml xmlns="http://www.opengis.net/kml/2.2"><Placemark><Polygon><outerBoundaryIs><LinearRing><coordinates>${ring.map(p => `${p.lon},${p.lat},0`).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></kml>`;
+  fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
+  await (await fc).setFiles({ name: 'hudud.kml', mimeType: 'application/vnd.google-earth.kml+xml', buffer: Buffer.from(kml) });
+  await expect(page.locator('#areaSt')).toContainText(/(19,9|20,0) ga/);
+  await expect(page.locator('#ctxSt')).toBeVisible({ timeout: 15000 });
+  const n = Number((await page.locator('#ctxSt b').textContent())!.replace(/\D/g, ''));
+  expect(n).toBeGreaterThan(4); expect(n).toBeLessThan(24);                  // chegaradan tashqaridagilar qirqildi
+  await expect(page.locator('[aria-label=Radius] button[aria-pressed=true]')).toHaveCount(0);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/chegara_hudud.png` });
+  if (process.env.GX_SHOTS) {   // 1024 px va tungi rejim
+    await page.setViewportSize({ width: 1024, height: 768 }); await page.click('[aria-label="Tungi rejim"]');
+    await page.screenshot({ path: `${process.env.GX_SHOTS}/chegara_hudud_1024_dark.png` });
+    await page.click('[data-step=uchastka]'); await page.screenshot({ path: `${process.env.GX_SHOTS}/chegara_uchastka_1024_dark.png` });
+    await page.click('[data-step=hudud]');
+  }
+  // radius tugmasi — chegara olib tashlanadi
+  await page.click('[aria-label=Radius] button:has-text("500 m")');
+  await expect(page.locator('#areaSt')).toHaveCount(0);
+});
+
+test('chegara: Oʻzbekistondan tashqari fayl rad etiladi', async ({ page }) => {
+  await newProject(page);
+  const gj = JSON.stringify({ type: 'Polygon', coordinates: [[[2.35, 48.85], [2.36, 48.85], [2.36, 48.86], [2.35, 48.85]]] });
+  const fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
+  await (await fc).setFiles({ name: 'paris.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(gj) });
+  await expect(page.locator('.toast').last()).toContainText('tashqarida');
+  await expect(page.locator('#areaSt')).toHaveCount(0);
+});

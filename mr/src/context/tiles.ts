@@ -95,8 +95,11 @@ export function terrainSampler(g: TerrainGrid | null): (x: number, y: number) =>
 /** Sunʼiy yoʻldosh tasviri: tikilgan tasvir + uning Mercator joylashuvi (UV hisoblash uchun) */
 export interface Imagery { image: Blob; z: number; x0: number; y0: number; W: number; H: number }
 
+/** Tasvir zumi: kichik hududda tiniq, katta hududda (chegara boʻyicha, km lab) — kanvas ~6000 px dan oshmasin */
+export const imageryZoom = (r: number) => (r <= 450 ? 18 : r <= 900 ? 17 : r <= 2000 ? 16 : r <= 4000 ? 15 : 14);
+
 export async function loadImagery(radius: number, bb: BBox, f: typeof fetch = fetch, onTile?: () => void): Promise<Imagery | null> {
-  const z = radius <= 450 ? 18 : radius <= 900 ? 17 : 16;
+  const z = imageryZoom(radius);
   const m = await mosaic(bb, z, IMAGERY_URL, f, onTile);
   if (!m.ok) return null;
   const image = 'convertToBlob' in m.cv ? await (m.cv as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.86 })
