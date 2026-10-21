@@ -23,16 +23,17 @@ Tekshirish (bir necha daqiqadan keyin): `nslookup api.archemistry.uz` — VPS IP
 
 ## 3. Serverni sozlash (bitta buyruq)
 
-Kompyuteringizdan serverga kiring (Airnet bergan root paroli bilan):
+Kompyuteringizdan serverga kiring (Airnet bergan login — odatda `ubuntu` — va parol bilan), keyin darhol `passwd` bilan parolni almashtiring:
 
 ```bash
-ssh root@VPS_IP
+ssh ubuntu@VPS_IP
+passwd
 ```
 
 Keyin:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/main/server/deploy/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/main/server/deploy/setup.sh | sudo bash
 ```
 
 Skript: tizimni yangilaydi, xavfsizlik devorini (faqat SSH, HTTP, HTTPS) va fail2ban ni yoqadi, Node 22, PostgreSQL,

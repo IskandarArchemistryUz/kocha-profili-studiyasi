@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Archemistry Lab API — yangi Ubuntu 24.04 VPS ni bir martalik sozlash.
-# Ishlatish (serverda, root sifatida):  curl -fsSL https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/main/server/deploy/setup.sh | bash
+# Ishlatish (serverda):  curl -fsSL https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/main/server/deploy/setup.sh | sudo bash
 # Qayta ishga tushirish xavfsiz: bor narsalar oʻzgartirilmaydi.
 set -euo pipefail
 REPO=https://github.com/IskandarArchemistryUz/kocha-profili-studiyasi.git
@@ -9,6 +9,8 @@ DOMAIN=api.archemistry.uz
 
 echo "== 1/8 Tizim yangilanishi va kerakli dasturlar"
 export DEBIAN_FRONTEND=noninteractive
+# oʻrnatishdan qolgan CD-disk manbasi (file:/cdrom) apt ni toʻxtatadi — oʻchiriladi
+sed -i '/cdrom/s/^/# /' /etc/apt/sources.list 2>/dev/null || true
 apt-get update -y
 apt-get install -y ca-certificates curl git nginx postgresql ufw fail2ban unattended-upgrades certbot python3-certbot-nginx
 if ! command -v node >/dev/null || [ "$(node -v | cut -d. -f1 | tr -d v)" -lt 22 ]; then
@@ -30,6 +32,12 @@ mkdir -p "$APP"
 chown -R archemistry:archemistry "$APP"
 
 echo "== 4/8 PostgreSQL bazasi"
+# baʼzi tayyor obrazlarda klaster yaratilmaydi yoki ishga tushmaydi
+PGV=$(ls /usr/lib/postgresql | sort -V | tail -1)
+pg_lsclusters -h | grep -q . || pg_createcluster "$PGV" main
+pg_ctlcluster "$PGV" main start 2>/dev/null || true
+systemctl enable --now postgresql
+for i in $(seq 1 20); do sudo -u postgres psql -tAc 'SELECT 1' >/dev/null 2>&1 && break; sleep 1; done
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='archemistry'" | grep -q 1; then
   DBPASS=$(openssl rand -hex 24)
   sudo -u postgres psql -c "CREATE ROLE archemistry LOGIN PASSWORD '$DBPASS'"
