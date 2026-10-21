@@ -1,7 +1,9 @@
 /* Toʻlovlar: tanga toʻplami buyurtmasi → Payme (Merchant API, JSON-RPC) yoki Click (Shop API: prepare / complete).
    Tamoyil: summa va tanga soni faqat serverdagi buyurtmadan olinadi; toʻlov xabari ikki marta kelsa ham tanga bir marta
    qoʻshiladi (ledger: reason 'payment', ref 'order:<id>'). Protokol — Payme va Click rasmiy namunalari asosida
-   (PaycomUZ/paycom-integration-php-template, click-llc/click-integration-php). */
+   (PaycomUZ/paycom-integration-php-template, click-llc/click-integration-php).
+   Multicard — docs.multicard.uz: POST /auth → token; POST /payment/invoice → checkout_url;
+   «Callback (success)»: sign = md5(store_id + invoice_id + amount + secret), javob {success:true}; aks holda Multicard pulni qaytaradi. */
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { PACKS } from './prices.js';
 
@@ -32,9 +34,11 @@ const PE = {
  * @param {object} o.wallet  wallet.js (credit)
  * @param {{merchantId:string,key:string,test?:boolean}|null} o.payme
  * @param {{serviceId:string,merchantId:string,secret:string}|null} o.click
+ * @param {{appId:string,secret:string,storeId:string,base:string,callbackUrl:string,mxik:string,packageCode:string,unit?:'tiyin'|'sum',ips?:string[]}|null} o.multicard
  * @param {string} o.returnUrl  toʻlovdan keyin qaytish sahifasi (?tolov=<id> qoʻshiladi)
+ * @param {typeof fetch} o.fetchImpl  tashqi soʻrovlar (testda soxta)
  */
-export function makePayments({ db, wallet, payme = null, click = null, returnUrl = 'https://archemistry.uz/app/', now = () => new Date() }) {
+export function makePayments({ db, wallet, payme = null, click = null, multicard = null, returnUrl = 'https://archemistry.uz/app/', now = () => new Date(), fetchImpl = globalThis.fetch }) {
   const packById = (id) => PACKS.find((p) => p.id === id);
 
   async function createOrder(userId, packId, provider) {
@@ -42,12 +46,71 @@ export function makePayments({ db, wallet, payme = null, click = null, returnUrl
     if (!p) throw Object.assign(new Error('nomaʼlum toʻplam'), { code: 'bad_pack' });
     if (provider === 'payme' && !payme) throw Object.assign(new Error('Payme hali ulanmagan'), { code: 'provider_off' });
     if (provider === 'click' && !click) throw Object.assign(new Error('Click hali ulanmagan'), { code: 'provider_off' });
-    if (provider !== 'payme' && provider !== 'click') throw Object.assign(new Error('toʻlov usuli notoʻgʻri'), { code: 'bad_provider' });
+    if (provider === 'multicard' && !multicard) throw Object.assign(new Error('Karta orqali toʻlov hali ulanmagan'), { code: 'provider_off' });
+    if (!['payme', 'click', 'multicard'].includes(provider)) throw Object.assign(new Error('toʻlov usuli notoʻgʻri'), { code: 'bad_provider' });
     const { rows } = await db.query(
       `INSERT INTO orders (user_id, pack, coins, amount, provider) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [userId, p.id, p.coins, p.uzs, provider]);
     const id = Number(rows[0].id), back = `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}tolov=${id}`;
-    return { orderId: id, amount: p.uzs, coins: p.coins, url: provider === 'payme' ? paymeUrl(id, p.uzs, back) : clickUrl(id, p.uzs, back) };
+    const url = provider === 'payme' ? paymeUrl(id, p.uzs, back) : provider === 'click' ? clickUrl(id, p.uzs, back) : await multicardInvoice(id, p, back);
+    return { orderId: id, amount: p.uzs, coins: p.coins, url };
+  }
+
+  /* ================= Multicard ================= */
+  const mcAmount = (uzs) => (multicard?.unit === 'sum' ? uzs : uzs * 100);
+  let mcToken = null, mcTokenUntil = 0;
+  async function mcCall(path, body, retry = true) {
+    if (!mcToken || Date.now() > mcTokenUntil) {
+      const r = await fetchImpl(`${multicard.base}/auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: multicard.appId, secret: multicard.secret }) });
+      const j = await r.json().catch(() => ({}));
+      const t = j?.data?.token ?? j?.token;
+      if (!r.ok || !t) throw Object.assign(new Error('Multicard: avtorizatsiya oʻtmadi'), { code: 'provider_error' });
+      const exp = Date.parse(String(j?.data?.expiry ?? j?.expiry ?? '').replace(' ', 'T') + '+05:00');
+      mcToken = t; mcTokenUntil = Number.isFinite(exp) ? exp - 60_000 : Date.now() + 3_600_000;
+    }
+    const r = await fetchImpl(`${multicard.base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${mcToken}` }, body: JSON.stringify(body) });
+    if (r.status === 401 && retry) { mcToken = null; return mcCall(path, body, false); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.success === false) throw Object.assign(new Error('Multicard: ' + (j?.error?.details ?? j?.message ?? `HTTP ${r.status}`)), { code: 'provider_error' });
+    return j.data ?? j;
+  }
+  async function multicardInvoice(orderId, p, back) {
+    const a = mcAmount(p.uzs);
+    try {
+      const d = await mcCall('/payment/invoice', {
+        store_id: Number(multicard.storeId) || multicard.storeId, amount: a, invoice_id: String(orderId), lang: 'ru',
+        return_url: back, callback_url: multicard.callbackUrl,
+        ofd: [{ qty: 1, price: a, total: a, mxik: multicard.mxik, package_code: multicard.packageCode, name: `Archemistry Lab: ${p.coins} tanga` }],
+      });
+      if (!d?.checkout_url) throw Object.assign(new Error('Multicard: toʻlov havolasi kelmadi'), { code: 'provider_error' });
+      await db.query(`UPDATE orders SET ext_id = $1 WHERE id = $2`, [d.uuid ?? null, orderId]);
+      return d.checkout_url;
+    } catch (e) {
+      await db.query(`UPDATE orders SET state = 'cancelled', cancelled_at = now() WHERE id = $1 AND state = 'new'`, [orderId]);
+      throw e.code ? e : Object.assign(new Error('Multicard bilan aloqa yoʻq'), { code: 'provider_error' });
+    }
+  }
+  /** «Callback (success)»: javob {success:true} — toʻlov qabul qilindi; aks holda Multicard toʻlovni bekor qiladi */
+  async function multicardCallback(b, ip) {
+    const no = (message) => ({ success: false, message });
+    if (!multicard) return { status: 404, body: no('Multicard ulanmagan') };
+    if (multicard.ips?.length && !multicard.ips.includes(String(ip))) return { status: 403, body: no('forbidden') };
+    if (!b || b.invoice_id == null || b.amount == null || !b.sign || !b.uuid) return { status: 400, body: no('Soʻrov notoʻgʻri') };
+    if (!eq(md5(`${b.store_id}${b.invoice_id}${b.amount}${multicard.secret}`), String(b.sign).toLowerCase())) return { status: 400, body: no('Imzo notoʻgʻri') };
+    if (String(b.store_id) !== String(multicard.storeId)) return { status: 400, body: no('Doʻkon notoʻgʻri') };
+    const orderId = Number(b.invoice_id);
+    return db.tx(async (q) => {
+      const o = Number.isInteger(orderId) ? (await q.query(`SELECT id, amount, state, provider FROM orders WHERE id = $1 FOR UPDATE`, [orderId])).rows[0] : null;
+      if (!o || o.provider !== 'multicard') return { status: 200, body: no('Buyurtma topilmadi') };
+      const seen = (await q.query(`SELECT order_id FROM multicard_tx WHERE uuid = $1`, [String(b.uuid)])).rows[0];
+      if (seen) return { status: 200, body: Number(seen.order_id) === orderId ? { success: true, message: 'OK' } : no('Tranzaksiya boshqa buyurtmaga tegishli') };
+      if (o.state !== 'new') return { status: 200, body: no(o.state === 'paid' ? 'Buyurtma allaqachon toʻlangan' : 'Buyurtma bekor qilingan') };
+      if (Number(b.amount) !== mcAmount(o.amount)) return { status: 200, body: no('Summa notoʻgʻri') };
+      await q.query(`INSERT INTO multicard_tx (uuid, order_id, amount, ps, card_pan, receipt_url) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [String(b.uuid), orderId, Number(b.amount), b.ps ?? null, b.card_pan ?? null, b.receipt_url ?? null]);
+      await markPaid(q, orderId);
+      return { status: 200, body: { success: true, message: 'OK' } };
+    });
   }
 
   /** Payme toʻlov sahifasi: base64("m=…;ac.order_id=…;a=<tiyin>;c=<qaytish>") */
@@ -234,8 +297,8 @@ export function makePayments({ db, wallet, payme = null, click = null, returnUrl
   }
 
   return {
-    config: () => ({ payme: !!payme, click: !!click, packs: PACKS }),
-    createOrder, orderOf, paymeRpc,
+    config: () => ({ payme: !!payme, click: !!click, multicard: !!multicard, packs: PACKS }),
+    createOrder, orderOf, paymeRpc, multicardCallback,
     clickPrepare: (r) => clickHandle(r, 0),
     clickComplete: (r) => clickHandle(r, 1),
     _clickSign: (r, a) => clickSign(r, a),

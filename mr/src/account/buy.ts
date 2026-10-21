@@ -8,7 +8,8 @@ import { payConfig, createOrder, orderStatus, check, ApiError, type Pack } from 
 import { ensureLogin } from './gate';
 
 let open: HTMLElement | null = null;
-const PROVIDERS = [{ id: 'payme', name: 'Payme' }, { id: 'click', name: 'Click' }] as const;
+/** multicard — bitta sahifada Visa, Mastercard, Uzcard, Humo (xorijiy mijozlar uchun) */
+const PROVIDERS = [{ id: 'payme', name: 'Payme', sub: '' }, { id: 'click', name: 'Click', sub: '' }, { id: 'multicard', name: 'Visa / Mastercard', sub: 'Uzcard, Humo' }] as const;
 type Prov = typeof PROVIDERS[number]['id'];
 
 export async function buyDialog(): Promise<void> {
@@ -22,12 +23,12 @@ export async function buyDialog(): Promise<void> {
   const packs = h('div', { class: 'tb-packs', role: 'group', 'aria-label': tr('Toʻplam') });
   const provs = h('div', { class: 'tb-provs', role: 'group', 'aria-label': tr('Toʻlov usuli') });
   const go = h('button', { class: 'btn btn-primary btn-block', id: 'tbGo', type: 'button' }, tr('Toʻlovga oʻtish')) as HTMLButtonElement;
-  const note = h('p', { class: 't-small kd-hint' }, tr('Toʻlov Payme yoki Click sahifasida amalga oshiriladi. Karta maʼlumotlari bizga kelmaydi.'));
+  const note = h('p', { class: 't-small kd-hint' }, tr('Toʻlov Payme, Click yoki Multicard sahifasida amalga oshiriladi. Karta maʼlumotlari bizga kelmaydi.'));
   let list: Pack[] = [], enabled: Prov[] = [];
   const sync = () => {
     packs.replaceChildren(...list.map(p => h('button', { class: 'tb-pack', type: 'button', 'data-pack': p.id, 'aria-pressed': String(p.id === pack), onclick: () => { pack = p.id; sync(); } },
       h('b', { class: 'mono' }, fmt(p.coins)), h('span', { class: 'sub' }, tr('tanga')), h('span', { class: 'tb-price mono' }, tf('${s} soʻm', { s: fmt(p.uzs) })))));
-    provs.replaceChildren(...PROVIDERS.filter(p => enabled.includes(p.id)).map(p => h('button', { class: 'tb-prov', type: 'button', 'data-prov': p.id, 'aria-pressed': String(p.id === prov), onclick: () => { prov = p.id; sync(); } }, p.name)));
+    provs.replaceChildren(...PROVIDERS.filter(p => enabled.includes(p.id)).map(p => h('button', { class: 'tb-prov', type: 'button', 'data-prov': p.id, 'aria-pressed': String(p.id === prov), onclick: () => { prov = p.id; sync(); } }, h('b', {}, p.name), p.sub ? h('span', { class: 'sub' }, p.sub) : '')));
     go.disabled = busy || !prov || !list.length; go.textContent = tr(busy ? '…' : 'Toʻlovga oʻtish');
   };
   go.onclick = async () => {
@@ -44,7 +45,7 @@ export async function buyDialog(): Promise<void> {
   document.body.append(wrap); open = wrap; addEventListener('keydown', onKey, true); sync();
   try {
     const c = await payConfig();
-    list = c.packs; enabled = PROVIDERS.map(p => p.id).filter(id => c[id]);
+    list = c.packs; enabled = PROVIDERS.map(p => p.id).filter(id => !!c[id]);
     prov = enabled[0] ?? null;
     if (!enabled.length) { msg.hidden = false; msg.textContent = tr('Onlayn toʻlov tez orada ulanadi.'); }
   } catch (x) { err(x); }

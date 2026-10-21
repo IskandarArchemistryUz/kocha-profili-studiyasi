@@ -18,7 +18,7 @@ async function token(claims, { aud = CID, iss = 'https://accounts.google.com', k
 beforeEach(async () => {
   if (process.env.TEST_DATABASE_URL) {
     db = fromPool(new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 }));
-    await db.query('DROP TABLE IF EXISTS kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
+    await db.query('DROP TABLE IF EXISTS multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
   } else db = fromPglite(new PGlite());
   await migrate(db);
   key = await generateKeyPair('RS256');

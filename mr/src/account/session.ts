@@ -35,8 +35,8 @@ export async function logout(): Promise<void> { try { await call('/auth/logout',
 
 /* ---------- toʻlov: tanga toʻplamlari (Payme / Click) ---------- */
 export interface Pack { id: string; coins: number; uzs: number; usd: number }
-export interface PayCfg { payme: boolean; click: boolean; packs: Pack[] }
+export interface PayCfg { payme: boolean; click: boolean; multicard?: boolean; packs: Pack[] }
 export interface Order { id: number; pack: string; coins: number; amount: number; provider: string; state: 'new' | 'paid' | 'cancelled' | 'refunded'; balance: number }
 export const payConfig = (): Promise<PayCfg> => call<PayCfg>('/pay/config');
-export const createOrder = (pack: string, provider: 'payme' | 'click'): Promise<{ orderId: number; amount: number; coins: number; url: string }> => call('/pay/order', { pack, provider });
+export const createOrder = (pack: string, provider: 'payme' | 'click' | 'multicard'): Promise<{ orderId: number; amount: number; coins: number; url: string }> => call('/pay/order', { pack, provider });
 export const orderStatus = (id: number): Promise<Order> => call<Order>(`/pay/order/${id}`);

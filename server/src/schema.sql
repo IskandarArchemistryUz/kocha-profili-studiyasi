@@ -112,4 +112,17 @@ CREATE TABLE IF NOT EXISTS click_tx (
 CREATE TABLE IF NOT EXISTS kv (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
-)
+);
+
+-- Multicard (agregator: Uzcard, Humo, Visa, Mastercard, Payme, Click, Uzum): invoys → callback
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ext_id TEXT;
+CREATE TABLE IF NOT EXISTS multicard_tx (
+  id          BIGSERIAL PRIMARY KEY,
+  uuid        TEXT NOT NULL UNIQUE,
+  order_id    BIGINT NOT NULL REFERENCES orders(id),
+  amount      BIGINT NOT NULL,
+  ps          TEXT,
+  card_pan    TEXT,
+  receipt_url TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

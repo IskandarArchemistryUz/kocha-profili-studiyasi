@@ -109,8 +109,12 @@ nano /srv/archemistry/server/.env
 systemctl restart archemistry-api
 ```
 
+**Multicard** (Visa, Mastercard, Uzcard, Humo — bitta sahifa, xorijiy mijozlar uchun): kabinetda callback manzili
+`https://api.archemistry.uz/pay/multicard/callback` (sxema «success»). `.env` ga `MULTICARD_APP_ID`, `MULTICARD_SECRET`,
+`MULTICARD_STORE_ID`. Avval sinov muhitida (`MULTICARD_BASE=https://dev-mesh.multicard.uz`) bitta toʻlov qilib, summa
+birligini tekshiring (`MULTICARD_AMOUNT_UNIT`, sukut — tiyin). Fiskal chek: MXIK `10305008002000000`, qadoq kodi `1514296`.
+
 Qiymat yozilmagan usul ilovada koʻrinmaydi; ikkalasi ham boʻlmasa — «Onlayn toʻlov tez orada ulanadi».
-Visa/Mastercard — Payme/Click shartnomasida xorijiy kartalar yoqilgan boʻlsa, shu sahifalar orqali oʻtadi.
 
 ## 8. Ilovada kirishni yoqish
 
