@@ -85,6 +85,7 @@ import { authRequired } from '../account/config';
 import { needsLogin, ensureLogin } from '../account/gate';
 import { check as checkAuth, current as currentUser, onAuth, logout } from '../account/session';
 import { loginDialog } from '../account/login';
+import { buyDialog } from '../account/buy';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
@@ -273,6 +274,7 @@ export class Editor {
       const b = this.popBtn('acctPop', who, () => h('div', { class: 'col acct-pop' },
         h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, who), m.email && m.email !== who ? h('span', { class: 'sub' }, m.email) : '')),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Tangalar')), h('span', { class: 'v mono', id: 'acctBal' }, fmt(m.balance))),
+        h('button', { class: 'btn btn-sm btn-primary', id: 'acctBuy', onclick: () => { this.closePop(); void buyDialog(); } }, tr('Tanga sotib olish')),
         h('button', { class: 'btn btn-sm', id: 'acctOut', onclick: () => { this.closePop(); void logout().then(() => { toast(tr('Hisobdan chiqdingiz')); if (needsLogin(this.step.id)) this.go(STEPS.find(x => x.id === 'uchastka')!); }); } }, tr('Chiqish'))));
       b.classList.add('acct-me'); b.querySelector('span')!.textContent = (who[0] ?? '?').toUpperCase(); b.title = who;
       box.replaceChildren(b);
