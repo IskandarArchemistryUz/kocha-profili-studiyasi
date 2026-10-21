@@ -50,7 +50,7 @@ export function loginDialog(reason?: string): Promise<boolean> {
         h('h2', { id: 'kdT' }, tr('Kirish')),
         h('p', { class: 'kd-lead' }, tr(reason ?? 'Davom etish uchun kiring. Hisob bepul.')),
         gbox, or, form, hint, msg,
-        h('p', { class: 't-small kd-legal' }, tr('Kirib, siz foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz.'))));
+        h('p', { class: 't-small kd-legal' }, tr('Kirib, siz foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz.'), ' ', h('a', { href: '../oferta.html', target: '_blank', rel: 'noopener' }, tr('Oferta')), ' · ', h('a', { href: '../maxfiylik.html', target: '_blank', rel: 'noopener' }, tr('Maxfiylik')))));
     document.body.append(wrap); open = wrap; addEventListener('keydown', onKey, true); sync();
     // Google tugmasi — server sozlamasida mijoz identifikatori boʻlsa
     void config().then(async (c: AuthCfg) => {

@@ -1,6 +1,7 @@
 /* Archemistry Lab — bosh sahifa v4 va narxlar matnlari: oʻzbekcha asl matn → [inglizcha, ruscha].
    js/site.js sahifadagi har bir matn tugunini shu lugʻat (va oʻzining D lugʻati) boʻyicha almashtiradi. */
 window.HOME_D={
+"Oferta":["Terms","Оферта"],"Maxfiylik":["Privacy","Конфиденциальность"],
 "Narxlar":["Pricing","Цены"],"Ochish":["Open","Открыть"],"Loyihalarim":["My projects","Мои проекты"],
 "Archemistry Lab · Master reja":["Archemistry Lab · Master plan","Archemistry Lab · Мастер-план"],
 "Master reja —":["Master plan —","Мастер-план —"],"har raqami":["every figure","каждая цифра"],"bandi bilan.":["with its clause.","с пунктом нормы."],

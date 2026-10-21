@@ -138,3 +138,29 @@ test('sukut tili — inglizcha; xizmat nomlari tarjima qilinadi; nuqtali fon', a
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   expect(await page.locator('nav.dots a.d .nm').first().textContent()).toBe('Конструктор улиц');
 });
+
+test('oferta va maxfiylik: uch til, rekvizitlar, oʻzaro havolalar, futer', async ({ page }) => {
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.addInitScript(() => { if (!localStorage.getItem('mr-lang')) localStorage.setItem('mr-lang', 'uz'); });
+  await page.goto(`http://127.0.0.1:${PORT}/oferta.html`);
+  await expect(page.locator('.legal:visible h1')).toContainText('ommaviy oferta');
+  await expect(page.locator('.legal:visible')).toContainText('STIR 563413523');
+  await expect(page.locator('.legal:visible')).toContainText('MFO 01028');
+  await expect(page.locator('.legal:visible')).not.toContainText('[ ]');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/oferta_uz.png`, fullPage: false });
+  await page.click('footer [data-lang=en]');
+  await expect(page.locator('.legal:visible h1')).toContainText('public offer');
+  await expect(page.locator('footer a[href="maxfiylik.html"]')).toHaveText('Privacy');
+  await page.click('footer [data-lang=ru]');
+  await expect(page.locator('.legal:visible h1')).toContainText('публичная оферта');
+  await page.click('.legal:visible a[href="maxfiylik.html"] >> nth=0');
+  await expect(page.locator('.legal:visible h1')).toContainText('персональных данных');
+  await page.setViewportSize({ width: 1024, height: 768 }); await page.click('#themeBtn');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/maxfiylik_ru_1024_dark.png` });
+  for (const f of ['index.html', 'narxlar.html', 'haqida.html', 'narxlar-batafsil.html']) {
+    await page.goto(`http://127.0.0.1:${PORT}/${f}`);
+    await expect(page.locator('footer a[href="oferta.html"]')).toHaveCount(1);
+  }
+  expect(errs).toEqual([]);
+});
