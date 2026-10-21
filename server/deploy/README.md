@@ -89,7 +89,30 @@ variables → Actions** ga qoʻying:
 Keyin serverdagi nusxani oʻchiring: `rm /home/archemistry/.ssh/deploy`. Endi `server/` ga tegadigan har oʻzgarish
 `main` ga tushib, testlardan oʻtsa — server oʻzi yangilanadi (Actions → «Server — deploy»).
 
-## 7. Ilovada kirishni yoqish
+## 7. Toʻlov: Payme va Click
+
+Shartnoma tuzilgach (Payme Business / Click Merchant) kabinetda quyidagi manzillarni koʻrsating:
+
+| Xizmat | Kabinetdagi maydon | Manzil |
+|---|---|---|
+| Payme | Endpoint URL (Merchant API) | `https://api.archemistry.uz/pay/payme` |
+| Payme | Hisob maydoni (account) | `order_id` |
+| Click | Prepare URL | `https://api.archemistry.uz/pay/click/prepare` |
+| Click | Complete URL | `https://api.archemistry.uz/pay/click/complete` |
+
+Kabinet bergan qiymatlarni serverdagi `.env` ga yozing (chatga emas):
+
+```bash
+nano /srv/archemistry/server/.env
+#   PAYME_MERCHANT_ID=…   PAYME_KEY=…   PAYME_TEST=1   (sinov kassasi; ishga tushganda 0)
+#   CLICK_SERVICE_ID=…    CLICK_MERCHANT_ID=…   CLICK_SECRET=…
+systemctl restart archemistry-api
+```
+
+Qiymat yozilmagan usul ilovada koʻrinmaydi; ikkalasi ham boʻlmasa — «Onlayn toʻlov tez orada ulanadi».
+Visa/Mastercard — Payme/Click shartnomasida xorijiy kartalar yoqilgan boʻlsa, shu sahifalar orqali oʻtadi.
+
+## 8. Ilovada kirishni yoqish
 
 Server ishlayotgani tekshirilgach (`/health`, kod pochtaga keladi, Google tugmasi ishlaydi), ilovadagi bayroq
 yoqiladi (`mr/src/account/config.ts` → `AUTH_REQUIRED = true`) — shundan keyin Master rejaning 3-qadamidan

@@ -14,7 +14,7 @@ beforeEach(async () => {
   // CI da haqiqiy PostgreSQL (TEST_DATABASE_URL) — qulflar (FOR UPDATE) haqiqatan tekshiriladi; aks holda PGlite
   if (process.env.TEST_DATABASE_URL) {
     db = fromPool(new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 }));
-    await db.query('DROP TABLE IF EXISTS trials, exports, ledger, sessions, otp, users CASCADE');
+    await db.query('DROP TABLE IF EXISTS kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
   } else db = fromPglite(new PGlite());
   await migrate(db);
   sent = [];

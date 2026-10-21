@@ -10,8 +10,11 @@ import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
 import { tr, autoTranslate } from './i18n';
 import { initStats } from './core/stats';
+import { handlePayReturn } from './account/buy';
 initStats('mr', /chizmadon/.test(location.hash) ? 'chizmadon' : '');
 autoTranslate();
+// Payme / Click sahifasidan qaytish (?tolov=<id>) — toʻlov holati va balans
+if (new URLSearchParams(location.search).has('tolov')) void handlePayReturn();
 
 const root = document.getElementById('root')!;
 let editor: Editor | null = null;

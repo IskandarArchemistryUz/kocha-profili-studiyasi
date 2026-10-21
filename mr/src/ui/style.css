@@ -766,3 +766,14 @@ details.manual{border-top:0;padding-top:0;display:block}
 .acct[hidden]{display:none}
 .acct .acct-me{min-width:30px;width:30px;height:30px;padding:0;border-radius:50%;justify-content:center;font-weight:600}.acct .acct-me svg{display:none}
 .acct-pop{min-width:240px;gap:8px}
+/* tanga sotib olish */
+.tb-packs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tb-pack{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:2px 6px;text-align:left;padding:10px 12px;border:1px solid var(--hairline);border-radius:var(--r);background:var(--surface);color:var(--ink);cursor:pointer;font:inherit}
+.tb-pack b{font-size:20px;font-weight:600}.tb-pack .sub{color:var(--muted);font-size:12px}
+.tb-price{grid-column:1/-1;font-size:13px;color:var(--muted)}
+.tb-pack[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.tb-pack[aria-pressed=true] .tb-price{color:var(--ink)}
+.tb-provs{display:flex;gap:8px}.tb-provs:empty{display:none}
+.tb-prov{flex:1;padding:9px 12px;border:1px solid var(--hairline);border-radius:var(--r);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+.tb-prov[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.tb-pack:focus-visible,.tb-prov:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
