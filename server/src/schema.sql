@@ -67,3 +67,49 @@ CREATE TABLE IF NOT EXISTS trials (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_idx ON users (google_sub);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
+
+-- Toʻlovlar (2026-10-21): buyurtma — tanga toʻplami; Payme va Click tranzaksiyalari alohida
+CREATE TABLE IF NOT EXISTS orders (
+  id           BIGSERIAL PRIMARY KEY,
+  user_id      BIGINT NOT NULL REFERENCES users(id),
+  pack         TEXT NOT NULL,
+  coins        INT NOT NULL CHECK (coins > 0),
+  amount       INT NOT NULL CHECK (amount > 0),
+  provider     TEXT,
+  state        TEXT NOT NULL DEFAULT 'new',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at      TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS orders_user_idx ON orders (user_id, created_at DESC);
+
+-- Payme Merchant API: vaqtlar — millisekund (Payme talabi), summa — tiyin
+CREATE TABLE IF NOT EXISTS payme_tx (
+  id           BIGSERIAL PRIMARY KEY,
+  payme_id     TEXT NOT NULL UNIQUE,
+  order_id     BIGINT NOT NULL REFERENCES orders(id),
+  payme_time   BIGINT NOT NULL,
+  amount       BIGINT NOT NULL,
+  state        INT NOT NULL,
+  create_time  BIGINT NOT NULL,
+  perform_time BIGINT NOT NULL DEFAULT 0,
+  cancel_time  BIGINT NOT NULL DEFAULT 0,
+  reason       INT
+);
+CREATE INDEX IF NOT EXISTS payme_tx_order_idx ON payme_tx (order_id);
+
+-- Click Shop API: prepare → complete
+CREATE TABLE IF NOT EXISTS click_tx (
+  id             BIGSERIAL PRIMARY KEY,
+  click_trans_id TEXT NOT NULL UNIQUE,
+  order_id       BIGINT NOT NULL REFERENCES orders(id),
+  amount         NUMERIC NOT NULL,
+  state          TEXT NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- oddiy sozlamalar (masalan, Payme ChangePassword bilan almashtirilgan kalit)
+CREATE TABLE IF NOT EXISTS kv (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+)

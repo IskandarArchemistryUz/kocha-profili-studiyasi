@@ -3,6 +3,8 @@
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
+import formbody from '@fastify/formbody';
+import { makePayments } from './payments.js';
 import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { ITEMS, TRIALS, TRIALS_PER_WEEK, PACKS, priceOf, PriceError } from './prices.js';
@@ -21,12 +23,13 @@ export const COOKIE = 'ks_sess';
  * @param {string} [o.cookieDomain] masalan '.archemistry.uz'
  * @param {boolean} [o.secure]    cookie Secure (ishda — true)
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, origins, cookieDomain, secure = true, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, returnUrl, origins, cookieDomain, secure = true, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
 
   await app.register(cookie);
+  await app.register(formbody);   // Click soʻrovlari — application/x-www-form-urlencoded
   await app.register(cors, { origin: origins, credentials: true, methods: ['GET', 'POST'] });
 
   const setSession = (reply, token) => reply.setCookie(COOKIE, token, {
@@ -125,6 +128,26 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     const u = await requireUser(req, reply); if (!u) return;
     return wallet.useTrial(u.id, req.body?.kind, req.body?.ref);
   });
+
+  /* ---------- toʻlovlar ---------- */
+  const pay = makePayments({ db, wallet, payme, click, returnUrl, now });
+  app.get('/pay/config', async () => pay.config());
+  app.post('/pay/order', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    try { return await pay.createOrder(u.id, req.body?.pack, req.body?.provider); }
+    catch (e) { if (e.code) return reply.code(400).send({ error: e.code, message: e.message }); throw e; }
+  });
+  app.get('/pay/order/:id', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    const o = await pay.orderOf(u.id, Number(req.params.id));
+    if (!o) return reply.code(404).send({ error: 'not_found', message: 'buyurtma topilmadi' });
+    return { ...o, balance: await wallet.balance(u.id) };
+  });
+  // Payme Merchant API (JSON-RPC): javob har doim 200, xato — error maydonida
+  app.post('/pay/payme', async (req) => pay.paymeRpc(req.headers.authorization, req.body));
+  // Click Shop API
+  app.post('/pay/click/prepare', async (req) => pay.clickPrepare(req.body));
+  app.post('/pay/click/complete', async (req) => pay.clickComplete(req.body));
 
   app.decorate('wallet', wallet);
   app.decorate('auth', auth);
