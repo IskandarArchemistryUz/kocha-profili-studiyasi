@@ -62,3 +62,8 @@ CREATE TABLE IF NOT EXISTS trials (
   used        INT NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, week)
 );
+
+-- Google bilan kirish (2026-10-21): Google hisob identifikatori va koʻrinadigan ism
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_idx ON users (google_sub);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;

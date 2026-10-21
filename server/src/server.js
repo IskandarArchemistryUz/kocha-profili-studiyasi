@@ -3,15 +3,11 @@
 import pg from 'pg';
 import { fromPool, migrate } from './db.js';
 import { buildApp } from './app.js';
+import { makeSender } from './mailer.js';
+import { makeGoogleVerifier } from './google.js';
 
 const env = process.env;
 const need = (k) => { if (!env[k]) { console.error(`${k} berilmagan`); process.exit(1); } return env[k]; };
-
-/** Kod yuboruvchi. Hozircha faqat «log» (sinov uchun); pochta/SMS provayderi keyingi bosqichda ulanadi. */
-function makeSender(kind) {
-  if (kind === 'log') return async (t, code) => console.log(`[OTP] ${t.kind} ${t.value}: ${code}`);
-  throw new Error(`OTP_SENDER=${kind} hali qoʻllab-quvvatlanmaydi`);
-}
 
 const pool = new pg.Pool({ connectionString: need('DATABASE_URL'), max: 10 });
 const db = fromPool(pool);
@@ -22,6 +18,8 @@ const app = await buildApp({
   pepper: need('OTP_PEPPER'),
   secret: need('TICKET_SECRET'),
   send: makeSender(env.OTP_SENDER || 'log'),
+  googleClientId: env.GOOGLE_CLIENT_ID || null,
+  google: env.GOOGLE_CLIENT_ID ? makeGoogleVerifier(env.GOOGLE_CLIENT_ID) : null,
   origins: (env.ORIGINS || 'https://archemistry.uz,https://www.archemistry.uz').split(','),
   cookieDomain: env.COOKIE_DOMAIN || undefined,
   secure: env.COOKIE_SECURE !== '0',

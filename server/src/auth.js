@@ -33,7 +33,7 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
   if (!pepper || pepper.length < 16) throw new Error('OTP_PEPPER kamida 16 belgi boʻlishi kerak');
   const codeHash = (target, code) => sha(`${pepper}:${target}:${code}`);
 
-  async function requestCode(raw) {
+  async function requestCode(raw, lang = 'uz') {
     const t = normalizeTarget(raw);
     const { rows } = await db.query(
       `SELECT created_at FROM otp WHERE target = $1 AND created_at > $2 ORDER BY created_at DESC`,
@@ -44,7 +44,7 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
     await db.query(`UPDATE otp SET used = TRUE WHERE target = $1 AND used = FALSE`, [t.value]);
     await db.query(`INSERT INTO otp (target, code_hash, expires_at, created_at) VALUES ($1, $2, $3, $4)`,
       [t.value, codeHash(t.value, code), new Date(now().getTime() + OTP_TTL_MIN * 60e3), now()]);
-    await send(t, code);
+    await send(t, code, ['uz', 'en', 'ru'].includes(lang) ? lang : 'uz');
     return { kind: t.kind, target: t.value };
   }
 
@@ -68,17 +68,41 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
       let u = (await q.query(`SELECT id FROM users WHERE ${col} = $1`, [t.value])).rows[0];
       const isNew = !u;
       if (!u) u = (await q.query(`INSERT INTO users (${col}) VALUES ($1) RETURNING id`, [t.value])).rows[0];
-      const token = randomBytes(32).toString('base64url');
-      await q.query(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
-        [sha(token), u.id, new Date(now().getTime() + SESSION_DAYS * 864e5)]);
-      return { userId: Number(u.id), token, isNew };
+      return { userId: Number(u.id), token: await newSession(q, u.id), isNew };
     }).then((r) => { if (r.error) throw r.error; return r; });
+  }
+
+  async function newSession(q, userId) {
+    const token = randomBytes(32).toString('base64url');
+    await q.query(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
+      [sha(token), userId, new Date(now().getTime() + SESSION_DAYS * 864e5)]);
+    return token;
+  }
+
+  /**
+   * Google bilan kirish: tasdiqlangan token maʼlumoti (sub, email, email_verified, name) — tekshiruv google.js da.
+   * Avval google_sub boʻyicha, keyin shu pochta bilan ochilgan hisob boʻyicha topiladi (hisoblar birlashadi).
+   */
+  async function loginGoogle(c) {
+    if (!c || typeof c.sub !== 'string' || !c.sub) throw new AuthError('google', 'Google maʼlumoti notoʻgʻri');
+    if (!c.email || c.email_verified !== true) throw new AuthError('google_email', 'Google hisobining pochtasi tasdiqlanmagan');
+    const email = String(c.email).toLowerCase(), name = typeof c.name === 'string' ? c.name.slice(0, 120) : null;
+    return db.tx(async (q) => {
+      let u = (await q.query(`SELECT id FROM users WHERE google_sub = $1`, [c.sub])).rows[0];
+      let isNew = false;
+      if (!u) {
+        u = (await q.query(`SELECT id FROM users WHERE email = $1 FOR UPDATE`, [email])).rows[0];
+        if (u) await q.query(`UPDATE users SET google_sub = $1, name = COALESCE(name, $2) WHERE id = $3`, [c.sub, name, u.id]);
+        else { u = (await q.query(`INSERT INTO users (email, google_sub, name) VALUES ($1, $2, $3) RETURNING id`, [email, c.sub, name])).rows[0]; isNew = true; }
+      }
+      return { userId: Number(u.id), token: await newSession(q, u.id), isNew };
+    });
   }
 
   async function userByToken(token) {
     if (!token || typeof token !== 'string' || token.length > 100) return null;
     const { rows } = await db.query(
-      `SELECT u.id, u.email, u.phone, u.lang FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT u.id, u.email, u.phone, u.lang, u.name FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = $1 AND s.expires_at > $2`, [sha(token), now()]);
     return rows[0] ? { ...rows[0], id: Number(rows[0].id) } : null;
   }
@@ -87,5 +111,5 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
     if (token) await db.query(`DELETE FROM sessions WHERE token_hash = $1`, [sha(token)]);
   }
 
-  return { requestCode, verifyCode, userByToken, logout };
+  return { requestCode, verifyCode, loginGoogle, userByToken, logout };
 }
