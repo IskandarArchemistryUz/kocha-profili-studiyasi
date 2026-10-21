@@ -88,3 +88,65 @@ export function applyFix(page: ChPage, id: number, paletteId: string): ChPage {
   }
   return p;
 }
+
+/* ---------- bitta oyna: varaq tekshiruvi — 9 band (joylashuv 2 + rang 7) ---------- */
+/** CIE L*a*b* (D65) */
+export function lab(c: string): [number, number, number] {
+  const r = hexRgb(c) ?? [128, 128, 128];
+  const f = (v: number) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const [R, G, B] = r.map(f);
+  const t = (v: number) => (v > 0.008856 ? Math.cbrt(v) : 7.787 * v + 16 / 116);
+  const X = t((R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047), Y = t(R * 0.2126 + G * 0.7152 + B * 0.0722), Z = t((R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883);
+  return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)];
+}
+/** ΔE (CIE76) */
+export const dE = (a: [number, number, number], b: [number, number, number]): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+function hsv(c: string): [number, number, number] {
+  const [r, g, b] = (hexRgb(c) ?? [0, 0, 0]).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let hu = 0;
+  if (d) { hu = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hu *= 60; if (hu < 0) hu += 360; }
+  return [hu, mx ? d / mx : 0, mx];
+}
+/** SVG dagi rangli tonlar (kulrang, qora, oq emas): #rrggbb, kichik harf */
+export function svgTones(svg: string): string[] {
+  return [...new Set((svg.match(/#[0-9a-fA-F]{6}\b/g) ?? []).map(x => x.toLowerCase()))].filter(x => { const [r, g, b] = hexRgb(x)!; return Math.max(r, g, b) - Math.min(r, g, b) > 40; });
+}
+export type CheckSt = 'o' | 'w' | 'f' | 'p';
+export interface Check9 { id: number; group: 'Joylashuv' | 'Rang'; title: string; st: CheckSt; note: string; sw?: string[]; fix?: number }
+export interface SheetCheckIn {
+  /** varaq SVG si (maket + qoʻlda chizilganlar) */
+  svg: string;
+  /** boʻsh kataklar soni va joysiz materiallar nomi */
+  empty: number; left: string[];
+  /** varaqda xarita bor / albomda shartli belgilar bor */
+  hasMap: boolean; hasLegend: boolean;
+  /** varaq rasmidagi toʻyingan piksellar ulushi: null — hisoblanmoqda, < 0 — hisoblab boʻlmadi */
+  share: number | null;
+}
+/**
+ * 9 band: (1) boʻsh katak yoʻq; (2) hamma material joylandi; (3) rangli tonlar ≤ 7; (4) asos tahlildan jimroq — toʻyingan piksellar ≤ 60 %;
+ * (5) toifalar ajraladi — har juft ΔE ≥ 12; (6) legenda — xarita boʻlsa albomda shartli belgilar bor; (7) kulrangda oʻqiladi — ΔL ≥ 4;
+ * (8) qizil faqat xavf uchun; (9) bitta asosiy urgʻu — kuchli ranglar (C* ≥ 55) ≤ 2. fix — eski tuzatish raqami (qoʻlda chizilganlar uchun).
+ */
+export function sheetChecks(x: SheetCheckIn, tr: (s: string) => string = s => s): Check9[] {
+  const tones = svgTones(x.svg), L = tones.map(lab);
+  let close: [string, string, number] | null = null, gray: [string, string, number] | null = null;
+  for (let i = 0; i < tones.length; i++) for (let j = i + 1; j < tones.length; j++) {
+    const e = dE(L[i], L[j]), dl = Math.abs(L[i][0] - L[j][0]);
+    if (e < 12 && (!close || e < close[2])) close = [tones[i], tones[j], e];
+    if (dl < 4 && e >= 12 && (!gray || dl < gray[2])) gray = [tones[i], tones[j], dl];
+  }
+  const reds = tones.filter(h => { const [hu, s, v] = hsv(h); return (hu <= 14 || hu >= 346) && s >= 0.5 && v >= 0.45; });
+  const strong = tones.filter((_, i) => Math.hypot(L[i][1], L[i][2]) >= 55);
+  const P = tr, sh = x.share;
+  return [
+    { id: 1, group: 'Joylashuv', title: P('Boʻsh katak yoʻq'), st: x.empty ? 'f' : 'o', note: x.empty ? `${x.empty} ${P('ta boʻsh katak')}` : '' },
+    { id: 2, group: 'Joylashuv', title: P('Hamma material joylandi'), st: x.left.length ? 'f' : 'o', note: x.left.map(P).join(', ') },
+    { id: 3, group: 'Rang', title: P('Rangli tonlar ≤ 7'), st: tones.length > 7 ? 'f' : 'o', note: `${tones.length} ${P('ta ton')}`, sw: tones.slice(0, 10), fix: tones.length > 7 ? 1 : undefined },
+    { id: 4, group: 'Rang', title: P('Asos tahlildan jimroq'), st: sh == null ? 'p' : sh < 0 ? 'w' : sh > 0.6 ? 'f' : 'o', note: sh == null ? P('hisoblanmoqda…') : sh < 0 ? P('hisoblab boʻlmadi') : `${P('toʻyingan maydon')} ${Math.round(sh * 100)} % (≤ 60 %)`, fix: sh != null && sh > 0.6 ? 2 : undefined },
+    { id: 5, group: 'Rang', title: P('Toifalar bir-biridan ajraladi'), st: close ? 'f' : 'o', note: close ? `${P('juda yaqin')}: ΔE ${close[2].toFixed(0)}` : '', sw: close ? close.slice(0, 2) as string[] : undefined, fix: close ? 3 : undefined },
+    { id: 6, group: 'Rang', title: P('Legenda sahifa ranglariga mos'), st: !x.hasMap || x.hasLegend ? 'o' : 'w', note: x.hasMap && !x.hasLegend ? P('xarita bor, shartli belgilar yoʻq') : P('shartli belgilar varaq ranglaridan tuziladi'), fix: x.hasMap && !x.hasLegend ? 4 : undefined },
+    { id: 7, group: 'Rang', title: P('Kulrang rejimda oʻqiladi'), st: gray ? 'w' : 'o', note: gray ? `${P('kulrangda qoʻshiladi')}: ΔL ${gray[2].toFixed(1)}` : '', sw: gray ? gray.slice(0, 2) as string[] : undefined, fix: gray ? 5 : undefined },
+    { id: 8, group: 'Rang', title: P('Qizil faqat haqiqiy xavf uchun'), st: reds.length ? 'w' : 'o', note: reds.length ? P('qizil bor — xavfni bildiradimi?') : '', sw: reds.length ? reds : undefined, fix: reds.length ? 6 : undefined },
+    { id: 9, group: 'Rang', title: P('Bitta asosiy urgʻu'), st: strong.length > 2 ? 'w' : 'o', note: strong.length > 2 ? `${strong.length} ${P('ta kuchli rang')}` : '', sw: strong.length > 2 ? strong : undefined, fix: strong.length > 2 ? 7 : undefined },
+  ];
+}
