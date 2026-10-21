@@ -15,11 +15,13 @@ export const COOKIE = 'ks_sess';
  * @param {string} o.pepper       OTP xeshi uchun maxfiy qoʻshimcha
  * @param {string} o.secret       ruxsatnoma imzosi uchun kalit
  * @param {(t:{kind:string,value:string}, code:string)=>Promise<void>} o.send  kod yuboruvchi
+ * @param {((credential:string)=>Promise<object>)|null} [o.google]  Google ID token tekshiruvchi (google.js)
+ * @param {string|null} [o.googleClientId]  brauzerga beriladi (ochiq qiymat)
  * @param {string[]} o.origins    ruxsat etilgan sayt manzillari (CORS)
  * @param {string} [o.cookieDomain] masalan '.archemistry.uz'
  * @param {boolean} [o.secure]    cookie Secure (ishda — true)
  */
-export async function buildApp({ db, pepper, secret, send, origins, cookieDomain, secure = true, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, origins, cookieDomain, secure = true, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
@@ -67,13 +69,27 @@ export async function buildApp({ db, pepper, secret, send, origins, cookieDomain
 
   app.post('/auth/code', async (req, reply) => {
     if (limited(req.ip)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
-    const r = await auth.requestCode(req.body?.target);
+    const r = await auth.requestCode(req.body?.target, req.body?.lang);
     return { sent: true, kind: r.kind };
   });
 
   app.post('/auth/verify', async (req, reply) => {
     if (limited('v:' + req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
     const r = await auth.verifyCode(req.body?.target, req.body?.code);
+    setSession(reply, r.token);
+    return { ok: true, isNew: r.isNew };
+  });
+
+  /** Brauzerga: qaysi kirish usullari yoqilgan */
+  app.get('/auth/config', async () => ({ email: true, phone: false, google: googleClientId }));
+
+  app.post('/auth/google', async (req, reply) => {
+    if (!google) return reply.code(404).send({ error: 'google_off', message: 'Google bilan kirish yoqilmagan' });
+    if (limited('g:' + req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
+    let claims;
+    try { claims = await google(req.body?.credential); }
+    catch { return reply.code(401).send({ error: 'google', message: 'Google tokeni tasdiqlanmadi' }); }
+    const r = await auth.loginGoogle(claims);
     setSession(reply, r.token);
     return { ok: true, isNew: r.isNew };
   });
@@ -86,7 +102,7 @@ export async function buildApp({ db, pepper, secret, send, origins, cookieDomain
 
   app.get('/me', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
-    return { id: u.id, email: u.email, phone: u.phone, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id) };
+    return { id: u.id, email: u.email, phone: u.phone, name: u.name ?? null, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id) };
   });
 
   app.get('/me/history', async (req, reply) => {

@@ -81,6 +81,10 @@ import { summary } from '../context/osm';
 import { geocode, type Place } from '../context/geocode';
 import { detectBlock, type Barrier } from '../context/blocks';
 import { track } from '../core/stats';
+import { authRequired } from '../account/config';
+import { needsLogin, ensureLogin } from '../account/gate';
+import { check as checkAuth, current as currentUser, onAuth, logout } from '../account/session';
+import { loginDialog } from '../account/login';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
@@ -143,6 +147,8 @@ export class Editor {
   constructor(host: HTMLElement, doc: Project, private onExit: () => void) {
     this.store = new Store(doc); this.prevDoc = doc;
     this.step = STEPS.find(s => s.id === (doc.site ? 'hajm' : doc.context.loaded ? 'uchastka' : 'hudud'))!;
+    // kirish talab qilinsa: sessiya aniqlanguncha 3-qadamdan keyingisi ochilmaydi (Uchastka koʻrsatiladi)
+    if (needsLogin(this.step.id)) { const want = this.step; this.step = STEPS.find(s => s.id === 'uchastka')!; void checkAuth().then(m => { if (m && this.step.id === 'uchastka') this.go(want); }); }
     this.root = this.build();
     host.replaceChildren(this.root);
     this.scene = new Scene3D(this.el.scene);
@@ -185,7 +191,7 @@ export class Editor {
       this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
       h('button', { class: 'btn', id: 'gxOpen', title: tr('Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG'), onclick: () => this.startFrame() }, tr('Grafika')),
       h('button', { class: 'btn', id: 'chOpen', title: tr('Chizmadon: taqdimot albomi va tahlil diagrammalari'), onclick: () => this.openCh() }, tr('Chizmadon')),
-      seg, lang, theme);
+      seg, lang, theme, this.acctBtn());
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
     const kpi = h('div', { class: 'kpibar glassbar', role: 'group', 'aria-label': tr('Koʻrsatkichlar') });
@@ -256,6 +262,26 @@ export class Editor {
 
   /* ---------- yuqori paneldagi ochiluvchi oynalar: uslub va kamera ---------- */
   private pop: HTMLElement | null = null;
+  /** Hisob: kirilmagan — «Kirish», kirgan — pochta bosh harfi va menyu (pochta, balans, chiqish). Kirish talab qilinmasa — yashirin. */
+  private acctBtn(): HTMLElement {
+    const box = h('span', { class: 'acct', id: 'acctBox' });
+    const draw = () => {
+      box.hidden = !authRequired();
+      const m = currentUser();
+      if (!m) { box.replaceChildren(h('button', { class: 'btn btn-sm', id: 'acctIn', onclick: () => void loginDialog() }, tr('Kirish'))); return; }
+      const who = m.name || m.email || m.phone || '';
+      const b = this.popBtn('acctPop', who, () => h('div', { class: 'col acct-pop' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, who), m.email && m.email !== who ? h('span', { class: 'sub' }, m.email) : '')),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Tangalar')), h('span', { class: 'v mono', id: 'acctBal' }, fmt(m.balance))),
+        h('button', { class: 'btn btn-sm', id: 'acctOut', onclick: () => { this.closePop(); void logout().then(() => { toast(tr('Hisobdan chiqdingiz')); if (needsLogin(this.step.id)) this.go(STEPS.find(x => x.id === 'uchastka')!); }); } }, tr('Chiqish'))));
+      b.classList.add('acct-me'); b.querySelector('span')!.textContent = (who[0] ?? '?').toUpperCase(); b.title = who;
+      box.replaceChildren(b);
+    };
+    draw(); this.off.push(onAuth(draw));
+    if (authRequired()) void checkAuth();
+    return box;
+  }
+
   private popBtn(id: string, label: string, body: () => HTMLElement, dir: 'down' | 'up' = 'down', icon?: string): HTMLElement {
     const b = h('button', { class: icon ? 'mapbtn glassbar popbtn' : 'btn popbtn', id, title: label, 'aria-haspopup': 'true', 'aria-expanded': false, onclick: (e: MouseEvent) => {
       e.stopPropagation();
@@ -2396,6 +2422,7 @@ export class Editor {
   }
 
   go(s: StepDef): void {
+    if (needsLogin(s.id)) { void ensureLogin(s.id, tf('«${t}» va keyingi qadamlarda ishlash uchun kiring. Hisob bepul.', { t: tr(s.title) })).then(ok => { if (ok) this.go(s); }); return; }
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
     if (this.sframe) this.endFrame();
@@ -2501,6 +2528,7 @@ export class Editor {
   private frameDrag: { mode: 'move' | 'rot' | 'scale'; p0: XY; c0: XY; rot0: number; d0: number; s0: number } | null = null;
   private frameOff: (() => void) | null = null;
   private startFrame(idx: number | null = null): void {
+    if (needsLogin()) { void ensureLogin(undefined, 'Varaqlar bilan ishlash uchun kiring. Hisob bepul.').then(ok => { if (ok) this.startFrame(idx); }); return; }
     const doc = this.store.doc, fr = frame(doc.origin);
     const base = idx != null && doc.sheets?.[idx] ? normSheet(doc.sheets[idx].opts) : normSheet({ ...(doc.sheets?.[0]?.opts ?? {}), kind: 'zona', stamp: {} });
     let c = base.center;
@@ -2603,6 +2631,7 @@ export class Editor {
   }
   /** Chizmadon (CH-Yagona): albom loyiha bilan saqlanadi; Varaqlardan kelgan xarita — «Loyihadan» */
   openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
+    if (needsLogin()) { void ensureLogin(undefined, 'Chizmadonda ishlash uchun kiring. Hisob bepul.').then(ok => { if (ok) this.openCh(incoming); }); return; }
     const doc = this.store.doc;
     openChizmadon({
       project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', origin: [doc.origin[0], doc.origin[1]], data: doc.chizmadon, incoming,
@@ -2871,7 +2900,7 @@ export class Editor {
         if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); }
       }
       if (id && this.step.id === 'fasad') this.lookTarget = 'sel';
-      else if (id && ['hudud', 'uchastka', 'kocha', 'yashil'].includes(this.step.id) && !this.locked(STEPS[5])) this.step = STEPS[5];
+      else if (id && ['hudud', 'uchastka', 'kocha', 'yashil'].includes(this.step.id) && !this.locked(STEPS[5]) && !needsLogin(STEPS[5].id)) this.step = STEPS[5];
       this.renderAll();
     });
   }

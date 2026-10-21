@@ -11,8 +11,10 @@ Oʻzbekiston hududida saqlanishi kerak).
 | `GET /health` | tekshiruv |
 | `GET /prices` | narx jadvali, toʻplamlar, sinovlar |
 | `POST /quote` `{items, areaHa}` | narxni hisoblash (yechmasdan) |
-| `POST /auth/code` `{target}` | pochta yoki +998 raqamga 6 xonali kod |
+| `POST /auth/code` `{target, lang}` | pochtaga 6 xonali kod (`lang`: uz/en/ru); SMS hali ulanmagan |
 | `POST /auth/verify` `{target, code}` | kirish → `ks_sess` cookie (HttpOnly, 60 kun) |
+| `GET /auth/config` | yoqilgan kirish usullari (Google mijoz identifikatori) |
+| `POST /auth/google` `{credential}` | Google ID token → sessiya; shu pochtadagi hisobga ulanadi |
 | `POST /auth/logout` | chiqish |
 | `GET /me` | balans, shu haftadagi bepul sinovlar |
 | `GET /me/history` | tanga daftari |
@@ -39,5 +41,5 @@ TEST_DATABASE_URL=postgres://… npm test  # haqiqiy PostgreSQL (CI shunday qila
 ## Keyingi bosqichlar
 
 - S2: Click va Payme toʻlovlari (merchant shartnomasidan keyin, avval sinov rejimi).
-- S3: pochta va SMS orqali kod yuborish; ilovada «Kirish» va «Balans» oynalari.
-- S4: VPS — Ubuntu, PostgreSQL, Nginx, HTTPS, GitHub'dan avtomatik deploy.
+- S3: ✓ pochta (SMTP) va Google bilan kirish; ilovada «Kirish» oynasi. SMS — keyinroq.
+- S4: VPS — `deploy/README.md` yoʻriqnomasi.

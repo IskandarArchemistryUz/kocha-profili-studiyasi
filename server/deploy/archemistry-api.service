@@ -1,0 +1,22 @@
+# /etc/systemd/system/archemistry-api.service — API xizmati (setup.sh oʻrnatadi)
+[Unit]
+Description=Archemistry Lab API
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=archemistry
+WorkingDirectory=/srv/archemistry/server
+EnvironmentFile=/srv/archemistry/server/.env
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=3
+# himoya: faqat oʻz papkasiga yoza oladi
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/srv/archemistry/server
+
+[Install]
+WantedBy=multi-user.target
