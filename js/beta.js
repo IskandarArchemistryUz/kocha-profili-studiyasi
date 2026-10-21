@@ -4,7 +4,6 @@
 var CFG={
   donate:'https://taps.so/archemistryurban', // qahva uchun donat sahifasi
   card:'',          // Humo karta raqami, masalan: '9860 0000 0000 0000'
-  cardName:'Iskandar Soliyev',      // karta egasi, masalan: 'ISKANDAR S.'
   donateMin:25000,  // eng kam summa, soʻm
   donateSums:[25000,50000,100000],
   // Yuklab olish faqat soʻrovnomadan oʻtganlarga: Google Form toʻldirilgach beriladigan kod shu brauzerda yuklab olishni ochadi.
