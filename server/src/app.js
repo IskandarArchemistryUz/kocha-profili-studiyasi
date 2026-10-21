@@ -23,7 +23,7 @@ export const COOKIE = 'ks_sess';
  * @param {string} [o.cookieDomain] masalan '.archemistry.uz'
  * @param {boolean} [o.secure]    cookie Secure (ishda — true)
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, returnUrl, origins, cookieDomain, secure = true, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
@@ -130,12 +130,12 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   });
 
   /* ---------- toʻlovlar ---------- */
-  const pay = makePayments({ db, wallet, payme, click, returnUrl, now });
+  const pay = makePayments({ db, wallet, payme, click, multicard, fetchImpl, returnUrl, now });
   app.get('/pay/config', async () => pay.config());
   app.post('/pay/order', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
     try { return await pay.createOrder(u.id, req.body?.pack, req.body?.provider); }
-    catch (e) { if (e.code) return reply.code(400).send({ error: e.code, message: e.message }); throw e; }
+    catch (e) { if (e.code) return reply.code(e.code === 'provider_error' ? 502 : 400).send({ error: e.code, message: e.message }); throw e; }
   });
   app.get('/pay/order/:id', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
@@ -148,6 +148,8 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   // Click Shop API
   app.post('/pay/click/prepare', async (req) => pay.clickPrepare(req.body));
   app.post('/pay/click/complete', async (req) => pay.clickComplete(req.body));
+  // Multicard «Callback (success)»
+  app.post('/pay/multicard/callback', async (req, reply) => { const r = await pay.multicardCallback(req.body, req.ip); return reply.code(r.status).send(r.body); });
 
   app.decorate('wallet', wallet);
   app.decorate('auth', auth);

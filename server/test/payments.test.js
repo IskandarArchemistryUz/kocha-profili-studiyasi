@@ -13,7 +13,7 @@ let db, app, sent, clock;
 beforeEach(async () => {
   if (process.env.TEST_DATABASE_URL) {
     db = fromPool(new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 }));
-    await db.query('DROP TABLE IF EXISTS kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
+    await db.query('DROP TABLE IF EXISTS multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
   } else db = fromPglite(new PGlite());
   await migrate(db);
   sent = []; clock = new Date('2026-10-21T10:00:00Z');
@@ -139,5 +139,59 @@ describe('Click Shop API', () => {
     expect((await call('/pay/click/complete', req(o.orderId, 1, { merchant_prepare_id: p.merchant_prepare_id, error: -5017 }))).error).toBe(-9);
     expect((await me(c)).balance).toBe(0);
     expect((await call('/pay/click/prepare', { click_trans_id: 1 })).error).toBe(-8);
+  });
+});
+
+describe('Multicard', () => {
+  const MC = { appId: 'app', secret: 'mc-secret', storeId: '6', base: 'https://mc.test', callbackUrl: 'https://api.test/pay/multicard/callback', mxik: '10305008002000000', packageCode: '1514296', ips: [] };
+  let mc, calls, failInvoice;
+  beforeEach(async () => {
+    await app.close();
+    calls = []; failInvoice = false;
+    const fetchImpl = async (url, init) => {
+      const body = init.body ? JSON.parse(init.body) : null; calls.push({ url, body, auth: init.headers.Authorization });
+      const res = (status, j) => ({ ok: status < 300, status, json: async () => j });
+      if (url.endsWith('/auth')) return res(200, { token: 'tok', role: 'dev', expiry: '2099-01-01 00:00:00' });
+      if (url.endsWith('/payment/invoice')) return failInvoice ? res(400, { success: false, error: { code: 'x', details: 'bad' } }) : res(200, { success: true, data: { uuid: 'inv-uuid', checkout_url: 'https://checkout.mc.test/inv-uuid' } });
+      return res(404, {});
+    };
+    mc = MC;
+    app = await buildApp({ db, pepper: 'p'.repeat(20), secret: 's'.repeat(40), secure: false, origins: [], multicard: mc, fetchImpl,
+      returnUrl: 'https://archemistry.uz/app/', send: async (t, code) => { sent.push(code); }, now: () => clock });
+  });
+  const sign = (b) => createHash('md5').update(`${b.store_id}${b.invoice_id}${b.amount}${MC.secret}`).digest('hex');
+  const cb = (o, extra = {}) => { const b = { store_id: 6, amount: 3900000, invoice_id: String(o), billing_id: 'b1', payment_time: '2026-10-21 18:00:00', card_pan: '4111******1111', ps: 'visa', uuid: 'u-1', receipt_url: 'https://r', ...extra }; return { ...b, sign: extra.sign ?? sign(b) }; };
+
+  it('invoys: tiyinda summa, MXIK/qadoq kodi, qaytish manzili; toʻlov havolasi', async () => {
+    const c = await login(), o = await order(c, 'p10', 'multicard');
+    expect(o.url).toBe('https://checkout.mc.test/inv-uuid');
+    const inv = calls.find((x) => x.url.endsWith('/payment/invoice'));
+    expect(inv.auth).toBe('Bearer tok');
+    expect(inv.body).toMatchObject({ store_id: 6, amount: 3900000, invoice_id: String(o.orderId), return_url: `https://archemistry.uz/app/?tolov=${o.orderId}`, callback_url: MC.callbackUrl,
+      ofd: [{ qty: 1, price: 3900000, total: 3900000, mxik: '10305008002000000', package_code: '1514296' }] });
+    await order(c, 'p30', 'multicard');
+    expect(calls.filter((x) => x.url.endsWith('/auth'))).toHaveLength(1);   // token qayta ishlatiladi
+    expect((await app.inject({ method: 'GET', url: '/pay/config' })).json()).toMatchObject({ multicard: true, payme: false });
+  });
+  it('callback: imzo va summa tekshiriladi, tanga bir marta; takror — success', async () => {
+    const c = await login(), o = await order(c, 'p10', 'multicard');
+    const send = (b) => app.inject({ method: 'POST', url: '/pay/multicard/callback', payload: b });
+    expect((await send(cb(o.orderId, { sign: 'x' }))).statusCode).toBe(400);
+    expect((await send(cb(o.orderId, { amount: 39000 }))).json().success).toBe(false);
+    expect((await send(cb(424242))).json()).toMatchObject({ success: false });
+    expect((await me(c)).balance).toBe(0);
+    const ok = await send(cb(o.orderId));
+    expect(ok.statusCode).toBe(200); expect(ok.json().success).toBe(true);
+    expect((await send(cb(o.orderId))).json().success).toBe(true);
+    expect((await send(cb(o.orderId, { uuid: 'u-2' }))).json()).toMatchObject({ success: false });   // ikkinchi toʻlov — rad, pul qaytadi
+    expect((await me(c)).balance).toBe(10);
+    expect((await app.inject({ method: 'GET', url: `/pay/order/${o.orderId}`, headers: { cookie: c } })).json()).toMatchObject({ state: 'paid', provider: 'multicard' });
+  });
+  it('invoys yaratilmasa — 502 va buyurtma bekor', async () => {
+    const c = await login(); failInvoice = true;
+    const r = await post('/pay/order', { pack: 'p10', provider: 'multicard' }, { cookie: c });
+    expect(r.statusCode).toBe(502);
+    const { rows } = await db.query(`SELECT state FROM orders`);
+    expect(rows.map((x) => x.state)).toEqual(['cancelled']);
   });
 });
