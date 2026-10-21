@@ -73,20 +73,19 @@ systemctl restart archemistry-api
 
 ## 6. Avtomatik yangilash (GitHub → server)
 
-Serverda, `archemistry` foydalanuvchisi uchun alohida kalit:
+Serverda, `archemistry` foydalanuvchisi uchun alohida kalit (eskisi boʻlsa — almashtiriladi). Kalit bitta qator
+(base64) boʻlib chiqadi — terminaldan nusxalash oson:
 
 ```bash
-sudo -u archemistry bash -c 'mkdir -p ~/.ssh && ssh-keygen -t ed25519 -f ~/.ssh/deploy -N "" -C github-deploy \
-  && cat ~/.ssh/deploy.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && cat ~/.ssh/deploy'
+sudo -u archemistry bash -c 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && cd ~/.ssh && rm -f deploy deploy.pub && touch authorized_keys && sed -i "/github-deploy/d" authorized_keys && ssh-keygen -t ed25519 -f deploy -N "" -C github-deploy -q && cat deploy.pub >> authorized_keys && chmod 600 authorized_keys && echo && base64 -w0 deploy && echo'
 ```
 
-Chiqqan maxfiy kalitni (`-----BEGIN OPENSSH PRIVATE KEY-----` … `END …`) GitHub → repo → **Settings → Secrets and
-variables → Actions** ga qoʻying:
+Chiqqan bitta uzun qatorni GitHub → repo → **Settings → Secrets and variables → Actions** ga qoʻying:
 
-- `VPS_SSH_KEY` — shu kalit matni;
+- `VPS_SSH_KEY` — shu qator;
 - `VPS_HOST` — VPS IP manzili.
 
-Keyin serverdagi nusxani oʻchiring: `rm /home/archemistry/.ssh/deploy`. Endi `server/` ga tegadigan har oʻzgarish
+Keyin serverdagi nusxani oʻchiring: `sudo rm /home/archemistry/.ssh/deploy`. Endi `server/` ga tegadigan har oʻzgarish
 `main` ga tushib, testlardan oʻtsa — server oʻzi yangilanadi (Actions → «Server — deploy»).
 
 ## 7. Toʻlov: Payme va Click

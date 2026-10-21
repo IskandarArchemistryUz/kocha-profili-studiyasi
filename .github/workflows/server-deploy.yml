@@ -1,6 +1,6 @@
 name: Server — deploy (api.archemistry.uz)
 # main ga server/ oʻzgarishi tushsa (testlardan keyin) — VPS da yangilash. Sirlar (Settings → Secrets → Actions):
-#   VPS_HOST — server IP yoki nomi, VPS_SSH_KEY — archemistry foydalanuvchisining maxfiy SSH kaliti.
+#   VPS_HOST — server IP yoki nomi, VPS_SSH_KEY — archemistry foydalanuvchisining maxfiy SSH kaliti (matn yoki base64).
 # Sirlar qoʻyilmagan boʻlsa — ish oʻtkazib yuboriladi (xato emas).
 on:
   workflow_run:
@@ -24,7 +24,10 @@ jobs:
       - name: Yangilash va qayta ishga tushirish
         if: steps.chk.outputs.ok == '1'
         run: |
-          install -m 600 /dev/null key && printf '%s\n' "$KEY" > key
+          # kalit matn holida (-----BEGIN…) yoki bitta qatorli base64 da boʻlishi mumkin; Windows \r belgilari olib tashlanadi
+          install -m 600 /dev/null key
+          if printf '%s' "$KEY" | grep -q 'BEGIN OPENSSH'; then printf '%s\n' "$KEY" | tr -d '\r' > key; else printf '%s' "$KEY" | tr -d '\r\n ' | base64 -d > key; fi
+          ssh-keygen -y -f key > /dev/null || { echo "VPS_SSH_KEY notoʻgʻri: kalitni qayta nusxalang (README, 6-band)"; exit 1; }
           ssh -i key -o StrictHostKeyChecking=accept-new archemistry@"$HOST" '
             set -e
             cd /srv/archemistry && git fetch --depth 50 origin main && git reset --hard origin/main
