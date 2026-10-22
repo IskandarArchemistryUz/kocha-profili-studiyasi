@@ -306,7 +306,7 @@ export class Scene3D {
   }
   /** Koʻp tanlov belgisi: loyiha binolari — koʻk kontur, atrof binolari — koʻk shaffof hajm */
   private markG = new THREE.Group();
-  setMarked(doc: Project, bids: string[], cids: number[]): void {
+  setMarked(doc: Project, bids: string[], cids: number[], roads: { pts: XY[]; w: number }[] = []): void {
     disposeGroup(this.markG); if (!this.markG.parent) this.scene.add(this.markG);
     const fr = frame(doc.origin), fh = doc.settings.floorHeight, cs = new Set(cids);
     for (const b of doc.buildings) {
@@ -321,6 +321,20 @@ export class Scene3D {
     if (list.length) buildingMeshes(list.map(b => ({ ...b, h: b.h + 0.3 })), this.H,
       new THREE.MeshBasicMaterial({ color: 0x2a6fb0, transparent: true, opacity: 0.35, depthWrite: false }), new THREE.MeshBasicMaterial({ color: 0x2a6fb0, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }),
       new THREE.LineBasicMaterial({ color: 0x2a6fb0 })).forEach(o => { o.renderOrder = 40; this.markG.add(o); });
+    // tanlangan atrof yoʻllari: kengligi boʻyicha koʻk tasma (relyefga yotqizilgan)
+    if (roads.length) {
+      const v: number[] = [];
+      for (const r of roads) {
+        const pts = densify(r.pts, 8), hw = Math.max(1.5, r.w / 2 + 0.6);
+        for (let i = 1; i < pts.length; i++) {
+          const a = pts[i - 1], b = pts[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / L * hw, ny = (b[0] - a[0]) / L * hw;
+          const q = [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]].map(([x, y]) => [x, this.H(x, y) + 0.6, -y]);
+          for (const k of [0, 1, 2, 0, 2, 3]) v.push(...q[k]);
+        }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x2a6fb0, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 40; this.markG.add(m);
+    }
     this.invalidate();
   }
   /** Fon xaritasi (atrof yuklanmaganda): tikilgan plitkalar yer tekisligida */
