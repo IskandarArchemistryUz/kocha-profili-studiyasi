@@ -68,3 +68,27 @@ test('shamol: shamol guli (EPW) va piyoda sathidagi oqim', async ({ page }) => {
   await expect(page.locator('#windSt')).toContainText('shamoli', { timeout: 90000 });
   await expect(page.locator('.leg')).toContainText('Oʻtirish');
 });
+
+/** 6-band: qiya mavjud koʻcha kesgan oʻtkir burchakli kvartallarda ham ofis, savdo, maktab generatsiya qilinadi */
+test('oʻtkir burchakli kvartallar: ofis, savdo, maktab joylashadi', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '300'); await page.fill('#rh', '220'); await page.click('#rectSite');
+  await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132];
+    ed.store.dispatch({ type: 'setContext', patch: { loaded: true } });
+    ed.ctxMgr.current = { osm: { roads: [{ id: 31, cls: 'residential', w: 7, pts: [g(-300, -150), g(300, 60)] }], buildings: [], green: [], water: [], rail: [] } };
+  });
+  await page.click('[data-step=kocha]'); await page.click('[data-ktab=tor]'); await page.click('[data-gpre=barselona]'); await page.click('#gridApply');
+  const r = await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
+    const bl = ed.plan().blocks.filter((b: any) => b.area > 1500).sort((a: any, b: any) => a.area - b.area);
+    const uses = ['ofis', 'savdo', 'maktab'], out: any[] = [];
+    ed.store.dispatch({ type: 'setZones', zones: bl.slice(0, 3).map((b: any, i: number) => ({ id: 'w' + i, at: G(b.centroid), use: uses[i] })) });
+    const p2 = ed.plan();
+    for (let i = 0; i < 3; i++) { const k = p2.blocks.findIndex((b: any) => b.labelId === 'w' + i); if (k < 0) continue; out.push({ use: p2.blocks[k].use, n: ed.generateBlock(k, true), note: ed.genNotes.join(' | ') }); }
+    return out;
+  });
+  expect(r.length).toBe(3);
+  for (const x of r) expect(x.n, `${x.use}: ${x.note}`).toBeGreaterThan(0);
+});

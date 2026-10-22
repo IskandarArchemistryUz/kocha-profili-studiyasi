@@ -13,6 +13,8 @@
  */
 import { area, obb2, signedArea, type XY } from './geo';
 import { offsetEdges } from './tiers';
+import { insetRobust } from './offset';
+import { freeRect } from './labels';
 import { pointIn } from './plan';
 import { perThousand, mtmNeedPerThousand, type DemoRow } from './demography';
 import { schoolCapacity, mtmCapacity } from './derive';
@@ -60,16 +62,16 @@ const rot = (U: XY, c: XY) => (u: number, v: number): XY => [c[0] + U[0] * u - U
 export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module, m2: number, floors: number, edgeSetback: number[]): SocialPlan {
   const notes: string[] = [];
   const ccw = signedArea(ring) > 0, R = ccw ? ring : [...ring].reverse(), d = ccw ? edgeSetback : [...edgeSetback.slice(0, -1)].reverse().concat(edgeSetback.slice(-1));
-  let inner = offsetEdges(R, d);
-  if (!inner || area(inner) < 400) { inner = offsetEdges(R, R.map(() => 6)); notes.push('Qizil chiziqdan 25 m chekinish (39-jadval) sigʻmadi — 6 m qabul qilindi: meʼyordan chetlanish, ekspertizada asoslash kerak.'); }
+  let inner = offsetEdges(R, d) ?? insetRobust(R, d, 20);   // oʻtkir burchak / botiq parsel — tasma ayirish usuli
+  if (!inner || area(inner) < 400) { inner = offsetEdges(R, R.map(() => 6)) ?? insetRobust(R, 6, 20); notes.push('Qizil chiziqdan 25 m chekinish (39-jadval) sigʻmadi — 6 m qabul qilindi: meʼyordan chetlanish, ekspertizada asoslash kerak.'); }
   if (!inner || area(inner) < 200) return { sections: [], gfa: 0, footprint: 0, notes: ['Parsel juda kichik — bino sigʻmaydi'] };
   const gfaT = cap * m2, A = gfaT / floors;
   const { U, L, S } = obb2(inner), V: XY = [-U[1], U[0]];
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
   for (const p of inner) { const u = p[0] * U[0] + p[1] * U[1], v = p[0] * V[0] + p[1] * V[1]; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
   void L; void S;
-  const c: XY = [U[0] * (u0 + u1) / 2 + V[0] * (v0 + v1) / 2, U[1] * (u0 + u1) / 2 + V[1] * (v0 + v1) / 2], P = rot(U, c);
-  const W = u1 - u0, D = v1 - v0;
+  const c: XY = [U[0] * (u0 + u1) / 2 + V[0] * (v0 + v1) / 2, U[1] * (u0 + u1) / 2 + V[1] * (v0 + v1) / 2];
+  let P = rot(U, c), W = u1 - u0, D = v1 - v0;
   const box = (a: number, b: number, w: number, h: number): XY[] => [P(a, b), P(a + w, b), P(a + w, b + h), P(a, b + h)];
   const secs: XY[][] = [], gym: XY[][] = [];
   const fit = (scale: number) => {
@@ -103,6 +105,17 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   const inside = () => [...secs, ...gym].every(r => r.every(p => pointIn(p, [inner!]) || pointIn(p, [ring])));
   let sc = 1; fit(sc);
   for (let k = 0; k < 8 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
+  if (!inside()) {
+    /* uchburchak / qiya parsel: OBB oʻrniga chekinish ichidagi eng katta toʻrtburchak — modul shu ramkaga joylanadi */
+    const fr = freeRect([inner], [], 0);
+    if (fr && fr.w >= 12 && fr.h >= 12) {
+      const u: XY = [Math.cos(fr.ang), Math.sin(fr.ang)], long = fr.w >= fr.h;
+      const U2: XY = long ? u : [-u[1], u[0]];
+      P = rot(U2, fr.c); W = (long ? fr.w : fr.h) * 0.98; D = (long ? fr.h : fr.w) * 0.98;
+      sc = 1; fit(sc);
+      for (let k = 0; k < 10 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
+    }
+  }
   if (!inside()) return { sections: [], gfa: 0, footprint: 0, notes: [...notes, 'Modul parselga sigʻmadi — boshqa modulni tanlang yoki parselni kattalashtiring'] };
   const fp = secs.reduce((t, r) => t + area(r), 0), gfa = fp * floors + gym.reduce((t, r) => t + area(r) * 2, 0);
   if (sc < 0.99) notes.push(`Parsel kichik: modul ${Math.round(sc * 100)} % ga kichraytirildi — sigʻim ~${Math.round(cap * sc)} ${SOCIAL[use].unit}.`);

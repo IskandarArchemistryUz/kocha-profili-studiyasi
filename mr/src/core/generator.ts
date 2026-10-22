@@ -7,6 +7,8 @@
  *  - izoh 8: seysmik 8+ ball — parallel uzun tomonlar orasi ≥ 2·Hmax  → qatorlar oraligʻi va hovli kengligi qavatni cheklaydi;
  *  - izoh 3: yopiq hovli fasadlari orasi ≥ 2,3·Hmax (yopiq perimetrda).
  */
+import { insetRobust } from './offset';
+import { freeRect } from './labels';
 import type { XY } from './geo';
 import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
@@ -71,6 +73,9 @@ export function clean(r0: XY[], minEdge = 6): XY[] {
 
 /** Ichkariga ofset (CCW halqa, chap tomoni ichkari), uchlarda kesishma (miter) */
 export function inset(r: XY[], d: number): XY[] | null {
+  return insetMiter(r, d) ?? (d > 0 ? insetRobust(r, d, 20) : null);   // oʻtkir burchak / botiq shakl — tasma ayirish usuli
+}
+function insetMiter(r: XY[], d: number): XY[] | null {
   const n = r.length, out: XY[] = [];
   for (let i = 0; i < n; i++) {
     const p = r[(i - 1 + n) % n], c = r[i], q = r[(i + 1) % n];
@@ -372,8 +377,16 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       const W = Math.min(120, (x1 - x0) * 0.8), D = Math.min(80, (y1 - y0) * 0.75), cx = (x0 + x1) / 2, cy = y0 + (y1 - y0) * 0.62;   // orqasi parkovkaga, oldi koʻchaga
       let ring = ([[cx - W / 2, cy - D / 2], [cx + W / 2, cy - D / 2], [cx + W / 2, cy + D / 2], [cx - W / 2, cy + D / 2]] as XY[]).map(un);
       for (let k = 0; k < 6 && !ring.every(p => inside(p, A)); k++) ring = shrink(ring, 0.9);
+      if (!ring.every(p => inside(p, A))) {   // uchburchak / botiq kvartal: chekinish ichidagi eng katta toʻrtburchak
+        const fr = freeRect([A], [], 0);
+        if (fr && fr.w >= 12 && fr.h >= 12) {
+          const w = Math.min(120, fr.w * 0.96), h = Math.min(80, fr.h * 0.96), u: XY = [Math.cos(fr.ang), Math.sin(fr.ang)], v: XY = [-u[1], u[0]];
+          ring = ([[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]] as XY[]).map(q => [fr.c[0] + u[0] * q[0] + v[0] * q[1], fr.c[1] + u[1] * q[0] + v[1] * q[1]] as XY);
+        }
+      }
       if (!ring.every(p => inside(p, A))) return { sections: [], capFloors: null, notes: ['Savdo bloki sigʻmadi — chekinishni kamaytiring'] };
-      notes.push(`Savdo markazi ${Math.round(W)} × ${Math.round(D)} m, ${Math.min(3, Math.max(1, g.maxF))} qavat; hovli — yer usti parkovka (413-band, 25 m²/joy)`);
+      const sw = Math.hypot(ring[1][0] - ring[0][0], ring[1][1] - ring[0][1]), sd = Math.hypot(ring[2][0] - ring[1][0], ring[2][1] - ring[1][1]);
+      notes.push(`Savdo markazi ${Math.round(sw)} × ${Math.round(sd)} m, ${Math.min(3, Math.max(1, g.maxF))} qavat; hovli — yer usti parkovka (413-band, 25 m²/joy)`);
       return { sections: [{ ring, floors: Math.min(3, Math.max(1, g.maxF)), kind: 'savdo', nonRes: Math.min(3, Math.max(1, g.maxF)), use: 'savdo' }], capFloors: null, notes };
     }
     case 'blok_villa': {
