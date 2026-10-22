@@ -562,6 +562,7 @@ export class Scene3D {
     return hit ? (hit.object.userData.cid as number) : null;
   }
 
+  private streetGeoKey: { streets: Project['streets']; origin: Project['origin']; ctx: ContextScene | null; H: HeightFn; sg: ReturnType<typeof projectStreetsGeo> } | null = null;
   update(doc: Project): void {
     this.lastDoc = doc;
     this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|');
@@ -609,7 +610,10 @@ export class Scene3D {
     tag(2);
     // loyiha koʻchalari: profil boʻlaklari, chiziqlar, daraxtlar, qizil chiziqlar
     if (doc.streets.length) {
-      const sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H, this.ctx?.roads ?? []);
+      // koʻcha geometriyasi (OSM yoʻllar bilan ulanish, qizil chiziqlar) qimmat — koʻchalar, markaz yoki kontekst oʻzgarmasa keshdan
+      const sk = this.streetGeoKey;
+      let sg = sk && sk.streets === doc.streets && sk.origin === doc.origin && sk.ctx === this.ctx && sk.H === this.H ? sk.sg : null;
+      if (!sg) { sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H, this.ctx?.roads ?? []); this.streetGeoKey = { streets: doc.streets, origin: doc.origin, ctx: this.ctx, H: this.H, sg }; }
       const ord: [string, number][] = [['trotuar', 9], ['yashil', 9.1], ['velo', 9.1], ['parkovka', 9.1], ['qatnov', 9.2], ['avtobus', 9.2], ['tramvay', 9.2], ['chiziq', 9.3]];
       for (const [k, o] of ord) {
         const arr = sg.layers[k]; if (!arr?.length) continue;
