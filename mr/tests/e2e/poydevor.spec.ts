@@ -169,3 +169,35 @@ test('atrof yoʻli va piyoda yoʻlagi tanlanib oʻchiriladi', async ({ page }) =
   await page.keyboard.press('Control+z');
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.removedRoads ?? [])).toEqual([]);
 });
+
+/** 5-band: uchastkani kesib oʻtgan mavjud koʻcha — kvartallar ustiga tushmaydi, loyihaga olinadi, toʻr koʻchalari unga ulanadi */
+test('toʻr: mavjud koʻchalar saqlanadi — kvartallar ularning ustida emas', async ({ page }) => {
+  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '500'); await page.fill('#rh', '480'); await page.click('#rectSite');
+  await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132];
+    ed.store.dispatch({ type: 'setContext', patch: { loaded: true } });
+    ed.ctxMgr.current = { osm: { roads: [{ id: 21, cls: 'secondary', w: 14, pts: [g(-400, 20), g(400, 40)] }, { id: 22, cls: 'footway', w: 3, pts: [g(-400, -100), g(400, -100)] }], buildings: [], green: [], water: [], rail: [] } };
+  });
+  await page.click('[data-step=kocha]'); await page.click('[data-ktab=tor]'); await page.click('[data-gpre=barselona]');
+  await expect(page.locator('#gridKeep')).toHaveAttribute('aria-checked', 'true');
+  await page.click('#gridApply');
+  const r = await page.evaluate(() => {
+    const ed = (window as any).__mr, d = ed.store.doc, o = d.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), L = (p: number[]) => [(p[0] - o[0]) * mx, (p[1] - o[1]) * 111132];
+    const ad = d.streets.filter((s: any) => s.osm === 21), grid = d.streets.filter((s: any) => s.gen === 'grid');
+    // kvartal markazlari mavjud koʻcha oʻqidan uzoqda (tuman-40 yarmi = 20 m)
+    const dist = (p: number[]) => { const a = [-400, 20], b = [400, 40], dx = b[0] - a[0], dy = b[1] - a[1], t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy))); return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]); };
+    const blocks = ed.plan().blocks, minD = Math.min(...blocks.flatMap((b: any) => b.rings[0].map((p: number[]) => dist(p))));
+    const touch = grid.filter((s: any) => s.axis.some((p: number[]) => dist(L(p)) < 1)).length;
+    return { ad: ad.length, profile: ad[0]?.profile, foot: d.streets.some((s: any) => s.osm === 22), grid: grid.length, minD, touch, blocks: blocks.length };
+  });
+  expect(r.ad).toBe(1); expect(r.profile).toBe('tuman-40'); expect(r.foot).toBe(false);
+  expect(r.grid).toBeGreaterThan(2);
+  expect(r.minD).toBeGreaterThan(19.5);   // hech bir kvartal mavjud koʻcha koridoriga kirmaydi
+  expect(r.touch).toBeGreaterThan(0);     // toʻr koʻchalari mavjud koʻcha oʻqiga ulangan
+  // bitta qadam ortga — olingan koʻcha ham, toʻr ham ketadi
+  expect(await page.evaluate(() => { const ed = (window as any).__mr; ed.store.undo(); return ed.store.doc.streets.length; })).toBe(0);
+  // oʻchirilsa — avvalgidek (mavjud koʻcha olinmaydi)
+  await page.click('#gridKeep'); await page.click('#gridApply');
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.streets.some((s: any) => s.osm === 21))).toBe(false);
+});

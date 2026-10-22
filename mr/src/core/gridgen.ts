@@ -3,7 +3,9 @@
  * modullari boʻyicha. Natija — koʻcha oʻqlari (uchastka chegarasiga qirqilgan); kvartallar keyin oʻzi hisoblanadi
  * (uchastka − koridorlar). Oʻq yoʻnalishi: avtomatik (uchastkaning eng uzun tomoni) yoki berilgan burchak.
  */
+import polygonClipping, { type MultiPolygon } from 'polygon-clipping';
 import { obb2, signedArea, type XY } from './geo';
+import { corridor, safeUnion } from './plan';
 
 export interface GridPreset { id: string; name: string; w: number; h: number; note: string; src: string }
 export const GRID_PRESETS: GridPreset[] = [
@@ -90,4 +92,39 @@ export function gridVariants(site: XY[], base: GridParams): { name: string; g: G
     { name: 'Siljigan', g: { ...base, angle: a, offU: 0.5, offV: 0.5 } },
     { name: '45°', g: { ...base, angle: a + 45 } },
   ];
+}
+
+/**
+ * Mavjud koʻchalar saqlanadi: uchastka ulardan (koridor bilan) ayirib olingan boʻlaklarga boʻlinadi va toʻr har boʻlakka alohida
+ * joylanadi (bir xil burchakda) — toʻr koʻchalari mavjud koʻcha chetida tugaydi, kvartallar uning ustiga tushmaydi.
+ * Moduldan kichik boʻlak — bitta kvartal boʻlib qoladi.
+ */
+export function gridStreetsAround(site: XY[], keep: { axis: XY[]; half: number }[], g: GridParams): GridStreet[] {
+  const ang = g.angle ?? autoAngle(site), g2 = { ...g, angle: ang };
+  if (!keep.length) return gridStreets(site, g2);
+  const cl = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
+  let pieces: MultiPolygon;
+  try { const corr = keep.map(k => corridor(k.axis, k.half)).filter(m => m.length); pieces = corr.length ? polygonClipping.difference([cl(site)], safeUnion(corr)) : [[cl(site)]]; }
+  catch { return gridStreets(site, g2); }
+  const out: GridStreet[] = [];
+  for (const p of pieces) { const r = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY); if (Math.abs(signedArea(r)) < g.w * g.h * 0.6) continue; out.push(...gridStreets(r, g2)); }
+  return out;
+}
+
+/** Chiziq koʻpburchakni kesib oʻtadimi yoki ichidami */
+export function lineHitsRing(line: XY[], ring: XY[]): boolean {
+  const n = ring.length, inside = (p: XY) => { let c = false; for (let i = 0, j = n - 1; i < n; j = i++) if ((ring[i][1] > p[1]) !== (ring[j][1] > p[1]) && p[0] < (ring[j][0] - ring[i][0]) * (p[1] - ring[i][1]) / (ring[j][1] - ring[i][1]) + ring[i][0]) c = !c; return c; };
+  if (line.some(inside)) return true;
+  for (let k = 1; k < line.length; k++) { const a = line[k - 1], b = line[k];
+    for (let i = 0; i < n; i++) { const p = ring[i], q = ring[(i + 1) % n], d = (b[0] - a[0]) * (q[1] - p[1]) - (b[1] - a[1]) * (q[0] - p[0]); if (Math.abs(d) < 1e-12) continue;
+      const t = ((p[0] - a[0]) * (q[1] - p[1]) - (p[1] - a[1]) * (q[0] - p[0])) / d, u = ((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / d; if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return true; } }
+  return false;
+}
+
+/** OSM yoʻl sinfi → loyiha profili (mavjud koʻcha loyihaga olinganda) */
+export function profileForOsm(cls: string): string {
+  if (/^(motorway|trunk|primary)(_link)?$/.test(cls)) return 'magistral-45';
+  if (/^(secondary|tertiary)(_link)?$/.test(cls)) return 'tuman-40';
+  if (/^(service|living_street)$/.test(cls)) return 'otish-8';
+  return 'mahalla-15';
 }
