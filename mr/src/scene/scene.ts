@@ -366,7 +366,10 @@ export class Scene3D {
 
   /** tanlangan binoning tanlangan qavati (1 dan) — muharrirda */
   selFloor: number | null = null;
-  setSelFloor(f: number | null): void { this.selFloor = f; if (this.lastDoc) this.update(this.lastDoc); }
+  setSelFloor(f: number | null): void {
+    this.selFloor = f; const d = this.lastDoc; if (!d) return;
+    if (this.bctx?.doc === d && this.selected) this.rebuildBuildings(new Set([this.selected])); else this.update(d);
+  }
 
   /**
    * Quyosh himoyasi: naveslar (gorizontal), lamellar (vertikal) yoki panjara — 90–290° ga qaragan fasadlarda (SanQvaN 0331-16, 9.3).
@@ -429,7 +432,9 @@ export class Scene3D {
   refreshLod(): void {
     const d = this.lastDoc; if (!d) return;
     const ids = this.pickLod(d), k = [...ids].sort().join('|');
-    if (k !== this.lodKey) this.update(d);
+    if (k === this.lodKey) return;
+    if (this.bctx?.doc !== d) { this.update(d); return; }
+    const redo = new Set<string>(); this.syncLod(d, redo); this.rebuildBuildings(redo);
   }
   private facadeSpec(b: Project['buildings'][number]): WinSpec | null { return b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null; }
   private facadeEligible(b: Project['buildings'][number]): boolean {
@@ -547,7 +552,25 @@ export class Scene3D {
   /** buziladigan mavjud binolar sahnada koʻrsatilmaydi (parsellar qadamidan keyin) */
   hideGone = false;
   setHideGone(on: boolean): void { if (on === this.hideGone) return; this.hideGone = on; if (this.lastDoc) this.update(this.lastDoc); }
-  select(id: string | null): void { this.selected = id; if (this.lastDoc) this.update(this.lastDoc); }
+  /** Tanlov: butun sahna emas — faqat holati oʻzgargan binolar (avvalgi va yangi tanlangan; fokus yoqilsa/oʻchsa — hamma binolar) qayta quriladi */
+  select(id: string | null): void {
+    const prev = this.selected; this.selected = id;
+    const d = this.lastDoc, B = this.bctx; if (!d) return;
+    if (!B || B.doc !== d) { this.update(d); return; }
+    if (prev === id) return;
+    const focus = !!id && d.buildings.some(b => b.id === id), redo = new Set<string>();
+    if (focus !== B.focus) d.buildings.forEach(b => redo.add(b.id)); else [prev, id].forEach(x => { if (x) redo.add(x); });
+    B.focus = focus;
+    this.syncLod(d, redo);
+    this.rebuildBuildings(redo);
+  }
+  /** LOD toʻplamini yangilab, oʻzgargan binolarni `redo` ga qoʻshadi */
+  private syncLod(d: Project, redo: Set<string>): void {
+    const ids = this.pickLod(d);
+    for (const x of ids) if (!this.detIds.has(x)) redo.add(x);
+    for (const x of this.detIds) if (!ids.has(x)) redo.add(x);
+    this.detIds = ids; this.lodKey = [...ids].sort().join('|');
+  }
   /** Tanlovni sahnani qayta qurmasdan oʻrnatish (keyin baribir update chaqiriladigan joylar uchun) */
   setSelection(id: string | null): void { this.selected = id; }
   selectBlock(i: number | null): void { this.selBlock = i; if (this.lastDoc) this.update(this.lastDoc); }
@@ -563,6 +586,117 @@ export class Scene3D {
   }
 
   private streetGeoKey: { streets: Project['streets']; origin: Project['origin']; ctx: ContextScene | null; H: HeightFn; sg: ReturnType<typeof projectStreetsGeo> } | null = null;
+  /** Binolar qismini qayta qurish uchun kontekst (oxirgi update dan); tanlov va LOD oʻzgarganda faqat tegishli binolar qayta quriladi */
+  private bctx: BCtx | null = null;
+  private buildTagged(doc: Project, bi: number, B: BCtx): void {
+    const n0 = this.world.children.length, id = doc.buildings[bi].id;
+    this.buildOne(doc, bi, B);
+    for (let i = n0; i < this.world.children.length; i++) this.world.children[i].userData.bOwner = id;
+  }
+  /** Faqat koʻrsatilgan binolarni qayta qurish (qolgan sahna — koʻchalar, dahalar, hovlilar, yozuvlar — tegilmaydi) */
+  private rebuildBuildings(ids: Set<string>): void {
+    const B = this.bctx, doc = B?.doc; if (!B || !doc || !ids.size) return;
+    const old = this.world.children.filter(o => ids.has(o.userData.bOwner as string));
+    if (old.length) { const tmp = new THREE.Group(); old.forEach(o => tmp.add(o)); disposeGroup(tmp); }
+    doc.buildings.forEach((b, bi) => {
+      if (!ids.has(b.id)) return;
+      const n0 = this.world.children.length; this.buildTagged(doc, bi, B);
+      for (let i = n0; i < this.world.children.length; i++) { const o = this.world.children[i]; o.userData.layer ??= 3; o.userData.y0 = o.position.y; o.position.y += (o.userData.layer as number) * this.explodeStep; }
+    });
+    this.invalidate();
+  }
+  private buildOne(doc: Project, bi: number, B: BCtx): void {
+    const b = doc.buildings[bi], { fr, fh, aniso, TP, P3, SM, smOf, focus, st, plain, toV2 } = B;
+    const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected, dim = focus && !sel;
+    const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
+    const spec: WinSpec | null = this.facadeSpec(b);
+    // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar — faqat kamera atrofidagi binolarda (LOD), qolganlari teksturada
+    const det = this.facadeEligible(b) && this.detIds.has(b.id);
+    const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
+      const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
+      if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
+      const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
+      if (kind && spec && !plain) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
+      if (det && (kind === 'res' || kind === 'shop')) wall.visible = false;   // devorni geometrik fasad almashtiradi
+      const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
+      if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
+      if (top && !sel && !dim && roofK === 'quyosh' && !plain) { cap.color.setHex(0xffffff); cap.map = solarTex(); }
+      const m = new THREE.Mesh(g, [cap, wall]);
+      m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
+      if (sel) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: 0x2a6fb0, depthTest: false, transparent: true, opacity: 0.9 })); e.renderOrder = 30; this.world.add(e); }
+      else if (outline) this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), edgeMat()));
+    };
+    const edgeMat = () => new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : st === 'minimal' ? 0.9 : st === 'arctic' ? 0.22 : 0.5 });
+    if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
+      // past uylar — qiya tom bilan (kontekstdagi kabi)
+      const objs = buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh, kind: 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
+      objs.forEach(o => { o.userData.bid = b.id; o.castShadow = o.receiveShadow = true; this.world.add(o); });
+      return;
+    }
+    const nr = Math.min(b.nonRes, b.floors - (b.gen?.kind === 'stilobat' ? 0 : 1));
+    const parking = b.gen?.kind === 'stilobat' && b.use === 'avtoturargoh', office = b.use === 'ofis' || b.use === 'mehmonxona';
+    const baseC = dim ? 0xebe9e4 : plain ? (st === 'minimal' ? 0xe6e6e6 : 0xf0eee9) : st === 'funksiya' ? tint(BASE_COL[b.use] ?? 0x9c7b6e, 0.15) : BASE_COL[b.use] ?? 0x9c7b6e;
+    const topC = dim ? 0xf4f3f0 : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : USE_COL[b.use] ?? C.bld;
+    const tiers = TP[bi], last = tiers[tiers.length - 1];
+    tiers.forEach((t, ti) => {
+      const up = ti > 0;   // yuqori pogʻonalar — toʻliq kontur bilan
+      if (t.f0 < nr) part(t.ring, t.f0 * fh, Math.min(t.f1, nr) * fh, baseC, parking ? null : 'shop', t === last && t.f1 <= nr, up);
+      if (t.f1 > nr) part(t.ring, Math.max(t.f0, nr) * fh, t.f1 * fh, topC, office ? 'glass' : 'res', t === last, up);
+    });
+    { const k = smOf.get(b.id)!, A = P3[bi], f1 = tiers[0]?.f1 ?? b.floors, segs = seamEdges(A, SM[k], nr > 0 && nr < f1 ? [A.base + nr * fh] : []);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(segs.flatMap(([x, y, z]) => [x, z, -y]), 3));
+      this.world.add(new THREE.LineSegments(g, edgeMat())); }
+    const shared = (ti: number, k: number) => ti === 0 && SM[smOf.get(b.id)!].edgeTop[k] >= base + (tiers[0].f1 * fh) - 0.05;
+    // quyosh himoyasi
+    if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
+    // balkonlar (turar qavatlarda, 2-qavatdan)
+    if (det) this.facadeGeo(b, tiers, nr, base, fh, shared, spec!, parking, baseC, topC, P3.filter((_, i) => i !== bi));
+    else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain, b.balPat, strSeed(b.id));
+    const topZ = base + (last?.f1 ?? b.floors) * fh;
+    if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
+      const parts = roofParts(last.ring, roofK);
+      if (parts) {
+        const v: number[] = [], w: number[] = [];
+        for (const pr of parts) { for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], topZ + pr.tris[i + 2], -pr.tris[i + 1]); for (let i = 0; i < pr.walls.length; i += 3) w.push(pr.walls[i], topZ + pr.walls[i + 2], -pr.walls[i + 1]); }
+        // tom rangi uslubga koʻra: Albom — xira terrakota, Rangli — toʻyingan, Arctic/Minimal — oq, Funksiya — zona rangi
+        const rc = dim ? 0xf1efea : plain ? 0xf3f1ec : st === 'funksiya' ? tint(ZONE_COL[b.use] ?? C.bld, 0.35) : this.album ? 0xcfb2a3 : 0xb9765c;
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+        const tiles = !plain && st !== 'funksiya' && !dim && this.detail;
+        if (tiles) g.setAttribute('uv', new THREE.Float32BufferAttribute(roofUV(v), 2));
+        const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial(tiles ? { map: tileTexture(rc, aniso), side: THREE.DoubleSide } : { color: rc, side: THREE.DoubleSide }));
+        m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
+        this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : 0.45 })));
+        if (w.length) {
+          const gw = new THREE.BufferGeometry(); gw.setAttribute('position', new THREE.Float32BufferAttribute(w, 3)); gw.computeVertexNormals();
+          const wc = dim ? 0xf4f3f0 : (b.mat && !plain && st !== 'funksiya') ? MATS.find(x => x.id === b.mat)!.color : topC;
+          const mw = new THREE.Mesh(gw, new THREE.MeshLambertMaterial({ color: wc, side: THREE.DoubleSide })); mw.castShadow = true; mw.userData.bid = b.id; this.world.add(mw);
+        }
+      }
+    } else if (b.parapet) {
+      // parapet: tom chetidagi devorcha (qoʻshni seksiya bilan umumiy chokda — yoʻq)
+      const ring = last.ring, n = ring.length, ccw = signedArea(ring) > 0, v: number[] = [], th = 0.25, ph = b.parapet;
+      for (let k = 0; k < n; k++) {
+        if (shared(tiers.length - 1, k)) continue;
+        const a2 = ring[k], b2 = ring[(k + 1) % n], L = Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) || 1, nx = (ccw ? -1 : 1) * -(b2[1] - a2[1]) / L * th, ny = (ccw ? -1 : 1) * (b2[0] - a2[0]) / L * th;
+        const ai: XY = [a2[0] - nx, a2[1] - ny], bi2: XY = [b2[0] - nx, b2[1] - ny];
+        const quad = (p: XY, q: XY, z0: number, z1: number) => { v.push(p[0], z0, -p[1], q[0], z0, -q[1], q[0], z1, -q[1], p[0], z0, -p[1], q[0], z1, -q[1], p[0], z1, -p[1]); };
+        quad(a2, b2, topZ, topZ + ph); quad(bi2, ai, topZ, topZ + ph);
+        v.push(a2[0], topZ + ph, -a2[1], b2[0], topZ + ph, -b2[1], bi2[0], topZ + ph, -bi2[1], a2[0], topZ + ph, -a2[1], bi2[0], topZ + ph, -bi2[1], ai[0], topZ + ph, -ai[1]);
+      }
+      if (v.length) {
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+        const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : C.roof, side: THREE.DoubleSide })); m.castShadow = true; m.userData.bid = b.id; this.world.add(m);
+      }
+    }
+    // tanlangan qavat — yarim shaffof qatlam
+    if (sel && this.selFloor != null && this.selFloor >= 1 && this.selFloor <= b.floors) {
+      const f = this.selFloor, t = tiers.find(x => f > x.f0 && f <= x.f1) ?? last;
+      const g = new THREE.ExtrudeGeometry(new THREE.Shape(t.ring.map(toV2)), { depth: fh - 0.1, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.scale(1.004, 1, 1.004); g.translate(0, base + (f - 1) * fh + 0.05, 0);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x2a6fb0, transparent: true, opacity: 0.45, depthWrite: false })); m.renderOrder = 20; this.world.add(m);
+      this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({ color: 0x2a6fb0 })));
+    }
+  }
+
   update(doc: Project): void {
     this.lastDoc = doc;
     this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|');
@@ -659,96 +793,9 @@ export class Scene3D {
     const P3 = doc.buildings.map((b, i) => { const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; return { ring: r, base, top: base + (TP[i][0]?.f1 ?? b.floors) * fh }; });
     const SM = seams(P3.filter((_, i) => flat(doc.buildings[i]))), smOf = new Map<string, number>(); let si = 0; doc.buildings.forEach(b => { if (flat(b)) smOf.set(b.id, si++); });
     const focus = this.selected && doc.buildings.some(b => b.id === this.selected);
-    doc.buildings.forEach((b, bi) => {
-      const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected, dim = focus && !sel;
-      const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
-      const spec: WinSpec | null = this.facadeSpec(b);
-      // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar — faqat kamera atrofidagi binolarda (LOD), qolganlari teksturada
-      const det = this.facadeEligible(b) && this.detIds.has(b.id);
-      const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
-        const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
-        if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
-        const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
-        if (kind && spec && !plain) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
-        if (det && (kind === 'res' || kind === 'shop')) wall.visible = false;   // devorni geometrik fasad almashtiradi
-        const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
-        if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
-        if (top && !sel && !dim && roofK === 'quyosh' && !plain) { cap.color.setHex(0xffffff); cap.map = solarTex(); }
-        const m = new THREE.Mesh(g, [cap, wall]);
-        m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
-        if (sel) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({ color: 0x2a6fb0, depthTest: false, transparent: true, opacity: 0.9 })); e.renderOrder = 30; this.world.add(e); }
-        else if (outline) this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), edgeMat()));
-      };
-      const edgeMat = () => new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : st === 'minimal' ? 0.9 : st === 'arctic' ? 0.22 : 0.5 });
-      if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
-        // past uylar — qiya tom bilan (kontekstdagi kabi)
-        const objs = buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh, kind: 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
-        objs.forEach(o => { o.userData.bid = b.id; o.castShadow = o.receiveShadow = true; this.world.add(o); });
-        return;
-      }
-      const nr = Math.min(b.nonRes, b.floors - (b.gen?.kind === 'stilobat' ? 0 : 1));
-      const parking = b.gen?.kind === 'stilobat' && b.use === 'avtoturargoh', office = b.use === 'ofis' || b.use === 'mehmonxona';
-      const baseC = dim ? 0xebe9e4 : plain ? (st === 'minimal' ? 0xe6e6e6 : 0xf0eee9) : st === 'funksiya' ? tint(BASE_COL[b.use] ?? 0x9c7b6e, 0.15) : BASE_COL[b.use] ?? 0x9c7b6e;
-      const topC = dim ? 0xf4f3f0 : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : USE_COL[b.use] ?? C.bld;
-      const tiers = TP[bi], last = tiers[tiers.length - 1];
-      tiers.forEach((t, ti) => {
-        const up = ti > 0;   // yuqori pogʻonalar — toʻliq kontur bilan
-        if (t.f0 < nr) part(t.ring, t.f0 * fh, Math.min(t.f1, nr) * fh, baseC, parking ? null : 'shop', t === last && t.f1 <= nr, up);
-        if (t.f1 > nr) part(t.ring, Math.max(t.f0, nr) * fh, t.f1 * fh, topC, office ? 'glass' : 'res', t === last, up);
-      });
-      { const k = smOf.get(b.id)!, A = P3[bi], f1 = tiers[0]?.f1 ?? b.floors, segs = seamEdges(A, SM[k], nr > 0 && nr < f1 ? [A.base + nr * fh] : []);
-        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(segs.flatMap(([x, y, z]) => [x, z, -y]), 3));
-        this.world.add(new THREE.LineSegments(g, edgeMat())); }
-      const shared = (ti: number, k: number) => ti === 0 && SM[smOf.get(b.id)!].edgeTop[k] >= base + (tiers[0].f1 * fh) - 0.05;
-      // quyosh himoyasi
-      if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
-      // balkonlar (turar qavatlarda, 2-qavatdan)
-      if (det) this.facadeGeo(b, tiers, nr, base, fh, shared, spec!, parking, baseC, topC, P3.filter((_, i) => i !== bi));
-      else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain, b.balPat, strSeed(b.id));
-      const topZ = base + (last?.f1 ?? b.floors) * fh;
-      if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
-        const parts = roofParts(last.ring, roofK);
-        if (parts) {
-          const v: number[] = [], w: number[] = [];
-          for (const pr of parts) { for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], topZ + pr.tris[i + 2], -pr.tris[i + 1]); for (let i = 0; i < pr.walls.length; i += 3) w.push(pr.walls[i], topZ + pr.walls[i + 2], -pr.walls[i + 1]); }
-          // tom rangi uslubga koʻra: Albom — xira terrakota, Rangli — toʻyingan, Arctic/Minimal — oq, Funksiya — zona rangi
-          const rc = dim ? 0xf1efea : plain ? 0xf3f1ec : st === 'funksiya' ? tint(ZONE_COL[b.use] ?? C.bld, 0.35) : this.album ? 0xcfb2a3 : 0xb9765c;
-          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
-          const tiles = !plain && st !== 'funksiya' && !dim && this.detail;
-          if (tiles) g.setAttribute('uv', new THREE.Float32BufferAttribute(roofUV(v), 2));
-          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial(tiles ? { map: tileTexture(rc, aniso), side: THREE.DoubleSide } : { color: rc, side: THREE.DoubleSide }));
-          m.castShadow = m.receiveShadow = true; m.userData.bid = b.id; this.world.add(m);
-          this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : 0.45 })));
-          if (w.length) {
-            const gw = new THREE.BufferGeometry(); gw.setAttribute('position', new THREE.Float32BufferAttribute(w, 3)); gw.computeVertexNormals();
-            const wc = dim ? 0xf4f3f0 : (b.mat && !plain && st !== 'funksiya') ? MATS.find(x => x.id === b.mat)!.color : topC;
-            const mw = new THREE.Mesh(gw, new THREE.MeshLambertMaterial({ color: wc, side: THREE.DoubleSide })); mw.castShadow = true; mw.userData.bid = b.id; this.world.add(mw);
-          }
-        }
-      } else if (b.parapet) {
-        // parapet: tom chetidagi devorcha (qoʻshni seksiya bilan umumiy chokda — yoʻq)
-        const ring = last.ring, n = ring.length, ccw = signedArea(ring) > 0, v: number[] = [], th = 0.25, ph = b.parapet;
-        for (let k = 0; k < n; k++) {
-          if (shared(tiers.length - 1, k)) continue;
-          const a2 = ring[k], b2 = ring[(k + 1) % n], L = Math.hypot(b2[0] - a2[0], b2[1] - a2[1]) || 1, nx = (ccw ? -1 : 1) * -(b2[1] - a2[1]) / L * th, ny = (ccw ? -1 : 1) * (b2[0] - a2[0]) / L * th;
-          const ai: XY = [a2[0] - nx, a2[1] - ny], bi2: XY = [b2[0] - nx, b2[1] - ny];
-          const quad = (p: XY, q: XY, z0: number, z1: number) => { v.push(p[0], z0, -p[1], q[0], z0, -q[1], q[0], z1, -q[1], p[0], z0, -p[1], q[0], z1, -q[1], p[0], z1, -p[1]); };
-          quad(a2, b2, topZ, topZ + ph); quad(bi2, ai, topZ, topZ + ph);
-          v.push(a2[0], topZ + ph, -a2[1], b2[0], topZ + ph, -b2[1], bi2[0], topZ + ph, -bi2[1], a2[0], topZ + ph, -a2[1], bi2[0], topZ + ph, -bi2[1], ai[0], topZ + ph, -ai[1]);
-        }
-        if (v.length) {
-          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
-          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : C.roof, side: THREE.DoubleSide })); m.castShadow = true; m.userData.bid = b.id; this.world.add(m);
-        }
-      }
-      // tanlangan qavat — yarim shaffof qatlam
-      if (sel && this.selFloor != null && this.selFloor >= 1 && this.selFloor <= b.floors) {
-        const f = this.selFloor, t = tiers.find(x => f > x.f0 && f <= x.f1) ?? last;
-        const g = new THREE.ExtrudeGeometry(new THREE.Shape(t.ring.map(toV2)), { depth: fh - 0.1, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.scale(1.004, 1, 1.004); g.translate(0, base + (f - 1) * fh + 0.05, 0);
-        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x2a6fb0, transparent: true, opacity: 0.45, depthWrite: false })); m.renderOrder = 20; this.world.add(m);
-        this.world.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({ color: 0x2a6fb0 })));
-      }
-    });
+    const B: BCtx = { doc, fr, fh, aniso, TP, P3, SM, smOf, focus: !!focus, st, plain, toV2 };
+    this.bctx = B;
+    doc.buildings.forEach((_, bi) => this.buildTagged(doc, bi, B));
     if (this.floorLabels) doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal); if (area(r) < 40) return;
       const c = centroid(r), top = Math.min(...r.map(p => this.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh;
@@ -1504,6 +1551,7 @@ function densify(pts: XY[], step: number, closed = false): XY[] {
 }
 
 type GeoSet = Partial<Record<Layer, THREE.BufferGeometry>>;
+interface BCtx { doc: Project; fr: ReturnType<typeof frame>; fh: number; aniso: number; TP: TierPart[][]; P3: Prism3[]; SM: ReturnType<typeof seams>; smOf: Map<string, number>; focus: boolean; st: SceneStyle; plain: boolean; toV2: (p: XY) => THREE.Vector2 }
 /** Fasad massivlari → Float32 BufferGeometry (keshda; disposeGroup ularni oʻchirmaydi) */
 function toGeoSet(g: FacadeGeo): GeoSet {
   const out: GeoSet = {};
