@@ -4,7 +4,7 @@
  */
 import type { LngLat, Project } from '../core/doc';
 import { Store } from '../core/store';
-import { CommandError } from '../core/commands';
+import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
@@ -1886,8 +1886,9 @@ export class Editor {
     const apply = () => {
       const v = vars[this.gridVar] ?? vars[0], sts = gridStreets(site, v.g);
       if (!sts.length) { toast(tr('Uchastka tanlangan modul uchun kichik — modulni kichraytiring')); return; }
-      this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: sts.map(st => ({ axis: st.axis.map(fr.toGeo), profile: st.profile })) }));
-      const n = this.connectStreetEnds(); toast(`${sts.length} ${tr('ta koʻcha')} · ${this.plan().blocks.length} ${tr('kvartal')}${n ? ` · ${n} ${tr('uch yoʻllarga ulandi')}` : ''}`);
+      /* toʻr va uchlarni yoʻllarga ulash — bitta buyruq: sahna, panel va hisob bir marta qayta quriladi, tarixda bitta qadam */
+      const cmd: Extract<Command, { type: 'setGridStreets' }> = { type: 'setGridStreets', streets: sts.map(st => ({ id: uid('s_'), axis: st.axis.map(fr.toGeo), profile: st.profile })) };
+      let n = 0; this.run(() => { const r = this.streetEndPatches(applyCmd(this.store.doc, cmd)); n = r.n; this.store.dispatch({ ...cmd, patches: r.patches }); }); toast(`${sts.length} ${tr('ta koʻcha')} · ${this.plan().blocks.length} ${tr('kvartal')}${n ? ` · ${n} ${tr('uch yoʻllarga ulandi')}` : ''}`);
     };
     const num = (lbl: string, key: 'w' | 'h', min: number, max: number) => { const inp = h('input', { type: 'number', class: 'input', min, max, step: 1, value: g[key], 'aria-label': lbl }) as HTMLInputElement; inp.onchange = () => { const v = Number(inp.value); if (v >= min && v <= max) { g[key] = v; this.gridPreset = ''; this.renderPanel(); } }; return h('div', { class: 'field grow' }, h('label', {}, lbl), h('span', { class: 'unit' }, inp, h('span', {}, 'm'))); };
     const angV = g.angle == null ? 0 : Math.round(g.angle - autoAngle(site));
@@ -1916,7 +1917,14 @@ export class Editor {
 
   /** Mavjud koʻchalar uchlarini davom ettirib, ≤ 40 m dagi eng yaqin yoʻl oʻqiga (OSM yoki loyiha koʻchasi) ulash */
   private connectStreetEnds(): number {
-    const doc = this.store.doc, fr = frame(doc.origin), b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
+    const r = this.streetEndPatches(this.store.doc);
+    if (r.patches.length) this.run(() => this.store.dispatch({ type: 'updateStreets', patches: r.patches }));
+    return r.n;
+  }
+
+  /** Uchlarni ulash natijasi (hujjat oʻzgarmaydi): qaysi koʻchaning oʻqi qanday uzayadi */
+  private streetEndPatches(doc: Project): { n: number; patches: { id: string; patch: { axis: LngLat[] } }[] } {
+    const fr = frame(doc.origin), b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
     const targets: { id: string; a: XY[] }[] = doc.streets.map(st => ({ id: st.id, a: st.axis.map(fr.toLocal) }));
     if (b && doc.context.loaded) for (const r of b.osm.roads) if (!adopted.has(r.id) && !/^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) targets.push({ id: `osm${r.id}`, a: r.pts.map(fr.toLocal) });
     /** E nuqtadan D yoʻnalishda nur — eng yaqin kesishish (t ≤ 40 m) */
@@ -1931,16 +1939,17 @@ export class Editor {
       } }
       return hit;
     };
-    let n = 0;
-    this.run(() => { for (const st of doc.streets) {
+    let n = 0; const patches: { id: string; patch: { axis: LngLat[] } }[] = [];
+    /* hammasi bitta buyruqda: har koʻcha uchun alohida dispatch sahna, panel va hisobni N marta qayta qurardi (katta uchastkada qotish) */
+    { for (const st of doc.streets) {
       const a = st.axis.map(fr.toLocal); if (a.length < 2) continue;
       const dir = (p: XY, q: XY): XY => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [(q[0] - p[0]) / L, (q[1] - p[1]) / L]; };
       const h1 = ray(a[a.length - 1], dir(a[a.length - 2], a[a.length - 1]), st.id), h0 = ray(a[0], dir(a[1], a[0]), st.id);
       if (!h0 && !h1) continue;
       const na = [...(h0 ? [h0] : []), ...a, ...(h1 ? [h1] : [])]; n += (h0 ? 1 : 0) + (h1 ? 1 : 0);
-      this.store.dispatch({ type: 'updateStreet', id: st.id, patch: { axis: na.map(fr.toGeo) } });
-    } });
-    return n;
+      patches.push({ id: st.id, patch: { axis: na.map(fr.toGeo) } });
+    } }
+    return { n, patches };
   }
 
   /* ===== 2-qadam: Uchastka (MR-Q1) ===== */

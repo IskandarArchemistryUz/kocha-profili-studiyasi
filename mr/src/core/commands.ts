@@ -26,9 +26,10 @@ export type Command =
   | { type: 'setSettings'; patch: Partial<Settings> }
   | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
   | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
+  | { type: 'updateStreets'; patches: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
   | { type: 'removeStreet'; id: string }
   /** koʻcha toʻri generatsiyasi: avvalgi generatsiya koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi */
-  | { type: 'setGridStreets'; streets: { axis: LngLat[]; profile: string }[] }
+  | { type: 'setGridStreets'; streets: { axis: LngLat[]; profile: string; id?: string }[]; patches?: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
   | { type: 'setKeep'; keep: number[] }
@@ -69,6 +70,7 @@ export function label(c: Command): string {
     case 'setSettings': return 'Sozlamalar';
     case 'addStreet': return 'Koʻcha qoʻshildi';
     case 'updateStreet': return 'Koʻcha oʻzgardi';
+    case 'updateStreets': return 'Koʻchalar oʻzgardi';
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
     case 'setZones': return 'Zona';
@@ -162,8 +164,16 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const s = { ...doc.streets[i], ...c.patch }; if (s.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');
       d.streets = doc.streets.slice(); d.streets[i] = s; return d;
     }
+    case 'updateStreets': {   // bir nechta koʻcha — bitta oʻzgarish (sahna bir marta qayta quriladi)
+      const m = new Map(c.patches.map(q => [q.id, q.patch]));
+      d.streets = doc.streets.map(s => { const q = m.get(s.id); if (!q) return s; const n = { ...s, ...q }; if (n.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin'); return n; }); return d;
+    }
     case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
-    case 'setGridStreets': d.streets = [...doc.streets.filter(s => s.gen !== 'grid'), ...c.streets.map(s => ({ id: uid('s_'), axis: s.axis.map(p => [p[0], p[1]] as LngLat), profile: s.profile, gen: 'grid' as const }))]; return d;
+    case 'setGridStreets': {   // patches — uchlarni yoʻllarga ulash (shu buyruqda: tarixda bitta qadam, sahna bir marta)
+      d.streets = [...doc.streets.filter(s => s.gen !== 'grid'), ...c.streets.map(s => ({ id: s.id ?? uid('s_'), axis: s.axis.map(p => [p[0], p[1]] as LngLat), profile: s.profile, gen: 'grid' as const }))];
+      if (c.patches?.length) { const m = new Map(c.patches.map(q => [q.id, q.patch])); d.streets = d.streets.map(s => { const q = m.get(s.id); return q && (q.axis ?? s.axis).length >= 2 ? { ...s, ...q } : s; }); }
+      return d;
+    }
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
     case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
