@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fx';
+import { readFileSync } from 'fs';
 
 /** Koʻchasoz (app/kochasoz.html): kanvas maketlari A, B, C, E, Grafika, Varaq — rejimlar, kesim tahriri, saqlash, A→B, Varaq→Chizmadon */
 const errs: string[] = [];
@@ -141,4 +142,32 @@ test('Master reja koʻchasi → «Koʻchasozda ochish» → B kesim shu profil b
   await expect(page).toHaveURL(/kochasoz\.html#\/b$/);
   await expect(page.locator('.ws-b aside').first()).toContainText(name);
   expect(errs).toEqual([]);
+});
+
+/** B · kesim → DXF (Archicad/AutoCAD): metr 1:1, qizil chiziqlar orasi, zona enlari — DIMENSION, siluetlar — blok, UI yoʻq */
+test('kesim DXF eksporti: S3 (21,7 m) — oʻlchamlar, qatlamlar, bloklar', async ({ page }) => {
+  await page.goto('./kochasoz.html#/b');
+  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
+  await page.evaluate(() => { const E = [['front', 1.5, { orin: true }], ['piy', 3, {}], ['yash', 2, { daraxt: true }], ['park', 2.2, { mashina: true }], ['qat', 3.25, {}], ['qat', 3.25, {}], ['yash', 2, { daraxt: true }], ['piy', 3, {}], ['front', 1.5, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 21.7, tplName: 'S3', sel: 0, selU: -1 }); });
+  await page.click('[data-ksexp]');
+  await expect(page.locator('.ks-menu [role=menuitemcheckbox]')).toHaveCount(5);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.ks-menu button:has-text("DXF")')]);
+  expect(dl.suggestedFilename()).toMatch(/^s3_kesim_\d{4}-\d{2}-\d{2}\.dxf$/);
+  const txt = readFileSync(await dl.path(), 'utf8'), T = txt.split(/\r?\n/).map(s => s.trim());
+  expect(T[T.indexOf('$INSUNITS') + 2]).toBe('6');                         // metr
+  // qizil chiziqlar: vertikal LWPOLYLINE, x = 0 va 21,7
+  const ents: Record<string, string>[] = []; let cur: Record<string, string> | null = null;
+  for (let i = T.indexOf('ENTITIES') + 1; i < T.length - 1; i += 2) { if (T[i] === '0') { if (cur) ents.push(cur); cur = { type: T[i + 1] }; if (T[i + 1] === 'ENDSEC') break; } else if (cur && !(T[i] in cur)) cur[T[i]] = T[i + 1]; }
+  const red = ents.filter(e => e.type === 'LWPOLYLINE' && e['8'] === 'KS_RED_LINE').map(e => +e['10']).sort((a, b) => a - b);
+  expect(red[0]).toBeCloseTo(0, 3); expect(red[red.length - 1]).toBeCloseTo(21.7, 3);
+  // 9 zona + umumiy — haqiqiy DIMENSION, oʻlchanadigan qiymat (42)
+  const dims = ents.filter(e => e.type === 'DIMENSION').map(e => +e['42']);
+  expect(dims.length).toBe(10); expect(dims[9]).toBeCloseTo(21.7, 3); expect(dims.slice(0, 9).map(v => +v.toFixed(2))).toEqual([1.5, 3, 2, 2.2, 3.25, 3.25, 2, 3, 1.5]);
+  // siluetlar — INSERT, qatlamlar
+  expect(ents.some(e => e.type === 'INSERT' && e['8'] === 'KS_PEOPLE')).toBe(true);
+  expect(ents.some(e => e.type === 'INSERT' && e['8'] === 'KS_CARS')).toBe(true);
+  expect(ents.some(e => e.type === 'HATCH' && e['8'] === 'KS_ZONE_LANE')).toBe(true);
+  // UI: tanlov rangi (#4c5bd4) va «qavat» kartochkasi yoʻq
+  expect(txt).not.toContain(String(0x4c5bd4)); expect(txt).not.toMatch(/\d+ qavat/);
 });

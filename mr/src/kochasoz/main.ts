@@ -7,11 +7,12 @@
 import '../ui/ds2.css';
 import './ks.css';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
-import { h, svgIcon, toast } from '../ui/dom';
+import { h, svgIcon, toast, download } from '../ui/dom';
 import { logoSvg } from '../ui/logo';
 import { tr, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { mount, type DCLogic, type Mounted } from './dc';
-import { exportSvg, exportPdf, sendToChizmadon, saveJson, openJson } from './io';
+import { exportSvg, exportPdf, sendToChizmadon, saveJson, openJson, svgText, cleanSvg, exportPng, safeName } from './io';
+import { KESIM_OPTS_DEF, kesimDxf, type KesimOpts } from './kesimdxf';
 import { initStats } from '../core/stats';
 initStats('ks');
 
@@ -190,6 +191,7 @@ stage.addEventListener('click', e => {
     return;
   }
   const btn = t.closest('button');
+  if (btn?.dataset.ksexp && current?.id === 'b') { toggleExportMenu(btn); return; }
   if (btn && current?.id === 'varaq') {
     const lbl = btn.textContent?.trim();
     const svg = stage.querySelector<SVGSVGElement>('.ws-varaq svg[role=img]');
@@ -202,6 +204,41 @@ stage.addEventListener('click', e => {
     else if (btn.classList.contains('btn-primary')) sendToChizmadon(svg, name);
   }
 });
+
+/* ---------- B · kesim: eksport menyusi (DXF · SVG · PNG 2×/4× · PDF) ---------- */
+const EXP_OPTS_KEY = 'ks-exp-opts';
+function toggleExportMenu(btn: HTMLElement): void {
+  const wrap = btn.parentElement as HTMLElement, old = wrap.querySelector('.ks-menu');
+  if (old) { old.remove(); btn.setAttribute('aria-expanded', 'false'); return; }
+  const svg = stage.querySelector<SVGSVGElement>('.ws-b svg[role=img]'); if (!svg) return;
+  const st = current!.m.inst.state as { els?: [string, number][]; rl?: number; tplName?: string };
+  const base = `${st.tplName || tr('Koʻcha')}_${tr('kesim')}_${new Date().toISOString().slice(0, 10)}`;
+  const opts: KesimOpts = { ...KESIM_OPTS_DEF, ...(LS.get(EXP_OPTS_KEY) ?? {}) };
+  const close = () => { menu.remove(); btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); };
+  const outside = (e: Event) => { if (!wrap.contains(e.target as Node)) close(); };
+  const run = (f: () => unknown) => () => { close(); void f(); };
+  const item = (label: string, note: string, f: () => unknown) => h('button', { type: 'button', role: 'menuitem', onclick: run(f) }, h('span', {}, label), h('span', { class: 't-foot' }, note));
+  const ck = (k: keyof KesimOpts, label: string) => {
+    const box = h('span', { class: `check${opts[k] ? ' on' : ''}` }); box.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>';
+    const b = h('button', { type: 'button', role: 'menuitemcheckbox', class: 'ks-ck', 'aria-checked': String(opts[k]), onclick: () => { opts[k] = !opts[k]; LS.set(EXP_OPTS_KEY, opts); box.classList.toggle('on', opts[k]); b.setAttribute('aria-checked', String(opts[k])); } }, box, h('span', {}, label));
+    return b;
+  };
+  const menu = h('div', { class: 'ks-menu', role: 'menu' },
+    item('DXF', tr('AutoCAD · Archicad, 1:1 m'), async () => {
+      if (!svg.dataset.g) { toast(tr('DXF faqat «Kesim» koʻrinishida chiqariladi')); return; }
+      const txt = await kesimDxf({ svg, widths: (st.els ?? []).map(e => e[1]), rl: st.rl ?? 0, name: base }, opts).catch(e => { toast(`DXF: ${(e as Error).message}`); return null; });
+      if (txt) download(`${safeName(base)}.dxf`, txt, 'application/dxf');
+    }),
+    item('SVG', tr('vektor'), () => download(`${safeName(base)}.svg`, svgText(cleanSvg(svg)), 'image/svg+xml')),
+    item('PNG 2×', tr('rasm'), () => exportPng(cleanSvg(svg), `${safeName(base)}.png`, 2)),
+    item('PNG 4×', tr('chop etish uchun'), () => exportPng(cleanSvg(svg), `${safeName(base)}.png`, 4)),
+    item('PDF', 'A3', () => exportPdf(cleanSvg(svg), base)),
+    h('hr', {}),
+    h('div', { class: 'ks-mh' }, tr('DXF ga kiritish')),
+    ck('sil', tr('Siluetlar')), ck('util', tr('Tarmoqlar')), ck('legend', tr('Legenda')), ck('bld', tr('Binolar')), ck('title', tr('Sarlavha')));
+  wrap.append(menu); btn.setAttribute('aria-expanded', 'true');
+  setTimeout(() => document.addEventListener('pointerdown', outside, true));
+}
 
 /** Varaq (SVG) → PNG → Render studiyasi (asos rasm, «Koʻcha») */
 async function varaqToRender(svg: SVGSVGElement, name: string): Promise<void> {
