@@ -243,7 +243,7 @@ export class Editor {
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
     if (p.buildings !== doc.buildings && this.apt.stats) this.clearApt();
     (this.el.name as HTMLInputElement).value = doc.name;
-    this.scene.select(this.sel); this.scene.update(doc);
+    this.scene.setSelection(this.sel); this.scene.update(doc);
     if (p.userLayers !== doc.userLayers || p.origin !== doc.origin || p.settings.floorHeight !== doc.settings.floorHeight) this.ul.sync(doc);
     this.renderAll(); this.recompute();
   }

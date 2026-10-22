@@ -149,7 +149,7 @@ export class Scene3D {
     this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -10000, 10000);
     this.cam = this.persp;
     this.ctl = new OrbitControls(this.persp, this.renderer.domElement);
-    this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); });
+    this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); this.lodSoon(); });
     this.setView('plan', true);
 
     new ResizeObserver(() => this.resize()).observe(host);
@@ -162,7 +162,7 @@ export class Scene3D {
   /** kamera oʻzgarganda (sahnadagi HTML belgilarni joylash uchun) */
   onView: (() => void) | null = null;
 
-  dispose(): void { cancelAnimationFrame(this.raf); this.ctl.dispose(); this.renderer.dispose(); this.renderer.domElement.remove(); }
+  dispose(): void { clearTimeout(this.lodT); this.facCache.forEach(G => { disposeGeoSet(G.res); disposeGeoSet(G.shop); }); this.facCache.clear(); this.facMats.forEach(m => m.dispose()); this.facMats.clear(); cancelAnimationFrame(this.raf); this.ctl.dispose(); this.renderer.dispose(); this.renderer.domElement.remove(); }
 
   private resize(): void {
     const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
@@ -202,7 +202,7 @@ export class Scene3D {
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     else if (this.hand) this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-    this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); });
+    this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); this.lodSoon(); });
     this.ctl.update(); this.onView?.();
     this.resize();
   }
@@ -407,7 +407,48 @@ export class Scene3D {
   /** geometrik fasad yoqilgan (Kamera/uslub oynasidan oʻchirish mumkin — kuchsiz kompyuterlar uchun) */
   detail = true;
   setDetail(on: boolean): void { if (on === this.detail) return; this.detail = on; if (this.lastDoc) this.update(this.lastDoc); }
-  private facCache = new Map<string, { res: FacadeGeo; shop: FacadeGeo }>();
+  /** Geometrik fasad keshi: tayyor BufferGeometry (Float32), oxirgi ishlatilganlar saqlanadi (LRU) */
+  private facCache = new Map<string, { res: GeoSet; shop: GeoSet }>();
+  private static FAC_CACHE = 40;
+  /** Fasad qatlamlari materiallari — rang/material boʻyicha umumiy (har bino uchun yangisi yaratilmaydi) */
+  private facMats = new Map<string, THREE.Material>();
+  private facMat(key: string, make: () => THREE.Material): THREE.Material {
+    let m = this.facMats.get(key); if (!m) { m = make(); m.userData.cache = true; this.facMats.set(key, m); } return m;
+  }
+  /**
+   * LOD: geometrik fasad (derazalar, romlar, balkonlar) faqat kamera atrofidagi binolarga quriladi — bitta 12 qavatli
+   * seksiya ~150 ming uchburchak; qolganlari deraza teksturasi bilan. Koʻrinish yarim kengligi LOD_VIEW m dan katta boʻlsa — hammasi teksturada.
+   */
+  private static LOD_VIEW = 320;
+  private static LOD_TRIS = 1_200_000;
+  private detIds = new Set<string>();
+  private lodKey = '';
+  private lodT = 0;
+  private lodSoon(): void { clearTimeout(this.lodT); this.lodT = window.setTimeout(() => this.refreshLod(), 250); }
+  /** Kamera oʻzgargach: geometrik fasadli binolar toʻplami oʻzgargan boʻlsa — sahna qayta quriladi */
+  refreshLod(): void {
+    const d = this.lastDoc; if (!d) return;
+    const ids = this.pickLod(d), k = [...ids].sort().join('|');
+    if (k !== this.lodKey) this.update(d);
+  }
+  private facadeSpec(b: Project['buildings'][number]): WinSpec | null { return b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null; }
+  private facadeEligible(b: Project['buildings'][number]): boolean {
+    return (this.detail || !!b.winPat || !!b.balPat) && !!this.facadeSpec(b) && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
+  }
+  private pickLod(doc: Project): Set<string> {
+    const out = new Set<string>(); if (this.selected) out.add(this.selected);
+    const { c, r } = this.viewExtent(); if (r > Scene3D.LOD_VIEW) return out;
+    const fr = frame(doc.origin);
+    const cand = doc.buildings.filter(b => this.facadeEligible(b)).map(b => {
+      const ring = b.footprint.map(fr.toLocal), ct = centroid(ring); let per = 0;
+      ring.forEach((p, i) => { const q = ring[(i + 1) % ring.length]; per += Math.hypot(q[0] - p[0], q[1] - p[1]); });
+      return { id: b.id, d: Math.hypot(ct[0] - c[0], ct[1] - c[1]), t: per / 3.3 * b.floors * 300 };
+    }).filter(x => x.d < r * 1.1).sort((a, b) => a.d - b.d);
+    let sum = 0; for (const x of cand) { if (sum + x.t > Scene3D.LOD_TRIS && out.size) break; sum += x.t; out.add(x.id); }
+    return out;
+  }
+  /** Geometrik fasadli binolar soni (tekshiruv va testlar uchun) */
+  get detailCount(): number { return this.detIds.size; }
   private facadeGeo(b: Project['buildings'][number], tiers: TierPart[], nr: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, spec: WinSpec, parking: boolean, baseC: number, topC: number, P3: Prism3[]): void {
     const resP: PartIn[] = [], shopP: PartIn[] = [];
     const covAll = tiers.map(t => edgeCover({ ring: t.ring, base: base + t.f0 * fh, top: base + t.f1 * fh }, P3));
@@ -418,26 +459,31 @@ export class Scene3D {
     });
     const key = JSON.stringify([resP.map(p => [p.ring, p.z0, p.floors, p.ring.map((_, k) => [p.skip(k), p.cover?.(k)])]), shopP.map(p => [p.ring, p.z0, p.floors]), fh, spec, b.bal, b.mat, b.winPat, b.balPat, b.winPat === 'tasodifiy' || b.balPat === 'tasodifiy' ? b.id : '']);
     let G = this.facCache.get(key);
-    if (!G) { G = { res: buildFacade(resP, emptyGeo()), shop: buildFacade(shopP, emptyGeo()) }; if (this.facCache.size > 600) this.facCache.clear(); this.facCache.set(key, G); }
+    if (G) this.facCache.delete(key);   // LRU: oxiriga oʻtkaziladi
+    else {
+      G = { res: toGeoSet(buildFacade(resP, emptyGeo())), shop: toGeoSet(buildFacade(shopP, emptyGeo())) };
+      while (this.facCache.size >= Scene3D.FAC_CACHE) { const [k0, old] = this.facCache.entries().next().value!; this.facCache.delete(k0); disposeGeoSet(old.res); disposeGeoSet(old.shop); }
+    }
+    this.facCache.set(key, G);
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     const MAT_C = (id?: string) => id ? MATS.find(m => m.id === id)?.color : undefined;
     const lam = (o: THREE.MeshLambertMaterialParameters) => new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, ...o });
-    const add = (g: FacadeGeo, wallC: number, matId: string, shop: boolean) => {
+    const add = (g: GeoSet, wallC: number, matId: string, shop: boolean) => {
       const tex = matTexture(matId, wallC, aniso), light = matId === 'gisht' || matId === 'terrakota' || matId === 'yogoch';
-      const mats: Record<Layer, THREE.Material> = {
-        wall: lam(tex ? { map: tex.t } : { color: wallC }),
-        trim: lam({ color: tint(wallC, light ? 0.45 : 0.25) }),
-        glass: new THREE.MeshPhongMaterial({ color: shop ? 0x6f8796 : 0x86a0b0, specular: 0x8899aa, shininess: 80, side: THREE.DoubleSide }),
-        frame: lam({ color: shop ? 0x2e3236 : light ? 0xf1e6dc : 0x43484e }),
-        sill: lam({ color: 0xe2ddd4 }),
-        slab: lam({ color: 0xebe4dc }),
-        rail: new THREE.MeshPhongMaterial({ color: 0xcfe0ea, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide, shininess: 90 }),
-        bar: lam({ color: 0x3a3d42 }),
+      const mk: Record<Layer, () => THREE.Material> = {
+        wall: () => lam(tex ? { map: tex.t } : { color: wallC }),
+        trim: () => lam({ color: tint(wallC, light ? 0.45 : 0.25) }),
+        glass: () => new THREE.MeshPhongMaterial({ color: shop ? 0x6f8796 : 0x86a0b0, specular: 0x8899aa, shininess: 80, side: THREE.DoubleSide }),
+        frame: () => lam({ color: shop ? 0x2e3236 : light ? 0xf1e6dc : 0x43484e }),
+        sill: () => lam({ color: 0xe2ddd4 }),
+        slab: () => lam({ color: 0xebe4dc }),
+        rail: () => new THREE.MeshPhongMaterial({ color: 0xcfe0ea, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide, shininess: 90 }),
+        bar: () => lam({ color: 0x3a3d42 }),
       };
-      (Object.keys(mats) as Layer[]).forEach(L => {
-        const d = g[L]; if (!d.pos.length) { mats[L].dispose(); return; }
-        const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(d.pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(d.uv, 2)); geo.computeVertexNormals();
-        const m = new THREE.Mesh(geo, mats[L]); m.castShadow = L === 'wall' || L === 'slab' || L === 'trim'; m.receiveShadow = L !== 'rail'; m.userData.bid = b.id;
+      (Object.keys(mk) as Layer[]).forEach(L => {
+        const geo = g[L]; if (!geo) return;
+        const mat = this.facMat(`${L}|${wallC}|${matId}|${shop ? 1 : 0}|${aniso}`, mk[L]);
+        const m = new THREE.Mesh(geo, mat); m.castShadow = L === 'wall' || L === 'slab' || L === 'trim'; m.receiveShadow = L !== 'rail'; m.userData.bid = b.id;
         if (L === 'rail') m.renderOrder = 12;
         this.world.add(m);
       });
@@ -502,6 +548,8 @@ export class Scene3D {
   hideGone = false;
   setHideGone(on: boolean): void { if (on === this.hideGone) return; this.hideGone = on; if (this.lastDoc) this.update(this.lastDoc); }
   select(id: string | null): void { this.selected = id; if (this.lastDoc) this.update(this.lastDoc); }
+  /** Tanlovni sahnani qayta qurmasdan oʻrnatish (keyin baribir update chaqiriladigan joylar uchun) */
+  setSelection(id: string | null): void { this.selected = id; }
   selectBlock(i: number | null): void { this.selBlock = i; if (this.lastDoc) this.update(this.lastDoc); }
   setFacade(st: FacadeStyle): void { this.facade = st; if (this.lastDoc) this.update(this.lastDoc); }
   selectStreet(id: string | null): void { this.selStreet = id; if (this.lastDoc) this.update(this.lastDoc); }
@@ -516,6 +564,7 @@ export class Scene3D {
 
   update(doc: Project): void {
     this.lastDoc = doc;
+    this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|');
     disposeGroup(this.world);
     const fr = frame(doc.origin);
     const toV2 = (p: XY) => new THREE.Vector2(p[0], p[1]);
@@ -609,9 +658,9 @@ export class Scene3D {
     doc.buildings.forEach((b, bi) => {
       const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, sel = b.id === this.selected, dim = focus && !sel;
       const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
-      const spec: WinSpec | null = b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null;
-      // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar (uzoqdan ham, taqdimot uchun)
-      const det = (this.detail || !!b.winPat || !!b.balPat) && !!spec && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
+      const spec: WinSpec | null = this.facadeSpec(b);
+      // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar — faqat kamera atrofidagi binolarda (LOD), qolganlari teksturada
+      const det = this.facadeEligible(b) && this.detIds.has(b.id);
       const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
         const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
         if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
@@ -1283,6 +1332,7 @@ export class Scene3D {
 
   /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
   snapshot(ratio = 0): string {
+    this.refreshLod();
     { const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); }
     const c = this.renderer.domElement; if (!ratio) return c.toDataURL('image/png');
     const r = this.frameRect(ratio), k = c.width / (c.clientWidth || c.width), o = document.createElement('canvas');
@@ -1372,7 +1422,7 @@ function labelSprite(text: string, badge = false): THREE.Sprite {
   c.width = w; c.height = fs + 22; g.font = `600 ${fs}px Archivo, system-ui, sans-serif`;
   g.fillStyle = badge ? '#1d1d1b' : 'rgba(255,255,255,0.94)'; g.strokeStyle = '#1d1d1b'; g.lineWidth = 2; g.beginPath(); g.roundRect(1, 1, w - 2, c.height - 2, badge ? c.height / 2 : 10); g.fill(); g.stroke();
   g.fillStyle = badge ? '#ffffff' : '#1d1d1b'; g.textBaseline = 'middle'; g.fillText(text, 14, c.height / 2 + 1);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.userData.own = true;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: badge, sizeAttenuation: false }));
   const k = badge ? 0.5 : 0.55; sp.userData.px = [c.width * k, c.height * k]; sp.center.set(badge ? 0.5 : 0, 0); sp.renderOrder = 50;
   return sp;
@@ -1387,7 +1437,7 @@ function labelCard(lines: string[]): THREE.Sprite {
   g.fillStyle = 'rgba(255,255,255,0.9)'; g.strokeStyle = 'rgba(29,29,27,0.55)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(1, 1, c.width - 2, c.height - 2, 8); g.fill(); g.stroke();
   g.textBaseline = 'middle'; g.textAlign = 'center';
   lines.forEach((t, i) => { g.font = font(i); g.fillStyle = i === 0 ? '#1d1d1b' : '#4a4843'; g.fillText(t, c.width / 2, pad / 2 + lh * (i + 0.5)); });
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.userData.own = true;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false }));
   sp.userData.px = [c.width * 0.5, c.height * 0.5]; sp.center.set(0.5, 0.5); sp.renderOrder = 49;
   return sp;
@@ -1449,12 +1499,36 @@ function densify(pts: XY[], step: number, closed = false): XY[] {
   return out;
 }
 
+type GeoSet = Partial<Record<Layer, THREE.BufferGeometry>>;
+/** Fasad massivlari → Float32 BufferGeometry (keshda; disposeGroup ularni oʻchirmaydi) */
+function toGeoSet(g: FacadeGeo): GeoSet {
+  const out: GeoSet = {};
+  (Object.keys(g) as Layer[]).forEach(L => {
+    const d = g[L]; if (!d.pos.length) return;
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(d.pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(d.uv, 2)); geo.computeVertexNormals();
+    geo.computeBoundingSphere(); geo.userData.cache = true; out[L] = geo;
+  });
+  return out;
+}
+function disposeGeoSet(s: GeoSet): void { Object.values(s).forEach(g => g?.dispose()); }
+
+/**
+ * Guruhni boʻshatish (ichki guruhlar bilan): keshdagi geometriya va materiallar (userData.cache) saqlanadi,
+ * yorliqlarning oʻz kanvas teksturalari (userData.own) GPU dan oʻchiriladi — aks holda har yangilanishda xotira oqib ketadi.
+ */
 function disposeGroup(g: THREE.Group): void {
   g.children.slice().forEach(o => {
     g.remove(o);
-    const m = o as THREE.Mesh; m.geometry?.dispose();
-    const mat = m.material as THREE.Material | THREE.Material[] | undefined;
-    (Array.isArray(mat) ? mat : mat ? [mat] : []).forEach(x => x.dispose());
+    o.traverse(x => {
+      const m = x as THREE.Mesh;
+      if (m.geometry && !m.geometry.userData.cache && !(x as THREE.Sprite).isSprite) m.geometry.dispose();
+      const mat = m.material as (THREE.Material & { map?: THREE.Texture | null }) | THREE.Material[] | undefined;
+      for (const y of (Array.isArray(mat) ? mat : mat ? [mat] : []) as (THREE.Material & { map?: THREE.Texture | null })[]) {
+        if (y.userData.cache) continue;
+        if (y.map?.userData.own) y.map.dispose();
+        y.dispose();
+      }
+    });
   });
 }
 function pointInRing(p: XY, r: XY[]): boolean { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; }
