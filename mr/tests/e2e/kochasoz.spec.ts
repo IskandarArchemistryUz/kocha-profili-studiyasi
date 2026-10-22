@@ -232,3 +232,19 @@ test('ariq / lotok zonasi', async ({ page }) => {
   await page.goto('./kochasoz.html#/varaq'); await page.waitForTimeout(800);
   expect(errs).toEqual([]);
 });
+
+/** Chet turlari varaqda ham: B da tanlangan bogʻ / suv — varaq kesimi va rejasida, bino oʻrniga */
+test('varaq — chet turlari', async ({ page }) => {
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('./kochasoz.html#/b');
+  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  await page.evaluate(() => (window as any).__ks.m.inst.setState({ eL: 'suv', eR: 'bog' }));
+  await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Reja' }).click();
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'Daryo / kanal' })).toHaveCount(1);   // B rejasi
+  await page.evaluate(() => { location.hash = '#/varaq'; });
+  await page.waitForFunction(() => (window as any).__ks?.id === 'varaq');
+  const t = page.locator('svg text');
+  await expect(t.filter({ hasText: 'Daryo / kanal' })).toHaveCount(2);   // kesim + reja
+  await expect(t.filter({ hasText: /^Bogʻ$/ })).toHaveCount(2);
+  expect(errs).toEqual([]);
+});

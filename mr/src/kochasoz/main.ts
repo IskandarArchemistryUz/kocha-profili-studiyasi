@@ -56,7 +56,7 @@ function gate(v: Record<string, unknown>): Record<string, unknown> {
 
 /* ---------- saqlash ---------- */
 /** B va Varaq uchun umumiy koʻcha (kesim) maʼlumoti */
-const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'gfx', 'showU'];
+const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'eL', 'eR', 'gfx', 'showU'];
 const SHARED: Partial<Record<BoardId, string[]>> = { b: STREET, varaq: STREET, c: ['TPL'] };
 /** faqat oʻsha oynada kerak (saqlanmaydi): tanlangan zona/tarmoq */
 const VOLATILE = new Set(['sel', 'selU', 'vw']);
@@ -126,6 +126,7 @@ async function show(): Promise<void> {
   if (current?.id === id) return;
   const [Cls, tpl] = await Promise.all([BOARDS[id].load(), BOARDS[id].tpl()]);
   if (my !== seq) return;
+  if (current) persist(current.id, current.m.inst);   // 200 ms kechikishdagi oxirgi oʻzgarish yoʻqolmasin (masalan, chet tanlab darhol varaqqa oʻtish)
   current?.m.destroy(); current = null;
   const inst = new Cls.default({});
   const shared = SHARED[id] ?? [];
