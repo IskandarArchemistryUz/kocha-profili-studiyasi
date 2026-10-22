@@ -29,7 +29,7 @@ export type Command =
   | { type: 'updateStreets'; patches: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
   | { type: 'removeStreet'; id: string }
   /** koʻcha toʻri generatsiyasi: avvalgi generatsiya koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi */
-  | { type: 'setGridStreets'; streets: { axis: LngLat[]; profile: string; id?: string }[]; patches?: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
+  | { type: 'setGridStreets'; streets: { axis: LngLat[]; profile: string; id?: string }[]; patches?: { id: string; patch: Partial<Omit<Street, 'id'>> }[]; /** uchastkani kesib oʻtgan mavjud (OSM) koʻchalar — loyihaga olinadi */ adopt?: { axis: LngLat[]; profile: string; osm: number; id?: string }[] }
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
   | { type: 'setKeep'; keep: number[] }
@@ -170,7 +170,9 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     }
     case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
     case 'setGridStreets': {   // patches — uchlarni yoʻllarga ulash (shu buyruqda: tarixda bitta qadam, sahna bir marta)
-      d.streets = [...doc.streets.filter(s => s.gen !== 'grid'), ...c.streets.map(s => ({ id: s.id ?? uid('s_'), axis: s.axis.map(p => [p[0], p[1]] as LngLat), profile: s.profile, gen: 'grid' as const }))];
+      const had = new Set(doc.streets.map(s => s.osm).filter(x => x != null));
+      const ad = (c.adopt ?? []).filter(a => !had.has(a.osm) && a.axis.length >= 2).map(a => ({ id: a.id ?? uid('s_'), axis: a.axis.map(p => [p[0], p[1]] as LngLat), profile: a.profile, osm: a.osm }));
+      d.streets = [...doc.streets.filter(s => s.gen !== 'grid'), ...ad, ...c.streets.map(s => ({ id: s.id ?? uid('s_'), axis: s.axis.map(p => [p[0], p[1]] as LngLat), profile: s.profile, gen: 'grid' as const }))];
       if (c.patches?.length) { const m = new Map(c.patches.map(q => [q.id, q.patch])); d.streets = d.streets.map(s => { const q = m.get(s.id); return q && (q.axis ?? s.axis).length >= 2 ? { ...s, ...q } : s; }); }
       return d;
     }
