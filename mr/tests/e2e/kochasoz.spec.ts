@@ -171,3 +171,22 @@ test('kesim DXF eksporti: S3 (21,7 m) — oʻlchamlar, qatlamlar, bloklar', asyn
   // UI: tanlov rangi (#4c5bd4) va «qavat» kartochkasi yoʻq
   expect(txt).not.toContain(String(0x4c5bd4)); expect(txt).not.toMatch(/\d+ qavat/);
 });
+
+/** EN rejimida kesim va DXF faylida oʻzbekcha yozuv qolmaydi, oʻnlik ajratgich — nuqta */
+test('kesim DXF: EN — oʻzbekcha yozuvsiz, oʻnlik nuqta', async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('mr-lang', 'en'); localStorage.setItem('kps_lang', 'en'); });
+  await page.goto('./kochasoz.html#/b');
+  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  await page.locator('.ws-b main .seg').first().locator('button').first().click();
+  await page.evaluate(() => { const E = [['front', 1.5, {}], ['piy', 3, {}], ['yash', 2, { daraxt: true }], ['qat', 3.25, {}], ['qat', 3.25, {}], ['med', 2, {}], ['bus', 3.5, {}], ['tram', 7, {}], ['velo', 2.5, {}], ['piy', 3, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 31, tplName: 'S7', sel: 0, selU: -1 }); });
+  await page.locator('.ws-b button', { hasText: /^Auto/ }).first().click();
+  await page.click('[data-ksexp]');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.ks-menu button:has-text("DXF")')]);
+  const raw = readFileSync(await dl.path(), 'utf8');
+  expect(raw).toMatch(/^[\x00-\x7f]*$/);                                  // ASCII: ʻ, –, kirill — \\U+XXXX
+  const T = raw.replace(/\\U\+([0-9A-F]{4})/g, (_m, h) => String.fromCharCode(parseInt(h, 16))).split(/\r?\n/).map(s => s.trim());
+  const texts: string[] = []; for (let i = 0; i < T.length - 1; i++) if (T[i] === '1' && T[i - 2] !== '9' && /[A-Za-zА-я]/.test(T[i + 1] ?? '')) texts.push(T[i + 1]);
+  expect(texts).toContain('Section A–A'); expect(texts.some(t => t.startsWith('Footway zone'))).toBe(true);
+  expect(texts.filter(t => /[ʻʼ]|Trotuar|Qatnov|Qizil|orasi|Toshkent|qavat/.test(t))).toEqual([]);
+  expect(texts.filter(t => /\d,\d/.test(t))).toEqual([]);
+});
