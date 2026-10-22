@@ -224,6 +224,7 @@ test('ariq / lotok zonasi', async ({ page }) => {
   await page.locator('.ws-b .chipb', { hasText: /^\+ Ariq$/ }).click();
   expect(await page.evaluate(() => (window as any).__ks.m.inst.state.els.map((e: any) => e[0]).join(','))).toBe('piy,qat,ariq,qat,piy');
   await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'Ariq / lotok' })).toHaveCount(1);   // legenda
+  await expect(page.locator('.ws-b').getByText(/242-band.*QMQ 2\.04\.03-19, 19-jadval/).first()).toBeVisible();   // meʼyoriy band
   await page.click('[data-ksexp]');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.ks-menu button:has-text("DXF")')]);
   expect(readFileSync(await dl.path(), 'utf8')).toContain('KS_ZONE_WATER');
