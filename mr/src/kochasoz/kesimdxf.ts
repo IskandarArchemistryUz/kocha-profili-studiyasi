@@ -181,5 +181,6 @@ export async function kesimDxf(K: KesimData, o: KesimOpts = KESIM_OPTS_DEF): Pro
   };
   if (Number.isFinite(C.dimY)) for (let i = 1; i < xs.length; i++) dim(xs[i - 1], xs[i], C.dimY);
   if (Number.isFinite(C.totY)) dim(0, K.rl, C.totY);
-  return w.stringify();
+  // ASCII dan tashqari belgilar (ʻ, –, ·, −, kirill) — DXF \\U+XXXX koʻrinishida: kodirovkaga bogʻliq emas (AutoCAD, Archicad, eski oʻquvchilar)
+  return w.stringify().replace(/[^\x00-\x7f]/g, ch => '\\U+' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0'));
 }
