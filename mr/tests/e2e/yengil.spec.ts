@@ -18,6 +18,8 @@ test('sahna: LOD va qayta qurishda xotira oqmaydi', async ({ page }) => {
   await page.evaluate(() => { const m = (window as any).__mr; for (let i = 0; i < 5; i++) m.scene.update(m.store.doc); m.scene.invalidate(); });
   await page.waitForTimeout(300);
   const b = await info();
+  // koʻcha geometriyasi qayta hisoblanmaydi (koʻchalar oʻzgarmagan)
+  expect(await page.evaluate(() => { const m = (window as any).__mr, sc = m.scene, g0 = sc.streetGeoKey?.sg; sc.update(m.store.doc); return !!g0 && sc.streetGeoKey.sg === g0; })).toBe(true);
   expect(b.geoms).toBeLessThanOrEqual(a.geoms + 2); expect(b.tex).toBeLessThanOrEqual(a.tex + 2);
   // yaqinlashtirilganda — kamera atrofidagi binolar geometrik fasadda
   const bb = (await page.locator('#scene canvas').boundingBox())!; await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
