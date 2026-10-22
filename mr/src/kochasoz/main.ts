@@ -126,6 +126,7 @@ async function show(): Promise<void> {
   if (current?.id === id) return;
   const [Cls, tpl] = await Promise.all([BOARDS[id].load(), BOARDS[id].tpl()]);
   if (my !== seq) return;
+  if (current) persist(current.id, current.m.inst);   // 200 ms kechikishdagi oxirgi oʻzgarish yoʻqolmasin (masalan, chet tanlab darhol varaqqa oʻtish)
   current?.m.destroy(); current = null;
   const inst = new Cls.default({});
   const shared = SHARED[id] ?? [];
