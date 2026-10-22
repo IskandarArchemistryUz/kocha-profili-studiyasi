@@ -21,12 +21,51 @@ export const modeMax = (m: LabelMode): LabelLevel => m === 'off' ? 0 : m === 'co
 export interface FreeRect { c: XY; w: number; h: number; ang: number }
 
 const pin = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
-const inRings = (p: XY, rings: XY[][]) => { let c = false; for (const r of rings) if (pin(p, r)) c = !c; return c; };
 function segDist(p: XY, a: XY, b: XY): number {
   const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0;
   return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
 }
 const ringDist = (p: XY, r: XY[]) => { let d = Infinity; for (let i = 0; i < r.length; i++) d = Math.min(d, segDist(p, r[i], r[(i + 1) % r.length])); return d; };
+
+/**
+ * Boʻsh kataklar niqobi (1 — yozuv qoʻyish mumkin): katak markazi halqalar ichida (juft-toq), chegaradan ≥ yarim katak,
+ * toʻsiq (bino) ichida emas va undan ≥ buf + yarim katak. Natija oddiy (har katak × har qirra) usul bilan bir xil,
+ * lekin tez: ichkari — har qator uchun bir marta qirralar kesishmasi; chegara va toʻsiqlar — faqat oʻz qamrovidagi kataklar.
+ * (Katta uchastkada — murakkab daha konturi va yuzlab OSM binolari — oddiy usul sahifani soniyalab qotirardi.)
+ */
+export function freeMask(R: XY[][], O: XY[][], ob: number[][], x0: number, y0: number, cell: number, nx: number, ny: number, buf: number): Uint8Array {
+  const free = new Uint8Array(nx * ny), cx = (i: number) => x0 + (i + 0.5) * cell, cy = (j: number) => y0 + (j + 0.5) * cell;
+  // 1) ichkari: qator boʻyicha kesishmalar (pin bilan bir xil shart va formula)
+  const xs: number[] = [];
+  for (let j = 0; j < ny; j++) {
+    const py = cy(j); xs.length = 0;
+    for (const r of R) for (let i = 0, k = r.length - 1; i < r.length; k = i++) if ((r[i][1] > py) !== (r[k][1] > py)) xs.push((r[k][0] - r[i][0]) * (py - r[i][1]) / (r[k][1] - r[i][1]) + r[i][0]);
+    if (!xs.length) continue;
+    xs.sort((a, b) => a - b);
+    let q = 0;
+    for (let i = 0; i < nx; i++) { const px = cx(i); while (q < xs.length && xs[q] <= px) q++; if ((xs.length - q) & 1) free[j * nx + i] = 1; }
+  }
+  // har qirra atrofidagi kataklar: masofa < lim boʻlsa — band
+  const near = (a: XY, b: XY, lim: number) => {
+    const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0]) - lim - x0) / cell - 0.5)), i1 = Math.min(nx - 1, Math.ceil((Math.max(a[0], b[0]) + lim - x0) / cell - 0.5));
+    const j0 = Math.max(0, Math.floor((Math.min(a[1], b[1]) - lim - y0) / cell - 0.5)), j1 = Math.min(ny - 1, Math.ceil((Math.max(a[1], b[1]) + lim - y0) / cell - 0.5));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const n = j * nx + i; if (free[n] && segDist([cx(i), cy(j)], a, b) < lim) free[n] = 0; }
+  };
+  // 2) chegaradan yarim katak ichkarida (yozuv chegaraga tegmasin)
+  for (const r of R) for (let i = 0; i < r.length; i++) near(r[i], r[(i + 1) % r.length], cell * 0.5);
+  // 3) toʻsiqlar: faqat qamrov (ob) ichidagi kataklar
+  for (let k = 0; k < O.length; k++) {
+    const o = O[k], b = ob[k];
+    const i0 = Math.max(0, Math.floor((b[0] - x0) / cell - 0.5)), i1 = Math.min(nx - 1, Math.ceil((b[2] - x0) / cell - 0.5));
+    const j0 = Math.max(0, Math.floor((b[1] - y0) / cell - 0.5)), j1 = Math.min(ny - 1, Math.ceil((b[3] - y0) / cell - 0.5));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const n = j * nx + i; if (!free[n]) continue;
+      const p: XY = [cx(i), cy(j)]; if (p[0] < b[0] || p[0] > b[2] || p[1] < b[1] || p[1] > b[3]) continue;
+      if (pin(p, o) || ringDist(p, o) < buf + cell * 0.5) free[n] = 0;
+    }
+  }
+  return free;
+}
 
 /** Halqaning asosiy yoʻnalishi: eng uzun qirra burchagi (rad) */
 export function mainAngle(r: XY[]): number {
@@ -54,16 +93,7 @@ export function freeRect(rings: XY[][], obstacles: XY[][], buf = 2): FreeRect | 
   // faqat uchastka qamroviga tushadigan binolar
   const O = obstacles.map(o => o.map(rot)).filter(o => o.some(p => p[0] >= x0 - buf && p[0] <= x1 + buf && p[1] >= y0 - buf && p[1] <= y1 + buf));
   const ob = O.map(o => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of o) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); } return [a - buf, b - buf, c + buf, d + buf]; });
-  const free = new Uint8Array(nx * ny);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    const p: XY = [x0 + (i + 0.5) * cell, y0 + (j + 0.5) * cell];
-    if (!inRings(p, R)) continue;
-    // chegaradan yarim katak ichkarida (yozuv chegaraga tegmasin)
-    if (R.some(r => ringDist(p, r) < cell * 0.5)) continue;
-    let ok = true;
-    for (let k = 0; k < O.length && ok; k++) { const b = ob[k]; if (p[0] < b[0] || p[0] > b[2] || p[1] < b[1] || p[1] > b[3]) continue; if (pin(p, O[k]) || ringDist(p, O[k]) < buf + cell * 0.5) ok = false; }
-    if (ok) free[j * nx + i] = 1;
-  }
+  const free = freeMask(R, O, ob, x0, y0, cell, nx, ny, buf);
   // maksimal toʻrtburchak (gistogramma, har qator uchun)
   const hgt = new Int32Array(nx); let best = { area: 0, i0: 0, i1: 0, j0: 0, j1: 0 };
   for (let j = 0; j < ny; j++) {
