@@ -213,3 +213,21 @@ test('kesim chetlari, tashqi chetni surish, sigʻmagan tarmoq', async ({ page })
   await expect(page.locator('.ws-b .chk', { hasText: 'Sigʻmagan tarmoqlar' })).toHaveCount(1);
   expect(await page.evaluate(() => (window as any).__ks.m.inst.state.U.some((u: any) => u.k === 'W'))).toBe(false);
 });
+
+/** Ariq / lotok — zona: qoʻshiladi, kesim/reja/varaqda xatosiz, DXF da KS_ZONE_WATER */
+test('ariq / lotok zonasi', async ({ page }) => {
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && /TypeError|ReferenceError/.test(m.text())) errs.push(m.text()); });
+  await page.goto('./kochasoz.html#/b');
+  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
+  await page.evaluate(() => { const E = [['piy', 3, {}], ['qat', 3.5, {}], ['qat', 3.5, {}], ['piy', 3, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 13, tplName: 'A', sel: 1, selU: -1, U: [] }); });
+  await page.locator('.ws-b .chipb', { hasText: /^\+ Ariq$/ }).click();
+  expect(await page.evaluate(() => (window as any).__ks.m.inst.state.els.map((e: any) => e[0]).join(','))).toBe('piy,qat,ariq,qat,piy');
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'Ariq / lotok' })).toHaveCount(1);   // legenda
+  await page.click('[data-ksexp]');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.ks-menu button:has-text("DXF")')]);
+  expect(readFileSync(await dl.path(), 'utf8')).toContain('KS_ZONE_WATER');
+  await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Reja' }).click();
+  await page.goto('./kochasoz.html#/varaq'); await page.waitForTimeout(800);
+  expect(errs).toEqual([]);
+});
