@@ -1,6 +1,6 @@
 /**
  * Tom va fasad materiallari: turlari, qiya tom geometriyasi va quyosh panellari salohiyati.
- * Qiya tom faqat toʻrtburchakka yaqin dogʻda quriladi (dogʻ / OBB ≥ 0,9); murakkab shaklda — tekis tom.
+ * Qiya tom istalgan qavariq dogʻda quriladi (chetlari dogʻ uchlarida); botiq dogʻ qavariq qismlarga boʻlinadi (roofParts).
  */
 import { area, obb2, type XY } from './geo';
 
@@ -22,30 +22,70 @@ export const isMat = (v: unknown): v is Mat => MATS.some(m => m.id === v);
 /** Qiya tom boʻlagi: tris — tom yuzalari, walls — fronton va baland tomondagi devor (bino devori rangida); x, y — mahalliy, z — tom asosidan */
 export interface RoofPart { tris: number[]; walls: number[]; h: number }
 
-/** Bitta toʻrtburchakka yaqin dogʻ uchun qiya tom, yoki null (shakl toʻrtburchak emas) */
-export function pitchedRoof(r: XY[], kind: 'ikki' | 'tort' | 'bir', pitchDeg = kind === 'bir' ? 10 : 30): RoofPart | null {
+/**
+ * Qavariq dogʻ uchun qiya tom (toʻgʻri toʻrtburchak shart emas — trapetsiya, parallelogramm, qiya burchakli seksiya ham),
+ * yoki null (botiq shakl — roofParts uni qismlarga boʻladi). Tom chetlari aynan dogʻ uchlarida turadi (OBB emas).
+ *  ikki/toʻrt: tizma — toʻrtburchakda qisqa qarama-qarshi qirralar oʻrtalari orasida, boshqa shaklda — OBB uzun oʻqi boʻylab;
+ *              har qirra tizmaga proyeksiyasi bilan bogʻlanadi; ikki nishablida tik uchburchaklar — frontonlar (devor);
+ *  bir: eng uzun qirra past, qarshi tomoni baland (≤ 4 m); baland tomonlarda devor.
+ */
+export function pitchedRoof(r0: XY[], kind: 'ikki' | 'tort' | 'bir', pitchDeg = kind === 'bir' ? 10 : 30): RoofPart | null {
+  let r = simplify(signedA(r0) < 0 ? r0.slice().reverse() : r0.slice()); const n = r.length; if (n < 3) return null;
+  for (let i = 0; i < n; i++) { const a = r[(i - 1 + n) % n], b = r[i], c = r[(i + 1) % n]; if ((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]) < -1e-6) return null; }   // botiq
   const { U, L, S } = obb2(r); if (L < 2 || S < 2) return null;
-  if (area(r) / (L * S) < 0.9) return null;
-  const V: XY = [-U[1], U[0]];
-  let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
-  for (const p of r) { const u = p[0] * U[0] + p[1] * U[1], v = p[0] * V[0] + p[1] * V[1]; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
-  const P = (u: number, v: number): XY => [U[0] * u + V[0] * v, U[1] * u + V[1] * v];
   const t = Math.tan(pitchDeg * Math.PI / 180), tris: number[] = [], walls: number[] = [];
-  const tri = (o: number[], a: [XY, number], b: [XY, number], c: [XY, number]) => { for (const [p, z] of [a, b, c]) o.push(p[0], p[1], z); };
-  const A = P(u0, v0), B = P(u1, v0), C = P(u1, v1), D = P(u0, v1);
+  const tri = (o: number[], a: [XY, number], b: [XY, number], c: [XY, number]) => {   // nol yuzali (buzilgan) uchburchak — tashlanadi (normal NaN boʻlmasin)
+    const ux = b[0][0] - a[0][0], uy = b[0][1] - a[0][1], uz = b[1] - a[1], vx = c[0][0] - a[0][0], vy = c[0][1] - a[0][1], vz = c[1] - a[1];
+    if (Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) < 1e-6) return;
+    for (const [p, z] of [a, b, c]) o.push(p[0], p[1], z);
+  };
+  const E = (i: number) => Math.hypot(r[(i + 1) % n][0] - r[i][0], r[(i + 1) % n][1] - r[i][1]);
   if (kind === 'bir') {
-    const h = Math.min(S * t, 4); // v0 tomoni past, v1 — baland (≤ 4 m)
-    tri(tris, [A, 0], [B, 0], [C, h]); tri(tris, [A, 0], [C, h], [D, h]);
-    tri(walls, [A, 0], [D, h], [D, 0]); tri(walls, [B, 0], [C, 0], [C, h]);          // yon uchburchaklar
-    tri(walls, [C, 0], [D, 0], [D, h]); tri(walls, [C, 0], [D, h], [C, h]);          // baland tomondagi devor (teshik qolmasin)
+    let k = 0; for (let i = 1; i < n; i++) if (E(i) > E(k)) k = i;
+    const a = r[k], b = r[(k + 1) % n], el = E(k) || 1, nx = -(b[1] - a[1]) / el, ny = (b[0] - a[0]) / el;
+    const d = r.map(p => Math.max(0, (p[0] - a[0]) * nx + (p[1] - a[1]) * ny)), dm = Math.max(...d) || 1, h = Math.min(dm * t, 4), z = d.map(x => x / dm * h);
+    for (let i = 1; i < n - 1; i++) tri(tris, [r[0], z[0]], [r[i], z[i]], [r[i + 1], z[i + 1]]);
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; if (z[i] < 0.01 && z[j] < 0.01) continue;
+      if (z[j] > 0.01) tri(walls, [r[i], 0], [r[j], 0], [r[j], z[j]]); if (z[i] > 0.01) tri(walls, [r[i], 0], [r[j], z[j]], [r[i], z[i]]); }
     return { tris, walls, h };
   }
-  const h = S / 2 * t, vm = (v0 + v1) / 2, inset = kind === 'tort' ? Math.min(S / 2, L / 2) : 0;
-  const R0 = P(u0 + inset, vm), R1 = P(u1 - inset, vm);
-  tri(tris, [A, 0], [B, 0], [R1, h]); tri(tris, [A, 0], [R1, h], [R0, h]);             // janubiy (v0) qiyalik
-  tri(tris, [C, 0], [D, 0], [R0, h]); tri(tris, [C, 0], [R0, h], [R1, h]);             // shimoliy (v1) qiyalik
-  if (kind === 'tort') { tri(tris, [D, 0], [A, 0], [R0, h]); tri(tris, [B, 0], [C, 0], [R1, h]); }
-  else { tri(walls, [D, 0], [A, 0], [R0, h]); tri(walls, [B, 0], [C, 0], [R1, h]); }  // frontonlar — devor rangida
+  // tizma
+  let R0: XY, R1: XY, w: number;
+  if (n === 4) {
+    const s02 = E(0) + E(2), s13 = E(1) + E(3), e = s02 <= s13 ? 0 : 1;   // qisqa qarama-qarshi juftlik — uchlar (fronton)
+    const m = (i: number): XY => [(r[i][0] + r[(i + 1) % 4][0]) / 2, (r[i][1] + r[(i + 1) % 4][1]) / 2];
+    R0 = m(e + 2); R1 = m(e); w = (E(e) + E(e + 2)) / 2;
+  } else {
+    const V: XY = [-U[1], U[0]];
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const p of r) { const u = p[0] * U[0] + p[1] * U[1], v = p[0] * V[0] + p[1] * V[1]; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+    const vm = (v0 + v1) / 2, P = (u: number): XY => [U[0] * u + V[0] * vm, U[1] * u + V[1] * vm];
+    // tizma chizigʻi dogʻ ichida qayerdan qayergacha (qavariq — bitta oraliq)
+    let ta = Infinity, tb = -Infinity;
+    for (let i = 0; i < n; i++) { const p = r[i], q = r[(i + 1) % n], vp = p[0] * V[0] + p[1] * V[1] - vm, vq = q[0] * V[0] + q[1] * V[1] - vm; if ((vp <= 0) === (vq <= 0) && Math.abs(vp) > 1e-9 && Math.abs(vq) > 1e-9) continue; const k = Math.abs(vp - vq) < 1e-9 ? 0 : vp / (vp - vq), x: XY = [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k], u = x[0] * U[0] + x[1] * U[1]; ta = Math.min(ta, u); tb = Math.max(tb, u); }
+    if (!(tb > ta)) { ta = u0; tb = u1; }
+    R0 = P(ta); R1 = P(tb); w = S;
+  }
+  const h = w / 2 * t, dx = R1[0] - R0[0], dy = R1[1] - R0[1], RL = Math.hypot(dx, dy) || 1;
+  if (kind === 'tort') { const sh = Math.min(w / 2, RL / 2); R0 = [R0[0] + dx / RL * sh, R0[1] + dy / RL * sh]; R1 = [R1[0] - dx / RL * sh, R1[1] - dy / RL * sh]; }
+  if (n === 4) {   // toʻrtburchak (istalgan): uchlar e va e+2 — fronton yoki qiyalik, boʻylama qirralar — ikki qiyalik
+    const s02 = E(0) + E(2), s13 = E(1) + E(3), e = s02 <= s13 ? 0 : 1, Q = (i: number) => r[(e + i) % 4];
+    tri(kind === 'ikki' ? walls : tris, [Q(0), 0], [Q(1), 0], [R1, h]); tri(kind === 'ikki' ? walls : tris, [Q(2), 0], [Q(3), 0], [R0, h]);
+    tri(tris, [Q(1), 0], [Q(2), 0], [R0, h]); tri(tris, [Q(1), 0], [R0, h], [R1, h]);
+    tri(tris, [Q(3), 0], [Q(0), 0], [R1, h]); tri(tris, [Q(3), 0], [R1, h], [R0, h]);
+    return { tris, walls, h };
+  }
+  const ex = R1[0] - R0[0], ey = R1[1] - R0[1], E2 = ex * ex + ey * ey;
+  const proj = (p: XY): XY => { if (E2 < 1e-9) return R0; const k = Math.max(0, Math.min(1, ((p[0] - R0[0]) * ex + (p[1] - R0[1]) * ey) / E2)); return [R0[0] + ex * k, R0[1] + ey * k]; };
+  const same = (a: XY, b: XY) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-6;
+  /** tik uchburchak (fronton): uchala nuqtaning tarhdagi proyeksiyasi bir chiziqda */
+  const vertical = (a: XY, b: XY, c: XY) => Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) < 1e-3 * Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1]) ** 2);
+  for (let i = 0; i < n; i++) {
+    const p = r[i], q = r[(i + 1) % n], Rp = proj(p), Rq = proj(q);
+    const o = kind === 'ikki' && vertical(p, q, Rq) ? walls : tris;
+    tri(o, [p, 0], [q, 0], [Rq, h]);
+    if (!same(Rp, Rq)) tri(kind === 'ikki' && vertical(p, Rq, Rp) ? walls : tris, [p, 0], [Rq, h], [Rp, h]);
+  }
   return { tris, walls, h };
 }
 

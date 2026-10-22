@@ -34,3 +34,23 @@ describe('murakkab shakl tomi', () => {
     expect(r.walls.length / 9).toBe(4);   // 2 yon + 2 orqa uchburchak
   });
 });
+
+/** 7-band: toʻgʻri toʻrtburchak boʻlmagan dogʻda tom chetlari aynan dogʻ uchlarida (OBB emas) */
+import { generateBase, DEFAULT_GEN } from '../../src/core/generator';
+describe('qiya tom — istalgan qavariq dogʻ', () => {
+  const eaves = (p: { tris: number[]; walls: number[] }) => { const o: number[][] = []; for (const a of [p.tris, p.walls]) for (let i = 0; i < a.length; i += 3) if (Math.abs(a[i + 2]) < 1e-9) o.push([a[i], a[i + 1]]); return o; };
+  const onRing = (pts: number[][], r: XY[]) => pts.every(p => r.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-6));
+  for (const [nm, r] of [['trapetsiya', [[0, 0], [30, 0], [26, 12], [3, 12]]], ['parallelogramm', [[0, 0], [30, 0], [36, 12], [6, 12]]], ['beshburchak', [[0, 0], [20, 0], [26, 8], [12, 16], [-2, 10]]]] as [string, XY[]][])
+    for (const k of ['ikki', 'tort', 'bir'] as const) it(`${nm}: ${k} — tom quriladi, chetlari dogʻ uchlarida`, () => {
+      const p = pitchedRoof(r, k)!; expect(p).not.toBeNull();
+      const e = eaves(p); expect(e.length).toBeGreaterThan(0); expect(onRing(e, r)).toBe(true);
+      expect(p.h).toBeGreaterThan(0.5);
+      for (const v of [...p.tris, ...p.walls]) expect(Number.isFinite(v)).toBe(true);
+    });
+  it('qiya burchakli kvartal: barcha seksiyalarga (burchak seksiyalari ham) qiya tom', () => {
+    const pent: XY[] = [[0, 0], [150, -20], [190, 70], [100, 150], [-10, 110]];
+    const secs = generateBase(pent, DEFAULT_GEN).sections;
+    expect(secs.length).toBeGreaterThan(8);
+    for (const s of secs) expect(roofParts(s.ring, 'ikki'), JSON.stringify(s.ring)).not.toBeNull();
+  });
+});
