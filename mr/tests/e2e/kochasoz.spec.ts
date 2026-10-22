@@ -190,3 +190,26 @@ test('kesim DXF: EN — oʻzbekcha yozuvsiz, oʻnlik nuqta', async ({ page }) =>
   expect(texts.filter(t => /[ʻʼ]|Trotuar|Qatnov|Qizil|orasi|Toshkent|qavat/.test(t))).toEqual([]);
   expect(texts.filter(t => /\d,\d/.test(t))).toEqual([]);
 });
+
+/** Kesim chetlari: bino oʻrniga bogʻ / suv; tashqi chetni surish (chetdagi zona va qizil chiziqlar orasi); tor kesimda sigʻmagan tarmoq — ogohlantirish */
+test('kesim chetlari, tashqi chetni surish, sigʻmagan tarmoq', async ({ page }) => {
+  await page.goto('./kochasoz.html#/b');
+  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
+  await page.evaluate(() => { const E = [['front', 2, {}], ['piy', 3, {}], ['qat', 3.25, {}], ['qat', 3.25, {}], ['piy', 3, {}], ['yash', 3, { daraxt: true }]]; (window as any).__ks.m.inst.setState({ els: E, rl: 17.5, tplName: 'T', sel: 0, selU: -1, U: [] }); });
+  const panelSeg = (i: number) => page.locator('.ws-b aside.panel').first().locator('div:has(> .chipb[aria-pressed])').filter({ hasText: 'Qiyalik' }).nth(i);
+  await panelSeg(0).locator('button', { hasText: 'Bogʻ' }).click(); await panelSeg(1).locator('button', { hasText: 'Suv' }).click();
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'Daryo / kanal' })).toHaveCount(1);
+  await expect(page.locator('.ws-b .blk').last()).toContainText('Suv');
+  await expect(page.locator('.ws-b aside.panel').first().locator('.stepper')).toHaveCount(0);           // bino yoʻq — qavat tugmalari yoʻq
+  const st = () => page.evaluate(() => { const s = (window as any).__ks.m.inst.state; return [s.rl, s.els[s.els.length - 1][1], s.els[0][1]]; });
+  const sh = page.locator('.ws-b .ks-sh'), bb = (await sh.last().boundingBox())!;
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.mouse.move(bb.x + bb.width / 2 + 30, bb.y + bb.height / 2, { steps: 5 }); await page.mouse.up();
+  const [rl1, last1, first1] = await st();
+  expect(rl1).toBeGreaterThan(17.5); expect(last1).toBeCloseTo(3 + (rl1 - 17.5), 2); expect(first1).toBe(2);
+  // tor kesim: suv quvuri sigʻmaydi — qoʻyilmaydi, ogohlantirish
+  await page.evaluate(() => { const E = [['piy', 1.5, {}], ['qat', 3, {}], ['piy', 1.5, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 6, sel: 0, selU: -1, U: [], eL: 'bino', eR: 'bino' }); });
+  await page.locator('.ws-b button', { hasText: /^Avto joylash/ }).first().click();
+  await expect(page.locator('.ws-b .chk', { hasText: 'Sigʻmagan tarmoqlar' })).toHaveCount(1);
+  expect(await page.evaluate(() => (window as any).__ks.m.inst.state.U.some((u: any) => u.k === 'W'))).toBe(false);
+});
