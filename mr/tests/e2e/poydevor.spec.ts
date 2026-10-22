@@ -201,3 +201,25 @@ test('toʻr: mavjud koʻchalar saqlanadi — kvartallar ularning ustida emas', a
   await page.click('#gridKeep'); await page.click('#gridApply');
   expect(await page.evaluate(() => (window as any).__mr.store.doc.streets.some((s: any) => s.osm === 21))).toBe(false);
 });
+
+/** 4-band: toʻr bilan uchastka perimetri boʻylab koʻcha — qizil chiziq chegarada, kvartallar ichkarida, toʻr koʻchalari unga ulanadi */
+test('toʻr: perimetr boʻylab koʻcha', async ({ page }) => {
+  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '500'); await page.fill('#rh', '480'); await page.click('#rectSite');
+  await page.click('[data-step=kocha]'); await page.click('[data-ktab=tor]'); await page.click('[data-gpre=barselona]');
+  await page.click('#gridPerim'); await expect(page.locator('#gridPerimProf')).toBeVisible();
+  await page.click('#gridApply');
+  const r = await page.evaluate(() => {
+    const ed = (window as any).__mr, d = ed.store.doc, o = d.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), L = (p: number[]) => [(p[0] - o[0]) * mx, (p[1] - o[1]) * 111132];
+    const site = d.site.rings[0].map(L), xs = site.map((p: number[]) => p[0]), ys = site.map((p: number[]) => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), edge = (p: number[]) => Math.min(p[0] - x0, x1 - p[0], p[1] - y0, y1 - p[1]);
+    const grid = d.streets.filter((s: any) => s.gen === 'grid'), loop = grid.find((s: any) => { const a = s.axis; return a.length > 4 && Math.hypot(a[0][0] - a[a.length - 1][0], a[0][1] - a[a.length - 1][1]) < 1e-9; });
+    const blocks = ed.plan().blocks, minEdge = Math.min(...blocks.flatMap((b: any) => b.rings[0].map(edge)));
+    const ends = grid.filter((s: any) => s !== loop).flatMap((s: any) => [L(s.axis[0]), L(s.axis[s.axis.length - 1])]).map(edge);
+    return { loop: !!loop, prof: loop?.profile, minEdge, onAxis: ends.filter((e: number) => Math.abs(e - 7.5) < 0.6).length, ends: ends.length, n: grid.length };
+  });
+  expect(r.loop).toBe(true); expect(r.prof).toBe('mahalla-15');
+  expect(r.minEdge).toBeGreaterThan(14.5);       // kvartallar perimetr koʻchasi koridoridan ichkarida (15 m)
+  expect(r.onAxis).toBe(r.ends);                  // barcha toʻr koʻchalari uchlari perimetr oʻqiga ulangan
+  expect(r.n).toBeGreaterThan(3);
+});

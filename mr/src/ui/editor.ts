@@ -20,7 +20,7 @@ import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
-import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, type GridParams } from '../core/gridgen';
+import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
@@ -1871,6 +1871,9 @@ export class Editor {
   private gridVar = 0;
   /** toʻr qoʻllashda uchastkani kesib oʻtgan mavjud koʻchalar saqlanadi (loyihaga olinadi, toʻr ular orasiga) */
   private gridKeep = true;
+  /** toʻr qoʻllashda uchastka perimetri boʻylab koʻcha (qizil chiziq — uchastka chegarasi) */
+  private gridPerim = false;
+  private gridPerimProf = 'mahalla-15';
 
   /** Uchastkani kesib oʻtgan mavjud (OSM) avtomobil yoʻllari: kontekst kvadratiga qirqilgan oʻq, mos profil va koridor yarmi */
   private siteRoads(): { osm: number; axis: XY[]; profile: string; half: number }[] {
@@ -1904,13 +1907,16 @@ export class Editor {
     const roads = this.siteRoads(), keep = this.gridKeep ? roads : [];
     // saqlanadiganlar: yangi olinadigan mavjud koʻchalar + loyihadagi toʻrdan boshqa koʻchalar (avval olingan yoki qoʻlda chizilgan), uchastkani kesib oʻtsa
     const ownAll = doc.streets.filter(st => st.gen !== 'grid').map(st => ({ axis: st.axis.map(fr.toLocal), half: profileWidth(profileById(st.profile)) / 2 })).filter(st => lineHitsRing(st.axis, site));
-    const keepC = [...keep.map(r => ({ axis: r.axis, half: r.half })), ...(this.gridKeep ? ownAll : [])], nKeep = roads.length + ownAll.length;
+    const pHalf = profileWidth(profileById(this.gridPerimProf)) / 2, perim = this.gridPerim ? perimeterAxis(site, pHalf) : null;
+    const keepC = [...keep.map(r => ({ axis: r.axis, half: r.half })), ...(this.gridKeep ? ownAll : []), ...(perim ? [{ axis: perim, half: pHalf }] : [])], nKeep = roads.length + ownAll.length;
     const apply = () => {
       const v = vars[this.gridVar] ?? vars[0], sts = gridStreetsAround(site, keepC, v.g);
       if (!sts.length && !keepC.length) { toast(tr('Uchastka tanlangan modul uchun kichik — modulni kichraytiring')); return; }
       /* toʻr va uchlarni yoʻllarga ulash — bitta buyruq: sahna, panel va hisob bir marta qayta quriladi, tarixda bitta qadam */
-      const cmd: Extract<Command, { type: 'setGridStreets' }> = { type: 'setGridStreets', streets: sts.map(st => ({ id: uid('s_'), axis: st.axis.map(fr.toGeo), profile: st.profile })), adopt: keep.map(r => ({ id: uid('s_'), axis: r.axis.map(fr.toGeo), profile: r.profile, osm: r.osm })) };
-      let n = 0; this.run(() => { const r = this.streetEndPatches(applyCmd(this.store.doc, cmd)); n = r.n; this.store.dispatch({ ...cmd, patches: r.patches }); }); toast(`${sts.length} ${tr('ta koʻcha')} · ${this.plan().blocks.length} ${tr('kvartal')}${n ? ` · ${n} ${tr('uch yoʻllarga ulandi')}` : ''}`);
+      const pAx = perim ? perimeterAxis(site, pHalf, sts.flatMap(st => [st.axis[0], st.axis[st.axis.length - 1]])) : null;   // birikish — toʻr uchlaridan uzoqda
+      const all = pAx ? [{ axis: pAx, profile: this.gridPerimProf }, ...sts] : sts;
+      const cmd: Extract<Command, { type: 'setGridStreets' }> = { type: 'setGridStreets', streets: all.map(st => ({ id: uid('s_'), axis: st.axis.map(fr.toGeo), profile: st.profile })), adopt: keep.map(r => ({ id: uid('s_'), axis: r.axis.map(fr.toGeo), profile: r.profile, osm: r.osm })) };
+      let n = 0; this.run(() => { const r = this.streetEndPatches(applyCmd(this.store.doc, cmd)); n = r.n; this.store.dispatch({ ...cmd, patches: r.patches }); }); toast(`${sts.length + (perim ? 1 : 0)} ${tr('ta koʻcha')} · ${this.plan().blocks.length} ${tr('kvartal')}${n ? ` · ${n} ${tr('uch yoʻllarga ulandi')}` : ''}`);
     };
     const num = (lbl: string, key: 'w' | 'h', min: number, max: number) => { const inp = h('input', { type: 'number', class: 'input', min, max, step: 1, value: g[key], 'aria-label': lbl }) as HTMLInputElement; inp.onchange = () => { const v = Number(inp.value); if (v >= min && v <= max) { g[key] = v; this.gridPreset = ''; this.renderPanel(); } }; return h('div', { class: 'field grow' }, h('label', {}, lbl), h('span', { class: 'unit' }, inp, h('span', {}, 'm'))); };
     const angV = g.angle == null ? 0 : Math.round(g.angle - autoAngle(site));
@@ -1930,6 +1936,9 @@ export class Editor {
         h('span', { class: 'th', html: this.gridThumb(site, v.g, 64, 44) }), h('span', {}, tr(v.name)), h('span', { class: 'sub' }, `${gridStreetsAround(site, keepC, v.g).length} ${tr('koʻcha')}`)))),
       h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Burilish')), h('div', { class: 'grow' }, ang), angT),
       h('div', { class: 'group' }, profRow('main', tr('Asosiy')), profRow('minor', tr('Ikkilamchi')), h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 't-small', style: 'flex-basis:100%' }, tr('Asosiy koʻchalar')), mainSel)),
+      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Perimetr boʻylab koʻcha'), h('span', { class: 'sub' }, tr('Uchastka chegarasi boʻylab — qizil chiziq chegarada, toʻr koʻchalari unga ulanadi'))),
+        sw({ id: 'gridPerim', label: tr('Perimetr boʻylab koʻcha'), on: this.gridPerim, onchange: v => { this.gridPerim = v; this.renderPanel(); } })),
+        this.gridPerim ? h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('div', { style: 'flex-basis:100%' }, select({ id: 'gridPerimProf', 'aria-label': tr('Perimetr koʻchasi profili'), onchange: v => { this.gridPerimProf = v; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: this.gridPerimProf === x.id }))))) : ''),
       nKeep ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mavjud koʻchalarni saqlash'), h('span', { class: 'sub' }, tf('${n} ta mavjud koʻcha uchastkani kesib oʻtadi — loyihaga olinadi, toʻr ular orasiga joylanadi', { n: nKeep }))),
         sw({ id: 'gridKeep', label: tr('Mavjud koʻchalarni saqlash'), on: this.gridKeep, onchange: v => { this.gridKeep = v; this.renderPanel(); } }))) : '',
       h('div', { class: 'row' },
@@ -1966,7 +1975,7 @@ export class Editor {
     let n = 0; const patches: { id: string; patch: { axis: LngLat[] } }[] = [];
     /* hammasi bitta buyruqda: har koʻcha uchun alohida dispatch sahna, panel va hisobni N marta qayta qurardi (katta uchastkada qotish) */
     { for (const st of doc.streets) {
-      const a = st.axis.map(fr.toLocal); if (a.length < 2) continue;
+      const a = st.axis.map(fr.toLocal); if (a.length < 2 || (a.length > 3 && Math.hypot(a[0][0] - a[a.length - 1][0], a[0][1] - a[a.length - 1][1]) < 0.5)) continue;   // yopiq halqa (perimetr) uzaytirilmaydi
       const dir = (p: XY, q: XY): XY => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [(q[0] - p[0]) / L, (q[1] - p[1]) / L]; };
       const h1 = ray(a[a.length - 1], dir(a[a.length - 2], a[a.length - 1]), st.id), h0 = ray(a[0], dir(a[1], a[0]), st.id);
       if (!h0 && !h1) continue;

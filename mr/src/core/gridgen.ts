@@ -128,3 +128,32 @@ export function profileForOsm(cls: string): string {
   if (/^(service|living_street)$/.test(cls)) return 'otish-8';
   return 'mahalla-15';
 }
+
+/**
+ * Uchastka perimetri boʻylab koʻcha oʻqi: chegaradan half ichkarida (qizil chiziq — uchastka chegarasi), yopiq halqa.
+ * Boshlanish nuqtasi eng uzun tomon oʻrtasida (birikish toʻgʻri qismda boʻladi).
+ */
+export function perimeterAxis(site: XY[], half: number, avoid: XY[] = []): XY[] {
+  const r = signedArea(site) < 0 ? site.slice().reverse() : site.slice(), n = r.length;
+  const nrm = (a: XY, b: XY): XY => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; };
+  const off: XY[] = r.map((p, i) => {
+    const n0 = nrm(r[(i - 1 + n) % n], p), n1 = nrm(p, r[(i + 1) % n]);
+    let m: XY = [n0[0] + n1[0], n0[1] + n1[1]]; const ml = Math.hypot(m[0], m[1]) || 1; m = [m[0] / ml, m[1] / ml];
+    const cos = Math.max(0.35, m[0] * n0[0] + m[1] * n0[1]);
+    return [p[0] + m[0] * half / cos, p[1] + m[1] * half / cos];
+  });
+  /* birikish nuqtasi: toʻgʻri qism ichida, burchakdan va toʻr koʻchalari uchlaridan (avoid) eng uzoq joyda —
+     u yerda koʻcha uchi boshqa koʻchaga tegib qolsa, trotuar/daraxt kesiladi */
+  let k = 0, mid: XY = off[0], best = -1;
+  for (let i = 0; i < n; i++) {
+    const a = off[i], b = off[(i + 1) % n], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 6 * half) continue;
+    for (let t = 0.1; t <= 0.901; t += 0.05) {
+      const p: XY = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      const cl = Math.min(l * Math.min(t, 1 - t), ...avoid.map(q => Math.hypot(q[0] - p[0], q[1] - p[1])));
+      if (cl > best + 1e-6) { best = cl; k = i; mid = p; }
+    }
+  }
+  if (best < 0) { let L = -1; for (let i = 0; i < n; i++) { const a = off[i], b = off[(i + 1) % n], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l > L) { L = l; k = i; mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; } } }
+  const out: XY[] = [mid]; for (let j = 1; j <= n; j++) out.push(off[(k + j) % n]); out.push(mid);
+  return out;
+}
