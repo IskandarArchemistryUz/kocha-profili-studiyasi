@@ -22,7 +22,7 @@ beforeEach(async () => {
   app = await buildApp({
     db, pepper: 'p'.repeat(20), secret: 's'.repeat(40), secure: false,
     send: async (t, code) => { sent.push({ ...t, code }); }, origins: ['https://archemistry.uz'],
-    now: () => clock,
+    owners: [' Boss@Mail.uz '], now: () => clock,
   });
 });
 afterEach(async () => { await app.close(); await db.close(); });
@@ -63,9 +63,13 @@ describe('kirish', () => {
   it('kod → sessiya → /me; chiqish', async () => {
     const c = await login();
     const me = (await get('/me', c)).json();
-    expect(me).toMatchObject({ email: 'ali@mail.uz', balance: 0, trialsLeft: 3 });
+    expect(me).toMatchObject({ email: 'ali@mail.uz', balance: 0, trialsLeft: 3, owner: false });
     await post('/auth/logout', {}, c);
     expect((await get('/me', c)).statusCode).toBe(401);
+  });
+  it('egasi pochtasi (OWNER_EMAILS) — /me da owner: true; telefon bilan kirgan — egasi emas', async () => {
+    expect((await get('/me', await login('boss@mail.uz'))).json().owner).toBe(true);
+    expect((await get('/me', await login('+998901234567'))).json().owner).toBe(false);
   });
   it('notoʻgʻri kod 5 martadan keyin bloklanadi', async () => {
     await post('/auth/code', { target: '+998901234567' });

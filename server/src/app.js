@@ -22,11 +22,13 @@ export const COOKIE = 'ks_sess';
  * @param {string[]} o.origins    ruxsat etilgan sayt manzillari (CORS)
  * @param {string} [o.cookieDomain] masalan '.archemistry.uz'
  * @param {boolean} [o.secure]    cookie Secure (ishda — true)
+ * @param {string[]} [o.owners]   egasi pochtalari (OWNER_EMAILS): /me da owner: true — ilova suv belgisisiz ishlaydi
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
+  const OWN = new Set(owners.map((e) => String(e).trim().toLowerCase()).filter(Boolean));
 
   await app.register(cookie);
   await app.register(formbody);   // Click soʻrovlari — application/x-www-form-urlencoded
@@ -105,7 +107,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   app.get('/me', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
-    return { id: u.id, email: u.email, phone: u.phone, name: u.name ?? null, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id) };
+    return { id: u.id, email: u.email, phone: u.phone, name: u.name ?? null, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id), owner: !!u.email && OWN.has(u.email.toLowerCase()) };
   });
 
   app.get('/me/history', async (req, reply) => {

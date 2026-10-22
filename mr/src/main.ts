@@ -14,7 +14,7 @@ import { handlePayReturn, buyDialog } from './account/buy';
 import { authRequired } from './account/config';
 import { check as checkAuth, current as currentUser, onAuth, logout } from './account/session';
 import { loginDialog } from './account/login';
-import { isOwner } from './core/wm';
+import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
 initStats('mr', /chizmadon/.test(location.hash) ? 'chizmadon' : '');
 autoTranslate();
@@ -65,7 +65,7 @@ let offAcct: (() => void) | null = null;
 function homeAcct(): HTMLElement {
   const box = h('div', { class: 'home-acct', id: 'homeAcct' });
   const draw = () => {
-    box.hidden = !authRequired() || isOwner();
+    box.hidden = !authRequired() || isLinkOwner();
     const m = currentUser();
     if (!m) { box.replaceChildren(h('button', { class: 'btn btn-primary btn-sm', id: 'homeIn', onclick: () => void loginDialog() }, tr('Kirish'))); return; }
     const who = m.name || m.email || m.phone || '';
@@ -76,7 +76,7 @@ function homeAcct(): HTMLElement {
       h('button', { class: 'btn btn-sm btn-ghost', id: 'homeOut', onclick: () => void logout().then(() => toast(tr('Hisobdan chiqdingiz'))) }, tr('Chiqish')));
   };
   offAcct?.(); draw(); offAcct = onAuth(draw);
-  if (authRequired() && !isOwner()) void checkAuth();
+  if (authRequired() && !isLinkOwner()) void checkAuth();
   return box;
 }
 

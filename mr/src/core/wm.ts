@@ -1,5 +1,5 @@
 /* Bepul yuklashlar uchun setkasimon belgi «ARCHEMISTRY · BEPUL» (vaqtincha — hamma yuklashga, server va tarif ishga tushguncha).
-   Egasi (kps_owner, «?egasi=…» havolasi bilan yoqiladi) — belgisiz.
+   Egasi — belgisiz: akkaunt boʻyicha (server OWNER_EMAILS → /me owner) yoki «?egasi=…» havolasi bilan (kps_owner).
    SVG va PDF — vektor matnlar (svg2pdf pattern'ni qoʻllamaydi), PNG — kanvasda chiziladi, DXF — alohida qatlam.
    Loyiha fayli (.json), IFC, GLB, OBJ, Excel — oʻzgarmaydi. */
 import { getLang } from '../i18n';
@@ -8,6 +8,15 @@ import { getLang } from '../i18n';
 const OWNER = 'd334a182444e562a7b7793445d07de9716924308b1887db6b15452f719ab5560';
 
 export function isOwner(): boolean { try { return localStorage.getItem('kps_owner') === '1'; } catch { return false; } }
+/** Egasi faqat havola orqali (akkauntsiz) — hisob qatori yashiriladi, sessiya soʻralmaydi */
+export function isLinkOwner(): boolean { try { return localStorage.getItem('kps_owner') === '1' && localStorage.getItem('kps_owner_acct') !== '1'; } catch { return false; } }
+/** Akkaunt boʻyicha egalik (/me → owner): kirganda yoqiladi; chiqqanda yoki boshqa akkauntda — faqat akkauntdan kelgan belgi olib tashlanadi */
+export function syncAcctOwner(owner: boolean): void {
+  try {
+    if (owner) { localStorage.setItem('kps_owner', '1'); localStorage.setItem('kps_owner_acct', '1'); }
+    else if (localStorage.getItem('kps_owner_acct') === '1') { localStorage.removeItem('kps_owner'); localStorage.removeItem('kps_owner_acct'); }
+  } catch { /* */ }
+}
 
 /** «?egasi=KALIT» — egasi rejimini yoqadi, «?egasi=off» — oʻchiradi. Kalit manzildan darhol olib tashlanadi. */
 export async function initOwner(): Promise<void> {

@@ -1,6 +1,7 @@
 name: Server — deploy (api.archemistry.uz)
 # main ga server/ oʻzgarishi tushsa (testlardan keyin) — VPS da yangilash. Sirlar (Settings → Secrets → Actions):
 #   VPS_HOST — server IP yoki nomi, VPS_SSH_KEY — archemistry foydalanuvchisining maxfiy SSH kaliti (matn yoki base64).
+#   OWNER_EMAILS (ixtiyoriy) — egasi pochtasi; berilsa serverdagi .env dagi OWNER_EMAILS shu qiymatga yangilanadi.
 # Sirlar qoʻyilmagan boʻlsa — ish oʻtkazib yuboriladi (xato emas).
 on:
   workflow_run:
@@ -17,6 +18,7 @@ jobs:
     env:
       HOST: ${{ secrets.VPS_HOST }}
       KEY: ${{ secrets.VPS_SSH_KEY }}
+      OWNERS: ${{ secrets.OWNER_EMAILS }}
     steps:
       - name: Sirlar bormi
         id: chk
@@ -28,8 +30,11 @@ jobs:
           install -m 600 /dev/null key
           if printf '%s' "$KEY" | grep -q 'BEGIN OPENSSH'; then printf '%s\n' "$KEY" | tr -d '\r' > key; else printf '%s' "$KEY" | tr -d '\r\n ' | base64 -d > key; fi
           ssh-keygen -y -f key > /dev/null || { echo "VPS_SSH_KEY notoʻgʻri: kalitni qayta nusxalang (README, 6-band)"; exit 1; }
-          ssh -i key -o StrictHostKeyChecking=accept-new archemistry@"$HOST" '
+          # egasi pochtasi (sir berilgan boʻlsa): faqat ruxsat etilgan belgilar, .env dagi qator yangilanadi
+          OW=$(printf '%s' "$OWNERS" | tr -cd 'A-Za-z0-9@._+,-')
+          ssh -i key -o StrictHostKeyChecking=accept-new archemistry@"$HOST" "OW='$OW'"'
             set -e
+            if [ -n "$OW" ]; then E=/srv/archemistry/server/.env; if grep -q "^OWNER_EMAILS=" "$E"; then sed -i "s/^OWNER_EMAILS=.*/OWNER_EMAILS=$OW/" "$E"; else printf "\nOWNER_EMAILS=%s\n" "$OW" >> "$E"; fi; fi
             cd /srv/archemistry && git fetch --depth 50 origin main && git reset --hard origin/main
             cd server && npm ci --omit=dev
             sudo /usr/bin/systemctl restart archemistry-api

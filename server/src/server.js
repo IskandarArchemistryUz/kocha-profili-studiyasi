@@ -33,6 +33,7 @@ const app = await buildApp({
   returnUrl: env.PAY_RETURN_URL || 'https://archemistry.uz/app/',
   origins: (env.ORIGINS || 'https://archemistry.uz,https://www.archemistry.uz').split(','),
   cookieDomain: env.COOKIE_DOMAIN || undefined,
+  owners: (env.OWNER_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   secure: env.COOKIE_SECURE !== '0',
   logger: true,
 });
