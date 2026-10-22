@@ -23,3 +23,18 @@ describe('toʻr mavjud koʻchalar orasida', () => {
     expect([profileForOsm('primary'), profileForOsm('tertiary'), profileForOsm('residential'), profileForOsm('service')]).toEqual(['magistral-45', 'tuman-40', 'mahalla-15', 'otish-8']);
   });
 });
+
+import { perimeterAxis } from '../../src/core/gridgen';
+import { computePlan, corridor } from '../../src/core/plan';
+describe('perimetr koʻchasi', () => {
+  it('oʻq chegaradan half ichkarida, yopiq; koridor — halqa (ichi boʻsh)', () => {
+    const site: XY[] = [[0, 0], [400, 0], [400, 300], [0, 300]];
+    const ax = perimeterAxis(site, 7.5);
+    expect(ax[0]).toEqual(ax[ax.length - 1]);
+    for (const p of ax) expect(Math.min(p[0], p[1], 400 - p[0], 300 - p[1])).toBeCloseTo(7.5, 6);
+    const c = corridor(ax, 7.5);
+    const area = c.reduce((s, poly) => s + poly.reduce((t, r, k) => { let a = 0; for (let i = 1; i < r.length; i++) a += r[i - 1][0] * r[i][1] - r[i][0] * r[i - 1][1]; return t + (k ? -1 : 1) * Math.abs(a / 2); }, 0), 0);
+    expect(area).toBeCloseTo(400 * 300 - 370 * 270, -1);   // 15 m kenglikdagi halqa (chegaradan 0…15 m)
+    void computePlan;
+  });
+});
