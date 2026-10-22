@@ -80,6 +80,11 @@ test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   await page.click('[aria-label=Radius] button:has-text("750 m")');
   await expect(page.locator('[aria-label=Radius] button', { hasText: '750 m' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[aria-label=Radius] button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'false');
+  // 1,5 va 1,8 km
+  await expect(page.locator('[aria-label=Radius] button')).toHaveCount(6);
+  await page.click('[aria-label=Radius] button:has-text("1,8 km")');
+  await expect(page.locator('[aria-label=Radius] button', { hasText: '1,8 km' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.context.radius)).toBe(1800);
 });
 
 test('OSM serveri band boʻlsa — keshdagi nusxa ogohlantirish bilan', async ({ page, context }) => {

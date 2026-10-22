@@ -695,7 +695,8 @@ export class Editor {
   private followBase(now = false): void {
     const doc = this.store.doc;
     if (doc.context.loaded || !this.baseKey || navigator.webdriver || this.baseFail) return;
-    const v = this.scene.viewExtent(), r = Math.min(8000, Math.max(300, v.r)), key = this.baseKey, L = this.liveAt;
+    // 40 km gacha — 1:100 000 masshtabda ham xarita butun ekranni qoplaydi
+    const v = this.scene.viewExtent(), r = Math.min(40000, Math.max(300, v.r)), key = this.baseKey, L = this.liveAt;
     if (L && L.key === key && Math.hypot(v.c[0] - L.c[0], v.c[1] - L.c[1]) < L.r * 0.3 && r < L.r * 1.25 && r > L.r * 0.5) return;
     clearTimeout(this.liveT);
     this.liveT = window.setTimeout(() => void this.drawLive(v.c, r, key), now ? 0 : 250);
@@ -863,7 +864,7 @@ export class Editor {
     }
     body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Loyiha markazi'), h('span', { class: 'sub' }, tr('Xaritada oʻng tugma → «Markazni shu yerga koʻchirish»'))), h('span', { class: 'v mono', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`))));
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Atrof radiusi'))),
-      h('div', { class: 'seg', role: 'group', 'aria-label': tr('Radius') }, ...[300, 500, 750, 1000].map(r => h('button', { 'aria-pressed': !cs.area && cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r, area: null } })) }, `${r} m`))));
+      h('div', { class: 'seg', role: 'group', 'aria-label': tr('Radius') }, ...[300, 500, 750, 1000, 1500, 1800].map(r => h('button', { 'aria-pressed': !cs.area && cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r, area: null } })) }, r < 1000 ? `${r} m` : `${fmt(r / 1000, r % 1000 ? 1 : 0)} km`))));
     body.append(this.areaBlock());
     if (this.ctx.busy) body.append(h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(this.ctx.frac * 100)}%;background:var(--svc)` })), h('span', { class: 't-small', id: 'ctxMsg' }, this.ctx.msg));
     else if (!cs.loaded) body.append(h('button', { class: 'btn btn-primary btn-block btn-lg', id: 'ctxLoad', onclick: () => this.run(() => {
