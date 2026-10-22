@@ -116,32 +116,67 @@ export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenRe
   return r;
 }
 
-/** Istalgan shakl: uzun qirralardan boshlab qirra boʻylab seksiyalar, kvartalga qirqiladi, oldingilari bilan kesishmaydi */
+/**
+ * Istalgan shakl: uzun qirralardan boshlab qirra boʻylab tasma (chuqurlik D) — kvartalga qirqiladi, oldin joylanganlardan
+ * ayiriladi; qolgan BOʻSH qism butunicha seksiyalarga boʻlinadi (oraliq qolmaydi). Burchakda qolgan kichik boʻlak — qoʻshni
+ * seksiyaga qoʻshiladi (L-shakl), alohida «uzilgan» boʻlak boʻlib qolmaydi.
+ */
 export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   const D = g.depth, n = A.length, sections: GenSection[] = [];
-  const poly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
-  let placed: Polygon[] = [];
+  const P = (r: XY[]): Polygon => [[...r, r[0]].map(p => [p[0], p[1]] as [number, number])];
+  const poly: Polygon = P(A);
+  const placed: Polygon[] = [];
   const meta: { edge: number; first: boolean; last: boolean }[] = [];
   const order = A.map((_, i) => i).sort((a, b) => len(sub(A[(b + 1) % n], A[b])) - len(sub(A[(a + 1) % n], A[a])));
   const southward = (N: XY) => N[1] > 0.55; // ichkari normal shimolga → qirra janubda
+  const ringsOf = (mp: [number, number][][][]): XY[][] => mp.map(pp => { const r = pp[0].slice(0, -1).map(q => [q[0], q[1]] as XY); return signedArea(r) < 0 ? r.reverse() : r; });
+  /** kichik boʻlakni tegib turgan seksiyaga qoʻshish (birlashma — bitta teshiksiz halqa boʻlsa) */
+  const attach = (r: XY[]): boolean => {
+    for (const sc of sections) {
+      let u: [number, number][][][] = [];
+      try { u = polygonClipping.union(P(sc.ring), P(r)); } catch { continue; }
+      if (u.length !== 1 || u[0].length !== 1) continue;
+      const ring = ringsOf(u)[0]; if (!isSimple(ring)) continue;
+      sc.ring = ring; if (sc.kind === 'oddiy') sc.kind = 'burchak'; return true;
+    }
+    return false;
+  };
   for (const i of order) {
     const a = A[i], b = A[(i + 1) % n], L = len(sub(b, a)); if (L < Math.min(g.secLen * 0.6, 14)) continue;
-    const u = unit(sub(b, a)), N: XY = [-u[1], u[0]], m = Math.max(1, Math.round(L / g.secLen)), step = L / m;
-    for (let k = 0; k < m; k++) {
-      const oa = add(a, mul(u, k * step)), ob = add(a, mul(u, (k + 1) * step));
-      const rect: Polygon = [[oa, ob, add(ob, mul(N, D)), add(oa, mul(N, D)), oa].map(p => [p[0], p[1]] as [number, number])];
-      let piece: [number, number][][][] = [];
-      try { piece = polygonClipping.intersection(rect, poly); if (placed.length && piece.length) piece = polygonClipping.difference(piece, ...placed); } catch { continue; }
-      let best: XY[] | null = null, ba = 0;
-      for (const pp of piece) { const r = pp[0].slice(0, -1).map(q => [q[0], q[1]] as XY), ar = Math.abs(signedArea(r)); if (ar > ba) { ba = ar; best = r; } }
-      if (!best || ba < 0.45 * D * step || ba < 80) continue;
-      const ring = signedArea(best) < 0 ? best.reverse() : best;
-      placed.push([[...ring, ring[0]].map(p => [p[0], p[1]] as [number, number])]);
-      const fromEnd = Math.min(k, m - 1 - k) / Math.max(1, (m - 1) / 2);
-      const top = southward(N) ? Math.max(g.minF, Math.round((g.maxF + g.minF) / 2)) : g.maxF;
-      sections.push({ ring, floors: Math.max(g.minF, Math.round(top - (top - g.minF) * Math.min(1, fromEnd))), kind: 'oddiy', nonRes: g.nonRes, face: { p: add(mul(add(oa, ob), 0.5), mul(N, D)), n: N } });
-      meta.push({ edge: i, first: k === 0, last: k === m - 1 });
+    const u = unit(sub(b, a)), N: XY = [-u[1], u[0]];
+    const top = southward(N) ? Math.max(g.minF, Math.round((g.maxF + g.minF) / 2)) : g.maxF;
+    let strip: [number, number][][][] = [];
+    try { strip = polygonClipping.intersection(P([a, b, add(b, mul(N, D)), add(a, mul(N, D))]), poly); if (placed.length && strip.length) strip = polygonClipping.difference(strip, ...placed); } catch { continue; }
+    for (const r of ringsOf(strip)) {
+      const ar = Math.abs(signedArea(r)); if (ar < 40) continue;
+      const ts = r.map(p => (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1]), t0 = Math.min(...ts), t1 = Math.max(...ts), span = t1 - t0;
+      placed.push(P(r));
+      // juda qisqa yoki sayoz boʻlak (burchakdagi qoldiq) — qoʻshni seksiyaga
+      if (span < Math.max(10, g.secLen * 0.35) || ar < 0.45 * D * Math.min(span, g.secLen)) { if (!attach(r) && ar >= 0.45 * D * Math.max(10, span) && span >= 10) { sections.push({ ring: r, floors: g.minF, kind: 'oddiy', nonRes: g.nonRes }); meta.push({ edge: i, first: false, last: false }); } continue; }
+      const m = Math.max(1, Math.round(span / g.secLen)), step = span / m;
+      for (let k = 0; k < m; k++) {
+        const ta = t0 + k * step, tb = ta + step;
+        const slab = P([add(a, mul(u, ta)), add(a, mul(u, tb)), add(add(a, mul(u, tb)), mul(N, D + 2)), add(add(a, mul(u, ta)), mul(N, D + 2))].map(q => add(q, mul(N, -1))) as XY[]);
+        let part: [number, number][][][] = [];
+        try { part = polygonClipping.intersection(P(r), slab); } catch { continue; }
+        let best: XY[] | null = null, ba = 0;
+        for (const q of ringsOf(part)) { const x = Math.abs(signedArea(q)); if (x > ba) { ba = x; best = q; } }
+        if (!best || ba < 20) continue;
+        const fromEnd = Math.min(ta, L - tb) / Math.max(1, L / 2);
+        const oa = add(a, mul(u, ta)), ob = add(a, mul(u, tb));
+        sections.push({ ring: best, floors: Math.max(g.minF, Math.round(top - (top - g.minF) * Math.min(1, fromEnd * 1.4))), kind: 'oddiy', nonRes: g.nonRes, face: { p: add(mul(add(oa, ob), 0.5), mul(N, D)), n: N } });
+        meta.push({ edge: i, first: k === 0 && ta < D + 2, last: k === m - 1 && tb > L - D - 2 });
+      }
     }
+  }
+  // botiq (ichki) burchak: ikki tasma faqat bir nuqtada tegadi — orasidagi D × D kvadrat qoʻshni seksiyaga qoʻshiladi (uzluksiz L)
+  for (let v = 0; v < n; v++) {
+    const pv = A[(v - 1 + n) % n], c = A[v], nx = A[(v + 1) % n], u1 = unit(sub(c, pv)), u2 = unit(sub(nx, c));
+    if (cross(u1, u2) > -0.2) continue;
+    const N1: XY = [-u1[1], u1[0]];
+    let sq: [number, number][][][] = [];
+    try { sq = polygonClipping.intersection(P([c, add(c, mul(u1, D)), add(add(c, mul(u1, D)), mul(N1, D)), add(c, mul(N1, D))]), poly); if (placed.length && sq.length) sq = polygonClipping.difference(sq, ...placed); } catch { continue; }
+    for (const r of ringsOf(sq)) if (Math.abs(signedArea(r)) > 20 && attach(r)) placed.push(P(r));
   }
   if (!sections.length) notes.push('Seksiya joylashmadi — chuqurlik yoki chekinishni kamaytiring');
   const merged = mergeCorners(A, sections, meta);
@@ -149,15 +184,39 @@ export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   return { sections, capFloors: null, notes };
 }
 
-/** Koʻpburchakka nur boʻyicha kirish masofasi */
-function rayHit(p: XY, d: XY, r: XY[]): number {
+/** Koʻpburchakka nur boʻyicha kirish masofasi. par — faqat nurga deyarli tik (fasadga parallel, ≤ 30°) qirralar hisobga olinadi */
+function rayHit(p: XY, d: XY, r: XY[], par = false): number {
   let best = Infinity;
   for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
     const a = r[j], b = r[i], ex = b[0] - a[0], ey = b[1] - a[1], den = d[0] * ey - d[1] * ex; if (Math.abs(den) < 1e-12) continue;
+    if (par) { const el = Math.hypot(ex, ey) || 1; if (Math.abs((ex * d[0] + ey * d[1]) / el) > 0.5) continue; }
     const t = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den, s = ((a[0] - p[0]) * d[1] - (a[1] - p[1]) * d[0]) / den;
     if (t > 0.5 && s >= 0 && s <= 1 && t < best) best = t;
   }
   return best;
+}
+/** Umumiy devor uzunligi (parallel, ≤ 0,5 m oraliqdagi qirralar ustma-ust qismi), m */
+function sharedWall(a: XY[], b: XY[]): number {
+  let tot = 0;
+  for (let i = 0; i < a.length; i++) {
+    const p = a[i], q = a[(i + 1) % a.length], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy); if (L < 0.1) continue;
+    const ux = dx / L, uy = dy / L;
+    for (let j = 0; j < b.length; j++) {
+      const r = b[j], s = b[(j + 1) % b.length], ex = s[0] - r[0], ey = s[1] - r[1], M = Math.hypot(ex, ey); if (M < 0.1) continue;
+      if (Math.abs(ux * ey / M - uy * ex / M) > 0.05) continue;                       // parallel emas
+      if (Math.abs((r[0] - p[0]) * uy - (r[1] - p[1]) * ux) > 0.5) continue;          // bir chiziqda emas
+      const t0 = (r[0] - p[0]) * ux + (r[1] - p[1]) * uy, t1 = (s[0] - p[0]) * ux + (s[1] - p[1]) * uy;
+      tot += Math.max(0, Math.min(L, Math.max(t0, t1)) - Math.max(0, Math.min(t0, t1)));
+    }
+  }
+  return tot;
+}
+/** Ikki halqa tegib turadimi (umumiy devor yoki ≤ 0,5 m) — bitta bino majmuasi, «qarshidagi bino» emas */
+function touching(a: XY[], b: XY[]): boolean {
+  const sd = (p: XY, q: XY, r: XY) => { const dx = r[0] - q[0], dy = r[1] - q[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - q[0]) * dx + (p[1] - q[1]) * dy) / L2)); return Math.hypot(q[0] + t * dx - p[0], q[1] + t * dy - p[1]); };
+  for (const p of a) for (let i = 0; i < b.length; i++) if (sd(p, b[i], b[(i + 1) % b.length]) < 0.5) return true;
+  for (const p of b) for (let i = 0; i < a.length; i++) if (sd(p, a[i], a[(i + 1) % a.length]) < 0.5) return true;
+  return false;
 }
 
 /**
@@ -167,15 +226,20 @@ function rayHit(p: XY, d: XY, r: XY[]): number {
 function facingCap(r: GenResult, g: GenParams, floorH: number): void {
   // 1) qarshidagi qator meʼyoriy minimal qavatga ham sigʻmasa — keyin joylashganini (qisqaroq qirra) olib tashlaymiz:
   //    tor kvartalda bir tomonlama, lekin balandroq qurilish qavat soni 1–2 gacha tushirilgan ikki qatordan yaxshiroq
-  let removed = 0;
+  let removed = 0; const gone: XY[] = [];
   for (let guard = 0; guard < 200; guard++) {
     let worst: [number, number] | null = null, wd = Infinity;
     r.sections.forEach((s, i) => {
       if (!s.face) return;
-      r.sections.forEach((o, k) => { if (k === i) return; const t = rayHit(s.face!.p, s.face!.n, o.ring); if (t < wd) { wd = t; worst = [i, k]; } });
+      r.sections.forEach((o, k) => { if (k === i || touching(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < wd) { wd = t; worst = [i, k]; } });
     });
     if (!worst || wd / 2 / floorH >= g.minF) break;
-    const [i, k] = worst as [number, number]; r.sections.splice(Math.max(i, k), 1); removed++;
+    const [i, k] = worst as [number, number], rm = r.sections.splice(Math.max(i, k), 1)[0]; if (rm.face) gone.push(rm.face.n); removed++;
+  }
+  // shu qirradan qolgan, hech biriga tegmaydigan yakka boʻlaklar — «uzilib» qolmasin, ular ham olinadi
+  if (gone.length) for (let guard = 0; guard < 50; guard++) {
+    const j = r.sections.findIndex((s, i) => s.face && gone.some(n => n[0] * s.face!.n[0] + n[1] * s.face!.n[1] > 0.999) && !r.sections.some((o, k) => k !== i && sharedWall(s.ring, o.ring) > 3));
+    if (j < 0) break; r.sections.splice(j, 1); removed++;
   }
   if (removed) r.notes.push(`${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (≥ 2·H, ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
   // 2) qolganlarida — masofa boʻyicha qavat cheklovi
@@ -183,7 +247,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
   r.sections.forEach((s, i) => {
     if (!s.face) return;
     let d = Infinity, j = -1;
-    r.sections.forEach((o, k) => { if (k === i) return; const t = rayHit(s.face!.p, s.face!.n, o.ring); if (t < d) { d = t; j = k; } });
+    r.sections.forEach((o, k) => { if (k === i || touching(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < d) { d = t; j = k; } });
     if (!Number.isFinite(d) || d > 200) return;
     const cap = Math.max(g.minF, Math.floor(d / 2 / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
