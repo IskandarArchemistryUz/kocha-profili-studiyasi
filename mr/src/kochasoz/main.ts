@@ -56,7 +56,7 @@ function gate(v: Record<string, unknown>): Record<string, unknown> {
 
 /* ---------- saqlash ---------- */
 /** B va Varaq uchun umumiy koʻcha (kesim) maʼlumoti */
-const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'gfx', 'showU'];
+const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'eL', 'eR', 'gfx', 'showU'];
 const SHARED: Partial<Record<BoardId, string[]>> = { b: STREET, varaq: STREET, c: ['TPL'] };
 /** faqat oʻsha oynada kerak (saqlanmaydi): tanlangan zona/tarmoq */
 const VOLATILE = new Set(['sel', 'selU', 'vw']);

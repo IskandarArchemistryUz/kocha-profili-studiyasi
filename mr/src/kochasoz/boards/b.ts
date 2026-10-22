@@ -576,9 +576,39 @@ export default class Component extends DCLogic {
       var Y0 = 56, Y1 = 600, LM = (Y1 - Y0) / px;
       function YM(m) { return Y0 + m * px; }
       function rotL(cx, cy, deg) { return { line: line, ink: INK, add: function (d, f, st, w, o, da, t2) { add(d, f, st, w, o, da, 'rotate(' + deg + ' ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' + (t2 ? ' ' + t2 : '')); } }; }
-      add('M8 ' + Y0 + 'H' + X(-SB) + 'V' + Y1 + 'H8Z', line ? '#fff' : '#efeee9', INK, 1.1);
-      add('M' + X(rl + SB) + ' ' + Y0 + 'H' + HW + 'V' + Y1 + 'H' + X(rl + SB) + 'Z', line ? '#fff' : '#efeee9', INK, 1.1);
-      [[8, X(-SB)], [X(rl + SB), HW]].forEach(function (bx) { var W0 = bx[1] - bx[0]; for (var hy = Y0 - W0; hy < Y1; hy += 9) { var ya = Math.max(Y0, hy), xa = bx[0] + (ya - hy), yb = Math.min(Y1, hy + W0), xb = bx[0] + (yb - hy); if (xb > xa) add('M' + xa.toFixed(1) + ' ' + ya.toFixed(1) + 'L' + xb.toFixed(1) + ' ' + yb.toFixed(1), null, '#cfcac0', 0.5); } });
+      /* chet rejada: bino — shtrixli blok; bogʻ, ochiq maydon, qiyalik, suv — oʻz belgisi bilan (kesimdagi edgeDraw bilan bir xil) */
+      function edgePlan(sd, et) {
+        var fx = sd < 0 ? X(-SB) : X(rl + SB), ox = sd < 0 ? 8 : HW, a = Math.min(fx, ox), b = Math.max(fx, ox), w = b - a, o = LYR, R = 'M' + a + ' ' + Y0 + 'H' + b + 'V' + Y1 + 'H' + a + 'Z', q, yy;
+        LYR = 'KS_EDGE';
+        if (et === 'bog') {
+          add(R, line ? '#ffffff' : '#dbe8cc', INK, 1.1);
+          var nc = Math.max(1, Math.floor(w / (6 * px))), rr = Math.min(2.2 * px, w / nc / 2.4);
+          for (yy = Y0 + 3 * px; yy < Y1 - rr; yy += 6 * px) for (q = 0; q < nc; q++) add(El(a + w * (q + 0.5) / nc, yy + (q % 2 ? 3 * px : 0), rr, rr), line ? '#ffffff' : '#bcd5a6', INK, 0.6);
+          tx((a + b) / 2, Y0 + 14, tr('Bogʻ'), 8.5, LIGHT, 600, 'Archivo, sans-serif');
+        } else if (et === 'ochiq') {
+          add(R, line ? '#ffffff' : '#efeae1', INK, 1.1);
+          for (q = fx + sd * px; sd < 0 ? q > a : q < b; q += sd * px) add('M' + q.toFixed(1) + ' ' + Y0 + 'V' + Y1, null, LIGHT, 0.4);
+          for (yy = Y0 + px; yy < Y1; yy += px) add('M' + a + ' ' + yy.toFixed(1) + 'H' + b, null, LIGHT, 0.4);
+          tx((a + b) / 2, Y0 + 14, tr('Ochiq maydon'), 8.5, LIGHT, 600, 'Archivo, sans-serif');
+        } else if (et === 'qiyalik') {
+          add(R, line ? '#ffffff' : '#e6dfcd', INK, 1.1);
+          add('M' + fx + ' ' + Y0 + 'V' + Y1, null, '#7fa06b', 2);
+          var sl = Math.min(w, 12 * px); q = 0;
+          for (yy = Y0 + 0.75 * px; yy < Y1; yy += 0.75 * px, q++) add('M' + fx + ' ' + yy.toFixed(1) + 'h' + (sd * sl * (q % 2 ? 0.45 : 0.9)).toFixed(1), null, INK, 0.6);
+          tx((a + b) / 2, Y0 + 14, tr('Qiyalik') + ' 1:3', 8.5, LIGHT, 600, 'Archivo, sans-serif');
+        } else if (et === 'suv') {
+          var bk = Math.min(w * 0.35, 2.5 * px), xw = fx + sd * bk;
+          add(R, line ? '#ffffff' : '#e6dfcd', INK, 1.1);
+          add('M' + Math.min(xw, ox) + ' ' + Y0 + 'H' + Math.max(xw, ox) + 'V' + Y1 + 'H' + Math.min(xw, ox) + 'Z', line ? '#ffffff' : '#bcd6e6', null, 0);
+          add('M' + xw + ' ' + Y0 + 'V' + Y1, null, '#4f86a8', 1.2);
+          for (yy = Y0 + 20; yy < Y1 - 6; yy += 22) for (q = Math.min(xw, ox) + 6; q < Math.max(xw, ox) - 14; q += 22) add('M' + q.toFixed(1) + ' ' + yy + 'q3 -2 6 0t6 0', null, '#4f86a8', 0.6);
+          tx((Math.min(xw, ox) + Math.max(xw, ox)) / 2, Y0 + 14, tr('Daryo / kanal'), 8.5, '#4f86a8', 600, 'Archivo, sans-serif');
+        }
+        LYR = o;
+      }
+      [[-1, 8, X(-SB), s.eL], [1, X(rl + SB), HW, s.eR]].forEach(function (ed) { if (ed[3] && ed[3] !== 'bino') { edgePlan(ed[0], ed[3]); return; }
+      add('M' + ed[1] + ' ' + Y0 + 'H' + ed[2] + 'V' + Y1 + 'H' + ed[1] + 'Z', line ? '#fff' : '#efeee9', INK, 1.1);
+      [[ed[1], ed[2]]].forEach(function (bx) { var W0 = bx[1] - bx[0]; for (var hy = Y0 - W0; hy < Y1; hy += 9) { var ya = Math.max(Y0, hy), xa = bx[0] + (ya - hy), yb = Math.min(Y1, hy + W0), xb = bx[0] + (yb - hy); if (xb > xa) add('M' + xa.toFixed(1) + ' ' + ya.toFixed(1) + 'L' + xb.toFixed(1) + ' ' + yb.toFixed(1), null, '#cfcac0', 0.5); } }); });
       add('M' + X(-SB) + ' ' + Y0 + 'H' + X(0) + 'V' + Y1 + 'H' + X(-SB) + 'Z', line ? '#fff' : '#ebe7df', null, 0); add('M' + X(rl) + ' ' + Y0 + 'H' + X(rl + SB) + 'V' + Y1 + 'H' + X(rl) + 'Z', line ? '#fff' : '#ebe7df', null, 0);
       var MK = line ? INK : '#ffffff';
       /* harakat yoʻnalishi: yoʻl belgisi strelkasi (oʻng tomonlama harakat — chap yarim pastga, oʻng yarim yuqoriga) */
