@@ -406,6 +406,8 @@ export default class Component extends DCLogic {
       if ((u.k === 'G' || u.k === 'E' || u.k === 'T') && x < 0 || (u.k === 'G' || u.k === 'E' || u.k === 'T') && x > rl) r('Qizil chiziq va qurilish chizigʻi orasida', 'ShNQ 2.07.01-23, 188-band — ruxsat etiladi', '✓', 0, 'ok');
       return { rows: rows, worst: worst };
     }
+    /* oxirgi joylashning eng yaxshi bahosi: ≥ 400 — meʼyor buzilmasdan joy yoʻq (tor kesim) */
+    var lastPlace = 0;
     function place(k, others, side) {
       var c = UCd(k), best = 0, bs = 1e9;
       for (var x = -SB + 0.1; x <= rl + SB - 0.1; x += 0.1) {
@@ -415,6 +417,7 @@ export default class Component extends DCLogic {
         var dr = Math.min(x + SB, rl + SB - x); sc += Math.abs(dr - (c[9] * 1.1 + 0.4)) * 2;
         if (sc < bs) { bs = sc; best = x; }
       }
+      lastPlace = bs;
       return Math.round(best * 10) / 10;
     }
     var U = s.U;
@@ -435,11 +438,43 @@ export default class Component extends DCLogic {
     if (s.view === 0) {
       LYR = 'KS_GROUND'; var G = 372, DEP = 4.2, GB = G + 6 + DEP * px;
       add('M8 ' + G + 'H' + HW + 'V' + GB + 'H8Z', line ? '#ffffff' : '#f6f2ea', null, 0); add('M8 ' + GB + 'H' + HW, null, INK, 0.8); for (var hx = 8; hx < HW; hx += 7) add('M' + hx + ' ' + (GB + 6) + 'L' + (hx + 6) + ' ' + GB, null, LIGHT, 0.6);
-      [[8, X(-SB)], [X(rl + SB), HW]].forEach(function (bx) { add('M' + bx[0] + ' ' + G + 'H' + bx[1] + 'V' + (G + 3.2 * px) + 'H' + bx[0] + 'Z', line ? '#fff' : '#ebe7df', INK, 0.8); for (var hh = bx[0] - 3.2 * px; hh < bx[1]; hh += 6) { var xa = Math.max(bx[0], hh), xb = Math.min(bx[1], hh + 3.2 * px); if (xb > xa) add('M' + xa.toFixed(1) + ' ' + (G + 3.2 * px - (xa - hh)).toFixed(1) + 'L' + xb.toFixed(1) + ' ' + (G + 3.2 * px - (xb - hh)).toFixed(1), null, LIGHT, 0.5); } });
+      [[8, X(-SB), s.eL], [X(rl + SB), HW, s.eR]].forEach(function (bx) { if (bx[2] && bx[2] !== 'bino') return; add('M' + bx[0] + ' ' + G + 'H' + bx[1] + 'V' + (G + 3.2 * px) + 'H' + bx[0] + 'Z', line ? '#fff' : '#ebe7df', INK, 0.8); for (var hh = bx[0] - 3.2 * px; hh < bx[1]; hh += 6) { var xa = Math.max(bx[0], hh), xb = Math.min(bx[1], hh + 3.2 * px); if (xb > xa) add('M' + xa.toFixed(1) + ' ' + (G + 3.2 * px - (xa - hh)).toFixed(1) + 'L' + xb.toFixed(1) + ' ' + (G + 3.2 * px - (xb - hh)).toFixed(1), null, LIGHT, 0.5); } });
       /* binolar — kesimdagi oddiy hajm: kontur, qavat yopmalari, qavat raqamlari va sath belgisi; chuqurligi ≤ 14 m,
          qolgani uzilish chizigʻi bilan. Baland bino sigʻmasa — gorizontal uzilish. Ichida «N qavat · ≈ H m» va − / + */
       var BB = [], HCAP = G - 34;
-      LYR = 'KS_BUILDINGS'; [[-1, s.bL], [1, s.bR]].forEach(function (b) {
+      /* chet (qizil chiziq + chekinishdan tashqari): bino oʻrniga bogʻ, ochiq maydon, qiyalik yoki suv (daryo, kanal) */
+      function edgeDraw(sd, et) {
+        var fx = sd < 0 ? X(-SB) : X(rl + SB), ox = sd < 0 ? 8 : HW, a = Math.min(fx, ox), b = Math.max(fx, ox), w = b - a, n = Math.max(1, Math.floor(w / (7 * px))), o = LYR, q;
+        LYR = 'KS_EDGE';
+        if (et === 'bog') {
+          var gy = G - 0.12 * px; add('M' + a + ' ' + gy + 'H' + b + 'V' + G + 'H' + a + 'Z', line ? '#ffffff' : '#cfe0bf', INK, 0.8);
+          for (q = 0; q < n; q++) (function (q) { var cx = a + w * (q + 0.5) / n; CADSIL('KS_TREES', 'uaT', function () { AS.uaT(L, q % 2 ? 'T_bulut2' : 'T_bulut', cx, gy, q % 2 ? 10 : 11, px, q + 3, sd > 0); }); })(q);
+          tx((a + b) / 2, GB - 8, tr('Bogʻ'), 8.5, LIGHT, 600, 'Archivo, sans-serif');
+        } else if (et === 'ochiq') {
+          var py = G - 0.1 * px; add('M' + a + ' ' + py + 'H' + b + 'V' + G + 'H' + a + 'Z', line ? '#ffffff' : '#efeae1', INK, 0.8);
+          for (var j = a + px; j < b; j += px) add('M' + j.toFixed(1) + ' ' + py + 'V' + G, null, LIGHT, 0.4);
+          var PO = ['erkak_yurgan', 'ayol_sumka', 'ona_bola', 'telefon'];
+          for (q = 0; q < Math.min(n, 3); q++) (function (q) { var cx = a + w * (q + 0.5) / Math.min(n, 3); CADSIL('KS_PEOPLE', 'ua', function () { AS.ua(L, PO[q % PO.length], cx, py, px, q % 2 === 1); }); })(q);
+          tx((a + b) / 2, GB - 8, tr('Ochiq maydon'), 8.5, LIGHT, 600, 'Archivo, sans-serif');
+        } else if (et === 'qiyalik') {
+          var hh = Math.min(4, w / px / 3) * px;
+          add('M' + fx + ' ' + G + 'L' + ox + ' ' + (G - hh) + 'L' + ox + ' ' + G + 'Z', line ? '#ffffff' : '#e6dfcd', INK, 0.8);
+          add('M' + fx + ' ' + G + 'L' + ox + ' ' + (G - hh), null, '#7fa06b', 2);
+          tx(fx + sd * Math.min(w * 0.5, 4 * px), G - Math.min(w * 0.5, 4 * px) * hh / (w || 1) - 6, '1:3', 8, INK, 500, 'IBM Plex Mono, monospace');
+          tx((a + b) / 2, GB - 8, tr('Qiyalik'), 8.5, LIGHT, 600, 'Archivo, sans-serif');
+        } else if (et === 'suv') {
+          var bk = Math.min(w * 0.35, 2.5 * px), bed = G + 2.2 * px, wl = G + 0.6 * px, x1 = fx + sd * bk, xw = fx + sd * bk * (0.6 / 2.2);
+          add('M' + fx + ' ' + G + 'L' + x1 + ' ' + bed + 'L' + ox + ' ' + bed + 'L' + ox + ' ' + G + 'Z', '#ffffff', null, 0);
+          add('M' + xw + ' ' + wl + 'L' + x1 + ' ' + bed + 'L' + ox + ' ' + bed + 'L' + ox + ' ' + wl + 'Z', line ? '#ffffff' : '#bcd6e6', null, 0);
+          add('M' + fx + ' ' + G + 'L' + x1 + ' ' + bed + 'L' + ox + ' ' + bed, null, INK, 1.2);
+          add('M' + xw + ' ' + wl + 'L' + ox + ' ' + wl, null, '#4f86a8', 1);
+          for (var wv2 = Math.min(xw, ox) + 6; wv2 < Math.max(xw, ox) - 10; wv2 += 18) add('M' + wv2 + ' ' + (wl + 5) + 'q3 -2 6 0t6 0', null, '#4f86a8', 0.6);
+          tx((Math.min(xw, ox) + Math.max(xw, ox)) / 2, wl - 4, tr('Daryo / kanal'), 8.5, '#4f86a8', 600, 'Archivo, sans-serif');
+        }
+        LYR = o;
+      }
+      LYR = 'KS_BUILDINGS'; [[-1, s.bL, s.eL], [1, s.bR, s.eR]].forEach(function (b) {
+        if (b[2] && b[2] !== 'bino') { edgeDraw(b[0], b[2]); return; }
         var nF = b[1], hM = 4.2 + (nF - 1) * 3.2, full = hM * px, cut = full > HCAP, h = cut ? HCAP : full;
         var fx = b[0] < 0 ? X(-SB) : X(rl + SB), room = b[0] < 0 ? fx - 8 : HW - fx, wB = Math.min(room, 14 * px), deep = room > wB + 2;
         var xa = b[0] < 0 ? fx - wB : fx, xb = b[0] < 0 ? fx : fx + wB, xo = b[0] < 0 ? xa : xb, ytop = G - h;
@@ -519,7 +554,9 @@ export default class Component extends DCLogic {
         LYR = 'DIMROW'; add('M' + x0 + ' ' + (D1 - 4) + 'V' + (D1 + 4), null, INK, 0.8);
         var narrow = (x1 - x0) < fm(e[1]).length * 5.4 + 3; NW = narrow ? NW + 1 : 0; tx(cx, narrow && NW % 2 === 0 ? D1 + 11 : D1 - 3, fm(e[1]), 8.5, on ? '#4c5bd4' : '#141414', on ? 700 : 500, 'IBM Plex Mono, monospace'); });
       LYR = 'DIMROW'; add('M' + X(0) + ' ' + D1 + 'H' + X(rl) + 'M' + X(rl) + ' ' + (D1 - 4) + 'V' + (D1 + 4), null, INK, 0.8);
-      { var _ly = LYR; LYR = 'UI'; for (var bi = 0; bi < els.length - 1; bi++) { var hx2 = X(zx[bi][1]); HND.push({ x: (hx2 - 5).toFixed(1), y: (GB + 6).toFixed(1), w: 10, h: (D1 + 8 - GB - 6).toFixed(1), down: zdown(bi) }); add('M' + (hx2 - 1.6) + ' ' + (D1 + 7) + 'v5M' + (hx2 + 1.6) + ' ' + (D1 + 7) + 'v5', null, '#a19e97', 1); } LYR = _ly; }
+      { var _ly = LYR; LYR = 'UI'; for (var bi = 0; bi < els.length - 1; bi++) { var hx2 = X(zx[bi][1]); HND.push({ x: (hx2 - 5).toFixed(1), y: (GB + 6).toFixed(1), w: 10, h: (D1 + 8 - GB - 6).toFixed(1), down: zdown(bi) }); add('M' + (hx2 - 1.6) + ' ' + (D1 + 7) + 'v5M' + (hx2 + 1.6) + ' ' + (D1 + 7) + 'v5', null, '#a19e97', 1); }
+        /* tashqi chetlar (qizil chiziqlar): chetdagi zona eni va qizil chiziqlar orasi birga oʻzgaradi */
+        [[-1, X(0)], [1, X(rl)]].forEach(function (q) { HND.push({ x: (q[1] - 5).toFixed(1), y: (GB + 6).toFixed(1), w: 10, h: (D1 + 8 - GB - 6).toFixed(1), down: edown(q[0]) }); add('M' + (q[1] - 1.6) + ' ' + (D1 + 7) + 'v5M' + (q[1] + 1.6) + ' ' + (D1 + 7) + 'v5', null, '#c0392b', 1); }); LYR = _ly; }
       // guruhlar
       LYR = 'KS_DIM'; var GRP = { front: 'Trotuar', piy: 'Trotuar', mebel: 'Trotuar', yash: 'Trotuar', velo: 'Velo yoʻlak', park: 'Qatnov qismi', qat: 'Qatnov qismi', bus: 'Qatnov qismi', tram: 'Tramvay', med: 'Ajratuvchi' }, gr = [];
       els.forEach(function (e, i) { var gname = GRP[e[0]], lg = gr[gr.length - 1]; if (lg && lg.n === gname) lg.b = zx[i][1]; else gr.push({ n: gname, a: zx[i][0], b: zx[i][1] }); });
@@ -653,6 +690,8 @@ export default class Component extends DCLogic {
       if (trams.length) chk(tt2 >= 5 ? 'ok' : 'bad', 'Daraxt ↔ tramvay yoʻli ≥ 5,0', 'ShNQ 35-jadval', fm(tt2));
     } else chk('warn', 'Daraxt yoʻq', 'Dizayn-kod 10 · iqlim qulayligi', '—');
     var roadW = 0; els.forEach(function (e) { if (e[0] === 'qat' || e[0] === 'bus') roadW += e[1]; });
+    /* tor kesim: avto joylashda meʼyor buzilmasdan joy topilmagan tarmoqlar — bino tagiga qoʻyilmaydi, ogohlantirish */
+    if (s.uSkip && s.uSkip.length) chk('warn', tr('Sigʻmagan tarmoqlar') + ': ' + s.uSkip.map(ulbl).join(', '), tr('ShNQ 209–210-band · kesimni kengaytiring yoki qoʻlda qoʻying'), String(s.uSkip.length));
     if (U.length) {
       var bad = 0; U.forEach(function (u, j) { if (evalU(u, U.filter(function (o, q) { return q !== j; })).worst === 'bad') bad++; });
       chk(bad ? 'bad' : 'ok', 'Tarmoqlar masofalari', 'ShNQ 209–210-band, 8–9-jadval', bad ? bad + ' ta muammo' : 'joyida');
@@ -661,9 +700,12 @@ export default class Component extends DCLogic {
     }
     var nOk = R.filter(function (r) { return r.st === 'ok'; }).length;
     // ===== bloklar =====
-    var blks = [{ f: SB, c: '#ecebe8', n: 'Bino', w: fm(SB), wc: '#141414', ic: 'M4 20V6h16v14M9 9h2M13 9h2M9 13h2M13 13h2', p: 'false', sh: 'none', pick: null }];
+    /* pastki qator chetlari: chet turi boʻyicha nom va rang */
+    var EDB = { bino: ['Bino', '#ecebe8'], bog: ['Bogʻ', '#d9e8cc'], ochiq: ['Ochiq', '#efeae1'], qiyalik: ['Qiyalik', '#e6dfcd'], suv: ['Suv', '#cfe2ee'] };
+    function edBlk(et) { var d = EDB[et || 'bino'] || EDB.bino; return { f: SB, c: d[1], n: d[0], w: fm(SB), wc: '#141414', ic: 'M4 20V6h16v14M9 9h2M13 9h2M9 13h2M13 13h2', p: 'false', sh: 'none', pick: null }; }
+    var blks = [edBlk(s.eL)];
     els.forEach(function (e, i) { var t = T[e[0]], bad = (e[0] === 'qat' && sk[1] > 0 && (e[1] < sk[1] || e[1] > Math.max(sk[2], 3.75))) || (e[0] === 'velo' && e[1] < 1.5) || (e[0] === 'mebel' && e[1] < dk[2]); blks.push({ f: e[1], c: t.c, n: t.s, w: fm(e[1]), wc: bad ? '#b23a2e' : '#141414', ic: t.ic, p: s.sel === i && s.selU < 0 ? 'true' : 'false', sh: bad ? 'inset 0 -3px 0 #b23a2e' : 'none', pick: function () { self.setState({ sel: i, selU: -1 }); } }); });
-    blks.push({ f: SB, c: '#ecebe8', n: 'Bino', w: fm(SB), wc: '#141414', ic: 'M4 20V6h16v14M9 9h2M13 9h2M9 13h2M13 13h2', p: 'false', sh: 'none', pick: null });
+    blks.push(edBlk(s.eR));
     var tot = rl + 2 * SB;
     function pctX(m) { return ((SB + m) / tot * 100).toFixed(2) + '%'; }
     function upd(fn) { var E = self.state.els.map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }); var r = fn(E, self.state.sel); self.setState(Object.assign({ els: E }, r || {})); }
@@ -684,7 +726,8 @@ export default class Component extends DCLogic {
     var cur = els[Math.min(s.sel, els.length - 1)], ct = T[cur[0]], cf = cur[2] || {};
     var su = s.selU >= 0 ? U[s.selU] : null, suc = su ? UCd(su.k) : null, sev = su ? evalU(su, U.filter(function (o, q) { return q !== s.selU; })) : null;
     function updU(fn) { var N = self.state.U.map(function (u) { return Object.assign({}, u); }); var r = fn(N, self.state.selU); self.setState(Object.assign({ U: N }, r || {})); }
-    function autoAll() { var N = [], list = ['UT', 'DH', 'W', 'SS', 'SD', 'G', 'E', 'T', 'SL', 'UD'].filter(function (k) { return k !== 'UT'; }); list.forEach(function (k) { var c = UCd(k); N.push({ k: k, x: place(k, N, k === 'W' ? -1 : 0), d: c[3] }); }); if (roadW > 22) N.push({ k: 'W', x: place('W', N, 1), d: 2.5 }); self.setState({ U: N, showU: true, selU: -1 }); }
+    var EDGES = [['bino', 'Bino'], ['bog', 'Bogʻ'], ['ochiq', 'Ochiq'], ['qiyalik', 'Qiyalik'], ['suv', 'Suv']];
+    function autoAll() { var N = [], list = ['UT', 'DH', 'W', 'SS', 'SD', 'G', 'E', 'T', 'SL', 'UD'].filter(function (k) { return k !== 'UT'; }); var SK = []; list.forEach(function (k) { var c = UCd(k), x = place(k, N, k === 'W' ? -1 : 0); if (lastPlace >= 400) SK.push(k); else N.push({ k: k, x: x, d: c[3] }); }); if (roadW > 22) { var xw = place('W', N, 1); if (lastPlace >= 400) SK.push('W'); else N.push({ k: 'W', x: xw, d: 2.5 }); } self.setState({ U: N, showU: true, selU: -1, uSkip: SK }); }
     var szt = su ? ztype(su.x) : '';
     var CAT = { parklet: ['Parklet', ['park'], 6, 'Dizayn-kod 13 · andoza'], bekat: ['Bekat', ['park', 'yash', 'mebel', 'bus'], 10, 'Dizayn-kod 5'], shpalera: ['Shpalera', ['yash', 'med', 'front', 'park'], 8, 'jonli toʻsiq · ShNQ 35-jad.'], buta: ['Butalar', ['yash', 'med', 'front'], 3, 'ShNQ 35-jad.'], terrasa: ['Terrasa · stol-stul', ['front'], 6, 'Dizayn-kod 13.3–13.4'], velopark: ['Velo turargoh', ['yash', 'front', 'mebel'], 5, 'Dizayn-kod 7.4'], samokat: ['Samokat turargohi', ['yash', 'front', 'mebel', 'park'], 4, 'andoza'], orindiq: ['Oʻrindiq', ['yash', 'front', 'mebel'], 2, 'Dizayn-kod 3.3'], axlat: ['Axlat qutisi', ['mebel', 'yash', 'front'], 0.6, ''], daraxt: ['Daraxt', ['park', 'yash', 'med', 'front'], 2.5, 'ShNQ 35-jad.'], gul: ['Gul tuvak', ['front', 'yash'], 1, 'Dizayn-kod 13.4'], yuklash: ['Yuk tushirish', ['park'], 8, 'andoza'], taksi: ['Taksi', ['park'], 6, 'Dizayn-kod 6.4.2'] };
     var LMg = 544 / px, PLs = s.PL || [], selT = els[Math.min(s.sel, els.length - 1)] ? els[Math.min(s.sel, els.length - 1)][0] : '';
@@ -705,6 +748,10 @@ export default class Component extends DCLogic {
         if (e.shiftKey) { E[i][1] = Math.max(0.3, snap(a + dm, 0.05)); }
         else { var na = Math.min(a + b - 0.3, Math.max(0.3, snap(a + dm, 0.05))); E[i][1] = Math.round(na * 100) / 100; E[i + 1][1] = Math.round((a + b - na) * 100) / 100; }
         self.setState({ els: E }); }); }; }
+    /* tashqi chet: sd = −1 — chap qizil chiziq, 1 — oʻng; chetdagi zona eni va rl birga; chapda — tarmoqlar ham siljiydi (x chap qizil chiziqdan) */
+    function edown(sd) { return function (ev) { var E0 = self.state.els.map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }), U0 = (self.state.U || []).map(function (u) { return Object.assign({}, u); }), r0 = self.state.rl, i = sd < 0 ? 0 : E0.length - 1, k = mpp(); self.setState({ sel: i, selU: -1 });
+      drag(ev, k, function (dm) { var E = E0.map(function (q) { return [q[0], q[1], q[2]]; }), nw = Math.round(Math.max(0.3, snap(E0[i][1] + sd * dm, 0.05)) * 100) / 100, d = nw - E0[i][1]; E[i][1] = nw;
+        var o = { els: E, rl: Math.round((r0 + d) * 100) / 100 }; if (sd < 0) o.U = U0.map(function (u) { return Object.assign({}, u, { x: Math.round((u.x + d) * 100) / 100 }); }); self.setState(o); }); }; }
     /* tarmoq: pastki qatorda — gorizontal, kesimda — gorizontal va chuqurlik */
     function udown(j, deep) { return function (ev) { var u0 = Object.assign({}, self.state.U[j]), k = mpp(); self.setState({ selU: j, showU: true });
       drag(ev, k, function (dm, e) { var N = self.state.U.map(function (u) { return Object.assign({}, u); }); N[j].x = Math.max(-SB, Math.min(self.state.rl + SB, snap(u0.x + dm, 0.05)));
@@ -722,6 +769,7 @@ export default class Component extends DCLogic {
     /* pastki qatorda yaqin tarmoqlar — ikki qatorga */
     var UROW = U.map(function () { return 0; }), uord = U.map(function (u, j) { return j; }).sort(function (a, b) { return U[a].x - U[b].x; }), lastX = [-99, -99]; uord.forEach(function (j) { var sx = X(U[j].x), r = sx - lastX[0] > 26 * VW / 1000 * 1.6 ? 0 : (sx - lastX[1] > 26 * VW / 1000 * 1.6 ? 1 : 0); UROW[j] = r; lastX[r] = sx; });
     var SH = []; for (var bi2 = 0; bi2 < els.length - 1; bi2++) SH.push({ l: pv(zx[bi2][1]), down: zdown(bi2) });
+    SH.push({ l: pv(0), down: edown(-1) }, { l: pv(rl), down: edown(1) });
     /* tayyor kesimlar: Koʻchasoz namunalari + Master reja profillari (guruhlab) */
     var MRG = [{ id: 'mr-asosiy', n: 'Asosiy', list: PROFILES }].concat(Array.from(new Set(PRESET_PROFILES.map(function (p) { return p.group; }))).map(function (g) { return { id: 'mr-' + g, n: g, list: PRESET_PROFILES.filter(function (p) { return p.group === g; }) }; }));
     var tg = s.tg || 'ks', TG = [{ id: 'ks', n: 'Namunalar', c: s.TPL.length }].concat(MRG.map(function (g) { return { id: g.id, n: g.n, c: g.list.length }; }));
@@ -740,6 +788,9 @@ export default class Component extends DCLogic {
       tgMenu: s.tgMenu ? 'true' : 'false', tgMenuB: !!s.tgMenu, tgToggle: function () { self.setState({ tgMenu: !self.state.tgMenu }); },
       tgCur: (TG.filter(function (g) { return g.id === tg; })[0] || TG[0]).n, tCount: String(TG.reduce(function (a, g) { return a + g.c; }, 0)),
       tpls: TL.map(function (t) { var w = 0; t[2].forEach(function (e) { w += e[1]; }); return { n: t[0], u: t[4], w: fm(w), th: thumb(t[2]), p: s.tplName === t[0] ? 'true' : 'false', pick: function () { self.setState({ els: t[2].map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }), rl: Math.round(w * 100) / 100, tplName: t[0], sk: t[3], uk: t[4], sel: 0, selU: -1, U: [], PL: (t[5] || []).map(function (p) { return Object.assign({}, p); }) }); } }; }),
+      edL: EDGES.map(function (q) { return { n: q[1], p: String((s.eL || 'bino') === q[0]), pick: function () { self.setState({ eL: q[0] }); } }; }),
+      edR: EDGES.map(function (q) { return { n: q[1], p: String((s.eR || 'bino') === q[0]), pick: function () { self.setState({ eR: q[0] }); } }; }),
+      bLb: (s.eL || 'bino') === 'bino', bRb: (s.eR || 'bino') === 'bino',
       bL: s.bL, bR: s.bR, bLd: function () { self.setState({ bL: Math.max(1, self.state.bL - 1) }); }, bLu: function () { self.setState({ bL: Math.min(30, self.state.bL + 1) }); }, bRd: function () { self.setState({ bR: Math.max(1, self.state.bR - 1) }); }, bRu: function () { self.setState({ bR: Math.min(30, self.state.bR + 1) }); },
       skFull: SKP[s.sk][6], checks: R, okCount: nOk + ' / ' + R.length,
       views: [['Kesim', 0], ['Reja', 1], ['Akso', 2], ['Piyoda', 3], ['Bola', 4], ['Velo', 5], ['Mashina', 6]].map(function (v) { return { n: v[0], p: s.view === v[1] ? 'true' : 'false', pick: function () { self.setState({ view: v[1] }); } }; }),
@@ -748,7 +799,7 @@ export default class Component extends DCLogic {
       fillW: Math.min(100, used / rl * 100).toFixed(1) + '%', fillC: Math.abs(d) < 0.01 ? '#4c5bd4' : (d > 0 ? '#b23a2e' : '#e0a43c'),
       fitC: Math.abs(d) < 0.01 ? 'ok' : (d > 0 ? 'bad' : 'warn'), fitT: Math.abs(d) < 0.01 ? 'Qizil chiziqlarga sigʻadi' : (d > 0 ? '+' + fm(d) + ' m ortiqcha' : fm(-d) + ' m boʻsh'),
       fit: function () { upd(function (E) { var u = 0; E.forEach(function (e) { u += e[1]; }); var k = self.state.rl / u; E.forEach(function (e) { e[1] = Math.round(e[1] * k * 100) / 100; }); var u2 = 0; E.forEach(function (e) { u2 += e[1]; }); E[0][1] = Math.round((E[0][1] + self.state.rl - u2) * 100) / 100; }); },
-      uOn: s.showU ? 'on' : '', tU: function () { self.setState({ showU: !self.state.showU }); }, showU: s.showU, auto: autoAll, clr: function () { self.setState({ U: [], selU: -1 }); },
+      uOn: s.showU ? 'on' : '', tU: function () { self.setState({ showU: !self.state.showU }); }, showU: s.showU, auto: autoAll, clr: function () { self.setState({ U: [], selU: -1, uSkip: [] }); },
       clipR: s.view === 1 ? [{ x: 0, y: 0, w: VW, h: 604 }, { x: 0, y: 618, w: 16 + 10 * px + 30, h: 40 }] : [{ x: 0, y: 0, w: VW, h: 680 }], uH: UROW.some(function (r) { return r; }) ? '46px' : '30px',
       blks: blks, rlLp: pv(0), rlRp: pv(rl), hnd: HND, uh: UH, bb: BB, shnd: SH, ufb: ufb,
       ubs: U.map(function (u, j) { var c = UCd(u.k), on = s.selU === j, ev = evalU(u, U.filter(function (o, q) { return q !== j; })); return { k: ulbl(u.k), l: pv(u.x), tp: UROW[j] ? '20px' : '4px', down: udown(j, false), c: c[2], bg: on ? c[2] : '#fff', p: on ? 'true' : 'false', sh: ev.worst === 'bad' ? '0 0 0 2px #b23a2e' : 'none', pick: function () { self.setState({ selU: j }); } }; }),
