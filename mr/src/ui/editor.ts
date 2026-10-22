@@ -238,7 +238,7 @@ export class Editor {
     // faqat varaqlar oʻzgargan boʻlsa (Varaqlar oynasi) — sahna va panel qayta chizilmaydi
     if ((Object.keys(doc) as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
     if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed) void this.ensureContext();
-    if (this.marked.b.length || this.marked.c.length) { const rm = new Set(doc.removed ?? []); this.setMarked(this.marked.b.filter(id => doc.buildings.some(b => b.id === id)), this.marked.c.filter(id => !rm.has(id)), doc); }
+    if (this.marked.b.length || this.marked.c.length || this.marked.r.length) { const rm = new Set(doc.removed ?? []), rr = new Set(doc.removedRoads ?? []), keepR = this.marked.r.filter(x => !rr.has(x)); this.setMarked(this.marked.b.filter(id => doc.buildings.some(b => b.id === id)), this.marked.c.filter(id => !rm.has(id)), doc, keepR); }
     if (this.selStreet && !doc.streets.some(x => x.id === this.selStreet)) { this.selStreet = null; this.scene.selectStreet(null); }
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
     if (p.buildings !== doc.buildings && this.apt.stats) this.clearApt();
@@ -489,18 +489,46 @@ export class Editor {
   }
 
   /* ---------- koʻp tanlov: Shift + bosish / Shift + ramka; Delete — oʻchirish ---------- */
-  private marked: { b: string[]; c: number[] } = { b: [], c: [] };
-  private setMarked(b: string[], c: number[], doc = this.store.doc): void {
-    this.marked = { b: [...new Set(b)], c: [...new Set(c)] };
-    this.scene.setMarked(doc, this.marked.b, this.marked.c);
-    const n = this.marked.b.length + this.marked.c.length;
-    if (!this.tool) { this.el.hint.hidden = !n; if (n) this.el.hint.textContent = `Tanlandi: ${n} ta${this.marked.c.length ? ` (atrofdagi binolar — ${this.marked.c.length})` : ''} · Delete — oʻchirish · Shift + bosish yoki Shift + ramka — qoʻshish · Esc — bekor`; }
+  /** b — loyiha binolari, c — atrofdagi (OSM) binolar, r — atrofdagi (OSM) yoʻllar va piyoda yoʻlaklari */
+  private marked: { b: string[]; c: number[]; r: number[] } = { b: [], c: [], r: [] };
+  private setMarked(b: string[], c: number[], doc = this.store.doc, r: number[] = []): void {
+    this.marked = { b: [...new Set(b)], c: [...new Set(c)], r: [...new Set(r)] };
+    const fr = frame(doc.origin), rs = new Set(this.marked.r);
+    const roads = (this.ctxMgr.current?.osm.roads ?? []).filter(x => rs.has(x.id)).map(x => ({ pts: x.pts.map(fr.toLocal), w: x.w }));
+    this.scene.setMarked(doc, this.marked.b, this.marked.c, roads);
+    const n = this.marked.b.length + this.marked.c.length + this.marked.r.length;
+    if (!this.tool) {
+      this.el.hint.hidden = !n;
+      if (n) {
+        const parts = [...(this.marked.c.length ? [tf('atrofdagi binolar — ${c}', { c: this.marked.c.length })] : []), ...(this.marked.r.length ? [tf('yoʻllar — ${r}', { r: this.marked.r.length })] : [])];
+        this.el.hint.textContent = `${tf('Tanlandi: ${n} ta', { n })}${parts.length ? ` (${parts.join(', ')})` : ''} · ${tr('Delete — oʻchirish · Shift + bosish yoki Shift + ramka — qoʻshish · Esc — bekor')}`;
+      }
+    }
+  }
+  /** Ekran nuqtasidagi atrof (OSM) yoʻli: avtomobil yoʻli, trotuar, piyoda yoʻlagi (loyihaga olingan va olib tashlanganlar — yoʻq) */
+  private osmRoadAt(p: XY): number | null {
+    const doc = this.store.doc, fr = frame(doc.origin), b = this.ctxMgr.current; if (!b) return null;
+    const skip = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
+    const v = this.scene.viewExtent(), mpp = 2 * v.r / Math.max(1, this.el.scene.clientWidth), extra = Math.max(2, 7 * mpp);
+    let best: number | null = null, bd = Infinity;
+    for (const r of b.osm.roads) {
+      if (skip.has(r.id)) continue;
+      const a = r.pts.map(fr.toLocal);
+      for (let i = 1; i < a.length; i++) {
+        const u = a[i - 1], w = a[i], dx = w[0] - u[0], dy = w[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2));
+        const dd = Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]) - r.w / 2;
+        if (dd <= extra && dd < bd) { bd = dd; best = r.id; }
+      }
+    }
+    return best;
   }
   private deleteMarked(): void {
-    const { b, c } = this.marked; if (!b.length && !c.length) return;
-    this.run(() => this.store.dispatch({ type: 'deleteSelection', ids: b, ctx: c }));
+    const { b, c, r } = this.marked; if (!b.length && !c.length && !r.length) return;
+    if (b.length || c.length) this.run(() => this.store.dispatch({ type: 'deleteSelection', ids: b, ctx: c }));
+    if (r.length) this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [...(this.store.doc.removedRoads ?? []), ...r] }));
     this.setMarked([], []);
     if (c.length) toast(`${c.length} ta atrof binosi olib tashlandi — «Hudud» qadamida yoki oʻng tugma menyusida qaytariladi`);
+    if (r.length) toast(tf('${n} ta yoʻl olib tashlandi — «Koʻchalar» qadamida qaytariladi · Ctrl+Z — bekor qilish', { n: r.length }));
   }
   private restoreRemoved(): void { this.run(() => this.store.dispatch({ type: 'setRemoved', removed: [] })); }
 
@@ -2843,15 +2871,17 @@ export class Editor {
         const b0 = box; box = null; b0.el.remove(); this.scene.setOrbit(true); down = null;
         if (Math.hypot(e.clientX - b0.x, e.clientY - b0.y) > 5) {
           const r = this.scene.pickInRect(this.store.doc, b0.x, b0.y, e.clientX, e.clientY);
-          this.setMarked([...this.marked.b, ...r.bids, ...(this.sel ? [this.sel] : [])], [...this.marked.c, ...r.cids]);
+          this.setMarked([...this.marked.b, ...r.bids, ...(this.sel ? [this.sel] : [])], [...this.marked.c, ...r.cids], this.store.doc, this.marked.r);
         } else {
           // Shift + bosish — tanlovga qoʻshish / olib tashlash
           const id = this.scene.pickBuilding(e.clientX, e.clientY), cid = id ? null : this.scene.pickAnyContext(e.clientX, e.clientY);
           const tg = <T,>(a: T[], v: T) => a.includes(v) ? a.filter(x => x !== v) : [...a, v];
-          if (id) this.setMarked(tg([...this.marked.b, ...(this.sel && this.sel !== id ? [this.sel] : [])], id), this.marked.c);
-          else if (cid != null) this.setMarked([...this.marked.b, ...(this.sel ? [this.sel] : [])], tg(this.marked.c, cid));
+          const p = id || cid != null ? null : this.scene.pick(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null;
+          if (id) this.setMarked(tg([...this.marked.b, ...(this.sel && this.sel !== id ? [this.sel] : [])], id), this.marked.c, this.store.doc, this.marked.r);
+          else if (cid != null) this.setMarked([...this.marked.b, ...(this.sel ? [this.sel] : [])], tg(this.marked.c, cid), this.store.doc, this.marked.r);
+          else if (rid != null) this.setMarked([...this.marked.b, ...(this.sel ? [this.sel] : [])], this.marked.c, this.store.doc, tg(this.marked.r, rid));
         }
-        if (this.marked.b.length + this.marked.c.length > 1 && this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); this.setMarked(this.marked.b, this.marked.c); }
+        if (this.marked.b.length + this.marked.c.length + this.marked.r.length > 1 && this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); this.setMarked(this.marked.b, this.marked.c, this.store.doc, this.marked.r); }
         return;
       }
       if (drag) { drag = null; pend = null; down = null; this.scene.setOrbit(true); return; }
@@ -2866,6 +2896,7 @@ export class Editor {
         const oc = this.scene.pickAnyContext(e.clientX, e.clientY);
         if (oc != null) { this.setMarked([], [oc]); return; }
         const p = this.scene.pick(e.clientX, e.clientY);
+        { const rid = p ? this.osmRoadAt(p) : null; if (rid != null && !(p && this.plan().blocks.some(b => pointIn(p, b.rings)))) { this.setMarked([], [], this.store.doc, [rid]); return; } }
         if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); this.renderPanel(); }
         return;
       }
@@ -2893,7 +2924,9 @@ export class Editor {
       if (!id) { const p = this.scene.pick(e.clientX, e.clientY), sid = p ? this.streetAt(p) : null; if (sid && !this.locked(STEPS.find(x => x.id === 'kocha')!)) { this.go(STEPS.find(x => x.id === 'kocha')!); this.pickStreet(sid); return; } }
       // atrofdagi (OSM) bino — tanlanadi (Delete bilan olib tashlanadi)
       if (!id) { const cid = this.scene.pickAnyContext(e.clientX, e.clientY); if (cid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked([], [cid]); return; } }
-      if (this.marked.b.length || this.marked.c.length) this.setMarked([], []);
+      // atrofdagi (OSM) yoʻl yoki trotuar — tanlanadi (Delete bilan olib tashlanadi; Shift — tanlovga qoʻshish)
+      if (!id) { const p = this.scene.pick(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null; if (rid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked(e.shiftKey ? this.marked.b : [], e.shiftKey ? this.marked.c : [], this.store.doc, e.shiftKey ? (this.marked.r.includes(rid) ? this.marked.r.filter(x => x !== rid) : [...this.marked.r, rid]) : [rid]); return; } }
+      if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []);
       if (id && id === this.sel && this.inspTab === 'qavat') {   // tanlangan binoda qavatni bosish — shu qavat
         const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), b = this.store.doc.buildings.find(x => x.id === id);
         if (hit && b) { const fr = frame(this.store.doc.origin), r = b.footprint.map(fr.toLocal), fh = this.store.doc.settings.floorHeight, base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; this.scene.setSelFloor(Math.max(1, Math.min(b.floors, Math.floor((hit.y - base) / fh) + 1))); this.renderInspector(); return; }
@@ -2919,9 +2952,9 @@ export class Editor {
       const z = e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey);
       if (z && !e.shiftKey) { e.preventDefault(); this.store.undo(); }
       else if ((z && e.shiftKey) || (e.key.toLowerCase() === 'y' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); this.store.redo(); }
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && (this.marked.b.length || this.marked.c.length)) { e.preventDefault(); this.deleteMarked(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && (this.marked.b.length || this.marked.c.length || this.marked.r.length)) { e.preventDefault(); this.deleteMarked(); }
       else if (e.key === 'Escape' && this.sframe && !document.querySelector('.gx')) this.endFrame();
-      else if (e.key === 'Escape' && (this.marked.b.length || this.marked.c.length)) this.setMarked([], []);
+      else if (e.key === 'Escape' && (this.marked.b.length || this.marked.c.length || this.marked.r.length)) this.setMarked([], []);
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.osmPick) { e.preventDefault(); this.removeOsmRoad(this.osmPick.id); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.store.dispatch({ type: 'removeBuilding', id: this.sel }); }

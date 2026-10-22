@@ -143,3 +143,29 @@ test('«Atrofni yuklash» — markaz ekran markaziga koʻchadi', async ({ page }
   const d = await page.evaluate(([o]) => { const ed = (window as any).__mr, o1 = ed.store.doc.origin; return [(o1[0] - o[0]) * 84000, (o1[1] - o[1]) * 111132, ed.store.doc.context.loaded]; }, [o0]);
   expect(d[0]).toBeGreaterThan(1400); expect(d[1]).toBeGreaterThan(800); expect(d[2]).toBe(true);
 });
+
+/** 3-band: atrofdagi (OSM) yoʻl va trotuar bosib tanlanadi, Delete bilan olib tashlanadi, Ctrl+Z — qaytadi */
+test('atrof yoʻli va piyoda yoʻlagi tanlanib oʻchiriladi', async ({ page }) => {
+  await newProject(page);
+  await page.click('[data-view=plan]');
+  const at = await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132];
+    ed.store.dispatch({ type: 'setContext', patch: { loaded: true } });
+    ed.ctxMgr.current = { osm: { roads: [{ id: 11, cls: 'primary', w: 14, pts: [g(-150, 0), g(150, 0)] }, { id: 12, cls: 'footway', w: 3, pts: [g(-150, 40), g(150, 40)] }], buildings: [], green: [], water: [], rail: [] } };
+    ed.scene.frameRadius(120);
+    const r = ed.scene.renderer.domElement.getBoundingClientRect(), s = (x: number, y: number) => { const p = ed.scene.toScreen(x, y, 0); return [p.x + 0 * r.x, p.y + 0 * r.y]; };
+    return { road: s(30, 2), foot: s(30, 40) };
+  });
+  const c = (await page.locator('#scene canvas').boundingBox())!;
+  const abs = (p: number[]) => (p[0] > c.x && p[1] > c.y ? p : [p[0] + c.x, p[1] + c.y]);
+  const [rx, ry] = abs(at.road), [fx, fy] = abs(at.foot);
+  await page.mouse.click(rx, ry);
+  await expect(page.locator('.hint')).toContainText('yoʻllar — 1');
+  await page.keyboard.down('Shift'); await page.mouse.click(fx, fy); await page.keyboard.up('Shift');
+  await expect(page.locator('.hint')).toContainText('yoʻllar — 2');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/yol-tanlov.png` });
+  await page.keyboard.press('Delete');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.removedRoads)).toEqual([11, 12]);
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.removedRoads ?? [])).toEqual([]);
+});
