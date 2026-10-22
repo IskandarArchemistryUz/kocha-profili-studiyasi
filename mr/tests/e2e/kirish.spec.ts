@@ -2,13 +2,13 @@ import { test, expect, type Page } from './fx';
 
 /** Kirish: 1–2-qadamlar ochiq, 3-qadamdan boshlab — pochta kodi bilan kirish (API soxta: api.test) */
 const API = 'https://api.test';
-async function mockApi(page: Page, opts: { google?: string | null } = {}) {
+async function mockApi(page: Page, opts: { google?: string | null; owner?: boolean } = {}) {
   const st = { logged: false, codes: [] as string[] };
   await page.route(`${API}/**`, async r => {
     const u = new URL(r.request().url()), b = r.request().postDataJSON?.() ?? {};
     const cors = { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' };
     const json = (status: number, body: unknown) => r.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) });
-    if (u.pathname === '/me') return st.logged ? json(200, { id: 1, email: 'ali@mail.uz', phone: null, name: null, balance: 50, trialsLeft: 3 }) : json(401, { error: 'auth', message: 'tizimga kiring' });
+    if (u.pathname === '/me') return st.logged ? json(200, { id: 1, email: 'ali@mail.uz', phone: null, name: null, balance: 50, trialsLeft: 3, ...(opts.owner ? { owner: true } : {}) }) : json(401, { error: 'auth', message: 'tizimga kiring' });
     if (u.pathname === '/auth/config') return json(200, { email: true, phone: false, google: opts.google ?? null });
     if (u.pathname === '/auth/code') { st.codes.push(b.target); return json(200, { sent: true, kind: 'email' }); }
     if (u.pathname === '/auth/verify') { if (b.code !== '123456') return json(400, { error: 'bad_code', message: 'kod notoʻgʻri' }); st.logged = true; return json(200, { ok: true }); }
@@ -93,4 +93,18 @@ test('kirish: sukut boʻyicha yoqilgan, egasi rejimida loyihalar sahifasida hiso
   await page.goto('./');
   await expect(page.locator('#newP')).toBeVisible();
   await expect(page.locator('#homeAcct')).toBeHidden();
+});
+
+/** Egalik akkauntga bogʻlangan: server /me → owner: true — kirgach suv belgisisiz (havolasiz), chiqqanda — yana belgili */
+test('egasi akkaunti: kirganda belgisiz, chiqqanda belgili', async ({ page }) => {
+  await mockApi(page, { owner: true });
+  await page.goto('./'); await page.click('#newP');
+  await page.click('[data-step=uchastka]'); await page.click('#rectSite'); await page.click('[data-step=kocha]');
+  await page.fill('#kdEmail', 'boss@mail.uz'); await page.click('#kdGo');
+  await page.fill('#kdCode', '123456'); await page.click('#kdGo');
+  await expect(page.locator('#kirish')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => [localStorage.getItem('kps_owner'), localStorage.getItem('kps_owner_acct')].join())).toBe('1,1');
+  // hisob menyusi koʻrinadi (akkaunt egasi — havola egasi emas), chiqish — belgi qaytadi
+  await page.click('#acctPop'); await page.click('#acctOut');
+  await expect.poll(() => page.evaluate(() => [localStorage.getItem('kps_owner'), localStorage.getItem('kps_owner_acct')].join())).toBe(',');
 });

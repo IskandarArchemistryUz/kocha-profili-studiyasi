@@ -1,8 +1,9 @@
 /** Hisob: sessiya (HttpOnly cookie api.archemistry.uz da), /me, kod soʻrash va tasdiqlash, Google, chiqish */
 import { apiBase } from './config';
 import { getLang } from '../i18n';
+import { syncAcctOwner } from '../core/wm';
 
-export interface Me { id: number; email: string | null; phone: string | null; name: string | null; balance: number; trialsLeft: number }
+export interface Me { id: number; email: string | null; phone: string | null; name: string | null; balance: number; trialsLeft: number; owner?: boolean }
 export interface AuthCfg { email: boolean; phone: boolean; google: string | null }
 export class ApiError extends Error { constructor(public code: string, msg: string, public status = 0) { super(msg); } }
 
@@ -24,14 +25,14 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 /** Sessiya bormi (bir marta soʻraladi; xato — kirilmagan deb hisoblanadi) */
 export function check(force = false): Promise<Me | null> {
-  if (!checked || force) checked = call<Me>('/me').then(m => { set(m); return m; }, () => { set(null); return null; });
+  if (!checked || force) checked = call<Me>('/me').then(m => { syncAcctOwner(!!m.owner); set(m); return m; }, (e: unknown) => { if (e instanceof ApiError && e.status === 401) syncAcctOwner(false); set(null); return null; });
   return checked;
 }
 export const config = (): Promise<AuthCfg> => call<AuthCfg>('/auth/config');
 export const requestCode = (target: string): Promise<{ sent: boolean; kind: string }> => call('/auth/code', { target, lang: getLang() });
 export async function verifyCode(target: string, code: string): Promise<Me | null> { await call('/auth/verify', { target, code }); return check(true); }
 export async function google(credential: string): Promise<Me | null> { await call('/auth/google', { credential }); return check(true); }
-export async function logout(): Promise<void> { try { await call('/auth/logout', {}); } finally { checked = Promise.resolve(null); set(null); } }
+export async function logout(): Promise<void> { try { await call('/auth/logout', {}); } finally { syncAcctOwner(false); checked = Promise.resolve(null); set(null); } }
 
 /* ---------- toʻlov: tanga toʻplamlari (Payme / Click) ---------- */
 export interface Pack { id: string; coins: number; uzs: number; usd: number }
