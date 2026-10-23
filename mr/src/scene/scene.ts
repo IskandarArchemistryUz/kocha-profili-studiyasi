@@ -459,7 +459,7 @@ export class Scene3D {
     const out = new Set<string>(); if (this.selected) out.add(this.selected);
     const { c, r } = this.viewExtent(); if (r > Scene3D.LOD_VIEW) return out;
     const fr = frame(doc.origin);
-    const cand = doc.buildings.filter(b => this.facadeEligible(b)).map(b => {
+    const cand = doc.buildings.filter(b => this.facadeEligible(b) && (!this.isoLocal || this.inIso(b.footprint.map(fr.toLocal)))).map(b => {
       const ring = b.footprint.map(fr.toLocal), ct = centroid(ring); let per = 0;
       ring.forEach((p, i) => { const q = ring[(i + 1) % ring.length]; per += Math.hypot(q[0] - p[0], q[1] - p[1]); });
       return { id: b.id, d: Math.hypot(ct[0] - c[0], ct[1] - c[1]), t: per / 3.3 * b.floors * 300 };
@@ -603,8 +603,70 @@ export class Scene3D {
   private streetGeoKey: { streets: Project['streets']; origin: Project['origin']; ctx: ContextScene | null; H: HeightFn; sg: ReturnType<typeof projectStreetsGeo> } | null = null;
   /** Binolar qismini qayta qurish uchun kontekst (oxirgi update dan); tanlov va LOD oʻzgarganda faqat tegishli binolar qayta quriladi */
   private bctx: BCtx | null = null;
+  /* ---------- 10-band: ishlanayotgan hududni izolyatsiya qilish ----------
+   * Hudud ichidagi binolar toʻliq (fasad, tom, balkon), tashqaridagilar — bitta yengil «arvoh» toʻr (oddiy prizma,
+   * chiziqsiz, tanlanmaydi); hovli, avtoturargoh, yozuvlar faqat ichkarida; OSM atrof — xira fon, daraxtlarsiz. */
+  private iso: LngLat[][] | null = null;
+  private isoLocal: XY[][] | null = null;
+  get isolated(): boolean { return !!this.iso; }
+  setIsolation(rings: LngLat[][] | null, doc: Project): void {
+    this.iso = rings && rings.length ? rings.map(r => r.map(p => [p[0], p[1]] as LngLat)) : null;
+    this.applyIsoCtx();
+    this.update(doc);
+    if (this.iso) { const fr = frame(doc.origin); this.frameRings(this.iso.map(r => r.map(fr.toLocal))); }
+  }
+  /** binoning markazi izolyatsiya hududidami (izolyatsiya yoʻq — hamma ichkarida) */
+  private inIso(r: XY[]): boolean {
+    const R = this.isoLocal; if (!R) return true;
+    const c = centroid(r); return R.some(q => pointInRing(c, q));
+  }
+  /** OSM atrof: izolyatsiyada binolar xira, chiziqlar va daraxtlar yashirin; chiqishda — asl holat */
+  private applyIsoCtx(): void {
+    const g = this.ctx?.group; if (!g) return;
+    const on = !!this.iso;
+    g.children.forEach(o => {
+      const u = o.userData as { isoV?: boolean; isoM?: THREE.Material | THREE.Material[] };
+      if (on) {
+        if (o.name === 'binolar' || o.name === 'tomlar') {
+          if (!u.isoM) { u.isoM = (o as THREE.Mesh).material; (o as THREE.Mesh).material = Scene3D.ghostMat(); }
+          (o as THREE.Mesh).castShadow = false;
+        } else if (o.name === 'daraxtlar' || o instanceof THREE.LineSegments || (o instanceof THREE.InstancedMesh)) {
+          if (u.isoV == null) u.isoV = o.visible; o.visible = false;
+        }
+      } else {
+        if (u.isoM) { (o as THREE.Mesh).material = u.isoM; delete u.isoM; (o as THREE.Mesh).castShadow = true; }
+        if (u.isoV != null) { o.visible = u.isoV; delete u.isoV; }
+      }
+    });
+    this.invalidate();
+  }
+  private static ghost: THREE.MeshLambertMaterial | null = null;
+  private static ghostMat(): THREE.MeshLambertMaterial {
+    if (!Scene3D.ghost) { Scene3D.ghost = new THREE.MeshLambertMaterial({ color: 0xf2f0ec, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); Scene3D.ghost.userData.iso = true; }
+    return Scene3D.ghost;
+  }
+  /** Hududdan tashqaridagi loyiha binolari: bitta toʻr (devor + tom), oddiy prizmalar */
+  private isoGhosts(doc: Project, fr: ReturnType<typeof frame>, fh: number): void {
+    const pos: number[] = [];
+    for (const b of doc.buildings) {
+      const r0 = b.footprint.map(fr.toLocal); if (this.inIso(r0)) continue;
+      const r = signedArea(r0) < 0 ? [...r0].reverse() : r0;
+      const z0 = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, z1 = z0 + Math.max(1, b.floors) * fh;
+      for (let i = 0; i < r.length; i++) {
+        const a = r[i], c = r[(i + 1) % r.length];
+        pos.push(a[0], z0, -a[1], c[0], z0, -c[1], c[0], z1, -c[1], a[0], z0, -a[1], c[0], z1, -c[1], a[0], z1, -a[1]);
+      }
+      const tri = THREE.ShapeUtils.triangulateShape(r.map(p => new THREE.Vector2(p[0], p[1])), []);
+      for (const t of tri) for (const k of t) pos.push(r[k][0], z1, -r[k][1]);
+    }
+    if (!pos.length) return;
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, Scene3D.ghostMat()); m.renderOrder = 9; m.userData.layer = 3; m.userData.isoGhost = true; this.world.add(m);
+  }
+
   private buildTagged(doc: Project, bi: number, B: BCtx): void {
     const n0 = this.world.children.length, id = doc.buildings[bi].id;
+    if (this.isoLocal && !this.inIso(doc.buildings[bi].footprint.map(B.fr.toLocal))) return;
     this.buildOne(doc, bi, B);
     for (let i = n0; i < this.world.children.length; i++) this.world.children[i].userData.bOwner = id;
   }
@@ -720,6 +782,7 @@ export class Scene3D {
 
   update(doc: Project): void {
     this.lastDoc = doc;
+    { const f0 = frame(doc.origin); this.isoLocal = this.iso ? this.iso.map(r => r.map(f0.toLocal)) : null; }
     this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|');
     disposeGroup(this.world);
     const fr = frame(doc.origin);
@@ -733,8 +796,8 @@ export class Scene3D {
       plan.blocks.forEach((b, i) => {
         const sh = new THREE.Shape(b.rings[0].map(toV2)); b.rings.slice(1).forEach(h => sh.holes.push(new THREE.Path(h.map(toV2))));
         const g = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
-        const sel = i === this.selBlock;
-        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st === 'minimal' ? 0xeeeeee : st === 'arctic' ? tint(ZONE_COL[b.use] ?? C.site, 0.55) : ZONE_COL[b.use] ?? C.site, transparent: true, opacity: sel ? 0.9 : plain ? 0.55 : this.ctx ? 0.62 : 0.75, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+        const sel = i === this.selBlock, out = !this.inIso(b.rings[0]);
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st === 'minimal' ? 0xeeeeee : st === 'arctic' ? tint(ZONE_COL[b.use] ?? C.site, 0.55) : ZONE_COL[b.use] ?? C.site, transparent: true, opacity: (sel ? 0.9 : plain ? 0.55 : this.ctx ? 0.62 : 0.75) * (out ? 0.3 : 1), depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
         m.renderOrder = 6; m.userData.block = i; m.userData.layer = 2; this.world.add(m);
         if (sel) b.rings.forEach(r => this.world.add(line(densify(r, 10, true), C.preview, 0.45, true, 8, this.H)));
         else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
@@ -755,6 +818,7 @@ export class Scene3D {
         });
         const yards = landscape(doc), trees: XY[] = [];
         for (const y of yards) {
+          if (this.isoLocal && plan.blocks[y.block] && !this.inIso(plan.blocks[y.block].rings[0])) continue;   // izolyatsiya: faqat hudud hovlilari
           fill(y.paving, col.pave, 0.32, 1); fill(y.green, col.green, 0.33, 2); fill(y.paths, col.path, 0.34, 3);
           for (const q of y.play) { fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H)); }
           trees.push(...y.trees);
@@ -797,6 +861,7 @@ export class Scene3D {
     // parkovkalar: yer osti — siyohrang uzuq kontur, yer usti — kulrang maydon
     doc.garages.forEach(gr => {
       const r = gr.ring.map(fr.toLocal);
+      if (!this.inIso(r)) return;
       if (gr.kind === 'yer_usti' && gr.stalls?.length) {
         // modul boʻyicha: manevr boʻlaklari (toʻq asfalt), joylar (ochroq) va oq chiziqlar
         const flatG = (qs: XY[][]) => { const a: number[] = []; for (const q of qs) for (let i = 1; i + 1 < q.length; i++) a.push(q[0][0], q[0][1], 0, q[i][0], q[i][1], 0, q[i + 1][0], q[i + 1][1], 0); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a, 3)); return g; };
@@ -831,8 +896,9 @@ export class Scene3D {
     const B: BCtx = { doc, fr, fh, aniso, TP, GR, P3, SM, smOf, focus: !!focus, st, plain, toV2 };
     this.bctx = B;
     doc.buildings.forEach((_, bi) => this.buildTagged(doc, bi, B));
+    if (this.isoLocal) this.isoGhosts(doc, fr, fh);
     if (this.floorLabels) doc.buildings.forEach(b => {
-      const r = b.footprint.map(fr.toLocal); if (area(r) < 40) return;
+      const r = b.footprint.map(fr.toLocal); if (area(r) < 40 || !this.inIso(r)) return;
       const c = centroid(r), top = Math.min(...r.map(p => this.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh;
       // qiya tomda — tizma ustida (aks holda raqam tom ichida qoladi)
       const rh = b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir' ? Math.max(0, ...(roofParts(r, b.roof) ?? []).map(q => q.h)) : 0;
@@ -985,6 +1051,7 @@ export class Scene3D {
     this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted), new Set([...(doc.removed ?? []), ...this.hideOsm]));
     this.scene.add(this.ctx.group);
     if (this.album) this.applyStyle();
+    if (this.iso) this.applyIsoCtx();
     this.grid.forEach(g => g.visible = false);
     const T = cs.layers.relief ? b.terrain : null;
     this.ground.position.y = T ? T.min - T.h[((T.n - 1) >> 1) * T.n + ((T.n - 1) >> 1)] - h0 - 1 : -0.3;
@@ -1013,6 +1080,7 @@ export class Scene3D {
     for (const root of roots) root.traverse(o => {
       const mm = (o as THREE.Mesh).material as M | M[] | undefined; if (!mm) return;
       for (const m of Array.isArray(mm) ? mm : [mm]) {
+        if ((m.userData as { iso?: boolean }).iso) continue;   // izolyatsiya «arvoh» materiali — uslubdan tashqari
         const u = m.userData as { s0?: { c?: THREE.Color; map?: THREE.Texture | null } };
         u.s0 ??= { c: m.color?.clone(), map: m.map ?? null };
         const f = u.s0;
