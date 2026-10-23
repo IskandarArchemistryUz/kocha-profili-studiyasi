@@ -81,7 +81,7 @@ export interface SheetOpts {
   axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama'; view?: string; shadow?: boolean };
 }
 /** Tayyor mazmun (qavat rejalari yoki aksonometriya): chizma maydoniga (mm) joylanadi; masshtab yozuvi — label */
-export interface SheetInner { body: (vx: number, vy: number, vw: number, vh: number) => string; label: string; legend?: LegendItem[]; /** varaq nomi (sarlavha va shtampda) */ name?: string }
+export interface SheetInner { body: (vx: number, vy: number, vw: number, vh: number) => string; label: string; legend?: LegendItem[]; /** varaq nomi (sarlavha va shtampda) */ name?: string; /** oʻng ustunda shartli belgilar ostidagi mazmun (masalan, eksplikatsiya) */ side?: (x: number, y: number, w: number, yMax: number) => string }
 
 export const SHEET_DEFAULT: SheetOpts = {
   kind: 'bosh', paper: 'A3', landscape: true, scale: 0, title: '',
@@ -414,6 +414,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       legend.forEach((it, i) => { const yy = y + 7 + i * rowH; out.push(legendSym(it, x0, yy), `<text x="${x0 + 8}" y="${n2(yy + 2.3)}" font-size="${T(2.5)}" fill="#1d1d1b">${esc(it.label)}</text>`); });
       lay('Shartli_belgilar', 'Shartli belgilar', out.join('')); y += 9 + legend.length * rowH;
     }
+    if (inner?.side) { lay('Eksplikatsiya', 'Eksplikatsiya', inner.side(x0, y + 2, w, yEnd - stampH - sitH - 2)); }
     if (S.plotTable && plots.length && !inner) {
       const rowH = 3.8, avail = yEnd - stampH - sitH - y - 10, nRows = Math.max(0, Math.floor(avail / rowH) - 1), shown = plots.slice(0, Math.max(0, plots.length > nRows ? nRows - 1 : nRows)), out: string[] = [];
       if (nRows > 1) {
