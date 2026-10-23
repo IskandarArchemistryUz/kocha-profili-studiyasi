@@ -7,8 +7,8 @@
 import type { Project, SheetDoc } from '../core/doc';
 import { uid } from '../core/doc';
 import { planApartments } from '../core/apartments';
-import { buildingFloorsSvg, APT_FILL } from '../core/floorplan';
-import { useDef } from '../core/uses';
+import { floorGroups, groupName } from '../core/floorplan';
+import { aptSheet, sheetGroup } from '../core/aptsheet';
 import { sheetLayout, type SheetInner } from '../core/sheet';
 import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetOpts, type SheetResult, type Paper, type SheetKind, type SheetLayerId } from '../core/sheet';
 import { LABEL_MODES, type LabelMode } from '../core/labels';
@@ -77,15 +77,9 @@ export function openGraphics(host: SheetsHost): void {
   const innerOf = (o: SheetOpts): SheetInner | undefined => {
     if (o.mode === 'qavat') {
       if (!plans.length) return { label: 'M —', body: (vx, vy, vw, vh) => `<text x="${vx + vw / 2}" y="${vy + vh / 2}" font-size="5" text-anchor="middle" fill="#6b6965">${tr('Turar joy seksiyalari yoʻq')}</text>` };
-      const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), pl = plans[bi];
-      const title = `${tf('${n}-bino', { n: bi + 1 })} · ${tr(useDef(doc.buildings.find(b => b.id === pl.bid)?.use ?? 'turar').name)}`;
-      const L = sheetLayout(o), probe = buildingFloorsSvg(pl, 200, title), m = probe.match(/width="([\d.]+)mm" height="([\d.]+)mm"/), W = m ? +m[1] : 400, H = m ? +m[2] : 300;
-      const sc = [100, 200, 500, 1000].find(v => W * 200 / v <= L.vw && H * 200 / v <= L.vh) ?? 1000;
-      let svg = buildingFloorsSvg(pl, sc, title).replace(/^<\?xml[^>]*>\s*/, '');
-      if (o.plan?.look === 'bir') for (const c of Object.values(APT_FILL)) svg = svg.split(c).join('#ffffff');
-      const mm = svg.match(/width="([\d.]+)mm" height="([\d.]+)mm"/), w = mm ? +mm[1] : W, hh = mm ? +mm[2] : H;
-      return { label: `M 1:${sc}`, legend: o.plan?.look === 'bir' ? [] : [1, 2, 3, 4].map(k => ({ type: 'fill' as const, fill: APT_FILL[k], label: `${k} ${tr('xonali')}` })),
-        body: (vx, vy, vw, vh) => { const k = Math.min(1, vw / w, vh / hh), ww = w * k, h2 = hh * k; return svg.replace(/^<svg /, `<svg x="${(vx + (vw - ww) / 2).toFixed(1)}" y="${(vy + (vh - h2) / 2).toFixed(1)}" `).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `width="${ww.toFixed(1)}" height="${h2.toFixed(1)}"`); } };
+      // 20-band: bitta qavat rejasi + navigatsiya sxemalari + eksplikatsiya (ish chizmalaridagidek)
+      const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1));
+      return aptSheet(doc, plans, bi, o.plan?.grp, o.plan?.look ?? 'rang', tr, pl => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === pl.bid)?.bal ?? null }));
     }
     if (o.mode === 'akso') {
       const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${(L.vw / L.vh).toFixed(2)}`;
@@ -95,7 +89,8 @@ export function openGraphics(host: SheetsHost): void {
     }
     return undefined;
   };
-  const run = (o: SheetOpts, i = cur): SheetResult => { const st = o.stamp ?? {}; const r = sheetSvg(doc, host.ctx, { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, innerOf(o)); r.svg = trSvg(r.svg); return r; };
+  let lastInner: SheetInner | undefined; const innerLabel = new WeakMap<SheetResult, string>();
+  const run = (o: SheetOpts, i = cur): SheetResult => { const st = o.stamp ?? {}; const r = sheetSvg(doc, host.ctx, { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, (lastInner = innerOf(o))); r.svg = trSvg(r.svg); innerLabel.set(r, lastInner?.label ?? ''); return r; };
   let last = run(O());
 
   const set = (patch: Partial<SheetOpts>) => { const o = { ...O(), ...patch }; sheets[cur] = { ...sheets[cur], opts: o as unknown as Record<string, unknown> }; persist(); render(); };
@@ -160,7 +155,7 @@ export function openGraphics(host: SheetsHost): void {
     h('span', { class: 'sh-name' }, `${doc.name} · ${tr('Varaqlar')}`), h('span', { class: 'spacer' }),
     checksBtn, h('button', { class: 'btn btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)')));
 
-  const sheetName = (i: number) => { const o = norm(sheets[i].opts); return o.stamp?.sheet || tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
+  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return o.stamp.sheet; if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return tr(`${bi + 1}-bino · ${groupName(g)}`); } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
 
   /* ---------- menyular ---------- */
   function popMenu(anchor: HTMLElement, items: (HTMLElement | string)[]): void {
@@ -264,8 +259,14 @@ export function openGraphics(host: SheetsHost): void {
         ...(o.mode === 'qavat' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['rang', 'Xonadonlar rangda', 'turi boʻyicha'], ['bir', 'Bir rang', 'oq-qora']] as const).map(([k, t, n]) => tile({ 'data-plook': k, 'aria-pressed': (o.plan?.look ?? 'rang') === k, onclick: () => set({ plan: { ...(o.plan ?? {}), look: k } }) }, tr(t), tr(n)))),
-          plans.length ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Bino'), h('span', { class: 'sub' }, `1–${plans.length}`)), stepper({ id: 'shBld', label: tr('Bino'), min: 1, max: plans.length, step: 1, value: Math.min(plans.length, o.plan?.floor ?? 1), onchange: v => set({ plan: { ...(o.plan ?? {}), floor: v } }) })) : h('div', { class: 'note' }, tr('Turar joy seksiyalari yoʻq')),
-          h('span', { class: 't-small' }, tr('Tahrir — Qavat rejalari oynasida (9-qadam). Bu yerda faqat varaq: barcha qavatlar → bitta PDF albom.'))] : []),
+          plans.length ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Bino'), h('span', { class: 'sub' }, `1–${plans.length}`)), stepper({ id: 'shBld', label: tr('Bino'), min: 1, max: plans.length, step: 1, value: Math.min(plans.length, o.plan?.floor ?? 1), onchange: v => set({ plan: { ...(o.plan ?? {}), floor: v, grp: undefined } }) })) : h('div', { class: 'note' }, tr('Turar joy seksiyalari yoʻq')),
+          ...(plans.length ? (() => { const pl = plans[Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1))], gs = floorGroups(pl), cur0 = sheetGroup(pl, o.plan?.grp).gi;
+            return [h('div', { class: 'glabel' }, h('span', {}, tr('Qavat'))),
+              h('div', { class: 'seg sm wrap', id: 'shGrp', role: 'group', 'aria-label': tr('Qavat') }, ...gs.map((g, i) => h('button', { 'data-grp': i, 'aria-pressed': i === cur0, onclick: () => set({ plan: { ...(o.plan ?? {}), grp: i } }) }, tr(groupName(g))))),
+              h('button', { class: 'btn btn-block', id: 'shAllFl', title: tr('Har bino va har qavat (guruh) uchun alohida varaq — bitta PDF albomga'), onclick: () => {
+                const add: SheetDoc[] = []; plans.forEach((p2, bi) => floorGroups(p2).forEach((_, gi) => { if (bi === Math.max(0, (o.plan?.floor ?? 1) - 1) && gi === cur0) return; add.push({ id: uid('sh_'), opts: { ...o, plan: { ...(o.plan ?? {}), floor: bi + 1, grp: gi }, stamp: { ...(o.stamp ?? {}), num: '', sheet: '' } } as unknown as Record<string, unknown> }); }));
+                sheets.splice(cur + 1, 0, ...add); persist(); render(); toast(tf('${n} ta varaq qoʻshildi', { n: add.length })); } }, tr('Barcha binolar va qavatlar — varaqlar'))]; })() : []),
+          h('span', { class: 't-small' }, tr('Varaqda: qavat rejasi (kvartiralar raqamli), vaziyat va daha sxemalari (bino belgilangan), kvartiralar eksplikatsiyasi. Tahrir — Qavat rejalari oynasida (9-qadam).'))] : []),
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
@@ -321,7 +322,7 @@ export function openGraphics(host: SheetsHost): void {
     const s = view.querySelector('svg')!; s.removeAttribute('width'); s.removeAttribute('height');
     lens.replaceChildren(h('div', { class: 'sh-lensin', html: last.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%" height="100%"') }));
     const o = O();
-    info.replaceChildren(h('span', {}, `${o.paper === 'fit' ? tr('Moslash') : o.paper} · ${fmt(last.widthMm, 0)} × ${fmt(last.heightMm, 0)} mm · M 1:${last.scale}${host.ctx ? '' : ` · ${tr('atrof yuklanmagan')}`}`));
+    info.replaceChildren(h('span', {}, `${o.paper === 'fit' ? tr('Moslash') : o.paper} · ${fmt(last.widthMm, 0)} × ${fmt(last.heightMm, 0)} mm · ${o.mode === 'qavat' || o.mode === 'akso' ? (innerLabel.get(last) ?? '') : `M 1:${last.scale}`}${host.ctx || o.mode === 'qavat' ? '' : ` · ${tr('atrof yuklanmagan')}`}`));
     const n = sheetChecks(last, o, tr).filter(c => !c.ok).length;
     checksBtn.className = `chip ${n ? 'warn' : 'ok'} sh-checks`; checksBtn.replaceChildren(h('i'), n ? tf('${n} ta eslatma', { n }) : tr('Eslatma yoʻq'));
     renderList(); renderSide(); applyZoom();
