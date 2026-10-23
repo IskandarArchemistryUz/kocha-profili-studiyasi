@@ -12,6 +12,7 @@ import type { Map as MLMap, GeoJSONSource, Marker } from 'maplibre-gl';
 import type { LngLat } from '../core/doc';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, fmt, toast } from '../ui/dom';
+import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { mapStyle, basePrefs, setBasePrefs, PALETTES } from '../context/mapstyle';
@@ -191,6 +192,7 @@ root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, axL
 const ic = (d: string, cls = 'ic') => { const s = svgIcon(d); s.classList.add(cls); return s; };
 function renderHeader(): void {
   header.replaceChildren(
+    mrBackBtn(),
     h('a', { class: 'brand', href: '../index.html', title: tr('Bosh sahifa') }, logoSvg(20), h('span', {}, 'Archemistry Lab')),
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
@@ -945,27 +947,27 @@ function pickModel(): void {
   inp.onchange = async () => { const f = inp.files?.[0]; if (!f) return; const buf = await f.arrayBuffer(); await loadModel(f.name, buf); void cachePut('joy-model', { name: f.name, buf: buf.slice(0), center: S.c }).catch(() => {}); };
   inp.click();
 }
-async function loadModel(name: string, buf: ArrayBuffer, offset: [number, number] = [0, 0]): Promise<void> {
+async function loadModel(name: string, buf: ArrayBuffer, offset: [number, number] = [0, 0], colors = false): Promise<void> {
   if (!axo) return;
   try {
     let obj: import('three').Object3D;
     if (/\.obj$/i.test(name)) { const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js'); obj = new OBJLoader().parse(new TextDecoder().decode(buf)); }
     else { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); obj = (await new GLTFLoader().parseAsync(buf, '')).scene; }
-    axo.modelOff = offset; axo.setModel(obj); renderAxo();
+    axo.modelOff = offset; axo.setModel(obj, colors); renderAxo();
   } catch (e) { alert(`${tr('Model ochilmadi')}: ${(e as Error).message}`); }
 }
 /** Master rejadan yuborilgan model («joy-inbox»): markaz va model joyi */
 async function takeInbox(): Promise<void> {
   try {
-    const box = await cacheGet<{ name: string; buf: ArrayBuffer; origin: LngLat }>('joy-inbox'); if (!box) return;
-    await cacheDel('joy-inbox'); await cachePut('joy-model', { name: box.name, buf: box.buf, center: box.origin });
+    const box = await cacheGet<{ name: string; buf: ArrayBuffer; origin: LngLat; colors?: boolean }>('joy-inbox'); if (!box) return;
+    await cacheDel('joy-inbox'); await cachePut('joy-model', { name: box.name, buf: box.buf, center: box.origin, colors: !!box.colors });
     if (Math.abs(box.origin[0] - S.c[0]) > 1e-6 || Math.abs(box.origin[1] - S.c[1]) > 1e-6) pick(box.origin);
   } catch { /* */ }
 }
 async function restoreModel(): Promise<void> {
-  try { const m = await cacheGet<{ name: string; buf: ArrayBuffer; center: LngLat }>('joy-model'); if (!m || !axo) return;
+  try { const m = await cacheGet<{ name: string; buf: ArrayBuffer; center: LngLat; colors?: boolean }>('joy-model'); if (!m || !axo) return;
     const k = 111_320 * Math.cos(S.c[1] * Math.PI / 180), off: [number, number] = [(m.center[0] - S.c[0]) * k, (m.center[1] - S.c[1]) * 111_132];
-    if (Math.hypot(off[0], off[1]) < S.r * 1.5) await loadModel(m.name, m.buf, off); } catch { /* */ }
+    if (Math.hypot(off[0], off[1]) < S.r * 1.5) await loadModel(m.name, m.buf, off, !!m.colors); } catch { /* */ }
 }
 
 /** Joriy aksonometriya kadri → Render studiyasi (asos rasm) */

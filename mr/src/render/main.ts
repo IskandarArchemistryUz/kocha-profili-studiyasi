@@ -8,6 +8,7 @@
 import '../ui/ds2.css';
 import './render.css';
 import { h, svgIcon, toast } from '../ui/dom';
+import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
@@ -66,6 +67,7 @@ root.append(header, h('div', { class: 'ren-body' }, left, stage, right), over, f
 
 function renderHeader(): void {
   header.replaceChildren(
+    mrBackBtn(),
     h('a', { class: 'brand', href: '../index.html', title: tr('Bosh sahifa') }, logoSvg(20), h('span', {}, 'Archemistry Lab')),
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), s.beta ? h('em', { class: 'beta' }, 'beta') : null))),

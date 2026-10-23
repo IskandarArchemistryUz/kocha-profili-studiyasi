@@ -30,6 +30,7 @@ import { DEFAULT_GEN, generate, usePreset, PARK_NAME, TYPO_NAME, type GenParams,
 import { PARK_MOD, PARK_MODS } from '../core/parking';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
+import { saveMrReturn, consumeMrBack } from './mrback';
 import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
@@ -168,6 +169,15 @@ export class Editor {
     { let raf = 0; this.scene.onView = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (this.el.scene.querySelector('.btools')) this.syncBTools(); this.followBase(); }); }; }
     this.renderAll(); this.recompute();
     void this.ensureContext();   // yuklanmagan boʻlsa — fon xaritasi
+    // 18-band: boshqa xizmatdan «← Master reja» bilan qaytildi — oʻsha qadam va kamera
+    const back = consumeMrBack(doc.id);
+    if (back) {
+      this.framedCtx = true;
+      const st = STEPS.find(x => x.id === back.step); if (st && st.id !== this.step.id) this.go(st);
+      if (back.cam) try { this.scene.setCamera(back.cam as Parameters<Scene3D['setCamera']>[0]); } catch { /* */ }
+    }
+    const keep = () => saveMrReturn({ id: this.store.doc.id, name: this.store.doc.name, step: this.step.id, cam: this.scene.getCamera() });
+    addEventListener('pagehide', keep); this.off.push(() => removeEventListener('pagehide', keep));
   }
 
   dispose(): void { this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
@@ -2667,10 +2677,16 @@ export class Editor {
           row('exObj', CUBE, tr('3D model'), '', 'OBJ', () => void this.scene.exportOBJ(false).then(t => download(`${safe(doc.name)}.obj`, t, 'text/plain')).catch(e => toast(`OBJ: ${(e as Error).message}`))),
           row('exIfc', '<path d="M5 21V8l7-4 7 4v13M10 21v-5h4v5M3 21h18"/>', 'BIM', 'ArchiCAD, Revit', 'IFC4', () => download(`${safe(doc.name)}.ifc`, toIfc(this.store.doc), 'application/x-step'))),
         this.scene.hasContext ? h('div', { class: 'group' }, row('exGlbCtx', CUBE, tr('3D model atrof bilan'), '', 'GLB', glb(true))) : '',
-        h('button', { class: 'btn btn-block', id: 'exJoy', title: tr('Loyiha modeli Joyshunos aksonometriyasida: quyosh yoʻli, soyalar, shamol va atrof bilan'), onclick: () => void this.scene.exportGLB(false).then(async b => {
-          await cachePut('joy-inbox', { name: `${safe(doc.name)}.glb`, buf: await b.arrayBuffer(), origin: doc.origin });
-          location.href = './joyshunos.html#/axo';
-        }).catch(e => toast(`Joyshunos: ${(e as Error).message}`)) }, ...icl(CUBE, tr('Joyshunosga yuborish (diagramma)'))),
+        h('button', { class: 'btn btn-block', id: 'exJoy', title: tr('Loyiha modeli Joyshunos aksonometriyasida: quyosh yoʻli, soyalar, shamol va atrof bilan'), onclick: () => void (async () => {
+          // 18-band: funksiya ranglarida va soddalashtirilgan (fasad tafsilotisiz) — Joyshunosda rangli, yorugʻ
+          const sc = this.scene, prevD = sc.detail;
+          sc.setStyle('funksiya'); sc.setDetail(false);
+          try {
+            const b = await sc.exportGLB(false);
+            await cachePut('joy-inbox', { name: `${safe(doc.name)}.glb`, buf: await b.arrayBuffer(), origin: doc.origin, colors: true });
+            location.href = './joyshunos.html#/axo';
+          } finally { sc.setStyle(this.stylePref); sc.setDetail(prevD); }
+        })().catch(e => toast(`Joyshunos: ${(e as Error).message}`)) }, ...icl(CUBE, tr('Joyshunosga yuborish (diagramma)'))),
         h('button', { class: 'btn btn-block', id: 'exRen', title: tr('Joriy 3D koʻrinish (kamera, uslub, quyosh) Render studiyasida asos rasm boʻladi — AI render, referenslar bilan'), onclick: () => void (async () => {
           const img = this.scene.snapshot(); const { sendToRender } = await import('../render/inbox');
           await sendToRender({ name: doc.name, from: 'mr', subj: 'reja', img });
@@ -2800,6 +2816,8 @@ export class Editor {
         return mapOnly(r.svg, r.scale) ?? undefined;
       },
       scene: () => { try { return this.scene.snapshot(); } catch { return null; } },
+      // yopilganda manzil loyihaning oʻziga qaytadi (aks holda qayta yuklashda Chizmadon yana ochiladi)
+      onClose: () => { if (/\/chizmadon$/.test(location.hash)) history.replaceState(null, '', `#/p/${this.store.doc.id}`); },
     });
   }
 
