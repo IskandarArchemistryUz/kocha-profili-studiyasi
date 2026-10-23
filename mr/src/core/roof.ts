@@ -3,6 +3,7 @@
  * Qiya tom istalgan qavariq dogʻda quriladi (chetlari dogʻ uchlarida); botiq dogʻ qavariq qismlarga boʻlinadi (roofParts).
  */
 import { area, obb2, type XY } from './geo';
+import { skeletonRoof } from './roofsk';
 
 export type Roof = 'tekis' | 'yashil' | 'quyosh' | 'ikki' | 'tort' | 'bir';
 export type Mat = 'suvoq' | 'gisht' | 'beton' | 'tosh' | 'yogoch' | 'metall' | 'shisha' | 'terrakota';
@@ -98,6 +99,9 @@ export function pitchedRoof(r0: XY[], kind: 'ikki' | 'tort' | 'bir', pitchDeg = 
  * va har qismga alohida tom quriladi. Boʻlib boʻlmasa — null (tekis tom).
  */
 export function roofParts(r: XY[], kind: 'ikki' | 'tort' | 'bir'): RoofPart[] | null {
+  // toʻrtburchak (qavariq) — aniq usul; boshqa shakl (L, T, U, xoch, koʻpburchak) — yaxlit skelet tom (ichki burchakda endova)
+  const q = simplify(signedA(r) < 0 ? r.slice().reverse() : r.slice());
+  if (kind !== 'bir' && !(q.length === 4 && isConvex(q))) { const sk = skeletonRoof([q], kind, 30, ROOF_RISE_MAX); if (sk) return [sk]; }
   const one = pitchedRoof(r, kind); if (one) return [one];
   const out: RoofPart[] = [];
   const rec = (q: XY[], depth: number): boolean => {
@@ -136,6 +140,7 @@ function simplify(r: XY[]): XY[] {
   }
   return q;
 }
+const isConvex = (r: XY[]) => r.every((b, i) => { const a = r[(i - 1 + r.length) % r.length], c = r[(i + 1) % r.length]; return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]) >= -1e-6; });
 const signedA = (r: XY[]) => { let s = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; s += p[0] * q[1] - q[0] * p[1]; } return s / 2; };
 
 /**
