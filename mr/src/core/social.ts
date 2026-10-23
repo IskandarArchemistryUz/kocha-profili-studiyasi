@@ -59,7 +59,10 @@ const rot = (U: XY, c: XY) => (u: number, v: number): XY => [c[0] + U[0] * u - U
 /**
  * Modul joylashtirish. edgeSetback[k] — k-qirradan chekinish (qizil chiziqqa — 25 m, qoʻshni parselga — 6 m).
  */
-export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module, m2: number, floors: number, edgeSetback: number[]): SocialPlan {
+/** Modul boʻyicha odatiy korpus eni, m (12-band: foydalanuvchi oʻzgartirishi mumkin) */
+export const MOD_BW: Record<Module, number> = { taroq: 15, hovli: 14, u: 13, kompakt: 30, chiziq: 12, blok: 18, l: 18 };
+export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module, m2: number, floors: number, edgeSetback: number[], bw?: number, bl?: number): SocialPlan {
+  const BW = bw && bw > 0 ? bw : MOD_BW[mod], BL = bl && bl > 0 ? bl : Infinity;   // korpus eni va eng katta uzunligi
   const notes: string[] = [];
   const ccw = signedArea(ring) > 0, R = ccw ? ring : [...ring].reverse(), d = ccw ? edgeSetback : [...edgeSetback.slice(0, -1)].reverse().concat(edgeSetback.slice(-1));
   let inner = offsetEdges(R, d) ?? insetRobust(R, d, 20);   // oʻtkir burchak / botiq parsel — tasma ayirish usuli
@@ -78,26 +81,26 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
     secs.length = 0; gym.length = 0;
     const At = A * scale;
     if (mod === 'taroq') {
-      const sp = 15, wd = 12, Ls = Math.min(W, Math.max(40, At / sp * 0.45)), Lw = Math.min(D - sp - 2, 36);
+      const sp = BW, wd = Math.max(9, BW - 3), Ls = Math.min(W, BL, Math.max(40, At / sp * 0.45)), Lw = Math.min(D - sp - 2, 36);
       secs.push(box(-Ls / 2, -D / 2, Ls, sp));
       const n = Math.max(1, Math.min(Math.floor((Ls + 12) / 26), Math.ceil(Math.max(0, At - Ls * sp) / (wd * Math.max(6, Lw)))));
       for (let i = 0; i < n; i++) { const x = n === 1 ? -wd / 2 : -Ls / 2 + i * (Ls - wd) / (n - 1); if (Lw > 6) secs.push(box(x, -D / 2 + sp, wd, Lw)); }
       if (use === 'maktab' && W - Ls > 26) gym.push(box(Ls / 2 + 2, -D / 2, Math.min(36, W / 2 - Ls / 2 - 2), 24));
     } else if (mod === 'hovli' || mod === 'u') {
-      const t = mod === 'hovli' ? 14 : 13;
+      const t = BW;
       let a = Math.min(W, Math.max(36, Math.sqrt(At) * 1.25)), b = (At / t + 4 * t - 2 * a) / 2; if (mod === 'u') b = (At / t + 2 * t - a) / 2;
       b = Math.min(D, Math.max(2 * t + 8, b));
       const x0 = -a / 2, y0 = -D / 2;
       secs.push(box(x0, y0, a, t)); secs.push(box(x0, y0 + t, t, b - t)); secs.push(box(x0 + a - t, y0 + t, t, b - t));
       if (mod === 'hovli') secs.push(box(x0 + t, y0 + b - t, a - 2 * t, t));
     } else if (mod === 'kompakt') {
-      const dpt = Math.min(D, 30), len = Math.min(W, At / dpt); secs.push(box(-len / 2, -dpt / 2, len, dpt));
+      const dpt = Math.min(D, BW), len = Math.min(W, BL, At / dpt); secs.push(box(-len / 2, -dpt / 2, len, dpt));
     } else if (mod === 'chiziq') {
-      const cw = 18, ch = 12, n = Math.max(1, Math.ceil(At / (cw * ch)));
-      const perRow = Math.max(1, Math.floor(W / (cw + 1))), rows = Math.ceil(n / perRow);
+      const cw = 18, ch = BW, n = Math.max(1, Math.ceil(At / (cw * ch)));
+      const perRow = Math.max(1, Math.floor(Math.min(W, BL) / (cw + 1))), rows = Math.ceil(n / perRow);
       for (let i = 0; i < n; i++) { const r = Math.floor(i / perRow), k = i % perRow, off = (k % 2) * 3; secs.push(box(-W / 2 + k * (cw + 1), -D / 2 + r * (ch + 14) + off, cw, ch)); void rows; }
     } else if (mod === 'blok' || mod === 'l') {
-      const dp = 18, len = Math.min(W, At / dp);
+      const dp = BW, len = Math.min(W, BL, At / dp);
       secs.push(box(-W / 2, -D / 2, len, dp));
       const rest = At - len * dp; if (rest > 50 && (mod === 'l' || len >= W - 0.1)) secs.push(box(-W / 2, -D / 2 + dp, dp, Math.min(D - dp, rest / dp)));
     }
@@ -118,6 +121,7 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   }
   if (!inside()) return { sections: [], gfa: 0, footprint: 0, notes: [...notes, 'Modul parselga sigʻmadi — boshqa modulni tanlang yoki parselni kattalashtiring'] };
   const fp = secs.reduce((t, r) => t + area(r), 0), gfa = fp * floors + gym.reduce((t, r) => t + area(r) * 2, 0);
+  if (BL < Infinity && gfa < gfaT * 0.95 && sc >= 0.99) notes.push(`Korpus uzunligi ${Math.round(BL)} m bilan cheklangan — sigʻim ~${Math.round(cap * gfa / gfaT)} ${SOCIAL[use].unit}.`);
   if (sc < 0.99) notes.push(`Parsel kichik: modul ${Math.round(sc * 100)} % ga kichraytirildi — sigʻim ~${Math.round(cap * sc)} ${SOCIAL[use].unit}.`);
   return { sections: [...secs.map(r => ({ ring: r, floors })), ...gym.map(r => ({ ring: r, floors: 2 }))], gfa, footprint: fp, notes };
 }

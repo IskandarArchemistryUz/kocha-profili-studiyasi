@@ -43,6 +43,8 @@ export interface GenParams {
   parkLevels?: number;
   /** joylashtirish moduli (dizayn-kod 6.3) */
   parkModule?: ParkModule;
+  /** seksiya uzunligi aniq (secLen × depth); oʻchiq — qirra teng boʻlaklarga boʻlinadi (secLen — moʻljal) */
+  exact?: boolean;
   /** joylar soni 29-jadval talabi boʻyicha (yer osti sathlari avtomatik) */
   parkNorm?: boolean;
 }
@@ -62,6 +64,29 @@ const mul = (a: XY, k: number): XY => [a[0] * k, a[1] * k];
 const len = (a: XY) => Math.hypot(a[0], a[1]);
 const unit = (a: XY): XY => { const l = len(a) || 1; return [a[0] / l, a[1] / l]; };
 const cross = (a: XY, b: XY) => a[0] * b[1] - a[1] * b[0];
+
+/** 12-band: aniq oʻlcham statistikasi (generate() da nolga tushiriladi) */
+let XS = { full: 0, short: 0, gap: 0, stretch: 0 };
+/**
+ * Qirra oraligʻini [c0, c1] seksiyalarga boʻlish.
+ * Moʻljal rejimi — teng boʻlaklar (uzunlik ≈ len). Aniq rejim — har seksiya aynan len; qoldiq ≥ 9 m — qisqa seksiya (oxirida),
+ * 3–9 m — oraliq (oʻrtada; bitta seksiyada — oxirida), < 3 m — oxirgi seksiyaga qoʻshiladi (izohda koʻrsatiladi).
+ */
+function spans(c0: number, c1: number, len: number, exact: boolean): [number, number][] {
+  const span = c1 - c0, out: [number, number][] = [];
+  if (!exact) { const m = Math.max(1, Math.round(span / len)), st = span / m; for (let k = 0; k < m; k++) out.push([c0 + k * st, c0 + (k + 1) * st]); return out; }
+  const m = Math.floor(span / len + 1e-6), rem = span - m * len;
+  if (m === 0) { XS.short++; return [[c0, c1]]; }
+  if (rem < 0.5) { for (let k = 0; k < m; k++) out.push([c0 + k * len, c0 + (k + 1) * len]); XS.full += m; return out; }
+  if (rem >= 9) { for (let k = 0; k < m; k++) out.push([c0 + k * len, c0 + (k + 1) * len]); out.push([c0 + m * len, c1]); XS.full += m; XS.short++; return out; }
+  if (rem >= 3) {
+    const a = m >= 2 ? Math.ceil(m / 2) : m; let t = c0;   // bitta seksiyada — oraliq oxirida
+    for (let k = 0; k < m; k++) { if (k === a) t += rem; out.push([t, t + len]); t += len; }
+    XS.full += m; XS.gap++; return out;
+  }
+  for (let k = 0; k < m; k++) out.push([c0 + k * len, k === m - 1 ? c1 : c0 + (k + 1) * len]);
+  XS.full += m - 1; XS.stretch++; return out;
+}
 
 /** CCW halqa; qisqa qirralar va deyarli toʻgʻri burchaksiz uchlarni olib tashlash */
 export function clean(r0: XY[], minEdge = 6): XY[] {
@@ -160,9 +185,9 @@ export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
       placed.push(P(r));
       // juda qisqa yoki sayoz boʻlak (burchakdagi qoldiq) — qoʻshni seksiyaga
       if (span < Math.max(10, g.secLen * 0.35) || ar < 0.45 * D * Math.min(span, g.secLen)) { if (!attach(r) && ar >= 0.45 * D * Math.max(10, span) && span >= 10) { sections.push({ ring: r, floors: g.minF, kind: 'oddiy', nonRes: g.nonRes }); meta.push({ edge: i, first: false, last: false }); } continue; }
-      const m = Math.max(1, Math.round(span / g.secLen)), step = span / m;
+      const sp = spans(t0, t1, g.secLen, !!g.exact), m = sp.length;
       for (let k = 0; k < m; k++) {
-        const ta = t0 + k * step, tb = ta + step;
+        const [ta, tb] = sp[k];
         const slab = P([add(a, mul(u, ta)), add(a, mul(u, tb)), add(add(a, mul(u, tb)), mul(N, D + 2)), add(add(a, mul(u, ta)), mul(N, D + 2))].map(q => add(q, mul(N, -1))) as XY[]);
         let part: [number, number][][][] = [];
         try { part = polygonClipping.intersection(P(r), slab); } catch { continue; }
@@ -303,9 +328,9 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
     let s = t0; for (const gp of gaps) { cuts.push([s, gp - 3]); s = gp + 3; } cuts.push([s, t1]);
     let idx = 0;
     for (const [c0, c1] of cuts) {
-      const m = Math.max(1, Math.round((c1 - c0) / g.secLen)), step = (c1 - c0) / m;
-      for (let k = 0; k < m; k++, idx++) {
-        const ta = c0 + k * step, tb = ta + step;
+      const sp = spans(c0, c1, g.secLen, !!g.exact);
+      for (let k = 0; k < sp.length; k++, idx++) {
+        const [ta, tb] = sp[k];
         const oa = add(P(i), mul(U(i), ta)), ob = add(P(i), mul(U(i), tb));
         const ring: XY[] = [oa, ob, add(ob, mul(N(i), D)), add(oa, mul(N(i), D))];
         // burchakdan uzoqlashgan sari pasayadi (zinapoya)
@@ -359,7 +384,8 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
       try { parts = polygonClipping.intersection(rect, poly); } catch { continue; }
       for (const p of parts) {
         const ring = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY);
-        if (Math.abs(signedArea(ring)) < D * 10) continue;
+        const ar = Math.abs(signedArea(ring)); if (ar < D * 10) continue;
+        if (g.exact) { if (ar < D * g.secLen * 0.98) { if (ar < D * 9) continue; XS.short++; } else XS.full++; }
         sections.push({ ring: signedArea(ring) < 0 ? ring.reverse() : ring, floors: g.maxF, kind: 'qator', nonRes: 0 });
       }
     }
@@ -391,6 +417,7 @@ function points(A: XY[], size: number, gap: number, avoid: XY[][] = []): XY[][] 
 const shrink = (r: XY[], k: number): XY[] => { const c = r.reduce((a, p) => add(a, p), [0, 0] as XY); const m = mul(c, 1 / r.length); return r.map(p => add(m, mul(sub(p, m), k))); };
 
 function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenResult {
+  XS = { full: 0, short: 0, gap: 0, stretch: 0 };
   const notes: string[] = [];
   const outer0 = inset(clean(block), g.setback);
   if (!outer0) return { sections: [], capFloors: null, notes: ['Kvartal juda tor — chekinishdan keyin joy qolmadi'] };
@@ -481,21 +508,30 @@ const gfaOf = (r: GenResult) => r.sections.reduce((s, x) => s + aOf(x.ring) * x.
 
 /** Asosiy kirish: tipologiya, maqsadli UMN, stilobat va parkovka */
 export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenOpts = {}): GenResult {
+  XS = { full: 0, short: 0, gap: 0, stretch: 0 };
   const site = aOf(clean(block));
   const far = g.far ?? 0;
   const t: Typology = g.typology === 'avto' ? autoTypology(far || 2) : g.typology;
   let r: GenResult;
   if (far > 0 && !['yakka', 'taunhaus'].includes(t)) {
     // maxF ni minF…maxF oraligʻida tanlash: UMN maqsadga eng yaqin (oshmasdan afzal)
-    let best: GenResult | null = null, bd = Infinity;
+    let best: GenResult | null = null, bd = Infinity, bx = { ...XS };
     for (let f = Math.max(1, g.minF); f <= Math.max(g.minF, g.maxF); f++) {
       const gg = { ...g, maxF: f, towerF: Math.max(f, Math.min(g.towerF ?? 16, f + 6)) }, rr = typoCore(block, t, gg, floorH), v = gfaOf(rr) / site;
       const d = Math.abs(v - far) + (v > far ? 0.15 : 0);
-      if (d < bd) { bd = d; best = rr; }
+      if (d < bd) { bd = d; best = rr; bx = { ...XS }; }
     }
-    r = best ?? typoCore(block, t, g, floorH);
+    r = best ?? typoCore(block, t, g, floorH); if (best) XS = bx;
   } else r = typoCore(block, t, g, floorH);
   r.typology = t;
+  if (g.exact && XS.full + XS.short > 0) {
+    const n = (v: number) => String(v).replace('.', ',');
+    const a = n(g.secLen), b = n(g.depth), parts = [`Aniq oʻlcham: ${XS.full} seksiya ${a} × ${b} m`];
+    if (XS.short) parts.push(`${XS.short} ta qisqa (qoldiq ≥ 9 m)`);
+    if (XS.gap) parts.push(`${XS.gap} ta oraliq (qoldiq 3–9 m)`);
+    if (XS.stretch) parts.push(`${XS.stretch} tasi < 3 m uzunroq`);
+    r.notes.push(parts.join(' · '));
+  }
   if (g.typology === 'avto') r.notes.unshift(`Avto: UMN ${String(far || 2).replace('.', ',')} → «${TYPO_NAME[t]}»`);
   // stilobat: chekinish ichidagi butun maydon, seksiyalar uning ustida
   const st = Math.max(0, Math.round(g.stylobate ?? 0)), outer = inset(clean(block), g.setback);

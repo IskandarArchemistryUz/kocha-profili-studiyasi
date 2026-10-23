@@ -41,7 +41,7 @@ import { openAlbum, genplanSvg } from './album';
 import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
-import { SOCIAL, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
+import { SOCIAL, MOD_BW, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
 import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
 import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
@@ -1633,12 +1633,14 @@ export class Editor {
     const ud = useDef(b.use), name = this.unitName(i);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
-    const g: GenParams = usePreset(b.use, this.gen) ?? (ud.floors ? { ...this.gen, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : this.gen);
+    // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
+    const sg = this.savedGen(i), base: GenParams = i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) };
+    const g: GenParams = usePreset(b.use, base) ?? (ud.floors ? { ...base, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base);
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross });
     this.genNotes = r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
     const grp = b.parcelId ?? lab.id;
-    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, label: b.parcelId ? undefined : { ...lab, gen: { ...this.gen } },
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
       sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0 })),
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}) } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
@@ -1650,6 +1652,32 @@ export class Editor {
   private socM2: Record<SocialUse, number> = { maktab: SOCIAL.maktab.m2, mtm: SOCIAL.mtm.m2, poliklinika: SOCIAL.poliklinika.m2 };
   private socFloors: Record<SocialUse, number> = { maktab: SOCIAL.maktab.floors, mtm: SOCIAL.mtm.floors, poliklinika: SOCIAL.poliklinika.floors };
   private socCap: Record<string, number> = {};
+  /** 12-band: korpus eni (null — modul odatiysi) va eng katta uzunligi (0 — cheklanmagan), m */
+  private socBW: Record<SocialUse, number | null> = { maktab: null, mtm: null, poliklinika: null };
+  private socBL: Record<SocialUse, number> = { maktab: 0, mtm: 0, poliklinika: 0 };
+  /** daha yoki yer uchastkasida saqlangan generator parametrlari */
+  private savedGen(i: number): Record<string, unknown> | null {
+    const b = this.plan().blocks[i]; if (!b) return null;
+    const doc = this.store.doc;
+    const g = b.parcelId ? doc.parcels.find(p => p.id === b.parcelId)?.gen : doc.zones.find(z => z.id === b.labelId)?.gen;
+    return g && typeof g === 'object' ? g : null;
+  }
+  /** tanlov oʻzgarganda — shu birlikning saqlangan parametrlari panelga yuklanadi */
+  private genFor = '';
+  private loadGenFor(i: number | null): void {
+    const b = i != null ? this.plan().blocks[i] : null, key = b ? `${b.parcelId ?? b.labelId ?? i}|${b.use}` : '';
+    if (key === this.genFor) return; this.genFor = key;
+    const sg = i != null ? this.savedGen(i) : null; if (!sg || !b) return;
+    const soc = sg.soc as { mod?: Module; m2?: number; floors?: number; bw?: number | null; bl?: number; cap?: number } | undefined;
+    if (soc && isSocial(b.use)) {
+      const u = b.use as SocialUse;
+      if (soc.mod && SOCIAL[u].modules.some(m => m.id === soc.mod)) this.socMod[u] = soc.mod;
+      if (typeof soc.m2 === 'number') this.socM2[u] = soc.m2;
+      if (typeof soc.floors === 'number') this.socFloors[u] = soc.floors;
+      this.socBW[u] = typeof soc.bw === 'number' ? soc.bw : null; this.socBL[u] = typeof soc.bl === 'number' ? soc.bl : 0;
+      if (typeof soc.cap === 'number') this.socCap[key] = soc.cap;
+    } else if (!soc) this.gen = { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) };
+  }
   /** sigʻim: ehtiyoj (loyiha aholisi × stat.uz yosh tarkibi) va parsel maydoni (41-jadval / 543-band) dan kichigi */
   private socTarget(i: number): { use: SocialUse; demand: number; plot: number; cap: number } | null {
     const b = this.plan().blocks[i]; if (!b || !isSocial(b.use)) return null;
@@ -1665,10 +1693,11 @@ export class Editor {
     const near = (p: XY) => lines.some(r => { for (let k = 0; k < r.length; k++) { const a = r[k], q = r[(k + 1) % r.length], dx = q[0] - a[0], dy = q[1] - a[1], L2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); if (Math.hypot(a[0] + dx * u - p[0], a[1] + dy * u - p[1]) < 1.5) return true; } return false; });
     const red = t.use !== 'poliklinika' ? 25 : 6;
     const sb = ring.map((p, k) => near([(p[0] + ring[(k + 1) % n][0]) / 2, (p[1] + ring[(k + 1) % n][1]) / 2]) ? red : 6);
-    const sp = socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], this.socFloors[t.use], sb);
+    const sp = socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], this.socFloors[t.use], sb, this.socBW[t.use] ?? undefined, this.socBL[t.use] || undefined);
+    const soc = { soc: { mod: this.socMod[t.use], m2: this.socM2[t.use], floors: this.socFloors[t.use], bw: this.socBW[t.use], bl: this.socBL[t.use], cap: t.cap } };
     this.genNotes = [`${SOCIAL[t.use].name}: ${fmt(t.cap)} ${SOCIAL[t.use].unit} · ${fmt(sp.gfa)} m² GFA · ${this.socFloors[t.use]} qavat (taxmin ${this.socM2[t.use]} m²/${SOCIAL[t.use].unit})`, ...sp.notes]; this.genFar = null;
     if (!sp.sections.length) { if (!quiet) toast(sp.notes[0] ?? 'Joylashmadi'); return 0; }
-    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: b.parcelId ?? lab.id, label: b.parcelId ? undefined : lab,
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: b.parcelId ?? lab.id, label: b.parcelId ? undefined : { ...lab, gen: soc }, ...(b.parcelId ? { parcelGen: soc } : {}),
       sections: sp.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: 0, use: t.use, kind: 'ijtimoiy' })), garage: null }));
     if (!quiet) toast(`${this.unitName(i)}: ${SOCIAL[t.use].name.toLowerCase()} — ${fmt(t.cap)} ${SOCIAL[t.use].unit}, ${fmt(sp.gfa)} m²`);
     return sp.sections.length;
@@ -1683,7 +1712,10 @@ export class Editor {
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Parsel sigʻimi'), h('span', { class: 'sub' }, t.use === 'maktab' ? '41-jadval' : t.use === 'mtm' ? '543-band' : '45-jadval, taxmin')), h('span', { class: 'v' }, `${fmt(t.plot)} ${S.unit}`)),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Sigʻim'), h('span', { class: 'sub' }, S.unit)), stepper({ id: 'socCap', label: `${tr('Sigʻim')}, ${S.unit}`, min: 10, max: 5000, step: 10, value: t.cap, onchange: v => { this.socCap[key] = Math.max(10, v); this.renderPanel(); } })),
         h('div', { class: 'li' }, h('span', { class: 'k' }, `m² / ${unit0}`), stepper({ id: 'socM2', label: `m²/${unit0}`, min: 4, max: 40, step: 0.5, value: this.socM2[t.use], onchange: v => { this.socM2[t.use] = Math.max(4, v); this.renderPanel(); } })),
-        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qavat'), h('span', { class: 'sub' }, `1–${S.maxFloors}`)), stepper({ id: 'socFl', label: tr('Qavat'), min: 1, max: S.maxFloors, step: 1, value: this.socFloors[t.use], onchange: v => { this.socFloors[t.use] = v; this.renderPanel(); } }))),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qavat'), h('span', { class: 'sub' }, `1–${S.maxFloors}`)), stepper({ id: 'socFl', label: tr('Qavat'), min: 1, max: S.maxFloors, step: 1, value: this.socFloors[t.use], onchange: v => { this.socFloors[t.use] = v; this.renderPanel(); } })),
+        // 12-band: korpus oʻlchamlari
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Korpus eni'), h('span', { class: 'sub' }, tf('odatiy ${n} m', { n: MOD_BW[this.socMod[t.use]] }))), stepper({ id: 'socBW', label: tr('Korpus eni'), min: 9, max: 36, step: 0.5, unit: 'm', value: this.socBW[t.use] ?? MOD_BW[this.socMod[t.use]], onchange: v => { this.socBW[t.use] = v === MOD_BW[this.socMod[t.use]] ? null : v; this.renderPanel(); } })),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Eng uzun korpus'), h('span', { class: 'sub' }, tr('0 — cheklovsiz'))), stepper({ id: 'socBL', label: tr('Eng uzun korpus'), min: 0, max: 200, step: 1, unit: 'm', value: this.socBL[t.use], onchange: v => { this.socBL[t.use] = Math.max(0, v); this.renderPanel(); } }))),
       h('div', { class: 'glabel' }, h('span', {}, `${tr('Modul')} · ${S.name.toLowerCase()}`)),
       h('div', { class: S.modules.length > 2 ? 'tiles' : 'tiles c2', role: 'group', 'aria-label': tr('Modul') }, ...S.modules.map(m => h('button', { class: 'tile', 'data-mod': m.id, 'aria-pressed': this.socMod[t.use] === m.id, title: m.note, onclick: () => { this.socMod[t.use] = m.id; this.renderPanel(); }, html: pg('soc', m.id) + `<span>${m.name}</span>` }))),
       h('span', { class: 't-small' }, S.modules.find(m => m.id === this.socMod[t.use])!.note),
@@ -1692,8 +1724,10 @@ export class Editor {
 
   /* ===== 6-qadam: Hajmlar (MR-Q2) ===== */
   private hajmPanel(body: HTMLElement): void {
-    const doc = this.store.doc, fr = frame(doc.origin), plan = this.plan(), g = this.gen;
+    const doc = this.store.doc, fr = frame(doc.origin), plan = this.plan();
     if (this.selBlock != null && !plan.blocks[this.selBlock]) this.selBlock = null;
+    this.loadGenFor(this.selBlock);
+    const g = this.gen;
     const stp = (id: string, k: string, sub: string, v: number, min: number, max: number, step: number, set: (x: number) => void, unit?: string) =>
       h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), stepper({ id, label: k, min, max, step, value: v, unit, onchange: x => { set(x); this.renderPanel(); } }));
     body.append(h('select', { class: 'select', id: 'genBlock', 'aria-label': tr('Kvartal'), onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
@@ -1719,6 +1753,7 @@ export class Editor {
           stp('gMin', tr('eng kam'), '1–40', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); }),
           stp('gDepth', tr('Chuqurlik'), '9–24 m', g.depth, 9, 24, 0.5, x => { g.depth = x; }, 'm'),
           stp('gLen', tr('Seksiya uzunligi'), '15–60 m', g.secLen, 15, 60, 1, x => { g.secLen = x; }, 'm'),
+          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Aniq oʻlcham'), h('span', { class: 'sub' }, tr(g.exact ? 'har seksiya aynan uzunlik × chuqurlik; qoldiq — izohda' : 'oʻchiq: qirra teng boʻlaklarga boʻlinadi (uzunlik — moʻljal)'))), sw({ id: 'gExact', label: tr('Aniq oʻlcham'), on: !!g.exact, onchange: v => { g.exact = v; this.renderPanel(); } })),
           stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm'),
           stp('gSty', tr('Stilobat'), tr('qavat'), g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; }),
           ...((g.parkNorm ?? true) ? [] : [stp('gPL', tr('Yer osti'), tr('sath'), g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })])),
