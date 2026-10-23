@@ -1306,6 +1306,7 @@ export class Scene3D {
     this.explodeLabels.forEach(o => { this.scene.remove(o); const m = o as THREE.Sprite | THREE.Line; m.geometry?.dispose(); const mat = m.material as THREE.SpriteMaterial; mat.map?.dispose(); mat.dispose(); });
     this.explodeLabels = [];
     // qatlam oraligʻi: uchastka (yoki binolar) oʻlchamiga nisbatan
+    this.world.children.forEach(o => { if (o.userData.y0 != null) o.position.y = o.userData.y0 as number; });   // oʻlcham — asl holatda
     const box = new THREE.Box3(); this.world.children.forEach(o => { if (o.userData.layer != null) box.expandByObject(o); });
     const size = box.isEmpty() ? 200 : Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
     const step = this.exploded ? Math.max(12, size * 0.22 * this.explodeGap) : 0;
@@ -1317,7 +1318,18 @@ export class Scene3D {
       EXPLODE_NAMES.forEach((name, i) => {
         const sp = labelSprite(`${i + 1}  ${name}`); sp.position.set(x, i * step + 4, z); this.scene.add(sp); this.explodeLabels.push(sp);
       });
-      const corners: [number, number][] = [[box.min.x, box.min.z], [box.max.x, box.min.z], [box.min.x, box.max.z], [box.max.x, box.max.z]];
+      // 17-band: har qatlam tagida yupqa yer plitasi — qatlamlar «suzib» qolmaydi, qaysi narsa qaysi qatlamda ekani aniq
+      const m = size * 0.04, t = Math.max(0.6, step * 0.035), w = box.max.x - box.min.x + 2 * m, d = box.max.z - box.min.z + 2 * m;
+      const cx0 = (box.min.x + box.max.x) / 2, cz0 = (box.min.z + box.max.z) / 2, y0 = Math.min(0, box.min.y);
+      for (let L = 1; L < EXPLODE_NAMES.length; L++) {
+        const g = new THREE.BoxGeometry(w, t, d);
+        const pl = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0xeeebe5, transparent: true, opacity: 0.92 }));
+        pl.position.set(cx0, y0 + L * step - t / 2 - 0.1, cz0); pl.receiveShadow = true; pl.renderOrder = 0.5; pl.userData.explodePlate = L;
+        const e = new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({ color: 0x8f8a80, transparent: true, opacity: 0.6 }));
+        e.position.copy(pl.position);
+        this.scene.add(pl, e); this.explodeLabels.push(pl, e);
+      }
+      const corners: [number, number][] = [[box.min.x - m, box.min.z - m], [box.max.x + m, box.min.z - m], [box.min.x - m, box.max.z + m], [box.max.x + m, box.max.z + m]];
       for (const [cx, cz] of corners) {
         const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(cx, 0, cz), new THREE.Vector3(cx, 3 * step + 2, cz)]), new THREE.LineDashedMaterial({ color: 0x9a978f, dashSize: 2, gapSize: 2 }));
         l.computeLineDistances(); this.scene.add(l); this.explodeLabels.push(l);

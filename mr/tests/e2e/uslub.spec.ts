@@ -16,8 +16,12 @@ test('uslublar, portlatilgan qatlamlar, kamera: obyektiv, koʻz sathi, 2 nuqta, 
   }
   await page.click('[data-style=arctic]');
   await page.check('#exOn');
+  // 17-band: har qatlam (koʻchalar, kvartallar, binolar) tagida yer plitasi
+  const plates = () => page.evaluate(() => (window as any).__mr.scene.explodeLabels.filter((o: any) => o.userData.explodePlate).length);
+  expect(await plates()).toBe(3);
   if (shots) await page.screenshot({ path: `${shots}/st_exploded.png` });
   await page.uncheck('#exOn');
+  expect(await plates()).toBe(0);
   await page.click('#stylePop');
   // kamera
   await page.click('#camPop');
