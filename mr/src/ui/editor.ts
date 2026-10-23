@@ -28,6 +28,8 @@ import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel } from '../core/doc';
 import { DEFAULT_GEN, generate, usePreset, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS } from '../core/parking';
+import { aptRooms } from '../core/aptrooms';
+import { insetRobust } from '../core/offset';
 import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
@@ -1222,24 +1224,42 @@ export class Editor {
   static readonly APT_COL: Record<number, number> = { 1: 0xf2b134, 2: 0xf08a4b, 3: 0x4fb08a, 4: 0x3f5b8a };
   /** kvartira «terisi» 3D da (turi yoki insolyatsiya natijasi boʻyicha) */
   private showAptBoxes(): void {
-    if (this.step.id !== 'kvartira' || this.apt3d === 'yoq') { this.scene.setAptBoxes(null); return; }
+    if (this.step.id !== 'kvartira' || this.apt3d === 'yoq') { this.scene.setAptBoxes(null); this.scene.setAptVols(null); this.scene.setAptView(null); return; }
     const doc = this.store.doc, plans = planApartments(doc), fh = doc.settings.floorHeight, st = this.apt.stats, A = this.apt;
     const idx = new Map<string, number>(); if (st) A.pts.forEach((q, i) => idx.set(`${q.sec}|${q.f}|${q.m}`, i));
     const list: { a: XY; b: XY; y0: number; y1: number; color: number; depth: number }[] = [], caps: { ring: XY[]; y: number; color: number }[] = [];
+    const vols: Parameters<Scene3D['setAptVols']>[0] & object = [], view = new Map<string, { f0: number; f1: number }>();
+    const lite = (c: number, k: number) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, f = (x: number) => Math.round(x + (255 - x) * k); return (f(r) << 16) | (f(g) << 8) | f(b); };
     plans.forEach((pl, sec) => {
-      const base = Math.min(...pl.ring.map(q => this.scene.H(q[0], q[1])));
-      for (let f = pl.f0; f < pl.f1; f++) pl.layout.apts.forEach((a, ai) => {
-        let color = Editor.APT_COL[Math.min(4, a.rooms)] ?? 0x888888;
-        if (this.apt3d === 'insol') {
-          if (!st) color = 0xcfcac1;
-          else { const ok = a.living.map(m => st.cls[idx.get(`${sec}|${f}|${m}`) ?? -1] ?? 2); const good = ok.filter(c => c === 0 || c === 1).length; color = good >= Math.min(a.living.length, a.rooms >= 4 ? 2 : 1) ? (ok.every(c => c === 0) ? 0x3fa66b : 0xb7cf4f) : 0xd9534f; }
-        }
-        const y = base + (pl.z0 + f) * fh, ring = pl.layout.plan?.apts[ai]?.ring;
-        // kvartira rejadagi chegarasi boʻyicha — fasaddagi qismi (burchak seksiyasida ham toʻgʻri)
-        if (ring) { for (const [p, q] of facadeSegs(ring, pl.ring)) list.push({ a: p, b: q, y0: y + 0.06, y1: y + fh - 0.06, color, depth: 0.25 }); caps.push({ ring, y: y + 0.08, color }); }
-        else for (const m of a.mods) { const md = pl.layout.mods[m]; list.push({ a: md.a, b: md.b, y0: y + 0.06, y1: y + fh - 0.06, color, depth: pl.halfDepth }); }
-      });
+      const base = Math.min(...pl.ring.map(q => this.scene.H(q[0], q[1]))), P = pl.layout.plan;
+      // 11-band: reja boʻlsa — bino oʻrnida kvartira hajmlari (xonalar rangda), aks holda — fasad «terisi»
+      if (P) { const v = view.get(pl.bid); view.set(pl.bid, v ? { f0: Math.min(v.f0, pl.f0), f1: Math.max(v.f1, pl.f1) } : { f0: pl.f0, f1: pl.f1 }); }
+      const ins = P ? P.apts.map(ra => insetRobust(ra.ring, 0.06) ?? ra.ring) : [];
+      const core = P ? [...P.mop, ...P.stairs, ...P.lifts] : [];
+      for (let f = pl.f0; f < pl.f1; f++) {
+        const y = base + (pl.z0 + f) * fh;
+        if (P) for (const r of core) vols.push({ bid: pl.bid, ring: r, y0: y + 0.12, y1: y + fh - 0.12, color: 0xd6d2ca });
+        pl.layout.apts.forEach((a, ai) => {
+          let color = Editor.APT_COL[Math.min(4, a.rooms)] ?? 0x888888;
+          if (this.apt3d === 'insol') {
+            if (!st) color = 0xcfcac1;
+            else { const ok = a.living.map(m => st.cls[idx.get(`${sec}|${f}|${m}`) ?? -1] ?? 2); const good = ok.filter(c => c === 0 || c === 1).length; color = good >= Math.min(a.living.length, a.rooms >= 4 ? 2 : 1) ? (ok.every(c => c === 0) ? 0x3fa66b : 0xb7cf4f) : 0xd9534f; }
+          }
+          const ra = P?.apts[ai];
+          if (ra) {
+            const R = aptRooms(ra);
+            vols.push({ bid: pl.bid, ring: ins[ai], y0: y + 0.12, y1: y + fh - 0.12, color,
+              rooms: [...R.rooms.map((q, k) => ({ ring: q, color: lite(color, [0.22, 0.42, 0.6][k % 3]) })), ...R.wet.map(q => ({ ring: q, color: 0xa9bfcf }))] });
+            return;
+          }
+          const ring = pl.layout.plan?.apts[ai]?.ring;
+          if (ring) { for (const [p, q] of facadeSegs(ring, pl.ring)) list.push({ a: p, b: q, y0: y + 0.06, y1: y + fh - 0.06, color, depth: 0.25 }); caps.push({ ring, y: y + 0.08, color }); }
+          else for (const m of a.mods) { const md = pl.layout.mods[m]; list.push({ a: md.a, b: md.b, y0: y + 0.06, y1: y + fh - 0.06, color, depth: pl.halfDepth }); }
+        });
+      }
     });
+    this.scene.setAptView(view.size ? view : null);
+    this.scene.setAptVols(vols);
     this.scene.setAptBoxes(list, caps);
   }
   private aptDate = '03-22';
