@@ -9,7 +9,7 @@ import type { LngLat, Project, Shade } from '../core/doc';
 import { frame, centroid, area, signedArea, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
-import { buildContext, buildingMeshes, type ContextScene, type HeightFn } from './context3d';
+import { buildContext, buildingMeshes, houseRoofRise, type ContextScene, type HeightFn } from './context3d';
 import { applyVisibility, buildUserLayer, geomKey, type UL3D } from './userlayers3d';
 import type { ULFeature } from '../core/userlayers';
 import { projectStreetsGeo } from './streets3d';
@@ -813,7 +813,9 @@ export class Scene3D {
     if (this.floorLabels) doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal); if (area(r) < 40) return;
       const c = centroid(r), top = Math.min(...r.map(p => this.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh;
-      const sp = labelSprite(String((b.z0 ?? 0) + b.floors), true); sp.position.set(c[0], top + 2, -c[1]); sp.userData.floorLbl = true; this.world.add(sp);
+      // qiya tomda — tizma ustida (aks holda raqam tom ichida qoladi)
+      const rh = b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir' ? Math.max(0, ...(roofParts(r, b.roof) ?? []).map(q => q.h)) : 0;
+      const sp = labelSprite(String((b.z0 ?? 0) + b.floors), true); sp.position.set(c[0], top + rh + 2, -c[1]); sp.userData.floorLbl = true; sp.userData.lblBid = b.id; this.world.add(sp);
     });
     tag(3);
     this.applyExplode();
@@ -1106,9 +1108,9 @@ export class Scene3D {
       const rm = new Set(doc.removed ?? []);
       for (const q of B.osm.buildings) {
         if (!q.num || rm.has(q.id)) continue;
-        const r = q.rings[0].map(fr.toLocal), c = centroid(r);
+        const r = q.rings[0].map(fr.toLocal), c = centroid(r), rise = houseRoofRise({ rings: q.rings.map(rr => rr.map(fr.toLocal)), h: q.h, kind: (q as { kind?: string }).kind });
         if (Math.hypot(c[0], c[1]) > B.radius) continue;
-        this.addGlab({ kind: 'num', block: -1, daha: null, rect: { c, w: minExtent(r) * 0.9, h: minExtent(r) * 0.9, ang: 0 }, lines: { 1: [q.num] }, halo: '#ffffff', hidden: false, z: q.h + 0.4 });
+        this.addGlab({ kind: 'num', block: -1, daha: null, rect: { c, w: minExtent(r) * 0.9, h: minExtent(r) * 0.9, ang: 0 }, lines: { 1: [q.num] }, halo: '#ffffff', hidden: false, z: q.h + rise + 0.4 });
       }
     }
   }
