@@ -26,7 +26,7 @@ import { wmCanvas } from '../core/wm';
 import { familyById, accepts, placements, type Material } from './autolayout';
 import { buildAlbum, inner, slotAt, setCustomPal, type Album } from './album';
 import { renderPage, LIB, PAL, setSheetTr } from './sheet';
-import { siteMaterials, projectMaterials } from './materials';
+import { siteMaterials, projectMaterials, type PlanSrc } from './materials';
 import { loadGeo, loadWorld, world, resolve, presets, placeName, rName, dName, autoNote, setLocLang, locSearch, parseCoord, interiorPt, uzMini, worldMini, type Resolved, type LocHit } from './location';
 import { rebase, reanchor, bindTo } from './bind';
 
@@ -42,6 +42,8 @@ export interface ChHost {
   tik: () => string[][];
   /** loyiha bosh rejasi (Varaqlar, xarita qismi, mm) */
   siteMap: () => TplCtx['map'] | undefined;
+  /** 19-band: Master rejaning barcha rejalari (bosh reja, land use, funksional, qavatlilik, kvartirografiya…) — «Loyihadan» materiallari */
+  plans?: () => PlanSrc[];
   /** joriy 3D sahna rasmi (data URL) */
   scene: () => string | null;
   /** ochilganda «Loyihadan» ga qoʻshiladigan narsa */
@@ -115,6 +117,11 @@ export function openChizmadon(host: ChHost): void {
   let PLAN: TplCtx['map'] | null | undefined, TIK: string[][] | undefined;
   const planOnce = () => { if (PLAN === undefined) { const m = host.siteMap(); PLAN = m ? { ...m, svg: trSvg(m.svg) } : null; } return PLAN; };
   const tikOnce = () => (TIK ??= host.tik());
+  let PLANS: PlanSrc[] | undefined;
+  const plansOnce = (): PlanSrc[] | undefined => {
+    if (!host.plans) return undefined;
+    return (PLANS ??= host.plans().map(p => { let c: ReturnType<PlanSrc['get']>, got = false; return { ...p, get: () => { if (!got) { got = true; const m = p.get(); c = m ? { ...m, svg: trSvg(m.svg), legend: m.legend?.map(q => ({ ...q, label: tr(q.label) })) } : m; } return c; } }; }));
+  };
   /** Maket varaqlaridagi tahrirlarni d.hand ga yozish va bogʻlanishni yangilash (reanchor) */
   function writeBack(): void {
     if (!LAST) return;
@@ -126,7 +133,7 @@ export function openChizmadon(host: ChHost): void {
   function relayout(wb = true): void {
     if (wb) writeBack();
     const s = site(); R = resolve(s.lat, s.lon);
-    MATS = [...projectMaterials({ plan: planOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats), ...siteMaterials(() => R!, d.auto.mats)];
+    MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats), ...siteMaterials(() => R!, d.auto.mats)];
     setCustomPal(d.auto.custom); if (d.auto.pal === 'custom' && !d.auto.custom) d.auto.pal = 'arch';
     const f = fam(), fmt = fmtOf(f);
     LAST = buildAlbum({ fam: f, fmt, pal: d.auto.pal, mats: MATS, force: d.auto.force, ov: d.auto.ov, slots: d.auto.slots, R, sel: matSel, place: R ? placeName(R) : host.place });
@@ -715,6 +722,7 @@ export function openChizmadon(host: ChHost): void {
           h('div', { class: 'group', id: 'chMapSrc' },
             h('button', { class: 'li', 'data-src': 'site', onclick: () => setMapSource(e.id, 'site') }, h('span', { class: 'k' }, tr('Loyiha bosh rejasi'), h('span', { class: 'sub' }, tr('Varaqlar · vektor, masshtab bilan')))),
             h('button', { class: 'li', 'data-src': 'scene', onclick: () => setMapSource(e.id, 'scene') }, h('span', { class: 'k' }, tr('Sahna rasmi'), h('span', { class: 'sub' }, tr('joriy 3D koʻrinish (fon: sxematik yoki sunʼiy yoʻldosh)')))),
+            ...(plansOnce() ?? []).filter(p => p.id !== 'p:plan').map(p => h('button', { class: 'li', 'data-src': p.id, onclick: () => { const m = p.get(); if (!m) { toast(tr('Bu reja uchun maʼlumot yoʻq')); return; } setMapSource(e.id, { id: p.id, name: tr(p.name), kind: 'plan', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, at: '' }); } }, h('span', { class: 'k' }, tr(p.name), h('span', { class: 'sub' }, tr('Master reja · vektor'))))),
             ...d.inbox.map(it => h('button', { class: 'li', 'data-src': it.id, onclick: () => setMapSource(e.id, it) }, h('span', { class: 'k' }, it.name, h('span', { class: 'sub' }, tr('Loyihadan')))))),
           field('Masshtab 1:', scIn),
           h('span', { class: 't-small' }, tr('Xarita ichini surish — Alt + sudrash. Ramka oʻlchami oʻzgarsa masshtab qayta hisoblanadi.')),
