@@ -36,6 +36,7 @@ import { nearestStation, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { wmFile, wmRaster } from '../core/wm';
+import { streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter } from './streetui';
 initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
@@ -64,7 +65,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { c: LngLat; r: number; on: LayerId[]; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number }
+interface State { c: LngLat; r: number; on: LayerId[]; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
 const S: State = (() => {
   try { const o = JSON.parse(localStorage.getItem('joy-state') || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
@@ -187,7 +188,19 @@ const legend = h('div', { class: 'joy-legend glass', id: 'joyLegend', hidden: tr
 const modeSw = h('div', { class: 'joy-mode glass', id: 'joyMode' });
 const axoEl = h('div', { class: 'joy-axo', id: 'joyAxoView', hidden: true });
 const axL = h('aside', { class: 'joy-axl panel', id: 'joyAxL' }), axN = h('aside', { class: 'joy-notes glass', id: 'joyNotes' }), axT = h('div', { class: 'joy-time glass', id: 'joyTime' });
-root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, axL, axN, axT, modeSw);
+const strip = h('section', { class: 'joy-strip glass', id: 'joyStrip', hidden: true, 'aria-label': tr('Koʻcha boʻylab') });
+root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, strip, axL, axN, axT, modeSw);
+const isK = () => S.an === 'kocha';
+/** Tahlil turi: Hudud · Koʻcha (chap panel tepasida) */
+function anSwitch(): HTMLElement {
+  return h('div', { class: 'seg joy-an', id: 'joyAn', role: 'group', 'aria-label': tr('Tahlil turi') },
+    ...([['hudud', 'Hudud tahlili'], ['kocha', 'Koʻcha tahlili']] as const).map(([k, n]) => h('button', { type: 'button', 'data-an': k, 'aria-pressed': (S.an ?? 'hudud') === k, onclick: () => setAn(k) }, tr(n))));
+}
+function setAn(k: 'hudud' | 'kocha'): void {
+  S.an = k; save(); if (k === 'kocha' && mode === 'axo') setMode('map');
+  if (drawing) { drawing = null; measure = ''; }
+  renderAll(); paint(); if (k === 'kocha') streetEnter(); else frame(600);
+}
 
 const ic = (d: string, cls = 'ic') => { const s = svgIcon(d); s.classList.add(cls); return s; };
 function renderHeader(): void {
@@ -209,6 +222,10 @@ function sw(on: boolean, label: string, f: () => void): HTMLButtonElement {
   return h('button', { type: 'button', class: `switch${on ? ' on' : ''}`, role: 'switch', 'aria-checked': on, 'aria-label': label, onclick: f }, h('i'));
 }
 function renderLeft(): void {
+  if (isK()) { left.replaceChildren(anSwitch(), ...streetLeft()); return; }
+  renderLeftH(); left.prepend(anSwitch());
+}
+function renderLeftH(): void {
   const q = h('input', { class: 'input', type: 'search', id: 'joyQ', placeholder: tr('Manzil yoki koordinata'), value: qText, 'aria-label': tr('Manzil qidirish') }) as HTMLInputElement;
   q.addEventListener('input', () => { qText = q.value; });
   q.addEventListener('keydown', e => { if (e.key === 'Enter') void search(q.value); if (e.key === 'Escape') { found = []; renderLeft(); } });
@@ -320,6 +337,11 @@ function card(l: LayerDef, srcChip: string, big: string | Node, sub: (string | N
     ...body);
 }
 function renderRight(): void {
+  if (isK()) { right.replaceChildren(...streetRight()); streetStrip(strip); return; }
+  strip.hidden = true;
+  renderRightH();
+}
+function renderRightH(): void {
   const L = (id: LayerId) => LAYERS.find(l => l.id === id)!;
   const cards: HTMLElement[] = [];
   const addr = D.addr.st === 'ok' ? D.addr.v! : D.addr.st === 'load' ? tr('Manzil aniqlanmoqda…') : `${S.c[1].toFixed(4)}, ${S.c[0].toFixed(4)}`;
@@ -518,6 +540,13 @@ async function reverse(c: LngLat): Promise<string> {
 /* ---------------- xarita ---------------- */
 let map: MLMap | null = null;
 let rose: Marker | null = null, rlab: Marker | null = null;
+let MK: ((el: HTMLElement) => Marker) | null = null;
+streetInit({
+  map: () => map,
+  rerender: () => { renderLeft(); renderRight(); if (isK()) { const lg = streetLegend(); legend.replaceChildren(...lg); legend.hidden = !lg.length; } },
+  fit: b => { try { map?.fitBounds(b, { padding: { top: 90, bottom: (strip.hidden ? 0 : strip.offsetHeight) + 40, left: left.offsetWidth + 40, right: right.offsetWidth + 40 }, duration: 800, maxZoom: 17.5 }); } catch { /* tor oyna */ } },
+  marker: el => MK?.(el) ?? null,
+});
 const fc = (features: unknown[]) => ({ type: 'FeatureCollection', features });
 const pt = (c: LngLat, p: Record<string, unknown> = {}) => ({ type: 'Feature', properties: p, geometry: { type: 'Point', coordinates: c } });
 /** Palitra: foydalanuvchi tanlovi; tungi rejimda sukut boʻyicha «Grafit» */
@@ -538,10 +567,11 @@ async function initMap(): Promise<void> {
   map.on('style.load', () => { addOverlays(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
-  map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else pick(c); });
+  map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
   map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } });
   map.on('moveend', () => { S.z = +map!.getZoom().toFixed(2); save(); });
   const roseEl = h('div', { class: 'joy-rose', 'aria-hidden': 'true' }), labEl = h('div', { class: 'joy-rlab' });
+  MK = el => new ml.Marker({ element: el });
   rose = new ml.Marker({ element: roseEl }).setLngLat(S.c as [number, number]);
   rlab = new ml.Marker({ element: labEl, anchor: 'left' }).setLngLat(S.c as [number, number]).addTo(map);
   (window as unknown as { joyMap: MLMap }).joyMap = map;
@@ -575,11 +605,24 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-comp', type: 'circle', source: 'joy-comp', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 4, 17, 8], 'circle-color': '#7a5a3c', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2, 'circle-opacity': ['case', ['get', 'in'], 1, 0.4] } } as never);
   m.addLayer({ id: 'joy-c-h', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 18, 'circle-color': ACC, 'circle-opacity': 0.16 } });
   m.addLayer({ id: 'joy-c', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 8, 'circle-color': ACC, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
+  streetLayers(m);
 }
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '';
+const HUD_LAYERS = ['joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
+  const m = map;
+  if (isK()) {
+    if (m && m.getSource('joy-ring')) for (const id of HUD_LAYERS) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', 'none');
+    streetPaint(); rose?.remove(); rlab?.remove();
+    const lg = streetLegend(); legend.replaceChildren(...lg); legend.hidden = !lg.length;
+    return;
+  }
+  if (m && m.getSource('joy-ring')) { streetHide(m); for (const id of ['joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p']) m.setLayoutProperty(id, 'visibility', 'visible'); if (rlab) rlab.addTo(m); }
+  paintH();
+}
+function paintH(): void {
   paintDraw();
   const m = map; if (!m || !m.getSource('joy-ring')) return;
   (m.getSource('joy-ring') as GeoJSONSource).setData({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [circleRing(S.c, S.r)] } } as never);
@@ -989,7 +1032,7 @@ async function exportPng(): Promise<void> {
   if (b) { b.disabled = false; b.textContent = 'PNG · 4K'; }
 }
 
-function renderAll(): void { renderHeader(); renderLeft(); renderRight(); renderAsk(); renderBase(); renderMode(); if (mode === 'axo') renderAxo(); document.title = `${tr('Joyshunos')} · Archemistry Lab`; }
+function renderAll(): void { root.classList.toggle('an-kocha', isK()); renderHeader(); renderLeft(); renderRight(); renderAsk(); renderBase(); renderMode(); if (mode === 'axo') renderAxo(); document.title = `${tr('Joyshunos')} · Archemistry Lab`; }
 renderAll();
 onLang(() => { renderAll(); paint(); document.documentElement.lang = getLang(); });
 onTheme(() => { renderHeader(); restyle(); if (mode === 'axo') axBuild(); });
