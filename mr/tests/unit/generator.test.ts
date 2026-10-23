@@ -91,7 +91,7 @@ describe('Tipologiyalar, UMN, stilobat, parkovka', () => {
     expect(r.parking!.spaces).toBeGreaterThan(500);
   });
   it('yer osti parkovka sathlar bilan oʻsadi', () => {
-    const a = generate(B, { ...DEFAULT_GEN, parking: 'yer_osti', parkLevels: 1 }), b = generate(B, { ...DEFAULT_GEN, parking: 'yer_osti', parkLevels: 2 });
+    const a = generate(B, { ...DEFAULT_GEN, parking: 'yer_osti', parkLevels: 1, parkNorm: false }), b = generate(B, { ...DEFAULT_GEN, parking: 'yer_osti', parkLevels: 2, parkNorm: false });
     expect(b.parking!.spaces).toBe(2 * a.parking!.spaces);
   });
 });

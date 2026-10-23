@@ -14,6 +14,14 @@ describe('i18n — tayyor satrlar', () => {
     I.setLang('uz');
     expect(I.tr('D-1 · 0,86 ga')).toBe('D-1 · 0,86 ga');
   });
+  it('avtoturargoh izohlari (generator)', () => {
+    I.setLang('en');
+    expect(I.tr('Avtoturargoh (Yer usti): 166 joy (Perpendikulyar 90°, 2,5 × 5,3 m, boʻlak 6 m)')).toBe('Parking (Surface): 166 spaces (Perpendicular 90°, 2.5 × 5.3 m, aisle 6 m)');
+    expect(I.tr('Talab: 1221 joy (29-jadval: xonadonlar 771 · savdo 450)')).toBe('Demand: 1221 spaces (table 29: apartments 771 · retail 450)');
+    I.setLang('ru');
+    expect(I.tr('Avtoturargoh (Yer osti): 1232 joy — 2 sath × 616 joy (Perpendikulyar 90°, 2,5 × 5,3 m, boʻlak 6 m; rampa, tugunlar va ustunlar −20 %)')).toBe('Автостоянка (Подземная): 1232 машино-мест — 2 ур. × 616 мест (Перпендикулярная 90°, 2,5 × 5,3 м, проезд 6 м; рампы, узлы и колонны −20 %)');
+    I.setLang('uz');
+  });
   it('${…} li kalit namunasi', () => {
     I.setLang('en');
     expect(I.tr('Savdo markazi 40 × 30 m, 2 qavat; hovli — yer usti parkovka (413-band, 25 m²/joy)')).toBe('Shopping center 40 × 30 m, 2 floors; courtyard — surface parking (clause 413, 25 m²/space)');

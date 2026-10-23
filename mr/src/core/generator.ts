@@ -12,6 +12,7 @@ import { freeRect } from './labels';
 import type { XY } from './geo';
 import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
+import { layoutStalls, trimStalls, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo';
@@ -38,15 +39,21 @@ export interface GenParams {
   /** stilobat qavatlari (0 — yoʻq) */
   stylobate?: number;
   parking?: ParkingKind;
-  /** yer osti qavatlari */
+  /** yer osti qavatlari (meʼyor boʻyicha oʻchiq boʻlsa) */
   parkLevels?: number;
+  /** joylashtirish moduli (dizayn-kod 6.3) */
+  parkModule?: ParkModule;
+  /** joylar soni 29-jadval talabi boʻyicha (yer osti sathlari avtomatik) */
+  parkNorm?: boolean;
 }
+/** Talab hisobi uchun loyiha sozlamalari */
+export interface GenOpts { use?: string; aptNet?: number; netToGross?: number }
 
-export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1 };
+export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
 /** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
 export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string }
-export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number }
+export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number; need?: number; module?: ParkModule; stalls?: XY[][]; aisles?: XY[][] }
 export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[]; parking?: GenParking; typology?: Typology; far?: number }
 
 const sub = (a: XY, b: XY): XY => [a[0] - b[0], a[1] - b[1]];
@@ -473,7 +480,7 @@ export function autoTypology(far: number): Typology { return far < 0.6 ? 'yakka'
 const gfaOf = (r: GenResult) => r.sections.reduce((s, x) => s + aOf(x.ring) * x.floors, 0);
 
 /** Asosiy kirish: tipologiya, maqsadli UMN, stilobat va parkovka */
-export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult {
+export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenOpts = {}): GenResult {
   const site = aOf(clean(block));
   const far = g.far ?? 0;
   const t: Typology = g.typology === 'avto' ? autoTypology(far || 2) : g.typology;
@@ -497,17 +504,65 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult
     r.sections = r.sections.map(s => ({ ...s, z0: st, nonRes: 0 }));
     r.sections.unshift({ ring: clean(outer!, 6), floors: st, kind: 'stilobat', nonRes: st, use: g.parking === 'stilobat' ? 'avtoturargoh' : 'savdo' });
   }
-  // parkovka
+  // avtoturargoh
   const pk = g.parking ?? 'yoq';
-  if (pk !== 'yoq' && outer) {
-    const A = clean(outer, 6), area = aOf(A), lv = Math.max(1, Math.round(g.parkLevels ?? 1));
-    if (pk === 'yer_osti') r.parking = { kind: pk, ring: A, levels: lv, spaces: Math.floor(area * 0.85 * lv / 30) };
-    else if (pk === 'stilobat') { if (podiumOk) r.parking = { kind: pk, ring: A, levels: st, spaces: Math.floor(area * 0.85 * st / 30) }; else r.notes.push('Stilobat ichida parkovka uchun stilobat qavatini kiriting'); }
-    else { const built = r.sections.filter(s => !s.z0 && s.kind !== 'stilobat').reduce((s, x) => s + aOf(x.ring), 0); r.parking = { kind: pk, ring: A, levels: 1, spaces: Math.floor(Math.max(0, area - built) * 0.35 / 25) }; }
-    if (r.parking) r.notes.push(`Parkovka: ${r.parking.spaces} joy (${PARK_NAME[pk]}${pk === 'yer_usti' ? ' — boʻsh hovlining 35 %, 413-band: 25 m²/joy' : ' — 30 m²/joy brutto, taxmin'})`);
-  }
+  if (pk !== 'yoq' && outer) r.parking = placeParking(clean(outer, 6), r, g, t, opts) ?? undefined;
   r.far = (gfaOf(r)) / site;
   return r;
+}
+
+/** 29-jadval talabi shu kvartal binolaridan (xonadonlar — turar GFA × netto ulushi ÷ oʻrtacha xonadon) */
+export function blockParkingNeed(sections: GenSection[], opts: GenOpts = {}): Record<string, number> {
+  let res = 0, ofis = 0, trade = 0;
+  for (const s of sections) {
+    if (s.kind === 'stilobat' && s.use === 'avtoturargoh') continue;
+    const a = aOf(s.ring), u = s.use ?? opts.use ?? 'turar', nr = Math.min(s.floors, s.nonRes);
+    if (u === 'ofis' || u === 'mehmonxona') ofis += a * s.floors;
+    else if (u === 'savdo') trade += a * s.floors;
+    else if (u === 'turar' || u === 'aralash') { res += a * (s.floors - nr); trade += a * nr; }
+  }
+  return parkingNeed({ apartments: res * (opts.netToGross ?? 0.75) / (opts.aptNet ?? 65), ofisGfa: ofis, tradeArea: trade * 0.7 });
+}
+
+const NEED_NAME: Record<string, string> = { kvartiralar: 'xonadonlar', ofis: 'ofis', savdo: 'savdo', maktab: 'maktab', mtm: 'MTM', park: 'park' };
+/** Avtoturargoh: joylar modul boʻyicha (dizayn-kod 6.3), soni — 29-jadval talabi boʻyicha (yoki sigʻimicha) */
+function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: GenOpts): GenParking | null {
+  const pk = g.parking ?? 'yoq'; if (pk === 'yoq') return null;
+  const mod: ParkModule = g.parkModule ?? 'p90', M = PARK_MOD[mod], norm = g.parkNorm ?? true;
+  const parts = blockParkingNeed(r.sections, opts), need = sumNeed(parts);
+  const needTxt = Object.entries(parts).filter(([, v]) => v > 0).map(([k, v]) => `${NEED_NAME[k] ?? k} ${v}`).join(' · ');
+  const modTxt = `${M.name}, ${String(M.W).replace('.', ',')} × ${String(M.L).replace('.', ',')} m, boʻlak ${String(M.A).replace('.', ',')} m`;
+  let out: GenParking | null = null;
+  if (pk === 'yer_osti' || pk === 'stilobat') {
+    const st = Math.max(0, Math.round(g.stylobate ?? 0));
+    if (pk === 'stilobat' && !r.sections.some(s => s.kind === 'stilobat')) { r.notes.push('Stilobat ichida parkovka uchun stilobat qavatini kiriting'); return null; }
+    // bitta sath: modul boʻyicha joylar; rampa, zinapoya-lift tugunlari, ustunlar va texnik xonalar uchun −20 %
+    const per = Math.floor(layoutStalls(A, [], mod).n * 0.8);
+    if (per <= 0) { r.notes.push('Avtoturargoh uchun joy yetarli emas'); return null; }
+    const lv = pk === 'stilobat' ? st : norm ? Math.max(1, Math.min(4, Math.ceil(need / per))) : Math.max(1, Math.round(g.parkLevels ?? 1));
+    out = { kind: pk, ring: A, levels: lv, spaces: per * lv, need, module: mod };
+    r.notes.push(`Avtoturargoh (${PARK_NAME[pk]}): ${out.spaces} joy — ${lv} sath × ${per} joy (${modTxt}; rampa, tugunlar va ustunlar −20 %)`);
+  } else {
+    // yer usti: binolardan bufer (turar — 10 m, boshqa — 3 m); joylar va boʻlaklar hovlining koʻpi bilan 35 % ida, savdo markazida — butun hovli
+    const ground = r.sections.filter(s => !s.z0 && !(s.kind === 'stilobat' && s.use === 'avtoturargoh'));
+    const obs: Obstacle[] = ground.map(s => ({ ring: s.ring, buf: (s.use ?? opts.use ?? 'turar') === 'turar' || s.use === 'aralash' ? 10 : 3 }));
+    const L = layoutStalls(A, obs, mod);
+    const free = Math.max(0, aOf(A) - ground.reduce((s, x) => s + aOf(x.ring), 0));
+    const cap = t === 'savdo_blok' ? Infinity : Math.floor(free * 0.35 / stallGross(mod));
+    const n = Math.min(L.n, cap, norm ? Math.max(need, 0) : Infinity);
+    const K = trimStalls(L, n, A);
+    if (!K.n) { r.notes.push('Yer usti avtoturargoh uchun hovlida joy yoʻq — yer osti variantini tanlang'); return null; }
+    out = { kind: pk, ring: A, levels: 1, spaces: K.n, need, module: mod, stalls: K.stalls, aisles: K.aisles };
+    r.notes.push(`Avtoturargoh (${PARK_NAME[pk]}): ${K.n} joy (${modTxt})`);
+  }
+  if (need > 0) {
+    r.notes.push(`Talab: ${need} joy (29-jadval: ${needTxt})`);
+    if (out.spaces < need) {
+      const per = Math.max(1, Math.floor(layoutStalls(A, [], mod).n * 0.8));
+      r.notes.push(`Yetishmaydi: ${need - out.spaces} joy — yer osti avtoturargoh (≈ ${Math.ceil((need - out.spaces) / per)} sath) yoki «Avtoturargoh» yer uchastkasi kerak`);
+    }
+  }
+  return out;
 }
 
 export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', savdo_blok: 'Savdo markazi + parkovka' };

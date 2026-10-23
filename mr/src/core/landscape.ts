@@ -82,9 +82,18 @@ const rectAt = (c: XY, a: number): XY[] => { const w = Math.min(40, Math.sqrt(a 
 
 let memo: { k: unknown[]; v: Yard[] } | null = null;
 export function landscape(doc: Project): Yard[] {
-  const k = [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross];
+  const k = [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.garages, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross];
   if (memo && memo.k.every((x, i) => x === k[i])) return memo.v;
   const v = landscapeRaw(doc); memo = { k, v }; return v;
+}
+/** Qavariq qobiq (avtoturargoh maydoni yaxlit — joylar orasidagi kichik boʻshliqlarga maydoncha tushmaydi) */
+function hull(P: XY[]): XY[] {
+  const p = [...P].sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
+  const cr = (o: XY, a: XY, b: XY) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo: XY[] = [], up: XY[] = [];
+  for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return [...lo.slice(0, -1), ...up.slice(0, -1)];
 }
 function landscapeRaw(doc: Project): Yard[] {
   const fr = frame(doc.origin), plan = computePlan(doc), out: Yard[] = [];
@@ -99,7 +108,9 @@ function landscapeRaw(doc: Project): Yard[] {
     // binolar atrofidagi 3 m trotuar
     const ring3 = safeUnion(own.flatMap(x => corridor([...x.r, x.r[0]], 3)));
     const paveAll = tryOp(() => polygonClipping.intersection(polygonClipping.difference(ring3, fp), B), [] as MultiPolygon);
-    const free = tryOp(() => polygonClipping.difference(B, fp, paveAll), [] as MultiPolygon);
+    // yer usti avtoturargoh (joylar va boʻlaklar) — hovli maydonchalari uning ustiga tushmaydi
+    const park: Polygon[] = doc.garages.flatMap(g => g.kind === 'yer_usti' && g.stalls?.length ? [[close(hull([...g.stalls, ...(g.aisles ?? [])].flat().map(fr.toLocal)))] as Polygon] : []);
+    const free = tryOp(() => polygonClipping.difference(B, fp, paveAll, ...park), [] as MultiPolygon);
     if (!free.length) return;
     // aholi (shu kvartal binolari)
     const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * useDef(x.b.use).res * doc.settings.netToGross / doc.settings.m2PerPerson, 0);

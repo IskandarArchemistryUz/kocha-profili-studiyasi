@@ -115,7 +115,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
         d.streets = doc.streets.map(x => ({ ...x, axis: mv(x.axis) }));
         d.zones = doc.zones.map(z => ({ ...z, at: mv([z.at])[0] }));
         d.parcels = doc.parcels.map(p => ({ ...p, rings: p.rings.map(mv) }));
-        d.garages = doc.garages.map(g => ({ ...g, ring: mv(g.ring) }));
+        d.garages = doc.garages.map(g => ({ ...g, ring: mv(g.ring), ...(g.stalls ? { stalls: g.stalls.map(mv) } : {}), ...(g.aisles ? { aisles: g.aisles.map(mv) } : {}) }));
         d.keep = []; // koʻchirilgan joyda boshqa binolar
       }
       return d;
@@ -221,7 +221,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
         const floors = Math.max(1, Math.round(x.floors));
         return { id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: x.kind === 'stilobat' ? floors : Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind }, ...(x.z0 ? { z0: x.z0 } : {}) };
       })];
-      d.garages = [...doc.garages.filter(g => g.grp !== c.grp), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring) }] : [])];
+      d.garages = [...doc.garages.filter(g => g.grp !== c.grp), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring), ...(c.garage.stalls ? { stalls: c.garage.stalls.map(copyRing) } : {}), ...(c.garage.aisles ? { aisles: c.garage.aisles.map(copyRing) } : {}) }] : [])];
       if (c.label) { const z = c.label; d.zones = [...doc.zones.filter(q => q.id !== z.id), { ...z, at: [z.at[0], z.at[1]] as LngLat }]; }
       return d;
     }

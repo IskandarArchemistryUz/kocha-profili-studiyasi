@@ -797,7 +797,19 @@ export class Scene3D {
     // parkovkalar: yer osti — siyohrang uzuq kontur, yer usti — kulrang maydon
     doc.garages.forEach(gr => {
       const r = gr.ring.map(fr.toLocal);
-      if (gr.kind === 'yer_usti') {
+      if (gr.kind === 'yer_usti' && gr.stalls?.length) {
+        // modul boʻyicha: manevr boʻlaklari (toʻq asfalt), joylar (ochroq) va oq chiziqlar
+        const flatG = (qs: XY[][]) => { const a: number[] = []; for (const q of qs) for (let i = 1; i + 1 < q.length; i++) a.push(q[0][0], q[0][1], 0, q[i][0], q[i][1], 0, q[i + 1][0], q[i + 1][1], 0); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a, 3)); return g; };
+        const loc = (rs: [number, number][][]) => rs.map(q => q.map(fr.toLocal));
+        const S = loc(gr.stalls), A = loc(gr.aisles ?? []);
+        const mat = (c: number) => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 });
+        const ga = new THREE.Mesh(drape(flatG(A), this.H, 0.38, this.ctx ? 8 : 1e9), mat(0x8e9298)); ga.renderOrder = 6.5; ga.userData.garage = gr.id; this.world.add(ga);
+        const gs = new THREE.Mesh(drape(flatG(S), this.H, 0.39, 1e9), mat(0xb4b8bd)); gs.renderOrder = 6.6; gs.userData.garage = gr.id; this.world.add(gs);
+        const lp: number[] = [];
+        for (const q of S) for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; lp.push(a[0], this.H(a[0], a[1]) + 0.42, -a[1], b[0], this.H(b[0], b[1]) + 0.42, -b[1]); }
+        const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+        const ls = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })); ls.renderOrder = 6.7; this.world.add(ls);
+      } else if (gr.kind === 'yer_usti') {
         const sh = new THREE.Shape(r.map(toV2)), g = drape(new THREE.ShapeGeometry(sh), this.H, 0.35, this.ctx ? 8 : 1e9);
         const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xa9adb3, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })); m.renderOrder = 6.5; this.world.add(m);
       } else {
