@@ -30,43 +30,57 @@ export function sheetGroup(pl: SecPlan, gi?: number): { gi: number; from: number
 }
 
 /** Navigatsiya sxemasi ranglari — hamma joyda bir xil */
-export const NAV = { site: '#f7f6f2', block: '#ffffff', blockLine: '#c9c5bc', other: '#e6e3dc', otherLine: '#a9a49b', plot: '#d6d1c6', plotLine: '#6b6760', group: '#8e8a82', cur: '#1d1d1b', frame: '#1d1d1b' };
+export const NAV = { site: '#f7f6f2', block: '#ffffff', blockLine: '#c9c5bc', other: '#e6e3dc', otherLine: '#a9a49b', plot: '#8e8a82', plotLine: '#3a3936', group: '#8e8a82', cur: '#1d1d1b', frame: '#1d1d1b' };
 
-/**
- * Navigatsiya sxemasi (kichik genplan): qutiga sigʻdiriladi, T — burilish (reja bilan bir xil), shimol strelkasi va izoh bilan.
- * plot — uchastka (daha) halqalari, group — blok (tutash seksiyalar), cur — koʻrsatilgan seksiya.
- */
-export function navScheme(x: number, y: number, w: number, h: number, T: (p: XY) => XY, northDeg: number, d: { site: XY[][]; blocks: XY[][]; others: XY[][]; plot: XY[][]; group: XY[][]; cur: XY[][] }, title: string, keys: [string, string, string]): string {
-  const out: string[] = [], th = 5, kh = 5, bx = x, by = y + th, bw = w, bh = h - th - kh;
-  out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="#ffffff" stroke="${NAV.frame}" stroke-width="0.3"/>`);
-  out.push(`<text x="${n2(x + 2)}" y="${n2(y + 3.6)}" font-size="2.6" font-weight="700" letter-spacing="0.2" fill="#1d1d1b">${esc(title.toUpperCase())}</text>`);
-  out.push(`<path d="M${n2(x)} ${n2(by)}H${n2(x + w)}" stroke="#d9d6cf" stroke-width="0.2"/>`);
-  const focus = [...d.site, ...d.blocks, ...d.others, ...d.cur];
+/** Bitta panel: halqalar burilgan holda qutiga sigʻdiriladi (focus — qaysi halqalar koʻrinishi kerak) */
+function navPanel(out: string[], bx: number, by: number, bw: number, bh: number, T: (p: XY) => XY, focus: XY[][], layers: { rs: XY[][]; fill: string; stroke: string; sw: number; dash?: string }[]): void {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const r of focus) for (const p of r) { const q = T(p); x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
-  if (isFinite(x0)) {
-    const pad = 3, k = Math.min((bw - 2 * pad) / (x1 - x0 || 1), (bh - 2 * pad) / (y1 - y0 || 1));
-    const ox = bx + (bw - (x1 - x0) * k) / 2, oy = by + (bh - (y1 - y0) * k) / 2;
-    const P = (p: XY) => { const q = T(p); return `${n2(ox + (q[0] - x0) * k)} ${n2(oy + (y1 - q[1]) * k)}`; };
-    const D = (rs: XY[][]) => rs.map(r => r.map((p, i) => `${i ? 'L' : 'M'}${P(p)}`).join('') + 'Z').join('');
-    const L = (rs: XY[][], fill: string, stroke: string, sw: number) => { if (rs.length) out.push(`<path d="${D(rs)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" fill-rule="evenodd" stroke-linejoin="round"/>`); };
-    L(d.site, NAV.site, '#8e8a82', 0.3);
-    L(d.blocks, NAV.block, NAV.blockLine, 0.15);
-    L(d.plot, NAV.plot, NAV.plotLine, 0.3);
-    L(d.others, NAV.other, NAV.otherLine, 0.12);
-    L(d.group, NAV.group, NAV.group, 0.12);
-    L(d.cur, NAV.cur, NAV.cur, 0.15);
-  }
-  // shimol
-  out.push(`<g transform="translate(${n2(x + w - 4)} ${n2(by + 5)}) rotate(${n2(-northDeg)})"><circle r="2.8" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.2"/><path d="M0 -2.4L1 1.2L0 0.5L-1 1.2Z" fill="#1d1d1b"/></g><text x="${n2(x + w - 4)}" y="${n2(by + 1.1)}" font-size="1.6" font-weight="700" text-anchor="middle" fill="#1d1d1b">N</text>`);
+  if (!isFinite(x0)) return;
+  const pad = 2.5, k = Math.min((bw - 2 * pad) / (x1 - x0 || 1), (bh - 2 * pad) / (y1 - y0 || 1));
+  const ox = bx + (bw - (x1 - x0) * k) / 2, oy = by + (bh - (y1 - y0) * k) / 2;
+  const P = (p: XY) => { const q = T(p); return `${n2(ox + (q[0] - x0) * k)} ${n2(oy + (y1 - q[1]) * k)}`; };
+  const D = (rs: XY[][]) => rs.map(r => r.map((p, i) => `${i ? 'L' : 'M'}${P(p)}`).join('') + 'Z').join('');
+  const id = `nv${Math.round(bx * 10)}_${Math.round(by * 10)}`;
+  out.push(`<clipPath id="${id}"><rect x="${n2(bx)}" y="${n2(by)}" width="${n2(bw)}" height="${n2(bh)}"/></clipPath><g clip-path="url(#${id})">`);
+  for (const L of layers) if (L.rs.length) out.push(`<path d="${D(L.rs)}" fill="${L.fill}" stroke="${L.stroke}" stroke-width="${L.sw}"${L.dash ? ` stroke-dasharray="${L.dash}"` : ''} fill-rule="evenodd" stroke-linejoin="round"/>`);
+  out.push('</g>');
+}
+
+/**
+ * Navigatsiya sxemasi (egasi, 23.10): bitta ramkada ikki panel —
+ *   chapda kichik genplan: hudud chegarasi qizil, uchastka (daha) toʻq;
+ *   oʻngda sal kattaroq blok (daha) rejasi: undagi seksiyalar, koʻrsatilgan seksiya qora.
+ * Ikkalasi reja bilan bir xil burilishda, shimol strelkasi bilan. Hamma joyda shu uslub.
+ */
+export function navScheme(x: number, y: number, w: number, h: number, T: (p: XY) => XY, northDeg: number, d: { site: XY[][]; blocks: XY[][]; others: XY[][]; plot: XY[][]; group: XY[][]; cur: XY[][]; inPlot?: XY[][] }, title: string, keys: [string, string, string]): string {
+  const out: string[] = [], th = 5, kh = 5, by = y + th, bh = h - th - kh, lw = w * 0.4;
+  out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="#ffffff" stroke="${NAV.frame}" stroke-width="0.3"/>`);
+  out.push(`<text x="${n2(x + 2)}" y="${n2(y + 3.6)}" font-size="2.6" font-weight="700" letter-spacing="0.2" fill="#1d1d1b">${esc(title.toUpperCase())}</text>`);
+  out.push(`<path d="M${n2(x)} ${n2(by)}H${n2(x + w)}M${n2(x + lw)} ${n2(by)}V${n2(by + bh)}M${n2(x)} ${n2(by + bh)}H${n2(x + w)}" stroke="#d9d6cf" stroke-width="0.2"/>`);
+  // 1) genplan: hudud chegarasi qizil, uchastka toʻq
+  navPanel(out, x, by, lw, bh, T, [...d.site, ...d.blocks], [
+    { rs: d.blocks, fill: NAV.block, stroke: NAV.blockLine, sw: 0.12 },
+    { rs: [...d.others, ...d.group, ...d.cur], fill: NAV.other, stroke: NAV.otherLine, sw: 0.08 },
+    { rs: d.plot, fill: NAV.plot, stroke: NAV.plotLine, sw: 0.25 },
+    { rs: d.site, fill: 'none', stroke: '#d0342c', sw: 0.45 },
+  ]);
+  // 2) blok: seksiyalar, koʻrsatilgani qora
+  const inPlot = d.plot.length ? d.plot : d.cur;
+  navPanel(out, x + lw, by, w - lw, bh, T, inPlot, [
+    { rs: d.plot, fill: NAV.site, stroke: '#6b6760', sw: 0.3 },
+    { rs: d.inPlot ?? d.others, fill: '#ffffff', stroke: '#6b6760', sw: 0.18 },
+    { rs: d.group, fill: NAV.other, stroke: '#6b6760', sw: 0.18 },
+    { rs: d.cur, fill: NAV.cur, stroke: NAV.cur, sw: 0.2 },
+  ]);
+  // shimol — sarlavha qatorida, oʻngda
+  out.push(`<text x="${n2(x + w - 6.2)}" y="${n2(y + 3.6)}" font-size="1.9" font-weight="700" text-anchor="end" fill="#1d1d1b">N</text><g transform="translate(${n2(x + w - 3.4)} ${n2(y + 2.5)}) rotate(${n2(-northDeg)})"><path d="M0 -2L0.9 1.1L0 0.4L-0.9 1.1Z" fill="#1d1d1b"/></g>`);
   // izoh
   const ky = y + h - kh + 3.4; let kx = x + 2;
-  for (const [c, t] of [[NAV.plot, keys[0]], [NAV.group, keys[1]], [NAV.cur, keys[2]]] as const) {
-    if (!t) continue;
-    out.push(`<rect x="${n2(kx)}" y="${n2(ky - 2.2)}" width="3" height="2.4" fill="${c}" stroke="#6b6760" stroke-width="0.12"/><text x="${n2(kx + 4)}" y="${n2(ky)}" font-size="2" fill="#3a3936">${esc(t)}</text>`);
-    kx += 5 + t.length * 1.05;
-  }
-  out.push(`<path d="M${n2(x)} ${n2(y + h - kh)}H${n2(x + w)}" stroke="#d9d6cf" stroke-width="0.2"/>`);
+  const key = (sw: string, t: string) => { out.push(sw, `<text x="${n2(kx + 4)}" y="${n2(ky)}" font-size="2" fill="#3a3936">${esc(t)}</text>`); kx += 6 + t.length * 1.05; };
+  key(`<path d="M${n2(kx)} ${n2(ky - 1)}H${n2(kx + 3)}" stroke="#d0342c" stroke-width="0.5"/>`, keys[0]);
+  key(`<rect x="${n2(kx)}" y="${n2(ky - 2.2)}" width="3" height="2.4" fill="${NAV.plot}" stroke="${NAV.cur}" stroke-width="0.15"/>`, keys[1]);
+  key(`<rect x="${n2(kx)}" y="${n2(ky - 2.2)}" width="3" height="2.4" fill="${NAV.cur}"/>`, keys[2]);
   return out.join('');
 }
 
@@ -100,7 +114,7 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
   const body = (vx: number, vy: number, vw: number, vh: number): string => {
     const out: string[] = [];
     // navigatsiya sxemasi — oʻng-yuqori burchakda
-    const nw = Math.max(58, Math.min(90, vw * 0.24)), nh = nw * 0.82, nx = vx + vw - nw - 2, ny = vy + 2;
+    const nw = Math.max(80, Math.min(120, vw * 0.32)), nh = nw * 0.6, nx = vx + vw - nw - 2, ny = vy + 2;
     // reja: sarlavha ostida, navigatsiya sxemasi bilan toʻqnashmaydigan joyda (avval yonida, sigʻmasa — ostida)
     const tH = 12, top = vy + tH, availH = vh - tH - 2, availW = vw - 4;
     let res = probe, sc = 100;
@@ -124,8 +138,8 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
     out.push(svg.replace(/^<svg /, `<svg x="${n2(px)}" y="${n2(py)}" `).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `width="${n2(ww)}" height="${n2(hh)}"`));
     out.push(navScheme(nx, ny, nw, nh, T, northDeg, {
       site, blocks: plan.blocks.flatMap(b => b.rings), others: blds.filter(b => !grp.has(b.id)).map(b => b.r),
-      plot: blk?.rings ?? [], group: inBlk.filter(b => grp.has(b.id) && b.id !== pl.bid).map(b => b.r), cur: [pl.ring],
-    }, tr('Vaziyat sxemasi'), [tr('uchastka'), grp.size > 1 ? tr('blok') : '', tr('seksiya')]));
+      plot: blk?.rings ?? [], group: inBlk.filter(b => grp.has(b.id) && b.id !== pl.bid).map(b => b.r), cur: [pl.ring], inPlot: inBlk.filter(b => !grp.has(b.id)).map(b => b.r),
+    }, tr('Vaziyat sxemasi'), [tr('hudud chegarasi'), tr('uchastka'), tr('seksiya')]));
     return out.join('');
   };
 
