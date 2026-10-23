@@ -453,7 +453,7 @@ export class Scene3D {
   }
   private facadeSpec(b: Project['buildings'][number]): WinSpec | null { return b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null; }
   private facadeEligible(b: Project['buildings'][number]): boolean {
-    return (this.detail || !!b.winPat || !!b.balPat) && !!this.facadeSpec(b) && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
+    return this.style !== 'funksiya' && (this.detail || !!b.winPat || !!b.balPat) && !!this.facadeSpec(b) && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
   }
   private pickLod(doc: Project): Set<string> {
     const out = new Set<string>(); if (this.selected) out.add(this.selected);
@@ -626,12 +626,13 @@ export class Scene3D {
     const roofK = b.roof ?? 'tekis', tinted = !plain && st !== 'funksiya';
     const spec: WinSpec | null = this.facadeSpec(b);
     // geometrik fasad: deraza oʻyiqlari, romlar, balkonlar — faqat kamera atrofidagi binolarda (LOD), qolganlari teksturada
-    const det = this.facadeEligible(b) && this.detIds.has(b.id);
+    const fn = st === 'funksiya';   // «Funksiya ranglari» — sodda hajm, faqat rang: oyna, balkon, quyosh himoyasi va geometrik fasad yoʻq
+    const det = !fn && this.facadeEligible(b) && this.detIds.has(b.id);
     const part = (ring: XY[], z0: number, z1: number, color: number, kind: 'res' | 'shop' | 'glass' | null, top = false, outline = false) => {
       const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
       if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
       const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
-      if (kind && spec && !plain) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
+      if (kind && spec && !plain && !fn) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
       if (det && (kind === 'res' || kind === 'shop')) wall.visible = false;   // devorni geometrik fasad almashtiradi
       const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
       if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
@@ -668,10 +669,10 @@ export class Scene3D {
         if (v.length) { const gt = new THREE.BufferGeometry(); gt.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); this.world.add(new THREE.LineSegments(gt, edgeMat())); } } }
     const shared = (ti: number, k: number) => ti === 0 && SM[smOf.get(b.id)!].edgeTop[k] >= base + (tiers[0].f1 * fh) - 0.05;
     // quyosh himoyasi
-    if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
+    if (b.shade && !dim && !fn) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
     // balkonlar (turar qavatlarda, 2-qavatdan)
     if (det) this.facadeGeo(b, tiers, nr, base, fh, shared, spec!, parking, baseC, topC, P3.filter((_, i) => i !== bi));
-    else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain, b.balPat, strSeed(b.id));
+    else if (b.bal && !dim && !office && !parking && !fn) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain, b.balPat, strSeed(b.id));
     const topZ = base + (last?.f1 ?? b.floors) * fh;
     if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
       const gr = B.GR.get(b.id), parts = gr ? [gr] : roofParts(last.ring, roofK);
