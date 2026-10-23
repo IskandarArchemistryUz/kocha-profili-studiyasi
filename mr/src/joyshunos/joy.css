@@ -237,3 +237,41 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-rep{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .joy-rep .t-small{margin-right:auto}
 .eko .svc em.beta{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:var(--r-pill);background:var(--warn-soft);color:var(--warn)}
+
+/* ——— Koʻcha tahlili (A → B) ——— */
+.joy-an{height:34px;flex:none}
+.joy-an button{font-size:12.5px}
+.joy-st-how{display:flex;flex-direction:column;gap:8px}
+.joy-st-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.joy-st-steps li{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.joy-st-steps li b{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--fill);color:var(--ink);font-size:12px;flex:none}
+.joy-st-steps li[aria-current="step"]{color:var(--ink);font-weight:600}
+.joy-st-steps li[aria-current="step"] b{background:var(--svc-joy);color:#fff}
+.joy-st-how>.btn{align-self:flex-start}
+#stMetric{height:30px}
+#stMetric button{font-size:12px;padding:0 6px}
+.joy-st-cnt{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.joy-st-cnt summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.joy-st-cnt .li{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.joy-st-cnt .li .k{font-size:12.5px;min-width:0}
+.joy-st-cnt .li .input{width:90px;flex:none}
+.joy-st-bar{display:flex;height:12px;border-radius:3px;overflow:hidden;margin-top:6px;gap:1px}
+.joy-st-bar i{display:block;min-width:2px}
+.joy-st-bar .pd{background:#9fbcd6}.joy-st-bar .cw{background:#4a5560}
+.joy-st-find{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.joy-st-find li{display:grid;grid-template-columns:18px 1fr;gap:8px;font-size:12.5px;line-height:1.45}
+.joy-st-find li svg{width:18px;height:18px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.joy-st-find li.ok svg{stroke:var(--good,#2f7d4f)}.joy-st-find li.bad svg{stroke:var(--bad)}
+.joy-st-find li em{display:block;font-style:normal;font-size:11px;color:var(--faint)}
+.joy-strip{position:absolute;left:310px;right:340px;bottom:16px;z-index:4;border-radius:var(--r-card);padding:10px 14px 8px;display:flex;flex-direction:column;gap:4px}
+.joy-st-sh{display:flex;align-items:baseline;gap:10px;font-size:12.5px}
+.joy-st-svg svg{display:block;max-width:100%;height:auto;overflow:visible}
+.joy-st-svg .lb{font-size:11px;fill:var(--muted);font-family:inherit}
+.joy-st-svg .ax{font-size:10px;fill:var(--faint);font-variant-numeric:tabular-nums}
+.joy-st-svg .jn{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3;opacity:.6}
+.joy-st-svg .sl.on .hit{fill:rgba(20,20,20,.12)}
+[data-theme="dark"] .joy-st-svg .sl.on .hit{fill:rgba(255,255,255,.14)}
+.joy-stpin{width:26px;height:26px;border-radius:50%;background:var(--svc-joy,#c0643a);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;border:2px solid #fff;box-shadow:var(--sh-float)}
+#joy.an-kocha .joy-ask,#joy.an-kocha .joy-mode{display:none}
+@media (max-width:1280px){.joy-strip{left:280px;right:316px}}
+.joy-strip[hidden]{display:none}
