@@ -1,18 +1,22 @@
 /**
- * 20-band: «Qavat rejasi» varagʻi — ish chizmalaridagidek: bitta varaqda bitta qavat (yoki bir xil qavatlar guruhi) rejasi,
- * kvartiralar raqamlangan; oʻng ustunda navigatsiya sxemalari (master reja — daha va bino belgilangan; daha sxemasi —
- * bino belgilangan) va kvartiralar eksplikatsiyasi jadvali. Sxemalar reja bilan bir xil burilishda (shimol strelkasi bilan).
+ * 20-band: «Qavat rejasi» varagʻi — ish chizmalaridagidek (egasining eskizi, 23.10):
+ *   - chizma maydonida chap-yuqorida reja nomi va masshtabi, ostida reja (kvartiralar raqamlangan);
+ *   - oʻng-yuqori burchakda bitta navigatsiya sxemasi: genplan — uchastka (daha) toʻqroq, blok (tutash seksiyalar) yanada
+ *     toʻqroq, koʻrsatilgan seksiya — qora; shimol strelkasi sxemada (rejaga mos burilishda);
+ *   - kvartiralar eksplikatsiyasi — varaqning oʻng ustunida (shartli belgilar ostida).
+ * Navigatsiya sxemasi — umumiy uslub (`navScheme`), boshqa varaq va oynalarda ham shu koʻrinishda.
  */
 import { obb2, centroid, type XY } from './geo';
 import { frame } from './geo';
 import type { Project } from './doc';
 import type { SecPlan } from './apartments';
 import { computePlan, pointIn } from './plan';
-import { floorPlanSvg, floorGroups, groupName, APT_FILL, type PlanOpts } from './floorplan';
+import { floorPlanSvg, floorGroups, groupName, FLOOR_NAME, floorTypeOf, APT_FILL, type PlanOpts } from './floorplan';
+import { sharedEdge } from './sectionplan';
 import type { LegendItem } from './sheet';
 import type { Bal } from './facade';
 
-export interface AptSheet { name: string; label: string; legend: LegendItem[]; rows: { n: number; rooms: number; area: number }[]; body: (vx: number, vy: number, vw: number, vh: number) => string }
+export interface AptSheet { name: string; label: string; legend: LegendItem[]; rows: { n: number; rooms: number; area: number }[]; body: (vx: number, vy: number, vw: number, vh: number) => string; side: (x: number, y: number, w: number, yMax: number) => string }
 
 const n2 = (v: number) => v.toFixed(2);
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -25,96 +29,131 @@ export function sheetGroup(pl: SecPlan, gi?: number): { gi: number; from: number
   return { gi: i, from: gs[i].from, to: gs[i].to };
 }
 
+/** Navigatsiya sxemasi ranglari — hamma joyda bir xil */
+export const NAV = { site: '#f7f6f2', block: '#ffffff', blockLine: '#c9c5bc', other: '#e6e3dc', otherLine: '#a9a49b', plot: '#d6d1c6', plotLine: '#6b6760', group: '#8e8a82', cur: '#1d1d1b', frame: '#1d1d1b' };
+
+/**
+ * Navigatsiya sxemasi (kichik genplan): qutiga sigʻdiriladi, T — burilish (reja bilan bir xil), shimol strelkasi va izoh bilan.
+ * plot — uchastka (daha) halqalari, group — blok (tutash seksiyalar), cur — koʻrsatilgan seksiya.
+ */
+export function navScheme(x: number, y: number, w: number, h: number, T: (p: XY) => XY, northDeg: number, d: { site: XY[][]; blocks: XY[][]; others: XY[][]; plot: XY[][]; group: XY[][]; cur: XY[][] }, title: string, keys: [string, string, string]): string {
+  const out: string[] = [], th = 5, kh = 5, bx = x, by = y + th, bw = w, bh = h - th - kh;
+  out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="#ffffff" stroke="${NAV.frame}" stroke-width="0.3"/>`);
+  out.push(`<text x="${n2(x + 2)}" y="${n2(y + 3.6)}" font-size="2.6" font-weight="700" letter-spacing="0.2" fill="#1d1d1b">${esc(title.toUpperCase())}</text>`);
+  out.push(`<path d="M${n2(x)} ${n2(by)}H${n2(x + w)}" stroke="#d9d6cf" stroke-width="0.2"/>`);
+  const focus = [...d.site, ...d.blocks, ...d.others, ...d.cur];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of focus) for (const p of r) { const q = T(p); x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
+  if (isFinite(x0)) {
+    const pad = 3, k = Math.min((bw - 2 * pad) / (x1 - x0 || 1), (bh - 2 * pad) / (y1 - y0 || 1));
+    const ox = bx + (bw - (x1 - x0) * k) / 2, oy = by + (bh - (y1 - y0) * k) / 2;
+    const P = (p: XY) => { const q = T(p); return `${n2(ox + (q[0] - x0) * k)} ${n2(oy + (y1 - q[1]) * k)}`; };
+    const D = (rs: XY[][]) => rs.map(r => r.map((p, i) => `${i ? 'L' : 'M'}${P(p)}`).join('') + 'Z').join('');
+    const L = (rs: XY[][], fill: string, stroke: string, sw: number) => { if (rs.length) out.push(`<path d="${D(rs)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" fill-rule="evenodd" stroke-linejoin="round"/>`); };
+    L(d.site, NAV.site, '#8e8a82', 0.3);
+    L(d.blocks, NAV.block, NAV.blockLine, 0.15);
+    L(d.plot, NAV.plot, NAV.plotLine, 0.3);
+    L(d.others, NAV.other, NAV.otherLine, 0.12);
+    L(d.group, NAV.group, NAV.group, 0.12);
+    L(d.cur, NAV.cur, NAV.cur, 0.15);
+  }
+  // shimol
+  out.push(`<g transform="translate(${n2(x + w - 4)} ${n2(by + 5)}) rotate(${n2(-northDeg)})"><circle r="2.8" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.2"/><path d="M0 -2.4L1 1.2L0 0.5L-1 1.2Z" fill="#1d1d1b"/></g><text x="${n2(x + w - 4)}" y="${n2(by + 1.1)}" font-size="1.6" font-weight="700" text-anchor="middle" fill="#1d1d1b">N</text>`);
+  // izoh
+  const ky = y + h - kh + 3.4; let kx = x + 2;
+  for (const [c, t] of [[NAV.plot, keys[0]], [NAV.group, keys[1]], [NAV.cur, keys[2]]] as const) {
+    if (!t) continue;
+    out.push(`<rect x="${n2(kx)}" y="${n2(ky - 2.2)}" width="3" height="2.4" fill="${c}" stroke="#6b6760" stroke-width="0.12"/><text x="${n2(kx + 4)}" y="${n2(ky)}" font-size="2" fill="#3a3936">${esc(t)}</text>`);
+    kx += 5 + t.length * 1.05;
+  }
+  out.push(`<path d="M${n2(x)} ${n2(y + h - kh)}H${n2(x + w)}" stroke="#d9d6cf" stroke-width="0.2"/>`);
+  return out.join('');
+}
+
+/** Tutash seksiyalar (umumiy devor ≥ 1 m) — bitta blok */
+function groupOf(rings: { id: string; r: XY[] }[], id: string): Set<string> {
+  const seen = new Set([id]), q = [id];
+  while (q.length) {
+    const a = rings.find(x => x.id === q.pop()); if (!a) continue;
+    for (const b of rings) if (!seen.has(b.id) && sharedEdge(a.r, b.r, 0.3).len >= 1) { seen.add(b.id); q.push(b.id); }
+  }
+  return seen;
+}
+
 export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number | undefined, look: 'rang' | 'bir', tr: (s: string) => string, opt: (pl: SecPlan) => { fh?: number; bal?: Bal | null } = () => ({})): AptSheet {
   const pl = plans[bi], G = sheetGroup(pl, gi), nFl = G.to - G.from + 1;
-  const name = `${bi + 1}-bino · ${groupName(G)}`;
+  const name = `${tr(`${bi + 1}-bino`)} · ${tr(groupName(G))}`;
   const U = obb2(pl.ring).U, V: XY = [-U[1], U[0]], T = (p: XY): XY => [p[0] * U[0] + p[1] * U[1], p[0] * V[0] + p[1] * V[1]];
   const northDeg = Math.atan2(U[0], U[1]) * 180 / Math.PI;
   const fr = frame(doc.origin), site = doc.site?.rings.map(r => r.map(fr.toLocal)) ?? [];
   const blds = doc.buildings.map(b => ({ id: b.id, r: b.footprint.map(fr.toLocal) }));
   const plan = computePlan(doc), c0 = centroid(pl.ring), blk = plan.blocks.find(b => pointIn(c0, b.rings)) ?? null;
-  const own = new Set(plans.filter(p => p.bid === pl.bid).map(() => pl.bid));
+  const inBlk = blk ? blds.filter(b => pointIn(centroid(b.r), blk.rings)) : blds;
+  const grp = groupOf(inBlk, pl.bid);
   // reja (bitta qavat) — kvartiralar raqamli
-  const base: PlanOpts = { scale: 100, dims: true, title: '', floor: G.from, num: true, ...opt(pl) };
+  const base: PlanOpts = { scale: 100, dims: true, title: '', floor: G.from, num: true, bare: true, ...opt(pl) };
   const probe = floorPlanSvg(pl, base), rows = probe.apts.map((a, i) => ({ n: i + 1, rooms: a.rooms, area: a.area }));
   const legend: LegendItem[] = look === 'bir' ? [] : [1, 2, 3, 4].filter(k => rows.some(r => Math.min(4, r.rooms) === k)).map(k => ({ type: 'fill' as const, fill: APT_FILL[k], label: `${k} ${tr('xonali')}` }));
   let label = 'M 1:100';
-
-  /** sxema: halqalar burilgan holda qutiga sigʻdiriladi */
-  const scheme = (x: number, y: number, w: number, h: number, focus: XY[][], layers: { rings: XY[][]; fill: string; stroke: string; sw: number }[]): string => {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const r of focus) for (const p of r) { const q = T(p); x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
-    if (!isFinite(x0)) return '';
-    const pad = 3, k = Math.min((w - 2 * pad) / (x1 - x0 || 1), (h - 2 * pad) / (y1 - y0 || 1));
-    const ox = x + (w - (x1 - x0) * k) / 2, oy = y + (h - (y1 - y0) * k) / 2;
-    const P = (p: XY) => { const q = T(p); return `${n2(ox + (q[0] - x0) * k)} ${n2(oy + (y1 - q[1]) * k)}`; };
-    const d = (rs: XY[][]) => rs.map(r => r.map((p, i) => `${i ? 'L' : 'M'}${P(p)}`).join('') + 'Z').join('');
-    const out = [`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="#ffffff" stroke="#b9b5ab" stroke-width="0.25"/>`, `<clipPath id="cp${Math.round(x * 10)}_${Math.round(y * 10)}"><rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}"/></clipPath><g clip-path="url(#cp${Math.round(x * 10)}_${Math.round(y * 10)})">`];
-    for (const L of layers) if (L.rings.length) out.push(`<path d="${d(L.rings)}" fill="${L.fill}" stroke="${L.stroke}" stroke-width="${L.sw}" fill-rule="evenodd"/>`);
-    out.push('</g>');
-    // shimol strelkasi (reja burilishiga mos)
-    const ax = x + w - 4.5, ay = y + 5;
-    out.push(`<g transform="translate(${n2(ax)} ${n2(ay)}) rotate(${n2(-northDeg)})"><path d="M0 -3L1.3 1.6L0 0.8L-1.3 1.6Z" fill="#1d1d1b"/><text y="-3.6" font-size="2" text-anchor="middle" fill="#1d1d1b">N</text></g>`);
-    return out.join('');
-  };
+  const ft = floorTypeOf(pl, G.from);
 
   const body = (vx: number, vy: number, vw: number, vh: number): string => {
-    const cw = Math.max(62, Math.min(105, vw * 0.3)), gap = 6, mw = vw - cw - gap, out: string[] = [];
-    // reja masshtabi: eng yirigi (sigʻadigani)
+    const out: string[] = [];
+    // navigatsiya sxemasi — oʻng-yuqori burchakda
+    const nw = Math.max(58, Math.min(90, vw * 0.24)), nh = nw * 0.82, nx = vx + vw - nw - 2, ny = vy + 2;
+    // reja: sarlavha ostida, navigatsiya sxemasi bilan toʻqnashmaydigan joyda (avval yonida, sigʻmasa — ostida)
+    const tH = 12, top = vy + tH, availH = vh - tH - 2, availW = vw - 4;
     let res = probe, sc = 100;
-    for (const s of [50, 100, 200, 500, 1000]) { const r = s === 100 ? probe : floorPlanSvg(pl, { ...base, scale: s }); sc = s; res = r; if (r.widthMm <= mw && r.heightMm <= vh) break; }
+    for (const s of [50, 100, 200, 500, 1000]) {
+      const r = s === 100 ? probe : floorPlanSvg(pl, { ...base, scale: s }); sc = s; res = r;
+      // sxema bilan kesishmasin: reja oʻng chetidan sxemagacha joy yoki reja sxema ostidan boshlanadi
+      const okSide = r.widthMm <= availW - nw - 4 && r.heightMm <= availH, okBelow = r.widthMm <= availW && r.heightMm <= vh - (nh + 6) - 2;
+      if (okSide || okBelow) break;
+    }
     label = `M 1:${sc}`;
     let svg = res.svg.replace(/^<\?xml[^>]*>\s*/, '');
     if (look === 'bir') for (const c of Object.values(APT_FILL)) svg = svg.split(c).join('#ffffff');
-    const k = Math.min(1, mw / res.widthMm, vh / res.heightMm), ww = res.widthMm * k, hh = res.heightMm * k;
-    out.push(svg.replace(/^<svg /, `<svg x="${n2(vx + (mw - ww) / 2)}" y="${n2(vy + (vh - hh) / 2)}" `).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `width="${n2(ww)}" height="${n2(hh)}"`));
-    // ajratuvchi chiziq va oʻng ustun
-    const x = vx + mw + gap / 2; out.push(`<path d="M${n2(x)} ${n2(vy)}V${n2(vy + vh)}" stroke="#d9d6cf" stroke-width="0.25"/>`);
-    const cx = vx + mw + gap; let y = vy;
-    const head = (t: string) => { out.push(`<text x="${n2(cx)}" y="${n2(y + 3)}" font-size="2.8" font-weight="700" fill="#1d1d1b">${esc(t)}</text>`); y += 5; };
-    const sh = Math.min(cw * 0.62, (vh - 60) / 2);
-    head(tr('Vaziyat sxemasi'));
-    const all = [...site, ...plan.blocks.flatMap(b => b.rings), ...blds.map(b => b.r)];
-    out.push(scheme(cx, y, cw, sh, all.length ? all : [pl.ring], [
-      { rings: site, fill: '#f6f4ef', stroke: '#8e8a82', sw: 0.3 },
-      { rings: plan.blocks.flatMap(b => b.rings), fill: '#ffffff', stroke: '#c9c5bc', sw: 0.2 },
-      { rings: blk?.rings ?? [], fill: '#cfcac0', stroke: '#6b6760', sw: 0.35 },
-      { rings: blds.map(b => b.r), fill: '#e2dfd8', stroke: '#9a958c', sw: 0.15 },
-      { rings: [pl.ring], fill: '#1d1d1b', stroke: '#1d1d1b', sw: 0.2 },
-    ]));
-    y += sh + 2;
-    out.push(`<text x="${n2(cx)}" y="${n2(y + 2)}" font-size="2.1" fill="#6b6965">${esc(tr('daha — kulrang, bino — qora'))}</text>`); y += 6;
-    head(blk ? tr('Daha sxemasi') : tr('Bino sxemasi'));
-    const inBlk = blk ? blds.filter(b => pointIn(centroid(b.r), blk.rings)) : blds.filter(b => b.id === pl.bid);
-    out.push(scheme(cx, y, cw, sh, blk ? blk.rings : [pl.ring], [
-      { rings: blk?.rings ?? [], fill: '#f6f4ef', stroke: '#8e8a82', sw: 0.3 },
-      { rings: inBlk.filter(b => b.id !== pl.bid && !own.has(b.id)).map(b => b.r), fill: '#ffffff', stroke: '#6b6760', sw: 0.25 },
-      { rings: [pl.ring], fill: '#1d1d1b', stroke: '#1d1d1b', sw: 0.25 },
-    ]));
-    y += sh + 2;
-    out.push(`<text x="${n2(cx)}" y="${n2(y + 2)}" font-size="2.1" fill="#6b6965">${esc(`${bi + 1}-bino · ${groupName(G)}`)}</text>`); y += 7;
-    // eksplikatsiya
-    head(tr('Kvartiralar eksplikatsiyasi'));
-    const cols = [0, 9, 26, cw], rh = 4.2;
-    const row = (cells: string[], bold = false, fill = '') => {
-      if (fill) out.push(`<rect x="${n2(cx)}" y="${n2(y)}" width="${n2(cw)}" height="${rh}" fill="${fill}"/>`);
-      cells.forEach((c, i) => out.push(`<text x="${n2(cx + (i === 3 ? cw - 1 : cols[i] + 1))}" y="${n2(y + 3)}" font-size="2.3"${bold ? ' font-weight="700"' : ''}${i === 3 ? ' text-anchor="end"' : ''} fill="#1d1d1b">${esc(c)}</text>`));
-      out.push(`<path d="M${n2(cx)} ${n2(y + rh)}H${n2(cx + cw)}" stroke="#b9b5ab" stroke-width="0.2"/>`); y += rh;
-    };
-    out.push(`<path d="M${n2(cx)} ${n2(y)}H${n2(cx + cw)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
-    row(['№', tr('Turi'), tr('Maydoni, m²'), ''], true, '#f3f1ec');
-    const maxRows = Math.max(1, Math.floor((vy + vh - y - 3 * rh) / rh));
-    rows.slice(0, maxRows).forEach(r => {
-      if (look !== 'bir') out.push(`<rect x="${n2(cx + cw - 4.6)}" y="${n2(y + 0.9)}" width="3.6" height="2.4" fill="${APT_FILL[Math.min(4, r.rooms)]}" stroke="#141414" stroke-width="0.15"/>`);
-      row([String(r.n), `${r.rooms} ${tr('xonali')}`, fm(r.area), '']);
-    });
-    if (rows.length > maxRows) row([`… +${rows.length - maxRows}`, '', '', '']);
-    const tot = rows.reduce((t, r) => t + r.area, 0);
-    out.push(`<path d="M${n2(cx)} ${n2(y)}H${n2(cx + cw)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
-    row([tr('Jami'), `${rows.length} ${tr('kvartira')}`, fm(tot), ''], true);
-    if (nFl > 1) row([`× ${nFl} ${tr('qavat')}`, `${rows.length * nFl} ${tr('kvartira')}`, fm(tot * nFl), ''], true);
-    out.push(`<text x="${n2(cx)}" y="${n2(y + 3.5)}" font-size="2" fill="#6b6965">${esc(tr('Maydon — rejadagi × 0,85 (devorlar), balkonsiz; taxmin'))}</text>`);
+    const side = res.widthMm <= availW - nw - 4;
+    // reja boʻsh maydon markazida
+    const ax = vx + 2, ay = side ? top : Math.max(top, ny + nh + 4), aw = side ? availW - nw - 4 : availW, ah = vy + vh - ay - 2;
+    const k = Math.min(1, aw / res.widthMm, ah / res.heightMm), ww = res.widthMm * k, hh = res.heightMm * k, px = ax + (aw - ww) / 2, py = ay + (ah - hh) / 2;
+    // sarlavha: reja nomi va masshtab (chap-yuqori)
+    out.push(`<text x="${n2(vx + 2)}" y="${n2(vy + 6)}" font-size="4.2" font-weight="700" fill="#1d1d1b">${esc(tr(`${groupName(G)} rejasi`))}</text>`);
+    out.push(`<text x="${n2(vx + 2)}" y="${n2(vy + 10.5)}" font-size="2.8" fill="#55524b">${esc(label)} · ${esc(tr(`${bi + 1}-bino`))} · ${esc(tr(FLOOR_NAME[ft]))}</text>`);
+    out.push(`<path d="M${n2(vx + 2)} ${n2(vy + 12)}H${n2(vx + Math.min(110, vw * 0.4))}" stroke="#1d1d1b" stroke-width="0.4"/>`);
+    out.push(svg.replace(/^<svg /, `<svg x="${n2(px)}" y="${n2(py)}" `).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `width="${n2(ww)}" height="${n2(hh)}"`));
+    out.push(navScheme(nx, ny, nw, nh, T, northDeg, {
+      site, blocks: plan.blocks.flatMap(b => b.rings), others: blds.filter(b => !grp.has(b.id)).map(b => b.r),
+      plot: blk?.rings ?? [], group: inBlk.filter(b => grp.has(b.id) && b.id !== pl.bid).map(b => b.r), cur: [pl.ring],
+    }, tr('Vaziyat sxemasi'), [tr('uchastka'), grp.size > 1 ? tr('blok') : '', tr('seksiya')]));
     return out.join('');
   };
-  return { name, get label() { return label; }, legend, rows, body } as AptSheet;
+
+  /** eksplikatsiya — varaqning oʻng ustunida */
+  const sideCol = (x: number, y0: number, w: number, yMax: number): string => {
+    const out: string[] = []; let y = y0;
+    out.push(`<text x="${n2(x)}" y="${n2(y + 3.5)}" font-size="3" font-weight="700" fill="#1d1d1b">${esc(tr('Kvartiralar eksplikatsiyasi'))}</text>`); y += 6;
+    const rh = 4, c1 = x + 7, c2 = x + w - 6;
+    const row = (cells: [string, string, string], bold = false, fill = '') => {
+      if (fill) out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${rh}" fill="${fill}"/>`);
+      const fw = bold ? ' font-weight="700"' : '';
+      out.push(`<text x="${n2(x + 1)}" y="${n2(y + 2.9)}" font-size="2.3"${fw} fill="#1d1d1b">${esc(cells[0])}</text><text x="${n2(c1)}" y="${n2(y + 2.9)}" font-size="2.3"${fw} fill="#1d1d1b">${esc(cells[1])}</text><text x="${n2(c2)}" y="${n2(y + 2.9)}" font-size="2.3"${fw} text-anchor="end" fill="#1d1d1b">${esc(cells[2])}</text>`);
+      out.push(`<path d="M${n2(x)} ${n2(y + rh)}H${n2(x + w)}" stroke="#c9c5bc" stroke-width="0.15"/>`); y += rh;
+    };
+    out.push(`<path d="M${n2(x)} ${n2(y)}H${n2(x + w)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
+    row(['№', tr('Turi'), tr('Maydoni, m²')], true, '#f3f1ec');
+    const maxRows = Math.max(1, Math.floor((yMax - y - 4 * rh - 4) / rh));
+    rows.slice(0, maxRows).forEach(r => {
+      if (look !== 'bir') out.push(`<rect x="${n2(x + w - 4)}" y="${n2(y + 0.8)}" width="3.2" height="2.4" fill="${APT_FILL[Math.min(4, r.rooms)]}" stroke="#141414" stroke-width="0.12"/>`);
+      row([String(r.n), `${r.rooms} ${tr('xonali')}`, fm(r.area)]);
+    });
+    if (rows.length > maxRows) row([`… +${rows.length - maxRows}`, '', '']);
+    const tot = rows.reduce((t, r) => t + r.area, 0);
+    out.push(`<path d="M${n2(x)} ${n2(y)}H${n2(x + w)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
+    row([tr('Jami'), `${rows.length} ${tr('kvartira')}`, fm(tot)], true);
+    if (nFl > 1) row([`×${nFl}`, `${rows.length * nFl} ${tr('kvartira')}`, fm(tot * nFl)], true);
+    out.push(`<text x="${n2(x)}" y="${n2(y + 3.2)}" font-size="1.9" fill="#6b6965">${esc(tr('Maydon — rejadagi × 0,85 (devorlar), balkonsiz; taxmin'))}</text>`);
+    return out.join('');
+  };
+  return { name, get label() { return label; }, legend, rows, body, side: sideCol } as AptSheet;
 }

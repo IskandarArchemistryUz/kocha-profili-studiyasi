@@ -155,7 +155,7 @@ export function openGraphics(host: SheetsHost): void {
     h('span', { class: 'sh-name' }, `${doc.name} · ${tr('Varaqlar')}`), h('span', { class: 'spacer' }),
     checksBtn, h('button', { class: 'btn btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)')));
 
-  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return o.stamp.sheet; if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return tr(`${bi + 1}-bino · ${groupName(g)}`); } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
+  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return o.stamp.sheet; if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
 
   /* ---------- menyular ---------- */
   function popMenu(anchor: HTMLElement, items: (HTMLElement | string)[]): void {
@@ -266,7 +266,7 @@ export function openGraphics(host: SheetsHost): void {
               h('button', { class: 'btn btn-block', id: 'shAllFl', title: tr('Har bino va har qavat (guruh) uchun alohida varaq — bitta PDF albomga'), onclick: () => {
                 const add: SheetDoc[] = []; plans.forEach((p2, bi) => floorGroups(p2).forEach((_, gi) => { if (bi === Math.max(0, (o.plan?.floor ?? 1) - 1) && gi === cur0) return; add.push({ id: uid('sh_'), opts: { ...o, plan: { ...(o.plan ?? {}), floor: bi + 1, grp: gi }, stamp: { ...(o.stamp ?? {}), num: '', sheet: '' } } as unknown as Record<string, unknown> }); }));
                 sheets.splice(cur + 1, 0, ...add); persist(); render(); toast(tf('${n} ta varaq qoʻshildi', { n: add.length })); } }, tr('Barcha binolar va qavatlar — varaqlar'))]; })() : []),
-          h('span', { class: 't-small' }, tr('Varaqda: qavat rejasi (kvartiralar raqamli), vaziyat va daha sxemalari (bino belgilangan), kvartiralar eksplikatsiyasi. Tahrir — Qavat rejalari oynasida (9-qadam).'))] : []),
+          h('span', { class: 't-small' }, tr('Varaqda: qavat rejasi nomi va masshtabi bilan (kvartiralar raqamli), vaziyat sxemasi (uchastka, blok, seksiya), oʻng ustunda kvartiralar eksplikatsiyasi. Tahrir — Qavat rejalari oynasida (9-qadam).'))] : []),
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),

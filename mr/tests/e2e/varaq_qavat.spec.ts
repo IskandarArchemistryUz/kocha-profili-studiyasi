@@ -11,9 +11,11 @@ test('qavat rejasi varagʻi: sxemalar, eksplikatsiya, qavat tanlovi, barcha vara
   await page.click('#gxOpen'); await page.click('#frOpen');
   await page.click('[data-mode=qavat]');
   const v = page.locator('#gxView');
-  await expect(v).toContainText('Vaziyat sxemasi');
+  await expect(v).toContainText(/vaziyat sxemasi/i);
   await expect(v).toContainText('eksplikatsiyasi');
   await expect(v).toContainText('Jami');
+  await expect(v).toContainText('rejasi');   // reja nomi va masshtabi chap-yuqorida
+  await expect(v.locator('#Eksplikatsiya')).toBeAttached();   // eksplikatsiya oʻng ustunda
   await expect(page.locator('.gx-info')).toContainText('M 1:');
   // raqamlar: rejadagi doirachalar soni = jadval qatorlari
   const n = await page.evaluate(() => document.querySelectorAll('#gxView svg svg circle').length);
