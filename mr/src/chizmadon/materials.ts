@@ -157,22 +157,44 @@ export function siteMaterials(R: () => Resolved, sets: Record<string, ChMatSet>)
 }
 
 /** Master reja loyihasidan: bosh reja, TIK jadvali, sahna rasmi va «Chizmadonga» yuborilganlar */
+/** Master rejaning bitta rejasi (Varaqlar namunasi yoki qavat rejasi): xarita qismi (mm) va shartli belgilari */
+export interface PlanMap { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number; legend?: { type: string; fill?: string; stroke?: string; label: string }[]; /** butunicha sigʻdirish (kesmasdan) — qavat rejalari */ contain?: boolean }
+/** 19-band: Master reja rejalari — bosh reja, zonalashtirish (land use), funksional, qavatlilik, kvartirografiya…; get — dangasa (faqat koʻrinsa hisoblanadi) */
+export interface PlanSrc { id: string; name: string; on: boolean; get: () => PlanMap | null | undefined }
 export interface ProjectSrc {
   plan?: { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number } | null;
+  plans?: PlanSrc[];
   tik?: string[][];
   scene?: string | null;
   inbox?: ChInbox[];
 }
 const DUMMY: ChPage = { id: 'm', name: '', paper: 'A3', landscape: true, layers: [], els: [] };
 /** Xarita yoki rasmni katakka sigʻdirib (markazdan, «cover») chizish — render.ts mapEl / imageEl orqali */
-function fitMap(id: string, src: { svg?: string; src?: string; vb?: [number, number, number, number]; w: number; h: number; scale?: number }, r: Rect, name: string): string {
+function fitMap(id: string, src: { svg?: string; src?: string; vb?: [number, number, number, number]; w: number; h: number; scale?: number; contain?: boolean }, r: Rect, name: string): string {
   const e: ChEl = { id: `mt${id}`, t: src.svg ? 'map' : 'image', layer: 'm', x: r.x, y: r.y, w: r.w, h: r.h, name, style: { width: 0.25 } };
   if (src.svg) {
-    const vb = src.vb ?? [0, 0, src.w, src.h], k = Math.max(r.w / vb[2], r.h / vb[3]), vw = r.w / k, vh = r.h / k;
+    const vb = src.vb ?? [0, 0, src.w, src.h], k = (src.contain ? Math.min : Math.max)(r.w / vb[2], r.h / vb[3]), vw = r.w / k, vh = r.h / k;
     e.svg = src.svg; e.vb = [vb[0] + (vb[2] - vw) / 2, vb[1] + (vb[3] - vh) / 2, vw, vh];
     if (src.scale) { e.scale = Math.round(src.scale / k); e.natW = r.w; }
   } else e.src = src.src;
   return elSvg(e, DUMMY, { idp: `mt${id}`, tr: s => s }).replace(/ data-id="[^"]*"/g, '');
+}
+/** Reja shartli belgilari — katakning chap-pastki burchagida oq quti (≤ 8 ta) */
+function legendBox(items: PlanMap['legend'], r: Rect, ctx: { u: number; P: Record<string, string> }): string {
+  if (!items?.length) return '';
+  const u = ctx.u, Q = DP(ctx.P), it = items.slice(0, 8), lh = 3.6 * u, pad = 2 * u, h = pad * 2 + it.length * lh;
+  const w = Math.min(r.w * 0.45, pad * 2 + 6 * u + Math.max(...it.map(q => q.label.length)) * 1.25 * u);
+  if (h > r.h * 0.6 || w < 20 * u) return '';
+  const x = r.x + 2 * u, y = r.y + r.h - h - 2 * u;
+  let g = `<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="#ffffff" fill-opacity=".93" stroke="${Q.grid}" stroke-width="${n2(0.2 * u)}"/>`;
+  it.forEach((q, k) => {
+    const cy = y + pad + k * lh + lh * 0.72, sx = x + pad;
+    if (q.type === 'line' || q.type === 'dash') g += `<path d="M${n2(sx)} ${n2(cy - 0.9 * u)}h${n2(3.6 * u)}" stroke="${q.stroke ?? q.fill ?? Q.ink}" stroke-width="${n2(0.5 * u)}"${q.type === 'dash' ? ` stroke-dasharray="${n2(1 * u)} ${n2(0.6 * u)}"` : ''}/>`;
+    else if (q.type === 'tree' || q.type === 'stop') g += `<circle cx="${n2(sx + 1.8 * u)}" cy="${n2(cy - 0.9 * u)}" r="${n2(1.1 * u)}" fill="${q.fill ?? '#9cc27f'}" stroke="${q.stroke ?? 'none'}" stroke-width="${n2(0.15 * u)}"/>`;
+    else g += R0(sx, cy - 2.1 * u, 3.6 * u, 2.4 * u, q.fill ?? '#ffffff', ` stroke="${q.stroke ?? Q.line}" stroke-width="${n2(0.15 * u)}"`);
+    g += T(sx + 5 * u, cy, q.label, { s: 2.2 * u, c: Q.ink });
+  });
+  return g;
 }
 function tableArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string, string> }, m: Material, bare?: boolean): string {
   const u = ctx.u * m.scale, Q = DP(ctx.P); let g = bare ? '' : head(m, r.x, r.y, u, Q, null, false);
@@ -188,8 +210,15 @@ function tableArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string,
 }
 export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>): Material[] {
   const out: Material[] = [];
-  const add = (d: Def, render: NonNullable<Material['render']>) => { const m: Material = withSet(d, sets[d.id], render); out.push(m); return m; };
-  if (src.plan) { const p = src.plan; add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja')); }
+  const add = (d: Def, render: NonNullable<Material['render']>, vis = true) => { const m: Material = withSet(d, sets[d.id], render, vis); out.push(m); return m; };
+  for (const p of src.plans ?? []) {
+    let M: PlanMap | null | undefined, got = false;
+    add({ id: p.id, role: 'plan' as MRole, name: p.name, title: p.name }, (r, ctx) => {
+      if (!got) { got = true; try { M = p.get(); } catch { M = null; } }
+      return M ? fitMap(p.id.replace(/[^\w-]/g, '_'), M, r, p.name) + legendBox(M.legend, r, ctx) : '';
+    }, p.on);
+  }
+  if (src.plan && !src.plans) { const p = src.plan; add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja')); }
   if (src.tik?.length) { const rows = [['Koʻrsatkich', 'Birlik', 'Qiymat'], ...src.tik]; const m = add({ id: 'p:tik', role: 'table', kind: 'tik', name: 'TIK jadvali', title: 'Texnik-iqtisodiy koʻrsatkichlar' }, (r, ctx, bare) => tableArt(rows, r, ctx, m, bare)); }
   if (src.scene) { const s = src.scene; add({ id: 'p:scene', role: 'image', name: 'Sahna rasmi', title: 'Sahna rasmi' }, (r) => fitMap('scene', { src: s, w: r.w, h: r.h }, r, 'Sahna rasmi')); }
   for (const it of src.inbox ?? []) add({ id: `i:${it.id}`, role: (it.svg ? 'plan' : 'image') as MRole, name: it.name, title: it.name }, (r) => fitMap(it.id, it, r, it.name));

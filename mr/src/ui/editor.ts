@@ -77,6 +77,8 @@ import { openGraphics, downloadIllustrator } from './graphics';
 import { norm as normSheet } from './sheets';
 import { openChizmadon } from '../chizmadon/ui';
 import type { ChInbox } from '../chizmadon/model';
+import type { PlanSrc } from '../chizmadon/materials';
+import { aptSheet, sheetGroup } from '../core/aptsheet';
 import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
@@ -2815,10 +2817,46 @@ export class Editor {
         const r = sheetSvg(d2, this.sheetCtx(), o, new Date(), false, tr);
         return mapOnly(r.svg, r.scale) ?? undefined;
       },
+      plans: () => this.chPlans(),
       scene: () => { try { return this.scene.snapshot(); } catch { return null; } },
       // yopilganda manzil loyihaning oʻziga qaytadi (aks holda qayta yuklashda Chizmadon yana ochiladi)
       onClose: () => { if (/\/chizmadon$/.test(location.hash)) history.replaceState(null, '', `#/p/${this.store.doc.id}`); },
     });
+  }
+
+  /**
+   * 19-band: Chizmadonga Master rejaning barcha rejalari — Varaqlar namunalari (xarita qismi, shartli belgilari bilan)
+   * va har bino uchun kvartirografiya (turar qavat rejasi, kvartiralar rangda). Hisob dangasa — material koʻringanda.
+   */
+  private chPlans(): PlanSrc[] {
+    const d2 = this.store.doc; if (!d2.site && !d2.buildings.length) return [];
+    let ctx: SheetCtx | null | undefined;
+    const off = { title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false, scaleBar: false, north: false };
+    const mk = (id: string, name: string, on: boolean, o: Partial<SheetOpts>): PlanSrc => ({ id, name, on, get: () => {
+      if (ctx === undefined) ctx = this.sheetCtx();
+      const r = sheetSvg(this.store.doc, ctx, { ...SHEET_DEFAULT, ...o, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+      const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
+    } });
+    const out: PlanSrc[] = [
+      mk('p:plan:bosh', 'Bosh reja', true, { kind: 'bosh' }),
+      // eski albomlarda «p:plan» — zonalashtirish (avval «Bosh reja» nomi bilan)
+      mk('p:plan', 'Zonalashtirish (land use)', true, { kind: 'zona' }),
+      mk('p:plan:fn', 'Funksional reja', false, { kind: 'bosh', layers: { bld: { fill: 'use' } } }),
+      mk('p:plan:qavat', 'Qavatlar soni', false, { kind: 'qavat' }),
+      mk('p:plan:figura', 'Figura-fon', false, { kind: 'figura' }),
+      mk('p:plan:landshaft', 'Landshaft', false, { kind: 'landshaft' }),
+      mk('p:plan:vaziyat', 'Vaziyat sxemasi', false, { kind: 'vaziyat' }),
+    ];
+    const plans = planApartments(d2);
+    plans.slice(0, 12).forEach((pl, bi) => out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: () => {
+      const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); if (i < 0) return null;
+      const p2 = ps[i], G = sheetGroup(p2), a = aptSheet(doc, ps, i, undefined, 'rang', tr);
+      const r = floorPlanSvg(p2, { scale: 100, dims: true, title: '', floor: G.from, num: true, bare: true, fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === p2.bid)?.bal ?? null });
+      const m = /<svg[^>]*>/.exec(r.svg); if (!m) return null;
+      const inner = r.svg.slice(r.svg.indexOf(m[0]) + m[0].length).replace(/<\/svg>\s*$/, ''), pad = 4;
+      return { svg: inner, vb: [-pad, -pad, r.widthMm + 2 * pad, r.heightMm + 2 * pad], w: r.widthMm + 2 * pad, h: r.heightMm + 2 * pad, scale: 100, legend: a.legend, contain: true };
+    } }));
+    return out;
   }
 
   private openGraphics(start?: number): void {
