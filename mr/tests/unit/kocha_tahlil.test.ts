@@ -23,6 +23,17 @@ describe('Koʻcha tahlili (Joyshunos)', () => {
     expect(rt.road.every(r => r.id === 1)).toBe(true);
     expect(rt.junctions.map(Math.round)).toEqual([190]);
   });
+  it('belgilangan koʻcha nomi boʻylab yuradi (qisqa yoʻl boshqa koʻchadan boʻlsa ham)', () => {
+    const rr: SRoad[] = [
+      { id: 1, pts: [[0, 0], [200, 0], [200, 200], [400, 200]], cls: 'secondary', w: 10, name: 'Oybek' },
+      { id: 2, pts: [[0, 0], [400, 200]], cls: 'residential', w: 7, name: 'Boshqa' },
+      { id: 3, pts: [[10, -3], [390, 197]], cls: 'footway', w: 2 },
+    ];
+    const rt = routeAB(rr, [5, 1], [395, 199])!;
+    expect(rt.road.every(r => r.name === 'Oybek')).toBe(true);
+    expect(rt.len).toBeCloseTo(590, -1);
+    expect(rt.offName).toBe(0);
+  });
   it('yoʻldan uzoq nuqta — null', () => {
     expect(routeAB(roads, [100, 120], [390, 0])).toBeNull();
   });
