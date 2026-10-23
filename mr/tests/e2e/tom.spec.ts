@@ -50,3 +50,23 @@ test('qiya tom: qavat raqami tizma ustida', async ({ page }) => {
   expect(r.paired).toBeGreaterThan(0);
   expect(r.under).toBe(0);   // har binoning raqami oʻz tomi tizmasidan yuqori
 });
+
+/** 16-band: savdo markazi (keng blok) qiya tomi noreal baland emas */
+test('savdo markazi: qiya tom ≤ 6 m', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr);
+  const r = await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
+    ed.store.dispatch({ type: 'setSite', rings: [[[0, 0], [180, 0], [180, 160], [0, 160]].map(G)] });
+    ed.store.dispatch({ type: 'setZones', zones: [{ id: 'zs', at: G([90, 80]), use: 'savdo' }] });
+    ed.generateBlock(0, true);
+    const b = ed.store.doc.buildings.find((x: any) => x.use === 'savdo'); if (!b) return { n: ed.store.doc.buildings.length, notes: ed.genNotes } as any;
+    ed.store.dispatch({ type: 'styleBuildings', ids: [b.id], roof: 'ikki' });
+    let lo = Infinity, hi = -Infinity;
+    ed.scene.world.traverse((x: any) => { if (x.isMesh && x.userData.bid === b.id && x.material?.side === 2 && x.geometry?.attributes?.position) { const a = x.geometry.attributes.position.array; for (let i = 1; i < a.length; i += 3) { lo = Math.min(lo, a[i]); hi = Math.max(hi, a[i]); } } });
+    const fp = b.footprint, mx2 = 111320 * Math.cos(o[1] * Math.PI / 180); return { rise: hi - lo, fp: fp.map((p: number[]) => [Math.round((p[0] - o[0]) * mx2), Math.round((p[1] - o[1]) * 111132)]) };
+  });
+  expect(r).not.toBeNull();
+  expect(r!.rise).toBeGreaterThan(1);
+  expect(r!.rise).toBeLessThanOrEqual(6.01);
+});

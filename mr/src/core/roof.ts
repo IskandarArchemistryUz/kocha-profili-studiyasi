@@ -16,6 +16,8 @@ export const MATS: { id: Mat; name: string; color: number }[] = [
   { id: 'tosh', name: 'Tosh', color: 0xdcd1bc }, { id: 'yogoch', name: 'Yogʻoch', color: 0xc49a6c }, { id: 'metall', name: 'Metall', color: 0xa7afb6 },
   { id: 'shisha', name: 'Shisha', color: 0xa9c2d1 }, { id: 'terrakota', name: 'Terrakota', color: 0xd08a63 },
 ];
+/** Qiya tom tizmasining eng katta balandligi, m: keng binolarda nishab shunga koʻra yassilanadi */
+export const ROOF_RISE_MAX = 6;
 export const isRoof = (v: unknown): v is Roof => ROOFS.some(r => r.id === v);
 export const isMat = (v: unknown): v is Mat => MATS.some(m => m.id === v);
 
@@ -66,7 +68,9 @@ export function pitchedRoof(r0: XY[], kind: 'ikki' | 'tort' | 'bir', pitchDeg = 
     if (!(tb > ta)) { ta = u0; tb = u1; }
     R0 = P(ta); R1 = P(tb); w = S;
   }
-  const h = w / 2 * t, dx = R1[0] - R0[0], dy = R1[1] - R0[1], RL = Math.hypot(dx, dy) || 1;
+  // keng binoda (savdo markazi, sport zali, 20 m dan chuqur) 30° tom ~20 m gacha koʻtarilib noreal boʻlardi — tizma ≤ 6 m
+  // (oddiy turar seksiyalar, chuqurligi ≤ 20 m, oʻzgarmaydi)
+  const h = Math.min(w / 2 * t, ROOF_RISE_MAX), dx = R1[0] - R0[0], dy = R1[1] - R0[1], RL = Math.hypot(dx, dy) || 1;
   if (kind === 'tort') { const sh = Math.min(w / 2, RL / 2); R0 = [R0[0] + dx / RL * sh, R0[1] + dy / RL * sh]; R1 = [R1[0] - dx / RL * sh, R1[1] - dy / RL * sh]; }
   if (n === 4) {   // toʻrtburchak (istalgan): uchlar e va e+2 — fronton yoki qiyalik, boʻylama qirralar — ikki qiyalik
     const s02 = E(0) + E(2), s13 = E(1) + E(3), e = s02 <= s13 ? 0 : 1, Q = (i: number) => r[(e + i) % 4];
