@@ -6,12 +6,12 @@
  *   - kvartiralar eksplikatsiyasi — varaqning oʻng ustunida (shartli belgilar ostida).
  * Navigatsiya sxemasi — umumiy uslub (`navScheme`), boshqa varaq va oynalarda ham shu koʻrinishda.
  */
-import { obb2, centroid, type XY } from './geo';
+import { obb2, centroid, area, type XY } from './geo';
 import { frame } from './geo';
 import type { Project } from './doc';
 import type { SecPlan } from './apartments';
 import { computePlan, pointIn } from './plan';
-import { floorPlanSvg, floorGroups, groupName, FLOOR_NAME, floorTypeOf, APT_FILL, type PlanOpts } from './floorplan';
+import { floorPlanSvg, floorGroups, groupName, FLOOR_NAME, floorTypeOf, APT_FILL, ROOM_FILL, ROOM_LABEL, type PlanOpts } from './floorplan';
 import { sharedEdge } from './sectionplan';
 import type { LegendItem } from './sheet';
 import type { Bal } from './facade';
@@ -110,7 +110,16 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
   // reja (bitta qavat) — kvartiralar raqamli
   const base: PlanOpts = { scale: 100, dims: true, title: '', floor: G.from, num: true, bare: true, ...opt(pl) };
   const probe = floorPlanSvg(pl, base), rows = probe.apts.map((a, i) => ({ n: i + 1, rooms: a.rooms, area: a.area }));
-  const legend: LegendItem[] = look === 'bir' ? [] : [1, 2, 3, 4].filter(k => rows.some(r => Math.min(4, r.rooms) === k)).map(k => ({ type: 'fill' as const, fill: APT_FILL[k], label: `${k} ${tr('xonali')}` }));
+  // kvartirasiz qavat (1-qavat savdo / xizmat, texnik) — xonalar eksplikatsiyasi: xonalar, umumiy foydalanish joylari, zina-lift
+  const pr = probe.plan, sumA = (rs: XY[][]) => rs.reduce((t, r) => t + area(r) * 0.85, 0);
+  const roomRows = rows.length ? [] : [
+    ...pr.rooms.map(q => ({ name: ROOM_LABEL[q.kind], area: area(q.ring) * 0.85, fill: ROOM_FILL[q.kind] as string | null })),
+    ...(pr.mop.length ? [{ name: 'umumiy foydalanish joylari (koridor, xoll)', area: sumA(pr.mop), fill: null }] : []),
+    ...(pr.stairs.length + pr.lifts.length ? [{ name: 'zina va liftlar', area: sumA([...pr.stairs, ...pr.lifts]), fill: null }] : []),
+  ].filter(r => r.area > 0.5);
+  const legend: LegendItem[] = look === 'bir' ? [] : rows.length
+    ? [1, 2, 3, 4].filter(k => rows.some(r => Math.min(4, r.rooms) === k)).map(k => ({ type: 'fill' as const, fill: APT_FILL[k], label: `${k} ${tr('xonali')}` }))
+    : [...new Set(pr.rooms.map(q => q.kind))].map(k => ({ type: 'fill' as const, fill: ROOM_FILL[k], label: tr(ROOM_LABEL[k]) }));
   let label = 'M 1:100';
   const ft = floorTypeOf(pl, G.from);
 
@@ -149,7 +158,7 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
   /** eksplikatsiya — varaqning oʻng ustunida */
   const sideCol = (x: number, y0: number, w: number, yMax: number): string => {
     const out: string[] = []; let y = y0;
-    out.push(`<text x="${n2(x)}" y="${n2(y + 3.5)}" font-size="3" font-weight="700" fill="#1d1d1b">${esc(tr('Kvartiralar eksplikatsiyasi'))}</text>`); y += 6;
+    out.push(`<text x="${n2(x)}" y="${n2(y + 3.5)}" font-size="3" font-weight="700" fill="#1d1d1b">${esc(tr(rows.length ? 'Kvartiralar eksplikatsiyasi' : 'Xonalar eksplikatsiyasi'))}</text>`); y += 6;
     const rh = 4, c1 = x + 7, c2 = x + w - 6;
     const row = (cells: [string, string, string], bold = false, fill = '') => {
       if (fill) out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${rh}" fill="${fill}"/>`);
@@ -158,6 +167,28 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
       out.push(`<path d="M${n2(x)} ${n2(y + rh)}H${n2(x + w)}" stroke="#c9c5bc" stroke-width="0.15"/>`); y += rh;
     };
     out.push(`<path d="M${n2(x)} ${n2(y)}H${n2(x + w)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
+    if (!rows.length) {
+      // xonalar jadvali (kvartirasiz qavat)
+      const c1r = x + 7, row2 = (cells: [string, string, string], bold = false, fill = '') => {
+        if (fill) out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${rh}" fill="${fill}"/>`);
+        const fw = bold ? ' font-weight="700"' : '';
+        out.push(`<text x="${n2(x + 1)}" y="${n2(y + 2.9)}" font-size="2.3"${fw} fill="#1d1d1b">${esc(cells[0])}</text><text x="${n2(c1r)}" y="${n2(y + 2.9)}" font-size="2.3"${fw} fill="#1d1d1b">${esc(cells[1])}</text><text x="${n2(c2)}" y="${n2(y + 2.9)}" font-size="2.3"${fw} text-anchor="end" fill="#1d1d1b">${esc(cells[2])}</text>`);
+        out.push(`<path d="M${n2(x)} ${n2(y + rh)}H${n2(x + w)}" stroke="#c9c5bc" stroke-width="0.15"/>`); y += rh;
+      };
+      out.push(`<path d="M${n2(x)} ${n2(y)}H${n2(x + w)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
+      row2(['№', tr('Nomi'), tr('Maydoni, m²')], true, '#f3f1ec');
+      if (!roomRows.length) row2(['—', tr('Bu qavatda xona maʼlumoti yoʻq'), '']);
+      const maxR = Math.max(1, Math.floor((yMax - y - 3 * rh - 4) / rh));
+      roomRows.slice(0, maxR).forEach((r, i) => {
+        if (r.fill && look !== 'bir') out.push(`<rect x="${n2(x + w - 4)}" y="${n2(y + 0.8)}" width="3.2" height="2.4" fill="${r.fill}" stroke="#141414" stroke-width="0.12"/>`);
+        row2([String(i + 1), tr(r.name), fm(r.area)]);
+      });
+      if (roomRows.length > maxR) row2([`… +${roomRows.length - maxR}`, '', '']);
+      out.push(`<path d="M${n2(x)} ${n2(y)}H${n2(x + w)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
+      row2([tr('Jami'), tr(FLOOR_NAME[ft]), fm(roomRows.reduce((t, r) => t + r.area, 0))], true);
+      out.push(`<text x="${n2(x)}" y="${n2(y + 3.2)}" font-size="1.9" fill="#6b6965">${esc(tr('Maydon — rejadagi × 0,85 (devorlar); taxmin'))}</text>`);
+      return out.join('');
+    }
     row(['№', tr('Turi'), tr('Maydoni, m²')], true, '#f3f1ec');
     const maxRows = Math.max(1, Math.floor((yMax - y - 4 * rh - 4) / rh));
     rows.slice(0, maxRows).forEach(r => {

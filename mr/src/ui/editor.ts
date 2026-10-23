@@ -14,7 +14,7 @@ import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
-import { check, range, select, stepper, sw } from './controls';
+import { check, range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
@@ -1742,9 +1742,9 @@ export class Editor {
     const g = this.gen;
     const stp = (id: string, k: string, sub: string, v: number, min: number, max: number, step: number, set: (x: number) => void, unit?: string) =>
       h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), stepper({ id, label: k, min, max, step, value: v, unit, onchange: x => { set(x); this.renderPanel(); } }));
-    body.append(h('select', { class: 'select', id: 'genBlock', 'aria-label': tr('Kvartal'), onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
-        h('option', { value: '' }, tr('— sahnada bosing yoki tanlang —')),
-        ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; })),
+    body.append(dropdown({ id: 'genBlock', 'aria-label': tr('Kvartal'), onchange: v => { this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
+        [{ value: '', label: tr('— sahnada bosing yoki tanlang —'), selected: this.selBlock == null },
+          ...plan.blocks.map((b, i) => ({ value: String(i), label: `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, sub: tr(useDef(b.use).name), selected: i === this.selBlock }))]),
       h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')), this.isoBtn(this.selBlock));
     const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(tf('${n} seksiya generatsiya qilindi', { n })); } }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, svgIcon(IC.trash));
@@ -1997,7 +1997,7 @@ export class Editor {
     const mainSel = select({ id: 'gridMain', 'aria-label': tr('Asosiy koʻchalar'), onchange: v => { g.mainEvery = Number(v); this.renderPanel(); } }, [[0, 'Hammasi ikkilamchi'], [2, 'Har 2-chisi asosiy'], [3, 'Har 3-chisi asosiy'], [4, 'Har 4-chisi asosiy']].map(([v, t]) => ({ value: String(v), label: tr(t as string), selected: g.mainEvery === v })));
     const profRow = (key: 'main' | 'minor', lbl: string) => { const p = profileById(g.profiles[key]), iss = checkProfile(p).length;
       const sel = select({ 'aria-label': lbl, onchange: v => { g.profiles = { ...g.profiles, [key]: v }; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: g.profiles[key] === x.id })));
-      return h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 'chip' }, lbl), h('span', { class: 'k' }, p.name, h('span', { class: 'sub' }, p.note)), h('span', { class: iss ? 'chip warn' : 'chip ok' }, h('i'), iss ? `${iss} ${tr('chetlanish')}` : 'ShNQ ✓'), h('span', { class: 'v' }, `${fmt(profileWidth(p), 0)} m`), h('div', { style: 'flex-basis:100%' }, sel)); };
+      return h('div', { class: 'li prof-row', style: 'flex-wrap:wrap' }, h('span', { class: 'chip' }, lbl), h('span', { style: 'flex:1' }), h('span', { class: iss ? 'chip warn' : 'chip ok' }, h('i'), iss ? `${iss} ${tr('chetlanish')}` : 'ShNQ ✓'), h('span', { class: 'v' }, `${fmt(profileWidth(p), 0)} m`), h('span', { class: 'k', style: 'flex-basis:100%' }, p.name, h('span', { class: 'sub' }, p.note)), h('div', { style: 'flex-basis:100%' }, sel)); };
     box.append(
       h('div', { class: 'glabel' }, h('span', {}, tr('Blok moduli')), h('span', {}, pre ? `${pre.name} · ${g.w} × ${g.h} m` : `${g.w} × ${g.h} m`)),
       h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Blok modullari') }, ...GRID_PRESETS.map(p => h('button', { class: 'tile', 'data-gpre': p.id, 'aria-pressed': this.gridPreset === p.id, title: `${p.note} · ${p.src}`, onclick: () => { this.gridPreset = p.id; g.w = p.w; g.h = p.h; this.renderPanel(); } },

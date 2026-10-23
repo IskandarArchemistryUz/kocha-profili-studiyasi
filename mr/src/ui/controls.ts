@@ -63,3 +63,42 @@ export function stepper(attrs: Attrs & { min: number; max: number; step?: number
 export function seg<T extends string>(items: { id: T; label: string; attrs?: Attrs }[], cur: T, onpick: (v: T) => void, attrs: Attrs = {}): HTMLDivElement {
   return h('div', { class: 'seg', role: 'group', ...attrs }, ...items.map(it => h('button', { type: 'button', 'aria-pressed': it.id === cur, ...(it.attrs ?? {}), onclick: () => onpick(it.id) }, it.label)));
 }
+
+/**
+ * Ochiladigan roʻyxat (brauzerning select oynasi oʻrniga — 6-qoida): koʻrinadigan tugma + oʻz menyusi (.menu.dd-menu).
+ * Ichida yashirin <select> (id, aria, e2e selectOption shu orqali) — tanlov unga yoziladi va «change» chiqaradi.
+ */
+export function dropdown(attrs: Attrs & { onchange?: (v: string) => void }, opts: { value: string; label: string; selected?: boolean; sub?: string }[]): HTMLDivElement {
+  const { onchange, ...rest } = attrs;
+  const s = h('select', { class: 'vh', tabindex: -1, ...rest }) as HTMLSelectElement;
+  for (const o of opts) s.append(h('option', { value: o.value, selected: !!o.selected }, o.label));
+  const lab = () => opts.find(o => o.value === s.value)?.label ?? opts[0]?.label ?? '—';
+  const txt = h('span', { class: 'dd-l' }, lab());
+  let menu: HTMLElement | null = null;
+  const close = () => { menu?.remove(); menu = null; btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); };
+  const outside = (e: Event) => { if (menu && !menu.contains(e.target as Node) && !btn.contains(e.target as Node)) close(); };
+  const choose = (v: string) => { close(); if (s.value === v) return; s.value = v; txt.textContent = lab(); s.dispatchEvent(new Event('change', { bubbles: true })); btn.focus(); };
+  const open = () => {
+    if (menu) { close(); return; }
+    menu = h('div', { class: 'menu dd-menu', role: 'listbox', 'aria-label': String(rest['aria-label'] ?? '') },
+      ...opts.map(o => h('button', { type: 'button', role: 'option', 'aria-selected': o.value === s.value, 'data-v': o.value, onclick: () => choose(o.value) },
+        h('span', {}, o.label, o.sub ? h('small', {}, o.sub) : ''), o.value === s.value ? svgIcon('<path d="M5 12l5 5 9-10"/>') : '')));
+    menu.addEventListener('keydown', e => {
+      const items = [...menu!.querySelectorAll('button')], i = items.indexOf(document.activeElement as HTMLButtonElement);
+      if (e.key === 'ArrowDown') { e.preventDefault(); items[Math.min(items.length - 1, i + 1)]?.focus(); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); items[Math.max(0, i - 1)]?.focus(); }
+      if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
+    });
+    document.body.append(menu);
+    const r = btn.getBoundingClientRect(), mh = Math.min(menu.scrollHeight, 360);
+    menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - Math.max(r.width, 240) - 8))}px`; menu.style.minWidth = `${r.width}px`;
+    menu.style.top = `${r.bottom + mh + 8 > innerHeight ? Math.max(8, r.top - mh - 6) : r.bottom + 6}px`;
+    btn.setAttribute('aria-expanded', 'true');
+    (menu.querySelector('[aria-selected=true]') as HTMLElement | null ?? menu.querySelector('button'))?.focus();
+    setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+  };
+  const btn = h('button', { type: 'button', class: 'select dd-btn', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': String(rest['aria-label'] ?? ''), onclick: open,
+    onkeydown: (e: KeyboardEvent) => { if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!menu) open(); } } }, txt) as HTMLButtonElement;
+  s.addEventListener('change', () => { txt.textContent = lab(); onchange?.(s.value); });
+  return h('div', { class: 'dd' }, btn, s) as HTMLDivElement;
+}
