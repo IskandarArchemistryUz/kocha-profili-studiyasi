@@ -15,7 +15,8 @@ import type { ULFeature } from '../core/userlayers';
 import { projectStreetsGeo } from './streets3d';
 import { computePlan, interiorPoint } from '../core/plan';
 import { profileById } from '../core/profiles';
-import { MATS, roofParts } from '../core/roof';
+import { MATS, roofParts, ROOF_RISE_MAX, type RoofPart } from '../core/roof';
+import { roofGroups } from '../core/roofsk';
 import { winDef, balAt, strSeed, type Bal, type BalPat } from '../core/facade';
 import { buildFacade, emptyGeo, matTexture, tileTexture, roofUV, type PartIn, type FacadeGeo, type Layer } from './facade3d';
 import { MOD_W } from '../core/apartments';
@@ -668,7 +669,7 @@ export class Scene3D {
     else if (b.bal && !dim && !office && !parking) this.balconies(b.bal, tiers, Math.max(nr, 1), base, fh, shared, plain, b.balPat, strSeed(b.id));
     const topZ = base + (last?.f1 ?? b.floors) * fh;
     if (roofK === 'ikki' || roofK === 'tort' || roofK === 'bir') {
-      const parts = roofParts(last.ring, roofK);
+      const gr = B.GR.get(b.id), parts = gr ? [gr] : roofParts(last.ring, roofK);
       if (parts) {
         const v: number[] = [], w: number[] = [];
         for (const pr of parts) { for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], topZ + pr.tris[i + 2], -pr.tris[i + 1]); for (let i = 0; i < pr.walls.length; i += 3) w.push(pr.walls[i], topZ + pr.walls[i + 2], -pr.walls[i + 1]); }
@@ -807,7 +808,9 @@ export class Scene3D {
     const P3 = doc.buildings.map((b, i) => { const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; return { ring: r, base, top: base + (TP[i][0]?.f1 ?? b.floors) * fh }; });
     const SM = seams(P3.filter((_, i) => flat(doc.buildings[i]))), smOf = new Map<string, number>(); let si = 0; doc.buildings.forEach(b => { if (flat(b)) smOf.set(b.id, si++); });
     const focus = this.selected && doc.buildings.some(b => b.id === this.selected);
-    const B: BCtx = { doc, fr, fh, aniso, TP, P3, SM, smOf, focus: !!focus, st, plain, toV2 };
+    // tutash seksiyalar (bir xil qavat va qiya tom turi, pogʻonasiz) — bitta yaxlit tom (endova, uzluksiz tizma)
+    const GR = roofGroups(doc.buildings.flatMap(b => (b.roof === 'ikki' || b.roof === 'tort') && !b.tiers?.length ? [{ id: b.id, ring: b.footprint.map(fr.toLocal), kind: b.roof, key: `${(b.z0 ?? 0) + b.floors}` }] : []), ROOF_RISE_MAX);
+    const B: BCtx = { doc, fr, fh, aniso, TP, GR, P3, SM, smOf, focus: !!focus, st, plain, toV2 };
     this.bctx = B;
     doc.buildings.forEach((_, bi) => this.buildTagged(doc, bi, B));
     if (this.floorLabels) doc.buildings.forEach(b => {
@@ -1567,7 +1570,7 @@ function densify(pts: XY[], step: number, closed = false): XY[] {
 }
 
 type GeoSet = Partial<Record<Layer, THREE.BufferGeometry>>;
-interface BCtx { doc: Project; fr: ReturnType<typeof frame>; fh: number; aniso: number; TP: TierPart[][]; P3: Prism3[]; SM: ReturnType<typeof seams>; smOf: Map<string, number>; focus: boolean; st: SceneStyle; plain: boolean; toV2: (p: XY) => THREE.Vector2 }
+interface BCtx { doc: Project; fr: ReturnType<typeof frame>; fh: number; aniso: number; TP: TierPart[][]; /** tutash binolarning yaxlit qiya tomi (har bino — oʻz qismi) */ GR: Map<string, RoofPart>; P3: Prism3[]; SM: ReturnType<typeof seams>; smOf: Map<string, number>; focus: boolean; st: SceneStyle; plain: boolean; toV2: (p: XY) => THREE.Vector2 }
 /** Fasad massivlari → Float32 BufferGeometry (keshda; disposeGroup ularni oʻchirmaydi) */
 function toGeoSet(g: FacadeGeo): GeoSet {
   const out: GeoSet = {};

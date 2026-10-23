@@ -28,7 +28,7 @@ describe('murakkab shakl tomi', () => {
     const a = (r: [number, number][]) => Math.abs(r.reduce((s, q, i) => { const n = r[(i + 1) % r.length]; return s + q[0] * n[1] - n[0] * q[1]; }, 0) / 2);
     expect(a(p[0]) + a(p[1])).toBeCloseTo(500, 5);
   });
-  it('L shaklga har qanotda tom', () => { expect(roofParts(L, 'ikki')).toHaveLength(2); expect(roofParts(L, 'bir')).toHaveLength(2); });
+  it('L shakl: ikki/toʻrt nishabli — bitta yaxlit tom (endova bilan), bir nishabli — har qanotda', () => { expect(roofParts(L, 'ikki')).toHaveLength(1); expect(roofParts(L, 'tort')).toHaveLength(1); expect(roofParts(L, 'bir')).toHaveLength(2); });
   it('bir nishabli: baland tomonda devor bor (teshik yoʻq)', () => {
     const r = roofParts([[0, 0], [20, 0], [20, 12], [0, 12]], 'bir')![0];
     expect(r.walls.length / 9).toBe(4);   // 2 yon + 2 orqa uchburchak
