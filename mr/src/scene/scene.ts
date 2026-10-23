@@ -658,9 +658,14 @@ export class Scene3D {
       if (t.f0 < nr) part(t.ring, t.f0 * fh, Math.min(t.f1, nr) * fh, baseC, parking ? null : 'shop', t === last && t.f1 <= nr, up);
       if (t.f1 > nr) part(t.ring, Math.max(t.f0, nr) * fh, t.f1 * fh, topC, office ? 'glass' : 'res', t === last, up);
     });
-    { const k = smOf.get(b.id)!, A = P3[bi], f1 = tiers[0]?.f1 ?? b.floors, segs = seamEdges(A, SM[k], nr > 0 && nr < f1 ? [A.base + nr * fh] : []);
+    // «Funksiya ranglari»: har qavat chegarasida chiziq — qayerda nechanchi qavat ekani oson koʻrinsin (seksiyalar choki — avvalgidek)
+    const fl = st === 'funksiya' && !dim;
+    { const k = smOf.get(b.id)!, A = P3[bi], f1 = tiers[0]?.f1 ?? b.floors, bands = fl ? Array.from({ length: Math.max(0, f1 - 1) }, (_, i) => A.base + (i + 1) * fh) : (nr > 0 && nr < f1 ? [A.base + nr * fh] : []), segs = seamEdges(A, SM[k], bands);
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(segs.flatMap(([x, y, z]) => [x, z, -y]), 3));
-      this.world.add(new THREE.LineSegments(g, edgeMat())); }
+      this.world.add(new THREE.LineSegments(g, edgeMat()));
+      // yuqori pogʻonalar (chekinishlar) — har qavat konturi
+      if (fl) for (const t of tiers.slice(1)) { const v: number[] = []; for (let f = t.f0 + 1; f < t.f1; f++) { const z = base + f * fh; for (let i = 0; i < t.ring.length; i++) { const p = t.ring[i], q = t.ring[(i + 1) % t.ring.length]; v.push(p[0], z, -p[1], q[0], z, -q[1]); } }
+        if (v.length) { const gt = new THREE.BufferGeometry(); gt.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); this.world.add(new THREE.LineSegments(gt, edgeMat())); } } }
     const shared = (ti: number, k: number) => ti === 0 && SM[smOf.get(b.id)!].edgeTop[k] >= base + (tiers[0].f1 * fh) - 0.05;
     // quyosh himoyasi
     if (b.shade && !dim) this.shading(b.shade, tiers, nr, base, fh, shared, st === 'minimal' || plain ? 0xe9e7e2 : 0xd9d4ca);
