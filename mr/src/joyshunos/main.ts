@@ -36,7 +36,7 @@ import { nearestStation, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { wmFile, wmRaster } from '../core/wm';
-import { streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter } from './streetui';
+import { streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
@@ -568,7 +568,7 @@ async function initMap(): Promise<void> {
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
   map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
-  map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } });
+  map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } else if (isK()) { e.preventDefault(); streetFinish(); } });
   map.on('moveend', () => { S.z = +map!.getZoom().toFixed(2); save(); });
   const roseEl = h('div', { class: 'joy-rose', 'aria-hidden': 'true' }), labEl = h('div', { class: 'joy-rlab' });
   MK = el => new ml.Marker({ element: el });
@@ -1037,6 +1037,7 @@ renderAll();
 onLang(() => { renderAll(); paint(); document.documentElement.lang = getLang(); });
 onTheme(() => { renderHeader(); restyle(); if (mode === 'axo') axBuild(); });
 document.addEventListener('keydown', e => {
+  if (isK() && !(e.target as HTMLElement)?.closest?.('input,textarea') && streetKey(e)) { e.preventDefault(); return; }
   if (e.key === 'Escape' && catOpen) { catOpen = false; renderRight(); }
   const d = drawing;
   if (d && !(e.target as HTMLElement)?.closest?.('input,textarea')) {

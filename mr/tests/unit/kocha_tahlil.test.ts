@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { routeAB, analyzeSlices, summarize, findings, along, maxGap, catOf, type SRoad, type SBld } from '../../src/joyshunos/street';
+import { routeAB, routeFromLine, freeOf, analyzeSlices, summarize, findings, along, maxGap, catOf, type SRoad, type SBld } from '../../src/joyshunos/street';
 import { daySteps, sunPosition, localToUtc } from '../../src/core/sun';
 import type { XY } from '../../src/core/geo';
 
@@ -33,6 +33,27 @@ describe('Koʻcha tahlili (Joyshunos)', () => {
     expect(rt.road.every(r => r.name === 'Oybek')).toBe(true);
     expect(rt.len).toBeCloseTo(590, -1);
     expect(rt.offName).toBe(0);
+  });
+  it('chizilgan oʻq: ikki qatnovli koʻcha, chorrahalar, fasadgacha joy', () => {
+    const rr: SRoad[] = [
+      { id: 1, pts: [[-50, 6], [450, 6]], cls: 'primary', w: 10.5, name: 'Oybek', oneway: true },
+      { id: 2, pts: [[450, -6], [-50, -6]], cls: 'primary', w: 10.5, name: 'Oybek', oneway: true },
+      { id: 3, pts: [[200, -200], [200, 200]], cls: 'residential', w: 7, name: 'Kesuvchi' },
+    ];
+    const bb: SBld[] = []; for (let x = 0; x < 400; x += 50) for (const sg of [1, -1]) bb.push({ ring: [[x, sg * 30], [x + 45, sg * 30], [x + 45, sg * 50], [x, sg * 50]] as XY[], h: 15 });
+    // foydalanuvchi chizigʻi qatnovlar orasida, biroz qiyshiq
+    const rt = routeFromLine([[0, 1], [210, -2], [400, 2]], rr)!;
+    expect(rt.len).toBeGreaterThan(395); expect(rt.len).toBeLessThan(410);
+    expect(rt.junctions.length).toBe(1); expect(rt.junctions[0]).toBeCloseTo(200, -1);
+    expect(rt.road.every(r => r.name === 'Oybek')).toBe(true);
+    const sl = analyzeSlices(rt, bb, [], null, 20, 80, rr);
+    const mid = sl[3];
+    expect(mid.cws.length).toBe(2);
+    expect(mid.cw).toBeCloseTo(21, 1);
+    expect(freeOf(mid, 'L')! + freeOf(mid, 'R')!).toBeCloseTo(60 - 2 * 11.25, 0);
+    const S = summarize(rt, sl, [], false);
+    expect(S.carriage).toBeCloseTo(21, 1);
+    expect(S.cat.id).toBe('shahar');
   });
   it('yoʻldan uzoq nuqta — null', () => {
     expect(routeAB(roads, [100, 120], [390, 0])).toBeNull();
