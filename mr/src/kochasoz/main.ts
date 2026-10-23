@@ -8,6 +8,7 @@ import '../ui/ds2.css';
 import './ks.css';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, toast, download } from '../ui/dom';
+import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { tr, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { mount, type DCLogic, type Mounted } from './dc';
@@ -95,6 +96,7 @@ function ib(id: string, label: string, icon: string, on: () => void, extra = '')
 function renderHeader(): void {
   const cur = route().id;
   header.replaceChildren(
+    mrBackBtn(),
     h('a', { class: 'brand', href: '../index.html', title: tr('Bosh sahifa') }, logoSvg(20), h('span', {}, 'Archemistry Lab')),
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),

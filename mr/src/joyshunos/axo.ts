@@ -404,10 +404,25 @@ export class Axo {
   siteRing(): [number, number][] | null { return this.siteLocal; }
 
   /** Foydalanuvchi modeli (OBJ/GLB yoki Master rejadan): binolar qatlamida, koʻk rangda, soya bilan */
-  setModel(obj: THREE.Object3D | null): void {
+  /** keepColors — Master rejadan kelgan model: oʻz ranglari (funksiya ranglari), yorugʻ material; boshqa fayl — bir xil koʻk */
+  setModel(obj: THREE.Object3D | null, keepColors = false): void {
     if (this.model) { this.model.removeFromParent(); this.model.traverse(o => (o as THREE.Mesh).geometry?.dispose?.()); }
     this.model = obj;
-    if (obj) {
+    if (obj && keepColors) {
+      // 18-band: GLTF dagi PBR material (muhit xaritasisiz qorayadi) → Lambert, rangi va shaffofligi saqlanadi; chiziqlar faqat binolarda
+      const cache = new Map<string, THREE.Material>(), edge = new THREE.LineBasicMaterial({ color: 0x4a4740, transparent: true, opacity: 0.45 });
+      const isBld = (o: THREE.Object3D) => { for (let x: THREE.Object3D | null = o; x; x = x.parent) if (x.userData?.bOwner || x.userData?.bid) return true; return false; };
+      obj.traverse(o => {
+        const m = o as THREE.Mesh; if (!m.isMesh) return;
+        const src = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshStandardMaterial | undefined;
+        const c = src?.color ? src.color.getHex() : 0xdedbd4, vc = !!m.geometry.attributes.color, op = src?.transparent ? src.opacity : 1;
+        const key = `${c}|${vc}|${op}`;
+        let mat = cache.get(key); if (!mat) { mat = new THREE.MeshLambertMaterial({ color: c, vertexColors: vc, transparent: op < 1, opacity: op, side: THREE.DoubleSide, depthWrite: op >= 1 }); cache.set(key, mat); }
+        m.material = mat; const b = isBld(o); m.castShadow = b; m.receiveShadow = true;
+        if (b) m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 30), edge));
+      });
+      this.placeModel();
+    } else if (obj) {
       const mat = new THREE.MeshLambertMaterial({ color: 0x5b7fa8 }), edge = new THREE.LineBasicMaterial({ color: 0x2f4a6b });
       const edges: THREE.LineSegments[] = [];
       obj.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.material = mat; m.castShadow = m.receiveShadow = true; edges.push(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 30), edge)); m.add(edges[edges.length - 1]); } });

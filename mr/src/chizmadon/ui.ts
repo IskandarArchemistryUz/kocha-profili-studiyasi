@@ -205,7 +205,8 @@ export function openChizmadon(host: ChHost): void {
   const tabBtn = h('button', { class: 'btn btn-ghost icon-btn', id: 'chTab', title: tr('Panellarni yashirish · Tab'), 'aria-label': tr('Panellarni yashirish'), onclick: () => togglePanels() }, svgIcon(I.panel));
   const dlBtn = h('button', { class: 'btn btn-primary', id: 'chDl', onclick: (e: Event) => { e.stopPropagation(); exportMenu(dlBtn); } }, ...icl(I.dl, tr('Yuklab olish')));
   head.append(
-    h('button', { class: 'btn btn-ghost icon-btn', id: 'chBack', 'aria-label': tr('Master rejaga qaytish'), title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>')),
+    // 18-band: koʻrinadigan matnli tugma — «← Master reja» (avval faqat belgi edi, sezilmasdi)
+    h('button', { class: 'btn btn-sm mr-back', id: 'chBack', title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja'))),
     h('span', { class: 'brand' }, logoSvg(18), h('b', {}, 'Archemistry Lab')), h('span', { class: 'svcbadge ch-badge' }, h('i'), tr('Chizmadon')),
     h('span', { class: 'sh-name' }, (() => { const i = h('input', { class: 'ch-title', id: 'chTitle', value: d.title, 'aria-label': tr('Albom nomi'), maxlength: 120 }) as HTMLInputElement; i.addEventListener('change', () => { d.title = i.value.trim() || d.title; dirty(); }); return i; })()),
     saveChip, h('span', { class: 'spacer' }), famBtn, fmtSeg, viewSeg, slotsBtn, tabBtn, dlBtn);
@@ -1178,6 +1179,7 @@ export function openChizmadon(host: ChHost): void {
     const f = fam(), fk = fmtOf(f), mats = MATS.filter(m => m.role !== 'title'), s = site();
     const box = h('div', { class: 'ch-stbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Albomni tuzish') },
       h('div', { class: 'ch-sttop' }, h('b', {}, tr('Chizmadon')), h('span', { class: 't-small' }, tr('Kirdingiz — tayyor materiallar tanlangan maketga oʻzi joylanadi. Yoqmasa, keyin shu oynada tahrirlaysiz.')),
+        h('button', { class: 'btn btn-sm mr-back', id: 'chStBack', title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja'))),
         h('button', { class: 'btn btn-ghost icon-btn', id: 'chStClose', 'aria-label': tr('Yopish'), onclick: () => startGo() }, svgIcon(I.x))),
       h('div', { class: 'ch-stbody' },
         h('div', { class: 'ch-stl' }, h('b', { class: 'ch-sth' }, tr('Loyiha hududi')), locBox('S'), whereBox(),
