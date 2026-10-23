@@ -5,7 +5,7 @@
  */
 import { type LFamily } from './layouts';
 import { type Material, type Paginated, type Fill, paginate, applyOv, type Ov } from './autolayout';
-import { renderPage, LIB, PAL, T, L0, n2, slotRectOf, str0, type Frame } from './sheet';
+import { renderPage, LIB, PAL, T, L0, n2, slotRectOf, str0, type Frame, type PageTxt } from './sheet';
 import type { Cell } from './bind';
 import type { ChRect } from './model';
 import { drawEl } from './materials';
@@ -21,6 +21,10 @@ export interface AlbumIn {
   sel?: string | null;
   /** kz oilasining pastki sarlavhasi (joy nomi) */
   place?: string;
+  /** 19-band (3): albom matnlari, yashirilganlar, varaq sarlavhalari va boʻlim matnlari (varaq raqami boʻyicha) */
+  txt?: Omit<PageTxt, 'chap' | 'rawTitle'>;
+  ttl?: Record<number, string>;
+  chap?: Record<number, PageTxt['chap']>;
 }
 export interface AlbumPage { fill: Fill; svg: string; fr: Frame; cells: Cell[]; page: ChRect; title: string }
 export interface Album { PG: Paginated; pages: AlbumPage[]; ov: Ov[] }
@@ -38,7 +42,8 @@ export function buildAlbum(a: AlbumIn): Album {
   const ov = applyOv(PG, a.ov ?? [], a.mats);
   const pages = PG.pages.map((pk, pi): AlbumPage => {
     // varaq sarlavhasi: 1-varaqda — «Sarlavha» materiali, keyin — eng katta material nomi (tahlil modullari boʻlsa — «Hudud tahlili»)
-    const ttl = pi === 0 && PG.titleEl && f.chrome !== 'poster' ? PG.titleEl.title : (() => {
+    const own = a.ttl?.[pi]?.trim();
+    const ttl = own ? own : pi === 0 && PG.titleEl && f.chrome !== 'poster' ? PG.titleEl.title : (() => {
       let b: Material | null = null, bs = 0;
       pk.assign.forEach((el, k) => { const ar = cellsArea(pk.page.slots[k]); if (ar > bs && el.role !== 'legend') { bs = ar; b = el; } });
       const bb = b as Material | null;
@@ -48,10 +53,11 @@ export function buildAlbum(a: AlbumIn): Album {
     const cells: Cell[] = [];
     const out = renderPage(LIB, f, pk.page, a.fmt, {
       pal: a.pal, slots: a.slots, idx: pi, total: PG.pages.length, empty: pk.empty, titleOverride: ttl,
+      txt: a.txt || a.chap?.[pi] || own ? { ...(a.txt ?? {}), chap: a.chap?.[pi], rawTitle: !!own } : null,
       secOverride: f.chrome === 'kz' ? String(pi + 1) : null, subOverride: f.chrome === 'kz' ? (a.place ?? null) : null,
       fill: (s, k, r, ctx) => {
         const el = pk.assign.get(k);
-        if (!el && s.role === 'title' && f.chrome !== 'poster') { const ts = Math.min(r.h * 0.55, 9 * ctx.u); return T(r.x, r.y + ts * 1.05, ttl, { s: ts, w: 700, ls: -0.02 * ts, c: ctx.P.ink }) + L0(r.x, r.y + r.h - 0.4 * ctx.u, r.x + r.w, r.y + r.h - 0.4 * ctx.u, ctx.P.ink, 0.3 * ctx.u); }
+        if (!el && s.role === 'title' && f.chrome !== 'poster') { const ts = Math.min(r.h * 0.55, 9 * ctx.u); return T(r.x, r.y + ts * 1.05, ttl, { s: ts, w: 700, ls: -0.02 * ts, c: ctx.P.ink, ...(own ? { raw: 1 } : {}) }) + L0(r.x, r.y + r.h - 0.4 * ctx.u, r.x + r.w, r.y + r.h - 0.4 * ctx.u, ctx.P.ink, 0.3 * ctx.u); }
         if (!el) return null;
         cells.push({ el: el.id, r: { ...r } });
         const c = { ...ctx } as never;

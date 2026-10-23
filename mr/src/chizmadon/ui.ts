@@ -122,6 +122,36 @@ export function openChizmadon(host: ChHost): void {
     if (!host.plans) return undefined;
     return (PLANS ??= host.plans().map(p => { let c: ReturnType<PlanSrc['get']>, got = false; return { ...p, get: () => { if (!got) { got = true; const m = p.get(); c = m ? { ...m, svg: trSvg(m.svg), legend: m.legend?.map(q => ({ ...q, label: tr(q.label) })) } : m; } return c; } }; }));
   };
+  /* ---------- 19-band (3): maket varaqlari matnlari — sukut loyiha maʼlumotidan (namuna matnlari oʻrniga) ---------- */
+  const YEAR = new Date().getFullYear();
+  const TXT_DEF = {
+    proj: () => [d.title || host.project, R ? tr(placeName(R)) : host.place].filter(Boolean).join(' · '),
+    stamp: () => `Archemistry Lab  ·  ${d.album.author || '—'}  ·  ${YEAR}`,
+    shifr: () => '—',
+    tik: () => tikOnce().filter(r => r[2] && r[2] !== '0' && r[2] !== '0,00').slice(0, 4).map(r => `${tr(r[0])} ${r[2]}${r[1] ? ' ' + tr(r[1]) : ''}`).join('  ·  '),
+    src: () => `${tr('Manba: loyiha maʼlumoti')}, ${YEAR}`,
+  };
+  const albumTxt = () => { const t = d.auto.txt; return { proj: t.proj ?? TXT_DEF.proj(), stamp: t.stamp ?? TXT_DEF.stamp(), shifr: t.shifr ?? TXT_DEF.shifr(), tik: t.tik ?? TXT_DEF.tik(), src: t.src ?? TXT_DEF.src(), hide: d.auto.hide }; };
+  /** Rasm faylini oʻqish va kichraytirish (eng uzun tomoni ≤ 1800 px, JPEG 0,85) — loyiha hujjati yengil qolsin */
+  function pickPhoto(done: (url: string, name: string) => void): void {
+    fileIn.value = ''; fileIn.onchange = () => {
+      const f = fileIn.files?.[0]; if (!f) return; const r = new FileReader();
+      r.onload = () => {
+        const url = String(r.result), img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, 1800 / Math.max(img.width, img.height));
+          if (k === 1 && url.length < 900_000) { done(url, f.name.replace(/\.[^.]+$/, '')); return; }
+          const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          const g = c.getContext('2d')!; g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+          done(c.toDataURL('image/jpeg', 0.85), f.name.replace(/\.[^.]+$/, ''));
+        };
+        img.onerror = () => toast(tr('Rasm oʻqilmadi'));
+        img.src = url;
+      };
+      r.readAsDataURL(f);
+    };
+    fileIn.click();
+  }
   /** Maket varaqlaridagi tahrirlarni d.hand ga yozish va bogʻlanishni yangilash (reanchor) */
   function writeBack(): void {
     if (!LAST) return;
@@ -136,7 +166,7 @@ export function openChizmadon(host: ChHost): void {
     MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats), ...siteMaterials(() => R!, d.auto.mats)];
     setCustomPal(d.auto.custom); if (d.auto.pal === 'custom' && !d.auto.custom) d.auto.pal = 'arch';
     const f = fam(), fmt = fmtOf(f);
-    LAST = buildAlbum({ fam: f, fmt, pal: d.auto.pal, mats: MATS, force: d.auto.force, ov: d.auto.ov, slots: d.auto.slots, R, sel: matSel, place: R ? placeName(R) : host.place });
+    LAST = buildAlbum({ fam: f, fmt, pal: d.auto.pal, mats: MATS, force: d.auto.force, ov: d.auto.ov, slots: d.auto.slots, R, sel: matSel, place: R ? placeName(R) : host.place, txt: albumTxt(), ttl: d.auto.ttl, chap: d.auto.chap });
     d.auto.ov = LAST.ov; nAuto = LAST.pages.length; PLACE = placements(LAST.PG);
     BG = LAST.pages.map(ap => inner(ap.svg));
     for (const e of d.hand) { const pi = handPage(e); if (pi < 0) continue; const F = e.a!.el ? cellsOf(pi).find(c => c.el === e.a!.el)?.r ?? pageRect(pi) : pageRect(pi); if (!e.a!.r0) e.a!.r0 = { ...F }; else rebase(e, F); }
@@ -583,6 +613,9 @@ export function openChizmadon(host: ChHost): void {
       field('Matn va chiziq oʻlchami', stepper({ id: 'chMatScale', min: 70, max: 150, step: 10, value: Math.round(m.scale * 100), unit: '%', label: tr('Matn va chiziq oʻlchami'), onchange: v => autoMut(() => { s.scale = v / 100; }, 'ms') })),
       lbl('Varaqda'), where.length ? h('div', { class: 'group' }, ...where.map(w => h('button', { class: 'li', onclick: () => goPage(w.pi) }, h('span', { class: 'k' }, `${tf('${n}-varaq', { n: w.pi + 1 })} · ${tr(LAYOUTS.roles[LAST!.PG.pages[w.pi].page.slots[w.k].role][0]).toLowerCase()}`), svgIcon(I.right)))) : h('div', { class: 'note warn' }, tr('Bu maketda joy topilmadi.')),
       h('div', { class: 'note' }, tr('Loyiha oʻzgarsa bu element oʻzi yangilanadi.') + (att ? ` ${tf('Ustida ${n} ta qoʻlda chizilgan belgi bor — element boshqa katak yoki maketga koʻchsa, ular ham birga koʻchadi.', { n: att })}` : '')));
+    if (m.role !== 'title') out.push(lbl('Rasm'), h('div', { class: 'ch-chips' },
+      h('button', { class: 'btn btn-sm', id: 'chMatImg', onclick: () => pickPhoto(url => autoMut(() => { s.src = url; })) }, tr(m.own ? 'Boshqa rasm tanlash' : 'Oʻz rasmingiz bilan almashtirish')),
+      m.own ? h('button', { class: 'btn btn-sm', id: 'chMatImgReset', onclick: () => autoMut(() => { delete s.src; }) }, tr('Asl holiga qaytarish')) : ''));
     const inb = m.id.startsWith('i:') ? d.inbox.find(i => `i:${i.id}` === m.id) : null;
     if (inb) out.push(h('button', { class: 'btn btn-sm', id: 'chPlaceFree', onclick: () => placeInbox(inb) }, tr('Joriy varaqqa erkin element sifatida qoʻyish')));
     return out;
@@ -602,13 +635,38 @@ export function openChizmadon(host: ChHost): void {
     out.push(...checkTab());
     return out;
   }
+  /** 19-band (3): maket varagʻi matnlari (sarlavha, boʻlim) va albom matnlari (loyiha satri, shtamp, shifr, TIK, manba) + yashirish */
+  function pageTexts(): HTMLElement[] {
+    if (!LAST) return [];
+    const pi = d.cur, ap = LAST.pages[pi], f = fam(), roles = new Set(ap.fill.page.slots.map(q => q.role)), A = d.auto;
+    const inp = (id: string, val: string | undefined, ph: string, set: (v: string | undefined) => void, area = false) => {
+      const el = (area ? h('textarea', { class: 'input ch-ta', id, rows: 3, placeholder: ph }, val ?? '') : h('input', { class: 'input', id, value: val ?? '', placeholder: ph })) as HTMLInputElement;
+      el.addEventListener('change', () => autoMut(() => { const v = el.value.trim(); set(v ? v : undefined); }, id));
+      return el;
+    };
+    const tog = (k: 'stamp' | 'shifr' | 'head' | 'foot', label: string) => field(label, sw({ id: `chHide_${k}`, label: tr(label), on: !A.hide[k], onchange: v => autoMut(() => { if (v) delete A.hide[k]; else A.hide[k] = true; }) }));
+    const C = A.chap[pi] ?? {}, setC = (k: 'n' | 't' | 'note', v: string | undefined) => { const c = { ...(A.chap[pi] ?? {}) }; if (v == null) delete c[k]; else c[k] = v; if (Object.keys(c).length) A.chap[pi] = c; else delete A.chap[pi]; };
+    const out: HTMLElement[] = [lbl('Varaq matnlari'),
+      lbl('Sarlavha'), inp('chPgTitle', A.ttl[pi], ap.title, v => { if (v) A.ttl[pi] = v; else delete A.ttl[pi]; })];
+    if (roles.has('chapter')) out.push(lbl('Boʻlim raqami'), inp('chChapN', C.n, '02', v => setC('n', v)), lbl('Boʻlim nomi'), inp('chChapT', C.t, tr('Tahlil'), v => setC('t', v)), lbl('Izoh'), inp('chChapNote', C.note, tr('Qisqa izoh'), v => setC('note', v), true));
+    out.push(lbl('Albom matnlari va shtamp'),
+      h('span', { class: 't-small' }, tr('Barcha maket varaqlariga taalluqli. Boʻsh qoldirilsa — loyiha maʼlumotidan avtomatik.')),
+      lbl('Loyiha satri'), inp('chTxtProj', A.txt.proj, TXT_DEF.proj(), v => { A.txt.proj = v; }),
+      lbl('Shtamp matni'), inp('chTxtStamp', A.txt.stamp, TXT_DEF.stamp(), v => { A.txt.stamp = v; }),
+      lbl('Shifr'), inp('chTxtShifr', A.txt.shifr, TXT_DEF.shifr(), v => { A.txt.shifr = v; }));
+    if (f.chrome === 'kz') out.push(lbl('TIK satri'), inp('chTxtTik', A.txt.tik, TXT_DEF.tik(), v => { A.txt.tik = v; }, true), lbl('Manba'), inp('chTxtSrc', A.txt.src, TXT_DEF.src(), v => { A.txt.src = v; }));
+    out.push(h('div', { class: 'group', id: 'chHide' }, tog('stamp', 'Shtamp'), tog('shifr', 'Shifr'), tog('head', 'Yuqori kolontitul'), tog('foot', 'Pastki kolontitul')));
+    for (const k of Object.keys(A.txt) as (keyof typeof A.txt)[]) if (A.txt[k] === undefined) delete A.txt[k];
+    return out;
+  }
   function pageProps(): HTMLElement[] {
     const p = P(), [W, H] = pageSize(p), toolHelp = TOOLS.find(t => t.id === tool)!;
     const out: HTMLElement[] = [];
     if (isAuto()) {
       const f = fam();
       out.push(h('div', { class: 'ch-eh' }, h('b', { class: 't-title' }, tr(p.name)), h('span', { class: 't-small' }, `${tr(f.name)} · ${tr(fmtName(fmtOf(f)))} · ${Math.round(W)} × ${Math.round(H)} mm`)),
-        h('div', { class: 'empty ch-empty' }, svgIcon(I.el), h('b', {}, tr('Hech narsa tanlanmagan')), h('span', {}, tr('Varaqdagi elementni bosing yoki pastdagi asbob bilan chizing. Shift — bir nechtasini tanlash.'))));
+        h('div', { class: 'empty ch-empty' }, svgIcon(I.el), h('b', {}, tr('Hech narsa tanlanmagan')), h('span', {}, tr('Varaqdagi elementni bosing yoki pastdagi asbob bilan chizing. Shift — bir nechtasini tanlash.'))),
+        ...pageTexts());
     } else {
       const name = h('input', { class: 'input', id: 'chPageName', value: p.name, 'aria-label': tr('Varaq nomi') }) as HTMLInputElement;
       name.addEventListener('change', () => mut(pp => { pp.name = name.value.trim() || pp.name; }));

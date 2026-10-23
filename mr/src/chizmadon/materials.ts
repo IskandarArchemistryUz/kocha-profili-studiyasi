@@ -150,7 +150,9 @@ export const SITE_DEFS: Def[] = [
 ];
 /** Sozlamani materialga qoʻllash (koʻrinish, rang, oʻlcham, sarlavha, matn) */
 function withSet(d: Def, s: ChMatSet | undefined, render: Material['render'], defVisible = true): Material {
-  return { ...d, visible: s?.visible ?? defVisible, accent: s?.accent ?? null, scale: s?.scale ?? 1, title: s?.title ?? d.title, text: s?.text ?? null, render } as Material;
+  // 19-band (3): foydalanuvchi oʻz rasmi bilan almashtirgan — katakka rasm (markazdan, kesib) chiziladi
+  const own = s?.src, R2: Material['render'] = own ? (r) => fitMap(`u${d.id.replace(/[^\w-]/g, '_')}`, { src: own, w: r.w, h: r.h }, r, d.name) : render;
+  return { ...d, visible: s?.visible ?? defVisible, accent: s?.accent ?? null, scale: s?.scale ?? 1, title: s?.title ?? d.title, text: s?.text ?? null, render: R2, ...(own ? { own: true } : {}) } as Material;
 }
 export function siteMaterials(R: () => Resolved, sets: Record<string, ChMatSet>): Material[] {
   return SITE_DEFS.map(d => { const m: Material = withSet(d, sets[d.id], (r, ctx, bare) => drawEl(m, r, ctx, R(), bare)); return m; });
