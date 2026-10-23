@@ -2835,7 +2835,7 @@ export class Editor {
     const mk = (id: string, name: string, on: boolean, o: Partial<SheetOpts>): PlanSrc => ({ id, name, on, get: () => {
       if (ctx === undefined) ctx = this.sheetCtx();
       const r = sheetSvg(this.store.doc, ctx, { ...SHEET_DEFAULT, ...o, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
-      const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
+      const m = mapOnly(r.svg, r.scale); return m ? { ...m, north: -(o.rot ?? 0), legend: r.legend } : null;
     } });
     const out: PlanSrc[] = [
       mk('p:plan:bosh', 'Bosh reja', true, { kind: 'bosh' }),
@@ -2853,8 +2853,8 @@ export class Editor {
       const p2 = ps[i], G = sheetGroup(p2), a = aptSheet(doc, ps, i, undefined, 'rang', tr);
       const r = floorPlanSvg(p2, { scale: 100, dims: true, title: '', floor: G.from, num: true, bare: true, fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === p2.bid)?.bal ?? null });
       const m = /<svg[^>]*>/.exec(r.svg); if (!m) return null;
-      const inner = r.svg.slice(r.svg.indexOf(m[0]) + m[0].length).replace(/<\/svg>\s*$/, ''), pad = 4;
-      return { svg: inner, vb: [-pad, -pad, r.widthMm + 2 * pad, r.heightMm + 2 * pad], w: r.widthMm + 2 * pad, h: r.heightMm + 2 * pad, scale: 100, legend: a.legend, contain: true };
+      const inner = r.svg.slice(r.svg.indexOf(m[0]) + m[0].length).replace(/<\/svg>\s*$/, ''), pad = 8;
+      return { svg: inner, vb: [-pad, -pad, r.widthMm + 2 * pad, r.heightMm + 2 * pad], w: r.widthMm + 2 * pad, h: r.heightMm + 2 * pad, scale: 100, north: a.north, legend: a.legend, contain: true };
     } }));
     return out;
   }
@@ -2871,7 +2871,7 @@ export class Editor {
         return url;
       },
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
-      toChizmadon: (svg, name, scale) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale }); },
+      toChizmadon: (svg, name, scale, north) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, north }); },
       dxf: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } });
   }
 

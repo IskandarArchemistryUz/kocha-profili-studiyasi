@@ -158,7 +158,7 @@ export function siteMaterials(R: () => Resolved, sets: Record<string, ChMatSet>)
 
 /** Master reja loyihasidan: bosh reja, TIK jadvali, sahna rasmi va «Chizmadonga» yuborilganlar */
 /** Master rejaning bitta rejasi (Varaqlar namunasi yoki qavat rejasi): xarita qismi (mm) va shartli belgilari */
-export interface PlanMap { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number; legend?: { type: string; fill?: string; stroke?: string; label: string }[]; /** butunicha sigʻdirish (kesmasdan) — qavat rejalari */ contain?: boolean }
+export interface PlanMap { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number; north?: number; legend?: { type: string; fill?: string; stroke?: string; label: string }[]; /** butunicha sigʻdirish (kesmasdan) — qavat rejalari */ contain?: boolean }
 /** 19-band: Master reja rejalari — bosh reja, zonalashtirish (land use), funksional, qavatlilik, kvartirografiya…; get — dangasa (faqat koʻrinsa hisoblanadi) */
 export interface PlanSrc { id: string; name: string; on: boolean; get: () => PlanMap | null | undefined }
 export interface ProjectSrc {
@@ -170,12 +170,13 @@ export interface ProjectSrc {
 }
 const DUMMY: ChPage = { id: 'm', name: '', paper: 'A3', landscape: true, layers: [], els: [] };
 /** Xarita yoki rasmni katakka sigʻdirib (markazdan, «cover») chizish — render.ts mapEl / imageEl orqali */
-function fitMap(id: string, src: { svg?: string; src?: string; vb?: [number, number, number, number]; w: number; h: number; scale?: number; contain?: boolean }, r: Rect, name: string): string {
+function fitMap(id: string, src: { svg?: string; src?: string; vb?: [number, number, number, number]; w: number; h: number; scale?: number; north?: number; contain?: boolean }, r: Rect, name: string): string {
   const e: ChEl = { id: `mt${id}`, t: src.svg ? 'map' : 'image', layer: 'm', x: r.x, y: r.y, w: r.w, h: r.h, name, style: { width: 0.25 } };
   if (src.svg) {
     const vb = src.vb ?? [0, 0, src.w, src.h], k = (src.contain ? Math.min : Math.max)(r.w / vb[2], r.h / vb[3]), vw = r.w / k, vh = r.h / k;
     e.svg = src.svg; e.vb = [vb[0] + (vb[2] - vw) / 2, vb[1] + (vb[3] - vh) / 2, vw, vh];
     if (src.scale) { e.scale = Math.round(src.scale / k); e.natW = r.w; }
+    if (Number.isFinite(src.north)) e.north = src.north;
   } else e.src = src.src;
   return elSvg(e, DUMMY, { idp: `mt${id}`, tr: s => s }).replace(/ data-id="[^"]*"/g, '');
 }

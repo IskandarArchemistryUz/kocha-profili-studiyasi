@@ -15,7 +15,7 @@ import { tr, tf, trSvg, getLang } from '../i18n';
 import { logoSvg } from '../ui/logo';
 import { svgPdf } from '../ui/pdf';
 import { openColor } from '../ui/colorpicker';
-import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale } from './model';
+import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale, mapNorth } from './model';
 import { pageSvg, textHeight, legendHeight } from './render';
 import { pageChecks, applyFix, sheetChecks, type Check9 } from './check';
 import { LAYOUTS, buildLayoutPage, type LFamily, type TplCtx } from './layouts';
@@ -716,17 +716,23 @@ export function openChizmadon(host: ChHost): void {
         break;
       case 'map': {
         const sc = mapScale(e);
+        const northIn = h('input', { class: 'input num', id: 'chMapNorth', inputmode: 'numeric', value: mapNorth(e) != null ? String(Math.round(mapNorth(e)!)) : '', placeholder: '0' }) as HTMLInputElement;
+        northIn.addEventListener('change', () => { const v = Number(northIn.value.replace(',', '.')); if (!Number.isFinite(v)) return; upd(e.id, x => { x.north = ((v % 360) + 360) % 360; }); });
         const scIn = h('input', { class: 'input num', id: 'chMapScale', inputmode: 'numeric', value: sc ?? '', placeholder: tr('masshtabsiz') }) as HTMLInputElement;
         scIn.addEventListener('change', () => { const N = Number(scIn.value.replace(/\s/g, '')); if (!(N > 0) || !e.scale || !e.vb) return; upd(e.id, x => { const vb = x.vb!, cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2, w = Math.abs(x.w ?? 100), hh = Math.abs(x.h ?? 100), vw = N * w / x.scale!, vh = vw * hh / w; x.vb = [cx - vw / 2, cy - vh / 2, vw, vh]; x.natW = vw; }); });
         out.push(lbl('Manba'),
           h('div', { class: 'group', id: 'chMapSrc' },
             h('button', { class: 'li', 'data-src': 'site', onclick: () => setMapSource(e.id, 'site') }, h('span', { class: 'k' }, tr('Loyiha bosh rejasi'), h('span', { class: 'sub' }, tr('Varaqlar · vektor, masshtab bilan')))),
             h('button', { class: 'li', 'data-src': 'scene', onclick: () => setMapSource(e.id, 'scene') }, h('span', { class: 'k' }, tr('Sahna rasmi'), h('span', { class: 'sub' }, tr('joriy 3D koʻrinish (fon: sxematik yoki sunʼiy yoʻldosh)')))),
-            ...(plansOnce() ?? []).filter(p => p.id !== 'p:plan').map(p => h('button', { class: 'li', 'data-src': p.id, onclick: () => { const m = p.get(); if (!m) { toast(tr('Bu reja uchun maʼlumot yoʻq')); return; } setMapSource(e.id, { id: p.id, name: tr(p.name), kind: 'plan', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, at: '' }); } }, h('span', { class: 'k' }, tr(p.name), h('span', { class: 'sub' }, tr('Master reja · vektor'))))),
+            ...(plansOnce() ?? []).filter(p => p.id !== 'p:plan').map(p => h('button', { class: 'li', 'data-src': p.id, onclick: () => { const m = p.get(); if (!m) { toast(tr('Bu reja uchun maʼlumot yoʻq')); return; } setMapSource(e.id, { id: p.id, name: tr(p.name), kind: 'plan', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, north: m.north ?? 0, at: '' }); } }, h('span', { class: 'k' }, tr(p.name), h('span', { class: 'sub' }, tr('Master reja · vektor'))))),
             ...d.inbox.map(it => h('button', { class: 'li', 'data-src': it.id, onclick: () => setMapSource(e.id, it) }, h('span', { class: 'k' }, it.name, h('span', { class: 'sub' }, tr('Loyihadan')))))),
           field('Masshtab 1:', scIn),
           h('span', { class: 't-small' }, tr('Xarita ichini surish — Alt + sudrash. Ramka oʻlchami oʻzgarsa masshtab qayta hisoblanadi.')),
-          h('div', { class: 'group' }, field('Masshtab yozuvi', sw({ label: tr('Masshtab yozuvi'), on: e.style.kind !== 'izoh', onchange: v => S(s => { s.kind = v ? undefined : 'izoh'; }) }))), nameIn);
+          h('div', { class: 'group' },
+            field('Shimol belgisi', sw({ label: tr('Shimol belgisi'), on: mapNorth(e) != null && e.style.north !== false, onchange: v => { upd(e.id, x => { if (v && mapNorth(x) == null) x.north = 0; x.style.north = v ? undefined : false; }); } })),
+            field('Masshtab chizgʻichi', sw({ label: tr('Masshtab chizgʻichi'), on: e.style.bar !== false, onchange: v => S(s => { s.bar = v ? undefined : false; }) })),
+            field('Masshtab yozuvi', sw({ label: tr('Masshtab yozuvi'), on: e.style.kind !== 'izoh', onchange: v => S(s => { s.kind = v ? undefined : 'izoh'; }) }))),
+          field('Shimol, °', northIn), nameIn);
         break;
       }
       case 'legend':
@@ -1157,13 +1163,13 @@ export function openChizmadon(host: ChHost): void {
     if (!m) { if (src !== 'site' && src.src) upd(id, e => { e.src = src.src; e.svg = undefined; }); else toast(tr('Loyihada bosh reja yoʻq — avval uchastka chizing')); return; }
     upd(id, e => {
       const w = Math.abs(e.w ?? 100), hh = Math.abs(e.h ?? 100), k = Math.max(w / m.vb[2], hh / m.vb[3]), vw = w / k, vh = hh / k;
-      e.svg = trSvg(m.svg); e.src = undefined; e.vb = [m.vb[0] + (m.vb[2] - vw) / 2, m.vb[1] + (m.vb[3] - vh) / 2, vw, vh]; e.natW = vw; e.scale = m.scale; e.name = src === 'site' ? tr('Bosh reja') : src.name;
+      e.svg = trSvg(m.svg); e.src = undefined; e.vb = [m.vb[0] + (m.vb[2] - vw) / 2, m.vb[1] + (m.vb[3] - vh) / 2, vw, vh]; e.natW = vw; e.scale = m.scale; e.north = src === 'site' ? 0 : src.north; e.name = src === 'site' ? tr('Bosh reja') : src.name;
     });
   }
   function placeInbox(it: ChInbox): void {
     const [W, H] = pageSize(P()), k = Math.min(1, (W - 40) / it.w, (H - 40) / it.h), w = it.w * k, hh = it.h * k;
     const e: ChEl = { id: cid(), t: it.svg || it.src ? 'map' : 'image', layer: P().layers[0].id, x: (W - w) / 2, y: (H - hh) / 2, w, h: hh, name: it.name, style: { width: 0.25 } };
-    if (it.svg) { e.svg = it.svg; e.vb = it.vb ?? [0, 0, it.w, it.h]; e.natW = e.vb[2]; e.scale = it.scale; } else if (it.src) e.src = it.src;
+    if (it.svg) { e.svg = it.svg; e.vb = it.vb ?? [0, 0, it.w, it.h]; e.natW = e.vb[2]; e.scale = it.scale; e.north = it.north; } else if (it.src) e.src = it.src;
     matSel = null; addEl(e);
   }
 

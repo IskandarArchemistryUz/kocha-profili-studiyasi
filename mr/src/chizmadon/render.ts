@@ -4,7 +4,7 @@
  * chiziqlar bilan, lenta — ikki chiziq bilan, oʻq uchi — koʻpburchak bilan chiziladi.
  * Har qatlam — alohida nomli guruh (Illustrator / Inkscape qatlam sifatida koʻradi).
  */
-import { type ChEl, type ChPage, pageSize, bbox, mapScale } from './model';
+import { type ChEl, type ChPage, pageSize, bbox, mapScale, mapNorth } from './model';
 import { dashArray, iconById, treeById, type Crown } from './catalog';
 
 const PT = 0.3528;   // 1 pt = 0,3528 mm
@@ -206,12 +206,43 @@ function placeholder(e: ChEl, R: RenderCtx, label: string): string {
 }
 /** ichki SVG dagi id larni noyob qilish (bir varaqda bir nechta xarita oynasi) */
 const prefixIds = (svg: string, p: string) => svg.replace(/\bid="([^"]+)"/g, `id="${p}$1"`).replace(/url\(#([^)]+)\)/g, `url(#${p}$1)`).replace(/href="#([^"]+)"/g, `href="#${p}$1"`);
+/** Chiroyli qadam: 1, 2, 5 × 10ⁿ */
+const nice = (v: number) => { const p = 10 ** Math.floor(Math.log10(v)), f = v / p; return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * p; };
+/**
+ * 19-band (2): xarita oynasi bezaklari — oʻng-yuqorida shimol strelkasi (aylana, «N»), oʻng-pastda masshtab chizgʻichi
+ * (4 boʻlak, metrda) va «M 1:N» yozuvi oq plashka ustida. Oʻlchami oyna kattaligiga mos (kichik oynada — ixcham).
+ */
+function mapDeco(e: ChEl, x0: number, y0: number, x1: number, y1: number): string {
+  const w = x1 - x0, h = y1 - y0, u = Math.max(0.55, Math.min(1, Math.min(w, h) / 90)), mono = ff('IBM Plex Mono'), out: string[] = [];
+  const nd = mapNorth(e);
+  if (nd != null && e.style.north !== false && Math.min(w, h) > 18) {
+    const r = 4.2 * u, cx = x1 - r - 2.5 * u, cy = y0 + r + 2.5 * u;
+    out.push(`<g data-deco="north"><circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#ffffff" fill-opacity=".92" stroke="#141414" stroke-width="${n(0.2 * u)}"/><g transform="rotate(${n(nd)} ${n(cx)} ${n(cy)})"><path d="M${n(cx)} ${n(cy - r * 0.3)}L${n(cx + r * 0.34)} ${n(cy + r * 0.78)}L${n(cx)} ${n(cy + r * 0.56)}Z" fill="#141414"/><path d="M${n(cx)} ${n(cy - r * 0.3)}L${n(cx - r * 0.34)} ${n(cy + r * 0.78)}L${n(cx)} ${n(cy + r * 0.56)}Z" fill="#ffffff" stroke="#141414" stroke-width="${n(0.15 * u)}"/><text x="${n(cx)}" y="${n(cy - r * 0.4)}" font-family="${ff()}" font-size="${n(2.1 * u)}" font-weight="700" text-anchor="middle" fill="#141414">N</text></g></g>`);
+  }
+  const sc = mapScale(e), txt = e.style.kind !== 'izoh';
+  if (!sc || (!txt && e.style.bar === false)) return out.join('');
+  const label = `M 1:${sc.toLocaleString('ru-RU')}`;
+  if (e.style.bar === false || w < 40) {
+    out.push(`<text x="${n(x1 - 2)}" y="${n(y1 - 2)}" font-family="${mono}" font-size="2.5" fill="#3c3b38" text-anchor="end">${label}</text>`);
+    return out.join('');
+  }
+  // chizgʻich: oyna enining ~22 % i, metrda chiroyli son
+  const mmPerM = 1000 / sc, len = nice(Math.min(w * 0.22, 40) / mmPerM), L = len * mmPerM, seg = L / 4, bh = 0.9 * u;
+  const pw = L + 11 * u, ph = (txt ? 9.6 : 6.6) * u, px = x1 - pw - 1.5 * u, py = y1 - ph - 1.5 * u, bx = px + 5.5 * u, by = py + 4.2 * u;
+  const fmtM = (v: number) => (v >= 1000 && v % 1000 === 0 ? `${v / 1000} km` : `${v.toLocaleString('ru-RU')} m`);
+  out.push(`<g data-deco="scale"><rect x="${n(px)}" y="${n(py)}" width="${n(pw)}" height="${n(ph)}" fill="#ffffff" fill-opacity=".9"/>`);
+  for (let i = 0; i < 4; i++) out.push(`<rect x="${n(bx + i * seg)}" y="${n(by)}" width="${n(seg)}" height="${n(bh)}" fill="${i % 2 ? '#ffffff' : '#141414'}" stroke="#141414" stroke-width="${n(0.15 * u)}"/>`);
+  for (const [i, t] of [[0, '0'], [2, fmtM(len / 2).replace(/ (k?m)$/, '')], [4, fmtM(len)]] as [number, string][]) out.push(`<text x="${n(bx + i * seg)}" y="${n(by - 0.9 * u)}" font-family="${mono}" font-size="${n(1.9 * u)}" text-anchor="middle" fill="#141414">${t}</text>`);
+  if (txt) out.push(`<text x="${n(bx + L / 2)}" y="${n(by + bh + 3.2 * u)}" font-family="${mono}" font-size="${n(2.3 * u)}" text-anchor="middle" fill="#141414">${label}</text>`);
+  out.push('</g>');
+  return out.join('');
+}
 function mapEl(e: ChEl, R: RenderCtx): string {
   const [x0, y0, x1, y1] = bbox(e), w = x1 - x0, h = y1 - y0;
   if (!e.svg && !e.src) return placeholder(e, R, 'Xarita oynasi');
   const id = `${R.idp}m${e.id}`;
   const frame = `<rect x="${n(x0)}" y="${n(y0)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="${e.style.stroke ?? '#141414'}" stroke-width="${n(e.style.width ?? 0.25)}"/>`;
-  const sc = mapScale(e), lbl = sc && e.style.kind !== 'izoh' ? `<text x="${n(x1 - 2)}" y="${n(y1 - 2)}" font-family="${ff('IBM Plex Mono')}" font-size="2.5" fill="#3c3b38" text-anchor="end">M 1:${sc.toLocaleString('ru-RU')}</text>` : '';
+  const lbl = mapDeco(e, x0, y0, x1, y1);
   if (e.src) return `<clipPath id="${id}"><rect x="${n(x0)}" y="${n(y0)}" width="${n(w)}" height="${n(h)}"/></clipPath><image x="${n(x0)}" y="${n(y0)}" width="${n(w)}" height="${n(h)}" preserveAspectRatio="xMidYMid slice" href="${e.src}" clip-path="url(#${id})"/>${frame}${lbl}`;
   const vb = e.vb ?? [0, 0, w, h];
   return `<svg x="${n(x0)}" y="${n(y0)}" width="${n(w)}" height="${n(h)}" viewBox="${vb.map(n).join(' ')}" preserveAspectRatio="xMidYMid slice" overflow="hidden">${prefixIds(e.svg!, id)}</svg>${frame}${lbl}`;
