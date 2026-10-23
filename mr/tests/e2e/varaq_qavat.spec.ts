@@ -25,6 +25,9 @@ test('qavat rejasi varagʻi: sxemalar, eksplikatsiya, qavat tanlovi, barcha vara
   await expect(page.locator('[data-grp]')).toHaveCount(2);
   await page.click('[data-grp="0"]');
   await expect(page.locator('[data-sheet="0"]')).toContainText('1-qavat');
+  // kvartirasiz 1-qavat — xonalar eksplikatsiyasi boʻsh emas
+  await expect(v).toContainText('Xonalar eksplikatsiyasi');
+  await expect(v).toContainText('savdo / xizmat');
   const before = await page.locator('[data-sheet]').count();
   await page.click('#shAllFl');
   const after = await page.locator('[data-sheet]').count();

@@ -20,7 +20,7 @@ export interface PlanOpts {
   /** varaq ichida: shimol strelkasi va pastki izoh chizilmaydi (varaqning oʻzida) */ bare?: boolean;
 }
 export const ROOM_LABEL: Record<RoomKind, string> = { texnik: 'texnik / ombor', ombor: 'yashovchilar omborlari', savdo: 'savdo / xizmat', velo: 'velo / kolyaska', zal: 'yashovchilar zali', tozalash: 'tozalash anjomlari ombori' };
-const ROOM_FILL: Record<RoomKind, string> = { texnik: '#e4e1da', ombor: '#e6dcc8', savdo: '#cfe0f3', velo: '#dfe9d2', zal: '#efd9e8', tozalash: '#e4e1da' };
+export const ROOM_FILL: Record<RoomKind, string> = { texnik: '#e4e1da', ombor: '#e6dcc8', savdo: '#cfe0f3', velo: '#dfe9d2', zal: '#efd9e8', tozalash: '#e4e1da' };
 /** Qavat turi: noturar qavatlar (f0) — 1-qavat savdo + yashovchilar xonalari, yuqorisi savdo / ofis; turar 1-qavat — kirish qavati */
 export function floorTypeOf(pl: SecPlan, floor: number): FloorType { return floor <= pl.f0 ? (floor === 1 ? 'ground' : 'nonres') : floor === 1 ? 'first' : 'typical'; }
 export const FLOOR_NAME: Record<FloorType, string> = { ground: 'savdo + yashovchilar xonalari', nonres: 'savdo / ofis', first: 'kirish qavati', typical: 'turar qavat' };
