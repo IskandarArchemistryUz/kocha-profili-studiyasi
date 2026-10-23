@@ -54,3 +54,15 @@ describe('qiya tom — istalgan qavariq dogʻ', () => {
     for (const s of secs) expect(roofParts(s.ring, 'ikki'), JSON.stringify(s.ring)).not.toBeNull();
   });
 });
+
+/** 16-band: savdo markazi kabi keng binoda qiya tom noreal baland boʻlmasin */
+import { ROOF_RISE_MAX } from '../../src/core/roof';
+describe('keng bino tomi', () => {
+  it('120 × 80 m savdo bloki: tizma ≤ 6 m (avval 23 m edi)', () => {
+    const big: XY[] = [[0, 0], [120, 0], [120, 80], [0, 80]];
+    for (const k of ['ikki', 'tort'] as const) { const p = pitchedRoof(big, k)!; expect(p.h).toBeLessThanOrEqual(ROOF_RISE_MAX + 1e-9); expect(Math.max(...p.tris.filter((_, i) => i % 3 === 2))).toBeLessThanOrEqual(ROOF_RISE_MAX + 1e-9); }
+  });
+  it('oddiy turar seksiya (15 m chuqurlik) — oʻzgarmaydi', () => {
+    expect(pitchedRoof([[0, 0], [30, 0], [30, 15], [0, 15]], 'ikki')!.h).toBeCloseTo(7.5 * Math.tan(Math.PI / 6), 6);
+  });
+});
