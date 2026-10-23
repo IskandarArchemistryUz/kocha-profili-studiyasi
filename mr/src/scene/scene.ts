@@ -260,7 +260,7 @@ export class Scene3D {
   pickBuilding(clientX: number, clientY: number): string | null {
     const r = this.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.rcam());
-    const hit = this.ray.intersectObjects(this.world.children.filter(o => o.userData.bid), false)[0];
+    const hit = this.ray.intersectObjects(this.pickables(), false)[0];
     return hit ? (hit.object.userData.bid as string) : null;
   }
 
@@ -268,7 +268,7 @@ export class Scene3D {
   pickBuildingHit(clientX: number, clientY: number): { id: string; p: XY; wall: boolean; y: number } | null {
     const r = this.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.rcam());
-    const hit = this.ray.intersectObjects(this.world.children.filter(o => o.userData.bid), false)[0]; if (!hit) return null;
+    const hit = this.ray.intersectObjects(this.pickables(), false)[0]; if (!hit) return null;
     const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
     return { id: hit.object.userData.bid as string, p: [hit.point.x, -hit.point.z], wall: Math.abs(n.y) < 0.5, y: hit.point.y };
   }
@@ -457,6 +457,7 @@ export class Scene3D {
   }
   private pickLod(doc: Project): Set<string> {
     const out = new Set<string>(); if (this.selected) out.add(this.selected);
+    if (this.aptView) return new Set();   // kvartiralar koʻrinishida fasad yoʻq
     const { c, r } = this.viewExtent(); if (r > Scene3D.LOD_VIEW) return out;
     const fr = frame(doc.origin);
     const cand = doc.buildings.filter(b => this.facadeEligible(b) && (!this.isoLocal || this.inIso(b.footprint.map(fr.toLocal)))).map(b => {
@@ -623,7 +624,7 @@ export class Scene3D {
   /** OSM atrof: izolyatsiyada binolar xira, chiziqlar va daraxtlar yashirin; chiqishda — asl holat */
   private applyIsoCtx(): void {
     const g = this.ctx?.group; if (!g) return;
-    const on = !!this.iso;
+    const on = !!this.iso || !!this.aptView;
     g.children.forEach(o => {
       const u = o.userData as { isoV?: boolean; isoM?: THREE.Material | THREE.Material[] };
       if (on) {
@@ -645,19 +646,42 @@ export class Scene3D {
     if (!Scene3D.ghost) { Scene3D.ghost = new THREE.MeshLambertMaterial({ color: 0xf2f0ec, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); Scene3D.ghost.userData.iso = true; }
     return Scene3D.ghost;
   }
-  /** Hududdan tashqaridagi loyiha binolari: bitta toʻr (devor + tom), oddiy prizmalar */
+  /** 11-band: kvartiralar koʻrinishi — binolar oʻrnida xonadon hajmlari; bid → turar qavatlar [f0, f1) (bino pastidan) */
+  private aptView: Map<string, { f0: number; f1: number }> | null = null;
+  private aptViewKey = '';
+  get aptViewOn(): boolean { return !!this.aptView; }
+  setAptView(v: Map<string, { f0: number; f1: number }> | null): void {
+    const k = v ? [...v].map(([id, x]) => `${id}:${x.f0}-${x.f1}`).sort().join('|') : '';
+    if (k === this.aptViewKey && !!v === !!this.aptView) return;
+    this.aptView = v; this.aptViewKey = k;
+    this.applyIsoCtx();
+    if (this.lastDoc) this.update(this.lastDoc);
+  }
+  /** «Arvoh» qismi (qavatlar oraligʻi) yoki null — bino toʻliq chiziladi */
+  private ghostPart(b: Project['buildings'][number], r: XY[]): [number, number][] | null {
+    if (this.aptView) {
+      const p = this.aptView.get(b.id); if (!p) return [[0, b.floors]];
+      const out: [number, number][] = []; if (p.f0 > 0) out.push([0, p.f0]); if (p.f1 < b.floors) out.push([p.f1, b.floors]);
+      return out;
+    }
+    return this.inIso(r) ? null : [[0, b.floors]];
+  }
+  /** Hududdan tashqaridagi (yoki kvartiralar koʻrinishidagi) loyiha binolari: bitta toʻr, oddiy prizmalar */
   private isoGhosts(doc: Project, fr: ReturnType<typeof frame>, fh: number): void {
     const pos: number[] = [];
     for (const b of doc.buildings) {
-      const r0 = b.footprint.map(fr.toLocal); if (this.inIso(r0)) continue;
+      const r0 = b.footprint.map(fr.toLocal), parts = this.ghostPart(b, r0); if (!parts?.length) continue;
       const r = signedArea(r0) < 0 ? [...r0].reverse() : r0;
-      const z0 = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, z1 = z0 + Math.max(1, b.floors) * fh;
-      for (let i = 0; i < r.length; i++) {
-        const a = r[i], c = r[(i + 1) % r.length];
-        pos.push(a[0], z0, -a[1], c[0], z0, -c[1], c[0], z1, -c[1], a[0], z0, -a[1], c[0], z1, -c[1], a[0], z1, -a[1]);
-      }
+      const g0 = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh;
       const tri = THREE.ShapeUtils.triangulateShape(r.map(p => new THREE.Vector2(p[0], p[1])), []);
-      for (const t of tri) for (const k of t) pos.push(r[k][0], z1, -r[k][1]);
+      for (const [fa, fb] of parts) {
+        const z0 = g0 + fa * fh, z1 = g0 + Math.max(fa + 1, fb) * fh;
+        for (let i = 0; i < r.length; i++) {
+          const a = r[i], c = r[(i + 1) % r.length];
+          pos.push(a[0], z0, -a[1], c[0], z0, -c[1], c[0], z1, -c[1], a[0], z0, -a[1], c[0], z1, -c[1], a[0], z1, -a[1]);
+        }
+        for (const t of tri) for (const k of t) pos.push(r[k][0], z1, -r[k][1]);
+      }
     }
     if (!pos.length) return;
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
@@ -666,7 +690,7 @@ export class Scene3D {
 
   private buildTagged(doc: Project, bi: number, B: BCtx): void {
     const n0 = this.world.children.length, id = doc.buildings[bi].id;
-    if (this.isoLocal && !this.inIso(doc.buildings[bi].footprint.map(B.fr.toLocal))) return;
+    if (this.aptView || (this.isoLocal && !this.inIso(doc.buildings[bi].footprint.map(B.fr.toLocal)))) return;
     this.buildOne(doc, bi, B);
     for (let i = n0; i < this.world.children.length; i++) this.world.children[i].userData.bOwner = id;
   }
@@ -896,7 +920,7 @@ export class Scene3D {
     const B: BCtx = { doc, fr, fh, aniso, TP, GR, P3, SM, smOf, focus: !!focus, st, plain, toV2 };
     this.bctx = B;
     doc.buildings.forEach((_, bi) => this.buildTagged(doc, bi, B));
-    if (this.isoLocal) this.isoGhosts(doc, fr, fh);
+    if (this.isoLocal || this.aptView) this.isoGhosts(doc, fr, fh);
     if (this.floorLabels) doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal); if (area(r) < 40 || !this.inIso(r)) return;
       const c = centroid(r), top = Math.min(...r.map(p => this.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh;
@@ -1051,7 +1075,7 @@ export class Scene3D {
     this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted), new Set([...(doc.removed ?? []), ...this.hideOsm]));
     this.scene.add(this.ctx.group);
     if (this.album) this.applyStyle();
-    if (this.iso) this.applyIsoCtx();
+    if (this.iso || this.aptView) this.applyIsoCtx();
     this.grid.forEach(g => g.visible = false);
     const T = cs.layers.relief ? b.terrain : null;
     this.ground.position.y = T ? T.min - T.h[((T.n - 1) >> 1) * T.n + ((T.n - 1) >> 1)] - h0 - 1 : -0.3;
@@ -1399,6 +1423,44 @@ export class Scene3D {
     }
     this.invalidate();
   }
+
+  /** 11-band: kvartiralar alohida hajm — devorlari kvartira rangida, ustida xonalar rangda; yadro (koridor, zina, lift) kulrang.
+   *  Har bino — alohida toʻr (userData.bid — bosib tanlanadi); qavatlar orasida 0,24 m tirqish, kvartiralar orasida devor qalinligi. */
+  private aptG = new THREE.Group();
+  setAptVols(list: { bid: string; ring: XY[]; y0: number; y1: number; color: number; rooms?: { ring: XY[]; color: number }[] }[] | null): void {
+    disposeGroup(this.aptG); if (!this.aptG.parent) this.scene.add(this.aptG);
+    if (list?.length) {
+      const by = new Map<string, typeof list>(); for (const v of list) { const a = by.get(v.bid); if (a) a.push(v); else by.set(v.bid, [v]); }
+      const lp: number[] = [], c = new THREE.Color();
+      for (const [bid, vs] of by) {
+        const pos: number[] = [], col: number[] = [];
+        const put = (x: number, y: number, z: number) => { pos.push(x, y, -z); col.push(c.r, c.g, c.b); };
+        const cap = (r: XY[], y: number, color: number) => {
+          let tris: number[][] = []; try { tris = THREE.ShapeUtils.triangulateShape(r.map(p => new THREE.Vector2(p[0], p[1])), []); } catch { return; }
+          c.setHex(color); for (const t of tris) for (const i of t) put(r[i][0], y, r[i][1]);
+        };
+        for (const v of vs) {
+          const r = v.ring;
+          c.setHex(v.color).multiplyScalar(0.9);
+          for (let i = 0; i < r.length; i++) {
+            const a = r[i], b = r[(i + 1) % r.length];
+            put(a[0], v.y0, a[1]); put(b[0], v.y0, b[1]); put(b[0], v.y1, b[1]); put(a[0], v.y0, a[1]); put(b[0], v.y1, b[1]); put(a[0], v.y1, a[1]);
+            lp.push(a[0], v.y1 + 0.01, -a[1], b[0], v.y1 + 0.01, -b[1]);
+          }
+          if (v.rooms?.length) { cap(r, v.y1 - 0.02, 0x6b6660); for (const rm of v.rooms) cap(rm.ring, v.y1, rm.color); }
+          else cap(r, v.y1, v.color);
+        }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+        const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+        m.userData.bid = bid; m.userData.aptVol = true; m.renderOrder = 9; m.castShadow = m.receiveShadow = true; this.aptG.add(m);
+      }
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+      const ls = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x3a3631, transparent: true, opacity: 0.35 })); ls.renderOrder = 9.5; this.aptG.add(ls);
+    }
+    this.invalidate();
+  }
+  /** Bosib tanlash uchun: loyiha binolari va kvartira hajmlari */
+  private pickables(): THREE.Object3D[] { return [...this.world.children, ...this.aptG.children].filter(o => o.userData.bid); }
 
   /** Kvartiralar «terisi»: har kvartira moduli — fasaddan 0,12 m tashqarida, ichkariga depth m, qavat balandligida (rangi — turi yoki insolyatsiya) */
   private aptBoxes: THREE.Mesh | null = null;
