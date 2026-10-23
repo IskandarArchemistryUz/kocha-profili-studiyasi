@@ -115,6 +115,14 @@ function hipHouse(r: XY[], base: number, h: number, wall: { pos: number[]; nor: 
   if (ridge) ed.push(...V3(R1, t), ...V3(R2, t));
 }
 
+/** Atrofdagi kichik uyga qiya tom qoʻyiladimi — tom balandligi (m), aks holda 0 (uy raqami tom ustiga qoʻyilishi uchun ham) */
+export function houseRoofRise(b: { rings: XY[][]; h: number; kind?: string }): number {
+  const outer = b.rings[0]; if (!outer || b.rings.length !== 1 || outer.length < 3 || outer.length > 12 || b.h > 8 || !ROOFED.test(b.kind ?? 'yes')) return 0;
+  let a = 0; for (let i = 0, j = outer.length - 1; i < outer.length; j = i++) a += outer[j][0] * outer[i][1] - outer[i][0] * outer[j][1];
+  const A = Math.abs(a) / 2, o = obb(outer), S = Math.min(o.u1 - o.u0, o.v1 - o.v0);
+  return A < 450 && A / o.area > 0.8 && S > 3 ? Math.min(3.2, S * 0.32) : 0;
+}
+
 function buildingsGeo(list: { rings: XY[][]; h: number; kind?: string }[], H: HeightFn): { mesh: THREE.BufferGeometry; edges: THREE.BufferGeometry; roof: THREE.BufferGeometry | null } | null {
   const pos: number[] = [], nor: number[] = [], ed: number[] = [], roof: number[] = [];
   for (const b of list) {
@@ -122,11 +130,7 @@ function buildingsGeo(list: { rings: XY[][]; h: number; kind?: string }[], H: He
     let base = Infinity; for (const p of outer) base = Math.min(base, H(p[0], p[1]));
     const top = base + b.h;
     // past kichik uy, deyarli toʻrtburchak dogʻ → qiya tom
-    if (b.rings.length === 1 && outer.length <= 12 && b.h <= 8 && ROOFED.test(b.kind ?? 'yes')) {
-      let a = 0; for (let i = 0, j = outer.length - 1; i < outer.length; j = i++) a += outer[j][0] * outer[i][1] - outer[i][0] * outer[j][1];
-      const A = Math.abs(a) / 2, o = obb(outer);
-      if (A < 450 && A / o.area > 0.8 && Math.min(o.u1 - o.u0, o.v1 - o.v0) > 3) { hipHouse(outer, base, b.h, { pos, nor }, roof, ed); continue; }
-    }
+    if (houseRoofRise(b) > 0) { hipHouse(outer, base, b.h, { pos, nor }, roof, ed); continue; }
     // devorlar (har halqa; tashqi CCW, teshik CW boʻlishi kerak — normallar yoʻnalishi uchun)
     b.rings.forEach((r0, ri) => {
       let a = 0; for (let i = 0, j = r0.length - 1; i < r0.length; j = i++) a += r0[j][0] * r0[i][1] - r0[i][0] * r0[j][1];
