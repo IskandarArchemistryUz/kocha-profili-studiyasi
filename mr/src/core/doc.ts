@@ -66,7 +66,8 @@ export type Shade = 'avto' | 'gorizontal' | 'vertikal' | 'panjara';
 export interface Street { id: string; axis: LngLat[]; profile: string; /** OSM dagi mavjud koʻcha loyihaga olingan boʻlsa — uning way id si (kontekstda u endi chizilmaydi) */ osm?: number; /** generator yaratgan (toʻr) — qayta generatsiyada almashtiriladi */ gen?: 'grid' }
 
 /** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
-export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti'; ring: Ring; levels: number; spaces: number }
+/** Avtoturargoh (generator): yer usti boʻlsa — joylar va manevr boʻlaklari (dizayn-kod 6.3 moduli); need — 29-jadval talabi */
+export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti'; ring: Ring; levels: number; spaces: number; need?: number; module?: 'p90' | 'p60' | 'p45' | 'par'; stalls?: Ring[]; aisles?: Ring[] }
 
 export interface Parcel { id: string; block: string; rings: Ring[]; use: Use }
 
@@ -278,7 +279,10 @@ export function migrate(raw: unknown): Project {
   const removed: number[] = (Array.isArray(d.removed) ? d.removed : []).filter(isNum);
   const removedRoads: number[] = (Array.isArray(d.removedRoads) ? d.removedRoads : []).filter(isNum);
   const garages: Garage[] = (Array.isArray(d.garages) ? d.garages : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.grp === 'string' && isRing(x.ring) && isNum(x.spaces))
-    .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)) }));
+    .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)),
+      ...(isNum(x.need) ? { need: Math.max(0, Math.round(x.need)) } : {}), ...(['p90', 'p60', 'p45', 'par'].includes(x.module) ? { module: x.module } : {}),
+      ...(Array.isArray(x.stalls) && x.stalls.every(isRing) ? { stalls: x.stalls.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
+      ...(Array.isArray(x.aisles) && x.aisles.every(isRing) ? { aisles: x.aisles.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}) }));
   const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
     .map((x: any) => ({ id: x.id, block: x.block, rings: x.rings.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)), use: isUse(x.use) ? x.use : 'turar' }));
   const PK = ['mtm', 'maktab', 'poliklinika', 'dorixona', 'savdo', 'sport', 'mahalla', 'bekat', 'metro'];

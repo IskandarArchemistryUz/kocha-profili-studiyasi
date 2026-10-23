@@ -49,11 +49,34 @@ test('tipologiyalar: minoralar va stilobat + yer osti parkovka → reyestrda ta�
   await page.fill('#gSty', '1'); await page.press('#gSty', 'Tab');
   await page.click('[data-park=yer_osti]');
   await page.click('#genGo');
-  await expect(page.locator('#genNotes')).toContainText('Avtoturargoh:');
+  await expect(page.locator('#genNotes')).toContainText('Avtoturargoh (');
+  await expect(page.locator('#genNotes')).toContainText('Talab:');
   await expect(page.locator('#genNotes')).toContainText('Yer uchastkasi UMN');
   await page.click('#kMore');
   const v = await page.locator('.drawer [data-rule=parking] .num').first().textContent();
   expect(Number(v!.replace(/\D/g, ''))).toBeGreaterThan(300);
+});
+
+test('avtoturargoh meʼyor boʻyicha: yer usti, 60° modul — joylar sahnada, talab va yetishmovchilik izohda', async ({ page }) => {
+  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
+  await page.click('[data-park=yer_usti]');
+  await expect(page.locator('[data-pmod]')).toHaveCount(4);
+  await page.click('[data-pmod=p60]');
+  await expect(page.locator('#gPL')).toHaveCount(0);   // meʼyor boʻyicha — sathlar avtomatik
+  await page.click('#genGo');
+  await expect(page.locator('#genNotes')).toContainText('Burchakli 60°');
+  await expect(page.locator('#genNotes')).toContainText('Talab:');
+  const g = await page.evaluate(() => { const d = (window as any).__mr.store.doc; const x = d.garages[0]; return { n: x.stalls?.length ?? 0, sp: x.spaces, need: x.need, mod: x.module, ai: x.aisles?.length ?? 0 }; });
+  expect(g.mod).toBe('p60'); expect(g.n).toBe(g.sp); expect(g.n).toBeGreaterThan(20); expect(g.ai).toBeGreaterThan(0); expect(g.sp).toBeLessThanOrEqual(g.need);
+  if (g.sp < g.need) await expect(page.locator('#genNotes')).toContainText('Yetishmaydi');
+  // yer osti: sathlar talabga qarab
+  await page.click('[data-park=yer_osti]'); await page.click('[data-pmod=p90]'); await page.click('#genGo');
+  const u = await page.evaluate(() => { const x = (window as any).__mr.store.doc.garages[0]; return { lv: x.levels, sp: x.spaces, need: x.need }; });
+  expect(u.sp).toBeGreaterThanOrEqual(Math.min(u.need, u.sp)); expect(u.lv).toBeGreaterThanOrEqual(1);
+  if (u.lv < 4) expect(u.sp).toBeGreaterThanOrEqual(u.need);
 });
 
 test('shamol: shamol guli (EPW) va piyoda sathidagi oqim', async ({ page }) => {

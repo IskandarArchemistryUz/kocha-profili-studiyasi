@@ -3,6 +3,7 @@
  * Aholi soni FAQAT shu yerda, bitta formula bilan hisoblanadi; maktab, MTM, yashillik va boshqa
  * ehtiyojlar keyingi bosqichlarda aynan shu sondan olinadi (KZ hujjatlaridagi «5 xil aholi» xatosi shu bilan yopiladi).
  */
+import { parkingNeed } from './parking';
 import type { Project } from './doc';
 import { frame, polyArea, ringLocal, area, longFacadeAzimuths, obb2, type XY } from './geo';
 import { computePlan } from './plan';
@@ -117,10 +118,7 @@ export function derive(doc: Project): Derived {
   const mtmCap = plan.blocks.filter(b => b.use === 'mtm').reduce((t, b) => t + mtmCapacity(b.area), 0);
   // 29-jadval (Toshkent): kvartiraga 1; maʼmuriy — har 10 m²; savdo (> 200 m² savdo maydoni) — har 10 m² savdo maydoni (≈ 0,7·GFA); maktab, MTM — 25 ga 1; park — har 0,05 ga
   const trade = ((gfaByUse.savdo ?? 0) + (gfaByUse.aralash ?? 0) + (gfaByUse.turar ?? 0)) * 0.7;
-  const parkingParts: Record<string, number> = {
-    kvartiralar: Math.ceil(apartments), ofis: Math.ceil((gfaByUse.ofis ?? 0) / 10), savdo: trade > 200 ? Math.ceil(trade / 10) : 0,
-    maktab: Math.ceil(schoolCap / 25), mtm: Math.ceil(mtmCap / 25), park: Math.floor(greenArea / 500),
-  };
+  const parkingParts = parkingNeed({ apartments, ofisGfa: gfaByUse.ofis ?? 0, tradeArea: trade, school: schoolCap, mtm: mtmCap, greenArea });
   const parkingReq = Object.values(parkingParts).reduce((a, b) => a + b, 0);
   const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + g.spaces, 0);
   let resSections = 0, westFacing = 0;

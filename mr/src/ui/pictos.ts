@@ -14,6 +14,12 @@ export const PG: Record<string, Record<string, string>> = {
   "ofis_minora": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><rect x=\"7\" y=\"7\" width=\"26\" height=\"26\" rx=\"0\" class=\"f1\"/><rect x=\"11\" y=\"11\" width=\"8\" height=\"8\" rx=\"0\" class=\"f3\"/><rect x=\"21\" y=\"21\" width=\"8\" height=\"8\" rx=\"0\" class=\"f3\"/>",
   "savdo_blok": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><rect x=\"8\" y=\"8\" width=\"24\" height=\"12\" rx=\"0\" class=\"f2\"/><path d=\"M8 8h24v12H8z\" class=\"s\"/><path d=\"M9 24v8\" class=\"s\"/><path d=\"M13 24v8\" class=\"s\"/><path d=\"M17 24v8\" class=\"s\"/><path d=\"M21 24v8\" class=\"s\"/><path d=\"M25 24v8\" class=\"s\"/><path d=\"M29 24v8\" class=\"s\"/><path d=\"M8 24h24\" class=\"s\"/>"
  },
+ "pmod": {
+  "p90": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><path d=\"M8 17h24M8 23h24\" class=\"s2\"/><path d=\"M8 8v9M14 8v9M20 8v9M26 8v9M32 8v9M8 23v9M14 23v9M20 23v9M26 23v9M32 23v9\" class=\"s\"/>",
+  "p60": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><path d=\"M8 17h24M8 23h24\" class=\"s2\"/><path d=\"M8 17l5-9M14 17l5-9M20 17l5-9M26 17l5-9M8 32l5-9M14 32l5-9M20 32l5-9M26 32l5-9\" class=\"s\"/>",
+  "p45": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><path d=\"M8 17h24M8 23h24\" class=\"s2\"/><path d=\"M8 17l8-8M15 17l8-8M22 17l8-8M8 31l8-8M15 31l8-8M22 31l8-8\" class=\"s\"/>",
+  "par": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><path d=\"M8 20h24\" class=\"s2\"/><path d=\"M8 11h24M8 16h24M8 24h24M8 29h24M8 11v5M16 11v5M24 11v5M32 11v5M8 24v5M16 24v5M24 24v5M32 24v5\" class=\"s\"/>"
+ },
  "park": {
   "yoq": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><rect x=\"10\" y=\"10\" width=\"20\" height=\"20\" rx=\"0\" class=\"f2\"/>",
   "yer_osti": "<path d=\"M4 22H36\" class=\"gd\"/><rect x=\"10\" y=\"8\" width=\"20\" height=\"14\" rx=\"0\" class=\"f2\"/><path d=\"M10 22V8h20v14\" class=\"s\"/><path d=\"M8 25h24v9H8z\" class=\"dash\"/><text x=\"20\" y=\"32.5\" class=\"pt\">P</text>",
