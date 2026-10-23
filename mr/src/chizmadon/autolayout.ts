@@ -27,6 +27,8 @@ export interface Material {
   text?: string | null;
   /** katakni chizish (mm, SVG boʻlagi); yoʻq boʻlsa — render.ts namunasi */
   render?: (r: Rect, ctx: MatCtx, bare?: boolean) => string;
+  /** foydalanuvchi rasmi bilan almashtirilgan */
+  own?: boolean;
 }
 
 /** Katak roli → qabul qiladigan material rollari (birinchisi — afzal) */

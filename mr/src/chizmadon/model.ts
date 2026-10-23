@@ -63,7 +63,7 @@ export interface ChRect { x: number; y: number; w: number; h: number }
  */
 export interface ChBind { el: string | null; pi: number; r0: ChRect | null; lock?: boolean }
 /** Material sozlamasi (Loyihadan): koʻrinishi, rangi, oʻlchami, sarlavhasi va qoʻlda tahrirlangan matni */
-export interface ChMatSet { visible?: boolean; accent?: string | null; scale?: number; title?: string; text?: string | null }
+export interface ChMatSet { visible?: boolean; accent?: string | null; scale?: number; title?: string; text?: string | null; /** 19-band (3): oʻz rasmi bilan almashtirilgan (data URL) */ src?: string }
 /** Avtomatik albom: maket oilasi, format, uslub, hudud, majburlangan varaq turlari, sudrab qoʻyishlar */
 export interface ChAuto {
   fam: string; fmt: Record<string, string>; pal: string;
@@ -75,7 +75,15 @@ export interface ChAuto {
   mats: Record<string, ChMatSet>;
   view: 'one' | 'all'; slots: boolean; started: boolean;
   sec: Record<string, boolean>;
+  /** 19-band (3): maket varaqlari matnlari — albom boʻyicha (loyiha satri, shtamp, shifr, TIK satri, manba); boʻsh — avtomatik */
+  txt: ChTxt;
+  /** varaq sarlavhasi (varaq raqami boʻyicha) va boʻlim varagʻi matnlari */
+  ttl: Record<number, string>;
+  chap: Record<number, { n?: string; t?: string; note?: string }>;
+  /** yashirilganlar: shtamp, shifr, yuqori va pastki kolontitul */
+  hide: { stamp?: boolean; shifr?: boolean; head?: boolean; foot?: boolean };
 }
+export interface ChTxt { proj?: string; stamp?: string; shifr?: string; tik?: string; src?: string }
 
 export interface ChLayer { id: string; name: string; visible: boolean; locked: boolean }
 export interface ChPage { id: string; name: string; paper: ChPaper; landscape: boolean; w?: number; h?: number; layers: ChLayer[]; els: ChEl[]; tpl?: string }
@@ -114,7 +122,7 @@ export const defaultLayers = (): ChLayer[] => [
 export function blankPage(name = 'Varaq', paper: ChPaper = 'A3', landscape = true): ChPage {
   return { id: cid('p'), name, paper, landscape, layers: defaultLayers(), els: [] };
 }
-export const blankAuto = (): ChAuto => ({ fam: 'mr', fmt: {}, pal: 'arch', custom: null, site: null, force: {}, ov: [], mats: {}, view: 'one', slots: false, started: false, sec: { loyiha: true, varaq: true, qatlam: false, uslub: false, hudud: false, kutubxona: false } });
+export const blankAuto = (): ChAuto => ({ fam: 'mr', fmt: {}, pal: 'arch', custom: null, site: null, force: {}, ov: [], mats: {}, view: 'one', slots: false, started: false, sec: { loyiha: true, varaq: true, qatlam: false, uslub: false, hudud: false, kutubxona: false }, txt: {}, ttl: {}, chap: {}, hide: {} });
 export function blankDoc(title = ''): ChDoc {
   return {
     v: 2, title, pages: [], cur: 0, auto: blankAuto(), hand: [], handLayers: defaultLayers(), palette: 'asosiy',
@@ -161,9 +169,13 @@ function normAuto(x: any): ChAuto {
   if (Array.isArray(x.ov)) a.ov = x.ov.filter((o: any) => o && typeof o.a === 'string' && Number.isInteger(o.pi) && Number.isInteger(o.k)).slice(0, 200).map((o: any) => ({ a: o.a, pi: o.pi, k: o.k }));
   if (x.mats && typeof x.mats === 'object') for (const [k, v] of Object.entries(x.mats as Record<string, any>)) if (v && typeof v === 'object') a.mats[k] = {
     ...(typeof v.visible === 'boolean' ? { visible: v.visible } : {}), ...(typeof v.accent === 'string' || v.accent === null ? { accent: v.accent } : {}),
-    ...(Number.isFinite(v.scale) ? { scale: num(v.scale, 1, 0.5, 2) } : {}), ...(typeof v.title === 'string' ? { title: v.title.slice(0, 200) } : {}), ...(typeof v.text === 'string' || v.text === null ? { text: v.text } : {}) };
+    ...(Number.isFinite(v.scale) ? { scale: num(v.scale, 1, 0.5, 2) } : {}), ...(typeof v.title === 'string' ? { title: v.title.slice(0, 200) } : {}), ...(typeof v.text === 'string' || v.text === null ? { text: v.text } : {}), ...(typeof v.src === 'string' && v.src.startsWith('data:image/') ? { src: v.src } : {}) };
   a.view = x.view === 'all' ? 'all' : 'one'; a.slots = !!x.slots; a.started = !!x.started;
   if (x.sec && typeof x.sec === 'object') for (const [k, v] of Object.entries(x.sec)) if (typeof v === 'boolean') a.sec[k] = v;
+  if (x.txt && typeof x.txt === 'object') for (const k of ['proj', 'stamp', 'shifr', 'tik', 'src'] as const) if (typeof x.txt[k] === 'string') a.txt[k] = x.txt[k].slice(0, 300);
+  if (x.ttl && typeof x.ttl === 'object') for (const [k, v] of Object.entries(x.ttl)) if (/^\d+$/.test(k) && typeof v === 'string') a.ttl[+k] = v.slice(0, 200);
+  if (x.chap && typeof x.chap === 'object') for (const [k, v] of Object.entries(x.chap as Record<string, any>)) if (/^\d+$/.test(k) && v && typeof v === 'object') a.chap[+k] = Object.fromEntries((['n', 't', 'note'] as const).filter(q => typeof v[q] === 'string').map(q => [q, String(v[q]).slice(0, 600)]));
+  if (x.hide && typeof x.hide === 'object') for (const k of ['stamp', 'shifr', 'head', 'foot'] as const) if (x.hide[k] === true) a.hide[k] = true;
   return a;
 }
 

@@ -402,13 +402,20 @@ function draw(s?: any, r?: any, ctx?: any) {
       return g;
     }
     case "chapter": {
+      const C = (TXTO && TXTO.chap) || {};
+      if (C.n != null || C.t != null || C.note != null) {
+        const n0 = C.n ?? (s.plain ? "01." : "02"), t0 = C.t ?? (s.plain ? "Bo'lim nomi" : "Tahlil"), o0 = C.note ?? "";
+        if (s.plain) { const nb = Math.min(r.h * 0.5, r.w * 0.3); return T(r.x, r.y + nb * 0.85, n0, { s: nb, w: 700, c: P.acc, raw: 1 }) + T(r.x + r.w * 0.1, r.y + nb * 1.25 + 7 * u, t0, { s: 8 * u, w: 700, c: P.ink, raw: 1 }) + (o0 ? T(r.x + r.w * 0.1, r.y + nb * 1.25 + 13 * u, o0, { s: 3.2 * u, c: P.mut, raw: 1 }) : ""); }
+        const nb = Math.min(r.h * 0.38, r.w * 0.4);
+        return R0(r.x, r.y, r.w, r.h, P.acc) + T(r.x + ctx.m, r.y + r.h * 0.18 + nb * 0.8, n0, { s: nb, w: 700, c: "#ffffff", ls: -0.03 * nb, raw: 1 }) + T(r.x + ctx.m, r.y + r.h * 0.18 + nb + 9 * u, t0, { s: 9 * u, w: 700, c: "#ffffff", raw: 1 }) + (o0 ? userPara(r.x + ctx.m, r.y + r.h * 0.18 + nb + 13 * u, Math.min(r.w - ctx.m * 2, 120 * u), 22 * u, o0, 3 * u, "#ffffff") : "");
+      }
       if (s.plain) { const nb = Math.min(r.h * 0.5, r.w * 0.3); return T(r.x, r.y + nb * 0.85, "01.", { s: nb, w: 700, c: P.acc }) + T(r.x + r.w * 0.1, r.y + nb * 1.25 + 7 * u, "Bo'lim nomi", { s: 8 * u, w: 700, c: P.ink }) + T(r.x + r.w * 0.1, r.y + nb * 1.25 + 13 * u, "Qisqa izoh: bo'limda nima ko'rsatiladi", { s: 3.2 * u, c: P.mut }); }
       const nb = Math.min(r.h * 0.38, r.w * 0.4);
       return R0(r.x, r.y, r.w, r.h, P.acc) + T(r.x + ctx.m, r.y + r.h * 0.18 + nb * 0.8, "02", { s: nb, w: 700, c: "#ffffff", ls: -0.03 * nb }) + T(r.x + ctx.m, r.y + r.h * 0.18 + nb + 9 * u, "Tahlil", { s: 9 * u, w: 700, c: "#ffffff" }) + para(r.x + ctx.m, r.y + r.h * 0.18 + nb + 13 * u, Math.min(r.w - ctx.m * 2, 120 * u), 22 * u, "Hududning tabiiy, ijtimoiy va shaharsozlik konteksti: kuchli tomonlar, cheklovlar va loyiha uchun xulosalar.", 3 * u, "#ffffff");
     }
     case "field": return R0(r.x, r.y, r.w, r.h, P.acc);
-    case "stamp": return T(r.x, r.y + r.h * 0.6, "Archemistry Lab  ·  Bosh arxitektor: —  ·  2026", { s: 2.6 * u, c: s.over || s.inv ? "#ffffff" : P.mut, op: s.over ? 0.9 : 1 });
-    case "shifr": return R0(r.x, r.y, r.w, r.h, P.ink) + T(r.x + r.w / 2, r.y + r.h * 0.42, "SHIFR", { s: Math.min(r.h * 0.18, 4 * u), c: "#ffffff", a: "middle", ls: 0.4 * u, op: 0.7 }) + T(r.x + r.w / 2, r.y + r.h * 0.78, "000000", { s: Math.min(r.h * 0.3, 7 * u), c: "#ffffff", a: "middle", mono: 1, w: 500 });
+    case "stamp": if (TXTO && (TXTO.hide || {}).stamp) return ""; if (TXTO && TXTO.stamp != null) return T(r.x, r.y + r.h * 0.6, TXTO.stamp, { s: 2.6 * u, c: s.over || s.inv ? "#ffffff" : P.mut, op: s.over ? 0.9 : 1, raw: 1 }); return T(r.x, r.y + r.h * 0.6, "Archemistry Lab  ·  Bosh arxitektor: —  ·  2026", { s: 2.6 * u, c: s.over || s.inv ? "#ffffff" : P.mut, op: s.over ? 0.9 : 1 });
+    case "shifr": if (TXTO && (TXTO.hide || {}).shifr) return ""; if (TXTO && TXTO.shifr != null) return R0(r.x, r.y, r.w, r.h, P.ink) + T(r.x + r.w / 2, r.y + r.h * 0.42, "SHIFR", { s: Math.min(r.h * 0.18, 4 * u), c: "#ffffff", a: "middle", ls: 0.4 * u, op: 0.7 }) + T(r.x + r.w / 2, r.y + r.h * 0.78, TXTO.shifr, { s: Math.min(r.h * 0.3, 7 * u), c: "#ffffff", a: "middle", mono: 1, w: 500, raw: 1 }); return R0(r.x, r.y, r.w, r.h, P.ink) + T(r.x + r.w / 2, r.y + r.h * 0.42, "SHIFR", { s: Math.min(r.h * 0.18, 4 * u), c: "#ffffff", a: "middle", ls: 0.4 * u, op: 0.7 }) + T(r.x + r.w / 2, r.y + r.h * 0.78, "000000", { s: Math.min(r.h * 0.3, 7 * u), c: "#ffffff", a: "middle", mono: 1, w: 500 });
     case "module": {
       const t = TXT.caps[(s.num - 1) % 12]; let g = T(r.x, r.y + 4 * u, `${s.num}. ${TRF(t)}`, { s: 3.4 * u, w: 700, c: P.acc, raw: 1 });
       const dr = { x: r.x, y: r.y + 6.5 * u, w: r.w, h: r.h - 14 * u };
@@ -464,32 +471,35 @@ function placeholder(s?: any, r?: any, P?: any, u?: any, LIB?: any) {
 function chrome(key?: any, fr?: any, page?: any, fam?: any, P?: any, idx?: any, total?: any) {
   if (!fr.useChrome) return "";
   const { W, H, m, u } = fr; let g = "";
-  const proj = "Loyiha nomi · hudud";
+  const X = TXTO || {}, HD = X.hide || {}, proj = X.proj ?? "Loyiha nomi · hudud", RAW = X.proj != null ? 1 : 0;
   if (key === "kz") {
-    g += T(m, m + 2.6 * u, "KZ · " + proj, { s: 2.4 * u, c: P.mut }) + T(W - m, m + 2.6 * u, `${page.sec && /\d/.test(page.sec) ? page.sec.split(".")[0] + "-bo'lim  ·  " : ""}${idx + 1} / ${total}`, { s: 2.4 * u, c: P.mut, a: "end", mono: 1 });
-    g += L0(m, m + 4.4 * u, W - m, m + 4.4 * u, P.ink, 0.35 * u);
+    if (!HD.head) { g += T(m, m + 2.6 * u, "KZ · " + proj, { s: 2.4 * u, c: P.mut, raw: RAW }) + T(W - m, m + 2.6 * u, `${page.sec && /\d/.test(page.sec) ? page.sec.split(".")[0] + "-bo'lim  ·  " : ""}${idx + 1} / ${total}`, { s: 2.4 * u, c: P.mut, a: "end", mono: 1 });
+    g += L0(m, m + 4.4 * u, W - m, m + 4.4 * u, P.ink, 0.35 * u); }
     const by = m + H * 0.045, bs = H * 0.085;
     if (page.sec) { g += R0(m, by, bs * 1.25, bs, P.acc) + T(m + bs * 0.625, by + bs * 0.64, page.sec, { s: bs * 0.38, w: 700, c: "#fff", a: "middle" }); }
     const tx = page.sec ? m + bs * 1.25 + 4 * u : m;
-    g += T(tx, by + bs * 0.48, page.title, { s: Math.min(bs * 0.42, 7.4 * u), w: 700, ls: -0.1 * u });
+    g += T(tx, by + bs * 0.48, page.title, { s: Math.min(bs * 0.42, 7.4 * u), w: 700, ls: -0.1 * u, raw: X.rawTitle ? 1 : 0 });
     if (page.sub) g += T(tx, by + bs * 0.9, page.sub, { s: 3 * u, c: P.mut, i: 1 });
     const fy = H - m - H * 0.075 + 2.5 * u;
-    g += L0(m, fy, W - m, fy, P.line, 0.25 * u) + T(m, fy + 5 * u, "TIK", { s: 2.6 * u, w: 700, c: P.acc }) + T(m + 9 * u, fy + 5 * u, "Maydon 12,9 ga  ·  Aholi 16 900  ·  UMN 2,1  ·  Yashillik 32 %  ·  Avtoturargoh 5 200", { s: 2.6 * u, mono: 1 }) + T(W - m, fy + 5 * u, "Manba: loyiha ma'lumoti, 2026", { s: 2.3 * u, c: P.mut, a: "end", i: 1 });
+    const tikT = X.tik ?? "Maydon 12,9 ga  ·  Aholi 16 900  ·  UMN 2,1  ·  Yashillik 32 %  ·  Avtoturargoh 5 200", srcT = X.src ?? "Manba: loyiha ma'lumoti, 2026";
+    if (!HD.foot) g += L0(m, fy, W - m, fy, P.line, 0.25 * u) + (tikT ? T(m, fy + 5 * u, "TIK", { s: 2.6 * u, w: 700, c: P.acc }) + T(m + 9 * u, fy + 5 * u, tikT, { s: 2.6 * u, mono: 1, raw: X.tik != null ? 1 : 0 }) : "") + T(W - m, fy + 5 * u, srcT, { s: 2.3 * u, c: P.mut, a: "end", i: 1, raw: X.src != null ? 1 : 0 });
   } else if (key === "album" || key === "slide") {
     const eyebrow = key === "album" ? `${String(idx + 1).padStart(2, "0")} · ${TRF(fam.name).toUpperCase()}` : "";
-    if (eyebrow) g += T(m, m + 2.6 * u, eyebrow, { s: 2.3 * u, c: P.acc, ls: 0.3 * u, w: 600, raw: 1 });
+    if (eyebrow && !HD.head) g += T(m, m + 2.6 * u, eyebrow, { s: 2.3 * u, c: P.acc, ls: 0.3 * u, w: 600, raw: 1 });
     const ts = key === "slide" ? 6.4 * u : 6.6 * u;
-    g += T(m, m + (key === "album" ? 4.5 * u : 0) + ts, page.title, { s: ts, w: 700, ls: 0.05 * u, up: 1 });
+    g += T(m, m + (key === "album" ? 4.5 * u : 0) + ts, page.title, { s: ts, w: 700, ls: 0.05 * u, up: 1, raw: X.rawTitle ? 1 : 0 });
     const fy = H - m - 0.6 * u;
-    if (key === "album") g += L0(m, fy - 4.5 * u, W - m, fy - 4.5 * u, P.line, 0.2 * u) + T(m, fy, proj, { s: 2.3 * u, c: P.mut });
-    g += T(W - m, fy, String(idx + 1), { s: 2.6 * u, c: P.mut, a: "end", mono: 1 });
+    if (!HD.foot) {
+      if (key === "album") g += L0(m, fy - 4.5 * u, W - m, fy - 4.5 * u, P.line, 0.2 * u) + T(m, fy, proj, { s: 2.3 * u, c: P.mut, raw: RAW });
+      g += T(W - m, fy, String(idx + 1), { s: 2.6 * u, c: P.mut, a: "end", mono: 1 });
+    }
   } else if (key === "iu") {
-    g += T(W * 0.053, H * 0.053 + H * 0.042, page.title, { s: H * 0.034, w: 700, c: P.ink });
+    g += T(W * 0.053, H * 0.053 + H * 0.042, page.title, { s: H * 0.034, w: 700, c: P.ink, raw: X.rawTitle ? 1 : 0 });
     g += R0(W * 0.053, H * 0.139, W * 0.037, H * 0.01, P.acc);
-    g += T(W * 0.024, H * 0.947 + H * 0.02, String(idx + 1), { s: H * 0.016, c: P.acc, w: 700 }) + L0(W * 0.167, H * 0.947, W * 0.167, H * 0.97, P.acc, 0.25 * u) + T(W * 0.175, H * 0.947 + H * 0.02, proj, { s: H * 0.014, c: P.mut });
+    if (!HD.foot) g += T(W * 0.024, H * 0.947 + H * 0.02, String(idx + 1), { s: H * 0.016, c: P.acc, w: 700 }) + L0(W * 0.167, H * 0.947, W * 0.167, H * 0.97, P.acc, 0.25 * u) + T(W * 0.175, H * 0.947 + H * 0.02, proj, { s: H * 0.014, c: P.mut, raw: RAW });
   } else if (key === "book") {
-    g += T(m, m + 2.5 * u, "Strategiya · " + page.title, { s: 2.3 * u, c: P.mut }) + L0(m, m + 4 * u, W - m, m + 4 * u, P.line, 0.2 * u);
-    g += T(idx % 2 ? W - m : m, H - m, String(idx + 1), { s: 2.6 * u, c: P.mut, a: idx % 2 ? "end" : "start", mono: 1 });
+    if (!HD.head) g += T(m, m + 2.5 * u, "Strategiya · " + page.title, { s: 2.3 * u, c: P.mut }) + L0(m, m + 4 * u, W - m, m + 4 * u, P.line, 0.2 * u);
+    if (!HD.foot) g += T(idx % 2 ? W - m : m, H - m, String(idx + 1), { s: 2.6 * u, c: P.mut, a: idx % 2 ? "end" : "start", mono: 1 });
   }
   return g;
 }
@@ -498,13 +508,20 @@ function chrome(key?: any, fr?: any, page?: any, fam?: any, P?: any, idx?: any, 
 export interface SheetOpts {
   pal?: string; mode?: 'icon'; idx?: number; total?: number; slots?: boolean; empty?: Set<number>;
   titleOverride?: string | null; secOverride?: string | null; subOverride?: string | null;
+  /** 19-band (3): foydalanuvchi matnlari (loyiha satri, shtamp, shifr, TIK, manba, boʻlim) va yashirilganlar; yoʻq — namuna matnlari */
+  txt?: PageTxt | null;
   /** katakni material bilan chizish: null — katak chizilmaydi (boʻsh), satr — SVG boʻlagi */
   fill?: (s: any, k: number, r: { x: number; y: number; w: number; h: number }, ctx: { P: Record<string, string>; u: number; m: number; kind: string }) => string | null;
 }
 export type Frame = ReturnType<typeof frame>;
+export interface PageTxt { proj?: string; stamp?: string; shifr?: string; tik?: string; src?: string; rawTitle?: boolean; chap?: { n?: string; t?: string; note?: string }; hide?: { stamp?: boolean; shifr?: boolean; head?: boolean; foot?: boolean } }
+/** joriy varaq matnlari (renderPage davomida) */
+let TXTO: PageTxt | null = null;
+/** foydalanuvchi matni — soʻz boʻyicha qatorlarga (namuna matni bilan toʻldirilmaydi, tarjima qilinmaydi) */
+function userPara(x: number, y: number, w: number, h: number, str: string, s: number, c: string, lh = 1.42): string { const L = wrap(str, w, s), maxL = Math.max(0, Math.floor((h - s * 0.3) / (s * lh))); return L.slice(0, maxL).map((l: any, i: number) => T(x, y + s * (0.95 + i * lh), l, { s, c, raw: 1 })).join(""); }
 /** Maket varagʻini chizish: { svg (mm), fr (ramka: W, H, u, …) } */
 export function renderPage(LIB: any, fam: LFamily, page: LPage, fmt: string, opts: SheetOpts): { svg: string; fr: Frame } {
-  FF = fam.font || "Archivo, Arial, sans-serif";
+  FF = fam.font || "Archivo, Arial, sans-serif"; TXTO = opts.txt ?? null;
   const P = PAL[opts.pal ?? "arch"] || PAL.arch, fr = frame(fmt, fam.chrome, page, LIB, fam.orient, fam);
   let g = R0(0, 0, fr.W, fr.H, "#ffffff");
   const order = page.slots.map((s: any, k: any) => [s, k]).sort((a: any, b: any) => (a[0].role === "field" || a[0].role === "render" && a[0].bleed ? -1 : 0) - (b[0].role === "field" || b[0].role === "render" && b[0].bleed ? -1 : 0) || (a[0].over ? 1 : 0) - (b[0].over ? 1 : 0));
