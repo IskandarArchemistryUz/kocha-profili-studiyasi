@@ -256,3 +256,9 @@ svg.chev{width:14px;height:14px;fill:none;stroke:var(--faint);stroke-width:2.2;s
 .gcard2 .pm{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:11px;color:var(--muted)}
 .gcard2 .pm .chip{height:18px;font-size:10px;padding:0 6px}
 .gcard2[aria-pressed="true"]{background:var(--surface);box-shadow:0 0 0 1.5px var(--ink)}
+
+/* 18-band: «← Master reja: <loyiha>» — boshqa xizmatdan shu loyihaga qaytish */
+.mr-back{display:inline-flex;align-items:center;gap:6px;max-width:280px;text-decoration:none;flex:none}
+.mr-back svg{width:16px;height:16px;flex:none}
+.mr-back .nm{color:var(--muted);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+@media (max-width:1180px){.mr-back .nm{display:none}}
