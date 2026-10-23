@@ -51,9 +51,13 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   await page.waitForFunction(() => !!(window as any).joyMap?.getSource?.('joy-st-line'), null, { timeout: 30_000 });
   await page.evaluate(() => { const m = (window as any).joyMap; m.jumpTo({ center: [69.2797, 41.3111], zoom: 15.3 }); });
   await page.waitForTimeout(400);
+  // sukut: koʻchani chizish
+  await expect(page.locator('#stMode [data-smode=draw]')).toHaveAttribute('aria-pressed', 'true');
   await clickAt(page, -560, 3);
-  await expect(page.locator('.joy-st-steps li[aria-current=step]')).toContainText('oxirini');
+  await clickAt(page, 0, 2);
   await clickAt(page, 560, -3);
+  await expect(page.locator('#stHow')).toContainText('3 nuqta');
+  await page.keyboard.press('Enter');
   await expect(page.locator('#stHead .ttl')).toContainText('Navoiy koʻchasi', { timeout: 30_000 });
   await expect(page.locator('#stHead .chip').first()).toContainText('Tuman ahamiyatidagi magistral');
   await expect(page.locator('[data-card=tarmoq] .big')).toHaveText('11 chorraha');

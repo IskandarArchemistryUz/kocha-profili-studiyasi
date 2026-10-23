@@ -109,10 +109,58 @@ export interface Slice {
   trees: number;
   /** trotuar nuqtalari: chap, oʻng — 14:00 dagi quyosh (1 — quyoshda, 0 — soyada) va kun davomidagi quyoshli soatlar */
   sun14: [number, number]; sunH: [number, number];
+  /** qatnov qismlari koʻndalang chiziqda: oʻqdan siljish o (chap — musbat) va eni w (ikki qatnovli koʻchada — ikkalasi) */
+  cws: { o: number; w: number }[];
+  /** qatnov zonasi chegaralari [oʻng, chap] (oʻqdan, chap — musbat) va jami qatnov eni */
+  ext: [number, number]; cw: number;
+}
+/** Fasadgacha boʻsh joy (qatnov zonasi chetidan): chap / oʻng */
+export const freeOf = (s: Slice, side: 'L' | 'R'): number | null => side === 'L' ? (s.L.d != null ? s.L.d - s.ext[1] : null) : (s.R.d != null ? s.R.d + s.ext[0] : null);
+
+/**
+ * Foydalanuvchi chizgan oʻq (koʻcha boʻylab bosilgan nuqtalar) — yoʻl izlash yoʻq, aynan shu chiziq tahlil qilinadi.
+ * Har ≤ 20 m boʻlakka eng yaqin parallel (< 35°) avtomobil yoʻli (≤ 40 m) — toifa, eni, nomi uchun; chorrahalar —
+ * chiziqni kesib oʻtgan (> 35°) avtomobil yoʻllari.
+ */
+export function routeFromLine(line: XY[], roads0: SRoad[]): Route | null {
+  const L0 = line.filter((p, i) => !i || dist(p, line[i - 1]) > 0.5); if (L0.length < 2) return null;
+  const roads = roads0.filter(r => r.pts.length > 1 && CAR.has(r.cls));
+  const pts: XY[] = [L0[0]], road: SRoad[] = [];
+  const fallback: SRoad = { id: -1, pts: [], cls: 'unclassified', w: 7 };
+  const near = (a: XY, b: XY): SRoad => {
+    const m: XY = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], tx = b[0] - a[0], ty = b[1] - a[1], tl = Math.hypot(tx, ty) || 1;
+    let best: SRoad | null = null, bd = 40;
+    for (const r of roads) for (let i = 0; i + 1 < r.pts.length; i++) {
+      const p = r.pts[i], q = r.pts[i + 1], dx = q[0] - p[0], dy = q[1] - p[1], L2 = dx * dx + dy * dy || 1;
+      if (Math.abs((dx * tx + dy * ty) / (Math.sqrt(L2) * tl)) < 0.82) continue;   // parallel emas (> 35°)
+      const t = Math.max(0, Math.min(1, ((m[0] - p[0]) * dx + (m[1] - p[1]) * dy) / L2)), d = Math.hypot(m[0] - p[0] - dx * t, m[1] - p[1] - dy * t);
+      if (d < bd) { bd = d; best = r; }
+    }
+    return best ?? fallback;
+  };
+  for (let i = 0; i + 1 < L0.length; i++) {
+    const a = L0[i], b = L0[i + 1], n = Math.max(1, Math.ceil(dist(a, b) / 20));
+    for (let k = 1; k <= n; k++) { const q: XY = [a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]; road.push(near(pts[pts.length - 1], q)); pts.push(q); }
+  }
+  let len = 0; const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(len += dist(pts[i - 1], pts[i]));
+  // chorrahalar: chiziqni kesib oʻtgan, parallel boʻlmagan avtomobil yoʻllari
+  const J: number[] = [];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1], ux = b[0] - a[0], uy = b[1] - a[1], ul = Math.hypot(ux, uy) || 1;
+    for (const r of roads) for (let k = 0; k + 1 < r.pts.length; k++) {
+      const p = r.pts[k], q = r.pts[k + 1], vx = q[0] - p[0], vy = q[1] - p[1], vl = Math.hypot(vx, vy) || 1;
+      if (Math.abs((ux * vx + uy * vy) / (ul * vl)) > 0.82) continue;
+      const den = ux * vy - uy * vx; if (Math.abs(den) < 1e-9) continue;
+      const t = ((p[0] - a[0]) * vy - (p[1] - a[1]) * vx) / den, u = ((p[0] - a[0]) * uy - (p[1] - a[1]) * ux) / den;
+      if (t >= 0 && t <= 1 && u >= -0.05 && u <= 1.05) J.push(cum[i] + t * ul);
+    }
+  }
+  J.sort((x, y) => x - y); const junctions: number[] = []; for (const j of J) if (j > 10 && j < len - 10 && (!junctions.length || j - junctions[junctions.length - 1] > 20)) junctions.push(j);
+  return { pts, road, len, junctions, offName: 0 };
 }
 /** Yoʻl boʻylab har step metrda boʻlak (oxirgisi qisqaroq boʻlishi mumkin) */
-export function slicesOf(rt: Route, step = 20): Omit<Slice, 'L' | 'R' | 'trees' | 'sun14' | 'sunH'>[] {
-  const out: Omit<Slice, 'L' | 'R' | 'trees' | 'sun14' | 'sunH'>[] = [];
+export function slicesOf(rt: Route, step = 20): Omit<Slice, 'L' | 'R' | 'trees' | 'sun14' | 'sunH' | 'cws' | 'ext' | 'cw'>[] {
+  const out: Omit<Slice, 'L' | 'R' | 'trees' | 'sun14' | 'sunH' | 'cws' | 'ext' | 'cw'>[] = [];
   const cum: number[] = [0]; for (let i = 1; i < rt.pts.length; i++) cum.push(cum[i - 1] + dist(rt.pts[i - 1], rt.pts[i]));
   const at = (s: number) => { let i = 0; while (i < cum.length - 2 && cum[i + 1] < s) i++; const a = rt.pts[i], b = rt.pts[i + 1], L = cum[i + 1] - cum[i] || 1, f = (s - cum[i]) / L, t: XY = [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; return { p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f] as XY, t, road: rt.road[i] }; };
   const n = Math.max(1, Math.ceil(rt.len / step - 0.25));
@@ -149,20 +197,33 @@ export interface SunInput { step14: SunStep; day: SunStep[] }
  * Trotuar nuqtasi — qatnov qismi chetidan 2 m (fasad yaqinroq boʻlsa — chet va fasad oʻrtasi).
  * Daraxtlar soya uchun 8 qirrali prizma: toj radiusi 3 m, balandligi 8 m (andoza).
  */
-export function analyzeSlices(rt: Route, blds: SBld[], trees: XY[], sun: SunInput | null, step = 20, maxD = 80): Slice[] {
-  const S0 = slicesOf(rt, step), G = edgeGrid(blds);
+export function analyzeSlices(rt: Route, blds: SBld[], trees: XY[], sun: SunInput | null, step = 20, maxD = 80, roads: SRoad[] = []): Slice[] {
+  const S0 = slicesOf(rt, step), G = edgeGrid(blds), car = roads.filter(r => CAR.has(r.cls) && r.pts.length > 1);
   const sl: Slice[] = S0.map(s => {
     const cand = G.near(s.p, maxD), L = rayHit(s.p, s.n, maxD, G, cand), R = rayHit(s.p, [-s.n[0], -s.n[1]], maxD, G, cand);
-    const half = s.road.w / 2;
-    let tr = 0; for (const q of trees) { const dx = q[0] - s.p[0], dy = q[1] - s.p[1], al = dx * s.t[0] + dy * s.t[1], ac = Math.abs(dx * s.n[0] + dy * s.n[1]); if (Math.abs(al) <= s.len / 2 && ac <= half + 12) tr++; }
-    return { ...s, L, R, trees: tr, sun14: [1, 1], sunH: [0, 0] };
+    // koʻndalang chiziq (fasaddan fasadgacha) kesib oʻtgan parallel qatnov qismlari — ikki qatnovli koʻchada ikkalasi
+    const lim = [-(R.d ?? 40), L.d ?? 40], hits = new Map<number, { o: number; w: number }>();
+    for (const r of car) for (let k = 0; k + 1 < r.pts.length; k++) {
+      const p = r.pts[k], q = r.pts[k + 1], vx = q[0] - p[0], vy = q[1] - p[1], vl = Math.hypot(vx, vy) || 1;
+      if (Math.abs((vx * s.t[0] + vy * s.t[1]) / vl) < 0.82) continue;
+      const den = s.n[0] * vy - s.n[1] * vx; if (Math.abs(den) < 1e-9) continue;
+      const o = ((p[0] - s.p[0]) * vy - (p[1] - s.p[1]) * vx) / den, u = ((p[0] - s.p[0]) * s.n[1] - (p[1] - s.p[1]) * s.n[0]) / den;
+      if (u < -0.02 || u > 1.02 || o < lim[0] || o > lim[1]) continue;
+      const prev = hits.get(r.id); if (!prev || Math.abs(o) < Math.abs(prev.o)) hits.set(r.id, { o, w: r.w });
+    }
+    const cws = [...hits.values()].sort((a, b) => a.o - b.o);
+    const use = cws.length ? cws : [{ o: 0, w: s.road.w }];
+    const ext: [number, number] = [Math.min(...use.map(c => c.o - c.w / 2)), Math.max(...use.map(c => c.o + c.w / 2))];
+    const cw = use.reduce((a, c) => a + c.w, 0), reach = Math.max(Math.abs(ext[0]), Math.abs(ext[1]));
+    let tr = 0; for (const q of trees) { const dx = q[0] - s.p[0], dy = q[1] - s.p[1], al = dx * s.t[0] + dy * s.t[1], ac = Math.abs(dx * s.n[0] + dy * s.n[1]); if (Math.abs(al) <= s.len / 2 && ac <= reach + 12) tr++; }
+    return { ...s, L, R, trees: tr, sun14: [1, 1] as [number, number], sunH: [0, 0] as [number, number], cws: use, ext, cw };
   });
   if (sun) {
     const prisms: Prism[] = blds.map(b => ({ ring: b.ring, top: b.h }));
     for (const q of trees) { const ring: XY[] = []; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ring.push([q[0] + 3 * Math.cos(a), q[1] + 3 * Math.sin(a)]); } prisms.push({ ring, top: 8 }); }
     const pts: XY[] = [];
     for (const s of sl) for (const [side, sg] of [[s.L, 1], [s.R, -1]] as [Side, number][]) {
-      const half = s.road.w / 2, off = side.d != null && side.d < half + 4 ? (half + side.d) / 2 : half + 2;
+      const edge = sg > 0 ? s.ext[1] : -s.ext[0], off = side.d != null && side.d < edge + 4 ? (edge + side.d) / 2 : edge + 2;
       pts.push([s.p[0] + s.n[0] * off * sg, s.p[1] + s.n[1] * off * sg]);
     }
     const z = pts.map(() => 1.5), a14 = insolation(pts, z, prisms, [{ ...sun.step14, dt: 1 }]), aD = insolation(pts, z, prisms, sun.day);
@@ -233,9 +294,9 @@ export function summarize(rt: Route, sl: Slice[], pois: (SPoi & { s: number })[]
   const name = [...names.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
   const W = (s: Slice) => s.L.d != null && s.R.d != null ? s.L.d + s.R.d : null;
   const corr = med(sl.map(W).filter((v): v is number => v != null));
-  const carriage = med(sl.map(s => s.road.w)) ?? main.w;
-  const front = (d: number | null, s: Slice) => d != null && d - s.road.w / 2 <= FRONT_SETBACK;
-  const wl = sl.filter(s => front(s.L.d, s)).length / sl.length, wr = sl.filter(s => front(s.R.d, s)).length / sl.length;
+  const carriage = med(sl.map(s => s.cw)) ?? main.w;
+  const front = (side: 'L' | 'R', s: Slice) => { const f = freeOf(s, side); return f != null && f <= FRONT_SETBACK; };
+  const wl = sl.filter(s => front('L', s)).length / sl.length, wr = sl.filter(s => front('R', s)).length / sl.length;
   const hws = sl.map(s => { const w = W(s); const hs = [s.L.h, s.R.h].filter((v): v is number => v != null); return w && hs.length ? hs.reduce((a, b) => a + b, 0) / hs.length / w : null; }).filter((v): v is number => v != null);
   const hAll = sl.flatMap(s => [s.L.h, s.R.h]).filter((v): v is number => v != null);
   const L = rt.len || 1;
@@ -247,8 +308,8 @@ export function summarize(rt: Route, sl: Slice[], pois: (SPoi & { s: number })[]
     len: rt.len, name, cls: main.cls, cat: catOf(main.cls),
     junctions: rt.junctions.length, junctionGap: jg,
     carriage, corridor: corr,
-    freeL: med(sl.map(s => s.L.d != null ? s.L.d - s.road.w / 2 : null).filter((v): v is number => v != null)),
-    freeR: med(sl.map(s => s.R.d != null ? s.R.d - s.road.w / 2 : null).filter((v): v is number => v != null)),
+    freeL: med(sl.map(s => freeOf(s, 'L')).filter((v): v is number => v != null)),
+    freeR: med(sl.map(s => freeOf(s, 'R')).filter((v): v is number => v != null)),
     carShare: corr ? Math.min(1, carriage / corr) : null,
     hw: med(hws), wall: (wl + wr) / 2, wallL: wl, wallR: wr, heightMed: med(hAll),
     treesPer100: sl.reduce((a, s) => a + s.trees, 0) / L * 100,

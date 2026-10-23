@@ -13,7 +13,7 @@ import { ContextManager } from '../context/manager';
 import { overpass } from '../context/load';
 import { daySteps, sunPosition, localToUtc } from '../core/sun';
 import { distM } from './analyze';
-import { routeAB, analyzeSlices, summarize, findings, along, hwColor, HW_BINS, FRONT_SETBACK, type SRoad, type SBld, type SPoi, type Slice, type Route, type StreetSummary, type Finding } from './street';
+import { routeAB, routeFromLine, freeOf, analyzeSlices, summarize, findings, along, hwColor, HW_BINS, FRONT_SETBACK, type SRoad, type SBld, type SPoi, type Slice, type Route, type StreetSummary, type Finding } from './street';
 
 export interface StreetHost {
   map(): MLMap | null;
@@ -25,7 +25,7 @@ export interface StreetHost {
 type Metric = 'hw' | 'soya' | 'fasad' | 'kenglik';
 const METRICS: [Metric, string][] = [['hw', 'H/W'], ['soya', 'Soya'], ['fasad', 'Fasad'], ['kenglik', 'Koʻcha eni']];
 interface Counts { car?: number; ped?: number; bike?: number; when?: string }
-interface Saved { A?: LngLat | null; B?: LngLat | null; metric?: Metric; counts?: Record<string, Counts> }
+interface Saved { A?: LngLat | null; B?: LngLat | null; metric?: Metric; counts?: Record<string, Counts>; /** 'draw' — koʻchani oʻzi chizadi (sukut), 'ab' — A → B yoʻl izlash */ mode?: 'draw' | 'ab'; line?: LngLat[] | null }
 const SK = 'joy-street';
 const st: Saved = (() => { try { return JSON.parse(localStorage.getItem(SK) || 'null') ?? {}; } catch { return {}; } })();
 const save = () => { try { localStorage.setItem(SK, JSON.stringify(st)); } catch { /* */ } };
@@ -39,35 +39,65 @@ const sctx = new ContextManager();
 
 export function streetInit(hst: StreetHost): void { host = hst; }
 const metric = (): Metric => st.metric ?? 'hw';
-const keyAB = () => st.A && st.B ? `${st.A.map(v => v.toFixed(5)).join(',')}|${st.B.map(v => v.toFixed(5)).join(',')}` : '';
+const mode = () => st.mode ?? 'draw';
+/** Tahlil qilinadigan chiziq: chizilgan oʻq yoki A–B */
+const axisPts = (): LngLat[] | null => mode() === 'draw' ? (st.line && st.line.length > 1 ? st.line : null) : (st.A && st.B ? [st.A, st.B] : null);
+const keyAB = () => { const a = axisPts(); return a ? a.map(p => p.map(v => v.toFixed(5)).join(',')).join('|') : ''; };
+/** Chizilayotgan oʻq (tugallanmagan) */
+let draft: LngLat[] | null = null;
+const lenOf = (pts: LngLat[]) => { let L = 0; for (let i = 1; i < pts.length; i++) L += distM(pts[i - 1], pts[i]); return L; };
 
 /* ---------------- tanlash va hisoblash ---------------- */
 export function streetClick(c: LngLat): void {
+  if (mode() === 'draw') {
+    if (!draft) { draft = []; R = null; status = { st: 'idle' }; host?.map()?.doubleClickZoom.disable(); }
+    const last = draft[draft.length - 1]; if (!last || distM(last, c) > 1) draft.push(c);
+    host?.rerender(); streetPaint(); return;
+  }
   if (!st.A || (st.A && st.B)) { st.A = c; st.B = null; R = null; status = { st: 'idle' }; }
   else st.B = c;
   save(); host?.rerender(); streetPaint();
   if (st.A && st.B) void analyze();
 }
-export function streetReset(): void { st.A = null; st.B = null; R = null; status = { st: 'idle' }; seq++; save(); host?.rerender(); streetPaint(); }
-/** Rejimga kirganda: saqlangan A–B boʻlsa — qayta hisoblash (kesh tufayli tez) */
-export function streetEnter(): void { if (st.A && st.B && !R && status.st !== 'load') void analyze(); }
+/** Chizishni tugatish (ikki marta bosish, Enter yoki tugma) */
+export function streetFinish(): void {
+  if (!draft) return;
+  host?.map()?.doubleClickZoom.enable();
+  if (draft.length < 2) { draft = null; host?.rerender(); streetPaint(); return; }
+  st.line = draft; draft = null; save(); host?.rerender(); streetPaint(); void analyze();
+}
+/** Klaviatura: Enter — tugatish, Backspace — oxirgi nuqta, Esc — bekor. true — tutib olindi */
+export function streetKey(e: KeyboardEvent): boolean {
+  if (!draft) return false;
+  if (e.key === 'Enter') { streetFinish(); return true; }
+  if (e.key === 'Backspace') { draft.pop(); host?.rerender(); streetPaint(); return true; }
+  if (e.key === 'Escape') { draft = null; host?.map()?.doubleClickZoom.enable(); host?.rerender(); streetPaint(); return true; }
+  return false;
+}
+export const streetDrawing = () => !!draft;
+export function streetReset(): void { st.A = null; st.B = null; st.line = null; draft = null; R = null; status = { st: 'idle' }; seq++; save(); host?.map()?.doubleClickZoom.enable(); host?.rerender(); streetPaint(); }
+function setMode(m: 'draw' | 'ab'): void { st.mode = m; draft = null; R = null; status = { st: 'idle' }; seq++; save(); host?.rerender(); streetPaint(); if (axisPts()) void analyze(); }
+/** Rejimga kirganda: saqlangan koʻcha boʻlsa — qayta hisoblash (kesh tufayli tez) */
+export function streetEnter(): void { if (axisPts() && !R && status.st !== 'load') void analyze(); }
 
 const EXTRA_Q = (b: [number, number, number, number]) => {
   const bb = b.map(v => v.toFixed(6)).join(',');
   return `[out:json][timeout:25];(node["highway"~"^(crossing|traffic_signals|bus_stop)$"](${bb});node["public_transport"="platform"](${bb});node["railway"="tram_stop"](${bb});node["shop"](${bb});node["amenity"~"^(cafe|restaurant|fast_food|bank|pharmacy|bar|pub|marketplace|post_office|clinic|dentist|ice_cream|bakery|atm)$"](${bb}););out body;way["highway"]["maxspeed"](${bb});out tags;`;
 };
 async function analyze(): Promise<void> {
-  const A = st.A!, B = st.B!, my = ++seq, d = distM(A, B);
+  const ax = axisPts(); if (!ax) return;
+  const my = ++seq, d = mode() === 'draw' ? lenOf(ax) : distM(ax[0], ax[1]);
   if (d > 2500) { status = { st: 'err', msg: tf('A va B orasi ${d} m — 2,5 km gacha boʻlak tanlang', { d: fmt(d) }) }; host?.rerender(); return; }
   status = { st: 'load', msg: tr('Binolar, yoʻllar va daraxtlar yuklanmoqda (OSM)…') }; host?.rerender();
   try {
-    const c: LngLat = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], rad = Math.min(1400, d / 2 + 160);
+    const ax0 = ax.map(p => p[0]), ay0 = ax.map(p => p[1]), c: LngLat = [(Math.min(...ax0) + Math.max(...ax0)) / 2, (Math.min(...ay0) + Math.max(...ay0)) / 2];
+    const rad = Math.min(1400, Math.max(...ax.map(p => distM(c, p))) + 160);
     const b = await sctx.load(c, rad, (m, f) => { if (my !== seq) return; status = { st: 'load', msg: `${tr(m)} ${Math.round(f * 100)} %` }; host?.rerender(); });
     if (my !== seq) return;
     const fr = geoFrame(c), L = (p: LngLat) => fr.toLocal(p);
     const roads: SRoad[] = b.osm.roads.map(r => ({ id: r.id, pts: r.pts.map(L), cls: r.cls, w: r.w, lanes: r.lanes, oneway: r.oneway, name: r.name }));
-    const rt = routeAB(roads, L(A), L(B));
-    if (!rt) { status = { st: 'err', msg: tr('A yoki B nuqta yoʻlga yaqin emas (60 m dan uzoq) yoki ular orasida yoʻl topilmadi') }; host?.rerender(); return; }
+    const rt = mode() === 'draw' ? routeFromLine(ax.map(L), roads) : routeAB(roads, L(ax[0]), L(ax[1]));
+    if (!rt) { status = { st: 'err', msg: tr(mode() === 'draw' ? 'Chiziq juda qisqa — kamida ikki nuqta bosing' : 'A yoki B nuqta yoʻlga yaqin emas (60 m dan uzoq) yoki ular orasida yoʻl topilmadi') }; host?.rerender(); return; }
     // qoʻshimcha: oʻtish joylari, bekatlar, doʻkonlar, tezlik
     let extrasErr: string | undefined; const pois: SPoi[] = [];
     try {
@@ -94,7 +124,7 @@ async function analyze(): Promise<void> {
     const blds: SBld[] = b.osm.buildings.map(x => ({ ring: x.rings[0].map(L), h: x.h })).filter(x => x.ring.length > 2 && near(x.ring[0]));
     const trees = b.osm.trees.map(L).filter(near);
     const sp = sunPosition(localToUtc(2026, 6, 22, 14), c[1], c[0]);
-    const sl = analyzeSlices(rt, blds, trees, { step14: { alt: sp.alt, az: sp.az, dt: 1 }, day: daySteps(2026, 6, 22, c[1], c[0], 20) });
+    const sl = analyzeSlices(rt, blds, trees, { step14: { alt: sp.alt, az: sp.az, dt: 1 }, day: daySteps(2026, 6, 22, c[1], c[0], 20) }, 20, 80, roads);
     const pa = along(rt, pois, 25);
     const S = summarize(rt, sl, pa, true);
     R = { rt, sl, S, F: findings(S), pois: pa, fr, extrasErr, stale: b.stale };
@@ -108,20 +138,22 @@ async function analyze(): Promise<void> {
 /* ---------------- xarita ---------------- */
 const fc = (features: unknown[]) => ({ type: 'FeatureCollection', features });
 export function streetLayers(m: MLMap): void {
-  for (const id of ['joy-st-line', 'joy-st-pts', 'joy-st-hl']) if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  for (const id of ['joy-st-line', 'joy-st-pts', 'joy-st-hl', 'joy-st-draft']) if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   m.addLayer({ id: 'joy-st-case', type: 'line', source: 'joy-st-line', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 13, 7, 18, 22] } } as never);
   m.addLayer({ id: 'joy-st-line', type: 'line', source: 'joy-st-line', layout: { 'line-cap': 'butt', 'line-join': 'round' }, paint: { 'line-color': ['get', 'col'], 'line-width': ['interpolate', ['linear'], ['zoom'], 13, 5, 18, 18] } } as never);
   m.addLayer({ id: 'joy-st-hl', type: 'line', source: 'joy-st-hl', paint: { 'line-color': '#141414', 'line-width': 3, 'line-dasharray': [1, 1] } } as never);
+  m.addLayer({ id: 'joy-st-draft', type: 'line', source: 'joy-st-draft', filter: ['==', '$type', 'LineString'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#c0643a', 'line-width': 4, 'line-dasharray': [1.5, 1] } } as never);
+  m.addLayer({ id: 'joy-st-draftp', type: 'circle', source: 'joy-st-draft', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#ffffff', 'circle-stroke-color': '#c0643a', 'circle-stroke-width': 2.5 } } as never);
   m.addLayer({ id: 'joy-st-pts', type: 'circle', source: 'joy-st-pts', paint: { 'circle-radius': ['match', ['get', 'k'], 'shop', 3, 5], 'circle-color': ['match', ['get', 'k'], 'crossing', '#ffffff', 'signals', '#e0a400', 'stop', '#4c5bd4', '#8b4a9c'], 'circle-stroke-color': ['match', ['get', 'k'], 'crossing', '#141414', '#ffffff'], 'circle-stroke-width': 1.5 } } as never);
 }
-const VIS = ['joy-st-case', 'joy-st-line', 'joy-st-hl', 'joy-st-pts'];
+const VIS = ['joy-st-case', 'joy-st-line', 'joy-st-hl', 'joy-st-pts', 'joy-st-draft', 'joy-st-draftp'];
 export function streetHide(m: MLMap): void { for (const id of VIS) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', 'none'); mA?.remove(); mB?.remove(); }
 const SHADE_COL = ['#f2c14e', '#9fb7c9', '#4f6f8f'];
 function sliceColor(s: Slice): string {
   switch (metric()) {
     case 'hw': { const w = s.L.d != null && s.R.d != null ? s.L.d + s.R.d : null, hs = [s.L.h, s.R.h].filter((v): v is number => v != null); return hwColor(w && hs.length ? hs.reduce((a, b) => a + b, 0) / hs.length / w : null); }
     case 'soya': return SHADE_COL[2 - s.sun14[0] - s.sun14[1]];
-    case 'fasad': { const f = (d: number | null) => d != null && d - s.road.w / 2 <= FRONT_SETBACK ? 1 : 0; return ['#e6e3dc', '#d39a6a', '#a4512a'][f(s.L.d) + f(s.R.d)]; }
+    case 'fasad': { const f = (sd: 'L' | 'R') => { const v = freeOf(s, sd); return v != null && v <= FRONT_SETBACK ? 1 : 0; }; return ['#e6e3dc', '#d39a6a', '#a4512a'][f('L') + f('R')]; }
     default: { const w = s.L.d != null && s.R.d != null ? s.L.d + s.R.d : null; return w == null ? '#cfccc5' : w < 15 ? '#c9e4a5' : w < 25 ? '#7fb3c8' : w < 40 ? '#4a6fa5' : '#2b3a67'; }
   }
 }
@@ -141,9 +173,13 @@ export function streetPaint(): void {
   (m.getSource('joy-st-line') as GeoJSONSource).setData(fc(feats) as never);
   (m.getSource('joy-st-pts') as GeoJSONSource).setData(fc(pts) as never);
   (m.getSource('joy-st-hl') as GeoJSONSource).setData(fc(hl) as never);
+  const dp: unknown[] = [];
+  if (draft?.length) { if (draft.length > 1) dp.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: draft } }); for (const q of draft) dp.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: q } }); }
+  (m.getSource('joy-st-draft') as GeoJSONSource).setData(fc(dp) as never);
   const pin = (lab: string) => h('div', { class: 'joy-stpin' }, lab);
-  if (st.A) { mA ??= host!.marker(pin('A')); mA?.setLngLat(st.A as [number, number]).addTo(m); } else mA?.remove();
-  if (st.B) { mB ??= host!.marker(pin('B')); mB?.setLngLat(st.B as [number, number]).addTo(m); } else mB?.remove();
+  const ax = draft ? null : axisPts(), pA = mode() === 'ab' ? st.A : ax?.[0], pB = mode() === 'ab' ? st.B : ax?.[ax.length - 1];
+  if (pA) { mA ??= host!.marker(pin('A')); mA?.setLngLat(pA as [number, number]).addTo(m); } else mA?.remove();
+  if (pB) { mB ??= host!.marker(pin('B')); mB?.setLngLat(pB as [number, number]).addTo(m); } else mB?.remove();
 }
 /** Xarita legendasi (joriy koʻrsatkich) */
 export function streetLegend(): Node[] {
@@ -160,18 +196,31 @@ export function streetLegend(): Node[] {
 
 /* ---------------- chap panel ---------------- */
 export function streetLeft(): Node[] {
-  const step = !st.A ? 1 : !st.B ? 2 : 3;
   const ll = (p?: LngLat | null) => p ? `${p[1].toFixed(5)}, ${p[0].toFixed(5)}` : '—';
-  const out: Node[] = [
-    h('div', { class: 'joy-st-how' },
-      h('div', { class: 'glabel' }, tr('Koʻcha boʻlagi')),
+  const modeSeg = h('div', { class: 'seg sm', id: 'stMode', role: 'group', 'aria-label': tr('Koʻchani belgilash') },
+    ...([['draw', 'Chizish'], ['ab', 'A → B']] as const).map(([k, n]) => h('button', { type: 'button', 'data-smode': k, 'aria-pressed': mode() === k, onclick: () => setMode(k) }, tr(n))));
+  const out: Node[] = [h('div', { class: 'glabel' }, tr('Koʻchani belgilash')), modeSeg];
+  if (mode() === 'draw') {
+    const n = draft?.length ?? 0, L = draft ? lenOf(draft) : st.line ? lenOf(st.line) : 0;
+    out.push(h('div', { class: 'joy-st-how' },
+      h('div', { class: 'note', id: 'stHow' }, draft
+        ? tf('Koʻcha oʻqi boʻylab bosing: ${n} nuqta, ${l} m. Ikki marta bosish yoki Enter — tugatish, Backspace — oxirgi nuqtani oʻchirish, Esc — bekor.', { n, l: fmt(L) })
+        : st.line ? tf('Chizilgan koʻcha: ${l} m. Qayta chizish uchun xaritada yangi boshlanish nuqtasini bosing.', { l: fmt(L) })
+          : tr('Xaritada koʻchaning oʻrtasi boʻylab bosib chizing: boshida, har burilishda va oxirida nuqta qoʻying. Ikki marta bosish yoki Enter — tugatish.')),
+      h('div', { class: 'row' },
+        draft && n >= 2 ? h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'stFinish', onclick: () => streetFinish() }, tr('Tugatish va tahlil')) : null,
+        draft || st.line ? h('button', { type: 'button', class: 'btn btn-sm', id: 'stReset', onclick: () => streetReset() }, tr(draft ? 'Bekor qilish' : 'Tozalash')) : null)));
+  } else {
+    const step = !st.A ? 1 : !st.B ? 2 : 3;
+    out.push(h('div', { class: 'joy-st-how' },
       h('ol', { class: 'joy-st-steps' },
         h('li', { 'aria-current': step === 1 ? 'step' : null }, h('b', {}, 'A'), h('span', {}, step === 1 ? tr('Xaritada koʻchaning boshini bosing') : ll(st.A))),
         h('li', { 'aria-current': step === 2 ? 'step' : null }, h('b', {}, 'B'), h('span', {}, step === 2 ? tr('Endi oxirini bosing (2,5 km gacha)') : ll(st.B)))),
-      st.A ? h('button', { type: 'button', class: 'btn btn-sm', id: 'stReset', onclick: () => streetReset() }, tr('Boshqa koʻcha tanlash')) : null),
-  ];
+      h('span', { class: 't-small' }, tr('Yoʻl OSM tarmogʻida avtomatik izlanadi — notoʻgʻri boʻlsa «Chizish»dan foydalaning.')),
+      st.A ? h('button', { type: 'button', class: 'btn btn-sm', id: 'stReset', onclick: () => streetReset() }, tr('Boshqa koʻcha tanlash')) : null));
+  }
   if (status.st === 'load') out.push(h('div', { class: 'note', id: 'stStatus' }, status.msg ?? tr('Yuklanmoqda…')));
-  if (status.st === 'err') out.push(h('div', { class: 'note warn', id: 'stStatus' }, status.msg ?? ''), st.A && st.B ? h('button', { type: 'button', class: 'btn btn-sm', onclick: () => void analyze() }, tr('Qayta urinish')) : null as never);
+  if (status.st === 'err') out.push(h('div', { class: 'note warn', id: 'stStatus' }, status.msg ?? ''), axisPts() ? h('button', { type: 'button', class: 'btn btn-sm', onclick: () => void analyze() }, tr('Qayta urinish')) : null as never);
   if (R) {
     out.push(h('div', { class: 'glabel' }, tr('Xaritada koʻrsatish')),
       h('div', { class: 'seg sm', id: 'stMetric', role: 'group', 'aria-label': tr('Xaritada koʻrsatish') }, ...METRICS.map(([k, n]) => h('button', { type: 'button', 'data-metric': k, 'aria-pressed': metric() === k, onclick: () => { st.metric = k; save(); host?.rerender(); streetPaint(); } }, tr(n)))));
@@ -221,32 +270,30 @@ function typicalSlice(): number {
 }
 function drawSection(): void {
   if (!secEl || !R) return;
-  const i = hover >= 0 ? hover : typicalSlice(), s = R.sl[i], half = s.road.w / 2;
+  const i = hover >= 0 ? hover : typicalSlice(), s = R.sl[i];
   const tEl = document.getElementById('stSecT'); if (tEl) tEl.textContent = tf('Koʻcha kesimi · ${a}–${b} m', { a: Math.round(s.s), b: Math.round(s.s + s.len) });
-  const dL = s.L.d, dR = s.R.d, eL = dL ?? Math.max(half + 20, 30), eR = dR ?? Math.max(half + 20, 30), dep = 10;
+  // chizmada chap — chapda: u = −o (o — oʻqdan chapga musbat)
+  const eLft = s.ext[1], eRgt = -s.ext[0], dL = s.L.d, dR = s.R.d, eL = dL ?? Math.max(eLft + 20, 30), eR = dR ?? Math.max(eRgt + 20, 30), dep = 10;
   const hL = s.L.h ?? 0, hR = s.R.h ?? 0, hMax = Math.max(hL, hR, 8);
   const W = 284, H0 = 150, gy = 112, span = eL + eR + 2 * dep, k = Math.min((W - 16) / span, (gy - 22) / hMax);
-  const X = (m: number) => 8 + (m + eL + dep) * k, out: string[] = [];
+  const X = (u: number) => 8 + (u + eL + dep) * k, out: string[] = [];
   const txt = (x: number, y: number, t: string, a = 'middle', cls = 'tx') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${a}" class="${cls}">${esc(t)}</text>`;
-  // yer, trotuar va qatnov qismi
   out.push(`<rect x="${X(-eL)}" y="${gy}" width="${(eL + eR) * k}" height="5" class="pv"/>`);
-  out.push(`<rect x="${X(-half)}" y="${gy}" width="${2 * half * k}" height="5" class="cw"/>`);
-  // trotuar soyasi
-  const sw = (side: number, sun: number) => { const a = side < 0 ? X(-eL) : X(half), b = side < 0 ? X(-half) : X(eR); return `<rect x="${a}" y="${gy - 3}" width="${Math.max(0, b - a)}" height="3" class="${sun ? 'sun' : 'shd'}"/>`; };
-  out.push(sw(-1, s.sun14[0]), sw(1, s.sun14[1]));
-  // binolar
+  for (const c of s.cws) out.push(`<rect x="${X(-(c.o + c.w / 2))}" y="${gy}" width="${c.w * k}" height="5" class="cw"/>`);
+  const sw = (a: number, b: number, sun: number) => `<rect x="${X(a)}" y="${gy - 3}" width="${Math.max(0, (b - a) * k)}" height="3" class="${sun ? 'sun' : 'shd'}"/>`;
+  out.push(sw(-eL, -eLft, s.sun14[0]), sw(eRgt, eR, s.sun14[1]));
   const bld = (side: number, d: number | null, hh: number) => {
     if (d == null) return txt(side < 0 ? X(-eL) + 4 : X(eR) - 4, gy - 8, tr('bino yoʻq'), side < 0 ? 'start' : 'end', 'mut');
     const x0 = side < 0 ? X(-d - dep) : X(d), w = dep * k, y = gy - hh * k;
     return `<rect x="${x0}" y="${y}" width="${w}" height="${hh * k}" class="bd"/>` + txt(x0 + w / 2, y - 4, `${fmt(hh, 0)} m`);
   };
   out.push(bld(-1, dL, hL), bld(1, dR, hR));
-  if (s.trees) for (const side of [-1, 1]) { const x = X(side * (half + 1.5)); out.push(`<circle cx="${x}" cy="${gy - 5 * k - 2}" r="${Math.max(3, 3 * k)}" class="tr"/><path d="M${x} ${gy}V${gy - 5 * k}" class="trk"/>`); }
-  // oʻlchamlar
+  if (s.trees) for (const u of [-(eLft + 1.5), eRgt + 1.5]) { const x = X(u); out.push(`<circle cx="${x}" cy="${gy - 5 * k - 2}" r="${Math.max(3, 3 * k)}" class="tr"/><path d="M${x} ${gy}V${gy - 5 * k}" class="trk"/>`); }
   const dim = (a: number, b: number, y: number, t: string) => `<path d="M${a} ${y}H${b}M${a} ${y - 3}v6M${b} ${y - 3}v6" class="dm"/>` + txt((a + b) / 2, y + 11, t);
-  out.push(dim(X(-half), X(half), gy + 14, tf('qatnov ${w} m', { w: fmt(s.road.w, 1) })));
-  if (dL != null) out.push(dim(X(-dL), X(-half), gy + 30, `${fmt(dL - half, 1)} m`));
-  if (dR != null) out.push(dim(X(half), X(dR), gy + 30, `${fmt(dR - half, 1)} m`));
+  out.push(dim(X(-eLft), X(eRgt), gy + 14, s.cws.length > 1 ? tf('qatnov ${n} × ${w} m', { n: s.cws.length, w: s.cws.map(c => fmt(c.w, 1)).join(' + ') }) : tf('qatnov ${w} m', { w: fmt(s.cw, 1) })));
+  const fl = freeOf(s, 'L'), fr = freeOf(s, 'R');
+  if (dL != null && fl != null) out.push(dim(X(-dL), X(-eLft), gy + 30, `${fmt(fl, 1)} m`));
+  if (dR != null && fr != null) out.push(dim(X(eRgt), X(dR), gy + 30, `${fmt(fr, 1)} m`));
   if (dL != null && dR != null) out.push(`<path d="M${X(-dL)} 14H${X(dR)}" class="dm"/>` + txt((X(-dL) + X(dR)) / 2, 10, tf('binodan binogacha ${w} m', { w: fmt(dL + dR, 0) })));
   out.push(txt(4, H0 + 34, tr('chap'), 'start', 'mut'), txt(W - 4, H0 + 34, tr('oʻng'), 'end', 'mut'));
   secEl.innerHTML = `<svg viewBox="0 0 ${W} ${H0 + 38}" role="img" aria-label="${esc(tr('Koʻcha kesimi'))}">${out.join('')}</svg>
@@ -261,7 +308,7 @@ function card(id: string, color: string, name: string, src: string, big: string,
 }
 export function streetRight(): Node[] {
   if (!R) {
-    const msg = status.st === 'load' ? status.msg ?? tr('Yuklanmoqda…') : status.st === 'err' ? status.msg ?? '' : tr('Xaritada koʻcha boshini (A) va oxirini (B) bosing — tahlil oʻzi boshlanadi.');
+    const msg = status.st === 'load' ? status.msg ?? tr('Yuklanmoqda…') : status.st === 'err' ? status.msg ?? '' : tr(mode() === 'draw' ? 'Xaritada koʻchani chizing — tugatganda tahlil oʻzi boshlanadi.' : 'Xaritada koʻcha boshini (A) va oxirini (B) bosing — tahlil oʻzi boshlanadi.');
     return [h('article', { class: 'joy-card head' }, h('div', { class: 't-small' }, tr('Koʻcha tahlili')), h('h1', { class: 'ttl' }, tr('Koʻcha tanlanmagan')), h('div', { class: 'sub' }, msg))];
   }
   const { S, F, rt } = R, c = (st.counts ?? {})[keyAB()] ?? {};
@@ -340,9 +387,9 @@ export function streetStrip(el: HTMLElement): void {
     const hs = [s.L.h, s.R.h].filter((v): v is number => v != null), hw = W2 && hs.length ? hs.reduce((a, b) => a + b, 0) / hs.length / W2 : null;
     out.push(`<g data-i="${i}" class="sl${i === hover ? ' on' : ''}">`);
     out.push(`<rect x="${x0}" y="${Y[0]}" width="${w}" height="26" fill="${hwColor(hw)}"/>`);
-    const f = (d: number | null) => d != null && d - s.road.w / 2 <= FRONT_SETBACK;
-    out.push(`<rect x="${x0}" y="${Y[1]}" width="${w}" height="10" fill="${f(s.L.d) ? '#a4512a' : 'var(--fill)'}"/><rect x="${x0}" y="${Y[1] + 12}" width="${w}" height="10" fill="${f(s.R.d) ? '#a4512a' : 'var(--fill)'}"/>`);
-    if (W2 != null) { const hh = 34 * W2 / maxW, hc = 34 * Math.min(W2, s.road.w) / maxW; out.push(`<rect x="${x0}" y="${Y[2] + 34 - hh}" width="${w}" height="${hh}" fill="#9fbcd6"/><rect x="${x0}" y="${Y[2] + 34 - hc}" width="${w}" height="${hc}" fill="#4a5560"/>`); }
+    const f = (sd: 'L' | 'R') => { const v = freeOf(s, sd); return v != null && v <= FRONT_SETBACK; };
+    out.push(`<rect x="${x0}" y="${Y[1]}" width="${w}" height="10" fill="${f('L') ? '#a4512a' : 'var(--fill)'}"/><rect x="${x0}" y="${Y[1] + 12}" width="${w}" height="10" fill="${f('R') ? '#a4512a' : 'var(--fill)'}"/>`);
+    if (W2 != null) { const hh = 34 * W2 / maxW, hc = 34 * Math.min(W2, s.cw) / maxW; out.push(`<rect x="${x0}" y="${Y[2] + 34 - hh}" width="${w}" height="${hh}" fill="#9fbcd6"/><rect x="${x0}" y="${Y[2] + 34 - hc}" width="${w}" height="${hc}" fill="#4a5560"/>`); }
     else out.push(`<rect x="${x0}" y="${Y[2] + 30}" width="${w}" height="4" fill="var(--fill)"/>`);
     out.push(`<rect x="${x0}" y="${Y[3]}" width="${w}" height="10" fill="${s.sun14[0] ? '#f2c14e' : '#4f6f8f'}"/><rect x="${x0}" y="${Y[3] + 12}" width="${w}" height="10" fill="${s.sun14[1] ? '#f2c14e' : '#4f6f8f'}"/>`);
     for (let k = 0; k < Math.min(s.trees, 6); k++) out.push(`<circle cx="${x0 + 4 + k * 5}" cy="${Y[4] + 11}" r="2.6" fill="#5f8f3e"/>`);
@@ -372,7 +419,7 @@ export function streetStrip(el: HTMLElement): void {
   const setTip = (i: number) => {
     if (i < 0) { tip.textContent = tr('Ustiga olib boring — shu joyning qiymatlari va kesimi chiqadi'); return; }
     const s = sl[i], W2 = s.L.d != null && s.R.d != null ? s.L.d + s.R.d : null, yn = (v: number) => tr(v ? 'quyosh' : 'soya');
-    tip.textContent = tf('${a}–${b} m: binodan binogacha ${w} · qatnov ${c} m · binolar: chap ${l}, oʻng ${r} · trotuar 14:00: chap ${sl}, oʻng ${sr}', { a: Math.round(s.s), b: Math.round(s.s + s.len), w: W2 == null ? '—' : `${Math.round(W2)} m`, c: fmt(s.road.w, 1), l: s.L.h != null ? `${fmt(s.L.h, 0)} m` : '—', r: s.R.h != null ? `${fmt(s.R.h, 0)} m` : '—', sl: yn(s.sun14[0]), sr: yn(s.sun14[1]) });
+    tip.textContent = tf('${a}–${b} m: binodan binogacha ${w} · qatnov ${c} m · binolar: chap ${l}, oʻng ${r} · trotuar 14:00: chap ${sl}, oʻng ${sr}', { a: Math.round(s.s), b: Math.round(s.s + s.len), w: W2 == null ? '—' : `${Math.round(W2)} m`, c: fmt(s.cw, 1), l: s.L.h != null ? `${fmt(s.L.h, 0)} m` : '—', r: s.R.h != null ? `${fmt(s.R.h, 0)} m` : '—', sl: yn(s.sun14[0]), sr: yn(s.sun14[1]) });
   };
   svg.addEventListener('mouseover', e => { const g = (e.target as Element).closest('[data-i]'); const i = g ? Number(g.getAttribute('data-i')) : -1; if (i !== hover) { hover = i; svg.querySelectorAll('.sl.on').forEach(n => n.classList.remove('on')); g?.classList.add('on'); setTip(i); drawSection(); streetPaint(); } });
   svg.addEventListener('mouseleave', () => { hover = -1; svg.querySelectorAll('.sl.on').forEach(n => n.classList.remove('on')); setTip(-1); drawSection(); streetPaint(); });
