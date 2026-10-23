@@ -27,3 +27,22 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   for (let i = 0; i < 6 && !found; i++) { found = /#f6d58f|#f4b08a|#9bd3b8|#8fa5cc/i.test(await svgs()); if (!found) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); } }
   expect(found).toBe(true);
 });
+
+/** 19-band (2): xarita oynasida shimol strelkasi va masshtab chizgʻichi; panelda yoqish/oʻchirish va burchak */
+test('Chizmadon xarita oynasi: shimol va masshtab chizgʻichi', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile/, r => r.fulfill({ status: 404, body: '' }));
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await page.click('#chOpen'); await page.click('#chStGo');
+  const deco = (k: string) => page.evaluate(k2 => document.querySelectorAll(`.ch-body [data-deco="${k2}"]`).length, k);
+  let n = 0;
+  for (let i = 0; i < 6 && !n; i++) { n = await deco('scale'); if (!n) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); } }
+  expect(n).toBeGreaterThan(0);
+  expect(await deco('north')).toBeGreaterThan(0);
+  // kvartirografiya rejasi burilgan — shimol strelkasi ham buriladi (0° emas)
+  const rots = await page.evaluate(() => Array.from(document.querySelectorAll('.ch-body [data-deco="north"] g[transform]')).map(g => g.getAttribute('transform')));
+  expect(rots.length).toBeGreaterThan(0);
+});

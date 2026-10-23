@@ -26,6 +26,8 @@ export interface ChStyle {
   deco?: 'none' | 'rail' | 'stations' | 'casing';
   /** xavf belgisi (qizil rang faqat shunday elementlarda — tekshiruv 6) */
   risk?: boolean;
+  /** xarita oynasi: shimol strelkasi va masshtab chizgʻichi (sukut — yoqilgan, maʼlumot boʻlsa) */
+  north?: boolean; bar?: boolean;
 }
 
 export interface ChEl {
@@ -43,6 +45,8 @@ export interface ChEl {
   src?: string; svg?: string; vb?: [number, number, number, number];
   /** xarita oynasi masshtabi: 1:N (asl oʻlchamda); oʻlcham oʻzgarsa — N × asl / joriy */
   scale?: number; natW?: number;
+  /** xarita oynasi: shimol yoʻnalishi, ° (0 — tepaga, soat strelkasi boʻyicha) */
+  north?: number;
   /** jadval: qatorlar (birinchisi — sarlavha) */
   rows?: string[][];
   /** nom (shartli belgilar va qatlamlar uchun) va namuna (preset) id si */
@@ -76,7 +80,7 @@ export interface ChAuto {
 export interface ChLayer { id: string; name: string; visible: boolean; locked: boolean }
 export interface ChPage { id: string; name: string; paper: ChPaper; landscape: boolean; w?: number; h?: number; layers: ChLayer[]; els: ChEl[]; tpl?: string }
 /** «Loyihadan» — boshqa oynalardan yuborilgan xarita, varaq va rasmlar (bir marta bosish — varaqqa qoʻyiladi) */
-export interface ChInbox { id: string; name: string; kind: 'sheet' | 'scene' | 'plan'; svg?: string; vb?: [number, number, number, number]; src?: string; w: number; h: number; scale?: number; at: string }
+export interface ChInbox { id: string; name: string; kind: 'sheet' | 'scene' | 'plan'; svg?: string; vb?: [number, number, number, number]; src?: string; w: number; h: number; scale?: number; north?: number; at: string }
 export interface ChUi { left: boolean; right: boolean; leftTab: 'varaq' | 'qatlam' | 'kutubxona'; rightTab: 'element' | 'tekshiruv'; libTab: 'belgi' | 'daraxt' | 'yol' | 'rang'; lockL: boolean; lockR: boolean }
 export interface ChDoc {
   /** 2 — bitta oyna: avtomatik maket varaqlari (auto) + qoʻlda chizilganlar (hand) + erkin varaqlar (pages) */
@@ -131,7 +135,7 @@ function normEls(arr: unknown, layers: ChLayer[]): ChEl[] {
     if (!e || typeof e !== 'object' || !TYPES.includes(e.t)) return null;
     const el: ChEl = { id: typeof e.id === 'string' ? e.id : cid(), t: e.t, layer: lids.has(e.layer) ? e.layer : layers[0].id, style: typeof e.style === 'object' && e.style ? { ...e.style } : {} };
     if (Array.isArray(e.pts)) el.pts = e.pts.map(pt).filter(Boolean).slice(0, 4000) as [number, number][];
-    for (const k of ['x', 'y', 'w', 'h', 'rot', 'scale', 'natW'] as const) if (typeof e[k] === 'number' && Number.isFinite(e[k])) el[k] = e[k];
+    for (const k of ['x', 'y', 'w', 'h', 'rot', 'scale', 'natW', 'north'] as const) if (typeof e[k] === 'number' && Number.isFinite(e[k])) el[k] = e[k];
     for (const k of ['text', 'icon', 'src', 'svg', 'name', 'preset', 'group'] as const) if (typeof e[k] === 'string') el[k] = e[k];
     if (e.look) el.look = e.look; if (e.flipX) el.flipX = true; if (e.flipY) el.flipY = true;
     if (e.row && typeof e.row === 'object') el.row = { kind: e.row.kind ?? 'tree', gap: num(e.row.gap, 8, 0.5, 500), size: num(e.row.size, 5, 0.5, 200), tree: e.row.tree, icon: e.row.icon };
@@ -187,7 +191,7 @@ export function normDoc(o: unknown, title = ''): ChDoc {
   d.title = str(x.title, title, 200);
   d.palette = str(x.palette, 'asosiy', 40);
   if (x.album && typeof x.album === 'object') d.album = { stamp: x.album.stamp !== false, numbering: x.album.numbering !== false, toc: !!x.album.toc, author: str(x.album.author, '', 120) };
-  if (Array.isArray(x.inbox)) d.inbox = x.inbox.filter((i: any) => i && typeof i.id === 'string').slice(-30).map((i: any) => ({ id: i.id, name: str(i.name, '', 120), kind: i.kind === 'scene' || i.kind === 'plan' ? i.kind : 'sheet', ...(typeof i.svg === 'string' ? { svg: i.svg } : {}), ...(Array.isArray(i.vb) ? { vb: i.vb.map(Number) } : {}), ...(typeof i.src === 'string' ? { src: i.src } : {}), w: num(i.w, 200, 1, 5000), h: num(i.h, 150, 1, 5000), ...(typeof i.scale === 'number' ? { scale: i.scale } : {}), at: str(i.at, new Date().toISOString(), 40) }));
+  if (Array.isArray(x.inbox)) d.inbox = x.inbox.filter((i: any) => i && typeof i.id === 'string').slice(-30).map((i: any) => ({ id: i.id, name: str(i.name, '', 120), kind: i.kind === 'scene' || i.kind === 'plan' ? i.kind : 'sheet', ...(typeof i.svg === 'string' ? { svg: i.svg } : {}), ...(Array.isArray(i.vb) ? { vb: i.vb.map(Number) } : {}), ...(typeof i.src === 'string' ? { src: i.src } : {}), w: num(i.w, 200, 1, 5000), h: num(i.h, 150, 1, 5000), ...(typeof i.scale === 'number' ? { scale: i.scale } : {}), ...(Number.isFinite(i.north) ? { north: Number(i.north) } : {}), at: str(i.at, new Date().toISOString(), 40) }));
   if (x.ui && typeof x.ui === 'object') d.ui = { ...d.ui, ...x.ui };
   return d;
 }
@@ -224,4 +228,6 @@ export function fitTo(e: ChEl, from: [number, number, number, number], to: [numb
   return n;
 }
 /** Xarita oynasi joriy masshtabi: asl 1:N × (asl kenglik / joriy kenglik) */
+/** Xarita oynasidagi shimol burchagi: maʼlum boʻlsa — oʻzi; masshtabli vektor xarita (Master rejadan) — tepaga */
+export const mapNorth = (e: ChEl): number | null => (e.t !== 'map' ? null : Number.isFinite(e.north) ? e.north! : e.svg && e.scale ? 0 : null);
 export const mapScale = (e: ChEl): number | null => (e.t === 'map' && e.scale && e.natW && e.w ? Math.round(e.scale * e.natW / Math.abs(e.w)) : null);

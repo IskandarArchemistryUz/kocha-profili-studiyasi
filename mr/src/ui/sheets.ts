@@ -26,7 +26,7 @@ export interface SheetsHost {
   /** reja va hajmlar DXF (mavjud eksport) */
   dxf: () => void;
   /** joriy varaqni Chizmadonga yuborish (xarita oynasi sifatida, masshtab bilan) */
-  toChizmadon?: (svg: string, name: string, scale: number) => void;
+  toChizmadon?: (svg: string, name: string, scale: number, north?: number) => void;
   /** qaysi varaqdan boshlash (V3 ramkasidan) */
   start?: number;
   /** aksonometriya rasmi (sahnadan, tanlangan uslub va koʻrinish bilan): data URL */
@@ -148,7 +148,7 @@ export function openGraphics(host: SheetsHost): void {
   /* ---------- header ---------- */
   const checksBtn = h('button', { class: 'chip sh-checks', id: 'shChecks', onclick: (e: Event) => { e.stopPropagation(); showChecks(); } });
   const dl = h('button', { class: 'btn', id: 'gxDl', onclick: (e: Event) => { e.stopPropagation(); menu(); } }, ...icl('<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', tr('Yuklab olish')));
-  const toCh = h('button', { class: 'btn btn-primary', id: 'shToCh', disabled: !host.toChizmadon, title: host.toChizmadon ? '' : tr('Chizmadon — keyingi bosqichda'), onclick: () => { const o = O(), r = run({ ...o, show: { ...o.show, title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false } }); persist(); const nm = sheetName(cur); close(); host.toChizmadon?.(r.svg, nm, r.scale); } }, tr('Chizmadonga'));
+  const toCh = h('button', { class: 'btn btn-primary', id: 'shToCh', disabled: !host.toChizmadon, title: host.toChizmadon ? '' : tr('Chizmadon — keyingi bosqichda'), onclick: () => { const o = O(), r = run({ ...o, show: { ...o.show, title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false } }); persist(); const nm = sheetName(cur); close(); host.toChizmadon?.(r.svg, nm, o.mode === 'akso' ? 0 : r.scale, o.mode === 'qavat' ? (lastInner as { north?: number } | undefined)?.north : -(o.rot ?? 0)); } }, tr('Chizmadonga'));
   head.append(
     h('button', { class: 'btn btn-ghost icon-btn', 'aria-label': tr('Master rejaga qaytish'), title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>')),
     h('span', { class: 'brand' }, logoSvg(18), h('b', {}, 'Archemistry Lab')), h('span', { class: 'svcbadge' }, h('i'), tr('Master reja')),

@@ -16,7 +16,7 @@ import { sharedEdge } from './sectionplan';
 import type { LegendItem } from './sheet';
 import type { Bal } from './facade';
 
-export interface AptSheet { name: string; label: string; legend: LegendItem[]; rows: { n: number; rooms: number; area: number }[]; body: (vx: number, vy: number, vw: number, vh: number) => string; side: (x: number, y: number, w: number, yMax: number) => string }
+export interface AptSheet { name: string; label: string; legend: LegendItem[]; rows: { n: number; rooms: number; area: number }[]; body: (vx: number, vy: number, vw: number, vh: number) => string; side: (x: number, y: number, w: number, yMax: number) => string; /** reja burilishida shimol, ° (soat strelkasi boʻyicha, 0 — tepaga) */ north: number }
 
 const n2 = (v: number) => v.toFixed(2);
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -100,7 +100,8 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
   const pl = plans[bi], G = sheetGroup(pl, gi), nFl = G.to - G.from + 1;
   const name = `${tr(`${bi + 1}-bino`)} · ${tr(groupName(G))}`;
   const U = obb2(pl.ring).U, V: XY = [-U[1], U[0]], T = (p: XY): XY => [p[0] * U[0] + p[1] * U[1], p[0] * V[0] + p[1] * V[1]];
-  const northDeg = Math.atan2(U[0], U[1]) * 180 / Math.PI;
+  // shimol (mahalliy +y) rejada (y pastga) — soat strelkasi boʻyicha burchak = atan2(U₁, U₀); northDeg — uning manfiysi (rotate(-northDeg))
+  const northDeg = -Math.atan2(U[1], U[0]) * 180 / Math.PI;
   const fr = frame(doc.origin), site = doc.site?.rings.map(r => r.map(fr.toLocal)) ?? [];
   const blds = doc.buildings.map(b => ({ id: b.id, r: b.footprint.map(fr.toLocal) }));
   const plan = computePlan(doc), c0 = centroid(pl.ring), blk = plan.blocks.find(b => pointIn(c0, b.rings)) ?? null;
@@ -171,5 +172,5 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
     out.push(`<text x="${n2(x)}" y="${n2(y + 3.2)}" font-size="1.9" fill="#6b6965">${esc(tr('Maydon — rejadagi × 0,85 (devorlar), balkonsiz; taxmin'))}</text>`);
     return out.join('');
   };
-  return { name, get label() { return label; }, legend, rows, body, side: sideCol } as AptSheet;
+  return { name, get label() { return label; }, legend, rows, body, side: sideCol, north: -northDeg } as AptSheet;
 }

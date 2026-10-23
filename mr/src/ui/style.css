@@ -618,7 +618,7 @@ details.manual{border-top:0;padding-top:0;display:block}
 .ch-dot{position:absolute;top:3px;right:3px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--warn);color:#fff;font-size:10px;font-style:normal;font-weight:700;line-height:15px}
 .ch-ph{display:flex;align-items:center;gap:4px;padding:12px 12px 8px}.ch-ph .seg{flex:1}.ch-ph .seg button{flex:1;font-size:12.5px;padding:0 6px}
 .ch-lock[aria-pressed=true]{color:var(--sel)}
-.ch-scroll{flex:1;min-height:0;overflow:auto;padding:4px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.ch-scroll{flex:1;min-height:0;overflow:auto;padding:4px 14px 14px;display:flex;flex-direction:column;gap:10px}.ch-scroll>*{flex-shrink:0}
 .ch-foot{display:flex;gap:8px;padding:12px 14px;border-top:.5px solid var(--hairline)}.ch-foot .btn{flex:1}.ch-foot .icon-btn{flex:none}.ch-foot .danger{color:var(--bad)}
 .ch-eh{display:flex;flex-direction:column;gap:2px;padding-top:4px}.ch-eh .t-title{font-size:18px}
 .ch-icons{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
