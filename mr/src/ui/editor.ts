@@ -1679,7 +1679,7 @@ export class Editor {
     body.append(h('select', { class: 'select', id: 'genBlock', 'aria-label': tr('Kvartal'), onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value; this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
         h('option', { value: '' }, tr('— sahnada bosing yoki tanlang —')),
         ...plan.blocks.map((b, i) => { const o = h('option', { value: i }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga · ${useDef(b.use).name}`) as HTMLOptionElement; o.selected = i === this.selBlock; return o; })),
-      h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')));
+      h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')), this.isoBtn(this.selBlock));
     const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => { let n = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) n += this.generateBlock(i, true); toast(tf('${n} seksiya generatsiya qilindi', { n })); } }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
@@ -2162,6 +2162,27 @@ export class Editor {
   }
 
   /** Birlik nomi: K-2 (butun kvartal) yoki K-2.3 (parsel) */
+  /* ---------- 10-band: ishlanayotgan hududni izolyatsiya qilish ---------- */
+  private isoName = '';
+  private static ISO_IC = '<path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4"/><rect x="8" y="8" width="8" height="8" rx="1"/>';
+  /** daha (kvartal) indeksi boʻyicha izolyatsiya; null — chiqish */
+  private setIso(i: number | null): void {
+    const doc = this.store.doc, plan = this.plan(), b = i != null ? plan.blocks[i] : null;
+    if (!b) { this.isoName = ''; this.scene.setIsolation(null, doc); }
+    else { const fr = frame(doc.origin); this.isoName = this.unitName(i!); this.scene.setIsolation([b.rings[0].map(fr.toGeo)], doc); }
+    this.renderLblBar(); this.renderPanel();
+  }
+  private blockIndexAt(p: XY | null): number | null {
+    if (!p) return null;
+    const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); return i < 0 ? null : i;
+  }
+  private isoBtn(i: number | null): HTMLElement | string {
+    if (i == null && !this.scene.isolated) return '';
+    const on = this.scene.isolated;
+    return h('button', { class: 'btn btn-block', id: 'isoGo', 'aria-pressed': on, title: tr('Faqat shu daha toʻliq chiziladi, qolgani — yengil fon (katta sahnada xotira va tezlik uchun)'), onclick: () => this.setIso(on ? null : i) },
+      ...icl(Editor.ISO_IC, on ? tf('Izolyatsiyadan chiqish (${n})', { n: this.isoName }) : tr('Dahani izolyatsiya qilish')));
+  }
+
   private unitName(i: number): string {
     const plan = this.plan(), b = plan.blocks[i]; if (!b) return '';
     if (!b.parcelId) return `D-${b.blockKey + 1}`;
@@ -2488,6 +2509,7 @@ export class Editor {
       m.append(h('div', { class: 'mh' }, 'Sahna'),
         this.step.id === 'hudud' && gp ? item('Loyiha markazini shu yerga koʻchirish', () => this.goTo({ name: 'Xaritada tanlangan joy', detail: '', at: frame(doc.origin).toGeo(gp) }, null)) : '',
         item('Loyihani koʻrsatish', () => this.scene.frameDoc(this.store.doc)),
+        this.scene.isolated ? item('Izolyatsiyadan chiqish', () => this.setIso(null)) : this.blockIndexAt(gp) != null ? item('Dahani izolyatsiya qilish', () => this.setIso(this.blockIndexAt(gp))) : '',
         item('Chizgʻich', () => this.setMode('measure'), 'M'),
         item('Kesim', () => this.setMode('section'), 'S'),
         rmN ? item(`Olib tashlangan atrof binolarini qaytarish (${rmN})`, () => this.restoreRemoved()) : '',
@@ -2748,6 +2770,7 @@ export class Editor {
     const st = this.scene.labelStats, el = this.el.lblbar; if (!el) return;
     const n = Math.round(st.scale), r = n >= 10000 ? Math.round(n / 1000) * 1000 : n >= 1000 ? Math.round(n / 100) * 100 : Math.round(n / 10) * 10;
     el.replaceChildren(
+      this.scene.isolated ? h('button', { class: 'btn btn-sm', id: 'isoExit', title: tr('Izolyatsiyadan chiqish'), onclick: () => this.setIso(null) }, ...icl(Editor.ISO_IC, tf('Izolyatsiya: ${n}', { n: this.isoName })), svgIcon(IC.x)) : '',
       h('span', { class: 'chip', id: 'scaleChip', title: tr('Ekran masshtabi (96 dpi hisobida)') }, `≈ 1:${r.toLocaleString('ru-RU')}`),
       st.short ? h('button', { class: 'btn btn-sm', id: 'lblShort', onclick: () => { this.plotFilter = 'short'; this.plotsReq = true; this.openPlots(); } }, ...icl('<path d="M4 5h16v14H4zM4 10h16M10 5v14"/>', tf('${n} ta yozuv qisqargan — jadval', { n: st.short }))) : '');
     if (this.el.drawer.dataset.kind === 'plots' && !this.el.drawer.hidden) this.openPlots(true);
