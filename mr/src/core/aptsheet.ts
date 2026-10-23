@@ -30,7 +30,7 @@ export function sheetGroup(pl: SecPlan, gi?: number): { gi: number; from: number
 }
 
 /** Navigatsiya sxemasi ranglari — hamma joyda bir xil */
-export const NAV = { site: '#f7f6f2', block: '#ffffff', blockLine: '#c9c5bc', other: '#e6e3dc', otherLine: '#a9a49b', plot: '#8e8a82', plotLine: '#3a3936', group: '#8e8a82', cur: '#1d1d1b', frame: '#1d1d1b' };
+export const NAV = { site: '#f7f6f2', block: '#ffffff', blockLine: '#c9c5bc', other: '#e6e3dc', otherLine: '#a9a49b', plot: '#c4bfb4', plotLine: '#3a3936', group: '#8e8a82', cur: '#1d1d1b', frame: '#1d1d1b' };
 
 /** Bitta panel: halqalar burilgan holda qutiga sigʻdiriladi (focus — qaysi halqalar koʻrinishi kerak) */
 function navPanel(out: string[], bx: number, by: number, bw: number, bh: number, T: (p: XY) => XY, focus: XY[][], layers: { rs: XY[][]; fill: string; stroke: string; sw: number; dash?: string }[]): void {
@@ -61,8 +61,10 @@ export function navScheme(x: number, y: number, w: number, h: number, T: (p: XY)
   // 1) genplan: hudud chegarasi qizil, uchastka toʻq
   navPanel(out, x, by, lw, bh, T, [...d.site, ...d.blocks], [
     { rs: d.blocks, fill: NAV.block, stroke: NAV.blockLine, sw: 0.12 },
-    { rs: [...d.others, ...d.group, ...d.cur], fill: NAV.other, stroke: NAV.otherLine, sw: 0.08 },
-    { rs: d.plot, fill: NAV.plot, stroke: NAV.plotLine, sw: 0.25 },
+    { rs: d.plot, fill: NAV.plot, stroke: 'none', sw: 0 },
+    { rs: d.others, fill: '#d9d5cc', stroke: '#8a857c', sw: 0.08 },
+    { rs: [...(d.inPlot ?? []), ...d.group, ...d.cur], fill: '#4a4843', stroke: '#1d1d1b', sw: 0.08 },
+    { rs: d.plot, fill: 'none', stroke: NAV.plotLine, sw: 0.25 },
     { rs: d.site, fill: 'none', stroke: '#d0342c', sw: 0.45 },
   ]);
   // 2) blok: seksiyalar, koʻrsatilgani qora
