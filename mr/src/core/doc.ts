@@ -69,7 +69,7 @@ export interface Street { id: string; axis: LngLat[]; profile: string; /** OSM d
 /** Avtoturargoh (generator): yer usti boʻlsa — joylar va manevr boʻlaklari (dizayn-kod 6.3 moduli); need — 29-jadval talabi */
 export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti'; ring: Ring; levels: number; spaces: number; need?: number; module?: 'p90' | 'p60' | 'p45' | 'par'; stalls?: Ring[]; aisles?: Ring[] }
 
-export interface Parcel { id: string; block: string; rings: Ring[]; use: Use }
+export interface Parcel { id: string; block: string; rings: Ring[]; use: Use; /** shu yer uchastkasi uchun oxirgi generator parametrlari (seksiya oʻlchamlari va h.k.) */ gen?: Record<string, unknown> }
 
 /** Qoʻlda qoʻshilgan mavjud xizmat obyekti (OSM da yoʻq bogʻcha, maktab…) — xizmat radiuslari tahlilida manba */
 export interface ManualPoi { id: string; kind: 'mtm' | 'maktab' | 'poliklinika' | 'dorixona' | 'savdo' | 'sport' | 'mahalla' | 'bekat' | 'metro'; at: LngLat; name?: string }
@@ -284,7 +284,7 @@ export function migrate(raw: unknown): Project {
       ...(Array.isArray(x.stalls) && x.stalls.every(isRing) ? { stalls: x.stalls.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
       ...(Array.isArray(x.aisles) && x.aisles.every(isRing) ? { aisles: x.aisles.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}) }));
   const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
-    .map((x: any) => ({ id: x.id, block: x.block, rings: x.rings.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)), use: isUse(x.use) ? x.use : 'turar' }));
+    .map((x: any) => ({ id: x.id, block: x.block, rings: x.rings.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)), use: isUse(x.use) ? x.use : 'turar', ...(x.gen && typeof x.gen === 'object' && !Array.isArray(x.gen) ? { gen: { ...x.gen } } : {}) }));
   const PK = ['mtm', 'maktab', 'poliklinika', 'dorixona', 'savdo', 'sport', 'mahalla', 'bekat', 'metro'];
   const pois: ManualPoi[] = (Array.isArray(d.pois) ? d.pois : []).filter((x: any) => x && typeof x.id === 'string' && PK.includes(x.kind) && isLL(x.at))
     .map((x: any) => ({ id: x.id, kind: x.kind, at: [x.at[0], x.at[1]] as LngLat, ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}) }));
