@@ -16,6 +16,7 @@ export interface PlanOpts {
   /** qavat balandligi, m (tekshiruv uchun) */ fh?: number;
   /** balkon turi (turar qavatlarda, 2-qavatdan) */ bal?: Bal | null;
   /** tahrir oynasi: boshqa reja, tanlangan kvartiralar / xona */ plan?: RulePlan; sel?: number[]; selRoom?: number;
+  /** 20-band: kvartira raqami (eksplikatsiya jadvali bilan bogʻlash uchun) */ num?: boolean;
 }
 export const ROOM_LABEL: Record<RoomKind, string> = { texnik: 'texnik / ombor', ombor: 'yashovchilar omborlari', savdo: 'savdo / xizmat', velo: 'velo / kolyaska', zal: 'yashovchilar zali', tozalash: 'tozalash anjomlari ombori' };
 const ROOM_FILL: Record<RoomKind, string> = { texnik: '#e4e1da', ombor: '#e6dcc8', savdo: '#cfe0f3', velo: '#dfe9d2', zal: '#efd9e8', tozalash: '#e4e1da' };
@@ -110,6 +111,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     for (const [p, q] of a.walls) out.push(seg(p, q, 'stroke="#141414" stroke-width="0.25" stroke-dasharray="0.8 0.6"'));
     if (a.wet.length) { const c = cen(a.wet); out.push(`<path d="${path(a.wet)}" fill="rgba(255,255,255,.6)" stroke="#141414" stroke-width="0.25" stroke-dasharray="0.6 0.5"/><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 0.6).toFixed(2)}" font-size="1.6" text-anchor="middle" fill="#3a3936">S</text>`); }
     const c = labelPt(a.ring), bA = balOf(a.ring);
+    if (o.num) out.push(`<circle cx="${X(c[0])}" cy="${(Number(Y(c[1])) - 5.2).toFixed(2)}" r="2.1" fill="#fff" stroke="#141414" stroke-width="0.35"/><text x="${X(c[0])}" y="${(Number(Y(c[1])) - 4.35).toFixed(2)}" font-size="2.4" font-weight="700" text-anchor="middle" fill="#141414" pointer-events="none">${ai + 1}</text>`);
     out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#141414" pointer-events="none">${sel >= 0 ? `${'AB'[sel] ?? ''} · ` : ''}${a.rooms}x</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 3.2).toFixed(2)}" font-size="2.1" text-anchor="middle" fill="#3a3936" pointer-events="none">${n1(Math.round((a.area * 0.85 + bA) * 10) / 10)} m²</text>`);
   });
   // eshiklar — kvartira / xona bilan MOP chegarasida 0,9 m oʻtish (devor uziladi) va yoy

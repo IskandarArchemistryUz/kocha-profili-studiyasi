@@ -45,7 +45,7 @@ details.manual{border-top:1px solid var(--line);padding-top:8px;display:grid;gap
 .gx-main{display:grid;grid-template-rows:auto 1fr;min-width:0;min-height:0}
 .gx-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface)}.gx-bar .spacer{flex:1}
 .gx-view{min-height:0;padding:24px;display:grid;place-items:center;overflow:hidden}
-.gx-view svg{width:100%;height:100%;max-height:calc(100vh - 110px);background:#fff;box-shadow:var(--shadow)}
+.gx-view>svg{width:100%;height:100%;max-height:calc(100vh - 110px);background:#fff;box-shadow:var(--shadow)}
 @media (max-width:760px){.gx{grid-template-columns:1fr;grid-template-rows:auto 1fr}.gx-side{max-height:45vh}}
 
 /* uslub va kamera oynalari */
@@ -147,7 +147,7 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 .gx{background:var(--bg);animation:fadeIn .25s var(--ease)}
 .gx-side{border-right:0;box-shadow:var(--sh-card);padding:20px;gap:12px}
 .gx-bar{border-bottom:0;background:transparent;padding:14px 20px}
-.gx-view svg{border-radius:4px;box-shadow:var(--sh-float)}
+.gx-view>svg{border-radius:4px;box-shadow:var(--sh-float)}
 
 /* harakat */
 @keyframes popIn{from{opacity:0;transform:scale(.94) translateY(-4px)}to{opacity:1;transform:none}}
@@ -579,7 +579,7 @@ details.manual{border-top:0;padding-top:0;display:block}
 .sh-main{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column;border-radius:var(--r-panel);overflow:hidden}
 .sh-info{position:absolute;top:10px;right:12px;z-index:2;padding:6px 10px;border-radius:var(--r-pill);background:var(--glass);box-shadow:var(--sh-float);font-family:var(--mono);font-size:12px}
 .sh-view{flex:1;overflow:auto;display:grid;place-items:center;padding:24px;min-height:0}
-.sh-view svg{max-height:none;background:#fff;box-shadow:var(--sh-float);border-radius:2px}
+.sh-view>svg{max-height:none;background:#fff;box-shadow:var(--sh-float);border-radius:2px}
 .sh-view.hand{cursor:grab}
 .sh-tools{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;height:48px;padding:4px;border-radius:var(--r-pill)}
 .sh-tools .rb{width:40px;height:40px;border-radius:var(--r-pill)}.sh-tools .rb[aria-pressed=true]{background:var(--ink);color:var(--surface)}.sh-tools .sepv{width:.5px;height:22px;background:var(--hairline);margin:0 4px}

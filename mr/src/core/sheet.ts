@@ -76,11 +76,12 @@ export interface SheetOpts {
   /** rejim (MR-Varaqlar): reja · qavat rejalari · aksonometriya; oxirgi ikkisida chizma maydoniga tayyor mazmun qoʻyiladi */
   mode?: 'reja' | 'qavat' | 'akso';
   /** qavat rejalari: namuna va qavat; aksonometriya: namuna va saqlangan koʻrinish */
-  plan?: { look?: 'rang' | 'bir'; floor?: number };
+  /** qavat rejasi varagʻi: floor — bino raqami (1 dan; tarixiy nom), grp — qavatlar guruhi (boʻlmasa — turar qavat) */
+  plan?: { look?: 'rang' | 'bir'; floor?: number; grp?: number };
   axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama'; view?: string; shadow?: boolean };
 }
 /** Tayyor mazmun (qavat rejalari yoki aksonometriya): chizma maydoniga (mm) joylanadi; masshtab yozuvi — label */
-export interface SheetInner { body: (vx: number, vy: number, vw: number, vh: number) => string; label: string; legend?: LegendItem[] }
+export interface SheetInner { body: (vx: number, vy: number, vw: number, vh: number) => string; label: string; legend?: LegendItem[]; /** varaq nomi (sarlavha va shtampda) */ name?: string }
 
 export const SHEET_DEFAULT: SheetOpts = {
   kind: 'bosh', paper: 'A3', landscape: true, scale: 0, title: '',
@@ -400,7 +401,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     out.push(`<text x="${n2(bx + len * k + 2)}" y="${by + 1.3}" font-size="${T(2.5)}" fill="#1d1d1b">m · M 1:${scale}</text>`);
     lay('Masshtab', 'Masshtab', `<rect x="${bx - 3}" y="${by - 5.4}" width="${n2(len * k + 30)}" height="8.4" fill="#ffffff" fill-opacity="0.85"/>${out.join('')}`);
   }
-  const kindName = tr(SHEET_KINDS.find(s2 => s2.id === K)!.name), d = date.toLocaleDateString('ru-RU'), ttl = esc(o.title || doc.name);
+  const kindName = inner?.name ? tr(inner.name) : tr(SHEET_KINDS.find(s2 => s2.id === K)!.name), d = date.toLocaleDateString('ru-RU'), ttl = esc(o.title || doc.name);
   // oʻng ustun: sarlavha → shartli belgilar → yer uchastkalari jadvali → vaziyat sxemasi → shtamp
   if (col) {
     const x0 = vx + vw + gap + 4, w = col - 8;
