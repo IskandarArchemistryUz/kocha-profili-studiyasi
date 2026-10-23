@@ -58,7 +58,10 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   await expect(page.locator('#stHead .chip').first()).toContainText('Tuman ahamiyatidagi magistral');
   await expect(page.locator('[data-card=tarmoq] .big')).toHaveText('11 chorraha');
   await expect(page.locator('[data-card=kesim] .big')).toContainText('/ 36');
-  await expect(page.locator('[data-card=ramka] .big')).toContainText('H/W');
+  await expect(page.locator('[data-card=ramka] .big')).toHaveText(/Ochiq koʻcha|Moʻtadil oʻralgan|Koʻcha «xona»|Tor kanyon/);
+  await expect(page.locator('#stSum li')).toHaveCount(6);
+  await expect(page.locator('#stSec svg')).toBeVisible();
+  await expect(page.locator('#stSec')).toContainText('binodan binogacha');
   await expect(page.locator('[data-card=soya] .big')).toContainText('soyada');
   await expect(page.locator('[data-card=xavf] .big')).toContainText('2 ta oʻtish joyi');
   await expect(page.locator('[data-card=xavf] .sub')).toContainText('12-band');
@@ -68,6 +71,11 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   // lenta
   await expect(page.locator('#joyStrip')).toBeVisible();
   expect(await page.locator('#joyStrip svg [data-i]').count()).toBeGreaterThan(40);
+  // lentada ustiga olib borish — maslahat va kesim yangilanadi
+  const box = (await page.locator('#joyStrip svg [data-i="5"] .hit').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 20);
+  await expect(page.locator('#stTip')).toContainText('100–120 m');
+  await expect(page.locator('#stSecT')).toContainText('100–120 m');
   // xaritada koʻrsatkich almashinadi
   await page.click('[data-metric=soya]');
   await expect(page.locator('#joyLegend')).toContainText('14:00');

@@ -25,26 +25,32 @@ export interface Route {
   len: number;
   /** yoʻl boʻyidagi chorrahalar (avtomobil yoʻllari ≥ 3 tarmoq): masofa, m */
   junctions: number[];
+  /** A/B koʻchasidan boshqa nomli yoʻllar boʻylab oʻtgan uzunlik, m (katta boʻlsa — ogohlantirish) */
+  offName: number;
 }
 const key = (p: XY) => `${Math.round(p[0] * 2)}:${Math.round(p[1] * 2)}`;
 const dist = (a: XY, b: XY) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 
 /** Eng yaqin kesmaga proyeksiya */
-function nearestOnRoads(roads: SRoad[], p: XY): { r: number; i: number; t: number; q: XY; d: number } | null {
-  let best: { r: number; i: number; t: number; q: XY; d: number } | null = null;
+function nearestOnRoads(roads: SRoad[], p: XY): { r: number; i: number; t: number; q: XY; d: number; pen: number } | null {
+  let best: { r: number; i: number; t: number; q: XY; d: number; pen: number } | null = null;
   roads.forEach((rd, r) => {
     for (let i = 0; i + 1 < rd.pts.length; i++) {
       const a = rd.pts[i], b = rd.pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1;
       const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)), q: XY = [a[0] + dx * t, a[1] + dy * t], d = dist(p, q);
-      if (!best || d < best.d) best = { r, i, t, q, d };
+      // nomli avtomobil koʻchasi afzal: xizmat yoʻli yoki trotuar biroz yaqinroq boʻlsa ham asosiy koʻchaga bogʻlanadi
+      const pen = CAR.has(rd.cls) && rd.cls !== 'service' ? (rd.name ? 0 : 6) : 18;
+      if (!best || d + pen < best.d + best.pen) best = { r, i, t, q, d, pen };
     }
   });
   return best;
 }
 
 /**
- * A va B ni eng yaqin yoʻlga bogʻlab, grafda eng qisqa yoʻl (Dijkstra). Piyoda yoʻlaklari 1,6 baravar «qimmat» —
- * koʻcha boʻylab yurish afzal. Nuqta yoʻldan > snapMax uzoq boʻlsa — null.
+ * A va B ni eng yaqin yoʻlga bogʻlab, grafda yoʻl (Dijkstra). Foydalanuvchi bitta koʻchani belgilaydi — shuning uchun
+ * A va B tushgan koʻcha nomi(lari) boʻylab yurish afzal: boshqa nomli yoʻl 6 baravar, piyoda yoʻlagi 10 baravar «qimmat»
+ * (oddiy eng qisqa yoʻl boshqa koʻchalarga burilib ketardi). Nomsiz koʻchada — oddiy eng qisqa yoʻl.
+ * Nuqta yoʻldan > snapMax uzoq boʻlsa — null.
  */
 export function routeAB(roads0: SRoad[], A: XY, B: XY, snapMax = 60): Route | null {
   const roads = roads0.filter(r => r.pts.length > 1 && r.cls !== 'motorway');
@@ -52,7 +58,9 @@ export function routeAB(roads0: SRoad[], A: XY, B: XY, snapMax = 60): Route | nu
   if (!sa || !sb || sa.d > snapMax || sb.d > snapMax) return null;
   const idx = new Map<string, number>(), xy: XY[] = [], adj: { to: number; w: number; L: number; r: number }[][] = [];
   const node = (p: XY): number => { const k = key(p); let i = idx.get(k); if (i == null) { i = xy.length; idx.set(k, i); xy.push(p); adj.push([]); } return i; };
-  const edge = (a: number, b: number, r: number) => { if (a === b) return; const L = dist(xy[a], xy[b]), f = WALK_ONLY.has(roads[r].cls) ? 1.6 : 1; adj[a].push({ to: b, w: L * f, L, r }); adj[b].push({ to: a, w: L * f, L, r }); };
+  const NAMES = new Set([roads[sa.r].name, roads[sb.r].name].filter((n): n is string => !!n));
+  const fac = (rd: SRoad) => NAMES.size ? (rd.name && NAMES.has(rd.name) ? 1 : WALK_ONLY.has(rd.cls) ? 10 : 6) : (WALK_ONLY.has(rd.cls) ? 1.6 : 1);
+  const edge = (a: number, b: number, r: number) => { if (a === b) return; const L = dist(xy[a], xy[b]), f = fac(roads[r]); adj[a].push({ to: b, w: L * f, L, r }); adj[b].push({ to: a, w: L * f, L, r }); };
   const vA = { ...sa }, vB = { ...sb };
   roads.forEach((rd, r) => {
     let prev = node(rd.pts[0]);
@@ -87,7 +95,8 @@ export function routeAB(roads0: SRoad[], A: XY, B: XY, snapMax = 60): Route | nu
     if (k) len += dist(pts[k - 1], pts[k]);
     if (k > 0 && k < seq.length - 1) { const nCar = adj[seq[k]].filter(e => CAR.has(roads[e.r].cls)).length; if (nCar >= 3) junctions.push(len); }
   }
-  return { pts, road, len, junctions };
+  let offName = 0; if (NAMES.size) for (let k = 0; k < road.length; k++) if (!road[k].name || !NAMES.has(road[k].name!)) offName += dist(pts[k], pts[k + 1]);
+  return { pts, road, len, junctions, offName };
 }
 
 /* ---------------- 2. boʻlaklar va nurlar ---------------- */

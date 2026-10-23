@@ -200,6 +200,58 @@ function countsBox(): HTMLElement {
 }
 
 /* ---------------- oʻng ustun: modullar ---------------- */
+const hwWord = (v: number | null) => tr(v == null ? 'Maʼlumot yoʻq' : v < 0.3 ? 'Ochiq koʻcha' : v < 0.6 ? 'Moʻtadil oʻralgan' : v <= 1 ? 'Koʻcha «xona»' : 'Tor kanyon');
+/** Oddiy tildagi qisqa tavsif (har jumla — bitta modul) */
+function plainSummary(): string[] {
+  const { S } = R!, out: string[] = [], n0 = (v: number | null) => v == null ? '—' : fmt(v, 0);
+  out.push(tf('${c}, ${l} m, ${j} chorraha.', { c: tr(S.cat.name), l: fmt(S.len), j: S.junctions }));
+  if (S.corridor) out.push(tf('Binodan binogacha oʻrtacha ${w} m; shundan qatnov qismi ${c} m — koʻchaning ${p} i avtomobilga.', { w: n0(S.corridor), c: fmt(S.carriage, 1), p: pct(S.carShare) }));
+  if (S.hw != null) out.push(tf('Binolar oʻrtacha ${h} m: ${t}.', { h: n0(S.heightMed), t: tr(S.hw < 0.3 ? 'koʻcha keng va ochiq, binolar uni «xona» qilib oʻramaydi' : S.hw < 0.6 ? 'koʻcha moʻtadil oʻralgan' : S.hw <= 1 ? 'koʻcha yaxshi oʻralgan «xona»' : 'koʻcha tor va chuqur') }));
+  out.push(tf('Koʻchaning ${p} uzunligida bino koʻchaga yaqin turadi (chap ${l}, oʻng ${r}).', { p: pct(S.wall), l: pct(S.wallL), r: pct(S.wallR) }));
+  if (S.shade14 != null) out.push(tf('Yozda soat 14:00 da trotuarning ${p} i soyada.', { p: pct(S.shade14) }) + (S.treesPer100 === 0 ? ' ' + tr('OSM da daraxtlar yoʻq — haqiqiy soya koʻproq boʻlishi mumkin.') : ''));
+  out.push(S.crossings ? tf('Piyoda oʻtish joylari: ${n} ta, eng katta oraliq ${g} m (meʼyor 300–500 m).', { n: S.crossings, g: S.crossGap ? fmt(S.crossGap.len) : '—' }) : tr('OSM da piyoda oʻtish joylari belgilanmagan.'));
+  return out;
+}
+/* ---------- koʻcha kesimi chizmasi ---------- */
+let secEl: HTMLElement | null = null;
+function typicalSlice(): number {
+  const sl = R!.sl, both = sl.map((s, i) => ({ i, w: s.L.d != null && s.R.d != null ? s.L.d + s.R.d : null })).filter(x => x.w != null);
+  if (!both.length) return sl.length >> 1;
+  const m = R!.S.corridor ?? 0; return both.reduce((a, b) => (Math.abs(b.w! - m) < Math.abs(a.w! - m) ? b : a)).i;
+}
+function drawSection(): void {
+  if (!secEl || !R) return;
+  const i = hover >= 0 ? hover : typicalSlice(), s = R.sl[i], half = s.road.w / 2;
+  const tEl = document.getElementById('stSecT'); if (tEl) tEl.textContent = tf('Koʻcha kesimi · ${a}–${b} m', { a: Math.round(s.s), b: Math.round(s.s + s.len) });
+  const dL = s.L.d, dR = s.R.d, eL = dL ?? Math.max(half + 20, 30), eR = dR ?? Math.max(half + 20, 30), dep = 10;
+  const hL = s.L.h ?? 0, hR = s.R.h ?? 0, hMax = Math.max(hL, hR, 8);
+  const W = 284, H0 = 150, gy = 112, span = eL + eR + 2 * dep, k = Math.min((W - 16) / span, (gy - 22) / hMax);
+  const X = (m: number) => 8 + (m + eL + dep) * k, out: string[] = [];
+  const txt = (x: number, y: number, t: string, a = 'middle', cls = 'tx') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${a}" class="${cls}">${esc(t)}</text>`;
+  // yer, trotuar va qatnov qismi
+  out.push(`<rect x="${X(-eL)}" y="${gy}" width="${(eL + eR) * k}" height="5" class="pv"/>`);
+  out.push(`<rect x="${X(-half)}" y="${gy}" width="${2 * half * k}" height="5" class="cw"/>`);
+  // trotuar soyasi
+  const sw = (side: number, sun: number) => { const a = side < 0 ? X(-eL) : X(half), b = side < 0 ? X(-half) : X(eR); return `<rect x="${a}" y="${gy - 3}" width="${Math.max(0, b - a)}" height="3" class="${sun ? 'sun' : 'shd'}"/>`; };
+  out.push(sw(-1, s.sun14[0]), sw(1, s.sun14[1]));
+  // binolar
+  const bld = (side: number, d: number | null, hh: number) => {
+    if (d == null) return txt(side < 0 ? X(-eL) + 4 : X(eR) - 4, gy - 8, tr('bino yoʻq'), side < 0 ? 'start' : 'end', 'mut');
+    const x0 = side < 0 ? X(-d - dep) : X(d), w = dep * k, y = gy - hh * k;
+    return `<rect x="${x0}" y="${y}" width="${w}" height="${hh * k}" class="bd"/>` + txt(x0 + w / 2, y - 4, `${fmt(hh, 0)} m`);
+  };
+  out.push(bld(-1, dL, hL), bld(1, dR, hR));
+  if (s.trees) for (const side of [-1, 1]) { const x = X(side * (half + 1.5)); out.push(`<circle cx="${x}" cy="${gy - 5 * k - 2}" r="${Math.max(3, 3 * k)}" class="tr"/><path d="M${x} ${gy}V${gy - 5 * k}" class="trk"/>`); }
+  // oʻlchamlar
+  const dim = (a: number, b: number, y: number, t: string) => `<path d="M${a} ${y}H${b}M${a} ${y - 3}v6M${b} ${y - 3}v6" class="dm"/>` + txt((a + b) / 2, y + 11, t);
+  out.push(dim(X(-half), X(half), gy + 14, tf('qatnov ${w} m', { w: fmt(s.road.w, 1) })));
+  if (dL != null) out.push(dim(X(-dL), X(-half), gy + 30, `${fmt(dL - half, 1)} m`));
+  if (dR != null) out.push(dim(X(half), X(dR), gy + 30, `${fmt(dR - half, 1)} m`));
+  if (dL != null && dR != null) out.push(`<path d="M${X(-dL)} 14H${X(dR)}" class="dm"/>` + txt((X(-dL) + X(dR)) / 2, 10, tf('binodan binogacha ${w} m', { w: fmt(dL + dR, 0) })));
+  out.push(txt(4, H0 + 34, tr('chap'), 'start', 'mut'), txt(W - 4, H0 + 34, tr('oʻng'), 'end', 'mut'));
+  secEl.innerHTML = `<svg viewBox="0 0 ${W} ${H0 + 38}" role="img" aria-label="${esc(tr('Koʻcha kesimi'))}">${out.join('')}</svg>
+    <div class="joy-st-seclg"><span><i class="sun"></i>${esc(tr('trotuar quyoshda'))}</span><span><i class="shd"></i>${esc(tr('soyada (14:00)'))}</span><span><i class="cw"></i>${esc(tr('qatnov qismi'))}</span></div>`;
+}
 const f1 = (v: number | null | undefined, d = 1) => v == null ? '—' : fmt(v, d);
 const pct = (v: number | null | undefined) => v == null ? '—' : `${Math.round(v * 100)} %`;
 function card(id: string, color: string, name: string, src: string, big: string, sub: (string | Node)[], extra?: Node): HTMLElement {
@@ -218,8 +270,16 @@ export function streetRight(): Node[] {
     h('div', { class: 't-small' }, tr('Koʻcha tahlili · A → B')),
     h('h1', { class: 'ttl' }, S.name || tr('Nomsiz koʻcha'), h('span', { class: 'r' }, ` · ${fmt(S.len)} m`)),
     h('div', { class: 'meta' }, h('span', { class: 'chip' }, tr(S.cat.name)), h('span', { class: 'chip' }, `OSM: ${S.cls}`)),
+    rt.offName > Math.max(60, rt.len * 0.1) ? h('div', { class: 'sub err', id: 'stOff' }, tf('Yoʻlning ${m} m qismi boshqa koʻchalardan oʻtdi — A va B ni shu koʻchaning oʻziga qoʻying.', { m: fmt(rt.offName) })) : null,
     R.stale ? h('div', { class: 'sub err' }, tr('Tarmoq ishlamadi — keshdagi eski nusxa'), ': ', R.stale) : null,
-    R.extrasErr ? h('div', { class: 'sub err' }, tr('Oʻtish joylari va doʻkonlar yuklanmadi'), ': ', R.extrasErr) : null));
+    R.extrasErr ? h('div', { class: 'sub err' }, tr('Oʻtish joylari va doʻkonlar yuklanmadi'), ': ', R.extrasErr) : null,
+    h('ul', { class: 'joy-st-sum', id: 'stSum' }, ...plainSummary().map(t => h('li', {}, t)))));
+  // kesim chizmasi — lentada tanlangan joy (sukut: odatiy boʻlak)
+  secEl = h('div', { class: 'joy-st-sec', id: 'stSec' });
+  cards.push(h('article', { class: 'joy-card', 'data-card': 'kesimchizma' },
+    h('header', {}, h('i', { class: 'sq', style: 'background:#4a5560' }), h('span', { class: 'nm', id: 'stSecT' }, tr('Koʻcha kesimi')), h('span', { class: 'chip' }, '3D · OSM')),
+    secEl, h('div', { class: 'sub' }, tr('Pastdagi lentada ustiga olib boring — shu joyning kesimi chiziladi.'))));
+  drawSection();
   // 1. tarmoq
   cards.push(card('tarmoq', '#5b86b0', 'Tarmoqdagi oʻrni', 'OSM', tf('${n} chorraha', { n: S.junctions }), [
     tf('Eng uzun blok: ${b} m', { b: f1(S.junctionGap, 0) }), ' · ',
@@ -236,12 +296,13 @@ export function streetRight(): Node[] {
     h('span', { class: 'src' }, tr('Qatnov qismi: OSM width, boʻlaklar × 3,5 m yoki sinf andozasi. Trotuar va yashil tasma eni alohida oʻlchanmagan.'))], bar));
   void tot;
   // 3. fazoviy ramka
-  cards.push(card('ramka', '#2c4f78', 'Fazoviy ramka', '3D', `H/W ${f1(S.hw, 2)}`, [
+  cards.push(card('ramka', '#2c4f78', 'Fazoviy ramka', '3D', hwWord(S.hw), [tf('H/W ${v} — bino balandligining koʻcha eniga nisbati', { v: f1(S.hw, 2) }), h('br'),
     tf('Oʻrtacha balandlik ${h} m · fasad koʻcha chizigʻida: chap ${l}, oʻng ${r}', { h: f1(S.heightMed, 0), l: pct(S.wallL), r: pct(S.wallR) }), h('br'),
     h('span', { class: 'src' }, tf('H/W oraligʻi — andoza (meʼyor emas). Fasad «koʻcha chizigʻida»: qatnov qismi chetidan ≤ ${d} m. Balandlik — OSM height/levels, boʻlmasa taxmin.', { d: FRONT_SETBACK }))]));
   // 4. soya
   cards.push(card('soya', '#e8a317', 'Mikroiqlim va soya', tr('hisob'), `${pct(S.shade14)} ${tr('soyada')}`, [
     tf('22 iyun 14:00 da trotuar · kun davomida oʻrtacha ${s} soat toʻgʻri quyosh · daraxtlar: ${t} / 100 m', { s: f1(S.sunHours), t: f1(S.treesPer100) }), h('br'),
+    S.treesPer100 === 0 ? h('span', { class: 'src err' }, tr('OSM da bu koʻchada daraxt kiritilmagan — haqiqiy soya koʻproq boʻlishi mumkin.')) : '',
     h('span', { class: 'src' }, tr('Binolar soyasi + OSM daraxtlari (andoza: toj 3 m, balandlik 8 m). OSM da daraxtlar koʻpincha toʻliq emas.'))]));
   // 5. xavfsizlik
   cards.push(card('xavf', '#c2416b', 'Xavfsizlik va oʻtish', 'OSM', tf('${n} ta oʻtish joyi', { n: S.crossings }), [
@@ -268,28 +329,28 @@ export function streetStrip(el: HTMLElement): void {
   el.hidden = false;
   if (!ro) { ro = new ResizeObserver(() => { if (R && !el.hidden && Math.abs(el.clientWidth - lastW) > 8) streetStrip(el); }); ro.observe(el); }
   lastW = el.clientWidth;
-  const { sl, S, pois, rt } = R, W = Math.max(320, (el.clientWidth || 900) - 28), padL = 74, padR = 12, x = (s: number) => padL + (W - padL - padR) * s / (S.len || 1);
-  const rows: [string, number][] = [['H/W', 26], [tr('Fasad'), 22], [tr('Koʻcha eni'), 34], [tr('Soya 14:00'), 22], [tr('Daraxtlar'), 14], [tr('Belgilar'), 18]];
-  let y = 8; const Y: number[] = []; for (const [, hh] of rows) { Y.push(y); y += hh + 6; }
+  const { sl, S, pois, rt } = R, W = Math.max(320, (el.clientWidth || 900) - 28), padL = 128, padR = 12, x = (s: number) => padL + (W - padL - padR) * s / (S.len || 1);
+  const rows: [string, string, number][] = [[tr('Binolar va eni'), 'H/W', 26], [tr('Bino koʻcha boʻyida'), tr('chap · oʻng'), 22], [tr('Koʻcha eni'), tr('qatnov · binogacha'), 34], [tr('Soya 14:00'), tr('chap · oʻng trotuar'), 22], [tr('Daraxtlar'), 'OSM', 22], [tr('Oʻtish, bekat'), tr('doʻkon'), 24]];
+  let y = 8; const Y: number[] = []; for (const [, , hh] of rows) { Y.push(y); y += hh + 8; }
   const H = y + 14, out: string[] = [];
-  rows.forEach(([n, hh], i) => out.push(`<text x="0" y="${Y[i] + hh / 2 + 4}" class="lb">${esc(n)}</text>`));
+  rows.forEach(([n, n2, hh], i) => out.push(`<text x="0" y="${Y[i] + hh / 2 - 1}" class="lb">${esc(n)}</text><text x="0" y="${Y[i] + hh / 2 + 10}" class="lb2">${esc(n2)}</text>`));
   const maxW = Math.max(40, ...sl.map(s => s.L.d != null && s.R.d != null ? s.L.d + s.R.d : 0));
   sl.forEach((s, i) => {
     const x0 = x(s.s), x1 = x(s.s + s.len), w = Math.max(0.5, x1 - x0 - 0.6), W2 = s.L.d != null && s.R.d != null ? s.L.d + s.R.d : null;
     const hs = [s.L.h, s.R.h].filter((v): v is number => v != null), hw = W2 && hs.length ? hs.reduce((a, b) => a + b, 0) / hs.length / W2 : null;
-    out.push(`<g data-i="${i}" class="sl${i === hover ? ' on' : ''}"><title>${Math.round(s.s)}–${Math.round(s.s + s.len)} m · H/W ${hw == null ? '—' : hw.toFixed(2)} · ${W2 == null ? '—' : Math.round(W2) + ' m'}</title>`);
+    out.push(`<g data-i="${i}" class="sl${i === hover ? ' on' : ''}">`);
     out.push(`<rect x="${x0}" y="${Y[0]}" width="${w}" height="26" fill="${hwColor(hw)}"/>`);
     const f = (d: number | null) => d != null && d - s.road.w / 2 <= FRONT_SETBACK;
     out.push(`<rect x="${x0}" y="${Y[1]}" width="${w}" height="10" fill="${f(s.L.d) ? '#a4512a' : 'var(--fill)'}"/><rect x="${x0}" y="${Y[1] + 12}" width="${w}" height="10" fill="${f(s.R.d) ? '#a4512a' : 'var(--fill)'}"/>`);
     if (W2 != null) { const hh = 34 * W2 / maxW, hc = 34 * Math.min(W2, s.road.w) / maxW; out.push(`<rect x="${x0}" y="${Y[2] + 34 - hh}" width="${w}" height="${hh}" fill="#9fbcd6"/><rect x="${x0}" y="${Y[2] + 34 - hc}" width="${w}" height="${hc}" fill="#4a5560"/>`); }
     else out.push(`<rect x="${x0}" y="${Y[2] + 30}" width="${w}" height="4" fill="var(--fill)"/>`);
     out.push(`<rect x="${x0}" y="${Y[3]}" width="${w}" height="10" fill="${s.sun14[0] ? '#f2c14e' : '#4f6f8f'}"/><rect x="${x0}" y="${Y[3] + 12}" width="${w}" height="10" fill="${s.sun14[1] ? '#f2c14e' : '#4f6f8f'}"/>`);
-    for (let k = 0; k < Math.min(s.trees, 6); k++) out.push(`<circle cx="${x0 + 4 + k * 5}" cy="${Y[4] + 7}" r="2.4" fill="#5f8f3e"/>`);
+    for (let k = 0; k < Math.min(s.trees, 6); k++) out.push(`<circle cx="${x0 + 4 + k * 5}" cy="${Y[4] + 11}" r="2.6" fill="#5f8f3e"/>`);
     out.push(`<rect x="${x0}" y="0" width="${x1 - x0}" height="${H - 14}" fill="transparent" class="hit"/></g>`);
   });
   for (const j of rt.junctions) out.push(`<path d="M${x(j)} 2V${H - 14}" class="jn"/>`);
   for (const p of pois) {
-    const cx = x(p.s), cy = Y[5] + 9;
+    const cx = x(p.s), cy = Y[5] + 12;
     if (p.kind === 'crossing') out.push(`<rect x="${cx - 3}" y="${cy - 6}" width="6" height="12" fill="#fff" stroke="#141414" stroke-width="1"/>`);
     else if (p.kind === 'signals') out.push(`<circle cx="${cx}" cy="${cy}" r="4" fill="#e0a400"/>`);
     else if (p.kind === 'stop') out.push(`<circle cx="${cx}" cy="${cy}" r="4.5" fill="#4c5bd4" stroke="#fff"/>`);
@@ -298,12 +359,23 @@ export function streetStrip(el: HTMLElement): void {
   // masofa shkalasi
   const stepT = S.len > 1500 ? 500 : S.len > 600 ? 200 : 100;
   for (let s = 0; s <= S.len; s += stepT) out.push(`<text x="${x(s)}" y="${H - 2}" class="ax" text-anchor="middle">${s} m</text>`);
+  const tip = h('div', { class: 'joy-st-tip', id: 'stTip' }, tr('Ustiga olib boring — shu joyning qiymatlari va kesimi chiqadi'));
+  const sw = (cls: string, t: string) => h('span', {}, h('i', { class: cls }), tr(t));
   el.replaceChildren(
-    h('div', { class: 'joy-st-sh' }, h('b', {}, tr('Koʻcha boʻylab')), h('span', { class: 't-small' }, tf('A → B · ${n} boʻlak × 20 m · ustiga olib boring', { n: sl.length }))),
-    h('div', { class: 'joy-st-svg', html: `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(tr('Koʻcha boʻylab koʻrsatkichlar'))}">${out.join('')}</svg>` }));
+    h('div', { class: 'joy-st-sh' }, h('b', {}, tr('Koʻcha boʻylab')), h('span', { class: 't-small' }, tf('A dan B gacha ${l} m · har ustun — 20 m', { l: fmt(S.len) })), tip),
+    h('div', { class: 'joy-st-svg', html: `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(tr('Koʻcha boʻylab koʻrsatkichlar'))}">${out.join('')}</svg>` }),
+    h('div', { class: 'joy-st-lg' },
+      h('span', { class: 'grad' }, h('b', {}, 'H/W'), ...HW_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))),
+      sw('fr', 'bino koʻcha boʻyida'), sw('cw', 'qatnov'), sw('pd', 'binogacha'), sw('sun', 'quyosh'), sw('shd', 'soya'),
+      sw('cr', 'piyoda oʻtish'), sw('sg', 'svetofor'), sw('st', 'bekat'), sw('sh', 'doʻkon'), sw('jn', 'chorraha')));
   const svg = el.querySelector('svg')!;
-  svg.addEventListener('mouseover', e => { const g = (e.target as Element).closest('[data-i]'); const i = g ? Number(g.getAttribute('data-i')) : -1; if (i !== hover) { hover = i; svg.querySelectorAll('.sl.on').forEach(n => n.classList.remove('on')); g?.classList.add('on'); streetPaint(); } });
-  svg.addEventListener('mouseleave', () => { hover = -1; svg.querySelectorAll('.sl.on').forEach(n => n.classList.remove('on')); streetPaint(); });
+  const setTip = (i: number) => {
+    if (i < 0) { tip.textContent = tr('Ustiga olib boring — shu joyning qiymatlari va kesimi chiqadi'); return; }
+    const s = sl[i], W2 = s.L.d != null && s.R.d != null ? s.L.d + s.R.d : null, yn = (v: number) => tr(v ? 'quyosh' : 'soya');
+    tip.textContent = tf('${a}–${b} m: binodan binogacha ${w} · qatnov ${c} m · binolar: chap ${l}, oʻng ${r} · trotuar 14:00: chap ${sl}, oʻng ${sr}', { a: Math.round(s.s), b: Math.round(s.s + s.len), w: W2 == null ? '—' : `${Math.round(W2)} m`, c: fmt(s.road.w, 1), l: s.L.h != null ? `${fmt(s.L.h, 0)} m` : '—', r: s.R.h != null ? `${fmt(s.R.h, 0)} m` : '—', sl: yn(s.sun14[0]), sr: yn(s.sun14[1]) });
+  };
+  svg.addEventListener('mouseover', e => { const g = (e.target as Element).closest('[data-i]'); const i = g ? Number(g.getAttribute('data-i')) : -1; if (i !== hover) { hover = i; svg.querySelectorAll('.sl.on').forEach(n => n.classList.remove('on')); g?.classList.add('on'); setTip(i); drawSection(); streetPaint(); } });
+  svg.addEventListener('mouseleave', () => { hover = -1; svg.querySelectorAll('.sl.on').forEach(n => n.classList.remove('on')); setTip(-1); drawSection(); streetPaint(); });
 }
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 /** Test va sinov uchun: oxirgi natija */

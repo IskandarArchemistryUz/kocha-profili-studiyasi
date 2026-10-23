@@ -275,3 +275,27 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 #joy.an-kocha .joy-ask,#joy.an-kocha .joy-mode{display:none}
 @media (max-width:1280px){.joy-strip{left:280px;right:316px}}
 .joy-strip[hidden]{display:none}
+/* koʻcha tahlili: oddiy tildagi tavsif, kesim chizmasi, lenta izohi */
+.joy-st-sum{margin:6px 0 0;padding-left:16px;display:flex;flex-direction:column;gap:5px;font-size:12.5px;line-height:1.45;color:var(--ink-2)}
+.joy-st-sec svg{display:block;width:100%;height:auto}
+.joy-st-sec .pv{fill:#cfd8de}.joy-st-sec .cw{fill:#4a5560}.joy-st-sec .sun{fill:#f2c14e}.joy-st-sec .shd{fill:#4f6f8f}
+.joy-st-sec .bd{fill:#d9d4ca;stroke:#8a857c;stroke-width:1}
+.joy-st-sec .tr{fill:#7fae5c;opacity:.85}.joy-st-sec .trk{stroke:#5f6b4a;stroke-width:1.2}
+.joy-st-sec .dm{stroke:var(--ink-2);stroke-width:1;fill:none}
+.joy-st-sec .tx{font-size:10.5px;fill:var(--ink);font-variant-numeric:tabular-nums}
+.joy-st-sec .mut{font-size:10px;fill:var(--faint)}
+.joy-st-seclg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin-top:2px}
+.joy-st-seclg span,.joy-st-lg span{display:inline-flex;align-items:center;gap:5px}
+.joy-st-seclg i,.joy-st-lg i{width:12px;height:8px;border-radius:2px;display:inline-block}
+.joy-st-seclg .sun,.joy-st-lg .sun{background:#f2c14e}.joy-st-seclg .shd,.joy-st-lg .shd{background:#4f6f8f}.joy-st-seclg .cw,.joy-st-lg .cw{background:#4a5560}
+.joy-st-lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--muted)}
+.joy-st-lg .grad{gap:8px}.joy-st-lg .grad b{font-weight:600;color:var(--ink-2)}
+.joy-st-lg .fr{background:#a4512a}.joy-st-lg .pd{background:#9fbcd6}
+.joy-st-lg .cr{background:#fff;border:1px solid #141414;width:6px;height:10px}
+.joy-st-lg .sg{background:#e0a400;width:8px;height:8px;border-radius:50%}.joy-st-lg .st{background:#4c5bd4;width:8px;height:8px;border-radius:50%}
+.joy-st-lg .sh{background:#8b4a9c;width:2px;height:10px}.joy-st-lg .jn{width:0;height:10px;border-left:1px dashed var(--ink-2);border-radius:0}
+.joy-st-sh{flex-wrap:wrap}
+.joy-st-tip{margin-left:auto;font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+.joy-st-svg .lb{font-size:11px;fill:var(--ink-2);font-weight:600}
+.joy-st-svg .lb2{font-size:10px;fill:var(--faint)}
+.joy-card .src.err{color:var(--bad)}
