@@ -32,3 +32,35 @@ test('Chizmadon: boshqa joy tahlili — yangi alohida loyiha; Master rejadan kel
   await expect.poll(() => page.evaluate(() => ((window as any).__mr.store.doc.chizmadon?.inbox ?? []).map((i: any) => i.name))).toEqual(['Koʻchasoz · A']);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/chz_alohida.png` });
 });
+
+test('Koʻchasozdan yuborish: Master rejadan kelinganda tanlov oynasi — «Yangi alohida loyiha» / shu loyiha; tungi rejim, 1024 px', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
+  await page.setViewportSize({ width: 1024, height: 720 });
+  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  const A = await page.evaluate(() => (window as any).__mr.store.doc.id as string);
+  // uchastkasiz yangi loyihadan (mr-return: hasSite false) Koʻchasozga
+  await page.goto('./kochasoz.html#/varaq'); await expect(page.locator('.ws-varaq')).toBeVisible();
+  await page.evaluate(a => sessionStorage.setItem('mr-return', JSON.stringify({ id: a, name: 'Yangi loyiha', step: 'hudud', cam: null, at: Date.now(), origin: [69.2797, 41.3111], hasSite: false })), A);
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  await page.locator('.ws-varaq .btn-primary').click();
+  const dlg = page.locator('#chzSend');
+  await expect(dlg).toBeVisible();
+  await expect(dlg.locator('[data-chz=same]')).toHaveClass(/rec/);         // Koʻchasoz varagʻida joy yoʻq — kelingan loyiha tavsiya
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/chz_tanlov_dark.png` });
+  // bekor — hech narsa yuborilmaydi
+  await dlg.locator('.chzs-x').click(); await expect(dlg).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('ks-chz-inbox'))).toBeNull();
+  // yangi loyiha
+  await page.locator('.ws-varaq .btn-primary').click();
+  await page.locator('#chzSend [data-chz=new]').click();
+  await expect(page).toHaveURL(/#\/p\/[\w-]+\/chizmadon$/, { timeout: 20_000 });
+  await page.waitForFunction(() => (window as any).__mr?.store?.doc?.id === location.hash.split('/')[2]);
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.id)).not.toBe(A);
+  // yana yuborish → «shu loyihaga» → A (mr-return Koʻchasoz ochilgach — Master reja sahifadan chiqishda oʻzinikini yozadi)
+  await page.goto('./kochasoz.html#/varaq'); await expect(page.locator('.ws-varaq')).toBeVisible();
+  await page.evaluate(a => sessionStorage.setItem('mr-return', JSON.stringify({ id: a, name: 'Yangi loyiha', step: 'hudud', cam: null, at: Date.now(), origin: [69.2797, 41.3111], hasSite: false })), A);
+  await page.locator('.ws-varaq .btn-primary').click();
+  await page.locator('#chzSend [data-chz=same]').click();
+  await expect(page).toHaveURL(new RegExp(`#/p/${A}/chizmadon$`), { timeout: 20_000 });
+});

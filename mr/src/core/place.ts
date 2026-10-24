@@ -59,6 +59,10 @@ export const SHNQ_ABROAD = 'andoza: Oʻzbekiston ShNQ qiymati — bu hududda me�
 /** Joyning qisqa yozuvi: «Fransiya · Europe/Paris · UTC+2» */
 export function placeLabel(p: Place, lang = 'en', utcMs = Date.UTC(2026, 6, 15, 12)): string {
   let nm = p.countryName;
-  try { if (p.country) nm = new Intl.DisplayNames([lang, 'en'], { type: 'region' }).of(p.country) ?? nm; } catch { /* eski brauzer */ }
+  try {
+    // oʻzbekcha — lotin yozuvida; brauzerda uz-Latn maʼlumoti boʻlmasa (kirill yoki boshqa til qaytsa) — inglizcha nom
+    const loc = lang === 'uz' ? 'uz-Latn' : lang;
+    if (p.country) { const v = new Intl.DisplayNames([loc, 'en'], { type: 'region' }).of(p.country); if (v && !(lang === 'uz' && /[\u0400-\u04FF]/.test(v))) nm = v; }
+  } catch { /* eski brauzer */ }
   return [nm, p.tz, utcLabel(tzOffsetH(p.tz, utcMs))].filter(Boolean).join(' · ');
 }

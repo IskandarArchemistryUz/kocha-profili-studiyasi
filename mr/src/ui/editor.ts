@@ -179,7 +179,7 @@ export class Editor {
       const st = STEPS.find(x => x.id === back.step); if (st && st.id !== this.step.id) this.go(st);
       if (back.cam) try { this.scene.setCamera(back.cam as Parameters<Scene3D['setCamera']>[0]); } catch { /* */ }
     }
-    const keep = () => saveMrReturn({ id: this.store.doc.id, name: this.store.doc.name, step: this.step.id, cam: this.scene.getCamera(), origin: [this.store.doc.origin[0], this.store.doc.origin[1]] });
+    const keep = () => saveMrReturn({ id: this.store.doc.id, name: this.store.doc.name, step: this.step.id, cam: this.scene.getCamera(), origin: [this.store.doc.origin[0], this.store.doc.origin[1]], hasSite: !!this.store.doc.site?.rings[0]?.length });
     addEventListener('pagehide', keep); this.off.push(() => removeEventListener('pagehide', keep));
   }
 
@@ -1430,6 +1430,9 @@ export class Editor {
 
   private districtField(): HTMLElement {
     const doc = this.store.doc, cur = doc.settings.district, r = demoRow(cur);
+    // stat.uz — faqat Oʻzbekiston tumanlari; boshqa davlatda Toshkent raqamlari chalgʻitadi (egasi, 24.10)
+    if (placeOf(doc.origin[0], doc.origin[1]).country !== 'UZ') return h('div', { class: 'col', id: 'demoBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Aholi yosh tarkibi')), h('span', {}, 'stat.uz')),
+      h('span', { class: 't-small', id: 'demoAbroad' }, tr('Faqat Oʻzbekiston tumanlari uchun (stat.uz). Bu davlat uchun aholi maʼlumoti hali ulanmagan.')));
     const sel = h('select', { class: 'select', id: 'district', 'aria-label': tr('Aholi yosh tarkibi (stat.uz)'), onchange: (e: Event) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: (e.target as HTMLSelectElement).value } })) },
       ...demoTree().map(t => h('optgroup', { label: t.region.name }, ...[t.region, ...t.parts].map(x => { const o = h('option', { value: x.code }, x.code === t.region.code ? `${x.name} (${tr('jami')})` : x.name) as HTMLOptionElement; o.selected = x.code === cur; return o; }))));
     const k = r ? perThousand(r) : null;

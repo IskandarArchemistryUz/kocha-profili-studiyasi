@@ -270,7 +270,7 @@ async function toChizmadon(o: RenderOut): Promise<void> {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const svg = `<g id="01_Render" data-name="Render"><image x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${hh.toFixed(2)}" href="${im.url}" preserveAspectRatio="xMidYMid meet"/></g><g id="02_Yozuv" data-name="Yozuv"><text x="${M}" y="${H - M}" font-size="4" font-family="Archivo, sans-serif" fill="#1d1d1b">${esc(o.name)}</text><text x="${W - M}" y="${H - M}" font-size="2.6" text-anchor="end" font-family="IBM Plex Mono, monospace" fill="#6b6965">${esc(tr('AI render'))} · ${esc(o.model)}</text></g>`;
   const { sendSheet } = await import('../ui/chzsend');
-  if (!sendSheet({ name: `${tr('Render')} · ${o.name}`, kind: 'sheet', svg, vb: [0, 0, W, H], w: W, h: H })) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
+  if (await sendSheet({ name: `${tr('Render')} · ${o.name}`, kind: 'sheet', svg, vb: [0, 0, W, H], w: W, h: H }) === false) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
 }
 
 /* ---------------- ishga tushirish ---------------- */
