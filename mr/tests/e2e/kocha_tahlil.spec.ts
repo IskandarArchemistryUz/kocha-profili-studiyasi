@@ -72,8 +72,22 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   await expect(page.locator('[data-card=faol] .big')).not.toHaveText('—');
   await expect(page.locator('#stFind li').first()).toBeVisible();
   expect(await page.locator('#stFind li em').allTextContents()).not.toContain('');
-  // lenta
+  // bloklar matritsasi (sukut): chorrahadan chorrahagacha, 14 koʻrsatkich
   await expect(page.locator('#joyStrip')).toBeVisible();
+  await expect(page.locator('#stView [data-view=bloklar]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#stMx tbody tr')).toHaveCount(12);
+  await expect(page.locator('#stMx tbody tr').first().locator('td')).toHaveCount(14);
+  await expect(page.locator('#stBlk')).toBeVisible();
+  // sharqiy qismda shimol tomonda binolar yoʻq — fasad uzluksizligi jiddiy
+  const fas = page.locator('#stMx tbody tr[data-b="8"] [data-ind=fasad]');
+  await expect(fas).toHaveClass(/lv-c/);
+  await fas.click();
+  await expect(page.locator('#stBlk header .nm')).toContainText('Blok 9');
+  await expect(page.locator('#stBlk li[data-ind=fasad]')).toHaveClass(/on/);
+  await expect(page.locator('#stBlk li[data-ind=fasad] em')).toContainText('SmartCode');
+  await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/kocha-bloklar-1440.png' });
+  // batafsil lenta (har 20 m) — oʻchirilmagan, almashtirgichda
+  await page.click('#stView [data-view=batafsil]');
   expect(await page.locator('#joyStrip svg [data-i]').count()).toBeGreaterThan(40);
   // lentada ustiga olib borish — maslahat va kesim yangilanadi
   const box = (await page.locator('#joyStrip svg [data-i="5"] .hit').boundingBox())!;
@@ -82,7 +96,7 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   await expect(page.locator('#stSecT')).toContainText('100–120 m');
   // xaritada koʻrsatkich almashinadi
   await page.click('[data-metric=soya]');
-  await expect(page.locator('#joyLegend')).toContainText('14:00');
+  await expect(page.locator('#joyLegend')).toContainText('15:30');
   // qoʻlda sanoq
   await page.locator('.joy-st-cnt summary').click();
   await page.fill('#stCntCar', '1200'); await page.locator('#stCntCar').blur();
@@ -94,10 +108,15 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.waitForTimeout(500);
   await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/kocha-1024-dark.png' });
+  await page.click('#stView [data-view=bloklar]');
+  await expect(page.locator('#stMx th.ix .k').first()).toBeVisible();
+  await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/kocha-bloklar-1024-dark.png' });
   // inglizcha: yangi matnlar tarjima qilingan
   await page.click('#langSw [data-lang=en]');
   await expect(page.locator('#stHead .t-small')).toHaveText('Street analysis · A → B');
   await expect(page.locator('[data-card=tarmoq] .big')).toHaveText('11 intersections');
+  await expect(page.locator('#stMx th.gr').first()).toHaveText('Walking');
+  await expect(page.locator('#stBlk header .nm')).toContainText('Block 9');
   await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/kocha-en.png' });
   await page.click('#langSw [data-lang=uz]');
   // hudud tahliliga qaytish — pasport
