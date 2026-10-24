@@ -1,13 +1,19 @@
 /**
  * Chegara fayli (uchastka yoki atrof hududi): GeoJSON, KML, KMZ, DXF → WGS84 halqa(lar).
- * Koordinata tizimi avtomatik: graduslar — WGS84; metrlar — UTM (42N, keyin 41N, 43N, 40N) — natija Oʻzbekiston ichida boʻlishi shart.
+ * Koordinata tizimi avtomatik: graduslar — WGS84 (dunyoning istalgan joyi); metrlar — UTM: faylda EPSG:326xx/327xx yozilgan boʻlsa shu zona,
+ * aks holda Oʻzbekiston zonalari (42N, 41N, 43N, 40N), ular mos kelmasa — loyiha markazi zonasi (24.10.2026 dan butun dunyo).
  * Bir nechta poligon boʻlsa — eng kattasi (teshiklari bilan). Mahalliy tekshiruvlarsiz — faqat oʻqish va tizimni aniqlash.
  */
 import { unzipSync, strFromU8 } from 'fflate';
 import type { LngLat } from './doc';
 import { utmToLngLat, parseGeoJSON } from './userlayers';
 
-export type BCRS = 'wgs84' | 'utm40' | 'utm41' | 'utm42' | 'utm43';
+/** 'wgs84' | 'utm42' (shimoliy) | 'utm56s' (janubiy) */
+export type BCRS = 'wgs84' | `utm${number}` | `utm${number}s`;
+/** «WGS84», «UTM 42N», «UTM 56S» */
+export const crsLabel = (c: BCRS): string => c === 'wgs84' ? 'WGS84' : `UTM ${parseInt(c.slice(3), 10)}${c.endsWith('s') ? 'S' : 'N'}`;
+/** Nuqtaning UTM zonasi (Norvegiya/Svalbard istisnolarisiz) */
+export const utmZoneOf = (lng: number): number => Math.min(60, Math.max(1, Math.floor((lng + 180) / 6) + 1));
 export interface Boundary { rings: LngLat[][]; crs: BCRS; polys: number; areaHa: number; bbox: [number, number, number, number] }
 type Poly = number[][][];
 
@@ -93,23 +99,50 @@ function fromDXF(text: string): Poly[] {
   return out;
 }
 
-/** Koordinata tizimini aniqlash va WGS84 ga oʻtkazish. Oʻzbekistondan tashqarida — xato. */
-export function toWgs(polys: Poly[]): { polys: LngLat[][][]; crs: BCRS } {
+/** Fayl matnidagi UTM belgisi: «EPSG:32642» (42N), «EPSG::32756» (56S), «UTM zone 33N» */
+export function utmFromText(t: string): { zone: number; south: boolean } | null {
+  const m = /EPSG:{1,2}32([67])(\d{2})\b/i.exec(t);
+  if (m) { const z = Number(m[2]); if (z >= 1 && z <= 60) return { zone: z, south: m[1] === '7' }; }
+  const u = /UTM[ _]?zone[ _]?(\d{1,2})\s*([NS])\b/i.exec(t);
+  if (u) { const z = Number(u[1]); if (z >= 1 && z <= 60) return { zone: z, south: u[2].toUpperCase() === 'S' }; }
+  return null;
+}
+const isDeg = (bb: number[]) => bb.every(v => Number.isFinite(v)) && Math.abs(bb[0]) <= 180 && Math.abs(bb[2]) <= 180 && Math.abs(bb[1]) <= 90 && Math.abs(bb[3]) <= 90;
+/** Bir loyiha chegarasi uchun aql bovar qiladigan oʻlcham: ≤ 200 km */
+const sane = (b: number[]) => b[2] - b[0] < 3 && b[3] - b[1] < 2;
+
+/**
+ * Koordinata tizimini aniqlash va WGS84 ga oʻtkazish — dunyoning istalgan joyi.
+ * hint — loyiha markazi (UTM zonasi shundan); utm — fayldagi aniq belgi (utmFromText).
+ */
+export function toWgs(polys: Poly[], hint?: LngLat | null, utm?: { zone: number; south: boolean } | null): { polys: LngLat[][][]; crs: BCRS } {
   const all = polys.flatMap(p => p.flat()), bb = bbOf(all);
-  if (bb.every(v => Number.isFinite(v)) && Math.abs(bb[0]) <= 180 && Math.abs(bb[2]) <= 180 && Math.abs(bb[1]) <= 90 && Math.abs(bb[3]) <= 90) {
-    if (!inUz(bb)) throw new Error('Chegara Oʻzbekistondan tashqarida (WGS84 koordinatalari). Faylni tekshiring.');
-    return { polys: polys.map(p => p.map(r => r.map(q => [q[0], q[1]] as LngLat))), crs: 'wgs84' };
+  if (isDeg(bb) && !utm) return { polys: polys.map(p => p.map(r => r.map(q => [q[0], q[1]] as LngLat))), crs: 'wgs84' };
+  const conv = (z: number, south: boolean) => {
+    const T = (q: number[]): LngLat => { const r = utmToLngLat(q[0], south ? q[1] - 10_000_000 : q[1], z); return [Math.round(r[0] * 1e7) / 1e7, Math.round(r[1] * 1e7) / 1e7]; };
+    const a = T([bb[0], bb[1]]), b = T([bb[2], bb[3]]), box = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+    return { T, box, ok: box.every(Number.isFinite) && isDeg(box) && sane(box) };
+  };
+  const out = (z: number, south: boolean, T: (q: number[]) => LngLat) => ({ polys: polys.map(p => p.map(r => r.map(T))), crs: `utm${z}${south ? 's' : ''}` as BCRS });
+  // 1) faylda zona yozilgan
+  if (utm) { const c = conv(utm.zone, utm.south); if (c.ok) return out(utm.zone, utm.south, c.T); }
+  // 2) Oʻzbekiston zonalari — natija Oʻzbekiston ichida boʻlsa (avvalgi xatti-harakat)
+  for (const z of [42, 41, 43, 40]) { const c = conv(z, false); if (c.ok && inUz(c.box)) return out(z, false, c.T); }
+  // 3) loyiha markazi zonasi (va qoʻshnilari) — natija markazdan ≤ 300 km
+  if (hint && hint.every(Number.isFinite)) {
+    const z0 = utmZoneOf(hint[0]), south = hint[1] < 0;
+    for (const z of [z0, z0 - 1, z0 + 1].filter(v => v >= 1 && v <= 60)) {
+      const c = conv(z, south); if (!c.ok) continue;
+      const cx = (c.box[0] + c.box[2]) / 2, cy = (c.box[1] + c.box[3]) / 2, k = Math.cos(hint[1] * Math.PI / 180) * 111;
+      if (Math.hypot((cx - hint[0]) * k, (cy - hint[1]) * 111) <= 300) return out(z, south, c.T);
+    }
   }
-  for (const z of [42, 41, 43, 40] as const) {
-    const T = (q: number[]): LngLat => { const r = utmToLngLat(q[0], q[1], z); return [Math.round(r[0] * 1e7) / 1e7, Math.round(r[1] * 1e7) / 1e7]; };
-    const a = T([bb[0], bb[1]]), b = T([bb[2], bb[3]]);
-    if (inUz([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])])) return { polys: polys.map(p => p.map(r => r.map(T))), crs: `utm${z}` };
-  }
-  throw new Error('Koordinata tizimi aniqlanmadi yoki chegara Oʻzbekistondan tashqarida. Kutilgan: WGS84 (gradus) yoki UTM 42N/41N (metr).');
+  throw new Error('Koordinata tizimi aniqlanmadi. Kutilgan: WGS84 (gradus) yoki UTM (metr) — zona faylda (EPSG:326xx) yozilgan yoki loyiha hududidagi zona.');
 }
 
 /** Fayl → chegara. name — fayl nomi (kengaytma boʻyicha format), data — matn yoki baytlar */
-export function parseBoundary(name: string, data: ArrayBuffer | Uint8Array | string): Boundary {
+/** hint — loyiha markazi: metrdagi faylning UTM zonasini aniqlash uchun (Oʻzbekistondan tashqarida) */
+export function parseBoundary(name: string, data: ArrayBuffer | Uint8Array | string, hint?: LngLat | null): Boundary {
   const ext = (name.split('.').pop() ?? '').toLowerCase();
   const bytes = typeof data === 'string' ? null : data instanceof Uint8Array ? data : new Uint8Array(data);
   const text = () => (typeof data === 'string' ? data : strFromU8(bytes!));
@@ -120,7 +153,7 @@ export function parseBoundary(name: string, data: ArrayBuffer | Uint8Array | str
   else if (ext === 'geojson' || ext === 'json') polys = fromGeoJSON(text());
   else { const t = text().trimStart(); polys = t.startsWith('{') ? fromGeoJSON(t) : t.startsWith('<') ? fromKML(t) : fromDXF(t); }
   if (!polys.length) throw new Error('Faylda yopiq chegara (poligon) topilmadi');
-  const w = toWgs(polys);
+  const w = toWgs(polys, hint, ext === 'kmz' || ext === 'kml' ? null : utmFromText(text().slice(0, 20000)));
   const area = (p: LngLat[][]) => ringAreaM2(p[0]) - p.slice(1).reduce((a, r) => a + ringAreaM2(r), 0);
   const best = w.polys.reduce((a, b) => (area(b) > area(a) ? b : a));
   return { rings: best, crs: w.crs, polys: w.polys.length, areaHa: area(best) / 1e4, bbox: bbOf(best[0]) };
