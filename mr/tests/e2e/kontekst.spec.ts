@@ -52,7 +52,7 @@ test('kontekst yuklanadi, kvartal bosib aniqlanadi, yangilanganda keshdan tiklan
   await page.reload();
   await page.click('[data-step=hudud]');
   await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 10000 });
-  expect(hits.overpass).toBeLessThanOrEqual(4);                           // bir yuklash = 4 server parallel; ikkinchi marta tarmoqqa chiqilmadi
+  expect(hits.overpass).toBeLessThanOrEqual(5);                           // bir yuklash = oʻz serverimiz + 4 ochiq server parallel; ikkinchi marta tarmoqqa chiqilmadi
 });
 
 test('manzil qidiruvi: uchastka bilan koʻchirish', async ({ page, context }) => {

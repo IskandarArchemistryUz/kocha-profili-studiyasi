@@ -7,6 +7,7 @@ import formbody from '@fastify/formbody';
 import { makePayments } from './payments.js';
 import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
+import { registerData } from './data/routes.js';
 import { ITEMS, TRIALS, TRIALS_PER_WEEK, PACKS, priceOf, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
@@ -22,9 +23,10 @@ export const COOKIE = 'ks_sess';
  * @param {string[]} o.origins    ruxsat etilgan sayt manzillari (CORS)
  * @param {string} [o.cookieDomain] masalan '.archemistry.uz'
  * @param {boolean} [o.secure]    cookie Secure (ishda — true)
+ * @param {{cache: object, fetchImpl?: Function, servers?: string[]}|null} [o.data]  hudud ma'lumoti keshi (data/cache.js); null — /data/* yo'q
  * @param {string[]} [o.owners]   egasi pochtalari (OWNER_EMAILS): /me da owner: true — ilova suv belgisisiz ishlaydi
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
@@ -155,5 +157,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   app.decorate('wallet', wallet);
   app.decorate('auth', auth);
+  if (data?.cache) registerData(app, { ...data, limited });
+
   return app;
 }

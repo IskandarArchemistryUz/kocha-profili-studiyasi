@@ -158,7 +158,7 @@ describe('overpass — zaxira serverlar', () => {
     let n = 0;
     const f = (async (u: string) => { n++; return u === OVERPASS[3] ? res({ elements: [] }) : res({ remark: 'runtime error: rate_limited' }); }) as unknown as typeof fetch;
     const j = await overpass('q', f, () => {}) as { elements: number[] };
-    expect(j.elements).toEqual([]); expect(n).toBe(4);   // bitta guruh — 4 server
+    expect(j.elements).toEqual([]); expect(n).toBe(OVERPASS.length);   // bitta guruh — oʻz serverimiz + 4 ochiq server
   });
   it('hammasi yiqilsa — tushunarli xato', async () => {
     const f = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
