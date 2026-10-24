@@ -338,3 +338,8 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .joy-st-blk li .d{grid-column:2/4;font-size:11.5px;color:var(--muted);line-height:1.4}
 .joy-st-blk li em{display:block;font-style:normal;font-size:10.5px;color:var(--faint)}
 @media (max-width:1280px){.joy-st-mx th.ix .w{display:none}.joy-st-mx th.ix .k{display:inline}.joy-st-mx .cl{font-size:0}.joy-st-mx th.bl{width:84px}.joy-st-mx .rng{display:none}}
+/* Hudud joyi: mamlakat, vaqt mintaqasi, meʼyorlar profili (24.10.2026) */
+.joy-place{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--muted);padding:2px 2px 0}
+.joy-place .pl{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.joy-place .nb{align-self:flex-start;border-radius:999px;padding:1px 8px;font-size:11px;background:var(--fill)}
+.joy-place .nb.intl{background:color-mix(in srgb,#e0a400 22%,transparent);color:var(--ink)}

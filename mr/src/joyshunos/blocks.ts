@@ -9,6 +9,7 @@
  * joylari 300–500 m), 26-band (bekatlar 400–600 m).
  */
 import { freeOf, FRONT_SETBACK, type Route, type Slice, type SPoi, type Cat } from './street';
+import { summerKey, SHNQ_ABROAD } from '../core/place';
 
 /** Baho: c — jiddiy, w — eʼtibor, g — yaxshi, u — nomaʼlum (maʼlumot yoʻq), i — faqat maʼlumot (baho yoʻq) */
 export type Lv = 'c' | 'w' | 'g' | 'u' | 'i';
@@ -93,6 +94,10 @@ export interface BlockInput {
   counts?: { car?: number; ped?: number };
   /** OSM yoʻl tezligi cheklovi, km/soat */
   maxspeed?: number | null;
+  /** janubiy yarimshar (soya sanasi yozuvi) */
+  south?: boolean;
+  /** meʼyorlar profili: 'UZ' — ShNQ meʼyor; 'intl' — ShNQ qiymatlari faqat andoza, «jiddiy» oʻrniga «eʼtibor» */
+  norms?: 'UZ' | 'intl';
 }
 
 /** Bloklar va har birida 14 koʻrsatkich */
@@ -163,7 +168,7 @@ export function blocksOf(I: BlockInput): Block[] {
       const sh = [0, 1].map(k => S.filter(s => !s.sun14[k]).length / S.length), shMin = Math.min(...sh);
       const tr = S.reduce((a, s) => a + s.trees, 0) / 2 / Math.max(L, 1) * 100;
       const lvS: Lv = shMin >= SHADE_OK ? 'g' : shMin >= SHADE_MID ? 'w' : 'c', lvT: Lv = tr >= TREES_OK ? 'g' : tr >= TREES_MID ? 'w' : 'c';
-      cells.soya = cell(worstOf([lvS, lvT]), pc(shMin), 'Soyada: chap ${l}, oʻng ${r} (15 iyul 15:30) · daraxtlar ${t} / 100 m bir tomonda', { l: pc(sh[0]), r: pc(sh[1]), t: f1(tr) }, 'andoza: soya ≥ 75 % (Phoenix §1304), daraxt ≥ 10 / 100 m (Landcom)', 'taxmin');
+      cells.soya = cell(worstOf([lvS, lvT]), pc(shMin), summerKey('Soyada: chap ${l}, oʻng ${r} (15 iyul 15:30) · daraxtlar ${t} / 100 m bir tomonda', !!I.south), { l: pc(sh[0]), r: pc(sh[1]), t: f1(tr) }, 'andoza: soya ≥ 75 % (Phoenix §1304), daraxt ≥ 10 / 100 m (Landcom)', 'taxmin');
     }
     // 13. Fasad uzluksizligi — yomonroq tomon
     if (!S.length) cells.fasad = nodata('—', 'andoza: ≥ 80 % (SmartCode T5)');
@@ -171,6 +176,7 @@ export function blocksOf(I: BlockInput): Block[] {
       const fw = (['L', 'R'] as const).map(sd => S.filter(s => { const v = freeOf(s, sd); return v != null && v <= FRONT_SETBACK; }).length / S.length), m = Math.min(...fw);
       cells.fasad = cell(m >= WALL_OK ? 'g' : m >= WALL_MID ? 'w' : 'c', pc(m), 'Fasad koʻcha boʻyida: chap ${l}, oʻng ${r}', { l: pc(fw[0]), r: pc(fw[1]) }, 'andoza: ≥ 80 % (SmartCode T5); qatnov chetidan ≤ 15 m', 'taxmin');
     }
+    if (I.norms === 'intl') for (const d of INDS) { const c = cells[d.id]; if (c.src.startsWith('ShNQ')) { c.src = SHNQ_ABROAD; if (c.lv === 'c') c.lv = 'w'; } }
     const worst = worstOf(INDS.map(d => cells[d.id].lv));
     return { i, s0, s1, len: L, sl: idx, cells, worst };
   });

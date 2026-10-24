@@ -20,7 +20,9 @@
   },
   "dependencies": {
     "@mapbox/vector-tile": "^3.0.0",
+    "@photostructure/tz-lookup": "^11.7.0",
     "@tarikjabiri/dxf": "2.9.0",
+    "countries-and-timezones": "^3.11.0",
     "dejavu-fonts-ttf": "^2.37.3",
     "fflate": "^0.8.2",
     "jspdf": "^4.2.1",

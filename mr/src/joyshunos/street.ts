@@ -7,6 +7,7 @@
  */
 import type { XY } from '../core/geo';
 import { insolation, type Prism, type SunStep } from '../core/sun';
+import { summerKey, SHNQ_ABROAD } from '../core/place';
 
 export interface SRoad { id: number; pts: XY[]; cls: string; w: number; lanes?: number; oneway?: boolean; name?: string; maxspeed?: number }
 export interface SBld { ring: XY[]; h: number }
@@ -323,7 +324,7 @@ export function summarize(rt: Route, sl: Slice[], pois: (SPoi & { s: number })[]
 
 /** Xulosa: meʼyor va andozalar boʻyicha kuchli/zaif tomonlar (har biri manbasi bilan); t — tarjima kaliti (${…} oʻrinlari p da) */
 export interface Finding { ok: boolean; t: string; p: Record<string, string | number>; src: string }
-export function findings(S: StreetSummary): Finding[] {
+export function findings(S: StreetSummary, opt: { south?: boolean; norms?: 'UZ' | 'intl' } = {}): Finding[] {
   const out: Finding[] = [], f1 = (v: number) => v.toFixed(1).replace('.', ',');
   const F = (ok: boolean, t: string, p: Record<string, string | number>, src: string) => out.push({ ok, t, p, src });
   if (S.cat.sidewalk) {
@@ -344,7 +345,9 @@ export function findings(S: StreetSummary): Finding[] {
     else if (S.hw > 1.5) F(false, 'H/W ${v} — chuqur kanyon, quyosh va havo almashinuvi kam', { v: f1(S.hw) }, 'andoza (meʼyor emas)');
     else F(true, 'H/W ${v} — moʻtadil koʻcha xonasi', { v: f1(S.hw) }, 'andoza (meʼyor emas)');
   }
-  if (S.shade14 != null) F(S.shade14 >= 0.75, '15 iyul 15:30 da trotuarning ${p} % i soyada', { p: Math.round(S.shade14 * 100) }, 'andoza: ≥ 75 % (Phoenix §1304); hisob: binolar + daraxtlar (toj 3 m, 8 m)');
+  if (S.shade14 != null) F(S.shade14 >= 0.75, summerKey('15 iyul 15:30 da trotuarning ${p} % i soyada', !!opt.south), { p: Math.round(S.shade14 * 100) }, 'andoza: ≥ 75 % (Phoenix §1304); hisob: binolar + daraxtlar (toj 3 m, 8 m)');
   if (S.wall < 0.4) F(false, 'Fasad uzluksizligi ${p} % — koʻcha boʻylab bino chizigʻi uzilgan', { p: Math.round(S.wall * 100) }, 'andoza: qatnov qismi chetidan ≤ 15 m');
+  if (opt.norms === 'intl') for (const f of out) if (f.src.startsWith('ShNQ')) f.src = SHNQ_ABROAD;
+  if (opt.norms === 'intl') for (const f of out) if (f.src.startsWith('ShNQ')) f.src = SHNQ_ABROAD;
   return out;
 }

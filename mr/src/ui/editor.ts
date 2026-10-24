@@ -34,7 +34,8 @@ import { saveMrReturn, consumeMrBack } from './mrback';
 import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
-import { daySteps, insolation, localToUtc, sunPosition } from '../core/sun';
+import { daySteps, insolation, localToUtcAt, sunPosition } from '../core/sun';
+import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { INSOL_BINS } from '../scene/scene';
 import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME } from '../core/floorplan';
@@ -410,7 +411,8 @@ export class Editor {
     for (let x = x0 + cell / 2; x < x1; x += cell) for (let y = y0 + cell / 2; y < y1; y += cell) { const p: XY = [x, y]; if (!inB(p)) pts.push(p); }
     const z = pts.map(p => this.scene.H(p[0], p[1]));
     const steps = [] as { alt: number; az: number; dt: number }[];
-    for (let t = 11; t <= 17.001; t += 0.5) { const q = sunPosition(localToUtc(2026, 7, 15, t), doc.origin[1], doc.origin[0]); if (q.alt > 3) steps.push({ alt: q.alt, az: q.az, dt: 0.5 }); }
+    const jm = seasonMonth(7, placeOf(doc.origin[0], doc.origin[1]).south);   // mahalliy yoz: shimol — iyul, janub — yanvar
+    for (let t = 11; t <= 17.001; t += 0.5) { const q = sunPosition(localToUtcAt(2026, jm, 15, t, doc.origin[1], doc.origin[0]), doc.origin[1], doc.origin[0]); if (q.alt > 3) steps.push({ alt: q.alt, az: q.az, dt: 0.5 }); }
     const total = steps.reduce((a, s) => a + s.dt, 0);
     let sun: Float32Array;
     try {
@@ -954,7 +956,7 @@ export class Editor {
 
   private applySun(): void {
     const [m, d] = this.sunDate.split('-').map(Number), o = this.store.doc.origin;
-    const p = sunPosition(localToUtc(2026, m, d, this.sunTime), o[1], o[0]);
+    const p = sunPosition(localToUtcAt(2026, m, d, this.sunTime, o[1], o[0]), o[1], o[0]);
     this.scene.setSun(p.alt, p.az);
     const t = this.el.panel.querySelector<HTMLElement>('#sunInfo');
     if (t) t.textContent = `${String(Math.floor(this.sunTime)).padStart(2, '0')}:${String(Math.round(this.sunTime % 1 * 60)).padStart(2, '0')} · balandlik ${fmt(p.alt, 1)}° · azimut ${fmt(p.az, 0)}°`;
@@ -1104,8 +1106,8 @@ export class Editor {
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Sana') }, ...DATES.map(([k, t, s]) => h('button', { 'aria-pressed': this.sunDate === k, 'data-date': k, title: tr(t), onclick: () => { this.sunDate = k; this.applySun(); this.renderPanel(); } }, tr(s)))),
       h('div', { class: 'group flat', style: 'padding:10px 12px;display:flex;flex-direction:column;gap:6px' },
         h('span', { class: 'num', id: 'sunInfo', style: 'font-size:13px;font-weight:600' }),
-        range({ min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', 'aria-label': tr('Vaqt (Toshkent, UTC+5)'), oninput: v => { this.sunTime = v; this.applySun(); } }),
-        h('div', { class: 'row t-small' }, h('span', {}, '05:00'), h('span', { class: 'grow', style: 'text-align:center' }, tr('Vaqt (Toshkent, UTC+5)')), h('span', {}, '20:00'))),
+        range({ min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', 'aria-label': tf('Vaqt (${p})', { p: placeLabel(placeOf(this.store.doc.origin[0], this.store.doc.origin[1]), getLang()) }), oninput: v => { this.sunTime = v; this.applySun(); } }),
+        h('div', { class: 'row t-small' }, h('span', {}, '05:00'), h('span', { class: 'grow', style: 'text-align:center' }, tf('Vaqt (${p})', { p: placeLabel(placeOf(this.store.doc.origin[0], this.store.doc.origin[1]), getLang()) })), h('span', {}, '20:00'))),
       h('button', { class: 'btn btn-primary btn-block', id: 'insolGo', disabled: this.insol.busy, onclick: () => void this.runInsolation() }, tr(this.insol.busy ? 'Hisoblanmoqda…' : 'Insolyatsiya xaritasi (uchastka)')));
     const st = this.insol.stats;
     if (st) {
