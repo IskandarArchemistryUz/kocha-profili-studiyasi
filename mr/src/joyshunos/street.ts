@@ -107,7 +107,7 @@ export interface Slice {
   L: Side; R: Side;
   /** daraxtlar soni (boʻlak ichida, koʻcha koridorida) */
   trees: number;
-  /** trotuar nuqtalari: chap, oʻng — 14:00 dagi quyosh (1 — quyoshda, 0 — soyada) va kun davomidagi quyoshli soatlar */
+  /** trotuar nuqtalari: chap, oʻng — hisob vaqtidagi (15 iyul 15:30) quyosh (1 — quyoshda, 0 — soyada) va kun davomidagi quyoshli soatlar */
   sun14: [number, number]; sunH: [number, number];
   /** qatnov qismlari koʻndalang chiziqda: oʻqdan siljish o (chap — musbat) va eni w (ikki qatnovli koʻchada — ikkalasi) */
   cws: { o: number; w: number }[];
@@ -344,7 +344,7 @@ export function findings(S: StreetSummary): Finding[] {
     else if (S.hw > 1.5) F(false, 'H/W ${v} — chuqur kanyon, quyosh va havo almashinuvi kam', { v: f1(S.hw) }, 'andoza (meʼyor emas)');
     else F(true, 'H/W ${v} — moʻtadil koʻcha xonasi', { v: f1(S.hw) }, 'andoza (meʼyor emas)');
   }
-  if (S.shade14 != null) F(S.shade14 >= 0.4, '22 iyun 14:00 da trotuarning ${p} % i soyada', { p: Math.round(S.shade14 * 100) }, 'hisob: binolar + daraxtlar (andoza: toj 3 m, 8 m)');
+  if (S.shade14 != null) F(S.shade14 >= 0.75, '15 iyul 15:30 da trotuarning ${p} % i soyada', { p: Math.round(S.shade14 * 100) }, 'andoza: ≥ 75 % (Phoenix §1304); hisob: binolar + daraxtlar (toj 3 m, 8 m)');
   if (S.wall < 0.4) F(false, 'Fasad uzluksizligi ${p} % — koʻcha boʻylab bino chizigʻi uzilgan', { p: Math.round(S.wall * 100) }, 'andoza: qatnov qismi chetidan ≤ 15 m');
   return out;
 }
