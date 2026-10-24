@@ -5,6 +5,8 @@ import { test as base, expect, type Page, type BrowserContext } from '@playwrigh
 export const UZ_INIT = () => { try {
   if (!localStorage.getItem('mr-lang') && !localStorage.getItem('kps_lang')) { localStorage.setItem('mr-lang', 'uz'); localStorage.setItem('kps_lang', 'uz'); }
   // eksport testlari fayl tarkibini tekshiradi — sukut boʻyicha «egasi» (belgisiz); belgining oʻzi wm.spec.ts da
+  // Esri kaliti testda olinmaydi (kalitsiz zaxira manzil; tarmoqqa chiqilmaydi)
+  if (sessionStorage.getItem('kps_esri') == null) sessionStorage.setItem('kps_esri', '');
   if (!sessionStorage.getItem('wm-test') && localStorage.getItem('kps_owner') == null) localStorage.setItem('kps_owner', '1');
 } catch { /* */ } };
 

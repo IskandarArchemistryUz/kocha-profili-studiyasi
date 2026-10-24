@@ -16,6 +16,7 @@ import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { mapStyle, basePrefs, setBasePrefs, PALETTES } from '../context/mapstyle';
+import { initEsriKey } from '../context/esrikey';
 import { geocode, type Place } from '../context/geocode';
 import { bboxAround } from '../context/osm';
 import { loadTerrain, TERRAIN_URL, type TerrainGrid } from '../context/tiles';
@@ -572,6 +573,7 @@ function palMenu(onPick: () => void): HTMLElement {
     h('i', { style: `background:linear-gradient(135deg, ${p.bg} 0 45%, ${p.bld} 45% 70%, ${p.water} 70%)` }), tr(p.n))));
 }
 async function initMap(): Promise<void> {
+  await initEsriKey();   // sunʼiy yoʻldosh fonining kaliti (boʻlmasa — kalitsiz zaxira)
   const ml = (await import('maplibre-gl')).default;
   await import('maplibre-gl/dist/maplibre-gl.css');
   map = new ml.Map({ container: mapEl, style: style() as never, center: S.c as [number, number], zoom: S.z ?? 15, attributionControl: { compact: true }, maxPitch: 0, dragRotate: false } as never);

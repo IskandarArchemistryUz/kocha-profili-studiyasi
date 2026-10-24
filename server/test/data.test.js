@@ -68,3 +68,13 @@ describe('kesh hajmi (LRU)', () => {
     t += 31 * 864e5; expect(await c.get('a', 30)).toBeNull();
   });
 });
+
+describe('/config/maps', () => {
+  it('kalit .env dan beriladi, boʻlmasa null', async () => {
+    const db2 = fromPglite(new PGlite()); await migrate(db2);
+    const mk = (mapKeys) => buildApp({ db: db2, pepper: 'p'.repeat(20), secret: 's'.repeat(40), secure: false, send: async () => {}, origins: ['https://archemistry.uz'], mapKeys });
+    const a = await mk({ arcgis: 'AAPTxyz' }); expect((await a.inject({ method: 'GET', url: '/config/maps' })).json()).toEqual({ arcgis: 'AAPTxyz' }); await a.close();
+    const b = await mk(undefined); expect((await b.inject({ method: 'GET', url: '/config/maps' })).json()).toEqual({ arcgis: null }); await b.close();
+    await db2.close();
+  });
+});

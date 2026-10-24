@@ -3,11 +3,13 @@
  * Web Mercator matematikasi sof funksiyalar; yuklash va dekodlash brauzer API (fetch, createImageBitmap, OffscreenCanvas)
  * bilan — asosiy oqimda ham, workerda ham ishlaydi.
  */
+import { imageryTile, initEsriKey } from './esrikey';
 import type { LngLat } from '../core/doc';
 import type { BBox } from './osm';
 
 export const TERRAIN_URL = (z: number, x: number, y: number) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
-export const IMAGERY_URL = (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+/** Esri World Imagery: kalit boʻlsa — ArcGIS Location Platform (ibasemaps-api), boʻlmasa — eski kalitsiz manzil (esrikey.ts) */
+export const IMAGERY_URL = (z: number, x: number, y: number) => imageryTile(z, x, y);
 /** Fon xaritasi (atrof yuklanmaganda joy tanlash uchun): Esri Light Gray Canvas — asos va yozuvlar (kalitsiz) */
 export const GRAY_URL = (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${y}/${x}`;
 export const GRAY_REF_URL = (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/${z}/${y}/${x}`;
@@ -100,6 +102,7 @@ export const imageryZoom = (r: number) => (r <= 450 ? 18 : r <= 900 ? 17 : r <= 
 
 export async function loadImagery(radius: number, bb: BBox, f: typeof fetch = fetch, onTile?: () => void): Promise<Imagery | null> {
   const z = imageryZoom(radius);
+  await initEsriKey(f);
   const m = await mosaic(bb, z, IMAGERY_URL, f, onTile);
   if (!m.ok) return null;
   const image = 'convertToBlob' in m.cv ? await (m.cv as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.86 })
@@ -112,6 +115,7 @@ export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' 
   const dLat = radius / 110_540, dLng = radius / latK(center[1]);
   const bb: BBox = [center[1] - dLat, center[0] - dLng, center[1] + dLat, center[0] + dLng];   // janub, gʻarb, shimol, sharq
   const z = radius <= 1200 ? 16 : 15;
+  if (kind === 'sputnik') await initEsriKey(f);
   const m = await mosaic(bb, z, kind === 'sputnik' ? IMAGERY_URL : GRAY_URL, f);
   if (!m.ok) return null;
   if (kind === 'maket') { const r = await mosaic(bb, z, GRAY_REF_URL, f); if (r.ok) m.cx.drawImage(r.cv as OffscreenCanvas, 0, 0); }   // joy nomlari
