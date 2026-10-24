@@ -269,9 +269,8 @@ async function toChizmadon(o: RenderOut): Promise<void> {
   const im = await shrink(o.src, 2400), W = 420, H = 297, M = 12, cap = 10, aw = W - 2 * M, ah = H - 2 * M - cap, k = Math.min(aw / im.w, ah / im.h), w = im.w * k, hh = im.h * k, x = (W - w) / 2, y = M + (ah - hh) / 2;
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const svg = `<g id="01_Render" data-name="Render"><image x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${hh.toFixed(2)}" href="${im.url}" preserveAspectRatio="xMidYMid meet"/></g><g id="02_Yozuv" data-name="Yozuv"><text x="${M}" y="${H - M}" font-size="4" font-family="Archivo, sans-serif" fill="#1d1d1b">${esc(o.name)}</text><text x="${W - M}" y="${H - M}" font-size="2.6" text-anchor="end" font-family="IBM Plex Mono, monospace" fill="#6b6965">${esc(tr('AI render'))} · ${esc(o.model)}</text></g>`;
-  try { localStorage.setItem('ks-chz-inbox', JSON.stringify({ name: `${tr('Render')} · ${o.name}`, kind: 'sheet', svg, vb: [0, 0, W, H], w: W, h: H })); }
-  catch { toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); return; }
-  location.href = './#/chizmadon';
+  const { sendSheet } = await import('../ui/chzsend');
+  if (!sendSheet({ name: `${tr('Render')} · ${o.name}`, kind: 'sheet', svg, vb: [0, 0, W, H], w: W, h: H })) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
 }
 
 /* ---------------- ishga tushirish ---------------- */

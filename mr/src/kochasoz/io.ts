@@ -30,14 +30,14 @@ export async function exportPdf(svg: SVGSVGElement, name: string): Promise<void>
 }
 
 /** Chizmadon kiruvchi varagʻi: Master reja ilovasi (#/chizmadon) uni oxirgi loyihaning Chizmadoniga qoʻyadi */
-export const CHZ_INBOX = 'ks-chz-inbox';
-export function sendToChizmadon(svg: SVGSVGElement, name: string): void {
+export { CHZ_INBOX } from '../ui/chzsend';
+import { sendSheet } from '../ui/chzsend';
+/** Varaqni Chizmadonga: Master rejadan kelingan boʻlsa — shu loyihaga, aks holda yangi loyihaga (ui/chzsend.ts) */
+export function sendToChizmadon(svg: SVGSVGElement, name: string, center?: [number, number] | null): void {
   /* Chizmadon kiruvchi varaq birligini mm deb oladi (Master reja varaqlari kabi): 1188 × 840 → 420 × 297 mm */
   const vb = svg.viewBox.baseVal, full = svgText(svg), k = A3[0] / vb.width;
   const inner = `<g transform="scale(${k.toFixed(6)})">${full.slice(full.indexOf('>') + 1).replace(/<\/svg>\s*$/, '')}</g>`;
-  try { localStorage.setItem(CHZ_INBOX, JSON.stringify({ name, kind: 'sheet', svg: inner, vb: [0, 0, A3[0], A3[1]], w: A3[0], h: A3[1] })); }
-  catch { toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); return; }
-  location.href = './#/chizmadon';
+  if (!sendSheet({ name, kind: 'sheet', svg: inner, vb: [0, 0, A3[0], A3[1]], w: A3[0], h: A3[1] }, center)) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
 }
 export function saveJson(o: Record<string, unknown>): void {
   download(`kochasoz-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(o, null, 1), 'application/json');

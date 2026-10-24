@@ -35,6 +35,14 @@ async function route(): Promise<void> {
   }
   // bosh sahifadan: #/chizmadon — oxirgi loyiha Chizmadon oynasi bilan (loyiha boʻlmasa — yangi)
   if (location.hash === '#/chizmadon') {
+    // boshqa xizmatdan yuborilgan varaq — oʻz loyihasiga yoki yangi alohida loyihaga (ui/chzsend.ts)
+    const t = peekInboxTarget();
+    if (t?.target === 'new') {
+      const p = blankProject(String(t.newName || 'Yangi loyiha').slice(0, 120));
+      if (t.center && t.center.every(Number.isFinite)) p.origin = [t.center[0], t.center[1]];
+      await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
+    }
+    if (t?.target) { let ok = null; try { ok = await getProject(t.target); } catch { /* */ } if (ok) { location.replace(`#/p/${encodeURIComponent(t.target)}/chizmadon`); return; } }
     let list: ProjectMeta[] = []; try { list = await listProjects(); } catch { /* */ }
     const last = [...list].sort((a, b) => String(b.updated).localeCompare(String(a.updated)))[0];
     if (last) { location.replace(`#/p/${last.id}/chizmadon`); return; }
@@ -56,8 +64,11 @@ async function route(): Promise<void> {
 }
 
 /** Koʻchasozdan kelgan varaq (app/kochasoz.html → «Chizmadonga yuborish») — bir marta olinadi */
+function peekInboxTarget(): { target?: string; newName?: string; center?: [number, number] } | null {
+  try { const v = JSON.parse(localStorage.getItem('ks-chz-inbox') || 'null'); return v && typeof v === 'object' ? v : null; } catch { return null; }
+}
 function takeKsInbox(): Parameters<Editor['openCh']>[0] {
-  try { const v = localStorage.getItem('ks-chz-inbox'); if (!v) return undefined; localStorage.removeItem('ks-chz-inbox'); return JSON.parse(v); } catch { return undefined; }
+  try { const v = localStorage.getItem('ks-chz-inbox'); if (!v) return undefined; localStorage.removeItem('ks-chz-inbox'); const { target: _t, newName: _n, center: _c, ...it } = JSON.parse(v); return it; } catch { return undefined; }
 }
 
 /** Loyihalar sahifasidagi hisob qatori: kirilmagan — «Kirish», kirgan — ism, tangalar, sotib olish, chiqish. Kirish talab qilinmasa yoki egasi rejimida — yoʻq */
