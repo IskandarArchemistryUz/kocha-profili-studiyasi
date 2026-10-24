@@ -179,7 +179,7 @@ export class Editor {
       const st = STEPS.find(x => x.id === back.step); if (st && st.id !== this.step.id) this.go(st);
       if (back.cam) try { this.scene.setCamera(back.cam as Parameters<Scene3D['setCamera']>[0]); } catch { /* */ }
     }
-    const keep = () => saveMrReturn({ id: this.store.doc.id, name: this.store.doc.name, step: this.step.id, cam: this.scene.getCamera() });
+    const keep = () => saveMrReturn({ id: this.store.doc.id, name: this.store.doc.name, step: this.step.id, cam: this.scene.getCamera(), origin: [this.store.doc.origin[0], this.store.doc.origin[1]] });
     addEventListener('pagehide', keep); this.off.push(() => removeEventListener('pagehide', keep));
   }
 

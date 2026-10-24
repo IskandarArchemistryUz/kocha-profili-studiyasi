@@ -765,9 +765,8 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
     else {
       const inner = pages[0].replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
       const vh = +(/viewBox="0 0 [\d.]+ ([\d.]+)"/.exec(pages[0])?.[1] ?? S0[1]);
-      try { localStorage.setItem('ks-chz-inbox', JSON.stringify({ name: `${tr('Joy pasporti')} · ${addr}`, kind: 'sheet', svg: inner, vb: [0, 0, S0[0], vh], w: S0[0], h: vh })); }
-      catch { toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); return; }
-      location.href = './#/chizmadon';
+      const { sendSheet } = await import('../ui/chzsend');
+      if (!sendSheet({ name: `${tr('Joy pasporti')} · ${addr}`, kind: 'sheet', svg: inner, vb: [0, 0, S0[0], vh], w: S0[0], h: vh }, S.c)) { toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); return; }
     }
   } catch (e) { toast(`${tr('Hisobot tayyorlanmadi')}: ${(e as Error).message}`); }
   finally { repBusy = false; renderRight(); }
@@ -994,7 +993,7 @@ async function doExport(k: 'svgL' | 'svg' | 'glb' | 'obj' | 'chz'): Promise<void
     if (k === 'chz') {
       const { sendToChizmadon } = await import('../kochasoz/io');
       const el = new DOMParser().parseFromString(txt, 'image/svg+xml').documentElement as unknown as SVGSVGElement;
-      sendToChizmadon(el, `Joyshunos · ${D.addr.v ?? S.c.join(', ')}`); return;
+      sendToChizmadon(el, `Joyshunos · ${D.addr.v ?? S.c.join(', ')}`, S.c); return;
     }
     save2(fileName(k === 'svgL' ? 'ai.svg' : 'svg'), new Blob([txt], { type: 'image/svg+xml' }));
   } catch (e) { alert((e as Error).message); }
