@@ -33,7 +33,7 @@ import { placeOf, placeLabel, utcLabel, tzOffsetH } from '../core/place';
 import type { XY } from '../core/geo';
 import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
-import { nearestStation, type Climate } from '../core/wind';
+import { nearestStation, WIND_MAX_KM, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { wmFile, wmRaster } from '../core/wm';
@@ -77,7 +77,7 @@ const isOn = (id: LayerId) => S.on.includes(id);
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
-const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[] }>; lst: Ld<LstGrid> } =
+const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean }>; lst: Ld<LstGrid> } =
   { addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
@@ -376,9 +376,10 @@ function renderRightH(): void {
       null, D.ter));
   }
   if (isOn('shamol')) {
-    const w = D.wind.v;
+    const w0 = D.wind.v, w = windV();
     cards.push(card(L('shamol'), 'EPW', w ? tr(dir8(w.w.k * 22.5)) : '—',
-      w ? [tf('Ustun yoʻnalish (qayerdan) — vaqtning ${p} %; oʻrtacha ${v} m/s; tinch ${c} %.', { p: fmt(w.w.share * 100), v: fmt(w.w.mean, 1), c: fmt(w.w.calm * 100) }), h('br'), h('span', { class: 'src' }, tf('Stansiya: ${n}, ${k} km · TMYx 2011–2025', { n: w.name, k: fmt(w.km, 1) }))] : [],
+      w0?.far ? [h('span', { class: 'err', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: w0.name, k: fmt(w0.km) })), h('br'), h('span', { class: 'src' }, tf('Stansiya ${m} km dan uzoq boʻlsa koʻrsatilmaydi. Global shamol maʼlumoti (ERA5, NOAA) — keyingi bosqichda.', { m: WIND_MAX_KM }))]
+      : w ? [tf('Ustun yoʻnalish (qayerdan) — vaqtning ${p} %; oʻrtacha ${v} m/s; tinch ${c} %.', { p: fmt(w.w.share * 100), v: fmt(w.w.mean, 1), c: fmt(w.w.calm * 100) }), h('br'), h('span', { class: 'src' }, tf('Stansiya: ${n}, ${k} km · TMYx 2011–2025', { n: w.name, k: fmt(w.km, 1) }))] : [],
       null, D.wind));
   }
   if (isOn('xizmat')) {
@@ -534,9 +535,11 @@ function ensure(): void {
   });
   if (isOn('shamol') && D.wind.st === 'idle') run('wind', async () => {
     if (!climate) { const res = await fetch('./climate/uz_climate.json'); if (!res.ok) throw new Error(`${res.status}`); climate = await res.json() as Climate; }
-    const { s, km } = nearestStation(climate, c[0], c[1]); return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km, bins: climate.bins };
+    const { s, km } = nearestStation(climate, c[0], c[1]); return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km, bins: climate.bins, far: km > WIND_MAX_KM };
   });
 }
+/** Shamol — faqat yaqin stansiya boʻlsa (aks holda xaritada ham, aksonometriyada ham koʻrsatilmaydi) */
+const windV = () => (D.wind.v && !D.wind.v.far ? D.wind.v : undefined);
 const memo = new Map<string, Comp[]>();
 async function reverse(c: LngLat): Promise<string> {
   const u = new URL('https://nominatim.openstreetmap.org/reverse');
@@ -688,7 +691,7 @@ function paintH(): void {
   if (cp.length) lg.push(h('div', { class: 'lg' }, h('span', {}, h('i', { class: 'dot', style: 'background:#7a5a3c' }), tr((CATS.find(c => c.id === S.cat) ?? CATS[0]).name))));
   legend.replaceChildren(...lg); legend.hidden = !lg.length;
   // shamol guli — markazda
-  const w = isOn('shamol') ? D.wind.v : undefined;
+  const w = isOn('shamol') ? windV() : undefined;
   if (rose) { if (w) { rose.getElement().innerHTML = roseSvg(w.w.petals); rose.setLngLat(S.c as [number, number]).addTo(m); } else rose.remove(); }
   if (rlab) {
     const e = rlab.getElement(), kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180);
@@ -741,7 +744,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
     const R = await import('./report');
     const shot = await captureMap().catch(() => null);
     const S0 = R.A3, mapS = S0[1] - 10 - 30 - 20 - 6 - 4;
-    const w = isOn('shamol') ? D.wind.v : undefined;
+    const w = isOn('shamol') ? windV() : undefined;
     const date = new Date().toISOString().slice(0, 10);
     const addr = D.addr.st === 'ok' ? D.addr.v! : `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`;
     const inp: import('./report').RepInput = {
@@ -872,7 +875,7 @@ function axBuild(): void {
     for (const p of D.poi.v?.pois ?? []) if (SVC_KINDS.includes(p.kind) && distM(S.c, p.at) <= S.r) pins.push({ at: p.at, label: p.name || tr(SVC_SHORT[p.kind]), col: SVC_COL[p.kind] });
     const cat = CATS.find(c => c.id === S.cat) ?? CATS[0];
     for (const c of D.comp.v ?? []) if (c.d <= S.r) pins.push({ at: c.at, label: c.name || tr(cat.name), col: '#7a5a3c' });
-    const w = D.wind.v;
+    const w = windV();
     axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark(), pal: PALETTES[palKey()], site: S.site ?? null, style: axStyle });
     renderNotes();
   }, 150);
@@ -957,7 +960,7 @@ function renderAxo(): void {
 }
 function renderNotes(): void {
   if (mode !== 'axo') return;
-  const a = axo, A = AX, s = a?.sunInfo(), w = D.wind.v?.w, dayName = a && A ? tr(A.SUN_DAYS[a.day][2]) : '—', hrs = a ? a.hour : null;
+  const a = axo, A = AX, s = a?.sunInfo(), w = windV()?.w, dayName = a && A ? tr(A.SUN_DAYS[a.day][2]) : '—', hrs = a ? a.hour : null;
   const hh = (v: number) => `${Math.floor(v)}:${String(Math.round((v % 1) * 60)).padStart(2, '0')}`;
   const row = (k: string, v: string) => h('div', { class: 'kv' }, h('span', {}, k), h('b', {}, v));
   const it = (c: string, n: string, kind = 'dot') => h('li', {}, h('i', { class: kind, style: `background:${c}` }), tr(n));

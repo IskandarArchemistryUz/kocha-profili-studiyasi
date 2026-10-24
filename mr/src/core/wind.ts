@@ -17,6 +17,11 @@ const NAME8 = ['shimol', 'shimoli-sharq', 'sharq', 'janubi-sharq', 'janub', 'jan
 /** 16 sektor nomi (22,5° qadam) */
 export const rumbName = (k: number) => k % 2 === 0 ? NAME8[(k / 2) % 8] : `${NAME8[((k - 1) / 2) % 8]}–${NAME8[((k + 1) / 2) % 8]}`;
 
+/**
+ * Iqlim stansiyasidan foydalanish chegarasi, km. Shamol guli joyning relyefi va shahar qurilishiga bogʻliq — uzoq stansiya
+ * boshqa iqlimni koʻrsatadi. 50 km dan uzoqda (va hozircha faqat Oʻzbekiston stansiyalari bor) shamol koʻrsatilmaydi.
+ */
+export const WIND_MAX_KM = 50;
 export function nearestStation(c: Climate, lon: number, lat: number): { s: Station; km: number } {
   let best = c.stations[0], bd = Infinity;
   for (const s of c.stations) {

@@ -36,7 +36,7 @@ import { gridAngle, merge, split, parcelVariants, type GridMode, type ParcelMeth
 import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtcAt, sunPosition } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
-import { LAWSON, PED_FACTOR, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
+import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { INSOL_BINS } from '../scene/scene';
 import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME } from '../core/floorplan';
 import { openAlbum, genplanSvg } from './album';
@@ -1039,7 +1039,7 @@ export class Editor {
 
   private async runWind(): Promise<void> {
     track('mr/calc/wind');
-    const doc = this.store.doc, st = this.climate && nearestStation(this.climate, doc.origin[0], doc.origin[1]).s; if (!doc.site || !st) return;
+    const doc = this.store.doc, near = this.climate && nearestStation(this.climate, doc.origin[0], doc.origin[1]), st = near && near.km <= WIND_MAX_KM ? near.s : null; if (!doc.site || !st) return;
     const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     const m = 60, box: [number, number, number, number] = [x0 - m, y0 - m, x1 + m, y1 + m];
@@ -1074,6 +1074,12 @@ export class Editor {
   private windSection(body: HTMLElement): void {
     if (!this.climate) { void this.loadClimate(); body.append(h('span', { class: 't-small' }, tr('Iqlim maʼlumoti yuklanmoqda…'))); return; }
     const doc = this.store.doc, { s: st, km } = nearestStation(this.climate, doc.origin[0], doc.origin[1]), pv = prevailing(st);
+    if (km > WIND_MAX_KM) {
+      body.append(h('div', { class: 'col', id: 'windBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Shamol'))),
+        h('div', { class: 'note warn', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: st.name.replace(/\./g, ' '), k: fmt(km, 0) })),
+        h('span', { class: 't-small' }, tf('Stansiya ${m} km dan uzoq boʻlsa koʻrsatilmaydi. Global shamol maʼlumoti (ERA5, NOAA) — keyingi bosqichda.', { m: WIND_MAX_KM }))));
+      return;
+    }
     const dir = this.windDir ?? pv.deg;
     const sel = select({ id: 'windDir', 'aria-label': tr('Hisob yoʻnalishi (qayerdan esadi)'), onchange: v => { this.windDir = Number(v); this.renderPanel(); } },
       Array.from({ length: 16 }, (_, k) => ({ value: String(k * 22.5), label: `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ' + tr('ustun') : ''}`, selected: Math.abs(k * 22.5 - dir) < 1 })));
