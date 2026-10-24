@@ -1,27 +1,27 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { chzTarget } from '../../src/ui/chzsend';
+import { chzTarget, suggestSame } from '../../src/ui/chzsend';
+import type { MrReturn } from '../../src/ui/mrback';
 
 const mem = new Map<string, string>();
 beforeEach(() => {
   mem.clear();
   (globalThis as any).sessionStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
 });
-const ret = (origin?: [number, number]) => mem.set('mr-return', JSON.stringify({ id: 'p_A', name: 'A', step: 'hajm', cam: null, at: Date.now(), origin }));
+const R = (o: Partial<MrReturn>): MrReturn => ({ id: 'p_A', name: 'A', step: 'hajm', cam: null, at: Date.now(), ...o });
 
 describe('Chizmadonga yuborish: qaysi loyihaga', () => {
-  it('Master rejadan kelinmagan — har doim yangi alohida loyiha', () => {
-    expect(chzTarget('Joyshunos · Parij', [2.35, 48.85])).toEqual({ target: 'new', newName: 'Joyshunos · Parij', center: [2.35, 48.85] });
+  it('Master rejadan kelinmagan — har doim yangi alohida loyiha (oyna chiqmaydi)', async () => {
+    expect(await chzTarget('Joyshunos · Parij', [2.35, 48.85])).toEqual({ target: 'new', newName: 'Joyshunos · Parij', center: [2.35, 48.85] });
   });
-  it('loyiha hududida (≤ 3 km) — shu loyihaga', () => {
-    ret([69.28, 41.31]);
-    expect(chzTarget('x', [69.29, 41.32])).toEqual({ target: 'p_A' });
+  it('tavsiya: uchastkali loyiha hududida — shu loyiha; uzoqda — yangi', () => {
+    expect(suggestSame(R({ origin: [69.28, 41.31], hasSite: true }), [69.29, 41.32])).toBe(true);
+    expect(suggestSame(R({ origin: [69.28, 41.31], hasSite: true }), [66.96, 39.65])).toBe(false);
   });
-  it('boshqa joy tahlil qilingan — loyihaga aralashmaydi, yangi loyiha', () => {
-    ret([69.28, 41.31]);
-    expect(chzTarget('Joyshunos · Samarqand', [66.96, 39.65]).target).toBe('new');
+  it('tavsiya: uchastkasiz yangi loyiha (markazi sukut — Toshkent) — Toshkentdagi tahlil ham yangi loyihaga', () => {
+    expect(suggestSame(R({ origin: [69.2797, 41.3111], hasSite: false }), [69.282, 41.299])).toBe(false);
+    expect(suggestSame(R({}), [69.282, 41.299])).toBe(false);   // eski mr-return (markazsiz)
   });
-  it('joyi nomaʼlum varaq (Render) — kelingan loyihaga', () => {
-    ret([69.28, 41.31]);
-    expect(chzTarget('Render · fasad').target).toBe('p_A');
+  it('joyi nomaʼlum varaq (Render) — kelingan loyiha tavsiya', () => {
+    expect(suggestSame(R({ origin: [69.28, 41.31], hasSite: true }))).toBe(true);
   });
 });

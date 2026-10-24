@@ -90,6 +90,12 @@ export function streetKey(e: KeyboardEvent): boolean {
   return false;
 }
 export const streetDrawing = () => !!draft;
+/** Chizilgan / tanlangan koʻchaning markazi (joy belgisi uchun) */
+export function streetCenter(): LngLat | null {
+  const a = draft && draft.length ? draft : axisPts(); if (!a?.length) return null;
+  const xs = a.map(p => p[0]), ys = a.map(p => p[1]);
+  return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+}
 export function streetReset(): void { st.A = null; st.B = null; st.line = null; draft = null; R = null; status = { st: 'idle' }; seq++; save(); host?.map()?.doubleClickZoom.enable(); host?.rerender(); streetPaint(); }
 function setMode(m: 'draw' | 'ab'): void { st.mode = m; draft = null; R = null; status = { st: 'idle' }; seq++; save(); host?.rerender(); streetPaint(); if (axisPts()) void analyze(); }
 /** Rejimga kirganda: saqlangan koʻcha boʻlsa — qayta hisoblash (kesh tufayli tez) */
@@ -193,6 +199,9 @@ export function streetPaint(): void {
   (m.getSource('joy-st-pts') as GeoJSONSource).setData(fc(pts) as never);
   (m.getSource('joy-st-hl') as GeoJSONSource).setData(fc(hl) as never);
   const dp: unknown[] = [];
+  // tahlil hali tayyor emas (yuklanmoqda yoki xato) — chizilgan oʻq koʻrinib tursin
+  const ax0 = !draft && !R ? axisPts() : null;
+  if (ax0 && ax0.length > 1) dp.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: ax0 } });
   if (draft?.length) { if (draft.length > 1) dp.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: draft } }); for (const q of draft) dp.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: q } }); }
   (m.getSource('joy-st-draft') as GeoJSONSource).setData(fc(dp) as never);
   const pin = (lab: string) => h('div', { class: 'joy-stpin' }, lab);
@@ -329,7 +338,7 @@ function card(id: string, color: string, name: string, src: string, big: string,
 export function streetRight(): Node[] {
   if (!R) {
     const msg = status.st === 'load' ? status.msg ?? tr('Yuklanmoqda…') : status.st === 'err' ? status.msg ?? '' : tr(mode() === 'draw' ? 'Xaritada koʻchani chizing — tugatganda tahlil oʻzi boshlanadi.' : 'Xaritada koʻcha boshini (A) va oxirini (B) bosing — tahlil oʻzi boshlanadi.');
-    return [h('article', { class: 'joy-card head' }, h('div', { class: 't-small' }, tr('Koʻcha tahlili')), h('h1', { class: 'ttl' }, tr('Koʻcha tanlanmagan')), h('div', { class: 'sub' }, msg))];
+    return [h('article', { class: 'joy-card head' }, h('div', { class: 't-small' }, tr('Koʻcha tahlili')), h('h1', { class: 'ttl', id: 'stTtl' }, tr(status.st === 'load' ? 'Tahlil qilinmoqda…' : status.st === 'err' ? 'Tahlil boʻlmadi' : 'Koʻcha tanlanmagan')), h('div', { class: 'sub' }, msg))];
   }
   const { S, F, rt } = R, c = (st.counts ?? {})[keyAB()] ?? {};
   const cards: HTMLElement[] = [];

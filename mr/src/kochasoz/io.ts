@@ -37,7 +37,7 @@ export function sendToChizmadon(svg: SVGSVGElement, name: string, center?: [numb
   /* Chizmadon kiruvchi varaq birligini mm deb oladi (Master reja varaqlari kabi): 1188 × 840 → 420 × 297 mm */
   const vb = svg.viewBox.baseVal, full = svgText(svg), k = A3[0] / vb.width;
   const inner = `<g transform="scale(${k.toFixed(6)})">${full.slice(full.indexOf('>') + 1).replace(/<\/svg>\s*$/, '')}</g>`;
-  if (!sendSheet({ name, kind: 'sheet', svg: inner, vb: [0, 0, A3[0], A3[1]], w: A3[0], h: A3[1] }, center)) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
+  void sendSheet({ name, kind: 'sheet', svg: inner, vb: [0, 0, A3[0], A3[1]], w: A3[0], h: A3[1] }, center).then(ok => { if (ok === false) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); });
 }
 export function saveJson(o: Record<string, unknown>): void {
   download(`kochasoz-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(o, null, 1), 'application/json');

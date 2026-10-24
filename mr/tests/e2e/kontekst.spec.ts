@@ -177,6 +177,8 @@ test('chegara: dunyoning istalgan joyi — Parij fayli qabul qilinadi, loyiha ma
   await expect(page.locator('.toast').last()).toContainText('WGS84');
   await expect(page.locator('#areaSt')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.origin[0])).toBeCloseTo(2.357, 2);
+  // Parijda stat.uz paneli — Toshkent raqamlari oʻrniga izoh
+  await expect(page.locator('#demoAbroad')).toBeVisible(); await expect(page.locator('#district')).toHaveCount(0);
   // zona yozilmagan metrlar, loyiha markazidan uzoq — aniqlanmadi
   const bad = JSON.stringify({ type: 'Polygon', coordinates: [[[100, 100], [300, 100], [300, 300], [100, 100]]] });
   const fc2 = page.waitForEvent('filechooser'); await page.click('#areaFile');

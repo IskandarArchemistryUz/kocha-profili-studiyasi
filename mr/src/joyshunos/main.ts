@@ -38,7 +38,7 @@ import { nearestStation, WIND_MAX_KM, type Climate } from '../core/wind';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { wmFile, wmRaster } from '../core/wm';
-import { streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
+import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
@@ -226,8 +226,14 @@ function sw(on: boolean, label: string, f: () => void): HTMLButtonElement {
   return h('button', { type: 'button', class: `switch${on ? ' on' : ''}`, role: 'switch', 'aria-checked': on, 'aria-label': label, onclick: f }, h('i'));
 }
 /** Hudud joyi: mamlakat, vaqt mintaqasi va qaysi meʼyorlar qoʻllanishi — koordinatadan avtomatik */
+/** Joy qaysi nuqtadan: hudud rejimida — tanlangan nuqta; koʻcha rejimida — chizilgan koʻcha, boʻlmasa xarita markazi */
+function placeAt(): LngLat {
+  if (isK()) { const a = streetCenter(); if (a) return a; const c = map?.getCenter(); if (c) return [c.lng, c.lat]; }
+  return S.c;
+}
+let placeShown = '';
 function placeChip(): HTMLElement {
-  const p = placeOf(S.c[0], S.c[1]);
+  const at = placeAt(), p = placeOf(at[0], at[1]); placeShown = p.tz;
   return h('div', { class: 'joy-place', id: 'joyPlace', title: tr('Hudud koordinatasidan avtomatik aniqlanadi: quyosh va soya shu vaqt mintaqasida, fasllar — yarimsharga qarab') },
     h('span', { class: 'pl' }, placeLabel(p, getLang())),
     h('span', { class: `nb ${p.norms === 'UZ' ? 'uz' : 'intl'}` }, tr(p.norms === 'UZ' ? 'Meʼyorlar: Oʻzbekiston (ShNQ)' : 'Meʼyorlar: xalqaro andozalar — mahalliy meʼyor ulanmagan')));
@@ -584,14 +590,19 @@ async function initMap(): Promise<void> {
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
   map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
   map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } else if (isK()) { e.preventDefault(); streetFinish(); } });
-  map.on('moveend', () => { S.z = +map!.getZoom().toFixed(2); save(); });
+  map.on('moveend', () => {
+    S.z = +map!.getZoom().toFixed(2); save();
+    // koʻcha rejimida koʻcha chizilmagan boʻlsa — joy belgisi xarita markaziga ergashadi
+    if (isK()) { const at = placeAt(), tz = placeOf(at[0], at[1]).tz; if (tz !== placeShown) { const old = document.getElementById('joyPlace'); old?.replaceWith(placeChip()); } }
+  });
   const roseEl = h('div', { class: 'joy-rose', 'aria-hidden': 'true' }), labEl = h('div', { class: 'joy-rlab' });
   MK = el => new ml.Marker({ element: el });
   rose = new ml.Marker({ element: roseEl }).setLngLat(S.c as [number, number]);
   rlab = new ml.Marker({ element: labEl, anchor: 'left' }).setLngLat(S.c as [number, number]).addTo(map);
   (window as unknown as { joyMap: MLMap }).joyMap = map;
 }
-function restyle(): void { map?.setStyle(style() as never); }
+/** Uslub almashtirish: diff:false — aks holda MapLibre «style.load» chiqarmaydi va oʻz qatlamlarimiz (koʻcha chizigʻi, halqa, …) yoʻqolib qoladi */
+function restyle(): void { map?.setStyle(style() as never, { diff: false }); }
 function addOverlays(): void {
   if (!map) return;
   const m = map, before = m.getLayer('bld') ? 'bld' : undefined;
@@ -766,7 +777,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
       const inner = pages[0].replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
       const vh = +(/viewBox="0 0 [\d.]+ ([\d.]+)"/.exec(pages[0])?.[1] ?? S0[1]);
       const { sendSheet } = await import('../ui/chzsend');
-      if (!sendSheet({ name: `${tr('Joy pasporti')} · ${addr}`, kind: 'sheet', svg: inner, vb: [0, 0, S0[0], vh], w: S0[0], h: vh }, S.c)) { toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); return; }
+      if (await sendSheet({ name: `${tr('Joy pasporti')} · ${addr}`, kind: 'sheet', svg: inner, vb: [0, 0, S0[0], vh], w: S0[0], h: vh }, S.c) === false) { toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi')); return; }
     }
   } catch (e) { toast(`${tr('Hisobot tayyorlanmadi')}: ${(e as Error).message}`); }
   finally { repBusy = false; renderRight(); }

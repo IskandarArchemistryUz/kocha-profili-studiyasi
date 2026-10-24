@@ -6,7 +6,7 @@
 import { h, svgIcon } from './dom';
 import { tr } from '../i18n';
 
-export interface MrReturn { id: string; name: string; step: string; cam: unknown; at: number; /** loyiha markazi — boshqa xizmatdagi tahlil shu hududdami (chzsend.ts) */ origin?: [number, number] }
+export interface MrReturn { id: string; name: string; step: string; cam: unknown; at: number; /** loyiha markazi — boshqa xizmatdagi tahlil shu hududdami (chzsend.ts) */ origin?: [number, number]; /** loyihada uchastka chizilganmi — boʻlmasa markaz sukut, ishonchsiz */ hasSite?: boolean }
 const K = 'mr-return', KB = 'mr-back', TTL = 24 * 3600 * 1000;
 
 export function saveMrReturn(r: Omit<MrReturn, 'at'>): void { try { sessionStorage.setItem(K, JSON.stringify({ ...r, at: Date.now() })); } catch { /* */ } }
