@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { frame } from '../core/geo';
-import { sunPosition, localToUtc } from '../core/sun';
+import { sunPosition, localToUtcAt } from '../core/sun';
 import { tr } from '../i18n';
 import { AX_LAYERS, SUN_DAYS, type Axo, type AxLayer } from './axo';
 
@@ -160,11 +160,11 @@ export function axoSvg(a: Axo, layered: boolean): string {
   if (vis('quyosh')) {
     const D = R * 0.95, sv = (alt: number, az: number): [number, number, number] => { const al = alt * Math.PI / 180, z = az * Math.PI / 180; return [Math.sin(z) * Math.cos(al) * D, Math.cos(z) * Math.cos(al) * D, Math.sin(al) * D]; };
     SUN_DAYS.forEach(([mo, dd], k) => {
-      const pts: [number, number, number][] = []; for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtc(2026, mo, dd, t), inp.center[1], inp.center[0]); if (s.alt > 0) pts.push(sv(s.alt, s.az)); }
+      const pts: [number, number, number][] = []; for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtcAt(2026, mo, dd, t, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); if (s.alt > 0) pts.push(sv(s.alt, s.az)); }
       if (pts.length < 2) return; const sel = k === a.day, sp = pts.map(p => pr(p[0], p[1], p[2], 'quyosh'));
       if (sel) { const c0 = pr(0, 0, 0, 'quyosh'); out.quyosh.push(`<path d="M${f1(c0[0])} ${f1(c0[1])}L${sp.map(p => `${f1(p[0])} ${f1(p[1])}`).join('L')}Z" fill="#e8a317" fill-opacity=".18"/>`); }
       out.quyosh.push(`<path d="${line(sp)}" fill="none" stroke="#e8a317" stroke-width="${sel ? 1.6 : 1}" stroke-dasharray="5 4" stroke-opacity="${sel ? 1 : 0.5}"/>`);
-      for (let t = 5; t <= 20; t++) { const s = sunPosition(localToUtc(2026, mo, dd, t), inp.center[1], inp.center[0]); if (s.alt <= 0) continue; const [x, y] = pr(...sv(s.alt, s.az), 'quyosh'); out.quyosh.push(`<circle cx="${f1(x)}" cy="${f1(y)}" r="${sel ? 3 : 2}" fill="#e8a317" fill-opacity="${sel ? 1 : 0.5}"/>${sel ? `<text x="${f1(x)}" y="${f1(y - 7)}" font-size="10" font-weight="700" fill="#b07a10" text-anchor="middle">${t}</text>` : ''}`); }
+      for (let t = 5; t <= 20; t++) { const s = sunPosition(localToUtcAt(2026, mo, dd, t, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); if (s.alt <= 0) continue; const [x, y] = pr(...sv(s.alt, s.az), 'quyosh'); out.quyosh.push(`<circle cx="${f1(x)}" cy="${f1(y)}" r="${sel ? 3 : 2}" fill="#e8a317" fill-opacity="${sel ? 1 : 0.5}"/>${sel ? `<text x="${f1(x)}" y="${f1(y - 7)}" font-size="10" font-weight="700" fill="#b07a10" text-anchor="middle">${t}</text>` : ''}`); }
     });
     const si = a.sunInfo(); if (si && si.alt > 0) { const [x, y] = pr(...sv(si.alt, si.az), 'quyosh'), c0 = pr(0, 0, 0, 'quyosh'); out.quyosh.push(`<path d="M${f1(x)} ${f1(y)}L${f1(c0[0])} ${f1(c0[1])}" stroke="#e8a317" stroke-dasharray="5 4"/><circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="#e0532c"/>`); }
   }

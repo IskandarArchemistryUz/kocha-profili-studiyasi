@@ -11,7 +11,7 @@ import type { ContextBundle } from '../context/load';
 import { frame } from '../core/geo';
 import { terrainSampler } from '../context/tiles';
 import { buildContext } from '../scene/context3d';
-import { sunPosition, localToUtc } from '../core/sun';
+import { sunPosition, localToUtcAt } from '../core/sun';
 import { tr } from '../i18n';
 import type { Palette } from '../context/mapstyle';
 import { STYLE_PAL, type SceneStyle } from '../scene/styles';
@@ -350,7 +350,7 @@ export class Axo {
     const g = this.groups.get('quyosh')!, [lng, lat] = this.inp!.center, D = this.R * 0.95;
     SUN_DAYS.forEach(([mo, d], k) => {
       const pts: THREE.Vector3[] = [];
-      for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtc(2026, mo, d, t), lat, lng); if (s.alt > 0) pts.push(sunVec(s, D)); }
+      for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtcAt(2026, mo, d, t, lat, lng), lat, lng); if (s.alt > 0) pts.push(sunVec(s, D)); }
       if (pts.length < 2) return;
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: SUN_COL, dashSize: 6, gapSize: 5, transparent: true, opacity: k === 1 ? 0.95 : 0.6 }));
       line.computeLineDistances(); line.userData.day = k; g.add(line);
@@ -359,7 +359,7 @@ export class Axo {
       const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(fan, 3));
       const fm = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: SUN_COL, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })); fm.userData.day = k; fm.userData.fan = true; fm.renderOrder = 36; g.add(fm);
       for (let t = 5; t <= 20; t++) {
-        const s = sunPosition(localToUtc(2026, mo, d, t), lat, lng); if (s.alt <= 0) continue;
+        const s = sunPosition(localToUtcAt(2026, mo, d, t, lat, lng), lat, lng); if (s.alt <= 0) continue;
         const v = sunVec(s, D), dot = new THREE.Mesh(new THREE.SphereGeometry(this.R * 0.009, 10, 8), new THREE.MeshBasicMaterial({ color: SUN_COL }));
         dot.position.copy(v); dot.userData.day = k; g.add(dot);
         const el = document.createElement('div'); el.className = 'axo-hour'; el.textContent = String(t); el.dataset.day = String(k);
@@ -471,7 +471,7 @@ export class Axo {
         // tanlangan kun yoʻlidagi eng yaqin nuqta (ekranda)
         const inp = this.inp!, [mo, dd] = SUN_DAYS[this.day], r = el.getBoundingClientRect(), D = this.R * 0.95, cam = this.cam(), off = this.groups.get('quyosh')!.position.y;
         let best = this.hour, bd = Infinity;
-        for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtc(2026, mo, dd, t), inp.center[1], inp.center[0]); if (s.alt <= 0) continue; const v = sunVec(s, D); v.y += off; v.project(cam); const x = (v.x + 1) / 2 * r.width + r.left, y = (1 - v.y) / 2 * r.height + r.top, q = (x - e.clientX) ** 2 + (y - e.clientY) ** 2; if (q < bd) { bd = q; best = t; } }
+        for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtcAt(2026, mo, dd, t, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); if (s.alt <= 0) continue; const v = sunVec(s, D); v.y += off; v.project(cam); const x = (v.x + 1) / 2 * r.width + r.left, y = (1 - v.y) / 2 * r.height + r.top, q = (x - e.clientX) ** 2 + (y - e.clientY) ** 2; if (q < bd) { bd = q; best = t; } }
         if (best !== this.hour) this.setTime(this.day, best);
       } else if (d.kind === 'flow') {
         const p = this.ground(e); if (!p) return;
@@ -558,7 +558,7 @@ export class Axo {
   setTime(day: number, hour: number): void {
     this.day = day; this.hour = hour;
     const inp = this.inp; if (!inp) return;
-    const [mo, d] = SUN_DAYS[day], s = sunPosition(localToUtc(2026, mo, d, hour), inp.center[1], inp.center[0]);
+    const [mo, d] = SUN_DAYS[day], s = sunPosition(localToUtcAt(2026, mo, d, hour, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]);
     const D = this.R * 0.95, v = sunVec(s, Math.max(D, 1));
     this.sun.position.copy(v.clone().normalize().multiplyScalar(this.R * 3)); this.sun.target.position.set(0, 0, 0);
     this.sun.intensity = s.alt > 0 ? 1.7 : 0; this.hemi.intensity = s.alt > 0 ? 0.85 : 1.4;
@@ -574,7 +574,7 @@ export class Axo {
     this.labels.forEach(l => { if (l.kind === 'hour') l.el.classList.toggle('dim', l.el.dataset.day !== String(day)); });
     this.dirty = this.sdirty = true; this.onChange?.();
   }
-  sunInfo(): { alt: number; az: number } | null { const inp = this.inp; if (!inp) return null; const [mo, d] = SUN_DAYS[this.day]; return sunPosition(localToUtc(2026, mo, d, this.hour), inp.center[1], inp.center[0]); }
+  sunInfo(): { alt: number; az: number } | null { const inp = this.inp; if (!inp) return null; const [mo, d] = SUN_DAYS[this.day]; return sunPosition(localToUtcAt(2026, mo, d, this.hour, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); }
 
   /* ---------------- chizish ---------------- */
   private draw(): void {

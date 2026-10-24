@@ -3,6 +3,7 @@
  * Insolyatsiya: har bir nuqtadan quyoshga qarab nur — binolar prizmalari bilan kesishmasa, nuqta quyoshda.
  */
 import type { XY } from './geo';
+import { placeOf, tzOffsetH } from './place';
 
 const RAD = Math.PI / 180;
 
@@ -19,19 +20,26 @@ export function sunPosition(utc: Date, lat: number, lng: number): { alt: number;
   return { alt: alt / RAD, az: ((az / RAD) + 360) % 360 };
 }
 
-/** Mahalliy vaqt (Toshkent UTC+5) → UTC Date */
-export function localToUtc(year: number, month: number, day: number, hours: number, tz = 5): Date {
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0) + (hours - tz) * 3600000);
+/** Mahalliy vaqt → UTC Date. tz — soat farqi (sukut: Toshkent UTC+5) yoki IANA nomi (yozgi vaqt bilan; placeOf().tz) */
+export function localToUtc(year: number, month: number, day: number, hours: number, tz: number | string = 5): Date {
+  const base = Date.UTC(year, month - 1, day, 0, 0, 0) + hours * 3600000;
+  if (typeof tz === 'number') return new Date(base - tz * 3600000);
+  // ikki qadam: taxminiy farq → shu paytdagi aniq farq (yozgi vaqt chegarasi uchun)
+  const o1 = tzOffsetH(tz, base), o2 = tzOffsetH(tz, base - o1 * 3600000);
+  return new Date(base - o2 * 3600000);
 }
+/** Joy koordinatasi boʻyicha mahalliy vaqt → UTC */
+export const localToUtcAt = (year: number, month: number, day: number, hours: number, lat: number, lng: number): Date => localToUtc(year, month, day, hours, placeOf(lng, lat).tz);
 
 export interface Prism { ring: XY[]; top: number }
 export interface SunStep { alt: number; az: number; dt: number }
 
 /** Kun davomidagi quyosh qadamlari (balandlik > minAlt), dt soatda */
 export function daySteps(year: number, month: number, day: number, lat: number, lng: number, stepMin = 15, minAlt = 3): SunStep[] {
-  const out: SunStep[] = [];
-  for (let m = 4 * 60; m <= 21 * 60; m += stepMin) {
-    const p = sunPosition(localToUtc(year, month, day, m / 60), lat, lng);
+  const out: SunStep[] = [], tz = placeOf(lng, lat).tz;
+  // mahalliy vaqt 00:00–24:00 (qutb yaqinida kun uzun); quyosh minAlt dan past qadamlar tashlanadi
+  for (let m = 0; m < 24 * 60; m += stepMin) {
+    const p = sunPosition(localToUtc(year, month, day, m / 60, tz), lat, lng);
     if (p.alt > minAlt) out.push({ alt: p.alt, az: p.az, dt: stepMin / 60 });
   }
   return out;

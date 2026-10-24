@@ -28,7 +28,8 @@ import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare
 import type { ContextBundle } from '../context/load';
 import { loadLst, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, type LstGrid, type Px } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
-import { daySteps, insolation, sunPosition, localToUtc, type Prism } from '../core/sun';
+import { daySteps, insolation, sunPosition, localToUtcAt, type Prism } from '../core/sun';
+import { placeOf, placeLabel, utcLabel, tzOffsetH } from '../core/place';
 import type { XY } from '../core/geo';
 import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
@@ -114,7 +115,9 @@ function computeNet(): void {
   }, 30);
 }
 /* ---------- quyosh va soya (binolar — kontekst toʻplamidan, aksonometriya bilan umumiy) ---------- */
-const sunDay = () => SUN_DAYS_MAP[S.sd ?? 1] ?? SUN_DAYS_MAP[1];
+/** Sukut kun — mahalliy yoz: shimolda 22 iyun, janubiy yarimsharda 22 dekabr */
+const sdIdx = () => S.sd ?? (placeOf(S.c[0], S.c[1]).south ? 2 : 1);
+const sunDay = () => SUN_DAYS_MAP[sdIdx()] ?? SUN_DAYS_MAP[1];
 const sunHour = () => S.sh ?? 10;
 type SunM = { key: string; prisms: Prism[]; pts: XY[]; idx: number[]; n: number; step: number; hours?: Float32Array };
 let SM: SunM | null = null, sunBusy = false, sunW: Worker | null = null;
@@ -221,9 +224,16 @@ let found: Place[] = [], searching = false, qText = '';
 function sw(on: boolean, label: string, f: () => void): HTMLButtonElement {
   return h('button', { type: 'button', class: `switch${on ? ' on' : ''}`, role: 'switch', 'aria-checked': on, 'aria-label': label, onclick: f }, h('i'));
 }
+/** Hudud joyi: mamlakat, vaqt mintaqasi va qaysi meʼyorlar qoʻllanishi — koordinatadan avtomatik */
+function placeChip(): HTMLElement {
+  const p = placeOf(S.c[0], S.c[1]);
+  return h('div', { class: 'joy-place', id: 'joyPlace', title: tr('Hudud koordinatasidan avtomatik aniqlanadi: quyosh va soya shu vaqt mintaqasida, fasllar — yarimsharga qarab') },
+    h('span', { class: 'pl' }, placeLabel(p, getLang())),
+    h('span', { class: `nb ${p.norms === 'UZ' ? 'uz' : 'intl'}` }, tr(p.norms === 'UZ' ? 'Meʼyorlar: Oʻzbekiston (ShNQ)' : 'Meʼyorlar: xalqaro andozalar — mahalliy meʼyor ulanmagan')));
+}
 function renderLeft(): void {
-  if (isK()) { left.replaceChildren(anSwitch(), ...streetLeft()); return; }
-  renderLeftH(); left.prepend(anSwitch());
+  if (isK()) { left.replaceChildren(anSwitch(), placeChip(), ...streetLeft()); return; }
+  renderLeftH(); left.prepend(anSwitch(), placeChip());
 }
 function renderLeftH(): void {
   const q = h('input', { class: 'input', type: 'search', id: 'joyQ', placeholder: tr('Manzil yoki koordinata'), value: qText, 'aria-label': tr('Manzil qidirish') }) as HTMLInputElement;
@@ -424,7 +434,7 @@ function renderRightH(): void {
       null, D.lst));
   }
   if (isOn('quyosh')) {
-    const [m, d, dn] = sunDay(), hr = sunHour(), sp = sunPosition(localToUtc(2026, m, d, hr), S.c[1], S.c[0]);
+    const [m, d, dn] = sunDay(), hr = sunHour(), sp = sunPosition(localToUtcAt(2026, m, d, hr, S.c[1], S.c[0]), S.c[1], S.c[0]);
     const hs = SM?.hours ? sunStats(SM.pts, SM.hours) : null, hh = (v: number) => `${String(Math.floor(v)).padStart(2, '0')}:${v % 1 ? '30' : '00'}`;
     const busySun: Ld<unknown> = axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
     const el = card(L('quyosh'), tr('OSM binolar'), hs ? tf('${h} soat', { h: fmt(hs.at, 1) }) : '—',
@@ -434,7 +444,7 @@ function renderRightH(): void {
         h('span', { class: 'src' }, tr('Binolar — OSM (balandlik: height / qavatlar / taxmin). Relyef va daraxtlar hisobga olinmagan. Hisob Master rejadagi insolyatsiya bilan bir xil (20 daqiqa qadam).'))] : [],
       null, hs ? undefined : busySun);
     el.querySelector('header')!.after(h('div', { class: 'joy-sunctl' },
-      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kun') }, ...SUN_DAYS_MAP.map(([, , n], i) => h('button', { type: 'button', 'aria-pressed': (S.sd ?? 1) === i, onclick: () => { S.sd = i; save(); renderRight(); paint(); computeSun(); } }, tr(n)))),
+      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kun') }, ...SUN_DAYS_MAP.map(([, , n], i) => h('button', { type: 'button', 'aria-pressed': sdIdx() === i, onclick: () => { S.sd = i; save(); renderRight(); paint(); computeSun(); } }, tr(n)))),
       h('div', { class: 'joy-step', role: 'group', 'aria-label': tr('Soat') },
         h('button', { type: 'button', class: 'btn btn-sm', 'aria-label': tr('Oldingi soat'), onclick: () => { S.sh = Math.max(5, hr - 0.5); save(); renderRight(); paint(); } }, '‹'),
         h('b', { class: 'mono', id: 'sunHour' }, hh(hr)),
@@ -663,7 +673,7 @@ function paintH(): void {
   } else m.setLayoutProperty('joy-sun', 'visibility', 'none');
   if (isOn('quyosh') && sm) {
     const [mm, dd] = sunDay(), hr = sunHour(), k = `${sm.key}|${hr}`;
-    if (k !== shadowKey) { shadowKey = k; const sp = sunPosition(localToUtc(2026, mm, dd, hr), S.c[1], S.c[0]); upd('joy-shadow', shadowImage(sm.prisms, sp.alt, sp.az, S.r)); }
+    if (k !== shadowKey) { shadowKey = k; const sp = sunPosition(localToUtcAt(2026, mm, dd, hr, S.c[1], S.c[0]), S.c[1], S.c[0]); upd('joy-shadow', shadowImage(sm.prisms, sp.alt, sp.az, S.r)); }
     m.setLayoutProperty('joy-shadow', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-shadow', 'visibility', 'none');
   // legenda: nishab va xizmatlar
@@ -955,7 +965,7 @@ function renderNotes(): void {
     h('div', { class: 'ttl' }, 'Archemistry Lab'),
     row(tr('Joylashuv'), `${S.c[1].toFixed(4)}, ${S.c[0].toFixed(4)}`),
     row(tr('Kun'), dayName),
-    row(tr('Vaqt'), hrs != null ? `${hh(hrs)} (UTC+5)` : '—'),
+    row(tr('Vaqt'), hrs != null && a && A ? `${hh(hrs)} (${utcLabel(tzOffsetH(placeOf(S.c[0], S.c[1]).tz, Date.UTC(2026, A.SUN_DAYS[a.day][0] - 1, A.SUN_DAYS[a.day][1], 12)))})` : '—'),
     row(tr('Quyosh'), s ? (s.alt > 0 ? tf('balandlik ${a}°, azimut ${z}°', { a: fmt(s.alt), z: fmt(s.az) }) : tr('ufqdan past')) : '—'),
     row(tr('Shamol'), w ? `${tr(dir8(w.k * 22.5))} · ${fmt(w.share * 100)} %` : '—'),
     row(tr('Radius'), `${S.r} m`),

@@ -11,9 +11,10 @@ import { tr, tf } from '../i18n';
 import { frame as geoFrame, type XY } from '../core/geo';
 import { ContextManager } from '../context/manager';
 import { overpass } from '../context/load';
-import { daySteps, sunPosition, localToUtc } from '../core/sun';
+import { daySteps, sunPosition, localToUtcAt } from '../core/sun';
 import { distM } from './analyze';
 import { routeAB, routeFromLine, freeOf, analyzeSlices, summarize, findings, along, hwColor, HW_BINS, FRONT_SETBACK, type SRoad, type SBld, type SPoi, type Slice, type Route, type StreetSummary, type Finding } from './street';
+import { placeOf, seasonMonth, summerKey, type Place } from '../core/place';
 import { blocksOf, INDS, GROUPS, type Block, type Lv, type Trust } from './blocks';
 
 export interface StreetHost {
@@ -34,13 +35,13 @@ const SK = 'joy-street';
 const st: Saved = (() => { try { return JSON.parse(localStorage.getItem(SK) || 'null') ?? {}; } catch { return {}; } })();
 const save = () => { try { localStorage.setItem(SK, JSON.stringify(st)); } catch { /* */ } };
 
-type Res = { rt: Route; sl: Slice[]; S: StreetSummary; F: Finding[]; pois: (SPoi & { s: number })[]; fr: ReturnType<typeof geoFrame>; extrasErr?: string; stale?: string };
+type Res = { place: Place; rt: Route; sl: Slice[]; S: StreetSummary; F: Finding[]; pois: (SPoi & { s: number })[]; fr: ReturnType<typeof geoFrame>; extrasErr?: string; stale?: string };
 let host: StreetHost | null = null;
 /** Bloklar — har chizishda qayta (sanoq oʻzgarishi mumkin; hisob yengil) */
 function blocks(): Block[] {
   if (!R) return [];
   const c = (st.counts ?? {})[keyAB()] ?? {};
-  return blocksOf({ rt: R.rt, sl: R.sl, pois: R.pois, cat: R.S.cat, sunOn: true, counts: { car: c.car, ped: c.ped }, maxspeed: R.S.maxspeed });
+  return blocksOf({ rt: R.rt, sl: R.sl, pois: R.pois, cat: R.S.cat, sunOn: true, counts: { car: c.car, ped: c.ped }, maxspeed: R.S.maxspeed, south: R.place.south, norms: R.place.norms });
 }
 /** Har boʻlak qaysi blokda */
 function sliceBlock(B: Block[]): Int32Array { const a = new Int32Array(R?.sl.length ?? 0).fill(-1); B.forEach(b => b.sl.forEach(k => { a[k] = b.i; })); return a; }
@@ -137,11 +138,12 @@ async function analyze(): Promise<void> {
     const near = (p: XY) => samp.some(q => Math.abs(p[0] - q[0]) < 230 && Math.abs(p[1] - q[1]) < 230 && Math.hypot(p[0] - q[0], p[1] - q[1]) < 230);
     const blds: SBld[] = b.osm.buildings.map(x => ({ ring: x.rings[0].map(L), h: x.h })).filter(x => x.ring.length > 2 && near(x.ring[0]));
     const trees = b.osm.trees.map(L).filter(near);
-    const sp = sunPosition(localToUtc(2026, SUN_M, SUN_D, SUN_H), c[1], c[0]);
-    const sl = analyzeSlices(rt, blds, trees, { step14: { alt: sp.alt, az: sp.az, dt: 1 }, day: daySteps(2026, SUN_M, SUN_D, c[1], c[0], 20) }, 20, 80, roads);
+    const place = placeOf(c[0], c[1]), sm = seasonMonth(SUN_M, place.south);   // mahalliy yoz: janubda 15 yanvar
+    const sp = sunPosition(localToUtcAt(2026, sm, SUN_D, SUN_H, c[1], c[0]), c[1], c[0]);
+    const sl = analyzeSlices(rt, blds, trees, { step14: { alt: sp.alt, az: sp.az, dt: 1 }, day: daySteps(2026, sm, SUN_D, c[1], c[0], 20) }, 20, 80, roads);
     const pa = along(rt, pois, 25);
     const S = summarize(rt, sl, pa, true);
-    R = { rt, sl, S, F: findings(S), pois: pa, fr, extrasErr, stale: b.stale }; selB = -1; hovB = -1;
+    R = { place, rt, sl, S, F: findings(S, { south: place.south, norms: place.norms }), pois: pa, fr, extrasErr, stale: b.stale }; selB = -1; hovB = -1;
     status = { st: 'ok' };
     const xs = rt.pts.map(p => fr.toGeo(p));
     host?.fit([[Math.min(...xs.map(p => p[0])), Math.min(...xs.map(p => p[1]))], [Math.max(...xs.map(p => p[0])), Math.max(...xs.map(p => p[1]))]]);
@@ -205,7 +207,7 @@ export function streetLegend(): Node[] {
   const L: Record<Metric, Node[]> = {
     baho: [h('b', {}, tr('Blok bahosi — eng ogʻir koʻrsatkich')), it(LV_COL.c, tr('jiddiy')), it(LV_COL.w, tr('eʼtibor')), it(LV_COL.g, tr('yaxshi')), it(LV_COL.u, tr('maʼlumot yetarli emas'))],
     hw: [h('b', {}, tr('H/W — balandlik / fasaddan fasadgacha')), ...HW_BINS.map(([, c, n]) => it(c, tr(n))), it('#cfccc5', tr('bir tomonda bino yoʻq'))],
-    soya: [h('b', {}, tr('Trotuar 15 iyul 15:30')), it(SHADE_COL[0], tr('ikkala tomon quyoshda')), it(SHADE_COL[1], tr('bir tomon soyada')), it(SHADE_COL[2], tr('ikkala tomon soyada'))],
+    soya: [h('b', {}, tr(summerKey('Trotuar 15 iyul 15:30', !!R?.place.south))), it(SHADE_COL[0], tr('ikkala tomon quyoshda')), it(SHADE_COL[1], tr('bir tomon soyada')), it(SHADE_COL[2], tr('ikkala tomon soyada'))],
     fasad: [h('b', {}, tf('Fasad koʻcha chizigʻida (chetdan ≤ ${d} m)', { d: FRONT_SETBACK })), it('#e6e3dc', tr('yoʻq')), it('#d39a6a', tr('bir tomonda')), it('#a4512a', tr('ikki tomonda'))],
     kenglik: [h('b', {}, tr('Fasaddan fasadgacha')), it('#c9e4a5', '< 15 m'), it('#7fb3c8', '15–25 m'), it('#4a6fa5', '25–40 m'), it('#2b3a67', '≥ 40 m')],
   };
@@ -367,7 +369,7 @@ export function streetRight(): Node[] {
     h('span', { class: 'src' }, tf('H/W oraligʻi — andoza (meʼyor emas). Fasad «koʻcha chizigʻida»: qatnov qismi chetidan ≤ ${d} m. Balandlik — OSM height/levels, boʻlmasa taxmin.', { d: FRONT_SETBACK }))]));
   // 4. soya
   cards.push(card('soya', '#e8a317', 'Mikroiqlim va soya', tr('hisob'), `${pct(S.shade14)} ${tr('soyada')}`, [
-    tf('15 iyul 15:30 da trotuar · kun davomida oʻrtacha ${s} soat toʻgʻri quyosh · daraxtlar: ${t} / 100 m', { s: f1(S.sunHours), t: f1(S.treesPer100) }), h('br'),
+    tf(summerKey('15 iyul 15:30 da trotuar · kun davomida oʻrtacha ${s} soat toʻgʻri quyosh · daraxtlar: ${t} / 100 m', !!R.place.south), { s: f1(S.sunHours), t: f1(S.treesPer100) }), h('br'),
     S.treesPer100 === 0 ? h('span', { class: 'src err' }, tr('OSM da bu koʻchada daraxt kiritilmagan — haqiqiy soya koʻproq boʻlishi mumkin.')) : '',
     h('span', { class: 'src' }, tr('Binolar soyasi + OSM daraxtlari (andoza: toj 3 m, balandlik 8 m). OSM da daraxtlar koʻpincha toʻliq emas.'))]));
   // 5. xavfsizlik

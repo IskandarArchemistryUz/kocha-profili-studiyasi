@@ -50,6 +50,10 @@ describe('Koʻcha tahlili — bloklar', () => {
     expect(B[0].cells.soya.lv).toBe('u');
     expect(B[0].cells.tezlik.lv).toBe('u');
     expect(B[0].worst).toBe('c');
+    // boshqa davlatda ShNQ — andoza: «jiddiy» emas, «eʼtibor»
+    const BI = blocksOf({ rt, sl, pois, cat: catOf('tertiary'), sunOn: false, norms: 'intl' });
+    expect(BI[0].cells.eni.lv).toBe('w'); expect(BI[0].cells.eni.src).toMatch(/bu hududda meʼyor emas/);
+    expect(BI[0].cells.otish.lv).toBe('w');
   });
   it('sanoq kiritilsa — oqim va piyoda maʼlumot sifatida', () => {
     const roads: SRoad[] = [{ id: 1, pts: [[0, 0], [200, 0]], cls: 'residential', w: 7 }];
