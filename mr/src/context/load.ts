@@ -6,10 +6,12 @@ import type { LngLat } from '../core/doc';
 import { bboxAround, overpassQuery, parseOverpass, PARSER_V, type BBox, type OsmData } from './osm';
 import { loadImagery, loadTerrain, type Imagery, type TerrainGrid } from './tiles';
 import { fetchOfm } from './ofm';
+import { API_BASE } from '../account/config';
 
-export const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+/** 0 — oʻz serverimiz (api.archemistry.uz/data/overpass: 30 kunlik kesh, ichida shu serverlar ketma-ket), keyin toʻgʻridan-toʻgʻri ochiq serverlar */
+export const OVERPASS = [`${API_BASE}/data/overpass`, 'https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 /** urinishlar: [serverlar guruhi (parallel — birinchi javob olinadi), oldin kutish (ms)] — bepul serverlar tez-tez «band» (429/503/504) qaytaradi */
-const PLAN: [number[], number][] = [[[0, 1, 2, 3], 0], [[0, 1, 2, 3], 4000], [[0, 1, 2, 3], 10000]];   // Oʻzbekistondan overpass-api.de va kumi koʻpincha ochilmaydi (CORS/429) — hammasi birdan, birinchi javob
+const PLAN: [number[], number][] = [[[0, 1, 2, 3, 4], 0], [[0, 1, 2, 3, 4], 4000], [[0, 1, 2, 3, 4], 10000]];   // Oʻzbekistondan overpass-api.de va kumi koʻpincha ochilmaydi (CORS/429) — hammasi birdan, birinchi javob
 
 export interface ContextBundle {
   v: 1;

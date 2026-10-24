@@ -5,6 +5,8 @@ import { fromPool, migrate } from './db.js';
 import { buildApp } from './app.js';
 import { makeSender } from './mailer.js';
 import { makeGoogleVerifier } from './google.js';
+import { makeCache } from './data/cache.js';
+import { fileURLToPath } from 'node:url';
 
 const env = process.env;
 const need = (k) => { if (!env[k]) { console.error(`${k} berilmagan`); process.exit(1); } return env[k]; };
@@ -33,6 +35,8 @@ const app = await buildApp({
   returnUrl: env.PAY_RETURN_URL || 'https://archemistry.uz/app/',
   origins: (env.ORIGINS || 'https://archemistry.uz,https://www.archemistry.uz').split(','),
   cookieDomain: env.COOKIE_DOMAIN || undefined,
+  // hudud ma'lumoti keshi: sukut — server/cache (xizmat faqat /srv/archemistry/server ga yoza oladi), 20 GB
+  data: { cache: makeCache({ dir: env.DATA_CACHE_DIR || fileURLToPath(new URL('../cache', import.meta.url)), maxBytes: Number(env.DATA_CACHE_GB || 20) * 2 ** 30 }) },
   owners: (env.OWNER_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   secure: env.COOKIE_SECURE !== '0',
   logger: true,
