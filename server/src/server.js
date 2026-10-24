@@ -37,6 +37,7 @@ const app = await buildApp({
   cookieDomain: env.COOKIE_DOMAIN || undefined,
   // hudud ma'lumoti keshi: sukut — server/cache (xizmat faqat /srv/archemistry/server ga yoza oladi), 20 GB
   data: { cache: makeCache({ dir: env.DATA_CACHE_DIR || fileURLToPath(new URL('../cache', import.meta.url)), maxBytes: Number(env.DATA_CACHE_GB || 20) * 2 ** 30 }) },
+  mapKeys: { arcgis: env.ARCGIS_API_KEY || null },
   owners: (env.OWNER_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   secure: env.COOKIE_SECURE !== '0',
   logger: true,

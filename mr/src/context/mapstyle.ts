@@ -4,7 +4,7 @@
  */
 export const OFM = 'https://tiles.openfreemap.org/planet';
 const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
-const SAT_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+import { imageryTemplate, ESRI_IMAGERY_ATTR } from './esrikey';
 
 export interface Palette { n: string; bg: string; water: string; park: string; road: string; rc: string; bld: string; bl: string; bw: number; rail: string; label: string }
 export const PALETTES: Record<string, Palette> = {
@@ -33,7 +33,7 @@ const NAME = ['coalesce', ['get', 'name:uz'], ['get', 'name:latin'], ['get', 'na
 export function mapStyle(kind: 'stil' | 'sat', palKey = 'arch', labels = true): unknown {
   const p = PALETTES[palKey] ?? PALETTES.arch, L: unknown[] = [];
   if (kind === 'sat') {
-    return { version: 8, glyphs: GLYPHS, sources: { s: { type: 'raster', tiles: [SAT_URL], tileSize: 256, maxzoom: 19 } }, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#2b2d2f' } }, { id: 'sat', type: 'raster', source: 's' }] };
+    return { version: 8, glyphs: GLYPHS, sources: { s: { type: 'raster', tiles: [imageryTemplate()], tileSize: 256, maxzoom: 19, attribution: `Powered by Esri · ${ESRI_IMAGERY_ATTR}` } }, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#2b2d2f' } }, { id: 'sat', type: 'raster', source: 's' }] };
   }
   L.push({ id: 'bg', type: 'background', paint: { 'background-color': p.bg } });
   L.push({ id: 'park', type: 'fill', source: 'kb', 'source-layer': 'park', paint: { 'fill-color': p.park } });

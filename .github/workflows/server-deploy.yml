@@ -2,6 +2,7 @@ name: Server — deploy (api.archemistry.uz)
 # main ga server/ oʻzgarishi tushsa (testlardan keyin) — VPS da yangilash. Sirlar (Settings → Secrets → Actions):
 #   VPS_HOST — server IP yoki nomi, VPS_SSH_KEY — archemistry foydalanuvchisining maxfiy SSH kaliti (matn yoki base64).
 #   OWNER_EMAILS (ixtiyoriy) — egasi pochtasi; berilsa serverdagi .env dagi OWNER_EMAILS shu qiymatga yangilanadi.
+#   ARCGIS_API_KEY (ixtiyoriy) — Esri ochiq kaliti (faqat Basemaps, referrer bilan cheklangan); .env ga yoziladi, /config/maps beradi.
 # Sirlar qoʻyilmagan boʻlsa — ish oʻtkazib yuboriladi (xato emas).
 on:
   workflow_run:
@@ -19,6 +20,7 @@ jobs:
       HOST: ${{ secrets.VPS_HOST }}
       KEY: ${{ secrets.VPS_SSH_KEY }}
       OWNERS: ${{ secrets.OWNER_EMAILS }}
+      ARCGIS: ${{ secrets.ARCGIS_API_KEY }}
     steps:
       - name: Sirlar bormi
         id: chk
@@ -32,9 +34,12 @@ jobs:
           ssh-keygen -y -f key > /dev/null || { echo "VPS_SSH_KEY notoʻgʻri: kalitni qayta nusxalang (README, 6-band)"; exit 1; }
           # egasi pochtasi (sir berilgan boʻlsa): faqat ruxsat etilgan belgilar, .env dagi qator yangilanadi
           OW=$(printf '%s' "$OWNERS" | tr -cd 'A-Za-z0-9@._+,-')
-          ssh -i key -o StrictHostKeyChecking=accept-new archemistry@"$HOST" "OW='$OW'"'
+          # Esri ochiq kaliti (sir berilgan bo'lsa): faqat ruxsat etilgan belgilar
+          AK=$(printf '%s' "$ARCGIS" | tr -cd 'A-Za-z0-9._-')
+          ssh -i key -o StrictHostKeyChecking=accept-new archemistry@"$HOST" "OW='$OW' AK='$AK'"'
             set -e
             if [ -n "$OW" ]; then E=/srv/archemistry/server/.env; if grep -q "^OWNER_EMAILS=" "$E"; then sed -i "s/^OWNER_EMAILS=.*/OWNER_EMAILS=$OW/" "$E"; else printf "\nOWNER_EMAILS=%s\n" "$OW" >> "$E"; fi; fi
+            if [ -n "$AK" ]; then E=/srv/archemistry/server/.env; if grep -q "^ARCGIS_API_KEY=" "$E"; then sed -i "s/^ARCGIS_API_KEY=.*/ARCGIS_API_KEY=$AK/" "$E"; else printf "\nARCGIS_API_KEY=%s\n" "$AK" >> "$E"; fi; fi
             cd /srv/archemistry && git fetch --depth 50 origin main && git reset --hard origin/main
             cd server && npm ci --omit=dev
             sudo /usr/bin/systemctl restart archemistry-api

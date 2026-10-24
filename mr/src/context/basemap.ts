@@ -5,6 +5,7 @@
  */
 import type { LngLat } from '../core/doc';
 import { mapStyle } from './mapstyle';
+import { initEsriKey } from './esrikey';
 
 export interface BaseImage { canvas: HTMLCanvasElement; nw: LngLat; se: LngLat }
 type ML = typeof import('maplibre-gl');
@@ -36,6 +37,7 @@ export class LiveBase {
 
   private async draw(j: { center: LngLat; radius: number; style: string; pal: string; labels: boolean }): Promise<BaseImage | null> {
     if (!this.ml) this.ml = (await import('maplibre-gl')).default as unknown as ML;
+    if (j.style === 'sat') await initEsriKey();
     const W = this.W, mPerPx = (2 * j.radius) / W,  /* W — CSS piksel; kanvas W·dpr (retina — tiniq) */ z = Math.log2(78271.517 * Math.cos(j.center[1] * Math.PI / 180) / mPerPx);
     const key = `${j.style}|${j.pal}|${j.labels}`;
     if (!this.map) {
