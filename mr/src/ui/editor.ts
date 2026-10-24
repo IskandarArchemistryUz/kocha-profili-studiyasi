@@ -64,7 +64,7 @@ import { pushEdge, tieredGfa } from '../core/tiers';
 import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { UserLayersUI } from './userlayersui';
-import { parseBoundary, areaFrame, clipOsmToArea, ringAreaM2, BOUNDARY_ACCEPT, AREA_FREE_RADIUS, type Boundary } from '../core/boundary';
+import { parseBoundary, crsLabel, areaFrame, clipOsmToArea, ringAreaM2, BOUNDARY_ACCEPT, AREA_FREE_RADIUS, type Boundary } from '../core/boundary';
 import { CTX_R_MIN, CTX_R_MAX } from '../core/doc';
 import type { ULFeature } from '../core/userlayers';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
@@ -845,7 +845,7 @@ export class Editor {
     const inp = h('input', { type: 'file', accept: BOUNDARY_ACCEPT, hidden: true, id: 'bndFile' }) as HTMLInputElement;
     inp.addEventListener('change', async () => {
       const f = inp.files?.[0]; inp.remove(); if (!f) return;
-      try { then(parseBoundary(f.name, new Uint8Array(await f.arrayBuffer())), f.name); }
+      try { then(parseBoundary(f.name, new Uint8Array(await f.arrayBuffer()), this.store.doc.origin), f.name); }
       catch (e) { toast(tr((e as Error).message || 'Faylni oʻqib boʻlmadi')); }
     });
     this.root.append(inp); inp.click();
@@ -876,10 +876,10 @@ export class Editor {
     }
     const polys = (doc.userLayers ?? []).filter(m => m.kind === 'chegara' || m.kind === 'yer').map(m => ({ m, ring: this.largestRing(this.ul.data.get(m.id)) })).filter(x => x.ring);
     box.append(h('div', { class: 'row', style: 'flex-wrap:wrap' },
-      h('button', { class: 'btn btn-sm', id: 'areaFile', onclick: () => this.pickBoundary((b, f) => { toast(tf('«${f}»: ${a} ga, ${c}', { f, a: fmt(b.areaHa, 1), c: b.crs === 'wgs84' ? 'WGS84' : `UTM ${b.crs.slice(3)}N` })); this.applyArea(b.rings[0]); }) }, ...icl(IC.plus, tr('Chegara fayli'))),
+      h('button', { class: 'btn btn-sm', id: 'areaFile', onclick: () => this.pickBoundary((b, f) => { toast(tf('«${f}»: ${a} ga, ${c}', { f, a: fmt(b.areaHa, 1), c: crsLabel(b.crs) })); this.applyArea(b.rings[0]); }) }, ...icl(IC.plus, tr('Chegara fayli'))),
       doc.site ? h('button', { class: 'btn btn-sm', id: 'areaSite', onclick: () => this.applyArea(doc.site!.rings[0]) }, tr('Uchastka chegarasi')) : '',
       ...polys.map(({ m, ring }) => h('button', { class: 'btn btn-sm', 'data-areaul': m.id, title: tr('Qatlamdagi eng katta poligon'), onclick: () => this.applyArea(ring!) }, tf('«${n}» qatlamidan', { n: m.name })))));
-    box.append(h('span', { class: 't-small' }, tr('GeoJSON, KML/KMZ yoki DXF (yopiq polilayn). Koordinatalar: WGS84 yoki UTM 42N/41N — avtomatik aniqlanadi. 12 × 12 km gacha.')));
+    box.append(h('span', { class: 't-small' }, tr('GeoJSON, KML/KMZ yoki DXF (yopiq polilayn). Koordinatalar: WGS84 yoki UTM (zona faylda yozilgan yoki loyiha hududi boʻyicha) — avtomatik aniqlanadi. 12 × 12 km gacha.')));
     return box;
   }
   private largestRing(fs: ULFeature[] | undefined): LngLat[] | null {
@@ -2086,9 +2086,9 @@ export class Editor {
       h('button', { class: 'btn btn-block', id: 'siteFile', onclick: () => this.pickBoundary((b, f) => {
         this.framedCtx = false;
         this.run(() => this.store.dispatch({ type: 'setSite', rings: [b.rings[0]] })); this.scene.frameDoc(this.store.doc);
-        toast(tf('«${f}»: uchastka ${a} ga, ${c}${x}', { f, a: fmt(b.areaHa, 2), c: b.crs === 'wgs84' ? 'WGS84' : `UTM ${b.crs.slice(3)}N`, x: b.polys > 1 ? tf(' (${n} ta poligondan eng kattasi)', { n: b.polys }) : '' }));
+        toast(tf('«${f}»: uchastka ${a} ga, ${c}${x}', { f, a: fmt(b.areaHa, 2), c: crsLabel(b.crs), x: b.polys > 1 ? tf(' (${n} ta poligondan eng kattasi)', { n: b.polys }) : '' }));
       }) }, ...icl(IC.plus, tr('Chegarani fayldan yuklash'))),
-      h('span', { class: 't-small' }, tr('GeoJSON, KML/KMZ yoki DXF. Koordinatalar: WGS84 yoki UTM 42N/41N — avtomatik aniqlanadi. Oʻzbekistondan tashqaridagi chegara qabul qilinmaydi. Hozircha ochiq; obuna ulanganda Pro rejada boʻladi.')));
+      h('span', { class: 't-small' }, tr('GeoJSON, KML/KMZ yoki DXF. Koordinatalar: WGS84 yoki UTM (zona faylda yozilgan yoki loyiha hududi boʻyicha) — avtomatik aniqlanadi. Hozircha ochiq; obuna ulanganda Pro rejada boʻladi.')));
     if (this.ctxMgr.current && doc.context.loaded) {
       body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartalni bosib aniqlash'))));
       if (doc.context.layers.roads) body.append(h('button', { class: picking ? 'btn btn-primary btn-block' : 'btn btn-block', id: 'pickBlock', onclick: () => picking ? this.setTool(null) : this.setTool(new ClickTool(tr('Yoʻllar orasidagi kvartal ichini bosing · Esc — bekor'), xy => this.pickBlock(xy))) }, tr(picking ? 'Aniqlashni toʻxtatish' : '⌖ Kvartalni bosib aniqlash')));

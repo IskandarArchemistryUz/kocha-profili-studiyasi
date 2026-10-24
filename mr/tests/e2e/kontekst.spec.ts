@@ -169,11 +169,17 @@ test('chegara: uchastka fayldan (DXF, UTM 42N) va atrof chegara ichida (KML)', a
   await expect(page.locator('#areaSt')).toHaveCount(0);
 });
 
-test('chegara: Oʻzbekistondan tashqari fayl rad etiladi', async ({ page }) => {
+test('chegara: dunyoning istalgan joyi — Parij fayli qabul qilinadi, loyiha markazi koʻchadi; nomaʼlum metrlar — rad', async ({ page }) => {
   await newProject(page);
   const gj = JSON.stringify({ type: 'Polygon', coordinates: [[[2.35, 48.85], [2.36, 48.85], [2.36, 48.86], [2.35, 48.85]]] });
   const fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
   await (await fc).setFiles({ name: 'paris.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(gj) });
-  await expect(page.locator('.toast').last()).toContainText('tashqarida');
-  await expect(page.locator('#areaSt')).toHaveCount(0);
+  await expect(page.locator('.toast').last()).toContainText('WGS84');
+  await expect(page.locator('#areaSt')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.origin[0])).toBeCloseTo(2.357, 2);
+  // zona yozilmagan metrlar, loyiha markazidan uzoq — aniqlanmadi
+  const bad = JSON.stringify({ type: 'Polygon', coordinates: [[[100, 100], [300, 100], [300, 300], [100, 100]]] });
+  const fc2 = page.waitForEvent('filechooser'); await page.click('#areaFile');
+  await (await fc2).setFiles({ name: 'bad.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(bad) });
+  await expect(page.locator('.toast').last()).toContainText('aniqlanmadi');
 });

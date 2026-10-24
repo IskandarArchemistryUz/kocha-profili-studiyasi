@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
-import { parseBoundary, areaFrame, areaTester, clipOsmToArea, ringAreaM2 } from '../../src/core/boundary';
+import { crsLabel, utmFromText, utmZoneOf, parseBoundary, areaFrame, areaTester, clipOsmToArea, ringAreaM2 } from '../../src/core/boundary';
 import { utmToLngLat } from '../../src/core/userlayers';
 
 // Qorashina atrofi (~66.55, 38.33): 1 km × 0.8 km toʻgʻri toʻrtburchak
@@ -44,10 +44,31 @@ describe('chegara fayli', () => {
     const dxf = ['0', 'POLYLINE', '8', '0', '66', '1', '70', '1', ...v(W, S), ...v(W + dLng, S), ...v(W + dLng, S + dLat), ...v(W, S + dLat), '0', 'SEQEND', '0', 'EOF'].join('\n');
     expect(parseBoundary('p.dxf', dxf).rings[0].length).toBe(4);
   });
-  it('Oʻzbekistondan tashqarida — xato', () => {
+  it('dunyoning istalgan joyi: WGS84 (Parij) qabul qilinadi; boʻsh fayl — xato', () => {
     const far = [[2.35, 48.85], [2.36, 48.85], [2.36, 48.86], [2.35, 48.85]];
-    expect(() => parseBoundary('paris.geojson', JSON.stringify({ type: 'Polygon', coordinates: [far] }))).toThrow(/tashqarida/);
+    const p = parseBoundary('paris.geojson', JSON.stringify({ type: 'Polygon', coordinates: [far] }));
+    expect(p.crs).toBe('wgs84'); expect(crsLabel(p.crs)).toBe('WGS84'); expect(p.areaHa).toBeGreaterThan(30);
     expect(() => parseBoundary('bosh.kml', '<kml></kml>')).toThrow(/topilmadi/);
+  });
+  it('UTM: faylda EPSG yozilgan (Nyu-York, 18N) va loyiha markazi zonasi (Rotterdam, 31N; Melburn, 55S)', () => {
+    const sq = (x: number, y: number, d = 200) => [[x, y], [x + d, y], [x + d, y + d], [x, y + d], [x, y]];
+    // Manhetten ~ 585000, 4511000 (18N)
+    const ny = parseBoundary('ny.geojson', JSON.stringify({ type: 'Polygon', crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:EPSG::32618' } }, coordinates: [sq(585000, 4511000)] }));
+    expect(ny.crs).toBe('utm18'); expect(crsLabel(ny.crs)).toBe('UTM 18N');
+    expect(ny.rings[0][0][0]).toBeCloseTo(-73.99, 1); expect(ny.rings[0][0][1]).toBeCloseTo(40.74, 1);
+    expect(ny.areaHa).toBeGreaterThan(3.9); expect(ny.areaHa).toBeLessThan(4.1);
+    // zona yozilmagan DXF — loyiha markazi Rotterdamda (31N): ~ 593000, 5754000
+    const v = (x: number, y: number) => ['0', 'VERTEX', '8', '0', '10', String(x), '20', String(y)];
+    const dxf = ['0', 'POLYLINE', '8', '0', '66', '1', '70', '1', ...sq(593000, 5754000).slice(0, 4).flatMap(q => v(q[0], q[1])), '0', 'SEQEND', '0', 'EOF'].join('\n');
+    const rt = parseBoundary('r.dxf', dxf, [4.48, 51.92]);
+    expect(rt.crs).toBe('utm31'); expect(rt.rings[0][0][0]).toBeCloseTo(4.35, 0); expect(rt.rings[0][0][1]).toBeCloseTo(51.92, 1);
+    // markaz koʻrsatilmasa (Toshkent loyihasi) — bu raqamlar Oʻzbekistonga tushmaydi → xato
+    expect(() => parseBoundary('r.dxf', dxf, [69.28, 41.31])).toThrow(/aniqlanmadi/);
+    // janubiy yarimshar: Melburn ~ 320000, 5812000 (55S)
+    const mel = parseBoundary('m.geojson', JSON.stringify({ type: 'Polygon', coordinates: [sq(320000, 5812000)] }), [144.96, -37.81]);
+    expect(mel.crs).toBe('utm55s'); expect(crsLabel(mel.crs)).toBe('UTM 55S'); expect(mel.rings[0][0][1]).toBeCloseTo(-37.8, 0);
+    expect(utmFromText('PROJCS["WGS 84 / UTM zone 33N"')).toEqual({ zone: 33, south: false });
+    expect(utmZoneOf(69.28)).toBe(42); expect(utmZoneOf(-73.99)).toBe(18);
   });
 });
 
