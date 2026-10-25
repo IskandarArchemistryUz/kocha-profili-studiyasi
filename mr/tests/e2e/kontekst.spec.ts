@@ -185,3 +185,21 @@ test('chegara: dunyoning istalgan joyi — Parij fayli qabul qilinadi, loyiha ma
   await (await fc2).setFiles({ name: 'bad.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(bad) });
   await expect(page.locator('.toast').last()).toContainText('aniqlanmadi');
 });
+
+test('Overture Maps: OSM da yoʻq bino qoʻshiladi, manba koʻrsatiladi (32-band)', async ({ page, context }) => {
+  await mockNet(context, { overpass: 0 });
+  const ring = (x: number, y: number) => [[ll(x - 15, y - 10), ll(x + 15, y - 10), ll(x + 15, y + 10), ll(x - 15, y + 10)].map(p => [p.lon, p.lat])];
+  let asked = 0;
+  await page.route(/\/data\/overture\/buildings/, r => { asked++; return r.fulfill({ json: { release: '2026-10-21.0', buildings: [
+    { rings: ring(0, 0), h: null, f: 5 },          // markaziy kvartal — OSM da boʻsh
+    { rings: ring(150, 150), h: 40, f: null },     // OSM binosi bilan bir joyda (balandligi OSM da bor) — qoʻshilmaydi
+  ] } }); });
+  await newProject(page);
+  await page.click('#ctxLoad');
+  await expect(page.locator('#ctxSt')).toContainText('25 bino', { timeout: 15000 });
+  await expect(page.locator('#ctxOv')).toContainText('+1 bino');
+  await expect(page.locator('.attr .ovt')).toBeVisible();
+  expect(asked).toBeGreaterThan(0);
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/overture_dark.png` });
+});
