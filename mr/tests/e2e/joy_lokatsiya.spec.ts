@@ -1,4 +1,5 @@
 import { test, expect } from './fx';
+import { readFileSync } from 'node:fs';
 
 /** Hudud joyi koordinatadan: mamlakat, vaqt mintaqasi va meʼyorlar profili (Toshkent — ShNQ, Parij/Melburn — xalqaro andozalar) */
 async function openAt(page: import('@playwright/test').Page, c: [number, number], lang = 'uz', on: string[] = []) {
@@ -61,4 +62,20 @@ test('Koʻcha rejimi: joy belgisi xarita/koʻcha markaziga ergashadi; uslub alma
   // tozalash
   await page.locator('#stReset').click();
   await expect.poll(n).toBe(0);
+});
+
+test('Shamol: Parijda yaqin stansiya yoʻq — ERA5 (server orqali); navbatda — kutish yozuvi', async ({ page }) => {
+  const st = JSON.parse(readFileSync('public/climate/uz_climate.json', 'utf8')).stations[0];
+  let mode: 'pending' | 'ok' = 'pending';
+  await page.route(/\/data\/wind\?/, r => mode === 'pending' ? r.fulfill({ status: 202, json: { status: 'pending' } }) : r.fulfill({ json: { source: 'era5', station: { ...st, name: 'ERA5 48.75, 2.25', lat: 48.75, lon: 2.25 } } }));
+  await openAt(page, [2.3522, 48.8566], 'uz', ['shamol']);
+  await expect(page.locator('#windEra')).toContainText('Copernicus');
+  mode = 'ok';
+  await openAt(page, [2.3522, 48.8566], 'uz', ['shamol']);
+  await expect(page.locator('[data-card=shamol] #windSrc')).toContainText('ERA5');
+  await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('—');
+  await expect(page.locator('#windFar')).toHaveCount(0);
+  await page.setViewportSize({ width: 1024, height: 720 });
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_era5_dark.png` });
 });

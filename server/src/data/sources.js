@@ -10,6 +10,10 @@ export const SOURCES = {
     name: 'Overture Maps', licence: 'ODbL 1.0 (buildings, transportation); CDLA-Permissive-2.0 (places)', url: 'https://docs.overturemaps.org/attribution/',
     attribution: '© OpenStreetMap contributors, Overture Maps Foundation', odbl: true, ttlDays: 90,
   },
+  era5: {
+    name: 'ERA5 (Copernicus Climate Change Service)', licence: 'Copernicus licence (C3S)', url: 'https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-timeseries',
+    attribution: 'Contains modified Copernicus Climate Change Service information 2026 (ERA5, Hersbach et al.)', odbl: false, ttlDays: 3650,
+  },
   worldcover: {
     name: 'ESA WorldCover 2021', licence: 'CC BY 4.0', url: 'https://esa-worldcover.org/en/data-access',
     attribution: '© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium', odbl: false, ttlDays: 365,

@@ -15,6 +15,8 @@ export const test = base.extend({
     await context.addInitScript(UZ_INIT);
     // Overture binolari (oʻz serverimiz) testda soʻralmaydi — alohida test oʻz javobini beradi (page.route ustun)
     await context.route(/\/data\/overture\//, r => r.fulfill({ status: 404, body: '' }));
+    // ERA5 shamol (oʻz serverimiz) — sukut: ulanmagan (503); alohida test oʻz javobini beradi
+    await context.route(/\/data\/wind\?/, r => r.fulfill({ status: 503, json: { error: 'disabled' } }));
     await use(context);
   },
 });
