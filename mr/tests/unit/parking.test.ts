@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import polygonClipping from 'polygon-clipping';
-import { layoutStalls, trimStalls, PARK_MOD, parkingNeed, sumNeed } from '../../src/core/parking';
+import { layoutStalls, trimStalls, parkAccess, PARK_MOD, parkingNeed, sumNeed } from '../../src/core/parking';
 import { generate, DEFAULT_GEN } from '../../src/core/generator';
 import { area, type XY } from '../../src/core/geo';
 
@@ -57,5 +57,30 @@ describe('Generator: avtoturargoh meʼyor boʻyicha', () => {
     const r = generate(sq(200, 160), { ...DEFAULT_GEN, typology: 'savdo_blok', maxF: 2, parking: 'yer_usti' }, 3, { use: 'savdo' });
     expect(r.parking!.spaces).toBeGreaterThan(100);
     expect(r.parking!.need).toBeGreaterThan(0);
+  });
+});
+
+describe('Kechki roʻyxat (26.10, #25): avtoturargoh koʻchaga ulanadi', () => {
+  const ls = (q: XY[]) => q.map(p => p.map(v => Math.round(v * 10) / 10));
+  it('boʻlaklar yigʻuvchi orqali birlashadi; kirish yoʻli chegaraga yetadi, burchakdan ≥ 20 m, binoni kesmaydi; yoʻl ustida joy qolmaydi', () => {
+    const A = sq(100, 80), bld = sq(30, 20, 60, 50);
+    const L = layoutStalls(A, [{ ring: bld, buf: 3 }], 'p90'), n0 = L.n;
+    const acc = parkAccess(L, A, [bld])!;
+    expect(acc).toBeTruthy();
+    // chiqish chegarada va burchakdan ≥ 20 m
+    const [x, y] = acc.exit, onEdge = Math.min(x, 100 - x, y, 80 - y);
+    expect(onEdge).toBeLessThan(0.01);
+    const corner = Math.min(...[[0, 0], [100, 0], [100, 80], [0, 80]].map(c => Math.hypot(x - c[0], y - c[1])));
+    expect(corner).toBeGreaterThanOrEqual(20);
+    // yoʻllar binoga tegmaydi; yoʻl ustidagi joylar olindi
+    for (const l of acc.lanes) expect(ov(l, bld)).toBeLessThan(0.01);
+    for (const s of L.stalls) for (const l of acc.lanes) expect(ov(s, l)).toBeLessThan(0.05);
+    expect(L.n).toBe(n0 - acc.removed);
+    expect(acc.lanes.length).toBeGreaterThan(0);
+    void ls;
+  });
+  it('generator: yer usti avtoturargoh izohida kirish yoʻli va meʼyor bandlari', () => {
+    const r = generate(sq(150, 130), { ...DEFAULT_GEN, parking: 'yer_usti', parkNorm: true }, 3, {});
+    expect(r.notes.join('\n')).toMatch(/Kirish yoʻli: [\d,]+ m, eni 5,5 m \(ShNQ 2\.07\.06-24, 106-band\)|koʻchaga ulab boʻlmadi/);
   });
 });

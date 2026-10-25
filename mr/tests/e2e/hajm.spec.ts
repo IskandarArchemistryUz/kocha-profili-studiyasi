@@ -72,6 +72,9 @@ test('avtoturargoh meʼyor boʻyicha: yer usti, 60° modul — joylar sahnada, t
   const g = await page.evaluate(() => { const d = (window as any).__mr.store.doc; const x = d.garages[0]; return { n: x.stalls?.length ?? 0, sp: x.spaces, need: x.need, mod: x.module, ai: x.aisles?.length ?? 0 }; });
   expect(g.mod).toBe('p60'); expect(g.n).toBe(g.sp); expect(g.n).toBeGreaterThan(20); expect(g.ai).toBeGreaterThan(0); expect(g.sp).toBeLessThanOrEqual(g.need);
   if (g.sp < g.need) await expect(page.locator('#genNotes')).toContainText('Yetishmaydi');
+  // #25 (26.10): boʻlaklar koʻchaga ulanadi — kirish yoʻli izohda (meʼyor bandlari bilan)
+  await expect(page.locator('#genNotes')).toContainText(/Kirish yoʻli: [\d,]+ m|koʻchaga ulab boʻlmadi/);
+  if (process.env.GX_SHOTS) { await page.setViewportSize({ width: 1024, height: 768 }); await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/park_kirish_1024.png` }); }
   // yer osti: sathlar talabga qarab
   await page.click('[data-park=yer_osti]'); await page.click('[data-pmod=p90]'); await page.click('#genGo');
   const u = await page.evaluate(() => { const x = (window as any).__mr.store.doc.garages[0]; return { lv: x.levels, sp: x.spaces, need: x.need }; });
