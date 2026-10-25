@@ -28,57 +28,137 @@ class Dbl {
   }
 }
 
-/** Erkin koʻpburchak: bosib nuqta qoʻyish; birinchi nuqtani bosish, Enter yoki ikki marta bosish — yopish */
+/** Klaviaturadan oʻlcham: «32», «32,5», «32<90» (uzunlik < burchak, ° — sharqdan soat strelkasiga qarshi) */
+export function parseLen(buf: string): { len: number; ang: number | null } | null {
+  const m = /^\s*(\d+(?:[.,]\d*)?)\s*(?:<\s*(-?\d+(?:[.,]\d*)?))?\s*$/.exec(buf); if (!m) return null;
+  const len = Number(m[1].replace(',', '.')), ang = m[2] != null ? Number(m[2].replace(',', '.')) : null;
+  return len > 0 && len < 10000 ? { len, ang } : null;
+}
+/** «32x18», «32*18», «32 18» — eni × boʻyi */
+export function parseWH(buf: string): [number, number] | null {
+  const m = /^\s*(\d+(?:[.,]\d*)?)\s*[x×*хX ]\s*(\d+(?:[.,]\d*)?)\s*$/.exec(buf); if (!m) return null;
+  const a = Number(m[1].replace(',', '.')), b = Number(m[2].replace(',', '.'));
+  return a > 0 && b > 0 && a < 10000 && b < 10000 ? [a, b] : null;
+}
+
+/**
+ * Erkin koʻpburchak: bosib nuqta qoʻyish; birinchi nuqtani bosish, Enter yoki ikki marta bosish — yopish.
+ * Oʻlcham bilan (egasi, 25.10): birinchi nuqtadan keyin uzunlikni yozing (masalan «32» yoki «32<90») va Enter —
+ * keyingi nuqta kursor yoʻnalishida (yoki berilgan burchakda) shu masofada qoʻyiladi. Panelda ham maydon bor (`addSide`).
+ */
 export class PolygonTool implements Tool {
   readonly snapTo = true;
   private pts: XY[] = [];
   private cur: XY | null = null;
   private dbl = new Dbl();
+  /** yozilayotgan oʻlcham */
+  buf = '';
   constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private minArea = 50) {}
+  get started(): boolean { return this.pts.length > 0; }
   get hint(): string {
-    return this.pts.length < 3 ? 'Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor'
-      : 'Birinchi nuqtani bosing yoki Enter — yopish · Backspace — oxirgisi · Esc — bekor';
+    if (this.buf) return `Uzunlik: ${this.buf} m — Enter · «<» bilan burchak (masalan 32<90) · Esc — oʻchirish`;
+    return this.pts.length === 0 ? 'Bosing — birinchi nuqta · keyin tomon uzunligini yozib Enter (masalan 32 yoki 32<90) · Esc — bekor'
+      : this.pts.length < 3 ? 'Bosing yoki uzunlikni yozib Enter — keyingi nuqta · Backspace — oxirgisini oʻchirish · Esc — bekor'
+        : 'Birinchi nuqtani bosing yoki Enter — yopish · uzunlik yozib Enter — yana tomon · Backspace — oxirgisi · Esc — bekor';
   }
   click(xy: XY, e: PointerEvent): void {
     const dbl = this.dbl.is(e);
     if (this.pts.length >= 3 && (this.scene.screenDist(this.pts[0], e.clientX, e.clientY) < 12 || dbl)) { this.finish(); return; }
-    this.pts.push(xy); this.draw();
+    this.buf = ''; this.pts.push(xy); this.draw();
   }
   move(xy: XY): void { this.cur = xy; this.draw(); }
+  /** Yoʻnalish birlik vektori: burchak berilsa — u (°, sharqdan CCW), aks holda kursor tomon, boʻlmasa oldingi tomon davomi */
+  private dir(ang: number | null): XY {
+    if (ang != null) { const a = ang * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }
+    const p = this.pts[this.pts.length - 1];
+    if (this.cur) { const dx = this.cur[0] - p[0], dy = this.cur[1] - p[1], L = Math.hypot(dx, dy); if (L > 0.01) return [dx / L, dy / L]; }
+    if (this.pts.length >= 2) { const q = this.pts[this.pts.length - 2], dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
+    return [1, 0];
+  }
+  /** Oxirgi nuqtadan uzunlik (va ixtiyoriy burchak) boʻyicha keyingi nuqta. false — hali nuqta yoʻq yoki notoʻgʻri */
+  addSide(len: number, ang: number | null = null): boolean {
+    if (!this.pts.length || !(len > 0)) { this.err(this.pts.length ? 'Uzunlik musbat son boʻlsin' : 'Avval sahnada birinchi nuqtani bosing'); return false; }
+    const p = this.pts[this.pts.length - 1], d = this.dir(ang);
+    this.pts.push([p[0] + d[0] * len, p[1] + d[1] * len]); this.buf = ''; this.draw(); return true;
+  }
   key(e: KeyboardEvent): boolean {
-    if (e.key === 'Enter') { this.finish(); return true; }
-    if (e.key === 'Backspace') { this.pts.pop(); this.draw(); return true; }
-    if (e.key === 'Escape') { this.cancel(); return true; }
+    const k = e.key;
+    if (this.pts.length && !e.ctrlKey && !e.metaKey && !e.altKey && /^[0-9.,<-]$/.test(k)) { if (k !== '-' || this.buf.endsWith('<')) { this.buf += k; this.draw(); } return true; }
+    if (k === 'Enter') {
+      if (this.buf) { const v = parseLen(this.buf); if (!v) { this.err(`Oʻlcham tushunilmadi: «${this.buf}» — masalan 32 yoki 32<90`); this.buf = ''; this.draw(); return true; } this.addSide(v.len, v.ang); return true; }
+      this.finish(); return true;
+    }
+    if (k === 'Backspace') { if (this.buf) this.buf = this.buf.slice(0, -1); else this.pts.pop(); this.draw(); return true; }
+    if (k === 'Escape') { if (this.buf) { this.buf = ''; this.draw(); return true; } this.cancel(); return true; }
     return false;
   }
   private finish(): void {
     if (this.pts.length < 3) { this.err('Kamida 3 nuqta kerak'); return; }
     if (!isSimple(this.pts)) { this.err('Chegara oʻzini kesib oʻtmasin'); return; }
     if (area(this.pts) < this.minArea) { this.err(`Maydon juda kichik (< ${this.minArea} m²)`); return; }
-    const r = signedArea(this.pts) < 0 ? this.pts.slice().reverse() : this.pts; this.pts = []; this.scene.setPreview([]); this.done(r);
+    const r = signedArea(this.pts) < 0 ? this.pts.slice().reverse() : this.pts; this.pts = []; this.buf = ''; this.scene.setPreview([]); this.done(r);
   }
   commit(): void { if (this.pts.length >= 3) this.finish(); }
-  private draw(): void { this.scene.setPreview(this.cur && this.pts.length ? [...this.pts, this.cur] : this.pts, false, true); }
-  cancel(): void { this.pts = []; this.cur = null; this.scene.setPreview([]); }
+  /** Oldindan koʻrish: yozilayotgan uzunlik boʻlsa — kursor oʻrniga shu masofadagi nuqta */
+  private draw(): void {
+    let c = this.cur;
+    const v = this.buf ? parseLen(this.buf) : null;
+    if (v && this.pts.length) { const p = this.pts[this.pts.length - 1], d = this.dir(v.ang); c = [p[0] + d[0] * v.len, p[1] + d[1] * v.len]; }
+    this.scene.setPreview(c && this.pts.length ? [...this.pts, c] : this.pts, false, true);
+  }
+  cancel(): void { this.pts = []; this.cur = null; this.buf = ''; this.scene.setPreview([]); }
 }
 
-/** Toʻgʻri toʻrtburchak: ikki burchak (sharq–shimol oʻqlari boʻyicha) */
+/**
+ * Toʻgʻri toʻrtburchak: ikki burchak (sharq–shimol oʻqlari boʻyicha).
+ * Oʻlcham bilan: birinchi burchakdan keyin «32x18» yozib Enter — kursor tomonga shu oʻlchamda (panelda ham: `placeWH`).
+ */
 export class RectTool implements Tool {
   readonly snapTo = true;
   private a: XY | null = null;
+  private cur: XY | null = null;
+  buf = '';
   constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private minSide = 4) {}
-  get hint(): string { return this.a ? 'Qarama-qarshi burchakni bosing · Esc — bekor' : 'Birinchi burchakni bosing'; }
+  get started(): boolean { return !!this.a; }
+  get hint(): string {
+    if (this.buf) return `Oʻlcham: ${this.buf} m — Enter (eni x boʻyi, masalan 32x18) · Esc — oʻchirish`;
+    return this.a ? 'Qarama-qarshi burchakni bosing yoki oʻlchamni yozib Enter (masalan 32x18) · Esc — bekor' : 'Birinchi burchakni bosing';
+  }
   private rect(a: XY, b: XY): XY[] { return [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]]; }
+  private corner(w: number, h: number): XY {
+    const a = this.a!, sx = this.cur && this.cur[0] < a[0] ? -1 : 1, sy = this.cur && this.cur[1] < a[1] ? -1 : 1;
+    return [a[0] + sx * w, a[1] + sy * h];
+  }
   click(xy: XY): void {
-    if (!this.a) { this.a = xy; return; }
-    const r = this.rect(this.a, xy), w = Math.abs(xy[0] - this.a[0]), h = Math.abs(xy[1] - this.a[1]);
-    this.a = null; this.scene.setPreview([]);
+    if (!this.a) { this.a = xy; this.buf = ''; return; }
+    this.close(xy);
+  }
+  private close(xy: XY): void {
+    const r = this.rect(this.a!, xy), w = Math.abs(xy[0] - this.a![0]), h = Math.abs(xy[1] - this.a![1]);
+    this.a = null; this.buf = ''; this.scene.setPreview([]);
     if (w < this.minSide || h < this.minSide) { this.err(`Tomonlari kamida ${this.minSide} m boʻlsin`); return; }
     this.done(signedArea(r) < 0 ? r.reverse() : r);
   }
-  move(xy: XY): void { if (this.a) this.scene.setPreview(this.rect(this.a, xy), true, true); }
-  key(e: KeyboardEvent): boolean { if (e.key === 'Escape') { this.cancel(); return true; } return false; }
-  cancel(): void { this.a = null; this.scene.setPreview([]); }
+  /** Birinchi burchakdan eni × boʻyi (kursor tomonga) */
+  placeWH(w: number, h: number): boolean {
+    if (!this.a) { this.err('Avval sahnada birinchi burchakni bosing'); return false; }
+    this.close(this.corner(w, h)); return true;
+  }
+  move(xy: XY): void { this.cur = xy; this.draw(); }
+  private draw(): void {
+    if (!this.a) return;
+    const v = this.buf ? parseWH(this.buf) : null;
+    this.scene.setPreview(this.rect(this.a, v ? this.corner(v[0], v[1]) : this.cur ?? this.a), true, true);
+  }
+  key(e: KeyboardEvent): boolean {
+    const k = e.key;
+    if (this.a && !e.ctrlKey && !e.metaKey && !e.altKey && /^[0-9.,xX*× хХ]$/.test(k)) { this.buf += k; this.draw(); return true; }
+    if (k === 'Enter' && this.buf) { const v = parseWH(this.buf); if (!v) { this.err(`Oʻlcham tushunilmadi: «${this.buf}» — masalan 32x18`); this.buf = ''; this.draw(); return true; } this.placeWH(v[0], v[1]); return true; }
+    if (k === 'Backspace' && this.buf) { this.buf = this.buf.slice(0, -1); this.draw(); return true; }
+    if (k === 'Escape') { if (this.buf) { this.buf = ''; this.draw(); return true; } this.cancel(); return true; }
+    return false;
+  }
+  cancel(): void { this.a = null; this.cur = null; this.buf = ''; this.scene.setPreview([]); }
 }
 
 /** Bitta bosish — natijani chaqiruvchi hal qiladi (masalan, kvartalni aniqlash) */
