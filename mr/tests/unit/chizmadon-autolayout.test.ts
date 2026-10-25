@@ -159,3 +159,11 @@ describe('Chizmadon — eski 24 namuna → 8 oila (koʻchirish jadvali)', () => 
     expect(Object.values(TPL_MAP).filter(m => m.q === 'boʻshliq')).toHaveLength(0);
   });
 });
+
+describe('29–30, 28-bandlar', () => {
+  it('KZ (Qoʻmita) maketida «Xulosa matni» joysiz qolmaydi — tekshiruv katagiga tushadi', () => {
+    const m = [...mats(), { id: 'p:plan:bosh', role: 'plan', name: 'Bosh reja', title: 'Bosh reja', visible: true, accent: null, scale: 1 }, { id: 'p:plan', role: 'plan', name: 'Zona', title: 'Zona', visible: true, accent: null, scale: 1 }] as Material[];
+    const P = paginate(familyById('kz')!, m);
+    expect(P.left.map(e => e.id)).not.toContain('izoh');
+  });
+});

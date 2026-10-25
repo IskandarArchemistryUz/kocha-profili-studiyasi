@@ -26,6 +26,12 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   let found = false;
   for (let i = 0; i < 6 && !found; i++) { found = /#f6d58f|#f4b08a|#9bd3b8|#8fa5cc/i.test(await svgs()); if (!found) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); } }
   expect(found).toBe(true);
+  // 29-band: kvartirografiya — Varaqlardagi «Qavatlar» varagʻidek: vaziyat sxemasi va kvartiralar eksplikatsiyasi bilan
+  let apt = false;
+  for (let i = 0; i < 8 && !apt; i++) { apt = /(Kvartiralar|Xonadonlar) eksplikatsiyasi|Apartment schedule|Экспликация квартир/i.test(await svgs()); if (!apt) { await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(400); } }
+  expect(apt).toBe(true);
+  expect(await svgs()).toMatch(/Vaziyat sxemasi|Location plan|Ситуационная схема/i);
+  if (process.env.GX_SHOTS) { for (let i = 0; i < 2; i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(500); } await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_kvartirografiya_dark.png` }); }
 });
 
 /** 19-band (2): xarita oynasida shimol strelkasi va masshtab chizgʻichi; panelda yoqish/oʻchirish va burchak */

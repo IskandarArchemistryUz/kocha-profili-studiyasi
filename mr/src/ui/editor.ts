@@ -79,7 +79,7 @@ import { norm as normSheet } from './sheets';
 import { openChizmadon } from '../chizmadon/ui';
 import type { ChInbox } from '../chizmadon/model';
 import type { PlanSrc } from '../chizmadon/materials';
-import { aptSheet, sheetGroup } from '../core/aptsheet';
+import { aptSheet } from '../core/aptsheet';
 import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
@@ -2861,11 +2861,12 @@ export class Editor {
     const plans = planApartments(d2);
     plans.slice(0, 12).forEach((pl, bi) => out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: () => {
       const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); if (i < 0) return null;
-      const p2 = ps[i], G = sheetGroup(p2), a = aptSheet(doc, ps, i, undefined, 'rang', tr);
-      const r = floorPlanSvg(p2, { scale: 100, dims: true, title: '', floor: G.from, num: true, bare: true, fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === p2.bid)?.bal ?? null });
-      const m = /<svg[^>]*>/.exec(r.svg); if (!m) return null;
-      const inner = r.svg.slice(r.svg.indexOf(m[0]) + m[0].length).replace(/<\/svg>\s*$/, ''), pad = 8;
-      return { svg: inner, vb: [-pad, -pad, r.widthMm + 2 * pad, r.heightMm + 2 * pad], w: r.widthMm + 2 * pad, h: r.heightMm + 2 * pad, scale: 100, north: a.north, legend: a.legend, contain: true };
+      // 29-band: Varaqlardagi «Qavatlar» varagʻi bilan bir xil — qavat rejasi (oʻz masshtabi va sarlavhasi bilan),
+      // vaziyat sxemasi va kvartiralar eksplikatsiyasi (avval faqat reja oʻtardi). Masshtab yozuvi rejaning oʻzida.
+      const a = aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }));
+      const W = 320, H = 240, SW = 84, pad = 4;
+      const svg = `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>${a.body(pad, pad, W - SW - 3 * pad, H - 2 * pad)}${a.side(W - SW - pad, pad, SW, H - pad)}`;
+      return { svg, vb: [0, 0, W, H], w: W, h: H, contain: true };
     } }));
     return out;
   }
