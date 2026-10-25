@@ -155,7 +155,7 @@ export const SITE_DEFS: Def[] = [
 function withSet(d: Def, s: ChMatSet | undefined, render: Material['render'], defVisible = true): Material {
   // 19-band (3): foydalanuvchi oʻz rasmi bilan almashtirgan — katakka rasm (markazdan, kesib) chiziladi
   const own = s?.src, R2: Material['render'] = own ? (r) => fitMap(`u${d.id.replace(/[^\w-]/g, '_')}`, { src: own, w: r.w, h: r.h }, r, d.name, s?.view) : render;
-  return { ...d, visible: s?.visible ?? defVisible, accent: s?.accent ?? null, scale: s?.scale ?? 1, title: s?.title ?? d.title, text: s?.text ?? null, view: s?.view ?? null, render: R2, ...(own ? { own: true } : {}) } as Material;
+  return { ...d, visible: s?.visible ?? defVisible, accent: s?.accent ?? null, scale: s?.scale ?? 1, title: s?.title ?? d.title, text: s?.text ?? null, view: s?.view ?? null, ms: s?.ms ?? null, render: R2, ...(own ? { own: true } : {}) } as Material;
 }
 export function siteMaterials(R: () => Resolved, sets: Record<string, ChMatSet>): Material[] {
   return SITE_DEFS.map(d => { const m: Material = withSet(d, sets[d.id], (r, ctx, bare) => drawEl(m, r, ctx, R(), bare)); return m; });
@@ -168,7 +168,7 @@ export interface PlanMap { svg: string; vb: [number, number, number, number]; w:
 /** 19-band: Master reja rejalari — bosh reja, zonalashtirish (land use), funksional, qavatlilik, kvartirografiya…; get — dangasa (faqat koʻrinsa hisoblanadi) */
 export interface PlanSrc { id: string; name: string; on: boolean;
   /** fit — katak oʻlchami (mm): berilsa, reja shu oʻlchamga mos masshtabda chiziladi (qavat rejalari) */
-  get: (fit?: { w: number; h: number }) => PlanMap | null | undefined;
+  get: (fit?: { w: number; h: number; scale?: number }) => PlanMap | null | undefined;
   /** reja bilan juft jadval (oʻng panelda) */ table?: { id: string; name: string; title: string; rows: () => string[][] | null };
   /** reja bilan juft vaziyat sxemasi (kichik katakda) */ nav?: { id: string; name: string; title: string; draw: (r: Rect) => string } }
 export interface ProjectSrc {
@@ -249,13 +249,13 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
   for (const p of src.plans ?? []) {
     let M: PlanMap | null | undefined, got = false;
     const fitted = new Map<string, PlanMap | null>();
-    const pm = add({ id: p.id, role: 'plan' as MRole, name: p.name, title: p.name }, (r, ctx, bare) => {
+    const pm = add({ id: p.id, role: 'plan' as MRole, name: p.name, title: p.name, ...(p.nav ? { kind: 'floor' } : {}) } as Def, (r, ctx, bare) => {
       if (!got) { got = true; try { M = p.get(); } catch { M = null; } }
       if (!M) return '';
       // qavat rejasi (sub): tepada sarlavha, ostida — katakka mos standart masshtabdagi reja (choʻzilmaydi, belgilar — juft jadvalda)
       if (M.sub != null) {
-        const u = ctx.u * pm.scale, top = bare ? 0 : 10 * u, rr = { x: r.x, y: r.y + top, w: r.w, h: r.h - top }, key = `${rr.w.toFixed(1)}x${rr.h.toFixed(1)}`;
-        if (!fitted.has(key)) { let f: PlanMap | null = null; try { f = p.get({ w: rr.w, h: rr.h }) ?? null; } catch { f = null; } fitted.set(key, f); }
+        const u = ctx.u * pm.scale, top = bare ? 0 : 10 * u, rr = { x: r.x, y: r.y + top, w: r.w, h: r.h - top }, key = `${rr.w.toFixed(1)}x${rr.h.toFixed(1)}:${pm.ms ?? 0}`;
+        if (!fitted.has(key)) { let f: PlanMap | null = null; try { f = p.get({ w: rr.w, h: rr.h, ...(pm.ms ? { scale: pm.ms } : {}) }) ?? null; } catch { f = null; } fitted.set(key, f); }
         const F = fitted.get(key) ?? M;
         return head(pm, r.x, r.y, u, DP(ctx.P), F.sub || null, bare) + fitMap(p.id.replace(/[^\w-]/g, '_'), { ...F, contain: true }, rr, p.name, pm.view);
       }

@@ -65,7 +65,10 @@ export interface ChBind { el: string | null; pi: number; r0: ChRect | null; lock
 /** Material sozlamasi (Loyihadan): koʻrinishi, rangi, oʻlchami, sarlavhasi va qoʻlda tahrirlangan matni */
 export interface ChMatSet { visible?: boolean; accent?: string | null; scale?: number; title?: string; text?: string | null; /** 19-band (3): oʻz rasmi bilan almashtirilgan (data URL) */ src?: string;
   /** Chizmadon tahlili (25.10, 3-bosqich): katak ichidagi koʻrinish — kattalashtirish (z ≥ 1) va markaz siljishi (asosiy koʻrinish ulushida, ±0,5) */
-  view?: ChView }
+  view?: ChView;
+  /** qavat rejasi masshtabi (1:N; GOST 2.302 qatoridan), yoʻq — avtomatik */
+  ms?: number }
+export const PLAN_SCALES = [50, 75, 100, 200, 400];
 export interface ChView { z: number; cx: number; cy: number }
 /** Koʻrinishni chegaralash: z 1…8, siljish ±0,5 */
 export const clampView = (v: ChView): ChView => ({ z: Math.max(1, Math.min(8, v.z)), cx: Math.max(-0.5, Math.min(0.5, v.cx)), cy: Math.max(-0.5, Math.min(0.5, v.cy)) });
@@ -175,7 +178,7 @@ function normAuto(x: any): ChAuto {
   if (x.mats && typeof x.mats === 'object') for (const [k, v] of Object.entries(x.mats as Record<string, any>)) if (v && typeof v === 'object') a.mats[k] = {
     ...(typeof v.visible === 'boolean' ? { visible: v.visible } : {}), ...(typeof v.accent === 'string' || v.accent === null ? { accent: v.accent } : {}),
     ...(Number.isFinite(v.scale) ? { scale: num(v.scale, 1, 0.5, 2) } : {}), ...(typeof v.title === 'string' ? { title: v.title.slice(0, 200) } : {}), ...(typeof v.text === 'string' || v.text === null ? { text: v.text } : {}), ...(typeof v.src === 'string' && v.src.startsWith('data:image/') ? { src: v.src } : {}),
-    ...(v.view && typeof v.view === 'object' && [v.view.z, v.view.cx, v.view.cy].every(Number.isFinite) ? { view: clampView({ z: +v.view.z, cx: +v.view.cx, cy: +v.view.cy }) } : {}) };
+    ...(PLAN_SCALES.includes(v.ms) ? { ms: v.ms } : {}), ...(v.view && typeof v.view === 'object' && [v.view.z, v.view.cx, v.view.cy].every(Number.isFinite) ? { view: clampView({ z: +v.view.z, cx: +v.view.cx, cy: +v.view.cy }) } : {}) };
   a.view = x.view === 'all' ? 'all' : 'one'; a.slots = !!x.slots; a.started = !!x.started;
   if (x.sec && typeof x.sec === 'object') for (const [k, v] of Object.entries(x.sec)) if (typeof v === 'boolean') a.sec[k] = v;
   if (x.txt && typeof x.txt === 'object') for (const k of ['proj', 'stamp', 'shifr', 'tik', 'src'] as const) if (typeof x.txt[k] === 'string') a.txt[k] = x.txt[k].slice(0, 300);

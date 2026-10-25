@@ -15,7 +15,7 @@ import { tr, tf, trSvg, getLang } from '../i18n';
 import { logoSvg } from '../ui/logo';
 import { svgPdf } from '../ui/pdf';
 import { openColor } from '../ui/colorpicker';
-import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, type ChView, clampView, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale, mapNorth } from './model';
+import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, type ChView, clampView, PLAN_SCALES, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale, mapNorth } from './model';
 import { pageSvg, textHeight, legendHeight } from './render';
 import { pageChecks, applyFix, sheetChecks, type Check9 } from './check';
 import { LAYOUTS, buildLayoutPage, type LFamily, type TplCtx } from './layouts';
@@ -128,8 +128,8 @@ export function openChizmadon(host: ChHost): void {
   const plansOnce = (): PlanSrc[] | undefined => {
     if (!host.plans) return undefined;
     // fit (katak oʻlchami) — har oʻlcham uchun alohida kesh (qavat rejalari katakka mos masshtabda chiziladi)
-    return (PLANS ??= host.plans().map(p => { const C = new Map<string, ReturnType<PlanSrc['get']>>(); return { ...p, get: (fit?: { w: number; h: number }) => {
-      const key = fit ? `${fit.w.toFixed(1)}x${fit.h.toFixed(1)}` : '';
+    return (PLANS ??= host.plans().map(p => { const C = new Map<string, ReturnType<PlanSrc['get']>>(); return { ...p, get: (fit?: { w: number; h: number; scale?: number }) => {
+      const key = fit ? `${fit.w.toFixed(1)}x${fit.h.toFixed(1)}:${fit.scale ?? 0}` : '';
       if (!C.has(key)) { const m = p.get(fit); C.set(key, m ? { ...m, svg: trSvg(m.svg), legend: m.legend?.map(q => ({ ...q, label: tr(q.label) })) } : m); if (C.size > 24) C.delete(C.keys().next().value!); }
       return C.get(key); } }; }));
   };
@@ -333,6 +333,9 @@ export function openChizmadon(host: ChHost): void {
   /* ---------- panellar: ochiq / yigʻiq / suzuvchi ---------- */
   const lOpen = () => (d.ui.left || d.ui.lockL) && !phone(), rOpen = () => (d.ui.right || d.ui.lockR) && !phone();
   function syncPanels(): void {
+    // panel ochilib-yopilganda varaq ekranda joyida qolsin (koʻrinish chap cheti siljisa — pan bilan qoplaymiz):
+    // avval material tanlanganda oʻng panel ochilib, chap panel yigʻilardi va varaq sakrardi — ikki marta bosish adashardi
+    const x0 = view.isConnected && d.auto.view === 'one' && zoom ? view.getBoundingClientRect().left : null;
     wrap.classList.toggle('l-open', lOpen()); wrap.classList.toggle('r-open', rOpen());
     left.hidden = !(lOpen() || float === 'left'); right.hidden = !(rOpen() || float === 'right');
     left.classList.toggle('float', !lOpen() && float === 'left'); right.classList.toggle('float', !rOpen() && float === 'right');
@@ -343,6 +346,7 @@ export function openChizmadon(host: ChHost): void {
     stripR.replaceChildren(h('button', { class: 'rb', 'data-open': 'R', title: tr('Panelni ochish'), 'aria-label': tr('Panelni ochish'), onclick: (e: Event) => { e.stopPropagation(); openSide('right'); } }, svgIcon(I.left)), h('hr'),
       ...([['element', I.el, 'Element'], ['tekshiruv', I.tpl, 'Varaq']] as const).map(([k, ic, n]) =>
         h('button', { class: 'rb', 'data-strip': k, title: tr(n), 'aria-label': tr(n), 'aria-pressed': float === 'right' && d.ui.rightTab === k, onclick: (e: Event) => { e.stopPropagation(); d.ui.rightTab = k; openSide('right'); } }, svgIcon(ic), k === 'tekshiruv' && warn ? h('em', { class: 'ch-dot' }, String(warn)) : '')));
+    if (x0 != null) { const dx = view.getBoundingClientRect().left - x0; if (Math.abs(dx) > 0.5) { panX -= dx; applyView(); renderOverlay(); } }
   }
   /** Panelni ochish: keng ekranda — joyida (tor ekranda ikkinchisi yigʻiladi), < 900 px — varaq ustida suzadi */
   function openSide(side: 'left' | 'right'): void {
@@ -622,7 +626,17 @@ export function openChizmadon(host: ChHost): void {
     if (crop && crop !== id) crop = null;
     matSel = id; sel.clear(); setTool('select', false); d.ui.rightTab = 'element';
     if (!rOpen() && float !== 'right') { if (phone()) float = 'right'; else { d.ui.right = true; if (tablet()) d.ui.left = false; } }
-    relayout(); renderAll();
+    relayout(); renderAll(); revealCell(id);
+  }
+  /** Tanlangan katak panel ostida qolmasin: koʻrinadigan maydonga minimal surish */
+  function revealCell(id: string): void {
+    const c = cellsOf(d.cur).find(x => x.el === id); if (!c || d.auto.view !== 'one' || !zoom) return;
+    const vr = view.getBoundingClientRect(), sr = stage.getBoundingClientRect(), sc = PXMM * zoom, pad = 24;
+    const x0 = sr.left + c.r.x * sc, x1 = x0 + c.r.w * sc, y0 = sr.top + c.r.y * sc, y1 = y0 + c.r.h * sc;
+    let dx = 0, dy = 0;
+    if (x1 > vr.right - pad) dx = vr.right - pad - x1; if (x0 + dx < vr.left + pad) dx = vr.left + pad - x0;
+    if (y1 > vr.bottom - 90) dy = vr.bottom - 90 - y1; if (y0 + dy < vr.top + 70) dy = vr.top + 70 - y0;
+    if (dx || dy) { panX += dx; panY += dy; applyView(); renderOverlay(); }
   }
   function matPanel(m: Material): HTMLElement[] {
     const where = Object.entries(PLACE).filter(([id]) => id === m.id).map(([, p]) => p);
@@ -643,6 +657,14 @@ export function openChizmadon(host: ChHost): void {
       field('Matn va chiziq oʻlchami', stepper({ id: 'chMatScale', min: 70, max: 150, step: 10, value: Math.round(m.scale * 100), unit: '%', label: tr('Matn va chiziq oʻlchami'), onchange: v => autoMut(() => { s.scale = v / 100; }, 'ms') })),
       lbl('Varaqda'), where.length ? h('div', { class: 'group' }, ...where.map(w => h('button', { class: 'li', onclick: () => goPage(w.pi) }, h('span', { class: 'k' }, `${tf('${n}-varaq', { n: w.pi + 1 })} · ${tr(LAYOUTS.roles[LAST!.PG.pages[w.pi].page.slots[w.k].role][0]).toLowerCase()}`), svgIcon(I.right)))) : h('div', { class: 'note warn' }, tr('Bu maketda joy topilmadi.')),
       h('div', { class: 'note' }, tr('Loyiha oʻzgarsa bu element oʻzi yangilanadi.') + (att ? ` ${tf('Ustida ${n} ta qoʻlda chizilgan belgi bor — element boshqa katak yoki maketga koʻchsa, ular ham birga koʻchadi.', { n: att })}` : '')));
+    if (m.kind === 'floor') {
+      // qavat rejasi masshtabi: avtomatik (katakka sigʻadigan eng yirigi) yoki qoʻlda (GOST 2.302)
+      out.push(lbl('Masshtab'), h('div', { class: 'seg sm seg-wrap ch-ms', id: 'chMatMs' },
+        h('button', { 'aria-pressed': !m.ms, onclick: () => autoMut(() => { delete matSet(m.id).ms; }) }, tr('Avtomatik')),
+        ...PLAN_SCALES.map(k => h('button', { 'data-ms': String(k), 'aria-pressed': m.ms === k, onclick: () => autoMut(() => { matSet(m.id).ms = k; }) }, `1:${k}`))),
+);
+      if (m.ms) out.push(h('div', { class: 'note' }, tr('Reja katakka sigʻmasa, chetlari kesiladi — «Kadrlash» bilan suring.')));
+    }
     if (croppable(m)) {
       const v = viewOf(m.id);
       out.push(lbl('Kadrlash'), field('Kattalashtirish', stepper({ id: 'chMatZoom', min: 100, max: 800, step: 25, value: Math.round(v.z * 100), unit: '%', label: tr('Kattalashtirish'), onchange: z => autoMut(() => setView(m.id, { ...viewOf(m.id), z: z / 100 }), 'mz') })),

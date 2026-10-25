@@ -812,3 +812,4 @@ details.manual{border-top:0;padding-top:0;display:block}
 textarea.ch-inedit{padding:10px 12px}
 /* 5-bosqich: «Loyihadan» guruhlari */
 .ch-mat.ch-grp{cursor:pointer}.ch-mat.ch-sub{padding-left:26px}.ch-mat.ch-sub .ch-grip{opacity:.5}
+.ch-panel .seg.sm.seg-wrap.ch-ms{grid-template-columns:repeat(3,minmax(0,1fr));height:auto;padding:2px}

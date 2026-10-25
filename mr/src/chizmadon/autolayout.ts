@@ -35,6 +35,8 @@ export interface Material {
   own?: boolean;
   /** katak ichidagi koʻrinish (kesish, kattalashtirish) — xarita va rasmlar */
   view?: { z: number; cx: number; cy: number } | null;
+  /** qavat rejasi: qoʻlda tanlangan masshtab (1:N), null — avtomatik */
+  ms?: number | null;
 }
 
 /** Katak roli → qabul qiladigan material rollari (birinchisi — afzal) */

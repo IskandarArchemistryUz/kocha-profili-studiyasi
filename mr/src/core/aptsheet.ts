@@ -18,7 +18,7 @@ import type { Bal } from './facade';
 
 export interface AptSheet { name: string; label: string; legend: LegendItem[]; rows: { n: number; rooms: number; area: number }[]; body: (vx: number, vy: number, vw: number, vh: number) => string; side: (x: number, y: number, w: number, yMax: number) => string; /** reja burilishida shimol, ° (soat strelkasi boʻyicha, 0 — tepaga) */ north: number;
   /** Chizmadon: faqat qavat rejasi, berilgan katakka sigʻadigan eng yirik standart masshtabda (GOST 2.302), katak oʻlchamidagi vb bilan (choʻzilmaydi) */
-  fit: (w: number, h: number) => { svg: string; w: number; h: number; vb: [number, number, number, number]; scale: number; sub: string };
+  fit: (w: number, h: number, force?: number) => { svg: string; w: number; h: number; vb: [number, number, number, number]; scale: number; sub: string };
   /** Chizmadon: vaziyat sxemasi alohida katakda */
   nav: (x: number, y: number, w: number, h: number) => string }
 
@@ -170,17 +170,18 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
     }, tr('Vaziyat sxemasi'), [tr('hudud chegarasi'), tr('uchastka'), tr('seksiya')]);
   }
   /** Katakka sigʻadigan reja: avval 1:100 oʻlchamidan taxmin, sigʻmasa — keyingi standart masshtab (oʻlcham yozuvlari mm da oʻzgarmaydi) */
-  const fit = (w: number, h: number) => {
-    let s = fitScale(probe.widthMm, probe.heightMm, w, h), r = s === 100 ? probe : floorPlanSvg(pl, { ...base, scale: s });
-    for (let i = 0; i < 4 && (r.widthMm > w + 0.01 || r.heightMm > h + 0.01); i++) {
+  const fit = (w: number, h: number, force?: number) => {
+    let s = force && force > 0 ? force : fitScale(probe.widthMm, probe.heightMm, w, h), r = s === 100 ? probe : floorPlanSvg(pl, { ...base, scale: s });
+    for (let i = 0; i < 4 && !force && (r.widthMm > w + 0.01 || r.heightMm > h + 0.01); i++) {
       const nx = STD_SCALES.find(v => v > s) ?? s * 2; s = nx; r = floorPlanSvg(pl, { ...base, scale: s });
     }
     let inner = r.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
     if (look === 'bir') for (const c of Object.values(APT_FILL)) inner = inner.split(c).join('#ffffff');
-    // reja katak markazida; vb — katak oʻlchamida (fitMap «contain» koeffitsiyenti = 1 → masshtab yozuvi aniq)
-    const W = Math.max(w, r.widthMm), H = Math.max(h, r.heightMm);
-    return { svg: `<rect x="${n2(-(W - r.widthMm) / 2)}" y="${n2(-(H - r.heightMm) / 2)}" width="${n2(W)}" height="${n2(H)}" fill="#ffffff"/><g font-family="Archivo, system-ui, sans-serif">${inner}</g>`,
-      w: W, h: H, vb: [-(W - r.widthMm) / 2, -(H - r.heightMm) / 2, W, H] as [number, number, number, number], scale: s,
+    // reja katak markazida; vb — aynan katak oʻlchamida (fitMap «contain» koeffitsiyenti = 1 → masshtab yozuvi aniq).
+    // Qoʻlda tanlangan masshtabda reja katakdan katta boʻlsa — chetlari kesiladi (kadrlash bilan suriladi)
+    const x0 = -(w - r.widthMm) / 2, y0 = -(h - r.heightMm) / 2;
+    return { svg: `<rect x="${n2(Math.min(0, x0))}" y="${n2(Math.min(0, y0))}" width="${n2(Math.max(w, r.widthMm))}" height="${n2(Math.max(h, r.heightMm))}" fill="#ffffff"/><g font-family="Archivo, system-ui, sans-serif">${inner}</g>`,
+      w, h, vb: [x0, y0, w, h] as [number, number, number, number], scale: s,
       sub: `${tr(`${groupName(G)} rejasi`)} · ${tr(FLOOR_NAME[ft])}` };
   };
 
