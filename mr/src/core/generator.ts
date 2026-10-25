@@ -144,7 +144,7 @@ export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenRe
   // perimetrning L-burchak mantigʻi ~90° burchak uchun; oʻtkir (< 50°) burchakda burchak seksiyasi qurilmay, qoʻshni seksiyalar
   // ustma-ust tushardi va qatorda oraliq qolardi (egasi, 21.10, 24-band) — bunday kvartal qirralar boʻylab toʻldiriladi
   const minAng = Math.min(...A.map((_, i) => { const u1 = unit(sub(A[i], A[(i - 1 + A.length) % A.length])), u2 = unit(sub(A[(i + 1) % A.length], A[i])); return Math.acos(Math.max(-1, Math.min(1, -(u1[0] * u2[0] + u1[1] * u2[1])))) * 180 / Math.PI; }));
-  let r = allConvex && minAng >= 50 && inset(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
+  let r = allConvex && minAng >= 50 && insetMiter(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
   // hovli shunchalik torki, minimal qavat ham sigʻmaydi — yopiq perimetr oʻrniga qirralar boʻylab (qarshi qatorlar olib tashlanadi)
   if (!r || !r.sections.length || (r.capFloors != null && r.capFloors < g.minF)) { notes.length = 0; r = edgeFill(A, g, notes); }
   facingCap(r, g, floorH);
@@ -331,8 +331,9 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
 
 function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
   const D = g.depth, n = A.length;
-  const inner = inset(A, D);
-  if (!inner) return { sections: [], capFloors: null, notes: ['Kvartal perimetr uchun juda kichik — «qatorlar» ni sinab koʻring'] };
+  // faqat miter: inner[i] A[i] ga mos boʻlishi shart (insetRobust uchlarni tashlab yuboradi — egri qirrali kvartalda «inner[i] undefined» qulashi, sayt 25.10)
+  const inner = insetMiter(A, D);
+  if (!inner || inner.length !== A.length) return { sections: [], capFloors: null, notes: ['Kvartal perimetr uchun juda kichik — «qatorlar» ni sinab koʻring'] };
   // hovli: yopiq perimetr — 2,3·Hmax (izoh 3), oʻtishlar bilan — 2·Hmax (izoh 8, seysmik 8+)
   const wc = minWidth(inner), k = g.passages ? 2 : 2.3;
   const cap = Math.max(1, Math.floor(wc / k / floorH));

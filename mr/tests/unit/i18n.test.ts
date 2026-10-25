@@ -43,3 +43,11 @@ describe('i18n — tayyor satrlar', () => {
     expect(I.tr('Kvartiralar')).toBe('Xonadonlar');
   });
 });
+
+describe('Chizmadon material nomlari (sayt, 25.10: «Building Apartment mix · 1» chiqardi)', () => {
+  it('Kvartirografiya · N-bino — toʻgʻri tartibda', () => {
+    I.setLang('en'); expect(I.tr('Kvartirografiya · 3-bino')).toBe('Apartment mix · Building 3'); expect(I.tr('Xonadonlar eksplikatsiyasi · 12-bino')).toBe('Apartment schedule · Building 12');
+    I.setLang('ru'); expect(I.tr('Kvartirografiya · 3-bino')).toBe('Квартирография · Здание 3');
+    I.setLang('uz');
+  });
+});
