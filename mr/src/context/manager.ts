@@ -4,7 +4,7 @@
  */
 import type { LngLat } from '../core/doc';
 import { cacheGet, cachePut } from '../storage/db';
-import { cacheKey, farKey, fetchContext, fetchFar, legacyKeys, refresh, type ContextBundle, type FarBundle, type Progress } from './load';
+import { cacheKey, liteKey, farKey, fetchContext, fetchFar, legacyKeys, refresh, type ContextBundle, type FarBundle, type Progress } from './load';
 import { PARSER_V } from './osm';
 import { fetchPoi, poiKey, type PoiBundle } from './poi';
 
@@ -12,6 +12,8 @@ export class ContextManager {
   private w: Worker | null = null;
   private seq = 0;
   current: ContextBundle | null = null;
+  /** lite — koʻcha tahlili: relyef va sunʼiy yoʻldosh tasviri yuklanmaydi (tezroq); toʻliq keshdagi nusxa boʻlsa — oʻsha ishlatiladi */
+  constructor(private lite = false) {}
 
   private worker(): Worker | null {
     if (this.w) return this.w;
@@ -32,7 +34,13 @@ export class ContextManager {
 
   async load(center: LngLat, radius: number, progress: Progress, force = false): Promise<ContextBundle> {
     const id = ++this.seq;
-    if (!force) {
+    if (this.lite && !force) {
+      // avval toʻliq kontekst (Joyshunos sahnasi yuklagan), keyin yengil kesh
+      const full = await this.fromCache(center, radius);
+      if (full && full.pv === PARSER_V) return full;
+      try { const l = await cacheGet<ContextBundle>(liteKey(center, radius)); if (l && l.pv === PARSER_V && l.ov !== undefined && Date.now() - Date.parse(l.fetched) < 30 * 86_400_000) { this.current = l; return l; } } catch { /* kesh */ }
+    }
+    if (!force && !this.lite) {
       const c = await this.fromCache(center, radius);
       // keshdagi nusxa yaroqli, lekin Overture qoʻshilmasdan oldingi (yoki 30 kundan eski) — tarmoqdan yangilab olinadi; tarmoq boʻlmasa quyida shu nusxa qaytadi
       const old = c && (c.ov === undefined || Date.now() - Date.parse(c.fetched) > 30 * 86_400_000);
@@ -49,7 +57,7 @@ export class ContextManager {
     }
     if (id !== this.seq) throw new Error('eskirdi');
     this.current = b;
-    try { await cachePut(cacheKey(center, radius), b); } catch (e) { console.warn('Kontekst keshga yozilmadi', e); }
+    try { await cachePut((this.lite ? liteKey : cacheKey)(center, radius), b); } catch (e) { console.warn('Kontekst keshga yozilmadi', e); }
     return b;
   }
 
@@ -69,7 +77,7 @@ export class ContextManager {
 
   private fetch(id: number, center: LngLat, radius: number, progress: Progress): Promise<ContextBundle> {
     const w = this.worker();
-    if (!w) return fetchContext(center, radius, progress);
+    if (!w) return fetchContext(center, radius, progress, fetch.bind(globalThis), this.lite);
     return new Promise((ok, no) => {
       const on = (e: MessageEvent<{ id: number; progress?: { msg: string; frac: number }; bundle?: ContextBundle; error?: string }>) => {
         if (e.data.id !== id) return;
@@ -78,7 +86,7 @@ export class ContextManager {
         if (e.data.bundle) ok(e.data.bundle); else no(new Error(e.data.error || 'Nomaʼlum xato'));
       };
       w.addEventListener('message', on);
-      w.postMessage({ id, center, radius });
+      w.postMessage({ id, center, radius, lite: this.lite });
     });
   }
 }
