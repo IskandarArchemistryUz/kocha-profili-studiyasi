@@ -18,7 +18,9 @@ test('Chizmadon: «Erkin» — bosh reja katakdan ajraladi, surish va oʻlcham o
   // material katakdan olindi, oʻrnida erkin xarita (tanlangan, tutqichlar bilan)
   await expect(plan).toHaveCount(0);
   await expect(page.locator('.ch-over .hr').first()).toBeAttached();
-  const free = page.locator('.ch-body [data-id]').filter({ has: page.locator('svg[viewBox]') }).last();
+  const fid = await page.evaluate(() => [...document.querySelectorAll('.ch-body [data-id]')].filter(e => e.querySelector('svg[viewBox]')).map(e => e.getAttribute('data-id')).pop());
+  expect(fid).toBeTruthy();
+  const free = page.locator(`.ch-body [data-id="${fid}"]`).first();
   await expect(free).toBeVisible();
   const f0 = (await free.boundingBox())!;
   // surish
