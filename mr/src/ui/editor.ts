@@ -221,7 +221,7 @@ export class Editor {
     const scene = h('div', { id: 'scene' });
     const badge = h('div', { class: 'ctxbadge', hidden: true, role: 'status' });
     const attr = h('div', { class: 'attr', hidden: true });
-    attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span><span class="carto" hidden> · Fon: Esri, HERE, Garmin</span>';
+    attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span><span class="carto" hidden> · Fon: Esri, HERE, Garmin</span><span class="ovt" hidden> · Overture Maps Foundation</span>';
     // tepada oʻngda: xarita (fon va uslub) va tahliliy qatlamlar
     const mapctl = h('div', { class: 'mapctl' },
       this.popBtn('stylePop', tr('Xarita'), () => this.stylePop(), 'down', ICON.map),
@@ -780,6 +780,7 @@ export class Editor {
       if (b && fk) void this.ctxMgr.loadFar(b.center, b.radius).then(f => { if (this.farKey === fk && f) this.scene.setFar(f.buildings, this.store.doc); });
     });
     this.el.attr.hidden = !b;
+    const ovt = this.el.attr.querySelector('.ovt') as HTMLElement | null; if (ovt) ovt.hidden = !(b?.ovm && (b.ovm.added || b.ovm.heights));
     (this.el.attr.querySelector('.sat') as HTMLElement).hidden = doc.context.base !== 'sputnik';
   }
   private framedCtx = false;
@@ -923,6 +924,8 @@ export class Editor {
       const s = summary(b.osm), est = b.osm.buildings.filter(x => x.hSrc === 'taxmin').length;
       body.append(h('div', { class: 'group' }, h('div', { class: 'li', id: 'ctxSt' }, h('span', { class: 'k' }, h('b', {}, `${fmt(s.buildings)} ${tr('bino')}`), ` · ${fmt(s.roadKm, 1)} ${tr('km yoʻl')}`,
         h('span', { class: 'sub' }, `${fmt(b.osm.water.length + b.osm.waterways.length)} ${tr('suv obyekti')} · ${fmt(b.osm.green.length)} ${tr('yashil hudud')} · OSM, ${new Date(b.fetched).toLocaleDateString('ru-RU')}.${est ? ' ' + tf('${fmt(est)} ta binoning balandligi OSM da yoʻq — dogʻ maydoni va turi boʻyicha taxmin qilingan (kichik uylar — 1–2 qavat).', { 'fmt(est)': fmt(est) }) : ''}`)))));
+      // 32-band: Overture Maps — OSM da chizilmagan binolar va taxminiy balandliklar aniqlashtirilgan
+      if (b.ovm && (b.ovm.added || b.ovm.heights)) body.append(h('div', { class: 'note', id: 'ctxOv' }, tf('Overture Maps: +${a} bino (OSM da yoʻq), ${h} ta binoning balandligi aniqlashtirildi. © OpenStreetMap contributors, Overture Maps Foundation (ODbL).', { a: fmt(b.ovm.added), h: fmt(b.ovm.heights) })));
       if (b.stale) body.append(h('div', { class: 'note warn', id: 'ctxStale' }, tf('OSM serveri hozir javob bermadi — keshdagi ${new Date(b.fetched).toLocaleDateString(\'ru-RU\')} nusxasi koʻrsatilmoqda. Keyinroq «OSM dan yangilash» ni bosing.', { "new Date(b.fetched).toLocaleDateString('ru-RU')": new Date(b.fetched).toLocaleDateString('ru-RU') })));
       if (b.missing.length) body.append(h('div', { class: 'note warn' }, tf('Yuklanmadi: ${b.missing.join(\', \')}. Qolgan qatlamlar ishlaydi.', { "b.missing.join(', ')": b.missing.join(', ') })));
       const L = cs.layers, names: [keyof typeof L, string][] = [['buildings', 'Binolar'], ['roads', 'Yoʻllar'], ['rail', 'Temir yoʻl'], ['water', 'Suv'], ['green', 'Yashil hududlar'], ['trees', 'Daraxtlar*'], ['relief', 'Relyef']];

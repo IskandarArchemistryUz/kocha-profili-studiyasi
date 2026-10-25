@@ -3,7 +3,8 @@
  * Yuklash va tahlil workerda; natija IndexedDB keshiga yoziladi va sahifa yangilanganda tarmoqsiz tiklanadi.
  */
 import type { LngLat } from '../core/doc';
-import { bboxAround, overpassQuery, parseOverpass, PARSER_V, type BBox, type OsmData } from './osm';
+import { bboxAround, heightByArea, overpassQuery, parseOverpass, PARSER_V, type BBox, type OsmData } from './osm';
+import { fetchOverture, mergeOverture, type OvMerge, type OvResult } from './overture';
 import { loadImagery, loadTerrain, type Imagery, type TerrainGrid } from './tiles';
 import { fetchOfm } from './ofm';
 import { API_BASE } from '../account/config';
@@ -29,6 +30,9 @@ export interface ContextBundle {
   imagery: Imagery | null;
   /** qaysi qism yuklanmadi (foydalanuvchiga aytiladi) */
   missing: string[];
+  /** Overture binolari (xom) — qayta tahlilda ham qoʻshiladi; ovm — natija (qoʻshilgan va balandligi aniqlangan) */
+  ov?: OvResult | null;
+  ovm?: OvMerge | null;
 }
 
 const pos = (c: LngLat, r: number) => `${c[0].toFixed(4)},${c[1].toFixed(4)},${Math.round(r)}`;
@@ -39,7 +43,8 @@ export const legacyKeys = (c: LngLat, r: number) => ['ctx4', 'ctx3', 'ctx2', 'ct
 /** Keshdagi toʻplamni joriy tahlilchiga keltirish (xom maʼlumot boʻlsa — qayta tahlil) */
 export function refresh(b: ContextBundle): ContextBundle {
   if (b.pv === PARSER_V || !b.raw) return b;
-  return { ...b, osm: parseOverpass(b.raw as never), pv: PARSER_V };
+  const osm = parseOverpass(b.raw as never), ovm = b.ov ? mergeOverture(osm, b.ov, heightByArea) : b.ovm ?? null;
+  return { ...b, osm, pv: PARSER_V, ovm };
 }
 
 export type Progress = (msg: string, frac: number) => void;
@@ -94,12 +99,14 @@ export async function fetchContext(center: LngLat, radius: number, progress: Pro
   const terrP = loadTerrain(center, radius, bb, f, terrainStep(radius)).catch(() => null);   // katta hudud — siyrakroq toʻr (xotira)
   let done = 0;
   const imgP = loadImagery(radius, bb, f, () => { done++; if (done % 8 === 0) progress(`Sunʼiy yoʻldosh tasviri: ${done} plitka…`, 0.3); }).catch(() => null);
-  const [osm, terrain, imagery] = await Promise.all([osmP, terrP, imgP]);
+  const ovP = fetchOverture(bb, f).catch(() => null);   // OSM boʻsh joylari va balandliklar (oʻz serverimiz orqali)
+  const [osm, terrain, imagery, ov] = await Promise.all([osmP, terrP, imgP, ovP]);
+  const ovm = ov ? mergeOverture(osm, ov, heightByArea) : null;
   if (!terrain) missing.push('relyef');
   if (!imagery) missing.push('sunʼiy yoʻldosh tasviri');
   if (srcBox.src === 'ofm') missing.push('OSM teglari (Overpass javob bermadi — OpenFreeMap plitkalari: balandliklar taxminiy, daraxtlar yoʻq)');
   progress('Tayyor', 1);
-  return { v: 1, center, radius, fetched: new Date().toISOString(), osm, pv: PARSER_V, raw, terrain, imagery, missing };
+  return { v: 1, center, radius, fetched: new Date().toISOString(), osm, pv: PARSER_V, raw, terrain, imagery, missing, ov, ovm };
 }
 
 /* ---------- uzoq kontekst (gorizont): faqat binolar, kattaroq radiusda ---------- */

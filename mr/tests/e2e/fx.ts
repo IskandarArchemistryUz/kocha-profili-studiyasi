@@ -11,6 +11,11 @@ export const UZ_INIT = () => { try {
 } catch { /* */ } };
 
 export const test = base.extend({
-  context: async ({ context }, use) => { await context.addInitScript(UZ_INIT); await use(context); },
+  context: async ({ context }, use) => {
+    await context.addInitScript(UZ_INIT);
+    // Overture binolari (oʻz serverimiz) testda soʻralmaydi — alohida test oʻz javobini beradi (page.route ustun)
+    await context.route(/\/data\/overture\//, r => r.fulfill({ status: 404, body: '' }));
+    await use(context);
+  },
 });
 export { expect, type Page, type BrowserContext };
