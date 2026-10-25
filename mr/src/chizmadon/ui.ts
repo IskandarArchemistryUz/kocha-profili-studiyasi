@@ -25,7 +25,7 @@ import { wmCanvas } from '../core/wm';
 
 import { familyById, accepts, placements, type Material } from './autolayout';
 import { buildAlbum, inner, slotAt, setCustomPal, type Album } from './album';
-import { renderPage, LIB, PAL, setSheetTr } from './sheet';
+import { renderPage, LIB, PAL, setSheetTr, slotRectOf } from './sheet';
 import { siteMaterials, projectMaterials, type PlanSrc } from './materials';
 import { loadGeo, loadWorld, world, resolve, presets, placeName, rName, dName, autoNote, setLocLang, locSearch, parseCoord, interiorPt, uzMini, worldMini, type Resolved, type LocHit } from './location';
 import { rebase, reanchor, bindTo } from './bind';
@@ -68,6 +68,7 @@ const I = {
   pal: '<path d="M12 3a9 9 0 100 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.8.7-1.5 1.6-1.5H17a4 4 0 004-4c0-4.7-4-8.5-9-8.5z"/>', slots: '<path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/>',
   imp: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', one: '<path d="M6 4h12v16H6z"/>', all: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
   drag: '<path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/>', chev: '<path d="M6 9l6 6 6-6"/>', warn: '<path d="M12 4l9 16H3zM12 10v4M12 17v.5"/>',
+  swap: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
   left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 6l6 6-6 6"/>', pen: '<path d="M4 16c3-8 6 3 9-3s4-7 7-8"/>', x: IC.x,
 };
 const TOOL_KEYS: Record<string, Tool> = Object.fromEntries(TOOLS.map(t => [t.key.toLowerCase(), t.id]));
@@ -284,7 +285,10 @@ export function openChizmadon(host: ChHost): void {
   const grayHost = h('div', { class: 'ch-gray', hidden: true });
   const ovNS = 'http://www.w3.org/2000/svg';
   const over = document.createElementNS(ovNS, 'svg') as SVGSVGElement; over.classList.add('ch-over');
-  stage.append(pageHost, grayHost, over); view.append(stage);
+  /** Chizmadon tahlili (25.10, 2-bosqich): maket katagi ustidagi panel (almashtirish, oʻchirish) va boʻsh kataklardagi «+» */
+  const slotUi = h('div', { class: 'ch-slotui', id: 'chSlotUi' });
+  slotUi.addEventListener('pointerdown', e => e.stopPropagation());
+  stage.append(pageHost, grayHost, over, slotUi); view.append(stage);
   const zoomBox = h('div', { class: 'ch-zoom glassbar' });
   const pnav = h('div', { class: 'ch-pnav glassbar', id: 'chPnav' });
   const tools = h('div', { class: 'ch-tools glassbar', role: 'toolbar', 'aria-label': tr('Asboblar') });
@@ -945,6 +949,64 @@ export function openChizmadon(host: ChHost): void {
     if (marquee) { const [a, b, c, dd] = marquee; s.push(`<rect x="${Math.min(a, c)}" y="${Math.min(b, dd)}" width="${Math.abs(c - a)}" height="${Math.abs(dd - b)}" fill="#2f6feb" fill-opacity="0.06" stroke="#2f6feb" stroke-width="${k}"/>`); }
     if (dropHint) { const { r, ok, label } = dropHint, c = ok ? '#2a6fb0' : '#b23a2e', fs = 12 * k; s.push(`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${c}" fill-opacity=".1" stroke="${c}" stroke-width="${2 * k}"/><rect x="${r.x}" y="${r.y}" width="${label.length * fs * 0.56 + 10 * k}" height="${fs * 1.6}" fill="${c}"/><text x="${r.x + 5 * k}" y="${r.y + fs * 1.15}" font-size="${fs}" font-family="Archivo, sans-serif" font-weight="600" fill="#fff">${label.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`); }
     over.innerHTML = s.join('');
+    renderSlotUi();
+  }
+  /** Joriy varaqdagi tanlangan material katagi ustida panel; boʻsh kataklarda «+» (katakka material qoʻyish) */
+  function renderSlotUi(): void {
+    slotUi.replaceChildren();
+    if (!isAuto() || !LAST || d.auto.view !== 'one' || tool !== 'select' || draft || dropHint) return;
+    const ap = LAST.pages[d.cur]; if (!ap) return;
+    const sc = PXMM * zoom, f = fam(), fmt = fmtOf(f);
+    ap.fill.empty.forEach(k => {
+      const sl = ap.fill.page.slots[k], r = slotRectOf(f, ap.fill.page, fmt, sl);
+      if (r.w * sc < 44 || r.h * sc < 44) return;
+      const role = tr(LAYOUTS.roles[sl.role][0]);
+      const b = h('button', { class: 'ch-slotadd', 'data-k': String(k), title: `${tr('Katakka material qoʻyish')} · ${role}`, 'aria-label': `${tr('Katakka material qoʻyish')} · ${role}`,
+        style: `left:${(r.x + r.w / 2) * sc}px;top:${(r.y + r.h / 2) * sc}px`, onclick: (e: Event) => slotPick(e.currentTarget as HTMLElement, d.cur, k, null) }, svgIcon(IC.plus));
+      slotUi.append(b);
+    });
+    const c = matSel ? cellsOf(d.cur).find(x => x.el === matSel) : null, m = c ? MATS.find(x => x.id === c.el) : null;
+    if (!c || !m) return;
+    const k = [...ap.fill.assign.entries()].find(([, e]) => e.id === m.id)?.[0];
+    const bar = h('div', { class: 'ch-slotbar glassbar', id: 'chSlotBar', role: 'toolbar', 'aria-label': tr(m.name), style: `left:${c.r.x * sc}px;top:${Math.max(0, c.r.y * sc - 44)}px` },
+      c.r.w * sc >= 300 ? h('span', { class: 'nm' }, tr(m.name)) : '',
+      k != null ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotSwap', onclick: (e: Event) => slotPick(e.currentTarget as HTMLElement, d.cur, k, m.id) }, ...icl(I.swap, tr('Almashtirish'))) : '',
+      h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotHide', onclick: () => hideMat(m.id) }, ...icl(I.trash, tr('Oʻchirish'))));
+    slotUi.append(bar);
+  }
+  /** Katakka qoʻyish mumkin boʻlgan materiallar menyusi (rol mos keladiganlar): joysiz / oʻchiqlar — birinchi */
+  function slotPick(anchor: HTMLElement, pi: number, k: number, cur: string | null): void {
+    wrap.querySelector('.ch-menu')?.remove();
+    const pk = LAST?.PG.pages[pi]; if (!pk) return;
+    const onPage = new Set([...pk.assign.values()].map(x => x.id));
+    // juft material (vaziyat sxemasi, eksplikatsiya) — faqat oʻz rejasi shu varaqda boʻlsa
+    const sl = pk.page.slots[k], ok = MATS.filter(x => x.role !== 'title' && x.id !== cur && accepts(sl.role, x.role) && (!x.pair || onPage.has(x.pair)));
+    const st = (x: Material) => (!x.visible ? tr('oʻchiq') : PLACE[x.id] ? tf('${n}-varaqda', { n: PLACE[x.id].pi + 1 }) : tr('joysiz'));
+    const free = ok.filter(x => !x.visible || !PLACE[x.id]), busy = ok.filter(x => x.visible && PLACE[x.id]);
+    const item = (x: Material) => h('button', { class: 'mi', 'data-pick': x.id, onclick: () => { m.remove(); placeMat(x.id, pi, k); } }, h('span', {}, tr(x.name), h('small', {}, st(x))));
+    const m = h('div', { class: 'menu ch-menu ch-tplmenu', role: 'menu', id: 'chSlotPick' },
+      h('div', { class: 'mh' }, `${tr('Katakka')}: ${tr(LAYOUTS.roles[sl.role][0]).toLowerCase()}`),
+      ...(ok.length ? [...(free.length ? [h('div', { class: 'mh' }, tr('Varaqlarda yoʻq')), ...free.map(item)] : []), ...(busy.length ? [h('div', { class: 'mh' }, tr('Boshqa katakdan koʻchirish')), ...busy.map(item)] : [])]
+        : [h('div', { class: 'mi d' }, tr('Bu katakka mos material yoʻq'))]));
+    m.addEventListener('click', e => e.stopPropagation()); m.addEventListener('pointerdown', e => e.stopPropagation()); wrap.append(m);
+    const r = anchor.getBoundingClientRect(); m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8))}px`; m.style.top = `${Math.max(8, Math.min(r.bottom + 6, innerHeight - m.offsetHeight - 8))}px`;
+    (m.querySelector('button') as HTMLElement | null)?.focus();
+    m.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); m.remove(); anchor.focus(); } });
+    setTimeout(() => document.addEventListener('click', () => m.remove(), { once: true }), 0);
+  }
+  /** Materialni katakka qoʻyish (sudrab qoʻyish bilan bir xil) */
+  function placeMat(id: string, pi: number, k: number): void {
+    const a = MATS.find(x => x.id === id); if (!a) return;
+    autoMut(() => { pin(pi); matSet(id).visible = true; d.auto.ov = d.auto.ov.filter(o => o.a !== id && !(o.pi === pi && o.k === k)); d.auto.ov.push({ a: id, pi, k }); matSel = id; });
+    toast(`${tr(a.name)} — ${tf('${n}-varaqqa qoʻyildi', { n: pi + 1 })}`);
+  }
+  /** Material qoʻshilsa/olinsa sahifalash qayta hisoblanadi — shu varaqgacha varaq turlari saqlanadi (katak raqami oʻzgarmasin) */
+  function pin(pi: number): void { LAST?.PG.pages.slice(0, pi + 1).forEach((pk, i) => { d.auto.force[i] ??= pk.page.id; }); }
+  /** Materialni albomdan olish: varaq turi saqlanadi, katakni maket boshqa material bilan toʻldirishi yoki boʻsh («+») qoldirishi mumkin */
+  function hideMat(id: string): void {
+    const a = MATS.find(x => x.id === id), pi = d.cur, pg = LAST?.PG.pages[pi]?.page.id; if (!a) return;
+    autoMut(() => { matSet(id).visible = false; d.auto.ov = d.auto.ov.filter(o => o.a !== id); if (pg && isAuto(pi)) pin(pi); matSel = null; });
+    toast(tf('«${n}» albomdan olindi. Qaytarish — Ctrl+Z yoki chapdagi roʻyxat', { n: tr(a.name) }));
   }
   const rotP = (p: [number, number], deg: number, c: [number, number]): [number, number] => { const a = deg * Math.PI / 180, co = Math.cos(a), si = Math.sin(a), dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * co - dy * si, c[1] + dx * si + dy * co]; };
   const unionBox = (els: ChEl[]): [number, number, number, number] => els.map(bbox).reduce((a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])]);
@@ -1109,7 +1171,7 @@ export function openChizmadon(host: ChHost): void {
     if (!hit || !a) return;
     if (!accepts(hit.role as never, a.role)) { toast(`${tr('Bu katakka mos emas')}: ${tr(LAYOUTS.roles[hit.role as keyof typeof LAYOUTS.roles][0]).toLowerCase()}`); return; }
     const pi = d.cur;
-    autoMut(() => { matSet(id).visible = true; d.auto.ov = d.auto.ov.filter(o => o.a !== id && !(o.pi === pi && o.k === hit.k)); d.auto.ov.push({ a: id, pi, k: hit.k }); matSel = id; });
+    autoMut(() => { pin(pi); matSet(id).visible = true; d.auto.ov = d.auto.ov.filter(o => o.a !== id && !(o.pi === pi && o.k === hit.k)); d.auto.ov.push({ a: id, pi, k: hit.k }); matSel = id; });
     toast(`${tr(a.name)} — ${tf('${n}-varaqqa qoʻyildi', { n: pi + 1 })}`);
   });
   /** Ramer–Douglas–Peucker */
@@ -1350,6 +1412,7 @@ export function openChizmadon(host: ChHost): void {
     if (mod && k === 'a') { e.preventDefault(); sel = new Set(P().els.filter(editable).map(x => x.id)); matSel = null; setTool('select', false); renderOverlay(); renderRight(); return; }
     if (e.key === 'Enter') { if (draft) { e.preventDefault(); finishDraft(); } return; }
     if (e.key === 'Backspace' && draft?.pts) { e.preventDefault(); draft.pts.pop(); if (!draft.pts.length) draft = null; renderOverlay(); return; }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !sel.size && matSel && isAuto()) { e.preventDefault(); hideMat(matSel); return; }
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); remove(); return; }
     if (e.key.startsWith('Arrow') && sel.size) { e.preventDefault(); const s = e.shiftKey ? 5 : 1, dx = e.key === 'ArrowLeft' ? -s : e.key === 'ArrowRight' ? s : 0, dy = e.key === 'ArrowUp' ? -s : e.key === 'ArrowDown' ? s : 0; mut(p => { p.els = p.els.map(x => (sel.has(x.id) ? moved(x, dx, dy) : x)); }, 'nudge'); return; }
     if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'PageDown' || e.key === 'PageUp') && !sel.size) { e.preventDefault(); goPage(d.cur + (e.key === 'ArrowRight' || e.key === 'PageDown' ? 1 : -1)); return; }
