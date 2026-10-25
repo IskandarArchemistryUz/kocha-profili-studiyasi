@@ -31,7 +31,12 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   for (let i = 0; i < 8 && !apt; i++) { apt = /(Kvartiralar|Xonadonlar) eksplikatsiyasi|Apartment schedule|Экспликация квартир/i.test(await svgs()); if (!apt) { await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(400); } }
   expect(apt).toBe(true);
   expect(await svgs()).toMatch(/Vaziyat sxemasi|Location plan|Ситуационная схема/i);
-  if (process.env.GX_SHOTS) { for (let i = 0; i < 2; i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(500); } await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_kvartirografiya_dark.png` }); }
+  // eksplikatsiya — alohida jadval (oʻng panel), reja katagida emas: jadval elementi va reja bitta varaqda
+  const els = () => page.evaluate(() => [...document.querySelectorAll('.ch-body [data-el]')].map(e => e.getAttribute('data-el') ?? ''));
+  for (let i = 0; i < 8 && !(await els()).some(x => x.startsWith('p:apt:')); i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); }
+  expect(await page.locator('.ch-body [data-el^="p:aptx:"]').count()).toBeGreaterThan(0);
+  expect(await page.locator('.ch-body [data-el^="p:apt:"]').count()).toBeGreaterThan(0);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_kvartirografiya_dark.png` });
 });
 
 /** 19-band (2): xarita oynasida shimol strelkasi va masshtab chizgʻichi; panelda yoqish/oʻchirish va burchak */

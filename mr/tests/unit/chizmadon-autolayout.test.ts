@@ -167,3 +167,21 @@ describe('29–30, 28-bandlar', () => {
     expect(P.left.map(e => e.id)).not.toContain('izoh');
   });
 });
+
+describe('29-band (25.10): kvartirografiya — reja chapda, eksplikatsiya shu varaqning oʻng panelida', () => {
+  it('juft jadval oʻz rejasi bilan bitta varaqqa tushadi', () => {
+    const base = mats().filter(e => e.id !== 'izoh');
+    const m = [...base,
+      { id: 'p:plan:bosh', role: 'plan', name: 'Bosh reja', title: 'Bosh reja', visible: true, accent: null, scale: 1 },
+      { id: 'p:apt:b1', role: 'plan', name: 'Kvartirografiya · 1-bino', title: 'K', visible: true, accent: null, scale: 1 },
+      { id: 'p:aptx:b1', role: 'table', kind: 'expl', name: 'Xonadonlar eksplikatsiyasi · 1-bino', title: 'E', visible: true, accent: null, scale: 1, pair: 'p:apt:b1' },
+    ] as Material[];
+    for (const fid of ['mr', 'kz', 'tq', 'st']) {
+      const fam = familyById(fid)!; expect(fam.id).toBe(fid);
+      const P = paginate(fam, m);
+      const pg = P.pages.find(p => [...p.assign.values()].some(e => e.id === 'p:aptx:b1'));
+      expect(pg, fid).toBeTruthy();
+      expect([...pg!.assign.values()].some(e => e.id === 'p:apt:b1'), fid).toBe(true);
+    }
+  });
+});

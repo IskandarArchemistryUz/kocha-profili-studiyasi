@@ -162,7 +162,7 @@ export function siteMaterials(R: () => Resolved, sets: Record<string, ChMatSet>)
 /** Master rejaning bitta rejasi (Varaqlar namunasi yoki qavat rejasi): xarita qismi (mm) va shartli belgilari */
 export interface PlanMap { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number; north?: number; legend?: { type: string; fill?: string; stroke?: string; label: string }[]; /** butunicha sigʻdirish (kesmasdan) — qavat rejalari */ contain?: boolean }
 /** 19-band: Master reja rejalari — bosh reja, zonalashtirish (land use), funksional, qavatlilik, kvartirografiya…; get — dangasa (faqat koʻrinsa hisoblanadi) */
-export interface PlanSrc { id: string; name: string; on: boolean; get: () => PlanMap | null | undefined }
+export interface PlanSrc { id: string; name: string; on: boolean; get: () => PlanMap | null | undefined; /** reja bilan juft jadval (oʻng panelda) */ table?: { id: string; name: string; title: string; rows: () => string[][] | null } }
 export interface ProjectSrc {
   plan?: { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number } | null;
   plans?: PlanSrc[];
@@ -237,6 +237,11 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
       const lay = planWithLegend(M.legend, r, ctx.u);
       return fitMap(p.id.replace(/[^\w-]/g, '_'), M, lay.plan, p.name) + (lay.legend ? legendBox(M.legend, lay.legend, ctx) : '');
     }, p.on);
+    if (p.table) {
+      const tb = p.table; let rows: string[][] | null | undefined;
+      const m = add({ id: tb.id, role: 'table', kind: 'expl', name: tb.name, title: tb.title } as Def, (r, ctx, bare) => { if (rows === undefined) { try { rows = tb.rows(); } catch { rows = null; } } return rows ? tableArt(rows, r, ctx, m, bare) : ''; }, p.on);
+      m.pair = p.id;
+    }
   }
   if (src.plan && !src.plans) { const p = src.plan; add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja')); }
   if (src.tik?.length) { const rows = [['Koʻrsatkich', 'Birlik', 'Qiymat'], ...src.tik]; const m = add({ id: 'p:tik', role: 'table', kind: 'tik', name: 'TIK jadvali', title: 'Texnik-iqtisodiy koʻrsatkichlar' }, (r, ctx, bare) => tableArt(rows, r, ctx, m, bare)); }
