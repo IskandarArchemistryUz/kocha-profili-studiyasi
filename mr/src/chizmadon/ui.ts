@@ -90,6 +90,8 @@ export function openChizmadon(host: ChHost): void {
   let matSel: string | null = null;
   /** kesish rejimidagi material (3-bosqich): katak ichida sudrash — surish, gʻildirak — kattalashtirish */
   let crop: string | null = null;
+  /** «Loyihadan» roʻyxatida ochilgan guruhlar (bino kvartirografiyasi) */
+  const openGrp = new Set<string>();
   /** 4-bosqich: varaqning oʻzida tahrirlash (material sarlavhasi yoki matni) */
   let editing: { id: string; what: 'title' | 'text'; cancel: () => void } | null = null;
   let zoom = 0, panX = 0, panY = 0;
@@ -104,7 +106,7 @@ export function openChizmadon(host: ChHost): void {
   if (phone()) d.ui.left = false;
 
   /* ---------- avtomatik albom: materiallar, maket varaqlari, bogʻlanish ---------- */
-  let LAST: Album | null = null, VP: ChPage[] = [], BG: string[] = [], nAuto = 0, MATS: Material[] = [], R: Resolved | null = null;
+  let LAST: Album | null = null, VP: ChPage[] = [], BG: string[] = [], UIX: string[] = [], nAuto = 0, MATS: Material[] = [], R: Resolved | null = null;
   let PLACE: Record<string, { pi: number; k: number }> = {};
   const fam = (): LFamily => familyById(d.auto.fam);
   const fmtOf = (f: LFamily = fam()) => (f.formats.includes(d.auto.fmt[f.id]) ? d.auto.fmt[f.id] : f.formats[0]);
@@ -177,7 +179,7 @@ export function openChizmadon(host: ChHost): void {
     const f = fam(), fmt = fmtOf(f);
     LAST = buildAlbum({ fam: f, fmt, pal: d.auto.pal, mats: MATS, force: d.auto.force, ov: d.auto.ov, slots: d.auto.slots, R, sel: matSel, place: R ? placeName(R) : host.place, txt: albumTxt(), ttl: d.auto.ttl, chap: d.auto.chap });
     d.auto.ov = LAST.ov; nAuto = LAST.pages.length; PLACE = placements(LAST.PG);
-    BG = LAST.pages.map(ap => inner(ap.svg));
+    BG = LAST.pages.map(ap => inner(ap.svg)); UIX = LAST.pages.map(ap => ap.ui);
     for (const e of d.hand) { const pi = handPage(e); if (pi < 0) continue; const F = e.a!.el ? cellsOf(pi).find(c => c.el === e.a!.el)?.r ?? pageRect(pi) : pageRect(pi); if (!e.a!.r0) e.a!.r0 = { ...F }; else rebase(e, F); }
     VP = LAST.pages.map((ap, pi) => ({ id: `auto${pi}`, name: ap.title, paper: 'custom' as ChPaper, landscape: ap.fr.W >= ap.fr.H, w: ap.fr.W, h: ap.fr.H, layers: d.handLayers, els: d.hand.filter(e => handPage(e) === pi), tpl: `L:${f.id}/${ap.fill.page.id}` }));
     if (d.v === 1) { d.cur += nAuto; d.v = 2; }
@@ -383,7 +385,22 @@ export function openChizmadon(host: ChHost): void {
     return placeSec();
   }
   function matsSec(): (HTMLElement | string)[] {
-    const list = h('div', { class: 'group', id: 'chMats' }, ...MATS.filter(m => m.role !== 'title').map(m => {
+    // 5-bosqich (25.10): bitta binoning kvartirografiya materiallari (reja, vaziyat sxemasi, eksplikatsiya) — bitta guruh
+    const all = MATS.filter(m => m.role !== 'title'), grpOf = (id: string) => /^p:apt(?:nav|x)?:(.+)$/.exec(id)?.[1] ?? null;
+    const rows: HTMLElement[] = [], seen = new Set<string>();
+    for (const m of all) {
+      const g = grpOf(m.id);
+      if (!g) { rows.push(matRow(m)); continue; }
+      if (seen.has(g)) continue; seen.add(g);
+      const mem = all.filter(x => grpOf(x.id) === g), head = mem.find(x => x.id === `p:apt:${g}`) ?? mem[0], on = mem.some(x => x.visible), open = openGrp.has(g) || mem.some(x => x.id === matSel);
+      const p = PLACE[head.id];
+      rows.push(h('div', { class: `li ch-mat ch-grp${on ? '' : ' off'}`, 'data-grp': g, 'aria-expanded': String(open), onclick: (e: Event) => { if ((e.target as Element).closest('.sw')) return; if (openGrp.has(g)) openGrp.delete(g); else openGrp.add(g); renderLeft(); } },
+        h('span', { class: 'ch-grip' }, svgIcon(open ? I.down : I.right)), h('span', { class: 'k' }, tr(head.name), h('span', { class: 'sub' }, !on ? tr('oʻchiq') : `${p ? tf('${n}-varaqda', { n: p.pi + 1 }) : tr('joy topilmadi')} · ${tf('${n} ta material', { n: mem.length })}`)),
+        sw({ label: tr(head.name), on, 'data-vis': `grp:${g}`, onchange: v => autoMut(() => { mem.forEach(x => { matSet(x.id).visible = v; }); d.auto.force = {}; }) })));
+      if (open) mem.forEach(x => { const r = matRow(x); r.classList.add('ch-sub'); rows.push(r); });
+    }
+    const list = h('div', { class: 'group', id: 'chMats' }, ...rows);
+    function matRow(m: Material): HTMLElement {
       const p = PLACE[m.id];
       const row = h('div', { class: `li ch-mat${matSel === m.id ? ' sel' : ''}${m.visible ? '' : ' off'}`, draggable: 'true', 'data-mat': m.id, onclick: (e: Event) => { if ((e.target as Element).closest('button')) return; selectMat(m.id); } },
         h('span', { class: 'ch-grip' }, svgIcon(I.drag)), h('span', { class: 'k' }, tr(m.name), h('span', { class: 'sub' }, !m.visible ? tr('oʻchiq') : p ? tf('${n}-varaqda', { n: p.pi + 1 }) : tr('joy topilmadi'))),
@@ -391,7 +408,7 @@ export function openChizmadon(host: ChHost): void {
       row.addEventListener('dragstart', ev => { DRAG = m.id; ev.dataTransfer?.setData('text/plain', m.id); if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'; view.classList.add('dropping'); });
       row.addEventListener('dragend', () => { DRAG = null; view.classList.remove('dropping'); dropHint = null; renderOverlay(); });
       return row;
-    }));
+    }
     return [list, h('span', { class: 't-small' }, tr('Loyihada tayyor material. Varaqdagi katakka sudrang — joy almashadi. Ustiga chizilgan belgilar u bilan birga koʻchadi.')),
       h('button', { class: 'btn btn-sm', id: 'chRestart', onclick: () => { d.auto.started = false; renderStart(); } }, ...icl(I.imp, tr('Kirish oynasi')))];
   }
@@ -918,7 +935,7 @@ export function openChizmadon(host: ChHost): void {
     cancelAnimationFrame(renderQ);
     renderQ = requestAnimationFrame(() => {
       const p = withToc(P()), auto = isAuto();
-      const { svg, w, h: H } = pageSvg(p, { tr, grid: gridOn, idp: 'v', ...(auto ? { bg: BG[d.cur] } : albumDeco(d.cur)) });
+      const { svg, w, h: H } = pageSvg(p, { tr, grid: gridOn, idp: 'v', ...(auto ? { bg: BG[d.cur] + (UIX[d.cur] ?? '') } : albumDeco(d.cur)) });
       pageHost.innerHTML = svg;
       const s = pageHost.firstElementChild as SVGSVGElement; s.removeAttribute('width'); s.removeAttribute('height');
       grayHost.hidden = !gray; if (gray) { grayHost.innerHTML = svg.replace(/\bid="/g, 'id="g').replace(/url\(#/g, 'url(#g'); const g = grayHost.firstElementChild as SVGSVGElement; g.removeAttribute('width'); g.removeAttribute('height'); }

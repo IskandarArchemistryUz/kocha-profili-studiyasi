@@ -810,3 +810,5 @@ details.manual{border-top:0;padding-top:0;display:block}
 /* 4-bosqich: varaqda tahrirlash */
 .ch-inedit{position:absolute;pointer-events:all;z-index:4;box-shadow:0 0 0 2px var(--sel),var(--sh-float);background:var(--surface);color:var(--ink);font-size:14px;line-height:1.45;resize:none}
 textarea.ch-inedit{padding:10px 12px}
+/* 5-bosqich: «Loyihadan» guruhlari */
+.ch-mat.ch-grp{cursor:pointer}.ch-mat.ch-sub{padding-left:26px}.ch-mat.ch-sub .ch-grip{opacity:.5}
