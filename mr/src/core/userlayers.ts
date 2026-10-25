@@ -49,6 +49,21 @@ export interface UserLayerMeta {
   colorBy: 'toifa' | 'bir';
   color: number;
   labels: boolean;
+  /** alohida obyektlar rangi: obyekt indeksi (saqlangan roʻyxatdagi oʻrni) → rang; toifa/qatlam rangidan ustun */
+  overrides?: Record<string, number>;
+}
+
+/** Obyekt rangi: alohida berilgan rang → toifa rangi (toifa rejimida) → qatlam rangi */
+export function featureColor(m: Pick<UserLayerMeta, 'catField' | 'cats' | 'colorBy' | 'color' | 'overrides'>, f: ULFeature, i: number): number {
+  const o = m.overrides?.[i]; if (o != null) return o;
+  if (m.colorBy === 'toifa' && m.catField) { const c = catOf(f, m); if (c) return c.color; }
+  return m.color;
+}
+/** Bir nechta obyektga rang berish / tiklash (color = null) — yangi overrides (boʻsh boʻlsa undefined) */
+export function withOverrides(cur: Record<string, number> | undefined, ids: number[], color: number | null): Record<string, number> | undefined {
+  const o = { ...(cur ?? {}) };
+  for (const i of ids) { if (color == null) delete o[i]; else o[i] = color; }
+  return Object.keys(o).length ? o : undefined;
 }
 
 /* ---------- koordinata tizimi ---------- */

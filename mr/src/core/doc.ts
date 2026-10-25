@@ -221,6 +221,12 @@ function cleanUserLayers(v: unknown): UserLayerMeta[] {
     catField: str(m.catField), nameField: str(m.nameField), heightField: str(m.heightField), floorsField: str(m.floorsField),
     cats: (Array.isArray(m.cats) ? m.cats : []).filter((c: any) => c && typeof c.v === 'string').slice(0, 40).map((c: any) => ({ v: c.v, label: String(c.label ?? c.v).slice(0, 80), color: col(c.color, 0xd8d3c8), on: c.on !== false, n: isNum(c.n) ? c.n : 0 })),
     colorBy: m.colorBy === 'bir' ? 'bir' : 'toifa', color: col(m.color, 0xf4f2ee), labels: m.labels === true,
+    ...(() => {
+      if (!m.overrides || typeof m.overrides !== 'object') return {};
+      const o: Record<string, number> = {};
+      for (const [k, v] of Object.entries(m.overrides)) if (/^\d+$/.test(k) && isNum(v) && v >= 0 && v <= 0xffffff) o[k] = Math.round(v as number);
+      return Object.keys(o).length ? { overrides: o } : {};
+    })(),
   }));
 }
 

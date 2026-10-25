@@ -82,7 +82,7 @@ export function label(c: Command): string {
     case 'setSheets': return 'Varaqlar';
     case 'setChizmadon': return 'Chizmadon';
     case 'addUserLayer': return `Qatlam qoʻshildi: ${c.meta.name}`;
-    case 'updateUserLayer': return 'Qatlam sozlamasi';
+    case 'updateUserLayer': return 'overrides' in c.patch ? 'Obyekt rangi' : 'Qatlam sozlamasi';
     case 'removeUserLayer': return 'Qatlam olib tashlandi';
     case 'removeView': return 'Koʻrinish oʻchirildi';
     case 'setParcels': return 'Parsellar';
@@ -193,6 +193,8 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       if (i < 0) throw new CommandError('Qatlam topilmadi');
       const m = { ...L[i], ...JSON.parse(JSON.stringify(c.patch)) };
       if (m.opacity != null) m.opacity = Math.max(0, Math.min(1, m.opacity));
+      // alohida ranglar: patch da `overrides` aniq berilib boʻsh boʻlsa — hammasi tiklanadi (JSON undefined ni tashlaydi)
+      if ('overrides' in c.patch && (!c.patch.overrides || !Object.keys(c.patch.overrides).length)) delete m.overrides;
       d.userLayers = L.slice(); d.userLayers[i] = m; return d;
     }
     case 'removeUserLayer': {

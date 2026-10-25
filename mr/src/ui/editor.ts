@@ -67,7 +67,8 @@ import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { UserLayersUI } from './userlayersui';
 import { parseBoundary, crsLabel, areaFrame, clipOsmToArea, ringAreaM2, BOUNDARY_ACCEPT, AREA_FREE_RADIUS, type Boundary } from '../core/boundary';
 import { CTX_R_MIN, CTX_R_MAX } from '../core/doc';
-import type { ULFeature } from '../core/userlayers';
+import { featureColor, withOverrides, UL_KINDS, type ULFeature } from '../core/userlayers';
+import { openColor, closeColor } from './colorpicker';
 import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
 import { LiveBase, liveSize } from '../context/basemap';
@@ -227,8 +228,9 @@ export class Editor {
     const mapctl = h('div', { class: 'mapctl' },
       this.popBtn('stylePop', tr('Xarita'), () => this.stylePop(), 'down', ICON.map),
       this.popBtn('layPop', tr('Qatlamlar'), () => this.layPop(), 'down', ICON.layers));
-    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, tb, attr, badge, mapctl, lblbar);
-    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, tb, drawer, hint, scene, stage, attr, badge, lblbar });
+    const ulcard = h('div', { class: 'ulcard glassbar', hidden: true, role: 'dialog', 'aria-label': tr('Qatlam obyekti') });
+    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, tb, attr, badge, mapctl, lblbar, ulcard);
+    Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, tb, drawer, hint, scene, stage, attr, badge, lblbar, ulcard });
     return h('div', { class: 'app' }, top, stage);
   }
 
@@ -550,6 +552,50 @@ export class Editor {
   }
   private restoreRemoved(): void { this.run(() => this.store.dispatch({ type: 'setRemoved', removed: [] })); }
 
+  /* ---------- foydalanuvchi qatlami obyektlari: bosib tanlash va alohida rang berish ---------- */
+  /** tanlangan obyektlar — bitta qatlamdan (Shift + bosish / Shift + ramka — qoʻshish) */
+  private ulSel: { layer: string; fids: number[] } = { layer: '', fids: [] };
+  private setUlSel(layer: string, fids: number[]): void {
+    const u = [...new Set(fids)];
+    this.ulSel = u.length ? { layer, fids: u } : { layer: '', fids: [] };
+    this.scene.setUserSelection(this.ulSel.layer || null, this.ulSel.fids);
+    this.renderUlCard();
+  }
+  /** Shift + bosish: tanlovga qoʻshish / olib tashlash (boshqa qatlam obyekti — yangi tanlov) */
+  private toggleUlSel(hit: { layer: string; fid: number }): void {
+    if (this.ulSel.layer && this.ulSel.layer !== hit.layer) { this.setUlSel(hit.layer, [hit.fid]); return; }
+    const f = this.ulSel.fids; this.setUlSel(hit.layer, f.includes(hit.fid) ? f.filter(x => x !== hit.fid) : [...f, hit.fid]);
+  }
+  private ulColor(color: number | null): void {
+    const { layer, fids } = this.ulSel; if (!layer || !fids.length) return;
+    const m = this.store.doc.userLayers?.find(x => x.id === layer); if (!m) return;
+    const overrides = withOverrides(m.overrides, fids, color);
+    this.run(() => this.store.dispatch({ type: 'updateUserLayer', id: layer, patch: { overrides: overrides ?? {} } }));
+    this.renderUlCard();
+  }
+  /** Tanlangan obyekt(lar) kartasi: qatlam, xususiyatlari, rang, tiklash */
+  private renderUlCard(): void {
+    const el = this.el.ulcard; if (!el) return;
+    const { layer, fids } = this.ulSel, m = this.store.doc.userLayers?.find(x => x.id === layer), data = m ? this.ul.data.get(m.id) : undefined;
+    if (!m || !data || !fids.length) { el.hidden = true; el.replaceChildren(); closeColor(true); return; }
+    const one = fids.length === 1 ? data[fids[0]] : null, kind = UL_KINDS.find(k => k.id === m.kind)!;
+    const col = featureColor(m, data[fids[0]], fids[0]), hx = '#' + col.toString(16).padStart(6, '0');
+    const own = fids.filter(i => m.overrides?.[i] != null).length;
+    const sw = h('button', { class: 'ulsw big', type: 'button', id: 'ulSelColor', title: tr('Rang tanlash'), 'aria-label': tr('Rang tanlash') }, h('i', { style: `background:${hx}` }));
+    sw.addEventListener('click', () => openColor(sw, hx, { title: tr('Obyekt rangi'), onChange: v => { (sw.firstChild as HTMLElement).style.background = v; }, onDone: v => this.ulColor(parseInt(v.slice(1), 16)), onCancel: v => { (sw.firstChild as HTMLElement).style.background = v; } }));
+    const props = one ? Object.entries(one.p).filter(([k, v]) => v != null && v !== '' && !/^(guid|id)$/i.test(k)).slice(0, 8) : [];
+    el.replaceChildren(
+      h('div', { class: 'row', style: 'justify-content:space-between;align-items:center;gap:10px' },
+        h('b', {}, one ? (m.nameField && one.p[m.nameField] ? String(one.p[m.nameField]) : tf('Obyekt #${n}', { n: fids[0] + 1 })) : tf('${n} ta obyekt', { n: fids.length })),
+        h('button', { class: 'ib', type: 'button', title: tr('Yopish (Esc)'), 'aria-label': tr('Yopish (Esc)'), onclick: () => this.setUlSel('', []) }, svgIcon(IC.x))),
+      h('span', { class: 't-small' }, `${m.name} · ${tr(kind.name)}`),
+      props.length ? h('div', { class: 'ulprops' }, ...props.map(([k, v]) => h('div', {}, h('span', { class: 'k' }, k), h('span', {}, typeof v === 'number' ? fmt(v) : String(v))))) : '',
+      h('div', { class: 'row', style: 'gap:8px;align-items:center' }, sw, h('span', { class: 't-small' }, own ? (fids.length === 1 ? tr('Alohida rang') : tf('Alohida rang — ${n} ta', { n: own })) : tr('Toifa / qatlam rangi')),
+        own ? h('button', { class: 'btn btn-ghost btn-sm', id: 'ulSelReset', onclick: () => this.ulColor(null) }, tr('Rangni tiklash')) : ''),
+      h('span', { class: 't-small' }, tr('Shift + bosish yoki Shift + ramka — tanlovga qoʻshish · Esc — bekor')));
+    el.hidden = false;
+  }
+
   /* ---------- bino muharriri (tanlangan bino; har qadamda) ---------- */
   private inspTab: 'hajm' | 'qavat' = 'hajm';
   private dragMode: 'yoq' | 'push' | 'move' | 'floor' = 'yoq';
@@ -682,7 +728,7 @@ export class Editor {
   private syncGone(): void { const ip = STEPS.findIndex(x => x.id === 'parsel'), i = STEPS.indexOf(this.step); this.scene.setHideGone(i > ip || this.goneHidden); }
   private renderAll(): void {
     this.syncFade(); this.syncGone();
-    this.renderRail(); this.renderPanel();
+    this.renderRail(); this.renderPanel(); this.renderUlCard();
     const u = this.root.querySelector('#undo') as HTMLButtonElement | null; if (u) u.title = u.ariaLabel = this.store.canUndo ? tf('Bekor qilish: ${this.store.undoLabel} (Ctrl+Z)', { 'this.store.undoLabel': this.store.undoLabel }) : tr('Bekor qilish (Ctrl+Z)');
   }
 
@@ -3130,13 +3176,18 @@ export class Editor {
         if (Math.hypot(e.clientX - b0.x, e.clientY - b0.y) > 5) {
           const r = this.scene.pickInRect(this.store.doc, b0.x, b0.y, e.clientX, e.clientY);
           this.setMarked([...this.marked.b, ...r.bids, ...(this.sel ? [this.sel] : [])], [...this.marked.c, ...r.cids], this.store.doc, this.marked.r);
+          // foydalanuvchi qatlami obyektlari: joriy tanlov qatlamidan, yoʻq boʻlsa — ramkada eng koʻp tushgan qatlamdan
+          const ur = this.scene.pickUserInRect(b0.x, b0.y, e.clientX, e.clientY);
+          if (ur.length) { const g = ur.find(x => x.layer === this.ulSel.layer) ?? ur.sort((a, b) => b.fids.length - a.fids.length)[0]; this.setUlSel(g.layer, [...(g.layer === this.ulSel.layer ? this.ulSel.fids : []), ...g.fids]); }
         } else {
           // Shift + bosish — tanlovga qoʻshish / olib tashlash
           const id = this.scene.pickBuilding(e.clientX, e.clientY), cid = id ? null : this.scene.pickAnyContext(e.clientX, e.clientY);
           const tg = <T,>(a: T[], v: T) => a.includes(v) ? a.filter(x => x !== v) : [...a, v];
           const p = id || cid != null ? null : this.scene.pick(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null;
+          const uh = id || cid != null ? null : this.scene.pickUserFeature(e.clientX, e.clientY);
           if (id) this.setMarked(tg([...this.marked.b, ...(this.sel && this.sel !== id ? [this.sel] : [])], id), this.marked.c, this.store.doc, this.marked.r);
           else if (cid != null) this.setMarked([...this.marked.b, ...(this.sel ? [this.sel] : [])], tg(this.marked.c, cid), this.store.doc, this.marked.r);
+          else if (uh) this.toggleUlSel(uh);
           else if (rid != null) this.setMarked([...this.marked.b, ...(this.sel ? [this.sel] : [])], this.marked.c, this.store.doc, tg(this.marked.r, rid));
         }
         if (this.marked.b.length + this.marked.c.length + this.marked.r.length > 1 && this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); this.setMarked(this.marked.b, this.marked.c, this.store.doc, this.marked.r); }
@@ -3182,6 +3233,9 @@ export class Editor {
       if (!id) { const p = this.scene.pick(e.clientX, e.clientY), sid = p ? this.streetAt(p) : null; if (sid && !this.locked(STEPS.find(x => x.id === 'kocha')!)) { this.go(STEPS.find(x => x.id === 'kocha')!); this.pickStreet(sid); return; } }
       // atrofdagi (OSM) bino — tanlanadi (Delete bilan olib tashlanadi)
       if (!id) { const cid = this.scene.pickAnyContext(e.clientX, e.clientY); if (cid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked([], [cid]); return; } }
+      // foydalanuvchi qatlami obyekti (import qilingan bino, uchastka, chegara) — tanlanadi, rangi oʻzgartiriladi
+      if (!id) { const uh = this.scene.pickUserFeature(e.clientX, e.clientY); if (uh) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []); e.shiftKey ? this.toggleUlSel(uh) : this.setUlSel(uh.layer, [uh.fid]); return; } }
+      if (this.ulSel.fids.length) this.setUlSel('', []);
       // atrofdagi (OSM) yoʻl yoki trotuar — tanlanadi (Delete bilan olib tashlanadi; Shift — tanlovga qoʻshish)
       if (!id) { const p = this.scene.pick(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null; if (rid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked(e.shiftKey ? this.marked.b : [], e.shiftKey ? this.marked.c : [], this.store.doc, e.shiftKey ? (this.marked.r.includes(rid) ? this.marked.r.filter(x => x !== rid) : [...this.marked.r, rid]) : [rid]); return; } }
       if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []);
@@ -3215,6 +3269,7 @@ export class Editor {
       else if ((e.key === 'Delete' || e.key === 'Backspace') && (this.marked.b.length || this.marked.c.length || this.marked.r.length)) { e.preventDefault(); this.deleteMarked(); }
       else if (e.key === 'Escape' && this.sframe && !document.querySelector('.gx')) this.endFrame();
       else if (e.key === 'Escape' && (this.marked.b.length || this.marked.c.length || this.marked.r.length)) this.setMarked([], []);
+      else if (e.key === 'Escape' && this.ulSel.fids.length) this.setUlSel('', []);
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.osmPick) { e.preventDefault(); this.removeOsmRoad(this.osmPick.id); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.store.dispatch({ type: 'removeBuilding', id: this.sel }); }

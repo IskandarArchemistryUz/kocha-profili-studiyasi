@@ -10,7 +10,7 @@ import { frame, centroid, area, signedArea, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
 import { buildContext, buildingMeshes, houseRoofRise, type ContextScene, type HeightFn } from './context3d';
-import { applyVisibility, buildUserLayer, geomKey, type UL3D } from './userlayers3d';
+import { applyVisibility, buildUserLayer, geomKey, paintUserLayer, type UL3D } from './userlayers3d';
 import type { ULFeature } from '../core/userlayers';
 import { projectStreetsGeo } from './streets3d';
 import { computePlan, interiorPoint } from '../core/plan';
@@ -1545,12 +1545,56 @@ export class Scene3D {
         this.scene.add(u.group); this.ul.set(m.id, { key, data: d, u });
       }
       applyVisibility(this.ul.get(m.id)!.u, m);
+      paintUserLayer(this.ul.get(m.id)!.u, m, d, this.ulSel?.layer === m.id ? this.ulSel.fids : null);
     }
     for (const [id, x] of this.ul) if (!live.has(id)) { this.scene.remove(x.u.group); x.u.dispose(); this.ul.delete(id); }
     // qatlamlar tartibi: hujjatdagi tartib (keyingisi — ustida)
     metas.forEach((m, i) => { const x = this.ul.get(m.id); if (x) x.u.group.renderOrder = i; });
     this.invalidate();
   }
+  /** Tanlangan qatlam obyektlari (bitta qatlamdan): sahnada koʻk bilan belgilanadi */
+  private ulSel: { layer: string; fids: Set<number> } | null = null;
+  setUserSelection(layer: string | null, fids: number[] = []): void {
+    this.ulSel = layer && fids.length ? { layer, fids: new Set(fids) } : null;
+    if (this.lastDoc) { const d = new Map<string, ULFeature[]>(); for (const [id, x] of this.ul) d.set(id, x.data); this.setUserLayers(this.lastDoc, d); }
+  }
+  private ulPickables(): THREE.Mesh[] {
+    const out: THREE.Mesh[] = [];
+    for (const x of this.ul) if (x[1].u.group.visible) for (const m of x[1].u.pickable) if (m.visible) out.push(m);
+    return out;
+  }
+  /** Ekran nuqtasidagi foydalanuvchi qatlami obyekti: qatlam id va obyekt indeksi */
+  pickUserFeature(clientX: number, clientY: number): { layer: string; fid: number } | null {
+    const ms = this.ulPickables(); if (!ms.length) return null;
+    const r = this.renderer.domElement.getBoundingClientRect();
+    this.ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.rcam());
+    const hit = this.ray.intersectObjects(ms, false)[0]; if (!hit || !hit.face) return null;
+    const fid = (hit.object as THREE.Mesh).geometry.getAttribute('fid') as THREE.BufferAttribute | undefined; if (!fid) return null;
+    const id = fid.getX(hit.face.a); if (id < 0) return null;
+    const layer = hit.object.parent?.name.replace(/^ul:/, ''); if (!layer) return null;
+    return { layer, fid: id };
+  }
+  /** Ekran toʻrtburchagiga markazi tushgan foydalanuvchi qatlami obyektlari (koʻrinib turgan qatlamlardan) */
+  pickUserInRect(x0: number, y0: number, x1: number, y1: number): { layer: string; fids: number[] }[] {
+    const out: { layer: string; fids: number[] }[] = [], [ax, bx] = [Math.min(x0, x1), Math.max(x0, x1)], [ay, by] = [Math.min(y0, y1), Math.max(y0, y1)];
+    const cam = this.rcam(), r = this.renderer.domElement.getBoundingClientRect(), v = new THREE.Vector3();
+    for (const [id, x] of this.ul) {
+      if (!x.u.group.visible) continue;
+      const doc = this.lastDoc, m = doc?.userLayers?.find(q => q.id === id), off = new Set((m?.cats ?? []).filter(c => !c.on).map(c => c.v));
+      const C = x.u.centers, fids: number[] = [];
+      for (let i = 0; i < C.length / 2; i++) {
+        const cx = C[2 * i], cy = C[2 * i + 1]; if (Number.isNaN(cx)) continue;
+        if (off.size && m?.catField) { const cv = String(x.data[i].p[m.catField] ?? ''); if (off.has(cv)) continue; }
+        v.set(cx, this.H(cx, cy), -cy).project(cam);
+        const sx = (v.x + 1) / 2 * r.width + r.left, sy = (1 - v.y) / 2 * r.height + r.top;
+        if (sx >= ax && sx <= bx && sy >= ay && sy <= by) fids.push(i);
+      }
+      if (fids.length) out.push({ layer: id, fids });
+    }
+    return out;
+  }
+  /** Qatlam obyektining markazi (mahalliy metr) — sahnada koʻrsatish uchun */
+  userFeatureCenter(layer: string, fid: number): XY | null { const x = this.ul.get(layer); if (!x) return null; const c = x.u.centers; return Number.isNaN(c[2 * fid]) ? null : [c[2 * fid], c[2 * fid + 1]]; }
   /** Qatlam hududini koʻrsatish (bbox: gʻarb, janub, sharq, shimol) */
   frameBBox(origin: LngLat, bb: [number, number, number, number]): void {
     const fr = frame(origin), a = fr.toLocal([bb[0], bb[1]]), b = fr.toLocal([bb[2], bb[3]]);

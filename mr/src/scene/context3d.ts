@@ -123,9 +123,15 @@ export function houseRoofRise(b: { rings: XY[][]; h: number; kind?: string }): n
   return A < 450 && A / o.area > 0.8 && S > 3 ? Math.min(3.2, S * 0.32) : 0;
 }
 
-function buildingsGeo(list: { rings: XY[][]; h: number; kind?: string }[], H: HeightFn): { mesh: THREE.BufferGeometry; edges: THREE.BufferGeometry; roof: THREE.BufferGeometry | null } | null {
+function buildingsGeo(list: { id?: number; rings: XY[][]; h: number; kind?: string }[], H: HeightFn): { mesh: THREE.BufferGeometry; edges: THREE.BufferGeometry; roof: THREE.BufferGeometry | null } | null {
   const pos: number[] = [], nor: number[] = [], ed: number[] = [], roof: number[] = [];
+  // har vertexda bino identifikatori (`fid` atributi) — sahnada bosib tanlash va alohida rang berish uchun
+  const fidM: number[] = [], fidR: number[] = [];
+  let pm = 0, pr = 0, cur = -1;
+  /** shu paytgacha qoʻshilgan (hali belgilanmagan) vertexlarni joriy bino identifikatori bilan belgilash */
+  const tag = () => { for (let n = pos.length / 3; pm < n; pm++) fidM.push(cur); for (let n = roof.length / 3; pr < n; pr++) fidR.push(cur); };
   for (const b of list) {
+    tag(); cur = b.id ?? -1;
     const outer = b.rings[0]; if (!outer || outer.length < 3) continue;
     let base = Infinity; for (const p of outer) base = Math.min(base, H(p[0], p[1]));
     const top = base + b.h;
@@ -157,12 +163,14 @@ function buildingsGeo(list: { rings: XY[][]; h: number; kind?: string }[], H: He
       for (const k of ix) { const v = all[k]; pos.push(v.x, top, -v.y); nor.push(0, 1, 0); }
     }
   }
+  tag();
   if (!pos.length) return null;
   const mesh = new THREE.BufferGeometry();
   mesh.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); mesh.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  mesh.setAttribute('fid', new THREE.Int32BufferAttribute(fidM, 1));
   const edges = new THREE.BufferGeometry(); edges.setAttribute('position', new THREE.Float32BufferAttribute(ed, 3));
   let rg: THREE.BufferGeometry | null = null;
-  if (roof.length) { rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(roof, 3)); rg.computeVertexNormals(); }
+  if (roof.length) { rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(roof, 3)); rg.setAttribute('fid', new THREE.Int32BufferAttribute(fidR, 1)); rg.computeVertexNormals(); }
   return { mesh, edges, roof: rg };
 }
 

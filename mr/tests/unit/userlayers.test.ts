@@ -123,3 +123,31 @@ describe('OSM dublikatlari', async () => {
     expect(osmDuplicates(osm, imp)).toEqual([1]);
   });
 });
+
+describe('alohida obyekt rangi (overrides)', async () => {
+  const { featureColor, withOverrides } = await import('../../src/core/userlayers');
+  const meta = { id: 'ul_2', name: 'Binolar', kind: 'bino' as const, file: 'b.geojson', added: '2026-10-25T00:00:00Z', count: 3, bbox: [66.5, 38.3, 66.6, 38.4] as [number, number, number, number], visible: true, opacity: 1, catField: 'landuse', cats: [{ v: 'RES', label: 'Turar joy', color: 0xf2cf7c, on: true, n: 2 }], nameField: null, heightField: null, floorsField: null, colorBy: 'toifa' as const, color: 0xffffff, labels: false };
+  const fs: ULFeature[] = [{ p: { landuse: 'RES' } }, { p: { landuse: 'RES' } }, { p: { landuse: 'NOP' } }];
+  it('rang tartibi: alohida → toifa → qatlam; tiklash — toifa rangiga qaytadi', () => {
+    expect(featureColor(meta, fs[0], 0)).toBe(0xf2cf7c);
+    expect(featureColor(meta, fs[2], 2)).toBe(0xffffff);                     // toifa roʻyxatida yoʻq — qatlam rangi
+    expect(featureColor({ ...meta, colorBy: 'bir' }, fs[0], 0)).toBe(0xffffff);
+    const o = withOverrides(undefined, [0, 2], 0xc0643a);
+    expect(o).toEqual({ 0: 0xc0643a, 2: 0xc0643a });
+    expect(featureColor({ ...meta, overrides: o }, fs[0], 0)).toBe(0xc0643a);
+    expect(featureColor({ ...meta, overrides: o }, fs[1], 1)).toBe(0xf2cf7c);
+    expect(withOverrides(o, [0], null)).toEqual({ 2: 0xc0643a });
+    expect(withOverrides(o, [0, 2], null)).toBeUndefined();
+  });
+  it('buyruq va migratsiya: ranglar saqlanadi, boʻsh patch hammasini tiklaydi, yaroqsiz qiymatlar tashlanadi', () => {
+    let d = apply(blankProject(), { type: 'addUserLayer', meta });
+    d = apply(d, { type: 'updateUserLayer', id: 'ul_2', patch: { overrides: { 1: 0x112233 } } });
+    expect(d.userLayers![0].overrides).toEqual({ 1: 0x112233 });
+    const m = migrate(JSON.parse(JSON.stringify(d)));
+    expect(m.userLayers![0].overrides).toEqual({ 1: 0x112233 });
+    const bad = JSON.parse(JSON.stringify(d)); bad.userLayers[0].overrides = { 1: 0x112233, x: 5, 2: -1, 3: 'q' };
+    expect(migrate(bad).userLayers![0].overrides).toEqual({ 1: 0x112233 });
+    d = apply(d, { type: 'updateUserLayer', id: 'ul_2', patch: { overrides: {} } });
+    expect(d.userLayers![0].overrides).toBeUndefined();
+  });
+});
