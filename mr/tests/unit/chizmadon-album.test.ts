@@ -30,7 +30,7 @@ describe('Chizmadon — avtomatik albom', () => {
     const A = buildAlbum({ fam: LAYOUTS.families.find(f => f.id === 'mr')!, fmt: 'A3L', pal: 'arch', mats, R });
     expect(A.PG.left.filter(m => m.role !== 'legend' && m.role !== 'text')).toEqual([]); // kichiklar (legenda, matn) joysiz qolishi mumkin — banner
     const where = (id: string) => A.pages.flatMap(ap => [...ap.fill.assign.entries()].filter(([, m]) => m.id === id).map(([k]) => ap.fill.page.slots[k].role))[0];
-    expect(['map', 'map_small', 'figure', 'module']).toContain(where('p:plan')); expect(['table', 'kpi', 'checklist']).toContain(where('p:tik')); expect(['render', 'photo', 'figure']).toContain(where('p:scene'));
+    expect(['map', 'map_small', 'figure', 'module']).toContain(where('p:plan')); expect(['table', 'kpi', 'checklist']).toContain(where('p:tik')); expect(['render', 'photo', 'figure', 'axon']).toContain(where('p:scene')); // 3D sahna rasmi — aksonometriya katagiga ham mos
     expect(where('temp')).toBeUndefined();
   });
   it('slotAt: nuqta ostidagi katak; uslub: «Mening uslubim»', () => {

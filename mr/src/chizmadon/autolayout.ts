@@ -24,6 +24,8 @@ export interface Material {
   level?: number;
   /** juft material: shu id dagi reja bilan bitta varaqda (masalan, kvartirografiya — reja chapda, eksplikatsiya oʻng panelda) */
   pair?: string;
+  /** joysiz qolsa kam jarima (juft bezak materiallari — vaziyat sxemasi) */
+  minor?: boolean;
   kind?: string;
   /** qoʻlda tahrirlangan matn (null — avtomatik) */
   text?: string | null;
@@ -67,6 +69,7 @@ export interface Fill {
 export function tryFill(page: LPage, pool: Material[], fam: LFamily, paired: Set<string> = new Set(pool.filter(e => e.visible).map(e => e.id))): Fill {
   const used = new Set<string>(), assign = new Map<number, Material>(), empty = new Set<number>();
   const order = page.slots.map((s, k) => [s, k] as const).sort((a, b) => cells(b[0]) - cells(a[0]));
+  const famPairs = fam.pages.some(p => p.pairs), partnered = (e: Material) => pool.some(q => q.pair === e.id);
   for (const [s, k] of order) {
     if (NEUTRAL[s.role] || isTitleSlot(s, fam)) continue;
     const acc = ACCEPT[s.role];
@@ -77,12 +80,16 @@ export function tryFill(page: LPage, pool: Material[], fam: LFamily, paired: Set
     const pairOk = (e: Material) => !e.pair || used.has(e.pair) || !paired.has(e.pair);
     best = pool.find(e => !used.has(e.id) && !!e.pair && used.has(e.pair) && acc.includes(e.role));
     if (!best) for (const role of acc) {
-      best = pool.find(e => !used.has(e.id) && e.role === role && pairOk(e) && (s.role !== 'map_small' || role !== 'locator' || (e.level ?? 0) > 0));
+      const ok = (e: Material) => !used.has(e.id) && e.role === role && pairOk(e) && (s.role !== 'map_small' || role !== 'locator' || (e.level ?? 0) > 0);
+      // juftli reja (kvartirografiya) — oila «Kvartirografiya» varagʻiga ega boʻlsa, faqat oʻsha varaqda (u yerda birinchi navbatda);
+      // aks holda (oilada bunday varaq yoʻq) — oddiy reja kabi
+      if (role === 'plan' && page.pairs) best = pool.find(e => ok(e) && partnered(e));
+      best ??= pool.find(e => ok(e) && !(role === 'plan' && famPairs && !page.pairs && partnered(e)));
       if (best) break;
     }
     // joylashuv darajasi: katta katakka — davlat (0), kichigiga — tuman (eng katta daraja)
-    if (best?.role === 'locator') {
-      const locs = pool.filter(e => !used.has(e.id) && e.role === 'locator' && (s.role !== 'map_small' || (e.level ?? 0) > 0)).sort((a, b) => (a.level ?? 0) - (b.level ?? 0));
+    if (best?.role === 'locator' && !best.pair) {
+      const locs = pool.filter(e => !used.has(e.id) && e.role === 'locator' && !e.pair && (s.role !== 'map_small' || (e.level ?? 0) > 0)).sort((a, b) => (a.level ?? 0) - (b.level ?? 0));
       if (locs.length) best = cells(s) >= 20 ? locs[0] : locs[locs.length - 1];
     }
     if (best) { used.add(best.id); assign.set(k, best); } else empty.add(k);
@@ -104,7 +111,7 @@ export function tryFill(page: LPage, pool: Material[], fam: LFamily, paired: Set
 export const structural = (p: LPage): boolean => p.slots.some(q => q.role === 'toc' || q.role === 'chapter' || (q.role === 'render' && !!q.bleed));
 
 export interface PState { seq: Fill[]; pool: Material[]; score: number }
-export const cost = (st: PState): number => st.seq.length * 60 - st.score + st.pool.reduce((a, e) => a + (MINOR[e.role] ? 45 : 500), 0);
+export const cost = (st: PState): number => st.seq.length * 60 - st.score + st.pool.reduce((a, e) => a + (MINOR[e.role] || e.minor ? 45 : 500), 0);
 
 export interface Paginated { pages: Fill[]; left: Material[]; titleEl: Material | null }
 
@@ -132,7 +139,7 @@ export function paginate(fam: LFamily, mats: Material[], force: Record<number, s
       for (const c of cands.slice(0, EXP)) {
         const ns: PState = { seq: st.seq.concat([{ ...c, alts }]), pool: st.pool.filter(e => !c.used.has(e.id)), score: st.score + c.score };
         (ns.pool.length ? next : done).push(ns);
-        if (ns.pool.length && ns.pool.every(e => MINOR[e.role])) done.push(ns);
+        if (ns.pool.length && ns.pool.every(e => MINOR[e.role] || e.minor)) done.push(ns);
       }
     }
     next.sort((a, b) => cost(a) - cost(b)); beam = next.slice(0, BEAM);

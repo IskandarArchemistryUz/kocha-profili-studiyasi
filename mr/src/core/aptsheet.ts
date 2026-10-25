@@ -16,7 +16,19 @@ import { sharedEdge } from './sectionplan';
 import type { LegendItem } from './sheet';
 import type { Bal } from './facade';
 
-export interface AptSheet { name: string; label: string; legend: LegendItem[]; rows: { n: number; rooms: number; area: number }[]; body: (vx: number, vy: number, vw: number, vh: number) => string; side: (x: number, y: number, w: number, yMax: number) => string; /** reja burilishida shimol, ° (soat strelkasi boʻyicha, 0 — tepaga) */ north: number }
+export interface AptSheet { name: string; label: string; legend: LegendItem[]; rows: { n: number; rooms: number; area: number }[]; body: (vx: number, vy: number, vw: number, vh: number) => string; side: (x: number, y: number, w: number, yMax: number) => string; /** reja burilishida shimol, ° (soat strelkasi boʻyicha, 0 — tepaga) */ north: number;
+  /** Chizmadon: faqat qavat rejasi, berilgan katakka sigʻadigan eng yirik standart masshtabda (GOST 2.302), katak oʻlchamidagi vb bilan (choʻzilmaydi) */
+  fit: (w: number, h: number) => { svg: string; w: number; h: number; vb: [number, number, number, number]; scale: number; sub: string };
+  /** Chizmadon: vaziyat sxemasi alohida katakda */
+  nav: (x: number, y: number, w: number, h: number) => string }
+
+/** GOST 2.302 boʻyicha kichraytirish masshtablari (1:N), rejalar uchun */
+export const STD_SCALES = [50, 75, 100, 200, 400, 500, 800, 1000];
+/** Oʻlcham (1:100 dagi) va katak boʻyicha masshtab: katakka sigʻadigan eng yirigi */
+export const fitScale = (w100: number, h100: number, w: number, h: number): number => {
+  const need = 100 * Math.max(w100 / w, h100 / h);
+  return STD_SCALES.find(v => v >= need - 1e-6) ?? Math.ceil(need / 1000) * 1000;
+};
 
 const n2 = (v: number) => v.toFixed(2);
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -148,11 +160,28 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
     out.push(`<text x="${n2(vx + 2)}" y="${n2(vy + 10.5)}" font-size="2.8" fill="#55524b">${esc(label)} · ${esc(tr(`${bi + 1}-bino`))} · ${esc(tr(FLOOR_NAME[ft]))}</text>`);
     out.push(`<path d="M${n2(vx + 2)} ${n2(vy + 12)}H${n2(vx + Math.min(110, vw * 0.4))}" stroke="#1d1d1b" stroke-width="0.4"/>`);
     out.push(svg.replace(/^<svg /, `<svg x="${n2(px)}" y="${n2(py)}" `).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `width="${n2(ww)}" height="${n2(hh)}"`));
-    out.push(navScheme(nx, ny, nw, nh, T, northDeg, {
+    out.push(nav(nx, ny, nw, nh));
+    return out.join('');
+  };
+  function nav(x: number, y: number, w: number, h: number): string {
+    return navScheme(x, y, w, h, T, northDeg, {
       site, blocks: plan.blocks.flatMap(b => b.rings), others: blds.filter(b => !grp.has(b.id)).map(b => b.r),
       plot: blk?.rings ?? [], group: inBlk.filter(b => grp.has(b.id) && b.id !== pl.bid).map(b => b.r), cur: [pl.ring], inPlot: inBlk.filter(b => !grp.has(b.id)).map(b => b.r),
-    }, tr('Vaziyat sxemasi'), [tr('hudud chegarasi'), tr('uchastka'), tr('seksiya')]));
-    return out.join('');
+    }, tr('Vaziyat sxemasi'), [tr('hudud chegarasi'), tr('uchastka'), tr('seksiya')]);
+  }
+  /** Katakka sigʻadigan reja: avval 1:100 oʻlchamidan taxmin, sigʻmasa — keyingi standart masshtab (oʻlcham yozuvlari mm da oʻzgarmaydi) */
+  const fit = (w: number, h: number) => {
+    let s = fitScale(probe.widthMm, probe.heightMm, w, h), r = s === 100 ? probe : floorPlanSvg(pl, { ...base, scale: s });
+    for (let i = 0; i < 4 && (r.widthMm > w + 0.01 || r.heightMm > h + 0.01); i++) {
+      const nx = STD_SCALES.find(v => v > s) ?? s * 2; s = nx; r = floorPlanSvg(pl, { ...base, scale: s });
+    }
+    let inner = r.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+    if (look === 'bir') for (const c of Object.values(APT_FILL)) inner = inner.split(c).join('#ffffff');
+    // reja katak markazida; vb — katak oʻlchamida (fitMap «contain» koeffitsiyenti = 1 → masshtab yozuvi aniq)
+    const W = Math.max(w, r.widthMm), H = Math.max(h, r.heightMm);
+    return { svg: `<rect x="${n2(-(W - r.widthMm) / 2)}" y="${n2(-(H - r.heightMm) / 2)}" width="${n2(W)}" height="${n2(H)}" fill="#ffffff"/><g font-family="Archivo, system-ui, sans-serif">${inner}</g>`,
+      w: W, h: H, vb: [-(W - r.widthMm) / 2, -(H - r.heightMm) / 2, W, H] as [number, number, number, number], scale: s,
+      sub: `${tr(`${groupName(G)} rejasi`)} · ${tr(FLOOR_NAME[ft])}` };
   };
 
   /** eksplikatsiya — varaqning oʻng ustunida */
@@ -203,5 +232,5 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
     out.push(`<text x="${n2(x)}" y="${n2(y + 3.2)}" font-size="1.9" fill="#6b6965">${esc(tr('Maydon — rejadagi × 0,85 (devorlar), balkonsiz; taxmin'))}</text>`);
     return out.join('');
   };
-  return { name, get label() { return label; }, legend, rows, body, side: sideCol, north: -northDeg } as AptSheet;
+  return { name, get label() { return label; }, legend, rows, body, side: sideCol, north: -northDeg, fit, nav } as AptSheet;
 }

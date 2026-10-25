@@ -17,9 +17,9 @@ const mats = (): Material[] => ([
 ] as Omit<Material, 'visible' | 'accent' | 'scale'>[]).map(e => ({ visible: true, accent: null, scale: 1, ...e }));
 
 describe('Chizmadon — maketlar kutubxonasi', () => {
-  it('8 oila, 80 varaq turi; har katak roli maʼlum', () => {
+  it('8 oila, 83 varaq turi (+ 3 ta kvartirografiya); har katak roli maʼlum', () => {
     expect(LAYOUTS.families).toHaveLength(8);
-    expect(LAYOUTS.families.reduce((a, f) => a + f.pages.length, 0)).toBe(80);
+    expect(LAYOUTS.families.reduce((a, f) => a + f.pages.length, 0)).toBe(83);
     for (const f of LAYOUTS.families) {
       for (const k of f.formats) expect(LAYOUTS.formats[k], `${f.id}:${k}`).toBeTruthy();
       for (const p of f.pages) for (const s of p.slots) expect(LAYOUTS.roles[s.role], `${p.id}:${s.role}`).toBeTruthy();
@@ -183,5 +183,31 @@ describe('29-band (25.10): kvartirografiya — reja chapda, eksplikatsiya shu va
       expect(pg, fid).toBeTruthy();
       expect([...pg!.assign.values()].some(e => e.id === 'p:apt:b1'), fid).toBe(true);
     }
+  });
+});
+
+describe('Chizmadon tahlili (25.10, 1-bosqich): kvartirografiya varagʻi — reja katta, sxema va eksplikatsiya alohida', () => {
+  const m = () => [...mats().filter(e => e.id !== 'izoh'),
+    { id: 'p:plan:bosh', role: 'plan', name: 'Bosh reja', title: 'Bosh reja', visible: true, accent: null, scale: 1 },
+    { id: 'p:apt:b1', role: 'plan', name: 'Kvartirografiya · 1-bino', title: 'K', visible: true, accent: null, scale: 1 },
+    { id: 'p:aptnav:b1', role: 'locator', kind: 'aptnav', level: 3, minor: true, name: 'Vaziyat sxemasi · 1-bino', title: 'V', visible: true, accent: null, scale: 1, pair: 'p:apt:b1' },
+    { id: 'p:aptx:b1', role: 'table', kind: 'expl', name: 'Xonadonlar eksplikatsiyasi · 1-bino', title: 'E', visible: true, accent: null, scale: 1, pair: 'p:apt:b1' },
+  ] as Material[];
+  it('kz, mr, st: reja «Kvartirografiya» varagʻining katta katagida, sxema — kichik xaritada, jadval — oʻngda; bosh reja u yerga tushmaydi', () => {
+    for (const fid of ['kz', 'mr', 'st']) {
+      const P = paginate(familyById(fid)!, m());
+      const pg = P.pages.find(p => p.page.id === `${fid}-apt`);
+      expect(pg, fid).toBeTruthy();
+      const at = (id: string) => pg!.page.slots[[...pg!.assign.entries()].find(([, e]) => e.id === id)?.[0] ?? -1]?.role;
+      expect(at('p:apt:b1'), fid).toBe('map');
+      expect(at('p:aptnav:b1'), fid).toBe('map_small');
+      expect(at('p:aptx:b1'), fid).toBe('table');
+      expect(P.pages.some(p => [...p.assign.values()].some(e => e.id === 'p:plan:bosh')), fid).toBe(true);
+    }
+  });
+  it('sxema boshqa rejaning varagʻiga tushmaydi; joy topilmasa — kichik jarima (asosiy material emas)', () => {
+    const P = paginate(familyById('tq')!, m());
+    const pg = P.pages.find(p => [...p.assign.values()].some(e => e.id === 'p:aptnav:b1'));
+    if (pg) expect([...pg.assign.values()].some(e => e.id === 'p:apt:b1')).toBe(true);
   });
 });
