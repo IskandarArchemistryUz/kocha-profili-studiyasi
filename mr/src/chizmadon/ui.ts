@@ -1024,6 +1024,9 @@ export function openChizmadon(host: ChHost): void {
     ap.fill.empty.forEach(k => {
       const sl = ap.fill.page.slots[k], r = slotRectOf(f, ap.fill.page, fmt, sl);
       if (r.w * sc < 44 || r.h * sc < 44) return;
+      // katak markazida erkin element boʻlsa — «+» uni toʻsmasin
+      const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      if (P().els.some(e => { const b = bbox(e); return cx >= b[0] && cx <= b[2] && cy >= b[1] && cy <= b[3]; })) return;
       const role = tr(LAYOUTS.roles[sl.role][0]);
       const b = h('button', { class: 'ch-slotadd', 'data-k': String(k), title: `${tr('Katakka material qoʻyish')} · ${role}`, 'aria-label': `${tr('Katakka material qoʻyish')} · ${role}`,
         style: `left:${(r.x + r.w / 2) * sc}px;top:${(r.y + r.h / 2) * sc}px`, onclick: (e: Event) => slotPick(e.currentTarget as HTMLElement, d.cur, k, null) }, svgIcon(IC.plus));

@@ -18,16 +18,16 @@ test('Chizmadon: «Erkin» — bosh reja katakdan ajraladi, surish va oʻlcham o
   // material katakdan olindi, oʻrnida erkin xarita (tanlangan, tutqichlar bilan)
   await expect(plan).toHaveCount(0);
   await expect(page.locator('.ch-over .hr').first()).toBeAttached();
-  const fid = await page.evaluate(() => [...document.querySelectorAll('.ch-body [data-id]')].filter(e => e.querySelector('svg[viewBox]')).map(e => e.getAttribute('data-id')).pop());
+  const fid = await page.evaluate(() => [...document.querySelectorAll('.ch-view .ch-page [data-id]')].filter(e => e.querySelector('svg[viewBox]')).map(e => e.getAttribute('data-id')).pop());
   expect(fid).toBeTruthy();
-  const free = page.locator(`.ch-body [data-id="${fid}"]`).first();
+  const free = page.locator(`.ch-view .ch-page [data-id="${fid}"]`).first();
   await expect(free).toBeVisible();
   const f0 = (await free.boundingBox())!;
   // surish
   await page.mouse.move(f0.x + f0.width / 2, f0.y + f0.height / 2); await page.mouse.down();
   await page.mouse.move(f0.x + f0.width / 2 - 40, f0.y + f0.height / 2 - 30, { steps: 5 }); await page.mouse.up();
-  const f1 = (await free.boundingBox())!;
-  expect(f1.x).toBeLessThan(f0.x - 20);
+  // varaq qayta chiziladi (asinxron) — joyini kutib tekshiramiz
+  await expect.poll(async () => (await free.boundingBox())?.x ?? 1e9).toBeLessThan(f0.x - 20);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_erkin_1024.png` });
   // Ctrl+Z ikki marta — material katakka qaytadi
   await page.locator('.ch-view').focus();
