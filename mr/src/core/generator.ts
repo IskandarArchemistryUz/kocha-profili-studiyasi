@@ -12,7 +12,7 @@ import { freeRect } from './labels';
 import type { XY } from './geo';
 import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
-import { layoutStalls, trimStalls, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
+import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo';
@@ -631,8 +631,13 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
     const n = Math.min(L.n, cap, norm ? Math.max(need, 0) : Infinity);
     const K = trimStalls(L, n, A);
     if (!K.n) { r.notes.push('Yer usti avtoturargoh uchun hovlida joy yoʻq — yer osti variantini tanlang'); return null; }
+    // #25: boʻlaklar bir-biriga va koʻchaga (kvartal chegarasi) ulanadi
+    const acc = parkAccess(K, A, ground.map(s => s.ring));
     out = { kind: pk, ring: A, levels: 1, spaces: K.n, need, module: mod, stalls: K.stalls, aisles: K.aisles };
     r.notes.push(`Avtoturargoh (${PARK_NAME[pk]}): ${K.n} joy (${modTxt})`);
+    const accLen = String(Math.round((acc?.len ?? 0) * 10) / 10).replace('.', ',');
+    if (acc) r.notes.push(`Kirish yoʻli: ${accLen} m, eni 5,5 m (ShNQ 2.07.06-24, 106-band); chiqish kvartal burchagidan ≥ 20 m (ShNQ 2.07.01-23, 414-band)`);
+    else r.notes.push('Avtoturargohni koʻchaga ulab boʻlmadi — binolar toʻsadi; kirish yoʻlini qoʻlda chizing');
   }
   if (need > 0) {
     r.notes.push(`Talab: ${need} joy (29-jadval: ${needTxt})`);

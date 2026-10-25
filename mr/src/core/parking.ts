@@ -163,3 +163,96 @@ export function trimStalls(L: StallLayout, need: number, area: XY[]): StallLayou
   }
   return { ...L, stalls: keep, aisles, n: keep.length };
 }
+
+/** Ikki qavariq koʻpburchak kesishadimi (ajratuvchi oʻq teoremasi) */
+function convexHit(a: XY[], b: XY[]): boolean {
+  for (const P of [a, b]) for (let i = 0; i < P.length; i++) {
+    const p = P[i], q = P[(i + 1) % P.length], n: XY = [q[1] - p[1], p[0] - q[0]];
+    const pr = (R: XY[]) => R.map(x => x[0] * n[0] + x[1] * n[1]);
+    const A = pr(a), B = pr(b);
+    if (Math.max(...A) <= Math.min(...B) + 1e-6 || Math.max(...B) <= Math.min(...A) + 1e-6) return false;
+  }
+  return true;
+}
+/** p dan q gacha, eni w boʻlgan toʻrtburchak (oʻq — pq) */
+function band(p: XY, q: XY, w: number): XY[] {
+  const dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l * w / 2, ny = dx / l * w / 2;
+  return [[p[0] + nx, p[1] + ny], [q[0] + nx, q[1] + ny], [q[0] - nx, q[1] - ny], [p[0] - nx, p[1] - ny]];
+}
+export interface ParkAccess { lanes: XY[][]; len: number; removed: number; exit: XY }
+/**
+ * Kechki roʻyxat (26.10, #25): yer usti avtoturargoh boʻlaklari bir-biriga va kvartal chegarasidagi koʻchaga ulanadi.
+ *  1) yigʻuvchi boʻlak — boʻlaklarning koʻchaga yaqin uchlarini koʻndalang birlashtiradi (bitta boʻlak boʻlsa — kerak emas);
+ *  2) kirish yoʻli — yigʻuvchi (yoki boʻlak uchi) dan kvartal chegarasigacha eng qisqa, binolarni kesib oʻtmaydigan;
+ *     chegaradagi chiqish nuqtasi kvartal burchagidan ≥ gap (ShNQ 2.07.01-23, 414-band: turargoh kirish-chiqishi
+ *     mahalliy koʻcha chorrahasidan ≥ 20 m; kvartal burchagi — chorraha deb olinadi, taxmin);
+ *  eni — 5,5 m (ShNQ 2.07.06-24, 106-band: turar joyga kirish yoʻli). Yoʻl ustidagi joylar olib tashlanadi.
+ */
+function accessGroup(L: StallLayout, aisles: XY[][], A: XY[], blds: XY[][], w: number, gap: number): { lanes: XY[][]; len: number; exit: XY } | null {
+  if (!aisles.length) return null;
+  const u: XY = [Math.cos(L.angle), Math.sin(L.angle)], v: XY = [-u[1], u[0]];
+  const T = (p: XY) => p[0] * u[0] + p[1] * u[1], Vv = (p: XY) => p[0] * v[0] + p[1] * v[1], G = (t: number, s: number): XY => [u[0] * t + v[0] * s, u[1] * t + v[1] * s];
+  const ais = aisles.map(a => { const ts = a.map(T), vs = a.map(Vv); return { t0: Math.min(...ts), t1: Math.max(...ts), v0: Math.min(...vs), v1: Math.max(...vs) }; });
+  const blocked = (q: XY[]) => blds.some(b => convexHit(q, b) || b.some(p => inside(p, q)) || q.some(p => inside(p, b)));
+  const inA = (q: XY[]) => q.every(p => inside(p, A) || ringD(p, A) < 0.5);
+  /** p dan eng yaqin chiqish (burchakdan ≥ gap): yoʻl va uzunligi; p chegarada boʻlsa — yoʻlsiz */
+  const exitFrom = (p: XY): { lane: XY[] | null; len: number; q: XY } | null => {
+    let b: { lane: XY[] | null; len: number; q: XY } | null = null;
+    for (let i = 0; i < A.length; i++) {
+      const a = A[i], c = A[(i + 1) % A.length], ex = c[0] - a[0], ey = c[1] - a[1], el = Math.hypot(ex, ey);
+      if (el < 2 * gap + w) continue;
+      let t = ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / (el * el);
+      t = Math.max((gap + w / 2) / el, Math.min(1 - (gap + w / 2) / el, t));
+      const q: XY = [a[0] + ex * t, a[1] + ey * t], len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      if (b && len >= b.len) continue;
+      const lane = len > 1 ? band(p, q, w) : null;
+      if (lane && (blocked(lane) || !inside([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], A))) continue;
+      b = { lane, len, q };
+    }
+    return b;
+  };
+  let best: { lanes: XY[][]; len: number; exit: XY; cost: number } | null = null;
+  // narx: yoʻl uzunligi + yoʻqotilgan joylar (bitta joy ≈ 3 m yoʻl)
+  const take = (lanes: XY[][], len: number, exit: XY) => {
+    const lost = L.stalls.filter(q => lanes.some(l => convexHit(q, l))).length, cost = len + 3 * lost;
+    if (!best || cost < best.cost) best = { lanes, len, exit, cost };
+  };
+  for (const side of [-1, 1] as const) {
+    const end = (a: typeof ais[number]) => (side < 0 ? a.t0 : a.t1);
+    const tEnd = side < 0 ? Math.min(...ais.map(a => a.t0)) : Math.max(...ais.map(a => a.t1));
+    // A) yigʻuvchi: boʻlaklar uchidan tashqarida koʻndalang, bitta kirish yoʻli bilan
+    // yigʻuvchi boʻlaklar uchidan tashqarida (oʻrin boʻlsa) yoki ichkarida — oxirgi joylar ustidan (joylar olinadi)
+    if (ais.length > 1) for (const inward of [false, true]) {
+      const vLo = Math.min(...ais.map(a => a.v0)), vHi = Math.max(...ais.map(a => a.v1)), tc = tEnd + (inward ? -1 : 1) * side * w / 2, spine = band(G(tc, vLo), G(tc, vHi), w);
+      const ext = ais.filter(a => Math.abs(end(a) - tEnd) > 0.3).map(a => [G(end(a), a.v0), G(tEnd, a.v0), G(tEnd, a.v1), G(end(a), a.v1)] as XY[]);
+      if (inA(spine) && !blocked(spine) && !ext.some(blocked))
+        for (let k = 0; k <= 12; k++) { const e = exitFrom(G(tc, vLo + w / 2 + (vHi - vLo - w) * k / 12)); if (e) take([spine, ...ext, ...(e.lane ? [e.lane] : [])], e.len, e.q); }
+    }
+  }
+  // B) har boʻlak oʻzining qulayroq uchidan koʻchaga (uchi chegarada boʻlsa — yoʻlsiz)
+  const lost = (l: XY[] | null) => (l ? L.stalls.filter(q => convexHit(q, l)).length : 0);
+  const lanes: XY[][] = []; let tot = 0, first: XY | null = null, okB = true;
+  for (const a of ais) {
+    const es = [a.t0, a.t1].map(t => exitFrom(G(t, (a.v0 + a.v1) / 2))).filter((e): e is NonNullable<typeof e> => !!e).sort((x, y) => x.len + 3 * lost(x.lane) - y.len - 3 * lost(y.lane));
+    const e = es[0]; if (!e) { okB = false; break; } if (e.lane) lanes.push(e.lane); tot += e.len; first ??= e.q;
+  }
+  if (okB && first) take(lanes, tot, first);
+  return best;
+}
+export function parkAccess(L: StallLayout, A: XY[], blds: XY[][], w = 5.5, gap = 20): ParkAccess | null {
+  if (!L.aisles.length) return null;
+  // boʻlaklar guruhlari: boʻylama oraliqlari kesishadiganlar (bino bilan ajralgan qatorlar — alohida guruh, oʻz kirishi bilan)
+  const u: XY = [Math.cos(L.angle), Math.sin(L.angle)], T = (p: XY) => p[0] * u[0] + p[1] * u[1];
+  const rs = L.aisles.map(a => ({ a, t0: Math.min(...a.map(T)), t1: Math.max(...a.map(T)) })).sort((x, y) => x.t0 - y.t0);
+  const groups: XY[][][] = [];
+  let cur: typeof rs = [], hi = -Infinity;
+  for (const r of rs) { if (cur.length && r.t0 > hi - 1) { groups.push(cur.map(x => x.a)); cur = []; hi = -Infinity; } cur.push(r); hi = Math.max(hi, r.t1); }
+  if (cur.length) groups.push(cur.map(x => x.a));
+  const lanes: XY[][] = []; let len = 0, exit: XY | null = null;
+  for (const g of groups) { const b = accessGroup(L, g, A, blds, w, gap); if (!b) return null; lanes.push(...b.lanes); len += b.len; exit ??= b.exit; }
+  if (!exit) return null;
+  const n0 = L.stalls.length, keep = L.stalls.filter(s => !lanes.some(l => convexHit(s, l)));
+  L.stalls.splice(0, L.stalls.length, ...keep); L.n = keep.length;
+  L.aisles.push(...lanes);
+  return { lanes, len, removed: n0 - keep.length, exit };
+}
