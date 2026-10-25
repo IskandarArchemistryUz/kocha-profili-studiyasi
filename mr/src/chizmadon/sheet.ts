@@ -520,7 +520,8 @@ let TXTO: PageTxt | null = null;
 /** foydalanuvchi matni — soʻz boʻyicha qatorlarga (namuna matni bilan toʻldirilmaydi, tarjima qilinmaydi) */
 function userPara(x: number, y: number, w: number, h: number, str: string, s: number, c: string, lh = 1.42): string { const L = wrap(str, w, s), maxL = Math.max(0, Math.floor((h - s * 0.3) / (s * lh))); return L.slice(0, maxL).map((l: any, i: number) => T(x, y + s * (0.95 + i * lh), l, { s, c, raw: 1 })).join(""); }
 /** Maket varagʻini chizish: { svg (mm), fr (ramka: W, H, u, …) } */
-export function renderPage(LIB: any, fam: LFamily, page: LPage, fmt: string, opts: SheetOpts): { svg: string; fr: Frame } {
+/** ui — faqat ekranda koʻrinadigan qatlam (kataklar yorligʻi): eksportga kirmaydi (Chizmadon tahlili, 5-bosqich) */
+export function renderPage(LIB: any, fam: LFamily, page: LPage, fmt: string, opts: SheetOpts): { svg: string; fr: Frame; ui: string } {
   FF = fam.font || "Archivo, Arial, sans-serif"; TXTO = opts.txt ?? null;
   const P = PAL[opts.pal ?? "arch"] || PAL.arch, fr = frame(fmt, fam.chrome, page, LIB, fam.orient, fam);
   let g = R0(0, 0, fr.W, fr.H, "#ffffff");
@@ -535,12 +536,15 @@ export function renderPage(LIB: any, fam: LFamily, page: LPage, fmt: string, opt
     g += `<g data-slot="${k}">` + draw(s, r, { P, u: fr.u, m: fr.m, kind: fr.kind, seed: hash(page.id + ":" + k), i: k, kpiOff, pageTitle: page.title, chromeOn: fr.useChrome, titleText: page.chrome === false && page.id.endsWith("end") ? "Rahmat!" : null, eyebrow: fam.id === "kp" || fam.id === "kl" ? "KONKURS LOYIHASI" : null }) + `</g>`;
   }
   g += chrome(fam.chrome, fr, opts.titleOverride ? Object.assign({}, page, { title: opts.titleOverride, sec: opts.secOverride != null ? opts.secOverride : page.sec, sub: opts.subOverride != null ? opts.subOverride : page.sub }) : page, fam, P, opts.idx || 0, opts.total || 1);
+  let ui = "";
   if (opts.slots) {
+    const g0 = g; g = "";
     page.slots.forEach((s: any, k: any) => { const r = rect(fr, s); const lab = (LIB.ROLES[s.role] || [s.role])[0] + (opts.empty && opts.empty.has(k) ? " · bo'sh" : ""); g += `<g pointer-events="none"><rect x="${n2(r.x)}" y="${n2(r.y)}" width="${n2(r.w)}" height="${n2(r.h)}" fill="#8b4a9c" fill-opacity=".07" stroke="#8b4a9c" stroke-width="${n2(0.35 * fr.u)}" stroke-dasharray="${n2(1.6 * fr.u)} ${n2(1 * fr.u)}"/>` + R0(r.x, r.y, Math.min(r.w, lab.length * 1.45 * fr.u + 4 * fr.u), 4.6 * fr.u, "#8b4a9c") + T(r.x + 1.6 * fr.u, r.y + 3.3 * fr.u, lab, { s: 2.5 * fr.u, c: "#fff", w: 600 }) + `</g>`; });
     // to'r ustunlari
     for (let c = 0; c < 12; c++) g += R0(fr.m + c * (fr.cw + fr.g), fr.top, fr.cw, fr.bot - fr.top, "#8b4a9c", ' fill-opacity=".035" pointer-events="none"');
+    ui = g; g = g0;
   }
-  return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n2(fr.W)} ${n2(fr.H)}" width="${n2(fr.W)}mm" height="${n2(fr.H)}mm">${g}</svg>`, fr };
+  return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n2(fr.W)} ${n2(fr.H)}" width="${n2(fr.W)}mm" height="${n2(fr.H)}mm">${g}</svg>`, fr, ui };
 }
 
 export { D2R, n2, esc, rng, hash, T, R0, L0, para, wrap, mapArt, chartArt, picArt, axonArt, clip };

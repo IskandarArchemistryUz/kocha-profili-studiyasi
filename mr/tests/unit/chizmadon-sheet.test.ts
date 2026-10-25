@@ -31,8 +31,10 @@ describe('Chizmadon — varaq dvigateli (7 oila)', () => {
   });
   it('kataklar rejimi: rol yorligʻi va boʻsh belgisi', () => {
     const f = LAYOUTS.families[1], p = f.pages[3];
-    const { svg } = renderLayoutPage(LAYOUT_LIB, f, p, f.formats[0], { slots: true, empty: new Set([1]) });
-    expect(svg).toContain("bo'sh");
+    const { svg, ui } = renderLayoutPage(LAYOUT_LIB, f, p, f.formats[0], { slots: true, empty: new Set([1]) });
+    // 5-bosqich (25.10): yorliqlar — faqat ekran qatlamida, eksportga (svg) kirmaydi
+    expect(ui).toContain("bo'sh");
+    expect(svg).not.toContain("bo'sh");
   });
   it('dvigatel va avto-joylashtirish bir xil toʻrni ishlatadi (iu dan tashqari)', () => {
     for (const f of LAYOUTS.families) { if (f.frame) continue; for (const p of f.pages) for (const s of p.slots) {

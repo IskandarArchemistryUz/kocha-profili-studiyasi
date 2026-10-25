@@ -42,3 +42,13 @@ describe('Chizmadon — avtomatik albom', () => {
     setCustomPal(null); expect(PAL.custom).toBeUndefined();
   });
 });
+
+describe('Chizmadon tahlili (25.10, 5-bosqich): ekran qatlami eksportga kirmaydi', () => {
+  it('kataklar yorligʻi va tanlov ramkasi — ui da, svg da emas', () => {
+    const p = presets()[0], R = resolve(p.lat, p.lon), mats = siteMaterials(() => R, {});
+    const A = buildAlbum({ fam: LAYOUTS.families.find(f => f.id === 'mr')!, fmt: 'A3L', pal: 'arch', mats, R, slots: true, sel: 'loc0' });
+    const all = A.pages.map(x => x.svg).join(''), ui = A.pages.map(x => x.ui).join('');
+    expect(all).not.toMatch(/data-sel=/); expect(ui).toMatch(/data-sel=/);
+    expect(all).not.toMatch(/fill="#8b4a9c" fill-opacity=".07"/); expect(ui).toMatch(/fill="#8b4a9c" fill-opacity=".07"/);
+  });
+});

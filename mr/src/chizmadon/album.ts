@@ -26,7 +26,8 @@ export interface AlbumIn {
   ttl?: Record<number, string>;
   chap?: Record<number, PageTxt['chap']>;
 }
-export interface AlbumPage { fill: Fill; svg: string; fr: Frame; cells: Cell[]; page: ChRect; title: string }
+/** ui — ekran qatlami (tanlov ramkasi, kataklar yorligʻi): eksportga kirmaydi */
+export interface AlbumPage { fill: Fill; svg: string; fr: Frame; cells: Cell[]; page: ChRect; title: string; ui: string }
 export interface Album { PG: Paginated; pages: AlbumPage[]; ov: Ov[] }
 
 /** «Mening uslubim»: asos palitra + oʻzgartirilgan ranglar */
@@ -49,7 +50,7 @@ export function buildAlbum(a: AlbumIn): Album {
       const bb = b as Material | null;
       return bb ? (pk.page.slots.some(q => q.role === 'module') ? 'Hudud tahlili' : bb.title) : pk.page.title;
     })();
-    let modN = 0;
+    let modN = 0, selUi = '';
     const cells: Cell[] = [];
     const out = renderPage(LIB, f, pk.page, a.fmt, {
       pal: a.pal, slots: a.slots, idx: pi, total: PG.pages.length, empty: pk.empty, titleOverride: ttl,
@@ -66,11 +67,11 @@ export function buildAlbum(a: AlbumIn): Album {
         let svg = s.role === 'module'
           ? T(r.x, r.y + 4 * ctx.u, `${++modN}. ${str0(el.title)}`, { s: 3.4 * ctx.u, w: 700, c: el.accent || ctx.P.acc, raw: 1 }) + draw({ x: r.x, y: r.y + 7 * ctx.u, w: r.w, h: r.h - 8 * ctx.u }, true)
           : draw(r, false);
-        if (a.sel === el.id) svg += `<rect x="${n2(r.x - 1.2)}" y="${n2(r.y - 1.2)}" width="${n2(r.w + 2.4)}" height="${n2(r.h + 2.4)}" rx="${n2(1.5 * ctx.u)}" fill="none" stroke="#2a6fb0" stroke-width="${n2(0.6 * ctx.u)}" data-sel="1"/>`;
+        if (a.sel === el.id) selUi += `<rect x="${n2(r.x - 1.2)}" y="${n2(r.y - 1.2)}" width="${n2(r.w + 2.4)}" height="${n2(r.h + 2.4)}" rx="${n2(1.5 * ctx.u)}" fill="none" stroke="#2a6fb0" stroke-width="${n2(0.6 * ctx.u)}" data-sel="1"/>`;
         return `<g data-el="${el.id}" data-k="${k}"><rect x="${n2(r.x)}" y="${n2(r.y)}" width="${n2(r.w)}" height="${n2(r.h)}" fill="#fff" fill-opacity="0"/>${svg}</g>`;
       },
     });
-    return { fill: pk, svg: out.svg, fr: out.fr, cells, page: { x: 0, y: 0, w: out.fr.W, h: out.fr.H }, title: ttl };
+    return { fill: pk, svg: out.svg, fr: out.fr, cells, page: { x: 0, y: 0, w: out.fr.W, h: out.fr.H }, title: ttl, ui: out.ui + selUi };
   });
   return { PG, pages, ov };
 }
