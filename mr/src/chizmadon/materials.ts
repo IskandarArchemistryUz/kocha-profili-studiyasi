@@ -220,7 +220,10 @@ function tableArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string,
   rows.forEach((q, i) => {
     const yy = by + rh * (i + 0.7), hd = i === 0;
     g += T(r.x, yy, q[0] ?? '', { s: (hd ? 2.3 : 2.6) * u, c: hd ? Q.mut : Q.ink, w: hd ? 600 : 400 });
-    if (q.length > 2) g += T(r.x + r.w * 0.66, yy, q[1] ?? '', { s: 2.3 * u, c: Q.mut, a: 'end' });
+    // «{#rrggbb}matn» — oʻrta ustunda rang namunasi bilan (kvartira turi va h.k.)
+    const sw = q.length > 2 ? /^\{(#[0-9a-fA-F]{6})\}(.*)$/.exec(q[1] ?? '') : null;
+    if (sw) g += R0(r.x + r.w * 0.66 - 3.6 * u - 2.3 * u * sw[2].length * 0.52 - 1.2 * u, yy - 2.2 * u, 3.6 * u, 2.4 * u, sw[1], ` stroke="${Q.line}" stroke-width="${n2(0.15 * u)}"`);
+    if (q.length > 2) g += T(r.x + r.w * 0.66, yy, sw ? sw[2] : q[1] ?? '', { s: 2.3 * u, c: Q.mut, a: 'end' });
     g += T(r.x + r.w, yy, q[q.length - 1] ?? '', { s: (hd ? 2.3 : 2.7) * u, c: hd ? Q.mut : Q.ink, a: 'end', w: hd ? 600 : 500, mono: hd ? 0 : 1 });
     if (i < rows.length - 1) g += L0(r.x, by + rh * (i + 1), r.x + r.w, by + rh * (i + 1), Q.grid, 0.2 * u);
   });
