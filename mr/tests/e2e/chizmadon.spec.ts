@@ -155,15 +155,17 @@ test('Chizmadon: bogʻlash — xarita boshqa varaqning kichik katagiga koʻchsa,
   // eng katta joylashuv katagi va boshqa varaqdagi kichikroq joylashuv katagi
   const cells = await page.evaluate(() => [...document.querySelectorAll('#chPages .ch-pg')].length);
   const find = async () => {
-    const out: { pi: number; id: string; area: number }[] = [];
+    const out: { pi: number; id: string; area: number; asp: number }[] = [];
     for (let i = 0; i < cells; i++) {
       await page.click(`#chPages .ch-pg >> nth=${i}`); await expect(page.locator('#chPageNo')).toContainText(`${i + 1} /`); await page.waitForTimeout(150);
-      for (const el of await page.locator('.ch-page [data-el^="loc"]').all()) { const b = (await el.boundingBox())!; out.push({ pi: i, id: (await el.getAttribute('data-el'))!, area: b.width * b.height }); }
+      for (const el of await page.locator('.ch-page [data-el^="loc"]').all()) { const b = (await el.boundingBox())!; out.push({ pi: i, id: (await el.getAttribute('data-el'))!, area: b.width * b.height, asp: b.width / b.height }); }
     }
     return out;
   };
   const locs = await find(); expect(locs.length).toBeGreaterThanOrEqual(2);
-  const src = locs.reduce((a, b) => (b.area > a.area ? b : a)), dst = locs.filter(l => l.pi !== src.pi).sort((a, b) => a.area - b.area)[0] ?? locs.filter(l => l.id !== src.id).sort((a, b) => a.area - b.area)[0];
+  const src = locs.reduce((a, b) => (b.area > a.area ? b : a)), // shakl xarita masshtabi bilan kichrayadi — nisbatni solishtirish uchun katak tomonlari nisbati oʻxshash boʻlsin (maket oʻzgarsa ham)
+    similar = (l: { asp: number }) => Math.abs(Math.log(l.asp / src.asp)) < 0.3,
+    dst = locs.filter(l => l.pi !== src.pi && l.area < src.area).sort((a, b) => Number(similar(b)) - Number(similar(a)) || a.area - b.area)[0] ?? locs.filter(l => l.pi !== src.pi).sort((a, b) => a.area - b.area)[0] ?? locs.filter(l => l.id !== src.id).sort((a, b) => a.area - b.area)[0];
   await page.click(`#chPages .ch-pg >> nth=${src.pi}`); await expect(page.locator('#chPageNo')).toContainText(`${src.pi + 1} /`); await page.waitForTimeout(150);
   const mb = (await page.locator(`.ch-page [data-el="${src.id}"]`).boundingBox())!, P = (fx: number, fy: number) => [mb.x + mb.width * fx, mb.y + mb.height * fy] as const;
   await page.click('[data-tool=arrow]'); await page.mouse.move(...P(.3, .5)); await page.mouse.down(); await page.mouse.move(...P(.6, .4), { steps: 4 }); await page.mouse.up();
@@ -179,7 +181,9 @@ test('Chizmadon: bogʻlash — xarita boshqa varaqning kichik katagiga koʻchsa,
   await expect(els(page)).toHaveCount(3);
   const nb = (await page.locator(`.ch-page [data-el="${src.id}"]`).boundingBox())!;
   for (const e of await els(page).all()) { const b = (await e.boundingBox())!; expect(b.x).toBeGreaterThanOrEqual(nb.x - 3); expect(b.x + b.width).toBeLessThanOrEqual(nb.x + nb.width + 3); expect(b.y).toBeGreaterThanOrEqual(nb.y - 3); expect(b.y + b.height).toBeLessThanOrEqual(nb.y + nb.height + 3); }
-  expect((await els(page).nth(2).boundingBox())!.width / nb.width).toBeCloseTo(w0, 1);
+  // shakllar xarita bilan bir xil (bir tekis) masshtabda: katak tomonlari nisbati boshqacha boʻlsa ham kichrayish = min(kenglik, balandlik nisbati)
+  const k = Math.min(nb.width / mb.width, nb.height / mb.height);
+  expect((await els(page).nth(2).boundingBox())!.width / (w0 * mb.width)).toBeCloseTo(k, 1);
   if (shots) await page.screenshot({ path: `${shots}/ch_kochdi.png` });
   // material oʻchsa — shakllar yashirinadi, «Shu varaqqa» qaytaradi
   await page.click(`#chMats [data-mat="${src.id}"] .switch`);
