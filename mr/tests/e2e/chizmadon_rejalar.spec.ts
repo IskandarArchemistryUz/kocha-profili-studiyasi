@@ -35,6 +35,8 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   const els = () => page.evaluate(() => [...document.querySelectorAll('.ch-body [data-el]')].map(e => e.getAttribute('data-el') ?? ''));
   for (let i = 0; i < 8 && !(await els()).some(x => x.startsWith('p:apt:')); i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); }
   expect(await page.locator('.ch-body [data-el^="p:aptx:"]').count()).toBeGreaterThan(0);
+  // jadvalda kvartira turi rang namunasi bilan (rejadagi rang bilan bir xil)
+  expect(await page.locator('.ch-body [data-el^="p:aptx:"]').first().evaluate(e => e.outerHTML)).toMatch(/#f6d58f|#f4b08a|#9bd3b8|#8fa5cc/i);
   expect(await page.locator('.ch-body [data-el^="p:apt:"]').count()).toBeGreaterThan(0);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_kvartirografiya_dark.png` });
 });

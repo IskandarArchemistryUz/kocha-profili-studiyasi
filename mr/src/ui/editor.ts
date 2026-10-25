@@ -38,7 +38,7 @@ import { daySteps, insolation, localToUtcAt, sunPosition } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { INSOL_BINS } from '../scene/scene';
-import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME } from '../core/floorplan';
+import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
 import { openAlbum, genplanSvg } from './album';
 import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
@@ -2874,7 +2874,7 @@ export class Editor {
         const a = sheet(); if (!a) return null;
         if (!a.rows.length) return [[tr('Bu qavatda xona maʼlumoti yoʻq')]];
         const tot = a.rows.reduce((t, r) => t + r.area, 0), f1 = (v: number) => v.toFixed(1).replace('.', ',');
-        return [['№', tr('Turi'), tr('Maydoni, m²')], ...a.rows.map(r => [String(r.n), `${r.rooms} ${tr('xonali')}`, f1(r.area)]), [tr('Jami'), `${a.rows.length}`, f1(tot)]];
+        return [['№', tr('Turi'), tr('Maydoni, m²')], ...a.rows.map(r => [String(r.n), `{${APT_FILL[Math.min(4, Math.max(1, r.rooms))]}}${r.rooms} ${tr('xonali')}`, f1(r.area)]), [tr('Jami'), `${a.rows.length}`, f1(tot)]];
       } } });
     });
     return out;
