@@ -52,6 +52,18 @@ test('qatlam obyektlari: ramka bilan tanlash, rang berish, tiklash, saqlanish', 
   await expect(card).toContainText('2 ta obyekt');
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/userlayers_rang.png` });
   await page.keyboard.press('Escape');
+  // boshqa qadamlarda ham (Koʻchalar, Parsellar — oʻz bosish mantigʻi bor) qatlam obyekti tanlanadi
+  for (const st of ['kocha', 'parsel']) {
+    await page.click(`[data-step=${st}]`);
+    expect(await page.locator(`[data-step=${st}][data-locked=true]`).count(), `${st} qulflanmagan`).toBe(0);
+    await page.keyboard.press('Escape');
+    await page.mouse.click(cx - 80, cy - 40);
+    await expect(card, `${st} qadamida`).toBeVisible();
+    await expect(card).toContainText('Obyekt #');
+    await page.keyboard.press('Escape');
+    await expect(card).toBeHidden();
+  }
+  await page.click('[data-step=hudud]');
   await expect(page.locator('.save')).toHaveAttribute('data-s', 'saved');
   await page.waitForTimeout(800);
   await page.reload();

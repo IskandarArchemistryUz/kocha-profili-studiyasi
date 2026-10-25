@@ -3199,6 +3199,20 @@ export class Editor {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;
       if (this.tool) { const p0 = this.scene.pick(e.clientX, e.clientY); if (p0) { this.tool.click(this.tool.snapTo ? this.snapPt(p0) : p0, e); if (this.tool) this.el.hint.textContent = this.tool.hint; } return; }
+      // foydalanuvchi qatlami obyekti (import qilingan bino, uchastka, chegara) — HAR QADAMDA tanlanadi, rangi oʻzgartiriladi.
+      // Loyiha binosi va loyiha koʻchasi ustun (ular ustida boʻlsa — oʻz qadamidagi odatiy tanlov)
+      {
+        const uh = this.scene.pickBuilding(e.clientX, e.clientY) ? null : this.scene.pickUserFeature(e.clientX, e.clientY);
+        const gp = uh ? this.scene.pick(e.clientX, e.clientY) : null;
+        if (uh && !(gp && this.streetAt(gp))) {
+          if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); }
+          if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []);
+          if (this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
+          e.shiftKey ? this.toggleUlSel(uh) : this.setUlSel(uh.layer, [uh.fid]);
+          return;
+        }
+        if (this.ulSel.fids.length) this.setUlSel('', []);
+      }
       if (this.step.id === 'parsel') {
         const cid = this.scene.pickContextBuilding(e.clientX, e.clientY);
         if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k] })); return; }
@@ -3233,9 +3247,6 @@ export class Editor {
       if (!id) { const p = this.scene.pick(e.clientX, e.clientY), sid = p ? this.streetAt(p) : null; if (sid && !this.locked(STEPS.find(x => x.id === 'kocha')!)) { this.go(STEPS.find(x => x.id === 'kocha')!); this.pickStreet(sid); return; } }
       // atrofdagi (OSM) bino — tanlanadi (Delete bilan olib tashlanadi)
       if (!id) { const cid = this.scene.pickAnyContext(e.clientX, e.clientY); if (cid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked([], [cid]); return; } }
-      // foydalanuvchi qatlami obyekti (import qilingan bino, uchastka, chegara) — tanlanadi, rangi oʻzgartiriladi
-      if (!id) { const uh = this.scene.pickUserFeature(e.clientX, e.clientY); if (uh) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []); e.shiftKey ? this.toggleUlSel(uh) : this.setUlSel(uh.layer, [uh.fid]); return; } }
-      if (this.ulSel.fids.length) this.setUlSel('', []);
       // atrofdagi (OSM) yoʻl yoki trotuar — tanlanadi (Delete bilan olib tashlanadi; Shift — tanlovga qoʻshish)
       if (!id) { const p = this.scene.pick(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null; if (rid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked(e.shiftKey ? this.marked.b : [], e.shiftKey ? this.marked.c : [], this.store.doc, e.shiftKey ? (this.marked.r.includes(rid) ? this.marked.r.filter(x => x !== rid) : [...this.marked.r, rid]) : [rid]); return; } }
       if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []);
