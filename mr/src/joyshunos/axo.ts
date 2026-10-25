@@ -24,7 +24,7 @@ export const AX_LAYERS: { id: AxLayer; name: string; sub: string; color: string 
   { id: 'yashil', name: 'Yashil va suv', sub: 'OSM', color: '#7fa65a' },
   { id: 'binolar', name: 'Binolar', sub: 'OSM · balandlik', color: '#141414' },
   { id: 'xizmat', name: 'Xizmatlar va raqobatchilar', sub: 'OSM', color: '#4c5bd4' },
-  { id: 'shamol', name: 'Shamol', sub: 'EPW · TMYx', color: '#3f8f6b' },
+  { id: 'shamol', name: 'Shamol', sub: 'EPW · ERA5', color: '#3f8f6b' },
   { id: 'quyosh', name: 'Quyosh yoʻli', sub: '21 mart · 21 iyun · 21 dek', color: '#e8a317' },
 ];
 export type AxView = 'plan' | 'axo' | 'persp';

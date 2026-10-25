@@ -37,6 +37,7 @@ import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtcAt, sunPosition } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
+import { windAt, windSrcLine, ERA5_ATTR, type WindAt } from '../core/windsrc';
 import { INSOL_BINS } from '../scene/scene';
 import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
 import { openAlbum, genplanSvg } from './album';
@@ -1013,6 +1014,26 @@ export class Editor {
   private windDir: number | null = null;
   private wind: { busy: boolean; mode: 'ratio' | 'lawson'; stats: { cls: number[]; amp: number; n: number; dir: number; p95: number } | null; pts?: XY[]; ratio?: number[]; cell?: number } = { busy: false, mode: 'lawson', stats: null };
   private windW: Worker | null = null;
+  /** 34-band: uzoq joyda ERA5 (server orqali) — joy kaliti, natija, yuklanmoqda */
+  private era: { key: string; v: WindAt | null; busy: boolean; t?: number } | null = null;
+  /** Hisob uchun shamol stansiyasi: yaqin EPW yoki ERA5 (tayyor boʻlsa) */
+  private windNow(): { st: Station; km: number; src: 'epw' | 'era5' } | null {
+    if (!this.climate) return null;
+    const o = this.store.doc.origin, n = nearestStation(this.climate, o[0], o[1]);
+    if (n.km <= WIND_MAX_KM) return { st: n.s, km: n.km, src: 'epw' };
+    const e = this.era; return e && e.key === `${o[0].toFixed(4)},${o[1].toFixed(4)}` && e.v?.kind === 'ok' ? { st: e.v.s, km: e.v.km, src: 'era5' } : null;
+  }
+  private loadEra(): void {
+    const o = this.store.doc.origin, key = `${o[0].toFixed(4)},${o[1].toFixed(4)}`;
+    if (!this.climate || (this.era && this.era.key === key && (this.era.busy || this.era.v?.kind !== 'pending' || Date.now() < (this.era.t ?? 0)))) return;
+    this.era = { key, v: this.era?.key === key ? this.era.v : null, busy: true };
+    void windAt(this.climate, o[0], o[1]).then(v => {
+      if (this.era?.key !== key) return;
+      this.era = { key, v, busy: false, t: Date.now() + 20_000 };
+      if (v.kind === 'pending') setTimeout(() => { if (this.era?.key === key && this.step.id === 'quyosh') { this.loadEra(); } }, 20_500);
+      this.renderPanel();
+    });
+  }
 
   private async loadClimate(): Promise<void> {
     if (this.climate) return;
@@ -1042,7 +1063,7 @@ export class Editor {
 
   private async runWind(): Promise<void> {
     track('mr/calc/wind');
-    const doc = this.store.doc, near = this.climate && nearestStation(this.climate, doc.origin[0], doc.origin[1]), st = near && near.km <= WIND_MAX_KM ? near.s : null; if (!doc.site || !st) return;
+    const doc = this.store.doc, st = this.windNow()?.st; if (!doc.site || !st) return;
     const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     const m = 60, box: [number, number, number, number] = [x0 - m, y0 - m, x1 + m, y1 + m];
@@ -1076,24 +1097,29 @@ export class Editor {
 
   private windSection(body: HTMLElement): void {
     if (!this.climate) { void this.loadClimate(); body.append(h('span', { class: 't-small' }, tr('Iqlim maʼlumoti yuklanmoqda…'))); return; }
-    const doc = this.store.doc, { s: st, km } = nearestStation(this.climate, doc.origin[0], doc.origin[1]), pv = prevailing(st);
-    if (km > WIND_MAX_KM) {
-      body.append(h('div', { class: 'col', id: 'windBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Shamol'))),
-        h('div', { class: 'note warn', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: st.name.replace(/\./g, ' '), k: fmt(km, 0) })),
-        h('span', { class: 't-small' }, tf('Stansiya ${m} km dan uzoq boʻlsa koʻrsatilmaydi. Global shamol maʼlumoti (ERA5, NOAA) — keyingi bosqichda.', { m: WIND_MAX_KM }))));
+    const doc = this.store.doc, now = this.windNow();
+    if (!now) {
+      // yaqin stansiya yoʻq — ERA5 (server orqali)
+      this.loadEra();
+      const n = nearestStation(this.climate, doc.origin[0], doc.origin[1]), e = this.era?.v;
+      body.append(h('div', { class: 'col', id: 'windBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', {}, 'ERA5')),
+        !e || this.era?.busy ? h('div', { class: 'note', id: 'windEra' }, tr('Global shamol maʼlumoti (ERA5) yuklanmoqda…'))
+          : e.kind === 'pending' ? h('div', { class: 'note', id: 'windEra' }, tr('ERA5 maʼlumoti tayyorlanmoqda (Copernicus navbati) — bir necha daqiqada oʻzi yangilanadi.'))
+            : h('div', { class: 'note warn', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: n.s.name.replace(/\./g, ' '), k: fmt(n.km, 0) }), ' ', tr('Global shamol maʼlumoti (ERA5) hozir olinmadi.'))));
       return;
     }
+    const { st, km, src } = now, pv = prevailing(st);
     const dir = this.windDir ?? pv.deg;
     const sel = select({ id: 'windDir', 'aria-label': tr('Hisob yoʻnalishi (qayerdan esadi)'), onchange: v => { this.windDir = Number(v); this.renderPanel(); } },
       Array.from({ length: 16 }, (_, k) => ({ value: String(k * 22.5), label: `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ' + tr('ustun') : ''}`, selected: Math.abs(k * 22.5 - dir) < 1 })));
     body.append(h('div', { class: 'col', id: 'windBox' },
-      h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', {}, `${st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`)),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', { id: 'windStn' }, `${src === 'era5' ? st.name : st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`)),
       h('div', { class: 'group flat', style: 'padding:10px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px' },
         h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.mean, 1)} m/s`), h('span', {}, `${tr('oʻrtacha')} · ${tr('shtil')} ${fmt(st.calm * 100, 0)} %`)),
         h('div', { class: 'kpi' }, h('b', {}, `${rumbName(pv.k)}`), h('span', {}, `${tr('ustun yoʻnalish')} · ${fmt(pv.share * 100, 0)} %`)),
         h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.p95, 1)} m/s`), h('span', {}, tr('5 % vaqt oshadi')))),
       this.windRose(st),
-      h('span', { class: 't-small' }, tr('Manba: EPW TMYx 2011–2025 (climate.onebuilding.org).')),
+      h('span', { class: 't-small', id: 'windSrc' }, tr(windSrcLine(src)), src === 'era5' ? ` ${ERA5_ATTR}.` : ''),
       h('div', { class: 'field' }, h('label', {}, tr('Hisob yoʻnalishi (qayerdan esadi)')), sel),
       h('button', { class: 'btn btn-block', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, tr(this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)'))));
     const w = this.wind.stats;

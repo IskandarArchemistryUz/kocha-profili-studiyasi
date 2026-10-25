@@ -34,7 +34,8 @@ import { placeOf, placeLabel, utcLabel, tzOffsetH } from '../core/place';
 import type { XY } from '../core/geo';
 import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
-import { nearestStation, WIND_MAX_KM, type Climate } from '../core/wind';
+import { nearestStation, type Climate } from '../core/wind';
+import { windAt } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { wmFile, wmRaster } from '../core/wm';
@@ -51,7 +52,7 @@ const LAYERS: LayerDef[] = [
   { id: 'yuza', g: 'yer', name: 'Yuza tasnifi', src: 'yoʻldosh', color: '#b9cfa6', ready: false },
   { id: 'issiqlik', g: 'yer', name: 'Issiqlik oroli', src: 'MODIS', color: '#d9503f', ready: true, beta: true },
   { id: 'quyosh', g: 'iqlim', name: 'Quyosh va soya', src: 'OSM', color: '#e8a317', ready: true },
-  { id: 'shamol', g: 'iqlim', name: 'Shamol', src: 'EPW', color: '#3f8f6b', ready: true },
+  { id: 'shamol', g: 'iqlim', name: 'Shamol', src: 'EPW · ERA5', color: '#3f8f6b', ready: true },
   { id: 'shovqin', g: 'iqlim', name: 'Shovqin', src: 'model', color: '#c2416b', ready: true, beta: true },
   { id: 'xizmat', g: 'shahar', name: 'Xizmatlar', src: 'OSM', color: '#2a9d8f', ready: true },
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
@@ -78,7 +79,7 @@ const isOn = (id: LayerId) => S.on.includes(id);
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
-const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean }>; lst: Ld<LstGrid> } =
+const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean; src: 'epw' | 'era5'; pending?: boolean }>; lst: Ld<LstGrid> } =
   { addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
@@ -384,9 +385,11 @@ function renderRightH(): void {
   }
   if (isOn('shamol')) {
     const w0 = D.wind.v, w = windV();
-    cards.push(card(L('shamol'), 'EPW', w ? tr(dir8(w.w.k * 22.5)) : '—',
-      w0?.far ? [h('span', { class: 'err', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: w0.name, k: fmt(w0.km) })), h('br'), h('span', { class: 'src' }, tf('Stansiya ${m} km dan uzoq boʻlsa koʻrsatilmaydi. Global shamol maʼlumoti (ERA5, NOAA) — keyingi bosqichda.', { m: WIND_MAX_KM }))]
-      : w ? [tf('Ustun yoʻnalish (qayerdan) — vaqtning ${p} %; oʻrtacha ${v} m/s; tinch ${c} %.', { p: fmt(w.w.share * 100), v: fmt(w.w.mean, 1), c: fmt(w.w.calm * 100) }), h('br'), h('span', { class: 'src' }, tf('Stansiya: ${n}, ${k} km · TMYx 2011–2025', { n: w.name, k: fmt(w.km, 1) }))] : [],
+    cards.push(card(L('shamol'), w?.src === 'era5' ? 'ERA5' : 'EPW', w ? tr(dir8(w.w.k * 22.5)) : '—',
+      w0?.pending ? [h('span', { class: 'src', id: 'windEra' }, tr('ERA5 maʼlumoti tayyorlanmoqda (Copernicus navbati) — bir necha daqiqada oʻzi yangilanadi.'))]
+      : w0?.far ? [h('span', { class: 'err', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: w0.name, k: fmt(w0.km) })), h('br'), h('span', { class: 'src' }, tr('Global shamol maʼlumoti (ERA5) hozir olinmadi.'))]
+      : w ? [tf('Ustun yoʻnalish (qayerdan) — vaqtning ${p} %; oʻrtacha ${v} m/s; tinch ${c} %.', { p: fmt(w.w.share * 100), v: fmt(w.w.mean, 1), c: fmt(w.w.calm * 100) }), h('br'),
+        h('span', { class: 'src', id: 'windSrc' }, w.src === 'era5' ? tf('ERA5 (Copernicus) · 0,25° katak, ${k} km · 2015–2024', { k: fmt(w.km, 1) }) : tf('Stansiya: ${n}, ${k} km · TMYx 2011–2025', { n: w.name, k: fmt(w.km, 1) }))] : [],
       null, D.wind));
   }
   if (isOn('xizmat')) {
@@ -542,7 +545,12 @@ function ensure(): void {
   });
   if (isOn('shamol') && D.wind.st === 'idle') run('wind', async () => {
     if (!climate) { const res = await fetch('./climate/uz_climate.json'); if (!res.ok) throw new Error(`${res.status}`); climate = await res.json() as Climate; }
-    const { s, km } = nearestStation(climate, c[0], c[1]); return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km, bins: climate.bins, far: km > WIND_MAX_KM };
+    // 34-band: yaqin EPW stansiyasi boʻlmasa — ERA5 (server orqali); navbatda boʻlsa 20 s dan keyin qayta
+    const a = await windAt(climate, c[0], c[1]);
+    if (a.kind === 'ok') return { w: windSummary(a.s), name: a.src === 'era5' ? a.s.name : a.s.name.replace(/\./g, ' '), km: a.km, bins: climate.bins, far: false, src: a.src };
+    if (a.kind === 'pending') { const k0 = c.join(); setTimeout(() => { if (S.c.join() === k0 && D.wind.v?.pending) { D.wind = { st: 'idle' }; ensure(); } }, 20_000); }
+    const { s, km } = nearestStation(climate, c[0], c[1]);
+    return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km, bins: climate.bins, far: true, src: 'epw' as const, pending: a.kind === 'pending' };
   });
 }
 /** Shamol — faqat yaqin stansiya boʻlsa (aks holda xaritada ham, aksonometriyada ham koʻrsatilmaydi) */

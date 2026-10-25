@@ -1,9 +1,11 @@
 /* /data/* — hudud ma'lumoti serverda: kesh + manba manifesti.
    POST /data/overpass — Overpass so'rovi (brauzerdagi bilan bir xil), javob 30 kun keshlanadi; bir nechta server ketma-ket.
    GET  /data/sources  — manbalar reyestri (litsenziya, atributsiya).
-   GET  /data/overture/buildings?bbox=w,s,e,n — Overture binolari (≤ 0,06°), 90 kun kesh; kalit bbox 4 xonaga yaxlitlanadi. */
+   GET  /data/overture/buildings?bbox=w,s,e,n — Overture binolari (≤ 0,06°), 90 kun kesh; kalit bbox 4 xonaga yaxlitlanadi.
+   GET  /data/wind?lat=&lon= — ERA5 shamol guli (0,25° katak), 10 yil kesh; tayyorlanayotgan bo'lsa 202. */
 import { SOURCES, sourceInfo } from './sources.js';
 import { makeOverture, MAX_SPAN } from './overture.js';
+import { snap } from './era5.js';
 
 export const OVERPASS_SERVERS = [
   'https://overpass-api.de/api/interpreter',
@@ -13,7 +15,7 @@ export const OVERPASS_SERVERS = [
 ];
 const MAX_Q = 8000;
 
-export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 60_000, overture = makeOverture({ fetchImpl }) }) {
+export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 60_000, overture = makeOverture({ fetchImpl }), era5 = null }) {
   app.get('/data/sources', async () => ({ sources: Object.keys(SOURCES).map(sourceInfo) }));
 
   const inflight = new Map();   // bir xil so'rov bir vaqtda kelsa — bitta tashqi so'rov
@@ -77,5 +79,23 @@ export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS
       const body = await job;
       return reply.header('content-type', 'application/json').header('x-cache', 'miss').header('x-source', 'overture').send(body);
     } catch (e) { req.log.warn(e); return reply.code(502).send({ error: 'upstream', message: 'Overture ma’lumoti olinmadi' }); }
+  });
+
+  /* ---------- ERA5 shamol ---------- */
+  app.get('/data/wind', async (req, reply) => {
+    const lat = Number(req.query?.lat), lon = Number(req.query?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return reply.code(400).send({ error: 'bad_request', message: 'lat va lon kerak' });
+    if (!era5?.enabled) return reply.code(503).send({ error: 'disabled', message: 'ERA5 ulanmagan (CDS_API_KEY yo‘q)' });
+    const src = SOURCES.era5, key = `era5:wind:${snap(lat)},${snap(lon)}`;
+    const hit = await cache.get(key, src.ttlDays);
+    if (hit) return reply.header('content-type', 'application/json').header('x-cache', 'hit').header('x-source', 'era5').send(hit.body);
+    if (limited?.(req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'Juda ko‘p so‘rov — birozdan keyin' });
+    try {
+      const r = await era5.get(lat, lon);
+      if (r.status !== 'ready') return reply.code(202).header('retry-after', '20').send({ status: 'pending', message: 'ERA5 ma’lumoti tayyorlanmoqda (Copernicus navbati)' });
+      const body = JSON.stringify({ source: 'era5', attribution: src.attribution, licence: src.licence, lat: r.lat, lon: r.lon, station: r.station });
+      await cache.put(key, body, { source: 'era5', licence: src.licence, attribution: src.attribution, odbl: false });
+      return reply.header('content-type', 'application/json').header('x-cache', 'miss').header('x-source', 'era5').send(body);
+    } catch (e) { req.log.warn(e); return reply.code(502).send({ error: 'upstream', message: String(e.message || 'ERA5 javob bermadi').slice(0, 160) }); }
   });
 }
