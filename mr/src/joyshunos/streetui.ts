@@ -50,7 +50,8 @@ let R: Res | null = null, seq = 0, hover = -1;
 /** tanlangan va ustiga olib borilgan blok (matritsa qatori) */
 let selB = -1, hovB = -1;
 let mA: Marker | null = null, mB: Marker | null = null;
-const sctx = new ContextManager();
+// koʻcha tahlili relyef va sunʼiy yoʻldosh tasvirini kutmaydi (yengil kontekst)
+const sctx = new ContextManager(true);
 
 export function streetInit(hst: StreetHost): void { host = hst; }
 const metric = (): Metric => st.metric ?? 'baho';

@@ -37,6 +37,8 @@ export interface ContextBundle {
 
 const pos = (c: LngLat, r: number) => `${c[0].toFixed(4)},${c[1].toFixed(4)},${Math.round(r)}`;
 export const cacheKey = (c: LngLat, r: number) => `ctx:${pos(c, r)}`;
+/** Yengil (relyefsiz, tasvirsiz) kontekst kaliti — koʻcha tahlili */
+export const liteKey = (c: LngLat, r: number) => `ctxl:${pos(c, r)}`;
 /** oldingi versiyalar kaliti — tarmoq ishlamasa zaxira sifatida */
 export const legacyKeys = (c: LngLat, r: number) => ['ctx4', 'ctx3', 'ctx2', 'ctx1'].map(v => `${v}:${pos(c, r)}`);
 
@@ -90,20 +92,20 @@ export async function osmWithFallback(bb: BBox, f: typeof fetch, onTry: (m: stri
 /** Relyef toʻri qadami, m: katta hududda siyrakroq (toʻr ~600×600 dan oshmasin) */
 export const terrainStep = (r: number) => (r <= 2000 ? 10 : r <= 4000 ? 15 : 20);
 
-/** Tarmoqdan toʻliq yuklash (worker yoki asosiy oqimda) */
-export async function fetchContext(center: LngLat, radius: number, progress: Progress = () => {}, f: typeof fetch = fetch.bind(globalThis)): Promise<ContextBundle> {
+/** Tarmoqdan toʻliq yuklash (worker yoki asosiy oqimda). lite — relyef va sunʼiy yoʻldosh tasvirisiz (koʻcha tahlili: faqat OSM + Overture) */
+export async function fetchContext(center: LngLat, radius: number, progress: Progress = () => {}, f: typeof fetch = fetch.bind(globalThis), lite = false): Promise<ContextBundle> {
   const bb = bboxAround(center, radius), missing: string[] = [];
   progress('OSM: binolar, yoʻllar, suv, yashil hududlar…', 0.05);
   let raw: unknown = null; const srcBox = { src: 'overpass' as 'overpass' | 'ofm' };
   const osmP = osmWithFallback(bb, f, m => progress(m, 0.1), OVERPASS_WAIT).then(r => { raw = r.raw; srcBox.src = r.src; progress('OSM tahlil qilinmoqda…', 0.55); return r.osm; });
-  const terrP = loadTerrain(center, radius, bb, f, terrainStep(radius)).catch(() => null);   // katta hudud — siyrakroq toʻr (xotira)
+  const terrP = lite ? Promise.resolve(null) : loadTerrain(center, radius, bb, f, terrainStep(radius)).catch(() => null);   // katta hudud — siyrakroq toʻr (xotira)
   let done = 0;
-  const imgP = loadImagery(radius, bb, f, () => { done++; if (done % 8 === 0) progress(`Sunʼiy yoʻldosh tasviri: ${done} plitka…`, 0.3); }).catch(() => null);
+  const imgP = lite ? Promise.resolve(null) : loadImagery(radius, bb, f, () => { done++; if (done % 8 === 0) progress(`Sunʼiy yoʻldosh tasviri: ${done} plitka…`, 0.3); }).catch(() => null);
   const ovP = fetchOverture(bb, f).catch(() => null);   // OSM boʻsh joylari va balandliklar (oʻz serverimiz orqali)
   const [osm, terrain, imagery, ov] = await Promise.all([osmP, terrP, imgP, ovP]);
   const ovm = ov ? mergeOverture(osm, ov, heightByArea) : null;
-  if (!terrain) missing.push('relyef');
-  if (!imagery) missing.push('sunʼiy yoʻldosh tasviri');
+  if (!terrain && !lite) missing.push('relyef');
+  if (!imagery && !lite) missing.push('sunʼiy yoʻldosh tasviri');
   if (srcBox.src === 'ofm') missing.push('OSM teglari (Overpass javob bermadi — OpenFreeMap plitkalari: balandliklar taxminiy, daraxtlar yoʻq)');
   progress('Tayyor', 1);
   return { v: 1, center, radius, fetched: new Date().toISOString(), osm, pv: PARSER_V, raw, terrain, imagery, missing, ov, ovm };
