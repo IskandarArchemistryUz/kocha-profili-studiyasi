@@ -151,8 +151,8 @@ export const SITE_DEFS: Def[] = [
 /** Sozlamani materialga qoʻllash (koʻrinish, rang, oʻlcham, sarlavha, matn) */
 function withSet(d: Def, s: ChMatSet | undefined, render: Material['render'], defVisible = true): Material {
   // 19-band (3): foydalanuvchi oʻz rasmi bilan almashtirgan — katakka rasm (markazdan, kesib) chiziladi
-  const own = s?.src, R2: Material['render'] = own ? (r) => fitMap(`u${d.id.replace(/[^\w-]/g, '_')}`, { src: own, w: r.w, h: r.h }, r, d.name) : render;
-  return { ...d, visible: s?.visible ?? defVisible, accent: s?.accent ?? null, scale: s?.scale ?? 1, title: s?.title ?? d.title, text: s?.text ?? null, render: R2, ...(own ? { own: true } : {}) } as Material;
+  const own = s?.src, R2: Material['render'] = own ? (r) => fitMap(`u${d.id.replace(/[^\w-]/g, '_')}`, { src: own, w: r.w, h: r.h }, r, d.name, s?.view) : render;
+  return { ...d, visible: s?.visible ?? defVisible, accent: s?.accent ?? null, scale: s?.scale ?? 1, title: s?.title ?? d.title, text: s?.text ?? null, view: s?.view ?? null, render: R2, ...(own ? { own: true } : {}) } as Material;
 }
 export function siteMaterials(R: () => Resolved, sets: Record<string, ChMatSet>): Material[] {
   return SITE_DEFS.map(d => { const m: Material = withSet(d, sets[d.id], (r, ctx, bare) => drawEl(m, r, ctx, R(), bare)); return m; });
@@ -177,11 +177,17 @@ export interface ProjectSrc {
 }
 const DUMMY: ChPage = { id: 'm', name: '', paper: 'A3', landscape: true, layers: [], els: [] };
 /** Xarita yoki rasmni katakka sigʻdirib (markazdan, «cover») chizish — render.ts mapEl / imageEl orqali */
-function fitMap(id: string, src: { svg?: string; src?: string; vb?: [number, number, number, number]; w: number; h: number; scale?: number; north?: number; contain?: boolean }, r: Rect, name: string): string {
+/** Kesish (3-bosqich): rasm ham koʻrinishi oʻzgarsa SVG ichidagi <image> boʻlib chiziladi (viewBox bilan kesiladi) */
+const imgSvg = (src: string, w: number, h: number) => `<image href="${src.replace(/"/g, '&quot;')}" x="0" y="0" width="${n2(w)}" height="${n2(h)}" preserveAspectRatio="xMidYMid slice"/>`;
+export function fitMap(id: string, src0: { svg?: string; src?: string; vb?: [number, number, number, number]; w: number; h: number; scale?: number; north?: number; contain?: boolean }, r: Rect, name: string, view?: { z: number; cx: number; cy: number } | null): string {
+  const zoomed = !!view && (view.z !== 1 || view.cx !== 0 || view.cy !== 0);
+  const src = zoomed && !src0.svg && src0.src ? { ...src0, svg: imgSvg(src0.src, r.w, r.h), vb: [0, 0, r.w, r.h] as [number, number, number, number] } : src0;
   const e: ChEl = { id: `mt${id}`, t: src.svg ? 'map' : 'image', layer: 'm', x: r.x, y: r.y, w: r.w, h: r.h, name, style: { width: 0.25 } };
   if (src.svg) {
-    const vb = src.vb ?? [0, 0, src.w, src.h], k = (src.contain ? Math.min : Math.max)(r.w / vb[2], r.h / vb[3]), vw = r.w / k, vh = r.h / k;
-    e.svg = src.svg; e.vb = [vb[0] + (vb[2] - vw) / 2, vb[1] + (vb[3] - vh) / 2, vw, vh];
+    const vb = src.vb ?? [0, 0, src.w, src.h], k0 = (src.contain ? Math.min : Math.max)(r.w / vb[2], r.h / vb[3]), bw = r.w / k0, bh = r.h / k0;
+    // asosiy koʻrinish (markazda) → kattalashtirish va siljitish
+    const z = zoomed ? view!.z : 1, cx = vb[0] + vb[2] / 2 + (zoomed ? view!.cx * bw : 0), cy = vb[1] + vb[3] / 2 + (zoomed ? view!.cy * bh : 0), vw = bw / z, vh = bh / z, k = k0 * z;
+    e.svg = src.svg; e.vb = [cx - vw / 2, cy - vh / 2, vw, vh];
     if (src.scale) { e.scale = Math.round(src.scale / k); e.natW = r.w; }
     if (Number.isFinite(src.north)) e.north = src.north;
   } else e.src = src.src;
@@ -248,10 +254,10 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
         const u = ctx.u * pm.scale, top = bare ? 0 : 10 * u, rr = { x: r.x, y: r.y + top, w: r.w, h: r.h - top }, key = `${rr.w.toFixed(1)}x${rr.h.toFixed(1)}`;
         if (!fitted.has(key)) { let f: PlanMap | null = null; try { f = p.get({ w: rr.w, h: rr.h }) ?? null; } catch { f = null; } fitted.set(key, f); }
         const F = fitted.get(key) ?? M;
-        return head(pm, r.x, r.y, u, DP(ctx.P), F.sub || null, bare) + fitMap(p.id.replace(/[^\w-]/g, '_'), { ...F, contain: true }, rr, p.name);
+        return head(pm, r.x, r.y, u, DP(ctx.P), F.sub || null, bare) + fitMap(p.id.replace(/[^\w-]/g, '_'), { ...F, contain: true }, rr, p.name, pm.view);
       }
       const lay = planWithLegend(M.legend, r, ctx.u);
-      return fitMap(p.id.replace(/[^\w-]/g, '_'), M, lay.plan, p.name) + (lay.legend ? legendBox(M.legend, lay.legend, ctx) : '');
+      return fitMap(p.id.replace(/[^\w-]/g, '_'), M, lay.plan, p.name, pm.view) + (lay.legend ? legendBox(M.legend, lay.legend, ctx) : '');
     }, p.on);
     if (p.nav) {
       const nv = p.nav;
@@ -264,10 +270,10 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
       m.pair = p.id;
     }
   }
-  if (src.plan && !src.plans) { const p = src.plan; add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja')); }
+  if (src.plan && !src.plans) { const p = src.plan; const m = add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja', m.view)); }
   if (src.tik?.length) { const rows = [['Koʻrsatkich', 'Birlik', 'Qiymat'], ...src.tik]; const m = add({ id: 'p:tik', role: 'table', kind: 'tik', name: 'TIK jadvali', title: 'Texnik-iqtisodiy koʻrsatkichlar' }, (r, ctx, bare) => tableArt(rows, r, ctx, m, bare)); }
-  if (src.scene) { const s = src.scene; add({ id: 'p:scene', role: 'image', name: 'Sahna rasmi', title: 'Sahna rasmi' }, (r) => fitMap('scene', { src: s, w: r.w, h: r.h }, r, 'Sahna rasmi')); }
-  for (const it of src.inbox ?? []) add({ id: `i:${it.id}`, role: (it.svg ? 'plan' : 'image') as MRole, name: it.name, title: it.name }, (r) => fitMap(it.id, it, r, it.name));
+  if (src.scene) { const s = src.scene; const m = add({ id: 'p:scene', role: 'image', name: 'Sahna rasmi', title: 'Sahna rasmi' }, (r) => fitMap('scene', { src: s, w: r.w, h: r.h }, r, 'Sahna rasmi', m.view)); }
+  for (const it of src.inbox ?? []) { const m = add({ id: `i:${it.id}`, role: (it.svg ? 'plan' : 'image') as MRole, name: it.name, title: it.name }, (r) => fitMap(it.id, it, r, it.name, m.view)); }
   return out;
 }
 /** Hudud bilan bogʻliq boʻlmagan xaritalar yoʻq — sarlavha matni (Hudud tahlili) loyiha nomi boʻlishi mumkin */

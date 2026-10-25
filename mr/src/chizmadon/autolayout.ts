@@ -33,6 +33,8 @@ export interface Material {
   render?: (r: Rect, ctx: MatCtx, bare?: boolean) => string;
   /** foydalanuvchi rasmi bilan almashtirilgan */
   own?: boolean;
+  /** katak ichidagi koʻrinish (kesish, kattalashtirish) — xarita va rasmlar */
+  view?: { z: number; cx: number; cy: number } | null;
 }
 
 /** Katak roli → qabul qiladigan material rollari (birinchisi — afzal) */
