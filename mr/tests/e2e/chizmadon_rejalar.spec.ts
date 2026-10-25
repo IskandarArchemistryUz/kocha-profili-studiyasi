@@ -48,6 +48,13 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   // reja katakning kamida bir tomonini yarmidan koʻp egallaydi
   const fill = await plan.evaluate(e => { const c = e.getBoundingClientRect(), s = e.querySelector('svg svg, svg g svg') ?? e.querySelector('svg'); const pth = [...e.querySelectorAll('path[data-apt]')].map(p => p.getBoundingClientRect()); if (!pth.length) return 0; const x0 = Math.min(...pth.map(b => b.left)), x1 = Math.max(...pth.map(b => b.right)), y0 = Math.min(...pth.map(b => b.top)), y1 = Math.max(...pth.map(b => b.bottom)); void s; return Math.max((x1 - x0) / c.width, (y1 - y0) / c.height); });
   expect(fill).toBeGreaterThan(0.45);
+  // qoʻlda masshtab: 1:50 — yozuv aniq, reja kattalashadi (sigʻmasa — chetlari kesiladi)
+  const pb = (await plan.boundingBox())!;
+  await page.mouse.click(pb.x + pb.width / 2, pb.y + pb.height / 2);
+  await page.click('#chMatMs [data-ms="50"]');
+  await expect.poll(() => page.locator('.ch-body [data-el^="p:apt:"]').first().evaluate(e => e.querySelector('[data-deco="scale"]')?.textContent ?? '')).toMatch(/M 1:50\b/);
+  await page.click('#chMatMs button >> nth=0');
+  await expect.poll(() => page.locator('.ch-body [data-el^="p:apt:"]').first().evaluate(e => e.querySelector('[data-deco="scale"]')?.textContent ?? '')).toBe(sc);
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_kvartirografiya_1024.png` });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));

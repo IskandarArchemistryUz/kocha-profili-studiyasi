@@ -2969,7 +2969,7 @@ export class Editor {
       const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null })); };
       out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: (fit) => {
         const a = sheet(); if (!a) return null;
-        const f = a.fit(fit?.w ?? 240, fit?.h ?? 200);
+        const f = a.fit(fit?.w ?? 240, fit?.h ?? 200, fit?.scale);
         return { svg: f.svg, vb: f.vb, w: f.w, h: f.h, scale: f.scale, north: a.north, contain: true, sub: f.sub };
       }, nav: { id: `p:aptnav:${pl.bid}`, name: `Vaziyat sxemasi · ${bi + 1}-bino`, title: tr('Vaziyat sxemasi'), draw: (r) => {
         const a = sheet(); return a ? a.nav(r.x, r.y, r.w, r.h) : '';
