@@ -911,7 +911,7 @@ export class Editor {
     }
     body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Loyiha markazi'), h('span', { class: 'sub' }, tr('Xaritada oʻng tugma → «Markazni shu yerga koʻchirish»'))), h('span', { class: 'v mono', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`))));
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Atrof radiusi'))),
-      h('div', { class: 'seg', role: 'group', 'aria-label': tr('Radius') }, ...[300, 500, 750, 1000, 1500, 1800].map(r => h('button', { 'aria-pressed': !cs.area && cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r, area: null } })) }, r < 1000 ? `${r} m` : `${fmt(r / 1000, r % 1000 ? 1 : 0)} km`))));
+      h('div', { class: 'seg seg-wrap', role: 'group', 'aria-label': tr('Radius') }, ...[300, 500, 750, 1000, 1500, 1800, 2500, 3000, 4000].map(r => h('button', { 'aria-pressed': !cs.area && cs.radius === r, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { radius: r, area: null } })) }, r < 1000 ? `${r} m` : `${fmt(r / 1000, r % 1000 ? 1 : 0)} km`))));
     body.append(this.areaBlock());
     if (this.ctx.busy) body.append(h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(this.ctx.frac * 100)}%;background:var(--svc)` })), h('span', { class: 't-small', id: 'ctxMsg' }, this.ctx.msg));
     else if (!cs.loaded) body.append(h('button', { class: 'btn btn-primary btn-block btn-lg', id: 'ctxLoad', onclick: () => this.run(() => {
@@ -1852,7 +1852,35 @@ export class Editor {
             this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
             this.setTool(new PolygonTool(this.scene, r2 => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r2.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); }, toast, 20));
           }, toast, 20)) }, ...(drawingP ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Erkin shakl'))))),
+        drawingP || drawing ? this.dimRow(drawing) : '',
         h('span', { class: 't-small' }, tr('Uchlar va qirralarga yopishadi (Shift — oʻchiq). Kesma uzunligi chiziqda koʻrinadi.')))));
+  }
+  /**
+   * Oʻlcham bilan chizish (egasi, 25.10): erkin shaklda — keyingi tomon uzunligi va ixtiyoriy burchak; toʻrtburchakda — eni × boʻyi.
+   * Klaviaturada ham: sahnada yozib Enter («32», «32<90», «32x18»).
+   */
+  private dimRow(rect: boolean): HTMLElement {
+    const num = (id: string, ph: string, label: string) => h('input', { type: 'number', class: 'input', id, placeholder: ph, step: '0.1', 'aria-label': label }) as HTMLInputElement;
+    const val = (i: HTMLInputElement) => { const v = Number(String(i.value).replace(',', '.')); return i.value !== '' && Number.isFinite(v) ? v : null; };
+    const after = () => { if (this.tool) this.el.hint.textContent = this.tool.hint; };
+    if (rect) {
+      const w = num('rectW', '32', tr('Eni, m')), hh = num('rectH', '18', tr('Boʻyi, m'));
+      const go = () => { const a = val(w), b = val(hh); if (!(a && b && a > 0 && b > 0)) { toast(tr('Eni va boʻyini kiriting')); return; } const tt = this.tool; if (tt instanceof RectTool) tt.placeWH(a, b); after(); };
+      hh.onkeydown = e => { if (e.key === 'Enter') go(); };
+      return h('div', { class: 'col', id: 'dimBox' }, h('div', { class: 'row', style: 'align-items:flex-end' },
+        h('div', { class: 'field grow' }, h('label', {}, tr('Eni')), h('span', { class: 'unit' }, w, h('span', {}, 'm'))),
+        h('div', { class: 'field grow' }, h('label', {}, tr('Boʻyi')), h('span', { class: 'unit' }, hh, h('span', {}, 'm'))),
+        h('button', { class: 'btn', id: 'rectPut', onclick: go }, tr('Qoʻyish'))),
+        h('span', { class: 't-small' }, tr('Avval sahnada birinchi burchakni bosing — toʻrtburchak kursor tomonga shu oʻlchamda quriladi. Sahnada «32x18» yozib Enter ham boʻladi.')));
+    }
+    const len = num('drawLen', '32', tr('Tomon uzunligi, m')), ang = num('drawAng', tr('kursor'), tr('Burchak, °'));
+    const go = () => { const L = val(len); if (!(L && L > 0)) { toast(tr('Tomon uzunligini kiriting')); return; } const tt = this.tool; if (tt instanceof PolygonTool && tt.addSide(L, val(ang))) { len.value = ''; len.focus(); } after(); };
+    len.onkeydown = e => { if (e.key === 'Enter') go(); }; ang.onkeydown = e => { if (e.key === 'Enter') go(); };
+    return h('div', { class: 'col', id: 'dimBox' }, h('div', { class: 'row', style: 'align-items:flex-end' },
+      h('div', { class: 'field grow' }, h('label', {}, tr('Keyingi tomon')), h('span', { class: 'unit' }, len, h('span', {}, 'm'))),
+      h('div', { class: 'field grow' }, h('label', {}, tr('Burchak')), h('span', { class: 'unit' }, ang, h('span', {}, '°'))),
+      h('button', { class: 'btn', id: 'drawAdd', onclick: go }, tr('Qoʻshish'))),
+      h('span', { class: 't-small' }, tr('Birinchi nuqtani sahnada bosing, keyin tomonlarni oʻlcham bilan qoʻshing: yoʻnalish — kursor tomon yoki burchak (0° — sharq, 90° — shimol). Sahnada «32» yoki «32<90» yozib Enter ham boʻladi. Yopish — Enter yoki birinchi nuqtani bosish.')));
   }
 
   /* ---------- 2-bosqich: koʻchalar, parsellar, yashil ---------- */
@@ -2100,8 +2128,8 @@ export class Editor {
   /* ===== 2-qadam: Uchastka (MR-Q1) ===== */
   private uchastkaPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), area = this.last?.d.siteHa ?? 0;
-    const w = h('input', { type: 'number', class: 'input', min: 10, max: 2000, value: 120, id: 'rw', 'aria-label': tr('Eni, m') }) as HTMLInputElement;
-    const hh = h('input', { type: 'number', class: 'input', min: 10, max: 2000, value: 100, id: 'rh', 'aria-label': tr('Boʻyi, m') }) as HTMLInputElement;
+    const w = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: 120, id: 'rw', 'aria-label': tr('Eni, m') }) as HTMLInputElement;
+    const hh = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: 100, id: 'rh', 'aria-label': tr('Boʻyi, m') }) as HTMLInputElement;
     const drawing = this.tool instanceof PolygonTool, picking = this.tool instanceof ClickTool;
     body.append(doc.site
       ? h('div', { class: 'group flat', style: 'padding:10px 12px;display:flex;align-items:center;gap:10px' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', { id: 'siteHa' }, `${fmt(area, 2)} ga`), h('span', {}, tr('Uchastka maydoni'))), h('span', { class: 'chip ok' }, h('i'), tr('Yopiq')))
@@ -2132,12 +2160,12 @@ export class Editor {
         h('div', { class: 'field grow' }, h('label', {}, tr('Eni')), h('span', { class: 'unit' }, w, h('span', {}, 'm'))),
         h('div', { class: 'field grow' }, h('label', {}, tr('Boʻyi')), h('span', { class: 'unit' }, hh, h('span', {}, 'm'))),
         h('button', { class: 'btn', id: 'rectSite', onclick: () => {
-          const a = Number(w.value), b = Number(hh.value); if (!(a >= 10 && b >= 10)) { toast(tr('Kamida 10 m')); return; }
+          const a = Number(w.value), b = Number(hh.value); if (!(a >= 10 && b >= 10)) { toast(tr('Kamida 10 m')); return; } if (a > 4000 || b > 4000) { toast(tr('Koʻpi bilan 4000 m')); return; }
           const m = this.scene.viewExtent().c;   // ekran markazida (xarita surilgan boʻlsa ham)
           const r: XY[] = [[-a / 2, -b / 2], [a / 2, -b / 2], [a / 2, b / 2], [-a / 2, b / 2]].map(([x, y]) => [x + m[0], y + m[1]] as XY);
           this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.scene.frameDoc(this.store.doc);
         } }, tr('Qoʻyish'))),
-      h('span', { class: 't-small' }, '10–2000 m.'));
+      h('span', { class: 't-small' }, '10–4000 m.'));
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Tahrirlash'))),
       h('div', { class: 'group flat', id: doc.site ? 'siteEditHint' : undefined },
         ...([['Burchakni surish', 'sudrash'], ['Yangi burchak', 'oraliq nuqta'], ['Burchakni oʻchirish', '2× bosish'], ['Yopishishni oʻchirish', 'Shift']] as const).map(([k, v]) => h('div', { class: 'li' }, h('span', { class: 'k' }, tr(k)), h('span', { class: 'kbd' }, tr(v))))),
@@ -3176,7 +3204,9 @@ export class Editor {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('.gx')) return;   // Varaqlar / Chizmadon oynasi ochiq — oʻz klaviaturasi bor
       const typing = (e.target as HTMLElement)?.matches?.('input,textarea,select');
-      if (!typing && this.tool?.key?.(e)) { e.preventDefault(); if (this.tool) this.el.hint.textContent = this.tool.hint; if (e.key === 'Escape') this.setTool(null); return; }
+      // oʻlcham yozilayotgan boʻlsa Esc faqat yozuvni oʻchiradi, asbob qoladi
+      const hadBuf = !!(this.tool as { buf?: string } | null)?.buf;
+      if (!typing && this.tool?.key?.(e)) { e.preventDefault(); if (this.tool) this.el.hint.textContent = this.tool.hint; if (e.key === 'Escape' && !hadBuf) this.setTool(null); return; }
       if (typing) return;
       if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey && !(document.activeElement && document.activeElement !== document.body && this.root.contains(document.activeElement) && document.activeElement.closest('.panel,.pop,.drawer'))) { e.preventDefault(); this.panelOpen = !this.panelOpen; this.closePop(); this.renderRail(); this.renderPanel(); return; }
       const z = e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey);

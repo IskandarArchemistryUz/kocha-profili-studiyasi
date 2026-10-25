@@ -81,10 +81,20 @@ test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   await expect(page.locator('[aria-label=Radius] button', { hasText: '750 m' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[aria-label=Radius] button', { hasText: '500 m' })).toHaveAttribute('aria-pressed', 'false');
   // 1,5 va 1,8 km
-  await expect(page.locator('[aria-label=Radius] button')).toHaveCount(6);
+  await expect(page.locator('[aria-label=Radius] button')).toHaveCount(9);
   await page.click('[aria-label=Radius] button:has-text("1,8 km")');
   await expect(page.locator('[aria-label=Radius] button', { hasText: '1,8 km' })).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => (window as any).__mr.store.doc.context.radius)).toBe(1800);
+  // 2,5 / 3 / 4 km (egasi, 25.10: Qorashina shaharchasi sigʻmaydi) — tugmalar ikki qatorda, panel chetidan chiqmaydi
+  await page.click('[aria-label=Radius] button:has-text("4 km")');
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.context.radius)).toBe(4000);
+  const seg = (await page.locator('[aria-label=Radius]').boundingBox())!, last = (await page.locator('[aria-label=Radius] button', { hasText: '4 km' }).boundingBox())!;
+  expect(last.x + last.width).toBeLessThanOrEqual(seg.x + seg.width + 1);
+  // uchastka oʻlcham bilan — 4000 m gacha
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '4000'); await page.fill('#rh', '3500'); await page.click('#rectSite');
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.site.rings[0].length)).toBe(4);
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  if (process.env.GX_SHOTS) { await page.click('[data-step=hudud]'); await page.screenshot({ path: `${process.env.GX_SHOTS}/radius_4km_dark.png` }); }
 });
 
 test('OSM serveri band boʻlsa — keshdagi nusxa ogohlantirish bilan', async ({ page, context }) => {
