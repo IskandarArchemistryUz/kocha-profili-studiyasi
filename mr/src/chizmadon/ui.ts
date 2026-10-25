@@ -120,7 +120,11 @@ export function openChizmadon(host: ChHost): void {
   let PLANS: PlanSrc[] | undefined;
   const plansOnce = (): PlanSrc[] | undefined => {
     if (!host.plans) return undefined;
-    return (PLANS ??= host.plans().map(p => { let c: ReturnType<PlanSrc['get']>, got = false; return { ...p, get: () => { if (!got) { got = true; const m = p.get(); c = m ? { ...m, svg: trSvg(m.svg), legend: m.legend?.map(q => ({ ...q, label: tr(q.label) })) } : m; } return c; } }; }));
+    // fit (katak oʻlchami) — har oʻlcham uchun alohida kesh (qavat rejalari katakka mos masshtabda chiziladi)
+    return (PLANS ??= host.plans().map(p => { const C = new Map<string, ReturnType<PlanSrc['get']>>(); return { ...p, get: (fit?: { w: number; h: number }) => {
+      const key = fit ? `${fit.w.toFixed(1)}x${fit.h.toFixed(1)}` : '';
+      if (!C.has(key)) { const m = p.get(fit); C.set(key, m ? { ...m, svg: trSvg(m.svg), legend: m.legend?.map(q => ({ ...q, label: tr(q.label) })) } : m); if (C.size > 24) C.delete(C.keys().next().value!); }
+      return C.get(key); } }; }));
   };
   /* ---------- 19-band (3): maket varaqlari matnlari — sukut loyiha maʼlumotidan (namuna matnlari oʻrniga) ---------- */
   const YEAR = new Date().getFullYear();
