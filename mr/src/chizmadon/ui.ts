@@ -15,7 +15,7 @@ import { tr, tf, trSvg, getLang } from '../i18n';
 import { logoSvg } from '../ui/logo';
 import { svgPdf } from '../ui/pdf';
 import { openColor } from '../ui/colorpicker';
-import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale, mapNorth } from './model';
+import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, type ChView, clampView, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale, mapNorth } from './model';
 import { pageSvg, textHeight, legendHeight } from './render';
 import { pageChecks, applyFix, sheetChecks, type Check9 } from './check';
 import { LAYOUTS, buildLayoutPage, type LFamily, type TplCtx } from './layouts';
@@ -68,7 +68,7 @@ const I = {
   pal: '<path d="M12 3a9 9 0 100 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.8.7-1.5 1.6-1.5H17a4 4 0 004-4c0-4.7-4-8.5-9-8.5z"/>', slots: '<path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/>',
   imp: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', one: '<path d="M6 4h12v16H6z"/>', all: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
   drag: '<path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/>', chev: '<path d="M6 9l6 6 6-6"/>', warn: '<path d="M12 4l9 16H3zM12 10v4M12 17v.5"/>',
-  swap: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  swap: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>', crop: '<path d="M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14"/>',
   left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 6l6 6-6 6"/>', pen: '<path d="M4 16c3-8 6 3 9-3s4-7 7-8"/>', x: IC.x,
 };
 const TOOL_KEYS: Record<string, Tool> = Object.fromEntries(TOOLS.map(t => [t.key.toLowerCase(), t.id]));
@@ -88,6 +88,8 @@ export function openChizmadon(host: ChHost): void {
   let sel = new Set<string>();
   /** tanlangan material (Loyihadan) */
   let matSel: string | null = null;
+  /** kesish rejimidagi material (3-bosqich): katak ichida sudrash — surish, gʻildirak — kattalashtirish */
+  let crop: string | null = null;
   let zoom = 0, panX = 0, panY = 0;
   let magnet = true, gridOn = false, gray = false;
   let float: 'left' | 'right' | null = null;
@@ -598,6 +600,7 @@ export function openChizmadon(host: ChHost): void {
     right.replaceChildren(panelHead('right', tabs), sc, foot);
   }
   function selectMat(id: string): void {
+    if (crop && crop !== id) crop = null;
     matSel = id; sel.clear(); setTool('select', false); d.ui.rightTab = 'element';
     if (!rOpen() && float !== 'right') { if (phone()) float = 'right'; else { d.ui.right = true; if (tablet()) d.ui.left = false; } }
     relayout(); renderAll();
@@ -621,6 +624,14 @@ export function openChizmadon(host: ChHost): void {
       field('Matn va chiziq oʻlchami', stepper({ id: 'chMatScale', min: 70, max: 150, step: 10, value: Math.round(m.scale * 100), unit: '%', label: tr('Matn va chiziq oʻlchami'), onchange: v => autoMut(() => { s.scale = v / 100; }, 'ms') })),
       lbl('Varaqda'), where.length ? h('div', { class: 'group' }, ...where.map(w => h('button', { class: 'li', onclick: () => goPage(w.pi) }, h('span', { class: 'k' }, `${tf('${n}-varaq', { n: w.pi + 1 })} · ${tr(LAYOUTS.roles[LAST!.PG.pages[w.pi].page.slots[w.k].role][0]).toLowerCase()}`), svgIcon(I.right)))) : h('div', { class: 'note warn' }, tr('Bu maketda joy topilmadi.')),
       h('div', { class: 'note' }, tr('Loyiha oʻzgarsa bu element oʻzi yangilanadi.') + (att ? ` ${tf('Ustida ${n} ta qoʻlda chizilgan belgi bor — element boshqa katak yoki maketga koʻchsa, ular ham birga koʻchadi.', { n: att })}` : '')));
+    if (croppable(m)) {
+      const v = viewOf(m.id);
+      out.push(lbl('Kadrlash'), field('Kattalashtirish', stepper({ id: 'chMatZoom', min: 100, max: 800, step: 25, value: Math.round(v.z * 100), unit: '%', label: tr('Kattalashtirish'), onchange: z => autoMut(() => setView(m.id, { ...viewOf(m.id), z: z / 100 }), 'mz') })),
+        h('div', { class: 'ch-chips' },
+          h('button', { class: 'btn btn-sm', id: 'chMatCrop', 'aria-pressed': crop === m.id, onclick: () => cropOn(crop === m.id ? null : m.id) }, ...icl(I.crop, tr(crop === m.id ? 'Tayyor' : 'Katakda surish'))),
+          matSet(m.id).view ? h('button', { class: 'btn btn-sm', id: 'chMatCropReset', onclick: () => autoMut(() => setView(m.id, { z: 1, cx: 0, cy: 0 })) }, tr('Asliga qaytarish')) : ''),
+        h('div', { class: 'note' }, tr('Katakni ikki marta bosing: sudrab surish, gʻildirak bilan kattalashtirish.')));
+    }
     if (m.role !== 'title') out.push(lbl('Rasm'), h('div', { class: 'ch-chips' },
       h('button', { class: 'btn btn-sm', id: 'chMatImg', onclick: () => pickPhoto(url => autoMut(() => { s.src = url; })) }, tr(m.own ? 'Boshqa rasm tanlash' : 'Oʻz rasmingiz bilan almashtirish')),
       m.own ? h('button', { class: 'btn btn-sm', id: 'chMatImgReset', onclick: () => autoMut(() => { delete s.src; }) }, tr('Asl holiga qaytarish')) : ''));
@@ -953,6 +964,17 @@ export function openChizmadon(host: ChHost): void {
   }
   /** Joriy varaqdagi tanlangan material katagi ustida panel; boʻsh kataklarda «+» (katakka material qoʻyish) */
   function renderSlotUi(): void {
+    renderSlotUi0();
+    // panel va izoh koʻrinadigan maydondan chiqmasin (katak oʻng chetda boʻlsa)
+    const vr = view.getBoundingClientRect();
+    slotUi.querySelectorAll<HTMLElement>('.ch-slotbar, .ch-crophint').forEach(el => {
+      const br = el.getBoundingClientRect(); let dx = 0;
+      if (br.right > vr.right - 8) dx = vr.right - 8 - br.right;
+      if (br.left + dx < vr.left + 8) dx = vr.left + 8 - br.left;
+      if (dx) el.style.left = `${parseFloat(el.style.left) + dx}px`;
+    });
+  }
+  function renderSlotUi0(): void {
     slotUi.replaceChildren();
     if (!isAuto() || !LAST || d.auto.view !== 'one' || tool !== 'select' || draft || dropHint) return;
     const ap = LAST.pages[d.cur]; if (!ap) return;
@@ -968,9 +990,23 @@ export function openChizmadon(host: ChHost): void {
     const c = matSel ? cellsOf(d.cur).find(x => x.el === matSel) : null, m = c ? MATS.find(x => x.id === c.el) : null;
     if (!c || !m) return;
     const k = [...ap.fill.assign.entries()].find(([, e]) => e.id === m.id)?.[0];
-    const bar = h('div', { class: 'ch-slotbar glassbar', id: 'chSlotBar', role: 'toolbar', 'aria-label': tr(m.name), style: `left:${c.r.x * sc}px;top:${Math.max(0, c.r.y * sc - 44)}px` },
-      c.r.w * sc >= 300 ? h('span', { class: 'nm' }, tr(m.name)) : '',
+    const pos = `left:${c.r.x * sc}px;top:${Math.max(0, c.r.y * sc - 44)}px`;
+    if (crop === m.id) {
+      // kesish rejimi: kattalashtirish, asliga qaytarish, tayyor
+      const v = viewOf(m.id), zz = (f: number) => autoMut(() => setView(m.id, { ...viewOf(m.id), z: viewOf(m.id).z * f }), 'cz');
+      slotUi.append(h('div', { class: 'ch-slotbar glassbar crop', id: 'chCropBar', role: 'toolbar', 'aria-label': tr('Kadrlash'), style: pos },
+        h('button', { class: 'btn btn-ghost icon-btn btn-sm', id: 'chCropOut', 'aria-label': tr('Kichraytirish'), disabled: v.z <= 1, onclick: () => zz(1 / 1.25) }, svgIcon('<path d="M5 12h14"/>')),
+        h('span', { class: 'num t-small', id: 'chCropZ' }, `${Math.round(v.z * 100)} %`),
+        h('button', { class: 'btn btn-ghost icon-btn btn-sm', id: 'chCropIn', 'aria-label': tr('Kattalashtirish'), disabled: v.z >= 8, onclick: () => zz(1.25) }, svgIcon(IC.plus)),
+        h('button', { class: 'btn btn-ghost btn-sm', id: 'chCropReset', disabled: !matSet(m.id).view, onclick: () => autoMut(() => setView(m.id, { z: 1, cx: 0, cy: 0 })) }, tr('Asliga')),
+        h('button', { class: 'btn btn-sm btn-primary', id: 'chCropDone', onclick: () => cropOn(null) }, tr('Tayyor'))));
+      slotUi.append(h('div', { class: 'ch-crophint', style: `left:${(c.r.x + c.r.w / 2) * sc}px;top:${(c.r.y + c.r.h) * sc + 8}px` }, tr('Sudrang — surish · gʻildirak — kattalashtirish · Esc — tayyor')));
+      return;
+    }
+    const bar = h('div', { class: 'ch-slotbar glassbar', id: 'chSlotBar', role: 'toolbar', 'aria-label': tr(m.name), style: pos },
+      c.r.w * sc >= 360 ? h('span', { class: 'nm' }, tr(m.name)) : '',
       k != null ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotSwap', onclick: (e: Event) => slotPick(e.currentTarget as HTMLElement, d.cur, k, m.id) }, ...icl(I.swap, tr('Almashtirish'))) : '',
+      croppable(m) ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotCrop', title: tr('Ikki marta bosish — ham'), onclick: () => cropOn(m.id) }, ...icl(I.crop, tr('Kadrlash'))) : '',
       h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotHide', onclick: () => hideMat(m.id) }, ...icl(I.trash, tr('Oʻchirish'))));
     slotUi.append(bar);
   }
@@ -1002,6 +1038,11 @@ export function openChizmadon(host: ChHost): void {
   }
   /** Material qoʻshilsa/olinsa sahifalash qayta hisoblanadi — shu varaqgacha varaq turlari saqlanadi (katak raqami oʻzgarmasin) */
   function pin(pi: number): void { LAST?.PG.pages.slice(0, pi + 1).forEach((pk, i) => { d.auto.force[i] ??= pk.page.id; }); }
+  /** Kesiladigan materiallar: xarita (reja) va rasmlar */
+  const croppable = (m: Material | undefined) => !!m && (m.role === 'plan' || m.role === 'image' || !!m.own);
+  const viewOf = (id: string): ChView => matSet(id).view ?? { z: 1, cx: 0, cy: 0 };
+  function setView(id: string, v: ChView): void { const s2 = matSet(id), c = clampView(v); if (c.z === 1 && Math.abs(c.cx) < 1e-4 && Math.abs(c.cy) < 1e-4) delete s2.view; else s2.view = c; }
+  function cropOn(id: string | null): void { crop = id; if (id && matSel !== id) { selectMat(id); return; } renderOverlay(); renderRight(); }
   /** Materialni albomdan olish: varaq turi saqlanadi, katakni maket boshqa material bilan toʻldirishi yoki boʻsh («+») qoldirishi mumkin */
   function hideMat(id: string): void {
     const a = MATS.find(x => x.id === id), pi = d.cur, pg = LAST?.PG.pages[pi]?.page.id; if (!a) return;
@@ -1033,10 +1074,16 @@ export function openChizmadon(host: ChHost): void {
   /* ---------- sichqoncha ---------- */
   type Box = [number, number, number, number];
   type Drag = { kind: 'move'; start: [number, number]; orig: ChEl[]; B: Box } | { kind: 'resize'; h: string; orig: ChEl[]; B: Box } | { kind: 'rotate'; orig: ChEl[]; c: [number, number]; a0: number }
-    | { kind: 'vertex'; id: string; i: number } | { kind: 'marquee'; start: [number, number] } | { kind: 'pan'; x: number; y: number; px: number; py: number } | { kind: 'draw'; start: [number, number] } | { kind: 'mappan'; id: string; start: [number, number]; vb: Box };
-  let drag: Drag | null = null, space = false, DRAG: string | null = null;
+    | { kind: 'vertex'; id: string; i: number } | { kind: 'marquee'; start: [number, number] } | { kind: 'pan'; x: number; y: number; px: number; py: number } | { kind: 'draw'; start: [number, number] } | { kind: 'mappan'; id: string; start: [number, number]; vb: Box } | { kind: 'croppan'; id: string; start: [number, number]; v0: ChView; w: number; h: number };
+  let drag: Drag | null = null, space = false, DRAG: string | null = null, cropRaf = 0, lastTap = { id: '', t: -1e9 };
   const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
-  view.addEventListener('wheel', ev => { ev.preventDefault(); const r = view.getBoundingClientRect(); if (ev.ctrlKey || ev.metaKey) zoomAt(ev.deltaY < 0 ? 1.1 : 1 / 1.1, ev.clientX - r.left, ev.clientY - r.top); else { panX -= ev.deltaX; panY -= ev.deltaY; applyView(); } }, { passive: false });
+  view.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    if (crop && isAuto() && !(ev.ctrlKey || ev.metaKey)) {
+      const c = cellsOf(d.cur).find(x => x.el === crop), p = toMm(ev);
+      if (c && p[0] >= c.r.x && p[0] <= c.r.x + c.r.w && p[1] >= c.r.y && p[1] <= c.r.y + c.r.h) { const id = crop; commit('cw'); setView(id, { ...viewOf(id), z: viewOf(id).z * (ev.deltaY < 0 ? 1.1 : 1 / 1.1) }); relayout(); dirty(); renderCanvas(); renderOverlay(); return; }
+    }
+    const r = view.getBoundingClientRect(); if (ev.ctrlKey || ev.metaKey) zoomAt(ev.deltaY < 0 ? 1.1 : 1 / 1.1, ev.clientX - r.left, ev.clientY - r.top); else { panX -= ev.deltaX; panY -= ev.deltaY; applyView(); } }, { passive: false });
   view.addEventListener('pointerdown', ev => {
     if (float) { float = null; syncPanels(); }
     view.focus({ preventScroll: true });
@@ -1060,6 +1107,14 @@ export function openChizmadon(host: ChHost): void {
         view.setPointerCapture(ev.pointerId); renderOverlay(); renderRight(); renderLeft(); return;
       }
       const me = (t.closest('[data-el]') as SVGElement | null)?.dataset.el;
+      if (crop && isAuto()) {
+        const c = cellsOf(d.cur).find(x => x.el === crop);
+        if (me === crop && c) { commit('crop' + Date.now()); drag = { kind: 'croppan', id: crop, start: m, v0: viewOf(crop), w: c.r.w, h: c.r.h }; view.setPointerCapture(ev.pointerId); view.classList.add('cropping'); return; }
+        crop = null;
+      }
+      // ikki marta bosish (katak qayta chizilgani uchun dblclick hodisasi kelmasligi mumkin — vaqt boʻyicha)
+      const dbl = !!me && lastTap.id === me && ev.timeStamp - lastTap.t < 450; lastTap = { id: me ?? '', t: ev.timeStamp };
+      if (me && !ev.shiftKey && isAuto() && dbl && croppable(MATS.find(x => x.id === me))) { cropOn(me); return; }
       if (me && !ev.shiftKey && isAuto()) { selectMat(me); return; }
       if (!ev.shiftKey) { sel.clear(); if (matSel) { matSel = null; relayout(); renderCanvas(); } }
       drag = { kind: 'marquee', start: m }; marquee = [m[0], m[1], m[0], m[1]]; view.setPointerCapture(ev.pointerId); renderOverlay(); renderRight(); return;
@@ -1079,6 +1134,12 @@ export function openChizmadon(host: ChHost): void {
     const m = toMm(ev);
     if (draft && !drag && draft.pts && (tool === 'poly' || tool === 'flow' || tool === 'zone' || tool === 'row')) { const pts = draft.pts; const ghost = { ...draft, pts: [...pts, snapPt(m)] }; const keep = draft; draft = ghost; renderOverlay(); draft = keep; return; }
     if (!drag) return;
+    if (drag.kind === 'croppan') {
+      const dc = drag, v = dc.v0;
+      setView(dc.id, { z: v.z, cx: v.cx - (m[0] - dc.start[0]) / (dc.w * v.z), cy: v.cy - (m[1] - dc.start[1]) / (dc.h * v.z) });
+      if (!cropRaf) cropRaf = requestAnimationFrame(() => { cropRaf = 0; relayout(); renderCanvas(); });
+      return;
+    }
     if (drag.kind === 'pan') { panX = drag.px + ev.clientX - drag.x; panY = drag.py + ev.clientY - drag.y; applyView(); return; }
     if (drag.kind === 'marquee') { marquee = [drag.start[0], drag.start[1], m[0], m[1]]; renderOverlay(); return; }
     if (drag.kind === 'draw' && draft) {
@@ -1147,10 +1208,13 @@ export function openChizmadon(host: ChHost): void {
       addEl(e); if (e.t === 'image') pickImage(e.id); if (e.t === 'map') { const m2 = host.siteMap(); if (m2) setMapSource(e.id, 'site'); }
       return;
     }
+    if (dr.kind === 'croppan') { view.classList.remove('cropping'); if (cropRaf) { cancelAnimationFrame(cropRaf); cropRaf = 0; } relayout(); dirty(); renderCanvas(); renderRight(); return; }
     if (dr.kind === 'move' || dr.kind === 'resize' || dr.kind === 'vertex' || dr.kind === 'mappan' || dr.kind === 'rotate') { lastMerge = ''; dirty(); renderCanvas(); renderRight(); renderLeft(); }
   });
   view.addEventListener('dblclick', ev => {
     if (tool !== 'select') return;
+    const me = ((ev.target as Element).closest('[data-el]') as SVGElement | null)?.dataset.el;
+    if (me && isAuto() && !((ev.target as Element).closest('[data-id]')) && croppable(MATS.find(x => x.id === me))) { cropOn(me); return; }
     const hit = ((ev.target as Element).closest('[data-id]') as SVGElement | null)?.dataset.id, e = hit ? P().els.find(x => x.id === hit) : undefined;
     if (e?.t === 'text' || e?.t === 'table') { d.ui.rightTab = 'element'; if (!rOpen()) float = 'right'; syncPanels(); renderRight(); setTimeout(() => (right.querySelector('#chText, #chTable') as HTMLTextAreaElement | null)?.focus(), 0); }
   });
@@ -1393,6 +1457,7 @@ export function openChizmadon(host: ChHost): void {
       if (wrap.querySelector('.ch-menu')) { wrap.querySelector('.ch-menu')!.remove(); return; }
       if (!d.auto.started) { startGo(); return; }
       if (draft) { draft = null; renderOverlay(); return; }
+      if (crop) { cropOn(null); return; }
       if (float) { float = null; syncPanels(); return; }
       if (tool !== 'select') { setTool('select'); return; }
       if (sel.size || matSel) { sel.clear(); if (matSel) { matSel = null; relayout(); renderCanvas(); } renderOverlay(); renderRight(); renderLeft(); return; }
