@@ -3,7 +3,7 @@
  * Web Mercator matematikasi sof funksiyalar; yuklash va dekodlash brauzer API (fetch, createImageBitmap, OffscreenCanvas)
  * bilan — asosiy oqimda ham, workerda ham ishlaydi.
  */
-import { imageryTile, initEsriKey } from './esrikey';
+import { imageryTile, initEsriKey, grayTile512, ESRI_GRAY_ATTR } from './esrikey';
 import type { LngLat } from '../core/doc';
 import type { BBox } from './osm';
 
@@ -42,14 +42,29 @@ function canvas(w: number, h: number): OffscreenCanvas | HTMLCanvasElement {
   const c = document.createElement('canvas'); c.width = w; c.height = h; return c;
 }
 
+/**
+ * 256 px sxemadagi (z, x, y) plitkani 512 px manbadan (z−1, x>>1, y>>1) choragini kesib olish.
+ * Bitta 512 plitka toʻrt marta ishlatiladi — soʻrov bir marta (kesh).
+ */
+export function from512(url512: (z: number, x: number, y: number) => string | null) {
+  const cache = new Map<string, Promise<ImageBitmap>>();
+  return (f: typeof fetch) => async (z: number, x: number, y: number): Promise<ImageBitmap> => {
+    const Z = Math.max(0, z - 1), X = x >> 1, Y = y >> 1, u = url512(Z, X, Y); if (!u) throw new Error('kalit yoʻq');
+    let p = cache.get(u); if (!p) { p = bitmap(u, f); cache.set(u, p); }
+    const bm = await p, s = bm.width / 2;
+    return createImageBitmap(bm, (x & 1) * s, (y & 1) * s, s, s, { resizeWidth: 256, resizeHeight: 256 });
+  };
+}
+
 /** Plitkalarni bitta tasvirga tikish */
-async function mosaic(b: BBox, z: number, url: (z: number, x: number, y: number) => string, f: typeof fetch, onTile?: () => void) {
+async function mosaic(b: BBox, z: number, url: ((z: number, x: number, y: number) => string) | ((z: number, x: number, y: number) => Promise<ImageBitmap>), f: typeof fetch, onTile?: () => void) {
   const t = tileRange(b, z), W = (t.x1 - t.x0 + 1) * 256, H = (t.y1 - t.y0 + 1) * 256;
   const cv = canvas(W, H), cx = cv.getContext('2d') as OffscreenCanvasRenderingContext2D;
   let ok = 0;
   const jobs: Promise<void>[] = [];
   for (let x = t.x0; x <= t.x1; x++) for (let y = t.y0; y <= t.y1; y++) {
-    jobs.push(bitmap(url(z, x, y), f).then(bm => { cx.drawImage(bm, (x - t.x0) * 256, (y - t.y0) * 256); bm.close?.(); ok++; onTile?.(); }).catch(() => { onTile?.(); }));
+    const u = url(z, x, y);
+    jobs.push((typeof u === 'string' ? bitmap(u, f) : u).then(bm => { cx.drawImage(bm, (x - t.x0) * 256, (y - t.y0) * 256); bm.close?.(); ok++; onTile?.(); }).catch(() => { onTile?.(); }));
   }
   await Promise.all(jobs);
   return { cv, cx, x0: t.x0 * 256, y0: t.y0 * 256, W, H, ok, total: jobs.length };
@@ -111,20 +126,23 @@ export async function loadImagery(radius: number, bb: BBox, f: typeof fetch = fe
 }
 
 /** Fon xaritasi: atrof yuklanguncha sahna ostida (maket — CARTO, sunʼiy yoʻldosh — Esri) */
-export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' | 'sputnik', f: typeof fetch = fetch): Promise<{ image: Blob; nw: LngLat; se: LngLat } | null> {
+export async function loadBaseMap(center: LngLat, radius: number, kind: 'maket' | 'sputnik', f: typeof fetch = fetch): Promise<{ image: Blob; nw: LngLat; se: LngLat; attr: string } | null> {
   const dLat = radius / 110_540, dLng = radius / latK(center[1]);
   const bb: BBox = [center[1] - dLat, center[0] - dLng, center[1] + dLat, center[0] + dLng];   // janub, gʻarb, shimol, sharq
   const z = radius <= 1200 ? 16 : 15;
-  if (kind === 'sputnik') await initEsriKey(f);
-  const m = await mosaic(bb, z, kind === 'sputnik' ? IMAGERY_URL : GRAY_URL, f);
-  if (!m.ok) return null;
-  if (kind === 'maket') { const r = await mosaic(bb, z, GRAY_REF_URL, f); if (r.ok) m.cx.drawImage(r.cv as OffscreenCanvas, 0, 0); }   // joy nomlari
+  await initEsriKey(f);
+  // kulrang fon: avval kalitli Static Basemap Tiles (yozuvlar ichida), boʻlmasa — eski kalitsiz asos + yozuvlar
+  let m = kind === 'maket' && grayTile512(0, 0, 0) ? await mosaic(bb, z, from512(grayTile512)(f), f) : null;
+  const keyed = !!m?.ok;
+  if (!keyed) m = await mosaic(bb, z, kind === 'sputnik' ? IMAGERY_URL : GRAY_URL, f);
+  if (!m || !m.ok) return null;
+  if (kind === 'maket' && !keyed) { const r = await mosaic(bb, z, GRAY_REF_URL, f); if (r.ok) m.cx.drawImage(r.cv as OffscreenCanvas, 0, 0); }   // joy nomlari
   // yuklanmagan plitkalar qora emas — fon rangida
   const out = canvas(m.W, m.H), oc = out.getContext('2d') as OffscreenCanvasRenderingContext2D;
   oc.fillStyle = kind === 'sputnik' ? '#8a8f86' : '#f2efe9'; oc.fillRect(0, 0, m.W, m.H); oc.drawImage(m.cv as OffscreenCanvas, 0, 0);
   const image = 'convertToBlob' in out ? await (out as OffscreenCanvas).convertToBlob({ type: 'image/jpeg', quality: 0.88 })
     : await new Promise<Blob>((ok, no) => (out as HTMLCanvasElement).toBlob(b => b ? ok(b) : no(new Error('toBlob')), 'image/jpeg', 0.88));
-  return { image, nw: pxToLngLat(m.x0, m.y0, z), se: pxToLngLat(m.x0 + m.W, m.y0 + m.H, z) };
+  return { image, nw: pxToLngLat(m.x0, m.y0, z), se: pxToLngLat(m.x0 + m.W, m.y0 + m.H, z), attr: keyed ? ESRI_GRAY_ATTR : 'Esri, HERE, Garmin' };
 }
 /** Mercator piksel → geografik nuqta */
 export function pxToLngLat(px: number, py: number, z: number): LngLat {

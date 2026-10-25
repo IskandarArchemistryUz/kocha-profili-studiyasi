@@ -34,5 +34,14 @@ export function initEsriKey(f: typeof fetch = fetch, base = API_BASE): Promise<s
 export const imageryTile = (z: number, x: number, y: number): string => K ? `${KEYED}/${z}/${y}/${x}?token=${encodeURIComponent(K)}` : `${LEGACY}/${z}/${y}/${x}`;
 /** MapLibre uchun shablon */
 export const imageryTemplate = (): string => K ? `${KEYED}/{z}/{y}/{x}?token=${encodeURIComponent(K)}` : `${LEGACY}/{z}/{y}/{x}`;
+/**
+ * Light Gray Canvas — ArcGIS Static Basemap Tiles (kalit bilan; 512 px plitka, daraja eski 256 px sxemadan bitta past;
+ * yozuvlar uslub ichida). Kalitda `premium:user:staticbasemaptiles` ruxsati boʻlmasa server rad etadi — chaqiruvchi eski
+ * kalitsiz manzilga qaytadi. Manba: developers.arcgis.com/rest/static-basemap-tiles/arcgis-light-gray-tile-get/
+ */
+const STATIC_GRAY = 'https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1/arcgis/light-gray/static/tile';
+export const grayTile512 = (z512: number, x: number, y: number): string | null => K ? `${STATIC_GRAY}/${z512}/${y}/${x}?token=${encodeURIComponent(K)}` : null;
+/** Esri talab qilgan manba matni (Light Gray Canvas) */
+export const ESRI_GRAY_ATTR = 'Esri, TomTom, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors, and the GIS User Community';
 /** Test uchun */
 export function _resetEsriKey(k: string | null = null): void { K = k; P = null; }

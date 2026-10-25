@@ -728,7 +728,7 @@ export class Editor {
       const img = await loadBaseMap(doc.origin, 1500, sat ? 'sputnik' : 'maket');
       if (this.baseKey !== key || this.store.doc.context.loaded) return;
       await this.scene.setBaseMap(img, doc.origin);
-      this.baseAttr(sat, 'Fon: Esri, HERE, Garmin');
+      this.baseAttr(sat, `${tr('Fon')}: ${img?.attr ?? 'Esri'}`);
       if (img && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
     } catch { this.baseKey = ''; }
   }
