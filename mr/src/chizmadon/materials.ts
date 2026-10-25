@@ -182,6 +182,9 @@ const DUMMY: ChPage = { id: 'm', name: '', paper: 'A3', landscape: true, layers:
 /** Xarita yoki rasmni katakka sigʻdirib (markazdan, «cover») chizish — render.ts mapEl / imageEl orqali */
 /** Kesish (3-bosqich): rasm ham koʻrinishi oʻzgarsa SVG ichidagi <image> boʻlib chiziladi (viewBox bilan kesiladi) */
 const imgSvg = (src: string, w: number, h: number) => `<image href="${src.replace(/"/g, '&quot;')}" x="0" y="0" width="${n2(w)}" height="${n2(h)}" preserveAspectRatio="xMidYMid slice"/>`;
+/** «Erkin elementga aylantirish» uchun: material chizilayotganda fitMap yaratgan elementlarni yigʻish */
+let CAP: ChEl[] | null = null;
+export function captureEls(fn: () => unknown): ChEl[] { const prev = CAP, out: ChEl[] = []; CAP = out; try { fn(); } finally { CAP = prev; } return out; }
 export function fitMap(id: string, src0: { svg?: string; src?: string; vb?: [number, number, number, number]; w: number; h: number; scale?: number; north?: number; contain?: boolean }, r: Rect, name: string, view?: { z: number; cx: number; cy: number } | null): string {
   const zoomed = !!view && (view.z !== 1 || view.cx !== 0 || view.cy !== 0);
   const src = zoomed && !src0.svg && src0.src ? { ...src0, svg: imgSvg(src0.src, r.w, r.h), vb: [0, 0, r.w, r.h] as [number, number, number, number] } : src0;
@@ -194,6 +197,7 @@ export function fitMap(id: string, src0: { svg?: string; src?: string; vb?: [num
     if (src.scale) { e.scale = Math.round(src.scale / k); e.natW = r.w; }
     if (Number.isFinite(src.north)) e.north = src.north;
   } else e.src = src.src;
+  if (CAP) CAP.push(JSON.parse(JSON.stringify(e)));
   return elSvg(e, DUMMY, { idp: `mt${id}`, tr: s => s }).replace(/ data-id="[^"]*"/g, '');
 }
 /** Reja shartli belgilari — katakning chap-pastki burchagida oq quti (≤ 8 ta) */

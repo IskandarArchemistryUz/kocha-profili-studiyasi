@@ -26,7 +26,7 @@ import { wmCanvas } from '../core/wm';
 import { familyById, accepts, placements, type Material } from './autolayout';
 import { buildAlbum, inner, slotAt, setCustomPal, type Album } from './album';
 import { renderPage, LIB, PAL, setSheetTr, slotRectOf } from './sheet';
-import { siteMaterials, projectMaterials, type PlanSrc } from './materials';
+import { siteMaterials, projectMaterials, captureEls, type PlanSrc } from './materials';
 import { loadGeo, loadWorld, world, resolve, presets, placeName, rName, dName, autoNote, setLocLang, locSearch, parseCoord, interiorPt, uzMini, worldMini, type Resolved, type LocHit } from './location';
 import { rebase, reanchor, bindTo } from './bind';
 
@@ -68,7 +68,7 @@ const I = {
   pal: '<path d="M12 3a9 9 0 100 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.8.7-1.5 1.6-1.5H17a4 4 0 004-4c0-4.7-4-8.5-9-8.5z"/>', slots: '<path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/>',
   imp: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', one: '<path d="M6 4h12v16H6z"/>', all: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
   drag: '<path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/>', chev: '<path d="M6 9l6 6 6-6"/>', warn: '<path d="M12 4l9 16H3zM12 10v4M12 17v.5"/>',
-  swap: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>', crop: '<path d="M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14"/>',
+  swap: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>', crop: '<path d="M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14"/>', free: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
   left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 6l6 6-6 6"/>', pen: '<path d="M4 16c3-8 6 3 9-3s4-7 7-8"/>', x: IC.x,
 };
 const TOOL_KEYS: Record<string, Tool> = Object.fromEntries(TOOLS.map(t => [t.key.toLowerCase(), t.id]));
@@ -1024,6 +1024,9 @@ export function openChizmadon(host: ChHost): void {
     ap.fill.empty.forEach(k => {
       const sl = ap.fill.page.slots[k], r = slotRectOf(f, ap.fill.page, fmt, sl);
       if (r.w * sc < 44 || r.h * sc < 44) return;
+      // katak markazida erkin element boʻlsa — «+» uni toʻsmasin
+      const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      if (P().els.some(e => { const b = bbox(e); return cx >= b[0] && cx <= b[2] && cy >= b[1] && cy <= b[3]; })) return;
       const role = tr(LAYOUTS.roles[sl.role][0]);
       const b = h('button', { class: 'ch-slotadd', 'data-k': String(k), title: `${tr('Katakka material qoʻyish')} · ${role}`, 'aria-label': `${tr('Katakka material qoʻyish')} · ${role}`,
         style: `left:${(r.x + r.w / 2) * sc}px;top:${(r.y + r.h / 2) * sc}px`, onclick: (e: Event) => slotPick(e.currentTarget as HTMLElement, d.cur, k, null) }, svgIcon(IC.plus));
@@ -1050,6 +1053,7 @@ export function openChizmadon(host: ChHost): void {
       k != null ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotSwap', onclick: (e: Event) => slotPick(e.currentTarget as HTMLElement, d.cur, k, m.id) }, ...icl(I.swap, tr('Almashtirish'))) : '',
       m.kind === 'note' ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotText', onclick: () => editInline(m.id, 'text') }, ...icl(I.pen, tr('Matnni tahrirlash'))) : '',
       croppable(m) ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotCrop', title: tr('Ikki marta bosish — ham'), onclick: () => cropOn(m.id) }, ...icl(I.crop, tr('Kadrlash'))) : '',
+      croppable(m) ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotFree', title: tr('Maketdan ajratib, erkin surish va oʻlchamini oʻzgartirish'), onclick: () => detachMat(m.id) }, ...icl(I.free, tr('Erkin'))) : '',
       h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotHide', onclick: () => hideMat(m.id) }, ...icl(I.trash, tr('Oʻchirish'))));
     slotUi.append(bar);
   }
@@ -1109,6 +1113,18 @@ export function openChizmadon(host: ChHost): void {
     slotUi.append(box);
     // sichqoncha bosilishining odatiy fokusi (view) dan keyin — aks holda maydon darrov fokusni yoʻqotadi
     setTimeout(() => { if (done) return; box.focus(); if (what === 'title') (box as HTMLInputElement).select(); box.addEventListener('blur', () => finish(true)); }, 0);
+  }
+  /** Katakdagi xarita yoki rasmni maketdan ajratish: shu joyda erkin element (surish, oʻlcham, burish), material albomdan olinadi */
+  function detachMat(id: string): void {
+    const m = MATS.find(x => x.id === id), c = cellsOf(d.cur).find(x => x.el === id), ap = LAST?.pages[d.cur]; if (!m || !c || !ap || !m.render) return;
+    const els = captureEls(() => m.render!(c.r, { u: ap.fr.u, P: PAL[d.auto.pal] ?? PAL.arch }, false));
+    const src = els[0]; if (!src) { toast(tr('Bu materialni erkin elementga aylantirib boʻlmaydi')); return; }
+    const pi = d.cur;
+    autoMut(() => { pin(pi); matSet(id).visible = false; d.auto.ov = d.auto.ov.filter(o => o.a !== id); matSel = null; crop = null; });
+    // varaqqa qulflangan bogʻlanish — ostidagi katakka keyin boshqa material tushsa ham u bilan koʻchmaydi
+    const e: ChEl = { ...src, id: cid(), layer: L().id, name: tr(m.name), a: { el: null, pi, r0: { ...pageRect(pi) }, lock: true } };
+    addEl(e);
+    toast(tf('«${n}» endi erkin element: surish, oʻlcham va burish mumkin. Qaytarish — Ctrl+Z', { n: tr(m.name) }));
   }
   /** Materialni albomdan olish: varaq turi saqlanadi, katakni maket boshqa material bilan toʻldirishi yoki boʻsh («+») qoldirishi mumkin */
   function hideMat(id: string): void {
