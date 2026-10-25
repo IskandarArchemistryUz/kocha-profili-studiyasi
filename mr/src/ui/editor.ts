@@ -9,7 +9,7 @@ import { frame, type XY } from '../core/geo';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
-import type { Result } from '../norms/rules';
+import { abroadRules, type Result } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
@@ -1614,7 +1614,7 @@ export class Editor {
   }
 
   /* ---------- 5-bosqich: hisobot va TEP ---------- */
-  private allRules(): Result[] { return [...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])]; }
+  private allRules(): Result[] { const o = this.store.doc.origin; return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], placeOf(o[0], o[1]).norms); }
   /** Seksiya rejalari qoidalari (barcha seksiyalar boʻyicha): koridordan kirish, zinalar soni, koridor uzunligi */
   private planRuleCache: { doc: unknown; rules: Result[] } | null = null;
   private planRules(): Result[] {
@@ -2964,7 +2964,7 @@ export class Editor {
   private kpiAll = false;
   private renderKpi(): void {
     const c = this.last; if (!c) return;
-    const d = c.d, dens = c.results.find(r => r.id === 'density-84');
+    const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms)[0];
     const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));
     const open = !this.el.drawer.hidden;
     this.el.kpi.classList.toggle('all', this.kpiAll);
@@ -2990,7 +2990,9 @@ export class Editor {
     const bad = all.filter(r => r.status === 'fail').length, rs = this.regFilter === 'fail' ? all.filter(r => r.status === 'fail' || r.status === 'review') : all;
     const CLS: Record<Result['status'], string> = { pass: 'ok', fail: 'bad', review: 'warn', na: 'na' };
     const slash = (u?: string) => !!u && u.startsWith('/');
+    const o = this.store.doc.origin, abroad = placeOf(o[0], o[1]).norms !== 'UZ';
     return h('div', { class: 'regw' },
+      abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr('Loyiha Oʻzbekistondan tashqarida: Oʻzbekiston meʼyorlari andoza sifatida koʻrsatiladi — «mos emas» oʻrniga «koʻrib chiqish». Mahalliy meʼyorlar profili hali ulanmagan.')) : '',
       h('div', { class: 'seg sm', role: 'group', id: 'regSeg' },
         h('button', { 'aria-pressed': this.regFilter === 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `${tr('Hammasi')} · ${all.length}`),
         h('button', { 'aria-pressed': this.regFilter === 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `${tr('Mos emas')} · ${bad}`)),
