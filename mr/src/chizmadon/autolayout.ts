@@ -22,6 +22,8 @@ export interface Material {
   visible: boolean; accent: string | null; scale: number;
   /** joylashuv xaritasi darajasi: 0 — davlat, 1 — viloyat, 2 — tuman */
   level?: number;
+  /** juft material: shu id dagi reja bilan bitta varaqda (masalan, kvartirografiya — reja chapda, eksplikatsiya oʻng panelda) */
+  pair?: string;
   kind?: string;
   /** qoʻlda tahrirlangan matn (null — avtomatik) */
   text?: string | null;
@@ -62,7 +64,7 @@ export interface Fill {
 }
 
 /** Bitta varaq turini materiallar bilan sinab toʻldirish. Katta kataklar birinchi. */
-export function tryFill(page: LPage, pool: Material[], fam: LFamily): Fill {
+export function tryFill(page: LPage, pool: Material[], fam: LFamily, paired: Set<string> = new Set(pool.filter(e => e.visible).map(e => e.id))): Fill {
   const used = new Set<string>(), assign = new Map<number, Material>(), empty = new Set<number>();
   const order = page.slots.map((s, k) => [s, k] as const).sort((a, b) => cells(b[0]) - cells(a[0]));
   for (const [s, k] of order) {
@@ -70,8 +72,12 @@ export function tryFill(page: LPage, pool: Material[], fam: LFamily): Fill {
     const acc = ACCEPT[s.role];
     if (!acc) { empty.add(k); continue; }
     let best: Material | undefined;
-    for (const role of acc) {
-      best = pool.find(e => !used.has(e.id) && e.role === role && (s.role !== 'map_small' || role !== 'locator' || (e.level ?? 0) > 0));
+    // juftli material faqat oʻz rejasi bilan bitta varaqda (reja koʻrinmasa — erkin); juft shu varaqda boʻlsa — birinchi navbatda
+    // paired — albomdagi koʻrinadigan materiallar: juftining rejasi albomda boʻlsa, jadval faqat shu reja bilan bitta varaqda
+    const pairOk = (e: Material) => !e.pair || used.has(e.pair) || !paired.has(e.pair);
+    best = pool.find(e => !used.has(e.id) && !!e.pair && used.has(e.pair) && acc.includes(e.role));
+    if (!best) for (const role of acc) {
+      best = pool.find(e => !used.has(e.id) && e.role === role && pairOk(e) && (s.role !== 'map_small' || role !== 'locator' || (e.level ?? 0) > 0));
       if (best) break;
     }
     // joylashuv darajasi: katta katakka — davlat (0), kichigiga — tuman (eng katta daraja)
@@ -110,7 +116,7 @@ export function paginate(fam: LFamily, mats: Material[], force: Record<number, s
   let pool0 = mats.filter(e => e.visible);
   const titleEl = pool0.find(e => e.role === 'title') ?? null;
   if (fam.chrome !== 'poster') pool0 = pool0.filter(e => e.role !== 'title'); // sarlavha varaq tepasida (chrome)
-  const pages = fam.pages.filter(p => !structural(p));
+  const pages = fam.pages.filter(p => !structural(p)), vis = new Set(pool0.map(e => e.id));
   const maxDepth = fam.chrome === 'poster' ? 1 : 6, BEAM = 10, EXP = 7;
   let beam: PState[] = [{ seq: [], pool: pool0, score: 0 }];
   let done: PState[] = [];
@@ -119,7 +125,7 @@ export function paginate(fam: LFamily, mats: Material[], force: Record<number, s
     const next: PState[] = [];
     for (const st of beam) {
       const forced = force[st.seq.length];
-      let cands = pages.map(p => tryFill(p, st.pool, fam)).filter(c => c.assign.size > 0).sort((a, b) => b.score - a.score);
+      let cands = pages.map(p => tryFill(p, st.pool, fam, vis)).filter(c => c.assign.size > 0).sort((a, b) => b.score - a.score);
       if (forced) { const f = cands.find(c => c.page.id === forced); if (f) cands = [f]; }
       if (!cands.length) { done.push(st); continue; }
       const alts = cands.slice(0, 6);

@@ -2862,15 +2862,21 @@ export class Editor {
       mk('p:plan:vaziyat', 'Vaziyat sxemasi', false, { kind: 'vaziyat' }),
     ];
     const plans = planApartments(d2);
-    plans.slice(0, 12).forEach((pl, bi) => out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: () => {
-      const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); if (i < 0) return null;
-      // 29-band: Varaqlardagi «Qavatlar» varagʻi bilan bir xil — qavat rejasi (oʻz masshtabi va sarlavhasi bilan),
-      // vaziyat sxemasi va kvartiralar eksplikatsiyasi (avval faqat reja oʻtardi). Masshtab yozuvi rejaning oʻzida.
-      const a = aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }));
-      const W = 320, H = 240, SW = 84, pad = 4;
-      const svg = `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>${a.body(pad, pad, W - SW - 3 * pad, H - 2 * pad)}${a.side(W - SW - pad, pad, SW, H - pad)}`;
-      return { svg, vb: [0, 0, W, H], w: W, h: H, contain: true };
-    } }));
+    plans.slice(0, 12).forEach((pl, bi) => {
+      // 29-band (egasi, 25.10): chap katakda — faqat qavat rejasi va vaziyat sxemasi; xonadonlar eksplikatsiyasi — alohida
+      // jadval, shu reja bilan bitta varaqning oʻng panelida (autolayout `pair`)
+      const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null })); };
+      out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: () => {
+        const a = sheet(); if (!a) return null;
+        const W = 240, H = 200, pad = 3;
+        return { svg: `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>${a.body(pad, pad, W - 2 * pad, H - 2 * pad)}`, vb: [0, 0, W, H], w: W, h: H, contain: true };
+      }, table: { id: `p:aptx:${pl.bid}`, name: `Xonadonlar eksplikatsiyasi · ${bi + 1}-bino`, title: tr('Kvartiralar eksplikatsiyasi'), rows: () => {
+        const a = sheet(); if (!a) return null;
+        if (!a.rows.length) return [[tr('Bu qavatda xona maʼlumoti yoʻq')]];
+        const tot = a.rows.reduce((t, r) => t + r.area, 0), f1 = (v: number) => v.toFixed(1).replace('.', ',');
+        return [['№', tr('Turi'), tr('Maydoni, m²')], ...a.rows.map(r => [String(r.n), `${r.rooms} ${tr('xonali')}`, f1(r.area)]), [tr('Jami'), `${a.rows.length}`, f1(tot)]];
+      } } });
+    });
     return out;
   }
 
