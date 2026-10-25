@@ -38,6 +38,19 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   // jadvalda kvartira turi rang namunasi bilan (rejadagi rang bilan bir xil)
   expect(await page.locator('.ch-body [data-el^="p:aptx:"]').first().evaluate(e => e.outerHTML)).toMatch(/#f6d58f|#f4b08a|#9bd3b8|#8fa5cc/i);
   expect(await page.locator('.ch-body [data-el^="p:apt:"]').count()).toBeGreaterThan(0);
+  // Chizmadon tahlili (25.10, 1-bosqich): vaziyat sxemasi — alohida material (kichik katakda), reja — oʻz katagida
+  // standart masshtabda (GOST 2.302), masshtab yozuvi aniq (choʻzilmaydi)
+  expect(await page.locator('.ch-body [data-el^="p:aptnav:"]').count()).toBeGreaterThan(0);
+  const plan = page.locator('.ch-body [data-el^="p:apt:"]').first();
+  expect(await plan.evaluate(e => e.outerHTML)).not.toMatch(/Vaziyat sxemasi|VAZIYAT SXEMASI/);
+  const sc = await plan.evaluate(e => e.querySelector('[data-deco="scale"]')?.textContent ?? '');
+  expect(sc).toMatch(/M 1:(50|75|100|200|400|500|800|1\s?000)\b/);
+  // reja katakning kamida bir tomonini yarmidan koʻp egallaydi
+  const fill = await plan.evaluate(e => { const c = e.getBoundingClientRect(), s = e.querySelector('svg svg, svg g svg') ?? e.querySelector('svg'); const pth = [...e.querySelectorAll('path[data-apt]')].map(p => p.getBoundingClientRect()); if (!pth.length) return 0; const x0 = Math.min(...pth.map(b => b.left)), x1 = Math.max(...pth.map(b => b.right)), y0 = Math.min(...pth.map(b => b.top)), y1 = Math.max(...pth.map(b => b.bottom)); void s; return Math.max((x1 - x0) / c.width, (y1 - y0) / c.height); });
+  expect(fill).toBeGreaterThan(0.45);
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_kvartirografiya_1024.png` });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_kvartirografiya_dark.png` });
 });
 

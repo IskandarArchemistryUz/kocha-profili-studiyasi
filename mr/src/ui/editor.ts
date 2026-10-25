@@ -2963,14 +2963,17 @@ export class Editor {
     ];
     const plans = planApartments(d2);
     plans.slice(0, 12).forEach((pl, bi) => {
-      // 29-band (egasi, 25.10): chap katakda — faqat qavat rejasi va vaziyat sxemasi; xonadonlar eksplikatsiyasi — alohida
-      // jadval, shu reja bilan bitta varaqning oʻng panelida (autolayout `pair`)
+      // 29-band (egasi, 25.10): xonadonlar eksplikatsiyasi — alohida jadval, shu reja bilan bitta varaqning oʻng panelida (autolayout `pair`).
+      // Chizmadon tahlili (25.10, 1-bosqich): vaziyat sxemasi ham alohida kichik katakda; reja oʻz katagini toʻldiradi —
+      // katakka sigʻadigan eng yirik standart masshtabda (GOST 2.302: 1:50, 1:75, 1:100, 1:200…), choʻzilmaydi.
       const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null })); };
-      out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: () => {
+      out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: (fit) => {
         const a = sheet(); if (!a) return null;
-        const W = 240, H = 200, pad = 3;
-        return { svg: `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>${a.body(pad, pad, W - 2 * pad, H - 2 * pad)}`, vb: [0, 0, W, H], w: W, h: H, contain: true };
-      }, table: { id: `p:aptx:${pl.bid}`, name: `Xonadonlar eksplikatsiyasi · ${bi + 1}-bino`, title: tr('Kvartiralar eksplikatsiyasi'), rows: () => {
+        const f = a.fit(fit?.w ?? 240, fit?.h ?? 200);
+        return { svg: f.svg, vb: f.vb, w: f.w, h: f.h, scale: f.scale, north: a.north, contain: true, sub: f.sub };
+      }, nav: { id: `p:aptnav:${pl.bid}`, name: `Vaziyat sxemasi · ${bi + 1}-bino`, title: tr('Vaziyat sxemasi'), draw: (r) => {
+        const a = sheet(); return a ? a.nav(r.x, r.y, r.w, r.h) : '';
+      } }, table: { id: `p:aptx:${pl.bid}`, name: `Xonadonlar eksplikatsiyasi · ${bi + 1}-bino`, title: tr('Kvartiralar eksplikatsiyasi'), rows: () => {
         const a = sheet(); if (!a) return null;
         if (!a.rows.length) return [[tr('Bu qavatda xona maʼlumoti yoʻq')]];
         const tot = a.rows.reduce((t, r) => t + r.area, 0), f1 = (v: number) => v.toFixed(1).replace('.', ',');
