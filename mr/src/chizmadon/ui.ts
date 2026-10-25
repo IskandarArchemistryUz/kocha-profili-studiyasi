@@ -90,6 +90,8 @@ export function openChizmadon(host: ChHost): void {
   let matSel: string | null = null;
   /** kesish rejimidagi material (3-bosqich): katak ichida sudrash — surish, gʻildirak — kattalashtirish */
   let crop: string | null = null;
+  /** 4-bosqich: varaqning oʻzida tahrirlash (material sarlavhasi yoki matni) */
+  let editing: { id: string; what: 'title' | 'text'; cancel: () => void } | null = null;
   let zoom = 0, panX = 0, panY = 0;
   let magnet = true, gridOn = false, gray = false;
   let float: 'left' | 'right' | null = null;
@@ -975,6 +977,7 @@ export function openChizmadon(host: ChHost): void {
     });
   }
   function renderSlotUi0(): void {
+    if (editing) return;
     slotUi.replaceChildren();
     if (!isAuto() || !LAST || d.auto.view !== 'one' || tool !== 'select' || draft || dropHint) return;
     const ap = LAST.pages[d.cur]; if (!ap) return;
@@ -1004,8 +1007,9 @@ export function openChizmadon(host: ChHost): void {
       return;
     }
     const bar = h('div', { class: 'ch-slotbar glassbar', id: 'chSlotBar', role: 'toolbar', 'aria-label': tr(m.name), style: pos },
-      c.r.w * sc >= 360 ? h('span', { class: 'nm' }, tr(m.name)) : '',
+      c.r.w * sc >= 360 ? h('span', { class: 'nm', title: tr('Sarlavhani ikki marta bosing — tahrirlash') }, tr(m.name)) : '',
       k != null ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotSwap', onclick: (e: Event) => slotPick(e.currentTarget as HTMLElement, d.cur, k, m.id) }, ...icl(I.swap, tr('Almashtirish'))) : '',
+      m.kind === 'note' ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotText', onclick: () => editInline(m.id, 'text') }, ...icl(I.pen, tr('Matnni tahrirlash'))) : '',
       croppable(m) ? h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotCrop', title: tr('Ikki marta bosish — ham'), onclick: () => cropOn(m.id) }, ...icl(I.crop, tr('Kadrlash'))) : '',
       h('button', { class: 'btn btn-ghost btn-sm', id: 'chSlotHide', onclick: () => hideMat(m.id) }, ...icl(I.trash, tr('Oʻchirish'))));
     slotUi.append(bar);
@@ -1043,6 +1047,30 @@ export function openChizmadon(host: ChHost): void {
   const viewOf = (id: string): ChView => matSet(id).view ?? { z: 1, cx: 0, cy: 0 };
   function setView(id: string, v: ChView): void { const s2 = matSet(id), c = clampView(v); if (c.z === 1 && Math.abs(c.cx) < 1e-4 && Math.abs(c.cy) < 1e-4) delete s2.view; else s2.view = c; }
   function cropOn(id: string | null): void { crop = id; if (id && matSel !== id) { selectMat(id); return; } renderOverlay(); renderRight(); }
+  /** Varaqning oʻzida tahrirlash: katak ustida maydon; Enter (sarlavha) yoki Ctrl+Enter / tashqariga bosish — saqlash, Esc — bekor */
+  function editInline(id: string, what: 'title' | 'text'): void {
+    const m = MATS.find(x => x.id === id), c = cellsOf(d.cur).find(x => x.el === id); if (!m || !c) return;
+    if (matSel !== id) { matSel = id; d.ui.rightTab = 'element'; relayout(); renderAll(); }
+    crop = null; editing = null; renderSlotUi();
+    const sc = PXMM * zoom, u = (LAST?.pages[d.cur]?.fr.u ?? 1) * m.scale, r = c.r;
+    const val = what === 'title' ? m.title : (m.text ?? (R ? tr(autoNote(R)) : ''));
+    const box = what === 'title'
+      ? h('input', { class: 'input ch-inedit', id: 'chInEdit', value: val, 'aria-label': tr('Sarlavha'), style: `left:${r.x * sc}px;top:${r.y * sc}px;width:${Math.max(160, r.w * sc)}px;height:${Math.max(32, 8 * u * sc)}px` }) as HTMLInputElement
+      : h('textarea', { class: 'input ch-inedit', id: 'chInEdit', 'aria-label': tr('Matn'), style: `left:${r.x * sc}px;top:${(r.y + 8 * u) * sc}px;width:${Math.max(200, r.w * sc)}px;height:${Math.max(120, (r.h - 8 * u) * sc)}px` }, val) as HTMLTextAreaElement;
+    let done = false;
+    const finish = (save: boolean) => {
+      if (done) return; done = true; editing = null; box.remove();
+      const v = box.value;
+      if (save && v !== val) autoMut(() => { const s2 = matSet(id); if (what === 'title') { if (v.trim()) s2.title = v.trim(); else delete s2.title; } else s2.text = v; }, `in${what}`);
+      else renderOverlay();
+      view.focus({ preventScroll: true });
+    };
+    editing = { id, what, cancel: () => finish(false) };
+    box.addEventListener('keydown', e => { const ke = e as KeyboardEvent; if (ke.key === 'Enter' && (what === 'title' || ke.ctrlKey || ke.metaKey)) { ke.preventDefault(); finish(true); } });
+    slotUi.append(box);
+    // sichqoncha bosilishining odatiy fokusi (view) dan keyin — aks holda maydon darrov fokusni yoʻqotadi
+    setTimeout(() => { if (done) return; box.focus(); if (what === 'title') (box as HTMLInputElement).select(); box.addEventListener('blur', () => finish(true)); }, 0);
+  }
   /** Materialni albomdan olish: varaq turi saqlanadi, katakni maket boshqa material bilan toʻldirishi yoki boʻsh («+») qoldirishi mumkin */
   function hideMat(id: string): void {
     const a = MATS.find(x => x.id === id), pi = d.cur, pg = LAST?.PG.pages[pi]?.page.id; if (!a) return;
@@ -1114,7 +1142,13 @@ export function openChizmadon(host: ChHost): void {
       }
       // ikki marta bosish (katak qayta chizilgani uchun dblclick hodisasi kelmasligi mumkin — vaqt boʻyicha)
       const dbl = !!me && lastTap.id === me && ev.timeStamp - lastTap.t < 450; lastTap = { id: me ?? '', t: ev.timeStamp };
-      if (me && !ev.shiftKey && isAuto() && dbl && croppable(MATS.find(x => x.id === me))) { cropOn(me); return; }
+      if (me && !ev.shiftKey && isAuto() && dbl) {
+        const mm = MATS.find(x => x.id === me), c = cellsOf(d.cur).find(x => x.el === me), u = (LAST?.pages[d.cur]?.fr.u ?? 1) * (mm?.scale ?? 1);
+        // sarlavha qatori (katak tepasi) — sarlavhani, xulosa matni — matnni, xarita/rasm — kadrlash
+        if (mm && c && mm.role !== 'title' && m[1] <= c.r.y + 8 * u && mm.kind !== 'aptnav') { editInline(me, 'title'); return; }
+        if (mm?.kind === 'note') { editInline(me, 'text'); return; }
+        if (croppable(mm)) { cropOn(me); return; }
+      }
       if (me && !ev.shiftKey && isAuto()) { selectMat(me); return; }
       if (!ev.shiftKey) { sel.clear(); if (matSel) { matSel = null; relayout(); renderCanvas(); } }
       drag = { kind: 'marquee', start: m }; marquee = [m[0], m[1], m[0], m[1]]; view.setPointerCapture(ev.pointerId); renderOverlay(); renderRight(); return;
@@ -1457,6 +1491,7 @@ export function openChizmadon(host: ChHost): void {
       if (wrap.querySelector('.ch-menu')) { wrap.querySelector('.ch-menu')!.remove(); return; }
       if (!d.auto.started) { startGo(); return; }
       if (draft) { draft = null; renderOverlay(); return; }
+      if (editing) { editing.cancel(); return; }
       if (crop) { cropOn(null); return; }
       if (float) { float = null; syncPanels(); return; }
       if (tool !== 'select') { setTool('select'); return; }
