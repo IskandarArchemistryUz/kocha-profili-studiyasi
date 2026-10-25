@@ -6,7 +6,7 @@
  * Har material katak toʻrtburchagiga mm da chiziladi (render). Chizuvchilar prototip app_core.js dan koʻchirilgan.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { T, R0, L0, para, n2, stf } from './sheet';
+import { T, R0, L0, para, wrap, n2, stf } from './sheet';
 import { type Resolved, geo, world, uzBB, rings, bbHit, rName, dName, sun, hm, f1, autoNote } from './location';
 import type { Material, MRole, Rect } from './autolayout';
 import type { ChMatSet, ChInbox, ChEl, ChPage } from './model';
@@ -104,7 +104,10 @@ export function drawEl(el?: any, r?: any, ctx?: any, R?: any, bare?: any) {
     return g;
   }
   if (el.kind === "note") {
-    const txt = el.text != null ? el.text : autoNote(R, stf), fs = Math.min(3.2 * u, Math.max(2.4 * u, Math.sqrt(w * bh / Math.max(1, txt.length)) * 0.55));
+    // 4-bosqich (25.10): matn katakni toʻldiradi — sigʻadigan eng yirik shrift (2,4u…4,4u), katakning ~85 % igacha
+    const txt = el.text != null ? el.text : autoNote(R, stf), avail = (bh - 4 * u) * 0.85;
+    let fs = 2.4 * u;
+    for (let s2 = 4.4 * u; s2 > 2.4 * u; s2 -= 0.2 * u) if (wrap(String(txt), w, s2).length * s2 * 1.42 + s2 * 0.3 <= avail) { fs = s2; break; }
     g += para(x, by, w, bh - 4 * u, txt, fs, Q.ink, 1.42, true);
     return g + T(x, by + bh, el.text != null ? "qoʻlda tahrirlangan" : "avtomatik matn · qoida boʻyicha", { s: 2.2 * u, c: el.text != null ? Q.hl : Q.mut });
   }

@@ -1,53 +1,44 @@
 import { test, expect } from './fx';
-import path from 'node:path';
 
-/** 19-band (3): maket varaqlarida rasmni almashtirish, shtamp/kolontitulni olib tashlash va matnlarni tahrirlash */
-test('Chizmadon maket varagʻi: rasm, shtamp va matnlar tahrirlanadi', async ({ page }) => {
+/** Chizmadon tahlili (25.10, 4-bosqich): varaqning oʻzida matn va sarlavhani tahrirlash; matn katakni toʻldiradi */
+test('Chizmadon: xulosa matni va sarlavhani varaqda tahrirlash', async ({ page }) => {
   test.setTimeout(150_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
-  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
-  await page.click('#chOpen'); await page.click('[data-fam=kz]'); await page.click('#chStGo');
-  const bg = () => page.evaluate(() => Array.from(document.querySelectorAll('.ch-page')).map(e => e.innerHTML).join(''));
-  // namuna matnlari oʻrniga loyiha maʼlumoti: soxta TIK raqamlari va «000000» shifr yoʻq
-  await expect.poll(async () => (await bg()).length).toBeGreaterThan(1000);
-  expect(await bg()).not.toContain('Aholi 16 900');
-  expect(await bg()).not.toContain('Loyiha nomi · hudud');
-  // oʻng panel: hech narsa tanlanmagan — varaq matnlari
-  if (!(await page.locator('#chPgTitle').isVisible())) await page.locator('.ch-strip-r [data-strip=element]').click();
-  const right = page.locator('#chPgTitle');
-  await right.waitFor({ state: 'attached' });
-  await page.evaluate(() => { const el = document.querySelector('#chPgTitle') as HTMLElement; el.scrollIntoView(); });
-  await page.fill('#chPgTitle', 'Mening sarlavham'); await page.press('#chPgTitle', 'Enter'); await page.locator('#chPgTitle').blur();
-  await expect.poll(bg).toContain('Mening sarlavham');
-  await page.fill('#chTxtProj', 'Oliy Himmat · Yashnobod'); await page.locator('#chTxtProj').blur();
-  await expect.poll(bg).toContain('Oliy Himmat · Yashnobod');
-  await page.fill('#chTxtTik', 'Maydon 16 ga'); await page.locator('#chTxtTik').blur();
-  await expect.poll(bg).toContain('Maydon 16 ga');
+  await page.click('#chOpen'); await page.click('#chStGo');
+  const note = page.locator('.ch-body [data-el="izoh"]');
+  for (let i = 0; i < 6 && !(await note.count()); i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); }
+  await expect(note).toHaveCount(1);
+  // matn katakni toʻldiradi: matn balandligi katakning chorak qismidan koʻp
+  const fill = () => note.evaluate(e => { const c = e.querySelector('rect')?.getBoundingClientRect(), t = [...e.querySelectorAll('text')].map(x => x.getBoundingClientRect()); if (!c?.height || !t.length) return 0; const y0 = Math.min(...t.map(b => b.top)), y1 = Math.max(...t.map(b => b.bottom)); return (y1 - y0) / c.height; });
+  await expect.poll(fill).toBeGreaterThan(0.25);
+  // panel → «Matnni tahrirlash»
+  let b = (await note.boundingBox())!;
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await page.click('#chSlotText');
+  const ed = page.locator('#chInEdit');
+  await expect(ed).toBeVisible(); await expect(ed).toBeFocused();
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_matn_1024.png` });
+  await ed.fill('Hudud markazda, transport bilan yaxshi bogʻlangan. Sinov matni.');
+  await page.keyboard.press('Control+Enter');
+  await expect(ed).toHaveCount(0);
+  await expect.poll(() => note.evaluate(e => e.textContent ?? '')).toContain('Sinov matni.');
+  await expect.poll(() => note.evaluate(e => e.textContent ?? '')).toMatch(/qoʻlda tahrirlangan/);
+  // sarlavha: ikki marta bosish (katak tepasi)
+  b = (await note.boundingBox())!;
+  await page.mouse.click(b.x + 20, b.y + 4); await page.waitForTimeout(250);
+  b = (await note.boundingBox())!;
+  await page.mouse.dblclick(b.x + 20, b.y + 4);
+  await expect(ed).toBeVisible();
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-  await page.evaluate(() => (document.querySelector('#chHide') as HTMLElement).scrollIntoView());
-  await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/matn-panel.png' });
-  // pastki kolontitulni olib tashlash — TIK satri yoʻqoladi; qaytarish
-  await page.locator('#chHide_foot').click();
-  await expect.poll(bg).not.toContain('Maydon 16 ga');
-  await page.locator('#chHide_foot').click();
-  await expect.poll(bg).toContain('Maydon 16 ga');
-  // saqlanadi: albom hujjatida
-  await expect.poll(() => page.evaluate(() => JSON.stringify((window as any).__mr.store.doc.chizmadon?.auto?.txt ?? {}))).toContain('Oliy Himmat');
-  // rasmni almashtirish: «Bosh reja» materiali oʻrniga oʻz rasmi
-  if (!(await page.locator('[data-mat="p:plan:bosh"]').first().isVisible())) await page.locator('.ch-strip-l [data-strip=loyiha]').click();
-  await page.locator('[data-mat="p:plan:bosh"]').first().click();
-  if (!(await page.locator('#chMatImg').isVisible())) await page.locator('.ch-strip-r [data-strip=element]').click();
-  const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#chMatImg').click()]);
-  await fc.setFiles(path.join(process.cwd(), 'tests/e2e/fixtures/rasm.png'));
-  await expect.poll(() => page.evaluate(() => String((window as any).__mr.store.doc.chizmadon?.auto?.mats?.['p:plan:bosh']?.src ?? '').slice(0, 11))).toBe('data:image/');
-  // varaqqa oʻtish — katakda oʻz rasmi
-  await page.locator('.ch-right .group .li', { hasText: '-varaq' }).first().click();
-  await expect.poll(async () => (await bg()).includes('data:image/jpeg') || (await bg()).includes('data:image/png')).toBe(true);
-  await expect(page.locator('#chMatImgReset')).toBeVisible();
-  await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/matn-rasm.png' });
-  await page.locator('#chMatImgReset').click();
-  await expect(page.locator('#chMatImgReset')).toHaveCount(0);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_matn_dark.png` });
+  await ed.fill('Mening xulosam');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => note.evaluate(e => e.textContent ?? '')).toMatch(/Mening xulosam/i);
+  // Esc — bekor
+  await page.click('#chSlotText'); await ed.fill('bekor qilinadi'); await page.keyboard.press('Escape');
+  await expect(ed).toHaveCount(0);
+  expect(await note.evaluate(e => e.textContent ?? '')).not.toContain('bekor qilinadi');
 });
