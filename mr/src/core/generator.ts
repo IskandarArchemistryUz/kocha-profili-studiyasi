@@ -141,7 +141,10 @@ export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenRe
   if (g.typology === 'qatorlar') return rows(A, g, floorH, notes);
   // toza perimetr (L-burchaklar) faqat qavariq va yetarli keng kvartalda; aks holda — istalgan shakl uchun zaxira algoritm
   const allConvex = A.every((_, i) => cross(unit(sub(A[i], A[(i - 1 + A.length) % A.length])), unit(sub(A[(i + 1) % A.length], A[i]))) > -0.05);
-  let r = allConvex && inset(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
+  // perimetrning L-burchak mantigʻi ~90° burchak uchun; oʻtkir (< 50°) burchakda burchak seksiyasi qurilmay, qoʻshni seksiyalar
+  // ustma-ust tushardi va qatorda oraliq qolardi (egasi, 21.10, 24-band) — bunday kvartal qirralar boʻylab toʻldiriladi
+  const minAng = Math.min(...A.map((_, i) => { const u1 = unit(sub(A[i], A[(i - 1 + A.length) % A.length])), u2 = unit(sub(A[(i + 1) % A.length], A[i])); return Math.acos(Math.max(-1, Math.min(1, -(u1[0] * u2[0] + u1[1] * u2[1])))) * 180 / Math.PI; }));
+  let r = allConvex && minAng >= 50 && inset(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
   // hovli shunchalik torki, minimal qavat ham sigʻmaydi — yopiq perimetr oʻrniga qirralar boʻylab (qarshi qatorlar olib tashlanadi)
   if (!r || !r.sections.length || (r.capFloors != null && r.capFloors < g.minF)) { notes.length = 0; r = edgeFill(A, g, notes); }
   facingCap(r, g, floorH);
@@ -251,6 +254,21 @@ function touching(a: XY[], b: XY[]): boolean {
   return false;
 }
 
+/** Qavariq qobiq (monotone chain), CCW */
+function convexHull(pts: XY[]): XY[] {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o: XY, a: XY, b: XY) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo: XY[] = [], up: XY[] = [];
+  for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return [...lo.slice(0, -1), ...up.slice(0, -1)];
+}
+/**
+ * Bitta bino majmuasi (umumiy devor ≥ 3 m) — «qarshidagi bino» emas. Faqat burchagi bilan tegib turgan seksiyalar
+ * (oʻtkir burchakli kvartalda pastki qator gipotenuza qatoriga uchi bilan tegadi) — alohida binolar: ular orasidagi
+ * masofa tekshiriladi (avval tegishi yetarli edi va 4–5 m masofadagi 5 va 12 qavatli seksiyalar qolib, oʻrtada boʻshliq chiqardi).
+ */
+const joined = (a: XY[], b: XY[]): boolean => touching(a, b) && sharedWall(a, b) >= 3;
+
 /**
  * Qarshidagi seksiyagacha masofa → qavat cheklovi: seysmik 8+ ballda parallel uzun tomonlar orasi ≥ 2·Hmax
  * (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8). Ikkala seksiya ham cheklanadi.
@@ -263,7 +281,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     let worst: [number, number] | null = null, wd = Infinity;
     r.sections.forEach((s, i) => {
       if (!s.face) return;
-      r.sections.forEach((o, k) => { if (k === i || touching(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < wd) { wd = t; worst = [i, k]; } });
+      r.sections.forEach((o, k) => { if (k === i || joined(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < wd) { wd = t; worst = [i, k]; } });
     });
     if (!worst || wd / 2 / floorH >= g.minF) break;
     const [i, k] = worst as [number, number], rm = r.sections.splice(Math.max(i, k), 1)[0]; if (rm.face) gone.push(rm.face.n); removed++;
@@ -273,13 +291,37 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     const j = r.sections.findIndex((s, i) => s.face && gone.some(n => n[0] * s.face!.n[0] + n[1] * s.face!.n[1] > 0.999) && !r.sections.some((o, k) => k !== i && sharedWall(s.ring, o.ring) > 3));
     if (j < 0) break; r.sections.splice(j, 1); removed++;
   }
+  // oʻtkir burchak uchida shu qirradan qolgan kichik boʻlak (qoʻshni qator bilan umumiy devorli) — qoʻshni binoga qoʻshiladi:
+  // pastki qator oʻrtasi olib tashlangach uchida alohida «orolcha» qolmasin (bitta «flatiron» uchi)
+  if (gone.length) for (let guard = 0; guard < 20; guard++) {
+    let done = false;
+    for (let i = 0; i < r.sections.length && !done; i++) {
+      const s = r.sections[i]; if (!s.face || !gone.some(n => n[0] * s.face!.n[0] + n[1] * s.face!.n[1] > 0.999)) continue;
+      if (Math.abs(signedArea(s.ring)) > 0.6 * g.depth * g.secLen) continue;
+      if (r.sections.some((o, k) => k !== i && o.face && o.face.n[0] * s.face!.n[0] + o.face.n[1] * s.face!.n[1] > 0.999 && sharedWall(s.ring, o.ring) > 3)) continue;   // shu qatorda davomi bor
+      for (let k = 0; k < r.sections.length && !done; k++) {
+        const o = r.sections[k]; if (k === i || sharedWall(s.ring, o.ring) < 3) continue;
+        let u: [number, number][][][] = [];
+        // umumiy devor hisob xatosi bilan (≤ 0,5 m) — boʻlakni markazidan ~0,4 m kattalashtirib birlashtiramiz
+        const cx = s.ring.reduce((a, p) => a + p[0], 0) / s.ring.length, cy = s.ring.reduce((a, p) => a + p[1], 0) / s.ring.length;
+        const big = s.ring.map(p => { const dx = p[0] - cx, dy = p[1] - cy, L = Math.hypot(dx, dy) || 1, f = (L + 0.4) / L; return [cx + dx * f, cy + dy * f] as [number, number]; });
+        const hull = convexHull([...o.ring, ...s.ring]);   // tashqariga 0,4 m chiqib ketmasin
+        try { u = polygonClipping.union([[...o.ring, o.ring[0]].map(p => [p[0], p[1]] as [number, number])], polygonClipping.intersection([[...big, big[0]]], [[...hull, hull[0]].map(p => [p[0], p[1]] as [number, number])])); } catch { continue; }
+        if (u.length !== 1 || u[0].length !== 1) continue;
+        let ring = clean(u[0][0].slice(0, -1).map(q => [q[0], q[1]] as XY), 0.8); if (signedArea(ring) < 0) ring = ring.reverse();
+        if (!isSimple(ring)) continue;
+        o.ring = ring; r.sections.splice(i, 1); done = true;
+      }
+    }
+    if (!done) break;
+  }
   if (removed) r.notes.push(`${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (≥ 2·H, ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
   // 2) qolganlarida — masofa boʻyicha qavat cheklovi
   let cut = 0;
   r.sections.forEach((s, i) => {
     if (!s.face) return;
     let d = Infinity, j = -1;
-    r.sections.forEach((o, k) => { if (k === i || touching(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < d) { d = t; j = k; } });
+    r.sections.forEach((o, k) => { if (k === i || joined(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < d) { d = t; j = k; } });
     if (!Number.isFinite(d) || d > 200) return;
     const cap = Math.max(g.minF, Math.floor(d / 2 / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import polygonClipping from 'polygon-clipping';
 import { generate, usePreset, DEFAULT_GEN, inset } from '../../src/core/generator';
 import { socialPlan, plotCapacity, SOCIAL } from '../../src/core/social';
 import { insetRobust } from '../../src/core/offset';
@@ -32,5 +33,22 @@ describe('chekinish: oʻtkir burchak va egri qirralar', () => {
     const ring: XY[] = [[-150, -110], [40, -110], [40, -39], [-150, -105]];
     const sp = socialPlan(ring, 'maktab', 359, 'taroq', SOCIAL.maktab.m2, SOCIAL.maktab.floors, ring.map(() => 25));
     expect(sp.sections.length, sp.notes.join(' | ')).toBeGreaterThan(0);
+  });
+});
+
+describe('24-band: oʻtkir burchakli kvartal — ustma-ust va uzilgan boʻlaklar yoʻq', () => {
+  const overlap = (a: XY[], b: XY[]) => { try { return polygonClipping.intersection([[...a, a[0]]] as never, [[...b, b[0]]] as never).reduce((s, p) => s + area((p[0] as XY[]).slice(0, -1)), 0); } catch { return 0; } };
+  const near = (a: XY[], b: XY[]) => a.some(p => b.some(q => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1.5)) || overlap(a, b) > 0;
+  for (const [nm, ring] of [['35°', [[0, 0], [160, 0], [0, 112]]], ['25°', [[0, 0], [180, 0], [0, 84]]], ['19°', [[0, 0], [220, 0], [0, 76]]], ['15°', [[0, 0], [250, 0], [0, 67]]]] as const)
+    it(`${nm}: seksiyalar ustma-ust emas, uchida yakka orolcha qolmaydi`, () => {
+      const r = generate(ring as unknown as XY[], DEFAULT_GEN), S = r.sections.map(s => s.ring);
+      expect(S.length).toBeGreaterThan(3);
+      for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) expect(overlap(S[i], S[j]), `${i}×${j}`).toBeLessThan(2);
+      // har seksiya kamida bitta boshqasiga tegib turadi (bitta yoki ikkita uzluksiz qanot)
+      for (let i = 0; i < S.length; i++) expect(S.some((o, j) => j !== i && near(S[i], o)), `seksiya ${i} yakka`).toBe(true);
+    });
+  it('35° uchburchak: qirralar boʻylab yopiq qurilish (avval uchida ikki seksiya ustma-ust tushardi)', () => {
+    const r = generate([[0, 0], [160, 0], [0, 112]], DEFAULT_GEN);
+    expect(r.sections.length).toBeGreaterThanOrEqual(8);
   });
 });
