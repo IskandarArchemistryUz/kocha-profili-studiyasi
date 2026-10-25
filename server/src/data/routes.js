@@ -1,5 +1,5 @@
 /* /data/* — hudud ma'lumoti serverda: kesh + manba manifesti.
-   POST /data/overpass — Overpass so'rovi (brauzerdagi bilan bir xil), javob 30 kun keshlanadi; bir nechta server ketma-ket.
+   POST /data/overpass — Overpass so'rovi (brauzerdagi bilan bir xil), javob 30 kun keshlanadi; barcha serverlarga birdan, birinchi javob (≤ 25 s).
    GET  /data/sources  — manbalar reyestri (litsenziya, atributsiya).
    GET  /data/overture/buildings?bbox=w,s,e,n — Overture binolari (≤ 0,06°), 90 kun kesh; kalit bbox 4 xonaga yaxlitlanadi.
    GET  /data/wind?lat=&lon= — ERA5 shamol guli (0,25° katak), 10 yil kesh; tayyorlanayotgan bo'lsa 202. */
@@ -15,7 +15,7 @@ export const OVERPASS_SERVERS = [
 ];
 const MAX_Q = 8000;
 
-export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 60_000, overture = makeOverture({ fetchImpl }), era5 = null }) {
+export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 25_000, overture = makeOverture({ fetchImpl }), era5 = null }) {
   app.get('/data/sources', async () => ({ sources: Object.keys(SOURCES).map(sourceInfo) }));
 
   const inflight = new Map();   // bir xil so'rov bir vaqtda kelsa — bitta tashqi so'rov
@@ -29,20 +29,25 @@ export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS
     if (limited?.(req.ip, 30)) return reply.code(429).send({ error: 'rate', message: 'Juda ko‘p so‘rov — birozdan keyin' });
     let job = inflight.get(key);
     if (!job) {
+      // Barcha serverlarga birdan (sayt 25.10: ketma-ket 4 × 60 s — brauzer/nginx 30 s da uzib qo'yardi, javob hech qachon yetib bormasdi);
+      // birinchi yaroqli javob olinadi, qolganlari to'xtatiladi
       job = (async () => {
-        let last = '';
-        for (const url of servers) {
-          const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeoutMs);
+        const ctls = servers.map(() => new AbortController());
+        const one = async (url, i) => {
+          const t = setTimeout(() => ctls[i].abort(), timeoutMs);
           try {
-            const r = await fetchImpl(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'ArchemistryLab/1.0 (+https://archemistry.uz)' }, signal: ctl.signal });
-            if (!r.ok) { last = `${url} ${r.status}`; continue; }
+            const r = await fetchImpl(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'ArchemistryLab/1.0 (+https://archemistry.uz)' }, signal: ctls[i].signal });
+            if (!r.ok) throw new Error(`${url} ${r.status}`);
             const body = await r.text(), j = JSON.parse(body);
-            if (!Array.isArray(j.elements)) { last = `${url}: ${String(j.remark ?? 'bo‘sh').slice(0, 80)}`; continue; }
-            await cache.put(key, body, { source: 'osm', server: new URL(url).host, licence: src.licence, attribution: src.attribution, odbl: true });
-            return body;
-          } catch (e) { last = `${url}: ${e.message}`; } finally { clearTimeout(t); }
-        }
-        throw new Error(last || 'Overpass javob bermadi');
+            if (!Array.isArray(j.elements)) throw new Error(`${url}: ${String(j.remark ?? 'bo‘sh').slice(0, 80)}`);
+            return { body, host: new URL(url).host };
+          } finally { clearTimeout(t); }
+        };
+        let win;
+        try { win = await Promise.any(servers.map(one)); } catch (e) { throw new Error(e.errors?.map((x) => x.message).join('; ').slice(0, 300) || 'Overpass javob bermadi'); }
+        finally { for (const c of ctls) c.abort(); }
+        await cache.put(key, win.body, { source: 'osm', server: win.host, licence: src.licence, attribution: src.attribution, odbl: true });
+        return win.body;
       })().finally(() => inflight.delete(key));
       inflight.set(key, job);
     }

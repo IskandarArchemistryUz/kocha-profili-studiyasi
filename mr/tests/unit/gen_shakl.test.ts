@@ -52,3 +52,12 @@ describe('24-band: oʻtkir burchakli kvartal — ustma-ust va uzilgan boʻlaklar
     expect(r.sections.length).toBeGreaterThanOrEqual(8);
   });
 });
+
+describe('saytdagi qulash (25.10): egri qirrali kvartal — perimetr «inner[i] undefined»', () => {
+  // haqiqiy Toshkent kvartali (Barselona toʻri + OSM yoʻli egri chetlari): insetRobust uchlarni tashlab yuborardi
+  const curved: XY[] = [[64.22,7.5],[132.43,7.5],[132.43,8.39],[132.14,13.53],[131.76,18.73],[131.05,24.76],[130.23,31.13],[129.38,37.2],[128.36,42.81],[127.18,47.87],[125.64,53.03],[123.84,58.32],[122.03,63.02],[119.81,67.57],[117.33,72.01],[114.88,75.64],[112.08,79.02],[108.58,82.56],[104.39,86.33],[100.54,89.55],[64.98,113.68],[69.21,119.92],[64.22,119.92]];
+  const slant: XY[] = [[-117.07,7.5],[-49.28,7.5],[-49.28,119.92],[-74.82,119.92],[-98.48,56.95],[-102.14,47.22]];
+  for (const [nm, ring] of [['egri chet', curved], ['qiya', slant]] as const) it(`${nm}: qulamaydi, seksiyalar bor`, () => {
+    for (const ty of ['perimetr', 'blok_minora', 'qatorlar'] as const) { const r = generate(ring as XY[], { ...DEFAULT_GEN, typology: ty, parking: 'yer_usti' }); expect(r.sections.length, ty).toBeGreaterThan(0); }
+  });
+});

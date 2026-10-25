@@ -287,7 +287,9 @@ function plainSummary(): string[] {
   if (S.hw != null) out.push(tf('Binolar oʻrtacha ${h} m: ${t}.', { h: n0(S.heightMed), t: tr(S.hw < 0.3 ? 'koʻcha keng va ochiq, binolar uni «xona» qilib oʻramaydi' : S.hw < 0.6 ? 'koʻcha moʻtadil oʻralgan' : S.hw <= 1 ? 'koʻcha yaxshi oʻralgan «xona»' : 'koʻcha tor va chuqur') }));
   out.push(tf('Koʻchaning ${p} uzunligida bino koʻchaga yaqin turadi (chap ${l}, oʻng ${r}).', { p: pct(S.wall), l: pct(S.wallL), r: pct(S.wallR) }));
   if (S.shade14 != null) out.push(tf('Yozda soat 15:30 da trotuarning ${p} i soyada.', { p: pct(S.shade14) }) + (S.treesPer100 === 0 ? ' ' + tr('OSM da daraxtlar yoʻq — haqiqiy soya koʻproq boʻlishi mumkin.') : ''));
-  out.push(S.crossings ? tf('Piyoda oʻtish joylari: ${n} ta, eng katta oraliq ${g} m (meʼyor 300–500 m).', { n: S.crossings, g: S.crossGap ? fmt(S.crossGap.len) : '—' }) : tr('OSM da piyoda oʻtish joylari belgilanmagan.'));
+  // oraliq ≤ 500 m — meʼyorga mos (ShNQ 2.07.06-24, 12-band: 300–500 m); «(meʼyor 300–500 m)» yozuvi mos holatda ham buzilgandek oʻqilardi (sayt, 25.10)
+  const gap = S.crossGap?.len;
+  out.push(S.crossings ? (gap != null && gap > 500 ? tf('Piyoda oʻtish joylari: ${n} ta, eng katta oraliq ${g} m — meʼyordan (300–500 m) katta.', { n: S.crossings, g: fmt(gap) }) : tf('Piyoda oʻtish joylari: ${n} ta, eng katta oraliq ${g} m — meʼyor (300–500 m) ichida.', { n: S.crossings, g: gap != null ? fmt(gap) : '—' })) : tr('OSM da piyoda oʻtish joylari belgilanmagan.'));
   return out;
 }
 /* ---------- koʻcha kesimi chizmasi ---------- */

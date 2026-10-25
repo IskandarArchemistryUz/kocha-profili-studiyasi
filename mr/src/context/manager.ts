@@ -32,7 +32,12 @@ export class ContextManager {
 
   async load(center: LngLat, radius: number, progress: Progress, force = false): Promise<ContextBundle> {
     const id = ++this.seq;
-    if (!force) { const c = await this.fromCache(center, radius); if (c && c.pv === PARSER_V) return c; }
+    if (!force) {
+      const c = await this.fromCache(center, radius);
+      // keshdagi nusxa yaroqli, lekin Overture qoʻshilmasdan oldingi (yoki 30 kundan eski) — tarmoqdan yangilab olinadi; tarmoq boʻlmasa quyida shu nusxa qaytadi
+      const old = c && (c.ov === undefined || Date.now() - Date.parse(c.fetched) > 30 * 86_400_000);
+      if (c && c.pv === PARSER_V && !old) return c;
+    }
     let b: ContextBundle;
     try { b = await this.fetch(id, center, radius, progress); }
     catch (e) {

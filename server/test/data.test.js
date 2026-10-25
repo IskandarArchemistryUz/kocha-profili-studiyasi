@@ -28,15 +28,15 @@ describe('/data — hudud ma’lumoti keshi', () => {
     const r1 = await ov(Q);
     expect(r1.statusCode).toBe(200); expect(r1.headers['x-cache']).toBe('miss'); expect(r1.json().elements).toHaveLength(1);
     const r2 = await ov(Q);
-    expect(r2.headers['x-cache']).toBe('hit'); expect(calls).toHaveLength(1);
+    expect(r2.headers['x-cache']).toBe('hit'); expect(calls).toHaveLength(2);   // birinchi so'rovda ikkala serverga birdan; keshdan — tarmoqsiz
     const meta = (await readdir(dir)).find((n) => n.endsWith('.meta.json'));
     const { readFile } = await import('node:fs/promises');
     const m = JSON.parse(await readFile(join(dir, meta), 'utf8'));
-    expect(m).toMatchObject({ source: 'osm', licence: 'ODbL 1.0', attribution: '© OpenStreetMap contributors', odbl: true, server: 'a.test' });
+    expect(m).toMatchObject({ source: 'osm', licence: 'ODbL 1.0', attribution: '© OpenStreetMap contributors', odbl: true }); expect(['a.test', 'b.test']).toContain(m.server);
   });
-  it('birinchi server band bo‘lsa — keyingisi; hammasi yiqilsa — 502', async () => {
+  it('birinchi server band bo‘lsa — boshqasining javobi (parallel); hammasi yiqilsa — 502', async () => {
     mode = 'first-down';
-    expect((await ov(Q)).statusCode).toBe(200); expect(calls).toEqual(['https://a.test/api', 'https://b.test/api']);
+    expect((await ov(Q)).statusCode).toBe(200); expect(calls.sort()).toEqual(['https://a.test/api', 'https://b.test/api']);
     mode = 'down';
     expect((await ov(Q + ' ')).statusCode).toBe(502);
   });
