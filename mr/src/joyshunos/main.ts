@@ -1106,7 +1106,11 @@ function renderAxo(): void {
       h('button', { type: 'button', class: 'btn btn-sm', id: 'axModel', title: tr('OBJ yoki GLB (metr, Y — yuqoriga); markaz — tanlangan nuqta'), onclick: () => pickModel() }, tr('Model yuklash')),
       a.hasModel() ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', title: tr('Modelni 15° burish'), onclick: () => { a.modelRot = (a.modelRot + 15) % 360; a.placeModel(); } }, '↻ 15°') : null,
       a.hasModel() ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => { a.setModel(null); void cacheDel('joy-model'); renderAxo(); } }, tr('Olib tashlash')) : null),
-    h('div', { class: 't-small' }, S.site ? tf('Uchastka: ${a} ga — har qatlamda qizil punktir', { a: fmt(ringArea(S.site) / 10000, 2) }) : tr('Uchastka xaritada chiziladi (chap panel → Uchastka).')),
+    S.site ? h('div', { class: 't-small' }, tf('Uchastka: ${a} ga — har qatlamda ajratib koʻrsatiladi', { a: fmt(ringArea(S.site) / 10000, 2) }))
+      : h('div', { class: 'note', id: 'axNoSite' }, h('b', {}, tr('Uchastka chizilmagan')), h('br'), tr('Shuning uchun aksonometriyada uchastka koʻrinmaydi — faqat tahlil nuqtasi.'),
+        h('div', { class: 'row', style: 'margin-top:8px;gap:6px;flex-wrap:wrap' },
+          h('button', { type: 'button', class: 'btn btn-sm', id: 'axSiteDraw', onclick: () => { setMode('map'); startDraw('site'); } }, tr('Xaritada chizish')),
+          kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'axSiteK', title: tr('Joyshunos va Master rejaning 1-qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) { setSite(r, false); axBuild(); renderAxo(); } } }, tr('1-qadamdan')) : null)),
     h('div', { class: 't-small' }, tr('Ushlab suring: quyosh — vaqtni oʻzgartiradi, shamol strelkasi — yoʻnalishni buradi, belgi — joyini koʻchiradi.')),
     h('div', { class: 'row wrap' },
       h('button', { type: 'button', class: 'btn btn-sm btn-ghost', disabled: !a.flowDeg.some(v => v != null), onclick: () => a.resetWind() }, tr('Shamolni tiklash')),
