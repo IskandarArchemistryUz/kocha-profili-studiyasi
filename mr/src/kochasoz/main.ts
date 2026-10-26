@@ -30,7 +30,7 @@ const BOARDS: Record<BoardId, BoardDef> = {
 const MODE_KEY: Record<string, BoardId | 'd'> = { A: 'a', B: 'b', C: 'c', D: 'd', E: 'e' };
 
 /* ---------- tayyor qismlar (2026-10-18, Iskandar: «tayyor qismlarni chiqaramiz, tayyormaslarini yashirib — tez orada») ----------
- * Saytda: B (Kesim va Reja koʻrinishlari) va Albom varagʻi. Qolganlari — «Tez orada» belgisi bilan, bosilmaydi;
+ * Saytda: B (Kesim, Reja va Aksonometriya koʻrinishlari) va Albom varagʻi. Qolganlari — «Tez orada» belgisi bilan, bosilmaydi;
  * Grafik kutubxona — butunlay yashirin. «?beta» bilan ochilsa (brauzerda eslab qolinadi) — hammasi ochiq, ishlab chiqish uchun. */
 const BETA = (() => {
   try {
@@ -42,7 +42,7 @@ const BETA = (() => {
 const READY_BOARDS = new Set<BoardId>(['b', 'varaq']);
 const READY_MODES = new Set(['B']);
 const HIDDEN_MODES = new Set(['E']);
-const READY_VIEWS = new Set([0, 1]);   // B: Kesim, Reja
+const READY_VIEWS = new Set([0, 1, 2]);   // B: Kesim, Reja, Aksonometriya (26.10 — 3D)
 const ready = (id: BoardId) => BETA || READY_BOARDS.has(id);
 const SOON = () => tr('Tez orada');
 /** Shablon qiymatlari: tayyor boʻlmagan rejim tugmalariga belgi, B koʻrinishlaridan faqat tayyorlari */

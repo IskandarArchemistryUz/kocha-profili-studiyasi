@@ -44,7 +44,7 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
   expect(errs).toEqual([]);
 });
 
-test('saytda: faqat Kesim (Kesim, Reja koʻrinishlari) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
+test('saytda: faqat Kesim (Kesim, Reja, Aksonometriya koʻrinishlari) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
   await open(page, 'c');
   await expect(page).toHaveURL(/#\/b$/);                                   // tayyor boʻlmagan rejim → B
   await expect(page.locator('.ws-b .mtab[aria-disabled=true]')).toHaveCount(3);
@@ -52,7 +52,7 @@ test('saytda: faqat Kesim (Kesim, Reja koʻrinishlari) va Varaq; qolganlari «Te
   await expect(page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).locator('em.soon')).toHaveText('Tez orada');
   await page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).click({ force: true });   // aria-disabled — bosilsa ham oʻtmaydi
   await expect(page).toHaveURL(/#\/b$/);
-  await expect(page.locator('.ws-b main .seg').first().locator('button')).toHaveText(['Kesim', 'Reja']);
+  await expect(page.locator('.ws-b main .seg').first().locator('button')).toHaveText(['Kesim', 'Reja', 'Aksonometriya']);
   await expect(page.locator('#ksGrafika')).toHaveCount(0);
   await expect(page.locator('#ksVaraq')).toBeVisible();
   // zona chegarasini pastki qatorda sudrash: qoʻshni zona hisobidan, umumiy kenglik oʻzgarmaydi
