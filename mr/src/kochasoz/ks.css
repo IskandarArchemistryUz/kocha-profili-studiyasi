@@ -207,3 +207,9 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 .ws-b .ks-edn,.ws-b .ks-strip .blk .w{cursor:text;border-radius:4px}
 .ws-b .ks-edn:hover,.ws-b .ks-strip .blk .w:hover{background:var(--fill);box-shadow:0 0 0 2px var(--fill)}
 .ks-numed{position:fixed;z-index:1000;width:76px;height:30px;padding:0 8px;border:1.5px solid var(--sel);border-radius:8px;background:var(--surface);color:var(--ink);font:500 13px var(--mono);text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.16);outline:none}
+
+/* B: yoʻl strelkasi tanlagichi */
+.ws-b .ks-man{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.ws-b .ks-man button{height:36px;border:0;border-radius:10px;background:var(--fill);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ws-b .ks-man button:hover{background:var(--hairline)}
+.ws-b .ks-man button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
