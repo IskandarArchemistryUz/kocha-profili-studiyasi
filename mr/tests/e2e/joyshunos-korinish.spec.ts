@@ -98,3 +98,30 @@ test('shamol oqim chiziqlari planda', async ({ page }) => {
   await expect.poll(() => vis(page, 'joy-wind')).toBe('none');
   expect(errs).toEqual([]);
 });
+test('xizmatlar ikonka rejimi', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await page.locator('[data-layer=xizmat] .lt').click();
+  await expect.poll(() => vis(page, 'joy-poi-i')).toBe('visible');
+  await page.locator('.jv-btn').click();
+  await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
+  await expect.poll(() => vis(page, 'joy-poi-i')).toBe('none');
+  if (process.env.SHOT) { await page.locator('.jv-st button', { hasText: 'Ikonkalar' }).click(); await page.waitForTimeout(800); await page.screenshot({ path: process.env.SHOT }); }
+  expect(errs).toEqual([]);
+});
+test('piyoda: persona boʻyicha yetish', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await page.locator('[data-layer=piyoda] .switch').click();
+  await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15 daqiqa/, { timeout: 30_000 });
+  const sub = page.locator('[data-card=piyoda] .sub'), ten = async () => parseFloat(/10 daqiqa: ([\d,]+) ga/.exec((await sub.textContent())!)![1].replace(',', '.'));
+  const a = await ten();
+  await page.locator('.jv-btn').click();
+  await page.locator('.jv-st button', { hasText: 'Qariya' }).click();
+  await expect(page.locator('[data-card=piyoda] .src')).toContainText('qariya', { timeout: 30_000 });
+  expect(await ten()).toBeLessThanOrEqual(a);
+  await expect(page.locator('[data-card=piyoda] .src')).toContainText('qariya');
+  expect(errs).toEqual([]);
+});

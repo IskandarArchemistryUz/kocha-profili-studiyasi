@@ -40,7 +40,7 @@ import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColo
 import { initStats } from '../core/stats';
 import { layerIcon, GROUP_COL } from './layerIcons';
 import { windFlow } from './windflow';
-import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, type LayerView } from './viewcfg';
+import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFile, wmRaster } from '../core/wm';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
@@ -88,6 +88,7 @@ const V = (id: LayerId) => view(S.v, id);
 function setView(id: LayerId, p: LayerView, live?: boolean): void {
   S.v = { ...S.v, [id]: { ...S.v?.[id], ...p } };
   heatKey = noiseKey = slopeKey = ''; isoKey = '';
+  if (id === 'piyoda' && p.st) computeNet();
   paint();
   if (!live) { save(); renderRight(); }
 }
@@ -100,7 +101,7 @@ const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: 
   { addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
-type NetM = { key: string; net: Net; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
+type NetM = { pers?: string; key: string; net: Net; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
 let NM: NetM | null = null, nmBusy = false;
 function netModels(): NetM | null {
   const pb = D.poi.v; if (!pb) return null;
@@ -112,13 +113,14 @@ function netModels(): NetM | null {
 /** Ogʻir hisoblar navbat bilan (UI qotmasin) */
 function computeNet(): void {
   const m = netModels(); if (!m || nmBusy) return;
+  if (m.reach && m.pers !== V('piyoda').st) m.reach = undefined;
   const job = isOn('piyoda') && !m.reach ? 'reach' : isOn('oqim') && !m.flow ? 'flow' : isOn('shovqin') && !m.noise ? 'noise' : null; if (!job) return;
   nmBusy = true;
   setTimeout(() => {
     try {
       const pb = D.poi.v!;
       if (job === 'reach') {
-        m.reach = reach(m.net);
+        const f = PERSONA[V('piyoda').st]?.v / 5 || 1; m.reach = reach(m.net, [5, 10, 15].map(x => x * f)); m.reach.mins = [5, 10, 15]; m.pers = V('piyoda').st;
         const near: Partial<Record<Svc, number>> = {};
         for (const k of ['bekat', 'metro', 'maktab', 'mtm', 'dorixona', 'savdo'] as Svc[]) { let best = Infinity; for (const p of pb.pois) if (p.kind === k) best = Math.min(best, distAt(m.net, m.reach.D, m.fr.toLocal(p.at))); if (Number.isFinite(best)) near[k] = best; }
         m.near = near;
@@ -443,8 +445,8 @@ function renderRightH(): void {
     cards.push(card(L('piyoda'), tr('OSM tarmoq'), r ? tf('${h} ga · 15 daqiqa', { h: ha(r.area[2]) }) : '—',
       r ? [tf('5 daqiqa: ${a} ga · 10 daqiqa: ${b} ga · 15 daqiqa: ${c} ga (yoʻllardan 40 m)', { a: ha(r.area[0]), b: ha(r.area[1]), c: ha(r.area[2]) }), h('br'),
         r.directness != null ? tf('Tarmoq toʻgʻriligi: ${d} (1 — toʻgʻri chiziq; 0,7 dan past — aylanma yoʻllar)', { d: fmt(r.directness, 2) }) : '',
-        h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('yoʻq') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / WALK) })), h('em', {}, `≤ ${def.r} m`)); })),
-        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'))] : [],
+        h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('yoʻq') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[V('piyoda').st]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
+        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), V('piyoda').st !== 'yosh' ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[V('piyoda').st].note) })}` : '')] : [],
       null, r ? undefined : busy));
   }
   if (isOn('oqim')) {
@@ -675,6 +677,9 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-ring-f', type: 'fill', source: 'joy-ring', paint: { 'fill-color': ACC, 'fill-opacity': 0.05 } });
   m.addLayer({ id: 'joy-ring', type: 'line', source: 'joy-ring', paint: { 'line-color': ACC, 'line-width': 1.6, 'line-dasharray': [3, 2.2] } });
   m.addLayer({ id: 'joy-poi', type: 'circle', source: 'joy-poi', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 3, 17, 6], 'circle-color': ['get', 'col'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-opacity': ['case', ['get', 'in'], 1, 0.35], 'circle-stroke-opacity': ['case', ['get', 'in'], 1, 0.35] } } as never);
+  // xizmatlar ikonkalari: rangli doira + oq piktogramma (canvas → rasm)
+  for (const k of SVC_KINDS) if (!m.hasImage(`svc-${k}`)) m.addImage(`svc-${k}`, svcIcon(k), { pixelRatio: 2 });
+  m.addLayer({ id: 'joy-poi-i', type: 'symbol', source: 'joy-poi', layout: { visibility: 'none', 'icon-image': ['concat', 'svc-', ['get', 'k']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.6, 16, 1], 'icon-allow-overlap': true }, paint: { 'icon-opacity': ['case', ['get', 'in'], 1, 0.45] } } as never);
   m.addLayer({ id: 'joy-comp', type: 'circle', source: 'joy-comp', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 4, 17, 8], 'circle-color': '#7a5a3c', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2, 'circle-opacity': ['case', ['get', 'in'], 1, 0.4] } } as never);
   m.addLayer({ id: 'joy-c-h', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 18, 'circle-color': ACC, 'circle-opacity': 0.16 } });
   m.addLayer({ id: 'joy-c', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 8, 'circle-color': ACC, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
@@ -683,7 +688,7 @@ function addOverlays(): void {
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '';
-const HUD_LAYERS = ['joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-poi-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   const m = map;
   if (isK()) {
@@ -709,7 +714,7 @@ function paintH(): void {
     m.setLayoutProperty('joy-slope', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-slope', 'visibility', 'none');
   const p = isOn('xizmat') ? D.poi.v?.pois ?? [] : [];
-  (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r }); }).filter(Boolean)) as never);
+  (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r, k: x.kind }); }).filter(Boolean)) as never);
   const cp = isOn('raqobat') ? D.comp.v ?? [] : [];
   (m.getSource('joy-comp') as GeoJSONSource).setData(fc(cp.map(x => pt(x.at, { in: x.d <= S.r }))) as never);
   // tarmoq modellari
@@ -832,6 +837,18 @@ function windAnim(m: MLMap, on: boolean): void {
   const tick = (t: number) => { windRaf = requestAnimationFrame(tick); if (t - last < 70) return; last = t; if (!m.getLayer('joy-wind')) return; m.setPaintProperty('joy-wind', 'line-dasharray', seq[i = (i + 1) % seq.length]); };
   windRaf = requestAnimationFrame(tick);
 }
+/** Xizmat piktogrammasi (48 px, retina): rangli doira, oq chiziqli belgi */
+const SVC_GLYPH: Partial<Record<Svc, string>> = {
+  maktab: 'M-4 1h8M-4 1v-3l4-2 4 2v3M0 -4v-2M-2 1v3h4v-3', mtm: 'M-3 4v-5l3-3 3 3v5zM0 4v-3', poliklinika: 'M-1.3 -4h2.6v2.7h2.7v2.6h-2.7v2.7h-2.6v-2.7h-2.7v-2.6h2.7z',
+  dorixona: 'M-3.5 1.5l5-5a2 2 0 0 1 2.8 2.8l-5 5a2 2 0 0 1-2.8-2.8zM-1 -1l2.8 2.8', savdo: 'M-4 -2h8l-1 6h-6zM-2 -2v-1.5a2 2 0 0 1 4 0v1.5', sport: 'M-4 0h8M-3 -2v4M3 -2v4M-4.5 -1v2M4.5 -1v2',
+  bekat: 'M-3 -4h6v6h-6zM-3 -1h6M-2 4v-2M2 4v-2', metro: 'M-4 3.5l1.5-7 2.5 5 2.5-5 1.5 7', mahalla: 'M-4 4v-5l4-3 4 3v5zM-1 4v-3h2v3',
+};
+function svcIcon(k: Svc): ImageData {
+  const c = document.createElement('canvas'); c.width = c.height = 48; const g = c.getContext('2d')!;
+  g.fillStyle = SVC_COL[k]; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.arc(24, 24, 20, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.save(); g.translate(24, 24); g.scale(2.4, 2.4); g.lineWidth = 1.3; g.lineCap = g.lineJoin = 'round'; g.stroke(new Path2D(SVC_GLYPH[k] ?? 'M-2 0h4')); g.restore();
+  return g.getImageData(0, 0, 48, 48);
+}
 /** Fokus: faol boʻlmagan qatlamlar xira (bir nechta qatlam yoqilganda) */
 function focusMap(m: MLMap): void {
   const a = actId(), k = (id: LayerId) => (S.on.length > 1 && a && a !== id ? FOCUS_DIM : 1);
@@ -852,6 +869,7 @@ function focusMap(m: MLMap): void {
   const x = k('xizmat'), c = k('raqobat');
   set('joy-poi', 'circle-opacity', ['case', ['get', 'in'], x, 0.35 * x]); set('joy-poi', 'circle-stroke-opacity', ['case', ['get', 'in'], x, 0.35 * x]);
   set('joy-comp', 'circle-opacity', ['case', ['get', 'in'], c, 0.4 * c]); set('joy-comp', 'circle-stroke-opacity', c);
+  { const ic = isOn('xizmat') && V('xizmat').st === 'ikonka'; if (m.getLayer('joy-poi-i')) { m.setLayoutProperty('joy-poi-i', 'visibility', ic ? 'visible' : 'none'); m.setPaintProperty('joy-poi-i', 'icon-opacity', ['case', ['get', 'in'], x, 0.45 * x]); } if (ic) { set('joy-poi', 'circle-opacity', 0); set('joy-poi', 'circle-stroke-opacity', 0); } }
   roseK = k('shamol') * (isOn('shamol') && V('shamol').st === 'oqim' ? 0.45 : 1);
 }
 /* ---------------- Albom, hisobot va plakat (26.10) ---------------- */
