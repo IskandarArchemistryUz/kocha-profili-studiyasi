@@ -854,8 +854,8 @@ let axBundle: { key: string; b: ContextBundle } | null = null, axMsg = '', axSat
 type AxSt = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal' | 'palitra';
 const AX_STYLES: [AxSt, string, string][] = [['albom', 'Qogʻoz', 'oq binolar, soyalar'], ['rangli', 'Shahar ranglari', 'OSM ranglari, sunʼiy yoʻldosh'], ['arctic', 'Gips maket', 'oq gil model'], ['funksiya', 'Funksional', 'funksiya ranglari'], ['minimal', 'Chizma', 'oq-qora grafika'], ['palitra', 'Xarita palitrasi', '7 ta uslubdan']];
 let axStyle: AxSt = (() => { try { const v = localStorage.getItem('joy-axstyle') ?? localStorage.getItem('mr-style'); return AX_STYLES.some(x => x[0] === v) ? v as AxSt : 'albom'; } catch { return 'albom'; } })();
-const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean } | null; } catch { return null; } })() ?? {};
-function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate })); } catch { /* */ } }
+const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean; sun?: string } | null; } catch { return null; } })() ?? {};
+function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle })); } catch { /* */ } }
 function renderMode(): void {
   modeSw.replaceChildren(h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') },
     ...([['map', 'Xarita'], ['axo', 'Aksonometriya']] as const).map(([k, n]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, onclick: () => setMode(k) }, tr(n)))));
@@ -872,7 +872,9 @@ async function enterAxo(): Promise<void> {
   if (!axo) {
     axo = new AX.Axo(axoEl);
     if (AXST.view === 'plan' || AXST.view === 'axo' || AXST.view === 'persp') axo.view = AXST.view;
+    if (Array.isArray(AXST.order) && !AXST.order.includes('transport')) { const i = AXST.order.indexOf('kochalar'); AXST.order.splice(i + 1, 0, 'transport'); }   // 26.10: yangi qatlam
     if (Array.isArray(AXST.order) && AXST.order.length === AX.AX_LAYERS.length) axo.order = AXST.order as typeof axo.order;
+    if (AXST.sun === 'yelpigich') axo.sunStyle = 'yelpigich';
     if (AXST.vis) Object.assign(axo.vis, AXST.vis);
     axo.exploded = !!AXST.ex; if (AXST.gap) axo.gap = AXST.gap; if (AXST.day != null) axo.day = AXST.day; if (AXST.hour != null) axo.hour = AXST.hour; if (AXST.anim === false) axo.animate = false;
     axo.onChange = () => { renderNotes(); axSyncTime(); };
@@ -918,6 +920,7 @@ function renderAxo(): void {
       h('button', { type: 'button', 'aria-label': tr('Kamaytirish'), onclick: () => { a.setExplode(a.exploded, Math.max(60, a.gap - 40)); axSave(); renderAxo(); } }, '−'), h('span', {}, String(a.gap)),
       h('button', { type: 'button', 'aria-label': tr('Oshirish'), onclick: () => { a.setExplode(a.exploded, Math.min(600, a.gap + 40)); axSave(); renderAxo(); } }, '+'))),
     h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fon') }, ...([[false, 'Maket'], [true, 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': axSat === k, onclick: () => { axSat = k; axBuild(); renderAxo(); } }, tr(n)))),
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Quyosh yoʻli'), id: 'axSun' }, ...([['gumbaz', 'Quyosh gumbazi'], ['yelpigich', 'Yelpigʻich']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': a.sunStyle === k, onclick: () => { a.sunStyle = k; axSave(); axBuild(); renderAxo(); } }, tr(n)))),
     h('div', { class: 'glabel' }, tr('Loyiha')),
     h('div', { class: 'row wrap' },
       h('button', { type: 'button', class: 'btn btn-sm', id: 'axModel', title: tr('OBJ yoki GLB (metr, Y — yuqoriga); markaz — tanlangan nuqta'), onclick: () => pickModel() }, tr('Model yuklash')),
