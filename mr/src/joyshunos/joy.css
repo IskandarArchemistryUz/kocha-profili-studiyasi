@@ -397,3 +397,4 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .jv-pal i{flex:1}.jv-pal[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
 .jv-pal:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .jv-st{align-self:stretch}
+.jv-st.wrap{display:grid;grid-template-columns:repeat(3,1fr)}

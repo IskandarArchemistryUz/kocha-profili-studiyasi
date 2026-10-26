@@ -6,7 +6,7 @@ import { h } from '../ui/dom';
 import { tr } from '../i18n';
 
 export interface LayerView { st?: string; k?: number; p?: number }
-export interface ViewDef { styles?: [string, string][]; pals?: [string, string[]][]; k?: boolean }
+export interface ViewDef { /** uslublar guruhi sarlavhasi (yoʻq — «Uslub») */ stLabel?: string; styles?: [string, string][]; pals?: [string, string[]][]; k?: boolean }
 
 /** Rang shkalalari: past → yuqori */
 export const VIEW: Record<string, ViewDef> = {
@@ -15,8 +15,9 @@ export const VIEW: Record<string, ViewDef> = {
   issiqlik: { styles: [['sirt', 'Sirt'], ['izoterma', 'Izotermalar']], pals: [['Klassik', ['#2c6fb0', '#79b0d6', '#cfe3ee', '#f4f1e6', '#f7c9a0', '#ee8a5a', '#c43b2e']], ['Magma', ['#fcfdbf', '#fec488', '#fc8961', '#e85362', '#b73779', '#721f81', '#2c115f']], ['Faqat issiq', ['#fff5eb', '#fee6ce', '#fdd0a2', '#fdae6b', '#fd8d3c', '#e6550d', '#a63603']]], k: true },
   shovqin: { styles: [['zona', 'Zonalar'], ['kontur', 'Konturlar'], ['65', '≥ 65 dB']], pals: [['ISO 1996', ['#e9f0e4', '#d6e7b8', '#f3dd8a', '#f0a85c', '#d9603f', '#8e2c4f']], ['Pushti', ['#fde0ef', '#f9bcd8', '#f4a6c9', '#e0609c', '#c2416b', '#7a0f3c']]], k: true },
   shamol: { styles: [['oqim', 'Oqim chiziqlari'], ['roza', 'Faqat shamol guli']], pals: [['Yashil', ['#bfe3cf', '#5fb38a', '#2f8a66', '#145c40']], ['Moviy', ['#cfe3f5', '#7fb3e0', '#3a7fc2', '#16467e']], ['Toʻq sariq', ['#fde2bf', '#f6ad5f', '#e0782a', '#9c4512']]], k: true },
+  xizmat: { styles: [['ikonka', 'Ikonkalar'], ['nuqta', 'Nuqtalar']] },
   quyosh: { k: true },
-  piyoda: { k: true },
+  piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh']], k: true },
   oqim: { k: true },
 };
 export const view = (V: Record<string, LayerView> | undefined, id: string): Required<LayerView> => {
@@ -43,7 +44,8 @@ export function viewPanel(id: string, v: Required<LayerView>, open: boolean, cb:
     svgSliders(), tr('Koʻrinish'));
   if (!open) return h('div', { class: 'jv' }, btn);
   const body = h('div', { class: 'jv-body' });
-  if (d.styles) body.append(h('div', { class: 'seg sm jv-st', role: 'group', 'aria-label': tr('Uslub') }, ...d.styles.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': v.st === k, onclick: () => cb.set({ st: k }) }, tr(n)))));
+  if (d.stLabel) body.append(h('span', { class: 't-small' }, tr(d.stLabel)));
+  if (d.styles) body.append(h('div', { class: `seg sm jv-st${d.styles.length > 3 ? ' wrap' : ''}`, role: 'group', 'aria-label': tr(d.stLabel ?? 'Uslub') }, ...d.styles.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': v.st === k, onclick: () => cb.set({ st: k }) }, tr(n)))));
   if (d.k) body.append(h('div', { class: 'jv-row' }, h('span', { class: 't-small' }, tr('Intensivlik')), slider(v.k, tr('Intensivlik'), k => cb.set({ k }, true), () => cb.set({}))));
   if (d.pals) body.append(h('div', { class: 'jv-pals', role: 'group', 'aria-label': tr('Rang shkalasi') }, ...d.pals.map(([n, cs], i) => h('button', { type: 'button', class: 'jv-pal', title: tr(n), 'aria-label': tr(n), 'aria-pressed': v.p === i, onclick: () => cb.set({ p: i }) }, ...cs.map(c => h('i', { style: `background:${c}` }))))));
   return h('div', { class: 'jv open' }, btn, body);
@@ -87,3 +89,9 @@ export function joinSegs(segs: [[number, number], [number, number]][]): [number,
   }
   return out;
 }
+
+/** Piyoda personalari: oʻrtacha yurish tezligi (km/soat) — taxminiy, adabiyotdagi tipik qiymatlar; qiyalik hisobga olinmagan */
+export const PERSONA: Record<string, { v: number; note: string }> = {
+  yosh: { v: 5.0, note: 'kattalar, ≈ 5 km/soat' }, bola: { v: 3.6, note: 'bola, ≈ 3,6 km/soat' }, qariya: { v: 3.2, note: 'qariya, ≈ 3,2 km/soat' },
+  homilador: { v: 3.8, note: 'homilador, ≈ 3,8 km/soat' }, arava: { v: 3.2, note: 'nogironlik aravachasi, ≈ 3,2 km/soat; zinapoya va baland bordyur hisobga olinmagan' }, sayyoh: { v: 4.0, note: 'sayyoh, ≈ 4 km/soat' },
+};
