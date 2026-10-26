@@ -212,7 +212,7 @@ export default class Component extends DCLogic {
     function A(d, f, st, w, o, da, t) { D.push({ d: d, f: f || 'none', s: st || 'none', w: w || 0, o: o == null ? 1 : o, da: da || '', t: t || '' }); }
     function AT(x, y, t, fs, c, fw, an) { TT.push({ x: x.toFixed(1), y: y.toFixed(1), t: t, fs: fs || 10, c: c || '#141414', fw: fw || 400, ff: 'Archivo, sans-serif', a: an || 'start' }); }
     var line = gfx === 1, INK = '#2f2e2b', L = { line: line, ink: INK, add: A };
-    var T = { front: ['#f1e9da', .15], piy: ['#ece8df', .15], mebel: ['#e4ddcf', .15], yash: ['#d3e4c6', .15], velo: ['#d98a78', .08], park: ['#dedfe2', 0], qat: ['#d2d3d7', 0], bus: ['#93a9d8', 0], tram: ['#e8dece', .02], med: ['#d9e7cd', .15], ariq: ['#cfe2ee', 0] };
+    var T = { front: ['#f1e9da', .15], piy: ['#ece8df', .15], mebel: ['#e4ddcf', .15], yash: ['#d3e4c6', .15], velo: ['#d98a78', .08], park: ['#dedfe2', 0], qat: ['#d2d3d7', 0], bus: ['#93a9d8', 0], tram: ['#e8dece', .02], med: ['#d9e7cd', .15], ariq: ['#cfe2ee', 0], kanal: ['#bcd6e6', 0] };
     var els = base.els, rl = base.rl, SB = 1.5, BD = 7, LG = 28;
     /* dimetriya (26.10): koʻndalang oʻq 10° pastga, koʻcha boʻylab 38° yuqoriga (0,8 masshtab) — kabinet proyeksiyadan qiyaroq, raqobatchilar kabi */
     var CA = Math.cos(10 * Math.PI / 180), SA = Math.sin(10 * Math.PI / 180), CB = Math.cos(38 * Math.PI / 180) * 0.8, SBy = Math.sin(38 * Math.PI / 180) * 0.8;
@@ -288,6 +288,18 @@ export default class Component extends DCLogic {
     // zonalar
     A(poly([[-SB, 0, 0.15], [0, 0, 0.15], [0, LG, 0.15], [-SB, LG, 0.15]]), line ? '#fff' : '#ebe7df', line ? INK : null, 0.5); A(poly([[rl, 0, 0.15], [rl + SB, 0, 0.15], [rl + SB, LG, 0.15], [rl, LG, 0.15]]), line ? '#fff' : '#ebe7df', line ? INK : null, 0.5);
     els.forEach(function (e, i) { var c = T[e[0]], x0 = zx[i][0], x1 = zx[i][1], h = c[1];
+      if (e[0] === 'kanal') { /* kanal: suv sathi −1,2 m, devor (yoki qiya qirgʻoq), old kesimda suv chuqurligi, panjara, koʻprik */ var fk = e[2] || {}, zw = -1.2, zb = -2.6, wt = fk.qiya ? Math.min(1.5, (x1 - x0) * 0.3) : 0.35, WC = line ? '#ffffff' : '#bcd6e6', SC = line ? '#ffffff' : '#d9d4ca';
+        A(poly([[x0, 0, 0], [x1, 0, 0], [x1, 0, zb], [x0, 0, zb]]), '#ffffff', null, 0);
+        A(poly([[x0 + wt * (fk.qiya ? 1.2 / 2.6 : 1), 0, zw], [x1 - wt * (fk.qiya ? 1.2 / 2.6 : 1), 0, zw], [x1 - wt, 0, zb], [x0 + wt, 0, zb]]), line ? '#ffffff' : '#a9c8dc', INK, 0.5);
+        if (!fk.qiya) { A(poly([[x0, 0, 0.1], [x0 + wt, 0, 0.1], [x0 + wt, 0, zb - 0.3], [x0, 0, zb - 0.3]]), SC, INK, 0.5); A(poly([[x1 - wt, 0, 0.1], [x1, 0, 0.1], [x1, 0, zb - 0.3], [x1 - wt, 0, zb - 0.3]]), SC, INK, 0.5);
+          A(poly([[x0 + wt, 0, zw], [x0 + wt, LG, zw], [x0 + wt, LG, 0.1], [x0 + wt, 0, 0.1]]), line ? '#ffffff' : '#cfc9bd', INK, 0.5);
+          A(poly([[x0 + wt, 0, zw], [x1 - wt, 0, zw], [x1 - wt, LG, zw], [x0 + wt, LG, zw]]), WC, INK, 0.5);
+          [[x0, x0 + wt], [x1 - wt, x1]].forEach(function (r) { A(poly([[r[0], 0, 0.1], [r[1], 0, 0.1], [r[1], LG, 0.1], [r[0], LG, 0.1]]), SC, INK, 0.5); }); }
+        else { var xa1 = x0 + wt * 1.2 / 2.6, xb1 = x1 - wt * 1.2 / 2.6; A(poly([[x0, 0, 0], [xa1, 0, zw], [xa1, LG, zw], [x0, LG, 0]]), line ? '#ffffff' : '#cfe0b8', INK, 0.5); A(poly([[xa1, 0, zw], [xb1, 0, zw], [xb1, LG, zw], [xa1, LG, zw]]), WC, INK, 0.5); }
+        for (var wy = 2.2; wy < LG - 1; wy += 3.4) for (var wx = x0 + wt + 0.6; wx < x1 - wt - 1; wx += 1.9) { var r1 = P(wx, wy + ((wx * 7) % 1.5), zw + 0.01), r2 = P(wx + 0.9, wy + ((wx * 7) % 1.5), zw + 0.01); A('M' + r1[0].toFixed(1) + ' ' + r1[1].toFixed(1) + 'L' + r2[0].toFixed(1) + ' ' + r2[1].toFixed(1), null, '#4f86a8', 0.6, 0.8); }
+        if (fk.panjara !== false) [x0 + Math.min(wt, 0.35) / 2, x1 - Math.min(wt, 0.35) / 2].forEach(function (rx) { for (var py = 0.4; py < LG; py += 2.5) { var p1 = P(rx, py, 0.1), p2 = P(rx, py, 1.1); A('M' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + 'L' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1), null, INK, 0.6); } var ra = P(rx, 0, 1.1), rb = P(rx, LG, 1.1); A('M' + ra[0].toFixed(1) + ' ' + ra[1].toFixed(1) + 'L' + rb[0].toFixed(1) + ' ' + rb[1].toFixed(1), null, INK, 0.8); });
+        if (fk.koprik) { var ky = 15; box(x0 - 0.3, ky, 0.1, x1 - x0 + 0.6, 4, 0.3, line ? '#fff' : '#ece6da', line ? '#fff' : '#d9d2c4', line ? '#fff' : '#e2dccf', 1); [ky + 0.15, ky + 3.85].forEach(function (yy) { var b1 = P(x0 - 0.3, yy, 1.4), b2 = P(x1 + 0.3, yy, 1.4); A('M' + b1[0].toFixed(1) + ' ' + b1[1].toFixed(1) + 'L' + b2[0].toFixed(1) + ' ' + b2[1].toFixed(1), null, INK, 0.8); for (var bx2 = x0 - 0.3; bx2 <= x1 + 0.31; bx2 += 1.2) { var c1 = P(bx2, yy, 0.4), c2 = P(bx2, yy, 1.4); A('M' + c1[0].toFixed(1) + ' ' + c1[1].toFixed(1) + 'L' + c2[0].toFixed(1) + ' ' + c2[1].toFixed(1), null, INK, 0.5); } }); }
+        return; }
       A(poly([[x0, 0, h], [x1, 0, h], [x1, LG, h], [x0, LG, h]]), line ? '#ffffff' : c[0], INK, 0.4);
       if (h > 0.05) A(poly([[x0, 0, 0], [x1, 0, 0], [x1, 0, h], [x0, 0, h]]), line ? '#ffffff' : c[0], INK, 0.4);
       if (e[0] === 'tram') [0.27, 0.73].forEach(function (f) { var xx = x0 + (x1 - x0) * f, a = P(xx, 0, h), b = P(xx, LG, h); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#55524d', 1); });
@@ -402,7 +414,7 @@ export default class Component extends DCLogic {
       function A(d, f, st, w, o, da, t) { D.push({ d: d, f: f || 'none', s: st || 'none', w: w || 0, o: o == null ? 1 : o, da: da || '', t: t || '' }); }
       function AT(x, y, t, fs, c, fw, an) { TT.push({ x: x.toFixed(1), y: y.toFixed(1), t: t, fs: fs || 10, c: c || '#141414', fw: fw || 400, ff: 'Archivo, sans-serif', a: an || 'start' }); }
       var L = { line: line, ink: INK, add: A };
-      var COL = { front: ['#f1e9da', .15], piy: ['#ece8df', .15], mebel: ['#e4ddcf', .15], yash: ['#d3e4c6', .15], velo: ['#d98a78', .08], park: ['#dedfe2', 0], qat: ['#d2d3d7', 0], bus: ['#93a9d8', 0], tram: ['#e8dece', .02], med: ['#d9e7cd', .15], ariq: ['#cfe2ee', 0] };
+      var COL = { front: ['#f1e9da', .15], piy: ['#ece8df', .15], mebel: ['#e4ddcf', .15], yash: ['#d3e4c6', .15], velo: ['#d98a78', .08], park: ['#dedfe2', 0], qat: ['#d2d3d7', 0], bus: ['#93a9d8', 0], tram: ['#e8dece', .02], med: ['#d9e7cd', .15], ariq: ['#cfe2ee', 0], kanal: ['#bcd6e6', 0] };
       var ROADZ = { qat: 1, bus: 1, park: 1, tram: 1 };
       var hasZP = base.els.some(function (q) { return q[2] && q[2].zebra; });   // oʻtish joyi 34–38 m — mashina qoʻyilmaydi
       var els = base.els, rl = base.rl, SB = 1.5, zx = [], acc = 0; els.forEach(function (e) { zx.push([acc, acc + e[1]]); acc += e[1]; });
@@ -455,7 +467,7 @@ export default class Component extends DCLogic {
       OB.sort(function (a, b) { return b.y - a.y; }).forEach(function (o) { o.fn(); });
       // yozuv
       A('M16 ' + (H - 44) + 'h' + 320 + 'v32h-320Z', '#ffffff', null, 0, 0.85);
-      AT(26, H - 24, NAME + ' · koʻz balandligi ' + String(EYE).replace('.', ',') + ' m', 11, '#141414', 700); AT(26, H - 13, 'Kuzatuvchi: ' + ({ front: 'B3', piy: 'piyodalar hududi', mebel: 'B1', yash: 'B2', velo: 'velo yoʻlak', park: 'turargoh', qat: 'harakat boʻlagi', bus: 'avtobus boʻlagi', tram: 'tramvay', med: 'ajratuvchi', ariq: 'ariq' }[els[ci][0]]) + ', qizil chiziqdan ' + String(Math.round(cx * 10) / 10).replace('.', ',') + ' m', 8.5, '#8f8a80');
+      AT(26, H - 24, NAME + ' · koʻz balandligi ' + String(EYE).replace('.', ',') + ' m', 11, '#141414', 700); AT(26, H - 13, 'Kuzatuvchi: ' + ({ front: 'B3', piy: 'piyodalar hududi', mebel: 'B1', yash: 'B2', velo: 'velo yoʻlak', park: 'turargoh', qat: 'harakat boʻlagi', bus: 'avtobus boʻlagi', tram: 'tramvay', med: 'ajratuvchi', ariq: 'ariq', kanal: 'kanal' }[els[ci][0]]) + ', qizil chiziqdan ' + String(Math.round(cx * 10) / 10).replace('.', ',') + ' m', 8.5, '#8f8a80');
       return { D: D, TT: TT };
     }
 
@@ -470,7 +482,8 @@ export default class Component extends DCLogic {
       bus: { n: 'Jamoat transporti boʻlagi', s: 'Avtobus', c: '#93a9d8', h: 0, ic: 'M5 4h14v13H5zM5 11h14M8 20v-3M16 20v-3' },
       tram: { n: 'Tramvay izi', s: 'Tramvay', c: '#e8dece', h: .02, ic: 'M7 3h10v14H7zM9 21l2-4M15 21l-2-4M12 3V1' },
       med: { n: 'Ajratuvchi tasma', s: 'Ajratuvchi', c: '#d9e7cd', h: .15, ic: 'M12 3v18M8 8h8M8 16h8' },
-      ariq: { n: 'Ariq / lotok', s: 'Ariq', c: '#cfe2ee', h: 0, ic: 'M3 9h3l2 7h8l2-7h3M8 13h8' }
+      ariq: { n: 'Ariq / lotok', s: 'Ariq', c: '#cfe2ee', h: 0, ic: 'M3 9h3l2 7h8l2-7h3M8 13h8' },
+      kanal: { n: 'Kanal / daryo', s: 'Kanal', c: '#bcd6e6', h: 0, ic: 'M3 8c2 0 2 2 4.5 2S10 8 12 8s2.5 2 4.5 2S19 8 21 8M3 14c2 0 2 2 4.5 2S10 14 12 14s2.5 2 4.5 2S19 14 21 14' }
     };
     Object.keys(T).forEach(function (k) { if (PK[k]) T[k].ic = PK[k]; });
     var ROAD = { qat: 1, bus: 1, park: 1, tram: 1 };
@@ -484,7 +497,7 @@ export default class Component extends DCLogic {
       qat: [['mashina', 'Mashina (grafika)', ''], ['zebra', 'Piyoda oʻtish joyi', 'YHQ']],
       bus: [['avtobus', 'Avtobus (grafika)', ''], ['bekat', 'Bekat paviloni', 'DK 5']],
       tram: [['tramvay', 'Tramvay (grafika)', ''], ['tayanch', 'Kontakt tarmogʻi tayanchi', '']],
-      med: [['daraxt', 'Daraxt', 'ShNQ 35-jad.'], ['fonar', 'Fonar', 'ShNQ 2.04.18-22'], ['orolcha', 'Piyoda orolchasi', 'YHQ']], ariq: [['yopiq', 'Yopiq lotok (panjara)', ''], ['koprik', 'Koʻprikcha', '']]
+      med: [['daraxt', 'Daraxt', 'ShNQ 35-jad.'], ['fonar', 'Fonar', 'ShNQ 2.04.18-22'], ['orolcha', 'Piyoda orolchasi', 'YHQ']], ariq: [['yopiq', 'Yopiq lotok (panjara)', ''], ['koprik', 'Koʻprikcha', '']], kanal: [['panjara', 'Qirgʻoq panjarasi', ''], ['koprik', 'Koʻprik', ''], ['qiya', 'Qiya qirgʻoq (devorsiz)', '']]
     };
     var RULE = {
       front: 'DK 3.3: B3 — piyodalar hududi va fasad orasidagi bufer: kirishlar, vitrinalar, terrasalar. Kichik terrasa eni 1,5–2 m (DK 13.3); U1 da faqat B3 da, piyodalar uchun ≥ 3 m buzilmasligi kerak (DK 13.4.1).',
@@ -496,7 +509,7 @@ export default class Component extends DCLogic {
       qat: 'ShNQ 2.07.06-24, 2-ilova 1-jadval: boʻlak eni toifaga bogʻliq (masalan, shahar 2-toifa 2,75–3,25, tuman va mahalliy 3,0–3,5). ShNQ 2.07.01-23 20-jadvalida esa 3,25–3,75 — ziddiyat, 311-band 2.07.06-24 ga yuboradi.',
       bus: 'ShNQ 20-jadval, 4-izoh: magistrallarda jamoat transporti uchun 3,75 m li alohida tasma. Bekatlar — DK 5.',
       tram: 'Daraxt tramvay yoʻli chetidan ≥ 5,0 m (ShNQ 35-jadval); yer osti tarmoqlari tramvay izidan ≥ 2,8 m (8-jadval).',
-      med: 'ShNQ 2.07.06-24: markaziy ajratuvchi 4 m (toʻsiq bilan 2 m gacha, 109-band); ≥ 5 m boʻlsa boshqa inshootlar mumkin (110-band); koʻkalamzorlashtirish mumkin (91-band). Daraxt uchun har ikki chetdan ≥ 2,0 m (2.07.01-23, 35-jadval).', ariq: 'Ariq / lotok — yomgʻir yoki sugʻorish suvi uchun ochiq yoki yopiq kanal. Koʻchalar boʻylab va kam qavatli hududlarda ochiq tizim kyuvet-lotok koʻrinishida boʻladi (ShNQ 2.07.01-23, 242-band); eng yirik, yirik va katta shaharlarda sugʻorish ariqlari betonli boʻladi (594-band). Eng kichik nishablik: alohida lotok va ariqlar 0,005, asfalt qatnov qismi lotoklari 0,003 (QMQ 2.04.03-19, 19-jadval); trapetsiya kesimli ariq kamida: tubi 0,3 m, chuqurligi 0,4 m (2.43-band). Daraxt ariq qirgʻogʻidan ≥ 2,0 m, buta ≥ 1,0 m (ShNQ 2.07.01-23, 35-jadval). Ustidan oʻtish joylarida koʻprikcha kerak.'
+      med: 'ShNQ 2.07.06-24: markaziy ajratuvchi 4 m (toʻsiq bilan 2 m gacha, 109-band); ≥ 5 m boʻlsa boshqa inshootlar mumkin (110-band); koʻkalamzorlashtirish mumkin (91-band). Daraxt uchun har ikki chetdan ≥ 2,0 m (2.07.01-23, 35-jadval).', ariq: 'Ariq / lotok — yomgʻir yoki sugʻorish suvi uchun ochiq yoki yopiq kanal. Koʻchalar boʻylab va kam qavatli hududlarda ochiq tizim kyuvet-lotok koʻrinishida boʻladi (ShNQ 2.07.01-23, 242-band); eng yirik, yirik va katta shaharlarda sugʻorish ariqlari betonli boʻladi (594-band). Eng kichik nishablik: alohida lotok va ariqlar 0,005, asfalt qatnov qismi lotoklari 0,003 (QMQ 2.04.03-19, 19-jadval); trapetsiya kesimli ariq kamida: tubi 0,3 m, chuqurligi 0,4 m (2.43-band). Daraxt ariq qirgʻogʻidan ≥ 2,0 m, buta ≥ 1,0 m (ShNQ 2.07.01-23, 35-jadval). Ustidan oʻtish joylarida koʻprikcha kerak.', kanal: 'Kanal / daryo — ochiq suv oqimi (masalan, Anhor, Boʻzsuv). Qirgʻoq boʻyida piyodalar uchun panjara (toʻsiq) qoʻyiladi; oʻtish joylarida koʻprik kerak. Suvni muhofaza qilish zonasi va qirgʻoq chizigʻi boʻyicha talablar alohida loyiha hujjatlari bilan belgilanadi — bu yerda faqat kesimdagi joyi koʻrsatiladi.'
     };
     // [kod, nom, rang, chuqurlik, poydevor(8-jad.), daraxt(35-jad.), yoʻl cheti(8-jad.), afzal zonalar, diametr m, 203-tartib, guruh]
     var UC = [
@@ -564,7 +577,7 @@ export default class Component extends DCLogic {
     var draw = [], txt = [], zhit = [], HND = [], UH = [], BB = [];
     /* DXF eksporti uchun: LYR — CAD qatlami (UI va DIMROW — eksportga kirmaydi), BK — takrorlanuvchi siluet nusxasi (blok) */
     var LYR = '', BK = '', BKN = 0;
-    var ZLY = { front: 'FRONTAGE', piy: 'FOOTWAY', yash: 'GREEN', mebel: 'FURNITURE', park: 'PARKING', qat: 'LANE', med: 'MEDIAN', ariq: 'WATER', velo: 'CYCLE', tram: 'TRAM', bus: 'BUS' };
+    var ZLY = { front: 'FRONTAGE', piy: 'FOOTWAY', yash: 'GREEN', mebel: 'FURNITURE', park: 'PARKING', qat: 'LANE', med: 'MEDIAN', ariq: 'WATER', kanal: 'CANAL', velo: 'CYCLE', tram: 'TRAM', bus: 'BUS' };
     function CADSIL(ly, nm, fn) { var o = LYR, ob = BK; LYR = ly; BK = nm + '#' + (++BKN); fn(); LYR = o; BK = ob; }
     function add(d, f, st, w, o, da, tr) { draw.push({ d: d, f: f || 'none', s: st || 'none', w: w || 0, o: o == null ? 1 : o, da: da || '', t: tr || '', ly: LYR, bk: BK }); }
     function tx(x, y, t, fs, c, fw, ff, an) { txt.push({ x: x.toFixed(1), y: y.toFixed(1), t: t, fs: fs || 11, c: c || '#141414', fw: fw || 400, ff: ff || 'Archivo, sans-serif', a: an || 'middle', ly: LYR, bk: BK }); }
@@ -647,7 +660,15 @@ export default class Component extends DCLogic {
       var pIdx = (s.tplName.length * 3) % 7, PPL = ['ayol_yurgan', 'erkak_yurgan', 'ona_bola', 'telefon', 'ayol_koylak', 'ryukzak', 'erkak_turgan', 'aravacha', 'ayol_sumka', 'qariya', 'yuguruvchi', 'erkak_palto', 'ayol_palto', 'qol_kotargan', 'erkak_3'];
       els.forEach(function (e, i) {
         var t = T[e[0]], x0 = X(zx[i][0]), x1 = X(zx[i][1]), w = x1 - x0, cx = (x0 + x1) / 2, top = G - t.h * px, f = e[2] || {}, on = s.sel === i && s.selU < 0, left = zx[i][0] < rl / 2, dir = left ? 1 : -1;
-        LYR = 'KS_ZONE_' + (ZLY[e[0]] || 'OTHER'); BK = ''; if (e[0] === 'ariq') { /* ariq / lotok: trapetsiya kanal (chuqurlik ~0,7 m), suv; yopiq — panjara; koʻprikcha */ var ad = Math.min(0.7, e[1] * 0.6) * px, ai = Math.min(w * 0.18, 0.25 * px); add('M' + x0 + ' ' + G + 'L' + (x0 + ai) + ' ' + (G + ad) + 'H' + (x1 - ai) + 'L' + x1 + ' ' + G + 'Z', '#ffffff', null, 0); add('M' + (x0 + ai * 0.5) + ' ' + (G + ad * 0.5) + 'L' + (x0 + ai) + ' ' + (G + ad) + 'H' + (x1 - ai) + 'L' + (x1 - ai * 0.5) + ' ' + (G + ad * 0.5) + 'Z', line ? '#ffffff' : '#bcd6e6', null, 0); add('M' + x0 + ' ' + G + 'L' + (x0 + ai) + ' ' + (G + ad) + 'H' + (x1 - ai) + 'L' + x1 + ' ' + G, null, INK, 1.2); add('M' + (x0 + ai * 0.5) + ' ' + (G + ad * 0.5) + 'H' + (x1 - ai * 0.5), null, '#4f86a8', 0.8); if (f.yopiq) add('M' + x0 + ' ' + (G - 0.6) + 'H' + x1, null, INK, 1.6, 1, '2 1.5'); if (f.koprik) add('M' + (x0 - 0.2 * px) + ' ' + (G - 0.15 * px) + 'H' + (x1 + 0.2 * px) + 'V' + G + 'H' + (x0 - 0.2 * px) + 'Z', line ? '#ffffff' : '#d8d2c6', INK, 0.8); } else add('M' + x0 + ' ' + top + 'H' + x1 + 'V' + (G + 6) + 'H' + x0 + 'Z', line ? '#ffffff' : t.c, INK, 0.8);
+        LYR = 'KS_ZONE_' + (ZLY[e[0]] || 'OTHER'); BK = ''; if (e[0] === 'kanal') { /* kanal / daryo: devorli (yoki qiya qirgʻoqli) oʻzan, suv sathi ~1,2 m pastda, tubi ~2,6 m; qirgʻoq panjarasi */ var kd = 2.6 * px, kw = 1.2 * px, wt = Math.min(0.35 * px, w * 0.08), sl = f.qiya ? Math.min(w * 0.32, 1.5 * kd) : 0, wsl = sl * (kw / kd), wy = G + kw;
+          add('M' + x0 + ' ' + G + 'L' + (x0 + sl) + ' ' + (G + kd) + 'H' + (x1 - sl) + 'L' + x1 + ' ' + G + 'Z', '#ffffff', null, 0);
+          add('M' + (x0 + wsl) + ' ' + wy + 'L' + (x0 + sl) + ' ' + (G + kd) + 'H' + (x1 - sl) + 'L' + (x1 - wsl) + ' ' + wy + 'Z', line ? '#ffffff' : '#bcd6e6', null, 0);
+          add('M' + (x0 + wsl + wt) + ' ' + wy + 'H' + (x1 - wsl - wt), null, '#4f86a8', 1.1);
+          for (var rq = x0 + wt + 0.6 * px; rq < x1 - wt - 0.9 * px; rq += 1.6 * px) add('M' + rq.toFixed(1) + ' ' + (wy + 0.35 * px).toFixed(1) + 'q' + (0.2 * px).toFixed(1) + ' ' + (-0.12 * px).toFixed(1) + ' ' + (0.4 * px).toFixed(1) + ' 0', null, '#4f86a8', 0.6);
+          if (!f.qiya) { [[x0, x0 + wt], [x1 - wt, x1]].forEach(function (r2) { add('M' + r2[0] + ' ' + (G - 0.25 * px) + 'H' + r2[1] + 'V' + (G + kd + 0.3 * px) + 'H' + r2[0] + 'Z', line ? '#ffffff' : '#d9d4ca', INK, 0.8); }); add('M' + x0 + ' ' + (G + kd) + 'H' + x1 + 'V' + (G + kd + 0.3 * px) + 'H' + x0 + 'Z', line ? '#ffffff' : '#d9d4ca', INK, 0.8); }
+          else add('M' + x0 + ' ' + G + 'L' + (x0 + sl) + ' ' + (G + kd) + 'H' + (x1 - sl) + 'L' + x1 + ' ' + G, null, INK, 1.2);
+          if (f.panjara !== false) [x0 + wt / 2, x1 - wt / 2].forEach(function (pxx) { add('M' + pxx + ' ' + (G - 0.25 * px) + 'V' + (G - 1.1 * px) + 'M' + (pxx - 0.12 * px) + ' ' + (G - 1.1 * px) + 'H' + (pxx + 0.12 * px), null, INK, 1.1); });
+        } else if (e[0] === 'ariq') { /* ariq / lotok: trapetsiya kanal (chuqurlik ~0,7 m), suv; yopiq — panjara; koʻprikcha */ var ad = Math.min(0.7, e[1] * 0.6) * px, ai = Math.min(w * 0.18, 0.25 * px); add('M' + x0 + ' ' + G + 'L' + (x0 + ai) + ' ' + (G + ad) + 'H' + (x1 - ai) + 'L' + x1 + ' ' + G + 'Z', '#ffffff', null, 0); add('M' + (x0 + ai * 0.5) + ' ' + (G + ad * 0.5) + 'L' + (x0 + ai) + ' ' + (G + ad) + 'H' + (x1 - ai) + 'L' + (x1 - ai * 0.5) + ' ' + (G + ad * 0.5) + 'Z', line ? '#ffffff' : '#bcd6e6', null, 0); add('M' + x0 + ' ' + G + 'L' + (x0 + ai) + ' ' + (G + ad) + 'H' + (x1 - ai) + 'L' + x1 + ' ' + G, null, INK, 1.2); add('M' + (x0 + ai * 0.5) + ' ' + (G + ad * 0.5) + 'H' + (x1 - ai * 0.5), null, '#4f86a8', 0.8); if (f.yopiq) add('M' + x0 + ' ' + (G - 0.6) + 'H' + x1, null, INK, 1.6, 1, '2 1.5'); if (f.koprik) add('M' + (x0 - 0.2 * px) + ' ' + (G - 0.15 * px) + 'H' + (x1 + 0.2 * px) + 'V' + G + 'H' + (x0 - 0.2 * px) + 'Z', line ? '#ffffff' : '#d8d2c6', INK, 0.8); } else add('M' + x0 + ' ' + top + 'H' + x1 + 'V' + (G + 6) + 'H' + x0 + 'Z', line ? '#ffffff' : t.c, INK, 0.8);
         if (e[0] === 'tram') { add('M' + (x0 + w * 0.25) + ' ' + (top - 1.5) + 'h3M' + (x1 - w * 0.25 - 3) + ' ' + (top - 1.5) + 'h3', null, INK, 2); }
         zhit.push({ x: x0.toFixed(1), y: 50, w: w.toFixed(1), h: G - 40, pick: (function (ii) { return function () { self.setState({ sel: ii, selU: -1 }); }; })(i) });
         { var _ly = LYR; LYR = 'UI'; if (on) add('M' + x0 + ' ' + (G + 10) + 'H' + x1, null, '#4c5bd4', 3); LYR = _ly; }
@@ -684,9 +705,9 @@ export default class Component extends DCLogic {
         { var _ly = LYR; LYR = 'UI'; if (on) { var fb = ufbOf(u, ev); tx(cx + r + 3, cy + 18, fb.s, 8, fb.c, 600, 'Archivo, sans-serif', 'start'); } LYR = _ly; }
         UH.push({ x: cx.toFixed(1), y: cy.toFixed(1), r: (r + 5).toFixed(1), down: udown(j, true) }); });
       // zona kodlari
-      var CODE = { front: 'B3', piy: 'P', mebel: 'B1', yash: 'B2', velo: 'V', park: 'AT', qat: 'H', bus: 'JT', tram: 'TR', med: 'AJ', ariq: 'AR' };
+      var CODE = { front: 'B3', piy: 'P', mebel: 'B1', yash: 'B2', velo: 'V', park: 'AT', qat: 'H', bus: 'JT', tram: 'TR', med: 'AJ', ariq: 'AR', kanal: 'KN' };
       /* zona kodlari tilga qarab (B1–B3 — Dizayn-kod belgisi, oʻzgarmaydi) */
-      var CODEL = { en: { piy: 'P', velo: 'CY', park: 'PK', qat: 'TL', bus: 'BL', tram: 'TR', med: 'MD', ariq: 'DT' }, ru: { piy: 'П', velo: 'ВД', park: 'ПС', qat: 'ПД', bus: 'ОТ', tram: 'ТР', med: 'РП', ariq: 'АР' } }[getLang()]; if (CODEL) CODE = Object.assign({}, CODE, CODEL);
+      var CODEL = { en: { piy: 'P', velo: 'CY', park: 'PK', qat: 'TL', bus: 'BL', tram: 'TR', med: 'MD', ariq: 'DT', kanal: 'CN' }, ru: { piy: 'П', velo: 'ВД', park: 'ПС', qat: 'ПД', bus: 'ОТ', tram: 'ТР', med: 'РП', ariq: 'АР', kanal: 'КН' } }[getLang()]; if (CODEL) CODE = Object.assign({}, CODE, CODEL);
       LYR = 'KS_DIM'; var D1 = GB + 34, D2 = D1 + 30, D3 = D2 + 26, NW = 0;
       els.forEach(function (e, i) { var x0 = X(zx[i][0]), x1 = X(zx[i][1]), cx = (x0 + x1) / 2, on = s.sel === i && s.selU < 0, cw = Math.min(Math.max(14, CODE[e[0]].length * 6 + 8), Math.max(10, (X(zx[i][1]) - X(zx[i][0])) - 1));
         LYR = 'KS_TEXT'; add(Rr(cx - cw / 2, GB + 10, cw, 13, 6.5), line ? '#ffffff' : T[e[0]].c, INK, 0.6); tx(cx, GB + 19.5, CODE[e[0]], 7.5, INK, 700, 'IBM Plex Mono, monospace'); if (on) { LYR = 'UI'; add(Rr(cx - cw / 2, GB + 10, cw, 13, 6.5), '#4c5bd4', null, 0); tx(cx, GB + 19.5, CODE[e[0]], 7.5, '#ffffff', 700, 'IBM Plex Mono, monospace'); LYR = 'KS_TEXT'; }
@@ -697,7 +718,7 @@ export default class Component extends DCLogic {
         /* tashqi chetlar (qizil chiziqlar): chetdagi zona eni va qizil chiziqlar orasi birga oʻzgaradi */
         [[-1, X(0)], [1, X(rl)]].forEach(function (q) { HND.push({ x: (q[1] - 5).toFixed(1), y: (GB + 6).toFixed(1), w: 10, h: (D1 + 8 - GB - 6).toFixed(1), down: edown(q[0]) }); add('M' + (q[1] - 1.6) + ' ' + (D1 + 7) + 'v5M' + (q[1] + 1.6) + ' ' + (D1 + 7) + 'v5', null, '#c0392b', 1); }); LYR = _ly; }
       // guruhlar
-      LYR = 'KS_DIM'; var GRP = { front: 'Trotuar', piy: 'Trotuar', mebel: 'Trotuar', yash: 'Trotuar', velo: 'Velo yoʻlak', park: 'Qatnov qismi', qat: 'Qatnov qismi', bus: 'Qatnov qismi', tram: 'Tramvay', med: 'Ajratuvchi', ariq: 'Ariq' }, gr = [];
+      LYR = 'KS_DIM'; var GRP = { front: 'Trotuar', piy: 'Trotuar', mebel: 'Trotuar', yash: 'Trotuar', velo: 'Velo yoʻlak', park: 'Qatnov qismi', qat: 'Qatnov qismi', bus: 'Qatnov qismi', tram: 'Tramvay', med: 'Ajratuvchi', ariq: 'Ariq', kanal: 'Kanal' }, gr = [];
       els.forEach(function (e, i) { var gname = GRP[e[0]], lg = gr[gr.length - 1]; if (lg && lg.n === gname) lg.b = zx[i][1]; else gr.push({ n: gname, a: zx[i][0], b: zx[i][1] }); });
       gr.forEach(function (q) { var x0 = X(q.a), x1 = X(q.b); add('M' + x0 + ' ' + (D2 - 4) + 'V' + (D2 + 4) + 'M' + x1 + ' ' + (D2 - 4) + 'V' + (D2 + 4) + 'M' + x0 + ' ' + D2 + 'H' + x1, null, LIGHT, 0.8); var lab = (x1 - x0) > 46 ? tr(q.n) + ' ' + fm(q.b - q.a) : fm(q.b - q.a); tx((x0 + x1) / 2, D2 - 3, lab, 8, '#3a3936', 500, 'Archivo, sans-serif'); });
       LYR = 'DIMROW'; add('M' + X(0) + ' ' + D3 + 'H' + X(rl), null, INK, 1); add('M' + X(0) + ' ' + (D3 - 5) + 'V' + (D3 + 5) + 'M' + X(rl) + ' ' + (D3 - 5) + 'V' + (D3 + 5), null, INK, 1);
@@ -775,6 +796,13 @@ export default class Component extends DCLogic {
         var pr = els[i - 1], edge = !pr || ((t.h > 0.05) !== (T[pr[0]].h > 0.05));
         add('M' + x0 + ' ' + Y0 + 'V' + Y1, null, edge ? INK : '#bdb9b1', edge ? 1.2 : 0.5);
         zhit.push({ x: x0.toFixed(1), y: Y0, w: w.toFixed(1), h: Y1 - Y0, pick: (function (ii) { return function () { self.setState({ sel: ii, selU: -1 }); }; })(i) });
+        /* kanal (reja): suv, toʻlqin belgilari, qirgʻoq devori / qiya qirgʻoq, panjara, koʻprik */
+        if (e[0] === 'kanal') { var kb = f.qiya ? Math.min(w * 0.3, 1.5 * px) : Math.min(0.35 * px, w * 0.08);
+          add('M' + x0 + ' ' + Y0 + 'H' + (x0 + kb) + 'V' + Y1 + 'H' + x0 + 'Z' + 'M' + (x1 - kb) + ' ' + Y0 + 'H' + x1 + 'V' + Y1 + 'H' + (x1 - kb) + 'Z', line ? '#ffffff' : (f.qiya ? '#cfe0b8' : '#d9d4ca'), INK, 0.6);
+          for (var wy2 = Y0 + 1.5 * px; wy2 < Y1 - 0.5 * px; wy2 += 2.6 * px) for (var wx2 = x0 + kb + 0.5 * px; wx2 < x1 - kb - 1.1 * px; wx2 += 1.8 * px) add('M' + wx2.toFixed(1) + ' ' + (wy2 + ((wx2 - x0) % 2)).toFixed(1) + 'q' + (0.3 * px).toFixed(1) + ' ' + (-0.25 * px).toFixed(1) + ' ' + (0.6 * px).toFixed(1) + ' 0t' + (0.6 * px).toFixed(1) + ' 0', null, '#4f86a8', 0.7);
+          if (f.panjara !== false) [x0 + kb * 0.5, x1 - kb * 0.5].forEach(function (rx) { add('M' + rx + ' ' + Y0 + 'V' + Y1, null, INK, 1.2, 1, (0.15 * px) + ' ' + (1.2 * px)); add('M' + rx + ' ' + Y0 + 'V' + Y1, null, INK, 0.5); });
+          if (f.koprik) { var kby = YM(LM * 0.5), kbl = 4 * px; add('M' + (x0 - 0.3 * px) + ' ' + (kby - kbl / 2) + 'H' + (x1 + 0.3 * px) + 'V' + (kby + kbl / 2) + 'H' + (x0 - 0.3 * px) + 'Z', line ? '#ffffff' : '#ece6da', INK, 1); [kby - kbl / 2 + 0.2 * px, kby + kbl / 2 - 0.2 * px].forEach(function (ry) { add('M' + x0 + ' ' + ry + 'H' + x1, null, INK, 0.7); }); }
+          tx(cx, YM(LM * 0.5) + (f.koprik ? 3.4 * px : 0), tr('Kanal'), 8.5, '#4f86a8', 600, 'Archivo, sans-serif'); }
         if (hasZ && ROAD[e[0]] && e[0] !== 'park') for (var zb = x0 + 0.25 * px; zb < x1 - 0.3 * px; zb += 1.0 * px) add('M' + zb + ' ' + YM(ZB) + 'h' + (0.5 * px) + 'v' + (4 * px) + 'h' + (-0.5 * px) + 'Z', '#ffffff', line ? INK : null, line ? 0.4 : 0);
         if (e[0] === 'qat') { var nx = els[i + 1]; if (nx && nx[0] === 'qat') add('M' + x1 + ' ' + YM(ZB + 6) + 'V' + Y1, null, line ? INK : '#ffffff', 1.4, 1, (3 * px) + ' ' + (6 * px)); if (f.mashina !== false) [0, 1].forEach(function (k2) { if ((i + k2) % 2 === 0) AS.pMashina(L, cx, YM(12 + k2 * 17), px, !left); }); laneArrow(cx, YM(i % 2 ? 10 : Math.min(27, LM - 6)), px, laneUp(f, left), f.man); /* uchastka 25 m boʻlsa ham koʻrinadi */ if (LM > 44) laneArrow(cx, YM(LM - 5), px, laneUp(f, left), f.man); }
         if (e[0] === 'bus') { if (f.avtobus !== false) AS.pAvtobus(L, cx, YM(LM * 0.6), px, !left); tx(cx, YM(9), 'A', 13, line ? INK : '#ffffff', 700); laneArrow(cx, YM(LM * 0.32), px, laneUp(f, left), f.man); }
@@ -955,8 +983,8 @@ export default class Component extends DCLogic {
     SH.push({ l: pv(0), down: edown(-1) }, { l: pv(rl), down: edown(1) });
     /* tayyor kesimlar: Koʻchasoz namunalari + Master reja profillari (guruhlab) */
     var MRG = [{ id: 'mr-asosiy', n: 'Asosiy', list: PROFILES }].concat(Array.from(new Set(PRESET_PROFILES.map(function (p) { return p.group; }))).map(function (g) { return { id: 'mr-' + g, n: g, list: PRESET_PROFILES.filter(function (p) { return p.group === g; }) }; }));
-    var tg = s.tg || 'ks', TG = [{ id: 'ks', n: 'Namunalar', c: s.TPL.length }].concat(MRG.map(function (g) { return { id: g.id, n: g.n, c: g.list.length }; }));
-    var TL = tg === 'ks' ? s.TPL : ((MRG.filter(function (g) { return g.id === tg; })[0] || MRG[0]).list.map(function (p) { var k2 = profileToKs(p); return [p.name, null, k2.els, k2.sk, k2.uk, []]; }));
+    var MY = s.MY || [], tg = s.tg || 'ks', TG = [{ id: 'my', n: 'Mening kesimlarim', c: MY.length }, { id: 'ks', n: 'Namunalar', c: s.TPL.length }].concat(MRG.map(function (g) { return { id: g.id, n: g.n, c: g.list.length }; }));
+    var TL = tg === 'my' ? MY : tg === 'ks' ? s.TPL : ((MRG.filter(function (g) { return g.id === tg; })[0] || MRG[0]).list.map(function (p) { var k2 = profileToKs(p); return [p.name, null, k2.els, k2.sk, k2.uk, []]; }));
     var isPlanZone = s.selU < 0, cz = Math.min(s.sel, els.length - 1);
     var used2 = Math.round(used * 100) / 100;
     return {
@@ -966,11 +994,18 @@ export default class Component extends DCLogic {
       sks: Object.keys(SKP).map(function (k) { return { n: SKP[k][0], t: SKP[k][6], p: s.sk === k ? 'true' : 'false', pick: function () { self.setState({ sk: k }); } }; }),
       uks: Object.keys(DKP).map(function (k) { return { n: k === 'M1' ? 'M1–M2' : k, t: DKP[k][6], p: s.uk === k ? 'true' : 'false', pick: function () { self.setState({ uk: k }); } }; }),
       lims: [['Boʻlak eni (2.07.06)', sk[1] ? fm(sk[1]) + '–' + fm(sk[2]) : '—'], ['Piyoda (ShNQ)', sk[3] ? '≥ ' + fm(sk[3]) : '—'], ['Piyoda (DK)', '≥ ' + fm(dk[0]) + ' · ' + fm(dk[1])], ['B1 / B2 / B3', fm(dk[2]) + ' / ' + fm(dk[3]) + ' / ' + fm(dk[4])]].map(function (l) { return { n: l[0], v: l[1] }; }),
+      /* oʻz kesimi: boʻsh kesimdan boshlash va joriy kesimni «Mening kesimlarim» ga saqlash (nom — koʻcha nomi, bosib oʻzgartiriladi) */
+      newBlank: function () { self.setState({ els: [['piy', 3, {}], ['qat', 3.5, { zebra: true }], ['qat', 3.5, { zebra: true }], ['piy', 3, {}]], rl: 13, tplName: tr('Yangi kesim'), sel: 1, selU: -1, U: [], PL: [] }); },
+      saveMine: function () { var st0 = self.state, nm = st0.tplName || tr('Mening kesimim'), list = (st0.MY || []).filter(function (m) { return m[0] !== nm; });
+        if ((st0.TPL || []).some(function (t) { return t[0] === nm; })) { var n = 2; while (list.some(function (m) { return m[0] === nm + ' (' + n + ')'; })) n++; nm = nm + ' (' + n + ')'; }
+        list.unshift([nm, null, st0.els.map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }), st0.sk, st0.uk, (st0.PL || []).map(function (p) { return Object.assign({}, p); })]);
+        self.setState({ MY: list, tplName: nm, tg: 'my', tOpen: true }); },
+      myEmpty: tg === 'my' && !MY.length,
       tgs: TG.map(function (g) { return { n: g.n, c: g.c, p: tg === g.id ? 'true' : 'false', pick: function () { self.setState({ tg: g.id, tgMenu: false }); } }; }),
       tOpen: s.tOpen === false ? 'false' : 'true', tOpenB: s.tOpen !== false, tToggle: function () { self.setState({ tOpen: self.state.tOpen === false, tgMenu: false }); },
       tgMenu: s.tgMenu ? 'true' : 'false', tgMenuB: !!s.tgMenu, tgToggle: function () { self.setState({ tgMenu: !self.state.tgMenu }); },
       tgCur: (TG.filter(function (g) { return g.id === tg; })[0] || TG[0]).n, tCount: String(TG.reduce(function (a, g) { return a + g.c; }, 0)),
-      tpls: TL.map(function (t) { var w = 0; t[2].forEach(function (e) { w += e[1]; }); return { n: t[0], u: t[4], w: fm(w), th: thumb(t[2]), p: s.tplName === t[0] ? 'true' : 'false', pick: function () { self.setState({ els: t[2].map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }), rl: Math.round(w * 100) / 100, tplName: t[0], sk: t[3], uk: t[4], sel: 0, selU: -1, U: [], PL: (t[5] || []).map(function (p) { return Object.assign({}, p); }) }); } }; }),
+      tpls: TL.map(function (t) { var w = 0; t[2].forEach(function (e) { w += e[1]; }); return { n: t[0], u: t[4], w: fm(w), th: thumb(t[2]), p: s.tplName === t[0] ? 'true' : 'false', del: tg === 'my' ? function () { self.setState({ MY: (self.state.MY || []).filter(function (m) { return m[0] !== t[0]; }) }); } : null, pick: function () { self.setState({ els: t[2].map(function (e) { return [e[0], e[1], Object.assign({}, e[2] || {})]; }), rl: Math.round(w * 100) / 100, tplName: t[0], sk: t[3], uk: t[4], sel: 0, selU: -1, U: [], PL: (t[5] || []).map(function (p) { return Object.assign({}, p); }) }); } }; }),
       edL: EDGES.map(function (q) { return { n: q[1], p: String((s.eL || 'bino') === q[0]), pick: function () { self.setState({ eL: q[0] }); } }; }),
       edR: EDGES.map(function (q) { return { n: q[1], p: String((s.eR || 'bino') === q[0]), pick: function () { self.setState({ eR: q[0] }); } }; }),
       bLb: (s.eL || 'bino') === 'bino', bRb: (s.eR || 'bino') === 'bino',
@@ -1008,7 +1043,7 @@ export default class Component extends DCLogic {
       mvL: function () { upd(function (E, i) { if (i > 0) { var t = E[i]; E[i] = E[i - 1]; E[i - 1] = t; return { sel: i - 1, PL: remapPL(function (z) { return z === i ? i - 1 : z === i - 1 ? i : z; }) }; } }); }, mvR: function () { upd(function (E, i) { if (i < E.length - 1) { var t = E[i]; E[i] = E[i + 1]; E[i + 1] = t; return { sel: i + 1, PL: remapPL(function (z) { return z === i ? i + 1 : z === i + 1 ? i : z; }) }; } }); },
       dup: function () { upd(function (E, i) { E.splice(i + 1, 0, [E[i][0], E[i][1], Object.assign({}, E[i][2])]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); },
       del: function () { upd(function (E, i) { if (E.length > 1) { E.splice(i, 1); return { sel: Math.max(0, i - 1), PL: remapPL(function (z) { return z === i ? -1 : z > i ? z - 1 : z; }) }; } }); },
-      adds: Object.keys(T).map(function (k) { return { n: T[k].s, c: T[k].c, pick: function () { upd(function (E, i) { E.splice(i + 1, 0, [k, k === 'qat' || k === 'bus' ? 3.5 : (k === 'tram' ? 3.1 : (k === 'mebel' ? 0.6 : k === 'ariq' ? 1 : 1.5)), defItems(k)]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); } }; }),
+      adds: Object.keys(T).map(function (k) { return { n: T[k].s, c: T[k].c, pick: function () { upd(function (E, i) { E.splice(i + 1, 0, [k, k === 'qat' || k === 'bus' ? 3.5 : (k === 'tram' ? 3.1 : (k === 'mebel' ? 0.6 : k === 'ariq' ? 1 : k === 'kanal' ? 6 : 1.5)), defItems(k)]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); } }; }),
       u: su ? { k: ulbl(su.k), n: suc[1], c: suc[2], x: fm(su.x) + ' m', d: fm(su.d) + ' m', zone: 'Ostida: ' + (szt === 'setback' ? 'qizil chiziqdan tashqari (qurilish oldi)' : T[szt].n), rows: sev.rows } : { k: '', n: '', c: '#000', x: '', d: '', zone: '', rows: [] },
       uxD: function () { updU(function (N, j) { N[j].x = Math.max(-SB, Math.round((N[j].x - 0.1) * 10) / 10); }); }, uxU: function () { updU(function (N, j) { N[j].x = Math.min(self.state.rl + SB, Math.round((N[j].x + 0.1) * 10) / 10); }); },
       udD: function () { updU(function (N, j) { N[j].d = Math.max(0.5, Math.round((N[j].d - 0.1) * 10) / 10); }); }, udU: function () { updU(function (N, j) { N[j].d = Math.round((N[j].d + 0.1) * 10) / 10; }); },

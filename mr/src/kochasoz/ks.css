@@ -214,3 +214,12 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 .ws-b .ks-man button{height:36px;border:0;border-radius:10px;background:var(--fill);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .ws-b .ks-man button:hover{background:var(--hairline)}
 .ws-b .ks-man button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+
+/* B: oʻz kesimi — boʻsh kesim, saqlash, oʻchirish */
+.ws-b .ks-mybar{display:flex;gap:6px;margin:2px 0 4px}.ws-b .ks-mybar .tb{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.ws-b .ks-tplw{position:relative}
+.ws-b .ks-tpldel{position:absolute;top:6px;right:6px;width:26px;height:26px;border:0;border-radius:var(--r-pill);background:var(--surface);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12);opacity:0;transition:opacity .16s}
+.ws-b .ks-tplw:hover .ks-tpldel,.ws-b .ks-tpldel:focus-visible{opacity:1}.ws-b .ks-tpldel:hover{color:#b23a2e}
+@media (hover:none){.ws-b .ks-tpldel{opacity:1}}
+.ks-numed.ks-nmed{width:220px;text-align:left;font:600 14px var(--sans)}
+.ws-b .ks-mybar svg.ic{width:14px;height:14px}

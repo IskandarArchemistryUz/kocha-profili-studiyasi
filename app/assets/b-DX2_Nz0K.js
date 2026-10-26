@@ -6,7 +6,7 @@ var e=`<div class="ws ws-b {{pCls}}">
   <button class="ks-ptog r" type="button" data-ptog="r" aria-pressed="{{pRoff}}" aria-label="{{pRlab}}" title="{{pRlab}}" onClick="{{pRt}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><path d="M14.5 4.5v15"></path><path class="ar" d="M10 10l-2 2 2 2"></path></svg></button>
 
   <aside class="panel" style="position: absolute; top: 76px; left: 12px; width: 262px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; z-index: 2;">
-    <div><span class="t-foot">Koʻcha</span><b style="display: block; font-size: 17px;">{{tplName}}</b><span class="t-foot">Qizil chiziqlar orasi <b style="color: #141414;" class="ks-edn" data-ed="rl" title="Bosib, qiymat kiriting">{{rl}} m</b></span></div>
+    <div><span class="t-foot">Koʻcha</span><b style="display: block; font-size: 17px;" class="ks-edn" data-ed="nm" title="Bosib, nomini oʻzgartiring">{{tplName}}</b><span class="t-foot">Qizil chiziqlar orasi <b style="color: #141414;" class="ks-edn" data-ed="rl" title="Bosib, qiymat kiriting">{{rl}} m</b></span></div>
     <span class="lbl">ShNQ toifasi · 2.07.06-24</span>
     <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{sks}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}" title="{{c.t}}">{{c.n}}</button></sc-for></div>
     <span class="t-foot" style="margin-top: -4px;">{{skFull}}</span>
@@ -19,10 +19,12 @@ var e=`<div class="ws ws-b {{pCls}}">
         <div class="ks-dd-wrap"><button class="ks-dd" type="button" aria-haspopup="listbox" aria-expanded="{{tgMenu}}" onClick="{{tgToggle}}"><span>{{tgCur}}</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
           <sc-if value="{{tgMenuB}}"><div class="ks-menu" role="listbox"><sc-for list="{{tgs}}" as="g"><button type="button" role="option" aria-selected="{{g.p}}" onClick="{{g.pick}}"><span>{{g.n}}</span><span class="t-foot num">{{g.c}}</span></button></sc-for></div></sc-if>
         </div>
-        <sc-for list="{{tpls}}" as="t"><button class="tpl" aria-pressed="{{t.p}}" onClick="{{t.pick}}">
+        <div class="ks-mybar"><button class="tb" type="button" data-blank="1" onClick="{{newBlank}}"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Boʻsh kesim</button><button class="tb" type="button" data-savemine="1" onClick="{{saveMine}}"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h10l3 3v13H5V4h1zM8 4v5h7V4M8 20v-6h8v6"></path></svg>Saqlash</button></div>
+        <sc-if value="{{myEmpty}}"><div class="note">Hali saqlangan kesim yoʻq. «Boʻsh kesim» bilan boshlang yoki joriy kesimni «Saqlash» bilan shu yerga qoʻshing.</div></sc-if>
+        <sc-for list="{{tpls}}" as="t"><div class="ks-tplw"><button class="tpl" aria-pressed="{{t.p}}" onClick="{{t.pick}}">
       <svg viewBox="0 0 230 62" style="width: 100%; display: block;" aria-hidden="true"><sc-for list="{{t.th}}" as="q"><path d="{{q.d}}" fill="{{q.f}}" stroke="{{q.s}}" stroke-width="{{q.w}}"></path></sc-for></svg>
       <span style="display: flex; justify-content: space-between; font-size: 12.5px;"><b style="font-weight: 600;">{{t.n}}</b><span class="t-foot num">{{t.w}} m · {{t.u}}</span></span>
-    </button></sc-for>
+    </button><sc-if value="{{t.del}}"><button class="ks-tpldel" type="button" onClick="{{t.del}}" aria-label="Kesimni oʻchirish" title="Kesimni oʻchirish"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></sc-if></div></sc-for>
       </div></sc-if>
     </section>
     <span class="lbl" style="margin-top: 2px;">Chetlar</span>

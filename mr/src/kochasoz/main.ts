@@ -183,6 +183,15 @@ const fmn = (v: number) => { const t = String(Math.round(v * 100) / 100); return
 function numEdit(t: HTMLElement): void {
   if (!current || current.id !== 'b') return;
   const inst = current.m.inst, st = inst.state as unknown as BSt, kind = t.dataset.ed!;
+  if (kind === 'nm') {   // koʻcha (kesim) nomi — matn
+    document.querySelector('.ks-numed')?.remove();
+    const r0 = t.getBoundingClientRect(), ti = h('input', { class: 'ks-numed ks-nmed', type: 'text', maxlength: '60', 'aria-label': tr('Kesim nomi'), value: String((inst.state as { tplName?: string }).tplName ?? '') }) as HTMLInputElement;
+    ti.style.left = `${Math.round(r0.left - 4)}px`; ti.style.top = `${Math.round(r0.top + r0.height / 2 - 15)}px`;
+    document.body.append(ti); ti.focus(); ti.select(); let fin = false;
+    const end = (ok: boolean) => { if (fin) return; fin = true; const v = ti.value.trim(); ti.remove(); if (ok && v) inst.setState({ tplName: v } as never); };
+    ti.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); end(true); } else if (e.key === 'Escape') { e.preventDefault(); end(false); } });
+    ti.addEventListener('blur', () => end(true)); return;
+  }
   let ei = -1, val: number, lo: number, hi: number;
   if (kind === 'w') { const b = t.closest<HTMLElement>('.blk'); if (!b || b.dataset.ei === '') return; ei = Number(b.dataset.ei); val = st.els[ei]?.[1]; lo = 0.3; hi = 40; }
   else if (kind === 'zw') { ei = Math.min(st.sel, st.els.length - 1); val = st.els[ei]?.[1]; lo = 0.3; hi = 40; }
