@@ -223,3 +223,8 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 @media (hover:none){.ws-b .ks-tpldel{opacity:1}}
 .ks-numed.ks-nmed{width:220px;text-align:left;font:600 14px var(--sans)}
 .ws-b .ks-mybar svg.ic{width:14px;height:14px}
+
+/* B: kanal paneli */
+.ws-b .ks-krow{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:2px 0}.ws-b .ks-krow b{font-weight:600;padding:2px 6px}
+.ws-b .ks-kres{display:grid;grid-template-columns:1fr;gap:1px;padding:8px 10px;border-radius:10px;background:var(--fill);font-size:12px}
+.ws-b .ks-kres span{color:var(--muted)}.ws-b .ks-kres b{font-weight:600;margin-bottom:5px;line-height:1.35}.ws-b .ks-kres b:last-child{margin-bottom:0}
