@@ -343,3 +343,25 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .joy-place .pl{font-variant-numeric:tabular-nums;color:var(--ink-2)}
 .joy-place .nb{align-self:flex-start;border-radius:999px;padding:1px 8px;font-size:11px;background:var(--fill)}
 .joy-place .nb.intl{background:color-mix(in srgb,#e0a400 22%,transparent);color:var(--ink)}
+/* 26.10 · V1: qatlam belgilari, guruh ranglari, faol (fokus) qatlam */
+.lic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.joy-gl{display:flex;align-items:center;gap:7px}
+.joy-gl i{width:8px;height:8px;border-radius:2px;flex:none}
+.joy-l{border-radius:10px;margin:0 -4px;padding:2px 4px;transition:background .15s}
+.joy-l .lt,.joy-card header .lt{flex:none;display:grid;place-items:center;border:0;padding:0;cursor:pointer;font:inherit}
+.joy-l .lt{width:30px;height:30px;border-radius:9px;background:var(--fill);color:var(--muted)}
+.joy-l.on .lt{color:var(--lc)}
+.joy-l.act{background:color-mix(in srgb,var(--lc) 11%,transparent)}
+.joy-l.act .lt{background:var(--lc);color:#fff}
+.joy-l.act .nm{font-weight:600}
+.joy-l .nm{cursor:pointer}
+.joy-l.soon .lt{opacity:.55;cursor:default}
+.joy-l .lt:focus-visible,.joy-card header .lt:focus-visible{outline:2px solid var(--lc);outline-offset:2px}
+.joy-fhint{margin:8px 2px 0;line-height:1.4}
+.joy-card header .lt{width:24px;height:24px;border-radius:7px;color:var(--lc);background:color-mix(in srgb,var(--lc) 14%,transparent)}
+.joy-card header .lic{width:15px;height:15px}
+.joy-card.focus{box-shadow:var(--sh-float),inset 3px 0 0 var(--lc)}
+.joy-card.focus header{font-size:14px;color:var(--ink)}
+.joy-card.focus header .lt{width:34px;height:34px;border-radius:10px;background:var(--lc);color:#fff}
+.joy-card.focus header .lic{width:19px;height:19px}
+.joy-card.focus .big{font-size:30px}
