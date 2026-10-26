@@ -61,6 +61,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`quyosh gum
   const dome = () => page.evaluate(() => { let n = 0; (window as any).joyAxo.groups.get('quyosh').traverse((o: any) => { if (o.userData.day != null) n++; }); return n; });
   await page.locator('#axSun button', { hasText: 'Quyosh gumbazi' }).click();
   await expect.poll(dome).toBeGreaterThan(0);
+  const sweep = () => page.evaluate(() => { let n = 0; (window as any).joyAxo.groups.get('quyosh').traverse((o: any) => { if (o.userData.sweep) n++; }); return n; });
+  await expect.poll(sweep).toBe(1);
   await page.locator('#axSun button', { hasText: 'Yelpigʻich' }).click();
   await expect(page.locator('#axSun button', { hasText: 'Yelpigʻich' })).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#axSun button', { hasText: 'Quyosh gumbazi' }).click();
