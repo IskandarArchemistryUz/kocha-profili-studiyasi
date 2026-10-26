@@ -39,6 +39,7 @@ import { windAt } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { layerIcon, GROUP_COL } from './layerIcons';
+import { windFlow } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFile, wmRaster } from '../core/wm';
@@ -656,11 +657,13 @@ function addOverlays(): void {
   m.addSource('joy-noise', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-noise', type: 'raster', source: 'joy-noise', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
   // izochiziqlar (relyef — topo, issiqlik — izotermalar, shovqin — izofonlar) va nishab strelkalari
-  for (const id of ['joy-topo', 'joy-iso', 'joy-arr']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  for (const id of ['joy-topo', 'joy-iso', 'joy-arr', 'joy-wind']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  m.addLayer({ id: 'joy-wind', type: 'line', source: 'joy-wind', layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['get', 'w'], 'line-opacity': 0.85 } } as never);
   m.addLayer({ id: 'joy-topo', type: 'line', source: 'joy-topo', layout: { visibility: 'none', 'line-join': 'round' }, paint: { 'line-color': isDark() ? '#d8c6aa' : '#6e4f33', 'line-width': ['case', ['get', 'mj'], 1.4, 0.6], 'line-opacity': 0.8 } } as never);
   m.addLayer({ id: 'joy-topo-l', type: 'symbol', source: 'joy-topo', filter: ['get', 'mj'], layout: { visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 320, 'text-field': ['get', 'lb'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-keep-upright': true }, paint: { 'text-color': isDark() ? '#e8dcc6' : '#5a3f28', 'text-halo-color': isDark() ? '#16171a' : '#ffffff', 'text-halo-width': 1.6 } } as never);
   m.addLayer({ id: 'joy-iso', type: 'line', source: 'joy-iso', layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['case', ['get', 'mj'], 2.4, 1.2], 'line-opacity': 0.9 } } as never);
   if (!m.hasImage('joy-arrow')) { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d')!; g.strokeStyle = g.fillStyle = '#fff'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath(); g.moveTo(16, 28); g.lineTo(16, 8); g.stroke(); g.beginPath(); g.moveTo(16, 3); g.lineTo(23, 12); g.lineTo(9, 12); g.closePath(); g.fill(); m.addImage('joy-arrow', g.getImageData(0, 0, 32, 32), { pixelRatio: 2, sdf: true }); }
+  m.addLayer({ id: 'joy-wind-a', type: 'symbol', source: 'joy-wind', filter: ['get', 'h'], layout: { visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 260, 'icon-image': 'joy-arrow', 'icon-rotate': 90, 'icon-size': 0.7, 'icon-allow-overlap': true, 'icon-rotation-alignment': 'map' }, paint: { 'icon-color': ['get', 'c'] } } as never);
   m.addLayer({ id: 'joy-arr', type: 'symbol', source: 'joy-arr', layout: { visibility: 'none', 'icon-image': 'joy-arrow', 'icon-rotate': ['get', 'r'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['get', 's'] }, paint: { 'icon-color': isDark() ? '#f4dcb4' : '#7a3a1c' } } as never);
   m.addLayer({ id: 'joy-walk', type: 'line', source: 'joy-walk', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['match', ['get', 'b'], 0, '#3f3a9e', 1, '#7b74d6', '#b9b4ef'], 'line-width': ['match', ['get', 'b'], 0, 3.5, 1, 2.6, 2] } } as never);
   m.addLayer({ id: 'joy-flow', type: 'line', source: 'joy-flow', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['interpolate', ['linear'], ['get', 'f'], 0.1, '#c9d4f5', 0.5, '#6f82e0', 1, '#1f2f9e'], 'line-width': ['interpolate', ['linear'], ['get', 'f'], 0.1, 1, 1, 7], 'line-opacity': 0.9 } } as never);
@@ -680,7 +683,7 @@ function addOverlays(): void {
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '';
-const HUD_LAYERS = ['joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   const m = map;
   if (isK()) {
@@ -737,6 +740,7 @@ function paintH(): void {
     m.setLayoutProperty('joy-shadow', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-shadow', 'visibility', 'none');
   paintIso(m);
+  paintWind(m);
   focusMap(m);
   // legenda: nishab va xizmatlar
   const lg: Node[] = [];
@@ -798,6 +802,36 @@ function paintIso(m: MLMap): void {
   (m.getSource('joy-arr') as GeoJSONSource).setData(fc(arr) as never);
   (m.getSource('joy-iso') as GeoJSONSource).setData(fc(iso) as never);
 }
+/** Planda shamol oqimi: oqim chiziqlari binolarni aylanib oʻtadi; rang va qalinlik — nisbiy tezlik */
+let windKey = '', windRaf = 0;
+function paintWind(m: MLMap): void {
+  const w = windV(), vw = V('shamol'), on = isOn('shamol') && !!w && vw.st === 'oqim';
+  for (const id of ['joy-wind', 'joy-wind-a']) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+  windAnim(m, on);
+  if (!on || !w) return;
+  if (!axBundle && !axBusy) void needCtx();
+  const key = [S.c.join(), S.r, w.w.k, axBundle?.key ?? '-', vw.p, vw.k.toFixed(1)].join('|');
+  if (key === windKey) return; windKey = key;
+  const fr = geoFrame(S.c), R = S.r * 1.05, blds: [number, number][][] = [];
+  for (const b of axBundle?.b.osm.buildings ?? []) { const r = b.rings[0]; if (!r?.length) continue; const L = r.map(p => fr.toLocal(p) as [number, number]); if (L.some(([x, y]) => Math.abs(x) < R && Math.abs(y) < R)) blds.push(L); }
+  const pal = VIEW.shamol.pals![vw.p][1], lines = windFlow(blds, w.w.k * 22.5, R, 0.25 + 0.6 * vw.k), feats: unknown[] = [];
+  for (const L of lines) for (let i = 0; i < L.pts.length - 1; i += 5) {
+    const seg = L.pts.slice(i, i + 6), vv = L.v.slice(i, i + 6).reduce((a, b) => a + b, 0) / Math.min(6, L.v.length - i);
+    if (seg.length < 2 || Math.hypot(seg[0][0], seg[0][1]) > S.r * 1.05) continue;
+    feats.push({ type: 'Feature', properties: { c: rampColor(pal, 0.25 + 0.75 * vv), w: 0.8 + 2.6 * vv * (0.5 + vw.k), h: i % 40 === 0 }, geometry: { type: 'LineString', coordinates: seg.map(p => fr.toGeo(p)) } });
+  }
+  (m.getSource('joy-wind') as GeoJSONSource).setData(fc(feats) as never);
+}
+/** «Jonli» oqim: chiziq punktiri siljiydi (harakat kamaytirilgan boʻlsa — yoʻq) */
+function windAnim(m: MLMap, on: boolean): void {
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!on || still) { if (windRaf) { cancelAnimationFrame(windRaf); windRaf = 0; if (m.getLayer('joy-wind')) m.setPaintProperty('joy-wind', 'line-dasharray', undefined as never); } return; }
+  if (windRaf) return;
+  const seq = [[0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5], [3, 4, 0], [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2], [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5]];
+  let i = 0, last = 0;
+  const tick = (t: number) => { windRaf = requestAnimationFrame(tick); if (t - last < 70) return; last = t; if (!m.getLayer('joy-wind')) return; m.setPaintProperty('joy-wind', 'line-dasharray', seq[i = (i + 1) % seq.length]); };
+  windRaf = requestAnimationFrame(tick);
+}
 /** Fokus: faol boʻlmagan qatlamlar xira (bir nechta qatlam yoqilganda) */
 function focusMap(m: MLMap): void {
   const a = actId(), k = (id: LayerId) => (S.on.length > 1 && a && a !== id ? FOCUS_DIM : 1);
@@ -812,12 +846,13 @@ function focusMap(m: MLMap): void {
   set('joy-shadow', 'raster-opacity', q('quyosh', 0.2, 0.55));
   set('joy-noise', 'raster-opacity', q('shovqin', 0.3, 0.9) * (V('shovqin').st === 'kontur' ? 0.25 : 1));
   set('joy-walk', 'line-opacity', q('piyoda', 0.45, 1));
+  set('joy-wind', 'line-opacity', q('shamol', 0.45, 1)); set('joy-wind-a', 'icon-opacity', q('shamol', 0.45, 1));
   set('joy-flow', 'line-opacity', q('oqim', 0.45, 1));
   set('joy-flow', 'line-width', ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.6 + V('oqim').k, 1, 3 + 9 * V('oqim').k]);
   const x = k('xizmat'), c = k('raqobat');
   set('joy-poi', 'circle-opacity', ['case', ['get', 'in'], x, 0.35 * x]); set('joy-poi', 'circle-stroke-opacity', ['case', ['get', 'in'], x, 0.35 * x]);
   set('joy-comp', 'circle-opacity', ['case', ['get', 'in'], c, 0.4 * c]); set('joy-comp', 'circle-stroke-opacity', c);
-  roseK = k('shamol');
+  roseK = k('shamol') * (isOn('shamol') && V('shamol').st === 'oqim' ? 0.45 : 1);
 }
 /* ---------------- Albom, hisobot va plakat (26.10) ---------------- */
 type AlbKind = 'hisobot' | 'albom' | 'plakat';

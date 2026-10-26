@@ -86,3 +86,15 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qatlam koÊ
   await expect.poll(() => vis(page, 'joy-iso')).toBe('visible');
   expect(errs).toEqual([]);
 });
+test('shamol oqim chiziqlari planda', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('â€”', { timeout: 30_000 });
+  await page.locator('[data-layer=shamol] .lt').click();
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getSource('joy-wind')?._data?.features?.length ?? 0), { timeout: 60_000 }).toBeGreaterThan(20);
+  await expect.poll(() => vis(page, 'joy-wind')).toBe('visible');
+  await page.locator('.jv-btn').click();
+  await page.locator('.jv-st button', { hasText: 'Faqat shamol guli' }).click();
+  await expect.poll(() => vis(page, 'joy-wind')).toBe('none');
+  expect(errs).toEqual([]);
+});
