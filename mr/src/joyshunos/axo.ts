@@ -377,15 +377,10 @@ export class Axo {
     });
   }
 
-  /** Quyosh gumbazi (26.10): osmon yarim sferasi — balandlik halqalari (15°), azimut chiziqlari (30°), kun yoʻllari va soat chiziqlari (yoz–qish polosasi olib tashlangan — gumbaz bir tekis koʻrinsin) */
+  /** Quyosh gumbazi (26.10): ufq halqasi, uch kun yoʻllari va soat chiziqlari; sfera boʻlagi faqat aktiv kunda quyoshgacha yonadi (sweep) (yoz–qish polosasi olib tashlangan — gumbaz bir tekis koʻrinsin) */
   private sunDome(g: THREE.Group, lat: number, lng: number, D: number): void {
     const C = new THREE.Color(SUN_COL), soft = (o: number) => new THREE.LineBasicMaterial({ color: 0xb08a3c, transparent: true, opacity: o, depthWrite: false });
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(D, 64, 24, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.FrontSide, uniforms: { c: { value: new THREE.Color(0xe9b85a) } },
-      vertexShader: 'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform vec3 c; varying vec3 vN; void main(){ float f = pow(1.0 - abs(vN.z), 2.2); gl_FragColor = vec4(c, 0.07 + 0.28 * f); }' }));
-    dome.renderOrder = 30; dome.userData.dome = true; g.add(dome);
-    for (let a = 0; a < 90; a += 15) { const pts: THREE.Vector3[] = []; for (let i = 0; i <= 96; i++) pts.push(sunVec({ alt: a, az: i / 96 * 360 }, D)); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), soft(a === 0 ? 0.7 : 0.28)); l.renderOrder = 31; g.add(l); }
-    for (let z = 0; z < 360; z += 30) { const pts: THREE.Vector3[] = []; for (let a = 0; a <= 90; a += 3) pts.push(sunVec({ alt: a, az: z }, D)); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), soft(z % 90 === 0 ? 0.42 : 0.2)); l.renderOrder = 31; g.add(l); }
+    { const pts: THREE.Vector3[] = []; for (let i = 0; i <= 96; i++) pts.push(sunVec({ alt: 0, az: i / 96 * 360 }, D)); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), soft(0.7)); l.renderOrder = 31; g.add(l); }
     // har kun yoʻli — bir xil sondagi nuqtalar (quyosh chiqishidan botishigacha)
     const path = (mo: number, d: number, n: number): THREE.Vector3[] => { const t: number[] = []; for (let h = 3; h <= 22; h += 0.05) { const s = sunPosition(localToUtcAt(2026, mo, d, h, lat, lng), lat, lng); if (s.alt > 0) t.push(h); } if (t.length < 2) return []; const out: THREE.Vector3[] = []; for (let i = 0; i <= n; i++) { const h = t[0] + (t[t.length - 1] - t[0]) * i / n; out.push(sunVec(sunPosition(localToUtcAt(2026, mo, d, h, lat, lng), lat, lng), D)); } return out; };
     const N = 72, P = SUN_DAYS.map(([mo, d]) => path(mo, d, N));
@@ -636,10 +631,24 @@ export class Axo {
       const ball = new THREE.Mesh(new THREE.SphereGeometry(this.R * 0.03, 20, 14), new THREE.MeshBasicMaterial({ color: 0xe0532c })); ball.position.copy(v);
       const ray = new THREE.Line(new THREE.BufferGeometry().setFromPoints([v, new THREE.Vector3(0, 0, 0)]), new THREE.LineDashedMaterial({ color: SUN_COL, dashSize: 5, gapSize: 4 })); ray.computeLineDistances();
       g.add(ball, ray); this.sunMarks.push(ball, ray);
+      if (this.sunStyle === 'gumbaz') { const sw = this.sweep(mo, d, hour, D); if (sw) { g.add(sw); this.sunMarks.push(sw); } }
     }
     g.children.forEach(o => { if (o.userData.day != null) { const mat = (o as THREE.Mesh).material as THREE.Material & { opacity: number }; mat.transparent = true; mat.opacity = o.userData.fan ? (o.userData.day === day ? 0.2 : 0.05) : (o.userData.day === day ? 1 : 0.35); } });
     this.labels.forEach(l => { if (l.kind === 'hour') l.el.classList.toggle('dim', l.el.dataset.day !== String(day)); });
     this.dirty = this.sdirty = true; this.onChange?.();
+  }
+  /** Gumbaz: aktiv kunda quyosh chiqqandan hozirgi holatigacha — yoʻl bilan ufq orasidagi sfera boʻlagi yonib koʻrinadi, qolgan sfera koʻrinmaydi */
+  private sweep(mo: number, d: number, hour: number, D: number): THREE.Mesh | null {
+    const [lng, lat] = this.inp!.center, at = (h: number) => sunPosition(localToUtcAt(2026, mo, d, h, lat, lng), lat, lng);
+    let h0 = hour; while (h0 > 0 && at(h0 - 0.05).alt > 0) h0 -= 0.05;
+    const NT = Math.max(2, Math.ceil((hour - h0) / 0.1)), NU = 14, pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    for (let i = 0; i <= NT; i++) { const s = at(h0 + (hour - h0) * i / NT), alt = Math.max(0, s.alt); for (let j = 0; j <= NU; j++) { const u = j / NU, v = sunVec({ alt: alt * u, az: s.az }, D); pos.push(v.x, v.y, v.z); uv.push(i / NT, u); } }
+    for (let i = 0; i < NT; i++) for (let j = 0; j < NU; j++) { const a = i * (NU + 1) + j, b = a + NU + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: this.inp?.dark ? THREE.AdditiveBlending : THREE.NormalBlending, uniforms: { c: { value: new THREE.Color(SUN_COL) } },
+      vertexShader: 'varying vec2 vU; void main(){ vU = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 c; varying vec2 vU; void main(){ float t = vU.x, u = vU.y; float a = (0.06 + 0.42 * pow(u, 1.6)) * (0.35 + 0.65 * t); vec3 col = mix(c, vec3(1.0, 0.93, 0.7), pow(u, 3.0) * t); gl_FragColor = vec4(col, a); }' }));
+    m.renderOrder = 32; m.userData.sweep = true; return m;
   }
   sunInfo(): { alt: number; az: number } | null { const inp = this.inp; if (!inp) return null; const [mo, d] = SUN_DAYS[this.day]; return sunPosition(localToUtcAt(2026, mo, d, this.hour, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); }
 
