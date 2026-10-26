@@ -224,7 +224,8 @@ export default class Component extends DCLogic {
     function box(x0, y0, z0, w, l, h, cTop, cFront, cSide, sw) { var so = sw || line ? '#5d5a55' : null, ww = sw || line ? 0.5 : 0; A(poly([[x0, y0, z0], [x0 + w, y0, z0], [x0 + w, y0, z0 + h], [x0, y0, z0 + h]]), cFront, so, ww); A(poly([[x0 + w, y0, z0], [x0 + w, y0 + l, z0], [x0 + w, y0 + l, z0 + h], [x0 + w, y0, z0 + h]]), cSide, so, ww); A(poly([[x0, y0, z0 + h], [x0 + w, y0, z0 + h], [x0 + w, y0 + l, z0 + h], [x0, y0 + l, z0 + h]]), cTop, so, ww); }
     /* ===== transport (oʻzimizning modellar oʻlchamida, kesim/reja uslubida: tekis rang, ingichka kontur) ===== */
     var VST = '#5d5a55', GL = line ? '#ffffff' : '#c3cdd5', WH = line ? '#ffffff' : '#55524d', CARC = ['#f4f3f0', '#ecebe7', '#e3e6e9', '#f4f3f0', '#ebe5da'], cI = 0;
-    function tA(d, f, st, w, o) { A(d, f, st, w, o); D[D.length - 1].ly = 'KS_TRANSPORT'; }
+    var VBK = '';   // joriy transport: tur@boshi-oxiri (m) — tekshiruv va CAD bloki uchun
+    function tA(d, f, st, w, o) { A(d, f, st, w, o); D[D.length - 1].ly = 'KS_TRANSPORT'; D[D.length - 1].bk = VBK; }
     /* qavariq prizma: yon profil [[yy, z]] (yy — boʻylama 0..L), kenglik bo'ylab cx ± w/2; teskari (back) — profil koʻzguda.
        Koʻrinadigan yuzlar: oʻng yon (+x), old/tepa qirralar. ton: [tepa, old, yon] */
     function prism(cx, w, y0, L, back, prof, ton) {
@@ -242,7 +243,7 @@ export default class Component extends DCLogic {
     function frontPane(cx, w, yy, z0, z1) { tA(poly([[cx - w / 2, yy - 0.01, z0], [cx + w / 2, yy - 0.01, z0], [cx + w / 2, yy - 0.01, z1], [cx - w / 2, yy - 0.01, z1]]), GL, VST, 0.35); }
     /* yengil avtomobil 4,7 × 1,8 × 1,47 m (baza 2,75, old osilish 0,95) */
     function vSedan(cx, y, back, col) {
-      var L = 4.7, c = col || '#f4f3f0', T = [c, shade(c, 0.94), shade(c, 0.9)]; shadowRect(cx - 0.9, y, 1.8, L);
+      var L = 4.7; VBK = 'sedan@' + y.toFixed(1) + '-' + (y + L).toFixed(1); var c = col || '#f4f3f0', T = [c, shade(c, 0.94), shade(c, 0.9)]; shadowRect(cx - 0.9, y, 1.8, L);
       var b = prism(cx, 1.8, y, L, back, [[0, 0.3], [L, 0.3], [L, 0.68], [L - 0.25, 0.8], [0.15, 0.84], [0, 0.72]], T);
       [0.95 + 0.0, 0.95 + 2.75].forEach(function (a) { wheel(b.x1, b.Y(L - a), 0.32); });
       var cb = prism(cx, 1.56, y, L, back, [[1.0, 0.8], [3.4, 0.8], [2.95, 1.45], [1.45, 1.47]], [c, GL, GL]);
@@ -250,7 +251,7 @@ export default class Component extends DCLogic {
     }
     /* avtobus 12 × 2,55 × 3,15 m (baza 7,6, old osilish 2,4) */
     function vBus(cx, y, back) {
-      var L = 12, c = line ? '#ffffff' : '#f3ecdd', T = [c, shade(c, 0.95), shade(c, 0.9)]; shadowRect(cx - 1.27, y, 2.55, L);
+      var L = 12; VBK = 'bus@' + y.toFixed(1) + '-' + (y + L).toFixed(1); var c = line ? '#ffffff' : '#f3ecdd', T = [c, shade(c, 0.95), shade(c, 0.9)]; shadowRect(cx - 1.27, y, 2.55, L);
       var b = prism(cx, 2.55, y, L, back, [[0, 0.32], [L, 0.32], [L, 2.95], [L - 0.15, 3.15], [0.1, 3.15], [0, 3.0]], T);
       for (var a = 0.6; a < L - 1.2; a += 1.55) { if (Math.abs(a - 8.6) < 0.8 || Math.abs(a - 3.6) < 0.8) continue; sidePane(b.x1, b.Y, a, a + 1.35, 1.25, 2.75); }
       [[9.1, 10.3], [3.1, 4.3]].forEach(function (d) { sidePane(b.x1, b.Y, d[0], d[1], 0.35, 2.75); });
@@ -293,6 +294,7 @@ export default class Component extends DCLogic {
       var nx = els[i + 1]; if (e[0] === 'qat' && nx && nx[0] === 'qat') for (var yy = 9; yy < LG; yy += 4) A(poly([[x1 - 0.06, yy, 0.01], [x1 + 0.06, yy, 0.01], [x1 + 0.06, yy + 2, 0.01], [x1 - 0.06, yy + 2, 0.01]]), line ? INK : '#ffffff', null, 0);
       if ((e[0] === 'qat' || e[0] === 'bus' || e[0] === 'park') && els.some(function (q) { return q[2] && q[2].zebra; })) for (var zz = x0 + 0.25; zz < x1 - 0.3; zz += 1.0) A(poly([[zz, 2.5, 0.01], [zz + 0.5, 2.5, 0.01], [zz + 0.5, 6.5, 0.01], [zz, 6.5, 0.01]]), line ? '#ffffff' : '#ffffff', line ? INK : null, line ? 0.4 : 0);
     });
+    var hasZA = els.some(function (q) { return q[2] && q[2].zebra; }), zFree = hasZA ? 7.6 : 0.6;   // oʻtish joyidan keyingi birinchi boʻsh joy
     // obyektlar: uzoqdan yaqinga (kalit = x − 2y)
     var OB = [];
     function ob(x, y, fn) { OB.push({ key: x - (CA / CB) * y, fn: fn }); }
@@ -307,9 +309,9 @@ export default class Component extends DCLogic {
       for (var f = 1; f < Hr / 3.2; f++) { var a = P(x0, 0, f * 3.2), b = P(x0, LG, f * 3.2); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#b9b3a8', 0.5, 0.6, '2 3'); } }
     els.forEach(function (e, i) { var f = e[2] || {}, x0 = zx[i][0], x1 = zx[i][1], cx = (x0 + x1) / 2, h = T[e[0]][1], left = cx < rl / 2, dir = left ? 1 : -1;
       if ((e[0] === 'yash' || e[0] === 'med') && f.daraxt) [4, 12, 20, 27].forEach(function (y, j) { ob(cx, y, function () { var q = P(cx, y, h); AS.uaT(L, e[1] >= 2.9 ? (j % 2 ? 'T_bulut2' : 'T_bulut') : (e[0] === 'med' ? 'T_terak' : 'T_tuxum'), q[0], q[1], e[1] >= 2.9 ? 10 : 11, k, i + j, !left); }); });
-      if (e[0] === 'park' && f.dchontak) [10, 22].forEach(function (y, j) { ob(cx, y, function () { var q = P(cx, y, 0); AS.uaT(L, 'T_tuxum', q[0], q[1], 8, k, j); }); });
-      if (e[0] === 'park' && f.mashina) [1, 5.5, 14.5, 17, 26].forEach(function (y) { ob(cx, y, function () { car(cx, y); }); });
-      if (e[0] === 'qat') [[3, 0], [15, 1], [24, 0]].forEach(function (p) { if ((i + p[1]) % 2) return; ob(cx, p[0], function () { car(cx, p[0]); }); });
+      /* turargoh: oʻtish joyidan keyin, 6 m qadam bilan; har 4-joy — daraxt choʻntagi (reja bilan bir xil), hech narsa ustma-ust tushmaydi */
+      if (e[0] === 'park' && (f.mashina || f.dchontak)) { var k2p = 0; for (var yp = zFree; yp + 4.7 <= LG - 0.3; yp += 6, k2p++) (function (y, kk) { if (f.dchontak && kk % 4 === 2) ob(cx, y + 2.35, function () { var q = P(cx, y + 2.35, 0); AS.uaT(L, 'T_tuxum', q[0], q[1], 8, k, kk); }); else if (f.mashina) ob(cx, y, function () { car(cx, y); }); })(yp, k2p); }
+      if (e[0] === 'qat' && f.mashina !== false) (i % 2 ? [12.5, 22.6] : [zFree + 0.6, 18.5]).forEach(function (y) { ob(cx, y, function () { car(cx, y); }); });   /* oʻtish joyi (2,5–6,5 m) bilan kesishmaydi */
       if (e[0] === 'bus') ob(cx, 9, function () { vBus(cx, 9, left); return; box(cx - 1.27, 9, 0, 2.55, 12, 3.1, line ? '#fff' : '#f3ecdd', line ? '#fff' : '#e3d9c4', line ? '#fff' : '#ebe2cf', 1); for (var wy = 10; wy < 20; wy += 2) A(poly([[cx + 1.28, wy, 1.4], [cx + 1.28, wy + 1.5, 1.4], [cx + 1.28, wy + 1.5, 2.5], [cx + 1.28, wy, 2.5]]), '#c3cdd5', '#5d5a55', 0.4, 1); });
       if (e[0] === 'tram' && i % 2 === 0) ob(cx, 3, function () { vTram(cx, 0.5, left); return; box(cx - 1.33, 3, 0, 2.65, 20, 3.4, line ? '#fff' : '#f4f1ea', line ? '#fff' : '#e2ddd3', line ? '#fff' : '#ece8e0', 1); A(poly([[cx + 1.34, 3, 0.9], [cx + 1.34, 23, 0.9], [cx + 1.34, 23, 1.2], [cx + 1.34, 3, 1.2]]), line ? '#fff' : '#c96b5c', null, 0); for (var wy = 4; wy < 22; wy += 2.2) A(poly([[cx + 1.34, wy, 1.4], [cx + 1.34, wy + 1.6, 1.4], [cx + 1.34, wy + 1.6, 2.7], [cx + 1.34, wy, 2.7]]), '#c3cdd5', '#5d5a55', 0.4, 1); var a = P(cx, 10, 3.4), b = P(cx + 0.4, 10.6, 5.6); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, INK, 1); });
       if (e[0] === 'tram') { var wa = P(cx, 0, 5.8), wb = P(cx, LG, 5.8); A('M' + wa[0].toFixed(1) + ' ' + wa[1].toFixed(1) + 'L' + wb[0].toFixed(1) + ' ' + wb[1].toFixed(1), null, INK, 0.5); }
@@ -331,6 +333,7 @@ export default class Component extends DCLogic {
       var L = { line: line, ink: INK, add: A };
       var COL = { front: ['#f1e9da', .15], piy: ['#ece8df', .15], mebel: ['#e4ddcf', .15], yash: ['#d3e4c6', .15], velo: ['#d98a78', .08], park: ['#dedfe2', 0], qat: ['#d2d3d7', 0], bus: ['#93a9d8', 0], tram: ['#e8dece', .02], med: ['#d9e7cd', .15], ariq: ['#cfe2ee', 0] };
       var ROADZ = { qat: 1, bus: 1, park: 1, tram: 1 };
+      var hasZP = base.els.some(function (q) { return q[2] && q[2].zebra; });   // oʻtish joyi 34–38 m — mashina qoʻyilmaydi
       var els = base.els, rl = base.rl, SB = 1.5, zx = [], acc = 0; els.forEach(function (e) { zx.push([acc, acc + e[1]]); acc += e[1]; });
       function zc(i) { return (zx[i][0] + zx[i][1]) / 2; }
       function first(t, pred) { for (var i = 0; i < els.length; i++) if (els[i][0] === t && (!pred || pred(i))) return i; return -1; }
@@ -373,8 +376,8 @@ export default class Component extends DCLogic {
         if (e[0] === 'velo') [9, 26, 58].forEach(function (y) { if (mode === 'velo' && i === ci && y < 12) return; ob(y, function () { var q = P(c, y, h); AS.velochi(L, q[0], q[1], k(y), !left); }); });
         if (e[0] === 'front' && fl.kafe) [6, 16, 26, 36].forEach(function (y) { ob(y, function () { var q = P(c, y, h); AS.soyabon(L, q[0], q[1], k(y)); }); });
         if ((e[0] === 'yash' || e[0] === 'front') && fl.orin) [11, 31].forEach(function (y) { ob(y, function () { var q = P(c - dir * 0.4, y, h); AS.ua(L, 'otirgan_blok', q[0], q[1], k(y), !left); }); });
-        if (e[0] === 'qat') [14 + (i * 7) % 12, 40 + (i * 5) % 15, 75 + (i * 3) % 20].forEach(function (y) { if (mode === 'mashina' && i === ci && y < 18) return; ob(y, function () { var q = P(c, y, 0); AS.mashina(L, q[0], q[1], k(y)); }); });
-        if (e[0] === 'park' && fl.mashina) for (var y4 = 8; y4 < 90; y4 += 6) { if (fl.dchontak && (y4 - 18) % 24 === 0) continue; (function (y) { ob(y, function () { var q = P(c, y, 0); AS.mashina(L, q[0], q[1], k(y)); }); })(y4); }
+        if (e[0] === 'qat') [14 + (i * 7) % 12, 42 + (i * 5) % 15, 75 + (i * 3) % 20].forEach(function (y) { if (mode === 'mashina' && i === ci && y < 18) return; ob(y, function () { var q = P(c, y, 0); AS.mashina(L, q[0], q[1], k(y)); }); });
+        if (e[0] === 'park' && fl.mashina) for (var y4 = 8; y4 < 90; y4 += 6) { if (fl.dchontak && (y4 - 18) % 24 === 0) continue; if (hasZP && y4 > 30.5 && y4 < 41.5) continue; (function (y) { ob(y, function () { var q = P(c, y, 0); AS.mashina(L, q[0], q[1], k(y)); }); })(y4); }
         if (e[0] === 'bus') ob(30, function () { var q = P(c, 30, 0); AS.avtobus(L, q[0], q[1], k(30)); });
         if (e[0] === 'tram' && i % 2 === 0) ob(46, function () { var q = P(c, 46, h); AS.tramvay(L, q[0], q[1], k(46)); });
       });

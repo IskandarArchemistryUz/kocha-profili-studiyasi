@@ -37,3 +37,16 @@ test('B: aksonometriyada oʻng bino shaffof (punktir), tungi rejim', async ({ pa
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 2 }));
   await expect.poll(() => page.evaluate(() => Array.from(document.querySelectorAll('.ws-b svg[role=img] path')).filter(p => (p.getAttribute('stroke-dasharray') || '').trim() === '4 3').length)).toBeGreaterThanOrEqual(12);
 });
+
+test('B: aksonometriya — mashinalar oʻtish joyiga chiqmaydi', async ({ page }) => {
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto('./kochasoz.html?beta=0#/b');
+  await expect(page.locator('.ws-b')).toBeVisible();
+  await page.evaluate(() => { const I = (window as any).__ks.m.inst, T = I.state.TPL.find((x: any) => x[0] === 'Tuman koʻchasi'); I.setState({ els: T[2], rl: 35.2, view: 2 }); });
+  // har bir mashina/avtobus boʻylama oraligʻi (data-bk = tur@boshi-oxiri) oʻtish joyi (2,5–6,5 m) bilan kesishmaydi
+  const q = () => page.evaluate(() => Array.from(new Set(Array.from(document.querySelectorAll('.ws-b svg[role=img] path[data-ly=KS_TRANSPORT]')).map(p => p.getAttribute('data-bk') || ''))).filter(Boolean));
+  await expect.poll(async () => (await q()).length).toBeGreaterThan(2);
+  const iv = await q();
+  for (const b of iv) { const [a, z] = b.split('@')[1].split('-').map(Number); expect(z <= 2.5 || a >= 6.5, b).toBe(true); }
+});
