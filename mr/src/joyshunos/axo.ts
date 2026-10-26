@@ -17,10 +17,11 @@ import type { Palette } from '../context/mapstyle';
 import { STYLE_PAL, type SceneStyle } from '../scene/styles';
 import { CC } from '../scene/context3d';
 
-export type AxLayer = 'relyef' | 'kochalar' | 'yashil' | 'binolar' | 'xizmat' | 'shamol' | 'quyosh';
+export type AxLayer = 'relyef' | 'kochalar' | 'transport' | 'yashil' | 'binolar' | 'xizmat' | 'shamol' | 'quyosh';
 export const AX_LAYERS: { id: AxLayer; name: string; sub: string; color: string }[] = [
   { id: 'relyef', name: 'Relyef', sub: 'AWS Terrain · halqalar', color: '#8b7a6a' },
   { id: 'kochalar', name: 'Koʻchalar', sub: 'OSM', color: '#9a9893' },
+  { id: 'transport', name: 'Transport oqimi', sub: 'OSM · koʻcha toifasi (sxema)', color: '#ff7a2f' },
   { id: 'yashil', name: 'Yashil va suv', sub: 'OSM', color: '#7fa65a' },
   { id: 'binolar', name: 'Binolar', sub: 'OSM · balandlik', color: '#141414' },
   { id: 'xizmat', name: 'Xizmatlar va raqobatchilar', sub: 'OSM', color: '#4c5bd4' },
@@ -93,7 +94,11 @@ export class Axo {
   view: AxView = 'axo';
   private placed = false;
   order: AxLayer[] = AX_LAYERS.map(l => l.id);
-  vis: Record<AxLayer, boolean> = { relyef: true, kochalar: true, yashil: true, binolar: true, xizmat: true, shamol: true, quyosh: true };
+  vis: Record<AxLayer, boolean> = { relyef: true, kochalar: true, transport: false, yashil: true, binolar: true, xizmat: true, shamol: true, quyosh: true };
+  /** quyosh yoʻli: «gumbaz» — osmon yarim sferasi, «yelpigʻich» — eski parda */
+  sunStyle: 'gumbaz' | 'yelpigich' = 'gumbaz';
+  private cars: { pts: Float32Array; road: Uint16Array; s: Float32Array; v: Float32Array; side: Int8Array; geo: THREE.BufferGeometry } | null = null;
+  private roadsT: { p: THREE.Vector3[]; cum: number[]; len: number; w: number }[] = [];
   exploded = false;
   gap = 260;
   day = 1;      // SUN_DAYS indeksi
@@ -123,6 +128,7 @@ export class Axo {
       this.raf = requestAnimationFrame(loop);
       const dt = Math.min(0.1, this.clock.getDelta());
       if (this.animate && this.flowTex.length && this.eff('shamol')) { for (const f of this.flowTex) f.t.offset.x -= dt * (0.25 + f.v * 0.18); this.dirty = true; }
+      if (this.animate && this.cars && this.eff('transport')) { this.moveCars(dt); this.dirty = true; }
       if (this.dirty) { this.dirty = false; this.draw(); }
     };
     loop();
@@ -185,6 +191,7 @@ export class Axo {
     this.pins(fr, H, inp.pins);
     this.site(fr, inp.site);
     this.wind(inp.wind);
+    this.traffic(fr, H, clipR);
     this.sunPaths();
     if (this.model) this.placeModel();
     this.sideLabels();
@@ -348,6 +355,7 @@ export class Axo {
   /** Quyosh yoʻllari (3 kun), soat nuqtalari; joriy quyosh — setTime da */
   private sunPaths(): void {
     const g = this.groups.get('quyosh')!, [lng, lat] = this.inp!.center, D = this.R * 0.95;
+    if (this.sunStyle === 'gumbaz') this.sunDome(g, lat, lng, D);
     SUN_DAYS.forEach(([mo, d], k) => {
       const pts: THREE.Vector3[] = [];
       for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtcAt(2026, mo, d, t, lat, lng), lat, lng); if (s.alt > 0) pts.push(sunVec(s, D)); }
@@ -355,9 +363,10 @@ export class Axo {
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: SUN_COL, dashSize: 6, gapSize: 5, transparent: true, opacity: k === 1 ? 0.95 : 0.6 }));
       line.computeLineDistances(); line.userData.day = k; g.add(line);
       // «quyosh soatlari» yuzasi: yoydan markazga tushgan yarim shaffof parda
+      if (this.sunStyle !== 'gumbaz') {
       const fan: number[] = []; for (let i = 1; i < pts.length; i++) fan.push(0, 0, 0, pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z);
       const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(fan, 3));
-      const fm = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: SUN_COL, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })); fm.userData.day = k; fm.userData.fan = true; fm.renderOrder = 36; g.add(fm);
+      const fm = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: SUN_COL, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })); fm.userData.day = k; fm.userData.fan = true; fm.renderOrder = 36; g.add(fm); }
       for (let t = 5; t <= 20; t++) {
         const s = sunPosition(localToUtcAt(2026, mo, d, t, lat, lng), lat, lng); if (s.alt <= 0) continue;
         const v = sunVec(s, D), dot = new THREE.Mesh(new THREE.SphereGeometry(this.R * 0.009, 10, 8), new THREE.MeshBasicMaterial({ color: SUN_COL }));
@@ -366,6 +375,60 @@ export class Axo {
         this.overlay.append(el); this.labels.push({ el, p: v.clone(), layer: 'quyosh', kind: 'hour' });
       }
     });
+  }
+
+  /** Quyosh gumbazi (26.10): osmon yarim sferasi — balandlik halqalari (15°), azimut chiziqlari (30°), kun yoʻllari va soat chiziqlari (yoz–qish polosasi olib tashlangan — gumbaz bir tekis koʻrinsin) */
+  private sunDome(g: THREE.Group, lat: number, lng: number, D: number): void {
+    const C = new THREE.Color(SUN_COL), soft = (o: number) => new THREE.LineBasicMaterial({ color: 0xb08a3c, transparent: true, opacity: o, depthWrite: false });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(D, 64, 24, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.FrontSide, uniforms: { c: { value: new THREE.Color(0xe9b85a) } },
+      vertexShader: 'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 c; varying vec3 vN; void main(){ float f = pow(1.0 - abs(vN.z), 2.2); gl_FragColor = vec4(c, 0.07 + 0.28 * f); }' }));
+    dome.renderOrder = 30; dome.userData.dome = true; g.add(dome);
+    for (let a = 0; a < 90; a += 15) { const pts: THREE.Vector3[] = []; for (let i = 0; i <= 96; i++) pts.push(sunVec({ alt: a, az: i / 96 * 360 }, D)); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), soft(a === 0 ? 0.7 : 0.28)); l.renderOrder = 31; g.add(l); }
+    for (let z = 0; z < 360; z += 30) { const pts: THREE.Vector3[] = []; for (let a = 0; a <= 90; a += 3) pts.push(sunVec({ alt: a, az: z }, D)); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), soft(z % 90 === 0 ? 0.42 : 0.2)); l.renderOrder = 31; g.add(l); }
+    // har kun yoʻli — bir xil sondagi nuqtalar (quyosh chiqishidan botishigacha)
+    const path = (mo: number, d: number, n: number): THREE.Vector3[] => { const t: number[] = []; for (let h = 3; h <= 22; h += 0.05) { const s = sunPosition(localToUtcAt(2026, mo, d, h, lat, lng), lat, lng); if (s.alt > 0) t.push(h); } if (t.length < 2) return []; const out: THREE.Vector3[] = []; for (let i = 0; i <= n; i++) { const h = t[0] + (t[t.length - 1] - t[0]) * i / n; out.push(sunVec(sunPosition(localToUtcAt(2026, mo, d, h, lat, lng), lat, lng), D)); } return out; };
+    const N = 72, P = SUN_DAYS.map(([mo, d]) => path(mo, d, N));
+    P.forEach((pts, k) => { if (pts.length < 2) return; const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, this.R * 0.0035, 6, false), new THREE.MeshBasicMaterial({ color: C, transparent: true, opacity: 0.9 })); tube.userData.day = k; tube.renderOrder = 34; g.add(tube); });
+    // soat chiziqlari: bir soat — uch kun boʻyicha (yozdan qishgacha)
+    for (let h = 6; h <= 19; h++) { const pts: THREE.Vector3[] = []; [1, 0, 2].forEach(k => { const [mo, d] = SUN_DAYS[k] ?? SUN_DAYS[0]; const s = sunPosition(localToUtcAt(2026, mo, d, h, lat, lng), lat, lng); if (s.alt > 0) pts.push(sunVec(s, D)); }); if (pts.length > 1) { const arc: THREE.Vector3[] = []; for (let q = 1; q < pts.length; q++) for (let u = 0; u <= 12; u++) arc.push(pts[q - 1].clone().lerp(pts[q], u / 12).normalize().multiplyScalar(D)); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(arc), new THREE.LineDashedMaterial({ color: SUN_COL, dashSize: this.R * 0.012, gapSize: this.R * 0.01, transparent: true, opacity: 0.55 })); l.computeLineDistances(); l.renderOrder = 33; g.add(l); } }
+  }
+
+  /** Transport oqimi (26.10): koʻchalar toifasiga koʻra yorqin lenta va harakatlanuvchi faralar (sxema — toifa boʻyicha zichlik, real hisob emas) */
+  private traffic(fr: ReturnType<typeof frame>, H: (x: number, y: number) => number, clipR: number): void {
+    const g = this.groups.get('transport')!, inp = this.inp!; this.cars = null; this.roadsT = [];
+    const K: Record<string, [number, number, number, number]> = { motorway: [0xff5a1f, 11, 28, 18], trunk: [0xff5a1f, 10, 30, 16], primary: [0xff7a2f, 9, 34, 14], secondary: [0xff9a3c, 7, 48, 11], tertiary: [0xffb54d, 5.5, 70, 9], residential: [0xffd27a, 3.6, 130, 6], unclassified: [0xffd27a, 3.6, 130, 6], living_street: [0xffe2a6, 3, 200, 4], service: [0xffe2a6, 2.6, 240, 4] };
+    const groups = new Map<number, number[]>(), halo = new Map<number, number[]>(), cars: { r: number; s: number; v: number; side: number }[] = [];
+    const R2 = clipR * 0.97;
+    for (const rd of inp.bundle.osm.roads) {
+      const key = (rd.cls || '').replace('_link', ''), c = K[key]; if (!c) continue;
+      let run: THREE.Vector3[] = [];
+      const flush = () => { if (run.length > 1) { const cum = [0]; for (let i = 1; i < run.length; i++) cum.push(cum[i - 1] + run[i].distanceTo(run[i - 1])); const len = cum[cum.length - 1]; if (len > 8) { const idx = this.roadsT.length; this.roadsT.push({ p: run, cum, len, w: c[1] }); ribbon(run, c[1], c[0], groups); ribbon(run, c[1] * 3.2, c[0], halo); const n = Math.max(1, Math.round(len / c[2])); for (let j = 0; j < n; j++) cars.push({ r: idx, s: (j + Math.random() * 0.6) / n * len, v: c[3] * (0.8 + Math.random() * 0.4), side: (j % 2 || rd.oneway) ? 1 : -1 }); } } run = []; };
+      const L = rd.pts.map(p => fr.toLocal(p));
+      const add = (x: number, y: number) => { if (x * x + y * y > R2 * R2) { flush(); return; } run.push(new THREE.Vector3(x, H(x, y) + 0.9, -y)); };
+      for (let i = 0; i < L.length; i++) { if (i === 0) { add(L[0][0], L[0][1]); continue; } const [ax, ay] = L[i - 1], [bx, by] = L[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 12)); for (let k = 1; k <= n; k++) add(ax + (bx - ax) * k / n, ay + (by - ay) * k / n); }
+      flush();
+    }
+    function ribbon(pts: THREE.Vector3[], w: number, col: number, into: Map<number, number[]>): void { const a = into.get(col) ?? []; into.set(col, a); for (let i = 1; i < pts.length; i++) { const p = pts[i - 1], q = pts[i], dx = q.x - p.x, dz = q.z - p.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l * w / 2, nz = dx / l * w / 2; a.push(p.x + nx, p.y, p.z + nz, p.x - nx, p.y, p.z - nz, q.x + nx, q.y, q.z + nz, q.x + nx, q.y, q.z + nz, p.x - nx, p.y, p.z - nz, q.x - nx, q.y, q.z - nz); } }
+    for (const [col, pos] of groups) { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 20; g.add(m); }
+    for (const [col, pos] of halo) { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); m.renderOrder = 19; g.add(m); }
+    if (!cars.length) return;
+    const n = Math.min(cars.length, 4000), P = new Float32Array(n * 3), Cc = new Float32Array(n * 3), head = new THREE.Color(0xfff6c8), tail = new THREE.Color(0xff3b2a);
+    const c2 = { pts: P, road: new Uint16Array(n), s: new Float32Array(n), v: new Float32Array(n), side: new Int8Array(n), geo: new THREE.BufferGeometry() };
+    for (let i = 0; i < n; i++) { const c = cars[i]; c2.road[i] = c.r; c2.s[i] = c.s; c2.v[i] = c.v; c2.side[i] = c.side; const col = c.side > 0 ? head : tail; Cc.set([col.r, col.g, col.b], i * 3); }
+    c2.geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); c2.geo.setAttribute('color', new THREE.BufferAttribute(Cc, 3));
+    const pts = new THREE.Points(c2.geo, new THREE.PointsMaterial({ size: 5.5, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false })); pts.renderOrder = 22; pts.frustumCulled = false; g.add(pts);
+    this.cars = c2; this.moveCars(0);
+  }
+  private moveCars(dt: number): void {
+    const c = this.cars; if (!c) return; const k = 4;   // koʻrish uchun tezlashtirilgan
+    for (let i = 0; i < c.s.length; i++) {
+      const r = this.roadsT[c.road[i]]; let s = c.s[i] + c.side[i] * c.v[i] * dt * k; if (s > r.len) s -= r.len; if (s < 0) s += r.len; c.s[i] = s;
+      let j = 1; while (j < r.cum.length - 1 && r.cum[j] < s) j++;
+      const a = r.p[j - 1], b = r.p[j], t = (s - r.cum[j - 1]) / Math.max(0.01, r.cum[j] - r.cum[j - 1]), dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, off = c.side[i] * r.w * 0.22;
+      c.pts[i * 3] = a.x + dx * t - dz / l * off; c.pts[i * 3 + 1] = a.y + (b.y - a.y) * t + 0.6; c.pts[i * 3 + 2] = a.z + dz * t + dx / l * off;
+    }
+    (c.geo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
   }
 
   /** Portlatilgan rejim: oʻng tomondagi raqamli izohlar */
@@ -534,7 +597,11 @@ export class Axo {
   reset(): void { this.ortho.zoom = 1; this.placed = false; this.setView(this.view); }
   zoomBy(f: number): void { if (this.view === 'persp') { this.persp.position.lerp(this.ctl.target, 1 - 1 / f); } else { this.ortho.zoom = Math.max(0.2, Math.min(12, this.ortho.zoom * f)); this.ortho.updateProjectionMatrix(); } this.ctl.update(); this.dirty = this.sdirty = true; }
   private lift(): number { return this.exploded ? (this.order.filter(id => this.eff(id)).length - 1) * this.gap * this.R / 500 : 0; }
+  private bSun = 1.7; private bHemi = 0.85;
+  /** Transport oqimi yoqilganda sahna shomga oʻtadi — yoʻllar va mashinalar «yonib» koʻrinadi */
+  private relight(): void { const k = this.eff('transport') ? 0.28 : 1; this.sun.intensity = this.bSun * k; this.hemi.intensity = this.bHemi * (k < 1 ? 0.45 : 1); }
   applyLayers(): void {
+    this.relight();
     let k = 0; const ys: number[] = [];
     for (const id of this.order) {
       const g = this.groups.get(id)!, on = this.eff(id); g.visible = on;
@@ -561,7 +628,7 @@ export class Axo {
     const [mo, d] = SUN_DAYS[day], s = sunPosition(localToUtcAt(2026, mo, d, hour, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]);
     const D = this.R * 0.95, v = sunVec(s, Math.max(D, 1));
     this.sun.position.copy(v.clone().normalize().multiplyScalar(this.R * 3)); this.sun.target.position.set(0, 0, 0);
-    this.sun.intensity = s.alt > 0 ? 1.7 : 0; this.hemi.intensity = s.alt > 0 ? 0.85 : 1.4;
+    this.bSun = s.alt > 0 ? 1.7 : 0; this.bHemi = s.alt > 0 ? 0.85 : 1.4; this.relight();
     const g = this.groups.get('quyosh')!;
     for (const m of this.sunMarks) { m.removeFromParent(); (m as THREE.Mesh).geometry?.dispose(); }
     this.sunMarks = [];

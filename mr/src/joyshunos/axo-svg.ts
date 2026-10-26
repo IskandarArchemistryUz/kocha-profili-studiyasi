@@ -25,7 +25,7 @@ export function axoSvg(a: Axo, layered: boolean): string {
   const line = (pts: P2[]) => `M${pts.map(p => `${f1(p[0])} ${f1(p[1])}`).join('L')}`;
   const inC = (x: number, y: number) => x * x + y * y <= clipR * clipR;
   const vis = (id: AxLayer) => a.eff(id);
-  const out: Record<AxLayer, string[]> = { relyef: [], kochalar: [], yashil: [], binolar: [], xizmat: [], shamol: [], quyosh: [] };
+  const out: Record<AxLayer, string[]> = { relyef: [], kochalar: [], transport: [], yashil: [], binolar: [], xizmat: [], shamol: [], quyosh: [] };
   const top = (_id: AxLayer) => (a.exploded ? slabTop : 0);
 
   /* --- disk (portlatilgan: qalin plastinka) yoki yer --- */
