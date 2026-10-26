@@ -22,7 +22,6 @@ test('Transport: 7 model, oʻlcham va uchburchaklar, GLB yuklab olinadi', async 
   expect(d.suggestedFilename()).toBe('archemistry_avtobus12.glb');
   const buf = await (await import('node:fs/promises')).readFile((await d.path())!);
   expect(buf.subarray(0, 4).toString()).toBe('glTF');
-  await page.screenshot({ path: 'test-results/transport-1024.png' });
 });
 
 test('Transport: tungi rejim va ruscha matn', async ({ page }) => {
@@ -36,5 +35,4 @@ test('Transport: tungi rejim va ruscha matn', async ({ page }) => {
   await expect(page.locator('#trGlb')).toContainText('Скачать GLB');
   const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.tr-list')!).backgroundColor);
   expect(bg).not.toBe('rgb(255, 255, 255)');
-  await page.screenshot({ path: 'test-results/transport-dark.png' });
 });
