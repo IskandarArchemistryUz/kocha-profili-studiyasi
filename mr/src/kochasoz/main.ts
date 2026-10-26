@@ -10,7 +10,7 @@ import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, toast, download } from '../ui/dom';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
-import { tr, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
+import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
 import { mount, type DCLogic, type Mounted } from './dc';
 import { exportSvg, exportPdf, sendToChizmadon, saveJson, openJson, svgText, cleanSvg, exportPng, safeName } from './io';
 import { KESIM_OPTS_DEF, kesimDxf, type KesimOpts } from './kesimdxf';
@@ -175,6 +175,89 @@ function restoreAll(o: Record<string, unknown>): void {
   for (const id of Object.keys(BOARDS)) if (o[id]) LS.set(`ks-${id}`, o[id]);
   const id = current?.id; current?.m.destroy(); current = null; if (id) void show();
 }
+
+/* ---------- B: raqamni bosib, qiymat kiritish (zona eni, qizil chiziqlar orasi, tarmoq oʻrni/chuqurligi) ---------- */
+type ZEl = [string, number, Record<string, unknown>?];
+interface BSt { els: ZEl[]; rl: number; sel: number; selU: number; U: { k: string; x: number; d: number }[]; zm?: { z: number; x: number; y: number } | null; pL?: boolean; pR?: boolean }
+const fmn = (v: number) => { const t = String(Math.round(v * 100) / 100); return getLang() === 'uz' ? t.replace('.', ',') : t; };
+function numEdit(t: HTMLElement): void {
+  if (!current || current.id !== 'b') return;
+  const inst = current.m.inst, st = inst.state as unknown as BSt, kind = t.dataset.ed!;
+  let ei = -1, val: number, lo: number, hi: number;
+  if (kind === 'w') { const b = t.closest<HTMLElement>('.blk'); if (!b || b.dataset.ei === '') return; ei = Number(b.dataset.ei); val = st.els[ei]?.[1]; lo = 0.3; hi = 40; }
+  else if (kind === 'zw') { ei = Math.min(st.sel, st.els.length - 1); val = st.els[ei]?.[1]; lo = 0.3; hi = 40; }
+  else if (kind === 'rl') { val = st.rl; lo = 3; hi = 200; }
+  else { const u = st.U[st.selU]; if (!u) return; val = kind === 'ux' ? u.x : u.d; lo = kind === 'ux' ? -8 : 0.2; hi = kind === 'ux' ? st.rl + 8 : 8; }
+  if (val == null || !isFinite(val)) return;
+  document.querySelector('.ks-numed')?.remove();
+  const r = t.getBoundingClientRect(), inp = h('input', { class: 'ks-numed', type: 'text', inputmode: 'decimal', 'aria-label': tr('Qiymat, m'), value: fmn(val) }) as HTMLInputElement;
+  inp.style.left = `${Math.round(r.left + r.width / 2 - 38)}px`; inp.style.top = `${Math.round(r.top + r.height / 2 - 15)}px`;
+  document.body.append(inp); inp.focus(); inp.select();
+  let done = false;
+  const finish = (ok: boolean) => {
+    if (done) return; done = true; const v = parseFloat(inp.value.replace(',', '.').replace(/[^\d.\-]/g, '')); inp.remove();
+    if (!ok || !isFinite(v)) return;
+    const nv = Math.round(Math.min(hi, Math.max(lo, v)) * 100) / 100, s2 = inst.state as unknown as BSt;
+    if (kind === 'w' || kind === 'zw') inst.setState({ els: s2.els.map((e, i) => i === ei ? [e[0], nv, { ...(e[2] ?? {}) }] : [e[0], e[1], { ...(e[2] ?? {}) }]) } as never);
+    else if (kind === 'rl') inst.setState({ rl: nv } as never);
+    else inst.setState({ U: s2.U.map((u, i) => i === s2.selU ? { ...u, [kind === 'ux' ? 'x' : 'd']: nv } : u) } as never);
+    if (nv !== v) toast(tf('Chegara: ${a}–${b} m', { a: fmn(lo), b: fmn(hi) }));
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } });
+  inp.addEventListener('blur', () => finish(true));
+}
+stage.addEventListener('click', e => {
+  const t = (e.target as Element).closest?.<HTMLElement>('[data-ed]');
+  if (!t || current?.id !== 'b' || !stage.contains(t)) return;
+  setTimeout(() => numEdit(t));   // zona tugmasi avval tanlansin
+});
+
+/* ---------- B: chizmani yaqinlashtirish — gʻildirak, sudrash (yaqinlashganda yoki oʻrta tugma), klaviatura ---------- */
+type Zm = { z: number; x: number; y: number };
+let liveZ: Zm | null = null, zT: ReturnType<typeof setTimeout> | undefined, noClick = false;
+const zSvg = () => stage.querySelector<SVGSVGElement>('.ws-b main > .card svg[role=img]');
+const zClamp = (z: Zm, w: number, hh: number): Zm => ({ z: z.z, x: Math.min(0, Math.max(w * (1 - z.z), z.x)), y: Math.min(0, Math.max(hh * (1 - z.z), z.y)) });
+function zApply(svg: SVGSVGElement, z: Zm): void { svg.style.transform = z.z <= 1.001 ? 'none' : `translate(${z.x.toFixed(1)}px, ${z.y.toFixed(1)}px) scale(${z.z.toFixed(4)})`; }
+function zCommit(z: Zm | null): void { if (!current || current.id !== 'b') return; current.m.inst.setState({ zm: z && z.z > 1.001 ? z : null } as never); liveZ = null; }
+function zAt(f: number, mx?: number, my?: number): void {
+  const svg = zSvg(); if (!svg || !current) return; const r = svg.parentElement!.getBoundingClientRect();
+  const z0 = liveZ ?? ((current.m.inst.state as unknown as BSt).zm ?? { z: 1, x: 0, y: 0 }), z1 = Math.max(1, Math.min(8, z0.z * f));
+  const px = mx ?? r.width / 2, py = my ?? r.height / 2;
+  liveZ = zClamp({ z: z1, x: px - (px - z0.x) * z1 / z0.z, y: py - (py - z0.y) * z1 / z0.z }, r.width, r.height); zApply(svg, liveZ);
+  clearTimeout(zT); const z = liveZ; zT = setTimeout(() => zCommit(z), 180);
+}
+stage.addEventListener('wheel', e => {
+  if (current?.id !== 'b') return; const svg = zSvg(); if (!svg) return;
+  const tg = e.target as Element; if (!svg.parentElement!.contains(tg) || tg.closest('.ks-zm, .seg, .ks-exp, .ks-menu, button')) return;
+  e.preventDefault(); const r = svg.parentElement!.getBoundingClientRect();
+  zAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+stage.addEventListener('pointerdown', e => {
+  if (current?.id !== 'b') return; const svg = zSvg(); if (!svg || !svg.contains(e.target as Node)) return;
+  if ((e.target as Element).closest('.ks-hnd, .ks-uh, .ks-bb')) return;
+  const z0 = (current.m.inst.state as unknown as BSt).zm; if (!z0 && e.button !== 1) return;
+  const r = svg.parentElement!.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, base = z0 ?? { z: 1, x: 0, y: 0 }; let moved = false;
+  if (e.button === 1) e.preventDefault();
+  const mv = (ev: PointerEvent) => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy; if (!moved && Math.hypot(dx, dy) < 4) return;
+    if (!moved) { moved = true; svg.classList.add('ks-pan'); }
+    liveZ = zClamp({ z: base.z, x: base.x + dx, y: base.y + dy }, r.width, r.height); zApply(svg, liveZ);
+  };
+  const up = () => { window.removeEventListener('pointermove', mv); svg.classList.remove('ks-pan'); if (moved) { noClick = true; setTimeout(() => { noClick = false; }, 0); zCommit(liveZ); } };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up, { once: true });
+});
+stage.addEventListener('click', e => { if (noClick) { e.stopPropagation(); e.preventDefault(); noClick = false; } }, true);
+document.addEventListener('keydown', e => {
+  if (current?.id !== 'b' || e.metaKey || e.altKey) return; const tg = e.target as HTMLElement;
+  if (tg.closest('input, textarea, [contenteditable]')) return;
+  if (e.ctrlKey && !['=', '+', '-', '0'].includes(e.key)) return;
+  const inst = current.m.inst, st = inst.state as unknown as BSt;
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); zAt(1.25); }
+  else if (e.key === '-') { e.preventDefault(); zAt(0.8); }
+  else if (e.key === '0') { e.preventDefault(); zCommit(null); }
+  else if (e.key === '[' && !e.ctrlKey) inst.setState({ pL: !st.pL } as never);
+  else if (e.key === ']' && !e.ctrlKey) inst.setState({ pR: !st.pR } as never);
+});
 
 /* rejim tugmalari (A–E) va «Kesimini ochish (B)» havolasi — shablon ichida, bu yerda ushlanadi */
 stage.addEventListener('click', e => {
