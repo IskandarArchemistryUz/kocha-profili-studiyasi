@@ -38,6 +38,7 @@ import { nearestStation, type Climate } from '../core/wind';
 import { windAt } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
+import { layerIcon, GROUP_COL } from './layerIcons';
 import { wmFile, wmRaster } from '../core/wm';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
@@ -68,7 +69,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { c: LngLat; r: number; on: LayerId[]; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
+interface State { c: LngLat; r: number; on: LayerId[]; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
 const S: State = (() => {
   try { const o = JSON.parse(localStorage.getItem('joy-state') || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
@@ -76,6 +77,10 @@ const S: State = (() => {
 })();
 const save = () => { try { localStorage.setItem('joy-state', JSON.stringify(S)); } catch { /* */ } };
 const isOn = (id: LayerId) => S.on.includes(id);
+/** Faol qatlam: tanlangani yoqilgan boʻlsa — u, aks holda oxirgi yoqilgani */
+const actId = (): LayerId | undefined => (S.act && isOn(S.act) ? S.act : [...S.on].reverse().find(id => LAYERS.some(l => l.id === id && l.ready)));
+const FOCUS_DIM = 0.3;
+let roseK = 1;
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
@@ -252,14 +257,15 @@ function renderLeftH(): void {
     h('div', { class: 'joy-search' }, ic(ICON.search), q, searching ? h('span', { class: 't-small' }, '…') : null),
     res,
     h('div', { class: 'joy-groups' }, ...GROUPS.map(([g, gn]) => h('section', { class: 'joy-g' },
-      h('div', { class: 'joy-gl' }, tr(gn)),
-      ...LAYERS.filter(l => l.g === g).map(l => h('div', { class: `joy-l${l.ready ? '' : ' soon'}`, 'data-layer': l.id },
-        h('i', { class: 'sq', style: `background:${l.color}` }),
-        h('span', { class: 'nm' }, tr(l.name)),
+      h('div', { class: 'joy-gl' }, h('i', { style: `background:${GROUP_COL[g]}` }), tr(gn)),
+      ...LAYERS.filter(l => l.g === g).map(l => h('div', { class: `joy-l${l.ready ? '' : ' soon'}${isOn(l.id) ? ' on' : ''}${actId() === l.id ? ' act' : ''}`, 'data-layer': l.id, style: `--lc:${l.color}` },
+        h('button', { type: 'button', class: 'lt', disabled: !l.ready, 'aria-label': tf('${n} — faol qatlam', { n: tr(l.name) }), 'aria-pressed': actId() === l.id, onclick: () => setAct(l.id) }, layerIcon(l.id)),
+        h('span', { class: 'nm', onclick: l.ready ? () => setAct(l.id) : undefined }, tr(l.name)),
         h('span', { class: 'src' }, tr(l.src), l.beta ? h('em', { class: 'beta' }, 'beta') : null),
         l.ready ? sw(isOn(l.id), tr(l.name), () => toggle(l.id)) : h('em', { class: 'soon', title: tr('Manba ulanmoqda — keyingi bosqichda') }, tr('Tez orada')),
       )),
     ))),
+    S.on.length > 1 ? h('div', { class: 't-small joy-fhint' }, tr('Faol qatlam rangda, qolganlari xira. Belgini bosib almashtiring.')) : null,
     h('div', { class: 'joy-tools' },
       h('button', { type: 'button', class: 'btn', id: 'tRuler', 'aria-pressed': drawing?.kind === 'ruler', title: tr('Masofani oʻlchash: nuqtalarni bosing, ikki marta bosish yoki Enter — tugatish'), onclick: () => startDraw('ruler') }, ic(ICON.ruler), tr('Lineyka')),
       h('button', { type: 'button', class: 'btn', id: 'tArea', 'aria-pressed': drawing?.kind === 'area', title: tr('Maydonni oʻlchash: burchaklarni bosing, ikki marta bosish yoki Enter — tugatish'), onclick: () => startDraw('area') }, ic(ICON.area), tr('Maydon')),
@@ -285,8 +291,13 @@ async function search(q: string): Promise<void> {
   searching = false; renderLeft();
   (document.getElementById('joyQ') as HTMLInputElement | null)?.focus();
 }
+function setAct(id: LayerId): void {
+  if (!isOn(id)) { toggle(id); return; }
+  S.act = id; save(); renderLeft(); renderRight(); paint();
+}
 function toggle(id: LayerId): void {
-  S.on = isOn(id) ? S.on.filter(x => x !== id) : [...S.on, id]; save();
+  if (isOn(id)) { S.on = S.on.filter(x => x !== id); if (S.act === id) S.act = undefined; } else { S.on = [...S.on, id]; S.act = id; }
+  save();
   renderLeft(); renderRight(); paint();
   if (isOn(id)) ensure();
   computeNet();
@@ -350,8 +361,8 @@ function card(l: LayerDef, srcChip: string, big: string | Node, sub: (string | N
     ? [h('div', { class: 'big' }, big), h('div', { class: 'sub' }, ...sub)]
     : st.st === 'err' ? [h('div', { class: 'sub err' }, tr('Yuklanmadi'), ': ', st.err ?? ''), h('button', { type: 'button', class: 'btn btn-sm', onclick: () => { retry(l.id); } }, tr('Qayta urinish'))]
       : [h('div', { class: 'big skel' }, ' '), h('div', { class: 'sub' }, tr('Yuklanmoqda…'))];
-  return h('article', { class: 'joy-card', 'data-card': l.id },
-    h('header', {}, h('i', { class: 'sq', style: `background:${l.color}` }), h('span', { class: 'nm' }, tr(l.name)), extra ?? null, l.beta ? h('span', { class: 'chip beta' }, 'beta') : null, h('span', { class: 'chip' }, srcChip)),
+  return h('article', { class: 'joy-card', 'data-card': l.id, style: `--lc:${l.color}` },
+    h('header', {}, h('button', { type: 'button', class: 'lt', style: `--lc:${l.color}`, 'aria-label': tf('${n} — faol qatlam', { n: tr(l.name) }), onclick: () => setAct(l.id) }, layerIcon(l.id)), h('span', { class: 'nm' }, tr(l.name)), extra ?? null, l.beta ? h('span', { class: 'chip beta' }, 'beta') : null, h('span', { class: 'chip' }, srcChip)),
     ...body);
 }
 function renderRight(): void {
@@ -462,6 +473,10 @@ function renderRightH(): void {
         h('button', { type: 'button', class: 'btn btn-sm', 'aria-label': tr('Keyingi soat'), onclick: () => { S.sh = Math.min(20, hr + 0.5); save(); renderRight(); paint(); } }, '›'))));
     cards.push(el);
   }
+  // faol qatlam kartasi — pasportdan keyin birinchi, kattaroq
+  const a = actId(), ai = cards.findIndex(c => c.dataset.card === a);
+  if (ai > 1) cards.splice(1, 0, cards.splice(ai, 1)[0]);
+  if (ai > 0) cards[1].classList.add('focus');
   const soonOn = LAYERS.filter(l => !l.ready);
   cards.push(h('article', { class: 'joy-card soonc' }, h('div', { class: 't-small' }, tr('Keyingi bosqichda')),
     h('div', { class: 'chips' }, ...soonOn.map(l => h('span', { class: 'chip' }, h('i', { style: `background:${l.color}` }), tr(l.name))))));
@@ -700,6 +715,7 @@ function paintH(): void {
     if (k !== shadowKey) { shadowKey = k; const sp = sunPosition(localToUtcAt(2026, mm, dd, hr, S.c[1], S.c[0]), S.c[1], S.c[0]); upd('joy-shadow', shadowImage(sm.prisms, sp.alt, sp.az, S.r)); }
     m.setLayoutProperty('joy-shadow', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-shadow', 'visibility', 'none');
+  focusMap(m);
   // legenda: nishab va xizmatlar
   const lg: Node[] = [];
   if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
@@ -713,12 +729,29 @@ function paintH(): void {
   legend.replaceChildren(...lg); legend.hidden = !lg.length;
   // shamol guli — markazda
   const w = isOn('shamol') ? windV() : undefined;
-  if (rose) { if (w) { rose.getElement().innerHTML = roseSvg(w.w.petals); rose.setLngLat(S.c as [number, number]).addTo(m); } else rose.remove(); }
+  if (rose) { if (w) { rose.getElement().innerHTML = `<div style="opacity:${roseK}">${roseSvg(w.w.petals)}</div>`; rose.setLngLat(S.c as [number, number]).addTo(m); } else rose.remove(); }
   if (rlab) {
     const e = rlab.getElement(), kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180);
     e.textContent = tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) });
     rlab.setLngLat([S.c[0] + S.r / kx, S.c[1]]);
   }
+}
+/** Fokus: faol boʻlmagan qatlamlar xira (bir nechta qatlam yoqilganda) */
+function focusMap(m: MLMap): void {
+  const a = actId(), k = (id: LayerId) => (S.on.length > 1 && a && a !== id ? FOCUS_DIM : 1);
+  const set = (layer: string, prop: string, v: unknown) => { if (m.getLayer(layer)) m.setPaintProperty(layer, prop, v); };
+  set('joy-hs', 'hillshade-exaggeration', 0.55 * k('relyef'));
+  set('joy-slope', 'raster-opacity', 0.8 * k('nishab'));
+  set('joy-heat', 'raster-opacity', 0.55 * k('issiqlik'));
+  set('joy-sun', 'raster-opacity', 0.75 * k('quyosh'));
+  set('joy-shadow', 'raster-opacity', 0.4 * k('quyosh'));
+  set('joy-noise', 'raster-opacity', 0.7 * k('shovqin'));
+  set('joy-walk', 'line-opacity', k('piyoda'));
+  set('joy-flow', 'line-opacity', 0.9 * k('oqim'));
+  const x = k('xizmat'), c = k('raqobat');
+  set('joy-poi', 'circle-opacity', ['case', ['get', 'in'], x, 0.35 * x]); set('joy-poi', 'circle-stroke-opacity', ['case', ['get', 'in'], x, 0.35 * x]);
+  set('joy-comp', 'circle-opacity', ['case', ['get', 'in'], c, 0.4 * c]); set('joy-comp', 'circle-stroke-opacity', c);
+  roseK = k('shamol');
 }
 /* ---------------- C: joy pasporti hisoboti (A3) ---------------- */
 let repBusy = false;
