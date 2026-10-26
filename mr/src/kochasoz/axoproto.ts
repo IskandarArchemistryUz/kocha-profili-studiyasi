@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildAxo, type AxoStyle } from './axo3d';
-const q = new URLSearchParams(location.search), style = (q.get('v') ?? 'maket') as AxoStyle, az = Number(q.get('az') ?? 35);
+const q = new URLSearchParams(location.search), style = (q.get('v') ?? 'maket') as AxoStyle, az = Number(q.get('az') ?? -30);
 const sec = JSON.parse(decodeURIComponent(q.get('s') ?? '{}'));
 const W = 1600, H = 1000;
 const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.setPixelRatio(1);
