@@ -4,6 +4,10 @@
   </div>
   <aside class="panel" style="position: absolute; top: 76px; left: 12px; width: 262px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; z-index: 2;">
     <div><span class="t-foot">Chorraha</span><b style="display: block; font-size: 17px;">{{title}}</b><span class="t-foot">{{sub}}</span></div>
+    <span class="lbl">Haqiqiy chorraha · OSM</span>
+    <div style="display: flex; gap: 6px;"><input class="input" id="ksNodeIn" style="flex: 1; min-width: 0;" placeholder="41.311, 69.279 · havola" aria-label="Chorraha koordinatasi yoki xarita havolasi" value="{{nodeQ}}" onInput="{{nodeIn}}" onKeydown="{{nodeKey}}"><button class="btn btn-sm" id="ksNodeGo" onClick="{{nodeGo}}">Topish</button></div>
+    <span class="t-foot" id="ksNodeMsg">{{nodeMsg}}</span>
+    <sc-for list="{{nodeSrc}}" as="x"><span class="t-foot" style="display: block;">· {{x.t}}</span></sc-for>
     <span class="lbl">Asosiy koʻcha · gorizontal</span>
     <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{tA}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}">{{c.n}}</button></sc-for></div>
     <span class="lbl">Kesishuvchi koʻcha</span>
