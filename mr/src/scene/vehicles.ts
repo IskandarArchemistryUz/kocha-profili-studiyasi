@@ -33,6 +33,18 @@ function M(name: keyof typeof COL | string, color?: string, o: Partial<THREE.Mes
   return m;
 }
 
+/** Faralar juftligi: qora korpus + yorugʻ linza (+ old tomonda sariq burilish chirogʻi). dir: +1 — old (+Z), −1 — orqa. */
+function lamps(g: THREE.Group, x: number, y: number, z: number, dir: 1 | -1, w = 0.36, hh = 0.16, rear = dir < 0): void {
+  const lens = rear ? M('orqa', undefined, { emissive: new THREE.Color('#ff3b2a'), emissiveIntensity: 0.55 }) : M('chiroq', '#ffffff', { emissive: new THREE.Color('#fff4d6'), emissiveIntensity: 0.9 });
+  const amber = M('chiroq', '#f5a623', { emissive: new THREE.Color('#f5a623'), emissiveIntensity: 0.5 });
+  [-1, 1].forEach(sd => {
+    const cx = sd * x;
+    g.add(box(w + 0.07, hh + 0.07, 0.03, cx, y, z, M('qora'), 'chiroq_korpus'));
+    g.add(box(w * (rear ? 1 : 0.72), hh, 0.03, cx - sd * (rear ? 0 : w * 0.14), y, z + dir * 0.02, lens, rear ? 'orqa_chiroq' : 'fara'));
+    if (!rear) g.add(box(w * 0.24, hh, 0.03, cx + sd * w * 0.38, y, z + dir * 0.02, amber, 'burilish'));
+  });
+}
+
 /** Yon profil (x — uzunlik, y — balandlik) → kenglik boʻylab chiqarish; natija: uzunlik +Z boʻylab, kenglik X boʻylab, markazda */
 function extrude(shape: THREE.Shape, width: number, bevel = 0.06, curve = 5): THREE.ExtrudeGeometry {
   const g = new THREE.ExtrudeGeometry(shape, { depth: Math.max(0.01, width - 2 * bevel), bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: curve });
@@ -100,11 +112,11 @@ function busBody(L: number, W: number, H: number, axles: number[], opt: { nose?:
   if (opt.nose !== false) {
     g.add(box(W - 0.22, wy1 - 0.75, 0.04, 0, (0.75 + wy1) / 2, zL(L) + 0.1, gl, 'oyna'));
     g.add(box(W - 0.4, 0.22, 0.04, 0, wy1 + 0.15, zL(L) + 0.09, M('qora'), 'tablo'));
-    [-1, 1].forEach(s => g.add(box(0.35, 0.14, 0.04, s * (W / 2 - 0.32), 0.6, zL(L) + 0.11, M('chiroq', undefined, { emissive: new THREE.Color('#fff2c0'), emissiveIntensity: 0.3 }), 'chiroq')));
+    lamps(g, W / 2 - 0.36, 0.62, zL(L) + 0.1, 1, 0.46, 0.2);
   }
   if (opt.tail !== false) {
     g.add(box(W - 0.5, 0.8, 0.04, 0, H - 0.75, zL(0) - 0.1, gl, 'oyna'));
-    [-1, 1].forEach(s => g.add(box(0.18, 0.4, 0.04, s * (W / 2 - 0.2), 0.95, zL(0) - 0.11, M('orqa'), 'orqa_chiroq')));
+    lamps(g, W / 2 - 0.22, 0.95, zL(0) - 0.1, -1, 0.2, 0.44);
   }
   // tom: konditsioner bloki (oldingi qismda)
   if (opt.nose !== false) { const ac2 = mesh(extrude(rrect(0, 0, 2.6, 0.28, [0.05, 0.12, 0.12, 0.05]), W - 0.6, 0.04, 3), M('tunuka'), 'konditsioner'); ac2.position.set(0, H, zL(L - 4.2) - 1.3); g.add(ac2); }
@@ -149,7 +161,7 @@ function tram(): THREE.Group {
     [-1, 1].forEach(sd => g.add(box(0.03, 1.1, a1 - a0, sd * (W / 2 + 0.01), 1.75, z0 + (a0 + a1) / 2, gl, 'oyna')));
     [-1, 1].forEach(sd => { g.add(box(0.035, 1.95, 1.3, sd * (W / 2 + 0.015), 1.3, z0 + segL / 2, M('tunuka', '#b9b6af'), 'eshik')); g.add(box(0.04, 1.2, 0.55, sd * (W / 2 + 0.02), 1.65, z0 + segL / 2 - 0.33, gl, 'eshik_oyna')); g.add(box(0.04, 1.2, 0.55, sd * (W / 2 + 0.02), 1.65, z0 + segL / 2 + 0.33, gl, 'eshik_oyna')); });
     [-1, 1].forEach(sd => g.add(box(0.02, 0.18, segL - 0.4, sd * (W / 2 + 0.008), 0.7, z0 + segL / 2, M('aksent'), 'aksent')));
-    if (first || last) { const zf = last ? z0 + segL - 0.47 : z0 + 0.47; g.add(box(W - 0.6, 1.0, 0.05, 0, H - 0.75, zf, gl, 'oyna')); g.add(box(W - 0.9, 0.18, 0.05, 0, H - 0.12, zf + (last ? -0.12 : 0.12), M('qora'), 'tablo')); [-1, 1].forEach(sd => g.add(box(0.3, 0.12, 0.05, sd * (W / 2 - 0.4), 0.75, last ? z0 + segL + 0.01 : z0 - 0.01, M('chiroq', undefined, { emissive: new THREE.Color('#fff2c0'), emissiveIntensity: 0.3 }), 'chiroq'))); }
+    if (first || last) { const zf = last ? z0 + segL - 0.47 : z0 + 0.47; { const dy = H - 0.2 - (y0 + 0.9), t = (H - 0.8 - (y0 + 0.9)) / dy, sg = last ? -1 : 1, wg = new THREE.BoxGeometry(W - 0.55, 1.25, 0.04); wg.rotateX(sg * Math.atan2(0.45, dy)); wg.translate(0, H - 0.8, last ? z0 + segL - 0.45 * t + 0.08 : z0 + 0.45 * t - 0.08); g.add(mesh(wg, gl, 'oyna')); void zf; } g.add(box(W - 0.9, 0.18, 0.05, 0, H - 0.12, zf + (last ? -0.12 : 0.12), M('qora'), 'tablo')); lamps(g, W / 2 - 0.42, 0.75, last ? z0 + segL + 0.07 : z0 - 0.07, last ? 1 : -1, 0.4, 0.16, false); }
     // aravachalar (past, etak orqasida)
     [segL * 0.5].forEach(zz => [-1, 1].forEach(sd => g.add(box(0.06, 0.34, 2.0, sd * (W / 2 - 0.05), 0.2, z0 + zz, M('qora'), 'arava'))));
     if (i < 2) g.add(box(W - 0.2, H - 0.4, 0.5, 0, (y0 + H) / 2 + 0.1, z0 + segL + 0.25, M('qora'), 'garmon'));
@@ -178,7 +190,7 @@ function sedan(color = '#7d8a96'): THREE.Group {
   const roof = mesh(extrude(rrect(cx0 + 0.25, v.H - 0.035, cx1 - 0.2, v.H + 0.015, [0, 0, 0.02, 0.02]), v.W - 0.2, 0.03, 2), M('kuzov', color), 'kuzov'); roof.position.z = -v.L / 2; g.add(roof);
   // B ustun
   [-1, 1].forEach(sd => g.add(box(0.03, v.H - 0.92, 0.1, sd * (v.W / 2 - 0.07), (0.9 + v.H) / 2, -v.L / 2 + 2.15, M('kuzov', color), 'kuzov')));
-  [-1, 1].forEach(sd => { g.add(box(0.32, 0.1, 0.04, sd * (v.W / 2 - 0.3), 0.62, v.L / 2 + 0.01, M('chiroq', undefined, { emissive: new THREE.Color('#fff2c0'), emissiveIntensity: 0.3 }), 'chiroq')); g.add(box(0.3, 0.1, 0.04, sd * (v.W / 2 - 0.3), 0.72, -v.L / 2 - 0.01, M('orqa'), 'orqa_chiroq')); });
+  lamps(g, v.W / 2 - 0.32, 0.62, v.L / 2 + 0.07, 1, 0.38, 0.12); lamps(g, v.W / 2 - 0.3, 0.66, -v.L / 2 - 0.1, -1, 0.34, 0.12);
   g.add(wheels([ra - v.L / 2, fa - v.L / 2], v.W, r));
   return g;
 }
@@ -187,7 +199,7 @@ function truck(): THREE.Group {
   const fa = v.L - v.fo!, ra = fa - v.wb!, cl = 2.3, Hc = 3.0;
   const c = mesh(extrude(rrect(v.L - cl, 0.55, v.L, Hc, [0.08, 0.12, 0.35, 0.08]), v.W, 0.08, 5), M('kuzov', '#d9d6cf'), 'kabina'); c.position.z = -v.L / 2; g.add(c);
   g.add(box(v.W - 0.3, 0.9, 0.04, 0, Hc - 0.7, v.L / 2 + 0.1, M('oyna'), 'oyna'));
-  [-1, 1].forEach(sd => g.add(box(0.3, 0.14, 0.04, sd * (v.W / 2 - 0.3), 0.95, v.L / 2 + 0.1, M('chiroq', undefined, { emissive: new THREE.Color('#fff2c0'), emissiveIntensity: 0.3 }), 'chiroq')));
+  lamps(g, v.W / 2 - 0.34, 0.98, v.L / 2 + 0.1, 1, 0.42, 0.18);
   [-1, 1].forEach(sd => g.add(box(0.03, 0.75, 0.9, sd * (v.W / 2 + 0.01), Hc - 0.62, v.L / 2 - 0.65, M('oyna'), 'oyna')));
   g.add(box(v.W - 0.2, 0.28, 0.08, 0, 0.66, v.L / 2 + 0.1, M('qora'), 'bamper'));
   // rama va kuzov-furgon
@@ -195,7 +207,7 @@ function truck(): THREE.Group {
   const fl = v.L - cl - 0.35;
   g.add(mesh(extrude(rrect(0.1, 1.0, fl, v.H, [0.03, 0.03, 0.05, 0.05]), v.W, 0.04, 2), M('tunuka', '#e6e3dc'), 'furgon').translateZ(-v.L / 2));
   [-1, 1].forEach(sd => g.add(box(0.02, 0.16, fl - 0.4, sd * (v.W / 2 + 0.006), v.H - 0.35, -v.L / 2 + fl / 2, M('aksent'), 'aksent')));
-  [-1, 1].forEach(sd => g.add(box(0.2, 0.1, 0.04, sd * (v.W / 2 - 0.2), 0.75, -v.L / 2 - 0.02, M('orqa'), 'orqa_chiroq')));
+  lamps(g, v.W / 2 - 0.25, 0.8, -v.L / 2 - 0.06, -1, 0.3, 0.14);
   g.add(wheels([ra - v.L / 2 - 0.65, ra - v.L / 2 + 0.65, fa - v.L / 2].sort((a, b) => b - a), v.W, 0.5, true));
   return g;
 }
@@ -204,10 +216,11 @@ function fire(): THREE.Group {
   const fa = v.L - v.fo!, ra = fa - v.wb!, cl = 2.6, Hc = 2.9;
   const c = mesh(extrude(rrect(v.L - cl, 0.55, v.L, Hc, [0.08, 0.15, 0.3, 0.08]), v.W, 0.08, 5), M('kuzov', red), 'kabina'); c.position.z = -v.L / 2; g.add(c);
   g.add(box(v.W - 0.3, 0.85, 0.04, 0, Hc - 0.65, v.L / 2 + 0.1, M('oyna'), 'oyna'));
-  [-1, 1].forEach(sd => g.add(box(0.3, 0.14, 0.04, sd * (v.W / 2 - 0.3), 0.98, v.L / 2 + 0.1, M('chiroq', undefined, { emissive: new THREE.Color('#fff2c0'), emissiveIntensity: 0.3 }), 'chiroq')));
+  lamps(g, v.W / 2 - 0.34, 1.0, v.L / 2 + 0.1, 1, 0.42, 0.18);
   [-1, 1].forEach(sd => g.add(box(0.03, 0.7, 1.9, sd * (v.W / 2 + 0.01), Hc - 0.6, v.L / 2 - 1.2, M('oyna'), 'oyna')));
   g.add(box(v.W - 0.2, 0.3, 0.08, 0, 0.68, v.L / 2 + 0.1, M('disk'), 'bamper'));
   g.add(box(1.3, 0.14, 0.3, 0, Hc + 0.07, v.L / 2 - 0.5, M('chiroq', '#3b6fd4', { emissive: new THREE.Color('#3b6fd4'), emissiveIntensity: 0.5 }), 'mayoq'));
+  lamps(g, v.W / 2 - 0.25, 0.9, -v.L / 2 - 0.07, -1, 0.3, 0.16);
   // kuzov: shkaflar (yon panellar boʻlingan) + oq chiziq
   const bl = v.L - cl - 0.15;
   g.add(mesh(extrude(rrect(0, 0.55, bl, Hc + 0.1, [0.05, 0.03, 0.05, 0.05]), v.W, 0.05, 2), M('kuzov', red), 'kuzov').translateZ(-v.L / 2));
