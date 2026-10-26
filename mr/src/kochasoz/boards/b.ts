@@ -307,19 +307,55 @@ export default class Component extends DCLogic {
       if (!line) { A(poly([V[0], V[1], V[5], V[4]]), '#f4f2ee', null, 0, 0.16); A(poly([V[1], V[2], V[6], V[5]]), '#f4f2ee', null, 0, 0.12); A(poly([V[4], V[5], V[6], V[7]]), '#f4f2ee', null, 0, 0.16); }
       [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]].forEach(function (e) { var a = P(V[e[0]][0], V[e[0]][1], V[e[0]][2]), b = P(V[e[1]][0], V[e[1]][1], V[e[1]][2]); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#8f8a80', 0.7, 0.9, '4 3'); });
       for (var f = 1; f < Hr / 3.2; f++) { var a = P(x0, 0, f * 3.2), b = P(x0, LG, f * 3.2); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#b9b3a8', 0.5, 0.6, '2 3'); } }
+    /* ===== rejaga joylashtirilgan elementlar (parklet, bekat, shpalera…) — kesim uslubidagi illyustratsiya; boshqa obyektlar ularning joyiga tushmaydi ===== */
+    var PLA = (base.PL || []).filter(function (p) { return p.z < els.length && p.y < LG - 0.6; }).map(function (p) { var y = Math.max(0, p.y); return { t: p.t, z: p.z, y: y, l: Math.max(0.6, Math.min(p.l, LG - 0.3 - y)) }; });
+    function busy(i, a, b) { return PLA.some(function (p) { return p.z === i && p.y < b + 0.3 && p.y + p.l > a - 0.3; }); }
+    function C3(a) { return line ? ['#ffffff', '#ffffff', '#ffffff'] : a; }
+    var WOOD = C3(['#e6d3b3', '#cfb68f', '#dbc4a0']), GRN = C3(['#bcd6a8', '#9fbf8c', '#accb98']), CON = C3(['#e9e5dd', '#d2cdc3', '#dcd8cf']), GLS = line ? '#ffffff' : '#d6e5ee';
+    function bx(x0, y0, z0, w, l, hh, c) { box(x0, y0, z0, w, l, hh, c[0], c[1], c[2], 1); }
+    function shrub(x, y, z, r) { var q = P(x, y, z + r * 0.55); A(El(q[0], q[1], r * k, r * 0.7 * k), line ? '#ffffff' : '#a9c897', line ? INK : '#7d9c69', 0.5); }
+    function seg3(a, b, st, w) { var p = P(a[0], a[1], a[2]), q = P(b[0], b[1], b[2]); A('M' + p[0].toFixed(1) + ' ' + p[1].toFixed(1) + 'L' + q[0].toFixed(1) + ' ' + q[1].toFixed(1), null, st, w); }
+    function mark(x0, x1, y, l, z, col, txt2) { A(poly([[x0 + 0.15, y, z], [x1 - 0.15, y, z], [x1 - 0.15, y + l, z], [x0 + 0.15, y + l, z]]), line ? '#ffffff' : '#f6efd6', col, 0.8, 1, '3 2');
+      for (var t = 0.6; t < l - 0.2; t += 1.2) seg3([x0 + 0.2, y + t, z], [x1 - 0.2, y + t + 0.6, z], col, 0.5);
+      var c = P((x0 + x1) / 2, y + l / 2, z); AT(c[0], c[1] + 3, txt2, 7, col, 700, 'middle'); }
+    function drawPL(p) { var i = p.z, e = els[i], x0 = zx[i][0], x1 = zx[i][1], w = x1 - x0, cx = (x0 + x1) / 2, h = T[e[0]][1], y = p.y, l = p.l, leftZ = cx < rl / 2, xRoad = leftZ ? x1 : x0;
+      if (p.t === 'parklet') { bx(x0 + 0.1, y, 0, w - 0.2, l, 0.15, WOOD); for (var t = 0.4; t < l; t += 0.5) seg3([x0 + 0.15, y + t, 0.151], [x1 - 0.15, y + t, 0.151], line ? '#d2cdc3' : '#c9ae86', 0.35);
+        [y + 0.1, y + l - 0.7].forEach(function (yy) { bx(x0 + 0.2, yy, 0.15, w - 0.4, 0.6, 0.45, CON); [0.3, 0.7].forEach(function (f) { shrub(x0 + 0.2 + (w - 0.4) * f, yy + 0.3, 0.6, 0.38); }); });
+        bx(xRoad - (leftZ ? 0.4 : 0) , y + 0.8, 0.15, 0.4, l - 1.6, 0.45, CON); for (var t2 = 1.1; t2 < l - 1; t2 += 0.8) shrub(xRoad + (leftZ ? -0.2 : 0.2), y + t2, 0.6, 0.3);
+        bx(leftZ ? x0 + 0.2 : x1 - 0.65, y + 1.2, 0.15, 0.45, l - 2.4, 0.45, WOOD); return; }
+      if (p.t === 'bekat') { var xb = leftZ ? x0 + 0.3 : x1 - 0.3, sd = leftZ ? 1 : -1, d2 = Math.min(1.8, w - 0.4), xf = xb + sd * d2;
+        bx(Math.min(xb, xf), y, h, d2, l, 0.04, CON);
+        A(poly([[xb, y, h], [xb, y + l, h], [xb, y + l, h + 2.4], [xb, y, h + 2.4]]), GLS, '#8f8a80', 0.5, line ? 1 : 0.75);
+        [y, y + l].forEach(function (yy) { seg3([xf, yy, h], [xf, yy, h + 2.45], INK, 0.9); seg3([xb, yy, h], [xb, yy, h + 2.45], INK, 0.9); });
+        bx(Math.min(xb, xf) - 0.1, y - 0.15, h + 2.45, d2 + 0.2, l + 0.3, 0.12, C3(['#f2f0eb', '#d9d5cc', '#e4e0d8']));
+        bx(Math.min(xb + sd * 0.1, xb + sd * 0.55), y + 0.6, h, 0.45, l - 1.2, 0.45, WOOD);
+        var sp = P(xf + sd * 0.2, y + l + 0.4, h + 2.6), sb = P(xf + sd * 0.2, y + l + 0.4, h); A('M' + sb[0].toFixed(1) + ' ' + sb[1].toFixed(1) + 'L' + sp[0].toFixed(1) + ' ' + sp[1].toFixed(1), null, INK, 0.9); A(El(sp[0], sp[1] - 3, 3.2, 3.2), line ? '#ffffff' : '#4c5bd4', INK, 0.5); return; }
+      if (p.t === 'shpalera') { var ww = Math.min(0.9, w - 0.3); bx(cx - ww / 2, y, h, ww, l, 0.45, CON); bx(cx - ww / 2 + 0.1, y + 0.1, h + 0.45, ww - 0.2, l - 0.2, 1.0, GRN); return; }
+      if (p.t === 'buta') { for (var t3 = 0.5; t3 < l; t3 += 1.0) shrub(cx + ((Math.round(t3) % 2) ? 0.35 : -0.35) * Math.min(1, w / 2), y + t3, h, 0.6); return; }
+      if (p.t === 'terrasa') { bx(x0 + 0.1, y, h, w - 0.2, l, 0.08, WOOD); for (var t4 = 1.4; t4 < l - 0.6; t4 += 2.8) (function (yy) { var q = P(cx, yy, h + 0.08); AS.soyabon(L, q[0], q[1], k); })(y + t4); return; }
+      if (p.t === 'velopark') { for (var t5 = 0.4; t5 < l; t5 += 0.9) { var yy5 = y + t5, a1 = P(cx - 0.4, yy5, h), a2 = P(cx - 0.4, yy5, h + 0.75), a3 = P(cx + 0.4, yy5, h + 0.75), a4 = P(cx + 0.4, yy5, h); A('M' + a1[0].toFixed(1) + ' ' + a1[1].toFixed(1) + 'L' + a2[0].toFixed(1) + ' ' + a2[1].toFixed(1) + 'L' + a3[0].toFixed(1) + ' ' + a3[1].toFixed(1) + 'L' + a4[0].toFixed(1) + ' ' + a4[1].toFixed(1), null, INK, 0.9); } return; }
+      if (p.t === 'samokat') { for (var t6 = 0.3; t6 < l; t6 += 0.6) { var yy6 = y + t6; seg3([cx - 0.3, yy6, h + 0.08], [cx + 0.3, yy6, h + 0.08], INK, 1.2); seg3([cx + 0.3, yy6, h + 0.08], [cx + 0.25, yy6, h + 1.0], line ? INK : '#2f8f6a', 0.9); } return; }
+      if (p.t === 'orindiq') { bx(cx - 0.25, y, h, 0.5, Math.min(l, 2), 0.45, WOOD); bx(leftZ ? cx - 0.3 : cx + 0.22, y, h + 0.45, 0.08, Math.min(l, 2), 0.4, WOOD); return; }
+      if (p.t === 'axlat') { bx(cx - 0.25, y, h, 0.5, 0.5, 0.9, C3(['#bdb8ae', '#8f8a80', '#a49f95'])); return; }
+      if (p.t === 'daraxt') { var q7 = P(cx, y + l / 2, h); AS.uaT(L, 'T_bulut', q7[0], q7[1], 10, k, i + Math.round(y), !leftZ); return; }
+      if (p.t === 'gul') { bx(cx - 0.4, y, h, 0.8, Math.min(0.8, l), 0.45, CON); ['#e7a0b4', '#f2c14e', '#e7a0b4'].forEach(function (c4, j) { var q8 = P(cx - 0.2 + j * 0.2, y + 0.4, h + 0.62); A(El(q8[0], q8[1], 0.18 * k, 0.13 * k), line ? '#ffffff' : c4, line ? INK : '#9a6b5c', 0.4); }); shrub(cx, y + 0.4, h + 0.45, 0.3); return; }
+      if (p.t === 'yuklash') { mark(x0, x1, y, l, 0.012, line ? INK : '#c79a12', 'YUK'); return; }
+      if (p.t === 'taksi') { mark(x0, x1, y, l, 0.012, line ? INK : '#c79a12', 'TAKSI'); return; }
+    }
+    PLA.forEach(function (p) { var i = p.z, cx = (zx[i][0] + zx[i][1]) / 2; ob(cx, p.y + p.l / 2, function () { drawPL(p); }); });
     els.forEach(function (e, i) { var f = e[2] || {}, x0 = zx[i][0], x1 = zx[i][1], cx = (x0 + x1) / 2, h = T[e[0]][1], left = cx < rl / 2, dir = left ? 1 : -1;
-      if ((e[0] === 'yash' || e[0] === 'med') && f.daraxt) [4, 12, 20, 27].forEach(function (y, j) { ob(cx, y, function () { var q = P(cx, y, h); AS.uaT(L, e[1] >= 2.9 ? (j % 2 ? 'T_bulut2' : 'T_bulut') : (e[0] === 'med' ? 'T_terak' : 'T_tuxum'), q[0], q[1], e[1] >= 2.9 ? 10 : 11, k, i + j, !left); }); });
+      if ((e[0] === 'yash' || e[0] === 'med') && f.daraxt) [4, 12, 20, 27].forEach(function (y, j) { if (busy(i, y - 1.5, y + 1.5)) return; ob(cx, y, function () { var q = P(cx, y, h); AS.uaT(L, e[1] >= 2.9 ? (j % 2 ? 'T_bulut2' : 'T_bulut') : (e[0] === 'med' ? 'T_terak' : 'T_tuxum'), q[0], q[1], e[1] >= 2.9 ? 10 : 11, k, i + j, !left); }); });
       /* turargoh: oʻtish joyidan keyin, 6 m qadam bilan; har 4-joy — daraxt choʻntagi (reja bilan bir xil), hech narsa ustma-ust tushmaydi */
-      if (e[0] === 'park' && (f.mashina || f.dchontak)) { var k2p = 0; for (var yp = zFree; yp + 4.7 <= LG - 0.3; yp += 6, k2p++) (function (y, kk) { if (f.dchontak && kk % 4 === 2) ob(cx, y + 2.35, function () { var q = P(cx, y + 2.35, 0); AS.uaT(L, 'T_tuxum', q[0], q[1], 8, k, kk); }); else if (f.mashina) ob(cx, y, function () { car(cx, y); }); })(yp, k2p); }
+      if (e[0] === 'park' && (f.mashina || f.dchontak)) { var k2p = 0; for (var yp = zFree; yp + 4.7 <= LG - 0.3; yp += 6, k2p++) (function (y, kk) { if (busy(i, y, y + 4.7)) return; if (f.dchontak && kk % 4 === 2) ob(cx, y + 2.35, function () { var q = P(cx, y + 2.35, 0); AS.uaT(L, 'T_tuxum', q[0], q[1], 8, k, kk); }); else if (f.mashina) ob(cx, y, function () { car(cx, y); }); })(yp, k2p); }
       if (e[0] === 'qat' && f.mashina !== false) (i % 2 ? [12.5, 22.6] : [zFree + 0.6, 18.5]).forEach(function (y) { ob(cx, y, function () { car(cx, y); }); });   /* oʻtish joyi (2,5–6,5 m) bilan kesishmaydi */
-      if (e[0] === 'bus') ob(cx, 9, function () { vBus(cx, 9, left); return; box(cx - 1.27, 9, 0, 2.55, 12, 3.1, line ? '#fff' : '#f3ecdd', line ? '#fff' : '#e3d9c4', line ? '#fff' : '#ebe2cf', 1); for (var wy = 10; wy < 20; wy += 2) A(poly([[cx + 1.28, wy, 1.4], [cx + 1.28, wy + 1.5, 1.4], [cx + 1.28, wy + 1.5, 2.5], [cx + 1.28, wy, 2.5]]), '#c3cdd5', '#5d5a55', 0.4, 1); });
+      if (e[0] === 'bus' && !busy(i, 9, 21)) ob(cx, 9, function () { vBus(cx, 9, left); return; box(cx - 1.27, 9, 0, 2.55, 12, 3.1, line ? '#fff' : '#f3ecdd', line ? '#fff' : '#e3d9c4', line ? '#fff' : '#ebe2cf', 1); for (var wy = 10; wy < 20; wy += 2) A(poly([[cx + 1.28, wy, 1.4], [cx + 1.28, wy + 1.5, 1.4], [cx + 1.28, wy + 1.5, 2.5], [cx + 1.28, wy, 2.5]]), '#c3cdd5', '#5d5a55', 0.4, 1); });
       if (e[0] === 'tram' && i % 2 === 0) ob(cx, 3, function () { vTram(cx, 0.5, left); return; box(cx - 1.33, 3, 0, 2.65, 20, 3.4, line ? '#fff' : '#f4f1ea', line ? '#fff' : '#e2ddd3', line ? '#fff' : '#ece8e0', 1); A(poly([[cx + 1.34, 3, 0.9], [cx + 1.34, 23, 0.9], [cx + 1.34, 23, 1.2], [cx + 1.34, 3, 1.2]]), line ? '#fff' : '#c96b5c', null, 0); for (var wy = 4; wy < 22; wy += 2.2) A(poly([[cx + 1.34, wy, 1.4], [cx + 1.34, wy + 1.6, 1.4], [cx + 1.34, wy + 1.6, 2.7], [cx + 1.34, wy, 2.7]]), '#c3cdd5', '#5d5a55', 0.4, 1); var a = P(cx, 10, 3.4), b = P(cx + 0.4, 10.6, 5.6); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, INK, 1); });
       if (e[0] === 'tram') { var wa = P(cx, 0, 5.8), wb = P(cx, LG, 5.8); A('M' + wa[0].toFixed(1) + ' ' + wa[1].toFixed(1) + 'L' + wb[0].toFixed(1) + ' ' + wb[1].toFixed(1), null, INK, 0.5); }
       if ((e[0] === 'mebel' || e[0] === 'med') && f.fonar) [2, 14, 26].forEach(function (y) { ob(cx, y, function () { var a = P(cx, y, h), b = P(cx, y, h + 9), c2 = P(cx + dir * 1.6, y, h + 9.4); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1) + 'L' + c2[0].toFixed(1) + ' ' + c2[1].toFixed(1), null, INK, Math.max(1, 0.12 * k)); }); });
-      if (e[0] === 'piy') [2, 8.5, 16, 23].forEach(function (y, j) { var xx = x0 + (x1 - x0) * (j % 2 ? 0.65 : 0.3); ob(xx, y, function () { var q = P(xx, y, h); AS.ua(L, PPL[(pI++) % PPL.length], q[0], q[1], k, j % 2 === 0); }); });
-      if (e[0] === 'velo') [6, 19].forEach(function (y) { ob(cx, y, function () { var q = P(cx, y, h); AS.velochi(L, q[0], q[1], k, !left); }); });
-      if (e[0] === 'front' && f.kafe) [4, 12, 20].forEach(function (y) { ob(cx, y, function () { var q = P(cx, y, h); AS.soyabon(L, q[0], q[1], k); }); });
-      if ((e[0] === 'yash' || e[0] === 'front') && f.orin) [8, 24].forEach(function (y) { ob(cx, y, function () { var q = P(cx, y, h); AS.ua(L, 'otirgan_blok', q[0], q[1], k, !left); }); });
+      if (e[0] === 'piy') [2, 8.5, 16, 23].forEach(function (y, j) { if (busy(i, y - 0.6, y + 0.6)) return; var xx = x0 + (x1 - x0) * (j % 2 ? 0.65 : 0.3); ob(xx, y, function () { var q = P(xx, y, h); AS.ua(L, PPL[(pI++) % PPL.length], q[0], q[1], k, j % 2 === 0); }); });
+      if (e[0] === 'velo') [6, 19].forEach(function (y) { if (busy(i, y - 1, y + 1)) return; ob(cx, y, function () { var q = P(cx, y, h); AS.velochi(L, q[0], q[1], k, !left); }); });
+      if (e[0] === 'front' && f.kafe) [4, 12, 20].forEach(function (y) { if (busy(i, y - 1.4, y + 1.4)) return; ob(cx, y, function () { var q = P(cx, y, h); AS.soyabon(L, q[0], q[1], k); }); });
+      if ((e[0] === 'yash' || e[0] === 'front') && f.orin) [8, 24].forEach(function (y) { if (busy(i, y - 1, y + 1)) return; ob(cx, y, function () { var q = P(cx, y, h); AS.ua(L, 'otirgan_blok', q[0], q[1], k, !left); }); });
     });
     OB.sort(function (a, b) { return a.key - b.key; }).forEach(function (o) { o.fn(); });
     ghostBld();   // eng oxirida — shaffof qobiq daraxt va odamlar ustida

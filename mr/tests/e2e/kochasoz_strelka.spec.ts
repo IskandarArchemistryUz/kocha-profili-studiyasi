@@ -50,3 +50,16 @@ test('B: aksonometriya — mashinalar oʻtish joyiga chiqmaydi', async ({ page }
   const iv = await q();
   for (const b of iv) { const [a, z] = b.split('@')[1].split('-').map(Number); expect(z <= 2.5 || a >= 6.5, b).toBe(true); }
 });
+
+test('B: aksonometriya — rejadagi elementlar (parklet, taksi, yuk…) chiziladi', async ({ page }) => {
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto('./kochasoz.html?beta=0#/b');
+  await expect(page.locator('.ws-b')).toBeVisible();
+  await page.evaluate(() => { const I = (window as any).__ks.m.inst, T = I.state.TPL.find((x: any) => x[0] === 'Tuman koʻchasi'); I.setState({ els: T[2], rl: 35.2, view: 2, PL: T[5] }); });
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'TAKSI' })).toHaveCount(1);
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'YUK' })).toHaveCount(1);
+  // elementsiz — yozuvlar yoʻq
+  await page.evaluate(() => (window as any).__ks.m.inst.setState({ PL: [] }));
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'TAKSI' })).toHaveCount(0);
+});
