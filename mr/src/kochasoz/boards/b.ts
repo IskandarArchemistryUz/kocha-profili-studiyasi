@@ -216,7 +216,7 @@ export default class Component extends DCLogic {
     var els = base.els, rl = base.rl, SB = 1.5, BD = 7, LG = 28;
     /* dimetriya (26.10): koʻndalang oʻq 10° pastga, koʻcha boʻylab 38° yuqoriga (0,8 masshtab) — kabinet proyeksiyadan qiyaroq, raqobatchilar kabi */
     var CA = Math.cos(10 * Math.PI / 180), SA = Math.sin(10 * Math.PI / 180), CB = Math.cos(38 * Math.PI / 180) * 0.8, SBy = Math.sin(38 * Math.PI / 180) * 0.8;
-    var xL0 = -SB - BD, xR0 = rl + SB + BD, wM = (xR0 - xL0) * CA + LG * CB, hM = LG * SBy + (xR0 - xL0) * SA + 4.2 + Math.max(11, Math.min(base.bL || 0, 9) * 3.2 + 2 - LG * SBy - xL0 * SA);
+    var xL0 = -SB - BD, xR0 = rl + SB + BD, wM = (xR0 - xL0) * CA + LG * CB, hM = LG * SBy + (xR0 - xL0) * SA + 4.2 + Math.max(11, Math.min(Math.max(base.bL || 0, base.bR || 0), 9) * 3.2 + 2);
     var W = rl + 2 * SB + 2 * BD, k = Math.min(BW / wM, (BH - 30) / hM), ox = BX + (BW - wM * k) / 2 - xL0 * CA * k, oy = BY + BH - 6 - (4.2 + xR0 * SA) * k;
     var DZ = (-CB / CA) * SA - SBy;   // koʻrish yoʻnalishi (y = 1 da z), yuzlar koʻrinishi uchun
     function P(x, y, z) { return [ox + (x * CA + y * CB) * k, oy - (z + y * SBy - x * SA) * k]; }
@@ -299,7 +299,12 @@ export default class Component extends DCLogic {
     var PPL = ['ayol_yurgan', 'erkak_yurgan', 'ona_bola', 'telefon', 'ayol_koylak', 'ryukzak', 'erkak_turgan', 'aravacha', 'qariya', 'yuguruvchi', 'erkak_palto', 'ayol_sumka'], pI = 0;
     var bmax = Math.max(1, Math.floor(((oy - Math.max(BY, 30) - 18) / k - LG * SBy + xL0 * SA) / 3.2));   // bino tepasi sarlavhadan pastda
     ob(-SB - BD, LG, function () { var H = Math.min(base.bL, bmax) * 3.2; box(-SB - BD, 0, 0, BD, LG, H, line ? '#fff' : '#ecebe7', line ? '#fff' : '#e2e0db', line ? '#fff' : '#f6f5f2'); for (var f = 1; f < H / 3.2; f++) { var a = P(-SB, 0, f * 3.2), b = P(-SB, LG, f * 3.2); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#cfcbc3', 0.6); } for (var wy = 2; wy < LG - 2; wy += 3.5) for (var f2 = 0; f2 < H / 3.2; f2++) A(poly([[-SB, wy, f2 * 3.2 + 0.9], [-SB, wy + 1.6, f2 * 3.2 + 0.9], [-SB, wy + 1.6, f2 * 3.2 + 2.5], [-SB, wy, f2 * 3.2 + 2.5]]), line ? '#fff' : '#d5dde3', line ? INK : null, 0.4); });
-    ob(rl + SB + BD, 0, function () { box(rl + SB, 0, 0, BD, LG, 3.2, line ? '#fff' : '#d9d5cc', line ? '#fff' : '#e2e0db', line ? '#fff' : '#ecebe7'); for (var hh = 0; hh < LG + BD; hh += 1.2) { var a = P(rl + SB + Math.max(0, hh - LG), Math.min(hh, LG), 3.2), b = P(rl + SB + Math.min(BD, hh), Math.max(0, hh - BD), 3.2); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#b9b3a8', 0.5); } });
+    /* oʻng (yaqin) bino — shaffof: toʻliq balandlikda, punktir kontur, koʻchani toʻsmaydi (26.10) */
+    function ghostBld() { var x0 = rl + SB, x1 = x0 + BD, Hr = Math.max(1, Math.min(base.bR || 1, bmax)) * 3.2, V = [[x0, 0, 0], [x1, 0, 0], [x1, LG, 0], [x0, LG, 0], [x0, 0, Hr], [x1, 0, Hr], [x1, LG, Hr], [x0, LG, Hr]];
+      A(poly([V[0], V[1], V[2], V[3]]), line ? '#ffffff' : '#ecebe7', null, 0, 0.55);
+      if (!line) { A(poly([V[0], V[1], V[5], V[4]]), '#f4f2ee', null, 0, 0.16); A(poly([V[1], V[2], V[6], V[5]]), '#f4f2ee', null, 0, 0.12); A(poly([V[4], V[5], V[6], V[7]]), '#f4f2ee', null, 0, 0.16); }
+      [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]].forEach(function (e) { var a = P(V[e[0]][0], V[e[0]][1], V[e[0]][2]), b = P(V[e[1]][0], V[e[1]][1], V[e[1]][2]); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#8f8a80', 0.7, 0.9, '4 3'); });
+      for (var f = 1; f < Hr / 3.2; f++) { var a = P(x0, 0, f * 3.2), b = P(x0, LG, f * 3.2); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#b9b3a8', 0.5, 0.6, '2 3'); } }
     els.forEach(function (e, i) { var f = e[2] || {}, x0 = zx[i][0], x1 = zx[i][1], cx = (x0 + x1) / 2, h = T[e[0]][1], left = cx < rl / 2, dir = left ? 1 : -1;
       if ((e[0] === 'yash' || e[0] === 'med') && f.daraxt) [4, 12, 20, 27].forEach(function (y, j) { ob(cx, y, function () { var q = P(cx, y, h); AS.uaT(L, e[1] >= 2.9 ? (j % 2 ? 'T_bulut2' : 'T_bulut') : (e[0] === 'med' ? 'T_terak' : 'T_tuxum'), q[0], q[1], e[1] >= 2.9 ? 10 : 11, k, i + j, !left); }); });
       if (e[0] === 'park' && f.dchontak) [10, 22].forEach(function (y, j) { ob(cx, y, function () { var q = P(cx, y, 0); AS.uaT(L, 'T_tuxum', q[0], q[1], 8, k, j); }); });
@@ -315,6 +320,7 @@ export default class Component extends DCLogic {
       if ((e[0] === 'yash' || e[0] === 'front') && f.orin) [8, 24].forEach(function (y) { ob(cx, y, function () { var q = P(cx, y, h); AS.ua(L, 'otirgan_blok', q[0], q[1], k, !left); }); });
     });
     OB.sort(function (a, b) { return a.key - b.key; }).forEach(function (o) { o.fn(); });
+    ghostBld();   // eng oxirida — shaffof qobiq daraxt va odamlar ustida
 
       return { D: D, TT: TT, bmax: bmax };
     }
@@ -670,7 +676,15 @@ export default class Component extends DCLogic {
       add('M' + X(-SB) + ' ' + Y0 + 'H' + X(0) + 'V' + Y1 + 'H' + X(-SB) + 'Z', line ? '#fff' : '#ebe7df', null, 0); add('M' + X(rl) + ' ' + Y0 + 'H' + X(rl + SB) + 'V' + Y1 + 'H' + X(rl) + 'Z', line ? '#fff' : '#ebe7df', null, 0);
       var MK = line ? INK : '#ffffff';
       /* harakat yoʻnalishi: yoʻl belgisi strelkasi (oʻng tomonlama harakat — chap yarim pastga, oʻng yarim yuqoriga) */
-      function laneArrow(cx, cy, k, up) { var d = up ? 1 : -1, L0 = 3.6, sw = 0.13, hw = 0.42, hl = 1.1; var p = [[-sw, 0], [-sw, L0 - hl], [-hw, L0 - hl], [0, L0], [hw, L0 - hl], [sw, L0 - hl], [sw, 0]]; add('M' + p.map(function (q) { return (cx + q[0] * k).toFixed(1) + ' ' + (cy - d * (q[1] - L0 / 2) * k).toFixed(1); }).join('L') + 'Z', MK, line ? null : null, 0, line ? 1 : 0.95); }
+      /* yoʻl strelkasi (26.10): yoʻnalish va manyovr — toʻgʻri, chapga, oʻngga, toʻgʻri+chapga, toʻgʻri+oʻngga; up — ekranda yuqoriga harakat */
+      function laneArrow(cx, cy, k, up, man) { man = man || 'togri'; if (man === 'yoq') return; var d = up ? 1 : -1, sw = 0.14, hw = 0.42, hl = 1.0;
+        function Q(u, v) { return (cx + d * u * k).toFixed(1) + ' ' + (cy - d * v * k).toFixed(1); }
+        function poly2(pts) { add('M' + pts.map(function (q) { return Q(q[0], q[1]); }).join('L') + 'Z', MK, null, 0, line ? 1 : 0.95); }
+        var str = man === 'togri' || man.indexOf('togri_') === 0, side = man === 'chap' || man === 'togri_chap' ? -1 : man === 'ong' || man === 'togri_ong' ? 1 : 0;
+        poly2([[-sw, -1.8], [sw, -1.8], [sw, str ? 0.8 : -0.15 + sw], [-sw, str ? 0.8 : -0.15 + sw]]);
+        if (str) poly2([[-hw, 0.8], [0, 0.8 + hl], [hw, 0.8]]);
+        if (side) { var y0 = str ? -0.55 : -0.15; poly2([[0, y0 - sw], [side * 0.75, y0 - sw], [side * 0.75, y0 + sw], [0, y0 + sw]]); poly2([[side * 0.75, y0 - hw], [side * (0.75 + hl), y0], [side * 0.75, y0 + hw]]); } }
+      function laneUp(f, left) { return f.yon === 'up' ? true : f.yon === 'down' ? false : !left; }
       /* velo yoʻlak belgisi: velosiped (yon koʻrinish, yoʻl boʻylab) va strelka */
       function bikeMark(cx, cy, k, up) { var d = up ? -1 : 1; function P(u, v) { return (cx + v * k).toFixed(1) + ' ' + (cy + d * u * k).toFixed(1); } var r = 0.36, sw2 = Math.max(1.1, 0.07 * k);
         [[-0.6, 0], [0.6, 0]].forEach(function (w) { var c0 = P(w[0], w[1]).split(' '); add(El(+c0[0], +c0[1], r * k, r * k), null, MK, sw2); });
@@ -688,8 +702,8 @@ export default class Component extends DCLogic {
         add('M' + x0 + ' ' + Y0 + 'V' + Y1, null, edge ? INK : '#bdb9b1', edge ? 1.2 : 0.5);
         zhit.push({ x: x0.toFixed(1), y: Y0, w: w.toFixed(1), h: Y1 - Y0, pick: (function (ii) { return function () { self.setState({ sel: ii, selU: -1 }); }; })(i) });
         if (hasZ && ROAD[e[0]] && e[0] !== 'park') for (var zb = x0 + 0.25 * px; zb < x1 - 0.3 * px; zb += 1.0 * px) add('M' + zb + ' ' + YM(ZB) + 'h' + (0.5 * px) + 'v' + (4 * px) + 'h' + (-0.5 * px) + 'Z', '#ffffff', line ? INK : null, line ? 0.4 : 0);
-        if (e[0] === 'qat') { var nx = els[i + 1]; if (nx && nx[0] === 'qat') add('M' + x1 + ' ' + YM(ZB + 6) + 'V' + Y1, null, line ? INK : '#ffffff', 1.4, 1, (3 * px) + ' ' + (6 * px)); if (f.mashina !== false) [0, 1].forEach(function (k2) { if ((i + k2) % 2 === 0) AS.pMashina(L, cx, YM(12 + k2 * 17), px, !left); }); laneArrow(cx, YM((i % 2 ? 12 : 29) - 2), px, !left); if (LM > 44) laneArrow(cx, YM(LM - 5), px, !left); }
-        if (e[0] === 'bus') { if (f.avtobus !== false) AS.pAvtobus(L, cx, YM(LM * 0.6), px, !left); tx(cx, YM(9), 'A', 13, line ? INK : '#ffffff', 700); laneArrow(cx, YM(LM * 0.32), px, !left); }
+        if (e[0] === 'qat') { var nx = els[i + 1]; if (nx && nx[0] === 'qat') add('M' + x1 + ' ' + YM(ZB + 6) + 'V' + Y1, null, line ? INK : '#ffffff', 1.4, 1, (3 * px) + ' ' + (6 * px)); if (f.mashina !== false) [0, 1].forEach(function (k2) { if ((i + k2) % 2 === 0) AS.pMashina(L, cx, YM(12 + k2 * 17), px, !left); }); laneArrow(cx, YM(i % 2 ? 10 : Math.min(27, LM - 6)), px, laneUp(f, left), f.man); /* uchastka 25 m boʻlsa ham koʻrinadi */ if (LM > 44) laneArrow(cx, YM(LM - 5), px, laneUp(f, left), f.man); }
+        if (e[0] === 'bus') { if (f.avtobus !== false) AS.pAvtobus(L, cx, YM(LM * 0.6), px, !left); tx(cx, YM(9), 'A', 13, line ? INK : '#ffffff', 700); laneArrow(cx, YM(LM * 0.32), px, laneUp(f, left), f.man); }
         if (e[0] === 'tram') { add('M' + (x0 + w * 0.27) + ' ' + Y0 + 'V' + Y1 + 'M' + (x0 + w * 0.73) + ' ' + Y0 + 'V' + Y1, null, '#55524d', 1.3); if (f.tramvay !== false && i % 2 === 0) AS.pTramvay(L, cx, YM(LM * 0.55), px, 20); if (f.tayanch) [8, 28].forEach(function (m) { add(El(left ? x0 : x1, YM(m), 2.4, 2.4), INK, null, 0); }); }
         // avtoturargoh: parallel / 45° / 90° (Dizayn-kod 6.3)
         if (e[0] === 'park') {
@@ -824,6 +838,8 @@ export default class Component extends DCLogic {
     var szt = su ? ztype(su.x) : '';
     var CAT = { parklet: ['Parklet', ['park'], 6, 'Dizayn-kod 13 · andoza'], bekat: ['Bekat', ['park', 'yash', 'mebel', 'bus'], 10, 'Dizayn-kod 5'], shpalera: ['Shpalera', ['yash', 'med', 'front', 'park'], 8, 'jonli toʻsiq · ShNQ 35-jad.'], buta: ['Butalar', ['yash', 'med', 'front'], 3, 'ShNQ 35-jad.'], terrasa: ['Terrasa · stol-stul', ['front'], 6, 'Dizayn-kod 13.3–13.4'], velopark: ['Velo turargoh', ['yash', 'front', 'mebel'], 5, 'Dizayn-kod 7.4'], samokat: ['Samokat turargohi', ['yash', 'front', 'mebel', 'park'], 4, 'andoza'], orindiq: ['Oʻrindiq', ['yash', 'front', 'mebel'], 2, 'Dizayn-kod 3.3'], axlat: ['Axlat qutisi', ['mebel', 'yash', 'front'], 0.6, ''], daraxt: ['Daraxt', ['park', 'yash', 'med', 'front'], 2.5, 'ShNQ 35-jad.'], gul: ['Gul tuvak', ['front', 'yash'], 1, 'Dizayn-kod 13.4'], yuklash: ['Yuk tushirish', ['park'], 8, 'andoza'], taksi: ['Taksi', ['park'], 6, 'Dizayn-kod 6.4.2'] };
     var LMg = 544 / px, PLs = s.PL || [], selT = els[Math.min(s.sel, els.length - 1)] ? els[Math.min(s.sel, els.length - 1)][0] : '';
+    /* zona tartibi oʻzgarsa — rejadagi joylashtirilgan elementlar (parklet, shpalera…) oʻz zonasi bilan koʻchadi; −1 — oʻchadi */
+    function remapPL(f) { return (self.state.PL || []).map(function (p) { return Object.assign({}, p, { z: f(p.z) }); }).filter(function (p) { return p.z >= 0; }); }
     function updPL(fn) { var N = (self.state.PL || []).map(function (p) { return Object.assign({}, p); }); var r = fn(N); self.setState(Object.assign({ PL: N }, r || {})); }
     function freeY(z, l) { var its = PLs.filter(function (p) { return p.z === z; }); for (var y = 7.5; y + l <= LMg; y += 0.5) { if (!its.some(function (p) { return p.y < y + l && p.y + p.l > y; })) return y; } return Math.max(0, LMg - l); }
     var ANG = { 0: [2.3, 3, '5,5–6 × 2,3–2,5 m, manevr ≥ 3 m'], 45: [4.9, 4.5, '4,5–5 × 2,5 m, manevr 4,5–5 m'], 90: [5.0, 6, '5–5,5 × 2,5–2,7 m, manevr ≥ 6 m'] };
@@ -910,11 +926,15 @@ export default class Component extends DCLogic {
       isZone: s.selU < 0, isUtil: s.selU >= 0,
       z: { n: ct.n, c: ct.c, ic: ct.ic, w: fm(cur[1]) + ' m', pos: (s.sel + 1) + ' / ' + els.length + ' · ' + fm(zx[s.sel] ? zx[s.sel][0] : 0) + '–' + fm(zx[s.sel] ? zx[s.sel][1] : 0) + ' m', rule: RULE[cur[0]],
         items: (IT[cur[0]] || []).map(function (it) { var on = cf[it[0]] !== undefined ? !!cf[it[0]] : (['odam', 'velochi', 'mashina', 'avtobus', 'tramvay'].indexOf(it[0]) >= 0 && cur[0] !== 'park'); return { n: it[1], src: it[2], c: on ? 'on' : '', tog: function () { upd(function (E, i) { var v = E[i][2][it[0]]; if (v === undefined) v = on; E[i][2][it[0]] = !v; }); } }; }) },
+      /* harakat boʻlagi: yoʻnalish va strelka (rejada) */
+      arw: (cur[0] === 'qat' || cur[0] === 'bus') ? 'x' : '',
+      yonC: [['auto', 'Avto'], ['up', '↑ Yuqoriga'], ['down', '↓ Pastga']].map(function (v) { var on = ((cf.yon || 'auto') === v[0]); return { n: v[1], p: on ? 'true' : 'false', pick: function () { upd(function (E, i) { E[i][2].yon = v[0]; }); } }; }),
+      manC: [['togri', 'Toʻgʻri', 'M12 20V5M7 10l5-5 5 5'], ['chap', 'Chapga burilish', 'M14 20v-9H6M10 7l-4 4 4 4'], ['ong', 'Oʻngga burilish', 'M10 20v-9h8M14 7l4 4-4 4'], ['togri_chap', 'Toʻgʻri + chapga', 'M14 20V5M10 9l4-4 4 4M14 14H7M10 11l-3 3 3 3'], ['togri_ong', 'Toʻgʻri + oʻngga', 'M10 20V5M6 9l4-4 4 4M10 14h7M14 11l3 3-3 3'], ['yoq', 'Yoʻq', 'M6 6l12 12M18 6L6 18']].map(function (v) { var on = ((cf.man || 'togri') === v[0]); return { n: v[1], ic: v[2], p: on ? 'true' : 'false', pick: function () { upd(function (E, i) { E[i][2].man = v[0]; }); } }; }),
       wDn: function () { upd(function (E, i) { E[i][1] = Math.max(0.3, Math.round((E[i][1] - 0.05) * 100) / 100); }); }, wUp: function () { upd(function (E, i) { E[i][1] = Math.round((E[i][1] + 0.05) * 100) / 100; }); },
-      mvL: function () { upd(function (E, i) { if (i > 0) { var t = E[i]; E[i] = E[i - 1]; E[i - 1] = t; return { sel: i - 1 }; } }); }, mvR: function () { upd(function (E, i) { if (i < E.length - 1) { var t = E[i]; E[i] = E[i + 1]; E[i + 1] = t; return { sel: i + 1 }; } }); },
-      dup: function () { upd(function (E, i) { E.splice(i + 1, 0, [E[i][0], E[i][1], Object.assign({}, E[i][2])]); return { sel: i + 1 }; }); },
-      del: function () { upd(function (E, i) { if (E.length > 1) { E.splice(i, 1); return { sel: Math.max(0, i - 1) }; } }); },
-      adds: Object.keys(T).map(function (k) { return { n: T[k].s, c: T[k].c, pick: function () { upd(function (E, i) { E.splice(i + 1, 0, [k, k === 'qat' || k === 'bus' ? 3.5 : (k === 'tram' ? 3.1 : (k === 'mebel' ? 0.6 : k === 'ariq' ? 1 : 1.5)), defItems(k)]); return { sel: i + 1 }; }); } }; }),
+      mvL: function () { upd(function (E, i) { if (i > 0) { var t = E[i]; E[i] = E[i - 1]; E[i - 1] = t; return { sel: i - 1, PL: remapPL(function (z) { return z === i ? i - 1 : z === i - 1 ? i : z; }) }; } }); }, mvR: function () { upd(function (E, i) { if (i < E.length - 1) { var t = E[i]; E[i] = E[i + 1]; E[i + 1] = t; return { sel: i + 1, PL: remapPL(function (z) { return z === i ? i + 1 : z === i + 1 ? i : z; }) }; } }); },
+      dup: function () { upd(function (E, i) { E.splice(i + 1, 0, [E[i][0], E[i][1], Object.assign({}, E[i][2])]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); },
+      del: function () { upd(function (E, i) { if (E.length > 1) { E.splice(i, 1); return { sel: Math.max(0, i - 1), PL: remapPL(function (z) { return z === i ? -1 : z > i ? z - 1 : z; }) }; } }); },
+      adds: Object.keys(T).map(function (k) { return { n: T[k].s, c: T[k].c, pick: function () { upd(function (E, i) { E.splice(i + 1, 0, [k, k === 'qat' || k === 'bus' ? 3.5 : (k === 'tram' ? 3.1 : (k === 'mebel' ? 0.6 : k === 'ariq' ? 1 : 1.5)), defItems(k)]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); } }; }),
       u: su ? { k: ulbl(su.k), n: suc[1], c: suc[2], x: fm(su.x) + ' m', d: fm(su.d) + ' m', zone: 'Ostida: ' + (szt === 'setback' ? 'qizil chiziqdan tashqari (qurilish oldi)' : T[szt].n), rows: sev.rows } : { k: '', n: '', c: '#000', x: '', d: '', zone: '', rows: [] },
       uxD: function () { updU(function (N, j) { N[j].x = Math.max(-SB, Math.round((N[j].x - 0.1) * 10) / 10); }); }, uxU: function () { updU(function (N, j) { N[j].x = Math.min(self.state.rl + SB, Math.round((N[j].x + 0.1) * 10) / 10); }); },
       udD: function () { updU(function (N, j) { N[j].d = Math.max(0.5, Math.round((N[j].d - 0.1) * 10) / 10); }); }, udU: function () { updU(function (N, j) { N[j].d = Math.round((N[j].d + 0.1) * 10) / 10; }); },
