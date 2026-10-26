@@ -39,6 +39,7 @@ import { windAt } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { layerIcon, GROUP_COL } from './layerIcons';
+import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFile, wmRaster } from '../core/wm';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
@@ -70,7 +71,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { c: LngLat; r: number; on: LayerId[]; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
+interface State { c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
 const S: State = (() => {
   try { const o = JSON.parse(localStorage.getItem('joy-state') || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
@@ -81,6 +82,15 @@ const isOn = (id: LayerId) => S.on.includes(id);
 /** Faol qatlam: tanlangani yoqilgan boʻlsa — u, aks holda oxirgi yoqilgani */
 const actId = (): LayerId | undefined => (S.act && isOn(S.act) ? S.act : [...S.on].reverse().find(id => LAYERS.some(l => l.id === id && l.ready)));
 const FOCUS_DIM = 0.3;
+let viewOpen = false;
+const V = (id: LayerId) => view(S.v, id);
+function setView(id: LayerId, p: LayerView, live?: boolean): void {
+  S.v = { ...S.v, [id]: { ...S.v?.[id], ...p } };
+  heatKey = noiseKey = slopeKey = ''; isoKey = '';
+  paint();
+  if (!live) { save(); renderRight(); }
+}
+let isoKey = '';
 let roseK = 1;
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
@@ -476,9 +486,9 @@ function renderRightH(): void {
     cards.push(el);
   }
   // faol qatlam kartasi — pasportdan keyin birinchi, kattaroq
-  const a = actId(), ai = cards.findIndex(c => c.dataset.card === a);
+  const a = actId(), ai = cards.findIndex(c => c.dataset.card === (a === 'nishab' ? 'relyef' : a));
   if (ai > 1) cards.splice(1, 0, cards.splice(ai, 1)[0]);
-  if (ai > 0) cards[1].classList.add('focus');
+  if (ai > 0) { cards[1].classList.add('focus'); const vp = a ? viewPanel(a, view(S.v, a), viewOpen, { toggle: () => { viewOpen = !viewOpen; renderRight(); }, set: (pp, live) => setView(a, pp, live) }) : null; if (vp) cards[1].querySelector('header')!.after(vp); }
   const soonOn = LAYERS.filter(l => !l.ready);
   cards.push(h('article', { class: 'joy-card soonc' }, h('div', { class: 't-small' }, tr('Keyingi bosqichda')),
     h('div', { class: 'chips' }, ...soonOn.map(l => h('span', { class: 'chip' }, h('i', { style: `background:${l.color}` }), tr(l.name))))));
@@ -625,6 +635,8 @@ async function initMap(): Promise<void> {
   rose = new ml.Marker({ element: roseEl }).setLngLat(S.c as [number, number]);
   rlab = new ml.Marker({ element: labEl, anchor: 'left' }).setLngLat(S.c as [number, number]).addTo(map);
   (window as unknown as { joyMap: MLMap }).joyMap = map;
+  // tarmoq xatolari (plitka, shrift) — konsolga ogohlantirish; xarita ishlashda davom etadi
+  map.on('error', e => { console.warn('MapLibre:', (e as { error?: Error }).error?.message ?? e); });
 }
 /** Uslub almashtirish: diff:false — aks holda MapLibre «style.load» chiqarmaydi va oʻz qatlamlarimiz (koʻcha chizigʻi, halqa, …) yoʻqolib qoladi */
 function restyle(): void { map?.setStyle(style() as never, { diff: false }); }
@@ -643,6 +655,13 @@ function addOverlays(): void {
   heatKey = sunKey = shadowKey = '';
   m.addSource('joy-noise', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-noise', type: 'raster', source: 'joy-noise', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
+  // izochiziqlar (relyef — topo, issiqlik — izotermalar, shovqin — izofonlar) va nishab strelkalari
+  for (const id of ['joy-topo', 'joy-iso', 'joy-arr']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  m.addLayer({ id: 'joy-topo', type: 'line', source: 'joy-topo', layout: { visibility: 'none', 'line-join': 'round' }, paint: { 'line-color': isDark() ? '#d8c6aa' : '#6e4f33', 'line-width': ['case', ['get', 'mj'], 1.4, 0.6], 'line-opacity': 0.8 } } as never);
+  m.addLayer({ id: 'joy-topo-l', type: 'symbol', source: 'joy-topo', filter: ['get', 'mj'], layout: { visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 320, 'text-field': ['get', 'lb'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-keep-upright': true }, paint: { 'text-color': isDark() ? '#e8dcc6' : '#5a3f28', 'text-halo-color': isDark() ? '#16171a' : '#ffffff', 'text-halo-width': 1.6 } } as never);
+  m.addLayer({ id: 'joy-iso', type: 'line', source: 'joy-iso', layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['case', ['get', 'mj'], 2.4, 1.2], 'line-opacity': 0.9 } } as never);
+  if (!m.hasImage('joy-arrow')) { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d')!; g.strokeStyle = g.fillStyle = '#fff'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath(); g.moveTo(16, 28); g.lineTo(16, 8); g.stroke(); g.beginPath(); g.moveTo(16, 3); g.lineTo(23, 12); g.lineTo(9, 12); g.closePath(); g.fill(); m.addImage('joy-arrow', g.getImageData(0, 0, 32, 32), { pixelRatio: 2, sdf: true }); }
+  m.addLayer({ id: 'joy-arr', type: 'symbol', source: 'joy-arr', layout: { visibility: 'none', 'icon-image': 'joy-arrow', 'icon-rotate': ['get', 'r'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['get', 's'] }, paint: { 'icon-color': isDark() ? '#f4dcb4' : '#7a3a1c' } } as never);
   m.addLayer({ id: 'joy-walk', type: 'line', source: 'joy-walk', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['match', ['get', 'b'], 0, '#3f3a9e', 1, '#7b74d6', '#b9b4ef'], 'line-width': ['match', ['get', 'b'], 0, 3.5, 1, 2.6, 2] } } as never);
   m.addLayer({ id: 'joy-flow', type: 'line', source: 'joy-flow', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['interpolate', ['linear'], ['get', 'f'], 0.1, '#c9d4f5', 0.5, '#6f82e0', 1, '#1f2f9e'], 'line-width': ['interpolate', ['linear'], ['get', 'f'], 0.1, 1, 1, 7], 'line-opacity': 0.9 } } as never);
   m.addLayer({ id: 'joy-site-f', type: 'fill', source: 'joy-site', paint: { 'fill-color': '#d2492f', 'fill-opacity': 0.12 } });
@@ -661,7 +680,7 @@ function addOverlays(): void {
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '';
-const HUD_LAYERS = ['joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   const m = map;
   if (isK()) {
@@ -698,13 +717,13 @@ function paintH(): void {
   (m.getSource('joy-walk') as GeoJSONSource).setData(fc(wf.reverse()) as never);
   (m.getSource('joy-flow') as GeoJSONSource).setData(fc(ff.sort((x, y) => ((x as { properties: { f: number } }).properties.f - (y as { properties: { f: number } }).properties.f))) as never);
   if (nm && isOn('shovqin') && nm.noise) {
-    const k = `${nm.key}|n`; if (k !== noiseKey) { noiseKey = k; const im = gridImage(nm.noise.v, nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) ? null : noiseColor(v), 190); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
+    const vn = V('shovqin'), k = `${nm.key}|n|${vn.p}|${vn.st}`; if (k !== noiseKey) { noiseKey = k; const im = gridImage(nm.noise.v, nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) || (vn.st === '65' && v < 65) ? null : noiseCol(v), 190); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
     m.setLayoutProperty('joy-noise', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-noise', 'visibility', 'none');
   // issiqlik oroli — yozgi LST (6 km doira)
   const upd = (id: string, im: { url: string; coords: [number, number][] }) => (m.getSource(id) as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords });
   const lg0 = D.lst.v;
-  if (isOn('issiqlik') && lg0) { const k = `${S.c.join()}|${lg0.year}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', gridImage(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : devColor(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
+  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${lg0.year}|${vh.p}|${vh.k.toFixed(2)}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', gridImage(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
   // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
   const sm = SM;
@@ -717,14 +736,15 @@ function paintH(): void {
     if (k !== shadowKey) { shadowKey = k; const sp = sunPosition(localToUtcAt(2026, mm, dd, hr, S.c[1], S.c[0]), S.c[1], S.c[0]); upd('joy-shadow', shadowImage(sm.prisms, sp.alt, sp.az, S.r)); }
     m.setLayoutProperty('joy-shadow', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-shadow', 'visibility', 'none');
+  paintIso(m);
   focusMap(m);
   // legenda: nishab va xizmatlar
   const lg: Node[] = [];
-  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
+  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([d0, , n], i) => h('span', {}, h('i', { style: `background:${heatCol(i === 0 ? -4 : i === LST_DEV_BINS.length - 1 ? 4 : (d0 + LST_DEV_BINS[i + 1][0]) / 2)}` }), n))));
   if (sm?.hours && isOn('quyosh')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
   if (nm?.reach && isOn('piyoda')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
-  if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
+  if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
   if (isOn('nishab') && t) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Nishab')), ...SLOPE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (p.length) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Xizmatlar')), ...SVC_KINDS.map(k => h('span', {}, h('i', { class: 'dot', style: `background:${SVC_COL[k]}` }), tr(SVC_SHORT[k])))));
   if (cp.length) lg.push(h('div', { class: 'lg' }, h('span', {}, h('i', { class: 'dot', style: 'background:#7a5a3c' }), tr((CATS.find(c => c.id === S.cat) ?? CATS[0]).name))));
@@ -738,18 +758,62 @@ function paintH(): void {
     rlab.setLngLat([S.c[0] + S.r / kx, S.c[1]]);
   }
 }
+/** Issiqlik rangi: tanlangan shkala; intensivlik — kontrast (kichik farqlar ham koʻrinsin) */
+function heatCol(d: number): string { const v = V('issiqlik'), pal = VIEW.issiqlik.pals![v.p][1]; return rampColor(pal, 0.5 + d / (2 * (4.6 - 3.4 * v.k))); }
+function noiseCol(db: number): string { const v = V('shovqin'), pal = VIEW.shovqin.pals![v.p][1], i = NOISE_BINS.findIndex(([t]) => db < t); return pal[Math.min(pal.length - 1, i < 0 ? pal.length - 1 : i)]; }
+/** Izochiziqlar va strelkalar: relyef (topo), nishab (pasayish), issiqlik (izotermalar), shovqin (izofonlar) */
+function paintIso(m: MLMap): void {
+  const vis = (id: string, on: boolean) => { if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); };
+  const t = D.ter.v, lg0 = D.lst.v, nz = NM?.noise;
+  const topoOn = isOn('relyef') && !!t && V('relyef').st === 'topo', arrOn = isOn('nishab') && !!t && V('nishab').st === 'strelka';
+  const vi = V('issiqlik'), vn = V('shovqin');
+  const heatIso = isOn('issiqlik') && !!lg0 && vi.st === 'izoterma', noiseIso = isOn('shovqin') && !!nz && vn.st === 'kontur';
+  const key = [S.c.join(), S.r, topoOn, arrOn, heatIso && `${lg0!.year}|${vi.p}|${vi.k.toFixed(2)}`, noiseIso && `${NM!.key}|${vn.p}`, isDark()].join('|');
+  vis('joy-topo', topoOn); vis('joy-topo-l', topoOn); vis('joy-arr', arrOn); vis('joy-iso', heatIso || noiseIso);
+  if (key === isoKey) return; isoKey = key;
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
+  const geo = (c: LngLat) => (p: [number, number]) => [c[0] + p[0] / kx, c[1] + p[1] / ky];
+  const topo: unknown[] = [], iso: unknown[] = [], arr: unknown[] = [];
+  if (topoOn && t) {
+    const g = t.g, rng = g.max - g.min, st = [0.5, 1, 2, 5, 10, 20].find(v => rng / v <= 28) ?? 20, lv: number[] = [];
+    for (let v = Math.ceil(g.min / st) * st; v <= g.max; v += st) lv.push(v);
+    for (const L of isolines(g.h, g.n, g.step, lv, S.r * 1.15)) for (const line of joinSegs(L.segs)) if (line.length > 2) topo.push({ type: 'Feature', properties: { mj: Math.round(L.lv / st) % 5 === 0, lb: `${Math.round(L.lv)} m` }, geometry: { type: 'LineString', coordinates: line.map(geo(g.center)) } });
+  }
+  if (arrOn && t) {
+    const g = t.g, n = g.n, sp = Math.max(1, Math.round((S.r / 9) / g.step)), R0 = (n - 1) / 2 * g.step;
+    for (let j = sp; j < n - sp; j += sp) for (let i = sp; i < n - sp; i += sp) {
+      const x = -R0 + i * g.step, y = -R0 + j * g.step; if (x * x + y * y > S.r * S.r) continue;
+      const dx = (g.h[j * n + i + 1] - g.h[j * n + i - 1]) / (2 * g.step), dy = (g.h[(j + 1) * n + i] - g.h[(j - 1) * n + i]) / (2 * g.step), sl = Math.hypot(dx, dy) * 100;
+      if (!(sl > 0.7)) continue;
+      arr.push({ type: 'Feature', properties: { r: Math.atan2(-dx, -dy) * 180 / Math.PI, s: 0.55 + Math.min(1, sl / 8) * 0.75 }, geometry: { type: 'Point', coordinates: geo(g.center)([x, y]) } });
+    }
+  }
+  if (heatIso && lg0) {
+    const mu = lstMean(lg0); let lo = Infinity, hi = -Infinity; for (const v of lg0.v) if (!Number.isNaN(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    const lv: number[] = []; for (let v = Math.ceil((lo - mu) * 2) / 2; v <= hi - mu; v += 0.5) lv.push(mu + v);
+    for (const L of isolines(lg0.v, lg0.n, lg0.step, lv, lg0.R)) for (const line of joinSegs(L.segs)) iso.push({ type: 'Feature', properties: { c: heatCol(L.lv - mu), mj: Math.abs((L.lv - mu) % 1) < 0.01 }, geometry: { type: 'LineString', coordinates: line.map(geo(S.c)) } });
+  }
+  if (noiseIso && nz) for (const L of isolines(nz.v, nz.n, nz.step, [50, 55, 60, 65, 70, 75])) for (const line of joinSegs(L.segs)) iso.push({ type: 'Feature', properties: { c: noiseCol(L.lv + 0.1), mj: L.lv === 65 }, geometry: { type: 'LineString', coordinates: line.map(geo(S.c)) } });
+  (m.getSource('joy-topo') as GeoJSONSource).setData(fc(topo) as never);
+  (m.getSource('joy-arr') as GeoJSONSource).setData(fc(arr) as never);
+  (m.getSource('joy-iso') as GeoJSONSource).setData(fc(iso) as never);
+}
 /** Fokus: faol boʻlmagan qatlamlar xira (bir nechta qatlam yoqilganda) */
 function focusMap(m: MLMap): void {
   const a = actId(), k = (id: LayerId) => (S.on.length > 1 && a && a !== id ? FOCUS_DIM : 1);
   const set = (layer: string, prop: string, v: unknown) => { if (m.getLayer(layer)) m.setPaintProperty(layer, prop, v); };
-  set('joy-hs', 'hillshade-exaggeration', 0.55 * k('relyef'));
-  set('joy-slope', 'raster-opacity', 0.8 * k('nishab'));
-  set('joy-heat', 'raster-opacity', 0.55 * k('issiqlik'));
-  set('joy-sun', 'raster-opacity', 0.75 * k('quyosh'));
-  set('joy-shadow', 'raster-opacity', 0.4 * k('quyosh'));
-  set('joy-noise', 'raster-opacity', 0.7 * k('shovqin'));
-  set('joy-walk', 'line-opacity', k('piyoda'));
-  set('joy-flow', 'line-opacity', 0.9 * k('oqim'));
+  const q = (id: LayerId, lo: number, hi: number) => (lo + (hi - lo) * V(id).k) * k(id);
+  set('joy-hs', 'hillshade-exaggeration', q('relyef', 0.2, 1));
+  set('joy-topo', 'line-opacity', q('relyef', 0.35, 1)); set('joy-topo-l', 'text-opacity', k('relyef'));
+  set('joy-slope', 'raster-opacity', q('nishab', 0.35, 0.95)); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
+  set('joy-heat', 'raster-opacity', q('issiqlik', 0.3, 0.85) * (V('issiqlik').st === 'izoterma' ? 0.45 : 1));
+  set('joy-iso', 'line-opacity', Math.max(q('issiqlik', 0.5, 1), q('shovqin', 0.5, 1)));
+  set('joy-sun', 'raster-opacity', q('quyosh', 0.35, 0.95));
+  set('joy-shadow', 'raster-opacity', q('quyosh', 0.2, 0.55));
+  set('joy-noise', 'raster-opacity', q('shovqin', 0.3, 0.9) * (V('shovqin').st === 'kontur' ? 0.25 : 1));
+  set('joy-walk', 'line-opacity', q('piyoda', 0.45, 1));
+  set('joy-flow', 'line-opacity', q('oqim', 0.45, 1));
+  set('joy-flow', 'line-width', ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.6 + V('oqim').k, 1, 3 + 9 * V('oqim').k]);
   const x = k('xizmat'), c = k('raqobat');
   set('joy-poi', 'circle-opacity', ['case', ['get', 'in'], x, 0.35 * x]); set('joy-poi', 'circle-stroke-opacity', ['case', ['get', 'in'], x, 0.35 * x]);
   set('joy-comp', 'circle-opacity', ['case', ['get', 'in'], c, 0.4 * c]); set('joy-comp', 'circle-stroke-opacity', c);
