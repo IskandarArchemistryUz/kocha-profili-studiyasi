@@ -216,6 +216,7 @@ function toggleExportMenu(btn: HTMLElement): void {
   const svg = stage.querySelector<SVGSVGElement>('.ws-b svg[role=img]'); if (!svg) return;
   const st = current!.m.inst.state as { els?: [string, number][]; rl?: number; tplName?: string };
   const base = `${st.tplName || tr('Koʻcha')}_${tr('kesim')}_${new Date().toISOString().slice(0, 10)}`;
+  const axo = !!stage.querySelector('[data-axo3d]');
   const opts: KesimOpts = { ...KESIM_OPTS_DEF, ...(LS.get(EXP_OPTS_KEY) ?? {}) };
   const close = () => { menu.remove(); btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); };
   const outside = (e: Event) => { if (!wrap.contains(e.target as Node)) close(); };
@@ -232,10 +233,10 @@ function toggleExportMenu(btn: HTMLElement): void {
       const txt = await kesimDxf({ svg, widths: (st.els ?? []).map(e => e[1]), rl: st.rl ?? 0, name: base }, opts).catch(e => { toast(`DXF: ${(e as Error).message}`); return null; });
       if (txt) download(`${safeName(base)}.dxf`, txt, 'application/dxf');
     }),
-    item('SVG', tr('vektor'), () => download(`${safeName(base)}.svg`, svgText(cleanSvg(svg)), 'image/svg+xml')),
-    item('PNG 2×', tr('rasm'), () => exportPng(cleanSvg(svg), `${safeName(base)}.png`, 2)),
-    item('PNG 4×', tr('chop etish uchun'), () => exportPng(cleanSvg(svg), `${safeName(base)}.png`, 4)),
-    item('PDF', 'A3', () => exportPdf(cleanSvg(svg), base)),
+    item('SVG', axo ? tr('rasm ichida') : tr('vektor'), async () => { if (axo) { const a = await axoSvg(2); if (a) download(`${safeName(base)}.svg`, svgText(a), 'image/svg+xml'); return; } download(`${safeName(base)}.svg`, svgText(cleanSvg(svg)), 'image/svg+xml'); }),
+    item('PNG 2×', tr('rasm'), () => axo ? axoPngDl(base, 2) : exportPng(cleanSvg(svg), `${safeName(base)}.png`, 2)),
+    item('PNG 4×', tr('chop etish uchun'), () => axo ? axoPngDl(base, 4) : exportPng(cleanSvg(svg), `${safeName(base)}.png`, 4)),
+    item('PDF', 'A3', async () => { if (axo) { const a = await axoSvg(3); if (a) await exportPdf(a, base); return; } await exportPdf(cleanSvg(svg), base); }),
     h('hr', {}),
     h('div', { class: 'ks-mh' }, tr('DXF ga kiritish')),
     ck('sil', tr('Siluetlar')), ck('util', tr('Tarmoqlar')), ck('legend', tr('Legenda')), ck('bld', tr('Binolar')), ck('title', tr('Sarlavha')));
@@ -243,6 +244,18 @@ function toggleExportMenu(btn: HTMLElement): void {
   setTimeout(() => document.addEventListener('pointerdown', outside, true));
 }
 
+/** B · 3D aksonometriya: PNG yuklab olish va rasmli SVG (PDF uchun) */
+async function axoPngDl(base: string, k: number): Promise<void> {
+  const r = await (await import('./axo3dView')).axoPng(k); if (!r) return;
+  const blob = await (await fetch(r.url)).blob(); download(`${safeName(base)}.png`, blob, 'image/png');
+}
+async function axoSvg(k: number): Promise<SVGSVGElement | null> {
+  const r = await (await import('./axo3dView')).axoPng(k); if (!r) return null;
+  const NS = 'http://www.w3.org/2000/svg', w = r.w / k, h = r.h / k, sv = document.createElementNS(NS, 'svg');
+  sv.setAttribute('xmlns', NS); sv.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const im = document.createElementNS(NS, 'image'); im.setAttribute('href', r.url); im.setAttribute('width', String(w)); im.setAttribute('height', String(h)); sv.append(im);
+  return sv;
+}
 /** Varaq (SVG) → PNG → Render studiyasi (asos rasm, «Koʻcha») */
 async function varaqToRender(svg: SVGSVGElement, name: string): Promise<void> {
   try {

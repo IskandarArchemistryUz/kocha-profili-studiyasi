@@ -6,10 +6,11 @@ import * as THREE from 'three';
 import { buildVehicle } from '../scene/vehicles';
 
 export type AxoStyle = 'maket' | 'rangli' | 'qatlam';
-export interface AxoUtil { k: string; x: number; d: number }
+export interface AxoUtil { k: string; x: number; d: number; c?: string; dia?: number; lbl?: string }
 export interface AxoSection { els: [string, number, Record<string, unknown>?][]; rl: number; bL: number; bR: number; U?: AxoUtil[] }
 
 const SB = 1.5, BD = 12, LG = 40, DEP = 4.2;
+export const AXO_LG = LG, AXO_GAP = 5;
 const ZH: Record<string, number> = { front: .15, piy: .15, mebel: .15, yash: .15, velo: .08, park: 0, qat: 0, bus: 0, tram: .02, med: .15, ariq: 0 };
 const ZC: Record<string, string> = { front: '#efe6d4', piy: '#e9e4da', mebel: '#ddd5c5', yash: '#c9dcb6', velo: '#d98a78', park: '#d4d6da', qat: '#c9cbd0', bus: '#93a9d8', tram: '#e3d8c4', med: '#cfe0bf', ariq: '#bcd9ea' };
 const UCOL: Record<string, string> = { V: '#3b82c4', K: '#8a6a4a', G: '#e0b020', E: '#d0453a', T: '#c2703a', A: '#6b7a8a', D: '#5aa0a0' };
@@ -33,11 +34,11 @@ export function buildAxo(sec: AxoSection, style: AxoStyle, nearRight = true): { 
   const els = sec.els, rl = sec.rl; const zx: [number, number][] = []; let acc = 0; els.forEach(e => { zx.push([acc, acc + e[1]]); acc += e[1]; });
   const xL = -SB - BD, xR = rl + SB + BD;
   // ---- yer osti (kesilgan blok)
-  const under = new THREE.Group(); root.add(under); if (layered) under.position.y = -3.2;
+  const under = new THREE.Group(); root.add(under); if (layered) under.position.y = -AXO_GAP;
   add(new THREE.BoxGeometry(xR - xL, DEP, LG), M(maket ? '#e9e4da' : '#e6d9c1'), (xL + xR) / 2, -DEP / 2, LG / 2, { parent: under, cast: false, edges: true });
   // tuproq qatlamlari (old yuzada chiziqlar)
   for (let d = 0.6; d < DEP; d += 0.9) add(new THREE.BoxGeometry(xR - xL, 0.02, 0.02), M(maket ? '#d6d0c4' : '#cbbb9f'), (xL + xR) / 2, -d, -0.01, { parent: under, cast: false, edges: false });
-  (sec.U ?? []).forEach(u => { const r = (u.k === 'K' ? 0.3 : u.k === 'V' ? 0.2 : 0.14) * 1.8; const g = new THREE.CylinderGeometry(r, r, LG + 0.04, 14); g.rotateX(Math.PI / 2); add(g, M(maket ? '#bdb7ab' : (UCOL[u.k] ?? '#888')), u.x, -u.d, LG / 2, { parent: under, edges: false }); });
+  (sec.U ?? []).forEach(u => { const r = Math.max(0.18, (u.dia ?? 0.3) / 2 * 1.6); const g = new THREE.CylinderGeometry(r, r, LG + 0.04, 14); g.rotateX(Math.PI / 2); add(g, M(maket ? '#bdb7ab' : (u.c ?? UCOL[u.k] ?? '#888')), u.x, -u.d, LG / 2, { parent: under, edges: false }); });
   // ---- yer usti: qizil chiziq oraligʻidan tashqari tasma va bino oldi
   box(SB, 0.15, LG, -SB, 0, 0, '#e8e4dc'); box(SB, 0.15, LG, rl, 0, 0, '#e8e4dc');
   els.forEach((e, i) => {
@@ -66,9 +67,9 @@ export function buildAxo(sec: AxoSection, style: AxoStyle, nearRight = true): { 
     }
     for (let f = 1; f < (ghost ? 3 : floors); f++) add(new THREE.BoxGeometry(BD + 0.06, 0.12, LG + 0.06), M(maket ? '#e7e4de' : '#dcd8d0'), x0 + BD / 2, f * 3.2, LG / 2, { parent: g, cast: false, edges: false });
   };
-  bld(xL, Math.min(sec.bL, 6), -1, !nearRight); bld(rl + SB, Math.min(sec.bR, 6), 1, nearRight);
+  if (sec.bL > 0) bld(xL, Math.min(sec.bL, 6), -1, !nearRight); if (sec.bR > 0) bld(rl + SB, Math.min(sec.bR, 6), 1, nearRight);
   // yaqin bino kesilgan: tepasida kesim belgisi (qora chiziq)
-  { const x0 = nearRight ? rl + SB : xL; box(BD, 0.04, LG, x0, 4.2, 0, maket ? '#dcd8cf' : '#d4cec2', { cast: false, edges: false }); for (let z = 0.6; z < LG; z += 1.2) box(0.05, 0.01, 1.6, x0 + 0.5 + (z * 2.7) % (BD - 1), 4.245, z, maket ? '#c4beb3' : '#b3ab9d', { cast: false, edges: false }); }
+  if ((nearRight ? sec.bR : sec.bL) > 0) { const x0 = nearRight ? rl + SB : xL; box(BD, 0.04, LG, x0, 4.2, 0, maket ? '#dcd8cf' : '#d4cec2', { cast: false, edges: false }); for (let z = 0.6; z < LG; z += 1.2) box(0.05, 0.01, 1.6, x0 + 0.5 + (z * 2.7) % (BD - 1), 4.245, z, maket ? '#c4beb3' : '#b3ab9d', { cast: false, edges: false }); }
   // ---- obyektlar
   const tree = (x: number, z: number, y: number, s: number, kind: number): void => {
     const g = new THREE.Group(); g.position.set(x, y, z); root.add(g);
@@ -100,7 +101,7 @@ export function buildAxo(sec: AxoSection, style: AxoStyle, nearRight = true): { 
   const carCols = ['#c9ccd1', '#8b97a5', '#e9e7e2', '#5f6b78', '#b8433a', '#3b4a5c'];
   els.forEach((e, i) => {
     const [t, w] = e, f = (e[2] ?? {}) as Record<string, boolean>, [x0, x1] = zx[i], cx = (x0 + x1) / 2, h = ZH[t] ?? 0, left = cx < rl / 2;
-    if ((t === 'yash' || t === 'med') && f.daraxt) for (let z = 3; z < LG; z += 7.5) tree(cx + (R() - 0.5) * 0.4, z + R(), h, w >= 2.9 ? 1 : 0.85, t === 'med' && w < 2.5 ? 2 : (z % 2 ? 1 : 0));
+    if ((t === 'yash' || t === 'med') && f.daraxt) for (let z = 3; z < LG; z += 9) tree(cx + (R() - 0.5) * 0.4, z + R(), h, w >= 2.9 ? 1 : 0.85, t === 'med' && w < 2.5 ? 2 : (z % 2 ? 1 : 0));
     if (t === 'park' && f.mashina) for (let z = 1.5; z < LG - 5; z += 6.2) { if (f.dchontak && Math.abs(z - 20) < 3) { tree(cx, z + 2.5, 0, 0.8, 0); continue; } veh('sedan', cx, z + 2.4, !left, carCols[Math.floor(R() * carCols.length)]); }
     if (t === 'qat') { const n = [[9, 0], [28, 1]]; n.forEach(([z, s]) => { if ((i + s) % 2) return; veh('sedan', cx, z, !left, carCols[Math.floor(R() * carCols.length)]); }); if (i % 2 === 1) veh('avtobus12', cx, 22, !left); }
     if (t === 'bus') veh('avtobus12', cx, 18, !left);
@@ -110,6 +111,6 @@ export function buildAxo(sec: AxoSection, style: AxoStyle, nearRight = true): { 
     if (t === 'front' && f.kafe) for (let z = 4; z < LG; z += 9) umbrella(cx, z, h);
     if ((t === 'yash' || t === 'front') && f.orin) [11, 29].forEach(z => bench(cx + (left ? 0.9 : -0.9), z, h));
   });
-  const target = new THREE.Vector3(rl / 2, layered ? 0 : 2, LG / 2);
+  const target = new THREE.Vector3(rl / 2, layered ? -1 : 2, LG / 2);
   return { scene, target, span: xR - xL };
 }
