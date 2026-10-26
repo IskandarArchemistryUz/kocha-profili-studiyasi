@@ -3,8 +3,27 @@
    Hisob-kitob va chizma shu yerda; qobiq, saqlash, til va tungi rejim — ../dc.ts va ../main.ts. */
 import { DCLogic } from '../dc';
 import UA_ from './ua.json';
+import { tr, tf } from '../../i18n';
 export default class Component extends DCLogic {
   constructor(p) { super(p); this.state = {"veh": "avtobus", "turn": true, "TPL": [["Magistral · tramvayli", null, [["front", 2, {"kafe": true}], ["piy", 5, {}], ["velo", 1.8, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["qat", 3.25, {}], ["qat", 3.25, {"zebra": true}], ["med", 2.5, {"fonar": true}], ["tram", 3.1, {"tayanch": true}], ["tram", 3.1, {"tayanch": true}], ["med", 2.5, {"fonar": true}], ["qat", 3.25, {"zebra": true}], ["qat", 3.25, {}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["velo", 1.8, {}], ["piy", 5, {}], ["front", 2, {"kafe": true}]], "sh2", "U2", [{"t": "terrasa", "z": 0, "y": 4, "l": 7}, {"t": "velopark", "z": 3, "y": 22, "l": 5}, {"t": "samokat", "z": 3, "y": 29, "l": 3}, {"t": "shpalera", "z": 7, "y": 12, "l": 10}, {"t": "buta", "z": 10, "y": 20, "l": 4}, {"t": "gul", "z": 17, "y": 6, "l": 1}, {"t": "orindiq", "z": 14, "y": 16, "l": 2}]], ["Tuman koʻchasi", null, [["front", 3, {"kafe": true}], ["piy", 3, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["qat", 3.5, {"zebra": true}], ["med", 4, {"daraxt": true, "fonar": true}], ["qat", 3.5, {"zebra": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 3, {}], ["front", 3, {"kafe": true}]], "tm", "U3", [{"t": "parklet", "z": 4, "y": 15, "l": 6}, {"t": "yuklash", "z": 8, "y": 9, "l": 8}, {"t": "taksi", "z": 8, "y": 24, "l": 6}, {"t": "velopark", "z": 2, "y": 8, "l": 5}, {"t": "shpalera", "z": 6, "y": 10, "l": 12}, {"t": "terrasa", "z": 12, "y": 5, "l": 6}]], ["Avtobus koridori", null, [["front", 1, {}], ["piy", 5, {}], ["velo", 1.8, {}], ["yash", 3, {"daraxt": true, "velot": true}], ["mebel", 0.6, {"fonar": true}], ["bus", 3.75, {"bekat": true}], ["qat", 3.25, {"zebra": true}], ["med", 4, {"fonar": true, "orolcha": true}], ["qat", 3.25, {"zebra": true}], ["bus", 3.75, {"bekat": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "velot": true}], ["velo", 1.8, {}], ["piy", 5, {}], ["front", 1, {}]], "sh2", "U2", [{"t": "bekat", "z": 3, "y": 12, "l": 10}, {"t": "velopark", "z": 11, "y": 8, "l": 5}, {"t": "samokat", "z": 11, "y": 16, "l": 3}]], ["Mahalla koʻchasi", null, [["front", 1.1, {"gul": true}], ["piy", 2.25, {}], ["yash", 3, {"daraxt": true, "buta": true}], ["mebel", 0.5, {"fonar": true}], ["qat", 3, {}], ["qat", 3, {}], ["mebel", 0.5, {"fonar": true}], ["yash", 3, {"daraxt": true, "buta": true}], ["piy", 2.25, {}], ["front", 1.1, {"gul": true}]], "mh", "M1", [{"t": "buta", "z": 2, "y": 6, "l": 4}, {"t": "orindiq", "z": 7, "y": 12, "l": 2}, {"t": "gul", "z": 9, "y": 5, "l": 1}]], ["Piyoda koʻchasi", null, [["front", 2, {"kafe": true}], ["piy", 5, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.5, {"fonar": true}], ["mebel", 0.5, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 5, {}], ["front", 2, {"kafe": true}]], "pd", "U5", [{"t": "terrasa", "z": 0, "y": 3, "l": 10}, {"t": "terrasa", "z": 7, "y": 12, "l": 8}, {"t": "velopark", "z": 2, "y": 14, "l": 5}, {"t": "orindiq", "z": 5, "y": 8, "l": 2}]]], "a": 2, "b": 1, "vA": 60, "vB": 50, "rek": 1, "R": 8, "ctl": 0, "zebra": true, "raised": false, "bulb": true, "island": true, "sight": false, "gfx": 0, "ang": 90, "lay": {}, "tdir": 2}; }
+  /** C1 (26.10): haqiqiy chorraha — nuqta → OSM (Overpass) → tugun → ikki koʻcha shabloni, burchak va tezliklar (../node.ts) */
+  async findReal() {
+    var q = this.state.nodeQ || '';
+    const N = await import('../node');
+    const p = N.parseLatLon(q);
+    if (!p) { this.setState({ nodeSt: 'bad', nodeInfo: null, nodeSrc: [] }); return; }
+    this.setState({ nodeSt: 'load', nodeInfo: null, nodeSrc: [] });
+    try {
+      const { overpass } = await import('../../context/load');
+      const j = await overpass(N.nodeQuery(p), fetch.bind(globalThis), () => {});
+      const r = N.findNode(j.elements || [], p);
+      if (!r) { this.setState({ nodeSt: 'none' }); return; }
+      const A = N.tplFromArm(r.main[0], r.main[1]), B = N.tplFromArm(r.cross[0], r.cross[1]);
+      const TPL = this.state.TPL.filter(function (t) { return !/^OSM · /.test(t[0]); }).concat([A.tpl, B.tpl]);
+      this.setState({ TPL: TPL, a: TPL.length - 2, b: TPL.length - 1, vA: A.v, vB: B.v, ang: r.ang, nodeSt: 'ok', nodeInfo: { d: Math.round(r.dist), n: r.arms.length, lat: r.at[1].toFixed(5), lon: r.at[0].toFixed(5) },
+        nodeSrc: r.notes.concat(A.src.map(function (x) { return 'A: ' + x; }), B.src.map(function (x) { return 'B: ' + x; })) });
+    } catch (e) { this.setState({ nodeSt: 'err', nodeErr: String((e && e.message) || e) }); }
+  }
   renderVals() {
     var s = this.state, self = this;
 
@@ -449,6 +468,13 @@ export default class Component extends DCLogic {
     return {
       modes: [['A', 'Tarmoq'], ['B', 'Kesim'], ['C', 'Chorraha'], ['D', 'Koʻcha muhiti'], ['E', 'Mikromodel']].map(function (m, i) { return { k: m[0], n: m[1], p: i === 2 ? 'true' : 'false' }; }),
       title: MA.n + ' × ' + MB.n, sub: SKN[MA.sk] + ' / ' + SKN[MB.sk] + ' · ' + MA.uk + ' / ' + MB.uk,
+      nodeQ: s.nodeQ || '', nodeIn: function (e) { self.state.nodeQ = e.target.value; }, nodeKey: function (e) { if (e.key === 'Enter') { self.state.nodeQ = e.target.value; self.findReal(); } },
+      nodeGo: function () { var el = document.getElementById('ksNodeIn'); if (el) self.state.nodeQ = el.value; self.findReal(); },
+      nodeMsg: s.nodeSt === 'load' ? tr('OSM dan yoʻllar yuklanmoqda…') : s.nodeSt === 'bad' ? tr('Koordinata yoki xarita havolasini kiriting (masalan: 41.311, 69.279)') : s.nodeSt === 'none' ? tr('80 m ichida avtomobil yoʻllari kesishgan tugun topilmadi') : s.nodeSt === 'err' ? tr('OSM serveri javob bermadi') + ': ' + (s.nodeErr || '') : s.nodeSt === 'ok' && s.nodeInfo ? tf('Tugun ${d} m narida · ${n} ta tarmoq · ${lat}, ${lon}', s.nodeInfo) : tr('Nuqta atrofidagi (80 m) eng yaqin chorraha OSM dan olinadi.'),
+      nodeSrc: (s.nodeSrc || []).map(function (x) {
+        var m = /^(A|B): (.*)$/.exec(x), k = /^Tugunda (\d+) ta tarmoq/.exec(x), g = /^Kesishish burchagi (\d+)°/.exec(x);
+        return { t: m ? (m[1] === 'A' ? tr('Asosiy koʻcha') : tr('Kesishuvchi koʻcha')) + ': ' + tr(m[2]) : k ? tf('Tugunda ${n} ta tarmoq — maketda eng asosiy 4 tasi chiziladi', { n: k[1] }) : g ? tf('Kesishish burchagi ${a}° — maket 60–120° oraligʻida chizadi', { a: g[1] }) : tr(x) };
+      }).concat(s.nodeSt === 'ok' ? [{ t: '© OpenStreetMap contributors (ODbL)' }] : []),
       tA: pickT('a'), tB: pickT('b'), vA: seg('vA', [30, 40, 50, 60, 80]), vB: seg('vB', [30, 40, 50, 60, 80]),
       ang: s.ang + '°', aD: function () { self.setState({ ang: Math.max(60, self.state.ang - 5) }); }, aU: function () { self.setState({ ang: Math.min(120, self.state.ang + 5) }); },
       rek: seg('rek', [0, 1], ['Yangi qurilish', 'Rekonstruksiya']), R: fm(R) + ' m', rD: function () { self.setState({ R: Math.max(3, self.state.R - 1) }); }, rU: function () { self.setState({ R: Math.min(25, self.state.R + 1) }); },
