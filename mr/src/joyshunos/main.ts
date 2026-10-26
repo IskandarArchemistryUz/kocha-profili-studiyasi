@@ -39,6 +39,7 @@ import { windAt } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { layerIcon, GROUP_COL } from './layerIcons';
+import { contours } from './albomMap';
 import { wmFile, wmRaster } from '../core/wm';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
@@ -798,25 +799,25 @@ async function albom(out: 'pdf' | 'chz'): Promise<void> {
   try {
     const A = await import('./albom');
     const cards = collectCards().filter(c => LAYERS.some(l => l.id === c.id));
-    const overview = await captureMap().catch(() => null);
+    await baseReady();
+    const base0 = albomBase();
     const kind = ALB.k ?? 'hisobot', only = kind === 'plakat' ? cards.filter(c => c.id === (actId() ?? cards[0]?.id)) : cards;
     const layers: import('./albom').AlbumLayer[] = [];
     for (const c of only) {
       const L = LAYERS.find(l => l.id === c.id)!;
       const cid = c.id as LayerId; S.on = cid === 'relyef' ? keepOn.filter(x => x === 'relyef' || x === 'nishab') : [cid]; S.act = cid; paint();
-      const shot = await captureMap().catch(() => null);
-      layers.push({ id: c.id, name: c.name, group: L.g, groupName: tr(GROUPS.find(g => g[0] === L.g)![1]), color: c.color, big: c.big, text: c.text, norms: c.norms, src: c.src, beta: c.beta, map: shot?.url || null, legend: collectLegends(), rose: cid === 'shamol' && windV() ? roseSvg(windV()!.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null });
+      layers.push({ id: c.id, name: c.name, group: L.g, groupName: tr(GROUPS.find(g => g[0] === L.g)![1]), color: c.color, big: c.big, text: c.text, norms: c.norms, src: c.src, beta: c.beta, map: null, legend: collectLegends(), ov: albomOverlay(cid, base0) });
     }
     S.on = keepOn; S.act = keepAct; paint();
     const addr = D.addr.st === 'ok' ? D.addr.v! : `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, date = new Date().toISOString().slice(0, 10);
     const I: import('./albom').AlbumInput = {
-      addr, coords: `${S.c[1].toFixed(4)}° N · ${S.c[0].toFixed(4)}° E`, radius: S.r, date, city: cityName(), layers, overview: overview?.url || null,
-      theme: ALB.t ?? 'oq', frame: ALB.f ?? 'kvadrat', spanM: S.r * 2.3,
+      addr, coords: `${S.c[1].toFixed(4)}° N · ${S.c[0].toFixed(4)}° E`, radius: S.r, date, city: cityName(), layers, overview: null, base: base0,
+      theme: ALB.t ?? 'oq', frame: ALB.f ?? 'kvadrat', spanM: base0.span,
       L: { kicker: tr('Hudud tahlili'), summary: tr('Qisqa xulosa'), summaryLead: tf('${r} m radiusdagi hudud — har qatlamning asosiy koʻrsatkichi va meʼyorlarga muvofiqligi.', { r: S.r }), layer: tr('Qatlam'), value: tr('Koʻrsatkich'), norm: tr('Meʼyor boʻyicha'), source: tr('Manba'), method: tr('Usul'), normsOk: tr('Meʼyorda'), north: tr('Sh'), author: tr('Muallif'), page: tr('Varaq'), layers: tr('qatlam'), org: 'Archemistry Lab', sources: '', note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
     };
     const pages = kind === 'hisobot' ? A.shortReport(I) : kind === 'albom' ? A.swissSheets(I) : [A.galleryPoster(I, layers[0] ?? null)];
-    const base = `joy-${kind}-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
-    if (out === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(p => ({ svg: p.svg, widthMm: p.w, heightMm: p.h })), `${base}.pdf`); }
+    const fname = `joy-${kind}-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
+    if (out === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(p => ({ svg: p.svg, widthMm: p.w, heightMm: p.h })), `${fname}.pdf`); }
     else {
       const items = pages.map(p => ({ name: `${p.name} · ${addr}`, kind: 'sheet' as const, svg: p.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''), vb: [0, 0, p.w, p.h] as [number, number, number, number], w: p.w, h: p.h }));
       const { sendSheet } = await import('../ui/chzsend');
@@ -825,6 +826,74 @@ async function albom(out: 'pdf' | 'chz'): Promise<void> {
     }
   } catch (e) { S.on = keepOn; S.act = keepAct; paint(); toast(`${tr('Albom tayyorlanmadi')}: ${(e as Error).message}`); }
   finally { repBusy = false; renderRight(); }
+}
+/** Albom xaritasi uchun OSM fon maʼlumoti tayyor boʻlsin (binolar, koʻchalar) */
+async function baseReady(): Promise<void> {
+  const key = `${S.c.join()}|${S.r + 100}`;
+  for (let i = 0; i < 240 && axBundle?.key !== key; i++) { if (!axBusy) void needCtx(); await new Promise(r => setTimeout(r, 250)); }
+}
+function albomBase(): import('./albomMap').MapBase {
+  const fr = geoFrame(S.c), span = 2 * (S.r + 100) * 0.97, H = span / 2 * 1.05, o = axBundle?.b?.osm;
+  const L = (r: LngLat[]) => r.map(p => fr.toLocal(p) as XY), inBox = (pts: XY[]) => pts.some(p => Math.abs(p[0]) < H && Math.abs(p[1]) < H);
+  const rings = (a: { rings: LngLat[][] }[] | undefined) => (a ?? []).flatMap(x => x.rings.slice(0, 1).map(L)).filter(inBox);
+  return {
+    bld: rings(o?.buildings), water: rings(o?.water), green: rings(o?.green),
+    roads: (o?.roads ?? []).filter(r => r.cls !== 'footway' && r.cls !== 'path' && r.cls !== 'steps').map(r => ({ pts: L(r.pts), w: Math.max(3, r.w), major: /^(motorway|trunk|primary|secondary)/.test(r.cls) })).filter(r => inBox(r.pts)),
+    site: S.site ? L(S.site) : null, R: S.r, span,
+  };
+}
+/** Har qatlamning albomdagi grafikasi: rastr (issiqlik, shovqin, quyosh, nishab) yoki vektor (tarmoq, nuqtalar, izochiziqlar) */
+function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./albomMap').Overlay {
+  const fr = geoFrame(S.c), toL = (p: LngLat) => fr.toLocal(p) as XY;
+  const ras = (im: { url: string; coords: [number, number][] }, op = 1, circle?: number) => { const nw = toL(im.coords[0] as LngLat), se = toL(im.coords[2] as LngLat); return { url: im.url, x0: nw[0], y0: se[1], x1: se[0], y1: nw[1], op, circle }; };
+  const nm = NM, half = B.span / 2;
+  switch (id) {
+    case 'relyef': {
+      const g = D.ter.v?.g; if (!g) return {};
+      const cv = document.createElement('canvas'); cv.width = cv.height = g.n; const cx = cv.getContext('2d')!, img = cx.createImageData(g.n, g.n), rng = Math.max(1, g.max - g.min);
+      for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { const t = (g.h[j * g.n + i] - g.min) / rng, o = ((g.n - 1 - j) * g.n + i) * 4; img.data[o] = 236 - t * 60; img.data[o + 1] = 226 - t * 80; img.data[o + 2] = 204 - t * 95; img.data[o + 3] = 170; }
+      cx.putImageData(img, 0, 0);
+      const R = g.radius + g.step / 2, d = rng / 12, st = [0.5, 1, 2, 5, 10, 20].find(v => v >= d) ?? 20, lv: number[] = [];
+      for (let v = Math.ceil(g.min / st) * st; v <= g.max; v += st) lv.push(v);
+      const cs = contours(g.h, g.n, g.step, lv);
+      return { quiet: true, rasters: [{ url: cv.toDataURL(), x0: -R, y0: -R, x1: R, y1: R, op: 0.9 }],
+        lines: cs.map(c => ({ pts: [], multi: c.segs.map(sg => [sg[0], sg[1]]), w: Math.round(c.lv / st) % 5 === 0 ? 0.45 : 0.2, col: '#7a5a3c', op: 0.85 })) };
+    }
+    case 'nishab': { const t = D.ter.v; return t ? { quiet: true, rasters: [ras(slopeImage(t.g, S.r + 100), 0.85)] } : {}; }
+    case 'issiqlik': { const g = D.lst.v; if (!g) return {}; const mu = lstMean(g); return { quiet: true, rasters: [ras(gridImage(g.v, g.n, g.step, g.R, v => Number.isNaN(v) ? null : devColor(v - mu), 255, g.R), 0.72, half * 1.5)] }; }
+    case 'shovqin': { const g = nm?.noise; return g ? { quiet: true, rasters: [ras(gridImage(g.v, g.n, g.step, g.R, v => Number.isNaN(v) ? null : noiseColor(v), 230), 0.8)] } : {}; }
+    case 'quyosh': {
+      const sm = SM; if (!sm?.hours) return {};
+      const v = new Float32Array(sm.n * sm.n).fill(NaN); sm.idx.forEach((o, i) => { v[o] = sm.hours![i]; });
+      const [mm, dd] = sunDay(), hr = sunHour(), sp = sunPosition(localToUtcAt(2026, mm, dd, hr, S.c[1], S.c[0]), S.c[1], S.c[0]);
+      return { quiet: true, rasters: [ras(gridImage(v, sm.n, sm.step, (sm.n - 1) / 2 * sm.step, x => Number.isNaN(x) ? null : sunColor(x), 235), 0.85), ras(shadowImage(sm.prisms, sp.alt, sp.az, S.r), 0.28)] };
+    }
+    case 'piyoda': {
+      if (!nm?.reach) return {};
+      const by: XY[][][] = [[], [], []]; nm.net.segs.forEach(([a, b], s2) => { const k = nm.reach!.seg[s2]; if (k >= 0) by[k].push([nm.net.xy[a] as XY, nm.net.xy[b] as XY]); });
+      return { lines: ([[2, '#c9c4f3', 0.55], [1, '#8a82e0', 0.8], [0, '#3f3a9e', 1.15]] as const).map(([k, col, w]) => ({ pts: [], multi: by[k], w, col, op: 1 })) };
+    }
+    case 'oqim': {
+      if (!nm?.flow) return {};
+      const bins: XY[][][] = [[], [], [], [], []]; nm.net.segs.forEach(([a, b], s2) => { const f = nm.flow![s2]; if (f >= 0.08) bins[Math.min(4, Math.floor(f * 5))].push([nm.net.xy[a] as XY, nm.net.xy[b] as XY]); });
+      return { quiet: true, lines: bins.map((m, k) => ({ pts: [], multi: m, w: 0.3 + k * 0.45, col: ['#c9d4f5', '#9aaaf0', '#6f82e0', '#4456c4', '#1f2f9e'][k], op: 0.95 })) };
+    }
+    case 'xizmat': {
+      const ps = (D.poi.v?.pois ?? []).filter(p => SVC_KINDS.includes(p.kind)).map(p => ({ p, xy: toL(p.at) })).filter(q => Math.abs(q.xy[0]) < half && Math.abs(q.xy[1]) < half);
+      const near = new Map<Svc, { xy: XY; d: number }>(); for (const q of ps) { const d = Math.hypot(q.xy[0], q.xy[1]), c = near.get(q.p.kind); if (!c || d < c.d) near.set(q.p.kind, { xy: q.xy, d }); }
+      return { quiet: true, dots: ps.map(q => ({ x: q.xy[0], y: q.xy[1], r: 1.15, col: SVC_COL[q.p.kind], op: Math.hypot(q.xy[0], q.xy[1]) <= S.r ? 1 : 0.4 })),
+        lines: [...near.values()].map(n => ({ pts: [[0, 0], n.xy] as XY[], w: 0.3, col: '#16171a', op: 0.55, dash: '1 1' })),
+        labels: [...near.entries()].filter(([, n]) => n.d <= S.r * 1.1).map(([k, n]) => ({ x: n.xy[0], y: n.xy[1], t: `${tr(SVC_SHORT[k])} · ${fmt(n.d)} m`, col: SVC_COL[k] })) };
+    }
+    case 'raqobat': return { quiet: true, dots: (D.comp.v ?? []).map(c => { const xy = toL(c.at); return { x: xy[0], y: xy[1], r: 1.4, col: '#7a5a3c', op: c.d <= S.r ? 1 : 0.4, halo: c.d <= S.r ? 60 : 0 }; }) };
+    case 'shamol': {
+      const w = windV(); if (!w) return {};
+      const from = w.w.k * 22.5 * Math.PI / 180, dx = -Math.sin(from), dy = -Math.cos(from), nx = -dy, ny = dx, ls: XY[][] = [];
+      for (let i = -5; i <= 5; i++) { const o0: XY = [nx * i * half / 5.5, ny * i * half / 5.5], pts: XY[] = []; for (let t = -1.4; t <= 1.4; t += 0.1) { const wob = Math.sin(t * 3 + i) * half * 0.03; pts.push([o0[0] + dx * t * half + nx * wob, o0[1] + dy * t * half + ny * wob]); } ls.push(pts); }
+      return { quiet: true, rose: roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, ''), lines: [{ pts: [], multi: ls, w: 0.45, col: '#2f8a66', op: 0.45, dash: '4 2' }] };
+    }
+    default: return {};
+  }
 }
 /* ---------------- C: joy pasporti hisoboti (A3) ---------------- */
 let repBusy = false;
