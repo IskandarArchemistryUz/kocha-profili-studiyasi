@@ -11,8 +11,6 @@ import { PRESET_PROFILES } from '../../core/presets';
 import { profileToKs } from '../fromMr';
 import { tr, getLang } from '../../i18n';
 import UA_ from './ua.json';
-/* Transport modellari → SVG illyustratsiya (aksonometriya); birinchi ochilishda yuklanadi */
-let VS = null, VSL = false;
 export default class Component extends DCLogic {
   constructor(p) { super(p); this.state = {"PL": [{"t": "parklet", "z": 4, "y": 15, "l": 6}, {"t": "yuklash", "z": 8, "y": 9, "l": 8}, {"t": "taksi", "z": 8, "y": 24, "l": 6}, {"t": "velopark", "z": 2, "y": 8, "l": 5}, {"t": "shpalera", "z": 6, "y": 10, "l": 12}, {"t": "terrasa", "z": 12, "y": 5, "l": 6}], "els": [["front", 3, {"kafe": true}], ["piy", 3, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["qat", 3.5, {"zebra": true}], ["med", 4, {"daraxt": true, "fonar": true}], ["qat", 3.5, {"zebra": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 3, {}], ["front", 3, {"kafe": true}]], "rl": 35.2, "tplName": "Tuman koʻchasi", "TPL": [["Magistral · tramvayli", null, [["front", 2, {"kafe": true}], ["piy", 5, {}], ["velo", 1.8, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["qat", 3.25, {}], ["qat", 3.25, {"zebra": true}], ["med", 2.5, {"fonar": true}], ["tram", 3.1, {"tayanch": true}], ["tram", 3.1, {"tayanch": true}], ["med", 2.5, {"fonar": true}], ["qat", 3.25, {"zebra": true}], ["qat", 3.25, {}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["velo", 1.8, {}], ["piy", 5, {}], ["front", 2, {"kafe": true}]], "sh2", "U2", [{"t": "terrasa", "z": 0, "y": 4, "l": 7}, {"t": "velopark", "z": 3, "y": 22, "l": 5}, {"t": "samokat", "z": 3, "y": 29, "l": 3}, {"t": "shpalera", "z": 7, "y": 12, "l": 10}, {"t": "buta", "z": 10, "y": 20, "l": 4}, {"t": "gul", "z": 17, "y": 6, "l": 1}, {"t": "orindiq", "z": 14, "y": 16, "l": 2}]], ["Tuman koʻchasi", null, [["front", 3, {"kafe": true}], ["piy", 3, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.6, {"fonar": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["qat", 3.5, {"zebra": true}], ["med", 4, {"daraxt": true, "fonar": true}], ["qat", 3.5, {"zebra": true}], ["park", 2.5, {"mashina": true, "dchontak": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 3, {}], ["front", 3, {"kafe": true}]], "tm", "U3", [{"t": "parklet", "z": 4, "y": 15, "l": 6}, {"t": "yuklash", "z": 8, "y": 9, "l": 8}, {"t": "taksi", "z": 8, "y": 24, "l": 6}, {"t": "velopark", "z": 2, "y": 8, "l": 5}, {"t": "shpalera", "z": 6, "y": 10, "l": 12}, {"t": "terrasa", "z": 12, "y": 5, "l": 6}]], ["Avtobus koridori", null, [["front", 1, {}], ["piy", 5, {}], ["velo", 1.8, {}], ["yash", 3, {"daraxt": true, "velot": true}], ["mebel", 0.6, {"fonar": true}], ["bus", 3.75, {"bekat": true}], ["qat", 3.25, {"zebra": true}], ["med", 4, {"fonar": true, "orolcha": true}], ["qat", 3.25, {"zebra": true}], ["bus", 3.75, {"bekat": true}], ["mebel", 0.6, {"fonar": true}], ["yash", 3, {"daraxt": true, "velot": true}], ["velo", 1.8, {}], ["piy", 5, {}], ["front", 1, {}]], "sh2", "U2", [{"t": "bekat", "z": 3, "y": 12, "l": 10}, {"t": "velopark", "z": 11, "y": 8, "l": 5}, {"t": "samokat", "z": 11, "y": 16, "l": 3}]], ["Mahalla koʻchasi", null, [["front", 1.1, {"gul": true}], ["piy", 2.25, {}], ["yash", 3, {"daraxt": true, "buta": true}], ["mebel", 0.5, {"fonar": true}], ["qat", 3, {}], ["qat", 3, {}], ["mebel", 0.5, {"fonar": true}], ["yash", 3, {"daraxt": true, "buta": true}], ["piy", 2.25, {}], ["front", 1.1, {"gul": true}]], "mh", "M1", [{"t": "buta", "z": 2, "y": 6, "l": 4}, {"t": "orindiq", "z": 7, "y": 12, "l": 2}, {"t": "gul", "z": 9, "y": 5, "l": 1}]], ["Piyoda koʻchasi", null, [["front", 2, {"kafe": true}], ["piy", 5, {}], ["yash", 3, {"daraxt": true, "orin": true}], ["mebel", 0.5, {"fonar": true}], ["mebel", 0.5, {"fonar": true}], ["yash", 3, {"daraxt": true, "orin": true}], ["piy", 5, {}], ["front", 2, {"kafe": true}]], "pd", "U5", [{"t": "terrasa", "z": 0, "y": 3, "l": 10}, {"t": "terrasa", "z": 7, "y": 12, "l": 8}, {"t": "velopark", "z": 2, "y": 14, "l": 5}, {"t": "orindiq", "z": 5, "y": 8, "l": 2}]]], "sk": "tm", "uk": "U3", "sel": 4, "selU": -1, "view": 1, "gfx": 0, "showU": true, "bL": 7, "bR": 9, "U": []}; }
   renderVals() {
@@ -220,11 +218,61 @@ export default class Component extends DCLogic {
     function P(x, y, z) { return [ox + (x + 0.5 * y) * k, oy - (z + 0.5 * y) * k]; }
     function poly(pts) { return 'M' + pts.map(function (p) { var q = P(p[0], p[1], p[2]); return q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join('L') + 'Z'; }
     function box(x0, y0, z0, w, l, h, cTop, cFront, cSide, sw) { var so = sw || line ? '#5d5a55' : null, ww = sw || line ? 0.5 : 0; A(poly([[x0, y0, z0], [x0 + w, y0, z0], [x0 + w, y0, z0 + h], [x0, y0, z0 + h]]), cFront, so, ww); A(poly([[x0 + w, y0, z0], [x0 + w, y0 + l, z0], [x0 + w, y0 + l, z0 + h], [x0 + w, y0, z0 + h]]), cSide, so, ww); A(poly([[x0, y0, z0 + h], [x0 + w, y0, z0 + h], [x0 + w, y0 + l, z0 + h], [x0, y0 + l, z0 + h]]), cTop, so, ww); }
-    if (!VS && !VSL) { VSL = true; import('../vehSvg').then(function (m) { VS = m; if (self.state.view === 2) self.setState({}); }); }
-    var VD = { P: P, A: function (d, f, st, w, o) { A(d, f, st, w, o); D[D.length - 1].ly = 'KS_TRANSPORT'; }, line: line, view: [-0.4082, 0.8165, -0.4082] }, CARC = ['#f4f3f0', '#e4e2dd', '#cfd4da', '#f4f3f0', '#ddd3c4', '#f4f3f0'], cI = 0;
+    /* ===== transport (oʻzimizning modellar oʻlchamida, kesim/reja uslubida: tekis rang, ingichka kontur) ===== */
+    var VST = '#5d5a55', GL = line ? '#ffffff' : '#c3cdd5', WH = line ? '#ffffff' : '#55524d', CARC = ['#f4f3f0', '#ecebe7', '#e3e6e9', '#f4f3f0', '#ebe5da'], cI = 0;
+    function tA(d, f, st, w, o) { A(d, f, st, w, o); D[D.length - 1].ly = 'KS_TRANSPORT'; }
+    /* qavariq prizma: yon profil [[yy, z]] (yy — boʻylama 0..L), kenglik bo'ylab cx ± w/2; teskari (back) — profil koʻzguda.
+       Koʻrinadigan yuzlar: oʻng yon (+x), old/tepa qirralar. ton: [tepa, old, yon] */
+    function prism(cx, w, y0, L, back, prof, ton) {
+      var pts = prof.map(function (p) { return [back ? y0 + L - p[0] : y0 + p[0], p[1]]; }), n = pts.length, cy = 0, cz = 0;
+      pts.forEach(function (p) { cy += p[0] / n; cz += p[1] / n; });
+      var x0 = cx - w / 2, x1 = cx + w / 2;
+      for (var a = 0; a < n; a++) { var p = pts[a], q = pts[(a + 1) % n], ey = q[0] - p[0], ez = q[1] - p[1], ny = ez, nz = -ey, my = (p[0] + q[0]) / 2 - cy, mz = (p[1] + q[1]) / 2 - cz; if (ny * my + nz * mz < 0) { ny = -ny; nz = -nz; } var ln = Math.hypot(ny, nz) || 1; ny /= ln; nz /= ln; if (ny - 0.5 * nz >= -0.02) continue;
+        tA(poly([[x0, p[0], p[1]], [x1, p[0], p[1]], [x1, q[0], q[1]], [x0, q[0], q[1]]]), line ? '#ffffff' : (nz > 0.6 ? ton[0] : ton[1]), VST, 0.45); }
+      tA(poly(pts.map(function (p) { return [x1, p[0], p[1]]; })), line ? '#ffffff' : ton[2], VST, 0.45);
+      return { x1: x1, Y: function (yy) { return back ? y0 + L - yy : y0 + yy; } };
+    }
+    function sidePane(x, Y, a, b, z0, z1, f) { tA(poly([[x + 0.01, Y(a), z0], [x + 0.01, Y(b), z0], [x + 0.01, Y(b), z1], [x + 0.01, Y(a), z1]]), f || GL, VST, 0.35); }
+    function wheel(x, yy, r) { var c = []; for (var t = 0; t < 12; t++) { var an = t / 12 * Math.PI * 2; c.push([x + 0.02, yy + Math.cos(an) * r, r + Math.sin(an) * r]); } tA(poly(c), WH, VST, 0.4); }
     function shadowRect(x0, y0, w, l) { if (!line) A(poly([[x0 + 0.2, y0 + 0.3, 0], [x0 + w + 0.4, y0 + 0.3, 0], [x0 + w + 0.4, y0 + l + 0.3, 0], [x0 + 0.2, y0 + l + 0.3, 0]]), '#000000', null, 0, 0.08); }
-    function vehM(kind, cx, y, back, col) { var V = { sedan: [1.8, 4.7], avtobus12: [2.55, 12], tramvay: [2.5, 27] }[kind]; shadowRect(cx - V[0] / 2, y, V[0], V[1]); VS.drawVehicle(VD, kind, cx, y, 0, back, col); }
-    function car(cx, y) { if (VS) { vehM('sedan', cx, y, cx < base.rl / 2, CARC[(cI++) % CARC.length]); return; } if (!line) A(poly([[cx - 0.7, y + 0.3, 0], [cx + 1.2, y + 0.3, 0], [cx + 1.2, y + 4.8, 0], [cx - 0.7, y + 4.8, 0]]), '#000000', null, 0, 0.08); box(cx - 0.9, y, 0.25, 1.8, 4.5, 0.6, line ? '#fff' : '#f4f3f0', line ? '#fff' : '#e4e2dd', line ? '#fff' : '#ecebe7', 1); box(cx - 0.75, y + 1.1, 0.85, 1.5, 2.3, 0.55, line ? '#fff' : '#f4f3f0', line ? '#fff' : '#c3cdd5', line ? '#fff' : '#cdd6dc', 1); }
+    function frontPane(cx, w, yy, z0, z1) { tA(poly([[cx - w / 2, yy - 0.01, z0], [cx + w / 2, yy - 0.01, z0], [cx + w / 2, yy - 0.01, z1], [cx - w / 2, yy - 0.01, z1]]), GL, VST, 0.35); }
+    /* yengil avtomobil 4,7 × 1,8 × 1,47 m (baza 2,75, old osilish 0,95) */
+    function vSedan(cx, y, back, col) {
+      var L = 4.7, c = col || '#f4f3f0', T = [c, shade(c, 0.94), shade(c, 0.9)]; shadowRect(cx - 0.9, y, 1.8, L);
+      var b = prism(cx, 1.8, y, L, back, [[0, 0.3], [L, 0.3], [L, 0.68], [L - 0.25, 0.8], [0.15, 0.84], [0, 0.72]], T);
+      [0.95 + 0.0, 0.95 + 2.75].forEach(function (a) { wheel(b.x1, b.Y(L - a), 0.32); });
+      var cb = prism(cx, 1.56, y, L, back, [[1.0, 0.8], [3.4, 0.8], [2.95, 1.45], [1.45, 1.47]], [c, GL, GL]);
+      sidePane(cb.x1, cb.Y, 2.15, 2.22, 0.82, 1.44, c);
+    }
+    /* avtobus 12 × 2,55 × 3,15 m (baza 7,6, old osilish 2,4) */
+    function vBus(cx, y, back) {
+      var L = 12, c = line ? '#ffffff' : '#f3ecdd', T = [c, shade(c, 0.95), shade(c, 0.9)]; shadowRect(cx - 1.27, y, 2.55, L);
+      var b = prism(cx, 2.55, y, L, back, [[0, 0.32], [L, 0.32], [L, 2.95], [L - 0.15, 3.15], [0.1, 3.15], [0, 3.0]], T);
+      for (var a = 0.6; a < L - 1.2; a += 1.55) { if (Math.abs(a - 8.6) < 0.8 || Math.abs(a - 3.6) < 0.8) continue; sidePane(b.x1, b.Y, a, a + 1.35, 1.25, 2.75); }
+      [[9.1, 10.3], [3.1, 4.3]].forEach(function (d) { sidePane(b.x1, b.Y, d[0], d[1], 0.35, 2.75); });
+      if (!line) sidePane(b.x1, b.Y, 0.3, L - 0.3, 0.95, 1.08, '#4c5bd4');
+      [L - 2.4, L - 10].forEach(function (a) { wheel(b.x1, b.Y(a), 0.5); });
+      if (back) frontPane(cx, 2.2, y - 0.01, 1.1, 2.85); else frontPane(cx, 1.9, y - 0.01, 1.9, 2.8);
+      prism(cx - 0.1, 1.9, y, L, back, [[6.2, 3.15], [9.0, 3.15], [8.9, 3.42], [6.3, 3.42]], [shade(c, 0.97), shade(c, 0.92), shade(c, 0.88)]);
+    }
+    /* tramvay 27 × 2,5 × 3,5 m, 3 seksiya */
+    function vTram(cx, y, back) {
+      var c = line ? '#ffffff' : '#f4f1ea', T = [c, shade(c, 0.95), shade(c, 0.9)], seg = 8.6, gap = 0.6; shadowRect(cx - 1.25, y, 2.5, 27);
+      for (var s2 = 0; s2 < 3; s2++) {
+        var a0 = s2 * (seg + gap), f = s2 === 0, l = s2 === 2, pr = [[f ? 0.9 : 0, 0.3], [l ? seg - 0.9 : seg, 0.3]];
+        if (l) pr.push([seg, 1.2], [seg - 0.45, 3.3], [seg - 0.9, 3.5]); else pr.push([seg, 3.5]);
+        if (f) pr.push([0.9, 3.5], [0.45, 3.3], [0, 1.2]); else pr.push([0, 3.5]);
+        var b = prism(cx, 2.5, y + (back ? 27 - a0 - seg : a0), seg, back, pr, T);
+        sidePane(b.x1, b.Y, f ? 1.2 : 0.4, l ? seg - 1.2 : seg - 0.4, 1.35, 2.75);
+        sidePane(b.x1, b.Y, seg / 2 - 0.65, seg / 2 + 0.65, 0.35, 2.75, line ? '#ffffff' : '#d9d5cc');
+        if (!line) sidePane(b.x1, b.Y, f ? 1 : 0.2, l ? seg - 1 : seg - 0.2, 0.85, 1.02, '#c96b5c');
+        [1.8, seg - 1.8].forEach(function (aa) { wheel(b.x1, b.Y(aa), 0.36); });
+        if (s2 < 2) prism(cx, 2.3, y + (back ? 27 - a0 - seg - gap : a0 + seg), gap, back, [[0, 0.5], [gap, 0.5], [gap, 3.3], [0, 3.3]], ['#8f8a80', '#77736b', '#6a6761']);
+      }
+      var m = y + 13.5, a = P(cx, m - 0.6, 3.5), bq = P(cx, m + 0.2, 4.4), cq = P(cx, m - 0.2, 5.3); tA('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + bq[0].toFixed(1) + ' ' + bq[1].toFixed(1) + 'L' + cq[0].toFixed(1) + ' ' + cq[1].toFixed(1), null, INK, 0.8);
+    }
+    function shade(hex, f) { var n = parseInt(hex.slice(1), 16), g = function (v) { return Math.max(0, Math.min(255, Math.round(v * f))); }; return '#' + ((g(n >> 16) << 16) | (g((n >> 8) & 255) << 8) | g(n & 255)).toString(16).padStart(6, '0'); }
+    function car(cx, y) { vSedan(cx, y, cx < base.rl / 2, CARC[(cI++) % CARC.length]); return; if (!line) A(poly([[cx - 0.7, y + 0.3, 0], [cx + 1.2, y + 0.3, 0], [cx + 1.2, y + 4.8, 0], [cx - 0.7, y + 4.8, 0]]), '#000000', null, 0, 0.08); box(cx - 0.9, y, 0.25, 1.8, 4.5, 0.6, line ? '#fff' : '#f4f3f0', line ? '#fff' : '#e4e2dd', line ? '#fff' : '#ecebe7', 1); box(cx - 0.75, y + 1.1, 0.85, 1.5, 2.3, 0.55, line ? '#fff' : '#f4f3f0', line ? '#fff' : '#c3cdd5', line ? '#fff' : '#cdd6dc', 1); }
     var zx = [], acc = 0; els.forEach(function (e) { zx.push([acc, acc + e[1]]); acc += e[1]; });
     // yer kesimi (old va oʻng yuzlar)
     var DEP = 4.2, xL = -SB - BD, xR = rl + SB + BD;
@@ -253,8 +301,8 @@ export default class Component extends DCLogic {
       if (e[0] === 'park' && f.dchontak) [10, 22].forEach(function (y, j) { ob(cx, y, function () { var q = P(cx, y, 0); AS.uaT(L, 'T_tuxum', q[0], q[1], 8, k, j); }); });
       if (e[0] === 'park' && f.mashina) [1, 5.5, 14.5, 17, 26].forEach(function (y) { ob(cx, y, function () { car(cx, y); }); });
       if (e[0] === 'qat') [[3, 0], [15, 1], [24, 0]].forEach(function (p) { if ((i + p[1]) % 2) return; ob(cx, p[0], function () { car(cx, p[0]); }); });
-      if (e[0] === 'bus') ob(cx, 9, function () { if (VS) { vehM('avtobus12', cx, 9, left, '#f3ecdd'); return; } box(cx - 1.27, 9, 0, 2.55, 12, 3.1, line ? '#fff' : '#f3ecdd', line ? '#fff' : '#e3d9c4', line ? '#fff' : '#ebe2cf', 1); for (var wy = 10; wy < 20; wy += 2) A(poly([[cx + 1.28, wy, 1.4], [cx + 1.28, wy + 1.5, 1.4], [cx + 1.28, wy + 1.5, 2.5], [cx + 1.28, wy, 2.5]]), '#c3cdd5', '#5d5a55', 0.4, 1); });
-      if (e[0] === 'tram' && i % 2 === 0) ob(cx, 3, function () { if (VS) { vehM('tramvay', cx, 0.5, left, '#f4f1ea'); return; } box(cx - 1.33, 3, 0, 2.65, 20, 3.4, line ? '#fff' : '#f4f1ea', line ? '#fff' : '#e2ddd3', line ? '#fff' : '#ece8e0', 1); A(poly([[cx + 1.34, 3, 0.9], [cx + 1.34, 23, 0.9], [cx + 1.34, 23, 1.2], [cx + 1.34, 3, 1.2]]), line ? '#fff' : '#c96b5c', null, 0); for (var wy = 4; wy < 22; wy += 2.2) A(poly([[cx + 1.34, wy, 1.4], [cx + 1.34, wy + 1.6, 1.4], [cx + 1.34, wy + 1.6, 2.7], [cx + 1.34, wy, 2.7]]), '#c3cdd5', '#5d5a55', 0.4, 1); var a = P(cx, 10, 3.4), b = P(cx + 0.4, 10.6, 5.6); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, INK, 1); });
+      if (e[0] === 'bus') ob(cx, 9, function () { vBus(cx, 9, left); return; box(cx - 1.27, 9, 0, 2.55, 12, 3.1, line ? '#fff' : '#f3ecdd', line ? '#fff' : '#e3d9c4', line ? '#fff' : '#ebe2cf', 1); for (var wy = 10; wy < 20; wy += 2) A(poly([[cx + 1.28, wy, 1.4], [cx + 1.28, wy + 1.5, 1.4], [cx + 1.28, wy + 1.5, 2.5], [cx + 1.28, wy, 2.5]]), '#c3cdd5', '#5d5a55', 0.4, 1); });
+      if (e[0] === 'tram' && i % 2 === 0) ob(cx, 3, function () { vTram(cx, 0.5, left); return; box(cx - 1.33, 3, 0, 2.65, 20, 3.4, line ? '#fff' : '#f4f1ea', line ? '#fff' : '#e2ddd3', line ? '#fff' : '#ece8e0', 1); A(poly([[cx + 1.34, 3, 0.9], [cx + 1.34, 23, 0.9], [cx + 1.34, 23, 1.2], [cx + 1.34, 3, 1.2]]), line ? '#fff' : '#c96b5c', null, 0); for (var wy = 4; wy < 22; wy += 2.2) A(poly([[cx + 1.34, wy, 1.4], [cx + 1.34, wy + 1.6, 1.4], [cx + 1.34, wy + 1.6, 2.7], [cx + 1.34, wy, 2.7]]), '#c3cdd5', '#5d5a55', 0.4, 1); var a = P(cx, 10, 3.4), b = P(cx + 0.4, 10.6, 5.6); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, INK, 1); });
       if (e[0] === 'tram') { var wa = P(cx, 0, 5.8), wb = P(cx, LG, 5.8); A('M' + wa[0].toFixed(1) + ' ' + wa[1].toFixed(1) + 'L' + wb[0].toFixed(1) + ' ' + wb[1].toFixed(1), null, INK, 0.5); }
       if ((e[0] === 'mebel' || e[0] === 'med') && f.fonar) [2, 14, 26].forEach(function (y) { ob(cx, y, function () { var a = P(cx, y, h), b = P(cx, y, h + 9), c2 = P(cx + dir * 1.6, y, h + 9.4); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1) + 'L' + c2[0].toFixed(1) + ' ' + c2[1].toFixed(1), null, INK, Math.max(1, 0.12 * k)); }); });
       if (e[0] === 'piy') [2, 8.5, 16, 23].forEach(function (y, j) { var xx = x0 + (x1 - x0) * (j % 2 ? 0.65 : 0.3); ob(xx, y, function () { var q = P(xx, y, h); AS.ua(L, PPL[(pI++) % PPL.length], q[0], q[1], k, j % 2 === 0); }); });
