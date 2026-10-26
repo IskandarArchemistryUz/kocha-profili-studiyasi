@@ -45,3 +45,26 @@ describe('Koʻchasoz C1: haqiqiy tugun (OSM)', () => {
     expect(findNode([...pts, way(30, [6, 2, 1, 3, 7], { highway: 'residential' }), way(31, [4, 1, 5], { highway: 'service' })], C as [number, number])).toBeNull();
   });
 });
+
+describe('Koʻchasoz C2: T-chorraha, 5 tarmoq, burchak yoʻnalishi', () => {
+  it('T: kesishuvchi bitta tarmoq — qarama-qarshi tomoni «yoʻq» (miss); burchak tarmoq yoʻnalishiga mos', () => {
+    // asosiy — sharq-gʻarb; kesishuvchi faqat shimolga (4: 0, +6)
+    const r = findNode([...pts, way(10, [6, 2, 1, 3, 7], { highway: 'primary' }), way(11, [1, 4], { highway: 'residential' })], C as [number, number])!;
+    expect(r.tee).toBe(true); expect(r.cross[1]).toBeNull();
+    // ekranda: mainA → +x; shimoldagi tarmoq ekranda yuqorida yoki pastda — qarama-qarshisi yoʻq
+    const up = r.main[0].bear > 180;   // mainA gʻarbga qarasa, ekran aylanadi: shimol pastda
+    expect(r.miss).toBe(up ? 'N' : 'S');
+    expect(Math.abs(r.ang - 90)).toBeLessThan(3);
+  });
+  it('asosiy koʻcha bir tomonli (kesishuvchi toʻgʻri juft): oʻng/chap yoʻq', () => {
+    const r = findNode([...pts, way(10, [1, 3, 7], { highway: 'residential' }), way(11, [4, 1, 5], { highway: 'primary' })], C as [number, number])!;
+    expect(r.main[0].cls).toBe('primary'); expect(r.main[1]?.cls).toBe('primary');
+    expect(r.miss === 'S' || r.miss === 'N').toBe(true);
+  });
+  it('5 tarmoq: qoʻshimchasi extra da (ekran burchagi bilan); 45–135° oraligʻi', () => {
+    const r = findNode([...pts, nd(9, 6, 6), way(10, [6, 2, 1, 3, 7], { highway: 'primary' }), way(11, [4, 1, 5], { highway: 'tertiary' }), way(12, [1, 9], { highway: 'residential' })], C as [number, number])!;
+    expect(r.arms).toHaveLength(5); expect(r.extra).toHaveLength(1);
+    expect(r.extra[0].a % 90).not.toBe(0);
+    expect(r.ang).toBeGreaterThanOrEqual(45); expect(r.ang).toBeLessThanOrEqual(135);
+  });
+});

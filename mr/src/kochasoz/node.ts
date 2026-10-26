@@ -50,7 +50,14 @@ const bearing = (a: LL, b: LL) => { const x = (b[0] - a[0]) * Math.cos((a[1] + b
 const adiff = (a: number, b: number) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 
 export interface Arm { way: number; bear: number; tags: Record<string, string>; cls: string; rank: number; name: string }
-export interface NodeResult { at: LL; dist: number; arms: Arm[]; main: [Arm, Arm | null]; cross: [Arm, Arm | null]; ang: number; tee: boolean; notes: string[] }
+/** Maket chiza oladigan kesishish burchagi (°) */
+export const ANG_MIN = 45, ANG_MAX = 135;
+/**
+ * miss — chizilmaydigan (yoʻq) tarmoq: maketda asosiy koʻcha gorizontal, mainA → sharq (E), mainB → gʻarb (W);
+ * kesishuvchi koʻcha ang burchak ostida: «S» — ekranda pastga (y oʻsadi), «N» — tepaga.
+ * extra — 4 tadan ortiq tarmoqlar: ekrandagi yoʻnalish burchagi (°, +x dan soat strelkasi boʻyicha) va toifasi.
+ */
+export interface NodeResult { at: LL; dist: number; arms: Arm[]; main: [Arm, Arm | null]; cross: [Arm, Arm | null]; ang: number; tee: boolean; miss: 'N' | 'S' | 'E' | 'W' | null; extra: { a: number; cls: string; name: string }[]; notes: string[] }
 
 /** Nuqtaga eng yaqin chorraha (≥ 3 tarmoq yoki ≥ 2 yoʻl kesishgan tugun) va uning tarmoqlari */
 export function findNode(els: OsmEl[], p: LL, maxD = 80): NodeResult | null {
@@ -94,13 +101,20 @@ export function findNode(els: OsmEl[], p: LL, maxD = 80): NodeResult | null {
   rest.sort((a, b) => b.rank - a.rank);
   const cA = rest[0], cB = rest.slice(1).sort((a, b) => adiff(adiff(a.bear, cA.bear), 180) - adiff(adiff(b.bear, cA.bear), 180))[0];
   const cross: [Arm, Arm | null] = [cA, cB && adiff(cB.bear, cA.bear) >= 140 ? cB : null];
-  if (arms.length > 4) notes.push(`Tugunda ${arms.length} ta tarmoq — maketda eng asosiy 4 tasi chiziladi`);
+  // ekran burchagi: mainA → +x; kompas boʻyicha soat strelkasi = ekranda soat strelkasi (y pastga)
+  const scr = (a: Arm) => (a.bear - mainA.bear + 360) % 360;
+  const phi = scr(cA), crossSide: 'N' | 'S' = phi < 180 ? 'S' : 'N';
   const tee = !cross[1] || !mainB;
-  if (tee) notes.push('T-chorraha: maket hozircha 4 tarmoqli kesishuvni chizadi — uchinchi tarmoq qarama-qarshi davom etgan deb koʻrsatiladi');
+  const miss: NodeResult['miss'] = !mainB ? 'W' : !cross[1] ? (crossSide === 'S' ? 'N' : 'S') : null;
+  if (tee) notes.push('T-chorraha: yoʻq tarmoq chizilmaydi, asosiy koʻchaning trotuari davom etadi');
+  const used = new Set([mainA, mainB, cA, cross[1]].filter(Boolean) as Arm[]);
+  const extra = arms.filter(a => !used.has(a)).map(a => ({ a: Math.round(scr(a)), cls: a.cls, name: a.name }));
+  if (extra.length) notes.push(`Tugunda ${arms.length} ta tarmoq — qoʻshimchalari soddalashtirilgan (kesim va yoʻl chiziqlarisiz) chiziladi`);
   // kesishish burchagi: asosiy oʻq va kesishuvchi oʻq orasida, 0–180
-  const ang = Math.round(adiff(mainA.bear, cA.bear));   // 0…180: asosiy koʻcha yoʻnalishi va kesishuvchi tarmoq orasida
-  if (ang < 60 || ang > 120) notes.push(`Kesishish burchagi ${ang}° — maket 60–120° oraligʻida chizadi`);
-  return { at, dist: best.d, arms, main: [mainA, mainB], cross, ang: Math.max(60, Math.min(120, ang)), tee, notes };
+  // maket burchagi: kesishuvchi koʻchaning «janub» uchi ekranda ang yoʻnalishda (asosiy oʻqdan soat strelkasi boʻyicha)
+  const ang = Math.round(crossSide === 'S' ? phi : phi - 180);
+  if (ang < ANG_MIN || ang > ANG_MAX) notes.push(`Kesishish burchagi ${ang}° — maket ${ANG_MIN}–${ANG_MAX}° oraligʻida chizadi`);
+  return { at, dist: best.d, arms, main: [mainA, mainB], cross, ang: Math.max(ANG_MIN, Math.min(ANG_MAX, ang)), tee, miss, extra, notes };
 }
 
 /** OSM yoʻl teglari → C maketi kesim shabloni (ANDOZA: kesim elementlari toifa boʻyicha, boʻlaklar va ajratuvchi — OSM dan) */

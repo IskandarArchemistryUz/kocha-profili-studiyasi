@@ -33,7 +33,26 @@ test('C: «Haqiqiy chorraha» — OSM dan koʻchalar, burchak va tezlik; manba k
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ks_c_tugun_1024.png` });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ks_c_tugun_dark.png` });
+  // C2: T-chorraha — «Past yoʻq»: belgilar va yozuvlar yoʻq tarmoqda qolmaydi; OSM dagi T tugun ham shunday chiziladi
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  const svgLen = () => page.locator('.ws-c svg[role=img]').evaluate(e => e.innerHTML.length);
+  const n4 = await svgLen();
+  await page.locator('#ksShape .chipb', { hasText: 'Past yoʻq' }).click();
+  await expect(page.locator('#ksShape .chipb[aria-pressed=true]')).toHaveText('Past yoʻq');
+  expect(await svgLen()).not.toBe(n4);
+  await page.locator('#ksShape .chipb', { hasText: '4 tarmoq' }).click();
+  const T = { elements: OSM.elements.filter(e => !(e.type === 'way' && e.id === 11)).concat([{ type: 'way', id: 12, nodes: [1, 4], tags: { highway: 'residential', name: 'Berk' } } as never]) };
+  await page.unroute(/overpass|interpreter/);
+  await page.route(/overpass|interpreter/, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(T) }));
+  await page.fill('#ksNodeIn', '41.31, 69.28'); await page.click('#ksNodeGo');
+  await expect(page.locator('#ksNodeMsg')).toContainText('3 ta tarmoq');
+  await expect(page.locator('.ws-c')).toContainText('T-chorraha');
+  await expect(page.locator('#ksShape .chipb[aria-pressed=true]')).toHaveText(/Tepa yoʻq|Past yoʻq/);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ks_c_T_1024.png` });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.waitForTimeout(300);   // rang oʻtishi (transition) tugashi uchun
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ks_c_T_dark.png` });
   // qayta ochilganda saqlanadi
   await page.waitForTimeout(400);   // saqlash 200 ms kechikish bilan
-  await page.reload(); await expect(page.locator('.ws-c')).toContainText('OSM · Amir Temur');
+  await page.reload(); await expect(page.locator('.ws-c')).toContainText('OSM · Amir Temur'); await expect(page.locator('#ksShape .chipb[aria-pressed=true]')).toHaveText(/Tepa yoʻq|Past yoʻq/);
 });
