@@ -216,7 +216,7 @@ export default class Component extends DCLogic {
     var els = base.els, rl = base.rl, SB = 1.5, BD = 7, LG = 28;
     /* dimetriya (26.10): koʻndalang oʻq 10° pastga, koʻcha boʻylab 38° yuqoriga (0,8 masshtab) — kabinet proyeksiyadan qiyaroq, raqobatchilar kabi */
     var CA = Math.cos(10 * Math.PI / 180), SA = Math.sin(10 * Math.PI / 180), CB = Math.cos(38 * Math.PI / 180) * 0.8, SBy = Math.sin(38 * Math.PI / 180) * 0.8;
-    var xL0 = -SB - BD, xR0 = rl + SB + BD, wM = (xR0 - xL0) * CA + LG * CB, hM = LG * SBy + (xR0 - xL0) * SA + 4.2 + Math.max(11, Math.min(Math.max(base.bL || 0, base.bR || 0), 9) * 3.2 + 2);
+    var xL0 = -SB - BD, xR0 = rl + SB + BD, wM = (xR0 - xL0) * CA + LG * CB, hM = LG * SBy + (xR0 - xL0) * SA + 4.2 + Math.max(11, Math.min(Math.max((base.eL || 'bino') === 'bino' ? base.bL || 0 : 0, (base.eR || 'bino') === 'bino' ? base.bR || 0 : 0), 9) * 3.2 + 2);
     var W = rl + 2 * SB + 2 * BD, k = Math.min(BW / wM, (BH - 30) / hM), ox = BX + (BW - wM * k) / 2 - xL0 * CA * k, oy = BY + BH - 6 - (4.2 + xR0 * SA) * k;
     var DZ = (-CB / CA) * SA - SBy;   // koʻrish yoʻnalishi (y = 1 da z), yuzlar koʻrinishi uchun
     function P(x, y, z) { return [ox + (x * CA + y * CB) * k, oy - (z + y * SBy - x * SA) * k]; }
@@ -300,7 +300,42 @@ export default class Component extends DCLogic {
     function ob(x, y, fn) { OB.push({ key: x - (CA / CB) * y, fn: fn }); }
     var PPL = ['ayol_yurgan', 'erkak_yurgan', 'ona_bola', 'telefon', 'ayol_koylak', 'ryukzak', 'erkak_turgan', 'aravacha', 'qariya', 'yuguruvchi', 'erkak_palto', 'ayol_sumka'], pI = 0;
     var bmax = Math.max(1, Math.floor(((oy - Math.max(BY, 30) - 18) / k - LG * SBy + xL0 * SA) / 3.2));   // bino tepasi sarlavhadan pastda
-    ob(-SB - BD, LG, function () { var H = Math.min(base.bL, bmax) * 3.2; box(-SB - BD, 0, 0, BD, LG, H, line ? '#fff' : '#ecebe7', line ? '#fff' : '#e2e0db', line ? '#fff' : '#f6f5f2'); for (var f = 1; f < H / 3.2; f++) { var a = P(-SB, 0, f * 3.2), b = P(-SB, LG, f * 3.2); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#cfcbc3', 0.6); } for (var wy = 2; wy < LG - 2; wy += 3.5) for (var f2 = 0; f2 < H / 3.2; f2++) A(poly([[-SB, wy, f2 * 3.2 + 0.9], [-SB, wy + 1.6, f2 * 3.2 + 0.9], [-SB, wy + 1.6, f2 * 3.2 + 2.5], [-SB, wy, f2 * 3.2 + 2.5]]), line ? '#fff' : '#d5dde3', line ? INK : null, 0.4); });
+    /* chetlar (26.10): bino boʻlmasa — bogʻ, ochiq maydon, qiyalik yoki suv (rejadagi bilan bir xil) */
+    var eLt = base.eL || 'bino', eRt = base.eR || 'bino';
+    function edgeAxo(sd, et) { var xi = sd < 0 ? -SB : rl + SB, xo = sd < 0 ? -SB - BD : rl + SB + BD, xa = Math.min(xi, xo), xb2 = Math.max(xi, xo);
+      function q4(a, f, st, w, o) { A(poly(a), f, st || null, w || 0, o); }
+      if (et === 'bog') {
+        box(xa, 0, 0, BD, LG, 0.15, line ? '#fff' : '#dbe8cc', line ? '#fff' : '#c9dbb6', line ? '#fff' : '#d2e2c0', 1);
+        var xp = xa + BD * 0.5; q4([[xp - 0.6, 0, 0.16], [xp + 0.6, 0, 0.16], [xp + 0.6, LG, 0.16], [xp - 0.6, LG, 0.16]], line ? '#fff' : '#efe6d4', line ? INK : null, 0.4);
+        [0.22, 0.8].forEach(function (fx, c) { for (var y = 3 + c * 3.5; y < LG - 1; y += 7) (function (x, yy, j) { ob(x, yy, function () { var q = P(x, yy, 0.15); AS.uaT(L, j % 2 ? 'T_bulut2' : 'T_bulut', q[0], q[1], 10, k, j, sd > 0); }); })(xa + BD * fx, y, Math.round(y) + c); });
+        return; }
+      if (et === 'ochiq') {
+        box(xa, 0, 0, BD, LG, 0.12, line ? '#fff' : '#efeae1', line ? '#fff' : '#e2dccf', line ? '#fff' : '#e8e2d6', 1);
+        for (var gx = xa + 1.5; gx < xb2 - 0.2; gx += 1.5) { var a = P(gx, 0, 0.121), b = P(gx, LG, 0.121); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, LIGHT, 0.35); }
+        for (var gy = 1.5; gy < LG; gy += 1.5) { var c1 = P(xa, gy, 0.121), c2 = P(xb2, gy, 0.121); A('M' + c1[0].toFixed(1) + ' ' + c1[1].toFixed(1) + 'L' + c2[0].toFixed(1) + ' ' + c2[1].toFixed(1), null, LIGHT, 0.35); }
+        [[0.4, 6], [0.65, 15], [0.3, 22]].forEach(function (pp, j) { var x = xa + BD * pp[0]; ob(x, pp[1], function () { var q = P(x, pp[1], 0.12); AS.ua(L, PPL[(pI++) % PPL.length], q[0], q[1], k, j % 2 === 0); }); });
+        return; }
+      if (et === 'qiyalik') { var H = 3, z0 = 0.15, G = line ? '#ffffff' : '#cfe0b8', S2 = line ? '#ffffff' : '#e3d8c4';
+        q4([[xo, 0, 0], [xo, LG, 0], [xo, LG, H], [xo, 0, H]], S2, INK, 0.5);
+        q4([[xi, 0, 0], [xo, 0, 0], [xo, 0, H], [xi, 0, z0]], S2, INK, 0.5);
+        q4([[xi, 0, z0], [xo, 0, H], [xo, LG, H], [xi, LG, z0]], G, INK, 0.5);
+        [1, 2].forEach(function (hh) { var x = xi + (xo - xi) * (hh - z0) / (H - z0), a = P(x, 0, hh), b = P(x, LG, hh); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#7fa06b', 0.6, 0.8, '4 3'); });
+        for (var ty = 0.8; ty < LG; ty += 1.6) { var t1 = P(xi + (xo - xi) * 0.05, ty, z0 + 0.1), t2 = P(xi + (xo - xi) * 0.25, ty, z0 + (H - z0) * 0.25); A('M' + t1[0].toFixed(1) + ' ' + t1[1].toFixed(1) + 'L' + t2[0].toFixed(1) + ' ' + t2[1].toFixed(1), null, '#7fa06b', 0.5); }
+        var cc = P((xi + xo) / 2, LG * 0.5, (H + z0) / 2 + 0.2); AT(cc[0], cc[1], tr('Qiyalik') + ' 1:3', 7.5, '#5f7f4f', 600, 'middle');
+        return; }
+      if (et === 'suv') { var bk = 1.6, xw = xi + sd * bk, zw = -0.7, WT = line ? '#ffffff' : '#bcd6e6';
+        box(Math.min(xi, xw), 0, 0, bk, LG, 0.15, line ? '#fff' : '#e4ddd0', line ? '#fff' : '#d4cbbb', line ? '#fff' : '#dcd4c6', 1);
+        q4([[xw, 0, zw - 1.6], [xo, 0, zw - 1.6], [xo, 0, zw], [xw, 0, zw]], line ? '#ffffff' : '#a9c8dc', INK, 0.5);
+        q4([[xw, 0, zw], [xo, 0, zw], [xo, LG, zw], [xw, LG, zw]], WT, INK, 0.5);
+        q4([[xw, 0, zw], [xw, LG, zw], [xw, LG, 0.15], [xw, 0, 0.15]], line ? '#ffffff' : '#d9d0c0', INK, 0.5);
+        for (var wy = 2; wy < LG - 1; wy += 3.2) for (var wx = Math.min(xw, xo) + 0.8; wx < Math.max(xw, xo) - 0.8; wx += 1.8) { var r1 = P(wx, wy + (wx % 2), zw + 0.01), r2 = P(wx + 0.9, wy + (wx % 2), zw + 0.01); A('M' + r1[0].toFixed(1) + ' ' + r1[1].toFixed(1) + 'L' + r2[0].toFixed(1) + ' ' + r2[1].toFixed(1), null, '#4f86a8', 0.6, 0.8); }
+        for (var ry = 0.4; ry < LG; ry += 2.5) { var p1 = P(xw - sd * 0.15, ry, 0.15), p2 = P(xw - sd * 0.15, ry, 1.1); A('M' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + 'L' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1), null, INK, 0.6); }
+        var ra = P(xw - sd * 0.15, 0, 1.1), rb = P(xw - sd * 0.15, LG, 1.1); A('M' + ra[0].toFixed(1) + ' ' + ra[1].toFixed(1) + 'L' + rb[0].toFixed(1) + ' ' + rb[1].toFixed(1), null, INK, 0.8);
+        var cw = P((xw + xo) / 2, LG * 0.45, zw); AT(cw[0], cw[1], tr('Daryo / kanal'), 7.5, '#4f86a8', 600, 'middle');
+        return; }
+    }
+    if (eLt !== 'bino') edgeAxo(-1, eLt); if (eRt !== 'bino') edgeAxo(1, eRt);
+    if (eLt === 'bino') ob(-SB - BD, LG, function () { var H = Math.min(base.bL, bmax) * 3.2; box(-SB - BD, 0, 0, BD, LG, H, line ? '#fff' : '#ecebe7', line ? '#fff' : '#e2e0db', line ? '#fff' : '#f6f5f2'); for (var f = 1; f < H / 3.2; f++) { var a = P(-SB, 0, f * 3.2), b = P(-SB, LG, f * 3.2); A('M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1), null, '#cfcbc3', 0.6); } for (var wy = 2; wy < LG - 2; wy += 3.5) for (var f2 = 0; f2 < H / 3.2; f2++) A(poly([[-SB, wy, f2 * 3.2 + 0.9], [-SB, wy + 1.6, f2 * 3.2 + 0.9], [-SB, wy + 1.6, f2 * 3.2 + 2.5], [-SB, wy, f2 * 3.2 + 2.5]]), line ? '#fff' : '#d5dde3', line ? INK : null, 0.4); });
     /* oʻng (yaqin) bino — shaffof: toʻliq balandlikda, punktir kontur, koʻchani toʻsmaydi (26.10) */
     function ghostBld() { var x0 = rl + SB, x1 = x0 + BD, Hr = Math.max(1, Math.min(base.bR || 1, bmax)) * 3.2, V = [[x0, 0, 0], [x1, 0, 0], [x1, LG, 0], [x0, LG, 0], [x0, 0, Hr], [x1, 0, Hr], [x1, LG, Hr], [x0, LG, Hr]];
       A(poly([V[0], V[1], V[2], V[3]]), line ? '#ffffff' : '#ecebe7', null, 0, 0.55);
@@ -358,7 +393,7 @@ export default class Component extends DCLogic {
       if ((e[0] === 'yash' || e[0] === 'front') && f.orin) [8, 24].forEach(function (y) { if (busy(i, y - 1, y + 1)) return; ob(cx, y, function () { var q = P(cx, y, h); AS.ua(L, 'otirgan_blok', q[0], q[1], k, !left); }); });
     });
     OB.sort(function (a, b) { return a.key - b.key; }).forEach(function (o) { o.fn(); });
-    ghostBld();   // eng oxirida — shaffof qobiq daraxt va odamlar ustida
+    if (eRt === 'bino') ghostBld();   // eng oxirida — shaffof qobiq daraxt va odamlar ustida
 
       return { D: D, TT: TT, bmax: bmax };
     }

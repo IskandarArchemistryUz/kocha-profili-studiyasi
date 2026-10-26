@@ -63,3 +63,20 @@ test('B: aksonometriya — rejadagi elementlar (parklet, taksi, yuk…) chizilad
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ PL: [] }));
   await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'TAKSI' })).toHaveCount(0);
 });
+
+test('B: aksonometriya — chap/oʻng chet turi (bogʻ, suv, qiyalik, ochiq) chiziladi', async ({ page }) => {
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto('./kochasoz.html?beta=0#/b');
+  await expect(page.locator('.ws-b')).toBeVisible();
+  await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 2, eL: 'bino', eR: 'bino' }));
+  const dashed = () => page.evaluate(() => Array.from(document.querySelectorAll('.ws-b svg[role=img] path')).filter(p => (p.getAttribute('stroke-dasharray') || '').trim() === '4 3').length);
+  await expect.poll(dashed).toBeGreaterThanOrEqual(12);   // shaffof oʻng bino
+  await page.locator('.ws-b aside.panel').first().getByRole('button', { name: 'Suv' }).first().click();
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'Daryo / kanal' })).toHaveCount(1);
+  await page.locator('.ws-b aside.panel').first().getByRole('button', { name: 'Qiyalik' }).last().click();
+  await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'Qiyalik 1:3' })).toHaveCount(1);
+  await expect.poll(dashed).toBeLessThan(12);   // oʻngda bino yoʻq — shaffof qobiq ham yoʻq
+  const st = await page.evaluate(() => (window as any).__ks.m.inst.state);
+  expect([st.eL, st.eR]).toEqual(['suv', 'qiyalik']);
+});
