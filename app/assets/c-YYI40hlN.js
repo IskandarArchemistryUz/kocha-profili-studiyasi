@@ -12,6 +12,9 @@ var e=`<div class="ws ws-c">
     <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{tA}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}">{{c.n}}</button></sc-for></div>
     <span class="lbl">Kesishuvchi koʻcha</span>
     <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{tB}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}">{{c.n}}</button></sc-for></div>
+    <span class="lbl">Chorraha shakli</span>
+    <div style="display: flex; flex-wrap: wrap; gap: 5px;" id="ksShape"><sc-for list="{{shape}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}">{{c.n}}</button></sc-for></div>
+    <span class="t-foot">{{extraNote}}</span>
     <div class="group white"><div class="row"><span style="flex: 1;">Kesishish burchagi</span><div class="stepper"><button onClick="{{aD}}" aria-label="Kesishish burchagi — kamaytirish">−</button><span class="v">{{ang}}</span><button onClick="{{aU}}" aria-label="Kesishish burchagi — oshirish">+</button></div></div><div class="row"><span style="flex: 1;">Burilish radiusi</span><div class="stepper"><button onClick="{{rD}}" aria-label="Burilish radiusi — kamaytirish">−</button><span class="v">{{R}}</span><button onClick="{{rU}}" aria-label="Burilish radiusi — oshirish">+</button></div></div></div>
     <span class="lbl">Hisobiy tezlik · asosiy / kesishuvchi</span>
     <div class="seg sm"><sc-for list="{{vA}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
