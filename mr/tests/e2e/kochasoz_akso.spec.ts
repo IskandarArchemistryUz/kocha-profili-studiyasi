@@ -1,12 +1,13 @@
 import { test, expect } from './fx';
 
-/** Koʻchasoz B · Aksonometriya 3D (26.10): kanvas, zona yorliqlari, tarmoq harflari, «Yer osti» almashtirgich, maket uslubi, PNG eksport; boshqa koʻrinishda olib tashlanadi */
+/** Koʻchasoz B · Aksonometriya 3D (26.10, betasiz): kanvas, zona yorliqlari, tarmoq harflari, «Yer osti» almashtirgich, maket uslubi, PNG eksport; boshqa koʻrinishda olib tashlanadi */
 test('B: aksonometriya — 3D sahna, yorliqlar, yer osti qatlami, PNG', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta#/b');   // aksonometriya hozircha beta
+  await page.goto('./kochasoz.html?beta=0#/b');   // aksonometriya saytda ochiq (betasiz)
   await expect(page.locator('.ws-b')).toBeVisible();
-  await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 2, axoQ: false, gfx: 0, U: [{ k: 'W', x: 4, d: 2.5 }, { k: 'G', x: 30.5, d: 1.2 }] }));
+  await page.locator('.ws-b main .seg button', { hasText: 'Aksonometriya' }).click();
+  await page.evaluate(() => (window as any).__ks.m.inst.setState({ axoQ: false, gfx: 0, U: [{ k: 'W', x: 4, d: 2.5 }, { k: 'G', x: 30.5, d: 1.2 }] }));
   const ax = page.locator('[data-axo3d]');
   await expect(ax.locator('canvas')).toBeVisible();
   await expect(ax.locator('.zl').first()).toBeVisible();
@@ -45,7 +46,7 @@ test('B: aksonometriya — tungi rejim va ruscha yorliqlar', async ({ page }) =>
   await page.route(/fonts\.g/, r => r.abort());
   await page.addInitScript(() => { localStorage.setItem('mr-theme', 'dark'); localStorage.setItem('mr-lang', 'ru'); });
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta#/b');
+  await page.goto('./kochasoz.html?beta=0#/b');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 2 }));
   const ax = page.locator('[data-axo3d]');
