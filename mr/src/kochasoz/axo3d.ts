@@ -11,8 +11,8 @@ export interface AxoSection { els: [string, number, Record<string, unknown>?][];
 
 const SB = 1.5, BD = 12, LG = 40, DEP = 4.2;
 export const AXO_LG = LG, AXO_GAP = 5;
-const ZH: Record<string, number> = { front: .15, piy: .15, mebel: .15, yash: .15, velo: .08, park: 0, qat: 0, bus: 0, tram: .02, med: .15, ariq: 0 };
-const ZC: Record<string, string> = { front: '#efe6d4', piy: '#e9e4da', mebel: '#ddd5c5', yash: '#c9dcb6', velo: '#d98a78', park: '#d4d6da', qat: '#c9cbd0', bus: '#93a9d8', tram: '#e3d8c4', med: '#cfe0bf', ariq: '#bcd9ea' };
+const ZH: Record<string, number> = { front: .15, piy: .15, mebel: .15, yash: .15, velo: .08, park: 0, qat: 0, bus: 0, tram: .02, med: .15, ariq: 0, kanal: 0 };
+const ZC: Record<string, string> = { front: '#efe6d4', piy: '#e9e4da', mebel: '#ddd5c5', yash: '#c9dcb6', velo: '#d98a78', park: '#d4d6da', qat: '#c9cbd0', bus: '#93a9d8', tram: '#e3d8c4', med: '#cfe0bf', ariq: '#bcd9ea', kanal: '#bcd6e6' };
 const UCOL: Record<string, string> = { V: '#3b82c4', K: '#8a6a4a', G: '#e0b020', E: '#d0453a', T: '#c2703a', A: '#6b7a8a', D: '#5aa0a0' };
 
 function rng(seed: number): () => number { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
