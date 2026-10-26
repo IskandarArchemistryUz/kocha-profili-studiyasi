@@ -96,7 +96,7 @@ export interface ChTxt { proj?: string; stamp?: string; shifr?: string; tik?: st
 export interface ChLayer { id: string; name: string; visible: boolean; locked: boolean }
 export interface ChPage { id: string; name: string; paper: ChPaper; landscape: boolean; w?: number; h?: number; layers: ChLayer[]; els: ChEl[]; tpl?: string }
 /** «Loyihadan» — boshqa oynalardan yuborilgan xarita, varaq va rasmlar (bir marta bosish — varaqqa qoʻyiladi) */
-export interface ChInbox { id: string; name: string; kind: 'sheet' | 'scene' | 'plan'; svg?: string; vb?: [number, number, number, number]; src?: string; w: number; h: number; scale?: number; north?: number; at: string }
+export interface ChInbox { id: string; name: string; kind: 'sheet' | 'scene' | 'plan'; svg?: string; vb?: [number, number, number, number]; src?: string; w: number; h: number; scale?: number; north?: number; at: string; /** kirishda: qoʻshimcha varaqlar (albom) */ more?: Omit<ChInbox, 'id' | 'at' | 'more'>[] }
 export interface ChUi { left: boolean; right: boolean; leftTab: 'varaq' | 'qatlam' | 'kutubxona'; rightTab: 'element' | 'tekshiruv'; libTab: 'belgi' | 'daraxt' | 'yol' | 'rang'; lockL: boolean; lockR: boolean }
 export interface ChDoc {
   /** 2 — bitta oyna: avtomatik maket varaqlari (auto) + qoʻlda chizilganlar (hand) + erkin varaqlar (pages) */
