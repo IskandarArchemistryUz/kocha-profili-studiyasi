@@ -11,7 +11,7 @@ import { tr, tf } from '../i18n';
 import type { LngLat } from '../core/doc';
 
 export const CHZ_INBOX = 'ks-chz-inbox';
-export interface ChzItem { name: string; kind: 'sheet'; svg: string; vb: [number, number, number, number]; w: number; h: number }
+export interface ChzItem { name: string; kind: 'sheet'; svg: string; vb: [number, number, number, number]; w: number; h: number; /** qoʻshimcha varaqlar (albom) — hammasi birga tushadi */ more?: Omit<ChzItem, 'more'>[] }
 export interface ChzTarget { target: string | 'new'; newName?: string; center?: LngLat }
 /** Bir loyihaga tegishli deb tavsiya qilinadigan masofa, m */
 export const SAME_SITE_M = 3000;

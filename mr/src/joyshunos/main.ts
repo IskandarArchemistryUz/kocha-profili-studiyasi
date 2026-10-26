@@ -386,7 +386,8 @@ function renderRightH(): void {
       h('span', { class: 't-small' }, tr('Hisobot (A3)')),
       h('button', { type: 'button', class: 'btn btn-sm', id: 'repPdf', disabled: repBusy, onclick: () => void report('pdf') }, tr('PDF')),
       h('button', { type: 'button', class: 'btn btn-sm', id: 'repSvg', disabled: repBusy, title: tr('Illustrator uchun qatlamli SVG'), onclick: () => void report('svg') }, 'SVG'),
-      h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'repChz', disabled: repBusy, onclick: () => void report('chz') }, tr('Chizmadonga')))));
+      h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'repChz', disabled: repBusy, onclick: () => void report('chz') }, tr('Chizmadonga'))),
+    h('button', { type: 'button', class: 'btn btn-block', id: 'albOpen', disabled: repBusy, onclick: () => albomDialog() }, ic(ICON.ext), tr('Albom, hisobot va plakat'))));
 
   if (isOn('relyef') || isOn('nishab')) {
     const t = D.ter.v?.s;
@@ -753,6 +754,78 @@ function focusMap(m: MLMap): void {
   set('joy-comp', 'circle-opacity', ['case', ['get', 'in'], c, 0.4 * c]); set('joy-comp', 'circle-stroke-opacity', c);
   roseK = k('shamol');
 }
+/* ---------------- Albom, hisobot va plakat (26.10) ---------------- */
+type AlbKind = 'hisobot' | 'albom' | 'plakat';
+const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') || 'null') as { k?: AlbKind; f?: 'doira' | 'kvadrat'; t?: 'oq' | 'qora' } | null; } catch { return null; } })() ?? {};
+const albSave = () => { try { localStorage.setItem('joy-albom', JSON.stringify(ALB)); } catch { /* */ } };
+function cityName(): string {
+  const tz = placeOf(S.c[0], S.c[1]).tz ?? '', c = tz.split('/').pop()?.replace(/_/g, ' ') ?? '', lang = getLang();
+  const loc: Record<string, [string, string]> = { Tashkent: ['Toshkent', 'Ташкент'], Samarkand: ['Samarqand', 'Самарканд'] };
+  return loc[c] ? (lang === 'ru' ? loc[c][1] : lang === 'uz' ? loc[c][0] : c) : c;
+}
+function albomDialog(): void {
+  document.getElementById('albDlg')?.remove();
+  const back = h('div', { class: 'alb-back' });
+  const kinds: [AlbKind, string, string][] = [['hisobot', 'Qisqa hisobot', 'A4 · muqova, qisqa xulosa, har qatlamga sahifa'], ['albom', 'Albom varaqlari', 'A3 · Shveytsar toʻri, har qatlamga varaq'], ['plakat', 'Plakat · Galereya', '50 × 70 sm · faol qatlam']];
+  const draw = () => {
+    const k = ALB.k ?? 'hisobot', f = ALB.f ?? 'kvadrat', th = ALB.t ?? 'oq';
+    const nOn = collectCards().filter(c => LAYERS.some(l => l.id === c.id)).length;
+    const seg = (lab: string, id: string, opts: [string, string][], cur: string, on: (v: string) => void) => h('div', { class: 'alb-row' }, h('span', { class: 't-small' }, tr(lab)),
+      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr(lab), id }, ...opts.map(([v, n]) => h('button', { type: 'button', 'aria-pressed': v === cur, onclick: () => { on(v); albSave(); draw(); } }, tr(n)))));
+    box.replaceChildren(
+      h('h2', {}, tr('Albom, hisobot va plakat')),
+      h('p', { class: 't-small' }, nOn ? tf('${n} ta qatlam natijasi kiradi. Har qatlam xaritasi alohida olinadi.', { n: nOn }) : tr('Avval kamida bitta qatlamni yoqing — natijasi tayyor boʻlsin.')),
+      h('div', { class: 'alb-kinds', role: 'radiogroup', 'aria-label': tr('Hujjat turi') }, ...kinds.map(([v, n, d]) => h('button', { type: 'button', role: 'radio', 'aria-checked': v === k, 'data-k': v, class: 'alb-k', onclick: () => { ALB.k = v; albSave(); draw(); } }, h('b', {}, tr(n)), h('span', {}, tr(d))))),
+      seg('Xarita ramkasi', 'albFrame', [['kvadrat', 'Kvadrat'], ['doira', 'Doira']], f, v => { ALB.f = v as 'doira' | 'kvadrat'; }),
+      seg('Fon', 'albTheme', [['oq', 'Oq'], ['qora', 'Qora']], th, v => { ALB.t = v as 'oq' | 'qora'; }),
+      h('div', { class: 'alb-act' },
+        h('button', { type: 'button', class: 'btn', onclick: close }, tr('Bekor qilish')),
+        h('button', { type: 'button', class: 'btn', id: 'albPdf', disabled: !nOn, onclick: () => { close(); void albom('pdf'); } }, 'PDF'),
+        h('button', { type: 'button', class: 'btn btn-primary', id: 'albChz', disabled: !nOn, onclick: () => { close(); void albom('chz'); } }, tr('Chizmadonga'))));
+  };
+  const box = h('div', { class: 'alb', id: 'albDlg', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Albom, hisobot va plakat') });
+  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+  function close(): void { document.removeEventListener('keydown', key); back.remove(); }
+  back.addEventListener('click', e => { if (e.target === back) close(); });
+  document.addEventListener('keydown', key);
+  back.append(box); document.body.append(back); draw();
+  (box.querySelector('[aria-checked=true]') as HTMLElement | null)?.focus();
+}
+async function albom(out: 'pdf' | 'chz'): Promise<void> {
+  if (repBusy) return;
+  repBusy = true; renderRight(); toast(tr('Albom tayyorlanmoqda…'));
+  const keepOn = S.on.slice(), keepAct = S.act;
+  try {
+    const A = await import('./albom');
+    const cards = collectCards().filter(c => LAYERS.some(l => l.id === c.id));
+    const overview = await captureMap().catch(() => null);
+    const kind = ALB.k ?? 'hisobot', only = kind === 'plakat' ? cards.filter(c => c.id === (actId() ?? cards[0]?.id)) : cards;
+    const layers: import('./albom').AlbumLayer[] = [];
+    for (const c of only) {
+      const L = LAYERS.find(l => l.id === c.id)!;
+      const cid = c.id as LayerId; S.on = cid === 'relyef' ? keepOn.filter(x => x === 'relyef' || x === 'nishab') : [cid]; S.act = cid; paint();
+      const shot = await captureMap().catch(() => null);
+      layers.push({ id: c.id, name: c.name, group: L.g, groupName: tr(GROUPS.find(g => g[0] === L.g)![1]), color: c.color, big: c.big, text: c.text, norms: c.norms, src: c.src, beta: c.beta, map: shot?.url || null, legend: collectLegends(), rose: cid === 'shamol' && windV() ? roseSvg(windV()!.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null });
+    }
+    S.on = keepOn; S.act = keepAct; paint();
+    const addr = D.addr.st === 'ok' ? D.addr.v! : `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, date = new Date().toISOString().slice(0, 10);
+    const I: import('./albom').AlbumInput = {
+      addr, coords: `${S.c[1].toFixed(4)}° N · ${S.c[0].toFixed(4)}° E`, radius: S.r, date, city: cityName(), layers, overview: overview?.url || null,
+      theme: ALB.t ?? 'oq', frame: ALB.f ?? 'kvadrat', spanM: S.r * 2.3,
+      L: { kicker: tr('Hudud tahlili'), summary: tr('Qisqa xulosa'), summaryLead: tf('${r} m radiusdagi hudud — har qatlamning asosiy koʻrsatkichi va meʼyorlarga muvofiqligi.', { r: S.r }), layer: tr('Qatlam'), value: tr('Koʻrsatkich'), norm: tr('Meʼyor boʻyicha'), source: tr('Manba'), method: tr('Usul'), normsOk: tr('Meʼyorda'), north: tr('Sh'), author: tr('Muallif'), page: tr('Varaq'), layers: tr('qatlam'), org: 'Archemistry Lab', sources: '', note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
+    };
+    const pages = kind === 'hisobot' ? A.shortReport(I) : kind === 'albom' ? A.swissSheets(I) : [A.galleryPoster(I, layers[0] ?? null)];
+    const base = `joy-${kind}-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
+    if (out === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(p => ({ svg: p.svg, widthMm: p.w, heightMm: p.h })), `${base}.pdf`); }
+    else {
+      const items = pages.map(p => ({ name: `${p.name} · ${addr}`, kind: 'sheet' as const, svg: p.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''), vb: [0, 0, p.w, p.h] as [number, number, number, number], w: p.w, h: p.h }));
+      const { sendSheet } = await import('../ui/chzsend');
+      const r = await sendSheet({ ...items[0], name: `${tr(kind === 'hisobot' ? 'Qisqa hisobot' : kind === 'albom' ? 'Albom varaqlari' : 'Plakat · Galereya')} · ${addr}`, more: items.slice(1) }, S.c);
+      if (r === false) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
+    }
+  } catch (e) { S.on = keepOn; S.act = keepAct; paint(); toast(`${tr('Albom tayyorlanmadi')}: ${(e as Error).message}`); }
+  finally { repBusy = false; renderRight(); }
+}
 /* ---------------- C: joy pasporti hisoboti (A3) ---------------- */
 let repBusy = false;
 /** Xarita surati: doira kvadratga sigʻadigan qilib, keyin kamera qaytariladi */
@@ -781,8 +854,8 @@ function collectCards(): import('./report').RepCard[] {
     const text: string[] = [];
     if (sub) { const c = sub.cloneNode(true) as HTMLElement; c.querySelectorAll('ul, .src').forEach(x => x.remove()); c.querySelectorAll('br').forEach(b => b.replaceWith('\n')); c.textContent!.split('\n').map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean).forEach(t => text.push(t)); }
     const chips = el.querySelectorAll('header .chip:not(.beta)');
-    const sq = el.querySelector<HTMLElement>('header .sq');
-    return { id: el.dataset.card!, name: txt(el.querySelector('header .nm')), color: sq?.style.background || ACC, chip: txt(chips[chips.length - 1]), beta: !!el.querySelector('header .chip.beta'), big: txt(el.querySelector('.big')), text, norms, src: [...(sub?.querySelectorAll('.src') ?? [])].map(txt).join(' ') };
+    const lc = el.style.getPropertyValue('--lc');
+    return { id: el.dataset.card!, name: txt(el.querySelector('header .nm')), color: lc || ACC, chip: txt(chips[chips.length - 1]), beta: !!el.querySelector('header .chip.beta'), big: txt(el.querySelector('.big')), text, norms, src: [...(sub?.querySelectorAll('.src') ?? [])].map(txt).join(' ') };
   }).filter(c => c.big && c.big !== '—');
 }
 function collectLegends(): import('./report').RepLegend[] {

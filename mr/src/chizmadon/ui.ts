@@ -1587,9 +1587,13 @@ export function openChizmadon(host: ChHost): void {
 
   /* ---------- kirish ---------- */
   if (host.incoming) {
-    const it: ChInbox = { ...host.incoming, id: cid('i'), at: new Date().toISOString() };
-    d.inbox.push(it); if (d.inbox.length > 30) d.inbox.shift();
-    d.auto.mats[`i:${it.id}`] = { visible: true }; saved = false;
+    const { more, ...first } = host.incoming;
+    for (const src of [first, ...(more ?? [])]) {
+      const it: ChInbox = { ...src, id: cid('i'), at: new Date().toISOString() };
+      d.inbox.push(it); if (d.inbox.length > 30) d.inbox.shift();
+      d.auto.mats[`i:${it.id}`] = { visible: true };
+    }
+    saved = false;
   }
   relayout(false);
   renderAll();
@@ -1597,5 +1601,5 @@ export function openChizmadon(host: ChHost): void {
   void legacyPending().then(L => { if (!document.body.contains(wrap) || (!L.doc && !L.mats.length)) return; LEG = L; renderLeft(); });
   if (!saved) dirty();
   // Oʻzbekiston chegaralari kelgach — hudud materiallari va qidiruv (tarmoqsiz fayl)
-  void loadGeo().then(g => { if (!g || !document.body.contains(wrap)) return; relayout(false); if (host.incoming) { const id = `i:${d.inbox[d.inbox.length - 1].id}`; const p = PLACE[id]; if (p) d.cur = p.pi; } renderAll(); });
+  void loadGeo().then(g => { if (!g || !document.body.contains(wrap)) return; relayout(false); if (host.incoming) { const id = `i:${d.inbox[Math.max(0, d.inbox.length - 1 - (host.incoming.more?.length ?? 0))].id}`; const p = PLACE[id]; if (p) d.cur = p.pi; } renderAll(); });
 }
