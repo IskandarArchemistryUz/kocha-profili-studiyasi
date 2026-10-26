@@ -176,9 +176,10 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 .ws .ks-menu hr{border:0;border-top:1px solid var(--fill-2);margin:4px 2px}
 
 /* ——— B: chekka panellarni yashirish (26.10) ——— */
-.ws-b .ks-ptog{position:absolute;top:79px;z-index:4;width:34px;height:34px;border-radius:var(--r-pill);border:0;padding:0;background:var(--surface);color:var(--muted);box-shadow:0 1px 4px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color .16s,background .16s}
-.ws-b .ks-ptog:hover{color:var(--ink)}
-.ws-b .ks-ptog[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.ws-b .ks-ptog{position:absolute;top:80px;z-index:4;width:32px;height:32px;border-radius:10px;border:0;padding:0;background:transparent;color:var(--faint);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color .16s,background .16s}
+.ws-b .ks-ptog svg.ic{width:18px;height:18px;stroke-width:1.5}
+.ws-b .ks-ptog:hover{color:var(--ink);background:var(--fill)}
+.ws-b .ks-ptog[aria-pressed="true"]{color:var(--muted)}
 .ws-b .ks-ptog .ar{transform-box:fill-box;transform-origin:center;transition:transform .16s}
 .ws-b .ks-ptog[aria-pressed="true"] .ar{transform:scaleX(-1)}
 .ws-b .ks-ptog.l{left:286px}.ws-b .ks-ptog.r{right:372px}
