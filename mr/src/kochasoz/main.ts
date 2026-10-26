@@ -193,9 +193,10 @@ function numEdit(t: HTMLElement): void {
     ti.addEventListener('blur', () => end(true)); return;
   }
   let ei = -1, val: number, lo: number, hi: number;
-  if (kind === 'w') { const b = t.closest<HTMLElement>('.blk'); if (!b || b.dataset.ei === '') return; ei = Number(b.dataset.ei); val = st.els[ei]?.[1]; lo = 0.3; hi = 40; }
-  else if (kind === 'zw') { ei = Math.min(st.sel, st.els.length - 1); val = st.els[ei]?.[1]; lo = 0.3; hi = 40; }
+  if (kind === 'w') { const b = t.closest<HTMLElement>('.blk'); if (!b || b.dataset.ei === '') return; ei = Number(b.dataset.ei); val = st.els[ei]?.[1]; lo = 0.3; hi = st.els[ei]?.[0] === 'kanal' ? 300 : 40; }
+  else if (kind === 'zw') { ei = Math.min(st.sel, st.els.length - 1); val = st.els[ei]?.[1]; lo = 0.3; hi = st.els[ei]?.[0] === 'kanal' ? 300 : 40; }
   else if (kind === 'rl') { val = st.rl; lo = 3; hi = 200; }
+  else if (kind === 'kq' || kind === 'kd') { ei = Math.min(st.sel, st.els.length - 1); const kf = (st.els[ei]?.[2] ?? {}) as { q?: number; dep?: number }; val = kind === 'kq' ? (kf.q ?? 10) : (kf.dep ?? 2.6); lo = kind === 'kq' ? 0.05 : 0.5; hi = kind === 'kq' ? 5000 : 12; }
   else { const u = st.U[st.selU]; if (!u) return; val = kind === 'ux' ? u.x : u.d; lo = kind === 'ux' ? -8 : 0.2; hi = kind === 'ux' ? st.rl + 8 : 8; }
   if (val == null || !isFinite(val)) return;
   document.querySelector('.ks-numed')?.remove();
@@ -208,6 +209,7 @@ function numEdit(t: HTMLElement): void {
     if (!ok || !isFinite(v)) return;
     const nv = Math.round(Math.min(hi, Math.max(lo, v)) * 100) / 100, s2 = inst.state as unknown as BSt;
     if (kind === 'w' || kind === 'zw') inst.setState({ els: s2.els.map((e, i) => i === ei ? [e[0], nv, { ...(e[2] ?? {}) }] : [e[0], e[1], { ...(e[2] ?? {}) }]) } as never);
+    else if (kind === 'kq' || kind === 'kd') inst.setState({ els: s2.els.map((e, i) => i === ei ? [e[0], e[1], { ...(e[2] ?? {}), [kind === 'kq' ? 'q' : 'dep']: nv }] : [e[0], e[1], { ...(e[2] ?? {}) }]) } as never);
     else if (kind === 'rl') inst.setState({ rl: nv } as never);
     else inst.setState({ U: s2.U.map((u, i) => i === s2.selU ? { ...u, [kind === 'ux' ? 'x' : 'd']: nv } : u) } as never);
     if (nv !== v) toast(tf('Chegara: ${a}–${b} m', { a: fmn(lo), b: fmn(hi) }));
