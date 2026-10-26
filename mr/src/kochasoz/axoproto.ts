@@ -1,0 +1,18 @@
+import * as THREE from 'three';
+import { buildAxo, type AxoStyle } from './axo3d';
+const q = new URLSearchParams(location.search), style = (q.get('v') ?? 'maket') as AxoStyle, az = Number(q.get('az') ?? 35);
+const sec = JSON.parse(decodeURIComponent(q.get('s') ?? '{}'));
+const W = 1600, H = 1000;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.setPixelRatio(1);
+r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap; r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = style === 'maket' ? 1.15 : 1.05;
+document.body.append(r.domElement);
+const { scene, target, span } = buildAxo(sec, style, az >= 0);
+scene.background = new THREE.Color(style === 'maket' ? '#eceae5' : '#f6f5f1');
+scene.add(new THREE.HemisphereLight('#ffffff', '#c9c2b4', style === 'maket' ? 1.5 : 1.7));
+const sun = new THREE.DirectionalLight('#fff7ea', style === 'maket' ? 2.8 : 2.0); sun.position.set(target.x - 30, 45, target.z - 25); sun.target.position.copy(target); scene.add(sun, sun.target);
+sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, near: 1, far: 200 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+const fr = span * 0.62, cam = new THREE.OrthographicCamera(-fr * W / H, fr * W / H, fr, -fr, 0.1, 500);
+const a = az * Math.PI / 180, el = Number(q.get('el') ?? 36) * Math.PI / 180, D = 120;
+cam.position.set(target.x + Math.sin(a) * Math.cos(el) * D, target.y + Math.sin(el) * D, target.z - Math.cos(a) * Math.cos(el) * D); cam.lookAt(target);
+cam.zoom = Number(q.get('zoom') ?? 1.25); cam.updateProjectionMatrix();
+r.render(scene, cam); (window as any).__done = true;
