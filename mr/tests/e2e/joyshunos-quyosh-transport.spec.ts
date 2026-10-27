@@ -2,6 +2,8 @@ import { test, expect, type Page } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
+// mashinalar harakati tekshiriladi — animatsiya kerak (qolgan testlar «harakatni kamaytirish» rejimida)
+test.use({ reducedMotion: 'no-preference' });
 
 /** Joyshunos (app/joyshunos.html, «Joy-A» maketi): qatlamlar paneli, joy pasporti, radius, raqobatchilar turi, qidiruv, saqlanish.
  *  Tarmoq soxtalashtiriladi: relyef plitkasi — fixtures/terrarium.png, Overpass va Nominatim — sunʼiy javoblar. */
