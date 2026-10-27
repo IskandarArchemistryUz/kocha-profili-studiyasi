@@ -12,7 +12,7 @@ test('qatlam obyektlari: ramka bilan tanlash, rang berish, tiklash, saqlanish', 
   test.setTimeout(120_000);
   await page.route(/overpass|interpreter|openfreemap|arcgisonline|terrain|amazonaws/, r => r.abort());
   await page.goto('./'); await page.click('#newP');
-  await page.click('#ulOpen');
+  await page.locator('#ctxMore').waitFor(); if ((await page.locator('#ctxMore').getAttribute('open')) === null) await page.click('#ctxMore > summary'); await expect(page.locator('#ctxMore')).toHaveAttribute('open', ''); await page.click('#ulOpen');
   await page.setInputFiles('#ulFile', { name: 'binolar.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(buildings) });
   await page.click('#ulOk');
   await expect(page.locator('#ulList .li')).toHaveCount(1);
@@ -63,7 +63,7 @@ test('qatlam obyektlari: ramka bilan tanlash, rang berish, tiklash, saqlanish', 
     await page.keyboard.press('Escape');
     await expect(card).toBeHidden();
   }
-  await page.click('[data-step=hudud]');
+  await page.click('[data-step=uchastka]');
   await expect(page.locator('.save')).toHaveAttribute('data-s', 'saved');
   await page.waitForTimeout(800);
   await page.reload();

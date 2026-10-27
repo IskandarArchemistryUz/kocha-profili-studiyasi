@@ -18,7 +18,7 @@ test('saqlangan binolar atrof qayta yuklanganda yoʻqolmaydi', async ({ page, co
   await expect(page.locator('#demo')).toContainText('buziladi 0');
   // boshqa manba: id'lar boshqa, kontur 1,5 m siljigan
   base = 5000; sh = 1.5;
-  await page.click('[data-step=hudud]');
+  await page.click('[data-step=uchastka]');
   await page.getByRole('button', { name: 'OSM dan yangilash' }).click();
   await expect(page.locator('#ctxSt')).toContainText('8 bino', { timeout: 15000 });
   await page.click('[data-step=parsel]');
