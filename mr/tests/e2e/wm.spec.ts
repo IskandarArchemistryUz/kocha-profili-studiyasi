@@ -9,6 +9,7 @@ test('yuklab olingan SVG da belgi bor, egasi rejimida — yoʻq', async ({ page 
   const btn = page.locator('.ws-varaq button', { hasText: /^SVG$/ });
   await expect(btn).toBeVisible({ timeout: 20_000 });
   let dl = page.waitForEvent('download'); await btn.click();
+  await page.click('#kdWm');   // «Belgi bilan — bepul»
   const free = readFileSync((await (await dl).path())!, 'utf8');
   expect(free).toContain('id="99_Archemistry_belgi"');
   expect(free).toContain('ARCHEMISTRY · BEPUL');

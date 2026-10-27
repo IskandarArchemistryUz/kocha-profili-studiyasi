@@ -99,8 +99,9 @@ import { authRequired } from '../account/config';
 import { needsLogin, ensureLogin } from '../account/gate';
 import { check as checkAuth, current as currentUser, onAuth, logout } from '../account/session';
 import { loginDialog } from '../account/login';
-import { isLinkOwner } from '../core/wm';
+import { isLinkOwner, setExportArea } from '../core/wm';
 import { buyDialog } from '../account/buy';
+import { coinsDialog, useHeavy } from '../account/pay';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
@@ -300,6 +301,7 @@ export class Editor {
         h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, who), m.email && m.email !== who ? h('span', { class: 'sub' }, m.email) : '')),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Tangalar')), h('span', { class: 'v mono', id: 'acctBal' }, fmt(m.balance))),
         h('button', { class: 'btn btn-sm btn-primary', id: 'acctBuy', onclick: () => { this.closePop(); void buyDialog(); } }, tr('Tanga sotib olish')),
+        h('button', { class: 'btn btn-sm', id: 'acctCoins', onclick: () => { this.closePop(); void coinsDialog(); } }, tr('Mening tangalarim')),
         h('button', { class: 'btn btn-sm', id: 'acctOut', onclick: () => { this.closePop(); void logout().then(() => { toast(tr('Hisobdan chiqdingiz')); if (needsLogin(this.step.id)) this.go(STEPS.find(x => x.id === 'uchastka')!); }); } }, tr('Chiqish'))));
       b.classList.add('acct-me'); b.querySelector('span')!.textContent = (who[0] ?? '?').toUpperCase(); b.title = who;
       box.replaceChildren(b);
@@ -1152,6 +1154,7 @@ export class Editor {
   private async runWind(): Promise<void> {
     track('mr/calc/wind');
     const doc = this.store.doc, st = this.windNow()?.st; if (!doc.site || !st) return;
+    if (!await useHeavy('wind')) return;   // haftalik sinov yoki tanga
     const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     const m = 60, box: [number, number, number, number] = [x0 - m, y0 - m, x1 + m, y1 + m];
@@ -1410,6 +1413,7 @@ export class Editor {
     track('mr/calc/flats');
     const doc = this.store.doc, fh = doc.settings.floorHeight;
     const plans = planApartments(doc); if (!plans.length) { toast('Turar joy seksiyalari yoʻq'); return; }
+    if (!await useHeavy('flats')) return;   // haftalik sinov yoki tanga
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     plans.forEach(p => p.ring.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }));
     const prisms = this.aroundPrisms(x0, y0, x1, y1, 350);
@@ -3148,6 +3152,7 @@ export class Editor {
   private kpiAll = false;
   private renderKpi(): void {
     const c = this.last; if (!c) return;
+    setExportArea(c.d.siteHa ?? 0);   // toza eksport narxi (Master reja ×1 / ×1,5 / ×2)
     const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms)[0];
     const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));
     const open = !this.el.drawer.hidden;

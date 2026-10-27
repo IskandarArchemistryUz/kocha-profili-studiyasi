@@ -1,6 +1,6 @@
 /** Kichik DOM yordamchilari — freymvorksiz, lekin bir xil uslubda */
 import { trSvg, getLang } from '../i18n';
-import { needWm, wmFile } from '../core/wm';
+import { needWm, wmFile, exportGate, asClean } from '../core/wm';
 type Attrs = Record<string, string | number | boolean | null | undefined | ((e: any) => void)>;
 type Child = Node | string | number | null | undefined | false | Child[];
 
@@ -47,11 +47,16 @@ export function toast(msg: string): void {
   clearTimeout(toastT); toastT = setTimeout(() => { el!.hidden = true; }, 3500);
 }
 
-export function download(name: string, data: string | Blob, type = 'application/json'): void {
+/** Fayl yuklash. Bepul — belgili (SVG, PNG); toza — tanga bilan (account/pay.ts darvozasi). item — narx id (server/src/prices.js), boʻlmasa fayl turi boʻyicha. */
+export function download(name: string, data: string | Blob, type = 'application/json', item?: string): void {
   if (typeof data === 'string' && type.includes('svg')) data = trSvg(data);   // chizma ichidagi yozuvlar — tanlangan tilda
-  // bepul yuklash — setkasimon belgi (SVG, PNG, DXF); egasi uchun — belgisiz
-  if (needWm() && /\.(svg|png|jpe?g|dxf)$/i.test(name)) { void wmFile(name, data, type).then(d => save(name, d, type)).catch(() => save(name, data, type)); return; }
-  save(name, data, type);
+  const d = data;
+  void exportGate({ name, item, sample: d }).then(mode => {
+    if (!mode) return;
+    if (mode === 'clean') { void asClean(() => save(name, d, type)); return; }
+    if (needWm() && /\.(svg|png|jpe?g)$/i.test(name)) { void wmFile(name, d, type).then(x => save(name, x, type)).catch(() => save(name, d, type)); return; }
+    save(name, d, type);
+  });
 }
 function save(name: string, data: string | Blob, type: string): void {
   const url = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
