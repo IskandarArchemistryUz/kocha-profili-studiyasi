@@ -149,7 +149,16 @@ window.HOME_D={
 "ARCHEMISTRY · BEPUL":["ARCHEMISTRY · FREE","ARCHEMISTRY · БЕСПЛАТНО"],
 "≤ 15 ga":["≤ 15 ha","≤ 15 га"],"15–60 ga":["15–60 ha","15–60 га"],"> 60 ga":["> 60 ha","> 60 га"],
 "≤ 15 ga · ×1":["≤ 15 ha · ×1","≤ 15 га · ×1"],"15–60 ga · ×1,5":["15–60 ha · ×1.5","15–60 га · ×1,5"],"> 60 ga · ×2":["> 60 ha · ×2","> 60 га · ×2"],
-"soʻm":["som","сум"],"Hozir — shu brauzerda. Server ishga tushgach — hisobingizda. Istalgan paytda .json faylga bepul eksport qilasiz.":["For now — in this browser. After the server launch — in your account. You can export to a .json file for free at any time.","Пока — в этом браузере. После запуска сервера — в аккаунте. В любой момент можно бесплатно экспортировать в .json."]
+"soʻm":["som","сум"],"Hozir — shu brauzerda. Server ishga tushgach — hisobingizda. Istalgan paytda .json faylga bepul eksport qilasiz.":["For now — in this browser. After the server launch — in your account. You can export to a .json file for free at any time.","Пока — в этом браузере. После запуска сервера — в аккаунте. В любой момент можно бесплатно экспортировать в .json."],
+"Archemistry Lab — Master reja, meʼyor bilan":["Archemistry Lab — master planning with norms built in", "Archemistry Lab — мастер-план по нормам"],
+"Batafsil · Archemistry Lab":["About · Archemistry Lab", "Подробнее · Archemistry Lab"],
+"Fikr bildirish · xato haqida xabar":["Feedback · report a bug", "Отзыв · сообщить об ошибке"],
+"Maxfiylik siyosati · Archemistry Lab":["Privacy policy · Archemistry Lab", "Политика конфиденциальности · Archemistry Lab"],
+"Narxlar — batafsil · Archemistry Lab":["Pricing — details · Archemistry Lab", "Цены — подробно · Archemistry Lab"],
+"Ommaviy oferta · Archemistry Lab":["Public offer · Archemistry Lab", "Публичная оферта · Archemistry Lab"],
+"Qavat +":["Floor +", "Этаж +"],
+"Qavat −":["Floor −", "Этаж −"],
+"Yopish":["Close", "Закрыть"]
 };
 /* minimal sahifalar (bosh sahifa · minimal A, narxlar · minimal) */
 Object.assign(window.HOME_D,{

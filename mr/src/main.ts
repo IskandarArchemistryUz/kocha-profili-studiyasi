@@ -38,7 +38,7 @@ async function route(): Promise<void> {
     // boshqa xizmatdan yuborilgan varaq — oʻz loyihasiga yoki yangi alohida loyihaga (ui/chzsend.ts)
     const t = peekInboxTarget();
     if (t?.target === 'new') {
-      const p = blankProject(String(t.newName || 'Yangi loyiha').slice(0, 120));
+      const p = blankProject(String(t.newName || tr('Yangi loyiha')).slice(0, 120));
       if (t.center && t.center.every(Number.isFinite)) p.origin = [t.center[0], t.center[1]];
       await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
     }
@@ -113,7 +113,7 @@ async function home(): Promise<void> {
     h('h1', { class: 't-display' }, tr('Master reja')),
     h('p', { class: 't-small lead' }, tr('Uchastkadan meʼyoriy tekshiruvgacha — bitta 3D oynada. Har bir koʻrsatkich bitta modeldan hisoblanadi va ShNQ bandiga bogʻlanadi.')),
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
-      h('button', { class: 'btn btn-primary btn-lg', id: 'newP', onclick: async () => { const p = blankProject(); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, tr('Yangi loyiha'))),
+      h('button', { class: 'btn btn-primary btn-lg', id: 'newP', onclick: async () => { const p = blankProject(tr('Yangi loyiha')); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, tr('Yangi loyiha'))),
       h('button', { class: 'btn btn-lg', id: 'openFile', onclick: () => file.click() }, ...icl(OPEN, tr('Fayldan ochish'))), file),
     list.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...list.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id },
       h('b', {}, p.name),

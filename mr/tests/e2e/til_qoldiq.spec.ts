@@ -1,6 +1,6 @@
 import { test, expect, type Page } from './fx';
 
-/** EN/RU rejimida oʻzbekcha qolgan matnlar yoʻq: Koʻchasoz (A, B — «Rejada joylash»), Chizmadon kirish oynasi */
+/** EN/RU rejimida oʻzbekcha qolgan matnlar yoʻq: Koʻchasoz (A, B — «Rejada joylash»), Master reja — 11 qadam, Chizmadon kirish oynasi, Joyshunos, Render, Transport */
 const UZ = /[ʻ]|\b(va|uchun|bilan|yoki|boʻyicha|bosing|qoʻyiladi|zonadagi|birinchi|joyga|eni|burchak|tanlang|qilish|kerak|yoʻq|emas|soni|tomon|chizing|qoʻshish|oʻchirish|yuklash|saqlash|koʻrinish|maydon|binolar|koʻcha|xona|qavat|hudud|uchastka|joylash|elementni|zona)\b/i;
 async function grab(page: Page, tag: string, out: Map<string, string>) {
   await page.waitForTimeout(700);
@@ -16,7 +16,7 @@ async function grab(page: Page, tag: string, out: Map<string, string>) {
   for (const v of t) if (UZ.test(v) && !out.has(v)) out.set(v, tag);
 }
 test('EN/RU: oʻzbekcha matn qolmagan', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(420_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile|gibs|nominatim/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1440, height: 900 });
   for (const lang of ['en', 'ru']) {
@@ -28,7 +28,12 @@ test('EN/RU: oʻzbekcha matn qolmagan', async ({ page }) => {
     }
     await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
     await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
+    for (const st of ['uchastka', 'kocha', 'parsel', 'yashil', 'hajm', 'quyosh', 'fasad', 'kvartira', 'xizmat', 'tekshiruv', 'eksport']) {
+      const s = page.locator(`[data-step=${st}]`).first(); if (!(await s.count())) continue;
+      await s.click().catch(() => {}); await grab(page, 'mr-' + st, out);
+    }
     await page.click('#chOpen'); await grab(page, 'ch-start', out);
+    for (const pg of ['joyshunos.html', 'render.html', 'transport.html']) { await page.goto('./' + pg); await grab(page, pg, out); }
     expect([...out.entries()], lang).toEqual([]);
   }
 });

@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script src="js/icons.js?v=2"></script>
+<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script src="js/icons.js?v=2"></script><script src="js/i18n.js?v=20261027"></script>
 </head><body>
 <title>Mavze, daha, kvartal va zichlik — Archemistry Lab</title>
 <meta name="description" content="ShNQ 2.07.01-23 boʻyicha shaharsozlik birliklari (daha, mavze, turar joy tumani) va 400 kishi/ga zichlik normasi — interaktiv izoh.">
@@ -150,7 +150,7 @@ svg text{font-family:var(--f-body)}
       <dl class="facts" id="facts"></dl>
     </div>
   </div>
-  <p class="warn"><b>Asosiy chalkashlik.</b> ShNQ 2.07.01-23 da tartib mana bunday: <b>daha (kvartal)</b> ≤10 ga → <b>mavze</b> 10–50 ga → <b>turar joy tumani</b> 50–250 ga (56-band). Kundalik nutqda esa so'zlar boshqacha ishlatiladi. Chilonzorning «9-kvartali» normativ ma'noda <b>mavze</b>, tarixiy «daha»lar esa butun shahar qismlari edi. 400 kishi/ga normasi <b>mavze</b>ning to'liq maydoniga hisoblanadi.</p>
+  <p data-tr="p1" data-noi18n class="warn"><b>Asosiy chalkashlik.</b> ShNQ 2.07.01-23 da tartib mana bunday: <b>daha (kvartal)</b> ≤10 ga → <b>mavze</b> 10–50 ga → <b>turar joy tumani</b> 50–250 ga (56-band). Kundalik nutqda esa so'zlar boshqacha ishlatiladi. Chilonzorning «9-kvartali» normativ ma'noda <b>mavze</b>, tarixiy «daha»lar esa butun shahar qismlari edi. 400 kishi/ga normasi <b>mavze</b>ning to'liq maydoniga hisoblanadi.</p>
 </section>
 
 <!-- ============ 2. ZICHLIK ============ -->
@@ -180,7 +180,7 @@ svg text{font-family:var(--f-body)}
         <button id="m-first" aria-pressed="false">Kim birinchi</button>
         <button id="m-wrong" aria-pressed="false">Xato talqin</button>
       </div>
-      <p class="story" id="story"></p>
+      <p class="story" id="story" data-noi18n></p>
       <div class="ctrl">
         <label for="dens">Hisobiy aholi zichligi (84-band: ≤400) <b><span id="densV">400</span> kishi/ga</b></label>
         <input type="range" id="dens" min="150" max="600" step="10" value="400">
@@ -219,15 +219,15 @@ svg text{font-family:var(--f-body)}
   </div>
   <div class="cards">
     <article class="card myth"><span class="tag">Noto'g'ri</span><h3>«Uchastkam 1 ga, demak 400 kishi joylashtira olaman»</h3>
-      <p>400 kishi/ga mavzening <b>brutto</b> ko'rsatkichi. Normaga ko'ra zichlik hisobiga turar joylar, maktab, bog'cha, kundalik xizmat, ko'kalamzor va avtoturargohlar maydoni qo'shiladi (zichlik jadvali, 3-izoh). Bu yerlarning ko'pida hech kim yashamaydi, shuning uchun turar joy uchastkasining o'zida zichlik (<b>netto</b>) 1,5–2 baravar yuqori bo'ladi. Simulyatordagi «Xato talqin» rejimi buni ko'rsatadi.</p></article>
+      <p data-tr="p2" data-noi18n>400 kishi/ga mavzening <b>brutto</b> ko'rsatkichi. Normaga ko'ra zichlik hisobiga turar joylar, maktab, bog'cha, kundalik xizmat, ko'kalamzor va avtoturargohlar maydoni qo'shiladi (zichlik jadvali, 3-izoh). Bu yerlarning ko'pida hech kim yashamaydi, shuning uchun turar joy uchastkasining o'zida zichlik (<b>netto</b>) 1,5–2 baravar yuqori bo'ladi. Simulyatordagi «Xato talqin» rejimi buni ko'rsatadi.</p></article>
     <article class="card myth"><span class="tag">Noto'g'ri</span><h3>«Mavze bo'yicha hali sig'im bor, hammasini men olaman»</h3>
-      <p>Norma mavze bo'yicha umumiy chegara bo'lgani uchun, uchastkalar orasida taqsimlanmagan bo'lsa, birinchi quruvchi butun qoldiqni egallab oladi. Bu iqtisodda <b>umumiy resurs tragediyasi</b> deyiladi: maktab, kanalizatsiya va yo'l sig'imi hammaniki, lekin uni birinchi kelgan ishlatib qo'yadi.</p></article>
+      <p data-tr="p3" data-noi18n>Norma mavze bo'yicha umumiy chegara bo'lgani uchun, uchastkalar orasida taqsimlanmagan bo'lsa, birinchi quruvchi butun qoldiqni egallab oladi. Bu iqtisodda <b>umumiy resurs tragediyasi</b> deyiladi: maktab, kanalizatsiya va yo'l sig'imi hammaniki, lekin uni birinchi kelgan ishlatib qo'yadi.</p></article>
     <article class="card fact"><span class="tag">To'g'ri tartib</span><h3>Sig'im batafsil reja orqali uchastkalarga bo'linadi</h3>
-      <p>400 kishi/ga mavze uchun yoziladi (84-band), uchastkaga emas. Uni uchastkalarga bo'lish shaharsozlik hujjatlari, ya'ni mavzening <b>batafsil rejalashtirish loyihasi</b> vazifasi: har uchastkaga qavatlilik, qurilish koeffitsienti va aholi soni beriladi. Shunda «kim birinchi» muammosi bo'lmaydi. Muammo batafsil reja yo'q yoki eskirgan joyda, ruxsatlar bittalab berilganda paydo bo'ladi.</p></article>
+      <p data-tr="p4" data-noi18n>400 kishi/ga mavze uchun yoziladi (84-band), uchastkaga emas. Uni uchastkalarga bo'lish shaharsozlik hujjatlari, ya'ni mavzening <b>batafsil rejalashtirish loyihasi</b> vazifasi: har uchastkaga qavatlilik, qurilish koeffitsienti va aholi soni beriladi. Shunda «kim birinchi» muammosi bo'lmaydi. Muammo batafsil reja yo'q yoki eskirgan joyda, ruxsatlar bittalab berilganda paydo bo'ladi.</p></article>
     <article class="card fact"><span class="tag">Normalar o'zaro</span><h3>400 kishi/ga va m²/ga bir-biriga to'g'ri kelmaydi</h3>
-      <p>Jadvaldagi baland qavatli uchun eng katta qiymat 7500 m²/ga. 400 kishiga bo'lsak, <b>18,8 m²/kishi</b> chiqadi, bu 61-banddagi 16 m² ijtimoiy normaga yaqin. 1-jadvaldagi ekonom sinf (30 m²/kishi) bilan esa 400 × 30 = <b>12 000 m²/ga</b> bo'ladi. Ya'ni bugungi kvartira o'lchamlarida m²/ga chegarasi amalda 250 kishi/ga atrofida to'xtatadi. Bu mening arifmetik hisobim, rasmiy talqin emas.</p></article>
+      <p data-tr="p5" data-noi18n>Jadvaldagi baland qavatli uchun eng katta qiymat 7500 m²/ga. 400 kishiga bo'lsak, <b>18,8 m²/kishi</b> chiqadi, bu 61-banddagi 16 m² ijtimoiy normaga yaqin. 1-jadvaldagi ekonom sinf (30 m²/kishi) bilan esa 400 × 30 = <b>12 000 m²/ga</b> bo'ladi. Ya'ni bugungi kvartira o'lchamlarida m²/ga chegarasi amalda 250 kishi/ga atrofida to'xtatadi. Bu mening arifmetik hisobim, rasmiy talqin emas.</p></article>
     <article class="card world"><span class="tag">Xalqaro tajriba</span><h3>Germaniya, Nyu-York, Tokio</h3>
-      <p><b>Germaniya</b>: Bebauungsplan har bir uchastkaga GRZ/GFZ (qamrov va qavat maydoni koeffitsienti) yozadi. <b>Nyu-York</b>: ishlatilmagan qurilish huquqini qo'shni uchastkaga sotish mumkin (TDR, «air rights»). <b>Tokio</b>: har uchastka uchun maksimal FAR, ko'cha kengligiga bog'liq. Toshkent uchun xulosa: har mavze bo'yicha «qolgan sig'im» ochiq reyestri va infratuzilma to'lovi (impact fee).</p></article>
+      <p data-tr="p6" data-noi18n><b>Germaniya</b>: Bebauungsplan har bir uchastkaga GRZ/GFZ (qamrov va qavat maydoni koeffitsienti) yozadi. <b>Nyu-York</b>: ishlatilmagan qurilish huquqini qo'shni uchastkaga sotish mumkin (TDR, «air rights»). <b>Tokio</b>: har uchastka uchun maksimal FAR, ko'cha kengligiga bog'liq. Toshkent uchun xulosa: har mavze bo'yicha «qolgan sig'im» ochiq reyestri va infratuzilma to'lovi (impact fee).</p></article>
   </div>
 
   <div>
@@ -253,9 +253,25 @@ svg text{font-family:var(--f-body)}
 <script>
 (function(){
 const NS="http://www.w3.org/2000/svg";
+const LG=window.KPS_LANG||"uz",T3=(uz,en,ru)=>LG==="en"?en:LG==="ru"?ru:uz,HA=T3(" ga"," ha"," га"),PPL=T3("kishi","people","чел."),PHA=T3(" /ga"," /ha"," /га");
+
+const TRH={
+p1:[`<b>The main confusion.</b> In ShNQ 2.07.01-23 the order is: <b>block (kvartal)</b> ≤10 ha → <b>microdistrict</b> 10–50 ha → <b>residential district</b> 50–250 ha (clause 56). Everyday speech uses the words differently. Chilonzor's "9th kvartal" is a <b>microdistrict</b> in the normative sense, while the historical "dahas" were whole parts of the city. The 400 people/ha norm is calculated over the full area of the <b>microdistrict</b>.`,
+`<b>Главная путаница.</b> В ШНК 2.07.01-23 порядок такой: <b>квартал (daha)</b> ≤10 га → <b>микрорайон</b> 10–50 га → <b>жилой район</b> 50–250 га (п. 56). В обиходе слова используются иначе. «9-й квартал» Чиланзара в нормативном смысле — <b>микрорайон</b>, а исторические «даха» были целыми частями города. Норма 400 чел./га считается на всю площадь <b>микрорайона</b>.`],
+p2:[`400 people/ha is a <b>gross</b> figure for the microdistrict. Under the norm, the density calculation includes the land of housing, schools, kindergartens, everyday services, green areas and car parks (density table, note 3). Nobody lives on most of this land, so density on the residential plot itself (<b>net</b>) is 1.5–2 times higher. The simulator's "Wrong reading" mode shows this.`,
+`400 чел./га — <b>брутто</b>-показатель микрорайона. По норме в расчёт плотности входят территории жилья, школ, детсадов, повседневного обслуживания, озеленения и автостоянок (таблица плотности, прим. 3). На большей части этих территорий никто не живёт, поэтому плотность на самом жилом участке (<b>нетто</b>) в 1,5–2 раза выше. Это показывает режим «Ошибочное толкование» в симуляторе.`],
+p3:[`Because the norm is a shared limit for the whole microdistrict, if it is not allocated among the plots, the first developer takes the entire remainder. In economics this is called the <b>tragedy of the commons</b>: school, sewer and road capacity belongs to everyone, but whoever comes first uses it up.`,
+`Поскольку норма — общий предел на микрорайон, без распределения по участкам первый застройщик забирает весь остаток. В экономике это называется <b>трагедией общин</b>: ёмкость школ, канализации и дорог общая, но её расходует тот, кто пришёл первым.`],
+p4:[`400 people/ha is set for the microdistrict (clause 84), not for the plot. Dividing it among plots is the job of urban planning documents, namely the microdistrict's <b>detailed planning project</b>: each plot is assigned a number of storeys, a site coverage ratio and a population. Then the "first come" problem does not arise. It appears where there is no detailed plan or it is outdated, and permits are issued one by one.`,
+`400 чел./га задаётся для микрорайона (п. 84), а не для участка. Распределять её по участкам — задача градостроительной документации, т. е. <b>проекта детальной планировки</b> микрорайона: каждому участку задаются этажность, коэффициент застройки и численность населения. Тогда проблемы «кто первый» не возникает. Она появляется там, где ПДП нет или он устарел, а разрешения выдаются по одному.`],
+p5:[`The highest value in the table, for high-rise, is 7500 m²/ha. Divided by 400 people, that gives <b>18.8 m²/person</b>, close to the 16 m² social norm in clause 61. With the economy class of table 1 (30 m²/person), however, 400 × 30 = <b>12 000 m²/ha</b>. So at today's apartment sizes the m²/ha limit in practice stops at around 250 people/ha. This is my own arithmetic, not an official interpretation.`,
+`Наибольшее значение в таблице, для высотной застройки, — 7500 м²/га. При делении на 400 чел. получается <b>18,8 м²/чел.</b>, что близко к социальной норме 16 м² из п. 61. А с эконом-классом из таблицы 1 (30 м²/чел.) 400 × 30 = <b>12 000 м²/га</b>. То есть при сегодняшних размерах квартир предел м²/га на практике останавливает плотность около 250 чел./га. Это мой арифметический расчёт, а не официальное толкование.`],
+p6:[`<b>Germany</b>: the Bebauungsplan sets GRZ/GFZ (site coverage and floor area ratio) for each plot. <b>New York</b>: unused development rights can be sold to a neighbouring plot (TDR, "air rights"). <b>Tokyo</b>: a maximum FAR for each plot, depending on street width. Takeaway for Tashkent: an open register of "remaining capacity" for each microdistrict and an infrastructure charge (impact fee).`,
+`<b>Германия</b>: Bebauungsplan задаёт каждому участку GRZ/GFZ (коэффициенты застройки и плотности застройки). <b>Нью-Йорк</b>: неиспользованные права на застройку можно продать соседнему участку (TDR, «air rights»). <b>Токио</b>: максимальный FAR для каждого участка зависит от ширины улицы. Вывод для Ташкента: открытый реестр «остаточной ёмкости» по каждому микрорайону и плата за инфраструктуру (impact fee).`]};
+if(LG!=="uz")document.querySelectorAll("[data-tr]").forEach(e=>{const v=TRH[e.dataset.tr];if(v)e.innerHTML=LG==="en"?v[0]:v[1];});
 const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
 const fmt=n=>Math.round(n).toLocaleString("ru-RU").replace(/,/g," ");
-const fmt1=n=>(Math.round(n*10)/10).toString().replace(".",",");
+const fmt1=n=>{const v=(Math.round(n*10)/10).toString();return (window.KPS_LANG||"uz")==="en"?v:v.replace(".",",");};
 
 /* =================== 1. SCALE =================== */
 const LV=[
@@ -323,8 +339,8 @@ function paint(){
   const nice=[10,20,50,100,200,500,1000];const L=nice.reduce((a,b)=>Math.abs(b-vb.w/5)<Math.abs(a-vb.w/5)?b:a);
   const bx=vb.x+vb.w*.04,by=vb.y+vb.h*.95;
   sbLine.setAttribute("x",bx);sbLine.setAttribute("y",by);sbLine.setAttribute("width",L);sbLine.setAttribute("height",vb.h*.008);
-  sbT.setAttribute("x",bx);sbT.setAttribute("y",by-vb.h*.012);sbT.setAttribute("font-size",fs*.75);sbT.textContent=L>=1000?(L/1000)+" km":L+" m";
-  document.getElementById("scaleRuler").textContent="Masshtab chizig'i: "+sbT.textContent;
+  sbT.setAttribute("x",bx);sbT.setAttribute("y",by-vb.h*.012);sbT.setAttribute("font-size",fs*.75);sbT.textContent=L>=1000?(L/1000)+T3(" km"," km"," км"):L+T3(" m"," m"," м");
+  document.getElementById("scaleRuler").textContent=T3("Masshtab chizig'i: ","Scale bar: ","Масштабная линейка: ")+sbT.textContent;
 }
 function go(id){cur=id;const t=target(id),s={...vb},t0=performance.now();
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;const D=reduce?1:650;
@@ -374,7 +390,7 @@ el("rect",{x:0,y:190,width:600,height:20,fill:"var(--road)"},ss);
 el("rect",{x:290,y:0,width:20,height:400,fill:"var(--road)"},ss);
 const pg={};
 P.forEach(p=>{
-  const G=el("g",{tabindex:p.t==="res"?0:-1,role:p.t==="res"?"button":"img","aria-label":p.t==="res"?`Uchastka ${p.id}, ${fmt1(p.ha)} ga`:p.nm},ss);
+  const G=el("g",{tabindex:p.t==="res"?0:-1,role:p.t==="res"?"button":"img","aria-label":p.t==="res"?T3(`Uchastka ${p.id}, ${fmt1(p.ha)} ga`,`Plot ${p.id}, ${fmt1(p.ha)} ha`,`Участок ${p.id}, ${fmt1(p.ha)} га`):p.nm},ss);
   const base=el("rect",{x:p.x+2,y:p.y+2,width:p.w-4,height:p.h-4,rx:2,fill:p.t==="res"?"var(--res)":p.t==="soc"?"var(--soc)":"var(--green)","fill-opacity":p.t==="res"?.25:.55},G);
   const bld=el("rect",{fill:"var(--res)",rx:1},G);
   const hatch=el("rect",{x:p.x+2,y:p.y+2,width:p.w-4,height:p.h-4,fill:"url(#hatch)",opacity:0},G);
@@ -382,7 +398,7 @@ P.forEach(p=>{
   const t1=el("text",{x:p.x+10,y:p.y+22,"font-size":15,"font-weight":600,fill:"var(--ink)",class:"sv-lbl"},G);
   const t2=el("text",{x:p.x+10,y:p.y+40,"font-size":12,fill:"var(--ink)"},G);
   const t3=el("text",{x:p.x+10,y:p.y+56,"font-size":12,fill:"var(--ink)"},G);
-  t1.textContent=p.t==="res"?p.id:p.nm;t2.textContent=fmt1(p.ha)+" ga";
+  t1.textContent=p.t==="res"?p.id:p.nm;t2.textContent=fmt1(p.ha)+HA;
   pg[p.id]={G,base,bld,hatch,ring,t1,t2,t3};
   if(p.t==="res"){G.style.cursor="pointer";
     G.addEventListener("click",()=>clickPlot(p));
@@ -419,11 +435,11 @@ function render(){
       v.bld.setAttribute("width",bw);v.bld.setAttribute("height",bh);
       v.bld.setAttribute("fill-opacity",Math.min(1,.35+f/22));v.bld.setAttribute("opacity",1);
       v.base.setAttribute("fill-opacity",.18+Math.min(.6,f/40));
-      v.t2.textContent=`${fmt1(p.ha)} ga · ${Math.max(1,Math.round(f))} qavat`;
-      v.t3.textContent=`${fmt(o.pp)} kishi${o.st==="cut"?" (qisqartirildi)":""}`;
+      v.t2.textContent=`${fmt1(p.ha)}${HA} · ${Math.max(1,Math.round(f))} ${T3("qavat","fl.","эт.")}`;
+      v.t3.textContent=`${fmt(o.pp)} ${PPL}${o.st==="cut"?T3(" (qisqartirildi)"," (reduced)"," (сокращено)"):""}`;
     }else{v.bld.setAttribute("opacity",0);v.base.setAttribute("fill-opacity",.18);
-      v.t2.textContent=fmt1(p.ha)+" ga";
-      v.t3.textContent=o&&o.st==="rej"?"RAD ETILDI — sig'im tugagan":(S.mode==="first"?"bo'sh — bosing":"");}
+      v.t2.textContent=fmt1(p.ha)+HA;
+      v.t3.textContent=o&&o.st==="rej"?T3("RAD ETILDI — sig'im tugagan","REFUSED — no capacity left","ОТКАЗАНО — нет ёмкости"):(S.mode==="first"?T3("bo'sh — bosing","vacant — click","свободен — нажмите"):"");}
     v.t1.textContent=p.id+(o&&o.n?`  #${o.n}`:"");
   });
   // capbar
@@ -432,42 +448,51 @@ function render(){
   const seq=S.mode==="first"?S.order.map(o=>o.id):RES.map(p=>p.id);
   seq.forEach((id,i)=>{const o=out[id];if(!o||o.pp<=0)return;const d=document.createElement("div");d.className="seg-fill";
     const over=acc+o.pp>cap+1;d.style.left=(acc/scaleMax*100)+"%";d.style.width=(o.pp/scaleMax*100)+"%";
-    d.style.background=over?"var(--bad)":SEGC[i%SEGC.length];d.title=`${id}: ${fmt(o.pp)} kishi`;track.appendChild(d);acc+=o.pp;});
+    d.style.background=over?"var(--bad)":SEGC[i%SEGC.length];d.title=`${id}: ${fmt(o.pp)} ${PPL}`;track.appendChild(d);acc+=o.pp;});
   const cl=document.createElement("div");cl.className="capline";cl.style.left=`calc(${cap/scaleMax*100}% - 1px)`;cl.title="Normativ sig'im";track.appendChild(cl);
   document.getElementById("capTxt").textContent=Math.round(pop/cap*100)+"%";
-  document.getElementById("capMax").textContent="sig'im "+fmt(cap)+" kishi";
+  document.getElementById("capMax").textContent=T3("sig'im ","capacity ","ёмкость ")+fmt(cap)+" "+PPL;
   // meters
   const br=pop/TOTAL_HA,nt=pop/RES_HA,sch=pop/cap*100;
   document.getElementById("vPop").textContent=fmt(pop);
-  document.getElementById("sPop").textContent="sig'im: "+fmt(cap);
-  document.getElementById("vBr").textContent=fmt(br)+" /ga";
-  document.getElementById("vNet").textContent=fmt(nt)+" /ga";
-  document.getElementById("sNet").textContent="faqat "+fmt1(RES_HA)+" ga turar joy";
+  document.getElementById("sPop").textContent=T3("sig'im: ","capacity: ","ёмкость: ")+fmt(cap);
+  document.getElementById("vBr").textContent=fmt(br)+PHA;
+  document.getElementById("vNet").textContent=fmt(nt)+PHA;
+  document.getElementById("sNet").textContent=T3("faqat "+fmt1(RES_HA)+" ga turar joy","only "+fmt1(RES_HA)+" ha residential","только "+fmt1(RES_HA)+" га жилья");
   document.getElementById("vSch").textContent=Math.round(sch)+"%";
   document.getElementById("mBr").className="m "+(br>S.dens*1.01?"bad":"");
   document.getElementById("mSch").className="m "+(sch>101?"bad":sch>=90?"ok":"");
-  const fund=pop*NORM/TOTAL_HA;document.getElementById("vFund").textContent=fmt(fund)+" m²/ga";
+  const fund=pop*NORM/TOTAL_HA;document.getElementById("vFund").textContent=fmt(fund)+T3(" m²/ga"," m²/ha"," м²/га");
   document.getElementById("mFund").className="m "+(fund>7500?"bad":"");
   document.getElementById("densV").textContent=S.dens;
   document.getElementById("devFV").textContent=S.devF;
   story(cap,pop,out);
 }
 function story(cap,pop,out){
-  const s=document.getElementById("story");const avgF=floorsOf(RES_HA,cap);
+  const s=document.getElementById("story");const avgF=floorsOf(RES_HA,cap);const pc=Math.round(pop/cap*100);
   if(S.mode==="plan"){
-    s.innerHTML=`Sig'im <strong>${fmt(cap)} kishi</strong> (${S.dens} × 24 ga) batafsil rejada uchastka maydoniga mutanosib bo'linadi. Har bir uchastka o'z kvotasini oladi: taxminan <strong>${Math.round(avgF)} qavat</strong>. Turar joy uchastkasida zichlik ${fmt(pop/RES_HA)} kishi/ga, chunki maktab, park va yo'llar ham norma hisobiga kiradi. Navbat ahamiyatsiz.`;
+    s.innerHTML=T3(`Sig'im <strong>${fmt(cap)} kishi</strong> (${S.dens} × 24 ga) batafsil rejada uchastka maydoniga mutanosib bo'linadi. Har bir uchastka o'z kvotasini oladi: taxminan <strong>${Math.round(avgF)} qavat</strong>. Turar joy uchastkasida zichlik ${fmt(pop/RES_HA)} kishi/ga, chunki maktab, park va yo'llar ham norma hisobiga kiradi. Navbat ahamiyatsiz.`,
+      `The detailed plan splits the capacity of <strong>${fmt(cap)} people</strong> (${S.dens} × 24 ha) in proportion to plot area. Each plot gets its own quota: about <strong>${Math.round(avgF)} storeys</strong>. Net density on the residential plots is ${fmt(pop/RES_HA)} people/ha, because the school, park and roads also count towards the norm. The order of applications does not matter.`,
+      `Детальный план делит ёмкость <strong>${fmt(cap)} чел.</strong> (${S.dens} × 24 га) пропорционально площади участков. Каждый участок получает свою квоту: около <strong>${Math.round(avgF)} эт.</strong> Плотность на жилых участках — ${fmt(pop/RES_HA)} чел./га, потому что школа, парк и дороги тоже входят в расчёт нормы. Очерёдность не важна.`);
   }else if(S.mode==="wrong"){
-    s.innerHTML=`Har bir uchastka normani o'z maydoniga qo'llasa (${S.dens} × uchastka ga), mavzeda faqat <strong>${fmt(pop)} kishi</strong> yashaydi, ya'ni sig'imning ${Math.round(pop/cap*100)}%i. Brutto zichlik ${fmt(pop/TOTAL_HA)} kishi/ga bo'lib qoladi. Bu xato maktab va yo'llar hududini «ikki marta» chegirib tashlaydi.`;
+    s.innerHTML=T3(`Har bir uchastka normani o'z maydoniga qo'llasa (${S.dens} × uchastka ga), mavzeda faqat <strong>${fmt(pop)} kishi</strong> yashaydi, ya'ni sig'imning ${pc}%i. Brutto zichlik ${fmt(pop/TOTAL_HA)} kishi/ga bo'lib qoladi. Bu xato maktab va yo'llar hududini «ikki marta» chegirib tashlaydi.`,
+      `If every plot applies the norm to its own area (${S.dens} × plot ha), only <strong>${fmt(pop)} people</strong> live in the microdistrict, i.e. ${pc}% of capacity. Gross density stays at ${fmt(pop/TOTAL_HA)} people/ha. This mistake deducts the school and road land "twice".`,
+      `Если каждый участок применяет норму к своей площади (${S.dens} × га участка), в микрорайоне живёт лишь <strong>${fmt(pop)} чел.</strong>, т. е. ${pc}% ёмкости. Брутто-плотность остаётся ${fmt(pop/TOTAL_HA)} чел./га. Эта ошибка «дважды» вычитает территорию школ и дорог.`);
   }else{
     const built=S.order.filter(o=>out[o.id]&&out[o.id].pp>0),rej=S.order.filter(o=>out[o.id]&&out[o.id].st==="rej");
     const left=RES.length-S.order.length;const rem=Math.max(0,cap-pop);
-    if(!S.order.length){s.innerHTML=`BRL yo'q, ruxsatlar navbat bilan beriladi. Chizmadagi uchastkalarni istalgan tartibda bosing: har bir quruvchi <strong>${S.devF} qavat</strong> so'raydi. Mavze sig'imi: ${fmt(cap)} kishi.`;return;}
+    if(!S.order.length){s.innerHTML=T3(`BRL yo'q, ruxsatlar navbat bilan beriladi. Chizmadagi uchastkalarni istalgan tartibda bosing: har bir quruvchi <strong>${S.devF} qavat</strong> so'raydi. Mavze sig'imi: ${fmt(cap)} kishi.`,
+      `There is no detailed plan; permits are issued first come, first served. Click the plots in any order: each developer asks for <strong>${S.devF} storeys</strong>. Microdistrict capacity: ${fmt(cap)} people.`,
+      `ПДП нет, разрешения выдаются в порядке очереди. Нажимайте на участки в любом порядке: каждый застройщик просит <strong>${S.devF} эт.</strong> Ёмкость микрорайона: ${fmt(cap)} чел.`);return;}
     if(S.enforce){
-      s.innerHTML=`Birinchi <strong>${Math.min(built.length,S.order.length)} ta</strong> quruvchi sig'imning <strong>${Math.round(pop/cap*100)}%</strong>ini oldi. `+
-        (rej.length?`<strong>${rej.length} ta</strong> uchastka rad etildi: yer egasi bir xil huquqqa ega bo'lsa ham, navbati kech qolgan. `:"")+
-        (left?`Qolgan ${left} ta uchastka uchun ${fmt(rem)} kishi qoldi${rem>0?`, bu har biriga o'rtacha ~${fmt1(Math.max(0,floorsOf(RES_HA*left/RES.length,rem/left)))} qavat`:""}.`:"");
+      const nb=Math.min(built.length,S.order.length),fl=rem>0?fmt1(Math.max(0,floorsOf(RES_HA*left/RES.length,rem/left))):"";
+      s.innerHTML=T3(`Birinchi <strong>${nb} ta</strong> quruvchi sig'imning <strong>${pc}%</strong>ini oldi. `,`The first <strong>${nb}</strong> developer(s) took <strong>${pc}%</strong> of the capacity. `,`Первые <strong>${nb}</strong> застройщик(а) забрали <strong>${pc}%</strong> ёмкости. `)+
+        (rej.length?T3(`<strong>${rej.length} ta</strong> uchastka rad etildi: yer egasi bir xil huquqqa ega bo'lsa ham, navbati kech qolgan. `,`<strong>${rej.length}</strong> plot(s) refused: the landowner has the same rights but came too late in the queue. `,`Отказано <strong>${rej.length}</strong> участк(ам): у владельца те же права, но его очередь подошла слишком поздно. `):"")+
+        (left?T3(`Qolgan ${left} ta uchastka uchun ${fmt(rem)} kishi qoldi${rem>0?`, bu har biriga o'rtacha ~${fl} qavat`:""}.`,`${fmt(rem)} people are left for the remaining ${left} plot(s)${rem>0?`, ~${fl} storeys each on average`:""}.`,`На оставшиеся ${left} участк(а) осталось ${fmt(rem)} чел.${rem>0?`, в среднем ~${fl} эт. на каждый`:""}.`):"");
     }else{
-      s.innerHTML=`Norma nazorat qilinmasa, hamma ${S.devF} qavat quradi. Mavzeda <strong>${fmt(pop)} kishi</strong>, maktab yuklamasi <strong>${Math.round(pop/cap*100)}%</strong>. Toshkentda ko'p uchraydigan holat: binolar qurilgan, lekin maktab, bog'cha va kanalizatsiya rejadagi aholiga mo'ljallangan.`;
+      s.innerHTML=T3(`Norma nazorat qilinmasa, hamma ${S.devF} qavat quradi. Mavzeda <strong>${fmt(pop)} kishi</strong>, maktab yuklamasi <strong>${pc}%</strong>. Toshkentda ko'p uchraydigan holat: binolar qurilgan, lekin maktab, bog'cha va kanalizatsiya rejadagi aholiga mo'ljallangan.`,
+        `If the norm is not enforced, everyone builds ${S.devF} storeys. The microdistrict has <strong>${fmt(pop)} people</strong>, school load <strong>${pc}%</strong>. A common situation in Tashkent: the buildings are up, but the school, kindergarten and sewerage were sized for the planned population.`,
+        `Если норму не контролировать, все строят по ${S.devF} эт. В микрорайоне <strong>${fmt(pop)} чел.</strong>, загрузка школы <strong>${pc}%</strong>. Частая ситуация в Ташкенте: дома построены, а школа, детсад и канализация рассчитаны на плановое население.`);
     }
   }
 }

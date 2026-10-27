@@ -11,6 +11,12 @@ import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demograp
 import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
 
+/** Xonadonlar soni manbasi (izoh boʻlagi; alohida kalit — tarjima uchun) */
+function aptSrc(d: Derived, doc: Project): string {
+  if (d.aptSource === 'sxema') { const mix = doc.settings.aptMix.join('/'); return `Kvartiralar soni — seksiyalarning kvartira sxemasidan (miks ${mix} %; yakka uy va taunhaus — 1 xonadon).`; }
+  const net = doc.settings.aptNet; return `Kvartiralar soni oʻrtacha ${net} m² (netto) boʻyicha taxmin (sxema yoʻq).`;
+}
+const badList = (bad: { use: string; d: number }[]) => bad.map(x => `${x.use === 'mtm' ? 'MTM' : 'maktab'} ${Math.round(x.d * 10) / 10} m`).join(', ') || '—';
 /** stat.uz boʻyicha haqiqiy yosh tarkibidan ehtiyoj (izoh uchun) */
 function demoNote(doc: Project, pop: number, kind: 'school' | 'mtm'): string {
   const r = demoRow(doc.settings.district); if (!r) return '';
@@ -108,7 +114,8 @@ export const RULES: Rule[] = [
       if (d.parkingReq <= 0) return { status: 'na', unit: 'joy', note: 'Talab yoʻq (binolar yoʻq)' };
       const parts = Object.entries(d.parkingParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${v}`).join(', ');
       return { status: d.parkingProv >= d.parkingReq ? 'pass' : 'fail', value: d.parkingProv, unit: 'joy', limit: `≥ ${d.parkingReq}`,
-        note: `Talab: ${parts} (Toshkent: kvartiraga 1). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${d.aptSource === 'sxema' ? `Kvartiralar soni — seksiyalarning kvartira sxemasidan (miks ${doc.settings.aptMix.join('/')} %; yakka uy va taunhaus — 1 xonadon).` : `Kvartiralar soni oʻrtacha ${doc.settings.aptNet} m² (netto) boʻyicha taxmin (sxema yoʻq).`}` };
+        // tarjima kaliti: ichma-ich shablonsiz (i18n ${…} namunasi bilan mos kelsin)
+        note: `Talab: ${parts} (Toshkent: kvartiraga 1). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` };
     },
   },
   {
@@ -119,7 +126,7 @@ export const RULES: Rule[] = [
       if (!d.redLineSocial.length) return { status: 'na', unit: 'm', limit: '≥ 25', note: 'Loyiha koʻchalari yonida maktab yoki MTM binosi yoʻq. Mavjud (OSM) koʻchalar qizil chizigʻi hisobga olinmaydi.' };
       const min = Math.min(...d.redLineSocial.map(x => x.d)), bad = d.redLineSocial.filter(x => x.d < 25);
       return { status: bad.length ? 'fail' : 'pass', value: min, unit: 'm', limit: '≥ 25',
-        note: `${d.redLineSocial.length} ta bino tekshirildi, ${bad.length} tasi 25 m dan yaqin (${bad.map(x => `${x.use === 'mtm' ? 'MTM' : 'maktab'} ${Math.round(x.d * 10) / 10} m`).join(', ') || '—'}). Masofa bino devoridan loyiha koʻchasi qizil chizigʻigacha; turar joy binolarigacha — insolyatsiya va yoritish meʼyorlari boʻyicha (39-jadval).` };
+        note: `${d.redLineSocial.length} ta bino tekshirildi, ${bad.length} tasi 25 m dan yaqin (${badList(bad)}). Masofa bino devoridan loyiha koʻchasi qizil chizigʻigacha; turar joy binolarigacha — insolyatsiya va yoritish meʼyorlari boʻyicha (39-jadval).` };
     },
   },
   {
