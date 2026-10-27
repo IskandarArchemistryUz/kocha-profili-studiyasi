@@ -231,3 +231,6 @@ apply();
     var c=st.center||[st.ring.reduce(function(s,p){return s+p[0];},0)/st.ring.length,st.ring.reduce(function(s,p){return s+p[1];},0)/st.ring.length];
     q=q.then(function(){return place(c).then(function(n){pl.textContent=(n?n+' · ':'')+sh;return new Promise(function(r){setTimeout(r,1100);});});});});});   /* Nominatim: ≤ 1 soʻrov/soniya */
 })();
+
+/* sinov va eski asboblar — hozircha faqat egasiga (js/sinov.js) */
+(function(){var own=false;try{own=localStorage.getItem('kps_owner')==='1';}catch(e){}var h=document.getElementById('hammasi');if(h&&own)h.hidden=false;if(!own)document.querySelectorAll('a[href$="#hammasi"]').forEach(function(a){a.hidden=true;});})();
