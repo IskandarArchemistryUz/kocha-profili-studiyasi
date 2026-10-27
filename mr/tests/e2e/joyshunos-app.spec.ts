@@ -83,7 +83,7 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await expect(page.locator('.joy-card.head .seg button', { hasText: '1250 m' })).toBeVisible();
   // xarita uslubi: 7 ta palitra
   await page.locator('#palBtn').click();
-  await expect(page.locator('.joy-base .joy-pal button')).toHaveCount(7);
+  await expect(page.locator('.joy-base .joy-pal button[data-pal]')).toHaveCount(10);   // +Qum, Oq maket, Koʻk chizma (27.10)
   await page.locator('.joy-base .joy-pal button[data-pal=line]').click();
   await expect(page.locator('#palBtn')).toContainText('Chizma');
   // radius

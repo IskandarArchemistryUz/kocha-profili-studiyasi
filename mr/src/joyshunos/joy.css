@@ -398,3 +398,16 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .jv-pal:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .jv-st{align-self:stretch}
 .jv-st.wrap{display:grid;grid-template-columns:repeat(3,1fr)}
+/* Xarita uslubi: qoʻlda ranglar va uchastka uslubi (prototip «Joyshunos qatlam uslublari») */
+.joy-pal-sec{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 6px 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.joy-pal-sec b{font-weight:600}
+.joy-pal .joy-pal-reset{padding:2px 6px;font-size:11px;text-transform:none;letter-spacing:0;color:var(--ink-2)}
+.joy-pal .joy-pal-seg{margin:0 4px;display:flex;flex-wrap:wrap;gap:2px;height:auto}
+.joy-pal .joy-pal-seg button{height:26px}
+.joy-pal:has(.joy-sws){min-width:268px}
+.joy-pal .joy-pal-seg button{flex:1 1 auto;justify-content:center;padding:5px 7px;font-size:11.5px;white-space:nowrap;min-width:0}
+.joy-sws{display:grid;grid-template-columns:repeat(10,18px);gap:5px;padding:6px}
+.joy-pal .joy-sw{width:18px;height:18px;padding:0;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
+.joy-pal .joy-sw:hover{background:inherit;transform:scale(1.08)}
+.joy-pal .joy-sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+.joy-pal{max-height:calc(100vh - 120px);overflow:auto}

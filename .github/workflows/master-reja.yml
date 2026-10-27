@@ -44,6 +44,6 @@ jobs:
         if: failure() && github.event_name == 'pull_request'
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          { echo '**E2E yiqildi** — oqim ${{ matrix.shard }}/4, urinish ${{ github.run_attempt }}:'; echo '```'; grep -E "✘|Error:|Expected|Received|expect\(|waiting for|Timeout" e2e.log | head -60; echo '```'; } > /tmp/c.md
+          { echo '**E2E yiqildi** — oqim ${{ matrix.shard }}/4, urinish ${{ github.run_attempt }}:'; echo '```'; grep -E "✘|Error:|Expected|Received|expect\(|waiting for|Timeout|failed|flaky" e2e.log | head -60; echo '--- oxiri:'; tail -25 e2e.log; echo '```'; } > /tmp/c.md
           cat /tmp/c.md >> "$GITHUB_STEP_SUMMARY"
           gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/c.md

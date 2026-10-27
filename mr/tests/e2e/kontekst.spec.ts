@@ -88,6 +88,9 @@ test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   // 2,5 / 3 / 4 km (egasi, 25.10: Qorashina shaharchasi sigʻmaydi) — tugmalar ikki qatorda, panel chetidan chiqmaydi
   await page.click('[aria-label=Radius] button:has-text("4 km")');
   expect(await page.evaluate(() => (window as any).__mr.store.doc.context.radius)).toBe(4000);
+  // atrof yuklangach radius «Atrof sozlamalari» ichida — ochiq boʻlsin (CI da tarmoq bor)
+  if (await page.locator('#ctxMore').count() && (await page.locator('#ctxMore').getAttribute('open')) === null && !(await page.locator('[aria-label=Radius]').isVisible())) await page.click('#ctxMore > summary');
+  await expect(page.locator('[aria-label=Radius]')).toBeVisible();
   const seg = (await page.locator('[aria-label=Radius]').boundingBox())!, last = (await page.locator('[aria-label=Radius] button', { hasText: '4 km' }).boundingBox())!;
   expect(last.x + last.width).toBeLessThanOrEqual(seg.x + seg.width + 1);
   // uchastka oʻlcham bilan — 4000 m gacha
