@@ -100,20 +100,37 @@ function landscapeRaw(doc: Project): Yard[] {
   const bl = doc.buildings.map(b => ({ b, r: b.footprint.map(fr.toLocal) }));
   // saqlanadigan mavjud binolar — hovlida toʻsiq (trotuar, daraxt va maydonchalar ularga tushmaydi); aholi hisobiga kirmaydi
   for (const r of Object.values(doc.keepRings ?? {})) bl.push({ b: { id: '', footprint: r, floors: 0, nonRes: 0, use: 'texnik' } as unknown as Building, r: r.map(fr.toLocal) });
+  const sig = (r: XY[]) => r.map(p => `${Math.round(p[0] * 100)},${Math.round(p[1] * 100)}`).join(';');
+  const parkAll = doc.garages.filter(g => g.kind === 'yer_usti' && g.stalls?.length).map(g => ({ g, h: hull([...g.stalls!, ...(g.aisles ?? [])].flat().map(fr.toLocal)) }));
   plan.blocks.forEach((blk, bi) => {
-    if (blk.use === 'yashil' || blk.use === 'maydon' || blk.use === 'sport') { const y = openSpace(blk, bi); if (y) out.push(y); return; }
+    const bsig = `${blk.use}|${blk.rings.map(sig).join('/')}`;
+    if (blk.use === 'yashil' || blk.use === 'maydon' || blk.use === 'sport') { const y = cached(`o|${bsig}`, () => openSpace(blk, bi)); if (y) out.push({ ...y, block: bi }); return; }
     if (!RES_USES.has(blk.use)) return;
     const own = bl.filter(x => pointIn(x.r.reduce((s, p) => [s[0] + p[0] / x.r.length, s[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings) && !x.b.z0);
     if (!own.length) return;
+    // 27.10 yengillik: kvartal hovlisi faqat shu kvartal binolari, avtoturargohi yoki shakli oʻzgarsa qayta hisoblanadi
+    const parkIn = parkAll.filter(p => p.h.length && pointIn(p.h.reduce((a, q) => [a[0] + q[0] / p.h.length, a[1] + q[1] / p.h.length] as XY, [0, 0] as XY), blk.rings));
+    const key = `r|${bsig}|${doc.settings.m2PerPerson}|${doc.settings.netToGross}|${own.map(x => `${x.b.floors},${x.b.nonRes},${x.b.use},${sig(x.r)}`).join('#')}|${parkIn.map(p => sig(p.h)).join('#')}`;
+    const y0 = cached(key, () => yardOf(blk, bi, own, parkIn.map(p => [close(p.h)] as Polygon), doc));
+    if (y0) out.push({ ...y0, block: bi });
+  });
+  return out;
+}
+const CACHE = new Map<string, Yard | null>();
+function cached(k: string, f: () => Yard | null): Yard | null {
+  if (CACHE.has(k)) { const v = CACHE.get(k)!; CACHE.delete(k); CACHE.set(k, v); return v; }
+  const v = f(); CACHE.set(k, v); if (CACHE.size > 600) CACHE.delete(CACHE.keys().next().value!); return v;
+}
+type Own = { b: Building; r: XY[] };
+function yardOf(blk: ReturnType<typeof computePlan>['blocks'][number], bi: number, own: Own[], park: Polygon[], doc: Project): Yard | null {
     const B: Polygon = blk.rings.map(close);
     const fp = safeUnion(own.map(x => [close(x.r)] as Polygon));
     // binolar atrofidagi 3 m trotuar
     const ring3 = safeUnion(own.flatMap(x => corridor([...x.r, x.r[0]], 3)));
     const paveAll = tryOp(() => polygonClipping.intersection(polygonClipping.difference(ring3, fp), B), [] as MultiPolygon);
     // yer usti avtoturargoh (joylar va boʻlaklar) — hovli maydonchalari uning ustiga tushmaydi
-    const park: Polygon[] = doc.garages.flatMap(g => g.kind === 'yer_usti' && g.stalls?.length ? [[close(hull([...g.stalls, ...(g.aisles ?? [])].flat().map(fr.toLocal)))] as Polygon] : []);
     const free = tryOp(() => polygonClipping.difference(B, fp, paveAll, ...park), [] as MultiPolygon);
-    if (!free.length) return;
+    if (!free.length) return null;
     // aholi (shu kvartal binolari)
     const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * useDef(x.b.use).res * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
     // nomzod nuqtalar: erkin hududda, binolardan uzoqligi bilan
@@ -164,12 +181,10 @@ function landscapeRaw(doc: Project): Yard[] {
       if (Math.min(...own.map(o => ringD(p, o.r))) < 5) continue;
       trees.push(p);
     }
-    out.push({
+    return {
       block: bi, paving: toMP(paveAll), green: gR, paths: toMP(pathsIn), play, trees,
       areas: { block: blk.area, paving: mpArea(paveAll), green: mpArea(green), play: play.reduce((t, q) => t + q.area, 0), paths: mpArea(pathsIn) },
-    });
-  });
-  return out;
+    };
 }
 
 /** Yashillik balansi: yashil kvartallar + hovli maysasi (+ 87-band: maydoncha va yoʻlaklar, agar ≤ 30 %) */
