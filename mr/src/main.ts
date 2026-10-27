@@ -33,6 +33,8 @@ async function route(): Promise<void> {
     catch (e) { toast('Namuna loyiha yuklanmadi: ' + (e as Error).message); location.replace('#/'); }
     return;
   }
+  // narxlar sahifasidan: #/tanga — loyihalar sahifasi va «Tanga sotib olish» oynasi (kirmagan boʻlsa — avval kirish)
+  if (location.hash === '#/tanga') { history.replaceState(null, '', '#/'); document.title = 'Archemistry Lab · Master reja'; await home(); void buyDialog(); return; }
   // bosh sahifadan: #/chizmadon — oxirgi loyiha Chizmadon oynasi bilan (loyiha boʻlmasa — yangi)
   if (location.hash === '#/chizmadon') {
     // boshqa xizmatdan yuborilgan varaq — oʻz loyihasiga yoki yangi alohida loyihaga (ui/chzsend.ts)
