@@ -9,6 +9,7 @@ import type { Project } from '../core/doc';
 import { CATS, checkProfile, profileById } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 import { spacingIssues } from '../core/spacing';
+import { landscape } from '../core/landscape';
 
 /** stat.uz boʻyicha haqiqiy yosh tarkibidan ehtiyoj (izoh uchun) */
 function demoNote(doc: Project, pop: number, kind: 'school' | 'mtm'): string {
@@ -197,6 +198,19 @@ export const RULES: Rule[] = [
       const v = d.playNeed > 0 ? d.playGot / d.playNeed * 100 : 0;
       return { status: v >= 99 ? 'pass' : v >= 50 ? 'review' : 'fail', value: d.playGot, unit: 'm²', limit: `${Math.round(d.playNeed)} (3,1 m²/kishi)`,
         note: `Talab: bolalar 0,7 + kattalar 0,1 + sport 2,0 + xoʻjalik 0,3 m²/kishi; joylashtirilgan ${Math.round(v)} %. 90-band: chang boʻronli hududlarda yoki mavze sport majmuasi boʻlsa — ikki baravargacha qisqartirish mumkin; 92-band: zichlik > 7000 m²/ga — tomlarga joylashtirish.` };
+    },
+  },
+  {
+    id: 'fire-666',
+    title: 'Yongʻin-qutqaruv texnikasi yoʻlagi (hovlida, H ≥ 28 m)',
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '666, 667, 675, 676-bandlar', verified: true },
+    evaluate(_d, doc) {
+      if (!doc.buildings.some(b => (b.floors + (b.z0 ?? 0)) * doc.settings.floorHeight >= 28)) return { status: 'na', note: 'Balandligi 28 m va undan yuqori turar joy binolari yoʻq — bitta uzun tomondan (koʻchadan) yetib kelish yetarli (666-band).' };
+      if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchiq — hovlidagi yoʻlak tekshirilmadi (Yashil qadami).' };
+      const ys = landscape(doc).filter(y => y.fire), bad = ys.filter(y => !y.fire!.area), noIn = ys.filter(y => y.fire!.area && !(y.entries ?? []).some(e => e.kind === 'arka' || (e.kind === 'oraliq' && (e.w ?? 0) >= y.fire!.w)));
+      const w = Math.max(0, ...ys.map(y => y.fire!.w));
+      return { status: bad.length ? 'fail' : noIn.length ? 'review' : 'pass', value: ys.length - bad.length, unit: 'kvartal', limit: `${ys.length}`,
+        note: `Binoning ikkala uzun tomonidan yetib kelish (666-band, F1.3, H ≥ 28 m): hovlida eni ${w} m yoʻlak (667-band), ichki chetidan devorgacha 9 m (675-band: 8–10 m), yoʻlak va bino orasida daraxt qatori yoʻq (676-band).` + (bad.length ? ` Hovlida yoʻlak sigʻmadi: ${bad.length} kvartal — hovlini kengaytiring yoki qavatlarni kamaytiring.` : '') + (noIn.length ? ` Hovliga mashina kirishi (arka yoki ≥ ${w} m oraliq) topilmadi: ${noIn.length} kvartal.` : '') };
     },
   },
 ];

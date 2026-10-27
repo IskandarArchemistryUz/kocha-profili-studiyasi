@@ -53,8 +53,10 @@ test('tutqichlar: uchastka burchagi, bino burchagi va qavat tutqichi (vertikal s
   expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings[0].floors)).toBe(8);
   await page.click('[data-view=axo]'); await page.waitForTimeout(300);
   const fh = await page.evaluate(() => (window as any).__mr.store.doc.settings.floorHeight);
-  const top = await scr(0, 0, 8 * fh + 1.5 - 0.8);   // qavat tutqichi: z = base + floors·fh + 1,5 (H = 0)
-  const up = await scr(0, 0, 11 * fh + 1.5 - 0.8);
+  // qavat tutqichining aniq joyi (relyef yuklangan boʻlsa ham — CI da tarmoq bor): muharrirdan
+  const hz = await page.evaluate(() => { const f = (window as any).__mr.handleSet().floor; return { c: f.c, z: f.z }; });
+  const top = await page.evaluate(([x, y, z]) => (window as any).__mr.scene.toScreen(x, y, z), [hz.c[0], hz.c[1], hz.z]);
+  const up = await page.evaluate(([x, y, z]) => (window as any).__mr.scene.toScreen(x, y, z), [hz.c[0], hz.c[1], hz.z + 3 * fh]);
   await page.mouse.move(top.x, top.y); await page.mouse.down(); await page.mouse.move(up.x, up.y, { steps: 6 }); await page.mouse.up();
   expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings[0].floors)).toBe(11);
   await page.click('[data-view=plan]'); await page.waitForTimeout(300);

@@ -15,13 +15,24 @@ export const PALETTES: Record<string, Palette> = {
   pastel: { n: 'Pastel', bg: '#f8f4ed', water: '#cde2f1', park: '#d8ead0', road: '#ffffff', rc: '#e6ddcc', bld: '#e7ddf6', bl: '#c9b8f0', bw: .6, rail: '#e6ddcc', label: '#7d7488' },
   beton: { n: 'Beton', bg: '#e9e8e4', water: '#c3cdd2', park: '#d2d8c9', road: '#f7f7f5', rc: '#cfccc4', bld: '#bdbab3', bl: '#8f8b83', bw: .4, rail: '#b5b1a8', label: '#5d5a54' },
   gisht: { n: 'Gʻisht', bg: '#f4ede4', water: '#c9d6dc', park: '#dbe0c9', road: '#fffaf3', rc: '#e2d3c1', bld: '#e2b9a0', bl: '#b07a5c', bw: .4, rail: '#d6c3ae', label: '#7a5a48' },
+  qum: { n: 'Qum', bg: '#efe6d6', water: '#c9dbe0', park: '#dfe5c8', road: '#fffaf0', rc: '#e2d3bb', bld: '#e3d4bb', bl: '#c9b391', bw: .4, rail: '#d6c6a8', label: '#6e5c44' },
+  oq: { n: 'Oq maket', bg: '#f6f6f5', water: '#e4eef2', park: '#eef3ea', road: '#ffffff', rc: '#dcdcd9', bld: '#ffffff', bl: '#9a978f', bw: .6, rail: '#dcdcd9', label: '#6f6d68' },
+  kok: { n: 'Koʻk chizma', bg: '#0f2740', water: '#0b1f33', park: '#163b4a', road: '#1a3d61', rc: '#1a3d61', bld: '#1d4670', bl: '#5d8fc2', bw: .6, rail: '#24507e', label: '#a9c4e2' },
 };
 
 /** portal boʻylab umumiy tanlov (eski sahifalar ham shu kalitni oʻqiydi) */
-export function basePrefs(): { pal: string; labels: boolean } {
-  try { const b = JSON.parse(localStorage.getItem('kps_base') || '{}'); return { pal: PALETTES[b.pal] ? b.pal : 'arch', labels: b.labels !== false }; } catch { return { pal: 'arch', labels: true }; }
+/** Qoʻlda tanlangan ranglar (palitra ustidan): fon, binolar, koʻchalar, yashil, suv */
+export type CustomKey = 'bg' | 'bld' | 'road' | 'park' | 'water';
+export type Custom = Partial<Record<CustomKey, string>>;
+const HEX = /^#[0-9a-f]{6}$/i;
+export function basePrefs(): { pal: string; labels: boolean; custom: Custom } {
+  try {
+    const b = JSON.parse(localStorage.getItem('kps_base') || '{}'), c: Custom = {};
+    for (const k of ['bg', 'bld', 'road', 'park', 'water'] as CustomKey[]) if (typeof b.custom?.[k] === 'string' && HEX.test(b.custom[k])) c[k] = b.custom[k];
+    return { pal: PALETTES[b.pal] ? b.pal : 'arch', labels: b.labels !== false, custom: c };
+  } catch { return { pal: 'arch', labels: true, custom: {} }; }
 }
-export function setBasePrefs(p: { pal?: string; labels?: boolean }): void {
+export function setBasePrefs(p: { pal?: string; labels?: boolean; custom?: Custom }): void {
   try { const b = JSON.parse(localStorage.getItem('kps_base') || '{}'); localStorage.setItem('kps_base', JSON.stringify({ mode: 'stil', ...b, ...p })); } catch { /* saqlanmadi — faqat shu seans */ }
 }
 
@@ -30,8 +41,8 @@ const cls = (c: string[]) => ['match', ['get', 'class'], c, true, false];
 const NAME = ['coalesce', ['get', 'name:uz'], ['get', 'name:latin'], ['get', 'name']];
 
 /** MapLibre uslubi: «stil» palitrasi yoki sunʼiy yoʻldosh */
-export function mapStyle(kind: 'stil' | 'sat', palKey = 'arch', labels = true): unknown {
-  const p = PALETTES[palKey] ?? PALETTES.arch, L: unknown[] = [];
+export function mapStyle(kind: 'stil' | 'sat', palKey = 'arch', labels = true, custom: Custom = {}): unknown {
+  const p0 = PALETTES[palKey] ?? PALETTES.arch, p = { ...p0, ...custom, ...(custom.road ? { rc: custom.road } : {}) }, L: unknown[] = [];
   if (kind === 'sat') {
     return { version: 8, glyphs: GLYPHS, sources: { s: { type: 'raster', tiles: [imageryTemplate()], tileSize: 256, maxzoom: 19, attribution: `Powered by Esri · ${ESRI_IMAGERY_ATTR}` } }, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#2b2d2f' } }, { id: 'sat', type: 'raster', source: 's' }] };
   }

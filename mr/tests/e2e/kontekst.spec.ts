@@ -25,6 +25,16 @@ async function mockNet(ctx: BrowserContext, hits: { overpass: number }) {
   await ctx.route(/nominatim/, r => r.fulfill({ json: [{ lat: '41.2856', lon: '69.2034', name: 'Chilonzor', display_name: 'Chilonzor, Toshkent, Oʻzbekiston' }] }));
 }
 
+/** yigʻiq boʻlimni ochish (CI da atrof yuklanadi — ikkinchi darajali tugmalar «Atrof sozlamalari» / «Boshqa usullar» ichida) */
+async function more(page: Page, id: 'ctxMore' | 'siteMore') {
+  const d = page.locator(`#${id}`); await d.waitFor();
+  if ((await d.getAttribute('open')) === null) await page.click(`#${id} > summary`);
+  await expect(d).toHaveAttribute('open', '');
+}
+/** qidiruv: panel qayta chizilsa (atrof yuklanib boʻldi) natija yoʻqolishi mumkin — qayta yuboriladi */
+async function search(page: Page, q: string) {
+  await expect.poll(async () => { if (await page.locator('.res .it').count()) return true; await page.fill('#q', q); await page.press('#q', 'Enter'); await page.waitForTimeout(400); return (await page.locator('.res .it').count()) > 0; }, { timeout: 20_000 }).toBe(true);
+}
 async function newProject(page: Page) {
   await page.goto('./'); await page.click('#newP');
   await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
@@ -60,7 +70,7 @@ test('manzil qidiruvi: uchastka bilan koʻchirish', async ({ page, context }) =>
   await newProject(page);
   await page.click('[data-step=uchastka]'); await page.click('#rectSite');
   await page.click('[data-step=uchastka]');
-  await page.fill('#q', 'Chilonzor'); await page.press('#q', 'Enter');
+  await search(page, 'Chilonzor');
   await page.locator('.res .it').first().click();
   await page.click('#mvCarry');
   await expect(page.locator('#orig')).toHaveText('41.28560, 69.20340');
@@ -69,7 +79,7 @@ test('manzil qidiruvi: uchastka bilan koʻchirish', async ({ page, context }) =>
 
 test('koordinata bilan qidiruv tarmoqsiz ishlaydi', async ({ page }) => {
   await newProject(page);
-  await page.fill('#q', '41.3, 69.25'); await page.press('#q', 'Enter');
+  await search(page, '41.3, 69.25');
   await page.locator('.res .it').first().click();
   await expect(page.locator('#orig')).toHaveText('41.30000, 69.25000');
 });
@@ -89,6 +99,9 @@ test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   await page.click('[aria-label=Radius] button:has-text("4 km")');
   expect(await page.evaluate(() => (window as any).__mr.store.doc.context.radius)).toBe(4000);
   await expect(page.locator('[aria-label=Radius] button', { hasText: '4 km' })).toHaveAttribute('aria-pressed', 'true');   // panel qayta chizilib boʻlsin
+  // atrof yuklangach radius «Atrof sozlamalari» ichida — ochiq boʻlsin (CI da tarmoq bor)
+  if (await page.locator('#ctxMore').count() && (await page.locator('#ctxMore').getAttribute('open')) === null && !(await page.locator('[aria-label=Radius]').isVisible())) await page.click('#ctxMore > summary');
+  await expect(page.locator('[aria-label=Radius]')).toBeVisible();
   const seg = (await page.locator('[aria-label=Radius]').boundingBox())!, last = (await page.locator('[aria-label=Radius] button', { hasText: '4 km' }).boundingBox())!;
   expect(last.x + last.width).toBeLessThanOrEqual(seg.x + seg.width + 1);
   // uchastka oʻlcham bilan — 4000 m gacha
@@ -151,7 +164,7 @@ test('chegara: uchastka fayldan (DXF, UTM 42N) va atrof chegara ichida (KML)', a
   await page.click('[data-step=uchastka]');
   const E = 523400, N = 4572500, pts = [[E, N], [E + 200, N], [E + 200, N + 150], [E, N + 150]];
   const dxf = ['0', 'SECTION', '2', 'ENTITIES', '0', 'LWPOLYLINE', '8', 'chegara', '90', '4', '70', '1', ...pts.flatMap(p => ['10', String(p[0]), '20', String(p[1])]), '0', 'ENDSEC', '0', 'EOF'].join('\n');
-  let fc = page.waitForEvent('filechooser'); await page.click('#siteFile');
+  await more(page, 'siteMore'); let fc = page.waitForEvent('filechooser'); await page.click('#siteFile');
   await (await fc).setFiles({ name: 'uchastka.dxf', mimeType: 'application/dxf', buffer: Buffer.from(dxf) });
   await expect(page.locator('#kSite b')).toHaveText(/^(2,9\d|3,0\d)$/);
   await expect(page.locator('.toast').last()).toContainText('UTM 42N');
@@ -161,7 +174,7 @@ test('chegara: uchastka fayldan (DXF, UTM 42N) va atrof chegara ichida (KML)', a
   await page.click('[data-step=uchastka]');
   const ring = [ll(-100, -100), ll(400, -100), ll(400, 300), ll(-100, 300), ll(-100, -100)];
   const kml = `<kml xmlns="http://www.opengis.net/kml/2.2"><Placemark><Polygon><outerBoundaryIs><LinearRing><coordinates>${ring.map(p => `${p.lon},${p.lat},0`).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></kml>`;
-  fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
+  await more(page, 'ctxMore'); fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
   await (await fc).setFiles({ name: 'hudud.kml', mimeType: 'application/vnd.google-earth.kml+xml', buffer: Buffer.from(kml) });
   await expect(page.locator('#areaSt')).toContainText(/(19,9|20,0) ga/);
   await expect(page.locator('#ctxSt')).toBeVisible({ timeout: 15000 });
@@ -183,7 +196,7 @@ test('chegara: uchastka fayldan (DXF, UTM 42N) va atrof chegara ichida (KML)', a
 test('chegara: dunyoning istalgan joyi — Parij fayli qabul qilinadi, loyiha markazi koʻchadi; nomaʼlum metrlar — rad', async ({ page }) => {
   await newProject(page);
   const gj = JSON.stringify({ type: 'Polygon', coordinates: [[[2.35, 48.85], [2.36, 48.85], [2.36, 48.86], [2.35, 48.85]]] });
-  const fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
+  await more(page, 'ctxMore'); const fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
   await (await fc).setFiles({ name: 'paris.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(gj) });
   await expect(page.locator('.toast').last()).toContainText('WGS84');
   await expect(page.locator('#areaSt')).toHaveCount(1);
@@ -192,7 +205,7 @@ test('chegara: dunyoning istalgan joyi — Parij fayli qabul qilinadi, loyiha ma
   await expect(page.locator('#demoAbroad')).toBeVisible(); await expect(page.locator('#district')).toHaveCount(0);
   // zona yozilmagan metrlar, loyiha markazidan uzoq — aniqlanmadi
   const bad = JSON.stringify({ type: 'Polygon', coordinates: [[[100, 100], [300, 100], [300, 300], [100, 100]]] });
-  const fc2 = page.waitForEvent('filechooser'); await page.click('#areaFile');
+  await more(page, 'ctxMore'); const fc2 = page.waitForEvent('filechooser'); await page.click('#areaFile');
   await (await fc2).setFiles({ name: 'bad.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(bad) });
   await expect(page.locator('.toast').last()).toContainText('aniqlanmadi');
 });
