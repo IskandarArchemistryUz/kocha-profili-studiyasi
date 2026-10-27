@@ -24,7 +24,8 @@ const listeners = new Set<() => void>();
 /** Narxlar yuklanganda (yoki loyiha holati yangilanganda) qayta chizish uchun */
 export const onPrices = (f: () => void): (() => void) => { listeners.add(f); return () => listeners.delete(f); };
 const emit = () => listeners.forEach(f => { try { f(); } catch { /* */ } });
-function loadPrices(): Promise<void> { return prP ??= prices().then(p => { PR = p; emit(); }, () => { prP = null; }); }
+/** Narxlar; xatoda — daqiqada bir marta qayta urinadi */
+function loadPrices(): Promise<void> { return prP ??= prices().then(p => { PR = p; emit(); }, () => { setTimeout(() => { prP = null; }, 60_000); }); }
 const kOf = (ha: number): number => Math.round(Math.max(1, Math.sqrt((ha || 0) / 3)) * 10) / 10;
 let PI: (ProjInfo & { id: string }) | null = null, projLoading = false;
 async function loadProject(): Promise<ProjInfo | null> {
@@ -40,9 +41,9 @@ export function heavyPrice(kind: Heavy): number | null {
 /** Tugma yonidagi narx yozuvi: «5 t», bepul boʻlsa — «bepul»; egasi / hisob oʻchiq — boʻsh */
 export function priceTag(kind: Heavy): string {
   if (freeMode()) return '';
-  if (!PR) { void loadPrices(); return ''; }
   const me = current(), pid = exportProject();
   if (!me) return tr('bepul');                       // kirmagan — birinchisi doim bepul
+  if (!PR) { void loadPrices(); return ''; }
   if (pid && (!PI || PI.id !== pid)) { if (!projLoading) { projLoading = true; void loadProject().finally(() => { projLoading = false; }); } return ''; }
   if (kind === 'gen' ? (PI?.genFree ?? 0) > 0 : me.trialsLeft > 0) return tr('bepul');
   if (PI && PI.id === pid && PI.spent >= PI.cap) return tr('bepul');
@@ -267,7 +268,8 @@ export async function coinsDialog(): Promise<void> {
 }
 
 /** Har xizmat kirish nuqtasida bir marta: yuklash darvozasini ulaydi */
-export function initPay(): void { setExportGate(gate); if (authRequired()) void loadPrices(); }
+/** Narxlar oldindan yuklanmaydi — faqat kerak boʻlganda (kirgan foydalanuvchi, pullik oyna): ortiqcha soʻrov va konsol xatosi boʻlmasin */
+export function initPay(): void { setExportGate(gate); }
 initPay();
 
 /* ---------- 4) Master reja: bepul uchastka ≤ 3 ga (egasi qarori 27.10) ---------- */
