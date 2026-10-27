@@ -42,7 +42,7 @@ import { layerIcon, GROUP_COL } from './layerIcons';
 import { windFlow } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
-import { wmFile, wmRaster } from '../core/wm';
+import { wmFile, wmRaster, isOwner } from '../core/wm';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
@@ -294,9 +294,10 @@ function renderLeftH(): void {
         kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'tSiteK', title: tr('Joyshunos va Master rejaning 1-qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) setSite(r, false); } }, tr('1-qadamdan')) : null,
         S.site ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'tSiteX', onclick: () => setSite(null, false) }, tr('Tozalash')) : null)),
     measure ? h('div', { class: 'note', id: 'joyMeasure' }, measure) : null,
-    h('details', { class: 'joy-old' },
+    /* avvalgi sahifalar hozircha faqat egasiga (js/sinov.js) */
+    isOwner() ? h('details', { class: 'joy-old' },
       h('summary', {}, tr('Toʻliq asboblar (avvalgi koʻrinish)'), ic(ICON.chev)),
-      h('div', {}, ...OLD.map(([n, u]) => h('a', { href: u }, tr(n), ic(ICON.ext))))),
+      h('div', {}, ...OLD.map(([n, u]) => h('a', { href: u }, tr(n), ic(ICON.ext))))) : null,
   ].filter((x): x is NonNullable<typeof x> => !!x));
 }
 async function search(q: string): Promise<void> {

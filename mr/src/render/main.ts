@@ -5,6 +5,7 @@
  *   Natija: asl bilan solishtirish, PNG, Chizmadonga, asos yoki referens qilish.
  * Eski «Bino studiyasi» (bino.html: fasad, hajm, kvartiralar) va AI render oynasi — «Toʻliq asboblar»da qoladi (0-qoida).
  */
+import { isOwner } from '../core/wm';
 import '../ui/ds2.css';
 import './render.css';
 import { h, svgIcon, toast } from '../ui/dom';
@@ -110,8 +111,9 @@ function renderLeft(): void {
         ...(REFS.length < MAX_REFS ? [h('button', { type: 'button', class: 'add', id: 'refAdd', onclick: () => { fileFor = 'ref'; fileIn.click(); } }, '+ ', tr('Referens'))] : [])),
       h('p', { class: 't-small' }, tr('Har referensga rol bering: Uslub · Material · Yorugʻlik · Kontekst. Referens — fayldan yoki natija oynasidan («Referens qilish»).'))),
     h('span', { class: 'sp' }),
-    h('details', { class: 'ren-old' }, h('summary', {}, tr('Toʻliq asboblar (avvalgi koʻrinish)')),
-      h('a', { href: '../bino.html' }, tr('Bino studiyasi'), ' — ', tr('fasad, hajm, kvartiralar, AI render'))),
+    /* avvalgi «Bino studiyasi» hozircha faqat egasiga (js/sinov.js) */
+    isOwner() ? h('details', { class: 'ren-old' }, h('summary', {}, tr('Toʻliq asboblar (avvalgi koʻrinish)')),
+      h('a', { href: '../bino.html' }, tr('Bino studiyasi'), ' — ', tr('fasad, hajm, kvartiralar, AI render'))) : '',
   );
 }
 fileIn.onchange = async () => {
