@@ -19,7 +19,7 @@ import { siteAccess, accessVerdict, type Access } from '../core/access';
 const HAJM = () => STEPS.find(x => x.id === 'hajm')!;
 import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
-import { check, range, select, stepper, sw , dropdown } from './controls';
+import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
@@ -362,7 +362,9 @@ export class Editor {
     const li2 = (k: string, sub: string, ctl: Node) => h('div', { class: 'li' }, h('span', { class: 'k' }, k, h('span', { class: 'sub' }, sub)), ctl);
     const opt = (k: typeof this.mapKind, t: string, note: string) => h('button', { class: 'tile', 'data-map': k, 'aria-pressed': this.mapKind === k, disabled: this.mapBusy, onclick: () => void this.runMap(k) }, h('b', {}, tr(t)), h('span', { class: 'sub' }, tr(note)));
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+    const cs = this.store.doc.context;
     return h('div', { class: 'popbody' },
+      cs.loaded && this.ctxMgr.current ? this.ctxLayerChips() : '',
       this.ul.section(),
       h('div', { class: 'glabel' }, h('span', {}, tr('Yozuvlar'))),
       h('div', { class: 'col', style: 'gap:6px' }, h('span', { class: 't-small', style: 'font-weight:600;color:var(--ink-2)' }, tr('Daha va yer uchastkasi')),
@@ -964,6 +966,17 @@ export class Editor {
     return best;
   }
 
+  /** Atrof (OSM) qatlamlari — ixcham chiplar. 1-qadamda va xaritadagi «Qatlamlar» oynasida bir xil holat. */
+  private ctxLayerChips(): HTMLElement {
+    const L = this.store.doc.context.layers, has = !!this.ctxMgr.current;
+    const names: [keyof typeof L, string, string][] = [['buildings', 'Binolar', '#8a8a86'], ['roads', 'Yoʻllar', '#b9b4a8'], ['rail', 'Temir yoʻl', '#4a4a48'], ['water', 'Suv', '#5b8fc7'], ['green', 'Yashil hududlar', '#7fa865'], ['trees', 'Daraxtlar*', '#4e7d3a'], ['relief', 'Relyef', '#a08a6e']];
+    return h('div', { class: 'col', id: 'ctxLayers', style: 'gap:6px' },
+      h('div', { class: 'glabel' }, h('span', {}, tr('Atrof qatlamlari')), h('span', {}, 'OSM')),
+      h('div', { class: 'chips', role: 'group', 'aria-label': tr('Atrof qatlamlari') }, ...names.map(([k, t, c]) => h('button', { class: 'zchip', type: 'button', style: `--c:${c}`, 'data-ctx-layer': k, 'aria-pressed': !!L[k], disabled: !has,
+        onclick: () => { this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: !this.store.doc.context.layers[k] } } })); if (this.pop?.dataset.for === 'layPop') this.refreshPop(); } }, tr(t)))),
+      h('span', { class: 't-small' }, tr('* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.')));
+  }
+
   /* ===== 1-qadam: Hudud (MR-Q1) ===== */
   private hududPanel(body: HTMLElement): void {
     // 27.10 (1+2 birlashdi): asosiy — qidiruv va «Atrofni yuklash»; markaz, radius, chegara, qatlamlar va oʻz maʼlumotlar — «Atrof sozlamalari» ichida
@@ -1005,13 +1018,10 @@ export class Editor {
       if (b.ovm && (b.ovm.added || b.ovm.heights)) body.append(h('div', { class: 'note', id: 'ctxOv' }, tf('Overture Maps: +${a} bino (OSM da yoʻq), ${h} ta binoning balandligi aniqlashtirildi. © OpenStreetMap contributors, Overture Maps Foundation (ODbL).', { a: fmt(b.ovm.added), h: fmt(b.ovm.heights) })));
       if (b.stale) body.append(h('div', { class: 'note warn', id: 'ctxStale' }, tf('OSM serveri hozir javob bermadi — keshdagi ${new Date(b.fetched).toLocaleDateString(\'ru-RU\')} nusxasi koʻrsatilmoqda. Keyinroq «OSM dan yangilash» ni bosing.', { "new Date(b.fetched).toLocaleDateString('ru-RU')": new Date(b.fetched).toLocaleDateString('ru-RU') })));
       if (b.missing.length) body.append(h('div', { class: 'note warn' }, tf('Yuklanmadi: ${b.missing.join(\', \')}. Qolgan qatlamlar ishlaydi.', { "b.missing.join(', ')": b.missing.join(', ') })));
-      const L = cs.layers, names: [keyof typeof L, string][] = [['buildings', 'Binolar'], ['roads', 'Yoʻllar'], ['rail', 'Temir yoʻl'], ['water', 'Suv'], ['green', 'Yashil hududlar'], ['trees', 'Daraxtlar*'], ['relief', 'Relyef']];
+      body.append(this.ctxLayerChips());   // 27.10: qatlamlar yana koʻrinadigan joyda (#277 da «Atrof sozlamalari» ichida yashirinib qolgandi)
       more.append(
         h('div', { class: 'glabel' }, h('span', {}, tr('Yer qoplami'))),
         h('div', { class: 'seg sm', role: 'group' }, ...([['maket', 'Maket'], ['sputnik', 'Sunʼiy yoʻldosh']] as const).map(([k, t]) => h('button', { 'aria-pressed': cs.base === k, 'data-base': k, disabled: k === 'sputnik' && !b.imagery, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })) }, tr(t)))),
-        h('div', { class: 'glabel' }, h('span', {}, tr('Qatlamlar'))),
-        h('div', { class: 'group', role: 'group', 'aria-label': tr('Qatlamlar') }, ...names.map(([k, t]) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: L[k], 'data-layer': k, onchange: v => this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: v } } })) })))),
-        h('span', { class: 't-small' }, tr('* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.')),
         h('div', { class: 'row' },
           h('button', { class: 'btn btn-sm btn-ghost', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, tr('Yashirish'))));
       // yangilash — holat qatori ostida, koʻrinib turadi
