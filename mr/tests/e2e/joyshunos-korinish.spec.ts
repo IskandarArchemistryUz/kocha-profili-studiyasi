@@ -178,3 +178,18 @@ test('xizmat qamrovi va raqobatchilar zichligi', async ({ page }) => {
   await expect.poll(() => vis(page, 'joy-comp-hm')).toBe('none');
   expect(errs).toEqual([]);
 });
+
+/** Issiqlik oroli — geksagon uslubi */
+test('issiqlik: geksagon', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const errs: string[] = []; await open(page, errs);
+  await page.locator('[data-layer=issiqlik] .switch').click();
+  await expect(page.locator('[data-card=issiqlik] .big')).toHaveText(/°C/, { timeout: 60_000 });
+  await page.locator('[data-layer=issiqlik] .lt').click(); await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Geksagon' }).click();
+  await expect(page.locator('.jv-st button', { hasText: 'Geksagon' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => vis(page, 'joy-heat')).toBe('visible');
+  if (process.env.GX_SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_geks.png` }); }
+  expect(errs).toEqual([]);
+});

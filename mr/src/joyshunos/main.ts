@@ -792,7 +792,7 @@ function paintH(): void {
   // issiqlik oroli — yozgi LST (6 km doira)
   const upd = (id: string, im: { url: string; coords: [number, number][] }) => (m.getSource(id) as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords });
   const lg0 = D.lst.v;
-  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${lg0.year}|${vh.p}|${vh.k.toFixed(2)}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', gridImage(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
+  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${lg0.year}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', (vh.st === 'geks' ? hexImage : gridImage)(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
   // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
   const sm = SM;
@@ -1160,6 +1160,22 @@ function gridImage(vals: Float32Array, n: number, step: number, R: number, col: 
   }
   cx.putImageData(img, 0, 0);
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132, H = R + step / 2;
+  return { url: cv.toDataURL(), coords: [[S.c[0] - H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] - H / ky], [S.c[0] - H / kx, S.c[1] - H / ky]] };
+}
+/** Geksagonlar: toʻr qiymatlari olti burchakli kataklarga (eni ≈ 4 toʻr qadami); rasm 512 px */
+function hexImage(vals: Float32Array, n: number, step: number, R: number, col: (v: number) => string | null, alpha = 200, clip?: number): { url: string; coords: [number, number][] } {
+  const P = 512, H = R + step / 2, k = P / (2 * H), cv = document.createElement('canvas'); cv.width = cv.height = P;
+  const cx = cv.getContext('2d')!, c0 = (n - 1) / 2, hr = Math.max(step * 2.2, R / 18);
+  cx.globalAlpha = alpha / 255;
+  for (let row = 0, y = -R; y <= R; y += hr * 1.5, row++) for (let x = -R + (row % 2) * hr * 0.866; x <= R; x += hr * 1.732) {
+    if (clip != null && Math.hypot(x, y) > clip) continue;
+    const i = Math.round(x / step + c0), j = Math.round(y / step + c0); if (i < 0 || j < 0 || i >= n || j >= n) continue;
+    const c = col(vals[j * n + i]); if (!c) continue;
+    cx.fillStyle = c; cx.beginPath();
+    for (let a = 0; a < 6; a++) { const t = a * Math.PI / 3 + Math.PI / 6; cx.lineTo((x + Math.cos(t) * hr * 0.94 + H) * k, (H - (y + Math.sin(t) * hr * 0.94)) * k); }
+    cx.closePath(); cx.fill();
+  }
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
   return { url: cv.toDataURL(), coords: [[S.c[0] - H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] - H / ky], [S.c[0] - H / kx, S.c[1] - H / ky]] };
 }
 /** Soyalar rasmi: r doirasi ichida, ~1 m piksel (koʻpi bilan 2048) */
