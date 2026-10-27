@@ -63,7 +63,7 @@ test('qatlam obyektlari: ramka bilan tanlash, rang berish, tiklash, saqlanish', 
     await page.keyboard.press('Escape');
     await expect(card).toBeHidden();
   }
-  await page.click('[data-step=hudud]');
+  await page.click('[data-step=uchastka]');
   await expect(page.locator('.save')).toHaveAttribute('data-s', 'saved');
   await page.waitForTimeout(800);
   await page.reload();

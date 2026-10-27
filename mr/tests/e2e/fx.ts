@@ -19,5 +19,15 @@ export const test = base.extend({
     await context.route(/\/data\/wind\?/, r => r.fulfill({ status: 503, json: { error: 'disabled' } }));
     await use(context);
   },
+  // 27.10: 1-qadam («Joy va uchastka») yangi loyihada allaqachon ochiq — faol qadamni qayta bosish panelni yigʻadi.
+  // Testlardagi page.click('[data-step=…]') — «shu qadamga oʻtish» maʼnosida: qadam ochiq boʻlsa bosilmaydi.
+  page: async ({ page }, use) => {
+    const orig = page.click.bind(page);
+    page.click = (async (sel: string, opts?: Parameters<Page['click']>[1]) => {
+      if (/^\[data-step=[a-z]+\]$/.test(sel) && (await page.locator(sel).first().getAttribute('aria-expanded', { timeout: 5000 }).catch(() => null)) === 'true') return;
+      return orig(sel, opts);
+    }) as Page['click'];
+    await use(page);
+  },
 });
 export { expect, type Page, type BrowserContext };

@@ -27,7 +27,7 @@ async function mockNet(ctx: BrowserContext, hits: { overpass: number }) {
 
 async function newProject(page: Page) {
   await page.goto('./'); await page.click('#newP');
-  await expect(page.locator('.panel h2')).toHaveText('Hudud');
+  await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
 }
 
 test('kontekst yuklanadi, kvartal bosib aniqlanadi, yangilanganda keshdan tiklanadi', async ({ page, context }) => {
@@ -50,7 +50,7 @@ test('kontekst yuklanadi, kvartal bosib aniqlanadi, yangilanganda keshdan tiklan
 
   await expect(page.locator('.save')).toHaveAttribute('data-s', 'saved', { timeout: 5000 });
   await page.reload();
-  await page.click('[data-step=hudud]');
+  await page.click('[data-step=uchastka]');
   await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 10000 });
   expect(hits.overpass).toBeLessThanOrEqual(5);                           // bir yuklash = oʻz serverimiz + 4 ochiq server parallel; ikkinchi marta tarmoqqa chiqilmadi
 });
@@ -59,7 +59,7 @@ test('manzil qidiruvi: uchastka bilan koʻchirish', async ({ page, context }) =>
   await mockNet(context, { overpass: 0 });
   await newProject(page);
   await page.click('[data-step=uchastka]'); await page.click('#rectSite');
-  await page.click('[data-step=hudud]');
+  await page.click('[data-step=uchastka]');
   await page.fill('#q', 'Chilonzor'); await page.press('#q', 'Enter');
   await page.locator('.res .it').first().click();
   await page.click('#mvCarry');
@@ -94,7 +94,7 @@ test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '4000'); await page.fill('#rh', '3500'); await page.click('#rectSite');
   expect(await page.evaluate(() => (window as any).__mr.store.doc.site.rings[0].length)).toBe(4);
   await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
-  if (process.env.GX_SHOTS) { await page.click('[data-step=hudud]'); await page.screenshot({ path: `${process.env.GX_SHOTS}/radius_4km_dark.png` }); }
+  if (process.env.GX_SHOTS) { await page.click('[data-step=uchastka]'); await page.screenshot({ path: `${process.env.GX_SHOTS}/radius_4km_dark.png` }); }
 });
 
 test('OSM serveri band boʻlsa — keshdagi nusxa ogohlantirish bilan', async ({ page, context }) => {
@@ -157,7 +157,7 @@ test('chegara: uchastka fayldan (DXF, UTM 42N) va atrof chegara ichida (KML)', a
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/chegara_uchastka.png` });
   // uchastka joyida yangi loyiha: atrof chegara ichida — KML (WGS84)
   await page.click('[aria-label="Uchastkani oʻchirish"]');
-  await page.click('[data-step=hudud]');
+  await page.click('[data-step=uchastka]');
   const ring = [ll(-100, -100), ll(400, -100), ll(400, 300), ll(-100, 300), ll(-100, -100)];
   const kml = `<kml xmlns="http://www.opengis.net/kml/2.2"><Placemark><Polygon><outerBoundaryIs><LinearRing><coordinates>${ring.map(p => `${p.lon},${p.lat},0`).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></kml>`;
   fc = page.waitForEvent('filechooser'); await page.click('#areaFile');
@@ -172,7 +172,7 @@ test('chegara: uchastka fayldan (DXF, UTM 42N) va atrof chegara ichida (KML)', a
     await page.setViewportSize({ width: 1024, height: 768 }); await page.click('[aria-label="Tungi rejim"]');
     await page.screenshot({ path: `${process.env.GX_SHOTS}/chegara_hudud_1024_dark.png` });
     await page.click('[data-step=uchastka]'); await page.screenshot({ path: `${process.env.GX_SHOTS}/chegara_uchastka_1024_dark.png` });
-    await page.click('[data-step=hudud]');
+    await page.click('[data-step=uchastka]');
   }
   // radius tugmasi — chegara olib tashlanadi
   await page.click('[aria-label=Radius] button:has-text("500 m")');

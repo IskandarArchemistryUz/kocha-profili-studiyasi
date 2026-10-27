@@ -824,3 +824,10 @@ textarea.ch-inedit{padding:10px 12px}
 .glegend .gl{display:inline-flex;align-items:center;gap:6px}
 .glegend .gl > i{display:inline-block;width:10px;height:10px;border-radius:2px}
 [data-theme=dark] .g-park{background:#4fae70}[data-theme=dark] .g-yard{background:#7fb067}[data-theme=dark] .g-play{background:#d39a4f}
+
+/* 1-qadam (27.10): Joy → Chegara → Kirish va yoʻllar — blok sarlavhalari */
+.stepsec{display:flex;align-items:center;gap:8px;margin:6px 0 -2px;font-size:13px;font-weight:600;color:var(--ink)}
+.stepsec > b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--ink);color:var(--surface);font-size:11px}
+.stepsec:not(:first-child){border-top:1px solid var(--hairline);padding-top:12px;margin-top:10px}
+.acc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.acc-magistral{background:#c0392b}.acc-tuman{background:#e08a2e}.acc-mahalliy{background:#8a8780}.acc-xizmat{background:#c9c6bf}
