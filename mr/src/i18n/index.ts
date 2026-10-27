@@ -114,9 +114,16 @@ function tpls(): Tpl[] {
   TPL.sort((a, b) => b.key.replace(PH, '').length - a.key.replace(PH, '').length);
   return TPL;
 }
-const UNITS: Record<'en' | 'ru', [RegExp, string][]> = {
-  en: [[/^(.+) tumani( \(total\))?$/, '$1 district$2'], [/^(.+) shahri( \(total\))?$/, '$1 city$2'], [/^(.+) viloyati( \(total\))?$/, '$1 region$2'], [/\(total\)$/, '(total)'], [/(\d) ga\b/g, '$1 ha'], [/\/ga\b/g, '/ha'], [/\/kishi\b/g, '/person'], [/\/joy\b/g, '/space'], [/(\d) ming\b/g, '$1 thousand'], [/(\d) mln\b/g, '$1 mln'], [/kishi\/ga\b/g, 'people/ha'], [/(\d) kishi\b/g, '$1 people'], [/(\d) qavat\b/g, '$1 fl.'], [/(\d) oʻrin\b/g, '$1 places'], [/(\d) joy\b/g, '$1 spaces'], [/(\d) ta\b/g, '$1'], [/(\d)-qavat\b/g, 'floor $1'], [/(\d)-bino\b/g, 'building $1'], [/(\d)-qadam/g, 'step $1'], [/(\d[\d.,–\s]*?)-bandlar\b/g, 'cl. $1'], [/(\d[\d.,–]*)-band\b/g, 'cl. $1'], [/(\d) mos\b/g, '$1 pass'], [/(\d) seksiya\b/g, '$1 sections'], [/(\d) xonadon\b/g, '$1 apartments'], [/(\d) kvartira\b/g, '$1 apartments'], [/(\d[\d.,–\s]*?)-jadvallar\b/g, 'tables $1'], [/(\d+)-jadval\b/g, 'table $1'], [/(\d+)-izoh\b/g, 'note $1'], [/(\d+)-modda\b/g, 'art. $1'], [/(\d+)-qism\b/g, 'part $1'], [/(\d+)-ilova\b/g, 'annex $1'], [/OʻRQ-/g, 'ZRU-']],
-  ru: [[/^(.+) tumani( \(total\))?$/, '$1 район$2'], [/^(.+) shahri( \(total\))?$/, 'г. $1$2'], [/^(.+) viloyati( \(total\))?$/, '$1 область$2'], [/ \(total\)$/, ' (всего)'], [/(\d) m²/g, '$1 м²'], [/\/ga\b/g, '/га'], [/m²\//g, 'м²/'], [/\/kishi\b/g, '/чел.'], [/\/joy\b/g, '/место'], [/(\d) ming\b/g, '$1 тыс.'], [/(\d) mln\b/g, '$1 млн'], [/(\d) km\b/g, '$1 км'], [/(\d) m\b/g, '$1 м'], [/(\d) ga\b/g, '$1 га'], [/kishi\/ga\b/g, 'чел./га'], [/(\d) kishi\b/g, '$1 чел.'], [/(\d) qavat\b/g, '$1 эт.'], [/(\d) oʻrin\b/g, '$1 мест'], [/(\d) joy\b/g, '$1 мест'], [/(\d) ta\b/g, '$1'], [/(\d)-qavat\b/g, '$1-й этаж'], [/(\d)-bino\b/g, 'здание $1'], [/(\d)-qadam/g, 'шаг $1'], [/(\d[\d.,–\s]*?)-bandlar\b/g, 'п. $1'], [/(\d[\d.,–]*)-band\b/g, 'п. $1'], [/(\d) mos\b/g, '$1 соотв.'], [/(\d) seksiya\b/g, '$1 секций'], [/(\d) xonadon\b/g, '$1 кв.'], [/(\d) kvartira\b/g, '$1 кв.'], [/(\d[\d.,–\s]*?)-jadvallar\b/g, 'табл. $1'], [/(\d+)-jadval\b/g, 'табл. $1'], [/(\d+)-izoh\b/g, 'прим. $1'], [/(\d+)-modda\b/g, 'ст. $1'], [/(\d+)-qism\b/g, 'ч. $1'], [/(\d+)-ilova\b/g, 'прил. $1'], [/ShNQ\b/g, 'ШНК'], [/SanQvaN\b/g, 'СанПиН'], [/QMQ\b/g, 'КМК'], [/OʻRQ-/g, 'ЗРУ-']],
+/** Oʻzbekcha lotin nomi → kirill (rus matnida joy nomlari: tuman, shahar) — taxminiy, rasmiy ruscha shakl boʻlmasa */
+export function cyr(s: string): string {
+  const M: [RegExp, string][] = [[/[Oo][ʻ'‘’]/g, 'о'], [/[Gg][ʻ'‘’]/g, 'г'], [/[Ss]h/g, 'ш'], [/[Cc]h/g, 'ч'], [/[Yy]o/g, 'ё'], [/[Yy]u/g, 'ю'], [/[Yy]a/g, 'я'], [/[Yy]e/g, 'е'], [/ng/g, 'нг'], [/[ʼ’]/g, 'ъ']];
+  let o = s; for (const [re, to] of M) o = o.replace(re, m => (m[0] === m[0].toUpperCase() ? to.toUpperCase().slice(0, 1) + to.slice(1) : to));
+  const L: Record<string, string> = { a: 'а', b: 'б', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'х', i: 'и', j: 'дж', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'к', r: 'р', s: 'с', t: 'т', u: 'у', v: 'в', x: 'х', y: 'й', z: 'з', c: 'ц', w: 'в' };
+  return o.replace(/[A-Za-z]/g, ch => { const r = L[ch.toLowerCase()] ?? ch; return ch === ch.toUpperCase() ? r.charAt(0).toUpperCase() + r.slice(1) : r; });
+}
+const UNITS: Record<'en' | 'ru', [RegExp, string | ((...a: string[]) => string)][]> = {
+  en: [[/^(.+) tumani( \(total\))?$/, '$1 district$2'], [/\b1 qator\b/g, '1 lane'], [/(\d) qator\b/g, '$1 lanes'], [/^(.+) shahri( \(total\))?$/, '$1 city$2'], [/^(.+) viloyati( \(total\))?$/, '$1 region$2'], [/\(total\)$/, '(total)'], [/(\d) ga\b/g, '$1 ha'], [/\/ga\b/g, '/ha'], [/\/kishi\b/g, '/person'], [/\/joy\b/g, '/space'], [/(\d) ming\b/g, '$1 thousand'], [/(\d) mln\b/g, '$1 mln'], [/kishi\/ga\b/g, 'people/ha'], [/(\d) kishi\b/g, '$1 people'], [/(\d) qavat\b/g, '$1 fl.'], [/(\d) oʻrin\b/g, '$1 places'], [/(\d) joy\b/g, '$1 spaces'], [/(\d) ta\b/g, '$1'], [/(\d)-qavat\b/g, 'floor $1'], [/(\d)-bino\b/g, 'building $1'], [/(\d)-qadam/g, 'step $1'], [/(\d[\d.,–\s]*?)-bandlar\b/g, 'cl. $1'], [/(\d[\d.,–]*)-band\b/g, 'cl. $1'], [/(\d) mos\b/g, '$1 pass'], [/(\d) seksiya\b/g, '$1 sections'], [/(\d) xonadon\b/g, '$1 apartments'], [/(\d) kvartira\b/g, '$1 apartments'], [/(\d[\d.,–\s]*?)-jadvallar\b/g, 'tables $1'], [/(\d+)-jadval\b/g, 'table $1'], [/(\d+)-izoh\b/g, 'note $1'], [/(\d+)-modda\b/g, 'art. $1'], [/(\d+)-qism\b/g, 'part $1'], [/(\d+)-ilova\b/g, 'annex $1'], [/OʻRQ-/g, 'ZRU-']],
+  ru: [[/^(.+) tumani( \(total\))?$/, (_m, a, b) => `${cyr(a)} район${b ?? ''}`], [/^(.+) shahri( \(total\))?$/, (_m, a, b) => `г. ${cyr(a)}${b ?? ''}`], [/(\d) qator\b/g, '$1 пол.'], [/^(.+) viloyati( \(total\))?$/, '$1 область$2'], [/ \(total\)$/, ' (всего)'], [/(\d) m²/g, '$1 м²'], [/\/ga\b/g, '/га'], [/m²\//g, 'м²/'], [/\/kishi\b/g, '/чел.'], [/\/joy\b/g, '/место'], [/(\d) ming\b/g, '$1 тыс.'], [/(\d) mln\b/g, '$1 млн'], [/(\d) km\b/g, '$1 км'], [/(\d) m\b/g, '$1 м'], [/(\d) ga\b/g, '$1 га'], [/kishi\/ga\b/g, 'чел./га'], [/(\d) kishi\b/g, '$1 чел.'], [/(\d) qavat\b/g, '$1 эт.'], [/(\d) oʻrin\b/g, '$1 мест'], [/(\d) joy\b/g, '$1 мест'], [/(\d) ta\b/g, '$1'], [/(\d)-qavat\b/g, '$1-й этаж'], [/(\d)-bino\b/g, 'здание $1'], [/(\d)-qadam/g, 'шаг $1'], [/(\d[\d.,–\s]*?)-bandlar\b/g, 'п. $1'], [/(\d[\d.,–]*)-band\b/g, 'п. $1'], [/(\d) mos\b/g, '$1 соотв.'], [/(\d) seksiya\b/g, '$1 секций'], [/(\d) xonadon\b/g, '$1 кв.'], [/(\d) kvartira\b/g, '$1 кв.'], [/(\d[\d.,–\s]*?)-jadvallar\b/g, 'табл. $1'], [/(\d+)-jadval\b/g, 'табл. $1'], [/(\d+)-izoh\b/g, 'прим. $1'], [/(\d+)-modda\b/g, 'ст. $1'], [/(\d+)-qism\b/g, 'ч. $1'], [/(\d+)-ilova\b/g, 'прил. $1'], [/ShNQ\b/g, 'ШНК'], [/SanQvaN\b/g, 'СанПиН'], [/QMQ\b/g, 'КМК'], [/OʻRQ-/g, 'ЗРУ-']],
 };
 const CACHE: Record<Lang, Map<string, string>> = { uz: new Map(), en: new Map(), ru: new Map() };
 function dyn(s: string, depth: number): string {
@@ -127,20 +134,29 @@ function dyn(s: string, depth: number): string {
   if (t0 !== s && S[t0]) out = s.replace(t0, raw(t0));
   // boshidagi tire yoki nuqta belgisi («— Koʻp qavatli turar joy»)
   if (out == null) { const lp = /^([—–·•-]\s+)(.+)$/s.exec(s); if (lp) { const r0 = S[lp[2]] ? raw(lp[2]) : dyn(lp[2], depth + 1); if (r0 !== lp[2]) out = lp[1] + r0; } }
+  // boshidagi «+ » yoki oxiridagi « ·», «:» («+ Butalar», «Reja ·», « Bosh arxitektor:»)
+  if (out == null) { const ap = /^(\s*\+\s+|\s+)?(.*?\p{L}.*?)(\s*[·:;,]\s*|\s+)?$/su.exec(s); if (ap && (ap[1] || ap[3])) { const r0 = S[ap[2]] ? raw(ap[2]) : dyn(ap[2], depth + 1); if (r0 !== ap[2]) out = (ap[1] || '') + r0 + (ap[3] || ''); } }
+  // ‘ ' ` → ʻ va ortiqcha boʻshliq («Farg‘ona  viloyati»)
+  if (out == null) { const n2 = s.replace(/(\p{L})[‘'`’](\p{L})/gu, (_m, x, y) => x + (/[gGoO]/.test(x) ? 'ʻ' : 'ʼ') + y).replace(/ {2,}/g, ' '); if (n2 !== s) { const r0 = S[n2] ? raw(n2) : dyn(n2, depth + 1); if (r0 !== n2) out = r0; } }
   if (out == null) for (const tp of tpls()) {
     const m = tp.re.exec(s); if (!m) continue;
     out = raw(tp.key).replace(PH, (_m, e: string) => { const i = tp.names.indexOf(e); if (i < 0) return `\${${e}}`; const v = m[i + 1]; return S[v] ? raw(v) : dyn(v, depth + 1); });
     break;
   }
   if (out == null) { const pm = /^(.+?)(\s*\([^()]*\))$/s.exec(s); if (pm) { const m0 = S[pm[1]] ? raw(pm[1]) : dyn(pm[1], depth + 1), inr = pm[2].trim().slice(1, -1), i0 = S[inr] ? raw(inr) : dyn(inr, depth + 1); if (m0 !== pm[1] || i0 !== inr) out = `${m0}${pm[2].startsWith(' ') ? ' ' : ''}(${i0})`; } }
-  if (out == null) for (const sep of ['\n', ' · ', '; ', ' — ', ': ', ', ', ' / ', ' → ', '–', ' + ']) {
+  // oxiridagi son va birlik («Daraxt ↔ bino devori ≥ 5,0», «Tezkor 1», «Elektr kabeli 6–20 kV») — boshi tarjima qilinadi
+  if (out == null) { const nm = /^(.*?\p{L}[^\d]*?)(\s*[≥≤<>=≈~]?\s*[-–]?\d[\d\s.,–×x-]*\s*(?:m²|m|km|%|kV|ga|kishi|qavat)?\.?)$/u.exec(s); if (nm && nm[1].trim() !== s) { const h0 = nm[1].trimEnd(), hs = nm[1].slice(h0.length), r0 = S[h0] ? raw(h0) : dyn(h0, depth + 1); if (r0 !== h0) out = r0 + hs + nm[2]; } }
+  if (out == null) for (const sep of ['\n', ' · ', '; ', ' — ', ': ', ', ', ' / ', ' → ', ' ↔ ', ' ≥ ', ' ≤ ', '–', ' + ']) {
     if (!s.includes(sep)) continue;
     const parts = s.split(sep); const tp = parts.map(p => (S[p] ? raw(p) : dyn(p, depth + 1)));
     if (tp.some((x, i) => x !== parts[i])) { out = tp.join(sep); break; }
   }
-  if (out == null) out = s;
-  if (lang !== 'uz') for (const [re, to] of UNITS[lang]) out = out.replace(re, to);
-  else out = uzTerms(out);
+  const none = out == null; if (none) out = s;
+  let o: string = out as string;
+  if (lang !== 'uz') for (const [re, to] of UNITS[lang]) o = o.replace(re, to as string);
+  else o = uzTerms(o);
+  if (none && o === s && MISS && depth > 0 && lang !== 'uz' && /\p{L}{3}/u.test(s)) MISS.add(s);   // tekshiruv: boʻlak ham tarjimasiz
+  out = o;
   if (lang === 'en') out = out.replace(/(\d),(\d{1,2})(?!\d)/g, '$1.$2');
   if (C.size > 5000) C.clear();
   C.set(s, out); return out;

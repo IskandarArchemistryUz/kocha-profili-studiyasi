@@ -50,4 +50,21 @@ describe('Chizmadon material nomlari (sayt, 25.10: «Building Apartment mix · 1
     I.setLang('ru'); expect(I.tr('Kvartirografiya · 3-bino')).toBe('Квартирография · Здание 3');
     I.setLang('uz');
   });
+  it('27.10: son va birlik oxirida, tuman nomlari ruschada kirillda, qator', () => {
+    I.setLang('en');
+    expect(I.tr('Daraxt ↔ bino devori ≥ 5,0')).toBe('Tree ↔ building wall ≥ 5.0');
+    expect(I.tr('trotuar 2,5 m')).toBe('sidewalk 2.5 m');
+    expect(I.tr('Jizzax viloyati')).toBe('Jizzakh region');
+    expect(I.tr('Reja ·')).toBe('Plan ·');
+    expect(I.tr('+ Butalar')).toBe('+ Shrubs');
+    expect(I.tr('Farg‘ona  viloyati')).toBe('Fergana region');
+    expect(I.tr('1 qator')).toBe('1 lane');
+    I.setLang('ru');
+    expect(I.tr('Daraxt ↔ bino devori ≥ 5,0')).toBe('Дерево ↔ стена здания ≥ 5,0');
+    expect(I.cyr('Yunusobod')).toBe('Юнусобод');
+    expect(I.cyr('Mirzo Ulugʻbek')).toBe('Мирзо Улугбек');
+    expect(I.tr('Yunusobod tumani')).toBe('Юнусобод район');
+    expect(I.tr('2 qator')).toBe('2 пол.');
+    I.setLang('uz');
+  });
 });

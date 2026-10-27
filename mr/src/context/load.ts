@@ -68,7 +68,8 @@ export async function overpass(q: string, f: typeof fetch, onTry: (msg: string) 
     try { const j = await Promise.any(srv.map(one)); ctl.abort(); clearTimeout(t); return j; }   // birinchi muvaffaqiyatli javob; qolganlari toʻxtatiladi
     catch (e) { last = (e as AggregateError).errors?.[0] ?? e; clearTimeout(t); }
   }
-  throw new Error('OSM serverlari javob bermadi' + (last ? ` (${String((last as Error).message || last)})` : '') + '. Birozdan keyin qayta urinib koʻring.');
+  const err = last ? String((last as Error).message || last) : '';   // tarjima kaliti — ${err} bilan butun jumla
+  throw new Error(err ? `OSM serverlari javob bermadi (${err}). Birozdan keyin qayta urinib koʻring.` : 'OSM serverlari javob bermadi. Birozdan keyin qayta urinib koʻring.');
 }
 
 /** Overpass shuncha vaqt javob bermasa — OpenFreeMap plitkalari (tez, lekin teglari kam) */
