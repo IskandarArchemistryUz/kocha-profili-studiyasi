@@ -846,10 +846,24 @@ export class Scene3D {
         for (const y of yards) {
           if (this.isoLocal && plan.blocks[y.block] && !this.inIso(plan.blocks[y.block].rings[0])) continue;   // izolyatsiya: faqat hudud hovlilari
           fill(y.paving, col.pave, 0.32, 1); fill(y.green, col.green, 0.33, 2); fill(y.paths, col.path, 0.34, 3);
+          if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, this.H); l.userData.fireLane = true; this.world.add(l); } }
           for (const q of y.play) { fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H)); }
           trees.push(...y.trees);
         }
         if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c));
+        // hovliga kirishlar: arka (toʻq sariq), binolar oraligʻi (koʻk) — strelka hovliga; podyezd — kichik toʻq kvadrat
+        const shp: Record<'arka' | 'oraliq' | 'podyezd', THREE.Shape[]> = { arka: [], oraliq: [], podyezd: [] };
+        for (const y of yards) for (const e of y.entries ?? []) {
+          if (this.isoLocal && plan.blocks[y.block] && !this.inIso(plan.blocks[y.block].rings[0])) continue;
+          const [px, py] = e.p, [dx, dy] = e.d, nx = -dy, ny = dx;
+          if (e.kind === 'podyezd') { const k = 1.1; shp.podyezd.push(new THREE.Shape([[px + (dx + nx) * k, py + (dy + ny) * k], [px + (dx - nx) * k, py + (dy - ny) * k], [px + (-dx - nx) * k, py + (-dy - ny) * k], [px + (-dx + nx) * k, py + (-dy + ny) * k]].map(q => toV2(q as XY)))); continue; }
+          const L = 5, W = 2.6; shp[e.kind].push(new THREE.Shape([[px + dx * L / 2, py + dy * L / 2], [px - dx * L / 2 + nx * W, py - dy * L / 2 + ny * W], [px - dx * L / 4, py - dy * L / 4], [px - dx * L / 2 - nx * W, py - dy * L / 2 - ny * W]].map(q => toV2(q as XY))));
+        }
+        const ecol = { arka: plainS ? 0x8d877d : 0xd2692f, oraliq: plainS ? 0x8d877d : 0x2a6fb0, podyezd: plainS ? 0x5c5a55 : 0x3b3a37 };
+        for (const kk of ['arka', 'oraliq', 'podyezd'] as const) if (shp[kk].length) {
+          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(shp[kk]), this.H, 0.45, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: ecol[kk], transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4 }));
+          m.renderOrder = 6.6; m.userData.entries = kk; this.world.add(m);
+        }
       }
     }
     tag(2);
