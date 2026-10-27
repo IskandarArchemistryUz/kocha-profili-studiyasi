@@ -813,3 +813,14 @@ textarea.ch-inedit{padding:10px 12px}
 /* 5-bosqich: «Loyihadan» guruhlari */
 .ch-mat.ch-grp{cursor:pointer}.ch-mat.ch-sub{padding-left:26px}.ch-mat.ch-sub .ch-grip{opacity:.5}
 .ch-panel .seg.sm.seg-wrap.ch-ms{grid-template-columns:repeat(3,minmax(0,1fr));height:auto;padding:2px}
+
+/* Yashil qadami (27.10, A variant): manbalar boʻyicha toʻplangan chiziq */
+.gbar{position:relative;height:10px;border-radius:5px;background:var(--fill)}
+.gbar .gfill{display:flex;height:100%;border-radius:5px;overflow:hidden}
+.gbar .gfill > i{display:block;height:100%}
+.gbar > b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.g-park{background:#3f8f5a}.g-yard{background:#9fcd86}.g-play{background:#e2a85c}
+.glegend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-2)}
+.glegend .gl{display:inline-flex;align-items:center;gap:6px}
+.glegend .gl > i{display:inline-block;width:10px;height:10px;border-radius:2px}
+[data-theme=dark] .g-park{background:#4fae70}[data-theme=dark] .g-yard{background:#7fb067}[data-theme=dark] .g-play{background:#d39a4f}

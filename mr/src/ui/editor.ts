@@ -2575,29 +2575,38 @@ export class Editor {
     const plan = this.plan(), d = this.last?.d, doc = this.store.doc, R = (id: string) => this.last?.results.find(r => r.id === id);
     const chip = (id: string, t: string) => { const r = R(id); if (!r) return ''; const c = r.status === 'pass' ? 'ok' : r.status === 'fail' ? 'bad' : r.status === 'review' ? 'warn' : 'na'; return h('span', { class: `chip ${c}`, 'data-s': r.status, title: r.note ?? '' }, h('i'), t); };
     const row = (k: string, sub: string, v: string, c: HTMLElement | string = '') => h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), h('span', { class: 'v' }, v), c);
-    const share = (d?.greenShareTotal ?? 0) * 100;
+    const share = (d?.greenShareTotal ?? 0) * 100, base = Math.max(1, d?.greenBase ?? 0), noYards = !doc.settings.yards && doc.buildings.length > 0;
+    // 27.10 (A variant): bitta foiz + manbalar boʻyicha toʻplangan chiziq; qolganlari «Batafsil» ichida
+    const seg = (cls: string, v: number) => v > 0 ? h('i', { class: cls, style: `width:${Math.min(100, v / base * 100).toFixed(2)}%` }) : '';
+    const leg = (cls: string, name: string, v: string) => h('span', { class: 'gl' }, h('i', { class: cls }), `${tr(name)} ${v}`);
     body.append(
-      h('div', { class: 'group flat', style: 'padding:12px;display:flex;flex-direction:column;gap:8px' },
+      h('div', { class: 'group flat', id: 'greenKpi', style: 'padding:12px;display:flex;flex-direction:column;gap:8px' },
         h('div', { class: 'row' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', {}, `${fmt(share, 0)} %`), h('span', {}, tr('Yashillik darajasi'))), chip('green-86', `${tr('meʼyor')} ≥ 25 %`)),
-        h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, share)}%;background:${share >= 25 ? 'var(--ok)' : 'var(--bad)'}` }), h('b', { style: 'left:25%' })),
+        h('div', { class: 'gbar', role: 'img', 'aria-label': `${tr('Yashillik darajasi')} ${fmt(share, 0)} %` },
+          h('div', { class: 'gfill' }, seg('g-park', d?.greenArea ?? 0), seg('g-yard', d?.yardGreen ?? 0), seg('g-play', d?.yardPlay ?? 0)), h('b', { style: 'left:25%', title: '25 %' })),
+        h('div', { class: 'glegend' },
+          leg('g-park', 'Park va skverlar', `${fmt(d?.greenArea ?? 0)} m²`),
+          leg('g-yard', 'Hovli maysasi', noYards ? `— ${tr('oʻchiq')}` : `${fmt(d?.yardGreen ?? 0)} m²`),
+          leg('g-play', 'Maydonchalar', `${fmt(d?.yardPlay ?? 0)} m²`)),
+        noYards ? h('div', { class: 'note warn row', id: 'yardsOff', style: 'align-items:center;justify-content:space-between' }, h('span', {}, tr('Hovlilar hisobga olinmayapti')),
+          h('button', { class: 'btn btn-sm btn-primary', onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: true } })) }, tr('Yoqish'))) : '',
         h('span', { class: 'norm' }, svgIcon(IC.book), 'ShNQ 2.07.01-23 · 86-band')),
-      !doc.settings.yards && doc.buildings.length ? h('div', { class: 'note warn', id: 'yardsOff' }, tr('Hovli maysasi hisobga olinmayapti — hovlilarni obodonlashtirish oʻchiq.'), ' ',
-        h('button', { class: 'btn btn-sm', onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: true } })) }, tr('Yoqish'))) : '',
-      h('div', { class: 'glabel' }, h('span', {}, tr('Yashillik balansi'))),
-      h('div', { class: 'group', id: 'greenSt' },
-        row(tr('Yashil kvartallar (park, skver)'), '', `${fmt(d?.greenArea ?? 0)} m²`),
-        row(tr('Hovlilar maysasi'), '', `${fmt(d?.yardGreen ?? 0)} m²`),
-        row(tr('Maydonchalar va yoʻlaklar (87-band)'), '', `${fmt(d?.yardPlay ?? 0)} m²`),
-        row(tr('Umumiy foydalanish, kishi boshiga'), '36-jadval', d?.population ? `${fmt(d.greenPerPerson, 1)} m²` : '—', chip('green-36', '≥ 3')),
-        row(tr('Hovli maydonchalari'), '4-jadval', d?.playNeed ? `${fmt(d.playGot)} / ${fmt(d.playNeed)} m²` : '—', chip('play-89', '4-jadval')),
-        row(tr('Daraxtlar: hovlida / koʻchada'), '', `${fmt(d?.yardTrees ?? 0)} / ${fmt(this.streetTrees())}`),
-        d?.greenRoof ? row(tr('Yashil tomlar (hisobga kirmaydi)'), '', `${fmt(d.greenRoof)} m²`) : ''),
-      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Hovlilarni avtomatik obodonlashtirish'), h('span', { class: 'sub' }, tr('trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'))),
-        sw({ id: 'yardsOn', label: tr('Hovlilarni avtomatik obodonlashtirish: trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'), on: doc.settings.yards, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: v } })) }))),
-      h('div', { class: 'glabel' }, h('span', {}, tr('Kvartalni yashil qilish / qaytarish')), h('span', {}, tr('yoqilsa — Park / bogʻ'))),
-      h('div', { class: 'group' }, ...plan.blocks.map((b, i) => h('div', { class: 'li' }, h('span', { class: 'k' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, h('span', { class: 'sub' }, useDef(b.use).name)),
-        sw({ 'data-green': i, label: `${this.unitName(i)} — ${tr('Park / bogʻ')}`, on: b.use === 'yashil', onchange: v => this.setBlockUse(i, v ? 'yashil' : 'turar') })))),
-      h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Hovli qanday tuziladi')), h('div', {}, tr('Hovlilar: binolar atrofida 3 m trotuar; 4-jadval maydonchalari binolardan meʼyoriy masofada (bolalar ≥ 10 m, kattalar ≥ 6, sport ≥ 10, xoʻjalik ≥ 20); qolgani maysa, daraxtlar binodan ≥ 5 m. Bu eskiz — joylashuvni loyihachi aniqlaydi.'))));
+      h('details', { class: 'how', id: 'greenMore' }, h('summary', {}, svgIcon(IC.info), tr('Batafsil: kishi boshiga, maydonchalar, daraxtlar')),
+        h('div', { class: 'col' },
+          h('div', { class: 'group', id: 'greenSt' },
+            row(tr('Yashil kvartallar (park, skver)'), '', `${fmt(d?.greenArea ?? 0)} m²`),
+            row(tr('Hovlilar maysasi'), '', `${fmt(d?.yardGreen ?? 0)} m²`),
+            row(tr('Maydonchalar va yoʻlaklar (87-band)'), '', `${fmt(d?.yardPlay ?? 0)} m²`),
+            row(tr('Umumiy foydalanish, kishi boshiga'), '36-jadval', d?.population ? `${fmt(d.greenPerPerson, 1)} m²` : '—', chip('green-36', '≥ 3')),
+            row(tr('Hovli maydonchalari'), '4-jadval', d?.playNeed ? `${fmt(d.playGot)} / ${fmt(d.playNeed)} m²` : '—', chip('play-89', '4-jadval')),
+            row(tr('Daraxtlar: hovlida / koʻchada'), '', `${fmt(d?.yardTrees ?? 0)} / ${fmt(this.streetTrees())}`),
+            d?.greenRoof ? row(tr('Yashil tomlar (hisobga kirmaydi)'), '', `${fmt(d.greenRoof)} m²`) : ''),
+          h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Hovlilarni avtomatik obodonlashtirish'), h('span', { class: 'sub' }, tr('trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'))),
+            sw({ id: 'yardsOn', label: tr('Hovlilarni avtomatik obodonlashtirish: trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'), on: doc.settings.yards, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: v } })) }))),
+          h('span', { class: 't-small' }, tr('Hovlilar: binolar atrofida 3 m trotuar; 4-jadval maydonchalari binolardan meʼyoriy masofada (bolalar ≥ 10 m, kattalar ≥ 6, sport ≥ 10, xoʻjalik ≥ 20); qolgani maysa, daraxtlar binodan ≥ 5 m. Bu eskiz — joylashuvni loyihachi aniqlaydi.')))),
+      h('details', { class: 'how', id: 'greenBlocks' }, h('summary', {}, svgIcon(IC.info), tr('Kvartallarni park qilish')),
+        h('div', { class: 'group' }, ...plan.blocks.map((b, i) => h('div', { class: 'li' }, h('span', { class: 'k' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, h('span', { class: 'sub' }, useDef(b.use).name)),
+          sw({ 'data-green': i, label: `${this.unitName(i)} — ${tr('Park / bogʻ')}`, on: b.use === 'yashil', onchange: v => this.setBlockUse(i, v ? 'yashil' : 'turar') }))))));
   }
   private streetTrees(): number {
     const doc = this.store.doc, fr = frame(doc.origin);
