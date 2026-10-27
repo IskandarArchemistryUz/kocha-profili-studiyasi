@@ -15,7 +15,7 @@ import { Compute, type Computed } from '../workers/compute';
 import { abroadRules, type Result } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
-import { siteAccess, type Access } from '../core/access';
+import { siteAccess, accessVerdict, type Access } from '../core/access';
 const HAJM = () => STEPS.find(x => x.id === 'hajm')!;
 import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
@@ -731,9 +731,11 @@ export class Editor {
     const base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, top = base + b.floors * fh + 2.5, hr = host.getBoundingClientRect();
     const pts = [...r.map(p => this.scene.toScreen(p[0], p[1], base)), ...r.map(p => this.scene.toScreen(p[0], p[1], top)), this.scene.toScreen(c[0], c[1], top)];
     const minY = Math.min(...pts.map(p => p.y)), cx = this.scene.toScreen(c[0], c[1], top).x;
+    // tepada joy boʻlmasa (bino ekran tepasida) — panel bino ostiga: qavat tutqichi va burchaklar ustiga tushmasin
+    const maxY = Math.max(...pts.map(p => p.y)), above = minY - hr.top - 58, ty = above >= 64 ? above : Math.min(hr.height - 60, Math.max(64, maxY - hr.top + 14));
     // chap panel ochiq boʻlsa — asboblar paneli uning ostida qolmasin (1024 px da ham)
     const pr = this.el.panel.getBoundingClientRect(), half = el.offsetWidth / 2 + 8, lo = Math.max(half, pr.width && pr.right > hr.left ? pr.right - hr.left + half : half), hi = Math.max(lo, hr.width - half);
-    Object.assign(el.style, { left: `${Math.max(lo, Math.min(hi, cx - hr.left))}px`, top: `${Math.max(64, Math.min(hr.height - 60, minY - hr.top - 58))}px` });
+    Object.assign(el.style, { left: `${Math.max(lo, Math.min(hi, cx - hr.left))}px`, top: `${ty}px` });
   }
 
   /** parsellar qadamida buziladiganlar foydalanuvchi tanloviga koʻra, keyingi qadamlarda — yashirin */
@@ -2229,9 +2231,11 @@ export class Editor {
     const A = this.accessMemo.v, G: Record<string, string> = { magistral: 'magistral', tuman: 'tuman ahamiyatidagi', mahalliy: 'mahalliy', xizmat: 'xizmat yoʻli' };
     if (!A.length) { box.append(h('div', { class: 'note warn' }, tr('Uchastka chegarasidan 30 m ichida yoʻl yoʻq — kirish uchun koʻcha chizish kerak (2-qadam).'))); return box; }
     box.append(h('div', { class: 'group' }, ...A.slice(0, 5).map(a => h('div', { class: 'li', 'data-acc': a.group },
-      h('span', { class: 'k' }, h('i', { class: `acc-dot acc-${a.group}` }), a.name || tr('nomsiz yoʻl'), h('span', { class: 'sub' }, `${tr(G[a.group])} · ${a.cls}${a.oneway ? ' · ' + tr('bir tomonlama') : ''}`)),
+      h('span', { class: 'k' }, h('i', { class: `acc-dot acc-${a.group}` }), a.name || tr('nomsiz yoʻl'), h('span', { class: 'sub' }, `${tr(G[a.group])} · ${a.cls}${a.oneway ? ' · ' + tr('bir tomonlama') : ''}`),
+        (() => { const v = accessVerdict(a); return h('span', { class: `acc-v acc-v-${v.s}`, 'data-accv': v.s }, tr(v.t)); })()),
       h('span', { class: 'v' }, `${fmt(a.len)} m`)))));
-    if (A.some(a => a.group === 'magistral')) box.append(h('span', { class: 't-small' }, tr('Magistral yoʻl (OSM: primary/trunk) boʻlsa: asosiy shahar yoʻliga (2-sinf) transport chorrahalar va tutashuvlar orqali kiradi, ular orasi 300–400 m dan oshmaydi (ShNQ 2.07.06-24, 1-ilova).')));
+    if (!A.some(a => accessVerdict(a).s !== 'warn')) box.append(h('div', { class: 'note warn', id: 'accWarn' }, tr('Uchastkaga faqat magistral yoʻl tutashgan — kirish uchun yon (mahalliy) yoʻl yoki chorraha kerak (2-qadam «Koʻchalar»).')));
+    box.append(h('span', { class: 't-small' }, tr('ShNQ 2.07.06-24, 1-ilova: koʻcha-yoʻllar tasnifi. Toifa OSM dan — taxminiy.')));
     box.append(h('span', { class: 't-small' }, tr('Ulanish nuqtalari va burilishlar — 2-qadam «Koʻchalar».')));
     return box;
   }

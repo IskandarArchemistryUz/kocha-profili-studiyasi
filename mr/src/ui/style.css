@@ -831,3 +831,8 @@ textarea.ch-inedit{padding:10px 12px}
 .stepsec:not(:first-child){border-top:1px solid var(--hairline);padding-top:12px;margin-top:10px}
 .acc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .acc-magistral{background:#c0392b}.acc-tuman{background:#e08a2e}.acc-mahalliy{background:#8a8780}.acc-xizmat{background:#c9c6bf}
+
+/* 1-qadam «Kirish va yoʻllar»: kirish holati */
+.acc-v{display:block;margin-top:2px;font-size:11.5px;line-height:1.35;color:var(--ink-2)}
+.acc-v::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--ink-3,#9a978f)}
+.acc-v-ok::before{background:#2f8a66}.acc-v-warn::before{background:#d2692f}.acc-v-info::before{background:#2a6fb0}

@@ -11,3 +11,13 @@ describe('koʻchani oʻchirish', () => {
     expect(d.removedRoads).toEqual([555]);
   });
 });
+
+import { accessVerdict } from '../../src/core/access';
+describe('kirish holati (ShNQ 2.07.06-24, 1-ilova)', () => {
+  it('toifa boʻyicha', () => {
+    expect(accessVerdict({ cls: 'trunk', group: 'magistral' }).s).toBe('warn');
+    expect(accessVerdict({ cls: 'primary', group: 'magistral' }).t).toContain('300–400');
+    expect(accessVerdict({ cls: 'tertiary', group: 'tuman' }).s).toBe('info');
+    expect(accessVerdict({ cls: 'residential', group: 'mahalliy' }).s).toBe('ok');
+  });
+});

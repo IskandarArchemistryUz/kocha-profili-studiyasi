@@ -98,6 +98,7 @@ test('tanlangan radius tugmasi belgilanadi', async ({ page }) => {
   // 2,5 / 3 / 4 km (egasi, 25.10: Qorashina shaharchasi sigʻmaydi) — tugmalar ikki qatorda, panel chetidan chiqmaydi
   await page.click('[aria-label=Radius] button:has-text("4 km")');
   expect(await page.evaluate(() => (window as any).__mr.store.doc.context.radius)).toBe(4000);
+  await expect(page.locator('[aria-label=Radius] button', { hasText: '4 km' })).toHaveAttribute('aria-pressed', 'true');   // panel qayta chizilib boʻlsin
   // atrof yuklangach radius «Atrof sozlamalari» ichida — ochiq boʻlsin (CI da tarmoq bor)
   if (await page.locator('#ctxMore').count() && (await page.locator('#ctxMore').getAttribute('open')) === null && !(await page.locator('[aria-label=Radius]').isVisible())) await page.click('#ctxMore > summary');
   await expect(page.locator('[aria-label=Radius]')).toBeVisible();
@@ -225,4 +226,21 @@ test('Overture Maps: OSM da yoʻq bino qoʻshiladi, manba koʻrsatiladi (32-band
   expect(asked).toBeGreaterThan(0);
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/overture_dark.png` });
+});
+
+/** 1-qadam «Kirish va yoʻllar»: har tutash yoʻl uchun kirish holati (ShNQ 2.07.06-24, 1-ilova) */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kirish va yoʻllar: magistral — chorraha/yon yoʻl, turar joy koʻchasi — toʻgʻridan-toʻgʻri · ${w}${dark ? ' · tungi' : ''}`, async ({ page, context }) => {
+  await mockNet(context, { overpass: 0 });
+  await page.setViewportSize({ width: w, height: 900 });
+  if (dark) await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
+  await newProject(page);
+  await page.click('#ctxLoad');
+  await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 15000 });
+  await page.click('#pickBlock');
+  const box = (await page.locator('#scene canvas').boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.locator('#accessBox [data-accv=warn]')).toHaveCount(1);
+  await expect(page.locator('#accessBox [data-accv=ok]').first()).toContainText('Toʻgʻridan-toʻgʻri kirish mumkin');
+  await expect(page.locator('#accWarn')).toHaveCount(0);
+  if (process.env.GX_SHOTS) { await page.locator('#accessBox').scrollIntoViewIfNeeded(); await page.screenshot({ path: `${process.env.GX_SHOTS}/kirish_yol_${w}${dark ? '_dark' : ''}.png` }); }
 });
