@@ -2,7 +2,7 @@ import { test, expect } from './fx';
 
 /** Genplanda hovliga kirishlar: arka, binolar oraligʻi, podyezd (1440 px va 1024 px tungi) */
 for (const [w, dark] of [[1440, false], [1024, true]] as const) {
-  test(`hovliga kirishlar genplanda (${w}${dark ? ', tungi' : ''})`, async ({ page }) => {
+  test(`hovliga kirishlar va yongʻin yoʻlagi genplanda (${w}${dark ? ', tungi' : ''})`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: w, height: 860 });
     if (dark) await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
@@ -13,6 +13,10 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     const kinds = await page.evaluate(() => { const k: string[] = []; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData.entries) k.push(o.userData.entries); }); return k.sort(); });
     expect(kinds).toContain('podyezd');
     expect(kinds.some(k => k === 'arka' || k === 'oraliq')).toBe(true);
+    // H ≥ 28 m (12 qavat) — hovlida yongʻin-qutqaruv yoʻlagi (666–676-bandlar)
+    expect(await page.evaluate(() => { let n = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData.fireLane) n++; }); return n; })).toBeGreaterThan(0);
     if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/kirishlar_${w}${dark ? '_dark' : ''}.png` });
+    await page.click('#kMore');
+    await expect(page.locator('.drawer [data-rule=fire-666]')).toContainText('Yongʻin-qutqaruv');
   });
 }

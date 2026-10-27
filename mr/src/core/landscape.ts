@@ -69,6 +69,8 @@ export interface Yard {
   trees: XY[];
   /** hovliga kirishlar (genplanda): arka, binolar oraligʻi (torets orasidan), podyezd — p nuqta, d hovli tomon yoʻnalish (birlik) */
   entries?: Entry[];
+  /** yongʻin-qutqaruv yoʻlagi hovlida (faqat kerak boʻlsa): lane — qoplama, w — eni, d — devorgacha (ichki chetidan), hmax — eng baland bino */
+  fire?: { lane: XY[][][]; w: number; d: number; hmax: number; area: number };
   areas: { block: number; paving: number; green: number; play: number; paths: number };
 }
 
@@ -115,7 +117,7 @@ function landscapeRaw(doc: Project): Yard[] {
     // 27.10 yengillik: kvartal hovlisi faqat shu kvartal binolari, avtoturargohi yoki shakli oʻzgarsa qayta hisoblanadi
     const parkIn = parkAll.filter(p => p.h.length && pointIn(p.h.reduce((a, q) => [a[0] + q[0] / p.h.length, a[1] + q[1] / p.h.length] as XY, [0, 0] as XY), blk.rings));
     const key = `r|${bsig}|${arches.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}|${doc.settings.netToGross}|${own.map(x => `${x.b.floors},${x.b.nonRes},${x.b.use},${sig(x.r)}`).join('#')}|${parkIn.map(p => sig(p.h)).join('#')}`;
-    const y0 = cached(key, () => { const y = yardOf(blk, bi, own, parkIn.map(p => [close(p.h)] as Polygon), doc); if (y) y.entries = entriesOf(blk.rings[0], own, arches); return y; });
+    const y0 = cached(key, () => { const y = yardOf(blk, bi, own, parkIn.map(p => [close(p.h)] as Polygon), doc, arches); if (y) y.entries = entriesOf(blk.rings[0], own, arches); return y; });
     if (y0) out.push({ ...y0, block: bi });
   });
   return out;
@@ -126,6 +128,34 @@ function cached(k: string, f: () => Yard | null): Yard | null {
   const v = f(); CACHE.set(k, v); if (CACHE.size > 600) CACHE.delete(CACHE.keys().next().value!); return v;
 }
 type Own = { b: Building; r: XY[] };
+
+/**
+ * Hovlidagi yongʻin-qutqaruv yoʻlagi (ShNQ 2.07.01-23):
+ *  666-band — F1.3 (koʻp kvartirali turar joy) H ≥ 28 m boʻlsa binoning ikkala uzun tomonidan yetib kelish (biri — koʻcha, ikkinchisi — hovli);
+ *  667-band — eni: H ≤ 13 m — 3,5 m; 13–46 m — 4,2 m; > 46 m — 6,0 m;
+ *  675-band — yoʻlakning ichki chetidan devorgacha: H < 28 m — 5–8 m; H > 28 m — 8–10 m (bu yerda 9 m);
+ *  676-band — yoʻlak va bino orasida daraxt qatorlari, toʻsiqlar yoʻq.
+ * H < 28 m binolar uchun bitta uzun tomon (koʻcha) yetarli deb olinadi — hovli yoʻlagi chizilmaydi. Eskiz: aniq trassa — loyihachi.
+ */
+function fireLane(own: Own[], free: MultiPolygon, fh: number, arches: Own[] = [], B?: Polygon): { mp: MultiPolygon; w: number; d: number; hmax: number; tall: Own[] } | null {
+  const H = (x: Own) => (x.b.floors + (x.b.z0 ?? 0)) * fh;
+  const tall = own.filter(x => x.b.floors > 0 && useDef(x.b.use).res > 0 && H(x) >= 28);
+  if (!tall.length) return null;
+  const hmax = Math.max(...tall.map(H)), w = hmax > 46 ? 6 : hmax > 13 ? 4.2 : 3.5, d = 9;
+  const buf = (rs: Own[], k: number) => safeUnion(rs.flatMap(x => [[close(x.r)] as Polygon, ...corridor([...x.r, x.r[0]], k)]));
+  // yoʻlak uzluksiz halqa boʻlsin: past binolar atrofida ham (mashina aylanib chiqadi), arkalardan yoʻlakka ulanish
+  const all = own.filter(x => x.b.floors > 0);
+  let mp = !free.length ? [] as MultiPolygon : tryOp(() => polygonClipping.intersection(polygonClipping.difference(buf(all, d + w), buf(all, d)), free), [] as MultiPolygon);
+  if (mp.length && arches.length && B) {
+    const links: MultiPolygon[] = arches.map(a => { const r = a.r, c = r.reduce((s, p) => [s[0] + p[0] / r.length, s[1] + p[1] / r.length] as XY, [0, 0] as XY);
+      let e: XY = [1, 0], L = 0; for (let i = 0; i < r.length; i++) { const v: XY = [r[(i + 1) % r.length][0] - r[i][0], r[(i + 1) % r.length][1] - r[i][1]], l = Math.hypot(v[0], v[1]); if (l > L) { L = l; e = [v[0] / l, v[1] / l]; } }
+      const k = L / 2 + d + w; return corridor([[c[0] - e[0] * k, c[1] - e[1] * k], [c[0] + e[0] * k, c[1] + e[1] * k]], w / 2); }).filter(m => m.length);
+    if (links.length) mp = tryOp(() => polygonClipping.union(mp, ...links.map(l => tryOp(() => polygonClipping.intersection(l, B, ...[]) , [] as MultiPolygon)).filter(l => l.length)), mp);
+    mp = tryOp(() => polygonClipping.difference(mp, ...all.map(x => [close(x.r)] as Polygon)), mp);
+  }
+  mp = mp.filter(p => area(open(p[0])) >= w * 12);   // mayda boʻlaklar — yoʻlak emas
+  return { mp, w, d, hmax, tall: all };   // tall — daraxt cheklovi uchun: yoʻlak butun halqa boʻylab   // mp boʻsh — hovlida joy yetmadi (meʼyorlar roʻyxatida «mos emas»)
+}
 
 /**
  * Hovliga kirishlar (eskiz): 1) arka — oʻtish markazi, yoʻnalish oʻtish boʻylab; 2) binolar oraligʻi — kvartal chetiga yaqin,
@@ -177,14 +207,17 @@ export function entriesOf(outer: XY[], own: Own[], arches: Own[]): Entry[] {
   }
   return out;
 }
-function yardOf(blk: ReturnType<typeof computePlan>['blocks'][number], bi: number, own: Own[], park: Polygon[], doc: Project): Yard | null {
+function yardOf(blk: ReturnType<typeof computePlan>['blocks'][number], bi: number, own: Own[], park: Polygon[], doc: Project, arches: Own[] = []): Yard | null {
     const B: Polygon = blk.rings.map(close);
     const fp = safeUnion(own.map(x => [close(x.r)] as Polygon));
     // binolar atrofidagi 3 m trotuar
     const ring3 = safeUnion(own.flatMap(x => corridor([...x.r, x.r[0]], 3)));
     const paveAll = tryOp(() => polygonClipping.intersection(polygonClipping.difference(ring3, fp), B), [] as MultiPolygon);
     // yer usti avtoturargoh (joylar va boʻlaklar) — hovli maydonchalari uning ustiga tushmaydi
-    const free = tryOp(() => polygonClipping.difference(B, fp, paveAll, ...park), [] as MultiPolygon);
+    let free = tryOp(() => polygonClipping.difference(B, fp, paveAll, ...park), [] as MultiPolygon);
+    // yongʻin-qutqaruv yoʻlagi: maydonchalar va maysa unga tushmaydi
+    const fire = fireLane(own, free, doc.settings.floorHeight, arches, B);
+    if (fire?.mp.length) free = tryOp(() => polygonClipping.difference(free, fire.mp), free);
     if (!free.length) return null;
     // aholi (shu kvartal binolari)
     const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * useDef(x.b.use).res * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
@@ -234,11 +267,13 @@ function yardOf(blk: ReturnType<typeof computePlan>['blocks'][number], bi: numbe
       const p: XY = [x + ((Math.round(y) * 7) % 3) - 1, y + ((Math.round(x) * 5) % 3) - 1];
       if (!gR.some(q => pointIn(p, q)) || tk.some(q => pointIn(p, q))) continue;
       if (Math.min(...own.map(o => ringD(p, o.r))) < 5) continue;
+      if (fire && Math.min(...fire.tall.map(o => ringD(p, o.r))) < fire.d + fire.w + 1) continue;   // 676-band: yoʻlak va bino orasida daraxt qatori yoʻq
       trees.push(p);
     }
     return {
       block: bi, paving: toMP(paveAll), green: gR, paths: toMP(pathsIn), play, trees,
-      areas: { block: blk.area, paving: mpArea(paveAll), green: mpArea(green), play: play.reduce((t, q) => t + q.area, 0), paths: mpArea(pathsIn) },
+      ...(fire ? { fire: { lane: toMP(fire.mp), w: fire.w, d: fire.d, hmax: fire.hmax, area: mpArea(fire.mp) } } : {}),
+      areas: { block: blk.area, paving: mpArea(paveAll) + (fire ? mpArea(fire.mp) : 0), green: mpArea(green), play: play.reduce((t, q) => t + q.area, 0), paths: mpArea(pathsIn) },
     };
 }
 

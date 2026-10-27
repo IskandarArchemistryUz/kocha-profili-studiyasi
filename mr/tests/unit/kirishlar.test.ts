@@ -36,3 +36,24 @@ describe('ichki burchak — oʻtish emas', () => {
     expect(entriesOf(outer, own, []).filter(e => e.kind === 'oraliq')).toHaveLength(0);
   });
 });
+
+import { landscape } from '../../src/core/landscape';
+import { blankProject } from '../../src/core/doc';
+import { frame } from '../../src/core/geo';
+describe('yongʻin-qutqaruv yoʻlagi (ShNQ 2.07.01-23, 666–676)', () => {
+  const mk = (floors: number) => {
+    const d = blankProject('t') as any, fr = frame(d.origin), G = (p: XY) => fr.toGeo(p);
+    d.site = { rings: [rect(0, 0, 160, 140).map(G)] };
+    d.buildings = [rect(6, 6, 154, 21), rect(6, 119, 154, 134)].map((r, i) => ({ id: `b${i}`, footprint: r.map(G), floors, nonRes: 0, use: 'turar' }));
+    return d;
+  };
+  it('H ≥ 28 m — hovlida yoʻlak: eni 4,2 m, devordan 9 m', () => {
+    const y = landscape(mk(10)).find(q => q.fire);   // 10 × 3,3 = 33 m
+    expect(y).toBeTruthy(); expect(y!.fire!.w).toBe(4.2); expect(y!.fire!.d).toBe(9); expect(y!.fire!.area).toBeGreaterThan(500);
+    // daraxtlar yoʻlak va bino orasida emas
+    const yy = y!; for (const t of yy.trees) expect(Math.min(Math.abs(t[1] - 21), Math.abs(t[1] - 119))).toBeGreaterThan(9 + 4.2);
+  });
+  it('H < 28 m — hovli yoʻlagi shart emas (koʻcha tomoni yetarli)', () => {
+    expect(landscape(mk(5)).some(q => q.fire)).toBe(false);
+  });
+});
