@@ -18,7 +18,7 @@ test('mening qatlamlarim: GeoJSON import, toifalar, mahalla koʻrsatkichlari, lo
   await page.route(/overpass|interpreter|openfreemap|arcgisonline|terrain|amazonaws/, r => r.abort());
   await page.goto('./'); await page.click('#newP');
   // Hudud panelidagi tugma — Qatlamlar oynasini ochadi
-  await page.click('#ulOpen');
+  await page.locator('#ctxMore').waitFor(); if ((await page.locator('#ctxMore').getAttribute('open')) === null) await page.click('#ctxMore > summary'); await expect(page.locator('#ctxMore')).toHaveAttribute('open', ''); await page.click('#ulOpen');
   await expect(page.locator('#ulSec')).toBeVisible();
 
   // 1) binolar
