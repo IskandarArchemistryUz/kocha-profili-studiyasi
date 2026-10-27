@@ -44,7 +44,11 @@ export const orderStatus = (id: number): Promise<Order> => call<Order>(`/pay/ord
 
 /* ---------- tanga sarfi: narx, toza eksport, haftalik sinov, tarix (account/pay.ts) ---------- */
 export const quote = (items: string[], areaHa = 0): Promise<{ coins: number; k: number; items: string[] }> => call('/quote', { items, areaHa });
-export const exportTicket = (items: string[], areaHa: number, stateHash: string): Promise<{ ticket: string; price: number; charged: number; balance: number; repeat: boolean }> => call('/export/ticket', { items, areaHa, stateHash });
-export const useTrial = (kind: string, ref?: string): Promise<{ free: boolean; left: number; charged: number; balance: number }> => call('/trial', { kind, ref });
+export const exportTicket = (items: string[], areaHa: number, stateHash: string, project?: string | null): Promise<{ ticket: string; price: number; charged: number; balance: number; repeat: boolean; capped?: boolean }> => call('/export/ticket', { items, areaHa, stateHash, project: project ?? undefined });
+export const useTrial = (kind: string, ref?: string, project?: string | null, areaHa = 0): Promise<{ free: boolean; left: number; charged: number; balance: number; price?: number; capped?: boolean }> => call('/trial', { kind, ref, project: project ?? undefined, areaHa });
+export interface ProjInfo { spent: number; cap: number; k: number; genFree: number }
+export const projectInfo = (project: string, areaHa = 0): Promise<ProjInfo> => call('/project/info', { project, areaHa });
+export interface Prices { items: Record<string, { coins: number; mr: boolean }>; trials: Record<string, { coins: number; mr: boolean }>; trialsPerWeek: number; genFree: number }
+export const prices = (): Promise<Prices> => call<Prices>('/prices');
 export interface HistItem { delta: number; reason: string; ref: string | null; created_at: string }
 export const history = (): Promise<HistItem[]> => call<{ items: HistItem[] }>('/me/history').then(r => r.items);

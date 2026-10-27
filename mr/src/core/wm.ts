@@ -54,6 +54,10 @@ export const exportGate: ExportGate = o => gateFn ? gateFn(o) : Promise.resolve(
 let areaHa = 0;
 export const setExportArea = (ha: number): void => { areaHa = Number.isFinite(ha) && ha > 0 ? ha : 0; };
 export const exportArea = (): number => areaHa;
+/** Joriy loyiha identifikatori (loyiha shifti va generatsiya hisobi uchun) — Master reja muharriri qoʻyadi */
+let projectId: string | null = null;
+export const setExportProject = (id: string | null): void => { projectId = id; };
+export const exportProject = (): string | null => projectId;
 
 /** SVG oxiriga burilgan yozuvlar toʻri (viewBox boʻyicha) */
 export function wmSvg(svg: string): string {

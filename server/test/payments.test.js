@@ -13,7 +13,7 @@ let db, app, sent, clock;
 beforeEach(async () => {
   if (process.env.TEST_DATABASE_URL) {
     db = fromPool(new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 }));
-    await db.query('DROP TABLE IF EXISTS multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
+    await db.query('DROP TABLE IF EXISTS project_spend, multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
   } else db = fromPglite(new PGlite());
   await migrate(db);
   sent = []; clock = new Date('2026-10-21T10:00:00Z');
@@ -96,7 +96,7 @@ describe('Payme Merchant API', () => {
     const o3 = await order(c, 'p10');
     await rpc('CreateTransaction', { id: 'c', time: clock.getTime(), amount: 3900000, account: acc(o3) });
     await rpc('PerformTransaction', { id: 'c' });
-    await post('/export/ticket', { items: ['mr.dxf'], areaHa: 5, stateHash: 'a'.repeat(32) }, { cookie: c });   // 8 tanga ishlatildi
+    await post('/export/ticket', { items: ['mr.tik'], areaHa: 5, stateHash: 'a'.repeat(32) }, { cookie: c });   // 6 × 1,3 = 8 tanga ishlatildi
     expect((await rpc('CancelTransaction', { id: 'c', reason: 5 })).error.code).toBe(-31007);
   });
   it('12 soatdan keyin bajarilmaydi', async () => {

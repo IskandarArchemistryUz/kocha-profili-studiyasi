@@ -4,7 +4,7 @@ import pg from 'pg';
 import { fromPglite, fromPool, migrate } from '../src/db.js';
 import { buildApp, COOKIE } from '../src/app.js';
 import { normalizeTarget } from '../src/auth.js';
-import { priceOf, areaK } from '../src/prices.js';
+import { priceOf, areaK, projectCap } from '../src/prices.js';
 import { weekKey } from '../src/wallet.js';
 
 let db, app, sent, clock;
@@ -14,7 +14,7 @@ beforeEach(async () => {
   // CI da haqiqiy PostgreSQL (TEST_DATABASE_URL) — qulflar (FOR UPDATE) haqiqatan tekshiriladi; aks holda PGlite
   if (process.env.TEST_DATABASE_URL) {
     db = fromPool(new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 }));
-    await db.query('DROP TABLE IF EXISTS multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
+    await db.query('DROP TABLE IF EXISTS project_spend, multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
   } else db = fromPglite(new PGlite());
   await migrate(db);
   sent = [];
@@ -39,20 +39,20 @@ async function login(target = 'ali@mail.uz') {
 const tick = (sec) => { clock = new Date(clock.getTime() + sec * 1000); };
 
 describe('narx', () => {
-  it('koeffitsiyent: ≤15 → 1, 15–60 → 1,5, >60 → 2', () => {
-    expect([areaK(15), areaK(15.01), areaK(60), areaK(60.5)]).toEqual([1, 1.5, 1.5, 2]);
+  it('koeffitsiyent k = max(1, √(ga/3)), 0,1 gacha', () => {
+    expect([areaK(2), areaK(3), areaK(12), areaK(27), areaK(48), areaK(15)]).toEqual([1, 1, 2, 3, 4, 2.2]);
   });
-  it('«Qoʻmitaga topshirish» 28 / 42 / 56 (narxlar sahifasi bilan bir xil)', () => {
+  it('«Qoʻmitaga topshirish» (albom + DXF + TIK + hisobot = 43) × k', () => {
     const kom = ['mr.album', 'mr.dxf', 'mr.tik', 'mr.norm'];
-    expect([priceOf(kom, 10).coins, priceOf(kom, 30).coins, priceOf(kom, 80).coins]).toEqual([28, 42, 56]);
+    expect([priceOf(kom, 3).coins, priceOf(kom, 10).coins, priceOf(kom, 30).coins, priceOf(kom, 80).coins]).toEqual([43, 77, 138, 224]);
   });
-  it('koeffitsiyent faqat MR fayllarga; takror bir marta', () => {
-    expect(priceOf(['chz.album', 'mr.png', 'mr.png'], 80).coins).toBe(11);
-    // katta uchastkani ochish: 10 tanga × maydon koeffitsiyenti
-    expect(priceOf(['mr.site'], 4).coins).toBe(10);
-    expect(priceOf(['mr.site'], 30).coins).toBe(15);
-    expect(priceOf(['mr.site'], 80).coins).toBe(20);
-    expect(priceOf(['mr.ifc', 'chz.album'], 80).coins).toBe(30);
+  it('koeffitsiyent faqat MR amallarga; takror bir marta', () => {
+    expect(priceOf(['chz.album', 'mr.png', 'mr.png'], 80).coins).toBe(88);
+    expect(priceOf(['ks.dxf', 'joy.passport'], 80).coins).toBe(10);
+    expect([priceOf(['mr.site'], 4).coins, priceOf(['mr.site'], 30).coins, priceOf(['mr.site'], 80).coins]).toEqual([12, 32, 52]);
+  });
+  it('loyiha shifti maydon boʻyicha', () => {
+    expect([projectCap(2), projectCap(10), projectCap(25), projectCap(60), projectCap(150), projectCap(400)]).toEqual([195, 245, 345, 495, 745, 1000]);
   });
   it('nomaʼlum fayl — xato', () => { expect(() => priceOf(['x'])).toThrow(); });
 });
@@ -67,7 +67,7 @@ describe('kirish', () => {
   it('kod → sessiya → /me; chiqish', async () => {
     const c = await login();
     const me = (await get('/me', c)).json();
-    expect(me).toMatchObject({ email: 'ali@mail.uz', balance: 0, trialsLeft: 3, owner: false });
+    expect(me).toMatchObject({ email: 'ali@mail.uz', balance: 0, trialsLeft: 1, owner: false });
     await post('/auth/logout', {}, c);
     expect((await get('/me', c)).statusCode).toBe(401);
   });
@@ -102,13 +102,13 @@ describe('hamyon va eksport', () => {
     const body = { items: ['mr.album', 'mr.dxf', 'mr.tik', 'mr.norm'], areaHa: 30, stateHash: H };
     const r0 = await post('/export/ticket', body, c);
     expect(r0.statusCode).toBe(402);
-    expect(r0.json()).toMatchObject({ error: 'insufficient', need: 42, balance: 0 });
+    expect(r0.json()).toMatchObject({ error: 'insufficient', need: 138, balance: 0 });
     const uid = (await get('/me', c)).json().id;
-    await app.wallet.credit(uid, 50, 'gift', 't1');
+    await app.wallet.credit(uid, 150, 'gift', 't1');
     const r1 = (await post('/export/ticket', body, c)).json();
-    expect(r1).toMatchObject({ price: 42, charged: 42, balance: 8, repeat: false });
+    expect(r1).toMatchObject({ price: 138, charged: 138, balance: 12, repeat: false });
     const r2 = (await post('/export/ticket', { ...body, items: [...body.items].reverse() }, c)).json();
-    expect(r2).toMatchObject({ charged: 0, balance: 8, repeat: true });
+    expect(r2).toMatchObject({ charged: 0, balance: 12, repeat: true });
     const v = (await post('/export/verify', { ticket: r2.ticket })).json();
     expect(v).toMatchObject({ valid: true, stateHash: H });
   });
@@ -126,7 +126,7 @@ describe('hamyon va eksport', () => {
   it('bir vaqtdagi soʻrovlar balansni minusga tushirmaydi', async () => {
     const c = await login();
     const uid = (await get('/me', c)).json().id;
-    await app.wallet.credit(uid, 10, 'gift', 't1');
+    await app.wallet.credit(uid, 15, 'gift', 't1');
     const rs = await Promise.all([1, 2, 3].map((i) => post('/export/ticket', { items: ['chz.album'], stateHash: String(i).repeat(16) }, c)));
     expect(rs.filter((r) => r.statusCode === 200)).toHaveLength(1);
     expect((await get('/me', c)).json().balance).toBe(0);
@@ -148,14 +148,35 @@ describe('haftalik sinovlar', () => {
     expect(weekKey(new Date('2026-10-18T18:59:00Z'))).toBe('2026-10-12'); // yakshanba 23:59 Toshkent
     expect(weekKey(new Date('2026-10-18T19:00:00Z'))).toBe('2026-10-19'); // dushanba 00:00 Toshkent
   });
-  it('3 tasi bepul, 4-si narx boʻyicha, dushanba yangilanadi', async () => {
+  it('haftasiga 1 tasi bepul, keyingisi narx × k, dushanba yangilanadi', async () => {
     const c = await login();
     const uid = (await get('/me', c)).json().id;
-    for (let i = 0; i < 3; i++) expect((await post('/trial', { kind: 'flats' }, c)).json().free).toBe(true);
+    expect((await post('/trial', { kind: 'flats' }, c)).json().free).toBe(true);
     expect((await post('/trial', { kind: 'flats' }, c)).statusCode).toBe(402);
-    await app.wallet.credit(uid, 5, 'gift', 't1');
-    expect((await post('/trial', { kind: 'wind' }, c)).json()).toMatchObject({ free: false, charged: 2, balance: 3 });
+    await app.wallet.credit(uid, 20, 'gift', 't1');
+    expect((await post('/trial', { kind: 'wind', areaHa: 12 }, c)).json()).toMatchObject({ free: false, charged: 10, balance: 10 });   // 5 × 2
     clock = new Date('2026-10-26T01:00:00Z');
-    expect((await get('/me', c)).json().trialsLeft).toBe(3);
+    expect((await get('/me', c)).json().trialsLeft).toBe(1);
+  });
+  it('generatsiya: har loyihada 3 tasi bepul, keyin 1 × k', async () => {
+    const c = await login();
+    const uid = (await get('/me', c)).json().id;
+    await app.wallet.credit(uid, 10, 'gift', 't1');
+    for (let i = 0; i < 3; i++) expect((await post('/trial', { kind: 'gen', project: 'p_a', areaHa: 12 }, c)).json().free).toBe(true);
+    expect((await post('/trial', { kind: 'gen', project: 'p_a', areaHa: 12 }, c)).json()).toMatchObject({ free: false, charged: 2, balance: 8 });
+    expect((await post('/trial', { kind: 'gen', project: 'p_b', areaHa: 12 }, c)).json().free).toBe(true);
+    expect((await post('/trial', { kind: 'gen' }, c)).statusCode).toBe(400);
+  });
+  it('loyiha shifti: jami sarf shiftdan oshmaydi, keyin bepul', async () => {
+    const c = await login();
+    const uid = (await get('/me', c)).json().id;
+    await app.wallet.credit(uid, 1000, 'gift', 't1');
+    const ex = (h, items) => post('/export/ticket', { items, areaHa: 2, stateHash: h, project: 'p_cap' }, c).then(r => r.json());
+    let spent = 0;
+    for (let i = 0; i < 12; i++) spent += (await ex(String(i).padStart(2, '0') + 'a'.repeat(30), ['mr.album'])).charged;
+    expect(spent).toBe(195);
+    const last = await ex('ff' + 'a'.repeat(30), ['mr.ifc']);
+    expect(last).toMatchObject({ charged: 0, capped: true, balance: 805 });
+    expect((await post('/project/info', { project: 'p_cap', areaHa: 2 }, c)).json()).toMatchObject({ spent: 195, cap: 195, k: 1, genFree: 3 });
   });
 });

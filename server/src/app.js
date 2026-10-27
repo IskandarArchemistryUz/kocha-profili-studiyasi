@@ -8,7 +8,7 @@ import { makePayments } from './payments.js';
 import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { registerData } from './data/routes.js';
-import { ITEMS, TRIALS, TRIALS_PER_WEEK, PACKS, priceOf, PriceError } from './prices.js';
+import { ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
 
@@ -70,7 +70,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   // brauzer uchun ochiq xarita kalitlari (referrer bilan cheklangan; repoga yozilmaydi — .env dan)
   app.get('/config/maps', async (req, reply) => { reply.header('cache-control', 'public, max-age=3600'); return { arcgis: mapKeys.arcgis || null }; });
 
-  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, packs: PACKS }));
+  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, genFree: GEN_FREE, caps: [3, 10, 25, 60, 150, Infinity].map(ha => ({ ha: Number.isFinite(ha) ? ha : null, coins: projectCap(ha) })), packs: PACKS }));
 
   app.post('/quote', async (req) => {
     const { items, areaHa } = req.body ?? {};
@@ -122,8 +122,8 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   app.post('/export/ticket', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
-    const { items, areaHa, stateHash } = req.body ?? {};
-    return wallet.exportTicket(u.id, { items, areaHa, stateHash });
+    const { items, areaHa, stateHash, project } = req.body ?? {};
+    return wallet.exportTicket(u.id, { items, areaHa, stateHash, project });
   });
 
   app.post('/export/verify', async (req) => {
@@ -133,7 +133,12 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   app.post('/trial', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
-    return wallet.useTrial(u.id, req.body?.kind, req.body?.ref);
+    return wallet.useTrial(u.id, req.body?.kind, req.body?.ref, req.body?.project, req.body?.areaHa);
+  });
+
+  app.post('/project/info', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    return wallet.projectInfo(u.id, req.body?.project, req.body?.areaHa);
   });
 
   /* ---------- toʻlovlar ---------- */

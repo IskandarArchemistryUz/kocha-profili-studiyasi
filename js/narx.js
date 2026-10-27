@@ -2,12 +2,12 @@
    Narxlar — andoza (qoralama); 1 tanga ≈ 3 300 soʻm (30 talik toʻplam). */
 (function(){'use strict';
 var t=window.ALT||function(s){return s;};
-var P={alb:12,dxf:8,tik:3,mey:5,ifc:10,chz:10,png:1};
-/* koeffitsiyent faqat Master reja fayllariga (albom, DXF, IFC, TIK, hisobot) — server/src/prices.js bilan bir xil */
-var MR={alb:1,dxf:1,tik:1,mey:1,ifc:1};
+var P={alb:20,dxf:12,tik:6,mey:5,ifc:15,chz:15,png:2};
+/* narx modeli D (28.10.2026): hamma Master reja fayllari × k, k = √(ga ÷ 3) — server/src/prices.js bilan bir xil */
+var MR={alb:1,dxf:1,tik:1,mey:1,ifc:1,chz:1,png:1};
 var PRE={kom:['alb','dxf','tik','mey'],taq:['chz','png'],bim:['dxf','ifc'],all:Object.keys(P)};
-var KL={'1':'≤ 15 ga','1.5':'15–60 ga','2':'> 60 ga'},RATE=3300;
-var sel={},k=1.5;PRE.kom.forEach(function(i){sel[i]=1;});
+var KL={'1':'3 ga','1.8':'10 ga','3.2':'30 ga'},RATE=3300;
+var sel={},k=1.8;PRE.kom.forEach(function(i){sel[i]=1;});
 function q(s){return [].slice.call(document.querySelectorAll(s));}
 function loc(){var l=document.documentElement.lang;return l==='en'?'en-US':'ru-RU';}
 function nf(v,d){return v.toLocaleString(loc(),{maximumFractionDigits:d||0});}
