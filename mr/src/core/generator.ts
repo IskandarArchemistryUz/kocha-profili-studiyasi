@@ -291,13 +291,34 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   }
   if (!sections.length) { notes.push('Seksiya joylashmadi — kvartal bu chuqurlik uchun juda kichik yoki tor'); return { sections, capFloors: null, notes }; }
   // tik tutashgan qoʻshni seksiyalar — bitta L-shakl burchak binosi
-  const merged = mergeTouching(sections);
+  const merged = mergeTouching(sections, D, g.secLen);
   if (merged) notes.push(`${merged} ta burchak — bitta L-shakl bino (ikki seksiya birlashtirildi)`);
   return { sections, capFloors: null, notes };
 }
 
 /** Tik tutashgan ikki toʻrtburchak seksiya (umumiy devor ≥ 3 m, oʻqlari tik) — bitta L-shakl burchak binosi */
-function mergeTouching(S: GenSection[]): number {
+/**
+ * L-burchak qoʻli juda uzun boʻlmasin (oddiy burchak seksiyasi): seksiyaning ikkinchi seksiyaga tegadigan uchidan keep m qoladi,
+ * qolgani — qoʻshni seksiyaga qoʻshiladi yoki alohida seksiya (mergeTouching hal qiladi). Faqat toʻgʻri toʻrtburchak seksiya kesiladi. [qoʻl, qoldiq] yoki null.
+ */
+function trimArm(s: GenSection, o: GenSection, keep: number, D: number): [GenSection, GenSection] | null {
+  if (s.ring.length !== 4 || !s.face) return null;
+  const n = s.face.n, u: XY = [-n[1], n[0]], du = (p: XY) => p[0] * u[0] + p[1] * u[1], dn = (p: XY) => p[0] * n[0] + p[1] * n[1];
+  const tu = s.ring.map(du), tn = s.ring.map(dn), u0 = Math.min(...tu), u1 = Math.max(...tu), n0 = Math.min(...tn), n1 = Math.max(...tn);
+  if (s.ring.some(p => Math.min(Math.abs(du(p) - u0), Math.abs(du(p) - u1)) > 1.2 || Math.min(Math.abs(dn(p) - n0), Math.abs(dn(p) - n1)) > 1.2)) return null;
+  const ou = o.ring.map(du), om = (Math.min(...ou) + Math.max(...ou)) / 2, nearLo = Math.abs(om - u0) < Math.abs(om - u1);
+  // ikkinchi seksiya shu seksiyaning yon tomoniga tegsa — burchak kvadrati shu seksiyada (D + qoʻl), aks holda faqat qoʻl qoladi
+  const k = om > u0 + 1 && om < u1 - 1 ? keep + D : keep;
+  if (u1 - u0 < k + 6) return null;
+  const ccw = signedArea(s.ring) > 0, P = (a: number, b: number): XY => [u[0] * a + n[0] * b, u[1] * a + n[1] * b];
+  const R = (a: number, b: number): XY[] => { const r = [P(a, n0), P(b, n0), P(b, n1), P(a, n1)]; return (signedArea(r) > 0) === ccw ? r : r.reverse(); };
+  const cut = nearLo ? u0 + k : u1 - k;
+  const arm = nearLo ? R(u0, cut) : R(cut, u1), rest = nearLo ? R(cut, u1) : R(u0, cut);
+  return [{ ...s, ring: arm, blind: undefined }, { ...s, ring: rest, blind: undefined }];
+}
+
+function mergeTouching(S: GenSection[], D = 15, secLen = 30): number {
+  const keep = Math.max(10, 0.4 * secLen);
   let cnt = 0;
   for (let guard = 0; guard < 50; guard++) {
     let done = false;
@@ -305,12 +326,32 @@ function mergeTouching(S: GenSection[]): number {
       const a = S[i], b = S[j]; if (a.kind !== 'oddiy' || b.kind !== 'oddiy' || !a.face || !b.face) continue;
       if (Math.abs(a.face.n[0] * b.face.n[0] + a.face.n[1] * b.face.n[1]) > 0.35) continue;
       if (!touching(a.ring, b.ring) || sharedWall(a.ring, b.ring) < 3) continue;
+      // uzun qoʻllar — burchakka D + qisqa qoʻl qoladi, qolgani alohida seksiya
+      // qoldiq: shu tasmadagi qoʻshni seksiyaga qoʻshiladi (≤ 1,7·secLen) yoki ≥ 18 m boʻlsa alohida; aks holda qoʻl kesilmaydi
+      const place = (t: [GenSection, GenSection] | null, self: GenSection, other: GenSection): { nb: number; ring: XY[] } | 'own' | null => {
+        if (!t) return null; const rest = t[1], n0 = self.face!.n;
+        for (let q = 0; q < S.length; q++) { const x = S[q]; if (x === self || x === other || x.kind !== 'oddiy' || !x.face || x.face.n[0] * n0[0] + x.face.n[1] * n0[1] < 0.99 || !touching(x.ring, rest.ring) || sharedWall(x.ring, rest.ring) < 0.8 * D) continue;
+          let uu: [number, number][][][] = []; try { uu = polygonClipping.union([[...x.ring, x.ring[0]].map(p => [p[0], p[1]] as [number, number])], [[...rest.ring, rest.ring[0]].map(p => [p[0], p[1]] as [number, number])]); } catch { continue; }
+          if (uu.length !== 1 || uu[0].length !== 1) continue;
+          let r2 = clean(uu[0][0].slice(0, -1).map(z => [z[0], z[1]] as XY), 0.8); if (signedArea(r2) < 0) r2 = r2.reverse();
+          const ext = Math.max(...r2.map(p => Math.max(...r2.map(z => Math.hypot(p[0] - z[0], p[1] - z[1])))));
+          if (r2.length === 4 && isSimple(r2) && ext <= Math.hypot(1.7 * secLen, D) + 0.5) return { nb: q, ring: r2 };
+        }
+        const t2 = rest.ring, L = Math.max(...t2.map(p => Math.max(...t2.map(z => Math.hypot(p[0] - z[0], p[1] - z[1])))));
+        return L >= Math.hypot(18, D) ? 'own' : null;
+      };
+      let ta = trimArm(a, b, keep, D), tb = trimArm(b, a, keep, D);
+      const pa = place(ta, a, b), pb = place(tb, b, a); if (!pa) ta = null; if (!pb) tb = null;
+      const A2 = ta ? ta[0] : a, B2 = tb ? tb[0] : b;
       let u: [number, number][][][] = [];
-      try { u = polygonClipping.union([[...a.ring, a.ring[0]].map(p => [p[0], p[1]] as [number, number])], [[...b.ring, b.ring[0]].map(p => [p[0], p[1]] as [number, number])]); } catch { continue; }
+      try { u = polygonClipping.union([[...A2.ring, A2.ring[0]].map(p => [p[0], p[1]] as [number, number])], [[...B2.ring, B2.ring[0]].map(p => [p[0], p[1]] as [number, number])]); } catch { continue; }
       if (u.length !== 1 || u[0].length !== 1) continue;
       let ring = clean(u[0][0].slice(0, -1).map(q => [q[0], q[1]] as XY), 0.8); if (signedArea(ring) < 0) ring = ring.reverse();
       if (!isSimple(ring)) continue;
-      S[i] = { ...a, ring, floors: Math.max(a.floors, b.floors), kind: 'burchak' }; S.splice(j, 1); cnt++; done = true;
+      const ra = ta ? ta[1] : null, rb = tb ? tb[1] : null;
+      if (pa && pa !== 'own') S[pa.nb] = { ...S[pa.nb], ring: pa.ring, blind: undefined };
+      if (pb && pb !== 'own' && !(pa && pa !== 'own' && pa.nb === pb.nb)) S[pb.nb] = { ...S[pb.nb], ring: pb.ring, blind: undefined };
+      S[i] = { ...A2, ring, floors: Math.max(a.floors, b.floors), kind: 'burchak' }; S.splice(j, 1, ...(pb === 'own' && rb ? [rb] : [])); if (pa === 'own' && ra) S.push(ra); cnt++; done = true;
     }
     if (!done) break;
   }
