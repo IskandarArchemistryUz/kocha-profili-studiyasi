@@ -193,7 +193,7 @@ export const RULES: Rule[] = [
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '89-band, 4-jadval; 90–92-bandlar', verified: true },
     evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'm²', limit: '3,1 m²/kishi' };
-      if (!doc.settings.yards) return { status: 'na', note: 'Hovli obodonlashtirish oʻchirilgan (5-qadam).' };
+      if (!doc.settings.yards) return { status: 'na', note: 'Hovli obodonlashtirish oʻchirilgan (4-qadam, Yashil).' };
       const v = d.playNeed > 0 ? d.playGot / d.playNeed * 100 : 0;
       return { status: v >= 99 ? 'pass' : v >= 50 ? 'review' : 'fail', value: d.playGot, unit: 'm²', limit: `${Math.round(d.playNeed)} (3,1 m²/kishi)`,
         note: `Talab: bolalar 0,7 + kattalar 0,1 + sport 2,0 + xoʻjalik 0,3 m²/kishi; joylashtirilgan ${Math.round(v)} %. 90-band: chang boʻronli hududlarda yoki mavze sport majmuasi boʻlsa — ikki baravargacha qisqartirish mumkin; 92-band: zichlik > 7000 m²/ga — tomlarga joylashtirish.` };

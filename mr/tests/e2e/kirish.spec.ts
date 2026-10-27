@@ -42,7 +42,7 @@ test('kirish: 3-qadamdan pochta kodi bilan, chiqish, Chizmadon ham yopiq', async
   // chiqish → yana 2-qadam, Chizmadon soʻraydi
   await page.click('#acctPop'); await expect(page.locator('#acctBal')).toHaveText('50'); await page.click('#acctOut');
   await expect(page.locator('#acctIn')).toBeVisible();
-  await expect(page.locator('.panel h2')).toHaveText('Uchastka');
+  await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
   await page.click('#chOpen'); await expect(page.locator('#kirish')).toBeVisible();
   await page.keyboard.press('Escape'); await expect(page.locator('#kirish')).toHaveCount(0);
   await expect(page.locator('.gx.ch')).toHaveCount(0);

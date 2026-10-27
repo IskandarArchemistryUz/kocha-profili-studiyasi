@@ -271,7 +271,7 @@ export function openGraphics(host: SheetsHost): void {
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
           h('div', { class: 'field' }, h('label', {}, tr('Kamera')), select({ id: 'shView', 'aria-label': tr('Kamera'), onchange: v => set({ axo: { ...(o.axo ?? {}), view: v || undefined } }) }, [{ value: '', label: tr('Joriy aksonometriya'), selected: !o.axo?.view }, ...(host.views ?? []).map(v => ({ value: v.id, label: v.name, selected: o.axo?.view === v.id }))])),
-          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Fasad derazalari'), h('span', { class: 'sub' }, tr('8-qadamdan'))), sw({ label: tr('Fasad derazalari'), on: o.axo?.shadow !== false, onchange: v => set({ axo: { ...(o.axo ?? {}), shadow: v } }) })),
+          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Fasad derazalari'), h('span', { class: 'sub' }, tr('7-qadamdan'))), sw({ label: tr('Fasad derazalari'), on: o.axo?.shadow !== false, onchange: v => set({ axo: { ...(o.axo ?? {}), shadow: v } }) })),
           h('span', { class: 't-small' }, tr('Kamera — saqlangan koʻrinishlardan; rasm sahnadan olinadi (masshtabsiz).'))] : []),
         ...((o.mode ?? 'reja') === 'reja' ? [
         h('div', { class: 'glabel' }, h('span', {}, tr('Namuna')), h('span', {}, `${SHEET_KINDS.length} + ${tr('uslublar')}`)),
