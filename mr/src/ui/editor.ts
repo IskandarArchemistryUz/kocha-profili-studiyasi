@@ -20,7 +20,7 @@ import { siteAccess, accessVerdict, type Access } from '../core/access';
 const HAJM = () => STEPS.find(x => x.id === 'hajm')!;
 import { tr, tf, getLang, setLang, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
-import { check, range, select, stepper, sw , dropdown } from './controls';
+import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
@@ -100,8 +100,9 @@ import { authRequired } from '../account/config';
 import { needsLogin, ensureLogin } from '../account/gate';
 import { check as checkAuth, current as currentUser, onAuth, logout } from '../account/session';
 import { loginDialog } from '../account/login';
-import { isLinkOwner } from '../core/wm';
+import { isLinkOwner, setExportArea } from '../core/wm';
 import { buyDialog } from '../account/buy';
+import { coinsDialog, useHeavy, siteGate, siteOk } from '../account/pay';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
@@ -299,6 +300,7 @@ export class Editor {
         h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, who), m.email && m.email !== who ? h('span', { class: 'sub' }, m.email) : '')),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Tangalar')), h('span', { class: 'v mono', id: 'acctBal' }, fmt(m.balance))),
         h('button', { class: 'btn btn-sm btn-primary', id: 'acctBuy', onclick: () => { this.closePop(); void buyDialog(); } }, tr('Tanga sotib olish')),
+        h('button', { class: 'btn btn-sm', id: 'acctCoins', onclick: () => { this.closePop(); void coinsDialog(); } }, tr('Mening tangalarim')),
         h('button', { class: 'btn btn-sm', id: 'acctOut', onclick: () => { this.closePop(); void logout().then(() => { toast(tr('Hisobdan chiqdingiz')); if (needsLogin(this.step.id)) this.go(STEPS.find(x => x.id === 'uchastka')!); }); } }, tr('Chiqish'))));
       b.classList.add('acct-me'); b.querySelector('span')!.textContent = (who[0] ?? '?').toUpperCase(); b.title = who;
       box.replaceChildren(b);
@@ -361,7 +363,9 @@ export class Editor {
     const li2 = (k: string, sub: string, ctl: Node) => h('div', { class: 'li' }, h('span', { class: 'k' }, k, h('span', { class: 'sub' }, sub)), ctl);
     const opt = (k: typeof this.mapKind, t: string, note: string) => h('button', { class: 'tile', 'data-map': k, 'aria-pressed': this.mapKind === k, disabled: this.mapBusy, onclick: () => void this.runMap(k) }, h('b', {}, tr(t)), h('span', { class: 'sub' }, tr(note)));
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+    const cs = this.store.doc.context;
     return h('div', { class: 'popbody' },
+      cs.loaded && this.ctxMgr.current ? this.ctxLayerChips() : '',
       this.ul.section(),
       h('div', { class: 'glabel' }, h('span', {}, tr('Yozuvlar'))),
       h('div', { class: 'col', style: 'gap:6px' }, h('span', { class: 't-small', style: 'font-weight:600;color:var(--ink-2)' }, tr('Daha va yer uchastkasi')),
@@ -909,8 +913,7 @@ export class Editor {
     ];
     const res = detectBlock(bars, b.osm.water.map(a => a.rings[0].map(fr.toLocal)), xy, { window: Math.min(1400, 2 * doc.context.radius + 200) });
     if (!res.ok) { toast(res.reason); return; }
-    this.run(() => this.store.dispatch({ type: 'setSite', rings: [res.ring.map(fr.toGeo)] }));
-    this.setTool(null); this.scene.frameDoc(this.store.doc);
+    void this.putSite([res.ring.map(fr.toGeo)], () => { this.setTool(null); this.scene.frameDoc(this.store.doc); });
     toast(`Kvartal aniqlandi: ${fmt(res.area / 1e4, 2)} ga. Chegarani yoʻl chetidan oladi — kerak boʻlsa qaytadan chizing.`);
   }
 
@@ -963,6 +966,30 @@ export class Editor {
     return best;
   }
 
+  /** Atrof (OSM) qatlamlari — ixcham chiplar. 1-qadamda va xaritadagi «Qatlamlar» oynasida bir xil holat. */
+  private ctxLayerChips(): HTMLElement {
+    const L = this.store.doc.context.layers, has = !!this.ctxMgr.current;
+    const names: [keyof typeof L, string, string][] = [['buildings', 'Binolar', '#8a8a86'], ['roads', 'Yoʻllar', '#b9b4a8'], ['rail', 'Temir yoʻl', '#4a4a48'], ['water', 'Suv', '#5b8fc7'], ['green', 'Yashil hududlar', '#7fa865'], ['trees', 'Daraxtlar*', '#4e7d3a'], ['relief', 'Relyef', '#a08a6e']];
+    return h('div', { class: 'col', id: 'ctxLayers', style: 'gap:6px' },
+      h('div', { class: 'glabel' }, h('span', {}, tr('Atrof qatlamlari')), h('span', {}, 'OSM')),
+      h('div', { class: 'chips', role: 'group', 'aria-label': tr('Atrof qatlamlari') }, ...names.map(([k, t, c]) => h('button', { class: 'zchip', type: 'button', style: `--c:${c}`, 'data-ctx-layer': k, 'aria-pressed': !!L[k], disabled: !has,
+        onclick: () => { this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: !this.store.doc.context.layers[k] } } })); if (this.pop?.dataset.for === 'layPop') this.refreshPop(); } }, tr(t)))),
+      h('span', { class: 't-small' }, tr('* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.')));
+  }
+
+  /** Uchastka chegarasini qoʻyish — bepul tarifda 3 ga gacha, kattasi — «Loyihani ochish» (account/pay.ts). */
+  private async putSite(rings: LngLat[][], after?: () => void): Promise<void> {
+    if (!await siteGate(this.store.doc.id, ringAreaM2(rings[0]) / 1e4)) { this.setTool(null); return; }
+    this.run(() => this.store.dispatch({ type: 'setSite', rings }));
+    after?.();
+  }
+  private siteHintT = 0;
+  /** Sudrab kattalashtirishda chegaradan oshsa — tahrir qoʻllanmaydi; oyna 3 soniyada koʻpi bilan bir marta */
+  private siteLimitHint(rings: LngLat[][]): void {
+    const t = performance.now(); if (t - this.siteHintT < 3000) return; this.siteHintT = t;
+    void siteGate(this.store.doc.id, ringAreaM2(rings[0]) / 1e4);
+  }
+
   /* ===== 1-qadam: Hudud (MR-Q1) ===== */
   private hududPanel(body: HTMLElement): void {
     // 27.10 (1+2 birlashdi): asosiy — qidiruv va «Atrofni yuklash»; markaz, radius, chegara, qatlamlar va oʻz maʼlumotlar — «Atrof sozlamalari» ichida
@@ -1004,13 +1031,10 @@ export class Editor {
       if (b.ovm && (b.ovm.added || b.ovm.heights)) body.append(h('div', { class: 'note', id: 'ctxOv' }, tf('Overture Maps: +${a} bino (OSM da yoʻq), ${h} ta binoning balandligi aniqlashtirildi. © OpenStreetMap contributors, Overture Maps Foundation (ODbL).', { a: fmt(b.ovm.added), h: fmt(b.ovm.heights) })));
       if (b.stale) body.append(h('div', { class: 'note warn', id: 'ctxStale' }, tf('OSM serveri hozir javob bermadi — keshdagi ${new Date(b.fetched).toLocaleDateString(\'ru-RU\')} nusxasi koʻrsatilmoqda. Keyinroq «OSM dan yangilash» ni bosing.', { "new Date(b.fetched).toLocaleDateString('ru-RU')": new Date(b.fetched).toLocaleDateString('ru-RU') })));
       if (b.missing.length) body.append(h('div', { class: 'note warn' }, tf('Yuklanmadi: ${b.missing.join(\', \')}. Qolgan qatlamlar ishlaydi.', { "b.missing.join(', ')": b.missing.join(', ') })));
-      const L = cs.layers, names: [keyof typeof L, string][] = [['buildings', 'Binolar'], ['roads', 'Yoʻllar'], ['rail', 'Temir yoʻl'], ['water', 'Suv'], ['green', 'Yashil hududlar'], ['trees', 'Daraxtlar*'], ['relief', 'Relyef']];
+      body.append(this.ctxLayerChips());   // 27.10: qatlamlar yana koʻrinadigan joyda (#277 da «Atrof sozlamalari» ichida yashirinib qolgandi)
       more.append(
         h('div', { class: 'glabel' }, h('span', {}, tr('Yer qoplami'))),
         h('div', { class: 'seg sm', role: 'group' }, ...([['maket', 'Maket'], ['sputnik', 'Sunʼiy yoʻldosh']] as const).map(([k, t]) => h('button', { 'aria-pressed': cs.base === k, 'data-base': k, disabled: k === 'sputnik' && !b.imagery, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })) }, tr(t)))),
-        h('div', { class: 'glabel' }, h('span', {}, tr('Qatlamlar'))),
-        h('div', { class: 'group', role: 'group', 'aria-label': tr('Qatlamlar') }, ...names.map(([k, t]) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: L[k], 'data-layer': k, onchange: v => this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: v } } })) })))),
-        h('span', { class: 't-small' }, tr('* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.')),
         h('div', { class: 'row' },
           h('button', { class: 'btn btn-sm btn-ghost', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, tr('Yashirish'))));
       // yangilash — holat qatori ostida, koʻrinib turadi
@@ -1141,6 +1165,7 @@ export class Editor {
   private async runWind(): Promise<void> {
     track('mr/calc/wind');
     const doc = this.store.doc, st = this.windNow()?.st; if (!doc.site || !st) return;
+    if (!await useHeavy('wind')) return;   // haftalik sinov yoki tanga
     const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     const m = 60, box: [number, number, number, number] = [x0 - m, y0 - m, x1 + m, y1 + m];
@@ -1399,6 +1424,7 @@ export class Editor {
     track('mr/calc/flats');
     const doc = this.store.doc, fh = doc.settings.floorHeight;
     const plans = planApartments(doc); if (!plans.length) { toast('Turar joy seksiyalari yoʻq'); return; }
+    if (!await useHeavy('flats')) return;   // haftalik sinov yoki tanga
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     plans.forEach(p => p.ring.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }));
     const prisms = this.aroundPrisms(x0, y0, x1, y1, 350);
@@ -2063,7 +2089,7 @@ export class Editor {
     if (st === 'kocha') { const s = doc.streets.find(x => x.id === this.selStreet); if (!s) return null;
       return { id: s.id, pts: s.axis.map(fr.toLocal), closed: false, min: 2, street: true, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateStreet', id: s.id, patch: { axis: pts.map(fr.toGeo) } }, key)) }; }
     if (st === 'uchastka' && doc.site) { const r = doc.site.rings;
-      return { id: 'site', pts: r[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'setSite', rings: [pts.map(fr.toGeo), ...r.slice(1)] }, key)) }; }
+      return { id: 'site', pts: r[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => { const rr = [pts.map(fr.toGeo), ...r.slice(1)]; if (!siteOk(doc.id, ringAreaM2(rr[0]) / 1e4)) { this.siteLimitHint(rr); return; } this.run(() => this.store.dispatch({ type: 'setSite', rings: rr }, key)); } }; }
     if (st === 'parsel' && this.selBlock != null) { const b = this.plan().blocks[this.selBlock], pc = b?.parcelId ? doc.parcels.find(p => p.id === b.parcelId) : null; if (!pc) return null;
       return { id: pc.id, pts: pc.rings[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateParcel', id: pc.id, patch: { rings: [pts.map(fr.toGeo), ...pc.rings.slice(1)] } }, key)) }; }
     if (st === 'hajm' && this.sel && this.dragMode !== 'yoq') { const b = doc.buildings.find(x => x.id === this.sel); if (!b) return null;
@@ -2253,15 +2279,14 @@ export class Editor {
       h('span', { class: 't-small' }, tr('Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor')));
     else body.append(h('div', { class: 'row' },
       h('button', { class: 'btn grow', id: 'drawSite', onclick: () => this.setTool(new PolygonTool(this.scene, r => {
-        this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.setTool(null); this.scene.frameDoc(this.store.doc);
+        void this.putSite([r.map(fr.toGeo)], () => { this.setTool(null); this.scene.frameDoc(this.store.doc); });
       }, toast)) }, ...icl(IC.pencil, tr(doc.site ? 'Qaytadan chizish' : 'Sahnada chizish'))),
       doc.site ? h('button', { class: 'btn icon-btn btn-danger', 'aria-label': tr('Uchastkani oʻchirish'), title: tr('Uchastkani oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, svgIcon(IC.trash)) : ''));
     const other = h('details', { class: 'how', id: 'siteMore' }, h('summary', {}, svgIcon(IC.info), tr('Boshqa usullar: fayldan yuklash, tahrirlash')));
     if (!drawing) other.append(h('div', { class: 'glabel' }, h('span', {}, tr('yoki fayldan yuklash')), h('span', { class: 'chip' }, 'Pro')),
       h('button', { class: 'btn btn-block', id: 'siteFile', onclick: () => this.pickBoundary((b, f) => {
         this.framedCtx = false;
-        this.run(() => this.store.dispatch({ type: 'setSite', rings: [b.rings[0]] })); this.scene.frameDoc(this.store.doc);
-        toast(tf('«${f}»: uchastka ${a} ga, ${c}${x}', { f, a: fmt(b.areaHa, 2), c: crsLabel(b.crs), x: b.polys > 1 ? tf(' (${n} ta poligondan eng kattasi)', { n: b.polys }) : '' }));
+        void this.putSite([b.rings[0]], () => { this.scene.frameDoc(this.store.doc); toast(tf('«${f}»: uchastka ${a} ga, ${c}${x}', { f, a: fmt(b.areaHa, 2), c: crsLabel(b.crs), x: b.polys > 1 ? tf(' (${n} ta poligondan eng kattasi)', { n: b.polys }) : '' })); });
       }) }, ...icl(IC.plus, tr('Chegarani fayldan yuklash'))),
       h('span', { class: 't-small' }, tr('GeoJSON, KML/KMZ yoki DXF. Koordinatalar: WGS84 yoki UTM (zona faylda yozilgan yoki loyiha hududi boʻyicha) — avtomatik aniqlanadi. Hozircha ochiq; obuna ulanganda Pro rejada boʻladi.')));
     if (this.ctxMgr.current && doc.context.loaded) {
@@ -2278,7 +2303,7 @@ export class Editor {
           const a = Number(w.value), b = Number(hh.value); if (!(a >= 10 && b >= 10)) { toast(tr('Kamida 10 m')); return; } if (a > 4000 || b > 4000) { toast(tr('Koʻpi bilan 4000 m')); return; }
           const m = this.scene.viewExtent().c;   // ekran markazida (xarita surilgan boʻlsa ham)
           const r: XY[] = [[-a / 2, -b / 2], [a / 2, -b / 2], [a / 2, b / 2], [-a / 2, b / 2]].map(([x, y]) => [x + m[0], y + m[1]] as XY);
-          this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.scene.frameDoc(this.store.doc);
+          void this.putSite([r.map(fr.toGeo)], () => this.scene.frameDoc(this.store.doc));
         } }, tr('Qoʻyish'))),
       h('span', { class: 't-small' }, '10–4000 m.'));
     (doc.site ? body : other).append(h('div', { class: 'glabel' }, h('span', {}, tr('Tahrirlash'))),
@@ -3137,6 +3162,7 @@ export class Editor {
   private kpiAll = false;
   private renderKpi(): void {
     const c = this.last; if (!c) return;
+    setExportArea(c.d.siteHa ?? 0);   // toza eksport narxi (Master reja ×1 / ×1,5 / ×2)
     const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms)[0];
     const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));
     const open = !this.el.drawer.hidden;

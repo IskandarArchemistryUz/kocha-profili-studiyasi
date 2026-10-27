@@ -4,7 +4,7 @@
    Loyiha fayli (.json), IFC, GLB, OBJ, Excel — oʻzgarmaydi. */
 import { getLang } from '../i18n';
 
-/** SHA-256(egasi kaliti) — js/beta.js dagi CFG.owner bilan bir xil */
+/** SHA-256(egasi kaliti) — js/fikr.js dagi CFG.owner bilan bir xil */
 const OWNER = 'd334a182444e562a7b7793445d07de9716924308b1887db6b15452f719ab5560';
 
 export function isOwner(): boolean { try { return localStorage.getItem('kps_owner') === '1'; } catch { return false; } }
@@ -36,8 +36,24 @@ export function wmLabel(): string {
   return 'ARCHEMISTRY · ' + (F[l] ?? F.en);
 }
 
-/** Belgi qoʻyiladimi (egasi uchun — yoʻq) */
-export const needWm = (): boolean => !isOwner();
+/** Toza (tanga bilan toʻlangan) eksport davomida belgi qoʻyilmaydi — account/pay.ts boshqaradi */
+let cleanDepth = 0;
+export async function asClean<T>(fn: () => Promise<T> | T): Promise<T> { cleanDepth++; try { return await fn(); } finally { cleanDepth--; } }
+/** Belgi qoʻyiladimi (egasi va toʻlangan toza fayl uchun — yoʻq) */
+export const needWm = (): boolean => !isOwner() && cleanDepth === 0;
+
+/* ---------- eksport darvozasi: bepul (belgili) yoki toza (tanga) ---------- */
+export type ExportMode = 'wm' | 'clean';
+/** name — fayl nomi, item — narx roʻyxatidagi id (server/src/prices.js), sample — holat xeshi uchun mazmun */
+export type ExportGate = (o: { name: string; item?: string; sample: string | Blob }) => Promise<ExportMode | null>;
+let gateFn: ExportGate | null = null;
+export const setExportGate = (g: ExportGate): void => { gateFn = g; };
+/** Darvoza ulanmagan boʻlsa (masalan, testda) — avvalgidek: belgili bepul fayl */
+export const exportGate: ExportGate = o => gateFn ? gateFn(o) : Promise.resolve(isOwner() ? 'clean' : 'wm');
+/** Master reja koeffitsiyenti uchun uchastka maydoni (ga) — muharrir yangilab turadi */
+let areaHa = 0;
+export const setExportArea = (ha: number): void => { areaHa = Number.isFinite(ha) && ha > 0 ? ha : 0; };
+export const exportArea = (): number => areaHa;
 
 /** SVG oxiriga burilgan yozuvlar toʻri (viewBox boʻyicha) */
 export function wmSvg(svg: string): string {

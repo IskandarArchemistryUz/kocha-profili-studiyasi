@@ -129,14 +129,14 @@ if(box2)try{var rq=indexedDB.open('archemistry-mr');
     var q=db.transaction('projects','readonly').objectStore('projects').getAll();
     q.onsuccess=function(){db.close();PL=(q.result||[]).sort(function(a,b){return String(b.updated).localeCompare(String(a.updated));});renderProjects();};
     q.onerror=function(){db.close();PL=[];renderProjects();};};}catch(e){PL=[];renderProjects();}
-/* minimal sahifa: «Fikr» paneli — tanlov, pochta orqali yuborish, beta paneli */
+/* minimal sahifa: «Fikr» paneli — tanlov, pochta orqali yuborish, fikr paneli */
 var fbK='Taklif';
 [].forEach.call(document.querySelectorAll('[data-fb]'),function(c){c.addEventListener('click',function(){fbK=c.getAttribute('data-fb');
   [].forEach.call(document.querySelectorAll('[data-fb]'),function(x){x.setAttribute('aria-pressed',String(x===c));});});});
 var fs=document.getElementById('fbSend');
 if(fs)fs.onclick=function(){var tx=document.getElementById('fbTxt'),v=(tx&&tx.value||'').trim();
   location.href='mailto:info@archemistry.uz?subject='+encodeURIComponent('['+fbK+'] Archemistry Lab')+'&body='+encodeURIComponent(v+'\n\n— '+location.href);};
-var fbb=document.getElementById('fbBeta');if(fbb)fbb.onclick=function(){if(window.KPS_openPanel)KPS_openPanel();};
+
 /* avvalgi versiya loyihalari bor boʻlsa — bosh sahifada eslatma (roʻyxat «Batafsil» sahifasida) */
 var on=document.getElementById('oldNote');
 if(on){try{var R0=JSON.parse(localStorage.getItem('kps_projects')||'null');var nn=R0&&Array.isArray(R0.list)?R0.list.length:0;

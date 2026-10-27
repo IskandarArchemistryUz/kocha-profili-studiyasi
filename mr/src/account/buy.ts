@@ -2,6 +2,7 @@
  * «Tanga sotib olish»: toʻplam va toʻlov usulini tanlash → Payme yoki Click sahifasiga oʻtish.
  * Narx va tanga soni serverdagi buyurtmadan olinadi; qaytishda (?tolov=<id>) holat tekshiriladi va balans yangilanadi.
  */
+import './account.css';
 import { h, svgIcon, IC, fmt, toast } from '../ui/dom';
 import { tr, tf } from '../i18n';
 import { payConfig, createOrder, orderStatus, check, ApiError, type Pack } from './session';

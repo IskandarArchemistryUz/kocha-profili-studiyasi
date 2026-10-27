@@ -244,3 +244,27 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kirish va 
   await expect(page.locator('#accWarn')).toHaveCount(0);
   if (process.env.GX_SHOTS) { await page.locator('#accessBox').scrollIntoViewIfNeeded(); await page.screenshot({ path: `${process.env.GX_SHOTS}/kirish_yol_${w}${dark ? '_dark' : ''}.png` }); }
 });
+
+test('atrof qatlamlari: yuklangandan keyin darhol koʻrinadi, xarita «Qatlamlar» oynasida ham bor', async ({ page, context }) => {
+  await mockNet(context, { overpass: 0 });
+  await newProject(page);
+  await page.click('#ctxLoad');
+  await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 15000 });
+  // yigʻiq «Atrof sozlamalari» ochilmasdan koʻrinadi
+  const bld = page.locator('.panel #ctxLayers [data-ctx-layer=buildings]');
+  await expect(bld).toBeVisible();
+  await expect(bld).toHaveAttribute('aria-pressed', 'true');
+  await bld.click();
+  await expect(page.locator('.panel #ctxLayers [data-ctx-layer=buildings]')).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('.panel #ctxLayers [data-ctx-layer=buildings]').click();
+  await expect(page.locator('.panel #ctxLayers [data-ctx-layer=buildings]')).toHaveAttribute('aria-pressed', 'true');
+  // keyingi qadamda — xarita «Qatlamlar» oynasidan
+  await page.click('[data-step=uchastka]');
+  await page.click('#layPop');
+  const pr = page.locator('.popbody #ctxLayers [data-ctx-layer=relief]');
+  await expect(pr).toBeVisible();
+  const was = await pr.getAttribute('aria-pressed');
+  await pr.click();
+  await expect(page.locator('.popbody #ctxLayers [data-ctx-layer=relief]')).toHaveAttribute('aria-pressed', was === 'true' ? 'false' : 'true');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/atrof_qatlamlar_pop.png` });
+});

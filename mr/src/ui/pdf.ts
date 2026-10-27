@@ -1,5 +1,5 @@
 /** Vektor PDF: jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari). Varaqlar va Chizmadon uchun umumiy. */
-import { wmSvg } from '../core/wm';
+import { wmSvg, exportGate, asClean } from '../core/wm';
 export interface PdfPage { svg: string; widthMm: number; heightMm: number }
 /* ---------- PDF (vektor): jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari) ---------- */
 let pdfLib: Promise<{ jsPDF: typeof import('jspdf').jsPDF; svg2pdf: typeof import('svg2pdf.js').svg2pdf; fonts: [string, string] }> | null = null;
@@ -12,7 +12,14 @@ function loadPdf() {
   })();
   return pdfLib;
 }
-export async function svgPdf(pages: PdfPage[], name: string): Promise<void> {
+/** Vektor PDF. Bepul — belgili; toza — tanga bilan (darvoza). item — narx id (boʻlmasa xizmat va sahifalar soni boʻyicha). */
+export async function svgPdf(pages: PdfPage[], name: string, item?: string): Promise<void> {
+  if (!pages.length) return;
+  const mode = await exportGate({ name, item: item ?? (pages.length === 1 && !/chizmadon|kochasoz|joyshunos/.test(location.pathname + location.hash) ? 'mr.sheet' : undefined), sample: pages.map(p => p.svg).join('\n') });
+  if (!mode) return;
+  return mode === 'clean' ? asClean(() => makePdf(pages, name)) : makePdf(pages, name);
+}
+async function makePdf(pages: PdfPage[], name: string): Promise<void> {
   const { jsPDF, svg2pdf, fonts } = await loadPdf();
   const first = pages[0];
   const pdf = new jsPDF({ unit: 'mm', format: [first.widthMm, first.heightMm], orientation: first.widthMm > first.heightMm ? 'landscape' : 'portrait', compress: true });

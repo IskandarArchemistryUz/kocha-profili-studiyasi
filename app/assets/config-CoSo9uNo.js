@@ -1,0 +1,1 @@
+var e=`https://api.archemistry.uz`,t=e=>{try{return localStorage.getItem(e)}catch{return null}},n=()=>{let e=t(`kps_auth`);return e===`1`||e!==`0`},r=()=>t(`kps_api`)||`https://api.archemistry.uz`,i=[`hudud`,`uchastka`];export{n as i,i as n,r,e as t};

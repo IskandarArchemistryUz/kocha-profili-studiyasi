@@ -5,7 +5,7 @@ import { syncAcctOwner } from '../core/wm';
 
 export interface Me { id: number; email: string | null; phone: string | null; name: string | null; balance: number; trialsLeft: number; owner?: boolean }
 export interface AuthCfg { email: boolean; phone: boolean; google: string | null }
-export class ApiError extends Error { constructor(public code: string, msg: string, public status = 0) { super(msg); } }
+export class ApiError extends Error { constructor(public code: string, msg: string, public status = 0, public details?: { need?: number; balance?: number }) { super(msg); } }
 
 let me: Me | null = null, checked: Promise<Me | null> | null = null;
 const subs = new Set<(m: Me | null) => void>();
@@ -18,8 +18,8 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   try {
     r = await fetch(apiBase() + path, { method: body === undefined ? 'GET' : 'POST', credentials: 'include', headers: body === undefined ? {} : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch { throw new ApiError('offline', 'Server bilan aloqa yoʻq. Internetni tekshiring yoki birozdan keyin urinib koʻring.'); }
-  const j = await r.json().catch(() => ({})) as { error?: string; message?: string };
-  if (!r.ok) throw new ApiError(j.error ?? 'server', j.message ?? 'Server xatosi', r.status);
+  const j = await r.json().catch(() => ({})) as { error?: string; message?: string; need?: number; balance?: number };
+  if (!r.ok) throw new ApiError(j.error ?? 'server', j.message ?? 'Server xatosi', r.status, { need: j.need, balance: j.balance });
   return j as T;
 }
 
@@ -41,3 +41,10 @@ export interface Order { id: number; pack: string; coins: number; amount: number
 export const payConfig = (): Promise<PayCfg> => call<PayCfg>('/pay/config');
 export const createOrder = (pack: string, provider: 'payme' | 'click' | 'multicard'): Promise<{ orderId: number; amount: number; coins: number; url: string }> => call('/pay/order', { pack, provider });
 export const orderStatus = (id: number): Promise<Order> => call<Order>(`/pay/order/${id}`);
+
+/* ---------- tanga sarfi: narx, toza eksport, haftalik sinov, tarix (account/pay.ts) ---------- */
+export const quote = (items: string[], areaHa = 0): Promise<{ coins: number; k: number; items: string[] }> => call('/quote', { items, areaHa });
+export const exportTicket = (items: string[], areaHa: number, stateHash: string): Promise<{ ticket: string; price: number; charged: number; balance: number; repeat: boolean }> => call('/export/ticket', { items, areaHa, stateHash });
+export const useTrial = (kind: string, ref?: string): Promise<{ free: boolean; left: number; charged: number; balance: number }> => call('/trial', { kind, ref });
+export interface HistItem { delta: number; reason: string; ref: string | null; created_at: string }
+export const history = (): Promise<HistItem[]> => call<{ items: HistItem[] }>('/me/history').then(r => r.items);

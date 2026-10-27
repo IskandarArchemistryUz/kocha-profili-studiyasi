@@ -17,6 +17,7 @@ import { mount, type DCLogic, type Mounted } from './dc';
 import { exportSvg, exportPdf, sendToChizmadon, saveJson, openJson, svgText, cleanSvg, exportPng, safeName } from './io';
 import { KESIM_OPTS_DEF, kesimDxf, type KesimOpts } from './kesimdxf';
 import { initStats } from '../core/stats';
+import '../account/pay';
 initStats('ks');
 
 type BoardId = 'a' | 'b' | 'c' | 'e' | 'grafika' | 'varaq';
