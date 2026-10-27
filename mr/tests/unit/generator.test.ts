@@ -67,7 +67,8 @@ describe('Generator: real (notekis) kvartallar', () => {
     expect(r.sections.length).toBeGreaterThan(2);
     expect(Math.min(...r.sections.filter(s => s.kind !== 'arka').map(s => s.floors))).toBeGreaterThanOrEqual(5);
     // 27.10: qarshi qator joylashtirishda (orthoFill) yoki keyin (facingCap) tushiriladi — natijada bitta qator
-    expect(new Set(r.sections.filter(x => x.face).map(x => `${Math.round(x.face!.n[0] * 10)},${Math.round(x.face!.n[1] * 10)}`)).size).toBe(1);
+    // (burchak qoʻli qisqartirilgach yon qoldiq seksiyalar ham boʻladi — lekin qarama-qarshi qaragan ikkinchi qator yoʻq)
+    expect(r.sections.some(x => x.face && x.face.n[1] < -0.9)).toBe(false);
   });
 });
 
@@ -110,5 +111,13 @@ describe('botiq kvartal: burchaklar', () => {
     // birlashgan dogʻ toʻrtburchak emas (≥ 6 uch)
     expect(Math.max(...c.map(s => s.ring.length))).toBeGreaterThanOrEqual(6);
     expect(r.notes.join(' ')).toContain('L-shakl');
+  });
+  it('burchak seksiyasi qoʻllari qisqa: tashqi qirra ≤ D + qoʻl + 18 m (kichik qoldiq ajratilmaydi)', () => {
+    const L: XY[] = [[0, 0], [200, 0], [200, 90], [90, 90], [90, 200], [0, 200]];
+    const g = { ...DEFAULT_GEN, maxF: 9, minF: 5, passages: false }, r = generate(L, g);
+    const c = r.sections.filter(s => s.kind === 'burchak');
+    expect(c.length).toBeGreaterThan(0);
+    const lim = g.depth + Math.max(10, 0.4 * g.secLen) + 18 + 1;
+    for (const s of c) for (let i = 0; i < s.ring.length; i++) { const p = s.ring[i], q = s.ring[(i + 1) % s.ring.length]; expect(Math.hypot(q[0] - p[0], q[1] - p[1])).toBeLessThanOrEqual(lim); }
   });
 });
