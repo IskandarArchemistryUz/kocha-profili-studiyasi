@@ -213,3 +213,20 @@ test('Overture Maps: OSM da yoʻq bino qoʻshiladi, manba koʻrsatiladi (32-band
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/overture_dark.png` });
 });
+
+/** 1-qadam «Kirish va yoʻllar»: har tutash yoʻl uchun kirish holati (ShNQ 2.07.06-24, 1-ilova) */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kirish va yoʻllar: magistral — chorraha/yon yoʻl, turar joy koʻchasi — toʻgʻridan-toʻgʻri · ${w}${dark ? ' · tungi' : ''}`, async ({ page, context }) => {
+  await mockNet(context, { overpass: 0 });
+  await page.setViewportSize({ width: w, height: 900 });
+  if (dark) await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
+  await newProject(page);
+  await page.click('#ctxLoad');
+  await expect(page.locator('#ctxSt')).toContainText('24 bino', { timeout: 15000 });
+  await page.click('#pickBlock');
+  const box = (await page.locator('#scene canvas').boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.locator('#accessBox [data-accv=warn]')).toHaveCount(1);
+  await expect(page.locator('#accessBox [data-accv=ok]').first()).toContainText('Toʻgʻridan-toʻgʻri kirish mumkin');
+  await expect(page.locator('#accWarn')).toHaveCount(0);
+  if (process.env.GX_SHOTS) { await page.locator('#accessBox').scrollIntoViewIfNeeded(); await page.screenshot({ path: `${process.env.GX_SHOTS}/kirish_yol_${w}${dark ? '_dark' : ''}.png` }); }
+});

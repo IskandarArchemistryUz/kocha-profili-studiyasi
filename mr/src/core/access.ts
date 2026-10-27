@@ -13,6 +13,20 @@ export const ROAD_GROUP: Record<string, RoadGroup> = {
   residential: 'mahalliy', unclassified: 'mahalliy', living_street: 'mahalliy', road: 'mahalliy',
   service: 'xizmat',
 };
+/**
+ * Uchastkaga kirish holati yoʻl toifasi boʻyicha (ShNQ 2.07.06-24, 1-ilova, asl matndan):
+ *  asosiy shahar yoʻli 1-sinf — «turli darajadagi chorrahalar (razvyazkalar) orqali transport vositalariga kirish»;
+ *  asosiy yoʻl 2-sinf — «chorrahalar va tutashuvlar orqali transport vositalariga kirish 300-400 m dan oshmaydi»;
+ *  shahar ahamiyatidagi asosiy koʻcha 1-sinf — «tutash binolarga xizmat koʻrsatish yon yoki mahalliy oʻtish yoʻllaridan»;
+ *  turar joylar hududidagi koʻchalar — «binolar va yer uchastkalariga toʻgʻridan-toʻgʻri kirishni taʼminlaydi».
+ * OSM toifasi → sinf moslashuvi taxminiy.
+ */
+export function accessVerdict(a: { cls: string; group: RoadGroup }): { s: 'ok' | 'warn' | 'info'; t: string } {
+  if (a.cls === 'motorway' || a.cls === 'trunk' || a.cls === 'motorway_link' || a.cls === 'trunk_link') return { s: 'warn', t: 'Toʻgʻridan-toʻgʻri kirish yoʻq — razvyazka yoki yon yoʻl orqali' };
+  if (a.group === 'magistral') return { s: 'warn', t: 'Kirish yon (mahalliy) yoʻldan yoki chorraha orqali, orasi 300–400 m dan oshmaydi' };
+  if (a.group === 'tuman') return { s: 'info', t: 'Kirish chorraha yoki tutashuv orqali' };
+  return { s: 'ok', t: 'Toʻgʻridan-toʻgʻri kirish mumkin' };
+}
 export interface Access { id: number; name: string; cls: string; group: RoadGroup; d: number; oneway: boolean; len: number }
 
 const pd = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0; return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t); };
