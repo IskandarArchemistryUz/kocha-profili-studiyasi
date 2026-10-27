@@ -691,7 +691,7 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-hs', type: 'hillshade', source: 'joy-dem', layout: { visibility: 'none' }, paint: { 'hillshade-exaggeration': 0.55, 'hillshade-shadow-color': isDark() ? '#000000' : '#6b5a48', 'hillshade-highlight-color': '#ffffff' } } as never, before);
   m.addSource('joy-slope', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-slope', type: 'raster', source: 'joy-slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8, 'raster-fade-duration': 0 } } as never, before);
-  for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
+  for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow', 'joy-cov']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   for (const id of ['joy-heat', 'joy-sun', 'joy-shadow']) m.addSource(id, { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
   m.addLayer({ id: 'joy-sun', type: 'raster', source: 'joy-sun', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } } as never, before);
@@ -720,6 +720,10 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-draw-p', type: 'circle', source: 'joy-draw', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 4, 'circle-color': '#fff', 'circle-stroke-color': '#2a6fb0', 'circle-stroke-width': 2 } });
   m.addLayer({ id: 'joy-ring-f', type: 'fill', source: 'joy-ring', paint: { 'fill-color': ACC, 'fill-opacity': 0.05 } });
   m.addLayer({ id: 'joy-ring', type: 'line', source: 'joy-ring', paint: { 'line-color': ACC, 'line-width': 1.6, 'line-dasharray': [3, 2.2] } });
+  // xizmatlar qamrovi (meʼyor radiusi, eng yaqini) va raqobatchilar zichligi — uslub tanlansa koʻrinadi
+  m.addLayer({ id: 'joy-cov-f', type: 'fill', source: 'joy-cov', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.08 } });
+  m.addLayer({ id: 'joy-cov-l', type: 'line', source: 'joy-cov', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'col'], 'line-width': 1.2, 'line-dasharray': [3, 3], 'line-opacity': 0.7 } });
+  m.addLayer({ id: 'joy-comp-hm', type: 'heatmap', source: 'joy-comp', layout: { visibility: 'none' }, paint: { 'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 13, 22, 17, 80], 'heatmap-intensity': 1, 'heatmap-opacity': 0.75, 'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(243,227,211,0)', 0.25, '#f3e3d3', 0.6, '#c79a6c', 1, '#7a5a3c'] } });
   m.addLayer({ id: 'joy-poi', type: 'circle', source: 'joy-poi', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 3, 17, 6], 'circle-color': ['get', 'col'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-opacity': ['case', ['get', 'in'], 1, 0.35], 'circle-stroke-opacity': ['case', ['get', 'in'], 1, 0.35] } } as never);
   // xizmatlar ikonkalari: rangli doira + oq piktogramma (canvas → rasm)
   for (const k of SVC_KINDS) if (!m.hasImage(`svc-${k}`)) m.addImage(`svc-${k}`, svcIcon(k), { pixelRatio: 2 });
@@ -761,6 +765,11 @@ function paintH(): void {
   (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r, k: x.kind }); }).filter(Boolean)) as never);
   const cp = isOn('raqobat') ? D.comp.v ?? [] : [];
   (m.getSource('joy-comp') as GeoJSONSource).setData(fc(cp.map(x => pt(x.at, { in: x.d <= S.r }))) as never);
+  { // qamrov: har turdan eng yaqini atrofida meʼyor radiusi (ShNQ 2.07.01-23, 38-jadval) — faqat «Qamrov radiusi» uslubida
+    const cov: unknown[] = [];
+    if (isOn('xizmat') && V('xizmat').st === 'qamrov') for (const k of SVC_KINDS) { let best: { at: LngLat; d: number } | null = null; for (const x of p) if (x.kind === k) { const d = distM(S.c, x.at); if (!best || d < best.d) best = { at: x.at, d }; } const r = svcDef(k).r; if (best && r && r <= 1000) cov.push({ type: 'Feature', properties: { col: SVC_COL[k] }, geometry: { type: 'Polygon', coordinates: [circleRing(best.at, r, 48)] } }); }
+    (m.getSource('joy-cov') as GeoJSONSource).setData(fc(cov) as never);
+  }
   // tarmoq modellari
   const nm = NM, toGeo = (i: number) => nm!.fr.toGeo(nm!.net.xy[i]);
   const wf: unknown[] = [], ff: unknown[] = [];
@@ -913,6 +922,11 @@ function focusMap(m: MLMap): void {
   const x = k('xizmat'), c = k('raqobat');
   set('joy-poi', 'circle-opacity', ['case', ['get', 'in'], x, 0.35 * x]); set('joy-poi', 'circle-stroke-opacity', ['case', ['get', 'in'], x, 0.35 * x]);
   set('joy-comp', 'circle-opacity', ['case', ['get', 'in'], c, 0.4 * c]); set('joy-comp', 'circle-stroke-opacity', c);
+  { const vis = (l: string, on: boolean) => { if (m.getLayer(l)) m.setLayoutProperty(l, 'visibility', on ? 'visible' : 'none'); };
+    const hm = isOn('raqobat') && V('raqobat').st === 'zichlik', cv = isOn('xizmat') && V('xizmat').st === 'qamrov';
+    vis('joy-comp-hm', hm); set('joy-comp-hm', 'heatmap-opacity', q('raqobat', 0.35, 0.9)); if (hm) { set('joy-comp', 'circle-opacity', 0.25 * c); set('joy-comp', 'circle-stroke-opacity', 0.4 * c); }
+    vis('joy-cov-f', cv); vis('joy-cov-l', cv); set('joy-cov-f', 'fill-opacity', 0.1 * x);
+    set('joy-flow', 'line-blur', V('oqim').st === 'nur' ? 2 + 4 * V('oqim').k : 0); }
   { const ic = isOn('xizmat') && V('xizmat').st === 'ikonka'; if (m.getLayer('joy-poi-i')) { m.setLayoutProperty('joy-poi-i', 'visibility', ic ? 'visible' : 'none'); m.setPaintProperty('joy-poi-i', 'icon-opacity', ['case', ['get', 'in'], x, 0.45 * x]); } if (ic) { set('joy-poi', 'circle-opacity', 0); set('joy-poi', 'circle-stroke-opacity', 0); } }
   roseK = k('shamol') * (isOn('shamol') && V('shamol').st === 'oqim' ? 0.45 : 1);
 }

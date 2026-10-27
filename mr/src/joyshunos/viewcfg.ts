@@ -15,10 +15,11 @@ export const VIEW: Record<string, ViewDef> = {
   issiqlik: { styles: [['sirt', 'Sirt'], ['izoterma', 'Izotermalar']], pals: [['Klassik', ['#2c6fb0', '#79b0d6', '#cfe3ee', '#f4f1e6', '#f7c9a0', '#ee8a5a', '#c43b2e']], ['Magma', ['#fcfdbf', '#fec488', '#fc8961', '#e85362', '#b73779', '#721f81', '#2c115f']], ['Faqat issiq', ['#fff5eb', '#fee6ce', '#fdd0a2', '#fdae6b', '#fd8d3c', '#e6550d', '#a63603']]], k: true },
   shovqin: { styles: [['zona', 'Zonalar'], ['kontur', 'Konturlar'], ['65', '≥ 65 dB']], pals: [['ISO 1996', ['#e9f0e4', '#d6e7b8', '#f3dd8a', '#f0a85c', '#d9603f', '#8e2c4f']], ['Pushti', ['#fde0ef', '#f9bcd8', '#f4a6c9', '#e0609c', '#c2416b', '#7a0f3c']]], k: true },
   shamol: { styles: [['oqim', 'Oqim chiziqlari'], ['roza', 'Faqat shamol guli']], pals: [['Yashil', ['#bfe3cf', '#5fb38a', '#2f8a66', '#145c40']], ['Moviy', ['#cfe3f5', '#7fb3e0', '#3a7fc2', '#16467e']], ['Toʻq sariq', ['#fde2bf', '#f6ad5f', '#e0782a', '#9c4512']]], k: true },
-  xizmat: { styles: [['ikonka', 'Ikonkalar'], ['nuqta', 'Nuqtalar']] },
+  xizmat: { styles: [['ikonka', 'Ikonkalar'], ['nuqta', 'Nuqtalar'], ['qamrov', 'Qamrov radiusi']] },
+  raqobat: { styles: [['nuqta', 'Nuqtalar'], ['zichlik', 'Zichlik']], k: true },
   quyosh: { k: true },
   piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh']], k: true },
-  oqim: { k: true },
+  oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur']], k: true },
 };
 export const view = (V: Record<string, LayerView> | undefined, id: string): Required<LayerView> => {
   const d = VIEW[id], v = V?.[id] ?? {};

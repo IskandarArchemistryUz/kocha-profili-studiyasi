@@ -155,3 +155,22 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`xarita usl
   await expect.poll(() => paint('bld', 'fill-color')).toBe('#e3d4bb');
   expect(errs).toEqual([]);
 });
+
+/** 2-bosqich: xizmatlar qamrovi, raqobatchilar zichligi */
+test('xizmat qamrovi va raqobatchilar zichligi', async ({ page }) => {
+  test.setTimeout(150_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await page.locator('[data-layer=xizmat] .lt').click(); await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Qamrov radiusi' }).click();
+  await expect.poll(() => vis(page, 'joy-cov-f')).toBe('visible');
+  await expect.poll(() => page.evaluate(() => ((window as any).joyMap.getSource('joy-cov')._data?.features ?? (window as any).joyMap.getSource('joy-cov').serialize().data.features).length)).toBeGreaterThan(0);
+  await page.locator('[data-layer=raqobat] .lt').click(); await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Zichlik' }).click();
+  await expect.poll(() => vis(page, 'joy-comp-hm')).toBe('visible');
+  await expect.poll(() => vis(page, 'joy-cov-f')).toBe('visible');   // boshqa qatlam uslubi saqlanadi
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_qamrov.png` });
+  await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
+  await expect.poll(() => vis(page, 'joy-comp-hm')).toBe('none');
+  expect(errs).toEqual([]);
+});
