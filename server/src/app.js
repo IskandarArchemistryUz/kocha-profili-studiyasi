@@ -156,7 +156,15 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   app.post('/pay/click/prepare', async (req) => pay.clickPrepare(req.body));
   app.post('/pay/click/complete', async (req) => pay.clickComplete(req.body));
   // Multicard «Callback (success)»
-  app.post('/pay/multicard/callback', async (req, reply) => { const r = await pay.multicardCallback(req.body, req.ip); return reply.code(r.status).send(r.body); });
+  app.post('/pay/multicard/callback', async (req, reply) => {
+    const r = await pay.multicardCallback(req.body, req.ip);
+    if (r.status !== 200 || r.body?.success !== true) {
+      // Tashxis: sabab va so'rov tuzilmasi (telefon va karta tokeni yozilmaydi; sign — faqat uzunligi)
+      const b = req.body && typeof req.body === 'object' ? req.body : {};
+      req.log.warn({ mc: { reason: r.body?.message, status: r.status, keys: Object.keys(b), store_id: b.store_id, invoice_id: b.invoice_id, amount: b.amount, uuid: b.uuid, ps: b.ps, signLen: b.sign ? String(b.sign).length : 0, ctype: req.headers['content-type'] } }, 'multicard callback rad etildi');
+    }
+    return reply.code(r.status).send(r.body);
+  });
 
   app.decorate('wallet', wallet);
   app.decorate('auth', auth);

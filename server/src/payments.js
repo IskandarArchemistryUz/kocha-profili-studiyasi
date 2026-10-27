@@ -10,6 +10,7 @@ import { PACKS } from './prices.js';
 export const PAYME_TIMEOUT = 43_200_000;   // 12 soat: yaratilgan, lekin bajarilmagan tranzaksiya eskiradi
 const ms = (d) => d.getTime();
 const md5 = (s) => createHash('md5').update(s).digest('hex');
+const sha1 = (s) => createHash('sha1').update(s).digest('hex');
 const eq = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && timingSafeEqual(x, y); };
 
 /** Payme xatosi: kod va uch tildagi xabar */
@@ -91,12 +92,19 @@ export function makePayments({ db, wallet, payme = null, click = null, multicard
     }
   }
   /** «Callback (success)»: javob {success:true} — toʻlov qabul qilindi; aks holda Multicard toʻlovni bekor qiladi */
-  async function multicardCallback(b, ip) {
+  /** Imzo: hujjatda md5(store_id+invoice_id+amount+secret); ishchi muhit sha1 ham yuborishi mumkin (webhook namunasi 40 belgili) — ikkalasi qabul qilinadi */
+  function mcSignOk(b) {
+    const got = String(b.sign).toLowerCase(), sec = multicard.secret;
+    const bases = [`${b.store_id}${b.invoice_id}${b.amount}${sec}`, `${b.uuid}${b.amount}${sec}`];
+    return bases.some((x) => eq(md5(x), got) || eq(sha1(x), got));
+  }
+  async function multicardCallback(raw, ip) {
     const no = (message) => ({ success: false, message });
     if (!multicard) return { status: 404, body: no('Multicard ulanmagan') };
     if (multicard.ips?.length && !multicard.ips.includes(String(ip))) return { status: 403, body: no('forbidden') };
+    const b = raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object' && raw.invoice_id == null ? raw.data : raw;
     if (!b || b.invoice_id == null || b.amount == null || !b.sign || !b.uuid) return { status: 400, body: no('Soʻrov notoʻgʻri') };
-    if (!eq(md5(`${b.store_id}${b.invoice_id}${b.amount}${multicard.secret}`), String(b.sign).toLowerCase())) return { status: 400, body: no('Imzo notoʻgʻri') };
+    if (!mcSignOk(b)) return { status: 400, body: no('Imzo notoʻgʻri') };
     if (String(b.store_id) !== String(multicard.storeId)) return { status: 400, body: no('Doʻkon notoʻgʻri') };
     const orderId = Number(b.invoice_id);
     return db.tx(async (q) => {
