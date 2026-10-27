@@ -62,18 +62,18 @@ test('narxlar batafsil: hisoblagich, maydon koeffitsiyenti, valyuta, til', async
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g/, r => r.abort());
   await page.goto(`http://127.0.0.1:${PORT}/narxlar-batafsil.html`);
-  // andoza: «Qoʻmitaga topshirish» (12+8+3+5 = 28) × 1,5 = 42
-  await expect(page.locator('#cTot')).toHaveText('42');
+  // narx modeli D: «Qoʻmitaga topshirish» (20+12+6+5 = 43) × 1,8 (10 ga) = 77
+  await expect(page.locator('#cTot')).toHaveText('77');
   await expect(page.locator('[data-pre="kom"]')).toHaveAttribute('aria-pressed', 'true');
-  await page.click('[data-k="2"]'); await expect(page.locator('#cTot')).toHaveText('56');
-  await page.click('[data-k="1"]'); await expect(page.locator('#cTot')).toHaveText('28');
-  await page.click('[data-it="png"]'); await expect(page.locator('#cTot')).toHaveText('29');
+  await page.click('[data-k="3.2"]'); await expect(page.locator('#cTot')).toHaveText('138');
+  await page.click('[data-k="1"]'); await expect(page.locator('#cTot')).toHaveText('43');
+  await page.click('[data-it="png"]'); await expect(page.locator('#cTot')).toHaveText('45');
   await expect(page.locator('[data-pre="kom"]')).toHaveAttribute('aria-pressed', 'false');
-  await page.click('[data-pre="all"]'); await expect(page.locator('#cTot')).toHaveText('49');
-  await expect(page.locator('#cSum')).toContainText(/162\s000/);
-  // koeffitsiyent faqat MR fayllariga: (12+8+3+5+10) × 2 + (10+1) = 87
-  await page.click('[data-k="2"]'); await expect(page.locator('#cTot')).toHaveText('87');
-  await expect(page.locator('#cFormula')).toContainText('38 × 2');
+  await page.click('[data-pre="all"]'); await expect(page.locator('#cTot')).toHaveText('75');
+  await expect(page.locator('#cSum')).toContainText(/248\s000/);
+  // hamma Master reja fayllari × k: 75 × 3,2 = 240
+  await page.click('[data-k="3.2"]'); await expect(page.locator('#cTot')).toHaveText('240');
+  await expect(page.locator('#cFormula')).toContainText('75 × 3,2');
   await page.click('[data-cur="usd"]'); await expect(page.locator('[data-usd="$10"]')).toHaveText('$10');
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   await expect(page.locator('h1')).toContainText('бесплатно');

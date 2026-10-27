@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 /** Tanga sarfi (27.10): toza yuklash (ticket), faqat-toza turlar, tanga yetmasa, haftalik sinov, tarix */
 const API = 'https://api.test';
 async function mockApi(page: Page, o: { balance?: number; trials?: number } = {}) {
-  const st = { balance: o.balance ?? 30, trials: o.trials ?? 3, tickets: [] as { items: string[]; areaHa: number; stateHash: string }[], trialCalls: [] as string[] };
+  const st = { balance: o.balance ?? 30, trials: o.trials ?? 1, gen: 0, spent: 0, tickets: [] as { items: string[]; areaHa: number; stateHash: string; project?: string }[], trialCalls: [] as { kind: string; project?: string }[] };
   await page.route(`${API}/**`, async r => {
     const u = new URL(r.request().url()), b = r.request().postDataJSON?.() ?? {};
     const cors = { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' };
@@ -20,7 +20,15 @@ async function mockApi(page: Page, o: { balance?: number; trials?: number } = {}
       return json(200, { ticket: 'x.y', price: need, k: 1, charged: need, balance: st.balance, repeat: false });
     }
     if (u.pathname === '/me/history') return json(200, { items: [{ delta: -3, reason: 'export', ref: 'ks.section@abc', created_at: '2026-10-27T18:00:00Z' }, { delta: 30, reason: 'payment', ref: '7', created_at: '2026-10-27T17:00:00Z' }] });
-    if (u.pathname === '/trial') { st.trialCalls.push(b.kind); if (st.trials > 0) { st.trials--; return json(200, { free: true, left: st.trials, charged: 0, balance: st.balance }); } st.balance -= 2; return json(200, { free: false, left: 0, charged: 2, balance: st.balance }); }
+    if (u.pathname === '/prices') return json(200, { items: {}, trials: { wind: { coins: 5, mr: true }, sun: { coins: 4, mr: true }, flats: { coins: 6, mr: true }, area: { coins: 1, mr: false }, gen: { coins: 1, mr: true } }, trialsPerWeek: 1, genFree: 3 });
+    if (u.pathname === '/project/info') return json(200, { spent: st.spent, cap: 195, k: 1, genFree: Math.max(0, 3 - st.gen) });
+    if (u.pathname === '/trial') {
+      st.trialCalls.push({ kind: b.kind, project: b.project });
+      if (b.kind === 'gen' && st.gen < 3) { st.gen++; return json(200, { free: true, left: 3 - st.gen, charged: 0, balance: st.balance }); }
+      if (b.kind !== 'gen' && st.trials > 0) { st.trials--; return json(200, { free: true, left: st.trials, charged: 0, balance: st.balance }); }
+      const c = { gen: 1, sun: 4, wind: 5, flats: 6 }[b.kind as 'gen'] ?? 1; st.balance -= c; st.spent += c; if (b.kind === 'gen') st.gen++;
+      return json(200, { free: false, left: 0, charged: c, balance: st.balance });
+    }
     return json(404, {});
   });
   await page.addInitScript(a => { sessionStorage.setItem('wm-test', '1'); localStorage.setItem('kps_auth', '1'); localStorage.setItem('kps_api', a); localStorage.setItem('kps_owner', '0'); }, API);
@@ -86,4 +94,32 @@ test('uchastka: 3 ga gacha — bepul; kattasi — «Loyihani ochish» (bekor —
   await page.fill('#rw', '280'); await page.click('#rectSite');   // 5,6 ga — shu pogʻona, qayta soʻralmaydi
   await expect(page.locator('#kSite b')).toHaveText(/^5,6/);
   expect(st.tickets).toHaveLength(1);
+});
+
+test('ogʻir hisob: haftalik 1 ta bepul, keyin narx bilan soʻraladi; «soʻramasdan yechilsin» — keyingi safar oynasiz', async ({ page }) => {
+  test.setTimeout(120_000);
+  const st = await mockApi(page, { balance: 30 });
+  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tiles?\./, r => r.fulfill({ status: 404, body: '' }));
+  await page.goto('./'); await page.click('#newP');
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
+  await expect(page.locator('#genGo .ptag')).toHaveText('bepul');
+  await page.click('#genGo');                                   // 1-bepul generatsiya
+  await expect.poll(() => st.trialCalls.filter(t => t.kind === 'gen').length).toBe(1);
+  expect(st.trialCalls[0].project).toMatch(/^p_/);
+  await page.click('[data-step=quyosh]');
+  await page.click('#insolGo');                                 // haftalik bepul
+  await expect(page.locator('#insolSt')).toContainText('oʻrtacha', { timeout: 30000 });
+  await expect(page.locator('#insolGo .ptag')).toHaveText('4 t');
+  await page.click('#insolGo');                                 // pullik — oyna
+  await expect(page.locator('#kdTrial')).toBeVisible();
+  await expect(page.locator('#kdTrialGo')).toContainText('4 tanga');
+  await expect(page.locator('#kdTrial')).toContainText('Bu loyihada: 0 / 195 t');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ogir_hisob.png` });
+  await page.check('#kdAuto'); await page.click('#kdTrialGo');
+  await expect(page.locator('.toast').last()).toContainText('4 tanga yechildi');
+  await page.click('#insolGo');                                 // soʻramasdan
+  await expect.poll(() => st.trialCalls.filter(t => t.kind === 'sun').length).toBe(3);
+  await expect(page.locator('#kdTrial')).toHaveCount(0);
+  expect(st.balance).toBe(22);
 });

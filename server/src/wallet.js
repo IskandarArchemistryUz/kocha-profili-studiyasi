@@ -2,7 +2,7 @@
    Balans — ledger yigʻindisi. Yechish foydalanuvchi qatorini qulflab (FOR UPDATE) bajariladi:
    bir vaqtda kelgan ikki soʻrov balansni minusga tushira olmaydi. */
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { priceOf, TRIALS, TRIALS_PER_WEEK } from './prices.js';
+import { priceOf, areaK, projectCap, TRIALS, TRIALS_PER_WEEK, GEN_FREE } from './prices.js';
 
 export class WalletError extends Error {
   constructor(code, msg, extra) { super(msg); this.code = code; Object.assign(this, extra); }
@@ -57,20 +57,42 @@ export function makeWallet({ db, secret, now = () => new Date() }) {
    * Toza eksport: narx serverda hisoblanadi, tanga yechiladi va imzolangan ruxsatnoma qaytadi.
    * Shu holatni (stateHash) shu fayllar toʻplamida qayta yuklash — bepul.
    */
-  async function exportTicket(userId, { items, areaHa = 0, stateHash }) {
+  const PROJ_RE = /^[\w-]{1,64}$/;
+  /** Loyiha shifti: shu loyihada qancha yechish mumkin (qolgan qismi bepul). Qatorni qulflaydi. */
+  async function capIn(q, userId, project, areaHa, coins) {
+    if (!project) return { pay: coins, spent: null, cap: null };
+    if (!PROJ_RE.test(project)) throw new WalletError('bad_project', 'loyiha identifikatori notoʻgʻri');
+    await q.query(`INSERT INTO project_spend (user_id, project) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, project]);
+    const { rows } = await q.query(`SELECT spent, gen_used FROM project_spend WHERE user_id = $1 AND project = $2 FOR UPDATE`, [userId, project]);
+    const cap = projectCap(areaHa), spent = rows[0].spent;
+    return { pay: Math.max(0, Math.min(coins, cap - spent)), spent, cap, genUsed: rows[0].gen_used };
+  }
+  async function addSpent(q, userId, project, coins, gen = 0) {
+    if (!project) return;
+    await q.query(`UPDATE project_spend SET spent = spent + $3, gen_used = gen_used + $4, updated_at = now() WHERE user_id = $1 AND project = $2`, [userId, project, coins, gen]);
+  }
+
+  /**
+   * Toza eksport: narx serverda hisoblanadi, tanga yechiladi va imzolangan ruxsatnoma qaytadi.
+   * Shu holatni (stateHash) shu fayllar toʻplamida qayta yuklash — bepul. project — loyiha shifti uchun.
+   */
+  async function exportTicket(userId, { items, areaHa = 0, stateHash, project }) {
     if (typeof stateHash !== 'string' || !/^[a-f0-9]{16,64}$/.test(stateHash)) throw new WalletError('bad_state', 'loyiha holati xeshi notoʻgʻri');
     const p = priceOf(items, areaHa);
     const bundle = p.items.join('+');
     return db.tx(async (q) => {
       const prev = await q.query(`SELECT coins FROM exports WHERE user_id = $1 AND bundle = $2 AND state_hash = $3`, [userId, bundle, stateHash]);
-      let charged = 0, bal;
+      let charged = 0, bal, capped = false;
       if (prev.rows.length) bal = await balance(userId, q);
       else {
-        bal = await debitIn(q, userId, p.coins, 'export', `${bundle}@${stateHash}`, `k=${p.k}`);
-        await q.query(`INSERT INTO exports (user_id, bundle, state_hash, coins) VALUES ($1, $2, $3, $4)`, [userId, bundle, stateHash, p.coins]);
-        charged = p.coins;
+        const c = await capIn(q, userId, project, areaHa, p.coins);
+        capped = c.pay < p.coins;
+        bal = c.pay > 0 ? await debitIn(q, userId, c.pay, 'export', `${bundle}@${stateHash}`, `k=${p.k}${project ? ` p=${project}` : ''}`) : await balance(userId, q);
+        await q.query(`INSERT INTO exports (user_id, bundle, state_hash, coins) VALUES ($1, $2, $3, $4)`, [userId, bundle, stateHash, c.pay]);
+        await addSpent(q, userId, project, c.pay);
+        charged = c.pay;
       }
-      return { ticket: makeTicket(userId, p.items, stateHash), price: p.coins, k: p.k, charged, balance: bal, repeat: !!prev.rows.length };
+      return { ticket: makeTicket(userId, p.items, stateHash), price: p.coins, k: p.k, charged, balance: bal, repeat: !!prev.rows.length, capped };
     });
   }
 
@@ -85,21 +107,42 @@ export function makeWallet({ db, secret, now = () => new Date() }) {
     return { userId: t.u, items: t.i, stateHash: t.h, expires: new Date(t.e * 1000) };
   }
 
-  /** Ogʻir hisob: haftasiga 3 tasi bepul, keyin TRIALS narxi */
-  async function useTrial(userId, kind, ref) {
-    if (!(kind in TRIALS)) throw new WalletError('bad_kind', `nomaʼlum hisob turi: ${kind}`);
-    const wk = weekKey(now());
+  /**
+   * Ogʻir hisob: haftasiga TRIALS_PER_WEEK tasi bepul, keyin narx × k (loyiha shifti bilan).
+   * gen («Variant taklif qil») — haftalik sinovga kirmaydi: har loyihada GEN_FREE tasi bepul.
+   */
+  async function useTrial(userId, kind, ref, project, areaHa = 0) {
+    const t = TRIALS[kind];
+    if (!t) throw new WalletError('bad_kind', `nomaʼlum hisob turi: ${kind}`);
+    const wk = weekKey(now()), coins = Math.round(t.coins * (t.mr ? areaK(areaHa) : 1));
     return db.tx(async (q) => {
+      if (kind === 'gen') {
+        if (!project) throw new WalletError('bad_project', 'loyiha koʻrsatilmagan');
+        const c = await capIn(q, userId, project, areaHa, coins);
+        if (c.genUsed < GEN_FREE) { await addSpent(q, userId, project, 0, 1); return { free: true, left: GEN_FREE - c.genUsed - 1, charged: 0, balance: await balance(userId, q), price: coins }; }
+        const bal = c.pay > 0 ? await debitIn(q, userId, c.pay, 'trial', `gen@${project}@${ref ?? randomUUID()}`) : await balance(userId, q);
+        await addSpent(q, userId, project, c.pay, 1);
+        return { free: false, left: 0, charged: c.pay, balance: bal, price: coins, capped: c.pay < coins };
+      }
       await q.query(`INSERT INTO trials (user_id, week, used) VALUES ($1, $2, 0) ON CONFLICT DO NOTHING`, [userId, wk]);
       const { rows } = await q.query(`SELECT used FROM trials WHERE user_id = $1 AND week = $2 FOR UPDATE`, [userId, wk]);
       if (rows[0].used < TRIALS_PER_WEEK) {
         await q.query(`UPDATE trials SET used = used + 1 WHERE user_id = $1 AND week = $2`, [userId, wk]);
-        return { free: true, left: TRIALS_PER_WEEK - rows[0].used - 1, charged: 0, balance: await balance(userId, q) };
+        return { free: true, left: TRIALS_PER_WEEK - rows[0].used - 1, charged: 0, balance: await balance(userId, q), price: coins };
       }
-      const coins = TRIALS[kind];
-      const bal = await debitIn(q, userId, coins, 'trial', `${kind}@${wk}@${ref ?? randomUUID()}`);
-      return { free: false, left: 0, charged: coins, balance: bal };
+      const c = await capIn(q, userId, project, areaHa, coins);
+      const bal = c.pay > 0 ? await debitIn(q, userId, c.pay, 'trial', `${kind}@${wk}@${ref ?? randomUUID()}`) : await balance(userId, q);
+      await addSpent(q, userId, project, c.pay);
+      return { free: false, left: 0, charged: c.pay, balance: bal, price: coins, capped: c.pay < coins };
     });
+  }
+
+  /** Loyiha holati: shu paytgacha sarf, shift, bepul generatsiyalar qoldigʻi */
+  async function projectInfo(userId, project, areaHa = 0) {
+    if (!PROJ_RE.test(String(project ?? ''))) throw new WalletError('bad_project', 'loyiha identifikatori notoʻgʻri');
+    const { rows } = await db.query(`SELECT spent, gen_used FROM project_spend WHERE user_id = $1 AND project = $2`, [userId, project]);
+    const spent = rows[0]?.spent ?? 0, gen = rows[0]?.gen_used ?? 0;
+    return { spent, cap: projectCap(areaHa), k: areaK(areaHa), genFree: Math.max(0, GEN_FREE - gen) };
   }
 
   async function trialsLeft(userId) {
@@ -113,5 +156,5 @@ export function makeWallet({ db, secret, now = () => new Date() }) {
     return rows;
   }
 
-  return { balance, credit, exportTicket, verifyTicket, useTrial, trialsLeft, history };
+  return { balance, credit, exportTicket, verifyTicket, useTrial, trialsLeft, history, projectInfo };
 }

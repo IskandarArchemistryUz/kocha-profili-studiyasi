@@ -100,9 +100,9 @@ import { authRequired } from '../account/config';
 import { needsLogin, ensureLogin } from '../account/gate';
 import { check as checkAuth, current as currentUser, onAuth, logout } from '../account/session';
 import { loginDialog } from '../account/login';
-import { isLinkOwner, setExportArea } from '../core/wm';
+import { isLinkOwner, setExportArea, setExportProject } from '../core/wm';
 import { buyDialog } from '../account/buy';
-import { coinsDialog, useHeavy, siteGate, siteOk } from '../account/pay';
+import { coinsDialog, useHeavy, siteGate, siteOk, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
@@ -301,11 +301,12 @@ export class Editor {
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Tangalar')), h('span', { class: 'v mono', id: 'acctBal' }, fmt(m.balance))),
         h('button', { class: 'btn btn-sm btn-primary', id: 'acctBuy', onclick: () => { this.closePop(); void buyDialog(); } }, tr('Tanga sotib olish')),
         h('button', { class: 'btn btn-sm', id: 'acctCoins', onclick: () => { this.closePop(); void coinsDialog(); } }, tr('Mening tangalarim')),
+        autoPayOn() ? h('button', { class: 'btn btn-sm btn-ghost', id: 'acctAutoOff', onclick: () => { autoPayOff(); this.closePop(); toast(tr('Bu loyihada endi har toʻlovdan oldin soʻraladi')); } }, tr('Soʻramasdan yechishni oʻchirish')) : '',
         h('button', { class: 'btn btn-sm', id: 'acctOut', onclick: () => { this.closePop(); void logout().then(() => { toast(tr('Hisobdan chiqdingiz')); if (needsLogin(this.step.id)) this.go(STEPS.find(x => x.id === 'uchastka')!); }); } }, tr('Chiqish'))));
       b.classList.add('acct-me'); b.querySelector('span')!.textContent = (who[0] ?? '?').toUpperCase(); b.title = who;
       box.replaceChildren(b);
     };
-    draw(); this.off.push(onAuth(draw));
+    draw(); this.off.push(onAuth(draw)); this.off.push(onPrices(() => this.root.querySelectorAll<HTMLElement>('[data-ptag]').forEach(el => { el.textContent = priceTag(el.dataset.ptag as Parameters<typeof priceTag>[0]); el.hidden = !el.textContent; })));   // faqat yozuvlar — panel qayta chizilmaydi (kiritilgan qiymatlar saqlanadi)
     if (authRequired() && !isLinkOwner()) void checkAuth();
     return box;
   }
@@ -977,6 +978,12 @@ export class Editor {
       h('span', { class: 't-small' }, tr('* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.')));
   }
 
+  /** Tugmadagi narx yozuvi (pullik hisob): «5 t» / «bepul»; egasi va hisob oʻchiq — yoʻq */
+  private ptag(kind: Parameters<typeof priceTag>[0]): HTMLElement | string {
+    const t = priceTag(kind);
+    return h('span', { class: 'ptag', 'data-ptag': kind, hidden: !t }, t);
+  }
+
   /** Uchastka chegarasini qoʻyish — bepul tarifda 3 ga gacha, kattasi — «Loyihani ochish» (account/pay.ts). */
   private async putSite(rings: LngLat[][], after?: () => void): Promise<void> {
     if (!await siteGate(this.store.doc.id, ringAreaM2(rings[0]) / 1e4)) { this.setTool(null); return; }
@@ -1078,6 +1085,7 @@ export class Editor {
 
   private async runInsolation(): Promise<void> {
     const doc = this.store.doc; if (!doc.site) return;
+    if (!await useHeavy('sun')) return;   // haftalik bepul yoki tanga
     const fr = frame(doc.origin), site = doc.site.rings.map(r => r.map(fr.toLocal));
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of site[0]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     const cell = Math.max(2, Math.sqrt((x1 - x0) * (y1 - y0) / 7000));
@@ -1223,7 +1231,7 @@ export class Editor {
       this.windRose(st),
       h('span', { class: 't-small', id: 'windSrc' }, tr(windSrcLine(src)), ` ${src === 'era5' ? ERA5_ATTR : TMYX_ATTR}.`),
       h('div', { class: 'field' }, h('label', {}, tr('Hisob yoʻnalishi (qayerdan esadi)')), sel),
-      h('button', { class: 'btn btn-block', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, tr(this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)'))));
+      h('button', { class: 'btn btn-block', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, tr(this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)'), this.wind.busy ? '' : this.ptag('wind'))));
     const w = this.wind.stats;
     if (w) {
       body.append(h('div', { class: 'seg sm', role: 'group' }, ...([['lawson', 'Qulaylik (Lawson)'], ['ratio', 'Tezlik nisbati']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.wind.mode === k, onclick: () => { this.wind.mode = k; this.showWind(); this.renderPanel(); } }, tr(t)))),
@@ -1245,7 +1253,7 @@ export class Editor {
         h('span', { class: 'num', id: 'sunInfo', style: 'font-size:13px;font-weight:600' }),
         range({ min: 5, max: 20, step: 0.25, value: this.sunTime, id: 'sunTime', 'aria-label': tf('Vaqt (${p})', { p: placeLabel(placeOf(this.store.doc.origin[0], this.store.doc.origin[1]), getLang()) }), oninput: v => { this.sunTime = v; this.applySun(); } }),
         h('div', { class: 'row t-small' }, h('span', {}, '05:00'), h('span', { class: 'grow', style: 'text-align:center' }, tf('Vaqt (${p})', { p: placeLabel(placeOf(this.store.doc.origin[0], this.store.doc.origin[1]), getLang()) })), h('span', {}, '20:00'))),
-      h('button', { class: 'btn btn-primary btn-block', id: 'insolGo', disabled: this.insol.busy, onclick: () => void this.runInsolation() }, tr(this.insol.busy ? 'Hisoblanmoqda…' : 'Insolyatsiya xaritasi (uchastka)')));
+      h('button', { class: 'btn btn-primary btn-block', id: 'insolGo', disabled: this.insol.busy, onclick: () => void this.runInsolation() }, tr(this.insol.busy ? 'Hisoblanmoqda…' : 'Insolyatsiya xaritasi (uchastka)'), this.insol.busy ? '' : this.ptag('sun')));
     const st = this.insol.stats;
     if (st) {
       const dt = DATES.find(x => x[0] === st.date)?.[1] ?? st.date;
@@ -1903,12 +1911,12 @@ export class Editor {
         [{ value: '', label: tr('— sahnada bosing yoki tanlang —'), selected: this.selBlock == null },
           ...plan.blocks.map((b, i) => ({ value: String(i), label: `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, sub: tr(useDef(b.use).name), selected: i === this.selBlock }))]),
       h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')), this.isoBtn(this.selBlock));
-    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => { let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); } }, tr('Hammasi'));
+    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) { const grp = u.parcelId ?? lab.id; this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, sections: [], drop: staleGen(this.store.doc, grp, u.rings[0], []) })); } } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
     if (socI != null) {
       body.append(this.socialSection(socI),
-        h('div', { class: 'row' }, h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => this.generateSocial(socI) }, tr('Joylashtirish')), allBtn(), clearBtn(socI)));
+        h('div', { class: 'row' }, h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => void useHeavy('gen').then(ok => { if (ok) this.generateSocial(socI); }) }, tr('Joylashtirish'), this.ptag('gen')), allBtn(), clearBtn(socI)));
       if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
     } else {
       const ft = h('b', { class: 'num', style: 'min-width:48px;text-align:right' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : tr('oʻchiq'));
@@ -1935,7 +1943,7 @@ export class Editor {
           h('div', { class: 'tiles c4', role: 'group', 'aria-label': tr('Joylashtirish moduli') }, ...PARK_MODS.map(k => h('button', { class: 'tile', 'aria-pressed': (g.parkModule ?? 'p90') === k, 'data-pmod': k, title: `${tr(PARK_MOD[k].name)}: ${tr(PARK_MOD[k].src)}`, onclick: () => { g.parkModule = k; this.renderPanel(); }, 'aria-label': tr(PARK_MOD[k].name), html: pg('pmod', k) + `<span>${tr(PARK_MOD[k].short)}</span>` }))),
           h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Joylar soni meʼyor boʻyicha'), h('span', { class: 'sub' }, tr('29-jadval talabi; yer osti sathlari avtomatik'))), sw({ id: 'gPNorm', label: tr('Joylar soni meʼyor boʻyicha'), on: g.parkNorm ?? true, onchange: v => { g.parkNorm = v; this.renderPanel(); } })))] : []),
         h('div', { class: 'row' },
-          h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { if (this.selBlock != null) this.generateBlock(this.selBlock); } }, tr('Variant taklif qil')),
+          h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (ok) this.generateBlock(i); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
           allBtn(), clearBtn(this.selBlock)));
       if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     }
@@ -3162,7 +3170,7 @@ export class Editor {
   private kpiAll = false;
   private renderKpi(): void {
     const c = this.last; if (!c) return;
-    setExportArea(c.d.siteHa ?? 0);   // toza eksport narxi (Master reja ×1 / ×1,5 / ×2)
+    setExportArea(c.d.siteHa ?? 0); setExportProject(this.store.doc.id);   // narx × k = √(ga/3), loyiha shifti
     const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms)[0];
     const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));
     const open = !this.el.drawer.hidden;

@@ -126,3 +126,13 @@ CREATE TABLE IF NOT EXISTS multicard_tx (
   receipt_url TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- loyiha boʻyicha sarf (narx modeli D, 28.10.2026): loyiha shifti va generatsiya hisobi
+CREATE TABLE IF NOT EXISTS project_spend (
+  user_id     BIGINT NOT NULL REFERENCES users(id),
+  project     TEXT NOT NULL,
+  spent       INT NOT NULL DEFAULT 0,
+  gen_used    INT NOT NULL DEFAULT 0,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, project)
+);
