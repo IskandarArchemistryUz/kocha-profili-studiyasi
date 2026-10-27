@@ -766,7 +766,7 @@ function renderVerdict(){
     warn.length?`<b>Asosiy talablarga mos</b><span>${warn.length} ta band komissiya yoki kelishuvni talab qiladi.</span>`:`<b>Talablarga mos</b>`;
   document.getElementById('probs').innerHTML=bad.concat(warn.filter(i=>i.r.tekshiruv!=="subyektiv")).map((i,n)=>{const f=FIX[i.r.parametr];const adv=ADVICE[i.r.parametr];
     return`<div class="prob ${i.st==="warn"?"warn":""}"><span class="t">${esc(human(i.r.parametr))}: ${esc(i.val)}</span>
-    <span class="m">Talab: ${esc(req(i.r)||i.r.manba.iqtibos)}${adv?". "+esc(adv):""}${i.msg&&i.msg!=="Komissiya ko'radi"?" "+esc(i.msg):""}</span>
+    <span class="m"><span>Talab:</span> <span>${esc(req(i.r)||i.r.manba.iqtibos)}</span>${adv?`. <span>${esc(adv)}</span>`:""}${i.msg&&i.msg!=="Komissiya ko'radi"?` <span>${esc(i.msg)}</span>`:""}</span>
     <span class="src">${esc(i.r.manba.bolim)} · ${i.r.manba.bet}-bet${i.r.qaror?" · talqin "+i.r.qaror:""}</span>
     ${f&&(i.sid||i.r.parametr==="ozbek_matni_ulushi")?`<button data-fix="${n}">Tuzatish</button>`:""}</div>`;}).join("");
   S._probs=bad.concat(warn.filter(i=>i.r.tekshiruv!=="subyektiv"));

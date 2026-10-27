@@ -439,7 +439,7 @@ function render(){
       v.t3.textContent=`${fmt(o.pp)} ${PPL}${o.st==="cut"?T3(" (qisqartirildi)"," (reduced)"," (сокращено)"):""}`;
     }else{v.bld.setAttribute("opacity",0);v.base.setAttribute("fill-opacity",.18);
       v.t2.textContent=fmt1(p.ha)+HA;
-      v.t3.textContent=o&&o.st==="rej"?T3("RAD ETILDI — sig'im tugagan","REFUSED — capacity used up","ОТКАЗАНО — ёмкость исчерпана"):(S.mode==="first"?T3("bo'sh — bosing","vacant — click","свободен — нажмите"):"");}
+      v.t3.textContent=o&&o.st==="rej"?T3("RAD ETILDI — sig'im tugagan","REFUSED — no capacity left","ОТКАЗАНО — нет ёмкости"):(S.mode==="first"?T3("bo'sh — bosing","vacant — click","свободен — нажмите"):"");}
     v.t1.textContent=p.id+(o&&o.n?`  #${o.n}`:"");
   });
   // capbar
