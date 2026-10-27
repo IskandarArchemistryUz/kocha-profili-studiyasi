@@ -2,6 +2,7 @@
  * Loyiha oynasi: chapda qadamlar qatori, yonida qadam paneli, markazda sahna, pastda koʻrsatkichlar.
  * Qadam almashganda faqat panel almashadi — sahna, kamera va hujjat joyida qoladi.
  */
+import { langMenu } from './langmenu';
 import type { LngLat, Project } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
@@ -17,7 +18,7 @@ import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { siteAccess, accessVerdict, type Access } from '../core/access';
 const HAJM = () => STEPS.find(x => x.id === 'hajm')!;
-import { tr, tf, getLang, setLang, LANGS, type Lang } from '../i18n';
+import { tr, tf, getLang, setLang, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
 import { check, range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
@@ -203,9 +204,8 @@ export class Editor {
     const save = h('span', { class: 'save', 'data-s': 'saved', role: 'status' }, h('i'), saveT);
     const seg = h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Koʻrinish') },
       ...([['plan', 'Reja'], ['axo', 'Akso'], ['persp', 'Persp']] as [ViewMode, string][]).map(([k, t]) => h('button', { 'data-view': k, 'aria-pressed': k === 'plan', onclick: () => this.setView(k) }, tr(t))));
-    // til: uz · en · ru (butun interfeys qayta chiziladi)
-    const lang = h('div', { class: 'seg sm langsw', role: 'group', 'aria-label': 'Til', id: 'langSw' },
-      ...LANGS.map(l => h('button', { 'data-lang': l.id, 'aria-pressed': l.id === getLang(), onclick: () => this.setLang(l.id) }, l.name)));
+    // til: 10 til, menyu (butun interfeys qayta chiziladi)
+    const lang = langMenu(l => { void this.setLang(l); });
     const theme = ib('themeBtn', isDark() ? 'Yorugʻ rejim' : 'Tungi rejim', isDark() ? ICON.sun : ICON.moon, () => toggleTheme(), 'ib sm');
     this.off.push(onTheme(() => { theme.replaceChildren(svgIcon(isDark() ? ICON.sun : ICON.moon)); theme.title = theme.ariaLabel = isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'; }));
     const top = h('div', { class: 'top glassbar' },
@@ -240,10 +240,9 @@ export class Editor {
   }
 
   /** Til almashtirish: barcha panellar qayta chiziladi (matnlar i18n dan) */
-  private setLang(l: Lang): void {
-    setLang(l);
+  private async setLang(l: Lang): Promise<void> {
+    await setLang(l);   // yangi til lugʻati yuklanguncha kutiladi
     this.scene.update(this.store.doc);   // xaritadagi yozuvlar (canvas) — yangi tilda
-    this.root.querySelectorAll('#langSw button').forEach(b => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.lang === l)));
     this.el.saveT.textContent = tr(this.el.save.dataset.s === 'saved' ? 'saqlandi' : this.el.save.dataset.s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!');
     this.closePop(); this.renderAll(); this.renderKpi(); this.renderToolPanel();
   }
@@ -294,7 +293,7 @@ export class Editor {
     const draw = () => {
       box.hidden = !authRequired();
       const m = currentUser();
-      if (!m) { box.replaceChildren(h('button', { class: 'btn btn-sm', id: 'acctIn', onclick: () => void loginDialog() }, tr('Kirish'))); return; }
+      if (!m) { box.replaceChildren(h('button', { class: 'btn btn-sm', id: 'acctIn', onclick: () => void loginDialog() }, tr('Hisobga kirish'))); return; }
       const who = m.name || m.email || m.phone || '';
       const b = this.popBtn('acctPop', who, () => h('div', { class: 'col acct-pop' },
         h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, who), m.email && m.email !== who ? h('span', { class: 'sub' }, m.email) : '')),

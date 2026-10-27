@@ -2,13 +2,14 @@
  * Transport modellari (app/transport.html) — Archemistry oʻzi yasagan past poligonli modellar koʻrigi (26.10.2026).
  * Model tanlash, aylantirib koʻrish, oʻlcham va uchburchaklar soni, GLB yuklab olish. Modellar: src/scene/vehicles.ts.
  */
+import { langMenu } from '../ui/langmenu';
 import '../ui/ds2.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { h, svgIcon, toast } from '../ui/dom';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
-import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
+import { tr, tf, setLang, onLang } from '../i18n';
 import { VEHICLES, buildVehicle, triCount, type VehicleKind } from '../scene/vehicles';
 
 const KINDS = Object.keys(VEHICLES) as VehicleKind[];
@@ -67,7 +68,7 @@ function draw(): void {
     h('header', { class: 'tr-top' },
       h('a', { class: 'btn btn-ghost btn-sm', href: './kochasoz.html' }, svgIcon('<path d="M15 6l-6 6 6 6"/>'), tr('Koʻchasoz')),
       h('b', {}, tr('Transport modellari')), h('span', { class: 'sp' }),
-      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Til') }, ...LANGS.map(l => h('button', { type: 'button', 'aria-pressed': l.id === getLang(), onclick: () => setLang(l.id as Lang) }, l.name))),
+      langMenu(l => { void setLang(l); }),
       h('button', { class: 'btn btn-ghost icon-btn', 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() }, svgIcon(isDark() ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' : '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'))),
     h('nav', { class: 'tr-list', 'aria-label': tr('Modellar') }, ...KINDS.map(k => h('button', { class: 'li', 'data-kind': k, 'aria-pressed': k === cur, onclick: () => show(k) }, h('span', {}, tr(VEHICLES[k].name)), h('small', {}, `${String(VEHICLES[k].L).replace('.', ',')} × ${String(VEHICLES[k].W).replace('.', ',')} m`)))),
     h('main', { class: 'tr-view-wrap' }, view,

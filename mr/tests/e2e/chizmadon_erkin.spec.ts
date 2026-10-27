@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 /** Kechki roʻyxat (26.10), 4-band: katakdagi xaritani maketdan ajratib erkin element qilish */
 test('Chizmadon: «Erkin» — bosh reja katakdan ajraladi, surish va oʻlcham oʻzgartirish mumkin', async ({ page }) => {
   test.setTimeout(150_000);
-  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile/, r => r.fulfill({ status: 404, body: '' }));
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');

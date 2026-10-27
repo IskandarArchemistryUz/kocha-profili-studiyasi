@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fx';
+import { test, expect, type Page, pickLang } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -113,10 +113,10 @@ test('tungi rejim va til: panel qorongʻi, inglizcha matn', async ({ page }) => 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   const bg = await page.locator('.joy-card.head').evaluate(e => getComputedStyle(e).backgroundColor);
   expect(bg).not.toBe('rgb(255, 255, 255)');
-  await page.locator('#langSw [data-lang=en]').click();
+  await pickLang(page, 'en');
   await expect(page.locator('.joy-card.head .t-small').first()).toHaveText('Site passport');
   await expect(page.locator('[data-layer=relyef] .nm')).toHaveText('Terrain');
-  await page.locator('#langSw [data-lang=uz]').click();
+  await pickLang(page, 'uz');
   expect(errs).toEqual([]);
 });
 

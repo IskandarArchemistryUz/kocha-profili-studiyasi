@@ -1,4 +1,4 @@
-import { test, expect } from './fx';
+import { test, expect, pickLang } from './fx';
 
 /** 10-band: ishlanayotgan dahani izolyatsiya qilish — tashqarisi yengil fon, ichkarisi toʻliq */
 test('izolyatsiya: bitta daha toʻliq, qolgani arvoh toʻr; chiqish — asl holat', async ({ page }) => {
@@ -38,7 +38,7 @@ test('izolyatsiya: bitta daha toʻliq, qolgani arvoh toʻr; chiqish — asl hola
     await page.screenshot({ path: `${shots}/iso-axo.png` });
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     await page.screenshot({ path: `${shots}/iso-dark.png` });
-    await page.click('[data-lang=en]'); await page.screenshot({ path: `${shots}/iso-en.png` });
+    await pickLang(page, 'en'); await page.screenshot({ path: `${shots}/iso-en.png` });
   }
   await page.click('#isoExit');
   const after = await stat();

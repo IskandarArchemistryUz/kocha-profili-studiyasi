@@ -31,7 +31,7 @@ const UL: Record<'uz' | 'en' | 'ru', Record<string, string>> = {
   uz: { T: 'Al', E: 'E', HV: 'EY', DH: 'Is', DC: 'So', G: 'Gz', W: 'Sv', SS: 'Kn', SD: 'Yk', UD: 'Dr', SL: 'Yo', UT: 'KT' },
   ru: { T: 'Св', E: 'Эл', HV: 'ЭВ', DH: 'Т', DC: 'Х', G: 'Г1', W: 'В1', SS: 'К1', SD: 'К2', UD: 'Др', SL: 'Осв', UT: 'Кол' },
 };
-export function ulbl(k: string): string { const l = getLang(); return (UL[l] ?? UL.uz)[k] ?? k; }
+export function ulbl(k: string): string { const l = getLang(); const m = l === 'uz' || l === 'en' || l === 'ru' ? UL[l] : l === 'uk' || l === 'kk' ? UL.ru : UL.en; return m[k] ?? k; }   // yangi tillar: kirill — ruscha, lotin — xalqaro belgilar
 
 /**
  * Sudrash: ekrandagi siljishni metrga aylantiradi. mpp — 1 px necha metr. onMove(dm, ev) har harakatda; onEnd — qoʻyib yuborilganda.

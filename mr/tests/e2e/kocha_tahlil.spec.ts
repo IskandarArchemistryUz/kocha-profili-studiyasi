@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fx';
+import { test, expect, type Page, pickLang } from './fx';
 import { join } from 'node:path';
 
 /** Joyshunos «Koʻcha tahlili» (A → B): sunʼiy shahar — sharq-gʻarb yoʻnalishidagi «Navoiy» koʻchasi, ikki tomonida binolar,
@@ -112,13 +112,13 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   await expect(page.locator('#stMx th.ix .k').first()).toBeVisible();
   await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/kocha-bloklar-1024-dark.png' });
   // inglizcha: yangi matnlar tarjima qilingan
-  await page.click('#langSw [data-lang=en]');
+  await pickLang(page, 'en');
   await expect(page.locator('#stHead .t-small')).toHaveText('Street analysis · A → B');
   await expect(page.locator('[data-card=tarmoq] .big')).toHaveText('11 intersections');
   await expect(page.locator('#stMx th.gr').first()).toHaveText('Walking');
   await expect(page.locator('#stBlk header .nm')).toContainText('Block 9');
   await page.screenshot({ path: '/tmp/claude-0/-home-claude/b25a01be-6cb9-5f0d-b8d2-9edfc4c1b0c5/scratchpad/kocha-en.png' });
-  await page.click('#langSw [data-lang=uz]');
+  await pickLang(page, 'uz');
   // hudud tahliliga qaytish — pasport
   await page.click('[data-an=hudud]');
   await expect(page.locator('#joyStrip')).toBeHidden();
