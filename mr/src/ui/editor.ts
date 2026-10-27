@@ -2238,8 +2238,9 @@ export class Editor {
 
   private uchastkaPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), area = this.last?.d.siteHa ?? 0;
-    const w = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: 120, id: 'rw', 'aria-label': tr('Eni, m') }) as HTMLInputElement;
-    const hh = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: 100, id: 'rh', 'aria-label': tr('Boʻyi, m') }) as HTMLInputElement;
+    // kiritilgan oʻlcham panel qayta chizilganda (masalan, atrof yuklanib boʻlganda) yoʻqolmasin
+    const w = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: this.rectWH[0], id: 'rw', 'aria-label': tr('Eni, m'), oninput: (e: Event) => { this.rectWH[0] = +(e.target as HTMLInputElement).value || 120; } }) as HTMLInputElement;
+    const hh = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: this.rectWH[1], id: 'rh', 'aria-label': tr('Boʻyi, m'), oninput: (e: Event) => { this.rectWH[1] = +(e.target as HTMLInputElement).value || 100; } }) as HTMLInputElement;
     const drawing = this.tool instanceof PolygonTool, picking = this.tool instanceof ClickTool;
     body.append(doc.site
       ? h('div', { class: 'group flat', style: 'padding:10px 12px;display:flex;align-items:center;gap:10px' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', { id: 'siteHa' }, `${fmt(area, 2)} ga`), h('span', {}, tr('Uchastka maydoni'))), h('span', { class: 'chip ok' }, h('i'), tr('Yopiq')))
@@ -2808,6 +2809,7 @@ export class Editor {
   private panelOpen = true;
   /** ochilgan <details> (id li) panel qayta chizilganda ham ochiq qoladi */
   private openDet = new Set<string>();
+  private rectWH: [number, number] = [120, 100];
   private keepDetails(root: HTMLElement): void {
     root.querySelectorAll<HTMLDetailsElement>('details[id]').forEach(d => {
       if (this.openDet.has(d.id)) d.open = true;
