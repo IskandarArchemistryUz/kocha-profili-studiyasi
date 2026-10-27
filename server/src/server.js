@@ -26,7 +26,7 @@ const app = await buildApp({
   payme: env.PAYME_MERCHANT_ID && env.PAYME_KEY ? { merchantId: env.PAYME_MERCHANT_ID, key: env.PAYME_KEY, test: env.PAYME_TEST === '1' } : null,
   click: env.CLICK_SERVICE_ID && env.CLICK_MERCHANT_ID && env.CLICK_SECRET ? { serviceId: env.CLICK_SERVICE_ID, merchantId: env.CLICK_MERCHANT_ID, secret: env.CLICK_SECRET } : null,
   multicard: env.MULTICARD_APP_ID && env.MULTICARD_SECRET && env.MULTICARD_STORE_ID ? {
-    appId: env.MULTICARD_APP_ID, secret: env.MULTICARD_SECRET, storeId: env.MULTICARD_STORE_ID,
+    appId: env.MULTICARD_APP_ID.trim(), secret: env.MULTICARD_SECRET.trim(), storeId: env.MULTICARD_STORE_ID.trim(),
     base: env.MULTICARD_BASE || 'https://mesh.multicard.uz',
     callbackUrl: env.MULTICARD_CALLBACK_URL || 'https://api.archemistry.uz/pay/multicard/callback',
     mxik: env.OFD_MXIK || '10305008002000000', packageCode: env.OFD_PACKAGE_CODE || '1514296',

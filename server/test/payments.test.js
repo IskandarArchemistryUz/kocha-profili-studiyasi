@@ -203,6 +203,14 @@ describe('Multicard', () => {
     expect(r3.json().success).toBe(true);
     expect((await me(c)).balance).toBe(30);
   });
+  it('callback: do\'kon raqamidagi bo\'shliq yoki \\r xalaqit bermaydi', async () => {
+    const keep = mc.storeId; mc.storeId = '6\r';
+    try {
+      const c = await login(), o = await order(c, 'p10', 'multicard');
+      expect(calls.find((x) => x.url.endsWith('/payment/invoice')).body.store_id).toBe(6);
+      expect((await app.inject({ method: 'POST', url: '/pay/multicard/callback', payload: cb(o.orderId, { uuid: 'u-cr' }) })).json().success).toBe(true);
+    } finally { mc.storeId = keep; }
+  });
   it('invoys yaratilmasa — 502 va buyurtma bekor', async () => {
     const c = await login(); failInvoice = true;
     const r = await post('/pay/order', { pack: 'p10', provider: 'multicard' }, { cookie: c });
