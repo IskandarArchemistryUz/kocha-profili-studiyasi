@@ -6,7 +6,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     test.setTimeout(120_000);
     const shots = process.env.GX_SHOTS;
     await page.setViewportSize({ width: w, height: 820 }); if (dark) await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
-    await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+    await page.goto('./'); await page.click('#newP'); await expect(page).toHaveURL(/#\/p\/p_/); await page.waitForFunction(() => !!(window as any).__mr?.store);
     await page.evaluate(() => {
       const m = (window as any).__mr, o = m.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
       m.store.dispatch({ type: 'setSite', rings: [[[-80, -60], [80, -60], [80, 60], [-80, 60]].map(G)] });
@@ -14,6 +14,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     });
     if (dark) await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await page.click('[data-step=hajm]');
+    await page.waitForFunction(() => (window as any).__mr.store.doc.buildings.some((b: any) => b.id === 'bt1'));
     await page.evaluate(() => { const m = (window as any).__mr; m.sel = 'bt1'; m.scene.select('bt1'); m.renderAll(); });
     await expect(page.locator('.btools')).toBeVisible();
     // asboblar paneli chap panel ostida qolmaydi
@@ -32,7 +33,11 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     const r1 = await fp(), c1 = cen(r1);
     expect(c1[0]).toBeCloseTo(2, 1); expect(c1[1]).toBeCloseTo(0, 1);
     expect(Math.abs(r1[1][1] - r1[0][1])).toBeGreaterThan(1);   // haqiqatan burildi
-    await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z');
+    // Ctrl+Z — burish qaytadi, bino siljigan joyida qoladi (siljitishlar bitta qadamga qoʻshilishi mumkin — shuning uchun faqat bir marta)
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => { const r = await fp(); return Math.abs(r[1][1] - r[0][1]); }).toBeLessThan(0.05);
+    // keyingi tekshiruvlar uchun binoni boshlangʻich joyiga qoʻyamiz
+    await page.evaluate(() => { const m = (window as any).__mr, o = m.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132]; m.store.dispatch({ type: 'updateBuilding', id: 'bt1', patch: { footprint: [[-15, -6], [15, -6], [15, 6], [-15, 6]].map(G) } }); });
     expect(cen(await fp())[0]).toBeCloseTo(0, 1);
     // oʻrtadagi nuqta (janubiy devor oʻrtasi) — devor parallel suriladi, burchaklar soni oʻzgarmaydi
     const scr = (x: number, y: number) => page.evaluate(([x, y]) => (window as any).__mr.scene.toScreen(x, y, (window as any).__mr.scene.H(x, y) + 0.8), [x, y]);
