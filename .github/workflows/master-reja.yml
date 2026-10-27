@@ -21,15 +21,29 @@ jobs:
         run: npm run build
       - name: Saytdagi app/ yigʻilgan natija bilan bir xilmi
         run: git diff --exit-code -- ../app ../css/ds2.css || (echo "app/ eskirgan — mr ichida npm run build qiling va natijani commit qiling" && exit 1)
+
+  e2e:
+    # E2E 4 ta parallel oqimda (yigʻilgan app/ repoda — har oqim qayta yigʻmaydi; app eskirmaganini «test» ishi tekshiradi)
+    runs-on: ubuntu-latest
+    permissions: { contents: read, pull-requests: write, issues: write }
+    defaults: { run: { working-directory: mr } }
+    strategy:
+      fail-fast: false
+      matrix: { shard: [1, 2, 3, 4] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: mr/package-lock.json }
+      - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: E2E testlar
-        run: npm run e2e 2>&1 | tee e2e.log; exit ${PIPESTATUS[0]}
+      - name: E2E testlar (${{ matrix.shard }}/4)
+        run: npx playwright test --shard=${{ matrix.shard }}/4 2>&1 | tee e2e.log; exit ${PIPESTATUS[0]}
         shell: bash
         env: { CI: 'true' }
       - name: E2E xatolari (PR izohiga)
         if: failure() && github.event_name == 'pull_request'
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          { echo '**E2E yiqildi** — urinish ${{ github.run_attempt }}:'; echo '```'; grep -E "✘|Error:|Expected|Received|expect\(|waiting for|Timeout" e2e.log | head -60; echo '```'; } > /tmp/c.md || true
+          { echo '**E2E yiqildi** — oqim ${{ matrix.shard }}/4, urinish ${{ github.run_attempt }}:'; echo '```'; grep -E "✘|Error:|Expected|Received|expect\(|waiting for|Timeout" e2e.log | head -60; echo '```'; } > /tmp/c.md
           cat /tmp/c.md >> "$GITHUB_STEP_SUMMARY"
           gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/c.md
