@@ -11,7 +11,7 @@
  */
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import type { Building, Project } from './doc';
-import { frame, area, type XY } from './geo';
+import { frame, area, signedArea, type XY } from './geo';
 import { computePlan, corridor, safeUnion, pointIn } from './plan';
 import { useDef } from './uses';
 import { inset, clean } from './generator';
@@ -60,12 +60,15 @@ function openSpace(blk: { rings: XY[][]; area: number; use: string; centroid: XY
 export const PLAY_NORM = { bolalar: 0.7, kattalar: 0.1, sport: 2.0, xojalik: 0.3 };
 const RES_USES = new Set(['turar', 'aralash']);
 
+export interface Entry { kind: 'arka' | 'oraliq' | 'podyezd'; p: XY; d: XY; w?: number }
 export interface Yard {
   /** kvartal indeksi (computePlan blocks) */
   block: number;
   paving: XY[][][]; green: XY[][][]; paths: XY[][][];
   play: { kind: keyof typeof PLAY_NORM; ring: XY[]; need: number; area: number }[];
   trees: XY[];
+  /** hovliga kirishlar (genplanda): arka, binolar oraligʻi (torets orasidan), podyezd — p nuqta, d hovli tomon yoʻnalish (birlik) */
+  entries?: Entry[];
   areas: { block: number; paving: number; green: number; play: number; paths: number };
 }
 
@@ -106,12 +109,13 @@ function landscapeRaw(doc: Project): Yard[] {
     const bsig = `${blk.use}|${blk.rings.map(sig).join('/')}`;
     if (blk.use === 'yashil' || blk.use === 'maydon' || blk.use === 'sport') { const y = cached(`o|${bsig}`, () => openSpace(blk, bi)); if (y) out.push({ ...y, block: bi }); return; }
     if (!RES_USES.has(blk.use)) return;
-    const own = bl.filter(x => pointIn(x.r.reduce((s, p) => [s[0] + p[0] / x.r.length, s[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings) && !x.b.z0);
+    const inBlk = (x: Own) => pointIn(x.r.reduce((s, p) => [s[0] + p[0] / x.r.length, s[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings);
+    const own = bl.filter(x => inBlk(x) && !x.b.z0), arches = bl.filter(x => x.b.gen?.kind === 'arka' && inBlk(x));
     if (!own.length) return;
     // 27.10 yengillik: kvartal hovlisi faqat shu kvartal binolari, avtoturargohi yoki shakli oʻzgarsa qayta hisoblanadi
     const parkIn = parkAll.filter(p => p.h.length && pointIn(p.h.reduce((a, q) => [a[0] + q[0] / p.h.length, a[1] + q[1] / p.h.length] as XY, [0, 0] as XY), blk.rings));
-    const key = `r|${bsig}|${doc.settings.m2PerPerson}|${doc.settings.netToGross}|${own.map(x => `${x.b.floors},${x.b.nonRes},${x.b.use},${sig(x.r)}`).join('#')}|${parkIn.map(p => sig(p.h)).join('#')}`;
-    const y0 = cached(key, () => yardOf(blk, bi, own, parkIn.map(p => [close(p.h)] as Polygon), doc));
+    const key = `r|${bsig}|${arches.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}|${doc.settings.netToGross}|${own.map(x => `${x.b.floors},${x.b.nonRes},${x.b.use},${sig(x.r)}`).join('#')}|${parkIn.map(p => sig(p.h)).join('#')}`;
+    const y0 = cached(key, () => { const y = yardOf(blk, bi, own, parkIn.map(p => [close(p.h)] as Polygon), doc); if (y) y.entries = entriesOf(blk.rings[0], own, arches); return y; });
     if (y0) out.push({ ...y0, block: bi });
   });
   return out;
@@ -122,6 +126,57 @@ function cached(k: string, f: () => Yard | null): Yard | null {
   const v = f(); CACHE.set(k, v); if (CACHE.size > 600) CACHE.delete(CACHE.keys().next().value!); return v;
 }
 type Own = { b: Building; r: XY[] };
+
+/**
+ * Hovliga kirishlar (eskiz): 1) arka — oʻtish markazi, yoʻnalish oʻtish boʻylab; 2) binolar oraligʻi — kvartal chetiga yaqin,
+ * eni ≥ 3,5 m (ShNQ 2.07.01-23, 667-band: yongʻin mashinasi yoʻlagi eni ≥ 3,5 m) boʻshliq; 3) podyezd — har turar joy seksiyasining
+ * hovli tomonidagi uzun devori oʻrtasi. Hovli tomoni — kvartal chegarasidan uzoqroq tomon.
+ */
+export function entriesOf(outer: XY[], own: Own[], arches: Own[]): Entry[] {
+  const out: Entry[] = [], cen = outer.reduce((s, p) => [s[0] + p[0] / outer.length, s[1] + p[1] / outer.length] as XY, [0, 0] as XY);
+  const unit = (v: XY): XY => { const L = Math.hypot(v[0], v[1]) || 1; return [v[0] / L, v[1] / L]; };
+  const inward = (p: XY, d: XY): XY => (ringD([p[0] + d[0] * 3, p[1] + d[1] * 3], outer) >= ringD([p[0] - d[0] * 3, p[1] - d[1] * 3], outer) ? d : [-d[0], -d[1]]);
+  // 1) arkalar
+  for (const a of arches) {
+    const r = a.r, c = r.reduce((s, p) => [s[0] + p[0] / r.length, s[1] + p[1] / r.length] as XY, [0, 0] as XY);
+    let best: XY = [1, 0], bl = 0; for (let i = 0; i < r.length; i++) { const e: XY = [r[(i + 1) % r.length][0] - r[i][0], r[(i + 1) % r.length][1] - r[i][1]], L = Math.hypot(e[0], e[1]); if (L > bl) { bl = L; best = e; } }
+    const d = inward(c, unit(best));   // belgi — arkaning hovli tomondagi ogʻzida (tom ostida koʻrinmaydi)
+    out.push({ kind: 'arka', p: [c[0] + d[0] * (bl / 2 + 3), c[1] + d[1] * (bl / 2 + 3)], d });
+  }
+  // 2) binolar oraligʻi (chetga yaqin, ≥ 3,5 m)
+  const res = own.filter(x => x.b.floors > 0);
+  const near = (p: XY) => ringD(p, outer);
+  for (let i = 0; i < res.length; i++) for (let j = i + 1; j < res.length; j++) {
+    let bd = Infinity, pa: XY = [0, 0], pb: XY = [0, 0];
+    for (const p of res[i].r) for (let k = 0; k < res[j].r.length; k++) { const a = res[j].r[k], b = res[j].r[(k + 1) % res[j].r.length], dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0, q: XY = [a[0] + dx * t, a[1] + dy * t], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; pa = p; pb = q; } }
+    for (const p of res[j].r) for (let k = 0; k < res[i].r.length; k++) { const a = res[i].r[k], b = res[i].r[(k + 1) % res[i].r.length], dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0, q: XY = [a[0] + dx * t, a[1] + dy * t], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; pa = q; pb = p; } }
+    if (bd < 3.5 || bd > 40) continue;
+    const m: XY = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2]; if (near(m) > 30) continue;
+    if (res.some((x, k) => k !== i && k !== j && pointIn(m, [x.r]))) continue;
+    if (arches.some(x => pointIn(m, [x.r]) || ringD(m, x.r) < 1.5)) continue;   // arka ostidagi oʻtish — «arka» sifatida
+    const g = unit([pb[0] - pa[0], pb[1] - pa[1]]), d = inward(m, [-g[1], g[0]]);
+    // haqiqiy oʻtish: koʻcha tomon (−d) binoga urilmasdan kvartal chetiga yetadi (ichki burchak — oʻtish emas)
+    let reach = false;
+    for (let t = 1; t <= 60; t += 1) { const q: XY = [m[0] - d[0] * t, m[1] - d[1] * t]; if (res.some(x => pointIn(q, [x.r]))) break; if (near(q) < 2 || !pointIn(q, [outer])) { reach = true; break; } }
+    if (!reach) continue;
+    if (out.some(e => Math.hypot(e.p[0] - m[0], e.p[1] - m[1]) < 8)) continue;
+    out.push({ kind: 'oraliq', p: m, d, w: Math.round(bd * 10) / 10 });
+  }
+  // 3) podyezdlar: turar joy seksiyasining hovli tomonidagi eng uzun devori oʻrtasi (1,5 m tashqarida)
+  for (const x of res) {
+    if (!useDef(x.b.use).res) continue;
+    const r = x.r; let best: { m: XY; n: XY; L: number; s: number } | null = null;
+    const ccw = signedArea(r) > 0;
+    for (let i = 0; i < r.length; i++) {
+      const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 6) continue;
+      const n: XY = ccw ? [(b[1] - a[1]) / L, -(b[0] - a[0]) / L] : [-(b[1] - a[1]) / L, (b[0] - a[0]) / L], m: XY = [(a[0] + b[0]) / 2 + n[0] * 1.5, (a[1] + b[1]) / 2 + n[1] * 1.5];
+      const sc = near(m) + L * 0.15 - Math.hypot(m[0] - cen[0], m[1] - cen[1]) * 0.05;
+      if (!best || sc > best.s) best = { m, n, L, s: sc };
+    }
+    if (best) out.push({ kind: 'podyezd', p: best.m, d: [-best.n[0], -best.n[1]] });
+  }
+  return out;
+}
 function yardOf(blk: ReturnType<typeof computePlan>['blocks'][number], bi: number, own: Own[], park: Polygon[], doc: Project): Yard | null {
     const B: Polygon = blk.rings.map(close);
     const fp = safeUnion(own.map(x => [close(x.r)] as Polygon));
