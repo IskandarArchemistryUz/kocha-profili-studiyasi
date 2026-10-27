@@ -15,7 +15,7 @@ import { h, svgIcon, fmt, toast } from '../ui/dom';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
-import { mapStyle, basePrefs, setBasePrefs, PALETTES } from '../context/mapstyle';
+import { mapStyle, basePrefs, setBasePrefs, PALETTES, type CustomKey } from '../context/mapstyle';
 import { initEsriKey } from '../context/esrikey';
 import { geocode, type Place } from '../context/geocode';
 import { bboxAround } from '../context/osm';
@@ -72,7 +72,9 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
+interface State { siteSt?: SiteSt; c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
+/** uchastka uslubi xaritada */
+type SiteSt = 'kontur' | 'yashil' | 'shtrix' | 'yorug';
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
 const S: State = (() => {
   try { const o = JSON.parse(localStorage.getItem('joy-state') || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
@@ -83,7 +85,7 @@ const isOn = (id: LayerId) => S.on.includes(id);
 /** Faol qatlam: tanlangani yoqilgan boʻlsa — u, aks holda oxirgi yoqilgani */
 const actId = (): LayerId | undefined => (S.act && isOn(S.act) ? S.act : [...S.on].reverse().find(id => LAYERS.some(l => l.id === id && l.ready)));
 const FOCUS_DIM = 0.3;
-let viewOpen = false;
+let viewOpen = (() => { try { return localStorage.getItem('joy-view-open') !== '0'; } catch { return true; } })();   // prototipdagidek sukut boʻyicha ochiq
 const V = (id: LayerId) => view(S.v, id);
 function setView(id: LayerId, p: LayerView, live?: boolean): void {
   S.v = { ...S.v, [id]: { ...S.v?.[id], ...p } };
@@ -491,7 +493,7 @@ function renderRightH(): void {
   // faol qatlam kartasi — pasportdan keyin birinchi, kattaroq
   const a = actId(), ai = cards.findIndex(c => c.dataset.card === (a === 'nishab' ? 'relyef' : a));
   if (ai > 1) cards.splice(1, 0, cards.splice(ai, 1)[0]);
-  if (ai > 0) { cards[1].classList.add('focus'); const vp = a ? viewPanel(a, view(S.v, a), viewOpen, { toggle: () => { viewOpen = !viewOpen; renderRight(); }, set: (pp, live) => setView(a, pp, live) }) : null; if (vp) cards[1].querySelector('header')!.after(vp); }
+  if (ai > 0) { cards[1].classList.add('focus'); const vp = a ? viewPanel(a, view(S.v, a), viewOpen, { toggle: () => { viewOpen = !viewOpen; try { localStorage.setItem('joy-view-open', viewOpen ? '1' : '0'); } catch { /* */ } renderRight(); }, set: (pp, live) => setView(a, pp, live) }) : null; if (vp) cards[1].querySelector('header')!.after(vp); }
   const soonOn = LAYERS.filter(l => !l.ready);
   cards.push(h('article', { class: 'joy-card soonc' }, h('div', { class: 't-small' }, tr('Keyingi bosqichda')),
     h('div', { class: 'chips' }, ...soonOn.map(l => h('span', { class: 'chip' }, h('i', { style: `background:${l.color}` }), tr(l.name))))));
@@ -518,7 +520,7 @@ function renderBase(): void {
   baseSw.replaceChildren(h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fon xarita') },
     ...([['stil', 'Stil'], ['sat', 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': S.base === k, onclick: () => { S.base = k; save(); renderBase(); restyle(); } }, tr(n)))),
     h('button', { type: 'button', class: 'joy-palbtn', id: 'palBtn', 'aria-expanded': palOpen, title: tr('Xarita uslubi'), onclick: () => { palOpen = !palOpen; renderBase(); } }, h('i', { style: `background:linear-gradient(135deg, ${P.bg} 0 45%, ${P.bld} 45% 70%, ${P.water} 70%)` }), tr(P.n), ic(ICON.chev)),
-    ...(palOpen ? [palMenu(() => { palOpen = false; S.base = 'stil'; save(); renderBase(); restyle(); })] : []));
+    ...(palOpen ? [palMenu(() => { palOpen = false; S.base = 'stil'; save(); renderBase(); restyle(); }, true)] : []));
 }
 
 /* ---------------- maʼlumot yuklash ---------------- */
@@ -609,12 +611,51 @@ const fc = (features: unknown[]) => ({ type: 'FeatureCollection', features });
 const pt = (c: LngLat, p: Record<string, unknown> = {}) => ({ type: 'Feature', properties: p, geometry: { type: 'Point', coordinates: c } });
 /** Palitra: foydalanuvchi tanlovi; tungi rejimda sukut boʻyicha «Grafit» */
 function palKey(): string { const p = basePrefs().pal; return isDark() && p === 'arch' ? 'dark' : p; }
-function style(): unknown { return mapStyle(S.base, palKey(), basePrefs().labels); }
+function style(): unknown { return mapStyle(S.base, palKey(), basePrefs().labels, basePrefs().custom); }
 let palOpen = false;
-function palMenu(onPick: () => void): HTMLElement {
+/** Qoʻlda rang: qaysi element va namunalar (prototip «Joyshunos qatlam uslublari») */
+const CUSTOM_T: [CustomKey, string][] = [['bld', 'Binolar'], ['road', 'Koʻchalar'], ['park', 'Yashil'], ['water', 'Suv'], ['bg', 'Fon']];
+const SWATCH = ['#ffffff', '#f6f6f5', '#f1efea', '#e9e4da', '#dedad2', '#c9c2b5', '#9a978f', '#5c5a55', '#2a2d32', '#141518', '#0e0f11', '#e2ead8', '#c3d3b4', '#7fa65a', '#cfe1ea', '#8fb6d4', '#24507e', '#f4dcb4', '#e8a317', '#c0643a'];
+const SITE_ST: [SiteSt, string][] = [['kontur', 'Kontur'], ['yashil', 'Yashil'], ['shtrix', 'Shtrix'], ['yorug', 'Yorugʻ']];
+let customT: CustomKey = 'bld';
+/** Fon rangi qoʻlda — xarita uslubi qayta yuklanmaydi (yengil: faqat paint) */
+function applyCustom(): void {
+  const m = map; if (!m || S.base !== 'stil') return;
+  const p = { ...PALETTES[palKey()], ...basePrefs().custom }, set = (l: string, k: string, v: string) => { if (m.getLayer(l)) m.setPaintProperty(l, k, v); };
+  set('bg', 'background-color', p.bg); set('park', 'fill-color', p.park); set('green', 'fill-color', p.park); set('water', 'fill-color', p.water); set('wway', 'line-color', p.water); set('bld', 'fill-color', p.bld);
+  for (const r of ['min', 'ter', 'maj']) { set(`r${r}`, 'line-color', p.road); if (basePrefs().custom.road) set(`r${r}-c`, 'line-color', p.road); }
+}
+function palMenu(onPick: () => void, more = false): HTMLElement {
   const cur = palKey();
-  return h('div', { class: 'joy-pal', role: 'listbox', 'aria-label': tr('Xarita uslubi') }, ...Object.entries(PALETTES).map(([k, p]) => h('button', { type: 'button', role: 'option', 'aria-selected': k === cur, 'data-pal': k, title: tr(p.n), onclick: () => { setBasePrefs({ pal: k }); onPick(); } },
+  const list = h('div', { class: 'joy-pal', role: 'listbox', 'aria-label': tr('Xarita uslubi') }, ...Object.entries(PALETTES).map(([k, p]) => h('button', { type: 'button', role: 'option', 'aria-selected': k === cur, 'data-pal': k, title: tr(p.n), onclick: () => { setBasePrefs({ pal: k }); onPick(); } },
     h('i', { style: `background:linear-gradient(135deg, ${p.bg} 0 45%, ${p.bld} 45% 70%, ${p.water} 70%)` }), tr(p.n))));
+  if (!more) return list;
+  const cu = basePrefs().custom, now = { ...PALETTES[cur], ...cu }[customT];
+  list.append(
+    h('div', { class: 'joy-pal-sec' }, h('b', {}, tr('Ranglarni qoʻlda')),
+      Object.keys(cu).length ? h('button', { type: 'button', class: 'joy-pal-reset', id: 'palReset', onclick: () => { setBasePrefs({ custom: {} }); applyCustom(); renderBase(); } }, tr('Tiklash')) : ''),
+    h('div', { class: 'seg sm joy-pal-seg', role: 'group', 'aria-label': tr('Ranglarni qoʻlda') }, ...CUSTOM_T.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': customT === k, 'data-ct': k, onclick: () => { customT = k; renderBase(); } }, tr(n)))),
+    h('div', { class: 'joy-sws', role: 'group', 'aria-label': tr('Rang') }, ...SWATCH.map(c => h('button', { type: 'button', class: 'joy-sw', 'data-sw': c, 'aria-pressed': now?.toLowerCase() === c, 'aria-label': c, title: c, style: `background:${c}`, onclick: () => { setBasePrefs({ custom: { ...basePrefs().custom, [customT]: c } }); applyCustom(); renderBase(); } }))),
+    h('div', { class: 'joy-pal-sec' }, h('b', {}, tr('Uchastka'))),
+    h('div', { class: 'seg sm joy-pal-seg', role: 'group', 'aria-label': tr('Uchastka uslubi') }, ...SITE_ST.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': (S.siteSt ?? 'kontur') === k, 'data-site-st': k, onclick: () => { S.siteSt = k; save(); applySite(); renderBase(); } }, tr(n)))));
+  return list;
+}
+/** Uchastka uslubi: kontur (sukut), yashil dogʻ, shtrix, yorugʻ chegara */
+function applySite(): void {
+  const m = map; if (!m || !m.getLayer('joy-site')) return;
+  const st = S.siteSt ?? 'kontur', set = (l: string, k: string, v: unknown) => { if (m.getLayer(l)) m.setPaintProperty(l, k, v as never); };
+  set('joy-site-f', 'fill-color', st === 'yashil' ? '#9fdc7c' : '#d2492f');
+  set('joy-site-f', 'fill-opacity', st === 'yashil' ? 0.75 : st === 'shtrix' ? 0 : st === 'yorug' ? 0.22 : 0.12);
+  if (m.getLayer('joy-site-h')) m.setLayoutProperty('joy-site-h', 'visibility', st === 'shtrix' ? 'visible' : 'none');
+  if (m.getLayer('joy-site-g')) m.setLayoutProperty('joy-site-g', 'visibility', st === 'yorug' ? 'visible' : 'none');
+  set('joy-site', 'line-dasharray', st === 'kontur' ? [3, 2] : [1, 0]);
+  set('joy-site', 'line-width', st === 'kontur' ? 2 : 2.6);
+}
+/** Shtrix uchun 12×12 diagonal naqsh */
+function hatchImg(): ImageData {
+  const n = 12, d = new Uint8ClampedArray(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const on = Math.abs(((x + y) % n) - n / 2) < 1.2, o = (y * n + x) * 4; d[o] = 0xe0; d[o + 1] = 0x46; d[o + 2] = 0x2a; d[o + 3] = on ? 220 : 0; }
+  return new ImageData(d, n, n);
 }
 async function initMap(): Promise<void> {
   await initEsriKey();   // sunʼiy yoʻldosh fonining kaliti (boʻlmasa — kalitsiz zaxira)
@@ -623,7 +664,7 @@ async function initMap(): Promise<void> {
   map = new ml.Map({ container: mapEl, style: style() as never, center: S.c as [number, number], zoom: S.z ?? 15, attributionControl: { compact: true }, maxPitch: 0, dragRotate: false } as never);
   map.addControl(new ml.NavigationControl({ showCompass: false }), 'bottom-right');
   let framed = false;
-  map.on('style.load', () => { addOverlays(); paint(); if (!framed) { framed = true; frame(0); } });
+  map.on('style.load', () => { addOverlays(); applySite(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
   map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
@@ -669,7 +710,10 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-arr', type: 'symbol', source: 'joy-arr', layout: { visibility: 'none', 'icon-image': 'joy-arrow', 'icon-rotate': ['get', 'r'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['get', 's'] }, paint: { 'icon-color': isDark() ? '#f4dcb4' : '#7a3a1c' } } as never);
   m.addLayer({ id: 'joy-walk', type: 'line', source: 'joy-walk', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['match', ['get', 'b'], 0, '#3f3a9e', 1, '#7b74d6', '#b9b4ef'], 'line-width': ['match', ['get', 'b'], 0, 3.5, 1, 2.6, 2] } } as never);
   m.addLayer({ id: 'joy-flow', type: 'line', source: 'joy-flow', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['interpolate', ['linear'], ['get', 'f'], 0.1, '#c9d4f5', 0.5, '#6f82e0', 1, '#1f2f9e'], 'line-width': ['interpolate', ['linear'], ['get', 'f'], 0.1, 1, 1, 7], 'line-opacity': 0.9 } } as never);
+  if (!m.hasImage('joy-hatch')) m.addImage('joy-hatch', hatchImg());
+  m.addLayer({ id: 'joy-site-g', type: 'line', source: 'joy-site', layout: { visibility: 'none' }, paint: { 'line-color': '#ff5a36', 'line-width': 12, 'line-blur': 9, 'line-opacity': 0.7 } });
   m.addLayer({ id: 'joy-site-f', type: 'fill', source: 'joy-site', paint: { 'fill-color': '#d2492f', 'fill-opacity': 0.12 } });
+  m.addLayer({ id: 'joy-site-h', type: 'fill', source: 'joy-site', layout: { visibility: 'none' }, paint: { 'fill-pattern': 'joy-hatch' } });
   m.addLayer({ id: 'joy-site', type: 'line', source: 'joy-site', paint: { 'line-color': '#d2492f', 'line-width': 2, 'line-dasharray': [3, 2] } });
   m.addLayer({ id: 'joy-draw-f', type: 'fill', source: 'joy-draw', filter: ['==', '$type', 'Polygon'], paint: { 'fill-color': '#2a6fb0', 'fill-opacity': 0.12 } });
   m.addLayer({ id: 'joy-draw-l', type: 'line', source: 'joy-draw', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#2a6fb0', 'line-width': 2 } });
