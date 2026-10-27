@@ -42,6 +42,12 @@ export class Store {
     return next;
   }
 
+  /** Tarixga yozmasdan tuzatish (masalan, atrof qayta yuklangach id'larni moslash) — foydalanuvchi amali emas */
+  amend(c: Command): Project {
+    const next = apply(this.cur, c); this.cur = next;
+    this.emit({ doc: next, reason: 'dispatch', label: label(c) }); return next;
+  }
+
   undo(): boolean {
     const e = this.past.pop(); if (!e) return false;
     this.future.push({ doc: this.cur, label: e.label, t: this.clock() });
