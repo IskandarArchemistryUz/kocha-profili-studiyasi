@@ -20,6 +20,6 @@ describe('seksiyalar ulanishi', () => {
   });
   it('qavariq kvartal (perimetr) — avvalgidek', () => {
     const R: XY[] = [[0, 0], [140, 0], [140, 110], [0, 110]];
-    expect(generateBase(R, DEFAULT_GEN).sections.length).toBe(12);
+    expect(generateBase(R, DEFAULT_GEN).sections.filter(s => s.kind !== 'arka').length).toBe(12);
   });
 });

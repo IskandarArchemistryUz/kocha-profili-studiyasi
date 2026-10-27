@@ -12,11 +12,11 @@ import { freeRect } from './labels';
 import type { XY } from './geo';
 import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
-import { squareSections, avoidObstacles, type Obstacle3 } from './genfix';
+import { squareSections, avoidObstacles, assignEnds, type Obstacle3 } from './genfix';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
-export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo';
+export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo' | 'arka';
 export type ParkingKind = 'yoq' | 'yer_osti' | 'stilobat' | 'yer_usti';
 
 export interface GenParams {
@@ -55,7 +55,7 @@ export interface GenOpts { use?: string; aptNet?: number; netToGross?: number; /
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
 /** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
-export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string }
+export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; /** derazasiz torets qirralari (ring[i]→ring[i+1]); generatsiyada belgilanadi */ blind?: number[]; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string }
 export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number; need?: number; module?: ParkModule; stalls?: XY[][]; aisles?: XY[][] }
 export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[]; parking?: GenParking; typology?: Typology; far?: number }
 
@@ -133,6 +133,8 @@ function minWidth(r: XY[]): number {
 }
 
 const FLOOR_H = 3.3;
+/** arka ostidagi ochiq balandlik, qavatlarda (2 × 3,3 = 6,6 m ≥ 4,25 m) */
+export const ARCH_F = 2;
 
 export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult {
   const notes: string[] = [];
@@ -269,7 +271,12 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
       const rect = (t0: number, t1: number): XY[] => { const oa = add(base, mul(u, t0)), ob = add(base, mul(u, t1)); return [oa, ob, add(ob, mul(N, D)), add(oa, mul(N, D))]; };
       placed.push({ ring: rect(r0, r1), u });
       // hovliga oʻtish (arka) — keyingi bosqichda seksiya ichida; bu yerda tasma uzluksiz (L/T kvartal bitta zanjir)
-      const cuts: [number, number][] = [[r0, r1]];
+      const cuts: [number, number][] = [], arches: XY[][] = [];
+      if (g.passages && r1 - r0 > 70) {
+        const m = Math.max(1, Math.floor((r1 - r0) / 100)); let s1 = r0;
+        for (let k = 1; k <= m; k++) { const gp = r0 + (r1 - r0) * k / (m + 1); cuts.push([s1, gp - 3]); s1 = gp + 3; arches.push(rect(gp - 3, gp + 3)); }
+        cuts.push([s1, r1]);
+      } else cuts.push([r0, r1]);
       for (const [c0, c1] of cuts) {
         const sp = spans(c0, c1, g.secLen, !!g.exact);
         sp.forEach(([ta, tb], k) => {
@@ -279,6 +286,7 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
           meta.push({ edge: i, first: k === 0 && c0 === r0, last: k === sp.length - 1 && c1 === r1 });
         });
       }
+      for (const ar of arches) { sections.push({ ring: ar, floors: 1, kind: 'arka', nonRes: 0, z0: ARCH_F }); meta.push({ edge: i, first: false, last: false }); }   // arkalar — tasma seksiyalaridan keyin (facingCap tartibi oʻzgarmasin)
     }
   }
   if (!sections.length) { notes.push('Seksiya joylashmadi — kvartal bu chuqurlik uchun juda kichik yoki tor'); return { sections, capFloors: null, notes }; }
@@ -307,6 +315,41 @@ function mergeTouching(S: GenSection[]): number {
     if (!done) break;
   }
   return cnt;
+}
+
+/**
+ * Yakka «uzilib qolgan» boʻlak: hech bir seksiyaga tegmaydi, lekin boshqasiga meʼyordan yaqin (uzun tomon ↔ torets 2·Hmax·0,3, ≥ 6 m) —
+ * odatda qarshi qator olib tashlangach oʻtkir uchda qoladi; olib tashlanadi (yolgʻiz seksiyali kvartal tegilmaydi).
+ */
+function dropStrays(S: GenSection[], gap: number, notes: string[]): void {
+  if (S.length < 2) return;
+  const segD = (p: XY, r: XY[]) => { let d = Infinity; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], ab = sub(b, a), L2 = ab[0] * ab[0] + ab[1] * ab[1], t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / L2)) : 0; d = Math.min(d, len(sub(p, add(a, mul(ab, t))))); } return d; };
+  const dist = (a: XY[], b: XY[]) => Math.min(...a.map(p => segD(p, b)), ...b.map(p => segD(p, a)));
+  let n = 0;
+  for (let i = S.length - 1; i >= 0; i--) {
+    const s = S[i]; if (s.kind === 'stilobat' || s.kind === 'villa' || s.kind === 'uy' || s.kind === 'minora') continue;
+    const others = S.filter(o => o !== s && o.kind !== 'stilobat');
+    if (others.some(o => touching(s.ring, o.ring) && sharedWall(s.ring, o.ring) >= 3)) continue;
+    if (others.some(o => dist(s.ring, o.ring) < gap - 0.5) && Math.abs(signedArea(s.ring)) < Math.max(...others.map(o => Math.abs(signedArea(o.ring))))) { S.splice(i, 1); n++; }
+  }
+  if (n) notes.push(`${n} ta yakka boʻlak olib tashlandi: qoʻshni binoga meʼyordan yaqin (≥ 2·Hmax·0,3, ≥ 6 m)`);
+}
+
+/** Arka ustidagi qavatlar: ikki yonidagi seksiyalardan pastrogʻi − ARCH_F; bir yoni qolmasa — oddiy seksiya, ikkalasi ham yoʻq — olinadi */
+function archFloors(S: GenSection[]): void {
+  for (let i = S.length - 1; i >= 0; i--) {
+    const a = S[i]; if (a.kind !== 'arka') continue;
+    const nb = S.filter(o => o !== a && o.kind !== 'arka' && sharedWall(a.ring, o.ring) >= 3);
+    if (!nb.length) { S.splice(i, 1); continue; }
+    if (nb.length < 2) {
+      // narigi tomonda yaqin (≤ 10 m) seksiya bor — bu aniq oʻlcham qoldigʻi oraligʻi: arka olinadi (oddiy oʻtish);
+      // yoʻq — tasma uchi: arka oddiy seksiyaga aylanadi (yakka boʻlak «uzilib» qolmasin)
+      const o = nb[0], near = S.some(q => q !== a && q !== o && q.kind !== 'arka' && q.ring.some(p => a.ring.some(r => Math.hypot(p[0] - r[0], p[1] - r[1]) < 10)));
+      if (near) { S.splice(i, 1); continue; }
+      const c: GenSection = { ...a, kind: o.kind === 'burchak' ? 'oddiy' : o.kind, floors: o.floors, nonRes: o.nonRes, face: o.face }; delete c.z0; if (o.z0) c.z0 = o.z0; S[i] = c; continue;
+    }
+    a.floors = Math.max(1, Math.min(...nb.map(o => (o.z0 ?? 0) + o.floors)) - (a.z0 ?? ARCH_F));
+  }
 }
 
 /** Koʻpburchakka nur boʻyicha kirish masofasi. par — faqat nurga deyarli tik (fasadga parallel, ≤ 30°) qirralar hisobga olinadi */
@@ -476,6 +519,9 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
     if (g.passages && span > 70) { const m = Math.max(1, Math.floor(span / 100)); for (let k = 1; k <= m; k++) gaps.push(t0 + span * k / (m + 1)); }
     const cuts: number[][] = []; // [boshi, oxiri] boʻlaklar (oʻtishlar 6 m)
     let s = t0; for (const gp of gaps) { cuts.push([s, gp - 3]); s = gp + 3; } cuts.push([s, t1]);
+    // hovliga oʻtish — bo'shliq emas, ARKA: 6 m eni, 2 qavat balandlikda ochiq (ShNQ 2.01.02-04, 1-son oʻzgartirish, 3.12:
+    // har 100 m da ≥ 3,5 m eni, ≥ 4,25 m balandlik); ustidagi qavatlar qoʻshni seksiyalar bilan bir xil (archFloors)
+    for (const gp of gaps) { const oa = add(P(i), mul(U(i), gp - 3)), ob = add(P(i), mul(U(i), gp + 3)); sections.push({ ring: [oa, ob, add(ob, mul(N(i), D)), add(oa, mul(N(i), D))], floors: 1, kind: 'arka', nonRes: 0, z0: ARCH_F }); }
     let idx = 0;
     for (const [c0, c1] of cuts) {
       const sp = spans(c0, c1, g.secLen, !!g.exact);
@@ -696,6 +742,9 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   // avtoturargoh
   const pk = g.parking ?? 'yoq';
   if (pk !== 'yoq' && outer) r.parking = placeParking(clean(outer, 6), r, g, t, opts) ?? undefined;
+  archFloors(r.sections);
+  dropStrays(r.sections, Math.max(6, 0.6 * g.maxF * floorH), r.notes);
+  assignEnds(r.sections, opts.avoid ?? [], g.depth, floorH);
   r.far = (gfaOf(r)) / site;
   if (far > 0 && r.far < far - 0.15) r.notes.push(`UMN maqsadi ${String(far).replace('.', ',')} ga yetmadi (${r.far.toFixed(2).replace('.', ',')}): meʼyoriy oraliqlar bilan joy yetmadi — «Qavat, eng koʻp» ni oshiring (qavat qoʻshish orqali)`);
   return r;

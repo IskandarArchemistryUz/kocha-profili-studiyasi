@@ -43,7 +43,7 @@ export function staleGen(doc: Project, grp: string, area: XY[], fresh: XY[][]): 
   return { bids, gids };
 }
 
-export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'torets' | 'otish'; d: number; need: number; soft?: number; ha: number; hb: number }
+export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish'; d: number; need: number; soft?: number; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; ha: number; hb: number }
 /** Uchastkadagi binolar juftlari: ustma-ust, uzun tomonlar va toretslar orasidagi masofa */
 export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: number } {
   const fr = frame(doc.origin), fh = doc.settings.floorHeight;
@@ -61,31 +61,43 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     if (Math.min(x.b.floors, y.b.floors) < 3) continue;            // 2-jadval — 3 va undan yuqori qavatli binolar
     checked++;
     if (g.parallel >= 10) { const need = 2 * Hm; if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H }); }
-    else {
-      const need = Math.max(6, (x.H + y.H) * 0.15), soft = Math.max(6, (x.H + y.H) * 0.3);
-      // bitta guruhda ≤ 7,5 m oraliq — generator qoldirgan hovliga oʻtish (6 m): arka sifatida loyihalansa toretslar oraligʻi emas
+    else if (g.la !== g.lb) {
+      // derazali uzun tomon ↔ torets: 2·Hmax·0,3, ≥ 6 m (2-jadval)
+      const need = Math.max(6, 0.6 * Hm); if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun-torets', d: g.d, need, ha: x.H, hb: y.H });
+    } else {
+      // toretslar: generatsiya derazasiz devorlarni belgilagan boʻlsa — aniq koeffitsiyent (0,3 / 0,25 / 0,15), aks holda 0,15 … 0,3
+      const wa = x.b.gen ? !x.b.gen.blind?.includes(g.ia) : null, wb = y.b.gen ? !y.b.gen.blind?.includes(g.ib) : null;
       const pass = !!x.b.gen && x.b.gen.grp === y.b.gen?.grp && g.d <= 7.5;
-      if (g.d < soft - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: pass ? 'otish' : 'torets', d: g.d, need, soft, ha: x.H, hb: y.H });
+      if (wa !== null && wb !== null) {
+        const k = wa && wb ? 0.3 : wa || wb ? 0.25 : 0.15, need = Math.max(6, (x.H + y.H) * k);
+        if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: pass ? 'otish' : 'torets', d: g.d, need, ha: x.H, hb: y.H, k });
+      } else {
+        const need = Math.max(6, (x.H + y.H) * 0.15), soft = Math.max(6, (x.H + y.H) * 0.3);
+        if (g.d < soft - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: pass ? 'otish' : 'torets', d: g.d, need, soft, ha: x.H, hb: y.H });
+      }
     }
   }
   return { pairs: out, checked };
 }
 
 /** Eng yaqin masofa va qarama-qarshi parallel qirralarning bir-birini «koʻradigan» qismi uzunligi (≤ 15°) */
-function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number } {
+function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number; ia: number; ib: number; la: boolean; lb: boolean } {
   let d = Infinity, par = 0;
   const E = (r: XY[]) => r.map((p, i) => { const q = r[(i + 1) % r.length]; return [p, q, isLong(r, p, q)] as [XY, XY, boolean]; });
-  const ea = E(a), eb = E(b);
-  for (const [p, q, la] of ea) for (const [s, t, lb] of eb) {
-    d = Math.min(d, segD(p, q, s, t));
+  const ea = E(a), eb = E(b), cand: { d: number; i: number; j: number; anti: number }[] = [];
+  ea.forEach(([p, q, la], i) => eb.forEach(([s, t, lb], j) => {
+    const dd = segD(p, q, s, t); d = Math.min(d, dd);
     const u = [q[0] - p[0], q[1] - p[1]], v = [t[0] - s[0], t[1] - s[1]], lu = Math.hypot(u[0], u[1]), lv = Math.hypot(v[0], v[1]);
-    if (!la || !lb) continue;
-    const cos = Math.abs(u[0] * v[0] + u[1] * v[1]) / lu / lv; if (cos < 0.966) continue;
+    cand.push({ d: dd, i, j, anti: lu && lv ? (u[0] * v[0] + u[1] * v[1]) / lu / lv : 0 });
+    if (!la || !lb) return;
+    const cos = Math.abs(u[0] * v[0] + u[1] * v[1]) / lu / lv; if (cos < 0.966) return;
     const ux = u[0] / lu, uy = u[1] / lu, ts = [(s[0] - p[0]) * ux + (s[1] - p[1]) * uy, (t[0] - p[0]) * ux + (t[1] - p[1]) * uy];
     const ov = Math.min(lu, Math.max(...ts)) - Math.max(0, Math.min(...ts));
     if (ov > par) par = ov;
-  }
-  return { d, parallel: par };
+  }));
+  // eng yaqin juftlar ichidan — bir-biriga qaragani (CCW halqalarda qarama-qarshi yoʻnalish)
+  const near = cand.filter(c => c.d <= d + 0.3).sort((x, y) => x.anti - y.anti)[0] ?? { i: 0, j: 0 };
+  return { d, parallel: par, ia: near.i, ib: near.j, la: ea[near.i]?.[2] ?? false, lb: eb[near.j]?.[2] ?? false };
 }
 /** Uzun tomon: qirra uzunligi bino qalinligidan (qirra oʻrtasidan ichkariga) ≥ 1,5 marta — torets va nuqtali minora emas */
 function isLong(r: XY[], p: XY, q: XY): boolean {

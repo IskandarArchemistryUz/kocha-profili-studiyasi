@@ -28,8 +28,11 @@ describe('Seksiya generatori', () => {
   });
   it('oʻtishlar: uzun qirrada 6 m arka qoladi', () => {
     const a = generate(sq(260, 120), { ...DEFAULT_GEN, passages: true }), b = generate(sq(260, 120), { ...DEFAULT_GEN, passages: false });
-    const tot = (r: typeof a) => r.sections.reduce((s, x) => s + area(x.ring), 0);
+    // 27.10: oʻtish — boʻshliq emas, arka (2 qavat ochiq, ustida qavatlar): yer sathidagi iz kichikroq, arka seksiyasi bor
+    const tot = (r: typeof a) => r.sections.filter(x => !x.z0).reduce((s, x) => s + area(x.ring), 0);
     expect(tot(a)).toBeLessThan(tot(b));
+    const ar = a.sections.filter(x => x.kind === 'arka'); expect(ar.length).toBeGreaterThan(0);
+    for (const x of ar) expect((x.z0 ?? 0) * 3.3).toBeGreaterThanOrEqual(4.25);   // ShNQ 2.01.02-04, 1-son oʻzgartirish, 3.12
   });
   it('qatorlar: sharq–gʻarb, oraliq ≥ 2·Hmax', () => {
     const r = generate(sq(120, 200), { ...DEFAULT_GEN, typology: 'qatorlar', maxF: 9 });
@@ -62,7 +65,7 @@ describe('Generator: real (notekis) kvartallar', () => {
     const r = generate(sq(160, 58), { ...DEFAULT_GEN, maxF: 9, minF: 5 });
     // qatorlar orasi 58 − 12 − 30 = 16 m < 2·5·3,3 → bitta qator qoladi, qavatlar ≥ 5
     expect(r.sections.length).toBeGreaterThan(2);
-    expect(Math.min(...r.sections.map(s => s.floors))).toBeGreaterThanOrEqual(5);
+    expect(Math.min(...r.sections.filter(s => s.kind !== 'arka').map(s => s.floors))).toBeGreaterThanOrEqual(5);
     // 27.10: qarshi qator joylashtirishda (orthoFill) yoki keyin (facingCap) tushiriladi — natijada bitta qator
     expect(new Set(r.sections.filter(x => x.face).map(x => `${Math.round(x.face!.n[0] * 10)},${Math.round(x.face!.n[1] * 10)}`)).size).toBe(1);
   });

@@ -50,7 +50,7 @@ export type Command =
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
   | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use' | 'rings'>> }
   /** generator natijasi: shu guruhdagi seksiyalarni almashtirish (boʻsh roʻyxat — tozalash); zona belgisiga parametrlar yoziladi */
-  | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: string; z0?: number }[]; label?: ZoneLabel; garage?: Omit<Garage, 'id' | 'grp'> | null; /** yer uchastkasi (grp = parsel id) parametrlari */ parcelGen?: Record<string, unknown>; /** shu hududdagi boshqa guruhlarning eski avtomatik binolari va avtoturargohlari (ustiga qurilmasin) */ drop?: { bids: string[]; gids: string[] } };
+  | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: string; z0?: number; blind?: number[] }[]; label?: ZoneLabel; garage?: Omit<Garage, 'id' | 'grp'> | null; /** yer uchastkasi (grp = parsel id) parametrlari */ parcelGen?: Record<string, unknown>; /** shu hududdagi boshqa guruhlarning eski avtomatik binolari va avtoturargohlari (ustiga qurilmasin) */ drop?: { bids: string[]; gids: string[] } };
 
 /** Tarixda koʻrinadigan nom */
 export function label(c: Command): string {
@@ -144,7 +144,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const b = { ...doc.buildings[i], ...c.patch };
       b.floors = Math.max(1, Math.round(b.floors));
       b.nonRes = b.gen?.kind === 'stilobat' ? b.floors : Math.max(0, Math.min(b.floors - 1, Math.round(b.nonRes)));
-      if (c.patch.footprint) b.footprint = copyRing(c.patch.footprint);
+      if (c.patch.footprint) { b.footprint = copyRing(c.patch.footprint); if (b.gen?.blind && b.footprint.length !== doc.buildings[i].footprint.length) { const { blind: _x, ...g } = b.gen; b.gen = g; } }   // qirralar soni oʻzgarsa — torets belgilari yaroqsiz
       d.buildings = doc.buildings.slice(); d.buildings[i] = b; return d;
     }
     case 'removeBuilding': d.buildings = doc.buildings.filter(b => b.id !== c.id); return d;
@@ -230,7 +230,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const keep = doc.buildings.filter(b => b.gen?.grp !== c.grp && !(b.gen && dropB.has(b.id)));
       d.buildings = [...keep, ...c.sections.map(x => {
         const floors = Math.max(1, Math.round(x.floors));
-        return { id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: x.kind === 'stilobat' ? floors : Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind }, ...(x.z0 ? { z0: x.z0 } : {}) };
+        return { id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: x.kind === 'stilobat' ? floors : Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind, ...(x.blind?.length ? { blind: [...x.blind] } : {}) }, ...(x.z0 ? { z0: x.z0 } : {}) };
       })];
       d.garages = [...doc.garages.filter(g => g.grp !== c.grp && !dropG.has(g.id)), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring), ...(c.garage.stalls ? { stalls: c.garage.stalls.map(copyRing) } : {}), ...(c.garage.aisles ? { aisles: c.garage.aisles.map(copyRing) } : {}) }] : [])];
       if (c.parcelGen) d.parcels = doc.parcels.map(p => p.id === c.grp ? { ...p, gen: { ...c.parcelGen } } : p);
