@@ -38,7 +38,7 @@ test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', a
   const gfa1 = Number((await page.locator('#kGfa b').textContent())!.replace(/\D/g, ''));
   expect(gfa1).not.toBe(gfa0);
   // siljitish: sichqoncha bilan
-  await page.click('[data-itab=hajm]'); await page.click('[data-drag=move]');
+  await page.click('[data-itab=hajm]');   // avto: tom — siljitish, devor — itarish
   await page.mouse.move(bb.x + bb.width * 0.62, bb.y + bb.height * 0.32); await page.mouse.down();
   await page.mouse.move(bb.x + bb.width * 0.62 + 40, bb.y + bb.height * 0.32 + 10, { steps: 6 }); await page.mouse.up();
   await expect(page.locator('#undo')).toHaveAttribute('title', /Bino oʻzgardi/);
