@@ -12,6 +12,7 @@ import { freeRect } from './labels';
 import type { XY } from './geo';
 import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
+import { squareSections, avoidObstacles, type Obstacle3 } from './genfix';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
@@ -49,7 +50,7 @@ export interface GenParams {
   parkNorm?: boolean;
 }
 /** Talab hisobi uchun loyiha sozlamalari */
-export interface GenOpts { use?: string; aptNet?: number; netToGross?: number }
+export interface GenOpts { use?: string; aptNet?: number; netToGross?: number; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
 
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
@@ -268,6 +269,8 @@ function convexHull(pts: XY[]): XY[] {
  * masofa tekshiriladi (avval tegishi yetarli edi va 4–5 m masofadagi 5 va 12 qavatli seksiyalar qolib, oʻrtada boʻshliq chiqardi).
  */
 const joined = (a: XY[], b: XY[]): boolean => touching(a, b) && sharedWall(a, b) >= 3;
+/** qarama-qarshi fasadlar (U shaklining ikki qanoti): umumiy devorli boʻlsa ham tor hovli orqali bir-biriga qaraydi */
+const opposed = (a: GenSection, b: GenSection): boolean => !!a.face && !!b.face && a.face.n[0] * b.face.n[0] + a.face.n[1] * b.face.n[1] < -0.5;
 
 /**
  * Qarshidagi seksiyagacha masofa → qavat cheklovi: seysmik 8+ ballda parallel uzun tomonlar orasi ≥ 2·Hmax
@@ -281,7 +284,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     let worst: [number, number] | null = null, wd = Infinity;
     r.sections.forEach((s, i) => {
       if (!s.face) return;
-      r.sections.forEach((o, k) => { if (k === i || joined(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < wd) { wd = t; worst = [i, k]; } });
+      r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < wd) { wd = t; worst = [i, k]; } });
     });
     if (!worst || wd / 2 / floorH >= g.minF) break;
     const [i, k] = worst as [number, number], rm = r.sections.splice(Math.max(i, k), 1)[0]; if (rm.face) gone.push(rm.face.n); removed++;
@@ -321,7 +324,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
   r.sections.forEach((s, i) => {
     if (!s.face) return;
     let d = Infinity, j = -1;
-    r.sections.forEach((o, k) => { if (k === i || joined(s.ring, o.ring)) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < d) { d = t; j = k; } });
+    r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < d) { d = t; j = k; } });
     if (!Number.isFinite(d) || d > 200) return;
     const cap = Math.max(g.minF, Math.floor(d / 2 / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
@@ -567,6 +570,9 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
     r = best ?? typoCore(block, t, g, floorH); if (best) XS = bx;
   } else r = typoCore(block, t, g, floorH);
   r.typology = t;
+  // notekis parsel: oʻtkir uchlar tik qirqiladi, tor boʻlaklar olinadi; mavjud binolar — toʻsiq (ustiga qurilmaydi, masofa saqlanadi)
+  r.sections = squareSections(r.sections, g.depth, r.notes);
+  if (opts.avoid?.length) r.sections = avoidObstacles(r.sections, opts.avoid, g.minF, floorH, r.notes);
   if (g.exact && XS.full + XS.short > 0) {
     const n = (v: number) => String(v).replace('.', ',');
     const a = n(g.secLen), b = n(g.depth), parts = [`Aniq oʻlcham: ${XS.full} seksiya ${a} × ${b} m`];

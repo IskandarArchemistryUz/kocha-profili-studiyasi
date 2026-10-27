@@ -7,6 +7,7 @@ import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
 import { staleGen } from '../core/spacing';
+import type { Obstacle3 } from '../core/genfix';
 import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
@@ -1738,6 +1739,18 @@ export class Editor {
     return this.store.doc.zones.find(z => z.id === b.labelId) ?? { id: uid('z_'), at: fr.toGeo(b.centroid), use: b.use };
   }
 
+  /**
+   * Generatsiya toʻsiqlari (mahalliy metr): saqlanadigan mavjud binolar, qoʻlda chizilgan binolar va boshqa guruhlarning
+   * avtomatik binolari (shu hududda almashtiriladiganlaridan tashqari) — ustiga qurilmaydi, masofa saqlanadi.
+   */
+  private genObstacles(grp: string, area: XY[]): Obstacle3[] {
+    const doc = this.store.doc, fr = frame(doc.origin), fh = doc.settings.floorHeight, keep = new Set(doc.keep);
+    const gone = new Set(staleGen(doc, grp, area, []).bids);
+    const out: Obstacle3[] = this.scene.inSite.filter(x => keep.has(x.id)).map(x => ({ ring: x.rings[0], h: x.h }));
+    for (const b of doc.buildings) { if (b.gen?.grp === grp || gone.has(b.id)) continue; out.push({ ring: b.footprint.map(fr.toLocal), h: ((b.z0 ?? 0) + b.floors) * fh }); }
+    return out;
+  }
+
   private generateBlock(i: number, quiet = false): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
     const ud = useDef(b.use), name = this.unitName(i);
@@ -1746,7 +1759,7 @@ export class Editor {
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
     const sg = this.savedGen(i), base: GenParams = i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) };
     const g: GenParams = usePreset(b.use, base) ?? (ud.floors ? { ...base, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base);
-    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross });
+    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]) });
     this.genNotes = r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
     const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));
