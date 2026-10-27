@@ -26,5 +26,9 @@ export const SOURCES = {
     name: 'Meta High Resolution Settlement Layer', licence: 'CC BY 4.0', url: 'https://registry.opendata.aws/dataforgood-fb-hrsl/',
     attribution: 'Data for Good at Meta, CIESIN — High Resolution Settlement Layer (CC BY 4.0)', odbl: false, ttlDays: 365,
   },
+  tmyx: {
+    name: 'TMYx (climate.onebuilding.org)', licence: 'Derived statistics — written permission of the authors (D. Crawley, 27.10.2026): commercial use and other countries allowed', url: 'https://climate.onebuilding.org',
+    attribution: 'Lawrie, Linda K, Drury B Crawley. 2026. Development of Global Typical Meteorological Years (TMYx). https://climate.onebuilding.org', odbl: false, ttlDays: 3650,
+  },
 };
 export const sourceInfo = (id) => (SOURCES[id] ? { id, ...SOURCES[id] } : null);

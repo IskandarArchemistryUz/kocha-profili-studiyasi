@@ -35,7 +35,7 @@ import type { XY } from '../core/geo';
 import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
 import { nearestStation, type Climate } from '../core/wind';
-import { windAt } from '../core/windsrc';
+import { windAt, TMYX_ATTR } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { layerIcon, GROUP_COL } from './layerIcons';
@@ -1065,7 +1065,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
       map: shot ? { url: shot.url, mPerMm: shot.side / mapS, rose: w ? roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null, ringLabel: tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) }) } : null,
       legends: collectLegends(), cards: collectCards(),
       stamp: { org: 'Archemistry Lab', service: tr('Joyshunos'), placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'),
-        sources: tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · EPW TMYx (climate.onebuilding.org) · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0331-16'),
+        sources: `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0331-16')} · EPW TMYx: ${TMYX_ATTR}`,
         note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
       labels: { north: tr('Sh'), more: tr('Davomi keyingi varaqda →'), noMap: tr('Xarita surati olinmadi') },
     };
