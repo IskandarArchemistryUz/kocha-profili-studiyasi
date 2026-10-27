@@ -79,7 +79,7 @@ export function makePayments({ db, wallet, payme = null, click = null, multicard
     const a = mcAmount(p.uzs);
     try {
       const d = await mcCall('/payment/invoice', {
-        store_id: Number(multicard.storeId) || multicard.storeId, amount: a, invoice_id: String(orderId), lang: 'ru',
+        store_id: Number(String(multicard.storeId).replace(/\D/g, '')) || multicard.storeId, amount: a, invoice_id: String(orderId), lang: 'ru',
         return_url: back, callback_url: multicard.callbackUrl,
         ofd: [{ qty: 1, price: a, total: a, mxik: multicard.mxik, package_code: multicard.packageCode, name: `Archemistry Lab: ${p.coins} tanga` }],
       });
@@ -105,7 +105,8 @@ export function makePayments({ db, wallet, payme = null, click = null, multicard
     const b = raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object' && raw.invoice_id == null ? raw.data : raw;
     if (!b || b.invoice_id == null || b.amount == null || !b.sign || !b.uuid) return { status: 400, body: no('Soʻrov notoʻgʻri') };
     if (!mcSignOk(b)) return { status: 400, body: no('Imzo notoʻgʻri') };
-    if (String(b.store_id) !== String(multicard.storeId)) return { status: 400, body: no('Doʻkon notoʻgʻri') };
+    const digits = (v) => String(v ?? '').replace(/\D/g, '');
+    if (digits(b.store_id) !== digits(multicard.storeId)) return { status: 400, body: no('Doʻkon notoʻgʻri'), ourStore: String(multicard.storeId) };
     const orderId = Number(b.invoice_id);
     return db.tx(async (q) => {
       const o = Number.isInteger(orderId) ? (await q.query(`SELECT id, amount, state, provider FROM orders WHERE id = $1 FOR UPDATE`, [orderId])).rows[0] : null;
