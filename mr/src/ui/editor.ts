@@ -1011,8 +1011,9 @@ export class Editor {
         h('div', { class: 'group', role: 'group', 'aria-label': tr('Qatlamlar') }, ...names.map(([k, t]) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: L[k], 'data-layer': k, onchange: v => this.run(() => this.store.dispatch({ type: 'setContext', patch: { layers: { [k]: v } } })) })))),
         h('span', { class: 't-small' }, tr('* OSM dagi daraxtlar + park va koʻchalar boʻylab taxminiy joylashuv — faqat koʻrinish uchun, hisobda ishlatilmaydi.')),
         h('div', { class: 'row' },
-          h('button', { class: 'btn btn-sm', onclick: () => void this.ensureContext(true) }, tr('OSM dan yangilash')),
           h('button', { class: 'btn btn-sm btn-ghost', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, tr('Yashirish'))));
+      // yangilash — holat qatori ostida, koʻrinib turadi
+      body.append(h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', onclick: () => void this.ensureContext(true) }, tr('OSM dan yangilash'))));
     }
     { const U = doc.userLayers ?? [];
       more.append(h('div', { class: 'glabel' }, h('span', {}, tr('Oʻz maʼlumotlarim')), h('span', {}, U.length ? tf('${n} ta qatlam', { n: U.length }) : '')),
@@ -2276,7 +2277,7 @@ export class Editor {
           this.run(() => this.store.dispatch({ type: 'setSite', rings: [r.map(fr.toGeo)] })); this.scene.frameDoc(this.store.doc);
         } }, tr('Qoʻyish'))),
       h('span', { class: 't-small' }, '10–4000 m.'));
-    other.append(h('div', { class: 'glabel' }, h('span', {}, tr('Tahrirlash'))),
+    (doc.site ? body : other).append(h('div', { class: 'glabel' }, h('span', {}, tr('Tahrirlash'))),
       h('div', { class: 'group flat', id: doc.site ? 'siteEditHint' : undefined },
         ...([['Burchakni surish', 'sudrash'], ['Yangi burchak', 'oraliq nuqta'], ['Burchakni oʻchirish', '2× bosish'], ['Yopishishni oʻchirish', 'Shift']] as const).map(([k, v]) => h('div', { class: 'li' }, h('span', { class: 'k' }, tr(k)), h('span', { class: 'kbd' }, tr(v))))),
       h('span', { class: 't-small' }, tr('Chizish: bosing — nuqta, birinchi nuqtani bosing yoki Enter — yopish. Sudrab kamerani aylantirasiz.')));
@@ -2805,6 +2806,14 @@ export class Editor {
 
   /** chap panel: faol qadamni qayta bossa — yopiladi, yana bossa — ochiladi */
   private panelOpen = true;
+  /** ochilgan <details> (id li) panel qayta chizilganda ham ochiq qoladi */
+  private openDet = new Set<string>();
+  private keepDetails(root: HTMLElement): void {
+    root.querySelectorAll<HTMLDetailsElement>('details[id]').forEach(d => {
+      if (this.openDet.has(d.id)) d.open = true;
+      d.addEventListener('toggle', () => { if (d.open) this.openDet.add(d.id); else this.openDet.delete(d.id); });
+    });
+  }
   private renderPanel(): void {
     this.showAptBoxes(); this.syncBTools(); this.syncHandles();
     if (this.sframe) { this.el.panel.classList.remove('shut'); this.root?.classList.remove('pshut'); this.renderFramePanel(); return; }
@@ -2821,6 +2830,7 @@ export class Editor {
     const lk = s.phase > BUILT_PHASE ? this.locked(s) : null;
     if (lk) body.append(h('div', { class: 'locked' }, tf('Bu qadam ${s.phase}-bosqichda quriladi. Reja va darvoza shartlari — «Yadro arxitekturasi» hujjatida.', { 's.phase': s.phase })));
     else this.panelBody(s, body);
+    this.keepDetails(body);
     p.replaceChildren(
       h('header', {}, h('div', { class: 'sp-step' }, h('span', {}, tf('${s.n}-qadam / ${t}', { 's.n': s.n, t: STEPS.length })), h('span', { class: 'sp-prog' }, h('i', { style: `width:${Math.round(s.n / STEPS.length * 100)}%` }))), h('h2', {}, tr(s.title)), h('p', {}, tr(s.lead))),
       body,
