@@ -4,7 +4,8 @@
 .kd-box{position:relative;width:min(380px,100%);background:var(--surface);color:var(--ink);border-radius:var(--r-panel);box-shadow:var(--sh-float);padding:26px 24px 20px;display:flex;flex-direction:column;gap:12px}
 .kd-box h2{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
 .kd-lead{margin:0;color:var(--muted);font-size:13.5px;line-height:1.45}
-.kd-x{position:absolute;top:12px;right:12px}
+.kd-x{position:absolute;top:12px;right:12px;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:var(--fill);color:var(--ink-2,var(--ink));display:grid;place-items:center;cursor:pointer}
+.kd-x:hover{background:var(--fill-2,var(--fill))}.kd-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .kd-google{display:flex;justify-content:center;min-height:0}.kd-google:empty{display:none}
 .kd-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}.kd-or::before,.kd-or::after{content:'';flex:1;height:1px;background:var(--hairline)}
 .kd-form{display:flex;flex-direction:column;gap:8px}.kd-form .input{width:100%}

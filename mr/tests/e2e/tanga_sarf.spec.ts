@@ -12,9 +12,9 @@ async function mockApi(page: Page, o: { balance?: number; trials?: number } = {}
     if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: { ...cors, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST' } });
     if (u.pathname === '/me') return json(200, { id: 1, email: 'ali@mail.uz', phone: null, name: null, balance: st.balance, trialsLeft: st.trials });
     if (u.pathname === '/auth/config') return json(200, { email: true, phone: false, google: null });
-    if (u.pathname === '/quote') return json(200, { items: b.items, k: 1, coins: b.items[0] === 'ks.dxf' ? 5 : 3 });
+    if (u.pathname === '/quote') return json(200, { items: b.items, k: 1, coins: b.items[0] === 'mr.site' ? 10 : b.items[0] === 'ks.dxf' ? 5 : 3 });
     if (u.pathname === '/export/ticket') {
-      const need = b.items[0] === 'ks.dxf' ? 5 : 3;
+      const need = b.items[0] === 'mr.site' ? 10 : b.items[0] === 'ks.dxf' ? 5 : 3;
       if (st.balance < need) return json(402, { error: 'insufficient', message: 'tanga yetarli emas', need, balance: st.balance });
       st.tickets.push(b); st.balance -= need;
       return json(200, { ticket: 'x.y', price: need, k: 1, charged: need, balance: st.balance, repeat: false });
@@ -65,4 +65,25 @@ test('tanga yetmasa — xabar va «Tanga olish»; tarix oynasi', async ({ page }
   await expect(page.locator('#kdCoins .kd-hist')).toContainText('Koʻcha kesimi');
   await expect(page.locator('#kdCoins .kd-hist')).toContainText('Sotib olindi');
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/tangalarim.png` });
+});
+
+test('uchastka: 3 ga gacha — bepul; kattasi — «Loyihani ochish» (bekor — chegara qoʻyilmaydi; toʻlov — qoʻyiladi, qayta soʻralmaydi)', async ({ page }) => {
+  const st = await mockApi(page, { balance: 30 });
+  await page.goto('./'); await page.click('#newP');
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');   // 2,24 ga
+  await expect(page.locator('#kSite b')).not.toHaveText('—');
+  await expect(page.locator('#kdSite')).toHaveCount(0);
+  await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');   // 6 ga
+  await expect(page.locator('#kdSite')).toBeVisible();
+  await expect(page.locator('#kdSiteGo')).toContainText('10 tanga');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/uchastka_ochish.png` });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#kSite b')).toHaveText(/^2,2/);   // eski chegara qoldi
+  await page.click('#rectSite'); await page.click('#kdSiteGo');
+  await expect(page.locator('#kSite b')).toHaveText(/^6,0/);
+  expect(st.tickets.map(t => t.items[0])).toEqual(['mr.site']);
+  await page.fill('#rw', '280'); await page.click('#rectSite');   // 5,6 ga — shu pogʻona, qayta soʻralmaydi
+  await expect(page.locator('#kSite b')).toHaveText(/^5,6/);
+  expect(st.tickets).toHaveLength(1);
 });

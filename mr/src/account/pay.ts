@@ -203,3 +203,51 @@ export async function coinsDialog(): Promise<void> {
 /** Har xizmat kirish nuqtasida bir marta: yuklash darvozasini ulaydi */
 export function initPay(): void { setExportGate(gate); }
 initPay();
+
+/* ---------- 4) Master reja: bepul uchastka ≤ 3 ga (egasi qarori 27.10) ---------- */
+export const FREE_SITE_HA = 3;
+/** Maydon koeffitsiyenti pogʻonasi — server/src/prices.js areaK bilan bir xil (≤ 15 → 1, ≤ 60 → 1,5, katta → 2) */
+const bracket = (ha: number): number => ha <= 15 ? 1 : ha <= 60 ? 1.5 : 2;
+const UNLOCK_KEY = 'kps_site_unlock';
+function unlocked(pid: string): number { try { return Number((JSON.parse(localStorage.getItem(UNLOCK_KEY) || '{}') as Record<string, number>)[pid]) || 0; } catch { return 0; } }
+function remember(pid: string, k: number): void { try { const m = JSON.parse(localStorage.getItem(UNLOCK_KEY) || '{}') as Record<string, number>; m[pid] = Math.max(m[pid] || 0, k); localStorage.setItem(UNLOCK_KEY, JSON.stringify(m)); } catch { /* */ } }
+/** Darhol tekshiruv (sudrab tahrirlashda): ruxsat bormi */
+export function siteOk(pid: string, ha: number): boolean {
+  return isOwner() || !authRequired() || ha <= FREE_SITE_HA || unlocked(pid) >= bracket(ha);
+}
+/**
+ * Uchastka chegarasi qoʻyilishidan oldin. 3 ga dan katta — «Loyihani ochish — N tanga» (shu loyiha va maydon pogʻonasi uchun bir marta;
+ * boshqa kompyuterda qayta ochish — bepul, server «repeat»). false — chegara qoʻyilmaydi.
+ */
+export async function siteGate(pid: string, ha: number): Promise<boolean> {
+  if (siteOk(pid, ha)) return true;
+  const k = bracket(ha);
+  let price: number | null = null;
+  try { price = (await quote(['mr.site'], ha)).coins; } catch { /* */ }
+  await check();
+  return new Promise<boolean>(resolve => {
+    let ok = false, busy = false;
+    const D = dialog('kdSite', tf('Uchastka ${a} ga', { a: fmt(ha, 2) }), tf('Bepul tarifda master reja uchastkasi — ${f} ga gacha. Kattaroq hududni ochish — shu loyiha uchun bir marta toʻlanadi.', { f: FREE_SITE_HA }));
+    const go = opt('kdSiteGo', 'pri', tr('Loyihani ochish'), k > 1 ? tf('maydon koeffitsiyenti ×${k}', { k: String(k).replace('.', ',') }) : tr('generatsiya, tekshiruv va barcha qadamlar'), price == null ? '…' : tf('${n} tanga', { n: fmt(price) }), async () => {
+      if (busy) return; busy = true; go.disabled = true; D.msg.hidden = true;
+      try {
+        D.wrap.hidden = true;
+        const inOk = await ensureLogin(undefined, 'Katta uchastka uchun kiring. Hisob bepul.');
+        D.wrap.hidden = false;
+        if (!inOk) { busy = false; go.disabled = false; return; }
+        const t = await exportTicket(['mr.site'], ha, await sha(pid, 'site|k' + k));
+        remember(pid, k); await check(true); ok = true;
+        toast(t.charged ? tf('${n} tanga yechildi. Balans: ${b}', { n: fmt(t.charged), b: fmt(t.balance) }) : tr('Bu loyiha avval ochilgan — bepul'));
+        D.close();
+      } catch (e) {
+        D.wrap.hidden = false;
+        if (e instanceof ApiError && e.status === 402) short(D.msg, e, price ?? 0);
+        else { D.msg.hidden = false; D.msg.textContent = tr(e instanceof ApiError ? e.message : 'Xato yuz berdi — qayta urinib koʻring'); }
+        busy = false; go.disabled = false;
+      }
+    });
+    D.box.append(h('div', { class: 'kd-opts' }, go), balRow(), D.msg);
+    void D.done.then(() => resolve(ok));
+    go.focus();
+  });
+}
