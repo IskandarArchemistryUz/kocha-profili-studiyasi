@@ -152,3 +152,57 @@ function rayHitPar(p: XY, d: XY, r: XY[]): number {
   }
   return best;
 }
+
+/**
+ * Toretslar (27.10): har seksiyaning qisqa (torets) devorlari derazali yoki derazasiz — generatsiyada belgilanadi.
+ * ShNQ 2.07.01-23, 79-band 2-jadval: derazali ↔ derazali torets (H1+H2)·0,3; derazali ↔ derazasiz (H1+H2)·0,25;
+ * derazasiz ↔ derazasiz (H1+H2)·0,15; I–II darajada ≥ 6 m. Qoida: boshqa seksiyaga tutashgan torets — derazasiz (umumiy devor);
+ * oldida (H1+H2)·0,3 dan kam joy qolgan erkin torets — derazasiz; qolganlari — derazali.
+ * Natija: GenSection.blind — derazasiz qirralar indekslari (ring[i] → ring[i+1]).
+ */
+export function assignEnds(S: GenSection[], obs: Obstacle3[], D: number, floorH: number): void {
+  const H = (s: GenSection) => ((s.z0 ?? 0) + s.floors) * floorH;
+  const others = (k: number) => [...S.map((s, i) => ({ ring: s.ring, h: H(s), i })).filter(x => x.i !== k), ...obs.map(o => ({ ring: o.ring, h: o.h, i: -1 }))];
+  S.forEach((s, k) => {
+    if (s.kind === 'stilobat') return;
+    const r = s.ring, blind: number[] = [];
+    for (let i = 0; i < r.length; i++) {
+      const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1) continue;
+      const u: XY = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n: XY = [u[1], -u[0]];   // CCW halqa: tashqi normal — oʻngda
+      if (!isEnd(r, i, D)) continue;
+      const m: XY = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], p: XY = [m[0] + n[0] * 0.3, m[1] + n[1] * 0.3];
+      let best = Infinity, hb = 0;
+      for (const o of others(k)) {
+        if (pin(p, o.ring) || edgeShared(a, b, o.ring)) { best = 0; break; }
+        const t = rayAny(m, n, o.ring); if (t < best) { best = t; hb = o.h; }
+      }
+      if (best < Math.max(6, (H(s) + hb) * 0.3)) blind.push(i);
+    }
+    if (blind.length) s.blind = blind; else delete s.blind;
+  });
+}
+/** Qirra torets (qisqa) devormi: uzunligi ≤ 1,3·D yoki qirra oʻrtasidan ichkariga qalinlik ≥ 0,7·uzunlik */
+function isEnd(r: XY[], i: number, D: number): boolean {
+  const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (L <= 1.3 * D) return true;
+  return false;
+}
+function edgeShared(a: XY, b: XY, r: XY[]): boolean {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]), u: XY = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+  for (let i = 0; i < r.length; i++) {
+    const c = r[i], d = r[(i + 1) % r.length];
+    if (pd(c, a, b) > 0.6 || pd(d, a, b) > 0.6) continue;   // shu chiziq ustida emas
+    const t0 = (c[0] - a[0]) * u[0] + (c[1] - a[1]) * u[1], t1 = (d[0] - a[0]) * u[0] + (d[1] - a[1]) * u[1];
+    if (Math.min(L, Math.max(t0, t1)) - Math.max(0, Math.min(t0, t1)) > 2) return true;
+  }
+  return false;
+}
+function rayAny(p: XY, d: XY, r: XY[]): number {
+  let best = Infinity;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const a = r[j], b = r[i], ex = b[0] - a[0], ey = b[1] - a[1], den = d[0] * ey - d[1] * ex; if (Math.abs(den) < 1e-12) continue;
+    const t = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den, s = ((a[0] - p[0]) * d[1] - (a[1] - p[1]) * d[0]) / den;
+    if (t > 0.05 && s >= 0 && s <= 1 && t < best) best = t;
+  }
+  return best;
+}
