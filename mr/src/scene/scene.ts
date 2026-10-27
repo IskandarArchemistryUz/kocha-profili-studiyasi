@@ -927,7 +927,8 @@ export class Scene3D {
       const r = b.footprint.map(fr.toLocal); if (area(r) < 40 || !this.inIso(r)) return;
       const c = centroid(r), top = Math.min(...r.map(p => this.H(p[0], p[1]))) + ((b.z0 ?? 0) + b.floors) * fh;
       // qiya tomda — tizma ustida (aks holda raqam tom ichida qoladi)
-      const rh = b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir' ? Math.max(0, ...(roofParts(r, b.roof) ?? []).map(q => q.h)) : 0;
+      // tutash seksiyalar yaxlit tomida (arka ham) — guruh tizmasi balandligi
+      const gr = this.bctx?.GR.get(b.id), rh = gr ? gr.h : b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir' ? Math.max(0, ...(roofParts(r, b.roof) ?? []).map(q => q.h)) : 0;
       const sp = labelSprite(String((b.z0 ?? 0) + b.floors), true); sp.position.set(c[0], top + rh + 2, -c[1]); sp.userData.floorLbl = true; sp.userData.lblBid = b.id; this.world.add(sp);
     });
     tag(3);
