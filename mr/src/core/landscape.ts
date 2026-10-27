@@ -10,7 +10,7 @@
  * Bu sxema — eskiz: aniq joylashtirish loyihachining qarori.
  */
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
-import type { Project } from './doc';
+import type { Building, Project } from './doc';
 import { frame, area, type XY } from './geo';
 import { computePlan, corridor, safeUnion, pointIn } from './plan';
 import { useDef } from './uses';
@@ -82,7 +82,7 @@ const rectAt = (c: XY, a: number): XY[] => { const w = Math.min(40, Math.sqrt(a 
 
 let memo: { k: unknown[]; v: Yard[] } | null = null;
 export function landscape(doc: Project): Yard[] {
-  const k = [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.garages, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross];
+  const k = [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.garages, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross, doc.keepRings];
   if (memo && memo.k.every((x, i) => x === k[i])) return memo.v;
   const v = landscapeRaw(doc); memo = { k, v }; return v;
 }
@@ -98,6 +98,8 @@ function hull(P: XY[]): XY[] {
 function landscapeRaw(doc: Project): Yard[] {
   const fr = frame(doc.origin), plan = computePlan(doc), out: Yard[] = [];
   const bl = doc.buildings.map(b => ({ b, r: b.footprint.map(fr.toLocal) }));
+  // saqlanadigan mavjud binolar — hovlida toʻsiq (trotuar, daraxt va maydonchalar ularga tushmaydi); aholi hisobiga kirmaydi
+  for (const r of Object.values(doc.keepRings ?? {})) bl.push({ b: { id: '', footprint: r, floors: 0, nonRes: 0, use: 'texnik' } as unknown as Building, r: r.map(fr.toLocal) });
   plan.blocks.forEach((blk, bi) => {
     if (blk.use === 'yashil' || blk.use === 'maydon' || blk.use === 'sport') { const y = openSpace(blk, bi); if (y) out.push(y); return; }
     if (!RES_USES.has(blk.use)) return;

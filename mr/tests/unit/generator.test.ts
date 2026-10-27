@@ -63,7 +63,8 @@ describe('Generator: real (notekis) kvartallar', () => {
     // qatorlar orasi 58 − 12 − 30 = 16 m < 2·5·3,3 → bitta qator qoladi, qavatlar ≥ 5
     expect(r.sections.length).toBeGreaterThan(2);
     expect(Math.min(...r.sections.map(s => s.floors))).toBeGreaterThanOrEqual(5);
-    expect(r.notes.join(' ')).toContain('olib tashlandi');
+    // 27.10: qarshi qator joylashtirishda (orthoFill) yoki keyin (facingCap) tushiriladi — natijada bitta qator
+    expect(new Set(r.sections.filter(x => x.face).map(x => `${Math.round(x.face!.n[0] * 10)},${Math.round(x.face!.n[1] * 10)}`)).size).toBe(1);
   });
 });
 
