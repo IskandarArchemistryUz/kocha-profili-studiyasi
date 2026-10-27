@@ -2,6 +2,8 @@ import { test, expect, type Page } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
+// akso sahnasi: shamol/transport animatsiyasi har kadrni qayta chizadi — dasturiy GPU da sekin; testlar «harakatni kamaytirish» rejimida
+test.use({ reducedMotion: 'reduce' });
 
 /** Joyshunos (app/joyshunos.html, «Joy-A» maketi): qatlamlar paneli, joy pasporti, radius, raqobatchilar turi, qidiruv, saqlanish.
  *  Tarmoq soxtalashtiriladi: relyef plitkasi — fixtures/terrarium.png, Overpass va Nominatim — sunʼiy javoblar. */
@@ -66,8 +68,12 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`shahar fon
     await expect(page.locator('#axCity button', { hasText: new RegExp(`^${n}$`) })).toHaveAttribute('aria-pressed', 'true');
   }
   // uchastka chizilgan holat
-  await page.evaluate(() => { const a = (window as any).joyAxo, c = [69.2797, 41.3111]; a.inp.site = [[c[0] - 0.0011, c[1] - 0.0005], [c[0] + 0.0008, c[1] - 0.0008], [c[0] + 0.0011, c[1] + 0.0006], [c[0] - 0.0007, c[1] + 0.0009]]; a.setData(a.inp); });
-  const siteN = () => page.evaluate(() => { let n = 0; (window as any).joyAxo.groups.get('binolar').traverse((o: any) => { if (o.parent?.userData.site && o.visible && o.isMesh) n++; }); return n; });
+  // uchastka qoʻyiladi; ilova maʼlumotni keyinroq yangilasa (inp almashsa) — qayta qoʻyiladi
+  const siteN = () => page.evaluate(() => {
+    const a = (window as any).joyAxo, c = [69.2797, 41.3111];
+    if (!a.inp.site) { a.inp.site = [[c[0] - 0.0011, c[1] - 0.0005], [c[0] + 0.0008, c[1] - 0.0008], [c[0] + 0.0011, c[1] + 0.0006], [c[0] - 0.0007, c[1] + 0.0009]]; a.setData(a.inp); }
+    let n = 0; a.groups.get('binolar').traverse((o: any) => { if (o.parent?.userData.site && o.visible && o.isMesh) n++; }); return n;
+  });
   await expect.poll(siteN).toBeGreaterThan(0);
   for (const n of ['Devor', 'Shtrix', 'Punktir', 'Yashil']) {
     await page.locator('#axSite button', { hasText: new RegExp(`^${n}$`) }).click();

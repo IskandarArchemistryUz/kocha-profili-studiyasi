@@ -89,7 +89,8 @@ export class Axo {
   private slabTop = 0;
   private clock = new THREE.Clock();
   /** shamol strelkalari harakatlanadi */
-  animate = true;
+  /** shamol/transport harakati — «harakatni kamaytirish» sozlamasida oʻchiq (doimiy qayta chizish protsessorni band qiladi) */
+  animate = !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   flows: AxFlow[] = [];
   view: AxView = 'axo';
   private placed = false;
