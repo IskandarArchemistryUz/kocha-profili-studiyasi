@@ -731,9 +731,11 @@ export class Editor {
     const base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, top = base + b.floors * fh + 2.5, hr = host.getBoundingClientRect();
     const pts = [...r.map(p => this.scene.toScreen(p[0], p[1], base)), ...r.map(p => this.scene.toScreen(p[0], p[1], top)), this.scene.toScreen(c[0], c[1], top)];
     const minY = Math.min(...pts.map(p => p.y)), cx = this.scene.toScreen(c[0], c[1], top).x;
+    // tepada joy boʻlmasa (bino ekran tepasida) — panel bino ostiga: qavat tutqichi va burchaklar ustiga tushmasin
+    const maxY = Math.max(...pts.map(p => p.y)), above = minY - hr.top - 58, ty = above >= 64 ? above : Math.min(hr.height - 60, Math.max(64, maxY - hr.top + 14));
     // chap panel ochiq boʻlsa — asboblar paneli uning ostida qolmasin (1024 px da ham)
     const pr = this.el.panel.getBoundingClientRect(), half = el.offsetWidth / 2 + 8, lo = Math.max(half, pr.width && pr.right > hr.left ? pr.right - hr.left + half : half), hi = Math.max(lo, hr.width - half);
-    Object.assign(el.style, { left: `${Math.max(lo, Math.min(hi, cx - hr.left))}px`, top: `${Math.max(64, Math.min(hr.height - 60, minY - hr.top - 58))}px` });
+    Object.assign(el.style, { left: `${Math.max(lo, Math.min(hi, cx - hr.left))}px`, top: `${ty}px` });
   }
 
   /** parsellar qadamida buziladiganlar foydalanuvchi tanloviga koʻra, keyingi qadamlarda — yashirin */

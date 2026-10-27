@@ -57,6 +57,8 @@ test('tutqichlar: uchastka burchagi, bino burchagi va qavat tutqichi (vertikal s
   const hz = await page.evaluate(() => { const f = (window as any).__mr.handleSet().floor; return { c: f.c, z: f.z }; });
   const top = await page.evaluate(([x, y, z]) => (window as any).__mr.scene.toScreen(x, y, z), [hz.c[0], hz.c[1], hz.z]);
   const up = await page.evaluate(([x, y, z]) => (window as any).__mr.scene.toScreen(x, y, z), [hz.c[0], hz.c[1], hz.z + 3 * fh]);
+  // tutqich ustida boshqa element (panel, asboblar) yoʻq
+  expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName, [top.x, top.y])).toBe('CANVAS');
   await page.mouse.move(top.x, top.y); await page.mouse.down(); await page.mouse.move(up.x, up.y, { steps: 6 }); await page.mouse.up();
   expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings[0].floors)).toBe(11);
   await page.click('[data-view=plan]'); await page.waitForTimeout(300);
