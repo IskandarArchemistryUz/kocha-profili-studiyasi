@@ -32,7 +32,7 @@ export type Command =
   | { type: 'setGridStreets'; streets: { axis: LngLat[]; profile: string; id?: string }[]; patches?: { id: string; patch: Partial<Omit<Street, 'id'>> }[]; /** uchastkani kesib oʻtgan mavjud (OSM) koʻchalar — loyihaga olinadi */ adopt?: { axis: LngLat[]; profile: string; osm: number; id?: string }[] }
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
-  | { type: 'setKeep'; keep: number[]; at?: Record<string, LngLat> }
+  | { type: 'setKeep'; keep: number[]; at?: Record<string, LngLat>; rings?: Record<string, Ring> }
   | { type: 'addPoi'; poi: ManualPoi }
   | { type: 'removePoi'; id: string }
   /** bir nechta binoga material va/yoki tom turi */
@@ -116,7 +116,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
         d.zones = doc.zones.map(z => ({ ...z, at: mv([z.at])[0] }));
         d.parcels = doc.parcels.map(p => ({ ...p, rings: p.rings.map(mv) }));
         d.garages = doc.garages.map(g => ({ ...g, ring: mv(g.ring), ...(g.stalls ? { stalls: g.stalls.map(mv) } : {}), ...(g.aisles ? { aisles: g.aisles.map(mv) } : {}) }));
-        d.keep = []; delete d.keepAt; // koʻchirilgan joyda boshqa binolar
+        d.keep = []; delete d.keepAt; delete d.keepRings; // koʻchirilgan joyda boshqa binolar
       }
       return d;
     }
@@ -151,7 +151,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'deleteSelection': {
       const ids = new Set(c.ids); d.buildings = doc.buildings.filter(b => !ids.has(b.id));
       const rm = [...new Set([...(doc.removed ?? []), ...c.ctx])]; if (rm.length) d.removed = rm;
-      if (c.ctx.length) { d.keep = doc.keep.filter(k => !c.ctx.includes(k)); if (doc.keepAt) { const at = { ...doc.keepAt }; for (const k of c.ctx) delete at[k]; d.keepAt = at; } } return d;
+      if (c.ctx.length) { d.keep = doc.keep.filter(k => !c.ctx.includes(k)); if (doc.keepAt) { const at = { ...doc.keepAt }; for (const k of c.ctx) delete at[k]; d.keepAt = at; } if (doc.keepRings) { const rg = { ...doc.keepRings }; for (const k of c.ctx) delete rg[k]; d.keepRings = rg; } } return d;
     }
     case 'setRemoved': { if (c.removed.length) d.removed = [...new Set(c.removed)]; else delete d.removed; return d; }
     case 'setRemovedRoads': { if (c.ids.length) d.removedRoads = [...new Set(c.ids)]; else delete d.removedRoads; return d; }
@@ -168,7 +168,14 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const m = new Map(c.patches.map(q => [q.id, q.patch]));
       d.streets = doc.streets.map(s => { const q = m.get(s.id); if (!q) return s; const n = { ...s, ...q }; if (n.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin'); return n; }); return d;
     }
-    case 'removeStreet': d.streets = doc.streets.filter(s => s.id !== c.id); return d;
+    case 'removeStreet': {
+      // OSM dan olingan koʻcha oʻchirilsa — asl OSM yoʻli ham olib tashlangan hisoblanadi; aks holda u qayta paydo boʻlib,
+      // shu joyga chizilgan yangi koʻcha ostida «eski yoʻl konturi» boʻlib qolardi (27.10, tester izohi)
+      const st = doc.streets.find(s => s.id === c.id);
+      d.streets = doc.streets.filter(s => s.id !== c.id);
+      if (st?.osm != null) d.removedRoads = [...new Set([...(doc.removedRoads ?? []), st.osm])];
+      return d;
+    }
     case 'setGridStreets': {   // patches — uchlarni yoʻllarga ulash (shu buyruqda: tarixda bitta qadam, sahna bir marta)
       const had = new Set(doc.streets.map(s => s.osm).filter(x => x != null));
       const ad = (c.adopt ?? []).filter(a => !had.has(a.osm) && a.axis.length >= 2).map(a => ({ id: a.id ?? uid('s_'), axis: a.axis.map(p => [p[0], p[1]] as LngLat), profile: a.profile, osm: a.osm }));
@@ -177,7 +184,8 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       return d;
     }
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
-    case 'setKeep': { d.keep = [...new Set(c.keep)]; const prev = { ...doc.keepAt, ...c.at }, at: Record<string, LngLat> = {}; for (const k of d.keep) if (prev[k]) at[k] = prev[k]; if (Object.keys(at).length) d.keepAt = at; else delete d.keepAt; return d; }
+    case 'setKeep': { d.keep = [...new Set(c.keep)]; const prev = { ...doc.keepAt, ...c.at }, at: Record<string, LngLat> = {}; for (const k of d.keep) if (prev[k]) at[k] = prev[k]; if (Object.keys(at).length) d.keepAt = at; else delete d.keepAt;
+      const pr = { ...doc.keepRings, ...c.rings }, rg: Record<string, Ring> = {}; for (const k of d.keep) if (pr[k]) rg[k] = pr[k]; if (Object.keys(rg).length) d.keepRings = rg; else delete d.keepRings; return d; }
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
     case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}), ...(c.winPat ? { winPat: c.winPat === 'qator' ? undefined : c.winPat } : {}), ...(c.balPat ? { balPat: c.balPat === 'har2' ? undefined : c.balPat } : {}) } : b); return d; }

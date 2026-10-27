@@ -838,11 +838,14 @@ export class Editor {
   /** uchastka ichidagi atrof binolari markazi (geo) — saqlanganlarni qayta topish uchun */
   private keepCands(): KeepCand[] { const fr = frame(this.store.doc.origin); return this.scene.inSite.map(x => ({ id: x.id, c: fr.toGeo(centroid(x.rings[0])) })); }
   private keepAt(): Record<string, LngLat> { const o: Record<string, LngLat> = {}; for (const c of this.keepCands()) o[c.id] = c.c; return o; }
+  private keepRings(): Record<string, LngLat[]> { const fr = frame(this.store.doc.origin), o: Record<string, LngLat[]> = {}; for (const x of this.scene.inSite) o[x.id] = x.rings[0].map(p => fr.toGeo(p)); return o; }
   /** atrof qayta yuklangach saqlangan binolarni id yoki markaz boʻyicha qayta bogʻlash (tarixga yozilmaydi) */
   private syncKeep(): void {
     const d = this.store.doc; if (!d.keep.length || !this.scene.inSite.length) return;
-    const r = reconcileKeep(d.keep, d.keepAt, this.keepCands(), d.origin); if (!r.changed) return;
-    this.store.amend({ type: 'setKeep', keep: r.keep, at: r.keepAt });
+    const r = reconcileKeep(d.keep, d.keepAt, this.keepCands(), d.origin), rings = this.keepRings();
+    const noRing = r.keep.some(k => rings[k] && !d.keepRings?.[k]);   // eski loyiha: konturlar hali yozilmagan
+    if (!r.changed && !noRing) return;
+    this.store.amend({ type: 'setKeep', keep: r.keep, at: r.keepAt, rings });
   }
   private farKey = '';
   /** Koʻchalar qadamida bosilgan OSM koʻchasi (loyihaga olish uchun) */
@@ -2454,7 +2457,7 @@ export class Editor {
         h('div', { class: 'group', id: 'demo' },
           h('div', { class: 'li' }, h('span', { class: 'k' }, `${dm.all} ${tr('bino')}`, h('span', { class: 'sub' }, `${tr('saqlanadi')} ${dm.kept} · ${tr('buziladi')} ${dm.gone}${dm.gone ? ` · ${tr('dogʻ')} ${fmt(dm.foot)} m² · ~${fmt(dm.floorArea)} m²` : ''}`))),
           h('div', { class: 'li', style: 'flex-wrap:wrap;gap:6px' },
-            h('button', { class: 'btn btn-sm', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id), at: this.keepAt() })) }, tr('Hammasini saqlash')),
+            h('button', { class: 'btn btn-sm', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id), at: this.keepAt(), rings: this.keepRings() })) }, tr('Hammasini saqlash')),
             h('button', { class: 'btn btn-sm', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, tr('Hammasini buzish')),
             dm.gone ? h('button', { class: this.goneHidden ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-ghost', id: 'goneHide', 'aria-pressed': this.goneHidden, onclick: () => { this.goneHidden = !this.goneHidden; this.syncGone(); this.renderPanel(); } }, this.goneHidden ? `${tr('Buziladiganlar yashirilgan')} (${dm.gone})` : `${tr('Buziladiganlarni yashirish')} (${dm.gone})`) : '')),
         h('span', { class: 't-small' }, tr(this.goneHidden ? 'Buziladigan binolar sahnada koʻrinmaydi; hisob va koʻchirish xarajati saqlanadi. Qaytarib, binoni bosib saqlash ↔ buzishni almashtirasiz.' : 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil. Keyingi qadamlarda ular avtomatik olib tashlanadi.')));
@@ -3247,7 +3250,7 @@ export class Editor {
       }
       if (this.step.id === 'parsel') {
         const cid = this.scene.pickContextBuilding(e.clientX, e.clientY);
-        if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k], at: this.keepAt() })); return; }
+        if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k], at: this.keepAt(), rings: this.keepRings() })); return; }
         const oc = this.scene.pickAnyContext(e.clientX, e.clientY);
         if (oc != null) { this.setMarked([], [oc]); return; }
         const p = this.scene.pick(e.clientX, e.clientY);

@@ -145,9 +145,12 @@ export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenRe
   // perimetrning L-burchak mantigʻi ~90° burchak uchun; oʻtkir (< 50°) burchakda burchak seksiyasi qurilmay, qoʻshni seksiyalar
   // ustma-ust tushardi va qatorda oraliq qolardi (egasi, 21.10, 24-band) — bunday kvartal qirralar boʻylab toʻldiriladi
   const minAng = Math.min(...A.map((_, i) => { const u1 = unit(sub(A[i], A[(i - 1 + A.length) % A.length])), u2 = unit(sub(A[(i + 1) % A.length], A[i])); return Math.acos(Math.max(-1, Math.min(1, -(u1[0] * u2[0] + u1[1] * u2[1])))) * 180 / Math.PI; }));
-  let r = allConvex && minAng >= 50 && insetMiter(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
+  // toʻgʻri burchakli (90° ± 12°) qavariq kvartal — klassik perimetr; qolgani — faqat toʻgʻri toʻrtburchak seksiyalar (orthoFill):
+  // qiya qirrali parselda seksiya chegaradan chekinadi, shakli buzilmaydi (27.10, tester: «qiyshiq, noodatiy formalar»)
+  const maxDev = Math.max(...A.map((_, i) => { const u1 = unit(sub(A[i], A[(i - 1 + A.length) % A.length])), u2 = unit(sub(A[(i + 1) % A.length], A[i])); return Math.abs(Math.acos(Math.max(-1, Math.min(1, -(u1[0] * u2[0] + u1[1] * u2[1])))) * 180 / Math.PI - 90); }));
+  let r = allConvex && minAng >= 50 && maxDev <= 12 && insetMiter(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
   // hovli shunchalik torki, minimal qavat ham sigʻmaydi — yopiq perimetr oʻrniga qirralar boʻylab (qarshi qatorlar olib tashlanadi)
-  if (!r || !r.sections.length || (r.capFloors != null && r.capFloors < g.minF)) { notes.length = 0; r = edgeFill(A, g, notes); }
+  if (!r || !r.sections.length || (r.capFloors != null && r.capFloors < g.minF)) { notes.length = 0; r = orthoFill(A, g, notes); }
   facingCap(r, g, floorH);
   return r;
 }
@@ -220,7 +223,108 @@ export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   return { sections, capFloors: null, notes };
 }
 
+/**
+ * Notekis kvartal (27.10, tester izohi «qiyshiq, noodatiy shakllar»): seksiyalar faqat TOʻGʻRI TOʻRTBURCHAK.
+ * Har qirra boʻylab chuqurligi D boʻlgan tasma kataklarga (1 m) boʻlinadi; katak kvartal ichida toʻliq yotsa va oldin
+ * joylanganlardan ≥ 6 m uzoq boʻlsa (yoki ularga tik — L burchak hosil qiladi) — joylanadi. Ketma-ket kataklar —
+ * toʻrtburchak seksiyalar. Qirra parsel chegarasiga qiya boʻlsa, seksiya chegaradan biroz chekinadi, shakli buzilmaydi.
+ * Qirralar navbati: uzunidan qisqasiga; qisqa yoki joy qolmagan qirraga bino qoʻyilmaydi (qolgan joy — hovli).
+ */
+export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
+  const D = g.depth, n = A.length, sections: GenSection[] = [], meta: { edge: number; first: boolean; last: boolean }[] = [];
+  const placed: { ring: XY[]; u: XY }[] = [];
+  const inA = (p: XY) => inside(p, A);
+  const segD = (p: XY, r: XY[]) => { let d = Infinity; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], ab = sub(b, a), L2 = ab[0] * ab[0] + ab[1] * ab[1], t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / L2)) : 0; d = Math.min(d, len(sub(p, add(a, mul(ab, t))))); } return d; };
+  const order = A.map((_, i) => i).sort((a, b) => len(sub(A[(b + 1) % n], A[b])) - len(sub(A[(a + 1) % n], A[a])));
+  const minRun = Math.max(12, Math.min(g.secLen * 0.6, 20));
+  // tutashmaydigan (qiya) seksiyalar orasi: uzun tomon ↔ torets 2·Hmax·0,3, ≥ 6 m (79-band 2-jadval)
+  const gapT = Math.max(6, 0.6 * g.maxF * FLOOR_H);
+  for (const i of order) {
+    const a = A[i], b = A[(i + 1) % n], L = len(sub(b, a)); if (L < minRun) continue;
+    const u = unit(sub(b, a)), N: XY = [-u[1], u[0]];
+    const top = N[1] > 0.55 ? Math.max(g.minF, Math.round((g.maxF + g.minF) / 2)) : g.maxF;   // janubiy qirra pastroq — hovliga quyosh
+    // chegaradan chekinish: qirra boʻylab tasma ichkariga 0…4 m surilishi mumkin (qiya qoʻshni qirralar)
+    const ok = (t: number, off: number): boolean => {
+      for (const s of [off + 0.2, off + D / 2, off + D - 0.2]) for (const dt of [0.05, 0.95]) { const p = add(add(a, mul(u, t + dt)), mul(N, s)); if (!inA(p)) return false; }
+      const c = add(add(a, mul(u, t + 0.5)), mul(N, off + D / 2));
+      for (const q of placed) {
+        const perp = Math.abs(q.u[0] * u[0] + q.u[1] * u[1]) < 0.35;   // ~tik (70–110°) — L burchak boʻlib tutashishi mumkin
+        for (const s of [off + 0.2, off + D / 2, off + D - 0.2]) for (const dt of [0.05, 0.95]) { const p = add(add(a, mul(u, t + dt)), mul(N, s)); if (inside(p, q.ring)) return false; if (!perp && segD(p, q.ring) < gapT) return false; }
+        if (inside(c, q.ring)) return false;
+      }
+      return true;
+    };
+    // eng koʻp katak sigʻadigan chekinish (0, 2, 4 m)
+    let best: { off: number; runs: [number, number][]; tot: number } | null = null;
+    for (const off of [0, 2, 4]) {
+      const runs: [number, number][] = []; let s0: number | null = null;
+      // botiq uchda tasma qirra tashqarisiga D gacha davom etadi (ichki burchak kvadrati — uzluksiz L)
+      const T0 = -Math.ceil(D), T1 = Math.floor(L + D) - 1;
+      for (let t = T0; t <= T1; t += 1) { const f = ok(t, off); if (f && s0 === null) s0 = t; if ((!f || t === T1) && s0 !== null) { const e = f ? t + 1 : t; if (e - s0 >= minRun) runs.push([s0, e]); s0 = null; } }
+      const tot = runs.reduce((x, r) => x + r[1] - r[0], 0); if (!best || tot > best.tot + 2) best = { off, runs, tot };
+    }
+    if (!best || !best.runs.length) continue;
+    for (const [r0, r1] of best.runs) {
+      const base = add(a, mul(N, best.off));
+      const rect = (t0: number, t1: number): XY[] => { const oa = add(base, mul(u, t0)), ob = add(base, mul(u, t1)); return [oa, ob, add(ob, mul(N, D)), add(oa, mul(N, D))]; };
+      placed.push({ ring: rect(r0, r1), u });
+      // hovliga oʻtish (arka) — keyingi bosqichda seksiya ichida; bu yerda tasma uzluksiz (L/T kvartal bitta zanjir)
+      const cuts: [number, number][] = [[r0, r1]];
+      for (const [c0, c1] of cuts) {
+        const sp = spans(c0, c1, g.secLen, !!g.exact);
+        sp.forEach(([ta, tb], k) => {
+          const ring = rect(ta, tb), oa = ring[0], ob = ring[1];
+          const fromEnd = Math.min(ta, L - tb) / Math.max(1, L / 2);
+          sections.push({ ring, floors: Math.max(g.minF, Math.round(top - (top - g.minF) * Math.min(1, fromEnd * 1.4))), kind: 'oddiy', nonRes: g.nonRes, face: { p: add(mul(add(oa, ob), 0.5), mul(N, D + best!.off)), n: N } });
+          meta.push({ edge: i, first: k === 0 && c0 === r0, last: k === sp.length - 1 && c1 === r1 });
+        });
+      }
+    }
+  }
+  if (!sections.length) { notes.push('Seksiya joylashmadi — kvartal bu chuqurlik uchun juda kichik yoki tor'); return { sections, capFloors: null, notes }; }
+  // tik tutashgan qoʻshni seksiyalar — bitta L-shakl burchak binosi
+  const merged = mergeTouching(sections);
+  if (merged) notes.push(`${merged} ta burchak — bitta L-shakl bino (ikki seksiya birlashtirildi)`);
+  return { sections, capFloors: null, notes };
+}
+
+/** Tik tutashgan ikki toʻrtburchak seksiya (umumiy devor ≥ 3 m, oʻqlari tik) — bitta L-shakl burchak binosi */
+function mergeTouching(S: GenSection[]): number {
+  let cnt = 0;
+  for (let guard = 0; guard < 50; guard++) {
+    let done = false;
+    for (let i = 0; i < S.length && !done; i++) for (let j = i + 1; j < S.length && !done; j++) {
+      const a = S[i], b = S[j]; if (a.kind !== 'oddiy' || b.kind !== 'oddiy' || !a.face || !b.face) continue;
+      if (Math.abs(a.face.n[0] * b.face.n[0] + a.face.n[1] * b.face.n[1]) > 0.35) continue;
+      if (!touching(a.ring, b.ring) || sharedWall(a.ring, b.ring) < 3) continue;
+      let u: [number, number][][][] = [];
+      try { u = polygonClipping.union([[...a.ring, a.ring[0]].map(p => [p[0], p[1]] as [number, number])], [[...b.ring, b.ring[0]].map(p => [p[0], p[1]] as [number, number])]); } catch { continue; }
+      if (u.length !== 1 || u[0].length !== 1) continue;
+      let ring = clean(u[0][0].slice(0, -1).map(q => [q[0], q[1]] as XY), 0.8); if (signedArea(ring) < 0) ring = ring.reverse();
+      if (!isSimple(ring)) continue;
+      S[i] = { ...a, ring, floors: Math.max(a.floors, b.floors), kind: 'burchak' }; S.splice(j, 1); cnt++; done = true;
+    }
+    if (!done) break;
+  }
+  return cnt;
+}
+
 /** Koʻpburchakka nur boʻyicha kirish masofasi. par — faqat nurga deyarli tik (fasadga parallel, ≤ 30°) qirralar hisobga olinadi */
+/** Nur bilan kesishgan qirra uzun tomonmi (torets emas): uzunligi halqaning eng uzun qirrasining ≥ 0,6 qismi va ≥ 1,2·chuqurlik */
+function hitLong(p: XY, d: XY, r: XY[], depth: number): boolean {
+  let best = Infinity, bi = -1;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const a = r[j], b = r[i], ex = b[0] - a[0], ey = b[1] - a[1], den = d[0] * ey - d[1] * ex; if (Math.abs(den) < 1e-12) continue;
+    const el = Math.hypot(ex, ey) || 1; if (Math.abs((ex * d[0] + ey * d[1]) / el) > 0.5) continue;
+    const t = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den, s2 = ((a[0] - p[0]) * d[1] - (a[1] - p[1]) * d[0]) / den;
+    if (t > 0.5 && s2 >= 0 && s2 <= 1 && t < best) { best = t; bi = j; }
+  }
+  if (bi < 0) return true;
+  const L = (k: number) => len(sub(r[(k + 1) % r.length], r[k])), e = L(bi), mx = Math.max(...r.map((_, k) => L(k)));
+  return e >= 0.6 * mx && e >= 1.2 * depth;
+}
+/* Qarshidagi seksiyagacha talab: uzun tomon ↔ uzun tomon — 2·Hmax (8-izoh); uzun tomon ↔ torets — 2·Hmax·0,3 va ≥ 6 m (2-jadval).
+   facingCap «samarali masofa» bilan ishlaydi: torets uchun t / 0,3 (2·H ≤ t/0,3 ⇔ 0,6·H ≤ t). */
 function rayHit(p: XY, d: XY, r: XY[], par = false): number {
   let best = Infinity;
   for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
@@ -284,7 +388,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     let worst: [number, number] | null = null, wd = Infinity;
     r.sections.forEach((s, i) => {
       if (!s.face) return;
-      r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < wd) { wd = t; worst = [i, k]; } });
+      r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < wd) { wd = eff; worst = [i, k]; } });
     });
     if (!worst || wd / 2 / floorH >= g.minF) break;
     const [i, k] = worst as [number, number], rm = r.sections.splice(Math.max(i, k), 1)[0]; if (rm.face) gone.push(rm.face.n); removed++;
@@ -324,7 +428,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
   r.sections.forEach((s, i) => {
     if (!s.face) return;
     let d = Infinity, j = -1;
-    r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (t < d) { d = t; j = k; } });
+    r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < d) { d = eff; j = k; } });
     if (!Number.isFinite(d) || d > 200) return;
     const cap = Math.max(g.minF, Math.floor(d / 2 / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
@@ -593,6 +697,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   const pk = g.parking ?? 'yoq';
   if (pk !== 'yoq' && outer) r.parking = placeParking(clean(outer, 6), r, g, t, opts) ?? undefined;
   r.far = (gfaOf(r)) / site;
+  if (far > 0 && r.far < far - 0.15) r.notes.push(`UMN maqsadi ${String(far).replace('.', ',')} ga yetmadi (${r.far.toFixed(2).replace('.', ',')}): meʼyoriy oraliqlar bilan joy yetmadi — «Qavat, eng koʻp» ni oshiring (qavat qoʻshish orqali)`);
   return r;
 }
 

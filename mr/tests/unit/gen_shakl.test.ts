@@ -49,7 +49,7 @@ describe('24-band: oʻtkir burchakli kvartal — ustma-ust va uzilgan boʻlaklar
     });
   it('35° uchburchak: qirralar boʻylab yopiq qurilish (avval uchida ikki seksiya ustma-ust tushardi)', () => {
     const r = generate([[0, 0], [160, 0], [0, 112]], DEFAULT_GEN);
-    expect(r.sections.length).toBeGreaterThanOrEqual(8);
+    expect(r.sections.length).toBeGreaterThanOrEqual(7);   // 27.10: faqat toʻgʻri toʻrtburchak seksiyalar — oʻtkir uchda boʻsh joy qoladi
   });
 });
 
