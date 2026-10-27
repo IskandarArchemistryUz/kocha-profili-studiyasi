@@ -6,6 +6,7 @@ import type { LngLat, Project } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
+import { staleGen } from '../core/spacing';
 import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
@@ -1748,8 +1749,9 @@ export class Editor {
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross });
     this.genNotes = r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
-    const grp = b.parcelId ?? lab.id;
-    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
+    const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));
+    if (drop.bids.length) this.genNotes = [...this.genNotes, tf('${n} ta eski avtomatik bino (oldingi generatsiyadan) almashtirildi — ustma-ust tushmasligi uchun', { n: drop.bids.length })];
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
       sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0 })),
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}) } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
@@ -1806,7 +1808,8 @@ export class Editor {
     const soc = { soc: { mod: this.socMod[t.use], m2: this.socM2[t.use], floors: this.socFloors[t.use], bw: this.socBW[t.use], bl: this.socBL[t.use], cap: t.cap } };
     this.genNotes = [`${SOCIAL[t.use].name}: ${fmt(t.cap)} ${SOCIAL[t.use].unit} · ${fmt(sp.gfa)} m² GFA · ${this.socFloors[t.use]} qavat (taxmin ${this.socM2[t.use]} m²/${SOCIAL[t.use].unit})`, ...sp.notes]; this.genFar = null;
     if (!sp.sections.length) { if (!quiet) toast(sp.notes[0] ?? 'Joylashmadi'); return 0; }
-    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: b.parcelId ?? lab.id, label: b.parcelId ? undefined : { ...lab, gen: soc }, ...(b.parcelId ? { parcelGen: soc } : {}),
+    const sgrp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, sgrp, b.rings[0], sp.sections.map(x => x.ring));
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: sgrp, drop, label: b.parcelId ? undefined : { ...lab, gen: soc }, ...(b.parcelId ? { parcelGen: soc } : {}),
       sections: sp.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: 0, use: t.use, kind: 'ijtimoiy' })), garage: null }));
     if (!quiet) toast(`${this.unitName(i)}: ${SOCIAL[t.use].name.toLowerCase()} — ${fmt(t.cap)} ${SOCIAL[t.use].unit}, ${fmt(sp.gfa)} m²`);
     return sp.sections.length;
@@ -1844,7 +1847,7 @@ export class Editor {
           ...plan.blocks.map((b, i) => ({ value: String(i), label: `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, sub: tr(useDef(b.use).name), selected: i === this.selBlock }))]),
       h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')), this.isoBtn(this.selBlock));
     const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => { let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); } }, tr('Hammasi'));
-    const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: u.parcelId ?? lab.id, sections: [] })); } }, svgIcon(IC.trash));
+    const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) { const grp = u.parcelId ?? lab.id; this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, sections: [], drop: staleGen(this.store.doc, grp, u.rings[0], []) })); } } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
     if (socI != null) {
       body.append(this.socialSection(socI),
@@ -2562,6 +2565,8 @@ export class Editor {
         h('div', { class: 'row' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', {}, `${fmt(share, 0)} %`), h('span', {}, tr('Yashillik darajasi'))), chip('green-86', `${tr('meʼyor')} ≥ 25 %`)),
         h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, share)}%;background:${share >= 25 ? 'var(--ok)' : 'var(--bad)'}` }), h('b', { style: 'left:25%' })),
         h('span', { class: 'norm' }, svgIcon(IC.book), 'ShNQ 2.07.01-23 · 86-band')),
+      !doc.settings.yards && doc.buildings.length ? h('div', { class: 'note warn', id: 'yardsOff' }, tr('Hovli maysasi hisobga olinmayapti — hovlilarni obodonlashtirish oʻchiq.'), ' ',
+        h('button', { class: 'btn btn-sm', onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: true } })) }, tr('Yoqish'))) : '',
       h('div', { class: 'glabel' }, h('span', {}, tr('Yashillik balansi'))),
       h('div', { class: 'group', id: 'greenSt' },
         row(tr('Yashil kvartallar (park, skver)'), '', `${fmt(d?.greenArea ?? 0)} m²`),
