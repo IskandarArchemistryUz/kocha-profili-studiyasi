@@ -52,7 +52,8 @@ def parse(src_path):
     return cats
 
 
-def stats(today, now, hudud, cat, total, rows):
+def clean(rows):
+    """Takror, auksion va chetki qiymatlarni chiqaradi; (yaroqli, auksion, takror, chetki) qaytaradi."""
     ids, seen = set(), set(); auc = dup = bad = 0; ok = []
     for r in rows:
         if r['id'] in ids:
@@ -70,6 +71,11 @@ def stats(today, now, hudud, cat, total, rows):
         if not 150 <= v <= 15000:
             bad += 1; continue
         r['v'] = v; ok.append(r)
+    return ok, auc, dup, bad
+
+
+def stats(today, now, hudud, cat, total, rows):
+    ok, auc, dup, bad = clean(rows)
     vals = [r['v'] for r in ok]
     near = [r['v'] for r in ok if dist(ORIGIN, (r['lat'], r['lng'])) <= NEAR_M]
     fresh = 0
