@@ -4,9 +4,9 @@ async function newProject(page: Page) {
   await page.goto('./');
   await page.click('#newP');
   await expect(page).toHaveURL(/#\/p\/p_/);
-  await expect(page.locator('.panel h2')).toHaveText('Hudud');           // yangi loyiha — avval joy tanlanadi
+  await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');           // yangi loyiha — avval joy tanlanadi
   await page.click('[data-step=uchastka]');
-  await expect(page.locator('.panel h2')).toHaveText('Uchastka');
+  await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
 }
 
 /** sahna markazi atrofida ekranda bino chizish */
@@ -136,7 +136,7 @@ test('«Uchlarini mavjud yoʻllarga ulash» — qisqa qolgan koʻcha OSM yoʻlga
 
 /** Xarita surilib «Atrofni yuklash» bosilsa — loyiha markazi ekran markaziga koʻchadi (Amir Temur xiyoboni qolib ketmaydi) */
 test('«Atrofni yuklash» — markaz ekran markaziga koʻchadi', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await expect(page.locator('.panel h2')).toHaveText('Hudud');
+  await page.goto('./'); await page.click('#newP'); await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
   await page.waitForTimeout(1500);   // fon xaritasi kelib kamerani moslashi mumkin — undan keyin suriladi
   // surish va bosish bir vaqtda (fon xaritasi kelganda kamera qayta moslanishi oldini olish uchun)
   const o0 = await page.evaluate(() => { const ed = (window as any).__mr; ed.scene.ctl.target.set(1500, 0, -900); ed.scene.ctl.update(); const o = ed.store.doc.origin; (document.querySelector('#ctxLoad') as HTMLButtonElement).click(); return o; });

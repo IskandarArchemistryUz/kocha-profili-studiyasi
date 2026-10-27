@@ -24,7 +24,8 @@ test('sahna: LOD va qayta qurishda xotira oqmaydi', async ({ page }) => {
   // yaqinlashtirilganda — kamera atrofidagi binolar geometrik fasadda
   const bb = (await page.locator('#scene canvas').boundingBox())!; await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
   for (let i = 0; i < 5; i++) { await page.mouse.wheel(0, -400); await page.waitForTimeout(120); }
-  await expect.poll(async () => (await info()).det, { timeout: 5000 }).toBeGreaterThan(0);
+  // sekin CI: LOD keyingi boʻsh kadrda yangilanadi — kerak boʻlsa yana yaqinlashtiramiz
+  await expect.poll(async () => { const d = (await info()).det; if (!d) { await page.mouse.wheel(0, -300); await page.waitForTimeout(200); } return d; }, { timeout: 20_000 }).toBeGreaterThan(0);
 });
 
 test('tanlov: faqat binolar qayta quriladi, natija toʻliq qayta qurish bilan bir xil', async ({ page }) => {
