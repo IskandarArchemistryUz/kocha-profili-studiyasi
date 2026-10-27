@@ -97,6 +97,8 @@ export const EXPLODE_NAMES = ['Atrof', 'Koʻchalar', 'Kvartallar va zonalar', 'B
 
 const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b4, siteLine: 0xc0392b, bld: 0xf7f6f2, bldSel: 0xcfe0f1, roof: 0xdedad2, edge: 0x3c3c3c, preview: 0x2a6fb0 };
 
+const bbox = (r: XY[]): [number, number, number, number] => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of r) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); } return [a, b, c, d]; };
+
 export class Scene3D {
   readonly renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -1175,6 +1177,7 @@ export class Scene3D {
   private bundle: ContextBundle | null = null;
   private glabKey = '';
 
+  private rectMemo = new Map<string, ReturnType<typeof freeRect>>();
   private buildLabels(doc: Project, plan: ReturnType<typeof computePlan>, fr: ReturnType<typeof frame>): void {
     this.glabs.forEach(g => Object.values(g.tex).forEach(t => t?.t.dispose())); this.glabs = []; this.glabKey = '';
     const obst = doc.buildings.map(b => b.footprint.map(fr.toLocal));
@@ -1194,7 +1197,11 @@ export class Scene3D {
         const sp = labelCard([code, tr(useDef(b.use).name), ar, ...(gfa ? [`UMN ${(gfa / b.area).toFixed(2).replace('.', ',')} · ${fl} ${tr('qavat')}`] : [])]), c = interiorPoint(b.rings);
         sp.position.set(c[0], this.H(c[0], c[1]) + 0.6, -c[1]); sp.userData.layer = 2; this.world.add(sp);
       }
-      const rect = freeRect(b.rings, [...obst, ...kept]);
+      // 27.10 yengillik: faqat kvartal qutisiga tegadigan toʻsiqlar; natija kesh (shakl va toʻsiqlar oʻzgarmasa)
+      const bb = bbox(b.rings[0]), near = [...obst, ...kept].filter(r => { const q = bbox(r); return q[0] < bb[2] && q[2] > bb[0] && q[1] < bb[3] && q[3] > bb[1]; });
+      const rk = `${b.rings.map(r => r.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(';')).join('/')}|${near.map(r => r.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(';')).join('#')}`;
+      let rect = this.rectMemo.get(rk);
+      if (rect === undefined) { rect = freeRect(b.rings, near); this.rectMemo.set(rk, rect); if (this.rectMemo.size > 800) this.rectMemo.delete(this.rectMemo.keys().next().value!); }
       this.addGlab({ kind: 'block', block: i, daha: b.blockKey, rect, lines: { 1: [code], 2: [code, ar], 3: [code, use, ar] }, halo, hidden: i === this.selBlock });
     });
     // daha kodi: uchastkalarining hech biri koʻrinmaganda — eng katta uchastka joyida
