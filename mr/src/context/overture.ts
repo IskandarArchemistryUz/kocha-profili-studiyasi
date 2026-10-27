@@ -68,7 +68,7 @@ export function mergeOverture(osm: OsmData, ov: OvResult, heightByArea: (kind: s
   bbs.forEach((bb, i) => { for (let x = Math.floor(bb[0] / G); x <= Math.floor(bb[2] / G); x++) for (let y = Math.floor(bb[1] / G); y <= Math.floor(bb[3] / G); y++) { const k = `${x},${y}`; const a = grid.get(k); if (a) a.push(i); else grid.set(k, [i]); } });
   const near = (p: LngLat) => grid.get(key(p[0], p[1])) ?? [];
   let added = 0, heights = 0, nid = -1;
-  const done = new Set<number>();
+  const done = new Set<number>(), used = new Set<number>();
   for (const o of ov.buildings) {
     const outer = o.rings[0], c = centroid(outer), oh = ovH(o);
     // OSM binosi Overture ichida yoki Overture markazi OSM binosi ichida — bitta bino
@@ -80,7 +80,10 @@ export function mergeOverture(osm: OsmData, ov: OvResult, heightByArea: (kind: s
       continue;
     }
     const a = area(outer); if (a < 12) continue;   // sun'iy intellekt shovqini (≤ 12 m²)
-    const nb: CtxBuilding = { id: nid--, rings: o.rings, h: oh ?? heightByArea('yes', a, 9), hSrc: oh != null ? 'overture' : 'taxmin', kind: 'yes' };
+    // barqaror id: markaz (≈1 m) boʻyicha — atrof qayta yuklanganda saqlangan binolar yoʻqolmasin
+    const hsh = (((Math.round(c[0] * 1e5) * 73856093) ^ (Math.round(c[1] * 1e5) * 19349663)) >>> 0) % 1_000_000_000;
+    let id = -(100 + hsh); if (used.has(id)) id = nid--; used.add(id);
+    const nb: CtxBuilding = { id, rings: o.rings, h: oh ?? heightByArea('yes', a, 9), hSrc: oh != null ? 'overture' : 'taxmin', kind: 'yes' };
     B.push(nb); added++;
   }
   return { added, heights, release: ov.release };

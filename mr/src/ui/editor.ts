@@ -6,6 +6,7 @@ import type { LngLat, Project } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
+import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
@@ -819,6 +820,7 @@ export class Editor {
     if (b) { this.baseKey = ''; this.liveAt = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
     void this.scene.setContext(b, doc).then(() => {
       this.ul.sync(this.store.doc);
+      if (b) this.syncKeep();
       if (b && !this.framedCtx) { this.framedCtx = true; if (doc.context.area) this.scene.frameDoc(this.store.doc, doc.context.area); else if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); }
       // gorizont: kattaroq radiusdagi binolar (fon rejimida, xatoda jim)
       const fk = b && doc.context.layers.buildings && !doc.context.area ? `${b.center.join(',')}|${b.radius}|${doc.origin.join(',')}` : '';
@@ -831,6 +833,15 @@ export class Editor {
     (this.el.attr.querySelector('.sat') as HTMLElement).hidden = doc.context.base !== 'sputnik';
   }
   private framedCtx = false;
+  /** uchastka ichidagi atrof binolari markazi (geo) — saqlanganlarni qayta topish uchun */
+  private keepCands(): KeepCand[] { const fr = frame(this.store.doc.origin); return this.scene.inSite.map(x => ({ id: x.id, c: fr.toGeo(centroid(x.rings[0])) })); }
+  private keepAt(): Record<string, LngLat> { const o: Record<string, LngLat> = {}; for (const c of this.keepCands()) o[c.id] = c.c; return o; }
+  /** atrof qayta yuklangach saqlangan binolarni id yoki markaz boʻyicha qayta bogʻlash (tarixga yozilmaydi) */
+  private syncKeep(): void {
+    const d = this.store.doc; if (!d.keep.length || !this.scene.inSite.length) return;
+    const r = reconcileKeep(d.keep, d.keepAt, this.keepCands(), d.origin); if (!r.changed) return;
+    this.store.amend({ type: 'setKeep', keep: r.keep, at: r.keepAt });
+  }
   private farKey = '';
   /** Koʻchalar qadamida bosilgan OSM koʻchasi (loyihaga olish uchun) */
   private osmPick: { id: number; cls: string; w: number; name?: string; pts: LngLat[] } | null = null;
@@ -2427,7 +2438,7 @@ export class Editor {
         h('div', { class: 'group', id: 'demo' },
           h('div', { class: 'li' }, h('span', { class: 'k' }, `${dm.all} ${tr('bino')}`, h('span', { class: 'sub' }, `${tr('saqlanadi')} ${dm.kept} · ${tr('buziladi')} ${dm.gone}${dm.gone ? ` · ${tr('dogʻ')} ${fmt(dm.foot)} m² · ~${fmt(dm.floorArea)} m²` : ''}`))),
           h('div', { class: 'li', style: 'flex-wrap:wrap;gap:6px' },
-            h('button', { class: 'btn btn-sm', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id) })) }, tr('Hammasini saqlash')),
+            h('button', { class: 'btn btn-sm', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id), at: this.keepAt() })) }, tr('Hammasini saqlash')),
             h('button', { class: 'btn btn-sm', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, tr('Hammasini buzish')),
             dm.gone ? h('button', { class: this.goneHidden ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-ghost', id: 'goneHide', 'aria-pressed': this.goneHidden, onclick: () => { this.goneHidden = !this.goneHidden; this.syncGone(); this.renderPanel(); } }, this.goneHidden ? `${tr('Buziladiganlar yashirilgan')} (${dm.gone})` : `${tr('Buziladiganlarni yashirish')} (${dm.gone})`) : '')),
         h('span', { class: 't-small' }, tr(this.goneHidden ? 'Buziladigan binolar sahnada koʻrinmaydi; hisob va koʻchirish xarajati saqlanadi. Qaytarib, binoni bosib saqlash ↔ buzishni almashtirasiz.' : 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil. Keyingi qadamlarda ular avtomatik olib tashlanadi.')));
@@ -3218,7 +3229,7 @@ export class Editor {
       }
       if (this.step.id === 'parsel') {
         const cid = this.scene.pickContextBuilding(e.clientX, e.clientY);
-        if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k] })); return; }
+        if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k], at: this.keepAt() })); return; }
         const oc = this.scene.pickAnyContext(e.clientX, e.clientY);
         if (oc != null) { this.setMarked([], [oc]); return; }
         const p = this.scene.pick(e.clientX, e.clientY);
