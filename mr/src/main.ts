@@ -10,6 +10,7 @@ import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
 import { tr, autoTranslate } from './i18n';
 import { initStats } from './core/stats';
+import { coinsDialog } from './account/pay';   // + yuklash darvozasi: bepul (belgili) / toza (tanga)
 import { handlePayReturn, buyDialog } from './account/buy';
 import { authRequired } from './account/config';
 import { check as checkAuth, current as currentUser, onAuth, logout } from './account/session';
@@ -86,6 +87,7 @@ function homeAcct(): HTMLElement {
       h('span', { class: 't-small who', title: who }, who),
       h('span', { class: 't-small mono', id: 'homeBal' }, `${tr('Tangalar')}: ${fmt(m.balance)}`),
       h('button', { class: 'btn btn-sm', id: 'homeBuy', onclick: () => void buyDialog() }, tr('Tanga sotib olish')),
+      h('button', { class: 'btn btn-sm btn-ghost', id: 'homeCoins', onclick: () => void coinsDialog() }, tr('Tarix')),
       h('button', { class: 'btn btn-sm btn-ghost', id: 'homeOut', onclick: () => void logout().then(() => toast(tr('Hisobdan chiqdingiz'))) }, tr('Chiqish')));
   };
   offAcct?.(); draw(); offAcct = onAuth(draw);

@@ -35,8 +35,24 @@ export function wmLabel(): string {
   return l === 'en' ? 'ARCHEMISTRY · FREE' : l === 'ru' ? 'ARCHEMISTRY · БЕСПЛАТНО' : 'ARCHEMISTRY · BEPUL';
 }
 
-/** Belgi qoʻyiladimi (egasi uchun — yoʻq) */
-export const needWm = (): boolean => !isOwner();
+/** Toza (tanga bilan toʻlangan) eksport davomida belgi qoʻyilmaydi — account/pay.ts boshqaradi */
+let cleanDepth = 0;
+export async function asClean<T>(fn: () => Promise<T> | T): Promise<T> { cleanDepth++; try { return await fn(); } finally { cleanDepth--; } }
+/** Belgi qoʻyiladimi (egasi va toʻlangan toza fayl uchun — yoʻq) */
+export const needWm = (): boolean => !isOwner() && cleanDepth === 0;
+
+/* ---------- eksport darvozasi: bepul (belgili) yoki toza (tanga) ---------- */
+export type ExportMode = 'wm' | 'clean';
+/** name — fayl nomi, item — narx roʻyxatidagi id (server/src/prices.js), sample — holat xeshi uchun mazmun */
+export type ExportGate = (o: { name: string; item?: string; sample: string | Blob }) => Promise<ExportMode | null>;
+let gateFn: ExportGate | null = null;
+export const setExportGate = (g: ExportGate): void => { gateFn = g; };
+/** Darvoza ulanmagan boʻlsa (masalan, testda) — avvalgidek: belgili bepul fayl */
+export const exportGate: ExportGate = o => gateFn ? gateFn(o) : Promise.resolve(isOwner() ? 'clean' : 'wm');
+/** Master reja koeffitsiyenti uchun uchastka maydoni (ga) — muharrir yangilab turadi */
+let areaHa = 0;
+export const setExportArea = (ha: number): void => { areaHa = Number.isFinite(ha) && ha > 0 ? ha : 0; };
+export const exportArea = (): number => areaHa;
 
 /** SVG oxiriga burilgan yozuvlar toʻri (viewBox boʻyicha) */
 export function wmSvg(svg: string): string {

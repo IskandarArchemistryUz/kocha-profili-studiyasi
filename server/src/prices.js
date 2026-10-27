@@ -16,6 +16,7 @@ export const ITEMS = Object.freeze({
   'mr.axo':       { coins: 5,  mr: false },  // Aksonometriya — SVG
   'mr.floors':    { coins: 10, mr: false },  // Qavat rejalari
   'mr.png':       { coins: 1,  mr: false }, // PNG — toza
+  'mr.site':      { coins: 10, mr: true },  // 3 ga dan katta uchastkani ochish (bepul — 3 ga gacha; egasi qarori 27.10), loyiha va pogʻona uchun bir marta
   // Chizmadon
   'chz.album':    { coins: 10, mr: false }, // Chizmadon albomi — PDF / PPTX
   // Koʻchasoz

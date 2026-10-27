@@ -48,6 +48,10 @@ describe('narx', () => {
   });
   it('koeffitsiyent faqat MR fayllarga; takror bir marta', () => {
     expect(priceOf(['chz.album', 'mr.png', 'mr.png'], 80).coins).toBe(11);
+    // katta uchastkani ochish: 10 tanga × maydon koeffitsiyenti
+    expect(priceOf(['mr.site'], 4).coins).toBe(10);
+    expect(priceOf(['mr.site'], 30).coins).toBe(15);
+    expect(priceOf(['mr.site'], 80).coins).toBe(20);
     expect(priceOf(['mr.ifc', 'chz.album'], 80).coins).toBe(30);
   });
   it('nomaʼlum fayl — xato', () => { expect(() => priceOf(['x'])).toThrow(); });

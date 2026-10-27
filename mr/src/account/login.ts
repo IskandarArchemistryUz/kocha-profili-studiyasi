@@ -2,6 +2,7 @@
  * «Kirish» oynasi: Google tugmasi (server sozlamasida yoqilgan boʻlsa) va pochtaga bir martalik kod.
  * Parol yoʻq. Muvaffaqiyatli kirishda — resolve(true), yopilsa — resolve(false).
  */
+import './account.css';
 import { h, svgIcon, IC } from '../ui/dom';
 import { tr, tf, getLang } from '../i18n';
 import { config, requestCode, verifyCode, google, ApiError, type AuthCfg } from './session';
