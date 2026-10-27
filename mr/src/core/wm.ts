@@ -4,7 +4,7 @@
    Loyiha fayli (.json), IFC, GLB, OBJ, Excel — oʻzgarmaydi. */
 import { getLang } from '../i18n';
 
-/** SHA-256(egasi kaliti) — js/beta.js dagi CFG.owner bilan bir xil */
+/** SHA-256(egasi kaliti) — js/fikr.js dagi CFG.owner bilan bir xil */
 const OWNER = 'd334a182444e562a7b7793445d07de9716924308b1887db6b15452f719ab5560';
 
 export function isOwner(): boolean { try { return localStorage.getItem('kps_owner') === '1'; } catch { return false; } }

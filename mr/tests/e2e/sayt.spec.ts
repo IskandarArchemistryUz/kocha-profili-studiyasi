@@ -78,7 +78,7 @@ test('narxlar batafsil: hisoblagich, maydon koeffitsiyenti, valyuta, til', async
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   await expect(page.locator('h1')).toContainText('бесплатно');
   await expect(page.locator('#cSum')).toContainText('сум');
-  await expect(page.locator('.draft')).toBeVisible();
+  await expect(page.locator('.draft')).toHaveCount(0);   // «Qoralama…» olib tashlandi — tanga ishlaydi
   expect(errs).toEqual([]);
 });
 
@@ -92,11 +92,12 @@ test('bosh sahifa · minimal: xizmatlar, Boshlash, fikr, til, tungi rejim', asyn
   expect(hrefs).toEqual(['app/kochasoz.html', 'app/joyshunos.html', 'app/#/chizmadon', 'dizaynkod.html', 'app/render.html']);
   for (const a of await page.locator('a[href]').all()) expect(await a.getAttribute('href')).not.toBe('#');
   for (const h of ['haqida.html', 'narxlar.html', 'haqida.html#hammasi', 'app/']) await expect(page.locator(`footer a[href="${h}"]`)).toHaveCount(1);
-  // beta tugmasi va sariq qator chiqmaydi — sahifaning oʻz «Fikr» tugmasi bor
+  // suzuvchi «Fikr» tugmasi chiqmaydi — sahifaning oʻz «Fikr» tugmasi bor; beta davri qoldiqlari (sariq qator, qahva, kod) yoʻq
   await expect(page.locator('#kbBtn')).toBeHidden(); await expect(page.locator('#kbBar')).toHaveCount(0);
   await page.locator('.fab').hover(); await page.click('[data-fb="Xato topdim"]');
   await expect(page.locator('[data-fb="Xato topdim"]')).toHaveAttribute('aria-pressed', 'true');
-  await page.click('#fbBeta'); await expect(page.locator('#kbPn')).toBeVisible();
+  await expect(page.locator('#fbBeta, #fbCof, #kbCofS, #kbLim')).toHaveCount(0);
+  await expect(page.locator('body')).not.toContainText('Qahva');
   // til va tungi rejim
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   await expect(page.locator('h1')).toContainText('по нормам'); await expect(page.locator('#ctaNew')).toHaveText('Начать');
@@ -119,9 +120,10 @@ test('narxlar · minimal: tariflar, Pro yillik, valyuta, batafsil havola', async
   await expect(page.locator('#proY')).toContainText(/1\s430\s400/);
   await page.click('[data-cur="usd"]'); await expect(page.locator('[data-usd="$10"]').first()).toHaveText('$10');
   await expect(page.locator('#proP')).toHaveText('$12');
-  await expect(page.locator('.mb[disabled]')).toHaveCount(2);
+  await expect(page.locator('.mb[disabled]')).toHaveCount(1);   // faqat obuna — tez orada
+  await expect(page.locator('a.mb[href="app/#/tanga"]')).toHaveText('Tanga olish');
   await expect(page.locator('a.more')).toHaveAttribute('href', 'narxlar-batafsil.html');
-  await expect(page.locator('.draft')).toBeVisible();
+  await expect(page.locator('.draft')).toHaveCount(0);   // «Qoralama…» olib tashlandi — tanga ishlaydi
   expect(errs).toEqual([]);
 });
 
