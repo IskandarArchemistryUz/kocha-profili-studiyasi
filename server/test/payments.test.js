@@ -187,6 +187,22 @@ describe('Multicard', () => {
     expect((await me(c)).balance).toBe(10);
     expect((await app.inject({ method: 'GET', url: `/pay/order/${o.orderId}`, headers: { cookie: c } })).json()).toMatchObject({ state: 'paid', provider: 'multicard' });
   });
+  it('callback: sha1 imzo, data ichida kelgan tana va form-urlencoded ham qabul qilinadi', async () => {
+    const c = await login();
+    const sha = (x) => createHash('sha1').update(x).digest('hex');
+    const o1 = await order(c, 'p10', 'multicard');
+    const b1 = cb(o1.orderId, { uuid: 'u-sha' });
+    b1.sign = sha(`${b1.store_id}${b1.invoice_id}${b1.amount}${MC.secret}`);
+    expect((await app.inject({ method: 'POST', url: '/pay/multicard/callback', payload: b1 })).json().success).toBe(true);
+    const o2 = await order(c, 'p10', 'multicard');
+    expect((await app.inject({ method: 'POST', url: '/pay/multicard/callback', payload: { data: cb(o2.orderId, { uuid: 'u-data' }) } })).json().success).toBe(true);
+    const o3 = await order(c, 'p10', 'multicard');
+    const b3 = cb(o3.orderId, { uuid: 'u-form' });
+    const form = new URLSearchParams(Object.entries(b3).map(([k, v]) => [k, String(v)])).toString();
+    const r3 = await app.inject({ method: 'POST', url: '/pay/multicard/callback', payload: form, headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+    expect(r3.json().success).toBe(true);
+    expect((await me(c)).balance).toBe(30);
+  });
   it('invoys yaratilmasa — 502 va buyurtma bekor', async () => {
     const c = await login(); failInvoice = true;
     const r = await post('/pay/order', { pack: 'p10', provider: 'multicard' }, { cookie: c });
