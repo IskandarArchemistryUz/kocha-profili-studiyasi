@@ -32,7 +32,7 @@ export type Command =
   | { type: 'setGridStreets'; streets: { axis: LngLat[]; profile: string; id?: string }[]; patches?: { id: string; patch: Partial<Omit<Street, 'id'>> }[]; /** uchastkani kesib oʻtgan mavjud (OSM) koʻchalar — loyihaga olinadi */ adopt?: { axis: LngLat[]; profile: string; osm: number; id?: string }[] }
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
-  | { type: 'setKeep'; keep: number[] }
+  | { type: 'setKeep'; keep: number[]; at?: Record<string, LngLat> }
   | { type: 'addPoi'; poi: ManualPoi }
   | { type: 'removePoi'; id: string }
   /** bir nechta binoga material va/yoki tom turi */
@@ -50,7 +50,7 @@ export type Command =
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
   | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use' | 'rings'>> }
   /** generator natijasi: shu guruhdagi seksiyalarni almashtirish (boʻsh roʻyxat — tozalash); zona belgisiga parametrlar yoziladi */
-  | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: string; z0?: number }[]; label?: ZoneLabel; garage?: Omit<Garage, 'id' | 'grp'> | null; /** yer uchastkasi (grp = parsel id) parametrlari */ parcelGen?: Record<string, unknown> };
+  | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: string; z0?: number }[]; label?: ZoneLabel; garage?: Omit<Garage, 'id' | 'grp'> | null; /** yer uchastkasi (grp = parsel id) parametrlari */ parcelGen?: Record<string, unknown>; /** shu hududdagi boshqa guruhlarning eski avtomatik binolari va avtoturargohlari (ustiga qurilmasin) */ drop?: { bids: string[]; gids: string[] } };
 
 /** Tarixda koʻrinadigan nom */
 export function label(c: Command): string {
@@ -116,7 +116,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
         d.zones = doc.zones.map(z => ({ ...z, at: mv([z.at])[0] }));
         d.parcels = doc.parcels.map(p => ({ ...p, rings: p.rings.map(mv) }));
         d.garages = doc.garages.map(g => ({ ...g, ring: mv(g.ring), ...(g.stalls ? { stalls: g.stalls.map(mv) } : {}), ...(g.aisles ? { aisles: g.aisles.map(mv) } : {}) }));
-        d.keep = []; // koʻchirilgan joyda boshqa binolar
+        d.keep = []; delete d.keepAt; // koʻchirilgan joyda boshqa binolar
       }
       return d;
     }
@@ -151,7 +151,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'deleteSelection': {
       const ids = new Set(c.ids); d.buildings = doc.buildings.filter(b => !ids.has(b.id));
       const rm = [...new Set([...(doc.removed ?? []), ...c.ctx])]; if (rm.length) d.removed = rm;
-      if (c.ctx.length) d.keep = doc.keep.filter(k => !c.ctx.includes(k)); return d;
+      if (c.ctx.length) { d.keep = doc.keep.filter(k => !c.ctx.includes(k)); if (doc.keepAt) { const at = { ...doc.keepAt }; for (const k of c.ctx) delete at[k]; d.keepAt = at; } } return d;
     }
     case 'setRemoved': { if (c.removed.length) d.removed = [...new Set(c.removed)]; else delete d.removed; return d; }
     case 'setRemovedRoads': { if (c.ids.length) d.removedRoads = [...new Set(c.ids)]; else delete d.removedRoads; return d; }
@@ -177,7 +177,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       return d;
     }
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
-    case 'setKeep': d.keep = [...new Set(c.keep)]; return d;
+    case 'setKeep': { d.keep = [...new Set(c.keep)]; const prev = { ...doc.keepAt, ...c.at }, at: Record<string, LngLat> = {}; for (const k of d.keep) if (prev[k]) at[k] = prev[k]; if (Object.keys(at).length) d.keepAt = at; else delete d.keepAt; return d; }
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
     case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}), ...(c.winPat ? { winPat: c.winPat === 'qator' ? undefined : c.winPat } : {}), ...(c.balPat ? { balPat: c.balPat === 'har2' ? undefined : c.balPat } : {}) } : b); return d; }
@@ -218,12 +218,13 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       d.parcels = doc.parcels.slice(); d.parcels[i] = { ...doc.parcels[i], ...c.patch }; return d;
     }
     case 'replaceGroup': {
-      const keep = doc.buildings.filter(b => b.gen?.grp !== c.grp);
+      const dropB = new Set(c.drop?.bids ?? []), dropG = new Set(c.drop?.gids ?? []);
+      const keep = doc.buildings.filter(b => b.gen?.grp !== c.grp && !(b.gen && dropB.has(b.id)));
       d.buildings = [...keep, ...c.sections.map(x => {
         const floors = Math.max(1, Math.round(x.floors));
         return { id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: x.kind === 'stilobat' ? floors : Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind }, ...(x.z0 ? { z0: x.z0 } : {}) };
       })];
-      d.garages = [...doc.garages.filter(g => g.grp !== c.grp), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring), ...(c.garage.stalls ? { stalls: c.garage.stalls.map(copyRing) } : {}), ...(c.garage.aisles ? { aisles: c.garage.aisles.map(copyRing) } : {}) }] : [])];
+      d.garages = [...doc.garages.filter(g => g.grp !== c.grp && !dropG.has(g.id)), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring), ...(c.garage.stalls ? { stalls: c.garage.stalls.map(copyRing) } : {}), ...(c.garage.aisles ? { aisles: c.garage.aisles.map(copyRing) } : {}) }] : [])];
       if (c.parcelGen) d.parcels = doc.parcels.map(p => p.id === c.grp ? { ...p, gen: { ...c.parcelGen } } : p);
       if (c.label) { const z = c.label; d.zones = [...doc.zones.filter(q => q.id !== z.id), { ...z, at: [z.at[0], z.at[1]] as LngLat }]; }
       return d;

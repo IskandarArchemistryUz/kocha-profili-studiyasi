@@ -8,6 +8,7 @@ import type { Derived } from '../core/derive';
 import type { Project } from '../core/doc';
 import { CATS, checkProfile, profileById } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
+import { spacingIssues } from '../core/spacing';
 
 /** stat.uz boʻyicha haqiqiy yosh tarkibidan ehtiyoj (izoh uchun) */
 function demoNote(doc: Project, pop: number, kind: 'school' | 'mtm'): string {
@@ -146,11 +147,32 @@ export const RULES: Rule[] = [
     id: 'green-86',
     title: 'Turar joy zonasining yashil hududi (≥ 25 %)',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '86, 87, 474-bandlar', verified: true },
-    evaluate(d) {
+    evaluate(d, doc) {
       if (d.greenBase <= 0) return { status: 'na', unit: '%', limit: '≥ 25' };
       const v = d.greenShareTotal * 100;
-      return { status: v >= 25 ? 'pass' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
-        note: `Hisob: yashil kvartallar ${Math.round(d.greenArea)} m² + hovli maysasi ${Math.round(d.yardGreen)} m² + maydoncha va yoʻlaklar ${Math.round(d.yardPlay)} m² (87-band: uchastkaning 30 % idan oshmasa) ÷ mavze maydoni (maktab va MTM uchastkalarisiz, 86-band) ${Math.round(d.greenBase)} m².` };
+      // hovli obodonlashtirish oʻchiq — hovli maysasi hisobga kirmagan: «mos emas» emas, «koʻrib chiqish» (hisob toʻliq emas)
+      const noYards = !doc.settings.yards && doc.buildings.length > 0;
+      return { status: v >= 25 ? 'pass' : noYards ? 'review' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
+        note: (noYards ? 'Hovli maysasi hisobga olinmadi — «Hovlilarni avtomatik obodonlashtirish» oʻchiq (Yashil qadami).\n' : '') + `Hisob: yashil kvartallar ${Math.round(d.greenArea)} m² + hovli maysasi ${Math.round(d.yardGreen)} m² + maydoncha va yoʻlaklar ${Math.round(d.yardPlay)} m² (87-band: uchastkaning 30 % idan oshmasa) ÷ mavze maydoni (maktab va MTM uchastkalarisiz, 86-band) ${Math.round(d.greenBase)} m².` };
+    },
+  },
+  {
+    id: 'spacing-79',
+    title: 'Binolar orasidagi masofa va ustma-ust tushish',
+    source: { ...SHNQ_2_07_01, clause: '79-band, 2-jadval, 8-izoh' },
+    evaluate(_d, doc) {
+      if (doc.buildings.length < 2) return { status: 'na', note: 'Binolar yoʻq' };
+      const { pairs } = spacingIssues(doc);
+      const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun'), hard = pairs.filter(p => p.kind === 'torets' && p.d < p.need - 0.5), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length;
+      const parts: string[] = [];
+      if (ov) parts.push(`Ustma-ust tushgan binolar: ${ov} juft — qayta generatsiya qiling yoki ortiqchasini oʻchiring.`);
+      if (lng.length) { const w = lng.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Uzun tomonlar orasi 2·Hmax dan kam (8-izoh, seysmik 8+ ball): ${lng.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
+      if (hard.length) { const w = hard.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Toretslar orasi (H1+H2)·0,15 dan va 6 m dan kam: ${hard.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
+      if (soft.length) parts.push(`Toretslar orasi (H1+H2)·0,3 dan kam: ${soft.length} juft — toretslar derazali boʻlsa yetmaydi.`);
+      if (pass) parts.push(`Hovliga oʻtishlar (≤ 7,5 m): ${pass} ta — arka sifatida loyihalansin, aks holda toretslar orasi talab qilinadi.`);
+      const bad = ov + lng.length + hard.length;
+      return { status: bad ? 'fail' : (soft.length || pass) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0',
+        note: parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Deraza bor-yoʻqligi hisobga olinmagan (eng qatʼiy holat: uzun tomonlar ≥ 2·Hmax).' };
     },
   },
   {

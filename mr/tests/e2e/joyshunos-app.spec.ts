@@ -2,6 +2,8 @@ import { test, expect, type Page } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
+// akso sahnasi: shamol/transport animatsiyasi har kadrni qayta chizadi — dasturiy GPU da sekin; testlar «harakatni kamaytirish» rejimida
+test.use({ reducedMotion: 'reduce' });
 
 /** Joyshunos (app/joyshunos.html, «Joy-A» maketi): qatlamlar paneli, joy pasporti, radius, raqobatchilar turi, qidiruv, saqlanish.
  *  Tarmoq soxtalashtiriladi: relyef plitkasi — fixtures/terrarium.png, Overpass va Nominatim — sunʼiy javoblar. */
