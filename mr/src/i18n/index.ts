@@ -9,24 +9,48 @@
  */
 import data from './strings.json';
 
-export type Lang = 'uz' | 'en' | 'ru';
-export const LANGS: { id: Lang; name: string }[] = [{ id: 'uz', name: 'uz' }, { id: 'en', name: 'en' }, { id: 'ru', name: 'ru' }];
+/** 10 til: uz · en · ru — strings.json ichida; qolgan 7 tasi — ./lang/<til>.json (alohida yuklanadi, kalit → tarjima; yoʻq kalit — inglizcha) */
+export type Lang = 'uz' | 'en' | 'ru' | 'es' | 'pt' | 'fr' | 'az' | 'uk' | 'tr' | 'kk';
+type Ext = Exclude<Lang, 'uz' | 'en' | 'ru'>;
+export const LANGS: { id: Lang; name: string; native: string }[] = [
+  { id: 'uz', name: 'uz', native: 'Oʻzbekcha' }, { id: 'en', name: 'en', native: 'English' }, { id: 'ru', name: 'ru', native: 'Русский' },
+  { id: 'es', name: 'es', native: 'Español' }, { id: 'pt', name: 'pt', native: 'Português (BR)' }, { id: 'fr', name: 'fr', native: 'Français' },
+  { id: 'az', name: 'az', native: 'Azərbaycanca' }, { id: 'uk', name: 'uk', native: 'Українська' }, { id: 'tr', name: 'tr', native: 'Türkçe' }, { id: 'kk', name: 'kk', native: 'Қазақша' },
+];
+const IDS = LANGS.map(l => l.id) as string[];
+export const isLang = (v: unknown): v is Lang => typeof v === 'string' && IDS.includes(v);
 const KEY = 'mr-lang';
 const S = (data as unknown as { strings: Record<string, [string, string, string]> }).strings;
-const IDX: Record<Lang, number> = { uz: 0, en: 1, ru: 2 };
+const IDX: Partial<Record<Lang, number>> = { uz: 0, en: 1, ru: 2 };
+const LOAD: Record<Ext, () => Promise<{ default: Record<string, string> }>> = {
+  es: () => import('./lang/es.json'), pt: () => import('./lang/pt.json'), fr: () => import('./lang/fr.json'), az: () => import('./lang/az.json'),
+  uk: () => import('./lang/uk.json'), tr: () => import('./lang/tr.json'), kk: () => import('./lang/kk.json'),
+};
+const EXT: Partial<Record<Lang, Record<string, string>>> = {};
+async function ensure(l: Lang): Promise<void> {
+  if (l in IDX || EXT[l]) return;
+  try { EXT[l] = (await LOAD[l as Ext]()).default; } catch { EXT[l] = {}; }   // yuklanmasa — inglizcha zaxira
+}
 
-let lang: Lang = (() => { try { const v = localStorage.getItem(KEY) ?? localStorage.getItem('kps_lang'); if (v === 'uz' || v === 'en' || v === 'ru') return v; } catch { /* */ } return 'en'; })();   // sukut — inglizcha; foydalanuvchi tanlovi saqlanadi
+let lang: Lang = (() => { try { const v = localStorage.getItem(KEY) ?? localStorage.getItem('kps_lang'); if (isLang(v)) return v; } catch { /* */ } return 'en'; })();   // sukut — inglizcha; foydalanuvchi tanlovi saqlanadi
+await ensure(lang);   // yangi tillar: lugʻat sahifa chizilishidan oldin yuklanadi
 const subs = new Set<() => void>();
 
 export const getLang = (): Lang => lang;
-export function setLang(l: Lang): void { if (l === lang) return; lang = l; try { localStorage.setItem(KEY, l); localStorage.setItem('kps_lang', l); } catch { /* eski sahifalar (js/i18n.js) ham shu tilda */ } document.documentElement.lang = l; subs.forEach(f => f()); }
+export function setLang(l: Lang): Promise<void> {
+  if (l === lang) return Promise.resolve();
+  const go = () => { lang = l; try { localStorage.setItem(KEY, l); localStorage.setItem('kps_lang', l); } catch { /* eski sahifalar (js/i18n.js) ham shu tilda */ } document.documentElement.lang = l; subs.forEach(f => f()); };
+  if (l in IDX || EXT[l]) { go(); return Promise.resolve(); }   // uz/en/ru va yuklangan til — darhol (sinxron)
+  return ensure(l).then(go);
+}
 export function onLang(f: () => void): () => void { subs.add(f); return () => subs.delete(f); }
 
 /** ${…} boʻlaklarga ajratish: [matn, ifoda, matn, ifoda, …] */
 const PH = /\$\{([^}]*)\}/g;
 function raw(key: string): string {
   const v = S[key]; if (!v) return key;
-  const t = v[IDX[lang]]; return t || (lang === 'uz' ? uzTerms(key) : v[1] || key);
+  const i = IDX[lang]; if (i == null) return EXT[lang]?.[key] || v[1] || key;
+  const t = v[i]; return t || (lang === 'uz' ? uzTerms(key) : v[1] || key);
 }
 
 /**
@@ -74,10 +98,18 @@ export function uzTerms(s: string): string {
  *  3) son + birlik (ga, m², qavat, oʻrin, kishi/ga …) — glossariy boʻyicha.
  * Natija keshlanadi (til boʻyicha).
  */
-/** Xizmat nomlari inglizcha va ruscha (sayt: js/site.js dagi BRAND bilan bir xil). Oʻzbekchada — asl nom. */
-export const BRAND: Record<'en' | 'ru', [RegExp, string][]> = {
-  en: [[/Koʻchasoz\p{L}*/gu, 'Street Designer'], [/Joyshunos\p{L}*/gu, 'Site Explorer'], [/Chizmadon\p{L}*/gu, 'Sheet Studio']],
-  ru: [[/Koʻchasoz\p{L}*/gu, 'Конструктор улиц'], [/Joyshunos\p{L}*/gu, 'Анализ места'], [/Chizmadon\p{L}*/gu, 'Студия листов']],
+/** Xizmat nomlari har tilda (sayt: js/site.js dagi BRAND bilan bir xil). Oʻzbekchada — asl nom. */
+const BR = (ks: string, jy: string, ch: string): [RegExp, string][] => [[/Koʻchasoz\p{L}*/gu, ks], [/Joyshunos\p{L}*/gu, jy], [/Chizmadon\p{L}*/gu, ch]];
+export const BRAND: Record<Exclude<Lang, 'uz'>, [RegExp, string][]> = {
+  en: BR('Street Designer', 'Site Explorer', 'Sheet Studio'),
+  ru: BR('Конструктор улиц', 'Анализ места', 'Студия листов'),
+  es: BR('Diseñador de calles', 'Explorador del sitio', 'Estudio de láminas'),
+  pt: BR('Designer de Ruas', 'Explorador do Terreno', 'Estúdio de Pranchas'),
+  fr: BR('Concepteur de rues', 'Explorateur de site', 'Studio de planches'),
+  az: BR('Küçə konstruktoru', 'Ərazi təhlili', 'Vərəq studiyası'),
+  uk: BR('Конструктор вулиць', 'Аналіз місця', 'Студія аркушів'),
+  tr: BR('Sokak Tasarımcısı', 'Alan Analizi', 'Pafta Stüdyosu'),
+  kk: BR('Көше конструкторы', 'Орын талдауы', 'Парақтар студиясы'),
 };
 export function brand(s: string, l: Lang = lang): string {
   if (l === 'uz' || !s) return s;
@@ -95,7 +127,7 @@ export function tr(key: string): string {
   if (r !== key) { if (O.size > 20000) O.clear(); O.add(r); }
   return r;
 }
-const OUTS: Record<Lang, Set<string>> = { uz: new Set(), en: new Set(), ru: new Set() };
+const OUTS = Object.fromEntries(IDS.map(l => [l, new Set<string>()])) as Record<Lang, Set<string>>;
 
 interface Tpl { re: RegExp; key: string; names: string[] }
 let TPL: Tpl[] | null = null;
@@ -121,11 +153,40 @@ export function cyr(s: string): string {
   const L: Record<string, string> = { a: 'а', b: 'б', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'х', i: 'и', j: 'дж', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'к', r: 'р', s: 'с', t: 'т', u: 'у', v: 'в', x: 'х', y: 'й', z: 'з', c: 'ц', w: 'в' };
   return o.replace(/[A-Za-z]/g, ch => { const r = L[ch.toLowerCase()] ?? ch; return ch === ch.toUpperCase() ? r.charAt(0).toUpperCase() + r.slice(1) : r; });
 }
-const UNITS: Record<'en' | 'ru', [RegExp, string | ((...a: string[]) => string)][]> = {
+type U = [RegExp, string | ((...a: string[]) => string)][];
+/** Yangi tillar uchun birlik va hujjat qismlari (claude/atamalar-lugat + l10n GLOSSARY) */
+interface UO { district: (a: string) => string; city: (a: string) => string; region: (a: string) => string; total: string; lane1: string; lanes: string; ha: string; pph: string; ppl: string; perP: string; perS: string; th: string; mln: string; fl: string; places: string; spaces: string; nfl: string; nbld: string; step: string; cl: string; mos: string; sec: string; apt: string; tbl: string; note: string; art: string; part: string; annex: string; cyr?: boolean }
+function units(o: UO): U {
+  const r = (t: string) => t;   // $1 — son
+  const u: U = [
+    [/^(.+) tumani( \(total\))?$/, (_m, a, b) => o.district(o.cyr ? cyr(a) : a) + (b ? ' ' + o.total : '')],
+    [/^(.+) shahri( \(total\))?$/, (_m, a, b) => o.city(o.cyr ? cyr(a) : a) + (b ? ' ' + o.total : '')],
+    [/^(.+) viloyati( \(total\))?$/, (_m, a, b) => o.region(a) + (b ? ' ' + o.total : '')],
+    [/ ?\(total\)$/, ' ' + o.total],
+    [/\b1 qator\b/g, o.lane1], [/(\d) qator\b/g, r(o.lanes)],
+    [/kishi\/ga\b/g, o.pph], [/(\d) ga\b/g, '$1 ' + o.ha], [/\/ga\b/g, '/' + o.ha], [/\/kishi\b/g, o.perP], [/\/joy\b/g, o.perS],
+    [/(\d) ming\b/g, o.th], [/(\d) mln\b/g, o.mln], [/(\d) kishi\b/g, o.ppl], [/(\d) qavat\b/g, o.fl], [/(\d) oʻrin\b/g, o.places], [/(\d) joy\b/g, o.spaces], [/(\d) ta\b/g, '$1'],
+    [/(\d)-qavat\b/g, o.nfl], [/(\d)-bino\b/g, o.nbld], [/(\d)-qadam/g, o.step],
+    [/(\d[\d.,–\s]*?)-bandlar\b/g, o.cl], [/(\d[\d.,–]*)-band\b/g, o.cl], [/(\d) mos\b/g, o.mos], [/(\d) seksiya\b/g, o.sec], [/(\d) xonadon\b/g, o.apt], [/(\d) kvartira\b/g, o.apt],
+    [/(\d[\d.,–\s]*?)-jadvallar\b/g, o.tbl], [/(\d+)-jadval\b/g, o.tbl], [/(\d+)-izoh\b/g, o.note], [/(\d+)-modda\b/g, o.art], [/(\d+)-qism\b/g, o.part], [/(\d+)-ilova\b/g, o.annex],
+  ];
+  if (o.cyr) u.push([/(\d) m²/g, '$1 м²'], [/m²\//g, 'м²/'], [/(\d) km\b/g, '$1 км'], [/(\d) m\b/g, '$1 м'], [/ShNQ\b/g, 'ШНК'], [/SanQvaN\b/g, 'СанПиН'], [/QMQ\b/g, 'КМК'], [/OʻRQ-/g, 'ЗРУ-']);
+  else u.push([/OʻRQ-/g, 'ZRU-']);
+  return u;
+}
+const UNITS: Record<Exclude<Lang, 'uz'>, U> = {
   en: [[/^(.+) tumani( \(total\))?$/, '$1 district$2'], [/\b1 qator\b/g, '1 lane'], [/(\d) qator\b/g, '$1 lanes'], [/^(.+) shahri( \(total\))?$/, '$1 city$2'], [/^(.+) viloyati( \(total\))?$/, '$1 region$2'], [/\(total\)$/, '(total)'], [/(\d) ga\b/g, '$1 ha'], [/\/ga\b/g, '/ha'], [/\/kishi\b/g, '/person'], [/\/joy\b/g, '/space'], [/(\d) ming\b/g, '$1 thousand'], [/(\d) mln\b/g, '$1 mln'], [/kishi\/ga\b/g, 'people/ha'], [/(\d) kishi\b/g, '$1 people'], [/(\d) qavat\b/g, '$1 fl.'], [/(\d) oʻrin\b/g, '$1 places'], [/(\d) joy\b/g, '$1 spaces'], [/(\d) ta\b/g, '$1'], [/(\d)-qavat\b/g, 'floor $1'], [/(\d)-bino\b/g, 'building $1'], [/(\d)-qadam/g, 'step $1'], [/(\d[\d.,–\s]*?)-bandlar\b/g, 'cl. $1'], [/(\d[\d.,–]*)-band\b/g, 'cl. $1'], [/(\d) mos\b/g, '$1 pass'], [/(\d) seksiya\b/g, '$1 sections'], [/(\d) xonadon\b/g, '$1 apartments'], [/(\d) kvartira\b/g, '$1 apartments'], [/(\d[\d.,–\s]*?)-jadvallar\b/g, 'tables $1'], [/(\d+)-jadval\b/g, 'table $1'], [/(\d+)-izoh\b/g, 'note $1'], [/(\d+)-modda\b/g, 'art. $1'], [/(\d+)-qism\b/g, 'part $1'], [/(\d+)-ilova\b/g, 'annex $1'], [/OʻRQ-/g, 'ZRU-']],
   ru: [[/^(.+) tumani( \(total\))?$/, (_m, a, b) => `${cyr(a)} район${b ?? ''}`], [/^(.+) shahri( \(total\))?$/, (_m, a, b) => `г. ${cyr(a)}${b ?? ''}`], [/(\d) qator\b/g, '$1 пол.'], [/^(.+) viloyati( \(total\))?$/, '$1 область$2'], [/ \(total\)$/, ' (всего)'], [/(\d) m²/g, '$1 м²'], [/\/ga\b/g, '/га'], [/m²\//g, 'м²/'], [/\/kishi\b/g, '/чел.'], [/\/joy\b/g, '/место'], [/(\d) ming\b/g, '$1 тыс.'], [/(\d) mln\b/g, '$1 млн'], [/(\d) km\b/g, '$1 км'], [/(\d) m\b/g, '$1 м'], [/(\d) ga\b/g, '$1 га'], [/kishi\/ga\b/g, 'чел./га'], [/(\d) kishi\b/g, '$1 чел.'], [/(\d) qavat\b/g, '$1 эт.'], [/(\d) oʻrin\b/g, '$1 мест'], [/(\d) joy\b/g, '$1 мест'], [/(\d) ta\b/g, '$1'], [/(\d)-qavat\b/g, '$1-й этаж'], [/(\d)-bino\b/g, 'здание $1'], [/(\d)-qadam/g, 'шаг $1'], [/(\d[\d.,–\s]*?)-bandlar\b/g, 'п. $1'], [/(\d[\d.,–]*)-band\b/g, 'п. $1'], [/(\d) mos\b/g, '$1 соотв.'], [/(\d) seksiya\b/g, '$1 секций'], [/(\d) xonadon\b/g, '$1 кв.'], [/(\d) kvartira\b/g, '$1 кв.'], [/(\d[\d.,–\s]*?)-jadvallar\b/g, 'табл. $1'], [/(\d+)-jadval\b/g, 'табл. $1'], [/(\d+)-izoh\b/g, 'прим. $1'], [/(\d+)-modda\b/g, 'ст. $1'], [/(\d+)-qism\b/g, 'ч. $1'], [/(\d+)-ilova\b/g, 'прил. $1'], [/ShNQ\b/g, 'ШНК'], [/SanQvaN\b/g, 'СанПиН'], [/QMQ\b/g, 'КМК'], [/OʻRQ-/g, 'ЗРУ-']],
+  es: units({ district: a => `distrito ${a}`, city: a => `ciudad de ${a}`, region: a => `región de ${a}`, total: '(total)', lane1: '1 carril', lanes: '$1 carriles', ha: 'ha', pph: 'hab./ha', ppl: '$1 hab.', perP: '/hab.', perS: '/plaza', th: '$1 mil', mln: '$1 M', fl: '$1 pl.', places: '$1 plazas', spaces: '$1 plazas', nfl: 'planta $1', nbld: 'edificio $1', step: 'paso $1', cl: 'apdo. $1', mos: '$1 cumplen', sec: '$1 secciones', apt: '$1 viviendas', tbl: 'tabla $1', note: 'nota $1', art: 'art. $1', part: 'parte $1', annex: 'anexo $1' }),
+  pt: units({ district: a => `distrito ${a}`, city: a => `cidade de ${a}`, region: a => `região de ${a}`, total: '(total)', lane1: '1 faixa', lanes: '$1 faixas', ha: 'ha', pph: 'hab./ha', ppl: '$1 hab.', perP: '/hab.', perS: '/vaga', th: '$1 mil', mln: '$1 mi', fl: '$1 pav.', places: '$1 vagas', spaces: '$1 vagas', nfl: 'pavimento $1', nbld: 'edifício $1', step: 'etapa $1', cl: 'item $1', mos: '$1 conformes', sec: '$1 blocos', apt: '$1 unidades', tbl: 'tabela $1', note: 'nota $1', art: 'art. $1', part: 'parte $1', annex: 'anexo $1' }),
+  fr: units({ district: a => `district de ${a}`, city: a => `ville de ${a}`, region: a => `région de ${a}`, total: '(total)', lane1: '1 voie', lanes: '$1 voies', ha: 'ha', pph: 'hab./ha', ppl: '$1 hab.', perP: '/hab.', perS: '/place', th: '$1 k', mln: '$1 M', fl: '$1 niv.', places: '$1 places', spaces: '$1 places', nfl: 'niveau $1', nbld: 'bâtiment $1', step: 'étape $1', cl: 'point $1', mos: '$1 conformes', sec: '$1 cages', apt: '$1 logements', tbl: 'tableau $1', note: 'note $1', art: 'art. $1', part: 'partie $1', annex: 'annexe $1' }),
+  az: units({ district: a => `${a} rayonu`, city: a => `${a} şəhəri`, region: a => `${a} vilayəti`, total: '(cəmi)', lane1: '1 zolaq', lanes: '$1 zolaq', ha: 'ha', pph: 'nəf./ha', ppl: '$1 nəfər', perP: '/nəfər', perS: '/yer', th: '$1 min', mln: '$1 mln', fl: '$1 mərt.', places: '$1 yer', spaces: '$1 yer', nfl: 'mərtəbə $1', nbld: 'bina $1', step: 'addım $1', cl: 'bənd $1', mos: '$1 uyğun', sec: '$1 seksiya', apt: '$1 mənzil', tbl: 'cədvəl $1', note: 'qeyd $1', art: 'maddə $1', part: 'hissə $1', annex: 'əlavə $1' }),
+  uk: units({ district: a => `${a} район`, city: a => `м. ${a}`, region: a => `${a} область`, total: '(усього)', lane1: '1 смуга', lanes: '$1 смуг', ha: 'га', pph: 'осіб/га', ppl: '$1 осіб', perP: '/особу', perS: '/місце', th: '$1 тис.', mln: '$1 млн', fl: '$1 пов.', places: '$1 місць', spaces: '$1 місць', nfl: 'поверх $1', nbld: 'будівля $1', step: 'крок $1', cl: 'п. $1', mos: '$1 відп.', sec: '$1 секцій', apt: '$1 кв.', tbl: 'табл. $1', note: 'прим. $1', art: 'ст. $1', part: 'ч. $1', annex: 'дод. $1', cyr: true }),
+  tr: units({ district: a => `${a} ilçesi`, city: a => `${a} şehri`, region: a => `${a} vilayeti`, total: '(toplam)', lane1: '1 şerit', lanes: '$1 şerit', ha: 'ha', pph: 'kişi/ha', ppl: '$1 kişi', perP: '/kişi', perS: '/yer', th: '$1 bin', mln: '$1 mn', fl: '$1 kat', places: '$1 kişilik', spaces: '$1 yer', nfl: '$1. kat', nbld: 'bina $1', step: 'adım $1', cl: 'md. $1', mos: '$1 uygun', sec: '$1 blok', apt: '$1 daire', tbl: 'tablo $1', note: 'not $1', art: 'madde $1', part: 'kısım $1', annex: 'ek $1' }),
+  kk: units({ district: a => `${a} ауданы`, city: a => `${a} қаласы`, region: a => `${a} облысы`, total: '(барлығы)', lane1: '1 жолақ', lanes: '$1 жолақ', ha: 'га', pph: 'адам/га', ppl: '$1 адам', perP: '/адам', perS: '/орын', th: '$1 мың', mln: '$1 млн', fl: '$1 қабат', places: '$1 орын', spaces: '$1 орын', nfl: '$1-қабат', nbld: '$1-ғимарат', step: '$1-қадам', cl: '$1-тармақ', mos: '$1 сәйкес', sec: '$1 секция', apt: '$1 пәтер', tbl: '$1-кесте', note: '$1-ескертпе', art: '$1-бап', part: '$1-бөлім', annex: '$1-қосымша', cyr: true }),
 };
-const CACHE: Record<Lang, Map<string, string>> = { uz: new Map(), en: new Map(), ru: new Map() };
+
+const CACHE = Object.fromEntries(IDS.map(l => [l, new Map<string, string>()])) as Record<Lang, Map<string, string>>;
 function dyn(s: string, depth: number): string {
   if (!s || depth > 3 || !/\p{L}/u.test(s)) return s;
   const C = CACHE[lang]; const c = C.get(s); if (c != null) return c;

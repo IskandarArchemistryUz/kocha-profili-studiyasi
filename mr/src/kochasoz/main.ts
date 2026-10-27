@@ -4,6 +4,7 @@
  * Qobiq: ekotizim sarlavhasi (5 xizmat), til (uz/en/ru), tungi rejim. Har rejim holati brauzerda saqlanadi;
  * B va Varaq bitta koʻcha maʼlumotini (kesim, rejadagi elementlar, tarmoqlar) birga ishlatadi.
  */
+import { langMenu } from '../ui/langmenu';
 import { isOwner } from '../core/wm';
 import '../ui/ds2.css';
 import './ks.css';
@@ -11,7 +12,7 @@ import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, toast, download } from '../ui/dom';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
-import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
+import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { mount, type DCLogic, type Mounted } from './dc';
 import { exportSvg, exportPdf, sendToChizmadon, saveJson, openJson, svgText, cleanSvg, exportPng, safeName } from './io';
 import { KESIM_OPTS_DEF, kesimDxf, type KesimOpts } from './kesimdxf';
@@ -109,8 +110,7 @@ function renderHeader(): void {
     ib('ksOpen', 'Faylni ochish', ICON.open, () => openJson(o => { restoreAll(o); toast(tr('Fayl ochildi')); })),
     /* oldingi studiya hozircha faqat egasiga (js/sinov.js) */
     !isOwner() ? '' : (() => { const a = h('a', { class: 'btn btn-sm btn-ghost icon-btn', id: 'ksOld', href: '../studio.html', title: tr('Xaritada ishlash (oldingi studiya: OSM koʻchalari, mavjud va loyiha profili, hudud tahlili)'), 'aria-label': tr('Xaritada ishlash') }); const s = svgIcon(ICON.map); s.classList.add('ic', 'sm'); a.append(s); return a; })(),
-    h('div', { class: 'seg sm langsw', role: 'group', 'aria-label': tr('Til'), id: 'langSw' },
-      ...LANGS.map(l => h('button', { type: 'button', 'data-lang': l.id, 'aria-pressed': l.id === getLang(), onclick: () => setLang(l.id as Lang) }, l.name))),
+    langMenu(l => { void setLang(l); }),
     ib('themeBtn', isDark() ? 'Yorugʻ rejim' : 'Tungi rejim', isDark() ? ICON.sun : ICON.moon, () => toggleTheme()),
   );
 }

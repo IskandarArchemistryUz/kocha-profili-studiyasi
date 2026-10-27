@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 /** 19-band (1): Master rejaning rejalari Chizmadonga — bosh reja, land use, funksional, qavatlilik, kvartirografiya… */
 test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async ({ page }) => {
   test.setTimeout(150_000);
-  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile/, r => r.fulfill({ status: 404, body: '' }));
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
@@ -64,7 +64,7 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
 /** 19-band (2): xarita oynasida shimol strelkasi va masshtab chizgʻichi; panelda yoqish/oʻchirish va burchak */
 test('Chizmadon xarita oynasi: shimol va masshtab chizgʻichi', async ({ page }) => {
   test.setTimeout(150_000);
-  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile/, r => r.fulfill({ status: 404, body: '' }));
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');

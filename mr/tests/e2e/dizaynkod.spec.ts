@@ -1,4 +1,4 @@
-import { test, expect } from './fx';
+import { test, expect, pickLang } from './fx';
 import { createServer, type Server } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -25,7 +25,7 @@ test('peshlavha studiyasi: sarlavha, qadamlar, tungi rejim, til', async ({ page 
   await page.goto(`http://127.0.0.1:${PORT}/dizaynkod.html`);
   await expect(page.locator('header.eko .eko-svc a.on')).toHaveText(/Dizayn-kod/);
   await expect(page.locator('header.eko .eko-svc a')).toHaveCount(6);
-  await expect(page.locator('#kpsLang button')).toHaveCount(3);
+  await expect(page.locator('#kpsLang [data-lang]')).toHaveCount(10);   // 10 til menyusi
   const steps = page.locator('#steps li');
   await expect(steps).toHaveCount(5);
   await expect(steps.first().locator('a')).toHaveAttribute('href', 'dizaynkod-joy.html');
@@ -38,7 +38,7 @@ test('peshlavha studiyasi: sarlavha, qadamlar, tungi rejim, til', async ({ page 
   const t = await page.locator('html').getAttribute('data-theme');
   await page.reload(); await expect(page.locator('html')).toHaveAttribute('data-theme', t!);
   // til: en — ikkala kalit
-  await page.click('#kpsLang [data-lang=en]');
+  await pickLang(page, 'en', '#kpsLang');
   await page.waitForLoadState('domcontentloaded');
   expect(await page.evaluate(() => [localStorage.getItem('kps_lang'), localStorage.getItem('mr-lang')])).toEqual(['en', 'en']);
   expect(errs).toEqual([]);

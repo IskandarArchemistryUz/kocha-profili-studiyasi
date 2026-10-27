@@ -33,3 +33,13 @@ export const test = base.extend({
   },
 });
 export { expect, type Page, type BrowserContext };
+
+/** Til menyusi (10 til): menyuni ochib, tilni tanlash. Ilovalarda — #langSw, eski sahifalar sarlavhasida — #kpsLang */
+export async function pickLang(page: Page, l: string, root = '#langSw'): Promise<void> {
+  const r = page.locator(root).first();
+  await r.locator('.lm-btn, .eko-lb, .kl-btn').first().click();
+  // ilovalarda menyu body ga koʻchadi (.lm-pop), eski sahifalarda — sarlavha ichida
+  const inRoot = r.locator(`[data-lang=${l}]`);
+  if (await inRoot.count() && await inRoot.first().isVisible()) await inRoot.first().click();
+  else await page.locator(`.lm-pop:not([hidden]) [data-lang=${l}]`).click();
+}

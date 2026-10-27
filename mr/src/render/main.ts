@@ -5,6 +5,7 @@
  *   Natija: asl bilan solishtirish, PNG, Chizmadonga, asos yoki referens qilish.
  * Eski «Bino studiyasi» (bino.html: fasad, hajm, kvartiralar) va AI render oynasi — «Toʻliq asboblar»da qoladi (0-qoida).
  */
+import { langMenu } from '../ui/langmenu';
 import { isOwner } from '../core/wm';
 import '../ui/ds2.css';
 import './render.css';
@@ -12,7 +13,7 @@ import { h, svgIcon, toast } from '../ui/dom';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
-import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
+import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
 import { PROV, STY, SUBJECTS, FIDELITY, ROLES, RUN, NoImage, buildPrompt, loadState, saveState, modelOf, shrink, type ProvId, type RefRole, type Subject, type Fidelity } from './providers';
 import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
@@ -58,7 +59,7 @@ const save = () => saveState(A);
 /* ---------------- qobiq ---------------- */
 const root = document.getElementById('ren')!;
 const header = h('header', { class: 'eko glass' });
-const left = h('aside', { class: 'ren-lp panel', id: 'renLeft', 'aria-label': tr('Kirish') });
+const left = h('aside', { class: 'ren-lp panel', id: 'renLeft', 'aria-label': tr('Kiritish') });
 const stage = h('main', { class: 'ren-stage', id: 'renStage' });
 const right = h('aside', { class: 'ren-rp panel', id: 'renRight', 'aria-label': tr('Render') });
 const over = h('div', { class: 'ren-over', id: 'renView', hidden: true });
@@ -73,7 +74,7 @@ function renderHeader(): void {
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), s.beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
-    h('div', { class: 'seg sm langsw', role: 'group', 'aria-label': tr('Til'), id: 'langSw' }, ...LANGS.map(l => h('button', { type: 'button', 'data-lang': l.id, 'aria-pressed': l.id === getLang(), onclick: () => setLang(l.id as Lang) }, l.name))),
+    langMenu(l => { void setLang(l); }),
     (() => { const b = h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'themeBtn', type: 'button', title: tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() }); b.append(ic(isDark() ? ICON.sun : ICON.moon)); return b; })(),
   );
 }
@@ -92,7 +93,7 @@ function renderLeft(): void {
   const pick = pickOpen ? h('div', { class: 'ren-pickl', role: 'listbox', 'aria-label': tr('Yuborilganlar') },
     ...(SRC.length ? SRC.map(s => srcRow(s, () => { setBase(s.id); pickOpen = false; renderAll(); }, () => void (async () => { await delSrc(s.id); SRC = await listSrc(); if (baseId === s.id) setBase(SRC[0]?.id ?? ''); renderAll(); })())) : [h('p', { class: 't-small' }, tr('Hali hech narsa yuborilmagan. Master reja, Joyshunos yoki Koʻchasozdan «Render studiyasiga» bosing yoki fayl yuklang.'))])) : null;
   left.replaceChildren(
-    h('h1', { class: 'ttl' }, tr('Kirish')),
+    h('h1', { class: 'ttl' }, tr('Kiritish')),
     h('section', { class: 'ren-sec' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Asos rasm — geometriya va kadr'))),
       b ? h('div', { class: 'ren-base' }, h('img', { src: b.img, alt: b.name }), h('div', { class: 'cap' }, h('i', { style: `background:${(FROM[b.from] ?? FROM.fayl)[1]}` }), h('b', {}, b.name), b.w ? h('code', {}, `${b.w}×${b.h}`) : null), h('div', { class: 'fr t-small' }, tr((FROM[b.from] ?? FROM.fayl)[0])))

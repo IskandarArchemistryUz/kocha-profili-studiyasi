@@ -32,7 +32,8 @@ export async function initOwner(): Promise<void> {
 
 export function wmLabel(): string {
   const l = getLang();
-  return l === 'en' ? 'ARCHEMISTRY · FREE' : l === 'ru' ? 'ARCHEMISTRY · БЕСПЛАТНО' : 'ARCHEMISTRY · BEPUL';
+  const F: Record<string, string> = { uz: 'BEPUL', en: 'FREE', ru: 'БЕСПЛАТНО', es: 'GRATIS', pt: 'GRATUITO', fr: 'GRATUIT', az: 'PULSUZ', uk: 'БЕЗКОШТОВНО', tr: 'ÜCRETSİZ', kk: 'ТЕГІН' };
+  return 'ARCHEMISTRY · ' + (F[l] ?? F.en);
 }
 
 /** Toza (tanga bilan toʻlangan) eksport davomida belgi qoʻyilmaydi — account/pay.ts boshqaradi */

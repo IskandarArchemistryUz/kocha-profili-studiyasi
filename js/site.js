@@ -42,12 +42,16 @@ var D={
 "Hisob: 1 xonadonga 3,54 kishi; maktab — ShNQ 2.07.01-23, 5-ilova (165–280 / 1000, quyi chegara); bogʻcha — 5-ilova (70–125 / 1000); avtoturargoh — 29-jadval (Toshkent).":["Calculation: 3.54 people per apartment; school — ShNQ 2.07.01-23, annex 5 (165–280 / 1,000, lower bound); kindergarten — annex 5 (70–125 / 1,000); parking — table 29 (Tashkent).","Расчёт: 3,54 чел. на квартиру; школа — ШНК 2.07.01-23, прил. 5 (165–280 / 1000, нижняя граница); детсад — прил. 5 (70–125 / 1000); машино-места — табл. 29 (Ташкент)."]
 };
 if(window.HOME_D){for(var hk in window.HOME_D)D[hk]=window.HOME_D[hk];}
-var LANGS=['uz','en','ru'],lang='en';try{lang=localStorage.getItem('mr-lang')||localStorage.getItem('kps_lang')||'en';}catch(e){}if(LANGS.indexOf(lang)<0)lang='en';   // sukut — inglizcha
+var LANGS=['uz','en','ru','es','pt','fr','az','uk','tr','kk'],lang='en';try{lang=localStorage.getItem('mr-lang')||localStorage.getItem('kps_lang')||'en';}catch(e){}if(LANGS.indexOf(lang)<0)lang='en';   // sukut — inglizcha
+/* 10 til: uz/en/ru — shu faylda; qolgan 7 tasi — js/i18n/<til>.json («t» — matnlar, «rx» — HOME_RX shablonlari), yoʻq satr — inglizcha */
+var NAT={uz:'Oʻzbekcha',en:'English',ru:'Русский',es:'Español',pt:'Português (BR)',fr:'Français',az:'Azərbaycanca',uk:'Українська',tr:'Türkçe',kk:'Қазақша'},EXT={es:1,pt:1,fr:1,az:1,uk:1,tr:1,kk:1},X=null;
+function loadX(l){if(!EXT[l]||(X&&X.l===l))return Promise.resolve();return fetch('js/i18n/'+l+'.json?v=1').then(function(r){return r.json();}).catch(function(){return {t:{},rx:[]};}).then(function(j){X=j;X.l=l;});}
 /* xizmat nomlari inglizcha va ruscha (mr/src/i18n/index.ts dagi BRAND bilan bir xil) */
-var BRAND={en:[[/Koʻchasoz\w*/g,'Street Designer'],[/Joyshunos\w*/g,'Site Explorer'],[/Chizmadon\w*/g,'Sheet Studio']],ru:[[/Koʻchasoz\w*/g,'Конструктор улиц'],[/Joyshunos\w*/g,'Анализ места'],[/Chizmadon\w*/g,'Студия листов']]};
+var BRAND={en:[[/Koʻchasoz\w*/g,'Street Designer'],[/Joyshunos\w*/g,'Site Explorer'],[/Chizmadon\w*/g,'Sheet Studio']],ru:[[/Koʻchasoz\w*/g,'Конструктор улиц'],[/Joyshunos\w*/g,'Анализ места'],[/Chizmadon\w*/g,'Студия листов']],es:[[/Koʻchasoz\w*/g,'Diseñador de calles'],[/Joyshunos\w*/g,'Explorador del sitio'],[/Chizmadon\w*/g,'Estudio de láminas']],pt:[[/Koʻchasoz\w*/g,'Designer de Ruas'],[/Joyshunos\w*/g,'Explorador do Terreno'],[/Chizmadon\w*/g,'Estúdio de Pranchas']],fr:[[/Koʻchasoz\w*/g,'Concepteur de rues'],[/Joyshunos\w*/g,'Explorateur de site'],[/Chizmadon\w*/g,'Studio de planches']],az:[[/Koʻchasoz\w*/g,'Küçə konstruktoru'],[/Joyshunos\w*/g,'Ərazi təhlili'],[/Chizmadon\w*/g,'Vərəq studiyası']],uk:[[/Koʻchasoz\w*/g,'Конструктор вулиць'],[/Joyshunos\w*/g,'Аналіз місця'],[/Chizmadon\w*/g,'Студія аркушів']],tr:[[/Koʻchasoz\w*/g,'Sokak Tasarımcısı'],[/Joyshunos\w*/g,'Alan Analizi'],[/Chizmadon\w*/g,'Pafta Stüdyosu']],kk:[[/Koʻchasoz\w*/g,'Көше конструкторы'],[/Joyshunos\w*/g,'Орын талдауы'],[/Chizmadon\w*/g,'Парақтар студиясы']]};
 function brand(x){var b=BRAND[lang];if(!b||!x)return x;for(var i=0;i<b.length;i++)x=x.replace(b[i][0],b[i][1]);return x;}
 window.ALT_BRAND=brand;
-function t(s){if(lang==='uz')return s;var v=D[s];return brand(v?(v[lang==='en'?0:1]||s):s);}
+function t(s){if(lang==='uz')return s;var v=D[s];if(EXT[lang]){var x=X&&X.t&&X.t[s];return brand(x||(v&&v[0])||s);}return brand(v?(v[lang==='en'?0:1]||s):s);}
+function rxv(r){if(EXT[lang]){var i=(window.HOME_RX||[]).indexOf(r);return (X&&X.rx&&X.rx[i])||r[1];}return r[lang==='en'?1:2];}
 window.ALT=t;
 /* matn tugunlari: asl oʻzbekcha matn tugunning oʻzida saqlanadi (__uz), boʻshliqlar oʻz joyida qoladi */
 var SKIP={SCRIPT:1,STYLE:1,NOSCRIPT:1,TEXTAREA:1,INPUT:1,svg:0};
@@ -56,16 +60,21 @@ function walk(root){var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{a
   L.forEach(function(n){if(n.__uz===undefined){var k=n.nodeValue.replace(/\s+/g,' ').trim(),rx=null;
       if(!D[k]){(window.HOME_RX||[]).some(function(r){if(r[0].test(k)){rx=r;return true;}return false;});if(!rx&&!/Koʻchasoz|Joyshunos|Chizmadon/.test(k))return;}
       n.__uz=n.nodeValue;n.__k=k;n.__rx=rx;}
-    var m=n.__uz.match(/^(\s*)[\s\S]*?(\s*)$/),v=lang==='uz'?null:n.__rx?n.__k.replace(n.__rx[0],n.__rx[lang==='en'?1:2]):t(n.__k);
+    var m=n.__uz.match(/^(\s*)[\s\S]*?(\s*)$/),v=lang==='uz'?null:n.__rx?n.__k.replace(n.__rx[0],rxv(n.__rx)):t(n.__k);
     if(v&&lang==='en'&&n.__rx)v=v.replace(/(\d) (\d{3})/g,'$1,$2').replace(/(\d),(\d{1,2})(?!\d)/g,'$1.$2');
     n.nodeValue=lang==='uz'?n.__uz:m[1]+v+m[2];});}
 function apply(){document.documentElement.lang=lang;walk(document.body);
   [].forEach.call(document.querySelectorAll('[data-t]'),function(el){var k=el.getAttribute('data-t');el.textContent=t(k);});
+  /* aria-label va title (asl oʻzbekcha matn elementda saqlanadi) */
+  [].forEach.call(document.querySelectorAll('[aria-label],[title]'),function(el){if(el.closest('[data-noi18n],[data-ta]'))return;['aria-label','title'].forEach(function(a){var v=el.getAttribute(a);if(!v)return;var o=el['__'+a];if(o===undefined)o=el['__'+a]=v;var r=lang==='uz'?o:t(o);if(r!==v)el.setAttribute(a,r);});});
   [].forEach.call(document.querySelectorAll('[data-ta]'),function(el){el.getAttribute('data-ta').split(';').forEach(function(p){var i=p.indexOf(':');el.setAttribute(p.slice(0,i),t(p.slice(i+1)));});});
   var lc=document.getElementById('langCode');if(lc)lc.textContent=lang.toUpperCase();
   [].forEach.call(document.querySelectorAll('[data-lang]'),function(b){var on=b.getAttribute('data-lang')===lang;b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-checked',String(on));var s=b.querySelector('span');if(s)s.textContent=on?'✓':'';});
   model();document.documentElement.classList.remove('i18n');}
-function setLang(l){lang=l;try{localStorage.setItem('mr-lang',l);localStorage.setItem('kps_lang',l);}catch(e){}apply();renderProjects();}
+function setLang(l){if(LANGS.indexOf(l)<0)return;loadX(l).then(function(){lang=l;try{localStorage.setItem('mr-lang',l);localStorage.setItem('kps_lang',l);}catch(e){}apply();renderProjects();});}
+/* til menyusi va futerdagi tillar — 10 til roʻyxatidan */
+(function(){var lm=document.getElementById('langMenu');if(lm)lm.innerHTML=LANGS.map(function(k){return '<button data-lang="'+k+'" role="menuitemradio" lang="'+k+'">'+NAT[k]+'<span></span></button>';}).join('');
+  [].forEach.call(document.querySelectorAll('.flang'),function(f){[].forEach.call(f.querySelectorAll('[data-lang]'),function(b){b.remove();});LANGS.forEach(function(k){var b=document.createElement('button');b.type='button';b.setAttribute('data-lang',k);b.setAttribute('lang',k);b.textContent=NAT[k];f.appendChild(b);});});})();
 var lb=document.getElementById('langBtn'),lm=document.getElementById('langMenu');
 if(lb&&lm){lb.onclick=function(e){e.stopPropagation();lm.hidden=!lm.hidden;lb.setAttribute('aria-expanded',String(!lm.hidden));};
 document.addEventListener('click',function(){lm.hidden=true;lb.setAttribute('aria-expanded','false');});
@@ -148,7 +157,7 @@ if(on){try{var R0=JSON.parse(localStorage.getItem('kps_projects')||'null');var n
   root.addEventListener('mouseleave',function(){tx=ty=-9999;kick();});
   if(window.ResizeObserver)new ResizeObserver(size).observe(root);else window.addEventListener('resize',size);
   size();})();
-apply();
+loadX(lang).then(apply);
 })();
 
 /* Avvalgi versiya loyihalari (localStorage kps_projects, js/project.js) — eski bosh sahifadan oʻzgarishsiz */

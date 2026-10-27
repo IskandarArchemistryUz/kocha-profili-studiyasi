@@ -21,9 +21,11 @@
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'
   };
-  function lang() { var l = ls.get('kps_lang') || ls.get('mr-lang') || 'en'; return ['uz', 'en', 'ru'].indexOf(l) < 0 ? 'en' : l; }   // sukut — inglizcha
+  var LANGS = ['uz', 'en', 'ru', 'es', 'pt', 'fr', 'az', 'uk', 'tr', 'kk'];
+  var NAT = { uz: 'Oʻzbekcha', en: 'English', ru: 'Русский', es: 'Español', pt: 'Português (BR)', fr: 'Français', az: 'Azərbaycanca', uk: 'Українська', tr: 'Türkçe', kk: 'Қазақша' };
+  function lang() { var l = ls.get('kps_lang') || ls.get('mr-lang') || 'en'; return LANGS.indexOf(l) < 0 ? 'en' : l; }   // sukut — inglizcha
   /* xizmat nomlari (mr/src/i18n/index.ts dagi BRAND bilan bir xil) */
-  var NM = { en: { 'Koʻchasoz': 'Street Designer', 'Joyshunos': 'Site Explorer', 'Chizmadon': 'Sheet Studio', 'Master reja': 'Master plan', 'Dizayn-kod': 'Design code' }, ru: { 'Koʻchasoz': 'Конструктор улиц', 'Joyshunos': 'Анализ места', 'Chizmadon': 'Студия листов', 'Master reja': 'Мастер-план', 'Dizayn-kod': 'Дизайн-код' } };
+  var NM = { en: { 'Koʻchasoz': 'Street Designer', 'Joyshunos': 'Site Explorer', 'Chizmadon': 'Sheet Studio', 'Master reja': 'Master plan', 'Dizayn-kod': 'Design code' }, ru: { 'Koʻchasoz': 'Конструктор улиц', 'Joyshunos': 'Анализ места', 'Chizmadon': 'Студия листов', 'Master reja': 'Мастер-план', 'Dizayn-kod': 'Дизайн-код' }, es: { 'Koʻchasoz': 'Diseñador de calles', 'Joyshunos': 'Explorador del sitio', 'Chizmadon': 'Estudio de láminas', 'Master reja': 'Plan maestro', 'Dizayn-kod': 'Código de diseño' }, pt: { 'Koʻchasoz': 'Designer de Ruas', 'Joyshunos': 'Explorador do Terreno', 'Chizmadon': 'Estúdio de Pranchas', 'Master reja': 'Masterplan', 'Dizayn-kod': 'Código de design' }, fr: { 'Koʻchasoz': 'Concepteur de rues', 'Joyshunos': 'Explorateur de site', 'Chizmadon': 'Studio de planches', 'Master reja': 'Plan directeur', 'Dizayn-kod': 'Code de design' }, az: { 'Koʻchasoz': 'Küçə konstruktoru', 'Joyshunos': 'Ərazi təhlili', 'Chizmadon': 'Vərəq studiyası', 'Master reja': 'Master-plan', 'Dizayn-kod': 'Dizayn-kod' }, uk: { 'Koʻchasoz': 'Конструктор вулиць', 'Joyshunos': 'Аналіз місця', 'Chizmadon': 'Студія аркушів', 'Master reja': 'Майстер-план', 'Dizayn-kod': 'Дизайн-код' }, tr: { 'Koʻchasoz': 'Sokak Tasarımcısı', 'Joyshunos': 'Alan Analizi', 'Chizmadon': 'Pafta Stüdyosu', 'Master reja': 'Master plan', 'Dizayn-kod': 'Tasarım kodu' }, kk: { 'Koʻchasoz': 'Көше конструкторы', 'Joyshunos': 'Орын талдауы', 'Chizmadon': 'Парақтар студиясы', 'Master reja': 'Мастер-жоспар', 'Dizayn-kod': 'Дизайн-код' } };
   function nm(s) { var m = NM[lang()]; return m && m[s] || s; }
   function T(s) { return window.kpsT ? window.kpsT(s) : s; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -38,12 +40,15 @@
         return '<a href="' + s[2] + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(nm(s[1])) + (s[4] ? '<em class="beta">beta</em>' : '') + '</a>';
       }).join('') + '</nav>' +
       '<span class="eko-sp"></span>' + ex +
-      '<div class="eko-lang" id="kpsLang" data-noi18n role="group" aria-label="Til / Language / Язык">' + ['uz', 'en', 'ru'].map(function (k) {
-        return '<button type="button" data-lang="' + k + '" aria-pressed="' + (k === L) + '">' + k + '</button>';
-      }).join('') + '</div>' +
+      '<div class="eko-lang" id="kpsLang" data-noi18n><button type="button" class="eko-lb" aria-haspopup="menu" aria-expanded="false" aria-label="Til / Language / Язык">' + L.toUpperCase() + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="eko-lm" role="menu" hidden>' + LANGS.map(function (k) {
+        return '<button type="button" role="menuitemradio" lang="' + k + '" data-lang="' + k + '" aria-checked="' + (k === L) + '" aria-pressed="' + (k === L) + '">' + NAT[k] + '<span>' + k + '</span></button>';
+      }).join('') + '</div></div>' +
       '<button type="button" class="eko-ib" id="themeBtn" title="' + (d ? 'Yorugʻ rejim' : 'Tungi rejim') + '" aria-label="' + (d ? 'Yorugʻ rejim' : 'Tungi rejim') + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + (d ? IC.sun : IC.moon) + '</svg></button>';
-    h.querySelectorAll('.eko-lang button').forEach(function (b) {
-      b.onclick = function () { var k = b.getAttribute('data-lang'); if (k === lang()) return; ls.set('kps_lang', k); ls.set('mr-lang', k); location.reload(); };
+    var lb = h.querySelector('.eko-lb'), lm = h.querySelector('.eko-lm');
+    lb.onclick = function (e) { e.stopPropagation(); lm.hidden = !lm.hidden; lb.setAttribute('aria-expanded', String(!lm.hidden)); };
+    document.addEventListener('click', function () { lm.hidden = true; lb.setAttribute('aria-expanded', 'false'); });
+    lm.querySelectorAll('[data-lang]').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); var k = b.getAttribute('data-lang'); if (k === lang()) { lm.hidden = true; return; } ls.set('kps_lang', k); ls.set('mr-lang', k); location.reload(); };
     });
     h.querySelector('#themeBtn').onclick = function () { ls.set('mr-theme', dark() ? 'light' : 'dark'); applyTheme(); render(h); };
   }

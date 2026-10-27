@@ -48,7 +48,7 @@ export function loginDialog(reason?: string): Promise<boolean> {
     const wrap = h('div', { class: 'kd', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'kdT', id: 'kirish', onclick: (e: Event) => { if (e.target === wrap) close(false); } },
       h('div', { class: 'kd-box' },
         h('button', { class: 'ib sm kd-x', type: 'button', 'aria-label': tr('Yopish'), title: tr('Yopish'), onclick: () => close(false) }, svgIcon(IC.x)),
-        h('h2', { id: 'kdT' }, tr('Kirish')),
+        h('h2', { id: 'kdT' }, tr('Hisobga kirish')),
         h('p', { class: 'kd-lead' }, tr(reason ?? 'Davom etish uchun kiring. Hisob bepul.')),
         gbox, or, form, hint, msg,
         h('p', { class: 't-small kd-legal' }, tr('Kirib, siz foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz.'), ' ', h('a', { href: '../oferta.html', target: '_blank', rel: 'noopener' }, tr('Oferta')), ' · ', h('a', { href: '../maxfiylik.html', target: '_blank', rel: 'noopener' }, tr('Maxfiylik')))));

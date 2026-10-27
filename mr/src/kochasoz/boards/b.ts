@@ -736,7 +736,7 @@ export default class Component extends DCLogic {
       // zona kodlari
       var CODE = { front: 'B3', piy: 'P', mebel: 'B1', yash: 'B2', velo: 'V', park: 'AT', qat: 'H', bus: 'JT', tram: 'TR', med: 'AJ', ariq: 'AR', kanal: 'KN' };
       /* zona kodlari tilga qarab (B1–B3 — Dizayn-kod belgisi, oʻzgarmaydi) */
-      var CODEL = { en: { piy: 'P', velo: 'CY', park: 'PK', qat: 'TL', bus: 'BL', tram: 'TR', med: 'MD', ariq: 'DT', kanal: 'CN' }, ru: { piy: 'П', velo: 'ВД', park: 'ПС', qat: 'ПД', bus: 'ОТ', tram: 'ТР', med: 'РП', ariq: 'АР', kanal: 'КН' } }[getLang()]; if (CODEL) CODE = Object.assign({}, CODE, CODEL);
+      var CODEL = { en: { piy: 'P', velo: 'CY', park: 'PK', qat: 'TL', bus: 'BL', tram: 'TR', med: 'MD', ariq: 'DT', kanal: 'CN' }, ru: { piy: 'П', velo: 'ВД', park: 'ПС', qat: 'ПД', bus: 'ОТ', tram: 'ТР', med: 'РП', ariq: 'АР', kanal: 'КН' } }[({ uk: 'ru', kk: 'ru', es: 'en', pt: 'en', fr: 'en', az: 'en', tr: 'en' })[getLang()] || getLang()]; if (CODEL) CODE = Object.assign({}, CODE, CODEL);
       LYR = 'KS_DIM'; var D1 = GB + 34, D2 = D1 + 30, D3 = D2 + 26, NW = 0;
       els.forEach(function (e, i) { var x0 = X(zx[i][0]), x1 = X(zx[i][1]), cx = (x0 + x1) / 2, on = s.sel === i && s.selU < 0, cw = Math.min(Math.max(14, CODE[e[0]].length * 6 + 8), Math.max(10, (X(zx[i][1]) - X(zx[i][0])) - 1));
         LYR = 'KS_TEXT'; add(Rr(cx - cw / 2, GB + 10, cw, 13, 6.5), line ? '#ffffff' : T[e[0]].c, INK, 0.6); tx(cx, GB + 19.5, CODE[e[0]], 7.5, INK, 700, 'IBM Plex Mono, monospace'); if (on) { LYR = 'UI'; add(Rr(cx - cw / 2, GB + 10, cw, 13, 6.5), '#4c5bd4', null, 0); tx(cx, GB + 19.5, CODE[e[0]], 7.5, '#ffffff', 700, 'IBM Plex Mono, monospace'); LYR = 'KS_TEXT'; }

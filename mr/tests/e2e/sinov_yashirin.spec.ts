@@ -24,7 +24,7 @@ const U = (p: string) => `http://127.0.0.1:${PORT}/${p}`;
 test('tashrif buyuruvchi: «Barcha asboblar» yoʻq, eski sahifalar bosh sahifaga qaytaradi; eski loyiha zaxirasi ochiq', async ({ page }) => {
   test.setTimeout(120_000);
   await page.addInitScript(() => { sessionStorage.setItem('wm-test', '1'); localStorage.removeItem('kps_owner'); });
-  await page.route(/fonts\.g|nominatim|unpkg|cdnjs|jsdelivr|tile|arcgis/, r => r.abort());
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:fonts\.g|nominatim|unpkg|cdnjs|jsdelivr|tile|arcgis))/, r => r.abort());
   await page.goto(U('haqida.html'));
   await expect(page.locator('#hammasi')).toBeHidden();
   await expect(page.locator('footer a[href$="#hammasi"]')).toBeHidden();
@@ -37,7 +37,7 @@ test('tashrif buyuruvchi: «Barcha asboblar» yoʻq, eski sahifalar bosh sahifag
 });
 
 test('egasi: «Barcha asboblar» va eski sahifalar ochiq', async ({ page }) => {
-  await page.route(/fonts\.g|nominatim|unpkg|cdnjs|jsdelivr|tile|arcgis/, r => r.abort());
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:fonts\.g|nominatim|unpkg|cdnjs|jsdelivr|tile|arcgis))/, r => r.abort());
   await page.goto(U('haqida.html'));
   await expect(page.locator('#hammasi')).toBeVisible();
   await expect(page.locator('#allTools a')).toHaveCount(13);

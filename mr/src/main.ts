@@ -81,7 +81,7 @@ function homeAcct(): HTMLElement {
   const draw = () => {
     box.hidden = !authRequired() || isLinkOwner();
     const m = currentUser();
-    if (!m) { box.replaceChildren(h('button', { class: 'btn btn-primary btn-sm', id: 'homeIn', onclick: () => void loginDialog() }, tr('Kirish'))); return; }
+    if (!m) { box.replaceChildren(h('button', { class: 'btn btn-primary btn-sm', id: 'homeIn', onclick: () => void loginDialog() }, tr('Hisobga kirish'))); return; }
     const who = m.name || m.email || m.phone || '';
     box.replaceChildren(
       h('span', { class: 't-small who', title: who }, who),

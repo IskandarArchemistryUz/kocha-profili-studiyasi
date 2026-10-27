@@ -6,6 +6,7 @@
  * Manbasi hali ulanmagan qatlamlar «Tez orada» (Iskandar, 2026-10-18: «birlamchi maʼlumot ololsak — beta, ololmasak — ishlab chiqib qoʻshamiz»).
  * Eski toʻliq asboblar (gis, shamol, posadka, ai) — panel pastidagi havolalar orqali ochiq qoladi (0-qoida).
  */
+import { langMenu } from '../ui/langmenu';
 import '../ui/ds2.css';
 import './joy.css';
 import type { Map as MLMap, GeoJSONSource, Marker } from 'maplibre-gl';
@@ -14,7 +15,7 @@ import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, fmt, toast } from '../ui/dom';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
-import { tr, tf, getLang, setLang, onLang, LANGS, type Lang } from '../i18n';
+import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { mapStyle, basePrefs, setBasePrefs, PALETTES, type CustomKey } from '../context/mapstyle';
 import { initEsriKey } from '../context/esrikey';
 import { geocode, type Place } from '../context/geocode';
@@ -237,8 +238,7 @@ function renderHeader(): void {
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
-    h('div', { class: 'seg sm langsw', role: 'group', 'aria-label': tr('Til'), id: 'langSw' },
-      ...LANGS.map(l => h('button', { type: 'button', 'data-lang': l.id, 'aria-pressed': l.id === getLang(), onclick: () => setLang(l.id as Lang) }, l.name))),
+    langMenu(l => { void setLang(l); }),
     (() => { const b = h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'themeBtn', type: 'button', title: tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() }); b.append(ic(isDark() ? ICON.sun : ICON.moon)); return b; })(),
   );
 }
@@ -946,8 +946,11 @@ const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') |
 const albSave = () => { try { localStorage.setItem('joy-albom', JSON.stringify(ALB)); } catch { /* */ } };
 function cityName(): string {
   const tz = placeOf(S.c[0], S.c[1]).tz ?? '', c = tz.split('/').pop()?.replace(/_/g, ' ') ?? '', lang = getLang();
-  const loc: Record<string, [string, string]> = { Tashkent: ['Toshkent', 'Ташкент'], Samarkand: ['Samarqand', 'Самарканд'] };
-  return loc[c] ? (lang === 'ru' ? loc[c][1] : lang === 'uz' ? loc[c][0] : c) : c;
+  const loc: Record<string, Partial<Record<string, string>>> = {
+    Tashkent: { uz: 'Toshkent', ru: 'Ташкент', uk: 'Ташкент', kk: 'Ташкент', es: 'Taskent', fr: 'Tachkent', az: 'Daşkənd', tr: 'Taşkent' },
+    Samarkand: { uz: 'Samarqand', ru: 'Самарканд', uk: 'Самарканд', kk: 'Самарқанд', es: 'Samarcanda', pt: 'Samarcanda', fr: 'Samarcande', az: 'Səmərqənd', tr: 'Semerkant' },
+  };
+  return loc[c]?.[lang] ?? c;
 }
 function albomDialog(): void {
   document.getElementById('albDlg')?.remove();

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fx';
+import { test, expect, type Page, pickLang } from './fx';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -93,7 +93,7 @@ test('boshqa xizmatdan yuborilgan kadr asos rasm boʻlib ochiladi (#/s/<id>), in
   await page.goto('./render.html#/s/sMR1');
   await expect(page.locator('.ren-base .cap')).toContainText('Oliy Himmat · 3D');
   await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Master reja');
-  await page.locator('#langSw [data-lang=en]').click();
+  await pickLang(page, 'en');
   await expect(page.locator('#renRight .ttl')).toHaveText('Render');
   await expect(page.locator('#srcFile')).toHaveText('From file');
   expect(errs).toEqual([]);

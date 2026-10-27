@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fx';
+import { test, expect, type Page, pickLang } from './fx';
 import { readFileSync } from 'fs';
 
 /** Koʻchasoz (app/kochasoz.html): kanvas maketlari A, B, C, E, Grafika, Varaq — rejimlar, kesim tahriri, saqlash, A→B, Varaq→Chizmadon */
@@ -119,7 +119,7 @@ test('Varaq: SVG yuklab olish va Chizmadonga yuborish', async ({ page }) => {
 
 test('til va tungi rejim', async ({ page }) => {
   await open(page, 'b');
-  await page.locator('#langSw [data-lang=en]').click();
+  await pickLang(page, 'en');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   expect(await page.evaluate(() => [localStorage.getItem('mr-lang'), localStorage.getItem('kps_lang')])).toEqual(['en', 'en']);
   await page.locator('#themeBtn').click();

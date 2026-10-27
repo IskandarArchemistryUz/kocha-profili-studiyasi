@@ -1,4 +1,4 @@
-import { test, expect } from './fx';
+import { test, expect, pickLang } from './fx';
 
 /** Qobiq (DS-03): rail — faqat 12 qadam; asboblar pastda; Tab — panelni yigʻish; til va tungi rejim */
 test('qobiq: rail, asboblar paneli, Tab, til, tungi rejim', async ({ page }) => {
@@ -14,10 +14,10 @@ test('qobiq: rail, asboblar paneli, Tab, til, tungi rejim', async ({ page }) => 
   await page.keyboard.press('Tab');
   await expect(page.locator('.panel.sp')).not.toHaveClass(/shut/);
   // til: en → footer inglizcha, uz → qaytadi; tanlov saqlanadi
-  await page.click('[data-lang=en]');
+  await pickLang(page, 'en');
   await expect(page.locator('.panel.sp footer')).toContainText('Next');
   expect(await page.evaluate(() => localStorage.getItem('mr-lang'))).toBe('en');
-  await page.click('[data-lang=uz]');
+  await pickLang(page, 'uz');
   await expect(page.locator('.panel.sp footer')).toContainText('Keyingi');
   // tungi rejim: html[data-theme]
   await page.click('#themeBtn');

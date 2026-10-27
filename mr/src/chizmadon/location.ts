@@ -70,9 +70,9 @@ export const hm = (h: number, tf: TF = tf0): string => { let H = Math.floor(h), 
 export const f1 = (x: number): string => x.toFixed(1).replace('.', ',');
 
 /* ---------- til ---------- */
-let LANG: 'uz' | 'en' | 'ru' = 'uz';
+let LANG: string = 'uz';
 /** Davlat nomlari tili (ilova tili) */
-export const setLocLang = (l: 'uz' | 'en' | 'ru'): void => { LANG = l; IDX = null; };
+export const setLocLang = (l: string): void => { LANG = l; IDX = null; };
 
 /* ---------- maʼlumot yuklash ---------- */
 let GEO: UzGeo | null = null, CBB: number[] = [55.9, 37.1, 73.2, 45.6];
@@ -156,7 +156,7 @@ function isoOf(n: string): string | null {
 }
 const DN: Record<string, Intl.DisplayNames | null> = {};
 const dn = (l: string) => { if (!(l in DN)) { try { DN[l] = new Intl.DisplayNames([l], { type: 'region' }); } catch { DN[l] = null; } } return DN[l]; };
-export function countryName(n: string, lang: 'uz' | 'en' | 'ru' = 'uz'): string {
+export function countryName(n: string, lang: string = 'uz'): string {
   if (lang === 'uz' && UZ_C[n]) return UZ_C[n];
   if (lang === 'en') return n;
   const c = isoOf(n), d = c ? dn(lang) : null;

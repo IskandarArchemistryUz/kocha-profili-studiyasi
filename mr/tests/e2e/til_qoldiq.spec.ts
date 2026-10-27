@@ -1,7 +1,10 @@
 import { test, expect, type Page } from './fx';
 
 /** EN/RU rejimida oʻzbekcha qolgan matnlar yoʻq: Koʻchasoz (A, B — «Rejada joylash»), Master reja — 11 qadam, Chizmadon kirish oynasi, Joyshunos, Render, Transport */
-const UZ = /[ʻ]|\b(va|uchun|bilan|yoki|boʻyicha|bosing|qoʻyiladi|zonadagi|birinchi|joyga|eni|burchak|tanlang|qilish|kerak|yoʻq|emas|soni|tomon|chizing|qoʻshish|oʻchirish|yuklash|saqlash|koʻrinish|maydon|binolar|koʻcha|xona|qavat|hudud|uchastka|joylash|elementni|zona)\b/i;
+const W = 'uchun|yoki|boʻyicha|bosing|qoʻyiladi|zonadagi|birinchi|joyga|burchak|tanlang|qilish|kerak|yoʻq|emas|soni|tomon|chizing|qoʻshish|oʻchirish|yuklash|saqlash|koʻrinish|maydon|binolar|koʻcha|xona|qavat|hudud|uchastka|joylash|elementni';
+/** «va», «eni», «zona», «bilan» — ispan/turk/portugal/fransuz tillarida ham soʻz: faqat en/ru da tekshiriladi */
+const UZ = new RegExp(`[ʻ]|\\b(${W}|va|eni|zona|bilan)\\b`, 'i'), UZX = new RegExp(`[ʻ]|\\b(${W})\\b`, 'i');
+let RX = UZ;
 async function grab(page: Page, tag: string, out: Map<string, string>) {
   await page.waitForTimeout(700);
   const t: string[] = await page.evaluate(() => {
@@ -13,13 +16,14 @@ async function grab(page: Page, tag: string, out: Map<string, string>) {
     }
     return res;
   });
-  for (const v of t) if (UZ.test(v) && !out.has(v)) out.set(v, tag);
+  for (const v of t) if (RX.test(v) && !out.has(v)) out.set(v, tag);
 }
-test('EN/RU: oʻzbekcha matn qolmagan', async ({ page }) => {
-  test.setTimeout(420_000);
-  await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile|gibs|nominatim/, r => r.fulfill({ status: 404, body: '' }));
+test('9 til: oʻzbekcha matn qolmagan', async ({ page }) => {
+  test.setTimeout(1_500_000);
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile|gibs|nominatim))/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1440, height: 900 });
-  for (const lang of ['en', 'ru']) {
+  for (const lang of ['en', 'ru', 'es', 'pt', 'fr', 'az', 'uk', 'tr', 'kk']) {
+    RX = lang === 'en' || lang === 'ru' ? UZ : UZX;
     const out = new Map<string, string>();
     await page.addInitScript(l => { try { localStorage.setItem('mr-lang', l); } catch {} }, lang);
     for (const hsh of ['a', 'b', 'varaq']) {
