@@ -10,7 +10,7 @@ export interface ViewDef { /** uslublar guruhi sarlavhasi (yoʻq — «Uslub») 
 
 /** Rang shkalalari: past → yuqori */
 export const VIEW: Record<string, ViewDef> = {
-  relyef: { styles: [['topo', 'Topo chiziqlar'], ['soya', 'Faqat soya']], k: true },
+  relyef: { styles: [['topo', 'Topo chiziqlar'], ['soya', 'Faqat soya'], ['gips', 'Gipsometriya']], pals: [['Qum', ['#f4ecd8', '#e2cfa3', '#c9a46e', '#9c7448', '#6e4f33']], ['Yashil-jigar', ['#e6efd6', '#c8d9a7', '#d8c48c', '#b38b5a', '#7d5a3a']], ['Kulrang', ['#f2f2f0', '#d6d5d1', '#b0aea8', '#86847e', '#5c5a55']]], k: true },
   nishab: { styles: [['toifa', 'Toifalar'], ['strelka', 'Strelkalar bilan']], k: true },
   issiqlik: { styles: [['sirt', 'Sirt'], ['izoterma', 'Izotermalar']], pals: [['Klassik', ['#2c6fb0', '#79b0d6', '#cfe3ee', '#f4f1e6', '#f7c9a0', '#ee8a5a', '#c43b2e']], ['Magma', ['#fcfdbf', '#fec488', '#fc8961', '#e85362', '#b73779', '#721f81', '#2c115f']], ['Faqat issiq', ['#fff5eb', '#fee6ce', '#fdd0a2', '#fdae6b', '#fd8d3c', '#e6550d', '#a63603']]], k: true },
   shovqin: { styles: [['zona', 'Zonalar'], ['kontur', 'Konturlar'], ['65', '≥ 65 dB']], pals: [['ISO 1996', ['#e9f0e4', '#d6e7b8', '#f3dd8a', '#f0a85c', '#d9603f', '#8e2c4f']], ['Pushti', ['#fde0ef', '#f9bcd8', '#f4a6c9', '#e0609c', '#c2416b', '#7a0f3c']]], k: true },

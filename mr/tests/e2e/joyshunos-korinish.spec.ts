@@ -70,6 +70,10 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qatlam koÊ
   await expect.poll(() => vis(page, 'joy-topo')).toBe('visible');
   await page.locator('.jv-st button', { hasText: 'Faqat soya' }).click();
   await expect.poll(() => vis(page, 'joy-topo')).toBe('none');
+  await page.locator('.jv-st button', { hasText: 'Gipsometriya' }).click();
+  await expect.poll(() => vis(page, 'joy-gips')).toBe('visible');
+  await page.locator('.jv-st button', { hasText: 'Faqat soya' }).click();
+  await expect.poll(() => vis(page, 'joy-gips')).toBe('none');
   const sl = page.locator('.jv-sl'); await sl.focus(); await page.keyboard.press('ArrowRight');
   await expect(sl).toHaveAttribute('aria-valuenow', '65');
   // nishab â€” relyef kartasida

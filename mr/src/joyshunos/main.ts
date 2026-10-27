@@ -89,12 +89,12 @@ let viewOpen = (() => { try { return localStorage.getItem('joy-view-open') !== '
 const V = (id: LayerId) => view(S.v, id);
 function setView(id: LayerId, p: LayerView, live?: boolean): void {
   S.v = { ...S.v, [id]: { ...S.v?.[id], ...p } };
-  heatKey = noiseKey = slopeKey = ''; isoKey = '';
+  heatKey = noiseKey = slopeKey = ''; isoKey = ''; gipsKey = '';
   if (id === 'piyoda' && p.st) computeNet();
   paint();
   if (!live) { save(); renderRight(); }
 }
-let isoKey = '';
+let isoKey = '', gipsKey = '';
 let roseK = 1;
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
@@ -689,6 +689,8 @@ function addOverlays(): void {
   const m = map, before = m.getLayer('bld') ? 'bld' : undefined;
   m.addSource('joy-dem', { type: 'raster-dem', tiles: [TERRAIN_URL(0, 0, 0).replace('/0/0/0.png', '/{z}/{x}/{y}.png')], encoding: 'terrarium', tileSize: 256, maxzoom: 15 } as never);
   m.addLayer({ id: 'joy-hs', type: 'hillshade', source: 'joy-dem', layout: { visibility: 'none' }, paint: { 'hillshade-exaggeration': 0.55, 'hillshade-shadow-color': isDark() ? '#000000' : '#6b5a48', 'hillshade-highlight-color': '#ffffff' } } as never, before);
+  m.addSource('joy-gips', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
+  m.addLayer({ id: 'joy-gips', type: 'raster', source: 'joy-gips', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
   m.addSource('joy-slope', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-slope', type: 'raster', source: 'joy-slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8, 'raster-fade-duration': 0 } } as never, before);
   for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow', 'joy-cov']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
@@ -756,6 +758,12 @@ function paintH(): void {
   m.setLayoutProperty('joy-hs', 'visibility', isOn('relyef') ? 'visible' : 'none');
   // nishab — doira ichida rangli toʻr
   const t = D.ter.v;
+  // relyef — gipsometrik rang (balandlik boʻyicha), «Gipsometriya» uslubida
+  if (isOn('relyef') && t && V('relyef').st === 'gips') {
+    const k = `${t.g.center.join()}|${t.g.radius}|${S.r}|${V('relyef').p}`;
+    if (k !== gipsKey) { gipsKey = k; const g = gipsImage(t.g, S.r, VIEW.relyef.pals![V('relyef').p][1]); (m.getSource('joy-gips') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: g.url, coordinates: g.coords }); }
+    m.setLayoutProperty('joy-gips', 'visibility', 'visible');
+  } else m.setLayoutProperty('joy-gips', 'visibility', 'none');
   if (isOn('nishab') && t) {
     const k = `${t.g.center.join()}|${t.g.radius}|${S.r}`;
     if (k !== slopeKey) { slopeKey = k; const s = slopeImage(t.g, S.r); (m.getSource('joy-slope') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: s.url, coordinates: s.coords }); }
@@ -907,7 +915,7 @@ function focusMap(m: MLMap): void {
   const a = actId(), k = (id: LayerId) => (S.on.length > 1 && a && a !== id ? FOCUS_DIM : 1);
   const set = (layer: string, prop: string, v: unknown) => { if (m.getLayer(layer)) m.setPaintProperty(layer, prop, v); };
   const q = (id: LayerId, lo: number, hi: number) => (lo + (hi - lo) * V(id).k) * k(id);
-  set('joy-hs', 'hillshade-exaggeration', q('relyef', 0.2, 1));
+  set('joy-hs', 'hillshade-exaggeration', q('relyef', 0.2, 1)); set('joy-gips', 'raster-opacity', q('relyef', 0.35, 0.85));
   set('joy-topo', 'line-opacity', q('relyef', 0.35, 1)); set('joy-topo-l', 'text-opacity', k('relyef'));
   set('joy-slope', 'raster-opacity', q('nishab', 0.35, 0.95)); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
   set('joy-heat', 'raster-opacity', q('issiqlik', 0.3, 0.85) * (V('issiqlik').st === 'izoterma' ? 0.45 : 1));
@@ -1167,6 +1175,21 @@ function shadowImage(prisms: Prism[], alt: number, az: number, r: number): { url
   }
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
   return { url: cv.toDataURL(), coords: [[S.c[0] - R / kx, S.c[1] + R / ky], [S.c[0] + R / kx, S.c[1] + R / ky], [S.c[0] + R / kx, S.c[1] - R / ky], [S.c[0] - R / kx, S.c[1] - R / ky]] };
+}
+/** Gipsometrik rang: past → yuqori (doira ichida) */
+function gipsImage(g: TerrainGrid, r: number, pal: string[]): { url: string; coords: [number, number][] } {
+  const n = g.n, cv = document.createElement('canvas'); cv.width = cv.height = n;
+  const cx = cv.getContext('2d')!, img = cx.createImageData(n, n), lo = g.min, span = Math.max(1, g.max - g.min);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const x = -g.radius + i * g.step, y = -g.radius + j * g.step, o = ((n - 1 - j) * n + i) * 4, v = g.h[j * n + i];
+    if (x * x + y * y > r * r || !Number.isFinite(v)) continue;
+    const c = rampColor(pal, (v - lo) / span);
+    img.data[o] = parseInt(c.slice(1, 3), 16); img.data[o + 1] = parseInt(c.slice(3, 5), 16); img.data[o + 2] = parseInt(c.slice(5, 7), 16); img.data[o + 3] = 230;
+  }
+  cx.putImageData(img, 0, 0);
+  const kx = 111_320 * Math.cos(g.center[1] * Math.PI / 180), ky = 111_132, R = g.radius + g.step / 2;
+  const W = g.center[0] - R / kx, E = g.center[0] + R / kx, N = g.center[1] + R / ky, So = g.center[1] - R / ky;
+  return { url: cv.toDataURL(), coords: [[W, N], [E, N], [E, So], [W, So]] };
 }
 function slopeImage(g: TerrainGrid, r: number): { url: string; coords: [number, number][] } {
   const sl = slopeGrid(g), n = g.n, cv = document.createElement('canvas'); cv.width = cv.height = n;
