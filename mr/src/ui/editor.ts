@@ -37,7 +37,7 @@ import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtcAt, sunPosition } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
-import { windAt, windSrcLine, ERA5_ATTR, type WindAt } from '../core/windsrc';
+import { windAt, windSrcLine, ERA5_ATTR, TMYX_ATTR, type WindAt } from '../core/windsrc';
 import { INSOL_BINS } from '../scene/scene';
 import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
 import { openAlbum, genplanSvg } from './album';
@@ -1165,7 +1165,7 @@ export class Editor {
         h('div', { class: 'kpi' }, h('b', {}, `${rumbName(pv.k)}`), h('span', {}, `${tr('ustun yoʻnalish')} · ${fmt(pv.share * 100, 0)} %`)),
         h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.p95, 1)} m/s`), h('span', {}, tr('5 % vaqt oshadi')))),
       this.windRose(st),
-      h('span', { class: 't-small', id: 'windSrc' }, tr(windSrcLine(src)), src === 'era5' ? ` ${ERA5_ATTR}.` : ''),
+      h('span', { class: 't-small', id: 'windSrc' }, tr(windSrcLine(src)), ` ${src === 'era5' ? ERA5_ATTR : TMYX_ATTR}.`),
       h('div', { class: 'field' }, h('label', {}, tr('Hisob yoʻnalishi (qayerdan esadi)')), sel),
       h('button', { class: 'btn btn-block', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, tr(this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)'))));
     const w = this.wind.stats;

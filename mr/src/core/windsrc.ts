@@ -7,6 +7,8 @@
 import { API_BASE } from '../account/config';
 import { nearestStation, WIND_MAX_KM, type Climate, type Station } from './wind';
 
+/** TMYx mualliflari soʻragan iqtibos (D. Crawley xati, 27.10.2026) — tarjima qilinmaydi */
+export const TMYX_ATTR = 'Lawrie, Linda K, Drury B Crawley. 2026. Development of Global Typical Meteorological Years (TMYx). https://climate.onebuilding.org';
 export const ERA5_ATTR = 'Contains modified Copernicus Climate Change Service information 2026 (ERA5)';
 export type WindAt =
   | { kind: 'ok'; s: Station; km: number; src: 'epw' | 'era5' }
@@ -35,4 +37,4 @@ export async function windAt(c: Climate, lon: number, lat: number, f: typeof fet
   } catch { return { kind: 'none', near: n.s, km: n.km, why: 'err' }; }
 }
 /** Manba satri: «Manba: …» */
-export const windSrcLine = (src: 'epw' | 'era5'): string => src === 'era5' ? 'Manba: ERA5 (Copernicus) — 0,25° katak, soatlik 2015–2024; reanaliz, stansiya oʻlchovi emas.' : 'Manba: EPW TMYx 2011–2025 (climate.onebuilding.org).';
+export const windSrcLine = (src: 'epw' | 'era5'): string => src === 'era5' ? 'Manba: ERA5 (Copernicus) — 0,25° katak, soatlik 2015–2024; reanaliz, stansiya oʻlchovi emas.' : 'Manba: EPW TMYx 2011–2025.';
