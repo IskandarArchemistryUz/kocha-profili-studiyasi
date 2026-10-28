@@ -2,9 +2,9 @@ name: Master reja — testlar
 on:
   push:
     branches: [main]
-    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'gis.html', 'shamol.html', 'posadka.html', 'ai.html', 'js/eko.js', 'css/**', 'js/site.js', 'js/narx.js', 'js/home-i18n.js', 'narxlar.html', 'haqida.html', 'narxlar-batafsil.html', 'js/fikr.js', '.github/workflows/master-reja.yml']
+    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'gis.html', 'shamol.html', 'posadka.html', 'ai.html', 'js/eko.js', 'css/**', 'js/site.js', 'js/narx.js', 'js/home-i18n.js', 'narxlar.html', 'haqida.html', 'narxlar-batafsil.html', 'js/fikr.js', 'atamalar.html', 'js/i18n.js', 'js/i18n/**', '.github/workflows/master-reja.yml']
   pull_request:
-    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'gis.html', 'shamol.html', 'posadka.html', 'ai.html', 'js/eko.js', 'css/**', 'js/site.js', 'js/narx.js', 'js/home-i18n.js', 'narxlar.html', 'haqida.html', 'narxlar-batafsil.html', 'js/fikr.js', '.github/workflows/master-reja.yml']
+    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'gis.html', 'shamol.html', 'posadka.html', 'ai.html', 'js/eko.js', 'css/**', 'js/site.js', 'js/narx.js', 'js/home-i18n.js', 'narxlar.html', 'haqida.html', 'narxlar-batafsil.html', 'js/fikr.js', 'atamalar.html', 'js/i18n.js', 'js/i18n/**', '.github/workflows/master-reja.yml']
 jobs:
   test:
     runs-on: ubuntu-latest
