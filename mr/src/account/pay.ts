@@ -272,8 +272,10 @@ export async function coinsDialog(): Promise<void> {
 export function initPay(): void { setExportGate(gate); }
 initPay();
 
-/* ---------- 4) Master reja: bepul uchastka ≤ 3 ga (egasi qarori 27.10) ---------- */
+/* ---------- 4) Master reja: katta uchastka (egasi qarori 27.10; 28.10 — chizish bepul, 7-qadamdan «Loyihani ochish») ---------- */
 export const FREE_SITE_HA = 3;
+/** shu qadam raqamidan boshlab 3 ga dan katta uchastka loyihasi ochilishi kerak (1–6 — bepul) */
+export const PAID_STEP_FROM = 7;
 /** Maydon koeffitsiyenti pogʻonasi — server/src/prices.js areaK bilan bir xil (≤ 15 → 1, ≤ 60 → 1,5, katta → 2) */
 const bracket = (ha: number): number => ha <= 15 ? 1 : ha <= 60 ? 1.5 : 2;
 const UNLOCK_KEY = 'kps_site_unlock';
@@ -284,8 +286,8 @@ export function siteOk(pid: string, ha: number): boolean {
   return isOwner() || !authRequired() || ha <= FREE_SITE_HA || unlocked(pid) >= bracket(ha);
 }
 /**
- * Uchastka chegarasi qoʻyilishidan oldin. 3 ga dan katta — «Loyihani ochish — N tanga» (shu loyiha va maydon pogʻonasi uchun bir marta;
- * boshqa kompyuterda qayta ochish — bepul, server «repeat»). false — chegara qoʻyilmaydi.
+ * 7-qadamga oʻtishdan oldin (uchastka 3 ga dan katta boʻlsa). «Loyihani ochish — N tanga» — shu loyiha va maydon pogʻonasi uchun bir marta;
+ * boshqa kompyuterda qayta ochish — bepul (server «repeat»). false — qadam ochilmaydi, foydalanuvchi oldingi qadamda qoladi.
  */
 export async function siteGate(pid: string, ha: number): Promise<boolean> {
   if (siteOk(pid, ha)) return true;
@@ -295,8 +297,8 @@ export async function siteGate(pid: string, ha: number): Promise<boolean> {
   await check();
   return new Promise<boolean>(resolve => {
     let ok = false, busy = false;
-    const D = dialog('kdSite', tf('Uchastka ${a} ga', { a: fmt(ha, 2) }), tf('Bepul tarifda master reja uchastkasi — ${f} ga gacha. Kattaroq hududni ochish — shu loyiha uchun bir marta toʻlanadi.', { f: FREE_SITE_HA }));
-    const go = opt('kdSiteGo', 'pri', tr('Loyihani ochish'), k > 1 ? tf('maydon koeffitsiyenti ×${k}', { k: String(k).replace('.', ',') }) : tr('generatsiya, tekshiruv va barcha qadamlar'), price == null ? '…' : tf('${n} tanga', { n: fmt(price) }), async () => {
+    const D = dialog('kdSite', tf('Uchastka ${a} ga', { a: fmt(ha, 2) }), tf('${f} ga dan katta uchastkada 1–6-qadamlar bepul. Fasad, kvartiralar, xizmatlar, tekshiruv va eksport — loyihani ochgandan keyin (shu loyiha uchun bir marta).', { f: FREE_SITE_HA }));
+    const go = opt('kdSiteGo', 'pri', tr('Loyihani ochish'), k > 1 ? tf('maydon koeffitsiyenti ×${k}', { k: String(k).replace('.', ',') }) : tr('7–11-qadamlar'), price == null ? '…' : tf('${n} tanga', { n: fmt(price) }), async () => {
       if (busy) return; busy = true; go.disabled = true; D.msg.hidden = true;
       try {
         D.wrap.hidden = true;

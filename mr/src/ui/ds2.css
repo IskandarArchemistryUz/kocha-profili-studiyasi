@@ -194,6 +194,8 @@ button.li:hover{background:var(--grouped)}
 .rb .dn{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:3px;background:var(--ok);box-shadow:0 0 0 2px var(--surface)}
 .rb[aria-current="step"] .dn{box-shadow:0 0 0 2px var(--svc)}
 .rb.locked{color:var(--faint)}
+/* 28.10: katta uchastkada 7–11-qadamlar — «Loyihani ochish» (tanga belgisi) */
+.rb[data-paid="true"]::after{content:"";position:absolute;top:6px;left:6px;width:6px;height:6px;border-radius:3px;background:var(--brand,#f0b323);box-shadow:0 0 0 2px var(--surface)}
 .rb .n{position:absolute;bottom:3px;right:5px;font-size:8.5px;font-weight:700;color:var(--faint);font-variant-numeric:tabular-nums}
 .rb[aria-current="step"] .n{color:#9b9893}
 .tb{display:flex;align-items:center;gap:2px;height:48px;padding:4px;border-radius:var(--r-pill)}
