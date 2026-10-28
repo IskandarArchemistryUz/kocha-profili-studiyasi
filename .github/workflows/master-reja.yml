@@ -40,6 +40,13 @@ jobs:
         run: npx playwright test --shard=${{ matrix.shard }}/4 2>&1 | tee e2e.log; exit ${PIPESTATUS[0]}
         shell: bash
         env: { CI: 'true' }
+      - name: E2E xatolari (annotatsiya — main dagi push uchun ham koʻrinadi)
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "✘|Error:|Expected|Received|waiting for|Timeout|failed|flaky" e2e.log | head -40 | sed -E 's/\x1b\[[0-9;]*m//g' > /tmp/a.txt || true
+          body=$(sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g' /tmp/a.txt)
+          echo "::error title=E2E ${{ matrix.shard }}/4::${body}"
       - name: E2E xatolari (PR izohiga)
         if: failure() && github.event_name == 'pull_request'
         env: { GH_TOKEN: '${{ github.token }}' }
