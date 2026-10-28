@@ -1,133 +1,175 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script src="js/icons.js?v=2"></script><script src="js/i18n.js?v=20261028"></script>
-</head><body>
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Mavze, daha, kvartal va zichlik — Archemistry Lab</title>
 <meta name="description" content="ShNQ 2.07.01-23 boʻyicha shaharsozlik birliklari (daha, mavze, turar joy tumani) va 400 kishi/ga zichlik normasi — interaktiv izoh.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<script>/* mavzu — sahifa chizilishidan oldin (ilova bilan umumiy kalit mr-theme) */
+(function(){var t='auto';try{t=localStorage.getItem('mr-theme')||'auto';}catch(e){}
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';})();</script>
+<script src="js/fikr.js?v=1"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/ds2.css?v=3">
+<link rel="stylesheet" href="css/home.css?v=1">
+<script src="js/i18n.js?v=20261028"></script>
 <style>
-/* Layout: chizma qog'ozi — chapda masshtabli chizma, o'ngda izoh paneli; ranglar sovet/o'zbek rejalashtirish chizmalari konvensiyasidan (turar joy — sariq, ijtimoiy — qizil, ko'kalam — yashil) */
+/* Atamalar — sayt uslubida (ds2 tokenlari): iliq kulrang fon, oq kartalar, tanlangan boshqaruv — qora (ink); koʻk faqat havola.
+   Chizma ranglari — rejalashtirish chizmalari konvensiyasi: turar joy — sariq, ijtimoiy — qizgʻish, koʻkalam — yashil. */
 :root{
-  --bg:#edf0f4; --surface:#ffffff; --surface2:#f6f8fb;
-  --ink:#122033; --muted:#56677d; --line:#cbd3de; --line2:#a9b5c4;
-  --brand:#2a63d4; --brand-soft:rgba(42,99,212,.12);
-  --res:#f0bd45; --res-ink:#5c4300; --soc:#de5f7c; --green:#4aa874; --road:#d5dbe3;
-  --bad:#d23c3c; --bad-soft:rgba(210,60,60,.14); --ok:#2f9a5d;
-  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
-  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --res:#e8a317; --soc:#c2416b; --green:#3f8f6b; --road:var(--fill-2); --brand:var(--sel); --brand-soft:var(--sel-soft);
+  --surface2:var(--grouped); --line:var(--hairline); --line2:#cfccc5;
+  --f-display:var(--sans); --f-body:var(--sans); --f-mono:var(--mono);
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0a101b; --surface:#101a29; --surface2:#142033;
-  --ink:#e2eaf5; --muted:#8ea2bd; --line:#22324a; --line2:#34496a;
-  --brand:#6aa2ff; --brand-soft:rgba(106,162,255,.14);
-  --res:#d6a537; --res-ink:#fff4d6; --soc:#e0718b; --green:#42a06b; --road:#1d2a3e;
-  --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.16); --ok:#4cc07f; color-scheme:dark }}
-:root[data-theme="dark"]{
-  --bg:#0a101b; --surface:#101a29; --surface2:#142033;
-  --ink:#e2eaf5; --muted:#8ea2bd; --line:#22324a; --line2:#34496a;
-  --brand:#6aa2ff; --brand-soft:rgba(106,162,255,.14);
-  --res:#d6a537; --res-ink:#fff4d6; --soc:#e0718b; --green:#42a06b; --road:#1d2a3e;
-  --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.16); --ok:#4cc07f; color-scheme:dark }
+[data-theme="dark"]{ --res:#d6a537; --soc:#e0718b; --green:#5bb287; --line2:#4a4945; }
+[hidden]{display:none!important}
+body.site{background:var(--bg)}
+.st header.nav{padding:0 40px}
+#kpsLang .kl-btn{height:32px!important;border:0!important;border-radius:var(--r-ctl)!important;background:var(--fill)!important;color:var(--ink)!important;font:500 12px/32px var(--mono)!important}
+#kpsLang [role=menu]{background:var(--surface)!important}
+#kpsLang [role=menu] button{color:var(--ink)!important}
+#kpsLang [role=menu] button[aria-checked=true]{background:var(--ink)!important;color:var(--surface)!important}
+.icbtn{width:32px;height:32px;border:0;border-radius:var(--r-ctl);background:var(--fill);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.icbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:28px 56px}
-.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
-h1,h2,h3{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
-h1{font-size:clamp(24px,4vw,38px);line-height:1.15}
-h2{font-size:clamp(19px,2.6vw,25px);line-height:1.2}
-h3{font-size:15px;font-weight:500}
-p{margin:0}
-.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--brand)}
-.lede{max-width:68ch;color:var(--muted);font-size:16px}
-.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-header.top{display:flex;flex-direction:column;gap:12px}
-section{display:flex;flex-direction:column;gap:18px}
-.sec-head{display:flex;flex-direction:column;gap:8px;max-width:76ch}
-.sec-head p{color:var(--muted)}
+main.atam{max-width:1200px;margin:0 auto;padding:56px 32px 0;display:flex;flex-direction:column;gap:96px;color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+main.atam h1,main.atam h2,main.atam h3{margin:0;font-weight:700;text-wrap:balance}
+main.atam h1{font-size:clamp(32px,4.6vw,56px);line-height:1.02;letter-spacing:-.035em}
+main.atam h2{font-size:clamp(26px,3.2vw,40px);line-height:1.06;letter-spacing:-.03em}
+main.atam h3{font-size:18px;line-height:1.3;font-weight:600;letter-spacing:-.01em}
+main.atam p{margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.top{display:flex;flex-direction:column;gap:20px;max-width:860px}
+.back{font-size:13px;color:var(--muted);text-decoration:none}.back:hover{color:var(--ink)}
+.lede{font-size:19px;line-height:1.5;color:var(--muted)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips a,.chips span{height:28px;padding:0 12px;border-radius:var(--r-pill);font-size:12.5px;line-height:28px;text-decoration:none;color:var(--ink)}
+.chips span{background:var(--surface);box-shadow:0 0 0 .5px var(--hairline);font-family:var(--mono);font-size:12px}
+.chips a{background:var(--fill)}.chips a:hover{background:var(--fill-2)}
+section{display:flex;flex-direction:column;gap:28px;scroll-margin-top:80px}
+.sec-head{display:flex;flex-direction:column;gap:12px;max-width:800px}
+.sec-head p{font-size:16px;color:var(--muted)}
+.sec-head .quote{padding:12px 16px;border-radius:var(--r-tile);background:var(--surface);box-shadow:0 0 0 .5px var(--hairline);font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink)}
 
-.board{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start}
-@media (max-width:860px){.board{grid-template-columns:1fr}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
-.drawing{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:0;display:flex;flex-direction:column}
-.drawing svg{display:block;width:100%;height:auto;touch-action:manipulation}
-.drawing .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.board{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.drawing{flex:999 1 560px;min-width:0;background:var(--surface);border-radius:var(--r-panel);box-shadow:var(--sh-card);overflow:hidden;display:flex;flex-direction:column}
+.drawing svg{display:block;width:100%;height:auto;touch-action:manipulation;background:var(--grouped)}
+.drawing .dbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-top:.5px solid var(--hairline);font-size:12.5px;color:var(--muted)}
+#scaleRuler{font-family:var(--mono);font-size:12px}
+.side{flex:1 1 360px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.panel{flex:1 1 380px;min-width:0;background:var(--surface);border-radius:var(--r-panel);padding:16px;box-shadow:var(--sh-card);display:flex;flex-direction:column;gap:16px}
 
-/* level selector */
-.levels{display:flex;flex-direction:column;gap:6px}
-.lvl{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;text-align:left;width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:9px 11px;color:var(--ink);font:inherit;cursor:pointer}
-.lvl:hover{border-color:var(--line2)}
-.lvl:focus-visible,.btn:focus-visible,.seg button:focus-visible,input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-.lvl[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft)}
-.lvl .sw{width:14px;height:14px;border-radius:2px;border:2px solid currentColor}
-.lvl .nm{font-weight:600}
-.lvl .nm small{font-weight:400;color:var(--muted);font-family:var(--f-mono);font-size:11px;margin-left:6px}
-.lvl .ha{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
-.facts dt{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
-.facts dd{margin:0;min-width:0}
-.note{font-size:13px;color:var(--muted);border-left:2px solid var(--line2);padding-left:10px}
-.warn{font-size:14px;background:var(--brand-soft);border-radius:5px;padding:10px 12px}
+/* daraja tanlovi */
+.levels{background:var(--surface);border-radius:var(--r-card);padding:6px;box-shadow:var(--sh-card);display:flex;flex-direction:column}
+.lvl{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 14px;border:0;background:transparent;text-align:left;font:500 14px/1.3 var(--sans);color:var(--ink);cursor:pointer;border-bottom:.5px solid var(--hairline);border-radius:0}
+.lvl:last-child{border-bottom:0}
+.lvl:hover{background:var(--grouped)}
+.lvl[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-radius:var(--r-tile);border-bottom-color:transparent}
+.lvl .sw{flex:none;width:10px;height:10px;border-radius:3px;background:currentColor;opacity:.85}
+.lvl .nm{flex:1;font-weight:500}
+.lvl .nm small{font-weight:400;font-family:var(--mono);font-size:11px;margin-left:6px;opacity:.7}
+.lvl .ha{font-family:var(--mono);font-size:11.5px;opacity:.75}
+.facts{margin:0;background:var(--surface);border-radius:var(--r-card);padding:4px 16px;box-shadow:var(--sh-card);display:flex;flex-direction:column;flex:1}
+.facts dt{font-size:11px;font-weight:600;color:var(--muted);padding-top:12px}
+.facts dd{margin:4px 0 0;padding-bottom:12px;font-size:13.5px;line-height:1.45;border-bottom:.5px solid var(--hairline)}
+.facts dd:last-child{border-bottom:0}
+.warn{display:block;padding:18px 20px;border-radius:var(--r-card);background:var(--warn-soft);color:var(--ink);font-size:14.5px;line-height:1.55}
 
-/* controls */
-.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:4px}
-.seg button{flex:1 1 auto;background:none;border:0;border-radius:4px;padding:8px 10px;font:inherit;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line2)}
-.ctrl{display:flex;flex-direction:column;gap:4px}
-.ctrl label{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
-.ctrl label b{font-family:var(--f-mono);color:var(--ink);font-weight:600}
-input[type=range]{width:100%;accent-color:var(--brand)}
-.check{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
-.check input{margin-top:3px;accent-color:var(--brand)}
-.btns{display:flex;flex-wrap:wrap;gap:8px}
-.btn{background:var(--surface2);border:1px solid var(--line2);border-radius:5px;padding:7px 12px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer}
-.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-
-/* meters */
-.meters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.m{background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.m .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.m .v{font-family:var(--f-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
-.m .s{font-size:12px;color:var(--muted)}
-.m.bad .v{color:var(--bad)} .m.ok .v{color:var(--ok)}
-.capbar{display:flex;flex-direction:column;gap:6px}
-.capbar .track{position:relative;height:22px;background:var(--surface2);border:1px solid var(--line);border-radius:4px;overflow:visible}
-.capbar .seg-fill{position:absolute;top:0;bottom:0;border-right:1px solid var(--surface)}
-.capbar .capline{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink)}
-.capbar .cl{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
-.story{font-size:14.5px;min-height:4.6em}
+/* boshqaruvlar — native koʻrinishsiz */
+.seg{display:flex;gap:2px;padding:3px;border-radius:var(--r-ctl);background:var(--fill)}
+.seg button{flex:1;height:30px;border:0;border-radius:8px;background:transparent;font:600 13px/30px var(--sans);color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.story{font-size:14.5px;line-height:1.55;min-height:4.6em}
 .story strong{font-weight:600}
-.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
-.legend span{display:inline-flex;gap:6px;align-items:center}
-.legend i{width:12px;height:12px;border-radius:2px;display:inline-block}
+.ctrl{display:flex;flex-direction:column;gap:4px}
+.ctrl label{display:flex;justify-content:space-between;gap:12px;font-size:12px;font-weight:600;color:var(--muted)}
+.ctrl label b{font-family:var(--mono);color:var(--ink);font-weight:500}
+#devCtrl{gap:8px;padding:12px;border-radius:var(--r-tile);background:var(--grouped)}
+#devCtrl[hidden]{display:none}
+.rng{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;--p:50%}
+.rng::-webkit-slider-runnable-track{height:4px;border-radius:999px;background:linear-gradient(to right,var(--ink) 0 var(--p),var(--fill-2) var(--p) 100%)}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.18)}
+.rng::-moz-range-track{height:4px;border-radius:999px;background:var(--fill-2)}
+.rng::-moz-range-progress{height:4px;border-radius:999px;background:var(--ink)}
+.rng::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.18)}
+.chk{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.4;color:var(--ink);cursor:pointer}
+.dbar .chk{align-items:center;color:var(--ink-2)}
+.tg{-webkit-appearance:none;appearance:none;flex:none;width:40px;height:24px;border-radius:999px;background:var(--fill-2);position:relative;margin:0;cursor:pointer;transition:background var(--t-fast)}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left var(--t-fast) var(--ease)}
+.tg:checked{background:var(--ok)}.tg:checked::after{left:18px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{height:36px;padding:0 16px;border:0;border-radius:var(--r-ctl);background:var(--fill);color:var(--ink);font:600 13.5px/36px var(--sans);cursor:pointer}
+.btn:hover{background:var(--fill-2)}
+.btn.primary{background:var(--ink);color:var(--surface)}
+.btn.primary:hover{opacity:.88}
 
-/* lessons */
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:8px}
-.card .tag{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-.card.myth .tag{color:var(--bad)} .card.fact .tag{color:var(--ok)} .card.world .tag{color:var(--brand)}
-.card p{font-size:14px;color:var(--muted)}
+/* koʻrsatkichlar */
+.capbar{display:flex;flex-direction:column;gap:6px}
+.capbar .track{position:relative;height:14px;background:var(--fill);border-radius:999px;overflow:visible}
+.capbar .seg-fill{position:absolute;top:0;bottom:0;border-right:1px solid var(--surface)}
+.capbar .seg-fill:first-child{border-radius:999px 0 0 999px}
+.capbar .capline{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:1px}
+.capbar .cl{display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--muted)}
+.capbar .cl .mono{font-weight:400}
+#capTxt{color:var(--ink)}
+.meters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.m{padding:12px;border-radius:var(--r-tile);background:var(--grouped);display:flex;flex-direction:column;gap:4px;min-width:0}
+.m .k{font-size:11px;font-weight:600;color:var(--muted)}
+.m .v{font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.m .s{font-size:12px;color:var(--muted)}
+.m.bad{background:var(--bad-soft)}.m.bad .v,.m.bad .k{color:var(--bad)}
+.m.ok{background:var(--ok-soft)}.m.ok .v,.m.ok .k,.m.ok .s{color:var(--ok)}
+.note{font-size:12.5px;line-height:1.55;color:var(--muted)}
+.panel .note{padding:12px;border-radius:var(--r-tile);background:var(--grouped)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* qoidalar */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--surface);border-radius:var(--r-card);padding:20px;box-shadow:var(--sh-card);display:flex;flex-direction:column;gap:10px}
+.card .tag{align-self:flex-start;height:24px;padding:0 10px;border-radius:var(--r-pill);font-size:12px;font-weight:600;line-height:24px}
+.card.myth .tag{background:var(--bad-soft);color:var(--bad)}
+.card.fact .tag{background:var(--ok-soft);color:var(--ok)}
+.card.world .tag{background:var(--fill);color:var(--ink)}
+.card.nrm .tag{background:var(--warn-soft);color:var(--warn)}
+.card p{font-size:14px;line-height:1.55;color:var(--ink-2)}
 .card p b{color:var(--ink);font-weight:600}
-.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px}
-table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
-th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:400;background:var(--surface2)}
+.tw{overflow-x:auto;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+th,td{text-align:left;padding:12px 16px;border-bottom:.5px solid var(--hairline);vertical-align:top}
+th{font-size:11px;font-weight:600;color:var(--muted)}
 tr:last-child td{border-bottom:0}
-td:first-child{font-weight:600;white-space:nowrap}
-footer{font-size:12.5px;color:var(--muted);max-width:90ch;border-top:1px solid var(--line);padding-top:14px}
+td[rowspan]{vertical-align:middle;border-bottom:0}
+td:first-child{white-space:nowrap}
+.tblwrap{display:flex;flex-direction:column;gap:12px}
+.src{padding-top:20px;border-top:.5px solid var(--hairline);font-size:12.5px;line-height:1.6;color:var(--muted);max-width:900px}
+footer.foot{margin-top:96px}
 
 /* svg */
-svg text{font-family:var(--f-body)}
-.sv-lbl{font-family:var(--f-display);font-weight:500}
+svg text{font-family:var(--sans)}
+.sv-lbl{font-family:var(--sans);font-weight:600}
+@media (max-width:760px){.st header.nav{padding:0 16px;gap:10px}.st header.nav nav,.st header.nav .ghost{display:none}main.atam{padding:32px 16px 0;gap:64px}.lede{font-size:17px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-
-<div class="wrap">
+</head>
+<body class="site">
+<div class="st"><header class="nav"><a class="brand" href="./" aria-label="Archemistry Lab"><svg viewBox="0 0 103.45 100" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.550 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z"/></svg><b>Archemistry Lab</b></a><span class="sp"></span><nav aria-label="Asosiy menyu" data-ta="aria-label:Asosiy menyu"><a href="app/">Master reja</a><a href="app/kochasoz.html">Koʻchasoz</a><a href="app/joyshunos.html">Joyshunos</a><a href="app/render.html">Render<em class="beta">beta</em></a><a href="dizaynkod.html">Dizayn-kod</a><a href="app/#/chizmadon">Chizmadon</a><a href="narxlar.html">Narxlar</a></nav><button class="icbtn" type="button" id="themeBtn" title="Tungi rejim" data-ta="title:Tungi rejim;aria-label:Tungi rejim" aria-label="Tungi rejim"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button><a class="ghost" href="app/">Loyihalarim</a><a class="cta" href="app/#/yangi" id="ctaTop">Ochish</a></header></div>
+<main class="atam">
 
 <header class="top">
-  <a href="./" style="font-family:var(--f-mono);font-size:12px;color:var(--muted);text-decoration:none"><i data-i="arrow-left" data-p="b" data-s="14"></i>Archemistry Lab</a>
+  <a class="back" href="./"><span aria-hidden="true">← </span>Bosh sahifa</a>
   <span class="eyebrow">Archemistry Urban · shaharsozlik savodxonligi</span>
   <h1>Mavze, daha, kvartal: qaysi masshtab va zichlik kimga tegishli?</h1>
   <p class="lede">ShNQ 2.07.01-23 ning 84-bandi: ko'p qavatli kompleks qurilishda mavzening hisobiy aholi zichligi 400 kishi/ga dan oshmasligi kerak. Bu chegara har bir uchastkaga emas, butun mavzega tegishli. Pastdagi ikki interaktiv chizma buni ko'rsatadi: avval normadagi birliklarning haqiqiy o'lchami, keyin zichlik uchastkalar orasida qanday taqsimlanishi va «kim birinchi qursa» holati qanday yuzaga kelishi.</p>
+  <div class="chips">
+    <span data-noi18n>ShNQ 2.07.01-23</span>
+    <a href="#masshtab">1 · Masshtab</a>
+    <a href="#zichlik">2 · Zichlik simulyatori</a>
+    <a href="#xulosa">3 · Qoidalar aslida qanday ishlaydi</a>
+  </div>
 </header>
 
 <!-- ============ 1. MASSHTAB ============ -->
@@ -140,13 +182,13 @@ svg text{font-family:var(--f-body)}
   <div class="board">
     <div class="drawing">
       <svg id="scaleSvg" viewBox="0 0 1600 1300" role="img" aria-label="Uchastka, kvartal, mavze va dahaning masshtabli taqqoslanishi"></svg>
-      <div class="bar">
+      <div class="dbar">
         <span id="scaleRuler">Masshtab chizig'i: 500 m</span>
-        <label class="check" style="margin:0"><input type="checkbox" id="radii" checked> piyoda radiuslari</label>
+        <label class="chk"><input type="checkbox" class="tg" id="radii" checked> piyoda radiuslari</label>
       </div>
     </div>
-    <div class="panel">
-      <div class="levels" id="levels"></div>
+    <div class="side">
+      <div class="levels" id="levels" role="group"></div>
       <dl class="facts" id="facts"></dl>
     </div>
   </div>
@@ -158,13 +200,13 @@ svg text{font-family:var(--f-body)}
   <div class="sec-head">
     <span class="eyebrow">2 · Zichlik simulyatori</span>
     <h2>24 gektarlik mavze: 400 kishi/ga qanday taqsimlanadi?</h2>
-    <p class="mono" style="font-size:12.5px;color:var(--ink)">ShNQ 2.07.01-23, 84-band: «Ko'p qavatli kompleks qurilishda mavzelarning hisobiy aholi zichligi 400 kishi/ha dan oshmasligi lozim.»</p>
+    <p class="quote">ShNQ 2.07.01-23, 84-band: «Ko'p qavatli kompleks qurilishda mavzelarning hisobiy aholi zichligi 400 kishi/ha dan oshmasligi lozim.»</p>
     <p>Mavze ichida maktab, bog'chalar, park, ichki yo'llar va 8 ta turar joy uchastkasi bor. Norma butun 24 ga uchun: mavzeda jami qancha odam yashashi mumkinligini belgilaydi. Uch rejimni solishtiring.</p>
   </div>
   <div class="board">
     <div class="drawing">
       <svg id="simSvg" viewBox="-40 -40 680 480" role="img" aria-label="Mavze rejasi: turar joy uchastkalari, maktab, bog'chalar va park"></svg>
-      <div class="bar">
+      <div class="dbar">
         <div class="legend">
           <span><i style="background:var(--res)"></i>turar joy</span>
           <span><i style="background:var(--soc)"></i>maktab / bog'cha</span>
@@ -176,22 +218,22 @@ svg text{font-family:var(--f-body)}
     </div>
     <div class="panel">
       <div class="seg" role="group" aria-label="Rejim">
-        <button id="m-plan" aria-pressed="true">Reja bo'yicha</button>
-        <button id="m-first" aria-pressed="false">Kim birinchi</button>
-        <button id="m-wrong" aria-pressed="false">Xato talqin</button>
+        <button type="button" id="m-plan" aria-pressed="true">Reja bo'yicha</button>
+        <button type="button" id="m-first" aria-pressed="false">Kim birinchi</button>
+        <button type="button" id="m-wrong" aria-pressed="false">Xato talqin</button>
       </div>
       <p class="story" id="story" data-noi18n></p>
       <div class="ctrl">
         <label for="dens">Hisobiy aholi zichligi (84-band: ≤400) <b><span id="densV">400</span> kishi/ga</b></label>
-        <input type="range" id="dens" min="150" max="600" step="10" value="400">
+        <input type="range" class="rng" id="dens" min="150" max="600" step="10" value="400">
       </div>
       <div class="ctrl" id="devCtrl" hidden>
         <label for="devF">Quruvchi xohlagan qavat <b><span id="devFV">16</span> qavat</b></label>
-        <input type="range" id="devF" min="5" max="30" step="1" value="16">
-        <label class="check"><input type="checkbox" id="enforce" checked> Norma qat'iy nazorat qilinadi (sig'im tugasa, ruxsat berilmaydi)</label>
+        <input type="range" class="rng" id="devF" min="5" max="30" step="1" value="16">
+        <label class="chk"><input type="checkbox" class="tg" id="enforce" checked> Norma qat'iy nazorat qilinadi (sig'im tugasa, ruxsat berilmaydi)</label>
         <div class="btns">
-          <button class="btn primary" id="auto">Tasodifiy navbat</button>
-          <button class="btn" id="reset">Tozalash</button>
+          <button type="button" class="btn primary" id="auto">Tasodifiy navbat</button>
+          <button type="button" class="btn" id="reset">Tozalash</button>
         </div>
       </div>
       <div class="capbar">
@@ -224,14 +266,14 @@ svg text{font-family:var(--f-body)}
       <p data-tr="p3" data-noi18n>Norma mavze bo'yicha umumiy chegara bo'lgani uchun, uchastkalar orasida taqsimlanmagan bo'lsa, birinchi quruvchi butun qoldiqni egallab oladi. Bu iqtisodda <b>umumiy resurs tragediyasi</b> deyiladi: maktab, kanalizatsiya va yo'l sig'imi hammaniki, lekin uni birinchi kelgan ishlatib qo'yadi.</p></article>
     <article class="card fact"><span class="tag">To'g'ri tartib</span><h3>Sig'im batafsil reja orqali uchastkalarga bo'linadi</h3>
       <p data-tr="p4" data-noi18n>400 kishi/ga mavze uchun yoziladi (84-band), uchastkaga emas. Uni uchastkalarga bo'lish shaharsozlik hujjatlari, ya'ni mavzening <b>batafsil rejalashtirish loyihasi</b> vazifasi: har uchastkaga qavatlilik, qurilish koeffitsienti va aholi soni beriladi. Shunda «kim birinchi» muammosi bo'lmaydi. Muammo batafsil reja yo'q yoki eskirgan joyda, ruxsatlar bittalab berilganda paydo bo'ladi.</p></article>
-    <article class="card fact"><span class="tag">Normalar o'zaro</span><h3>400 kishi/ga va m²/ga bir-biriga to'g'ri kelmaydi</h3>
+    <article class="card nrm"><span class="tag">Normalar o'zaro</span><h3>400 kishi/ga va m²/ga bir-biriga to'g'ri kelmaydi</h3>
       <p data-tr="p5" data-noi18n>Jadvaldagi baland qavatli uchun eng katta qiymat 7500 m²/ga. 400 kishiga bo'lsak, <b>18,8 m²/kishi</b> chiqadi, bu 61-banddagi 16 m² ijtimoiy normaga yaqin. 1-jadvaldagi ekonom sinf (30 m²/kishi) bilan esa 400 × 30 = <b>12 000 m²/ga</b> bo'ladi. Ya'ni bugungi kvartira o'lchamlarida m²/ga chegarasi amalda 250 kishi/ga atrofida to'xtatadi. Bu mening arifmetik hisobim, rasmiy talqin emas.</p></article>
     <article class="card world"><span class="tag">Xalqaro tajriba</span><h3>Germaniya, Nyu-York, Tokio</h3>
       <p data-tr="p6" data-noi18n><b>Germaniya</b>: Bebauungsplan har bir uchastkaga GRZ/GFZ (qamrov va qavat maydoni koeffitsienti) yozadi. <b>Nyu-York</b>: ishlatilmagan qurilish huquqini qo'shni uchastkaga sotish mumkin (TDR, «air rights»). <b>Tokio</b>: har uchastka uchun maksimal FAR, ko'cha kengligiga bog'liq. Toshkent uchun xulosa: har mavze bo'yicha «qolgan sig'im» ochiq reyestri va infratuzilma to'lovi (impact fee).</p></article>
   </div>
 
-  <div>
-  <div class="tbl">
+  <div class="tblwrap">
+  <div class="tw">
     <table>
       <thead><tr><th>Qurilish tipi (2-bob)</th><th>Qavatlar</th><th>Uy-joy fondi zichligi, m²/ga (jadval)</th><th>1000 kishiga turar joy zonasi (62-band, shahar)</th></tr></thead>
       <tbody>
@@ -245,11 +287,10 @@ svg text{font-family:var(--f-body)}
   </div>
   <p class="note">Jadval izohi (3): zichlikni aniqlashda turar joylar, ta'lim muassasalari, kundalik xizmat obyektlari, ko'kalamzorlar va avtoturargohlar yer maydonlari qo'shib hisoblanadi; tuman va shahar ahamiyatidagi obyektlar hududi qo'shilmaydi. Jadval sarlavhasida «kam bo'lmagan», 2-izohda esa «yuqori bo'lmasligi kerak» deyilgan. Bu ikki ifodani normani ishlab chiquvchidan aniqlashtirish kerak.</p>
   </div>
+  <p class="src">Manba: ShNQ 2.07.01-23 «Aholi punktlarining hududlarini rivojlantirish va qurishni shaharsozlik jihatidan rejalashtirish» (Qurilish vazirligining 20.05.2024 dagi 01/2-20-son buyrug'i; 1-jadval 09.12.2025 dagi 01/2-42-son buyruq tahririda; 86-band 06.04.2026 tahririda). Atamalar 2-bobdan, birliklar 56-banddan, zichlik 84-banddan va uy-joy fondi zichligi jadvalidan olingan. Simulyator rejasi, qurilish koeffitsienti 0,30, maktab yuklamasi va hovlilardagi ko'kalamzor ulushi illyustrativ farazlar.</p>
 </section>
-
-<footer>Manba: ShNQ 2.07.01-23 «Aholi punktlarining hududlarini rivojlantirish va qurishni shaharsozlik jihatidan rejalashtirish» (Qurilish vazirligining 20.05.2024 dagi 01/2-20-son buyrug'i; 1-jadval 09.12.2025 dagi 01/2-42-son buyruq tahririda; 86-band 06.04.2026 tahririda). Atamalar 2-bobdan, birliklar 56-banddan, zichlik 84-banddan va uy-joy fondi zichligi jadvalidan olingan. Simulyator rejasi, qurilish koeffitsienti 0,30, maktab yuklamasi va hovlilardagi ko'kalamzor ulushi illyustrativ farazlar.</footer>
-</div>
-
+</main>
+<div class="st"><footer class="foot"><div style="max-width: 460px;">Maʼlumot: © OpenStreetMap hissachilari, ODbL · aholi — stat.uz · relyef — AWS Terrain Tiles · tasvir — Esri, Maxar · meʼyorlar — ShNQ 2.07.01-23, ShNQ 2.07.06-24, SanQvaN 0331-16 (lex.uz).</div><div style="max-width: 330px;"><b style="color: var(--ink);">Iskandar Soliyev</b> — arxitektor-urbanist, muallif<br>Takliflar va hamkorlik: <a class="mono" href="mailto:info@archemistry.uz" style="color: inherit;">info@archemistry.uz</a><br>Telegram: Archemistry Urban<br><a href="oferta.html" style="color: inherit;">Oferta</a> · <a href="maxfiylik.html" style="color: inherit;">Maxfiylik</a></div><div style="text-align: right;"><a href="narxlar.html">Narxlar</a><br><a href="app/kochasoz.html">Koʻchasoz</a> · <a href="app/joyshunos.html">Joyshunos</a> · <a href="app/render.html">Render (beta)</a> · <a href="app/#/chizmadon">Chizmadon</a> · <a href="dizaynkod.html">Dizayn-kod</a> · <a href="atamalar.html">Atamalar</a><br>Xizmat koʻrsatuvchi: YaTT (rasmiylashtirilmoqda)</div></footer></div>
 <script>
 /* yangi tillarda lugʻat (js/i18n/<til>.json) yuklangach chiziladi */
 (window.kpsReady||Promise.resolve()).then(function(){
@@ -328,10 +369,10 @@ function paint(){
   r1L.setAttribute("x",420+500*.72);r1L.setAttribute("y",330+500*.72+fs);
   r2L.setAttribute("x",790+1000*.5);r2L.setAttribute("y",605-1000*.87+fs*1.2);
   // scale bar: nice length ~ 1/5 of view
-  const nice=[10,20,50,100,200,500,1000];const L=nice.reduce((a,b)=>Math.abs(b-vb.w/5)<Math.abs(a-vb.w/5)?b:a);
+  const nice=[10,20,50,100,200,500,1000];const len=nice.reduce((a,b)=>Math.abs(b-vb.w/5)<Math.abs(a-vb.w/5)?b:a);
   const bx=vb.x+vb.w*.04,by=vb.y+vb.h*.95;
-  sbLine.setAttribute("x",bx);sbLine.setAttribute("y",by);sbLine.setAttribute("width",L);sbLine.setAttribute("height",vb.h*.008);
-  sbT.setAttribute("x",bx);sbT.setAttribute("y",by-vb.h*.012);sbT.setAttribute("font-size",fs*.75);sbT.textContent=L>=1000?(L/1000)+L("km"):L+L("m");
+  sbLine.setAttribute("x",bx);sbLine.setAttribute("y",by);sbLine.setAttribute("width",len);sbLine.setAttribute("height",vb.h*.008);
+  sbT.setAttribute("x",bx);sbT.setAttribute("y",by-vb.h*.012);sbT.setAttribute("font-size",fs*.75);sbT.textContent=len>=1000?(len/1000)+L("km"):len+L("m");
   document.getElementById("scaleRuler").textContent=L("scale")+sbT.textContent;
 }
 function go(id){cur=id;const t=target(id),s={...vb},t0=performance.now();
@@ -493,5 +534,17 @@ document.getElementById("auto").onclick=()=>{const ids=RES.map(p=>p.id);for(let 
 render();
 });
 </script>
-
-</body></html>
+<script>
+/* surgich toʻldirilishi (--p) va tungi rejim tugmasi */
+(function(){
+  function fill(r){var p=(r.value-r.min)/(r.max-r.min)*100;r.style.setProperty('--p',p+'%');}
+  document.querySelectorAll('.rng').forEach(function(r){fill(r);r.addEventListener('input',function(){fill(r);});});
+  var b=document.getElementById('themeBtn');if(!b)return;
+  var MOON='<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',SUN='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+  function sync(){var d=document.documentElement.dataset.theme==='dark';var s=b.querySelector('svg');if(s)s.innerHTML=d?SUN:MOON;}
+  b.addEventListener('click',function(){var d=document.documentElement.dataset.theme!=='dark';document.documentElement.dataset.theme=d?'dark':'light';try{localStorage.setItem('mr-theme',d?'dark':'light');}catch(e){}sync();});
+  sync();
+})();
+</script>
+</body>
+</html>
