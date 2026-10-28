@@ -190,10 +190,13 @@ const ICON = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
   spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
+  doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
   ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
   ruler: '<path d="M3 17L17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2"/>',
   area: '<path d="M4 7l6-3 10 4-2 11-12 1z"/>',
   cut: '<path d="M3 12h18M7 8v8M17 8v8"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
 };
 const SERVICES = [
   { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
@@ -217,7 +220,10 @@ const modeSw = h('div', { class: 'joy-mode glass', id: 'joyMode' });
 const axoEl = h('div', { class: 'joy-axo', id: 'joyAxoView', hidden: true });
 const axL = h('aside', { class: 'joy-axl panel', id: 'joyAxL' }), axN = h('aside', { class: 'joy-notes glass', id: 'joyNotes' }), axT = h('div', { class: 'joy-time glass', id: 'joyTime' });
 const strip = h('section', { class: 'joy-strip glass', id: 'joyStrip', hidden: true, 'aria-label': tr('Koʻcha boʻylab') });
-root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, strip, axL, axN, axT, modeSw);
+/** 6B2 (28.10): joy pasporti va hisobot — pastda, oʻrtada; oʻlchov asboblari — pastda, chapda */
+const pass = h('section', { class: 'joy-card head joy-pass', id: 'joyPass', 'aria-label': tr('Joy pasporti') });
+const tools = h('div', { class: 'joy-mtools', id: 'joyTools' });
+root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, strip, tools, pass, axL, axN, axT, modeSw);
 const isK = () => S.an === 'kocha';
 /** Tahlil turi: Hudud · Koʻcha (chap panel tepasida) */
 function anSwitch(): HTMLElement {
@@ -261,19 +267,48 @@ function placeChip(): HTMLElement {
     h('span', { class: 'pl' }, placeLabel(p, getLang())),
     h('span', { class: `nb ${p.norms === 'UZ' ? 'uz' : 'intl'}` }, tr(p.norms === 'UZ' ? 'Meʼyorlar: Oʻzbekiston (ShNQ)' : 'Meʼyorlar: xalqaro andozalar — mahalliy meʼyor ulanmagan')));
 }
+/** Chap panel (6B): toifa relsi + bitta ochiq boʻlim. Barcha qatlamlar DOMda qoladi, boshqa toifalar yashirin. */
+type Fly = Group | 'joy';
+let fly: Fly = (() => {
+  try { const v = localStorage.getItem('joy-fly'); if (v === 'joy' || GROUPS.some(g => g[0] === v)) return v as Fly; } catch { /* */ }
+  const a = actId(); return a ? LAYERS.find(l => l.id === a)!.g : 'yer';
+})();
+function setFly(f: Fly): void { fly = f; try { localStorage.setItem('joy-fly', f); } catch { /* */ } renderLeft(); }
 function renderLeft(): void {
-  if (isK()) { left.replaceChildren(anSwitch(), placeChip(), ...streetLeft()); return; }
-  renderLeftH(); left.prepend(anSwitch(), placeChip());
+  renderTools();
+  if (isK()) { left.classList.remove('rail'); left.replaceChildren(anSwitch(), placeChip(), ...streetLeft()); return; }
+  renderLeftH();
+}
+function renderTools(): void {
+  const tb = (id: string | null, icon: string, name: string, on: () => void, pressed?: boolean, disabled?: boolean) =>
+    h('button', { type: 'button', class: 'btn btn-ghost icon-btn', id, title: name, 'aria-label': name, 'aria-pressed': pressed ?? null, disabled: !!disabled, onclick: on }, ic(icon));
+  const zoom = [tb('tZin', ICON.plus, tr('Kattalashtirish'), () => map?.zoomIn()), tb('tZout', ICON.minus, tr('Kichraytirish'), () => map?.zoomOut())];
+  if (isK()) { tools.replaceChildren(h('div', { class: 'tb glass' }, ...zoom)); return; }   // koʻcha rejimida — faqat masshtab
+  tools.replaceChildren(...[
+    measure ? h('div', { class: 'note', id: 'joyMeasure' }, measure) : null,
+    h('div', { class: 'tb glass' },
+      tb('tRuler', ICON.ruler, tr('Masofani oʻlchash: nuqtalarni bosing, ikki marta bosish yoki Enter — tugatish'), () => startDraw('ruler'), drawing?.kind === 'ruler'),
+      tb('tArea', ICON.area, tr('Maydonni oʻlchash: burchaklarni bosing, ikki marta bosish yoki Enter — tugatish'), () => startDraw('area'), drawing?.kind === 'area'),
+      tb(null, ICON.cut, `${tr('Kesim')} — ${tr('Tez orada')}`, () => { /* */ }, undefined, true),
+      h('span', { class: 'vr' }), ...zoom),
+  ].filter((x): x is NonNullable<typeof x> => !!x));
 }
 function renderLeftH(): void {
+  left.classList.add('rail');
   const q = h('input', { class: 'input', type: 'search', id: 'joyQ', placeholder: tr('Manzil yoki koordinata'), value: qText, 'aria-label': tr('Manzil qidirish') }) as HTMLInputElement;
   q.addEventListener('input', () => { qText = q.value; });
   q.addEventListener('keydown', e => { if (e.key === 'Enter') void search(q.value); if (e.key === 'Escape') { found = []; renderLeft(); } });
   const res = found.length ? h('div', { class: 'joy-res', role: 'listbox' }, ...found.map(p => h('button', { type: 'button', role: 'option', onclick: () => { found = []; qText = p.name; pick(p.at, true); } }, h('b', {}, p.name), h('span', {}, p.detail)))) : null;
-  left.replaceChildren(...[
+  const railBtn = (k: Fly, name: string, mark: Node, cnt: string) => h('button', { type: 'button', class: 'jr', 'data-g': k, 'aria-pressed': fly === k, title: tr(name), onclick: () => setFly(k) }, mark, h('b', {}, tr(name)), cnt ? h('span', { class: 'n' }, cnt) : null);
+  const rail = h('nav', { class: 'joy-rail', 'aria-label': tr('Qatlamlar') },
+    ...GROUPS.map(([g, gn]) => { const ls = LAYERS.filter(l => l.g === g && l.ready); return railBtn(g, gn, h('i', { style: `background:${GROUP_COL[g]}` }), `${ls.filter(l => isOn(l.id)).length}/${ls.length}`); }),
+    h('span', { class: 'sep' }),
+    railBtn('joy', 'Uchastka', ic(ICON.area), S.site ? '✓' : ''));
+  const fl = h('div', { class: 'joy-fly' }, ...[
+    anSwitch(), placeChip(),
     h('div', { class: 'joy-search' }, ic(ICON.search), q, searching ? h('span', { class: 't-small' }, '…') : null),
     res,
-    h('div', { class: 'joy-groups' }, ...GROUPS.map(([g, gn]) => h('section', { class: 'joy-g' },
+    h('div', { class: 'joy-groups' }, ...GROUPS.map(([g, gn]) => h('section', { class: 'joy-g', 'data-g': g, hidden: fly !== g },
       h('div', { class: 'joy-gl' }, h('i', { style: `background:${GROUP_COL[g]}` }), tr(gn)),
       ...LAYERS.filter(l => l.g === g).map(l => h('div', { class: `joy-l${l.ready ? '' : ' soon'}${isOn(l.id) ? ' on' : ''}${actId() === l.id ? ' act' : ''}`, 'data-layer': l.id, style: `--lc:${l.color}` },
         h('button', { type: 'button', class: 'lt', disabled: !l.ready, 'aria-label': tf('${n} — faol qatlam', { n: tr(l.name) }), 'aria-pressed': actId() === l.id, onclick: () => setAct(l.id) }, layerIcon(l.id)),
@@ -282,24 +317,20 @@ function renderLeftH(): void {
         l.ready ? sw(isOn(l.id), tr(l.name), () => toggle(l.id)) : h('em', { class: 'soon', title: tr('Manba ulanmoqda — keyingi bosqichda') }, tr('Tez orada')),
       )),
     ))),
-    S.on.length > 1 ? h('div', { class: 't-small joy-fhint' }, tr('Faol qatlam rangda, qolganlari xira. Belgini bosib almashtiring.')) : null,
-    h('div', { class: 'joy-tools' },
-      h('button', { type: 'button', class: 'btn', id: 'tRuler', 'aria-pressed': drawing?.kind === 'ruler', title: tr('Masofani oʻlchash: nuqtalarni bosing, ikki marta bosish yoki Enter — tugatish'), onclick: () => startDraw('ruler') }, ic(ICON.ruler), tr('Lineyka')),
-      h('button', { type: 'button', class: 'btn', id: 'tArea', 'aria-pressed': drawing?.kind === 'area', title: tr('Maydonni oʻlchash: burchaklarni bosing, ikki marta bosish yoki Enter — tugatish'), onclick: () => startDraw('area') }, ic(ICON.area), tr('Maydon')),
-      h('button', { type: 'button', class: 'btn', disabled: true, title: `${tr('Kesim')} — ${tr('Tez orada')}` }, ic(ICON.cut), tr('Kesim'))),
-    h('div', { class: 'joy-site' },
+    fly !== 'joy' && S.on.length > 1 ? h('div', { class: 't-small joy-fhint' }, tr('Faol qatlam rangda, qolganlari xira. Belgini bosib almashtiring.')) : null,
+    h('div', { class: 'joy-site', hidden: fly !== 'joy' },
       h('div', { class: 'glabel' }, tr('Uchastka (loyiha hududi)')),
       S.site ? h('div', { class: 't-small' }, tf('${a} ga · perimetr ${p} m — xaritada va aksonometriyaning har qatlamida', { a: fmt(ringArea(S.site) / 10000, 2), p: fmt(ringPerim(S.site)) })) : h('div', { class: 't-small' }, tr('Chizilmagan. Chizing yoki 1-qadamdagi hududni oling.')),
       h('div', { class: 'row' },
         h('button', { type: 'button', class: 'btn btn-sm', id: 'tSite', 'aria-pressed': drawing?.kind === 'site', onclick: () => startDraw('site') }, tr(S.site ? 'Qayta chizish' : 'Chizish')),
         kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'tSiteK', title: tr('Joyshunos va Master rejaning 1-qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) setSite(r, false); } }, tr('1-qadamdan')) : null,
         S.site ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'tSiteX', onclick: () => setSite(null, false) }, tr('Tozalash')) : null)),
-    measure ? h('div', { class: 'note', id: 'joyMeasure' }, measure) : null,
     /* avvalgi sahifalar hozircha faqat egasiga (js/sinov.js) */
-    isOwner() ? h('details', { class: 'joy-old' },
+    isOwner() && fly === 'joy' ? h('details', { class: 'joy-old' },
       h('summary', {}, tr('Toʻliq asboblar (avvalgi koʻrinish)'), ic(ICON.chev)),
       h('div', {}, ...OLD.map(([n, u]) => h('a', { href: u }, tr(n), ic(ICON.ext))))) : null,
   ].filter((x): x is NonNullable<typeof x> => !!x));
+  left.replaceChildren(rail, fl);
 }
 async function search(q: string): Promise<void> {
   if (!q.trim()) return;
@@ -384,7 +415,8 @@ function card(l: LayerDef, srcChip: string, big: string | Node, sub: (string | N
     ...body);
 }
 function renderRight(): void {
-  if (isK()) { right.replaceChildren(...streetRight()); streetStrip(strip); return; }
+  pass.hidden = isK();
+  if (isK()) { right.hidden = false; right.replaceChildren(...streetRight()); streetStrip(strip); return; }
   strip.hidden = true;
   renderRightH();
 }
@@ -392,20 +424,7 @@ function renderRightH(): void {
   const L = (id: LayerId) => LAYERS.find(l => l.id === id)!;
   const cards: HTMLElement[] = [];
   const addr = D.addr.st === 'ok' ? D.addr.v! : D.addr.st === 'load' ? tr('Manzil aniqlanmoqda…') : `${S.c[1].toFixed(4)}, ${S.c[0].toFixed(4)}`;
-  cards.push(h('article', { class: 'joy-card head' },
-    h('div', { class: 't-small' }, tr('Joy pasporti')),
-    h('h1', { class: 'ttl' }, addr, h('span', { class: 'r' }, ` · ${S.r} m`)),
-    h('div', { class: 'meta' },
-      h('span', { class: 'chip mono' }, `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`),
-      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Radius') }, ...RADII.map(r => h('button', { type: 'button', 'aria-pressed': r === S.r, onclick: () => setRadius(r) }, `${r} m`)))),
-    h('div', { class: 't-small' }, tf('${r} m — taxminan ${m} daqiqa piyoda (toʻgʻri chiziqda). Xaritani bosib boshqa nuqtani tanlang.', { r: S.r, m: walkMin(S.r) })),
-    S.site ? h('div', { class: 'chip site' }, tf('Uchastka: ${a} ga', { a: fmt(ringArea(S.site) / 10000, 2) })) : null,
-    h('div', { class: 'joy-rep' },
-      h('span', { class: 't-small' }, tr('Hisobot (A3)')),
-      h('button', { type: 'button', class: 'btn btn-sm', id: 'repPdf', disabled: repBusy, onclick: () => void report('pdf') }, tr('PDF')),
-      h('button', { type: 'button', class: 'btn btn-sm', id: 'repSvg', disabled: repBusy, title: tr('Illustrator uchun qatlamli SVG'), onclick: () => void report('svg') }, 'SVG'),
-      h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'repChz', disabled: repBusy, onclick: () => void report('chz') }, tr('Chizmadonga'))),
-    h('button', { type: 'button', class: 'btn btn-block', id: 'albOpen', disabled: repBusy, onclick: () => albomDialog() }, ic(ICON.ext), tr('Albom, hisobot va plakat'))));
+  renderPass(addr);
 
   if (isOn('relyef') || isOn('nishab')) {
     const t = D.ter.v?.s;
@@ -492,14 +511,34 @@ function renderRightH(): void {
         h('button', { type: 'button', class: 'btn btn-sm', 'aria-label': tr('Keyingi soat'), onclick: () => { S.sh = Math.min(20, hr + 0.5); save(); renderRight(); paint(); } }, '›'))));
     cards.push(el);
   }
-  // faol qatlam kartasi — pasportdan keyin birinchi, kattaroq
+  // 6B: oʻngda bitta karta — faol qatlam; qolgan yoqilganlari — yorliqlar (barchasi DOMda, yashirin)
+  const order = cards.map(c => c.dataset.card as LayerId);
   const a = actId(), ai = cards.findIndex(c => c.dataset.card === (a === 'nishab' ? 'relyef' : a));
-  if (ai > 1) cards.splice(1, 0, cards.splice(ai, 1)[0]);
-  if (ai > 0) { cards[1].classList.add('focus'); const vp = a ? viewPanel(a, view(S.v, a), viewOpen, { toggle: () => { viewOpen = !viewOpen; try { localStorage.setItem('joy-view-open', viewOpen ? '1' : '0'); } catch { /* */ } renderRight(); }, set: (pp, live) => setView(a, pp, live) }) : null; if (vp) cards[1].querySelector('header')!.after(vp); }
-  const soonOn = LAYERS.filter(l => !l.ready);
-  cards.push(h('article', { class: 'joy-card soonc' }, h('div', { class: 't-small' }, tr('Keyingi bosqichda')),
-    h('div', { class: 'chips' }, ...soonOn.map(l => h('span', { class: 'chip' }, h('i', { style: `background:${l.color}` }), tr(l.name))))));
-  right.replaceChildren(...cards);
+  if (ai > 0) cards.unshift(cards.splice(ai, 1)[0]);
+  if (ai >= 0) { cards[0].classList.add('focus'); const vp = a ? viewPanel(a, view(S.v, a), viewOpen, { toggle: () => { viewOpen = !viewOpen; try { localStorage.setItem('joy-view-open', viewOpen ? '1' : '0'); } catch { /* */ } renderRight(); }, set: (pp, live) => setView(a, pp, live) }) : null; if (vp) cards[0].querySelector('header')!.after(vp); }
+  cards.forEach((c, i) => { c.hidden = i > 0; });
+  const shown = cards[0]?.dataset.card;
+  const tabs = cards.length > 1 ? h('div', { class: 'joy-tabs', role: 'tablist', 'aria-label': tr('Qatlamlar') }, ...order.map(id => h('button', { type: 'button', role: 'tab', 'data-tab': id, 'aria-selected': id === shown, style: `--lc:${L(id).color}`, onclick: () => setAct(id === 'relyef' && !isOn('relyef') ? 'nishab' : id) }, h('i'), tr(L(id).name)))) : null;
+  right.replaceChildren(...(tabs ? [tabs] : []), ...cards);
+  right.hidden = !cards.length;
+}
+let repOpen = false;
+/** Pastki qator: joy pasporti (manzil, koordinata, radius, uchastka) va «Hisobot» menyusi */
+function renderPass(addr: string): void {
+  const item = (id: string, name: string, sub: string, on: () => void, title?: string) => h('button', { type: 'button', role: 'menuitem', id, disabled: repBusy, title: title ?? null, onclick: () => { repOpen = false; on(); } }, h('b', {}, name), h('span', {}, sub));
+  pass.replaceChildren(...[
+    h('div', { class: 'pp' }, h('div', { class: 't-small' }, tr('Joy pasporti')), h('h1', { class: 'ttl', title: addr }, addr, h('span', { class: 'r' }, ` · ${S.r} m`))),
+    h('span', { class: 'chip mono' }, `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`),
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Radius'), title: tf('${r} m — taxminan ${m} daqiqa piyoda (toʻgʻri chiziqda). Xaritani bosib boshqa nuqtani tanlang.', { r: S.r, m: walkMin(S.r) }) }, ...RADII.map(r => h('button', { type: 'button', 'aria-pressed': r === S.r, onclick: () => setRadius(r) }, `${r} m`))),
+    S.site ? h('div', { class: 'chip site' }, tf('Uchastka: ${a} ga', { a: fmt(ringArea(S.site) / 10000, 2) })) : null,
+    h('div', { class: 'joy-repw' },
+      h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'repBtn', 'aria-haspopup': 'menu', 'aria-expanded': repOpen, disabled: repBusy, onclick: () => { repOpen = !repOpen; renderRight(); } }, ic(ICON.doc), tr('Hisobot'), ic(ICON.chev)),
+      repOpen ? h('div', { class: 'joy-menu up', role: 'menu', id: 'repMenu' },
+        item('repPdf', 'PDF', tr('Hisobot (A3)'), () => void report('pdf')),
+        item('repSvg', 'SVG', tr('Illustrator uchun qatlamli SVG'), () => void report('svg')),
+        item('repChz', tr('Chizmadonga'), tr('Hisobot (A3)'), () => void report('chz')),
+        item('albOpen', tr('Albom, hisobot va plakat'), 'PDF · Chizmadon', () => albomDialog())) : null),
+  ].filter((x): x is NonNullable<typeof x> => !!x));
 }
 function retry(id: LayerId): void {
   if (id === 'relyef' || id === 'nishab') D.ter = { st: 'idle' };
@@ -512,6 +551,7 @@ function retry(id: LayerId): void {
 
 /* ---------------- soʻrov qatori va fon ---------------- */
 function renderAsk(): void {
+  ask.hidden = true;   // «Tez orada» — server ishga tushgach qaytadi (6B2: pastki qator pasportga berildi)
   ask.replaceChildren(ic(ICON.spark),
     h('input', { class: 'q', type: 'text', disabled: true, placeholder: tr('Bu yerda qahvaxona ochsam boʻladimi?'), 'aria-label': tr('Joy haqida savol') }),
     h('em', { class: 'soon' }, tr('Tez orada')),
@@ -664,12 +704,11 @@ async function initMap(): Promise<void> {
   const ml = (await import('maplibre-gl')).default;
   await import('maplibre-gl/dist/maplibre-gl.css');
   map = new ml.Map({ container: mapEl, style: style() as never, center: S.c as [number, number], zoom: S.z ?? 15, attributionControl: { compact: true }, maxPitch: 0, dragRotate: false } as never);
-  map.addControl(new ml.NavigationControl({ showCompass: false }), 'bottom-right');
   let framed = false;
   map.on('style.load', () => { addOverlays(); applySite(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
-  map.on('click', e => { if (catOpen) { catOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
+  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
   map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } else if (isK()) { e.preventDefault(); streetFinish(); } });
   map.on('moveend', () => {
     S.z = +map!.getZoom().toFixed(2); save();
@@ -1483,7 +1522,7 @@ onLang(() => { renderAll(); paint(); document.documentElement.lang = getLang(); 
 onTheme(() => { renderHeader(); restyle(); if (mode === 'axo') axBuild(); });
 document.addEventListener('keydown', e => {
   if (isK() && !(e.target as HTMLElement)?.closest?.('input,textarea') && streetKey(e)) { e.preventDefault(); return; }
-  if (e.key === 'Escape' && catOpen) { catOpen = false; renderRight(); }
+  if (e.key === 'Escape' && (catOpen || repOpen)) { catOpen = false; repOpen = false; renderRight(); }
   const d = drawing;
   if (d && !(e.target as HTMLElement)?.closest?.('input,textarea')) {
     if (e.key === 'Escape') { drawing = null; measure = ''; if (map) { map.doubleClickZoom.enable(); map.getCanvas().style.cursor = ''; } renderLeft(); paintDraw(); }

@@ -101,7 +101,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-legend i{width:12px;height:9px;border-radius:2px}.joy-legend i.dot{width:8px;height:8px;border-radius:50%}
 .joy-rose{pointer-events:none;opacity:.9}
 .joy-rlab{writing-mode:vertical-rl;margin-left:6px;font-size:11px;font-weight:700;color:#c0643a;white-space:nowrap;text-shadow:0 0 3px var(--surface),0 0 3px var(--surface),0 0 3px var(--surface);pointer-events:none}
-.maplibregl-ctrl-bottom-right{right:340px}
+.maplibregl-ctrl-bottom-right{right:12px;bottom:52px}
 .maplibregl-ctrl-group{border-radius:var(--r-ctl)!important;overflow:hidden;box-shadow:var(--sh-float)!important}
 [data-theme="dark"] .maplibregl-ctrl-group{background:var(--surface)}
 [data-theme="dark"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
@@ -112,8 +112,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 @media (max-width:1280px){
   .joy-lp{width:256px}
   .joy-rp{width:292px}
-  .joy-base,.joy-legend{left:280px}
-  .maplibregl-ctrl-bottom-right{right:316px}
+  .joy-legend{left:280px}
   .joy-ask{width:calc(100% - 600px);min-width:300px;bottom:76px}
   .eko .svc a{padding:0 9px}
 }
@@ -124,7 +123,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 /* ——— rejim almashtirgich: Xarita · Aksonometriya ——— */
 .joy-mode{position:absolute;top:21px;right:180px;padding:0;border-radius:var(--r-ctl);z-index:6;background:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 .joy-mode .seg{height:32px;width:240px}
-#joy.mode-axo .joy-lp,#joy.mode-axo .joy-rp,#joy.mode-axo .joy-ask,#joy.mode-axo .joy-base,#joy.mode-axo .joy-legend,#joy.mode-axo .joy-map{visibility:hidden}
+#joy.mode-axo .joy-lp,#joy.mode-axo .joy-rp,#joy.mode-axo .joy-pass,#joy.mode-axo .joy-mtools,#joy.mode-axo .joy-ask,#joy.mode-axo .joy-base,#joy.mode-axo .joy-legend,#joy.mode-axo .joy-map{visibility:hidden}
 #joy:not(.mode-axo) .joy-axl,#joy:not(.mode-axo) .joy-notes,#joy:not(.mode-axo) .joy-time{display:none}
 
 /* ——— aksonometriya sahnasi ——— */
@@ -411,3 +410,66 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .joy-pal .joy-sw:hover{background:inherit;transform:scale(1.08)}
 .joy-pal .joy-sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
 .joy-pal{max-height:calc(100vh - 120px);overflow:auto}
+
+/* ——— 6B2 (28.10): toifa relsi, bitta karta + yorliqlar, pasport va hisobot — pastda ——— */
+.joy-g[hidden],.joy-site[hidden],.joy-card[hidden],.joy-rp[hidden],.joy-ask[hidden],.joy-pass[hidden],.joy-mtools[hidden]{display:none!important}
+.joy-lp.rail{width:auto;padding:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;flex-direction:row;align-items:flex-start;gap:8px;overflow:visible;max-height:none}
+.joy-rail{width:64px;flex:none;display:flex;flex-direction:column;gap:3px;padding:6px;border-radius:18px;background:var(--surface);box-shadow:var(--sh-float)}
+.joy-rail .jr{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 7px;border:0;border-radius:12px;background:transparent;color:var(--ink-2);cursor:pointer}
+.joy-rail .jr:hover{background:var(--grouped)}
+.joy-rail .jr i{width:10px;height:10px;border-radius:3px}
+.joy-rail .jr .ic{width:15px;height:15px}
+.joy-rail .jr b{font-size:9px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;max-width:56px;overflow:hidden;text-overflow:ellipsis}
+.joy-rail .jr .n{font:500 10px var(--mono);color:var(--muted)}
+.joy-rail .jr[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.joy-rail .jr[aria-pressed="true"] .n{color:inherit;opacity:.7}
+.joy-rail .sep{height:.5px;background:var(--hairline);margin:4px 6px}
+.joy-fly{width:264px;max-height:calc(100vh - 150px);overflow-y:auto;scrollbar-width:thin;display:flex;flex-direction:column;gap:6px;padding:12px 12px 10px;border-radius:18px;background:var(--surface);box-shadow:var(--sh-float)}
+.joy-fly>*{flex-shrink:0}
+.joy-fly .joy-gl{margin-top:6px}
+.joy-fly .joy-site{margin-top:4px}
+.joy-rp{bottom:auto;max-height:calc(100% - 160px)}
+.joy-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:5px;border-radius:14px;background:var(--surface);box-shadow:var(--sh-float)}
+.joy-tabs button{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border:0;border-radius:var(--r-pill);background:transparent;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.joy-tabs button:hover{background:var(--grouped)}
+.joy-tabs button i{width:7px;height:7px;border-radius:2px;background:var(--lc)}
+.joy-tabs button[aria-selected="true"]{background:var(--fill);color:var(--ink)}
+.joy-pass{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:4;flex-direction:row;align-items:center;gap:10px;padding:6px 6px 6px 16px;border-radius:18px;max-width:calc(100% - 520px)}
+.joy-pass .pp{display:flex;flex-direction:column;min-width:0}
+.joy-pass .pp .t-small{font-size:10.5px;line-height:1.1}
+.joy-card.joy-pass .ttl{font-size:15px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.joy-pass .seg{flex:none;min-width:0;width:auto}
+.joy-pass .seg button{padding:0 9px}
+.joy-pass .chip{flex:none}
+.joy-repw{position:relative;flex:none}
+.joy-repw>.btn{gap:6px;height:36px;padding:0 12px;border-radius:12px}
+.joy-menu.up{top:auto;bottom:44px;left:auto;right:0;min-width:250px}
+.joy-menu.up button{display:flex;flex-direction:column;gap:1px}
+.joy-menu.up button b{font-size:13px;font-weight:600}
+.joy-menu.up button span{font-size:11px;color:var(--muted)}
+.joy-menu.up button:disabled{opacity:.5;cursor:default}
+.joy-mtools{position:absolute;left:12px;bottom:12px;z-index:4;display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:340px}
+.joy-mtools .tb{display:flex;align-items:center;gap:2px;padding:4px;border-radius:14px}
+.joy-mtools .tb .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.joy-mtools .vr{width:.5px;height:20px;background:var(--hairline);margin:0 3px}
+.joy-mtools .note{box-shadow:var(--sh-float)}
+.joy-base{left:auto;right:12px;top:auto;bottom:12px}
+.joy-base>.joy-pal:not(.inline){top:auto;bottom:40px;left:auto;right:0}
+.joy-legend{left:356px}
+@media (max-width:1280px){
+  .joy-fly{width:240px}
+  .joy-legend{left:332px}
+  .joy-pass{max-width:calc(100% - 470px)}
+  .joy-card.joy-pass .ttl{max-width:200px}
+}
+@media (max-width:1180px){.joy-pass .chip.mono{display:none}}
+/* tor ekranda: uslub almashtirgich — yuqoriga (pastki qator pasportga yetsin) */
+@media (max-width:1500px){
+  .joy-base{top:76px;bottom:auto;right:auto;left:356px}
+  .joy-base>.joy-pal:not(.inline){top:40px;bottom:auto;left:0;right:auto}
+  .joy-legend{top:122px}
+  .joy-pass{max-width:calc(100% - 470px)}
+  .maplibregl-ctrl-bottom-right{bottom:12px}
+}
+@media (max-width:1280px){.joy-base{left:332px}}
+#joy.an-kocha .joy-lp{max-height:calc(100% - 150px)}

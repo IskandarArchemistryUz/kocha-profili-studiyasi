@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fx';
+import { test, expect, type Page, joyClick } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -60,7 +60,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qatlam ko�
   await page.setViewportSize({ width: w, height: 900 });
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(page.locator('[data-card=relyef] .big')).toHaveText(/m/, { timeout: 30_000 });
-  await page.locator('[data-layer=relyef] .lt').click();
+  await joyClick(page, 'relyef', '.lt');
   await expect(page.locator('.jv-btn')).toHaveCount(1);
   // 27.10 (prototip): «Koʻrinish» sukut boʻyicha ochiq; yopilsa — eslab qolinadi
   await expect(page.locator('.jv-body')).toHaveCount(1);
@@ -77,11 +77,11 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qatlam ko�
   const sl = page.locator('.jv-sl'); await sl.focus(); await page.keyboard.press('ArrowRight');
   await expect(sl).toHaveAttribute('aria-valuenow', '65');
   // nishab — relyef kartasida
-  await page.locator('[data-layer=nishab] .switch').click();
+  await joyClick(page, 'nishab', '.switch');
   await page.locator('.jv-st button', { hasText: 'Strelkalar bilan' }).click();
   await expect.poll(() => vis(page, 'joy-arr')).toBe('visible');
   // shovqin — konturlar va rang shkalasi
-  await page.locator('[data-layer=shovqin] .switch').click();
+  await joyClick(page, 'shovqin', '.switch');
   await expect(page.locator('[data-card=shovqin] .big')).toHaveText(/dB/, { timeout: 30_000 });
   await page.locator('.jv-st button', { hasText: 'Konturlar' }).click();
   await expect.poll(() => vis(page, 'joy-iso')).toBe('visible');
@@ -97,7 +97,7 @@ test('shamol oqim chiziqlari planda', async ({ page }) => {
   test.setTimeout(120_000);
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('—', { timeout: 30_000 });
-  await page.locator('[data-layer=shamol] .lt').click();
+  await joyClick(page, 'shamol', '.lt');
   await expect.poll(() => page.evaluate(() => (window as any).joyMap.getSource('joy-wind')?._data?.features?.length ?? 0), { timeout: 60_000 }).toBeGreaterThan(20);
   await expect.poll(() => vis(page, 'joy-wind')).toBe('visible');
   await openView(page);
@@ -109,7 +109,7 @@ test('xizmatlar ikonka rejimi', async ({ page }) => {
   test.setTimeout(120_000);
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
-  await page.locator('[data-layer=xizmat] .lt').click();
+  await joyClick(page, 'xizmat', '.lt');
   await expect.poll(() => vis(page, 'joy-poi-i')).toBe('visible');
   await openView(page);
   await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
@@ -121,7 +121,7 @@ test('piyoda: persona boʻyicha yetish', async ({ page }) => {
   test.setTimeout(120_000);
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
-  await page.locator('[data-layer=piyoda] .switch').click();
+  await joyClick(page, 'piyoda', '.switch');
   await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15 daqiqa/, { timeout: 30_000 });
   const sub = page.locator('[data-card=piyoda] .sub'), ten = async () => parseFloat(/10 daqiqa: ([\d,]+) ga/.exec((await sub.textContent())!)![1].replace(',', '.'));
   const a = await ten();
@@ -165,11 +165,11 @@ test('xizmat qamrovi va raqobatchilar zichligi', async ({ page }) => {
   test.setTimeout(150_000);
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
-  await page.locator('[data-layer=xizmat] .lt').click(); await openView(page);
+  await joyClick(page, 'xizmat', '.lt'); await openView(page);
   await page.locator('.jv-st button', { hasText: 'Qamrov radiusi' }).click();
   await expect.poll(() => vis(page, 'joy-cov-f')).toBe('visible');
   await expect.poll(() => page.evaluate(() => ((window as any).joyMap.getSource('joy-cov')._data?.features ?? (window as any).joyMap.getSource('joy-cov').serialize().data.features).length)).toBeGreaterThan(0);
-  await page.locator('[data-layer=raqobat] .lt').click(); await openView(page);
+  await joyClick(page, 'raqobat', '.lt'); await openView(page);
   await page.locator('.jv-st button', { hasText: 'Zichlik' }).click();
   await expect.poll(() => vis(page, 'joy-comp-hm')).toBe('visible');
   await expect.poll(() => vis(page, 'joy-cov-f')).toBe('visible');   // boshqa qatlam uslubi saqlanadi
@@ -184,9 +184,9 @@ test('issiqlik: geksagon', async ({ page }) => {
   test.setTimeout(150_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   const errs: string[] = []; await open(page, errs);
-  await page.locator('[data-layer=issiqlik] .switch').click();
+  await joyClick(page, 'issiqlik', '.switch');
   await expect(page.locator('[data-card=issiqlik] .big')).toHaveText(/°C/, { timeout: 60_000 });
-  await page.locator('[data-layer=issiqlik] .lt').click(); await openView(page);
+  await joyClick(page, 'issiqlik', '.lt'); await openView(page);
   await page.locator('.jv-st button', { hasText: 'Geksagon' }).click();
   await expect(page.locator('.jv-st button', { hasText: 'Geksagon' })).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => vis(page, 'joy-heat')).toBe('visible');
