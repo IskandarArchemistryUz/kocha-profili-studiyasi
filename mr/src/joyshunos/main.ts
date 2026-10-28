@@ -28,6 +28,7 @@ import { frame as geoFrame } from '../core/geo';
 import { distAt, type Net } from '../core/services';
 import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
+import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, type NarxData, type NarxKat } from './narx';
 import { loadLst, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, type LstGrid, type Px } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
 import { daySteps, insolation, sunPosition, localToUtcAt, type Prism } from '../core/sun';
@@ -64,7 +65,7 @@ const LAYERS: LayerDef[] = [
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
   { id: 'oqim', g: 'biznes', name: 'Odamlar oqimi', src: 'model', color: '#4c5bd4', ready: true, beta: true },
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
-  { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor', color: '#6b6965', ready: false },
+  { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true },
 ];
 const GROUPS: [Group, string][] = [['yer', 'Yer'], ['iqlim', 'Iqlim'], ['shahar', 'Shahar'], ['biznes', 'Biznes']];
 const SVC_KINDS: Svc[] = ['maktab', 'mtm', 'poliklinika', 'dorixona', 'savdo', 'sport', 'bekat', 'metro'];
@@ -101,8 +102,8 @@ let roseK = 1;
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
-const D: { addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean; src: 'epw' | 'era5'; pending?: boolean }>; lst: Ld<LstGrid> } =
-  { addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
+const D: { narx: Ld<NarxData>; addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean; src: 'epw' | 'era5'; pending?: boolean }>; lst: Ld<LstGrid> } =
+  { narx: { st: 'idle' }, addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
 type NetM = { pers?: string; key: string; net: Net; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
@@ -349,6 +350,8 @@ function toggle(id: LayerId): void {
   save();
   renderLeft(); renderRight(); paint();
   if (isOn(id)) ensure();
+  // uy narxlari — shahar manzarasi: katak 1–1,5 km, yaqin masshtabda bitta katak butun ekranni egallaydi
+  if (id === 'narx' && isOn(id) && map && map.getZoom() > 12.3) map.easeTo({ zoom: 12, duration: 600 });
   computeNet();
 }
 
@@ -462,6 +465,16 @@ function renderRightH(): void {
     el.querySelector('header')!.after(h('div', { class: 'joy-catw' }, pickBtn, menu));
     cards.push(el);
   }
+  if (isOn('narx')) {
+    const d = D.narx.v, k = V('narx').st as NarxKat, a = d ? narxAt(d, k, S.c) : null, city = d?.shahar?.[k];
+    cards.push(card(L('narx'), 'uybor.uz', a?.median != null ? `${fmt(a.median)} $/m²` : '—',
+      d && a ? [
+        a.median != null ? tf('Katakda ${n} ta eʼlon; oʻrtadagi yarmi ${a}–${b} $/m².', { n: a.n, a: fmt(a.p25!), b: fmt(a.p75!) }) : a.inCity ? tr('Bu katakda eʼlon kam (5 tadan kam) — narx koʻrsatilmaydi.') : tr('Maʼlumot hozircha faqat Toshkent shahri uchun.'), h('br'),
+        a.rank != null ? h('span', {}, tf('Shahar kataklarining ${p} %idan qimmat.', { p: a.rank }), h('br')) : '',
+        city ? h('span', {}, tf('Toshkent medianasi: ${m} $/m² (${n} ta eʼlon).', { m: fmt(city[1]), n: city[0] }), h('br')) : '',
+        h('span', { class: 'src' }, tf('uybor.uz eʼlonlari, ${s}. Soʻralgan narx, bitim narxi emas: auksion, takror va chetki qiymatlar chiqarilgan. Katak — ${w} m; 5 tadan kam eʼlonli katakda narx koʻrsatilmaydi.', { s: d.sana, w: fmt(narxSize(k)) }))] : [],
+      null, D.narx));
+  }
   const busy: Ld<unknown> = D.poi.st !== 'ok' ? D.poi : { st: 'load' };
   if (isOn('piyoda')) {
     const r = NM?.reach, nr = NM?.near ?? {}, ha = (m2: number) => fmt(m2 / 10000, 1);
@@ -546,6 +559,7 @@ function retry(id: LayerId): void {
   if (id === 'raqobat') D.comp = { st: 'idle' };
   if (id === 'shamol') D.wind = { st: 'idle' };
   if (id === 'issiqlik') D.lst = { st: 'idle' };
+  if (id === 'narx') D.narx = { st: 'idle' };
   ensure();
 }
 
@@ -610,6 +624,8 @@ function ensure(): void {
   if ((isOn('xizmat') || isOn('piyoda') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
   computeNet();
   if (isOn('issiqlik') && D.lst.st === 'idle') run('lst', () => lstJob(c));
+  // uy narxlari — butun shahar uchun bitta fayl (nuqtaga bogʻliq emas, seq bilan bekor qilinmaydi)
+  if (isOn('narx') && D.narx.st === 'idle') { D.narx = { st: 'load' }; loadNarx().then(v => { D.narx = { st: 'ok', v }; renderRight(); paint(); }, e => { D.narx = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); }); }
   if (isOn('quyosh')) { if (axBundle?.key === `${c.join()}|${r + 100}`) computeSun(); else void needCtx(); }
   if (isOn('raqobat') && D.comp.st === 'idle') run('comp', async () => {
     const cat = CATS.find(x => x.id === S.cat) ?? CATS[0], key = `joy-comp:${cat.id}:${c[0].toFixed(4)},${c[1].toFixed(4)}:${r}`;
@@ -734,6 +750,10 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-gips', type: 'raster', source: 'joy-gips', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
   m.addSource('joy-slope', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-slope', type: 'raster', source: 'joy-slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8, 'raster-fade-duration': 0 } } as never, before);
+  // uy narxlari — soti (olti burchakli katakchalar): qimmat — toʻq, arzon — och, maʼlumot yoʻq — oq
+  m.addSource('joy-narx', { type: 'geojson', data: fc([]) as never }); narxKey = '';
+  m.addLayer({ id: 'joy-narx-f', type: 'fill', source: 'joy-narx', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.75 } } as never, before);
+  m.addLayer({ id: 'joy-narx-l', type: 'line', source: 'joy-narx', layout: { visibility: 'none' }, paint: { 'line-color': ['case', ['==', ['get', 'm'], null], '#b9b5ad', '#ffffff'], 'line-width': 0.7, 'line-opacity': 0.8 } } as never, before);
   for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow', 'joy-cov']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   for (const id of ['joy-heat', 'joy-sun', 'joy-shadow']) m.addSource(id, { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
@@ -778,8 +798,8 @@ function addOverlays(): void {
 }
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
-let slopeKey = '';
-const HUD_LAYERS = ['joy-poi-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+let slopeKey = '', narxKey = '';
+const HUD_LAYERS = ['joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   const m = map;
   if (isK()) {
@@ -810,6 +830,9 @@ function paintH(): void {
     if (k !== slopeKey) { slopeKey = k; const s = slopeImage(t.g, S.r); (m.getSource('joy-slope') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: s.url, coordinates: s.coords }); }
     m.setLayoutProperty('joy-slope', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-slope', 'visibility', 'none');
+  { const d = D.narx.v, on = isOn('narx') && !!d;
+    if (on) { const k = V('narx').st as NarxKat, key = `${d!.sana}|${k}`; if (key !== narxKey) { narxKey = key; (m.getSource('joy-narx') as GeoJSONSource).setData(narxFC(d!, k) as never); } }
+    for (const id of ['joy-narx-f', 'joy-narx-l']) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
   const p = isOn('xizmat') ? D.poi.v?.pois ?? [] : [];
   (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r, k: x.kind }); }).filter(Boolean)) as never);
   const cp = isOn('raqobat') ? D.comp.v ?? [] : [];
@@ -856,6 +879,9 @@ function paintH(): void {
   if (nm?.reach && isOn('piyoda')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
+  if (isOn('narx') && D.narx.v) { const k = V('narx').st as NarxKat, b = narxBreaks(D.narx.v, k), pal = NARX_PAL.slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x);
+    lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Uy narxi, $/m² (soʻralgan, median)')), ...pal.map((c, i) => h('span', {}, h('i', { style: `background:${c}` }), i === 0 ? `< ${f0(b[0])}` : i === b.length ? `≥ ${f0(b[b.length - 1])}` : `${f0(b[i - 1])}–${f0(b[i])}`)),
+      h('span', {}, h('i', { style: 'background:#ffffff;box-shadow:inset 0 0 0 1px #b9b5ad' }), tr('maʼlumot yetarli emas')))); }
   if (isOn('nishab') && t) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Nishab')), ...SLOPE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (p.length) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Xizmatlar')), ...SVC_KINDS.map(k => h('span', {}, h('i', { class: 'dot', style: `background:${SVC_COL[k]}` }), tr(SVC_SHORT[k])))));
   if (cp.length) lg.push(h('div', { class: 'lg' }, h('span', {}, h('i', { class: 'dot', style: 'background:#7a5a3c' }), tr((CATS.find(c => c.id === S.cat) ?? CATS[0]).name))));
@@ -958,7 +984,8 @@ function focusMap(m: MLMap): void {
   const q = (id: LayerId, lo: number, hi: number) => (lo + (hi - lo) * V(id).k) * k(id);
   set('joy-hs', 'hillshade-exaggeration', q('relyef', 0.2, 1)); set('joy-gips', 'raster-opacity', q('relyef', 0.35, 0.85));
   set('joy-topo', 'line-opacity', q('relyef', 0.35, 1)); set('joy-topo-l', 'text-opacity', k('relyef'));
-  set('joy-slope', 'raster-opacity', q('nishab', 0.35, 0.95)); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
+  set('joy-slope', 'raster-opacity', q('nishab', 0.35, 0.95));
+  set('joy-narx-f', 'fill-opacity', q('narx', 0.35, 0.9)); set('joy-narx-l', 'line-opacity', 0.8 * k('narx')); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
   set('joy-heat', 'raster-opacity', q('issiqlik', 0.3, 0.85) * (V('issiqlik').st === 'izoterma' ? 0.45 : 1));
   set('joy-iso', 'line-opacity', Math.max(q('issiqlik', 0.5, 1), q('shovqin', 0.5, 1)));
   set('joy-sun', 'raster-opacity', q('quyosh', 0.35, 0.95));
@@ -1111,6 +1138,15 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       return { quiet: true, dots: ps.map(q => ({ x: q.xy[0], y: q.xy[1], r: 1.15, col: SVC_COL[q.p.kind], op: Math.hypot(q.xy[0], q.xy[1]) <= S.r ? 1 : 0.4 })),
         lines: [...near.values()].map(n => ({ pts: [[0, 0], n.xy] as XY[], w: 0.3, col: '#16171a', op: 0.55, dash: '1 1' })),
         labels: [...near.entries()].filter(([, n]) => n.d <= S.r * 1.1).map(([k, n]) => ({ x: n.xy[0], y: n.xy[1], t: `${tr(SVC_SHORT[k])} · ${fmt(n.d)} m`, col: SVC_COL[k] })) };
+    }
+    case 'narx': {
+      const d = D.narx.v; if (!d) return {};
+      const H = half * 1.5, N = 1024, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d')!;
+      for (const pl of narxPolys(d, V('narx').st as NarxKat, p => toL(p) as [number, number], H)) {
+        g.beginPath(); pl.pts.forEach(([x, y], i) => { const px = (x + H) / (2 * H) * N, py = (H - y) / (2 * H) * N; if (i) g.lineTo(px, py); else g.moveTo(px, py); });
+        g.closePath(); g.fillStyle = pl.col; g.fill(); g.strokeStyle = pl.empty ? '#b9b5ad' : '#ffffff'; g.lineWidth = 1.5; g.stroke();
+      }
+      return { quiet: true, rasters: [{ url: cv.toDataURL(), x0: -H, y0: -H, x1: H, y1: H, op: 0.8, circle: H }] };
     }
     case 'raqobat': return { quiet: true, dots: (D.comp.v ?? []).map(c => { const xy = toL(c.at); return { x: xy[0], y: xy[1], r: 1.4, col: '#7a5a3c', op: c.d <= S.r ? 1 : 0.4, halo: c.d <= S.r ? 60 : 0 }; }) };
     case 'shamol': {
