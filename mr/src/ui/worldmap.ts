@@ -12,10 +12,12 @@ import type { LngLat } from '../core/doc';
 type ML = typeof import('maplibre-gl');
 /** Shu zoomdan yaqinroq — 3D sahna (koʻrinish ≈ 3–4 km) */
 export const ARRIVE = 13.2;
-/** 3D koʻrinish yarim oʻlchami (m) → taxminiy veb-xarita zoom (ekran eni bo‘yicha) */
+/** MapLibre (512 px plitka): z = 0 da ekvatorda 1 px necha metr */
+const M0 = 78271.517;
+/** Ekran yarim eni (m) → MapLibre zoom (shu enli xaritada) */
 export function zoomFor(halfM: number, lat: number, widthPx: number): number {
   const mpp = (2 * halfM) / Math.max(320, widthPx);
-  return Math.log2((156543.034 * Math.cos(lat * Math.PI / 180)) / mpp);
+  return Math.log2((M0 * Math.cos(lat * Math.PI / 180)) / mpp);
 }
 
 export interface WorldOpts {
@@ -61,7 +63,6 @@ export class WorldMap {
       this.map.resize();
       this.silent = true; this.map.jumpTo({ center: center as [number, number], zoom: Math.min(zoom, ARRIVE - 0.4) }); this.silent = false;
     }
-    this.map.setPadding({ left: Math.min(this.o.inset?.() ?? 0, (this.box.clientWidth || 1000) * 0.5), top: 60, right: 0, bottom: 0 });
     if (bbox) this.fit(bbox);
     this.setMark(mark ?? null);
   }
@@ -69,7 +70,8 @@ export class WorldMap {
   fit(bbox: [number, number, number, number]): void {
     if (!this.map) return;
     this.silent = true;
-    this.map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: 60, maxZoom: ARRIVE - 0.4, duration: 900 });
+    const l = Math.min(this.o.inset?.() ?? 0, (this.box.clientWidth || 1000) * 0.5);
+    this.map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: { left: l + 40, top: 130, right: 60, bottom: 60 }, maxZoom: ARRIVE - 0.4, duration: 900 });
     this.map.once('moveend', () => { this.silent = false; });
   }
   flyTo(c: LngLat, zoom: number): void { this.map?.flyTo({ center: c as [number, number], zoom, duration: 1200 }); }
@@ -79,10 +81,12 @@ export class WorldMap {
   }
   private arrive(): void {
     if (!this.map) return;
-    const c = this.map.getCenter(), z = this.map.getZoom(), p = this.map.getPadding(), w = Math.max(320, (this.box.clientWidth || 1000) - (p.left ?? 0) - (p.right ?? 0));
-    const halfM = (156543.034 * Math.cos(c.lat * Math.PI / 180) / 2 ** z) * w / 2;
-    this.o.onArrive([c.lng, c.lat], Math.max(150, Math.min(6000, halfM)));
+    // ekran markazi va ekran yarim eni — 3D sahna aynan shu koʻrinish bilan ochiladi (sakrashsiz)
+    const c = this.map.getCenter(), z = this.map.getZoom(), w = this.box.clientWidth || 1000;
+    this.o.onArrive([c.lng, c.lat], (M0 * Math.cos(c.lat * Math.PI / 180) / 2 ** z) * w / 2);
   }
-  hide(): void { this.el.hidden = true; }
+  hide(): void { this.el.hidden = true; this.el.classList.remove('wm-fade'); }
+  /** 3D tayyor boʻlgach — yumshoq soʻnib yopiladi */
+  fadeOut(): void { if (!this.open) return; this.el.classList.add('wm-fade'); setTimeout(() => { if (this.el.classList.contains('wm-fade')) this.hide(); }, 260); }
   dispose(): void { this.map?.remove(); this.map = null; this.el.remove(); }
 }

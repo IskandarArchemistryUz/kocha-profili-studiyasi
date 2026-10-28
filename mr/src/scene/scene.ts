@@ -366,7 +366,13 @@ export class Scene3D {
     else { const url = URL.createObjectURL(img.image!); try { t = await new THREE.TextureLoader().loadAsync(url); } finally { URL.revokeObjectURL(url); } }
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     const fr = frame(origin), a = fr.toLocal(img.nw), c = fr.toLocal(img.se);
-    const g = new THREE.PlaneGeometry(c[0] - a[0], a[1] - c[1]); g.rotateX(-Math.PI / 2); g.translate((a[0] + c[0]) / 2, 0.02, -(a[1] + c[1]) / 2);
+    // tasvir Merkator proyeksiyasida (MapLibre / Esri plitkalari), mahalliy tekislik — kenglik boʻyicha chiziqli: v koordinatasi Merkator boʻyicha (katta koʻlamda ham siljimaydi)
+    const g = new THREE.PlaneGeometry(c[0] - a[0], a[1] - c[1], 1, 48);
+    { const mer = (lat: number) => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)), sN = img.nw[1], sS = img.se[1], m0 = mer(sS), m1 = mer(sN), hh = a[1] - c[1];
+      const pos = g.attributes.position, uv = g.attributes.uv;
+      for (let i = 0; i < pos.count; i++) { const lat = sS + (pos.getY(i) / hh + 0.5) * (sN - sS); uv.setY(i, (mer(lat) - m0) / (m1 - m0)); }
+      uv.needsUpdate = true; }
+    g.rotateX(-Math.PI / 2); g.translate((a[0] + c[0]) / 2, 0.02, -(a[1] + c[1]) / 2);
     const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })); mesh.renderOrder = 1; mesh.name = 'fon-xarita';
     this.scene.add(mesh); this.baseMap = { mesh, blob: img.image ?? null };
     if (old) { this.scene.remove(old.mesh); old.mesh.geometry.dispose(); const m = old.mesh.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); }
@@ -1042,8 +1048,24 @@ export class Scene3D {
 
   /** Markazga (0,0) qarab, radius `r` m ni koʻrsatish */
   frameRadius(r: number): void { if (r > 0) this.frameAt(0, 0, 2 * r); }
-  /** Mahalliy nuqta atrofini koʻrsatish (dunyo xaritasidan qaytishda) */
-  frameLocal(x: number, y: number, r: number): void { this.frameAt(x, y, 2 * Math.max(60, Math.min(r, 6000))); }
+  /** Ekranning yarim eni (m, yer tekisligida) — dunyo xaritasi bilan bir xil masshtab uchun */
+  viewHalfWidth(): number {
+    const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
+    if (this.cam === this.ortho) return ((this.ortho.userData.s as number) || 200) / (this.ortho.zoom || 1) * w / h;
+    return this.persp.position.distanceTo(this.ctl.target) * Math.tan(THREE.MathUtils.degToRad(this.persp.fov / 2)) * w / h;
+  }
+  /** (x, y) ekran markazida, ekran yarim eni ≈ halfW metr (dunyo xaritasidan qaytishda — sakrashsiz) */
+  frameView(x: number, y: number, halfW: number): void {
+    const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1, a = w / h, hw = Math.max(40, Math.min(halfW, 15000));
+    this.frameAt(x, y, this.mode === 'persp' ? hw / (a * Math.tan(THREE.MathUtils.degToRad(this.persp.fov / 2)) * 1.6) : hw / (a * 0.72));
+  }
+  /** Loyiha markazi d ga (eski mahalliy koordinatada) koʻchdi — kamera va fon xaritasi yerda joyida qoladi */
+  shiftOrigin(d: XY): void {
+    const v = new THREE.Vector3(-d[0], 0, d[1]);
+    this.ctl.target.add(v); this.persp.position.add(v); this.ortho.position.add(v);
+    this.baseMap?.mesh.position.add(v);
+    this.ctl.update(); this.invalidate(); this.onView?.();
+  }
 
   /** Ekranning panellar yopgan qismi (px): moslashda loyiha koʻrinadigan qismning markaziga qoʻyiladi */
   viewInset = { left: 0, right: 0 };
