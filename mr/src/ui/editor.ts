@@ -265,6 +265,8 @@ export class Editor {
     const p = this.prevDoc; this.prevDoc = doc;
     // faqat varaqlar oʻzgargan boʻlsa (Varaqlar oynasi) — sahna va panel qayta chizilmaydi
     if ((Object.keys(doc) as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
+    // loyiha markazi koʻchdi (uchastka chizilgach, qidiruv, bekor qilish) — kamera va fon yerda joyida qoladi, sahna «sakramaydi»
+    if (p.origin !== doc.origin) { const d = frame(p.origin).toLocal(doc.origin); if (Math.hypot(d[0], d[1]) < 60000) this.scene.shiftOrigin(d); }
     if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed) void this.ensureContext();
     if (this.marked.b.length || this.marked.c.length || this.marked.r.length) { const rm = new Set(doc.removed ?? []), rr = new Set(doc.removedRoads ?? []), keepR = this.marked.r.filter(x => !rr.has(x)); this.setMarked(this.marked.b.filter(id => doc.buildings.some(b => b.id === id)), this.marked.c.filter(id => !rm.has(id)), doc, keepR); }
     if (this.selStreet && !doc.streets.some(x => x.id === this.selStreet)) { this.selStreet = null; this.scene.selectStreet(null); }
@@ -762,7 +764,7 @@ export class Editor {
     // cheksiz xaritada uchastka loyiha markazidan uzoqda chizilgan boʻlsa — markaz uchastkaga koʻchadi (atrof shu yerda yuklanadi)
     if (doc.site?.rings[0]?.length) {
       const r = doc.site.rings[0], c: LngLat = [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length];
-      if (dist(doc.origin, c) > (cs.loaded ? Math.min(300, cs.radius * 0.3) : 150)) { this.run(() => this.store.dispatch({ type: 'setOrigin', origin: c })); this.scene.frameDoc(this.store.doc); return; }
+      if (dist(doc.origin, c) > (cs.loaded ? Math.min(300, cs.radius * 0.3) : 150)) { this.run(() => this.store.dispatch({ type: 'setOrigin', origin: c })); return; }   // kamera onChange da joyida qoladi
     }
     if (!cs.loaded) { this.showContext(null); void this.showBaseMap(); return; }
     const cur = this.ctxMgr.current, C = cs.area ? areaFrame(cs.area).center : doc.origin;   // chegara boʻyicha — atrof markazi chegara qutisi markazida
@@ -798,7 +800,7 @@ export class Editor {
       const img = await loadBaseMap(doc.origin, 1500, sat ? 'sputnik' : 'maket');
       if (this.baseKey !== key || this.store.doc.context.loaded) return;
       await this.scene.setBaseMap(img, doc.origin);
-      this.baseAttr(sat, `${tr('Fon')}: ${img?.attr ?? 'Esri'}`);
+      this.baseAttr(sat, `${tr('Fon')}: ${img?.attr ?? 'Esri'}`); this.baseDrawn();
       if (img && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
     } catch { this.baseKey = ''; }
   }
@@ -814,7 +816,8 @@ export class Editor {
     const v = this.scene.viewExtent(), r = Math.min(40000, Math.max(300, v.r)), key = this.baseKey, L = this.liveAt;
     if (L && L.key === key && Math.hypot(v.c[0] - L.c[0], v.c[1] - L.c[1]) < L.r * 0.3 && r < L.r * 1.25 && r > L.r * 0.5) return;
     clearTimeout(this.liveT);
-    this.liveT = window.setTimeout(() => void this.drawLive(v.c, r, key), now ? 0 : 250);
+    // koʻrinish chizish paytida olinadi: koʻchirish → kamerani moslash ketma-ketligida eski koʻrinish chizilmasin
+    this.liveT = window.setTimeout(() => { const w = this.scene.viewExtent(); void this.drawLive(w.c, Math.min(40000, Math.max(300, w.r)), key); }, now ? 0 : 250);
   }
   private async drawLive(c: XY, r: number, key: string): Promise<void> {
     const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs();
@@ -824,8 +827,9 @@ export class Editor {
     if (this.baseKey !== key || this.store.doc.context.loaded) return;
     if (!img) { this.baseFail = true; this.baseKey = ''; this.liveAt = null; void this.showBaseMap(); return; }
     const first = !this.scene.hasBaseMap;
+    if (this.store.doc.origin !== doc.origin) return;
     await this.scene.setBaseMap({ ...img, bg: sat ? '#2b2d2f' : PALETTES[pr.pal].bg }, doc.origin);
-    this.baseAttr(sat, 'Fon: © OpenMapTiles · OpenFreeMap');
+    this.baseAttr(sat, 'Fon: © OpenMapTiles · OpenFreeMap'); this.baseDrawn();
     if (first && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
   }
   /** Chegara boʻyicha yuklangan atrof — poligonga qirqilgan nusxa (eslab qolinadi) */
@@ -901,20 +905,37 @@ export class Editor {
   private async openWorld(bbox?: [number, number, number, number], mark?: LngLat): Promise<void> {
     this.closePop();
     const o = this.store.doc.origin, v = this.scene.viewExtent(), here = frame(o).toGeo(v.c);
-    const w = this.el.scene.clientWidth || 1000;
-    // joriy koʻrinishdan bir pogʻona uzoqroq — oʻtish uzilmasin
-    await this.world.show(here, zoomFor(Math.max(v.r, 4000) * 2.5, here[1], w) , bbox, mark ?? o);
+    // 3D dagi aynan shu markaz va masshtab bilan ochiladi — uzoqlashtirish uzilmasdan davom etadi
+    await this.world.show(here, zoomFor(this.scene.viewHalfWidth(), here[1], this.el.scene.clientWidth || 1000), bbox, mark ?? o);
     this.el.stage.classList.add('wm-on');
   }
   private closeWorld(): void { this.world.hide(); this.el.stage.classList.remove('wm-on'); }
-  private arriveWorld(c: LngLat, halfM: number): void {
-    const doc = this.store.doc, f = frame(doc.origin), p = f.toLocal(c), far = Math.hypot(p[0], p[1]) > 12000;
-    this.closeWorld();
-    if (!far) { this.scene.frameLocal(p[0], p[1], halfM); return; }
-    this.goTo({ name: tr('Xaritada tanlangan joy'), detail: '', at: c }, null);
-    if (this.search.pending) { if (this.step.id !== 'uchastka') { const s = STEPS.find(x => x.id === 'uchastka'); if (s) this.go(s); } this.renderPanel(); }
-    else this.scene.frameRadius(Math.min(halfM, 1500));
+  private arriving = false;
+  /** Dunyo xaritasidan 3D ga: sahna xaritadagi markaz va masshtabda ochiladi; fon chizilguncha dunyo xaritasi ustida turadi, keyin soʻnadi */
+  private async arriveWorld(c: LngLat, halfW: number): Promise<void> {
+    if (this.arriving) return;
+    const doc = this.store.doc, p = frame(doc.origin).toLocal(c), far = Math.hypot(p[0], p[1]) > 12000;
+    if (far && (doc.site || doc.buildings.length)) {   // chizilgan narsalar bor — avvalgidek soʻraladi
+      this.closeWorld();
+      this.goTo({ name: tr('Xaritada tanlangan joy'), detail: '', at: c }, null);
+      if (this.search.pending && this.step.id !== 'uchastka') { const s = STEPS.find(x => x.id === 'uchastka'); if (s) this.go(s); }
+      this.renderPanel(); return;
+    }
+    this.arriving = true;
+    try {
+      const done = this.baseSettled();
+      if (far) { void this.scene.setBaseMap(null, doc.origin); this.goTo({ name: tr('Xaritada tanlangan joy'), detail: '', at: c }, null, halfW); }
+      else this.scene.frameView(p[0], p[1], halfW);
+      await done;
+    } finally { this.arriving = false; }
+    this.world.fadeOut(); this.el.stage.classList.remove('wm-on');
   }
+  /** Fon xaritasi navbatdagi chizilishi tugaguncha (koʻpi bilan 2,5 s) kutish */
+  private baseWaiters: (() => void)[] = [];
+  private baseSettled(): Promise<void> {
+    return new Promise(res => { const t = setTimeout(() => res(), navigator.webdriver || this.store.doc.context.loaded || this.baseFail ? 150 : 2500); this.baseWaiters.push(() => { clearTimeout(t); res(); }); });
+  }
+  private baseDrawn(): void { const w = this.baseWaiters; this.baseWaiters = []; w.forEach(f => f()); }
   /** Qidiruv natijasi: davlat / viloyat / katta shahar — dunyo xaritasida chegarasiga moslab; kichik joy — darhol 3D */
   private pickPlace(p: Place): void {
     if (p.bbox && bboxKm(p.bbox) > 12) { this.search.res = []; this.renderPanel(); void this.openWorld(p.bbox, p.at); return; }
@@ -922,13 +943,14 @@ export class Editor {
     this.goTo(p, null);
   }
 
-  private goTo(p: Place, carry: boolean | null): void {
+  private goTo(p: Place, carry: boolean | null, halfW?: number): void {
     const doc = this.store.doc;
     if (carry === null && (doc.site || doc.buildings.length)) { this.search.pending = p; this.renderPanel(); return; }
     this.search.pending = null; this.search.res = [];
     this.framedCtx = false;
     this.run(() => { this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }); if (doc.context.area) this.store.dispatch({ type: 'setContext', patch: { area: null, radius: 500 } }); });
-    this.scene.frameRadius(doc.site && carry ? 0 : 250);
+    if (halfW) { this.scene.frameView(0, 0, halfW); this.framedCtx = true; }   // dunyo xaritasidan — oʻsha masshtabda, fon chizilgach qayta moslanmaydi
+    else this.scene.frameRadius(doc.site && carry ? 0 : 250);
     if (doc.site && carry) this.scene.frameDoc(this.store.doc);
   }
 
@@ -1023,6 +1045,12 @@ export class Editor {
     if (!await siteGate(this.store.doc.id, ringAreaM2(rings[0]) / 1e4)) { this.setTool(null); return; }
     this.run(() => this.store.dispatch({ type: 'setSite', rings }));
     after?.();
+  }
+  /** Uchastka toʻliq koʻrinib tursa — kamera tegilmaydi (chizgan joyingizda qoladi); ekrandan chiqsa — moslanadi */
+  private fitSiteIfOut(): void {
+    const d = this.store.doc, r = d.site?.rings[0]; if (!r?.length) return;
+    const f = frame(d.origin), v = this.scene.viewExtent(), hw = this.scene.viewHalfWidth();
+    if (r.map(f.toLocal).some(q => Math.abs(q[0] - v.c[0]) > hw * 0.9 || Math.abs(q[1] - v.c[1]) > hw * 0.9 * ((this.el.scene.clientHeight || 1) / (this.el.scene.clientWidth || 1)))) this.scene.frameDoc(d);
   }
   private siteHintT = 0;
   /** Sudrab kattalashtirishda chegaradan oshsa — tahrir qoʻllanmaydi; oyna 3 soniyada koʻpi bilan bir marta */
@@ -2321,7 +2349,8 @@ export class Editor {
       h('span', { class: 't-small' }, tr('Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor')));
     else body.append(h('div', { class: 'row' },
       h('button', { class: 'btn grow', id: 'drawSite', onclick: () => this.setTool(new PolygonTool(this.scene, r => {
-        void this.putSite([r.map(fr.toGeo)], () => { this.setTool(null); this.scene.frameDoc(this.store.doc); });
+        const f = frame(this.store.doc.origin);   // joriy markaz (panel chizilgandan beri koʻchgan boʻlishi mumkin)
+        void this.putSite([r.map(f.toGeo)], () => { this.setTool(null); this.fitSiteIfOut(); });
       }, toast)) }, ...icl(IC.pencil, tr(doc.site ? 'Qaytadan chizish' : 'Sahnada chizish'))),
       doc.site ? h('button', { class: 'btn icon-btn btn-danger', 'aria-label': tr('Uchastkani oʻchirish'), title: tr('Uchastkani oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'clearSite' })) }, svgIcon(IC.trash)) : ''));
     const other = h('details', { class: 'how', id: 'siteMore' }, h('summary', {}, svgIcon(IC.info), tr('Boshqa usullar: fayldan yuklash, tahrirlash')));
