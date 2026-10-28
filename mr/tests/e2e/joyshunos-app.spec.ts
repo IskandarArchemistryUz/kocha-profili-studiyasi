@@ -1,4 +1,4 @@
-import { test, expect, type Page, pickLang } from './fx';
+import { test, expect, type Page, pickLang, joyClick, joyRep, joyTab } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -67,13 +67,17 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await expect(page.locator('[data-card=xizmat] .joy-norm li')).toHaveCount(4);
   await expect(page.locator('[data-card=raqobat] .big')).toHaveText(/^\d+ ta$/);
   // A2: piyoda yetish, odamlar oqimi (beta), shovqin (beta)
-  for (const id of ['piyoda', 'oqim', 'shovqin']) await page.locator(`[data-layer=${id}] .switch`).click();
+  for (const id of ['piyoda', 'oqim', 'shovqin']) await joyClick(page, id, '.switch');
   await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15 daqiqa/, { timeout: 20_000 });
   await expect(page.locator('[data-card=piyoda] .joy-norm li')).toHaveCount(5);
   await expect(page.locator('[data-card=oqim] .big')).toHaveText(/^(Past|Oʻrtacha|Yuqori)$/, { timeout: 20_000 });
   await expect(page.locator('[data-card=shovqin] .big')).toHaveText(/dB\(A\)/, { timeout: 20_000 });
+  // 6B2: oʻngda bitta karta — qolganlari yorliqda
+  await expect(page.locator('[data-card=shovqin]')).toBeVisible(); await expect(page.locator('[data-card=oqim]')).toBeHidden();
+  await joyTab(page, 'oqim');
   await expect(page.locator('[data-card=oqim] .chip.beta')).toBeVisible();
   // raqobatchilar turi — oʻz menyusi (brauzerning select emas)
+  await joyTab(page, 'raqobat');
   await page.locator('.joy-cat').click();
   await page.locator('.joy-menu button', { hasText: 'Dorixona' }).click();
   await expect(page.locator('.joy-cat')).toHaveText('Dorixona');
@@ -90,7 +94,7 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await page.locator('.joy-card.head .seg button', { hasText: '800 m' }).click();
   await expect(page.locator('.joy-card.head .ttl')).toContainText('800 m');
   // qatlamni oʻchirish — karta yoʻqoladi, qayta yuklanganda saqlanadi
-  await page.locator('[data-layer=shamol] .switch').click();
+  await joyClick(page, 'shamol', '.switch');
   await expect(page.locator('[data-card=shamol]')).toHaveCount(0);
   await page.reload();
   await expect(page.locator('[data-layer=shamol] .switch')).toHaveAttribute('aria-checked', 'false');
@@ -101,6 +105,7 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await page.locator('.joy-res button').first().click();
   await expect(page.locator('.joy-card.head .chip.mono')).toHaveText('41.32000, 69.25000');
   // eski toʻliq asboblar havolalari mavjud
+  await page.locator('.joy-rail [data-g=joy]').click();
   await page.locator('.joy-old summary').click();
   for (const a of await page.locator('.joy-old a').all()) expect(existsSync(join(ROOT, 'app', (await a.getAttribute('href'))!))).toBe(true);
   expect(errs).toEqual([]);
@@ -182,6 +187,7 @@ test('B2: lineyka, uchastka (1-qadamdan), aksonometriyada quyoshni sudrash, mode
   await page.mouse.click(620, 420); await page.mouse.click(820, 430); await page.keyboard.press('Enter');
   await expect(page.locator('#joyMeasure')).toContainText(/Uzunlik: [\d\s ]+ m/);
   // uchastka — 1-qadamdan
+  await page.locator('.joy-rail [data-g=joy]').click();
   await page.locator('#tSiteK').click();
   await expect(page.locator('.joy-card.head .chip.site')).toContainText('ga');
   // aksonometriya
@@ -219,12 +225,14 @@ test('A3: issiqlik oroli (MODIS, beta) va quyosh/soya xaritada', async ({ page }
   const errs: string[] = [];
   await open(page, errs);
   await page.setViewportSize({ width: 1440, height: 900 });
-  for (const id of ['issiqlik', 'quyosh']) await page.locator(`[data-layer=${id}] .switch`).click();
+  for (const id of ['issiqlik', 'quyosh']) await joyClick(page, id, '.switch');
   await expect(page.locator('[data-card=issiqlik] .big')).toHaveText(/°C/, { timeout: 30_000 });
+  await joyTab(page, 'issiqlik');
   await expect(page.locator('[data-card=issiqlik] .chip.beta')).toBeVisible();
   await expect(page.locator('[data-card=issiqlik] .sub')).toContainText('8 kunlik kompozit');
   await expect(page.locator('[data-card=quyosh] .big')).toHaveText(/soat$/, { timeout: 60_000 });
   // kun: 22 mart — SanQvaN meʼyori satri chiqadi; soat stepper
+  await joyTab(page, 'quyosh');
   await page.locator('[data-card=quyosh] .seg button', { hasText: '22 mart' }).click();
   await expect(page.locator('[data-card=quyosh] .sub')).toContainText('SanQvaN 0331-16', { timeout: 60_000 });
   const h0 = await page.locator('#sunHour').textContent();
@@ -247,13 +255,13 @@ test('C: joy pasporti hisoboti — SVG (qatlamli), PDF va Chizmadonga', async ({
   const errs: string[] = [];
   await open(page, errs);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.locator('[data-layer=piyoda] .switch').click();
+  await joyClick(page, 'piyoda', '.switch');
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
   await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15/, { timeout: 30_000 });
   await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('—', { timeout: 30_000 });
   await page.waitForTimeout(7500);   // sinovda fon plitkalari yoʻq — oddiy fon bilan davom etadi
   const dl = page.waitForEvent('download');
-  await page.locator('#repSvg').click();
+  await joyRep(page, 'repSvg');
   const d = await dl; expect(d.suggestedFilename()).toMatch(/^joy-pasporti-.*\.svg$/);
   const svg = readFileSync((await d.path())!, 'utf8');
   for (const s of ['inkscape:label="01 Xarita"', 'inkscape:label="03 Pasport"', 'inkscape:label="09 Shtamp"', '<image', 'Xizmatlar', 'Piyoda yetish', 'Joy pasporti'.toUpperCase(), 'ShNQ 2.07.01-23']) expect(svg).toContain(s);
@@ -262,10 +270,10 @@ test('C: joy pasporti hisoboti — SVG (qatlamli), PDF va Chizmadonga', async ({
   await v.screenshot({ path: 'test-results/joy-c-sheet.png' }); await v.close();
   // PDF
   const dp = page.waitForEvent('download', { timeout: 60_000 });
-  await page.locator('#repPdf').click();
+  await joyRep(page, 'repPdf');
   expect((await dp).suggestedFilename()).toMatch(/\.pdf$/);
   // Chizmadonga
-  await page.locator('#repChz').click();
+  await joyRep(page, 'repChz');
   await expect(page).toHaveURL(/#\/p\/[\w-]+\/chizmadon$/, { timeout: 30_000 });
   await expect(page.locator('.gx.ch')).toBeVisible({ timeout: 20_000 });
   expect(await page.evaluate(() => localStorage.getItem('ks-chz-inbox'))).toBeNull();

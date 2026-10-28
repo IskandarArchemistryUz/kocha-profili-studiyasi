@@ -122,6 +122,7 @@ test('Koʻcha tahlili: A → B, modullar, lenta, xulosa manbalari, sanoq', async
   // hudud tahliliga qaytish — pasport
   await page.click('[data-an=hudud]');
   await expect(page.locator('#joyStrip')).toBeHidden();
-  await expect(page.locator('.joy-l').first()).toBeVisible();
+  await expect(page.locator('.joy-l:visible').first()).toBeVisible();
+  await expect(page.locator('.joy-rail')).toBeVisible();
   expect(errs).toEqual([]);
 });

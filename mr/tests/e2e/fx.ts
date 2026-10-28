@@ -43,3 +43,18 @@ export async function pickLang(page: Page, l: string, root = '#langSw'): Promise
   if (await inRoot.count() && await inRoot.first().isVisible()) await inRoot.first().click();
   else await page.locator(`.lm-pop:not([hidden]) [data-lang=${l}]`).click();
 }
+
+/** Joyshunos 6B2 (28.10): qatlamlar toifa relsida — boshqa toifadagi qatlamni bosishdan oldin oʻsha toifa ochiladi */
+export async function joyGroup(page: Page, id: string): Promise<void> {
+  const g = await page.locator(`[data-layer=${id}]`).first().evaluate(e => { const s = e.closest('.joy-g') as HTMLElement | null; return s && s.hidden ? s.dataset.g ?? null : null; });
+  if (g) await page.locator(`.joy-rail [data-g=${g}]`).click();
+}
+/** qatlam qatoridagi boshqaruvni bosish (.switch, .lt, .nm) */
+export async function joyClick(page: Page, id: string, sel: string): Promise<void> { await joyGroup(page, id); await page.locator(`[data-layer=${id}] ${sel}`).click(); }
+/** «Hisobot» menyusidagi band: PDF, SVG, Chizmadonga, Albom */
+export async function joyRep(page: Page, id: 'repPdf' | 'repSvg' | 'repChz' | 'albOpen'): Promise<void> {
+  if (!(await page.locator('#repMenu').isVisible())) await page.locator('#repBtn').click();
+  await page.locator(`#${id}`).click();
+}
+/** oʻng paneldagi yorliq — boshqa yoqilgan qatlam kartasini ochish */
+export async function joyTab(page: Page, id: string): Promise<void> { await page.locator(`.joy-tabs [data-tab=${id}]`).click(); }

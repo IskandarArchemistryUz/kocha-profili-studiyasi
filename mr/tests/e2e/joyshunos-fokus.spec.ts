@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fx';
+import { test, expect, type Page, joyClick } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -60,11 +60,11 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`faol qatla
   await expect(page.locator('.joy-l .lt svg.lic')).toHaveCount(12);
   await expect(page.locator('.joy-gl i')).toHaveCount(4);
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/, { timeout: 30_000 });
-  await page.locator('[data-layer=piyoda] .switch').click();
+  await joyClick(page, 'piyoda', '.switch');
   await expect(page.locator('.joy-l.act')).toHaveAttribute('data-layer', 'piyoda');
-  await expect(page.locator('.joy-card').nth(1)).toHaveAttribute('data-card', 'piyoda');
+  await expect(page.locator('.joy-rp .joy-card').nth(0)).toHaveAttribute('data-card', 'piyoda');
   await expect(page.locator('.joy-card.focus')).toHaveAttribute('data-card', 'piyoda');
-  await page.locator('[data-layer=relyef] .lt').click();
+  await joyClick(page, 'relyef', '.lt');
   await expect(page.locator('.joy-l.act')).toHaveAttribute('data-layer', 'relyef');
   await expect(page.locator('.joy-card.focus')).toHaveAttribute('data-card', 'relyef');
   await expect(page.locator('.joy-fhint')).toBeVisible();

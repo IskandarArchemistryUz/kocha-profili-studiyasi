@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './fx';
+import { test, expect, type Page, joyRep } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
@@ -60,12 +60,12 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`albom oyna
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/, { timeout: 30_000 });
   await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('—', { timeout: 30_000 });
-  await page.locator('#albOpen').click();
+  await joyRep(page, 'albOpen');
   await expect(page.locator('#albDlg')).toBeVisible();
   await expect(page.locator('#albDlg .alb-k')).toHaveCount(3);
   if (OUT) await page.screenshot({ path: `${OUT}/alb_dlg_${w}${dark ? 'd' : 'l'}.png` });
   for (const [k, th] of (dark ? [['albom', 'Qora'], ['plakat', 'Qora']] : [['hisobot', 'Oq']]) as [string, string][]) {
-    if (!(await page.locator('#albDlg').isVisible())) await page.locator('#albOpen').click();
+    if (!(await page.locator('#albDlg').isVisible())) await joyRep(page, 'albOpen');
     await page.locator(`#albDlg [data-k=${k}]`).click();
     await page.locator('#albTheme button', { hasText: th }).click();
     const dl = page.waitForEvent('download', { timeout: 120_000 });
@@ -73,7 +73,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`albom oyna
     const d = await dl;
     expect(d.suggestedFilename()).toMatch(new RegExp(`^joy-${k}-.*\\.pdf$`));
     if (OUT) await d.saveAs(`${OUT}/alb_${k}_${th}.pdf`);
-    await expect(page.locator('#albOpen')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.locator('#repBtn')).toBeEnabled({ timeout: 30_000 });
   }
   // holat tiklandi: yoqilgan qatlamlar oʻzgarmadi
   await expect(page.locator('[data-layer=xizmat] .switch.on, [data-layer=xizmat] .switch[aria-checked=true]')).toHaveCount(1);
@@ -84,7 +84,7 @@ test('albom → Chizmadonga: barcha varaqlar navbatda', async ({ page }) => {
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/, { timeout: 30_000 });
   await page.route('**/*', r => (r.request().isNavigationRequest() && !r.request().url().includes('joyshunos') ? r.fulfill({ contentType: 'text/html', body: '<html><body>chz</body></html>' }) : r.fallback()));
-  await page.locator('#albOpen').click();
+  await joyRep(page, 'albOpen');
   await page.locator('#albDlg [data-k=hisobot]').click();
   await page.locator('#albChz').click();
   await page.waitForURL(/chizmadon/, { timeout: 120_000 });
