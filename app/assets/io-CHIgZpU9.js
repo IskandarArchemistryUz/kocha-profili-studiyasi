@@ -1,1 +1,0 @@
-import"./chzsend-DeaKAP_m.js";export{c as sendToChizmadon}from"./io-vEmwliti.js";
