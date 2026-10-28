@@ -811,3 +811,21 @@ textarea.ch-inedit{padding:10px 12px}
 .acc-v{display:block;margin-top:2px;font-size:11.5px;line-height:1.35;color:var(--ink-2)}
 .acc-v::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--ink-3,#9a978f)}
 .acc-v-ok::before{background:#2f8a66}.acc-v-warn::before{background:#d2692f}.acc-v-info::before{background:#2a6fb0}
+
+/* dunyo xaritasi — 3D sahna ustida (panellar ochiq qoladi) */
+.worldmap{position:absolute;inset:0;z-index:9;background:var(--bg)}
+.worldmap[hidden]{display:none}
+.worldmap .wm-map{position:absolute;inset:0;width:100%;height:100%}
+.wm-bar{position:absolute;top:76px;right:12px;z-index:2;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;max-width:min(660px,calc(100% - 470px));padding:8px 10px 8px 16px;border-radius:16px;font-size:13px;color:var(--ink)}
+.wm-bar b{flex:none}.wm-bar .btn{flex:none}
+.wm-bar .t-small{color:var(--muted);min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wm-pin{width:16px;height:16px;border-radius:50%;background:var(--brand);border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35)}
+.worldmap .maplibregl-ctrl-bottom-right{right:12px;bottom:52px}
+.worldmap .maplibregl-ctrl-group{border-radius:var(--r-ctl)!important;overflow:hidden;box-shadow:var(--sh-float)!important}
+.wm-on .mapctl,.wm-on .tb,.wm-on .hint,.wm-on .drawer,.wm-on .lblbar,.wm-on .ulcard,.wm-on .ctxbadge,.wm-on .kpibar,.wm-on .attr{display:none!important}
+[data-theme=dark] .wm-pin{border-color:#1d1d1c}
+[data-theme=dark] .worldmap .maplibregl-ctrl-group{background:var(--surface)}
+[data-theme=dark] .worldmap .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
+[data-theme=dark] .worldmap .maplibregl-ctrl-attrib{background:rgba(29,29,28,.7);color:var(--muted)}
+[data-theme=dark] .worldmap .maplibregl-ctrl-attrib a{color:var(--muted)}
+@media (max-width:1100px){.wm-bar .t-small{display:none}}

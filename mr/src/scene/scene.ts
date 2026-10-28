@@ -155,6 +155,12 @@ export class Scene3D {
     this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); this.lodSoon(); });
     this.setView('plan', true);
 
+    // uzoqlashtirish chegarasida yana gʻildirak «tashqariga» — dunyo xaritasi ochiladi (editor: onZoomOutLimit)
+    this.renderer.domElement.addEventListener('wheel', e => {
+      if (e.deltaY <= 0 || !this.onZoomOutLimit || !this.ctl.enabled) return;
+      const before = this.viewExtent().r;
+      requestAnimationFrame(() => { const after = this.viewExtent().r; if (after <= before * 1.002 && before > 800) this.onZoomOutLimit?.(); });
+    }, { passive: true });
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
     const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
@@ -162,6 +168,10 @@ export class Scene3D {
   }
 
   invalidate(): void { this.dirty = true; }
+  /** Uzoqlashtirish chegarasiga yetildi va foydalanuvchi yana uzoqlashtirmoqchi */
+  onZoomOutLimit: (() => void) | null = null;
+  /** Ortogonal kamera: koʻrinish ≈ 16 km dan oshmasin (perspektivada — maxDistance) */
+  private capOrtho(): void { this.ctl.minZoom = Math.min(1, ((this.ortho.userData.s as number) || 200) * 1.6 / 16000); }
   /** kamera oʻzgarganda (sahnadagi HTML belgilarni joylash uchun) */
   onView: (() => void) | null = null;
 
@@ -201,7 +211,7 @@ export class Scene3D {
     this.ctl = new OrbitControls(this.cam, this.renderer.domElement);
     this.ctl.target.copy(target); this.ctl.enableDamping = false; this.ctl.screenSpacePanning = true;
     this.ctl.zoomSpeed = 2.2; this.ctl.zoomToCursor = true;
-    this.ctl.minZoom = 0.05; this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 16000;   // katta hudud (chegara boʻyicha, 12 km gacha)
+    this.capOrtho(); this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 16000;   // katta hudud (chegara boʻyicha, 12 km gacha)
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     else if (this.hand) this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
@@ -1025,13 +1035,15 @@ export class Scene3D {
     const mode = this.mode, t = this.ctl.target.clone(), pp = this.persp.position.clone(), op = this.ortho.position.clone(), os = this.ortho.userData.s, oz = this.ortho.zoom;
     const out = {} as Record<'plan' | 'axo' | 'persp', string>;
     for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); { const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
-    this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz;
+    this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz; this.capOrtho();
     this.resize(); this.ctl.update(); this.invalidate();
     return out;
   }
 
   /** Markazga (0,0) qarab, radius `r` m ni koʻrsatish */
   frameRadius(r: number): void { if (r > 0) this.frameAt(0, 0, 2 * r); }
+  /** Mahalliy nuqta atrofini koʻrsatish (dunyo xaritasidan qaytishda) */
+  frameLocal(x: number, y: number, r: number): void { this.frameAt(x, y, 2 * Math.max(60, Math.min(r, 6000))); }
 
   /** Ekranning panellar yopgan qismi (px): moslashda loyiha koʻrinadigan qismning markaziga qoʻyiladi */
   viewInset = { left: 0, right: 0 };
@@ -1041,7 +1053,7 @@ export class Scene3D {
     if (this.mode === 'persp') this.persp.position.copy(t).add(new THREE.Vector3(-0.55, 0.62, 0.75).normalize().multiplyScalar(dist));
     else {
       const dir = this.mode === 'plan' ? new THREE.Vector3(0, 1, 0.0001) : new THREE.Vector3(-1, 1.15, 1).normalize();
-      this.ortho.position.copy(t).add(dir.multiplyScalar(3000)); this.ortho.userData.s = dist * 0.45; this.ortho.zoom = 1;
+      this.ortho.position.copy(t).add(dir.multiplyScalar(3000)); this.ortho.userData.s = dist * 0.45; this.ortho.zoom = 1; this.capOrtho();
     }
     this.resize();
     // chap/oʻng panellar ostida qolmasin: kamera va nishon ekran boʻylab (inset.left − inset.right) / 2 px ga suriladi
