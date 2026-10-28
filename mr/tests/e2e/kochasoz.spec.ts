@@ -10,13 +10,15 @@ async function open(page: Page, hash: string, q = ''): Promise<void> {
   await expect(page.locator('.ws')).toBeVisible();
 }
 const blk = (page: Page) => page.locator('.ws-b .blk');
+/** 28.10: «+ Zona» menyusidan zona qoʻshish */
+async function addZone(page: Page, n: string | RegExp): Promise<void> { await page.locator('.ws-b [data-pick=zone]').click(); await page.locator('.ws-b .ks-menu [role=menuitem]', { hasText: n }).click(); }
 
 test.beforeEach(() => { errs.length = 0; });
 
 test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', async ({ page }) => {
   await open(page, 'b');
   await expect(page.locator('.eko .svc a.on')).toHaveText(/Koʻchasoz/);
-  await expect(page.locator('.ws-b .mtab[aria-pressed=true]')).toContainText('Kesim');
+  await expect(page.locator('.ws-b .mtabs')).toBeHidden();   // 28.10: saytda faqat «Kesim» — rejimlar qatori yashirin
   const n0 = await blk(page).count(); expect(n0).toBeGreaterThan(8);
   await expect(page.locator('.ws-b .chk').first()).toBeVisible();
   // 3-zonani tanlab, enini oshirish
@@ -26,7 +28,7 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
   await page.getByRole('button', { name: 'Enini oshirish' }).click();
   await expect(blk(page).nth(2).locator('.w')).not.toHaveText(w0);
   // zona qoʻshish (Velo)
-  await page.locator('.ws-b .chipb', { hasText: '+ Velo' }).click();
+  await addZone(page, 'Velo');
   await expect(blk(page)).toHaveCount(n0 + 1);
   // koʻrinish: Reja
   await page.locator('.ws-b main .seg').first().getByRole('button', { name: 'Reja' }).click();
@@ -47,11 +49,9 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
 test('saytda: faqat Kesim (Kesim, Reja, Aksonometriya koʻrinishlari) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
   await open(page, 'c');
   await expect(page).toHaveURL(/#\/b$/);                                   // tayyor boʻlmagan rejim → B
-  await expect(page.locator('.ws-b .mtab[aria-disabled=true]')).toHaveCount(3);
+  // 28.10 (5B): tayyor boʻlmagan rejimlar qatori umuman koʻrinmaydi
+  await expect(page.locator('.ws-b .mtabs')).toBeHidden();
   await expect(page.locator('.ws-b .mtab', { hasText: 'Mikromodel' })).toHaveCount(0);       // butunlay yashirin
-  await expect(page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).locator('em.soon')).toHaveText('Tez orada');
-  await page.locator('.ws-b .mtab', { hasText: 'Chorraha' }).click({ force: true });   // aria-disabled — bosilsa ham oʻtmaydi
-  await expect(page).toHaveURL(/#\/b$/);
   await expect(page.locator('.ws-b main .seg').first().locator('button')).toHaveText(['Kesim', 'Reja', 'Aksonometriya']);
   await expect(page.locator('#ksGrafika')).toHaveCount(0);
   await expect(page.locator('#ksVaraq')).toBeVisible();
@@ -221,7 +221,7 @@ test('ariq / lotok zonasi', async ({ page }) => {
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
   await page.evaluate(() => { const E = [['piy', 3, {}], ['qat', 3.5, {}], ['qat', 3.5, {}], ['piy', 3, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 13, tplName: 'A', sel: 1, selU: -1, U: [] }); });
-  await page.locator('.ws-b .chipb', { hasText: /^\+ Ariq$/ }).click();
+  await addZone(page, /^Ariq$/);
   expect(await page.evaluate(() => (window as any).__ks.m.inst.state.els.map((e: any) => e[0]).join(','))).toBe('piy,qat,ariq,qat,piy');
   await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'Ariq / lotok' })).toHaveCount(1);   // legenda
   await expect(page.locator('.ws-b').getByText(/242-band.*QMQ 2\.04\.03-19, 19-jadval/).first()).toBeVisible();   // meʼyoriy band

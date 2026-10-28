@@ -1,5 +1,5 @@
 <div class="ws ws-b {{pCls}}">
-  <div class="mtabs" style="position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(236,235,232,.9); z-index: 3;">
+  <div class="mtabs {{mtCls}}" style="position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(236,235,232,.9); z-index: 3;">
     <sc-for list="{{modes}}" as="m"><button class="mtab" aria-pressed="{{m.p}}" aria-disabled="{{m.dis}}"><b>{{m.k}}</b>{{m.n}}<em class="soon">{{m.soon}}</em></button></sc-for>
   </div>
   <button class="ks-ptog l" type="button" data-ptog="l" aria-pressed="{{pLoff}}" aria-label="{{pLlab}}" title="{{pLlab}}" onClick="{{pLt}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><path d="M9.5 4.5v15"></path><path class="ar" d="M14 10l2 2-2 2"></path></svg></button>
@@ -8,10 +8,12 @@
   <aside class="panel" style="position: absolute; top: 76px; left: 12px; width: 262px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; z-index: 2;">
     <div><span class="t-foot">Koʻcha</span><b style="display: block; font-size: 17px;" class="ks-edn" data-ed="nm" title="Bosib, nomini oʻzgartiring">{{tplName}}</b><span class="t-foot">Qizil chiziqlar orasi <b style="color: #141414;" class="ks-edn" data-ed="rl" title="Bosib, qiymat kiriting">{{rl}} m</b></span></div>
     <span class="lbl">ShNQ toifasi · 2.07.06-24</span>
-    <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{sks}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}" title="{{c.t}}">{{c.n}}</button></sc-for></div>
+    <div class="ks-dd-wrap"><button class="ks-pick" type="button" data-pick="sk" aria-haspopup="listbox" aria-expanded="{{skMenu}}" onClick="{{skToggle}}"><span>{{skCur}}</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+      <sc-if value="{{skMenuB}}"><div class="ks-menu two" role="listbox"><sc-for list="{{sks}}" as="c"><button type="button" role="option" aria-selected="{{c.p}}" onClick="{{c.pick}}"><span>{{c.n}}</span><span class="t-foot">{{c.t}}</span></button></sc-for></div></sc-if></div>
     <span class="t-foot" style="margin-top: -4px;">{{skFull}}</span>
     <span class="lbl">Dizayn-kod turi · 3.4</span>
-    <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{uks}}" as="c"><button class="chipb" aria-pressed="{{c.p}}" onClick="{{c.pick}}" title="{{c.t}}">{{c.n}}</button></sc-for></div>
+    <div class="ks-dd-wrap"><button class="ks-pick" type="button" data-pick="uk" aria-haspopup="listbox" aria-expanded="{{ukMenu}}" onClick="{{ukToggle}}"><span>{{ukCur}}</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+      <sc-if value="{{ukMenuB}}"><div class="ks-menu two" role="listbox"><sc-for list="{{uks}}" as="c"><button type="button" role="option" aria-selected="{{c.p}}" onClick="{{c.pick}}"><span>{{c.n}}</span><span class="t-foot">{{c.t}}</span></button></sc-for></div></sc-if></div>
     <div class="group white" style="padding: 6px 10px;"><sc-for list="{{lims}}" as="l"><div class="lim"><span>{{l.n}}</span><b>{{l.v}}</b></div></sc-for></div>
     <section class="ks-sec">
       <button class="ks-acc" type="button" aria-expanded="{{tOpen}}" onClick="{{tToggle}}"><span class="lbl">Tayyor kesimlar</span><span class="t-foot num">{{tCount}}</span><svg class="ic sm chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
@@ -59,7 +61,8 @@
       <span class="lbl">Rejada joylash · {{z.n}}</span>
       <div class="seg sm"><sc-for list="{{pang}}" as="v"><button aria-pressed="{{v.p}}" onClick="{{v.pick}}">{{v.n}}</button></sc-for></div>
       <span class="t-foot">{{pangNote}}</span>
-      <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{padd}}" as="a"><button class="chipb" onClick="{{a.pick}}" title="{{a.src}}">+ {{a.n}}</button></sc-for></div>
+      <sc-if value="{{paddB}}"><div class="ks-dd-wrap"><button class="ks-pick add" type="button" data-pick="pel" aria-haspopup="menu" aria-expanded="{{peMenu}}" onClick="{{peToggle}}"><span>+ Element</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+        <sc-if value="{{peMenuB}}"><div class="ks-menu two" role="menu"><sc-for list="{{padd}}" as="a"><button type="button" role="menuitem" onClick="{{a.pick}}"><span>{{a.n}}</span><span class="t-foot">{{a.src}}</span></button></sc-for></div></sc-if></div></sc-if>
       <div class="group white" style="padding: 4px 8px;"><sc-for list="{{plist}}" as="r"><div style="display: flex; align-items: center; gap: 4px; padding: 5px 0; border-bottom: 1px solid #f0efec; font-size: 12.5px;"><span style="flex: 1;">{{r.n}}<span class="src" style="display: block; color: #8f8a80; font: 400 11px IBM Plex Mono, monospace;">{{r.pos}}</span></span><button class="chipb" onClick="{{r.up}}" aria-label="Yuqoriga 1 m">↑</button><button class="chipb" onClick="{{r.dn}}" aria-label="Pastga 1 m">↓</button><button class="chipb" onClick="{{r.sh}}" aria-label="Qisqartirish">−</button><button class="chipb" onClick="{{r.lg}}" aria-label="Uzaytirish">+</button><button class="chipb" onClick="{{r.del}}" aria-label="Oʻchirish">×</button></div></sc-for><span class="t-foot">{{plEmpty}}</span></div>
     </div></sc-if>
     <sc-if value="{{isZone}}"><div style="display: flex; flex-direction: column; gap: 10px;">
@@ -79,7 +82,8 @@
       <div class="ks-man" data-man="1"><sc-for list="{{manC}}" as="v"><button type="button" aria-pressed="{{v.p}}" onClick="{{v.pick}}" title="{{v.n}}" aria-label="{{v.n}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{v.ic}}"></path></svg></button></sc-for></div></div></sc-if>
       <div class="note">{{z.rule}}</div>
       <span class="lbl">Zona qoʻshish</span>
-      <div style="display: flex; flex-wrap: wrap; gap: 5px;"><sc-for list="{{adds}}" as="a"><button class="chipb" onClick="{{a.pick}}" style="background: {{a.c}}; color: #141414;">+ {{a.n}}</button></sc-for></div>
+      <div class="ks-dd-wrap"><button class="ks-pick add" type="button" data-pick="zone" aria-haspopup="menu" aria-expanded="{{zaMenu}}" onClick="{{zaToggle}}"><span>+ Zona</span><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+        <sc-if value="{{zaMenuB}}"><div class="ks-menu up" role="menu"><sc-for list="{{adds}}" as="a"><button type="button" role="menuitem" onClick="{{a.pick}}"><span class="zl"><i style="background: {{a.c}};"></i>{{a.n}}</span></button></sc-for></div></sc-if></div>
     </div></sc-if>
     <sc-if value="{{isUtil}}"><div style="display: flex; flex-direction: column; gap: 10px;">
       <div style="display: flex; align-items: center; gap: 10px;"><span class="bd" style="display: inline-block; width: 36px; height: 36px; line-height: 33px; border-radius: 10px; border: 1.5px solid {{u.c}}; color: {{u.c}}; font: 600 12px/33px IBM Plex Mono, monospace; text-align: center;">{{u.k}}</span><span style="display: flex; flex-direction: column;"><b style="font-size: 17px;">{{u.n}}</b><span class="t-foot">{{u.zone}}</span></span></div>

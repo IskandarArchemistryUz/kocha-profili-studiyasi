@@ -55,6 +55,8 @@ function gate(v: Record<string, unknown>): Record<string, unknown> {
   /* Mikromodel saytda umuman koʻrinmaydi (Iskandar, 10:24: «alohida takomillashtiramiz, keyin chiqaramiz») */
   if (Array.isArray(o.modes)) o.modes = (o.modes as { k: string }[]).filter(m => !HIDDEN_MODES.has(m.k)).map(m => READY_MODES.has(m.k) ? m : { ...m, dis: 'true', soon: SOON() });
   if (Array.isArray(o.views)) o.views = (o.views as unknown[]).filter((_x, i) => READY_VIEWS.has(i));
+  /* 28.10 (5B): saytda faqat «Kesim» tayyor — rejimlar qatori yashiriladi, chizma tepaga koʻtariladi */
+  if (Array.isArray(o.modes) && (o.modes as { dis?: string }[]).filter(m => !m.dis).length <= 1) { o.mtCls = 'off'; if (typeof o.pCls === 'string') o.pCls = `${o.pCls} nomt`; }
   return o;
 }
 
@@ -63,7 +65,7 @@ function gate(v: Record<string, unknown>): Record<string, unknown> {
 const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'eL', 'eR', 'gfx', 'showU'];
 const SHARED: Partial<Record<BoardId, string[]>> = { b: STREET, varaq: STREET, c: ['TPL'] };
 /** faqat oʻsha oynada kerak (saqlanmaydi): tanlangan zona/tarmoq */
-const VOLATILE = new Set(['sel', 'selU', 'vw']);
+const VOLATILE = new Set(['sel', 'selU', 'vw', 'skMenu', 'ukMenu', 'peMenu', 'zaMenu']);
 const LS = { get(k: string): Record<string, unknown> | null { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
   set(k: string, v: unknown): void { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* toʻla */ } } };
 const pick = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
@@ -106,14 +108,35 @@ function renderHeader(): void {
     h('span', { class: 'sp' }),
     ...(BETA ? [(() => { const b = ib('ksGrafika', 'Grafik kutubxona', ICON.lib, () => go('grafika')); b.setAttribute('aria-pressed', String(cur === 'grafika')); return b; })()] : []),
     (() => { const b = ib('ksVaraq', 'Albom varagʻi', ICON.sheet, () => go('varaq')); b.setAttribute('aria-pressed', String(cur === 'varaq')); return b; })(),
-    ib('ksSave', 'Koʻchasoz faylini saqlash (.json)', ICON.save, () => saveJson(allState())),
-    ib('ksOpen', 'Faylni ochish', ICON.open, () => openJson(o => { restoreAll(o); toast(tr('Fayl ochildi')); })),
-    /* oldingi studiya hozircha faqat egasiga (js/sinov.js) */
-    !isOwner() ? '' : (() => { const a = h('a', { class: 'btn btn-sm btn-ghost icon-btn', id: 'ksOld', href: '../studio.html', title: tr('Xaritada ishlash (oldingi studiya: OSM koʻchalari, mavjud va loyiha profili, hudud tahlili)'), 'aria-label': tr('Xaritada ishlash') }); const s = svgIcon(ICON.map); s.classList.add('ic', 'sm'); a.append(s); return a; })(),
+    fileMenu(),
     langMenu(l => { void setLang(l); }),
     ib('themeBtn', isDark() ? 'Yorugʻ rejim' : 'Tungi rejim', isDark() ? ICON.sun : ICON.moon, () => toggleTheme()),
   );
 }
+
+/** 28.10 (5B): saqlash, ochish va oldingi studiya — bitta «Fayl» menyusida */
+let fileOpen = false;
+function fileMenu(): HTMLElement {
+  const close = () => { fileOpen = false; renderHeader(); };
+  const item = (id: string, label: string, note: string, on: () => void) => h('button', { type: 'button', role: 'menuitem', id, onclick: () => { close(); on(); } }, h('span', {}, tr(label)), h('span', { class: 't-foot' }, note));
+  const btn = h('button', { class: 'btn btn-sm btn-ghost', id: 'ksFile', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': fileOpen, onclick: () => { fileOpen = !fileOpen; renderHeader(); } }, tr('Fayl'));
+  const chev = svgIcon('<path d="M6 9l6 6 6-6"/>'); chev.classList.add('ic', 'sm'); btn.append(chev);
+  return h('div', { class: 'ks-filew' }, btn, fileOpen ? h('div', { class: 'ks-fmenu', role: 'menu' },
+    item('ksSave', 'Saqlash', '.json', () => saveJson(allState())),
+    item('ksOpen', 'Faylni ochish', '.json', () => openJson(o => { restoreAll(o); toast(tr('Fayl ochildi')); })),
+    /* oldingi studiya hozircha faqat egasiga (js/sinov.js) */
+    isOwner() ? item('ksOld', 'Xaritada ishlash', tr('oldingi studiya'), () => { location.href = '../studio.html'; }) : null) : null);
+}
+document.addEventListener('pointerdown', e => {
+  const t = e.target as Element;
+  if (fileOpen && !t.closest?.('.ks-filew')) { fileOpen = false; renderHeader(); }
+  /* Kesim: ochiq roʻyxat/menyu tashqarida bosilsa yopiladi */
+  if (current?.id === 'b' && !t.closest?.('.ks-dd-wrap')) {
+    const st = current.m.inst.state as Record<string, unknown>, ks = ['skMenu', 'ukMenu', 'peMenu', 'zaMenu', 'tgMenu'].filter(k => st[k]);
+    if (ks.length) current.m.inst.setState(Object.fromEntries(ks.map(k => [k, false])) as never);
+  }
+}, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && fileOpen) { fileOpen = false; renderHeader(); } });
 
 /* ---------- marshrut ---------- */
 function route(): { id: BoardId } {

@@ -10,7 +10,7 @@ test('B: kanal zonasi — qoʻshish, belgilar, uch koʻrinish', async ({ page })
   await page.goto('./kochasoz.html?beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ sel: 3, view: 0 }));
-  await page.locator('.ws-b aside.panel').last().getByRole('button', { name: '+ Kanal' }).click();
+  await page.locator('.ws-b [data-pick=zone]').click(); await page.locator('.ws-b .ks-menu [role=menuitem]', { hasText: /^Kanal$/ }).click();
   const s1 = await st(page); expect(s1.els[4][0]).toBe('kanal'); expect(s1.els[4][1]).toBe(6);
   expect(s1.els[4][2].panjara).toBe(true); expect(s1.els[4][2].bufer).toBe(true);
   await expect(page.locator('.ws-b aside.panel').last()).toContainText('Kanal / daryo');

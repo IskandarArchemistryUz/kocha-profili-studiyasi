@@ -1024,14 +1024,22 @@ export default class Component extends DCLogic {
     var MRG = [{ id: 'mr-asosiy', n: 'Asosiy', list: PROFILES }].concat(Array.from(new Set(PRESET_PROFILES.map(function (p) { return p.group; }))).map(function (g) { return { id: 'mr-' + g, n: g, list: PRESET_PROFILES.filter(function (p) { return p.group === g; }) }; }));
     var MY = s.MY || [], tg = s.tg || 'ks', TG = [{ id: 'my', n: 'Mening kesimlarim', c: MY.length }, { id: 'ks', n: 'Namunalar', c: s.TPL.length }].concat(MRG.map(function (g) { return { id: g.id, n: g.n, c: g.list.length }; }));
     var TL = tg === 'my' ? MY : tg === 'ks' ? s.TPL : ((MRG.filter(function (g) { return g.id === tg; })[0] || MRG[0]).list.map(function (p) { var k2 = profileToKs(p); return [p.name, null, k2.els, k2.sk, k2.uk, []]; }));
+    var MENUS = ['skMenu', 'ukMenu', 'peMenu', 'zaMenu', 'tgMenu'];
+    var menuOnly = function (k) { var o = {}; MENUS.forEach(function (m) { o[m] = m === k ? !self.state[m] : false; }); return o; };
     var isPlanZone = s.selU < 0, cz = Math.min(s.sel, els.length - 1);
     var used2 = Math.round(used * 100) / 100;
     return {
       vw: VW, xa: X(-SB).toFixed(1), xb: X(rl + SB).toFixed(1), kx0: X(0).toFixed(3), kpx: px.toFixed(5), kg: s.view === 0 ? G : '', kd1: s.view === 0 ? D1 : '', kd3: s.view === 0 ? D3 : '', _UC: UC, _SKP: SKP, _DKP: DKP, _px: px, _ext: s.view === 0 ? [14, (s.showU && U.length ? D3 + 26 + 50 : D3 + 26 + 30) + 10] : [14, 642],
       modes: [['A', 'Tarmoq'], ['B', 'Kesim'], ['C', 'Chorraha'], ['D', 'Koʻcha muhiti'], ['E', 'Mikromodel']].map(function (m, i) { return { k: m[0], n: m[1], p: i === 1 ? 'true' : 'false' }; }),
       tplName: s.tplName, rl: fm(rl), used: fm(used2),
-      sks: Object.keys(SKP).map(function (k) { return { n: SKP[k][0], t: SKP[k][6], p: s.sk === k ? 'true' : 'false', pick: function () { self.setState({ sk: k }); } }; }),
-      uks: Object.keys(DKP).map(function (k) { return { n: k === 'M1' ? 'M1–M2' : k, t: DKP[k][6], p: s.uk === k ? 'true' : 'false', pick: function () { self.setState({ uk: k }); } }; }),
+      sks: Object.keys(SKP).map(function (k) { return { n: SKP[k][0], t: SKP[k][6], p: s.sk === k ? 'true' : 'false', pick: function () { self.setState({ sk: k, skMenu: false }); } }; }),
+      uks: Object.keys(DKP).map(function (k) { return { n: k === 'M1' ? 'M1–M2' : k, t: DKP[k][6], p: s.uk === k ? 'true' : 'false', pick: function () { self.setState({ uk: k, ukMenu: false }); } }; }),
+      /* 28.10 (5B): toifa va tur — ochiladigan roʻyxat; «+ Element» va «+ Zona» — menyu (bir vaqtda bittasi ochiq) */
+      skCur: SKP[s.sk][0], ukCur: s.uk === 'M1' ? 'M1–M2' : s.uk,
+      skMenu: s.skMenu ? 'true' : 'false', skMenuB: !!s.skMenu, skToggle: function () { self.setState(menuOnly('skMenu')); },
+      ukMenu: s.ukMenu ? 'true' : 'false', ukMenuB: !!s.ukMenu, ukToggle: function () { self.setState(menuOnly('ukMenu')); },
+      peMenu: s.peMenu ? 'true' : 'false', peMenuB: !!s.peMenu, peToggle: function () { self.setState(menuOnly('peMenu')); },
+      zaMenu: s.zaMenu ? 'true' : 'false', zaMenuB: !!s.zaMenu, zaToggle: function () { self.setState(menuOnly('zaMenu')); },
       lims: [['Boʻlak eni (2.07.06)', sk[1] ? fm(sk[1]) + '–' + fm(sk[2]) : '—'], ['Piyoda (ShNQ)', sk[3] ? '≥ ' + fm(sk[3]) : '—'], ['Piyoda (DK)', '≥ ' + fm(dk[0]) + ' · ' + fm(dk[1])], ['B1 / B2 / B3', fm(dk[2]) + ' / ' + fm(dk[3]) + ' / ' + fm(dk[4])]].map(function (l) { return { n: l[0], v: l[1] }; }),
       /* oʻz kesimi: boʻsh kesimdan boshlash va joriy kesimni «Mening kesimlarim» ga saqlash (nom — koʻcha nomi, bosib oʻzgartiriladi) */
       newBlank: function () { self.setState({ els: [['piy', 3, {}], ['qat', 3.5, { zebra: true }], ['qat', 3.5, { zebra: true }], ['piy', 3, {}]], rl: 13, tplName: tr('Yangi kesim'), sel: 1, selU: -1, U: [], PL: [] }); },
@@ -1068,7 +1076,8 @@ export default class Component extends DCLogic {
       isPlanZone: isPlanZone,
       pang: selT === 'park' ? [[0, '∥ Parallel'], [45, '45°'], [90, '90°']].map(function (v) { var cur = (els[cz][2] || {}).ang || 0; return { n: v[1], p: cur === v[0] ? 'true' : 'false', pick: function () { upd(function (E, i) { E[i][2].ang = v[0]; E[i][1] = { 0: 2.5, 45: 5.0, 90: 5.0 }[v[0]]; }); } }; }) : [],
       pangNote: selT === 'park' ? 'Dizayn-kod 6.3: ' + ANG[(els[cz][2] || {}).ang || 0][2] + '. Burchak oʻzgarsa, zona eni moslashadi.' : 'Elementni bosing — zonadagi birinchi boʻsh joyga qoʻyiladi.',
-      padd: Object.keys(CAT).filter(function (k) { return CAT[k][1].indexOf(selT) >= 0; }).map(function (k) { return { n: CAT[k][0], src: CAT[k][3], pick: function () { var l = CAT[k][2]; var y = freeY(cz, l); updPL(function (N) { N.push({ t: k, z: cz, y: Math.round(y * 2) / 2, l: l }); }); } }; }),
+      paddB: Object.keys(CAT).some(function (k) { return CAT[k][1].indexOf(selT) >= 0; }),
+      padd: Object.keys(CAT).filter(function (k) { return CAT[k][1].indexOf(selT) >= 0; }).map(function (k) { return { n: CAT[k][0], src: CAT[k][3], pick: function () { self.setState({ peMenu: false }); var l = CAT[k][2]; var y = freeY(cz, l); updPL(function (N) { N.push({ t: k, z: cz, y: Math.round(y * 2) / 2, l: l }); }); } }; }),
       plist: PLs.map(function (p, j) { return { p: p, j: j }; }).filter(function (o) { return o.p.z === cz; }).map(function (o) { var p = o.p, j = o.j; return { n: CAT[p.t][0], pos: fm(p.y) + '–' + fm(p.y + p.l) + ' m · ' + CAT[p.t][3], up: function () { updPL(function (N) { N[j].y = Math.max(0, N[j].y - 1); }); }, dn: function () { updPL(function (N) { N[j].y = Math.min(LMg - N[j].l, N[j].y + 1); }); }, sh: function () { updPL(function (N) { N[j].l = Math.max(0.6, N[j].l - 1); }); }, lg: function () { updPL(function (N) { N[j].l = Math.min(LMg - N[j].y, N[j].l + 1); }); }, del: function () { updPL(function (N) { N.splice(j, 1); }); } }; }),
       plEmpty: PLs.filter(function (p) { return p.z === cz; }).length ? '' : 'Bu zonada joylangan element yoʻq.',
       isZone: s.selU < 0, isUtil: s.selU >= 0,
@@ -1091,7 +1100,7 @@ export default class Component extends DCLogic {
       mvL: function () { upd(function (E, i) { if (i > 0) { var t = E[i]; E[i] = E[i - 1]; E[i - 1] = t; return { sel: i - 1, PL: remapPL(function (z) { return z === i ? i - 1 : z === i - 1 ? i : z; }) }; } }); }, mvR: function () { upd(function (E, i) { if (i < E.length - 1) { var t = E[i]; E[i] = E[i + 1]; E[i + 1] = t; return { sel: i + 1, PL: remapPL(function (z) { return z === i ? i + 1 : z === i + 1 ? i : z; }) }; } }); },
       dup: function () { upd(function (E, i) { E.splice(i + 1, 0, [E[i][0], E[i][1], Object.assign({}, E[i][2])]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); },
       del: function () { upd(function (E, i) { if (E.length > 1) { E.splice(i, 1); return { sel: Math.max(0, i - 1), PL: remapPL(function (z) { return z === i ? -1 : z > i ? z - 1 : z; }) }; } }); },
-      adds: Object.keys(T).map(function (k) { return { n: T[k].s, c: T[k].c, pick: function () { upd(function (E, i) { E.splice(i + 1, 0, [k, k === 'qat' || k === 'bus' ? 3.5 : (k === 'tram' ? 3.1 : (k === 'mebel' ? 0.6 : k === 'ariq' ? 1 : k === 'kanal' ? 6 : 1.5)), defItems(k)]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); } }; }),
+      adds: Object.keys(T).map(function (k) { return { n: T[k].s, c: T[k].c, pick: function () { self.setState({ zaMenu: false }); upd(function (E, i) { E.splice(i + 1, 0, [k, k === 'qat' || k === 'bus' ? 3.5 : (k === 'tram' ? 3.1 : (k === 'mebel' ? 0.6 : k === 'ariq' ? 1 : k === 'kanal' ? 6 : 1.5)), defItems(k)]); return { sel: i + 1, PL: remapPL(function (z) { return z > i ? z + 1 : z; }) }; }); } }; }),
       u: su ? { k: ulbl(su.k), n: suc[1], c: suc[2], x: fm(su.x) + ' m', d: fm(su.d) + ' m', zone: 'Ostida: ' + (szt === 'setback' ? 'qizil chiziqdan tashqari (qurilish oldi)' : T[szt].n), rows: sev.rows } : { k: '', n: '', c: '#000', x: '', d: '', zone: '', rows: [] },
       uxD: function () { updU(function (N, j) { N[j].x = Math.max(-SB, Math.round((N[j].x - 0.1) * 10) / 10); }); }, uxU: function () { updU(function (N, j) { N[j].x = Math.min(self.state.rl + SB, Math.round((N[j].x + 0.1) * 10) / 10); }); },
       udD: function () { updU(function (N, j) { N[j].d = Math.max(0.5, Math.round((N[j].d - 0.1) * 10) / 10); }); }, udU: function () { updU(function (N, j) { N[j].d = Math.round((N[j].d + 0.1) * 10) / 10; }); },
