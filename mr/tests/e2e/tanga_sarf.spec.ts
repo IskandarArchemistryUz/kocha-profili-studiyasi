@@ -75,24 +75,39 @@ test('tanga yetmasa — xabar va «Tanga olish»; tarix oynasi', async ({ page }
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/tangalarim.png` });
 });
 
-test('uchastka: 3 ga gacha — bepul; kattasi — «Loyihani ochish» (bekor — chegara qoʻyilmaydi; toʻlov — qoʻyiladi, qayta soʻralmaydi)', async ({ page }) => {
+test('uchastka: istalgan maydon bepul chiziladi; 3 ga dan kattasida 7-qadamga oʻtishda «Loyihani ochish» (bekor — oʻtmaydi; toʻlov — bir marta)', async ({ page }) => {
   const st = await mockApi(page, { balance: 30 });
   await page.goto('./'); await page.click('#newP');
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');   // 2,24 ga
-  await expect(page.locator('#kSite b')).not.toHaveText('—');
+  await expect(page.locator('#kSite b')).toHaveText(/^2,2/);
+  await expect(page.locator('.rb[data-step=fasad]')).toHaveAttribute('data-paid', 'false');
+  await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');   // 6 ga — soʻralmaydi
+  await expect(page.locator('#kSite b')).toHaveText(/^6,0/);
   await expect(page.locator('#kdSite')).toHaveCount(0);
-  await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');   // 6 ga
+  await expect(page.locator('.rb[data-step=fasad]')).toHaveAttribute('data-paid', 'true');
+  await expect(page.locator('.rb[data-step=quyosh]')).toHaveAttribute('data-paid', 'false');
+  // 1–6-qadamlar — bepul
+  await page.click('[data-step=quyosh]');
+  await expect(page.locator('.rb[data-step=quyosh]')).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('#kdSite')).toHaveCount(0);
+  // 7-qadam — «Loyihani ochish»
+  await page.click('[data-step=fasad]');
   await expect(page.locator('#kdSite')).toBeVisible();
   await expect(page.locator('#kdSiteGo')).toContainText('10 tanga');
+  await expect(page.locator('#kdSite')).toContainText('1–6-qadamlar bepul');
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/uchastka_ochish.png` });
   await page.keyboard.press('Escape');
-  await expect(page.locator('#kSite b')).toHaveText(/^2,2/);   // eski chegara qoldi
-  await page.click('#rectSite'); await page.click('#kdSiteGo');
-  await expect(page.locator('#kSite b')).toHaveText(/^6,0/);
+  await expect(page.locator('.rb[data-step=quyosh]')).toHaveAttribute('aria-current', 'step');   // oʻtmadi
+  expect(st.tickets).toHaveLength(0);
+  await page.click('[data-step=fasad]'); await page.click('#kdSiteGo');
+  await expect(page.locator('.rb[data-step=fasad]')).toHaveAttribute('aria-current', 'step');
   expect(st.tickets.map(t => t.items[0])).toEqual(['mr.site']);
-  await page.fill('#rw', '280'); await page.click('#rectSite');   // 5,6 ga — shu pogʻona, qayta soʻralmaydi
-  await expect(page.locator('#kSite b')).toHaveText(/^5,6/);
+  await expect(page.locator('.rb[data-step=fasad]')).toHaveAttribute('data-paid', 'false');
+  // qayta — soʻralmaydi
+  await page.click('[data-step=quyosh]'); await page.click('[data-step=kvartira]');
+  await expect(page.locator('.rb[data-step=kvartira]')).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('#kdSite')).toHaveCount(0);
   expect(st.tickets).toHaveLength(1);
 });
 

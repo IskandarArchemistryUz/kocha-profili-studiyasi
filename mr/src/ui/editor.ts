@@ -103,7 +103,7 @@ import { check as checkAuth, current as currentUser, onAuth, logout } from '../a
 import { loginDialog } from '../account/login';
 import { isLinkOwner, setExportArea, setExportProject } from '../core/wm';
 import { buyDialog } from '../account/buy';
-import { coinsDialog, useHeavy, siteGate, siteOk, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
+import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
@@ -1040,9 +1040,8 @@ export class Editor {
     return h('span', { class: 'ptag', 'data-ptag': kind, hidden: !t }, t);
   }
 
-  /** Uchastka chegarasini qoʻyish — bepul tarifda 3 ga gacha, kattasi — «Loyihani ochish» (account/pay.ts). */
+  /** Uchastka chegarasini qoʻyish — har qanday maydon bepul (28.10); 3 ga dan kattasi 7-qadamda ochiladi (siteStepOk). */
   private async putSite(rings: LngLat[][], after?: () => void): Promise<void> {
-    if (!await siteGate(this.store.doc.id, ringAreaM2(rings[0]) / 1e4)) { this.setTool(null); return; }
     this.run(() => this.store.dispatch({ type: 'setSite', rings }));
     after?.();
   }
@@ -1052,12 +1051,10 @@ export class Editor {
     const f = frame(d.origin), v = this.scene.viewExtent(), hw = this.scene.viewHalfWidth();
     if (r.map(f.toLocal).some(q => Math.abs(q[0] - v.c[0]) > hw * 0.9 || Math.abs(q[1] - v.c[1]) > hw * 0.9 * ((this.el.scene.clientHeight || 1) / (this.el.scene.clientWidth || 1)))) this.scene.frameDoc(d);
   }
-  private siteHintT = 0;
-  /** Sudrab kattalashtirishda chegaradan oshsa — tahrir qoʻllanmaydi; oyna 3 soniyada koʻpi bilan bir marta */
-  private siteLimitHint(rings: LngLat[][]): void {
-    const t = performance.now(); if (t - this.siteHintT < 3000) return; this.siteHintT = t;
-    void siteGate(this.store.doc.id, ringAreaM2(rings[0]) / 1e4);
-  }
+  /** Uchastka maydoni, ga (chizilmagan — 0) */
+  private siteHa(): number { const r = this.store.doc.site?.rings[0]; return r ? ringAreaM2(r) / 1e4 : 0; }
+  /** 7–11-qadamlar: katta uchastka loyihasi ochilganmi (1–6 — doim) */
+  private siteStepOk(s: StepDef): boolean { return s.n < PAID_STEP_FROM || siteOk(this.store.doc.id, this.siteHa()); }
 
   /* ===== 1-qadam: Hudud (MR-Q1) ===== */
   private hududPanel(body: HTMLElement): void {
@@ -2159,7 +2156,7 @@ export class Editor {
     if (st === 'kocha') { const s = doc.streets.find(x => x.id === this.selStreet); if (!s) return null;
       return { id: s.id, pts: s.axis.map(fr.toLocal), closed: false, min: 2, street: true, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateStreet', id: s.id, patch: { axis: pts.map(fr.toGeo) } }, key)) }; }
     if (st === 'uchastka' && doc.site) { const r = doc.site.rings;
-      return { id: 'site', pts: r[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => { const rr = [pts.map(fr.toGeo), ...r.slice(1)]; if (!siteOk(doc.id, ringAreaM2(rr[0]) / 1e4)) { this.siteLimitHint(rr); return; } this.run(() => this.store.dispatch({ type: 'setSite', rings: rr }, key)); } }; }
+      return { id: 'site', pts: r[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => { const rr = [pts.map(fr.toGeo), ...r.slice(1)]; this.run(() => this.store.dispatch({ type: 'setSite', rings: rr }, key)); } }; }
     if (st === 'parsel' && this.selBlock != null) { const b = this.plan().blocks[this.selBlock], pc = b?.parcelId ? doc.parcels.find(p => p.id === b.parcelId) : null; if (!pc) return null;
       return { id: pc.id, pts: pc.rings[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateParcel', id: pc.id, patch: { rings: [pts.map(fr.toGeo), ...pc.rings.slice(1)] } }, key)) }; }
     if (st === 'hajm' && this.sel && this.dragMode !== 'yoq') { const b = doc.buildings.find(x => x.id === this.sel); if (!b) return null;
@@ -2765,7 +2762,7 @@ export class Editor {
     STEPS.forEach((s, i) => {
       if (i === 2 || i === 6 || i === 10) r.append(h('hr'));
       const lk = this.locked(s), title = tr(s.title);
-      const b = h('button', { class: `rb${lk ? ' locked' : ''}`, 'aria-label': `${s.n}. ${title}${lk ? ' — ' + lk : ''}`, title: `${s.n}. ${title}${lk ? '\n' + lk : ''}`, 'data-step': s.id, 'aria-current': s === this.step ? 'step' : null, 'aria-expanded': s === this.step ? this.panelOpen : null, 'data-locked': !!lk, 'data-done': this.done(s), onclick: () => { if (s === this.step && this.panelOpen) { this.panelOpen = false; this.renderRail(); this.renderPanel(); } else this.go(s); } });
+      const b = h('button', { class: `rb${lk ? ' locked' : ''}`, 'aria-label': `${s.n}. ${title}${lk ? ' — ' + lk : ''}`, title: `${s.n}. ${title}${lk ? '\n' + lk : ''}${this.siteStepOk(s) ? '' : '\n' + tr('Loyihani ochish')}`, 'data-step': s.id, 'data-paid': String(!this.siteStepOk(s)), 'aria-current': s === this.step ? 'step' : null, 'aria-expanded': s === this.step ? this.panelOpen : null, 'data-locked': !!lk, 'data-done': this.done(s), onclick: () => { if (s === this.step && this.panelOpen) { this.panelOpen = false; this.renderRail(); this.renderPanel(); } else this.go(s); } });
       b.append(svgIcon(s.icon), h('span', { class: 'n' }, s.n)); r.append(b);
     });
     this.renderToolbar();
@@ -2881,6 +2878,7 @@ export class Editor {
   }
 
   go(s: StepDef): void {
+    if (!this.siteStepOk(s)) { void siteGate(this.store.doc.id, this.siteHa()).then(ok => { if (ok) this.go(s); }); return; }
     if (needsLogin(s.id)) { void ensureLogin(s.id, tf('«${t}» va keyingi qadamlarda ishlash uchun kiring. Hisob bepul.', { t: tr(s.title) })).then(ok => { if (ok) this.go(s); }); return; }
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
