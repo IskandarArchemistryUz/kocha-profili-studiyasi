@@ -93,7 +93,8 @@ import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import type { ContextBundle } from '../context/load';
 import { summary } from '../context/osm';
-import { geocode, type Place } from '../context/geocode';
+import { geocode, bboxKm, type Place } from '../context/geocode';
+import { WorldMap, zoomFor } from './worldmap';
 import { detectBlock, type Barrier } from '../context/blocks';
 import { track } from '../core/stats';
 import { authRequired } from '../account/config';
@@ -120,6 +121,7 @@ const ICON = {
   map: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18Z"/>',
   layers: '<path d="M4 18h16"/><path d="M4 12h16"/><path d="M4 6h16"/><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="7" cy="18" r="1.6"/>',
 };
 
@@ -178,6 +180,7 @@ export class Editor {
     this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = tr(s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'); });
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
     this.bindScene(); this.bindKeys();
+    this.scene.onZoomOutLimit = () => { if (!this.world.open && !document.querySelector('.gx')) void this.openWorld(); };
     { let raf = 0; this.scene.onView = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (this.el.scene.querySelector('.btools')) this.syncBTools(); this.followBase(); }); }; }
     this.renderAll(); this.recompute();
     void this.ensureContext();   // yuklanmagan boʻlsa — fon xaritasi
@@ -192,7 +195,7 @@ export class Editor {
     addEventListener('pagehide', keep); this.off.push(() => removeEventListener('pagehide', keep));
   }
 
-  dispose(): void { this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
+  dispose(): void { this.world.dispose(); this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
 
   /* ---------- qobiq ---------- */
   private build(): HTMLElement {
@@ -233,9 +236,10 @@ export class Editor {
     // tepada oʻngda: xarita (fon va uslub) va tahliliy qatlamlar
     const mapctl = h('div', { class: 'mapctl' },
       this.popBtn('stylePop', tr('Xarita'), () => this.stylePop(), 'down', ICON.map),
-      this.popBtn('layPop', tr('Qatlamlar'), () => this.layPop(), 'down', ICON.layers));
+      this.popBtn('layPop', tr('Qatlamlar'), () => this.layPop(), 'down', ICON.layers),
+      h('button', { type: 'button', class: 'mapbtn glassbar', id: 'worldBtn', title: tr('Dunyo xaritasi'), onclick: () => void this.openWorld() }, svgIcon(ICON.globe), h('span', {}, tr('Dunyo'))));
     const ulcard = h('div', { class: 'ulcard glassbar', hidden: true, role: 'dialog', 'aria-label': tr('Qatlam obyekti') });
-    const stage = h('div', { class: 'stage' }, scene, rail, panel, hint, drawer, kpi, tb, attr, badge, mapctl, lblbar, ulcard);
+    const stage = h('div', { class: 'stage' }, scene, this.world.el, rail, panel, hint, drawer, kpi, tb, attr, badge, mapctl, lblbar, ulcard);
     Object.assign(this.el, { name, save, saveT, seg, rail, panel, kpi, tb, drawer, hint, scene, stage, attr, badge, lblbar, ulcard });
     return h('div', { class: 'app' }, top, stage);
   }
@@ -883,9 +887,39 @@ export class Editor {
   private async doSearch(q: string): Promise<void> {
     if (!q.trim()) return;
     this.search = { ...this.search, q, busy: true, err: '', res: [] }; this.renderPanel();
-    try { this.search.res = await geocode(q, this.store.doc.origin); if (!this.search.res.length) this.search.err = 'Hech narsa topilmadi. Koʻcha, mahalla yoki «41.311, 69.279» koʻrinishida yozing.'; }
+    try { this.search.res = await geocode(q, this.store.doc.origin); if (!this.search.res.length) this.search.err = 'Hech narsa topilmadi. Shahar, koʻcha, mahalla yoki «41.311, 69.279» koʻrinishida yozing.'; }
     catch (e) { this.search.err = (e as Error).message || 'Qidiruvda xato'; }
     this.search.busy = false; this.renderPanel();
+  }
+
+  /* ===== Dunyo xaritasi: 3D sahna ~16 km dan uzoqqa chiqmaydi — undan nariga MapLibre (butun dunyo) ===== */
+  private world = new WorldMap({
+    onArrive: (c, halfM) => this.arriveWorld(c, halfM),
+    onClose: () => this.closeWorld(),
+    inset: () => { const p = this.el.panel, st = this.el.stage; if (!p?.offsetWidth || !st) return 0; return Math.max(0, p.getBoundingClientRect().right - st.getBoundingClientRect().left + 12); },
+  });
+  private async openWorld(bbox?: [number, number, number, number], mark?: LngLat): Promise<void> {
+    this.closePop();
+    const o = this.store.doc.origin, v = this.scene.viewExtent(), here = frame(o).toGeo(v.c);
+    const w = this.el.scene.clientWidth || 1000;
+    // joriy koʻrinishdan bir pogʻona uzoqroq — oʻtish uzilmasin
+    await this.world.show(here, zoomFor(Math.max(v.r, 4000) * 2.5, here[1], w) , bbox, mark ?? o);
+    this.el.stage.classList.add('wm-on');
+  }
+  private closeWorld(): void { this.world.hide(); this.el.stage.classList.remove('wm-on'); }
+  private arriveWorld(c: LngLat, halfM: number): void {
+    const doc = this.store.doc, f = frame(doc.origin), p = f.toLocal(c), far = Math.hypot(p[0], p[1]) > 12000;
+    this.closeWorld();
+    if (!far) { this.scene.frameLocal(p[0], p[1], halfM); return; }
+    this.goTo({ name: tr('Xaritada tanlangan joy'), detail: '', at: c }, null);
+    if (this.search.pending) { if (this.step.id !== 'uchastka') { const s = STEPS.find(x => x.id === 'uchastka'); if (s) this.go(s); } this.renderPanel(); }
+    else this.scene.frameRadius(Math.min(halfM, 1500));
+  }
+  /** Qidiruv natijasi: davlat / viloyat / katta shahar — dunyo xaritasida chegarasiga moslab; kichik joy — darhol 3D */
+  private pickPlace(p: Place): void {
+    if (p.bbox && bboxKm(p.bbox) > 12) { this.search.res = []; this.renderPanel(); void this.openWorld(p.bbox, p.at); return; }
+    if (this.world.open) this.closeWorld();
+    this.goTo(p, null);
   }
 
   private goTo(p: Place, carry: boolean | null): void {
@@ -1002,7 +1036,7 @@ export class Editor {
     // 27.10 (1+2 birlashdi): asosiy — qidiruv va «Atrofni yuklash»; markaz, radius, chegara, qatlamlar va oʻz maʼlumotlar — «Atrof sozlamalari» ichida
     const more = h('details', { class: 'how', id: 'ctxMore' }, h('summary', {}, svgIcon(IC.info), tr('Atrof sozlamalari: markaz, radius, qatlamlar')));
     const doc = this.store.doc, cs = doc.context, b = this.ctxView(this.ctxMgr.current), S = this.search;   // chegara boʻyicha — qirqilgan
-    const q = h('input', { type: 'search', class: 'input', id: 'q', placeholder: tr('Manzil, mahalla yoki 41.311, 69.279'), value: S.q, 'aria-label': tr('Manzil qidiruvi') }) as HTMLInputElement;
+    const q = h('input', { type: 'search', class: 'input', id: 'q', placeholder: tr('Davlat, shahar, manzil yoki 41.311, 69.279'), value: S.q, 'aria-label': tr('Manzil qidiruvi') }) as HTMLInputElement;
     q.addEventListener('keydown', e => { if (e.key === 'Enter') void this.doSearch(q.value); });
     body.append(h('div', { class: 'row' }, h('div', { class: 'field grow' }, h('label', {}, tr('Qidirish')), q),
       h('button', { class: 'btn btn-primary', id: 'qGo', style: 'align-self:end', disabled: S.busy, onclick: () => void this.doSearch(q.value) }, S.busy ? '…' : tr('Topish'))));
@@ -1016,7 +1050,7 @@ export class Editor {
           h('button', { class: 'btn btn-sm', id: 'mvOnly', onclick: () => this.goTo(p, false) }, tr('Joyida qolsin')),
           h('button', { class: 'btn btn-ghost btn-sm', onclick: () => { this.search.pending = null; this.renderPanel(); } }, tr('Bekor qilish'))));
     } else if (S.res.length) {
-      body.append(h('div', { class: 'group res', role: 'listbox', 'aria-label': tr('Qidiruv natijalari') }, ...S.res.map(p => h('button', { class: 'li it', role: 'option', onclick: () => this.goTo(p, null) }, h('span', { class: 'k' }, p.name, h('span', { class: 'sub' }, p.detail))))));
+      body.append(h('div', { class: 'group res', role: 'listbox', 'aria-label': tr('Qidiruv natijalari') }, ...S.res.map(p => h('button', { class: 'li it', role: 'option', onclick: () => this.pickPlace(p) }, h('span', { class: 'k' }, p.name, h('span', { class: 'sub' }, p.detail))))));
     }
     more.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Loyiha markazi'), h('span', { class: 'sub' }, tr('Xaritada oʻng tugma → «Markazni shu yerga koʻchirish»'))), h('span', { class: 'v mono', id: 'orig' }, `${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)}`))));
     (cs.loaded ? more : body).append(h('div', { class: 'glabel' }, h('span', {}, tr('Atrof radiusi'))),
@@ -3409,7 +3443,8 @@ export class Editor {
 
   private bindKeys(): void {
     const onKey = (e: KeyboardEvent) => {
-      if (document.querySelector('.gx')) return;   // Varaqlar / Chizmadon oynasi ochiq — oʻz klaviaturasi bor
+      if (document.querySelector('.gx')) return;
+      if (this.world.open) { if (e.key === 'Escape' && !(e.target as HTMLElement)?.matches?.('input,textarea')) { e.preventDefault(); this.closeWorld(); } return; }   // Varaqlar / Chizmadon oynasi ochiq — oʻz klaviaturasi bor
       const typing = (e.target as HTMLElement)?.matches?.('input,textarea,select');
       // oʻlcham yozilayotgan boʻlsa Esc faqat yozuvni oʻchiradi, asbob qoladi
       const hadBuf = !!(this.tool as { buf?: string } | null)?.buf;

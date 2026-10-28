@@ -64,3 +64,25 @@ export function mapStyle(kind: 'stil' | 'sat', palKey = 'arch', labels = true, c
   }
   return { version: 8, glyphs: GLYPHS, sources: { kb: { type: 'vector', url: OFM } }, layers: L };
 }
+
+/**
+ * Dunyo xaritasi (Master reja: joy tanlash uchun uzoqlashtirish) — mapStyle ustiga davlat va viloyat chegaralari,
+ * davlat / viloyat / shahar nomlari foydalanuvchi tilida (name:<til> → name:en → name).
+ */
+export function worldStyle(kind: 'stil' | 'sat', palKey = 'arch', lang = 'en'): unknown {
+  const s = mapStyle(kind, palKey, true) as { layers: Record<string, unknown>[]; sources: Record<string, unknown> };
+  const p = PALETTES[palKey] ?? PALETTES.arch, dark = kind === 'sat' || palKey === 'dark' || palKey === 'kok';
+  if (kind === 'sat') s.sources.kb = { type: 'vector', url: OFM };
+  const nm = ['coalesce', ['get', `name:${lang}`], ['get', 'name:en'], ['get', 'name:latin'], ['get', 'name']];
+  const ink = dark ? '#f2f1ee' : p.label, halo = dark ? 'rgba(0,0,0,.6)' : p.bg, line = dark ? 'rgba(255,255,255,.55)' : '#8f8a80';
+  s.layers = s.layers.filter(l => l.id !== 'lab-place');   // joy nomlari — pastdagi w-city (foydalanuvchi tilida)
+  s.layers.push(
+    { id: 'w-adm4', type: 'line', source: 'kb', 'source-layer': 'boundary', minzoom: 3, filter: ['all', ['==', ['get', 'admin_level'], 4], ['!=', ['get', 'maritime'], 1]], paint: { 'line-color': line, 'line-width': .6, 'line-dasharray': [3, 2], 'line-opacity': .7 } },
+    { id: 'w-adm2', type: 'line', source: 'kb', 'source-layer': 'boundary', filter: ['all', ['==', ['get', 'admin_level'], 2], ['!=', ['get', 'maritime'], 1]], paint: { 'line-color': line, 'line-width': ['interpolate', ['linear'], ['zoom'], 1, .6, 8, 1.6] } },
+    { id: 'w-country', type: 'symbol', source: 'kb', 'source-layer': 'place', maxzoom: 7, filter: ['==', ['get', 'class'], 'country'], layout: { 'text-field': nm, 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 1, 10, 6, 15], 'text-max-width': 8 }, paint: { 'text-color': ink, 'text-halo-color': halo, 'text-halo-width': 1.4 } },
+    { id: 'w-state', type: 'symbol', source: 'kb', 'source-layer': 'place', minzoom: 4, maxzoom: 9, filter: ['==', ['get', 'class'], 'state'], layout: { 'text-field': nm, 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-transform': 'uppercase', 'text-letter-spacing': .08 }, paint: { 'text-color': ink, 'text-halo-color': halo, 'text-halo-width': 1.2, 'text-opacity': .75 } },
+    { id: 'w-city', type: 'symbol', source: 'kb', 'source-layer': 'place', minzoom: 3, filter: ['match', ['get', 'class'], ['city', 'town'], true, false], layout: { 'text-field': nm, 'text-font': ['Noto Sans Regular'], 'text-size': ['match', ['get', 'class'], 'city', 13, 11.5] }, paint: { 'text-color': ink, 'text-halo-color': halo, 'text-halo-width': 1.3 } },
+    { id: 'w-village', type: 'symbol', source: 'kb', 'source-layer': 'place', minzoom: 10, filter: ['match', ['get', 'class'], ['village', 'suburb', 'quarter', 'neighbourhood'], true, false], layout: { 'text-field': nm, 'text-font': ['Noto Sans Regular'], 'text-size': 10.5 }, paint: { 'text-color': ink, 'text-halo-color': halo, 'text-halo-width': 1.2 } },
+  );
+  return s;
+}
