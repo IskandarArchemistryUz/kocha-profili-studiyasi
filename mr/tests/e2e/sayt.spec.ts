@@ -166,3 +166,31 @@ test('oferta va maxfiylik: uch til, rekvizitlar, oʻzaro havolalar, futer', asyn
   }
   expect(errs).toEqual([]);
 });
+
+test('atamalar: «Istisnolar» boʻlimi — iqtiboslar, jadval, 3 til, 1024 px tungi', async ({ page }) => {
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.route(/fonts\.g/, r => r.abort());
+  const open = async (lang: string, w: number, dark = false) => {
+    await page.addInitScript(([l, d]) => { try { localStorage.setItem('kps_lang', l as string); if (d) localStorage.setItem('kps-theme', 'dark'); } catch { /* */ } }, [lang, dark] as const);
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.goto(`http://127.0.0.1:${PORT}/atamalar.html?${lang}-${w}#istisno`);
+    if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  };
+  await open('uz', 1440);
+  const sec = page.locator('#istisno');
+  await expect(sec.locator('h2')).toHaveText('Binolar orasidagi masofani qachon qisqartirish mumkin?');
+  await expect(sec.locator('blockquote').first()).toContainText('ikki barobargacha qisqartirishga yoʻl qoʻyiladi');
+  await expect(sec.locator('tbody tr')).toHaveCount(5);
+  await expect(page.locator('.chips a[href="#istisno"]')).toBeVisible();
+  if (process.env.SHOT_DIR) await sec.screenshot({ path: `${process.env.SHOT_DIR}/atam_ist_uz.png` });
+  await open('en', 1024, true);
+  await expect(sec.locator('h2')).toHaveText('When can the distance between buildings be reduced?');
+  await expect(sec.locator('blockquote').nth(1)).toContainText('twice the height of the tallest building');
+  await expect(sec.locator('td.no')).toHaveText('none');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
+  if (process.env.SHOT_DIR) await sec.screenshot({ path: `${process.env.SHOT_DIR}/atam_ist_en_1024d.png` });
+  await open('es', 1024);
+  await expect(sec.locator('h2')).toHaveText('¿Cuándo se puede reducir la distancia entre edificios?');
+  await expect(sec.locator('blockquote').first()).toContainText('hasta dos veces');
+  expect(errs).toEqual([]);
+});
