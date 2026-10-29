@@ -29,6 +29,23 @@ describe('binolar orasidagi masofa (79-band 2-jadval)', () => {
   });
 });
 
+describe('rekonstruksiya rejimi (79-band 2-jadval 7-izoh)', () => {
+  const rec = (d: Project): Project => ({ ...d, settings: { ...d.settings, recon: true } });
+  const ev = (d: Project) => RULES.find(x => x.id === 'spacing-79')!.evaluate({} as never, d);
+  it('toretslar: jadvaldan kam, yarmidan koʻp — koʻrib chiqish; yarmidan kam — buzilish', () => {
+    const mk = (gap: number) => doc([bld('a', rect(0, 0, 30, 15), 12, 'g1'), bld('b', rect(30 + gap, 0, 30, 15), 12, 'g2')]);
+    expect(ev(mk(15)).status).toBe('fail');                         // oddiy rejim: (H1+H2)·0,3 ≈ 24 m
+    expect(spacingIssues(rec(mk(15))).pairs[0]).toMatchObject({ kind: 'torets', red: true });
+    const r = ev(rec(mk(15))); expect(r.status).toBe('review'); expect(r.note).toContain('7-izoh');
+    expect(ev(rec(mk(10))).status).toBe('fail');                    // 10 m < 24/2
+  });
+  it('uzun tomonlar 2·Hmax (8-izoh) qisqarmaydi', () => {
+    const d = rec(doc([bld('a', rect(0, 0, 60, 15), 12), bld('b', rect(0, 45, 60, 15), 12)]));
+    expect(spacingIssues(d).pairs[0].red).toBeUndefined();
+    expect(ev(d).status).toBe('fail');
+  });
+});
+
 describe('qayta generatsiya: eski avtomatik binolar almashtiriladi', () => {
   it('hududdagi boshqa guruh binosi va ustma-ust tushgani olinadi, qoʻlda chizilgan qoladi', () => {
     const d = doc([bld('old1', rect(10, 10, 20, 15), 9, 'blok'), bld('old2', rect(95, 10, 20, 15), 9, 'blok'), bld('far', rect(300, 300, 20, 15), 9, 'blok'), bld('hand', rect(40, 40, 10, 10), 3)]);

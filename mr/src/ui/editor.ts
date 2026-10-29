@@ -3261,6 +3261,9 @@ export class Editor {
     const o = this.store.doc.origin, abroad = placeOf(o[0], o[1]).norms !== 'UZ';
     return h('div', { class: 'regw' },
       abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr('Loyiha Oʻzbekistondan tashqarida: Oʻzbekiston meʼyorlari andoza sifatida koʻrsatiladi — «mos emas» oʻrniga «koʻrib chiqish». Mahalliy meʼyorlar profili hali ulanmagan.')) : '',
+      h('div', { class: 'group', id: 'reconRow' }, h('div', { class: 'li' },
+        h('span', { class: 'k' }, tr('Rekonstruksiya / renovatsiya'), h('span', { class: 'sub' }, tr('79-band, 2-jadval, 7-izoh: insolyatsiya taʼminlansa jadval masofalari ikki barobargacha qisqaradi (≥ 6 m). 2·Hmax (8-izoh) va yongʻin masofalari qisqarmaydi.'))),
+        sw({ id: 'reconOn', label: tr('Rekonstruksiya / renovatsiya'), on: this.store.doc.settings.recon === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { recon: v } })) }))),
       h('div', { class: 'seg sm', role: 'group', id: 'regSeg' },
         h('button', { 'aria-pressed': this.regFilter === 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `${tr('Hammasi')} · ${all.length}`),
         h('button', { 'aria-pressed': this.regFilter === 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `${tr('Mos emas')} · ${bad}`)),
