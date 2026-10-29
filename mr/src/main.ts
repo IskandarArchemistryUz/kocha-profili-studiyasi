@@ -15,6 +15,7 @@ import { handlePayReturn, buyDialog } from './account/buy';
 import { authRequired } from './account/config';
 import { check as checkAuth, current as currentUser, onAuth, logout } from './account/session';
 import { loginDialog } from './account/login';
+import { ownerPage } from './account/owner';
 import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
 initStats('mr', /chizmadon/.test(location.hash) ? 'chizmadon' : '');
@@ -34,6 +35,8 @@ async function route(): Promise<void> {
     catch (e) { toast('Namuna loyiha yuklanmadi: ' + (e as Error).message); location.replace('#/'); }
     return;
   }
+  // egasi paneli (faqat OWNER_EMAILS dagi hisob — server ham tekshiradi)
+  if (location.hash === '#/egasi') { await ownerPage(root); return; }
   // narxlar sahifasidan: #/tanga — loyihalar sahifasi va «Tanga sotib olish» oynasi (kirmagan boʻlsa — avval kirish)
   if (location.hash === '#/tanga') { history.replaceState(null, '', '#/'); document.title = 'Archemistry Lab · Master reja'; await home(); void buyDialog(); return; }
   // bosh sahifadan: #/chizmadon — oxirgi loyiha Chizmadon oynasi bilan (loyiha boʻlmasa — yangi)
@@ -88,6 +91,7 @@ function homeAcct(): HTMLElement {
       h('span', { class: 't-small mono', id: 'homeBal' }, `${tr('Tangalar')}: ${fmt(m.balance)}`),
       h('button', { class: 'btn btn-sm', id: 'homeBuy', onclick: () => void buyDialog() }, tr('Tanga sotib olish')),
       h('button', { class: 'btn btn-sm btn-ghost', id: 'homeCoins', onclick: () => void coinsDialog() }, tr('Tarix')),
+      m.owner ? h('a', { class: 'btn btn-sm btn-ghost', id: 'homeOwner', href: '#/egasi', style: 'text-decoration:none' }, tr('Panel')) : '',
       h('button', { class: 'btn btn-sm btn-ghost', id: 'homeOut', onclick: () => void logout().then(() => toast(tr('Hisobdan chiqdingiz'))) }, tr('Chiqish')));
   };
   offAcct?.(); draw(); offAcct = onAuth(draw);
