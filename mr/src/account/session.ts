@@ -52,3 +52,17 @@ export interface Prices { items: Record<string, { coins: number; mr: boolean }>;
 export const prices = (): Promise<Prices> => call<Prices>('/prices');
 export interface HistItem { delta: number; reason: string; ref: string | null; created_at: string }
 export const history = (): Promise<HistItem[]> => call<{ items: HistItem[] }>('/me/history').then(r => r.items);
+
+/** Egasi paneli (faqat OWNER_EMAILS dagi hisob) */
+export interface OwnerStats {
+  at: string;
+  users: { total: number; d1: number; d7: number; d30: number; google: number; email: number; phone: number; active7: number; active30: number };
+  signups: { day: string; c: number }[];
+  payments: { paid: number; revenue: number; revenue30: number; buyers: number; open: number; cancelled: number;
+    byPack: { pack: string; c: number; s: number }[]; byPs: { ps: string; c: number; s: number }[];
+    recent: { id: number; pack: string; coins: number; amount: number; ps: string; state: string; at: string; who: string | null }[] };
+  coins: { bought: number; granted: number; spent: number; spend30: { reason: string; item: string; c: number; coins: number }[]; exports30: { bundle: string; c: number }[] };
+  projects: { n: number; spent: number; gen: number };
+}
+export const ownerStats = (): Promise<OwnerStats> => call<OwnerStats>('/owner/stats');
+
