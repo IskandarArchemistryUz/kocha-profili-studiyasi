@@ -6,6 +6,8 @@
  *    — uzun (parallel) tomonlar orasi seysmik 8+ ballda ≥ 2·Hmax (izoh 8);
  *    — toretslar orasi (H1+H2)·0,3 (derazali) … (H1+H2)·0,15 (derazasiz), I–II darajada ≥ 6 m.
  *    Deraza bor-yoʻqligi maʼlum emas: 0,15 dan kam — buzilish, 0,15…0,3 — koʻrib chiqish.
+ *    Rekonstruksiya rejimi (settings.recon, 7-izoh): jadval masofalaridan kam, lekin yarmidan (≥ 6 m) koʻp juftlar — red,
+ *    yaʼni buzilish emas, SanQvaN 0102-25 boʻyicha insolyatsiya hisobi bilan koʻrib chiqiladi. 2·Hmax va yongʻin masofalari qisqarmaydi.
  */
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
@@ -43,12 +45,14 @@ export function staleGen(doc: Project, grp: string, area: XY[], fresh: XY[][]): 
   return { bids, gids };
 }
 
-export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish'; d: number; need: number; soft?: number; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; ha: number; hb: number }
+export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish'; d: number; need: number; soft?: number; /** rekonstruksiya rejimida (7-izoh) qisqartirilgan chegara ichida: d ≥ need/2 (≥ 6 m) — insolyatsiya hisobi bilan koʻrib chiqiladi */ red?: boolean; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; ha: number; hb: number }
 /** Uchastkadagi binolar juftlari: ustma-ust, uzun tomonlar va toretslar orasidagi masofa */
 export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: number } {
   const fr = frame(doc.origin), fh = doc.settings.floorHeight;
   const B = doc.buildings.map(b => { const r = b.footprint.map(fr.toLocal); return { b, r, bb: bbOf(r), H: ((b.z0 ?? 0) + b.floors) * fh }; });
-  const out: SpacingPair[] = []; let checked = 0;
+  const out: SpacingPair[] = []; let checked = 0, recon = doc.settings.recon === true;
+  // 7-izoh: jadval masofalari ikki barobargacha qisqaradi, lekin 6 m (*) dan kam emas; 2·Hmax (8-izoh) qisqarmaydi
+  const red = (d: number, need: number) => recon && d >= Math.max(6, need / 2) - 0.5;
   for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
     const x = B[i], y = B[j], Hm = Math.max(x.H, y.H);
     if (!bbHit(x.bb, y.bb, 2 * Hm + 1)) continue;
@@ -63,17 +67,17 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     if (g.parallel >= 10) { const need = 2 * Hm; if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H }); }
     else if (g.la !== g.lb) {
       // derazali uzun tomon ↔ torets: 2·Hmax·0,3, ≥ 6 m (2-jadval)
-      const need = Math.max(6, 0.6 * Hm); if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun-torets', d: g.d, need, ha: x.H, hb: y.H });
+      const need = Math.max(6, 0.6 * Hm); if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun-torets', d: g.d, need, ha: x.H, hb: y.H, ...(red(g.d, need) ? { red: true } : {}) });
     } else {
       // toretslar: generatsiya derazasiz devorlarni belgilagan boʻlsa — aniq koeffitsiyent (0,3 / 0,25 / 0,15), aks holda 0,15 … 0,3
       const wa = x.b.gen ? !x.b.gen.blind?.includes(g.ia) : null, wb = y.b.gen ? !y.b.gen.blind?.includes(g.ib) : null;
       const pass = !!x.b.gen && x.b.gen.grp === y.b.gen?.grp && g.d <= 7.5;
       if (wa !== null && wb !== null) {
         const k = wa && wb ? 0.3 : wa || wb ? 0.25 : 0.15, need = Math.max(6, (x.H + y.H) * k);
-        if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: pass ? 'otish' : 'torets', d: g.d, need, ha: x.H, hb: y.H, k });
+        if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: pass ? 'otish' : 'torets', d: g.d, need, ha: x.H, hb: y.H, k, ...(!pass && red(g.d, need) ? { red: true } : {}) });
       } else {
         const need = Math.max(6, (x.H + y.H) * 0.15), soft = Math.max(6, (x.H + y.H) * 0.3);
-        if (g.d < soft - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: pass ? 'otish' : 'torets', d: g.d, need, soft, ha: x.H, hb: y.H });
+        if (g.d < soft - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: pass ? 'otish' : 'torets', d: g.d, need, soft, ha: x.H, hb: y.H, ...(!pass && g.d < need - 0.5 && red(g.d, need) ? { red: true } : {}) });
       }
     }
   }

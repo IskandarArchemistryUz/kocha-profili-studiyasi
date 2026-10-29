@@ -102,6 +102,8 @@ export interface Settings {
   comp: CompParams;
   /** hovlilarni avtomatik obodonlashtirish (core/landscape.ts) */
   yards: boolean;
+  /** rekonstruksiya / renovatsiya / murakkab shaharsozlik sharoiti: 2-jadval masofalari insolyatsiya taʼminlansa ikki barobargacha qisqaradi (79-band, 2-jadval, 7-izoh) */
+  recon?: boolean;
   /** bekatgacha radius (core/transit.ts): shahar toifasi (null — stat.uz aholisidan andoza), umumshahar markazi, relyef tuzatmasi */
   transit: { cat: 'engyirik' | 'yirik' | 'katta' | 'orta' | 'kichik' | null; center: boolean; relief: boolean };
 }
@@ -257,6 +259,7 @@ export function migrate(raw: unknown): Project {
   if (s.comp.regime !== 'orq781' && s.comp.regime !== 'orq1149') s.comp.regime = 'orq781';
   for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
   if (typeof s.yards !== 'boolean') s.yards = true;
+  if (s.recon !== undefined && typeof s.recon !== 'boolean') delete s.recon;
   { const t = (s.transit && typeof s.transit === 'object' ? s.transit : {}) as Partial<Settings['transit']>;
     s.transit = { cat: ['engyirik', 'yirik', 'katta', 'orta', 'kichik'].includes(t.cat as string) ? t.cat! : null, center: t.center === true, relief: t.relief !== false }; }
   if (typeof s.district !== 'string' || !/^\d{4,10}$/.test(s.district)) s.district = DEFAULT_SETTINGS.district;
