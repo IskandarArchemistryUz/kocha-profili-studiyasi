@@ -8,6 +8,7 @@ import { makePayments } from './payments.js';
 import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { registerData } from './data/routes.js';
+import { ownerStats } from './owner.js';
 import { ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
@@ -113,6 +114,14 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   app.get('/me', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
     return { id: u.id, email: u.email, phone: u.phone, name: u.name ?? null, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id), owner: !!u.email && OWN.has(u.email.toLowerCase()) };
+  });
+
+  // Egasi paneli — faqat OWNER_EMAILS dagi hisob; boshqalarga 403
+  app.get('/owner/stats', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    if (!u.email || !OWN.has(u.email.toLowerCase())) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
+    reply.header('cache-control', 'no-store');
+    return ownerStats(db, now ? now() : new Date());
   });
 
   app.get('/me/history', async (req, reply) => {
