@@ -1510,6 +1510,26 @@ export class Scene3D {
   }
 
   private marks: THREE.Mesh | null = null;
+  private overlapG: THREE.Group | null = null;
+  /** Koʻcha koridoriga tushgan bino boʻlaklari — qizil shaffof koʻpburchaklar yer sathida (30.10) */
+  setStreetOverlap(polys: { ring: XY[]; top: number }[] | null): void {
+    if (this.overlapG) { this.scene.remove(this.overlapG); this.overlapG.traverse(o => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); (m.material as THREE.Material)?.dispose?.(); }); this.overlapG = null; }
+    if (polys?.length) {
+      const g = new THREE.Group(); g.renderOrder = 9;
+      for (const { ring: q, top } of polys) {
+        if (q.length < 3) continue;
+        const sh = new THREE.Shape(q.map(p => new THREE.Vector2(p[0], p[1])));   /* rotateX(−90°): y → −z, sahnada z = −p[1] */
+        const geo = new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI / 2);
+        const z = Math.max(...q.map(p => this.H(p[0], p[1]))) + top + 0.35;   // bino tomi ustida — rejada ham koʻrinsin
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xd9534f, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+        m.position.y = z; g.add(m);
+        const pts = [...q, q[0]].map(p => new THREE.Vector3(p[0], z + 0.02, -p[1]));
+        g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xc0392b })));
+      }
+      this.overlapG = g; this.scene.add(g);
+    }
+    this.invalidate();
+  }
   /** Fasaddagi rangli belgilar (deraza insolyatsiyasi): har biri — fasad tekisligidagi toʻrtburchak; null — olib tashlash */
   setFacadeMarks(list: { a: XY; b: XY; y0: number; y1: number; color: number }[] | null): void {
     if (this.marks) { this.scene.remove(this.marks); this.marks.geometry.dispose(); (this.marks.material as THREE.Material).dispose(); this.marks = null; }

@@ -286,6 +286,30 @@ export class Editor {
     const doc = this.store.doc, c = await this.compute.run(doc);
     if (doc !== this.store.doc) return; // eskirgan natija
     this.last = c; this.renderKpi();
+    { const fh = doc.settings.floorHeight; this.scene.setStreetOverlap(c.d.streetOverlap.flatMap(x => { const b = doc.buildings.find(y => y.id === x.bid); const top = b ? ((b.z0 ?? 0) + b.floors) * fh : 0; return x.polys.map(ring => ({ ring, top })); })); }
+  }
+
+  /** Binoni koʻcha koridoridan chiqarish: eng yaqin loyiha koʻchasi oʻqidan uzoqlashtirib, koridor + 0,5 m tashqarisiga suradi (30.10) */
+  private pushOutOfStreet(bid: string): void {
+    const doc = this.store.doc, b = doc.buildings.find(x => x.id === bid); if (!b) return;
+    const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
+    let best: { d: number; n: XY; half: number; depth: number } | null = null;
+    for (const s of doc.streets) {
+      const ax = s.axis.map(fr.toLocal), half = profileWidth(profileById(s.profile)) / 2;
+      for (let i = 0; i + 1 < ax.length; i++) {
+        const A = ax[i], B = ax[i + 1], dx = B[0] - A[0], dy = B[1] - A[1], L2 = dx * dx + dy * dy || 1;
+        const proj = (p: XY) => { const t = Math.max(0, Math.min(1, ((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / L2)); const q: XY = [A[0] + dx * t, A[1] + dy * t]; return { q, d: Math.hypot(p[0] - q[0], p[1] - q[1]) }; };
+        const pc = proj(c), n: XY = [(c[0] - pc.q[0]) / (pc.d || 1), (c[1] - pc.q[1]) / (pc.d || 1)];
+        // bino uchlarining oʻqdan masofasi — eng yaqini koridor ichida boʻlsa, chuqurlik = half − min
+        const dmin = Math.min(...r.map(p => { const pp = proj(p); const sgn = (p[0] - pp.q[0]) * n[0] + (p[1] - pp.q[1]) * n[1]; return sgn * pp.d; }));
+        const depth = half - dmin; if (depth <= 0) continue;
+        if (!best || pc.d < best.d) best = { d: pc.d, n, half, depth };
+      }
+    }
+    if (!best) { toast(tr('Bino koʻcha koridorida emas')); return; }
+    const sh = best.depth + 0.5, moved = r.map(p => [p[0] + best!.n[0] * sh, p[1] + best!.n[1] * sh] as XY);
+    this.run(() => this.store.dispatch({ type: 'updateBuilding', id: bid, patch: { footprint: moved.map(fr.toGeo) } }));
+    toast(tf('Bino koʻchadan ${d} m surildi', { d: fmt(sh, 1) }));
   }
 
   /** koʻrinish uslubi: «Albom» (taqdimot, sukut boʻyicha) yoki «Rangli» (OSM ranglari, sunʼiy yoʻldosh) */
@@ -636,6 +660,9 @@ export class Editor {
     const gfa = b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) : area(r) * b.floors, kk = gfa / (area(r) * b.floors || 1);
     const resNet = kk * area(r) * Math.max(0, b.floors - b.nonRes) * u.res * s.netToGross;
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
+    { const ov = this.last?.d.streetOverlap.find(x => x.bid === b.id);
+      if (ov) body.append(h('div', { class: 'note bad', id: 'ovNote' }, tf('Bino koʻcha koridoriga ${a} m² tushadi (qizil chiziqlar ichida).', { a: fmt(ov.area) }),
+        h('button', { class: 'btn btn-sm', style: 'margin-top:6px;display:flex', id: 'ovPush', onclick: () => this.pushOutOfStreet(b.id) }, tr('Koʻchadan chiqarish')))); }
     if (this.inspTab === 'hajm') {
       const builds = USES.filter(x => x.build);
       const fn = h('div', { class: 'ugrp', id: 'iUse', role: 'group', 'aria-label': tr('Funksiya') }, h('div', {}, ...builds.map(x => h('button', { class: 'uchip', 'data-use': x.id, 'aria-pressed': x.id === b.use, title: x.name, onclick: () => upd({ use: x.id as Use }) }, h('i', { style: `background:${hex(x.color)}` }), tr(USE_SHORT[x.id] ?? x.name)))));
@@ -1971,14 +1998,18 @@ export class Editor {
         todo.push(i); const ne = auto.filter(x => x.gen?.edited).length; if (ne) editedN.push(ne);
       });
       if (!todo.length) return;
-      const go = () => { let n = 0; for (const i of todo) if (this.generateBlock(i, true) > 0) n++; if (n) { toast(tf('${n} ta kvartal yoʻlga moslab qayta generatsiya qilindi', { n })); this.renderPanel(); this.renderKpi(); } };
+      const go = () => { let n = 0; for (const i of todo) if (this.generateBlock(i, true) > 0) n++; if (n) { toast(tf('${n} ta kvartal yoʻlga moslab qayta generatsiya qilindi', { n })); this.renderPanel(); this.renderKpi(); } this.warnOverlap(); };
       // qoʻlda tahrirlangan avtomatik binolar bor — avval soʻraladi (egasi, 30.10): tahrir yoʻqoladi
-      if (editedN.length) this.askRegen(editedN.reduce((t, v) => t + v, 0), go); else go();
+      if (editedN.length) this.askRegen(editedN.reduce((t, v) => t + v, 0), go, () => this.warnOverlap()); else go();
     }, 400);
   }
 
   /** Qayta generatsiya tasdigʻi (qoʻlda tahrirlangan avtomatik binolar yangisiga almashadi) */
-  private askRegen(nEdited: number, go: () => void): void {
+  /** Koʻcha koridoriga tushgan binolar haqida ogohlantirish (hisob tugagach) */
+  private warnOverlap(): void {
+    setTimeout(() => { const n = this.last?.d.streetOverlap.length ?? 0; if (n) toast(tf('${n} ta bino koʻcha koridoriga tushdi — reyestrda qizil; bino panelida «Koʻchadan chiqarish»', { n })); }, 900);
+  }
+  private askRegen(nEdited: number, go: () => void, keep?: () => void): void {
     injectChzCss(); document.getElementById('regenAsk')?.remove();
     const back = h('div', { class: 'chzs-back', id: 'regenAsk' });
     const close = () => back.remove();
@@ -1986,7 +2017,7 @@ export class Editor {
       h('h2', {}, tr('Koʻcha oʻzgardi — binolar qayta generatsiya qilinsinmi?')),
       h('p', {}, tf('${n} ta avtomatik bino qoʻlda tahrirlangan (qavatlar, fasad yoki reja). Qayta generatsiyada bu tahrirlar yoʻqoladi; binolar yangi kvartal chegarasiga moslanadi.', { n: nEdited })),
       h('button', { type: 'button', class: 'chzs-o rec', id: 'regenYes', onclick: () => { close(); go(); } }, h('b', {}, tr('Qayta generatsiya qilish')), h('span', {}, tr('tahrirlar yoʻqoladi, binolar yoʻlga moslanadi'))),
-      h('button', { type: 'button', class: 'chzs-o', id: 'regenNo', onclick: close }, h('b', {}, tr('Binolarni qoldirish')), h('span', {}, tr('binolar joyida qoladi — koʻcha ustiga tushgan boʻlsa qoʻlda tuzating')))));
+      h('button', { type: 'button', class: 'chzs-o', id: 'regenNo', onclick: () => { close(); keep?.(); } }, h('b', {}, tr('Binolarni qoldirish')), h('span', {}, tr('binolar joyida qoladi — koʻcha ustiga tushgan boʻlsa qoʻlda tuzating')))));
     document.body.append(back);
   }
 
