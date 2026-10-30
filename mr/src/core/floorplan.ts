@@ -8,6 +8,7 @@ import { area, obb2, type XY } from './geo';
 import { type SecPlan } from './apartments';
 import { rulePlan, planChecks, floorVariant, sharedEdge, facadeSegs, type RulePlan, type PlanCheck, type FloorType, type RoomKind } from './sectionplan';
 import type { Bal } from './facade';
+import { aptInterior, IN_LABEL, type AptInterior } from './aptplan';
 
 export const APT_FILL: Record<number, string> = { 1: '#f6d58f', 2: '#f4b08a', 3: '#9bd3b8', 4: '#8fa5cc' };
 export interface PlanOpts {
@@ -19,6 +20,7 @@ export interface PlanOpts {
   /** 20-band: kvartira raqami (eksplikatsiya jadvali bilan bogʻlash uchun) */ num?: boolean;
   /** varaq ichida: shimol strelkasi va pastki izoh chizilmaydi (varaqning oʻzida) */ bare?: boolean;
   /** V5 insolyatsiya: kvartira rangi, chegarasi va ikkinchi qator (maydon oʻrniga) — kvartira indeksi boʻyicha */ tint?: { fill: string[]; stroke: string[]; sub: string[] };
+  /** kvartira ichki rejasi (xonalar, devorlar, eshiklar) — standart: ha; false — eski sxema (sanuzel «S», punktir boʻlinmalar) */ inner?: boolean;
 }
 export const ROOM_LABEL: Record<RoomKind, string> = { texnik: 'texnik / ombor', ombor: 'yashovchilar omborlari', savdo: 'savdo / xizmat', velo: 'velo / kolyaska', zal: 'yashovchilar zali', tozalash: 'tozalash anjomlari ombori' };
 export const ROOM_FILL: Record<RoomKind, string> = { texnik: '#e4e1da', ombor: '#e6dcc8', savdo: '#cfe0f3', velo: '#dfe9d2', zal: '#efd9e8', tozalash: '#e4e1da' };
@@ -54,6 +56,10 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const ft = floorTypeOf(pl0, o.floor), PT = o.plan ?? sectionPlan(pl0), P0 = floorVariant(PT, ft, pl0.layout.mods), checks = planChecks(PT, (pl0.z0 + pl0.f1 - 1) * (o.fh ?? 3), pl0.layout.mods);
   const G: RulePlan = { ...P0, stairs: P0.stairs.map(TR), lifts: P0.lifts.map(TR), mop: P0.mop.map(TR), rest: P0.rest.map(TR), fireWalls: P0.fireWalls.map(TR), rooms: P0.rooms.map(q => ({ ...q, ring: TR(q.ring), door: T(q.door) })), apts: P0.apts.map(a => ({ ...a, ring: TR(a.ring), door: T(a.door), wet: TR(a.wet), walls: a.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]) })) };
   const mods = pl0.layout.mods.map(m => ({ ...m, a: T(m.a), b: T(m.b) }));
+  // kvartira ichki rejalari (31.10): asl koordinatalarda hisoblanadi, chizma oʻqlariga buriladi
+  const inner: (AptInterior | null)[] = P0.apts.map(a => o.inner === false ? null : aptInterior(a, pl0.layout.mods)).map(x => x && { ...x, rooms: x.rooms.map(q => ({ ...q, ring: TR(q.ring) })), walls: x.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]), doors: x.doors.map(d => ({ ...d, h: T(d.h), a: T(d.a), n: [d.n[0] * U[0] + d.n[1] * U[1], d.n[0] * V[0] + d.n[1] * V[1]] as XY })), entry: T(x.entry), kitchen: x.kitchen && [T(x.kitchen[0]), T(x.kitchen[1])] as [XY, XY] });
+  inner.forEach((x, i) => { if (x) G.apts[i].door = x.entry; });
+  const outward = new Set(G.apts.filter((_, i) => inner[i]).map(a => a.ring));
   const northDeg = Math.atan2(U[0], U[1]) * 180 / Math.PI;   // shimol yoʻnalishi chizmada
   const r = TR(pl0.ring), k = 1000 / o.scale;   // m → mm
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -63,7 +69,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const path = (ring: XY[]) => ring.map((p, i) => `${i ? 'L' : 'M'}${X(p[0])} ${Y(p[1])}`).join('') + 'Z';
   const seg = (a: XY, b: XY, st: string) => `<path d="M${X(a[0])} ${Y(a[1])}L${X(b[0])} ${Y(b[1])}" ${st}/>`;
   const out: string[] = [];
-  out.push(`<defs><pattern id="hatch" width="1.4" height="1.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V1.4" stroke="#b9b5ab" stroke-width="0.3"/></pattern></defs>`);
+  out.push(`<defs><pattern id="hatch" width="1.4" height="1.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V1.4" stroke="#b9b5ab" stroke-width="0.3"/></pattern><pattern id="tile" width="${(0.3 * k).toFixed(2)}" height="${(0.3 * k).toFixed(2)}" patternUnits="userSpaceOnUse"><path d="M0 0H${(0.3 * k).toFixed(2)}M0 0V${(0.3 * k).toFixed(2)}" stroke="#a9a59c" stroke-width="0.12"/></pattern></defs>`);
   out.push(`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="#fff"/>`);
   out.push(`<text x="${pad + 5}" y="9" font-size="4.2" font-weight="600" fill="#141414">${esc(o.title)}</text>`);
   // MOP (koridor, lift oldi)
@@ -111,9 +117,36 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     const sel = o.sel?.indexOf(ai) ?? -1;
     const tf = o.tint?.fill[ai], ts = o.tint?.stroke[ai];
     out.push(`<path d="${path(a.ring)}" fill="${tf ?? APT_FILL[Math.min(4, a.rooms)]}" stroke="${sel >= 0 ? '#0a84ff' : ts ?? '#141414'}" stroke-width="${sel >= 0 ? 1.2 : ts ? 0.9 : 0.5}" stroke-linejoin="round" data-apt="${ai}"/>`);
-    for (const [p, q] of a.walls) out.push(seg(p, q, 'stroke="#141414" stroke-width="0.25" stroke-dasharray="0.8 0.6"'));
-    if (a.wet.length) { const c = cen(a.wet); out.push(`<path d="${path(a.wet)}" fill="rgba(255,255,255,.6)" stroke="#141414" stroke-width="0.25" stroke-dasharray="0.6 0.5"/><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 0.6).toFixed(2)}" font-size="1.6" text-anchor="middle" fill="#3a3936">S</text>`); }
-    const c = labelPt(a.ring), bA = balOf(a.ring);
+    const inn = inner[ai];
+    if (inn) {
+      // xonalar: quruq — kvartira rangi, hoʻl — oq + kafel; devorlar 0,1 m, eshik yoylari; nomlar va maydonlar
+      const rf = Math.min(1.7, 0.17 * k);
+      for (const q of inn.rooms) out.push(`<path d="${path(q.ring)}" fill="${q.wet ? '#ffffff' : tf ?? APT_FILL[Math.min(4, a.rooms)]}" stroke="none" pointer-events="none"/>${q.wet ? `<path d="${path(q.ring)}" fill="url(#tile)" stroke="none" pointer-events="none"/>` : ''}`);
+      if (inn.kitchen) out.push(seg(inn.kitchen[0], inn.kitchen[1], 'stroke="#6b6965" stroke-width="0.18" stroke-dasharray="0.8 0.5"'));
+      for (const [p, q] of inn.walls) out.push(seg(p, q, `stroke="#141414" stroke-width="${(0.1 * k).toFixed(2)}" stroke-linecap="butt"`));
+      for (const d of inn.doors) {
+        const tip: XY = [d.h[0] + d.n[0] * d.w, d.h[1] + d.n[1] * d.w];
+        if (d.kind === 'slide') { const ux = (d.a[0] - d.h[0]) / d.w, uy = (d.a[1] - d.h[1]) / d.w, o1: XY = [d.h[0] + d.n[0] * 0.09, d.h[1] + d.n[1] * 0.09], o2: XY = [d.a[0] + ux * 0.1 + d.n[0] * 0.09, d.a[1] + uy * 0.1 + d.n[1] * 0.09]; out.push(seg(o1, o2, `stroke="#141414" stroke-width="${(0.05 * k).toFixed(2)}"`)); continue; }
+        // yoy: SVG da y teskari — aylanish yoʻnalishi chizma koordinatalarida
+        const sx = (p: XY) => [Number(X(p[0])), Number(Y(p[1]))], [hx, hy] = sx(d.h), [tx, ty] = sx(tip), [ax, ay] = sx(d.a), cr = (tx - hx) * (ay - hy) - (ty - hy) * (ax - hx);
+        out.push(seg(d.h, tip, `stroke="#141414" stroke-width="${(0.03 * k).toFixed(2)}"`), `<path d="M${tx.toFixed(2)} ${ty.toFixed(2)}A${(d.w * k).toFixed(2)} ${(d.w * k).toFixed(2)} 0 0 ${cr > 0 ? 1 : 0} ${ax.toFixed(2)} ${ay.toFixed(2)}" fill="none" stroke="#141414" stroke-width="${(0.015 * k).toFixed(2)}" stroke-dasharray="${(0.06 * k).toFixed(2)} ${(0.04 * k).toFixed(2)}"/>`);
+      }
+      const big = inn.rooms.reduce((m, q) => (!q.wet && q.area > m.area ? q : m), inn.rooms[0]);
+      for (const q of inn.rooms) {
+        if (q === big) continue;
+        const c = labelPt(q.ring), w = Math.min(...[0, 1].map(j => Math.max(...q.ring.map(p => p[j])) - Math.min(...q.ring.map(p => p[j]))));
+        if (w < 0.9) continue;
+        const nm = IN_LABEL[q.kind], f2 = w < 1.5 ? rf * 0.8 : rf;
+        out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="${f2.toFixed(2)}" text-anchor="middle" fill="#3a3936" pointer-events="none">${nm}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + f2 * 1.15).toFixed(2)}" font-size="${(f2 * 0.9).toFixed(2)}" text-anchor="middle" fill="#6b6965" pointer-events="none">${n1(Math.round(q.area * 10) / 10)}</text>`);
+      }
+      out.push(`<path d="${path(a.ring)}" fill="none" stroke="${sel >= 0 ? '#0a84ff' : ts ?? '#141414'}" stroke-width="${sel >= 0 ? 1.2 : ts ? 0.9 : (0.18 * k).toFixed(2)}" stroke-linejoin="miter" pointer-events="none"/>`);
+      if (big) { const c = labelPt(big.ring); out.push(`<text x="${X(c[0])}" y="${(Number(Y(c[1])) + 6.4).toFixed(2)}" font-size="${rf.toFixed(2)}" text-anchor="middle" fill="#3a3936" pointer-events="none"><tspan>${IN_LABEL[big.kind]}</tspan><tspan> ${n1(Math.round(big.area * 10) / 10)}</tspan></text>`); }
+    } else {
+      for (const [p, q] of a.walls) out.push(seg(p, q, 'stroke="#141414" stroke-width="0.25" stroke-dasharray="0.8 0.6"'));
+      if (a.wet.length) { const c = cen(a.wet); out.push(`<path d="${path(a.wet)}" fill="rgba(255,255,255,.6)" stroke="#141414" stroke-width="0.25" stroke-dasharray="0.6 0.5"/><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 0.6).toFixed(2)}" font-size="1.6" text-anchor="middle" fill="#3a3936">S</text>`); }
+    }
+    const big0 = inn?.rooms.reduce((m, q) => (!q.wet && q.area > m.area ? q : m), inn.rooms[0]);
+    const c = labelPt(big0 ? big0.ring : a.ring), bA = balOf(a.ring);
     if (o.num) out.push(`<circle cx="${X(c[0])}" cy="${(Number(Y(c[1])) - 5.2).toFixed(2)}" r="2.1" fill="#fff" stroke="#141414" stroke-width="0.35"/><text x="${X(c[0])}" y="${(Number(Y(c[1])) - 4.35).toFixed(2)}" font-size="2.4" font-weight="700" text-anchor="middle" fill="#141414" pointer-events="none">${ai + 1}</text>`);
     out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#141414" pointer-events="none">${sel >= 0 ? `${'AB'[sel] ?? ''} · ` : ''}${a.rooms}x</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 3.2).toFixed(2)}" font-size="2.1" text-anchor="middle" fill="#3a3936" pointer-events="none">${o.tint?.sub[ai] ?? `${n1(Math.round((a.area * 0.85 + bA) * 10) / 10)} m²`}</text>`);
   });
@@ -123,6 +156,8 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     for (let i = 0; i < a.ring.length; i++) { const p = a.ring[i], q = a.ring[(i + 1) % a.ring.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]), t = ((a.door[0] - p[0]) * (q[0] - p[0]) + (a.door[1] - p[1]) * (q[1] - p[1])) / (l * l || 1), d = Math.hypot(p[0] + (q[0] - p[0]) * t - a.door[0], p[1] + (q[1] - p[1]) * t - a.door[1]); if (t >= 0 && t <= 1 && d < 0.05 && l > best) { best = l; ea = p; eb = q; } }
     const l = Math.hypot(eb[0] - ea[0], eb[1] - ea[1]) || 1, ux = (eb[0] - ea[0]) / l, uy = (eb[1] - ea[1]) / l, d0: XY = [a.door[0] - ux * 0.45, a.door[1] - uy * 0.45], d1: XY = [a.door[0] + ux * 0.45, a.door[1] + uy * 0.45];
     let nx = -uy, ny = ux; const c = cen(a.ring); if ((c[0] - a.door[0]) * nx + (c[1] - a.door[1]) * ny < 0) { nx = -nx; ny = -ny; }
+    // ichki rejali kvartira: kirish eshigi koridorga (tashqariga) ochiladi — Strelka katalogi chizmalari
+    if (outward.has(a.ring)) { nx = -nx; ny = -ny; }
     const tip: XY = [d0[0] + nx * 0.9, d0[1] + ny * 0.9];
     out.push(seg(d0, d1, 'stroke="#fff" stroke-width="0.7"'), seg(d0, tip, 'stroke="#141414" stroke-width="0.25"'), `<path d="M${X(tip[0])} ${Y(tip[1])}A${(0.9 * k).toFixed(2)} ${(0.9 * k).toFixed(2)} 0 0 ${nx * uy - ny * ux > 0 ? 0 : 1} ${X(d1[0])} ${Y(d1[1])}" fill="none" stroke="#141414" stroke-width="0.18"/>`);
   }
