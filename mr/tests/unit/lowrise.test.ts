@@ -51,3 +51,23 @@ describe('Past qavatli uylar (31.10): avval uchastka, keyin uy', () => {
     for (const h of hs) expect(h.ring.every(p => p[1] > -0.1 || p[0] > 79)).toBe(true);
   });
 });
+
+describe('Juft va hovli uylar (31.10)', () => {
+  it('juft: uylar juft-juft umumiy devor bilan, juftlar orasi ≥ 6 m, uchastka ≥ 200 m²', () => {
+    const { houses } = lowriseBlock(rect(0, 0, 200, 70), 'juft');
+    expect(houses.length).toBeGreaterThan(10); expect(houses.length % 2).toBe(0);
+    const touch = (a: XY[], b: XY[]) => a.filter(p => b.some(q => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.05)).length >= 2;
+    for (const h of houses) { expect(area(h.plot)).toBeGreaterThanOrEqual(196); expect(houses.filter(q => q !== h && touch(h.ring, q.ring)).length).toBe(1); }
+    for (let i = 0; i < houses.length; i++) for (let j = i + 1; j < houses.length; j++) {
+      if (touch(houses[i].ring, houses[j].ring)) continue;
+      let m = Infinity; for (const p of houses[i].ring) for (const q of houses[j].ring) m = Math.min(m, Math.hypot(p[0] - q[0], p[1] - q[1]));
+      expect(m).toBeGreaterThanOrEqual(5.99);
+    }
+  });
+  it('hovli: L shakl uy (6 uch), uchastka ≥ 400 m², qoʻshni uygacha ≥ 6 m', () => {
+    const { houses } = lowriseBlock(rect(0, 0, 180, 80), 'hovli');
+    expect(houses.length).toBeGreaterThan(8);
+    for (const h of houses) { expect(h.ring.length).toBe(6); expect(area(h.plot)).toBeGreaterThanOrEqual(392); for (const p of h.ring) expect(pin(p, h.plot) || h.plot.some((a, i) => segD(p, a, h.plot[(i + 1) % h.plot.length]) < 0.05)).toBe(true); }
+    for (let i = 0; i < houses.length; i++) for (let j = i + 1; j < houses.length; j++) { let m = Infinity; for (const p of houses[i].ring) for (const q of houses[j].ring) m = Math.min(m, Math.hypot(p[0] - q[0], p[1] - q[1])); expect(m).toBeGreaterThanOrEqual(5.99); }
+  });
+});

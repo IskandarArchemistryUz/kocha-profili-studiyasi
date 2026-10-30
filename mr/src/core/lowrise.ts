@@ -10,7 +10,7 @@
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import { signedArea, type XY } from './geo';
 
-export type LowKind = 'yakka' | 'taunhaus';
+export type LowKind = 'yakka' | 'taunhaus' | 'juft' | 'hovli';
 export interface LowHouse { ring: XY[]; plot: XY[]; floors: number; kind: 'uy' | 'taunhaus'; /** yashil (bogʻ) ulushi uchastkada */ green: number }
 export interface LowParams { plotW: number; plotD: number; front: number; side: number; depth: number; maxW: number; floors: number; rowMax: number; rowLen: number; gap: number; minPlot: number }
 export const LOW: Record<LowKind, LowParams> = {
@@ -18,7 +18,30 @@ export const LOW: Record<LowKind, LowParams> = {
   yakka: { plotW: 20, plotD: 22, front: 5, side: 3, depth: 10, maxW: 12, floors: 2, rowMax: 0, rowLen: 0, gap: 0, minPlot: 400 },
   // taunhaus: blok eni 6,5 m (Strelka: ≥ 6 optimal), chuqurligi 11,5 m, uchastka 6,5 × 30 ≈ 195 m² → 31 m (≥ 200, 74-band); qator ≤ 15 uy va ≤ 100 m, oraliq 8 m
   taunhaus: { plotW: 6.5, plotD: 31, front: 5, side: 0, depth: 11.5, maxW: 6.5, floors: 3, rowMax: 15, rowLen: 100, gap: 8, minPlot: 200 },
+  // juft: ikki xonadonli uy (106-band) — har uchastka 11 × 28 = 308 m², uylar umumiy devor bilan (101-band), tashqi yon 3 m (100-band);
+  // juftlar orasi 3 + 3 = 6 m (56-jadval, I–III daraja C0 — 6 m)
+  juft: { plotW: 11, plotD: 28, front: 5, side: 3, depth: 11, maxW: 8, floors: 2, rowMax: 0, rowLen: 0, gap: 0, minPlot: 200 },
+  // hovli uy (oʻzbek tipi): uchastka 22 × 25 = 550 m²; L shakl — koʻcha qanoti (15 × 6,5 m) va yon qanot (6,5 × 18 m) chap chegarada
+  // bloklangan (101-band), hovli janub/ichkari tomonda; qoʻshni uygacha 22 − 15 = 7 m (56-jadval ≥ 6)
+  hovli: { plotW: 22, plotD: 25, front: 2, side: 0, depth: 18, maxW: 15, floors: 1, rowMax: 0, rowLen: 0, gap: 0, minPlot: 400 },
 };
+/** Uy dogʻi uchastka ichida (mahalliy u, v): halqa va «chegaragacha masofa» tekshiruvi uchun toʻrtburchak; i — uchastka tartib raqami */
+function houseOf(kind: LowKind, P: LowParams, u0: number, u1: number, i: number, first: boolean): { ring: [number, number][]; marg: [number, number][]; hw: number } {
+  if (kind === 'juft') {
+    const left = i % 2 === 0, hw = P.maxW, h0 = left ? u1 - hw : u0;   // juftning chap uyi oʻng chegaraga, oʻngdagisi chap chegaraga yopishgan
+    const r: [number, number][] = [[h0, P.front], [h0 + hw, P.front], [h0 + hw, P.front + P.depth], [h0, P.front + P.depth]];
+    const m0 = left ? h0 - P.side : h0, m1 = left ? h0 + hw : h0 + hw + P.side;
+    return { ring: r, marg: [[m0 + 0.01, P.front], [m1 - 0.01, P.front], [m1 - 0.01, P.front + P.depth + 3], [m0 + 0.01, P.front + P.depth + 3]], hw };
+  }
+  if (kind === 'hovli') {
+    const f = P.front, a = 15, b = 6.5, c = 18;
+    const r: [number, number][] = [[u0, f], [u0 + a, f], [u0 + a, f + b], [u0 + b, f + b], [u0 + b, f + c], [u0, f + c]];
+    return { ring: r, marg: [[u0 + 0.01, f], [u0 + a + 3, f], [u0 + a + 3, f + c + 3], [u0 + 0.01, f + c + 3]], hw: a };
+  }
+  const sideL = kind === 'taunhaus' && first ? 1.5 : P.side, hw = Math.min(P.maxW, P.plotW - sideL - (kind === 'taunhaus' ? 0 : P.side));
+  const h0 = kind === 'taunhaus' ? u0 + sideL : u0 + (P.plotW - hw) / 2, m = P.side;
+  return { ring: [[h0, P.front], [h0 + hw, P.front], [h0 + hw, P.front + P.depth], [h0, P.front + P.depth]], marg: [[h0 - m + 0.01, P.front], [h0 + hw + m - 0.01, P.front], [h0 + hw + m - 0.01, P.front + P.depth + Math.max(m, 3)], [h0 - m + 0.01, P.front + P.depth + Math.max(m, 3)]], hw };
+}
 
 const close = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
 const open = (r: [number, number][]): XY[] => r.slice(0, -1).map(p => [p[0], p[1]] as XY);
@@ -37,7 +60,7 @@ function alongSeg(a: XY, b: XY, free: MultiPolygon, P: LowParams, kind: LowKind,
   if (!zone.length) return [];
   const inZone = (p: XY) => zone.some(q => pin(p, open(q[0])) && !q.slice(1).some(h => pin(p, open(h))));
   // chiziq boʻylab uchastkalar; taunhaus — qatorlar (≤ rowMax uy, ≤ rowLen m), orasida gap
-  let u = 0, inRow = 0, rowStart = 0;
+  let u = 0, inRow = 0, rowStart = 0, nPl = 0;
   const used: Polygon[] = [];
   while (u + P.plotW <= L + 1e-6) {
     if (kind === 'taunhaus' && (inRow >= P.rowMax || u + P.plotW - rowStart > P.rowLen)) { u += P.gap; inRow = 0; rowStart = u; continue; }
@@ -45,24 +68,23 @@ function alongSeg(a: XY, b: XY, free: MultiPolygon, P: LowParams, kind: LowKind,
     const slab: Polygon = [close([W(u0, -0.5), W(u1, -0.5), W(u1, P.plotD), W(u0, P.plotD)])];
     const pl = tryOp(() => polygonClipping.intersection(slab, zone), [] as MultiPolygon);
     const plotA = mpArea(pl);
-    // uchastka deyarli toʻliq (≥ 85 % toʻgʻri toʻrtburchak) va ≥ minPlot; uy toʻrtburchagi uchastka ichida
-    const sideL = kind === 'taunhaus' && inRow === 0 ? 1.5 : P.side, hw = Math.min(P.maxW, P.plotW - sideL - (kind === 'taunhaus' ? 0 : P.side));
-    const h0 = kind === 'taunhaus' ? u0 + sideL : u0 + (P.plotW - hw) / 2;
-    const house = [W(h0, P.front), W(h0 + hw, P.front), W(h0 + hw, P.front + P.depth), W(h0, P.front + P.depth)];
-    // uy atrofida chegaragacha: yon va orqa ≥ side (100-band, 3 m; bloklangan — 0), oldi — front
-    const m = P.side, marg = [W(h0 - m + 0.01, P.front), W(h0 + hw + m - 0.01, P.front), W(h0 + hw + m - 0.01, P.front + P.depth + Math.max(m, 3)), W(h0 - m + 0.01, P.front + P.depth + Math.max(m, 3))];
-    const ok = pl.length === 1 && plotA >= Math.max(P.minPlot * 0.98, 0.85 * P.plotW * P.plotD) && house.every(inZone) && marg.every(p => pin(p, open(pl[0][0])));
+    // uchastka deyarli toʻliq (≥ 85 % toʻgʻri toʻrtburchak) va ≥ minPlot; uy uchastka ichida, chegaralargacha masofa saqlanadi
+    const H = houseOf(kind, P, u0, u1, nPl, inRow === 0), house = H.ring.map(([x, y]) => W(x, y)), hw = H.hw;
+    const ok = pl.length === 1 && plotA >= Math.max(P.minPlot * 0.98, 0.85 * P.plotW * P.plotD) && house.every(inZone) && H.marg.every(([x, y]) => pin(W(x, y), open(pl[0][0])));
     if (!ok) {
       // qator uziladi: tugagan qatorning oxirgi uyi — oxirgi blok (yon 1,5 m)
       if (kind === 'taunhaus' && inRow > 0) { inRow = 0; rowStart = u1; }
-      u += kind === 'taunhaus' ? P.plotW : P.plotW / 2;
+      // juft: juftning ikkinchisi sigʻmasa — birinchisi ham olinadi (yolgʻiz yarim uy qolmasin)
+      if (kind === 'juft' && nPl % 2 === 1) { out.pop(); used.pop(); nPl--; }
+      u += kind === 'taunhaus' || kind === 'juft' ? P.plotW : P.plotW / 2;
       continue;
     }
     const plot = open(pl[0][0]);
-    out.push({ ring: house, plot, floors, kind: kind === 'yakka' ? 'uy' : 'taunhaus', green: Math.max(0, 1 - (hw * P.depth + P.front * Math.min(3, hw)) / plotA) });
+    out.push({ ring: house, plot, floors, kind: kind === 'taunhaus' ? 'taunhaus' : 'uy', green: Math.max(0, 1 - (areaOf(house) + P.front * Math.min(3, hw)) / plotA) });
     used.push(pl[0]);
-    inRow++; u = u1;
+    inRow++; nPl++; u = u1;
   }
+  if (kind === 'juft' && nPl % 2 === 1) { out.pop(); used.pop(); }
   // qator oxiridagi uy: oʻng tomonda ham 1,5 m (oxirgi blok)
   if (kind === 'taunhaus') endTrim(out);
   return used.length ? tryOp(() => polygonClipping.union(used[0], ...used.slice(1)), [] as MultiPolygon) : [];
@@ -98,7 +120,9 @@ export function lowriseBlock(block: XY[], kind: LowKind, floorsMax = 3): { house
   const notes: string[] = [];
   if (out.length) notes.push(kind === 'yakka'
     ? `Yakka uylar: ${out.length} ta, uchastka ${P.plotW} × ${P.plotD} m ≥ 400 m² (75-band), oldi ${P.front} m, yon ${P.side} m (100-band), ${floors} qavat`
-    : `Taunhauslar: ${out.length} ta blok, eni ${P.plotW} m, qator ≤ ${P.rowMax} uy va ≤ ${P.rowLen} m (Strelka), oraliq ${P.gap} m; uchastka ≥ 200 m² (74-band), ${floors} qavat`);
+    : kind === 'taunhaus' ? `Taunhauslar: ${out.length} ta blok, eni ${P.plotW} m, qator ≤ ${P.rowMax} uy va ≤ ${P.rowLen} m (Strelka), oraliq ${P.gap} m; uchastka ≥ 200 m² (74-band), ${floors} qavat`
+    : kind === 'juft' ? `Juft uylar: ${out.length / 2} juft, uchastka ${P.plotW} × ${P.plotD} m, umumiy devor (101-band), tashqi yon ${P.side} m (100-band), juftlar orasi 6 m (56-jadval)`
+    : `Hovli uylar: ${out.length} ta, uchastka ${P.plotW} × ${P.plotD} m, L shakl uy chap chegarada (101-band), hovli ichkarida, qoʻshnigacha 7 m (56-jadval)`);
   else notes.push('Past qavatli uylar sigʻmadi — kvartal qirralari juda qisqa yoki tor');
   return { houses: out, notes };
 }
