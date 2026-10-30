@@ -22,3 +22,19 @@ describe('seysmik boʻlmalar (QMQ 2.01.03-19, 3.1-jadval, 3.1.1)', () => {
     expect(checkBlock(C, 'gisht', 8).projOk).toBe(false);
   });
 });
+
+import { generate, DEFAULT_GEN } from '../../src/core/generator';
+describe('seysmik rejimda generatsiya (maxLen 45, maxProj 6)', () => {
+  const g = { ...DEFAULT_GEN, secLen: 45, maxLen: 45, maxProj: 6 };
+  for (const [nm, ring] of [['toʻgʻri kvartal 200 × 120', R(0, 0, 200, 120)], ['burilgan L kvartal', [[0, 0], [180, 0], [180, 70], [90, 110], [0, 110]] as XY[]], ['uchburchak', [[0, 0], [160, 0], [0, 112]] as XY[]]] as const) {
+    it(`${nm}: har seksiya ≤ 45 m, chiqib turgan qism ≤ 6 m`, () => {
+      const r = generate(ring as XY[], g);
+      expect(r.sections.length).toBeGreaterThan(2);
+      for (const s of r.sections.filter(x => x.kind !== 'arka')) { const c = checkBlock(s.ring, 'monolit', 8); expect(c.lenOk, `${s.kind} ${c.len} m`).toBe(true); expect(c.projOk, `${s.kind} chiqish ${c.proj} m`).toBe(true); }
+    });
+  }
+  it('seysmik rejimsiz — burchak L qoʻli 8 m (eski xulq saqlanadi)', () => {
+    const r = generate(R(0, 0, 200, 120), DEFAULT_GEN), corner = r.sections.find(s => s.kind === 'burchak');
+    expect(corner).toBeTruthy(); expect(checkBlock(corner!.ring, 'monolit', 8).proj).toBeGreaterThan(6);
+  });
+});

@@ -45,4 +45,11 @@ test('generatsiyada seksiya uzunligi seysmik chegaradan oshmaydi (8 ball, monoli
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length)).toBeGreaterThan(1);
   const maxLen = await page.evaluate(() => { const m = (window as any).__mr, o = m.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); let best = 0; for (const b of m.store.doc.buildings) { if (b.footprint.length > 4) continue; const r = b.footprint.map((p: number[]) => [(p[0] - o[0]) * mx, (p[1] - o[1]) * 111132]); for (const p of r) for (const q of r) best = Math.max(best, Math.hypot(p[0] - q[0], p[1] - q[1])); } return best; });
   expect(maxLen).toBeLessThanOrEqual(Math.hypot(45, 15) + 0.6);
+  // burchaklar: kichik L (chiqish ≤ 6 m) — reyestrda «Seysmik boʻlmalar» mos; sahnada antiseysmik chok chiziqlari bor
+  await page.click('#kMore');
+  const rule = page.locator('.drawer [data-rule=seismic-blocks]');
+  await expect(rule.locator('.chip')).toHaveAttribute('data-s', 'pass');
+  const joints = await page.evaluate(() => { let n = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.joint) n++; }); return n; });
+  expect(joints).toBeGreaterThan(4);
+  if (process.env.GX_SHOTS) { await page.keyboard.press('Escape'); await page.waitForTimeout(800); await page.evaluate(() => (window as any).__mr.scene.frameRadius(90)); await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/seys_gen.png` }); }
 });

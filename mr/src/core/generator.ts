@@ -29,6 +29,8 @@ export interface GenParams {
   secLen: number;
   /** seysmik boʻlma uzunligi chegarasi, m (QMQ 2.01.03-19, 3.1-jadval) — seksiya va birlashgan boʻlak shundan oshmaydi */
   maxLen?: number;
+  /** seysmik rejim: chiqib turgan qism chegarasi, m (3.1.1) — burchak L qoʻli shundan oshmaydi, burchak seksiyalari birlashtirilmaydi (chok) */
+  maxProj?: number;
   /** qizil chiziqdan (kvartal chegarasidan) chekinish, m */
   setback: number;
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
@@ -223,8 +225,10 @@ export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
     for (const r of ringsOf(sq)) if (Math.abs(signedArea(r)) > 20 && attach(r)) placed.push(P(r));
   }
   if (!sections.length) notes.push('Seksiya joylashmadi — chuqurlik yoki chekinishni kamaytiring');
-  const merged = mergeCorners(A, sections, meta);
+  // seysmik rejim (QMQ 2.01.03-19, 3.1.1): burchakda ikki toʻrtburchak boʻlma, orasida antiseysmik chok — L ga birlashtirilmaydi
+  const merged = g.maxProj != null ? 0 : mergeCorners(A, sections, meta);
   if (merged) notes.push(`${merged} ta burchak — bitta L-shakl bino (ikki seksiya birlashtirildi)`);
+  else if (g.maxProj != null) notes.push('Seysmik boʻlmalar: burchaklarda seksiyalar alohida (orasida antiseysmik chok)');
   return { sections, capFloors: null, notes };
 }
 
@@ -294,7 +298,7 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   }
   if (!sections.length) { notes.push('Seksiya joylashmadi — kvartal bu chuqurlik uchun juda kichik yoki tor'); return { sections, capFloors: null, notes }; }
   // tik tutashgan qoʻshni seksiyalar — bitta L-shakl burchak binosi
-  const merged = mergeTouching(sections, D, g.secLen, g.maxLen);
+  const merged = mergeTouching(sections, D, g.secLen, g.maxLen, g.maxProj);
   if (merged) notes.push(`${merged} ta burchak — bitta L-shakl bino (ikki seksiya birlashtirildi)`);
   return { sections, capFloors: null, notes };
 }
@@ -320,9 +324,9 @@ function trimArm(s: GenSection, o: GenSection, keep: number, D: number): [GenSec
   return [{ ...s, ring: arm, blind: undefined }, { ...s, ring: rest, blind: undefined }];
 }
 
-function mergeTouching(S: GenSection[], D = 15, secLen = 30, maxLen?: number): number {
+function mergeTouching(S: GenSection[], D = 15, secLen = 30, maxLen?: number, maxProj?: number): number {
   const ext0 = Math.min(1.7 * secLen, maxLen ?? Infinity);   // seysmik boʻlma chegarasi (QMQ 2.01.03-19, 3.1-jadval) — birlashganda ham oshmasin
-  const keep = Math.max(10, 0.4 * secLen);
+  const keep = Math.min(Math.max(10, 0.4 * secLen), maxProj ?? Infinity);   // L qoʻli (chiqib turgan qism) — seysmik rejimda 3.1.1 chegarasi
   let cnt = 0;
   for (let guard = 0; guard < 50; guard++) {
     let done = false;
@@ -540,7 +544,7 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
   const L = (i: number) => len(sub(P(i + 1), P(i)));
   const convex = (i: number) => cross(U(i - 1), U(i)) > 0.2; // i-uch qavariq (yetarli burilish)
   // har qirra uchun burchak qoʻllari (uchlardan masofa)
-  const arm = D + Math.min(8, g.secLen * 0.3);
+  const arm = D + Math.min(g.maxProj ?? 8, g.secLen * 0.3);
   const a0: number[] = [], a1: number[] = [];
   for (let i = 0; i < n; i++) {
     let s = convex(i) ? arm : D, e = convex(i + 1) ? arm : D;
