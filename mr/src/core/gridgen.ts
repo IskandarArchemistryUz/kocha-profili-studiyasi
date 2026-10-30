@@ -85,7 +85,8 @@ export function gridStreets(site: XY[], g: GridParams): GridStreet[] {
 
 /** Variantlar: bir preset — avtomatik burchak, 90° burilgan, yarim modul siljigan */
 export function gridVariants(site: XY[], base: GridParams): { name: string; g: GridParams }[] {
-  const a = autoAngle(site);
+  // tanlangan burchak (slayder yoki insolyatsiya kompasi) asos; berilmagan boʻlsa — uchastkaning uzun tomoni (30.10: avval slayder eʼtiborsiz qolardi)
+  const a = base.angle ?? autoAngle(site);
   return [
     { name: 'Uzun tomon boʻylab', g: { ...base, angle: a } },
     { name: 'Koʻndalang', g: { ...base, angle: a + 90 } },
