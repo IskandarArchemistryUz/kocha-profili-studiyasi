@@ -54,9 +54,14 @@ export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: num
       mods.push({ a: ma, b: mb, p: [mid[0] + n[0] * 0.3, mid[1] + n[1] * 0.3], az: az(n), blind: blindAt([mid[0] + n[0] * 0.8, mid[1] + n[1] * 0.8]) || w < 2.4 });
     }
   }
-  const plan = rulePlan(ring, mods, mix, size, court);
+  // reja generatori bir necha variant yasaydi (sekin) — natija kesh: kontur, berk modullar, aralashma, oʻlcham, hovli nuqtasi
+  const key = JSON.stringify([ring.map(p => [Math.round(p[0] * 1e3), Math.round(p[1] * 1e3)]), mods.map(m => m.blind ? 1 : 0).join(''), mix, modW, size, court && [Math.round(court[0] * 1e3), Math.round(court[1] * 1e3)]]);
+  let base = PLAN_CACHE.get(key);
+  if (!base) { base = rulePlan(ring, mods, mix, size, court); PLAN_CACHE.set(key, base); if (PLAN_CACHE.size > 400) PLAN_CACHE.delete(PLAN_CACHE.keys().next().value!); }
+  const plan = structuredClone(base);
   return { mods, apts: aptsOf(plan, mods), plan };
 }
+const PLAN_CACHE = new Map<string, RulePlan>();
 /** Rejadagi kvartiralar → insolyatsiya va hisob uchun roʻyxat (yashash xonalari — eng yaxshi yoʻnalishdagi derazalar) */
 export function aptsOf(plan: RulePlan, mods: Module[]): Apt[] {
   return plan.apts.map(a => ({ rooms: a.rooms, mods: a.mods, living: [...a.mods].sort((x, y) => badness(mods[x].az) - badness(mods[y].az)).slice(0, a.rooms), area: a.area * 0.85 }));

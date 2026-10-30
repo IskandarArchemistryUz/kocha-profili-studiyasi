@@ -59,7 +59,9 @@ const close = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [q3(p[0]), 
 const openR = (r: [number, number][]): XY[] => r.slice(0, -1).map(p => [p[0], p[1]]);
 const perim = (q: XY[]) => q.reduce((s, p, i) => { const n = q[(i + 1) % q.length]; return s + Math.hypot(n[0] - p[0], n[1] - p[1]); }, 0);
 /** tashqi halqalar; teshikli boʻlak (yon-atrofi suzuvchi xatodan qolgan ingichka «ramka») va ingichka tasmalar tashlanadi */
-const pieces = (mp: MultiPolygon): XY[][] => mp.filter(pp => pp.slice(1).reduce((s, h) => s + area(openR(h)), 0) < 0.5).map(pp => openR(pp[0])).filter(q => q.length >= 3 && area(q) > 0.3 && area(q) / perim(q) > 0.12);
+/** yonma-yon < 2 sm uchlar birlashtiriladi (polygon-clipping keyingi amallarda «halqani yopolmadi» xatosi bermasin) */
+const dedupe = (q: XY[]): XY[] => { const o: XY[] = []; for (const p of q) { const l = o[o.length - 1]; if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 0.02) o.push(p); } while (o.length > 3 && Math.hypot(o[0][0] - o[o.length - 1][0], o[0][1] - o[o.length - 1][1]) <= 0.02) o.pop(); return o; };
+const pieces = (mp: MultiPolygon): XY[][] => mp.filter(pp => pp.slice(1).reduce((s, h) => s + area(openR(h)), 0) < 0.5).map(pp => dedupe(openR(pp[0]))).filter(q => q.length >= 3 && area(q) > 0.3 && area(q) / perim(q) > 0.12);
 const MP = (a: XY[][]): MultiPolygon => a.map(q => [close(q)] as Polygon);
 const diff = (a: XY[][], subs: XY[][], onErr: 'a' | 'none' = 'a'): XY[][] => { if (!a.length) return []; if (!subs.length) return a; try { return pieces(polygonClipping.difference(MP(a), ...subs.map(q => [close(q)] as Polygon))); } catch { return onErr === 'a' ? a : []; } };
 const inter = (a: XY[][], b: XY[][]): XY[][] => { if (!a.length || !b.length) return []; try { return pieces(polygonClipping.intersection(MP(a), MP(b))); } catch { return []; } };
@@ -104,11 +106,54 @@ function edgeDir(a: XY[], b: XY[]): XY | null {
  * u ham aniq boʻlmasa — qoʻshni bino tegib turgan yoki shimoliy tomon.
  */
 export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null): RulePlan {
-  const r = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0;
+  return planVariants(ring0, mods, mix, size, court)[0].plan;
+}
+
+export interface PlanVariant { plan: RulePlan; score: number; eff: number; mix: number[]; mixDev: number }
+/** Amaldagi aralashma (1x…4x ulushlari) */
+export function planMix(pl: RulePlan): number[] { const n = pl.apts.length || 1; return [1, 2, 3, 4].map(k => pl.apts.filter(a => Math.min(4, Math.max(1, a.rooms)) === k).length / n); }
+const normMix = (m: number[]) => { const t = m.reduce((a, b) => a + b, 0) || 1; return m.map(v => v / t); };
+const mixDevOf = (real: number[], want: number[]) => { const w = normMix(want); return real.reduce((t, v, i) => t + Math.abs(v - (w[i] ?? 0)), 0) / 2; };
+/**
+ * Variantlar: generator kirish aralashmasini natijaga qarab tuzatib (birlashtirish va boʻlish ulushlarni siljitadi) bir necha
+ * reja yasaydi va umumiy baho boʻyicha saralaydi: kvartiralar ulushi − 0,3 × aralashmadan chetlanish − qorongʻi/notekis jarimalari.
+ */
+export function planVariants(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, n = 3): PlanVariant[] {
+  const r = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, want = normMix(mix);
+  const ev = (pl: RulePlan): PlanVariant => { const real = planMix(pl), dev = mixDevOf(real, want), eff = pl.apts.reduce((t, a) => t + a.area, 0) / (area(r) || 1); return { plan: pl, score: planScore(pl, r, mods) - 0.3 * dev, eff, mix: real, mixDev: dev }; };
+  const out: PlanVariant[] = [];
+  let inMix = mix, split: number | undefined;
+  for (let k = 0; k < n; k++) {
+    const v = ev(planOnce(r, mods, inMix, size, court, split));
+    if (!out.some(o => o.plan.apts.length === v.plan.apts.length && Math.abs(o.eff - v.eff) < 1e-6 && o.mix.every((x, i) => Math.abs(x - v.mix[i]) < 1e-6))) out.push(v);
+    if (v.mixDev < 0.04) break;
+    // tuzatish: kam chiqqan tur ogʻirligi oshiriladi, koʻp chiqqani kamaytiriladi
+    inMix = normMix(inMix.map((w, i) => want[i] > 0 ? w * Math.min(3, Math.max(0.33, want[i] / Math.max(0.03, v.mix[i]))) : 0));
+    // 4 xonalilar koʻp — katta kvartiralar 3x andozasidan boshlab boʻlinadi
+    if (v.mix[3] > (want[3] ?? 0) + 0.05) split = AREA[size][3] * 1.12;
+  }
+  // geometriyasi keyingi kesish amallarida yiqiladigan variantlar tashlanadi (birinchisi har doim qoladi)
+  return out.filter((v, i) => i === 0 || robust(v.plan)).sort((a, b) => b.score - a.score);
+}
+
+/** Kvartira va MOP konturlari oʻzaro kesishganda polygon-clipping yiqilmasligini tekshiradi (mm yaxlitlash bilan) */
+function robust(pl: RulePlan): boolean {
+  const mm = (q: XY[]): Polygon => [[...q, q[0]].map(p => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as [number, number])];
+  const rs = [...pl.apts.map(a => a.ring), ...pl.mop, ...pl.stairs], bx = rs.map(q => [Math.min(...q.map(p => p[0])), Math.min(...q.map(p => p[1])), Math.max(...q.map(p => p[0])), Math.max(...q.map(p => p[1]))]);
+  try {
+    for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+      const a = bx[i], b = bx[j]; if (a[0] > b[2] + 0.01 || b[0] > a[2] + 0.01 || a[1] > b[3] + 0.01 || b[1] > a[3] + 0.01) continue;
+      polygonClipping.intersection(mm(rs[i]), mm(rs[j]));
+    }
+  } catch { return false; }
+  return true;
+}
+
+function planOnce(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L', court: XY | null, splitAbove?: number): RulePlan {
   // ozgina qiyshiq devorlar: reja ichki toʻgʻri burchakli shaklda quriladi, devor yonidagi ponasimon qoldiq — kvartiraga (lodjiya)
-  const R = rectify(r), p0 = planCore(r, mods, mix, size, court);
+  const R = rectify(r), p0 = planCore(r, mods, mix, size, court, splitAbove);
   if (!R) return p0;
-  const pl = planCore(R, facadeModsFor(R, mods), mix, size, court);
+  const pl = planCore(R, facadeModsFor(R, mods), mix, size, court, splitAbove);
   // toʻgʻrilangan shakl asl konturdan chiqqan joylari kesiladi
   const clip = (qs: XY[][]) => qs.flatMap(q => inter([q], [r]));
   pl.apts = pl.apts.flatMap(a => { const ps = inter([a.ring], [r]).sort((x, y) => area(y) - area(x)); return ps[0] && area(ps[0]) > 2 ? [{ ...a, ring: ps[0] }] : []; });
@@ -213,7 +258,7 @@ function facadeModsFor(R: XY[], mods: FacadeMod[]): FacadeMod[] {
   return out;
 }
 
-function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null): RulePlan {
+function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, splitAbove?: number): RulePlan {
   const W = CORR_W;
   const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
   const wantK = mixPicker(mix);
@@ -432,7 +477,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     let changed = false;
     for (let i = apts.length - 1; i >= 0; i--) {
       const a = apts[i]; if (!ok(a)) continue;
-      const big = a.area > target(4) * 1.15, ugly = !shapeOk(a.ring); if (!big && !ugly) continue;
+      const big = a.area > (splitAbove ?? target(4) * 1.15), ugly = !shapeOk(a.ring); if (!big && !ugly) continue;
       const o = obb2(a.ring), U = o.U, V: XY = [-U[1], U[0]], uu = a.ring.map(p => p[0] * U[0] + p[1] * U[1]), vv = a.ring.map(p => p[0] * V[0] + p[1] * V[1]);
       const u0 = Math.min(...uu), u1 = Math.max(...uu), v0 = Math.min(...vv), v1 = Math.max(...vv);
       const Pt = (u: number, v: number): XY => [U[0] * u + V[0] * v, U[1] * u + V[1] * v];
