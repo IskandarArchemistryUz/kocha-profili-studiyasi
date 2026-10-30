@@ -828,7 +828,7 @@ export class Editor {
   private ctxLive: { kind: 'detail' | 'around'; c: XY; r: number; key: string } | null = null;
   private followCtx(now = false): void {
     const doc = this.store.doc, b = this.ctxMgr.current;
-    if (navigator.webdriver || this.baseFail || !b) return;
+    if (navigator.webdriver || !b) return;   // baseFail (vektor fon zaxirasi) bunga taalluqli emas
     const v = this.scene.viewExtent(), R = doc.context.radius, sat = doc.context.base === 'sputnik', pr = basePrefs();
     const key = `${doc.origin.join(',')}|${doc.context.base}|${pr.pal}|${pr.labels}`;
     const kind: 'detail' | 'around' | null = sat && b.imagery && v.r < Math.min(700, R * 0.8) ? 'detail' : v.r > R * 0.9 ? 'around' : null;
@@ -839,9 +839,10 @@ export class Editor {
     this.liveT = window.setTimeout(() => { const w = this.scene.viewExtent(); void this.drawCtxLive(kind, w.c, Math.max(60, w.r), key); }, now ? 0 : 250);
   }
   private async drawCtxLive(kind: 'detail' | 'around', c: XY, r: number, key: string): Promise<void> {
-    const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs(), R = kind === 'around' ? Math.min(40000, r * 1.15) : r * 1.15;
+    // kvadrat koʻrinishdan 1,5 barobar katta: keyingi qayta chizishgacha (1,25·r yoki 0,3·r surish) keng ekranning cheti qora qolmasin
+    const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs(), R = Math.min(40000, r * 1.5);
     this.live ??= new LiveBase(...liveSize(this.el.scene));
-    this.ctxLive = { kind, c, r: R, key };
+    this.ctxLive = { kind, c, r, key };
     const img = await this.live.render(frame(doc.origin).toGeo(c), R, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
     if (!img || this.ctxLive?.key !== key || this.ctxLive.kind !== kind || !this.store.doc.context.loaded || this.store.doc.origin !== doc.origin) return;
     if (kind === 'detail') { this.scene.setSatLayer(img, doc.origin); return; }
