@@ -288,10 +288,11 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
   });
   // uch turlari va koridor oraligʻi
   // torets kvartirasi butun chuqurlik boʻylab: eni chuqurlikning ≥ 1/3 (aks holda 1 modulli «koridor» kvartira chiqadi);
-  // ≥ 15,5 m chuqur va ≥ 24 m uzun qanotda torets kvartirasi yoʻq — yon tasmalar qanot uchigacha boradi (ikki burchak kvartirasi).
+  // ≥ 24 m uzun qanotda torets kvartirasi yoʻq — yon tasmalar qanot uchigacha boradi (ikki burchak kvartirasi); qisqa qanotda
+  // torets eni ≥ chuqurlikning 1/3.
   // 3+ qanotli (T, +) shakllarda — avvalgi qoida (sinovda yaxshiroq)
   const cap0 = (w: Wing) => Math.min((w.S - W) / 2, Math.max(1, Math.min(w.L >= 36 ? 2 : 1, Math.round(target(wantK()) / w.S / w.mw))) * w.mw);
-  const capW = (w: Wing) => !w.double ? 0 : wings.length > 2 ? cap0(w) : w.S >= 15.5 && w.L >= 24 ? 0 : w.S < 15.5 ? Math.min((w.S - W) / 2, Math.max(cap0(w), Math.ceil(w.S / 3 / w.mw - 0.15) * w.mw)) : cap0(w);
+  const capW = (w: Wing) => !w.double ? 0 : wings.length > 2 ? cap0(w) : w.L >= 24 ? 0 : Math.min((w.S - W) / 2, Math.max(cap0(w), Math.ceil(w.S / 3 / w.mw - 0.15) * w.mw));
   for (const p of parts) {
     const w = wings[p.wing];
     p.k0 = Math.abs(p.ua - w.u0) < 0.05 ? endKind[p.wing][0] : 'wall';
