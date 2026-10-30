@@ -27,6 +27,8 @@ export interface GenParams {
   depth: number;
   /** seksiya uzunligi (moʻljal), m */
   secLen: number;
+  /** seysmik boʻlma uzunligi chegarasi, m (QMQ 2.01.03-19, 3.1-jadval) — seksiya va birlashgan boʻlak shundan oshmaydi */
+  maxLen?: number;
   /** qizil chiziqdan (kvartal chegarasidan) chekinish, m */
   setback: number;
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
@@ -73,9 +75,10 @@ let XS = { full: 0, short: 0, gap: 0, stretch: 0 };
  * Moʻljal rejimi — teng boʻlaklar (uzunlik ≈ len). Aniq rejim — har seksiya aynan len; qoldiq ≥ 9 m — qisqa seksiya (oxirida),
  * 3–9 m — oraliq (oʻrtada; bitta seksiyada — oxirida), < 3 m — oxirgi seksiyaga qoʻshiladi (izohda koʻrsatiladi).
  */
-function spans(c0: number, c1: number, len: number, exact: boolean): [number, number][] {
+function spans(c0: number, c1: number, len: number, exact: boolean, maxLen?: number): [number, number][] {
   const span = c1 - c0, out: [number, number][] = [];
-  if (!exact) { const m = Math.max(1, Math.round(span / len)), st = span / m; for (let k = 0; k < m; k++) out.push([c0 + k * st, c0 + (k + 1) * st]); return out; }
+  // teng boʻlaklar: seysmik chegara berilsa — boʻlak undan oshmasin (yaxlitlash 1,5·len gacha chiqarishi mumkin edi)
+  if (!exact) { const m = Math.max(1, Math.round(span / len), maxLen ? Math.ceil(span / maxLen - 1e-6) : 1), st = span / m; for (let k = 0; k < m; k++) out.push([c0 + k * st, c0 + (k + 1) * st]); return out; }
   const m = Math.floor(span / len + 1e-6), rem = span - m * len;
   if (m === 0) { XS.short++; return [[c0, c1]]; }
   if (rem < 0.5) { for (let k = 0; k < m; k++) out.push([c0 + k * len, c0 + (k + 1) * len]); XS.full += m; return out; }
@@ -194,7 +197,7 @@ export function edgeFill(A: XY[], g: GenParams, notes: string[]): GenResult {
       placed.push(P(r));
       // juda qisqa yoki sayoz boʻlak (burchakdagi qoldiq) — qoʻshni seksiyaga
       if (span < Math.max(10, g.secLen * 0.35) || ar < 0.45 * D * Math.min(span, g.secLen)) { if (!attach(r) && ar >= 0.45 * D * Math.max(10, span) && span >= 10) { sections.push({ ring: r, floors: g.minF, kind: 'oddiy', nonRes: g.nonRes }); meta.push({ edge: i, first: false, last: false }); } continue; }
-      const sp = spans(t0, t1, g.secLen, !!g.exact), m = sp.length;
+      const sp = spans(t0, t1, g.secLen, !!g.exact, g.maxLen), m = sp.length;
       for (let k = 0; k < m; k++) {
         const [ta, tb] = sp[k];
         const slab = P([add(a, mul(u, ta)), add(a, mul(u, tb)), add(add(a, mul(u, tb)), mul(N, D + 2)), add(add(a, mul(u, ta)), mul(N, D + 2))].map(q => add(q, mul(N, -1))) as XY[]);
@@ -278,7 +281,7 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
         cuts.push([s1, r1]);
       } else cuts.push([r0, r1]);
       for (const [c0, c1] of cuts) {
-        const sp = spans(c0, c1, g.secLen, !!g.exact);
+        const sp = spans(c0, c1, g.secLen, !!g.exact, g.maxLen);
         sp.forEach(([ta, tb], k) => {
           const ring = rect(ta, tb), oa = ring[0], ob = ring[1];
           const fromEnd = Math.min(ta, L - tb) / Math.max(1, L / 2);
@@ -291,7 +294,7 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   }
   if (!sections.length) { notes.push('Seksiya joylashmadi — kvartal bu chuqurlik uchun juda kichik yoki tor'); return { sections, capFloors: null, notes }; }
   // tik tutashgan qoʻshni seksiyalar — bitta L-shakl burchak binosi
-  const merged = mergeTouching(sections, D, g.secLen);
+  const merged = mergeTouching(sections, D, g.secLen, g.maxLen);
   if (merged) notes.push(`${merged} ta burchak — bitta L-shakl bino (ikki seksiya birlashtirildi)`);
   return { sections, capFloors: null, notes };
 }
@@ -317,7 +320,8 @@ function trimArm(s: GenSection, o: GenSection, keep: number, D: number): [GenSec
   return [{ ...s, ring: arm, blind: undefined }, { ...s, ring: rest, blind: undefined }];
 }
 
-function mergeTouching(S: GenSection[], D = 15, secLen = 30): number {
+function mergeTouching(S: GenSection[], D = 15, secLen = 30, maxLen?: number): number {
+  const ext0 = Math.min(1.7 * secLen, maxLen ?? Infinity);   // seysmik boʻlma chegarasi (QMQ 2.01.03-19, 3.1-jadval) — birlashganda ham oshmasin
   const keep = Math.max(10, 0.4 * secLen);
   let cnt = 0;
   for (let guard = 0; guard < 50; guard++) {
@@ -335,7 +339,7 @@ function mergeTouching(S: GenSection[], D = 15, secLen = 30): number {
           if (uu.length !== 1 || uu[0].length !== 1) continue;
           let r2 = clean(uu[0][0].slice(0, -1).map(z => [z[0], z[1]] as XY), 0.8); if (signedArea(r2) < 0) r2 = r2.reverse();
           const ext = Math.max(...r2.map(p => Math.max(...r2.map(z => Math.hypot(p[0] - z[0], p[1] - z[1])))));
-          if (r2.length === 4 && isSimple(r2) && ext <= Math.hypot(1.7 * secLen, D) + 0.5) return { nb: q, ring: r2 };
+          if (r2.length === 4 && isSimple(r2) && ext <= Math.hypot(ext0, D) + 0.5) return { nb: q, ring: r2 };
         }
         const t2 = rest.ring, L = Math.max(...t2.map(p => Math.max(...t2.map(z => Math.hypot(p[0] - z[0], p[1] - z[1])))));
         return L >= Math.hypot(18, D) ? 'own' : null;
@@ -565,7 +569,7 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
     for (const gp of gaps) { const oa = add(P(i), mul(U(i), gp - 3)), ob = add(P(i), mul(U(i), gp + 3)); sections.push({ ring: [oa, ob, add(ob, mul(N(i), D)), add(oa, mul(N(i), D))], floors: 1, kind: 'arka', nonRes: 0, z0: ARCH_F }); }
     let idx = 0;
     for (const [c0, c1] of cuts) {
-      const sp = spans(c0, c1, g.secLen, !!g.exact);
+      const sp = spans(c0, c1, g.secLen, !!g.exact, g.maxLen);
       for (let k = 0; k < sp.length; k++, idx++) {
         const [ta, tb] = sp[k];
         const oa = add(P(i), mul(U(i), ta)), ob = add(P(i), mul(U(i), tb));
