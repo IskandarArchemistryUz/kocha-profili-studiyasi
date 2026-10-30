@@ -9,7 +9,7 @@ import type { LngLat, Project, Shade } from '../core/doc';
 import { frame, centroid, area, signedArea, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';
 import { terrainSampler } from '../context/tiles';
-import { buildContext, buildingMeshes, houseRoofRise, type ContextScene, type HeightFn } from './context3d';
+import { buildContext, buildingMeshes, houseRoofRise, satTint, type ContextScene, type HeightFn } from './context3d';
 import { applyVisibility, buildUserLayer, geomKey, paintUserLayer, type UL3D } from './userlayers3d';
 import type { ULFeature } from '../core/userlayers';
 import { projectStreetsGeo } from './streets3d';
@@ -155,12 +155,18 @@ export class Scene3D {
     this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); this.lodSoon(); });
     this.setView('plan', true);
 
-    // uzoqlashtirish chegarasida yana gʻildirak «tashqariga» — dunyo xaritasi ochiladi (editor: onZoomOutLimit)
+    // uzoqlashtirish chegarasida yana gʻildirak «tashqariga» — dunyo xaritasi ochiladi (editor: onZoomOutLimit).
+    // capture: OrbitControls dan OLDIN oʻlchanadi (aks holda «oldin» allaqachon yaqinlashtirilgan qiymat boʻlib, har gʻildirakda ochilib ketardi);
+    // faqat kamera haqiqatan chegarada (minZoom / maxDistance) boʻlsa.
     this.renderer.domElement.addEventListener('wheel', e => {
       if (e.deltaY <= 0 || !this.onZoomOutLimit || !this.ctl.enabled) return;
       const before = this.viewExtent().r;
-      requestAnimationFrame(() => { const after = this.viewExtent().r; if (after <= before * 1.002 && before > 800) this.onZoomOutLimit?.(); });
-    }, { passive: true });
+      requestAnimationFrame(() => {
+        const after = this.viewExtent().r;
+        const atCap = this.cam === this.ortho ? this.ortho.zoom <= this.ctl.minZoom * 1.001 : this.cam.position.distanceTo(this.ctl.target) >= this.ctl.maxDistance * 0.999;
+        if (atCap && after <= before * 1.002 && before > 800) this.onZoomOutLimit?.();
+      });
+    }, { passive: true, capture: true });
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
     const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
@@ -210,7 +216,7 @@ export class Scene3D {
     }
     this.ctl = new OrbitControls(this.cam, this.renderer.domElement);
     this.ctl.target.copy(target); this.ctl.enableDamping = false; this.ctl.screenSpacePanning = true;
-    this.ctl.zoomSpeed = 2.2; this.ctl.zoomToCursor = true;
+    this.ctl.zoomSpeed = 1.6; this.ctl.zoomToCursor = true;   // 2,2 — bir gʻildirak qadamida 12 % sakrardi (egasi, 30.10)
     this.capOrtho(); this.ctl.maxZoom = 40; this.ctl.minDistance = 5; this.ctl.maxDistance = 16000;   // katta hudud (chegara boʻyicha, 12 km gacha)
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
@@ -372,14 +378,37 @@ export class Scene3D {
       const pos = g.attributes.position, uv = g.attributes.uv;
       for (let i = 0; i < pos.count; i++) { const lat = sS + (pos.getY(i) / hh + 0.5) * (sN - sS); uv.setY(i, (mer(lat) - m0) / (m1 - m0)); }
       uv.needsUpdate = true; }
-    g.rotateX(-Math.PI / 2); g.translate((a[0] + c[0]) / 2, 0.02, -(a[1] + c[1]) / 2);
-    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })); mesh.renderOrder = 1; mesh.name = 'fon-xarita';
+    // atrof yuklangan boʻlsa — relyef ostida (atrofdan tashqarida koʻrinadi, ichida yer qoplaydi)
+    g.rotateX(-Math.PI / 2); g.translate((a[0] + c[0]) / 2, this.ctx ? this.ground.position.y + 0.1 : 0.02, -(a[1] + c[1]) / 2);
+    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })); mesh.renderOrder = this.ctx ? -1 : 1; mesh.name = 'fon-xarita';
     this.scene.add(mesh); this.baseMap = { mesh, blob: img.image ?? null };
     if (old) { this.scene.remove(old.mesh); old.mesh.geometry.dispose(); const m = old.mesh.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); }
     if (img.bg) (this.ground.material as THREE.MeshLambertMaterial).color.set(img.bg);
     this.grid.forEach(gr => gr.visible = false); this.invalidate();
   }
   get hasBaseMap(): boolean { return !!this.baseMap; }
+  /** Yaqin koʻrinish uchun tiniq sunʼiy yoʻldosh qatlami (z ≤ 19): relyef ustiga yopishtirilgan toʻrtburchak */
+  private satLayer: { mesh: THREE.Mesh } | null = null;
+  setSatLayer(img: { canvas: HTMLCanvasElement; nw: LngLat; se: LngLat } | null, origin: LngLat): void {
+    const old = this.satLayer; this.satLayer = null;
+    const drop = () => { if (old) { this.scene.remove(old.mesh); old.mesh.geometry.dispose(); const m = old.mesh.material as THREE.MeshLambertMaterial; m.map?.dispose(); m.dispose(); } };
+    if (!img) { drop(); this.invalidate(); return; }
+    const t = new THREE.CanvasTexture(img.canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    const fr = frame(origin), a = fr.toLocal(img.nw), c = fr.toLocal(img.se), w = c[0] - a[0], hh = a[1] - c[1];
+    const g = new THREE.PlaneGeometry(w, hh, 48, 48);
+    const mer = (lat: number) => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)), sN = img.nw[1], sS = img.se[1], m0 = mer(sS), m1 = mer(sN);
+    const pos = g.attributes.position, uv = g.attributes.uv, cx = (a[0] + c[0]) / 2, cy = (a[1] + c[1]) / 2;
+    for (let i = 0; i < pos.count; i++) {
+      const lat = sS + (pos.getY(i) / hh + 0.5) * (sN - sS); uv.setY(i, (mer(lat) - m0) / (m1 - m0));
+      const x = cx + pos.getX(i), y = cy + pos.getY(i); pos.setXYZ(i, x, this.H(x, y) + 0.06, -y);
+    }
+    uv.needsUpdate = true; g.computeVertexNormals();
+    const mat = new THREE.MeshLambertMaterial({ map: t, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    mat.onBeforeCompile = satTint;
+    const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 1; mesh.name = 'tiniq-tasvir'; mesh.receiveShadow = true;
+    this.scene.add(mesh); this.satLayer = { mesh }; drop(); this.invalidate();
+  }
+  get hasSatLayer(): boolean { return !!this.satLayer; }
   /** Koʻrinayotgan yer: markaz (mahalliy XY) va yarim oʻlcham (m) — fon xaritasini chizish uchun */
   viewExtent(): { c: XY; r: number } {
     const t = this.ctl.target, w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
@@ -1106,7 +1135,7 @@ export class Scene3D {
     if (key === this.ctxKey) return;
     this.ctxKey = key; this.bundle = b;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
-    if (!b) { this.H = () => 0; this.grid.forEach(g => g.visible = !this.baseMap); this.ground.position.y = 0; this.update(doc); return; }
+    if (!b) { this.H = () => 0; this.setSatLayer(null, doc.origin); this.grid.forEach(g => g.visible = !this.baseMap); this.ground.position.y = 0; this.update(doc); return; }
     const fr = frame(doc.origin);
     // relyef markazi — loyiha markazi (kontekst keshi boshqa markazda olingan boʻlishi mumkin)
     const base = terrainSampler(cs.layers.relief ? b.terrain : null);
@@ -1125,6 +1154,7 @@ export class Scene3D {
     }
     this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted), new Set([...(doc.removed ?? []), ...this.hideOsm]));
     this.scene.add(this.ctx.group);
+    this.setSatLayer(null, doc.origin);
     if (this.album) this.applyStyle();
     if (this.iso || this.aptView) this.applyIsoCtx();
     this.grid.forEach(g => g.visible = false);

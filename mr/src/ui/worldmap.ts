@@ -45,21 +45,24 @@ export class WorldMap {
   get open(): boolean { return !this.el.hidden; }
 
   /** Ochish: markaz va zoom (yoki chegara qutisi [gʻarb, janub, sharq, shimol]) */
-  async show(center: LngLat, zoom: number, bbox?: [number, number, number, number], mark?: LngLat): Promise<void> {
+  private kind: 'stil' | 'sat' = 'stil';
+  async show(center: LngLat, zoom: number, bbox?: [number, number, number, number], mark?: LngLat, kind: 'stil' | 'sat' = 'stil'): Promise<void> {
     this.el.hidden = false;
     if (!this.ml) this.ml = (await import('maplibre-gl')).default as unknown as ML;
     if (!this.css) { this.css = true; await import('maplibre-gl/dist/maplibre-gl.css'); }
     const pr = basePrefs();
     if (!this.map) {
       this.map = new this.ml.Map({
-        container: this.box, style: worldStyle('stil', pr.pal, getLang()) as never, center: center as [number, number], zoom: Math.min(zoom, ARRIVE - 0.4),
+        container: this.box, style: worldStyle(kind, pr.pal, getLang()) as never, center: center as [number, number], zoom: Math.min(zoom, ARRIVE - 0.4),
         minZoom: 0, maxZoom: 18, renderWorldCopies: true, attributionControl: { compact: true, customAttribution: '© OpenMapTiles · OpenFreeMap · © OpenStreetMap' } as never,
         dragRotate: false, pitchWithRotate: false, touchPitch: false,
       });
       this.map.touchZoomRotate.disableRotation();
+      this.kind = kind;
       this.map.addControl(new this.ml.NavigationControl({ showCompass: false }), 'bottom-right');
       this.map.on('zoomend', () => { if (!this.silent && this.open && this.map!.getZoom() >= ARRIVE) this.arrive(); });
     } else {
+      if (kind !== this.kind) { this.map.setStyle(worldStyle(kind, pr.pal, getLang()) as never); this.kind = kind; }
       this.map.resize();
       this.silent = true; this.map.jumpTo({ center: center as [number, number], zoom: Math.min(zoom, ARRIVE - 0.4) }); this.silent = false;
     }

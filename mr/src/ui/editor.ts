@@ -811,13 +811,42 @@ export class Editor {
   /** kamera surilsa/yaqinlashsa — fon xaritasini qayta chizish (kechiktirib) */
   private followBase(now = false): void {
     const doc = this.store.doc;
-    if (doc.context.loaded || !this.baseKey || navigator.webdriver || this.baseFail) return;
+    if (doc.context.loaded) { this.followCtx(now); return; }
+    if (!this.baseKey || navigator.webdriver || this.baseFail) return;
     // 40 km gacha — 1:100 000 masshtabda ham xarita butun ekranni qoplaydi
     const v = this.scene.viewExtent(), r = Math.min(40000, Math.max(300, v.r)), key = this.baseKey, L = this.liveAt;
     if (L && L.key === key && Math.hypot(v.c[0] - L.c[0], v.c[1] - L.c[1]) < L.r * 0.3 && r < L.r * 1.25 && r > L.r * 0.5) return;
     clearTimeout(this.liveT);
     // koʻrinish chizish paytida olinadi: koʻchirish → kamerani moslash ketma-ketligida eski koʻrinish chizilmasin
     this.liveT = window.setTimeout(() => { const w = this.scene.viewExtent(); void this.drawLive(w.c, Math.min(40000, Math.max(300, w.r)), key); }, now ? 0 : 250);
+  }
+  /**
+   * Atrof yuklangan: kamera yaqinlashganda — koʻrinayotgan joy uchun tiniq sunʼiy yoʻldosh qatlami (z ≤ 19, bir martalik
+   * z 17 tasvir ustida); uzoqlashganda — atrof kvadratidan tashqarida fon xaritasi (qora boʻsh joy oʻrniga). Ikkisi ham
+   * jonli xarita (MapLibre) orqali chiziladi, kamera toʻxtagach 250 ms kechikib.
+   */
+  private ctxLive: { kind: 'detail' | 'around'; c: XY; r: number; key: string } | null = null;
+  private followCtx(now = false): void {
+    const doc = this.store.doc, b = this.ctxMgr.current;
+    if (navigator.webdriver || this.baseFail || !b) return;
+    const v = this.scene.viewExtent(), R = doc.context.radius, sat = doc.context.base === 'sputnik', pr = basePrefs();
+    const key = `${doc.origin.join(',')}|${doc.context.base}|${pr.pal}|${pr.labels}`;
+    const kind: 'detail' | 'around' | null = sat && b.imagery && v.r < Math.min(700, R * 0.8) ? 'detail' : v.r > R * 0.9 ? 'around' : null;
+    const L = this.ctxLive;
+    if (!kind) { if (L?.kind === 'detail') { this.ctxLive = null; this.scene.setSatLayer(null, doc.origin); } clearTimeout(this.liveT); return; }
+    if (L && L.kind === kind && L.key === key && Math.hypot(v.c[0] - L.c[0], v.c[1] - L.c[1]) < L.r * 0.3 && v.r < L.r * 1.25 && v.r > L.r * 0.5) return;
+    clearTimeout(this.liveT);
+    this.liveT = window.setTimeout(() => { const w = this.scene.viewExtent(); void this.drawCtxLive(kind, w.c, Math.max(60, w.r), key); }, now ? 0 : 250);
+  }
+  private async drawCtxLive(kind: 'detail' | 'around', c: XY, r: number, key: string): Promise<void> {
+    const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs(), R = kind === 'around' ? Math.min(40000, r * 1.15) : r * 1.15;
+    this.live ??= new LiveBase(...liveSize(this.el.scene));
+    this.ctxLive = { kind, c, r: R, key };
+    const img = await this.live.render(frame(doc.origin).toGeo(c), R, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
+    if (!img || this.ctxLive?.key !== key || this.ctxLive.kind !== kind || !this.store.doc.context.loaded || this.store.doc.origin !== doc.origin) return;
+    if (kind === 'detail') { this.scene.setSatLayer(img, doc.origin); return; }
+    this.scene.setSatLayer(null, doc.origin);
+    await this.scene.setBaseMap({ ...img, bg: sat ? '#2b2d2f' : PALETTES[pr.pal].bg }, doc.origin);
   }
   private async drawLive(c: XY, r: number, key: string): Promise<void> {
     const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs();
@@ -843,8 +872,9 @@ export class Editor {
   }
   private showContext(b0: ContextBundle | null): void {
     const doc = this.store.doc, b = this.ctxView(b0);
-    if (b) { this.baseKey = ''; this.liveAt = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
+    if (b) { this.baseKey = ''; this.liveAt = null; this.ctxLive = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
     void this.scene.setContext(b, doc).then(() => {
+      if (b) this.followCtx(true);
       this.ul.sync(this.store.doc);
       if (b) this.syncKeep();
       if (b && !this.framedCtx) { this.framedCtx = true; if (doc.context.area) this.scene.frameDoc(this.store.doc, doc.context.area); else if (!doc.site) this.scene.frameRadius(Math.min(doc.context.radius, 350)); }
@@ -906,7 +936,7 @@ export class Editor {
     this.closePop();
     const o = this.store.doc.origin, v = this.scene.viewExtent(), here = frame(o).toGeo(v.c);
     // 3D dagi aynan shu markaz va masshtab bilan ochiladi — uzoqlashtirish uzilmasdan davom etadi
-    await this.world.show(here, zoomFor(this.scene.viewHalfWidth(), here[1], this.el.scene.clientWidth || 1000), bbox, mark ?? o);
+    await this.world.show(here, zoomFor(this.scene.viewHalfWidth(), here[1], this.el.scene.clientWidth || 1000), bbox, mark ?? o, this.store.doc.context.base === 'sputnik' ? 'sat' : 'stil');
     this.el.stage.classList.add('wm-on');
   }
   private closeWorld(): void { this.world.hide(); this.el.stage.classList.remove('wm-on'); }
