@@ -30,7 +30,10 @@ export interface RuleApt {
   /** qanot va seksiya */ wing: number; sec: number;
   /** hovli tomonidagi tasmada (1-qavatda — yashovchilar xonalari) */ court?: boolean;
   /** qiyshiq devor yonidagi ponasimon qoʻshimcha (lodjiya) — kvartira halqasiga kiritilgan */ loggia?: XY[][];
+  /** ichki reja qoʻlda sozlamalari (V2, 31.10) — aptplan */ inner?: InnerOv;
 }
+/** Kvartira ichki rejasi qoʻlda: flip — umumiy xona qarama-qarshi tomonda; dK — umumiy xona devori siljishi, m; master — master-blok majburan yoqilgan/oʻchirilgan; slide — hoʻl xonalar eshigi surma */
+export interface InnerOv { flip?: boolean; dK?: number; master?: boolean; slide?: boolean }
 /** Kvartira boʻlmagan xona: texnik / ombor, 1-qavatda — savdo, velo-kolyaska, zal, tozalash anjomlari ombori (ShNQ 2.08.01-19, 3.14) */
 export type RoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash';
 export interface PlanRoom { ring: XY[]; kind: RoomKind; sec: number; door: XY }
@@ -707,6 +710,15 @@ export function finishPlan(plan: RulePlan, mods: FacadeMod[], size: 'S' | 'M' | 
   return plan;
 }
 
+/** V2 (31.10): kvartira ichki rejasini qoʻlda sozlash — umumiy xona tomoni, uning devori, master-blok, surma eshiklar */
+export function editInner(pl: RulePlan, i: number, patch: InnerOv): EditResult {
+  if (!pl.apts[i]) return { ok: false, why: 'Kvartira tanlanmagan' };
+  const n = clone(pl), cur = { ...(n.apts[i].inner ?? {}), ...patch };
+  for (const k of Object.keys(cur) as (keyof InnerOv)[]) if (cur[k] === undefined || cur[k] === 0 || cur[k] === false && k !== 'master') delete cur[k];
+  if (Object.keys(cur).length) n.apts[i].inner = cur; else delete n.apts[i].inner;
+  return { ok: true, plan: n };
+}
+
 /* ---------------- qavat turlari ---------------- */
 /**
  * 'ground' — 1-qavat noturar: koʻcha tomoni savdo / xizmat, hovli tomoni yashovchilar xonalari (zal, velo-kolyaska, omborlar,
@@ -747,7 +759,7 @@ export function floorVariant(pl: RulePlan, t: FloorType, mods: FacadeMod[] = [],
 }
 
 /* ---------------- qoʻlda tahrir ---------------- */
-const clone = (pl: RulePlan): RulePlan => ({ ...pl, apts: pl.apts.map(a => ({ ...a, ring: a.ring.map(p => [p[0], p[1]] as XY) })), rooms: pl.rooms.map(q => ({ ...q })), sections: pl.sections.map(s => ({ ...s })) });
+const clone = (pl: RulePlan): RulePlan => ({ ...pl, apts: pl.apts.map(a => ({ ...a, ring: a.ring.map(p => [p[0], p[1]] as XY), ...(a.inner ? { inner: { ...a.inner } } : {}) })), rooms: pl.rooms.map(q => ({ ...q })), sections: pl.sections.map(s => ({ ...s })) });
 export type EditResult = { ok: true; plan: RulePlan } | { ok: false; why: string };
 /** i va j kvartiralarni birlashtirish */
 export function editMerge(pl: RulePlan, i: number, j: number, mods: FacadeMod[], size: 'S' | 'M' | 'L' = 'M'): EditResult {
@@ -836,9 +848,9 @@ export function editRoomToApt(pl: RulePlan, r: number, mods: FacadeMod[], size: 
   const n = clone(pl); n.rooms.splice(r, 1); n.apts.push({ rooms: 0, ring: q.ring, area: area(q.ring), door: q.door, mods: [], wet: [], walls: [], wing: 0, sec: q.sec }); return { ok: true, plan: finishPlan(n, mods, size) };
 }
 /** Saqlangan tahrir: kvartiralar va xonalar halqalari bilan generatsiya qilingan rejaga qoʻllash */
-export interface PlanEditLocal { apts: { ring: XY[]; rooms: number }[]; rooms: { ring: XY[]; kind: RoomKind }[] }
+export interface PlanEditLocal { apts: { ring: XY[]; rooms: number; inner?: InnerOv }[]; rooms: { ring: XY[]; kind: RoomKind }[] }
 export function applyEdit(pl: RulePlan, e: PlanEditLocal, mods: FacadeMod[], size: 'S' | 'M' | 'L' = 'M'): RulePlan {
-  const n: RulePlan = { ...pl, apts: e.apts.map(a => ({ rooms: a.rooms, ring: a.ring, area: area(a.ring), door: cen(a.ring), mods: [], wet: [], walls: [], wing: 0, sec: 0 })), rooms: e.rooms.map(q => ({ ring: q.ring, kind: q.kind, sec: 0, door: cen(q.ring) })), sections: pl.sections.map(s => ({ ...s })) };
+  const n: RulePlan = { ...pl, apts: e.apts.map(a => ({ rooms: a.rooms, ring: a.ring, area: area(a.ring), door: cen(a.ring), mods: [], wet: [], walls: [], wing: 0, sec: 0, ...(a.inner ? { inner: { ...a.inner } } : {}) })), rooms: e.rooms.map(q => ({ ring: q.ring, kind: q.kind, sec: 0, door: cen(q.ring) })), sections: pl.sections.map(s => ({ ...s })) };
   const all = [...n.apts.map(a => a.ring), ...n.rooms.map(q => q.ring)];
   n.rest = diff(diff(pl.rest, all, 'none'), [], 'none');
   return finishPlan(n, mods, size, true);

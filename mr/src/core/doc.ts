@@ -53,12 +53,21 @@ export interface Building {
   planEdit?: PlanEdit;
 }
 export type PlanRoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash';
-export interface PlanEdit { key: string; apts: { ring: LngLat[]; rooms: number }[]; rooms: { ring: LngLat[]; kind: PlanRoomKind }[] }
+export interface PlanEdit { key: string; apts: { ring: LngLat[]; rooms: number; /** ichki reja sozlamalari (V2) */ inner?: { flip?: boolean; dK?: number; master?: boolean; slide?: boolean } }[]; rooms: { ring: LngLat[]; kind: PlanRoomKind }[] }
 const ROOM_KINDS: PlanRoomKind[] = ['texnik', 'ombor', 'savdo', 'velo', 'zal', 'tozalash'];
+function cleanInner(v: any): PlanEdit['apts'][number]['inner'] | null {
+  if (!v || typeof v !== 'object') return null;
+  const o: NonNullable<PlanEdit['apts'][number]['inner']> = {};
+  if (v.flip === true) o.flip = true;
+  if (Number.isFinite(v.dK) && Math.abs(v.dK) <= 3) o.dK = Math.round(v.dK * 100) / 100;
+  if (typeof v.master === 'boolean') o.master = v.master;
+  if (v.slide === true) o.slide = true;
+  return Object.keys(o).length ? o : null;
+}
 function cleanPlanEdit(v: any): PlanEdit | null {
   if (!v || typeof v.key !== 'string' || !Array.isArray(v.apts) || !Array.isArray(v.rooms)) return null;
   const ok = (r: unknown): r is LngLat[] => Array.isArray(r) && r.length >= 3 && r.every((p: any) => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
-  return { key: v.key, apts: v.apts.filter((a: any) => a && ok(a.ring) && Number.isFinite(a.rooms)).map((a: any) => ({ ring: a.ring.map((p: any) => [p[0], p[1]] as LngLat), rooms: Math.max(1, Math.min(6, Math.round(a.rooms))) })), rooms: v.rooms.filter((q: any) => q && ok(q.ring) && ROOM_KINDS.includes(q.kind)).map((q: any) => ({ ring: q.ring.map((p: any) => [p[0], p[1]] as LngLat), kind: q.kind })) };
+  return { key: v.key, apts: v.apts.filter((a: any) => a && ok(a.ring) && Number.isFinite(a.rooms)).map((a: any) => ({ ring: a.ring.map((p: any) => [p[0], p[1]] as LngLat), rooms: Math.max(1, Math.min(6, Math.round(a.rooms))), ...(cleanInner(a.inner) ? { inner: cleanInner(a.inner)! } : {}) })), rooms: v.rooms.filter((q: any) => q && ok(q.ring) && ROOM_KINDS.includes(q.kind)).map((q: any) => ({ ring: q.ring.map((p: any) => [p[0], p[1]] as LngLat), kind: q.kind })) };
 }
 export type Shade = 'avto' | 'gorizontal' | 'vertikal' | 'panjara';
 

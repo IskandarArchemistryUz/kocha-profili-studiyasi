@@ -182,7 +182,7 @@ export function planApartments(doc: Project): SecPlan[] {
     if (b.planEdit) {
       if (b.planEdit.key === planKey(doc, b) && layout.plan) {
         genPlan = layout.plan;
-        layout.plan = applyEdit(layout.plan, { apts: b.planEdit.apts.map(a => ({ ring: a.ring.map(fr.toLocal), rooms: a.rooms })), rooms: b.planEdit.rooms.map(q => ({ ring: q.ring.map(fr.toLocal), kind: q.kind })) }, layout.mods, size);
+        layout.plan = applyEdit(layout.plan, { apts: b.planEdit.apts.map(a => ({ ring: a.ring.map(fr.toLocal), rooms: a.rooms, ...(a.inner ? { inner: a.inner } : {}) })), rooms: b.planEdit.rooms.map(q => ({ ring: q.ring.map(fr.toLocal), kind: q.kind })) }, layout.mods, size);
         layout.apts = aptsOf(layout.plan, layout.mods); edited = 'ok';
       } else edited = 'eskirgan';
     }

@@ -39,3 +39,24 @@ describe('Kvartira ichki rejasi (31.10)', () => {
     }
   });
 });
+
+describe('Ichki rejani qoʻlda sozlash (V2, 31.10)', () => {
+  const r: XY[] = [[0, 0], [60, 0], [60, 18], [0, 18]], mods = layoutSection(r, () => false).mods, pl = rulePlan(r, mods, [0, 20, 40, 40], 'M');
+  const i = pl.apts.findIndex(a => a.rooms >= 3 && aptInterior(a, mods));
+  it('flip — umumiy xona boshqa tomonda; dK — devor siljiydi; master yoʻq/ha; surma eshiklar', async () => {
+    const { editInner } = await import('../../src/core/sectionplan');
+    expect(i).toBeGreaterThanOrEqual(0);
+    const base = aptInterior(pl.apts[i], mods)!, cK = (x: typeof base) => { const u = x.rooms.find(q => q.kind === 'umumiy')!; return u.ring.reduce((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4], [0, 0]); };
+    const f = editInner(pl, i, { flip: true }); expect(f.ok).toBe(true);
+    const fl = aptInterior((f as any).plan.apts[i], mods)!;
+    expect(Math.hypot(cK(fl)[0] - cK(base)[0], cK(fl)[1] - cK(base)[1])).toBeGreaterThan(3);
+    const k1 = editInner(pl, i, { dK: 0.3 }), kk = aptInterior((k1 as any).plan.apts[i], mods)!;
+    const aU = (x: typeof base) => x.rooms.find(q => q.kind === 'umumiy')!.area;
+    expect(Math.abs(aU(kk) - aU(base))).toBeLessThan(4);
+    const m0 = editInner(pl, i, { master: false }), mm = aptInterior((m0 as any).plan.apts[i], mods)!;
+    expect(mm.master).toBe(false); expect(mm.rooms.some(q => q.kind === 'master')).toBe(false);
+    const sl = editInner(pl, i, { slide: true }), ss = aptInterior((sl as any).plan.apts[i], mods)!;
+    expect(ss.doors.filter(d => d.kind === 'slide').length).toBeGreaterThan(base.doors.filter(d => d.kind === 'slide').length);
+    expect(doorClashes(ss.doors, ss.walls, pl.apts[i].ring)).toEqual([]);
+  });
+});
