@@ -50,6 +50,7 @@ import { windAt, windSrcLine, ERA5_ATTR, TMYX_ATTR, type WindAt } from '../core/
 import { INSOL_BINS } from '../scene/scene';
 import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
 import { openAlbum, genplanSvg, type InsolView } from './album';
+import { injectCss as injectChzCss } from './chzsend';
 import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
@@ -1962,15 +1963,31 @@ export class Editor {
       this.regenTimer = null; const old = this.regenPrev; this.regenPrev = null; if (!old) return;
       const doc = this.store.doc, cur = this.plan(), keyOf = (r: XY[]) => r.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(';');
       const oldKey = new Map<string, string>(); old.blocks.forEach(b => oldKey.set(b.parcelId ?? b.labelId ?? '', keyOf(b.rings[0])));
-      let n = 0;
+      const todo: number[] = [], editedN: number[] = [];
       cur.blocks.forEach((b, i) => {
         const grp = b.parcelId ?? b.labelId; if (!grp) return;
-        const hasAuto = doc.buildings.some(x => x.gen?.grp === grp); if (!hasAuto || !this.savedGen(i)) return;
+        const auto = doc.buildings.filter(x => x.gen?.grp === grp); if (!auto.length || !this.savedGen(i)) return;
         const was = oldKey.get(grp); if (was == null || was === keyOf(b.rings[0])) return;   // chegara oʻzgarmagan
-        if (this.generateBlock(i, true) > 0) n++;
+        todo.push(i); const ne = auto.filter(x => x.gen?.edited).length; if (ne) editedN.push(ne);
       });
-      if (n) { toast(tf('${n} ta kvartal yoʻlga moslab qayta generatsiya qilindi', { n })); this.renderPanel(); this.renderKpi(); }
+      if (!todo.length) return;
+      const go = () => { let n = 0; for (const i of todo) if (this.generateBlock(i, true) > 0) n++; if (n) { toast(tf('${n} ta kvartal yoʻlga moslab qayta generatsiya qilindi', { n })); this.renderPanel(); this.renderKpi(); } };
+      // qoʻlda tahrirlangan avtomatik binolar bor — avval soʻraladi (egasi, 30.10): tahrir yoʻqoladi
+      if (editedN.length) this.askRegen(editedN.reduce((t, v) => t + v, 0), go); else go();
     }, 400);
+  }
+
+  /** Qayta generatsiya tasdigʻi (qoʻlda tahrirlangan avtomatik binolar yangisiga almashadi) */
+  private askRegen(nEdited: number, go: () => void): void {
+    injectChzCss(); document.getElementById('regenAsk')?.remove();
+    const back = h('div', { class: 'chzs-back', id: 'regenAsk' });
+    const close = () => back.remove();
+    back.append(h('div', { class: 'chzs', role: 'dialog', 'aria-modal': 'true' },
+      h('h2', {}, tr('Koʻcha oʻzgardi — binolar qayta generatsiya qilinsinmi?')),
+      h('p', {}, tf('${n} ta avtomatik bino qoʻlda tahrirlangan (qavatlar, fasad yoki reja). Qayta generatsiyada bu tahrirlar yoʻqoladi; binolar yangi kvartal chegarasiga moslanadi.', { n: nEdited })),
+      h('button', { type: 'button', class: 'chzs-o rec', id: 'regenYes', onclick: () => { close(); go(); } }, h('b', {}, tr('Qayta generatsiya qilish')), h('span', {}, tr('tahrirlar yoʻqoladi, binolar yoʻlga moslanadi'))),
+      h('button', { type: 'button', class: 'chzs-o', id: 'regenNo', onclick: close }, h('b', {}, tr('Binolarni qoldirish')), h('span', {}, tr('binolar joyida qoladi — koʻcha ustiga tushgan boʻlsa qoʻlda tuzating')))));
+    document.body.append(back);
   }
 
   private savedGen(i: number): Record<string, unknown> | null {

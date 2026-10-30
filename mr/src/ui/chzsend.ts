@@ -70,7 +70,7 @@ export async function sendSheet(item: ChzItem, center?: LngLat | null, base = '.
 }
 
 let css = false;
-function injectCss(): void {
+export function injectCss(): void {
   if (css) return; css = true;
   const s = document.createElement('style');
   s.textContent = `
