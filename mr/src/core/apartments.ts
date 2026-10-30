@@ -123,8 +123,9 @@ export function windowSun(pts: XY[], z: number[], nAz: number[], prisms: Prism[]
 }
 
 /* ---------------- baholash ---------------- */
-export interface InsolNorm { /** uzluksiz talab, soat (95-band: 2,0); eski 0331-16 8.5 rejimi (uzlukli +0,5 soat ham mos) — ixtiyoriy, kuchini yoʻqotgan */ need: number; old85?: boolean }
-export const roomOk = (run: number, total: number, n: InsolNorm) => run >= n.need - 1e-6 || (!!n.old85 && total >= n.need + 0.5 - 1e-6);
+export interface InsolNorm { /** uzluksiz talab, soat (95-band: 2,0) */ need: number }
+/** 95-band: faqat uzluksiz davr hisoblanadi (eski 0331-16 8.5 «uzlukli +0,5» — bekor; egasi qarori 30.10: tugma olib tashlandi) */
+export const roomOk = (run: number, _total: number, n: InsolNorm) => run >= n.need - 1e-6;
 /** 94-band: kamida nechta xona (1–3 xonali — 1, 4–5 xonali — 2) */
 export const roomsNeeded = (k: number) => (k >= 4 ? 2 : 1);
 /** 15-band: gʻarbga (200–290°) qaragan yashash xonasi — yoʻl qoʻyilmaydi (istisnosiz; eski 9.2 istisnolari bekor) */
@@ -224,7 +225,7 @@ export interface AptStats {
   byRooms: { k: number; n: number; ok: number }[];
   /** seksiyalar boʻyicha: kvartiralar va mos emaslari */
   bySec: { bid: string; apts: number; bad: number; west: number }[];
-  /** har nuqta holati: 0 — yashash xonasi mos (uzluksiz), 1 — faqat uzlukli (eski 8.5; mos emas, old85 boʻlsa mos), 2 — mos emas, 3 — yordamchi xona; west — 15-band buzilgan kvartira xonasi (1 — gʻarbga, 2 — janub/sharq yetarli emas) */
+  /** har nuqta holati: 0 — yashash xonasi mos (uzluksiz), 1 — faqat uzlukli (eski 8.5 boʻyicha mos boʻlardi; 0102-25 boʻyicha mos emas), 2 — mos emas, 3 — yordamchi xona; west — 15-band buzilgan kvartira xonasi (1 — gʻarbga, 2 — janub/sharq yetarli emas) */
   cls: Uint8Array; west: Uint8Array;
 }
 

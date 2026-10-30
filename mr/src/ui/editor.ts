@@ -1515,7 +1515,6 @@ export class Editor {
     this.scene.setAptBoxes(list, caps);
   }
   private aptDate = '03-22';
-  private aptRelief = false;
   private apt: { busy: boolean; stats: AptStats | null; plans: SecPlan[]; pts: { sec: number; f: number; m: number }[]; ms?: number; buildings?: unknown } = { busy: false, stats: null, plans: [], pts: [] };
   private aptRules: Result[] = [];
 
@@ -1539,14 +1538,14 @@ export class Editor {
       res = await new Promise((ok, no) => { w.onmessage = e => { ok(e.data); w.terminate(); }; w.onerror = e => { no(e); w.terminate(); }; w.postMessage({ id: 1, pts: P, z: Z, az: A, prisms, steps }); });
     } catch { res = windowSun(P, Z, A, prisms, steps); }
     if (this.store.doc.buildings !== doc.buildings) { this.apt.busy = false; this.renderPanel(); return; }
-    const norm = { need: 2.0, old85: this.aptRelief }, stats = evaluateApts(plans, pts, res.run, res.total, norm);
+    const norm = { need: 2.0 }, stats = evaluateApts(plans, pts, res.run, res.total, norm);
     this.apt = { busy: false, stats, plans, pts, ms: performance.now() - t0, buildings: doc.buildings };
     const pct = (a: number) => stats.apts ? a / stats.apts * 100 : 0;
     const src = { doc: 'SanQvaN 0102-25', edition: '2025', verified: true };
     this.aptRules = [
       { id: 'insol-apartments', title: 'Kvartiralar insolyatsiyasi (derazalar)', source: { ...src, clause: '94, 95-bandlar' },
         status: stats.insolOk === stats.apts ? 'pass' : 'fail', value: pct(stats.insolOk), unit: '% kvartira', limit: '100',
-        note: `${fmt(stats.apts - stats.insolOk)} / ${fmt(stats.apts)} kvartira talabga javob bermaydi (${this.aptDate === '03-22' ? '22 mart' : '22 sentabr'}, xonada uzluksiz ${fmt(norm.need, 1)} soat; 1–3 xonalida ≥ 1 xona, 4–5 xonalida ≥ 2 xona).${this.aptRelief ? ' Eski 0331-16 8.5 rejimi yoqilgan: uzlukli jami 2,5 soat ham mos deb olindi (0102-25 da bunday qoida yoʻq).' : ''} Kvartiralar sxemasi fasad modullari boʻyicha.` },
+        note: `${fmt(stats.apts - stats.insolOk)} / ${fmt(stats.apts)} kvartira talabga javob bermaydi (${this.aptDate === '03-22' ? '22 mart' : '22 sentabr'}, xonada uzluksiz ${fmt(norm.need, 1)} soat; 1–3 xonalida ≥ 1 xona, 4–5 xonalida ≥ 2 xona). Kvartiralar sxemasi fasad modullari boʻyicha.` },
       { id: 'west-apartments', title: 'Yashash xonalari gʻarbga (kvartira boʻyicha)', source: { ...src, clause: '15-band, 1-xatboshi' },
         status: stats.westOk === stats.apts ? 'pass' : 'fail', value: pct(stats.westOk), unit: '% kvartira', limit: '100',
         note: `${fmt(stats.apts - stats.westOk)} kvartirada gʻarbga (200–290°) qaragan yashash xonasi derazasi bor — yoʻl qoʻyilmaydi (istisnosiz).` },
@@ -1638,8 +1637,6 @@ export class Editor {
     body.append(
       h('div', { class: 'glabel' }, h('span', {}, tr('Hisob sanasi')), h('span', {}, 'SanQvaN 0102-25, 95')),
       h('div', { class: 'seg sm', role: 'group', title: tr('95-band davri chegarasi (22.03–22.09)') }, ...([['03-22', '22 mart'], ['09-22', '22 sentabr']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptDate === k, onclick: () => { this.aptDate = k; this.renderPanel(); } }, tr(t)))),
-      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Eski 0331-16 8.5 rejimi'), h('span', { class: 'sub' }, tr('uzlukli jami 2,5 soat ham mos (kuchini yoʻqotgan norma)'))),
-        sw({ id: 'aptRelief', label: tr('Eski 0331-16 8.5 rejimi: uzlukli jami 2,5 soat ham mos (kuchini yoʻqotgan norma)'), on: this.aptRelief, onchange: v => { this.aptRelief = v; this.renderPanel(); } }))),
       h('button', { class: 'btn btn-primary btn-block', id: 'aptGo', disabled: this.apt.busy, onclick: () => void this.runApts() }, ...icl(SUN, tr(this.apt.busy ? 'Hisoblanmoqda…' : 'Derazalar insolyatsiyasi'))));
     const st = this.apt.stats;
     if (st) {
@@ -1651,7 +1648,7 @@ export class Editor {
           h('span', { class: 'sub' }, `${tr('insolyatsiya')} ${pct(st.insolOk)} · ${tr('gʻarb taqiqi')} ${pct(st.westOk)} · ${tr('janub/sharq talabi')} ${pct(st.seOk)} · ${tr('yashash xonalari')} ${pct(st.roomsOk, st.rooms)}`),
           h('span', { class: 'sub' }, st.byRooms.map(r => `${r.k} ${tr('xonali')} ${fmt(r.n)} (${pct(r.ok, r.n)} ${tr('mos')})`).join(' · ') + (this.apt.ms ? ` · ${fmt(this.apt.pts.length)} ${tr('deraza')}, ${fmt(this.apt.ms / 1000, 1)} s` : ''))))),
         this.aptMode === 'insol'
-          ? leg([[0x3fa66b, 'Uzluksiz ≥ 2 soat'], [0xb7cf4f, this.aptRelief ? 'Faqat uzlukli (eski 8.5 — mos deb olindi)' : 'Faqat uzlukli (eski 8.5 — mos emas)'], [0xd9534f, 'Yetarli emas'], [0xd6d2c8, 'Oshxona / yordamchi']])
+          ? leg([[0x3fa66b, 'Uzluksiz ≥ 2 soat'], [0xb7cf4f, 'Faqat uzlukli (eski 8.5 — mos emas)'], [0xd9534f, 'Yetarli emas'], [0xd6d2c8, 'Oshxona / yordamchi']])
           : leg([[0x3fa66b, 'Yashash xonasi — mos'], [0xf29a4a, 'Janub/sharq talabi bajarilmagan (15-band)'], [0xd9534f, 'Gʻarbga (200–290°) — yoʻl qoʻyilmaydi'], [0xd6d2c8, 'Oshxona / yordamchi']]));
       const worst = st.bySec.filter(x => x.bad > 0).sort((a, b) => b.bad / b.apts - a.bad / a.apts).slice(0, 8);
       if (worst.length) body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Eng muammoli seksiyalar'))),

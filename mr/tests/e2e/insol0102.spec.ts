@@ -12,7 +12,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`insolyatsi
   await page.click('[data-step=kvartira]');
   await expect(page.locator('#aptPlan')).toContainText('xonadon');
   await expect(page.locator('.panel')).toContainText('SanQvaN 0102-25, 95');
-  await expect(page.locator('#aptRelief')).toHaveCount(1);   // eski 8.5 rejimi tugmasi saqlanadi (kuchini yoʻqotgan norma, belgi bilan)
+  await expect(page.locator('#aptRelief')).toHaveCount(0);   // eski 8.5 rejimi olib tashlandi (egasi, 30.10)
   await page.click('#aptGo');
   await expect(page.locator('#aptSt')).toContainText('xonadon mos', { timeout: 90_000 });
   await expect(page.locator('#aptSt')).toContainText('gʻarb taqiqi');

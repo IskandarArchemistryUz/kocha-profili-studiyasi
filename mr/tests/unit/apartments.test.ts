@@ -35,7 +35,6 @@ describe('Kvartiralar', () => {
   it('meʼyor qoidalari — SanQvaN 0102-25 (94, 95, 15-bandlar)', () => {
     const n = { need: 2.0 };
     expect(roomOk(2.0, 2.0, n)).toBe(true); expect(roomOk(1.9, 3.0, n)).toBe(false);   /* 95: faqat uzluksiz; uzlukli jami hisobga olinmaydi */
-    expect(roomOk(1.9, 3.0, { need: 2.0, old85: true })).toBe(true);                     /* eski 0331-16 8.5 rejimi — ixtiyoriy */
     expect(roomsNeeded(1)).toBe(1); expect(roomsNeeded(3)).toBe(1); expect(roomsNeeded(4)).toBe(2); expect(roomsNeeded(5)).toBe(2);   /* 94 */
     expect(westAllowed(1)).toBe(0); expect(westAllowed(2)).toBe(0); expect(westAllowed(3)).toBe(0);   /* 15: istisnosiz */
     expect(isWest(270)).toBe(true); expect(isWest(200)).toBe(true); expect(isWest(290)).toBe(true); expect(isWest(180)).toBe(false); expect(isWest(300)).toBe(false);
