@@ -512,7 +512,7 @@ function renderRightH(): void {
     const busySun: Ld<unknown> = axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
     const el = card(L('quyosh'), tr('OSM binolar'), hs ? tf('${h} soat', { h: fmt(hs.at, 1) }) : '—',
       hs ? [tf('Markazdagi nuqtada quyosh — ${d} kuni. Doira ichidagi ochiq hudud: oʻrtacha ${m} soat; ≥ 3 soat — ${a} %.', { d: tr(dn), m: fmt(hs.mean, 1), a: fmt(hs.ge3 * 100) }), h('br'),
-        m === 3 ? h('span', {}, tf('SanQvaN 0331-16, 8.3-band (22.03–22.09: hududda ≥ 0,5–1 soat): ≥ 1 soat — ${a} %, ≥ 0,5 soat — ${b} %.', { a: fmt(hs.ge1 * 100), b: fmt(hs.ge05 * 100) }), h('br')) :'',
+        m === 3 ? h('span', {}, tf('SanQvaN 0102-25, 95-band (22.03–22.09: uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz): ≥ 1 soat — ${a} %, ≥ 0,5 soat — ${b} %.', { a: fmt(hs.ge1 * 100), b: fmt(hs.ge05 * 100) }), h('br')) :'',
         sp.alt > 0 ? tf('Soat ${t}: quyosh balandligi ${a}°, azimut ${z}° — soyalar xaritada.', { t: hh(hr), a: fmt(sp.alt), z: fmt(sp.az) }) : tf('Soat ${t}: quyosh ufqdan past.', { t: hh(hr) }), h('br'),
         h('span', { class: 'src' }, tr('Binolar — OSM (balandlik: height / qavatlar / taxmin). Relyef va daraxtlar hisobga olinmagan. Hisob Master rejadagi insolyatsiya bilan bir xil (20 daqiqa qadam).'))] : [],
       null, hs ? undefined : busySun);
@@ -1211,7 +1211,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
       map: shot ? { url: shot.url, mPerMm: shot.side / mapS, rose: w ? roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null, ringLabel: tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) }) } : null,
       legends: collectLegends(), cards: collectCards(),
       stamp: { org: 'Archemistry Lab', service: tr('Joyshunos'), placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'),
-        sources: `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0331-16')} · EPW TMYx: ${TMYX_ATTR}`,
+        sources: `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0102-25')} · EPW TMYx: ${TMYX_ATTR}`,
         note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
       labels: { north: tr('Sh'), more: tr('Davomi keyingi varaqda →'), noMap: tr('Xarita surati olinmadi') },
     };

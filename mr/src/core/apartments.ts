@@ -1,5 +1,5 @@
 /**
- * Kvartiralar (massing bosqichi uchun sxema) va deraza insolyatsiyasi — SanQvaN 0331-16.
+ * Kvartiralar (massing bosqichi uchun sxema) va deraza insolyatsiyasi — SanQvaN 0102-25.
  *
  * Seksiya fasadi perimetr boʻylab ~3,3 m li modullarga boʻlinadi (bir modul — bitta xona derazasi).
  * Qoʻshni seksiyaga tegib turgan devor — berk (derazasiz). Ketma-ket modullar kvartiralarga guruhlanadi:
@@ -7,11 +7,12 @@
  * Xonalar joylashuvi «optimistik»: yashash xonalari kvartiraning eng yaxshi yoʻnalishdagi derazalarini oladi,
  * oshxona — gʻarbiy yoki eng shimoliy derazani (loyihachi shunday qiladi; aniq reja 5-bosqichda).
  *
- * Meʼyor (asl matndan, D:\Work\normalar\754f…pdf):
- *  8.3 — 22 mart – 22 sentabr, xonada uzluksiz 2,5 soat;
- *  8.4 — 1–3 xonali kvartirada kamida 1 xona, 4–5 xonalida kamida 2 xona;
- *  8.5 — uzlukli rejimda jami +0,5 soat (3,0); rekonstruksiya / murakkab sharoitda 0,5 soatga qisqartirish mumkin;
- *  9.2 — yashash xonalari derazalari 200–290° ga qaratilmaydi; istisno: 2 xonalida — 1 xona, 3 xonalida — ≤ 2 xona.
+ * Meʼyor — SanQvaN 0102-25 (SEOJSQ qarori 04.08.2025, 22-son; Adliya 15.09.2025, №370; kuchga kirgan 16.12.2025; 2-band: 0331-16 kuchini yoʻqotgan), asl matndan:
+ *  94 — «1 — 3 xonali kvartiralarning kamida bitta xonasiga va 4-5 xonali kvartiralarda kamida ikkita xonasiga quyosh nurining davomiy tushishi»;
+ *  95 — «xona 22-martdan 22-sentabrgacha boʻlgan davrda 2 h (soat) davomida ... uzluksiz quyosh nuri taʼsiri ostida»; uy atrofidagi hududda 0,5 — 1 h;
+ *       (eski 0331-16 8.5 dagi «uzlukli +0,5 soat» va «rekonstruksiyada −0,5 soat» yangi normada YOʻQ — uzlukli rejim mos deb hisoblanmaydi);
+ *  15 — «derazalarni ufqning gʻarbiy tomoniga 200 — 290° oraligʻida yoʻnaltirishga yoʻl qoʻyilmaydi» (istisnosiz);
+ *       «Ikki xonali kvartirani bitta xonasi, uch xonali kvartirani ikkita xonasi ... janubiy, janubiy-sharqiy, sharqiy tomoniga» (1 va 4–5 xonali — aytilmagan).
  */
 import type { XY } from './geo';
 import { signedArea, obb2 } from './geo';
@@ -122,12 +123,16 @@ export function windowSun(pts: XY[], z: number[], nAz: number[], prisms: Prism[]
 }
 
 /* ---------------- baholash ---------------- */
-export interface InsolNorm { /** uzluksiz talab, soat (8.3; rekonstruksiyada −0,5) */ need: number }
-export const roomOk = (run: number, total: number, n: InsolNorm) => run >= n.need - 1e-6 || total >= n.need + 0.5 - 1e-6;
-/** 8.4: kamida nechta xona */
+export interface InsolNorm { /** uzluksiz talab, soat (95-band: 2,0); eski 0331-16 8.5 rejimi (uzlukli +0,5 soat ham mos) — ixtiyoriy, kuchini yoʻqotgan */ need: number; old85?: boolean }
+export const roomOk = (run: number, total: number, n: InsolNorm) => run >= n.need - 1e-6 || (!!n.old85 && total >= n.need + 0.5 - 1e-6);
+/** 94-band: kamida nechta xona (1–3 xonali — 1, 4–5 xonali — 2) */
 export const roomsNeeded = (k: number) => (k >= 4 ? 2 : 1);
-/** 9.2: gʻarbga ruxsat etilgan yashash xonalari (4+ xonali uchun meʼyorda aytilmagan — 3 xonalidek olindi) */
-export const westAllowed = (k: number) => (k <= 1 ? 0 : k === 2 ? 1 : 2);
+/** 15-band: gʻarbga (200–290°) qaragan yashash xonasi — yoʻl qoʻyilmaydi (istisnosiz; eski 9.2 istisnolari bekor) */
+export const westAllowed = (_k: number) => 0;
+/** 15-band, 2-xatboshi: janub / janubi-sharq / sharq — sektorlar ±22,5°: 67,5° ≤ az < 200° (200° dan — gʻarb taqiqi) */
+export const isSE = (a: number) => a >= 67.5 && a < 200;
+/** 15-band: janub/janubi-sharq/sharqqa qarashi shart boʻlgan xonalar soni (2 xonali — 1, 3 xonali — 2; 1 va 4–5 xonali — meʼyorda aytilmagan → 0) */
+export const seNeeded = (k: number) => (k === 2 ? 1 : k === 3 ? 2 : 0);
 
 /* ---------------- loyiha boʻyicha ---------------- */
 import type { Project } from './doc';
@@ -215,11 +220,11 @@ export function windowPoints(plans: SecPlan[]): { sec: number; f: number; m: num
 }
 
 export interface AptStats {
-  apts: number; insolOk: number; westOk: number; bothOk: number; rooms: number; roomsOk: number;
+  apts: number; insolOk: number; westOk: number; /** 15-band 2-xatboshi: janub/janubi-sharq/sharq talabi bajarilgan kvartiralar */ seOk: number; bothOk: number; rooms: number; roomsOk: number;
   byRooms: { k: number; n: number; ok: number }[];
   /** seksiyalar boʻyicha: kvartiralar va mos emaslari */
   bySec: { bid: string; apts: number; bad: number; west: number }[];
-  /** har nuqta holati: 0 — yashash xonasi mos (uzluksiz), 1 — mos (uzlukli, 8.5), 2 — mos emas, 3 — yordamchi xona; west — 9.2 buzilgan kvartira xonasi */
+  /** har nuqta holati: 0 — yashash xonasi mos (uzluksiz), 1 — faqat uzlukli (eski 8.5; mos emas, old85 boʻlsa mos), 2 — mos emas, 3 — yordamchi xona; west — 15-band buzilgan kvartira xonasi (1 — gʻarbga, 2 — janub/sharq yetarli emas) */
   cls: Uint8Array; west: Uint8Array;
 }
 
@@ -227,24 +232,25 @@ export function evaluateApts(plans: SecPlan[], pts: { sec: number; f: number; m:
   const idx = new Map<string, number>(); pts.forEach((p, i) => idx.set(`${p.sec}|${p.f}|${p.m}`, i));
   const cls = new Uint8Array(pts.length).fill(3), west = new Uint8Array(pts.length);
   const byK = new Map<number, { n: number; ok: number }>(), bySec: AptStats['bySec'] = [];
-  let apts = 0, insolOk = 0, westOk = 0, bothOk = 0, rooms = 0, roomsOk = 0;
+  let apts = 0, insolOk = 0, westOk = 0, seOk = 0, bothOk = 0, rooms = 0, roomsOk = 0;
   plans.forEach((pl, sec) => {
     const S = { bid: pl.bid, apts: 0, bad: 0, west: 0 };
     for (const a of pl.layout.apts) {
       const wBad = a.living.filter(m => isWest(pl.layout.mods[m].az)).length > westAllowed(a.rooms);
+      const sBad = a.living.filter(m => isSE(pl.layout.mods[m].az)).length < seNeeded(a.rooms);
       for (let f = pl.f0; f < pl.f1; f++) {
         let ok = 0;
         for (const m of a.living) {
           const i = idx.get(`${sec}|${f}|${m}`)!; rooms++;
           const good = roomOk(run[i], total[i], norm); if (good) { ok++; roomsOk++; }
-          cls[i] = run[i] >= norm.need - 1e-6 ? 0 : good ? 1 : 2; if (wBad) west[i] = 1;
+          cls[i] = run[i] >= norm.need - 1e-6 ? 0 : total[i] >= norm.need + 0.5 - 1e-6 ? 1 : 2; if (wBad && isWest(pl.layout.mods[m].az)) west[i] = 1; else if (sBad) west[i] = 2;
         }
         const iOk = ok >= roomsNeeded(a.rooms);
-        apts++; S.apts++; if (iOk) insolOk++; if (!wBad) westOk++; if (iOk && !wBad) bothOk++; else S.bad++; if (wBad) S.west++;
-        const e = byK.get(a.rooms) ?? { n: 0, ok: 0 }; e.n++; if (iOk && !wBad) e.ok++; byK.set(a.rooms, e);
+        apts++; S.apts++; if (iOk) insolOk++; if (!wBad) westOk++; if (!sBad) seOk++; if (iOk && !wBad && !sBad) bothOk++; else S.bad++; if (wBad || sBad) S.west++;
+        const e = byK.get(a.rooms) ?? { n: 0, ok: 0 }; e.n++; if (iOk && !wBad && !sBad) e.ok++; byK.set(a.rooms, e);
       }
     }
     bySec.push(S);
   });
-  return { apts, insolOk, westOk, bothOk, rooms, roomsOk, byRooms: [...byK.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => ({ k, ...v })), bySec, cls, west };
+  return { apts, insolOk, westOk, seOk, bothOk, rooms, roomsOk, byRooms: [...byK.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => ({ k, ...v })), bySec, cls, west };
 }

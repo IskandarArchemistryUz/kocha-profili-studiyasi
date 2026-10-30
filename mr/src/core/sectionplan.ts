@@ -8,7 +8,7 @@
  *   3) yadro → koridor (MOP) → qolgan maydon koridorga perpendikulyar, fasad modullari toʻrida kesiladi: har kvartira
  *      koridorga eshik va fasadga deraza bilan;
  *   4) tekshiruv: eshik oʻz seksiyasi MOP idan (≥ 0,9 m); deraza bor; kvartira chuqurligi (maydon / deraza fasadi eni) ≤ 10,5 m
- *      — «qorongʻi» kvartira boʻlmasin (TAXMIN; xona chuqurligi ≤ 6 m — SanQvaN 0331-16, 8.7); shart bajarilmasa qoʻshni
+ *      — «qorongʻi» kvartira boʻlmasin (TAXMIN; xona chuqurligi ≤ 6 m — SanQvaN 0102-25, 97-band); shart bajarilmasa qoʻshni
  *      kvartiraga qoʻshiladi, boʻlmasa — texnik.
  *
  * Qanot chuqurligi ≥ 13 m — ikki tomonlama (oʻrta koridor), < 13 m — bir tomonlama (koridor hovli fasadi boʻylab).
@@ -851,8 +851,8 @@ export function planChecks(pl: RulePlan, h: number, mods: FacadeMod[] = []): Pla
   const rest = pl.rest.reduce((t, q) => t + area(q), 0);
   return [
     { id: 'mop', title: 'Har kvartiraga eshik oʻz seksiyasi koridoridan', ok: noDoor === 0 && overlap < 0.5, value: noDoor ? `${noDoor} ta kvartiraga MOP dan kirish yoʻq` : `${pl.apts.length} / ${pl.apts.length}, boshqa kvartira orqali kirish yoʻq`, norm: 'kirish → zina-lift → koridor → kvartira', source: 'Rejalash qoidasi (evakuatsiya yoʻli faqat umumiy joylar orqali)' },
-    { id: 'win', title: 'Har kvartirada deraza', ok: noWin === 0, value: noWin ? `${noWin} ta derazasiz` : 'hammasida', norm: 'har yashash xonasi fasadda', source: 'Rejalash qoidasi; insolyatsiya — SanQvaN 0331-16, 8.3' },
-    { id: 'light', title: 'Kvartira chuqurligi (maydon / deraza fasadi)', ok: dark === 0, value: dark ? `${dark} ta qorongʻi kvartira` : `eng chuquri ≈ ${f1(maxDeep)} m`, norm: `≤ ${f1(MAX_DEPTH)} m (TAXMIN)`, source: 'Rejalash qoidasi; xona chuqurligi ≤ 6 m — SanQvaN 0331-16, 8.7' },
+    { id: 'win', title: 'Har kvartirada deraza', ok: noWin === 0, value: noWin ? `${noWin} ta derazasiz` : 'hammasida', norm: 'har yashash xonasi fasadda', source: 'Rejalash qoidasi; insolyatsiya — SanQvaN 0102-25, 94–95' },
+    { id: 'light', title: 'Kvartira chuqurligi (maydon / deraza fasadi)', ok: dark === 0, value: dark ? `${dark} ta qorongʻi kvartira` : `eng chuquri ≈ ${f1(maxDeep)} m`, norm: `≤ ${f1(MAX_DEPTH)} m (TAXMIN)`, source: 'Rejalash qoidasi; xona chuqurligi ≤ 6 m — SanQvaN 0102-25, 97-band' },
     { id: 'sec', title: 'Seksiyalar va kvartiralar soni seksiyada', ok: maxPer <= 8 ? true : null, value: `${secs.length} seksiya; seksiyada ${perSec.join(' / ')} kvartira`, norm: 'bitta zina-liftga ≤ 8 kvartira, uzun umumiy koridor yoʻq (TAXMIN)', source: 'Rejalash qoidasi — seksiyali uy' },
     { id: 'corr', title: 'Umumiy koridor eni', ok: pl.corridorW >= 1.2, value: `${f1(pl.corridorW)} m`, norm: '≥ 1,2 m', source: 'ShNQ 2.01.02-04, 5.27' },
     { id: 'lift', title: 'Lift oldi maydonchasi eni', ok: pl.corridorW >= 1.6, value: `${f1(pl.corridorW)} m`, norm: '≥ 1,6 m', source: 'ShNQ 2.01.02-04, 5.31' },

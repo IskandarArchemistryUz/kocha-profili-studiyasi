@@ -234,7 +234,7 @@ test('A3: issiqlik oroli (MODIS, beta) va quyosh/soya xaritada', async ({ page }
   // kun: 22 mart — SanQvaN meʼyori satri chiqadi; soat stepper
   await joyTab(page, 'quyosh');
   await page.locator('[data-card=quyosh] .seg button', { hasText: '22 mart' }).click();
-  await expect(page.locator('[data-card=quyosh] .sub')).toContainText('SanQvaN 0331-16', { timeout: 60_000 });
+  await expect(page.locator('[data-card=quyosh] .sub')).toContainText('SanQvaN 0102-25', { timeout: 60_000 });
   const h0 = await page.locator('#sunHour').textContent();
   await page.locator('[data-card=quyosh] .joy-step button').last().click();
   await expect(page.locator('#sunHour')).not.toHaveText(h0!);

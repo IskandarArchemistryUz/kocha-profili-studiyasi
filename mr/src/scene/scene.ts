@@ -434,7 +434,7 @@ export class Scene3D {
   }
 
   /**
-   * Quyosh himoyasi: naveslar (gorizontal), lamellar (vertikal) yoki panjara — 90–290° ga qaragan fasadlarda (SanQvaN 0331-16, 9.3).
+   * Quyosh himoyasi: naveslar (gorizontal), lamellar (vertikal) yoki panjara — 90–290° ga qaragan fasadlarda (SanQvaN 0102-25, 16-band).
    * avto: janub (135–225°) — naves, sharq va gʻarb — vertikal lamellar.
    */
   private shading(kind: Shade, tiers: TierPart[], nr: number, base: number, fh: number, shared: (ti: number, k: number) => boolean, color: number): void {

@@ -612,10 +612,10 @@ function mergeCorners(A: XY[], S: GenSection[], meta: { edge: number; first: boo
 }
 
 function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
-  // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0331-16, 9.4-band — eng qulay yoʻnalish;
-  // 9.2-band — yashash xonalari derazalari gʻarbga (200–290°) qaratilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
+  // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0102-25, 3-band — turar joy obyektlari janubiy, janubi-sharqiy, sharqiy, shimoli-sharqiy yoʻnalishda;
+  // 15-band — xona derazalari gʻarbga (200–290°) yoʻnaltirilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
   const D = g.depth, H = g.maxF * floorH, gap = Math.max(2 * H, 20); // izoh 8: ≥ 2·Hmax
-  notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0331-16, 9.4-band); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
+  notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const p of A) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
   const poly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
