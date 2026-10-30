@@ -287,8 +287,8 @@ export class LineTool implements Tool {
   private pts: XY[] = [];
   private cur: XY | null = null;
   private dbl = new Dbl();
-  constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private snap: (p: XY) => XY = p => p) {}
-  get hint(): string { return this.pts.length < 2 ? 'Koʻcha oʻqi: nuqtalarni bosing · uchlar boshqa koʻchaga yopishadi · Esc — bekor' : 'Ikki marta bosish, Enter yoki «Chizishni tugatish» — saqlash · Backspace — oxirgisi · Esc — bekor'; }
+  constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private snap: (p: XY) => XY = p => p, private label?: string) {}
+  get hint(): string { return this.pts.length < 2 ? (this.label ?? 'Koʻcha oʻqi: nuqtalarni bosing · uchlar boshqa koʻchaga yopishadi · Esc — bekor') : 'Ikki marta bosish, Enter yoki «Chizishni tugatish» — saqlash · Backspace — oxirgisi · Esc — bekor'; }
   click(xy: XY, e: PointerEvent): void {
     if (this.dbl.is(e) && this.pts.length >= 2) { this.finish(); return; }
     this.pts.push(this.snap(xy)); this.draw();

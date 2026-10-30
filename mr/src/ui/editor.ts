@@ -24,7 +24,8 @@ import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
-import { computePlan, pointIn, type PlanGeo } from '../core/plan';
+import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
+import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
@@ -1961,7 +1962,7 @@ export class Editor {
     const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));
     if (drop.bids.length) this.genNotes = [...this.genNotes, tf('${n} ta eski avtomatik bino (oldingi generatsiyadan) almashtirildi — ustma-ust tushmasligi uchun', { n: drop.bids.length })];
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
-      sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind })),
+      sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind, ...(x.plot ? { plot: x.plot.map(fr.toGeo) } : {}) })),
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}) } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
@@ -2156,6 +2157,7 @@ export class Editor {
     nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
     const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm', drawingA = this.tool instanceof AxisTool;
     const addB = (r: XY[]) => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); this.el.hint.textContent = this.tool?.hint ?? ''; };
+    body.append(this.lowRowBox(fr));
     body.append(h('details', { class: 'how manual', open: drawing || drawingP || drawingA || !gens }, h('summary', {}, svgIcon(IC.pencil), tr('Qoʻlda bino chizish')),
       h('div', { class: 'col' },
         h('div', { class: 'row2' }, h('div', { class: 'field' }, h('label', {}, tr('Qavatlar')), fl), h('div', { class: 'field' }, h('label', {}, tr('Noturar pastki')), nr)),
@@ -2172,6 +2174,40 @@ export class Editor {
           }, toast, 20)) }, ...(drawingP ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Erkin shakl'))))),
         drawingA ? this.axisRow() : drawingP || drawing ? this.dimRow(drawing) : '',
         h('span', { class: 't-small' }, tr('Uchlar va qirralarga yopishadi (Shift — oʻchiq). Kesma uzunligi chiziqda koʻrinadi.')))));
+  }
+  /**
+   * Past qavatli uylar qatori chiziq boʻylab (egasi, 31.10): chiziq (koʻcha oʻqi yoki qurilish chizigʻi) chiziladi — bir yoki ikki
+   * tomoniga avval uchastkalar, keyin uylar (core/lowrise: 74, 75, 100, 101-band; Strelka 3-bob). Chekinish — chiziqdan uchastka
+   * boshigacha (koʻcha oʻqi boʻlsa — yarim eni). Koʻcha koridori va mavjud binolar ustiga tushgan uchastkalar olinmaydi.
+   */
+  private lowKind: LowKind = 'taunhaus';
+  private lowSide: 1 | -1 | 0 = 1;
+  private lowOff = 0;
+  private lowRowBox(fr: ReturnType<typeof frame>): HTMLElement {
+    const drawingL = this.tool instanceof LineTool && this.step.id === 'hajm';
+    const seg = <T extends string | number>(id: string, label: string, opts: [T, string][], cur: T, set: (v: T) => void) => h('div', { class: 'seg sm', id, role: 'group', 'aria-label': tr(label) }, ...opts.map(([v, n]) => h('button', { 'data-v': String(v), 'aria-pressed': cur === v, onclick: () => { set(v); this.renderPanel(); } }, tr(n))));
+    const off = h('input', { type: 'number', class: 'input', id: 'lowOff', min: 0, max: 30, step: '0.5', value: this.lowOff, 'aria-label': tr('Chiziqdan chekinish, m') }) as HTMLInputElement;
+    off.onchange = () => { const v = Number(String(off.value).replace(',', '.')); this.lowOff = Number.isFinite(v) ? Math.max(0, Math.min(30, v)) : 0; };
+    const P = LOW[this.lowKind];
+    const place = (line: XY[]) => {
+      const doc = this.store.doc, plan = this.plan(), sides: (1 | -1)[] = this.lowSide === 0 ? [1, -1] : [this.lowSide];
+      const blockers = [...plan.corridors.flatMap(p => p.map(r => r)), ...doc.buildings.map(b => b.footprint.map(fr.toLocal))];
+      const hit = (r: XY[]) => blockers.some(q => q.length >= 3 && (r.some(p => pointIn(p, [q])) || q.some(p => pointIn(p, [r]))));
+      const houses = sides.flatMap(sd => lowriseAlong(this.lowOff > 0 ? offsetLine(line, sd * this.lowOff) : line, sd, this.lowKind, doc.site ? doc.site.rings[0].map(fr.toLocal) : null)).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
+      if (!houses.length) { toast(tr('Chiziq boʻylab uy sigʻmadi — chiziq qisqa yoki koʻcha / bino ustiga tushadi')); return; }
+      this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: uid('qator_'), sections: houses.map(hh => ({ footprint: hh.ring.map(fr.toGeo), floors: hh.floors, nonRes: 0, use: 'turar' as Use, kind: hh.kind, plot: hh.plot.map(fr.toGeo) })) }));
+      toast(tf('${n} ta uy chiziq boʻylab qoʻyildi', { n: houses.length }));
+      if (this.tool) this.el.hint.textContent = this.tool.hint;
+    };
+    return h('details', { class: 'how manual', id: 'lowRow', open: drawingL }, h('summary', {}, svgIcon(IC.pencil), tr('Past qavatli uylar qatori')),
+      h('div', { class: 'col' },
+        seg<LowKind>('lowKind', 'Uy turi', [['yakka', 'Yakka uy'], ['taunhaus', 'Taunhaus']], this.lowKind, v => { this.lowKind = v; }),
+        seg<1 | -1 | 0>('lowSide', 'Tomon', [[1, 'Chapga'], [-1, 'Oʻngga'], [0, 'Ikkala tomon']], this.lowSide, v => { this.lowSide = v; }),
+        h('div', { class: 'field' }, h('label', {}, tr('Chiziqdan chekinish, m')), off),
+        h('span', { class: 't-small' }, this.lowKind === 'yakka'
+          ? tf('Uchastka ${w} × ${d} m (≥ 400 m², 75-band), oldi ${f} m, yon 3 m (100-band), 2 qavat', { w: P.plotW, d: P.plotD, f: P.front })
+          : tf('Blok eni ${w} m, uchastka ≥ 200 m² (74-band), qator ≤ 15 uy va ≤ 100 m, oraliq ${g} m (Strelka), 3 qavat', { w: P.plotW, g: P.gap })),
+        h('button', { class: drawingL ? 'btn btn-primary' : 'btn', id: 'lowDraw', onclick: () => drawingL ? this.endTool() : this.setTool(new LineTool(this.scene, r => place(r), toast, p => p, 'Uylar qatori chizigʻi: nuqtalarni bosing · 2× bosish yoki Enter — qoʻyish · Esc — bekor')) }, ...(drawingL ? icl(IC.check, tr('Chizishni tugatish')) : icl(IC.plus, tr('Chiziq chizish'))))));
   }
   /** «Oʻq boʻylab» chuqurligi (m): paneldagi maydon; boshlangʻich — generator chuqurligi */
   private axisDepth = 15;
