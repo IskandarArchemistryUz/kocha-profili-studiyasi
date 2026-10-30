@@ -142,6 +142,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const i = doc.buildings.findIndex(b => b.id === c.id);
       if (i < 0) throw new CommandError('Bino topilmadi');
       const b = { ...doc.buildings[i], ...c.patch };
+      if (b.gen && !c.patch.gen && Object.keys(c.patch).length) b.gen = { ...b.gen, edited: true };   // avtomatik bino qoʻlda tahrirlandi — qayta generatsiyadan oldin soʻraladi
       b.floors = Math.max(1, Math.round(b.floors));
       b.nonRes = b.gen?.kind === 'stilobat' ? b.floors : Math.max(0, Math.min(b.floors - 1, Math.round(b.nonRes)));
       if (c.patch.footprint) { b.footprint = copyRing(c.patch.footprint); if (b.gen?.blind && b.footprint.length !== doc.buildings[i].footprint.length) { const { blind: _x, ...g } = b.gen; b.gen = g; } }   // qirralar soni oʻzgarsa — torets belgilari yaroqsiz

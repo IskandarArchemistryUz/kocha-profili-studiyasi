@@ -27,4 +27,18 @@ test('koʻcha tutqichi sudralganda avtomatik binolar qayta generatsiya boʻladi'
     const dist = (p: number[]) => { const dx = B[0] - A[0], dy = B[1] - A[1], t = Math.max(0, Math.min(1, ((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / (dx * dx + dy * dy))); return Math.hypot(p[0] - A[0] - dx * t, p[1] - A[1] - dy * t); };
     return Math.min(...d.buildings.filter((b: any) => b.gen).flatMap((b: any) => b.footprint.map((p: number[]) => dist(L(p))))); });
   expect(minD).toBeGreaterThan(7);
+  // qoʻlda tahrirlangan avtomatik bino bor — keyingi siljitishda soʻraladi (egasi, 30.10): «qoldirish» → oʻzgarmaydi; «qayta» → oʻzgaradi
+  await page.evaluate(() => { const ed = (window as any).__mr, b = ed.store.doc.buildings.find((x: any) => x.gen); ed.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: b.floors + 2 } }); });
+  const mid = await snap();
+  s = await scr(100, -30); await page.mouse.move(s.x, s.y); await page.mouse.down();
+  const t2 = await scr(100, -45); await page.mouse.move(t2.x, t2.y, { steps: 6 }); await page.mouse.up();
+  await expect(page.locator('#regenAsk')).toBeVisible({ timeout: 10_000 });
+  await page.click('#regenNo');
+  await expect(page.locator('#regenAsk')).toHaveCount(0);
+  expect((await snap()).key).toBe(mid.key);
+  s = await scr(100, -45); await page.mouse.move(s.x, s.y); await page.mouse.down();
+  const t3 = await scr(100, -55); await page.mouse.move(t3.x, t3.y, { steps: 6 }); await page.mouse.up();
+  await expect(page.locator('#regenAsk')).toBeVisible({ timeout: 10_000 });
+  await page.click('#regenYes');
+  await expect.poll(async () => (await snap()).key, { timeout: 15_000 }).not.toBe(mid.key);
 });
