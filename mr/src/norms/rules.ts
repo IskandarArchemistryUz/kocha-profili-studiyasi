@@ -10,6 +10,8 @@ import { CATS, checkProfile, profileById } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
+import { frame } from '../core/geo';
+import { checkBlock, lenLimit, SYS } from '../core/seysmik';
 
 /** Xonadonlar soni manbasi (izoh boʻlagi; alohida kalit — tarjima uchun) */
 function aptSrc(d: Derived, doc: Project): string {
@@ -206,6 +208,23 @@ export const RULES: Rule[] = [
       const v = d.playNeed > 0 ? d.playGot / d.playNeed * 100 : 0;
       return { status: v >= 99 ? 'pass' : v >= 50 ? 'review' : 'fail', value: d.playGot, unit: 'm²', limit: `${Math.round(d.playNeed)} (3,1 m²/kishi)`,
         note: `Talab: bolalar 0,7 + kattalar 0,1 + sport 2,0 + xoʻjalik 0,3 m²/kishi; joylashtirilgan ${Math.round(v)} %. 90-band: chang boʻronli hududlarda yoki mavze sport majmuasi boʻlsa — ikki baravargacha qisqartirish mumkin; 92-band: zichlik > 7000 m²/ga — tomlarga joylashtirish.` };
+    },
+  },
+  {
+    id: 'seismic-blocks',
+    title: 'Seysmik boʻlmalar: uzunlik va chiqib turgan qism',
+    source: { doc: 'QMQ 2.01.03-19', edition: '2019', clause: '3.1-jadval, 3.1.1, 3.1.3, 3.7.2-bandlar', verified: true },
+    evaluate(_d, doc) {
+      const s = doc.settings, sys = s.construct ?? 'monolit', ball = s.seismic, lim = lenLimit(sys, ball), def = SYS[sys];
+      const bl = doc.buildings;
+      if (!bl.length) return { status: 'na', limit: lim == null ? 'NSTT' : `≤ ${lim} m`, unit: 'bino', note: `Binolar yoʻq. ${def.name} (${def.row}), ${ball} ball.` };
+      const fr = frame(doc.origin), res = bl.map(b => ({ b, c: checkBlock(b.footprint.map(fr.toLocal), sys, ball) }));
+      const longs = res.filter(x => !x.c.lenOk), projs = res.filter(x => !x.c.projOk), worst = res.reduce((a, x) => x.c.len > a.c.len ? x : a);
+      const n = new Set([...longs, ...projs].map(x => x.b.id)).size;
+      const parts = [`${def.name} (3.1-jadval, ${def.row}), ${ball} ball: boʻlma uzunligi ${lim == null ? 'cheklanmagan (NSTT)' : `≤ ${lim} m`}, chiqib turgan qism ≤ ${def.proj} m (3.1.1). Har bino alohida boʻlma deb olindi — tegib turgan binolar orasida antiseysmik chok boʻlishi kerak (3.1.3; eng kichik kengligi 3.1.4).`];
+      if (longs.length) parts.push(`Uzun: ${longs.length} ta (eng uzuni ${worst.c.len} m) — chok bilan boʻlmalarga ajrating yoki seksiya uzunligini kamaytiring.`);
+      if (projs.length) parts.push(`Chiqib turgan qism ${def.proj} m dan katta: ${projs.length} ta (${projs.slice(0, 3).map(x => `${x.c.proj} m`).join(', ')}${projs.length > 3 ? ' …' : ''}) — burchak binosini chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajrating (3.1.1) yoki 1.1-band boʻyicha asoslang.`);
+      return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
     },
   },
   {

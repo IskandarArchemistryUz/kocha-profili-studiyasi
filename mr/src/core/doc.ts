@@ -79,6 +79,10 @@ export interface SavedView { id: string; name: string; mode: 'plan' | 'axo' | 'p
 
 export interface ZoneLabel { id: string; at: LngLat; use: Use; /** shu kvartal uchun oxirgi generator parametrlari */ gen?: Record<string, unknown> }
 
+/** Yuk koʻtaruvchi tizim (QMQ 2.01.03-19, 3.1-jadval qatorlari) */
+export type ConstructSys = 'monolit' | 'karkas' | 'toldirgich' | 'gisht';
+export const CONSTRUCT_SYS: ConstructSys[] = ['monolit', 'karkas', 'toldirgich', 'gisht'];
+
 export interface Settings {
   /** amaldagi meʼyorlar toʻplami */
   norms: 'uz-2023';
@@ -104,6 +108,8 @@ export interface Settings {
   yards: boolean;
   /** rekonstruksiya / renovatsiya / murakkab shaharsozlik sharoiti: 2-jadval masofalari insolyatsiya taʼminlansa ikki barobargacha qisqaradi (79-band, 2-jadval, 7-izoh) */
   recon?: boolean;
+  /** yuk koʻtaruvchi tizim — QMQ 2.01.03-19, 3.1-jadval (boʻlma uzunligi chegarasi); yoʻq — monolit devorlar */
+  construct?: ConstructSys;
   /** bekatgacha radius (core/transit.ts): shahar toifasi (null — stat.uz aholisidan andoza), umumshahar markazi, relyef tuzatmasi */
   transit: { cat: 'engyirik' | 'yirik' | 'katta' | 'orta' | 'kichik' | null; center: boolean; relief: boolean };
 }
@@ -260,6 +266,7 @@ export function migrate(raw: unknown): Project {
   for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
   if (typeof s.yards !== 'boolean') s.yards = true;
   if (s.recon !== undefined && typeof s.recon !== 'boolean') delete s.recon;
+  if (s.construct !== undefined && !CONSTRUCT_SYS.includes(s.construct)) delete s.construct;
   { const t = (s.transit && typeof s.transit === 'object' ? s.transit : {}) as Partial<Settings['transit']>;
     s.transit = { cat: ['engyirik', 'yirik', 'katta', 'orta', 'kichik'].includes(t.cat as string) ? t.cat! : null, center: t.center === true, relief: t.relief !== false }; }
   if (typeof s.district !== 'string' || !/^\d{4,10}$/.test(s.district)) s.district = DEFAULT_SETTINGS.district;

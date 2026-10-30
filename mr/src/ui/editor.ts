@@ -28,6 +28,8 @@ import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
+import { lenLimit, SYS } from '../core/seysmik';
+import { CONSTRUCT_SYS } from '../core/doc';
 import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
@@ -1901,7 +1903,9 @@ export class Editor {
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
     const sg = this.savedGen(i), base: GenParams = i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) };
-    const g: GenParams = usePreset(b.use, base) ?? (ud.floors ? { ...base, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base);
+    const g0: GenParams = usePreset(b.use, base) ?? (ud.floors ? { ...base, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base);
+    // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
+    const lim = lenLimit(this.store.doc.settings.construct ?? 'monolit', this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]) });
     this.genNotes = r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
@@ -2021,6 +2025,7 @@ export class Editor {
           stp('gMin', tr('eng kam'), '1–40', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); }),
           stp('gDepth', tr('Chuqurlik'), '9–24 m', g.depth, 9, 24, 0.5, x => { g.depth = x; }, 'm'),
           stp('gLen', tr('Seksiya uzunligi'), '15–60 m', g.secLen, 15, 60, 1, x => { g.secLen = x; }, 'm'),
+          (() => { const S0 = this.store.doc.settings, lim = lenLimit(S0.construct ?? 'monolit', S0.seismic); return lim != null && g.secLen > lim ? h('div', { class: 'li', id: 'seisLenNote' }, h('span', { class: 'chip warn' }, h('i'), tf('Seysmik boʻlma ≤ ${l} m', { l: lim })), h('span', { class: 't-small' }, tf('${s} ball, ${n} — generatsiyada seksiya ${l} m bilan cheklanadi (QMQ 2.01.03-19, 3.1-jadval)', { s: S0.seismic, n: SYS[S0.construct ?? 'monolit'].name, l: lim }))) : ''; })(),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Aniq oʻlcham'), h('span', { class: 'sub' }, tr(g.exact ? 'har seksiya aynan uzunlik × chuqurlik; qoldiq — izohda' : 'oʻchiq: qirra teng boʻlaklarga boʻlinadi (uzunlik — moʻljal)'))), sw({ id: 'gExact', label: tr('Aniq oʻlcham'), on: !!g.exact, onchange: v => { g.exact = v; this.renderPanel(); } })),
           stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm'),
           stp('gSty', tr('Stilobat'), tr('qavat'), g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; }),
@@ -3350,6 +3355,18 @@ export class Editor {
     if (['tekshiruv', 'uchastka', 'kocha', 'yashil'].includes(this.step.id)) this.renderPanel();
   }
 
+  /** Seysmik boʻlmalar sozlamasi (QMQ 2.01.03-19): maydon balli (SMT xaritasi yoki grunt toifasi, 1.6-band) va yuk koʻtaruvchi tizim (3.1-jadval) */
+  private seismicRow(): HTMLElement {
+    const S0 = this.store.doc.settings, sys = S0.construct ?? 'monolit', lim = lenLimit(sys, S0.seismic);
+    const set = (patch: Partial<typeof S0>) => this.run(() => this.store.dispatch({ type: 'setSettings', patch }));
+    return h('div', { class: 'group', id: 'seisRow' },
+      h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
+        h('span', { class: 'k' }, tr('Seysmik boʻlmalar'), h('span', { class: 'sub' }, tr('Maydon seysmikligi — SMT xaritasi yoki grunt toifasi boʻyicha (1.6-band, 1.1-jadval); Toshkent hududi — 8 ball (1-ilova). Boʻlma uzunligi — 3.1-jadval.'))),
+        h('div', { class: 'seg sm', role: 'group', id: 'seisBall', 'aria-label': tr('Seysmiklik, ball') }, ...[7, 8, 9].map(b => h('button', { 'aria-pressed': S0.seismic === b, 'data-ball': b, onclick: () => set({ seismic: b }) }, `${b}`)))),
+      h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
+        h('div', { class: 'seg sm', role: 'group', id: 'seisSys', 'aria-label': tr('Yuk koʻtaruvchi tizim'), style: 'flex-wrap:wrap' }, ...CONSTRUCT_SYS.map(k => h('button', { 'aria-pressed': sys === k, 'data-sys': k, title: `${SYS[k].name} · ${SYS[k].row}`, onclick: () => set({ construct: k }) }, tr({ monolit: 'Monolit devor', karkas: 'Karkas', toldirgich: 'Toʻldiruvchili', gisht: 'Gʻisht' }[k])))),
+        h('span', { class: 'chip', id: 'seisLim' }, lim == null ? tr('NSTT — cheklanmagan') : tf('boʻlma ≤ ${l} m · chiqish ≤ ${p} m', { l: lim, p: SYS[sys].proj }))));
+  }
   private regFilter: 'all' | 'fail' = 'all';
   private regOpen: string | null = null;
   private register(): HTMLElement {
@@ -3363,6 +3380,7 @@ export class Editor {
       h('div', { class: 'group', id: 'reconRow' }, h('div', { class: 'li' },
         h('span', { class: 'k' }, tr('Rekonstruksiya / renovatsiya'), h('span', { class: 'sub' }, tr('79-band, 2-jadval, 7-izoh: insolyatsiya taʼminlansa jadval masofalari ikki barobargacha qisqaradi (≥ 6 m). 2·Hmax (8-izoh) va yongʻin masofalari qisqarmaydi.'))),
         sw({ id: 'reconOn', label: tr('Rekonstruksiya / renovatsiya'), on: this.store.doc.settings.recon === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { recon: v } })) }))),
+      this.seismicRow(),
       h('div', { class: 'seg sm', role: 'group', id: 'regSeg' },
         h('button', { 'aria-pressed': this.regFilter === 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `${tr('Hammasi')} · ${all.length}`),
         h('button', { 'aria-pressed': this.regFilter === 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `${tr('Mos emas')} · ${bad}`)),
