@@ -106,8 +106,8 @@ function edgeDir(a: XY[], b: XY[]): XY | null {
 export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null): RulePlan {
   const r = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0;
   // ozgina qiyshiq devorlar: reja ichki toʻgʻri burchakli shaklda quriladi, devor yonidagi ponasimon qoldiq — kvartiraga (lodjiya)
-  const R = rectify(r);
-  if (!R) return planCore(r, mods, mix, size, court);
+  const R = rectify(r), p0 = planCore(r, mods, mix, size, court);
+  if (!R) return p0;
   const pl = planCore(R, facadeModsFor(R, mods), mix, size, court);
   // toʻgʻrilangan shakl asl konturdan chiqqan joylari kesiladi
   const clip = (qs: XY[][]) => qs.flatMap(q => inter([q], [r]));
@@ -131,7 +131,19 @@ export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S
     });
     for (const pc of left) { if (area(pc) < 0.3) continue; let best = -1, bl = 0.5; pl.apts.forEach((a, i) => { const l = sharedEdge(a.ring, pc).len; if (l > bl) { bl = l; best = i; } }); if (best < 0 || !give(best, pc)) pl.rest.push(pc); }
   }
-  return finishPlan(pl, mods, size);
+  finishPlan(pl, mods, size);
+  // toʻgʻrilangan reja faqat asl rejadan yaxshi boʻlsa: kvartiralar ulushi, qorongʻi (deraza fasadi yetmaydigan) va notekis kvartiralar uchun jarima
+  return planScore(pl, r, mods) > planScore(p0, r, mods) ? pl : p0;
+}
+function planScore(pl: RulePlan, r: XY[], mods: FacadeMod[]): number {
+  const A = area(r) || 1;
+  let s = pl.apts.reduce((t, a) => t + a.area, 0) / A;
+  for (const a of pl.apts) {
+    const f = winsIn(a.ring, mods).reduce((t, i) => t + Math.hypot(mods[i].b[0] - mods[i].a[0], mods[i].b[1] - mods[i].a[1]), 0);
+    if (!f || a.area / f > MAX_DEPTH) s -= 0.08;
+    const o = obb2(a.ring); if (o.L / Math.max(0.1, o.S) > 3.2 || a.area / (o.L * o.S) < 0.7 && !a.loggia?.length) s -= 0.01;
+  }
+  return s;
 }
 
 /** Bosh yoʻnalish (radian, 90° gacha): uzunlik bilan tortilgan qirralar burchaklari modasi */
@@ -413,8 +425,61 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     }
     if (!changed) break;
   }
+  // juda katta (> 4x × 1,15) yoki notekis (L shaklidagi burchak) kvartira — modul chizigʻi boʻyicha ikkiga: ikkalasi ham
+  // koridorga eshikli, yorugʻ, ≥ 28 m², toʻgʻri shaklli boʻlsa; maydonlar andozaga eng yaqin kesim tanlanadi
+  const tgtErr = (A: number) => Math.min(...[1, 2, 3, 4].map(k => Math.abs(A - target(k)) / target(k)));
+  for (let g = 0; g < 3; g++) {
+    let changed = false;
+    for (let i = apts.length - 1; i >= 0; i--) {
+      const a = apts[i]; if (!ok(a)) continue;
+      const big = a.area > target(4) * 1.15, ugly = !shapeOk(a.ring); if (!big && !ugly) continue;
+      const o = obb2(a.ring), U = o.U, V: XY = [-U[1], U[0]], uu = a.ring.map(p => p[0] * U[0] + p[1] * U[1]), vv = a.ring.map(p => p[0] * V[0] + p[1] * V[1]);
+      const u0 = Math.min(...uu), u1 = Math.max(...uu), v0 = Math.min(...vv), v1 = Math.max(...vv);
+      const Pt = (u: number, v: number): XY => [U[0] * u + V[0] * v, U[1] * u + V[1] * v];
+      const bx = (a0: number, a1: number, b0: number, b1: number): XY[] => [Pt(a0, b0), Pt(a1, b0), Pt(a1, b1), Pt(a0, b1)];
+      let best: { p: XY[]; q: XY[]; e: number } | null = null;
+      for (const ax of [0, 1]) {
+        const lo = ax ? v0 : u0, hi = ax ? v1 : u1;
+        for (let t = lo + MOD * 0.9; t <= hi - MOD * 0.9; t += 0.55) {
+          const A = ax ? bx(u0 - 1, u1 + 1, v0 - 1, t) : bx(u0 - 1, t, v0 - 1, v1 + 1), B = ax ? bx(u0 - 1, u1 + 1, t, v1 + 1) : bx(t, u1 + 1, v0 - 1, v1 + 1);
+          const pa = inter([a.ring], [A]), pb = inter([a.ring], [B]); if (pa.length !== 1 || pb.length !== 1) continue;
+          const ta: RuleApt = { ...a, ring: pa[0], area: area(pa[0]) }, tb: RuleApt = { ...a, ring: pb[0], area: area(pb[0]) };
+          if (!ok(ta) || !ok(tb) || !shapeOk(pa[0]) || !shapeOk(pb[0])) continue;
+          const e = tgtErr(ta.area) + tgtErr(tb.area);
+          if (!best || e < best.e) best = { p: pa[0], q: pb[0], e };
+        }
+      }
+      if (!best) continue;
+      apts.splice(i, 1, { ...a, ring: best.p, area: area(best.p), rooms: 0 }, { ...a, ring: best.q, area: area(best.q), rooms: 0 }); changed = true;
+    }
+    if (!changed) break;
+  }
   const rest: XY[][] = [];
   for (let i = apts.length - 1; i >= 0; i--) if (!ok(apts[i])) { rest.push(apts[i].ring); apts.splice(i, 1); }
+  // 5.13 (ShNQ 2.01.02-04): seksiya qavatida kvartiralar > 500 m² — ikkinchi evakuatsiya zinasi. Birinchi zinadan eng uzoq,
+  // koridorga tegib turgan kvartiraning koridor tomonidan zina oʻrni olinadi (qolgani kvartira boʻlib qolsa — kvartira, aks holda qoldiq)
+  SECS.forEach((S, si) => {
+    const aA = apts.filter(a => a.sec === si).reduce((t, a) => t + area(a.ring), 0); if (aA <= 500 || S.stairs.length >= 2 || !S.stairs.length) return;
+    const c0 = cen(S.stairs[0]), mop = secMop[si];
+    const cand = apts.map((a, i) => ({ a, i, d: Math.hypot(cen(a.ring)[0] - c0[0], cen(a.ring)[1] - c0[1]) })).filter(x => x.a.sec === si && sharedAny(x.a.ring, mop).len >= STAIR_W).sort((x, y) => y.d - x.d);
+    for (const { a, i } of cand) {
+      // koridor bilan umumiy eng uzun qirra: uning birinchi zinadan uzoq uchida STAIR_W × STAIR_D
+      let best: { p: XY; q: XY; l: number } | null = null;
+      for (let k = 0; k < a.ring.length; k++) { const p = a.ring[k], q = a.ring[(k + 1) % a.ring.length], l = sharedAny([p, q, p], mop).len; if (l >= STAIR_W && (!best || l > best.l)) best = { p, q, l }; }
+      if (!best) continue;
+      let { p, q } = best; if (Math.hypot(p[0] - c0[0], p[1] - c0[1]) > Math.hypot(q[0] - c0[0], q[1] - c0[1])) [p, q] = [q, p];
+      const L = Math.hypot(q[0] - p[0], q[1] - p[1]), ux = (q[0] - p[0]) / L, uy = (q[1] - p[1]) / L;
+      let nx = -uy, ny = ux; const mid: XY = [q[0] - ux * STAIR_W / 2 + nx * 0.5, q[1] - uy * STAIR_W / 2 + ny * 0.5]; if (!pointIn(mid, a.ring)) { nx = -nx; ny = -ny; }
+      const st: XY[] = [[q[0] - ux * STAIR_W, q[1] - uy * STAIR_W], q, [q[0] + nx * STAIR_D, q[1] + ny * STAIR_D], [q[0] - ux * STAIR_W + nx * STAIR_D, q[1] - uy * STAIR_W + ny * STAIR_D]];
+      const stIn = inter([st], [a.ring]); if (!stIn.length || area(stIn[0]) < STAIR_W * STAIR_D * 0.9) continue;
+      const restA = diff([a.ring], [stIn[0]], 'none').sort((x, y) => area(y) - area(x));
+      S.stairs.push(stIn[0]);
+      const na: RuleApt = { ...a, ring: restA[0] ?? a.ring, area: restA[0] ? area(restA[0]) : 0, rooms: 0 };
+      if (restA[0] && ok(na)) apts[i] = na; else { apts.splice(i, 1); if (restA[0]) rest.push(restA[0]); }
+      for (const z of restA.slice(1)) if (area(z) > 0.5) rest.push(z);
+      break;
+    }
+  });
   // yongʻin devorlari (seksiyalar orasida)
   const fireWalls: XY[][] = [];
   for (const p of parts) { const w = wings[p.wing]; if (p.k0 === 'wall') fireWalls.push(box(w, p.ua, p.ua + 0.1, w.v0, w.v1)); if (p.k1 === 'wall') fireWalls.push(box(w, p.ub - 0.1, p.ub, w.v0, w.v1)); }
