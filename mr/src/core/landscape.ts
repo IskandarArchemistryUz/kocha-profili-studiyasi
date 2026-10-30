@@ -157,6 +157,13 @@ function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], f
     // orqa bogʻ: uydan chegaragacha orqa tomonda daraxt
     let back = 0; for (const p of plot) back = Math.max(back, (c[0] - p[0]) * ux + (c[1] - p[1]) * uy);
     if (back - half > 4) { const tb: XY = [c[0] - ux * (half + (back - half) * 0.6), c[1] - uy * (half + (back - half) * 0.6)]; if (pointIn(tb, [plot])) trees.push(tb); }
+    else {
+      // oldi topilmadi (hovli uy — uy chegarada): daraxt hovlida — uchastkaning uydan eng uzoq ichki nuqtasi
+      let best: XY | null = null, bd2 = 2.5;
+      const P0 = plot.reduce((m, p) => [Math.min(m[0], p[0]), Math.min(m[1], p[1]), Math.max(m[2], p[0]), Math.max(m[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]);
+      for (let i = 1; i < 8; i++) for (let j = 1; j < 8; j++) { const q: XY = [P0[0] + (P0[2] - P0[0]) * i / 8, P0[1] + (P0[3] - P0[1]) * j / 8]; if (!pointIn(q, [plot]) || pointIn(q, [x.r])) continue; const d = Math.min(ringD(q, x.r), ringD(q, plot) + 1.5); if (d > bd2) { bd2 = d; best = q; } }
+      if (best) trees.push(best);
+    }
   }
   const houses = own.map(x => [close(x.r)] as Polygon);
   const pavMP = pave.length ? tryOp(() => polygonClipping.intersection(polygonClipping.union(pave[0], ...pave.slice(1)), B), [] as MultiPolygon) : [];
