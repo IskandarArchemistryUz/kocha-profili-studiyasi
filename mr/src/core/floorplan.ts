@@ -58,7 +58,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const r = TR(pl0.ring), k = 1000 / o.scale;   // m → mm
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of r) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
-  const pad = o.dims ? 28 : 8, W = (x1 - x0) * k + 2 * pad + 10, H = (y1 - y0) * k + 2 * pad + 16;
+  const pad = o.dims ? 34 : 8, fs = o.dims ? 1.9 : 1 /* oʻlchamlar rejimida shrift kattaroq (egasi 30.10) */, W = (x1 - x0) * k + 2 * pad + 10, H = (y1 - y0) * k + 2 * pad + 16 + (o.dims ? 14 : 0);
   const X = (x: number) => ((x - x0) * k + pad + 5).toFixed(2), Y = (y: number) => ((y1 - y) * k + pad + 12).toFixed(2);
   const path = (ring: XY[]) => ring.map((p, i) => `${i ? 'L' : 'M'}${X(p[0])} ${Y(p[1])}`).join('') + 'Z';
   const seg = (a: XY, b: XY, st: string) => `<path d="M${X(a[0])} ${Y(a[1])}L${X(b[0])} ${Y(b[1])}" ${st}/>`;
@@ -179,23 +179,23 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     const { L, S } = obb2(r);
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (const p of r) { u0 = Math.min(u0, p[0]); u1 = Math.max(u1, p[0]); v0 = Math.min(v0, p[1]); v1 = Math.max(v1, p[1]); }
-    const yb = (H - 6).toFixed(1), xl = (pad - 14).toFixed(1);
+    const yb = (H - 22).toFixed(1), xl = (pad - 16).toFixed(1);
     const long = mods.filter(m => Math.abs(m.b[0] - m.a[0]) > Math.abs(m.b[1] - m.a[1]));
     const us = [...new Set(long.flatMap(m => [m.a, m.b]).map(p => Math.round(p[0] * 100) / 100))].sort((a, b) => a - b);
     const xu = (u: number) => ((u - u0) * k + pad + 5).toFixed(2);
     out.push(`<path d="M${xu(u0)} ${yb}H${xu(u1)}" stroke="#141414" stroke-width="0.25"/>`);
     let prev = us[0] ?? u0;
-    for (const u of us) { out.push(`<path d="M${xu(u)} ${(Number(yb) - 1.5).toFixed(1)}v3" stroke="#141414" stroke-width="0.25"/>`); if (u - prev > 0.5) out.push(`<text x="${((Number(xu(u)) + Number(xu(prev))) / 2).toFixed(2)}" y="${(Number(yb) - 1.2).toFixed(1)}" font-size="1.9" text-anchor="middle" fill="#141414">${n1(u - prev)}</text>`); prev = u; }
-    out.push(`<text x="${((Number(xu(u0)) + Number(xu(u1))) / 2).toFixed(2)}" y="${(Number(yb) + 4).toFixed(1)}" font-size="2.2" font-weight="600" text-anchor="middle" fill="#141414">${n1(L)} m</text>`);
-    us.forEach((u, i) => { out.push(`<circle cx="${xu(u)}" cy="${(Number(yb) + 9).toFixed(1)}" r="2" fill="#fff" stroke="#141414" stroke-width="0.25"/><text x="${xu(u)}" y="${(Number(yb) + 9.7).toFixed(1)}" font-size="1.8" text-anchor="middle" fill="#141414">${i + 1}</text>`); });
+    for (const u of us) { out.push(`<path d="M${xu(u)} ${(Number(yb) - 1.5).toFixed(1)}v3" stroke="#141414" stroke-width="0.25"/>`); if (u - prev > 0.5) out.push(`<text x="${((Number(xu(u)) + Number(xu(prev))) / 2).toFixed(2)}" y="${(Number(yb) - 1.2).toFixed(1)}" font-size="${(1.9 * fs).toFixed(2)}" text-anchor="middle" fill="#141414">${n1(u - prev)}</text>`); prev = u; }
+    out.push(`<text x="${((Number(xu(u0)) + Number(xu(u1))) / 2).toFixed(2)}" y="${(Number(yb) + 4.6).toFixed(1)}" font-size="${(2.2 * fs).toFixed(2)}" font-weight="600" text-anchor="middle" fill="#141414">${n1(L)} m</text>`);
+    us.filter((u, i, a) => i === 0 || u - a[i - 1] >= 1.2 || i === a.length - 1).forEach((u, i) => { out.push(`<circle cx="${xu(u)}" cy="${(Number(yb) + 11).toFixed(1)}" r="${(2 * fs).toFixed(1)}" fill="#fff" stroke="#141414" stroke-width="0.25"/><text x="${xu(u)}" y="${(Number(yb) + 11 + 0.7 * fs).toFixed(1)}" font-size="${(1.8 * fs).toFixed(2)}" text-anchor="middle" fill="#141414">${i + 1}</text>`); });
     const yv = (v: number) => ((v1 - v) * k + pad + 12).toFixed(2);
     out.push(`<path d="M${xl} ${yv(v1)}V${yv(v0)}" stroke="#141414" stroke-width="0.25"/><path d="M${(Number(xl) - 1.5).toFixed(1)} ${yv(v1)}h3 M${(Number(xl) - 1.5).toFixed(1)} ${yv(v0)}h3" stroke="#141414" stroke-width="0.25"/>`);
-    out.push(`<text transform="translate(${(Number(xl) - 1.5).toFixed(1)} ${((Number(yv(v0)) + Number(yv(v1))) / 2).toFixed(1)}) rotate(-90)" font-size="2.2" font-weight="600" text-anchor="middle" fill="#141414">${n1(S)} m</text>`);
-    ['А', 'Б'].forEach((t, i) => { const y = i ? yv(v0) : yv(v1); out.push(`<circle cx="${(Number(xl) - 6).toFixed(1)}" cy="${y}" r="2" fill="#fff" stroke="#141414" stroke-width="0.25"/><text x="${(Number(xl) - 6).toFixed(1)}" y="${(Number(y) + 0.7).toFixed(1)}" font-size="1.8" text-anchor="middle" fill="#141414">${t}</text>`); });
+    out.push(`<text transform="translate(${(Number(xl) - 1.5).toFixed(1)} ${((Number(yv(v0)) + Number(yv(v1))) / 2).toFixed(1)}) rotate(-90)" font-size="${(2.2 * fs).toFixed(2)}" font-weight="600" text-anchor="middle" fill="#141414">${n1(S)} m</text>`);
+    ['А', 'Б'].forEach((t, i) => { const y = i ? yv(v0) : yv(v1); out.push(`<circle cx="${(Number(xl) - 8).toFixed(1)}" cy="${y}" r="${(2 * fs).toFixed(1)}" fill="#fff" stroke="#141414" stroke-width="0.25"/><text x="${(Number(xl) - 8).toFixed(1)}" y="${(Number(y) + 0.7 * fs).toFixed(1)}" font-size="${(1.8 * fs).toFixed(2)}" text-anchor="middle" fill="#141414">${t}</text>`); });
   }
-  if (!o.bare) out.push(`<g transform="translate(${(W - 10).toFixed(1)} 11) rotate(${(-northDeg).toFixed(1)})"><path d="M0 5L-2.2 2.5 0 -5 2.2 2.5Z" fill="#141414"/><text y="-6" font-size="2.4" text-anchor="middle" fill="#141414">N</text></g>`);
+  if (!o.bare) out.push(`<g transform="translate(${(W - 9).toFixed(1)} 9) rotate(${(-northDeg).toFixed(1)})"><circle r="4.2" fill="#ffffff" stroke="#141414" stroke-width="0.25"/><path d="M0,-3.6L1.56,2.4L0,1.44Z" fill="#141414"/><path d="M0,-3.6L-1.56,2.4L0,1.44Z" fill="#ffffff" stroke="#141414" stroke-width="0.2"/><text y="-4.9" font-size="2.2" font-weight="700" text-anchor="middle" fill="#141414">N</text></g>`);
   const bad = checks.filter(c => c.ok === false).length;
-  if (!o.bare) out.push(`<text x="${(W - 4).toFixed(1)}" y="${(H - 2).toFixed(1)}" font-size="2.2" text-anchor="end" fill="#6b6965">M 1:${o.scale} · ${o.floor}-qavat (${FLOOR_NAME[ft]}) · ${bad ? `${bad} ta qoida buzilgan` : 'qoidalar bajarilgan'}${bals.length ? ' · balkon ×' + String(BAL_K[o.bal!] ?? 0).replace('.', ',') + ' (ShNQ 2.08.01-19, 2-ilova)' : ''} · sxema</text>`);
+  if (!o.bare) out.push(`<text x="${(W - 4).toFixed(1)}" y="${(H - 2).toFixed(1)}" font-size="${(2.2 * fs).toFixed(2)}" text-anchor="end" fill="#6b6965">M 1:${o.scale} · ${o.floor}-qavat (${FLOOR_NAME[ft]}) · ${bad ? `${bad} ta qoida buzilgan` : 'qoidalar bajarilgan'}${bals.length ? ' · balkon ×' + String(BAL_K[o.bal!] ?? 0).replace('.', ',') + ' (ShNQ 2.08.01-19, 2-ilova)' : ''} · sxema</text>`);
   const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(1)}mm" height="${H.toFixed(1)}mm" viewBox="0 0 ${W.toFixed(1)} ${H.toFixed(1)}" font-family="Archivo, system-ui, sans-serif">${out.join('')}</svg>`;
   return { svg, widthMm: W, heightMm: H, apts: P0.apts.map(a => ({ rooms: a.rooms, area: a.area * 0.85, ring: a.ring })), plan: P0, checks, type: ft,
     toSvg: (p: XY) => { const q = T(p); return [Number(X(q[0])), Number(Y(q[1]))]; },

@@ -6,15 +6,23 @@
  */
 import { h, toast, fmt, svgIcon, IC } from './dom';
 import { tr } from '../i18n';
+import { range } from './controls';
 const CH_L = '<path d="M15 6l-6 6 6 6"/>', CH_R = '<path d="M9 6l6 6-6 6"/>';
 import { MOD_W, type SecPlan } from '../core/apartments';
 import { floorPlanSvg, floorGroups, floorTypeOf, buildingFloorsSvg, allPlansSvg, FLOOR_NAME, ROOM_LABEL, APT_FILL, type PlanOpts } from '../core/floorplan';
 import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, editRoomToApt, floorVariant, wallPreview, planChecks, type RulePlan, type EditResult, type RoomKind } from '../core/sectionplan';
 import type { XY } from '../core/geo';
 import { floorInsol, EDGE_H, type AptInsol, type InsolStatus } from '../core/insolplan';
+import polygonClipping, { type Polygon } from 'polygon-clipping';
 
 /** V5: «Kvartiralar» qadamidagi derazalar hisobi — bino, qavat (1 dan), modul → uzluksiz quyosh, soat */
-export interface InsolView { date: string; at: (bid: string, floor: number, m: number) => number | null }
+export interface InsolView {
+  date: string; at: (bid: string, floor: number, m: number) => number | null;
+  /** tanlangan mahalliy soatda quyosh (balandlik > 3° boʻlsa) */ sun?: (hour: number) => { alt: number; az: number } | null;
+  /** shu soatda derazalarga quyosh tushadimi (atrof soyasi bilan) */ lit?: (bid: string, floor: number, mods: number[], st: { alt: number; az: number }) => boolean[];
+}
+/** deraza ochilmasi (real dogʻ uchun): eni 1,5 m, podokonnik 0,9 m, tepasi 2,3 m */
+const WIN = { w: 1.5, sill: 0.9, head: 2.3 };
 type AlbView = 'reja' | 'olcham' | 'insol';
 const ST_COL: Record<InsolStatus, string> = { ok: '#3fa66b', edge: '#e0a526', bad: '#d9534f', na: '#8e8a82' };
 const ST_FILL: Record<InsolStatus, string> = { ok: '#d3eadb', edge: '#f5e6c4', bad: '#f4d3d0', na: '#e9e6e0' };
@@ -35,7 +43,7 @@ const pin = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 
 export function openAlbum(o: AlbumOpts): void {
   document.getElementById('album')?.remove();
   let bid = o.bid, sel: number[] = [], selRoom = -1, mode: 'tanlash' | 'devor' = 'tanlash', msg = '', msgBad = false, closeArmed = false;
-  let view: AlbView = o.view ?? 'reja', insol: InsolView | null = o.insol ?? null, insolBusy = false, hiApt = -1;
+  let view: AlbView = o.view ?? 'reja', insol: InsolView | null = o.insol ?? null, insolBusy = false, hiApt = -1, insolHour = 12;
   const work = new Map<string, RulePlan>(), hist = new Map<string, RulePlan[]>(), dirty = new Set<string>();
   const secOf = () => o.plans.find(p => p.bid === bid) ?? o.plans[0];
   const typFloor = (pl: SecPlan) => (floorGroups(pl).find(g => g.type === 'typical') ?? floorGroups(pl).slice(-1)[0]).from;
@@ -163,20 +171,31 @@ export function openAlbum(o: AlbumOpts): void {
   function insolOverlay(svg: SVGSVGElement, toSvg: (p: XY) => [number, number], pl: SecPlan, V: RulePlan, apts: AptInsol[]): void {
     const ns = 'http://www.w3.org/2000/svg', gP = document.createElementNS(ns, 'g'), gB = document.createElementNS(ns, 'g');
     gP.setAttribute('pointer-events', 'none'); gB.setAttribute('pointer-events', 'none'); gP.setAttribute('data-sunpatch', '');
-    const living = new Set(apts.flatMap(a => a.living)), used = new Set(V.apts.flatMap(a => a.mods));
+    const living = new Set(apts.flatMap(a => a.living));
     const el = (tag: string, at: Record<string, string | number>) => { const e = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, String(v)); return e; };
-    for (const m of used) {
-      const md = pl.layout.mods[m], hh = insol!.at(pl.bid, floor, m); if (md.blind) continue;
+    // real quyosh dogʻi (egasi 30.10): tanlangan soatda deraza ochilmasi quyosh yoʻnalishi boʻylab polga proyeksiya qilinadi;
+    // devordan sill/tg α dan head/tg α gacha, yon tomonga azimut boʻyicha; kvartira konturiga kesiladi; atrof soyasi — lit()
+    const st = insol!.sun?.(insolHour) ?? null, modsAll = pl.layout.mods.map((_, i) => i).filter(i => !pl.layout.mods[i].blind);
+    const litArr = st && insol!.lit ? insol!.lit(pl.bid, floor, modsAll, st) : modsAll.map(() => false), litSet = new Set(modsAll.filter((_, i) => litArr[i]));
+    const sv: XY | null = st ? [Math.sin(st.az * Math.PI / 180), Math.cos(st.az * Math.PI / 180)] : null, tanA = st ? Math.tan(st.alt * Math.PI / 180) : 1;
+    const inApt = (p: XY) => V.apts.find(a => pin(p, a.ring));
+    for (const m of modsAll) {
+      const md = pl.layout.mods[m], hh = insol!.at(pl.bid, floor, m);
       const n: XY = [Math.sin(md.az * Math.PI / 180), Math.cos(md.az * Math.PI / 180)], t: XY = [n[1], -n[0]];
       const mid: XY = [(md.a[0] + md.b[0]) / 2, (md.a[1] + md.b[1]) / 2];
-      if (hh != null && hh > 0.05 && living.has(m)) {
-        const d = Math.min(3, 0.6 + hh * 0.3), w = Math.min(1.1, Math.hypot(md.b[0] - md.a[0], md.b[1] - md.a[1]) * 0.3);
-        const q: XY[] = [[mid[0] - t[0] * w, mid[1] - t[1] * w], [mid[0] + t[0] * w, mid[1] + t[1] * w], [mid[0] + t[0] * (w + 0.5) - n[0] * d, mid[1] + t[1] * (w + 0.5) - n[1] * d], [mid[0] - t[0] * (w + 0.5) - n[0] * d, mid[1] - t[1] * (w + 0.5) - n[1] * d]];
-        gP.append(el('path', { d: q.map((p, i) => { const s2 = toSvg(p); return `${i ? 'L' : 'M'}${s2[0]} ${s2[1]}`; }).join('') + 'Z', fill: '#f6c445', 'fill-opacity': 0.3 }));
+      const host = inApt([mid[0] - n[0] * 0.6, mid[1] - n[1] * 0.6]);
+      if (sv && host && litSet.has(m) && sv[0] * n[0] + sv[1] * n[1] > 0.03 && tanA > 0.03) {
+        const d0 = Math.min(40, WIN.sill / tanA), d1 = Math.min(40, WIN.head / tanA), w = WIN.w / 2;
+        const A0: XY = [mid[0] - t[0] * w, mid[1] - t[1] * w], B0: XY = [mid[0] + t[0] * w, mid[1] + t[1] * w];
+        const q: XY[] = [[A0[0] - sv[0] * d0, A0[1] - sv[1] * d0], [B0[0] - sv[0] * d0, B0[1] - sv[1] * d0], [B0[0] - sv[0] * d1, B0[1] - sv[1] * d1], [A0[0] - sv[0] * d1, A0[1] - sv[1] * d1]];
+        try {
+          const cut = polygonClipping.intersection([q] as Polygon, [host.ring] as Polygon);
+          for (const poly of cut) for (const ring of poly) gP.append(el('path', { d: ring.map((p, i) => { const s2 = toSvg(p as XY); return `${i ? 'L' : 'M'}${s2[0]} ${s2[1]}`; }).join('') + 'Z', fill: '#f6c445', 'fill-opacity': 0.5, stroke: '#e0a526', 'stroke-width': 0.15 }));
+        } catch { /* kesishmadi */ }
       }
       const c = toSvg([mid[0] + n[0] * 1.1, mid[1] + n[1] * 1.1]), txt = hh == null ? '—' : h1(hh);
       const g = el('g', { 'data-win': m });
-      g.append(el('rect', { x: c[0] - 3.4, y: c[1] - 1.8, width: 6.8, height: 3.6, rx: 1.8, fill: hh == null ? '#8e8a82' : hCol(hh), 'fill-opacity': living.has(m) ? 1 : 0.45 }));
+      g.append(el('rect', { x: c[0] - 3.4, y: c[1] - 1.8, width: 6.8, height: 3.6, rx: 1.8, fill: hh == null ? '#8e8a82' : hCol(hh), 'fill-opacity': living.has(m) ? 1 : 0.6 }));
       const tx = el('text', { x: c[0], y: c[1] + 0.85, 'font-size': 2.3, 'font-weight': 600, 'text-anchor': 'middle', fill: '#fff', 'font-family': 'IBM Plex Mono, monospace' }); tx.textContent = txt; g.append(tx);
       gB.append(g);
     }
@@ -203,9 +222,19 @@ export function openAlbum(o: AlbumOpts): void {
         h('span', { class: 'k' }, h('i', { class: 'dot', style: `background:${ST_COL[a.status]}` }), h('b', {}, `№ ${a.i + 1} · ${a.rooms}x`), h('span', { class: 'sub' }, `${tr('eng koʻpi')} ${h1(a.best)} ${tr('soat')}`)), h('span', { class: 'v num' }, `${a.ok}/${a.need}`)))) : '',
       north ? h('div', { class: 'note warn', id: 'albInsolHint' }, tr('Shimoliy qatordagi kvartiralarning derazasi faqat shimolga qaraydi. Yechim: shimolga bir tomonlama kvartira qoʻymaslik — seksiyani ikki tomonga chiquvchi kvartiralar bilan rejalash yoki binoni burish.')) : '',
       h('span', { class: 'spacer' }),
+      hourRow(),
       h('div', { class: 'leg' }, ...([['ok', 'mos'], ['edge', 'chegarada (1,5–2 soat)'], ['bad', 'mos emas']] as const).map(([k, t]) => h('div', {}, h('i', { style: `background:${ST_COL[k]}` }), h('span', {}, tr(t)))),
-        h('div', {}, h('i', { style: 'background:#f6c445;opacity:.6' }), h('span', {}, tr('quyosh dogʻi (ramziy)')))),
-      h('span', { class: 't-small' }, tr('Deraza belgisidagi raqam — uzluksiz quyosh, soat (yashash xonalari — toʻliq rangda). Sana va atrof — «Kvartiralar» qadamidagi hisobdan.'))];
+        h('div', {}, h('i', { style: 'background:#f6c445;opacity:.7' }), h('span', {}, tr('quyosh dogʻi (tanlangan soatda)')))),
+      h('span', { class: 't-small' }, tr('Deraza belgisidagi raqam — kun boʻyi uzluksiz quyosh, soat (yashash xonalari — toʻliq rangda). Dogʻ — tanlangan soatda deraza (1,5 × 1,4 m, podokonnik 0,9 m) orqali polga tushgan quyosh, atrof binolari soyasi bilan. Sana va atrof — «Kvartiralar» qadamidagi hisobdan.'))];
+  }
+  /** V5: soat slayderi — real dogʻ uchun (7:00–18:00, 30 daqiqa qadam) */
+  function hourRow(): HTMLElement {
+    const st = insol?.sun?.(insolHour) ?? null, lbl = h('b', { class: 'num', id: 'albHourLbl', style: 'min-width:3.4em;text-align:right' }, `${Math.floor(insolHour)}:${insolHour % 1 ? '30' : '00'}`);
+    const inp = range({ min: 7, max: 18, step: 0.5, value: insolHour, id: 'albHour', 'aria-label': tr('Soat'),
+      oninput: v => { insolHour = v; lbl.textContent = `${Math.floor(insolHour)}:${insolHour % 1 ? '30' : '00'}`; },
+      onchange: () => render() });
+    return h('div', { class: 'col', style: 'gap:4px' }, h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 't-small', style: 'width:54px' }, tr('Soat')), h('div', { style: 'flex:1;min-width:0' }, inp), lbl),
+      h('span', { class: 't-small mono', id: 'albSunPos' }, st ? `${tr('quyosh')}: ${tr('balandlik')} ${Math.round(st.alt)}°, ${tr('azimut')} ${Math.round(st.az)}°` : tr('quyosh ufq ostida')));
   }
   render();
 }

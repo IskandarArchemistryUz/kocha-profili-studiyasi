@@ -211,11 +211,11 @@ export function sectionDepth(ring: XY[], mods: Module[]): number {
 }
 
 /** Hisob nuqtalari: har seksiya × turar qavat × kvartiraga tegishli modul */
+/** Deraza nuqtalari — koʻr boʻlmagan BARCHA modullar (oshxona, qolgan modullar ham; egasi 30.10: hamma oyna koʻrinsin, reja tahrirlangach ham) */
 export function windowPoints(plans: SecPlan[]): { sec: number; f: number; m: number }[] {
   const out: { sec: number; f: number; m: number }[] = [];
   plans.forEach((pl, sec) => {
-    const used = new Set(pl.layout.apts.flatMap(a => a.mods));
-    for (let f = pl.f0; f < pl.f1; f++) for (let m = 0; m < pl.layout.mods.length; m++) if (used.has(m)) out.push({ sec, f, m });
+    for (let f = pl.f0; f < pl.f1; f++) for (let m = 0; m < pl.layout.mods.length; m++) if (!pl.layout.mods[m].blind) out.push({ sec, f, m });
   });
   return out;
 }

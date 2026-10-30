@@ -19,16 +19,28 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qavat reja
   await expect(page.locator('#albInsolKpi')).toBeVisible({ timeout: 90_000 });
   await expect(page.locator('#albInsolReq')).toContainText('94–95');
   const n = await page.locator('#albPlan [data-win]').count(); expect(n).toBeGreaterThan(4);
+  // real dogʻ: 12:00 da janub/sharq derazalari orqali; soat oʻzgarsa qayta chiziladi; 7:00 da (quyosh past) dogʻlar kam
   expect(await page.locator('#albPlan [data-sunpatch] path').count()).toBeGreaterThan(0);
+  await expect(page.locator('#albSunPos')).toContainText('balandlik');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/v5_${w}${dark ? 'd' : 'l'}.png` });
+  const n12 = await page.locator('#albPlan [data-sunpatch] path').count();
+  await page.locator('#albHour').evaluate(e => { const i = e as HTMLInputElement; i.value = '7'; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); });
+  await expect(page.locator('#albHourLbl')).toHaveText('7:00');
+  expect(await page.locator('#albPlan [data-sunpatch] path').count()).toBeLessThan(n12 + 1);
+  // hamma koʻr boʻlmagan deraza belgilangan (oshxona ham)
+  const nMods = await page.evaluate(() => { const A = (window as any).__mr.apt; const pl = A.plans[0]; return pl ? pl.layout.mods.filter((m: any) => !m.blind).length : -1; });
+  const nWin = await page.locator('#albPlan [data-win]').count();
+  if (nMods > 0) expect(nWin).toBe(nMods);
   // tahrir asboblari insolyatsiya koʻrinishida yoʻq
   await expect(page.locator('#albMerge')).toHaveCount(0);
   const bad = page.locator('#albInsolBad [data-apt-row]');
   if (await bad.count()) { await bad.first().click(); await expect(bad.first()).toHaveAttribute('aria-pressed', 'true'); }
-  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/v5_${w}${dark ? 'd' : 'l'}.png` });
   // qavat almashtirilsa ham koʻrinish saqlanadi
   await page.click('#albPrev'); await expect(page.locator('#albView [data-view=insol]')).toHaveAttribute('aria-pressed', 'true');
   await page.click('#albView [data-view=olcham]');
   await expect(page.locator('#albInsolKpi')).toHaveCount(0);
+  await expect(page.locator('#albPlan svg text', { hasText: '3,25' }).first()).toBeVisible();
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/v5_dims_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#albView [data-view=reja]');
   await page.click('#albClose');
   // «Kvartiralar» panelidan toʻgʻridan-toʻgʻri
