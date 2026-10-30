@@ -50,8 +50,23 @@ describe('seysmik burchak boʻlmasi rejasi (kichik L 21 × 21, chok sharq va shi
     for (const id of ['kirish', 'stairs', 'win', 'light']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
     expect(pl.apts.length).toBeGreaterThanOrEqual(4);
   });
-  it('15 × 15 qanot boʻlagi: zina sigʻmaydi — «stairs» tekshiruvi mos emas (yashirin qolmaydi)', () => {
-    const L = layoutSection([[0, 21], [15, 21], [15, 36], [0, 36]], p => p[1] < 21.5, [20, 40, 30, 10], 3.3, 'M');
-    expect(planChecks(L.plan!, 25, L.mods as never).find(c => c.id === 'stairs')!.ok).toBe(false);
+  it('15 × 15 qanot boʻlagi (janub tomoni chok): oʻq chokka perpendikulyar, yadro sigʻadi — zina bor, xoll ikki yon fasadga chiqadi', () => {
+    const L = layoutSection([[0, 21], [15, 21], [15, 36], [0, 36]], p => p[1] < 21.5, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!;
+    expect(pl.stairs.length).toBe(1); expect(pl.lifts.length).toBeGreaterThan(0);
+    const ch = planChecks(pl, 25, L.mods as never);
+    for (const id of ['stairs', 'kirish', 'win', 'light']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
+  });
+  it('gʻisht 17 × 17 burchak boʻlmasi (sharq va shimol chok): yadro berk burchakda, kvartiralar faqat koʻcha fasadlarida — derazasiz va qorongʻi kvartira yoʻq; kirish — qoʻllanmaydi', () => {
+    const L = layoutSection([[0, 0], [17, 0], [17, 17], [0, 17]], p => p[0] > 16.5 || p[1] > 16.5, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!;
+    expect(pl.stairs.length).toBe(1); expect(pl.apts.length).toBeGreaterThanOrEqual(3);
+    const ch = planChecks(pl, 25, L.mods as never);
+    for (const id of ['stairs', 'win', 'light', 'mop']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
+    expect(ch.find(c => c.id === 'kirish')!.ok).toBeNull();
+  });
+  it('12 × 30 qanot: ikki tomonlama koridor (5,2 m chuqurlik), yadro, kirish ikki tomonga', () => {
+    const L = layoutSection([[0, 0], [12, 0], [12, 30], [0, 30]], p => p[1] < 0.5, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!;
+    expect(pl.kind).toBe('ikki'); expect(pl.stairs.length).toBe(1);
+    const ch = planChecks(pl, 25, L.mods as never);
+    for (const id of ['stairs', 'kirish', 'win', 'light']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
   });
 });

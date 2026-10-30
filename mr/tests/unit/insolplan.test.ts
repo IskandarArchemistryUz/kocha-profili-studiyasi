@@ -13,7 +13,7 @@ describe('qavat rejasida insolyatsiya (V5)', () => {
     for (const a of r.apts) {
       const south = P.apts[a.i].mods.some(m => Math.cos(mods[m].az * Math.PI / 180) < -0.5);
       expect(a.status).toBe(south ? 'ok' : 'bad');
-      if (!south) expect(a.north).toBe(true);
+      if (!south && P.apts[a.i].mods.every(m => Math.cos(mods[m].az * Math.PI / 180) > 0.5)) expect(a.north).toBe(true);
     }
     expect(r.ok).toBe(r.apts.filter(a => a.status === 'ok').length);
   });

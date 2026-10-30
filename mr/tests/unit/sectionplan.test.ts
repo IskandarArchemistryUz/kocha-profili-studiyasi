@@ -40,7 +40,7 @@ describe('Seksiyali reja (qoida boʻyicha)', () => {
     const r = rect(0, 0, 33, 15), pl = rules(plan(r, undefined, [16, 60]), r);
     expect(pl.sections.length).toBe(1); expect(cenOf(pl.stairs[0])[1]).toBeGreaterThan(7.5);   // hovli — shimolda (y > 7,5)
   });
-  it('24 × 12 — bir tomonlama', () => { const r = rect(0, 0, 24, 12); expect(rules(plan(r), r).kind).toBe('bir'); });
+  it('24 × 12 — ikki tomonlama (12 m qanot: markaziy koridor, kvartira chuqurligi 5,2 m — 30.10); 24 × 10 — bir tomonlama', () => { const r = rect(0, 0, 24, 12); expect(rules(plan(r), r).kind).toBe('ikki'); const r2 = rect(0, 0, 24, 10); expect(rules(plan(r2), r2).kind).toBe('bir'); });
   it('72 × 15 — uch seksiya (25–30 m), uzun umumiy koridor yoʻq', () => {
     const r = rect(0, 0, 72, 15), pl = rules(plan(r), r);
     expect(pl.sections.length).toBe(3); expect(pl.corridorLen).toBeLessThan(30); expect(pl.fireWalls.length).toBeGreaterThan(0);
