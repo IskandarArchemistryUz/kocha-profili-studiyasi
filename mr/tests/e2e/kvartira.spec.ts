@@ -15,7 +15,8 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await page.click('[data-row=win]'); await page.click('[data-win=klassik]');
   await expect(page.locator('#facCheck')).toContainText('1:');
   await page.click('[data-win=panorama]');
-  await expect(page.locator('#facCheck')).toContainText('mos emas');   // panorama — yorugʻlik 1:4,5 dan koʻp
+  await expect(page.locator('#facCheck')).toContainText('93-band');   // 0102-25, 93-band: faqat yuqori chegara (1:10 gacha) — panorama 1:2,4 mos
+  await expect(page.locator('#facCheck .chip.bad')).toHaveCount(0);
   await page.click('[data-win=klassik]');
   await page.click('[data-step=kvartira]');
   await expect(page.locator('#aptPlan')).toContainText('xonadon');
@@ -29,7 +30,7 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await page.click('#aptGo');
   await expect(page.locator('#aptSt')).toContainText('xonadon mos', { timeout: 90000 });
   await page.click('[data-am=west]');
-  await expect(page.locator('#aptSt')).toContainText('gʻarb qoidasi');
+  await expect(page.locator('#aptSt')).toContainText('gʻarb taqiqi'); await expect(page.locator('#aptSt')).toContainText('janub/sharq talabi');
   // 3D kvartiralar: turi / insolyatsiya; oʻlcham; qavat slideri
   if (shots) await page.screenshot({ path: `${shots}/apt_tur.png` });
   await page.click('[data-a3d=insol]');
@@ -78,8 +79,9 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   if (shots) await page.screenshot({ path: `${shots}/apt_qavat.png` });
   await page.locator('#aptFloor').evaluate(e => { const i = e as HTMLInputElement; i.value = i.max; i.dispatchEvent(new Event('input')); });
   await page.click('#kMore');
-  await expect(page.locator('.drawer [data-rule=insol-apartments]')).toContainText('8.3–8.5');
-  await expect(page.locator('.drawer [data-rule=west-apartments]')).toContainText('9.2');
+  await expect(page.locator('.drawer [data-rule=insol-apartments]')).toContainText('94, 95');
+  await expect(page.locator('.drawer [data-rule=west-apartments]')).toContainText('15');
+  await expect(page.locator('.drawer [data-rule=se-apartments]')).toContainText('15');   // 0102-25, 15-band 2-xatboshi: janub / janubi-sharq / sharq
   await expect(page.locator('.drawer [data-rule=plan-access]')).toContainText('koridor');   // reyestrda qoladi
   await expect(page.locator('.drawer [data-rule=plan-stairs]')).toContainText('5.13');
   await expect(page.locator('.drawer [data-rule=school]')).toContainText('stat.uz');

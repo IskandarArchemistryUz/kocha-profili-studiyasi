@@ -29,7 +29,7 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Turar joy', 'Kvartiralar umumiy maydoni (netto)', 'm²', d.resNet, `GFA × ${s.netToGross}`);
   add('Turar joy', 'Kvartiralar soni', 'ta', Math.round(d.apartments), d.aptSource === 'sxema' ? `kvartira sxemasi (miks ${s.aptMix.join('/')} %)` : `oʻrtacha ${s.aptNet} m² boʻyicha taxmin`);
   if (d.apartments > 0) add('Turar joy', 'Oʻrtacha kvartira (netto)', 'm²', d.resNet / d.apartments);
-  if (extra?.aptOk != null && extra.apts) add('Turar joy', 'Insolyatsiya va yoʻnalish talabiga mos kvartiralar', '%', extra.aptOk / extra.apts * 100, 'SanQvaN 0331-16, 8.3–8.5, 9.2');
+  if (extra?.aptOk != null && extra.apts) add('Turar joy', 'Insolyatsiya va yoʻnalish talabiga mos kvartiralar', '%', extra.aptOk / extra.apts * 100, 'SanQvaN 0102-25, 94, 95, 15');
   add('Turar joy', 'Aholi', 'kishi', Math.round(d.population), `${s.m2PerPerson} m²/kishi`);
   add('Turar joy', 'Aholi zichligi', 'kishi/ga', d.density, 'ShNQ 2.07.01-23, 84-band: ≤ 400');
   add('Turar joy', 'Uy-joy fondi zichligi', 'm²/ga', d.housingDensity, '82-band, 3-jadval');

@@ -39,7 +39,7 @@ tr.g td { background: #f3f1ec; font-weight: 600; } .sm { font-size: 8.5pt; color
 <main>
 <div class="kick">Archemistry Lab · Master reja</div>
 <h1>${esc(doc.name)}</h1>
-<div class="meta">${date} · markaz ${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)} · meʼyorlar: ShNQ 2.07.01-23, SanQvaN 0331-16</div>
+<div class="meta">${date} · markaz ${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)} · meʼyorlar: ShNQ 2.07.01-23, SanQvaN 0102-25</div>
 <h2>Hajmiy-fazoviy yechim</h2>
 <img src="${shots.axo}" alt="Aksonometriya"><div class="cap">Aksonometriya</div>
 <div class="two"><div><img src="${shots.plan}" alt="Reja"><div class="cap">Bosh reja</div></div><div><img src="${shots.persp}" alt="Perspektiva"><div class="cap">Perspektiva</div></div></div>

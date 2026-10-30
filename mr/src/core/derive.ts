@@ -55,7 +55,7 @@ export interface Derived {
   schoolCap: number; mtmCap: number;
   /** avtoturargoh: talab (416-band, 29-jadval) va taʼminot (413-band, ochiq — 25 m²/joy) */
   parkingReq: number; parkingProv: number; parkingParts: Record<string, number>;
-  /** turar joy seksiyalari va ulardan uzun fasadi gʻarbga (200–290°) qaraganlari — SanQvaN 0331-16, 9.2-band */
+  /** turar joy seksiyalari va ulardan uzun fasadi gʻarbga (200–290°) qaraganlari — SanQvaN 0102-25, 15-band */
   resSections: number; westFacing: number;
   /** ish oʻrinlari (taxmin, core/jobs.ts) va aholiga nisbati */
   jobs: number; jobsRatio: number;

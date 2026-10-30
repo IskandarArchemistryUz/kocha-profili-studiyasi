@@ -1201,10 +1201,10 @@ export class Editor {
     const inPeriod = this.sunDate === '03-22' || this.sunDate === '09-22';
     this.insolRule = {
       id: 'insol-territory', title: 'Uy atrofidagi hudud insolyatsiyasi',
-      source: { doc: 'SanQvaN 0331-16', edition: '2016', clause: '8.3-band (22.03–22.09: hududda ≥ 0,5–1 soat)', verified: true },
+      source: { doc: 'SanQvaN 0102-25', edition: '2025', clause: '95-band (22.03–22.09: uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz)', verified: true },
       ...(!inPeriod ? { status: 'na' as const, note: 'Davr chegarasi — 22 mart yoki 22 sentabr sanasini tanlab hisoblang (eng qisqa kun).' }
-        : { status: (ge1 === n ? 'pass' : ge05 === n ? 'review' : 'fail') as Result['status'], value: ge1 / n * 100, unit: '% ≥ 1 soat', limit: '100 %',
-            note: `${fmt(ge05 / n * 100, 0)} % nuqta ≥ 0,5 soat, ${fmt(ge1 / n * 100, 0)} % — ≥ 1 soat (uchastka yer sathi, binolar dogʻidan tashqari). Xonalar uchun 2,5 soat uzluksiz — 4-bosqichda (deraza nuqtalari boʻyicha).` }),
+        : { status: (ge1 === n ? 'pass' : ge05 === n ? 'review' : 'fail') as Result['status'], value: ge1 / n * 100, unit: '% ≥ 1 soat', limit: '100',
+            note: `${fmt(ge05 / n * 100, 0)} % nuqta ≥ 0,5 soat, ${fmt(ge1 / n * 100, 0)} % — ≥ 1 soat (uchastka yer sathi, binolar dogʻidan tashqari). Xonalar uchun 2 soat uzluksiz (95-band) — «Kvartiralar» qadamida (deraza nuqtalari boʻyicha).` }),
     };
     this.insol = { busy: false, stats: { mean: sum / n, ge2: ge2 / n, ge3: ge3 / n, bins: bins.map(v => v / n), n: hours.length, date: this.sunDate } };
     this.scene.setInsolation(pts, hours, cell);
@@ -1356,10 +1356,10 @@ export class Editor {
         h('div', { class: 'leg' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', {}, tr(t)), h('b', {}, `${fmt(st.bins[i] * 100, 0)} %`)))),
         h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, tr('Xaritani yashirish')));
     }
-    body.append(h('span', { class: 'norm' }, svgIcon(IC.book), 'SanQvaN 0331-16 · 8.3-band'));
+    body.append(h('span', { class: 'norm' }, svgIcon(IC.book), 'SanQvaN 0102-25 · 95-band'));
     this.windSection(body);
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Usul va cheklovlar')), h('div', { class: 'col' },
-      h('span', {}, tr('Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0331-16, 8.3-band — 22 mart – 22 sentabr davrida xonalarda uzluksiz 2,5 soat, uy atrofidagi hududda ≥ 0,5–1 soat. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.')),
+      h('span', {}, tr('Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0102-25, 95-band — 22 mart – 22 sentabr davrida xonada 2 soat, uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz quyosh. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.')),
       h('span', {}, tr('Usul: 2D Lattice Boltzmann, piyoda sathida, bitta yoʻnalish. Bino ustidan oqish, turbulentlik va daraxtlar hisobga olinmaydi — dastlabki loyiha uchun sifat bahosi (tunnel, pana, burchak zonalari). Qulaylik mezoni — Lawson (LDDC), xalqaro amaliyot; Oʻzbekiston meʼyori emas.')))));
     queueMicrotask(() => this.applySun());
   }
@@ -1423,7 +1423,7 @@ export class Editor {
       { id: 'par', k: 'Parapet', v: nm(PARAPET_OPTS, par.v), ic: pg('par', par.top ?? 0, 28), cols: 4,
         opts: PARAPET_OPTS.map(x => ({ key: 'par', val: String(x.v), n: tr(x.n), on: par.v === x.v, g: 'par', gk: x.v, set: () => apply({ parapet: x.v }) })) },
       { id: 'shade', k: 'Quyosh himoyasi', v: nm(SHADE_OPTS, shd.v), ic: pg('shade', shd.top ?? 'yoq', 28), cols: 3,
-        note: 'SanQvaN 0331-16, 9.3: 90–290° ga qaragan fasadlarda. Avtomatik — janubda naves, sharq va gʻarbda lamellar.',
+        note: 'SanQvaN 0102-25, 16-band: yashash xonalari derazalari 90–290° ga qaratilmasligi lozim — qaragan boʻlsa himoya. Avtomatik — janubda naves, sharq va gʻarbda lamellar.',
         opts: SHADE_OPTS.map(x => ({ key: 'shade', val: x.id, n: tr(x.n), on: shd.v === x.id, g: 'shade', gk: x.id, set: () => apply({ shade: x.id }) })) },
     ];
     body.append(h('div', { class: 'group', id: 'looks' }, ...rows.flatMap(r => {
@@ -1441,18 +1441,18 @@ export class Editor {
     const ch = (st: 'ok' | 'warn' | 'bad' | 'na', v: string) => h('span', { class: `chip ${st}`, 'data-s': st === 'ok' ? 'pass' : st === 'na' ? 'na' : st === 'warn' ? 'review' : 'fail' }, h('i'), v);
     const row = (t: string, s: string, st: 'ok' | 'warn' | 'bad' | 'na', v: string, extra?: HTMLElement) => chk.push(h('div', { class: 'li' }, h('span', { class: 'k' }, t, h('span', { class: 'sub' }, s)), extra ?? '', ch(st, v)));
     if (ws) {
-      const k = MOD_W * this.roomDepth / (ws.w * MOD_W * (ws.head - ws.sill)), okK = k >= 4.5 - 1e-6 && k <= 8 + 1e-6;
-      row(`${tr('Yorugʻlik koeffitsiyenti')} 1:${fmt(k, 1)}`, `${tr(ws.name)}: ${tr('deraza')} ${fmt(ws.w * MOD_W, 1)} × ${fmt(ws.head - ws.sill, 2)} m · ${tr('meʼyor')} 1:4,5 – 1:8 · 8.2-band`, okK ? 'ok' : 'bad', tr(okK ? 'mos' : 'mos emas'));
+      const k = MOD_W * this.roomDepth / (ws.w * MOD_W * (ws.head - ws.sill)), okK = k <= 10 + 1e-6;   /* 93-band: tirqish maydoni / pol maydoni 1:10 gacha */
+      row(`${tr('Yorugʻlik koeffitsiyenti')} 1:${fmt(k, 1)}`, `${tr(ws.name)}: ${tr('deraza')} ${fmt(ws.w * MOD_W, 1)} × ${fmt(ws.head - ws.sill, 2)} m · ${tr('meʼyor')} 1:10 gacha · 93-band`, okK ? 'ok' : 'bad', tr(okK ? 'mos' : 'mos emas'));
     }
     const okD = this.roomDepth <= 6 + 1e-6 && this.roomDepth <= 2 * MOD_W + 1e-6;
-    row(tr('Xona chuqurligi'), `≤ 6 m va ≤ 2 × eni · SanQvaN 8.7`, okD ? 'ok' : 'bad', tr(okD ? 'mos' : 'mos emas'), h('span', { class: 'unit', style: 'width:76px' }, dep, h('span', {}, 'm')));
+    row(tr('Xona chuqurligi'), `≤ 6 m va ≤ 2 × eni · SanQvaN 0102-25, 97-band`, okD ? 'ok' : 'bad', tr(okD ? 'mos' : 'mos emas'), h('span', { class: 'unit', style: 'width:76px' }, dep, h('span', {}, 'm')));
     const plans = planApartments(doc);
     if (plans.length) {
       let n = 0, hot = 0, west = 0;
       plans.forEach(pl => { const used = new Set(pl.layout.apts.flatMap(a => a.mods)); pl.layout.mods.forEach((m, i) => { if (!used.has(i)) return; n++; if (m.az >= 90 && m.az <= 290) hot++; if (isWest(m.az)) west++; }); });
       const shaded = doc.buildings.some(b => b.shade);
-      row(tr('Quyoshdan himoya kerak'), `${fmt(hot / n * 100, 0)} % ${tr('deraza 90–290° ga qaragan')} · 9.3, 8.10–8.11`, hot === 0 || shaded ? 'ok' : 'warn', hot === 0 ? tr('kerak emas') : shaded ? tr('bor') : `${fmt(hot / n * 100, 0)} %`);
-      row(tr('Gʻarbga qaragan derazalar'), `${fmt(west / n * 100, 0)} % · ${tr('yashash xonasi qoʻyilmaydi')} · 9.2 · ${fmt(n)} ${tr('modul bir qavatda')}`, west === 0 ? 'ok' : 'warn', `${fmt(west / n * 100, 0)} %`);
+      row(tr('Quyoshdan himoya kerak'), `${fmt(hot / n * 100, 0)} % ${tr('deraza 90–290° ga qaragan')} · 16-band`, hot === 0 || shaded ? 'ok' : 'warn', hot === 0 ? tr('kerak emas') : shaded ? tr('bor') : `${fmt(hot / n * 100, 0)} %`);
+      row(tr('Gʻarbga qaragan derazalar'), `${fmt(west / n * 100, 0)} % · ${tr('yashash xonasi qoʻyilmaydi')} · 15-band · ${fmt(n)} ${tr('modul bir qavatda')}`, west === 0 ? 'ok' : 'warn', `${fmt(west / n * 100, 0)} %`);
     }
     const solar = doc.buildings.filter(b => b.roof === 'quyosh').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0), pv = pvEstimate(solar);
     const green = doc.buildings.filter(b => b.roof === 'yashil').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0);
@@ -1462,7 +1462,7 @@ export class Editor {
     if (green > 0) roofSt.push(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Yashil tomlar'), h('span', { class: 'sub' }, tr('yashil maydon hisobiga alohida koʻrsatiladi'))), ch('ok', `${fmt(green)} m²`)));
     if (flatFallback > 0) roofSt.push(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qiya tom qurilmadi'), h('span', { class: 'sub' }, `${flatFallback} ${tr('ta murakkab shakldagi seksiyada — tekis koʻrsatiladi')}`)), ch('warn', String(flatFallback))));
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Tekshiruv'))), h('div', { class: 'group', id: 'facCheck' }, ...chk, roofSt.length ? h('div', { id: 'roofSt', style: 'display:contents' }, ...roofSt) : ''),
-      h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Fasad koʻrinishi haqida')), h('div', {}, tr('Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina. Meʼyor: SanQvaN 0331-16, 8.2, 8.7, 8.10–8.11, 9.2, 9.3-bandlar.'))));
+      h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Fasad koʻrinishi haqida')), h('div', {}, tr('Fasad koʻrinishi taxminiy: bitta qavat — bitta modul qatori, pastki noturar qavatlar — vitrina. Meʼyor: SanQvaN 0102-25, 93, 97, 15, 16-bandlar.'))));
   }
 
   private aptMode: 'insol' | 'west' = 'insol';
@@ -1515,7 +1515,6 @@ export class Editor {
     this.scene.setAptBoxes(list, caps);
   }
   private aptDate = '03-22';
-  private aptRelief = false;
   private apt: { busy: boolean; stats: AptStats | null; plans: SecPlan[]; pts: { sec: number; f: number; m: number }[]; ms?: number; buildings?: unknown } = { busy: false, stats: null, plans: [], pts: [] };
   private aptRules: Result[] = [];
 
@@ -1539,17 +1538,20 @@ export class Editor {
       res = await new Promise((ok, no) => { w.onmessage = e => { ok(e.data); w.terminate(); }; w.onerror = e => { no(e); w.terminate(); }; w.postMessage({ id: 1, pts: P, z: Z, az: A, prisms, steps }); });
     } catch { res = windowSun(P, Z, A, prisms, steps); }
     if (this.store.doc.buildings !== doc.buildings) { this.apt.busy = false; this.renderPanel(); return; }
-    const norm = { need: this.aptRelief ? 2.0 : 2.5 }, stats = evaluateApts(plans, pts, res.run, res.total, norm);
+    const norm = { need: 2.0 }, stats = evaluateApts(plans, pts, res.run, res.total, norm);
     this.apt = { busy: false, stats, plans, pts, ms: performance.now() - t0, buildings: doc.buildings };
     const pct = (a: number) => stats.apts ? a / stats.apts * 100 : 0;
-    const src = { doc: 'SanQvaN 0331-16', edition: '2016', verified: true };
+    const src = { doc: 'SanQvaN 0102-25', edition: '2025', verified: true };
     this.aptRules = [
-      { id: 'insol-apartments', title: 'Kvartiralar insolyatsiyasi (derazalar)', source: { ...src, clause: '8.3–8.5-bandlar' },
-        status: stats.insolOk === stats.apts ? 'pass' : 'fail', value: pct(stats.insolOk), unit: '% kvartira', limit: '100 %',
-        note: `${fmt(stats.apts - stats.insolOk)} / ${fmt(stats.apts)} kvartira talabga javob bermaydi (${this.aptDate === '03-22' ? '22 mart' : '22 sentabr'}, uzluksiz ${fmt(norm.need, 1)} soat yoki uzlukli ${fmt(norm.need + 0.5, 1)} soat; 1–3 xonalida ≥ 1 xona, 4 xonalida ≥ 2 xona).${this.aptRelief ? ' Rekonstruksiya / murakkab sharoit: 0,5 soat qisqartirilgan (8.5).' : ''} Kvartiralar sxemasi fasad modullari boʻyicha.` },
-      { id: 'west-apartments', title: 'Yashash xonalari gʻarbga (kvartira boʻyicha)', source: { ...src, clause: '9.2-band' },
-        status: stats.westOk === stats.apts ? 'pass' : 'fail', value: pct(stats.westOk), unit: '% kvartira', limit: '100 %',
-        note: `${fmt(stats.apts - stats.westOk)} kvartirada gʻarbga (200–290°) qaragan yashash xonalari ruxsatdan koʻp (1 xonali — 0, 2 xonali — 1, 3 xonali — 2; 4 xonali uchun meʼyorda koʻrsatilmagan, 2 deb olindi).` },
+      { id: 'insol-apartments', title: 'Kvartiralar insolyatsiyasi (derazalar)', source: { ...src, clause: '94, 95-bandlar' },
+        status: stats.insolOk === stats.apts ? 'pass' : 'fail', value: pct(stats.insolOk), unit: '% kvartira', limit: '100',
+        note: `${fmt(stats.apts - stats.insolOk)} / ${fmt(stats.apts)} kvartira talabga javob bermaydi (${this.aptDate === '03-22' ? '22 mart' : '22 sentabr'}, xonada uzluksiz ${fmt(norm.need, 1)} soat; 1–3 xonalida ≥ 1 xona, 4–5 xonalida ≥ 2 xona). Kvartiralar sxemasi fasad modullari boʻyicha.` },
+      { id: 'west-apartments', title: 'Yashash xonalari gʻarbga (kvartira boʻyicha)', source: { ...src, clause: '15-band, 1-xatboshi' },
+        status: stats.westOk === stats.apts ? 'pass' : 'fail', value: pct(stats.westOk), unit: '% kvartira', limit: '100',
+        note: `${fmt(stats.apts - stats.westOk)} kvartirada gʻarbga (200–290°) qaragan yashash xonasi derazasi bor — yoʻl qoʻyilmaydi (istisnosiz).` },
+      { id: 'se-apartments', title: 'Yashash xonalari janub, janubi-sharq, sharqqa (kvartira boʻyicha)', source: { ...src, clause: '15-band, 2-xatboshi' },
+        status: stats.seOk === stats.apts ? 'pass' : 'fail', value: pct(stats.seOk), unit: '% kvartira', limit: '100',
+        note: `${fmt(stats.apts - stats.seOk)} kvartirada talab bajarilmagan (2 xonalida ≥ 1 xona, 3 xonalida ≥ 2 xona janub / janubi-sharq / sharqqa — 67,5–200°; 1 va 4–5 xonali uchun meʼyorda aytilmagan).` },
     ];
     this.showApts(); this.renderPanel(); this.renderKpi();
   }
@@ -1559,7 +1561,7 @@ export class Editor {
     const fh = this.store.doc.settings.floorHeight, base = A.plans.map(p => Math.min(...p.ring.map(q => this.scene.H(q[0], q[1]))));
     const list = A.pts.map((q, i) => {
       const pl = A.plans[q.sec], md = pl.layout.mods[q.m], c = st.cls[i], y = base[q.sec] + (pl.z0 + q.f) * fh;
-      const color = c === 3 ? 0xd6d2c8 : this.aptMode === 'insol' ? [0x3fa66b, 0xb7cf4f, 0xd9534f][c] : st.west[i] ? 0xd9534f : isWest(md.az) ? 0xf29a4a : 0x3fa66b;
+      const color = c === 3 ? 0xd6d2c8 : this.aptMode === 'insol' ? [0x3fa66b, 0xb7cf4f, 0xd9534f][c] : st.west[i] === 1 ? 0xd9534f : st.west[i] === 2 ? 0xf29a4a : 0x3fa66b;
       return { a: md.a, b: md.b, y0: y + 0.8, y1: y + fh - 0.6, color };
     });
     this.scene.setFacadeMarks(list);
@@ -1633,32 +1635,30 @@ export class Editor {
       h('div', { class: 'seg sm', role: 'group', id: 'apt3d' }, ...([['yoq', 'Yoʻq'], ['tur', 'Turi boʻyicha'], ['insol', 'Insolyatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.apt3d === k, 'data-a3d': k, onclick: () => { this.apt3d = k; this.renderPanel(); } }, tr(t)))),
       h('div', { class: 'row', style: 'align-items:center;gap:10px' }, h('span', { class: 't-small', style: 'width:50px' }, tr('Qavat')), h('div', { style: 'flex:1;min-width:0' }, fl), flT));
     body.append(
-      h('div', { class: 'glabel' }, h('span', {}, tr('Hisob sanasi')), h('span', {}, 'SanQvaN 8.3')),
-      h('div', { class: 'seg sm', role: 'group', title: tr('SanQvaN 8.3 davri chegarasi') }, ...([['03-22', '22 mart'], ['09-22', '22 sentabr']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptDate === k, onclick: () => { this.aptDate = k; this.renderPanel(); } }, tr(t)))),
-      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Rekonstruksiya yoki murakkab sharoit'), h('span', { class: 'sub' }, tr('8.5: 2,0 soat'))),
-        sw({ id: 'aptRelief', label: tr('Rekonstruksiya yoki murakkab sharoit (8.5: 2,0 soat)'), on: this.aptRelief, onchange: v => { this.aptRelief = v; this.renderPanel(); } }))),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Hisob sanasi')), h('span', {}, 'SanQvaN 0102-25, 95')),
+      h('div', { class: 'seg sm', role: 'group', title: tr('95-band davri chegarasi (22.03–22.09)') }, ...([['03-22', '22 mart'], ['09-22', '22 sentabr']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptDate === k, onclick: () => { this.aptDate = k; this.renderPanel(); } }, tr(t)))),
       h('button', { class: 'btn btn-primary btn-block', id: 'aptGo', disabled: this.apt.busy, onclick: () => void this.runApts() }, ...icl(SUN, tr(this.apt.busy ? 'Hisoblanmoqda…' : 'Derazalar insolyatsiyasi'))));
     const st = this.apt.stats;
     if (st) {
       const pct = (a: number, b = st.apts) => fmt(b ? a / b * 100 : 0, 0) + ' %';
       const leg = (items: [number, string][]) => h('div', { class: 'leg' }, ...items.map(([c, t]) => h('div', {}, h('i', { style: `background:${hex(c)}` }), h('span', {}, tr(t)))));
       body.append(
-        h('div', { class: 'seg sm', role: 'group' }, ...([['insol', 'Insolyatsiya'], ['west', 'Gʻarb (9.2)']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptMode === k, 'data-am': k, onclick: () => { this.aptMode = k; this.showApts(); this.renderPanel(); } }, tr(t)))),
+        h('div', { class: 'seg sm', role: 'group' }, ...([['insol', 'Insolyatsiya'], ['west', 'Yoʻnalish (15)']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.aptMode === k, 'data-am': k, onclick: () => { this.aptMode = k; this.showApts(); this.renderPanel(); } }, tr(t)))),
         h('div', { class: 'group', id: 'aptSt' }, h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, `${fmt(st.bothOk)} / ${fmt(st.apts)} ${tr('kvartira mos')}`), ` (${pct(st.bothOk)})`,
-          h('span', { class: 'sub' }, `${tr('insolyatsiya')} ${pct(st.insolOk)} · ${tr('gʻarb qoidasi')} ${pct(st.westOk)} · ${tr('yashash xonalari')} ${pct(st.roomsOk, st.rooms)}`),
+          h('span', { class: 'sub' }, `${tr('insolyatsiya')} ${pct(st.insolOk)} · ${tr('gʻarb taqiqi')} ${pct(st.westOk)} · ${tr('janub/sharq talabi')} ${pct(st.seOk)} · ${tr('yashash xonalari')} ${pct(st.roomsOk, st.rooms)}`),
           h('span', { class: 'sub' }, st.byRooms.map(r => `${r.k} ${tr('xonali')} ${fmt(r.n)} (${pct(r.ok, r.n)} ${tr('mos')})`).join(' · ') + (this.apt.ms ? ` · ${fmt(this.apt.pts.length)} ${tr('deraza')}, ${fmt(this.apt.ms / 1000, 1)} s` : ''))))),
         this.aptMode === 'insol'
-          ? leg([[0x3fa66b, 'Uzluksiz ≥ talab'], [0xb7cf4f, 'Faqat uzlukli (8.5)'], [0xd9534f, 'Yetarli emas'], [0xd6d2c8, 'Oshxona / yordamchi']])
-          : leg([[0x3fa66b, 'Yashash xonasi'], [0xf29a4a, 'Gʻarbga, ruxsat doirasida'], [0xd9534f, 'Gʻarbga, ruxsatdan ortiq'], [0xd6d2c8, 'Oshxona / yordamchi']]));
+          ? leg([[0x3fa66b, 'Uzluksiz ≥ 2 soat'], [0xb7cf4f, 'Faqat uzlukli (eski 8.5 — mos emas)'], [0xd9534f, 'Yetarli emas'], [0xd6d2c8, 'Oshxona / yordamchi']])
+          : leg([[0x3fa66b, 'Yashash xonasi — mos'], [0xf29a4a, 'Janub/sharq talabi bajarilmagan (15-band)'], [0xd9534f, 'Gʻarbga (200–290°) — yoʻl qoʻyilmaydi'], [0xd6d2c8, 'Oshxona / yordamchi']]));
       const worst = st.bySec.filter(x => x.bad > 0).sort((a, b) => b.bad / b.apts - a.bad / a.apts).slice(0, 8);
       if (worst.length) body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Eng muammoli seksiyalar'))),
         h('div', { class: 'group', id: 'aptWorst' }, ...worst.map(x => { const i = plans.findIndex(p => p.bid === x.bid);
           return h('button', { class: 'li', onclick: () => { this.sel = x.bid; this.scene.select(x.bid); } },
-            h('span', { class: 'k' }, i >= 0 ? `${i + 1}-bino` : tr('Bino'), h('span', { class: 'sub' }, `${fmt(x.bad)} / ${fmt(x.apts)} ${tr('kvartira mos emas')} · ${x.west ? `${tr('shundan')} ${fmt(x.west)} — ${tr('gʻarb qoidasi')}` : tr('insolyatsiya')}`)),
+            h('span', { class: 'k' }, i >= 0 ? `${i + 1}-bino` : tr('Bino'), h('span', { class: 'sub' }, `${fmt(x.bad)} / ${fmt(x.apts)} ${tr('kvartira mos emas')} · ${x.west ? `${tr('shundan')} ${fmt(x.west)} — ${tr('yoʻnalish (15-band)')}` : tr('insolyatsiya')}`)),
             chev()); })));
       body.append(h('button', { class: 'btn btn-sm btn-ghost', style: 'align-self:flex-start', onclick: () => { this.clearApt(); this.renderPanel(); this.renderKpi(); } }, ...icl(EYE, tr('Belgilarni yashirish'))));
     }
-    body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Hisob qanday')), h('div', {}, tr('Hisob: har qavatdagi har xona derazasi (pol + 1,2 m), 10 daqiqalik qadamlar, quyosh > 3° va fasad oldida; soya — loyiha binolari, saqlanadigan va atrofdagi (350 m) binolar. Yashash xonalari kvartiraning eng yaxshi derazalarini oladi, oshxona — gʻarbiy yoki shimoliy (optimistik sxema; aniq reja keyingi bosqichda). Balkon, lodjiya va deraza qiyaliklari soyasi hisobga olinmaydi. Meʼyor: SanQvaN 0331-16, 8.3–8.5, 9.2-bandlar (asl matndan).'))));
+    body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Hisob qanday')), h('div', {}, tr('Hisob: har qavatdagi har xona derazasi (pol + 1,2 m), 10 daqiqalik qadamlar, quyosh > 3° va fasad oldida; soya — loyiha binolari, saqlanadigan va atrofdagi (350 m) binolar. Yashash xonalari kvartiraning eng yaxshi derazalarini oladi, oshxona — gʻarbiy yoki shimoliy (optimistik sxema; aniq reja keyingi bosqichda). Balkon, lodjiya va deraza qiyaliklari soyasi hisobga olinmaydi. Meʼyor: SanQvaN 0102-25, 94, 95, 15-bandlar (asl matndan).'))));
   }
 
   private districtField(): HTMLElement {

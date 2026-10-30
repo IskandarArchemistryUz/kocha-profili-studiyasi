@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { layoutSection, windowSun, roomOk, westAllowed, roomsNeeded, planApartments, windowPoints, evaluateApts, isWest, planKey } from '../../src/core/apartments';
+import { layoutSection, windowSun, roomOk, westAllowed, roomsNeeded, planApartments, windowPoints, evaluateApts, isWest, isSE, seNeeded, planKey } from '../../src/core/apartments';
 import { editMerge, sharedAny } from '../../src/core/sectionplan';
 import { migrate } from '../../src/core/doc';
 import { daySteps } from '../../src/core/sun';
@@ -32,15 +32,16 @@ describe('Kvartiralar', () => {
     const L = layoutSection(rect(0, 0, 60, 12), () => false, [0, 100, 0, 0]);
     expect(L.apts.filter(a => a.rooms === 2).length).toBeGreaterThanOrEqual(L.apts.length * 0.6);
   });
-  it('meʼyor qoidalari (8.3–8.5, 9.2)', () => {
-    const n = { need: 2.5 };
-    expect(roomOk(2.5, 2.5, n)).toBe(true); expect(roomOk(2.0, 3.0, n)).toBe(true); expect(roomOk(2.0, 2.9, n)).toBe(false);
-    expect(roomOk(2.0, 2.4, { need: 2.0 })).toBe(true);
-    expect(roomsNeeded(3)).toBe(1); expect(roomsNeeded(4)).toBe(2);
-    expect(westAllowed(1)).toBe(0); expect(westAllowed(2)).toBe(1); expect(westAllowed(3)).toBe(2);
-    expect(isWest(270)).toBe(true); expect(isWest(180)).toBe(false); expect(isWest(300)).toBe(false);
+  it('meʼyor qoidalari — SanQvaN 0102-25 (94, 95, 15-bandlar)', () => {
+    const n = { need: 2.0 };
+    expect(roomOk(2.0, 2.0, n)).toBe(true); expect(roomOk(1.9, 3.0, n)).toBe(false);   /* 95: faqat uzluksiz; uzlukli jami hisobga olinmaydi */
+    expect(roomsNeeded(1)).toBe(1); expect(roomsNeeded(3)).toBe(1); expect(roomsNeeded(4)).toBe(2); expect(roomsNeeded(5)).toBe(2);   /* 94 */
+    expect(westAllowed(1)).toBe(0); expect(westAllowed(2)).toBe(0); expect(westAllowed(3)).toBe(0);   /* 15: istisnosiz */
+    expect(isWest(270)).toBe(true); expect(isWest(200)).toBe(true); expect(isWest(290)).toBe(true); expect(isWest(180)).toBe(false); expect(isWest(300)).toBe(false);
+    expect(seNeeded(1)).toBe(0); expect(seNeeded(2)).toBe(1); expect(seNeeded(3)).toBe(2); expect(seNeeded(4)).toBe(0);   /* 15, 2-xatboshi */
+    expect(isSE(90)).toBe(true); expect(isSE(135)).toBe(true); expect(isSE(180)).toBe(true); expect(isSE(60)).toBe(false); expect(isSE(200)).toBe(false);
   });
-  it('deraza: janub fasadi ochiq joyda ≥ 2,5 soat uzluksiz, shimol fasadi bahorda quyosh olmaydi, toʻsiq qisqartiradi', () => {
+  it('deraza: janub fasadi ochiq joyda ≥ 2 soat uzluksiz, shimol fasadi bahorda quyosh olmaydi, toʻsiq qisqartiradi', () => {
     const steps = daySteps(2026, 3, 22, 41.31, 69.28, 10);
     const free = windowSun([[0, -0.3], [0, 12.3]], [5, 5], [180, 0], [], steps);
     expect(free.run[0]).toBeGreaterThan(5); expect(free.total[1]).toBe(0);
@@ -61,11 +62,11 @@ describe('Kvartiralar', () => {
     expect(plans[0].f0).toBe(1);
     const pts = windowPoints(plans), N = pts.length;
     const run = new Float32Array(N).fill(3), total = new Float32Array(N).fill(3);
-    const st = evaluateApts(plans, pts, run, total, { need: 2.5 });
+    const st = evaluateApts(plans, pts, run, total, { need: 2.0 });
     const perFloor = plans.map(x => x.layout.apts.length);
     expect(st.apts).toBe(perFloor[0] * 8 + perFloor[1] * 9);
     expect(st.insolOk).toBe(st.apts);
-    const dark = evaluateApts(plans, pts, new Float32Array(N), new Float32Array(N), { need: 2.5 });
+    const dark = evaluateApts(plans, pts, new Float32Array(N), new Float32Array(N), { need: 2.0 });
     expect(dark.insolOk).toBe(0); expect(dark.cls.some(c => c === 2)).toBe(true);
   });
 });
