@@ -118,7 +118,7 @@ const TOOLS: [ToolMode, string, string][] = [
   ['section', 'Kesim (S)', '<path d="M3 12h18" stroke-dasharray="3 2"/><path d="M6 12V6h12v6M6 12v6h12v-6" opacity=".45"/>'],
   ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
 ];
-const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
@@ -2201,12 +2201,14 @@ export class Editor {
     };
     return h('details', { class: 'how manual', id: 'lowRow', open: drawingL }, h('summary', {}, svgIcon(IC.pencil), tr('Past qavatli uylar qatori')),
       h('div', { class: 'col' },
-        seg<LowKind>('lowKind', 'Uy turi', [['yakka', 'Yakka uy'], ['taunhaus', 'Taunhaus']], this.lowKind, v => { this.lowKind = v; }),
+        seg<LowKind>('lowKind', 'Uy turi', [['yakka', 'Yakka uy'], ['juft', 'Juft'], ['taunhaus', 'Taunhaus'], ['hovli', 'Hovli']], this.lowKind, v => { this.lowKind = v; }),
         seg<1 | -1 | 0>('lowSide', 'Tomon', [[1, 'Chapga'], [-1, 'Oʻngga'], [0, 'Ikkala tomon']], this.lowSide, v => { this.lowSide = v; }),
         h('div', { class: 'field' }, h('label', {}, tr('Chiziqdan chekinish, m')), off),
         h('span', { class: 't-small' }, this.lowKind === 'yakka'
           ? tf('Uchastka ${w} × ${d} m (≥ 400 m², 75-band), oldi ${f} m, yon 3 m (100-band), 2 qavat', { w: P.plotW, d: P.plotD, f: P.front })
-          : tf('Blok eni ${w} m, uchastka ≥ 200 m² (74-band), qator ≤ 15 uy va ≤ 100 m, oraliq ${g} m (Strelka), 3 qavat', { w: P.plotW, g: P.gap })),
+          : this.lowKind === 'taunhaus' ? tf('Blok eni ${w} m, uchastka ≥ 200 m² (74-band), qator ≤ 15 uy va ≤ 100 m, oraliq ${g} m (Strelka), 3 qavat', { w: P.plotW, g: P.gap })
+          : this.lowKind === 'juft' ? tf('Ikki xonadonli uy: uchastka ${w} × ${d} m, umumiy devor (101-band), tashqi yon 3 m, juftlar orasi 6 m, 2 qavat', { w: P.plotW, d: P.plotD })
+          : tf('Hovli uy: uchastka ${w} × ${d} m, L shakl uy chegarada (101-band), hovli ichkarida, qoʻshnigacha 7 m, 1 qavat', { w: P.plotW, d: P.plotD })),
         h('button', { class: drawingL ? 'btn btn-primary' : 'btn', id: 'lowDraw', onclick: () => drawingL ? this.endTool() : this.setTool(new LineTool(this.scene, r => place(r), toast, p => p, 'Uylar qatori chizigʻi: nuqtalarni bosing · 2× bosish yoki Enter — qoʻyish · Esc — bekor')) }, ...(drawingL ? icl(IC.check, tr('Chizishni tugatish')) : icl(IC.plus, tr('Chiziq chizish'))))));
   }
   /** «Oʻq boʻylab» chuqurligi (m): paneldagi maydon; boshlangʻich — generator chuqurligi */
