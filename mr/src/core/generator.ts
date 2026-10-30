@@ -13,6 +13,7 @@ import type { XY } from './geo';
 import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { squareSections, avoidObstacles, assignEnds, type Obstacle3 } from './genfix';
+import { lowriseBlock } from './lowrise';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
@@ -59,7 +60,7 @@ export interface GenOpts { use?: string; aptNet?: number; netToGross?: number; /
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
 /** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
-export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; /** derazasiz torets qirralari (ring[i]→ring[i+1]); generatsiyada belgilanadi */ blind?: number[]; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string }
+export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; /** past qavatli uy uchastkasi (lowrise) */ plot?: XY[]; /** derazasiz torets qirralari (ring[i]→ring[i+1]); generatsiyada belgilanadi */ blind?: number[]; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string }
 export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number; need?: number; module?: ParkModule; stalls?: XY[][]; aisles?: XY[][] }
 export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[]; parking?: GenParking; typology?: Typology; far?: number }
 
@@ -669,11 +670,10 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
   const A = clean(outer0, 6), tf = Math.max(g.towerF ?? 16, g.minF);
   switch (t) {
     case 'yakka': case 'taunhaus': {
-      const D = t === 'yakka' ? 12 : 12, L = t === 'yakka' ? 20 : 7;
-      const r = edgeFill(A, { ...g, depth: D, secLen: L, minF: 1, maxF: 3 }, notes);
-      r.sections = r.sections.map(s => ({ ...s, ring: t === 'yakka' ? shrink(s.ring, 0.6) : s.ring, floors: t === 'yakka' ? 2 : 3, kind: t === 'yakka' ? 'uy' : 'taunhaus', nonRes: 0, face: undefined }));
-      if (t === 'yakka') notes.push('Yakka uylar: uchastka eni 20 m, uy dogʻi ~12×7 m, 2 qavat (75-band: yakka uy uchastkasi 400 m²)');
-      return r;
+      // 31.10: past qavatli uylar — alohida qoida (core/lowrise): kvartal cheti (qizil chiziq) boʻylab avval uchastka, keyin uy;
+      // chekinish uchastka ichida (oldi 5 m), shuning uchun kvartalning oʻzi olinadi (setback emas)
+      const { houses, notes: n2 } = lowriseBlock(clean(block, 4), t, Math.max(1, Math.min(3, g.maxF)));
+      return { sections: houses.map(h => ({ ring: h.ring, floors: h.floors, kind: h.kind as SecKind, nonRes: 0, plot: h.plot })), capFloors: null, notes: [...notes, ...n2] };
     }
     case 'villa': {
       const H = g.maxF * floorH, gap = Math.max(18, 0.6 * H);
@@ -769,6 +769,15 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
     r = best ?? typoCore(block, t, g, floorH); if (best) XS = bx;
   } else r = typoCore(block, t, g, floorH);
   r.typology = t;
+  if (t === 'yakka' || t === 'taunhaus') {
+    // past qavatli uylar: uchastkalar oʻz qoidasida (lowrise) — seksiya tuzatishlari (qirqish, tor boʻlak, avtoturargoh) qoʻllanmaydi;
+    // mavjud binolar (toʻsiq) bilan kesishgan uchastkadagi uy olinmaydi
+    const hit = (s: GenSection) => (opts.avoid ?? []).some(o => { try { return polygonClipping.intersection([[...(s.plot ?? s.ring), (s.plot ?? s.ring)[0]].map(p => [p[0], p[1]] as [number, number])], [[...o.ring, o.ring[0]].map(p => [p[0], p[1]] as [number, number])]).length > 0; } catch { return false; } });
+    const n0 = r.sections.length; r.sections = r.sections.filter(s => !hit(s));
+    if (r.sections.length < n0) r.notes.push(`${n0 - r.sections.length} ta uy mavjud bino bilan kesishgani uchun qoʻyilmadi`);
+    r.far = gfaOf(r) / site;
+    return r;
+  }
   // notekis parsel: oʻtkir uchlar tik qirqiladi, tor boʻlaklar olinadi; mavjud binolar — toʻsiq (ustiga qurilmaydi, masofa saqlanadi)
   r.sections = squareSections(r.sections, g.depth, r.notes);
   if (opts.avoid?.length) r.sections = avoidObstacles(r.sections, opts.avoid, g.minF, floorH, r.notes);

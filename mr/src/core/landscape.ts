@@ -71,6 +71,8 @@ export interface Yard {
   entries?: Entry[];
   /** yongʻin-qutqaruv yoʻlagi hovlida (faqat kerak boʻlsa): lane — qoplama, w — eni, d — devorgacha (ichki chetidan), hmax — eng baland bino */
   fire?: { lane: XY[][][]; w: number; d: number; hmax: number; area: number };
+  /** past qavatli uylar uchastkalari chegarasi (devor / panjara) — 31.10 */
+  fences?: XY[][];
   areas: { block: number; paving: number; green: number; play: number; paths: number };
 }
 
@@ -114,6 +116,8 @@ function landscapeRaw(doc: Project): Yard[] {
     const inBlk = (x: Own) => pointIn(x.r.reduce((s, p) => [s[0] + p[0] / x.r.length, s[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings);
     const own = bl.filter(x => inBlk(x) && !x.b.z0), arches = bl.filter(x => x.b.gen?.kind === 'arka' && inBlk(x));
     if (!own.length) return;
+    // 31.10: past qavatli uylar (uchastkali) — oʻz hovlisi: bogʻ, kirish yoʻlagi, avtomobil joyi, panjara, daraxtlar
+    if (own.every(x => x.b.gen?.plot)) { const y = cached(`l|${bsig}|${own.map(x => sig(x.r)).join('#')}`, () => lowYard(blk, bi, own, fr)); if (y) out.push({ ...y, block: bi }); return; }
     // 27.10 yengillik: kvartal hovlisi faqat shu kvartal binolari, avtoturargohi yoki shakli oʻzgarsa qayta hisoblanadi
     const parkIn = parkAll.filter(p => p.h.length && pointIn(p.h.reduce((a, q) => [a[0] + q[0] / p.h.length, a[1] + q[1] / p.h.length] as XY, [0, 0] as XY), blk.rings));
     const key = `r|${bsig}|${arches.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}|${doc.settings.netToGross}|${own.map(x => `${x.b.floors},${x.b.nonRes},${x.b.use},${sig(x.r)}`).join('#')}|${parkIn.map(p => sig(p.h)).join('#')}`;
@@ -121,6 +125,43 @@ function landscapeRaw(doc: Project): Yard[] {
     if (y0) out.push({ ...y0, block: bi });
   });
   return out;
+}
+/**
+ * Past qavatli uylar hovlisi (31.10, «past-qavatli-uylar-qoidalari»): har uchastka — bogʻ (uy va oldi yoʻlagidan tashqari);
+ * oldi: uydan qizil chiziqqacha kirish yoʻlagi 1,4 m va avtomobil joyi 3 × 5,5 m (misollar: avtomobil oldi hovlida);
+ * orqa bogʻda 1–2 daraxt chegaradan ≥ 1,5 m (96-band: 1–3 m); uchastka chegarasi — panjara; uchastkalardan tashqari qism — umumiy yashil.
+ */
+function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], fr: { toLocal: (p: [number, number]) => XY }): Yard | null {
+  const B: Polygon = blk.rings.map(close);
+  const plots = own.map(x => ({ x, plot: x.b.gen!.plot!.map(p => fr.toLocal(p)) }));
+  const pave: Polygon[] = [], trees: XY[] = [], fences: XY[][] = [];
+  for (const { x, plot } of plots) {
+    fences.push(plot);
+    // oldi tomon: uchastkaning uy qirrasiga parallel va undan ~5 m (lowrise: oldi chekinish) dagi qirrasi
+    const c = x.r.reduce((s, p) => [s[0] + p[0] / x.r.length, s[1] + p[1] / x.r.length] as XY, [0, 0] as XY);
+    let ux = 0, uy = 0, bd = Infinity, half = 0;
+    for (let i = 0; i < x.r.length; i++) {
+      const a = x.r[i], b = x.r[(i + 1) % x.r.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 1) continue;
+      const ex = (b[0] - a[0]) / l, ey = (b[1] - a[1]) / l, nx0 = ey, ny0 = -ex;   // qirra normali (tashqariga yoki ichkariga)
+      const out = ((a[0] + b[0]) / 2 - c[0]) * nx0 + ((a[1] + b[1]) / 2 - c[1]) * ny0 > 0 ? 1 : -1, nx = nx0 * out, ny = ny0 * out, hh = ((a[0] + b[0]) / 2 - c[0]) * nx + ((a[1] + b[1]) / 2 - c[1]) * ny;
+      for (let j = 0; j < plot.length; j++) { const p = plot[j], q = plot[(j + 1) % plot.length], pl = Math.hypot(q[0] - p[0], q[1] - p[1]); if (pl < 1 || Math.abs(((q[0] - p[0]) * ex + (q[1] - p[1]) * ey) / pl) < 0.98) continue;
+        const d = ((p[0] + q[0]) / 2 - (a[0] + b[0]) / 2) * nx + ((p[1] + q[1]) / 2 - (a[1] + b[1]) / 2) * ny; if (d > 4.4 && d < 5.6 && d < bd) { bd = d; ux = nx; uy = ny; half = hh; } }
+    }
+    const nx = -uy, ny = ux, len = Number.isFinite(bd) ? bd : 0;
+    const f0: XY = [c[0] + ux * half, c[1] + uy * half];
+    if (len > 0.5) {
+      let wHalf = 0; for (const p of x.r) wHalf = Math.max(wHalf, Math.abs((p[0] - c[0]) * nx + (p[1] - c[1]) * ny));
+      const off = Math.max(0, wHalf - 1.6), pc: XY = [f0[0] + nx * off, f0[1] + ny * off], rect = (o: XY, w: number, l: number): Polygon => [close([[o[0] - nx * w / 2, o[1] - ny * w / 2], [o[0] + nx * w / 2, o[1] + ny * w / 2], [o[0] + nx * w / 2 + ux * l, o[1] + ny * w / 2 + uy * l], [o[0] - nx * w / 2 + ux * l, o[1] - ny * w / 2 + uy * l]])];
+      pave.push(rect(pc, wHalf > 4 ? 3 : 1.4, len));                                   // avtomobil / kirish yoʻlagi (tor uyda — faqat yoʻlak)
+    }
+    // orqa bogʻ: uydan chegaragacha orqa tomonda daraxt
+    let back = 0; for (const p of plot) back = Math.max(back, (c[0] - p[0]) * ux + (c[1] - p[1]) * uy);
+    if (back - half > 4) { const tb: XY = [c[0] - ux * (half + (back - half) * 0.6), c[1] - uy * (half + (back - half) * 0.6)]; if (pointIn(tb, [plot])) trees.push(tb); }
+  }
+  const houses = own.map(x => [close(x.r)] as Polygon);
+  const pavMP = pave.length ? tryOp(() => polygonClipping.intersection(polygonClipping.union(pave[0], ...pave.slice(1)), B), [] as MultiPolygon) : [];
+  const green = tryOp(() => polygonClipping.difference(B, ...houses, ...(pavMP.length ? [pavMP] : [])), [] as MultiPolygon);
+  return { block: bi, paving: toMP(pavMP), green: toMP(green), paths: [], play: [], trees, fences, entries: [], areas: { block: blk.area, paving: mpArea(pavMP), green: mpArea(green), play: 0, paths: 0 } };
 }
 const CACHE = new Map<string, Yard | null>();
 function cached(k: string, f: () => Yard | null): Yard | null {

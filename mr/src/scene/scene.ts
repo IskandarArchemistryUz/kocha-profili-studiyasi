@@ -893,6 +893,7 @@ export class Scene3D {
           fill(y.paving, col.pave, 0.32, 1); fill(y.green, col.green, 0.33, 2); fill(y.paths, col.path, 0.34, 3);
           if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, this.H); l.userData.fireLane = true; this.world.add(l); } }
           for (const q of y.play) { fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H)); }
+          for (const r of y.fences ?? []) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0x8a7f6c, 0.36, true, 6.45, this.H); l.userData.fence = true; this.world.add(l); }   // past uylar uchastkalari panjarasi
           trees.push(...y.trees);
         }
         if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c));
