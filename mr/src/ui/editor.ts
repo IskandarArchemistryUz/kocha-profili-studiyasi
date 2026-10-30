@@ -49,7 +49,7 @@ import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailin
 import { windAt, windSrcLine, ERA5_ATTR, TMYX_ATTR, type WindAt } from '../core/windsrc';
 import { INSOL_BINS } from '../scene/scene';
 import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
-import { openAlbum, genplanSvg } from './album';
+import { openAlbum, genplanSvg, type InsolView } from './album';
 import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
@@ -1515,9 +1515,16 @@ export class Editor {
     this.scene.setAptBoxes(list, caps);
   }
   private aptDate = '03-22';
-  private apt: { busy: boolean; stats: AptStats | null; plans: SecPlan[]; pts: { sec: number; f: number; m: number }[]; ms?: number; buildings?: unknown } = { busy: false, stats: null, plans: [], pts: [] };
+  private apt: { busy: boolean; stats: AptStats | null; plans: SecPlan[]; pts: { sec: number; f: number; m: number }[]; ms?: number; buildings?: unknown; run?: Float32Array; date?: string } = { busy: false, stats: null, plans: [], pts: [] };
   private aptRules: Result[] = [];
 
+  /** V5: qavat albomi uchun derazalar insolyatsiyasi — bino, qavat (1 dan), modul → uzluksiz soat; hisob eskirgan boʻlsa null */
+  private aptInsolView(): InsolView | null {
+    const A = this.apt; if (!A.stats || !A.run || A.buildings !== this.store.doc.buildings) return null;
+    const idx = new Map<string, number>(); A.pts.forEach((q, i) => idx.set(`${A.plans[q.sec].bid}|${q.f}|${q.m}`, i));
+    const run = A.run;
+    return { date: A.date ?? this.aptDate, at: (bid, floor, m) => { const i = idx.get(`${bid}|${floor - 1}|${m}`); return i == null ? null : run[i]; } };
+  }
   private clearApt(): void { this.apt = { busy: false, stats: null, plans: [], pts: [] }; this.aptRules = []; this.scene.setFacadeMarks(null); }
 
   private async runApts(): Promise<void> {
@@ -1539,7 +1546,7 @@ export class Editor {
     } catch { res = windowSun(P, Z, A, prisms, steps); }
     if (this.store.doc.buildings !== doc.buildings) { this.apt.busy = false; this.renderPanel(); return; }
     const norm = { need: 2.0 }, stats = evaluateApts(plans, pts, res.run, res.total, norm);
-    this.apt = { busy: false, stats, plans, pts, ms: performance.now() - t0, buildings: doc.buildings };
+    this.apt = { busy: false, stats, plans, pts, ms: performance.now() - t0, buildings: doc.buildings, run: res.run, date: this.aptDate };
     const pct = (a: number) => stats.apts ? a / stats.apts * 100 : 0;
     const src = { doc: 'SanQvaN 0102-25', edition: '2025', verified: true };
     this.aptRules = [
@@ -1597,6 +1604,7 @@ export class Editor {
         h('span', { class: 'sub' }, tf('Reja qoidadan: seksiya → hovlidan kirish → zina-lift → qisqa koridor → har kvartiraga eshik, fasadga deraza (modul ${fmt(MOD_W, 1)} m), qorongʻi kvartira yoʻq. Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (kvartiraga 1 joy) ham olinadi.', { 'fmt(MOD_W, 1)': fmt(MOD_W, 1), size }))),
       sm.forced ? h('span', { class: 'chip warn', 'data-s': 'review' }, `${fmt(sm.forced)} ${tr('miksdan tashqari')}`) : '')));
     // blok → qavat → reja (dizayn: «Kvartiralar A»): genplanda bino, qavat ‹ › , reja eskizi; «Albomda ochish» — toʻliq ekran, tahrir
+    let insolAlbum: (() => void) | null = null;
     { if (this.sel && this.sel !== this.planSelSeen && plans.some(p => p.bid === this.sel)) { this.planBid = this.sel; this.planFloor = null; } this.planSelSeen = this.sel;
       const sel = plans.find(p => p.bid === this.planBid) ?? plans[0], si = plans.indexOf(sel);
       this.planBid = sel.bid;
@@ -1606,9 +1614,10 @@ export class Editor {
       const res = floorPlanSvg(sel, { scale: 200, dims: false, title: name(sel, si), floor: fl0, ...optOf(sel) });
       const pick = (b: string) => { this.planBid = b; this.planFloor = null; this.scene.select(b); this.renderPanel(); };
       const setF = (f: number) => { this.planFloor = Math.max(1, Math.min(sel.f1, f)); this.renderPanel(); };
-      const album = () => openAlbum({ plans, bid: sel.bid, floor: fl0, fh: doc.settings.floorHeight, size: doc.settings.aptSize ?? 'M', docName: safe(doc.name), name, opt: optOf, download,
+      const album = (view?: 'reja' | 'olcham' | 'insol') => openAlbum({ plans, bid: sel.bid, floor: fl0, view, insol: this.aptInsolView(), runInsol: async () => { await this.runApts(); return this.aptInsolView(); }, fh: doc.settings.floorHeight, size: doc.settings.aptSize ?? 'M', docName: safe(doc.name), name, opt: optOf, download,
         onSave: (b2, pl) => { const fr = frame(doc.origin), bb = this.store.doc.buildings.find(x => x.id === b2); this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b2, patch: { planEdit: pl && bb ? { key: planKey(this.store.doc, bb), apts: pl.apts.map(a => ({ ring: a.ring.map(fr.toGeo), rooms: a.rooms })), rooms: pl.rooms.map(q => ({ ring: q.ring.map(fr.toGeo), kind: q.kind })) } : undefined } })); this.clearApt(); },
         onClose: (b2, f) => { this.planBid = b2; this.planFloor = f; this.renderPanel(); } });
+      insolAlbum = () => album('insol');
       const clearEdit = () => { this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: undefined } })); this.clearApt(); this.renderPanel(); };
       body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Bino')), h('span', {}, tr('genplanda yoki xaritada bosing'))),
         h('div', { class: 'gpbox', id: 'planGp' }, genplanSvg(plans, sel.bid, name, pick)),
@@ -1617,9 +1626,9 @@ export class Editor {
           h('button', { class: 'btn icon-btn btn-sm', id: 'planDown', 'aria-label': tr('Pastki qavat'), disabled: fl0 <= 1, onclick: () => setF(fl0 - 1) }, svgIcon('<path d="M15 6l-6 6 6 6"/>')),
           h('span', { id: 'planFloorLbl', style: 'flex:1;text-align:center;font-size:13px' }, h('b', {}, tf('${n}-qavat', { n: fl0 })), ` · ${tr(FLOOR_NAME[ft])}`),
           h('button', { class: 'btn icon-btn btn-sm', id: 'planUp', 'aria-label': tr('Yuqori qavat'), disabled: fl0 >= sel.f1, onclick: () => setF(fl0 + 1) }, svgIcon('<path d="M9 6l6 6-6 6"/>'))),
-        h('div', { class: 'planbox', id: 'planBox', title: tr('Albomda ochish'), onclick: album, html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
+        h('div', { class: 'planbox', id: 'planBox', title: tr('Albomda ochish'), onclick: () => album(), html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
         h('div', { class: 'row', style: 'gap:6px' },
-          h('button', { class: 'btn btn-primary', style: 'flex:1', id: 'planEditBtn', onclick: album }, tr('Albomda ochish')),
+          h('button', { class: 'btn btn-primary', style: 'flex:1', id: 'planEditBtn', onclick: () => album() }, tr('Albomda ochish')),
           h('button', { class: 'btn', id: 'planSvg', onclick: () => download(`${safe(doc.name)}_bino${si + 1}_q${fl0}.svg`, floorPlanSvg(sel, { scale: 200, dims: true, title: name(sel, si), floor: fl0, ...optOf(sel) }).svg, 'image/svg+xml') }, ...icl(DL, 'SVG'))),
         sel.edited === 'eskirgan' ? h('div', { class: 'col' }, h('div', { class: 'note warn' }, tr('Qoʻlda tahrirlangan reja eskirgan (bino yoki kvartira sozlamalari oʻzgardi) — generatsiya qilingan reja koʻrsatilmoqda.')), h('button', { class: 'btn btn-sm', id: 'planEditClear', style: 'align-self:flex-start', onclick: clearEdit }, tr('Tahrirni oʻchirish')))
           : sel.edited === 'ok' ? h('div', { class: 'row', style: 'gap:6px' }, h('span', { class: 't-small', style: 'flex:1;align-self:center' }, tr('Reja qoʻlda tahrirlangan')), h('button', { class: 'btn btn-sm', id: 'planEditClear', onclick: clearEdit }, tr('Asl reja'))) : '');
@@ -1656,7 +1665,9 @@ export class Editor {
           return h('button', { class: 'li', onclick: () => { this.sel = x.bid; this.scene.select(x.bid); } },
             h('span', { class: 'k' }, i >= 0 ? `${i + 1}-bino` : tr('Bino'), h('span', { class: 'sub' }, `${fmt(x.bad)} / ${fmt(x.apts)} ${tr('kvartira mos emas')} · ${x.west ? `${tr('shundan')} ${fmt(x.west)} — ${tr('yoʻnalish (15-band)')}` : tr('insolyatsiya')}`)),
             chev()); })));
-      body.append(h('button', { class: 'btn btn-sm btn-ghost', style: 'align-self:flex-start', onclick: () => { this.clearApt(); this.renderPanel(); this.renderKpi(); } }, ...icl(EYE, tr('Belgilarni yashirish'))));
+      body.append(h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' },
+        insolAlbum ? h('button', { class: 'btn btn-sm', id: 'aptInsolPlan', onclick: insolAlbum }, ...icl(SUN, tr('Qavat rejasida koʻrish'))) : '',
+        h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { this.clearApt(); this.renderPanel(); this.renderKpi(); } }, ...icl(EYE, tr('Belgilarni yashirish')))));
     }
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Hisob qanday')), h('div', {}, tr('Hisob: har qavatdagi har xona derazasi (pol + 1,2 m), 10 daqiqalik qadamlar, quyosh > 3° va fasad oldida; soya — loyiha binolari, saqlanadigan va atrofdagi (350 m) binolar. Yashash xonalari kvartiraning eng yaxshi derazalarini oladi, oshxona — gʻarbiy yoki shimoliy (optimistik sxema; aniq reja keyingi bosqichda). Balkon, lodjiya va deraza qiyaliklari soyasi hisobga olinmaydi. Meʼyor: SanQvaN 0102-25, 94, 95, 15-bandlar (asl matndan).'))));
   }

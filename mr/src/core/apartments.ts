@@ -36,7 +36,7 @@ export const aptArea = (mods: number, halfDepth: number) => mods * MOD_W * halfD
 const az = (n: XY) => ((Math.atan2(n[0], n[1]) * 180 / Math.PI) + 360) % 360;
 export const isWest = (a: number) => a >= 200 && a <= 290;
 /** oshxonaga eng mos (yashash uchun eng yomon) deraza: gʻarb, keyin shimol */
-const badness = (a: number) => (isWest(a) ? 2 : 0) + Math.cos(a * Math.PI / 180);
+export const badness = (a: number) => (isWest(a) ? 2 : 0) + Math.cos(a * Math.PI / 180);
 
 /**
  * Seksiya rejasi. ring — mahalliy XY; blindAt(p) — nuqta qoʻshni binoning ichidami (berk devor).
