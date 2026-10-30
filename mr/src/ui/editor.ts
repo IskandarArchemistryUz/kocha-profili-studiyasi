@@ -1948,6 +1948,31 @@ export class Editor {
   private socBW: Record<SocialUse, number | null> = { maktab: null, mtm: null, poliklinika: null };
   private socBL: Record<SocialUse, number> = { maktab: 0, mtm: 0, poliklinika: 0 };
   /** daha yoki yer uchastkasida saqlangan generator parametrlari */
+  /**
+   * Koʻcha siljitilganda / profili oʻzgarganda (egasi, 30.10): chegarasi oʻzgargan kvartal va yer uchastkalarida avtomatik binolar
+   * saqlangan generator parametrlari bilan qayta generatsiya qilinadi (binolar yoʻlga moslanadi). Qoʻlda chizilgan binolar tegilmaydi
+   * (replaceGroup faqat eski avtomatik binolarni almashtiradi). Sudrash paytida 400 ms kechikish bilan — oxirgi holat boʻyicha.
+   */
+  private regenTimer: ReturnType<typeof setTimeout> | null = null;
+  private regenPrev: PlanGeo | null = null;
+  private regenAfterStreets(prev: PlanGeo): void {
+    if (!this.regenPrev) this.regenPrev = prev;
+    if (this.regenTimer) clearTimeout(this.regenTimer);
+    this.regenTimer = setTimeout(() => {
+      this.regenTimer = null; const old = this.regenPrev; this.regenPrev = null; if (!old) return;
+      const doc = this.store.doc, cur = this.plan(), keyOf = (r: XY[]) => r.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(';');
+      const oldKey = new Map<string, string>(); old.blocks.forEach(b => oldKey.set(b.parcelId ?? b.labelId ?? '', keyOf(b.rings[0])));
+      let n = 0;
+      cur.blocks.forEach((b, i) => {
+        const grp = b.parcelId ?? b.labelId; if (!grp) return;
+        const hasAuto = doc.buildings.some(x => x.gen?.grp === grp); if (!hasAuto || !this.savedGen(i)) return;
+        const was = oldKey.get(grp); if (was == null || was === keyOf(b.rings[0])) return;   // chegara oʻzgarmagan
+        if (this.generateBlock(i, true) > 0) n++;
+      });
+      if (n) { toast(tf('${n} ta kvartal yoʻlga moslab qayta generatsiya qilindi', { n })); this.renderPanel(); this.renderKpi(); }
+    }, 400);
+  }
+
   private savedGen(i: number): Record<string, unknown> | null {
     const b = this.plan().blocks[i]; if (!b) return null;
     const doc = this.store.doc;
@@ -2251,7 +2276,7 @@ export class Editor {
     const doc = this.store.doc, fr = frame(doc.origin); if (this.tool) return null;
     const st = this.step.id;
     if (st === 'kocha') { const s = doc.streets.find(x => x.id === this.selStreet); if (!s) return null;
-      return { id: s.id, pts: s.axis.map(fr.toLocal), closed: false, min: 2, street: true, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateStreet', id: s.id, patch: { axis: pts.map(fr.toGeo) } }, key)) }; }
+      return { id: s.id, pts: s.axis.map(fr.toLocal), closed: false, min: 2, street: true, apply: (pts, key) => { const prev = this.plan(); this.run(() => this.store.dispatch({ type: 'updateStreet', id: s.id, patch: { axis: pts.map(fr.toGeo) } }, key)); this.regenAfterStreets(prev); } }; }
     if (st === 'uchastka' && doc.site) { const r = doc.site.rings;
       return { id: 'site', pts: r[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => { const rr = [pts.map(fr.toGeo), ...r.slice(1)]; this.run(() => this.store.dispatch({ type: 'setSite', rings: rr }, key)); } }; }
     if (st === 'parsel' && this.selBlock != null) { const b = this.plan().blocks[this.selBlock], pc = b?.parcelId ? doc.parcels.find(p => p.id === b.parcelId) : null; if (!pc) return null;
@@ -2399,8 +2424,8 @@ export class Editor {
 
   /** Mavjud koʻchalar uchlarini davom ettirib, ≤ 40 m dagi eng yaqin yoʻl oʻqiga (OSM yoki loyiha koʻchasi) ulash */
   private connectStreetEnds(): number {
-    const r = this.streetEndPatches(this.store.doc);
-    if (r.patches.length) this.run(() => this.store.dispatch({ type: 'updateStreets', patches: r.patches }));
+    const r = this.streetEndPatches(this.store.doc), prev = this.plan();
+    if (r.patches.length) { this.run(() => this.store.dispatch({ type: 'updateStreets', patches: r.patches })); this.regenAfterStreets(prev); }
     return r.n;
   }
 
@@ -2544,7 +2569,7 @@ export class Editor {
     body.append(inp);
     body.append(h('div', { class: 'ugrp' }, h('div', {}, h('button', { class: 'uchip', 'aria-pressed': this.profGroup === 'all', 'data-pgrp': 'all', onclick: () => { this.profGroup = 'all'; this.renderPanel(); } }, `${tr('Hammasi')} · ${all.length}`),
       ...groups.map(g => h('button', { class: 'uchip', 'aria-pressed': this.profGroup === g.id, 'data-pgrp': g.id, onclick: () => { this.profGroup = g.id; this.renderPanel(); } }, `${g.name} · ${g.list.length}`)))));
-    const pick = (p: Profile) => { this.profile = p.id; if (selId) this.run(() => this.store.dispatch({ type: 'updateStreet', id: selId, patch: { profile: p.id } })); else this.renderPanel(); };
+    const pick = (p: Profile) => { this.profile = p.id; if (selId) { const prev = this.plan(); this.run(() => this.store.dispatch({ type: 'updateStreet', id: selId, patch: { profile: p.id } })); this.regenAfterStreets(prev); } else this.renderPanel(); };
     let shown = 0;
     for (const g of groups) {
       if (this.profGroup !== 'all' && this.profGroup !== g.id) continue;
