@@ -258,6 +258,17 @@ function facadeModsFor(R: XY[], mods: FacadeMod[]): FacadeMod[] {
   return out;
 }
 
+/** «+» shakl: 12 uch, 4 ta ichki (reflex) burchak, ularning toʻrtburchagi (markaz) bino ichida va ikkala oʻq boʻylab qanotlar bor */
+function isCross(r: XY[]): boolean {
+  if (r.length !== 12) return false;
+  const n = r.length, sgn = signedArea(r) > 0 ? 1 : -1, refl: XY[] = [];
+  for (let i = 0; i < n; i++) { const a = r[(i - 1 + n) % n], b = r[i], c = r[(i + 1) % n], cr = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]); if (cr * sgn < -1e-6) refl.push(b); }
+  if (refl.length !== 4) return false;
+  const cx = refl.reduce((t, p) => t + p[0], 0) / 4, cy = refl.reduce((t, p) => t + p[1], 0) / 4;
+  if (!pointIn([cx, cy], r)) return false;
+  const d = refl.map(p => Math.hypot(p[0] - cx, p[1] - cy)), dm = Math.max(...d), dn = Math.min(...d);
+  return dn > 3 && dm / dn < 1.6;   // markaz kvadratga yaqin
+}
 function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, splitAbove?: number): RulePlan {
   const W = CORR_W;
   const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
@@ -268,6 +279,8 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
   rec(r, 0);
   // 13-band: minora (deyarli kvadrat, bitta qanot) — markaziy yadro atrofida «parrak» (pinwheel) tartibi
   if (wingsR.length === 1) { const o = obb2(r); if (o.S >= 16 && o.L / o.S <= 1.4 && area(r) / (o.L * o.S) >= 0.85) return towerPlan(r, mods, mix, size); }
+  // «+» shakl (30.10): toʻrtta ichki burchak, markazda kvadrat — minora rejasi: yadro markazda, kvartiralar qanotlarda (uch tomonlama derazali)
+  if (isCross(r)) { const o = obb2(r); if (o.S >= 24 && o.L / o.S <= 1.3) return towerPlan(r, mods, mix, size); }
   const rc = acen(r);
   const blindNear = (p: XY) => mods.some(m => m.blind && Math.hypot((m.a[0] + m.b[0]) / 2 - p[0], (m.a[1] + m.b[1]) / 2 - p[1]) < 2.5);
   const wings: Wing[] = wingsR.map((q, qi) => {
@@ -392,11 +405,13 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
       // qisqa qoʻlli burchak (seysmik kichik L, qoʻl ≤ ~6 m): ichki burchak yadrosi oʻrniga qanot oxiridagi (chok devori boʻyidagi) oddiy yadro — xoll koʻcha va hovli fasadiga chiqadi (egasi, 30.10, 1b)
       if (Math.abs(uR - qu0) >= 6.4 && Math.abs(vR - qv0) >= 4.0) {
         const nL = Math.abs(uR - qu0) >= 2 * LIFT + 1.2 ? 2 : 1;
-        S.stairs.push(...inter([box(A, qu0, uR, vR, vR + J.sB * STAIR_D)], [r]));
+        // zina — burchak chorakda hovli fasadida; yonida xoll tasmasi hovliga chiqadi (skvoznoy kirish: koʻcha ↔ hovli, 30.10)
+        // hovli fasadidagi boʻlak (B qanot hovli fasadi) — xoll: liftlar oldi va hovliga chiqish (skvoznoy kirish: koʻcha ↔ hovli, 30.10);
+        // zina — chorakda, liftlar orqasida (koridorga tegadi); avval bu yerda zina, xoll esa ichkarida edi — hovliga chiqish yoʻq edi
+        S.halls.push(...inter([box(A, qu0 - dirU * 0.02, uR, vR - J.sB * 0.02, vR + J.sB * STAIR_D)], [r]));
         for (let k = 0; k < nL; k++) S.lifts.push(box(A, uR - dirU * (k + 1) * LIFT, uR - dirU * k * LIFT, vR - J.sB * LIFT, vR));
-        // lift oldi (1,8 m) va zinaga oʻtish; chorakning qolgani — texnik xona (1-qavatda velo / kolyaska)
-        const vH = vR - J.sB * (LIFT + 2.4);   // lift oldi ≥ lift chuqurligi
-        S.halls.push(box(A, qu0 - dirU * 0.02, uR, vH, vR - J.sB * LIFT + J.sB * 0.02));
+        const vH = vR - J.sB * (LIFT + STAIR_W);
+        S.stairs.push(box(A, qu0, uR, vR - J.sB * LIFT, vH));
         if (nL * LIFT < Math.abs(uR - qu0) - 0.3) S.halls.push(box(A, qu0 - dirU * 0.02, uR - dirU * nL * LIFT, vR - J.sB * LIFT, vR));
         if (Math.abs(vH - qv0) >= 1.5) S.rooms.push(box(A, qu0, uR, qv0 - J.sB * 0.02, vH)); else S.halls.push(box(A, qu0 - dirU * 0.02, uR, qv0 - J.sB * 0.02, vH));
         S.entry = inter([box(A, J.uX - 1.2, J.uX + 1.2, axisV(A) - J.sB * W / 2 + J.sB * 0.02, J.sB > 0 ? A.v0 : A.v1)], [r]);
@@ -410,7 +425,8 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     // haqiqiy fasad: u chizigʻi bilan bino konturi kesishuvi (trapetsiya va qiyshiq shakllarda yadro tashqariga chiqmasin)
     const facadeAt = (uu: number): number => { if (!pointIn(P(w, uu, vIn - side * 0.05), r)) return vIn; let best = side > 0 ? w.v1 + 1e3 : w.v0 - 1e3; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], ua = uOf(w, a), ub = uOf(w, b); if ((ua - uu) * (ub - uu) > 0 || Math.abs(ub - ua) < 1e-9) continue; const v = vOf(w, a) + (vOf(w, b) - vOf(w, a)) * (uu - ua) / (ub - ua); if ((v - vIn) * side > 0.01 && Math.abs(v - vIn) < Math.abs(best - vIn)) best = v; } return Math.abs(best - vIn) > 500 ? vIn : best; };
     const cw = Math.min(hi - lo, LIFT + 2.4 + STAIR_W);   // liftlar | lift oldi (≥ lift chuqurligi) | zina
-    const depthAt = (u: number) => Math.min(Math.abs(facadeAt(u + 0.15) - vIn), Math.abs(facadeAt(u + cw - 0.15) - vIn));
+    // chuqurlik — yadroning uch qismi (lift ustuni, xoll, zina) oʻrtasida: xoll tutashuv ichiga (tupik) tushmasin (30.10)
+    const depthAt = (u: number) => Math.min(Math.abs(facadeAt(u + 0.15) - vIn), Math.abs(facadeAt(u + cw - 0.15) - vIn), Math.abs(facadeAt(u + LIFT / 2) - vIn), Math.abs(facadeAt(u + (LIFT + cw - STAIR_W) / 2) - vIn), Math.abs(facadeAt(u + cw - STAIR_W / 2) - vIn));
     const cand = new Set<number>([lo, hi - cw]); for (let u = grid(w, lo); u + cw <= hi + 0.01; u += w.mw) if (u >= lo - 0.01) cand.add(u);
     for (const u of [...cand]) if (depthAt(u) < LIFT + 2.4) cand.delete(u);   // yadro sigʻmaydi
     if (!cand.size) continue;
@@ -418,7 +434,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     const lost = (u: number) => mods.filter(m => { if (m.blind) return false; const c: XY = [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2], dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], l = Math.hypot(dx, dy) || 1, q: XY = [c[0] - dy / l * 0.4, c[1] + dx / l * 0.4], qu = uOf(w, q), qv = vOf(w, q); return qu > u && qu < u + cw && (qv - vIn) * side > 0 && (qv - vOut) * side < 0.5; }).length;
     // yadro bilan devor / koridor uchi orasida kvartira sigʻmaydigan tor boʻlak qolmasin
     // devor yonidagi tor boʻlak (qoʻshni kvartira yoʻq) torets yonidagidan yomonroq
-    const gap = (g: number, k: EndKind) => g > 0.3 && g < 4.5 ? (k === 'wall' ? 60 : 50) : 0, deadEnd = (u: number) => depthAt(u) > LIFT + 1.4 + STAIR_D + MOD + 0.5 ? 60 : 0;   // lift oldi xolli fasadga yetmaydi (qarshisi boshqa qanot ichi) — kirish/yorugʻlik yoʻq (30.10)
+    const gap = (g: number, k: EndKind) => g > 0.3 && g < 4.5 ? (k === 'wall' ? 60 : 50) : 0, hallDepth = (u: number) => Math.abs(facadeAt(u + (LIFT + cw - STAIR_W) / 2) - vIn), deadEnd = (u: number) => hallDepth(u) > LIFT + 1.4 + STAIR_D + MOD + 0.5 ? 200 : 0;   // lift oldi xolli fasadga yetmaydi (qarshisi boshqa qanot ichi) — kirish/yorugʻlik yoʻq (30.10)
     const cost = (u: number) => lost(u) * 10 + gap(u - lo, p.k0) + gap(hi - u - cw, p.k1) + deadEnd(u) + Math.abs(u + cw / 2 - mid) * 0.05;
     const mid = (p.ua + p.ub) / 2;
     { const d0 = depthAt(lo); vOut = vIn + side * Math.min(d0, LIFT + 1.4 + STAIR_D + MOD); }
@@ -564,7 +580,9 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
  */
 function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L'): RulePlan {
   const W = CORR_W, target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))], wantK = mixPicker(mix);
-  const o = obb2(r), U = o.U, V: XY = [-U[1], U[0]];
+  const cross = isCross(r);
+  // «+» shaklda oʻq — qanot yoʻnalishi (OBB 45° burilib ketmasin): birinchi qirra boʻylab
+  const o = obb2(r), U: XY = cross ? (() => { const dx = r[1][0] - r[0][0], dy = r[1][1] - r[0][1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l] as XY; })() : o.U, V: XY = [-U[1], U[0]];
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
   for (const p of r) { const u = p[0] * U[0] + p[1] * U[1], v = p[0] * V[0] + p[1] * V[1]; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
   const P = (u: number, v: number): XY => [U[0] * u + V[0] * v, U[1] * u + V[1] * v];
@@ -577,17 +595,28 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   const bU = !rectFull ? 0 : blindSide(u1, 0, 1) ? 1 : blindSide(u0, 0, 1) ? -1 : 0, bV = !rectFull ? 0 : blindSide(0, v1, 0) ? 1 : blindSide(0, v0, 0) ? -1 : 0;
   const cu = bU > 0 ? u1 - aH - 0.05 : bU < 0 ? u0 + aH + 0.05 : (u0 + u1) / 2, cv = bV > 0 ? v1 - bH - 0.05 : bV < 0 ? v0 + bH + 0.05 : (v0 + v1) / 2;
   // yadro: liftlar (2 × 2,2) | xoll 2,4 | zina 2,8 — eni 7,4; chuqurligi 6,0 (zina marshi + maydonchalar); MOP — yadro + 1,6 m halqa
-  const cw = LIFT + 2.4 + STAIR_W, ch = Math.max(2 * LIFT + 1.6, 6.0), a = cw / 2 + W, b = ch / 2 + W;
+  const armH0 = cross ? (() => { const rs: XY[] = []; const n = r.length; for (let i = 0; i < n; i++) { const a2 = r[(i - 1 + n) % n], b2 = r[i], c2 = r[(i + 1) % n]; if (((b2[0] - a2[0]) * (c2[1] - b2[1]) - (b2[1] - a2[1]) * (c2[0] - b2[0])) < -1e-6) rs.push(b2); } return rs.length === 4 ? Math.min(...rs.map(q => Math.abs(q[0] * U[0] + q[1] * U[1] - cu)), ...rs.map(q => Math.abs(q[0] * V[0] + q[1] * V[1] - cv))) : 0; })() : 0;
+  // «+»: xoll halqasi markaz kvadratigacha kengaytiriladi (qanotlar MOP ga tegsin) — vestibyul
+  const cw = LIFT + 2.4 + STAIR_W, ch = Math.max(2 * LIFT + 1.6, 6.0), a = armH0 > cw / 2 + W ? armH0 : cw / 2 + W, b = armH0 > ch / 2 + W ? armH0 : ch / 2 + W;
   const c0u = cu - cw / 2, c1u = cu + cw / 2, c0v = cv - ch / 2, c1v = cv + ch / 2;
   const lifts = [box(c0u, c0u + LIFT, c0v, c0v + LIFT), box(c0u, c0u + LIFT, c0v + LIFT, c0v + 2 * LIFT)];
   const stairs = [box(c1u - STAIR_W, c1u, c0v, c1v)];
+  // «+» katta qavat (> 500 m² — ShNQ 2.01.02-04, 5.13): ikkinchi zina vestibyulning yuqori tasmasida (halqa eni ≥ 2,8 m boʻlsa)
+  const stair2 = cross && b - ch / 2 >= STAIR_W && area(r) - cw * ch > 560 ? box(c0u, c0u + 6, c1v, c1v + STAIR_W) : null; if (stair2) stairs.push(stair2);
   const tech = c1v - (c0v + 2 * LIFT) >= 1.2 ? [box(c0u, c0u + LIFT, c0v + 2 * LIFT, c1v)] : [];
   // MOP — teshiksiz toʻrtburchaklar: halqa koridorning 4 tomoni + lift oldi xolli (polygon-clipping teshikli halqasini «pieces» tashlaydi)
-  const mop = [box(cu - a, cu + a, c1v, cv + b), box(cu - a, cu + a, cv - b, c0v), box(cu - a, c0u, c0v, c1v), box(c1u, cu + a, c0v, c1v), box(c0u + LIFT, c1u - STAIR_W, c0v, c1v)];
+  const mop = [...(stair2 ? [box(cu - a, c0u, c1v, cv + b), box(c0u, c0u + 6, c1v + STAIR_W, cv + b), box(c0u + 6, cu + a, c1v, cv + b)] : [box(cu - a, cu + a, c1v, cv + b)]), box(cu - a, cu + a, cv - b, c0v), box(cu - a, c0u, c0v, c1v), box(c1u, cu + a, c0v, c1v), box(c0u + LIFT, c1u - STAIR_W, c0v, c1v)];
   // «parrak» boʻlaklari: [u0, cu+a]×[cv+b, v1] (yuqori), [cu+a, u1]×[cv-b, v1] (oʻng), [cu-a, u1]×[v0, cv-b] (past), [u0, cu-a]×[v0, cv+b] (chap)
   type Piece = { box: [number, number, number, number]; axis: 'u' | 'v'; lo: number; hi: number; dir: 1 | -1 };
   // axis — boʻlak boʻylab kesish oʻqi; [lo, hi] — MOP tomoni (kesimlar shu oraliqdan chiqmasin); dir — burchak qaysi uchida (−1 — boshida)
-  const pieces: Piece[] = [
+  // «+»: boʻlaklar — toʻrt qanot (halqa koridordan qanot uchigacha, qanot eni boʻyicha boʻlinadi: har kvartira yon fasad + torets yarmi)
+  const armH = armH0;
+  const pieces: Piece[] = cross && armH > 0 ? [
+    { box: [cu - armH, cu + armH, cv + b, v1], axis: 'u', lo: cu - a, hi: cu + a, dir: -1 },
+    { box: [cu + a, u1, cv - armH, cv + armH], axis: 'v', lo: cv - b, hi: cv + b, dir: 1 },
+    { box: [cu - armH, cu + armH, v0, cv - b], axis: 'u', lo: cu - a, hi: cu + a, dir: 1 },
+    { box: [u0, cu - a, cv - armH, cv + armH], axis: 'v', lo: cv - b, hi: cv + b, dir: -1 },
+  ] : [
     { box: [u0, cu + a, cv + b, v1], axis: 'u', lo: cu - a, hi: cu + a, dir: -1 },
     { box: [cu + a, u1, cv - b, v1], axis: 'v', lo: cv - b, hi: cv + b, dir: 1 },
     { box: [cu - a, u1, v0, cv - b], axis: 'u', lo: cu - a, hi: cu + a, dir: 1 },
@@ -639,10 +668,10 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
     const dep = Math.max(0.3, d + 0.02), t: XY = [n[1], -n[0]];
     const q: XY[] = [[mid[0] - t[0] * 1.2, mid[1] - t[1] * 1.2], [mid[0] + t[0] * 1.2, mid[1] + t[1] * 1.2], [mid[0] + t[0] * 1.2 - n[0] * dep, mid[1] + t[1] * 1.2 - n[1] * dep], [mid[0] - t[0] * 1.2 - n[0] * dep, mid[1] - t[1] * 1.2 - n[1] * dep]];
     return { d: Math.max(0, d), q, ang: m.az };
-  }).filter(c => c.d <= 6 && pointIn([(c.q[0][0] + c.q[2][0]) / 2, (c.q[0][1] + c.q[2][1]) / 2], r)).sort((x, y) => x.d - y.d);
+  }).filter(c => c.d <= 8 && pointIn([(c.q[0][0] + c.q[2][0]) / 2, (c.q[0][1] + c.q[2][1]) / 2], r)).sort((x, y) => x.d - y.d);
   const adiff = (x: number, y: number) => Math.abs(((x - y + 180) % 360 + 360) % 360 - 180);
   let pick: XY[][] = [];
-  if (cands.length) { let best = -1, bi = 0, bj = -1; for (let i = 0; i < cands.length; i++) for (let j = i + 1; j < cands.length; j++) { const dd = adiff(cands[i].ang, cands[j].ang) - (cands[i].d + cands[j].d); if (dd > best) { best = dd; bi = i; bj = j; } } pick = bj >= 0 && adiff(cands[bi].ang, cands[bj].ang) >= 120 ? [cands[bi].q, cands[bj].q] : [cands[0].q]; }
+  if (cands.length) { let best = -1, bi = 0, bj = -1; for (let i = 0; i < cands.length; i++) for (let j = i + 1; j < cands.length; j++) { const dd = adiff(cands[i].ang, cands[j].ang) - (cands[i].d + cands[j].d); if (dd > best) { best = dd; bi = i; bj = j; } } pick = bj >= 0 && adiff(cands[bi].ang, cands[bj].ang) >= 60 ? [cands[bi].q, cands[bj].q] : [cands[0].q]; }
   const entry = inter(pick.length ? pick : [box(cu - 1.2, cu + 1.2, v0, cv - b + 0.02)], [r]);
   const sections: RuleSection[] = [{ mop, stairs, lifts, apts: apts.map((_, i) => i), corridorLen: (2 * a + 2 * b) * 2 - 4 * W, corner: false, ...(entry.length ? { entry } : {}) }];
   const rooms: PlanRoom[] = tech.map(q => ({ ring: q, kind: 'texnik' as RoomKind, sec: 0, door: cen(q) }));
@@ -852,14 +881,14 @@ export function planChecks(pl: RulePlan, h: number, mods: FacadeMod[] = []): Pla
   // kirish: seksiya MOP + 1-qavat xolli tashqi (berk boʻlmagan) fasad modullariga qayerda tegadi — ikki yoʻnalish (≥ 120° farq) kerak
   // burchak boʻlmasi: ikki qoʻshni tomoni berk (chok) — koʻcha va hovli fasadlari 120° dan kam farq qiladi; hovliga chiqish qoʻshni boʻlma xolli orqali (tekshiruv qoʻllanmaydi)
   const difAz = (a: number, b: number) => Math.abs(((a - b + 180) % 360 + 360) % 360 - 180);
-  const openAz = mods.filter(m => !m.blind).map(m => m.az), twoSided = openAz.some(a => openAz.some(b => difAz(a, b) >= 120));
+  const openAz = mods.filter(m => !m.blind).map(m => m.az), twoSided = openAz.some(a => openAz.some(b => difAz(a, b) >= 60));
   const entryNa = !mods.length || !twoSided;
   const entryBad = entryNa ? [] : secs.filter(sc => {
     if (!sc.apts.length) return false;
     const rings = [...sc.mop, ...((sc as RuleSection).entry ?? [])], azs: number[] = [];
     for (const m of mods) { if (m.blind) continue; const seg: XY[] = [m.a, m.b, [(m.a[0] + m.b[0]) / 2 + (m.b[1] - m.a[1]) * 0.01, (m.a[1] + m.b[1]) / 2 - (m.b[0] - m.a[0]) * 0.01]]; if (sharedAny(seg, rings).len >= 0.9) azs.push(m.az); }
     const dif = (a: number, b: number) => Math.abs(((a - b + 180) % 360 + 360) % 360 - 180);   // 0..180
-    return !azs.some(a => azs.some(b => dif(a, b) >= 120));
+    return !azs.some(a => azs.some(b => dif(a, b) >= 60));   // burchak seksiyasida hovli fasadi koʻchaga perpendikulyar (90°) — ikki tomonlama sanaladi (30.10)
   });
   const noStair = secs.filter(s => s.apts.length && !s.stairs.length).length;   // kvartirali seksiyada zina yoʻq — mos emas (kichik boʻlaklar: 15 × 15 qanot)
   const noDoor = pl.apts.filter((a, i) => sharedAny(a.ring, secOf(i)?.mop ?? []).len < 0.9).length;

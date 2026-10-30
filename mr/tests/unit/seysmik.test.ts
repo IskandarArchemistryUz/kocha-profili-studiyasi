@@ -56,17 +56,33 @@ describe('seysmik burchak boʻlmasi rejasi (kichik L 21 × 21, chok sharq va shi
     const ch = planChecks(pl, 25, L.mods as never);
     for (const id of ['stairs', 'kirish', 'win', 'light']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
   });
-  it('gʻisht 17 × 17 burchak boʻlmasi (sharq va shimol chok): yadro berk burchakda, kvartiralar faqat koʻcha fasadlarida — derazasiz va qorongʻi kvartira yoʻq; kirish — qoʻllanmaydi', () => {
+  it('gʻisht 17 × 17 burchak boʻlmasi (sharq va shimol chok): yadro berk burchakda, kvartiralar faqat koʻcha fasadlarida — derazasiz va qorongʻi kvartira yoʻq; kirish ikki koʻcha fasadiga', () => {
     const L = layoutSection([[0, 0], [17, 0], [17, 17], [0, 17]], p => p[0] > 16.5 || p[1] > 16.5, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!;
     expect(pl.stairs.length).toBe(1); expect(pl.apts.length).toBeGreaterThanOrEqual(3);
     const ch = planChecks(pl, 25, L.mods as never);
     for (const id of ['stairs', 'win', 'light', 'mop']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
-    expect(ch.find(c => c.id === 'kirish')!.ok).toBeNull();
+    expect(ch.find(c => c.id === 'kirish')!.ok).toBe(true);   // ikki koʻcha fasadiga (janub va gʻarb, 90°) chiqadi — ikki tomonlama sanaladi
   });
   it('12 × 30 qanot: ikki tomonlama koridor (5,2 m chuqurlik), yadro, kirish ikki tomonga', () => {
     const L = layoutSection([[0, 0], [12, 0], [12, 30], [0, 30]], p => p[1] < 0.5, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!;
     expect(pl.kind).toBe('ikki'); expect(pl.stairs.length).toBe(1);
     const ch = planChecks(pl, 25, L.mods as never);
     for (const id of ['stairs', 'kirish', 'win', 'light']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
+  });
+});
+
+describe('«+», «U», «T» shakllar (30.10): markaz va tutashuvlar', () => {
+  const run = (ring: XY[]) => { const L = layoutSection(ring, () => false, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!; return { pl, bad: planChecks(pl, 25, L.mods as never).filter(c => c.ok === false).map(c => c.id) }; };
+  it('«+» 36 × 36 — minora rejasi: yadro markazda, qanotlarda 8 kvartira, ikkita zina (> 500 m²), tekshiruvlar oʻtadi', () => {
+    const { pl, bad } = run([[12, 0], [24, 0], [24, 12], [36, 12], [36, 24], [24, 24], [24, 36], [12, 36], [12, 24], [0, 24], [0, 12], [12, 12]]);
+    expect(pl.sections.length).toBe(1); expect(pl.apts.length).toBe(8); expect(pl.stairs.length).toBe(2); expect(bad).toEqual([]);
+  });
+  it('«U» 45 × 30 va 60 × 36 — har seksiya xolli koʻcha va hovliga chiqadi (burchakda 90°), tupik xoll yoʻq', () => {
+    for (const ring of [[[0, 0], [45, 0], [45, 30], [33, 30], [33, 12], [12, 12], [12, 30], [0, 30]], [[0, 0], [60, 0], [60, 36], [45, 36], [45, 15], [15, 15], [15, 36], [0, 36]]] as XY[][]) {
+      const { pl, bad } = run(ring); expect(bad).toEqual([]); for (const s of pl.sections) if (s.apts.length) expect(s.stairs.length).toBeGreaterThan(0);
+    }
+  });
+  it('«T» 36 × 24 va «L» 45 × 45 — tekshiruvlar oʻtadi', () => {
+    for (const ring of [[[0, 0], [36, 0], [36, 12], [24, 12], [24, 24], [12, 24], [12, 12], [0, 12]], [[0, 0], [45, 0], [45, 15], [15, 15], [15, 45], [0, 45]]] as XY[][]) expect(run(ring).bad).toEqual([]);
   });
 });
