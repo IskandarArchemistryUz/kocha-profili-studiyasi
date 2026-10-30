@@ -858,3 +858,12 @@ textarea.ch-inedit{padding:10px 12px}
 .alb-insol-kpi{display:flex;align-items:baseline;gap:10px}.alb-insol-kpi b{font-size:30px;font-weight:600;letter-spacing:-.02em}.alb-insol-kpi span{font-size:13px;color:var(--text-2,#6b6965)}
 #albInsolBad .li .k{display:flex;align-items:center;flex-wrap:wrap;column-gap:6px;row-gap:0}#albInsolBad .li .k b{white-space:nowrap}#albInsolBad .li .k .sub{flex-basis:100%;padding-left:14px}#albInsolBad .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}#albInsolBad .li[aria-pressed=true]{background:rgba(10,132,255,.08)}
 .alb-bar #albView{flex:none}
+/* V3: qavat albomi — variantlar koʻrinishi */
+.alb-vars{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.alb-vars-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 18px;border-radius:22px;background:var(--surface,#fff);box-shadow:var(--sh-float)}
+.alb-mixes{display:flex;gap:14px;flex:1;min-width:280px;flex-wrap:wrap}.alb-mix{display:flex;align-items:center;gap:8px;flex:1;min-width:150px}.alb-mix .k{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;width:36px}.alb-mix .k i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.alb-vars-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch}
+.alb-var{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:22px;background:var(--surface,#fff);box-shadow:var(--sh-float);cursor:pointer;outline:2px solid transparent;outline-offset:-2px}.alb-var[aria-pressed=true]{outline-color:var(--text,#141414)}
+.alb-var-th{background:var(--grouped,#f7f6f3);border-radius:12px;padding:6px}.alb-var-th svg{display:block;width:100%;height:auto;max-height:200px}
+.alb-mixbar{display:flex;height:8px;border-radius:4px;overflow:hidden}.alb-mixbar i{display:block}
+.alb-var .group.flat .li{padding:6px 0}.alb-var .v.ok{color:var(--ok,#2b7449)}.alb-var .v.warn{color:#95620f}.alb-var .v.bad{color:var(--bad,#b3261e)}
