@@ -252,6 +252,14 @@ export function buildingMeshes(list: CtxBld[], H: HeightFn, mat: THREE.Material,
   return out;
 }
 
+/** Sunʼiy yoʻldosh tasviri biroz xira va ochroq: model (binolar, koʻchalar) oldinga chiqsin */
+export const satTint = (sh: { fragmentShader: string }): void => {
+  sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      float lum_ = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum_), 0.4);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.91, 0.88), 0.28);`);
+};
+
 export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H: HeightFn, imageTex: THREE.Texture | null, site: XY[] | null = null, skipRoads: Set<number> = new Set(), removed: Set<number> = new Set()): ContextScene {
   const g = new THREE.Group(); g.name = 'kontekst';
   const inSite: CtxBld[] = [], blds: CtxBld[] = [];
@@ -274,12 +282,7 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   const sat = cs.base === 'sputnik' && imageTex;
   const groundMat = sat ? new THREE.MeshLambertMaterial({ map: imageTex }) : new THREE.MeshLambertMaterial({ color: CC.ground });
   // sunʼiy yoʻldosh tasviri biroz xira va ochroq: model (binolar, koʻchalar) oldinga chiqsin
-  if (sat) groundMat.onBeforeCompile = sh => {
-    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-      float lum_ = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum_), 0.4);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.91, 0.88), 0.28);`);
-  };
+  if (sat) groundMat.onBeforeCompile = satTint;
   const ground = new THREE.Mesh(geo, groundMat); ground.name = 'relyef'; ground.receiveShadow = true; ground.renderOrder = 0;
   g.add(ground);
   // atrof chegarasi (chegara boʻyicha yuklanganda): uzuq chiziq

@@ -43,6 +43,11 @@ test('«Dunyo» tugmasi va Esc; uzoqlashtirish chegarasida dunyo xaritasi ochila
   await expect(page.locator('.mapctl')).toBeVisible();
   const box = (await page.locator('#scene').boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+  // 30.10: ~1 km koʻrinishda bitta gʻildirak qadami dunyo xaritasini OCHMASLIGI kerak (avval «oldin» qiymati zoomdan keyin oʻlchanib, har qadamda ochilardi)
+  await page.evaluate(() => (window as any).__mr.scene.frameView(0, 0, 900));
+  await page.mouse.wheel(0, 120); await page.waitForTimeout(400);
+  await expect(page.locator('#worldMap')).toBeHidden();
+  expect(await page.evaluate(() => (window as any).__mr.scene.viewExtent().r)).toBeGreaterThan(950);
   await expect.poll(async () => { for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 900); await page.waitForTimeout(150); return page.locator('#worldMap').isVisible(); }, { timeout: 30_000 }).toBe(true);
   await page.click('#wmBack');
   await expect(page.locator('#worldMap')).toBeHidden();
