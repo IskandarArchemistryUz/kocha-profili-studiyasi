@@ -43,7 +43,7 @@ import { saveMrReturn, consumeMrBack } from './mrback';
 import { USES, useDef } from '../core/uses';
 import { gridAngle, merge, split, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
-import { daySteps, insolation, localToUtcAt, sunPosition } from '../core/sun';
+import { daySteps, insolation, localToUtcAt, sunPosition, type Prism } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { windAt, windSrcLine, ERA5_ATTR, TMYX_ATTR, type WindAt } from '../core/windsrc';
@@ -1515,15 +1515,25 @@ export class Editor {
     this.scene.setAptBoxes(list, caps);
   }
   private aptDate = '03-22';
-  private apt: { busy: boolean; stats: AptStats | null; plans: SecPlan[]; pts: { sec: number; f: number; m: number }[]; ms?: number; buildings?: unknown; run?: Float32Array; date?: string } = { busy: false, stats: null, plans: [], pts: [] };
+  private apt: { busy: boolean; stats: AptStats | null; plans: SecPlan[]; pts: { sec: number; f: number; m: number }[]; ms?: number; buildings?: unknown; run?: Float32Array; date?: string; prisms?: Prism[]; base?: number[] } = { busy: false, stats: null, plans: [], pts: [] };
   private aptRules: Result[] = [];
 
   /** V5: qavat albomi uchun derazalar insolyatsiyasi — bino, qavat (1 dan), modul → uzluksiz soat; hisob eskirgan boʻlsa null */
   private aptInsolView(): InsolView | null {
     const A = this.apt; if (!A.stats || !A.run || A.buildings !== this.store.doc.buildings) return null;
     const idx = new Map<string, number>(); A.pts.forEach((q, i) => idx.set(`${A.plans[q.sec].bid}|${q.f}|${q.m}`, i));
-    const run = A.run;
-    return { date: A.date ?? this.aptDate, at: (bid, floor, m) => { const i = idx.get(`${bid}|${floor - 1}|${m}`); return i == null ? null : run[i]; } };
+    const run = A.run, doc = this.store.doc, fh = doc.settings.floorHeight, [mo, dd] = (A.date ?? this.aptDate).split('-').map(Number);
+    return {
+      date: A.date ?? this.aptDate, at: (bid, floor, m) => { const i = idx.get(`${bid}|${floor - 1}|${m}`); return i == null ? null : run[i]; },
+      // V5 real dogʻ: tanlangan soatda quyosh holati va derazaga tushishi (atrof binolari soyasi bilan)
+      sun: hour => { const s = sunPosition(localToUtcAt(2026, mo, dd, hour, doc.origin[1], doc.origin[0]), doc.origin[1], doc.origin[0]); return s.alt > 3 ? s : null; },
+      lit: (bid, floor, ms, st) => {
+        const si = A.plans.findIndex(p => p.bid === bid), pl = A.plans[si]; if (!pl || !A.prisms || !A.base) return ms.map(() => false);
+        const P = ms.map(m => pl.layout.mods[m].p), Z = ms.map(() => A.base![si] + (pl.z0 + floor - 1) * fh + 1.2), AZ = ms.map(m => pl.layout.mods[m].az);
+        const r = windowSun(P, Z, AZ, A.prisms, [{ alt: st.alt, az: st.az, dt: 1 }]);
+        return ms.map((_, i) => r.total[i] > 0);
+      },
+    };
   }
   private clearApt(): void { this.apt = { busy: false, stats: null, plans: [], pts: [] }; this.aptRules = []; this.scene.setFacadeMarks(null); }
 
@@ -1546,7 +1556,7 @@ export class Editor {
     } catch { res = windowSun(P, Z, A, prisms, steps); }
     if (this.store.doc.buildings !== doc.buildings) { this.apt.busy = false; this.renderPanel(); return; }
     const norm = { need: 2.0 }, stats = evaluateApts(plans, pts, res.run, res.total, norm);
-    this.apt = { busy: false, stats, plans, pts, ms: performance.now() - t0, buildings: doc.buildings, run: res.run, date: this.aptDate };
+    this.apt = { busy: false, stats, plans, pts, ms: performance.now() - t0, buildings: doc.buildings, run: res.run, date: this.aptDate, prisms, base };
     const pct = (a: number) => stats.apts ? a / stats.apts * 100 : 0;
     const src = { doc: 'SanQvaN 0102-25', edition: '2025', verified: true };
     this.aptRules = [
