@@ -27,6 +27,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, Sect
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
+import { insolCompass, type Compass } from '../core/kompas';
 import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
@@ -2285,6 +2286,33 @@ export class Editor {
     return out;
   }
   private compOpen = true;
+  /** Insolyatsiya kompasi (egasi, 30.10): toʻr burchagini insolyatsiya boʻyicha tanlash — SanQvaN 0102-25, 94–95 (22.03–22.09, 2 soat uzluksiz), 15-band (gʻarb 200–290°) */
+  private compassMemo: { key: string; c: Compass } | null = null;
+  private compassBox(site: XY[], g: GridParams): HTMLElement {
+    const doc = this.store.doc, H = Math.max(6, Math.round(this.gen.maxF * doc.settings.floorHeight)), key = `${doc.origin.map(v => v.toFixed(3)).join(',')}|${H}`;
+    if (this.compassMemo?.key !== key) this.compassMemo = { key, c: insolCompass(doc.origin[1], doc.origin[0], { H }) };
+    const c = this.compassMemo.c, cur = (((g.angle ?? autoAngle(site)) % 90) + 90) % 90, row = c.rows.reduce((a, b) => Math.abs(b.deg - cur) < Math.abs(a.deg - cur) ? b : a);
+    const col = (h0: number) => h0 >= 2 ? '#3fa66b' : h0 >= 1.5 ? '#e0a43a' : h0 > 0.3 ? '#d9534f' : 'var(--line, #c9c6bf)';
+    const R = 54, C = 70, P = (az: number, r: number): [number, number] => [C + r * Math.sin(az * Math.PI / 180), C - r * Math.cos(az * Math.PI / 180)];
+    const arc = (a0: number, a1: number, r0: number, r1: number) => { const [x0, y0] = P(a0, r1), [x1, y1] = P(a1, r1), [x2, y2] = P(a1, r0), [x3, y3] = P(a0, r0); return `M${x0.toFixed(1)},${y0.toFixed(1)}A${r1},${r1} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}L${x2.toFixed(1)},${y2.toFixed(1)}A${r0},${r0} 0 0 0 ${x3.toFixed(1)},${y3.toFixed(1)}Z`; };
+    let svg = '';
+    for (const s of c.ring) svg += `<path d="${arc(s.az - 2.5, s.az + 2.5, R - 12, R)}" fill="${col(s.run)}" stroke="none"><title>${s.az}°: ${(Math.round(s.run * 10) / 10).toString().replace('.', ',')} h</title></path>`;
+    svg += `<path d="${arc(200, 290, R + 2, R + 6)}" fill="none" stroke="#a3322a" stroke-width="1.2" stroke-dasharray="3 2"/>`;   // 15-band
+    for (const f of row.facades) { const [x, y] = P(f.az, R - 14), [tx, ty] = P(f.az, R - 26); svg += `<line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><text x="${tx.toFixed(1)}" y="${(ty + 3.5).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="600" fill="currentColor">${(Math.round(f.run * 10) / 10).toString().replace('.', ',')}</text>`; }
+    svg += `<text x="${C}" y="9" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">N</text>`;
+    const best = c.best[0], bestOk = c.rows.find(r => r.deg === best)!;
+    const bad = row.facades.filter(f => f.run < 2), west = row.facades.filter(f => f.west);
+    const applyBest = () => { g.angle = best; this.gridVar = 0; this.renderPanel(); };
+    return h('div', { class: 'group', id: 'insolCompass' },
+      h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Insolyatsiya kompasi'), h('span', { class: 'sub' }, tf('22 mart, 2-qavat derazasi, qarshida 2·H = ${d} m masofada ${h} m qator', { d: Math.round(c.D), h: H }) + ' · SanQvaN 0102-25, 94–95, 15-band'))),
+      h('div', { class: 'li', style: 'gap:12px;align-items:center;overflow:visible;flex-wrap:wrap' },
+        h('span', { style: 'flex:none;display:block;width:148px;height:148px', html: `<svg width="148" height="148" viewBox="-4 -4 148 148" role="img" aria-label="${tr('Insolyatsiya kompasi')}" style="display:block;overflow:visible">${svg}</svg>` }),
+        h('div', { class: 'col', style: 'gap:6px;min-width:120px;flex:1' },
+          h('span', { class: row.ok === 4 ? 'chip ok' : 'chip warn', style: 'align-self:flex-start' }, h('i'), tf('${n} / 4 fasad ≥ 2 soat', { n: row.ok })),
+          bad.length ? h('span', { class: 't-small' }, `${tr('Kam')}: ${bad.map(f => `${f.az}° — ${(Math.round(f.run * 10) / 10).toString().replace('.', ',')} h`).join(', ')}`) : '',
+          west.length ? h('span', { class: 't-small' }, tf('Gʻarbga (200–290°) qaragan fasad: ${a}° — bu tomondagi kvartiralar ikki tomonlama boʻlsin (15-band)', { a: west.map(f => f.az).join(', ') })) : '',
+          Math.abs(row.deg - best) > 2 ? h('button', { class: 'btn btn-sm', id: 'gridBest', style: 'align-self:flex-start', onclick: applyBest }, tf('Mos burchak: ${a}° (${n} / 4, eng kami ${m} h)', { a: best, n: bestOk.ok, m: (Math.round(bestOk.min * 10) / 10).toString().replace('.', ',') })) : h('span', { class: 't-small' }, tr('Insolyatsiya boʻyicha eng maqbul burchak')))));
+  }
   private gridThumb(site: XY[], g: GridParams, w = 112, hh = 80): string {
     const xs = site.map(p => p[0]), ys = site.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const k = Math.min((w - 8) / Math.max(1, x1 - x0), (hh - 8) / Math.max(1, y1 - y0)), ox = (w - (x1 - x0) * k) / 2, oy = (hh - (y1 - y0) * k) / 2;
@@ -2329,6 +2357,7 @@ export class Editor {
       h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Variantlar') }, ...vars.map((v, i) => h('button', { class: 'tile', 'data-gvar': i, 'aria-pressed': this.gridVar === i, onclick: () => { this.gridVar = i; this.renderPanel(); } },
         h('span', { class: 'th', html: this.gridThumb(site, v.g, 64, 44) }), h('span', {}, tr(v.name)), h('span', { class: 'sub' }, `${gridStreetsAround(site, keepC, v.g).length} ${tr('koʻcha')}`)))),
       h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Burilish')), h('div', { class: 'grow' }, ang), angT),
+      this.compassBox(site, g),
       h('div', { class: 'group' }, profRow('main', tr('Asosiy')), profRow('minor', tr('Ikkilamchi')), h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 't-small', style: 'flex-basis:100%' }, tr('Asosiy koʻchalar')), mainSel)),
       h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Perimetr boʻylab koʻcha'), h('span', { class: 'sub' }, tr('Uchastka chegarasi boʻylab — qizil chiziq chegarada, toʻr koʻchalari unga ulanadi'))),
         sw({ id: 'gridPerim', label: tr('Perimetr boʻylab koʻcha'), on: this.gridPerim, onchange: v => { this.gridPerim = v; this.renderPanel(); } })),
