@@ -38,3 +38,20 @@ describe('seysmik rejimda generatsiya (maxLen 45, maxProj 6)', () => {
     expect(corner).toBeTruthy(); expect(checkBlock(corner!.ring, 'monolit', 8).proj).toBeGreaterThan(6);
   });
 });
+
+import { layoutSection } from '../../src/core/apartments';
+import { planChecks } from '../../src/core/sectionplan';
+describe('seysmik burchak boʻlmasi rejasi (kichik L 21 × 21, chok sharq va shimolda)', () => {
+  it('yadro ichki burchakda emas — qanotda; xoll koʻcha va hovli fasadiga chiqadi; zina bor; barcha tekshiruvlar oʻtadi', () => {
+    const ring: XY[] = [[0, 0], [21, 0], [21, 15], [15, 15], [15, 21], [0, 21]];
+    const L = layoutSection(ring, p => p[0] > 20.5 || p[1] > 20.5, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!;
+    expect(pl.sections.length).toBe(1); expect(pl.sections[0].corner).toBe(false); expect(pl.stairs.length).toBe(1);
+    const ch = planChecks(pl, 25, L.mods as never);
+    for (const id of ['kirish', 'stairs', 'win', 'light']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
+    expect(pl.apts.length).toBeGreaterThanOrEqual(4);
+  });
+  it('15 × 15 qanot boʻlagi: zina sigʻmaydi — «stairs» tekshiruvi mos emas (yashirin qolmaydi)', () => {
+    const L = layoutSection([[0, 21], [15, 21], [15, 36], [0, 36]], p => p[1] < 21.5, [20, 40, 30, 10], 3.3, 'M');
+    expect(planChecks(L.plan!, 25, L.mods as never).find(c => c.id === 'stairs')!.ok).toBe(false);
+  });
+});
