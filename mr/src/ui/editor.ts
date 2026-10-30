@@ -23,7 +23,7 @@ import { toggleTheme, isDark, onTheme } from './theme';
 import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
-import { ClickTool, LineTool, PolygonTool, RectTool, MeasureTool, SectionLineTool, type Tool } from './tools';
+import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, type PlanGeo } from '../core/plan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
@@ -2054,21 +2054,59 @@ export class Editor {
     const nr = h('input', { type: 'number', class: 'input', min: 0, max: 10, value: this.nonRes, id: 'nr', 'aria-label': tr('Noturar pastki') }) as HTMLInputElement;
     fl.onchange = () => { this.floors = Math.max(1, Math.min(60, Math.round(Number(fl.value) || 1))); };
     nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
-    const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm';
-    body.append(h('details', { class: 'how manual', open: drawing || drawingP || !gens }, h('summary', {}, svgIcon(IC.pencil), tr('Qoʻlda bino chizish')),
+    const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm', drawingA = this.tool instanceof AxisTool;
+    const addB = (r: XY[]) => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); this.el.hint.textContent = this.tool?.hint ?? ''; };
+    body.append(h('details', { class: 'how manual', open: drawing || drawingP || drawingA || !gens }, h('summary', {}, svgIcon(IC.pencil), tr('Qoʻlda bino chizish')),
       h('div', { class: 'col' },
         h('div', { class: 'row2' }, h('div', { class: 'field' }, h('label', {}, tr('Qavatlar')), fl), h('div', { class: 'field' }, h('label', {}, tr('Noturar pastki')), nr)),
-        h('div', { class: 'row' },
-          h('button', { class: drawing ? 'btn btn-primary grow' : 'btn grow', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
+        h('div', { class: 'row', style: 'flex-wrap:wrap' },
+          // oʻq boʻylab (egasi, 30.10): burilgan uchastkada koʻchaga parallel bino — fasad chizigʻi + chuqurlik; keyingi binolar uchun asbob qoladi
+          h('button', { class: drawingA ? 'btn btn-primary grow' : 'btn grow', style: 'min-width:118px', id: 'drawAxis', title: tr('Fasad chizigʻini chizing — toʻrtburchak shu yoʻnalishda, berilgan chuqurlikda quriladi'), onclick: () => drawingA ? this.setTool(null) : this.setTool(new AxisTool(this.scene, r => { addB(r); this.renderPanel(); }, toast, { depth: () => this.axisDepth, guide: p => this.edgeDir(p) })) }, ...(drawingA ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Oʻq boʻylab')))),
+          h('button', { class: drawing ? 'btn btn-primary grow' : 'btn grow', style: 'min-width:118px', id: 'drawBld', onclick: () => drawing ? this.setTool(null) : this.setTool(new RectTool(this.scene, r => {
             this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
             this.el.hint.textContent = this.tool?.hint ?? '';
           }, toast)) }, ...(drawing ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Toʻrtburchak')))),
-          h('button', { class: drawingP ? 'btn btn-primary grow' : 'btn grow', id: 'drawPoly', title: tr('Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish'), onclick: () => drawingP ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
+          h('button', { class: drawingP ? 'btn btn-primary grow' : 'btn grow', style: 'min-width:118px', id: 'drawPoly', title: tr('Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish'), onclick: () => drawingP ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
             this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
             this.setTool(new PolygonTool(this.scene, r2 => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r2.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); }, toast, 20));
           }, toast, 20)) }, ...(drawingP ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Erkin shakl'))))),
-        drawingP || drawing ? this.dimRow(drawing) : '',
+        drawingA ? this.axisRow() : drawingP || drawing ? this.dimRow(drawing) : '',
         h('span', { class: 't-small' }, tr('Uchlar va qirralarga yopishadi (Shift — oʻchiq). Kesma uzunligi chiziqda koʻrinadi.')))));
+  }
+  /** «Oʻq boʻylab» chuqurligi (m): paneldagi maydon; boshlangʻich — generator chuqurligi */
+  private axisDepth = 15;
+  private axisRow(): HTMLElement {
+    const num = (id: string, ph: string, label: string, v = '') => h('input', { type: 'number', class: 'input', id, placeholder: ph, step: '0.5', 'aria-label': label, value: v }) as HTMLInputElement;
+    const val = (i: HTMLInputElement) => { const v = Number(String(i.value).replace(',', '.')); return i.value !== '' && Number.isFinite(v) ? v : null; };
+    const after = () => { if (this.tool) this.el.hint.textContent = this.tool.hint; };
+    const len = num('axisLen', '32', tr('Uzunlik, m')), ang = num('axisAng', tr('kursor'), tr('Burchak, °')), dep = num('axisDepth', '15', tr('Chuqurlik, m'), String(this.axisDepth));
+    dep.onchange = () => { const d = val(dep); if (d && d >= 4) this.axisDepth = d; };
+    const go = () => {
+      const tt = this.tool; if (!(tt instanceof AxisTool)) return;
+      const d = val(dep); if (d && d >= 4) this.axisDepth = d;
+      if (tt.stage === 1) { const L = val(len); if (!(L && L > 0)) { toast(tr('Uzunlikni kiriting')); return; } if (tt.placeLen(L, val(ang))) { len.value = ''; if (d) tt.placeDepth(d); } }
+      else if (tt.stage === 2) { if (!d) { toast(tr('Chuqurlikni kiriting')); return; } tt.placeDepth(d); }
+      else toast(tr('Avval sahnada fasad chizigʻining boshini bosing'));
+      after();
+    };
+    for (const i of [len, ang, dep]) i.onkeydown = e => { if (e.key === 'Enter') go(); };
+    return h('div', { class: 'col', id: 'dimBox' }, h('div', { class: 'row', style: 'align-items:flex-end;flex-wrap:wrap' },
+      h('div', { class: 'field grow', style: 'min-width:76px' }, h('label', {}, tr('Uzunlik')), h('span', { class: 'unit' }, len, h('span', {}, 'm'))),
+      h('div', { class: 'field grow', style: 'min-width:76px' }, h('label', {}, tr('Burchak')), h('span', { class: 'unit' }, ang, h('span', {}, '°'))),
+      h('div', { class: 'field grow', style: 'min-width:76px' }, h('label', {}, tr('Chuqurlik')), h('span', { class: 'unit' }, dep, h('span', {}, 'm'))),
+      h('button', { class: 'btn', id: 'axisPut', onclick: go }, tr('Qoʻyish'))),
+      h('span', { class: 't-small' }, tr('Fasad chizigʻi: boshini bosing, oxirini bosing (yaqin qirraga parallel yopishadi) yoki uzunlikni kiriting; keyin kursor bilan tomon va chuqurlik — yoki chuqurlikni kiriting. Sahnada «32<45», «15» yoki «32x15» yozib Enter ham boʻladi.')));
+  }
+  /** Nuqtaga eng yaqin qirra (uchastka, bino, koʻcha oʻqi; 25 m gacha) yoʻnalishi, ° — chizish burchagi shunga yopishadi */
+  private edgeDir(p: XY): number | null {
+    const doc = this.store.doc, fr = frame(doc.origin);
+    let best: number | null = null, bd = 25;
+    const seg = (a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy; if (L2 < 1) return; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)), d = Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]); if (d < bd) { bd = d; best = Math.atan2(dy, dx) * 180 / Math.PI; } };
+    if (doc.site) for (const r0 of doc.site.rings) { const r = r0.map(fr.toLocal); for (let i = 0; i < r.length; i++) seg(r[i], r[(i + 1) % r.length]); }
+    for (const b of doc.buildings) { const r = b.footprint.map(fr.toLocal); for (let i = 0; i < r.length; i++) seg(r[i], r[(i + 1) % r.length]); }
+    for (const st of doc.streets) { const r = st.axis.map(fr.toLocal); for (let i = 1; i < r.length; i++) seg(r[i - 1], r[i]); }
+    for (const rd of this.ctxMgr.current?.osm.roads ?? []) { const r = rd.pts.map(fr.toLocal); for (let i = 1; i < r.length; i++) seg(r[i - 1], r[i]); }
+    return best;
   }
   /**
    * Oʻlcham bilan chizish (egasi, 25.10): erkin shaklda — keyingi tomon uzunligi va ixtiyoriy burchak; toʻrtburchakda — eni × boʻyi.
@@ -2124,6 +2162,7 @@ export class Editor {
    * Shift bosilganda — oʻchiq. Belgisi sahnada: qizil halqa — uch, koʻk — qirra.
    */
   private shiftDown = false;
+  private lastHint = '';
   private snapPt(p: XY, mark = false): XY {
     if (this.shiftDown) { if (mark) this.scene.setSnapMark(null); return p; }
     const doc = this.store.doc, fr = frame(doc.origin), rings: XY[][] = [];
@@ -3404,7 +3443,7 @@ export class Editor {
         const a = hdrag.a0.map((q, k) => k === hdrag!.i ? p : q);
         hs.apply(a, hdrag.key); return;
       }
-      if (!this.tool?.move) return; const p0 = this.scene.pick(e.clientX, e.clientY); if (p0) this.tool.move(this.tool.snapTo ? this.snapPt(p0, true) : p0);
+      if (!this.tool?.move) return; const p0 = this.scene.pick(e.clientX, e.clientY); if (p0) { this.tool.move(this.tool.snapTo ? this.snapPt(p0, true) : p0); const hh = this.tool.hint; if (hh !== this.lastHint) { this.lastHint = hh; this.el.hint.textContent = hh; } }
     });
     c.addEventListener('pointerup', e => {
       if (e.button === 2) { if (rdown && Math.hypot(e.clientX - rdown.x, e.clientY - rdown.y) < 5) this.ctxMenu(e.clientX, e.clientY); rdown = null; return; }

@@ -161,6 +161,119 @@ export class RectTool implements Tool {
   cancel(): void { this.a = null; this.cur = null; this.buf = ''; this.scene.setPreview([]); }
 }
 
+/**
+ * Oʻq boʻylab toʻrtburchak bino (egasi, 30.10): burilgan uchastkada ham koʻchaga parallel bino qoʻyish uchun.
+ * 1-bosish — fasad chizigʻining boshi; 2-bosish — oxiri (yoʻnalish yaqin qirra — uchastka, koʻcha, bino — ga parallel yoki tik
+ * yopishadi, 6° gacha); keyin kursor tomoni va masofasi — chuqurlik; 3-bosish (yoki Enter) — qoʻyish.
+ * Yozib ham boʻladi: boshidan keyin «32» yoki «32<45» — uzunlik (va burchak); chiziqdan keyin «15» — chuqurlik; «32x15» — ikkalasi.
+ */
+export class AxisTool implements Tool {
+  readonly snapTo = true;
+  private a: XY | null = null;
+  private b: XY | null = null;
+  private cur: XY | null = null;
+  buf = '';
+  /** oxirgi yopishgan yoʻnalish (°) — maslahat uchun */
+  snapped: number | null = null;
+  constructor(private scene: Scene3D, private done: (r: XY[]) => void, private err: (m: string) => void, private o: { depth: () => number; guide: (p: XY) => number | null; minSide?: number }) {}
+  get started(): boolean { return !!this.a; }
+  get stage(): 0 | 1 | 2 { return !this.a ? 0 : !this.b ? 1 : 2; }
+  get hint(): string {
+    if (this.buf) return this.b ? `Chuqurlik: ${this.buf} m — Enter · Esc — oʻchirish` : `Uzunlik: ${this.buf} m — Enter · «<» bilan burchak (masalan 32<45) · Esc — oʻchirish`;
+    if (!this.a) return 'Fasad chizigʻining boshini bosing (uchlar va qirralarga yopishadi)';
+    if (!this.b) return 'Chiziq oxirini bosing yoki uzunlikni yozib Enter (masalan 32 yoki 32<45) · yoʻnalish yaqin qirraga parallel yopishadi · Backspace — bekor' + (this.snapped != null ? ` · ${Math.round(this.snapped)}°` : '');
+    return 'Kursor bilan tomon va chuqurlikni koʻrsating, bosing yoki chuqurlikni yozib Enter · Backspace — chiziqqa qaytish · Esc — bekor';
+  }
+  private dir(from: XY, to: XY): XY { const dx = to[0] - from[0], dy = to[1] - from[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
+  /** Chiziq oxiri: kursor yoʻnalishi yaqin qirra yoʻnalishiga (yoki unga tik) 6° gacha yopishadi */
+  private endAt(xy: XY): XY {
+    const a = this.a!, L = Math.hypot(xy[0] - a[0], xy[1] - a[1]); if (L < 0.5) { this.snapped = null; return xy; }
+    const ang = Math.atan2(xy[1] - a[1], xy[0] - a[0]) * 180 / Math.PI, g = this.o.guide(xy);
+    this.snapped = null;
+    if (g == null) return xy;
+    let best = ang, bd = 6.01;
+    for (let k = -2; k <= 2; k++) { const c = g + k * 90, d = Math.abs(((ang - c + 540) % 360) - 180); if (d < bd) { bd = d; best = c; } }
+    if (bd > 6) return xy;
+    this.snapped = ((best % 360) + 360) % 360; const r = best * Math.PI / 180;
+    return [a[0] + L * Math.cos(r), a[1] + L * Math.sin(r)];
+  }
+  /** Chuqurlik va tomon: kursor chiziqdan qaysi tomonda va qancha uzoqda (chiziqqa yaqin boʻlsa — panel qiymati) */
+  private depthSide(xy: XY | null): { d: number; side: 1 | -1 } {
+    const a = this.a!, b = this.b!, u = this.dir(a, b), n: XY = [-u[1], u[0]], dflt = this.o.depth();
+    if (!xy) return { d: dflt, side: 1 };
+    const v = (xy[0] - a[0]) * n[0] + (xy[1] - a[1]) * n[1], side: 1 | -1 = v < 0 ? -1 : 1, dist = Math.abs(v);
+    return { d: dist < 3 ? dflt : Math.max(this.o.minSide ?? 4, Math.round(dist * 2) / 2), side };
+  }
+  private rect(d: number, side: 1 | -1): XY[] {
+    const a = this.a!, b = this.b!, u = this.dir(a, b), n: XY = [-u[1] * side * d, u[0] * side * d];
+    const r: XY[] = [[a[0], a[1]], [b[0], b[1]], [b[0] + n[0], b[1] + n[1]], [a[0] + n[0], a[1] + n[1]]];
+    return signedArea(r) < 0 ? r.reverse() : r;
+  }
+  click(xy: XY): void {
+    if (!this.a) { this.a = xy; this.buf = ''; this.draw(); return; }
+    if (!this.b) { this.setEnd(this.endAt(xy)); return; }
+    const { d, side } = this.depthSide(xy); this.finish(d, side);
+  }
+  private setEnd(b: XY): void {
+    const L = Math.hypot(b[0] - this.a![0], b[1] - this.a![1]), min = this.o.minSide ?? 4;
+    if (L < min) { this.err(`Chiziq kamida ${min} m boʻlsin`); return; }
+    this.b = b; this.buf = ''; this.draw();
+  }
+  private finish(d: number, side: 1 | -1): void {
+    const r = this.rect(d, side);
+    this.a = this.b = null; this.buf = ''; this.snapped = null; this.scene.setPreview([]);
+    this.done(r);
+  }
+  /** Paneldan: uzunlik (va burchak) — chiziq; chuqurlik — bino */
+  placeLen(len: number, ang: number | null): boolean {
+    if (!this.a) { this.err('Avval sahnada fasad chizigʻining boshini bosing'); return false; }
+    if (this.b) return false;
+    const a = this.a, r = ang != null ? ang * Math.PI / 180 : null, u = r != null ? [Math.cos(r), Math.sin(r)] as XY : this.cur ? this.dir(a, this.cur) : [1, 0] as XY;
+    const b: XY = [a[0] + u[0] * len, a[1] + u[1] * len];
+    this.setEnd(ang != null ? b : this.endAt(b)); return !!this.b;
+  }
+  placeDepth(d: number): boolean {
+    if (!this.a || !this.b) { this.err('Avval fasad chizigʻini chizing'); return false; }
+    const min = this.o.minSide ?? 4; if (d < min) { this.err(`Chuqurlik kamida ${min} m boʻlsin`); return false; }
+    this.finish(d, this.depthSide(this.cur).side); return true;
+  }
+  move(xy: XY): void { this.cur = xy; this.draw(); }
+  private draw(): void {
+    if (!this.a) { this.scene.setPreview([]); return; }
+    if (!this.b) {
+      const v = this.buf ? parseLen(this.buf) : null;
+      let end: XY | null = null;
+      if (v) { const r = v.ang != null ? v.ang * Math.PI / 180 : null, u = r != null ? [Math.cos(r), Math.sin(r)] as XY : this.cur ? this.dir(this.a, this.cur) : [1, 0] as XY; end = [this.a[0] + u[0] * v.len, this.a[1] + u[1] * v.len]; }
+      else if (this.cur) end = this.endAt(this.cur);
+      this.scene.setPreview(end ? [this.a, end] : [this.a], false, true); return;
+    }
+    const typed = this.buf ? Number(this.buf.replace(',', '.')) : NaN, ds = this.depthSide(this.cur);
+    this.scene.setPreview(this.rect(Number.isFinite(typed) && typed > 0 ? typed : ds.d, ds.side), true, true);
+  }
+  key(e: KeyboardEvent): boolean {
+    const k = e.key;
+    if (this.a && !e.ctrlKey && !e.metaKey && !e.altKey && (this.b ? /^[0-9.,]$/ : /^[0-9.,<xX*× хХ-]$/).test(k)) { this.buf += k; this.draw(); return true; }
+    if (k === 'Enter') {
+      if (this.buf) {
+        if (!this.b) {
+          const wh = parseWH(this.buf); if (wh) { if (this.placeLen(wh[0], null)) this.placeDepth(wh[1]); return true; }
+          const v = parseLen(this.buf); if (!v) { this.err(`Oʻlcham tushunilmadi: «${this.buf}» — masalan 32 yoki 32<45`); this.buf = ''; this.draw(); return true; }
+          this.placeLen(v.len, v.ang); return true;
+        }
+        const d = Number(this.buf.replace(',', '.')); if (!(d > 0)) { this.err(`Chuqurlik tushunilmadi: «${this.buf}»`); this.buf = ''; this.draw(); return true; }
+        this.placeDepth(d); return true;
+      }
+      if (this.b) { const ds = this.depthSide(this.cur); this.finish(ds.d, ds.side); return true; }
+      return false;
+    }
+    if (k === 'Backspace') { if (this.buf) this.buf = this.buf.slice(0, -1); else if (this.b) this.b = null; else if (this.a) this.a = null; this.draw(); return true; }
+    if (k === 'Escape') { if (this.buf) { this.buf = ''; this.draw(); return true; } this.cancel(); return true; }
+    return false;
+  }
+  commit(): void { if (this.a && this.b) { const ds = this.depthSide(this.cur); this.finish(ds.d, ds.side); } }
+  cancel(): void { this.a = this.b = null; this.cur = null; this.buf = ''; this.snapped = null; this.scene.setPreview([]); }
+}
+
 /** Bitta bosish — natijani chaqiruvchi hal qiladi (masalan, kvartalni aniqlash) */
 export class ClickTool implements Tool {
   constructor(readonly hint: string, private fn: (xy: XY) => void) {}
