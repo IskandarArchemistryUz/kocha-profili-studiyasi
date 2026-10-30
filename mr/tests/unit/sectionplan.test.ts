@@ -112,3 +112,15 @@ describe('qiyshiq va choʻziq (30.10): toʻgʻrilash va shakl qoidasi', () => {
     expect(el.filter(e => e > 3.2).length).toBeLessThanOrEqual(1);
   });
 });
+
+describe('burchak seksiyasi (30.10): katta kvartira boʻlinadi, > 500 m² da ikkinchi zina', () => {
+  for (const d of [15, 18]) it(`L 48×36 · ${d} m: ≤ 135 m² (avval 148), 5.13 bajariladi, qoidalar`, () => {
+    const r: XY[] = [[0, 0], [48, 0], [48, d], [d, d], [d, 36], [0, 36]], pl = plan(r);
+    expect(Math.max(...pl.apts.map(a => a.area))).toBeLessThanOrEqual(135);
+    const ch = planChecks(pl, 25, modsOf(r));
+    expect(ch.find(c => c.id === 'stairs')!.ok).toBe(true);
+    expect(ch.find(c => c.id === 'light')!.ok).toBe(true);
+    for (const a of pl.apts) expect(sharedAny(a.ring, pl.sections[a.sec].mop).len).toBeGreaterThanOrEqual(0.9);
+    for (const s of pl.sections) for (const st of s.stairs) expect(sharedAny(st, s.mop).len).toBeGreaterThanOrEqual(0.9);
+  });
+});
