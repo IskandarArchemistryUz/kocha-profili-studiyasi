@@ -86,3 +86,26 @@ describe('Parsellar koʻcha siljiganda kvartalga moslanadi (30.10)', () => {
     expect(bl2.reduce((t, b) => t + b.area, 0)).toBeCloseTo(82.5 * 100, -1);
   });
 });
+
+describe('Koʻcha egri surilganda kvartal toʻliq parsellarga boʻlinadi (31.10, 1-slayd)', () => {
+  it('120 ta tasodifiy siljitish: parsellar yigʻindisi = kvartal, boʻsh joy qolmaydi', () => {
+    let rnd = 12345; const R = () => { rnd = (rnd * 16807) % 2147483647; return rnd / 2147483647; };
+    for (let iter = 0; iter < 120; iter++) {
+      let d = blankProject(); const fr = frame(d.origin); const G = (r: number[][]) => r.map(p => fr.toGeo(p as [number, number]));
+      d = apply(d, { type: 'setSite', rings: [G([[-150, -150], [150, -150], [150, 150], [-150, 150]])] });
+      const ax0 = [[20, -200], [25, -60], [15, 40], [30, 200]];
+      d = apply(d, { type: 'addStreet', axis: G(ax0), profile: 'mahalla-15' });
+      d = apply(d, { type: 'setZones', zones: [{ id: 'zL', at: fr.toGeo([-80, 0]), use: 'turar' }] });
+      const ys = [-150, -70, 0, 70, 150].map((y, i) => i && i < 4 ? y + (R() - .5) * 40 : y);
+      d = apply(d, { type: 'setParcels', block: 'zL', parcels: [0, 1, 2, 3].map(i => ({ id: 'p' + i, rings: [G([[-150, ys[i]], [40, ys[i] + 10], [40, ys[i + 1] + 10], [-150, ys[i + 1]]])], use: 'turar' as const })) });
+      const b1 = computePlan(d).blocks.filter(b => b.labelId === 'zL');
+      d = apply(d, { type: 'setParcels', block: 'zL', parcels: b1.map((b, i) => ({ id: 'q' + i, rings: [G(b.rings[0])], use: 'turar' as const })) });
+      d = apply(d, { type: 'updateStreet', id: d.streets[0].id, patch: { axis: G(ax0.map(p => [p[0] + (R() - .35) * 70, p[1] + (R() - .5) * 60])) } });
+      const whole = computePlan({ ...d, parcels: [] }).blocks.filter(b => b.labelId === 'zL').reduce((t, b) => t + b.area, 0);
+      const got = computePlan(d).blocks.filter(b => b.labelId === 'zL');
+      expect(got.length).toBe(4);
+      expect(Math.abs(got.reduce((t, b) => t + b.area, 0) - whole)).toBeLessThan(2);
+    }
+  });
+});
+
