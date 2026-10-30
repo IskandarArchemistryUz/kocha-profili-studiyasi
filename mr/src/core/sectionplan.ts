@@ -811,6 +811,15 @@ const f1 = (v: number) => v.toFixed(1).replace('.', ',');
 export function planChecks(pl: RulePlan, h: number, mods: FacadeMod[] = []): PlanCheck[] {
   const secs = pl.sections.length ? pl.sections : [{ mop: pl.mop, stairs: pl.stairs, lifts: pl.lifts, apts: pl.apts.map((_, i) => i), corridorLen: pl.corridorLen, corner: false }];
   const secOf = (i: number) => secs.find(s => s.apts.includes(i));
+  // kirish: seksiya MOP + 1-qavat xolli tashqi (berk boʻlmagan) fasad modullariga qayerda tegadi — ikki yoʻnalish (≥ 120° farq) kerak
+  const entryNa = !mods.length;
+  const entryBad = entryNa ? [] : secs.filter(sc => {
+    if (!sc.apts.length) return false;
+    const rings = [...sc.mop, ...((sc as RuleSection).entry ?? [])], azs: number[] = [];
+    for (const m of mods) { if (m.blind) continue; const seg: XY[] = [m.a, m.b, [(m.a[0] + m.b[0]) / 2 + (m.b[1] - m.a[1]) * 0.01, (m.a[1] + m.b[1]) / 2 - (m.b[0] - m.a[0]) * 0.01]]; if (sharedAny(seg, rings).len >= 0.9) azs.push(m.az); }
+    const dif = (a: number, b: number) => Math.abs(((a - b + 180) % 360 + 360) % 360 - 180);   // 0..180
+    return !azs.some(a => azs.some(b => dif(a, b) >= 120));
+  });
   const noDoor = pl.apts.filter((a, i) => sharedAny(a.ring, secOf(i)?.mop ?? []).len < 0.9).length;
   const noWin = pl.apts.filter(a => !a.mods.length).length;
   const fr = (a: RuleApt) => a.mods.reduce((t, i) => t + (mods[i] ? Math.hypot(mods[i].b[0] - mods[i].a[0], mods[i].b[1] - mods[i].a[1]) : MOD), 0);
@@ -830,6 +839,8 @@ export function planChecks(pl: RulePlan, h: number, mods: FacadeMod[] = []): Pla
     { id: 'stairs', title: 'Evakuatsiya zinalari (seksiya boʻyicha)', ok: over === 0, value: `seksiya qavatida kvartiralar ≈ ${big.map(A => Math.round(A)).join(' / ')} m²`, norm: '> 500 m² — kamida 2 ta zina; ≤ 500 m² — 1 ta (> 15 m da kvartirada avariya chiqishi, 5.20)', source: 'ShNQ 2.01.02-04, 5.13' },
     { id: 'len', title: 'Umumiy koridor uzunligi', ok: pl.corridorLen <= 60, value: `eng uzuni ≈ ${Math.round(pl.corridorLen)} m`, norm: '> 60 m — 2-tur yongʻinga qarshi toʻsiq bilan boʻlinadi', source: 'ShNQ 2.01.02-04, 5.25' },
     { id: 'h28', title: 'Tutunsiz zina', ok: h > 28 ? null : true, value: `yuqori qavat ≈ ${Math.round(h)} m`, norm: h > 28 ? '> 28 m — tutunsiz zina (Н1) kerak' : '≤ 28 m — oddiy zina', source: 'ShNQ 2.01.02-04, 5.40' },
+    // kirish (egasi, 30.10): har seksiya xolli (1-qavatda skvoznoy kirish bilan) kamida ikki qarama-qarshi fasadga — koʻcha va hovli — chiqadi
+    { id: 'kirish', title: 'Kirish: koʻcha va hovli tomondan', ok: entryBad.length ? false : entryNa ? null : true, value: entryBad.length ? `${entryBad.length} seksiya faqat bir tomonga chiqadi` : entryNa ? 'fasad modullari berilmagan' : `${secs.length} seksiya — ikki tomonlama`, norm: 'seksiya xolli (skvoznoy kirish) ikki qarama-qarshi fasadga chiqadi', source: 'Rejalash qoidasi (Strelka, «Kirish guruhi»)' },
     { id: 'evac', title: 'Eng uzoq eshikdan zinagacha', ok: null, value: `≈ ${Math.round(far)} m`, norm: 'chegara ShNQ 2.08.01-19 da (5.23 havola qiladi) — matni kerak', source: 'ShNQ 2.01.02-04, 5.23' },
     ...(rest > 3 ? [{ id: 'rest', title: 'Kvartiraga aylanmagan maydon (texnik)', ok: rest < 15 ? true : null, value: `≈ ${Math.round(rest)} m²`, norm: 'kam boʻlsin', source: 'Rejalash qoidasi' } as PlanCheck] : []),
   ];

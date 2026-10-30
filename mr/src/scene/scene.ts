@@ -981,6 +981,13 @@ export class Scene3D {
     const B: BCtx = { doc, fr, fh, aniso, TP, GR, P3, SM, smOf, focus: !!focus, st, plain, toV2 };
     this.bctx = B;
     doc.buildings.forEach((_, bi) => this.buildTagged(doc, bi, B));
+    // antiseysmik choklar (QMQ 2.01.03-19, 3.1.3): tegib turgan seksiyalar orasidagi devor — qizil chiziq (tom va yer sathida)
+    if ((doc.settings.seismic ?? 0) >= 7 && !this.aptView) {
+      const JC = 0xd9534f, fl = doc.buildings.filter(flat);
+      fl.forEach((b, i) => { const sm = SM[i], pr = P3[doc.buildings.indexOf(b)]; if (!sm || !pr) return;
+        sm.edgeTop.forEach((t, k) => { if (t === -Infinity) return; const a = pr.ring[k], c = pr.ring[(k + 1) % pr.ring.length];
+          for (const z of [pr.base + 0.5, Math.min(pr.top, t) + 0.25]) { const l = line([a, c], JC, 0, false, 9, () => z, true); l.userData.layer = 2; l.userData.joint = true; this.world.add(l); } }); });
+    }
     if (this.isoLocal || this.aptView) this.isoGhosts(doc, fr, fh);
     if (this.floorLabels) doc.buildings.forEach(b => {
       const r = b.footprint.map(fr.toLocal); if (area(r) < 40 || !this.inIso(r)) return;
