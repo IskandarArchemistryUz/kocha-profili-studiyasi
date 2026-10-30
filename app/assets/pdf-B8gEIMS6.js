@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-LGIVGt_S.js";
