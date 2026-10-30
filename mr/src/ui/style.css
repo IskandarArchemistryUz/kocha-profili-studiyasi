@@ -854,3 +854,7 @@ textarea.ch-inedit{padding:10px 12px}
 .own-links h2{flex-basis:100%}
 .own-links p{flex-basis:100%;margin:4px 0 0}
 .own-links .btn{text-decoration:none}
+/* V5: qavat albomi — insolyatsiya koʻrinishi */
+.alb-insol-kpi{display:flex;align-items:baseline;gap:10px}.alb-insol-kpi b{font-size:30px;font-weight:600;letter-spacing:-.02em}.alb-insol-kpi span{font-size:13px;color:var(--text-2,#6b6965)}
+#albInsolBad .li .k{display:flex;align-items:center;flex-wrap:wrap;column-gap:6px;row-gap:0}#albInsolBad .li .k b{white-space:nowrap}#albInsolBad .li .k .sub{flex-basis:100%;padding-left:14px}#albInsolBad .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}#albInsolBad .li[aria-pressed=true]{background:rgba(10,132,255,.08)}
+.alb-bar #albView{flex:none}
