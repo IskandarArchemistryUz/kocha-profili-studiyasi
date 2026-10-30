@@ -121,6 +121,16 @@ export const RULES: Rule[] = [
     },
   },
   {
+    id: 'street-overlap',
+    title: 'Bino koʻcha qizil chiziqlari ichida',
+    source: { doc: 'Rejalash qoidasi', edition: '—', clause: 'qizil chiziq ichida qurilish yoʻq (koʻcha koridori boʻsh)', verified: false },
+    evaluate(d) {
+      if (!d.streetOverlap.length) return { status: d.streetArea > 0 ? 'pass' : 'na', value: 0, unit: 'bino', limit: '0', note: d.streetArea > 0 ? 'Hech bir bino loyiha koʻchasi koridoriga tushmaydi.' : 'Loyiha koʻchalari yoʻq.' };
+      return { status: 'fail', value: d.streetOverlap.length, unit: 'bino', limit: '0',
+        note: `${d.streetOverlap.length} ta bino koʻcha koridoriga tushadi (jami ${Math.round(d.streetOverlap.reduce((t, x) => t + x.area, 0))} m²). Koʻcha siljitilganda qoʻlda chizilgan yoki qoldirilgan binolar — «Koʻchadan chiqarish» tugmasi bino panelida; yoki koʻchani qaytaring.` };
+    },
+  },
+  {
     id: 'red-line-39',
     title: 'Maktab va MTM binosidan qizil chiziqqacha',
     source: { ...SHNQ_2_07_01, clause: '539-band, 39-jadval (shahar: 25 m)' },
