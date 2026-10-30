@@ -147,7 +147,7 @@ export function aptSummary(plans: SecPlan[]): { total: number; forced: number; b
 import { frame } from './geo';
 import { useDef } from './uses';
 
-export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** qoʻlda tahrir: qoʻllandi yoki bino oʻzgargani uchun eskirdi */ edited?: 'ok' | 'eskirgan'; /** tahrirdan oldingi (generatsiya qilingan) reja */ genPlan?: RulePlan; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number }
+export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** qoʻlda tahrir: qoʻllandi yoki bino oʻzgargani uchun eskirdi */ edited?: 'ok' | 'eskirgan'; /** tahrirdan oldingi (generatsiya qilingan) reja */ genPlan?: RulePlan; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number; /** hovli markazi (variantlar uchun) */ court?: XY | null }
 
 const SKIP = new Set(['stilobat', 'uy', 'taunhaus']);
 
@@ -187,7 +187,7 @@ export function planApartments(doc: Project): SecPlan[] {
       } else edited = 'eskirgan';
     }
     const halfDepth = Math.max(4, Math.min(9, sectionDepth(s.r, layout.mods) / 2));
-    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth, ...(edited ? { edited } : {}), ...(genPlan ? { genPlan } : {}) });
+    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth, court, ...(edited ? { edited } : {}), ...(genPlan ? { genPlan } : {}) });
   }
   return out;
 }

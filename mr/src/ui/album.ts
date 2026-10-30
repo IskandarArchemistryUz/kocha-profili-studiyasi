@@ -10,7 +10,7 @@ import { range } from './controls';
 const CH_L = '<path d="M15 6l-6 6 6 6"/>', CH_R = '<path d="M9 6l6 6-6 6"/>';
 import { MOD_W, type SecPlan } from '../core/apartments';
 import { floorPlanSvg, floorGroups, floorTypeOf, buildingFloorsSvg, allPlansSvg, FLOOR_NAME, ROOM_LABEL, APT_FILL, type PlanOpts } from '../core/floorplan';
-import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, editRoomToApt, floorVariant, wallPreview, planChecks, type RulePlan, type EditResult, type RoomKind } from '../core/sectionplan';
+import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, editRoomToApt, floorVariant, wallPreview, planChecks, planVariants, planMix, type RulePlan, type EditResult, type RoomKind, type PlanVariant } from '../core/sectionplan';
 import type { XY } from '../core/geo';
 import { floorInsol, EDGE_H, type AptInsol, type InsolStatus } from '../core/insolplan';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
@@ -23,7 +23,7 @@ export interface InsolView {
 }
 /** deraza ochilmasi (real dogʻ uchun): eni 1,5 m, podokonnik 0,9 m, tepasi 2,3 m */
 const WIN = { w: 1.5, sill: 0.9, head: 2.3 };
-type AlbView = 'reja' | 'olcham' | 'insol';
+type AlbView = 'reja' | 'olcham' | 'insol' | 'variantlar';
 const ST_COL: Record<InsolStatus, string> = { ok: '#3fa66b', edge: '#e0a526', bad: '#d9534f', na: '#8e8a82' };
 const ST_FILL: Record<InsolStatus, string> = { ok: '#d3eadb', edge: '#f5e6c4', bad: '#f4d3d0', na: '#e9e6e0' };
 const hCol = (x: number) => (x >= 2 - 1e-6 ? ST_COL.ok : x >= EDGE_H - 1e-6 ? ST_COL.edge : ST_COL.bad);
@@ -34,6 +34,7 @@ export interface AlbumOpts {
   name: (pl: SecPlan, i: number) => string; opt: (pl: SecPlan) => Partial<PlanOpts>;
   onSave: (bid: string, plan: RulePlan | null) => void; onClose: (bid: string, floor: number) => void;
   download: (name: string, text: string, mime: string) => void;
+  /** kvartira miksi (hujjat sozlamasi) — variantlar uchun boshlangʻich maqsad */ mix: number[];
   /** ochilganda koʻrinish (V5: «Insolyatsiya» — derazalar hisobidan) */ view?: AlbView;
   insol?: InsolView | null; runInsol?: () => Promise<InsolView | null>;
 }
@@ -44,6 +45,8 @@ export function openAlbum(o: AlbumOpts): void {
   document.getElementById('album')?.remove();
   let bid = o.bid, sel: number[] = [], selRoom = -1, mode: 'tanlash' | 'devor' = 'tanlash', msg = '', msgBad = false, closeArmed = false;
   let view: AlbView = o.view ?? 'reja', insol: InsolView | null = o.insol ?? null, insolBusy = false, hiApt = -1, insolHour = 12;
+  // V3 variantlar: maqsadli aralashma (mahalliy, hujjatga yozilmaydi), oʻlcham andozasi, hisoblangan variantlar va tanlangani
+  let varMix: number[] = [...o.mix], varSize: 'S' | 'M' | 'L' = o.size, vars: PlanVariant[] | null = null, varSel = -1;
   const work = new Map<string, RulePlan>(), hist = new Map<string, RulePlan[]>(), dirty = new Set<string>();
   const secOf = () => o.plans.find(p => p.bid === bid) ?? o.plans[0];
   const typFloor = (pl: SecPlan) => (floorGroups(pl).find(g => g.type === 'typical') ?? floorGroups(pl).slice(-1)[0]).from;
@@ -53,9 +56,10 @@ export function openAlbum(o: AlbumOpts): void {
   const genOf = (pl: SecPlan) => pl.genPlan ?? pl.layout.plan!;
 
   const ov = h('div', { class: 'alb', id: 'album', role: 'dialog', 'aria-label': 'Qavat albomi' });
-  const side = h('aside', { class: 'alb-side' }), bar = h('div', { class: 'alb-bar' }), host = h('div', { class: 'alb-plan', id: 'albPlan' }), info = h('section', { class: 'alb-info' });
+  const side = h('aside', { class: 'alb-side' }), bar = h('div', { class: 'alb-bar' }), host = h('div', { class: 'alb-plan', id: 'albPlan' }), info = h('section', { class: 'alb-info' }), varsBox = h('div', { class: 'alb-vars', id: 'albVars', style: 'display:none' });
   const prevB = h('button', { class: 'btn icon-btn', 'aria-label': tr('Pastki qavat'), id: 'albPrev', onclick: () => go(-1) }, svgIcon(CH_L)), nextB = h('button', { class: 'btn icon-btn', 'aria-label': tr('Yuqori qavat'), id: 'albNext', onclick: () => go(1) }, svgIcon(CH_R));
-  ov.append(side, h('main', { class: 'alb-main' }, bar, h('div', { class: 'alb-book' }, prevB, h('div', { class: 'alb-sheet' }, host, info), nextB)));
+  const sheet = h('div', { class: 'alb-sheet' }, host, info);
+  ov.append(side, h('main', { class: 'alb-main' }, bar, h('div', { class: 'alb-book' }, prevB, sheet, varsBox, nextB)));
   document.body.append(ov);
 
   function go(d: number): void { const pl = secOf(); floor = Math.max(1, Math.min(pl.f1, floor + d)); sel = []; selRoom = -1; msg = ''; render(); }
@@ -75,6 +79,7 @@ export function openAlbum(o: AlbumOpts): void {
 
   function render(): void {
     const pl = secOf(), si = o.plans.indexOf(pl), ft = floorTypeOf(pl, floor), editable = ft === 'typical' && view === 'reja', P = planOf(pl), V = variant(pl, floor);
+    sheet.style.display = view === 'variantlar' ? 'none' : ''; varsBox.style.display = view === 'variantlar' ? '' : 'none';
     const FI = view === 'insol' && insol ? floorInsol(V, pl.layout.mods, m => insol!.at(pl.bid, floor, m)) : null;
     // chap: genplan + kesim
     const stack = h('div', { class: 'alb-stack', id: 'albStack' });
@@ -95,11 +100,11 @@ export function openAlbum(o: AlbumOpts): void {
     bar.replaceChildren(
       h('b', { class: 'alb-title' }, tr('Qavat albomi')), h('span', { class: 'chip' }, o.name(pl, si)), h('span', { class: 't-small' }, `${tr('Varaq')} ${floor} / ${pl.f1} · ${tr(FLOOR_NAME[ft])}`),
       h('span', { class: 'spacer' }),
-      h('div', { class: 'seg sm', role: 'group', id: 'albView', 'aria-label': tr('Koʻrinish') }, ...([['reja', 'Reja'], ['olcham', 'Oʻlchamlar'], ['insol', 'Insolyatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': view === k, 'data-view': k, onclick: () => { view = k; sel = []; selRoom = -1; hiApt = -1; msg = ''; render(); } }, tr(t)))),
+      h('div', { class: 'seg sm', role: 'group', id: 'albView', 'aria-label': tr('Koʻrinish') }, ...([['reja', 'Reja'], ['olcham', 'Oʻlchamlar'], ['insol', 'Insolyatsiya'], ['variantlar', 'Variantlar']] as const).map(([k, t]) => h('button', { 'aria-pressed': view === k, 'data-view': k, onclick: () => { view = k; sel = []; selRoom = -1; hiApt = -1; msg = ''; if (k === 'variantlar' && !vars) computeVars(); render(); } }, tr(t)))),
       editable ? h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Asbob') }, ...([['tanlash', 'Tanlash'], ['devor', 'Devor chizish']] as const).map(([k, t]) => h('button', { 'aria-pressed': mode === k, id: `albMode-${k}`, onclick: () => { mode = k; sel = []; selRoom = -1; msg = ''; render(); } }, tr(t)))) : '',
-      h('button', { class: 'btn btn-sm', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml') }, tr('Reja — SVG')),
-      h('button', { class: 'btn btn-sm', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), plan: planOf(pl) }), 'image/svg+xml') }, tr('Barcha qavatlar')),
-      h('button', { class: 'btn btn-sm', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); } }, tr('Hamma binolar')),
+      h('button', { class: 'btn btn-sm', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml'), title: tr('Reja — SVG') }, 'SVG'),
+      h('button', { class: 'btn btn-sm', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), plan: planOf(pl) }), 'image/svg+xml'), title: tr('Barcha qavatlar') }, tr('Qavatlar')),
+      h('button', { class: 'btn btn-sm', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); }, title: tr('Hamma binolar') }, tr('Binolar')),
       h('button', { class: 'btn icon-btn btn-sm btn-ghost', id: 'albClose', 'aria-label': tr('Yopish'), onclick: close }, svgIcon(IC.x)));
     prevB.toggleAttribute('disabled', floor <= 1); nextB.toggleAttribute('disabled', floor >= pl.f1);
     // reja
@@ -144,6 +149,7 @@ export function openAlbum(o: AlbumOpts): void {
     const ch = planChecks(P, (pl.z0 + pl.f1 - 1) * o.fh, pl.layout.mods), bad = ch.filter(c => c.ok === false);
     const one = sel.length === 1, two = sel.length === 2, sa = one ? P.apts[sel[0]] : null;
     const btn = (id: string, t: string, on: () => void, dis = false, title = '') => h('button', { class: 'btn btn-sm', id, disabled: dis, title: tr(title), onclick: on }, tr(t));
+    if (view === 'variantlar') { renderVars(pl, si); msgBad = false; return; }
     if (view === 'insol') { info.replaceChildren(...insolInfo(ft, FI)); msgBad = false; return; }
     info.replaceChildren(
       h('div', { class: 'glabel' }, h('span', {}, tr('Shu qavatda'))),
@@ -226,6 +232,48 @@ export function openAlbum(o: AlbumOpts): void {
       h('div', { class: 'leg' }, ...([['ok', 'mos'], ['edge', 'chegarada (1,5–2 soat)'], ['bad', 'mos emas']] as const).map(([k, t]) => h('div', {}, h('i', { style: `background:${ST_COL[k]}` }), h('span', {}, tr(t)))),
         h('div', {}, h('i', { style: 'background:#f6c445;opacity:.7' }), h('span', {}, tr('quyosh dogʻi (tanlangan soatda)')))),
       h('span', { class: 't-small' }, tr('Deraza belgisidagi raqam — kun boʻyi uzluksiz quyosh, soat (yashash xonalari — toʻliq rangda). Dogʻ — tanlangan soatda deraza (1,5 × 1,4 m, podokonnik 0,9 m) orqali polga tushgan quyosh, atrof binolari soyasi bilan. Sana va atrof — «Kvartiralar» qadamidagi hisobdan.'))];
+  }
+  /** V3: variantlar — generator maqsadli aralashmaga yaqin 3 ta reja; «Joriy» — hozirgi (tahrirlangan boʻlsa shu) */
+  function computeVars(): void {
+    const pl = secOf();
+    try { vars = planVariants(pl.ring, pl.layout.mods, varMix, varSize, pl.court ?? null, 4); } catch { vars = []; }
+    varSel = -1;
+  }
+  function renderVars(pl: SecPlan, si: number): void {
+    const cur = planOf(pl), list: { id: string; title: string; sub: string; plan: RulePlan; cur: boolean; best: boolean; dev: number }[] = [];
+    const want = varMix.reduce((t, v) => t + v, 0) || 1, wantN = varMix.map(v => v / want);
+    const devOf = (p: RulePlan) => planMix(p).reduce((t, v, i) => t + Math.abs(v - (wantN[i] ?? 0)), 0) / 2;
+    list.push({ id: 'A', title: tr('Joriy'), sub: dirty.has(bid) || pl.edited === 'ok' ? tr('Qoʻlda tahrirlangan reja') : tr('Generator bergan reja'), plan: cur, cur: true, best: false, dev: devOf(cur) });
+    (vars ?? []).forEach((v, i) => { if (v.plan === cur) return; const k4 = v.mix[3] > 0.001, k = planMix(v.plan); list.push({ id: 'BCDE'[i] ?? String(i), title: v.mixDev < 0.08 ? tr('Aralashmaga yaqin') : k4 ? tr('4 xonali bilan') : k[0] > k[2] ? tr('Koʻproq kichik kvartira') : tr('Koʻproq katta kvartira'), sub: `${tr('Maqsaddan farq')} ${Math.round(v.mixDev * 100)} p.p.`, plan: v.plan, cur: false, best: false, dev: v.mixDev }); });
+    const bestI = list.reduce((b, x, i) => (x.dev < list[b].dev - 1e-6 ? i : b), 0); list[bestI].best = list.length > 1;
+    const slider = (k: number) => { const lbl = h('b', { class: 'num', style: 'min-width:3em;text-align:right' }, `${Math.round(varMix[k - 1])} %`);
+      return h('div', { class: 'alb-mix' }, h('span', { class: 'k' }, h('i', { style: `background:${APT_FILL[k]}` }), `${k}x`), h('div', { style: 'flex:1;min-width:0' }, range({ min: 0, max: 100, step: 5, value: varMix[k - 1], 'aria-label': `${k} ${tr('xonali')}`, oninput: v => { varMix[k - 1] = v; lbl.textContent = `${v} %`; } })), lbl); };
+    const head = h('div', { class: 'alb-vars-head' },
+      h('div', { class: 'col', style: 'gap:2px;flex:1 1 320px;min-width:0' }, h('b', {}, tr('Maqsadli aralashma')), h('span', { class: 't-small' }, tr('Generator shu ulushlarga eng yaqin joylashuvlarni taklif qiladi; tanlangach devorlarni qoʻlda tuzatish mumkin.'))),
+      h('div', { class: 'alb-mixes' }, ...[1, 2, 3, 4].map(slider)),
+      h('div', { class: 'row', style: 'align-items:center;gap:8px;flex:none' }, h('span', { class: 't-small' }, tr('Oʻlcham andozasi')),
+        h('div', { class: 'seg sm', role: 'group' }, ...(['S', 'M', 'L'] as const).map(z => h('button', { 'aria-pressed': varSize === z, 'data-vsize': z, onclick: () => { varSize = z; computeVars(); render(); } }, z))),
+        h('button', { class: 'btn btn-primary btn-sm', id: 'albVarsGo', onclick: () => { computeVars(); render(); } }, tr('Variantlarni yangilash'))));
+    const cards = list.map((x, i) => {
+      const res = floorPlanSvg(pl, { scale: 200, dims: false, title: '', floor, ...o.opt(pl), plan: x.plan, bare: true });
+      const k = [1, 2, 3, 4].map(n => x.plan.apts.filter(a => Math.min(4, a.rooms) === n).length), n = x.plan.apts.length || 1;
+      const area = x.plan.apts.reduce((t, a) => t + a.area * 0.85, 0), eff = x.plan.apts.reduce((t, a) => t + a.area, 0) / (Math.abs(pl.ring.reduce((s2, p, j) => { const q = pl.ring[(j + 1) % pl.ring.length]; return s2 + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2 || 1);
+      const bad = planChecks(x.plan, (pl.z0 + pl.f1 - 1) * o.fh, pl.layout.mods).filter(c => c.ok === false).length;
+      const row = (kk: string, v: string, cls = '') => h('div', { class: 'li' }, h('span', { class: 'k' }, tr(kk)), h('span', { class: `v num ${cls}` }, v));
+      return h('section', { class: 'alb-var', 'aria-pressed': varSel === i, 'data-var': x.id, onclick: () => { varSel = i; render(); } },
+        h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('b', { style: 'font-size:15px' }, `${x.id} · ${x.title}`), x.cur ? h('span', { class: 'chip' }, tr('Joriy')) : '', x.best ? h('span', { class: 'chip ok', 'data-s': 'pass' }, h('i'), tr('Tavsiya')) : ''),
+        h('span', { class: 't-small' }, x.sub),
+        h('div', { class: 'alb-var-th', html: res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
+        h('div', { class: 'alb-mixbar' }, ...[1, 2, 3, 4].map(nn => h('i', { style: `flex:${(k[nn - 1] / n).toFixed(3)};background:${APT_FILL[nn]}` }))),
+        h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, ...[1, 2, 3, 4].map(nn => h('span', { class: 'chip', style: k[nn - 1] ? `background:${APT_FILL[nn]};color:#141414` : 'opacity:.5' }, `${nn}x · ${k[nn - 1]}`))),
+        h('div', { class: 'group flat' }, row('Kvartiralar', fmt(x.plan.apts.length)), row('Oʻrtacha maydon', `${fmt(area / n, 1)} m²`), row('Maqsaddan farq', `${Math.round(x.dev * 100)} p.p.`, x.dev < 0.1 ? 'ok' : 'warn'),
+          row('Kvartiralar maydoni', `${fmt(area)} m² · ${Math.round(eff * 100)} %`), row('Tekshiruv', bad ? `${bad} ${tr('qoida buzilgan')}` : tr('mos'), bad ? 'bad' : 'ok')),
+        h('span', { class: 'spacer' }),
+        h('div', { class: 'row', style: 'gap:6px' },
+          h('button', { class: `btn btn-sm ${x.cur ? '' : 'btn-primary'}`, 'data-var-apply': x.id, disabled: x.cur, onclick: (e: Event) => { e.stopPropagation(); (hist.get(bid) ?? hist.set(bid, []).get(bid)!).push(planOf(pl)); work.set(bid, x.plan); dirty.add(bid); view = 'reja'; sel = []; msg = ''; render(); } }, tr('Qoʻllash')),
+          h('button', { class: 'btn btn-sm', onclick: (e: Event) => { e.stopPropagation(); o.download(`${o.docName}_bino${si + 1}_variant${x.id}.svg`, floorPlanSvg(pl, { scale: 200, dims: true, title: `${o.name(pl, si)} · ${x.id}`, floor, ...o.opt(pl), plan: x.plan }).svg, 'image/svg+xml'); } }, 'SVG')));
+    });
+    varsBox.replaceChildren(head, h('div', { class: 'alb-vars-grid' }, ...cards), vars && !vars.length ? h('div', { class: 'note warn' }, tr('Generator boshqa variant topa olmadi — aralashmani oʻzgartirib qayta urinib koʻring.')) : '');
   }
   /** V5: soat slayderi — real dogʻ uchun (7:00–18:00, 30 daqiqa qadam) */
   function hourRow(): HTMLElement {
