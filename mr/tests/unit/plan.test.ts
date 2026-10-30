@@ -63,3 +63,26 @@ describe('Reja: koʻchalar va kvartallar', () => {
     expect(m.streets[0].profile).toBe('tuman-30'); expect(profileById('tuman-30').id).toBe('tuman-40'); expect(m.keep).toEqual([5, 7]);
   });
 });
+
+describe('Parsellar koʻcha siljiganda kvartalga moslanadi (30.10)', () => {
+  it('kvartal kengaysa — boʻsh boʻlak qoʻshni parselga qoʻshiladi; torayganda parsellar qirqiladi', () => {
+    let { d, fr } = withSite();
+    d = apply(d, { type: 'addStreet', axis: [[0, -80], [0, 80]].map(p => fr.toGeo(p as [number, number])), profile: 'mahalla-15' });
+    d = apply(d, { type: 'setZones', zones: [{ id: 'zR', at: fr.toGeo([50, 0]), use: 'turar' }] });
+    // oʻng kvartal (x 7,5..100) ikki parselga: yuqori va pastki
+    const G = (r: number[][]) => r.map(p => fr.toGeo(p as [number, number]));
+    d = apply(d, { type: 'setParcels', block: 'zR', parcels: [{ id: 'p1', rings: [G([[7.5, 0], [100, 0], [100, 50], [7.5, 50]])], use: 'turar' }, { id: 'p2', rings: [G([[7.5, -50], [100, -50], [100, 0], [7.5, 0]])], use: 'savdo' }] });
+    const whole0 = computePlan(d).blocks.filter(b => b.labelId === 'zR').reduce((t, b) => t + b.area, 0); expect(whole0).toBeCloseTo(92.5 * 100, -1);
+    // koʻcha 10 m chapga: oʻng kvartal x −2,5..100 — kengaydi; parsellar yangi chegaragacha
+    const s = d.streets[0];
+    d = apply(d, { type: 'updateStreet', id: s.id, patch: { axis: [[-10, -80], [-10, 80]].map(p => fr.toGeo(p as [number, number])) } });
+    const bl = computePlan(d).blocks.filter(b => b.labelId === 'zR');
+    expect(bl.length).toBe(2);
+    expect(bl.reduce((t, b) => t + b.area, 0)).toBeCloseTo(102.5 * 100, -1);
+    for (const b of bl) expect(b.area).toBeCloseTo(102.5 * 50, -1);
+    // koʻcha 10 m oʻngga: kvartal torayadi — parsellar qirqiladi
+    d = apply(d, { type: 'updateStreet', id: s.id, patch: { axis: [[10, -80], [10, 80]].map(p => fr.toGeo(p as [number, number])) } });
+    const bl2 = computePlan(d).blocks.filter(b => b.labelId === 'zR');
+    expect(bl2.reduce((t, b) => t + b.area, 0)).toBeCloseTo(82.5 * 100, -1);
+  });
+});

@@ -75,6 +75,14 @@ export function safeUnion(parts: (Polygon | MultiPolygon)[]): MultiPolygon {
 const jr = (r: [number, number][]) => r.map(([x, y]) => [x + 1e-4 * Math.sin(y * 7), y + 1e-4 * Math.cos(x * 7)] as [number, number]);
 const jitter = (p: Polygon | MultiPolygon): MultiPolygon => typeof (p as Polygon)[0][0][0] === 'number' ? [(p as Polygon).map(jr)] : (p as MultiPolygon).map(q => q.map(jr));
 
+/** ikki halqaning umumiy chegara uzunligi (taxminiy: birinchi halqa segmentlari oʻrtasi ikkinchisiga ≤ 5 sm) */
+function sharedLen(A: XY[], B: XY[]): number {
+  const dSeg = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t); };
+  const dRing = (p: XY) => { let m = Infinity; for (let i = 0; i < B.length; i++) m = Math.min(m, dSeg(p, B[i], B[(i + 1) % B.length])); return m; };
+  let t = 0;
+  for (let i = 0; i < A.length; i++) { const a = A[i], b = A[(i + 1) % A.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1e-6) continue; const n = Math.max(1, Math.ceil(L / 2)); let on = 0; for (let k = 0; k < n; k++) { const q: XY = [a[0] + (b[0] - a[0]) * (k + 0.5) / n, a[1] + (b[1] - a[1]) * (k + 0.5) / n]; if (dRing(q) < 0.05) on++; } t += L * on / n; }
+  return t;
+}
 const ringArea = (r: XY[]) => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += r[j][0] * r[i][1] - r[i][0] * r[j][1]; return a / 2; };
 
 export function pointIn(p: XY, rings: XY[][]): boolean {
@@ -122,14 +130,44 @@ function computePlanRaw(doc: Project): PlanGeo {
   for (const b of whole) {
     const ps = b.labelId ? doc.parcels.filter(p => p.block === b.labelId) : [];
     if (!ps.length) { blocks.push(b); continue; }
-    const bp: Polygon = b.rings.map(close);
+    const bp: Polygon = b.rings.map(close), got: { p: typeof ps[number]; poly: Polygon }[] = [];
     for (const p of ps) {
       let mp: MultiPolygon = [];
       try { mp = polygonClipping.intersection(p.rings.map(r => close(r.map(fr.toLocal))), bp); } catch { continue; }
-      for (const q of mp) {
-        const rings = q.map(open), a = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((s, h) => s + Math.abs(ringArea(h)), 0);
-        if (a > 20) blocks.push({ rings, area: a, use: p.use, labelId: b.labelId, centroid: interiorPoint(rings), parcelId: p.id, blockKey: b.blockKey });
+      for (const q of mp) { const rings = q.map(open), a = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((s, h) => s + Math.abs(ringArea(h)), 0); if (a > 20) got.push({ p, poly: q }); }
+    }
+    // koʻcha siljiganda kvartal kengaygan boʻlsa (30.10): parsellar qoplamagan boʻlaklar eng uzun umumiy chegarali qoʻshni parselga qoʻshiladi — kvartal ichi ochiq qolmaydi
+    try {
+      const rest = polygonClipping.difference(bp, ...got.map(g => g.poly));
+      // parsellar orasidagi ichki chegaralar boʻsh boʻlak boʻylab davom ettiriladi (kesish chiziqlari) — boʻlak parsellar orasida toʻgʻri boʻlinadi
+      const cuts: [XY, XY][] = [];
+      const near = (p: XY, R: XY[]) => { for (let i = 0; i < R.length; i++) { const a2 = R[i], b2 = R[(i + 1) % R.length], dx = b2[0] - a2[0], dy = b2[1] - a2[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a2[0]) * dx + (p[1] - a2[1]) * dy) / L2)); if (Math.hypot(p[0] - a2[0] - dx * t, p[1] - a2[1] - dy * t) < 0.05) return true; } return false; };
+      got.forEach((g, i) => { const R = g.poly[0].slice(0, -1) as XY[];
+        for (let k = 0; k < R.length; k++) { const v = R[k];
+          for (const w of [R[(k + 1) % R.length], R[(k - 1 + R.length) % R.length]]) {
+            const mid: XY = [(v[0] + w[0]) / 2, (v[1] + w[1]) / 2];
+            // v — boshqa parsel bilan umumiy chegaraning uchi (segment oʻrtasi ham qoʻshnida), v esa kvartal ichida emas — eski chegarada
+            if (got.some((o, j) => j !== i && near(mid, o.poly[0] as XY[]) && near(v, o.poly[0] as XY[]))) { const L = Math.hypot(v[0] - w[0], v[1] - w[1]) || 1; cuts.push([v, [(v[0] - w[0]) / L, (v[1] - w[1]) / L]]); }
+          } } });
+      let pieces: Polygon[] = rest.map(x => x);
+      for (const [v, dir] of cuts) {
+        const n: XY = [-dir[1], dir[0]], far = 1e4, H = (sg: number): Polygon => [[[v[0] - dir[0] * far + n[0] * sg * far, v[1] - dir[1] * far + n[1] * sg * far], [v[0] + dir[0] * far + n[0] * sg * far, v[1] + dir[1] * far + n[1] * sg * far], [v[0] + dir[0] * far, v[1] + dir[1] * far], [v[0] - dir[0] * far, v[1] - dir[1] * far], [v[0] - dir[0] * far + n[0] * sg * far, v[1] - dir[1] * far + n[1] * sg * far]]];
+        const next: Polygon[] = [];
+        for (const pc of pieces) { if (!near(v, pc[0] as XY[])) { next.push(pc); continue; } for (const sg of [1, -1]) for (const q of polygonClipping.intersection(pc, H(sg))) next.push(q); }
+        pieces = next;
       }
+      for (const piece of pieces) {
+        const a = Math.abs(ringArea(piece[0].slice(0, -1) as XY[])); if (a < 1 || !got.length) continue;
+        let best = -1, bl = 0;
+        got.forEach((g, i) => { const l = sharedLen(piece[0] as XY[], g.poly[0] as XY[]); if (l > bl) { bl = l; best = i; } });
+        if (best < 0) continue;
+        const u = polygonClipping.union(got[best].poly, piece);
+        if (u.length === 1) got[best].poly = u[0];
+      }
+    } catch { /* kesish xatosi — parsellar oʻzgarmaydi */ }
+    for (const g of got) {
+      const rings = g.poly.map(open), a = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((s, h) => s + Math.abs(ringArea(h)), 0);
+      if (a > 20) blocks.push({ rings, area: a, use: g.p.use, labelId: b.labelId, centroid: interiorPoint(rings), parcelId: g.p.id, blockKey: b.blockKey });
     }
   }
   return { corridors: corrU.map(p => p.map(open)), corridorArea: area(inSite), blocks };
