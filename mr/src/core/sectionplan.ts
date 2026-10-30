@@ -29,6 +29,7 @@ export interface RuleApt {
   /** xona boʻlinmalari */ walls: [XY, XY][];
   /** qanot va seksiya */ wing: number; sec: number;
   /** hovli tomonidagi tasmada (1-qavatda — yashovchilar xonalari) */ court?: boolean;
+  /** qiyshiq devor yonidagi ponasimon qoʻshimcha (lodjiya) — kvartira halqasiga kiritilgan */ loggia?: XY[][];
 }
 /** Kvartira boʻlmagan xona: texnik / ombor, 1-qavatda — savdo, velo-kolyaska, zal, tozalash anjomlari ombori (ShNQ 2.08.01-19, 3.14) */
 export type RoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash';
@@ -103,7 +104,105 @@ function edgeDir(a: XY[], b: XY[]): XY | null {
  * u ham aniq boʻlmasa — qoʻshni bino tegib turgan yoki shimoliy tomon.
  */
 export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null): RulePlan {
-  const r = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, W = CORR_W;
+  const r = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0;
+  // ozgina qiyshiq devorlar: reja ichki toʻgʻri burchakli shaklda quriladi, devor yonidagi ponasimon qoldiq — kvartiraga (lodjiya)
+  const R = rectify(r);
+  if (!R) return planCore(r, mods, mix, size, court);
+  const pl = planCore(R, facadeModsFor(R, mods), mix, size, court);
+  // toʻgʻrilangan shakl asl konturdan chiqqan joylari kesiladi
+  const clip = (qs: XY[][]) => qs.flatMap(q => inter([q], [r]));
+  pl.apts = pl.apts.flatMap(a => { const ps = inter([a.ring], [r]).sort((x, y) => area(y) - area(x)); return ps[0] && area(ps[0]) > 2 ? [{ ...a, ring: ps[0] }] : []; });
+  pl.mop = clip(pl.mop); pl.stairs = clip(pl.stairs); pl.lifts = clip(pl.lifts); pl.rest = clip(pl.rest); pl.fireWalls = clip(pl.fireWalls);
+  pl.rooms = pl.rooms.flatMap(q => inter([q.ring], [r]).slice(0, 1).map(z => ({ ...q, ring: z })));
+  pl.sections = pl.sections.map(sc => ({ ...sc, mop: clip(sc.mop), stairs: clip(sc.stairs), lifts: clip(sc.lifts), ...(sc.entry ? { entry: clip(sc.entry) } : {}) }));
+  // ponasimon qoldiq fasad boʻylab kvartiralar chegarasida boʻlinadi: har kvartira oʻz fasadi oldidagi boʻlagini oladi
+  const th = axisAngle(R), c = Math.cos(th), s = Math.sin(th), toL = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], toG = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+  const bb = (q: XY[]) => { const l = q.map(toL); return [Math.min(...l.map(p => p[0])), Math.min(...l.map(p => p[1])), Math.max(...l.map(p => p[0])), Math.max(...l.map(p => p[1]))]; };
+  const give = (i: number, wq: XY[]) => { const u = union([pl.apts[i].ring, wq]); if (u.length !== 1) return false; pl.apts[i].ring = u[0]; (pl.apts[i].loggia ??= []).push(wq); return true; };
+  for (const wq of diff([r], [R], 'none').filter(q => area(q) > 0.3)) {
+    const [wx0, wy0, wx1, wy1] = bb(wq), horiz = wx1 - wx0 >= wy1 - wy0;
+    let left: XY[][] = [wq];
+    pl.apts.forEach((a, i) => {
+      const [ax0, ay0, ax1, ay1] = bb(a.ring);
+      const strip = (horiz ? [[ax0, wy0 - 1], [ax1, wy0 - 1], [ax1, wy1 + 1], [ax0, wy1 + 1]] : [[wx0 - 1, ay0], [wx1 + 1, ay0], [wx1 + 1, ay1], [wx0 - 1, ay1]]).map(p => toG(p as XY));
+      const got: XY[][] = [];
+      for (const pc of inter(left, [strip])) if (area(pc) > 0.05 && sharedEdge(a.ring, pc).len > 0.3 && give(i, pc)) got.push(pc);
+      if (got.length) left = diff(left, got, 'none');
+    });
+    for (const pc of left) { if (area(pc) < 0.3) continue; let best = -1, bl = 0.5; pl.apts.forEach((a, i) => { const l = sharedEdge(a.ring, pc).len; if (l > bl) { bl = l; best = i; } }); if (best < 0 || !give(best, pc)) pl.rest.push(pc); }
+  }
+  return finishPlan(pl, mods, size);
+}
+
+/** Bosh yoʻnalish (radian, 90° gacha): uzunlik bilan tortilgan qirralar burchaklari modasi */
+function axisAngle(r: XY[]): number {
+  const es = r.map((p, i) => { const q = r[(i + 1) % r.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]); return { l, a: ((Math.atan2(q[1] - p[1], q[0] - p[0]) * 180 / Math.PI) % 90 + 90) % 90 }; }).filter(e => e.l > 0.5);
+  const dist = (x: number, y: number) => { const d = Math.abs(x - y) % 90; return Math.min(d, 90 - d); };
+  let best = 0, bs = -1;
+  for (const c of es) { const sc = es.reduce((t, e) => t + (dist(e.a, c.a) < 1.5 ? e.l : 0), 0); if (sc > bs) { bs = sc; best = c.a; } }
+  return best * Math.PI / 180;
+}
+/**
+ * Ozgina (≤ 12°) qiyshiq qirralarni bosh oʻqlarga toʻgʻrilaydi: har qirra uchlari oʻrtasidan oʻtuvchi oʻqqa parallel chiziq boʻladi
+ * (qanot chuqurligi saqlanadi). Hammasi toʻgʻri boʻlsa, qirra farqi > maxOff boʻlsa yoki maydon > 10 % oʻzgarsa — null.
+ */
+export function rectify(r0: XY[], maxDeg = 12, maxOff = 3.0): XY[] | null {
+  const r = signedArea(r0) < 0 ? [...r0].reverse() : r0, th = axisAngle(r), c = Math.cos(th), s = Math.sin(th);
+  const toL = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], toG = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+  const q = r.map(toL), n = q.length;
+  type Ln = { k: 'h' | 'v'; c: number } | { k: 'g'; p: XY; d: XY };
+  let skew = false, bigSkew = false;
+  const lines: Ln[] = q.map((a, i) => {
+    const b = q[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], ang = Math.atan2(dy, dx) * 180 / Math.PI;
+    const k90 = Math.round(ang / 90), dev = Math.abs(ang - k90 * 90);
+    if (dev > maxDeg) return { k: 'g', p: a, d: [dx, dy] };
+    // ponasimon qoldiq qalinligi (qirra uchlari orasidagi koʻndalang farq) > maxOff — toʻgʻrilanmaydi: lodjiya emas, xona boʻlib qoladi
+    const off = k90 % 2 === 0 ? Math.abs(dy) : Math.abs(dx);
+    if (off > maxOff) { if (Math.hypot(dx, dy) > 6) bigSkew = true; return { k: 'g', p: a, d: [dx, dy] }; }
+    if (dev > 0.2) skew = true;
+    const dir = ((k90 % 4) + 4) % 4;   // 0 — sharq, 1 — shimol, 2 — gʻarb, 3 — janub; ichkari — chap tomonda
+    // oʻrta chiziq: qanot chuqurligi saqlanadi (ichki chiziq tor qanotni yanada toraytirardi), farq ikki tomonga ± yarim
+    return dir % 2 === 0 ? { k: 'h', c: (a[1] + b[1]) / 2 } : { k: 'v', c: (a[0] + b[0]) / 2 };
+  });
+  if (!skew || bigSkew) return null;
+  const asG = (L: Ln): { p: XY; d: XY } => L.k === 'g' ? { p: L.p, d: L.d } : L.k === 'h' ? { p: [0, L.c], d: [1, 0] } : { p: [L.c, 0], d: [0, 1] };
+  const out: XY[] = [];
+  for (let i = 0; i < n; i++) {
+    const A = lines[(i - 1 + n) % n], B = lines[i], sv = q[i];
+    if (A.k !== 'g' && A.k === B.k) {
+      if (Math.abs(A.c - B.c) < 0.05) continue;
+      if (A.k === 'h') out.push([sv[0], A.c], [sv[0], B.c]); else out.push([A.c, sv[1]], [B.c, sv[1]]);
+      continue;
+    }
+    const a = asG(A), b = asG(B), den = a.d[0] * b.d[1] - a.d[1] * b.d[0];
+    if (Math.abs(den) < 1e-9) { out.push(sv); continue; }
+    const t = ((b.p[0] - a.p[0]) * b.d[1] - (b.p[1] - a.p[1]) * b.d[0]) / den;
+    out.push([a.p[0] + a.d[0] * t, a.p[1] + a.d[1] * t]);
+  }
+  if (out.length < 3) return null;
+  const R = union([out.map(toG)]).sort((x, y) => area(y) - area(x))[0];
+  if (!R || Math.abs(area(R) - area(r)) > 0.1 * area(r)) return null;
+  return R;
+}
+/** Toʻgʻrilangan shakl fasadi modullari: kenglik ~3,3 m; berk devor — asl rejadagi eng yaqin modulga qarab */
+function facadeModsFor(R: XY[], mods: FacadeMod[]): FacadeMod[] {
+  const out: FacadeMod[] = [], mid = (m: FacadeMod): XY => [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2];
+  for (let i = 0; i < R.length; i++) {
+    const a = R[i], b = R[(i + 1) % R.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+    const cnt = Math.floor(l / MOD + 0.2); if (cnt < 1) continue;
+    const nx = dy / l, ny = -dx / l, w = l / cnt, az = ((Math.atan2(nx, ny) * 180 / Math.PI) + 360) % 360;
+    for (let k = 0; k < cnt; k++) {
+      const ma: XY = [a[0] + dx * k / cnt, a[1] + dy * k / cnt], mb: XY = [a[0] + dx * (k + 1) / cnt, a[1] + dy * (k + 1) / cnt], c: XY = [(ma[0] + mb[0]) / 2, (ma[1] + mb[1]) / 2];
+      let nb: FacadeMod | null = null, nd = 3;
+      for (const m of mods) { const p = mid(m), d = Math.hypot(p[0] - c[0], p[1] - c[1]); if (d < nd) { nd = d; nb = m; } }
+      out.push({ a: ma, b: mb, az, blind: (nb ? nb.blind : false) || w < 2.4 });
+    }
+  }
+  return out;
+}
+
+function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null): RulePlan {
+  const W = CORR_W;
   const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
   const wantK = mixPicker(mix);
   // 1) qanotlar (toʻgʻri toʻrtburchaklar)
@@ -188,7 +287,12 @@ export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S
     }
   });
   // uch turlari va koridor oraligʻi
-  const capW = (w: Wing) => w.double ? Math.min((w.S - W) / 2, Math.max(1, Math.min(w.L >= 36 ? 2 : 1, Math.round(target(wantK()) / w.S / w.mw))) * w.mw) : 0;
+  // torets kvartirasi butun chuqurlik boʻylab: eni chuqurlikning ≥ 1/3 (aks holda 1 modulli «koridor» kvartira chiqadi);
+  // ≥ 24 m uzun qanotda torets kvartirasi yoʻq — yon tasmalar qanot uchigacha boradi (ikki burchak kvartirasi); qisqa qanotda
+  // torets eni ≥ chuqurlikning 1/3.
+  // 3+ qanotli (T, +) shakllarda — avvalgi qoida (sinovda yaxshiroq)
+  const cap0 = (w: Wing) => Math.min((w.S - W) / 2, Math.max(1, Math.min(w.L >= 36 ? 2 : 1, Math.round(target(wantK()) / w.S / w.mw))) * w.mw);
+  const capW = (w: Wing) => !w.double ? 0 : wings.length > 2 ? cap0(w) : w.L >= 24 ? 0 : Math.min((w.S - W) / 2, Math.max(cap0(w), Math.ceil(w.S / 3 / w.mw - 0.15) * w.mw));
   for (const p of parts) {
     const w = wings[p.wing];
     p.k0 = Math.abs(p.ua - w.u0) < 0.05 ? endKind[p.wing][0] : 'wall';
@@ -293,14 +397,17 @@ export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S
   const door = (a: RuleApt) => sharedAny(a.ring, secMop[a.sec] ?? []).len >= 0.9;
   const lit = (ring: XY[]) => { const f = front(ring); return f > 0 && area(ring) / f <= MAX_DEPTH; };
   const ok = (a: RuleApt) => door(a) && lit(a.ring) && area(a.ring) >= 28;
+  // shakl: choʻziq (eni:boʻyi > 1:3,2) yoki notekis (oʻrab turgan toʻrtburchakning < 70 %) — qoʻshni bilan birlashtirishga urinish
+  const shapeOk = (q: XY[]) => { const o = obb2(q); return o.L / Math.max(0.1, o.S) <= 3.2 && area(q) / (o.L * o.S) >= 0.7; };
   for (let g = 0; g < 6; g++) {
     let changed = false;
     for (let i = apts.length - 1; i >= 0; i--) {
-      const a = apts[i]; if (ok(a)) continue;
+      const a = apts[i], bad = !ok(a), ugly = !bad && !shapeOk(a.ring); if (!bad && !ugly) continue;
       // shu seksiyadagi, eshigi bor, birlashganda yorugʻ qoladigan eng uzun chegarali qoʻshni
       const cands = apts.map((o, j) => ({ j, s: j === i || o.sec !== a.sec || !door(o) ? 0 : sharedEdge(a.ring, o.ring).len })).filter(c => c.s > 0.8).sort((x, y) => y.s - x.s);
       for (const c of cands) {
         const u = union([apts[c.j].ring, a.ring]); if (u.length !== 1 || area(u[0]) > target(4) * 1.35 || !lit(u[0])) continue;
+        if (ugly && (!shapeOk(u[0]) || area(u[0]) > target(4) * 1.1)) continue;   // shakl uchun birlashma faqat natija toʻgʻri va oʻlchovli boʻlsa
         apts[c.j].ring = u[0]; apts[c.j].area = area(u[0]); apts[c.j].rooms = 0; apts.splice(i, 1); changed = true; break;
       }
     }

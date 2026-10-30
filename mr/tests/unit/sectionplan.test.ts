@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { layoutSection } from '../../src/core/apartments';
-import { rulePlan, planChecks, sharedAny, editMerge, editSplit, editShift, editRooms, editKind, editRoomToApt, type RulePlan } from '../../src/core/sectionplan';
-import { area, type XY } from '../../src/core/geo';
+import { rulePlan, rectify, planChecks, sharedAny, editMerge, editSplit, editShift, editRooms, editKind, editRoomToApt, type RulePlan } from '../../src/core/sectionplan';
+import { area, obb2, type XY } from '../../src/core/geo';
 import polygonClipping from 'polygon-clipping';
 
 const rect = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
@@ -80,5 +80,35 @@ describe('Seksiyali reja (qoida boʻyicha)', () => {
     expect(editRooms(pl, i, 9, mods).ok).toBe(false);
     const tx = editKind(pl, i, 'texnik', mods); expect(tx.ok).toBe(true); if (tx.ok) { expect(tx.plan.rooms.length).toBe(pl.rooms.length + 1); const back = editRoomToApt(tx.plan, tx.plan.rooms.length - 1, mods); expect(back.ok).toBe(true); }
     expect(editMerge(pl, 0, 0, mods).ok).toBe(false);
+  });
+});
+
+describe('qiyshiq va choʻziq (30.10): toʻgʻrilash va shakl qoidasi', () => {
+  const skewL = (deg: number, d = 15): XY[] => { const t = Math.tan(deg * Math.PI / 180); return ([[0, 0], [48, 0], [48, d], [d, d], [d, 36], [0, 36]] as XY[]).map(([x, y], i) => [x + (i >= 4 ? y * t : 0), y + (i === 1 || i === 2 ? x * t * 0.5 : 0)] as XY); };
+  it('toʻgʻri shakl — toʻgʻrilanmaydi; 2–3° qiyshiq — toʻgʻri burchakli, maydon ±10 %', () => {
+    expect(rectify(rect(0, 0, 40, 15))).toBeNull();
+    for (const deg of [2, 3]) {
+      const r = skewL(deg), R = rectify(r)!;
+      expect(R).not.toBeNull();
+      expect(Math.abs(area(R) - area(r)) / area(r)).toBeLessThan(0.1);
+      // barcha qirralar oʻzaro parallel yoki tik
+      const ang = R.map((p, i) => { const q = R[(i + 1) % R.length]; return Math.atan2(q[1] - p[1], q[0] - p[0]); });
+      for (const a of ang) expect(Math.min(...[0, 1, 2, 3, 4].map(k => Math.abs(((a - ang[0]) - k * Math.PI / 2 + 4 * Math.PI) % (2 * Math.PI))))).toBeLessThan(0.01);
+    }
+  });
+  it('qiyshiq L: ponasimon qoldiq kvartiralarga (lodjiya), kvartiralar asl kontur ichida, qoidalar bajariladi', () => {
+    const r = skewL(3), pl = plan(r);
+    rules(pl, r);
+    expect(pl.apts.some(a => a.loggia?.length)).toBe(true);
+    const A = area(r), inside = pl.apts.reduce((t, a) => t + ov(a.ring, r), 0), all = pl.apts.reduce((t, a) => t + a.area, 0);
+    expect(Math.abs(inside - all)).toBeLessThan(0.5);
+    expect(all / A).toBeGreaterThan(0.7);
+  });
+  it('choʻziq kvartiralar kamaydi: 18 m qanotli L da eni:boʻyi > 1:3,2 kvartira ≤ 1 (avval 2)', () => {
+    // (burchak seksiyasida 2-zina yoʻqligi — 5.13 — oldindan bor muammo, burchak shabloni bilan hal qilinadi; bu yerda tekshirilmaydi)
+    const r: XY[] = [[0, 0], [48, 0], [48, 18], [18, 18], [18, 36], [0, 36]], pl = plan(r);
+    for (const a of pl.apts) expect(sharedAny(a.ring, pl.sections[a.sec].mop).len).toBeGreaterThanOrEqual(0.9);
+    const el = pl.apts.map(a => { const o = obb2(a.ring); return o.L / o.S; });
+    expect(el.filter(e => e > 3.2).length).toBeLessThanOrEqual(1);
   });
 });
