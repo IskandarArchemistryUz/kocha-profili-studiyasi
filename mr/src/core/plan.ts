@@ -136,41 +136,111 @@ function computePlanRaw(doc: Project): PlanGeo {
       try { mp = polygonClipping.intersection(p.rings.map(r => close(r.map(fr.toLocal))), bp); } catch { continue; }
       for (const q of mp) { const rings = q.map(open), a = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((s, h) => s + Math.abs(ringArea(h)), 0); if (a > 20) got.push({ p, poly: q }); }
     }
-    // koʻcha siljiganda kvartal kengaygan boʻlsa (30.10): parsellar qoplamagan boʻlaklar eng uzun umumiy chegarali qoʻshni parselga qoʻshiladi — kvartal ichi ochiq qolmaydi
-    try {
-      const rest = polygonClipping.difference(bp, ...got.map(g => g.poly));
-      // parsellar orasidagi ichki chegaralar boʻsh boʻlak boʻylab davom ettiriladi (kesish chiziqlari) — boʻlak parsellar orasida toʻgʻri boʻlinadi
-      const cuts: [XY, XY][] = [];
-      const near = (p: XY, R: XY[]) => { for (let i = 0; i < R.length; i++) { const a2 = R[i], b2 = R[(i + 1) % R.length], dx = b2[0] - a2[0], dy = b2[1] - a2[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a2[0]) * dx + (p[1] - a2[1]) * dy) / L2)); if (Math.hypot(p[0] - a2[0] - dx * t, p[1] - a2[1] - dy * t) < 0.05) return true; } return false; };
-      got.forEach((g, i) => { const R = g.poly[0].slice(0, -1) as XY[];
-        for (let k = 0; k < R.length; k++) { const v = R[k];
-          for (const w of [R[(k + 1) % R.length], R[(k - 1 + R.length) % R.length]]) {
-            const mid: XY = [(v[0] + w[0]) / 2, (v[1] + w[1]) / 2];
-            // v — boshqa parsel bilan umumiy chegaraning uchi (segment oʻrtasi ham qoʻshnida), v esa kvartal ichida emas — eski chegarada
-            if (got.some((o, j) => j !== i && near(mid, o.poly[0] as XY[]) && near(v, o.poly[0] as XY[]))) { const L = Math.hypot(v[0] - w[0], v[1] - w[1]) || 1; cuts.push([v, [(v[0] - w[0]) / L, (v[1] - w[1]) / L]]); }
-          } } });
-      let pieces: Polygon[] = rest.map(x => x);
-      for (const [v, dir] of cuts) {
-        const n: XY = [-dir[1], dir[0]], far = 1e4, H = (sg: number): Polygon => [[[v[0] - dir[0] * far + n[0] * sg * far, v[1] - dir[1] * far + n[1] * sg * far], [v[0] + dir[0] * far + n[0] * sg * far, v[1] + dir[1] * far + n[1] * sg * far], [v[0] + dir[0] * far, v[1] + dir[1] * far], [v[0] - dir[0] * far, v[1] - dir[1] * far], [v[0] - dir[0] * far + n[0] * sg * far, v[1] - dir[1] * far + n[1] * sg * far]]];
-        const next: Polygon[] = [];
-        for (const pc of pieces) { if (!near(v, pc[0] as XY[])) { next.push(pc); continue; } for (const sg of [1, -1]) for (const q of polygonClipping.intersection(pc, H(sg))) next.push(q); }
-        pieces = next;
-      }
-      for (const piece of pieces) {
-        const a = Math.abs(ringArea(piece[0].slice(0, -1) as XY[])); if (a < 1 || !got.length) continue;
-        let best = -1, bl = 0;
-        got.forEach((g, i) => { const l = sharedLen(piece[0] as XY[], g.poly[0] as XY[]); if (l > bl) { bl = l; best = i; } });
-        if (best < 0) continue;
-        const u = polygonClipping.union(got[best].poly, piece);
-        if (u.length === 1) got[best].poly = u[0];
-      }
-    } catch { /* kesish xatosi — parsellar oʻzgarmaydi */ }
+    // koʻcha siljiganda kvartal kengaygan boʻlsa (30.10): parsellar qoplamagan boʻlaklar qoʻshni parsellarga boʻlib beriladi — kvartal ichi ochiq qolmaydi
+    fillGaps(bp, got);
     for (const g of got) {
       const rings = g.poly.map(open), a = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((s, h) => s + Math.abs(ringArea(h)), 0);
       if (a > 20) blocks.push({ rings, area: a, use: g.p.use, labelId: b.labelId, centroid: interiorPoint(rings), parcelId: g.p.id, blockKey: b.blockKey });
     }
   }
   return { corridors: corrU.map(p => p.map(open)), corridorArea: area(inSite), blocks };
+}
+
+/** koordinatalarni mm ga yaxlitlash — polygon-clipping aniqlik xatolarini kamaytiradi */
+const snapP = (p: Polygon): Polygon => p.map(r => r.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000] as [number, number]));
+const mpArea = (mp: MultiPolygon) => mp.reduce((s, p) => s + Math.abs(ringArea(open(p[0]))) - p.slice(1).reduce((t, h) => t + Math.abs(ringArea(open(h))), 0), 0);
+function segDist(p: XY, R: XY[]): number { let m = Infinity; for (let i = 0; i < R.length; i++) { const a = R[i], b = R[(i + 1) % R.length], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); m = Math.min(m, Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t)); } return m; }
+
+/**
+ * Kvartalning parsellar qoplamagan qismi (koʻcha surilib kvartal kengaygan joy) qoʻshni parsellarga boʻlinadi (31.10, 1-slayd):
+ * parsellar orasidagi ichki chegaralar eski kvartal chegarasidan nur boʻlib davom ettiriladi, boʻsh joy shu nurlar bilan boʻlaklarga
+ * ajraladi va har boʻlak eng uzun umumiy chegarali parselga qoʻshiladi. Hamma amal mm ga yaxlitlangan koordinatalarda, xatoda —
+ * zaxira (boʻlak butunligicha eng yaqin parselga).
+ */
+function fillGaps(bp: Polygon, got: { poly: Polygon }[]): void {
+  if (!got.length) return;
+  let rest: MultiPolygon;
+  try { rest = polygonClipping.difference(snapP(bp), ...got.map(g => snapP(g.poly))); } catch { try { rest = polygonClipping.difference(jitter(snapP(bp)), ...got.map(g => snapP(g.poly))); } catch { return; } }
+  rest = rest.filter(p => mpArea([p]) > 1);
+  if (!rest.length) return;
+  const rings = got.map(g => g.poly[0].slice(0, -1) as XY[]);
+  // nurlar: v — ikki parselning umumiy chegarasi uchi, boʻsh joy chegarasida; yoʻnalish — umumiy chegara davomi
+  const restRings = rest.map(p => p[0].slice(0, -1) as XY[]);
+  const rays: [XY, XY][] = [];
+  rings.forEach((R, i) => {
+    for (let k = 0; k < R.length; k++) {
+      const v = R[k];
+      if (!restRings.some(rr => segDist(v, rr) < 0.05)) continue;
+      for (const w of [R[(k + 1) % R.length], R[(k - 1 + R.length) % R.length]]) {
+        const mid: XY = [(v[0] + w[0]) / 2, (v[1] + w[1]) / 2];
+        if (!rings.some((o, j) => j !== i && segDist(mid, o) < 0.05)) continue;
+        if (restRings.some(rr => segDist(mid, rr) < 0.05)) continue;   // qirra boʻsh joy chegarasida yotibdi — ichki chegara emas
+        const L = Math.hypot(v[0] - w[0], v[1] - w[1]); if (L < 3) continue;   // qisqa (< 3 m) umumiy qirra — avvalgi toʻldirishdan qolgan uchi, nur emas
+        const d: XY = [(v[0] - w[0]) / L, (v[1] - w[1]) / L];
+        if (!rays.some(([u, e]) => Math.hypot(u[0] - v[0], u[1] - v[1]) < 0.05 && e[0] * d[0] + e[1] * d[1] > 0.99)) rays.push([v, d]);
+      }
+    }
+  });
+  // har nur boʻlakni v dan birinchi chiqish nuqtasigacha vatar boʻylab ikkiga boʻladi (sof geometriya, clipping yoʻq)
+  let pieces: XY[][] = rest.map(p => p[0].slice(0, -1) as XY[]);
+  for (const [v, d] of rays) {
+    const next: XY[][] = [];
+    for (const R of pieces) { const sp = splitByRay(R, v, d); if (sp) next.push(...sp); else next.push(R); }
+    pieces = next;
+  }
+  // boʻlaklar navbat bilan qoʻshiladi: avval eng uzun umumiy chegarali parselga; birlashma ikki qismga boʻlinsa — keyingi nomzodga;
+  // qoʻshilmaganlar keyingi aylanishda (qoʻshnisi kattalashgandan keyin) qayta uriniladi
+  const tryUnion = (a: Polygon, b: Polygon): MultiPolygon | null => { try { return polygonClipping.union(snapP(a), b); } catch { try { return polygonClipping.union(jitter(snapP(a)), b); } catch { return null; } } };
+  let queue = pieces.filter(R => Math.abs(ringArea(R)) >= 0.5);
+  for (let pass = 0; pass < 3 && queue.length; pass++) {
+    const left: XY[][] = [];
+    for (const R of queue) {
+      const pc: Polygon = snapP([close(R)]);
+      const cand = got.map((g, i) => ({ i, l: sharedLen(R, g.poly[0].slice(0, -1) as XY[]) })).filter(c => c.l > 0.3).sort((x, y) => y.l - x.l);
+      let done = false;
+      for (const c of cand) {
+        // boʻlak uchlari parsel uchlariga / qirralariga yopishtiriladi (≤ 2 sm) — umumiy chegara aniq ustma-ust tushsin
+        const G = snapP(got[c.i].poly)[0].slice(0, -1) as XY[];
+        const glue = (p: XY): XY => { for (const q of G) if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.02) return q; for (let k = 0; k < G.length; k++) { const a = G[k], b = G[(k + 1) % G.length], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2; if (t > 0 && t < 1) { const f: XY = [a[0] + dx * t, a[1] + dy * t]; if (Math.hypot(p[0] - f[0], p[1] - f[1]) < 0.02) return f; } } return p; };
+        const pg: Polygon = [close((pc[0].slice(0, -1) as XY[]).map(p => glue(p as XY)))];
+        let u = tryUnion(got[c.i].poly, pg);
+        // zaxira: boʻlak markazi atrofida ~1 sm kattalashtiriladi (degenerat uchlar bilan aniq tegmasa)
+        if (pass === 2 && (!u || u.length !== 1)) { const R0 = pg[0].slice(0, -1) as XY[], cc = interiorPoint([R0]), k = 1 + 0.01 / Math.sqrt(Math.abs(ringArea(R0)) || 1); u = tryUnion(got[c.i].poly, [close(R0.map(p => [cc[0] + (p[0] - cc[0]) * k, cc[1] + (p[1] - cc[1]) * k] as XY))]); }
+        if (u && u.length === 1) { got[c.i].poly = [u[0][0], ...u[0].slice(1).filter(h => Math.abs(ringArea(open(h))) > 0.5)]; done = true; break; }
+      }
+      if (!done) left.push(R);
+    }
+    queue = left;
+  }
+}
+
+/** Oddiy halqani v (chegarada) dan d yoʻnalishidagi nur bilan birinchi chiqish nuqtasigacha boʻlish; nur ichkariga kirmasa — null */
+function splitByRay(R: XY[], v: XY, d: XY): XY[][] | null {
+  const n = R.length; if (n < 3) return null;
+  // v qaysi qirrada
+  let iv = -1, bd = 0.05;
+  for (let i = 0; i < n; i++) { const dd = segDist(v, [R[i], R[(i + 1) % n]]); if (dd < bd) { bd = dd; iv = i; } }
+  if (iv < 0) return null;
+  const probe: XY = [v[0] + d[0] * 0.05, v[1] + d[1] * 0.05];
+  if (!pointIn(probe, [R])) return null;
+  // nurning halqa bilan birinchi kesishuvi (v dan > 5 sm)
+  let bt = Infinity, ix = -1;
+  for (let i = 0; i < n; i++) {
+    const a = R[i], b = R[(i + 1) % n], ex = b[0] - a[0], ey = b[1] - a[1], den = d[0] * ey - d[1] * ex; if (Math.abs(den) < 1e-12) continue;
+    const t = ((a[0] - v[0]) * ey - (a[1] - v[1]) * ex) / den, u = ((a[0] - v[0]) * d[1] - (a[1] - v[1]) * d[0]) / den;
+    if (t > 0.05 && u >= -1e-9 && u <= 1 + 1e-9 && t < bt) { bt = t; ix = i; }
+  }
+  if (ix < 0 || ix === iv) return null;
+  const x: XY = [v[0] + d[0] * bt, v[1] + d[1] * bt];
+  const A: XY[] = [v], B: XY[] = [x];
+  for (let k = (iv + 1) % n; ; k = (k + 1) % n) { A.push(R[k]); if (k === ix) break; }
+  A.push(x);
+  for (let k = (ix + 1) % n; ; k = (k + 1) % n) { B.push(R[k]); if (k === iv) break; }
+  B.push(v);
+  const clean = (P: XY[]) => P.filter((p, i) => Math.hypot(p[0] - P[(i + 1) % P.length][0], p[1] - P[(i + 1) % P.length][1]) > 1e-6);
+  const a1 = clean(A), b1 = clean(B);
+  if (a1.length < 3 || b1.length < 3 || Math.abs(ringArea(a1)) < 0.01 || Math.abs(ringArea(b1)) < 0.01) return null;
+  return [a1, b1];
 }
 
 /** Butun kvartal (parsellarsiz) — blockKey boʻyicha */
