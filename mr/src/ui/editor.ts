@@ -195,6 +195,9 @@ export class Editor {
     this.root = this.build();
     host.replaceChildren(this.root);
     this.scene = new Scene3D(this.el.scene);
+    // tungi rejimda sahna foni: html[data-theme] boʻyicha (tema tugmasi ham, tashqi oʻrnatish ham)
+    { const de = document.documentElement, sync = () => this.scene.setDark(de.dataset.theme === 'dark'); sync();
+      const mo = new MutationObserver(sync); mo.observe(de, { attributes: true, attributeFilter: ['data-theme'] }); this.off.push(() => mo.disconnect()); }
     try { if (localStorage.getItem('mr-paper') !== '0') this.el.scene.setAttribute('data-paper', ''); } catch { this.el.scene.setAttribute('data-paper', ''); }
     this.scene.onLabels = () => this.renderLblBar();
     try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
