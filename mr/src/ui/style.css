@@ -867,3 +867,4 @@ textarea.ch-inedit{padding:10px 12px}
 .alb-var-th{background:var(--grouped,#f7f6f3);border-radius:12px;padding:6px}.alb-var-th svg{display:block;width:100%;height:auto;max-height:200px}
 .alb-mixbar{display:flex;height:8px;border-radius:4px;overflow:hidden}.alb-mixbar i{display:block}
 .alb-var .group.flat .li{padding:6px 0}.alb-var .v.ok{color:var(--ok,#2b7449)}.alb-var .v.warn{color:#95620f}.alb-var .v.bad{color:var(--bad,#b3261e)}
+#houseType .btn[aria-pressed=true]{background:var(--ink);color:var(--surface)}

@@ -26,6 +26,7 @@ import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
+import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
@@ -1500,6 +1501,8 @@ export class Editor {
   private aptFloor: number | null = null;
   /** qavat rejasi: tanlangan bino va qavat */
   private planBid: string | null = null;
+  /** past qavatli uy rejalari: tur, qavat, uslub (31.10) */
+  private houseType = 0; private houseFloor = 1; private houseStyle: 'milliy' | 'zamonaviy' | null = null;
   private planFloor: number | null = null;
   private planSelSeen: string | null = null;
   static readonly APT_COL: Record<number, number> = { 1: 0xf2b134, 2: 0xf08a4b, 3: 0x4fb08a, 4: 0x3f5b8a };
@@ -1613,8 +1616,43 @@ export class Editor {
     this.scene.setFacadeMarks(list);
   }
 
+  /**
+   * Past qavatli uylar rejalari (31.10): loyihadagi uy turlari (oʻlchami va turi boʻyicha), 1-, 2- (3-) qavat rejasi; hovli — milliy yoki
+   * zamonaviy uslub. Qoidalar: core/lowplan (T-03, T-04, H-01 … H-11).
+   */
+  private housePanel(body: HTMLElement): void {
+    const doc = this.store.doc, fr = frame(doc.origin);
+    const lows = doc.buildings.filter(b => b.gen?.plot);
+    if (!lows.length) return;
+    type Ty = { key: string; name: string; b: typeof lows[number]; n: number; ring: XY[]; plot: XY[]; party: 0 | 1 };
+    const types: Ty[] = [];
+    for (const b of lows) {
+      const ring = b.footprint.map(fr.toLocal), plot = b.gen!.plot!.map(fr.toLocal), L01 = Math.hypot(ring[1][0] - ring[0][0], ring[1][1] - ring[0][1]), L12 = Math.hypot(ring[2][0] - ring[1][0], ring[2][1] - ring[1][1]);
+      const party = partySide(ring, plot), kind = ring.length === 6 ? 'Hovli uy' : b.gen!.kind === 'taunhaus' ? 'Bloklangan uy' : ring.length === 4 && plot.some(q => Math.hypot(q[0] - ring[0][0], q[1] - ring[0][1]) < 0.2 || Math.hypot(q[0] - ring[1][0], q[1] - ring[1][1]) < 0.2) ? 'Juft uy' : 'Yakka uy';
+      const key = `${kind}|${L01.toFixed(0)}|${L12.toFixed(0)}|${b.floors}`, t = types.find(x => x.key === key);
+      if (t) t.n++; else types.push({ key, name: kind, b, n: 1, ring, plot, party });
+    }
+    const ti = Math.min(this.houseType, types.length - 1), T0 = types[ti], hov = T0.ring.length === 6, fls = hov ? 1 : T0.b.floors;
+    const fl = Math.max(1, Math.min(fls, this.houseFloor)), style = hov ? this.houseStyle ?? 'milliy' : 'zamonaviy';
+    const P = housePlan(T0.ring, fls, fl, { style, plot: T0.plot, north: [0, 1] });
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Uy rejalari')), h('span', {}, `${fmt(lows.length)} ${tr('uy')}`)),
+      h('div', { class: 'row', role: 'group', id: 'houseType', 'aria-label': tr('Uy turi'), style: 'flex-wrap:wrap;gap:6px' }, ...types.map((t, i) => { const [, w, d] = t.key.split('|'); return h('button', { class: 'btn btn-sm', 'aria-pressed': i === ti, 'data-ht': i, title: tr(t.name), onclick: () => { this.houseType = i; this.houseFloor = 1; this.renderPanel(); } }, `${w} × ${d} m · ${t.b.floors} ${tr('qavat')} · ×${t.n}`); })),
+      h('b', { style: 'font-size:13px' }, tr(T0.name)));
+    if (!P) { body.append(h('div', { class: 'note' }, tr('Bu uy shakli uchun reja hali yoʻq — oʻlchami juda kichik.'))); return; }
+    const title = `${tr(T0.name)} · ${tf('${n}-qavat', { n: fl })}${hov ? ` · ${tr(style === 'milliy' ? 'milliy uslub' : 'zamonaviy uslub')}` : ''}`;
+    const svg = () => housePlanSvg(P, T0.ring, T0.plot, { scale: 100, title, north: [0, 1], label: tr }).svg;
+    body.append(
+      fls > 1 ? h('div', { class: 'seg sm', role: 'group', id: 'houseFloor' }, ...Array.from({ length: fls }, (_, i) => h('button', { 'aria-pressed': fl === i + 1, 'data-hf': i + 1, onclick: () => { this.houseFloor = i + 1; this.renderPanel(); } }, tf('${n}-qavat', { n: i + 1 })))) : '',
+      hov ? h('div', { class: 'seg sm', role: 'group', id: 'houseStyle' }, ...([['milliy', 'Milliy uslub'], ['zamonaviy', 'Zamonaviy']] as const).map(([k, t]) => h('button', { 'aria-pressed': style === k, 'data-hs': k, onclick: () => { this.houseStyle = k; this.renderPanel(); } }, tr(t)))) : '',
+      h('div', { class: 'planbox', id: 'houseBox', html: svg().replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
+      h('div', { class: 'col', id: 'houseNotes', style: 'gap:4px' }, ...P.notes.map(n => h('span', { class: 't-small' }, tr(n)))),
+      h('button', { class: 'btn btn-sm', id: 'houseSvg', onclick: () => download(`${safe(doc.name)}_uy${ti + 1}_q${fl}.svg`, svg(), 'image/svg+xml') }, ...icl(DL, 'SVG')));
+  }
+
   private kvartiraPanel(body: HTMLElement): void {
     const doc = this.store.doc, mix = doc.settings.aptMix, plans = planApartments(doc), sm = aptSummary(plans), perFloor = sm.total;
+    // faqat past qavatli uylar — kvartira miksi kerak emas, darhol uy rejalari
+    if (!plans.length && doc.buildings.some(b => b.gen?.plot)) { this.housePanel(body); return; }
     const sum = mix.reduce((a, b) => a + b, 0) || 1, hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     const sw0 = (c: number) => h('i', { style: `width:10px;height:10px;border-radius:3px;flex:none;background:${hex(c)}` });
     // miks: siljitgichlar (maqsad) va natija (amalda)
@@ -1633,7 +1671,9 @@ export class Editor {
       h('div', { class: 'glabel' }, h('span', {}, tr('Kvartira oʻlchami'))),
       h('div', { class: 'seg', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name))),
       h('div', { class: 'opts' }, ...APT_SIZES.map((x, i) => [i ? ' · ' : '', h('b', {}, `${x.name}:`), ` ${x.note}`]).flat()));
+    this.housePanel(body);
     if (!plans.length) {
+      if (doc.buildings.some(b => b.gen?.plot)) return;
       body.append(h('div', { class: 'empty' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Turar joy seksiyalari yoʻq. «Hajmlar» qadamida generatsiya qiling (yakka uylar va taunhauslar kvartirali emas).')),
         h('button', { class: 'btn btn-sm', onclick: () => this.go(STEPS.find(x => x.id === 'hajm')!) }, `6 · ${tr('Hajmlar')}`)));
       return;
