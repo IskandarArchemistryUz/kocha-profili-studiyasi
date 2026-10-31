@@ -13,6 +13,10 @@ export const UZ_INIT = () => { try {
 export const test = base.extend({
   context: async ({ context }, use) => {
     await context.addInitScript(UZ_INIT);
+    // 31.10: tashqi tarmoq (shriftlar, sunʼiy yoʻldosh plitkalari, OSM, relyef) testda oʻchiq — CI va mahalliy muhit bir xil:
+    // CI da kech kelgan javoblar sahnani testning oʻrtasida qayta chizar edi (sahnadagi bosishlar beqaror boʻlardi).
+    // Birinchi roʻyxatga olinadi — keyingi aniq (route) va sahifa (page.route) qoidalari undan ustun.
+    await context.route(u => !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname) && /^https?:$/.test(u.protocol), r => r.abort());
     // Overture binolari (oʻz serverimiz) testda soʻralmaydi — alohida test oʻz javobini beradi (page.route ustun)
     await context.route(/\/data\/overture\//, r => r.fulfill({ status: 404, body: '' }));
     // ERA5 shamol (oʻz serverimiz) — sukut: ulanmagan (503); alohida test oʻz javobini beradi

@@ -13,7 +13,7 @@ import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
-import { abroadRules, type Result } from '../norms/rules';
+import { abroadRules, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { siteAccess, accessVerdict, type Access } from '../core/access';
@@ -303,7 +303,14 @@ export class Editor {
 
   /** Binoni koʻcha koridoridan chiqarish: eng yaqin loyiha koʻchasi oʻqidan uzoqlashtirib, koridor + 0,5 m tashqarisiga suradi (30.10) */
   private pushOutOfStreet(bid: string): void {
-    const doc = this.store.doc, b = doc.buildings.find(x => x.id === bid); if (!b) return;
+    const m = this.outOfStreet(bid);
+    if (!m) { toast(tr('Bino koʻcha koridorida emas')); return; }
+    this.run(() => this.store.dispatch({ type: 'updateBuilding', id: bid, patch: { footprint: m.footprint } }));
+    toast(tf('Bino koʻchadan ${d} m surildi', { d: fmt(m.sh, 1) }));
+  }
+  /** Binoni eng yaqin koʻcha koridoridan chiqarish: yangi kontur va surilish (m); koridorda boʻlmasa — null */
+  private outOfStreet(bid: string): { footprint: LngLat[]; sh: number } | null {
+    const doc = this.store.doc, b = doc.buildings.find(x => x.id === bid); if (!b) return null;
     const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
     let best: { d: number; n: XY; half: number; depth: number } | null = null;
     for (const s of doc.streets) {
@@ -313,15 +320,14 @@ export class Editor {
         const proj = (p: XY) => { const t = Math.max(0, Math.min(1, ((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / L2)); const q: XY = [A[0] + dx * t, A[1] + dy * t]; return { q, d: Math.hypot(p[0] - q[0], p[1] - q[1]) }; };
         const pc = proj(c), n: XY = [(c[0] - pc.q[0]) / (pc.d || 1), (c[1] - pc.q[1]) / (pc.d || 1)];
         // bino uchlarining oʻqdan masofasi — eng yaqini koridor ichida boʻlsa, chuqurlik = half − min
-        const dmin = Math.min(...r.map(p => { const pp = proj(p); const sgn = (p[0] - pp.q[0]) * n[0] + (p[1] - pp.q[1]) * n[1]; return sgn * pp.d; }));
+        const dmin = Math.min(...r.map(p => { const pp = proj(p); const sgn = Math.sign((p[0] - pp.q[0]) * n[0] + (p[1] - pp.q[1]) * n[1]); return sgn * pp.d; }));   // 31.10: ishora (avval sgn·d = d² edi — qisman kirgan bino surilmasdi)
         const depth = half - dmin; if (depth <= 0) continue;
         if (!best || pc.d < best.d) best = { d: pc.d, n, half, depth };
       }
     }
-    if (!best) { toast(tr('Bino koʻcha koridorida emas')); return; }
+    if (!best) return null;
     const sh = best.depth + 0.5, moved = r.map(p => [p[0] + best!.n[0] * sh, p[1] + best!.n[1] * sh] as XY);
-    this.run(() => this.store.dispatch({ type: 'updateBuilding', id: bid, patch: { footprint: moved.map(fr.toGeo) } }));
-    toast(tf('Bino koʻchadan ${d} m surildi', { d: fmt(sh, 1) }));
+    return { footprint: moved.map(fr.toGeo), sh };
   }
 
   /** koʻrinish uslubi: «Albom» (taqdimot, sukut boʻyicha) yoki «Rangli» (OSM ranglari, sunʼiy yoʻldosh) */
@@ -2036,7 +2042,7 @@ export class Editor {
   }
 
   /** 31.10 (egasi): meʼyorga moslash — «Tuzat» tugmalari */
-  private applyFix(id: 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint'): void {
+  private applyFix(id: FixId): void {
     const doc = this.store.doc, fr = frame(doc.origin);
     if (id === 'seismic-joint') {
       const sys = doc.settings.construct ?? 'monolit', ball = doc.settings.seismic;
@@ -2044,6 +2050,25 @@ export class Editor {
       const bad = doc.buildings.filter(b => { if (b.joint) return false; const r = b.footprint.map(fr.toLocal); return !ok(checkBlock(r, sys, ball)) && ok(checkBlock(r, sys, ball, true, jointOpt(b, doc.buildings, fr.toLocal))); });
       this.run(() => { for (const b of bad) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { joint: true } }); });
       toast(bad.length ? tf('${n} ta binoga antiseysmik chok qoʻyildi', { n: bad.length }) : tr('Chok bilan tuzatiladigan bino topilmadi — uzunlikni kamaytirib qayta generatsiya qiling'));
+    } else if (id === 'floors-down') {
+      // zichlik (84-band) va uy-joy fondi (82-band) — qaysi biri qattiqroq; turar qavatlar mutanosib kamayadi
+      const d = derive(doc), f = Math.min(d.density > 400 ? 400 / d.density : 1, d.housingDensity > 7500 ? 7500 / d.housingDensity : 1) * 0.99;
+      if (f >= 1) return;
+      const ch = doc.buildings.filter(b => useDef(b.use).res > 0 && b.floors - b.nonRes > 1).map(b => { const rf = b.floors - b.nonRes, nr = Math.max(1, Math.floor(rf * f)); return { b, floors: b.nonRes + nr }; }).filter(x => x.floors < x.b.floors);
+      this.run(() => { for (const x of ch) this.store.dispatch({ type: 'updateBuilding', id: x.b.id, patch: { floors: x.floors } }); });
+      toast(tf('${n} ta binoning turar qavatlari kamaytirildi (≈ ${p} %)', { n: ch.length, p: Math.round((1 - f) * 100) }));
+    } else if (id === 'yards-on') {
+      this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: true } }));
+      toast(tr('Hovlilar obodonlashtirildi'));
+    } else if (id === 'street-clear') {
+      const ids = this.last?.d.streetOverlap.map(x => x.bid) ?? [];
+      const moves = ids.map(id2 => ({ id: id2, m: this.outOfStreet(id2) })).filter(x => x.m);
+      this.run(() => { for (const x of moves) this.store.dispatch({ type: 'updateBuilding', id: x.id, patch: { footprint: x.m!.footprint } }); });
+      toast(tf('${n} ta bino koʻchadan chiqarildi', { n: moves.length }));
+    } else if (id === 'dead-end') {
+      const miss = deadEnds(doc).filter(e => !e.has);
+      this.run(() => { for (const e of miss) { const st = this.store.doc.streets.find(x => x.id === e.sid); if (!st) continue; this.store.dispatch({ type: 'updateStreet', id: st.id, patch: { ends: { ...(st.ends ?? {}), [e.end]: 'aylana' } } }); } });
+      toast(tf('${n} ta berk uchga burilish maydonchasi qoʻyildi', { n: miss.length }));
     } else if (id === 'podium-joint') {
       const pods = doc.buildings.filter(b => isPodium(b) && !b.joint);
       this.run(() => { for (const b of pods) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { joint: true } }); });

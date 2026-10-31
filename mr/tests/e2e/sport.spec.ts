@@ -10,8 +10,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`sport hudu
   await page.fill('#rw', '270'); await page.fill('#rh', '180'); await page.click('#rectSite');
   await page.evaluate(() => { const ed = (window as any).__mr; ed.store.dispatch({ type: 'setZones', zones: [{ id: 'z0', at: ed.store.doc.origin, use: 'sport' }] }); });
   await page.click('[data-view=axo]');
-  await page.waitForTimeout(900);
-  const n = await page.evaluate(() => { let c = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.sport) c++; }); return c; });
-  expect(n).toBeGreaterThan(0);   // yopiq sport majmuasi sahnada
+  // yopiq sport majmuasi sahnada (CI da sahna kechroq quriladi — kutib tekshiriladi)
+  await expect.poll(() => page.evaluate(() => { let c = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.sport) c++; }); return c; }), { timeout: 15_000 }).toBeGreaterThan(0);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/sport_${w}${dark ? 'd' : 'l'}.png` });
 });

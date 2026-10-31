@@ -54,6 +54,8 @@ export type Status = 'pass' | 'fail' | 'review' | 'na';
 
 export interface Source { doc: string; clause: string; edition: string; verified: boolean }
 
+/** «Tuzat» tugmalari (31.10): har biri bitta bekor qilinadigan amal (Ctrl+Z) */
+export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end';
 export interface Result {
   id: string; title: string; status: Status;
   value?: number; limit?: string; unit?: string;
@@ -63,7 +65,7 @@ export interface Result {
   /** sahnada koʻrsatish (31.10, egasi): meʼyorga tushmagan joylar — bino id lari, mahalliy nuqtalar, halqalar, masofa kesmalari */
   where?: Where;
   /** 31.10 (egasi): loyihani meʼyorga moslash — tugma (editor.applyFix) va qisqa tavsiya */
-  fix?: { id: 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint'; label: string; hint: string };
+  fix?: { id: FixId; label: string; hint: string };
 }
 export interface Where { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][] }
 
@@ -85,6 +87,7 @@ export const RULES: Rule[] = [
       return {
         status: v <= lim ? 'pass' : 'fail', value: v, unit: 'kishi/ga', limit: '≤ 400',
         delta: v > lim ? (v / lim - 1) * 100 : undefined,
+        ...(v > lim ? { fix: { id: 'floors-down' as const, label: 'Turar qavatlarni kamaytirish', hint: `Zichlik ${Math.round(v)} → ≤ ${lim} kishi/ga: barcha turar joy binolarining turar qavatlari ≈ ${Math.round((1 - lim / v) * 100)} % ga kamaytiriladi (noturar qavatlar va stilobat oʻzgarmaydi, kamida 1 turar qavat). Muqobil — uchastkaga yashil yoki jamoat kvartali qoʻshish.` } } : {}),
         note: 'Uchastka (netto) boʻyicha hisoblandi; meʼyor brutto yoki netto ekani band matnidan tekshirilsin.',
       };
     },
@@ -99,6 +102,7 @@ export const RULES: Rule[] = [
       return {
         status: v > hi ? 'fail' : v < lo ? 'review' : 'pass', value: v, unit: 'm²/ga', limit: '2 200–7 500',
         delta: v > hi ? (v / hi - 1) * 100 : undefined,
+        ...(v > hi ? { fix: { id: 'floors-down' as const, label: 'Turar qavatlarni kamaytirish', hint: `Uy-joy fondi ${Math.round(v)} → ≤ ${hi} m²/ga: turar qavatlar ≈ ${Math.round((1 - hi / v) * 100)} % ga kamaytiriladi (zichlik meʼyori bilan birga — qaysi biri qattiqroq boʻlsa).` } } : {}),
         note: v < lo ? 'Pastki chegaradan kam — yer samarasiz ishlatilmoqdami?' : 'Hududiy birlik (mavze, kvartal) band matnidan tekshirilsin.',
       };
     },
@@ -157,6 +161,7 @@ export const RULES: Rule[] = [
     evaluate(d) {
       if (!d.streetOverlap.length) return { status: d.streetArea > 0 ? 'pass' : 'na', value: 0, unit: 'bino', limit: '0', note: d.streetArea > 0 ? 'Hech bir bino loyiha koʻchasi koridoriga tushmaydi.' : 'Loyiha koʻchalari yoʻq.' };
       return { status: 'fail', value: d.streetOverlap.length, unit: 'bino', limit: '0', where: { bids: d.streetOverlap.map(x => x.bid), rings: d.streetOverlap.flatMap(x => x.polys) },
+        fix: { id: 'street-clear' as const, label: 'Binolarni koʻchadan chiqarish', hint: `${d.streetOverlap.length} ta bino eng yaqin koʻcha oʻqiga perpendikulyar, qizil chiziqdan 0,5 m tashqariga suriladi (bino panelidagi «Koʻchadan chiqarish» bilan bir xil).` },
         note: `${d.streetOverlap.length} ta bino koʻcha koridoriga tushadi (jami ${Math.round(d.streetOverlap.reduce((t, x) => t + x.area, 0))} m²). Koʻcha siljitilganda qoʻlda chizilgan yoki qoldirilgan binolar — «Koʻchadan chiqarish» tugmasi bino panelida; yoki koʻchani qaytaring.` };
     },
   },
@@ -203,6 +208,7 @@ export const RULES: Rule[] = [
       // hovli obodonlashtirish oʻchiq — hovli maysasi hisobga kirmagan: «mos emas» emas, «koʻrib chiqish» (hisob toʻliq emas)
       const noYards = !doc.settings.yards && doc.buildings.length > 0;
       return { status: v >= 25 ? 'pass' : noYards ? 'review' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
+        ...(noYards && v < 25 ? { fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar avtomatik obodonlashtiriladi (trotuar, maysa, 4-jadval maydonchalari, daraxtlar) — hovli maysasi va maydonchalar (87-band) hisobga kiradi.' } } : {}),
         note: (noYards ? 'Hovli maysasi hisobga olinmadi — «Hovlilarni avtomatik obodonlashtirish» oʻchiq (Yashil qadami).\n' : '') + `Hisob: yashil kvartallar ${Math.round(d.greenArea)} m² + hovli maysasi ${Math.round(d.yardGreen)} m² + maydoncha va yoʻlaklar ${Math.round(d.yardPlay)} m² (87-band: uchastkaning 30 % idan oshmasa) ÷ mavze maydoni (maktab va MTM uchastkalarisiz, 86-band) ${Math.round(d.greenBase)} m².` };
     },
   },
@@ -247,7 +253,7 @@ export const RULES: Rule[] = [
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '89-band, 4-jadval; 90–92-bandlar', verified: true },
     evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'm²', limit: '3,1 m²/kishi' };
-      if (!doc.settings.yards) return { status: 'na', note: 'Hovli obodonlashtirish oʻchirilgan (4-qadam, Yashil).' };
+      if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchirilgan (4-qadam, Yashil) — maydonchalar tekshirilmadi.', fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar avtomatik obodonlashtiriladi: 4-jadval maydonchalari binolardan meʼyoriy masofada, trotuar, maysa va daraxtlar.' } };
       const v = d.playNeed > 0 ? d.playGot / d.playNeed * 100 : 0;
       return { status: v >= 99 ? 'pass' : v >= 50 ? 'review' : 'fail', value: d.playGot, unit: 'm²', limit: `${Math.round(d.playNeed)} (3,1 m²/kishi)`,
         note: `Talab: bolalar 0,7 + kattalar 0,1 + sport 2,0 + xoʻjalik 0,3 m²/kishi; joylashtirilgan ${Math.round(v)} %. 90-band: chang boʻronli hududlarda yoki mavze sport majmuasi boʻlsa — ikki baravargacha qisqartirish mumkin; 92-band: zichlik > 7000 m²/ga — tomlarga joylashtirish.` };
@@ -284,7 +290,8 @@ export const RULES: Rule[] = [
       if (miss.length) parts.push(`${miss.length} ta uchda burilish joyi yoʻq`);
       parts.push('106-band: berk tor koʻcha ≤ 150 m');
       if (long.length) parts.push(`${long.length} tasi uzun, eng uzuni ${Math.round(Math.max(...long.map(e => e.len)))} m`);
-      return { status: miss.length || long.length ? 'fail' : 'pass', ...(miss.length || long.length ? { where: { pts: [...miss, ...long].map(e => e.p) } } : {}), value: des.length - miss.length, unit: `/ ${des.length}`, limit: 'R ≥ 15 m yoki 20 × 20 m; ≤ 150 m', note: parts.join(' · ') };
+      return { status: miss.length || long.length ? 'fail' : 'pass', ...(miss.length || long.length ? { where: { pts: [...miss, ...long].map(e => e.p) } } : {}),
+        ...(miss.length ? { fix: { id: 'dead-end' as const, label: 'Burilish maydonchasi qoʻyish', hint: `${miss.length} ta berk uchga R 15 m aylanish maydonchasi qoʻyiladi (57-band). 20 × 20 m maydonchaga — «Koʻchalar» qadamida. ${long.length ? '150 m dan uzun berk koʻchalarni (106-band) qisqartirish yoki ulash — qoʻlda.' : ''}`.trim() } } : {}), value: des.length - miss.length, unit: `/ ${des.length}`, limit: 'R ≥ 15 m yoki 20 × 20 m; ≤ 150 m', note: parts.join(' · ') };
     },
   },
   {
@@ -310,7 +317,7 @@ export const RULES: Rule[] = [
       const fh = doc.settings.floorHeight, Ht = (b: Project['buildings'][number]) => (b.floors + (b.z0 ?? 0)) * fh;
       // 31.10: stilobat ustidagi jamoat binolari (F2, F3, F4.2–F4.4) — H ≥ 18 m
       if (!doc.buildings.some(b => Ht(b) >= 28 || ((b.z0 ?? 0) > 0 && Ht(b) >= 18))) return { status: 'na', note: 'Balandligi 28 m va undan yuqori turar joy binolari yoʻq — bitta uzun tomondan (koʻchadan) yetib kelish yetarli (666-band).' };
-      if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchiq — hovlidagi yoʻlak tekshirilmadi (Yashil qadami).' };
+      if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchiq — hovlidagi yoʻlak tekshirilmadi (Yashil qadami).', fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar obodonlashtiriladi va hovlidagi yongʻin yoʻlagi (667, 675, 676-bandlar) avtomatik chiziladi.' } };
       const ys = landscape(doc).filter(y => y.fire), bad = ys.filter(y => !y.fire!.area), noIn = ys.filter(y => !y.z && y.fire!.area && !(y.entries ?? []).some(e => e.kind === 'arka' || (e.kind === 'oraliq' && (e.w ?? 0) >= y.fire!.w)));
       const roofs = ys.filter(y => y.z), noRamp = roofs.filter(y => y.fire!.area && !y.ramp);
       const w = Math.max(0, ...ys.map(y => y.fire!.w));
