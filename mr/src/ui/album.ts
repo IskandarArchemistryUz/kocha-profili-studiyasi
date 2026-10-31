@@ -51,6 +51,7 @@ const saveLook = () => { try { localStorage.setItem('mr-plan-look', JSON.stringi
 
 export function openAlbum(o: AlbumOpts): void {
   document.getElementById('album')?.remove();
+  let selWall = -1, wallKey: ((dir: number) => void) | null = null, wallTab: (() => void) | null = null;
   let bid = o.bid, sel: number[] = [], selRoom = -1, mode: 'tanlash' | 'devor' = 'tanlash', msg = '', msgBad = false, closeArmed = false;
   let view: AlbView = o.view ?? 'reja', insol: InsolView | null = o.insol ?? null, insolBusy = false, hiApt = -1, insolHour = 12;
   /** animatsiya (31.10): tanlangan kun, ijro holati, faqat quyosh dogʻi qatlamini qayta chizish */
@@ -79,7 +80,10 @@ export function openAlbum(o: AlbumOpts): void {
     const pl = secOf(); (hist.get(bid) ?? hist.set(bid, []).get(bid)!).push(planOf(pl)); work.set(bid, r.plan); dirty.add(bid); if (!keepSel) { sel = []; selRoom = -1; } msg = ''; render();
   }
   const close = () => { if (dirty.size && !closeArmed) { closeArmed = true; msg = 'Saqlanmagan tahrir bor: «Saqlash» yoki yana × — bekor qilish'; msgBad = true; render(); return; } ov.remove(); document.removeEventListener('keydown', onKey); o.onClose(bid, floor); };
-  const onKey = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.tagName === 'INPUT') return; if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') go(-1); else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') go(1); };
+  const onKey = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+    // 31.10: tanlangan devor — strelkalar 0,1 m, Tab — keyingi devor, Esc — tanlovdan chiqish
+    if (selWall >= 0 && wallKey) { if (e.key === 'Escape') { selWall = -1; render(); e.preventDefault(); return; } if (e.key === 'Tab') { wallTab?.(); e.preventDefault(); return; } const dd = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowDown' || e.key === 'ArrowLeft' ? -1 : 0; if (dd) { wallKey(dd); e.preventDefault(); return; } }
+    if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') go(-1); else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') go(1); };
   document.addEventListener('keydown', onKey);
 
   /** qavat tasmasi: kvartiralar (turi rangida, maydonga mutanosib) va xonalar */
@@ -148,8 +152,10 @@ export function openAlbum(o: AlbumOpts): void {
       const a = t.getAttribute('data-apt');
       if (a != null) { const i = Number(a), k = sel.indexOf(i); selRoom = -1; if (k >= 0) sel.splice(k, 1); else { sel.push(i); if (sel.length > 2) sel.shift(); } }
       else { selRoom = Number(t.getAttribute('data-room')); sel = []; }
-      msg = ''; render();
+      msg = ''; selWall = -1; render();
     });
+    if (editable && mode === 'tanlash' && sel.length === 1) wallOverlay(svg, res.toSvg, toPlan, P, sel[0], pl.layout.mods);
+    else { selWall = -1; wallKey = null; wallTab = null; }
     if (editable && mode === 'devor') {
       const ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g'); g.setAttribute('pointer-events', 'none'); svg.append(g);
       let last: { i: number; U: XY; t: number } | null = null;
@@ -203,6 +209,56 @@ export function openAlbum(o: AlbumOpts): void {
     msgBad = false;
   }
   /**
+   * 31.10 (egasi, ArchiCAD/Revit kabi): tanlangan kvartiraning ichki devorlarini sudrash — 0,1 m qadam, modul chegarasiga tortiladi,
+   * ikki tomondagi masofa vaqtincha koʻrinadi; derazani kesadigan yoki xonani < 1,1 m qiladigan joy — qizil, qoʻyilmaydi.
+   * Faqat tanlangan kvartira ustida bir nechta SVG chiziq — sahna yengil qoladi.
+   */
+  function wallOverlay(svg: SVGSVGElement, toSvg: (p: XY) => [number, number], toPlan: (e: MouseEvent) => XY, P: RulePlan, i: number, mods: Parameters<typeof aptInterior>[1]): void {
+    const I = aptInterior(P.apts[i], mods), H = I?.handles ?? []; if (!H.length) { wallKey = null; wallTab = null; return; }
+    if (selWall >= H.length) selWall = -1;
+    const ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g'); g.setAttribute('id', 'albWalls'); svg.append(g);
+    const el = (tag: string, at: Record<string, string | number>) => { const e = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, String(v)); return e; };
+    const ok = (h: typeof H[number], d: number) => d >= h.d0 + h.min - 1e-6 && d <= h.d0 + h.max + 1e-6 && !h.bad.some(([a, b]) => d - h.d0 > a && d - h.d0 < b);
+    const snapD = (h: typeof H[number], d: number) => { let r = Math.round(d * 10) / 10; for (const sp of h.snap) if (Math.abs(h.d0 + sp - d) < 0.15) r = h.d0 + sp; return Math.round(r * 1000) / 1000; };
+    const commit = (h: typeof H[number], d: number) => {
+      if (Math.abs(d - h.d0) < 1e-3) { render(); return; }
+      if (!ok(h, d)) { msg = tr('Bu joyga qoʻyib boʻlmaydi: xona 1,1 m dan tor yoki devor derazani kesadi'); msgBad = true; render(); return; }
+      const mv = (P.apts[i].inner?.mv ?? []).filter(m => !(m[0] === h.key[0] && Math.abs(m[1] - h.key[1]) < 0.06 && Math.abs(m[2] - h.key[2]) < 0.06));
+      if (Math.abs(d) > 1e-3) mv.push([...h.key, Math.round(d * 1000) / 1000]);
+      apply(editInner(P, i, { mv: mv.length ? mv : undefined }), true);
+    };
+    const ghost = (h: typeof H[number], d: number) => {
+      gTmp.replaceChildren(); const dd = d - h.d0, a: XY = [h.p[0] + h.n[0] * dd, h.p[1] + h.n[1] * dd], b: XY = [h.q[0] + h.n[0] * dd, h.q[1] + h.n[1] * dd], A = toSvg(a), B = toSvg(b), good = ok(h, d);
+      gTmp.append(el('path', { d: `M${A[0]} ${A[1]}L${B[0]} ${B[1]}`, stroke: good ? '#0a84ff' : '#ff3b30', 'stroke-width': 0.9 }));
+      const m: XY = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      for (const [sg, val] of [[-1, h.gapA + dd], [1, h.gapB - dd]] as const) {
+        const q = toSvg([m[0] + h.n[0] * sg * Math.min(val / 2, 1.6), m[1] + h.n[1] * sg * Math.min(val / 2, 1.6)]);
+        gTmp.append(el('rect', { x: q[0] - 4.6, y: q[1] - 2.5, width: 9.2, height: 3.4, rx: 1, fill: good ? '#141414' : '#ff3b30' }));
+        const t = el('text', { x: q[0], y: q[1], 'font-size': 2.3, 'text-anchor': 'middle', fill: '#fff' }); t.textContent = `${fmt(val, 2)} m`; gTmp.append(t);
+      }
+    };
+    H.forEach((h, k) => {
+      const A = toSvg(h.p), B = toSvg(h.q), on = k === selWall;
+      const vis = el('path', { d: `M${A[0]} ${A[1]}L${B[0]} ${B[1]}`, stroke: on ? '#0a84ff' : 'transparent', 'stroke-width': 0.7, 'pointer-events': 'none' });
+      const hit = el('path', { d: `M${A[0]} ${A[1]}L${B[0]} ${B[1]}`, stroke: 'transparent', 'stroke-width': 3, 'data-wall': k, style: 'cursor:move' });
+      hit.addEventListener('pointerenter', () => { if (k !== selWall) vis.setAttribute('stroke', 'rgba(10,132,255,.45)'); });
+      hit.addEventListener('pointerleave', () => { if (k !== selWall) vis.setAttribute('stroke', 'transparent'); });
+      hit.addEventListener('click', e => e.stopPropagation());
+      hit.addEventListener('pointerdown', e => {
+        e.stopPropagation(); e.preventDefault(); selWall = k; const s0 = toPlan(e); let d = h.d0, moved = false;
+        hit.setPointerCapture(e.pointerId);
+        const mvH = (ev: PointerEvent) => { const p = toPlan(ev), dd = (p[0] - s0[0]) * h.n[0] + (p[1] - s0[1]) * h.n[1]; if (Math.abs(dd) > 0.04) moved = true; d = snapD(h, h.d0 + dd); ghost(h, d); };
+        const up = () => { hit.removeEventListener('pointermove', mvH); hit.removeEventListener('pointerup', up); if (moved) commit(h, d); else { render(); } };
+        hit.addEventListener('pointermove', mvH); hit.addEventListener('pointerup', up);
+      });
+      g.append(vis, hit);
+    });
+    const gTmp = el('g', { 'pointer-events': 'none' }); g.append(gTmp);
+    if (selWall >= 0) ghost(H[selWall], H[selWall].d0);
+    wallKey = dir => { const h = H[selWall]; if (!h) return; commit(h, Math.round((h.d0 + dir * 0.1) * 10) / 10); };
+    wallTab = () => { selWall = (selWall + 1) % H.length; render(); };
+  }
+  /**
    * V2 (egasi, 31.10): tanlangan kvartiraning ichki rejasini qoʻlda sozlash — umumiy xona qaysi tomonda, uning devorini 0,3 m ga
    * surish (derazani kesmaydi), master-blok (avto / ha / yoʻq), hoʻl xonalar eshigi surma. Barcha turar qavatlarga qoʻllanadi.
    */
@@ -214,7 +270,9 @@ export function openAlbum(o: AlbumOpts): void {
     const canFlip = sig(aptInterior({ ...a, inner: { ...iv, flip: !iv.flip } }, mods)) !== sig(aptInterior(a, mods));
     return h('div', { class: 'col', id: 'albInner', style: 'gap:6px' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Ichki reja')), dK ? h('span', { class: 'num' }, `${tr('umumiy xona')} ${dK > 0 ? '+' : ''}${fmt(dK, 1)} m`) : ''),
-      h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
+      h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip, mv: undefined }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
+      h('div', { class: 't-small', id: 'albWallHint' }, tr('Devorni sichqoncha bilan suring — 0,1 m qadam, modul chegarasiga tortiladi; tanlangan devor: strelkalar ±0,1 m, Tab — keyingisi, Esc — chiqish.')),
+      iv.mv?.length ? btn('albWallReset', 'Devorlarni asliga qaytarish', () => apply(editInner(P, i, { mv: undefined }), true)) : '',
       h('div', { class: 't-small' }, tr('Umumiy xona devori')),
       h('div', { class: 'row2' }, btn('albInKm', '−0,3 m', () => apply(editInner(P, i, { dK: Math.round((dK - 0.3) * 10) / 10 }), true), dK <= -1.5, 'Umumiy xona devori 0,3 m ga (derazani kesmasa)'), btn('albInKp', '+0,3 m', () => apply(editInner(P, i, { dK: Math.round((dK + 0.3) * 10) / 10 }), true), dK >= 1.5, 'Umumiy xona devori 0,3 m ga (derazani kesmasa)')),
       a.rooms >= 2 ? h('div', { class: 'seg sm', id: 'albInMaster', role: 'group', 'aria-label': tr('Asosiy yotoq bloki') }, ...([[undefined, 'Asosiy yotoq: avto'], [true, 'Asosiy yotoq: ha'], [false, 'Asosiy yotoq: yoʻq']] as const).map(([v, t]) => h('button', { 'aria-pressed': iv.master === v, onclick: () => apply(editInner(P, i, { master: v }), true) }, tr(t)))) : '');
