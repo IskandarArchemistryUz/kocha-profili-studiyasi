@@ -145,6 +145,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`tijorat va
   await page.evaluate(() => { const ed = (window as any).__mr; ed.store.dispatch({ type: 'setZones', zones: [{ id: 'z0', at: ed.store.doc.origin, use: 'savdo' }] }); });
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
   await expect(page.locator('[data-typ=perimetr]')).toHaveCount(0);
+  await page.locator('#typoPick > summary').click();   // 31.10 (A variant): tipologiyalar «Almashtirish» ostida
   await expect(page.locator('[data-typ=savdo_minora]')).toBeVisible(); await expect(page.locator('[data-typ=savdo_qator]')).toBeVisible();
   await page.click('[data-typ=savdo_minora]'); await page.click('#genGo');
   const k = await page.evaluate(() => (window as any).__mr.store.doc.buildings.map((b: any) => b.gen?.kind));

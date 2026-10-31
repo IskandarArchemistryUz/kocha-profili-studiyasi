@@ -140,6 +140,13 @@ const ICON = {
 };
 
 const DL = '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', EYE = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6"/>', SUN = '<path d="M8.5 12a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>', WALK = '<path d="M11.5 4.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M10 21l2.2-6.2 2.8 2.7V21M8.5 11.5L12 8.5l2.8 2 2.7 1M12 8.5l-1.8 6.3"/>';
+/** 31.10 (A variant): qadam izohi — birinchi gap koʻrinadi, qolgani «Batafsil» ostida (matn oʻzgarmagan) */
+function leadEl(t: string): HTMLElement {
+  const m = /^(.{24,}?[.:;])\s+(.+)$/s.exec(t);
+  if (!m) return h('p', { class: 'sp-lead' }, t);
+  const d = h('details', { class: 'sp-lead' }, h('summary', {}, m[1], h('span', { class: 'sp-more' }, tr('Batafsil'))), h('p', {}, m[2]));
+  return d;
+}
 const chev = () => { const s = svgIcon('<path d="M9 6l6 6-6 6"/>'); s.classList.add('chev'); return s; };
 const rTxt = (r: SvcResult) => r.rMin !== r.rMax ? `${r.rMin}–${r.rMax} m` : `${r.r} m`;
 const STATUS_TXT: Record<Result['status'], string> = { pass: 'mos', fail: 'mos emas', review: 'koʻrib chiqish', na: 'baholanmadi' };
@@ -2270,30 +2277,41 @@ export class Editor {
       if (!okT.includes(g.typology)) g.typology = okT[0];
       const isLow = LOW_T.includes(g.typology); if (isLow) this.lowKind = g.typology as LowKind;
       const ft = h('b', { class: 'num', style: 'min-width:48px;text-align:right' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : tr('oʻchiq'));
-      body.append(
+      // 31.10 (A variant): tanlangan tipologiya — bitta qator, «Almashtirish» bilan ochiladi (plitkalar va id lar oʻzgarmagan)
+      const typoPick = h('details', { class: 'typo-pick', id: 'typoPick' },
+        h('summary', {}, h('span', { class: 'tp-ic', html: pg('typo', g.typology) }), h('span', { class: 'k' }, h('span', { class: 'sub' }, tf('Tipologiya · ${n} ta', { n: okT.length })), h('b', {}, tr(TYPO_NAME[g.typology]))), h('span', { class: 'btn btn-sm tp-ch' }, tr('Almashtirish'))));
+      typoPick.append(
         // tipologiyalar guruhlab (egasi, 31.10: bitta joyda, intuitiv): past qavatli — 1–3 qavat (ShNQ 2.07.01-23, 2-band), uylar qatori shu yerda
         ...TYPO_GROUPS.filter(([, ks]) => ks.some(k => okT.includes(k))).flatMap(([gname, ks]) => [
           ...(gname ? [h('div', { class: 'glabel' }, h('span', {}, tr(gname)), gname === 'Past qavatli' ? h('span', {}, tr('1–3 qavat')) : '')] : [h('div', { class: 'glabel' }, h('span', {}, tr('Tipologiya')), h('span', {}, `${okT.length} ta`))]),
-          h('div', { class: 'tiles', role: 'group', 'aria-label': tr(gname || 'Tipologiya') }, ...ks.map(k => { const ok = okT.includes(k); return h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, disabled: !ok, title: ok ? tr(TYPO_NAME[k]) : tf('«${u}» parseliga mos emas', { u: tr(useDef(selUse!).name) }), onclick: () => { g.typology = k; if (LOW_T.includes(k) && g.maxF > 3) { g.maxF = LOW[k as LowKind].floors; g.minF = Math.min(g.minF, g.maxF); } this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }); }))]),
-        ...(isLow ? [] : [
+          h('div', { class: 'tiles', role: 'group', 'aria-label': tr(gname || 'Tipologiya') }, ...ks.map(k => { const ok = okT.includes(k); return h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, disabled: !ok, title: ok ? tr(TYPO_NAME[k]) : tf('«${u}» parseliga mos emas', { u: tr(useDef(selUse!).name) }), onclick: () => { g.typology = k; this.openDet.delete('typoPick');   /* tanlangach roʻyxat yopiladi (keepDetails) */ if (LOW_T.includes(k) && g.maxF > 3) { g.maxF = LOW[k as LowKind].floors; g.minF = Math.min(g.minF, g.maxF); } this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }); }))]));
+      // asosiy parametrlar ochiq; qolganlari «Qoʻshimcha» ichida (A variant) — id lar va funksiyalar saqlangan
+      const farRow = isLow ? [] : [
         h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Maqsadli UMN (FAR)')), h('div', { class: 'grow' }, range({ min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', 'aria-label': tr('Maqsadli UMN (FAR)'), oninput: v => { g.far = v; ft.textContent = v > 0 ? fmt(v, 1) : tr('oʻchiq'); } })), ft),
-        h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'))]),
+        h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'))];
+      const moreN = isLow ? 0 : 4 + ((g.parkNorm ?? true) ? 0 : 1) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1);
+      const more = isLow ? '' : h('details', { class: 'gen-more', id: 'genMore' }, h('summary', {}, tf('Qoʻshimcha sozlamalar · ${n}', { n: moreN })));
+      body.append(typoPick,
+        ...(isLow || g.typology !== 'avto' ? [] : farRow),
         isLow ? h('div', { class: 'group', id: 'lowFl' },
           stp('gMax', tr('Qavat'), tr('kam qavatli: 1–3 (mansarda bilan), ShNQ 2.07.01-23, 2-band'), g.maxF <= 3 ? g.maxF : LOW[g.typology as LowKind].floors, 1, 3, 1, x => { g.maxF = Math.min(3, x); g.minF = Math.min(g.minF, g.maxF); })) :
         h('div', { class: 'group' },
           stp('gMax', tr('Qavat, eng koʻp'), '1–40', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }),
           stp('gMin', tr('eng kam'), '1–40', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); }),
-          stp('gDepth', tr('Chuqurlik'), '9–24 m', g.depth, 9, 24, 0.5, x => { g.depth = x; }, 'm'),
           stp('gLen', tr('Seksiya uzunligi'), '15–60 m', g.secLen, 15, 60, 1, x => { g.secLen = x; }, 'm'),
           (() => { const S0 = this.store.doc.settings, lim = lenLimit(S0.construct ?? 'monolit', S0.seismic); return lim != null && g.secLen > lim ? h('div', { class: 'li', id: 'seisLenNote' }, h('span', { class: 'chip warn' }, h('i'), tf('Seysmik boʻlma ≤ ${l} m', { l: lim })), h('span', { class: 't-small' }, tf('${s} ball, ${n} — generatsiyada seksiya ${l} m bilan cheklanadi (QMQ 2.01.03-19, 3.1-jadval)', { s: S0.seismic, n: SYS[S0.construct ?? 'monolit'].name, l: lim }))) : ''; })(),
-          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Aniq oʻlcham'), h('span', { class: 'sub' }, tr(g.exact ? 'har seksiya aynan uzunlik × chuqurlik; qoldiq — izohda' : 'oʻchiq: qirra teng boʻlaklarga boʻlinadi (uzunlik — moʻljal)'))), sw({ id: 'gExact', label: tr('Aniq oʻlcham'), on: !!g.exact, onchange: v => { g.exact = v; this.renderPanel(); } })),
-          stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm'),
-          stp('gSty', tr('Stilobat'), tr('qavat'), g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; }),
-          ...((g.parkNorm ?? true) ? [] : [stp('gPL', tr('Yer osti'), tr('sath'), g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })])),
-        ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Har ~100 m da hovliga oʻtish (6 m)')), sw({ id: 'gPass', label: tr('Har ~100 m da hovliga oʻtish (6 m)'), on: g.passages, onchange: v => { g.passages = v; } }))) : '',
+          stp('gSty', tr('Stilobat'), tr('qavat'), g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; })),
         ['minora', 'blok_minora', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, stp('gTower', tr('Minora qavati'), '9–60', g.towerF ?? 16, 9, 60, 1, x => { g.towerF = x; })) : '',
+        ...(more ? [(() => { (more as HTMLElement).append(
+          ...(g.typology === 'avto' ? [] : farRow),
+          h('div', { class: 'group' },
+            stp('gDepth', tr('Chuqurlik'), '9–24 m', g.depth, 9, 24, 0.5, x => { g.depth = x; }, 'm'),
+            h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Aniq oʻlcham'), h('span', { class: 'sub' }, tr(g.exact ? 'har seksiya aynan uzunlik × chuqurlik; qoldiq — izohda' : 'oʻchiq: qirra teng boʻlaklarga boʻlinadi (uzunlik — moʻljal)'))), sw({ id: 'gExact', label: tr('Aniq oʻlcham'), on: !!g.exact, onchange: v => { g.exact = v; this.renderPanel(); } })),
+            stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm'),
+            ...((g.parkNorm ?? true) ? [] : [stp('gPL', tr('Yer osti'), tr('sath'), g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })])),
+          ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Har ~100 m da hovliga oʻtish (6 m)')), sw({ id: 'gPass', label: tr('Har ~100 m da hovliga oʻtish (6 m)'), on: g.passages, onchange: v => { g.passages = v; } }))) : ''); return more; })()] : []),
         h('div', { class: 'glabel' }, h('span', {}, tr('Parkovka'))),
-        h('div', { class: 'tiles c4', role: 'group', 'aria-label': tr('Parkovka') }, ...(Object.keys(PARK_NAME) as ParkingKind[]).map(k => h('button', { class: 'tile', 'aria-pressed': (g.parking ?? 'yoq') === k, 'data-park': k, onclick: () => { g.parking = k; this.renderPanel(); }, html: pg('park', k) + `<span>${tr(PARK_NAME[k])}</span>` }))),
+        h('div', { class: 'tiles c4 compact', role: 'group', 'aria-label': tr('Parkovka') }, ...(Object.keys(PARK_NAME) as ParkingKind[]).map(k => h('button', { class: 'tile', 'aria-pressed': (g.parking ?? 'yoq') === k, 'data-park': k, onclick: () => { g.parking = k; this.renderPanel(); }, html: pg('park', k) + `<span>${tr(PARK_NAME[k])}</span>` }))),
         ...((g.parking ?? 'yoq') !== 'yoq' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Joylashtirish moduli')), h('span', {}, tr('dizayn-kod 6.3'))),
           h('div', { class: 'tiles c4', role: 'group', 'aria-label': tr('Joylashtirish moduli') }, ...PARK_MODS.map(k => h('button', { class: 'tile', 'aria-pressed': (g.parkModule ?? 'p90') === k, 'data-pmod': k, title: `${tr(PARK_MOD[k].name)}: ${tr(PARK_MOD[k].src)}`, onclick: () => { g.parkModule = k; this.renderPanel(); }, 'aria-label': tr(PARK_MOD[k].name), html: pg('pmod', k) + `<span>${tr(PARK_MOD[k].short)}</span>` }))),
@@ -3468,7 +3486,7 @@ export class Editor {
     else this.panelBody(s, body);
     this.keepDetails(body);
     p.replaceChildren(
-      h('header', {}, h('div', { class: 'sp-step' }, h('span', {}, tf('${s.n}-qadam / ${t}', { 's.n': s.n, t: STEPS.length })), h('span', { class: 'sp-prog' }, h('i', { style: `width:${Math.round(s.n / STEPS.length * 100)}%` }))), h('h2', {}, tr(s.title)), h('p', {}, tr(s.lead))),
+      h('header', {}, h('div', { class: 'sp-step' }, h('span', {}, tf('${s.n}-qadam / ${t}', { 's.n': s.n, t: STEPS.length })), h('span', { class: 'sp-prog' }, h('i', { style: `width:${Math.round(s.n / STEPS.length * 100)}%` }))), h('h2', {}, tr(s.title)), leadEl(tr(s.lead))),
       body,
       h('footer', {},
         h('button', { class: 'btn', disabled: !prev, onclick: () => prev && this.go(prev) }, ...icl(IC.back, tr('Oldingi'))),
