@@ -16,7 +16,7 @@ import { squareSections, avoidObstacles, assignEnds, type Obstacle3 } from './ge
 import { lowriseBlock } from './lowrise';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
-export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
+export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo' | 'arka';
 export type ParkingKind = 'yoq' | 'yer_osti' | 'stilobat' | 'yer_usti';
 
@@ -669,7 +669,7 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
   if (!outer0) return { sections: [], capFloors: null, notes: ['Kvartal juda tor — chekinishdan keyin joy qolmadi'] };
   const A = clean(outer0, 6), tf = Math.max(g.towerF ?? 16, g.minF);
   switch (t) {
-    case 'yakka': case 'taunhaus': case 'juft': case 'hovli': {
+    case 'yakka': case 'taunhaus': case 'juft': case 'hovli': case 'klaster': {
       // 31.10: past qavatli uylar — alohida qoida (core/lowrise): kvartal cheti (qizil chiziq) boʻylab avval uchastka, keyin uy;
       // chekinish uchastka ichida (oldi 5 m), shuning uchun kvartalning oʻzi olinadi (setback emas)
       const { houses, notes: n2 } = lowriseBlock(clean(block, 4), t, Math.max(1, Math.min(3, g.maxF)));
@@ -758,7 +758,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   const far = g.far ?? 0;
   const t: Typology = g.typology === 'avto' ? autoTypology(far || 2) : g.typology;
   let r: GenResult;
-  if (far > 0 && !['yakka', 'taunhaus', 'juft', 'hovli'].includes(t)) {
+  if (far > 0 && !['yakka', 'taunhaus', 'juft', 'hovli', 'klaster'].includes(t)) {
     // maxF ni minF…maxF oraligʻida tanlash: UMN maqsadga eng yaqin (oshmasdan afzal)
     let best: GenResult | null = null, bd = Infinity, bx = { ...XS };
     for (let f = Math.max(1, g.minF); f <= Math.max(g.minF, g.maxF); f++) {
@@ -769,7 +769,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
     r = best ?? typoCore(block, t, g, floorH); if (best) XS = bx;
   } else r = typoCore(block, t, g, floorH);
   r.typology = t;
-  if (t === 'yakka' || t === 'taunhaus' || t === 'juft' || t === 'hovli') {
+  if (t === 'yakka' || t === 'taunhaus' || t === 'juft' || t === 'hovli' || t === 'klaster') {
     // past qavatli uylar: uchastkalar oʻz qoidasida (lowrise) — seksiya tuzatishlari (qirqish, tor boʻlak, avtoturargoh) qoʻllanmaydi;
     // mavjud binolar (toʻsiq) bilan kesishgan uchastkadagi uy olinmaydi
     const hit = (s: GenSection) => (opts.avoid ?? []).some(o => { try { return polygonClipping.intersection([[...(s.plot ?? s.ring), (s.plot ?? s.ring)[0]].map(p => [p[0], p[1]] as [number, number])], [[...o.ring, o.ring[0]].map(p => [p[0], p[1]] as [number, number])]).length > 0; } catch { return false; } });
@@ -867,7 +867,7 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
   return out;
 }
 
-export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', savdo_blok: 'Savdo markazi + parkovka' };
+export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', savdo_blok: 'Savdo markazi + parkovka' };
 /** Funksiya boʻyicha odatiy generator sozlamalari (turar joydan tashqari); null — foydalanuvchi sozlamalari */
 export function usePreset(use: string, g: GenParams): GenParams | null {
   switch (use) {

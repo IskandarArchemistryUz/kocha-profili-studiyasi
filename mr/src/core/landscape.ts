@@ -165,6 +165,19 @@ function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], f
       if (best) trees.push(best);
     }
   }
+  // berk koʻcha (klaster, K-01): bir-biriga qaragan ikki uchastka qirrasi orasidagi 5,5–7 m oraliq — qoplama (piyoda va kirish yoʻli)
+  if (plots.length >= 4) {
+    const E = plots.map(p => p.plot.map((a, i) => { const b = p.plot[(i + 1) % p.plot.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { a, b, l, u: [(b[0] - a[0]) / l, (b[1] - a[1]) / l] as XY }; }).filter(e => e.l >= 5));
+    for (let i = 0; i < E.length; i++) for (let j = i + 1; j < E.length; j++) for (const e of E[i]) for (const f of E[j]) {
+      if (e.u[0] * f.u[0] + e.u[1] * f.u[1] > -0.99) continue;
+      const n: XY = [-e.u[1], e.u[0]], d = (f.a[0] - e.a[0]) * n[0] + (f.a[1] - e.a[1]) * n[1];
+      if (Math.abs(d) < 5.5 || Math.abs(d) > 7) continue;
+      const t = (p: XY) => (p[0] - e.a[0]) * e.u[0] + (p[1] - e.a[1]) * e.u[1], lo = Math.max(0, Math.min(t(f.a), t(f.b))), hi = Math.min(e.l, Math.max(t(f.a), t(f.b)));
+      if (hi - lo < 5) continue;
+      const P = (s2: number, k: number): [number, number] => [e.a[0] + e.u[0] * s2 + n[0] * d * k, e.a[1] + e.u[1] * s2 + n[1] * d * k];
+      pave.push([[P(lo, 0), P(hi, 0), P(hi, 1), P(lo, 1), P(lo, 0)]]);
+    }
+  }
   const houses = own.map(x => [close(x.r)] as Polygon);
   const pavMP = pave.length ? tryOp(() => polygonClipping.intersection(polygonClipping.union(pave[0], ...pave.slice(1)), B), [] as MultiPolygon) : [];
   const green = tryOp(() => polygonClipping.difference(B, ...houses, ...(pavMP.length ? [pavMP] : [])), [] as MultiPolygon);

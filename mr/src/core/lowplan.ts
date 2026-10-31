@@ -153,7 +153,7 @@ function rowHouse(W: number, D: number, floor: number, floors: number): Lp | str
  * hovli tomonda ayvon; darvozaxona qarshisida toʻsiq devor. Zamonaviy: oshxona-mehmonxona, yotoqxonalar, yoʻlak.
  */
 function hovliHouse(A: number, B: number, C: number, style: 'zamonaviy' | 'milliy', northU: number): Lp | string {
-  if (A < 11 || C < 13 || B < 5.5) return 'kichik';
+  if (A < 10 || C < 11 || B < 5.0) return 'kichik';
   const L = lp(), ay = Math.min(2.2, B - 4.3), rd = B - ay;   // ayvon chuqurligi 2,0–2,2 m (talqin: H-07), xona chuqurligi ≈ 4,3–4,5 m
   const room = (r: R, kind: HKind, poly?: XY[]) => L.rooms.push({ r, kind, poly });
   const wall = (a: XY, b: XY, cuts: WallCut[] = []) => L.walls.push({ a, b, cuts });
@@ -168,7 +168,7 @@ function hovliHouse(A: number, B: number, C: number, style: 'zamonaviy' | 'milli
     wall([g0, 0], [g0, B]);
     wall([0, rd], [g0, rd], [{ k: 'door', s: rd + 0.5, w: 0.9, side: -1, hinge: 0 }, ...(mx < g0 ? [{ k: 'door' as const, s: mx + 0.5, w: 0.8, side: -1 as const, hinge: 0 as const }] : [])]);
     // yon qanot: xonalar ≈ 3,4 m modul (H-05), oxirida oshxona va hojatxona/hammom (H-10, H-11); hammasi ayvonga ochiladi (H-04)
-    const n = Math.max(3, Math.floor((C - rd) / 3.4)), cuts: number[] = [rd];
+    const n = Math.max(2, Math.round((C - rd) / 3.3)), cuts: number[] = [rd];
     for (let i = 1; i < n; i++) cuts.push(rd + (C - rd) * i / n);
     cuts.push(C);
     const kinds: HKind[] = cuts.slice(0, -1).map((_, i, arr) => i === arr.length - 1 ? 'hammom' : i === arr.length - 2 ? 'oshxona' : 'xona');

@@ -71,3 +71,17 @@ describe('Juft va hovli uylar (31.10)', () => {
     for (let i = 0; i < houses.length; i++) for (let j = i + 1; j < houses.length; j++) { let m = Infinity; for (const p of houses[i].ring) for (const q of houses[j].ring) m = Math.min(m, Math.hypot(p[0] - q[0], p[1] - q[1])); expect(m).toBeGreaterThanOrEqual(5.99); }
   });
 });
+
+describe('Klaster (31.10): berk koʻcha atrofida hovlilar', () => {
+  it('uchastkalar 15 × 15, ustma-ust emas, uy uchastka ichida va L shakl; berk koʻcha 6 m', async () => {
+    const { lowriseBlock: lb } = await import('../../src/core/lowrise');
+    const { houses, notes } = lb([[0, 0], [150, 0], [150, 90], [0, 90]], 'klaster');
+    expect(houses.length).toBeGreaterThanOrEqual(16);
+    expect(notes[0]).toContain('Klaster');
+    const pa = (r: [number, number][]) => Math.abs(r.reduce((s, p, i) => s + p[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * p[1], 0) / 2);
+    for (const h of houses) { expect(pa(h.plot as any)).toBeCloseTo(225, 0); expect(h.ring.length).toBe(6); }
+    // uchastkalar ustma-ust tushmaydi: markazlar orasi ≥ 15 m (bir qatorda) yoki boshqa qatorda
+    const cs = houses.map(h => h.plot.reduce((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4], [0, 0]));
+    for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) expect(Math.hypot(cs[i][0] - cs[j][0], cs[i][1] - cs[j][1])).toBeGreaterThan(14.9);
+  });
+});

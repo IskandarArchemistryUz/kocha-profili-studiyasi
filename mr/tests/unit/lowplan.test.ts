@@ -48,3 +48,12 @@ describe('Past qavatli uy rejalari (31.10, lowplan)', () => {
     expect(partySide(R(8, 11), [[-3, 0], [8, 0], [8, 28], [-3, 28]])).toBe(1);
   });
 });
+
+describe('Klaster uylari rejasi', () => {
+  it('klaster hovli uylari — milliy reja chiqadi (koʻcha qanoti berk koʻcha tomonida)', async () => {
+    const { lowriseBlock } = await import('../../src/core/lowrise');
+    const { houses } = lowriseBlock([[0, 0], [150, 0], [150, 90], [0, 90]], 'klaster');
+    const ok = houses.filter(h => { const P = housePlan(h.ring, 1, 1, { plot: h.plot, north: [0, 1] }); return P && P.rooms.some(q => q.kind === 'darvozaxona'); });
+    expect(ok.length / houses.length).toBeGreaterThan(0.9);
+  });
+});

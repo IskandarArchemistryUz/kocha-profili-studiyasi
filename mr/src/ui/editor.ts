@@ -119,7 +119,7 @@ const TOOLS: [ToolMode, string, string][] = [
   ['section', 'Kesim (S)', '<path d="M3 12h18" stroke-dasharray="3 2"/><path d="M6 12V6h12v6M6 12v6h12v-6" opacity=".45"/>'],
   ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
 ];
-const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Klaster', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
@@ -2241,7 +2241,7 @@ export class Editor {
     };
     return h('details', { class: 'how manual', id: 'lowRow', open: drawingL }, h('summary', {}, svgIcon(IC.pencil), tr('Past qavatli uylar qatori')),
       h('div', { class: 'col' },
-        seg<LowKind>('lowKind', 'Uy turi', [['yakka', 'Yakka uy'], ['juft', 'Juft'], ['taunhaus', 'Taunhaus'], ['hovli', 'Hovli']], this.lowKind, v => { this.lowKind = v; }),
+        seg<LowKind>('lowKind', 'Uy turi', [['yakka', 'Yakka uy'], ['juft', 'Juft'], ['taunhaus', 'Taunhaus'], ['hovli', 'Hovli'], ['klaster', 'Klaster']], this.lowKind, v => { this.lowKind = v; }),
         seg<1 | -1 | 0>('lowSide', 'Tomon', [[1, 'Chapga'], [-1, 'Oʻngga'], [0, 'Ikkala tomon']], this.lowSide, v => { this.lowSide = v; }),
         h('div', { class: 'field' }, h('label', {}, tr('Chiziqdan chekinish, m')), off),
         h('span', { class: 't-small' }, this.lowKind === 'yakka'
