@@ -135,6 +135,7 @@ const ICON = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18Z"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   layers: '<path d="M4 18h16"/><path d="M4 12h16"/><path d="M4 6h16"/><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="7" cy="18" r="1.6"/>',
 };
 
@@ -233,10 +234,14 @@ export class Editor {
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, logoSvg(18), 'Archemistry Lab'),
       h('span', { class: 'svcbadge' }, h('i'), tr('Master reja')),
       name, save, h('span', { class: 'spacer' }),
+      seg,
       this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
-      h('button', { class: 'btn', id: 'gxOpen', title: tr('Grafika: masshtabli varaqlar (bosh reja, zonalash, figure-ground, landshaft) — SVG/PNG'), onclick: () => this.startFrame() }, tr('Grafika')),
-      h('button', { class: 'btn', id: 'chOpen', title: tr('Chizmadon: taqdimot albomi va tahlil diagrammalari'), onclick: () => this.openCh() }, tr('Chizmadon')),
-      seg, lang, theme, this.acctBtn());
+      // 31.10 (A variant, «Tartib»): taqdimot vositalari — bitta menyuda (Grafika, Chizmadon); id lar saqlangan
+      this.popBtn('presPop', tr('Taqdimot'), () => h('div', { class: 'col menu-col' },
+        h('button', { class: 'mi', id: 'gxOpen', onclick: () => { this.closePop(); this.startFrame(); } }, h('b', {}, tr('Grafika')), h('span', {}, tr('Masshtabli varaqlar: bosh reja, zonalash, figure-ground, landshaft — SVG/PNG'))),
+        h('button', { class: 'mi', id: 'chOpen', onclick: () => { this.closePop(); this.openCh(); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari'))))),
+      // til va tema — bitta «Sozlamalar» tugmasida
+      this.prefBtn(lang, theme), this.acctBtn());
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
     const kpi = h('div', { class: 'kpibar glassbar', role: 'group', 'aria-label': tr('Koʻrsatkichlar') });
@@ -250,7 +255,7 @@ export class Editor {
     const attr = h('div', { class: 'attr', hidden: true });
     attr.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> hissachilari · Relyef: AWS Terrain Tiles · <span class="sat">Tasvir: Esri, Maxar, Earthstar Geographics</span><span class="carto" hidden> · Fon: Esri, HERE, Garmin</span><span class="ovt" hidden> · Overture Maps Foundation</span>';
     // tepada oʻngda: xarita (fon va uslub) va tahliliy qatlamlar
-    const mapctl = h('div', { class: 'mapctl' },
+    const mapctl = h('div', { class: 'mapctl one' },
       this.popBtn('stylePop', tr('Xarita'), () => this.stylePop(), 'down', ICON.map),
       this.popBtn('layPop', tr('Qatlamlar'), () => this.layPop(), 'down', ICON.layers),
       h('button', { type: 'button', class: 'mapbtn glassbar', id: 'worldBtn', title: tr('Dunyo xaritasi'), onclick: () => void this.openWorld() }, svgIcon(ICON.globe), h('span', {}, tr('Dunyo'))));
@@ -341,6 +346,14 @@ export class Editor {
   /* ---------- yuqori paneldagi ochiluvchi oynalar: uslub va kamera ---------- */
   private pop: HTMLElement | null = null;
   /** Hisob: kirilmagan — «Kirish», kirgan — pochta bosh harfi va menyu (pochta, balans, chiqish). Kirish talab qilinmasa — yashirin. */
+  /** Til va tema (31.10, A variant): sarlavhada bitta tishli gʻildirak; ichida — oʻsha boshqaruvlar (id lar: langSw, themeBtn) */
+  private prefBtn(lang: HTMLElement, theme: HTMLElement): HTMLElement {
+    const b = this.popBtn('prefPop', tr('Sozlamalar'), () => h('div', { class: 'col menu-col' },
+      h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Til')), lang),
+      h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Tungi rejim')), theme)));
+    b.classList.add('ib', 'sm'); b.classList.remove('btn'); b.replaceChildren(svgIcon(ICON.gear)); b.setAttribute('aria-label', tr('Sozlamalar'));
+    return b;
+  }
   private acctBtn(): HTMLElement {
     const box = h('span', { class: 'acct', id: 'acctBox' });
     const draw = () => {

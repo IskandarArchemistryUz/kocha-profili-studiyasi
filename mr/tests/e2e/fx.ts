@@ -10,6 +10,9 @@ export const UZ_INIT = () => { try {
   if (!sessionStorage.getItem('wm-test') && localStorage.getItem('kps_owner') == null) localStorage.setItem('kps_owner', '1');
 } catch { /* */ } };
 
+/** Sarlavha menyularidagi boshqaruvlar → menyu tugmasi */
+const MENU_HOST: Record<string, string> = { '#gxOpen': '#presPop', '#chOpen': '#presPop', '#themeBtn': '#prefPop', '#langSw': '#prefPop', '[aria-label="Tungi rejim"]': '#prefPop', '[aria-label="Yorugʻ rejim"]': '#prefPop' };
+
 export const test = base.extend({
   context: async ({ context }, use) => {
     await context.addInitScript(UZ_INIT);
@@ -28,6 +31,9 @@ export const test = base.extend({
   page: async ({ page }, use) => {
     const orig = page.click.bind(page);
     page.click = (async (sel: string, opts?: Parameters<Page['click']>[1]) => {
+      // 31.10 (A variant): Grafika va Chizmadon — «Taqdimot» menyusida, til va tema — «Sozlamalar» (⚙) da: menyu yopiq boʻlsa avval ochiladi
+      const host = MENU_HOST[sel];
+      if (host && !(await page.locator(sel).first().isVisible().catch(() => false)) && await page.locator(host).first().waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) await orig(host);
       if (/^\[data-step=[a-z]+\]$/.test(sel) && (await page.locator(sel).first().getAttribute('aria-expanded', { timeout: 5000 }).catch(() => null)) === 'true') return;
       // 27.10: ikkinchi darajali boshqaruvlar yigʻiq <details> ichida — foydalanuvchi kabi avval ochiladi
       await page.evaluate((q) => { try { const e = document.querySelector(q); if (!e || e.closest('summary')) return; let d = e.closest('details:not([open])'); while (d) { (d as HTMLDetailsElement).open = true; d = d.parentElement?.closest('details:not([open])') ?? null; } } catch { /* Playwright selektori */ } }, sel).catch(() => {});
@@ -41,6 +47,7 @@ export { expect, type Page, type BrowserContext };
 /** Til menyusi (10 til): menyuni ochib, tilni tanlash. Ilovalarda — #langSw, eski sahifalar sarlavhasida — #kpsLang */
 export async function pickLang(page: Page, l: string, root = '#langSw'): Promise<void> {
   const r = page.locator(root).first();
+  if (root === '#langSw' && !(await r.isVisible().catch(() => false)) && await page.locator('#prefPop').count()) await page.locator('#prefPop').click();
   await r.locator('.lm-btn, .eko-lb, .kl-btn').first().click();
   // ilovalarda menyu body ga koʻchadi (.lm-pop), eski sahifalarda — sarlavha ichida
   const inRoot = r.locator(`[data-lang=${l}]`);
