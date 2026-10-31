@@ -17,3 +17,18 @@ describe('41-jadval / 543-band pogʻonalari', () => {
     expect(builtInMtm(900)).toBe(60);
   });
 });
+
+import { checkBlock } from '../../src/core/seysmik';
+describe('QMQ 2.01.03-19, 3.1.1 / 3.1.3: L uylar', () => {
+  const hov: [number, number][] = [[0, 0], [15, 0], [15, 6.5], [6.5, 6.5], [6.5, 18], [0, 18]];
+  const kl: [number, number][] = [[0, 0], [11, 0], [11, 5.5], [5.5, 5.5], [5.5, 11.5], [0, 11.5]];
+  it('klaster uy: yon qanot 11,5 m — chiqib turgan qism 6 m, monolitda oʻtadi', () => {
+    expect(checkBlock(kl, 'monolit', 8).proj).toBeCloseTo(6, 1);
+    expect(checkBlock(kl, 'monolit', 8).projOk).toBe(true);
+  });
+  it('hovli uy: chok boʻlmasa 11,5 m, chok bilan — ikki toʻgʻri toʻrtburchak', () => {
+    expect(checkBlock(hov, 'gisht', 8).projOk).toBe(false);
+    const c = checkBlock(hov, 'gisht', 8, true);
+    expect(c.projOk).toBe(true); expect(c.lenOk).toBe(true);
+  });
+});

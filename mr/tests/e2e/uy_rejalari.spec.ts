@@ -33,6 +33,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`past qavat
   await page.click('[data-step=kvartira]');
   await expect(page.locator('#houseBox svg text', { hasText: 'darvozaxona' }).first()).toBeAttached();
   await expect(page.locator('#houseBox svg text', { hasText: 'ayvon' }).first()).toBeAttached();
+  // QMQ 2.01.03-19, 3.1.3: hovli L uy — antiseysmik chok bilan ikki boʻlma
+  await expect(page.locator('#houseBox svg text', { hasText: 'antiseysmik chok' }).first()).toBeAttached();
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings.filter((x: any) => x.footprint.length >= 6).every((x: any) => x.joint))).toBe(true);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/uy_hovli_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#houseStyle [data-hs=zamonaviy]');
   await expect(page.locator('#houseBox svg text', { hasText: 'darvozaxona' })).toHaveCount(0);

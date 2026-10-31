@@ -51,7 +51,14 @@ export function blockShape(r0: XY[]): BlockShape {
 }
 
 export interface BlockCheck { len: number; limit: number | null; lenOk: boolean; proj: number; projLim: number; projOk: boolean; rect: boolean }
-export function checkBlock(ring: XY[], sys: ConstructSys, ball: number): BlockCheck {
+/** Antiseysmik chok bilan ajratilgan boʻlmalar: ichki (botiq) burchaklardan toʻgʻri toʻrtburchak qismlar (3.1.3) */
+export function jointBlocks(ring: XY[]): XY[][] {
+  const r = signedArea(ring) < 0 ? [...ring].reverse() : ring, w = r.length >= 5 ? splitAtReflex(r) : null;
+  return w && w.length > 1 ? w : [r];
+}
+/** joint — bino chok bilan boʻlmalarga ajratilgan: har boʻlma alohida tekshiriladi, natija — eng yomoni */
+export function checkBlock(ring: XY[], sys: ConstructSys, ball: number, joint = false): BlockCheck {
+  if (joint) { const parts = jointBlocks(ring); if (parts.length > 1) { const cs = parts.map(p => checkBlock(p, sys, ball)); const bad = (c: BlockCheck) => (c.projOk ? 0 : 2) + (c.lenOk ? 0 : 1); return cs.reduce((a, c) => bad(c) > bad(a) || (bad(c) === bad(a) && c.len > a.len) ? c : a); } }
   const sh = blockShape(ring), d = SYS[sys] ?? SYS.monolit, limit = lenLimit(sys, ball), proj = sh.proj.length ? Math.max(...sh.proj) : 0;
   return { len: Math.round(sh.len * 10) / 10, limit, lenOk: limit == null || sh.len <= limit + 0.05, proj, projLim: d.proj, projOk: proj <= d.proj + 0.05, rect: sh.rect };
 }
