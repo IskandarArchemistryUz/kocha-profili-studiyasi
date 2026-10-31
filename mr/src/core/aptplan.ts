@@ -9,7 +9,8 @@
  * Kirish eshigi doim koridor bilan umumiy kesmada (doorLen), ichki eshiklar qoʻshni devordan ≥ 0,15 m (DOOR_GAP).
  * Mos kelmasa — null (eski sxema chiziladi): masalan, eshigi kemtik qirrasidagi katta burchak kvartirasi.
  */
-import { area, type XY } from './geo';
+import { area, signedArea, type XY } from './geo';
+import polygonClipping, { type Polygon } from 'polygon-clipping';
 import type { RuleApt, FacadeMod, InnerOv } from './sectionplan';
 
 export type InKind = 'umumiy' | 'xona' | 'oshxona' | 'yotoq' | 'master' | 'prixojaya' | 'xoll' | 'sanuzel' | 'vanna' | 'hx' | 'garderob' | 'kir';
@@ -42,7 +43,7 @@ export interface Notch { side: 'L' | 'R'; w: number; Dn: number }
 interface Local { rooms: { r: [number, number, number, number]; kind: InKind; poly?: XY[] }[]; walls: { a: XY; b: XY; cuts: Cut[] }[]; entry: [number, number]; kitchen?: [XY, XY]; master: boolean }
 
 /** Kvartiraning fasad tizimi: U — fasad yoʻnalishi, N — ichkariga; O — (0,0) nuqta; W, D */
-function frameOf(a: RuleApt, mods: FacadeMod[]): { O: XY; U: XY; N: XY; W: number; D: number; ring: XY[]; notch?: Notch } | null {
+function frameOf(a: RuleApt, mods: FacadeMod[]): { O: XY; U: XY; N: XY; W: number; D: number; ring: XY[]; notch?: Notch; clip?: boolean } | null {
   const ms = a.mods.map(i => mods[i]).filter(Boolean);
   if (!ms.length) return null;
   // eng uzun bir yoʻnalishli fasad guruhi
@@ -65,22 +66,24 @@ function frameOf(a: RuleApt, mods: FacadeMod[]): { O: XY; U: XY; N: XY; W: numbe
     if (Math.abs(v0) > 0.35) continue;
     const W = u1 - u0, D = v1 - v0;
     const dv = loc(a.door)[1] - v0, du = loc(a.door)[0] - u0;
-    let notch: Notch | undefined;
+    let notch: Notch | undefined, clip = false, Dc = D;
     if (area(a.ring) / (W * D) < 0.985) {
       // L shakl (burchak): orqa burchakda bitta toʻgʻri burchakli kemtik — zina yoki koridor burchagi
       notch = notchOf(L.map(p => [p[0] - u0, p[1] - v0] as XY), W, D, area(a.ring)) ?? undefined;
-      if (!notch) continue;
+      // audit 31.10: qiya fasad / trapetsiya / kichik kemtik — toʻgʻri toʻrtburchak (chuqurligi — eshikkacha) rejasi kontur bilan kesiladi,
+      // ortgan boʻlaklar qoʻshni xonaga qoʻshiladi (oldin bunday kvartiralar xonalarga boʻlinmas edi — 9 % gacha)
+      if (!notch) { if (area(a.ring) / (W * D) < 0.8 || dv < 4.8 || du < 0.4 || du > W - 0.4) continue; clip = true; Dc = dv; }
     }
     if (notch) {
       const nu0 = notch.side === 'R' ? W - notch.w : 0, nu1 = notch.side === 'R' ? W : notch.w;
       if (du > nu0 - 0.4 && du < nu1 + 0.4) continue;   // eshik kemtik qirrasida — bu shablon emas
     }
-    if (dv < D - 0.45 || du < 0.4 || du > W - 0.4) continue;
+    if (!clip && (dv < D - 0.45 || du < 0.4 || du > W - 0.4)) continue;
     // eshik turgan qirra koridor devori boʻlishi kerak (fasadga parallel)
     const onPar = a.ring.some((p, i) => { const q = a.ring[(i + 1) % a.ring.length], dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy); if (l < 0.5) return false; const t = ((a.door[0] - p[0]) * dx + (a.door[1] - p[1]) * dy) / (l * l), d = Math.hypot(p[0] + dx * t - a.door[0], p[1] + dy * t - a.door[1]); return t > -0.01 && t < 1.01 && d < 0.08 && Math.abs((dx * g.U[0] + dy * g.U[1]) / l) > 0.9; });
-    if (!onPar) continue;
+    if (!onPar && !clip) continue;
     const O: XY = [m0.a[0] + g.U[0] * u0 + N[0] * v0, m0.a[1] + g.U[1] * u0 + N[1] * v0];
-    return { O, U: g.U, N, W, D, ring: a.ring, notch };
+    return { O, U: g.U, N, W, D: Dc, ring: a.ring, notch, ...(clip ? { clip: true } : {}) };
   }
   return null;
 }
@@ -631,9 +634,33 @@ function sideInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   return null;
 }
 
+/** Toʻgʻri toʻrtburchak reja → haqiqiy kontur: xonalar kesiladi, ortgan boʻlaklar eng koʻp umumiy chegarali xonaga qoʻshiladi, devorlar kontur ichida qoladi */
+function clipToRing(rooms: InRoom[], walls: [XY, XY][], ring0: XY[]): { rooms: InRoom[]; walls: [XY, XY][] } | null {
+  const ring = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, R: Polygon = [[...ring, ring[0]].map(p => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as [number, number])];
+  const P = (r: XY[]): Polygon => [[...r, r[0]].map(p => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as [number, number])];
+  const big = (mp: [number, number][][][]): XY[] | null => { let b: XY[] | null = null, ba = 0.05; for (const q of mp) { const o = q[0].slice(0, -1).map(x => [x[0], x[1]] as XY), aa = Math.abs(signedArea(o)); if (aa > ba) { ba = aa; b = o; } } return b; };
+  try {
+    const out = rooms.map(q => { const r = big(polygonClipping.intersection(P(q.ring), R)); return r ? { ...q, ring: r, area: q.area * Math.abs(signedArea(r)) / Math.max(0.01, Math.abs(signedArea(q.ring))) } : null; }).filter(Boolean) as InRoom[];
+    if (!out.length) return null;
+    const rest = polygonClipping.difference(R, ...out.map(q => P(q.ring)));
+    for (const poly of rest) {
+      const o = poly[0].slice(0, -1).map(x => [x[0], x[1]] as XY), aa = Math.abs(signedArea(o)); if (aa < 0.05) continue;
+      // umumiy chegara uzunligi: boʻlak qirralari boʻylab nuqtalar xonaga ≤ 3 sm yaqin
+      const near = (p: XY, r: XY[]) => r.some((u, i) => { const v = r[(i + 1) % r.length], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); return Math.hypot(u[0] + dx * t - p[0], u[1] + dy * t - p[1]) < 0.03; });
+      const score = out.map(q => { let n = 0; for (let i = 0; i < o.length; i++) { const u = o[i], v = o[(i + 1) % o.length]; for (let k = 1; k < 10; k++) { const p: XY = [u[0] + (v[0] - u[0]) * k / 10, u[1] + (v[1] - u[1]) * k / 10]; if (near(p, q.ring)) n += Math.hypot(v[0] - u[0], v[1] - u[1]) / 10; } } return n * (q.wet ? 0.5 : 1); });
+      const bi = score.indexOf(Math.max(...score)); if (score[bi] <= 0) continue;
+      const m = big(polygonClipping.union(P(out[bi].ring), P(o))); if (m) out[bi] = { ...out[bi], ring: m, area: out[bi].area + aa * 0.85 };
+    }
+    const inR = (p: XY) => { let c = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) if ((ring[i][1] > p[1]) !== (ring[j][1] > p[1]) && p[0] < (ring[j][0] - ring[i][0]) * (p[1] - ring[i][1]) / (ring[j][1] - ring[i][1]) + ring[i][0]) c = !c; return c; };
+    // devorlar: kontur ichidagi qismi (20 boʻlakda namunaviy)
+    const ws: [XY, XY][] = [];
+    for (const [a, b] of walls) { const at = (t: number): XY => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; const ts = Array.from({ length: 21 }, (_, i) => i / 20).filter(t => inR(at(t))); if (ts.length >= 2) ws.push([at(ts[0]), at(ts[ts.length - 1])]); }
+    return { rooms: out, walls: ws };
+  } catch { return null; }
+}
 export function aptInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   lastWhy = 'frame'; const fr = frameOf(a, mods); if (!fr) return sideInterior(a, mods) ?? throughInterior(a, mods);
-  const { O, U, N, W, D, notch } = fr;
+  const { O, U, N, W, D, notch, clip } = fr;
   lastWhy = `WD ${W.toFixed(1)}x${D.toFixed(1)}`; if (D < 4.8 || D > 11.5 || W < 3) return null;
   const ntOf = (fl: boolean): Notch | undefined => notch && (fl ? { ...notch, side: notch.side === 'R' ? 'L' : 'R' } : notch);
   const { bounds, wins } = facadeOf(a, mods, O, U, W);
@@ -666,5 +693,6 @@ export function aptInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   for (const i of doorClashes(doors, walls, a.ring)) doors[i] = { ...doors[i], kind: 'slide' };
   const rooms: InRoom[] = L.rooms.map(q => { const [u0, v0, u1, v1] = q.r, pr: XY[] = q.poly ?? [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], gross = (u1 - u0) * (v1 - v0); return { ring: pr.map(toW), kind: q.kind, area: Math.max(0, area(pr) * (u1 - u0 - T) * (v1 - v0 - T) / gross), wet: WET.includes(q.kind) }; });
   const ent = toW(L.entry);
+  if (clip) { const c = clipToRing(rooms, walls, a.ring); if (!c) return null; rooms.splice(0, rooms.length, ...c.rooms); walls.splice(0, walls.length, ...c.walls); }
   return { rooms, walls, doors, entry: ent, kitchen: L.kitchen ? [toW(L.kitchen[0]), toW(L.kitchen[1])] : undefined, master: L.master, furn: furnish(L, b.doors).map(f => ({ k: f.k, ring: f.ring.map(toW) })) };
 }

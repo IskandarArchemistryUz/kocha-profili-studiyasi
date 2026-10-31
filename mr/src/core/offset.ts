@@ -8,6 +8,8 @@ import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { signedArea, type XY } from './geo';
 
 const cl = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
+/** 1 mm toʻrga yaxlitlangan yopiq halqa — polygon-clipping deyarli bir chiziqdagi qirralarda cheksiz siklga tushmasin (audit 31.10) */
+const clr = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000]);
 
 export function insetRobust(ring: XY[], d: number | number[], minArea = 1): XY[] | null {
   const r = signedArea(ring) < 0 ? ring.slice().reverse() : ring.slice(), n = r.length;
@@ -41,22 +43,22 @@ export function insetRobust(ring: XY[], d: number | number[], minArea = 1): XY[]
 export function openRing(ring0: XY[], w: number, minArea = 1): XY[] | null {
   // oʻz-oʻzini kesgan / tikanli halqa (burchak seksiyalarini birlashtirishdan qolgan) — avval tozalanadi
   let ring = despike(ring0);
-  try { let ba = 0; for (const p of polygonClipping.union([cl(despike(ring0))])) { const o = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY), a = Math.abs(signedArea(o)); if (a > ba) { ba = a; ring = o; } } } catch { /* asl halqa */ }
+  try { let ba = 0; for (const p of polygonClipping.union([clr(despike(ring0))])) { const o = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY), a = Math.abs(signedArea(o)); if (a > ba) { ba = a; ring = o; } } } catch { /* asl halqa */ }
   const h = w / 2, inner0 = insetRobust(ring, h, minArea); if (!inner0) return null;
   // ichki halqani soddalashtirish (uchlardagi yoy nuqtalari ≤ 0,3 m): birlashtirish barqaror boʻlsin; koordinatalar 1 mm ga yaxlitlanadi
   const inner = dp(inner0, 0.3).map(p => [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000] as XY);
-  const n = inner.length, add: Polygon[] = [[cl(inner)]];
+  const n = inner.length, add: Polygon[] = [[clr(inner)]];
   for (let k = 0; k < n; k++) {
     const a = inner[k], b = inner[(k + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); if (L < 1e-6) continue;
     const ux = dx / L, uy = dy / L, nx = -uy * h, ny = ux * h;
-    add.push([cl([[a[0] - nx, a[1] - ny], [b[0] - nx, b[1] - ny], [b[0] + nx, b[1] + ny], [a[0] + nx, a[1] + ny]])]);
-    for (const p of [a, b]) add.push([cl([[p[0] + (-ux - uy) * h, p[1] + (-uy + ux) * h], [p[0] + (ux - uy) * h, p[1] + (uy + ux) * h], [p[0] + (ux + uy) * h, p[1] + (uy - ux) * h], [p[0] + (-ux + uy) * h, p[1] + (-uy - ux) * h]])]);
+    add.push([clr([[a[0] - nx, a[1] - ny], [b[0] - nx, b[1] - ny], [b[0] + nx, b[1] + ny], [a[0] + nx, a[1] + ny]])]);
+    for (const p of [a, b]) add.push([clr([[p[0] + (-ux - uy) * h, p[1] + (-uy + ux) * h], [p[0] + (ux - uy) * h, p[1] + (uy + ux) * h], [p[0] + (ux + uy) * h, p[1] + (uy - ux) * h], [p[0] + (-ux + uy) * h, p[1] + (-uy - ux) * h]])]);
   }
   let res;
   // birlashtirish bittadan (polygon-clipping baʼzan butun toʻplamda xato beradi — xato boʻlakni oʻtkazib yuboramiz)
   let u: ReturnType<typeof polygonClipping.union>;
   try { u = polygonClipping.union(add[0], ...add.slice(1)); } catch { u = [add[0] as [number, number][][]]; for (const a of add.slice(1)) { try { u = polygonClipping.union(u, a); } catch { /* oʻtkazildi */ } } }
-  try { res = polygonClipping.intersection(u, [cl(signedArea(ring) < 0 ? ring.slice().reverse() : ring)]); } catch { return null; }
+  try { res = polygonClipping.intersection(u, [clr(signedArea(ring) < 0 ? ring.slice().reverse() : ring)]); } catch { return null; }
   let best: XY[] | null = null, ba = minArea;
   for (const p of res) { const o = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY), a = Math.abs(signedArea(o)); if (a > ba) { ba = a; best = o; } }
   if (!best) return null;
