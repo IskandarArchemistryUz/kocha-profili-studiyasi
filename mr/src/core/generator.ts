@@ -869,6 +869,30 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
 
 export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', savdo_blok: 'Savdo markazi + parkovka' };
 /** Funksiya boʻyicha odatiy generator sozlamalari (turar joydan tashqari); null — foydalanuvchi sozlamalari */
+/**
+ * Parsel funksiyasiga mos tipologiyalar (egasi, 31.10): turar joy parseliga ofis / mehmonxona generatsiya qilinmaydi,
+ * ofis yoki mehmonxona parseliga — turar joy. Aralash — ikkalasi ham.
+ */
+const T_LOW: Typology[] = ['yakka', 'taunhaus', 'juft', 'hovli', 'klaster', 'villa'];
+const T_RES: Typology[] = [...T_LOW, 'perimetr', 'qatorlar', 'minora', 'blok_minora', 'blok_villa'];
+const T_COM: Typology[] = ['ofis_plita', 'ofis_minora', 'savdo_blok'];
+export function typoAllowed(use: string): Typology[] {
+  switch (use) {
+    case 'yakka': return ['avto', ...T_LOW];
+    case 'turar': return ['avto', ...T_RES];
+    case 'aralash': return ['avto', ...T_RES, ...T_COM];
+    case 'ofis': case 'mehmonxona': return ['ofis_plita', 'ofis_minora'];
+    case 'savdo': return ['savdo_blok'];
+    default: return ['avto', ...T_RES, ...T_COM];
+  }
+}
+/** Bino funksiyasi parsel funksiyasiga mosmi: turar joy parselida ofis / mehmonxona yoʻq, ofis / mehmonxona parselida turar joy yoʻq */
+export function useCompatible(parcelUse: string, bldUse: string): boolean {
+  const res = (u: string) => u === 'turar' || u === 'yakka' || u === 'aralash', com = (u: string) => u === 'ofis' || u === 'mehmonxona';
+  if ((parcelUse === 'turar' || parcelUse === 'yakka') && com(bldUse)) return false;
+  if (com(parcelUse) && res(bldUse)) return false;
+  return true;
+}
 export function usePreset(use: string, g: GenParams): GenParams | null {
   switch (use) {
     case 'ofis': return { ...g, typology: g.typology === 'ofis_minora' ? 'ofis_minora' : 'ofis_plita', minF: 6, maxF: Math.max(6, Math.min(12, g.maxF)), towerF: Math.max(12, g.towerF ?? 16), nonRes: 0, far: 0, stylobate: 0, parking: g.parking === 'yoq' ? 'yer_osti' : g.parking };
