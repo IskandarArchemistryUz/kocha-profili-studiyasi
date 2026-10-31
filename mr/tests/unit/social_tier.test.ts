@@ -32,3 +32,12 @@ describe('QMQ 2.01.03-19, 3.1.1 / 3.1.3: L uylar', () => {
     expect(c.projOk).toBe(true); expect(c.lenOk).toBe(true);
   });
 });
+
+import { polyDist } from '../../src/core/derive';
+describe('39-jadval: koridor teshigidagi bino (31.10)', () => {
+  it('teshik ichidagi bino — 0 emas, chegaragacha masofa', () => {
+    const poly: [number, number][][] = [[[0, 0], [200, 0], [200, 200], [0, 200]], [[20, 20], [180, 20], [180, 180], [20, 180]]];
+    expect(polyDist([[60, 60], [80, 60], [80, 80], [60, 80]], poly)).toBeCloseTo(40, 3);
+    expect(polyDist([[5, 5], [10, 5], [10, 10], [5, 10]], poly)).toBe(0);
+  });
+});

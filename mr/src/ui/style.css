@@ -886,3 +886,4 @@ textarea.ch-inedit{padding:10px 12px}
 .alb-menu button:hover,.alb-menu button:focus-visible{background:var(--fill)}
 .alb-menu button[aria-checked=true]{font-weight:600;background:var(--sel)}
 .alb-dimin{position:fixed;z-index:200;width:68px;padding:3px 6px;font-size:12px;text-align:center}
+.fixbox{padding:8px 10px;border-radius:10px;background:var(--fill)}
