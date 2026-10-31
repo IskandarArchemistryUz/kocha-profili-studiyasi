@@ -914,11 +914,19 @@ export class Scene3D {
           m.renderOrder = 6.2 + order * 0.01; this.world.add(m);
         });
         const yards = landscape(doc), trees: XY[] = [];
+        // maydoncha jihozlari (playkit): rang boʻyicha bitta mesh va bitta LineSegments — sahna yengil
+        const kitF: Record<string, THREE.Shape[]> = {}, kitL: Record<string, number[]> = {};
         for (const y of yards) {
           if (this.isoLocal && plan.blocks[y.block] && !this.inIso(plan.blocks[y.block].rings[0])) continue;   // izolyatsiya: faqat hudud hovlilari
           fill(y.paving, col.pave, 0.32, 1); fill(y.green, col.green, 0.33, 2); fill(y.paths, col.path, 0.34, 3);
           if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, this.H); l.userData.fireLane = true; this.world.add(l); } }
-          for (const q of y.play) { fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H)); }
+          for (const q of y.play) {
+            fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H));
+            for (const k of q.kit ?? []) {
+              if (k.f) (kitF[k.c] ??= []).push(new THREE.Shape(k.f.map(toV2)));
+              if (k.l) { const a = (kitL[k.c] ??= []); for (let i = 1; i < k.l.length; i++) { const p0 = k.l[i - 1], p1 = k.l[i]; a.push(p0[0], this.H(p0[0], p0[1]) + 0.43, -p0[1], p1[0], this.H(p1[0], p1[1]) + 0.43, -p1[1]); } }
+            }
+          }
           // sport hududi (31.10): maydon rangi, oq belgilar, yopiq majmua — past quti
           for (const q of y.sport ?? []) {
             const SC: Record<string, number> = plainS ? { stadion: 0xe6ebe2, yolka: 0xeee6e2, futbol: 0xe6ebe2, minifutbol: 0xe6ebe2, tennis: 0xe2e8ee, basket: 0xeee8e0, voley: 0xeee8e0, workout: 0xe8e8e8, basseyn: 0xe0ecf2, yopiq: 0xf2f2f2 }
@@ -934,6 +942,16 @@ export class Scene3D {
           }
           for (const r of y.fences ?? []) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0x8a7f6c, 0.36, true, 6.45, this.H); l.userData.fence = true; this.world.add(l); }   // past uylar uchastkalari panjarasi
           trees.push(...y.trees);
+        }
+        const KC: Record<string, number> = plainS ? { qum: 0xece9e2, jihoz: 0xc9c6bf, yogoch: 0xb9b6ae, oq: 0xffffff, chiziq: 0xa9a59c, gul: 0xe4e6df }
+          : { qum: 0xf3dea6, jihoz: 0xd9654b, yogoch: 0x9c7752, oq: 0xffffff, chiziq: 0x6b6458, gul: 0xd98fa8 };
+        for (const [c, sh] of Object.entries(kitF)) {
+          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 0.38, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: KC[c], transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10 }));
+          m.renderOrder = 6.3; m.userData.playKit = c; this.world.add(m);
+        }
+        for (const [c, v] of Object.entries(kitL)) {
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+          const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: KC[c], transparent: true, opacity: 1 })); ls.renderOrder = 6.6; ls.userData.playKit = c; this.world.add(ls);
         }
         if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c));
         // hovliga kirishlar: arka (toʻq sariq), binolar oraligʻi (koʻk) — strelka hovliga; podyezd — kichik toʻq kvadrat

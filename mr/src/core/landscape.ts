@@ -16,6 +16,7 @@ import { computePlan, corridor, safeUnion, pointIn } from './plan';
 import { useDef } from './uses';
 import { inset, clean } from './generator';
 import { sportPark, type SportItem } from './sportpark';
+import { playKit, type KitPart } from './playkit';
 
 /**
  * Ochiq joylar eskizi (generator): park — halqa va diagonal yoʻlaklar, markazda maydoncha, daraxtlar toʻri (9 m);
@@ -66,7 +67,7 @@ export interface Yard {
   /** kvartal indeksi (computePlan blocks) */
   block: number;
   paving: XY[][][]; green: XY[][][]; paths: XY[][][];
-  play: { kind: keyof typeof PLAY_NORM; ring: XY[]; need: number; area: number }[];
+  play: { kind: keyof typeof PLAY_NORM; ring: XY[]; need: number; area: number; kit?: KitPart[] }[];
   trees: XY[];
   /** hovliga kirishlar (genplanda): arka, binolar oraligʻi (torets orasidan), podyezd — p nuqta, d hovli tomon yoʻnalish (birlik) */
   entries?: Entry[];
@@ -217,9 +218,40 @@ function fireLane(own: Own[], free: MultiPolygon, fh: number, arches: Own[] = []
     if (links.length) mp = tryOp(() => polygonClipping.union(mp, ...links.map(l => tryOp(() => polygonClipping.intersection(l, B, ...[]) , [] as MultiPolygon)).filter(l => l.length)), mp);
     mp = tryOp(() => polygonClipping.difference(mp, ...all.map(x => [close(x.r)] as Polygon)), mp);
   }
+  // burchaklar radiusli (andoza: ichki radius 6 m, tashqi 6 + w — oʻq boʻyicha ≈ 8 m): mashina burilishi uchun
+  if (mp.length) { const rd = tryOp(() => safeUnion(mp.map(p => p.map(r => close(roundRing(open(r), FIRE_R + w, FIRE_R))) as Polygon)), mp); if (rd.length) mp = B ? tryOp(() => polygonClipping.intersection(rd, B), rd) : rd; }
   mp = mp.filter(p => area(open(p[0])) >= w * 12);   // mayda boʻlaklar — yoʻlak emas
   return { mp, w, d, hmax, tall: all };   // tall — daraxt cheklovi uchun: yoʻlak butun halqa boʻylab   // mp boʻsh — hovlida joy yetmadi (meʼyorlar roʻyxatida «mos emas»)
 }
+
+/** Yongʻin yoʻlagi ichki burilish radiusi (andoza, meʼyor emas) */
+export const FIRE_R = 6;
+/**
+ * Halqa burchaklarini yoy bilan yumaloqlash: qavariq uch (ichki burchak < 180°) — rc, botiq — rr radius.
+ * polygon-clipping chiqishida tashqi halqa CCW, teshik CW — ikkalasida ham ichki hudud chapda, shuning uchun chapga burilish = qavariq.
+ * Yoy tutash nuqtalari qirraning 48 % idan oshmaydi (qisqa qirrada radius kichrayadi).
+ */
+export function roundRing(r: XY[], rc: number, rr: number): XY[] {
+  const n = r.length; if (n < 3) return r;
+  const out: XY[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = r[(i + n - 1) % n], b = r[i], c = r[(i + 1) % n];
+    const l1 = Math.hypot(b[0] - a[0], b[1] - a[1]), l2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
+    if (l1 < 1e-6 || l2 < 1e-6) { out.push(b); continue; }
+    const u1: XY = [(b[0] - a[0]) / l1, (b[1] - a[1]) / l1], u2: XY = [(c[0] - b[0]) / l2, (c[1] - b[1]) / l2];
+    const cr = u1[0] * u2[1] - u1[1] * u2[0], phi = Math.acos(Math.max(-1, Math.min(1, u1[0] * u2[0] + u1[1] * u2[1])));
+    if (phi < 0.2 || phi > 2.8) { out.push(b); continue; }
+    const R0 = cr > 0 ? rc : rr, tn = Math.tan(phi / 2), t = Math.min(R0 * tn, 0.48 * Math.min(l1, l2)), R = t / tn;
+    if (R < 0.3) { out.push(b); continue; }
+    const p1: XY = [b[0] - u1[0] * t, b[1] - u1[1] * t], sgn = cr > 0 ? 1 : -1;
+    const o: XY = [p1[0] - u1[1] * R * sgn, p1[1] + u1[0] * R * sgn];   // markaz: p1 dan burilish tomoniga
+    const a0 = Math.atan2(p1[1] - o[1], p1[0] - o[0]), k = Math.max(2, Math.ceil(phi / (Math.PI / 12)));
+    for (let j = 0; j <= k; j++) { const th = a0 + sgn * phi * j / k; out.push([o[0] + Math.cos(th) * R, o[1] + Math.sin(th) * R]); }
+  }
+  return out;
+}
+/** Chaikin silliqlash (yopiq halqa) — egri yoʻlaklar uchun */
+const chaikin = (r: XY[], it = 2): XY[] => { let q = r; for (let k = 0; k < it; k++) { const o: XY[] = []; for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } q = o; } return q; };
 
 /**
  * Hovliga kirishlar (eskiz): 1) arka — oʻtish markazi, yoʻnalish oʻtish boʻylab; 2) binolar oraligʻi — kvartal chetiga yaqin,
@@ -308,19 +340,28 @@ function yardOf(blk: ReturnType<typeof computePlan>['blocks'][number], bi: numbe
           if (Math.min(...r.map(q => Math.min(...own.map(o => ringD(q, o.r))))) < minD - 1) continue;
           const inside = tryOp(() => mpArea(polygonClipping.intersection(poly, free)), 0);
           if (inside < a * 0.97) continue;
-          play.push({ kind, ring: r, need, area: a }); taken = taken.length ? safeUnion([taken, poly]) : [poly]; takenBB.push([bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2]); return;
+          play.push({ kind, ring: r, need, area: a, kit: playKit(kind, r) }); taken = taken.length ? safeUnion([taken, poly]) : [poly]; takenBB.push([bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2]); return;
         }
       }
     };
     const freeA = mpArea(free);
-    place('sport', 12, freeA * 0.35); place('bolalar', 10, freeA * 0.25); place('kattalar', 6, freeA * 0.1); place('xojalik', 20, freeA * 0.1);
+    // 31.10: bolalar maydonchasi birinchi (aks holda katta sport maydoni joyni egallab, bolalar maydonchasi tushmay qolardi)
+    place('bolalar', 10, freeA * 0.2); place('kattalar', 6, freeA * 0.08); place('sport', 12, freeA * 0.3); place('xojalik', 20, freeA * 0.08);
     // ichki yoʻlak: erkin hudud chegarasidan 5 m ichkarida (taxminan) — halqa
     const paths: MultiPolygon = [];
     for (const poly of freeR) {
       const outer = poly[0]; if (area(outer) < 600) continue;
       const cx = outer.reduce((s, p) => s + p[0], 0) / outer.length, cy = outer.reduce((s, p) => s + p[1], 0) / outer.length;
       const loop = outer.map(p => { const dx = cx - p[0], dy = cy - p[1], L = Math.hypot(dx, dy) || 1, k = Math.min(5, L * 0.35); return [p[0] + dx / L * k, p[1] + dy / L * k] as XY; });
-      const c = corridor([...loop, loop[0]], 1); if (c.length) paths.push(...c);
+      const sm = chaikin(loop, 2);   // egri halqa (canvas namunasi: toʻgʻri oʻq + egri yoʻlaklar)
+      const c = corridor([...sm, sm[0]], 1); if (c.length) paths.push(...c);
+      // toʻgʻri oʻq: har maydoncha markazidan halqaning eng yaqin nuqtasigacha (maydonchaga yetib keladigan yoʻlak)
+      for (const q of play) {
+        const qc = q.ring.reduce((s2, p) => [s2[0] + p[0] / q.ring.length, s2[1] + p[1] / q.ring.length] as XY, [0, 0] as XY);
+        if (!pointIn(qc, [outer])) continue;
+        let bp: XY = sm[0], bd = Infinity; for (const p of sm) { const d = Math.hypot(p[0] - qc[0], p[1] - qc[1]); if (d < bd) { bd = d; bp = p; } }
+        if (bd > 2 && bd < 60) { const s3 = corridor([qc, bp], 0.75); if (s3.length) paths.push(...s3); }
+      }
     }
     let pathsIn: MultiPolygon = paths.length ? tryOp(() => polygonClipping.intersection(safeUnion(paths), free), [] as MultiPolygon) : [];
     if (pathsIn.length && taken.length) pathsIn = tryOp(() => polygonClipping.difference(pathsIn, taken), pathsIn);
