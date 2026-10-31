@@ -417,6 +417,10 @@ function build(L: Local): { walls: [XY, XY][]; doors: InDoor[] } {
   return { walls, doors };
 }
 
+/** Devorlar (kesiklar bilan) → devor boʻlaklari va eshiklar; past qavatli uy rejalari (lowplan) ham shundan foydalanadi */
+export type WallCut = Cut;
+export function buildWalls(walls: { a: XY; b: XY; cuts: Cut[] }[]): { walls: [XY, XY][]; doors: InDoor[] } { return build({ rooms: [], walls, entry: [0, 0], master: false }); }
+
 /** Eshik yoylari toʻqnashuvi: boshqa yoyga yoki devorga (V10d dagi tekshiruv) — toʻqnashgan hoʻl xona eshigi surmaga aylanadi */
 export function doorClashes(doors: InDoor[], walls: [XY, XY][], ring?: XY[]): number[] {
   const pts = (d: InDoor) => { const out: XY[] = []; const u: XY = [(d.a[0] - d.h[0]) / d.w, (d.a[1] - d.h[1]) / d.w]; for (let i = 1; i < 9; i++) for (let j = 1; j < 9; j++) { const r = d.w * i / 9, th = Math.PI / 2 * j / 9.5; out.push([d.h[0] + r * (Math.cos(th) * u[0] + Math.sin(th) * d.n[0]), d.h[1] + r * (Math.cos(th) * u[1] + Math.sin(th) * d.n[1])]); } return out.filter(p => (p[0] - d.h[0]) * d.n[0] + (p[1] - d.h[1]) * d.n[1] > 0.08); };
