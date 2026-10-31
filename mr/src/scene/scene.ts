@@ -1099,7 +1099,7 @@ export class Scene3D {
     if (!this.aptView && doc.buildings.some(b => b.joint)) {
       const lim = lenLimit(doc.settings.construct ?? 'monolit', doc.settings.seismic), v: number[] = [];
       doc.buildings.forEach((b, i) => { if (!b.joint) return; const pr = P3[i]; if (!pr) return;
-        const o = jointOpt(b, doc.buildings, fr.toLocal);
+        const o = jointOpt(b, doc.buildings, fr.toLocal, doc.settings.construct ?? 'monolit');
         for (const [a, c] of jointScheme(pr.ring, lim, o.area, o.avoid).cuts) {
           v.push(a[0], pr.top + 0.15, -a[1], c[0], pr.top + 0.15, -c[1]);   // tom sathida (ustidagi minoralar ostida koʻrinmaydi)
           for (const p of [a, c]) v.push(p[0], pr.base, -p[1], p[0], pr.top + 0.15, -p[1]);

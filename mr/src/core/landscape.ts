@@ -100,8 +100,12 @@ export interface Yard {
   ramp?: Ramp;
 }
 export interface Ramp { ring: XY[]; lo: XY; hi: XY; len: number; w: number; slope: number; h: number; /** stilobat ichiga qaragan normal */ n: XY; /** stilobat ichida (tashqarida sigʻmadi) */ inside: boolean }
-/** Rampa nishabi (andoza, meʼyor emas): yongʻin avtomobili uchun ≤ 10 % — aniq qiymat avtomobil texnik tavsifi boʻyicha */
-export const RAMP_SLOPE = 0.1;
+/**
+ * Rampa nishabi — ShNQ 2.07.01-23, 20-jadval (turar joy hududlaridagi mahalliy koʻchalar) va 22-jadval (oʻtish yoʻllari):
+ * «uzunasiga eng katta qiyalik» — 80. Jadval sarlavhasida «фоиз» deb berilgan, lekin 80 % boʻlishi mumkin emas — manba
+ * (SNiP 2.07.01-89*) da ‰, yaʼni 8 %. Shu sababli 0,08 qabul qilindi (birlik tekshirilsin).
+ */
+export const RAMP_SLOPE = 0.08;
 
 const close = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
 const open = (r: [number, number][]): XY[] => r.slice(0, -1).map(p => [p[0], p[1]] as XY);

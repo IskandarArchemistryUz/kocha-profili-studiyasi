@@ -12,7 +12,7 @@ import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
 import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
-import { checkBlock, lenLimit, SYS, FIRE_COMP_ANDOZA, isPodium, jointOpt, jointScheme } from '../core/seysmik';
+import { checkBlock, lenLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
 import { area as areaOf, obb2 } from '../core/geo';
 import { computePlan, corridor } from '../core/plan';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
@@ -329,14 +329,14 @@ export const RULES: Rule[] = [
       const s = doc.settings, sys = s.construct ?? 'monolit', ball = s.seismic, lim = lenLimit(sys, ball), def = SYS[sys];
       const bl = doc.buildings;
       if (!bl.length) return { status: 'na', limit: lim == null ? 'NSTT' : `≤ ${lim} m`, unit: 'bino', note: `Binolar yoʻq. ${def.name} (${def.row}), ${ball} ball.` };
-      const fr = frame(doc.origin), res = bl.map(b => ({ b, c: checkBlock(b.footprint.map(fr.toLocal), sys, ball, !!b.joint, jointOpt(b, bl, fr.toLocal)) }));
+      const fr = frame(doc.origin), res = bl.map(b => ({ b, c: checkBlock(b.footprint.map(fr.toLocal), sys, ball, !!b.joint, jointOpt(b, bl, fr.toLocal, sys)) }));
       const longs = res.filter(x => !x.c.lenOk), projs = res.filter(x => !x.c.projOk), worst = res.reduce((a, x) => x.c.len > a.c.len ? x : a);
       const n = new Set([...longs, ...projs].map(x => x.b.id)).size;
       const parts = [`${def.name} (3.1-jadval, ${def.row}), ${ball} ball: boʻlma uzunligi ${lim == null ? 'cheklanmagan (NSTT)' : `≤ ${lim} m`}, chiqib turgan qism ≤ ${def.proj} m (3.1.1). Har bino alohida boʻlma deb olindi (inspektorda «Antiseysmik chok» yoqilgan binolar — ichki burchaklaridan boʻlmalarga ajratilgan holda); tegib turgan binolar orasida antiseysmik chok boʻlishi kerak (3.1.3; eng kichik kengligi 3.1.4).`];
       if (longs.length) parts.push(`Uzun: ${longs.length} ta (eng uzuni ${worst.c.len} m) — chok bilan boʻlmalarga ajrating yoki seksiya uzunligini kamaytiring.`);
       if (projs.length) parts.push(`Chiqib turgan qism ${def.proj} m dan katta: ${projs.length} ta (${projs.slice(0, 3).map(x => `${x.c.proj} m`).join(', ')}${projs.length > 3 ? ' …' : ''}) — burchak binosini chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajrating (3.1.1) yoki 1.1-band boʻyicha asoslang.`);
       // 31.10: chok sxemasi uzunlikni ham boʻladi (3.7.2) — uzun binolar va stilobatlar ham chok bilan tuzatiladi
-      const fixable = [...new Set([...longs, ...projs])].filter(x => !x.b.joint && (() => { const c = checkBlock(x.b.footprint.map(fr.toLocal), sys, ball, true, jointOpt(x.b, bl, fr.toLocal)); return c.lenOk && c.projOk; })()).length;
+      const fixable = [...new Set([...longs, ...projs])].filter(x => !x.b.joint && (() => { const c = checkBlock(x.b.footprint.map(fr.toLocal), sys, ball, true, jointOpt(x.b, bl, fr.toLocal, sys)); return c.lenOk && c.projOk; })()).length;
       return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, ...(fixable ? { fix: { id: 'seismic-joint' as const, label: 'Antiseysmik chok qoʻyish', hint: `${fixable} ta bino chok bilan tuzatiladi: ichki burchakdan toʻgʻri toʻrtburchak boʻlmalarga (3.1.3), uzun qism — teng boʻlmalarga, choklar orasi ≤ ${lim ?? '—'} m (3.7.2). Stilobatda chok ustidagi minoralar orasidan oʻtkaziladi.` } } : {}), ...(n ? { where: { bids: [...new Set([...longs, ...projs].map(x => x.b.id))] } } : {}), limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
     },
   },
@@ -393,7 +393,7 @@ export const RULES: Rule[] = [
       if (roofs.length) {
         const rp = roofs.find(y => y.ramp)?.ramp;
         note += ` Stilobat tomida yoʻlak: ${roofs.length} ta (ustidagi binolar F1.3 ≥ 28 m yoki jamoat ≥ 18 m). 677-band: tom konstruksiyasi yongʻin avtomobilining har oʻqidan ≥ 16 t yukka hisoblanadi.`;
-        if (rp) note += ` Rampa: stilobat balandligi ${Math.round(rp.h * 10) / 10} m, nishab ≤ ${Math.round(rp.slope * 100)} % (andoza) → uzunligi ${rp.len} m, eni ${rp.w} m.`;
+        if (rp) note += ` Rampa: stilobat balandligi ${Math.round(rp.h * 10) / 10} m, nishab ≤ ${Math.round(rp.slope * 100)} % (ShNQ 2.07.01-23, 20- va 22-jadval: «uzunasiga eng katta qiyalik — 80», jadvalda «foiz» deb berilgan — ‰ deb qabul qilindi, tekshirilsin) → uzunligi ${rp.len} m, eni ${rp.w} m.`;
         if (noRamp.length) note += ` Rampa sigʻmadi: ${noRamp.length} ta stilobat — chekinishni kengaytiring yoki rampani bino ichida loyihalang.`;
       }
       if (big) note += ` 666-band: qurilish maydoni 10 000 m² dan yoki eni 100 m dan katta stilobat — ${big} ta: barcha tomondan yetib kelish kerak (koʻchalar va hovli yoʻlagi bilan tekshiring).`;
@@ -403,26 +403,28 @@ export const RULES: Rule[] = [
   {
     id: 'fire-podium',
     title: 'Stilobat: yongʻin boʻlmalari va yongʻinga qarshi devorlar',
-    source: { doc: 'ShNQ 2.01.02-04', edition: '2004', clause: '6.16–6.18, 6.20, 6.22-bandlar', verified: true },
+    source: { doc: 'ShNQ 2.08.02-23; ShNQ 2.01.02-04', edition: '2023; 2004', clause: '44-band, 2-ilova 2–3-jadval; 6.16–6.18, 6.20, 6.22-bandlar', verified: true },
     evaluate(_d, doc) {
       const pods = doc.buildings.filter(isPodium);
       if (!pods.length) return { status: 'na', note: 'Stilobat yoʻq.' };
       const fr = frame(doc.origin), sys = doc.settings.construct ?? 'monolit', lim = lenLimit(sys, doc.settings.seismic);
-      const rows = pods.map(b => { const r = b.footprint.map(fr.toLocal), o = jointOpt(b, doc.buildings, fr.toLocal), sc = b.joint ? jointScheme(r, lim, o.area, o.avoid) : { parts: [r], cuts: [] };
-        return { b, n: sc.parts.length, max: Math.max(...sc.parts.map(p => areaOf(p))), cuts: sc.cuts.length }; });
-      const bad = rows.filter(x => x.max > FIRE_COMP_ANDOZA + 1), worst = rows.reduce((a, x) => x.max > a.max ? x : a);
+      const rows = pods.map(b => { const r = b.footprint.map(fr.toLocal), o = jointOpt(b, doc.buildings, fr.toLocal, sys), sc = b.joint ? jointScheme(r, lim, o.area, o.avoid) : { parts: [r], cuts: [] }, fc = fireComp(b.use, b.floors, sys);
+        return { b, n: sc.parts.length, max: Math.max(...sc.parts.map(p => areaOf(p))), cuts: sc.cuts.length, fc }; });
+      const bad = rows.filter(x => x.max > x.fc.area + 1), worst = rows.reduce((a, x) => x.max / x.fc.area > a.max / a.fc.area ? x : a);
+      const anyAnd = rows.some(x => !x.fc.norm);
       const parts = [
-        `Yongʻin boʻlmasi qavat maydoni ≤ ${FIRE_COMP_ANDOZA} m² — andoza (meʼyor matnlarida boʻlma maydoni jadvali topilmadi; olovbardoshlik darajasi va funksional xavf sinfi boʻyicha loyihachi aniqlaydi).`,
-        '6.16–6.17: yongʻinga qarshi devor binoning butun balandligiga, poydevordan, barcha qavatlarni kesib oʻtadi — shuning uchun chok stilobat ustidagi minoralar orasidan oʻtkaziladi.',
+        `44-band: 1-tipli (REI 150) yongʻinga qarshi devorlar orasidagi qavat maydoni — 2-ilova: jamoat binolari 2-jadval (I, CO: 1 qavat 6000, 2–9 qavat 5000, 10–16 qavat 2500 m²), savdo 3-jadval (I, II: 1 qavat 3500, 2 qavat 3000, 3–5 qavat 2500 m²). Avtomatik yongʻin oʻchirish tizimi boʻlsa — ikki barobargacha oshirish mumkin (izohlar). Olovbardoshlik darajasi taxmin: monolit / karkas — I, boshqa tizim — II; loyihachi yongʻin-texnik tasnif boʻyicha aniqlaydi.`,
+        ...(anyAnd ? [`Avtoturargoh stilobati — ${FIRE_COMP_ANDOZA} m² andoza (avtoturargoh meʼyori matni mavjud emas).`] : []),
+        '6.16–6.17 (ShNQ 2.01.02-04): yongʻinga qarshi devor binoning butun balandligiga, poydevordan, barcha qavatlarni kesib oʻtadi — shuning uchun chok stilobat ustidagi minoralar orasidan oʻtkaziladi.',
         '6.18: devor tomdan kamida 60 sm (yopma elementlaridan biri G3–G4 boʻlsa) yoki 30 sm (G1–G2) baland; hammasi yonmaydigan (NG) boʻlsa — chiqmasligi mumkin.',
         '6.20: yongʻinga qarshi devor — balandroq va kengroq boʻlmaniki. 6.22: burchak ostida tutashganda tashqi devordagi teshiklar orasi gorizontal boʻyicha ≥ 4 m.',
-        `Stilobatlar: ${pods.length} ta, eng katta boʻlma ${Math.round(worst.max)} m²${worst.b.joint ? ` (${worst.n} boʻlma)` : ''}.`,
+        `Stilobatlar: ${pods.length} ta, eng ogʻiri ${Math.round(worst.max)} m² / ≤ ${worst.fc.area} m² (${worst.fc.src})${worst.b.joint ? `, ${worst.n} boʻlma` : ''}.`,
       ];
-      if (bad.length) parts.push(`${bad.length} ta stilobatda boʻlma andozadan katta — avtomatik choklar sxemasi bilan boʻlmalarga ajrating.`);
+      if (bad.length) parts.push(`${bad.length} ta stilobatda boʻlma chegaradan katta — avtomatik choklar sxemasi bilan boʻlmalarga ajrating yoki avtomatik yongʻin oʻchirish tizimini nazarda tuting.`);
       const fixable = bad.filter(x => !x.b.joint).length;
-      return { status: bad.length ? 'review' : 'pass', value: Math.round(worst.max), unit: 'm² (eng katta boʻlma)', limit: `≤ ${FIRE_COMP_ANDOZA} m² (andoza)`,
+      return { status: bad.length ? (bad.every(x => x.fc.norm) ? 'fail' : 'review') : 'pass', value: Math.round(worst.max), unit: 'm² (eng katta boʻlma)', limit: `≤ ${worst.fc.area} m²${worst.fc.norm ? '' : ' (andoza)'}`,
         ...(bad.length ? { where: { bids: bad.map(x => x.b.id) } } : {}),
-        ...(fixable ? { fix: { id: 'podium-joint' as const, label: 'Choklar sxemasini qoʻyish', hint: `${fixable} ta stilobat teng boʻlmalarga ajratiladi: har boʻlma ≤ ${FIRE_COMP_ANDOZA} m² (andoza) va ≤ ${lim ?? '—'} m (QMQ 2.01.03-19, 3.1-jadval); chok — antiseysmik chok va yongʻinga qarshi devor, minoralar orasidan.` } } : {}),
+        ...(fixable ? { fix: { id: 'podium-joint' as const, label: 'Choklar sxemasini qoʻyish', hint: `${fixable} ta stilobat teng boʻlmalarga ajratiladi: har boʻlma ShNQ 2.08.02-23, 2-ilova chegarasidan oshmaydi va ≤ ${lim ?? '—'} m (QMQ 2.01.03-19, 3.1-jadval); chok — antiseysmik chok va yongʻinga qarshi devor, minoralar orasidan.` } } : {}),
         note: parts.join(' ') };
     },
   },
