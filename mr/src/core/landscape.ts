@@ -60,14 +60,28 @@ function openSpace(blk: { rings: XY[][]; area: number; use: string; centroid: XY
 }
 
 export const PLAY_NORM = { bolalar: 0.7, kattalar: 0.1, sport: 2.0, xojalik: 0.3 };
+/** maydoncha turlari: 4-jadval + «tajriba» (maktabning oʻquv-tajriba uchastkasi, MTM bogʻi) */
+export type PlayKind = keyof typeof PLAY_NORM | 'tajriba';
 const RES_USES = new Set(['turar', 'aralash']);
+/**
+ * Maktab va MTM uchastkasi zonalari (andoza, eskiz): maktab — sport zonasi (kortlar, yugurish), boshlangʻich sinflar oʻyin maydoni,
+ * dam olish, oʻquv-tajriba bogʻi, xoʻjalik; MTM — guruh maydonchalari (qum, soyabon, jihoz), sport, bogʻ, xoʻjalik.
+ * Ulushlar — erkin hududdan, binodan masofa (minD) — taxminiy; aniq tarkib — ShNQ 2.08 (taʼlim binolari) va topshiriq.
+ * ShNQ 2.07.01-23, 4-jadval 1-izoh: mavzedagi katta yoshdagilar sport maydonchalari maktab sport maydonlari bilan birlashtiriladi.
+ */
+const SOCIAL_ZONES: Record<'maktab' | 'mtm', { kind: PlayKind; minD: number; share: number; cap: number }[]> = {
+  maktab: [{ kind: 'sport', minD: 6, share: 0.3, cap: 4500 }, { kind: 'tajriba', minD: 6, share: 0.08, cap: 1200 }, { kind: 'bolalar', minD: 8, share: 0.08, cap: 900 }, { kind: 'kattalar', minD: 6, share: 0.05, cap: 400 }, { kind: 'xojalik', minD: 10, share: 0.03, cap: 300 }],
+  mtm: [{ kind: 'bolalar', minD: 6, share: 0.4, cap: 4000 }, { kind: 'sport', minD: 8, share: 0.12, cap: 900 }, { kind: 'tajriba', minD: 6, share: 0.06, cap: 400 }, { kind: 'xojalik', minD: 10, share: 0.04, cap: 200 }],
+};
 
 export interface Entry { kind: 'arka' | 'oraliq' | 'podyezd'; p: XY; d: XY; w?: number }
 export interface Yard {
   /** kvartal indeksi (computePlan blocks) */
   block: number;
   paving: XY[][][]; green: XY[][][]; paths: XY[][][];
-  play: { kind: keyof typeof PLAY_NORM; ring: XY[]; need: number; area: number; kit?: KitPart[] }[];
+  play: { kind: PlayKind; ring: XY[]; need: number; area: number; kit?: KitPart[] }[];
+  /** 31.10: maktab / MTM uchastkasi — turar joy hovlisi hisoblariga (86-band balansi, 4-jadval maydonchalari) kirmaydi */
+  social?: 'maktab' | 'mtm';
   trees: XY[];
   /** hovliga kirishlar (genplanda): arka, binolar oraligʻi (torets orasidan), podyezd — p nuqta, d hovli tomon yoʻnalish (birlik) */
   entries?: Entry[];
@@ -123,6 +137,17 @@ function landscapeRaw(doc: Project): Yard[] {
   plan.blocks.forEach((blk, bi) => {
     const bsig = `${blk.use}|${blk.rings.map(sig).join('/')}`;
     if (blk.use === 'yashil' || blk.use === 'maydon' || blk.use === 'sport') { const y = cached(`o|${bsig}`, () => openSpace(blk, bi)); if (y) out.push({ ...y, block: bi }); return; }
+    if (blk.use === 'maktab' || blk.use === 'mtm') {
+      // 31.10 (egasi: «maktab va MTM hududlari landshafti»): uchastka zonalari — andoza (zonalar maydoni meʼyor matnidan emas)
+      const ownS = bl.filter(x => !x.b.z0 && x.b.floors > 0 && pointIn(x.r.reduce((s2, p) => [s2[0] + p[0] / x.r.length, s2[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings));
+      const kind = blk.use as 'maktab' | 'mtm';
+      const y = cached(`m|${bsig}|${ownS.map(x => sig(x.r)).join('#')}`, () => { const z = yardOf(blk, bi, ownS.length ? ownS : [], [], doc, [], undefined, SOCIAL_ZONES[kind]); if (!z) return null;
+        // daraxtlar: uchastka chegarasi boʻylab yashil tasma (chekdan ≤ 10 m) + ichkarida siyrak (har uchinchisi) — ochiq maydon koʻproq qoladi
+        const trees = z.trees.filter((p, i) => ringD(p, blk.rings[0]) < 10 || i % 3 === 0);
+        return { ...z, trees, social: kind }; });
+      if (y) out.push({ ...y, block: bi });
+      return;
+    }
     if (!RES_USES.has(blk.use)) return;
     const inBlk = (x: Own) => pointIn(x.r.reduce((s, p) => [s[0] + p[0] / x.r.length, s[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings);
     const own = bl.filter(x => inBlk(x) && !x.b.z0), arches = bl.filter(x => x.b.gen?.kind === 'arka' && inBlk(x));
@@ -383,7 +408,7 @@ export function entriesOf(outer: XY[], own: Own[], arches: Own[]): Entry[] {
   }
   return out;
 }
-function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], park: Polygon[], doc: Project, arches: Own[] = [], roof?: { extra: MultiPolygon[] }): Yard | null {
+function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], park: Polygon[], doc: Project, arches: Own[] = [], roof?: { extra: MultiPolygon[] }, zones?: { kind: PlayKind; minD: number; share: number; cap: number }[]): Yard | null {
     const B: Polygon = blk.rings.map(close);
     const fp = safeUnion(own.map(x => [close(x.r)] as Polygon));
     // binolar atrofidagi 3 m trotuar
@@ -407,8 +432,8 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     }
     cand.sort((a, b) => b.d - a.d); cand.length = Math.min(cand.length, 400);
     const play: Yard['play'] = []; let taken: MultiPolygon = []; const takenBB: [number, number, number, number][] = [];
-    const place = (kind: keyof typeof PLAY_NORM, minD: number, cap: number) => {
-      const need = pop * PLAY_NORM[kind]; if (need < 15) return;
+    const place = (kind: PlayKind, minD: number, cap: number, need0?: number) => {
+      const need = need0 ?? (kind === 'tajriba' ? 0 : pop * PLAY_NORM[kind]); if (need < 15) return;
       for (let a = Math.min(need, cap); a >= Math.min(need, cap) * 0.4; a *= 0.8) {
         for (const c of cand) {
           if (c.d < minD) break;
@@ -426,7 +451,8 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     };
     const freeA = mpArea(free);
     // 31.10: bolalar maydonchasi birinchi (aks holda katta sport maydoni joyni egallab, bolalar maydonchasi tushmay qolardi)
-    place('bolalar', 10, freeA * 0.2); place('kattalar', 6, freeA * 0.08); place('sport', 12, freeA * 0.3); place('xojalik', 20, freeA * 0.08);
+    if (zones) for (const z of zones) place(z.kind, z.minD, Math.min(z.cap, freeA * z.share), Math.min(z.cap, freeA * z.share));   // maktab / MTM uchastkasi zonalari (andoza)
+    else { place('bolalar', 10, freeA * 0.2); place('kattalar', 6, freeA * 0.08); place('sport', 12, freeA * 0.3); place('xojalik', 20, freeA * 0.08); }
     // ichki yoʻlak: erkin hudud chegarasidan 5 m ichkarida (taxminan) — halqa
     const paths: MultiPolygon = [];
     for (const poly of freeR) {
@@ -472,7 +498,7 @@ export function greenBalance(doc: Project, yards: Yard[]): { blocksGreen: number
   const greenBlocks = new Set(plan.blocks.map((b, i) => b.use === 'yashil' ? i : -1).filter(i => i >= 0));
   // yashil kvartal butunlay hisoblangan — uning hovli eskizi (yoʻlaklar, maysa) ikkinchi marta qoʻshilmaydi
   // stilobat tomi maysasi (y.z) yer yashil hududi hisobiga kirmaydi (ehtiyot: 86-band «yashil hudud» — yer sathida); maydonchalari — 4-jadvalda
-  for (const y of yards) { if (greenBlocks.has(y.block)) continue; if (y.z) continue; yardGreen += y.areas.green; const pp = y.areas.play + y.areas.paths; yardPlay += pp <= 0.3 * y.areas.block ? pp : 0.3 * y.areas.block; }
+  for (const y of yards) { if (greenBlocks.has(y.block)) continue; if (y.z || y.social) continue; yardGreen += y.areas.green; const pp = y.areas.play + y.areas.paths; yardPlay += pp <= 0.3 * y.areas.block ? pp : 0.3 * y.areas.block; }
   const counted = blocksGreen + yardGreen + yardPlay;
   return { blocksGreen, yardGreen, yardPlay, counted, base, share: base > 0 ? counted / base : 0, trees: yards.reduce((t, y) => t + y.trees.length, 0) };
 }
