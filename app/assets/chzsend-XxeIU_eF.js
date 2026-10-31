@@ -1,0 +1,1 @@
+export{s as sendSheet}from"./chzsend-DeLL-10K.js";
