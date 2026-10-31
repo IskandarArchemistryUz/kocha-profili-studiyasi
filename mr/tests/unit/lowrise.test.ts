@@ -85,3 +85,12 @@ describe('Klaster (31.10): berk koʻcha atrofida hovlilar', () => {
     for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) expect(Math.hypot(cs[i][0] - cs[j][0], cs[i][1] - cs[j][1])).toBeGreaterThan(14.9);
   });
 });
+
+describe('Past qavatli: tanlangan qavat (31.10)', () => {
+  it('qavat 1–3 tanlanadi (kam qavatli — ShNQ 2.07.01-23, 2-band); berilmasa — odatiy; 3 dan oshmaydi', () => {
+    const B: [number, number][] = [[0, 0], [180, 0], [180, 80], [0, 80]];
+    expect(new Set(lowriseBlock(B, 'hovli').houses.map(h => h.floors))).toEqual(new Set([1]));
+    expect(new Set(lowriseBlock(B, 'hovli', 2).houses.map(h => h.floors))).toEqual(new Set([2]));
+    expect(new Set(lowriseBlock(B, 'yakka', 9).houses.map(h => h.floors))).toEqual(new Set([3]));
+  });
+});

@@ -672,7 +672,7 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
     case 'yakka': case 'taunhaus': case 'juft': case 'hovli': case 'klaster': {
       // 31.10: past qavatli uylar — alohida qoida (core/lowrise): kvartal cheti (qizil chiziq) boʻylab avval uchastka, keyin uy;
       // chekinish uchastka ichida (oldi 5 m), shuning uchun kvartalning oʻzi olinadi (setback emas)
-      const { houses, notes: n2 } = lowriseBlock(clean(block, 4), t, Math.max(1, Math.min(3, g.maxF)));
+      const { houses, notes: n2 } = lowriseBlock(clean(block, 4), t, g.maxF <= 3 ? g.maxF : undefined);
       return { sections: houses.map(h => ({ ring: h.ring, floors: h.floors, kind: h.kind as SecKind, nonRes: 0, plot: h.plot })), capFloors: null, notes: [...notes, ...n2] };
     }
     case 'villa': {
