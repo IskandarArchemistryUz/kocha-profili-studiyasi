@@ -39,7 +39,7 @@ import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel, RoundKind } from '../core/doc';
-import { DEFAULT_GEN, generate, usePreset, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
+import { DEFAULT_GEN, generate, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS } from '../core/parking';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
@@ -671,7 +671,9 @@ export class Editor {
         h('button', { class: 'btn btn-sm', style: 'margin-top:6px;display:flex', id: 'ovPush', onclick: () => this.pushOutOfStreet(b.id) }, tr('Koʻchadan chiqarish')))); }
     if (this.inspTab === 'hajm') {
       const builds = USES.filter(x => x.build);
-      const fn = h('div', { class: 'ugrp', id: 'iUse', role: 'group', 'aria-label': tr('Funksiya') }, h('div', {}, ...builds.map(x => h('button', { class: 'uchip', 'data-use': x.id, 'aria-pressed': x.id === b.use, title: x.name, onclick: () => upd({ use: x.id as Use }) }, h('i', { style: `background:${hex(x.color)}` }), tr(USE_SHORT[x.id] ?? x.name)))));
+      // parsel funksiyasiga mos kelmaydigan funksiya oʻchiq (31.10): turar joy parselida ofis / mehmonxona yoʻq va aksincha
+      const pu = (() => { const c: XY = [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length], bl = this.plan().blocks.find(q => pointIn(c, q.rings)); return bl?.use ?? null; })();
+      const fn = h('div', { class: 'ugrp', id: 'iUse', role: 'group', 'aria-label': tr('Funksiya') }, h('div', {}, ...builds.map(x => { const ok = !pu || useCompatible(pu, x.id); return h('button', { class: 'uchip', 'data-use': x.id, 'aria-pressed': x.id === b.use, disabled: !ok && x.id !== b.use, title: ok ? x.name : tf('«${u}» parseliga mos emas', { u: tr(useDef(pu!).name) }), onclick: () => upd({ use: x.id as Use }) }, h('i', { style: `background:${hex(x.color)}` }), tr(USE_SHORT[x.id] ?? x.name)); })));
       // balandlik: qadamlar + kichik kesim (noturar — toʻq, turar — och)
       const z0 = b.z0 ?? 0, tot = z0 + b.floors, fh = 7, H = Math.max(60, Math.min(150, tot * fh + 4));
       const q = Math.min(fh, (H - 4) / Math.max(1, tot));
@@ -2009,7 +2011,8 @@ export class Editor {
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
     const sg = this.savedGen(i), base: GenParams = i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) };
-    const g0: GenParams = usePreset(b.use, base) ?? (ud.floors ? { ...base, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base);
+    const okT = typoAllowed(b.use), base1: GenParams = okT.includes(base.typology) ? base : { ...base, typology: okT[0] };
+    const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]) });
@@ -2165,10 +2168,13 @@ export class Editor {
         h('div', { class: 'row' }, h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => void useHeavy('gen').then(ok => { if (ok) this.generateSocial(socI); }) }, tr('Joylashtirish'), this.ptag('gen')), allBtn(), clearBtn(socI)));
       if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
     } else {
+      // parsel funksiyasiga mos tipologiyalar (31.10): mos kelmaydiganlari oʻchiq; tanlangani mos boʻlmasa — birinchi mosi
+      const selUse = this.selBlock != null ? plan.blocks[this.selBlock]?.use ?? null : null, okT = selUse ? typoAllowed(selUse) : (Object.keys(TYPO_NAME) as Typology[]);
+      if (!okT.includes(g.typology)) g.typology = okT[0];
       const ft = h('b', { class: 'num', style: 'min-width:48px;text-align:right' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : tr('oʻchiq'));
       body.append(
         h('div', { class: 'glabel' }, h('span', {}, tr('Tipologiya')), h('span', {}, `${Object.keys(TYPO_NAME).length} ta`)),
-        h('div', { class: 'tiles', role: 'group', 'aria-label': tr('Tipologiya') }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, title: tr(TYPO_NAME[k]), onclick: () => { g.typology = k; this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }))),
+        h('div', { class: 'tiles', role: 'group', 'aria-label': tr('Tipologiya') }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => { const ok = okT.includes(k); return h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, disabled: !ok, title: ok ? tr(TYPO_NAME[k]) : tf('«${u}» parseliga mos emas', { u: tr(useDef(selUse!).name) }), onclick: () => { g.typology = k; this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }); })),
         h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Maqsadli UMN (FAR)')), h('div', { class: 'grow' }, range({ min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', 'aria-label': tr('Maqsadli UMN (FAR)'), oninput: v => { g.far = v; ft.textContent = v > 0 ? fmt(v, 1) : tr('oʻchiq'); } })), ft),
         h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)')),
         h('div', { class: 'group' },
@@ -2247,11 +2253,16 @@ export class Editor {
     const P = LOW[this.lowKind];
     const place = (line: XY[]) => {
       const doc = this.store.doc, plan = this.plan(), sides: (1 | -1)[] = this.lowSide === 0 ? [1, -1] : [this.lowSide];
-      const blockers = [...plan.corridors.flatMap(p => p.map(r => r)), ...doc.buildings.map(b => b.footprint.map(fr.toLocal))];
+      // toʻsiq — koʻcha koridorlari va qoʻlda chizilgan binolar; avtomatik (generatsiya) binolar yangi uylar bilan almashtiriladi (31.10)
+      const blockers = [...plan.corridors.flatMap(p => p.map(r => r)), ...doc.buildings.filter(b => !b.gen).map(b => b.footprint.map(fr.toLocal))];
       const hit = (r: XY[]) => blockers.some(q => q.length >= 3 && (r.some(p => pointIn(p, [q])) || q.some(p => pointIn(p, [r]))));
-      const houses = sides.flatMap(sd => lowriseAlong(this.lowOff > 0 ? offsetLine(line, sd * this.lowOff) : line, sd, this.lowKind, doc.site ? doc.site.rings[0].map(fr.toLocal) : null)).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
+      const site = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
+      const along = (sd: 1 | -1, off: number) => lowriseAlong(off > 0 ? offsetLine(line, sd * off) : line, sd, this.lowKind, site).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
+      // chiziq koʻcha oʻqi yoki qizil chiziq ustida boʻlsa — chekinish 0 da hamma uchastka koridorga tushadi: chekinish avtomatik oshiriladi
+      const houses = sides.flatMap(sd => { for (const off of this.lowOff > 0 ? [this.lowOff] : [0, 2, 4, 6, 8, 10, 13, 16, 20]) { const r = along(sd, off); if (r.length) return r; } return []; });
       if (!houses.length) { toast(tr('Chiziq boʻylab uy sigʻmadi — chiziq qisqa yoki koʻcha / bino ustiga tushadi')); return; }
-      this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: uid('qator_'), sections: houses.map(hh => ({ footprint: hh.ring.map(fr.toGeo), floors: hh.floors, nonRes: 0, use: 'turar' as Use, kind: hh.kind, plot: hh.plot.map(fr.toGeo) })) }));
+      const grp = uid('qator_'), drop = staleGen(doc, grp, [], houses.map(hh => hh.plot));
+      this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, sections: houses.map(hh => ({ footprint: hh.ring.map(fr.toGeo), floors: hh.floors, nonRes: 0, use: 'turar' as Use, kind: hh.kind, plot: hh.plot.map(fr.toGeo) })) }));
       toast(tf('${n} ta uy chiziq boʻylab qoʻyildi', { n: houses.length }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
     };

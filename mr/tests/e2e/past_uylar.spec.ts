@@ -50,3 +50,33 @@ test('past qavatli uylar: chiziq boʻylab qator (ikkala tomonga)', async ({ page
   expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings.length)).toBe(0);
 });
 
+
+/** 31.10 (egasi): koʻcha oʻqi ustiga chizilganda ham uylar qoʻyiladi (chekinish avtomatik), avtomatik uylar almashtiriladi; turar joy kvartaliga ofis tipologiyasi oʻchiq */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qator koʻcha oʻqi boʻylab va parselga mos tipologiya · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: w, height: 900 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '220'); await page.fill('#rh', '160'); await page.click('#rectSite');
+  await page.evaluate(() => {
+    const mr = (window as any).__mr, d = mr.store.doc, [lng, lat] = d.origin, k = 1 / 111320, kx = k / Math.cos(lat * Math.PI / 180);
+    mr.store.dispatch({ type: 'addStreet', axis: [[lng - 120 * kx, lat], [lng + 120 * kx, lat]], profile: 'mahalla-15' });
+  });
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
+  await expect(page.locator('[data-typ=ofis_plita]')).toBeDisabled(); await expect(page.locator('[data-typ=yakka]')).toBeEnabled();
+  await page.click('[data-typ=yakka]'); await page.click('#genGo');
+  const g0 = await page.evaluate(() => (window as any).__mr.store.doc.buildings.filter((b: any) => b.gen && !b.gen.grp.startsWith('qator_')).length);
+  expect(g0).toBeGreaterThan(4);
+  await page.locator('#lowRow summary').click();
+  await page.click('#lowKind [data-v=taunhaus]'); await page.click('#lowSide [data-v="0"]');
+  await page.click('#lowDraw');
+  const sc = page.locator('#scene canvas'), bb = (await sc.boundingBox())!;
+  const at = async (x: number, y: number) => { const s = await page.evaluate(([x, y]) => (window as any).__mr.scene.toScreen(x, y, 0), [x, y]) as { x: number; y: number }; await page.mouse.click(bb.x + s.x, bb.y + s.y); };
+  await at(-10, 0); await at(100, 0); await page.keyboard.press('Enter');   // 1024 px da chap panel ostiga tushmasin
+  await page.waitForTimeout(400);
+  const res = await page.evaluate(() => { const B = (window as any).__mr.store.doc.buildings; return { q: B.filter((b: any) => b.gen?.grp?.startsWith('qator_')).length, g: B.filter((b: any) => b.gen && !b.gen.grp.startsWith('qator_')).length }; });
+  expect(res.q).toBeGreaterThan(6);
+  expect(res.g).toBeLessThan(g0);   // ustiga tushgan avtomatik uylar olib tashlandi
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/past_okoch_${w}${dark ? 'd' : 'l'}.png` });
+});
