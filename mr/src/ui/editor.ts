@@ -478,7 +478,7 @@ export class Editor {
       this.sunW ??= new Worker(new URL('../workers/sun.worker.ts', import.meta.url), { type: 'module' });
       sun = await new Promise<Float32Array>((ok, no) => { const w = this.sunW!; w.onmessage = e => ok(e.data.hours); w.onerror = e => no(e); w.postMessage({ id: 2, pts, z, prisms, steps }); });
     } catch { sun = insolation(pts, z, prisms, steps); }
-    const plan = computePlan(doc), yardsL = doc.settings.yards ? landscape(doc) : [];
+    const plan = computePlan(doc), yardsL = doc.settings.yards ? landscape(doc).filter(y => !y.z) : [];
     const { cover, canopy } = coverClassifier({
       streets: doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })),
       blocks: plan.blocks.map(b => ({ rings: b.rings, use: b.use })), site: doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null,

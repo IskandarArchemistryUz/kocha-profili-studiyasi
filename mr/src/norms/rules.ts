@@ -13,7 +13,7 @@ import { landscape } from '../core/landscape';
 import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
 import { checkBlock, lenLimit, SYS, FIRE_COMP_ANDOZA, isPodium, jointOpt, jointScheme } from '../core/seysmik';
-import { area as areaOf } from '../core/geo';
+import { area as areaOf, obb2 } from '../core/geo';
 import { computePlan } from '../core/plan';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 
@@ -305,15 +305,30 @@ export const RULES: Rule[] = [
   {
     id: 'fire-666',
     title: 'Yongʻin-qutqaruv texnikasi yoʻlagi (hovlida, H ≥ 28 m)',
-    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '666, 667, 675, 676-bandlar', verified: true },
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '666, 667, 675–677-bandlar', verified: true },
     evaluate(_d, doc) {
-      if (!doc.buildings.some(b => (b.floors + (b.z0 ?? 0)) * doc.settings.floorHeight >= 28)) return { status: 'na', note: 'Balandligi 28 m va undan yuqori turar joy binolari yoʻq — bitta uzun tomondan (koʻchadan) yetib kelish yetarli (666-band).' };
+      const fh = doc.settings.floorHeight, Ht = (b: Project['buildings'][number]) => (b.floors + (b.z0 ?? 0)) * fh;
+      // 31.10: stilobat ustidagi jamoat binolari (F2, F3, F4.2–F4.4) — H ≥ 18 m
+      if (!doc.buildings.some(b => Ht(b) >= 28 || ((b.z0 ?? 0) > 0 && Ht(b) >= 18))) return { status: 'na', note: 'Balandligi 28 m va undan yuqori turar joy binolari yoʻq — bitta uzun tomondan (koʻchadan) yetib kelish yetarli (666-band).' };
       if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchiq — hovlidagi yoʻlak tekshirilmadi (Yashil qadami).' };
-      const ys = landscape(doc).filter(y => y.fire), bad = ys.filter(y => !y.fire!.area), noIn = ys.filter(y => y.fire!.area && !(y.entries ?? []).some(e => e.kind === 'arka' || (e.kind === 'oraliq' && (e.w ?? 0) >= y.fire!.w)));
+      const ys = landscape(doc).filter(y => y.fire), bad = ys.filter(y => !y.fire!.area), noIn = ys.filter(y => !y.z && y.fire!.area && !(y.entries ?? []).some(e => e.kind === 'arka' || (e.kind === 'oraliq' && (e.w ?? 0) >= y.fire!.w)));
+      const roofs = ys.filter(y => y.z), noRamp = roofs.filter(y => y.fire!.area && !y.ramp);
       const w = Math.max(0, ...ys.map(y => y.fire!.w));
-      const P = computePlan(doc), wh = [...bad, ...noIn].map(y => P.blocks[y.block]?.rings[0]).filter((r): r is XY[] => !!r);
-      return { status: bad.length ? 'fail' : noIn.length ? 'review' : 'pass', ...(wh.length ? { where: { rings: wh } } : {}), value: ys.length - bad.length, unit: 'kvartal', limit: `${ys.length}`,
-        note: `Binoning ikkala uzun tomonidan yetib kelish (666-band, F1.3, H ≥ 28 m): hovlida eni ${w} m yoʻlak (667-band), ichki chetidan devorgacha 9 m (675-band: 8–10 m), yoʻlak va bino orasida daraxt qatori yoʻq (676-band).` + (bad.length ? ` Hovlida yoʻlak sigʻmadi: ${bad.length} kvartal — hovlini kengaytiring yoki qavatlarni kamaytiring.` : '') + (noIn.length ? ` Hovliga mashina kirishi (arka yoki ≥ ${w} m oraliq) topilmadi: ${noIn.length} kvartal.` : '') };
+      const fr = frame(doc.origin), P = computePlan(doc), ringOf = (y: (typeof ys)[number]) => y.roofOf ? doc.buildings.find(b => b.id === y.roofOf)?.footprint.map(fr.toLocal) : P.blocks[y.block]?.rings[0];
+      const wh = [...bad, ...noIn, ...noRamp].map(ringOf).filter((r): r is XY[] => !!r);
+      // 666-band: qurilish maydoni > 10 000 m² yoki eni > 100 m — barcha tomondan
+      const big = doc.buildings.filter(b => b.gen?.kind === 'stilobat').map(b => b.footprint.map(fr.toLocal)).filter(r => areaOf(r) > 10000 || obb2(r).S > 100).length;
+      let note = `Binoning ikkala uzun tomonidan yetib kelish (666-band, F1.3, H ≥ 28 m): hovlida eni ${w} m yoʻlak (667-band), ichki chetidan devorgacha 9 m (675-band: 8–10 m), yoʻlak va bino orasida daraxt qatori yoʻq (676-band).`;
+      if (bad.length) note += ` Hovlida yoʻlak sigʻmadi: ${bad.length} kvartal — hovlini kengaytiring yoki qavatlarni kamaytiring.`;
+      if (noIn.length) note += ` Hovliga mashina kirishi (arka yoki ≥ ${w} m oraliq) topilmadi: ${noIn.length} kvartal.`;
+      if (roofs.length) {
+        const rp = roofs.find(y => y.ramp)?.ramp;
+        note += ` Stilobat tomida yoʻlak: ${roofs.length} ta (ustidagi binolar F1.3 ≥ 28 m yoki jamoat ≥ 18 m). 677-band: tom konstruksiyasi yongʻin avtomobilining har oʻqidan ≥ 16 t yukka hisoblanadi.`;
+        if (rp) note += ` Rampa: stilobat balandligi ${Math.round(rp.h * 10) / 10} m, nishab ≤ ${Math.round(rp.slope * 100)} % (andoza) → uzunligi ${rp.len} m, eni ${rp.w} m.`;
+        if (noRamp.length) note += ` Rampa sigʻmadi: ${noRamp.length} ta stilobat — chekinishni kengaytiring yoki rampani bino ichida loyihalang.`;
+      }
+      if (big) note += ` 666-band: qurilish maydoni 10 000 m² dan yoki eni 100 m dan katta stilobat — ${big} ta: barcha tomondan yetib kelish kerak (koʻchalar va hovli yoʻlagi bilan tekshiring).`;
+      return { status: bad.length || noRamp.length ? 'fail' : noIn.length || big ? 'review' : 'pass', ...(wh.length ? { where: { rings: wh } } : {}), value: ys.length - bad.length - noRamp.length, unit: 'kvartal', limit: `${ys.length}`, note };
     },
   },
   {

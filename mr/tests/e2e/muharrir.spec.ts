@@ -9,7 +9,10 @@ test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', a
   await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   await page.click('[data-view=axo]');   // quyidagi nuqtalar aksonometriya uchun (standart koʻrinish — Reja)
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!;
-  await page.mouse.click(bb.x + bb.width * 0.62, bb.y + bb.height * 0.32);
+  // 31.10: CI da sahna (relyef, OSM) kechroq tayyor boʻladi — nuqtada bino paydo boʻlishini kutib bosamiz
+  const px = bb.x + bb.width * 0.62, py = bb.y + bb.height * 0.32;
+  await expect.poll(() => page.evaluate(([x, y]) => !!(window as any).__mr.scene.pickBuilding(x, y), [px, py]), { timeout: 15_000 }).toBe(true);
+  await page.mouse.click(px, py);
   await expect(page.locator('.panel[data-mode=bino]')).toBeVisible();
   const gfa0 = Number((await page.locator('#kGfa b').textContent())!.replace(/\D/g, ''));
   const f0 = Number(await page.locator('#iFloors').inputValue());

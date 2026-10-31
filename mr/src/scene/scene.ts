@@ -908,46 +908,61 @@ export class Scene3D {
         const alb = this.album, plainS = st === 'arctic' || st === 'minimal';
         const col = { pave: plainS ? 0xf4f3f0 : alb ? 0xf1eee8 : 0xdcd6cb, green: plainS ? 0xeceee8 : alb ? 0xd5e4c4 : 0xa9cc8c, path: plainS ? 0xf7f6f4 : alb ? 0xf6f3ee : 0xe7e0d2,
           bolalar: plainS ? 0xf0ede8 : 0xf0c58a, kattalar: plainS ? 0xf0ede8 : 0xeadfc8, sport: plainS ? 0xe9ece6 : 0x8fbf98, xojalik: plainS ? 0xeeeeee : 0xcfcac1 };
-        const fill = (mp: XY[][][], c: number, lift: number, order: number) => mp.forEach(poly => {
+        const fill = (mp: XY[][][], c: number, lift: number, order: number, Hf: HeightFn = this.H) => mp.forEach(poly => {
           if (!poly[0] || poly[0].length < 3) return;
           const sh = new THREE.Shape(poly[0].map(toV2)); poly.slice(1).forEach(hh => sh.holes.push(new THREE.Path(hh.map(toV2))));
-          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, lift, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5 - order, polygonOffsetUnits: -5 - order }));
+          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), Hf, lift, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5 - order, polygonOffsetUnits: -5 - order }));
           m.renderOrder = 6.2 + order * 0.01; this.world.add(m);
         });
         const yards = landscape(doc), trees: XY[] = [];
         // maydoncha jihozlari (playkit): rang boʻyicha bitta mesh va bitta LineSegments — sahna yengil
         const kitF: Record<string, THREE.Shape[]> = {}, kitL: Record<string, number[]> = {};
         for (const y of yards) {
+          // 31.10: stilobat tomi landshafti — tom sathida (bino asosi + stilobat balandligi)
+          const pb = y.roofOf ? doc.buildings.find(b => b.id === y.roofOf) : undefined;
+          const zr = pb ? Math.min(...pb.footprint.map(fr.toLocal).map(p => this.H(p[0], p[1]))) + (y.z ?? 0) : 0;
+          const Hy: HeightFn = pb ? () => zr : this.H;
           if (this.isoLocal && plan.blocks[y.block] && !this.inIso(plan.blocks[y.block].rings[0])) continue;   // izolyatsiya: faqat hudud hovlilari
-          fill(y.paving, col.pave, 0.32, 1); fill(y.green, col.green, 0.33, 2); fill(y.paths, col.path, 0.34, 3);
-          if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, this.H); l.userData.fireLane = true; this.world.add(l); } }
+          fill(y.paving, col.pave, 0.32, 1, Hy); fill(y.green, col.green, 0.33, 2, Hy); fill(y.paths, col.path, 0.34, 3, Hy);
+          if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5, Hy); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, Hy); l.userData.fireLane = true; this.world.add(l); } }
           for (const q of y.play) {
-            fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H));
+            fill([[q.ring]], col[q.kind], 0.35, 4, Hy); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, Hy));
             for (const k of q.kit ?? []) {
-              if (k.f) (kitF[k.c] ??= []).push(new THREE.Shape(k.f.map(toV2)));
-              if (k.l) { const a = (kitL[k.c] ??= []); for (let i = 1; i < k.l.length; i++) { const p0 = k.l[i - 1], p1 = k.l[i]; a.push(p0[0], this.H(p0[0], p0[1]) + 0.43, -p0[1], p1[0], this.H(p1[0], p1[1]) + 0.43, -p1[1]); } }
+              if (k.f) (kitF[pb ? `${k.c}@${zr}` : k.c] ??= []).push(new THREE.Shape(k.f.map(toV2)));
+              if (k.l) { const a = (kitL[k.c] ??= []); for (let i = 1; i < k.l.length; i++) { const p0 = k.l[i - 1], p1 = k.l[i]; a.push(p0[0], Hy(p0[0], p0[1]) + 0.43, -p0[1], p1[0], Hy(p1[0], p1[1]) + 0.43, -p1[1]); } }
             }
           }
           // sport hududi (31.10): maydon rangi, oq belgilar, yopiq majmua — past quti
           for (const q of y.sport ?? []) {
             const SC: Record<string, number> = plainS ? { stadion: 0xe6ebe2, yolka: 0xeee6e2, futbol: 0xe6ebe2, minifutbol: 0xe6ebe2, tennis: 0xe2e8ee, basket: 0xeee8e0, voley: 0xeee8e0, workout: 0xe8e8e8, basseyn: 0xe0ecf2, yopiq: 0xf2f2f2 }
               : { stadion: 0x5ea85a, yolka: 0xc4644c, futbol: 0x5ea85a, minifutbol: 0x6bb06a, tennis: 0x4f86b8, basket: 0xcf8a4e, voley: 0xd8b56a, workout: 0x9a9890, basseyn: 0x58b6de, yopiq: 0xdfe3e8 };
-            if (q.k === 'basseyn' && q.lines[0]) fill([[q.lines[0].slice(0, -1)]], plainS ? 0xf4f3f0 : 0xe8e2d6, 0.355, 4.5);
+            if (q.k === 'basseyn' && q.lines[0]) fill([[q.lines[0].slice(0, -1)]], plainS ? 0xf4f3f0 : 0xe8e2d6, 0.355, 4.5, Hy);
             fill([[q.ring]], SC[q.k] ?? 0x8fbf98, q.k === 'stadion' ? 0.37 : 0.36, q.k === 'stadion' ? 5.5 : 5);
-            for (const ln of q.k === 'basseyn' ? [] : q.lines) this.world.add(line(densify([...ln], 4, false), plainS ? 0xb9b6ae : 0xffffff, q.k === 'yolka' ? 0.42 : 0.4, false, 6.6, this.H));
+            for (const ln of q.k === 'basseyn' ? [] : q.lines) this.world.add(line(densify([...ln], 4, false), plainS ? 0xb9b6ae : 0xffffff, q.k === 'yolka' ? 0.42 : 0.4, false, 6.6, Hy));
             if (q.k === 'yopiq' && q.h) {
               const sh = new THREE.Shape(q.ring.map(toV2)), g = new THREE.ExtrudeGeometry(sh, { depth: q.h, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
               const c0 = q.ring.reduce((a, p) => [a[0] + p[0] / q.ring.length, a[1] + p[1] / q.ring.length] as XY, [0, 0] as XY);
-              const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: plainS ? 0xf4f4f4 : 0xdfe6ee })); m.position.y = this.H(c0[0], c0[1]); m.castShadow = true; m.receiveShadow = true; m.userData.sport = true; this.world.add(m);
+              const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: plainS ? 0xf4f4f4 : 0xdfe6ee })); m.position.y = Hy(c0[0], c0[1]); m.castShadow = true; m.receiveShadow = true; m.userData.sport = true; this.world.add(m);
             }
           }
-          for (const r of y.fences ?? []) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0x8a7f6c, 0.36, true, 6.45, this.H); l.userData.fence = true; this.world.add(l); }   // past uylar uchastkalari panjarasi
-          trees.push(...y.trees);
+          for (const r of y.fences ?? []) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0x8a7f6c, 0.36, true, 6.45, Hy); l.userData.fence = true; this.world.add(l); }   // past uylar uchastkalari panjarasi
+          // yongʻin rampasi: yerdan (t = 0) tom sathigacha (t = len) qiya tekislik; ikki yonida chiziq
+          if (pb && y.ramp) {
+            const R = y.ramp.ring, lo = y.ramp.lo, hi = y.ramp.hi, dx = hi[0] - lo[0], dy = hi[1] - lo[1], L2 = dx * dx + dy * dy || 1, g0 = this.H(lo[0], lo[1]);
+            const zs = R.map(p => { const f = Math.max(0, Math.min(1, ((p[0] - lo[0]) * dx + (p[1] - lo[1]) * dy) / L2)); return g0 + (zr - g0) * f + 0.05; });
+            if (y.ramp.inside) fill([[R]], plainS ? 0x9a978f : 0x5c5953, 0.36, 5, Hy);   // stilobat tomidagi ochiq tuynuk (rampa ichida)
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(R.flatMap((p, k) => [p[0], zs[k], -p[1]]), 3)); g.setIndex([0, 1, 2, 0, 2, 3]); g.computeVertexNormals();
+            const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: plainS ? 0xe6e4df : 0xcdc4b4, side: THREE.DoubleSide })); m.receiveShadow = true; m.userData.ramp = true; this.world.add(m);
+            const v: number[] = []; for (const [i0, i1] of (zs[1] - zs[0] > zs[3] - zs[0] ? [[0, 1], [3, 2]] : [[0, 3], [1, 2]])) v.push(R[i0][0], zs[i0] + 0.9, -R[i0][1], R[i1][0], zs[i1] + 0.9, -R[i1][1]);   // toʻsiq (0,9 m)
+            const gl = new THREE.BufferGeometry(); gl.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); this.world.add(new THREE.LineSegments(gl, new THREE.LineBasicMaterial({ color: plainS ? 0xb9b6ae : 0xc0503a })));
+          }
+          if (pb) { if (y.trees.length) this.world.add(...treeMeshes(y.trees, Hy, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c)); } else trees.push(...y.trees);
         }
         const KC: Record<string, number> = plainS ? { qum: 0xece9e2, jihoz: 0xc9c6bf, yogoch: 0xb9b6ae, oq: 0xffffff, chiziq: 0xa9a59c, gul: 0xe4e6df }
           : { qum: 0xf3dea6, jihoz: 0xd9654b, yogoch: 0x9c7752, oq: 0xffffff, chiziq: 0x6b6458, gul: 0xd98fa8 };
-        for (const [c, sh] of Object.entries(kitF)) {
-          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 0.38, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: KC[c], transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10 }));
+        for (const [ck, sh] of Object.entries(kitF)) {
+          const [c, zk] = ck.split('@'), zz = zk != null ? Number(zk) : NaN;
+          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), Number.isFinite(zz) ? () => zz : this.H, 0.38, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: KC[c], transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10 }));
           m.renderOrder = 6.3; m.userData.playKit = c; this.world.add(m);
         }
         for (const [c, v] of Object.entries(kitL)) {
