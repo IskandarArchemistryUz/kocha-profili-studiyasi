@@ -20,7 +20,7 @@ import { buildingSection, type SecBld } from '../core/bldsection';
 /** V5: «Kvartiralar» qadamidagi derazalar hisobi — bino, qavat (1 dan), modul → uzluksiz quyosh, soat */
 export interface InsolView {
   date: string; at: (bid: string, floor: number, m: number) => number | null;
-  /** tanlangan mahalliy soatda quyosh (balandlik > 3° boʻlsa) */ sun?: (hour: number) => { alt: number; az: number } | null;
+  /** tanlangan mahalliy soatda quyosh (balandlik > 3° boʻlsa); date — «MM-DD» (animatsiya uchun boshqa kun), berilmasa — hisob sanasi */ sun?: (hour: number, date?: string) => { alt: number; az: number } | null;
   /** shu soatda derazalarga quyosh tushadimi (atrof soyasi bilan) */ lit?: (bid: string, floor: number, mods: number[], st: { alt: number; az: number }) => boolean[];
 }
 /** deraza ochilmasi (real dogʻ uchun): eni 1,5 m, podokonnik 0,9 m, tepasi 2,3 m */
@@ -53,6 +53,9 @@ export function openAlbum(o: AlbumOpts): void {
   document.getElementById('album')?.remove();
   let bid = o.bid, sel: number[] = [], selRoom = -1, mode: 'tanlash' | 'devor' = 'tanlash', msg = '', msgBad = false, closeArmed = false;
   let view: AlbView = o.view ?? 'reja', insol: InsolView | null = o.insol ?? null, insolBusy = false, hiApt = -1, insolHour = 12;
+  /** animatsiya (31.10): tanlangan kun, ijro holati, faqat quyosh dogʻi qatlamini qayta chizish */
+  let animDate: string | null = null, animT = 0, paint: (() => void) | null = null;
+  const stopAnim = () => { if (animT) { clearInterval(animT); animT = 0; } };
   // V3 variantlar: maqsadli aralashma (mahalliy, hujjatga yozilmaydi), oʻlcham andozasi, hisoblangan variantlar va tanlangani
   let varMix: number[] = [...o.mix], varSize: 'S' | 'M' | 'L' = o.size, vars: PlanVariant[] | null = null, varSel = -1;
   const work = new Map<string, RulePlan>(), hist = new Map<string, RulePlan[]>(), dirty = new Set<string>();
@@ -223,16 +226,18 @@ export function openAlbum(o: AlbumOpts): void {
     const el = (tag: string, at: Record<string, string | number>) => { const e = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, String(v)); return e; };
     // real quyosh dogʻi (egasi 30.10): tanlangan soatda deraza ochilmasi quyosh yoʻnalishi boʻylab polga proyeksiya qilinadi;
     // devordan sill/tg α dan head/tg α gacha, yon tomonga azimut boʻyicha; kvartira konturiga kesiladi; atrof soyasi — lit()
-    const st = insol!.sun?.(insolHour) ?? null, modsAll = pl.layout.mods.map((_, i) => i).filter(i => !pl.layout.mods[i].blind);
-    const litArr = st && insol!.lit ? insol!.lit(pl.bid, floor, modsAll, st) : modsAll.map(() => false), litSet = new Set(modsAll.filter((_, i) => litArr[i]));
-    const sv: XY | null = st ? [Math.sin(st.az * Math.PI / 180), Math.cos(st.az * Math.PI / 180)] : null, tanA = st ? Math.tan(st.alt * Math.PI / 180) : 1;
+    const modsAll = pl.layout.mods.map((_, i) => i).filter(i => !pl.layout.mods[i].blind);
     const inApt = (p: XY) => V.apts.find(a => pin(p, a.ring));
-    for (const m of modsAll) {
-      const md = pl.layout.mods[m], hh = insol!.at(pl.bid, floor, m);
-      const n: XY = [Math.sin(md.az * Math.PI / 180), Math.cos(md.az * Math.PI / 180)], t: XY = [n[1], -n[0]];
-      const mid: XY = [(md.a[0] + md.b[0]) / 2, (md.a[1] + md.b[1]) / 2];
-      const host = inApt([mid[0] - n[0] * 0.6, mid[1] - n[1] * 0.6]);
-      if (sv && host && litSet.has(m) && sv[0] * n[0] + sv[1] * n[1] > 0.03 && tanA > 0.03) {
+    // quyosh dogʻlari: soat (va animatsiyada kun) oʻzgarganda faqat shu qatlam qayta chiziladi
+    paint = () => {
+      gP.replaceChildren();
+      const st = insol!.sun?.(insolHour, animDate ?? undefined) ?? null;
+      const litArr = st && insol!.lit ? insol!.lit(pl.bid, floor, modsAll, st) : modsAll.map(() => false), litSet = new Set(modsAll.filter((_, i) => litArr[i]));
+      const sv: XY | null = st ? [Math.sin(st.az * Math.PI / 180), Math.cos(st.az * Math.PI / 180)] : null, tanA = st ? Math.tan(st.alt * Math.PI / 180) : 1;
+      for (const m of modsAll) {
+        const md = pl.layout.mods[m], n: XY = [Math.sin(md.az * Math.PI / 180), Math.cos(md.az * Math.PI / 180)], t: XY = [n[1], -n[0]];
+        const mid: XY = [(md.a[0] + md.b[0]) / 2, (md.a[1] + md.b[1]) / 2], host = inApt([mid[0] - n[0] * 0.6, mid[1] - n[1] * 0.6]);
+        if (!(sv && host && litSet.has(m) && sv[0] * n[0] + sv[1] * n[1] > 0.03 && tanA > 0.03)) continue;
         const d0 = Math.min(40, WIN.sill / tanA), d1 = Math.min(40, WIN.head / tanA), w = WIN.w / 2;
         const A0: XY = [mid[0] - t[0] * w, mid[1] - t[1] * w], B0: XY = [mid[0] + t[0] * w, mid[1] + t[1] * w];
         const q: XY[] = [[A0[0] - sv[0] * d0, A0[1] - sv[1] * d0], [B0[0] - sv[0] * d0, B0[1] - sv[1] * d0], [B0[0] - sv[0] * d1, B0[1] - sv[1] * d1], [A0[0] - sv[0] * d1, A0[1] - sv[1] * d1]];
@@ -241,6 +246,13 @@ export function openAlbum(o: AlbumOpts): void {
           for (const poly of cut) for (const ring of poly) gP.append(el('path', { d: ring.map((p, i) => { const s2 = toSvg(p as XY); return `${i ? 'L' : 'M'}${s2[0]} ${s2[1]}`; }).join('') + 'Z', fill: '#f6c445', 'fill-opacity': 0.5, stroke: '#e0a526', 'stroke-width': 0.15 }));
         } catch { /* kesishmadi */ }
       }
+      gP.setAttribute('data-hour', String(insolHour));
+    };
+    paint();
+    for (const m of modsAll) {
+      const md = pl.layout.mods[m], hh = insol!.at(pl.bid, floor, m);
+      const n: XY = [Math.sin(md.az * Math.PI / 180), Math.cos(md.az * Math.PI / 180)];
+      const mid: XY = [(md.a[0] + md.b[0]) / 2, (md.a[1] + md.b[1]) / 2];
       const c = toSvg([mid[0] + n[0] * 1.1, mid[1] + n[1] * 1.1]), txt = hh == null ? '—' : h1(hh);
       const g = el('g', { 'data-win': m });
       g.append(el('rect', { x: c[0] - 3.4, y: c[1] - 1.8, width: 6.8, height: 3.6, rx: 1.8, fill: hh == null ? '#8e8a82' : hCol(hh), 'fill-opacity': living.has(m) ? 1 : 0.6 }));
@@ -266,7 +278,7 @@ export function openAlbum(o: AlbumOpts): void {
       h('div', { class: 'alb-insol-kpi', id: 'albInsolKpi' }, h('b', { class: 'num' }, `${FI.ok} / ${FI.total}`), h('span', {}, tr('kvartira talabga mos'))),
       req,
       badA.length ? h('div', { class: 'glabel' }, h('span', {}, tr('Mos emas')), h('span', {}, String(badA.length))) : h('div', { class: 'note ok' }, tr('Bu qavatdagi barcha kvartiralar talabga mos.')),
-      badA.length ? h('div', { class: 'group', id: 'albInsolBad' }, ...badA.map(a => h('button', { class: 'li', 'aria-pressed': hiApt === a.i, 'data-apt-row': a.i, onclick: () => { hiApt = hiApt === a.i ? -1 : a.i; render(); } },
+      badA.length ? h('div', { class: 'group', id: 'albInsolBad', style: 'flex:none' }, ...badA.map(a => h('button', { class: 'li', 'aria-pressed': hiApt === a.i, 'data-apt-row': a.i, onclick: () => { hiApt = hiApt === a.i ? -1 : a.i; render(); } },
         h('span', { class: 'k' }, h('i', { class: 'dot', style: `background:${ST_COL[a.status]}` }), h('b', {}, `№ ${a.i + 1} · ${a.rooms}x`), h('span', { class: 'sub' }, `${tr('eng koʻpi')} ${h1(a.best)} ${tr('soat')}`)), h('span', { class: 'v num' }, `${a.ok}/${a.need}`)))) : '',
       north ? h('div', { class: 'note warn', id: 'albInsolHint' }, tr('Shimoliy qatordagi kvartiralarning derazasi faqat shimolga qaraydi. Yechim: shimolga bir tomonlama kvartira qoʻymaslik — seksiyani ikki tomonga chiquvchi kvartiralar bilan rejalash yoki binoni burish.')) : '',
       h('span', { class: 'spacer' }),
@@ -317,14 +329,46 @@ export function openAlbum(o: AlbumOpts): void {
     });
     varsBox.replaceChildren(head, h('div', { class: 'alb-vars-grid' }, ...cards), vars && !vars.length ? h('div', { class: 'note warn' }, tr('Generator boshqa variant topa olmadi — aralashmani oʻzgartirib qayta urinib koʻring.')) : '');
   }
-  /** V5: soat slayderi — real dogʻ uchun (7:00–18:00, 30 daqiqa qadam) */
+  /**
+   * V5: soat slayderi — real dogʻ uchun; 31.10 (egasi): kunni tanlab tezlashtirilgan kunlik animatsiya —
+   * quyosh chiqishidan botishigacha 15 daqiqa qadam bilan (~6 s), mijoz quyosh xonalarga qachon tushishini koʻradi.
+   */
   function hourRow(): HTMLElement {
-    const st = insol?.sun?.(insolHour) ?? null, lbl = h('b', { class: 'num', id: 'albHourLbl', style: 'min-width:3.4em;text-align:right' }, `${Math.floor(insolHour)}:${insolHour % 1 ? '30' : '00'}`);
-    const inp = range({ min: 7, max: 18, step: 0.5, value: insolHour, id: 'albHour', 'aria-label': tr('Soat'),
-      oninput: v => { insolHour = v; lbl.textContent = `${Math.floor(insolHour)}:${insolHour % 1 ? '30' : '00'}`; },
-      onchange: () => render() });
-    return h('div', { class: 'col', style: 'gap:4px' }, h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 't-small', style: 'width:54px' }, tr('Soat')), h('div', { style: 'flex:1;min-width:0' }, inp), lbl),
-      h('span', { class: 't-small mono', id: 'albSunPos' }, st ? `${tr('quyosh')}: ${tr('balandlik')} ${Math.round(st.alt)}°, ${tr('azimut')} ${Math.round(st.az)}°` : tr('quyosh ufq ostida')));
+    const fmtH = (x: number) => `${Math.floor(x)}:${String(Math.round((x % 1) * 60)).padStart(2, '0')}`;
+    const date = animDate ?? insol?.date ?? '03-22', st = insol?.sun?.(insolHour, animDate ?? undefined) ?? null;
+    const lbl = h('b', { class: 'num', id: 'albHourLbl', style: 'min-width:3.4em;text-align:right' }, fmtH(insolHour));
+    const pos = h('span', { class: 't-small mono', id: 'albSunPos' }, st ? `${tr('quyosh')}: ${tr('balandlik')} ${Math.round(st.alt)}°, ${tr('azimut')} ${Math.round(st.az)}°` : tr('quyosh ufq ostida'));
+    // render() dan keyin ham ishlasin: elementlar id boʻyicha olinadi
+    const upd = () => {
+      const L = document.getElementById('albHourLbl'), Pz = document.getElementById('albSunPos'), I = document.getElementById('albHour') as HTMLInputElement | null;
+      if (L) L.textContent = fmtH(insolHour);
+      const s2 = insol?.sun?.(insolHour, animDate ?? undefined) ?? null; if (Pz) Pz.textContent = s2 ? `${tr('quyosh')}: ${tr('balandlik')} ${Math.round(s2.alt)}°, ${tr('azimut')} ${Math.round(s2.az)}°` : tr('quyosh ufq ostida');
+      if (I) { I.value = String(insolHour); const box = I.parentElement!, pc = (Number(I.value) - Number(I.min)) / (Number(I.max) - Number(I.min) || 1) * 100; const em = box.querySelector('em') as HTMLElement | null, kn = box.querySelector('i') as HTMLElement | null; if (em) em.style.width = `${pc}%`; if (kn) kn.style.left = `${pc}%`; }
+      paint?.();
+    };
+    // kun oraligʻi: quyosh balandligi > 3° boʻlgan soatlar
+    const span = (): [number, number] => { let a = 12, b = 12; for (let x = 12; x >= 4; x -= 0.25) { if (insol?.sun?.(x, date)) a = x; else break; } for (let x = 12; x <= 21; x += 0.25) { if (insol?.sun?.(x, date)) b = x; else break; } return [a, b]; };
+    const [h0, h1] = span();
+    const inp = range({ min: Math.floor(h0 * 2) / 2, max: Math.ceil(h1 * 2) / 2, step: 0.25, value: insolHour, id: 'albHour', 'aria-label': tr('Soat'),
+      oninput: v => { stopAnim(); insolHour = v; upd(); } }) as HTMLElement;
+    const DATES: [string, string][] = [['03-22', '22.03'], ['06-22', '22.06'], ['12-22', '22.12'], ['04-22', '22.04'], ['08-22', '22.08']];
+    const play = h('button', { class: animT ? 'btn btn-sm btn-primary' : 'btn btn-sm', id: 'albPlay', 'aria-pressed': !!animT, onclick: () => {
+      if (animT) { stopAnim(); render(); return; }
+      insolHour = h0;
+      animT = window.setInterval(() => {
+        if (!document.getElementById('albPlay')) { stopAnim(); return; }   // albom yopildi yoki boshqa koʻrinish
+        insolHour = Math.round((insolHour + 0.25) * 4) / 4;
+        if (insolHour > h1) { stopAnim(); render(); return; }
+        upd();
+      }, 160);
+      render(); upd();
+    } }, tr(animT ? 'Toʻxtatish' : '▶ Kun animatsiyasi'));
+    return h('div', { class: 'col', style: 'gap:6px', id: 'albAnim' },
+      h('div', { class: 'seg sm', id: 'albDate', role: 'group', 'aria-label': tr('Kun') }, ...DATES.map(([d, n]) => h('button', { 'aria-pressed': date === d, 'data-date': d, title: d === '03-22' ? '22.03 = 22.09' : n, onclick: () => { stopAnim(); animDate = d === (insol?.date ?? '03-22') ? null : d; render(); } }, n))),
+      h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 't-small', style: 'width:54px' }, tr('Soat')), h('div', { style: 'flex:1;min-width:0' }, inp), lbl),
+      h('div', { class: 'row', style: 'align-items:center;gap:8px;flex-wrap:wrap' }, play, h('span', { class: 't-small' }, `${tr('quyosh chiqishi–botishi')}: ${fmtH(h0)}–${fmtH(h1)}`)),
+      pos,
+      animDate ? h('span', { class: 't-small', id: 'albAnimNote' }, tr('Derazalardagi soatlar — hisob kuni (22.03) boʻyicha; tanlangan kunda faqat quyosh dogʻi koʻrsatiladi.')) : '');
   }
   render();
 }

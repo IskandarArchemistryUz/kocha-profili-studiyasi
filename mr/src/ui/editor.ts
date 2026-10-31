@@ -1579,7 +1579,7 @@ export class Editor {
     return {
       date: A.date ?? this.aptDate, at: (bid, floor, m) => { const i = idx.get(`${bid}|${floor - 1}|${m}`); return i == null ? null : run[i]; },
       // V5 real dogʻ: tanlangan soatda quyosh holati va derazaga tushishi (atrof binolari soyasi bilan)
-      sun: hour => { const s = sunPosition(localToUtcAt(2026, mo, dd, hour, doc.origin[1], doc.origin[0]), doc.origin[1], doc.origin[0]); return s.alt > 3 ? s : null; },
+      sun: (hour, date) => { const [m2, d2] = date ? date.split('-').map(Number) : [mo, dd]; const s = sunPosition(localToUtcAt(2026, m2, d2, hour, doc.origin[1], doc.origin[0]), doc.origin[1], doc.origin[0]); return s.alt > 3 ? s : null; },
       lit: (bid, floor, ms, st) => {
         const si = A.plans.findIndex(p => p.bid === bid), pl = A.plans[si]; if (!pl || !A.prisms || !A.base) return ms.map(() => false);
         const P = ms.map(m => pl.layout.mods[m].p), Z = ms.map(() => A.base![si] + (pl.z0 + floor - 1) * fh + 1.2), AZ = ms.map(m => pl.layout.mods[m].az);
