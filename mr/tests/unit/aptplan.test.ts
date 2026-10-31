@@ -30,6 +30,24 @@ describe('Kvartira ichki rejasi (31.10)', () => {
   it('eshik yoylari devorga ham, bir-biriga ham urilmaydi', () => {
     for (const { x, ring } of all) expect(doorClashes(x.doors, x.walls, ring)).toEqual([]);
   });
+  it('eshik tirqishi qoʻshni devor yuzasidan ≥ 0,15 m, kvartira chegarasidan ham', () => {
+    let bad = 0, n = 0;
+    for (const { x, ring } of all) for (const d of x.doors) {
+      n++;
+      const segs: [XY, XY, number][] = [...x.walls.map(([p, q]) => [p, q, 0.1] as [XY, XY, number]), ...ring.map((p, i) => [p, ring[(i + 1) % ring.length], 0.1] as [XY, XY, number])];
+      // eshik jambalari (h va a) — oʻz devoridan boshqa, unga perpendikulyar devorlargacha masofa
+      const u: XY = [(d.a[0] - d.h[0]) / d.w, (d.a[1] - d.h[1]) / d.w];
+      for (const [p, q, t] of segs) {
+        const dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1; if (Math.abs((dx * u[0] + dy * u[1]) / l) > 0.1) continue;
+        for (const j of [d.h, d.a]) if (segD(j, p, q) < t / 2 + 0.149) { bad++; break; }
+      }
+    }
+    expect(n).toBeGreaterThan(100); expect(bad).toBe(0);
+    // kirish eshigi (0,9 m, markazi entry) — ichki devorlardan ham ≥ 0,15 m
+    let eb = 0;
+    for (const { x } of all) for (const [p, q] of x.walls) if (segD(x.entry, p, q) < 0.45 + 0.05 + 0.149) eb++;
+    expect(eb).toBe(0);
+  });
   it('oshxona-mehmonxona: 2–4 xonalida 19–31 m²; 4 xonalida master-blok (oʻz sanuzeli)', () => {
     for (const { k, x } of all) {
       const u = x.rooms.find(q => q.kind === 'umumiy');
@@ -58,5 +76,26 @@ describe('Ichki rejani qoʻlda sozlash (V2, 31.10)', () => {
     const sl = editInner(pl, i, { slide: true }), ss = aptInterior((sl as any).plan.apts[i], mods)!;
     expect(ss.doors.filter(d => d.kind === 'slide').length).toBeGreaterThan(base.doors.filter(d => d.kind === 'slide').length);
     expect(doorClashes(ss.doors, ss.walls, pl.apts[i].ring)).toEqual([]);
+  });
+});
+
+describe('Burchak va L shakl seksiyalar (31.10): kemtik, eshik uzoqda, yon eshik', async () => {
+  const { layoutSection: ls } = await import('../../src/core/apartments');
+  const { sectionPlan } = await import('../../src/core/floorplan');
+  const Lr = (a: number, b: number, d: number): XY[] => [[0, 0], [a, 0], [a, d], [d, d], [d, b], [0, b]];
+  const rows: { a: any; x: ReturnType<typeof aptInterior> }[] = [];
+  for (const r of [Lr(30, 30, 15), Lr(33, 27, 15), Lr(36, 36, 16), Lr(27, 33, 14), Lr(40, 25, 17)]) for (const mix of MIXES) {
+    const s = { bid: 'b', ring: r, layout: ls(r, () => false, mix), f0: 2, f1: 9, z0: 0, halfDepth: 7.5 }, P = sectionPlan(s);
+    for (const a of P.apts) rows.push({ a, x: aptInterior(a, s.layout.mods) });
+  }
+  it('≥ 85 % kvartiralar ichki rejali (L shakl kemtikli ham)', () => {
+    expect(rows.filter(r => r.x).length / rows.length).toBeGreaterThan(0.85);
+    expect(rows.some(r => r.x && r.x.rooms.some(q => q.ring.length === 6))).toBe(true);   // kemtik — L shakl xona
+  });
+  it('kirish eshigi koridor bilan umumiy kesmada (qoʻshni kvartira yoki zina devoriga koʻchmaydi)', () => {
+    for (const { a, x } of rows) if (x) expect(Math.hypot(x.entry[0] - a.door[0], x.entry[1] - a.door[1])).toBeLessThanOrEqual(Math.max(0, (a.doorLen ?? 1.2) / 2 - 0.45) + 0.02);
+  });
+  it('xonalar ustma-ust emas, eshik yoylari urilmaydi', () => {
+    for (const { a, x } of rows) if (x) { const s = x.rooms.reduce((t, q) => t + area(q.ring), 0); expect(s).toBeLessThanOrEqual(area(a.ring) * 1.02); expect(doorClashes(x.doors, x.walls, a.ring)).toEqual([]); }
   });
 });

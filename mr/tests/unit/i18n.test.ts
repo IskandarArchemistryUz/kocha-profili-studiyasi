@@ -68,3 +68,15 @@ describe('Chizmadon material nomlari (sayt, 25.10: «Building Apartment mix · 1
     I.setLang('uz');
   });
 });
+
+describe('Oʻzbekcha atamalar lugʻati (31.10)', () => {
+  it('ruscha soʻzlar oʻzbekchaga, ${…} ifodalari oʻzgarmaydi, shaharsozlik «koridori» qoladi', async () => {
+    const { uzTerms } = await import('../../src/i18n');
+    expect(uzTerms("x (${a === 'kvartira' ? 1 : 2}) kvartira")).toBe("x (${a === 'kvartira' ? 1 : 2}) xonadon");
+    expect(uzTerms('Qoidalar bajarilgan: har kvartiraga koridordan eshik')).toBe('Qoidalar bajarilgan: har xonadonga yoʻlakdan eshik');
+    expect(uzTerms('Avtobus koridori')).toBe('Avtobus koridori');
+    expect(uzTerms('Qayta generatsiya qilish')).toBe('Qayta avtomatik yaratish');
+    expect(uzTerms('Toretslar orasi')).toBe('Bino uchlari orasi');
+    expect(uzTerms('2+2 + ajratilgan tramvay polosasi')).toBe('2+2 + ajratilgan tramvay tasmasi');
+  });
+});

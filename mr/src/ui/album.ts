@@ -182,10 +182,12 @@ export function openAlbum(o: AlbumOpts): void {
   function innerBox(P: RulePlan, i: number, btn: (id: string, t: string, on: () => void, dis?: boolean, title?: string) => HTMLElement): HTMLElement {
     const a = P.apts[i], iv = a.inner ?? {}, has = !!aptInterior(a, secOf().layout.mods);
     if (!has) return h('div', { class: 'note', id: 'albInNone' }, tr('Bu kvartira shakli uchun ichki reja hali yoʻq (burchak yoki ikki fasadli) — sxema koʻrsatiladi.'));
-    const dK = iv.dK ?? 0;
+    const dK = iv.dK ?? 0, mods = secOf().layout.mods, sig = (x: ReturnType<typeof aptInterior>) => JSON.stringify(x?.rooms.map(q => q.ring));
+    // eshik koridor kesmasiga bogʻliq: baʼzi kvartiralarda faqat bitta tomon mumkin — tugma oʻchiq
+    const canFlip = sig(aptInterior({ ...a, inner: { ...iv, flip: !iv.flip } }, mods)) !== sig(aptInterior(a, mods));
     return h('div', { class: 'col', id: 'albInner', style: 'gap:6px' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Ichki reja')), dK ? h('span', { class: 'num' }, `${tr('umumiy xona')} ${dK > 0 ? '+' : ''}${fmt(dK, 1)} m`) : ''),
-      h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip }), true), false, 'Umumiy xona — boshqa tomonga'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
+      h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
       h('div', { class: 't-small' }, tr('Umumiy xona devori')),
       h('div', { class: 'row2' }, btn('albInKm', '−0,3 m', () => apply(editInner(P, i, { dK: Math.round((dK - 0.3) * 10) / 10 }), true), dK <= -1.5, 'Umumiy xona devori 0,3 m ga (derazani kesmasa)'), btn('albInKp', '+0,3 m', () => apply(editInner(P, i, { dK: Math.round((dK + 0.3) * 10) / 10 }), true), dK >= 1.5, 'Umumiy xona devori 0,3 m ga (derazani kesmasa)')),
       a.rooms >= 2 ? h('div', { class: 'seg sm', id: 'albInMaster', role: 'group', 'aria-label': tr('Asosiy yotoq bloki') }, ...([[undefined, 'Asosiy yotoq: avto'], [true, 'Asosiy yotoq: ha'], [false, 'Asosiy yotoq: yoʻq']] as const).map(([v, t]) => h('button', { 'aria-pressed': iv.master === v, onclick: () => apply(editInner(P, i, { master: v }), true) }, tr(t)))) : '');

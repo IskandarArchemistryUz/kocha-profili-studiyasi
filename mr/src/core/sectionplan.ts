@@ -24,6 +24,7 @@ export interface FacadeMod { a: XY; b: XY; az: number; blind: boolean }
 export interface RuleApt {
   rooms: number; ring: XY[]; area: number;
   /** eshik: MOP bilan umumiy chegara oʻrtasi */ door: XY;
+  /** shu umumiy kesma uzunligi (eshik faqat shu oraliqda turishi mumkin) */ doorLen?: number;
   /** fasad modullari (derazalar) */ mods: number[];
   /** sanuzel + dahliz — eshik yonida */ wet: XY[];
   /** xona boʻlinmalari */ walls: [XY, XY][];
@@ -73,7 +74,7 @@ const cen = (r: XY[]): XY => { const n = r.length || 1; return [r.reduce((s, p) 
 const pointIn = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 
 /** Ikki koʻpburchak umumiy chegarasi uzunligi va oʻrtasi */
-export function sharedEdge(a: XY[], b: XY[], tol = 0.12): { len: number; mid: XY } {
+export function sharedEdge(a: XY[], b: XY[], tol = 0.12): { len: number; mid: XY; best: number } {
   let len = 0, sx = 0, sy = 0, bl = 0;   // mid — eng uzun umumiy kesma oʻrtasi (eshik)
   for (let i = 0; i < a.length; i++) {
     const p = a[i], q = a[(i + 1) % a.length], L = Math.hypot(q[0] - p[0], q[1] - p[1]); if (L < 1e-6) continue;
@@ -87,9 +88,9 @@ export function sharedEdge(a: XY[], b: XY[], tol = 0.12): { len: number; mid: XY
       if (hi - lo > bl) { bl = hi - lo; sx = p[0] + ux * m; sy = p[1] + uy * m; }
     }
   }
-  return { len, mid: [sx, sy] };
+  return { len, mid: [sx, sy], best: bl };
 }
-export function sharedAny(a: XY[], list: XY[][]): { len: number; mid: XY } { let best = { len: 0, mid: [0, 0] as XY }; for (const m of list) { const s = sharedEdge(a, m); if (s.len > best.len) best = s; } return best; }
+export function sharedAny(a: XY[], list: XY[][]): { len: number; mid: XY; best: number } { let best = { len: 0, mid: [0, 0] as XY, best: 0 }; for (const m of list) { const s = sharedEdge(a, m); if (s.len > best.len) best = s; } return best; }
 
 interface Wing { ring: XY[]; U: XY; V: XY; u0: number; u1: number; v0: number; v1: number; S: number; L: number; double: boolean; court: 1 | -1; mw: number }
 type EndKind = 'free' | 'wall' | 'corner' | 'base';
@@ -701,7 +702,7 @@ export function finishPlan(plan: RulePlan, mods: FacadeMod[], size: 'S' | 'M' | 
     const byArea = a.area <= (target(1) + target(2)) / 2 ? 1 : a.area <= (target(2) + target(3)) / 2 ? 2 : a.area <= (target(3) + target(4)) / 2 ? 3 : 4;
     if (!a.rooms || (!keepRooms && Math.abs(target(a.rooms) - a.area) > 0.2 * target(a.rooms))) a.rooms = byArea;
     a.rooms = Math.max(1, Math.min(a.rooms, a.mods.length));   // har yashash xonasi derazali
-    a.door = sharedAny(a.ring, plan.sections[a.sec]?.mop ?? plan.mop).mid;
+    const sd = sharedAny(a.ring, plan.sections[a.sec]?.mop ?? plan.mop); a.door = sd.mid; a.doorLen = sd.best;
     a.wet = wetZone(a.ring, a.door);
     a.walls = roomWalls(a, mods);
   }
