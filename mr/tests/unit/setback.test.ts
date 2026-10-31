@@ -23,3 +23,12 @@ describe('avto chekinish (andoza H/W)', () => {
     expect(blockStreetWidth(ring, [st[2]])).toBeNull();
   });
 });
+
+import { areaForCap } from '../../src/norms/rules';
+import { schoolCapacity, mtmCapacity } from '../../src/core/derive';
+describe('kerakli uchastka maydoni (10-band)', () => {
+  it('sigʻim funksiyasining teskarisi', () => {
+    for (const n of [50, 300, 495, 700, 1200]) { const a = areaForCap(schoolCapacity, n); expect(schoolCapacity(a)).toBeGreaterThanOrEqual(n); expect(schoolCapacity(a - 1)).toBeLessThan(n); }
+    for (const n of [40, 100, 150]) { const a = areaForCap(mtmCapacity, n); expect(mtmCapacity(a)).toBeGreaterThanOrEqual(n); expect(mtmCapacity(a - 1)).toBeLessThan(n); }
+  });
+});
