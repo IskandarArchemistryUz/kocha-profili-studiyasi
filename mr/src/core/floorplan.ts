@@ -8,9 +8,32 @@ import { area, obb2, type XY } from './geo';
 import { type SecPlan } from './apartments';
 import { rulePlan, planChecks, floorVariant, sharedEdge, facadeSegs, type RulePlan, type PlanCheck, type FloorType, type RoomKind } from './sectionplan';
 import type { Bal } from './facade';
-import { aptInterior, IN_LABEL, type AptInterior } from './aptplan';
+import { aptInterior, IN_LABEL, type AptInterior, type Furn } from './aptplan';
 
 export const APT_FILL: Record<number, string> = { 1: '#f6d58f', 2: '#f4b08a', 3: '#9bd3b8', 4: '#8fa5cc' };
+/** Mebel belgisi (chizma birliklarida): orqa qirra ring[0]→ring[1] devorda, ring[3] — old tomon */
+function furnSvg(f: Furn, X: (v: number) => string, Y: (v: number) => string, k: number): string {
+  const r = f.ring, P = (p: XY) => `${X(p[0])} ${Y(p[1])}`, poly = (q: XY[], st = 'fill="#ffffff" fill-opacity="0.85"') => `<path d="M${q.map(P).join('L')}Z" ${st} stroke="#6b6965" stroke-width="0.15" pointer-events="none"/>`;
+  const at = (a: number, b: number): XY => [r[0][0] + (r[1][0] - r[0][0]) * a + (r[3][0] - r[0][0]) * b, r[0][1] + (r[1][1] - r[0][1]) * a + (r[3][1] - r[0][1]) * b];
+  const box = (a0: number, b0: number, a1: number, b1: number, st?: string) => poly([at(a0, b0), at(a1, b0), at(a1, b1), at(a0, b1)], st);
+  const L = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]), Dp = Math.hypot(r[3][0] - r[0][0], r[3][1] - r[0][1]);
+  const circ = (a: number, b: number, rr: number) => { const c = at(a, b); return `<circle cx="${X(c[0])}" cy="${Y(c[1])}" r="${(rr * k).toFixed(2)}" fill="none" stroke="#6b6965" stroke-width="0.15" pointer-events="none"/>`; };
+  switch (f.k) {
+    case 'bed': return box(0, 0, 1, 1) + box(0.06, 0.04, 0.47, 0.04 + 0.5 / Dp) + box(0.53, 0.04, 0.94, 0.04 + 0.5 / Dp) + box(0, 0.36, 1, 1, 'fill="none"');
+    case 'bed1': return box(0, 0, 1, 1) + box(0.1, 0.04, 0.9, 0.04 + 0.45 / Dp) + box(0, 0.36, 1, 1, 'fill="none"');
+    case 'sofa': return box(0, 0, 1, 1) + box(0, 0, 1, 0.25 / Dp, 'fill="none"') + box(0, 0, 0.2 / L, 1, 'fill="none"') + box(1 - 0.2 / L, 0, 1, 1, 'fill="none"');
+    case 'table': { const ch = [0.2, 0.5, 0.8].flatMap(a => [box(a - 0.12, -0.42, a + 0.12, -0.08), box(a - 0.12, 1.08, a + 0.12, 1.42)]); return box(0, 0, 1, 1) + ch.join(''); }
+    case 'tub': return box(0, 0, 1, 1) + box(0.06, 0.12, 0.94, 0.88, 'fill="none"') + circ(0.12, 0.5, 0.04);
+    case 'shower': return box(0, 0, 1, 1) + `<path d="M${P(at(0, 0))}L${P(at(1, 1))}M${P(at(1, 0))}L${P(at(0, 1))}" stroke="#6b6965" stroke-width="0.12" pointer-events="none"/>`;
+    case 'wc': { const c = at(0.5, 0.62); return box(0.05, 0, 0.95, 0.28) + `<ellipse cx="${X(c[0])}" cy="${Y(c[1])}" rx="${(0.17 * k).toFixed(2)}" ry="${(0.21 * k).toFixed(2)}" fill="#fff" stroke="#6b6965" stroke-width="0.15" pointer-events="none"/>`; }
+    case 'sink': return box(0, 0, 1, 1) + circ(0.5, 0.55, 0.13);
+    case 'washer': return box(0, 0, 1, 1) + circ(0.5, 0.55, 0.2);
+    case 'shelf': return box(0, 0, 1, 1) + `<path d="M${P(at(0, 1))}L${P(at(1, 0))}" stroke="#6b6965" stroke-width="0.12" pointer-events="none"/>`;
+    case 'counter': return box(0, 0, 1, 1) + (L > 1.6 ? circ(0.25, 0.5, 0.15) + circ(Math.min(0.75, 0.25 + 1.2 / L), 0.5, 0.18) : '');
+  }
+  return '';
+}
+
 export interface PlanOpts {
   scale: number; /** oʻqlar va oʻlchamlar */ dims: boolean; title: string;
   /** bino qavati (1 dan) — 1-qavat va noturar qavatlar reja turi shundan */ floor: number;
@@ -21,6 +44,8 @@ export interface PlanOpts {
   /** varaq ichida: shimol strelkasi va pastki izoh chizilmaydi (varaqning oʻzida) */ bare?: boolean;
   /** V5 insolyatsiya: kvartira rangi, chegarasi va ikkinchi qator (maydon oʻrniga) — kvartira indeksi boʻyicha */ tint?: { fill: string[]; stroke: string[]; sub: string[] };
   /** kvartira ichki rejasi (xonalar, devorlar, eshiklar) — standart: ha; false — eski sxema (sanuzel «S», punktir boʻlinmalar) */ inner?: boolean;
+  /** mebel (31.10) — standart: ha */ furn?: boolean;
+  /** uslub: oq-qora (rangsiz kvartiralar, kulrang hoʻl xonalar) */ mono?: boolean;
 }
 export const ROOM_LABEL: Record<RoomKind, string> = { texnik: 'texnik / ombor', ombor: 'yashovchilar omborlari', savdo: 'savdo / xizmat', velo: 'velo / kolyaska', zal: 'yashovchilar zali', tozalash: 'tozalash anjomlari ombori' };
 export const ROOM_FILL: Record<RoomKind, string> = { texnik: '#e4e1da', ombor: '#e6dcc8', savdo: '#cfe0f3', velo: '#dfe9d2', zal: '#efd9e8', tozalash: '#e4e1da' };
@@ -57,7 +82,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const G: RulePlan = { ...P0, stairs: P0.stairs.map(TR), lifts: P0.lifts.map(TR), mop: P0.mop.map(TR), rest: P0.rest.map(TR), fireWalls: P0.fireWalls.map(TR), rooms: P0.rooms.map(q => ({ ...q, ring: TR(q.ring), door: T(q.door) })), apts: P0.apts.map(a => ({ ...a, ring: TR(a.ring), door: T(a.door), wet: TR(a.wet), walls: a.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]) })) };
   const mods = pl0.layout.mods.map(m => ({ ...m, a: T(m.a), b: T(m.b) }));
   // kvartira ichki rejalari (31.10): asl koordinatalarda hisoblanadi, chizma oʻqlariga buriladi
-  const inner: (AptInterior | null)[] = P0.apts.map(a => o.inner === false ? null : aptInterior(a, pl0.layout.mods)).map(x => x && { ...x, rooms: x.rooms.map(q => ({ ...q, ring: TR(q.ring) })), walls: x.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]), doors: x.doors.map(d => ({ ...d, h: T(d.h), a: T(d.a), n: [d.n[0] * U[0] + d.n[1] * U[1], d.n[0] * V[0] + d.n[1] * V[1]] as XY })), entry: T(x.entry), kitchen: x.kitchen && [T(x.kitchen[0]), T(x.kitchen[1])] as [XY, XY] });
+  const inner: (AptInterior | null)[] = P0.apts.map(a => o.inner === false ? null : aptInterior(a, pl0.layout.mods)).map(x => x && { ...x, rooms: x.rooms.map(q => ({ ...q, ring: TR(q.ring) })), walls: x.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]), doors: x.doors.map(d => ({ ...d, h: T(d.h), a: T(d.a), n: [d.n[0] * U[0] + d.n[1] * U[1], d.n[0] * V[0] + d.n[1] * V[1]] as XY })), entry: T(x.entry), kitchen: x.kitchen && [T(x.kitchen[0]), T(x.kitchen[1])] as [XY, XY], furn: x.furn?.map(f => ({ k: f.k, ring: TR(f.ring) })) });
   inner.forEach((x, i) => { if (x) G.apts[i].door = x.entry; });
   const outward = new Set(G.apts.filter((_, i) => inner[i]).map(a => a.ring));
   const northDeg = Math.atan2(U[0], U[1]) * 180 / Math.PI;   // shimol yoʻnalishi chizmada
@@ -116,13 +141,14 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   G.apts.forEach((a, ai) => {
     const sel = o.sel?.indexOf(ai) ?? -1;
     const tf = o.tint?.fill[ai], ts = o.tint?.stroke[ai];
-    out.push(`<path d="${path(a.ring)}" fill="${tf ?? APT_FILL[Math.min(4, a.rooms)]}" stroke="${sel >= 0 ? '#0a84ff' : ts ?? '#141414'}" stroke-width="${sel >= 0 ? 1.2 : ts ? 0.9 : 0.5}" stroke-linejoin="round" data-apt="${ai}"/>`);
+    out.push(`<path d="${path(a.ring)}" fill="${tf ?? (o.mono ? '#ffffff' : APT_FILL[Math.min(4, a.rooms)])}" stroke="${sel >= 0 ? '#0a84ff' : ts ?? '#141414'}" stroke-width="${sel >= 0 ? 1.2 : ts ? 0.9 : 0.5}" stroke-linejoin="round" data-apt="${ai}"/>`);
     const inn = inner[ai];
     if (inn) {
       // xonalar: quruq — kvartira rangi, hoʻl — oq + kafel; devorlar 0,1 m, eshik yoylari; nomlar va maydonlar
       const rf = Math.min(1.7, 0.17 * k);
-      for (const q of inn.rooms) out.push(`<path d="${path(q.ring)}" fill="${q.wet ? '#ffffff' : tf ?? APT_FILL[Math.min(4, a.rooms)]}" stroke="none" pointer-events="none"/>${q.wet ? `<path d="${path(q.ring)}" fill="url(#tile)" stroke="none" pointer-events="none"/>` : ''}`);
-      if (inn.kitchen) out.push(seg(inn.kitchen[0], inn.kitchen[1], 'stroke="#6b6965" stroke-width="0.18" stroke-dasharray="0.8 0.5"'));
+      for (const q of inn.rooms) out.push(`<path d="${path(q.ring)}" fill="${q.wet ? '#ffffff' : tf ?? (o.mono ? '#ffffff' : APT_FILL[Math.min(4, a.rooms)])}" stroke="none" pointer-events="none"/>${q.wet ? `<path d="${path(q.ring)}" fill="url(#tile)" stroke="none" pointer-events="none"/>` : ''}`);
+      if (inn.kitchen && (o.furn === false || !inn.furn)) out.push(seg(inn.kitchen[0], inn.kitchen[1], 'stroke="#6b6965" stroke-width="0.18" stroke-dasharray="0.8 0.5"'));
+      if (o.furn !== false && inn.furn) for (const f of inn.furn) out.push(furnSvg(f, X, Y, k));
       for (const [p, q] of inn.walls) out.push(seg(p, q, `stroke="#141414" stroke-width="${(0.1 * k).toFixed(2)}" stroke-linecap="butt"`));
       for (const d of inn.doors) {
         const tip: XY = [d.h[0] + d.n[0] * d.w, d.h[1] + d.n[1] * d.w];

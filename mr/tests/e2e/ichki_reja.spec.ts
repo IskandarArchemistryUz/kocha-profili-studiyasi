@@ -18,6 +18,13 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`albomda kv
   expect(await svg.locator('text', { hasText: 'yotoqxona' }).count()).toBeGreaterThan(0);
   // hoʻl xonalar kafel bilan, eski «S» belgisi yoʻq (ichki rejali kvartiralarda)
   expect(await svg.locator('path[fill="url(#tile)"]').count()).toBeGreaterThan(2);
+  // mebel (31.10): unitaz va boshqa jihozlar; «Mebel» oʻchirilsa — yoʻq; «Oq-qora» — kvartiralar oq
+  expect(await svg.locator('ellipse').count()).toBeGreaterThan(2);
   await page.waitForTimeout(900);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ichki_${w}${dark ? 'd' : 'l'}.png` });
+  await page.click('#albFurn'); await expect(svg.locator('ellipse')).toHaveCount(0);
+  await page.click('#albMono');
+  expect(await page.locator('#albPlan svg path[data-apt]').first().getAttribute('fill')).toBe('#ffffff');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ichki_mono_${w}${dark ? 'd' : 'l'}.png` });
+  await page.click('#albFurn'); await page.click('#albMono');
 });

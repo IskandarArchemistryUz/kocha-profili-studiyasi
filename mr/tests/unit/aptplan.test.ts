@@ -48,6 +48,18 @@ describe('Kvartira ichki rejasi (31.10)', () => {
     for (const { x } of all) for (const [p, q] of x.walls) if (segD(x.entry, p, q) < 0.45 + 0.05 + 0.149) eb++;
     expect(eb).toBe(0);
   });
+  it('mebel: har yotoqxonada karavot, hoʻl xonada jihoz; buyumlar kvartira ichida, bir-biriga va eshik tabaqasiga tegmaydi', () => {
+    const pin = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
+    let beds = 0, bedrooms = 0;
+    for (const { x, ring } of all) {
+      const F = x.furn ?? []; expect(F.length).toBeGreaterThan(0);
+      for (const f of F) for (const p of f.ring) expect(pin(p, ring) || ring.some((a, i) => segD(p, a, ring[(i + 1) % ring.length]) < 0.06)).toBe(true);
+      const bedRooms = x.rooms.filter(q => q.kind === 'yotoq' || q.kind === 'master'); bedrooms += bedRooms.length;
+      beds += bedRooms.filter(q => F.some(f => (f.k === 'bed' || f.k === 'bed1') && f.ring.every(p => pin(p, q.ring) || q.ring.some((a, i) => segD(p, a, q.ring[(i + 1) % q.ring.length]) < 0.06)))).length;
+      for (const q of x.rooms.filter(q => q.kind === 'hx' || q.kind === 'sanuzel')) expect(F.some(f => f.k === 'wc' && f.ring.every(p => pin(p, q.ring) || q.ring.some((a, i) => segD(p, a, q.ring[(i + 1) % q.ring.length]) < 0.06)))).toBe(true);
+    }
+    expect(beds / bedrooms).toBeGreaterThan(0.95);
+  });
   it('oshxona-mehmonxona: 2–4 xonalida 19–31 m²; 4 xonalida master-blok (oʻz sanuzeli)', () => {
     for (const { k, x } of all) {
       const u = x.rooms.find(q => q.kind === 'umumiy');
