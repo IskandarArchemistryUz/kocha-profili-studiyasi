@@ -63,6 +63,7 @@ import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand
 import type { PoiBundle } from '../context/poi';
 import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
 import { centroid, area, signedArea } from '../core/geo';
+import { builtInMtm } from '../core/derive';
 import { toDxf } from '../core/dxf';
 import { toIfc } from '../core/ifc';
 import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
@@ -185,6 +186,7 @@ export class Editor {
     this.root = this.build();
     host.replaceChildren(this.root);
     this.scene = new Scene3D(this.el.scene);
+    try { if (localStorage.getItem('mr-paper') !== '0') this.el.scene.setAttribute('data-paper', ''); } catch { this.el.scene.setAttribute('data-paper', ''); }
     this.scene.onLabels = () => this.renderLblBar();
     try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
     this.scene.update(doc); this.scene.frameDoc(doc);
@@ -393,6 +395,7 @@ export class Editor {
       h('div', { class: 'tiles c2' }, ...STYLES.map(x => tile({ 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, tr(x.name), tr(x.note)))),
       h('div', { class: 'group' },
         li(tr('Batafsil fasad (3D)'), tr('derazalar, romlar, balkonlar'), sw({ id: 'detOn', label: tr('Batafsil fasad (3D)'), on: this.scene.detail, onchange: v => { this.scene.setDetail(v); try { localStorage.setItem('mr-detail', v ? '1' : '0'); } catch { /* */ } } })),
+        li(tr('Qogʻoz teksturasi'), tr('mayda don va gʻijim — faqat ekranda, eksportga kirmaydi'), sw({ id: 'paperOn', label: tr('Qogʻoz teksturasi'), on: this.el.scene.hasAttribute('data-paper'), onchange: v => { this.el.scene.toggleAttribute('data-paper', v); try { localStorage.setItem('mr-paper', v ? '1' : '0'); } catch { /* */ } } })),
         li(tr('Portlatilgan qatlamlar'), tr('atrof → koʻchalar → kvartallar → binolar'), sw({ id: 'exOn', label: tr('Portlatilgan qatlamlar'), on: this.scene.exploded, onchange: v => { this.scene.setExploded(v, Number(gapIn.value)); gapIn.disabled = !v; gapR.classList.toggle('off', !v); } }))),
       h('div', { class: 'row', style: 'gap:10px;align-items:center' }, h('span', { class: 't-small', style: 'white-space:nowrap' }, tr('Qatlamlar oraligʻi')), h('div', { style: 'flex:1;min-width:0' }, gapR)),
       h('span', { class: 't-small' }, tr('Fon va uslub faqat koʻrinishga taʼsir qiladi — loyiha, hisob-kitob va meʼyorlar oʻzgarmaydi. Portlatilgan qatlamlar taqdimot uchun aksonometriyada yaxshi koʻrinadi.')));
@@ -689,6 +692,7 @@ export class Editor {
           h('div', { class: 'group grow' },
             row(tr('Qavatlar'), '1–60', stepper({ id: 'iFloors', label: tr('Qavatlar'), min: 1, max: 60, step: 1, value: b.floors, onchange: v => upd({ floors: v }, 'fl-' + b.id) })),
             u.res > 0 ? row(tr('Noturar (pastda)'), `0–${Math.max(0, b.floors - 1)}`, stepper({ id: 'iNonRes', label: tr('Noturar (pastda)'), min: 0, max: Math.max(0, b.floors - 1), step: 1, value: b.nonRes, onchange: v => upd({ nonRes: v }, 'nr-' + b.id) })) : '',
+            u.res > 0 && b.nonRes >= 1 && b.floors >= 3 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1-qavatda MTM'), b.mtm ? h('span', { class: 'sub', id: 'iMtmSub' }, tf('≈ ${n} oʻrin · uchastka 29 m²/oʻrin (543-band)', { n: builtInMtm(area(r)) })) : ''), sw({ id: 'iMtm', label: tr('1-qavatda MTM'), on: !!b.mtm, onchange: v => upd({ mtm: v || undefined }) })) : '',
             row(tr('Stilobat ustida'), '0–10', stepper({ id: 'iZ0', label: tr('Stilobat ustida'), min: 0, max: 10, step: 1, value: z0, onchange: v => upd({ z0: v || undefined }, 'z0-' + b.id) }))),
           h('div', { class: 'msec', 'aria-hidden': 'true', html: `<svg viewBox="0 0 64 ${H}" width="40" height="${H * 40 / 64}" preserveAspectRatio="none">${sec}<path d="M0 ${H - 1}H64" stroke="currentColor" stroke-width="2"/></svg>` })),
         h('span', { class: 't-small', id: 'bldEditHint' }, tr('Xaritada: tom ustidagi toʻq sariq tutqich — qavatlar; burchak tutqichlari — oyoq izi.')),

@@ -56,6 +56,10 @@ export interface Derived {
   streetOverlap: { bid: string; area: number; polys: XY[][] }[];
   /** parsellar maydonidan kelib chiqadigan sigʻim: maktab (41-jadval), MTM (543-band) */
   schoolCap: number; mtmCap: number;
+  /** turar joy binolariga oʻrnatilgan MTM oʻrinlari (543-band, 29 m²/oʻrin) */
+  mtmBuiltIn: number;
+  /** maktab va MTM parsellari maydoni, m² — meʼyor izohida keyingi pogʻona uchun */
+  socialPlots: { use: 'maktab' | 'mtm'; area: number }[];
   /** avtoturargoh: talab (416-band, 29-jadval) va taʼminot (413-band, ochiq — 25 m²/joy) */
   parkingReq: number; parkingProv: number; parkingParts: Record<string, number>;
   /** turar joy seksiyalari va ulardan uzun fasadi gʻarbga (200–290°) qaraganlari — SanQvaN 0102-25, 15-band */
@@ -78,6 +82,13 @@ export function schoolCapacity(a: number): number {
 }
 /** 543-band: oʻringa 40 m² (≤ 100 oʻrin), 35 m² (> 100) */
 export function mtmCapacity(a: number): number { return a / 35 > 100 ? Math.floor(a / 35) : Math.min(100, Math.floor(a / 40)); }
+/** 41-jadval / 543-band pogʻonasi: yuqori pogʻonaga oʻtish uchun kerakli uchastka maydoni va undagi sigʻim (null — eng yuqori pogʻonada) */
+export function nextTier(use: 'maktab' | 'mtm', a: number): { area: number; cap: number } | null {
+  const need = use === 'maktab' ? 990 * 10 : 101 * 35;
+  return a < need ? { area: need, cap: use === 'maktab' ? 990 : 101 } : null;
+}
+/** turar joy binosiga oʻrnatilgan MTM: 1-qavat oyoq izining 80 % i, 12 m²/oʻrin (TAXMIN, SOCIAL.mtm.m2) */
+export const builtInMtm = (footprintM2: number): number => Math.floor(footprintM2 * 0.8 / 12);
 
 
 export function derive(doc: Project): Derived {
@@ -125,7 +136,9 @@ export function derive(doc: Project): Derived {
     if (a > 1) streetOverlap.push({ bid: b.id, area: a, polys });
   }
   const schoolCap = plan.blocks.filter(b => b.use === 'maktab').reduce((t, b) => t + schoolCapacity(b.area), 0);
-  const mtmCap = plan.blocks.filter(b => b.use === 'mtm').reduce((t, b) => t + mtmCapacity(b.area), 0);
+  const mtmBuiltIn = doc.buildings.filter(b => b.mtm && b.nonRes >= 1 && useDef(b.use).res > 0).reduce((t, b) => t + builtInMtm(area(ringLocal(fr, b.footprint))), 0);
+  const mtmCap = plan.blocks.filter(b => b.use === 'mtm').reduce((t, b) => t + mtmCapacity(b.area), 0) + mtmBuiltIn;
+  const socialPlots = plan.blocks.filter(b => b.use === 'maktab' || b.use === 'mtm').map(b => ({ use: b.use as 'maktab' | 'mtm', area: b.area }));
   // 29-jadval (Toshkent): kvartiraga 1; maʼmuriy — har 10 m²; savdo (> 200 m² savdo maydoni) — har 10 m² savdo maydoni (≈ 0,7·GFA); maktab, MTM — 25 ga 1; park — har 0,05 ga
   const trade = ((gfaByUse.savdo ?? 0) + (gfaByUse.aralash ?? 0) + (gfaByUse.turar ?? 0)) * 0.7;
   const parkingParts = parkingNeed({ apartments, ofisGfa: gfaByUse.ofis ?? 0, tradeArea: trade, school: schoolCap, mtm: mtmCap, greenArea });
@@ -144,7 +157,7 @@ export function derive(doc: Project): Derived {
   const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + y.areas.play, 0);
   return {
     resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
-    apartments, aptSource, redLineSocial, schoolCap, mtmCap, parkingReq, parkingProv, parkingParts,
+    apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, socialPlots, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
     siteHa, buildings: doc.buildings.length, footprint, gfa, resGfa, resNet, population,
