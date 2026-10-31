@@ -900,3 +900,34 @@ textarea.ch-inedit{padding:10px 12px}
 .menu-col .mi span{font-size:12px;line-height:17px;color:var(--muted)}
 .menu-col .li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;padding:0 6px}
 .pop[data-for="presPop"],.pop[data-for="prefPop"]{width:300px;padding:8px}
+/* 31.10 (A variant): qadam izohi bir qatorda, qolgani «Batafsil» ostida; tipologiya — bitta qator; qoʻshimcha sozlamalar yigʻiq */
+.panel.sp>header .sp-lead{margin:0;font-size:12.5px;line-height:1.4;color:var(--muted)}
+.panel.sp>header details.sp-lead>summary{list-style:none;cursor:pointer}
+.panel.sp>header details.sp-lead>summary::-webkit-details-marker{display:none}
+.panel.sp>header details.sp-lead p{margin:4px 0 0}
+.sp-more{margin-left:6px;font-weight:600;color:var(--ink-2,var(--ink));white-space:nowrap}
+details.sp-lead[open] .sp-more{display:none}
+.typo-pick{border-radius:var(--r-card,16px);background:var(--grouped)}
+.typo-pick>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:10px 12px;cursor:pointer}
+.typo-pick>summary::-webkit-details-marker{display:none}
+.typo-pick .tp-ic{width:40px;height:40px;flex:none;border-radius:12px;background:var(--ink);color:var(--surface);display:flex;align-items:center;justify-content:center}
+.typo-pick .tp-ic svg{width:26px;height:26px}
+.typo-pick>summary .k{display:flex;flex-direction:column;flex:1;min-width:0}
+.typo-pick>summary .k b{font-size:14px;font-weight:600;line-height:19px}
+.typo-pick>summary .tp-ch{pointer-events:none;background:var(--surface)}
+.typo-pick[open]>summary .tp-ch{background:var(--ink);color:var(--surface)}
+.typo-pick[open]{padding-bottom:10px}
+.typo-pick>.glabel,.typo-pick>.tiles{margin-left:10px;margin-right:10px}
+.gen-more{border-radius:var(--r-card,16px)}
+.gen-more>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:40px;padding:0 12px;border-radius:var(--r-card,16px);background:var(--grouped);font-size:13px;font-weight:600;color:var(--ink-2,var(--ink));cursor:pointer}
+.gen-more>summary::-webkit-details-marker{display:none}
+.gen-more>summary::after{content:"›";font-size:16px;color:var(--muted);transition:transform .2s}
+.gen-more[open]>summary::after{transform:rotate(90deg)}
+.gen-more[open]{display:flex;flex-direction:column;gap:10px}
+.typo-pick>summary::before,.gen-more>summary::before,details.sp-lead>summary::before{content:none}
+.panel.sp>header details.sp-lead>summary{display:block}
+.gen-more>summary{justify-content:space-between}
+/* A variant: avtoturargoh turi — ixcham (piktogrammasiz) */
+.tiles.compact .tile{min-height:0;height:36px;padding:0 4px;flex-direction:row;justify-content:center}
+.tiles.compact .tile>svg,.tiles.compact .tile>img{display:none}
+.tiles.compact .tile span{font-size:12px;line-height:1.15;text-align:center}
