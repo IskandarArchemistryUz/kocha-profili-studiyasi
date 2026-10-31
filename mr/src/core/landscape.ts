@@ -89,6 +89,8 @@ export interface Yard {
   fire?: { lane: XY[][][]; w: number; d: number; hmax: number; area: number };
   /** past qavatli uylar uchastkalari chegarasi (devor / panjara) — 31.10 */
   fences?: XY[][];
+  /** uchastkalar ichidagi bezak (ekin pushtalari) — maydonchalardan tashqari */
+  kit?: KitPart[];
   /** sport hududi inshootlari (31.10): stadion, maydonlar, basseyn, yopiq majmua */
   sport?: SportItem[];
   areas: { block: number; paving: number; green: number; play: number; paths: number };
@@ -153,7 +155,9 @@ function landscapeRaw(doc: Project): Yard[] {
     const own = bl.filter(x => inBlk(x) && !x.b.z0), arches = bl.filter(x => x.b.gen?.kind === 'arka' && inBlk(x));
     if (!own.length) return;
     // 31.10: past qavatli uylar (uchastkali) — oʻz hovlisi: bogʻ, kirish yoʻlagi, avtomobil joyi, panjara, daraxtlar
-    if (own.every(x => x.b.gen?.plot)) { const y = cached(`l|${bsig}|${own.map(x => sig(x.r)).join('#')}`, () => lowYard(blk, bi, own, fr)); if (y) out.push({ ...y, block: bi }); return; }
+    if (own.every(x => x.b.gen?.plot)) { const y = cached(`l|${bsig}|${own.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}`, () => lowYard(blk, bi, own, fr, undefined, doc)); if (y) out.push({ ...y, block: bi }); return; }
+    // 31.10 (egasi: «taunhauslar oʻtmagan»): bloklangan uylar — har uyning orqa bogʻi (hovli tomonda, chuqurligi andoza 6 m) va panjara
+    if (own.every(x => x.b.gen?.kind === 'taunhaus' || x.b.gen?.plot)) { const y = cached(`t|${bsig}|${own.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}`, () => lowYard(blk, bi, own, fr, townPlots(blk.rings[0], own), doc)); if (y) out.push({ ...y, block: bi }); return; }
     // 27.10 yengillik: kvartal hovlisi faqat shu kvartal binolari, avtoturargohi yoki shakli oʻzgarsa qayta hisoblanadi
     const parkIn = parkAll.filter(p => p.h.length && pointIn(p.h.reduce((a, q) => [a[0] + q[0] / p.h.length, a[1] + q[1] / p.h.length] as XY, [0, 0] as XY), blk.rings));
     // 31.10: stilobat tomi — landshaft, yongʻin yoʻlagi (666, 667, 675–677-bandlar) va yerdan rampa
@@ -177,9 +181,34 @@ function landscapeRaw(doc: Project): Yard[] {
  * oldi: uydan qizil chiziqqacha kirish yoʻlagi 1,4 m va avtomobil joyi 3 × 5,5 m (misollar: avtomobil oldi hovlida);
  * orqa bogʻda 1–2 daraxt chegaradan ≥ 1,5 m (96-band: 1–3 m); uchastka chegarasi — panjara; uchastkalardan tashqari qism — umumiy yashil.
  */
-function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], fr: { toLocal: (p: [number, number]) => XY }): Yard | null {
+/** Bloklangan uylar: har uyning hovli tomondagi uzun qirrasidan orqa bogʻ (andoza 6 m), kvartal chegarasi va boshqa uylar bilan kesilgan */
+function townPlots(outer: XY[], own: Own[]): { x: Own; plot: XY[] }[] {
+  const D = 6, out: { x: Own; plot: XY[] }[] = [];
+  for (const x of own) {
+    if (x.b.gen?.plot) continue;
+    const r = signedArea(x.r) > 0 ? x.r : [...x.r].reverse();
+    let best: { a: XY; b: XY; n: XY; s: number } | null = null;
+    for (let i = 0; i < r.length; i++) {
+      const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 3) continue;
+      const n: XY = [(b[1] - a[1]) / L, -(b[0] - a[0]) / L], m: XY = [(a[0] + b[0]) / 2 + n[0] * 3, (a[1] + b[1]) / 2 + n[1] * 3];
+      if (!pointIn(m, [outer])) continue;
+      const sc = ringD(m, outer) + L * 0.01;   // kvartal chetidan eng uzoq — hovli tomoni
+      if (!best || sc > best.s) best = { a, b, n, s: sc };
+    }
+    if (!best) continue;
+    const { a, b, n } = best, P = (p: XY, k: number): [number, number] => [p[0] + n[0] * k, p[1] + n[1] * k];
+    const back: Polygon = [[[a[0], a[1]], [b[0], b[1]], P(b, D), P(a, D), [a[0], a[1]]]];
+    let mp = tryOp(() => polygonClipping.union(back, [close(x.r)]), [] as MultiPolygon);
+    mp = tryOp(() => polygonClipping.intersection(mp, [close(outer)]), mp);
+    const others = own.filter(o => o !== x).map(o => [close(o.r)] as Polygon); if (others.length) mp = tryOp(() => polygonClipping.difference(mp, ...others), mp);
+    const big = mp.sort((p, q) => area(open(q[0])) - area(open(p[0])))[0];
+    if (big) out.push({ x, plot: open(big[0]) });
+  }
+  return out;
+}
+function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], fr: { toLocal: (p: [number, number]) => XY }, plotsIn?: { x: Own; plot: XY[] }[], doc?: Project): Yard | null {
   const B: Polygon = blk.rings.map(close);
-  const plots = own.map(x => ({ x, plot: x.b.gen!.plot!.map(p => fr.toLocal(p)) }));
+  const plots = plotsIn ?? own.map(x => ({ x, plot: x.b.gen!.plot!.map(p => fr.toLocal(p)) }));
   const pave: Polygon[] = [], trees: XY[] = [], fences: XY[][] = [];
   for (const { x, plot } of plots) {
     fences.push(plot);
@@ -224,10 +253,56 @@ function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], f
       pave.push([[P(lo, 0), P(hi, 0), P(hi, 1), P(lo, 1), P(lo, 0)]]);
     }
   }
+  // 31.10 (egasi: «yakka uylar, taunhauslar oʻtmagan»): uchastka ichida — uy orqasida supa/terrasa (3 m, andoza) va ekin pushtalari
+  const kit: KitPart[] = [];
+  for (const { x, plot } of plots) {
+    const r = signedArea(x.r) > 0 ? x.r : [...x.r].reverse();
+    let best: { a: XY; u: XY; n: XY; L: number; dep: number } | null = null;
+    for (let i = 0; i < r.length; i++) {
+      const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 3) continue;
+      const u: XY = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n: XY = [u[1], -u[0]], m: XY = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      let dep = 0; for (let k = 1; k <= 25; k++) { const q: XY = [m[0] + n[0] * k, m[1] + n[1] * k]; if (!pointIn(q, [plot]) || own.some(o => o !== x && pointIn(q, [o.r]))) break; dep = k; }
+      if (!best || dep > best.dep) best = { a, u, n, L, dep };
+    }
+    if (!best || best.dep < 4) continue;
+    const { a, u, n, L, dep } = best, Q = (t: number, k: number): XY => [a[0] + u[0] * t + n[0] * k, a[1] + u[1] * t + n[1] * k];
+    const tw = Math.max(3, L * 0.8), t0 = (L - tw) / 2;
+    pave.push([close([Q(t0, 0), Q(t0 + tw, 0), Q(t0 + tw, 3), Q(t0, 3)])]);   // supa / terrasa
+    if (dep >= 9) {   // ekin pushtalari: terrasadan 1,5 m nariroqda, 1 m eni, 0,5 m oraliq
+      const k0 = 4.5, k1 = Math.min(dep - 1.5, k0 + 6), bw = Math.min(L * 0.6, 8), b0 = (L - bw) / 2;
+      for (let k = k0; k + 1 <= k1; k += 1.5) kit.push({ c: 'ekin', f: [Q(b0, k), Q(b0 + bw, k), Q(b0 + bw, k + 1), Q(b0, k + 1)] });
+    }
+  }
+  // umumiy hudud (uchastkalardan tashqari): bolalar va kattalar maydonchasi — aholi boʻyicha (4-jadval), joy boʻlsa
+  const play: Yard['play'] = [];
+  if (doc) {
+    const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * useDef(x.b.use).res * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
+    const plotMP = tryOp(() => safeUnion(plots.map(p => [close(p.plot)] as Polygon)), [] as MultiPolygon);
+    const common = tryOp(() => polygonClipping.difference(B, ...(plotMP.length ? [plotMP] : []), ...own.map(x => [close(x.r)] as Polygon)), [] as MultiPolygon);
+    const cR = toMP(common).filter(p => area(p[0]) > 250);
+    for (const kind of ['bolalar', 'kattalar'] as const) {
+      const need = pop * PLAY_NORM[kind]; if (need < 30) continue;
+      let done = false;
+      for (const poly of cR) {
+        if (done) break;
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const q of poly[0]) { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
+        const cands: { p: XY; d: number }[] = [];
+        for (let x = x0 + 2; x < x1; x += 3) for (let y = y0 + 2; y < y1; y += 3) { const q: XY = [x, y]; if (!pointIn(q, poly) || play.some(pl => pointIn(q, [pl.ring]))) continue; cands.push({ p: q, d: Math.min(...poly.map(rr => ringD(q, rr))) }); }
+        cands.sort((p1, p2) => p2.d - p1.d);
+        for (let a = need; a >= Math.min(need, 60) * 0.99 && !done; a *= 0.8) for (const c of cands.slice(0, 40)) {
+          const rr = rectAt(c.p, a);
+          if (!rr.every(q => pointIn(q, poly)) || play.some(pl => rr.some(q => pointIn(q, [pl.ring])) || pl.ring.some(q => pointIn(q, [rr])))) continue;
+          play.push({ kind, ring: rr, need, area: a, kit: playKit(kind, rr) }); done = true; break;
+        }
+      }
+    }
+  }
   const houses = own.map(x => [close(x.r)] as Polygon);
   const pavMP = pave.length ? tryOp(() => polygonClipping.intersection(polygonClipping.union(pave[0], ...pave.slice(1)), B), [] as MultiPolygon) : [];
-  const green = tryOp(() => polygonClipping.difference(B, ...houses, ...(pavMP.length ? [pavMP] : [])), [] as MultiPolygon);
-  return { block: bi, paving: toMP(pavMP), green: toMP(green), paths: [], play: [], trees, fences, entries: [], areas: { block: blk.area, paving: mpArea(pavMP), green: mpArea(green), play: 0, paths: 0 } };
+  const playMP: Polygon[] = play.map(q => [close(q.ring)]);
+  const green = tryOp(() => polygonClipping.difference(B, ...houses, ...(pavMP.length ? [pavMP] : []), ...playMP), [] as MultiPolygon);
+  const treesOk = trees.filter(t => !play.some(q => pointIn(t, [q.ring])));
+  return { block: bi, paving: toMP(pavMP), green: toMP(green), paths: [], play, trees: treesOk, fences, entries: [], ...(kit.length ? { kit } : {}), areas: { block: blk.area, paving: mpArea(pavMP), green: mpArea(green), play: play.reduce((t, q) => t + q.area, 0), paths: 0 } };
 }
 /**
  * Stilobat tomi (31.10, egasi: «stilobat ustigayam oʻsha landshaftlarni qoʻshish va pojar rampasi va pojar proyezdini norma boʻyicha
