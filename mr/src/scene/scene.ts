@@ -326,6 +326,31 @@ export class Scene3D {
   }
   /** Koʻp tanlov belgisi: loyiha binolari — koʻk kontur, atrof binolari — koʻk shaffof hajm */
   private markG = new THREE.Group();
+  private issueG = new THREE.Group();
+  /**
+   * Meʼyorga tushmagan joylar (31.10, egasi: «meʼyor qismida bandni bosganda sahnaning oʻzida koʻrsatsin»):
+   * binolar — qizil shaffof hajm, halqalar — qizil chegara, nuqtalar — qizil doira, kesmalar — qizil masofa chizigʻi.
+   * Kamera hammasini qamraydigan qilib suriladi. null — tozalash.
+   */
+  setIssues(doc: Project, w: { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][] } | null, frameIt = true): void {
+    disposeGroup(this.issueG); if (!this.issueG.parent) this.scene.add(this.issueG);
+    if (!w) { this.invalidate(); return; }
+    const fr = frame(doc.origin), fh = doc.settings.floorHeight, RED = 0xd2453b, all: XY[] = [];
+    const ids = new Set(w.bids ?? []);
+    for (const b of doc.buildings) {
+      if (!ids.has(b.id)) continue;
+      const r = b.footprint.map(fr.toLocal), base = Math.min(...r.map(p => this.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; all.push(...r);
+      buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh + 0.6, kind: 'house' }], () => base - 0.3,
+        new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.38, depthWrite: false }), new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide }),
+        new THREE.LineBasicMaterial({ color: RED })).forEach(o => { o.renderOrder = 41; this.issueG.add(o); });
+    }
+    for (const r of w.rings ?? []) { if (r.length < 3) continue; all.push(...r); const l = line(densify(r, 6, true), RED, 0.9, true, 42, this.H, false); this.issueG.add(l);
+      const sh = new THREE.Shape(r.map(p => new THREE.Vector2(p[0], p[1]))), m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 0.5, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 41; this.issueG.add(m); }
+    for (const p of w.pts ?? []) { all.push(p); const c: XY[] = []; for (let i = 0; i < 20; i++) c.push([p[0] + Math.cos(i / 20 * Math.PI * 2) * 5, p[1] + Math.sin(i / 20 * Math.PI * 2) * 5]); this.issueG.add(line(c, RED, 1, true, 42, this.H, false)); }
+    for (const [a, b] of w.segs ?? []) { all.push(a, b); this.issueG.add(line([a, b], RED, 1.2, false, 43, this.H, false)); }
+    if (frameIt && all.length) this.frameRings([all]);
+    this.invalidate();
+  }
   setMarked(doc: Project, bids: string[], cids: number[], roads: { pts: XY[]; w: number }[] = []): void {
     disposeGroup(this.markG); if (!this.markG.parent) this.scene.add(this.markG);
     const fr = frame(doc.origin), fh = doc.settings.floorHeight, cs = new Set(cids);

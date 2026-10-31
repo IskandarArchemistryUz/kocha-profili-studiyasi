@@ -13,6 +13,15 @@ import { landscape } from '../core/landscape';
 import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
 import { checkBlock, lenLimit, SYS } from '../core/seysmik';
+import { computePlan } from '../core/plan';
+
+/** Ikki koʻpburchak orasidagi eng qisqa kesma (uchdan qirragacha) */
+function closestSeg(a: XY[], b: XY[]): [XY, XY] {
+  let best: [XY, XY] = [a[0], b[0]], bd = Infinity;
+  const proj = (p: XY, u: XY, v: XY): XY => { const dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); return [u[0] + dx * t, u[1] + dy * t]; };
+  for (const [P, Q] of [[a, b], [b, a]] as [XY[], XY[]][]) for (const p of P) for (let i = 0; i < Q.length; i++) { const q = proj(p, Q[i], Q[(i + 1) % Q.length]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; best = P === a ? [p, q] : [q, p]; } }
+  return best;
+}
 
 /** Xonadonlar soni manbasi (izoh boʻlagi; alohida kalit — tarjima uchun) */
 function aptSrc(d: Derived, doc: Project): string {
@@ -38,7 +47,10 @@ export interface Result {
   /** chegaradan chetlanish, % (musbat — oshib ketgan) */
   delta?: number;
   note?: string; source: Source;
+  /** sahnada koʻrsatish (31.10, egasi): meʼyorga tushmagan joylar — bino id lari, mahalliy nuqtalar, halqalar, masofa kesmalari */
+  where?: Where;
 }
+export interface Where { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][] }
 
 export interface Rule {
   id: string; title: string; source: Source;
@@ -127,7 +139,7 @@ export const RULES: Rule[] = [
     source: { doc: 'Rejalash qoidasi', edition: '—', clause: 'qizil chiziq ichida qurilish yoʻq (koʻcha koridori boʻsh)', verified: false },
     evaluate(d) {
       if (!d.streetOverlap.length) return { status: d.streetArea > 0 ? 'pass' : 'na', value: 0, unit: 'bino', limit: '0', note: d.streetArea > 0 ? 'Hech bir bino loyiha koʻchasi koridoriga tushmaydi.' : 'Loyiha koʻchalari yoʻq.' };
-      return { status: 'fail', value: d.streetOverlap.length, unit: 'bino', limit: '0',
+      return { status: 'fail', value: d.streetOverlap.length, unit: 'bino', limit: '0', where: { bids: d.streetOverlap.map(x => x.bid), rings: d.streetOverlap.flatMap(x => x.polys) },
         note: `${d.streetOverlap.length} ta bino koʻcha koridoriga tushadi (jami ${Math.round(d.streetOverlap.reduce((t, x) => t + x.area, 0))} m²). Koʻcha siljitilganda qoʻlda chizilgan yoki qoldirilgan binolar — «Koʻchadan chiqarish» tugmasi bino panelida; yoki koʻchani qaytaring.` };
     },
   },
@@ -138,7 +150,7 @@ export const RULES: Rule[] = [
     evaluate(d) {
       if (!d.redLineSocial.length) return { status: 'na', unit: 'm', limit: '≥ 25', note: 'Loyiha koʻchalari yonida maktab yoki MTM binosi yoʻq. Mavjud (OSM) koʻchalar qizil chizigʻi hisobga olinmaydi.' };
       const min = Math.min(...d.redLineSocial.map(x => x.d)), bad = d.redLineSocial.filter(x => x.d < 25);
-      return { status: bad.length ? 'fail' : 'pass', value: min, unit: 'm', limit: '≥ 25',
+      return { status: bad.length ? 'fail' : 'pass', value: min, unit: 'm', limit: '≥ 25', ...(bad.length ? { where: { bids: bad.map(x => x.bid) } } : {}),
         note: `${d.redLineSocial.length} ta bino tekshirildi, ${bad.length} tasi 25 m dan yaqin (${badList(bad)}). Masofa bino devoridan loyiha koʻchasi qizil chizigʻigacha; turar joy binolarigacha — insolyatsiya va yoritish meʼyorlari boʻyicha (39-jadval).` };
     },
   },
@@ -148,7 +160,7 @@ export const RULES: Rule[] = [
     source: { doc: 'SanQvaN 0102-25', edition: '2025', clause: '15-band; 3-band', verified: true },
     evaluate(d) {
       if (!d.resSections) return { status: 'na', note: 'Choʻziq turar joy seksiyalari yoʻq' };
-      return { status: d.westFacing ? 'review' : 'pass', value: d.westFacing, unit: `/ ${d.resSections} seksiya`, limit: '0',
+      return { status: d.westFacing ? 'review' : 'pass', value: d.westFacing, unit: `/ ${d.resSections} seksiya`, limit: '0', ...(d.westIds?.length ? { where: { bids: d.westIds } } : {}),
         note: d.westFacing ? 'Bu seksiyalarning bir uzun fasadi gʻarbga qaraydi: xona derazalarini 200 — 290° oraligʻiga yoʻnaltirishga yoʻl qoʻyilmaydi (15-band, istisnosiz). Kvartira rejasida tekshiriladi («Kvartiralar» qadami). Turar joy obyektlari janubiy, janubi-sharqiy, sharqiy va shimoli-sharqiy yoʻnalishda joylashtiriladi (3-band).' : 'Uzun fasadlar gʻarbiy sektorga qaramaydi.' };
     },
   },
@@ -194,7 +206,10 @@ export const RULES: Rule[] = [
       if (red.length) { const w = red.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Rekonstruksiya rejimi (7-izoh): ${red.length} juft jadval masofasidan kam, lekin yarmidan va 6 m dan koʻp (eng yaqini ${Math.round(w.d)} m, jadval ${Math.round(w.need)} m) — SanQvaN 0102-25 boʻyicha insolyatsiya hisobi bilan asoslansin (94–95-bandlar: kvartiralarda 1–2 xona, 22.03–22.09 da ≥ 2 soat). 2·Hmax va yongʻin masofalari qisqarmaydi.`); }
       if (pass) parts.push(`Hovliga oʻtishlar (≤ 7,5 m): ${pass} ta — arka sifatida loyihalansin, aks holda toretslar orasi talab qilinadi.`);
       const bad = ov + lng.length + lt.length + hard.length;
-      return { status: bad ? 'fail' : (soft.length || pass || red.length) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0',
+      // sahnada: muammoli juftlar va ular orasidagi eng qisqa kesma
+      const prob = pairs.filter(p => p.kind === 'ustma-ust' || lng.includes(p) || lt.includes(p) || hard.includes(p) || soft.includes(p) || red.includes(p)), fr = frame(doc.origin), R = new Map(doc.buildings.map(b => [b.id, b.footprint.map(fr.toLocal)]));
+      const where: Where | undefined = prob.length ? { bids: [...new Set(prob.flatMap(p => [p.a, p.b]))], segs: prob.flatMap(p => { const a = R.get(p.a), b = R.get(p.b); return a && b && p.kind !== 'ustma-ust' ? [closestSeg(a, b)] : []; }) } : undefined;
+      return { status: bad ? 'fail' : (soft.length || pass || red.length) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0', ...(where ? { where } : {}),
         note: parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.' };
     },
   },
@@ -235,7 +250,7 @@ export const RULES: Rule[] = [
       const parts = [`${def.name} (3.1-jadval, ${def.row}), ${ball} ball: boʻlma uzunligi ${lim == null ? 'cheklanmagan (NSTT)' : `≤ ${lim} m`}, chiqib turgan qism ≤ ${def.proj} m (3.1.1). Har bino alohida boʻlma deb olindi — tegib turgan binolar orasida antiseysmik chok boʻlishi kerak (3.1.3; eng kichik kengligi 3.1.4).`];
       if (longs.length) parts.push(`Uzun: ${longs.length} ta (eng uzuni ${worst.c.len} m) — chok bilan boʻlmalarga ajrating yoki seksiya uzunligini kamaytiring.`);
       if (projs.length) parts.push(`Chiqib turgan qism ${def.proj} m dan katta: ${projs.length} ta (${projs.slice(0, 3).map(x => `${x.c.proj} m`).join(', ')}${projs.length > 3 ? ' …' : ''}) — burchak binosini chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajrating (3.1.1) yoki 1.1-band boʻyicha asoslang.`);
-      return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
+      return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, ...(n ? { where: { bids: [...new Set([...longs, ...projs].map(x => x.b.id))] } } : {}), limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
     },
   },
   {
@@ -250,7 +265,7 @@ export const RULES: Rule[] = [
       if (miss.length) parts.push(`${miss.length} ta uchda burilish joyi yoʻq`);
       parts.push('106-band: berk tor koʻcha ≤ 150 m');
       if (long.length) parts.push(`${long.length} tasi uzun, eng uzuni ${Math.round(Math.max(...long.map(e => e.len)))} m`);
-      return { status: miss.length || long.length ? 'fail' : 'pass', value: des.length - miss.length, unit: `/ ${des.length}`, limit: 'R ≥ 15 m yoki 20 × 20 m; ≤ 150 m', note: parts.join(' · ') };
+      return { status: miss.length || long.length ? 'fail' : 'pass', ...(miss.length || long.length ? { where: { pts: [...miss, ...long].map(e => e.p) } } : {}), value: des.length - miss.length, unit: `/ ${des.length}`, limit: 'R ≥ 15 m yoki 20 × 20 m; ≤ 150 m', note: parts.join(' · ') };
     },
   },
   {
@@ -263,8 +278,8 @@ export const RULES: Rule[] = [
       const fr = frame(doc.origin), ar = (r: XY[]) => Math.abs(r.reduce((t, p, i) => t + p[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * p[1], 0) / 2);
       // yashil = uchastka − uy dogʻi − oldi yoʻlak va avtomobil joyi (≈ 3 × oldi chekinish, landshaft lowYard bilan bir xil taxmin)
       const sh = lows.map(b => { const P = ar(b.gen!.plot!.map(fr.toLocal)), H = ar(b.footprint.map(fr.toLocal)); return P > 0 ? Math.max(0, 1 - (H + 3 * 5) / P) : 0; });
-      const bad = sh.filter(x => x < 0.3).length, mn = Math.min(...sh);
-      return { status: bad ? 'fail' : 'pass', value: Math.round(mn * 100), unit: '% (eng kami)', limit: '≥ 30 %', delta: bad ? (0.3 / Math.max(0.01, mn) - 1) * 100 : undefined,
+      const bad = sh.filter(x => x < 0.3).length, mn = Math.min(...sh), badB = lows.filter((_, i) => sh[i] < 0.3);
+      return { status: bad ? 'fail' : 'pass', ...(bad ? { where: { bids: badB.map(b => b.id), rings: badB.map(b => b.gen!.plot!.map(fr.toLocal)) } } : {}), value: Math.round(mn * 100), unit: '% (eng kami)', limit: '≥ 30 %', delta: bad ? (0.3 / Math.max(0.01, mn) - 1) * 100 : undefined,
         note: ['96-band: uchastkaning kamida 30 % i koʻkalamzorlashtiriladi', `${lows.length} ta uchastka`, bad ? `${bad} tasida 30 % dan kam` : 'hammasida bajarilgan', 'hisob: uchastka − uy dogʻi − oldi yoʻlak va avtomobil joyi (~15 m²)'].join(' · ') };
     },
   },
@@ -277,7 +292,8 @@ export const RULES: Rule[] = [
       if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchiq — hovlidagi yoʻlak tekshirilmadi (Yashil qadami).' };
       const ys = landscape(doc).filter(y => y.fire), bad = ys.filter(y => !y.fire!.area), noIn = ys.filter(y => y.fire!.area && !(y.entries ?? []).some(e => e.kind === 'arka' || (e.kind === 'oraliq' && (e.w ?? 0) >= y.fire!.w)));
       const w = Math.max(0, ...ys.map(y => y.fire!.w));
-      return { status: bad.length ? 'fail' : noIn.length ? 'review' : 'pass', value: ys.length - bad.length, unit: 'kvartal', limit: `${ys.length}`,
+      const P = computePlan(doc), wh = [...bad, ...noIn].map(y => P.blocks[y.block]?.rings[0]).filter((r): r is XY[] => !!r);
+      return { status: bad.length ? 'fail' : noIn.length ? 'review' : 'pass', ...(wh.length ? { where: { rings: wh } } : {}), value: ys.length - bad.length, unit: 'kvartal', limit: `${ys.length}`,
         note: `Binoning ikkala uzun tomonidan yetib kelish (666-band, F1.3, H ≥ 28 m): hovlida eni ${w} m yoʻlak (667-band), ichki chetidan devorgacha 9 m (675-band: 8–10 m), yoʻlak va bino orasida daraxt qatori yoʻq (676-band).` + (bad.length ? ` Hovlida yoʻlak sigʻmadi: ${bad.length} kvartal — hovlini kengaytiring yoki qavatlarni kamaytiring.` : '') + (noIn.length ? ` Hovliga mashina kirishi (arka yoki ≥ ${w} m oraliq) topilmadi: ${noIn.length} kvartal.` : '') };
     },
   },
