@@ -294,7 +294,7 @@ export class Editor {
   private async recompute(): Promise<void> {
     const doc = this.store.doc, c = await this.compute.run(doc);
     if (doc !== this.store.doc) return; // eskirgan natija
-    this.last = c; this.renderKpi();
+    this.last = c; this.renderKpi(); this.refreshIssue();
     { const fh = doc.settings.floorHeight; this.scene.setStreetOverlap(c.d.streetOverlap.flatMap(x => { const b = doc.buildings.find(y => y.id === x.bid); const top = b ? ((b.z0 ?? 0) + b.floors) * fh : 0; return x.polys.map(ring => ({ ring, top })); })); }
   }
 
@@ -1254,7 +1254,7 @@ export class Editor {
       id: 'insol-territory', title: 'Uy atrofidagi hudud insolyatsiyasi',
       source: { doc: 'SanQvaN 0102-25', edition: '2025', clause: '95-band (22.03–22.09: uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz)', verified: true },
       ...(!inPeriod ? { status: 'na' as const, note: 'Davr chegarasi — 22 mart yoki 22 sentabr sanasini tanlab hisoblang (eng qisqa kun).' }
-        : { status: (ge1 === n ? 'pass' : ge05 === n ? 'review' : 'fail') as Result['status'], value: ge1 / n * 100, unit: '% ≥ 1 soat', limit: '100',
+        : { status: (ge1 === n ? 'pass' : ge05 === n ? 'review' : 'fail') as Result['status'], ...(ge1 < n ? { where: { pts: pts.filter((_, i) => hours[i] < 1).slice(0, 600) } } : {}), value: ge1 / n * 100, unit: '% ≥ 1 soat', limit: '100',
             note: `${fmt(ge05 / n * 100, 0)} % nuqta ≥ 0,5 soat, ${fmt(ge1 / n * 100, 0)} % — ≥ 1 soat (uchastka yer sathi, binolar dogʻidan tashqari). Xonalar uchun 2 soat uzluksiz (95-band) — «Kvartiralar» qadamida (deraza nuqtalari boʻyicha).` }),
     };
     this.insol = { busy: false, stats: { mean: sum / n, ge2: ge2 / n, ge3: ge3 / n, bins: bins.map(v => v / n), n: hours.length, date: this.sunDate } };
@@ -1935,9 +1935,9 @@ export class Editor {
   private planRules(): Result[] {
     const doc = this.store.doc; if (this.planRuleCache?.doc === doc) return this.planRuleCache.rules;
     const plans = planApartments(doc), all = plans.map(p => sectionChecks(p, doc.settings.floorHeight));
-    const agg = (id: string): { bad: number; vals: string[] } => { let bad = 0; const vals: string[] = []; all.forEach((cs, i) => { const c = cs.find(x => x.id === id); if (c && c.ok === false) { bad++; vals.push(`${i + 1}-seksiya: ${c.value}`); } }); return { bad, vals }; };
+    const agg = (id: string): { bad: number; vals: string[]; bids: string[] } => { let bad = 0; const vals: string[] = [], bids: string[] = []; all.forEach((cs, i) => { const c = cs.find(x => x.id === id); if (c && c.ok === false) { bad++; vals.push(`${i + 1}-seksiya: ${c.value}`); bids.push(plans[i].bid); } }); return { bad, vals, bids }; };
     const SHNQ = { doc: 'ShNQ 2.01.02-04', edition: '2004', verified: true };
-    const mk = (id: string, chk: string, title: string, source: Result['source'], okNote: string): Result => { const a = agg(chk); return { id, title, source, status: !plans.length ? 'na' : a.bad ? 'fail' : 'pass', value: plans.length - a.bad, unit: `/ ${plans.length} seksiya`, limit: 'hammasi', note: a.bad ? a.vals.join('; ') : okNote }; };
+    const mk = (id: string, chk: string, title: string, source: Result['source'], okNote: string): Result => { const a = agg(chk); return { id, title, source, ...(a.bids.length ? { where: { bids: a.bids } } : {}), status: !plans.length ? 'na' : a.bad ? 'fail' : 'pass', value: plans.length - a.bad, unit: `/ ${plans.length} seksiya`, limit: 'hammasi', note: a.bad ? a.vals.join('; ') : okNote }; };
     const rules = plans.length ? [
       mk('plan-access', 'mop', 'Kvartiralarga kirish — faqat umumiy koridordan', { doc: 'Rejalash qoidasi', clause: 'zina-lift → koridor → kvartira', edition: '—', verified: true }, 'Har seksiya rejasida har kvartira eshigi MOP ga chiqadi, deraza fasadda; boshqa kvartira orqali kirish yoʻq.'),
       mk('plan-stairs', 'stairs', 'Evakuatsiya zinalari soni', { ...SHNQ, clause: '5.13' }, 'Qavatdagi kvartiralar maydoni > 500 m² boʻlgan seksiyalarda 2 ta zina.'),
@@ -3674,6 +3674,29 @@ export class Editor {
         h('span', { class: 'chip', id: 'seisLim' }, lim == null ? tr('NSTT — cheklanmagan') : tf('boʻlma ≤ ${l} m · chiqish ≤ ${p} m', { l: lim, p: SYS[sys].proj }))));
   }
   private regFilter: 'all' | 'fail' = 'all';
+  /** sahnada koʻrsatilgan meʼyor bandi (31.10) */
+  private issueId: string | null = null;
+  /** Bandni sahnada koʻrsatish yoki tozalash; true — koʻrsatildi */
+  private showIssue(r: Result, on: boolean): boolean {
+    if (!on || !r.where || r.status === 'pass') { if (this.issueId) { this.issueId = null; this.scene.setIssues(this.store.doc, null); this.issueCard(null); } return false; }
+    this.issueId = r.id; this.scene.setIssues(this.store.doc, r.where);
+    // roʻyxat oynasi sahnani toʻsmasin: yopiladi, oʻrniga kichik kartochka
+    this.el.drawer.hidden = true; this.issueCard(r); return true;
+  }
+  private issueCard(r: Result | null): void {
+    this.el.stage.querySelector('.issuecard')?.remove();
+    if (!r) return;
+    this.el.stage.append(h('div', { class: 'issuecard glassbar', id: 'issueCard', role: 'status' },
+      h('b', { title: tr(r.title) }, tr(r.title)),
+      h('button', { class: 'btn btn-sm', id: 'issueList', onclick: () => { this.regOpen = r.id; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = false; this.renderKpi(); } }, tr('Roʻyxat')),
+      h('button', { class: 'btn btn-sm icon-btn btn-ghost', id: 'issueX', 'aria-label': tr('Belgilarni olib tashlash'), title: tr('Belgilarni olib tashlash'), onclick: () => { this.showIssue(r, false); this.renderKpi(); } }, svgIcon(IC.x))));
+  }
+  /** Hisob yangilanganda koʻrsatilgan band belgilarini yangilash (kamera surilmaydi) */
+  private refreshIssue(): void {
+    if (!this.issueId) return;
+    const r = this.allRules().find(x => x.id === this.issueId);
+    if (!r?.where || r.status === 'pass') { this.issueId = null; this.scene.setIssues(this.store.doc, null); this.issueCard(null); } else this.scene.setIssues(this.store.doc, r.where, false);
+  }
   private regOpen: string | null = null;
   private register(): HTMLElement {
     const all = this.allRules();
@@ -3694,12 +3717,15 @@ export class Editor {
         const open = this.regOpen === r.id, st = tr(STATUS_TXT[r.status]);
         const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + r.unit : ''}` : '', dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
         return h('div', { class: 'rrow', 'data-rule': r.id },
-          h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { if (!r.note) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
-            h('span', { class: 'k' }, h('span', {}, tr(r.title)), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
+          h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { const sh = this.showIssue(r, !open); if (!r.note && !sh) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
+            h('span', { class: 'k' }, h('span', {}, tr(r.title), r.where && r.status !== 'pass' ? h('span', { class: 'chip bad', 'data-where': r.id, style: 'margin-left:6px', title: tr('Bosing — sahnada koʻrsatiladi') }, tr('sahnada')) : ''), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
             h('span', { class: 'rval' },
               h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value)}${slash(r.unit) ? ' ' + r.unit : ''}`) : st),
               lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),
-          r.note ? h('div', { class: 'rnote', hidden: !open }, tr(r.note)) : '');
+          r.note || (r.where && r.status !== 'pass') ? h('div', { class: 'rnote', hidden: !open }, r.note ? tr(r.note) : '',
+            this.issueId === r.id ? h('div', { class: 'row', style: 'margin-top:6px;gap:6px' },
+              h('button', { class: 'btn btn-sm', id: 'issueFrame', onclick: () => r.where && this.scene.setIssues(this.store.doc, r.where) }, tr('Yana koʻrsatish')),
+              h('button', { class: 'btn btn-sm btn-ghost', id: 'issueClear', onclick: () => { this.showIssue(r, false); this.renderKpi(); } }, tr('Belgilarni olib tashlash'))) : '') : '');
       })),
       h('span', { class: 't-small' }, tr('Har qatorda «Izoh» ochiladi. Shartli qatorlar tegishli hisobdan keyin chiqadi.')));
   }

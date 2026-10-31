@@ -59,7 +59,7 @@ export interface Derived {
   /** avtoturargoh: talab (416-band, 29-jadval) va taʼminot (413-band, ochiq — 25 m²/joy) */
   parkingReq: number; parkingProv: number; parkingParts: Record<string, number>;
   /** turar joy seksiyalari va ulardan uzun fasadi gʻarbga (200–290°) qaraganlari — SanQvaN 0102-25, 15-band */
-  resSections: number; westFacing: number;
+  resSections: number; westFacing: number; /** gʻarbga qaragan seksiyalar (sahnada koʻrsatish) */ westIds?: string[];
   /** ish oʻrinlari (taxmin, core/jobs.ts) va aholiga nisbati */
   jobs: number; jobsRatio: number;
   /** yashil va quyosh panelli tomlar maydoni, m² */
@@ -131,19 +131,19 @@ export function derive(doc: Project): Derived {
   const parkingParts = parkingNeed({ apartments, ofisGfa: gfaByUse.ofis ?? 0, tradeArea: trade, school: schoolCap, mtm: mtmCap, greenArea });
   const parkingReq = Object.values(parkingParts).reduce((a, b) => a + b, 0);
   const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + g.spaces, 0);
-  let resSections = 0, westFacing = 0;
+  let resSections = 0, westFacing = 0; const westIds: string[] = [];
   for (const b of doc.buildings) {
     if (useDef(b.use).res <= 0 || b.gen?.kind === 'stilobat') continue;
     const r = ringLocal(fr, b.footprint), o = obb2(r);
     if (o.L < o.S * 1.25) continue; // kvadratga yaqin (villa, minora) — barcha tomonga derazalar, alohida baholanmaydi
     resSections++;
-    if (longFacadeAzimuths(r).some(a => a >= 200 && a <= 290)) westFacing++;
+    if (longFacadeAzimuths(r).some(a => a >= 200 && a <= 290)) { westFacing++; westIds.push(b.id); }
   }
   const jobs = jobsFrom(gfaByUse);
   const yards = doc.settings.yards ? landscape(doc) : [], gb = greenBalance(doc, yards);
   const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + y.areas.play, 0);
   return {
-    resSections, westFacing, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
+    resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
