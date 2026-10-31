@@ -167,7 +167,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const s = { ...doc.streets[i], ...c.patch }; if (s.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');
       d.streets = doc.streets.slice(); d.streets[i] = s; return d;
     }
-    case 'setRounds': { if (c.rounds.length) d.rounds = c.rounds.map(r => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r })); else delete d.rounds; return d; }
+    case 'setRounds': { if (c.rounds.length) d.rounds = c.rounds.map(r => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind ? { kind: r.kind } : {}) })); else delete d.rounds; return d; }
     case 'updateStreets': {   // bir nechta koʻcha — bitta oʻzgarish (sahna bir marta qayta quriladi)
       const m = new Map(c.patches.map(q => [q.id, q.patch]));
       d.streets = doc.streets.map(s => { const q = m.get(s.id); if (!q) return s; const n = { ...s, ...q }; if (n.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin'); return n; }); return d;

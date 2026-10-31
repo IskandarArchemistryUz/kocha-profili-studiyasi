@@ -27,7 +27,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, Sect
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
-import { deadEnds, junctions, nextEnd } from '../core/streetends';
+import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../core/streetends';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
@@ -37,7 +37,7 @@ import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
-import type { Use, ZoneLabel } from '../core/doc';
+import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { DEFAULT_GEN, generate, usePreset, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS } from '../core/parking';
 import { aptRooms } from '../core/aptrooms';
@@ -166,6 +166,8 @@ export class Editor {
   private blockMode: 'mayda' | 'yirik' = 'mayda';
   private profile = 'mahalla-15';
   private selStreet: string | null = null;
+  private roundKind: RoundKind = 'kichik';
+  private endKind: 'aylana' | 'maydon' = 'aylana';
   private selBlock: number | null = null;
   private planCache: { doc: Project; plan: PlanGeo } | null = null;
   /** «Mening qatlamlarim»: import qilingan binolar, chegaralar, yer, chiziqlar */
@@ -2717,28 +2719,42 @@ export class Editor {
    */
   private endsPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), des = deadEnds(doc), miss = des.filter(e => !e.has), long = des.filter(e => e.len > 150), jn = junctions(doc), rounds = doc.rounds ?? [];
-    const setAll = (k: 'aylana' | 'maydon') => { const by = new Map<string, { a?: 'aylana' | 'maydon'; b?: 'aylana' | 'maydon' }>(); for (const e of miss) { const st = doc.streets.find(x => x.id === e.sid)!; by.set(e.sid, { ...(by.get(e.sid) ?? st.ends ?? {}), [e.end]: k }); } this.run(() => this.store.dispatch({ type: 'updateStreets', patches: [...by].map(([id, ends]) => ({ id, patch: { ends } })) })); };
-    const hasR = (p: XY) => rounds.some(r => { const c = fr.toLocal(r.at); return Math.hypot(c[0] - p[0], c[1] - p[1]) < 8; });
-    const setR = (pts: XY[], on: boolean) => { const keep = rounds.filter(r => { const c = fr.toLocal(r.at); return !pts.some(p => Math.hypot(c[0] - p[0], c[1] - p[1]) < 8); }); this.run(() => this.store.dispatch({ type: 'setRounds', rounds: on ? [...keep, ...pts.map(p => ({ id: uid('r_'), at: fr.toGeo(p), r: 14 }))] : keep })); };
+    // Aylanma faqat tanlangan joyga qoʻyiladi (egasi, 31.10): sahnada chorraha yoki koʻcha uchini bosish; turi oldindan tanlanadi
+    const placing = this.tool instanceof ClickTool && (this.tool as ClickTool).hint === tr('Chorraha yoki koʻcha uchini bosing — aylanma qoʻyiladi, yana bosish — olib tashlanadi · Esc — tugatish');
+    const place = (xy: XY) => {
+      const d = this.store.doc, sp = nearestSpot(d, xy, 25), rs = d.rounds ?? [];
+      if (!sp) { toast(tr('Yaqinda (25 m) chorraha yoki berk koʻcha uchi yoʻq')); return; }
+      if (sp.t === 'jn') {
+        const near = rs.find(r => { const c = fr.toLocal(r.at); return Math.hypot(c[0] - sp.at[0], c[1] - sp.at[1]) < 8; });
+        const K = ROUND[this.roundKind];
+        this.run(() => this.store.dispatch({ type: 'setRounds', rounds: near && roundKind(near) === this.roundKind ? rs.filter(r => r !== near) : [...rs.filter(r => r !== near), { id: uid('r_'), at: fr.toGeo(sp.at), r: K.r, kind: this.roundKind }] }));
+      } else {
+        const st = d.streets.find(x => x.id === sp.sid)!, cur = st.ends?.[sp.end], ends = { ...(st.ends ?? {}), [sp.end]: cur === this.endKind ? undefined : this.endKind };
+        if (!ends[sp.end]) delete ends[sp.end];
+        this.run(() => this.store.dispatch({ type: 'updateStreet', id: st.id, patch: { ends: Object.keys(ends).length ? ends : undefined } }));
+      }
+    };
+    const KN: Record<RoundKind, string> = { mini: 'Mini · R 8 m', kichik: 'Kichik · R 14 m', katta: 'Katta · R 22 m' };
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Berk uchlar va chorrahalar')), h('span', {}, 'ShNQ 2.07.06-24, 57, 106, 27')),
       h('div', { class: 'group', id: 'deadEnds' },
         h('div', { class: 'li' }, h('span', { class: 'k' }, tf('Berk uchlar: ${n} ta', { n: des.length }), h('span', { class: 'sub' }, des.length ? (miss.length ? tf('${n} tasida burilish joyi yoʻq (57-band: R ≥ 15 m aylana yoki 20 × 20 m)', { n: miss.length }) : tr('Hammasida burilish joyi bor (57-band)')) + (long.length ? ' · ' + tf('${n} tasi 150 m dan uzun (106-band)', { n: long.length }) : '') : tr('Loyiha koʻchalarida berk uch yoʻq'))),
           miss.length ? h('span', { class: 'chip warn', 'data-s': 'review' }, String(miss.length)) : h('span', { class: 'chip ok' }, '✓')),
-        miss.length ? h('div', { class: 'li', style: 'gap:6px;flex-wrap:wrap' },
-          h('button', { class: 'btn btn-sm', id: 'endsAylana', onclick: () => setAll('aylana') }, tr('Hammasiga aylana (R 15 m)')),
-          h('button', { class: 'btn btn-sm', id: 'endsMaydon', onclick: () => setAll('maydon') }, tr('Hammasiga 20 × 20 m maydoncha'))) : '',
-        h('div', { class: 'li' }, h('span', { class: 'k' }, tf('Chorrahalar: ${n} ta · aylanma: ${r}', { n: jn.length, r: rounds.length }), h('span', { class: 'sub' }, tr('Aylanma — tashqi R 14 m, markazida yashil orolcha (27-band)')))),
-        h('div', { class: 'li', style: 'gap:6px;flex-wrap:wrap' },
-            jn.length ? h('button', { class: 'btn btn-sm', id: 'roundsAll', onclick: () => setR(jn.filter(p => !hasR(p)), true) }, tr('Hammasiga aylanma')) : '',
-            rounds.length ? h('button', { class: 'btn btn-sm btn-ghost', id: 'roundsOff', onclick: () => this.run(() => this.store.dispatch({ type: 'setRounds', rounds: [] })) }, tr('Olib tashlash')) : '')));
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tf('Chorrahalar: ${n} ta · aylanma: ${r}', { n: jn.length, r: rounds.length }), h('span', { class: 'sub' }, tr('Kichik aylanmalar kesishmalarda ruxsat etiladi (27-band)')))),
+        h('div', { class: 'li', style: 'flex-direction:column;align-items:stretch;gap:6px' },
+          h('span', { class: 't-small' }, tr('Chorrahada')),
+          h('div', { class: 'seg', id: 'roundKind', role: 'group' }, ...(['mini', 'kichik', 'katta'] as RoundKind[]).map(k => h('button', { 'aria-pressed': this.roundKind === k, 'data-rk': k, title: tr(KN[k]), onclick: () => { this.roundKind = k; this.renderPanel(); } }, `${tr(k === 'mini' ? 'Mini' : k === 'kichik' ? 'Kichik' : 'Katta')} ${ROUND[k].r}`))),
+          h('span', { class: 't-small' }, tr('Berk koʻcha uchida')),
+          h('div', { class: 'seg', id: 'endKind', role: 'group' }, ...(['aylana', 'maydon'] as const).map(k => h('button', { 'aria-pressed': this.endKind === k, 'data-ek': k, title: tr(k === 'aylana' ? 'Aylana · R 15 m' : 'Maydoncha 20 × 20 m'), onclick: () => { this.endKind = k; this.renderPanel(); } }, k === 'aylana' ? `${tr('Aylana')} R 15` : '20 × 20 m'))),
+          h('button', { class: placing ? 'btn btn-primary btn-block' : 'btn btn-block', id: 'roundPlace', onclick: () => placing ? this.setTool(null) : this.setTool(new ClickTool(tr('Chorraha yoki koʻcha uchini bosing — aylanma qoʻyiladi, yana bosish — olib tashlanadi · Esc — tugatish'), place)) },
+            tr(placing ? 'Qoʻyishni tugatish' : 'Aylanma qoʻyish (sahnada bosing)'))),
+        ...rounds.map((r, i) => h('div', { class: 'li', 'data-round': r.id }, h('span', { class: 'k' }, `${tr('Aylanma')} ${i + 1}`, h('span', { class: 'sub' }, tr(KN[roundKind(r)]))),
+          h('button', { class: 'btn icon-btn btn-sm btn-ghost', title: tr('Oʻchirish'), 'aria-label': tr('Aylanmani oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'setRounds', rounds: (this.store.doc.rounds ?? []).filter(x => x.id !== r.id) })) }, svgIcon(IC.x))))));
     const st = doc.streets.find(x => x.id === this.selStreet);
     if (st) {
-      const A = st.axis.map(fr.toLocal), mine = jn.filter(p => A.some((q, k) => k + 1 < A.length && (() => { const r = A[k + 1], dx = r[0] - q[0], dy = r[1] - q[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - q[0]) * dx + (p[1] - q[1]) * dy) / L2)); return Math.hypot(q[0] + dx * t - p[0], q[1] + dy * t - p[1]) < 2.5; })()));
       const NAME = { aylana: 'aylana', maydon: '20 × 20' } as const;
       body.append(h('div', { class: 'row', id: 'stEnds', style: 'gap:6px;flex-wrap:wrap' },
         ...(['a', 'b'] as const).map(e => h('button', { class: 'btn btn-sm', 'data-end': e, 'aria-pressed': !!st.ends?.[e], title: tr('Koʻcha uchidagi burilish joyi: yoʻq → aylana → 20 × 20 m'), onclick: () => this.run(() => this.store.dispatch({ type: 'updateStreet', id: st.id, patch: nextEnd(st, e) })) },
-          `${tr(e === 'a' ? 'Boshi' : 'Oxiri')}: ${st.ends?.[e] ? tr(NAME[st.ends[e]!]) : tr('yoʻq')}`)),
-        mine.length ? h('button', { class: 'btn btn-sm', id: 'stRounds', 'aria-pressed': mine.every(hasR), onclick: () => setR(mine, !mine.every(hasR)) }, `${tr('Chorrahalarida aylanma')} · ${mine.length}`) : ''));
+          `${tr(e === 'a' ? 'Boshi' : 'Oxiri')}: ${st.ends?.[e] ? tr(NAME[st.ends[e]!]) : tr('yoʻq')}`))));
     }
   }
 

@@ -6,13 +6,20 @@
  * Koʻcha uchidagi belgi — Street.ends (a — oʻqning boshi, b — oxiri); aylanma — Project.rounds (chorraha markazi).
  * Sahnada bitta tekis disk / halqa (yengil), kvartal chegarasidan (qizil chiziq) ayriladi.
  */
-import type { Project, Street } from './doc';
+import type { Project, Street, RoundKind } from './doc';
 import { frame, type XY } from './geo';
 
 export type EndKind = 'aylana' | 'maydon';
 export const TURN_R = 15, TURN_SQ = 20, WALK = 2.5;
 export interface DeadEnd { sid: string; end: 'a' | 'b'; p: XY; dir: XY; len: number; has?: EndKind }
-export interface EndShape { kind: EndKind | 'halqa'; outer: XY[]; carriage: XY[]; island?: XY[]; at: XY }
+export interface EndShape { kind: EndKind | 'halqa'; outer: XY[]; carriage: XY[]; island?: XY[]; at: XY; /** mini aylanmada orolcha — boʻyalgan, bosib oʻtiladigan */ paint?: boolean }
+/** Aylanma turlari (Koʻchasoz C dagi kabi): tashqi radius, orolcha radiusi; mini — orolcha boʻyalgan (yuk mashinasi bosib oʻtadi) */
+export const ROUND: Record<RoundKind, { r: number; island: number; paint?: boolean; name: string }> = {
+  mini: { r: 8, island: 2.5, paint: true, name: 'Mini · R 8 m' },
+  kichik: { r: 14, island: 7, name: 'Kichik · R 14 m' },
+  katta: { r: 22, island: 14, name: 'Katta · R 22 m' },
+};
+export const roundKind = (r: { r: number; kind?: RoundKind }): RoundKind => r.kind ?? (r.r <= 9 ? 'mini' : r.r >= 20 ? 'katta' : 'kichik');
 
 const segD = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]); };
 const circle = (c: XY, r: number, n = 28): XY[] => Array.from({ length: n }, (_, i) => [c[0] + r * Math.cos(2 * Math.PI * i / n), c[1] + r * Math.sin(2 * Math.PI * i / n)] as XY);
@@ -63,8 +70,8 @@ export function endShapes(doc: Project): EndShape[] {
     }
   }
   for (const r of doc.rounds ?? []) {
-    const c = fr.toLocal(r.at), R = r.r;
-    out.push({ kind: 'halqa', at: c, carriage: circle(c, R, 40), island: circle(c, Math.max(2, R - 7), 32), outer: circle(c, R + WALK, 40) });
+    const c = fr.toLocal(r.at), R = r.r, K = ROUND[roundKind(r)], isl = Math.min(K.island, Math.max(2, R - 6));
+    out.push({ kind: 'halqa', at: c, carriage: circle(c, R, 40), island: circle(c, isl, 32), outer: circle(c, R + WALK, 40), ...(K.paint ? { paint: true } : {}) });
   }
   return out;
 }
@@ -88,4 +95,14 @@ export function junctions(doc: Project): XY[] {
     if (t > 0 && t < 1 && u > 0 && u < 1) add([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
   }
   return out;
+}
+
+/**
+ * Bosilgan nuqtaga eng yaqin joy (≤ maxD m): chorraha yoki berk koʻcha uchi — aylanmani tanlab qoʻyish uchun (31.10).
+ */
+export function nearestSpot(doc: Project, p: XY, maxD = 25): { t: 'jn'; at: XY } | { t: 'end'; sid: string; end: 'a' | 'b'; at: XY } | null {
+  let best: { t: 'jn'; at: XY } | { t: 'end'; sid: string; end: 'a' | 'b'; at: XY } | null = null, bd = maxD;
+  for (const q of junctions(doc)) { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; best = { t: 'jn', at: q }; } }
+  for (const e of deadEnds(doc)) { const d = Math.hypot(e.p[0] - p[0], e.p[1] - p[1]); if (d < bd) { bd = d; best = { t: 'end', sid: e.sid, end: e.end, at: e.p }; } }
+  return best;
 }
