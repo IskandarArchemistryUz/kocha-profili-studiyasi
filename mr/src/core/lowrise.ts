@@ -146,8 +146,9 @@ function clusterSeg(a: XY, b: XY, free: MultiPolygon, P: LowParams, out: LowHous
 }
 
 /** Kvartal chetlari boʻylab (uzun qirralardan boshlab): har qirra — chiziq, burchaklarda uchastkalar ustma-ust tushmaydi */
-export function lowriseBlock(block: XY[], kind: LowKind, floorsMax = 3): { houses: LowHouse[]; notes: string[] } {
-  const P = LOW[kind], floors = Math.max(1, Math.min(floorsMax, P.floors));
+/** floors — tanlangan qavat (1–3, kam qavatli: ShNQ 2.07.01-23, 2-band); berilmasa — tur boʻyicha odatiy */
+export function lowriseBlock(block: XY[], kind: LowKind, floorsSel?: number): { houses: LowHouse[]; notes: string[] } {
+  const P = LOW[kind], floors = floorsSel != null ? Math.max(1, Math.min(3, Math.round(floorsSel))) : P.floors;
   const ring = signedArea(block) < 0 ? block.slice().reverse() : block.slice();
   let free: MultiPolygon = [[close(ring)]];
   const edges = ring.map((p, i) => ({ a: p, b: ring[(i + 1) % ring.length], L: Math.hypot(ring[(i + 1) % ring.length][0] - p[0], ring[(i + 1) % ring.length][1] - p[1]) })).filter(e => e.L >= P.plotW).sort((x, y) => y.L - x.L);
@@ -168,8 +169,8 @@ export function lowriseBlock(block: XY[], kind: LowKind, floorsMax = 3): { house
 }
 
 /** Ixtiyoriy siniq chiziq boʻylab (side: 1 — chap, −1 — oʻng tomonga); area — joylash mumkin boʻlgan hudud (masalan, kvartal) */
-export function lowriseAlong(line: XY[], side: 1 | -1, kind: LowKind, area: XY[] | null, floorsMax = 3): LowHouse[] {
-  const P = LOW[kind], floors = Math.max(1, Math.min(floorsMax, P.floors)), out: LowHouse[] = [];
+export function lowriseAlong(line: XY[], side: 1 | -1, kind: LowKind, area: XY[] | null, floorsSel?: number): LowHouse[] {
+  const P = LOW[kind], floors = floorsSel != null ? Math.max(1, Math.min(3, Math.round(floorsSel))) : P.floors, out: LowHouse[] = [];
   const pts = side === 1 ? line : line.slice().reverse();
   let free: MultiPolygon = area ? [[close(signedArea(area) < 0 ? area.slice().reverse() : area)]] : [[close([[-1e5, -1e5], [1e5, -1e5], [1e5, 1e5], [-1e5, 1e5]])]];
   for (let i = 0; i + 1 < pts.length; i++) {

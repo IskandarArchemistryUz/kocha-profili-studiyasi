@@ -122,6 +122,9 @@ const TOOLS: [ToolMode, string, string][] = [
   ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
 ];
 const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Klaster', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
+/** Tipologiya guruhlari (31.10): avto · past qavatli (1–3 qavat) · koʻp qavatli turar joy · jamoat va tijorat */
+const TYPO_GROUPS: [string, Typology[]][] = [['', ['avto']], ['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['perimetr', 'qatorlar', 'blok_villa', 'villa', 'blok_minora', 'minora']], ['Jamoat va tijorat', ['ofis_plita', 'ofis_minora', 'savdo_blok']]];
+const LOW_T: Typology[] = ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster'];
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
@@ -2012,7 +2015,7 @@ export class Editor {
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
     const sg = this.savedGen(i), base: GenParams = i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) };
     const okT = typoAllowed(b.use), base1: GenParams = okT.includes(base.typology) ? base : { ...base, typology: okT[0] };
-    const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
+    const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), r = generate(b.rings[0], g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]) });
@@ -2171,12 +2174,18 @@ export class Editor {
       // parsel funksiyasiga mos tipologiyalar (31.10): mos kelmaydiganlari oʻchiq; tanlangani mos boʻlmasa — birinchi mosi
       const selUse = this.selBlock != null ? plan.blocks[this.selBlock]?.use ?? null : null, okT = selUse ? typoAllowed(selUse) : (Object.keys(TYPO_NAME) as Typology[]);
       if (!okT.includes(g.typology)) g.typology = okT[0];
+      const isLow = LOW_T.includes(g.typology); if (isLow) this.lowKind = g.typology as LowKind;
       const ft = h('b', { class: 'num', style: 'min-width:48px;text-align:right' }, (g.far ?? 0) > 0 ? fmt(g.far!, 1) : tr('oʻchiq'));
       body.append(
-        h('div', { class: 'glabel' }, h('span', {}, tr('Tipologiya')), h('span', {}, `${Object.keys(TYPO_NAME).length} ta`)),
-        h('div', { class: 'tiles', role: 'group', 'aria-label': tr('Tipologiya') }, ...(Object.keys(TYPO_NAME) as Typology[]).map(k => { const ok = okT.includes(k); return h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, disabled: !ok, title: ok ? tr(TYPO_NAME[k]) : tf('«${u}» parseliga mos emas', { u: tr(useDef(selUse!).name) }), onclick: () => { g.typology = k; this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }); })),
+        // tipologiyalar guruhlab (egasi, 31.10: bitta joyda, intuitiv): past qavatli — 1–3 qavat (ShNQ 2.07.01-23, 2-band), uylar qatori shu yerda
+        ...TYPO_GROUPS.filter(([, ks]) => ks.some(k => okT.includes(k))).flatMap(([gname, ks]) => [
+          ...(gname ? [h('div', { class: 'glabel' }, h('span', {}, tr(gname)), gname === 'Past qavatli' ? h('span', {}, tr('1–3 qavat')) : '')] : [h('div', { class: 'glabel' }, h('span', {}, tr('Tipologiya')), h('span', {}, `${okT.length} ta`))]),
+          h('div', { class: 'tiles', role: 'group', 'aria-label': tr(gname || 'Tipologiya') }, ...ks.map(k => { const ok = okT.includes(k); return h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, disabled: !ok, title: ok ? tr(TYPO_NAME[k]) : tf('«${u}» parseliga mos emas', { u: tr(useDef(selUse!).name) }), onclick: () => { g.typology = k; if (LOW_T.includes(k) && g.maxF > 3) { g.maxF = LOW[k as LowKind].floors; g.minF = Math.min(g.minF, g.maxF); } this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }); }))]),
+        ...(isLow ? [] : [
         h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Maqsadli UMN (FAR)')), h('div', { class: 'grow' }, range({ min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', 'aria-label': tr('Maqsadli UMN (FAR)'), oninput: v => { g.far = v; ft.textContent = v > 0 ? fmt(v, 1) : tr('oʻchiq'); } })), ft),
-        h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)')),
+        h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'))]),
+        isLow ? h('div', { class: 'group', id: 'lowFl' },
+          stp('gMax', tr('Qavat'), tr('kam qavatli: 1–3 (mansarda bilan), ShNQ 2.07.01-23, 2-band'), g.maxF <= 3 ? g.maxF : LOW[g.typology as LowKind].floors, 1, 3, 1, x => { g.maxF = Math.min(3, x); g.minF = Math.min(g.minF, g.maxF); })) :
         h('div', { class: 'group' },
           stp('gMax', tr('Qavat, eng koʻp'), '1–40', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }),
           stp('gMin', tr('eng kam'), '1–40', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); }),
@@ -2197,7 +2206,8 @@ export class Editor {
           h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Joylar soni meʼyor boʻyicha'), h('span', { class: 'sub' }, tr('29-jadval talabi; yer osti sathlari avtomatik'))), sw({ id: 'gPNorm', label: tr('Joylar soni meʼyor boʻyicha'), on: g.parkNorm ?? true, onchange: v => { g.parkNorm = v; this.renderPanel(); } })))] : []),
         h('div', { class: 'row' },
           h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (ok) this.generateBlock(i); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
-          allBtn(), clearBtn(this.selBlock)));
+          allBtn(), clearBtn(this.selBlock)),
+        isLow ? this.lowRowBox(fr, g.maxF) : '');
       if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     }
     // binolar soni va tanlangan seksiya
@@ -2219,7 +2229,6 @@ export class Editor {
     nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
     const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm', drawingA = this.tool instanceof AxisTool;
     const addB = (r: XY[]) => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); this.el.hint.textContent = this.tool?.hint ?? ''; };
-    body.append(this.lowRowBox(fr));
     body.append(h('details', { class: 'how manual', open: drawing || drawingP || drawingA || !gens }, h('summary', {}, svgIcon(IC.pencil), tr('Qoʻlda bino chizish')),
       h('div', { class: 'col' },
         h('div', { class: 'row2' }, h('div', { class: 'field' }, h('label', {}, tr('Qavatlar')), fl), h('div', { class: 'field' }, h('label', {}, tr('Noturar pastki')), nr)),
@@ -2245,7 +2254,7 @@ export class Editor {
   private lowKind: LowKind = 'taunhaus';
   private lowSide: 1 | -1 | 0 = 1;
   private lowOff = 0;
-  private lowRowBox(fr: ReturnType<typeof frame>): HTMLElement {
+  private lowRowBox(fr: ReturnType<typeof frame>, floorsMax = 3): HTMLElement {
     const drawingL = this.tool instanceof LineTool && this.step.id === 'hajm';
     const seg = <T extends string | number>(id: string, label: string, opts: [T, string][], cur: T, set: (v: T) => void) => h('div', { class: 'seg sm', id, role: 'group', 'aria-label': tr(label) }, ...opts.map(([v, n]) => h('button', { 'data-v': String(v), 'aria-pressed': cur === v, onclick: () => { set(v); this.renderPanel(); } }, tr(n))));
     const off = h('input', { type: 'number', class: 'input', id: 'lowOff', min: 0, max: 30, step: '0.5', value: this.lowOff, 'aria-label': tr('Chiziqdan chekinish, m') }) as HTMLInputElement;
@@ -2257,7 +2266,7 @@ export class Editor {
       const blockers = [...plan.corridors.flatMap(p => p.map(r => r)), ...doc.buildings.filter(b => !b.gen).map(b => b.footprint.map(fr.toLocal))];
       const hit = (r: XY[]) => blockers.some(q => q.length >= 3 && (r.some(p => pointIn(p, [q])) || q.some(p => pointIn(p, [r]))));
       const site = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
-      const along = (sd: 1 | -1, off: number) => lowriseAlong(off > 0 ? offsetLine(line, sd * off) : line, sd, this.lowKind, site).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
+      const along = (sd: 1 | -1, off: number) => lowriseAlong(off > 0 ? offsetLine(line, sd * off) : line, sd, this.lowKind, site, floorsMax <= 3 ? floorsMax : undefined).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
       // chiziq koʻcha oʻqi yoki qizil chiziq ustida boʻlsa — chekinish 0 da hamma uchastka koridorga tushadi: chekinish avtomatik oshiriladi
       const houses = sides.flatMap(sd => { for (const off of this.lowOff > 0 ? [this.lowOff] : [0, 2, 4, 6, 8, 10, 13, 16, 20]) { const r = along(sd, off); if (r.length) return r; } return []; });
       if (!houses.length) { toast(tr('Chiziq boʻylab uy sigʻmadi — chiziq qisqa yoki koʻcha / bino ustiga tushadi')); return; }
@@ -2266,16 +2275,17 @@ export class Editor {
       toast(tf('${n} ta uy chiziq boʻylab qoʻyildi', { n: houses.length }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
     };
-    return h('details', { class: 'how manual', id: 'lowRow', open: drawingL }, h('summary', {}, svgIcon(IC.pencil), tr('Past qavatli uylar qatori')),
-      h('div', { class: 'col' },
-        seg<LowKind>('lowKind', 'Uy turi', [['yakka', 'Yakka uy'], ['juft', 'Juft'], ['taunhaus', 'Taunhaus'], ['hovli', 'Hovli'], ['klaster', 'Klaster']], this.lowKind, v => { this.lowKind = v; }),
+    // uy turi — yuqoridagi tipologiya tugmasi (takrorlanmaydi, 31.10)
+    return h('div', { class: 'group', id: 'lowRow' }, h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, tr('Chiziq boʻylab qator')), h('span', { class: 'sub' }, tr('Koʻcha oʻqi yoki qurilish chizigʻini chizing — bir yoki ikki tomoniga uchastkalar va uylar')))),
+      h('div', { class: 'col', style: 'padding:0 12px 12px' },
         seg<1 | -1 | 0>('lowSide', 'Tomon', [[1, 'Chapga'], [-1, 'Oʻngga'], [0, 'Ikkala tomon']], this.lowSide, v => { this.lowSide = v; }),
         h('div', { class: 'field' }, h('label', {}, tr('Chiziqdan chekinish, m')), off),
-        h('span', { class: 't-small' }, this.lowKind === 'yakka'
-          ? tf('Uchastka ${w} × ${d} m (≥ 400 m², 75-band), oldi ${f} m, yon 3 m (100-band), 2 qavat', { w: P.plotW, d: P.plotD, f: P.front })
-          : this.lowKind === 'taunhaus' ? tf('Blok eni ${w} m, uchastka ≥ 200 m² (74-band), qator ≤ 15 uy va ≤ 100 m, oraliq ${g} m (Strelka), 3 qavat', { w: P.plotW, g: P.gap })
-          : this.lowKind === 'juft' ? tf('Ikki xonadonli uy: uchastka ${w} × ${d} m, umumiy devor (101-band), tashqi yon 3 m, juftlar orasi 6 m, 2 qavat', { w: P.plotW, d: P.plotD })
-          : tf('Hovli uy: uchastka ${w} × ${d} m, L shakl uy chegarada (101-band), hovli ichkarida, qoʻshnigacha 7 m, 1 qavat', { w: P.plotW, d: P.plotD })),
+        h('span', { class: 't-small' }, (this.lowKind === 'yakka'
+          ? tf('Uchastka ${w} × ${d} m (≥ 400 m², 75-band), oldi ${f} m, yon 3 m (100-band)', { w: P.plotW, d: P.plotD, f: P.front })
+          : this.lowKind === 'taunhaus' ? tf('Blok eni ${w} m, uchastka ≥ 200 m² (74-band), qator ≤ 15 uy va ≤ 100 m, oraliq ${g} m (Strelka)', { w: P.plotW, g: P.gap })
+          : this.lowKind === 'juft' ? tf('Ikki xonadonli uy: uchastka ${w} × ${d} m, umumiy devor (101-band), tashqi yon 3 m, juftlar orasi 6 m', { w: P.plotW, d: P.plotD })
+          : this.lowKind === 'klaster' ? tf('Klaster: modul ${w} × ${d} m (Kingo), berk koʻcha ${g} m, hovli quyoshga ochiq', { w: P.plotW, d: P.plotD, g: P.gap })
+          : tf('Hovli uy: uchastka ${w} × ${d} m, L shakl uy chegarada (101-band), hovli ichkarida, qoʻshnigacha 7 m', { w: P.plotW, d: P.plotD })) + ' · ' + tf('qavatlar: ${n}', { n: floorsMax <= 3 ? floorsMax : P.floors })),
         h('button', { class: drawingL ? 'btn btn-primary' : 'btn', id: 'lowDraw', onclick: () => drawingL ? this.endTool() : this.setTool(new LineTool(this.scene, r => place(r), toast, p => p, 'Uylar qatori chizigʻi: nuqtalarni bosing · 2× bosish yoki Enter — qoʻyish · Esc — bekor')) }, ...(drawingL ? icl(IC.check, tr('Chizishni tugatish')) : icl(IC.plus, tr('Chiziq chizish'))))));
   }
   /** «Oʻq boʻylab» chuqurligi (m): paneldagi maydon; boshlangʻich — generator chuqurligi */

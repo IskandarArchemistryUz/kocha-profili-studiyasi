@@ -11,6 +11,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`past qavat
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
   for (const typ of ['yakka', 'taunhaus', 'juft', 'hovli', 'klaster'] as const) {
     await page.click(`[data-typ=${typ}]`);
+    // past qavatli: qavat 1–3 (ShNQ 2.07.01-23, 2-band), seksiya parametrlari yoʻq, chiziq boʻylab qator shu yerda
+    await expect(page.locator('#lowFl')).toBeVisible(); await expect(page.locator('#gDepth')).toHaveCount(0); await expect(page.locator('#lowDraw')).toBeVisible();
     await page.click('#genGo');
     const n = await page.evaluate(() => (window as any).__mr.store.doc.buildings.filter((b: any) => b.gen?.plot).length);
     expect(n).toBeGreaterThan(typ === 'taunhaus' ? 25 : typ === 'klaster' ? 12 : 8);
@@ -29,8 +31,7 @@ test('past qavatli uylar: chiziq boʻylab qator (ikkala tomonga)', async ({ page
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '200'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]');
-  await page.locator('#lowRow summary').click();
-  await page.click('#lowKind [data-v=taunhaus]'); await page.click('#lowSide [data-v="0"]');
+  await page.click('[data-typ=taunhaus]'); await page.click('#lowSide [data-v="0"]');
   await page.fill('#lowOff', '6'); await page.locator('#lowOff').dispatchEvent('change');
   await page.click('#lowDraw');
   await expect(page.locator('#lowDraw')).toContainText('Chizishni tugatish');
@@ -64,12 +65,11 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qator koʻ
     mr.store.dispatch({ type: 'addStreet', axis: [[lng - 120 * kx, lat], [lng + 120 * kx, lat]], profile: 'mahalla-15' });
   });
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
-  await expect(page.locator('[data-typ=ofis_plita]')).toBeDisabled(); await expect(page.locator('[data-typ=yakka]')).toBeEnabled();
+  await expect(page.locator('[data-typ=ofis_plita]')).toHaveCount(0); await expect(page.locator('[data-typ=yakka]')).toBeEnabled();   // turar joy kvartalida jamoat guruhi yoʻq
   await page.click('[data-typ=yakka]'); await page.click('#genGo');
   const g0 = await page.evaluate(() => (window as any).__mr.store.doc.buildings.filter((b: any) => b.gen && !b.gen.grp.startsWith('qator_')).length);
   expect(g0).toBeGreaterThan(4);
-  await page.locator('#lowRow summary').click();
-  await page.click('#lowKind [data-v=taunhaus]'); await page.click('#lowSide [data-v="0"]');
+  await page.click('[data-typ=taunhaus]'); await page.click('#lowSide [data-v="0"]');
   await page.click('#lowDraw');
   const sc = page.locator('#scene canvas'), bb = (await sc.boundingBox())!;
   const at = async (x: number, y: number) => { const s = await page.evaluate(([x, y]) => (window as any).__mr.scene.toScreen(x, y, 0), [x, y]) as { x: number; y: number }; await page.mouse.click(bb.x + s.x, bb.y + s.y); };
