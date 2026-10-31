@@ -393,7 +393,7 @@ export const RULES: Rule[] = [
       if (roofs.length) {
         const rp = roofs.find(y => y.ramp)?.ramp;
         note += ` Stilobat tomida yoʻlak: ${roofs.length} ta (ustidagi binolar F1.3 ≥ 28 m yoki jamoat ≥ 18 m). 677-band: tom konstruksiyasi yongʻin avtomobilining har oʻqidan ≥ 16 t yukka hisoblanadi.`;
-        if (rp) note += ` Rampa: stilobat balandligi ${Math.round(rp.h * 10) / 10} m, nishab ≤ ${Math.round(rp.slope * 100)} % (ShNQ 2.07.01-23, 20- va 22-jadval: «uzunasiga eng katta qiyalik — 80», jadvalda «foiz» deb berilgan — ‰ deb qabul qilindi, tekshirilsin) → uzunligi ${rp.len} m, eni ${rp.w} m.`;
+        if (rp) note += ` Rampa: stilobat balandligi ${Math.round(rp.h * 10) / 10} m, nishab ≤ ${Math.round(rp.slope * 100)} % (ShNQ 2.07.01-23, 20- va 22-jadval: «uzunasiga eng katta qiyalik — 80», jadvalda «foiz» deb berilgan, birligi ‰ — ShNQ 2.07.06-24, 13-ilova, 1-jadval: 50 km/soat 80 ‰, 30 km/soat 100 ‰) → uzunligi ${rp.len} m, eni ${rp.w} m.`;
         if (noRamp.length) note += ` Rampa sigʻmadi: ${noRamp.length} ta stilobat — chekinishni kengaytiring yoki rampani bino ichida loyihalang.`;
       }
       if (big) note += ` 666-band: qurilish maydoni 10 000 m² dan yoki eni 100 m dan katta stilobat — ${big} ta: barcha tomondan yetib kelish kerak (koʻchalar va hovli yoʻlagi bilan tekshiring).`;

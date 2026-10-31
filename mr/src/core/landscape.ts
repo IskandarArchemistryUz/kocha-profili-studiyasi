@@ -103,7 +103,8 @@ export interface Ramp { ring: XY[]; lo: XY; hi: XY; len: number; w: number; slop
 /**
  * Rampa nishabi — ShNQ 2.07.01-23, 20-jadval (turar joy hududlaridagi mahalliy koʻchalar) va 22-jadval (oʻtish yoʻllari):
  * «uzunasiga eng katta qiyalik» — 80. Jadval sarlavhasida «фоиз» deb berilgan, lekin 80 % boʻlishi mumkin emas — manba
- * (SNiP 2.07.01-89*) da ‰, yaʼni 8 %. Shu sababli 0,08 qabul qilindi (birlik tekshirilsin).
+ * (SNiP 2.07.01-89*) da ‰, yaʼni 8 %. Birlik ShNQ 2.07.06-24, 13-ilova, 1-jadval bilan tasdiqlangan: «eng katta boʻylama
+ * nishablik, ‰» — 50 km/soat 80 ‰, 40 km/soat 90 ‰, 30 km/soat 100 ‰. Qattiqrogʻi — 80 ‰ (0,08) qabul qilindi.
  */
 export const RAMP_SLOPE = 0.08;
 
