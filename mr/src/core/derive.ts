@@ -125,7 +125,8 @@ export function derive(doc: Project): Derived {
   if (plan.corridors.length) for (const b of doc.buildings) {
     if (b.use !== 'maktab' && b.use !== 'mtm') continue;
     const r = ringLocal(fr, b.footprint); let d = Infinity;
-    for (const mp of plan.corridors) for (const ring of mp) d = Math.min(d, ringDist(r, ring));
+    // 31.10: koridor koʻpburchagi teshikli (kvartallar — teshik): tashqi halqa ichida, lekin teshikda turgan bino — 0 emas, chegaragacha masofa
+    for (const poly of plan.corridors) d = Math.min(d, polyDist(r, poly));
     redLineSocial.push({ bid: b.id, use: b.use, d });
   }
   // bino koʻcha koridorida (qizil chiziqlar ichida) — koʻcha siljitilganda qoʻlda chizilgan yoki qoldirilgan binolar
@@ -170,6 +171,20 @@ export function derive(doc: Project): Derived {
 }
 
 /** Ikki halqa orasidagi eng kichik masofa (kesishsa yoki biri ichida boʻlsa — 0) */
+/** Bino halqasidan teshikli koʻpburchakkacha: bino koʻpburchak ichida (tashqi halqada va hech bir teshikda emas) — 0, aks holda barcha halqalar chegarasigacha */
+export function polyDist(a: XY[], poly: XY[][]): number {
+  const inside = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
+  const inPoly = (p: XY) => inside(p, poly[0]) && !poly.slice(1).some(h => inside(p, h));
+  // 31.10: nuqta-koʻpburchak sinovi teshikli koridorlarda (worker) adashardi — 0 faqat haqiqiy kesishma (≥ 0,5 m²) boʻlsa
+  if (a.some(inPoly)) { let ov = 0; try { for (const q of polygonClipping.intersection([[...a, a[0]]] as Polygon, poly.map(r => [...r, r[0]]) as Polygon)) ov += area(q[0].slice(0, -1) as XY[]) - q.slice(1).reduce((t, h) => t + area(h.slice(0, -1) as XY[]), 0); } catch { ov = 1; } if (ov >= 0.5) return 0; }
+  const seg = (p: XY, q: XY, x: XY) => { const dx = q[0] - p[0], dy = q[1] - p[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((x[0] - p[0]) * dx + (x[1] - p[1]) * dy) / L)) : 0; return Math.hypot(x[0] - p[0] - dx * t, x[1] - p[1] - dy * t); };
+  let d = Infinity;
+  for (const ring of poly) {
+    for (let i = 0; i < a.length; i++) { const p = a[i], q = a[(i + 1) % a.length]; for (const x of ring) d = Math.min(d, seg(p, q, x)); }
+    for (let i = 0; i < ring.length; i++) { const p = ring[i], q = ring[(i + 1) % ring.length]; for (const x of a) d = Math.min(d, seg(p, q, x)); }
+  }
+  return d;
+}
 export function ringDist(a: XY[], b: XY[]): number {
   const inside = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
   if (a.some(p => inside(p, b)) || b.some(p => inside(p, a))) return 0;

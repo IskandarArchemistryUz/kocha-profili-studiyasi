@@ -63,8 +63,8 @@ import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand
 import type { PoiBundle } from '../context/poi';
 import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
 import { centroid, area, signedArea } from '../core/geo';
-import { builtInMtm } from '../core/derive';
-import { blockShape } from '../core/seysmik';
+import { builtInMtm, derive } from '../core/derive';
+import { blockShape, checkBlock } from '../core/seysmik';
 import { toDxf } from '../core/dxf';
 import { toIfc } from '../core/ifc';
 import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
@@ -2034,13 +2034,36 @@ export class Editor {
     return out;
   }
 
-  private generateBlock(i: number, quiet = false): number {
+  /** 31.10 (egasi): meʼyorga moslash — «Tuzat» tugmalari */
+  private applyFix(id: 'parking' | 'mtm' | 'seismic-joint'): void {
+    const doc = this.store.doc, fr = frame(doc.origin);
+    if (id === 'seismic-joint') {
+      const sys = doc.settings.construct ?? 'monolit', ball = doc.settings.seismic;
+      const bad = doc.buildings.filter(b => !b.joint && b.footprint.length >= 5 && !checkBlock(b.footprint.map(fr.toLocal), sys, ball).projOk && checkBlock(b.footprint.map(fr.toLocal), sys, ball, true).projOk);
+      this.run(() => { for (const b of bad) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { joint: true } }); });
+      toast(bad.length ? tf('${n} ta binoga antiseysmik chok qoʻyildi', { n: bad.length }) : tr('Chok bilan tuzatiladigan bino topilmadi — uzunlikni kamaytirib qayta generatsiya qiling'));
+    } else if (id === 'mtm') {
+      const d = derive(doc), need = Math.ceil(d.population * 0.07) - d.mtmCap; if (need <= 0) return;
+      const cand = doc.buildings.filter(b => !b.mtm && useDef(b.use).res > 0 && b.floors >= 3 && !['uy', 'taunhaus', 'villa', 'stilobat'].includes(b.gen?.kind ?? '')).map(b => ({ b, n: builtInMtm(area(b.footprint.map(fr.toLocal))) })).filter(x => x.n >= 15).sort((p, q) => q.n - p.n);
+      let got = 0; const pick: typeof cand = []; for (const x of cand) { if (got >= need) break; pick.push(x); got += x.n; }
+      this.run(() => { for (const { b } of pick) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { mtm: true, nonRes: Math.max(1, b.nonRes) } }); });
+      toast(tf('${n} ta binoning 1-qavatiga MTM — ≈ ${m} oʻrin', { n: pick.length, m: got }) + (got < need ? ' · ' + tf('yana ${k} oʻrin yetishmaydi — MTM parseli kerak', { k: need - got }) : ''));
+    } else {
+      void useHeavy('gen').then(ok => {
+        if (!ok) return; const plan = this.plan(); let n = 0;
+        for (let i = 0; i < plan.blocks.length; i++) { const b = plan.blocks[i]; if (useDef(b.use).res <= 0 || isSocial(b.use) || !this.savedGen(i)) continue; try { if (this.generateBlock(i, true, { parking: 'yer_osti', parkNorm: true })) n++; } catch (e) { console.error(e); } }
+        toast(n ? tf('${n} ta kvartalga yer osti avtoturargoh qoʻshildi (sathlar — meʼyor boʻyicha)', { n }) : tr('Generatsiya qilingan turar joy kvartali yoʻq'));
+      });
+    }
+    this.renderKpi();
+  }
+  private generateBlock(i: number, quiet = false, over: Partial<GenParams> = {}): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
     const ud = useDef(b.use), name = this.unitName(i);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
-    const sg = this.savedGen(i), base: GenParams = i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) };
+    const sg = this.savedGen(i), base: GenParams = { ...(i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) }), ...over };
     const okT = typoAllowed(b.use), base1: GenParams = okT.includes(base.typology) ? base : { ...base, typology: okT[0] };
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
@@ -3783,6 +3806,7 @@ export class Editor {
               h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value)}${slash(r.unit) ? ' ' + r.unit : ''}`) : st),
               lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),
           r.note || (r.where && r.status !== 'pass') ? h('div', { class: 'rnote', hidden: !open }, r.note ? tr(r.note) : '',
+            r.fix ? h('div', { class: 'col fixbox', style: 'margin-top:8px;gap:6px' }, h('span', { class: 't-small' }, tr(r.fix.hint)), h('button', { class: 'btn btn-sm btn-primary', id: `fix-${r.id}`, style: 'align-self:flex-start', onclick: (e: Event) => { e.stopPropagation(); this.applyFix(r.fix!.id); } }, tr(r.fix.label))) : '',
             this.issueId === r.id ? h('div', { class: 'row', style: 'margin-top:6px;gap:6px' },
               h('button', { class: 'btn btn-sm', id: 'issueFrame', onclick: () => r.where && this.scene.setIssues(this.store.doc, r.where) }, tr('Yana koʻrsatish')),
               h('button', { class: 'btn btn-sm btn-ghost', id: 'issueClear', onclick: () => { this.showIssue(r, false); this.renderKpi(); } }, tr('Belgilarni olib tashlash'))) : '') : '');

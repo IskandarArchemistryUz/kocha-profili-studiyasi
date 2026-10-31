@@ -61,6 +61,8 @@ export interface Result {
   note?: string; source: Source;
   /** sahnada koʻrsatish (31.10, egasi): meʼyorga tushmagan joylar — bino id lari, mahalliy nuqtalar, halqalar, masofa kesmalari */
   where?: Where;
+  /** 31.10 (egasi): loyihani meʼyorga moslash — tugma (editor.applyFix) va qisqa tavsiya */
+  fix?: { id: 'parking' | 'mtm' | 'seismic-joint'; label: string; hint: string };
 }
 export interface Where { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][] }
 
@@ -129,7 +131,7 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
       const lo = Math.ceil(d.population * 0.07), hi = Math.ceil(d.population * 0.125);
-      return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
+      return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, ...(d.mtmCap < lo ? { fix: { id: 'mtm' as const, label: '1-qavatlarga MTM joylash', hint: `Yetishmaydi ${lo - d.mtmCap} oʻrin. Turar joy binolarining 1-qavatiga MTM (543-band, uchastka 29 m²/oʻrin hovlidan) — kattaroq binolardan boshlab, kerakli oʻringa yetguncha; 1-qavati turar boʻlsa noturarga oʻtkaziladi. Alternativa — «MTM» parseli (≥ 3 535 m² — 35 m²/oʻrin).` } } : {}), unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
         note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi; bino maydoni 12 m²/oʻrin — taxmin).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
     },
   },
@@ -140,7 +142,9 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (d.parkingReq <= 0) return { status: 'na', unit: 'joy', note: 'Talab yoʻq (binolar yoʻq)' };
       const parts = Object.entries(d.parkingParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${v}`).join(', ');
+      const lack = d.parkingReq - d.parkingProv;
       return { status: d.parkingProv >= d.parkingReq ? 'pass' : 'fail', value: d.parkingProv, unit: 'joy', limit: `≥ ${d.parkingReq}`,
+        ...(lack > 0 ? { fix: { id: 'parking' as const, label: 'Yer osti avtoturargoh qoʻshish', hint: `Yetishmaydi ${lack} joy (≈ ${Math.round(lack * 30 / 1000) / 10} ming m² — 30 m²/joy). Turar joy kvartallari hovlisi ostiga yer osti avtoturargoh qoʻshiladi, sathlar soni meʼyor boʻyicha (1–4) — kvartallar qayta generatsiya qilinadi. Boshqa yoʻllar: stilobat ichida yoki alohida koʻp qavatli avtoturargoh (parsel «Avtoturargoh»).` } } : {}),
         // tarjima kaliti: ichma-ich shablonsiz (i18n ${…} namunasi bilan mos kelsin)
         note: `Talab: ${parts} (Toshkent: kvartiraga 1). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` };
     },
@@ -262,7 +266,8 @@ export const RULES: Rule[] = [
       const parts = [`${def.name} (3.1-jadval, ${def.row}), ${ball} ball: boʻlma uzunligi ${lim == null ? 'cheklanmagan (NSTT)' : `≤ ${lim} m`}, chiqib turgan qism ≤ ${def.proj} m (3.1.1). Har bino alohida boʻlma deb olindi (inspektorda «Antiseysmik chok» yoqilgan binolar — ichki burchaklaridan boʻlmalarga ajratilgan holda); tegib turgan binolar orasida antiseysmik chok boʻlishi kerak (3.1.3; eng kichik kengligi 3.1.4).`];
       if (longs.length) parts.push(`Uzun: ${longs.length} ta (eng uzuni ${worst.c.len} m) — chok bilan boʻlmalarga ajrating yoki seksiya uzunligini kamaytiring.`);
       if (projs.length) parts.push(`Chiqib turgan qism ${def.proj} m dan katta: ${projs.length} ta (${projs.slice(0, 3).map(x => `${x.c.proj} m`).join(', ')}${projs.length > 3 ? ' …' : ''}) — burchak binosini chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajrating (3.1.1) yoki 1.1-band boʻyicha asoslang.`);
-      return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, ...(n ? { where: { bids: [...new Set([...longs, ...projs].map(x => x.b.id))] } } : {}), limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
+      const fixable = projs.filter(x => !x.b.joint).length;
+      return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, ...(fixable ? { fix: { id: 'seismic-joint' as const, label: 'Antiseysmik chok qoʻyish', hint: `${fixable} ta binoda chiqib turgan qism ${def.proj} m dan katta — ichki burchakdan antiseysmik chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajratiladi (3.1.3). Uzunlik oshgan binolar uchun — seksiya uzunligini kamaytirib qayta generatsiya (generator chegarani hisobga oladi).` } } : {}), ...(n ? { where: { bids: [...new Set([...longs, ...projs].map(x => x.b.id))] } } : {}), limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
     },
   },
   {
