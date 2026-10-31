@@ -25,7 +25,7 @@ export interface AptInterior {
   master: boolean;
 }
 
-export const IN_LABEL: Record<InKind, string> = { umumiy: 'oshxona-mehmonxona', xona: 'xona', oshxona: 'oshxona', yotoq: 'yotoqxona', master: 'master yotoq', prixojaya: 'prixojaya', xoll: 'xoll', sanuzel: 'sanuzel', vanna: 'vanna', hx: 'h/x', garderob: 'garderob', kir: 'kir yuvish' };
+export const IN_LABEL: Record<InKind, string> = { umumiy: 'oshxona-mehmonxona', xona: 'xona', oshxona: 'oshxona', yotoq: 'yotoqxona', master: 'asosiy yotoqxona', prixojaya: 'dahliz', xoll: 'yoʻlak', sanuzel: 'sanitariya xonasi', vanna: 'vannaxona', hx: 'h/x', garderob: 'kiyimxona', kir: 'kir yuvish xonasi' };
 const WET: InKind[] = ['sanuzel', 'vanna', 'hx', 'kir'];
 const T = 0.1;   // ichki devor qalinligi
 

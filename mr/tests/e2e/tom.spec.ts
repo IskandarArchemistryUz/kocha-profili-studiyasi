@@ -7,7 +7,7 @@ test('fasad materiali va tom turlari: hammasi / funksiya / tanlangan, quyosh pan
   await page.fill('#rw', '220'); await page.fill('#rh', '160'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
   await page.click('[data-typ=qatorlar]'); await page.click('#genGo');
-  await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   await page.click('[data-step=fasad]');
   await page.click('[data-mat=gisht]');   // «Material» qatori sukut boʻyicha ochiq
   await expect(page.locator('[data-mat=gisht]')).toHaveAttribute('aria-pressed', 'true');

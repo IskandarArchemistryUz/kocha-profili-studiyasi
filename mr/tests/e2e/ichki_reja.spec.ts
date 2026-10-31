@@ -13,7 +13,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`albomda kv
   await expect(page.locator('#aptPlan')).toContainText('xonadon');
   await page.click('#planEditBtn');
   const svg = page.locator('#albPlan svg');
-  await expect(svg.locator('text', { hasText: 'prixojaya' }).first()).toBeVisible();
+  await expect(svg.locator('text', { hasText: 'dahliz' }).first()).toBeVisible();
   await expect(svg.locator('tspan', { hasText: 'oshxona-mehmonxona' }).first()).toBeAttached();
   expect(await svg.locator('text', { hasText: 'yotoqxona' }).count()).toBeGreaterThan(0);
   // hoʻl xonalar kafel bilan, eski «S» belgisi yoʻq (ichki rejali kvartiralarda)

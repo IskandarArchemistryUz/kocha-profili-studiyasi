@@ -6,7 +6,7 @@ test('bino muharriri: qavatlar, terrasa, parapet, quyosh himoyasi, siljitish', a
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
-  await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   await page.click('[data-view=axo]');   // quyidagi nuqtalar aksonometriya uchun (standart koʻrinish — Reja)
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!;
   await page.mouse.click(bb.x + bb.width * 0.62, bb.y + bb.height * 0.32);

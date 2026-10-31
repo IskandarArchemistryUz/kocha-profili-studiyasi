@@ -6,7 +6,7 @@ test('uslublar, portlatilgan qatlamlar, kamera: obyektiv, koʻz sathi, 2 nuqta, 
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
-  await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   await page.click('#stylePop');
   for (const st of ['arctic', 'funksiya', 'minimal']) {
     await page.click(`[data-style=${st}]`);

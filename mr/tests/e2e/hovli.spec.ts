@@ -6,7 +6,7 @@ test('hovli obodonlashtirish va yashillik balansi', async ({ page }) => {
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
-  await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   await page.click('[data-step=yashil]');
   await expect(page.locator('#greenSt')).toContainText('Hovlilar maysasi');
   await expect(page.locator('#greenSt')).not.toContainText('Hovli maydonchalari—');

@@ -6,7 +6,7 @@ test('Shift + ramka bilan koʻp tanlash, Delete; chizishda oʻng tugma menyusi; 
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
-  await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   const n0 = Number((await page.locator('#bldSt b').first().textContent())!.replace(/\D/g, ''));
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!;
   // Shift + sudrash — ramka

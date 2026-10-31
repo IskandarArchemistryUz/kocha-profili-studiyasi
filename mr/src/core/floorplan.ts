@@ -136,7 +136,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
         if (q === big) continue;
         const c = labelPt(q.ring), w = Math.min(...[0, 1].map(j => Math.max(...q.ring.map(p => p[j])) - Math.min(...q.ring.map(p => p[j]))));
         if (w < 0.9) continue;
-        const nm = IN_LABEL[q.kind], f2 = w < 1.5 ? rf * 0.8 : rf;
+        const nm = IN_LABEL[q.kind], f2 = Math.max(rf * 0.55, Math.min(w < 1.5 ? rf * 0.8 : rf, (w - 0.2) * k / (nm.length * 0.55)));   // uzun nom tor xonaga sigʻsin
         out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="${f2.toFixed(2)}" text-anchor="middle" fill="#3a3936" pointer-events="none">${nm}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + f2 * 1.15).toFixed(2)}" font-size="${(f2 * 0.9).toFixed(2)}" text-anchor="middle" fill="#6b6965" pointer-events="none">${n1(Math.round(q.area * 10) / 10)}</text>`);
       }
       out.push(`<path d="${path(a.ring)}" fill="none" stroke="${sel >= 0 ? '#0a84ff' : ts ?? '#141414'}" stroke-width="${sel >= 0 ? 1.2 : ts ? 0.9 : (0.18 * k).toFixed(2)}" stroke-linejoin="miter" pointer-events="none"/>`);

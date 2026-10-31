@@ -82,7 +82,7 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await expect(page.locator('.drawer [data-rule=insol-apartments]')).toContainText('94, 95');
   await expect(page.locator('.drawer [data-rule=west-apartments]')).toContainText('15');
   await expect(page.locator('.drawer [data-rule=se-apartments]')).toContainText('15');   // 0102-25, 15-band 2-xatboshi: janub / janubi-sharq / sharq
-  await expect(page.locator('.drawer [data-rule=plan-access]')).toContainText('koridor');   // reyestrda qoladi
+  await expect(page.locator('.drawer [data-rule=plan-access]')).toContainText('yoʻlak');   // reyestrda qoladi
   await expect(page.locator('.drawer [data-rule=plan-stairs]')).toContainText('5.13');
   await expect(page.locator('.drawer [data-rule=school]')).toContainText('stat.uz');
 });
