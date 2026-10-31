@@ -9,15 +9,15 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`past qavat
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '110'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
-  for (const typ of ['yakka', 'taunhaus', 'juft', 'hovli'] as const) {
+  for (const typ of ['yakka', 'taunhaus', 'juft', 'hovli', 'klaster'] as const) {
     await page.click(`[data-typ=${typ}]`);
     await page.click('#genGo');
     const n = await page.evaluate(() => (window as any).__mr.store.doc.buildings.filter((b: any) => b.gen?.plot).length);
-    expect(n).toBeGreaterThan(typ === 'taunhaus' ? 25 : 8);
+    expect(n).toBeGreaterThan(typ === 'taunhaus' ? 25 : typ === 'klaster' ? 12 : 8);
     // uchastka ≥ 200 m² (74-band), yakka ≥ 400 (75-band)
     const minA = await page.evaluate(() => { const B = (window as any).__mr.store.doc.buildings.filter((b: any) => b.gen?.plot); const R = 6371008.8, k = Math.PI / 180;
       return Math.min(...B.map((b: any) => { const p = b.gen.plot, lat0 = p[0][1] * k; let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], c = p[(i + 1) % p.length]; s += (a[0] * k * Math.cos(lat0) * R) * (c[1] * k * R) - (c[0] * k * Math.cos(lat0) * R) * (a[1] * k * R); } return Math.abs(s / 2); })); });
-    expect(minA).toBeGreaterThan(typ === 'yakka' || typ === 'hovli' ? 390 : 195);
+    expect(minA).toBeGreaterThan(typ === 'yakka' || typ === 'hovli' ? 390 : typ === 'klaster' ? 220 : 195);
     await page.waitForTimeout(600);
     if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/past_${typ}_${w}${dark ? 'd' : 'l'}.png` });
   }
