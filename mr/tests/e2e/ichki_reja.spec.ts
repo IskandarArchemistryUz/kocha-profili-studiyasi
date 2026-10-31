@@ -27,4 +27,10 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`albomda kv
   expect(await page.locator('#albPlan svg path[data-apt]').first().getAttribute('fill')).toBe('#ffffff');
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ichki_mono_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#albFurn'); await page.click('#albMono');
+  // bino koʻndalang kesimi (31.10): qavatlar, tush payti quyosh nurlari
+  await page.click('[data-view=kesim]');
+  await expect(page.locator('#albPlan svg text', { hasText: 'koʻndalang kesim' })).toBeAttached();
+  await expect(page.locator('#albPlan svg text', { hasText: '22.12' })).toBeAttached();
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/kesim_${w}${dark ? 'd' : 'l'}.png` });
+  await page.click('[data-view=reja]');
 });

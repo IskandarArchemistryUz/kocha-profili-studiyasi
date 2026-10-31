@@ -15,6 +15,7 @@ import type { XY } from '../core/geo';
 import { floorInsol, EDGE_H, type AptInsol, type InsolStatus } from '../core/insolplan';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { aptInterior } from '../core/aptplan';
+import { buildingSection, type SecBld } from '../core/bldsection';
 
 /** V5: «Kvartiralar» qadamidagi derazalar hisobi — bino, qavat (1 dan), modul → uzluksiz quyosh, soat */
 export interface InsolView {
@@ -24,7 +25,7 @@ export interface InsolView {
 }
 /** deraza ochilmasi (real dogʻ uchun): eni 1,5 m, podokonnik 0,9 m, tepasi 2,3 m */
 const WIN = { w: 1.5, sill: 0.9, head: 2.3 };
-type AlbView = 'reja' | 'olcham' | 'insol' | 'variantlar';
+type AlbView = 'reja' | 'olcham' | 'insol' | 'variantlar' | 'kesim';
 const ST_COL: Record<InsolStatus, string> = { ok: '#3fa66b', edge: '#e0a526', bad: '#d9534f', na: '#8e8a82' };
 const ST_FILL: Record<InsolStatus, string> = { ok: '#d3eadb', edge: '#f5e6c4', bad: '#f4d3d0', na: '#e9e6e0' };
 const hCol = (x: number) => (x >= 2 - 1e-6 ? ST_COL.ok : x >= EDGE_H - 1e-6 ? ST_COL.edge : ST_COL.bad);
@@ -38,6 +39,7 @@ export interface AlbumOpts {
   /** kvartira miksi (hujjat sozlamasi) — variantlar uchun boshlangʻich maqsad */ mix: number[];
   /** ochilganda koʻrinish (V5: «Insolyatsiya» — derazalar hisobidan) */ view?: AlbView;
   insol?: InsolView | null; runInsol?: () => Promise<InsolView | null>;
+  /** «Kesim» koʻrinishi (31.10): seksiya va atrofdagi binolar (mahalliy metr, balandlik) va kenglik */ section?: (bid: string) => { sel: SecBld; others: SecBld[]; lat: number } | null;
 }
 const ROOM_COL: Record<RoomKind, string> = { texnik: '#cfcbc3', ombor: '#d9cdb5', savdo: '#9fc0e3', velo: '#c5d9b0', zal: '#e2bcd6', tozalash: '#cfcbc3' };
 const pin = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
@@ -105,7 +107,7 @@ export function openAlbum(o: AlbumOpts): void {
     bar.replaceChildren(
       h('b', { class: 'alb-title' }, tr('Qavat albomi')), h('span', { class: 'chip' }, o.name(pl, si)), h('span', { class: 't-small' }, `${tr('Varaq')} ${floor} / ${pl.f1} · ${tr(FLOOR_NAME[ft])}`),
       h('span', { class: 'spacer' }),
-      h('div', { class: 'seg sm', role: 'group', id: 'albView', 'aria-label': tr('Koʻrinish') }, ...([['reja', 'Reja'], ['olcham', 'Oʻlchamlar'], ['insol', 'Insolyatsiya'], ['variantlar', 'Variantlar']] as const).map(([k, t]) => h('button', { 'aria-pressed': view === k, 'data-view': k, onclick: () => { view = k; sel = []; selRoom = -1; hiApt = -1; msg = ''; if (k === 'variantlar' && !vars) computeVars(); render(); } }, tr(t)))),
+      h('div', { class: 'seg sm', role: 'group', id: 'albView', 'aria-label': tr('Koʻrinish') }, ...([['reja', 'Reja'], ['olcham', 'Oʻlchamlar'], ['insol', 'Insolyatsiya'], ['variantlar', 'Variantlar'], ...(o.section ? [['kesim', 'Kesim']] as const : [])] as const).map(([k, t]) => h('button', { 'aria-pressed': view === k, 'data-view': k, onclick: () => { view = k; sel = []; selRoom = -1; hiApt = -1; msg = ''; if (k === 'variantlar' && !vars) computeVars(); render(); } }, tr(t)))),
       editable ? h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Asbob') }, ...([['tanlash', 'Tanlash'], ['devor', 'Devor chizish']] as const).map(([k, t]) => h('button', { 'aria-pressed': mode === k, id: `albMode-${k}`, onclick: () => { mode = k; sel = []; selRoom = -1; msg = ''; render(); } }, tr(t)))) : '',
       h('div', { class: 'seg sm', role: 'group', id: 'albLook', 'aria-label': tr('Uslub') },
         h('button', { 'aria-pressed': LOOK.furn, id: 'albFurn', title: tr('Mebel (karavot, divan, stol, sanitariya jihozlari)'), onclick: () => { LOOK.furn = !LOOK.furn; saveLook(); render(); } }, tr('Mebel')),
@@ -115,6 +117,20 @@ export function openAlbum(o: AlbumOpts): void {
       h('button', { class: 'btn btn-sm', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), furn: LOOK.furn, mono: LOOK.mono, plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); }, title: tr('Hamma binolar') }, tr('Binolar')),
       h('button', { class: 'btn icon-btn btn-sm btn-ghost', id: 'albClose', 'aria-label': tr('Yopish'), onclick: close }, svgIcon(IC.x)));
     prevB.toggleAttribute('disabled', floor <= 1); nextB.toggleAttribute('disabled', floor >= pl.f1);
+    if (view === 'kesim' && o.section) {
+      // bino koʻndalang kesimi: qavatlar, qoʻshni binolar, tush payti quyosh nurlari va 2·H masofa
+      const S = o.section(pl.bid);
+      if (S) {
+        const r = buildingSection(S.sel, S.others, { lat: S.lat, title: `${o.name(pl, si)} · ${tr('koʻndalang kesim')}`, scale: 200, label: tr });
+        host.innerHTML = r.svg.replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%" height="100%"'); host.dataset.mode = 'view';
+        info.replaceChildren(h('div', { class: 'glabel' }, h('span', {}, tr('Tush payti quyosh'))),
+          h('div', { class: 'group' }, ...r.suns.map(x => h('div', { class: 'li' }, h('span', { class: 'k' }, x.date, h('span', { class: 'sub' }, `${tr('balandlik')} ${Math.round(x.alt)}° · ${tr('kesimda')} ${Math.round(x.app)}°${x.shadeZ != null ? ` · ${tr('janubiy fasadda soya')} ${fmt(x.shadeZ, 1)} m` : ''}`))))),
+          h('div', { class: 'glabel' }, h('span', {}, tr('Qarama-qarshi binogacha')), h('span', {}, 'ShNQ 2.07.01-23, 79')),
+          r.gaps.length ? h('div', { class: 'group' }, ...r.gaps.map(g => h('div', { class: 'li' }, h('span', { class: 'k' }, tr(g.side < 0 ? 'janubda' : 'shimolda'), h('span', { class: 'sub' }, `${fmt(g.d, 0)} m · 2·H = ${fmt(g.need, 0)} m`)), h('span', { class: g.ok ? 'chip ok' : 'chip bad' }, g.ok ? '✓' : '✗')))) : h('div', { class: 'note' }, tr('Kesim chizigʻida boshqa bino yoʻq')),
+          h('span', { class: 't-small' }, tr('Tush payti (quyosh vaqti 12:00) — tez koʻrsatkich; 2 soat uzluksiz tekshiruvi — «Insolyatsiya» koʻrinishida (SanQvaN 0102-25, 95-band)')));
+      }
+      return;
+    }
     // reja
     const tint = FI ? { fill: FI.apts.map(a => ST_FILL[a.status]), stroke: FI.apts.map((a, i) => (i === hiApt ? '#0a84ff' : ST_COL[a.status])), sub: FI.apts.map(a => (a.status === 'na' ? '—' : `${a.ok}/${a.need} ${a.status === 'ok' ? '✓' : '✗'}`)) } : undefined;
     const res = floorPlanSvg(pl, { scale: 100, dims: view === 'olcham', title: `${o.name(pl, si)} · ${floor}-qavat`, floor, ...o.opt(pl), furn: LOOK.furn, mono: LOOK.mono && !FI, plan: P, sel: editable ? sel : [], selRoom: editable ? selRoom : -1, ...(FI ? { tint, num: true } : {}) });
