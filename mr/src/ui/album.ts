@@ -45,7 +45,8 @@ const ROOM_COL: Record<RoomKind, string> = { texnik: '#cfcbc3', ombor: '#d9cdb5'
 const pin = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 
 /** Reja uslubi (31.10): mebel va oq-qora — har foydalanuvchida eslab qolinadi */
-const LOOK: { furn: boolean; mono: boolean } = (() => { try { const v = JSON.parse(localStorage.getItem('mr-plan-look') ?? '{}'); return { furn: v.furn !== false, mono: v.mono === true }; } catch { return { furn: true, mono: false }; } })();
+/* mebel (31.10) vaqtincha oʻchirilgan (egasi, 31.10): joylashuv oʻtish joylarini toʻsadi — core/aptplan.furnish saqlangan, qayta ishlanadi */
+const LOOK: { furn: boolean; mono: boolean } = (() => { try { const v = JSON.parse(localStorage.getItem('mr-plan-look') ?? '{}'); return { furn: false, mono: v.mono === true }; } catch { return { furn: false, mono: false }; } })();
 const saveLook = () => { try { localStorage.setItem('mr-plan-look', JSON.stringify(LOOK)); } catch { /* */ } };
 
 export function openAlbum(o: AlbumOpts): void {
@@ -110,7 +111,6 @@ export function openAlbum(o: AlbumOpts): void {
       h('div', { class: 'seg sm', role: 'group', id: 'albView', 'aria-label': tr('Koʻrinish') }, ...([['reja', 'Reja'], ['olcham', 'Oʻlchamlar'], ['insol', 'Insolyatsiya'], ['variantlar', 'Variantlar'], ...(o.section ? [['kesim', 'Kesim']] as const : [])] as const).map(([k, t]) => h('button', { 'aria-pressed': view === k, 'data-view': k, onclick: () => { view = k; sel = []; selRoom = -1; hiApt = -1; msg = ''; if (k === 'variantlar' && !vars) computeVars(); render(); } }, tr(t)))),
       editable ? h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Asbob') }, ...([['tanlash', 'Tanlash'], ['devor', 'Devor chizish']] as const).map(([k, t]) => h('button', { 'aria-pressed': mode === k, id: `albMode-${k}`, onclick: () => { mode = k; sel = []; selRoom = -1; msg = ''; render(); } }, tr(t)))) : '',
       h('div', { class: 'seg sm', role: 'group', id: 'albLook', 'aria-label': tr('Uslub') },
-        h('button', { 'aria-pressed': LOOK.furn, id: 'albFurn', title: tr('Mebel (karavot, divan, stol, sanitariya jihozlari)'), onclick: () => { LOOK.furn = !LOOK.furn; saveLook(); render(); } }, tr('Mebel')),
         h('button', { 'aria-pressed': LOOK.mono, id: 'albMono', title: tr('Oq-qora chizma (rangsiz)'), onclick: () => { LOOK.mono = !LOOK.mono; saveLook(); render(); } }, tr('Oq-qora'))),
       h('button', { class: 'btn btn-sm', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml'), title: tr('Reja — SVG') }, 'SVG'),
       h('button', { class: 'btn btn-sm', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), furn: LOOK.furn, mono: LOOK.mono, plan: planOf(pl) }), 'image/svg+xml'), title: tr('Barcha qavatlar') }, tr('Qavatlar')),
