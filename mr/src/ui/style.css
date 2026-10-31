@@ -401,6 +401,8 @@ body{background:var(--bg)}
 .issuecard{position:absolute;right:16px;bottom:84px;z-index:13;display:flex;align-items:center;gap:8px;max-width:min(520px,calc(100% - 32px));padding:6px 6px 6px 14px;border-radius:var(--r-pill);font-size:12.5px}
 .issuecard b{color:var(--bad,#c0392b);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .issuecard .btn{flex:none}
+.wherechip{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;line-height:16px;background:rgba(210,69,59,.12);color:#c0392b;vertical-align:1px}
+[data-theme=dark] .wherechip{background:rgba(229,115,105,.18);color:#f08a80}
 .toolpanel{position:absolute;top:76px;left:calc(80px + var(--panel-w) + 140px);z-index:12;display:flex;align-items:center;gap:10px;height:48px;padding:0 10px 0 16px;border-radius:var(--r-pill);font-size:12.5px;max-width:calc(100% - 140px);animation:popIn .32s var(--spring)}
 .pshut .toolpanel{left:calc(80px + 140px)}
 

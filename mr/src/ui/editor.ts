@@ -3718,7 +3718,7 @@ export class Editor {
         const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + r.unit : ''}` : '', dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
         return h('div', { class: 'rrow', 'data-rule': r.id },
           h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { const sh = this.showIssue(r, !open); if (!r.note && !sh) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
-            h('span', { class: 'k' }, h('span', {}, tr(r.title), r.where && r.status !== 'pass' ? h('span', { class: 'chip bad', 'data-where': r.id, style: 'margin-left:6px', title: tr('Bosing — sahnada koʻrsatiladi') }, tr('sahnada')) : ''), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
+            h('span', { class: 'k' }, h('span', {}, tr(r.title), r.where && r.status !== 'pass' ? h('span', { class: 'wherechip', 'data-where': r.id, title: tr('Bosing — sahnada koʻrsatiladi') }, tr('sahnada')) : ''), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
             h('span', { class: 'rval' },
               h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value)}${slash(r.unit) ? ' ' + r.unit : ''}`) : st),
               lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),
