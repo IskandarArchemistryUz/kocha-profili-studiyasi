@@ -29,4 +29,22 @@ describe('Bino kesimi va tush payti quyoshi (31.10)', () => {
     // yakka yopishgan qism uzun oʻq boʻylab boʻlmasa — kesim boshqa oʻqqa oʻtadi va qarama-qarshi bino koʻrinmaydi
     expect(buildingSection(sel, [att, opp], { lat: 41.3, title: 'T' }).gaps.length).toBe(0);
   });
+  it('2 soatlik insolyatsiya (22.03, 11–13): janub–shimol kesimida burchak tush paytidagi bilan teng; toʻsiq chegarasi', () => {
+    const sel = { ring: R(0, 0, 60, 15), h: 27, floors: 9, fh: 3 }, south = { ring: R(0, -55, 60, -40), h: 30 }, north = { ring: R(0, 45, 60, 60), h: 9 };
+    const r = buildingSection(sel, [south, north], { lat: 41.3, title: 'T' });
+    const s = r.ins2.find(q => q.side < 0)!, n = r.ins2.find(q => q.side > 0)!;
+    expect(s.app).toBeCloseTo(48.7, 1);
+    // janubdagi 30 m bino: deraza 0,9 m, 40 m da chegara 0,9 + 40·tan 48,7° ≈ 46,4 m → ok
+    expect(s.hMax).toBeCloseTo(0.9 + 40 * Math.tan(48.7 * Math.PI / 180), 0); expect(s.ok).toBe(true);
+    // shu bino (27 m) → shimoldagi bino: 30 m da chegara ≈ 35 m → ok
+    expect(n.ok).toBe(true);
+    // yaqin va baland janubiy bino — 2 soat yetmaydi
+    const r2 = buildingSection(sel, [{ ring: R(0, -25, 60, -10), h: 60 }], { lat: 41.3, title: 'T' });
+    expect(r2.ins2[0].ok).toBe(false); expect(r2.svg).toContain('2 soat');
+  });
+  it('qiya kesimda koʻrinma burchak janub–shimoldagidan kichik emas (kesimga proyeksiya)', async () => {
+    const { ins2Angle } = await import('../../src/core/bldsection');
+    const k = Math.SQRT1_2, ns = ins2Angle(41.3, [0, 1], [0, 1]), dia = ins2Angle(41.3, [k, k], [0, 1]);
+    expect(ns).toBeCloseTo(48.7, 1); expect(dia).toBeGreaterThan(ns - 0.1); expect(dia).toBeLessThan(80);
+  });
 });

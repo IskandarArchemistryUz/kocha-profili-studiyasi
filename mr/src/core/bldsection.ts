@@ -11,7 +11,27 @@ import type { XY } from './geo';
 
 export interface SecBld { ring: XY[]; h: number; z0?: number; floors?: number; nonRes?: number; fh?: number }
 export interface SunLine { date: string; alt: number; app: number; shadeZ: number | null; side: 1 | -1 }
-export interface SectionResult { svg: string; widthMm: number; heightMm: number; suns: SunLine[]; gaps: { side: 1 | -1; d: number; need: number; ok: boolean }[] }
+/** 2 soatlik insolyatsiya (22.03 / 22.09, 11:00–13:00 quyosh vaqti) — kesim boʻyicha: deraza (zw) dan quyoshga nur, toʻsiq balandligi chegarasi */
+export interface Ins2 { side: 1 | -1; app: number; zw: number; d: number; hObs: number; hMax: number; ok: boolean }
+export interface SectionResult { svg: string; widthMm: number; heightMm: number; suns: SunLine[]; gaps: { side: 1 | -1; d: number; need: number; ok: boolean }[]; ins2: Ins2[] }
+
+/**
+ * 22.03 / 22.09 (δ = 0) da quyosh vaqti 11:00–13:00 (soat burchagi ±15°) oraligʻidagi eng past koʻrinma balandlik kesim tekisligida.
+ * SanQvaN 0102-25, 95-band: 22.03–22.09 davrida ≥ 2 soat uzluksiz — eng qulay (tush atrofidagi) 2 soat; janubdan boshqa yoʻnalishlarda
+ * haqiqiy oraliq boshqacha boʻladi — bu kesim boʻyicha taxmin, aniq hisob — «Insolyatsiya» koʻrinishida.
+ */
+export function ins2Angle(lat: number, d: XY, north: XY): number {
+  const east: XY = [north[1], -north[0]], f = lat * Math.PI / 180; let m = 90;
+  for (const w of [-15, -7.5, 0, 7.5, 15]) {
+    const W = w * Math.PI / 180, sa = Math.cos(f) * Math.cos(W), a = Math.asin(sa);   // δ = 0
+    // azimut (shimoldan sharqqa): quyosh janubda tush payti
+    const cosA = (0 - sa * Math.sin(f)) / (Math.cos(a) * Math.cos(f) || 1e-9), sinA = -Math.sin(W) / (Math.cos(a) || 1e-9);
+    const A = Math.atan2(sinA, cosA), hx = Math.cos(a) * (Math.sin(A) * east[0] + Math.cos(A) * north[0]), hy = Math.cos(a) * (Math.sin(A) * east[1] + Math.cos(A) * north[1]);
+    const along = -(hx * d[0] + hy * d[1]);   // quyosh kesimning chap (janub) tomonida
+    const app = Math.atan2(Math.sin(a), Math.max(0.02, along)) * 180 / Math.PI; m = Math.min(m, app);
+  }
+  return m;
+}
 
 /** Uzun oʻq (eng uzun qirra yoʻnalishi) */
 function axisOf(r: XY[]): XY { let L = 0, U: XY = [1, 0]; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l > L) { L = l; U = [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; } } return U; }
@@ -97,6 +117,23 @@ export function buildingSection(sel: SecBld, others: SecBld[], o: { lat: number;
       out.push(`<line x1="${X(ext[1])}" y1="${Y(He1)}" x2="${X(endT)}" y2="${Y(z)}" stroke="${col}" stroke-width="0.25" stroke-dasharray="0.8 0.8"/>`); }
     suns.push({ date: nm, alt, app, shadeZ, side });
   }
+  // 2 soatlik insolyatsiya (22.03 / 22.09, 11–13): janubiy fasaddagi eng pastki turar joy derazasi (pol + 0,9 m) dan quyoshga nur
+  const ins2: Ins2[] = [], a2 = ins2Angle(o.lat, d, north), tg2 = Math.tan(a2 * Math.PI / 180);
+  if (left) {   // janubdagi qoʻshni → tanlangan binoning janubiy fasadi
+    const zw = z0 + nr * fh + 0.9, dd = ext[0] - left.s[1], Hl = (left.b.z0 ?? 0) + left.b.h, hMax = zw + dd * tg2;
+    ins2.push({ side: -1, app: a2, zw, d: dd, hObs: Hl, hMax, ok: Hl <= hMax + 0.05 });
+  }
+  if (right) {  // tanlangan bino → shimoldagi qoʻshnining janubiy fasadi
+    const nr2 = right.b.nonRes ?? 0, fh2 = right.b.fh ?? fh, zw = (right.b.z0 ?? 0) + nr2 * fh2 + 0.9, dd = right.s[0] - ext[1], hMax = zw + dd * tg2;
+    ins2.push({ side: 1, app: a2, zw, d: dd, hObs: He1, hMax, ok: He1 <= hMax + 0.05 });
+  }
+  for (const q of ins2) {
+    const col = q.ok ? '#2e7d4f' : '#c0392b', tw = q.side < 0 ? ext[0] : right!.s[0], tl = Math.max(t0, tw - (Hmax - q.zw) / Math.max(0.05, tg2));
+    out.push(`<line x1="${X(tw)}" y1="${Y(q.zw)}" x2="${X(tl)}" y2="${Y(q.zw + (tw - tl) * tg2)}" stroke="${col}" stroke-width="0.5"/>`);
+    out.push(`<circle cx="${X(tw)}" cy="${Y(q.zw)}" r="${(f * 0.35).toFixed(2)}" fill="${col}"/>`);
+    const xo = q.side < 0 ? left!.s[1] : ext[1], hx = Number(X(xo));
+    out.push(`<line x1="${(hx - f).toFixed(2)}" y1="${Y(q.hMax)}" x2="${(hx + f).toFixed(2)}" y2="${Y(q.hMax)}" stroke="${col}" stroke-width="0.6"/><text x="${(hx - f * 1.2).toFixed(2)}" y="${(Number(Y(q.hMax)) - f * 0.4).toFixed(2)}" font-size="${(f * 0.95).toFixed(2)}" text-anchor="end" fill="${col}">≤ ${Math.round(q.hMax * 10) / 10} m</text>`);
+  }
   out.push('</g>');
   // masofalar va 2·H
   const gaps: SectionResult['gaps'] = [];
@@ -112,7 +149,8 @@ export function buildingSection(sel: SecBld, others: SecBld[], o: { lat: number;
   const ly = Hm - f * 3.2; let lx = M;
   for (const [nm, , col] of dates) { const s = suns.find(q => q.date === nm)!; out.push(`<line x1="${lx}" y1="${ly}" x2="${lx + f * 3}" y2="${ly}" stroke="${col}" stroke-width="0.6" stroke-dasharray="1.6 0.8"/><text x="${lx + f * 3.6}" y="${ly + f * 0.35}" font-size="${f.toFixed(2)}" fill="#3a3936">${nm} · ${Math.round(s.alt)}° (${T('kesimda')} ${Math.round(s.app)}°)${s.shadeZ != null ? ` · ${T('soya')} ${Math.round(s.shadeZ * 10) / 10} m` : ''}</text>`); lx += (Wm - 2 * M) / 3; }
   out.push(`<text x="${M}" y="${(Hm - f * 1.1).toFixed(2)}" font-size="${(f * 0.85).toFixed(2)}" fill="#6b6965">${T('Tush payti (quyosh vaqti 12:00) — tez koʻrsatkich; 2 soat uzluksiz tekshiruvi — «Insolyatsiya» koʻrinishida (SanQvaN 0102-25, 95-band)')}</text>`);
+  if (ins2.length) { const ok = ins2.every(q => q.ok); out.push(`<text x="${M}" y="${(Hm - f * 2.15).toFixed(2)}" font-size="${(f * 0.9).toFixed(2)}" fill="${ok ? '#2e7d4f' : '#c0392b'}">${T('2 soat (22.03 / 22.09, 11:00–13:00)')} · ${T('kesimda')} ${Math.round(a2)}° · ${ins2.map(q => `${T(q.side < 0 ? 'janubdagi bino' : 'shu bino')} ${Math.round(q.hObs)} m ${q.ok ? '≤' : '>'} ${Math.round(q.hMax * 10) / 10} m`).join(' · ')} — ${T('kesim boʻyicha taxmin')}</text>`); }
   out.push(`<text x="${X(t0)}" y="${(Number(Y(0)) + f * 5.6).toFixed(2)}" font-size="${f.toFixed(2)}" fill="#6b6965">${T(card([-d[0], -d[1]]))}</text><text x="${X(t1)}" y="${(Number(Y(0)) + f * 5.6).toFixed(2)}" font-size="${f.toFixed(2)}" text-anchor="end" fill="#6b6965">${T(card(d))}</text>`);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Wm.toFixed(1)}mm" height="${Hm.toFixed(1)}mm" viewBox="0 0 ${Wm.toFixed(1)} ${Hm.toFixed(1)}" font-family="Archivo, system-ui, sans-serif">${out.join('')}</svg>`;
-  return { svg, widthMm: Wm, heightMm: Hm, suns, gaps };
+  return { svg, widthMm: Wm, heightMm: Hm, suns, gaps, ins2 };
 }
