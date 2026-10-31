@@ -1513,6 +1513,14 @@ export class Editor {
         note: 'SanQvaN 0102-25, 16-band: yashash xonalari derazalari 90–290° ga qaratilmasligi lozim — qaragan boʻlsa himoya. Avtomatik — janubda naves, sharq va gʻarbda lamellar.',
         opts: SHADE_OPTS.map(x => ({ key: 'shade', val: x.id, n: tr(x.n), on: shd.v === x.id, g: 'shade', gk: x.id, set: () => apply({ shade: x.id }) })) },
     ];
+    // 31.10 (egasi): past qavatli uylarda ayvon — old (koʻcha) yoki hovli tomonda; hovli uyda sukut — hovli tomonda
+    const houses = list.filter(b => b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus'));
+    if (houses.length) {
+      const AYV = [{ v: 'yoq', n: 'Yoʻq' }, { v: 'old', n: 'Old tomonda' }, { v: 'hovli', n: 'Hovli tomonda' }];
+      const cur = (() => { const m = new Set(houses.map(b => b.ayvon ?? (b.footprint.length >= 6 ? 'hovli' : 'yoq'))); return m.size === 1 ? [...m][0] : null; })();
+      rows.push({ id: 'ayvon', k: 'Ayvon', v: cur ? tr(AYV.find(x => x.v === cur)!.n) : tr('aralash'), ic: pg('bal', 'yoq', 28), cols: 3, note: 'Past qavatli uylarda: ustunli ayvon 2,4 m (andoza) va supa. Hovli uyda sukut — hovli tomonda.',
+        opts: AYV.map(x => ({ key: 'ayvon', val: x.v, n: tr(x.n), on: cur === x.v, g: 'bal', gk: 'yoq', html: `<svg class="pg" viewBox="0 0 36 36" aria-hidden="true"><path d="M6 14h24M8 14v14M28 14v14M18 14v14M5 28h26" stroke="currentColor" stroke-width="1.6" fill="none" opacity="${x.v === 'yoq' ? 0.35 : 1}"/></svg>`, set: () => { const l = ids().filter(id => houses.some(b => b.id === id)); if (l.length) this.run(() => this.store.dispatch({ type: 'styleBuildings', ids: l, ayvon: x.v as 'yoq' | 'old' | 'hovli' })); } })) });
+    }
     body.append(h('div', { class: 'group', id: 'looks' }, ...rows.flatMap(r => {
       const open = this.facOpen === r.id;
       const head = h('button', { class: 'li frow', 'data-row': r.id, 'aria-expanded': open, onclick: () => { this.facOpen = open ? null : r.id; this.renderPanel(); } },
