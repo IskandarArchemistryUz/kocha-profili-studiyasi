@@ -35,6 +35,10 @@ export interface GenParams {
   maxProj?: number;
   /** qizil chiziqdan (kvartal chegarasidan) chekinish, m */
   setback: number;
+  /** chekinish fasad balandligiga qarab avtomatik (core/setback, andoza H/W) — setback shu bilan almashtiriladi */
+  setbackAuto?: boolean;
+  /** avto chekinish: koʻcha kesimi H/W chegarasi (andoza 1) */
+  hw?: number;
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
   passages: boolean;
   /** pastki noturar qavatlar (koʻchaga qaragan seksiyalarda) */
