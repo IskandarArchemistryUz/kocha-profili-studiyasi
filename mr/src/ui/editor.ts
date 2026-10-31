@@ -3717,8 +3717,8 @@ export class Editor {
         const open = this.regOpen === r.id, st = tr(STATUS_TXT[r.status]);
         const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + r.unit : ''}` : '', dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
         return h('div', { class: 'rrow', 'data-rule': r.id },
-          h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { const sh = this.showIssue(r, !open); if (!r.note && !sh) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
-            h('span', { class: 'k' }, h('span', {}, tr(r.title), r.where && r.status !== 'pass' ? h('span', { class: 'wherechip', 'data-where': r.id, title: tr('Bosing — sahnada koʻrsatiladi') }, tr('sahnada')) : ''), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
+          h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { if (!r.note) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
+            h('span', { class: 'k' }, h('span', {}, tr(r.title), r.where && r.status !== 'pass' ? h('span', { class: 'wherechip', 'data-where': r.id, role: 'button', tabindex: 0, onclick: (e: Event) => { e.stopPropagation(); this.regOpen = r.id; this.showIssue(r, true); this.renderKpi(); }, onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); this.regOpen = r.id; this.showIssue(r, true); this.renderKpi(); } }, title: tr('Bosing — sahnada koʻrsatiladi') }, tr('sahnada')) : ''), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
             h('span', { class: 'rval' },
               h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value)}${slash(r.unit) ? ' ' + r.unit : ''}`) : st),
               lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),

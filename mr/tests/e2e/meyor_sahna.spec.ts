@@ -18,7 +18,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`meʼyor ba
   await page.click('#kMore');
   const row = page.locator('.drawer [data-rule=spacing-79]');
   await expect(row.locator('[data-where]')).toBeVisible();
-  await row.locator('button.li').click();
+  await row.locator('[data-where]').click();
   const n = await page.evaluate(() => (window as any).__mr.scene.issueG.children.length);
   expect(n).toBeGreaterThan(2);   // ikki bino + masofa kesmasi
   // roʻyxat yopiladi, sahnada kartochka; «Roʻyxat» — qaytish, × — tozalash
