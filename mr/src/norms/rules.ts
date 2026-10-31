@@ -14,6 +14,18 @@ import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
 import { checkBlock, lenLimit, SYS } from '../core/seysmik';
 import { computePlan } from '../core/plan';
+import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
+
+const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
+/** Keyingi pogʻona izohi (41-jadval / 543-band): qaysi parsellar kichik va qancha maydon yetishmaydi — faqat ochilgan izohda */
+function tierNote(d: Derived, use: 'maktab' | 'mtm'): string {
+  const ps = d.socialPlots.filter(p => p.use === use), cap = use === 'maktab' ? schoolCapacity : mtmCapacity;
+  const low = ps.map(p => ({ p, t: nextTier(use, p.area) })).filter(x => x.t);
+  if (!low.length) return '';
+  const lim = use === 'maktab' ? '9 900 m² (41-jadval: 989 dan ortiq — 10 m²/oʻquvchi)' : '3 535 m² (543-band: 100 dan ortiq — 35 m²/oʻrin)';
+  const parts = low.map(({ p, t }) => `${n0(p.area)} m² → ${cap(p.area)}; +${n0(t!.area - p.area)} m² → ${t!.cap}`);
+  return ` Pogʻona: ${low.length} / ${ps.length} parsel ${lim} dan kichik — ${parts.join(' · ')}. Qavat qoʻshish sigʻimni oshirmaydi (meʼyor — yer maydoni).`;
+}
 
 /** Ikki koʻpburchak orasidagi eng qisqa kesma (uchdan qirragacha) */
 function closestSeg(a: XY[], b: XY[]): [XY, XY] {
@@ -107,7 +119,7 @@ export const RULES: Rule[] = [
       if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
       const lo = Math.ceil(d.population * 0.165), hi = Math.ceil(d.population * 0.28);
       return { status: d.schoolCap >= lo ? 'pass' : 'fail', value: d.schoolCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.schoolCap < lo ? (1 - d.schoolCap / lo) * -100 : undefined,
-        note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellari maydonidan 41-jadval boʻyicha (20/15/10 m² oʻquvchiga). Yaqin atrofdagi mavjud maktablar hisobga olinmagan.${demoNote(doc, d.population, 'school')}` };
+        note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellari maydonidan 41-jadval boʻyicha (20/15/10 m² oʻquvchiga). Yaqin atrofdagi mavjud maktablar hisobga olinmagan.${tierNote(d, 'maktab')}${demoNote(doc, d.population, 'school')}` };
     },
   },
   {
@@ -118,7 +130,7 @@ export const RULES: Rule[] = [
       if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
       const lo = Math.ceil(d.population * 0.07), hi = Math.ceil(d.population * 0.125);
       return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
-        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${demoNote(doc, d.population, 'mtm')}` };
+        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi; bino maydoni 12 m²/oʻrin — taxmin).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
     },
   },
   {
