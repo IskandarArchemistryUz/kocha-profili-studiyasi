@@ -931,3 +931,12 @@ details.sp-lead[open] .sp-more{display:none}
 .tiles.compact .tile{min-height:0;height:36px;padding:0 4px;flex-direction:row;justify-content:center}
 .tiles.compact .tile>svg,.tiles.compact .tile>img{display:none}
 .tiles.compact .tile span{font-size:12px;line-height:1.15;text-align:center}
+/* 31.10 (A variant, 3-bosqich): «Meʼyorlar» tugmasida holat — mos emaslar soni doim koʻrinadi */
+.kpibar .more{display:inline-flex;align-items:center;gap:6px}
+.kst{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:999px;font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.kst i{width:6px;height:6px;border-radius:999px;background:currentColor}
+.kst[data-s=fail]{background:var(--bad-soft);color:var(--bad)}
+.kst[data-s=review]{background:var(--warn-soft);color:var(--warn)}
+.kst[data-s=pass]{background:var(--ok-soft);color:var(--ok)}
+.kst[data-s=pass] i{display:none}
+.kpibar .more.on .kst{background:var(--surface)}
