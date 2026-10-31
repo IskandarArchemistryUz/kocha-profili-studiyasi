@@ -30,6 +30,21 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`ichki reja
   await expect(page.locator('#albInSlide')).toContainText('Oddiy eshiklar');
   if (await page.locator('#albInMaster').count()) await page.click('#albInMaster [aria-pressed=false] >> nth=0');
   await page.waitForTimeout(400);
+  // 31.10: devorni sudrash (ArchiCAD/Revit kabi) — vaqtinchalik oʻlchamlar, strelka bilan 0,1 m
+  const walls = page.locator('#albWalls [data-wall]');
+  await expect(walls.first()).toBeAttached();
+  let moved = false;
+  for (let k = 0; k < await walls.count() && !moved; k++) {
+    const bb = await walls.nth(k).boundingBox(); if (!bb) continue;
+    const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2, vert = bb.height > bb.width;
+    await page.mouse.move(cx, cy); await page.mouse.down();
+    for (const st of [6, 12, 18]) await page.mouse.move(cx + (vert ? st : 0), cy + (vert ? 0 : st));
+    await expect(page.locator('#albWalls text').first()).toContainText('m');
+    await page.mouse.up();
+    moved = await page.locator('#albWallReset').count() > 0;
+    if (!moved) { await page.mouse.move(cx, cy); await page.mouse.down(); for (const st of [-6, -12, -18]) await page.mouse.move(cx + (vert ? st : 0), cy + (vert ? 0 : st)); await page.mouse.up(); moved = await page.locator('#albWallReset').count() > 0; }
+  }
+  expect(moved).toBe(true);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ichki_tahrir_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#albSave');
   await expect(page.locator('#albSave')).toContainText('Saqlangan');

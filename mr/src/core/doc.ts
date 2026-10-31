@@ -61,7 +61,7 @@ export interface Building {
   planEdit?: PlanEdit;
 }
 export type PlanRoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash';
-export interface PlanEdit { key: string; apts: { ring: LngLat[]; rooms: number; /** ichki reja sozlamalari (V2) */ inner?: { flip?: boolean; dK?: number; master?: boolean; slide?: boolean } }[]; rooms: { ring: LngLat[]; kind: PlanRoomKind }[] }
+export interface PlanEdit { key: string; apts: { ring: LngLat[]; rooms: number; /** ichki reja sozlamalari (V2) */ inner?: { flip?: boolean; dK?: number; master?: boolean; slide?: boolean; mv?: [number, number, number, number, number][] } }[]; rooms: { ring: LngLat[]; kind: PlanRoomKind }[] }
 const ROOM_KINDS: PlanRoomKind[] = ['texnik', 'ombor', 'savdo', 'velo', 'zal', 'tozalash'];
 function cleanInner(v: any): PlanEdit['apts'][number]['inner'] | null {
   if (!v || typeof v !== 'object') return null;
@@ -70,6 +70,7 @@ function cleanInner(v: any): PlanEdit['apts'][number]['inner'] | null {
   if (Number.isFinite(v.dK) && Math.abs(v.dK) <= 3) o.dK = Math.round(v.dK * 100) / 100;
   if (typeof v.master === 'boolean') o.master = v.master;
   if (v.slide === true) o.slide = true;
+  if (Array.isArray(v.mv)) { const mv = v.mv.filter((m: any) => Array.isArray(m) && m.length === 5 && m.every((x: any) => Number.isFinite(x)) && (m[0] === 0 || m[0] === 1) && Math.abs(m[4]) <= 6).slice(0, 24).map((m: number[]) => m.map(x => Math.round(x * 1000) / 1000) as [number, number, number, number, number]); if (mv.length) o.mv = mv; }
   return Object.keys(o).length ? o : null;
 }
 function cleanPlanEdit(v: any): PlanEdit | null {
