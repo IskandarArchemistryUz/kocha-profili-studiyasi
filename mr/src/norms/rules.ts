@@ -12,7 +12,8 @@ import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
 import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
-import { checkBlock, lenLimit, SYS } from '../core/seysmik';
+import { checkBlock, lenLimit, SYS, FIRE_COMP_ANDOZA, isPodium, jointOpt, jointScheme } from '../core/seysmik';
+import { area as areaOf } from '../core/geo';
 import { computePlan } from '../core/plan';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 
@@ -62,7 +63,7 @@ export interface Result {
   /** sahnada koʻrsatish (31.10, egasi): meʼyorga tushmagan joylar — bino id lari, mahalliy nuqtalar, halqalar, masofa kesmalari */
   where?: Where;
   /** 31.10 (egasi): loyihani meʼyorga moslash — tugma (editor.applyFix) va qisqa tavsiya */
-  fix?: { id: 'parking' | 'mtm' | 'seismic-joint'; label: string; hint: string };
+  fix?: { id: 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint'; label: string; hint: string };
 }
 export interface Where { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][] }
 
@@ -260,14 +261,15 @@ export const RULES: Rule[] = [
       const s = doc.settings, sys = s.construct ?? 'monolit', ball = s.seismic, lim = lenLimit(sys, ball), def = SYS[sys];
       const bl = doc.buildings;
       if (!bl.length) return { status: 'na', limit: lim == null ? 'NSTT' : `≤ ${lim} m`, unit: 'bino', note: `Binolar yoʻq. ${def.name} (${def.row}), ${ball} ball.` };
-      const fr = frame(doc.origin), res = bl.map(b => ({ b, c: checkBlock(b.footprint.map(fr.toLocal), sys, ball, !!b.joint) }));
+      const fr = frame(doc.origin), res = bl.map(b => ({ b, c: checkBlock(b.footprint.map(fr.toLocal), sys, ball, !!b.joint, jointOpt(b, bl, fr.toLocal)) }));
       const longs = res.filter(x => !x.c.lenOk), projs = res.filter(x => !x.c.projOk), worst = res.reduce((a, x) => x.c.len > a.c.len ? x : a);
       const n = new Set([...longs, ...projs].map(x => x.b.id)).size;
       const parts = [`${def.name} (3.1-jadval, ${def.row}), ${ball} ball: boʻlma uzunligi ${lim == null ? 'cheklanmagan (NSTT)' : `≤ ${lim} m`}, chiqib turgan qism ≤ ${def.proj} m (3.1.1). Har bino alohida boʻlma deb olindi (inspektorda «Antiseysmik chok» yoqilgan binolar — ichki burchaklaridan boʻlmalarga ajratilgan holda); tegib turgan binolar orasida antiseysmik chok boʻlishi kerak (3.1.3; eng kichik kengligi 3.1.4).`];
       if (longs.length) parts.push(`Uzun: ${longs.length} ta (eng uzuni ${worst.c.len} m) — chok bilan boʻlmalarga ajrating yoki seksiya uzunligini kamaytiring.`);
       if (projs.length) parts.push(`Chiqib turgan qism ${def.proj} m dan katta: ${projs.length} ta (${projs.slice(0, 3).map(x => `${x.c.proj} m`).join(', ')}${projs.length > 3 ? ' …' : ''}) — burchak binosini chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajrating (3.1.1) yoki 1.1-band boʻyicha asoslang.`);
-      const fixable = projs.filter(x => !x.b.joint).length;
-      return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, ...(fixable ? { fix: { id: 'seismic-joint' as const, label: 'Antiseysmik chok qoʻyish', hint: `${fixable} ta binoda chiqib turgan qism ${def.proj} m dan katta — ichki burchakdan antiseysmik chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajratiladi (3.1.3). Uzunlik oshgan binolar uchun — seksiya uzunligini kamaytirib qayta generatsiya (generator chegarani hisobga oladi).` } } : {}), ...(n ? { where: { bids: [...new Set([...longs, ...projs].map(x => x.b.id))] } } : {}), limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
+      // 31.10: chok sxemasi uzunlikni ham boʻladi (3.7.2) — uzun binolar va stilobatlar ham chok bilan tuzatiladi
+      const fixable = [...new Set([...longs, ...projs])].filter(x => !x.b.joint && (() => { const c = checkBlock(x.b.footprint.map(fr.toLocal), sys, ball, true, jointOpt(x.b, bl, fr.toLocal)); return c.lenOk && c.projOk; })()).length;
+      return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, ...(fixable ? { fix: { id: 'seismic-joint' as const, label: 'Antiseysmik chok qoʻyish', hint: `${fixable} ta bino chok bilan tuzatiladi: ichki burchakdan toʻgʻri toʻrtburchak boʻlmalarga (3.1.3), uzun qism — teng boʻlmalarga, choklar orasi ≤ ${lim ?? '—'} m (3.7.2). Stilobatda chok ustidagi minoralar orasidan oʻtkaziladi.` } } : {}), ...(n ? { where: { bids: [...new Set([...longs, ...projs].map(x => x.b.id))] } } : {}), limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
     },
   },
   {
@@ -312,6 +314,32 @@ export const RULES: Rule[] = [
       const P = computePlan(doc), wh = [...bad, ...noIn].map(y => P.blocks[y.block]?.rings[0]).filter((r): r is XY[] => !!r);
       return { status: bad.length ? 'fail' : noIn.length ? 'review' : 'pass', ...(wh.length ? { where: { rings: wh } } : {}), value: ys.length - bad.length, unit: 'kvartal', limit: `${ys.length}`,
         note: `Binoning ikkala uzun tomonidan yetib kelish (666-band, F1.3, H ≥ 28 m): hovlida eni ${w} m yoʻlak (667-band), ichki chetidan devorgacha 9 m (675-band: 8–10 m), yoʻlak va bino orasida daraxt qatori yoʻq (676-band).` + (bad.length ? ` Hovlida yoʻlak sigʻmadi: ${bad.length} kvartal — hovlini kengaytiring yoki qavatlarni kamaytiring.` : '') + (noIn.length ? ` Hovliga mashina kirishi (arka yoki ≥ ${w} m oraliq) topilmadi: ${noIn.length} kvartal.` : '') };
+    },
+  },
+  {
+    id: 'fire-podium',
+    title: 'Stilobat: yongʻin boʻlmalari va yongʻinga qarshi devorlar',
+    source: { doc: 'ShNQ 2.01.02-04', edition: '2004', clause: '6.16–6.18, 6.20, 6.22-bandlar', verified: true },
+    evaluate(_d, doc) {
+      const pods = doc.buildings.filter(isPodium);
+      if (!pods.length) return { status: 'na', note: 'Stilobat yoʻq.' };
+      const fr = frame(doc.origin), sys = doc.settings.construct ?? 'monolit', lim = lenLimit(sys, doc.settings.seismic);
+      const rows = pods.map(b => { const r = b.footprint.map(fr.toLocal), o = jointOpt(b, doc.buildings, fr.toLocal), sc = b.joint ? jointScheme(r, lim, o.area, o.avoid) : { parts: [r], cuts: [] };
+        return { b, n: sc.parts.length, max: Math.max(...sc.parts.map(p => areaOf(p))), cuts: sc.cuts.length }; });
+      const bad = rows.filter(x => x.max > FIRE_COMP_ANDOZA + 1), worst = rows.reduce((a, x) => x.max > a.max ? x : a);
+      const parts = [
+        `Yongʻin boʻlmasi qavat maydoni ≤ ${FIRE_COMP_ANDOZA} m² — andoza (meʼyor matnlarida boʻlma maydoni jadvali topilmadi; olovbardoshlik darajasi va funksional xavf sinfi boʻyicha loyihachi aniqlaydi).`,
+        '6.16–6.17: yongʻinga qarshi devor binoning butun balandligiga, poydevordan, barcha qavatlarni kesib oʻtadi — shuning uchun chok stilobat ustidagi minoralar orasidan oʻtkaziladi.',
+        '6.18: devor tomdan kamida 60 sm (yopma elementlaridan biri G3–G4 boʻlsa) yoki 30 sm (G1–G2) baland; hammasi yonmaydigan (NG) boʻlsa — chiqmasligi mumkin.',
+        '6.20: yongʻinga qarshi devor — balandroq va kengroq boʻlmaniki. 6.22: burchak ostida tutashganda tashqi devordagi teshiklar orasi gorizontal boʻyicha ≥ 4 m.',
+        `Stilobatlar: ${pods.length} ta, eng katta boʻlma ${Math.round(worst.max)} m²${worst.b.joint ? ` (${worst.n} boʻlma)` : ''}.`,
+      ];
+      if (bad.length) parts.push(`${bad.length} ta stilobatda boʻlma andozadan katta — avtomatik choklar sxemasi bilan boʻlmalarga ajrating.`);
+      const fixable = bad.filter(x => !x.b.joint).length;
+      return { status: bad.length ? 'review' : 'pass', value: Math.round(worst.max), unit: 'm² (eng katta boʻlma)', limit: `≤ ${FIRE_COMP_ANDOZA} m² (andoza)`,
+        ...(bad.length ? { where: { bids: bad.map(x => x.b.id) } } : {}),
+        ...(fixable ? { fix: { id: 'podium-joint' as const, label: 'Choklar sxemasini qoʻyish', hint: `${fixable} ta stilobat teng boʻlmalarga ajratiladi: har boʻlma ≤ ${FIRE_COMP_ANDOZA} m² (andoza) va ≤ ${lim ?? '—'} m (QMQ 2.01.03-19, 3.1-jadval); chok — antiseysmik chok va yongʻinga qarshi devor, minoralar orasidan.` } } : {}),
+        note: parts.join(' ') };
     },
   },
 ];

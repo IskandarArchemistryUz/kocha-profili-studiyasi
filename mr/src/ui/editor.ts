@@ -64,7 +64,7 @@ import type { PoiBundle } from '../context/poi';
 import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
 import { centroid, area, signedArea } from '../core/geo';
 import { builtInMtm, derive } from '../core/derive';
-import { blockShape, checkBlock } from '../core/seysmik';
+import { blockShape, checkBlock, isPodium, jointOpt } from '../core/seysmik';
 import { toDxf } from '../core/dxf';
 import { toIfc } from '../core/ifc';
 import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
@@ -694,7 +694,8 @@ export class Editor {
             row(tr('Qavatlar'), '1–60', stepper({ id: 'iFloors', label: tr('Qavatlar'), min: 1, max: 60, step: 1, value: b.floors, onchange: v => upd({ floors: v }, 'fl-' + b.id) })),
             u.res > 0 ? row(tr('Noturar (pastda)'), `0–${Math.max(0, b.floors - 1)}`, stepper({ id: 'iNonRes', label: tr('Noturar (pastda)'), min: 0, max: Math.max(0, b.floors - 1), step: 1, value: b.nonRes, onchange: v => upd({ nonRes: v }, 'nr-' + b.id) })) : '',
             u.res > 0 && b.nonRes >= 1 && b.floors >= 3 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1-qavatda MTM'), b.mtm ? h('span', { class: 'sub', id: 'iMtmSub' }, tf('≈ ${n} oʻrin · uchastka 29 m²/oʻrin (543-band)', { n: builtInMtm(area(r)) })) : ''), sw({ id: 'iMtm', label: tr('1-qavatda MTM'), on: !!b.mtm, onchange: v => upd({ mtm: v || undefined }) })) : '',
-            r.length >= 5 && !blockShape(r).rect ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Antiseysmik chok'), h('span', { class: 'sub' }, tr('ichki burchakdan boʻlmalarga (QMQ 2.01.03-19, 3.1.3)'))), sw({ id: 'iJoint', label: tr('Antiseysmik chok'), on: !!b.joint, onchange: v => upd({ joint: v || undefined }) })) : '',
+            isPodium(b) ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Choklar sxemasi'), h('span', { class: 'sub' }, tr('antiseysmik chok + yongʻinga qarshi devor (ShNQ 2.01.02-04, 6.16)'))), sw({ id: 'iJoint', label: tr('Choklar sxemasi'), on: !!b.joint, onchange: v => upd({ joint: v || undefined }) }))
+            : (r.length >= 5 && !blockShape(r).rect) || (() => { const lm = lenLimit(this.store.doc.settings.construct ?? 'monolit', this.store.doc.settings.seismic); return lm != null && blockShape(r).len > lm; })() ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Antiseysmik chok'), h('span', { class: 'sub' }, tr('ichki burchakdan boʻlmalarga (QMQ 2.01.03-19, 3.1.3)'))), sw({ id: 'iJoint', label: tr('Antiseysmik chok'), on: !!b.joint, onchange: v => upd({ joint: v || undefined }) })) : '',
             row(tr('Stilobat ustida'), '0–10', stepper({ id: 'iZ0', label: tr('Stilobat ustida'), min: 0, max: 10, step: 1, value: z0, onchange: v => upd({ z0: v || undefined }, 'z0-' + b.id) }))),
           h('div', { class: 'msec', 'aria-hidden': 'true', html: `<svg viewBox="0 0 64 ${H}" width="40" height="${H * 40 / 64}" preserveAspectRatio="none">${sec}<path d="M0 ${H - 1}H64" stroke="currentColor" stroke-width="2"/></svg>` })),
         h('span', { class: 't-small', id: 'bldEditHint' }, tr('Xaritada: tom ustidagi toʻq sariq tutqich — qavatlar; burchak tutqichlari — oyoq izi.')),
@@ -2035,13 +2036,18 @@ export class Editor {
   }
 
   /** 31.10 (egasi): meʼyorga moslash — «Tuzat» tugmalari */
-  private applyFix(id: 'parking' | 'mtm' | 'seismic-joint'): void {
+  private applyFix(id: 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint'): void {
     const doc = this.store.doc, fr = frame(doc.origin);
     if (id === 'seismic-joint') {
       const sys = doc.settings.construct ?? 'monolit', ball = doc.settings.seismic;
-      const bad = doc.buildings.filter(b => !b.joint && b.footprint.length >= 5 && !checkBlock(b.footprint.map(fr.toLocal), sys, ball).projOk && checkBlock(b.footprint.map(fr.toLocal), sys, ball, true).projOk);
+      const ok = (c: ReturnType<typeof checkBlock>) => c.lenOk && c.projOk;
+      const bad = doc.buildings.filter(b => { if (b.joint) return false; const r = b.footprint.map(fr.toLocal); return !ok(checkBlock(r, sys, ball)) && ok(checkBlock(r, sys, ball, true, jointOpt(b, doc.buildings, fr.toLocal))); });
       this.run(() => { for (const b of bad) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { joint: true } }); });
       toast(bad.length ? tf('${n} ta binoga antiseysmik chok qoʻyildi', { n: bad.length }) : tr('Chok bilan tuzatiladigan bino topilmadi — uzunlikni kamaytirib qayta generatsiya qiling'));
+    } else if (id === 'podium-joint') {
+      const pods = doc.buildings.filter(b => isPodium(b) && !b.joint);
+      this.run(() => { for (const b of pods) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { joint: true } }); });
+      toast(tf('${n} ta stilobatga choklar sxemasi qoʻyildi', { n: pods.length }));
     } else if (id === 'mtm') {
       const d = derive(doc), need = Math.ceil(d.population * 0.07) - d.mtmCap; if (need <= 0) return;
       const cand = doc.buildings.filter(b => !b.mtm && useDef(b.use).res > 0 && b.floors >= 3 && !['uy', 'taunhaus', 'villa', 'stilobat'].includes(b.gen?.kind ?? '')).map(b => ({ b, n: builtInMtm(area(b.footprint.map(fr.toLocal))) })).filter(x => x.n >= 15).sort((p, q) => q.n - p.n);
