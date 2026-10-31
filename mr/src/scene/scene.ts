@@ -97,6 +97,8 @@ const PART_MIN: Record<string, number> = { avtobus: 0xc4c4c4, tramvay: 0xc9c9c9,
 /** «portlatilgan» qatlamlar: 0 — atrof, 1 — koʻchalar, 2 — kvartallar, 3 — binolar */
 export const EXPLODE_NAMES = ['Atrof', 'Koʻchalar', 'Kvartallar va zonalar', 'Binolar'];
 
+/** Tungi rejim: dizayn tizimi `bg` (#121212) ga yaqin, yer biroz ochroq — binolar va hovlilar ajralib turadi */
+const DARK = { bg: 0x161615, ground: 0x252523, gridTint: 0x3a3a38 };
 const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b4, siteLine: 0xc0392b, bld: 0xf7f6f2, bldSel: 0xcfe0f1, roof: 0xdedad2, edge: 0x3c3c3c, preview: 0x2a6fb0 };
 
 const bbox = (r: XY[]): [number, number, number, number] => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of r) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); } return [a, b, c, d]; };
@@ -391,7 +393,7 @@ export class Scene3D {
     const old = this.baseMap;
     if (!img) {
       if (old) { this.scene.remove(old.mesh); old.mesh.geometry.dispose(); const m = old.mesh.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); this.baseMap = null; }
-      (this.ground.material as THREE.MeshLambertMaterial).color.set(C.ground);
+      (this.ground.material as THREE.MeshLambertMaterial).color.setHex(this.groundHex());
       this.grid.forEach(g => g.visible = !this.ctx); this.invalidate(); return;
     }
     let t: THREE.Texture;
@@ -1299,10 +1301,15 @@ export class Scene3D {
         m.needsUpdate = true;
       }
     });
-    this.scene.background = new THREE.Color(S ? S.bg : 0xf4f3f1);
-    (this.ground.material as THREE.MeshLambertMaterial).color.setHex(this.style === 'minimal' || this.style === 'arctic' ? 0xf7f6f4 : C.ground);
+    this.scene.background = new THREE.Color(this.dark ? DARK.bg : S ? S.bg : 0xf4f3f1);
+    (this.ground.material as THREE.MeshLambertMaterial).color.setHex(this.groundHex());
+    for (const g of this.grid) ((g as THREE.LineSegments).material as THREE.LineBasicMaterial).color.setHex(this.dark ? DARK.gridTint : 0xffffff);
     this.invalidate();
   }
+  /** 31.10 (egasi: «tungi rejimda sahna foni yorugʻ qolyapti»): sahna foni, yer va toʻr — tungi rejimda qorongʻi; loyiha ranglari oʻzgarmaydi */
+  private dark = false;
+  setDark(on: boolean): void { if (on === this.dark) return; this.dark = on; this.applyStyle(); }
+  private groundHex(): number { return this.dark ? DARK.ground : this.style === 'minimal' || this.style === 'arctic' ? 0xf7f6f4 : C.ground; }
 
   /** Yorliqlar ekranda doimiy piksel oʻlchamida (ortho kamerada sizeAttenuation ishlamaydi — shu yerda hisoblanadi) */
   private fitSprites(cam: THREE.Camera): void {
