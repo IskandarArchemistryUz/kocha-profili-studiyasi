@@ -235,7 +235,7 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 .alb-plan[data-mode=tanlash] [data-apt],.alb-plan[data-mode=tanlash] [data-room]{cursor:pointer}.alb-plan[data-mode=tanlash] [data-apt]:hover{filter:brightness(.93)}.alb-plan[data-mode=devor] svg{cursor:crosshair}
 .alb-info{background:#fbfaf8;padding:18px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:0}
 .alb-selc{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px}.alb-selc i{width:12px;height:12px;border-radius:3px}.alb-selc b{flex:1}
-.alb-info .spacer{flex:1}.alb-info .row{gap:6px}.alb-info .grow{flex:1}
+.alb-info>*{flex-shrink:0}.alb-info .spacer{flex:1}.alb-info .row{gap:6px}.alb-info .grow{flex:1}
 @media (max-width:900px){.alb{grid-template-columns:1fr}.alb-side{display:none}.alb-sheet{grid-template-columns:1fr}}
 /* ramka bilan tanlash (Shift + sudrash) */
 

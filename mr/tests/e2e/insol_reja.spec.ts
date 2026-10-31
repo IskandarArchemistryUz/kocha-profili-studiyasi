@@ -27,6 +27,17 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qavat reja
   await page.locator('#albHour').evaluate(e => { const i = e as HTMLInputElement; i.value = '7'; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); });
   await expect(page.locator('#albHourLbl')).toHaveText('7:00');
   expect(await page.locator('#albPlan [data-sunpatch] path').count()).toBeLessThan(n12 + 1);
+  // 31.10: kunni tanlab tezlashtirilgan animatsiya — 22.06, quyosh chiqishidan; soat oldinga yuradi, dogʻ qayta chiziladi
+  await page.click('#albDate [data-date="06-22"]');
+  await expect(page.locator('#albAnimNote')).toBeVisible();
+  await page.click('#albPlay');
+  const t0 = await page.locator('#albHourLbl').textContent();
+  await page.waitForTimeout(1300);
+  const t1 = await page.locator('#albHourLbl').textContent();
+  expect(t1).not.toBe(t0);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/v5_anim_${w}${dark ? 'd' : 'l'}.png` });
+  await page.click('#albPlay');   // toʻxtatish
+  await page.click('#albDate [data-date="03-22"]');
   // hamma koʻr boʻlmagan deraza belgilangan (oshxona ham)
   const nMods = await page.evaluate(() => { const A = (window as any).__mr.apt; const pl = A.plans[0]; return pl ? pl.layout.mods.filter((m: any) => !m.blind).length : -1; });
   const nWin = await page.locator('#albPlan [data-win]').count();

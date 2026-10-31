@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-obR_xn8J.js";
