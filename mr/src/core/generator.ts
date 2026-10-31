@@ -14,9 +14,10 @@ import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { squareSections, avoidObstacles, assignEnds, type Obstacle3 } from './genfix';
 import { lowriseBlock } from './lowrise';
+import { openRing, despike } from './offset';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
-export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'savdo_blok';
+export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo' | 'arka';
 export type ParkingKind = 'yoq' | 'yer_osti' | 'stilobat' | 'yer_usti';
 
@@ -662,6 +663,28 @@ function points(A: XY[], size: number, gap: number, avoid: XY[][] = []): XY[][] 
 /** Halqani markaziga nisbatan k marta kichraytirish */
 const shrink = (r: XY[], k: number): XY[] => { const c = r.reduce((a, p) => add(a, p), [0, 0] as XY); const m = mul(c, 1 / r.length); return r.map(p => add(m, mul(sub(p, m), k))); };
 
+/** Chekinish ichida uzun tomonga parallel eng katta toʻrtburchak (≤ maxW × maxH): ring, eni, chuqurligi va oʻqlar */
+interface PRect { ring: XY[]; w: number; h: number; o: XY; u: XY; v: XY }
+function bestRect(A: XY[], maxW: number, maxH: number): PRect | null {
+  const ang = longestAngle(A), c = Math.cos(ang), s = Math.sin(ang), rot = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], un = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of A.map(rot)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  let W = Math.min(maxW, (x1 - x0) * 0.85), H = Math.min(maxH, (y1 - y0) * 0.8), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const mk = () => ([[cx - W / 2, cy - H / 2], [cx + W / 2, cy - H / 2], [cx + W / 2, cy + H / 2], [cx - W / 2, cy + H / 2]] as XY[]).map(un);
+  let ring = mk();
+  for (let k = 0; k < 10 && !ring.every(p => inside(p, A)); k++) { W *= 0.9; H *= 0.9; ring = mk(); }
+  if (!ring.every(p => inside(p, A))) {
+    const fr = freeRect([A], [], 0); if (!fr || fr.w < 20 || fr.h < 16) return null;
+    const w = Math.min(maxW, fr.w * 0.96), h = Math.min(maxH, fr.h * 0.96), u: XY = [Math.cos(fr.ang), Math.sin(fr.ang)], v: XY = [-u[1], u[0]];
+    const o: XY = [fr.c[0] - u[0] * w / 2 - v[0] * h / 2, fr.c[1] - u[1] * w / 2 - v[1] * h / 2];
+    return { ring: [o, add(o, mul(u, w)), add(add(o, mul(u, w)), mul(v, h)), add(o, mul(v, h))], w, h, o, u, v };
+  }
+  if (W < 20 || H < 16) return null;
+  const u: XY = [c, s], v: XY = [-s, c];
+  return { ring, w: W, h: H, o: ring[0], u, v };
+}
+/** PRect ichida (dx, dy) siljishdagi w × h toʻrtburchak (PRect oʻqlarida) */
+const rectAt = (R: PRect, w: number, h: number, dx: number, dy: number): XY[] => { const o = add(R.o, add(mul(R.u, dx), mul(R.v, dy))); return [o, add(o, mul(R.u, w)), add(add(o, mul(R.u, w)), mul(R.v, h)), add(o, mul(R.v, h))]; };
+
 function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenResult {
   XS = { full: 0, short: 0, gap: 0, stretch: 0 };
   const notes: string[] = [];
@@ -732,6 +755,40 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       notes.push(`Savdo markazi ${Math.round(sw)} × ${Math.round(sd)} m, ${Math.min(3, Math.max(1, g.maxF))} qavat; hovli — yer usti parkovka (413-band, 25 m²/joy)`);
       return { sections: [{ ring, floors: Math.min(3, Math.max(1, g.maxF)), kind: 'savdo', nonRes: Math.min(3, Math.max(1, g.maxF)), use: 'savdo' }], capFloors: null, notes };
     }
+    case 'ofis_hovli': {
+      // hovlili ofis bloki: perimetral, korpus 18 m (ikki tomonlama yoritish — andoza), 5–9 qavat, hammasi noturar; hovli — ichki skver
+      const fl = Math.max(4, Math.min(9, g.maxF)), r = generateBase(block, { ...g, typology: 'perimetr', depth: 18, maxF: fl, minF: Math.min(g.minF, fl), passages: true }, floorH);
+      r.sections = r.sections.map(x => ({ ...x, floors: Math.min(x.floors, fl), nonRes: Math.min(x.floors, fl), use: 'ofis' }));
+      r.notes.push(`Hovlili ofis: korpus 18 m, ${fl} qavat (andoza: derazadan ish joyigacha ≤ 9 m), hovliga 6 m oʻtishlar`);
+      return r;
+    }
+    case 'meh_plita': case 'meh_minora': case 'savdo_minora': {
+      // stilobat (lobbi / savdo, 2–3 qavat) koʻcha tomonda + ustida korpus yoki minora
+      const R = bestRect(A, t === 'savdo_minora' ? 100 : 70, t === 'savdo_minora' ? 60 : 40);
+      if (!R) return { sections: [], capFloors: null, notes: ['Stilobat sigʻmadi — chekinishni kamaytiring'] };
+      const pod = t === 'savdo_minora' ? Math.min(3, Math.max(1, g.maxF)) : 2;
+      const podRing = R.ring, sections: GenSection[] = [{ ring: podRing, floors: pod, kind: 'stilobat', nonRes: pod, use: t === 'savdo_minora' ? 'savdo' : 'mehmonxona' }];
+      if (t === 'meh_plita') {
+        // mehmonxona korpusi: ikki tomonlama yoʻlak — 2 × 6 m xona + 2 m yoʻlak ≈ 14–16 m (andoza); stilobat uzun tomoni boʻylab
+        const Lk = Math.min(R.w, 72), Dk = 15, fl = Math.max(4, Math.min(16, g.maxF));
+        const ring = rectAt(R, Lk, Dk, 0, (R.h - Dk) / 2);
+        sections.push({ ring, floors: fl - pod, kind: 'oddiy', nonRes: fl - pod, z0: pod, use: 'mehmonxona' });
+        notes.push(`Mehmonxona: lobbi-stilobat ${Math.round(R.w)} × ${Math.round(R.h)} m (${pod} qavat) + korpus ${Math.round(Lk)} × ${Dk} m, jami ${fl} qavat (ikki tomonlama yoʻlak — andoza); ShNQ 2.08.02-23, 196–198-band: qavatda holl va yordamchi xonalar, restoran sigʻimi ≥ mehmonxona sigʻimi`);
+      } else {
+        const tw = Math.min(28, R.w * 0.6, R.h * 0.8), fl = Math.max(pod + 6, tf);
+        const ring = rectAt(R, tw, tw, (R.w - tw) / 2 - 4, (R.h - tw) / 2);
+        sections.push({ ring, floors: fl - pod, kind: 'minora', nonRes: fl - pod, z0: pod, use: t === 'meh_minora' ? 'mehmonxona' : 'ofis' });
+        notes.push(t === 'meh_minora' ? `Mehmonxona minorasi ${Math.round(tw)} × ${Math.round(tw)} m, ${fl} qavat, stilobat ${pod} qavat (lobbi, restoran)` : `Savdo markazi ${Math.round(R.w)} × ${Math.round(R.h)} m (${pod} qavat) + ofis minorasi ${Math.round(tw)} × ${Math.round(tw)} m, ${fl} qavat`);
+      }
+      return { sections, capFloors: null, notes };
+    }
+    case 'savdo_qator': {
+      // koʻcha boʻyi savdo qatori: chuqurlik 15 m, 1–2 qavat, har ~60 m da oʻtish (piyoda) — hovli: xizmat va parkovka
+      const fl = Math.min(2, Math.max(1, g.maxF)), r = edgeFill(A, { ...g, depth: 15, secLen: 30, passages: true, maxF: fl }, notes);
+      r.sections = r.sections.map(x => ({ ...x, floors: fl, nonRes: fl, use: 'savdo', kind: x.kind === 'arka' ? x.kind : 'savdo' as SecKind }));
+      notes.push(`Savdo qatori: chuqurlik 15 m, ${fl} qavat, koʻcha boʻylab; ichkari — xizmat hovlisi va parkovka`);
+      return r;
+    }
     case 'blok_villa': {
       const r = generateBase(block, { ...g, typology: 'perimetr' }, floorH);
       const court = inset(A, g.depth + 20);
@@ -751,6 +808,12 @@ export function autoTypology(far: number): Typology { return far < 0.6 ? 'yakka'
 
 const gfaOf = (r: GenResult) => r.sections.reduce((s, x) => s + aOf(x.ring) * x.floors, 0);
 
+/** Toʻgʻri toʻrtburchak, tomonlari ≥ w — yupqa qism boʻlmaydi (ochish shart emas, tez yoʻl) */
+function okRect(r: XY[], w: number): boolean {
+  if (r.length !== 4) return false;
+  for (let i = 0; i < 4; i++) { const a = r[i], b = r[(i + 1) % 4], c = r[(i + 2) % 4], u = sub(b, a), v = sub(c, b), lu = len(u), lv = len(v); if (lu < w || lv < w || Math.abs(u[0] * v[0] + u[1] * v[1]) > 0.035 * lu * lv) return false; }
+  return true;
+}
 /** Asosiy kirish: tipologiya, maqsadli UMN, stilobat va parkovka */
 export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenOpts = {}): GenResult {
   XS = { full: 0, short: 0, gap: 0, stretch: 0 };
@@ -781,6 +844,9 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   // notekis parsel: oʻtkir uchlar tik qirqiladi, tor boʻlaklar olinadi; mavjud binolar — toʻsiq (ustiga qurilmaydi, masofa saqlanadi)
   r.sections = squareSections(r.sections, g.depth, r.notes);
   if (opts.avoid?.length) r.sections = avoidObstacles(r.sections, opts.avoid, g.minF, floorH, r.notes);
+  // yupqa qismlar (31.10, egasi: «yupqa qatlam ajralib chiqyapti»): eni 6 m dan tor uch va oyoqlar olinadi (morfologik ochish)
+  { let fixed = 0, gone = 0; r.sections = r.sections.flatMap(s => { if (s.kind === 'stilobat' || s.kind === 'arka' || s.kind === 'savdo' || okRect(s.ring, 6)) return [s]; const a0 = aOf(s.ring), o = openRing(s.ring, 6); if (!o) { const d = despike(s.ring); return [d.length !== s.ring.length ? (fixed++, { ...s, ring: d }) : s]; } /* hisob xatosi — tikansiz asl shakl */ if (aOf(o) < 90) { gone++; return []; } if (a0 - aOf(o) > 1) { fixed++; return [{ ...s, ring: o }]; } return [s]; });
+    if (fixed) r.notes.push(`${fixed} ta seksiyada eni 6 m dan tor uch yoki boʻlak olib tashlandi`); if (gone) r.notes.push(`${gone} ta juda tor seksiya olib tashlandi (eni < 6 m)`); }
   if (g.exact && XS.full + XS.short > 0) {
     const n = (v: number) => String(v).replace('.', ',');
     const a = n(g.secLen), b = n(g.depth), parts = [`Aniq oʻlcham: ${XS.full} seksiya ${a} × ${b} m`];
@@ -867,7 +933,7 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
   return out;
 }
 
-export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', savdo_blok: 'Savdo markazi + parkovka' };
+export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', ofis_hovli: 'Hovlili ofis bloki', meh_plita: 'Mehmonxona korpusi + lobbi', meh_minora: 'Mehmonxona minorasi + stilobat', savdo_blok: 'Savdo markazi + parkovka', savdo_minora: 'Savdo markazi + minora', savdo_qator: 'Koʻcha boʻyi savdo qatori' };
 /** Funksiya boʻyicha odatiy generator sozlamalari (turar joydan tashqari); null — foydalanuvchi sozlamalari */
 /**
  * Parsel funksiyasiga mos tipologiyalar (egasi, 31.10): turar joy parseliga ofis / mehmonxona generatsiya qilinmaydi,
@@ -875,14 +941,16 @@ export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)
  */
 const T_LOW: Typology[] = ['yakka', 'taunhaus', 'juft', 'hovli', 'klaster', 'villa'];
 const T_RES: Typology[] = [...T_LOW, 'perimetr', 'qatorlar', 'minora', 'blok_minora', 'blok_villa'];
-const T_COM: Typology[] = ['ofis_plita', 'ofis_minora', 'savdo_blok'];
+const T_OFIS: Typology[] = ['ofis_plita', 'ofis_minora', 'ofis_hovli'], T_MEH: Typology[] = ['meh_plita', 'meh_minora'], T_SAVDO: Typology[] = ['savdo_blok', 'savdo_minora', 'savdo_qator'];
+const T_COM: Typology[] = [...T_OFIS, ...T_MEH, ...T_SAVDO];
 export function typoAllowed(use: string): Typology[] {
   switch (use) {
     case 'yakka': return ['avto', ...T_LOW];
     case 'turar': return ['avto', ...T_RES];
     case 'aralash': return ['avto', ...T_RES, ...T_COM];
-    case 'ofis': case 'mehmonxona': return ['ofis_plita', 'ofis_minora'];
-    case 'savdo': return ['savdo_blok'];
+    case 'ofis': return T_OFIS;
+    case 'mehmonxona': return [...T_MEH, 'ofis_minora'];
+    case 'savdo': return T_SAVDO;
     default: return ['avto', ...T_RES, ...T_COM];
   }
 }
@@ -895,9 +963,9 @@ export function useCompatible(parcelUse: string, bldUse: string): boolean {
 }
 export function usePreset(use: string, g: GenParams): GenParams | null {
   switch (use) {
-    case 'ofis': return { ...g, typology: g.typology === 'ofis_minora' ? 'ofis_minora' : 'ofis_plita', minF: 6, maxF: Math.max(6, Math.min(12, g.maxF)), towerF: Math.max(12, g.towerF ?? 16), nonRes: 0, far: 0, stylobate: 0, parking: g.parking === 'yoq' ? 'yer_osti' : g.parking };
-    case 'mehmonxona': return { ...g, typology: 'ofis_minora', towerF: Math.max(10, Math.min(16, g.towerF ?? 12)), nonRes: 0, far: 0, stylobate: 0 };
-    case 'savdo': return { ...g, typology: 'savdo_blok', maxF: Math.min(3, Math.max(1, g.maxF)), minF: 1, nonRes: 0, far: 0, stylobate: 0, parking: 'yer_usti' };
+    case 'ofis': return { ...g, typology: T_OFIS.includes(g.typology) ? g.typology : 'ofis_plita', minF: 6, maxF: Math.max(6, Math.min(12, g.maxF)), towerF: Math.max(12, g.towerF ?? 16), nonRes: 0, far: 0, stylobate: 0, parking: g.parking === 'yoq' ? 'yer_osti' : g.parking };
+    case 'mehmonxona': return { ...g, typology: [...T_MEH, 'ofis_minora'].includes(g.typology) ? g.typology : 'meh_plita', maxF: Math.max(4, Math.min(16, g.maxF)), towerF: Math.max(10, Math.min(25, g.towerF ?? 16)), nonRes: 0, far: 0, stylobate: 0 };
+    case 'savdo': return { ...g, typology: T_SAVDO.includes(g.typology) ? g.typology : 'savdo_blok', maxF: Math.min(3, Math.max(1, g.maxF)), minF: 1, towerF: Math.max(9, g.towerF ?? 16), nonRes: 0, far: 0, stylobate: 0, parking: g.parking === 'yoq' ? 'yer_usti' : g.parking };
     default: return null;
   }
 }
