@@ -27,6 +27,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, Sect
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
+import { deadEnds, junctions, nextEnd } from '../core/streetends';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
@@ -2710,6 +2711,37 @@ export class Editor {
     body.append(h('span', { class: 't-small' }, tr('Koʻcha tanlangan boʻlsa — bosilgan profil shu koʻchaga qoʻllanadi; aks holda yangi koʻcha uchun.')));
   }
 
+  /**
+   * Berk uchlar va chorrahalar (31.10): ShNQ 2.07.06-24, 57-band — berk koʻcha R ≥ 15 m aylana yoki 20 × 20 m maydoncha bilan tugaydi;
+   * 106-band — berk tor koʻcha ≤ 150 m; 27-band — kesishmalarda kichik aylanmalar. Sahnada tekis disk / halqa (yengil).
+   */
+  private endsPanel(body: HTMLElement): void {
+    const doc = this.store.doc, fr = frame(doc.origin), des = deadEnds(doc), miss = des.filter(e => !e.has), long = des.filter(e => e.len > 150), jn = junctions(doc), rounds = doc.rounds ?? [];
+    const setAll = (k: 'aylana' | 'maydon') => { const by = new Map<string, { a?: 'aylana' | 'maydon'; b?: 'aylana' | 'maydon' }>(); for (const e of miss) { const st = doc.streets.find(x => x.id === e.sid)!; by.set(e.sid, { ...(by.get(e.sid) ?? st.ends ?? {}), [e.end]: k }); } this.run(() => this.store.dispatch({ type: 'updateStreets', patches: [...by].map(([id, ends]) => ({ id, patch: { ends } })) })); };
+    const hasR = (p: XY) => rounds.some(r => { const c = fr.toLocal(r.at); return Math.hypot(c[0] - p[0], c[1] - p[1]) < 8; });
+    const setR = (pts: XY[], on: boolean) => { const keep = rounds.filter(r => { const c = fr.toLocal(r.at); return !pts.some(p => Math.hypot(c[0] - p[0], c[1] - p[1]) < 8); }); this.run(() => this.store.dispatch({ type: 'setRounds', rounds: on ? [...keep, ...pts.map(p => ({ id: uid('r_'), at: fr.toGeo(p), r: 14 }))] : keep })); };
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Berk uchlar va chorrahalar')), h('span', {}, 'ShNQ 2.07.06-24, 57, 106, 27')),
+      h('div', { class: 'group', id: 'deadEnds' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tf('Berk uchlar: ${n} ta', { n: des.length }), h('span', { class: 'sub' }, des.length ? (miss.length ? tf('${n} tasida burilish joyi yoʻq (57-band: R ≥ 15 m aylana yoki 20 × 20 m)', { n: miss.length }) : tr('Hammasida burilish joyi bor (57-band)')) + (long.length ? ' · ' + tf('${n} tasi 150 m dan uzun (106-band)', { n: long.length }) : '') : tr('Loyiha koʻchalarida berk uch yoʻq'))),
+          miss.length ? h('span', { class: 'chip warn', 'data-s': 'review' }, String(miss.length)) : h('span', { class: 'chip ok' }, '✓')),
+        miss.length ? h('div', { class: 'li', style: 'gap:6px;flex-wrap:wrap' },
+          h('button', { class: 'btn btn-sm', id: 'endsAylana', onclick: () => setAll('aylana') }, tr('Hammasiga aylana (R 15 m)')),
+          h('button', { class: 'btn btn-sm', id: 'endsMaydon', onclick: () => setAll('maydon') }, tr('Hammasiga 20 × 20 m maydoncha'))) : '',
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tf('Chorrahalar: ${n} ta · aylanma: ${r}', { n: jn.length, r: rounds.length }), h('span', { class: 'sub' }, tr('Aylanma — tashqi R 14 m, markazida yashil orolcha (27-band)')))),
+        h('div', { class: 'li', style: 'gap:6px;flex-wrap:wrap' },
+            jn.length ? h('button', { class: 'btn btn-sm', id: 'roundsAll', onclick: () => setR(jn.filter(p => !hasR(p)), true) }, tr('Hammasiga aylanma')) : '',
+            rounds.length ? h('button', { class: 'btn btn-sm btn-ghost', id: 'roundsOff', onclick: () => this.run(() => this.store.dispatch({ type: 'setRounds', rounds: [] })) }, tr('Olib tashlash')) : '')));
+    const st = doc.streets.find(x => x.id === this.selStreet);
+    if (st) {
+      const A = st.axis.map(fr.toLocal), mine = jn.filter(p => A.some((q, k) => k + 1 < A.length && (() => { const r = A[k + 1], dx = r[0] - q[0], dy = r[1] - q[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - q[0]) * dx + (p[1] - q[1]) * dy) / L2)); return Math.hypot(q[0] + dx * t - p[0], q[1] + dy * t - p[1]) < 2.5; })()));
+      const NAME = { aylana: 'aylana', maydon: '20 × 20' } as const;
+      body.append(h('div', { class: 'row', id: 'stEnds', style: 'gap:6px;flex-wrap:wrap' },
+        ...(['a', 'b'] as const).map(e => h('button', { class: 'btn btn-sm', 'data-end': e, 'aria-pressed': !!st.ends?.[e], title: tr('Koʻcha uchidagi burilish joyi: yoʻq → aylana → 20 × 20 m'), onclick: () => this.run(() => this.store.dispatch({ type: 'updateStreet', id: st.id, patch: nextEnd(st, e) })) },
+          `${tr(e === 'a' ? 'Boshi' : 'Oxiri')}: ${st.ends?.[e] ? tr(NAME[st.ends[e]!]) : tr('yoʻq')}`)),
+        mine.length ? h('button', { class: 'btn btn-sm', id: 'stRounds', 'aria-pressed': mine.every(hasR), onclick: () => setR(mine, !mine.every(hasR)) }, `${tr('Chorrahalarida aylanma')} · ${mine.length}`) : ''));
+    }
+  }
+
   /** Chizish yorligʻi: koʻcha chizish, uchlarni ulash, OSM yoʻli, koʻchalar roʻyxati, meʼyor */
   private drawTab(body: HTMLElement, fr: ReturnType<typeof frame>, drawing: boolean): void {
     const doc = this.store.doc;
@@ -2754,6 +2786,7 @@ export class Editor {
         if (p) body.append(h('button', { class: 'btn btn-block', id: 'stKs', title: tr('Koʻchasoz: kesim muharriri — Dizayn-kod zonalari, muhandislik tarmoqlari, reja, aksonometriya, albom varagʻi'), onclick: () => openInKochasoz(p, `${doc.name} · ${p.name}`) },
           h('i', { style: 'width:8px;height:8px;border-radius:4px;background:var(--svc-ks);flex:none' }), tr('Koʻchasozda ochish (kesim)')));
       }
+      this.endsPanel(body);
     } else body.append(h('div', { class: 'note' }, tr('Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.')));
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Mavjud koʻchani tahrirlash')), h('div', {}, tr('Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'))));
   }
