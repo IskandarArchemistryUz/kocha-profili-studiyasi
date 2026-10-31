@@ -159,7 +159,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     // ichki rejali kvartira: kirish eshigi koridorga (tashqariga) ochiladi — Strelka katalogi chizmalari
     if (outward.has(a.ring)) { nx = -nx; ny = -ny; }
     const tip: XY = [d0[0] + nx * 0.9, d0[1] + ny * 0.9];
-    out.push(seg(d0, d1, 'stroke="#fff" stroke-width="0.7"'), seg(d0, tip, 'stroke="#141414" stroke-width="0.25"'), `<path d="M${X(tip[0])} ${Y(tip[1])}A${(0.9 * k).toFixed(2)} ${(0.9 * k).toFixed(2)} 0 0 ${nx * uy - ny * ux > 0 ? 0 : 1} ${X(d1[0])} ${Y(d1[1])}" fill="none" stroke="#141414" stroke-width="0.18"/>`);
+    out.push(seg(d0, d1, `stroke="#fff" stroke-width="${(0.2 * k + 0.4).toFixed(2)}" stroke-linecap="butt"`), seg(d0, tip, 'stroke="#141414" stroke-width="0.25"'), `<path d="M${X(tip[0])} ${Y(tip[1])}A${(0.9 * k).toFixed(2)} ${(0.9 * k).toFixed(2)} 0 0 ${nx * uy - ny * ux > 0 ? 0 : 1} ${X(d1[0])} ${Y(d1[1])}" fill="none" stroke="#141414" stroke-width="0.18"/>`);
   }
   // qolgan — texnik / ombor (shtrix)
   for (const q of G.rest) { const cc = cen(q); out.push(`<path d="${path(q)}" fill="url(#hatch)" stroke="#141414" stroke-width="0.3"/>`); if (area(q) > 8) out.push(`<text x="${X(cc[0])}" y="${Y(cc[1])}" font-size="1.8" text-anchor="middle" fill="#6b6965">texnik</text>`); }

@@ -18,7 +18,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`ichki reja
   let found = false;
   for (let i = 0; i < n && !found; i++) {
     await apts.nth(i).click({ force: true });
-    if (await page.locator('#albInner').count()) found = true;
+    if (await page.locator('#albInner').count() && await page.locator('#albInFlip').isEnabled()) found = true;
     else await apts.nth(i).click({ force: true });   // tanlovni olib tashlash
   }
   expect(found).toBe(true);

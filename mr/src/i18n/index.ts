@@ -50,7 +50,7 @@ const PH = /\$\{([^}]*)\}/g;
 function raw(key: string): string {
   const v = S[key]; if (!v) return key;
   const i = IDX[lang]; if (i == null) return EXT[lang]?.[key] || v[1] || key;
-  const t = v[i]; return t || (lang === 'uz' ? uzTerms(key) : v[1] || key);
+  const t = v[i]; return lang === 'uz' ? uzTerms(t || key) : t || v[1] || key;   // oʻzbekcha qiymat berilgan boʻlsa ham atamalar lugʻati qoʻllanadi
 }
 
 /**
@@ -124,7 +124,9 @@ const UZT: [RegExp, string | Rep][] = [
 const UZC = new Map<string, string>();
 export function uzTerms(s: string): string {
   const c = UZC.get(s); if (c != null) return c;
-  let o = s; for (const [re, to] of UZT) o = o.replace(re, to as Rep);
+  // ${…} ifodalari (joy egalari) oʻzgarmaydi — faqat matn qismlari
+  const conv = (t: string) => { let o2 = t; for (const [re, to] of UZT) o2 = o2.replace(re, to as Rep); return o2; };
+  const o = s.includes('${') ? s.split(/(\$\{[^}]*\})/).map((p, i) => (i % 2 ? p : conv(p))).join('') : conv(s);
   if (UZC.size > 5000) UZC.clear();
   UZC.set(s, o); return o;
 }
