@@ -15,7 +15,7 @@ import { splitAtReflex } from './roof';
 import type { RuleApt, FacadeMod, InnerOv } from './sectionplan';
 
 export type InKind = 'umumiy' | 'xona' | 'oshxona' | 'yotoq' | 'master' | 'prixojaya' | 'xoll' | 'sanuzel' | 'vanna' | 'hx' | 'garderob' | 'kir';
-export interface InRoom { ring: XY[]; kind: InKind; area: number; wet: boolean }
+export interface InRoom { ring: XY[]; kind: InKind; area: number; wet: boolean; /** mahalliy reja tartibi (tur tahriri uchun) */ li?: number }
 /** eshik: h — ilgak, a — yopiq tabaqa uchi (devor boʻylab), n — ochilish yoʻnalishi (birlik), w — eni; slide — surma */
 export interface InDoor { kind: 'swing' | 'slide' | 'entry'; h: XY; a: XY; n: XY; w: number }
 export interface AptInterior {
@@ -32,7 +32,11 @@ export interface AptInterior {
   furn?: Furn[];
   /** 31.10: sudraladigan ichki devorlar (albom muharriri) */
   handles?: WallHandle[];
+  /** 31.10: suriladigan eshiklar */
+  doorHandles?: DoorHandle[];
 }
+/** Eshik tutqichi: key — [devor, kesma]; o — devor boshi (dunyo), t — devor yoʻnalishi; s — joriy boshi, w — eni, len — devor uzunligi */
+export interface DoorHandle { key: [number, number]; o: XY; t: XY; s: number; w: number; len: number; side: number; hinge: number }
 /** Sudraladigan devor: key — mv yozuvi (asl koordinata bilan), p–q — dunyoda, n — +d yoʻnalishi; min/max — ruxsat etilgan siljish (joriy holatdan), snap — tortiladigan qiymatlar (joriy holatdan siljish), bad — deraza ichiga tushadigan oraliqlar */
 export interface WallHandle { key: [number, number, number, number]; d0: number; p: XY; q: XY; n: XY; min: number; max: number; snap: number[]; bad: [number, number][]; gapA: number; gapB: number }
 export type FurnKind = 'bed' | 'bed1' | 'sofa' | 'table' | 'tub' | 'shower' | 'wc' | 'sink' | 'washer' | 'shelf' | 'counter';
@@ -784,16 +788,21 @@ export function aptInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   ok.sort((p, q) => Math.abs((p.fl ? W - p.L.entry[0] : p.L.entry[0]) - ud) - Math.abs((q.fl ? W - q.L.entry[0] : q.L.entry[0]) - ud));
   const pick = ov.flip && ok.length > 1 ? ok[1] : ok[0], fl = pick.fl;
   // qoʻlda surilgan devorlar: asl reja nusxasiga qoʻllanadi; boʻlmasa — asl reja
-  const L0 = pick.L, L1: Local = JSON.parse(JSON.stringify(L0)), L = ov.mv?.length && applyMoves(L1, ov.mv) ? L1 : L0;
+  const L0 = pick.L, L1: Local = JSON.parse(JSON.stringify(L0)), L = ov.mv?.length && applyMoves(L1, ov.mv) ? L1 : JSON.parse(JSON.stringify(L0)) as Local;
+  // 31.10: xona turlari (quruq ↔ quruq, hoʻl ↔ hoʻl) va eshiklar (oʻrni, ochilish tomoni)
+  for (const [ri, kd] of ov.rk ?? []) { const q = L.rooms[ri]; if (q && WET.includes(q.kind) === WET.includes(kd as InKind)) q.kind = kd as InKind; }
+  for (const [wi, ci, s0, sd, hg] of ov.dr ?? []) { const c = L.walls[wi]?.cuts[ci]; if (!c || c.k === 'open') continue; const len = Math.hypot(L.walls[wi].b[0] - L.walls[wi].a[0], L.walls[wi].b[1] - L.walls[wi].a[1]); c.s = Math.max(0.05, Math.min(len - c.w - 0.05, s0)); c.side = sd < 0 ? -1 : 1; c.hinge = hg ? 1 : 0; }
   const toW = (p: XY): XY => { const u = fl ? W - p[0] : p[0]; return [O[0] + U[0] * u + N[0] * p[1], O[1] + U[1] * u + N[1] * p[1]]; };
   const dirW = (n: XY): XY => { const u = fl ? -n[0] : n[0]; return [U[0] * u + N[0] * n[1], U[1] * u + N[1] * n[1]]; };
   const b = build(L);
+  const doorHandles: DoorHandle[] = [];
+  L.walls.forEach((wl, wi) => { const dx = wl.b[0] - wl.a[0], dy = wl.b[1] - wl.a[1], len = Math.hypot(dx, dy); if (len < 0.5) return; const o = toW(wl.a), t0 = dirW([dx / len, dy / len]); wl.cuts.forEach((c, ci) => { if (c.k !== 'open') doorHandles.push({ key: [wi, ci], o, t: t0, s: c.s, w: c.w, len, side: c.side ?? 1, hinge: c.hinge ?? 0 }); }); });
   const walls = b.walls.map(([p, q]) => [toW(p), toW(q)] as [XY, XY]);
   const doors: InDoor[] = b.doors.map(d => ({ ...d, h: toW(d.h), a: toW(d.a), n: dirW(d.n) }));
   // toʻqnashgan eshiklar: hoʻl xona / garderob eshigi — surma
   if (ov.slide) doors.forEach((d, i) => { if (d.kind === 'swing' && d.w <= 0.71) doors[i] = { ...d, kind: 'slide' }; });   // V2: hoʻl xona va garderob eshiklari — surma
   for (const i of doorClashes(doors, walls, a.ring)) doors[i] = { ...doors[i], kind: 'slide' };
-  const rooms: InRoom[] = L.rooms.map(q => { const [u0, v0, u1, v1] = q.r, pr: XY[] = q.poly ?? [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], gross = (u1 - u0) * (v1 - v0); return { ring: pr.map(toW), kind: q.kind, area: Math.max(0, area(pr) * (u1 - u0 - T) * (v1 - v0 - T) / gross), wet: WET.includes(q.kind) }; });
+  const rooms: InRoom[] = L.rooms.map(q => { const [u0, v0, u1, v1] = q.r, pr: XY[] = q.poly ?? [[u0, v0], [u1, v0], [u1, v1], [u0, v1]], gross = (u1 - u0) * (v1 - v0); return { li: L.rooms.indexOf(q), ring: pr.map(toW), kind: q.kind, area: Math.max(0, area(pr) * (u1 - u0 - T) * (v1 - v0 - T) / gross), wet: WET.includes(q.kind) }; });
   const ent = toW(L.entry);
   const handles = clip || deep ? [] : wallHandles(L0, L, W, D, fl ? flipW(wins) : wins, fl ? flipB(bounds) : bounds, ov.mv ?? [], toW, dirW);
   if (deep) {
@@ -813,5 +822,5 @@ export function aptInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
     }
   }
   if (clip) { const c = clipToRing(rooms, walls, a.ring); if (!c) return null; rooms.splice(0, rooms.length, ...c.rooms); walls.splice(0, walls.length, ...c.walls); }
-  return { rooms, walls, doors, entry: ent, handles, kitchen: L.kitchen ? [toW(L.kitchen[0]), toW(L.kitchen[1])] : undefined, master: L.master, furn: furnish(L, b.doors).map(f => ({ k: f.k, ring: f.ring.map(toW) })) };
+  return { rooms, walls, doors, entry: ent, handles, ...(clip || deep ? {} : { doorHandles }), kitchen: L.kitchen ? [toW(L.kitchen[0]), toW(L.kitchen[1])] : undefined, master: L.master, furn: furnish(L, b.doors).map(f => ({ k: f.k, ring: f.ring.map(toW) })) };
 }

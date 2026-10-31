@@ -61,7 +61,7 @@ export interface Building {
   planEdit?: PlanEdit;
 }
 export type PlanRoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash';
-export interface PlanEdit { key: string; apts: { ring: LngLat[]; rooms: number; /** ichki reja sozlamalari (V2) */ inner?: { flip?: boolean; dK?: number; master?: boolean; slide?: boolean; mv?: [number, number, number, number, number][] } }[]; rooms: { ring: LngLat[]; kind: PlanRoomKind }[] }
+export interface PlanEdit { key: string; apts: { ring: LngLat[]; rooms: number; /** ichki reja sozlamalari (V2) */ inner?: { flip?: boolean; dK?: number; master?: boolean; slide?: boolean; mv?: [number, number, number, number, number][]; dr?: [number, number, number, number, number][]; rk?: [number, string][] } }[]; rooms: { ring: LngLat[]; kind: PlanRoomKind }[] }
 const ROOM_KINDS: PlanRoomKind[] = ['texnik', 'ombor', 'savdo', 'velo', 'zal', 'tozalash'];
 function cleanInner(v: any): PlanEdit['apts'][number]['inner'] | null {
   if (!v || typeof v !== 'object') return null;
@@ -71,6 +71,8 @@ function cleanInner(v: any): PlanEdit['apts'][number]['inner'] | null {
   if (typeof v.master === 'boolean') o.master = v.master;
   if (v.slide === true) o.slide = true;
   if (Array.isArray(v.mv)) { const mv = v.mv.filter((m: any) => Array.isArray(m) && m.length === 5 && m.every((x: any) => Number.isFinite(x)) && (m[0] === 0 || m[0] === 1) && Math.abs(m[4]) <= 6).slice(0, 24).map((m: number[]) => m.map(x => Math.round(x * 1000) / 1000) as [number, number, number, number, number]); if (mv.length) o.mv = mv; }
+  if (Array.isArray(v.dr)) { const dr = v.dr.filter((m: any) => Array.isArray(m) && m.length === 5 && m.every((x: any) => Number.isFinite(x))).slice(0, 24).map((m: number[]) => [Math.round(m[0]), Math.round(m[1]), Math.round(m[2] * 1000) / 1000, m[3] < 0 ? -1 : 1, m[4] ? 1 : 0] as [number, number, number, number, number]); if (dr.length) o.dr = dr; }
+  if (Array.isArray(v.rk)) { const RK = ['umumiy', 'xona', 'oshxona', 'yotoq', 'master', 'prixojaya', 'xoll', 'sanuzel', 'vanna', 'hx', 'garderob', 'kir']; const rk = v.rk.filter((m: any) => Array.isArray(m) && Number.isFinite(m[0]) && RK.includes(m[1])).slice(0, 24).map((m: any) => [Math.round(m[0]), m[1]] as [number, string]); if (rk.length) o.rk = rk; }
   return Object.keys(o).length ? o : null;
 }
 function cleanPlanEdit(v: any): PlanEdit | null {

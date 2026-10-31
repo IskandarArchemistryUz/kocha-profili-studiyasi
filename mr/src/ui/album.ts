@@ -14,7 +14,7 @@ import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, edit
 import type { XY } from '../core/geo';
 import { floorInsol, EDGE_H, type AptInsol, type InsolStatus } from '../core/insolplan';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
-import { aptInterior } from '../core/aptplan';
+import { aptInterior, IN_LABEL } from '../core/aptplan';
 import { buildingSection, type SecBld } from '../core/bldsection';
 
 /** V5: «Kvartiralar» qadamidagi derazalar hisobi — bino, qavat (1 dan), modul → uzluksiz quyosh, soat */
@@ -51,7 +51,7 @@ const saveLook = () => { try { localStorage.setItem('mr-plan-look', JSON.stringi
 
 export function openAlbum(o: AlbumOpts): void {
   document.getElementById('album')?.remove();
-  let selWall = -1, wallKey: ((dir: number) => void) | null = null, wallTab: (() => void) | null = null;
+  let selWall = -1, selDoor = -1, wallKey: ((dir: number) => void) | null = null, wallTab: (() => void) | null = null, doorKey: ((k: string) => void) | null = null;
   let bid = o.bid, sel: number[] = [], selRoom = -1, mode: 'tanlash' | 'devor' = 'tanlash', msg = '', msgBad = false, closeArmed = false;
   let view: AlbView = o.view ?? 'reja', insol: InsolView | null = o.insol ?? null, insolBusy = false, hiApt = -1, insolHour = 12;
   /** animatsiya (31.10): tanlangan kun, ijro holati, faqat quyosh dogʻi qatlamini qayta chizish */
@@ -82,6 +82,7 @@ export function openAlbum(o: AlbumOpts): void {
   const close = () => { if (dirty.size && !closeArmed) { closeArmed = true; msg = 'Saqlanmagan tahrir bor: «Saqlash» yoki yana × — bekor qilish'; msgBad = true; render(); return; } ov.remove(); document.removeEventListener('keydown', onKey); o.onClose(bid, floor); };
   const onKey = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
     // 31.10: tanlangan devor — strelkalar 0,1 m, Tab — keyingi devor, Esc — tanlovdan chiqish
+    if (selDoor >= 0 && doorKey) { if (e.key === 'Escape') { selDoor = -1; render(); e.preventDefault(); return; } if ([' ', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) { doorKey(e.key); e.preventDefault(); return; } }
     if (selWall >= 0 && wallKey) { if (e.key === 'Escape') { selWall = -1; render(); e.preventDefault(); return; } if (e.key === 'Tab') { wallTab?.(); e.preventDefault(); return; } const dd = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowDown' || e.key === 'ArrowLeft' ? -1 : 0; if (dd) { wallKey(dd); e.preventDefault(); return; } }
     if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') go(-1); else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') go(1); };
   document.addEventListener('keydown', onKey);
@@ -152,7 +153,7 @@ export function openAlbum(o: AlbumOpts): void {
       const a = t.getAttribute('data-apt');
       if (a != null) { const i = Number(a), k = sel.indexOf(i); selRoom = -1; if (k >= 0) sel.splice(k, 1); else { sel.push(i); if (sel.length > 2) sel.shift(); } }
       else { selRoom = Number(t.getAttribute('data-room')); sel = []; }
-      msg = ''; selWall = -1; render();
+      msg = ''; selWall = -1; selDoor = -1; document.getElementById('albMenu')?.remove(); render();
     });
     if (editable && mode === 'tanlash' && sel.length === 1) wallOverlay(svg, res.toSvg, toPlan, P, sel[0], pl.layout.mods);
     else { selWall = -1; wallKey = null; wallTab = null; }
@@ -214,9 +215,25 @@ export function openAlbum(o: AlbumOpts): void {
    * Faqat tanlangan kvartira ustida bir nechta SVG chiziq — sahna yengil qoladi.
    */
   function wallOverlay(svg: SVGSVGElement, toSvg: (p: XY) => [number, number], toPlan: (e: MouseEvent) => XY, P: RulePlan, i: number, mods: Parameters<typeof aptInterior>[1]): void {
-    const I = aptInterior(P.apts[i], mods), H = I?.handles ?? []; if (!H.length) { wallKey = null; wallTab = null; return; }
-    if (selWall >= H.length) selWall = -1;
-    const ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g'); g.setAttribute('id', 'albWalls'); svg.append(g);
+    const I = aptInterior(P.apts[i], mods), H = I?.handles ?? [], DH = I?.doorHandles ?? []; if (!I || (!H.length && !DH.length)) { wallKey = null; wallTab = null; doorKey = null; return; }
+    if (selWall >= H.length) selWall = -1; if (selDoor >= DH.length) selDoor = -1;
+    const ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g'); g.setAttribute('id', 'albWalls');
+    // xona turlari: xona ustiga bosish — kichik menyu (quruq ↔ quruq, hoʻl ↔ hoʻl)
+    const gR = document.createElementNS(ns, 'g'); gR.setAttribute('id', 'albRooms'); svg.append(gR, g);
+    const DRY = ['umumiy', 'yotoq', 'xona', 'oshxona', 'garderob', 'xoll', 'prixojaya'] as const, WETK = ['sanuzel', 'vanna', 'hx', 'kir'] as const;
+    I.rooms.forEach(rm => {
+      if (rm.li == null) return;
+      const d = 'M' + rm.ring.map(p => toSvg(p).join(' ')).join('L') + 'Z', hp = document.createElementNS(ns, 'path');
+      hp.setAttribute('d', d); hp.setAttribute('fill', 'transparent'); hp.setAttribute('data-room-k', String(rm.li)); hp.setAttribute('style', 'cursor:context-menu');
+      hp.addEventListener('click', e => {
+        e.stopPropagation(); document.getElementById('albMenu')?.remove();
+        const menu = h('div', { class: 'alb-menu', id: 'albMenu', role: 'menu', style: `left:${e.clientX + 6}px;top:${e.clientY + 6}px` },
+          ...(rm.wet ? WETK : DRY).map(k => h('button', { role: 'menuitemradio', 'aria-checked': String(k === rm.kind), 'data-kind': k, onclick: () => { menu.remove(); const rk = (P.apts[i].inner?.rk ?? []).filter(x => x[0] !== rm.li); if (k !== rm.kind) rk.push([rm.li!, k]); apply(editInner(P, i, { rk: rk.length ? rk : undefined }), true); } }, tr(IN_LABEL[k]))));
+        document.body.append(menu);
+        const off = (ev: MouseEvent) => { if (!menu.contains(ev.target as Node)) { menu.remove(); document.removeEventListener('pointerdown', off, true); } }; setTimeout(() => document.addEventListener('pointerdown', off, true));
+      });
+      gR.append(hp);
+    });
     const el = (tag: string, at: Record<string, string | number>) => { const e = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, String(v)); return e; };
     const ok = (h: typeof H[number], d: number) => d >= h.d0 + h.min - 1e-6 && d <= h.d0 + h.max + 1e-6 && !h.bad.some(([a, b]) => d - h.d0 > a && d - h.d0 < b);
     const snapD = (h: typeof H[number], d: number) => { let r = Math.round(d * 10) / 10; for (const sp of h.snap) if (Math.abs(h.d0 + sp - d) < 0.15) r = h.d0 + sp; return Math.round(r * 1000) / 1000; };
@@ -225,6 +242,9 @@ export function openAlbum(o: AlbumOpts): void {
       if (!ok(h, d)) { msg = tr('Bu joyga qoʻyib boʻlmaydi: xona 1,1 m dan tor yoki devor derazani kesadi'); msgBad = true; render(); return; }
       const mv = (P.apts[i].inner?.mv ?? []).filter(m => !(m[0] === h.key[0] && Math.abs(m[1] - h.key[1]) < 0.06 && Math.abs(m[2] - h.key[2]) < 0.06));
       if (Math.abs(d) > 1e-3) mv.push([...h.key, Math.round(d * 1000) / 1000]);
+      // oldindan tekshiruv: qayta hisoblangan rejada devor shu joyda turadimi (xonalar, eshiklar sigʻadimi)
+      const T2 = aptInterior({ ...P.apts[i], inner: { ...(P.apts[i].inner ?? {}), mv } }, mods), th = T2?.handles?.find(x => x.key.every((v, j) => Math.abs(v - h.key[j]) < 0.06));
+      if (Math.abs(d) > 1e-3 && (!th || Math.abs(th.d0 - d) > 0.02)) { msg = tr('Bu joyga qoʻyib boʻlmaydi: xona 1,1 m dan tor yoki devor derazani kesadi'); msgBad = true; render(); return; }
       apply(editInner(P, i, { mv: mv.length ? mv : undefined }), true);
     };
     const ghost = (h: typeof H[number], d: number) => {
@@ -245,7 +265,7 @@ export function openAlbum(o: AlbumOpts): void {
       hit.addEventListener('pointerleave', () => { if (k !== selWall) vis.setAttribute('stroke', 'transparent'); });
       hit.addEventListener('click', e => e.stopPropagation());
       hit.addEventListener('pointerdown', e => {
-        e.stopPropagation(); e.preventDefault(); selWall = k; const s0 = toPlan(e); let d = h.d0, moved = false;
+        e.stopPropagation(); e.preventDefault(); selWall = k; selDoor = -1; const s0 = toPlan(e); let d = h.d0, moved = false;
         hit.setPointerCapture(e.pointerId);
         const mvH = (ev: PointerEvent) => { const p = toPlan(ev), dd = (p[0] - s0[0]) * h.n[0] + (p[1] - s0[1]) * h.n[1]; if (Math.abs(dd) > 0.04) moved = true; d = snapD(h, h.d0 + dd); ghost(h, d); };
         const up = () => { hit.removeEventListener('pointermove', mvH); hit.removeEventListener('pointerup', up); if (moved) commit(h, d); else { render(); } };
@@ -255,6 +275,47 @@ export function openAlbum(o: AlbumOpts): void {
     });
     const gTmp = el('g', { 'pointer-events': 'none' }); g.append(gTmp);
     if (selWall >= 0) ghost(H[selWall], H[selWall].d0);
+    // aniq oʻlcham (Revit kabi): tanlangan devorning vaqtinchalik oʻlchamini bosib qiymat yozish
+    if (selWall >= 0 && H[selWall]) {
+      const hw = H[selWall], m: XY = [(hw.p[0] + hw.q[0]) / 2, (hw.p[1] + hw.q[1]) / 2];
+      for (const [sg, val] of [[-1, hw.gapA], [1, hw.gapB]] as const) {
+        const q = toSvg([m[0] + hw.n[0] * sg * Math.min(val / 2, 1.6), m[1] + hw.n[1] * sg * Math.min(val / 2, 1.6)]);
+        const hit = el('rect', { x: q[0] - 4.6, y: q[1] - 2.5, width: 9.2, height: 3.4, fill: 'transparent', style: 'cursor:text', 'data-dim': sg });
+        hit.addEventListener('click', e => {
+          e.stopPropagation(); document.getElementById('albDimIn')?.remove();
+          const inp = h('input', { class: 'input alb-dimin', id: 'albDimIn', type: 'text', inputmode: 'decimal', value: fmt(val, 2), style: `left:${e.clientX - 34}px;top:${e.clientY - 14}px`, 'aria-label': tr('Oʻlcham, m') }) as HTMLInputElement;
+          document.body.append(inp); inp.focus(); inp.select();
+          let fin = false; const done = (ok2: boolean) => { if (fin) return; fin = true; const v = Number(inp.value.replace(',', '.')); inp.remove(); if (!ok2 || !Number.isFinite(v)) return; commit(hw, Math.round((hw.d0 + (sg < 0 ? v - hw.gapA : hw.gapB - v)) * 1000) / 1000); };
+          inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') done(true); else if (ev.key === 'Escape') done(false); ev.stopPropagation(); });
+          inp.addEventListener('blur', () => done(false));
+        });
+        g.append(hit);
+      }
+    }
+    // eshiklar: devor boʻylab surish, Space — ochilish tomoni (4 holat), strelkalar ±0,1 m
+    const putDoor = (dh: typeof DH[number], s2: number, side = dh.side, hinge = dh.hinge) => {
+      const dr = (P.apts[i].inner?.dr ?? []).filter(x => !(x[0] === dh.key[0] && x[1] === dh.key[1]));
+      dr.push([dh.key[0], dh.key[1], Math.round(Math.max(0.05, Math.min(dh.len - dh.w - 0.05, s2)) * 1000) / 1000, side, hinge]);
+      apply(editInner(P, i, { dr }), true);
+    };
+    DH.forEach((dh, k) => {
+      const at = (s2: number): XY => [dh.o[0] + dh.t[0] * (s2 + dh.w / 2), dh.o[1] + dh.t[1] * (s2 + dh.w / 2)], c = toSvg(at(dh.s)), on = k === selDoor;
+      const dot = el('circle', { cx: c[0], cy: c[1], r: on ? 1.5 : 1.1, fill: on ? '#0a84ff' : 'rgba(10,132,255,.35)', stroke: '#fff', 'stroke-width': 0.3, 'data-door': k, style: 'cursor:ew-resize' });
+      dot.addEventListener('click', e => e.stopPropagation());
+      dot.addEventListener('pointerdown', e => {
+        e.stopPropagation(); e.preventDefault(); selDoor = k; selWall = -1; const s0 = toPlan(e); let s2 = dh.s, moved = false; dot.setPointerCapture(e.pointerId);
+        const mvD = (ev: PointerEvent) => { const p = toPlan(ev), dd = (p[0] - s0[0]) * dh.t[0] + (p[1] - s0[1]) * dh.t[1]; if (Math.abs(dd) > 0.04) moved = true; s2 = Math.max(0.05, Math.min(dh.len - dh.w - 0.05, Math.round((dh.s + dd) / 0.05) * 0.05)); const q2 = toSvg(at(s2)); dot.setAttribute('cx', String(q2[0])); dot.setAttribute('cy', String(q2[1])); };
+        const up = () => { dot.removeEventListener('pointermove', mvD); dot.removeEventListener('pointerup', up); if (moved) putDoor(dh, s2); else render(); };
+        dot.addEventListener('pointermove', mvD); dot.addEventListener('pointerup', up);
+      });
+      g.append(dot);
+    });
+    doorKey = key => {
+      const dh = DH[selDoor]; if (!dh) return;
+      if (key === 'Tab') { selDoor = (selDoor + 1) % DH.length; render(); return; }
+      if (key === ' ') { const st = [[1, 0], [1, 1], [-1, 1], [-1, 0]], j = st.findIndex(x => x[0] === dh.side && x[1] === dh.hinge), nx = st[(j + 1) % 4]; putDoor(dh, dh.s, nx[0], nx[1]); return; }
+      putDoor(dh, dh.s + (key === 'ArrowUp' || key === 'ArrowRight' ? 0.1 : -0.1));
+    };
     wallKey = dir => { const h = H[selWall]; if (!h) return; commit(h, Math.round((h.d0 + dir * 0.1) * 10) / 10); };
     wallTab = () => { selWall = (selWall + 1) % H.length; render(); };
   }
@@ -270,9 +331,9 @@ export function openAlbum(o: AlbumOpts): void {
     const canFlip = sig(aptInterior({ ...a, inner: { ...iv, flip: !iv.flip } }, mods)) !== sig(aptInterior(a, mods));
     return h('div', { class: 'col', id: 'albInner', style: 'gap:6px' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Ichki reja')), dK ? h('span', { class: 'num' }, `${tr('umumiy xona')} ${dK > 0 ? '+' : ''}${fmt(dK, 1)} m`) : ''),
-      h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip, mv: undefined }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
-      h('div', { class: 't-small', id: 'albWallHint' }, tr('Devorni sichqoncha bilan suring — 0,1 m qadam, modul chegarasiga tortiladi; tanlangan devor: strelkalar ±0,1 m, Tab — keyingisi, Esc — chiqish.')),
-      iv.mv?.length ? btn('albWallReset', 'Devorlarni asliga qaytarish', () => apply(editInner(P, i, { mv: undefined }), true)) : '',
+      h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip, mv: undefined, dr: undefined, rk: undefined }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
+      h('div', { class: 't-small', id: 'albWallHint', title: tr('Devorni sichqoncha bilan suring — 0,1 m qadam, modul chegarasiga tortiladi; tanlangan devor: strelkalar ±0,1 m, Tab — keyingisi, Esc — chiqish.') }, tr('Devor va eshiklar: sudrang; oʻlchamni bosib aniq qiymat yozing; xonani bosing — turi; eshik tanlansa Space — ochilish tomoni.')),
+      iv.mv?.length || iv.dr?.length || iv.rk?.length ? btn('albWallReset', 'Devorlarni asliga qaytarish', () => apply(editInner(P, i, { mv: undefined, dr: undefined, rk: undefined }), true)) : '',
       h('div', { class: 't-small' }, tr('Umumiy xona devori')),
       h('div', { class: 'row2' }, btn('albInKm', '−0,3 m', () => apply(editInner(P, i, { dK: Math.round((dK - 0.3) * 10) / 10 }), true), dK <= -1.5, 'Umumiy xona devori 0,3 m ga (derazani kesmasa)'), btn('albInKp', '+0,3 m', () => apply(editInner(P, i, { dK: Math.round((dK + 0.3) * 10) / 10 }), true), dK >= 1.5, 'Umumiy xona devori 0,3 m ga (derazani kesmasa)')),
       a.rooms >= 2 ? h('div', { class: 'seg sm', id: 'albInMaster', role: 'group', 'aria-label': tr('Asosiy yotoq bloki') }, ...([[undefined, 'Asosiy yotoq: avto'], [true, 'Asosiy yotoq: ha'], [false, 'Asosiy yotoq: yoʻq']] as const).map(([v, t]) => h('button', { 'aria-pressed': iv.master === v, onclick: () => apply(editInner(P, i, { master: v }), true) }, tr(t)))) : '');
