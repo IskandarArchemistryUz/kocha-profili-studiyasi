@@ -2079,7 +2079,7 @@ export class Editor {
     if (id === 'seismic-joint') {
       const sys = doc.settings.construct ?? 'monolit', ball = doc.settings.seismic;
       const ok = (c: ReturnType<typeof checkBlock>) => c.lenOk && c.projOk;
-      const bad = doc.buildings.filter(b => { if (b.joint) return false; const r = b.footprint.map(fr.toLocal); return !ok(checkBlock(r, sys, ball)) && ok(checkBlock(r, sys, ball, true, jointOpt(b, doc.buildings, fr.toLocal))); });
+      const bad = doc.buildings.filter(b => { if (b.joint) return false; const r = b.footprint.map(fr.toLocal); return !ok(checkBlock(r, sys, ball)) && ok(checkBlock(r, sys, ball, true, jointOpt(b, doc.buildings, fr.toLocal, sys))); });
       this.run(() => { for (const b of bad) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { joint: true } }); });
       toast(bad.length ? tf('${n} ta binoga antiseysmik chok qoʻyildi', { n: bad.length }) : tr('Chok bilan tuzatiladigan bino topilmadi — uzunlikni kamaytirib qayta generatsiya qiling'));
     } else if (id === 'floors-down') {

@@ -52,10 +52,26 @@ export function blockShape(r0: XY[]): BlockShape {
 
 export interface BlockCheck { len: number; limit: number | null; lenOk: boolean; proj: number; projLim: number; projOk: boolean; rect: boolean }
 /**
- * Yongʻin boʻlmasi qavat maydoni chegarasi, m² — ANDOZA: mavjud meʼyor matnlarida (ShNQ 2.01.02-04) boʻlma maydoni jadvali topilmadi;
- * qiymat loyiha bosqichi uchun shartli, loyihachi yongʻin-texnik tasnif (olovbardoshlik darajasi, funksional xavf sinfi) boʻyicha aniqlaydi.
+ * Yongʻin boʻlmasi qavat maydoni — ANDOZA faqat avtoturargoh stilobati uchun (avtoturargoh meʼyori matni yoʻq). Jamoat binolari —
+ * ShNQ 2.08.02-23, 44-band, 2-ilova (fireComp).
  */
 export const FIRE_COMP_ANDOZA = 2500;
+/**
+ * ShNQ 2.08.02-23, 44-band: 1-tipli (REI 150) yongʻinga qarshi devorlar orasidagi qavat maydoni, m² — 2-ilova:
+ *  2-jadval (jamoat binolari, konstruktiv yongʻin xavfi sinfi CO; ustunlar 1 / 2 / 3–5 / 6–9 / 10–16 qavat):
+ *   I — 6000 / 5000 / 5000 / 5000 / 2500;  II — 6000 / 4000 / 4000 / 4000 / 2200;
+ *  3-jadval, savdo korxonalari (I, II; ≤ 5 qavat): bir qavatli 3500, ikki qavatli 3000, 3–5 qavatli 2500;
+ *  izohlar: I va II darajali, avtomatik yongʻin oʻchirish tizimi boʻlsa — ikki barobargacha oshirish mumkin.
+ * Olovbardoshlik darajasi — taxmin: monolit / monolit karkas — I, qolganlari — II. Avtoturargoh — andoza.
+ */
+export function fireComp(use: string, floors: number, sys: ConstructSys): { area: number; src: string; norm: boolean } {
+  if (use === 'avtoturargoh') return { area: FIRE_COMP_ANDOZA, src: 'andoza (avtoturargoh meʼyori matni yoʻq)', norm: false };
+  const deg = sys === 'monolit' || sys === 'karkas' ? 'I' : 'II';
+  if (use === 'savdo') { const a = floors <= 1 ? 3500 : floors === 2 ? 3000 : 2500; return { area: a, src: `ShNQ 2.08.02-23, 2-ilova, 3-jadval (savdo, ${deg})`, norm: true }; }
+  const T = deg === 'I' ? [6000, 5000, 5000, 5000, 2500] : [6000, 4000, 4000, 4000, 2200];
+  const i = floors <= 1 ? 0 : floors === 2 ? 1 : floors <= 5 ? 2 : floors <= 9 ? 3 : 4;
+  return { area: T[i], src: `ShNQ 2.08.02-23, 2-ilova, 2-jadval (${deg}, CO)`, norm: true };
+}
 /** Antiseysmik chok bilan ajratilgan boʻlmalar: ichki (botiq) burchaklardan toʻgʻri toʻrtburchak qismlar (3.1.3) */
 export function jointBlocks(ring: XY[], maxLen?: number | null, maxArea?: number, avoid: XY[][] = []): XY[][] {
   return jointScheme(ring, maxLen, maxArea, avoid).parts;
@@ -156,8 +172,8 @@ export const isPodium = (b: Building): boolean => b.gen?.kind === 'stilobat';
  * Bino uchun chok sxemasi parametrlari: stilobat — yongʻin boʻlmasi maydoni (andoza) va ustidagi minoralar (chok ular ostidan oʻtmaydi:
  * ShNQ 2.01.02-04, 6.16–6.17 — yongʻinga qarshi devor binoning butun balandligiga), boshqa binolar — faqat 3.1-jadval uzunligi.
  */
-export function jointOpt(b: Building, all: Building[], toLocal: (p: [number, number]) => XY): { area?: number; avoid?: XY[][] } {
+export function jointOpt(b: Building, all: Building[], toLocal: (p: [number, number]) => XY, sys: ConstructSys = 'monolit'): { area?: number; avoid?: XY[][] } {
   if (!isPodium(b)) return {};
   const grp = b.gen?.grp, avoid = all.filter(o => o !== b && (o.z0 ?? 0) > 0 && o.gen?.grp === grp).map(o => o.footprint.map(toLocal));
-  return { area: FIRE_COMP_ANDOZA, avoid };
+  return { area: fireComp(b.use, b.floors, sys).area, avoid };
 }
