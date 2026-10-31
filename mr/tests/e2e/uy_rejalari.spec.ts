@@ -16,6 +16,18 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`past qavat
   await page.click('#houseFloor [data-hf="2"]');
   await expect(page.locator('#houseBox svg text', { hasText: 'hammom' }).first()).toBeAttached();
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/uy_taunhaus_${w}${dark ? 'd' : 'l'}.png` });
+  // 31.10: sahnada uy tanlansa — oʻsha uy rejasi (kvartira seksiyasiga oʻtmaydi); tahrir: koʻzgu, mehmonxona chuqurligi
+  const hid = await page.evaluate(() => { const ed = (window as any).__mr, b = ed.store.doc.buildings.filter((x: any) => x.gen?.plot)[3]; ed.sel = b.id; ed.scene.select(b.id); ed.renderPanel(); return b.id; });
+  await expect(page.locator('#houseSelNote')).toBeVisible();
+  await page.click('#houseFloor [data-hf="1"]');
+  await page.locator('#houseMirror').click();
+  expect(await page.evaluate(id => (window as any).__mr.store.doc.buildings.find((x: any) => x.id === id).house, hid)).toEqual({ mirror: true });
+  await page.fill('#houseM', '6'); await page.locator('#houseM').dispatchEvent('change');
+  expect(await page.evaluate(id => (window as any).__mr.store.doc.buildings.find((x: any) => x.id === id).house.m, hid)).toBeCloseTo(6, 1);
+  await page.click('#houseAll');
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings.filter((x: any) => x.house?.mirror).length)).toBeGreaterThan(3);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/uy_tahrir_${w}${dark ? 'd' : 'l'}.png` });
+  await page.evaluate(() => { const ed = (window as any).__mr; ed.sel = null; ed.scene.select(null); ed.renderAll(); });
   // hovli: milliy uslub — darvozaxona, ayvon; zamonaviyga oʻtkazish
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('[data-typ=hovli]'); await page.click('#genGo');
   await page.click('[data-step=kvartira]');

@@ -29,3 +29,13 @@ describe('Nuqta boʻyicha yoʻl tahriri (31.10)', () => {
     expect(d.roadEdits).toBeUndefined();
   });
 });
+
+describe('Oraliqni olib tashlash (31.10)', () => {
+  it('oʻrtadagi qism olinadi, ikki boʻlak qoladi; chetdan — bitta', async () => {
+    const { cutBetween } = await import('../../src/core/roadedit');
+    const L: [number, number][] = [[0, 0], [100, 0], [100, 50]];
+    const r = cutBetween(L, [30, 2], [100, 20]);
+    expect(r.length).toBe(2); expect(r[0]).toEqual([[0, 0], [30, 0]]); expect(r[1][0][0]).toBeCloseTo(100); expect(r[1][0][1]).toBeCloseTo(20); expect(r[1][1]).toEqual([100, 50]);
+    expect(cutBetween(L, [1, 0], [60, 0]).length).toBe(1);   // boshidagi 1 m — tashlanadi
+  });
+});

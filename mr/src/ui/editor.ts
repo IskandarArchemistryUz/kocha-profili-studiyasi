@@ -27,7 +27,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, Sect
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
-import { applyRoadEdits, vtxOp, type VtxOp } from '../core/roadedit';
+import { applyRoadEdits, vtxOp, cutBetween, type VtxOp } from '../core/roadedit';
 import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../core/streetends';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
@@ -1653,18 +1653,36 @@ export class Editor {
       const key = `${kind}|${L01.toFixed(0)}|${L12.toFixed(0)}|${b.floors}`, t = types.find(x => x.key === key);
       if (t) t.n++; else types.push({ key, name: kind, b, n: 1, ring, plot, party });
     }
-    const ti = Math.min(this.houseType, types.length - 1), T0 = types[ti], hov = T0.ring.length === 6, fls = hov ? 1 : T0.b.floors;
-    const fl = Math.max(1, Math.min(fls, this.houseFloor)), style = hov ? this.houseStyle ?? 'milliy' : 'zamonaviy';
-    const P = housePlan(T0.ring, fls, fl, { style, plot: T0.plot, north: [0, 1] });
+    // sahnada tanlangan uy (31.10, egasi: qaysi bino ushlansa oʻshaning rejasi) — boʻlmasa tanlangan tur vakili
+    const selB = lows.find(b => b.id === this.sel);
+    let ti = Math.min(this.houseType, types.length - 1);
+    if (selB) { const k = types.findIndex(t => t.b.id === selB.id || (() => { const r = selB.footprint.map(fr.toLocal), L01 = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]), L12 = Math.hypot(r[2][0] - r[1][0], r[2][1] - r[1][1]); return t.key.endsWith(`|${L01.toFixed(0)}|${L12.toFixed(0)}|${selB.floors}`); })()); if (k >= 0) { ti = k; this.houseType = k; } }
+    const T = types[ti], hb = selB ?? T.b, ring0 = hb.footprint.map(fr.toLocal), plot0 = hb.gen!.plot!.map(fr.toLocal);
+    const T0 = { ...T, b: hb, ring: ring0, plot: plot0 }, hov = T0.ring.length === 6, fls = hov ? 1 : T0.b.floors;
+    const fl = Math.max(1, Math.min(fls, this.houseFloor)), style = hov ? this.houseStyle ?? 'milliy' : 'zamonaviy', ed = hb.house ?? {};
+    const P = housePlan(T0.ring, fls, fl, { style, plot: T0.plot, north: [0, 1], edit: ed });
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Uy rejalari')), h('span', {}, `${fmt(lows.length)} ${tr('uy')}`)),
-      h('div', { class: 'row', role: 'group', id: 'houseType', 'aria-label': tr('Uy turi'), style: 'flex-wrap:wrap;gap:6px' }, ...types.map((t, i) => { const [, w, d] = t.key.split('|'); return h('button', { class: 'btn btn-sm', 'aria-pressed': i === ti, 'data-ht': i, title: tr(t.name), onclick: () => { this.houseType = i; this.houseFloor = 1; this.renderPanel(); } }, `${w} × ${d} m · ${t.b.floors} ${tr('qavat')} · ×${t.n}`); })),
-      h('b', { style: 'font-size:13px' }, tr(T0.name)));
+      h('div', { class: 'row', role: 'group', id: 'houseType', 'aria-label': tr('Uy turi'), style: 'flex-wrap:wrap;gap:6px' }, ...types.map((t, i) => { const [, w, d] = t.key.split('|'); return h('button', { class: 'btn btn-sm', 'aria-pressed': i === ti, 'data-ht': i, title: tr(t.name), onclick: () => { this.houseType = i; this.sel = t.b.id; this.scene.select(t.b.id); this.renderPanel(); } }, `${w} × ${d} m · ${t.b.floors} ${tr('qavat')} · ×${t.n}`); })),
+      h('b', { style: 'font-size:13px' }, tr(T0.name)), selB ? h('span', { class: 't-small', id: 'houseSelNote' }, tr('Sahnada tanlangan uy')) : '');
     if (!P) { body.append(h('div', { class: 'note' }, tr('Bu uy shakli uchun reja hali yoʻq — oʻlchami juda kichik.'))); return; }
     const title = `${tr(T0.name)} · ${tf('${n}-qavat', { n: fl })}${hov ? ` · ${tr(style === 'milliy' ? 'milliy uslub' : 'zamonaviy uslub')}` : ''}`;
     const svg = () => housePlanSvg(P, T0.ring, T0.plot, { scale: 100, title, north: [0, 1], label: tr }).svg;
     body.append(
       fls > 1 ? h('div', { class: 'seg sm', role: 'group', id: 'houseFloor' }, ...Array.from({ length: fls }, (_, i) => h('button', { 'aria-pressed': fl === i + 1, 'data-hf': i + 1, onclick: () => { this.houseFloor = i + 1; this.renderPanel(); } }, tf('${n}-qavat', { n: i + 1 })))) : '',
       hov ? h('div', { class: 'seg sm', role: 'group', id: 'houseStyle' }, ...([['milliy', 'Milliy uslub'], ['zamonaviy', 'Zamonaviy']] as const).map(([k, t]) => h('button', { 'aria-pressed': style === k, 'data-hs': k, onclick: () => { this.houseStyle = k; this.renderPanel(); } }, tr(t)))) : '',
+      !hov ? (() => {
+        // tahrir (31.10): koʻzgu, mehmonxona chuqurligi, xonalar bir yoki ikki qatorda; shu uyga yoki shu turdagi hammasiga
+        const W = Math.min(...[0, 1].map(i => Math.hypot(ring0[i + 1][0] - ring0[i][0], ring0[i + 1][1] - ring0[i][1]))), set = (patch: Partial<typeof ed>, all = false) => {
+          const nx = { ...ed, ...patch }; (Object.keys(nx) as (keyof typeof nx)[]).forEach(k => nx[k] === undefined && delete nx[k]);
+          const ids = all ? lows.filter(b => { const r = b.footprint.map(fr.toLocal); return b.floors === hb.floors && Math.abs(Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]) - Math.hypot(ring0[1][0] - ring0[0][0], ring0[1][1] - ring0[0][1])) < 0.5; }).map(b => b.id) : [hb.id];
+          this.run(() => { for (const id of ids) this.store.dispatch({ type: 'updateBuilding', id, patch: { house: Object.keys(nx).length ? nx : undefined } }); });
+        };
+        return h('div', { class: 'group', id: 'houseEdit' },
+          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Koʻzgu'), h('span', { class: 'sub' }, tr('zina va kirish qarama-qarshi devorga'))), sw({ id: 'houseMirror', label: tr('Koʻzgu'), on: !!ed.mirror, onchange: v => set({ mirror: v || undefined }) })),
+          fl === 1 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mehmonxona chuqurligi'), h('span', { class: 'sub' }, tr('qolgani — oshxona-ovqatlanish'))), stepper({ id: 'houseM', label: tr('Mehmonxona chuqurligi'), min: 3.6, max: 8, step: 0.3, unit: 'm', value: ed.m ?? 4.8, onchange: v => set({ m: v }) })) : '',
+          W > 7.8 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Xonalar')), h('div', { class: 'seg sm', id: 'houseTwo', role: 'group' }, ...([[true, 'Ikki qator'], [false, 'Bir qator']] as const).map(([v, t]) => h('button', { 'aria-pressed': (ed.two ?? true) === v, 'data-two': String(v), onclick: () => set({ two: v ? undefined : false }) }, tr(t))))) : '',
+          h('div', { class: 'li', style: 'gap:6px' }, h('button', { class: 'btn btn-sm', id: 'houseAll', onclick: () => set({}, true) }, tr('Shu turdagi hammasiga')), Object.keys(ed).length ? h('button', { class: 'btn btn-sm btn-ghost', id: 'houseReset', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: hb.id, patch: { house: undefined } })) }, tr('Asl holat')) : ''));
+      })() : '',
       h('div', { class: 'planbox', id: 'houseBox', html: svg().replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
       h('div', { class: 'col', id: 'houseNotes', style: 'gap:4px' }, ...P.notes.map(n => h('span', { class: 't-small' }, tr(n)))),
       h('button', { class: 'btn btn-sm', id: 'houseSvg', onclick: () => download(`${safe(doc.name)}_uy${ti + 1}_q${fl}.svg`, svg(), 'image/svg+xml') }, ...icl(DL, 'SVG')));
@@ -1674,6 +1692,9 @@ export class Editor {
     const doc = this.store.doc, mix = doc.settings.aptMix, plans = planApartments(doc), sm = aptSummary(plans), perFloor = sm.total;
     // faqat past qavatli uylar — kvartira miksi kerak emas, darhol uy rejalari
     if (!plans.length && doc.buildings.some(b => b.gen?.plot)) { this.housePanel(body); return; }
+    // sahnada past qavatli uy tanlangan — avval uning rejasi (kvartira seksiyasiga oʻtib ketmasin)
+    const houseFirst = doc.buildings.some(b => b.id === this.sel && b.gen?.plot);
+    if (houseFirst) this.housePanel(body);
     const sum = mix.reduce((a, b) => a + b, 0) || 1, hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     const sw0 = (c: number) => h('i', { style: `width:10px;height:10px;border-radius:3px;flex:none;background:${hex(c)}` });
     // miks: siljitgichlar (maqsad) va natija (amalda)
@@ -1692,7 +1713,7 @@ export class Editor {
       h('div', { class: 'glabel' }, h('span', {}, tr('Kvartira oʻlchami'))),
       h('div', { class: 'seg', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name))),
       h('div', { class: 'opts' }, ...APT_SIZES.map((x, i) => [i ? ' · ' : '', h('b', {}, `${x.name}:`), ` ${x.note}`]).flat()));
-    this.housePanel(body);
+    if (!houseFirst) this.housePanel(body);
     if (!plans.length) {
       if (doc.buildings.some(b => b.gen?.plot)) return;
       body.append(h('div', { class: 'empty' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Turar joy seksiyalari yoʻq. «Hajmlar» qadamida generatsiya qiling (yakka uylar va taunhauslar kvartirali emas).')),
@@ -2502,6 +2523,37 @@ export class Editor {
     else { this.osmPick = null; this.selVtx = null; this.scene.setPreview([]); }
     this.syncHandles(); this.renderPanel(); toast(tr('Yoʻl tahrirlandi · Ctrl+Z — qaytarish'));
   }
+  /** Oraliqni olib tashlash (31.10): koʻcha / mavjud yoʻl ustida ikki nuqta bosiladi — orasi olib tashlanadi */
+  private cutBtn(): HTMLElement {
+    const on = this.tool instanceof ClickTool && (this.tool as ClickTool).hint.startsWith(tr('Olib tashlanadigan oraliq'));
+    return h('button', { class: on ? 'btn btn-sm btn-primary' : 'btn btn-sm', id: 'roadCut', onclick: () => {
+      if (on) { this.setTool(null); return; }
+      let a: XY | null = null;
+      this.setTool(new ClickTool(tr('Olib tashlanadigan oraliq: yoʻl ustida boshini, keyin oxirini bosing · Esc — bekor'), xy => {
+        if (!a) { a = xy; this.scene.setSnapMark(xy); toast(tr('Endi oraliqning oxirini bosing')); return; }
+        const b = xy; this.scene.setSnapMark(null); this.setTool(null); this.cutRoad(a, b);
+      }));
+    } }, tr(on ? 'Bekor' : '✂ Oraliqni olib tashlash'));
+  }
+  private cutRoad(a: XY, b: XY): void {
+    const doc = this.store.doc, fr = frame(doc.origin), st = doc.streets.find(x => x.id === this.selStreet);
+    if (st) {
+      const res = cutBetween(st.axis.map(fr.toLocal), a, b).map(p => p.map(fr.toGeo)), prev = this.plan();
+      this.run(() => {
+        if (!res.length) { this.store.dispatch({ type: 'removeStreet', id: st.id }); return; }
+        this.store.dispatch({ type: 'updateStreet', id: st.id, patch: { axis: res[0], ends: undefined } });
+        for (const p of res.slice(1)) this.store.dispatch({ type: 'addStreet', axis: p, profile: st.profile });
+      });
+      this.selVtx = null; this.regenAfterStreets(prev); this.syncHandles(); this.renderPanel(); toast(tr('Yoʻl tahrirlandi · Ctrl+Z — qaytarish')); return;
+    }
+    const o = this.osmPick; if (!o) return;
+    const res = cutBetween(o.pts.map(fr.toLocal), a, b).map(p => p.map(fr.toGeo)), parts = this.osmParts(o.id); parts.splice(o.part ?? 0, 1, ...res);
+    this.run(() => {
+      if (parts.length) this.store.dispatch({ type: 'setRoadEdit', id: o.id, parts });
+      else { this.store.dispatch({ type: 'setRoadEdit', id: o.id, parts: null }); this.store.dispatch({ type: 'setRemovedRoads', ids: [...(this.store.doc.removedRoads ?? []), o.id] }); }
+    });
+    this.osmPick = null; this.selVtx = null; this.scene.setPreview([]); this.syncHandles(); this.renderPanel(); toast(tr('Yoʻl tahrirlandi · Ctrl+Z — qaytarish'));
+  }
   /** Nuqta amallari paneli: tanlangan nuqta boʻlsa — tugmalar, boʻlmasa — koʻrsatma */
   private vtxPanel(n: number): HTMLElement {
     const i = this.selVtx;
@@ -2759,6 +2811,7 @@ export class Editor {
       const iss = checkProfile(p0);
       body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, `${tr('Tanlangan')}: ${p0.name} · ${fmt(profileWidth(p0), 0)} m`, h('span', { class: 'sub' }, `ShNQ 2.07.01-23, ${CATS[p0.cat].clause}${stSel.osm != null ? ' · OSM' : ''}`)), h('span', { class: iss.length ? 'chip bad' : 'chip ok' }, h('i'), iss.length ? `${iss.length} ${tr('chetlanish')}` : tr('mos')))),
         h('span', { class: 't-small', id: 'stEditHint' }, tr('Nuqtalarni sudrang · oraliq nuqta — burilish · 2× bosish — oʻchirish · Delete — oʻchirish')));
+      body.append(h('div', { class: 'row', style: 'gap:6px' }, this.cutBtn()));
       if (this.selVtx != null) body.append(this.vtxPanel(stSel.axis.length));
     }
     if (this.kochaTab == null) this.kochaTab = doc.streets.length ? 'chiz' : 'tor';
@@ -2868,6 +2921,7 @@ export class Editor {
           h('button', { class: 'btn btn-danger btn-sm', id: 'rmOsmRoad', onclick: () => this.removeOsmRoad(o.id) }, ...icl(IC.trash, tr('Bu yoʻlni olib tashlash (Delete)'))),
           h('button', { class: 'btn btn-ghost btn-sm', onclick: () => { this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); } }, tr('Bekor')))),
         this.vtxPanel(o.pts.length),
+        h('div', { class: 'li' }, this.cutBtn()),
         h('span', { class: 't-small' }, tr('Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi. Olib tashlansa — sahnada, kvartal chegarasida va chizmada boʻlmaydi.')));
     }
     if (doc.removedRoads?.length) body.append(h('button', { class: 'btn btn-block btn-sm', id: 'restoreRoads', onclick: () => this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [] })) }, tf('Olib tashlangan yoʻllarni qaytarish (${doc.removedRoads.length})', { 'doc.removedRoads.length': doc.removedRoads.length })));

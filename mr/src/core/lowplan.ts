@@ -75,17 +75,17 @@ function frameOf(ring: XY[], edge?: [XY, XY]): { O: XY; U: XY; N: XY; loc: (p: X
  * Toʻgʻri toʻrtburchak uy (taunhaus, juft, yakka): chap tomonda (u = 0) 1,2 m tasma — dahliz, h/x, zina; oʻngda yashash zonasi.
  * Uy eni > 7,8 m boʻlsa — ikki ustun (ikkinchisida mehmon xonasi / yotoqxona).
  */
-function rowHouse(W: number, D: number, floor: number, floors: number): Lp | string {
+function rowHouse(W: number, D: number, floor: number, floors: number, ed: { m?: number; two?: boolean } = {}): Lp | string {
   const c = 1.2, L = lp();
   if (W < 4.95 || D < 9.0) return 'kichik';
   const z0 = 4.4, z1 = Math.min(8.2, D - 2.6);
   if (z1 - z0 < 3.0) return 'kichik';
-  const two = W - c > 6.6, b1 = two ? c + Math.max(3.8, Math.min(5.2, (W - c) * 0.58)) : W;   // T-05: yashash xonasi ≥ 3,8 m
+  const two = ed.two !== false && W - c > 6.6, b1 = two ? c + Math.max(3.8, Math.min(5.2, (W - c) * 0.58)) : W;   // T-05: yashash xonasi ≥ 3,8 m
   const room = (r: R, kind: HKind, poly?: XY[]) => L.rooms.push({ r, kind, poly });
   const wall = (a: XY, b: XY, cuts: WallCut[] = []) => L.walls.push({ a, b, cuts });
   L.stairs.push({ r: [0, z0, c, z1], up: floor === 1 ? [0, -1] : [0, -1] });
   if (floor === 1) {
-    const m = Math.max(3.6, Math.min(z1 - 1.0, D * 0.45));
+    const m = Math.max(3.6, Math.min(z1 - 1.0, ed.m ?? D * 0.45));   // tahrir: mehmonxona chuqurligi
     room([0, 0, c, 3.0], 'dahliz'); room([0, 3.0, c, z0], 'hx'); room([0, z0, c, z1], 'zina');
     room([c, 0, b1, m], 'mehmonxona');
     room([0, m, W, D], 'oshxona', [[c, m], [b1, m], [b1, D], [0, D], [0, z1], [c, z1]]);
@@ -222,7 +222,7 @@ function hovliHouse(A: number, B: number, C: number, style: 'zamonaviy' | 'milli
 }
 
 /** Uy halqasidan reja: kind — 'taunhaus' | 'uy' (gen.kind); halqa L shakl (6 nuqta) boʻlsa — hovli uy */
-export function housePlan(ring: XY[], floors: number, floor: number, opts: { style?: 'zamonaviy' | 'milliy'; party?: 0 | 1; north?: XY; plot?: XY[] } = {}): HousePlan | null {
+export function housePlan(ring: XY[], floors: number, floor: number, opts: { style?: 'zamonaviy' | 'milliy'; party?: 0 | 1; north?: XY; plot?: XY[]; edit?: { mirror?: boolean; m?: number; two?: boolean } } = {}): HousePlan | null {
   if (ring.length < 4) return null;
   const se = opts.plot ? streetEdge(ring, opts.plot) : null, { O, U, N, loc } = frameOf(ring, se ?? undefined);
   const Lr = ring.map(loc), u0 = Math.min(...Lr.map(p => p[0])), u1 = Math.max(...Lr.map(p => p[0])), v0 = Math.min(...Lr.map(p => p[1])), v1 = Math.max(...Lr.map(p => p[1]));
@@ -240,8 +240,8 @@ export function housePlan(ring: XY[], floors: number, floor: number, opts: { sty
   } else {
     // qoʻshni (uchastka chegarasidagi) yon tomon — zina va kirish tasmasi shu devor boʻylab (T-03)
     const onPlot = (u: number) => !!opts.plot && opts.plot.some((a2, i) => { const b2 = opts.plot![(i + 1) % opts.plot!.length], la = loc(a2), lb = loc(b2); return Math.abs(la[0] - u) < 0.2 && Math.abs(lb[0] - u) < 0.2; });
-    const party = opts.plot ? (onPlot(u1) && !onPlot(u0) ? 1 : 0) : opts.party ?? 0; mirror = party === 1;
-    L = rowHouse(W, D, Math.min(floor, floors), floors);
+    const party = opts.plot ? (onPlot(u1) && !onPlot(u0) ? 1 : 0) : opts.party ?? 0; mirror = (party === 1) !== !!opts.edit?.mirror;
+    L = rowHouse(W, D, Math.min(floor, floors), floors, { m: opts.edit?.m, two: opts.edit?.two });
   }
   if (typeof L === 'string') return null;
   const toW = (p: XY): XY => { const u = (mirror ? W - p[0] : p[0]) + u0, v = p[1] + v0; return [O[0] + U[0] * u + N[0] * v, O[1] + U[1] * u + N[1] * v]; };
