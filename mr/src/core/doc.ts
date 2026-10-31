@@ -75,7 +75,9 @@ export type Shade = 'avto' | 'gorizontal' | 'vertikal' | 'panjara';
 /** Berk koʻcha oxiridagi burilish joyi (ShNQ 2.07.06-24, 57-band): aylana R ≥ 15 m yoki 20 × 20 m maydoncha */
 export type StreetEnd = 'aylana' | 'maydon';
 /** Chorrahadagi aylanma (halqa): markaz va tashqi radius, m (ShNQ 2.07.06-24, 27-band) */
-export interface Round { id: string; at: LngLat; r: number }
+/** Chorraha aylanmasi (31.10): kind — mini (R 8, bosib oʻtiladigan orolcha), kichik (R 14), katta (R 22) */
+export type RoundKind = 'mini' | 'kichik' | 'katta';
+export interface Round { id: string; at: LngLat; r: number; kind?: RoundKind }
 export interface Street { id: string; axis: LngLat[]; profile: string; /** oʻq boshi (a) va oxiri (b) dagi burilish joyi */ ends?: { a?: StreetEnd; b?: StreetEnd }; /** OSM dagi mavjud koʻcha loyihaga olingan boʻlsa — uning way id si (kontekstda u endi chizilmaydi) */ osm?: number; /** generator yaratgan (toʻr) — qayta generatsiyada almashtiriladi */ gen?: 'grid' }
 
 /** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
@@ -309,7 +311,7 @@ export function migrate(raw: unknown): Project {
     if (!x || typeof x.id !== 'string' || !isLine(x.axis)) throw new SchemaError(`streets[${i}] notoʻgʻri`);
     return { id: x.id, axis: x.axis.map((p: LngLat) => [p[0], p[1]] as LngLat), profile: typeof x.profile === 'string' ? x.profile : 'mahalla-15', ...(isNum(x.osm) ? { osm: x.osm } : {}), ...(x.gen === 'grid' ? { gen: 'grid' as const } : {}), ...(x.ends && typeof x.ends === 'object' && (['aylana', 'maydon'].includes(x.ends.a) || ['aylana', 'maydon'].includes(x.ends.b)) ? { ends: { ...(['aylana', 'maydon'].includes(x.ends.a) ? { a: x.ends.a } : {}), ...(['aylana', 'maydon'].includes(x.ends.b) ? { b: x.ends.b } : {}) } } : {}) };
   });
-  const rounds: Round[] = (Array.isArray(d.rounds) ? d.rounds : []).filter((r: any) => r && typeof r.id === 'string' && isLL(r.at) && isNum(r.r) && r.r >= 8 && r.r <= 40).map((r: any) => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r }));
+  const rounds: Round[] = (Array.isArray(d.rounds) ? d.rounds : []).filter((r: any) => r && typeof r.id === 'string' && isLL(r.at) && isNum(r.r) && r.r >= 8 && r.r <= 40).map((r: any) => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind === 'mini' || r.kind === 'kichik' || r.kind === 'katta' ? { kind: r.kind as RoundKind } : {}) }));
   const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
   const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
   const keepAt: Record<string, LngLat> = {}; if (d.keepAt && typeof d.keepAt === 'object') for (const [k, v] of Object.entries(d.keepAt)) if (isLL(v)) keepAt[k] = [(v as LngLat)[0], (v as LngLat)[1]];
