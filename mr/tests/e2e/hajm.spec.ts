@@ -7,7 +7,7 @@ test('seksiya generatori: kvartal → seksiyalar, qavatni tahrirlash, undo, reye
   await page.selectOption('#genBlock', '0');
   await page.fill('#gMax', '9'); await page.press('#gMax', 'Tab');
   await page.click('#genGo');
-  await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   const n = Number((await page.locator('#bldSt b').textContent())!.split(' ')[0]);
   expect(n).toBeGreaterThan(8);
   await expect(page.locator('#kPop b')).not.toHaveText('—');

@@ -30,7 +30,7 @@ test('grafika: varaqlar (bosh reja, zonalash, figure-ground), SVG yuklab olish',
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
-  await expect(page.locator('#bldSt')).toContainText('shundan generatsiya');
+  await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   // V3: xaritada varaq ramkasi → «Varaqni ochish»
   await page.click('#gxOpen');
   await expect(page.locator('.panel[data-mode=frame]')).toBeVisible();

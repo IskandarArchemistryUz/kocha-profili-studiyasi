@@ -126,7 +126,7 @@ export function aptSheet(doc: Project, plans: SecPlan[], bi: number, gi: number 
   const pr = probe.plan, sumA = (rs: XY[][]) => rs.reduce((t, r) => t + area(r) * 0.85, 0);
   const roomRows = rows.length ? [] : [
     ...pr.rooms.map(q => ({ name: ROOM_LABEL[q.kind], area: area(q.ring) * 0.85, fill: ROOM_FILL[q.kind] as string | null })),
-    ...(pr.mop.length ? [{ name: 'umumiy foydalanish joylari (koridor, xoll)', area: sumA(pr.mop), fill: null }] : []),
+    ...(pr.mop.length ? [{ name: 'umumiy foydalanish joylari (yoʻlak, dahliz)', area: sumA(pr.mop), fill: null }] : []),
     ...(pr.stairs.length + pr.lifts.length ? [{ name: 'zina va liftlar', area: sumA([...pr.stairs, ...pr.lifts]), fill: null }] : []),
   ].filter(r => r.area > 0.5);
   const legend: LegendItem[] = look === 'bir' ? [] : rows.length

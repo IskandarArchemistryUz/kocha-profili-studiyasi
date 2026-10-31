@@ -48,10 +48,10 @@ test('B: kanal — qirgʻoq polosasi ichidagi yoʻl tekshiruvda ogohlantiriladi'
   await page.goto('./kochasoz.html?beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 0, sel: 1, els: [['piy', 3, {}], ['kanal', 8, { dep: 3, panjara: true, bufer: true }], ['qat', 3.5, {}], ['qat', 3.5, {}], ['piy', 3, {}]], rl: 21, eL: 'bino', eR: 'bino' }));
-  await expect(page.locator('.ws-b aside.panel').last()).toContainText('Qirgʻoq boʻyi polosasi ≥ 6,5 m: Harakat');
+  await expect(page.locator('.ws-b aside.panel').last()).toContainText('Qirgʻoq boʻyi tasmasi ≥ 6,5 m: Harakat');
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ els: [['piy', 7, {}], ['kanal', 8, { dep: 3, panjara: true }], ['piy', 7, {}], ['qat', 3.5, {}], ['qat', 3.5, {}], ['piy', 3, {}]], rl: 32 }));
-  await expect(page.locator('.ws-b aside.panel').last()).toContainText('Qirgʻoq boʻyi polosasi ≥ 6,5 m');
-  await expect(page.locator('.ws-b aside.panel').last()).not.toContainText('Qirgʻoq boʻyi polosasi ≥ 6,5 m: Harakat');
+  await expect(page.locator('.ws-b aside.panel').last()).toContainText('Qirgʻoq boʻyi tasmasi ≥ 6,5 m');
+  await expect(page.locator('.ws-b aside.panel').last()).not.toContainText('Qirgʻoq boʻyi tasmasi ≥ 6,5 m: Harakat');
 });
 
 test('B: oʻz kesimi — boʻsh kesim, nom, saqlash va oʻchirish; tungi rejim', async ({ page }) => {
