@@ -259,7 +259,7 @@ export const RULES: Rule[] = [
     source: { ...SHNQ_2_07_01, clause: '96-band' },
     evaluate(_d, doc) {
       const lows = doc.buildings.filter(b => b.gen?.plot);
-      if (!lows.length) return { status: 'na', unit: 'uchastka', limit: '≥ 30 %', note: 'Past qavatli uylar (oʻz uchastkasi bilan) yoʻq' };
+      if (!lows.length) return { status: 'na', limit: '≥ 30 %', note: 'Past qavatli uylar (oʻz uchastkasi bilan) yoʻq' };
       const fr = frame(doc.origin), ar = (r: XY[]) => Math.abs(r.reduce((t, p, i) => t + p[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * p[1], 0) / 2);
       // yashil = uchastka − uy dogʻi − oldi yoʻlak va avtomobil joyi (≈ 3 × oldi chekinish, landshaft lowYard bilan bir xil taxmin)
       const sh = lows.map(b => { const P = ar(b.gen!.plot!.map(fr.toLocal)), H = ar(b.footprint.map(fr.toLocal)); return P > 0 ? Math.max(0, 1 - (H + 3 * 5) / P) : 0; });
