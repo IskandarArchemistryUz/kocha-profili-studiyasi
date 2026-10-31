@@ -52,7 +52,9 @@ export interface RulePlan {
 }
 
 export const CORR_W = 1.6;                 // TAXMIN: umumiy koridor 1,6 m (5.27 — ≥ 1,2 m; lift oldi 5.31 — ≥ 1,6 m)
-const STAIR_D = 2.8, STAIR_W = 2.8, LIFT = 2.2;   // TAXMIN: yadro 6 m; zina 2,8 m; lift 2,2 × 2,2 m
+const STAIR_D = 2.8, STAIR_W = 2.8, LIFT = 2.2;
+/** zina katagi uzunligi, m: 3,3 m qavat — 22 × 150 mm, marshda 10 × 300 mm + ikki maydoncha 1,35 m (andoza; ShNQ 2.01.02-04, 5.30) */
+export const STAIR_LEN = 5.7;   // TAXMIN: yadro 6 m; zina 2,8 m; lift 2,2 × 2,2 m
 const MOD = 3.3, SEC_MAX = 32, MAX_DEPTH = 10.5; // seksiya uzunligi 25–30 m (Strelka katalogi, «Seksiyali uy»; ≤ 32 m qabul qilindi); kvartira chuqurligi ≤ 10,5 m — TAXMIN
 /** kvartira yalpi maydoni (m²) — TAXMIN: S / M / L */
 const AREA: Record<'S' | 'M' | 'L', number[]> = { S: [0, 36, 52, 70, 88], M: [0, 42, 60, 80, 100], L: [0, 50, 72, 95, 118] };
@@ -446,7 +448,11 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     { const dd = depthAt(uc0); d = dd > LIFT + 1.4 + STAIR_D + MOD ? LIFT + 1.4 + STAIR_D : dd; vOut = vIn + side * d; }
     // yadro (koridordan fasadga): liftlar ustuni | lift oldi xolli (eni ≥ lift chuqurligi, fasadgacha — tabiiy yorugʻlik va kirish) | zina (marshlar fasadga perpendikulyar, derazali)
     const nL = d >= 2 * LIFT + 0.3 ? 2 : 1, uh0 = uc0 + LIFT, uh1 = Math.max(uh0 + 1.6, uc1 - STAIR_W);
-    S.stairs.push(box(w, uh1, uc1, vIn, vOut));
+    // 31.10 (egasi): zina katagi qavat balandligi boʻyicha — 3,3 m qavatda 22 koʻtarilish, marshda 10 pogʻona × 0,3 = 3,0 m + 2 maydoncha × 1,35 = 5,7 m (andoza);
+    // ortgan qism (≥ 0,8 m) koridor tomonida texnik xona, zina fasadda qoladi (derazali)
+    const extra = d - STAIR_LEN;
+    if (extra >= 0.8) { S.rooms.push(box(w, uh1, uc1, vIn, vIn + side * extra)); S.stairs.push(box(w, uh1, uc1, vIn + side * extra, vOut)); }
+    else S.stairs.push(box(w, uh1, uc1, vIn, vOut));
     for (let k = 0; k < nL; k++) S.lifts.push(box(w, uc0, uh0, vIn + side * k * LIFT, vIn + side * (k + 1) * LIFT));
     const vLe = vIn + side * nL * LIFT;
     if (Math.abs(vOut - vLe) >= 1.2) S.rooms.push(box(w, uc0, uh0, vLe, vOut)); else if (Math.abs(vOut - vLe) > 0.05) S.lifts[S.lifts.length - 1] = box(w, uc0, uh0, vIn + side * (nL - 1) * LIFT, vOut);
