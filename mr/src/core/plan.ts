@@ -6,6 +6,7 @@ import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clippi
 import type { Project, Use } from './doc';
 import { frame, type XY } from './geo';
 import { profileById, profileWidth } from './profiles';
+import { endShapes } from './streetends';
 
 /** Rejaning birligi: butun kvartal yoki uning parseli. grp — generator guruhi (parsel id si yoki kvartal belgisi id si) */
 export interface Block { rings: XY[][]; area: number; use: Use; labelId: string | null; centroid: XY; parcelId?: string; blockKey: number }
@@ -103,13 +104,15 @@ export function interiorPoint(rings: XY[][]): XY {
 /** 27.10 yengillik: bir oʻzgarishda 5+ joydan chaqiriladi — natija faqat uchastka, koʻchalar, zonalar, parsellar yoki markaz oʻzgarsa qayta hisoblanadi */
 let planMemo: { k: unknown[]; v: PlanGeo } | null = null;
 export function computePlan(doc: Project): PlanGeo {
-  const k = [doc.site, doc.streets, doc.zones, doc.parcels, doc.origin];
+  const k = [doc.site, doc.streets, doc.zones, doc.parcels, doc.origin, doc.rounds];
   if (planMemo && planMemo.k.every((x, i) => x === k[i])) return planMemo.v;
   const v = computePlanRaw(doc); planMemo = { k, v }; return v;
 }
 function computePlanRaw(doc: Project): PlanGeo {
   const fr = frame(doc.origin);
   const corr: MultiPolygon[] = doc.streets.map(s => corridor(s.axis.map(fr.toLocal), profileWidth(profileById(s.profile)) / 2)).filter(m => m.length);
+  // berk koʻcha burilish joylari va chorraha aylanmalari ham qizil chiziq ichida (57-band; 27-band)
+  for (const e of endShapes(doc)) corr.push([[close(e.outer)]]);
   const corrU: MultiPolygon = corr.length ? safeUnion(corr) : [];
   if (!doc.site) return { corridors: corrU.map(p => p.map(open)), corridorArea: 0, blocks: [] };
   const site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal)));

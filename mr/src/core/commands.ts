@@ -3,7 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid, CTX_R_MIN, CTX_R_MAX } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type Round, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid, CTX_R_MIN, CTX_R_MAX } from './doc';
 import { frame } from './geo';
 import type { UserLayerMeta } from './userlayers';
 
@@ -26,6 +26,7 @@ export type Command =
   | { type: 'setSettings'; patch: Partial<Settings> }
   | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
   | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
+  | { type: 'setRounds'; rounds: Round[] }
   | { type: 'updateStreets'; patches: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
   | { type: 'removeStreet'; id: string }
   /** koʻcha toʻri generatsiyasi: avvalgi generatsiya koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi */
@@ -70,6 +71,7 @@ export function label(c: Command): string {
     case 'setSettings': return 'Sozlamalar';
     case 'addStreet': return 'Koʻcha qoʻshildi';
     case 'updateStreet': return 'Koʻcha oʻzgardi';
+    case 'setRounds': return 'Chorraha aylanmalari';
     case 'updateStreets': return 'Koʻchalar oʻzgardi';
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
@@ -165,6 +167,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const s = { ...doc.streets[i], ...c.patch }; if (s.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');
       d.streets = doc.streets.slice(); d.streets[i] = s; return d;
     }
+    case 'setRounds': { if (c.rounds.length) d.rounds = c.rounds.map(r => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r })); else delete d.rounds; return d; }
     case 'updateStreets': {   // bir nechta koʻcha — bitta oʻzgarish (sahna bir marta qayta quriladi)
       const m = new Map(c.patches.map(q => [q.id, q.patch]));
       d.streets = doc.streets.map(s => { const q = m.get(s.id); if (!q) return s; const n = { ...s, ...q }; if (n.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin'); return n; }); return d;

@@ -10,7 +10,8 @@ import { CATS, checkProfile, profileById } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
-import { frame } from '../core/geo';
+import { frame, type XY } from '../core/geo';
+import { deadEnds } from '../core/streetends';
 import { checkBlock, lenLimit, SYS } from '../core/seysmik';
 
 /** Xonadonlar soni manbasi (izoh boʻlagi; alohida kalit — tarjima uchun) */
@@ -235,6 +236,36 @@ export const RULES: Rule[] = [
       if (longs.length) parts.push(`Uzun: ${longs.length} ta (eng uzuni ${worst.c.len} m) — chok bilan boʻlmalarga ajrating yoki seksiya uzunligini kamaytiring.`);
       if (projs.length) parts.push(`Chiqib turgan qism ${def.proj} m dan katta: ${projs.length} ta (${projs.slice(0, 3).map(x => `${x.c.proj} m`).join(', ')}${projs.length > 3 ? ' …' : ''}) — burchak binosini chok bilan toʻgʻri toʻrtburchak boʻlmalarga ajrating (3.1.1) yoki 1.1-band boʻyicha asoslang.`);
       return { status: n ? 'fail' : 'pass', value: n, unit: `/ ${bl.length} bino`, limit: lim == null ? 'NSTT' : `≤ ${lim} m, ≤ ${def.proj} m`, delta: longs.length ? (worst.c.len / (lim ?? worst.c.len) - 1) * 100 : undefined, note: parts.join(' ') };
+    },
+  },
+  {
+    id: 'dead-end-57',
+    title: 'Berk koʻcha oxiri: burilish joyi va uzunligi',
+    source: { doc: 'ShNQ 2.07.06-24', edition: '2024', clause: '57, 106-bandlar', verified: true },
+    evaluate(_d, doc) {
+      const des = deadEnds(doc);
+      if (!des.length) return { status: 'na', note: 'Loyiha koʻchalarida berk uch yoʻq' };
+      const miss = des.filter(e => !e.has), long = des.filter(e => e.len > 150);
+      const parts = ['57-band: berk koʻcha radiusi ≥ 15 m aylanish maydonchasi yoki 20 × 20 m maydoncha bilan tugaydi'];
+      if (miss.length) parts.push(`${miss.length} ta uchda burilish joyi yoʻq`);
+      parts.push('106-band: berk tor koʻcha ≤ 150 m');
+      if (long.length) parts.push(`${long.length} tasi uzun, eng uzuni ${Math.round(Math.max(...long.map(e => e.len)))} m`);
+      return { status: miss.length || long.length ? 'fail' : 'pass', value: des.length - miss.length, unit: `/ ${des.length}`, limit: 'R ≥ 15 m yoki 20 × 20 m; ≤ 150 m', note: parts.join(' · ') };
+    },
+  },
+  {
+    id: 'low-green-96',
+    title: 'Past qavatli uy uchastkasini koʻkalamzorlashtirish',
+    source: { ...SHNQ_2_07_01, clause: '96-band' },
+    evaluate(_d, doc) {
+      const lows = doc.buildings.filter(b => b.gen?.plot);
+      if (!lows.length) return { status: 'na', unit: 'uchastka', limit: '≥ 30 %', note: 'Past qavatli uylar (oʻz uchastkasi bilan) yoʻq' };
+      const fr = frame(doc.origin), ar = (r: XY[]) => Math.abs(r.reduce((t, p, i) => t + p[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * p[1], 0) / 2);
+      // yashil = uchastka − uy dogʻi − oldi yoʻlak va avtomobil joyi (≈ 3 × oldi chekinish, landshaft lowYard bilan bir xil taxmin)
+      const sh = lows.map(b => { const P = ar(b.gen!.plot!.map(fr.toLocal)), H = ar(b.footprint.map(fr.toLocal)); return P > 0 ? Math.max(0, 1 - (H + 3 * 5) / P) : 0; });
+      const bad = sh.filter(x => x < 0.3).length, mn = Math.min(...sh);
+      return { status: bad ? 'fail' : 'pass', value: Math.round(mn * 100), unit: '% (eng kami)', limit: '≥ 30 %', delta: bad ? (0.3 / Math.max(0.01, mn) - 1) * 100 : undefined,
+        note: ['96-band: uchastkaning kamida 30 % i koʻkalamzorlashtiriladi', `${lows.length} ta uchastka`, bad ? `${bad} tasida 30 % dan kam` : 'hammasida bajarilgan', 'hisob: uchastka − uy dogʻi − oldi yoʻlak va avtomobil joyi (~15 m²)'].join(' · ') };
     },
   },
   {

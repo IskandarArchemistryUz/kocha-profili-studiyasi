@@ -12,6 +12,7 @@ import { terrainSampler } from '../context/tiles';
 import { buildContext, buildingMeshes, houseRoofRise, satTint, type ContextScene, type HeightFn } from './context3d';
 import { applyVisibility, buildUserLayer, geomKey, paintUserLayer, type UL3D } from './userlayers3d';
 import type { ULFeature } from '../core/userlayers';
+import { endShapes } from '../core/streetends';
 import { projectStreetsGeo } from './streets3d';
 import { computePlan, interiorPoint } from '../core/plan';
 import { profileById } from '../core/profiles';
@@ -925,9 +926,17 @@ export class Scene3D {
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
         const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL)[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
       }
+      // berk koʻcha burilish joylari va chorraha aylanmalari (57, 27-band): uchta tekis shakl — yengil
+      { const pal = (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL);
+        endShapes(doc).forEach(e => ([['trotuar', e.outer, 9.25], ['qatnov', e.carriage, 9.35], ...(e.island ? [['yashil', e.island, 9.45]] : [])] as [string, XY[], number][]).forEach(([k, r, o]) => {
+          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(new THREE.Shape(r.map(p => new THREE.Vector2(p[0], p[1])))), this.H, 0.16 + (o - 9.2) * 0.1, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: pal[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 }));
+          m.renderOrder = o; this.world.add(m);
+        })); }
       sg.red.forEach(r => { const l = line(densify(r, 6, true), C.siteLine, 0.5, true, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
-      if (sg.trees.length) this.world.add(...treeMeshes(sg.trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c));
+      // aylana / aylanma ichidagi koʻcha daraxtlari olinmaydi
+      const ends = endShapes(doc), trees = ends.length ? sg.trees.filter(p => !ends.some(e => Math.hypot(p[0] - e.at[0], p[1] - e.at[1]) < (e.kind === 'maydon' ? 15 : e.kind === 'aylana' ? 18 : 17))) : sg.trees;
+      if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c));
     }
     tag(1);
     // uchastka ichidagi mavjud binolar: saqlanadigan — oddiy, qolgani — buziladigan (shaffof qizil)
