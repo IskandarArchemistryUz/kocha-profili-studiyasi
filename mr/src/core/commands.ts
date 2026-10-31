@@ -27,6 +27,7 @@ export type Command =
   | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
   | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
   | { type: 'setRounds'; rounds: Round[] }
+  | { type: 'setRoadEdit'; id: number; parts: LngLat[][] | null }
   | { type: 'updateStreets'; patches: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
   | { type: 'removeStreet'; id: string }
   /** koʻcha toʻri generatsiyasi: avvalgi generatsiya koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi */
@@ -72,6 +73,7 @@ export function label(c: Command): string {
     case 'addStreet': return 'Koʻcha qoʻshildi';
     case 'updateStreet': return 'Koʻcha oʻzgardi';
     case 'setRounds': return 'Chorraha aylanmalari';
+    case 'setRoadEdit': return 'Mavjud yoʻl tahriri';
     case 'updateStreets': return 'Koʻchalar oʻzgardi';
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
@@ -157,6 +159,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       if (c.ctx.length) { d.keep = doc.keep.filter(k => !c.ctx.includes(k)); if (doc.keepAt) { const at = { ...doc.keepAt }; for (const k of c.ctx) delete at[k]; d.keepAt = at; } if (doc.keepRings) { const rg = { ...doc.keepRings }; for (const k of c.ctx) delete rg[k]; d.keepRings = rg; } } return d;
     }
     case 'setRemoved': { if (c.removed.length) d.removed = [...new Set(c.removed)]; else delete d.removed; return d; }
+    case 'setRoadEdit': { const rest = (doc.roadEdits ?? []).filter(e => e.id !== c.id), v = c.parts ? [...rest, { id: c.id, parts: c.parts.map(p => p.map(q => [q[0], q[1]] as LngLat)) }] : rest; if (v.length) d.roadEdits = v; else delete d.roadEdits; return d; }
     case 'setRemovedRoads': { if (c.ids.length) d.removedRoads = [...new Set(c.ids)]; else delete d.removedRoads; return d; }
     case 'addStreet': {
       if (c.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin');

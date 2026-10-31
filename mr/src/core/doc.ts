@@ -179,6 +179,8 @@ export interface Project {
   removed?: number[];
   /** atrofdagi (OSM) yoʻllar — foydalanuvchi olib tashlagan (id lar): sahnada, kvartal chegarasida va chizmada yoʻq */
   removedRoads?: number[];
+  /** mavjud (OSM) yoʻllarning nuqta boʻyicha tahriri (31.10): id → qolgan boʻlaklar */
+  roadEdits?: { id: number; parts: LngLat[][] }[];
   /** qoʻlda belgilangan mavjud xizmat obyektlari */
   pois: ManualPoi[];
   /** saqlangan kamera koʻrinishlari (taqdimot uchun) */
@@ -318,6 +320,7 @@ export function migrate(raw: unknown): Project {
   const keepRings: Record<string, Ring> = {}; if (d.keepRings && typeof d.keepRings === 'object') for (const [k, v] of Object.entries(d.keepRings)) if (isRing(v)) keepRings[k] = (v as LngLat[]).map(p => [p[0], p[1]] as LngLat);
   const removed: number[] = (Array.isArray(d.removed) ? d.removed : []).filter(isNum);
   const removedRoads: number[] = (Array.isArray(d.removedRoads) ? d.removedRoads : []).filter(isNum);
+  const roadEdits = (Array.isArray(d.roadEdits) ? d.roadEdits : []).filter((e: any) => e && isNum(e.id) && Array.isArray(e.parts)).map((e: any) => ({ id: e.id as number, parts: (e.parts as any[]).filter(p => Array.isArray(p) && p.length >= 2 && p.every(isLL)).map((p: any[]) => p.map(q => [q[0], q[1]] as LngLat)) }));
   const garages: Garage[] = (Array.isArray(d.garages) ? d.garages : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.grp === 'string' && isRing(x.ring) && isNum(x.spaces))
     .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)),
       ...(isNum(x.need) ? { need: Math.max(0, Math.round(x.need)) } : {}), ...(['p90', 'p60', 'p45', 'par'].includes(x.module) ? { module: x.module } : {}),
@@ -335,7 +338,7 @@ export function migrate(raw: unknown): Project {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(removedRoads.length ? { removedRoads } : {}),
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}),
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
     ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
     ...(() => { const ul = cleanUserLayers(d.userLayers); return ul.length ? { userLayers: ul } : {}; })(),

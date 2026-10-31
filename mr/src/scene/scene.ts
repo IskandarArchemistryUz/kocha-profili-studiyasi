@@ -1048,7 +1048,7 @@ export class Scene3D {
   private static dotTex: THREE.Texture | null = null;
   private static dotTex2: THREE.Texture | null = null;
   /** v — nuqta tutqichlari, m — oraliq (yangi nuqta), fl — qavat tutqichi (bino tepasida, toʻq sariq) */
-  setHandles(v: XY[], m: XY[] = [], fl: { c: XY; z: number } | null = null): void {
+  setHandles(v: XY[], m: XY[] = [], fl: { c: XY; z: number } | null = null, sel: XY | null = null): void {
     for (const p of this.handles) { this.scene.remove(p); p.geometry.dispose(); (p.material as THREE.Material).dispose(); }   // Line ham shu roʻyxatda (geometry/material bir xil)
     this.handles = [];
     if (!Scene3D.dotTex) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!; x.beginPath(); x.arc(32, 32, 26, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 9; x.strokeStyle = '#2a6fb0'; x.stroke(); Scene3D.dotTex = new THREE.CanvasTexture(c); Scene3D.dotTex.colorSpace = THREE.SRGBColorSpace; }
@@ -1058,7 +1058,7 @@ export class Scene3D {
       const o = new THREE.Points(g, new THREE.PointsMaterial({ size, sizeAttenuation: false, map: Scene3D.dotTex, transparent: true, opacity: op, depthTest: false, alphaTest: 0.1 }));
       o.renderOrder = 70; o.name = 'tutqich'; this.scene.add(o); this.handles.push(o);
     };
-    mk(m, 9, 0.55); mk(v, 14, 1);
+    mk(m, 9, 0.55); mk(v, 14, 1); if (sel) mk([sel], 24, 1);   // tanlangan nuqta — kattaroq (31.10)
     if (fl) {
       if (!Scene3D.dotTex2) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d')!; x.beginPath(); x.arc(32, 32, 26, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 9; x.strokeStyle = '#d9822b'; x.stroke(); x.fillStyle = '#d9822b'; x.beginPath(); x.moveTo(32, 14); x.lineTo(42, 26); x.lineTo(22, 26); x.fill(); x.beginPath(); x.moveTo(32, 50); x.lineTo(42, 38); x.lineTo(22, 38); x.fill(); Scene3D.dotTex2 = new THREE.CanvasTexture(c); Scene3D.dotTex2.colorSpace = THREE.SRGBColorSpace; }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([fl.c[0], fl.z, -fl.c[1]], 3));
@@ -1148,7 +1148,7 @@ export class Scene3D {
   async setContext(b: ContextBundle | null, doc: Project): Promise<void> {
     const cs = doc.context;
     const adopted = [...doc.streets.filter(x => x.osm != null).map(x => x.osm!), ...(doc.removedRoads ?? [])];
-    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}|${this.hideOsmKey}` : '';
+    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}|${this.hideOsmKey}|${JSON.stringify(doc.roadEdits ?? [])}` : '';
     if (key === this.ctxKey) return;
     this.ctxKey = key; this.bundle = b;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
