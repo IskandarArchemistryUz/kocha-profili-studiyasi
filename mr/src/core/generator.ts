@@ -306,7 +306,55 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
   // tik tutashgan qoʻshni seksiyalar — bitta L-shakl burchak binosi
   const merged = mergeTouching(sections, D, g.secLen, g.maxLen, g.maxProj);
   if (merged) notes.push(`${merged} ta burchak — bitta L-shakl bino (ikki seksiya birlashtirildi)`);
+  const wedges = endWedges(A, sections, D, gapT, g.maxLen);
+  if (wedges) notes.push(`${wedges} ta seksiya uchi qiya chegaragacha davom ettirildi — uchburchak (ponasimon) kvartiralar`);
   return { sections, capFloors: null, notes };
+}
+
+/**
+ * Qiya kvartal (egasi, 31.10 → 22:49 «ok»): toʻgʻri toʻrtburchak seksiya uchi bilan qiya chegara orasida qolgan uchburchak —
+ * seksiyaga qoʻshiladi (ponasimon kvartira). Shart: uch tasmasi (≤ 12 m) kvartal ichidagi qismi haqiqatan uchburchak/trapetsiya
+ * (< 85 % toʻrtburchak), ≥ 25 m², boshqa seksiyalardan ≥ gap uzoqda, seysmik boʻlma uzunligi (maxLen) oshmaydi.
+ */
+function endWedges(A: XY[], S: GenSection[], D: number, gap: number, maxLen?: number): number {
+  const E = 12, Apoly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
+  const segD = (p: XY, r: XY[]) => { let d = Infinity; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], ab = sub(b, a), L2 = ab[0] * ab[0] + ab[1] * ab[1], t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / L2)) : 0; d = Math.min(d, len(sub(p, add(a, mul(ab, t))))); } return d; };
+  let n = 0;
+  for (const s of S) {
+    if (s.kind !== 'oddiy' || s.ring.length !== 4 || !s.face) continue;
+    const N = s.face.n, u: XY = [-N[1], N[0]], du = (p: XY) => p[0] * u[0] + p[1] * u[1], dn = (p: XY) => p[0] * N[0] + p[1] * N[1];
+    const tu = s.ring.map(du), tn = s.ring.map(dn), u0 = Math.min(...tu), u1 = Math.max(...tu), n0 = Math.min(...tn), n1 = Math.max(...tn);
+    if (n1 - n0 > D + 0.5) continue;
+    const P = (a: number, b: number): XY => [u[0] * a + N[0] * b, u[1] * a + N[1] * b];
+    let ring = s.ring, cur0 = u0, cur1 = u1;
+    for (const side of [-1, 1] as const) {
+      const a = side < 0 ? u0 - E : u1, b = side < 0 ? u0 : u1 + E;
+      const strip: Polygon = [[P(a, n0), P(b, n0), P(b, n1), P(a, n1), P(a, n0)].map(p => [p[0], p[1]] as [number, number])];
+      let w: XY[] | null = null;
+      try {
+        const x = polygonClipping.intersection(Apoly, strip);
+        // seksiya uchiga tegib turgan boʻlak
+        for (const poly of x) { const r = poly[0].slice(0, -1).map(q => [q[0], q[1]] as XY); if (r.some(q => Math.abs(du(q) - (side < 0 ? u0 : u1)) < 0.05)) { w = r; break; } }
+      } catch { w = null; }
+      if (!w || w.length < 3) continue;
+      const wa = Math.abs(signedArea(w)); if (wa < 25 || wa > 0.85 * E * (n1 - n0)) continue;
+      const ext = Math.max(...w.map(q => Math.abs(du(q) - (side < 0 ? u0 : u1))));
+      if (maxLen != null && (cur1 - cur0) + ext > maxLen + 0.05) continue;
+      // boshqa seksiyalar: ustma-ust emas va gap dan uzoq
+      if (S.some(o => o !== s && (w!.some(q => inside(q, o.ring)) || w!.some(q => segD(q, o.ring) < gap) || o.ring.some(q => inside(q, w!))))) continue;
+      try {
+        const U = polygonClipping.union([[...ring, ring[0]].map(p => [p[0], p[1]] as [number, number])], [[...w, w[0]].map(p => [p[0], p[1]] as [number, number])]);
+        if (U.length !== 1 || U[0].length !== 1) continue;
+        let r = U[0][0].slice(0, -1).map(q => [q[0], q[1]] as XY);
+        // bir chiziqda yotgan uchlar
+        r = r.filter((q, i) => { const pa = r[(i + r.length - 1) % r.length], pb = r[(i + 1) % r.length]; return Math.abs((q[0] - pa[0]) * (pb[1] - pa[1]) - (q[1] - pa[1]) * (pb[0] - pa[0])) > 0.05; });
+        if ((signedArea(r) > 0) !== (signedArea(s.ring) > 0)) r.reverse();
+        ring = r; if (side < 0) cur0 -= ext; else cur1 += ext;
+      } catch { continue; }
+    }
+    if (ring !== s.ring) { s.ring = ring; s.blind = undefined; n++; }
+  }
+  return n;
 }
 
 /** Tik tutashgan ikki toʻrtburchak seksiya (umumiy devor ≥ 3 m, oʻqlari tik) — bitta L-shakl burchak binosi */
