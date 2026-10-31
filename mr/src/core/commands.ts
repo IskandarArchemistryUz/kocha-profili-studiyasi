@@ -38,7 +38,7 @@ export type Command =
   | { type: 'addPoi'; poi: ManualPoi }
   | { type: 'removePoi'; id: string }
   /** bir nechta binoga material va/yoki tom turi */
-  | { type: 'styleBuildings'; ids: string[]; mat?: Building['mat']; roof?: Building['roof']; win?: Building['win'] | 'yoq'; bal?: Building['bal']; parapet?: number; shade?: Building['shade'] | 'yoq'; winPat?: Building['winPat'] | 'qator'; balPat?: Building['balPat'] | 'har2' }
+  | { type: 'styleBuildings'; ids: string[]; mat?: Building['mat']; roof?: Building['roof']; win?: Building['win'] | 'yoq'; bal?: Building['bal']; parapet?: number; shade?: Building['shade'] | 'yoq'; winPat?: Building['winPat'] | 'qator'; balPat?: Building['balPat'] | 'har2'; ayvon?: Building['ayvon'] }
   | { type: 'addView'; view: SavedView }
   /** varaqlar toʻplami va saqlangan uslublar (MR-Varaqlar) */
   | { type: 'setSheets'; sheets?: SheetDoc[]; styles?: Project['sheetStyles'] }
@@ -81,7 +81,7 @@ export function label(c: Command): string {
     case 'setKeep': return 'Saqlanadigan binolar';
     case 'addPoi': return 'Xizmat obyekti qoʻshildi';
     case 'removePoi': return 'Xizmat obyekti oʻchirildi';
-    case 'styleBuildings': return c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : c.parapet != null ? 'Parapet' : c.shade ? 'Quyosh himoyasi' : 'Fasad materiali';
+    case 'styleBuildings': return c.ayvon ? 'Ayvon' : c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : c.parapet != null ? 'Parapet' : c.shade ? 'Quyosh himoyasi' : 'Fasad materiali';
     case 'addView': return 'Koʻrinish saqlandi';
     case 'setSheets': return 'Varaqlar';
     case 'setChizmadon': return 'Chizmadon';
@@ -195,7 +195,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const pr = { ...doc.keepRings, ...c.rings }, rg: Record<string, Ring> = {}; for (const k of d.keep) if (pr[k]) rg[k] = pr[k]; if (Object.keys(rg).length) d.keepRings = rg; else delete d.keepRings; return d; }
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
-    case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}), ...(c.winPat ? { winPat: c.winPat === 'qator' ? undefined : c.winPat } : {}), ...(c.balPat ? { balPat: c.balPat === 'har2' ? undefined : c.balPat } : {}) } : b); return d; }
+    case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}), ...(c.winPat ? { winPat: c.winPat === 'qator' ? undefined : c.winPat } : {}), ...(c.balPat ? { balPat: c.balPat === 'har2' ? undefined : c.balPat } : {}), ...(c.ayvon ? { ayvon: c.ayvon } : {}) } : b); return d; }
     case 'setChizmadon': d.chizmadon = JSON.parse(JSON.stringify(c.data)); return d;
     case 'addUserLayer': {
       const L = doc.userLayers ?? [];

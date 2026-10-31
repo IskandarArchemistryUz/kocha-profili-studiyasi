@@ -808,9 +808,11 @@ export class Scene3D {
     };
     const edgeMat = () => new THREE.LineBasicMaterial({ color: st === 'minimal' ? 0x1d1d1b : C.edge, transparent: true, opacity: dim ? 0.18 : st === 'minimal' ? 0.9 : st === 'arctic' ? 0.22 : 0.5 });
     if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
-      // past uylar — qiya tom bilan (kontekstdagi kabi)
-      const objs = buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh, kind: 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
+      // past uylar — qiya tom bilan (kontekstdagi kabi); 31.10: material, tom turi, derazalar, eshik, ayvon, balkon (fasad qadami)
+      const flatRoof = b.roof === 'tekis' || b.roof === 'yashil' || b.roof === 'quyosh';
+      const objs = buildingMeshes([{ id: 0, rings: [r], h: b.floors * fh, kind: flatRoof ? 'tekis' : 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : plain ? 0xffffff : b.mat && st !== 'funksiya' ? MATS.find(m => m.id === b.mat)!.color : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : b.roof === 'yashil' ? 0x93b873 : b.roof === 'quyosh' ? 0x4c5866 : 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
       objs.forEach(o => { o.userData.bid = b.id; o.castShadow = o.receiveShadow = true; this.world.add(o); });
+      if (!dim && st !== 'funksiya') { const hd = houseDetail(b, r, Math.min(...r.map(p => this.H(p[0], p[1]))), fh, doc.buildings.filter(o => o !== b && o.gen && (o.gen.kind === 'uy' || o.gen.kind === 'taunhaus')).map(o => o.footprint.map(fr.toLocal)), plain); if (hd) { hd.userData.bid = b.id; this.world.add(hd); } }
       return;
     }
     const nr = Math.min(b.nonRes, b.floors - (b.gen?.kind === 'stilobat' ? 0 : 1));
@@ -2031,3 +2033,55 @@ function disposeGroup(g: THREE.Group): void {
 }
 function pointInRing(p: XY, r: XY[]): boolean { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; }
 function segDist(p: XY, a: XY, b: XY): number { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]); }
+
+/**
+ * Past qavatli uy fasadi (31.10, egasi: «ushbu tiplarga ham fasad dizayni — fasad, oyna, balkon, milliyda ayvon, tom, materiallar»):
+ * har tashqi devorda derazalar (1,2 × 1,4 m, tokcha 0,9 m, qadam ~3 m — andoza), eng uzun devorda eshik, ayvon (2,4 m, ustunlar ~2,5 m),
+ * 2+ qavatda balkon. Qoʻshni uyga tutash (umumiy) devorda deraza yoʻq. Bitta mesh, ranglar — vertex rangi (sahna yengil).
+ */
+function houseDetail(b: Project['buildings'][number], r0: XY[], base: number, fh: number, others: XY[][], plain: boolean): THREE.Mesh | null {
+  const r = signedArea(r0) > 0 ? r0 : [...r0].reverse(), n = r.length, P: number[] = [], Cc: number[] = [];
+  const col = (hex: number) => [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
+  const GLASS = col(plain ? 0xcfd3d6 : 0x3d4a55), DOOR = col(plain ? 0xd9d4ca : 0x7a5537), WOOD = col(plain ? 0xe8e4dc : 0xa27a52), SLAB = col(plain ? 0xf1efea : 0xe9e2d4);
+  const quad = (a: number[], b2: number[], c: number[], d: number[], k: number[]) => { P.push(...a, ...b2, ...c, ...a, ...c, ...d); for (let i = 0; i < 6; i++) Cc.push(...k); };
+  const V = (p: XY, z: number): number[] => [p[0], z, -p[1]];
+  const box = (p: XY, u: XY, w: number, dpt: number, z0: number, z1: number, k: number[]) => {   // toʻrtburchak quti: p — markaz, u — yoʻnalish
+    const nn: XY = [-u[1], u[0]], c = [[-w / 2, -dpt / 2], [w / 2, -dpt / 2], [w / 2, dpt / 2], [-w / 2, dpt / 2]].map(([a, d]) => [p[0] + u[0] * a + nn[0] * d, p[1] + u[1] * a + nn[1] * d] as XY);
+    for (let i = 0; i < 4; i++) { const a = c[i], d = c[(i + 1) % 4]; quad(V(a, z0), V(d, z0), V(d, z1), V(a, z1), k); }
+    quad(V(c[0], z1), V(c[1], z1), V(c[2], z1), V(c[3], z1), k);
+  };
+  const party = (a: XY, b2: XY) => { const m: XY = [(a[0] + b2[0]) / 2, (a[1] + b2[1]) / 2]; return others.some(o => { for (let i = 0; i < o.length; i++) { const p = o[i], q = o[(i + 1) % o.length], dx = q[0] - p[0], dy = q[1] - p[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((m[0] - p[0]) * dx + (m[1] - p[1]) * dy) / L2)); if (Math.hypot(p[0] + dx * t - m[0], p[1] + dy * t - m[1]) < 0.5) return true; } return false; }); };
+  const edges = Array.from({ length: n }, (_, i) => { const a = r[i], b2 = r[(i + 1) % n], L = Math.hypot(b2[0] - a[0], b2[1] - a[1]); return { a, b: b2, L, u: [(b2[0] - a[0]) / (L || 1), (b2[1] - a[1]) / (L || 1)] as XY, o: [(b2[1] - a[1]) / (L || 1), -(b2[0] - a[0]) / (L || 1)] as XY, party: L < 0.5 || party(a, b2) }; }).filter(e => e.L >= 2.4 && !e.party);
+  if (!edges.length) return null;
+  const front = edges.reduce((x, y) => y.L > x.L ? y : x);
+  const back = edges.reduce((x, y) => (y.o[0] * front.o[0] + y.o[1] * front.o[1]) < (x.o[0] * front.o[0] + x.o[1] * front.o[1]) ? y : x);
+  const off = 0.04, floors = Math.max(1, b.floors);
+  for (const e of edges) {
+    const cnt = Math.max(1, Math.floor((e.L - 1.2) / 3)), step = e.L / cnt;
+    for (let f = 0; f < floors; f++) for (let k = 0; k < cnt; k++) {
+      const t = step * (k + 0.5), z0 = base + f * fh;
+      const isDoor = e === front && f === 0 && k === Math.floor(cnt / 2);
+      const w = isDoor ? 1.0 : 1.2, zb = isDoor ? z0 + 0.05 : z0 + 0.9, zt = isDoor ? z0 + 2.15 : z0 + 2.3;
+      const p0: XY = [e.a[0] + e.u[0] * (t - w / 2) + e.o[0] * off, e.a[1] + e.u[1] * (t - w / 2) + e.o[1] * off], p1: XY = [e.a[0] + e.u[0] * (t + w / 2) + e.o[0] * off, e.a[1] + e.u[1] * (t + w / 2) + e.o[1] * off];
+      quad(V(p0, zb), V(p1, zb), V(p1, zt), V(p0, zt), isDoor ? DOOR : GLASS);
+    }
+  }
+  // ayvon: hovli uyda (L shakl) sukut — hovli tomonda
+  const ay = b.ayvon ?? (r.length >= 6 ? 'hovli' : 'yoq');
+  if (ay !== 'yoq') {
+    const e = ay === 'old' ? front : back, D = 2.4, span = Math.max(2.4, e.L * 0.8), t0 = (e.L - span) / 2, zt = base + Math.min(fh, 3.2);
+    const c = (t: number, d: number): XY => [e.a[0] + e.u[0] * t + e.o[0] * d, e.a[1] + e.u[1] * t + e.o[1] * d];
+    box(c(t0 + span / 2, D / 2), e.u, span, D, zt - 0.18, zt, SLAB);   // tom (taxta)
+    box(c(t0 + span / 2, D / 2), e.u, span, D, base, base + 0.3, SLAB);   // supa
+    const np = Math.max(2, Math.round(span / 2.5) + 1);
+    for (let k = 0; k < np; k++) box(c(t0 + 0.15 + (span - 0.3) * k / (np - 1), D - 0.15), e.u, 0.22, 0.22, base + 0.3, zt - 0.18, WOOD);   // ustunlar
+  }
+  if (b.bal && floors >= 2) {   // balkon: orqa devorda 2-qavatda
+    const e = back, w = Math.min(3.6, e.L * 0.5), c: XY = [e.a[0] + e.u[0] * e.L / 2 + e.o[0] * 0.6, e.a[1] + e.u[1] * e.L / 2 + e.o[1] * 0.6];
+    box(c, e.u, w, 1.2, base + fh - 0.15, base + fh, SLAB);
+    box([c[0] + e.o[0] * 0.55, c[1] + e.o[1] * 0.55], e.u, w, 0.08, base + fh, base + fh + 1.0, WOOD);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); m.castShadow = true; m.receiveShadow = true; m.userData.houseDetail = true;
+  return m;
+}
