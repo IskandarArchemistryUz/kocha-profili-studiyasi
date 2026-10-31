@@ -32,3 +32,25 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`koʻcha nu
   await at(30, 0); await page.keyboard.press('Delete');
   expect(await n()).toEqual([2, 2]);
 });
+
+/** 31.10: koʻchaning oʻrtasidagi qismini olib tashlash — ikki nuqta bosiladi */
+test('koʻcha oʻrtasini olib tashlash', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('./'); await page.click('#newP');
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '200'); await page.fill('#rh', '150'); await page.click('#rectSite');
+  await page.evaluate(() => {
+    const mr = (window as any).__mr, [lng, lat] = mr.store.doc.origin, k = 1 / 111320, kx = k / Math.cos(lat * Math.PI / 180);
+    mr.store.dispatch({ type: 'addStreet', axis: [[lng - 90 * kx, lat], [lng + 90 * kx, lat]], profile: 'mahalla-15' });
+  });
+  await page.click('[data-step=kocha]'); await page.click('[data-ktab=chiz]');
+  await page.locator('[data-sid] .k').first().click();
+  await page.click('#roadCut');
+  const bb = (await page.locator('#scene canvas').boundingBox())!;
+  const at = async (x: number, y: number) => { const s = await page.evaluate(([x, y]) => (window as any).__mr.scene.toScreen(x, y, 0), [x, y]) as { x: number; y: number }; await page.mouse.click(bb.x + s.x, bb.y + s.y); await page.waitForTimeout(150); };
+  await at(-20, 1); await at(30, -1);
+  const lens = await page.evaluate(() => { const mr = (window as any).__mr, d = mr.store.doc, [lng] = d.origin; return d.streets.map((s: any) => s.axis.length); });
+  expect(lens).toEqual([2, 2]);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/yol_kesim.png` });
+});
