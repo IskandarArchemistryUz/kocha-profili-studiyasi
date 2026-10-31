@@ -3,6 +3,7 @@
  * alohida xarita kutubxonasi yoʻq. Koordinatalar: X — sharq, Z — janub (−shimol), Y — yuqoriga, metrda.
  * Sahna faqat oʻzgarishda chiziladi (render on demand) — boʻsh turganda protsessorni yuklamaydi.
  */
+import { lenLimit, jointOpt, jointScheme } from '../core/seysmik';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { LngLat, Project, Shade } from '../core/doc';
@@ -1053,6 +1054,17 @@ export class Scene3D {
       fl.forEach((b, i) => { const sm = SM[i], pr = P3[doc.buildings.indexOf(b)]; if (!sm || !pr) return;
         sm.edgeTop.forEach((t, k) => { if (t === -Infinity) return; const a = pr.ring[k], c = pr.ring[(k + 1) % pr.ring.length];
           for (const z of [pr.base + 0.5, Math.min(pr.top, t) + 0.25]) { const l = line([a, c], JC, 0, false, 9, () => z, true); l.userData.layer = 2; l.userData.joint = true; this.world.add(l); } }); });
+    }
+    // 31.10: avtomatik choklar sxemasi (inspektorda «Antiseysmik chok» / «Choklar sxemasi»): chok chiziqlari yer va tom sathida + devor
+    if (!this.aptView && doc.buildings.some(b => b.joint)) {
+      const lim = lenLimit(doc.settings.construct ?? 'monolit', doc.settings.seismic), v: number[] = [];
+      doc.buildings.forEach((b, i) => { if (!b.joint) return; const pr = P3[i]; if (!pr) return;
+        const o = jointOpt(b, doc.buildings, fr.toLocal);
+        for (const [a, c] of jointScheme(pr.ring, lim, o.area, o.avoid).cuts) {
+          v.push(a[0], pr.top + 0.15, -a[1], c[0], pr.top + 0.15, -c[1]);   // tom sathida (ustidagi minoralar ostida koʻrinmaydi)
+          for (const p of [a, c]) v.push(p[0], pr.base, -p[1], p[0], pr.top + 0.15, -p[1]);
+        } });
+      if (v.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xd9534f })); ls.renderOrder = 9; ls.userData.layer = 2; ls.userData.jointScheme = true; this.world.add(ls); }
     }
     if (this.isoLocal || this.aptView) this.isoGhosts(doc, fr, fh);
     if (this.floorLabels) doc.buildings.forEach(b => {
