@@ -10,6 +10,7 @@
 import polygonClipping, { type Polygon, type MultiPolygon } from 'polygon-clipping';
 import type { XY } from './geo';
 import { signedArea, obb2 } from './geo';
+import { openRing } from './offset';
 import type { GenSection } from './generator';
 
 export interface Obstacle3 { ring: XY[]; h: number }
@@ -103,7 +104,7 @@ export function avoidObstacles(S: GenSection[], obs: Obstacle3[], minF: number, 
   for (const s0 of S) {
     let r: XY[] | null = s0.ring;
     const hit = bufs.some(b => { try { return polygonClipping.intersection(P(r!), b).length > 0; } catch { return false; } });
-    if (hit) { const a0 = aOf(r); r = cut(r, bufs); if (!r || aOf(r) < 0.5 * a0 || aOf(r) < 120) { removed++; continue; } clipped++; }
+    if (hit) { const a0 = aOf(r); r = cut(r, bufs); if (r) r = openRing(r, 6) ?? null; if (!r || aOf(r) < 0.5 * a0 || aOf(r) < 120) { removed++; continue; } clipped++; }
     const s: GenSection = { ...s0, ring: r };
     if (s.face) {
       let d = Infinity, ho = 0;

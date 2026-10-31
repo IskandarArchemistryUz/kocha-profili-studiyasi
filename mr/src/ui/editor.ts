@@ -121,9 +121,9 @@ const TOOLS: [ToolMode, string, string][] = [
   ['section', 'Kesim (S)', '<path d="M3 12h18" stroke-dasharray="3 2"/><path d="M6 12V6h12v6M6 12v6h12v-6" opacity=".45"/>'],
   ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
 ];
-const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Klaster', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', savdo_blok: 'Savdo markazi' };
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Klaster', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', ofis_hovli: 'Hovlili ofis', meh_plita: 'Korpus + lobbi', meh_minora: 'Minora + stilobat', savdo_blok: 'Savdo markazi', savdo_minora: 'Savdo + minora', savdo_qator: 'Savdo qatori' };
 /** Tipologiya guruhlari (31.10): avto · past qavatli (1–3 qavat) · koʻp qavatli turar joy · jamoat va tijorat */
-const TYPO_GROUPS: [string, Typology[]][] = [['', ['avto']], ['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['perimetr', 'qatorlar', 'blok_villa', 'villa', 'blok_minora', 'minora']], ['Jamoat va tijorat', ['ofis_plita', 'ofis_minora', 'savdo_blok']]];
+const TYPO_GROUPS: [string, Typology[]][] = [['', ['avto']], ['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['perimetr', 'qatorlar', 'blok_villa', 'villa', 'blok_minora', 'minora']], ['Ofis', ['ofis_plita', 'ofis_minora', 'ofis_hovli']], ['Mehmonxona', ['meh_plita', 'meh_minora']], ['Savdo', ['savdo_blok', 'savdo_minora', 'savdo_qator']]];
 const LOW_T: Typology[] = ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster'];
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',

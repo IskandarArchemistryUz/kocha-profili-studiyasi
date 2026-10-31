@@ -133,3 +133,22 @@ test('shamol: Parijda — ERA5 (34-band), Toshkent stansiyasi emas', async ({ pa
   await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/mr_era5_dark.png` });
 });
+
+/** 31.10: ofis, mehmonxona, savdo — oʻz variantlari; parselga mos guruh koʻrinadi, savdoda minora bor */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`tijorat variantlari · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: w, height: 900 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '160'); await page.fill('#rh', '120'); await page.click('#rectSite');
+  await page.evaluate(() => { const ed = (window as any).__mr; ed.store.dispatch({ type: 'setZones', zones: [{ id: 'z0', at: ed.store.doc.origin, use: 'savdo' }] }); });
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
+  await expect(page.locator('[data-typ=perimetr]')).toHaveCount(0);
+  await expect(page.locator('[data-typ=savdo_minora]')).toBeVisible(); await expect(page.locator('[data-typ=savdo_qator]')).toBeVisible();
+  await page.click('[data-typ=savdo_minora]'); await page.click('#genGo');
+  const k = await page.evaluate(() => (window as any).__mr.store.doc.buildings.map((b: any) => b.gen?.kind));
+  expect(k).toContain('minora'); expect(k).toContain('stilobat');
+  await page.waitForTimeout(700);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/tijorat_${w}${dark ? 'd' : 'l'}.png` });
+});
