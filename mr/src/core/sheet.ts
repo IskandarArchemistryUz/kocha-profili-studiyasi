@@ -278,6 +278,9 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       y.paths.forEach(p => out.push(`<path d="${polyD(p)}" fill="#ffffff"${lY.outline ? ` stroke="#c9c4b9" stroke-width="${lw(lY.mm)}"` : ''} fill-rule="evenodd"/>`));
       y.play.forEach(q => out.push(`<path d="${ringD(q.ring)}" fill="${L2 ? ({ bolalar: '#f6dcae', kattalar: '#efe6d3', sport: '#bcd9c2', xojalik: '#e2ded6' } as Record<string, string>)[q.kind] : '#ffffff'}" stroke="#8f8676" stroke-width="${lw(Math.max(lY.mm, 0.15))}"/>`));
     }
+    // sport hududi inshootlari (31.10)
+    const SPC: Record<string, string> = { stadion: '#bcd9b0', yolka: '#e7b9ab', futbol: '#bcd9b0', minifutbol: '#c6dfbb', tennis: '#b7cde3', basket: '#ecc9a7', voley: '#efdcae', workout: '#dcdad5', basseyn: '#b9dff0', yopiq: '#e6e9ee' };
+    for (const y of yards) for (const q of y.sport ?? []) { out.push(`<path d="${ringD(q.ring)}" fill="${L2 ? SPC[q.k] : '#ffffff'}" stroke="#8f8676" stroke-width="${lw(Math.max(lY.mm, 0.13))}"/>`); for (const ln of q.k === 'basseyn' ? [] : q.lines) out.push(`<polyline points="${ln.map(p => `${X(p)},${Y(p)}`).join(' ')}" fill="none" stroke="${L2 ? '#ffffff' : '#b9b3a6'}" stroke-width="${lw(0.1)}"/>`); }
     g('Hovlilar', out.join(''));
     if (S.trees && lG.on) g('Hovli_daraxtlari', yards.flatMap(y => y.trees).map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.6, 2.8 * k))}" fill="${L2 ? '#9cc27f' : '#ffffff'}" stroke="${L2 ? '#5f8f3e' : '#7d8a6a'}" stroke-width="${lw(0.12)}"/>`).join(''));
     if (yards.some(y => y.play.length)) legend.push({ type: 'fill', fill: L2 ? '#f6dcae' : '#ffffff', stroke: '#8f8676', label: tr('Hovli maydonchalari (4-jadval)') });

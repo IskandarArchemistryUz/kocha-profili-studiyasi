@@ -15,6 +15,7 @@ import { frame, area, signedArea, type XY } from './geo';
 import { computePlan, corridor, safeUnion, pointIn } from './plan';
 import { useDef } from './uses';
 import { inset, clean } from './generator';
+import { sportPark, type SportItem } from './sportpark';
 
 /**
  * Ochiq joylar eskizi (generator): park — halqa va diagonal yoʻlaklar, markazda maydoncha, daraxtlar toʻri (9 m);
@@ -35,12 +36,11 @@ function openSpace(blk: { rings: XY[][]; area: number; use: string; centroid: XY
     paving = [[close(circ)]];
   } else if (blk.use === 'maydon') {
     const pl = inset(outer, Math.sqrt(blk.area) * 0.16); if (pl) paving = [[close(clean(pl, 3))]];
-  } else {
-    // sport: 2–3 ta maydoncha (≤ 40 m), markaz atrofida
-    const a = Math.min(1800, blk.area * 0.22); let dx = -Math.sqrt(a) * 0.6;
-    for (let k = 0; k < 3; k++, dx += Math.sqrt(a) * 1.25) { const r = rectAt([c[0] + dx, c[1]], a); if (r.every(q => pointIn(q, blk.rings))) play.push({ kind: 'sport', ring: r, need: a, area: a }); }
   }
-  const taken: MultiPolygon = play.length ? safeUnion(play.map(p => [close(p.ring)] as Polygon)) : [];
+  // sport (31.10): stadion / futbol, yopiq majmua, basseyn, kortlar va workout — standart oʻlchamlarda (core/sportpark); atrofida yoʻlak halqasi
+  const sport: SportItem[] = blk.use === 'sport' ? sportPark(outer, blk.area) : [];
+  if (sport.length) { const loop = inset(outer, 2.5); if (loop) paths.push(...corridor([...loop, loop[0]], 1.25)); }
+  const taken: MultiPolygon = play.length || sport.length ? safeUnion([...play.map(p => [close(p.ring)] as Polygon), ...sport.map(q => [close(q.lines.length && (q.k === 'basseyn') ? q.lines[0].slice(0, -1) : q.ring)] as Polygon)]) : [];
   const clipB = (m: MultiPolygon) => m.length ? tryOp(() => polygonClipping.intersection(m, B), [] as MultiPolygon) : [];
   paving = clipB(paving); paths = clipB(paths.length ? safeUnion(paths) : []);
   const green = tryOp(() => polygonClipping.difference(B, ...[paving, paths, taken].filter(m => m.length)), [B]);
@@ -52,9 +52,10 @@ function openSpace(blk: { rings: XY[][]; area: number; use: string; centroid: XY
     if (!gR.some(q => pointIn(p, q))) continue;
     if (blk.use === 'maydon' && !pR.some(q => ringD(p, q[0]) < 6)) continue;   // skver: daraxtlar maydon chetida qator
     if (ringD(p, outer) < 2.5) continue;
+    if (sport.length && taken.some(poly => pointIn(p, [open(poly[0])]) || ringD(p, open(poly[0])) < 3)) continue;
     trees.push(p);
   }
-  return { block: bi, paving: pR, green: gR, paths: toMP(paths), play, trees, areas: { block: blk.area, paving: mpArea(paving), green: mpArea(green), play: play.reduce((t, q) => t + q.area, 0), paths: mpArea(paths) } };
+  return { block: bi, paving: pR, green: gR, paths: toMP(paths), play, trees, ...(sport.length ? { sport } : {}), areas: { block: blk.area, paving: mpArea(paving), green: mpArea(green), play: play.reduce((t, q) => t + q.area, 0), paths: mpArea(paths) } };
 }
 
 export const PLAY_NORM = { bolalar: 0.7, kattalar: 0.1, sport: 2.0, xojalik: 0.3 };
@@ -73,6 +74,8 @@ export interface Yard {
   fire?: { lane: XY[][][]; w: number; d: number; hmax: number; area: number };
   /** past qavatli uylar uchastkalari chegarasi (devor / panjara) — 31.10 */
   fences?: XY[][];
+  /** sport hududi inshootlari (31.10): stadion, maydonlar, basseyn, yopiq majmua */
+  sport?: SportItem[];
   areas: { block: number; paving: number; green: number; play: number; paths: number };
 }
 

@@ -33,6 +33,6 @@ describe('ochiq joylar eskizi', () => {
   it('park: yoʻlaklar, markaz maydoncha, daraxtlar; skver: qoplama maydon va chetki daraxtlar; sport: maydonchalar', () => {
     const park = landscape(mk('yashil'))[0]; expect(park.paths.length).toBeGreaterThan(0); expect(park.paving.length).toBe(1); expect(park.trees.length).toBeGreaterThan(40);
     const sq = landscape(mk('maydon'))[0]; expect(sq.areas.paving / sq.areas.block).toBeGreaterThan(0.3); expect(sq.trees.length).toBeGreaterThan(10);
-    const sp = landscape(mk('sport'))[0]; expect(sp.play.length).toBeGreaterThanOrEqual(2);
+    const sp = landscape(mk('sport'))[0]; expect(sp.sport?.length ?? 0).toBeGreaterThanOrEqual(2);   // 31.10: standart sport inshootlari (sportpark)
   });
 });
