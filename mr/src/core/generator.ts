@@ -647,6 +647,28 @@ const aOf = (r: XY[]) => Math.abs(signedArea(r));
 const inside = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 const longestAngle = (r: XY[]) => { let best = 0, bl = -1; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], L = len(sub(b, a)); if (L > bl) { bl = L; best = Math.atan2(b[1] - a[1], b[0] - a[0]); } } return best; };
 
+/** Toʻgʻri toʻrtburchak plitalar qatorlari (ofis): eng uzun qirra yoʻnalishida, har biri A ichiga toʻliq sigʻadi (qirqilmaydi) */
+function slabRows(A: XY[], D: number, gap: number, maxLen: number, slabGap: number): XY[][] {
+  const ang = longestAngle(A), c = Math.cos(ang), s = Math.sin(ang), rot = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], un = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+  const R = A.map(rot); let y0 = Infinity, y1 = -Infinity; for (const p of R) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  // gorizontal chiziqda koʻpburchak ichidagi oraliqlar
+  const span = (y: number): [number, number][] => { const xs: number[] = []; for (let i = 0; i < R.length; i++) { const a = R[i], b = R[(i + 1) % R.length]; if ((a[1] > y) !== (b[1] > y)) xs.push(a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1])); } xs.sort((p, q) => p - q); const out: [number, number][] = []; for (let i = 0; i + 1 < xs.length; i += 2) out.push([xs[i], xs[i + 1]]); return out; };
+  const inter = (P: [number, number][], Q: [number, number][]) => P.flatMap(([a, b]) => Q.map(([c2, d]) => [Math.max(a, c2), Math.min(b, d)] as [number, number])).filter(([a, b]) => b - a > 1);
+  const count = Math.max(1, Math.floor((y1 - y0 - D) / (D + gap)) + 1), used = (count - 1) * (D + gap) + D, ys = y0 + (y1 - y0 - used) / 2, out: XY[][] = [];
+  for (let k = 0; k < count; k++) {
+    const by = ys + k * (D + gap); if (by < y0 - 1e-6 || by + D > y1 + 1e-6) continue;
+    let iv = span(by + 0.05); for (const y of [by + D / 2, by + D - 0.05]) iv = inter(iv, span(y));
+    // qiya qirralar: oraliq qirrasining ikki uchi va oʻrtasi oʻrtasidagi qiymatlar ham — 9 ta chiziq
+    for (let t = 1; t < 8; t++) iv = inter(iv, span(by + D * t / 8));
+    for (const [xa, xb] of iv) {
+      const L = xb - xa; if (L < 24) continue;
+      const n = Math.max(1, Math.ceil((L + slabGap) / (maxLen + slabGap))), sl = (L - (n - 1) * slabGap) / n; if (sl < 24) continue;
+      for (let i = 0; i < n; i++) { const x = xa + i * (sl + slabGap); out.push(([[x, by], [x + sl, by], [x + sl, by + D], [x, by + D]] as XY[]).map(un)); }
+    }
+  }
+  return out;
+}
+
 /** Nuqtali binolar (villa, minora) toʻri: kvadrat dogʻ `size`, oraliq `gap`, A ichiga toʻliq sigʻadiganlari; avoid — band joylar */
 function points(A: XY[], size: number, gap: number, avoid: XY[][] = []): XY[][] {
   const ang = longestAngle(A), c = Math.cos(ang), s = Math.sin(ang), rot = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], un = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
@@ -719,15 +741,14 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       return r;
     }
     case 'ofis_plita': {
-      // ofis plitalari: chuqur korpus (18 m), uzun seksiyalar, barcha qavatlar noturar; qatorlar orasi ≥ 2·H emas (turar joy emas) — ≥ 0,8·H, kamida 15 m
+      // ofis plitalari (31.10, egasi: qiya parselda qirrani takrorlagan qiyshiq va bir-biriga kirgan boʻlaklar): endi faqat toʻgʻri toʻrtburchak plitalar —
+      // eng uzun qirra yoʻnalishida qatorlar, har plita parsel chekinishi ichiga toʻliq sigʻadi; korpus 18 m, uzunligi ≤ 60 m, plitalar orasi ≥ 12 m (yongʻin uzilishi — andoza),
+      // qatorlar orasi ≥ 0,8·H, kamida 15 m (yoritish — taxmin); barcha qavatlar noturar
       const H = g.maxF * floorH, gap = Math.max(15, 0.8 * H);
-      const r = edgeFill(A, { ...g, depth: 18, secLen: Math.max(36, g.secLen), passages: false }, notes);
-      r.sections = r.sections.map(s => ({ ...s, floors: g.maxF, nonRes: g.maxF, use: 'ofis' }));
-      // ichkarida parallel plitalar (hovli oʻrniga) — kvartal chuqur boʻlsa
-      const court = inset(A, 18 + gap);
-      if (court && aOf(court) > 1500) { const rows = points(court, 18, gap, r.sections.map(s => s.ring)); r.sections.push(...rows.map(ring => ({ ring, floors: g.maxF, kind: 'oddiy' as SecKind, nonRes: g.maxF, use: 'ofis' }))); }
-      notes.push(`Ofis plitalari: korpus 18 m, ${g.maxF} qavat, hammasi noturar; qatorlar orasi ${Math.round(gap)} m (yoritish uchun ≥ 0,8·H — taxmin)`);
-      return r;
+      const sl = slabRows(A, 18, gap, Math.max(36, Math.min(60, g.secLen * 2)), 12);
+      if (!sl.length) return { sections: [], capFloors: null, notes: ['Ofis plitasi sigʻmadi — chekinish yoki qavatni kamaytiring'] };
+      notes.push(`Ofis plitalari: ${sl.length} ta, korpus 18 m, ${g.maxF} qavat, hammasi noturar; qatorlar orasi ${Math.round(gap)} m (≥ 0,8·H — taxmin), plitalar orasi ≥ 12 m`);
+      return { sections: sl.map(ring => ({ ring, floors: g.maxF, kind: 'oddiy' as SecKind, nonRes: g.maxF, use: 'ofis' })), capFloors: null, notes };
     }
     case 'ofis_minora': {
       // stilobat (2 qavat, chekinish ichida) + minoralar toʻri; stilobat ustidagi ofis minoralari
