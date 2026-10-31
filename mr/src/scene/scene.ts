@@ -337,7 +337,7 @@ export class Scene3D {
    * binolar — qizil shaffof hajm, halqalar — qizil chegara, nuqtalar — qizil doira, kesmalar — qizil masofa chizigʻi.
    * Kamera hammasini qamraydigan qilib suriladi. null — tozalash.
    */
-  setIssues(doc: Project, w: { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][] } | null, frameIt = true): void {
+  setIssues(doc: Project, w: { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][]; need?: { rings?: XY[][]; segs?: [XY, XY][]; labels?: { at: XY; text: string }[] } } | null, frameIt = true): void {
     disposeGroup(this.issueG); if (!this.issueG.parent) this.scene.add(this.issueG);
     if (!w) { this.invalidate(); return; }
     const fr = frame(doc.origin), fh = doc.settings.floorHeight, RED = 0xd2453b, all: XY[] = [];
@@ -353,6 +353,17 @@ export class Scene3D {
       const sh = new THREE.Shape(r.map(p => new THREE.Vector2(p[0], p[1]))), m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 0.5, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 41; this.issueG.add(m); }
     for (const p of w.pts ?? []) { all.push(p); const c: XY[] = []; for (let i = 0; i < 20; i++) c.push([p[0] + Math.cos(i / 20 * Math.PI * 2) * 5, p[1] + Math.sin(i / 20 * Math.PI * 2) * 5]); this.issueG.add(line(c, RED, 1, true, 42, this.H, false)); }
     for (const [a, b] of w.segs ?? []) { all.push(a, b); this.issueG.add(line([a, b], RED, 1.2, false, 43, this.H, false)); }
+    // 10-band (egasi, 22:49): meʼyor talab qiladigan holat — mos joy va kerakli masofa (yashil), «bor → kerak» yozuvlari
+    const GRN = 0x2f8f5b, nd = w.need;
+    for (const r of nd?.rings ?? []) { if (r.length < 3) continue; all.push(...r); const l = line(densify(r, 6, true), GRN, 0.9, true, 42, this.H, false); l.userData.need = 'ring'; this.issueG.add(l);
+      const sh = new THREE.Shape(r.map(p => new THREE.Vector2(p[0], p[1]))), m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 0.45, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: GRN, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 40; this.issueG.add(m); }
+    // kesma — 0,8 m lik lenta (WebGL chizigʻi 1 px — daraxtlar orasida koʻrinmaydi) va uchida 5 m koʻndalang belgi
+    const ribbon = (a: XY, b: XY, wd: number) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L * wd / 2, ny = dx / L * wd / 2;
+      const sh = new THREE.Shape([new THREE.Vector2(a[0] + nx, a[1] + ny), new THREE.Vector2(b[0] + nx, b[1] + ny), new THREE.Vector2(b[0] - nx, b[1] - ny), new THREE.Vector2(a[0] - nx, a[1] - ny)]);
+      const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 1.4, this.ctx ? 4 : 1e9), new THREE.MeshBasicMaterial({ color: GRN, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 44; return m; };
+    for (const [a, b] of nd?.segs ?? []) { all.push(a, b); const m = ribbon(a, b, 0.8); m.userData.need = 'seg'; this.issueG.add(m);
+      const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L * 2.5, ny = dx / L * 2.5; this.issueG.add(ribbon([b[0] - nx, b[1] - ny], [b[0] + nx, b[1] + ny], 0.8)); }
+    for (const t of nd?.labels ?? []) { const sp = labelSprite(t.text, true); sp.position.set(t.at[0], this.H(t.at[0], t.at[1]) + 1.2, -t.at[1]); sp.center.set(0.5, 0); (sp.material as THREE.SpriteMaterial).depthTest = false; sp.renderOrder = 45; sp.userData.needLbl = t.text; this.issueG.add(sp); }
     if (frameIt && all.length) this.frameRings([all]);
     this.invalidate();
   }
@@ -1328,7 +1339,7 @@ export class Scene3D {
     const H = this.host.clientHeight || 1, P = cam as THREE.PerspectiveCamera & THREE.OrthographicCamera;
     const k = P.isOrthographicCamera ? (P.top - P.bottom) / (P.zoom || 1) / H : 2 / (P.projectionMatrix.elements[5] * H);
     const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) { o.scale.set(px[0] * k, px[1] * k, 1); const me = o.userData.minExt as number | undefined; if (me != null) o.visible = me / k >= px[0] * 0.85; } };
-    this.world.children.forEach(fit); this.prev.children.forEach(fit); this.explodeLabels.forEach(fit); for (const x of this.ul.values()) x.u.labels.forEach(fit);
+    this.world.children.forEach(fit); this.prev.children.forEach(fit); this.issueG.children.forEach(fit); this.explodeLabels.forEach(fit); for (const x of this.ul.values()) x.u.labels.forEach(fit);
     this.fitLabels(cam, k);
   }
 

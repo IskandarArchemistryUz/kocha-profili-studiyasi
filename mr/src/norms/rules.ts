@@ -6,7 +6,7 @@
  */
 import type { Derived } from '../core/derive';
 import type { Project } from '../core/doc';
-import { CATS, checkProfile, profileById } from '../core/profiles';
+import { CATS, checkProfile, profileById, profileWidth } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
@@ -14,7 +14,8 @@ import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
 import { checkBlock, lenLimit, SYS, FIRE_COMP_ANDOZA, isPodium, jointOpt, jointScheme } from '../core/seysmik';
 import { area as areaOf, obb2 } from '../core/geo';
-import { computePlan } from '../core/plan';
+import { computePlan, corridor } from '../core/plan';
+import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
@@ -35,6 +36,60 @@ function closestSeg(a: XY[], b: XY[]): [XY, XY] {
   for (const [P, Q] of [[a, b], [b, a]] as [XY[], XY[]][]) for (const p of P) for (let i = 0; i < Q.length; i++) { const q = proj(p, Q[i], Q[(i + 1) % Q.length]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; best = P === a ? [p, q] : [q, p]; } }
   return best;
 }
+
+const nm = (v: number) => (Math.round(v * 10) / 10).toString().replace('.', ',');
+/** kesma a→b yoʻnalishida, a dan L uzunlikdagi kesma (kerakli masofa) */
+function needSeg(a: XY, b: XY, L: number): [XY, XY] {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [a, [a[0] + dx / l * L, a[1] + dy / l * L]];
+}
+/** sigʻim funksiyasi boʻyicha n oʻringa yetadigan eng kichik maydon, m² (41-jadval / 543-band pogʻonalari bilan) */
+export function areaForCap(cap: (a: number) => number, n: number): number {
+  let lo = 0, hi = 1000; while (cap(hi) < n && hi < 1e7) hi *= 2;
+  while (hi - lo > 1) { const m = Math.floor((lo + hi) / 2); if (cap(m) >= n) hi = m; else lo = m; }
+  return hi;
+}
+
+/**
+ * 10-band (egasi, 22:49): oʻrin yetmasa — sahnada mos uchastka maydoni. Eng katta parsel kerakli maydon bilan yozuvlanadi
+ * (halqa — mavjud parsel); parsel yoʻq boʻlsa — uchastka markazida kerakli maydondagi kvadrat (oʻlcham moʻljali).
+ */
+function socialNeed(doc: Project, use: 'maktab' | 'mtm', deficit: number): Where | undefined {
+  if (deficit <= 0) return undefined;
+  const cap = use === 'maktab' ? schoolCapacity : mtmCapacity, plan = computePlan(doc);
+  const ps = plan.blocks.filter(b => b.use === use).sort((a, b) => b.area - a.area);
+  if (ps.length) {
+    const p = ps[0], need = areaForCap(cap, cap(p.area) + deficit);
+    return { need: { rings: [p.rings[0]], labels: [{ at: p.centroid, text: `${n0(p.area)} → ≥ ${n0(need)} m²` }] } };
+  }
+  if (!doc.site) return undefined;
+  const fr = frame(doc.origin), all = doc.site.rings[0].map(fr.toLocal), c: XY = [all.reduce((t, q) => t + q[0], 0) / all.length, all.reduce((t, q) => t + q[1], 0) / all.length];
+  const need = areaForCap(cap, deficit), h = Math.sqrt(need) / 2;
+  return { need: { rings: [[[c[0] - h, c[1] - h], [c[0] + h, c[1] - h], [c[0] + h, c[1] + h], [c[0] - h, c[1] + h]]], labels: [{ at: c, text: `≥ ${n0(need)} m²` }] } };
+}
+
+/**
+ * 39-jadval (10-band, egasi): qizil chiziqqa yaqin maktab/MTM — haqiqiy masofa (qizil), qizil chiziqdan 25 m (yashil kesma)
+ * va parsel ichida binoga mos joy: parsel − (koʻcha koridori + 25 m) (yashil halqa).
+ */
+function redLineNeed(doc: Project, bad: { bid: string; d: number }[]): Where {
+  const fr = frame(doc.origin), plan = computePlan(doc), segs: [XY, XY][] = [], nsegs: [XY, XY][] = [], labels: { at: XY; text: string }[] = [], rings: XY[][] = [];
+  const cuts = doc.streets.map(st => corridor(st.axis.map(fr.toLocal), profileWidth(profileById(st.profile)) / 2 + 25)).filter(m => m.length);
+  const seen = new Set<number>();
+  for (const x of bad) {
+    const b = doc.buildings.find(q => q.id === x.bid); if (!b) continue;
+    const r = b.footprint.map(fr.toLocal); let best: [XY, XY] | null = null, bd = Infinity;
+    for (const poly of plan.corridors) for (const ring of poly) { const s = closestSeg(r, ring), l = Math.hypot(s[1][0] - s[0][0], s[1][1] - s[0][1]); if (l < bd) { bd = l; best = s; } }
+    if (best) { segs.push(best); const n = needSeg(best[1], best[0], 25); nsegs.push(n); labels.push({ at: n[1], text: `${nm(x.d)} → ≥ 25 m` }); }
+    const c: XY = [r.reduce((t, q) => t + q[0], 0) / r.length, r.reduce((t, q) => t + q[1], 0) / r.length];
+    const bi = plan.blocks.findIndex(k => (k.use === 'maktab' || k.use === 'mtm') && inRing(c, k.rings[0]));
+    if (bi >= 0 && !seen.has(bi) && cuts.length) {
+      seen.add(bi);
+      try { const z = polygonClipping.difference(plan.blocks[bi].rings.map(q => [...q, q[0]].map(p => [p[0], p[1]] as [number, number])) as Polygon, ...cuts); for (const poly of z) rings.push(poly[0].slice(0, -1).map(p => [p[0], p[1]] as XY)); } catch { /* geometriya xatosi — halqasiz */ }
+    }
+  }
+  return { bids: bad.map(x => x.bid), segs, need: { rings, segs: nsegs, labels } };
+}
+const inRing = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 
 /** Xonadonlar soni manbasi (izoh boʻlagi; alohida kalit — tarjima uchun) */
 function aptSrc(d: Derived, doc: Project): string {
@@ -67,7 +122,9 @@ export interface Result {
   /** 31.10 (egasi): loyihani meʼyorga moslash — tugma (editor.applyFix) va qisqa tavsiya */
   fix?: { id: FixId; label: string; hint: string };
 }
-export interface Where { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][] }
+/** need (egasi, 22:49, 10-band): meʼyor talab qiladigan holat — mos joy (halqa), kerakli masofa (kesma) va yozuvlar; sahnada yashil */
+export interface Need { rings?: XY[][]; segs?: [XY, XY][]; labels?: { at: XY; text: string }[] }
+export interface Where { bids?: string[]; pts?: XY[]; rings?: XY[][]; segs?: [XY, XY][]; need?: Need }
 
 export interface Rule {
   id: string; title: string; source: Source;
@@ -125,7 +182,8 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
       const lo = Math.ceil(d.population * 0.165), hi = Math.ceil(d.population * 0.28);
-      return { status: d.schoolCap >= lo ? 'pass' : 'fail', value: d.schoolCap, unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.schoolCap < lo ? (1 - d.schoolCap / lo) * -100 : undefined,
+      const sw = d.schoolCap < lo ? socialNeed(doc, 'maktab', lo - d.schoolCap) : undefined;
+      return { status: d.schoolCap >= lo ? 'pass' : 'fail', value: d.schoolCap, unit: 'oʻrin', limit: `≥ ${lo}`, ...(sw ? { where: sw } : {}), delta: d.schoolCap < lo ? (1 - d.schoolCap / lo) * -100 : undefined,
         note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellari maydonidan 41-jadval boʻyicha (20/15/10 m² oʻquvchiga). Yaqin atrofdagi mavjud maktablar hisobga olinmagan.${tierNote(d, 'maktab')}${demoNote(doc, d.population, 'school')}` };
     },
   },
@@ -136,7 +194,8 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'oʻrin', note: 'Aholi yoʻq' };
       const lo = Math.ceil(d.population * 0.07), hi = Math.ceil(d.population * 0.125);
-      return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, ...(d.mtmCap < lo ? { fix: { id: 'mtm' as const, label: '1-qavatlarga MTM joylash', hint: `Yetishmaydi ${lo - d.mtmCap} oʻrin. Turar joy binolarining 1-qavatiga MTM (543-band, uchastka 29 m²/oʻrin hovlidan) — kattaroq binolardan boshlab, kerakli oʻringa yetguncha; 1-qavati turar boʻlsa noturarga oʻtkaziladi. Alternativa — «MTM» parseli (≥ 3 535 m² — 35 m²/oʻrin).` } } : {}), unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
+      const mw = d.mtmCap < lo ? socialNeed(doc, 'mtm', lo - d.mtmCap) : undefined;
+      return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, ...(mw ? { where: mw } : {}), ...(d.mtmCap < lo ? { fix: { id: 'mtm' as const, label: '1-qavatlarga MTM joylash', hint: `Yetishmaydi ${lo - d.mtmCap} oʻrin. Turar joy binolarining 1-qavatiga MTM (543-band, uchastka 29 m²/oʻrin hovlidan) — kattaroq binolardan boshlab, kerakli oʻringa yetguncha; 1-qavati turar boʻlsa noturarga oʻtkaziladi. Alternativa — «MTM» parseli (≥ 3 535 m² — 35 m²/oʻrin).` } } : {}), unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
         note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi; bino maydoni 12 m²/oʻrin — taxmin).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
     },
   },
@@ -169,10 +228,10 @@ export const RULES: Rule[] = [
     id: 'red-line-39',
     title: 'Maktab va MTM binosidan qizil chiziqqacha',
     source: { ...SHNQ_2_07_01, clause: '539-band, 39-jadval (shahar: 25 m)' },
-    evaluate(d) {
+    evaluate(d, doc) {
       if (!d.redLineSocial.length) return { status: 'na', unit: 'm', limit: '≥ 25', note: 'Loyiha koʻchalari yonida maktab yoki MTM binosi yoʻq. Mavjud (OSM) koʻchalar qizil chizigʻi hisobga olinmaydi.' };
       const min = Math.min(...d.redLineSocial.map(x => x.d)), bad = d.redLineSocial.filter(x => x.d < 25);
-      return { status: bad.length ? 'fail' : 'pass', value: min, unit: 'm', limit: '≥ 25', ...(bad.length ? { where: { bids: bad.map(x => x.bid) } } : {}),
+      return { status: bad.length ? 'fail' : 'pass', value: min, unit: 'm', limit: '≥ 25', ...(bad.length ? { where: redLineNeed(doc, bad) } : {}),
         note: `${d.redLineSocial.length} ta bino tekshirildi, ${bad.length} tasi 25 m dan yaqin (${badList(bad)}). Masofa bino devoridan loyiha koʻchasi qizil chizigʻigacha; turar joy binolarigacha — insolyatsiya va yoritish meʼyorlari boʻyicha (39-jadval).` };
     },
   },
@@ -231,7 +290,10 @@ export const RULES: Rule[] = [
       const bad = ov + lng.length + lt.length + hard.length;
       // sahnada: muammoli juftlar va ular orasidagi eng qisqa kesma
       const prob = pairs.filter(p => p.kind === 'ustma-ust' || lng.includes(p) || lt.includes(p) || hard.includes(p) || soft.includes(p) || red.includes(p)), fr = frame(doc.origin), R = new Map(doc.buildings.map(b => [b.id, b.footprint.map(fr.toLocal)]));
-      const where: Where | undefined = prob.length ? { bids: [...new Set(prob.flatMap(p => [p.a, p.b]))], segs: prob.flatMap(p => { const a = R.get(p.a), b = R.get(p.b); return a && b && p.kind !== 'ustma-ust' ? [closestSeg(a, b)] : []; }) } : undefined;
+      // 10-band (egasi): kerakli masofa — eng yaqin nuqtadan shu yoʻnalishda talab uzunligida yashil kesma va «bor → kerak» yozuvi
+      const cs = prob.flatMap(p => { const a = R.get(p.a), b = R.get(p.b); return a && b && p.kind !== 'ustma-ust' ? [{ p, s: closestSeg(a, b) }] : []; });
+      const nd = cs.filter(({ p }) => p.need > p.d + 0.5 || (p.soft ?? 0) > p.d + 0.5).map(({ p, s }) => { const L = Math.max(p.need, p.soft ?? 0), n = needSeg(s[0], s[1], L); return { n, text: `${nm(p.d)} → ${nm(L)} m` }; });
+      const where: Where | undefined = prob.length ? { bids: [...new Set(prob.flatMap(p => [p.a, p.b]))], segs: cs.map(x => x.s), ...(nd.length ? { need: { segs: nd.map(x => x.n), labels: nd.map(x => ({ at: x.n[1], text: x.text })) } } : {}) } : undefined;
       return { status: bad ? 'fail' : (soft.length || pass || red.length) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0', ...(where ? { where } : {}),
         note: parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.' };
     },
