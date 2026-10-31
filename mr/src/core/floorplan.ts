@@ -196,9 +196,14 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     if (st.length !== 4) continue;
     const [a, b, , d] = st, e1 = Math.hypot(b[0] - a[0], b[1] - a[1]), e2 = Math.hypot(d[0] - a[0], d[1] - a[1]);
     const [o0, L, W2, uL, uW] = e1 >= e2 ? [a, e1, e2, [(b[0] - a[0]) / e1, (b[1] - a[1]) / e1], [(d[0] - a[0]) / e2, (d[1] - a[1]) / e2]] as const : [a, e2, e1, [(d[0] - a[0]) / e2, (d[1] - a[1]) / e2], [(b[0] - a[0]) / e1, (b[1] - a[1]) / e1]] as const;
-    const P2 = (t: number, w: number): XY => [o0[0] + uL[0] * t + uW[0] * w, o0[1] + uL[1] * t + uW[1] * w];
-    const land = Math.min(1.4, L * 0.22), f0 = land, f1 = L - land, mid = W2 / 2;
-    for (let t = f0; t <= f1 + 1e-6; t += 0.3) out.push(seg(P2(t, 0), P2(t, mid - 0.05), 'stroke="#141414" stroke-width="0.15"'), seg(P2(t, mid + 0.05), P2(t, W2), 'stroke="#141414" stroke-width="0.15"'));
+    // audit 31.10: pogʻonalar soni qavat balandligidan — koʻtarilish 150 mm, pogʻona 300 mm (andoza; ShNQ 2.01.02-04, 5.30: eni ≥ 25 sm, balandligi ≤ 22 sm);
+    // qavat maydonchasi — MOP (koridor) tomonida, oraliq maydoncha — narigi uchida (chuqurligi ≥ marsh eni)
+    const mopC = MOPS.length ? cen(MOPS.reduce((x, y) => area(y) > area(x) ? y : x)) : null;
+    const nearEnd = mopC && Math.hypot(o0[0] + uL[0] * L + uW[0] * W2 / 2 - mopC[0], o0[1] + uL[1] * L + uW[1] * W2 / 2 - mopC[1]) < Math.hypot(o0[0] + uW[0] * W2 / 2 - mopC[0], o0[1] + uW[1] * W2 / 2 - mopC[1]);
+    const P2 = (t0: number, w: number): XY => { const t = nearEnd ? L - t0 : t0, ww = nearEnd ? W2 - w : w; return [o0[0] + uL[0] * t + uW[0] * ww, o0[1] + uL[1] * t + uW[1] * ww]; };
+    const risers = Math.max(2, Math.ceil((o.fh ?? 3) / 0.15)), treads = Math.ceil(risers / 2) - 1, FL = treads * 0.3, mid = W2 / 2;
+    const midLand = Math.max(Math.min(mid - 0.05, L - FL - 1.2), 0.9), f1 = L - midLand, f0 = Math.max(0.6, f1 - FL);
+    for (let t = f0; t <= f1 + 1e-6; t += (f1 - f0) / Math.max(1, treads)) out.push(seg(P2(t, 0), P2(t, mid - 0.05), 'stroke="#141414" stroke-width="0.15"'), seg(P2(t, mid + 0.05), P2(t, W2), 'stroke="#141414" stroke-width="0.15"'));
     out.push(`<path d="${path([P2(f0, mid - 0.05), P2(f1, mid - 0.05), P2(f1, mid + 0.05), P2(f0, mid + 0.05)])}" fill="#141414"/>`);
     // strelka: birinchi marsh boʻylab yuqoriga, ikkinchisida qaytish
     const s0 = P2(f0 + 0.2, mid / 2), s1 = P2(f1, mid / 2), s2 = P2(f1, mid + mid / 2), s3 = P2(f0 + 1.2, mid + mid / 2);

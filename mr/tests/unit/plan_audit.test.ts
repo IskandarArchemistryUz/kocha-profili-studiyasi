@@ -1,0 +1,25 @@
+import { describe, it, expect } from 'vitest';
+import { generate, DEFAULT_GEN } from '../../src/core/generator';
+import { blankProject } from '../../src/core/doc';
+import { frame, area, obb2 } from '../../src/core/geo';
+import { planApartments } from '../../src/core/apartments';
+import { sectionPlan } from '../../src/core/floorplan';
+import { aptInterior } from '../../src/core/aptplan';
+
+describe('Audit 31.10', () => {
+  it('openRing: deyarli bir chiziqdagi qirralar polygon-clipping ni cheksiz siklga tushirmaydi', () => {
+    const B: [number, number][] = [[-3.9402798236586216, 0.8998531419104003], [100.62984401184728, 131.46228241014356], [-16.348014300375638, 251.7007536542119], [-122.81741954593461, 118.13805468364735]];
+    const t = Date.now(); const r = generate(B, { ...DEFAULT_GEN, typology: 'blok_minora', maxF: 18, minF: 5 });
+    expect(r.sections.length).toBeGreaterThan(5); expect(Date.now() - t).toBeLessThan(5000);
+  }, 20000);
+  it('qiya kvartal: trapetsiya kvartiralar ham xonalarga boʻlinadi (≥ 85 %; L shakllar hali yoʻq)', () => {
+    const B: [number, number][] = [[0, 0], [120, 0], [135, 90], [-12, 85]];
+    const r = generate(B, { ...DEFAULT_GEN, typology: 'perimetr', maxF: 9, minF: 5 });
+    const doc = blankProject('a'); const fr = frame(doc.origin);
+    doc.buildings = r.sections.filter(s => s.kind !== 'stilobat').map((s, i) => ({ id: 'b' + i, footprint: s.ring.map(fr.toGeo), floors: s.floors, nonRes: s.nonRes, use: 'turar' as const, gen: { grp: 'g', kind: s.kind, ...(s.blind ? { blind: s.blind } : {}) } }));
+    let n = 0, ok = 0, skew = 0, skewOk = 0;
+    for (const pl of planApartments(doc)) for (const a of sectionPlan(pl).apts) { const o = obb2(a.ring), f = area(a.ring) / (o.L * o.S), has = !!aptInterior(a, pl.layout.mods); n++; if (has) ok++; if (f < 0.97 && f > 0.85) { skew++; if (has) skewOk++; } }
+    expect(ok / n).toBeGreaterThan(0.85);
+    if (skew) expect(skewOk / skew).toBeGreaterThanOrEqual(0.5);
+  }, 30000);
+});
