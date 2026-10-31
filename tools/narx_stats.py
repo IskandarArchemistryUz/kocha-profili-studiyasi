@@ -9,6 +9,7 @@ Ishlatish: python3 tools/narx_stats.py xom.txt [chiqish.csv] [--hudud NOM] [--tu
   --hudud NOM   «hudud» ustuni qiymati (standart: Mirobod)
   --tuman ID    faqat shu districtId dagi eʼlonlar (masalan 204 = Mirobod)
   --tumanlar    umumiy qatordan tashqari har tuman uchun alohida qator («tuman_<id>»)
+  --atrofsiz    «atrof_1500m_*» ustunlarini boʻsh qoldiradi (butun shahar monitoringi uchun)
 """
 import argparse, csv, math, statistics as st, sys, os, datetime as dt
 
@@ -74,7 +75,7 @@ def clean(rows):
     return ok, auc, dup, bad
 
 
-def stats(today, now, hudud, cat, total, rows):
+def stats(today, now, hudud, cat, total, rows, atrof=True):
     ok, auc, dup, bad = clean(rows)
     vals = [r['v'] for r in ok]
     near = [r['v'] for r in ok if dist(ORIGIN, (r['lat'], r['lng'])) <= NEAR_M]
@@ -88,7 +89,7 @@ def stats(today, now, hudud, cat, total, rows):
     R = lambda x: round(x) if x is not None else ''
     return [today, 'uybor.uz', hudud, cat, total, len(rows), len(ok),
             R(st.median(vals) if vals else None), R(q(vals, .25) if vals else None), R(q(vals, .75) if vals else None),
-            len(near), R(st.median(near) if near else None), auc, dup, bad, round(fresh / len(ok), 2) if ok else '']
+            len(near) if atrof else '', R(st.median(near) if near and atrof else None), auc, dup, bad, round(fresh / len(ok), 2) if ok else '']
 
 
 def main():
@@ -96,6 +97,7 @@ def main():
     ap.add_argument('src'); ap.add_argument('out', nargs='?', default='data/narx/mirobod_uybor.csv')
     ap.add_argument('--hudud', default='Mirobod'); ap.add_argument('--tuman', default='')
     ap.add_argument('--tumanlar', action='store_true')
+    ap.add_argument('--atrofsiz', action='store_true')
     a = ap.parse_args()
     out_path = a.out
     today = dt.date.today().isoformat()
@@ -109,10 +111,10 @@ def main():
             total = ''           # tuman boʻyicha API jami nomaʼlum
         else:
             total = c['total']
-        out.append(stats(today, now, a.hudud, cat, total, rows))
+        out.append(stats(today, now, a.hudud, cat, total, rows, not a.atrofsiz))
         if a.tumanlar:
             for d in sorted({r['d'] for r in rows if r['d']}, key=lambda x: int(x) if x.isdigit() else 0):
-                out.append(stats(today, now, 'tuman_' + d, cat, '', [r for r in rows if r['d'] == d]))
+                out.append(stats(today, now, 'tuman_' + d, cat, '', [r for r in rows if r['d'] == d], not a.atrofsiz))
     old = []
     if os.path.exists(out_path):
         with open(out_path, encoding='utf-8') as fh:
