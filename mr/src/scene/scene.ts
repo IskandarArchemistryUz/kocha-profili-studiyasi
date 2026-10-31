@@ -99,6 +99,8 @@ export const EXPLODE_NAMES = ['Atrof', 'Koʻchalar', 'Kvartallar va zonalar', 'B
 
 /** Tungi rejim: dizayn tizimi `bg` (#121212) ga yaqin, yer biroz ochroq — binolar va hovlilar ajralib turadi */
 const DARK = { bg: 0x161615, ground: 0x252523, gridTint: 0x3a3a38 };
+/** Past qavatli uylar uchastkasi devori balandligi, m (andoza) */
+const FENCE_H = 1.8;
 const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b4, siteLine: 0xc0392b, bld: 0xf7f6f2, bldSel: 0xcfe0f1, roof: 0xdedad2, edge: 0x3c3c3c, preview: 0x2a6fb0 };
 
 const bbox = (r: XY[]): [number, number, number, number] => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of r) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); } return [a, b, c, d]; };
@@ -918,7 +920,7 @@ export class Scene3D {
         });
         const yards = landscape(doc), trees: XY[] = [];
         // maydoncha jihozlari (playkit): rang boʻyicha bitta mesh va bitta LineSegments — sahna yengil
-        const kitF: Record<string, THREE.Shape[]> = {}, kitL: Record<string, number[]> = {};
+        const kitF: Record<string, THREE.Shape[]> = {}, kitL: Record<string, number[]> = {}, fenceV: number[] = [], fenceTop: number[] = [];
         for (const y of yards) {
           // 31.10: stilobat tomi landshafti — tom sathida (bino asosi + stilobat balandligi)
           const pb = y.roofOf ? doc.buildings.find(b => b.id === y.roofOf) : undefined;
@@ -947,7 +949,9 @@ export class Scene3D {
               const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: plainS ? 0xf4f4f4 : 0xdfe6ee })); m.position.y = Hy(c0[0], c0[1]); m.castShadow = true; m.receiveShadow = true; m.userData.sport = true; this.world.add(m);
             }
           }
-          for (const r of y.fences ?? []) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0x8a7f6c, 0.36, true, 6.45, Hy); l.userData.fence = true; this.world.add(l); }   // past uylar uchastkalari panjarasi
+          // past uylar uchastkalari devori (31.10: «devorlari koʻrinmayapti») — 1,8 m (andoza), bitta birlashtirilgan mesh
+          for (const r of y.fences ?? []) for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], ha = Hy(a[0], a[1]), hb = Hy(b[0], b[1]); fenceV.push(a[0], ha, -a[1], b[0], hb, -b[1], b[0], hb + FENCE_H, -b[1], a[0], ha, -a[1], b[0], hb + FENCE_H, -b[1], a[0], ha + FENCE_H, -a[1]); fenceTop.push(a[0], ha + FENCE_H, -a[1], b[0], hb + FENCE_H, -b[1]); }
+          for (const k of y.kit ?? []) if (k.f) (kitF[pb ? `${k.c}@${zr}` : k.c] ??= []).push(new THREE.Shape(k.f.map(toV2)));   // uchastka ichidagi ekin pushtalari
           // yongʻin rampasi: yerdan (t = 0) tom sathigacha (t = len) qiya tekislik; ikki yonida chiziq
           if (pb && y.ramp) {
             const R = y.ramp.ring, lo = y.ramp.lo, hi = y.ramp.hi, dx = hi[0] - lo[0], dy = hi[1] - lo[1], L2 = dx * dx + dy * dy || 1, g0 = this.H(lo[0], lo[1]);
@@ -959,6 +963,12 @@ export class Scene3D {
             const gl = new THREE.BufferGeometry(); gl.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); this.world.add(new THREE.LineSegments(gl, new THREE.LineBasicMaterial({ color: plainS ? 0xb9b6ae : 0xc0503a })));
           }
           if (pb) { if (y.trees.length) this.world.add(...treeMeshes(y.trees, Hy, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c)); } else trees.push(...y.trees);
+        }
+        if (fenceV.length) {
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(fenceV, 3)); g.computeVertexNormals();
+          const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: plainS ? 0xeeece8 : alb ? 0xe9e3d8 : 0xd8cbb4, side: THREE.DoubleSide })); m.castShadow = true; m.receiveShadow = true; m.userData.fence = true; this.world.add(m);
+          const gt = new THREE.BufferGeometry(); gt.setAttribute('position', new THREE.Float32BufferAttribute(fenceTop, 3));
+          const lt = new THREE.LineSegments(gt, new THREE.LineBasicMaterial({ color: plainS ? 0xb9b6ae : 0x8a7f6c })); lt.userData.fence = true; this.world.add(lt);
         }
         const KC: Record<string, number> = plainS ? { qum: 0xece9e2, jihoz: 0xc9c6bf, yogoch: 0xb9b6ae, oq: 0xffffff, chiziq: 0xa9a59c, gul: 0xe4e6df, ekin: 0xdfe3d8 }
           : { qum: 0xf3dea6, jihoz: 0xd9654b, yogoch: 0x9c7752, oq: 0xffffff, chiziq: 0x6b6458, gul: 0xd98fa8, ekin: 0x7fa95c };
