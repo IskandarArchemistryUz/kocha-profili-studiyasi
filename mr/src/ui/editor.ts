@@ -27,6 +27,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, Sect
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
+import { applyRoadEdits, vtxOp, type VtxOp } from '../core/roadedit';
 import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../core/streetends';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
@@ -276,7 +277,7 @@ export class Editor {
     if ((Object.keys(doc) as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
     // loyiha markazi koʻchdi (uchastka chizilgach, qidiruv, bekor qilish) — kamera va fon yerda joyida qoladi, sahna «sakramaydi»
     if (p.origin !== doc.origin) { const d = frame(p.origin).toLocal(doc.origin); if (Math.hypot(d[0], d[1]) < 60000) this.scene.shiftOrigin(d); }
-    if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed) void this.ensureContext();
+    if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed || p.roadEdits !== doc.roadEdits || p.removedRoads !== doc.removedRoads) void this.ensureContext();
     if (this.marked.b.length || this.marked.c.length || this.marked.r.length) { const rm = new Set(doc.removed ?? []), rr = new Set(doc.removedRoads ?? []), keepR = this.marked.r.filter(x => !rr.has(x)); this.setMarked(this.marked.b.filter(id => doc.buildings.some(b => b.id === id)), this.marked.c.filter(id => !rm.has(id)), doc, keepR); }
     if (this.selStreet && !doc.streets.some(x => x.id === this.selStreet)) { this.selStreet = null; this.scene.selectStreet(null); }
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
@@ -562,7 +563,7 @@ export class Editor {
   private setMarked(b: string[], c: number[], doc = this.store.doc, r: number[] = []): void {
     this.marked = { b: [...new Set(b)], c: [...new Set(c)], r: [...new Set(r)] };
     const fr = frame(doc.origin), rs = new Set(this.marked.r);
-    const roads = (this.ctxMgr.current?.osm.roads ?? []).filter(x => rs.has(x.id)).map(x => ({ pts: x.pts.map(fr.toLocal), w: x.w }));
+    const roads = (this.ctxRoads()).filter(x => rs.has(x.id)).map(x => ({ pts: x.pts.map(fr.toLocal), w: x.w }));
     this.scene.setMarked(doc, this.marked.b, this.marked.c, roads);
     const n = this.marked.b.length + this.marked.c.length + this.marked.r.length;
     if (!this.tool) {
@@ -579,7 +580,7 @@ export class Editor {
     const skip = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
     const v = this.scene.viewExtent(), mpp = 2 * v.r / Math.max(1, this.el.scene.clientWidth), extra = Math.max(2, 7 * mpp);
     let best: number | null = null, bd = Infinity;
-    for (const r of b.osm.roads) {
+    for (const r of this.ctxRoads()) {
       if (skip.has(r.id)) continue;
       const a = r.pts.map(fr.toLocal);
       for (let i = 1; i < a.length; i++) {
@@ -900,13 +901,23 @@ export class Editor {
   }
   /** Chegara boʻyicha yuklangan atrof — poligonga qirqilgan nusxa (eslab qolinadi) */
   private clipMemo: { b: ContextBundle; a: LngLat[]; v: ContextBundle } | null = null;
-  private ctxView(b: ContextBundle | null): ContextBundle | null {
-    const a = this.store.doc.context.area;
+  private ctxView(b0: ContextBundle | null): ContextBundle | null {
+    const a = this.store.doc.context.area, E = this.store.doc.roadEdits;
+    const b = b0 && E?.length ? this.ctxEdited(b0) : b0;
     if (!b || !a) return b;
     if (this.clipMemo?.b === b && this.clipMemo.a === a) return this.clipMemo.v;
     const v = { ...b, osm: clipOsmToArea(b.osm, a) };
     this.clipMemo = { b, a, v }; return v;
   }
+  /** Mavjud yoʻllar nuqta boʻyicha tahrir bilan (31.10): Project.roadEdits qoʻllangan nusxa (eslab qolinadi) */
+  private editMemo: { b: ContextBundle; e: unknown; v: ContextBundle } | null = null;
+  private ctxEdited(b: ContextBundle): ContextBundle {
+    const e = this.store.doc.roadEdits;
+    if (this.editMemo?.b === b && this.editMemo.e === e) return this.editMemo.v;
+    const v = { ...b, osm: { ...b.osm, roads: applyRoadEdits(b.osm.roads, e) } };
+    this.editMemo = { b, e, v }; return v;
+  }
+  private ctxRoads(): (ContextBundle['osm']['roads'][number] & { part?: number })[] { const b = this.ctxMgr.current; return b ? this.ctxEdited(b).osm.roads : []; }
   private showContext(b0: ContextBundle | null): void {
     const doc = this.store.doc, b = this.ctxView(b0);
     if (b) { this.baseKey = ''; this.liveAt = null; this.ctxLive = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
@@ -940,7 +951,9 @@ export class Editor {
   }
   private farKey = '';
   /** Koʻchalar qadamida bosilgan OSM koʻchasi (loyihaga olish uchun) */
-  private osmPick: { id: number; cls: string; w: number; name?: string; pts: LngLat[] } | null = null;
+  private osmPick: { id: number; cls: string; w: number; name?: string; pts: LngLat[]; part?: number } | null = null;
+  /** tanlangan koʻcha / mavjud yoʻl nuqtasi (31.10): oʻchirish, qisqartirish, boʻlish */
+  private selVtx: number | null = null;
 
   private renderBadge(): void {
     const b = this.el.badge, c = this.ctx;
@@ -1031,7 +1044,7 @@ export class Editor {
       && !(r.cls === 'service' && /driveway|parking_aisle|drive-through|emergency_access/.test(r.sub ?? ''))
       && !(this.blockMode === 'yirik' && MINOR.test(r.cls));
     const bars: Barrier[] = [
-      ...b.osm.roads.filter(r => ok(r) && !(doc.removedRoads ?? []).includes(r.id)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })),
+      ...this.ctxRoads().filter(r => ok(r) && !(doc.removedRoads ?? []).includes(r.id)).map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w })),
       ...b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w + 4 })),
       ...b.osm.waterways.filter(w => /river|canal/.test(w.cls)).map(w => ({ pts: w.pts.map(fr.toLocal), w: w.w })),
     ];
@@ -1785,7 +1798,7 @@ export class Editor {
 
   private runServices(): void {
     const doc = this.store.doc, fr = frame(doc.origin), t0 = performance.now();
-    const roads = this.svc.poi?.roads ?? (this.ctxMgr.current?.osm.roads ?? []).map(r => ({ cls: r.cls, pts: r.pts }));
+    const roads = this.svc.poi?.roads ?? (this.ctxRoads()).map(r => ({ cls: r.cls, pts: r.pts }));
     const lines = roads.filter(r => WALKABLE(r.cls)).map(r => r.pts.map(fr.toLocal));
     const net = buildNet(lines, doc.streets.map(st => st.axis.map(fr.toLocal)));
     const demand: Demand[] = doc.buildings.filter(b => useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat' && b.floors > b.nonRes).map(b => {
@@ -2286,7 +2299,7 @@ export class Editor {
     if (doc.site) for (const r0 of doc.site.rings) { const r = r0.map(fr.toLocal); for (let i = 0; i < r.length; i++) seg(r[i], r[(i + 1) % r.length]); }
     for (const b of doc.buildings) { const r = b.footprint.map(fr.toLocal); for (let i = 0; i < r.length; i++) seg(r[i], r[(i + 1) % r.length]); }
     for (const st of doc.streets) { const r = st.axis.map(fr.toLocal); for (let i = 1; i < r.length; i++) seg(r[i - 1], r[i]); }
-    for (const rd of this.ctxMgr.current?.osm.roads ?? []) { const r = rd.pts.map(fr.toLocal); for (let i = 1; i < r.length; i++) seg(r[i - 1], r[i]); }
+    for (const rd of this.ctxRoads()) { const r = rd.pts.map(fr.toLocal); for (let i = 1; i < r.length; i++) seg(r[i - 1], r[i]); }
     return best;
   }
   /**
@@ -2382,7 +2395,7 @@ export class Editor {
     for (const st of doc.streets) if (st.id !== skip) near(st.axis.map(fr.toLocal), 6, 6);
     if (best === p) {
       const b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
-      if (b && doc.context.loaded && doc.context.layers.roads) for (const r of b.osm.roads) {
+      if (b && doc.context.loaded && doc.context.layers.roads) for (const r of this.ctxRoads()) {
         if (adopted.has(r.id) || /^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) continue;
         near(r.pts.map(fr.toLocal), r.w / 2 + 6, 8);
       }
@@ -2404,6 +2417,8 @@ export class Editor {
   private handleSet(): { id: string; pts: XY[]; closed: boolean; min: number; street?: boolean; apply: (pts: XY[], key: string) => void; floor?: { c: XY; z: number; bid: string } } | null {
     const doc = this.store.doc, fr = frame(doc.origin); if (this.tool) return null;
     const st = this.step.id;
+    if (st === 'kocha' && !this.selStreet && this.osmPick) { const o = this.osmPick;
+      return { id: `osm${o.id}`, pts: o.pts.map(fr.toLocal), closed: false, min: 2, apply: (pts, key) => { const g = pts.map(fr.toGeo), parts = this.osmParts(o.id); parts[o.part ?? 0] = g; this.run(() => this.store.dispatch({ type: 'setRoadEdit', id: o.id, parts }, key)); o.pts = g; this.scene.setPreview(pts); } }; }
     if (st === 'kocha') { const s = doc.streets.find(x => x.id === this.selStreet); if (!s) return null;
       return { id: s.id, pts: s.axis.map(fr.toLocal), closed: false, min: 2, street: true, apply: (pts, key) => { const prev = this.plan(); this.run(() => this.store.dispatch({ type: 'updateStreet', id: s.id, patch: { axis: pts.map(fr.toGeo) } }, key)); this.regenAfterStreets(prev); } }; }
     if (st === 'uchastka' && doc.site) { const r = doc.site.rings;
@@ -2421,7 +2436,7 @@ export class Editor {
     if (!hs) { this.scene.setHandles([]); return; }
     const a = hs.pts, n = a.length, mids: XY[] = [];
     for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n]; mids.push([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]); }
-    this.scene.setHandles(a, mids, hs.floor ? { c: hs.floor.c, z: hs.floor.z } : null);
+    this.scene.setHandles(a, mids, hs.floor ? { c: hs.floor.c, z: hs.floor.z } : null, this.selVtx != null && this.selVtx < n && !hs.closed ? a[this.selVtx] : null);
   }
   /** ekrandagi (x, y) ga eng yaqin tutqich: i — nuqta indeksi; ins — oraliqdan yangi nuqta; floor — qavat tutqichi */
   private handleAt(x: number, y: number): { i: number; ins: boolean; floor?: boolean } | null {
@@ -2432,6 +2447,53 @@ export class Editor {
     a.forEach((p, i) => test(p, this.scene.H(p[0], p[1]) + 0.8, i, false, 12));
     for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n], m: XY = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; test(m, this.scene.H(m[0], m[1]) + 0.8, i, true, 9); }
     return best;
+  }
+
+  /** mavjud yoʻlning joriy boʻlaklari (tahrir boʻlmasa — asl geometriya) */
+  private osmParts(id: number): LngLat[][] {
+    const e = this.store.doc.roadEdits?.find(x => x.id === id); if (e) return e.parts.map(p => p.slice());
+    const r = this.ctxMgr.current?.osm.roads.find(x => x.id === id); return r ? [r.pts.slice()] : [];
+  }
+  /** Tanlangan nuqtaga amal (31.10): loyiha koʻchasi yoki mavjud yoʻl */
+  private vtxApply(op: VtxOp): void {
+    const i = this.selVtx, doc = this.store.doc, fr = frame(doc.origin); if (i == null) return;
+    const NO: Record<VtxOp, string> = { del: 'Kamida 2 nuqta qolishi kerak', cutHead: 'Bu — boshlangʻich nuqta', cutTail: 'Bu — oxirgi nuqta', split: 'Chetdagi nuqtada boʻlib boʻlmaydi', dropSeg: 'Bu — oxirgi nuqta' };
+    const st = doc.streets.find(x => x.id === this.selStreet);
+    if (st) {
+      const res = vtxOp(st.axis, i, op); if (!res) { toast(tr(NO[op])); return; }
+      const prev = this.plan();
+      this.run(() => {
+        if (!res.length) { this.store.dispatch({ type: 'removeStreet', id: st.id }); return; }
+        this.store.dispatch({ type: 'updateStreet', id: st.id, patch: { axis: res[0], ends: undefined } });
+        for (const a of res.slice(1)) this.store.dispatch({ type: 'addStreet', axis: a, profile: st.profile });
+      });
+      this.selVtx = op === 'del' ? Math.min(i, (res[0]?.length ?? 1) - 1) : null;
+      this.regenAfterStreets(prev); this.syncHandles(); this.renderPanel(); return;
+    }
+    const o = this.osmPick; if (!o) return;
+    const res = vtxOp(o.pts, i, op); if (!res) { toast(tr(NO[op])); return; }
+    const parts = this.osmParts(o.id), k = o.part ?? 0; parts.splice(k, 1, ...res);
+    this.run(() => {
+      if (parts.length) this.store.dispatch({ type: 'setRoadEdit', id: o.id, parts });
+      else { this.store.dispatch({ type: 'setRoadEdit', id: o.id, parts: null }); this.store.dispatch({ type: 'setRemovedRoads', ids: [...(this.store.doc.removedRoads ?? []), o.id] }); }
+    });
+    if (op === 'del' && res[0]) { o.pts = res[0]; this.selVtx = Math.min(i, res[0].length - 1); this.scene.setPreview(res[0].map(fr.toLocal)); }
+    else { this.osmPick = null; this.selVtx = null; this.scene.setPreview([]); }
+    this.syncHandles(); this.renderPanel(); toast(tr('Yoʻl tahrirlandi · Ctrl+Z — qaytarish'));
+  }
+  /** Nuqta amallari paneli: tanlangan nuqta boʻlsa — tugmalar, boʻlmasa — koʻrsatma */
+  private vtxPanel(n: number): HTMLElement {
+    const i = this.selVtx;
+    if (i == null || i >= n) return h('span', { class: 't-small', id: 'vtxHint' }, tr('Nuqtani bosing — tanlanadi (oʻchirish, qisqartirish, boʻlish); oraliqdagi nuqtani bosing — yangi nuqta. Sudrash — surish.'));
+    const b = (op: VtxOp, t: string, dis: boolean, danger = false) => h('button', { class: `btn btn-sm${danger ? ' btn-danger' : ''}`, 'data-vop': op, disabled: dis, onclick: () => this.vtxApply(op) }, tr(t));
+    return h('div', { class: 'group', id: 'vtxOps' },
+      h('div', { class: 'li' }, h('span', { class: 'k' }, tf('Tanlangan nuqta: ${i} / ${n}', { i: i + 1, n }), h('span', { class: 'sub' }, tr('Delete — nuqtani oʻchirish')))),
+      h('div', { class: 'li', style: 'gap:6px;flex-wrap:wrap' },
+        b('del', 'Nuqtani oʻchirish', n <= 2),
+        b('cutHead', 'Boshidan shu nuqtagacha olib tashlash', i === 0, true),
+        b('cutTail', 'Shu nuqtadan oxirigacha olib tashlash', i === n - 1, true),
+        b('dropSeg', 'Keyingi kesmani olib tashlash', i === n - 1, true),
+        b('split', 'Shu nuqtada boʻlish', i === 0 || i === n - 1)));
   }
 
   /** atrofdagi (OSM) yoʻlni olib tashlash — masalan, uchastka ichidagi kichik koʻcha */
@@ -2457,7 +2519,7 @@ export class Editor {
     const skip = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
     const NOT = /^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian|construction|proposed|platform|raceway)$/;
     const out: { osm: number; axis: XY[]; profile: string; half: number }[] = [];
-    for (const r of b.osm.roads) {
+    for (const r of this.ctxRoads()) {
       if (skip.has(r.id) || NOT.test(r.cls) || (r.cls === 'service' && /driveway|parking_aisle|drive-through|emergency_access/.test(r.sub ?? ''))) continue;
       const loc = r.pts.map(fr.toLocal); if (!lineHitsRing(loc, site)) continue;
       const axis = clipLine(loc, -R, -R, R, R).sort((a, c) => c.length - a.length)[0] ?? loc; if (axis.length < 2) continue;
@@ -2562,7 +2624,7 @@ export class Editor {
   private streetEndPatches(doc: Project): { n: number; patches: { id: string; patch: { axis: LngLat[] } }[] } {
     const fr = frame(doc.origin), b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
     const targets: { id: string; a: XY[] }[] = doc.streets.map(st => ({ id: st.id, a: st.axis.map(fr.toLocal) }));
-    if (b && doc.context.loaded) for (const r of b.osm.roads) if (!adopted.has(r.id) && !/^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) targets.push({ id: `osm${r.id}`, a: r.pts.map(fr.toLocal) });
+    if (b && doc.context.loaded) for (const r of this.ctxRoads()) if (!adopted.has(r.id) && !/^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) targets.push({ id: `osm${r.id}`, a: r.pts.map(fr.toLocal) });
     /** E nuqtadan D yoʻnalishda nur — eng yaqin kesishish (t ≤ 40 m) */
     const onAxis = (E: XY, self: string): boolean => targets.some(t => t.id !== self && t.a.some((u, i) => { if (!i) return false; const v = t.a[i - 1], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, k = Math.max(0, Math.min(1, ((E[0] - u[0]) * dx + (E[1] - u[1]) * dy) / L2)); return Math.hypot(u[0] + k * dx - E[0], u[1] + k * dy - E[1]) < 1; }));
     const ray = (E: XY, D: XY, self: string): XY | null => {
@@ -2597,7 +2659,7 @@ export class Editor {
     const k = [doc.site, b, doc.origin, doc.removedRoads, doc.streets];
     if (!this.accessMemo || !this.accessMemo.k.every((x, i) => x === k[i])) {
       const skip = new Set([...(doc.removedRoads ?? []), ...doc.streets.flatMap(s => s.osm != null ? [s.osm] : [])]);
-      this.accessMemo = { k, v: siteAccess(doc.site.rings[0], b.osm.roads, doc.origin, 30, skip) };
+      this.accessMemo = { k, v: siteAccess(doc.site.rings[0], this.ctxRoads(), doc.origin, 30, skip) };
     }
     const A = this.accessMemo.v, G: Record<string, string> = { magistral: 'magistral', tuman: 'tuman ahamiyatidagi', mahalliy: 'mahalliy', xizmat: 'xizmat yoʻli' };
     if (!A.length) { box.append(h('div', { class: 'note warn' }, tr('Uchastka chegarasidan 30 m ichida yoʻl yoʻq — kirish uchun koʻcha chizish kerak (2-qadam).'))); return box; }
@@ -2676,6 +2738,7 @@ export class Editor {
       const iss = checkProfile(p0);
       body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, `${tr('Tanlangan')}: ${p0.name} · ${fmt(profileWidth(p0), 0)} m`, h('span', { class: 'sub' }, `ShNQ 2.07.01-23, ${CATS[p0.cat].clause}${stSel.osm != null ? ' · OSM' : ''}`)), h('span', { class: iss.length ? 'chip bad' : 'chip ok' }, h('i'), iss.length ? `${iss.length} ${tr('chetlanish')}` : tr('mos')))),
         h('span', { class: 't-small', id: 'stEditHint' }, tr('Nuqtalarni sudrang · oraliq nuqta — burilish · 2× bosish — oʻchirish · Delete — oʻchirish')));
+      if (this.selVtx != null) body.append(this.vtxPanel(stSel.axis.length));
     }
     if (this.kochaTab == null) this.kochaTab = doc.streets.length ? 'chiz' : 'tor';
     if (drawing && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
@@ -2783,6 +2846,7 @@ export class Editor {
           } }, `${tr('Loyihaga olish')}: ${profileById(this.profile).name}`),
           h('button', { class: 'btn btn-danger btn-sm', id: 'rmOsmRoad', onclick: () => this.removeOsmRoad(o.id) }, ...icl(IC.trash, tr('Bu yoʻlni olib tashlash (Delete)'))),
           h('button', { class: 'btn btn-ghost btn-sm', onclick: () => { this.osmPick = null; this.scene.setPreview([]); this.renderPanel(); } }, tr('Bekor')))),
+        this.vtxPanel(o.pts.length),
         h('span', { class: 't-small' }, tr('Mavjud koʻcha tanlangan profil bilan qayta loyihalanadi: OSM dagi koʻrinishi yashiriladi, qizil chiziqlar va kvartallar yangi kenglik boʻyicha hisoblanadi. Olib tashlansa — sahnada, kvartal chegarasida va chizmada boʻlmaydi.')));
     }
     if (doc.removedRoads?.length) body.append(h('button', { class: 'btn btn-block btn-sm', id: 'restoreRoads', onclick: () => this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [] })) }, tf('Olib tashlangan yoʻllarni qaytarish (${doc.removedRoads.length})', { 'doc.removedRoads.length': doc.removedRoads.length })));
@@ -2807,7 +2871,7 @@ export class Editor {
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Mavjud koʻchani tahrirlash')), h('div', {}, tr('Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'))));
   }
 
-  private pickStreet(id: string | null): void { this.selStreet = id; this.scene.selectStreet(id); const st = this.store.doc.streets.find(x => x.id === id); if (st) this.profile = st.profile; this.renderPanel(); }
+  private pickStreet(id: string | null): void { if (id !== this.selStreet) this.selVtx = null; this.selStreet = id; this.scene.selectStreet(id); const st = this.store.doc.streets.find(x => x.id === id); if (st) this.profile = st.profile; this.renderPanel(); }
 
   private setBlockUse(i: number, use: Use): void {
     const plan = this.plan(), b = plan.blocks[i]; if (!b) return;
@@ -3738,6 +3802,11 @@ export class Editor {
         return;
       }
       if (drag) { drag = null; pend = null; down = null; this.scene.setOrbit(true); return; }
+      if (hdrag && !hdrag.hs.closed && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 4) {
+        // nuqtani bosish (sudramasdan) — tanlanadi; oraliqni bosish — yangi nuqta qoʻshilib tanlanadi (31.10)
+        const hd0 = hdrag; if (hd0.a0.length !== hd0.hs.pts.length) hd0.hs.apply(hd0.a0, hd0.key);
+        this.selVtx = hd0.i; hdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); this.renderPanel(); return;
+      }
       if (hdrag || fdrag) { hdrag = null; fdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); return; }
       if (this.mode === 'pipette' && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 5) { down = null; const id = this.scene.pickBuilding(e.clientX, e.clientY); if (id) this.pipette(id); return; }
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
@@ -3773,14 +3842,14 @@ export class Editor {
           const hit = this.streetAt(p);
           if (hit) { this.osmPick = null; this.scene.setPreview([]); this.pickStreet(hit); }
           else {
-            const b = this.ctxMgr.current, adopted = new Set([...this.store.doc.streets.map(x => x.osm), ...(this.store.doc.removedRoads ?? [])]);
+            const adopted = new Set([...this.store.doc.streets.map(x => x.osm), ...(this.store.doc.removedRoads ?? [])]);
             let best: typeof this.osmPick = null, bd = Infinity;
-            for (const r of b?.osm.roads ?? []) {
+            for (const r of this.ctxRoads()) {
               if (adopted.has(r.id) || /^(footway|path|cycleway|steps|track|bridleway|corridor)$/.test(r.cls)) continue;
               const a = r.pts.map(fr.toLocal);
-              for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)), dd = Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]); if (dd <= r.w / 2 + 3 && dd < bd) { bd = dd; best = { id: r.id, cls: r.cls, w: r.w, name: r.name, pts: r.pts }; } }
+              for (let i = 1; i < a.length; i++) { const u = a[i - 1], v = a[i], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)), dd = Math.hypot(u[0] + t * dx - p[0], u[1] + t * dy - p[1]); if (dd <= r.w / 2 + 3 && dd < bd) { bd = dd; best = { id: r.id, cls: r.cls, w: r.w, name: r.name, pts: r.pts, part: r.part }; } }
             }
-            this.osmPick = best; this.scene.setPreview(best ? best.pts.map(fr.toLocal) : []);
+            this.osmPick = best; this.selVtx = null; this.scene.setPreview(best ? best.pts.map(fr.toLocal) : []);
             this.pickStreet(null);
           }
         }
@@ -3826,6 +3895,7 @@ export class Editor {
       else if (e.key === 'Escape' && this.sframe && !document.querySelector('.gx')) this.endFrame();
       else if (e.key === 'Escape' && (this.marked.b.length || this.marked.c.length || this.marked.r.length)) this.setMarked([], []);
       else if (e.key === 'Escape' && this.ulSel.fids.length) this.setUlSel('', []);
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selVtx != null && (this.selStreet || this.osmPick)) { e.preventDefault(); this.vtxApply('del'); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.osmPick) { e.preventDefault(); this.removeOsmRoad(this.osmPick.id); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.step.id === 'kocha' && this.selStreet) { e.preventDefault(); this.store.dispatch({ type: 'removeStreet', id: this.selStreet }); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && this.sel) { e.preventDefault(); this.store.dispatch({ type: 'removeBuilding', id: this.sel }); }
