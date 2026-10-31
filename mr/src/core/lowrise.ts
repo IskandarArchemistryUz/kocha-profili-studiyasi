@@ -11,7 +11,7 @@ import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clippi
 import { signedArea, type XY } from './geo';
 
 export type LowKind = 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster';
-export interface LowHouse { ring: XY[]; plot: XY[]; floors: number; kind: 'uy' | 'taunhaus'; /** yashil (bogʻ) ulushi uchastkada */ green: number }
+export interface LowHouse { ring: XY[]; plot: XY[]; floors: number; kind: 'uy' | 'taunhaus'; /** yashil (bogʻ) ulushi uchastkada */ green: number; /** L uy antiseysmik chok bilan ikki boʻlmaga ajratilgan (QMQ 2.01.03-19, 3.1.3) */ joint?: boolean }
 export interface LowParams { plotW: number; plotD: number; front: number; side: number; depth: number; maxW: number; floors: number; rowMax: number; rowLen: number; gap: number; minPlot: number }
 export const LOW: Record<LowKind, LowParams> = {
   // yakka: uchastka 20 × 22 = 440 m² (75-band ≥ 400), oldi 5 m (Strelka 2–7), yon 3 m (100-band), uy 10–12 m
@@ -25,8 +25,8 @@ export const LOW: Record<LowKind, LowParams> = {
   // bloklangan (101-band), hovli janub/ichkari tomonda; qoʻshni uygacha 22 − 15 = 7 m (56-jadval ≥ 6)
   hovli: { plotW: 22, plotD: 25, front: 2, side: 0, depth: 18, maxW: 15, floors: 1, rowMax: 0, rowLen: 0, gap: 0, minPlot: 400 },
   // klaster (hovli-tahlil K-01, K-03): berk koʻcha (6 m, kechasi darvoza) ikki tomonida 15 × 15 m hovli modullari (Kingo uylari),
-  // har modulda L shakl uy (koʻcha qanoti 11 × 5,5, yon qanot 5,5 × 12) berk koʻcha tomonida; chuqurligi ≤ rowMax qator
-  klaster: { plotW: 15, plotD: 15, front: 1, side: 0, depth: 12, maxW: 11, floors: 1, rowMax: 3, rowLen: 0, gap: 6, minPlot: 200 },
+  // har modulda L shakl uy (koʻcha qanoti 11 × 5,5, yon qanot 5,5 × 11,5 — chiqib turgan qism 6,0 m, QMQ 2.01.03-19, 3.1.1) berk koʻcha tomonida; chuqurligi ≤ rowMax qator
+  klaster: { plotW: 15, plotD: 15, front: 1, side: 0, depth: 11.5, maxW: 11, floors: 1, rowMax: 3, rowLen: 0, gap: 6, minPlot: 200 },
 };
 /** Uy dogʻi uchastka ichida (mahalliy u, v): halqa va «chegaragacha masofa» tekshiruvi uchun toʻrtburchak; i — uchastka tartib raqami */
 function houseOf(kind: LowKind, P: LowParams, u0: number, u1: number, i: number, first: boolean): { ring: [number, number][]; marg: [number, number][]; hw: number } {
@@ -83,7 +83,7 @@ function alongSeg(a: XY, b: XY, free: MultiPolygon, P: LowParams, kind: LowKind,
       continue;
     }
     const plot = open(pl[0][0]);
-    out.push({ ring: house, plot, floors, kind: kind === 'taunhaus' ? 'taunhaus' : 'uy', green: Math.max(0, 1 - (areaOf(house) + P.front * Math.min(3, hw)) / plotA) });
+    out.push({ ring: house, plot, floors, kind: kind === 'taunhaus' ? 'taunhaus' : 'uy', ...(kind === 'hovli' ? { joint: true } : {}), green: Math.max(0, 1 - (areaOf(house) + P.front * Math.min(3, hw)) / plotA) });
     used.push(pl[0]);
     inRow++; nPl++; u = u1;
   }

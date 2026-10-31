@@ -11,6 +11,7 @@
  */
 import { buildWalls, type InDoor, type WallCut } from './aptplan';
 import { area, signedArea, type XY } from './geo';
+import { jointBlocks } from './seysmik';
 
 export type HKind = 'dahliz' | 'mehmonxona' | 'oshxona' | 'xona' | 'yotoq' | 'asosiy' | 'hammom' | 'hx' | 'zina' | 'xoll' | 'kiyimxona' | 'ombor' | 'ayvon' | 'darvozaxona' | 'yozgi' | 'qishki';
 export const H_LABEL: Record<HKind, string> = {
@@ -268,7 +269,7 @@ export function partySide(ring: XY[], plot: XY[] | undefined): 0 | 1 {
 
 /** Uy rejasi chizmasi (SVG, mm, masshtab 1:scale): xonalar, devorlar, eshiklar, zina, ayvon ustunlari, uchastka chegarasi */
 const H_FILL: Partial<Record<HKind, string>> = { mehmonxona: '#f3d38f', oshxona: '#f3d38f', xona: '#9fd3b8', yotoq: '#a9c1e6', asosiy: '#a9c1e6', yozgi: '#9fd3b8', qishki: '#f4b08a', dahliz: '#e9e5dc', xoll: '#e9e5dc', zina: '#f1efe9', kiyimxona: '#d9d4c8', ombor: '#d9d4c8', ayvon: '#f7f3ea', darvozaxona: '#e4e1da' };
-export function housePlanSvg(P: HousePlan, house: XY[], plot: XY[] | undefined, o: { scale: number; title: string; north?: XY; label?: (s: string) => string }): { svg: string; widthMm: number; heightMm: number } {
+export function housePlanSvg(P: HousePlan, house: XY[], plot: XY[] | undefined, o: { scale: number; title: string; north?: XY; label?: (s: string) => string; /** antiseysmik chok chizigʻi (QMQ 2.01.03-19, 3.1.3) */ joint?: boolean }): { svg: string; widthMm: number; heightMm: number } {
   const T = o.label ?? ((s: string) => s);
   // chizma tizimi: uy halqasining 0→1 qirrasi gorizontal (koʻcha pastda)
   const [a, b] = P.street, l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, U: XY = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
@@ -329,6 +330,20 @@ export function housePlanSvg(P: HousePlan, house: XY[], plot: XY[] | undefined, 
     if (w < 0.9 || q.kind === 'zina') continue;
     const nm = T(H_LABEL[q.kind]), fs = Math.max(1.3, Math.min(2.2, (w - 0.2) * k / (nm.length * 0.55))), px = M + (cx - x0) * k, py = M + 8 + (y1 - cy) * k;
     out.push(`<text x="${px.toFixed(2)}" y="${py.toFixed(2)}" font-size="${fs.toFixed(2)}" text-anchor="middle" fill="#3a3936">${nm}</text><text x="${px.toFixed(2)}" y="${(py + fs * 1.1).toFixed(2)}" font-size="${(fs * 0.85).toFixed(2)}" text-anchor="middle" fill="#6b6965">${(Math.round(q.area * 10) / 10).toString().replace('.', ',')} m²</text>`);
+  }
+  // antiseysmik chok: boʻlmalar orasidagi kesma — ichki qirra (asl konturda yoʻq), qoʻsh qizil shtrix
+  if (o.joint) {
+    const parts = jointBlocks(house);
+    if (parts.length > 1) {
+      const onRing = (p: XY) => house.some((u, i) => { const v = house[(i + 1) % house.length], dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); return Math.hypot(u[0] + dx * t - p[0], u[1] + dy * t - p[1]) < 0.05; });
+      const r0 = parts[0];
+      for (let i = 0; i < r0.length; i++) {
+        const A = r0[i], B = r0[(i + 1) % r0.length], at = (t: number): XY => [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t];
+        const ts = Array.from({ length: 41 }, (_, j) => j / 40).filter(t => !onRing(at(t))); if (ts.length < 2) continue;
+        const p = at(Math.max(0, ts[0] - 1 / 40)), q = at(Math.min(1, ts[ts.length - 1] + 1 / 40));
+        out.push(seg(p, q, 'stroke="#d0342c" stroke-width="0.9" stroke-dasharray="1.6 0.8"'), seg(p, q, 'stroke="#fff" stroke-width="0.25"'));
+        out.push(`<text x="${((Number(X(p)) + Number(X(q))) / 2 + 1.2).toFixed(2)}" y="${((Number(Y(p)) + Number(Y(q))) / 2 - 1).toFixed(2)}" font-size="1.8" fill="#d0342c">${T('antiseysmik chok')}</text>`); }
+    }
   }
   // koʻcha belgisi va shimol
   out.push(`<text x="${(Wm / 2).toFixed(1)}" y="${(Hm - 3).toFixed(1)}" font-size="2" text-anchor="middle" fill="#6b6965">${T('koʻcha tomoni')}</text>`);

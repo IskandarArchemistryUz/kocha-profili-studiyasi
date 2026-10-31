@@ -61,7 +61,7 @@ export interface GenOpts { use?: string; aptNet?: number; netToGross?: number; /
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
 /** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
-export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; /** past qavatli uy uchastkasi (lowrise) */ plot?: XY[]; /** derazasiz torets qirralari (ring[i]→ring[i+1]); generatsiyada belgilanadi */ blind?: number[]; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string }
+export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; /** past qavatli uy uchastkasi (lowrise) */ plot?: XY[]; /** derazasiz torets qirralari (ring[i]→ring[i+1]); generatsiyada belgilanadi */ blind?: number[]; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string; /** antiseysmik chok (L uy) */ joint?: boolean }
 export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number; need?: number; module?: ParkModule; stalls?: XY[][]; aisles?: XY[][] }
 export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[]; parking?: GenParking; typology?: Typology; far?: number }
 
@@ -696,7 +696,7 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       // 31.10: past qavatli uylar — alohida qoida (core/lowrise): kvartal cheti (qizil chiziq) boʻylab avval uchastka, keyin uy;
       // chekinish uchastka ichida (oldi 5 m), shuning uchun kvartalning oʻzi olinadi (setback emas)
       const { houses, notes: n2 } = lowriseBlock(clean(block, 4), t, g.maxF <= 3 ? g.maxF : undefined);
-      return { sections: houses.map(h => ({ ring: h.ring, floors: h.floors, kind: h.kind as SecKind, nonRes: 0, plot: h.plot })), capFloors: null, notes: [...notes, ...n2] };
+      return { sections: houses.map(h => ({ ring: h.ring, floors: h.floors, kind: h.kind as SecKind, nonRes: 0, plot: h.plot, ...(h.joint ? { joint: true } : {}) })), capFloors: null, notes: [...notes, ...n2] };
     }
     case 'villa': {
       const H = g.maxF * floorH, gap = Math.max(18, 0.6 * H);

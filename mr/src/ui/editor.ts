@@ -64,6 +64,7 @@ import type { PoiBundle } from '../context/poi';
 import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
 import { centroid, area, signedArea } from '../core/geo';
 import { builtInMtm } from '../core/derive';
+import { blockShape } from '../core/seysmik';
 import { toDxf } from '../core/dxf';
 import { toIfc } from '../core/ifc';
 import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
@@ -693,6 +694,7 @@ export class Editor {
             row(tr('Qavatlar'), '1–60', stepper({ id: 'iFloors', label: tr('Qavatlar'), min: 1, max: 60, step: 1, value: b.floors, onchange: v => upd({ floors: v }, 'fl-' + b.id) })),
             u.res > 0 ? row(tr('Noturar (pastda)'), `0–${Math.max(0, b.floors - 1)}`, stepper({ id: 'iNonRes', label: tr('Noturar (pastda)'), min: 0, max: Math.max(0, b.floors - 1), step: 1, value: b.nonRes, onchange: v => upd({ nonRes: v }, 'nr-' + b.id) })) : '',
             u.res > 0 && b.nonRes >= 1 && b.floors >= 3 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1-qavatda MTM'), b.mtm ? h('span', { class: 'sub', id: 'iMtmSub' }, tf('≈ ${n} oʻrin · uchastka 29 m²/oʻrin (543-band)', { n: builtInMtm(area(r)) })) : ''), sw({ id: 'iMtm', label: tr('1-qavatda MTM'), on: !!b.mtm, onchange: v => upd({ mtm: v || undefined }) })) : '',
+            r.length >= 5 && !blockShape(r).rect ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Antiseysmik chok'), h('span', { class: 'sub' }, tr('ichki burchakdan boʻlmalarga (QMQ 2.01.03-19, 3.1.3)'))), sw({ id: 'iJoint', label: tr('Antiseysmik chok'), on: !!b.joint, onchange: v => upd({ joint: v || undefined }) })) : '',
             row(tr('Stilobat ustida'), '0–10', stepper({ id: 'iZ0', label: tr('Stilobat ustida'), min: 0, max: 10, step: 1, value: z0, onchange: v => upd({ z0: v || undefined }, 'z0-' + b.id) }))),
           h('div', { class: 'msec', 'aria-hidden': 'true', html: `<svg viewBox="0 0 64 ${H}" width="40" height="${H * 40 / 64}" preserveAspectRatio="none">${sec}<path d="M0 ${H - 1}H64" stroke="currentColor" stroke-width="2"/></svg>` })),
         h('span', { class: 't-small', id: 'bldEditHint' }, tr('Xaritada: tom ustidagi toʻq sariq tutqich — qavatlar; burchak tutqichlari — oyoq izi.')),
@@ -1670,7 +1672,7 @@ export class Editor {
       h('b', { style: 'font-size:13px' }, tr(T0.name)), selB ? h('span', { class: 't-small', id: 'houseSelNote' }, tr('Sahnada tanlangan uy')) : '');
     if (!P) { body.append(h('div', { class: 'note' }, tr('Bu uy shakli uchun reja hali yoʻq — oʻlchami juda kichik.'))); return; }
     const title = `${tr(T0.name)} · ${tf('${n}-qavat', { n: fl })}${hov ? ` · ${tr(style === 'milliy' ? 'milliy uslub' : 'zamonaviy uslub')}` : ''}`;
-    const svg = () => housePlanSvg(P, T0.ring, T0.plot, { scale: 100, title, north: [0, 1], label: tr }).svg;
+    const svg = () => housePlanSvg(P, T0.ring, T0.plot, { scale: 100, title, north: [0, 1], label: tr, joint: !!hb.joint }).svg;
     body.append(
       fls > 1 ? h('div', { class: 'seg sm', role: 'group', id: 'houseFloor' }, ...Array.from({ length: fls }, (_, i) => h('button', { 'aria-pressed': fl === i + 1, 'data-hf': i + 1, onclick: () => { this.houseFloor = i + 1; this.renderPanel(); } }, tf('${n}-qavat', { n: i + 1 })))) : '',
       hov ? h('div', { class: 'seg sm', role: 'group', id: 'houseStyle' }, ...([['milliy', 'Milliy uslub'], ['zamonaviy', 'Zamonaviy']] as const).map(([k, t]) => h('button', { 'aria-pressed': style === k, 'data-hs': k, onclick: () => { this.houseStyle = k; this.renderPanel(); } }, tr(t)))) : '',
@@ -2049,7 +2051,7 @@ export class Editor {
     const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));
     if (drop.bids.length) this.genNotes = [...this.genNotes, tf('${n} ta eski avtomatik bino (oldingi generatsiyadan) almashtirildi — ustma-ust tushmasligi uchun', { n: drop.bids.length })];
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
-      sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind, ...(x.plot ? { plot: x.plot.map(fr.toGeo) } : {}) })),
+      sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind, ...(x.plot ? { plot: x.plot.map(fr.toGeo) } : {}), ...(x.joint ? { joint: true } : {}) })),
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}) } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
@@ -2296,7 +2298,7 @@ export class Editor {
       const houses = sides.flatMap(sd => { for (const off of this.lowOff > 0 ? [this.lowOff] : [0, 2, 4, 6, 8, 10, 13, 16, 20]) { const r = along(sd, off); if (r.length) return r; } return []; });
       if (!houses.length) { toast(tr('Chiziq boʻylab uy sigʻmadi — chiziq qisqa yoki koʻcha / bino ustiga tushadi')); return; }
       const grp = uid('qator_'), drop = staleGen(doc, grp, [], houses.map(hh => hh.plot));
-      this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, sections: houses.map(hh => ({ footprint: hh.ring.map(fr.toGeo), floors: hh.floors, nonRes: 0, use: 'turar' as Use, kind: hh.kind, plot: hh.plot.map(fr.toGeo) })) }));
+      this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, sections: houses.map(hh => ({ footprint: hh.ring.map(fr.toGeo), floors: hh.floors, nonRes: 0, use: 'turar' as Use, kind: hh.kind, plot: hh.plot.map(fr.toGeo), ...(hh.joint ? { joint: true } : {}) })) }));
       toast(tf('${n} ta uy chiziq boʻylab qoʻyildi', { n: houses.length }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
     };
