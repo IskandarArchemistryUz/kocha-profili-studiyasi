@@ -894,6 +894,19 @@ export class Scene3D {
           fill(y.paving, col.pave, 0.32, 1); fill(y.green, col.green, 0.33, 2); fill(y.paths, col.path, 0.34, 3);
           if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, this.H); l.userData.fireLane = true; this.world.add(l); } }
           for (const q of y.play) { fill([[q.ring]], col[q.kind], 0.35, 4); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, this.H)); }
+          // sport hududi (31.10): maydon rangi, oq belgilar, yopiq majmua — past quti
+          for (const q of y.sport ?? []) {
+            const SC: Record<string, number> = plainS ? { stadion: 0xe6ebe2, yolka: 0xeee6e2, futbol: 0xe6ebe2, minifutbol: 0xe6ebe2, tennis: 0xe2e8ee, basket: 0xeee8e0, voley: 0xeee8e0, workout: 0xe8e8e8, basseyn: 0xe0ecf2, yopiq: 0xf2f2f2 }
+              : { stadion: 0x5ea85a, yolka: 0xc4644c, futbol: 0x5ea85a, minifutbol: 0x6bb06a, tennis: 0x4f86b8, basket: 0xcf8a4e, voley: 0xd8b56a, workout: 0x9a9890, basseyn: 0x58b6de, yopiq: 0xdfe3e8 };
+            if (q.k === 'basseyn' && q.lines[0]) fill([[q.lines[0].slice(0, -1)]], plainS ? 0xf4f3f0 : 0xe8e2d6, 0.355, 4.5);
+            fill([[q.ring]], SC[q.k] ?? 0x8fbf98, q.k === 'stadion' ? 0.37 : 0.36, q.k === 'stadion' ? 5.5 : 5);
+            for (const ln of q.k === 'basseyn' ? [] : q.lines) this.world.add(line(densify([...ln], 4, false), plainS ? 0xb9b6ae : 0xffffff, q.k === 'yolka' ? 0.42 : 0.4, false, 6.6, this.H));
+            if (q.k === 'yopiq' && q.h) {
+              const sh = new THREE.Shape(q.ring.map(toV2)), g = new THREE.ExtrudeGeometry(sh, { depth: q.h, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
+              const c0 = q.ring.reduce((a, p) => [a[0] + p[0] / q.ring.length, a[1] + p[1] / q.ring.length] as XY, [0, 0] as XY);
+              const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: plainS ? 0xf4f4f4 : 0xdfe6ee })); m.position.y = this.H(c0[0], c0[1]); m.castShadow = true; m.receiveShadow = true; m.userData.sport = true; this.world.add(m);
+            }
+          }
           for (const r of y.fences ?? []) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0x8a7f6c, 0.36, true, 6.45, this.H); l.userData.fence = true; this.world.add(l); }   // past uylar uchastkalari panjarasi
           trees.push(...y.trees);
         }
