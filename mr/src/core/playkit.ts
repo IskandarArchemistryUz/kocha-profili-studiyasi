@@ -6,12 +6,12 @@
  */
 import type { XY } from './geo';
 
-export type KitCol = 'qum' | 'jihoz' | 'yogoch' | 'oq' | 'chiziq' | 'gul';
+export type KitCol = 'qum' | 'jihoz' | 'yogoch' | 'oq' | 'chiziq' | 'gul' | 'ekin';
 export interface KitPart { c: KitCol; f?: XY[]; l?: XY[] }
-type Kind = 'bolalar' | 'kattalar' | 'sport' | 'xojalik';
+type Kind = 'bolalar' | 'kattalar' | 'sport' | 'xojalik' | 'tajriba';
 
 /** Modul oʻlchami (uzun × qisqa, m): katta maydoncha shu modullarga boʻlinadi — jihozlar maydon bilan birga koʻpayadi */
-const CELL: Record<Kind, [number, number]> = { bolalar: [14, 12], kattalar: [12, 10], sport: [32, 19], xojalik: [12, 9] };
+const CELL: Record<Kind, [number, number]> = { bolalar: [14, 12], kattalar: [12, 10], sport: [32, 19], xojalik: [12, 9], tajriba: [16, 12] };
 
 export function playKit(kind: Kind, ring: XY[], variant = 0): KitPart[] {
   if (ring.length < 4) return [];
@@ -86,6 +86,11 @@ export function playKit(kind: Kind, ring: XY[], variant = 0): KitPart[] {
     if (S >= 6) { circ('yogoch', L * 0.35, pv + ph + 1.5, 0.6); if (L >= 8) circ('yogoch', L * 0.65, pv + ph + 1.5, 0.6); }
     bench(pu + 0.3, pv + 0.3);
     if (S >= 5) rect('gul', 0.4, S - 1.3, L - 0.8, 0.9);
+  } else if (kind === 'tajriba') {
+    // oʻquv-tajriba bogʻi / MTM bogʻi: ekin pushtalari (1,2 m) va oraliq yoʻlakchalar (0,6 m), bir chetda kichik issiqxona
+    const bw = 1.2, gap = 0.6, gh = Math.min(4, L * 0.25);
+    for (let v = 0.8; v + bw <= S - 0.8; v += bw + gap) rect('ekin', 0.8, v, L - 1.6 - gh - 0.6, bw);
+    if (L > 8) { rect('chiziq', L - 0.8 - gh, 0.8, gh, Math.min(6, S - 1.6), true); for (let u = L - 0.8 - gh + 1; u < L - 0.8; u += 1) seg('chiziq', u, 0.8, u, 0.8 + Math.min(6, S - 1.6)); }
   } else {
     // xoʻjalik: kir quritish (ustunlar va iplar), gilam qoqish ramasi
     const n = Math.max(2, Math.min(6, Math.floor((S - 2) / 1.2)));

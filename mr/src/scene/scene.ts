@@ -909,7 +909,7 @@ export class Scene3D {
       if (doc.settings.yards) {
         const alb = this.album, plainS = st === 'arctic' || st === 'minimal';
         const col = { pave: plainS ? 0xf4f3f0 : alb ? 0xf1eee8 : 0xdcd6cb, green: plainS ? 0xeceee8 : alb ? 0xd5e4c4 : 0xa9cc8c, path: plainS ? 0xf7f6f4 : alb ? 0xf6f3ee : 0xe7e0d2,
-          bolalar: plainS ? 0xf0ede8 : 0xf0c58a, kattalar: plainS ? 0xf0ede8 : 0xeadfc8, sport: plainS ? 0xe9ece6 : 0x8fbf98, xojalik: plainS ? 0xeeeeee : 0xcfcac1 };
+          bolalar: plainS ? 0xf0ede8 : 0xf0c58a, kattalar: plainS ? 0xf0ede8 : 0xeadfc8, sport: plainS ? 0xe9ece6 : 0x8fbf98, xojalik: plainS ? 0xeeeeee : 0xcfcac1, tajriba: plainS ? 0xeceee8 : 0xc9b48f };
         const fill = (mp: XY[][][], c: number, lift: number, order: number, Hf: HeightFn = this.H) => mp.forEach(poly => {
           if (!poly[0] || poly[0].length < 3) return;
           const sh = new THREE.Shape(poly[0].map(toV2)); poly.slice(1).forEach(hh => sh.holes.push(new THREE.Path(hh.map(toV2))));
@@ -960,8 +960,8 @@ export class Scene3D {
           }
           if (pb) { if (y.trees.length) this.world.add(...treeMeshes(y.trees, Hy, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c)); } else trees.push(...y.trees);
         }
-        const KC: Record<string, number> = plainS ? { qum: 0xece9e2, jihoz: 0xc9c6bf, yogoch: 0xb9b6ae, oq: 0xffffff, chiziq: 0xa9a59c, gul: 0xe4e6df }
-          : { qum: 0xf3dea6, jihoz: 0xd9654b, yogoch: 0x9c7752, oq: 0xffffff, chiziq: 0x6b6458, gul: 0xd98fa8 };
+        const KC: Record<string, number> = plainS ? { qum: 0xece9e2, jihoz: 0xc9c6bf, yogoch: 0xb9b6ae, oq: 0xffffff, chiziq: 0xa9a59c, gul: 0xe4e6df, ekin: 0xdfe3d8 }
+          : { qum: 0xf3dea6, jihoz: 0xd9654b, yogoch: 0x9c7752, oq: 0xffffff, chiziq: 0x6b6458, gul: 0xd98fa8, ekin: 0x7fa95c };
         for (const [ck, sh] of Object.entries(kitF)) {
           const [c, zk] = ck.split('@'), zz = zk != null ? Number(zk) : NaN;
           const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), Number.isFinite(zz) ? () => zz : this.H, 0.38, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: KC[c], transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10 }));

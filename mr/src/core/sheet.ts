@@ -276,7 +276,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     for (const y of yards) {
       if (lY.fill !== 'none') y.green.forEach(p => out.push(`<path d="${polyD(p)}" fill="${lite(L2 ? '#cfe3bc' : '#eef3e8', lY.light)}" fill-rule="evenodd"/>`));
       y.paths.forEach(p => out.push(`<path d="${polyD(p)}" fill="#ffffff"${lY.outline ? ` stroke="#c9c4b9" stroke-width="${lw(lY.mm)}"` : ''} fill-rule="evenodd"/>`));
-      y.play.forEach(q => out.push(`<path d="${ringD(q.ring)}" fill="${L2 ? ({ bolalar: '#f6dcae', kattalar: '#efe6d3', sport: '#bcd9c2', xojalik: '#e2ded6' } as Record<string, string>)[q.kind] : '#ffffff'}" stroke="#8f8676" stroke-width="${lw(Math.max(lY.mm, 0.15))}"/>`));
+      y.play.forEach(q => out.push(`<path d="${ringD(q.ring)}" fill="${L2 ? ({ bolalar: '#f6dcae', kattalar: '#efe6d3', sport: '#bcd9c2', xojalik: '#e2ded6', tajriba: '#e3d6bd' } as Record<string, string>)[q.kind] : '#ffffff'}" stroke="#8f8676" stroke-width="${lw(Math.max(lY.mm, 0.15))}"/>`));
     }
     // sport hududi inshootlari (31.10)
     const SPC: Record<string, string> = { stadion: '#bcd9b0', yolka: '#e7b9ab', futbol: '#bcd9b0', minifutbol: '#c6dfbb', tennis: '#b7cde3', basket: '#ecc9a7', voley: '#efdcae', workout: '#dcdad5', basseyn: '#b9dff0', yopiq: '#e6e9ee' };

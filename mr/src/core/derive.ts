@@ -155,7 +155,7 @@ export function derive(doc: Project): Derived {
   }
   const jobs = jobsFrom(gfaByUse);
   const yards = doc.settings.yards ? landscape(doc) : [], gb = greenBalance(doc, yards);
-  const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + y.areas.play, 0);
+  const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + (y.social ? 0 : y.areas.play), 0);   // maktab / MTM maydonchalari — 4-jadval talabiga kirmaydi
   return {
     resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, socialPlots, parkingReq, parkingProv, parkingParts,
