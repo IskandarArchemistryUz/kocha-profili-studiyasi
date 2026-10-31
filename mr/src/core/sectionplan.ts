@@ -34,7 +34,7 @@ export interface RuleApt {
   /** ichki reja qoʻlda sozlamalari (V2, 31.10) — aptplan */ inner?: InnerOv;
 }
 /** Kvartira ichki rejasi qoʻlda: flip — umumiy xona qarama-qarshi tomonda; dK — umumiy xona devori siljishi, m; master — master-blok majburan yoqilgan/oʻchirilgan; slide — hoʻl xonalar eshigi surma */
-export interface InnerOv { flip?: boolean; dK?: number; master?: boolean; slide?: boolean; /** 31.10: qoʻlda surilgan ichki devorlar — [oʻq (0: u, 1: v), asl koordinata, oraliq boshi, oxiri, siljish m] (mahalliy reja tizimida) */ mv?: [number, number, number, number, number][] }
+export interface InnerOv { flip?: boolean; dK?: number; master?: boolean; slide?: boolean; /** 31.10: qoʻlda surilgan ichki devorlar — [oʻq (0: u, 1: v), asl koordinata, oraliq boshi, oxiri, siljish m] (mahalliy reja tizimida) */ mv?: [number, number, number, number, number][]; /** eshiklar: [devor, kesma, s (m, devor boshidan), tomon ±1, ilgak 0/1] */ dr?: [number, number, number, number, number][]; /** xona turlari: [xona tartibi, tur] */ rk?: [number, string][] }
 /** Kvartira boʻlmagan xona: texnik / ombor, 1-qavatda — savdo, velo-kolyaska, zal, tozalash anjomlari ombori (ShNQ 2.08.01-19, 3.14) */
 export type RoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash';
 export interface PlanRoom { ring: XY[]; kind: RoomKind; sec: number; door: XY }

@@ -45,6 +45,30 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`ichki reja
     if (!moved) { await page.mouse.move(cx, cy); await page.mouse.down(); for (const st of [-6, -12, -18]) await page.mouse.move(cx + (vert ? st : 0), cy + (vert ? 0 : st)); await page.mouse.up(); moved = await page.locator('#albWallReset').count() > 0; }
   }
   expect(moved).toBe(true);
+  // aniq oʻlcham: devorni tanlash → oʻlchamni bosish → qiymat
+  const w0 = walls.first(); const b0 = (await w0.boundingBox())!; await page.mouse.click(b0.x + b0.width / 2, b0.y + b0.height / 2);
+  await expect(page.locator('#albWalls [data-dim]').first()).toBeAttached();
+  const html0 = await page.locator('#albPlan svg').innerHTML();
+  await page.locator('#albWalls [data-dim]').first().click({ force: true });
+  await expect(page.locator('#albDimIn')).toBeVisible();
+  const cur = Number((await page.locator('#albDimIn').inputValue()).replace(',', '.'));
+  await page.fill('#albDimIn', String(Math.round((cur - 0.1) * 10) / 10).replace('.', ',')); await page.keyboard.press('Enter');
+  await page.waitForTimeout(200);
+  // joy boʻlmasa — aniq xabar (jim emas)
+  if (await page.locator('#albPlan svg').innerHTML() === html0) await expect(page.locator('#albMsg')).toContainText('qoʻyib boʻlmaydi');
+  // eshik: tanlash va Space — ochilish tomoni
+  const dot = page.locator('#albWalls [data-door]').first(); await expect(dot).toBeAttached();
+  const db = (await dot.boundingBox())!; await page.mouse.click(db.x + db.width / 2, db.y + db.height / 2);
+  const html1 = await page.locator('#albPlan svg').innerHTML();
+  await page.keyboard.press(' ');
+  await expect.poll(async () => page.locator('#albPlan svg').innerHTML()).not.toBe(html1);
+  await page.keyboard.press('Escape');
+  // xona turi: menyu
+  await page.locator('#albRooms [data-room-k]').first().click({ force: true });
+  await expect(page.locator('#albMenu')).toBeVisible();
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ichki_menyu_${w}${dark ? 'd' : 'l'}.png` });
+  await page.locator('#albMenu [aria-checked=false]').first().click();
+  await expect(page.locator('#albMenu')).toHaveCount(0);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ichki_tahrir_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#albSave');
   await expect(page.locator('#albSave')).toContainText('Saqlangan');

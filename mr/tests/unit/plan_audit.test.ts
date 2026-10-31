@@ -52,3 +52,18 @@ describe('Devorni sudrash (31.10)', () => {
     const h1 = I1.handles!.find(x => x.key.join() === h.key.join())!; expect(h1.d0).toBeCloseTo(d, 3);
   });
 });
+
+describe('Eshik va xona turi (31.10)', () => {
+  const base = { rooms: 2, ring: [[0, 0], [9.9, 0], [9.9, 7.2], [0, 7.2]], area: 71, door: [5, 7.2], doorLen: 1.8, mods: [0, 1, 2] } as unknown as RuleApt;
+  const M = mk([0, 0], [9.9, 0], 3, 180);
+  it('eshik ochilish tomoni va xona turi saqlanadi', () => {
+    const I0 = aptInterior(base, M)!; const dh = I0.doorHandles![0];
+    const I1 = aptInterior({ ...base, inner: { dr: [[dh.key[0], dh.key[1], dh.s, -dh.side, dh.hinge]] } } as RuleApt, M)!;
+    expect(I1.doorHandles!.find(x => x.key.join() === dh.key.join())!.side).toBe(-dh.side);
+    const dry = I0.rooms.find(r => !r.wet && r.kind !== 'garderob' && r.li != null)!;
+    const I2 = aptInterior({ ...base, inner: { rk: [[dry.li!, 'garderob']] } } as RuleApt, M)!;
+    expect(I2.rooms.find(r => r.li === dry.li)!.kind).toBe('garderob');
+    const wet = I0.rooms.find(r => r.wet && r.li != null)!;
+    expect(aptInterior({ ...base, inner: { rk: [[wet.li!, 'yotoq']] } } as RuleApt, M)!.rooms.find(r => r.li === wet.li)!.kind).toBe(wet.kind);   // hoʻl → quruq yoʻq
+  });
+});
