@@ -46,7 +46,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`ichki reja
   }
   expect(moved).toBe(true);
   // aniq oʻlcham: devorni tanlash → oʻlchamni bosish → qiymat
-  const w0 = walls.first(); const b0 = (await w0.boundingBox())!; await page.mouse.click(b0.x + b0.width / 2, b0.y + b0.height / 2);
+  const bbOf = async (loc: typeof walls) => { for (let t = 0; t < 20; t++) { const n2 = await loc.count(); for (let k = 0; k < n2; k++) { const bx = await loc.nth(k).boundingBox().catch(() => null); if (bx) return bx; } await page.waitForTimeout(150); } throw new Error('element koʻrinmadi'); };
+  const b0 = await bbOf(walls); await page.mouse.click(b0.x + b0.width / 2, b0.y + b0.height / 2);
   await expect(page.locator('#albWalls [data-dim]').first()).toBeAttached();
   const html0 = await page.locator('#albPlan svg').innerHTML();
   await page.locator('#albWalls [data-dim]').first().click({ force: true });
@@ -57,8 +58,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`ichki reja
   // joy boʻlmasa — aniq xabar (jim emas)
   if (await page.locator('#albPlan svg').innerHTML() === html0) await expect(page.locator('#albMsg')).toContainText('qoʻyib boʻlmaydi');
   // eshik: tanlash va Space — ochilish tomoni
-  const dot = page.locator('#albWalls [data-door]').first(); await expect(dot).toBeAttached();
-  const db = (await dot.boundingBox())!; await page.mouse.click(db.x + db.width / 2, db.y + db.height / 2);
+  const dot = page.locator('#albWalls [data-door]'); await expect(dot.first()).toBeAttached();
+  const db = await bbOf(dot); await page.mouse.click(db.x + db.width / 2, db.y + db.height / 2);
   const html1 = await page.locator('#albPlan svg').innerHTML();
   await page.keyboard.press(' ');
   await expect.poll(async () => page.locator('#albPlan svg').innerHTML()).not.toBe(html1);
