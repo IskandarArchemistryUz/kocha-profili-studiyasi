@@ -10,6 +10,7 @@
  * Bu sxema — eskiz: aniq joylashtirish loyihachining qarori.
  */
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
+import { bLevels } from './levels';
 import type { Building, Project } from './doc';
 import { frame, area, signedArea, type XY } from './geo';
 import { computePlan, corridor, safeUnion, pointIn } from './plan';
@@ -169,7 +170,7 @@ function landscapeRaw(doc: Project): Yard[] {
     const roofs: Yard[] = [], ramps: Polygon[] = [];
     for (const pod of own.filter(x => x.b.gen?.kind === 'stilobat' && x.b.floors > 0)) {
       const tw = bl.filter(x => (x.b.z0 ?? 0) > 0 && x.b.floors > 0 && pointIn(x.r.reduce((a, q) => [a[0] + q[0] / x.r.length, a[1] + q[1] / x.r.length] as XY, [0, 0] as XY), [pod.r]));
-      const z = pod.b.floors * doc.settings.floorHeight;
+      const z = bLevels(doc.settings, pod.b).top;
       const k = `s|${bsig}|${sig(pod.r)}|${z}|${doc.settings.m2PerPerson}|${doc.settings.netToGross}|${tw.map(x => `${x.b.floors},${x.b.z0},${x.b.use},${sig(x.r)}`).join('#')}|${own.filter(x => x !== pod).map(x => sig(x.r)).join('#')}`;
       const y = cached(k, () => podiumRoof(pod, tw, own.filter(x => x !== pod), blk, bi, z, doc));
       if (y) { roofs.push({ ...y, block: bi }); if (y.ramp && !y.ramp.inside) ramps.push([close(y.ramp.ring)]); }
@@ -317,7 +318,7 @@ function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], f
  * (nishab ≤ 10 % — andoza), eni = yoʻlak eni; stilobat devori boʻylab tashqarida (chekinish ichida), kvartal chegarasidan chiqmaydi.
  */
 function podiumRoof(pod: Own, towers: Own[], ground: Own[], blk: { rings: XY[][] }, bi: number, z: number, doc: Project): Yard | null {
-  const fh = doc.settings.floorHeight, H = (x: Own) => (x.b.floors + (x.b.z0 ?? 0)) * fh;
+  const H = (x: Own) => bLevels(doc.settings, x.b).top;
   const needFire = towers.some(x => (useDef(x.b.use).res > 0 ? H(x) >= 28 : H(x) >= 18));
   const hmax = Math.max(0, ...towers.map(H)), w = hmax > 46 ? 6 : hmax > 13 ? 4.2 : 3.5;
   const ramp = needFire ? rampOf(pod.r, blk.rings[0], ground, z, w, towers) : null;
@@ -384,8 +385,8 @@ type Own = { b: Building; r: XY[] };
  *  676-band — yoʻlak va bino orasida daraxt qatorlari, toʻsiqlar yoʻq.
  * H < 28 m binolar uchun bitta uzun tomon (koʻcha) yetarli deb olinadi — hovli yoʻlagi chizilmaydi. Eskiz: aniq trassa — loyihachi.
  */
-function fireLane(own: Own[], free: MultiPolygon, fh: number, arches: Own[] = [], B?: Polygon, roof?: { extra: MultiPolygon[] }): { mp: MultiPolygon; w: number; d: number; hmax: number; tall: Own[] } | null {
-  const H = (x: Own) => (x.b.floors + (x.b.z0 ?? 0)) * fh;
+function fireLane(own: Own[], free: MultiPolygon, st: Project['settings'], arches: Own[] = [], B?: Polygon, roof?: { extra: MultiPolygon[] }): { mp: MultiPolygon; w: number; d: number; hmax: number; tall: Own[] } | null {
+  const H = (x: Own) => bLevels(st, x.b).top;
   // 666-band: F1.3 (turar joy) H ≥ 28 m; stilobat tomida jamoat binolari (F2, F3, F4.2–F4.4) H ≥ 18 m ham
   const tall = own.filter(x => x.b.floors > 0 && (useDef(x.b.use).res > 0 ? H(x) >= 28 : !!roof && H(x) >= 18));
   if (!tall.length) return null;
@@ -497,7 +498,7 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     // yer usti avtoturargoh (joylar va boʻlaklar) — hovli maydonchalari uning ustiga tushmaydi
     let free = tryOp(() => polygonClipping.difference(B, fp, paveAll, ...park), [] as MultiPolygon);
     // yongʻin-qutqaruv yoʻlagi: maydonchalar va maysa unga tushmaydi
-    const fire = fireLane(own, free, doc.settings.floorHeight, arches, B, roof);
+    const fire = fireLane(own, free, doc.settings, arches, B, roof);
     if (fire?.mp.length) free = tryOp(() => polygonClipping.difference(free, fire.mp), free);
     if (!free.length) return null;
     // aholi (shu kvartal binolari)

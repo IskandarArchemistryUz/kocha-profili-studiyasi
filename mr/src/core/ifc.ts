@@ -6,6 +6,7 @@
  * Koordinatalar — mahalliy metr (X sharq, Y shimol, Z yuqoriga), markaz — loyiha markazi.
  */
 import type { Project } from './doc';
+import { bLevels } from './levels';
 import { frame, area, signedArea } from './geo';
 import { useDef } from './uses';
 
@@ -42,7 +43,7 @@ const num = (v: number) => { const s = (Math.round(v * 1e4) / 1e4).toString(); r
 const dms = (deg: number) => { const sg = deg < 0 ? -1 : 1, a = Math.abs(deg), d = Math.floor(a), m = Math.floor((a - d) * 60), s = Math.floor(((a - d) * 60 - m) * 60), us = Math.round(((((a - d) * 60 - m) * 60) - s) * 1e6); return `(${[d, m, s, us].map(x => x * sg).join(',')})`; };
 
 export function toIfc(doc: Project, now = new Date()): string {
-  const fr = frame(doc.origin), fh = doc.settings.floorHeight, L: string[] = [];
+  const fr = frame(doc.origin), L: string[] = [];
   let id = 0; const e = (s: string) => { L.push(`#${++id}=${s};`); return `#${id}`; };
   const guid = (k: string) => `'${ifcGuid(`${doc.id}|${k}`)}'`;
   // asosiy obyektlar
@@ -60,7 +61,7 @@ export function toIfc(doc: Project, now = new Date()): string {
   doc.buildings.forEach((b, bi) => {
     let r = b.footprint.map(fr.toLocal); if (r.length < 3) return;
     if (signedArea(r) < 0) r = [...r].reverse();
-    const a = area(r), u = useDef(b.use), z0 = (b.z0 ?? 0) * fh, k = `b${bi}-${b.id}`;
+    const a = area(r), u = useDef(b.use), LV = bLevels(doc.settings, b), z0 = LV.z0, k = `b${bi}-${b.id}`;
     const bPl = e(`IFCLOCALPLACEMENT(${sitePl},${ax})`);
     const name = `${u.name} ${bi + 1}`;
     const bld = e(`IFCBUILDING(${guid(k)},$,${stepStr(name)},${stepStr(b.gen?.kind ? `seksiya: ${b.gen.kind}` : 'bino')},$,${bPl},$,$,.ELEMENT.,${num(z0)},$,$)`);
@@ -71,12 +72,12 @@ export function toIfc(doc: Project, now = new Date()): string {
     const prof = e(`IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,${poly})`);
     const storeys: string[] = [];
     for (let f = 0; f < b.floors; f++) {
-      const z = z0 + f * fh, nonRes = f < b.nonRes;
+      const z = LV.at(f), fhF = LV.at(f + 1) - z, nonRes = f < b.nonRes;
       const sOrigin = e(`IFCCARTESIANPOINT((0.,0.,${num(z)}))`);
       const sPl = e(`IFCLOCALPLACEMENT(${bPl},${e(`IFCAXIS2PLACEMENT3D(${sOrigin},${zDir},${xDir})`)})`);
       const st = e(`IFCBUILDINGSTOREY(${guid(`${k}-s${f}`)},$,${stepStr(`${(b.z0 ?? 0) + f + 1}-qavat`)},$,$,${sPl},$,$,.ELEMENT.,${num(z)})`);
       storeys.push(st);
-      const solid = e(`IFCEXTRUDEDAREASOLID(${prof},${ax},${zDir},${num(fh)})`);
+      const solid = e(`IFCEXTRUDEDAREASOLID(${prof},${ax},${zDir},${num(fhF)})`);
       const rep = e(`IFCSHAPEREPRESENTATION(${body},'Body','SweptSolid',(${solid}))`);
       const shape = e(`IFCPRODUCTDEFINITIONSHAPE($,$,(${rep}))`);
       const elPl = e(`IFCLOCALPLACEMENT(${sPl},${ax})`);
@@ -90,7 +91,7 @@ export function toIfc(doc: Project, now = new Date()): string {
     const props = [
       P('Funksiya', `IFCLABEL(${stepStr(u.name)})`), P('Qavatlar', `IFCINTEGER(${b.floors})`), P('NoturarQavatlar', `IFCINTEGER(${b.nonRes})`),
       P('StilobatUstida', `IFCINTEGER(${b.z0 ?? 0})`), P('Dog', `IFCAREAMEASURE(${num(a)})`), P('GFA', `IFCAREAMEASURE(${num(a * b.floors)})`),
-      P('Balandlik', `IFCLENGTHMEASURE(${num(((b.z0 ?? 0) + b.floors) * fh)})`), P('Material', `IFCLABEL(${stepStr(b.mat ?? 'suvoq')})`), P('Tom', `IFCLABEL(${stepStr(b.roof ?? 'tekis')})`),
+      P('Balandlik', `IFCLENGTHMEASURE(${num(LV.top)})`), P('Material', `IFCLABEL(${stepStr(b.mat ?? 'suvoq')})`), P('Tom', `IFCLABEL(${stepStr(b.roof ?? 'tekis')})`),
     ];
     e(`IFCRELDEFINESBYPROPERTIES(${guid(`${k}-dp`)},$,$,$,(${bld}),${e(`IFCPROPERTYSET(${guid(`${k}-ps`)},$,'Archemistry_Bino',$,(${props.join(',')}))`)})`);
   });

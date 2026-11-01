@@ -3,6 +3,7 @@
  * Barcha qiymatlar derive.ts dan (aholi bitta formula bilan); bu yerda faqat tartib, nom va birlik.
  */
 import type { Derived } from './derive';
+import { bLevels } from './levels';
 import type { Project } from './doc';
 import { frame, area } from './geo';
 import { useDef } from './uses';
@@ -68,10 +69,10 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
 
 /** Binolar jadvali (Excel) */
 export function buildingRows(doc: Project): (string | number)[][] {
-  const fr = frame(doc.origin), fh = doc.settings.floorHeight;
+  const fr = frame(doc.origin);
   return doc.buildings.map((b, i) => {
     const a = area(b.footprint.map(fr.toLocal));
-    return [i + 1, useDef(b.use).name, b.gen?.kind ?? 'qoʻlda', b.floors, b.nonRes, b.z0 ?? 0, Math.round(a * 10) / 10, Math.round(a * b.floors), Math.round(((b.z0 ?? 0) + b.floors) * fh * 10) / 10];
+    return [i + 1, useDef(b.use).name, b.gen?.kind ?? 'qoʻlda', b.floors, b.nonRes, b.z0 ?? 0, Math.round(a * 10) / 10, Math.round(a * b.floors), Math.round(bLevels(doc.settings, b).top * 10) / 10];
   });
 }
 export const BUILDING_HEAD = ['№', 'Funksiya', 'Turi', 'Qavatlar', 'Noturar qavatlar', 'Stilobat ustida (qavat)', 'Dogʻ, m²', 'GFA, m²', 'Balandlik, m'];

@@ -4,6 +4,7 @@
  * Binolar — yopiq POLYLINE, balandligi (38) va qalinligi (39) bilan: 3D koʻrinishda hajm boʻlib chiqadi.
  */
 import type { Project } from './doc';
+import { bLevels } from './levels';
 import { frame, centroid, type XY } from './geo';
 import { computePlan } from './plan';
 import { useDef } from './uses';
@@ -11,7 +12,7 @@ import { useDef } from './uses';
 const LAYERS: [string, number][] = [['_MARKAZ', 7], ['UCHASTKA', 1], ['QIZIL_CHIZIQ', 1], ['KOCHA_OQI', 8], ['KVARTAL', 3], ['BINO', 7], ['BINO_NOTURAR', 30], ['BINO_YOZUV', 7], ['SAQLANADI', 5]];
 
 export function toDxf(doc: Project, kept: { rings: XY[][]; h: number }[] = []): string {
-  const fr = frame(doc.origin), fh = doc.settings.floorHeight, out: string[] = [];
+  const fr = frame(doc.origin), out: string[] = [];
   const w = (...kv: (string | number)[]) => { for (let i = 0; i < kv.length; i += 2) out.push(String(kv[i]), typeof kv[i + 1] === 'number' ? fmtN(kv[i + 1] as number) : String(kv[i + 1])); };
   const layer = (n: string) => n.replace(/[^A-Z0-9_]/gi, '_').toUpperCase();
   const poly = (L: string, pts: XY[], closed: boolean, elev = 0, thick = 0) => {
@@ -33,10 +34,10 @@ export function toDxf(doc: Project, kept: { rings: XY[][]; h: number }[] = []): 
   plan.corridors.forEach(mp => mp.forEach(r => poly('QIZIL_CHIZIQ', r, true)));
   plan.blocks.forEach(b => { b.rings.forEach(r => poly(`KVARTAL_${b.use}`, r, true)); text('BINO_YOZUV', b.centroid, 3, useDef(b.use).name); });
   for (const b of doc.buildings) {
-    const r = b.footprint.map(fr.toLocal), z0 = (b.z0 ?? 0) * fh, nr = Math.min(b.nonRes, b.floors);
-    if (nr > 0) poly('BINO_NOTURAR', r, true, z0, nr * fh);
-    if (b.floors > nr) poly('BINO', r, true, z0 + nr * fh, (b.floors - nr) * fh);
-    text('BINO_YOZUV', centroid(r), 1.8, `${b.floors} q.`, z0 + b.floors * fh);
+    const r = b.footprint.map(fr.toLocal), L = bLevels(doc.settings, b), z0 = L.z0, nr = Math.min(b.nonRes, b.floors);
+    if (nr > 0) poly('BINO_NOTURAR', r, true, z0, L.at(nr) - z0);
+    if (b.floors > nr) poly('BINO', r, true, L.at(nr), L.top - L.at(nr));
+    text('BINO_YOZUV', centroid(r), 1.8, `${b.floors} q.`, L.top);
   }
   kept.forEach(k => k.rings.slice(0, 1).forEach(r => poly('SAQLANADI', r, true, 0, k.h)));
   w(0, 'ENDSEC', 0, 'EOF');

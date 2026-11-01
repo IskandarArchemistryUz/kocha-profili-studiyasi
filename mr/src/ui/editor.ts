@@ -3,6 +3,7 @@
  * Qadam almashganda faqat panel almashadi — sahna, kamera va hujjat joyida qoladi.
  */
 import { langMenu } from './langmenu';
+import { bLevels, levelZ, floorAt, groundH } from '../core/levels';
 import type { LngLat, Project } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
@@ -314,7 +315,7 @@ export class Editor {
     const doc = this.store.doc, c = await this.compute.run(doc);
     if (doc !== this.store.doc) return; // eskirgan natija
     this.last = c; this.renderKpi(); this.refreshIssue();
-    { const fh = doc.settings.floorHeight; this.scene.setStreetOverlap(c.d.streetOverlap.flatMap(x => { const b = doc.buildings.find(y => y.id === x.bid); const top = b ? ((b.z0 ?? 0) + b.floors) * fh : 0; return x.polys.map(ring => ({ ring, top })); })); }
+    { this.scene.setStreetOverlap(c.d.streetOverlap.flatMap(x => { const b = doc.buildings.find(y => y.id === x.bid); const top = b ? bLevels(doc.settings, b).top : 0; return x.polys.map(ring => ({ ring, top })); })); }
   }
 
   /** Binoni koʻcha koridoridan chiqarish: eng yaqin loyiha koʻchasi oʻqidan uzoqlashtirib, koridor + 0,5 m tashqarisiga suradi (30.10) */
@@ -723,6 +724,7 @@ export class Editor {
           h('div', { class: 'group grow' },
             row(tr('Qavatlar'), '1–60', stepper({ id: 'iFloors', label: tr('Qavatlar'), min: 1, max: 60, step: 1, value: b.floors, onchange: v => upd({ floors: v }, 'fl-' + b.id) })),
             u.res > 0 ? row(tr('Noturar (pastda)'), `0–${Math.max(0, b.floors - 1)}`, stepper({ id: 'iNonRes', label: tr('Noturar (pastda)'), min: 0, max: Math.max(0, b.floors - 1), step: 1, value: b.nonRes, onchange: v => upd({ nonRes: v }, 'nr-' + b.id) })) : '',
+            (b.nonRes ?? 0) >= 1 || (b.z0 ?? 0) > 0 ? row(tr('1-qavat balandligi'), tr('loyiha boʻyicha'), stepper({ id: 'iGroundH', label: tr('1-qavat balandligi'), min: 2.7, max: 7.5, step: 0.1, unit: 'm', value: Math.round(groundH(this.store.doc.settings) * 10) / 10, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { groundH: Math.round(v * 10) / 10 } }, 'gh')) })) : '',
             u.res > 0 && b.nonRes >= 1 && b.floors >= 3 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1-qavatda MTM'), b.mtm ? h('span', { class: 'sub', id: 'iMtmSub' }, tf('≈ ${n} oʻrin · uchastka 29 m²/oʻrin (543-band)', { n: builtInMtm(area(r)) })) : ''), sw({ id: 'iMtm', label: tr('1-qavatda MTM'), on: !!b.mtm, onchange: v => upd({ mtm: v || undefined }) })) : '',
             isPodium(b) ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Choklar sxemasi'), h('span', { class: 'sub' }, tr('antiseysmik chok + yongʻinga qarshi devor (ShNQ 2.01.02-04, 6.16)'))), sw({ id: 'iJoint', label: tr('Choklar sxemasi'), on: !!b.joint, onchange: v => upd({ joint: v || undefined }) }))
             : (r.length >= 5 && !blockShape(r).rect) || (() => { const lm = lenLimit(this.store.doc.settings.construct ?? 'monolit', this.store.doc.settings.seismic); return lm != null && blockShape(r).len > lm; })() ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Antiseysmik chok'), h('span', { class: 'sub' }, tr('ichki burchakdan boʻlmalarga (QMQ 2.01.03-19, 3.1.3)'))), sw({ id: 'iJoint', label: tr('Antiseysmik chok'), on: !!b.joint, onchange: v => upd({ joint: v || undefined }) })) : '',
@@ -733,7 +735,7 @@ export class Editor {
         h('span', { class: 't-small', id: 'dragHint' }, tr(this.dragMode === 'yoq' ? 'Tahrir qulflangan — sahnadagi asboblar panelida qulfni oching.' : 'Devorni torting — devor parallel suriladi; tomni torting — bino siljiydi; burchak nuqtasi — shaklni oʻzgartiradi; Alt + oʻrtadagi nuqta — yangi burchak.')),
         h('div', { class: 'glabel' }, h('span', {}, tr('Natija'))),
         h('div', { class: 'row2' },
-          kpi(`${fmt(gfa)} m²`, 'GFA'), kpi(`${fmt(tot * s.floorHeight, 1)} m`, 'Balandlik'),
+          kpi(`${fmt(gfa)} m²`, 'GFA'), kpi(`${fmt(bLevels(s, b).top, 1)} m`, 'Balandlik'),
           kpi(u.res > 0 && s.aptNet > 0 ? `≈ ${fmt(resNet / s.aptNet)}` : '—', 'Kvartiralar'), kpi(u.res > 0 && s.m2PerPerson > 0 ? `≈ ${fmt(resNet / s.m2PerPerson)}` : '—', 'Aholi')));
     } else {
       const f = Math.min(this.scene.selFloor ?? b.floors, b.floors);
@@ -791,7 +793,7 @@ export class Editor {
     const doc = this.store.doc, b = this.sel ? doc.buildings.find(x => x.id === this.sel) : null, host = this.el.scene;
     let el = host.querySelector<HTMLDivElement>('.btools');
     if (!b || !this.inspOn() || this.tool) { el?.remove(); return; }
-    const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), c = centroid(r), fh = doc.settings.floorHeight;
+    const fr = frame(doc.origin), r = b.footprint.map(fr.toLocal), c = centroid(r);
     const upd = (patch: Partial<Omit<typeof b, 'id'>>, key?: string) => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch }, key));
     // tugma bosilgan paytdagi joriy oyoq izi (asboblar paneli qayta yaratilmaydi — eski nusxa ishlatilmasin)
     const live = (): { fr: ReturnType<typeof frame>; r: XY[]; c: XY } | null => { const d = this.store.doc, x = d.buildings.find(q => q.id === b.id); if (!x) return null; const f2 = frame(d.origin), r2 = x.footprint.map(f2.toLocal); return { fr: f2, r: r2, c: centroid(r2) }; };
@@ -817,7 +819,7 @@ export class Editor {
       host.append(el);
     }
     // panel bino va uning tutqichlari (burchaklar, qavat tutqichi) ustiga tushmasin: ekrandagi eng yuqori nuqtadan 58 px tepada
-    const base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh, top = base + b.floors * fh + 2.5, hr = host.getBoundingClientRect();
+    const g0 = Math.min(...r.map(p => this.scene.H(p[0], p[1]))), LV = bLevels(doc.settings, b), base = g0 + LV.z0, top = g0 + LV.top + 2.5, hr = host.getBoundingClientRect();
     const pts = [...r.map(p => this.scene.toScreen(p[0], p[1], base)), ...r.map(p => this.scene.toScreen(p[0], p[1], top)), this.scene.toScreen(c[0], c[1], top)];
     const minY = Math.min(...pts.map(p => p.y)), cx = this.scene.toScreen(c[0], c[1], top).x;
     // tepada joy boʻlmasa (bino ekran tepasida) — panel bino ostiga: qavat tutqichi va burchaklar ustiga tushmasin
@@ -1587,8 +1589,8 @@ export class Editor {
       const ins = P ? P.apts.map(ra => insetRobust(ra.ring, 0.06) ?? ra.ring) : [];
       const core = P ? [...P.mop, ...P.stairs, ...P.lifts] : [];
       for (let f = pl.f0; f < pl.f1; f++) {
-        const y = base + (pl.z0 + f) * fh;
-        if (P) for (const r of core) vols.push({ bid: pl.bid, ring: r, y0: y + 0.12, y1: y + fh - 0.12, color: 0xd6d2ca });
+        const y = base + this.lz(pl.bid, pl.z0 + f), yT = base + this.lz(pl.bid, pl.z0 + f + 1);
+        if (P) for (const r of core) vols.push({ bid: pl.bid, ring: r, y0: y + 0.12, y1: yT - 0.12, color: 0xd6d2ca });
         pl.layout.apts.forEach((a, ai) => {
           let color = Editor.APT_COL[Math.min(4, a.rooms)] ?? 0x888888;
           if (this.apt3d === 'insol') {
@@ -1620,14 +1622,14 @@ export class Editor {
   private aptInsolView(): InsolView | null {
     const A = this.apt; if (!A.stats || !A.run || A.buildings !== this.store.doc.buildings) return null;
     const idx = new Map<string, number>(); A.pts.forEach((q, i) => idx.set(`${A.plans[q.sec].bid}|${q.f}|${q.m}`, i));
-    const run = A.run, doc = this.store.doc, fh = doc.settings.floorHeight, [mo, dd] = (A.date ?? this.aptDate).split('-').map(Number);
+    const run = A.run, doc = this.store.doc, [mo, dd] = (A.date ?? this.aptDate).split('-').map(Number);
     return {
       date: A.date ?? this.aptDate, at: (bid, floor, m) => { const i = idx.get(`${bid}|${floor - 1}|${m}`); return i == null ? null : run[i]; },
       // V5 real dogʻ: tanlangan soatda quyosh holati va derazaga tushishi (atrof binolari soyasi bilan)
       sun: (hour, date) => { const [m2, d2] = date ? date.split('-').map(Number) : [mo, dd]; const s = sunPosition(localToUtcAt(2026, m2, d2, hour, doc.origin[1], doc.origin[0]), doc.origin[1], doc.origin[0]); return s.alt > 3 ? s : null; },
       lit: (bid, floor, ms, st) => {
         const si = A.plans.findIndex(p => p.bid === bid), pl = A.plans[si]; if (!pl || !A.prisms || !A.base) return ms.map(() => false);
-        const P = ms.map(m => pl.layout.mods[m].p), Z = ms.map(() => A.base![si] + (pl.z0 + floor - 1) * fh + 1.2), AZ = ms.map(m => pl.layout.mods[m].az);
+        const P = ms.map(m => pl.layout.mods[m].p), Z = ms.map(() => A.base![si] + this.lz(pl.bid, pl.z0 + floor - 1) + 1.2), AZ = ms.map(m => pl.layout.mods[m].az);
         const r = windowSun(P, Z, AZ, A.prisms, [{ alt: st.alt, az: st.az, dt: 1 }]);
         return ms.map((_, i) => r.total[i] > 0);
       },
@@ -1637,14 +1639,14 @@ export class Editor {
 
   private async runApts(): Promise<void> {
     track('mr/calc/flats');
-    const doc = this.store.doc, fh = doc.settings.floorHeight;
+    const doc = this.store.doc;
     const plans = planApartments(doc); if (!plans.length) { toast('Turar joy seksiyalari yoʻq'); return; }
     if (!await useHeavy('flats')) return;   // haftalik sinov yoki tanga
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     plans.forEach(p => p.ring.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }));
     const prisms = this.aroundPrisms(x0, y0, x1, y1, 350);
     const pts = windowPoints(plans), base = plans.map(p => Math.min(...p.ring.map(q => this.scene.H(q[0], q[1]))));
-    const P = pts.map(q => plans[q.sec].layout.mods[q.m].p), Z = pts.map(q => base[q.sec] + (plans[q.sec].z0 + q.f) * fh + 1.2), A = pts.map(q => plans[q.sec].layout.mods[q.m].az);
+    const P = pts.map(q => plans[q.sec].layout.mods[q.m].p), Z = pts.map(q => base[q.sec] + this.lz(plans[q.sec].bid, plans[q.sec].z0 + q.f) + 1.2), A = pts.map(q => plans[q.sec].layout.mods[q.m].az);
     const [m, d] = this.aptDate.split('-').map(Number), steps = daySteps(2026, m, d, doc.origin[1], doc.origin[0], 10, 3);
     this.apt = { busy: true, stats: null, plans, pts }; this.renderPanel();
     const t0 = performance.now(); let res: { run: Float32Array; total: Float32Array };
@@ -1675,7 +1677,7 @@ export class Editor {
     const A = this.apt, st = A.stats; if (!st) { this.scene.setFacadeMarks(null); return; }
     const fh = this.store.doc.settings.floorHeight, base = A.plans.map(p => Math.min(...p.ring.map(q => this.scene.H(q[0], q[1]))));
     const list = A.pts.map((q, i) => {
-      const pl = A.plans[q.sec], md = pl.layout.mods[q.m], c = st.cls[i], y = base[q.sec] + (pl.z0 + q.f) * fh;
+      const pl = A.plans[q.sec], md = pl.layout.mods[q.m], c = st.cls[i], y = base[q.sec] + this.lz(pl.bid, pl.z0 + q.f);
       const color = c === 3 ? 0xd6d2c8 : this.aptMode === 'insol' ? [0x3fa66b, 0xb7cf4f, 0xd9534f][c] : st.west[i] === 1 ? 0xd9534f : st.west[i] === 2 ? 0xf29a4a : 0x3fa66b;
       return { a: md.a, b: md.b, y0: y + 0.8, y1: y + fh - 0.6, color };
     });
@@ -1776,11 +1778,11 @@ export class Editor {
       this.planBid = sel.bid;
       const groups = floorGroups(sel), typ = groups.find(g => g.type === 'typical')?.from ?? 1, fl0 = Math.max(1, Math.min(sel.f1, this.planFloor ?? typ)), ft = floorTypeOf(sel, fl0);
       const name = (pl: SecPlan, i: number) => `${i + 1}-bino · ${useDef(doc.buildings.find(x => x.id === pl.bid)?.use ?? 'turar').name}`;
-      const optOf = (pl: SecPlan) => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(x => x.id === pl.bid)?.bal ?? null });
+      const optOf = (pl: SecPlan) => { const bb = doc.buildings.find(x => x.id === pl.bid); return { fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, bal: bb?.bal ?? null }; };
       const res = floorPlanSvg(sel, { scale: 200, dims: false, title: name(sel, si), floor: fl0, ...optOf(sel), furn: false });
       const pick = (b: string) => { this.planBid = b; this.planFloor = null; this.scene.select(b); this.renderPanel(); };
       const setF = (f: number) => { this.planFloor = Math.max(1, Math.min(sel.f1, f)); this.renderPanel(); };
-      const album = (view?: 'reja' | 'olcham' | 'insol' | 'variantlar') => openAlbum({ plans, bid: sel.bid, floor: fl0, view, mix: doc.settings.aptMix, section: bid2 => { const d2 = this.store.doc, fr2 = frame(d2.origin), fh2 = d2.settings.floorHeight, b0 = d2.buildings.find(x => x.id === bid2); if (!b0) return null; const sb = (x: typeof b0) => ({ ring: x.footprint.map(fr2.toLocal), h: x.floors * fh2, z0: (x.z0 ?? 0) * fh2, floors: x.floors, nonRes: x.nonRes, fh: fh2 }); return { sel: sb(b0), others: d2.buildings.filter(x => x.id !== bid2 && x.floors > 0).map(sb), lat: d2.origin[1] }; }, insol: this.aptInsolView(), runInsol: async () => { await this.runApts(); return this.aptInsolView(); }, fh: doc.settings.floorHeight, size: doc.settings.aptSize ?? 'M', docName: safe(doc.name), name, opt: optOf, download,
+      const album = (view?: 'reja' | 'olcham' | 'insol' | 'variantlar') => openAlbum({ plans, bid: sel.bid, floor: fl0, view, mix: doc.settings.aptMix, section: bid2 => { const d2 = this.store.doc, fr2 = frame(d2.origin), fh2 = d2.settings.floorHeight, b0 = d2.buildings.find(x => x.id === bid2); if (!b0) return null; const sb = (x: typeof b0) => { const L = bLevels(d2.settings, x); return { ring: x.footprint.map(fr2.toLocal), h: L.h, z0: L.z0, floors: x.floors, nonRes: x.nonRes, fh: fh2, fh1: L.fh1 }; }; return { sel: sb(b0), others: d2.buildings.filter(x => x.id !== bid2 && x.floors > 0).map(sb), lat: d2.origin[1] }; }, insol: this.aptInsolView(), runInsol: async () => { await this.runApts(); return this.aptInsolView(); }, fh: doc.settings.floorHeight, size: doc.settings.aptSize ?? 'M', docName: safe(doc.name), name, opt: optOf, download,
         onSave: (b2, pl) => { const fr = frame(doc.origin), bb = this.store.doc.buildings.find(x => x.id === b2); this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b2, patch: { planEdit: pl && bb ? { key: planKey(this.store.doc, bb), apts: pl.apts.map(a => ({ ring: a.ring.map(fr.toGeo), rooms: a.rooms, ...(a.inner ? { inner: a.inner } : {}) })), rooms: pl.rooms.map(q => ({ ring: q.ring.map(fr.toGeo), kind: q.kind })) } : undefined } })); this.clearApt(); },
         onClose: (b2, f) => { this.planBid = b2; this.planFloor = f; this.renderPanel(); } });
       insolAlbum = () => album('insol');
@@ -2066,10 +2068,10 @@ export class Editor {
    * avtomatik binolari (shu hududda almashtiriladiganlaridan tashqari) — ustiga qurilmaydi, masofa saqlanadi.
    */
   private genObstacles(grp: string, area: XY[]): Obstacle3[] {
-    const doc = this.store.doc, fr = frame(doc.origin), fh = doc.settings.floorHeight, keep = new Set(doc.keep);
+    const doc = this.store.doc, fr = frame(doc.origin), keep = new Set(doc.keep);
     const gone = new Set(staleGen(doc, grp, area, []).bids);
     const out: Obstacle3[] = this.scene.inSite.filter(x => keep.has(x.id)).map(x => ({ ring: x.rings[0], h: x.h }));
-    for (const b of doc.buildings) { if (b.gen?.grp === grp || gone.has(b.id)) continue; out.push({ ring: b.footprint.map(fr.toLocal), h: ((b.z0 ?? 0) + b.floors) * fh }); }
+    for (const b of doc.buildings) { if (b.gen?.grp === grp || gone.has(b.id)) continue; out.push({ ring: b.footprint.map(fr.toLocal), h: bLevels(doc.settings, b).top }); }
     return out;
   }
 
@@ -2144,6 +2146,8 @@ export class Editor {
   }
 
   /** avto chekinish (core/setback): koʻchaga qaragan fasad balandligi va tutash eng tor loyiha koʻchasi boʻyicha; past qavatlilarda — null (oʻz qoidasi) */
+  /** bino boʻyicha k-sath balandligi (core/levels: baland 1-qavat) */
+  private lz(bid: string, k: number): number { const doc = this.store.doc, b = doc.buildings.find(x => x.id === bid); return b ? levelZ(doc.settings, b, k) : k * doc.settings.floorHeight; }
   private autoSb(i: number, g: GenParams): AutoSetback | null {
     if (!g.setbackAuto || LOW_T.includes(g.typology)) return null;
     const b = this.plan().blocks[i]; if (!b) return null;
@@ -2588,9 +2592,9 @@ export class Editor {
     if (st === 'parsel' && this.selBlock != null) { const b = this.plan().blocks[this.selBlock], pc = b?.parcelId ? doc.parcels.find(p => p.id === b.parcelId) : null; if (!pc) return null;
       return { id: pc.id, pts: pc.rings[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateParcel', id: pc.id, patch: { rings: [pts.map(fr.toGeo), ...pc.rings.slice(1)] } }, key)) }; }
     if (st === 'hajm' && this.sel && this.dragMode !== 'yoq') { const b = doc.buildings.find(x => x.id === this.sel); if (!b) return null;
-      const r = b.footprint.map(fr.toLocal), fh = doc.settings.floorHeight, base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh;
+      const r = b.footprint.map(fr.toLocal), LV = bLevels(doc.settings, b), base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + LV.z0;
       const c: XY = [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length];
-      return { id: b.id, pts: r, closed: true, min: 3, floor: { c, z: base + b.floors * fh + 1.5, bid: b.id }, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { footprint: pts.map(fr.toGeo) } }, key)) }; }
+      return { id: b.id, pts: r, closed: true, min: 3, floor: { c, z: base + LV.h + 1.5, bid: b.id }, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { footprint: pts.map(fr.toGeo) } }, key)) }; }
     return null;
   }
   private syncHandles(): void {
@@ -3740,7 +3744,7 @@ export class Editor {
       // 29-band (egasi, 25.10): xonadonlar eksplikatsiyasi — alohida jadval, shu reja bilan bitta varaqning oʻng panelida (autolayout `pair`).
       // Chizmadon tahlili (25.10, 1-bosqich): vaziyat sxemasi ham alohida kichik katakda; reja oʻz katagini toʻldiradi —
       // katakka sigʻadigan eng yirik standart masshtabda (GOST 2.302: 1:50, 1:75, 1:100, 1:200…), choʻzilmaydi.
-      const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => ({ fh: doc.settings.floorHeight, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null })); };
+      const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => { const bb = doc.buildings.find(x => x.id === pl2.bid); return { fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }; }); };
       out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: (fit) => {
         const a = sheet(); if (!a) return null;
         const f = a.fit(fit?.w ?? 240, fit?.h ?? 200, fit?.scale);
@@ -3957,8 +3961,7 @@ export class Editor {
       const doc = this.store.doc, fr = frame(doc.origin), b = doc.buildings.find(x => x.id === this.sel)!, r0 = b.footprint.map(fr.toLocal), n = r0.length;
       let floor = 0;
       if (this.dragMode === 'floor') {
-        const fh = doc.settings.floorHeight, base = Math.min(...r0.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh;
-        floor = Math.max(1, Math.min(b.floors, Math.floor((hit.y - base) / fh) + 1));
+        floor = floorAt(doc.settings, b, hit.y - Math.min(...r0.map(p => this.scene.H(p[0], p[1]))));
         this.scene.setSelFloor(floor); this.renderInspector();
         if (floor < 2) { toast('1-qavat sudralmaydi — «Qavat devori» rejimini oʻchirib, devorni torting'); return; }
       }
@@ -4087,7 +4090,7 @@ export class Editor {
       if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []);
       if (id && id === this.sel && this.inspTab === 'qavat') {   // tanlangan binoda qavatni bosish — shu qavat
         const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), b = this.store.doc.buildings.find(x => x.id === id);
-        if (hit && b) { const fr = frame(this.store.doc.origin), r = b.footprint.map(fr.toLocal), fh = this.store.doc.settings.floorHeight, base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + (b.z0 ?? 0) * fh; this.scene.setSelFloor(Math.max(1, Math.min(b.floors, Math.floor((hit.y - base) / fh) + 1))); this.renderInspector(); return; }
+        if (hit && b) { const fr = frame(this.store.doc.origin), r = b.footprint.map(fr.toLocal), g = Math.min(...r.map(p => this.scene.H(p[0], p[1]))); this.scene.setSelFloor(floorAt(this.store.doc.settings, b, hit.y - g)); this.renderInspector(); return; }
       }
       this.sel = id; this.scene.select(id);
       if (!id && this.step.id === 'hajm') {

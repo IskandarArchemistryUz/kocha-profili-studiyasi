@@ -9,7 +9,9 @@
  */
 import type { XY } from './geo';
 
-export interface SecBld { ring: XY[]; h: number; z0?: number; floors?: number; nonRes?: number; fh?: number }
+export interface SecBld { ring: XY[]; h: number; z0?: number; floors?: number; nonRes?: number; fh?: number; /** shu binoning 1-(mahalliy) qavati balandligi (baland 1-qavat, core/levels) */ fh1?: number }
+/** mahalliy qavat i ning pastki sathi (bino tagidan) */
+const lev = (b: SecBld, i: number): number => { const fh = b.fh ?? 3, f1 = b.fh1 ?? fh; return i <= 0 ? 0 : f1 + (i - 1) * fh; };
 export interface SunLine { date: string; alt: number; app: number; shadeZ: number | null; side: 1 | -1 }
 /** 2 soatlik insolyatsiya (22.03 / 22.09, 11:00–13:00 quyosh vaqti) — kesim boʻyicha: deraza (zw) dan quyoshga nur, toʻsiq balandligi chegarasi */
 export interface Ins2 { side: 1 | -1; app: number; zw: number; d: number; hObs: number; hMax: number; ok: boolean }
@@ -85,13 +87,13 @@ export function buildingSection(sel: SecBld, others: SecBld[], o: { lat: number;
   out.push(`<line x1="${X(t0)}" y1="${Y(0)}" x2="${X(t1)}" y2="${Y(0)}" stroke="#141414" stroke-width="0.6"/>`, `<rect x="${X(t0)}" y="${Y(0)}" width="${((t1 - t0) * k).toFixed(2)}" height="${(f * 1.2).toFixed(2)}" fill="#e9e5dc"/>`);
   // qoʻshni binolar (kulrang) va shu binoning davomi (och, qavat chiziqlari bilan)
   for (const x of near) { const z0 = x.b.z0 ?? 0; out.push(`<rect x="${X(x.s[0])}" y="${Y(z0 + x.b.h)}" width="${((x.s[1] - x.s[0]) * k).toFixed(2)}" height="${(x.b.h * k).toFixed(2)}" fill="#d9d6cf" stroke="#6b6965" stroke-width="0.3"/><text x="${((Number(X(x.s[0])) + Number(X(x.s[1]))) / 2).toFixed(2)}" y="${(Number(Y(z0 + x.b.h)) - f * 0.6).toFixed(2)}" font-size="${f.toFixed(2)}" text-anchor="middle" fill="#6b6965">H ${Math.round(z0 + x.b.h)} m</text>`); }
-  for (const x of att) { const z0 = x.b.z0 ?? 0, fh2 = x.b.fh ?? 3, n2 = x.b.floors ?? Math.round(x.b.h / fh2); for (let i = 0; i < n2; i++) out.push(`<rect x="${X(x.s[0])}" y="${Y(z0 + (i + 1) * fh2)}" width="${((x.s[1] - x.s[0]) * k).toFixed(2)}" height="${(fh2 * k).toFixed(2)}" fill="#efe9de" stroke="#8a8780" stroke-width="0.25"/>`); }
+  for (const x of att) { const z0 = x.b.z0 ?? 0, fh2 = x.b.fh ?? 3, n2 = x.b.floors ?? Math.round(x.b.h / fh2); for (let i = 0; i < n2; i++) out.push(`<rect x="${X(x.s[0])}" y="${Y(z0 + lev(x.b, i + 1))}" width="${((x.s[1] - x.s[0]) * k).toFixed(2)}" height="${(fh2 * k).toFixed(2)}" fill="#efe9de" stroke="#8a8780" stroke-width="0.25"/>`); }
   // tanlangan bino: qavatlar
   const fh = sel.fh ?? 3, fl = sel.floors ?? Math.round(sel.h / fh), nr = sel.nonRes ?? 0, z0 = sel.z0 ?? 0;
   for (let i = 0; i < fl; i++) {
-    const za = z0 + i * fh, zb = za + fh;
-    out.push(`<rect x="${X(me[0])}" y="${Y(zb)}" width="${((me[1] - me[0]) * k).toFixed(2)}" height="${(fh * k).toFixed(2)}" fill="${i < nr ? '#cfe0f3' : '#f6e7c8'}" stroke="#141414" stroke-width="0.35"/>`);
-    out.push(`<text x="${(Number(X(me[0])) + f * 0.4).toFixed(2)}" y="${(Number(Y(za + fh / 2)) + f * 0.3).toFixed(2)}" font-size="${(f * 0.9).toFixed(2)}" fill="#3a3936">${i + 1}</text>`);
+    const za = z0 + lev(sel, i), zb = z0 + lev(sel, i + 1);
+    out.push(`<rect x="${X(me[0])}" y="${Y(zb)}" width="${((me[1] - me[0]) * k).toFixed(2)}" height="${((zb - za) * k).toFixed(2)}" fill="${i < nr ? '#cfe0f3' : '#f6e7c8'}" stroke="#141414" stroke-width="0.35"/>`);
+    out.push(`<text x="${(Number(X(me[0])) + f * 0.4).toFixed(2)}" y="${(Number(Y((za + zb) / 2)) + f * 0.3).toFixed(2)}" font-size="${(f * 0.9).toFixed(2)}" fill="#3a3936">${i + 1}</text>`);
     // derazalar ikki fasadda
     for (const t of [me[0], me[1]].filter(t => !att.some(x => Math.abs(x.s[0] - t) < 0.5 || Math.abs(x.s[1] - t) < 0.5))) out.push(`<line x1="${X(t)}" y1="${Y(za + 0.9)}" x2="${X(t)}" y2="${Y(za + 2.4)}" stroke="#fff" stroke-width="0.8"/>`);
   }
@@ -120,11 +122,11 @@ export function buildingSection(sel: SecBld, others: SecBld[], o: { lat: number;
   // 2 soatlik insolyatsiya (22.03 / 22.09, 11–13): janubiy fasaddagi eng pastki turar joy derazasi (pol + 0,9 m) dan quyoshga nur
   const ins2: Ins2[] = [], a2 = ins2Angle(o.lat, d, north), tg2 = Math.tan(a2 * Math.PI / 180);
   if (left) {   // janubdagi qoʻshni → tanlangan binoning janubiy fasadi
-    const zw = z0 + nr * fh + 0.9, dd = ext[0] - left.s[1], Hl = (left.b.z0 ?? 0) + left.b.h, hMax = zw + dd * tg2;
+    const zw = z0 + lev(sel, nr) + 0.9, dd = ext[0] - left.s[1], Hl = (left.b.z0 ?? 0) + left.b.h, hMax = zw + dd * tg2;
     ins2.push({ side: -1, app: a2, zw, d: dd, hObs: Hl, hMax, ok: Hl <= hMax + 0.05 });
   }
   if (right) {  // tanlangan bino → shimoldagi qoʻshnining janubiy fasadi
-    const nr2 = right.b.nonRes ?? 0, fh2 = right.b.fh ?? fh, zw = (right.b.z0 ?? 0) + nr2 * fh2 + 0.9, dd = right.s[0] - ext[1], hMax = zw + dd * tg2;
+    const nr2 = right.b.nonRes ?? 0, zw = (right.b.z0 ?? 0) + lev(right.b, nr2) + 0.9, dd = right.s[0] - ext[1], hMax = zw + dd * tg2;
     ins2.push({ side: 1, app: a2, zw, d: dd, hObs: He1, hMax, ok: He1 <= hMax + 0.05 });
   }
   for (const q of ins2) {

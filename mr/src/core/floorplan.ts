@@ -38,6 +38,7 @@ export interface PlanOpts {
   scale: number; /** oʻqlar va oʻlchamlar */ dims: boolean; title: string;
   /** bino qavati (1 dan) — 1-qavat va noturar qavatlar reja turi shundan */ floor: number;
   /** qavat balandligi, m (tekshiruv uchun) */ fh?: number;
+  /** 1-qavat balandligi, m (core/levels; baland 1-qavat — zina 4 marshli) */ fh1?: number;
   /** balkon turi (turar qavatlarda, 2-qavatdan) */ bal?: Bal | null;
   /** tahrir oynasi: boshqa reja, tanlangan kvartiralar / xona */ plan?: RulePlan; sel?: number[]; selRoom?: number;
   /** 20-band: kvartira raqami (eksplikatsiya jadvali bilan bogʻlash uchun) */ num?: boolean;
