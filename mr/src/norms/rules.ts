@@ -5,6 +5,7 @@
  * claude/abdurauf-fitrat-kz-normativ-audit.md); asl matn bilan solishtirilmaganlari `verified: false`.
  */
 import type { Derived } from '../core/derive';
+import { bLevels } from '../core/levels';
 import type { Project } from '../core/doc';
 import { CATS, checkProfile, profileById, profileWidth } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
@@ -376,7 +377,7 @@ export const RULES: Rule[] = [
     title: 'Yongʻin-qutqaruv texnikasi yoʻlagi (hovlida, H ≥ 28 m)',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '666, 667, 675–677-bandlar', verified: true },
     evaluate(_d, doc) {
-      const fh = doc.settings.floorHeight, Ht = (b: Project['buildings'][number]) => (b.floors + (b.z0 ?? 0)) * fh;
+      const Ht = (b: Project['buildings'][number]) => bLevels(doc.settings, b).top;
       // 31.10: stilobat ustidagi jamoat binolari (F2, F3, F4.2–F4.4) — H ≥ 18 m
       if (!doc.buildings.some(b => Ht(b) >= 28 || ((b.z0 ?? 0) > 0 && Ht(b) >= 18))) return { status: 'na', note: 'Balandligi 28 m va undan yuqori turar joy binolari yoʻq — bitta uzun tomondan (koʻchadan) yetib kelish yetarli (666-band).' };
       if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchiq — hovlidagi yoʻlak tekshirilmadi (Yashil qadami).', fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar obodonlashtiriladi va hovlidagi yongʻin yoʻlagi (667, 675, 676-bandlar) avtomatik chiziladi.' } };

@@ -10,6 +10,7 @@
  *    yaʼni buzilish emas, SanQvaN 0102-25 boʻyicha insolyatsiya hisobi bilan koʻrib chiqiladi. 2·Hmax va yongʻin masofalari qisqarmaydi.
  */
 import polygonClipping, { type Polygon } from 'polygon-clipping';
+import { bLevels } from './levels';
 import type { Project } from './doc';
 import { frame, signedArea, type XY } from './geo';
 
@@ -48,8 +49,8 @@ export function staleGen(doc: Project, grp: string, area: XY[], fresh: XY[][]): 
 export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish'; d: number; need: number; soft?: number; /** rekonstruksiya rejimida (7-izoh) qisqartirilgan chegara ichida: d ≥ need/2 (≥ 6 m) — insolyatsiya hisobi bilan koʻrib chiqiladi */ red?: boolean; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; ha: number; hb: number }
 /** Uchastkadagi binolar juftlari: ustma-ust, uzun tomonlar va toretslar orasidagi masofa */
 export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: number } {
-  const fr = frame(doc.origin), fh = doc.settings.floorHeight;
-  const B = doc.buildings.map(b => { const r = b.footprint.map(fr.toLocal); return { b, r, bb: bbOf(r), H: ((b.z0 ?? 0) + b.floors) * fh }; });
+  const fr = frame(doc.origin);
+  const B = doc.buildings.map(b => { const r = b.footprint.map(fr.toLocal); return { b, r, bb: bbOf(r), H: bLevels(doc.settings, b).top }; });
   const out: SpacingPair[] = []; let checked = 0, recon = doc.settings.recon === true;
   // 7-izoh: jadval masofalari ikki barobargacha qisqaradi, lekin 6 m (*) dan kam emas; 2·Hmax (8-izoh) qisqarmaydi
   const red = (d: number, need: number) => recon && d >= Math.max(6, need / 2) - 0.5;

@@ -122,6 +122,8 @@ export interface Settings {
   netToGross: number;
   /** qavat balandligi, m */
   floorHeight: number;
+  /** 1-qavat balandligi, m (01.11, egasi): noturar 1-qavatli binolar va stilobat ustidagi minoralar uchun; yoʻq — floorHeight (core/levels) */
+  groundH?: number;
   /** oʻrtacha kvartira (netto), m² — kvartiralar soni va avtoturargoh talabi uchun (taxmin, loyiha topshirigʻidan aniqlanadi) */
   aptNet: number;
   /** kvartira miksi, %: 1, 2, 3, 4 xonali (fasad modullari boʻyicha rejalash — core/apartments.ts) */
@@ -290,6 +292,7 @@ export function migrate(raw: unknown): Project {
   if (!isLL(d.origin)) throw new SchemaError('origin notoʻgʻri');
   const s = { ...DEFAULT_SETTINGS, ...(d.settings as object || {}) } as Settings;
   for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
+  if (s.groundH != null && !(isNum(s.groundH) && s.groundH >= 2.5 && s.groundH <= 8)) delete s.groundH;
   if (!Array.isArray(s.aptMix) || s.aptMix.length !== 4 || !s.aptMix.every(v => isNum(v) && v >= 0) || !s.aptMix.some(v => v > 0)) s.aptMix = [...DEFAULT_SETTINGS.aptMix];
   else s.aptMix = [...s.aptMix] as Settings['aptMix'];
   if (!['S', 'M', 'L'].includes(s.aptSize as string)) s.aptSize = 'M';
