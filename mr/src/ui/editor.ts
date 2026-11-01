@@ -1780,7 +1780,7 @@ export class Editor {
       this.planBid = sel.bid;
       const groups = floorGroups(sel), typ = groups.find(g => g.type === 'typical')?.from ?? 1, fl0 = Math.max(1, Math.min(sel.f1, this.planFloor ?? typ)), ft = floorTypeOf(sel, fl0);
       const name = (pl: SecPlan, i: number) => `${i + 1}-bino · ${useDef(doc.buildings.find(x => x.id === pl.bid)?.use ?? 'turar').name}`;
-      const optOf = (pl: SecPlan) => { const bb = doc.buildings.find(x => x.id === pl.bid); return { fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; };
+      const optOf = (pl: SecPlan) => { const bb = doc.buildings.find(x => x.id === pl.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; };
       const res = floorPlanSvg(sel, { scale: 200, dims: false, title: name(sel, si), floor: fl0, ...optOf(sel), furn: false });
       const pick = (b: string) => { this.planBid = b; this.planFloor = null; this.scene.select(b); this.renderPanel(); };
       const setF = (f: number) => { this.planFloor = Math.max(1, Math.min(sel.f1, f)); this.renderPanel(); };
@@ -3761,7 +3761,7 @@ export class Editor {
       // 29-band (egasi, 25.10): xonadonlar eksplikatsiyasi — alohida jadval, shu reja bilan bitta varaqning oʻng panelida (autolayout `pair`).
       // Chizmadon tahlili (25.10, 1-bosqich): vaziyat sxemasi ham alohida kichik katakda; reja oʻz katagini toʻldiradi —
       // katakka sigʻadigan eng yirik standart masshtabda (GOST 2.302: 1:50, 1:75, 1:100, 1:200…), choʻzilmaydi.
-      const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => { const bb = doc.buildings.find(x => x.id === pl2.bid); return { fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }; }); };
+      const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => { const bb = doc.buildings.find(x => x.id === pl2.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }; }); };
       out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: (fit) => {
         const a = sheet(); if (!a) return null;
         const f = a.fit(fit?.w ?? 240, fit?.h ?? 200, fit?.scale);
