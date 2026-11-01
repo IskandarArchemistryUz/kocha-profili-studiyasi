@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-BQd-Nl4b.js";
