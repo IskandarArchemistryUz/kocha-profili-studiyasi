@@ -34,4 +34,11 @@ describe('Seksiya rejasi (chizma)', () => {
     expect(t.plan.apts.length).toBeGreaterThan(3); expect(t.svg).toContain('balkon ×0,3');
     const all = buildingFloorsSvg(s, 200, 'B1'); expect(all).toContain('1-qavat'); expect(all).toContain('2–9-qavatlar');
   });
+  it('baland 1-qavat (5,7 m) — zina 4 marshli, oddiy qavat — 2 marshli (01.11, egasi)', () => {
+    const s = mk(rect);
+    const g = floorPlanSvg(s, { scale: 200, dims: true, title: 'S', floor: 1, fh: 3.3, fh1: 5.7 });
+    expect(g.svg).toContain('data-stair4'); expect(g.svg).toContain('4 marsh · 5,7 m');
+    expect(floorPlanSvg(s, { scale: 200, dims: true, title: 'S', floor: 3, fh: 3.3, fh1: 5.7 }).svg).not.toContain('data-stair4');
+    expect(floorPlanSvg(s, { scale: 200, dims: true, title: 'S', floor: 1, fh: 3.3 }).svg).not.toContain('data-stair4');
+  });
 });

@@ -202,7 +202,12 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     const mopC = MOPS.length ? cen(MOPS.reduce((x, y) => area(y) > area(x) ? y : x)) : null;
     const nearEnd = mopC && Math.hypot(o0[0] + uL[0] * L + uW[0] * W2 / 2 - mopC[0], o0[1] + uL[1] * L + uW[1] * W2 / 2 - mopC[1]) < Math.hypot(o0[0] + uW[0] * W2 / 2 - mopC[0], o0[1] + uW[1] * W2 / 2 - mopC[1]);
     const P2 = (t0: number, w: number): XY => { const t = nearEnd ? L - t0 : t0, ww = nearEnd ? W2 - w : w; return [o0[0] + uL[0] * t + uW[0] * ww, o0[1] + uL[1] * t + uW[1] * ww]; };
-    const risers = Math.max(2, Math.ceil((o.fh ?? 3) / 0.15)), treads = Math.ceil(risers / 2) - 1, FL = treads * 0.3, mid = W2 / 2;
+    // 01.11 (egasi): baland 1-qavat (masalan 5,7 m) — ikki marsh katakka sigʻmaydi: 4 marshli (ikki marta burilish, oraliq qavat maydonchasi
+    // yarim balandlikda); rejada pastki juftlik chiziladi, yozuv bilan. Katak oʻlchami oʻzgarmaydi (har juftlik ≤ oddiy qavat balandligi).
+    const fhF = o.floor === 1 && o.fh1 ? o.fh1 : (o.fh ?? 3), riseAll = Math.max(2, Math.ceil(fhF / 0.15));
+    const fits = (n: number) => (Math.ceil(riseAll / n) - 1) * 0.3 <= L - 2 * 1.2 + 0.01;   // maydonchalar ≥ 1,2 m (marsh eni)
+    const nF = fits(2) ? 2 : 4, risers = Math.ceil(riseAll / (nF / 2)), treads = Math.ceil(risers / 2) - 1, FL = treads * 0.3, mid = W2 / 2;
+    if (nF === 4) { const cc = cen(st); out.push(`<text x="${X(cc[0])}" y="${(Number(Y(cc[1])) + 0.7).toFixed(2)}" font-size="1.7" font-weight="600" text-anchor="middle" fill="#141414" stroke="#f4f2ee" stroke-width="0.6" paint-order="stroke" data-stair4="1">4 marsh · ${String(Math.round(fhF * 100) / 100).replace('.', ',')} m</text>`); }
     const midLand = Math.max(Math.min(mid - 0.05, L - FL - 1.2), 0.9), f1 = L - midLand, f0 = Math.max(0.6, f1 - FL);
     for (let t = f0; t <= f1 + 1e-6; t += (f1 - f0) / Math.max(1, treads)) out.push(seg(P2(t, 0), P2(t, mid - 0.05), 'stroke="#141414" stroke-width="0.15"'), seg(P2(t, mid + 0.05), P2(t, W2), 'stroke="#141414" stroke-width="0.15"'));
     out.push(`<path d="${path([P2(f0, mid - 0.05), P2(f1, mid - 0.05), P2(f1, mid + 0.05), P2(f0, mid + 0.05)])}" fill="#141414"/>`);
