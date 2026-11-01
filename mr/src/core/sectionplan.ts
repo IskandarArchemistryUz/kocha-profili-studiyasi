@@ -158,6 +158,7 @@ function robust(pl: RulePlan): boolean {
 function planOnce(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L', court: XY | null, splitAbove?: number): RulePlan {
   // ozgina qiyshiq devorlar: reja ichki toʻgʻri burchakli shaklda quriladi, devor yonidagi ponasimon qoldiq — kvartiraga (lodjiya)
   const R = rectify(r), p0 = planCore(r, mods, mix, size, court, splitAbove);
+  if (slimApts(p0, r, mods)) finishPlan(p0, mods, size);
   if (!R) return p0;
   const pl = planCore(R, facadeModsFor(R, mods), mix, size, court, splitAbove);
   // toʻgʻrilangan shakl asl konturdan chiqqan joylari kesiladi
@@ -182,9 +183,64 @@ function planOnce(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     });
     for (const pc of left) { if (area(pc) < 0.3) continue; let best = -1, bl = 0.5; pl.apts.forEach((a, i) => { const l = sharedEdge(a.ring, pc).len; if (l > bl) { bl = l; best = i; } }); if (best < 0 || !give(best, pc)) pl.rest.push(pc); }
   }
+  slimApts(pl, r, mods);
   finishPlan(pl, mods, size);
   // toʻgʻrilangan reja faqat asl rejadan yaxshi boʻlsa: kvartiralar ulushi, qorongʻi (deraza fasadi yetmaydigan) va notekis kvartiralar uchun jarima
   return planScore(pl, r, mods) > planScore(p0, r, mods) ? pl : p0;
+}
+/**
+ * 1.11 (egasi: «bunday kolbasalar aslida xato»): kvartiraga yopishib qolgan ingichka tasma (eni < 1,1 m, uzunligi ≥ 2 m) —
+ * odatda boʻlish chizigʻi seksiya ichki burchagidan bir necha sm siljiganda qoladi. Tasma morfologik ochilish
+ * (kvadrat, R = 0,55 m) bilan topiladi va u bilan eng uzun umumiy devorga ega qoʻshni kvartiraga beriladi (qoʻshni
+ * kvartira boʻyi boʻlagi); qoʻshni boʻlmasa joyida qoladi. Lodjiya (ponasimon fasad qoldigʻi) tegilmaydi.
+ * Qaytaradi: oʻzgardimi.
+ */
+export function slimApts(pl: RulePlan, r: XY[], mods: FacadeMod[] = []): boolean {
+  const th = axisAngle(r), c = Math.cos(th), sn = Math.sin(th), toL = (p: XY): XY => [p[0] * c + p[1] * sn, -p[0] * sn + p[1] * c], toG = (p: XY): XY => [p[0] * c - p[1] * sn, p[0] * sn + p[1] * c];
+  const R = 0.55, sh: XY[] = [[R, R], [R, -R], [-R, R], [-R, -R], [R, 0], [-R, 0], [0, R], [0, -R]];
+  const mv = (q: XY[], d: XY): XY[] => q.map(p => [p[0] + d[0], p[1] + d[1]]);
+  const bbL = (q: XY[]) => { const l = q.map(toL); return [Math.min(...l.map(p => p[0])), Math.min(...l.map(p => p[1])), Math.max(...l.map(p => p[0])), Math.max(...l.map(p => p[1]))]; };
+  let changed = false;
+  for (let i = 0; i < pl.apts.length; i++) {
+    const P = pl.apts[i].ring.map(toL);
+    let E: XY[][] = [P]; for (const d of sh) { E = inter(E, [mv(P, [-d[0], -d[1]])]); if (!E.length) break; }
+    if (!E.length) continue;
+    const O = inter(union(E.flatMap(e => [e, ...sh.map(d => mv(e, d))])), [P]);
+    // tasmalar uchun alohida ayirma: umumiy «pieces» ingichka boʻlaklarni (maydon/perimetr < 0,12) tashlab yuboradi
+    let raw: XY[][] = []; try { raw = polygonClipping.difference(MP([P]), ...MP(O.length ? O : [P])).filter(pp => pp.length === 1).map(pp => dedupe(openR(pp[0]))).filter(q => q.length >= 3); } catch { raw = []; }
+    const thin = raw.filter(q => {
+      const [x0, y0, x1, y1] = [Math.min(...q.map(p => p[0])), Math.min(...q.map(p => p[1])), Math.max(...q.map(p => p[0])), Math.max(...q.map(p => p[1]))];
+      const L = Math.max(x1 - x0, y1 - y0), S = Math.min(x1 - x0, y1 - y0);
+      return L >= 2 && S <= 1.1 && area(q) >= 0.3 && area(q) / (L * S) > 0.7;
+    }).map(q => q.map(toG));
+    for (const pc of thin) {
+      if ((pl.apts[i].loggia ?? []).some(lg => inter([lg], [pc]).reduce((t, z) => t + area(z), 0) > 0.3 * area(pc))) continue;
+      let best = -1, bl = 0.5; pl.apts.forEach((a, j) => { if (j === i) return; const l = sharedEdge(a.ring, pc).len; if (l > bl) { bl = l; best = j; } });
+      if (best < 0) {
+        // qoʻshnisi yoʻq tasma kvartirani ikki boʻlakka ulab turgan boʻlsa (yadroni aylanib oʻtgan «taqa») — tasma kesiladi:
+        // katta boʻlak shu kvartira, qolganlari — derazali va ≥ 20 m² boʻlsa yangi kvartira, aks holda qoʻshniga yoki qoldiqqa
+        let parts: XY[][] = []; try { parts = polygonClipping.difference(MP([pl.apts[i].ring]), MP([pc])).map(pp => dedupe(openR(pp[0]))).filter(q => q.length >= 3 && area(q) > 0.3).sort((a, b) => area(b) - area(a)); } catch { parts = []; }
+        if (parts.length < 2) continue;
+        pl.apts[i].ring = parts[0]; pl.rest.push(pc); changed = true;
+        for (const q of parts.slice(1)) {
+          if (area(q) >= 20 && winsIn(q, mods).length) { pl.apts.push({ ...structuredClone(pl.apts[i]), ring: q, inner: undefined, loggia: undefined }); continue; }
+          let nb = -1, nl = 0.5; pl.apts.forEach((a, j) => { const l = sharedEdge(a.ring, q).len; if (l > nl) { nl = l; nb = j; } });
+          const u = nb >= 0 ? union([pl.apts[nb].ring, q]) : [];
+          if (u.length === 1) pl.apts[nb].ring = u[0]; else pl.rest.push(q);
+        }
+        continue;
+      }
+      // qoʻshni kvartiraning tasma yoʻnalishidagi boʻyi boʻylab kesiladi — qoʻshni toʻgʻri burchakli qoladi
+      const [px0, py0, px1, py1] = bbL(pc), [ax0, ay0, ax1, ay1] = bbL(pl.apts[best].ring), horiz = px1 - px0 >= py1 - py0;
+      const band = (horiz ? [[ax0, py0 - 1], [ax1, py0 - 1], [ax1, py1 + 1], [ax0, py1 + 1]] : [[px0 - 1, ay0], [px1 + 1, ay0], [px1 + 1, ay1], [px0 - 1, ay1]]).map(p => toG(p as XY));
+      const give = inter([pc], [band]).filter(z => area(z) > 0.3);
+      if (!give.length) continue;
+      const u = union([pl.apts[best].ring, ...give]), rest = diff([pl.apts[i].ring], give, 'none').sort((a, b) => area(b) - area(a));
+      if (u.length !== 1 || !rest.length) continue;
+      pl.apts[best].ring = u[0]; pl.apts[i].ring = rest[0]; changed = true;
+    }
+  }
+  return changed;
 }
 function planScore(pl: RulePlan, r: XY[], mods: FacadeMod[]): number {
   const A = area(r) || 1;
