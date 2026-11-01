@@ -16,6 +16,6 @@ describe('yongʻinga qarshi devorlar orasidagi qavat maydoni', () => {
     expect(fireComp('ofis', 12, 'monolit').area).toBe(2500);
     expect(fireComp('ofis', 12, 'gisht').area).toBe(2200);
   });
-  it('avtoturargoh — andoza', () => { const f = fireComp('avtoturargoh', 2, 'monolit'); expect(f.area).toBe(FIRE_COMP_ANDOZA); expect(f.norm).toBe(false); });
+  it('avtoturargoh — 3000 m² (ShNQ 2.01.02-04, 1-son oʻzgartirish, 4.12–4.13; oʻxshashlik)', () => { const f = fireComp('avtoturargoh', 2, 'monolit'); expect(f.area).toBe(FIRE_COMP_ANDOZA); expect(FIRE_COMP_ANDOZA).toBe(3000); expect(f.norm).toBe(false); });
   it('rampa nishabi — 20-jadval: 80 ‰', () => expect(RAMP_SLOPE).toBe(0.08));
 });
