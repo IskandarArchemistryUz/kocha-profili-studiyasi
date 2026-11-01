@@ -244,6 +244,8 @@ function dyn(s: string, depth: number): string {
     out = raw(tp.key).replace(PH, (_m, e: string) => { const i = tp.names.indexOf(e); if (i < 0) return `\${${e}}`; const v = m[i + 1]; return S[v] ? raw(v) : dyn(v, depth + 1); });
     break;
   }
+  // 01.11: bir necha gapdan iborat izoh (meʼyorlar, hisobot) — har gap alohida kalit/andoza boʻyicha
+  if (out == null) { const ss = s.split(/(?<=[.!?])\s+(?=[\p{Lu}«(\d])/u); if (ss.length > 1) { const tp = ss.map(p => (S[p] ? raw(p) : dyn(p, depth + 1))); if (tp.some((x, i) => x !== ss[i])) out = tp.join(' '); } }
   if (out == null) { const pm = /^(.+?)(\s*\([^()]*\))$/s.exec(s); if (pm) { const m0 = S[pm[1]] ? raw(pm[1]) : dyn(pm[1], depth + 1), inr = pm[2].trim().slice(1, -1), i0 = S[inr] ? raw(inr) : dyn(inr, depth + 1); if (m0 !== pm[1] || i0 !== inr) out = `${m0}${pm[2].startsWith(' ') ? ' ' : ''}(${i0})`; } }
   // oxiridagi son va birlik («Daraxt ↔ bino devori ≥ 5,0», «Tezkor 1», «Elektr kabeli 6–20 kV») — boshi tarjima qilinadi
   if (out == null) { const nm = /^(.*?\p{L}[^\d]*?)(\s*[≥≤<>=≈~]?\s*[-–]?\d[\d\s.,–×x-]*\s*(?:m²|m|km|%|kV|ga|kishi|qavat)?\.?)$/u.exec(s); if (nm && nm[1].trim() !== s) { const h0 = nm[1].trimEnd(), hs = nm[1].slice(h0.length), r0 = S[h0] ? raw(h0) : dyn(h0, depth + 1); if (r0 !== h0) out = r0 + hs + nm[2]; } }
