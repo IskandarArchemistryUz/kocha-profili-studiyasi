@@ -11,6 +11,7 @@
  */
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { bLevels } from './levels';
+import { kyOf, azOf } from './setback';
 import type { Project } from './doc';
 import { frame, signedArea, type XY } from './geo';
 
@@ -46,12 +47,12 @@ export function staleGen(doc: Project, grp: string, area: XY[], fresh: XY[][]): 
   return { bids, gids };
 }
 
-export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish'; d: number; need: number; soft?: number; /** rekonstruksiya rejimida (7-izoh) qisqartirilgan chegara ichida: d ≥ need/2 (≥ 6 m) — insolyatsiya hisobi bilan koʻrib chiqiladi */ red?: boolean; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; ha: number; hb: number }
+export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish'; d: number; need: number; soft?: number; /** rekonstruksiya rejimida (7-izoh) qisqartirilgan chegara ichida: d ≥ need/2 (≥ 6 m) — insolyatsiya hisobi bilan koʻrib chiqiladi */ red?: boolean; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; /** yoʻnalish koeffitsiyenti (uzun tarzlar) */ ky?: number; ha: number; hb: number }
 /** Uchastkadagi binolar juftlari: ustma-ust, uzun tomonlar va toretslar orasidagi masofa */
 export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: number } {
   const fr = frame(doc.origin);
   const B = doc.buildings.map(b => { const r = b.footprint.map(fr.toLocal); return { b, r, bb: bbOf(r), H: bLevels(doc.settings, b).top }; });
-  const out: SpacingPair[] = []; let checked = 0, recon = doc.settings.recon === true;
+  const out: SpacingPair[] = []; let checked = 0, recon = doc.settings.recon === true; const seis8 = (doc.settings.seismic ?? 0) >= 8;
   // 7-izoh: jadval masofalari ikki barobargacha qisqaradi, lekin 6 m (*) dan kam emas; 2·Hmax (8-izoh) qisqarmaydi
   const red = (d: number, need: number) => recon && d >= Math.max(6, need / 2) - 0.5;
   for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
@@ -65,7 +66,11 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     if (g.d < 0.5) continue;                                      // umumiy devor — bitta bino seksiyalari
     if (Math.min(x.b.floors, y.b.floors) < 3) continue;            // 2-jadval — 3 va undan yuqori qavatli binolar
     checked++;
-    if (g.parallel >= 10) { const need = 2 * Hm; if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H }); }
+    if (g.parallel >= 10) {
+      // 2-jadval: derazali uzun tarzlar orasi Hmax × kʏ (2-ilova, uzun tomon yoʻnalishi); 8-izoh: seysmik 8+ ballda ≥ 2 × Hmax
+      const ky = kyOf(azOf(g.dir)), need = Math.max(Hm * ky, seis8 ? 2 * Hm : 0);
+      if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H, ky, ...(red(g.d, need) && !(seis8 && need === 2 * Hm) ? { red: true } : {}) });
+    }
     else if (g.la !== g.lb) {
       // derazali uzun tomon ↔ torets: 2·Hmax·0,3, ≥ 6 m (2-jadval)
       const need = Math.max(6, 0.6 * Hm); if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun-torets', d: g.d, need, ha: x.H, hb: y.H, ...(red(g.d, need) ? { red: true } : {}) });
@@ -86,8 +91,8 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
 }
 
 /** Eng yaqin masofa va qarama-qarshi parallel qirralarning bir-birini «koʻradigan» qismi uzunligi (≤ 15°) */
-function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number; ia: number; ib: number; la: boolean; lb: boolean } {
-  let d = Infinity, par = 0;
+function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number; ia: number; ib: number; la: boolean; lb: boolean; dir: XY } {
+  let d = Infinity, par = 0, dir: XY = [1, 0];
   const E = (r: XY[]) => r.map((p, i) => { const q = r[(i + 1) % r.length]; return [p, q, isLong(r, p, q)] as [XY, XY, boolean]; });
   const ea = E(a), eb = E(b), cand: { d: number; i: number; j: number; anti: number }[] = [];
   ea.forEach(([p, q, la], i) => eb.forEach(([s, t, lb], j) => {
@@ -98,11 +103,11 @@ function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number; ia: number; i
     const cos = Math.abs(u[0] * v[0] + u[1] * v[1]) / lu / lv; if (cos < 0.966) return;
     const ux = u[0] / lu, uy = u[1] / lu, ts = [(s[0] - p[0]) * ux + (s[1] - p[1]) * uy, (t[0] - p[0]) * ux + (t[1] - p[1]) * uy];
     const ov = Math.min(lu, Math.max(...ts)) - Math.max(0, Math.min(...ts));
-    if (ov > par) par = ov;
+    if (ov > par) { par = ov; dir = [ux, uy]; }
   }));
   // eng yaqin juftlar ichidan — bir-biriga qaragani (CCW halqalarda qarama-qarshi yoʻnalish)
   const near = cand.filter(c => c.d <= d + 0.3).sort((x, y) => x.anti - y.anti)[0] ?? { i: 0, j: 0 };
-  return { d, parallel: par, ia: near.i, ib: near.j, la: ea[near.i]?.[2] ?? false, lb: eb[near.j]?.[2] ?? false };
+  return { d, parallel: par, ia: near.i, ib: near.j, la: ea[near.i]?.[2] ?? false, lb: eb[near.j]?.[2] ?? false, dir };
 }
 /** Uzun tomon: qirra uzunligi bino qalinligidan (qirra oʻrtasidan ichkariga) ≥ 1,5 marta — torets va nuqtali minora emas */
 function isLong(r: XY[], p: XY, q: XY): boolean {

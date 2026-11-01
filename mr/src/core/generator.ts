@@ -37,8 +37,12 @@ export interface GenParams {
   setback: number;
   /** chekinish fasad balandligiga qarab avtomatik (core/setback, andoza H/W) — setback shu bilan almashtiriladi */
   setbackAuto?: boolean;
-  /** avto chekinish: koʻcha kesimi H/W chegarasi (andoza 1) */
+  /** avto chekinish: qoʻshimcha andoza — koʻcha kesimi H/W chegarasi (0 / yoʻq — oʻchiq) */
   hw?: number;
+  /** avto chekinish: uchastka chetlari (loyiha koʻchasi boʻlmagan qirralar) — mavjud koʻcha yoki qoʻshni hudud (2-jadval) */
+  siteEdges?: 'kocha' | 'qoshni';
+  /** hisoblangan (saqlanmaydi): har qirra boʻyicha chekinishdan keyingi joylashtirish chegarasi — inset oʻrniga */
+  setbackRing?: XY[];
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
   passages: boolean;
   /** pastki noturar qavatlar (koʻchaga qaragan seksiyalarda) */
@@ -149,7 +153,7 @@ export const ARCH_F = 2;
 
 export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult {
   const notes: string[] = [];
-  const outer0 = inset(clean(block), g.setback);
+  const outer0 = (g.setbackRing ?? inset(clean(block), g.setback));
   if (!outer0) return { sections: [], capFloors: null, notes: ['Kvartal juda tor yoki shakli murakkab — chekinishdan keyin joy qolmadi'] };
   const A = clean(outer0, Math.max(6, g.depth * 0.6));
   if (g.typology === 'qatorlar') return rows(A, g, floorH, notes);
@@ -762,7 +766,7 @@ const rectAt = (R: PRect, w: number, h: number, dx: number, dy: number): XY[] =>
 function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenResult {
   XS = { full: 0, short: 0, gap: 0, stretch: 0 };
   const notes: string[] = [];
-  const outer0 = inset(clean(block), g.setback);
+  const outer0 = (g.setbackRing ?? inset(clean(block), g.setback));
   if (!outer0) return { sections: [], capFloors: null, notes: ['Kvartal juda tor — chekinishdan keyin joy qolmadi'] };
   const A = clean(outer0, 6), tf = Math.max(g.towerF ?? 16, g.minF);
   switch (t) {
@@ -930,7 +934,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   }
   if (g.typology === 'avto') r.notes.unshift(`Avto: UMN ${String(far || 2).replace('.', ',')} → «${TYPO_NAME[t]}»`);
   // stilobat: chekinish ichidagi butun maydon, seksiyalar uning ustida
-  const st = Math.max(0, Math.round(g.stylobate ?? 0)), outer = inset(clean(block), g.setback);
+  const st = Math.max(0, Math.round(g.stylobate ?? 0)), outer = (g.setbackRing ?? inset(clean(block), g.setback));
   const podiumOk = st > 0 && outer && ['perimetr', 'qatorlar', 'minora', 'blok_minora', 'ofis_plita'].includes(t);
   if (podiumOk) {
     r.sections = r.sections.map(s => ({ ...s, z0: st, nonRes: 0 }));
