@@ -52,20 +52,23 @@ export function blockShape(r0: XY[]): BlockShape {
 
 export interface BlockCheck { len: number; limit: number | null; lenOk: boolean; proj: number; projLim: number; projOk: boolean; rect: boolean }
 /**
- * Yongʻin boʻlmasi qavat maydoni — ANDOZA faqat avtoturargoh stilobati uchun (avtoturargoh meʼyori matni yoʻq). Jamoat binolari —
- * ShNQ 2.08.02-23, 44-band, 2-ilova (fireComp).
+ * Avtoturargoh — yongʻin boʻlmasi qavat maydoni (egasi 01.11: «normalarda boʻlsa top, yoʻq boʻlsa mantiqan yondosh»):
+ * ShNQ 2.01.02-04 ga 1-son oʻzgartirish (baland binolar), 4.12-band — stilobat qismidagi yongʻindan himoya boʻlmasi qavati
+ * «odatda, 3000 m² dan katta boʻlmasligi»; 4.13-band — yer osti qismidagi avtoturargohlar qavati «odatda, 3000 m² dan oshmasligi».
+ * Oddiy binolar uchun 4.3-band SNiP 21-02-99 «Стоянки автомобилей» ga havola qiladi (matni papkada yoʻq) — shuning uchun
+ * eng yaqin mavjud qiymat 3000 m² qabul qilindi (oʻxshashlik boʻyicha).
  */
-export const FIRE_COMP_ANDOZA = 2500;
+export const FIRE_COMP_ANDOZA = 3000;
 /**
  * ShNQ 2.08.02-23, 44-band: 1-tipli (REI 150) yongʻinga qarshi devorlar orasidagi qavat maydoni, m² — 2-ilova:
  *  2-jadval (jamoat binolari, konstruktiv yongʻin xavfi sinfi CO; ustunlar 1 / 2 / 3–5 / 6–9 / 10–16 qavat):
  *   I — 6000 / 5000 / 5000 / 5000 / 2500;  II — 6000 / 4000 / 4000 / 4000 / 2200;
  *  3-jadval, savdo korxonalari (I, II; ≤ 5 qavat): bir qavatli 3500, ikki qavatli 3000, 3–5 qavatli 2500;
  *  izohlar: I va II darajali, avtomatik yongʻin oʻchirish tizimi boʻlsa — ikki barobargacha oshirish mumkin.
- * Olovbardoshlik darajasi — taxmin: monolit / monolit karkas — I, qolganlari — II. Avtoturargoh — andoza.
+ * Olovbardoshlik darajasi — taxmin: monolit / monolit karkas — I, qolganlari — II. Avtoturargoh — 3000 m² (FIRE_COMP_ANDOZA izohi).
  */
 export function fireComp(use: string, floors: number, sys: ConstructSys): { area: number; src: string; norm: boolean } {
-  if (use === 'avtoturargoh') return { area: FIRE_COMP_ANDOZA, src: 'andoza (avtoturargoh meʼyori matni yoʻq)', norm: false };
+  if (use === 'avtoturargoh') return { area: FIRE_COMP_ANDOZA, src: 'ShNQ 2.01.02-04, 1-son oʻzgartirish, 4.12–4.13 (baland binolar; oddiy binolarga oʻxshashlik boʻyicha — SNiP 21-02-99 matni yoʻq)', norm: false };
   const deg = sys === 'monolit' || sys === 'karkas' ? 'I' : 'II';
   if (use === 'savdo') { const a = floors <= 1 ? 3500 : floors === 2 ? 3000 : 2500; return { area: a, src: `ShNQ 2.08.02-23, 2-ilova, 3-jadval (savdo, ${deg})`, norm: true }; }
   const T = deg === 'I' ? [6000, 5000, 5000, 5000, 2500] : [6000, 4000, 4000, 4000, 2200];

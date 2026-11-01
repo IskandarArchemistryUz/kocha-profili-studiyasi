@@ -437,7 +437,7 @@ export const RULES: Rule[] = [
       const anyAnd = rows.some(x => !x.fc.norm);
       const parts = [
         `44-band: 1-tipli (REI 150) yongʻinga qarshi devorlar orasidagi qavat maydoni — 2-ilova: jamoat binolari 2-jadval (I, CO: 1 qavat 6000, 2–9 qavat 5000, 10–16 qavat 2500 m²), savdo 3-jadval (I, II: 1 qavat 3500, 2 qavat 3000, 3–5 qavat 2500 m²). Avtomatik yongʻin oʻchirish tizimi boʻlsa — ikki barobargacha oshirish mumkin (izohlar). Olovbardoshlik darajasi taxmin: monolit / karkas — I, boshqa tizim — II; loyihachi yongʻin-texnik tasnif boʻyicha aniqlaydi.`,
-        ...(anyAnd ? [`Avtoturargoh stilobati — ${FIRE_COMP_ANDOZA} m² andoza (avtoturargoh meʼyori matni mavjud emas).`] : []),
+        ...(anyAnd ? [`Avtoturargoh stilobati — ≤ ${FIRE_COMP_ANDOZA} m²: ShNQ 2.01.02-04 ga 1-son oʻzgartirish, 4.12–4.13-bandlar (baland binolar stilobati va yer osti avtoturargohi — «odatda 3000 m²»); oddiy binolar uchun 4.3-band SNiP 21-02-99 ga havola qiladi, uning matni yoʻq — oʻxshashlik boʻyicha qabul qilindi.`] : []),
         '6.16–6.17 (ShNQ 2.01.02-04): yongʻinga qarshi devor binoning butun balandligiga, poydevordan, barcha qavatlarni kesib oʻtadi — shuning uchun chok stilobat ustidagi minoralar orasidan oʻtkaziladi.',
         '6.18: devor tomdan kamida 60 sm (yopma elementlaridan biri G3–G4 boʻlsa) yoki 30 sm (G1–G2) baland; hammasi yonmaydigan (NG) boʻlsa — chiqmasligi mumkin.',
         '6.20: yongʻinga qarshi devor — balandroq va kengroq boʻlmaniki. 6.22: burchak ostida tutashganda tashqi devordagi teshiklar orasi gorizontal boʻyicha ≥ 4 m.',
