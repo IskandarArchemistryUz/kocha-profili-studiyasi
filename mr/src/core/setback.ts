@@ -1,17 +1,16 @@
 /**
- * Qizil chiziqdan chekinish — fasad balandligiga qarab (avto), egasi 31.10.
- *
- * MANBALAR: ShNQ 2.07.01-23 da koʻp qavatli bino uchun balandlikka bogʻliq chekinish raqami yoʻq
- * (103-band: qizil chiziq va qurilishni tartibga solish chizigʻida xoʻjalik qurilmalari qurilmaydi; 100-band: yakka uy
- * uchastka chegarasidan ≥ 3 m — bu past qavatlilar qoidasida, core/lowrise). Strelka katalogi (2-qism, past qavatlilar):
- * jamoat/savdo 1-qavatda boʻlsa 1–3 m, boʻlmasa ≤ 7 m — tavsiya.
- * Shuning uchun koʻp qavatli uchun qoida — ANDOZA (tahrirlanadi): koʻcha kesimi nisbati H / (W + 2s) ≤ k,
- * ya'ni s = (H / k − W) / 2, kamida sMin (1-qavat noturar — 3 m, turar — 6 m; andoza). W — kvartalga tutash eng tor
- * loyiha koʻchasi kengligi (qizil chiziqlar orasi); topilmasa — 15 m (andoza).
+ * Uchastka chegarasidan chekinish — ShNQ 2.07.01-23, 79-band, 2-jadval (egasi 01.11 jadvalni yubordi — avvalgi
+ * «raqam yoʻq» xulosam notoʻgʻri edi: jadvalda «yoʻl tarafdagi hudud chegarasigacha» va «qoʻshni taraf hudud chegarasigacha»
+ * ustunlari bor):
+ *  — yoʻl tarafdagi hudud chegarasigacha (qizil chiziq): har qanday tarz — H × 0,25;
+ *  — qoʻshni taraf hudud chegarasigacha: derazali uzun tarz — H × kʏ / 2, yon tarzlar — H × 0,25* (I–II darajada ≥ 6 m);
+ *  H — yer sathidan eng yuqori qavat tom yopmasigacha (1-izoh); kʏ — yoʻnalish koeffitsiyenti (2-ilova diagrammasi).
+ * Qoʻshimcha ANDOZA (ixtiyoriy, sukut — oʻchiq): koʻcha kesimi H / (W + 2s) ≤ k.
  */
 import type { XY } from './geo';
+import PC from 'polygon-clipping';
 
-export const SB_HW = 1;          // andoza: H/W ≤ 1 (koʻcha kesimi)
+export const SB_HW = 0;          // andoza: H/W chegarasi (0 — oʻchiq; meʼyor 2-jadval boʻyicha)
 export const SB_W_DEF = 15;      // andoza: koʻcha kengligi nomaʼlum boʻlsa, m
 export const SB_MIN_RES = 6;     // andoza: 1-qavat turar joy — eng kam chekinish, m
 export const SB_MIN_PUB = 3;     // andoza: 1-qavat noturar (Strelka: 1–3 m past qavatlilar uchun) — eng kam, m
@@ -51,4 +50,52 @@ export function blockStreetWidth(ring: XY[], streets: { axis: XY[]; w: number }[
     if (hit >= 2) best = best == null ? s.w : Math.min(best, s.w);
   }
   return best;
+}
+
+/**
+ * Yoʻnalish koeffitsiyenti kʏ — ShNQ 2.07.01-23, 2-ilova diagrammasi (matnda rasm; qiymatlar egasi yuborgan
+ * «230718_Masofalar_koeffitsiyenti» varagʻidagi diagrammadan): binoning uzun tomoni yoʻnalishi shimolga nisbatan
+ * 0° — 1,2; 10° — 1,5; 20° — 1,7; 30° — 1,9; 40° va 50° — 2,3; 60° — 1,9; 70° — 1,7; 80° — 1,5; 90° — 1,2 (har 90° takrorlanadi).
+ * Uzun tomonlar parallel yoki 45° gacha burchak ostida boʻlganda qoʻllanadi.
+ */
+export const KY = [1.2, 1.5, 1.7, 1.9, 2.3, 2.3, 1.9, 1.7, 1.5, 1.2];
+export function kyOf(azDeg: number): number { const t = ((azDeg % 90) + 90) % 90; return KY[Math.min(9, Math.round(t / 10))]; }
+/** mahalliy XY da yoʻnalish (u) ning shimolga nisbatan azimuti, ° (x — sharq, y — shimol) */
+export const azOf = (u: XY): number => ((Math.atan2(u[0], u[1]) * 180 / Math.PI) % 180 + 180) % 180;
+
+export type EdgeKind = 'kocha' | 'qoshni';
+/** 2-jadval: chegara turi va tarz boʻyicha talab, m */
+export function boundaryNeed(kind: EdgeKind, H: number, longWin: boolean, azDeg: number): number {
+  if (kind === 'kocha') return H * 0.25;
+  return longWin ? H * kyOf(azDeg) / 2 : Math.max(6, H * 0.25);
+}
+
+/**
+ * Kvartal qirralari turi: loyiha koʻchasi oʻqidan W/2 + 1,5 m ichida — koʻcha; qolganlari — uchastka chegarasi
+ * (siteEdges: 'kocha' — mavjud koʻcha deb olinadi, 'qoshni' — qoʻshni hudud).
+ */
+export function edgeKinds(ring: XY[], streets: { axis: XY[]; w: number }[], siteEdges: EdgeKind = 'kocha'): EdgeKind[] {
+  return ring.map((a, i) => {
+    const b = ring[(i + 1) % ring.length], m: XY = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    for (const s of streets) { let d = Infinity; for (let q = 1; q < s.axis.length; q++) d = Math.min(d, segD(m, s.axis[q - 1], s.axis[q])); if (d <= s.w / 2 + 1.5) return 'kocha'; }
+    return siteEdges;
+  });
+}
+
+/** Har qirradan oʻz masofasiga ichkariga surilgan koʻpburchak (qirra tasmalari ayirmasi); eng katta boʻlak, yoʻq boʻlsa null */
+export function insetVar(ring: XY[], d: number[]): XY[] | null {
+  const cw = ring.reduce((t, p, i) => { const q = ring[(i + 1) % ring.length]; return t + (p[0] * q[1] - q[0] * p[1]); }, 0) < 0;
+  const R = cw ? [...ring].reverse() : ring, D = cw ? [...d].reverse().map((_, i, arr) => arr[(i + 1) % arr.length]) : d;
+  const strips: [number, number][][][] = [];
+  for (let i = 0; i < R.length; i++) {
+    const a = R[i], b = R[(i + 1) % R.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]), w = D[i]; if (L < 1e-6 || !(w > 0)) continue;
+    const n: XY = [-(b[1] - a[1]) / L * w, (b[0] - a[0]) / L * w];   // CCW — ichkariga (chap)
+    strips.push([[[a[0], a[1]], [b[0], b[1]], [b[0] + n[0], b[1] + n[1]], [a[0] + n[0], a[1] + n[1]], [a[0], a[1]]]]);
+  }
+  try {
+    const res = PC.difference([[...R, R[0]].map(p => [p[0], p[1]] as [number, number])], ...strips);
+    let best: XY[] | null = null, ba = 0;
+    for (const poly of res) { const r = poly[0].slice(0, -1).map(p => [p[0], p[1]] as XY), ar = Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + (p[0] * q[1] - q[0] * p[1]); }, 0) / 2); if (ar > ba) { ba = ar; best = r; } }
+    return best;
+  } catch { return null; }
 }

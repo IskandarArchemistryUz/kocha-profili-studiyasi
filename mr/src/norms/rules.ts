@@ -16,6 +16,7 @@ import { deadEnds } from '../core/streetends';
 import { checkBlock, lenLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
 import { area as areaOf, obb2 } from '../core/geo';
 import { computePlan, corridor } from '../core/plan';
+import { useDef } from '../core/uses';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 
@@ -282,7 +283,7 @@ export const RULES: Rule[] = [
       const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun'), lt = pairs.filter(p => p.kind === 'uzun-torets' && !p.red), hard = pairs.filter(p => p.kind === 'torets' && !p.red && p.d < p.need - 0.5), red = pairs.filter(p => p.red), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length;
       const parts: string[] = [];
       if (ov) parts.push(`Ustma-ust tushgan binolar: ${ov} juft — qayta generatsiya qiling yoki ortiqchasini oʻchiring.`);
-      if (lng.length) { const w = lng.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Uzun tomonlar orasi 2·Hmax dan kam (8-izoh, seysmik 8+ ball): ${lng.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
+      if (lng.length) { const w = lng.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Derazali uzun tarzlar orasi yetmaydi — Hmax × kʏ (2-ilova; kʏ = ${String(w.ky ?? '').replace('.', ',')}), seysmik 8+ ballda ≥ 2·Hmax (8-izoh): ${lng.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (lt.length) { const w = lt.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Uzun tomon va torets orasi 2·Hmax·0,3 dan va 6 m dan kam: ${lt.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (hard.length) { const w = hard.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Toretslar orasi yetmaydi (derazali — (H1+H2)·0,3, biri derazasiz — 0,25, ikkalasi — 0,15; ≥ 6 m): ${hard.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (soft.length) parts.push(`Toretslar orasi (H1+H2)·0,3 dan kam: ${soft.length} juft — toretslar derazali boʻlsa yetmaydi.`);
@@ -297,6 +298,27 @@ export const RULES: Rule[] = [
       const where: Where | undefined = prob.length ? { bids: [...new Set(prob.flatMap(p => [p.a, p.b]))], segs: cs.map(x => x.s), ...(nd.length ? { need: { segs: nd.map(x => x.n), labels: nd.map(x => ({ at: x.n[1], text: x.text })) } } : {}) } : undefined;
       return { status: bad ? 'fail' : (soft.length || pass || red.length) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0', ...(where ? { where } : {}),
         note: parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.' };
+    },
+  },
+  {
+    id: 'redline-79',
+    title: 'Binodan yoʻl tarafdagi hudud chegarasigacha (qizil chiziq)',
+    source: { ...SHNQ_2_07_01, clause: '79-band, 2-jadval (H × 0,25)' },
+    evaluate(_d, doc) {
+      const plan = computePlan(doc); if (!plan.corridors.length) return { status: 'na', unit: 'm', note: 'Loyiha koʻchalari yoʻq — qizil chiziq maʼlum emas. Mavjud (OSM) koʻchalar hisobga olinmaydi.' };
+      const fr = frame(doc.origin), bad: { b: Project['buildings'][number]; d: number; need: number; seg: [XY, XY] }[] = []; let n = 0;
+      for (const b of doc.buildings) {
+        if (b.floors < 3 || useDef(b.use).res <= 0) continue;   // 79-band: 3 va undan yuqori qavatli turar joy binolari
+        const r = b.footprint.map(fr.toLocal), H = bLevels(doc.settings, b).top, need = H * 0.25; n++;
+        let best: [XY, XY] | null = null, bd = Infinity;
+        for (const poly of plan.corridors) for (const ring of poly) { const sg = closestSeg(r, ring), l = Math.hypot(sg[1][0] - sg[0][0], sg[1][1] - sg[0][1]); if (l < bd) { bd = l; best = sg; } }
+        if (best && bd > 0.3 && bd < need - 0.3) bad.push({ b, d: bd, need, seg: best });
+      }
+      if (!n) return { status: 'na', unit: 'm', note: '3 va undan yuqori qavatli turar joy binolari yoʻq.' };
+      const worst = bad.reduce<typeof bad[number] | null>((a, x) => (!a || x.d / x.need < a.d / a.need ? x : a), null);
+      const where: Where | undefined = bad.length ? { bids: bad.map(x => x.b.id), segs: bad.map(x => x.seg), need: { segs: bad.map(x => needSeg(x.seg[1], x.seg[0], x.need)), labels: bad.map(x => { const q = needSeg(x.seg[1], x.seg[0], x.need)[1]; return { at: q, text: `${nm(x.d)} → ${nm(x.need)} m` }; }) } } : undefined;
+      return { status: bad.length ? 'fail' : 'pass', value: bad.length, unit: `/ ${n} bino`, limit: 'H × 0,25', ...(where ? { where } : {}),
+        note: `Yoʻl tarafdagi hudud chegarasigacha (loyiha koʻchasi qizil chizigʻi) har qanday tarzdan H × 0,25; H — yer sathidan eng yuqori qavat tom yopmasigacha (1-izoh).${worst ? ` Eng yaqini ${nm(worst.d)} m, talab ${nm(worst.need)} m.` : ''} Qoʻshni taraf hudud chegarasigacha: derazali uzun tarz H × kʏ / 2, yon tarz H × 0,25 (I–II darajada ≥ 6 m) — uchastka chetlari turi generatorda («Uchastka chetlari») tanlanadi. Qizil chiziqqa tutash (0 m) binolar — «Koʻcha koridori» bandida.` };
     },
   },
   {
