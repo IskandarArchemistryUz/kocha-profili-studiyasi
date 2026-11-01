@@ -9,7 +9,7 @@
  * Kirish eshigi doim koridor bilan umumiy kesmada (doorLen), ichki eshiklar qoʻshni devordan ≥ 0,15 m (DOOR_GAP).
  * Mos kelmasa — null (eski sxema chiziladi): masalan, eshigi kemtik qirrasidagi katta burchak kvartirasi.
  */
-import { area, signedArea, type XY } from './geo';
+import { area, signedArea, obb2, type XY } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { splitAtReflex } from './roof';
 import type { RuleApt, FacadeMod, InnerOv } from './sectionplan';
@@ -28,6 +28,8 @@ export interface AptInterior {
   /** oshxona qatori (umumiy xonada punktir) */
   kitchen?: [XY, XY];
   master: boolean;
+  /** 01.11: kvartira xonalar soniga reja sigʻmadi — shuncha xonali reja (k − 1 …) chizildi */
+  kFit?: number;
   /** mebel (31.10): halqa — orqa qirrasi devorga tegadi (0→1), k — turi */
   furn?: Furn[];
   /** 31.10: sudraladigan ichki devorlar (albom muharriri) */
@@ -762,10 +764,35 @@ function clipToRing(rooms: InRoom[], walls: [XY, XY][], ring0: XY[]): { rooms: I
     return { rooms: out, walls: ws };
   } catch { return null; }
 }
+/**
+ * 01.11 (egasi: «baʼzi kvartiralar plansiz qolyapti»): reja sigʻmasa — xonalar soni kamaytirilib qayta urinadi (k − 1, k − 2),
+ * natijada kFit belgilanadi (rejada «4x → 3x sigʻdi» deb koʻrsatiladi). Shunda kvartira plansiz qolmaydi, nomuvofiqlik koʻrinadi.
+ */
 export function aptInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
+  const I = aptInterior0(a, mods); if (I || (a.rooms ?? 0) <= 1) return I;
+  const why = lastWhy;
+  for (let k = a.rooms - 1; k >= 1; k--) { const J = aptInterior0({ ...a, rooms: k }, mods); if (J) return { ...J, kFit: k }; }
+  // notekis shakl (burchak, uch): oʻrab turgan toʻgʻri toʻrtburchakda reja, keyin haqiqiy konturga kesiladi (clipToRing)
+  const box = obbRing(a.ring);
+  if (box) for (let k = a.rooms; k >= 1; k--) {
+    const J = aptInterior0({ ...a, ring: box, rooms: k }, mods);
+    if (J) { const c = clipToRing(J.rooms, J.walls, a.ring); if (c && c.rooms.length) return { ...J, rooms: c.rooms, walls: c.walls, ...(k < a.rooms ? { kFit: k } : {}), furn: undefined }; }
+  }
+  lastWhy = why; return null;
+}
+/** Koʻpburchakni oʻrab turgan eng kichik toʻgʻri toʻrtburchak (halqa, aylanish yoʻnalishi saqlanadi) */
+function obbRing(r: XY[]): XY[] | null {
+  if (r.length < 3) return null;
+  const o = obb2(r), U = o.U, V: XY = [-U[1], U[0]], pu = (p: XY) => p[0] * U[0] + p[1] * U[1], pv = (p: XY) => p[0] * V[0] + p[1] * V[1];
+  const u0 = Math.min(...r.map(pu)), u1 = Math.max(...r.map(pu)), v0 = Math.min(...r.map(pv)), v1 = Math.max(...r.map(pv));
+  const P = (u: number, v: number): XY => [U[0] * u + V[0] * v, U[1] * u + V[1] * v];
+  const box = [P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)];
+  return (signedArea(box) > 0) === (signedArea(r) > 0) ? box : box.reverse();
+}
+function aptInterior0(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   lastWhy = 'frame'; const fr = frameOf(a, mods); if (!fr) return sideInterior(a, mods) ?? throughInterior(a, mods) ?? lInterior(a, mods);
   const { O, U, N, W, D, notch, clip, deep } = fr;
-  lastWhy = `WD ${W.toFixed(1)}x${D.toFixed(1)}`; if (D < 4.8 || D > 11.5 || W < 3) return null;
+  lastWhy = `WD ${W.toFixed(1)}x${D.toFixed(1)}`; if (D < (a.rooms <= 1 ? 3.4 : 4.2) || D > 11.5 || W < 3) return null;
   const ntOf = (fl: boolean): Notch | undefined => notch && (fl ? { ...notch, side: notch.side === 'R' ? 'L' : 'R' } : notch);
   const { bounds, wins } = facadeOf(a, mods, O, U, W);
   const lv = (p: XY) => (p[0] - O[0]) * N[0] + (p[1] - O[1]) * N[1], lu = (p: XY) => (p[0] - O[0]) * U[0] + (p[1] - O[1]) * U[1];
@@ -783,7 +810,7 @@ export function aptInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   // eshik umumiy xonadan uzoq uchida — dahliz eshik yonida, yoʻlak orqali umumiy xonaga
   if (!notch && opts.every(o => typeof o.L === 'string') && opts.some(o => o.L === 'eshik')) opts = [false, true].map(fl => ({ fl, L: layoutEnd(W, D, k, fl ? flipB(bounds) : bounds, fl ? flipW(wins) : wins, udOf(fl)) }));
   const ok = opts.filter(o => typeof o.L !== 'string') as { fl: boolean; L: Local }[];
-  lastWhy = opts.map(o => typeof o.L === 'string' ? o.L : 'ok').join('|') + ` W${W.toFixed(1)} D${D.toFixed(1)} k${k}`; if (!ok.length) return null;
+  lastWhy = opts.map(o => typeof o.L === 'string' ? o.L : 'ok').join('|') + ` W${W.toFixed(1)} D${D.toFixed(1)} k${k}`; if (!ok.length) { const why0 = lastWhy, alt = sideInterior(a, mods) ?? throughInterior(a, mods) ?? lInterior(a, mods); if (!alt) lastWhy = why0; return alt; }
   const ud = lu(a.door);
   ok.sort((p, q) => Math.abs((p.fl ? W - p.L.entry[0] : p.L.entry[0]) - ud) - Math.abs((q.fl ? W - q.L.entry[0] : q.L.entry[0]) - ud));
   const pick = ov.flip && ok.length > 1 ? ok[1] : ok[0], fl = pick.fl;
