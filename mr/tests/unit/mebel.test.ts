@@ -73,8 +73,8 @@ export function auditFurn(I: AptInterior, ring: XY[]): FurnIssue {
 }
 
 describe('mebel tekshiruvi (01.11)', () => {
-  it('generatsiya qilingan kvartiralar: ≥ 93 % da mebel toʻgʻri (devor, kesishish, eshik, kontur, yoʻl, zarur jihozlar)', () => {
-    // CI vaqti uchun ikki kvartal (toʻrtburchak va burilgan); toʻliq toʻplam (4 kvartal, 1 108 kvartira) mahalliy tekshirildi — 95 %
+  it('generatsiya qilingan kvartiralar: ≥ 95 % da mebel toʻgʻri (devor, kesishish, eshik, kontur, yoʻl, zarur jihozlar)', () => {
+    // CI vaqti uchun ikki kvartal (toʻrtburchak va burilgan); toʻliq toʻplam (4 kvartal, 1 108 kvartira) mahalliy tekshirildi — 98 %
     const blocks: XY[][] = [[[0, 0], [200, 0], [200, 160], [0, 160]], [[0, 0], [150, 60], [100, 185], [-50, 125]]];
     const tally: Record<string, number> = {}; let tot = 0, withF = 0, clean = 0;
     const add = (k: string) => { tally[k] = (tally[k] ?? 0) + 1; };
@@ -98,6 +98,28 @@ describe('mebel tekshiruvi (01.11)', () => {
     expect(tally.overlap ?? 0, JSON.stringify(tally)).toBe(0);
     expect(tally.out ?? 0, JSON.stringify(tally)).toBe(0);
     expect(tally.door ?? 0, JSON.stringify(tally)).toBe(0);
-    expect(clean / withF, JSON.stringify(tally)).toBeGreaterThanOrEqual(0.93);
+    expect(clean / withF, JSON.stringify(tally)).toBeGreaterThanOrEqual(0.95);
   }, 900_000);
+});
+
+describe('mebel devorga tayanadi (01.11, egasi)', () => {
+  it('karavot, divan, shkaf, oshxona qatori va santexnika orqa qirrasi toʻliq devor ustida', () => {
+    let n = 0, bad = 0;
+    for (const s of generate([[0, 0], [200, 0], [200, 160], [0, 160]] as XY[], { ...DEFAULT_GEN, typology: 'perimetr', depth: 15 }, 3.3).sections) {
+      const lay = layoutSection(s.ring, () => false, [20, 40, 30, 10], 3.3, 'M', null);
+      for (const a of lay.plan?.apts ?? []) {
+        const I = aptInterior(a, lay.mods); if (!I?.furn) continue;
+        const segs: [XY, XY][] = [...I.walls, ...a.ring.map((p, i) => [p, a.ring[(i + 1) % a.ring.length]] as [XY, XY])];
+        for (const f of I.furn) {
+          if (f.k === 'table') continue; n++;
+          const [p, q] = [f.ring[0], f.ring[1]];
+          // orqa qirra boʻylab 5 nuqta — har biri devor yoki tashqi kontur oʻqidan ≤ 0,2 m da
+          const ok = [0.05, 0.25, 0.5, 0.75, 0.95].every(t => { const m: XY = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]; return segs.some(([u, v]) => { const dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, s0 = Math.max(0, Math.min(1, ((m[0] - u[0]) * dx + (m[1] - u[1]) * dy) / L2)); return Math.hypot(m[0] - u[0] - dx * s0, m[1] - u[1] - dy * s0) < 0.2; }); });
+          if (!ok) bad++;
+        }
+      }
+    }
+    expect(n).toBeGreaterThan(500);
+    expect(bad / n).toBeLessThan(0.01);
+  }, 300_000);
 });

@@ -443,7 +443,7 @@ function build(L: Local): { walls: [XY, XY][]; doors: InDoor[] } {
  * Har buyum xona devoriga taqaladi, eshik tabaqasi aylanasiga va boshqa buyumga tegmaydi, oʻtish uchun joy qoladi. Mahalliy koordinatalarda.
  */
 const FRONT: Partial<Record<FurnKind, number>> = { wc: 0.45, sink: 0.45, washer: 0.5, counter: 0.6, bed: 0.5, bed1: 0.5, sofa: 0.5 };
-function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = []): Furn[] {
+function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = [], aring?: XY[]): Furn[] {
   const out: Furn[] = [], boxes: [number, number, number, number][] = [], fboxes: [number, number, number, number][] = [];
   // eshik tabaqasi egallaydigan kvadrat (ochilish tomonida) va kirish eshigi oldidagi 1 × 1 m maydoncha
   // 01.11 (mebel tekshiruvi): eshikning ikkala tomonida ham oʻtish maydonchasi — ochilish tomonida max(eni, 0,9 m), qarshi tomonda 0,9 m
@@ -455,9 +455,12 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = []): Furn[] {
     const mid: XY = [(d.h[0] + d.a[0]) / 2 + d.n[0] * sg * 0.3, (d.h[1] + d.a[1]) / 2 + d.n[1] * sg * 0.3];
     const rm = L.rooms.find(q => mid[0] > q.r[0] && mid[0] < q.r[2] && mid[1] > q.r[1] && mid[1] < q.r[3]);
     const c0 = rm && (WET.includes(rm.kind) || rm.kind === 'garderob') ? 0.6 : CLR;
-    const dep = sg > 0 && d.kind === 'swing' ? Math.max(d.w, c0) : c0, nn: XY = [d.n[0] * sg * dep, d.n[1] * sg * dep];
+    // 01.11 (egasi: «kirganda eshikdan keyin karavot turishi ergonomik emas»): yashash tomonida 1,0 m chuqurlik va yon tomonlarga 0,4 m;
+    // hoʻl xonada 0,6 m (yon tomonga kengaymaydi — 1,3 m eni vannaxonada dush sigʻishi uchun)
+    const dep = sg > 0 && d.kind === 'swing' ? Math.max(d.w, c0 === CLR ? 1.0 : c0) : c0 === CLR ? 1.0 : c0, nn: XY = [d.n[0] * sg * dep, d.n[1] * sg * dep];
+    const lat = c0 === CLR ? 0.4 : 0, uu: XY = [(d.a[0] - d.h[0]) / (d.w || 1), (d.a[1] - d.h[1]) / (d.w || 1)], h0: XY = [d.h[0] - uu[0] * lat, d.h[1] - uu[1] * lat], a0: XY = [d.a[0] + uu[0] * lat, d.a[1] + uu[1] * lat];
     if (c0 < CLR && !(sg > 0 && d.kind === 'swing')) soft.add(boxes.length);   // hoʻl xona ichidagi maydoncha — unitaz sigʻmasa boʻshatiladi
-    const xs = [d.h[0], d.a[0], d.h[0] + nn[0], d.a[0] + nn[0]], ys = [d.h[1], d.a[1], d.h[1] + nn[1], d.a[1] + nn[1]];
+    const xs = [h0[0], a0[0], h0[0] + nn[0], a0[0] + nn[0]], ys = [h0[1], a0[1], h0[1] + nn[1], a0[1] + nn[1]];
     boxes.push([Math.min(...xs) - 0.05, Math.min(...ys) - 0.05, Math.max(...xs) + 0.05, Math.max(...ys) + 0.05]);
   }
   // eshiksiz oʻtish (dahliz → yoʻlak va h.k.): oʻrtadagi ≤ 1 m qismining ikkala tomonida 0,9 m
@@ -472,6 +475,21 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = []): Furn[] {
     }
   }
   boxes.push([L.entry[0] - 0.6, L.entry[1] - 1.1, L.entry[0] + 0.6, L.entry[1]]);
+  // 01.11 (egasi: «mebel orqasidagi devor mebeldan kalta»): buyumning orqa qirrasi butun uzunligi boʻylab devorga tayanishi shart —
+  // ichki devor boʻlaklari (eshik va oʻtish kesiklarisiz) yoki kvartiraning tashqi devori (kirish eshigidan tashqari)
+  const RB = L.rooms.length ? [Math.min(...L.rooms.map(q => q.r[0])), Math.min(...L.rooms.map(q => q.r[1])), Math.max(...L.rooms.map(q => q.r[2])), Math.max(...L.rooms.map(q => q.r[3]))] : [0, 0, 0, 0];
+  const backed = (p: XY, q: XY): boolean => {
+    const Lb = Math.hypot(q[0] - p[0], q[1] - p[1]); if (Lb < 1e-6) return true;
+    const u: XY = [(q[0] - p[0]) / Lb, (q[1] - p[1]) / Lb], tol = T / 2 + 0.1, iv: [number, number][] = [];
+    const off = (a: XY) => Math.abs((a[0] - p[0]) * u[1] - (a[1] - p[1]) * u[0]), tt = (a: XY) => (a[0] - p[0]) * u[0] + (a[1] - p[1]) * u[1];
+    for (const [a, b] of walls) { const l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 1e-6) continue; if (Math.abs(((b[0] - a[0]) * u[1] - (b[1] - a[1]) * u[0]) / l) > 0.02 || off(a) > tol) continue; iv.push([Math.min(tt(a), tt(b)), Math.max(tt(a), tt(b))]); }
+    // tashqi devor: xonalar chegaralovchi toʻrtburchagi qirrasida
+    const ext = Math.abs(u[1]) < 0.02 ? Math.min(Math.abs(p[1] - RB[1]), Math.abs(p[1] - RB[3])) < tol : Math.abs(u[0]) < 0.02 ? Math.min(Math.abs(p[0] - RB[0]), Math.abs(p[0] - RB[2])) < tol : false;
+    if (ext) { if (off(L.entry) < tol + 0.1) { const te = tt(L.entry); if (te > -0.55 && te < Lb + 0.55) { iv.push([-1e3, te - 0.55], [te + 0.55, 1e3]); } else iv.push([-1e3, 1e3]); } else iv.push([-1e3, 1e3]); }
+    iv.sort((x, y) => x[0] - y[0]); let c = 0.03;
+    for (const [x0, x1] of iv) { if (x0 > c) break; c = Math.max(c, x1); if (c >= Lb - 0.03) return true; }
+    return c >= Lb - 0.03;
+  };
   const hit = (b: [number, number, number, number]) => live().some(x => b[0] < x[2] - 1e-3 && b[2] > x[0] + 1e-3 && b[1] < x[3] - 1e-3 && b[3] > x[1] + 1e-3);
   const T2 = T / 2 + 0.03;
   /** xona r ichida, side devoriga taqalgan w (devor boʻylab) × d (chuqurlik) buyum; at — devor boʻylab nisbiy joy (0…1) yoki roʻyxat */
@@ -487,6 +505,9 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = []): Furn[] {
       else { b = [u1 - d, s0, u1, s0 + w]; ring = [[u1, s0 + w], [u1, s0], [u1 - d, s0], [u1 - d, s0 + w]]; }
       if (hit(b) || live().some(x => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1])) continue;
       if (poly && !ring.every(p => inPoly(p, poly))) continue;
+      // 01.11: qiya (ponasimon) kvartira — buyum haqiqiy kontur ichida (xona toʻrtburchagi qiya devordan tashqariga chiqadi)
+      if (aring && !ring.every(p => { const c: XY = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2], dx = c[0] - p[0], dy = c[1] - p[1], l = Math.hypot(dx, dy) || 1; return inPoly([p[0] + dx / l * 0.12, p[1] + dy / l * 0.12], aring); })) continue;
+      if (k !== 'table' && !backed(ring[0], ring[1])) continue;
       // 01.11: oldida foydalanish maydoni (unitaz, rakovina — 0,45 m; kir mashinasi, karavot, divan — 0,5 m; oshxona qatori — 0,6 m)
       // xona ichida boʻlishi va boshqa buyumga tegmasligi shart; keyin u band qilinadi — keyingi buyum unga qoʻyilmaydi
       // tor xonada (1,2 × 1,2 m h/x) maydon qisqaradi, lekin 0,3 m dan kam emas
@@ -506,7 +527,7 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = []): Furn[] {
   // unitaz shart: sigʻmasa — eshik ichkarisidagi maydoncha boʻshatilib qayta urinadi
   const wc = (r: [number, number, number, number], poly: XY[] | undefined) => { if (tryAll(r, poly, ['v0', 'u1', 'u0', 'v1'], 0.4, 0.65, 'wc')) return; relax = true; tryAll(r, poly, ['v0', 'u1', 'u0', 'v1'], 0.4, 0.65, 'wc'); relax = false; };
   // oshxona qatori (umumiy xonada) — 01.11: birinchi qoʻyiladi, divan va karavot unga moslashadi (studiyada ustma-ust tushardi)
-  const fixed = (ring: XY[]) => { const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]); const bx: [number, number, number, number] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; boxes.push(bx); fboxes.push(bx); out.push({ k: 'counter', ring }); };
+  const fixed = (ring: XY[]) => { if (!backed(ring[2], ring[3])) { const c: XY = [(ring[0][0] + ring[2][0]) / 2, (ring[0][1] + ring[2][1]) / 2], q = L.rooms.find(x => c[0] > x.r[0] - 0.1 && c[0] < x.r[2] + 0.1 && c[1] > x.r[1] - 0.1 && c[1] < x.r[3] + 0.1); if (q) [3.0, 2.4, 1.8].some(w => tryAll(q.r, q.poly, ['v1', 'u0', 'u1', 'v0'], w, 0.6, 'counter')); return; } const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]); const bx: [number, number, number, number] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; boxes.push(bx); fboxes.push(bx); out.push({ k: 'counter', ring }); };
   if (L.kitchen) {
     const [[x0, y0], [x1, y1]] = L.kitchen;
     if (Math.abs(y1 - y0) < 0.01) {
@@ -529,7 +550,7 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = []): Furn[] {
         break;
       }
       case 'umumiy': {
-        tryAll(r, P, ['u0', 'u1'], 2.2, 0.9, 'sofa');
+        tryAll(r, P, ['u0', 'u1'], 2.2, 0.9, 'sofa') || tryAll(r, P, ['v1', 'v0'], 2.2, 0.9, 'sofa') || tryAll(r, P, ['u0', 'u1', 'v1', 'v0'], 1.8, 0.85, 'sofa');   // 01.11: qiya (ponasimon) kvartirada qiya devor tomonida divan sigʻmaydi — boshqa devorlar, kichikroq divan
         // stol: oshxona qatori va divan orasida, xona oʻrtasida
         const cx = (r[0] + r[2]) / 2, cy = r[1] + H * 0.68, b: [number, number, number, number] = [cx - 0.7, cy - 0.4, cx + 0.7, cy + 0.4];
         if (W >= 3.2 && !hit(b) && !boxes.some(x => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1])) { boxes.push(b); fboxes.push(b); out.push({ k: 'table', ring: [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] }); }
@@ -940,5 +961,5 @@ function aptInterior0(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
     }
   }
   if (clip) { const c = clipToRing(rooms, walls, a.ring); if (!c) return null; rooms.splice(0, rooms.length, ...c.rooms); walls.splice(0, walls.length, ...c.walls); }
-  return { rooms, walls, doors, entry: ent, handles, ...(clip || deep ? {} : { doorHandles }), kitchen: L.kitchen ? [toW(L.kitchen[0]), toW(L.kitchen[1])] : undefined, master: L.master, furn: furnish(L, b.doors, b.walls).map(f => ({ k: f.k, ring: f.ring.map(toW) })) };
+  return { rooms, walls, doors, entry: ent, handles, ...(clip || deep ? {} : { doorHandles }), kitchen: L.kitchen ? [toW(L.kitchen[0]), toW(L.kitchen[1])] : undefined, master: L.master, furn: furnish(L, b.doors, b.walls, clip ? a.ring.map(p => { const u = lu(p); return [fl ? W - u : u, lv(p)] as XY; }) : undefined).map(f => ({ k: f.k, ring: f.ring.map(toW) })) };
 }
