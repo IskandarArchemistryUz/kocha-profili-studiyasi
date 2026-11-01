@@ -13,6 +13,9 @@ xaritada «maʼlumot yetarli emas» (oq) boʻlib koʻrinadi.
 Eslatma: bu SOʻRALGAN narx, bitim narxi emas.
 Ishlatish: python3 tools/narx_hex.py xom.txt [--olcham 1000 1500] [--min 5] [--sana YYYY-MM-DD]
            [--csv data/narx/toshkent_hex_uybor.csv] [--geojson data/narx/toshkent_hex.geojson]
+           [--json data/narx/toshkent_hex.json]
+  --json — ilova (Joyshunos «Uy narxlari» qatlami) oʻqiydigan ixcham fayl: har katak [q, r, n, median, p25, p75],
+           [q, r, 0] — eʼlon yoʻq, [q, r, -1] — min dan kam; «shahar» — har kategoriya [yaroqli, median, p25, p75].
 """
 import argparse, csv, json, math, os, statistics as st, datetime as dt
 from narx_stats import parse, clean, q
@@ -97,6 +100,7 @@ def main():
     ap.add_argument('--sana', default=dt.date.today().isoformat())
     ap.add_argument('--csv', default='data/narx/toshkent_hex_uybor.csv')
     ap.add_argument('--geojson', default='data/narx/toshkent_hex.geojson')
+    ap.add_argument('--json', default='data/narx/toshkent_hex.json')
     a = ap.parse_args()
     cats = {}
     for cat, c in parse(a.src).items():
@@ -106,6 +110,7 @@ def main():
     allpts = [p for p, _ in cats['hammasi']]
     H = hull(allpts)
     rows, feats = [], []
+    kat = {}
     for w in a.olcham:
         for cat, data in cats.items():
             cells = {}
@@ -120,6 +125,7 @@ def main():
                     for qq in range(min(q0, q1) - abs(r1 - r0) - 3, max(q0, q1) + abs(r1 - r0) + 3):
                         if inside(center(qq, rr, w), H, w * 0.5): grid.add((qq, rr))
             shown = 0
+            compact = kat.setdefault(cat, {}).setdefault(str(w), [])
             for (qh, rh) in sorted(grid):
                 v = cells.get((qh, rh), [])
                 cx, cy = center(qh, rh, w); lat, lng = ll(cx, cy)
@@ -129,8 +135,10 @@ def main():
                     m, p25, p75 = round(st.median(v)), round(q(v, .25)), round(q(v, .75))
                     pr.update(n=len(v), median=m, p25=p25, p75=p75)
                     rows.append([a.sana, 'uybor.uz', cat, w, f'{qh}_{rh}', lat, lng, len(v), m, p25, p75])
+                    compact.append([qh, rh, len(v), m, p25, p75])
                 else:
                     pr.update(n='<5' if v else 0)
+                    compact.append([qh, rh, -1 if v else 0])
                 feats.append({'type': 'Feature', 'properties': pr, 'geometry': {'type': 'Polygon', 'coordinates': [ring(qh, rh, w)]}})
             print(f'{cat} {w} m: yaroqli={len(data)}, narxli katak={shown}, jami katak={len(grid)}')
     old = []
@@ -147,6 +155,19 @@ def main():
           'features': feats}
     with open(a.geojson, 'w', encoding='utf-8') as fh:
         json.dump(gj, fh, ensure_ascii=False, separators=(',', ':'))
+    shahar = {}
+    for cat in ('kvartira', 'hovli'):
+        vals = [v for _, v in cats.get(cat, [])]
+        if vals:
+            shahar[cat] = [len(vals), round(st.median(vals)), round(q(vals, .25)), round(q(vals, .75))]
+    cj = {'v': 1, 'sana': a.sana, 'manba': 'uybor.uz', 'birlik': 'USD/m²', 'min': a.min,
+          'toʻr': {'lat0': LAT0, 'lng0': LNG0, 'm_lat': M_LAT, 'm_lng_lat': 41.3,
+                   'tur': 'pointy-top axial (q, r); olcham — qarama-qarshi tomonlar orasi, m'},
+          'kat': kat, 'shahar': shahar,
+          'izoh': f'soʻralgan narx (eʼlon), bitim narxi emas; auksion, takror va chetki qiymatlar chiqarilgan; '
+                  f'qiymat: [q, r, n, median, p25, p75] yoki [q, r, 0] — eʼlon yoʻq, [q, r, -1] — {a.min} tadan kam'}
+    with open(a.json, 'w', encoding='utf-8') as fh:
+        json.dump(cj, fh, ensure_ascii=False, separators=(',', ':'))
 
 
 if __name__ == '__main__':
