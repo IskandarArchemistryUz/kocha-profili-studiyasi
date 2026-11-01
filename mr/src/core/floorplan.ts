@@ -179,7 +179,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     const big0 = inn?.rooms.reduce((m, q) => (!q.wet && q.area > m.area ? q : m), inn.rooms[0]);
     const c = labelPt(big0 ? big0.ring : a.ring), bA = balOf(a.ring);
     if (o.num) out.push(`<circle cx="${X(c[0])}" cy="${(Number(Y(c[1])) - 5.2).toFixed(2)}" r="2.1" fill="#fff" stroke="#141414" stroke-width="0.35"/><text x="${X(c[0])}" y="${(Number(Y(c[1])) - 4.35).toFixed(2)}" font-size="2.4" font-weight="700" text-anchor="middle" fill="#141414" pointer-events="none">${ai + 1}</text>`);
-    out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#141414" pointer-events="none">${sel >= 0 ? `${'AB'[sel] ?? ''} · ` : ''}${a.rooms}x</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 3.2).toFixed(2)}" font-size="2.1" text-anchor="middle" fill="#3a3936" pointer-events="none">${o.tint?.sub[ai] ?? `${n1(Math.round((a.area * 0.85 + bA) * 10) / 10)} m²`}</text>`);
+    out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#141414" pointer-events="none">${sel >= 0 ? `${'AB'[sel] ?? ''} · ` : ''}${a.rooms}x${inner[ai]?.kFit ? ` → ${inner[ai]!.kFit}x` : ''}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 3.2).toFixed(2)}" font-size="2.1" text-anchor="middle" fill="#3a3936" pointer-events="none">${o.tint?.sub[ai] ?? `${n1(Math.round((a.area * 0.85 + bA) * 10) / 10)} m²`}</text>`);
   });
   // eshiklar — kvartira / xona bilan MOP chegarasida 0,9 m oʻtish (devor uziladi) va yoy
   for (const a of [...G.apts, ...G.rooms.filter(q => q.kind !== 'savdo')]) {
