@@ -35,6 +35,9 @@ export type Command =
   /** zona belgilarini toʻliq almashtirish (kvartalga tegishlilikni chaqiruvchi geometriya boʻyicha hal qiladi) */
   | { type: 'setZones'; zones: ZoneLabel[] }
   | { type: 'setKeep'; keep: number[]; at?: Record<string, LngLat>; rings?: Record<string, Ring> }
+  /** 01.11: uchastka chetlari turi va atrofdagi binolar vazifasi (79-band, 2-jadval) */
+  | { type: 'setSiteEdges'; kind: 'kocha' | 'qoshni' }
+  | { type: 'setCtxUse'; ids: number[]; use: 'turar' | 'noturar' | null }
   | { type: 'addPoi'; poi: ManualPoi }
   | { type: 'removePoi'; id: string }
   /** bir nechta binoga material va/yoki tom turi */
@@ -79,6 +82,8 @@ export function label(c: Command): string {
     case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
     case 'setZones': return 'Zona';
     case 'setKeep': return 'Saqlanadigan binolar';
+    case 'setSiteEdges': return 'Uchastka chetlari';
+    case 'setCtxUse': return 'Atrofdagi bino vazifasi';
     case 'addPoi': return 'Xizmat obyekti qoʻshildi';
     case 'removePoi': return 'Xizmat obyekti oʻchirildi';
     case 'styleBuildings': return c.ayvon ? 'Ayvon' : c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : c.parapet != null ? 'Parapet' : c.shade ? 'Quyosh himoyasi' : 'Fasad materiali';
@@ -193,6 +198,8 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'setZones': d.zones = c.zones.map(z => ({ ...z, at: [z.at[0], z.at[1]] as LngLat })); return d;
     case 'setKeep': { d.keep = [...new Set(c.keep)]; const prev = { ...doc.keepAt, ...c.at }, at: Record<string, LngLat> = {}; for (const k of d.keep) if (prev[k]) at[k] = prev[k]; if (Object.keys(at).length) d.keepAt = at; else delete d.keepAt;
       const pr = { ...doc.keepRings, ...c.rings }, rg: Record<string, Ring> = {}; for (const k of d.keep) if (pr[k]) rg[k] = pr[k]; if (Object.keys(rg).length) d.keepRings = rg; else delete d.keepRings; return d; }
+    case 'setSiteEdges': d.siteEdges = c.kind; return d;
+    case 'setCtxUse': { const m = { ...doc.ctxUse }; for (const id of c.ids) { if (c.use) m[String(id)] = c.use; else delete m[String(id)]; } if (Object.keys(m).length) d.ctxUse = m; else delete d.ctxUse; return d; }
     case 'addPoi': d.pois = [...doc.pois, { ...c.poi, at: [c.poi.at[0], c.poi.at[1]] }]; return d;
     case 'removePoi': d.pois = doc.pois.filter(x => x.id !== c.id); return d;
     case 'styleBuildings': { const ids = new Set(c.ids); d.buildings = doc.buildings.map(b => ids.has(b.id) ? { ...b, ...(c.mat ? { mat: c.mat } : {}), ...(c.roof ? { roof: c.roof } : {}), ...(c.win ? { win: c.win === 'yoq' ? undefined : c.win } : {}), ...(c.bal ? (c.bal === 'yoq' ? { bal: undefined } : { bal: c.bal }) : {}), ...(c.parapet != null ? { parapet: c.parapet || undefined } : {}), ...(c.shade ? { shade: c.shade === 'yoq' ? undefined : c.shade } : {}), ...(c.winPat ? { winPat: c.winPat === 'qator' ? undefined : c.winPat } : {}), ...(c.balPat ? { balPat: c.balPat === 'har2' ? undefined : c.balPat } : {}), ...(c.ayvon ? { ayvon: c.ayvon } : {}) } : b); return d; }
