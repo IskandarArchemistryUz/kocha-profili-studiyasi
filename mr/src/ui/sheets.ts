@@ -81,7 +81,7 @@ export function openGraphics(host: SheetsHost): void {
       if (!plans.length) return { label: 'M —', body: (vx, vy, vw, vh) => `<text x="${vx + vw / 2}" y="${vy + vh / 2}" font-size="5" text-anchor="middle" fill="#6b6965">${tr('Turar joy seksiyalari yoʻq')}</text>` };
       // 20-band: bitta qavat rejasi + navigatsiya sxemalari + eksplikatsiya (ish chizmalaridagidek)
       const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1));
-      return aptSheet(doc, plans, bi, o.plan?.grp, o.plan?.look ?? 'rang', tr, pl => { const bb = doc.buildings.find(b => b.id === pl.bid); return { fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? areaOf(bb.footprint.map(frameOf(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; });
+      return aptSheet(doc, plans, bi, o.plan?.grp, o.plan?.look ?? 'rang', tr, pl => { const bb = doc.buildings.find(b => b.id === pl.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? areaOf(bb.footprint.map(frameOf(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; });
     }
     if (o.mode === 'akso') {
       const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${(L.vw / L.vh).toFixed(2)}`;
