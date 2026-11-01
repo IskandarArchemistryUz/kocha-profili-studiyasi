@@ -8,7 +8,7 @@ import type { LngLat, Project } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
-import { staleGen } from '../core/spacing';
+import { staleGen, spacingIssues } from '../core/spacing';
 import type { Obstacle3 } from '../core/genfix';
 import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
@@ -1999,7 +1999,51 @@ export class Editor {
   }
 
   /* ---------- 5-bosqich: hisobot va TEP ---------- */
-  private allRules(): Result[] { const o = this.store.doc.origin; return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], placeOf(o[0], o[1]).norms); }
+  private allRules(): Result[] { const o = this.store.doc.origin; return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], placeOf(o[0], o[1]).norms); }
+  /**
+   * 01.11 (egasi): atrofdagi (OSM) turar joy binolarigacha masofa — ShNQ 2.07.01-23, 79-band, 2-jadval (3 va undan yuqori qavatli)
+   * va 6-izoh (koʻp qavatli ↔ yakka uy: ≥ koʻp qavatli bino balandligi). Vazifa: OSM «building» tegi yoki foydalanuvchi belgisi
+   * (sahnada atrofdagi binoni oʻng tugma → «Vazifasi»). Belgisiz «yes» binolar — «koʻrib chiqish».
+   */
+  private ctxRuleCache: { doc: unknown; ctx: unknown; r: Result } | null = null;
+  private ctxRule(): Result {
+    const doc = this.store.doc, ctx = this.ctxMgr.current;
+    if (this.ctxRuleCache && this.ctxRuleCache.doc === doc && this.ctxRuleCache.ctx === ctx) return this.ctxRuleCache.r;
+    const base = { id: 'kontekst-79', title: 'Atrofdagi (mavjud) turar joy binolarigacha masofa', source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '79-band, 2-jadval, 6-izoh', verified: true } };
+    const done = (r: Result) => { this.ctxRuleCache = { doc, ctx, r }; return r; };
+    const fr = frame(doc.origin), proj = doc.buildings.filter(b => b.floors >= 3 && useDef(b.use).res > 0);
+    if (!ctx?.osm.buildings.length) return done({ ...base, status: 'na', note: 'Atrof yuklanmagan (Joy va uchastka → «Atrofni yuklash»).' });
+    if (!proj.length) return done({ ...base, status: 'na', note: '3 va undan yuqori qavatli turar joy binolari yoʻq.' });
+    const RES = new Set(['apartments', 'residential', 'house', 'detached', 'semidetached_house', 'terrace', 'dormitory', 'bungalow', 'hotel']);
+    const rm = new Set(doc.removed ?? []), keep = new Set(doc.keep), inSite = new Set(this.scene.inSite.map(x => x.id));
+    const P = proj.map(b => b.footprint.map(fr.toLocal)), cen = P.map(r => centroid(r));
+    const near = ctx.osm.buildings.filter(x => !rm.has(x.id) && (!inSite.has(x.id) || keep.has(x.id))).map(x => ({ x, r: x.rings[0].map(fr.toLocal) })).filter(({ r }) => { const c = centroid(r); return cen.some(q => Math.hypot(q[0] - c[0], q[1] - c[1]) < 160); });
+    const useOf = (x: { id: number; kind: string }) => doc.ctxUse?.[String(x.id)] ?? (RES.has(x.kind) ? 'turar' : x.kind === 'yes' || !x.kind ? null : 'noturar');
+    const res = near.filter(({ x }) => useOf(x) === 'turar'), unk = near.filter(({ x }) => useOf(x) === null);
+    const dmin = (a: XY[], b: XY[]): [number, XY, XY] => { let best: [number, XY, XY] = [Infinity, a[0], b[0]]; const sd = (p: XY, u: XY, v: XY): XY => { const dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); return [u[0] + dx * t, u[1] + dy * t]; }; for (const [A, B, f] of [[a, b, false], [b, a, true]] as [XY[], XY[], boolean][]) for (const p of A) for (let i = 0; i < B.length; i++) { const q = sd(p, B[i], B[(i + 1) % B.length]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < best[0]) best = f ? [d, q, p] : [d, p, q]; } return best; };
+    type Bad = { bid: string; d: number; need: number; seg: [XY, XY]; why: string };
+    const bad: Bad[] = [];
+    // 3+ qavatli atrofdagi turar joy — 2-jadval (spacingIssues bilan bir xil hisob)
+    const tall = res.filter(({ x }) => Math.round(x.h / 3) >= 3);
+    if (tall.length) {
+      const pseudo = tall.map(({ x }) => ({ id: `osm:${x.id}`, footprint: x.rings[0], floors: Math.max(1, Math.round(x.h / 3)), nonRes: 0, use: 'turar' })) as unknown as Project['buildings'];
+      const { pairs } = spacingIssues({ ...doc, buildings: [...proj, ...pseudo] });
+      for (const p of pairs) {
+        const oa = p.a.startsWith('osm:'), ob = p.b.startsWith('osm:'); if (oa === ob || p.kind === 'ustma-ust') continue;
+        const bid = oa ? p.b : p.a, cid = oa ? p.a : p.b, br = P[proj.findIndex(b => b.id === bid)], cr = tall.find(t => `osm:${t.x.id}` === cid)?.r; if (!br || !cr) continue;
+        const [d, a, q] = dmin(br, cr); bad.push({ bid, d, need: p.need, seg: [q, a], why: p.kind });
+      }
+    }
+    // 6-izoh: koʻp qavatli ↔ yakka (past) uy — ≥ koʻp qavatli bino balandligi
+    for (const { x, r } of res.filter(({ x }) => Math.round(x.h / 3) < 3)) proj.forEach((b, i) => {
+      const H = bLevels(doc.settings, b).top, [d, a, q] = dmin(P[i], r);
+      if (d < H - 0.5) bad.push({ bid: b.id, d, need: H, seg: [q, a], why: `6-izoh (OSM ${x.id})` });
+    });
+    const worst = bad.reduce<Bad | null>((w, x) => (!w || x.d / x.need < w.d / w.need ? x : w), null);
+    const where = bad.length ? { bids: [...new Set(bad.map(x => x.bid))], segs: bad.map(x => x.seg), need: { segs: bad.map(x => { const [u, v] = x.seg, L = Math.hypot(v[0] - u[0], v[1] - u[1]) || 1; return [u, [u[0] + (v[0] - u[0]) / L * x.need, u[1] + (v[1] - u[1]) / L * x.need]] as [XY, XY]; }), labels: bad.map(x => { const [u, v] = x.seg, L = Math.hypot(v[0] - u[0], v[1] - u[1]) || 1; return { at: [u[0] + (v[0] - u[0]) / L * x.need, u[1] + (v[1] - u[1]) / L * x.need] as XY, text: `${String(Math.round(x.d * 10) / 10).replace('.', ',')} → ${String(Math.round(x.need * 10) / 10).replace('.', ',')} m` }; }) } } : undefined;
+    const note = `Atrofdagi binolar (160 m ichida): turar joy ${res.length}, vazifasi nomaʼlum ${unk.length}, noturar ${near.length - res.length - unk.length}.` + (worst ? ` Masofa yetmaydi: ${bad.length} ta, eng yaqini ${String(Math.round(worst.d * 10) / 10).replace('.', ',')} m, talab ${String(Math.round(worst.need * 10) / 10).replace('.', ',')} m.` : '') + (unk.length ? ' Vazifasi nomaʼlum binolar: sahnada binoni oʻng tugma bilan bosing → «Vazifasi: turar joy / noturar».' : '') + ' Noturar binolargacha — yongʻinga qarshi masofalar (ShNQ 2.01.02-04) va insolyatsiya (78-band).';
+    return done({ ...base, status: bad.length ? 'fail' : unk.length ? 'review' : 'pass', value: bad.length, unit: 'juft', limit: '0', ...(where ? { where } : {}), note });
+  }
   /** Seksiya rejalari qoidalari (barcha seksiyalar boʻyicha): koridordan kirish, zinalar soni, koridor uzunligi */
   private planRuleCache: { doc: unknown; rules: Result[] } | null = null;
   private planRules(): Result[] {
@@ -2161,7 +2205,7 @@ export class Editor {
     const doc = this.store.doc, fr = frame(doc.origin), ring = b.rings[0];
     const streets = doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), w: profileWidth(profileById(s.profile)) }));
     const F = g.typology === 'minora' ? (g.towerF ?? g.maxF) : g.maxF, H = bLevels(doc.settings, { floors: F, nonRes: g.nonRes ?? 0 }).top;
-    const kinds = edgeKinds(ring, streets, g.siteEdges ?? 'kocha');
+    const kinds = edgeKinds(ring, streets, g.siteEdges ?? doc.siteEdges ?? 'kocha');
     const hwOn = (g.hw ?? SB_HW) > 0, hw = hwOn ? autoSetback(H, blockStreetWidth(ring, streets), (g.nonRes ?? 0) > 0, g.hw) : undefined;
     const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], n = boundaryNeed(kinds[k], H, true, azOf([q[0] - p[0], q[1] - p[1]])); return Math.round(Math.max(n, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
     return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), hw };
@@ -2354,7 +2398,7 @@ export class Editor {
             h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Chekinish balandlikka qarab'), h('span', { class: 'sub' }, tr(g.setbackAuto ? 'avto: ShNQ 2.07.01-23, 79-band, 2-jadval — koʻcha H × 0,25, qoʻshni H × kʏ / 2' : 'oʻchiq: qoʻlda berilgan chekinish'))), sw({ id: 'gSetAuto', label: tr('Chekinish balandlikka qarab'), on: !!g.setbackAuto, onchange: v => { g.setbackAuto = v; this.renderPanel(); } })),
             ...(g.setbackAuto ? [
               h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, tr('Uchastka chetlari'), h('span', { class: 'sub' }, tr('loyiha koʻchasi boʻlmagan qirralar'))),
-                h('div', { class: 'seg', role: 'group', id: 'gSiteEdges', 'aria-label': tr('Uchastka chetlari'), style: 'flex:1 1 100%' }, ...(['kocha', 'qoshni'] as const).map(k => h('button', { 'aria-pressed': (g.siteEdges ?? 'kocha') === k, 'data-se': k, onclick: () => { g.siteEdges = k; this.renderPanel(); } }, tr(k === 'kocha' ? 'Koʻcha' : 'Qoʻshni hudud'))))),
+                h('div', { class: 'seg', role: 'group', id: 'gSiteEdges', 'aria-label': tr('Uchastka chetlari'), style: 'flex:1 1 100%' }, ...(['kocha', 'qoshni'] as const).map(k => h('button', { 'aria-pressed': (g.siteEdges ?? this.store.doc.siteEdges ?? 'kocha') === k, 'data-se': k, onclick: () => { g.siteEdges = k; if ((this.store.doc.siteEdges ?? 'kocha') !== k) this.run(() => this.store.dispatch({ type: 'setSiteEdges', kind: k })); this.renderPanel(); } }, tr(k === 'kocha' ? 'Koʻcha' : 'Qoʻshni hudud'))))),
               stp('gHW', tr('H/W chegarasi'), tr('qoʻshimcha andoza · 0 — oʻchiq'), g.hw ?? SB_HW, 0, 3, 0.1, x => { g.hw = x; }),
               (() => { const a = this.selBlock != null ? this.autoSb(this.selBlock, g) : null; return h('div', { class: 'li', id: 'gSetAutoV' }, h('span', { class: 'k' }, h('b', { class: 'num' }, a ? (a.dMin === a.dMax ? `${fmt(a.dMin, a.dMin % 1 ? 1 : 0)} m` : `${fmt(a.dMin, a.dMin % 1 ? 1 : 0)}–${fmt(a.dMax, a.dMax % 1 ? 1 : 0)} m`) : '—'), h('span', { class: 'sub' }, a ? this.autoSbNote(a) : tr('Kvartalni tanlang — chekinish hisoblanadi')))); })()] :
               [stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm')]),
@@ -3443,8 +3487,14 @@ export class Editor {
         h('hr'),
         item(`Hammasini oʻchirish (${nM})`, () => this.deleteMarked(), 'Del', true));
     } else if (cid != null) {
-      m.append(h('div', { class: 'mh' }, 'Atrofdagi bino (OSM)'),
+      const ob = this.ctxMgr.current?.osm.buildings.find(x => x.id === cid), cu = doc.ctxUse?.[String(cid)];
+      const setU = (u: 'turar' | 'noturar' | null) => this.run(() => this.store.dispatch({ type: 'setCtxUse', ids: [cid], use: u }));
+      m.append(h('div', { class: 'mh' }, `Atrofdagi bino (OSM)${ob ? ` · ${ob.kind}` : ''}${cu ? ` · ${cu === 'turar' ? 'turar joy' : 'noturar'}` : ''}`),
         item('Tanlash', () => this.setMarked([], [cid])),
+        // 01.11 (egasi): vazifasi nomaʼlum OSM binosiga qoʻlda turar joy yoki noturar belgisi (79-band masofalari uchun)
+        item('Vazifasi: turar joy', () => setU('turar')),
+        item('Vazifasi: noturar', () => setU('noturar')),
+        cu ? item('Vazifasi: OSM boʻyicha', () => setU(null)) : '',
         item('Tanlovga qoʻshish', () => this.setMarked(this.marked.b, [...this.marked.c, cid]), 'Shift'),
         rmN ? item(`Olib tashlanganlarni qaytarish (${rmN})`, () => this.restoreRemoved()) : '',
         h('hr'),
