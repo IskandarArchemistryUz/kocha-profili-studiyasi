@@ -9,11 +9,10 @@ Ishlatish: python3 tools/narx_stats.py xom.txt [chiqish.csv] [--hudud NOM] [--tu
   --hudud NOM   «hudud» ustuni qiymati (standart: Mirobod)
   --tuman ID    faqat shu districtId dagi eʼlonlar (masalan 204 = Mirobod)
   --tumanlar    umumiy qatordan tashqari har tuman uchun alohida qator («tuman_<id>»)
-  --atrofsiz    «atrof_1500m_*» ustunlarini boʻsh qoldiradi (butun shahar monitoringi uchun)
+  --markaz LAT,LNG  shu nuqtadan 1,5 km ichidagi eʼlonlar uchun «atrof_1500m_*» ustunlari (berilmasa — boʻsh)
 """
 import argparse, csv, math, statistics as st, sys, os, datetime as dt
 
-ORIGIN = (41.26936, 69.29678)   # Abdurauf Fitrat loyihasi markazi (Mirobod)
 NEAR_M = 1500
 HEAD = ['sana', 'manba', 'hudud', 'kategoriya', 'api_jami', 'oqildi', 'yaroqli', 'median_usd_m2', 'p25_usd_m2', 'p75_usd_m2',
         'atrof_1500m_soni', 'atrof_1500m_median_usd_m2', 'auksion_chiqarildi', 'takror_chiqarildi', 'chetki_chiqarildi', 'yangi_30kun_ulushi']
@@ -75,10 +74,11 @@ def clean(rows):
     return ok, auc, dup, bad
 
 
-def stats(today, now, hudud, cat, total, rows, atrof=True):
+def stats(today, now, hudud, cat, total, rows, markaz=None):
+    atrof = markaz is not None
     ok, auc, dup, bad = clean(rows)
     vals = [r['v'] for r in ok]
-    near = [r['v'] for r in ok if dist(ORIGIN, (r['lat'], r['lng'])) <= NEAR_M]
+    near = [r['v'] for r in ok if atrof and dist(markaz, (r['lat'], r['lng'])) <= NEAR_M]
     fresh = 0
     for r in ok:
         try:
@@ -97,9 +97,11 @@ def main():
     ap.add_argument('src'); ap.add_argument('out', nargs='?', default='data/narx/mirobod_uybor.csv')
     ap.add_argument('--hudud', default='Mirobod'); ap.add_argument('--tuman', default='')
     ap.add_argument('--tumanlar', action='store_true')
-    ap.add_argument('--atrofsiz', action='store_true')
+    ap.add_argument('--markaz', default='')
+    ap.add_argument('--atrofsiz', action='store_true', help=argparse.SUPPRESS)   # eski buyruqlar uchun; endi sukut shu
     a = ap.parse_args()
     out_path = a.out
+    markaz = tuple(float(x) for x in a.markaz.split(',')) if a.markaz else None
     today = dt.date.today().isoformat()
     now = dt.datetime.now(dt.timezone.utc)
     cats = parse(a.src)
@@ -111,10 +113,10 @@ def main():
             total = ''           # tuman boʻyicha API jami nomaʼlum
         else:
             total = c['total']
-        out.append(stats(today, now, a.hudud, cat, total, rows, not a.atrofsiz))
+        out.append(stats(today, now, a.hudud, cat, total, rows, markaz))
         if a.tumanlar:
             for d in sorted({r['d'] for r in rows if r['d']}, key=lambda x: int(x) if x.isdigit() else 0):
-                out.append(stats(today, now, 'tuman_' + d, cat, '', [r for r in rows if r['d'] == d], not a.atrofsiz))
+                out.append(stats(today, now, 'tuman_' + d, cat, '', [r for r in rows if r['d'] == d], markaz))
     old = []
     if os.path.exists(out_path):
         with open(out_path, encoding='utf-8') as fh:
