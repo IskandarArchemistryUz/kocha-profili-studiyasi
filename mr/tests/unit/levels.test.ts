@@ -29,3 +29,28 @@ describe('1-qavat balandligi (core/levels)', () => {
     expect(r.svg).toContain(`height="${(5.7 * 5).toFixed(2)}"`);   // 1:200 → 5 mm/m
   });
 });
+
+import { antresolSplit, hasAntresol, ANTRESOL_MIN_H } from '../../src/core/levels';
+import { DEFAULT_SETTINGS, blankProject } from '../../src/core/doc';
+import { derive } from '../../src/core/derive';
+describe('antresol (01.11, egasi)', () => {
+  it('sathlar: 5,7 m → 2,7 + 0,3 + 2,7; 4,9 m — chegarada; 4,5 m — sigʻmaydi', () => {
+    const a = antresolSplit(5.7)!; expect(a.lo).toBeCloseTo(2.7); expect(a.hi).toBeCloseTo(2.7);
+    expect(ANTRESOL_MIN_H).toBeCloseTo(4.9); expect(antresolSplit(4.9)).not.toBeNull(); expect(antresolSplit(4.5)).toBeNull();
+    const b = antresolSplit(5.2)!; expect(b.lo).toBeGreaterThanOrEqual(2.5 - 1e-9); expect(b.hi).toBeGreaterThanOrEqual(2.1 - 1e-9);
+  });
+  it('faqat belgilangan, noturar 1-qavatli, stilobat ustida boʻlmagan va balandligi yetadigan binoda', () => {
+    expect(hasAntresol(S, { floors: 9, nonRes: 1, antresol: true })).toBe(true);
+    expect(hasAntresol(S, { floors: 9, nonRes: 0, antresol: true })).toBe(false);
+    expect(hasAntresol({ floorHeight: 3.3 }, { floors: 9, nonRes: 1, antresol: true })).toBe(false);
+    expect(hasAntresol(S, { floors: 9, nonRes: 1, z0: 2, antresol: true })).toBe(false);
+  });
+  it('derive: antresol maydoni = 1-qavatning 40 % i, GFA oʻzgarmaydi', () => {
+    const p = blankProject('T'); const [lng, lat] = p.origin, k = 1 / 111320, kx = k / Math.cos(lat * Math.PI / 180), g = (x: number, y: number) => [lng + x * kx, lat + y * k] as [number, number];
+    p.settings = { ...DEFAULT_SETTINGS, groundH: 5.7 };
+    p.buildings = [{ id: 'a', footprint: [g(0, 0), g(50, 0), g(50, 15), g(0, 15)], floors: 9, nonRes: 1, use: 'turar' } as any];
+    const d0 = derive(p); expect(d0.antresol).toBe(0);
+    p.buildings = [{ ...p.buildings[0], antresol: true } as any];
+    const d1 = derive(p); expect(d1.antresol).toBeCloseTo(750 * 0.4, -1); expect(d1.gfa).toBeCloseTo(d0.gfa, 3);
+  });
+});

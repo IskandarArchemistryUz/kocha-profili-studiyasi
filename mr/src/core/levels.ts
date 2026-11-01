@@ -24,3 +24,23 @@ export function floorAt(s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Bu
   const L = bLevels(s, b); for (let f = 1; f <= b.floors; f++) if (y < L.at(f)) return f;
   return b.floors;
 }
+
+/**
+ * Antresol (01.11, egasi: quruvchilar 1-qavatni baland sotadi — ijarachi ichida antresol quradi).
+ * Maydon: ShNQ 2.08.02-23 (maydonlarni hisoblash) — antresollar foydali maydonga kiradi; bir necha qavat balandligidagi xona
+ * umumiy maydonga bir qavat boʻyicha kiradi → GFA oʻzgarmaydi.
+ * Balandlik: Strelka katalogi (kvartira, shift ≥ 4,8 m) — antresol ostida ≥ 2,5 m, ustida ≥ 2,1 m; ora yopma 0,3 m (andoza).
+ * Ulush: 1-qavat maydonining 40 % i (andoza, egasi 01.11).
+ */
+export const ANTRESOL_SHARE = 0.4;
+export const ANTRESOL_LO = 2.5, ANTRESOL_HI = 2.1, ANTRESOL_SLAB = 0.3;
+export const ANTRESOL_MIN_H = ANTRESOL_LO + ANTRESOL_SLAB + ANTRESOL_HI;   // 4,9 m
+/** antresol sathlari (1-qavat balandligi h): pastki va yuqori sath balandligi; sigʻmasa — null */
+export function antresolSplit(h: number): { lo: number; hi: number } | null {
+  const avail = h - ANTRESOL_SLAB; if (avail < ANTRESOL_LO + ANTRESOL_HI - 1e-6) return null;
+  const hi = Math.max(ANTRESOL_HI, avail / 2), lo = avail - hi;
+  return lo >= ANTRESOL_LO - 1e-6 ? { lo, hi } : { lo: ANTRESOL_LO, hi: avail - ANTRESOL_LO };
+}
+/** binoning antresoli bormi (belgilangan va 1-qavat balandligi yetadi) */
+export const hasAntresol = (s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Building, 'nonRes' | 'z0' | 'floors' | 'antresol'>): boolean =>
+  !!b.antresol && (b.nonRes ?? 0) >= 1 && !(b.z0 ?? 0) && antresolSplit(bLevels(s, b).fh1) != null;
