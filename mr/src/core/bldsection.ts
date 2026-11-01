@@ -9,7 +9,7 @@
  */
 import type { XY } from './geo';
 
-export interface SecBld { ring: XY[]; h: number; z0?: number; floors?: number; nonRes?: number; fh?: number; /** shu binoning 1-(mahalliy) qavati balandligi (baland 1-qavat, core/levels) */ fh1?: number }
+export interface SecBld { ring: XY[]; h: number; z0?: number; floors?: number; nonRes?: number; fh?: number; /** shu binoning 1-(mahalliy) qavati balandligi (baland 1-qavat, core/levels) */ fh1?: number; /** antresol: pastki sath balandligi, m (core/levels) */ antLo?: number }
 /** mahalliy qavat i ning pastki sathi (bino tagidan) */
 const lev = (b: SecBld, i: number): number => { const fh = b.fh ?? 3, f1 = b.fh1 ?? fh; return i <= 0 ? 0 : f1 + (i - 1) * fh; };
 export interface SunLine { date: string; alt: number; app: number; shadeZ: number | null; side: 1 | -1 }
@@ -93,6 +93,7 @@ export function buildingSection(sel: SecBld, others: SecBld[], o: { lat: number;
   for (let i = 0; i < fl; i++) {
     const za = z0 + lev(sel, i), zb = z0 + lev(sel, i + 1);
     out.push(`<rect x="${X(me[0])}" y="${Y(zb)}" width="${((me[1] - me[0]) * k).toFixed(2)}" height="${((zb - za) * k).toFixed(2)}" fill="${i < nr ? '#cfe0f3' : '#f6e7c8'}" stroke="#141414" stroke-width="0.35"/>`);
+    if (i === 0 && sel.antLo) { const za2 = za + sel.antLo, x0 = Number(X(me[0])), x1 = x0 + (me[1] - me[0]) * k * 0.4; out.push(`<rect x="${x0.toFixed(2)}" y="${Y(za2 + 0.3)}" width="${(x1 - x0).toFixed(2)}" height="${(0.3 * k).toFixed(2)}" fill="none" stroke="#141414" stroke-width="0.3" stroke-dasharray="1.2 0.8" data-antresol="1"/><text x="${(x0 + f * 0.4).toFixed(2)}" y="${(Number(Y(za2 + 0.3)) - f * 0.35).toFixed(2)}" font-size="${(f * 0.75).toFixed(2)}" fill="#3a3936">${T('antresol')}</text>`); }
     out.push(`<text x="${(Number(X(me[0])) + f * 0.4).toFixed(2)}" y="${(Number(Y((za + zb) / 2)) + f * 0.3).toFixed(2)}" font-size="${(f * 0.9).toFixed(2)}" fill="#3a3936">${i + 1}</text>`);
     // derazalar ikki fasadda
     for (const t of [me[0], me[1]].filter(t => !att.some(x => Math.abs(x.s[0] - t) < 0.5 || Math.abs(x.s[1] - t) < 0.5))) out.push(`<line x1="${X(t)}" y1="${Y(za + 0.9)}" x2="${X(t)}" y2="${Y(za + 2.4)}" stroke="#fff" stroke-width="0.8"/>`);

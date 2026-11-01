@@ -39,6 +39,7 @@ export interface PlanOpts {
   /** bino qavati (1 dan) — 1-qavat va noturar qavatlar reja turi shundan */ floor: number;
   /** qavat balandligi, m (tekshiruv uchun) */ fh?: number;
   /** 1-qavat balandligi, m (core/levels; baland 1-qavat — zina 4 marshli) */ fh1?: number;
+  /** antresol maydoni, m² (1-qavat rejasida yozuv; core/levels) */ ant?: number;
   /** balkon turi (turar qavatlarda, 2-qavatdan) */ bal?: Bal | null;
   /** tahrir oynasi: boshqa reja, tanlangan kvartiralar / xona */ plan?: RulePlan; sel?: number[]; selRoom?: number;
   /** 20-band: kvartira raqami (eksplikatsiya jadvali bilan bogʻlash uchun) */ num?: boolean;
@@ -98,6 +99,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   out.push(`<defs><pattern id="hatch" width="1.4" height="1.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V1.4" stroke="#b9b5ab" stroke-width="0.3"/></pattern><pattern id="tile" width="${(0.3 * k).toFixed(2)}" height="${(0.3 * k).toFixed(2)}" patternUnits="userSpaceOnUse"><path d="M0 0H${(0.3 * k).toFixed(2)}M0 0V${(0.3 * k).toFixed(2)}" stroke="#a9a59c" stroke-width="0.12"/></pattern></defs>`);
   out.push(`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="#fff"/>`);
   out.push(`<text x="${pad + 5}" y="9" font-size="4.2" font-weight="600" fill="#141414">${esc(o.title)}</text>`);
+  if (o.floor === 1 && o.ant) out.push(`<text x="${pad + 5}" y="14" font-size="2.6" fill="#3a3936" data-antresol="1">antresol mumkin · ≈ ${Math.round(o.ant)} m² (ijarachi uchun, foydali maydon)</text>`);
   // MOP (koridor, lift oldi)
   for (const q of G.mop) out.push(`<path d="${path(q)}" fill="#ece9e2" stroke="#141414" stroke-width="0.3"/>`);
   // balkonlar — rejadagi deraza modullari oʻrtasida (deraza bilan bir oʻqda): har 2-modulda, ≥ 6 m devorlarda; lodjiya 0,9 m, balkon 1,3 m, uzluksiz terrasa 1,5 m

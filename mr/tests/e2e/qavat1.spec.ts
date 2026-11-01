@@ -14,7 +14,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`1-qavat ba
   await expect.poll(() => page.evaluate(([x, y]) => !!(window as any).__mr.scene.pickBuilding(x, y), [px, py]), { timeout: 15_000 }).toBe(true);
   await page.mouse.click(px, py);
   await expect(page.locator('.panel[data-mode=bino]')).toBeVisible();
-  if (!(await page.locator('#iGroundH').count())) await page.click('[aria-label="Noturar (pastda) — oshirish"]');
+  await page.evaluate(() => { const m = (window as any).__mr, b = m.store.doc.buildings.find((x: any) => x.id === m.sel); if (b && !(b.nonRes >= 1)) m.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { nonRes: 1 } }); });
   await expect(page.locator('#iGroundH')).toBeVisible();
   const bid = await page.evaluate(() => (window as any).__mr.sel as string);
   const top = () => page.evaluate(id => { let y = -1e9; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.bid === id && o.geometry) { o.geometry.computeBoundingBox(); y = Math.max(y, o.geometry.boundingBox.max.y); } }); return y; }, bid);
