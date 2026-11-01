@@ -1690,7 +1690,7 @@ export class Editor {
    * Past qavatli uylar rejalari (31.10): loyihadagi uy turlari (oʻlchami va turi boʻyicha), 1-, 2- (3-) qavat rejasi; hovli — milliy yoki
    * zamonaviy uslub. Qoidalar: core/lowplan (T-03, T-04, H-01 … H-11).
    */
-  private housePanel(body: HTMLElement): void {
+  private housePanel(body: HTMLElement, big = false): void {
     const doc = this.store.doc, fr = frame(doc.origin);
     const lows = doc.buildings.filter(b => b.gen?.plot);
     if (!lows.length) return;
@@ -1710,13 +1710,13 @@ export class Editor {
     const T0 = { ...T, b: hb, ring: ring0, plot: plot0 }, hov = T0.ring.length === 6, fls = hov ? 1 : T0.b.floors;
     const fl = Math.max(1, Math.min(fls, this.houseFloor)), style = hov ? this.houseStyle ?? 'milliy' : 'zamonaviy', ed = hb.house ?? {};
     const P = housePlan(T0.ring, fls, fl, { style, plot: T0.plot, north: [0, 1], edit: ed });
-    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Uy rejalari')), h('span', {}, `${fmt(lows.length)} ${tr('uy')}`)),
+    const head: (HTMLElement | string)[] = [h('div', { class: 'glabel' }, h('span', {}, tr('Uy rejalari')), h('span', {}, `${fmt(lows.length)} ${tr('uy')}`)),
       h('div', { class: 'row', role: 'group', id: 'houseType', 'aria-label': tr('Uy turi'), style: 'flex-wrap:wrap;gap:6px' }, ...types.map((t, i) => { const [, w, d] = t.key.split('|'); return h('button', { class: 'btn btn-sm', 'aria-pressed': i === ti, 'data-ht': i, title: tr(t.name), onclick: () => { this.houseType = i; this.sel = t.b.id; this.scene.select(t.b.id); this.renderPanel(); } }, `${w} × ${d} m · ${t.b.floors} ${tr('qavat')} · ×${t.n}`); })),
-      h('b', { style: 'font-size:13px' }, tr(T0.name)), selB ? h('span', { class: 't-small', id: 'houseSelNote' }, tr('Sahnada tanlangan uy')) : '');
-    if (!P) { body.append(h('div', { class: 'note' }, tr('Bu uy shakli uchun reja hali yoʻq — oʻlchami juda kichik.'))); return; }
+      h('b', { style: 'font-size:13px' }, tr(T0.name)), selB ? h('span', { class: 't-small', id: 'houseSelNote' }, tr('Sahnada tanlangan uy')) : ''];
+    if (!P) { body.append(...head, h('div', { class: 'note' }, tr('Bu uy shakli uchun reja hali yoʻq — oʻlchami juda kichik.'))); return; }
     const title = `${tr(T0.name)} · ${tf('${n}-qavat', { n: fl })}${hov ? ` · ${tr(style === 'milliy' ? 'milliy uslub' : 'zamonaviy uslub')}` : ''}`;
     const svg = () => housePlanSvg(P, T0.ring, T0.plot, { scale: 100, title, north: [0, 1], label: tr, joint: !!hb.joint }).svg;
-    body.append(
+    const ctl: (HTMLElement | string)[] = [
       fls > 1 ? h('div', { class: 'seg sm', role: 'group', id: 'houseFloor' }, ...Array.from({ length: fls }, (_, i) => h('button', { 'aria-pressed': fl === i + 1, 'data-hf': i + 1, onclick: () => { this.houseFloor = i + 1; this.renderPanel(); } }, tf('${n}-qavat', { n: i + 1 })))) : '',
       hov ? h('div', { class: 'seg sm', role: 'group', id: 'houseStyle' }, ...([['milliy', 'Milliy uslub'], ['zamonaviy', 'Zamonaviy']] as const).map(([k, t]) => h('button', { 'aria-pressed': style === k, 'data-hs': k, onclick: () => { this.houseStyle = k; this.renderPanel(); } }, tr(t)))) : '',
       !hov ? (() => {
@@ -1731,10 +1731,44 @@ export class Editor {
           fl === 1 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mehmonxona chuqurligi'), h('span', { class: 'sub' }, tr('qolgani — oshxona-ovqatlanish'))), stepper({ id: 'houseM', label: tr('Mehmonxona chuqurligi'), min: 3.6, max: 8, step: 0.3, unit: 'm', value: ed.m ?? 4.8, onchange: v => set({ m: v }) })) : '',
           W > 7.8 ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Xonalar')), h('div', { class: 'seg sm', id: 'houseTwo', role: 'group' }, ...([[true, 'Ikki qator'], [false, 'Bir qator']] as const).map(([v, t]) => h('button', { 'aria-pressed': (ed.two ?? true) === v, 'data-two': String(v), onclick: () => set({ two: v ? undefined : false }) }, tr(t))))) : '',
           h('div', { class: 'li', style: 'gap:6px' }, h('button', { class: 'btn btn-sm', id: 'houseAll', onclick: () => set({}, true) }, tr('Shu turdagi hammasiga')), Object.keys(ed).length ? h('button', { class: 'btn btn-sm btn-ghost', id: 'houseReset', onclick: () => this.run(() => this.store.dispatch({ type: 'updateBuilding', id: hb.id, patch: { house: undefined } })) }, tr('Asl holat')) : ''));
-      })() : '',
-      h('div', { class: 'planbox', id: 'houseBox', html: svg().replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"') }),
-      h('div', { class: 'col', id: 'houseNotes', style: 'gap:4px' }, ...P.notes.map(n => h('span', { class: 't-small' }, tr(n)))),
-      h('button', { class: 'btn btn-sm', id: 'houseSvg', onclick: () => download(`${safe(doc.name)}_uy${ti + 1}_q${fl}.svg`, svg(), 'image/svg+xml') }, ...icl(DL, 'SVG')));
+      })() : ''];
+    const notes = h('div', { class: 'col', id: 'houseNotes', style: 'gap:4px' }, ...P.notes.map(n => h('span', { class: 't-small' }, tr(n))));
+    const dl = h('button', { class: 'btn btn-sm', id: big ? 'houseSvgBig' : 'houseSvg', onclick: () => download(`${safe(doc.name)}_uy${ti + 1}_q${fl}.svg`, svg(), 'image/svg+xml') }, ...icl(DL, 'SVG'));
+    const planHtml = svg().replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%" height="100%"');
+    if (big) {
+      // katta oyna (1.11): chapda reja, oʻngda tur, qavat, uslub va tahrir — xuddi albomdagidek
+      body.append(h('div', { class: 'hbig-grid' },
+        h('div', { class: 'planbox hbig-plan', id: 'houseBigBox', html: planHtml }),
+        h('div', { class: 'col hbig-side' }, ...head, ...ctl, notes, dl)));
+      return;
+    }
+    const open = () => { this.houseBig = true; this.renderPanel(); };
+    body.append(...head, ...ctl,
+      h('div', { class: 'planbox', id: 'houseBox', role: 'button', tabindex: 0, title: tr('Katta oynada tahrirlash'), style: 'cursor:zoom-in', onclick: open, onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } }, html: planHtml.replace('height="100%"', '') }),
+      notes,
+      h('div', { class: 'row', style: 'gap:6px' }, h('button', { class: 'btn btn-primary', style: 'flex:1', id: 'houseOpen', onclick: open }, tr('Katta oynada tahrirlash')), dl));
+    this.houseBigOverlay();
+  }
+
+  /** Uy rejasining katta oynasi (1.11): panel qayta chizilganda u ham yangilanadi; Esc yoki ✕ — yopish */
+  private houseBig = false; private houseEsc: ((e: KeyboardEvent) => void) | null = null;
+  private houseBigOverlay(): void {
+    document.getElementById('houseAlb')?.remove();
+    if (this.houseEsc) { document.removeEventListener('keydown', this.houseEsc); this.houseEsc = null; }
+    if (!this.houseBig) return;
+    injectChzCss();
+    const close = () => { this.houseBig = false; this.houseBigOverlay(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    this.houseEsc = esc;
+    const inner = h('div', { class: 'hbig-body' });
+    const back = h('div', { class: 'chzs-back', id: 'houseAlb', onclick: (e: MouseEvent) => { if (e.target === back) close(); } },
+      h('div', { class: 'chzs hbig', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Uy rejasi') },
+        h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('h2', { style: 'flex:1;margin:0' }, tr('Uy rejasi')),
+          h('button', { class: 'btn icon-btn btn-sm', id: 'houseBigClose', 'aria-label': tr('Yopish'), onclick: close }, svgIcon('<path d="M6 6l12 12M18 6L6 18"/>'))),
+        inner));
+    this.housePanel(inner, true);
+    document.addEventListener('keydown', esc);
+    document.body.append(back);
   }
 
   private kvartiraPanel(body: HTMLElement): void {
@@ -1743,7 +1777,17 @@ export class Editor {
     if (!plans.length && doc.buildings.some(b => b.gen?.plot)) { this.housePanel(body); return; }
     // sahnada past qavatli uy tanlangan — avval uning rejasi (kvartira seksiyasiga oʻtib ketmasin)
     const houseFirst = doc.buildings.some(b => b.id === this.sel && b.gen?.plot);
-    if (houseFirst) this.housePanel(body);
+    // genplan (1.11): seksiyalar va uylar birga — uy bosilsa uy rejasi, seksiya bosilsa kvartira rejasi
+    const frG = frame(doc.origin), houses = doc.buildings.filter(b => b.gen?.plot).map(b => ({ bid: b.id, ring: b.footprint.map(frG.toLocal), name: tr('Uy') }));
+    const secName = (pl: SecPlan, i: number) => `${i + 1}-bino · ${useDef(doc.buildings.find(x => x.id === pl.bid)?.use ?? 'turar').name}`;
+    const pickAny = (b: string) => { if (houses.some(q => q.bid === b)) { this.sel = b; this.scene.select(b); } else { this.houseBig = false; this.planBid = b; this.planFloor = null; this.sel = b; this.planSelSeen = b; this.scene.select(b); } this.renderPanel(); };
+    if (houseFirst) {
+      // uy tanlangan — faqat uy rejasi (kvartira rejalari va miksi chiqmaydi); seksiyaga qaytish — genplandan
+      body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Bino')), h('span', {}, tr('genplanda yoki xaritada bosing'))),
+        h('div', { class: 'gpbox', id: 'planGp' }, genplanSvg(plans, this.sel!, secName, pickAny, houses)));
+      this.housePanel(body);
+      return;
+    }
     const sum = mix.reduce((a, b) => a + b, 0) || 1, hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     const sw0 = (c: number) => h('i', { style: `width:10px;height:10px;border-radius:3px;flex:none;background:${hex(c)}` });
     // miks: siljitgichlar (maqsad) va natija (amalda)
@@ -1762,7 +1806,7 @@ export class Editor {
       h('div', { class: 'glabel' }, h('span', {}, tr('Kvartira oʻlchami'))),
       h('div', { class: 'seg', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name))),
       h('div', { class: 'opts' }, ...APT_SIZES.map((x, i) => [i ? ' · ' : '', h('b', {}, `${x.name}:`), ` ${x.note}`]).flat()));
-    if (!houseFirst) this.housePanel(body);
+    this.housePanel(body);
     if (!plans.length) {
       if (doc.buildings.some(b => b.gen?.plot)) return;
       body.append(h('div', { class: 'empty' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Turar joy seksiyalari yoʻq. «Hajmlar» qadamida generatsiya qiling (yakka uylar va taunhauslar kvartirali emas).')),
@@ -1782,7 +1826,6 @@ export class Editor {
       const name = (pl: SecPlan, i: number) => `${i + 1}-bino · ${useDef(doc.buildings.find(x => x.id === pl.bid)?.use ?? 'turar').name}`;
       const optOf = (pl: SecPlan) => { const bb = doc.buildings.find(x => x.id === pl.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; };
       const res = floorPlanSvg(sel, { scale: 200, dims: false, title: name(sel, si), floor: fl0, ...optOf(sel), furn: false });
-      const pick = (b: string) => { this.planBid = b; this.planFloor = null; this.scene.select(b); this.renderPanel(); };
       const setF = (f: number) => { this.planFloor = Math.max(1, Math.min(sel.f1, f)); this.renderPanel(); };
       const album = (view?: 'reja' | 'olcham' | 'insol' | 'variantlar') => openAlbum({ plans, bid: sel.bid, floor: fl0, view, mix: doc.settings.aptMix, section: bid2 => { const d2 = this.store.doc, fr2 = frame(d2.origin), fh2 = d2.settings.floorHeight, b0 = d2.buildings.find(x => x.id === bid2); if (!b0) return null; const sb = (x: typeof b0) => { const L = bLevels(d2.settings, x); const sp = hasAntresol(d2.settings, x) ? antresolSplit(L.fh1) : null; return { ring: x.footprint.map(fr2.toLocal), h: L.h, z0: L.z0, floors: x.floors, nonRes: x.nonRes, fh: fh2, fh1: L.fh1, ...(sp ? { antLo: sp.lo } : {}) }; }; return { sel: sb(b0), others: d2.buildings.filter(x => x.id !== bid2 && x.floors > 0).map(sb), lat: d2.origin[1] }; }, insol: this.aptInsolView(), runInsol: async () => { await this.runApts(); return this.aptInsolView(); }, fh: doc.settings.floorHeight, size: doc.settings.aptSize ?? 'M', docName: safe(doc.name), name, opt: optOf, download,
         onSave: (b2, pl) => { const fr = frame(doc.origin), bb = this.store.doc.buildings.find(x => x.id === b2); this.run(() => this.store.dispatch({ type: 'updateBuilding', id: b2, patch: { planEdit: pl && bb ? { key: planKey(this.store.doc, bb), apts: pl.apts.map(a => ({ ring: a.ring.map(fr.toGeo), rooms: a.rooms, ...(a.inner ? { inner: a.inner } : {}) })), rooms: pl.rooms.map(q => ({ ring: q.ring.map(fr.toGeo), kind: q.kind })) } : undefined } })); this.clearApt(); },
@@ -1790,7 +1833,7 @@ export class Editor {
       insolAlbum = () => album('insol');
       const clearEdit = () => { this.run(() => this.store.dispatch({ type: 'updateBuilding', id: sel.bid, patch: { planEdit: undefined } })); this.clearApt(); this.renderPanel(); };
       body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Bino')), h('span', {}, tr('genplanda yoki xaritada bosing'))),
-        h('div', { class: 'gpbox', id: 'planGp' }, genplanSvg(plans, sel.bid, name, pick)),
+        h('div', { class: 'gpbox', id: 'planGp' }, genplanSvg(plans, sel.bid, name, pickAny, houses)),
         h('div', { class: 'row' }, h('b', { style: 'flex:1;font-size:13px' }, name(sel, si)), h('span', { class: 't-small' }, `${sel.f1} ${tr('qavat')}`)),
         h('div', { class: 'row', style: 'align-items:center;gap:8px' },
           h('button', { class: 'btn icon-btn btn-sm', id: 'planDown', 'aria-label': tr('Pastki qavat'), disabled: fl0 <= 1, onclick: () => setF(fl0 - 1) }, svgIcon('<path d="M15 6l-6 6 6 6"/>')),
@@ -3572,6 +3615,7 @@ export class Editor {
     this.showAptBoxes(); this.syncBTools(); this.syncHandles();
     if (this.sframe) { this.el.panel.classList.remove('shut'); this.root?.classList.remove('pshut'); this.renderFramePanel(); return; }
     const shut = !this.panelOpen && !this.inspOn(); this.el.panel.classList.toggle('shut', shut); this.root?.classList.toggle('pshut', shut);
+    if (this.houseBig && (this.inspOn() || this.step.id !== 'kvartira')) { this.houseBig = false; this.houseBigOverlay(); }
     if (this.inspOn()) { this.renderInspector(); return; }
     const s = this.step, i = STEPS.indexOf(s), p = this.el.panel;
     // shu qadam qayta chizilsa (bino tanlash, qavat) — panel aylantirish joyi saqlanadi

@@ -12,7 +12,7 @@ import { frame, type XY } from '../../src/core/geo';
  * perimetr kvartallarda deyarli har kvartirada ichki reja; asosiy shablonlar mos kelmasa — oddiy «ustunli» zaxira reja.
  */
 describe('kvartira ichki rejasi — ilova yoʻli bilan qamrov', () => {
-  it('≥ 98,5 % kvartirada reja; zaxira rejada dahliz va sanuzel bor', () => {
+  it('≥ 99,8 % kvartirada reja; zaxira rejada dahliz va sanuzel bor', () => {
     let tot = 0, ok = 0, simple = 0;
     for (const [W, H] of [[120, 100], [160, 140], [200, 160], [100, 100]]) for (const depth of [12, 15, 18]) {
       let d = blankProject('t') as any; const fr = frame(d.origin);
@@ -26,7 +26,7 @@ describe('kvartira ichki rejasi — ilova yoʻli bilan qamrov', () => {
       }
     }
     expect(tot).toBeGreaterThan(600);
-    expect(ok / tot).toBeGreaterThanOrEqual(0.985);
+    expect(ok / tot).toBeGreaterThanOrEqual(0.998);   // 01.11: L shaklli burchak kvartiralar ham (fasad orqasidagi tor boʻlak kesiladi)
     expect(simple / tot).toBeLessThan(0.08);
   }, 600_000);
 });
