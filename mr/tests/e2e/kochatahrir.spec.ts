@@ -37,11 +37,20 @@ test('atrofdagi (OSM) yoʻlni olib tashlash va qaytarish', async ({ page }) => {
 
 test('tutqichlar: uchastka burchagi, bino burchagi va qavat tutqichi (vertikal sudrash)', async ({ page }) => {
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
-  await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
+  // 01.11 (beqaror test): panel qayta chizilsa kiritilgan qiymat yoʻqolardi — qiymat oʻrnatilganini kutib, keyin bosiladi
+  const siteW = () => page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), xs = (ed.store.doc.site?.rings[0] ?? []).map((p: number[]) => (p[0] - o[0]) * mx); return xs.length ? Math.round(Math.max(...xs) - Math.min(...xs)) : 0; });
+  for (let k = 0; k < 6 && (await siteW()) !== 200; k++) {
+    await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.waitForTimeout(150);
+    if ((await page.inputValue('#rw')) !== '200' || (await page.inputValue('#rh')) !== '160') continue;   // panel qayta chizildi — qayta kiritamiz
+    await page.click('#rectSite'); await page.waitForTimeout(300);
+  }
+  expect(await siteW()).toBe(200);
   await expect(page.locator('#siteEditHint')).toBeVisible();
   const scr = (x: number, y: number, z = 0.8) => page.evaluate(([x, y, z]) => (window as any).__mr.scene.toScreen(x, y, (window as any).__mr.scene.H(x, y) + z), [x, y, z]);
+  // 01.11 (beqaror test): uchastka qoʻyilgach kamera hali harakatda boʻlishi mumkin — ekran nuqtasi barqarorlashguncha kutiladi
+  const settle = async (x: number, y: number) => { let prev = await scr(x, y); for (let i = 0; i < 40; i++) { await page.waitForTimeout(120); const cur = await scr(x, y); if (Math.abs(cur.x - prev.x) < 0.5 && Math.abs(cur.y - prev.y) < 0.5) return cur; prev = cur; } return prev; };
   // uchastka burchagi (100, 80) → (120, 100)
-  let s = await scr(100, 80); await page.mouse.move(s.x, s.y); await page.mouse.down(); let t = await scr(120, 100); await page.mouse.move(t.x, t.y, { steps: 5 }); await page.mouse.up();
+  let s = await settle(100, 80); await page.mouse.move(s.x, s.y); await page.mouse.down(); let t = await scr(120, 100); await page.mouse.move(t.x, t.y, { steps: 5 }); await page.mouse.up();
   const site = await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); return ed.store.doc.site.rings[0].map((p: number[]) => [Math.round((p[0] - o[0]) * mx), Math.round((p[1] - o[1]) * 111132)]); });
   expect(site.some((p: number[]) => Math.abs(p[0] - 120) < 3 && Math.abs(p[1] - 100) < 3)).toBe(true);
   // bino: 40×30 markazda; tanlash → qavat tutqichi
@@ -49,7 +58,7 @@ test('tutqichlar: uchastka burchagi, bino burchagi va qavat tutqichi (vertikal s
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132]; ed.store.dispatch({ type: 'addBuilding', id: 'b_t', footprint: [g(-20, -15), g(20, -15), g(20, 15), g(-20, 15)], floors: 5, nonRes: 1, use: 'turar' }); ed.sel = 'b_t'; ed.scene.select('b_t'); ed.renderAll(); });
   await expect(page.locator('#bldEditHint')).toBeVisible();
   // Rejada balandlik koʻrinmaydi: bir qavat = 14 px (yuqoriga)
-  s = await scr(0, 0); await page.mouse.move(s.x, s.y); await page.mouse.down(); await page.mouse.move(s.x, s.y - 14 * 3, { steps: 6 }); await page.mouse.up();
+  s = await settle(0, 0); await page.mouse.move(s.x, s.y); await page.mouse.down(); await page.mouse.move(s.x, s.y - 14 * 3, { steps: 6 }); await page.mouse.up();
   expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings[0].floors)).toBe(8);
   await page.click('[data-view=axo]'); await page.waitForTimeout(300);
   const fh = await page.evaluate(() => (window as any).__mr.store.doc.settings.floorHeight);
@@ -63,7 +72,7 @@ test('tutqichlar: uchastka burchagi, bino burchagi va qavat tutqichi (vertikal s
   expect(await page.evaluate(() => (window as any).__mr.store.doc.buildings[0].floors)).toBe(11);
   await page.click('[data-view=plan]'); await page.waitForTimeout(300);
   // bino burchagi (20, 15) → (30, 15)
-  s = await scr(20, 15); await page.mouse.move(s.x, s.y); await page.mouse.down(); t = await scr(30, 15); await page.mouse.move(t.x, t.y, { steps: 5 }); await page.mouse.up();
+  s = await settle(20, 15); await page.mouse.move(s.x, s.y); await page.mouse.down(); t = await scr(30, 15); await page.mouse.move(t.x, t.y, { steps: 5 }); await page.mouse.up();
   const fp = await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); return ed.store.doc.buildings[0].footprint.map((p: number[]) => [Math.round((p[0] - o[0]) * mx), Math.round((p[1] - o[1]) * 111132)]); });
   expect(fp.some((p: number[]) => Math.abs(p[0] - 30) < 3 && Math.abs(p[1] - 15) < 3)).toBe(true);
 });
