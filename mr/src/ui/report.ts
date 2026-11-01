@@ -5,17 +5,21 @@
 import type { Project } from '../core/doc';
 import type { Result } from '../norms/rules';
 import type { TepRow } from '../core/tep';
+import { tr, getLang, trSvg } from '../i18n';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const num = (v: number, d = 0) => v.toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: 0 }).replace(/ /g, ' ');
 const STATUS: Record<string, [string, string]> = { pass: ['mos', '#1f7a4d'], fail: ['mos emas', '#b3261e'], review: ['koʻrib chiqish', '#a15c00'], na: ['baholanmadi', '#6b6b6b'] };
+/** 01.11 (egasi): hisobot interfeys tilida — barcha satrlar tr() orqali; sana — til mahalliy formatida */
+const LOC: Record<string, string> = { uz: 'uz-Latn-UZ', en: 'en-GB', ru: 'ru-RU', es: 'es-ES', pt: 'pt-PT', fr: 'fr-FR', az: 'az-Latn-AZ', uk: 'uk-UA', tr: 'tr-TR', kk: 'kk-KZ' };
+const T = (k: string) => esc(tr(k));
 
 export function reportHtml(doc: Project, shots: Record<'plan' | 'axo' | 'persp', string>, tep: TepRow[], rules: Result[], notes: string[], sheets: { name: string; svg: string }[] = []): string {
-  const date = new Date().toLocaleDateString('ru-RU');
-  const fmtV = (r: TepRow) => r.v == null ? '—' : typeof r.v === 'string' ? esc(r.v) : num(r.v, Math.abs(r.v) < 10 ? 2 : r.unit === '%' ? 1 : 0);
+  const L = getLang(); let date: string; try { date = new Date().toLocaleDateString(LOC[L] ?? 'ru-RU'); } catch { date = new Date().toLocaleDateString('ru-RU'); }
+  const fmtV = (r: TepRow) => r.v == null ? '—' : typeof r.v === 'string' ? esc(tr(r.v)) : num(r.v, Math.abs(r.v) < 10 ? 2 : r.unit === '%' ? 1 : 0);
   const groups = [...new Set(tep.map(r => r.g))];
   const counts = rules.reduce((a, r) => { a[r.status] = (a[r.status] ?? 0) + 1; return a; }, {} as Record<string, number>);
-  return `<!doctype html><html lang="uz"><head><meta charset="utf-8"><title>${esc(doc.name)} — Master reja hisoboti</title>
+  return `<!doctype html><html lang="${L}"><head><meta charset="utf-8"><title>${esc(doc.name)} — ${T('Master reja hisoboti')}</title>
 <style>
 @page { size: A4; margin: 14mm 13mm 16mm; }
 * { box-sizing: border-box; } body { font: 10.5pt/1.45 "Inter", "Segoe UI", Arial, sans-serif; color: #1d1d1b; margin: 0; background: #fff; }
@@ -35,26 +39,26 @@ tr.g td { background: #f3f1ec; font-weight: 600; } .sm { font-size: 8.5pt; color
 .pb { break-before: page; } tr, img { break-inside: avoid; }
 @media print { .bar { display: none; } main { padding: 0; } }
 </style></head><body>
-<div class="bar"><button onclick="print()">PDF saqlash / chop etish</button><span>Chop etish oynasida «PDF sifatida saqlash»ni tanlang (A4).</span></div>
+<div class="bar"><button onclick="print()">${T('PDF saqlash / chop etish')}</button><span>${T('Chop etish oynasida «PDF sifatida saqlash»ni tanlang (A4).')}</span></div>
 <main>
-<div class="kick">Archemistry Lab · Master reja</div>
+<div class="kick">${T('Archemistry Lab · Master reja')}</div>
 <h1>${esc(doc.name)}</h1>
-<div class="meta">${date} · markaz ${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)} · meʼyorlar: ShNQ 2.07.01-23, SanQvaN 0102-25</div>
-<h2>Hajmiy-fazoviy yechim</h2>
-<img src="${shots.axo}" alt="Aksonometriya"><div class="cap">Aksonometriya</div>
-<div class="two"><div><img src="${shots.plan}" alt="Reja"><div class="cap">Bosh reja</div></div><div><img src="${shots.persp}" alt="Perspektiva"><div class="cap">Perspektiva</div></div></div>
-${sheets.map((x, i) => `<h2 class="pb">${i ? '' : 'Grafik varaqlar · '}${esc(x.name)}</h2><img class="sheet" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(x.svg)}" alt="${esc(x.name)}">`).join('\n')}
-<h2 class="pb">Texnik-iqtisodiy koʻrsatkichlar</h2>
-<table><thead><tr><th>Koʻrsatkich</th><th>Birlik</th><th style="text-align:right">Qiymat</th><th>Izoh</th></tr></thead><tbody>
-${groups.map(g => `<tr class="g"><td colspan="4">${esc(g)}</td></tr>` + tep.filter(r => r.g === g).map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.unit)}</td><td class="n">${fmtV(r)}</td><td class="sm">${esc(r.note ?? '')}</td></tr>`).join('')).join('')}
+<div class="meta">${date} · ${T('markaz')} ${doc.origin[1].toFixed(5)}, ${doc.origin[0].toFixed(5)} · ${T('meʼyorlar')}: ${T('ShNQ 2.07.01-23')}, ${T('SanQvaN 0102-25')}</div>
+<h2>${T('Hajmiy-fazoviy yechim')}</h2>
+<img src="${shots.axo}" alt="${T('Aksonometriya')}"><div class="cap">${T('Aksonometriya')}</div>
+<div class="two"><div><img src="${shots.plan}" alt="${T('Reja')}"><div class="cap">${T('Bosh reja')}</div></div><div><img src="${shots.persp}" alt="${T('Perspektiva')}"><div class="cap">${T('Perspektiva')}</div></div></div>
+${sheets.map((x, i) => `<h2 class="pb">${i ? '' : `${T('Grafik varaqlar')} · `}${esc(x.name)}</h2><img class="sheet" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(trSvg(x.svg))}" alt="${esc(x.name)}">`).join('\n')}
+<h2 class="pb">${T('Texnik-iqtisodiy koʻrsatkichlar')}</h2>
+<table><thead><tr><th>${T('Koʻrsatkich')}</th><th>${T('Birlik')}</th><th style="text-align:right">${T('Qiymat')}</th><th>${T('Izoh')}</th></tr></thead><tbody>
+${groups.map(g => `<tr class="g"><td colspan="4">${T(g)}</td></tr>` + tep.filter(r => r.g === g).map(r => `<tr><td>${T(r.name)}</td><td>${T(r.unit)}</td><td class="n">${fmtV(r)}</td><td class="sm">${r.note ? T(r.note) : ''}</td></tr>`).join('')).join('')}
 </tbody></table>
-<h2 class="pb">Meʼyoriy reyestr</h2>
-<div class="sum">${Object.entries(STATUS).filter(([k]) => counts[k]).map(([k, [t, c]]) => `<span><span class="chip" style="background:${c}">${t}</span> ${counts[k]}</span>`).join('')}</div>
-<table><thead><tr><th>Talab va manba</th><th style="text-align:right">Qiymat</th><th style="text-align:right">Meʼyor</th><th>Natija</th></tr></thead><tbody>
-${rules.map(r => `<tr><td><b>${esc(r.title)}</b><br><span class="sm">${esc(`${r.source.doc}, ${r.source.clause}${r.source.verified ? '' : ' (tekshirilsin)'}`)}</span>${r.note ? `<div class="sm">${esc(r.note)}</div>` : ''}</td><td class="n">${r.value != null ? `${num(r.value, Math.abs(r.value) < 10 ? 2 : 0)} ${esc(r.unit ?? '')}` : '—'}</td><td class="n">${r.limit ? esc(`${r.limit} ${r.unit ?? ''}`) : '—'}</td><td><span class="chip" style="background:${STATUS[r.status][1]}">${STATUS[r.status][0]}</span></td></tr>`).join('')}
+<h2 class="pb">${T('Meʼyoriy reyestr')}</h2>
+<div class="sum">${Object.entries(STATUS).filter(([k]) => counts[k]).map(([k, [t, c]]) => `<span><span class="chip" style="background:${c}">${T(t)}</span> ${counts[k]}</span>`).join('')}</div>
+<table><thead><tr><th>${T('Talab va manba')}</th><th style="text-align:right">${T('Qiymat')}</th><th style="text-align:right">${T('Meʼyor')}</th><th>${T('Natija')}</th></tr></thead><tbody>
+${rules.map(r => `<tr><td><b>${T(r.title)}</b><br><span class="sm">${T(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${T('tekshirilsin')})`}</span>${r.note ? `<div class="sm">${T(r.note)}</div>` : ''}</td><td class="n">${r.value != null ? `${num(r.value, Math.abs(r.value) < 10 ? 2 : 0)} ${r.unit ? T(r.unit) : ''}` : '—'}</td><td class="n">${r.limit ? `${T(r.limit)} ${r.unit ? T(r.unit) : ''}` : '—'}</td><td><span class="chip" style="background:${STATUS[r.status][1]}">${T(STATUS[r.status][0])}</span></td></tr>`).join('')}
 </tbody></table>
-<h2>Taxminlar va cheklovlar</h2>
-<ul>${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>
-<p class="sm">Hisobot Archemistry Lab «Master reja» ilovasida avtomatik tuzildi. Qiymatlar loyiha hujjatidan har safar qayta hisoblanadi; meʼyor bandlari asl matndan olingan, «tekshirilsin» belgisi borlari — asl matn bilan solishtirilmagan.</p>
+<h2>${T('Taxminlar va cheklovlar')}</h2>
+<ul>${notes.map(n => `<li>${T(n)}</li>`).join('')}</ul>
+<p class="sm">${T('Hisobot Archemistry Lab «Master reja» ilovasida avtomatik tuzildi. Qiymatlar loyiha hujjatidan har safar qayta hisoblanadi; meʼyor bandlari asl matndan olingan, «tekshirilsin» belgisi borlari — asl matn bilan solishtirilmagan.')}</p>
 </main></body></html>`;
 }

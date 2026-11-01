@@ -2038,7 +2038,7 @@ export class Editor {
     const w = window.open('', '_blank'); if (!w) { toast('Brauzer yangi oynani bloklayapti — ruxsat bering'); return; }
     const shots = this.scene.captureViews(this.store.doc);
     const ctx = this.sheetCtx(), doc = this.store.doc, so = (kind: SheetKind) => ({ ...SHEET_DEFAULT, kind, paper: 'A4' as const, show: { ...SHEET_DEFAULT.show, title: false } });
-    const sheets = doc.site || doc.buildings.length ? (['bosh', 'zona'] as SheetKind[]).map(k => { const r = sheetSvg(doc, ctx, so(k)); return { name: `${k === 'bosh' ? 'Bosh reja' : 'Zonalash'}, M 1:${r.scale}`, svg: r.svg }; }) : [];
+    const sheets = doc.site || doc.buildings.length ? (['bosh', 'zona'] as SheetKind[]).map(k => { const r = sheetSvg(doc, ctx, so(k)); return { name: `${tr(k === 'bosh' ? 'Bosh reja' : 'Zonalash')}, M 1:${r.scale}`, svg: r.svg }; }) : [];
     w.document.open(); w.document.write(reportHtml(doc, shots, this.tep(), this.allRules(), this.reportNotes(), sheets)); w.document.close();
   }
   private tepXlsx(): Uint8Array {
