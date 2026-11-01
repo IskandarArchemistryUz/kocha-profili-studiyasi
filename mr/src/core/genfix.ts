@@ -161,8 +161,8 @@ function rayHitPar(p: XY, d: XY, r: XY[]): number {
  * oldida (H1+H2)·0,3 dan kam joy qolgan erkin torets — derazasiz; qolganlari — derazali.
  * Natija: GenSection.blind — derazasiz qirralar indekslari (ring[i] → ring[i+1]).
  */
-export function assignEnds(S: GenSection[], obs: Obstacle3[], D: number, floorH: number): void {
-  const H = (s: GenSection) => ((s.z0 ?? 0) + s.floors) * floorH;
+export function assignEnds(S: GenSection[], obs: Obstacle3[], D: number, floorH: number, groundH?: number): void {
+  const dg = groundH && groundH > floorH ? groundH - floorH : 0, H = (s: GenSection) => ((s.z0 ?? 0) + s.floors) * floorH + ((s.nonRes ?? 0) > 0 || (s.z0 ?? 0) > 0 ? dg : 0);
   const others = (k: number) => [...S.map((s, i) => ({ ring: s.ring, h: H(s), i })).filter(x => x.i !== k), ...obs.map(o => ({ ring: o.ring, h: o.h, i: -1 }))];
   S.forEach((s, k) => {
     if (s.kind === 'stilobat') return;

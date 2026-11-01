@@ -2135,7 +2135,7 @@ export class Editor {
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
-    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]) });
+    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]) });
     this.genNotes = asb ? [this.autoSbNote(asb), ...r.notes] : r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
     const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));

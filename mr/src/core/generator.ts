@@ -43,6 +43,8 @@ export interface GenParams {
   siteEdges?: 'kocha' | 'qoshni';
   /** hisoblangan (saqlanmaydi): har qirra boʻyicha chekinishdan keyingi joylashtirish chegarasi — inset oʻrniga */
   setbackRing?: XY[];
+  /** hisoblangan (saqlanmaydi): 1-qavat balandligi (settings.groundH, core/levels) — noturar 1-qavatli seksiyalar baland */
+  groundH?: number;
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
   passages: boolean;
   /** pastki noturar qavatlar (koʻchaga qaragan seksiyalarda) */
@@ -148,6 +150,8 @@ function minWidth(r: XY[]): number {
 }
 
 const FLOOR_H = 3.3;
+/** 01.11: baland 1-qavat qoʻshimchasi (groundH − qavat balandligi), m — 1-qavati noturar boʻlsa (core/levels.tallBase) */
+const dgOf = (g: GenParams, floorH: number): number => (g.nonRes > 0 && g.groundH && g.groundH > floorH ? g.groundH - floorH : 0);
 /** arka ostidagi ochiq balandlik, qavatlarda (2 × 3,3 = 6,6 m ≥ 4,25 m) */
 export const ARCH_F = 2;
 
@@ -540,7 +544,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
       if (!s.face) return;
       r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < wd) { wd = eff; worst = [i, k]; } });
     });
-    if (!worst || wd / 2 / floorH >= g.minF) break;
+    if (!worst || (wd / 2 - dgOf(g, floorH)) / floorH >= g.minF) break;
     const [i, k] = worst as [number, number], rm = r.sections.splice(Math.max(i, k), 1)[0]; if (rm.face) gone.push(rm.face.n); removed++;
   }
   // shu qirradan qolgan, hech biriga tegmaydigan yakka boʻlaklar — «uzilib» qolmasin, ular ham olinadi
@@ -580,7 +584,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     let d = Infinity, j = -1;
     r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < d) { d = eff; j = k; } });
     if (!Number.isFinite(d) || d > 200) return;
-    const cap = Math.max(g.minF, Math.floor(d / 2 / floorH));
+    const cap = Math.max(g.minF, Math.floor((d / 2 - dgOf(g, floorH)) / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
   });
   if (cut) r.notes.push(`${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (≥ 2·H, izoh 8)`);
@@ -593,7 +597,7 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
   if (!inner || inner.length !== A.length) return { sections: [], capFloors: null, notes: ['Kvartal perimetr uchun juda kichik — «qatorlar» ni sinab koʻring'] };
   // hovli: yopiq perimetr — 2,3·Hmax (izoh 3), oʻtishlar bilan — 2·Hmax (izoh 8, seysmik 8+)
   const wc = minWidth(inner), k = g.passages ? 2 : 2.3;
-  const cap = Math.max(1, Math.floor(wc / k / floorH));
+  const cap = Math.max(1, Math.floor((wc / k - dgOf(g, floorH)) / floorH));
   if (cap < g.maxF) notes.push(`Hovli eni ${Math.round(wc)} m → qavat ≤ ${cap} (ShNQ 2.07.01-23, 79-band 2-jadval, izoh ${g.passages ? 8 : 3}: ${k.toString().replace('.', ',')}·Hmax)`);
   const maxF = Math.min(g.maxF, cap), minF = Math.min(g.minF, maxF);
   const sections: GenSection[] = [];
@@ -672,7 +676,7 @@ function mergeCorners(A: XY[], S: GenSection[], meta: { edge: number; first: boo
 function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
   // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0102-25, 3-band — turar joy obyektlari janubiy, janubi-sharqiy, sharqiy, shimoli-sharqiy yoʻnalishda;
   // 15-band — xona derazalari gʻarbga (200–290°) yoʻnaltirilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
-  const D = g.depth, H = g.maxF * floorH, gap = Math.max(2 * H, 20); // izoh 8: ≥ 2·Hmax
+  const D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gap = Math.max(2 * H, 20); // izoh 8: ≥ 2·Hmax
   notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const p of A) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
@@ -694,7 +698,7 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
     }
   }
   if (!sections.length) notes.push('Qator sigʻmadi — chuqurlik yoki qavatni kamaytiring');
-  return { sections, capFloors: Math.floor(gap / 2 / floorH), notes };
+  return { sections, capFloors: Math.floor((gap / 2 - dgOf(g, floorH)) / floorH), notes };
 }
 
 /* ====================== tipologiyalar ====================== */
@@ -777,13 +781,13 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       return { sections: houses.map(h => ({ ring: h.ring, floors: h.floors, kind: h.kind as SecKind, nonRes: 0, plot: h.plot, ...(h.joint ? { joint: true } : {}) })), capFloors: null, notes: [...notes, ...n2] };
     }
     case 'villa': {
-      const H = g.maxF * floorH, gap = Math.max(18, 0.6 * H);
+      const H = g.maxF * floorH + dgOf(g, floorH), gap = Math.max(18, 0.6 * H);
       const sq = points(A, 20, gap);
       notes.push(`Villalar orasi ${Math.round(gap)} m — derazali toretslar orasi (H1+H2)·0,3 (79-band 2-jadval) va ≥ 18 m`);
       return { sections: sq.map(ring => ({ ring, floors: g.maxF, kind: 'villa' as SecKind, nonRes: 0 })), capFloors: null, notes };
     }
     case 'minora': {
-      const H = tf * floorH, gap = Math.max(25, 0.6 * H);
+      const H = tf * floorH + dgOf(g, floorH), gap = Math.max(25, 0.6 * H);
       const sq = points(A, 24, gap);
       notes.push(`Minoralar orasi ${Math.round(gap)} m — (H1+H2)·0,3 (79-band 2-jadval), ≥ 25 m`);
       return { sections: sq.map(ring => ({ ring, floors: tf, kind: 'minora' as SecKind, nonRes: g.nonRes })), capFloors: null, notes };
@@ -800,7 +804,7 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       // ofis plitalari (31.10, egasi: qiya parselda qirrani takrorlagan qiyshiq va bir-biriga kirgan boʻlaklar): endi faqat toʻgʻri toʻrtburchak plitalar —
       // eng uzun qirra yoʻnalishida qatorlar, har plita parsel chekinishi ichiga toʻliq sigʻadi; korpus 18 m, uzunligi ≤ 60 m, plitalar orasi ≥ 12 m (yongʻin uzilishi — andoza),
       // qatorlar orasi ≥ 0,8·H, kamida 15 m (yoritish — taxmin); barcha qavatlar noturar
-      const H = g.maxF * floorH, gap = Math.max(15, 0.8 * H);
+      const H = g.maxF * floorH + dgOf(g, floorH), gap = Math.max(15, 0.8 * H);
       const sl = slabRows(A, 18, gap, Math.max(36, Math.min(60, g.secLen * 2)), 12);
       if (!sl.length) return { sections: [], capFloors: null, notes: ['Ofis plitasi sigʻmadi — chekinish yoki qavatni kamaytiring'] };
       notes.push(`Ofis plitalari: ${sl.length} ta, korpus 18 m, ${g.maxF} qavat, hammasi noturar; qatorlar orasi ${Math.round(gap)} m (≥ 0,8·H — taxmin), plitalar orasi ≥ 12 m`);
@@ -808,7 +812,7 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
     }
     case 'ofis_minora': {
       // stilobat (2 qavat, chekinish ichida) + minoralar toʻri; stilobat ustidagi ofis minoralari
-      const H = tf * floorH, gap = Math.max(30, 0.7 * H), sq = points(A, 28, gap);
+      const H = tf * floorH + dgOf(g, floorH), gap = Math.max(30, 0.7 * H), sq = points(A, 28, gap);
       const sections: GenSection[] = [{ ring: A, floors: 2, kind: 'stilobat', nonRes: 2, use: 'savdo' }, ...sq.map(ring => ({ ring, floors: tf - 2, kind: 'minora' as SecKind, nonRes: tf - 2, z0: 2, use: 'ofis' }))];
       notes.push(`Ofis minoralari: 2 qavatli stilobat (savdo) + ${sq.length} minora × ${tf} qavat; minoralar orasi ${Math.round(gap)} m`);
       return { sections, capFloors: null, notes };
@@ -945,7 +949,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   if (pk !== 'yoq' && outer) r.parking = placeParking(clean(outer, 6), r, g, t, opts) ?? undefined;
   archFloors(r.sections);
   dropStrays(r.sections, Math.max(6, 0.6 * g.maxF * floorH), r.notes);
-  assignEnds(r.sections, opts.avoid ?? [], g.depth, floorH);
+  assignEnds(r.sections, opts.avoid ?? [], g.depth, floorH, g.groundH);
   r.far = (gfaOf(r)) / site;
   if (far > 0 && r.far < far - 0.15) r.notes.push(`UMN maqsadi ${String(far).replace('.', ',')} ga yetmadi (${r.far.toFixed(2).replace('.', ',')}): meʼyoriy oraliqlar bilan joy yetmadi — «Qavat, eng koʻp» ni oshiring (qavat qoʻshish orqali)`);
   return r;
