@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-DGW58_kw.js";
