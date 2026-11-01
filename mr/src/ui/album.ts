@@ -495,19 +495,22 @@ export function openAlbum(o: AlbumOpts): void {
 }
 
 /** Turar joy binolari genplani (kichik): bosilganda bino tanlanadi */
-export function genplanSvg(plans: SecPlan[], bid: string, name: (pl: SecPlan, i: number) => string, pick: (bid: string) => void): SVGSVGElement {
+export function genplanSvg(plans: SecPlan[], bid: string, name: (pl: SecPlan, i: number) => string, pick: (bid: string) => void, houses: { bid: string; ring: XY[]; name: string }[] = []): SVGSVGElement {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const pl of plans) for (const p of pl.ring) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+  for (const r of [...plans.map(pl => pl.ring), ...houses.map(q => q.ring)]) for (const p of r) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
   const W = 272, H = 150, k = Math.min((W - 16) / (x1 - x0 || 1), (H - 16) / (y1 - y0 || 1)), ox = (W - (x1 - x0) * k) / 2, oy = (H - (y1 - y0) * k) / 2;
-  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Genplan: binoni tanlang'); svg.classList.add('alb-gp');
-  plans.forEach((pl, i) => {
-    const g = document.createElementNS(ns, 'path'), on = pl.bid === bid;
-    g.setAttribute('d', pl.ring.map((p, j) => `${j ? 'L' : 'M'}${(ox + (p[0] - x0) * k).toFixed(1)} ${(oy + (y1 - p[1]) * k).toFixed(1)}`).join('') + 'Z');
-    g.setAttribute('fill', on ? '#0a84ff' : '#fff'); g.setAttribute('stroke', on ? '#0a84ff' : '#8e8a82'); g.setAttribute('stroke-width', '1');
-    g.setAttribute('data-bld', pl.bid); g.style.cursor = 'pointer';
-    const t = document.createElementNS(ns, 'title'); t.textContent = name(pl, i); g.append(t);
-    g.addEventListener('click', () => pick(pl.bid));
+  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Genplan: binoni tanlang');
+  // seksiyalar va (1.11) past qavatli uylar — uy bosilsa oʻsha uyning rejasi ochiladi
+  const add = (ring: XY[], id: string, label: string, house: boolean) => {
+    const g = document.createElementNS(ns, 'path'), on = id === bid;
+    g.setAttribute('d', ring.map((p, j) => `${j ? 'L' : 'M'}${(ox + (p[0] - x0) * k).toFixed(1)} ${(oy + (y1 - p[1]) * k).toFixed(1)}`).join('') + 'Z');
+    g.setAttribute('fill', on ? '#0a84ff' : house ? '#e9e4da' : '#fff'); g.setAttribute('stroke', on ? '#0a84ff' : '#8e8a82'); g.setAttribute('stroke-width', '1');
+    g.setAttribute('data-bld', id); if (house) g.setAttribute('data-house', '1'); g.style.cursor = 'pointer';
+    const t = document.createElementNS(ns, 'title'); t.textContent = label; g.append(t);
+    g.addEventListener('click', () => pick(id));
     svg.append(g);
-  });
+  };
+  plans.forEach((pl, i) => add(pl.ring, pl.bid, name(pl, i), false));
+  houses.forEach(q => add(q.ring, q.bid, q.name, true));
   return svg;
 }
