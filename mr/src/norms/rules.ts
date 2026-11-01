@@ -322,6 +322,36 @@ export const RULES: Rule[] = [
     },
   },
   {
+    id: 'hovli-79-3',
+    title: 'Yopiq ichki hovli: ichki fasadlar orasi (Hmax × 2,3)',
+    source: { ...SHNQ_2_07_01, clause: '79-band, 2-jadval, 3-izoh' },
+    evaluate(_d, doc) {
+      // yopiq hovli — binolar (antiseysmik choklar va arkalar bilan birga) toʻliq oʻrab olgan boʻshliq:
+      // har bir izning 1,5 m tasmasi bilan birlashmasidagi teshik (≤ 3 m tirqishlar yopiladi)
+      const fr = frame(doc.origin), bs = doc.buildings.filter(b => b.floors > 0), R = new Map(bs.map(b => [b.id, b.footprint.map(fr.toLocal)]));
+      if (!bs.some(b => useDef(b.use).res > 0)) return { status: 'na', note: 'Turar joy binolari yoʻq' };
+      const parts = bs.flatMap(b => { const r = R.get(b.id)!; return [[[...r, r[0]]] as Polygon, ...corridor([...r, r[0]], 1.5)]; });
+      let U: Polygon[] = [];
+      try { U = parts.length ? polygonClipping.union(parts[0], ...parts.slice(1)) : []; } catch { return { status: 'na', note: 'Geometriya hisoblanmadi' }; }
+      const holes = U.flatMap(p => p.slice(1).map(h => h.slice(0, -1) as XY[])).filter(h => Math.abs(areaOf(h)) > 100);
+      if (!holes.length) return { status: 'na', note: 'Yopiq ichki hovli yoʻq (hovli koʻchaga ochiq yoki 3 m dan keng oraliq bor) — 2-jadvalning umumiy masofalari qoʻllanadi.' };
+      const ringD = (p: XY, r: XY[]) => { let m = Infinity; for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); m = Math.min(m, Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t)); } return m; };
+      const res: { h: XY[]; S: number; need: number; Hm: number; ids: string[]; c: XY; U: XY }[] = [];
+      for (const h of holes) {
+        const near = bs.filter(b => R.get(b.id)!.some(p => ringD(p, h) < 2.5) || h.some(p => ringD(p, R.get(b.id)!) < 2.5));
+        if (!near.some(b => useDef(b.use).res > 0)) continue;   // 3-izoh: turar joylarda
+        const Hm = Math.max(...near.map(b => bLevels(doc.settings, b).top)), o = obb2(h), S = o.S + 3;
+        const c: XY = [h.reduce((t, p) => t + p[0], 0) / h.length, h.reduce((t, p) => t + p[1], 0) / h.length];
+        res.push({ h, S, need: Hm * 2.3, Hm, ids: near.map(b => b.id), c, U: [-o.U[1], o.U[0]] });
+      }
+      if (!res.length) return { status: 'na', note: 'Yopiq hovli turar joy binolari bilan oʻralmagan.' };
+      const bad = res.filter(x => x.S < x.need - 0.5), worst = res.reduce((a, x) => (x.S / x.need < a.S / a.need ? x : a));
+      const where: Where | undefined = bad.length ? { bids: [...new Set(bad.flatMap(x => x.ids))], need: { segs: bad.map(x => [[x.c[0] - x.U[0] * x.need / 2, x.c[1] - x.U[1] * x.need / 2], [x.c[0] + x.U[0] * x.need / 2, x.c[1] + x.U[1] * x.need / 2]] as [XY, XY]), labels: bad.map(x => ({ at: [x.c[0] + x.U[0] * x.need / 2, x.c[1] + x.U[1] * x.need / 2] as XY, text: `${nm(x.S)} → ${nm(x.need)} m` })) } } : undefined;
+      return { status: bad.length ? 'fail' : 'pass', value: worst.S, unit: 'm', limit: `≥ ${nm(worst.need)} (Hmax ${nm(worst.Hm)} × 2,3)`, ...(where ? { where } : {}),
+        note: `Yopiq ichki hovlisi bor turar joylarda binolarning ichki fasadlari orasidagi masofa Hmax × 2,3 qabul qilinadi (3-izoh). Hovlilar: ${res.length}; eng tori ${nm(worst.S)} m (hovlining qisqa oʻlchami), talab ${nm(worst.need)} m. Hmax — hovlini oʻrab turgan binolarning eng balandi (1-izoh: yer sathidan eng yuqori qavat tom yopmasigacha).` };
+    },
+  },
+  {
     id: 'green-36',
     title: 'Mavzedagi umumiy foydalanishdagi yashil hudud, kishi boshiga',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '486-band, 36-jadval (eng yirik va katta shaharlar)', verified: true },
