@@ -69,3 +69,15 @@ export async function joyRep(page: Page, id: 'repPdf' | 'repSvg' | 'repChz' | 'a
 }
 /** oʻng paneldagi yorliq — boshqa yoqilgan qatlam kartasini ochish */
 export async function joyTab(page: Page, id: string): Promise<void> { await page.locator(`.joy-tabs [data-tab=${id}]`).click(); }
+
+/** 01.11 (beqaror testlar): «Qoʻyish» bilan toʻgʻri toʻrtburchak uchastka — panel qayta chizilib qiymat yoʻqolsa, qayta kiritiladi */
+export async function rectSite(page: Page, w: number, hgt: number): Promise<void> {
+  const siteW = () => page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), xs = (ed.store.doc.site?.rings[0] ?? []).map((p: number[]) => (p[0] - o[0]) * mx); return xs.length ? Math.round(Math.max(...xs) - Math.min(...xs)) : 0; });
+  const ok = async () => Math.abs((await siteW()) - w) <= 2;
+  for (let k = 0; k < 6 && !(await ok()); k++) {
+    await page.fill('#rw', String(w)); await page.fill('#rh', String(hgt)); await page.waitForTimeout(150);
+    if ((await page.inputValue('#rw')) !== String(w) || (await page.inputValue('#rh')) !== String(hgt)) continue;
+    await page.click('#rectSite'); await page.waitForTimeout(300);
+  }
+  if (!(await ok())) throw new Error(`uchastka ${w} m boʻlmadi (${await siteW()})`);
+}

@@ -1,4 +1,4 @@
-import { test, expect } from './fx';
+import { test, expect, rectSite } from './fx';
 
 test('seksiya generatori: kvartal → seksiyalar, qavatni tahrirlash, undo, reyestr', async ({ page }) => {
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
@@ -99,7 +99,7 @@ test('shamol: shamol guli (EPW) va piyoda sathidagi oqim', async ({ page }) => {
 test('oʻtkir burchakli kvartallar: ofis, savdo, maktab joylashadi', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
-  await page.fill('#rw', '300'); await page.fill('#rh', '220'); await page.click('#rectSite');
+  await rectSite(page, 300, 220);
   await page.evaluate(() => {
     const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132];
     ed.store.dispatch({ type: 'setContext', patch: { loaded: true } });

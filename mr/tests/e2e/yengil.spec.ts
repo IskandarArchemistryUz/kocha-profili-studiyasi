@@ -1,4 +1,4 @@
-import { test, expect } from './fx';
+import { test, expect, rectSite } from './fx';
 
 /** Sahna yengilligi: geometrik fasad faqat yaqin binolarda (LOD), qayta qurishda GPU geometriyalari oqib ketmaydi */
 test('sahna: LOD va qayta qurishda xotira oqmaydi', async ({ page }) => {
@@ -56,7 +56,7 @@ test('tanlov: faqat binolar qayta quriladi, natija toʻliq qayta qurish bilan bi
 test('toʻr: uchlarni ulash bilan birga bitta oʻzgarish', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
-  await page.fill('#rw', '500'); await page.fill('#rh', '480'); await page.click('#rectSite');
+  await rectSite(page, 500, 480);
   // uchastka atrofida 20 m nariroqda yoʻllar — toʻr uchlari ularga ulanadi
   await page.evaluate(() => { const m = (window as any).__mr, d = m.store.doc, r = d.site.rings[0]; let a = Infinity, b = Infinity, c = -Infinity, e = -Infinity; for (const p of r) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); e = Math.max(e, p[1]); }
     const dx = (c - a) * 20 / 500, dy = (e - b) * 20 / 480; a -= dx; c += dx; b -= dy; e += dy;
