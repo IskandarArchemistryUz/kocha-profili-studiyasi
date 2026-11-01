@@ -1,1 +1,0 @@
-import"./chzsend-C_BcPT38.js";export{c as sendToChizmadon}from"./io-CRFSFaMo.js";
