@@ -153,7 +153,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
       const rf = Math.min(1.7, 0.17 * k);
       for (const q of inn.rooms) out.push(`<path d="${path(q.ring)}" fill="${q.wet ? '#ffffff' : tf ?? (o.mono ? '#ffffff' : APT_FILL[Math.min(4, a.rooms)])}" stroke="none" pointer-events="none"/>${q.wet ? `<path d="${path(q.ring)}" fill="url(#tile)" stroke="none" pointer-events="none"/>` : ''}`);
       if (inn.kitchen && (o.furn !== true || !inn.furn)) out.push(seg(inn.kitchen[0], inn.kitchen[1], 'stroke="#6b6965" stroke-width="0.18" stroke-dasharray="0.8 0.5"'));
-      if (o.furn === true && inn.furn) for (const f of inn.furn) out.push(furnSvg(f, X, Y, k));
+      if (o.furn === true && inn.furn) for (const f of inn.furn) out.push(`<g data-furn="${f.k}">${furnSvg(f, X, Y, k)}</g>`);
       for (const [p, q] of inn.walls) out.push(seg(p, q, `stroke="#141414" stroke-width="${(0.1 * k).toFixed(2)}" stroke-linecap="butt"`));
       for (const d of inn.doors) {
         const tip: XY = [d.h[0] + d.n[0] * d.w, d.h[1] + d.n[1] * d.w];
