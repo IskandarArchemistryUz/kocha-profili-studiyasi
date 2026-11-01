@@ -194,6 +194,8 @@ export interface Project {
   keepRings?: Record<string, Ring>;
   /** atrofdagi (OSM) binolar — foydalanuvchi sahnadan olib tashlagan (id lar) */
   removed?: number[];
+  /** 02.11: olib tashlangan binolar markazi (id → [lng, lat]) — atrof boshqa manbadan (boshqa id bilan) yuklansa markaz boʻyicha qayta topiladi (keepAt kabi) */
+  removedAt?: Record<string, LngLat>;
   /** 01.11: uchastka chetlari (loyiha koʻchasiga tutash boʻlmaganlari) — mavjud koʻcha yoki qoʻshni hudud (79-band, 2-jadval: qoʻshni chegaragacha H × kʏ / 2) */
   siteEdges?: 'kocha' | 'qoshni';
   /** 01.11: atrofdagi (OSM) binolar vazifasi — foydalanuvchi belgilagan (id → turar / noturar); belgilanmaganlari OSM «building» tegi boʻyicha */
@@ -341,6 +343,7 @@ export function migrate(raw: unknown): Project {
   const keepAt: Record<string, LngLat> = {}; if (d.keepAt && typeof d.keepAt === 'object') for (const [k, v] of Object.entries(d.keepAt)) if (isLL(v)) keepAt[k] = [(v as LngLat)[0], (v as LngLat)[1]];
   const keepRings: Record<string, Ring> = {}; if (d.keepRings && typeof d.keepRings === 'object') for (const [k, v] of Object.entries(d.keepRings)) if (isRing(v)) keepRings[k] = (v as LngLat[]).map(p => [p[0], p[1]] as LngLat);
   const removed: number[] = (Array.isArray(d.removed) ? d.removed : []).filter(isNum);
+  const removedAt: Record<string, LngLat> = {}; if (d.removedAt && typeof d.removedAt === 'object') for (const [k, v] of Object.entries(d.removedAt)) if (isLL(v) && removed.includes(Number(k))) removedAt[k] = [(v as LngLat)[0], (v as LngLat)[1]];
   const siteEdges = d.siteEdges === 'qoshni' || d.siteEdges === 'kocha' ? d.siteEdges as 'kocha' | 'qoshni' : undefined;
   const ctxUse: Record<string, 'turar' | 'noturar'> = {}; if (d.ctxUse && typeof d.ctxUse === 'object') for (const [k, v] of Object.entries(d.ctxUse)) if (v === 'turar' || v === 'noturar') ctxUse[k] = v;
   const removedRoads: number[] = (Array.isArray(d.removedRoads) ? d.removedRoads : []).filter(isNum);
@@ -362,7 +365,7 @@ export function migrate(raw: unknown): Project {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(siteEdges ? { siteEdges } : {}), ...(Object.keys(ctxUse).length ? { ctxUse } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}),
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(Object.keys(removedAt).length ? { removedAt } : {}), ...(siteEdges ? { siteEdges } : {}), ...(Object.keys(ctxUse).length ? { ctxUse } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}),
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
     ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
     ...(() => { const ul = cleanUserLayers(d.userLayers); return ul.length ? { userLayers: ul } : {}; })(),
