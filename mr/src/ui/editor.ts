@@ -3959,6 +3959,7 @@ export class Editor {
     this.el.kpi.classList.toggle('all', this.kpiAll);
     this.el.kpi.replaceChildren(
       k('Uchastka, ga', d.siteHa ? fmt(d.siteHa, 2) : '—', undefined, 'kSite'),
+      ...(d.balance ? [k('Yaroqli, ga', fmt(d.balance.usableHa, 2), undefined, 'kUsable')] : []),   // 02.11: cheklovlar boʻlsa — qurilishga yaroqli maydon
       k('GFA, m²', d.gfa ? fmt(d.gfa) : '—', undefined, 'kGfa'),
       k('UMN (FAR)', d.far ? fmt(d.far, 2) : '—', undefined, undefined, false, true),
       k('Qurilish zichligi', d.gsi ? fmt(d.gsi * 100, 0) + ' %' : '—', undefined, undefined, true),

@@ -6,6 +6,7 @@
 import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type Round, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid, CTX_R_MIN, CTX_R_MAX } from './doc';
 import { frame } from './geo';
 import type { UserLayerMeta } from './userlayers';
+import type { Limit } from './limits';
 
 export type Command =
   | { type: 'rename'; name: string }
@@ -22,6 +23,9 @@ export type Command =
   | { type: 'deleteSelection'; ids: string[]; ctx: number[]; at?: Record<string, LngLat> }
   /** atrofdagi olib tashlangan binolar roʻyxatini almashtirish (qaytarish) */
   | { type: 'setRemoved'; removed: number[]; at?: Record<string, LngLat> }
+  | { type: 'addLimit'; limit: Limit }
+  | { type: 'updateLimit'; id: string; patch: Partial<Omit<Limit, 'id'>> }
+  | { type: 'removeLimit'; id: string }
   | { type: 'setRemovedRoads'; ids: number[] }
   | { type: 'setSettings'; patch: Partial<Settings> }
   | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
@@ -82,6 +86,9 @@ export function label(c: Command): string {
     case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
     case 'setZones': return 'Zona';
     case 'setKeep': return 'Saqlanadigan binolar';
+    case 'addLimit': return 'Cheklov qoʻshildi';
+    case 'updateLimit': return 'Cheklov oʻzgardi';
+    case 'removeLimit': return 'Cheklov olib tashlandi';
     case 'setSiteEdges': return 'Uchastka chetlari';
     case 'setCtxUse': return 'Atrofdagi bino vazifasi';
     case 'addPoi': return 'Xizmat obyekti qoʻshildi';
@@ -164,6 +171,9 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       if (c.at && c.ctx.length) { const at = { ...doc.removedAt }; for (const k of c.ctx) if (c.at[k]) at[k] = c.at[k]; d.removedAt = at; }
       if (c.ctx.length) { d.keep = doc.keep.filter(k => !c.ctx.includes(k)); if (doc.keepAt) { const at = { ...doc.keepAt }; for (const k of c.ctx) delete at[k]; d.keepAt = at; } if (doc.keepRings) { const rg = { ...doc.keepRings }; for (const k of c.ctx) delete rg[k]; d.keepRings = rg; } } return d;
     }
+    case 'addLimit': d.limits = [...(doc.limits ?? []), c.limit]; return d;
+    case 'updateLimit': { d.limits = (doc.limits ?? []).map(l => l.id === c.id ? { ...l, ...c.patch } : l); return d; }
+    case 'removeLimit': { const ls = (doc.limits ?? []).filter(l => l.id !== c.id); if (ls.length) d.limits = ls; else delete d.limits; return d; }
     case 'setRemoved': {
       if (c.removed.length) d.removed = [...new Set(c.removed)]; else delete d.removed;
       const prev = { ...doc.removedAt, ...c.at }, at: Record<string, LngLat> = {}; for (const k of d.removed ?? []) if (prev[k]) at[k] = prev[k];
