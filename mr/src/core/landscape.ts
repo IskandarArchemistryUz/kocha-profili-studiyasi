@@ -402,11 +402,20 @@ function fireLane(own: Own[], free: MultiPolygon, st: Project['settings'], arche
     if (links.length) mp = tryOp(() => polygonClipping.union(mp, ...links.map(l => tryOp(() => polygonClipping.intersection(l, B, ...[]) , [] as MultiPolygon)).filter(l => l.length)), mp);
     mp = tryOp(() => polygonClipping.difference(mp, ...all.map(x => [close(x.r)] as Polygon)), mp);
   }
+  // 01.11 (egasi: «yongʻin yoʻllari doim koʻchaga ulansin, koʻcha tomondan»): binolar oraligʻidagi (eni ≥ w + 1 m) oʻtishlardan
+  // kvartal chetigacha (koʻchaga) bogʻlovchi yoʻlak; oʻtish markazidan hovli tomon — yoʻlak oʻqigacha (d + w + 2 m)
+  if (mp.length && B) {
+    const gaps = entriesOf(open(B[0]), all, arches).filter(e => e.kind === 'oraliq' && (e.w ?? 0) >= w + 1);
+    const links = gaps.map(e => tryOp(() => polygonClipping.intersection(corridor([[e.p[0] - e.d[0] * 60, e.p[1] - e.d[1] * 60], [e.p[0] + e.d[0] * (d + w + 2), e.p[1] + e.d[1] * (d + w + 2)]], w / 2), B), [] as MultiPolygon)).filter(l => l.length);
+    if (links.length) { mp = tryOp(() => polygonClipping.union(mp, ...links), mp); mp = tryOp(() => polygonClipping.difference(mp, ...all.map(x => [close(x.r)] as Polygon)), mp); }
+  }
   // stilobat tomi: rampadan yoʻlakka ulanish
   if (roof?.extra.length && free.length) { const ex = roof.extra.map(e => tryOp(() => polygonClipping.intersection(e, free), [] as MultiPolygon)).filter(e => e.length); if (ex.length) mp = tryOp(() => polygonClipping.union(mp, ...ex), mp); }
   // burchaklar radiusli (andoza: ichki radius 6 m, tashqi 6 + w — oʻq boʻyicha ≈ 8 m): mashina burilishi uchun
   if (mp.length) { const rd = tryOp(() => safeUnion(mp.map(p => p.map(r => close(roundRing(open(r), FIRE_R + w, FIRE_R))) as Polygon)), mp); if (rd.length) mp = B ? tryOp(() => polygonClipping.intersection(rd, B), rd) : rd; }
   mp = mp.filter(p => area(open(p[0])) >= w * 12);   // mayda boʻlaklar — yoʻlak emas
+  // koʻchaga (kvartal chetiga) yetmagan boʻlaklar — mashina kira olmaydi: olib tashlanadi (hech biri yetmasa — oʻzgarishsiz, meʼyorlar roʻyxatida koʻrinadi)
+  if (B && mp.length) { const ob = open(B[0]), reach = mp.filter(p => open(p[0]).some(q => ringD(q, ob) < 1.5)); if (reach.length) mp = reach; }
   return { mp, w, d, hmax, tall: all };   // tall — daraxt cheklovi uchun: yoʻlak butun halqa boʻylab   // mp boʻsh — hovlida joy yetmadi (meʼyorlar roʻyxatida «mos emas»)
 }
 
