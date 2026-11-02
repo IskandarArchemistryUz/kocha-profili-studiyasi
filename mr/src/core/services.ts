@@ -28,11 +28,40 @@ export interface Net { xy: XY[]; adj: { to: number; w: number }[][]; segs: [numb
 
 const key = (p: XY) => `${Math.round(p[0] * 2)},${Math.round(p[1] * 2)}`;
 
+/**
+ * Loyiha koʻchalari chorrahalari (02.11): koʻcha oʻqlari bir-birini (va mavjud yoʻllarni) uchida emas, oʻrtasida kesib oʻtadi —
+ * kesishish nuqtasi ikkala chiziqqa tugun sifatida qoʻshiladi, aks holda tarmoq uzilib, masofa faqat bitta koʻcha boʻylab hisoblanardi.
+ * Faqat loyiha koʻchasi qatnashgan juftliklar tekshiriladi (OSM tarmogʻi oʻzi tugunlangan).
+ */
+function cutCrossings(lines: XY[][], extra: XY[][]): { lines: XY[][]; extra: XY[][] } {
+  if (!extra.length) return { lines, extra };
+  type S = { l: number; i: number; a: XY; b: XY; cut: { t: number; p: XY }[] };
+  const all = [...lines, ...extra], segs: S[] = [], nL = lines.length;
+  all.forEach((l, li) => { for (let i = 1; i < l.length; i++) segs.push({ l: li, i, a: l[i - 1], b: l[i], cut: [] }); });
+  const e0 = segs.findIndex(s => s.l >= nL), E = 1e-9;
+  if (e0 < 0) return { lines, extra };
+  for (let x = e0; x < segs.length; x++) for (let y = 0; y < segs.length; y++) {
+    if (y >= e0 && y <= x) continue;   // extra × extra juftligi bir marta
+    const p = segs[x], q = segs[y];
+    const rx = p.b[0] - p.a[0], ry = p.b[1] - p.a[1], sx = q.b[0] - q.a[0], sy = q.b[1] - q.a[1], den = rx * sy - ry * sx;
+    if (Math.abs(den) < E) continue;
+    const qx = q.a[0] - p.a[0], qy = q.a[1] - p.a[1], t = (qx * sy - qy * sx) / den, u = (qx * ry - qy * rx) / den;
+    if (t < -E || t > 1 + E || u < -E || u > 1 + E) continue;
+    const P: XY = [p.a[0] + rx * t, p.a[1] + ry * t];
+    if (t > 1e-6 && t < 1 - 1e-6) p.cut.push({ t, p: P });
+    if (u > 1e-6 && u < 1 - 1e-6) q.cut.push({ t: u, p: P });
+  }
+  const out = all.map(l => [l[0]] as XY[]);
+  for (const s of segs) { s.cut.sort((m, n) => m.t - n.t).forEach(c => out[s.l].push(c.p)); out[s.l].push(s.b); }
+  return { lines: out.slice(0, nL), extra: out.slice(nL) };
+}
+
 /** Chiziqlar (siniq) → graf. join — loyiha koʻchalari uchlari eng yaqin tugunga ulanadigan masofa, m */
 export function buildNet(lines: XY[][], extra: XY[][] = [], join = 25): Net {
   const xy: XY[] = [], ids = new Map<string, number>(), adj: Net['adj'] = [], segs: [number, number][] = [];
   const node = (p: XY) => { const k = key(p); let i = ids.get(k); if (i == null) { i = xy.length; ids.set(k, i); xy.push(p); adj.push([]); } return i; };
   const edge = (a: number, b: number) => { if (a === b) return; const w = Math.hypot(xy[a][0] - xy[b][0], xy[a][1] - xy[b][1]); adj[a].push({ to: b, w }); adj[b].push({ to: a, w }); segs.push([a, b]); };
+  ({ lines, extra } = cutCrossings(lines, extra));
   for (const l of lines) for (let i = 1; i < l.length; i++) edge(node(l[i - 1]), node(l[i]));
   const base = xy.length;
   const ex: number[][] = extra.map(l => l.map(node));
