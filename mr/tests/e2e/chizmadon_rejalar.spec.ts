@@ -12,8 +12,10 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   const mats = page.locator('#chStMats');
   for (const n of ['Bosh reja', 'Zonalashtirish (land use)', 'Funksional reja', 'Qavatlar soni', 'Figura-fon', 'Landshaft', 'Vaziyat sxemasi', 'Kvartirografiya · 1-bino'])
     await expect(mats.locator('.li', { hasText: n }).first()).toBeAttached();
-  // sukut: bosh reja, land use va 1-bino kvartirografiyasi yoqilgan; qolganlari — tanlov boʻyicha
-  await expect(mats.locator('.li', { hasText: 'Bosh reja' }).first()).toHaveAttribute('aria-pressed', 'true');
+  // sukut (02.11, egasi: «barcha rejalar albomga sukut boʻyicha tushsin»): 7 reja namunasi va bino turining 1-qavat, tipik qavati yoqilgan; oʻchirib-yoqsa boʻladi
+  for (const n of ['Bosh reja', 'Funksional reja', 'Qavatlar soni', 'Figura-fon', 'Landshaft', 'Vaziyat sxemasi']) await expect(mats.locator('.li', { hasText: n }).first()).toHaveAttribute('aria-pressed', 'true');
+  await expect(mats.locator('.li', { hasText: 'Kvartirografiya · 1-bino · 1-qavat' }).first()).toHaveAttribute('aria-pressed', 'true');
+  await mats.locator('.li', { hasText: 'Qavatlar soni' }).click();
   await expect(mats.locator('.li', { hasText: 'Qavatlar soni' })).toHaveAttribute('aria-pressed', 'false');
   await mats.locator('.li', { hasText: 'Qavatlar soni' }).click();
   await expect(mats.locator('.li', { hasText: 'Qavatlar soni' })).toHaveAttribute('aria-pressed', 'true');
@@ -36,7 +38,10 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   for (let i = 0; i < 8 && !(await els()).some(x => x.startsWith('p:apt:')); i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); }
   expect(await page.locator('.ch-body [data-el^="p:aptx:"]').count()).toBeGreaterThan(0);
   // jadvalda kvartira turi rang namunasi bilan (rejadagi rang bilan bir xil)
-  expect(await page.locator('.ch-body [data-el^="p:aptx:"]').first().evaluate(e => e.outerHTML)).toMatch(/#f6d58f|#f4b08a|#9bd3b8|#8fa5cc/i);
+  // 1-qavat (noturar) jadvali boʻsh boʻlishi mumkin — tipik qavat varagʻiga oʻtiladi
+  const typ = '.ch-body [data-el^="p:aptx:"]:not([data-el$=":1"])';
+  for (let i = 0; i < 12 && !(await page.locator(typ).count()); i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); }
+  expect(await page.locator(typ).first().evaluate(e => e.outerHTML)).toMatch(/#f6d58f|#f4b08a|#9bd3b8|#8fa5cc/i);
   expect(await page.locator('.ch-body [data-el^="p:apt:"]').count()).toBeGreaterThan(0);
   // Chizmadon tahlili (25.10, 1-bosqich): vaziyat sxemasi — alohida material (kichik katakda), reja — oʻz katagida
   // standart masshtabda (GOST 2.302), masshtab yozuvi aniq (choʻzilmaydi)
@@ -51,6 +56,7 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   // qoʻlda masshtab: 1:50 — yozuv aniq, reja kattalashadi (sigʻmasa — chetlari kesiladi)
   const pb = (await plan.boundingBox())!;
   await page.mouse.click(pb.x + pb.width / 2, pb.y + pb.height / 2);
+  if (!(await page.locator('#chMatMs').count())) await page.mouse.click(pb.x + pb.width * 0.3, pb.y + pb.height * 0.4);
   await page.click('#chMatMs [data-ms="50"]');
   await expect.poll(() => page.locator('.ch-body [data-el^="p:apt:"]').first().evaluate(e => e.querySelector('[data-deco="scale"]')?.textContent ?? '')).toMatch(/M 1:50\b/);
   await page.click('#chMatMs button >> nth=0');

@@ -11,8 +11,10 @@ import { uid } from '../core/doc';
 import { planApartments } from '../core/apartments';
 import { floorGroups, groupName } from '../core/floorplan';
 import { aptSheet, sheetGroup } from '../core/aptsheet';
+import { aptPicks, houseTypes } from '../core/albumset';
+import { housePlan, housePlanSvg } from '../core/lowplan';
 import { sheetLayout, type SheetInner } from '../core/sheet';
-import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetOpts, type SheetResult, type Paper, type SheetKind, type SheetLayerId } from '../core/sheet';
+import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetOpts, type SheetResult, type Paper, type SheetLayerId } from '../core/sheet';
 import { LABEL_MODES, type LabelMode } from '../core/labels';
 import { h, download, toast, svgIcon, icl, IC, fmt } from './dom';
 import { check, select, stepper, sw } from './controls';
@@ -59,7 +61,32 @@ export function norm(o: Record<string, unknown>): SheetOpts {
     stamp: { ...(x.stamp ?? {}) },
   };
 }
-const defaultSet = (): SheetDoc[] => (['bosh', 'zona', 'figura', 'landshaft', 'vaziyat'] as SheetKind[]).map(k => ({ id: uid('sh_'), opts: { ...lastOpts(), kind: k, scale: k === 'vaziyat' ? 10000 : 0 } as unknown as Record<string, unknown> }));
+/**
+ * Sukut toʻplami (02.11, egasi: «albom uchun varaqlarga sukut boʻyicha … varaqlar oʻtmadi»): barcha reja namunalari (bosh reja, funksional,
+ * zonalashtirish, figura-fon, landshaft, qavatlar soni, vaziyat sxemasi); har bino turidan 1-qavat va tipik qavat; har past qavatli uy
+ * turidan har qavat rejasi (core/albumset).
+ */
+const SET_V = 2;
+function defaultSheets(doc: Project): SheetDoc[] {
+  const base = lastOpts(), mk = (o: Partial<SheetOpts>): SheetDoc => ({ id: uid('sh_'), opts: { ...base, mode: 'reja', title: '', stamp: {}, ...o } as unknown as Record<string, unknown> });
+  const out: SheetDoc[] = [
+    mk({ kind: 'bosh', scale: 0 }),
+    mk({ kind: 'bosh', scale: 0, layers: { bld: { fill: 'use' } } as SheetOpts['layers'], stamp: { sheet: 'Funksional reja' } }),
+    mk({ kind: 'zona', scale: 0 }), mk({ kind: 'figura', scale: 0 }), mk({ kind: 'landshaft', scale: 0 }), mk({ kind: 'qavat', scale: 0 }),
+    mk({ kind: 'vaziyat', scale: 10000 }),
+  ];
+  for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));
+  houseTypes(doc).forEach((t, i) => { for (let f = 1; f <= t.floors; f++) out.push(mk({ mode: 'uy', plan: { floor: i + 1, grp: f } })); });
+  return out;
+}
+/** Avvalgi loyihalar (eski sukut toʻplami bilan): yangi namunalar va rejalar bir marta qoʻshiladi — mavjud varaqlar tegilmaydi */
+function upgradeSheets(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
+  const k = `mr-sheets-v${SET_V}:${doc.id}`;
+  try { if (localStorage.getItem(k)) return sheets; localStorage.setItem(k, '1'); } catch { return sheets; }
+  const sig = (o: Record<string, unknown>) => { const x = o as Partial<SheetOpts>; return `${x.mode ?? 'reja'}|${x.mode === 'qavat' || x.mode === 'uy' ? `${x.plan?.floor ?? 1}:${x.plan?.grp ?? ''}` : `${x.kind}|${x.stamp?.sheet ?? ''}`}`; };
+  const have = new Set(sheets.map(s => sig(s.opts)));
+  return [...sheets, ...defaultSheets(doc).filter(s => !have.has(sig(s.opts)))];
+}
 
 /** Illustrator uchun varaq (oxirgi sozlamalar bilan): har qatlam — alohida Illustrator qatlami, mm da */
 export function downloadIllustrator(doc: Project, ctx: SheetCtx | null, o: SheetOpts = lastOpts()): void {
@@ -68,13 +95,14 @@ export function downloadIllustrator(doc: Project, ctx: SheetCtx | null, o: Sheet
 
 export function openGraphics(host: SheetsHost): void {
   const doc = host.doc;
-  let sheets: SheetDoc[] = doc.sheets?.length ? doc.sheets.map(s => ({ id: s.id, opts: s.opts })) : defaultSet();
+  let sheets: SheetDoc[] = doc.sheets?.length ? upgradeSheets(doc, doc.sheets.map(s => ({ id: s.id, opts: s.opts }))) : defaultSheets(doc);
+  try { localStorage.setItem(`mr-sheets-v${SET_V}:${doc.id}`, '1'); } catch { /* */ }
   let styles = [...(doc.sheetStyles ?? [])];
   let cur = Math.max(0, Math.min(sheets.length - 1, host.start ?? 0));
   let open: string | null = null, zoom = 0, loupe = false, hand = false;
   const O = (): SheetOpts => norm(sheets[cur].opts);
   const ha = doc.site ? (() => { const r = doc.site!.rings[0]; let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2 * 111320 * 111132 * Math.cos(r[0][1] * Math.PI / 180) / 1e4; })() : 0;
-  const plans = planApartments(doc);
+  const plans = planApartments(doc), houses = houseTypes(doc);
   const axoCache = new Map<string, string>();
   const innerOf = (o: SheetOpts): SheetInner | undefined => {
     if (o.mode === 'qavat') {
@@ -82,6 +110,16 @@ export function openGraphics(host: SheetsHost): void {
       // 20-band: bitta qavat rejasi + navigatsiya sxemalari + eksplikatsiya (ish chizmalaridagidek)
       const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1));
       return aptSheet(doc, plans, bi, o.plan?.grp, o.plan?.look ?? 'rang', tr, pl => { const bb = doc.buildings.find(b => b.id === pl.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? areaOf(bb.footprint.map(frameOf(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; });
+    }
+    if (o.mode === 'uy') {
+      // 02.11: past qavatli uy rejasi (core/lowplan) — tur va qavat; katakka sigʻdiriladi
+      const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))];
+      if (!T) return { label: 'M —', body: (vx, vy, vw, vh) => `<text x="${vx + vw / 2}" y="${vy + vh / 2}" font-size="5" text-anchor="middle" fill="#6b6965">${tr('Past qavatli uylar yoʻq')}</text>` };
+      const fl = Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)), name = `${tr(T.name)} · ${tf('${n}-qavat', { n: fl })}`;
+      const P = housePlan(T.ring, T.floors, fl, { style: T.hovli ? 'milliy' : 'zamonaviy', plot: T.plot, north: [0, 1], edit: doc.buildings.find(b => b.id === T.bid)?.house ?? {} });
+      if (!P) return { label: 'M —', name, body: () => '' };
+      const r = housePlanSvg(P, T.ring, T.plot, { scale: 100, title: name, north: [0, 1], label: tr, joint: T.joint }), inner = r.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+      return { label: `${T.n} ${tr('uy')}`, name, body: (vx, vy, vw, vh) => `<svg x="${vx}" y="${vy}" width="${vw}" height="${vh}" viewBox="0 0 ${r.widthMm.toFixed(1)} ${r.heightMm.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
     }
     if (o.mode === 'akso') {
       const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${(L.vw / L.vh).toFixed(2)}`;
@@ -157,7 +195,7 @@ export function openGraphics(host: SheetsHost): void {
     h('span', { class: 'sh-name' }, `${doc.name} · ${tr('Varaqlar')}`), h('span', { class: 'spacer' }),
     checksBtn, h('button', { class: 'btn btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)')));
 
-  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return o.stamp.sheet; if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
+  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
 
   /* ---------- menyular ---------- */
   function popMenu(anchor: HTMLElement, items: (HTMLElement | string)[]): void {
@@ -257,7 +295,7 @@ export function openGraphics(host: SheetsHost): void {
         h('h2', { class: 't-title' }, tr('Varaqlar')),
         h('p', { class: 't-small' }, tr('Masshtabli chizma: namunani tanlang, varaqni sozlang, yuklab oling yoki Chizmadonga yuboring.'))),
       h('div', { class: 'sh-scroll' },
-        h('div', { class: 'seg', id: 'shMode', role: 'tablist' }, ...([['reja', 'Reja'], ['qavat', 'Qavatlar'], ['akso', 'Akso']] as const).map(([k, t]) => h('button', { role: 'tab', 'data-mode': k, 'aria-pressed': (o.mode ?? 'reja') === k, onclick: () => set({ mode: k }) }, tr(t)))),
+        h('div', { class: 'seg', id: 'shMode', role: 'tablist' }, ...([['reja', 'Reja'], ['qavat', 'Qavatlar'], ...(houses.length || o.mode === 'uy' ? [['uy', 'Uylar'] as const] : []), ['akso', 'Akso']] as const).map(([k, t]) => h('button', { role: 'tab', 'data-mode': k, 'aria-pressed': (o.mode ?? 'reja') === k, onclick: () => set({ mode: k }) }, tr(t)))),
         ...(o.mode === 'qavat' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['rang', 'Xonadonlar rangda', 'turi boʻyicha'], ['bir', 'Bir rang', 'oq-qora']] as const).map(([k, t, n]) => tile({ 'data-plook': k, 'aria-pressed': (o.plan?.look ?? 'rang') === k, onclick: () => set({ plan: { ...(o.plan ?? {}), look: k } }) }, tr(t), tr(n)))),
@@ -269,6 +307,14 @@ export function openGraphics(host: SheetsHost): void {
                 const add: SheetDoc[] = []; plans.forEach((p2, bi) => floorGroups(p2).forEach((_, gi) => { if (bi === Math.max(0, (o.plan?.floor ?? 1) - 1) && gi === cur0) return; add.push({ id: uid('sh_'), opts: { ...o, plan: { ...(o.plan ?? {}), floor: bi + 1, grp: gi }, stamp: { ...(o.stamp ?? {}), num: '', sheet: '' } } as unknown as Record<string, unknown> }); }));
                 sheets.splice(cur + 1, 0, ...add); persist(); render(); toast(tf('${n} ta varaq qoʻshildi', { n: add.length })); } }, tr('Barcha binolar va qavatlar — varaqlar'))]; })() : []),
           h('span', { class: 't-small' }, tr('Varaqda: qavat rejasi nomi va masshtabi bilan (kvartiralar raqamli), vaziyat sxemasi (uchastka, blok, seksiya), oʻng ustunda kvartiralar eksplikatsiyasi. Tahrir — Qavat rejalari oynasida (9-qadam).'))] : []),
+        ...(o.mode === 'uy' ? (() => {
+          // 02.11: past qavatli uy rejalari — tur (oʻlchami, qavati) va qavat
+          const ti = Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1)), T = houses[ti];
+          return [h('div', { class: 'glabel' }, h('span', {}, tr('Uy turi')), h('span', {}, `${houses.length}`)),
+            h('div', { class: 'seg sm wrap', id: 'shHouse', role: 'group', 'aria-label': tr('Uy turi') }, ...houses.map((t, i) => { const [, w, d] = t.key.split('|'); return h('button', { 'data-house': i + 1, 'aria-pressed': i === ti, onclick: () => set({ plan: { ...(o.plan ?? {}), floor: i + 1, grp: 1 } }) }, `${tr(t.name)} ${w}×${d} · ${t.n}`); })),
+            ...(T && T.floors > 1 ? [h('div', { class: 'seg sm', id: 'shHouseFl', role: 'group', 'aria-label': tr('Qavat') }, ...Array.from({ length: T.floors }, (_, i) => h('button', { 'data-hfl': i + 1, 'aria-pressed': (o.plan?.grp ?? 1) === i + 1, onclick: () => set({ plan: { ...(o.plan ?? {}), grp: i + 1 } }) }, tf('${n}-qavat', { n: i + 1 }))))] : []),
+            h('span', { class: 't-small' }, tr('Uy rejasi — Hajmlar qadamidagi «Uy rejalari» bilan bir xil (tahrir oʻsha yerda).'))];
+        })() : []),
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
@@ -324,7 +370,7 @@ export function openGraphics(host: SheetsHost): void {
     const s = view.querySelector('svg')!; s.removeAttribute('width'); s.removeAttribute('height');
     lens.replaceChildren(h('div', { class: 'sh-lensin', html: last.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%" height="100%"') }));
     const o = O();
-    info.replaceChildren(h('span', {}, `${o.paper === 'fit' ? tr('Moslash') : o.paper} · ${fmt(last.widthMm, 0)} × ${fmt(last.heightMm, 0)} mm · ${o.mode === 'qavat' || o.mode === 'akso' ? (innerLabel.get(last) ?? '') : `M 1:${last.scale}`}${host.ctx || o.mode === 'qavat' ? '' : ` · ${tr('atrof yuklanmagan')}`}`));
+    info.replaceChildren(h('span', {}, `${o.paper === 'fit' ? tr('Moslash') : o.paper} · ${fmt(last.widthMm, 0)} × ${fmt(last.heightMm, 0)} mm · ${o.mode === 'qavat' || o.mode === 'akso' || o.mode === 'uy' ? (innerLabel.get(last) ?? '') : `M 1:${last.scale}`}${host.ctx || o.mode === 'qavat' || o.mode === 'uy' ? '' : ` · ${tr('atrof yuklanmagan')}`}`));
     const n = sheetChecks(last, o, tr).filter(c => !c.ok).length;
     checksBtn.className = `chip ${n ? 'warn' : 'ok'} sh-checks`; checksBtn.replaceChildren(h('i'), n ? tf('${n} ta eslatma', { n }) : tr('Eslatma yoʻq'));
     renderList(); renderSide(); applyZoom();

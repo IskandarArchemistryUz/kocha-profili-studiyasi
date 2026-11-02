@@ -103,7 +103,8 @@ import { openGraphics, downloadIllustrator } from './graphics';
 import { norm as normSheet } from './sheets';
 import { openChizmadon } from '../chizmadon/ui';
 import type { ChInbox } from '../chizmadon/model';
-import type { PlanSrc } from '../chizmadon/materials';
+import type { PlanSrc, PlanMap } from '../chizmadon/materials';
+import { aptPicks, houseTypes } from '../core/albumset';
 import { aptSheet } from '../core/aptsheet';
 import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts } from '../core/sheet';
 import { uid } from '../core/doc';
@@ -4025,31 +4026,55 @@ export class Editor {
       mk('p:plan:bosh', 'Bosh reja', true, { kind: 'bosh' }),
       // eski albomlarda «p:plan» — zonalashtirish (avval «Bosh reja» nomi bilan)
       mk('p:plan', 'Zonalashtirish (land use)', true, { kind: 'zona' }),
-      mk('p:plan:fn', 'Funksional reja', false, { kind: 'bosh', layers: { bld: { fill: 'use' } } }),
-      mk('p:plan:qavat', 'Qavatlar soni', false, { kind: 'qavat' }),
-      mk('p:plan:figura', 'Figura-fon', false, { kind: 'figura' }),
-      mk('p:plan:landshaft', 'Landshaft', false, { kind: 'landshaft' }),
-      mk('p:plan:vaziyat', 'Vaziyat sxemasi', false, { kind: 'vaziyat' }),
+      mk('p:plan:fn', 'Funksional reja', true, { kind: 'bosh', layers: { bld: { fill: 'use' } } }),
+      mk('p:plan:qavat', 'Qavatlar soni', true, { kind: 'qavat' }),
+      mk('p:plan:figura', 'Figura-fon', true, { kind: 'figura' }),
+      mk('p:plan:landshaft', 'Landshaft', true, { kind: 'landshaft' }),
+      mk('p:plan:vaziyat', 'Vaziyat sxemasi', true, { kind: 'vaziyat' }),
     ];
-    const plans = planApartments(d2);
-    plans.slice(0, 12).forEach((pl, bi) => {
+    const plans = planApartments(d2), picks = aptPicks(plans), picked = new Map(picks.map(p => [`${p.bi}|${p.kind}`, p]));
+    // 02.11 (egasi: «har qavat rejasi shart emas — tipik va birinchi qavat»): har bino turidan 1-qavat va tipik qavat sukut boʻyicha albomda;
+    // qolgan binolar (≤ 12) — materiallarda, oʻchiq
+    const aptItem = (pl: SecPlan, bi: number, gi: number | undefined, first: boolean, on: boolean): PlanSrc => {
       // 29-band (egasi, 25.10): xonadonlar eksplikatsiyasi — alohida jadval, shu reja bilan bitta varaqning oʻng panelida (autolayout `pair`).
       // Chizmadon tahlili (25.10, 1-bosqich): vaziyat sxemasi ham alohida kichik katakda; reja oʻz katagini toʻldiradi —
       // katakka sigʻadigan eng yirik standart masshtabda (GOST 2.302: 1:50, 1:75, 1:100, 1:200…), choʻzilmaydi.
-      const sheet = () => { const doc = this.store.doc, ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid); return i < 0 ? null : aptSheet(doc, ps, i, undefined, 'rang', tr, pl2 => { const bb = doc.buildings.find(x => x.id === pl2.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }; }); };
-      out.push({ id: `p:apt:${pl.bid}`, name: `Kvartirografiya · ${bi + 1}-bino`, on: bi === 0, get: (fit) => {
+      let memo: { doc: Project; a: ReturnType<typeof aptSheet> | null } | null = null;
+      const sheet = () => { const doc = this.store.doc; if (memo?.doc === doc) return memo.a; const ps = planApartments(doc), i = ps.findIndex(x => x.bid === pl.bid);
+        const a = i < 0 ? null : aptSheet(doc, ps, i, gi, 'rang', tr, pl2 => { const bb = doc.buildings.find(x => x.id === pl2.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }; });
+        memo = { doc, a }; return a; };
+      const sfx = first ? ':1' : '', nm = first ? ` · ${tr('1-qavat')}` : '';
+      return { id: `p:apt:${pl.bid}${sfx}`, name: `Kvartirografiya · ${bi + 1}-bino${nm}`, on, get: (fit) => {
         const a = sheet(); if (!a) return null;
         const f = a.fit(fit?.w ?? 240, fit?.h ?? 200, fit?.scale);
         return { svg: f.svg, vb: f.vb, w: f.w, h: f.h, scale: f.scale, north: a.north, contain: true, sub: f.sub };
-      }, nav: { id: `p:aptnav:${pl.bid}`, name: `Vaziyat sxemasi · ${bi + 1}-bino`, title: tr('Vaziyat sxemasi'), draw: (r) => {
+      }, nav: { id: `p:aptnav:${pl.bid}${sfx}`, name: `Vaziyat sxemasi · ${bi + 1}-bino${nm}`, title: tr('Vaziyat sxemasi'), draw: (r) => {
         const a = sheet(); return a ? a.nav(r.x, r.y, r.w, r.h) : '';
-      } }, table: { id: `p:aptx:${pl.bid}`, name: `Xonadonlar eksplikatsiyasi · ${bi + 1}-bino`, title: tr('Kvartiralar eksplikatsiyasi'), rows: () => {
+      } }, table: { id: `p:aptx:${pl.bid}${sfx}`, name: `Xonadonlar eksplikatsiyasi · ${bi + 1}-bino${nm}`, title: tr('Kvartiralar eksplikatsiyasi'), rows: () => {
         const a = sheet(); if (!a) return null;
         if (!a.rows.length) return [[tr('Bu qavatda xona maʼlumoti yoʻq')]];
         const tot = a.rows.reduce((t, r) => t + r.area, 0), f1 = (v: number) => v.toFixed(1).replace('.', ',');
         return [['№', tr('Turi'), tr('Maydoni, m²')], ...a.rows.map(r => [String(r.n), `{${APT_FILL[Math.min(4, Math.max(1, r.rooms))]}}${r.rooms} ${tr('xonali')}`, f1(r.area)]), [tr('Jami'), `${a.rows.length}`, f1(tot)]];
-      } } });
+      } } };
+    };
+    plans.slice(0, 12).forEach((pl, bi) => {
+      const f = picked.get(`${bi}|first`), t = picked.get(`${bi}|typical`);
+      if (f) out.push(aptItem(pl, bi, f.gi, true, true));
+      out.push(aptItem(pl, bi, t?.gi, false, !!t || (!!f && !t)));   // tipik qavat (1 qavatli boʻlsa — faqat 1-qavat)
     });
+    // past qavatli uylar: har tur, har qavat (02.11)
+    for (const [ti, T] of houseTypes(d2).entries()) for (let fl = 1; fl <= T.floors; fl++) {
+      const title = `${tr(T.name)} · ${tf('${n}-qavat', { n: fl })}`;
+      let memo: { doc: Project; v: PlanMap | null } | null = null;
+      out.push({ id: `p:uy:${T.key}:${fl}`, name: `${tr('Uy rejasi')} · ${ti + 1}-${tr('tur')} · ${title}`, on: true, get: () => {
+        const doc = this.store.doc; if (memo?.doc === doc) return memo.v;
+        const P = housePlan(T.ring, T.floors, fl, { style: T.hovli ? 'milliy' : 'zamonaviy', plot: T.plot, north: [0, 1], edit: doc.buildings.find(b => b.id === T.bid)?.house ?? {} });
+        let v: PlanMap | null = null;
+        if (P) { const r = housePlanSvg(P, T.ring, T.plot, { scale: 100, title, north: [0, 1], label: tr, joint: T.joint }), inner = r.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+          v = { svg: inner, vb: [0, 0, r.widthMm, r.heightMm], w: r.widthMm, h: r.heightMm, scale: 100, contain: true, sub: `${T.n} ${tr('uy')}` }; }
+        memo = { doc, v }; return v;
+      } });
+    }
     return out;
   }
 
