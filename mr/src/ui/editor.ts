@@ -106,7 +106,7 @@ import type { ChInbox } from '../chizmadon/model';
 import type { PlanSrc, PlanMap } from '../chizmadon/materials';
 import { aptPicks, houseTypes } from '../core/albumset';
 import { aptSheet } from '../core/aptsheet';
-import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts, type SheetSvc } from '../core/sheet';
+import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts, type SheetSvc, balanceTable } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import { overpass, type ContextBundle } from '../context/load';
@@ -4060,6 +4060,8 @@ export class Editor {
       mk('p:plan:figura', 'Figura-fon', true, { kind: 'figura' }),
       mk('p:plan:landshaft', 'Landshaft', true, { kind: 'landshaft' }),
       mk('p:plan:vaziyat', 'Vaziyat sxemasi', true, { kind: 'vaziyat' }),
+      // 02.11: tahlil — cheklovlar rejasi va yer balansi (juft jadval)
+      { ...mk('p:plan:cheklov', 'Cheklovlar rejasi', true, { kind: 'cheklov' }), table: { id: 'p:balans', name: 'Yer balansi', title: tr('Yer balansi'), rows: () => balanceTable(this.store.doc, tr), free: true } },
       // 02.11: tahlil varaqlari — xizmat radiusi (piyoda tarmogʻi boʻylab, 9-qadam tahlili); asosiylari sukut boʻyicha yoqilgan
       ...SERVICES.map(sv => { let c2: SheetCtx | null | undefined; return { id: `p:plan:svc:${sv.id}`, name: `${tr('Xizmat radiusi')} · ${tr(sv.name)}`, on: SVC_ON.includes(sv.id), get: () => {
         if (c2 === undefined) c2 = this.sheetCtxFor('xizmat');
