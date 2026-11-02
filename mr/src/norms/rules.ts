@@ -22,6 +22,7 @@ import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
+import { szzGreen } from '../core/szzgen';
 
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
 /** Keyingi pogʻona izohi (41-jadval / 543-band): qaysi parsellar kichik va qancha maydon yetishmaydi — faqat ochilgan izohda */
@@ -572,6 +573,22 @@ export const RULES: Rule[] = [
       const list = c.manual.map(x => `${x.m} m < ${x.table} m`).join(', ');
       return { status: 'review', value: c.manual.length, unit: 'obyekt', limit: '0',
         note: `Qoʻlda kamaytirilgan: ${list}. Davlat sanitariya nazoratining ijobiy xulosasi kerak; qabristonlar 6.4 dagi «′» belgili obyektlar qatorida emas.` };
+    },
+  },
+  // 02.11, cheklovlar 3b — SanPiN RUz № 0350-17, 2.19 (asl matn): IV–V sinf ≥ 60 %, II–III ≥ 50 %, I ≥ 40 %; avtomagistral qatnov qismi foizni kamaytirmaydi
+  {
+    id: 'szz-219',
+    title: 'SMZ koʻkalamzorligi',
+    source: { doc: 'SanPiN RUz № 0350-17', edition: '2017', clause: '2.19 (IV–V sinf ≥ 60 %, II–III ≥ 50 %, I ≥ 40 %); ShNQ 2.07.01-23, 475 (maxsus maqsadli yashil)', verified: true },
+    evaluate(_d, doc) {
+      const z = szzGreen(doc);
+      if (!z.length) return { status: 'na', unit: '%', limit: '≥ 60', note: 'Uchastka ichida SMZ yoʻq.' };
+      const bad = z.filter(x => x.share + 1e-6 < x.need), worst = [...z].sort((a, b) => (a.share - a.need) - (b.share - b.need))[0];
+      const pc = (v: number) => Math.round(v * 100);
+      const list = z.map(x => `${x.cls}: ${pc(x.share)} % / ${pc(x.need)} %`).join("; ");
+      return { status: bad.length ? 'fail' : 'pass', value: pc(worst.share), unit: '%', limit: `≥ ${pc(worst.need)}`, where: { rings: (bad.length ? bad : z).flatMap(x => x.rings) },
+        note: bad.length ? `SMZ ning uchastka ichidagi qismida koʻkalam yetarli emas (${list}). Koʻcha koridorlari ham hisob maydonida (2.19: qatnov qismi foizni kamaytirmaydi). Yechim: SMZ qismini «Himoya koʻkalamzorligi (SMZ)» funksiyasiga bering (Parsellar → «SMZ chegarasi boʻyicha ajratish»). Koʻkalam — himoya koʻkalamzorligi va park kvartallari (talqin); qabriston SMZ i uchun qoʻllash — talqin.`
+          : `SMZ koʻkalamzorligi yetarli (${list}).` };
     },
   },
   // 02.11: ishlab chiqarish zonalari (logistika, sanoat, kommunal, transport) — ShNQ 2.07.01-23, 146, 147, 174

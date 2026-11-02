@@ -67,7 +67,7 @@ export function coverClassifier(I: HeatInputs): { cover: (p: XY) => Cover; canop
     for (const s of strips) if (inBB(p, s.bb) && lineDist(p, s.line) <= s.half) return s.k === 'yashil' || s.k === 'ajratuvchi' ? 'maysa' : s.k === 'trotuar' ? 'trotuar' : 'asfalt';
     if (inSite) {
       for (const y of yardsIx) if (inBB(p, y.bb)) { if (y.green.some(g => inPoly(p, g))) return 'maysa'; if (y.hard.some(g => inPoly(p, g))) return 'trotuar'; }
-      for (const b of blocks) if (inBB(p, b.bb) && inPoly(p, b.rings)) return b.use === 'yashil' || b.use === 'sport' ? 'maysa' : b.use === 'maydon' ? 'trotuar' : b.use === 'avtoturargoh' ? 'asfalt' : 'hovli';
+      for (const b of blocks) if (inBB(p, b.bb) && inPoly(p, b.rings)) return b.use === 'yashil' || b.use === 'himoya' || b.use === 'sport' ? 'maysa' : b.use === 'maydon' ? 'trotuar' : b.use === 'avtoturargoh' ? 'asfalt' : 'hovli';
       return 'hovli';
     }
     for (const w of water) if (inBB(p, w.bb) && inPoly(p, w.rings)) return 'suv';

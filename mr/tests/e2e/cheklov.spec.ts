@@ -77,3 +77,37 @@ test('cheklovlar reyestrda: SMZ ichida turar joy, ELU zonasida bino', async ({ p
   await expect(page.locator('.drawer [data-rule=elu-1050] [data-s=fail]').first()).toBeVisible();
   await expect(page.locator('.drawer [data-rule=elu-251] [data-s=fail]').first()).toBeVisible();
 });
+
+/** 3b (02.11): generator SMZ ichiga turar joy qoʻymaydi (2.17); SMZ koʻkalamzorligi (2.19) — himoya koʻkalamzorligi bilan bajariladi */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`SMZ: generator va koʻkalamzorlik · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: w, height: 900 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]');
+  await rectSite(page, 300, 300);
+  // qabriston uchastkaning gʻarbiy chetida (IV sinf, 100 m SMZ)
+  await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), r = ed.store.doc.site.rings[0];
+    const xs = r.map((p: number[]) => p[0]), ys = r.map((p: number[]) => p[1]), x0 = Math.min(...xs), cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const g = (a: number, b: number) => [x0 + a / mx, cy + b / 111132];
+    ed.store.dispatch({ type: 'addLimit', limit: { id: 'q1', kind: 'qabriston', status: 'saqlanadi', src: 'qolda', rings: [[g(-50, -20), g(-10, -20), g(-10, 20), g(-50, 20)]] } }); });
+  await page.click('[data-step=parsel]'); await page.locator('[data-block="0"]').click();
+  await page.click('[data-use=turar]');
+  await page.click('[data-step=hajm]');
+  await page.click('#genGo');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length), { timeout: 10000 }).toBeGreaterThan(0);
+  await expect(page.locator('#genNotes')).toContainText('SMZ');
+  await page.click('#kMore');
+  await expect(page.locator('.drawer [data-rule=szz-217] [data-s=fail]')).toHaveCount(0);
+  await expect(page.locator('.drawer [data-rule=szz-219] [data-s=fail]').first()).toBeVisible();
+  await page.click('#kMore');   // reyestr yopiladi
+  // SMZ qismi — himoya koʻkalamzorligi (kvartal tanlangan boʻlib qolgan boʻlsa — qayta bosilmaydi, aks holda tanlov olinadi)
+  await page.click('[data-step=parsel]');
+  if (await page.evaluate(() => (window as any).__mr.selBlock) !== 0) await page.locator('[data-block="0"]').click();
+  await page.click('#pSzz');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.plan().blocks.some((b: any) => b.use === 'himoya')), { timeout: 8000 }).toBe(true);
+  await page.click('#kMore');
+  await expect(page.locator('.drawer [data-rule=szz-219] [data-s=fail]')).toHaveCount(0);
+  await page.waitForTimeout(400);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/szz3b_${w}${dark ? 'd' : 'l'}.png` });
+});

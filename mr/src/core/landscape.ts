@@ -48,7 +48,7 @@ function openSpace(blk: { rings: XY[][]; area: number; use: string; centroid: XY
   const green = tryOp(() => polygonClipping.difference(B, ...[paving, paths, taken].filter(m => m.length)), [B]);
   const gR = toMP(green), pR = toMP(paving), trees: XY[] = [];
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of outer) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
-  const step = blk.use === 'yashil' ? 9 : 7;
+  const step = blk.use === 'yashil' ? 9 : blk.use === 'himoya' ? 6 : 7;   // himoya — zich daraxt-buta tasmasi (2.19)
   for (let x = x0 + 4; x < x1; x += step) for (let y = y0 + 4; y < y1; y += step) {
     const p: XY = [x + ((Math.round(y) * 7) % 3) - 1, y + ((Math.round(x) * 5) % 3) - 1];
     if (!gR.some(q => pointIn(p, q))) continue;
@@ -144,7 +144,7 @@ function landscapeRaw(doc: Project): Yard[] {
   const parkAll = doc.garages.filter(g => g.kind === 'yer_usti' && g.stalls?.length).map(g => ({ g, h: hull([...g.stalls!, ...(g.aisles ?? [])].flat().map(fr.toLocal)) }));
   plan.blocks.forEach((blk, bi) => {
     const bsig = `${blk.use}|${blk.rings.map(sig).join('/')}`;
-    if (blk.use === 'yashil' || blk.use === 'maydon' || blk.use === 'sport') { const y = cached(`o|${bsig}`, () => openSpace(blk, bi)); if (y) out.push({ ...y, block: bi }); return; }
+    if (blk.use === 'yashil' || blk.use === 'himoya' || blk.use === 'maydon' || blk.use === 'sport') { const y = cached(`o|${bsig}`, () => openSpace(blk, bi)); if (y) out.push({ ...y, block: bi }); return; }
     if (blk.use === 'maktab' || blk.use === 'mtm') {
       // 31.10 (egasi: «maktab va MTM hududlari landshafti»): uchastka zonalari — andoza (zonalar maydoni meʼyor matnidan emas)
       const ownS = bl.filter(x => !x.b.z0 && x.b.floors > 0 && pointIn(x.r.reduce((s2, p) => [s2[0] + p[0] / x.r.length, s2[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings));
