@@ -28,7 +28,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, Sect
 import { szzOf, limitAreaHa, isActive, limitZones, SZZ_DENY, type Limit, type LimitKind } from '../core/limits';
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
-import { accessStreet } from '../core/rowaccess';
+import { accessStreet, innerStreets } from '../core/rowaccess';
 import { LOGI, logiType, prodSzz } from '../core/logistics';
 import { PROD } from '../core/prodcheck';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
@@ -2244,6 +2244,8 @@ export class Editor {
     const ud = useDef(b.use), name = this.unitName(i);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
+    // 02.11: past qavatli tipologiya, chuqur kvartal — avval ichki koʻchalar, keyin har yangi kvartal alohida (faqat bitta kvartal tugmasida)
+    if (!quiet && this.lowInner && !b.parcelId) { const t0 = ({ ...(i === this.selBlock || !this.savedGen(i) ? this.gen : { ...DEFAULT_GEN, ...(this.savedGen(i) as Partial<GenParams>) }), ...over }).typology; if (['yakka', 'juft', 'taunhaus', 'hovli'].includes(t0) && typoAllowed(b.use).includes(t0)) { const n = this.innerStreetsGen(i, t0 as LowKind, over); if (n >= 0) return n; } }
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
     const sg = this.savedGen(i), base: GenParams = { ...(i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) }), ...over };
     const okT = typoAllowed(b.use), base1: GenParams = okT.includes(base.typology) ? base : { ...base, typology: okT[0] };
@@ -2260,6 +2262,26 @@ export class Editor {
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.truck ? { truck: true as const } : {}), ...(r.parking.spur ? { spur: r.parking.spur.map(fr.toGeo) } : {}) } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
+  }
+
+  /**
+   * Ichki koʻchalar (02.11): kvartal chuqur boʻlsa — oʻtish yoʻllari (otish-8) qoʻshiladi, kvartal boʻlinadi; yangi kvartallarga shu
+   * funksiya belgisi va generator parametrlari beriladi, har biri generatsiya qilinadi. Koʻcha kerak boʻlmasa −1 (oddiy generatsiya).
+   */
+  private innerStreetsGen(i: number, t: LowKind, over: Partial<GenParams>): number {
+    const doc = this.store.doc, fr = frame(doc.origin), b = this.plan().blocks[i], lab = this.blockLabel(i); if (!b || !lab) return -1;
+    const axes = [...doc.streets.map(st => st.axis.map(fr.toLocal)), ...this.ctxRoads().map(rd => rd.pts.map(q => fr.toLocal(q)))];
+    const lines = innerStreets(b.rings[0], LOW[t].plotD, profileWidth(profileById('otish-8')), axes); if (!lines.length) return -1;
+    const old = b.rings[0], use = b.use, gen = { ...this.gen, ...over };
+    this.run(() => { for (const l of lines) this.store.dispatch({ type: 'addStreet', axis: l.map(fr.toGeo), profile: 'otish-8' }); });
+    // yangi kvartallar: eski kvartal ichidagilar; belgisiz qolganlariga shu funksiya
+    const subs = () => this.plan().blocks.map((x, k) => ({ x, k })).filter(({ x }) => pointIn(x.centroid, [old]));
+    const add = subs().filter(({ x }) => !x.labelId).map(({ x }) => ({ id: uid('z_'), at: fr.toGeo(x.centroid), use, gen: { ...gen } }));
+    if (add.length) this.run(() => this.store.dispatch({ type: 'setZones', zones: [...this.store.doc.zones, ...add] }));
+    let n = 0; for (const { k } of subs()) { this.selBlock = k; n += this.generateBlock(k, true, { ...over, typology: t }); }
+    toast(tf('${s} ta ichki koʻcha (oʻtish yoʻli 8 m) va ${n} ta uy', { s: lines.length, n }));
+    this.renderPanel(); this.renderKpi();
+    return n;
   }
 
   /** avto chekinish (core/setback): koʻchaga qaragan fasad balandligi va tutash eng tor loyiha koʻchasi boʻyicha; past qavatlilarda — null (oʻz qoidasi) */
@@ -2453,7 +2475,9 @@ export class Editor {
       body.append(typoPick,
         ...(isLow || g.typology !== 'avto' ? [] : farRow),
         isLow ? h('div', { class: 'group', id: 'lowFl' },
-          stp('gMax', tr('Qavat'), tr('kam qavatli: 1–3 (mansarda bilan), ShNQ 2.07.01-23, 2-band'), g.maxF <= 3 ? g.maxF : LOW[g.typology as LowKind].floors, 1, 3, 1, x => { g.maxF = Math.min(3, x); g.minF = Math.min(g.minF, g.maxF); })) :
+          stp('gMax', tr('Qavat'), tr('kam qavatli: 1–3 (mansarda bilan), ShNQ 2.07.01-23, 2-band'), g.maxF <= 3 ? g.maxF : LOW[g.typology as LowKind].floors, 1, 3, 1, x => { g.maxF = Math.min(3, x); g.minF = Math.min(g.minF, g.maxF); }),
+          // 02.11 (egasi: «yakka uylarda haliyam koʻchalar qurilmayapti»): chuqur kvartalda ichki oʻtish yoʻllari, har ikki qator uchastka orasida
+          g.typology !== 'klaster' ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Ichki koʻchalar'), h('span', { class: 'sub' }, tr('chuqur kvartalda oʻtish yoʻllari 8 m (338-band) — har ikki qator uchastka orasida, chetdagi koʻchalarga ulanadi'))), sw({ id: 'lowInner', label: tr('Ichki koʻchalar'), on: this.lowInner, onchange: v => { this.lowInner = v; } })) : '') :
         // 02.11: ishlab chiqarish (ombor bloki) — qavat va seksiya sozlamalari maʼnosiz (1 qavat, katta oraliq; oʻlchamlar tur boʻyicha — core/logigen)
         g.typology === 'ombor' ? h('div', { class: 'group', id: 'omborInfo' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1 qavat, katta oraliq'), h('span', { class: 'sub' }, tr(selUse === 'logistika' ? 'bino, apron, dok darvozalar va tirkamalar — logistika turi boʻyicha (ANDOZA)' : 'bino oʻlchami — kvartalga qarab (ANDOZA)'))))) :
         h('div', { class: 'group' },
@@ -2535,6 +2559,8 @@ export class Editor {
   private lowOff = 0;
   /** 02.11 (egasi): qator chizigʻi boʻylab kirish koʻchasi (oʻtish yoʻli 8 m) va eng yaqin koʻchaga ulanish — sukut yoqiq */
   private lowStreet = true;
+  /** 02.11: yakka / juft / taunhaus / hovli generatsiyasida chuqur kvartalga ichki koʻchalar (sukut — yoqilgan) */
+  private lowInner = true;
   private lowRowBox(fr: ReturnType<typeof frame>, floorsMax = 3): HTMLElement {
     const drawingL = this.tool instanceof LineTool && this.step.id === 'hajm';
     const seg = <T extends string | number>(id: string, label: string, opts: [T, string][], cur: T, set: (v: T) => void) => h('div', { class: 'seg sm', id, role: 'group', 'aria-label': tr(label) }, ...opts.map(([v, n]) => h('button', { 'data-v': String(v), 'aria-pressed': cur === v, onclick: () => { set(v); this.renderPanel(); } }, tr(n))));

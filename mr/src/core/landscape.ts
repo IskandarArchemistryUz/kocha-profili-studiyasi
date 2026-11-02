@@ -63,7 +63,7 @@ function openSpace(blk: { rings: XY[][]; area: number; use: string; centroid: XY
 export const PLAY_NORM = { bolalar: 0.7, kattalar: 0.1, sport: 2.0, xojalik: 0.3 };
 /** maydoncha turlari: 4-jadval + «tajriba» (maktabning oʻquv-tajriba uchastkasi, MTM bogʻi) */
 export type PlayKind = keyof typeof PLAY_NORM | 'tajriba';
-const RES_USES = new Set(['turar', 'aralash']);
+const RES_USES = new Set(['turar', 'aralash', 'yakka']);   // 02.11: «Yakka uylar» zonasida ham uchastka, bogʻ va panjara (egasi: «uchastkasi koʻrinmayapti»)
 /**
  * Maktab va MTM uchastkasi zonalari (andoza, eskiz): maktab — sport zonasi (kortlar, yugurish), boshlangʻich sinflar oʻyin maydoni,
  * dam olish, oʻquv-tajriba bogʻi, xoʻjalik; MTM — guruh maydonchalari (qum, soyabon, jihoz), sport, bogʻ, xoʻjalik.

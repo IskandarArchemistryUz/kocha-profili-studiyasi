@@ -37,7 +37,24 @@ function splitAt(pts: XY[], s: number): [XY[], XY[]] {
 }
 
 /** Koʻpriklarni koʻtarish va ularga ulangan pandus boʻlaklari; qolgan yoʻllar tekis */
-export function elevateRoads(roads: RoadIn[]): ElevResult {
+const segX = (a: XY, b: XY, c: XY, d: XY) => { const o = (p: XY, q: XY, r: XY) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])); return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0; };
+const crosses = (p: XY[], q: XY[]) => { for (let i = 1; i < p.length; i++) for (let j = 1; j < q.length; j++) if (segX(p[i - 1], p[i], q[j - 1], q[j])) return true; return false; };
+
+/**
+ * Qaysi koʻprik haqiqatan koʻtariladi (02.11, egasi: «hudud oʻrtasida koʻprik chiqib qoldi»): OSM da ariq, kanal va jar ustidagi
+ * kichik koʻpriklar ham bridge=yes — ular yer sathida qoladi. Koʻtariladi faqat ostidan yoʻl yoki temir yoʻl oʻtadigan koʻprik
+ * (sath kesishmasi) va unga uchma-uch ulangan koʻprik boʻlaklari.
+ */
+export function gradeBridges(roads: RoadIn[], rails: XY[][] = []): Set<number> {
+  const bridges = roads.filter(r => (r.lvl ?? 0) > 0 && r.pts.length >= 2), flat = roads.filter(r => !((r.lvl ?? 0) > 0));
+  const on = new Set<number>(bridges.filter(b => flat.some(f => crosses(b.pts, f.pts)) || rails.some(r => crosses(b.pts, r))).map(b => b.id));
+  for (let ch = true; ch;) { ch = false; for (const b of bridges) { if (on.has(b.id)) continue; const ends = [b.pts[0], b.pts[b.pts.length - 1]].map(key);
+    if (bridges.some(o => on.has(o.id) && [o.pts[0], o.pts[o.pts.length - 1]].some(p => ends.includes(key(p))))) { on.add(b.id); ch = true; } } }
+  return on;
+}
+
+export function elevateRoads(roads0: RoadIn[], rails: XY[][] = []): ElevResult {
+  const up = gradeBridges(roads0, rails), roads = roads0.map(r => (r.lvl ?? 0) > 0 && !up.has(r.id) ? { ...r, lvl: 0 } : r);
   const bridges = roads.filter(r => (r.lvl ?? 0) > 0 && r.pts.length >= 2);
   if (!bridges.length) return { elevated: [], flat: roads };
   const elevated: Elevated[] = [];

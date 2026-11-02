@@ -321,7 +321,7 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   const shownRoads: StreetIn[] = [];
   if (L.roads) {
     // 02.11: koʻpriklar (OSM bridge + layer) koʻtariladi, ularga ulangan boʻlaklar — pandus; qolgani tekis (bridges3d.ts)
-    const ev = elevateRoads(b.osm.roads.filter(r => !skipRoads.has(r.id)).map(r => ({ id: r.id, pts: r.pts.map(fr.toLocal), w: r.w, cls: r.cls, lvl: r.lvl, lanes: r.lanes, oneway: r.oneway })));
+    const ev = elevateRoads(b.osm.roads.filter(r => !skipRoads.has(r.id)).map(r => ({ id: r.id, pts: r.pts.map(fr.toLocal), w: r.w, cls: r.cls, lvl: r.lvl, lanes: r.lanes, oneway: r.oneway })), b.osm.rails.map(r => r.pts.map(fr.toLocal)));
     const sts: StreetIn[] = ev.flat.flatMap(r => clipLine(r.pts, C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
       .map(pts => ({ pts, cls: r.cls, w: r.w, lanes: r.lanes, oneway: r.oneway })));
     const inR = (pts: XY[]) => pts.some(p => Math.abs(p[0] - C0[0]) < R && Math.abs(p[1] - C0[1]) < R);

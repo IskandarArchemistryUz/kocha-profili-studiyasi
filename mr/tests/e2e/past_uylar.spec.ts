@@ -110,3 +110,29 @@ test('uylar qatori — kirish koʻchasi va mavjud koʻchaga ulanish', async ({ p
   // uylar yangi koʻcha koridoriga tushmaydi (reyestr: koʻcha ustida bino yoʻq)
   expect(await page.evaluate(() => (window as any).__mr.last?.d.streetOverlap?.length ?? 0)).toBe(0);
 });
+
+/** 02.11 (2) (egasi: «yakka uylarda haliyam koʻchalar qurilmayapti va uchastkasi koʻrinmayapti»): chuqur «Yakka uylar» kvartali — ichki koʻchalar, uchastkalar */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`yakka uylar — ichki koʻchalar va uchastkalar · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: w, height: 900 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '260'); await page.fill('#rh', '220'); await page.click('#rectSite');
+  await page.click('[data-step=parsel]'); await page.locator('[data-block="0"]').click();
+  await page.click('[data-use=yakka]');
+  await page.click('[data-step=hajm]');
+  await page.click('[data-typ=yakka]');
+  await expect(page.locator('#lowInner')).toBeVisible();
+  await page.click('#genGo');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.streets.filter((s: any) => s.profile === 'otish-8').length), { timeout: 15000 }).toBeGreaterThan(1);
+  const r = await page.evaluate(() => { const ed = (window as any).__mr, d = ed.store.doc, p = ed.plan();
+    return { blocks: p.blocks.length, yakka: p.blocks.filter((b: any) => b.use === 'yakka').length, houses: d.buildings.filter((b: any) => b.gen?.plot).length }; });
+  expect(r.blocks).toBeGreaterThan(2);
+  expect(r.yakka).toBe(r.blocks);
+  expect(r.houses).toBeGreaterThan(40);
+  // «Yakka uylar» zonasida ham uchastka hovlisi (panjara, bogʻ) chiziladi
+  await expect.poll(() => page.evaluate(() => { let n = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData.fence) n++; }); return n; }), { timeout: 8000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(500);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/yakka_ichki_${w}${dark ? 'd' : 'l'}.png` });
+});
