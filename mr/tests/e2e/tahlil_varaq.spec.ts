@@ -56,3 +56,40 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`cheklovlar
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/cheklov_${w}${dark ? 'd' : 'l'}.png` });
   await page.keyboard.press('Escape');
 });
+
+/** 02.11 (tahlil 3-bosqich): «Yashil balans» (86, 87-band jadvali) va «Insolyatsiya» (6-qadam xaritasi varaqda) */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`yashil balans va insolyatsiya varaqlari · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
+  await page.setViewportSize({ width: w, height: 900 });
+  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '300'); await page.fill('#rh', '240'); await page.click('#rectSite');
+  await page.click('[data-step=kocha]'); await page.click('[data-gpre=portlend]'); await page.click('#gridApply');
+  await page.click('[data-step=parsel]'); await page.locator('[data-block="1"]').click(); await page.click('[data-use=yashil]');
+  await page.click('[data-step=hajm]'); await page.click('#genAll');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length), { timeout: 30000 }).toBeGreaterThan(3);
+  const open = async (re: RegExp) => {
+    const idx = await page.evaluate(s => [...document.querySelectorAll('[data-sheet]')].findIndex(e => new RegExp(s).test(e.textContent ?? '')), re.source);
+    expect(idx).toBeGreaterThanOrEqual(0); await page.locator('[data-sheet]').nth(idx).click();
+  };
+  // insolyatsiya hisoblanmagan — varaqda izoh
+  await page.click('[data-step=eksport]'); await page.click('#exGx'); await expect(page.locator('[data-sheet]').first()).toBeVisible();
+  await open(/Insolyatsiya/);
+  await expect(page.locator('#gxView svg')).toContainText('Insolyatsiya hisoblanmagan');
+  await open(/Yashil balans/);
+  const view = page.locator('#gxView svg');
+  await expect(view.locator('#Yashil_balans')).toContainText('Jami yashil');
+  await expect(view.locator('#Yashil_balans')).toContainText('Hovli maysasi');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/yashil_${w}${dark ? 'd' : 'l'}.png` });
+  await page.keyboard.press('Escape');
+  // 6-qadam: insolyatsiya xaritasi → varaqda rangli katakchalar
+  await page.click('[data-step=quyosh]'); await page.click('[data-date="03-22"]'); await page.click('#insolGo');
+  await expect(page.locator('#insolSt')).toContainText('22 mart', { timeout: 60000 });
+  await page.click('[data-step=eksport]'); await page.click('#exGx'); await expect(page.locator('[data-sheet]').first()).toBeVisible();
+  await open(/Insolyatsiya/);
+  await expect(page.locator('#gxView svg #Insolyatsiya path').first()).toBeAttached();
+  await expect(page.locator('#gxView svg')).toContainText('22.03');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/insol_${w}${dark ? 'd' : 'l'}.png` });
+  await page.keyboard.press('Escape');
+});
