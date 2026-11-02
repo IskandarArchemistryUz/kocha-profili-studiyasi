@@ -7,7 +7,7 @@ import type { LngLat } from '../core/doc';
 
 export interface CtxBuilding { id: number; rings: LngLat[][]; h: number; hSrc: 'height' | 'levels' | 'taxmin' | 'overture'; kind: string; /** uy raqami (addr:housenumber) */ num?: string }
 /** sub — highway=service uchun service=* (driveway, parking_aisle…): kvartal chegarasi boʻla oladimi */
-export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string; lanes?: number; oneway?: boolean; name?: string }
+export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string; lanes?: number; oneway?: boolean; name?: string; /** 02.11: koʻprik qavati (OSM bridge + layer, ≥ 1) */ lvl?: number }
 export interface CtxArea { id: number; rings: LngLat[][]; kind: string }
 
 export interface OsmData {
@@ -18,10 +18,12 @@ export interface OsmData {
   waterways: CtxLine[];
   green: CtxArea[];
   trees: LngLat[];
+  /** 02.11: yer osti yoʻllari (tunnel=yes) — sahnada va kvartal chegarasida yoʻq, faqat ma'lumot (kirish joylari, rejada uzuq chiziq) */
+  tunnels?: CtxLine[];
 }
 
 /** Tahlilchi versiyasi: parseOverpass oʻzgarsa oshiriladi — keshdagi xom maʼlumot qayta tahlil qilinadi */
-export const PARSER_V = 5;
+export const PARSER_V = 6;
 
 export type BBox = [number, number, number, number]; // janub, gʻarb, shimol, sharq
 
@@ -37,7 +39,7 @@ export function overpassQuery(b: BBox): string {
 (
   way["building"];
   relation["building"]["type"="multipolygon"];
-  way["highway"]["tunnel"!="yes"]["area"!="yes"];
+  way["highway"]["area"!="yes"];
   way["railway"~"^(rail|light_rail|tram|narrow_gauge|subway)$"]["tunnel"!="yes"];
   way["natural"="water"]; relation["natural"="water"];
   way["waterway"~"^(river|canal|stream|ditch|drain)$"]["tunnel"!~"yes|culvert"];
@@ -184,7 +186,10 @@ export function parseOverpass(json: { elements?: OsmEl[] }): OsmData {
     }
     if (t.highway && e.type === 'way' && pts.length >= 2) { {
       const lanes = num(t.lanes), oneway = /^(yes|1|true|-1)$/.test(t.oneway || '') || t.junction === 'roundabout';
-      d.roads.push({ id: e.id, pts, cls: t.highway, w: roadWidth(t), ...(t.service ? { sub: t.service } : {}), ...(lanes && lanes >= 1 && lanes <= 12 ? { lanes: Math.round(lanes) } : {}), ...(oneway ? { oneway } : {}), ...(t.name ? { name: t.name } : {}) });
+      // 02.11: tunnel — alohida roʻyxat (yer osti); koʻprik — qavati (layer, kamida 1)
+      const layer = Math.round(num(t.layer) ?? 0), tunnel = !!t.tunnel && t.tunnel !== 'no' && t.tunnel !== 'building_passage', bridge = !!t.bridge && t.bridge !== 'no';
+      if (tunnel) { (d.tunnels ??= []).push({ id: e.id, pts, cls: t.highway, w: roadWidth(t), ...(layer < 0 ? { lvl: layer } : { lvl: -1 }), ...(t.name ? { name: t.name } : {}) }); continue; }
+      d.roads.push({ ...(bridge ? { lvl: Math.max(1, Math.min(5, layer)) } : {}), id: e.id, pts, cls: t.highway, w: roadWidth(t), ...(t.service ? { sub: t.service } : {}), ...(lanes && lanes >= 1 && lanes <= 12 ? { lanes: Math.round(lanes) } : {}), ...(oneway ? { oneway } : {}), ...(t.name ? { name: t.name } : {}) });
     } continue; }
     if (t.railway && e.type === 'way' && pts.length >= 2) { d.rails.push({ id: e.id, pts, cls: t.railway, w: t.railway === 'tram' ? 2.6 : 3.2 }); continue; }
     if (t.natural === 'water') {

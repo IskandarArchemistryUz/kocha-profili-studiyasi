@@ -9,6 +9,7 @@ import type { ContextSettings } from '../core/doc';
 import type { ContextBundle } from '../context/load';
 import { imageryUV } from '../context/tiles';
 import { streetsGeo, type StreetIn } from './streets3d';
+import { elevateRoads, bridgeMeshes } from './bridges3d';
 
 export const CC = {
   ground: 0xe9e6df, bld: 0xffffff, bldEdge: 0x8f8a80, road: 0x9a9893, roadMajor: 0x84827d, foot: 0xd9d3c7,
@@ -224,7 +225,7 @@ function treePositions(b: ContextBundle, fr: Frame, R: number, avoid: (p: XY) =>
   }
   // koʻcha daraxtlari: turar va ikkinchi darajali koʻchalar chetidan 2 m
   for (const l of b.osm.roads) {
-    if (!/^(residential|secondary|tertiary|primary|unclassified|living_street)$/.test(l.cls)) continue;
+    if (!/^(residential|secondary|tertiary|primary|unclassified|living_street)$/.test(l.cls) || l.lvl) continue;   // koʻprik ustida daraxt yoʻq
     const pts = l.pts.map(fr.toLocal), off = l.w / 2 + 2.2;
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], c = pts[i], dx = c[0] - a[0], dy = c[1] - a[1], L = Math.hypot(dx, dy); if (L < 12) continue;
@@ -319,8 +320,17 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   // koʻchalar: trotuar → asfalt → chiziqlar (sunʼiy yoʻldosh ustida ham toʻliq koʻrinadi)
   const shownRoads: StreetIn[] = [];
   if (L.roads) {
-    const sts: StreetIn[] = b.osm.roads.filter(r => !skipRoads.has(r.id)).flatMap(r => clipLine(r.pts.map(fr.toLocal), C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
+    // 02.11: koʻpriklar (OSM bridge + layer) koʻtariladi, ularga ulangan boʻlaklar — pandus; qolgani tekis (bridges3d.ts)
+    const ev = elevateRoads(b.osm.roads.filter(r => !skipRoads.has(r.id)).map(r => ({ id: r.id, pts: r.pts.map(fr.toLocal), w: r.w, cls: r.cls, lvl: r.lvl, lanes: r.lanes, oneway: r.oneway })));
+    const sts: StreetIn[] = ev.flat.flatMap(r => clipLine(r.pts, C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
       .map(pts => ({ pts, cls: r.cls, w: r.w, lanes: r.lanes, oneway: r.oneway })));
+    const inR = (pts: XY[]) => pts.some(p => Math.abs(p[0] - C0[0]) < R && Math.abs(p[1] - C0[1]) < R);
+    const bm = bridgeMeshes(ev.elevated.filter(e => inR(e.pts)), H);
+    if (bm) {
+      const deck = new THREE.Mesh(bm.deck, new THREE.MeshLambertMaterial({ color: CC.asphaltMajor, side: THREE.DoubleSide })); deck.name = 'koʻpriklar'; deck.castShadow = deck.receiveShadow = true;
+      const sd = new THREE.Mesh(bm.side, new THREE.MeshLambertMaterial({ color: 0xc9c6bf, side: THREE.DoubleSide })); sd.name = 'koʻprik tayanchlari'; sd.castShadow = sd.receiveShadow = true;
+      g.add(deck, sd);
+    }
     shownRoads.push(...sts);
     const sg = streetsGeo(sts, H);
     const add = (arr: number[], col: number, ord: number, name: string) => { if (!arr.length) return; const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.add(overlay(geo, flatMat(col, ord), ord, name)); };

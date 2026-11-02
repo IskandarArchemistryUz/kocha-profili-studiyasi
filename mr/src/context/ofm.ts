@@ -81,8 +81,9 @@ export async function fetchOfm(bb: BBox, f: typeof fetch): Promise<OsmData> {
         d.buildings.push({ id: id * 10 + i, rings, h: given ? rh : heightByArea('yes', a, 9), hSrc: given ? 'height' : 'taxmin', kind: 'yes' }); });
     });
     each('transportation', (ft, geom, id) => {
-      const p = ft.properties; if (p.brunnel === 'tunnel') return;
+      const p = ft.properties, tun = p.brunnel === 'tunnel', lay = Number(p.layer);
       const c = String(p.class ?? ''), s = String(p.subclass ?? '');
+      if (tun && (c === 'rail' || c === 'transit')) return;
       if (c === 'rail' || c === 'transit') {
         const cls = c === 'rail' ? 'rail' : /^(tram|subway|light_rail|narrow_gauge)$/.test(s) ? s : 'rail';
         if (cls === 'subway') return;
@@ -94,6 +95,9 @@ export async function fetchOfm(bb: BBox, f: typeof fetch): Promise<OsmData> {
       const oneway = p.oneway === 1 || p.oneway === -1 || p.oneway === '1' || p.oneway === '-1';
       geom.forEach((pts, i) => { if (pts.length < 2 || !inBB(pts)) return;
         const r: CtxLine = { id: id * 10 + i, pts, cls: hw, w: roadWidth(t2), ...(t2.service ? { sub: t2.service } : {}), ...(oneway ? { oneway } : {}) };
+        // 02.11: koʻprik / tunnel (OpenMapTiles «brunnel», «layer»)
+        if (tun) { (d.tunnels ??= []).push({ ...r, lvl: Number.isFinite(lay) && lay < 0 ? lay : -1 }); return; }
+        if (p.brunnel === 'bridge') r.lvl = Math.max(1, Math.min(5, Number.isFinite(lay) ? Math.round(lay) : 1));
         d.roads.push(r); });
     });
     each('transportation_name', (ft, geom) => { const nm = ft.properties.name; if (typeof nm === 'string' && nm) geom.forEach(pts => names.push({ name: nm, pts })); });
