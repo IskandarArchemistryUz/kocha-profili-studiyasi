@@ -20,6 +20,7 @@ import { useDef } from '../core/uses';
 import { edgeKinds, boundaryNeed, azOf } from '../core/setback';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
+import { limitChecks } from '../core/limitcheck';
 
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
 /** Keyingi pogʻona izohi (41-jadval / 543-band): qaysi parsellar kichik va qancha maydon yetishmaydi — faqat ochilgan izohda */
@@ -515,6 +516,63 @@ export const RULES: Rule[] = [
         ...(bad.length ? { where: { bids: bad.map(x => x.b.id) } } : {}),
         ...(fixable ? { fix: { id: 'podium-joint' as const, label: 'Choklar sxemasini qoʻyish', hint: `${fixable} ta stilobat teng boʻlmalarga ajratiladi: har boʻlma ShNQ 2.08.02-23, 2-ilova chegarasidan oshmaydi va ≤ ${lim ?? '—'} m (QMQ 2.01.03-19, 3.1-jadval); chok — antiseysmik chok va yongʻinga qarshi devor, minoralar orasidan.` } } : {}),
         note: parts.join(' ') };
+    },
+  },
+  // 02.11, cheklovlar 3-bosqichi — asl matn: SanPiN RUz № 0350-17 (2.17, 2.20, 6.3, 6.4), VMQ № 1050 (14, 17), ShNQ 2.07.01-23 (251, 253)
+  {
+    id: 'szz-217',
+    title: 'SMZ ichida taqiqlangan funksiya',
+    source: { doc: 'SanPiN RUz № 0350-17', edition: '2017', clause: '2.17 (taqiq), 2.20 (ruxsat); SMZ — 6.3, 6.4; temir yoʻl — ShNQ 2.07.01-23, 359', verified: true },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc);
+      if (!c.any) return { status: 'na', unit: 'bino', limit: '0', note: 'Cheklov obyektlari kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
+      const deny = c.szz.filter(x => x.verdict === 'deny'), rev = c.szz.filter(x => x.verdict === 'review'), allow = c.szz.filter(x => x.verdict === 'allow');
+      const ids = (xs: typeof c.szz) => [...new Set(xs.map(x => x.bid))];
+      const parts = [
+        deny.length ? `${ids(deny).length} ta bino taqiqlangan funksiyada (turar joy, MTM, maktab, sport, park — 2.17)` : '',
+        rev.length ? `${ids(rev).length} ta bino funksiyasi 2.17 va 2.20 roʻyxatlarida yoʻq — sanitariya nazorati bilan kelishiladi` : '',
+        allow.length ? `${ids(allow).length} ta bino 2.20 dagi ruxsat etilgan funksiyada (qabriston uchun — talqin, korxonaga xizmat bilan bogʻlanmagan)` : '',
+      ].filter(Boolean);
+      const bad = deny.length ? deny : rev;
+      return { status: deny.length ? 'fail' : rev.length || allow.length ? 'review' : 'pass', value: ids(deny).length, unit: 'bino', limit: '0',
+        ...(bad.length || allow.length ? { where: { bids: ids(bad.length ? bad : allow), rings: c.zoneRings } } : {}),
+        note: parts.length ? parts.join('; ') + '.' : 'SMZ ichida bino yoʻq.' };
+    },
+  },
+  {
+    id: 'elu-1050',
+    title: 'ELU muhofaza zonasida bino',
+    source: { doc: 'VMQ № 1050 (26.12.2018)', edition: '2018', clause: '14-band (zona), 17-band (bino — tarmoq egasining yozma roziligi); ≥ 330 kV — SanPiN 0350-17, 2.23.4', verified: true },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc), elu = (doc.limits ?? []).filter(l => l.kind === 'elu');
+      if (!elu.length) return { status: 'na', unit: 'bino', limit: '0', note: 'ELU kiritilmagan.' };
+      const ids = [...new Set(c.elu.map(x => x.bid))];
+      return { status: ids.length ? 'fail' : 'pass', value: ids.length, unit: 'bino', limit: '0', ...(ids.length ? { where: { bids: ids, rings: c.zoneRings } } : {}),
+        note: ids.length ? `${ids.length} ta bino ELU zonasida (${[...new Set(c.elu.map(x => `${x.kv} kV — ${x.m} m`))].join(', ')}). Yechim: binoni zonadan chiqarish, ELU ni kabelga oʻtkazish yoki koʻchirish (tarmoq egasi bilan).` : 'ELU zonasida bino yoʻq.' };
+    },
+  },
+  {
+    id: 'elu-251',
+    title: '35 kV va undan yuqori havo ELU turar joy hududi ustidan',
+    source: { ...SHNQ_2_07_01, clause: '251-band (turar joy hududidan tashqarida), 253-band (rekonstruksiyada chiqarish yoki kabelga)' },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc), hv = (doc.limits ?? []).filter(l => l.kind === 'elu' && (l.kv ?? 0) >= 35 && l.elu !== 'kabel' && l.elu !== 'demontaj');
+      if (!hv.length) return { status: 'na', unit: 'kvartal', limit: '0', note: '35 kV va undan yuqori havo ELU yoʻq.' };
+      const n = c.elu251.reduce((t, x) => t + x.blocks, 0);
+      return { status: n ? 'fail' : 'pass', value: n, unit: 'kvartal', limit: '0',
+        note: n ? `${c.elu251.map(x => `${x.kv} kV`).join(', ')} havo liniyasi ${n} ta turar joy kvartali ustidan oʻtadi. 253-band: liniyani turar joy hududidan chiqarish yoki kabelga almashtirish (ELU holati — «Kabelga»).` : 'Havo liniyalari turar joy kvartallari ustidan oʻtmaydi.' };
+    },
+  },
+  {
+    id: 'szz-manual',
+    title: 'SMZ yoki ELU zonasi qoʻlda kamaytirilgan',
+    source: { doc: 'SanPiN RUz № 0350-17', edition: '2017', clause: '2.9 izohi (rekonstruksiyada belgilangan tartibda tuzatish); 6.4 izohi («′» belgili obyektlar — sanitariya nazorati xulosasi bilan 2 baravargacha)', verified: true },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc);
+      if (!c.any) return { status: 'na', unit: 'obyekt', limit: '0', note: 'Cheklov obyektlari kiritilmagan.' };
+      if (!c.manual.length) return { status: 'pass', value: 0, unit: 'obyekt', limit: '0', note: 'Barcha zonalar jadvaldagi qiymatda (yoki kattaroq).' };
+      return { status: 'review', value: c.manual.length, unit: 'obyekt', limit: '0',
+        note: `${c.manual.map(x => `${x.m} m (jadvalda ${x.table} m)`).join(', ')} — davlat sanitariya nazorati ijobiy xulosasi kerak. Qabristonlar 6.4 dagi «′» belgili obyektlar qatorida emas.` };
     },
   },
 ];

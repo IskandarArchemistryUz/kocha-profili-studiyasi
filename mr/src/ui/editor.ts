@@ -3027,6 +3027,9 @@ export class Editor {
         if (!open) ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Yopilgan qabriston turi') },
           h('button', { 'aria-pressed': !!l.sub?.memorial, onclick: () => upd(l.id, { sub: { ...l.sub, open: false, memorial: !l.sub?.memorial } }) }, tr('Memorial / kolumbariy')),
           h('button', { 'aria-pressed': !!l.sub?.rural, onclick: () => upd(l.id, { sub: { ...l.sub, open: false, rural: !l.sub?.rural } }) }, tr('Qishloq qabristoni'))));
+        else ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Qabriston turi') },
+          h('button', { 'aria-pressed': !!l.sub?.rural, 'data-qab': 'rural', onclick: () => upd(l.id, { sub: { ...l.sub, rural: !l.sub?.rural } }) }, tr('Qishloq qabristoni (≤ 2 ga)'))));
+        if (!open) ed.append(h('span', { class: 't-small', 'data-qabnote': '' }, tr('Yopilganlik rasmiy hujjat bilan tasdiqlanadi. SanPiN 0350-17, 6.4: yopilgan qabriston IV (100 m) va V (50 m) sinflarda — memorial majmuasi V, qolgani IV (talqin); 50 m gacha kamaytirish — davlat sanitariya nazorati xulosasi bilan.')));
       }
       const buf = h('input', { type: 'number', class: 'input', min: 0, max: 2000, step: 1, value: l.szz ?? '', placeholder: String(szzOf({ ...l, szz: undefined }, aHa).m), id: 'limBuf', 'aria-label': tr('Bufer, m'),
         onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { szz: undefined }); else if (+v >= 0 && +v <= 2000) upd(l.id, { szz: +v }); } });

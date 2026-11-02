@@ -45,22 +45,25 @@ export interface Limit {
 }
 
 export type Flag = 'NORMA' | 'TALQIN' | 'TAXMIN';
-export interface Szz { m: number; cls?: 'I' | 'II' | 'III' | 'IV' | 'V'; ref: string; flag: Flag }
+export interface Szz { m: number; cls?: 'I' | 'II' | 'III' | 'IV' | 'V'; ref: string; flag: Flag; /** qoʻlda oʻzgartirilganda — jadvaldagi qiymat */ table?: number }
 
 const SAN = 'SanQvaN 0350-17';
 /** Cheklov turi va maydoniga (ga) koʻra SMZ — SanQvaN 0350-17, 6.3 / 6.4; temir yoʻl — ShNQ 2.07.01-23, 359 */
 export function szzOf(l: Limit, areaHa: number): Szz {
-  const own = (s: Szz): Szz => l.szz != null && l.szz >= 0 ? { ...s, m: l.szz, flag: s.flag, ref: `${s.ref} · qoʻlda` } : s;
+  const own = (s: Szz): Szz => l.szz != null && l.szz >= 0 ? { ...s, m: l.szz, flag: s.flag, ref: `${s.ref} · qoʻlda`, table: s.m } : s;
   switch (l.kind) {
     case 'qabriston': {
       const open = l.sub?.open !== false;
+      // 6.4, V sinf, 6-band: «…сельские кладбища (до 2 га)» — alohida nomlangan (aniqroq band), amaldagi boʻlsa ham V
+      if (l.sub?.rural && areaHa <= 2) return own({ m: 50, cls: 'V', ref: `${SAN}, 6.4`, flag: 'NORMA' });
       if (open) {
         if (areaHa > 20) return own({ m: 500, cls: 'II', ref: `${SAN}, 6.4`, flag: 'NORMA' });
         if (areaHa >= 10) return own({ m: 300, cls: 'III', ref: `${SAN}, 6.4`, flag: 'NORMA' });
         return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.4`, flag: 'NORMA' });
       }
-      // 6.4 da «yopilgan qabriston» ham IV, ham V sinfda: memorial yoki qishloq (≤ 2 ga) — V, qolgani — IV (TALQIN)
-      if (l.sub?.memorial || (l.sub?.rural && areaHa <= 2)) return own({ m: 50, cls: 'V', ref: `${SAN}, 6.4`, flag: 'NORMA' });
+      // 6.4 da «yopilgan qabriston» ham IV (12-band), ham V (6-band) sinfda. V da memorial majmua, kolumbariy, qishloq qabristoni bilan
+      // bir guruhda — yopilgan memorial → V; qolgan yopilgan → IV (xavfsizroq; dafn toʻxtagach xavf asta kamayadi) — TALQIN
+      if (l.sub?.memorial) return own({ m: 50, cls: 'V', ref: `${SAN}, 6.4`, flag: 'NORMA' });
       return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.4`, flag: 'TALQIN' });
     }
     case 'issiqxona': return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.3`, flag: 'NORMA' });
@@ -77,7 +80,10 @@ const VMQ: [number, number][] = [[1, 2], [20, 10], [35, 15], [110, 20], [220, 25
 const SAN_ELU: [number, number][] = [[330, 20], [500, 30], [750, 40], [1150, 55]];
 /** ELU zonasi (oʻqdan har tomonga, m): ikki normaning kattasi; kabel — 1 m; demontaj — yoʻq. Jadvalda yoʻq kuchlanish — yuqori sinf qiymati (TAXMIN) */
 export function eluZone(l: Pick<Limit, 'kv' | 'elu' | 'szz'>): Szz {
-  if (l.szz != null && l.szz >= 0) return { m: l.szz, ref: 'qoʻlda', flag: 'NORMA' };
+  const base = eluTable(l);
+  return l.szz != null && l.szz >= 0 ? { ...base, m: l.szz, ref: `${base.ref} · qoʻlda`, table: base.m } : base;
+}
+function eluTable(l: Pick<Limit, 'kv' | 'elu'>): Szz {
   if (l.elu === 'demontaj') return { m: 0, ref: 'VMQ № 1050, 14', flag: 'NORMA' };
   if (l.elu === 'kabel') return { m: 1, ref: 'VMQ № 1050, 14', flag: 'NORMA' };
   const kv = l.kv ?? 0;
@@ -91,7 +97,7 @@ export function eluZone(l: Pick<Limit, 'kv' | 'elu' | 'szz'>): Szz {
 export const SZZ_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'sport', 'yashil'];
 export const SZZ_ALLOW: readonly Use[] = ['avtoturargoh', 'savdo', 'ofis', 'poliklinika', 'texnik', 'maydon'];
 
-export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; m: number; cls?: string; ref: string; flag: Flag }
+export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; /** koʻpburchaklar (tashqi + teshiklar) — kesishma hisobi uchun */ polys: XY[][][]; m: number; cls?: string; ref: string; flag: Flag }
 export interface LimitZones {
   /** qurib boʻlmaydigan joy (saqlanadigan obyekt konturi, temir yoʻl, ELU muhofaza zonasi) — uchastka bilan kesishgan, mahalliy */
   hard: XY[][][];
@@ -154,7 +160,7 @@ function limitZonesRaw(doc: Project): LimitZones {
     let mp: MultiPolygon = [];
     try { mp = polygonClipping.intersection(z.mp, site); if (hard.length && mp.length) mp = polygonClipping.difference(mp, hard); } catch { mp = []; }
     if (mpArea(mp) < 1) continue;
-    softOut.push({ id: z.l.id, kind: z.l.kind, rings: mp.flatMap(p => p.map(open)), m: z.s.m, cls: z.s.cls, ref: z.s.ref, flag: z.s.flag });
+    softOut.push({ id: z.l.id, kind: z.l.kind, rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: z.s.m, cls: z.s.cls, ref: z.s.ref, flag: z.s.flag });
   }
   return { hard: hard.map(p => p.map(open)), soft: softOut };
 }
