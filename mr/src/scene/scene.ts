@@ -5,6 +5,7 @@
  */
 import { lenLimit, jointOpt, jointScheme } from '../core/seysmik';
 import { bLevels } from '../core/levels';
+import { prodChecks } from '../core/prodcheck';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { LngLat, Project, Shade } from '../core/doc';
@@ -563,7 +564,7 @@ export class Scene3D {
   }
   private facadeSpec(b: Project['buildings'][number]): WinSpec | null { return b.win ? winDef(b.win) : this.facade !== 'yoq' ? { id: this.facade, ...FACADE[this.facade] } : null; }
   private facadeEligible(b: Project['buildings'][number]): boolean {
-    return this.style !== 'funksiya' && (this.detail || !!b.winPat || !!b.balPat) && !!this.facadeSpec(b) && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona';
+    return this.style !== 'funksiya' && (this.detail || !!b.winPat || !!b.balPat) && !!this.facadeSpec(b) && !(b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) && b.use !== 'ofis' && b.use !== 'mehmonxona' && !b.hall;   // ombor zali — derazasiz
   }
   private pickLod(doc: Project): Set<string> {
     const out = new Set<string>(); if (this.selected) out.add(this.selected);
@@ -856,7 +857,7 @@ export class Scene3D {
     tiers.forEach((t, ti) => {
       const up = ti > 0;   // yuqori pogʻonalar — toʻliq kontur bilan
       if (t.f0 < nr) part(t.ring, Fz(t.f0), Fz(Math.min(t.f1, nr)), baseC, parking ? null : 'shop', t === last && t.f1 <= nr, up);
-      if (t.f1 > nr) part(t.ring, Fz(Math.max(t.f0, nr)), Fz(t.f1), topC, office ? 'glass' : 'res', t === last, up);
+      if (t.f1 > nr) part(t.ring, Fz(Math.max(t.f0, nr)), Fz(t.f1), topC, b.hall ? null : office ? 'glass' : 'res', t === last, up);   // katta oraliqli zal (ombor) — derazasiz devor
     });
     // «Funksiya ranglari»: har qavat chegarasida chiziq — qayerda nechanchi qavat ekani oson koʻrinsin (seksiyalar choki — avvalgidek)
     const fl = st === 'funksiya' && !dim;
@@ -960,6 +961,28 @@ export class Scene3D {
     }
   }
 
+  /** 02.11: dok darvozalar (logistika) — fasadda toʻq toʻrtburchaklar (3 × 3 m, qadam 4 m, chetlardan 6 m — ANDOZA) */
+  private drawDocks(doc: Project, fr: ReturnType<typeof frame>): void {
+    const v: number[] = [];
+    for (const b of doc.buildings) {
+      if (!b.docks?.length) continue;
+      const r = b.footprint.map(fr.toLocal), g = Math.min(...r.map(p => this.H(p[0], p[1]))), L = bLevels(doc.settings, b), z0 = g + L.z0, hd = Math.min(3, L.at(1) - L.z0 - 0.3);
+      for (const d of b.docks) {
+        const a = r[d.edge], c = r[(d.edge + 1) % r.length]; if (!a || !c) continue;
+        const len = Math.hypot(c[0] - a[0], c[1] - a[1]); if (len < 14) continue;
+        const ux = (c[0] - a[0]) / len, uy = (c[1] - a[1]) / len, nx = uy * 0.12, ny = -ux * 0.12;   // tashqariga (CCW halqa — oʻng normal)
+        const step = (len - 12) / Math.max(1, d.n);
+        for (let i = 0; i < d.n; i++) {
+          const t0 = 6 + step * i + (step - 3) / 2, t1 = t0 + 3, p0 = [a[0] + ux * t0 + nx, a[1] + uy * t0 + ny], p1 = [a[0] + ux * t1 + nx, a[1] + uy * t1 + ny];
+          v.push(p0[0], z0, -p0[1], p1[0], z0, -p1[1], p1[0], z0 + hd, -p1[1], p0[0], z0, -p0[1], p1[0], z0 + hd, -p1[1], p0[0], z0 + hd, -p0[1]);
+        }
+      }
+    }
+    if (!v.length) return;
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x3d4147, side: THREE.DoubleSide })); m.renderOrder = 11; m.userData.docks = true; m.userData.layer = 3; this.world.add(m);
+  }
+
   update(doc: Project): void {
     this.lastDoc = doc;
     { const f0 = frame(doc.origin); this.isoLocal = this.iso ? this.iso.map(r => r.map(f0.toLocal)) : null; }
@@ -984,6 +1007,11 @@ export class Scene3D {
       });
       rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
       this.drawLimits(doc, fr);
+      // 02.11: ishlab chiqarish zonalari SMZ (core/prodcheck: tur boʻyicha bufer) — uzuq kontur, ichiga shtrix tushmaydi (zona oʻzi rangli)
+      for (const r of prodChecks(doc).zoneRings) {
+        const l = line(densify(r, 6, true), plain ? 0x8a8780 : 0x9c6b2e, 0.5, true, 7.8, this.H); (l.material as THREE.Material).dispose();
+        l.material = new THREE.LineDashedMaterial({ color: plain ? 0x8a8780 : 0x9c6b2e, dashSize: 4, gapSize: 2.5 }); l.computeLineDistances(); l.userData.layer = 2; l.userData.prodSzz = true; this.world.add(l);
+      }
       // daha va yer uchastkasi yozuvlari (4.1): yerga yotadi, boʻsh joyda, masshtabga qarab qisqaradi; tanlanganida — oq kartochka
       this.buildLabels(doc, plan, fr);
       // hovlilar: trotuar, maysa, yoʻlaklar, maydonchalar, daraxtlar
@@ -1120,11 +1148,11 @@ export class Scene3D {
     doc.garages.forEach(gr => {
       const r = gr.ring.map(fr.toLocal);
       if (!this.inIso(r)) return;
-      if (gr.kind === 'yer_usti' && gr.stalls?.length) {
+      if (gr.kind === 'yer_usti' && (gr.stalls?.length || gr.truck)) {   // yuk hovlisi (02.11) — tirkamasiz boʻlsa ham apron chiziladi
         // modul boʻyicha: manevr boʻlaklari (toʻq asfalt), joylar (ochroq) va oq chiziqlar
         const flatG = (qs: XY[][]) => { const a: number[] = []; for (const q of qs) for (let i = 1; i + 1 < q.length; i++) a.push(q[0][0], q[0][1], 0, q[i][0], q[i][1], 0, q[i + 1][0], q[i + 1][1], 0); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a, 3)); return g; };
         const loc = (rs: [number, number][][]) => rs.map(q => q.map(fr.toLocal));
-        const S = loc(gr.stalls), A = loc(gr.aisles ?? []);
+        const S = loc(gr.stalls ?? []), A = loc(gr.aisles ?? []);
         const mat = (c: number) => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 });
         const ga = new THREE.Mesh(drape(flatG(A), this.H, 0.38, this.ctx ? 8 : 1e9), mat(0x8e9298)); ga.renderOrder = 6.5; ga.userData.garage = gr.id; this.world.add(ga);
         const gs = new THREE.Mesh(drape(flatG(S), this.H, 0.39, 1e9), mat(0xb4b8bd)); gs.renderOrder = 6.6; gs.userData.garage = gr.id; this.world.add(gs);
@@ -1140,6 +1168,18 @@ export class Scene3D {
         l.material = new THREE.LineDashedMaterial({ color: 0x7a4fb0, dashSize: 2, gapSize: 1.5 }); l.computeLineDistances(); this.world.add(l);
       }
     });
+    // 02.11: temir yoʻl shoxobchasi (yuk terminali) — ikki rels (1520 mm) va shpallar
+    doc.garages.forEach(gr => {
+      if (!gr.spur || gr.spur.length < 2) return;
+      const P = gr.spur.map(fr.toLocal), v: number[] = [];
+      for (let i = 1; i < P.length; i++) {
+        const a = P[i - 1], b = P[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, nx = -uy, ny = ux;
+        for (const k of [-0.76, 0.76]) v.push(a[0] + nx * k, this.H(a[0], a[1]) + 0.5, -(a[1] + ny * k), b[0] + nx * k, this.H(b[0], b[1]) + 0.5, -(b[1] + ny * k));
+        for (let t = 0; t <= L; t += 1.8) { const x = a[0] + ux * t, y = a[1] + uy * t, z = this.H(x, y) + 0.46; v.push(x - nx * 1.3, z, -(y - ny * 1.3), x + nx * 1.3, z, -(y + ny * 1.3)); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+      const m = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: plain ? 0x6a6a6a : 0x5a4a3c })); m.renderOrder = 6.8; m.userData.spur = gr.id; this.world.add(m);
+    });
     tag(2);
     // loyiha binolari / seksiyalari: noturar pastki qavatlar toʻq tasma, har seksiya alohida (chegaralari koʻrinadi)
     const fh = doc.settings.floorHeight, aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
@@ -1154,6 +1194,7 @@ export class Scene3D {
     const B: BCtx = { doc, fr, fh, aniso, TP, GR, P3, SM, smOf, focus: !!focus, st, plain, toV2 };
     this.bctx = B;
     doc.buildings.forEach((_, bi) => this.buildTagged(doc, bi, B));
+    this.drawDocks(doc, fr);
     // antiseysmik choklar (QMQ 2.01.03-19, 3.1.3): tegib turgan seksiyalar orasidagi devor — qizil chiziq (tom va yer sathida)
     if ((doc.settings.seismic ?? 0) >= 7 && !this.aptView) {
       const JC = 0xd9534f, fl = doc.buildings.filter(flat);
