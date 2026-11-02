@@ -71,7 +71,7 @@ export function norm(o: Record<string, unknown>): SheetOpts {
  * zonalashtirish, figura-fon, landshaft, qavatlar soni, vaziyat sxemasi); har bino turidan 1-qavat va tipik qavat; har past qavatli uy
  * turidan har qavat rejasi (core/albumset).
  */
-const SET_V = 5;
+const SET_V = 6;
 function defaultSheets(doc: Project): SheetDoc[] {
   const base = lastOpts(), mk = (o: Partial<SheetOpts>): SheetDoc => ({ id: uid('sh_'), opts: { ...base, mode: 'reja', title: '', stamp: {}, ...o } as unknown as Record<string, unknown> });
   const out: SheetDoc[] = [
@@ -81,6 +81,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'vaziyat', scale: 10000 }),
     mk({ kind: 'cheklov', scale: 0 }),   // 02.11: tahlil — cheklovlar rejasi va yer balansi
     mk({ kind: 'yashil', scale: 0 }), mk({ kind: 'insol', scale: 0 }),   // 02.11: tahlil — yashil balans, insolyatsiya
+    mk({ kind: 'transport', scale: 0 }),   // 02.11: tahlil 4 — transport sxemasi
   ];
   for (const sv of ['mtm', 'maktab', 'poliklinika', 'bekat']) out.push(mk({ kind: 'xizmat', svc: sv, scale: 0 }));   // 02.11: tahlil — xizmat radiuslari (editor SVC_ON)
   for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));

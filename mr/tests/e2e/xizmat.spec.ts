@@ -8,7 +8,7 @@ function fixture(): unknown {
     el.push({ type: 'way', id: id++, tags: { highway: 'residential' }, geometry: Array.from({ length: 13 }, (_, i) => ({ lon: c[0] + (k) * mx, lat: c[1] + (-600 + i * 100) * my })) });
     el.push({ type: 'way', id: id++, tags: { highway: 'residential' }, geometry: Array.from({ length: 13 }, (_, i) => ({ lon: c[0] + (-600 + i * 100) * mx, lat: c[1] + k * my })) });
   }
-  el.push({ type: 'node', id: 9001, lat: c[1] + 150 * my, lon: c[0] + 150 * mx, tags: { amenity: 'kindergarten', name: 'Sinov bogʻchasi' } });
+  el.push({ type: 'node', id: 9001, lat: c[1] + 130 * my, lon: c[0] + 105 * mx, tags: { amenity: 'kindergarten', name: 'Sinov bogʻchasi' } });
   el.push({ type: 'node', id: 9002, lat: c[1] - 900 * my, lon: c[0] - 900 * mx, tags: { amenity: 'school' } });
   el.push({ type: 'node', id: 9003, lat: c[1] + 200 * my, lon: c[0] - 100 * mx, tags: { highway: 'bus_stop', name: 'Sinov bekati' } });
   el.push({ type: 'node', id: 9004, lat: c[1] - 500 * my, lon: c[0] + 500 * mx, tags: { railway: 'subway_entrance' } });
@@ -23,9 +23,11 @@ test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', as
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.click('[data-step=xizmat]');
   await expect(page.locator('#svcTab')).toBeVisible({ timeout: 30000 });
-  // bogʻcha 150 m da — qisman qamrab oladi; maktab ~1270 m da — 500 m radiusdan tashqarida
+  // bogʻcha uchastka yonida (~130 m) — qisman qamrab oladi (02.11: avval 150/150 da edi — generator ikki xil natija bersa 0 % chiqib, CI beqaror edi); maktab ~1270 m da — 500 m radiusdan tashqarida
   const mtm = page.locator('#svcTab tr[data-svc=mtm] .chip'), sch = page.locator('#svcTab tr[data-svc=maktab] .chip');
-  const v = Number((await mtm.textContent())!.replace(/\D/g, '')); expect(v).toBeGreaterThan(0); expect(v).toBeLessThan(100);
+  // OSM obyektlari kelguncha jadval 0 % koʻrsatishi mumkin — kutiladi (CI da beqaror edi)
+  await expect.poll(async () => Number((await mtm.textContent())!.replace(/\D/g, '')), { timeout: 30000 }).toBeGreaterThan(0);
+  const v = Number((await mtm.textContent())!.replace(/\D/g, '')); expect(v).toBeLessThan(100);
   await expect(sch).toHaveText('0 %');
   // bekat 400 m, metro kirishi 800 m — jadvalda; bekat ~300 m da → qamrov > 0
   await expect(page.locator('#svcTab tr[data-svc=bekat] td').nth(1)).toHaveText('400 m');
