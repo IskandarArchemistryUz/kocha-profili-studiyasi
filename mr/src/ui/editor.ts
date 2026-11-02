@@ -25,7 +25,7 @@ import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
-import { szzOf, limitAreaHa, isActive, type Limit, type LimitKind } from '../core/limits';
+import { szzOf, limitAreaHa, isActive, limitZones, SZZ_DENY, type Limit, type LimitKind } from '../core/limits';
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
@@ -48,7 +48,7 @@ import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
 import { saveMrReturn, consumeMrBack } from './mrback';
 import { USES, useDef } from '../core/uses';
-import { gridAngle, merge, split, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
+import { gridAngle, merge, splitPath, splitByZones, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtcAt, sunPosition, type Prism } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
@@ -3431,11 +3431,12 @@ export class Editor {
             this.setTool(new LineTool(this.scene, r => {
               const u = this.plan().blocks[this.selBlock ?? -1]; const bp = u && this.blockParcels(u); if (!u || !bp) return;
               const target = bp.list.find(p => (u.parcelId ? p.id === u.parcelId : true)) ?? bp.list[0];
-              const parts = split(target.rings, r[0], r[r.length - 1]);
+              // 02.11 (egasi): erkin yoʻnalish — siniq chiziq (2 va undan koʻp nuqta) boʻylab
+              const parts = splitPath(target.rings, r);
               if (parts.length < 2) { toast(tr('Chiziq parselni kesib oʻtmadi')); return; }
               this.commitParcels(bp.lab, [...bp.list.filter(p => p !== target), ...parts.map(rr => ({ id: uid('pc_'), rings: rr, use: target.use }))]);
               this.setTool(null);
-            }, toast));
+            }, toast, p => p, 'Kesish chizigʻi: nuqtalarni bosing (istalgan yoʻnalishda) · 2× bosish yoki Enter — kesish · Esc — bekor'));
           } }, tr(cutting ? 'Kesish…' : 'Kesish')),
           h('button', { class: merging ? 'btn btn-sm btn-primary grow' : 'btn btn-sm grow', id: 'pMerge', 'aria-pressed': merging, disabled: !b.parcelId, onclick: () => {
             if (merging) { this.setTool(null); return; }
@@ -3449,8 +3450,20 @@ export class Editor {
             }));
           } }, tr('Birlashtirish')),
           h('button', { class: 'btn btn-sm grow', id: 'pClear', disabled: !b.parcelId, onclick: () => { const bp = this.blockParcels(b); if (bp) { this.run(() => this.store.dispatch({ type: 'setParcels', block: bp.lab.id, parcels: [] })); this.selBlock = null; this.scene.selectBlock(null); } } }, tr('Butun kvartal'))),
+        ...(() => {
+          // 02.11 (egasi): kvartal yoki parselni SMZ (bufer) chegarasi boʻyicha bir bosishda ajratish
+          const soft = limitZones(this.store.doc).soft; if (!soft.length) return [];
+          const bp = this.blockParcels(b); if (!bp) return [];
+          const target = bp.list.find(p => (b.parcelId ? p.id === b.parcelId : true)) ?? bp.list[0], sp = target && splitByZones(target.rings, soft.flatMap(z => z.polys));
+          if (!sp) return [];
+          return [h('button', { class: 'btn btn-sm btn-block', id: 'pSzz', onclick: () => {
+            const deny = (SZZ_DENY as readonly string[]).includes(target.use), inUse: Use = deny ? 'yashil' : target.use;
+            this.commitParcels(bp.lab, [...bp.list.filter(p => p !== target), ...sp.inside.map(rr => ({ id: uid('pc_'), rings: rr, use: inUse })), ...sp.outside.map(rr => ({ id: uid('pc_'), rings: rr, use: target.use }))]);
+            toast(deny ? tr('SMZ qismi ajratildi va koʻkalamzor qilib belgilandi (SanPiN 0350-17, 2.17 va 2.19) — kerak boʻlsa, ruxsat etilgan funksiyaga (avtoturargoh, savdo, ofis) almashtiring.') : tr('SMZ qismi alohida parsel qilib ajratildi.'));
+          } }, ...icl('<path d="M4 20L20 4M4 4h7M13 20h7"/>', tf('SMZ chegarasi boʻyicha ajratish (${n} + ${m})', { n: sp.inside.length, m: sp.outside.length })))];
+        })(),
         b.parcelId ? h('span', { class: 't-small', id: 'parcelEditHint' }, tr('Parsel chegarasini sahnada burchaklaridan sudrab toʻgʻrilang (oraliq nuqta — yangi burchak, ikki marta bosish — oʻchirish).')) : '',
-        h('span', { class: 't-small' }, tr('Kesish — tanlangan parsel ustida chiziq chizing (2 nuqta, Enter). Kvartalni qayta boʻlish undagi parsellar seksiyalarini oʻchiradi.')));
+        h('span', { class: 't-small' }, tr('Kesish — tanlangan parsel ustida istalgan yoʻnalishda siniq chiziq chizing (2× bosish yoki Enter). Kvartalni qayta boʻlish undagi parsellar seksiyalarini oʻchiradi.')));
       body.append(pb);
     }
     if (dm.all && dm.gone) this.compSection(body);

@@ -51,3 +51,21 @@ describe('OSM dan cheklovlar (4-bosqich)', () => {
     expect(newOnes(f, have, O).map(l => l.id)).toEqual(['c']);
   });
 });
+
+import { splitPath, splitByZones } from '../../src/core/parcels';
+describe('parselni kesish (02.11)', () => {
+  const sq: [number, number][] = [[0, 0], [100, 0], [100, 100], [0, 100]];
+  const A = (rs: [number, number][][]) => { let a = 0; const r = rs[0]; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; };
+  it('siniq chiziq (L) — ikki qism, maydonlar yigʻindisi saqlanadi', () => {
+    const parts = splitPath([sq], [[30, 120], [30, 40], [80, 40]]);
+    expect(parts).toHaveLength(2);
+    expect(parts.reduce((t, p) => t + A(p as never), 0)).toBeCloseTo(10000, -1);
+    expect(Math.min(...parts.map(p => A(p as never)))).toBeCloseTo(70 * 60, -1);   // x > 30, y > 40 qismi (1 sm tasma ayirilgan)
+  });
+  it('ikki nuqta — eski toʻgʻri kesish', () => { expect(splitPath([sq], [[50, -10], [50, 110]])).toHaveLength(2); });
+  it('zona boʻyicha', () => {
+    const r = splitByZones([sq], [[[[60, -20], [140, -20], [140, 120], [60, 120]]]]);
+    expect(r?.inside).toHaveLength(1); expect(r?.outside).toHaveLength(1);
+    expect(splitByZones([sq], [[[[200, 200], [210, 200], [210, 210]]]])).toBeNull();
+  });
+});

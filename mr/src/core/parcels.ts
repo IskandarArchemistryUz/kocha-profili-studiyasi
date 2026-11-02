@@ -76,6 +76,34 @@ export function split(rings: XY[][], a: XY, b: XY): XY[][][] {
   return out.filter(r => areaOf(r) > 20);
 }
 
+/**
+ * Parselni siniq chiziq (erkin yoʻnalish, 2 va undan koʻp nuqta) bilan kesish (02.11, egasi: «bufer zonani yoʻnalish boʻylab kesib
+ * ajratmoqchi edim»). Chiziq uchlari parsel tashqarisiga 2 km davom ettiriladi; 1 sm kenglikdagi tasma ayiriladi.
+ */
+export function splitPath(rings: XY[][], pts: XY[]): XY[][][] {
+  if (pts.length < 2) return [];
+  if (pts.length === 2) return split(rings, pts[0], pts[1]);
+  const ext = (a: XY, b: XY): XY => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [b[0] + dx / L * 2000, b[1] + dy / L * 2000]; };
+  const n = pts.length, path: XY[] = [ext(pts[1], pts[0]), ...pts, ext(pts[n - 2], pts[n - 1])];
+  const hw = 0.005, quads: Polygon[] = [];
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); if (L < 1e-6) continue;
+    const nx = -dy / L * hw, ny = dx / L * hw, ex = dx / L * hw, ey = dy / L * hw;
+    quads.push([P([[a[0] - ex + nx, a[1] - ey + ny], [b[0] + ex + nx, b[1] + ey + ny], [b[0] + ex - nx, b[1] + ey - ny], [a[0] - ex - nx, a[1] - ey - ny]])]);
+  }
+  try { const strip = polygonClipping.union(quads[0], ...quads.slice(1)); return fromMP(polygonClipping.difference(toPoly(rings), strip)).filter(r => areaOf(r) > 20); } catch { return []; }
+}
+
+/** Parselni zonalar (masalan, SMZ) boʻyicha ajratish: [ichidagi qismlar, tashqaridagi qismlar]; kesishmasa — null */
+export function splitByZones(rings: XY[][], zones: XY[][][]): { inside: XY[][][]; outside: XY[][][] } | null {
+  if (!zones.length) return null;
+  try {
+    const Z = polygonClipping.union(...(zones.map(z => z.map(r => [...r, r[0]].map(p => [p[0], p[1]] as [number, number]))) as [Polygon, ...Polygon[]]));
+    const inside = fromMP(polygonClipping.intersection(toPoly(rings), Z)).filter(r => areaOf(r) > 20), outside = fromMP(polygonClipping.difference(toPoly(rings), Z)).filter(r => areaOf(r) > 20);
+    return inside.length && outside.length ? { inside, outside } : null;
+  } catch { return null; }
+}
+
 /** Qatorlar: kvartal uzun oʻqi boʻylab ~target li parsellar, nrow qator (1 — koʻcha boʻylab bir qator; 2 — orqama-orqa ikki qator) */
 export function rowCells(rings: XY[][], target: number, ang: number, nrow: number): XY[][][] {
   const { x0, x1, y0, y1 } = gridFrame(rings[0], ang);
