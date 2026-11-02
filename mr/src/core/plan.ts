@@ -7,6 +7,7 @@ import type { Project, Use } from './doc';
 import { frame, type XY } from './geo';
 import { profileById, profileWidth } from './profiles';
 import { endShapes } from './streetends';
+import { limitZones } from './limits';
 
 /** Rejaning birligi: butun kvartal yoki uning parseli. grp — generator guruhi (parsel id si yoki kvartal belgisi id si) */
 export interface Block { rings: XY[][]; area: number; use: Use; labelId: string | null; centroid: XY; parcelId?: string; blockKey: number }
@@ -104,7 +105,7 @@ export function interiorPoint(rings: XY[][]): XY {
 /** 27.10 yengillik: bir oʻzgarishda 5+ joydan chaqiriladi — natija faqat uchastka, koʻchalar, zonalar, parsellar yoki markaz oʻzgarsa qayta hisoblanadi */
 let planMemo: { k: unknown[]; v: PlanGeo } | null = null;
 export function computePlan(doc: Project): PlanGeo {
-  const k = [doc.site, doc.streets, doc.zones, doc.parcels, doc.origin, doc.rounds];
+  const k = [doc.site, doc.streets, doc.zones, doc.parcels, doc.origin, doc.rounds, doc.limits];
   if (planMemo && planMemo.k.every((x, i) => x === k[i])) return planMemo.v;
   const v = computePlanRaw(doc); planMemo = { k, v }; return v;
 }
@@ -118,7 +119,10 @@ function computePlanRaw(doc: Project): PlanGeo {
   const site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal)));
   const tryOp = <T>(f: () => T, fb: T): T => { try { return f(); } catch { return fb; } };
   const inSite = corrU.length ? tryOp(() => polygonClipping.intersection(site, corrU), []) : [];
-  const blocksMP = corrU.length ? tryOp(() => polygonClipping.difference(site, corrU), [site]) : [site];
+  let blocksMP = corrU.length ? tryOp(() => polygonClipping.difference(site, corrU), [site]) : [site];
+  // 02.11: qurib boʻlmaydigan joy (saqlanadigan cheklov konturi, temir yoʻl, ELU muhofaza zonasi — core/limits.ts) kvartallardan ayiriladi
+  const hard = doc.limits?.length ? limitZones(doc).hard : [];
+  if (hard.length) blocksMP = tryOp(() => polygonClipping.difference(blocksMP, hard.map(p => p.map(close))), blocksMP);
   const area = (mp: MultiPolygon) => mp.reduce((s, p) => s + p.reduce((t, r, k) => t + (k ? -1 : 1) * Math.abs(ringArea(open(r))), 0), 0);
   const labels = doc.zones.map(z => ({ z, p: fr.toLocal(z.at) }));
   const whole = blocksMP.map(p => {

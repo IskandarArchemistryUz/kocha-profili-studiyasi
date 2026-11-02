@@ -8,6 +8,7 @@ import { hasAntresol, ANTRESOL_SHARE } from './levels';
 import type { Project } from './doc';
 import { frame, polyArea, ringLocal, area, longFacadeAzimuths, obb2, type XY } from './geo';
 import { computePlan } from './plan';
+import { landBalance, type LandBalance } from './limits';
 import { useDef } from './uses';
 import { planApartments } from './apartments';
 import { jobsFrom } from './jobs';
@@ -18,6 +19,8 @@ import polygonClipping, { type Polygon } from 'polygon-clipping';
 export interface Derived {
   /** uchastka maydoni, ga (teshiklar ayirilgan) */
   siteHa: number;
+  /** 02.11: yer balansi (cheklovlar boʻlsa): qurib boʻlmaydigan · SMZ · yaroqli, ga */
+  balance: LandBalance | null;
   buildings: number;
   /** qurilish dogʻi, m² */
   footprint: number;
@@ -165,7 +168,7 @@ export function derive(doc: Project): Derived {
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, socialPlots, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
-    siteHa, buildings: doc.buildings.length, footprint, gfa, resGfa, resNet, population,
+    siteHa, balance: doc.limits?.length ? landBalance(doc) : null, buildings: doc.buildings.length, footprint, gfa, resGfa, resNet, population,
     density: siteHa > 0 ? population / siteHa : 0,
     housingDensity: siteHa > 0 ? resNet / siteHa : 0,
     gsi: siteM2 > 0 ? footprint / siteM2 : 0,
