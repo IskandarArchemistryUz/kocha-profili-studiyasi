@@ -8,12 +8,21 @@
  *    Deraza bor-yoʻqligi maʼlum emas: 0,15 dan kam — buzilish, 0,15…0,3 — koʻrib chiqish.
  *    Rekonstruksiya rejimi (settings.recon, 7-izoh): jadval masofalaridan kam, lekin yarmidan (≥ 6 m) koʻp juftlar — red,
  *    yaʼni buzilish emas, SanQvaN 0102-25 boʻyicha insolyatsiya hisobi bilan koʻrib chiqiladi. 2·Hmax va yongʻin masofalari qisqarmaydi.
+ * 3) Qoʻllanish doirasi (02.11, egasi: «turar joydan tashqari barcha binolarga, townhouse ga ham taʼsir qilyapti»; asl matn qayta oʻqildi):
+ *    79-band — «Уч ва ундан юқори кўп қаватли турар жой бинолари ва барча ётоқ ўринлари мавжуд бўлган бинолар орасидаги масофалар»:
+ *    jadval faqat ikkala bino shu toifada boʻlganda qoʻllanadi (3+ qavatli koʻp kvartirali turar joy yoki yotoq oʻrinli bino — mehmonxona).
+ *    Ofis, savdo, maktab va boshqa noturar binolar orasiga 2-jadval qoʻyilmaydi (78-band: insolyatsiya va yongʻin masofalari).
+ *    8-izoh (seysmik 8+ ball: uzun tomonlar ≥ 2·Hmax) — «турар жой биноларнинг» — faqat ikkala bino turar joy boʻlsa.
+ *    Uchastkali past qavatli uylar (taunhaus, juft, yakka — generator uchastkasi bor yoki «Yakka uylar» funksiyasi) koʻp kvartirali
+ *    emas (3-jadval ularni «томорқали (блокланган ва якка тартибда)» deb alohida ajratadi) — oʻzaro 2-jadval qoʻyilmaydi (TALQIN);
+ *    koʻp qavatli ↔ uchastkali uy — 6-izoh: ≥ koʻp qavatli bino balandligi, oynasiz tomondan ikki baravargacha qisqaradi.
  */
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { bLevels } from './levels';
 import { kyOf, azOf } from './setback';
 import type { Project } from './doc';
 import { frame, signedArea, type XY } from './geo';
+import { useDef } from './uses';
 
 const P = (r: XY[]): Polygon => [[...r, r[0]].map(p => [p[0], p[1]] as [number, number])];
 const mpArea = (mp: [number, number][][][]) => mp.reduce((t, p) => t + p.reduce((s, r, k) => s + (k ? -1 : 1) * Math.abs(signedArea(r.slice(0, -1) as XY[])), 0), 0);
@@ -47,11 +56,15 @@ export function staleGen(doc: Project, grp: string, area: XY[], fresh: XY[][]): 
   return { bids, gids };
 }
 
-export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish'; d: number; need: number; soft?: number; /** rekonstruksiya rejimida (7-izoh) qisqartirilgan chegara ichida: d ≥ need/2 (≥ 6 m) — insolyatsiya hisobi bilan koʻrib chiqiladi */ red?: boolean; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; /** yoʻnalish koeffitsiyenti (uzun tarzlar) */ ky?: number; ha: number; hb: number }
+export interface SpacingPair { a: string; b: string; kind: 'ustma-ust' | 'uzun' | 'uzun-torets' | 'torets' | 'otish' | 'yakka'; d: number; need: number; soft?: number; /** rekonstruksiya rejimida (7-izoh) qisqartirilgan chegara ichida: d ≥ need/2 (≥ 6 m) — insolyatsiya hisobi bilan koʻrib chiqiladi */ red?: boolean; /** aniq koeffitsiyent (derazalar maʼlum) */ k?: number; /** yoʻnalish koeffitsiyenti (uzun tarzlar) */ ky?: number; ha: number; hb: number }
 /** Uchastkadagi binolar juftlari: ustma-ust, uzun tomonlar va toretslar orasidagi masofa */
 export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: number } {
   const fr = frame(doc.origin);
-  const B = doc.buildings.map(b => { const r = b.footprint.map(fr.toLocal); return { b, r, bb: bbOf(r), H: bLevels(doc.settings, b).top }; });
+  const B = doc.buildings.map(b => {
+    const r = b.footprint.map(fr.toLocal), u = useDef(b.use), low = !!b.gen?.plot || b.use === 'yakka';
+    // toifa: res — koʻp kvartirali turar joy (3+ qavat), sleep — yotoq oʻrinli (mehmonxona), low — uchastkali past qavatli uy
+    return { b, r, bb: bbOf(r), H: bLevels(doc.settings, b).top, low, res: !low && u.res > 0 && b.floors >= 3, sleep: b.use === 'mehmonxona' && b.floors >= 3 };
+  });
   const out: SpacingPair[] = []; let checked = 0, recon = doc.settings.recon === true; const seis8 = (doc.settings.seismic ?? 0) >= 8;
   // 7-izoh: jadval masofalari ikki barobargacha qisqaradi, lekin 6 m (*) dan kam emas; 2·Hmax (8-izoh) qisqarmaydi
   const red = (d: number, need: number) => recon && d >= Math.max(6, need / 2) - 0.5;
@@ -64,12 +77,20 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     if (ov > 1) { out.push({ a: x.b.id, b: y.b.id, kind: 'ustma-ust', d: 0, need: 0, ha: x.H, hb: y.H }); continue; }
     const g = gapInfo(x.r, y.r);
     if (g.d < 0.5) continue;                                      // umumiy devor — bitta bino seksiyalari
-    if (Math.min(x.b.floors, y.b.floors) < 3) continue;            // 2-jadval — 3 va undan yuqori qavatli binolar
+    // 6-izoh: koʻp qavatli turar joy ↔ uchastkali past uy — ≥ koʻp qavatli bino balandligi; oynasiz tomondan — yarmi
+    if (x.low !== y.low) {
+      const m = x.low ? y : x, mi = x.low ? g.ib : g.ia; if (!m.res) continue;
+      const blind = !!m.b.gen?.blind?.includes(mi), need = blind ? m.H / 2 : m.H;
+      checked++; if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'yakka', d: g.d, need, ha: x.H, hb: y.H, ...(blind ? { k: 0.5 } : {}) });
+      continue;
+    }
+    // 79-band: ikkala bino ham 3+ qavatli koʻp kvartirali turar joy yoki yotoq oʻrinli boʻlsa (past uylar oʻzaro — yoʻq)
+    if (!(x.res || x.sleep) || !(y.res || y.sleep)) continue;
     checked++;
     if (g.parallel >= 10) {
-      // 2-jadval: derazali uzun tarzlar orasi Hmax × kʏ (2-ilova, uzun tomon yoʻnalishi); 8-izoh: seysmik 8+ ballda ≥ 2 × Hmax
-      const ky = kyOf(azOf(g.dir)), need = Math.max(Hm * ky, seis8 ? 2 * Hm : 0);
-      if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H, ky, ...(red(g.d, need) && !(seis8 && need === 2 * Hm) ? { red: true } : {}) });
+      // 2-jadval: derazali uzun tarzlar orasi Hmax × kʏ (2-ilova, uzun tomon yoʻnalishi); 8-izoh: seysmik 8+ ballda turar joy binolari ≥ 2 × Hmax
+      const s8 = seis8 && x.res && y.res, ky = kyOf(azOf(g.dir)), need = Math.max(Hm * ky, s8 ? 2 * Hm : 0);
+      if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H, ky, ...(red(g.d, need) && !(s8 && need === 2 * Hm) ? { red: true } : {}) });
     }
     else if (g.la !== g.lb) {
       // derazali uzun tomon ↔ torets: 2·Hmax·0,3, ≥ 6 m (2-jadval)

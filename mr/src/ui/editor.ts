@@ -2091,7 +2091,7 @@ export class Editor {
     if (this.ctxRuleCache && this.ctxRuleCache.doc === doc && this.ctxRuleCache.ctx === ctx) return this.ctxRuleCache.r;
     const base = { id: 'kontekst-79', title: 'Atrofdagi (mavjud) turar joy binolarigacha masofa', source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '79-band, 2-jadval, 6-izoh', verified: true } };
     const done = (r: Result) => { this.ctxRuleCache = { doc, ctx, r }; return r; };
-    const fr = frame(doc.origin), proj = doc.buildings.filter(b => b.floors >= 3 && useDef(b.use).res > 0);
+    const fr = frame(doc.origin), proj = doc.buildings.filter(b => b.floors >= 3 && useDef(b.use).res > 0 && !b.gen?.plot && b.use !== 'yakka');   // 02.11: uchastkali past uylar — koʻp kvartirali emas (core/spacing)
     if (!ctx?.osm.buildings.length) return done({ ...base, status: 'na', note: 'Atrof yuklanmagan (Joy va uchastka → «Atrofni yuklash»).' });
     if (!proj.length) return done({ ...base, status: 'na', note: '3 va undan yuqori qavatli turar joy binolari yoʻq.' });
     const RES = new Set(['apartments', 'residential', 'house', 'detached', 'semidetached_house', 'terrace', 'dormitory', 'bungalow', 'hotel']);
