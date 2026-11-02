@@ -77,6 +77,8 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     if (ov > 1) { out.push({ a: x.b.id, b: y.b.id, kind: 'ustma-ust', d: 0, need: 0, ha: x.H, hb: y.H }); continue; }
     const g = gapInfo(x.r, y.r);
     if (g.d < 0.5) continue;                                      // umumiy devor — bitta bino seksiyalari
+    // 02.11 (egasi): fasadlar bir-biriga qaramasa — faqat burchaklar diagonal yaqin, fasad roʻparasida bino yoʻq — jadval talabi qoʻyilmaydi
+    if (!fronts(x.r, y.r, Math.max(6, 2 * Hm)) && !fronts(y.r, x.r, Math.max(6, 2 * Hm))) continue;
     // 6-izoh: koʻp qavatli turar joy ↔ uchastkali past uy — ≥ koʻp qavatli bino balandligi; oynasiz tomondan — yarmi
     if (x.low !== y.low) {
       const m = x.low ? y : x, mi = x.low ? g.ib : g.ia; if (!m.res) continue;
@@ -109,6 +111,26 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     }
   }
   return { pairs: out, checked };
+}
+
+/**
+ * Fasad roʻparasida boshqa bino bormi (02.11, egasi: «fasadlar bir-biriga qaragani yoʻq — bino yiqilsa ham tegmaydi»): A ning biror
+ * devori oldidagi tasma — devor uzunligida, tashqi normal boʻyicha D m — B bilan ≥ 1 m² kesishsa, A shu devori bilan B ga qaraydi.
+ * 2-jadval tarzlar (uzun tomon, ён тарз) orasidagi masofani beradi; tarzlar bir-biriga qaramasa (faqat burchaklar diagonal yaqin) —
+ * jadval qoʻllanmaydi (TALQIN: matnda «roʻparasida» sharti aytilmagan, lekin masofa tarzlar orasida berilgan).
+ * Tasma devor uchlaridan 0,5 m ichkariga qisqartiriladi — burchakka faqat tegib oʻtgan bino hisobga olinmaydi.
+ */
+function fronts(a: XY[], b: XY[], D: number): boolean {
+  const ccw = signedArea(a) > 0, bb = bbOf(b);
+  for (let i = 0; i < a.length; i++) {
+    const p = a[i], q = a[(i + 1) % a.length], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy); if (L < 2) continue;
+    const ux = dx / L, uy = dy / L, nx = ccw ? uy : -uy, ny = ccw ? -ux : ux;   // tashqi normal
+    const p1: XY = [p[0] + ux * 0.5, p[1] + uy * 0.5], q1: XY = [q[0] - ux * 0.5, q[1] - uy * 0.5];
+    const band: XY[] = [p1, q1, [q1[0] + nx * D, q1[1] + ny * D], [p1[0] + nx * D, p1[1] + ny * D]];
+    if (!bbHit(bbOf(band), bb)) continue;
+    if (overlapArea(band, b) >= 1) return true;
+  }
+  return false;
 }
 
 /** Eng yaqin masofa va qarama-qarshi parallel qirralarning bir-birini «koʻradigan» qismi uzunligi (≤ 15°) */

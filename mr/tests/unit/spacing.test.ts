@@ -52,6 +52,19 @@ describe('qoʻllanish doirasi (79-band: 3+ qavatli koʻp kvartirali turar joy va
   });
 });
 
+describe('fasad roʻparasida (02.11): faqat burchaklar diagonal yaqin boʻlsa — talab yoʻq', () => {
+  it('diagonal joylashgan binolar (burchakdan burchakka) — juftlik yoʻq', () => {
+    expect(spacingIssues(doc([bld('a', rect(0, 0, 60, 15), 16), bld('b', rect(70, 25, 60, 15), 16)])).pairs).toEqual([]);
+  });
+  it('perpendikulyar, uchi qoʻshni fasaddan nariga chiqqan (L shaklida, ro‘para emas) — juftlik yoʻq', () => {
+    expect(spacingIssues(doc([bld('a', rect(0, 0, 15, 60), 16), bld('b', rect(25, 65, 60, 15), 16)])).pairs).toEqual([]);
+  });
+  it('torets uzun fasad roʻparasida — 2·Hmax·0,3 talab qoladi', () => {
+    const p = spacingIssues(doc([bld('a', rect(0, 0, 60, 15), 16), bld('b', rect(20, 30, 15, 60), 16)])).pairs;
+    expect(p.map(x => x.kind)).toEqual(['uzun-torets']);
+  });
+});
+
 describe('rekonstruksiya rejimi (79-band 2-jadval 7-izoh)', () => {
   const rec = (d: Project): Project => ({ ...d, settings: { ...d.settings, recon: true } });
   const ev = (d: Project) => RULES.find(x => x.id === 'spacing-79')!.evaluate({} as never, d);
