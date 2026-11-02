@@ -108,6 +108,22 @@ const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b
 
 const bbox = (r: XY[]): [number, number, number, number] => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of r) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); } return [a, b, c, d]; };
 
+/**
+ * GLB eksportidan oldin (02.11, egasi: «master rejani Joyshunosga yuborsam ochilmayapti»): glTF da Int32 / Uint32 / Float64 atributlar
+ * (5124 va h.k.) yoʻq — GLTFExporter ularni yozadi, lekin GLTFLoader oʻqiyolmaydi. Tanlash uchun xizmat atributlari (`fid` — foydalanuvchi
+ * qatlamlari va OSM binolari) faqat ilova ichida kerak — klon geometriyadan olib tashlanadi (asl sahna oʻzgarmaydi).
+ */
+export function glbSafe(root: THREE.Object3D): void {
+  const seen = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
+  root.traverse(o => {
+    const m = o as THREE.Mesh; if (!m.geometry) return;
+    const g = m.geometry, bad = Object.keys(g.attributes).filter(k => { const a = g.attributes[k] as THREE.BufferAttribute; return a.array instanceof Int32Array || a.array instanceof Uint32Array || a.array instanceof Float64Array; });
+    if (!bad.length) return;
+    let c = seen.get(g); if (!c) { c = g.clone(); for (const k of bad) c.deleteAttribute(k); seen.set(g, c); }
+    m.geometry = c;
+  });
+}
+
 export class Scene3D {
   readonly renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -1726,6 +1742,7 @@ export class Scene3D {
     const root = new THREE.Group(); root.name = 'Archemistry';
     const proj = this.world.clone(true); proj.name = 'loyiha'; root.add(proj);
     if (withCtx && this.ctx) { const c = this.ctx.group.clone(true); c.name = 'atrof'; root.add(c); }
+    glbSafe(root);
     const buf = await new GLTFExporter().parseAsync(root, { binary: true, onlyVisible: true }) as ArrayBuffer;
     return new Blob([buf], { type: 'model/gltf-binary' });
   }
