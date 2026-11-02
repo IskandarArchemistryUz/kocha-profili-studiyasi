@@ -10,12 +10,14 @@ export const groundH = (s: Pick<Settings, 'floorHeight' | 'groundH'>): number =>
 /** baland 1-qavatli bino */
 export const tallBase = (b: Pick<Building, 'nonRes' | 'z0'>): boolean => (b.nonRes ?? 0) > 0 || (b.z0 ?? 0) > 0;
 /** binoning yer sathidan k-sath balandligi (k — umumiy sath: z0 + mahalliy qavat) */
-export function levelZ(s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Building, 'nonRes' | 'z0'>, k: number): number {
+export function levelZ(s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Building, 'nonRes' | 'z0'> & { hall?: number }, k: number): number {
+  // 02.11: katta oraliqli zal (ombor, logistika) — 1-qavat balandligi binoning oʻzida (groundH emas)
+  if (b.hall && !(b.z0 ?? 0)) return k <= 0 ? 0 : b.hall + (k - 1) * s.floorHeight;
   const fh = s.floorHeight, dg = tallBase(b) ? groundH(s) - fh : 0;
   return k <= 0 ? 0 : k * fh + dg;
 }
 /** bino oʻz qavatlari boʻyicha: pastki sath, mahalliy qavat f ning pastki sathi, tepasi, balandligi (yer sathidan) */
-export function bLevels(s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Building, 'nonRes' | 'z0' | 'floors'>): { z0: number; at: (f: number) => number; top: number; h: number; fh1: number } {
+export function bLevels(s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Building, 'nonRes' | 'z0' | 'floors'> & { hall?: number }): { z0: number; at: (f: number) => number; top: number; h: number; fh1: number } {
   const k0 = b.z0 ?? 0, at = (f: number) => levelZ(s, b, k0 + f), z0 = at(0), top = at(b.floors);
   return { z0, at, top, h: top - z0, fh1: at(1) - z0 };
 }
