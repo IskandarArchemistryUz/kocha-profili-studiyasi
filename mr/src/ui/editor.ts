@@ -631,7 +631,7 @@ export class Editor {
   }
   private deleteMarked(): void {
     const { b, c, r } = this.marked; if (!b.length && !c.length && !r.length) return;
-    if (b.length || c.length) this.run(() => this.store.dispatch({ type: 'deleteSelection', ids: b, ctx: c }));
+    if (b.length || c.length) this.run(() => this.store.dispatch({ type: 'deleteSelection', ids: b, ctx: c, at: this.ctxCentres(c) }));
     if (r.length) this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [...(this.store.doc.removedRoads ?? []), ...r] }));
     this.setMarked([], []);
     if (c.length) toast(`${c.length} ta atrof binosi olib tashlandi — «Hudud» qadamida yoki oʻng tugma menyusida qaytariladi`);
@@ -986,14 +986,36 @@ export class Editor {
   /** uchastka ichidagi atrof binolari markazi (geo) — saqlanganlarni qayta topish uchun */
   private keepCands(): KeepCand[] { const fr = frame(this.store.doc.origin); return this.scene.inSite.map(x => ({ id: x.id, c: fr.toGeo(centroid(x.rings[0])) })); }
   private keepAt(): Record<string, LngLat> { const o: Record<string, LngLat> = {}; for (const c of this.keepCands()) o[c.id] = c.c; return o; }
+  /** 02.11: atrof binolari markazi (geo) — olib tashlanganlarni boshqa manbadan yuklangach qayta topish uchun */
+  private ctxCentres(ids?: number[]): Record<string, LngLat> {
+    const o: Record<string, LngLat> = {}, want = ids ? new Set(ids) : null;
+    for (const x of this.ctxMgr.current?.osm.buildings ?? []) if ((!want || want.has(x.id)) && x.rings[0]?.length) { const r = x.rings[0], n = r.length - (r.length > 1 && r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? 1 : 0); let a = 0, b = 0; for (let i = 0; i < n; i++) { a += r[i][0]; b += r[i][1]; } o[x.id] = [a / n, b / n]; }
+    return o;
+  }
   private keepRings(): Record<string, LngLat[]> { const fr = frame(this.store.doc.origin), o: Record<string, LngLat[]> = {}; for (const x of this.scene.inSite) o[x.id] = x.rings[0].map(p => fr.toGeo(p)); return o; }
   /** atrof qayta yuklangach saqlangan binolarni id yoki markaz boʻyicha qayta bogʻlash (tarixga yozilmaydi) */
   private syncKeep(): void {
+    this.syncRemoved();
     const d = this.store.doc; if (!d.keep.length || !this.scene.inSite.length) return;
     const r = reconcileKeep(d.keep, d.keepAt, this.keepCands(), d.origin), rings = this.keepRings();
     const noRing = r.keep.some(k => rings[k] && !d.keepRings?.[k]);   // eski loyiha: konturlar hali yozilmagan
     if (!r.changed && !noRing) return;
     this.store.amend({ type: 'setKeep', keep: r.keep, at: r.keepAt, rings });
+  }
+  /**
+   * 02.11 (egasi: «binoni oʻchirsam, boʻlimdan boʻlimga oʻtganda yana qaytib chiqyapti»): olib tashlangan atrof binolari
+   * faqat id bilan saqlanardi — atrof boshqa manbadan (Overpass ↔ OpenFreeMap ↔ Overture) yuklansa id oʻzgarib, bino qaytardi.
+   * Endi markaz ham saqlanadi va keep kabi markaz boʻyicha qayta bogʻlanadi (tarixga yozilmaydi).
+   */
+  private syncRemoved(): void {
+    const d = this.store.doc, rm = d.removed ?? []; if (!rm.length) return;
+    const cc = this.ctxCentres(), cands: KeepCand[] = Object.entries(cc).map(([id, c]) => ({ id: Number(id), c }));
+    if (!cands.length) return;
+    // eski loyiha: markazlar yoʻq — hozirgi id lar topilsa markazini yozib qoʻyamiz
+    const at0 = { ...d.removedAt }; let fill = false; for (const k of rm) if (!at0[k] && cc[k]) { at0[k] = cc[k]; fill = true; }
+    const r = reconcileKeep(rm, at0, cands, d.origin);
+    if (!r.changed && !fill) return;
+    this.store.amend({ type: 'setRemoved', removed: r.keep, at: r.keepAt });
   }
   private farKey = '';
   /** Koʻchalar qadamida bosilgan OSM koʻchasi (loyihaga olish uchun) */

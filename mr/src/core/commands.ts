@@ -19,9 +19,9 @@ export type Command =
   | { type: 'updateBuilding'; id: string; patch: Partial<Omit<Building, 'id'>> }
   | { type: 'removeBuilding'; id: string }
   /** tanlanganlarni oʻchirish: loyiha binolari va atrofdagi (OSM) binolar — bitta qadam */
-  | { type: 'deleteSelection'; ids: string[]; ctx: number[] }
+  | { type: 'deleteSelection'; ids: string[]; ctx: number[]; at?: Record<string, LngLat> }
   /** atrofdagi olib tashlangan binolar roʻyxatini almashtirish (qaytarish) */
-  | { type: 'setRemoved'; removed: number[] }
+  | { type: 'setRemoved'; removed: number[]; at?: Record<string, LngLat> }
   | { type: 'setRemovedRoads'; ids: number[] }
   | { type: 'setSettings'; patch: Partial<Settings> }
   | { type: 'addStreet'; axis: LngLat[]; profile: string; id?: string; osm?: number }
@@ -161,9 +161,14 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'deleteSelection': {
       const ids = new Set(c.ids); d.buildings = doc.buildings.filter(b => !ids.has(b.id));
       const rm = [...new Set([...(doc.removed ?? []), ...c.ctx])]; if (rm.length) d.removed = rm;
+      if (c.at && c.ctx.length) { const at = { ...doc.removedAt }; for (const k of c.ctx) if (c.at[k]) at[k] = c.at[k]; d.removedAt = at; }
       if (c.ctx.length) { d.keep = doc.keep.filter(k => !c.ctx.includes(k)); if (doc.keepAt) { const at = { ...doc.keepAt }; for (const k of c.ctx) delete at[k]; d.keepAt = at; } if (doc.keepRings) { const rg = { ...doc.keepRings }; for (const k of c.ctx) delete rg[k]; d.keepRings = rg; } } return d;
     }
-    case 'setRemoved': { if (c.removed.length) d.removed = [...new Set(c.removed)]; else delete d.removed; return d; }
+    case 'setRemoved': {
+      if (c.removed.length) d.removed = [...new Set(c.removed)]; else delete d.removed;
+      const prev = { ...doc.removedAt, ...c.at }, at: Record<string, LngLat> = {}; for (const k of d.removed ?? []) if (prev[k]) at[k] = prev[k];
+      if (Object.keys(at).length) d.removedAt = at; else delete d.removedAt; return d;
+    }
     case 'setRoadEdit': { const rest = (doc.roadEdits ?? []).filter(e => e.id !== c.id), v = c.parts ? [...rest, { id: c.id, parts: c.parts.map(p => p.map(q => [q[0], q[1]] as LngLat)) }] : rest; if (v.length) d.roadEdits = v; else delete d.roadEdits; return d; }
     case 'setRemovedRoads': { if (c.ids.length) d.removedRoads = [...new Set(c.ids)]; else delete d.removedRoads; return d; }
     case 'addStreet': {
