@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sheetSvg, sheetChecks, recommendScale, niceLen, SHEET_DEFAULT, greenRows, type SheetCtx, type SheetOpts } from '../../src/core/sheet';
+import { sheetSvg, sheetChecks, recommendScale, niceLen, SHEET_DEFAULT, greenRows, transportRows, type SheetCtx, type SheetOpts } from '../../src/core/sheet';
 import { blankProject, type Project } from '../../src/core/doc';
 import { frame, type XY } from '../../src/core/geo';
 
@@ -96,5 +96,14 @@ describe('Grafika varaqlari', () => {
     const ins = r.svg.match(/<g id="Insolyatsiya"[^>]*>(.*?)<\/g>/s)![1];
     for (const c of ['#2b3a67', '#7fb3c8', '#f9b24e']) expect(ins).toContain(`fill="${c}"`);
     expect(r.legend.map(l => l.label).join('|')).toMatch(/22\.03/);
+  });
+  it('tahlil 4 (02.11): transport sxemasi — koʻcha toifasi, bekat radiusi, jadval', () => {
+    const p = project(), fr = frame(p.origin);
+    p.pois = [{ id: 'q', kind: 'bekat', at: fr.toGeo([0, -60]) } as never];
+    const r = sheetSvg(p, ctx, opts({ kind: 'transport' }));
+    for (const id of ['Kocha_toifalari', 'Bekat_radiuslari', 'Transport_balansi']) expect(r.svg).toContain(`id="${id}"`);
+    expect(r.legend.map(l => l.label)).toContain('Mahalliy koʻcha');
+    const rows = transportRows(p); expect(rows[0]).toMatchObject({ t: 'Mahalliy koʻcha', vt: '0,20' });
+    expect(rows.find(x => /talabi/.test(x.t))!.vt).toMatch(/^\d+$/);
   });
 });
