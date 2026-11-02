@@ -302,7 +302,7 @@ export const RULES: Rule[] = [
       const nd = cs.filter(({ p }) => p.need > p.d + 0.5 || (p.soft ?? 0) > p.d + 0.5).map(({ p, s }) => { const L = Math.max(p.need, p.soft ?? 0), n = needSeg(s[0], s[1], L); return { n, text: `${nm(p.d)} → ${nm(L)} m` }; });
       const where: Where | undefined = prob.length ? { bids: [...new Set(prob.flatMap(p => [p.a, p.b]))], segs: cs.map(x => x.s), ...(nd.length ? { need: { segs: nd.map(x => x.n), labels: nd.map(x => ({ at: x.n[1], text: x.text })) } } : {}) } : undefined;
       return { status: bad ? 'fail' : (soft.length || pass || red.length) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0', ...(where ? { where } : {}),
-        note: (parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.') + ' Qoʻllanish: 2-jadval — faqat 3+ qavatli koʻp kvartirali turar joy va yotoq oʻrinli binolar oʻzaro (79-band); noturar binolar va uchastkali past uylar oʻzaro tekshirilmaydi (78-band — insolyatsiya va yongʻin masofalari).' };
+        note: (parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.') + ' Qoʻllanish: 2-jadval — faqat 3+ qavatli koʻp kvartirali turar joy va yotoq oʻrinli binolar oʻzaro (79-band); noturar binolar va uchastkali past uylar oʻzaro tekshirilmaydi (78-band — insolyatsiya va yongʻin masofalari).' + ' Tarzlar bir-biriga qaramasa (fasad roʻparasida bino yoʻq, faqat burchaklar diagonal yaqin) — jadval talabi qoʻyilmaydi (TALQIN).' };
     },
   },
   {
