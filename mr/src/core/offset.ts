@@ -62,9 +62,13 @@ export function openRing(ring0: XY[], w: number, minArea = 1): XY[] | null {
   let best: XY[] | null = null, ba = minArea;
   for (const p of res) { const o = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY), a = Math.abs(signedArea(o)); if (a > ba) { ba = a; best = o; } }
   if (!best) return null;
-  // bir chiziqdagi va juda yaqin nuqtalar
+  // bir chiziqdagi va juda yaqin nuqtalar. 1.11: avval < 5 sm yaqin nuqtalar birlashtiriladi — aks holda burchakdagi
+  // 2 mm juftlik bir chiziq tekshiruvida burchakning oʻzini oʻchirib yuborardi (qiyshiq burchak seksiyasi 92 m² yoʻqotardi)
+  const bd: XY[] = [];
+  for (const c of best) { const l = bd[bd.length - 1]; if (!l || Math.hypot(c[0] - l[0], c[1] - l[1]) >= 0.05) bd.push(c); }
+  while (bd.length > 3 && Math.hypot(bd[0][0] - bd[bd.length - 1][0], bd[0][1] - bd[bd.length - 1][1]) < 0.05) bd.pop();
   const out: XY[] = [];
-  for (let i = 0; i < best.length; i++) { const p = best[(i - 1 + best.length) % best.length], c = best[i], q = best[(i + 1) % best.length]; const cr = (c[0] - p[0]) * (q[1] - c[1]) - (c[1] - p[1]) * (q[0] - c[0]); if (Math.hypot(c[0] - p[0], c[1] - p[1]) < 0.05 || Math.abs(cr) < 0.02 * Math.hypot(c[0] - p[0], c[1] - p[1]) * Math.hypot(q[0] - c[0], q[1] - c[1])) continue; out.push(c); }
+  for (let i = 0; i < bd.length; i++) { const p = bd[(i - 1 + bd.length) % bd.length], c = bd[i], q = bd[(i + 1) % bd.length]; const cr = (c[0] - p[0]) * (q[1] - c[1]) - (c[1] - p[1]) * (q[0] - c[0]); if (Math.abs(cr) < 0.02 * Math.hypot(c[0] - p[0], c[1] - p[1]) * Math.hypot(q[0] - c[0], q[1] - c[1])) continue; out.push(c); }
   const r2 = despike(out.length >= 3 ? out : best);
   return signedArea(r2) < 0 ? r2.reverse() : r2;
 }

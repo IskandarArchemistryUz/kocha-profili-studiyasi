@@ -331,7 +331,7 @@ function isCross(r: XY[]): boolean {
   const d = refl.map(p => Math.hypot(p[0] - cx, p[1] - cy)), dm = Math.max(...d), dn = Math.min(...d);
   return dn > 3 && dm / dn < 1.6;   // markaz kvadratga yaqin
 }
-function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, splitAbove?: number): RulePlan {
+function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, splitAbove?: number, strictT = false): RulePlan {
   const W = CORR_W;
   const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
   const wantK = mixPicker(mix);
@@ -387,8 +387,11 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     const uX = uOf(wa, P(wb, (wb.u0 + wb.u1) / 2, axisV(wb))), uAx = uOf(wb, P(wa, (wa.u0 + wa.u1) / 2, axisV(wa)));
     const um = uOf(wb, s.mid), baseB: 0 | 1 = Math.abs(um - wb.u0) < Math.abs(um - wb.u1) ? 0 : 1;
     const sB = (vOf(wa, cen(wb.ring)) > (wa.v0 + wa.v1) / 2 ? 1 : -1) as 1 | -1;
-    if (bu0 - wa.u0 < 1.5 || wa.u1 - bu1 < 1.5) {
-      const endA: 0 | 1 = bu0 - wa.u0 < 1.5 ? 0 : 1;
+    // 1.11 (egasi: «bitta kichik seksiyada ikkita podyezd»): qiyshiq burchakda qoʻl qanot uchidan 2–5 m ichkarida boshlanadi —
+    // bu T emas (narigi tomonda kvartira tasmasi uchun joy yoʻq), L burchak: yaqin uchiga
+    const m0 = bu0 - wa.u0, m1 = wa.u1 - bu1;
+    if (m0 < 1.5 || m1 < 1.5 || (!strictT && Math.min(m0, m1) < 6)) {
+      const endA: 0 | 1 = m0 <= m1 ? 0 : 1;
       Ls.push({ A, B, endA, baseB, uX, uAx, bu0, bu1, sB }); endKind[A][endA] = 'corner'; endKind[B][baseB] = 'base';
     } else { tWalls.push({ w: A, u: uX }); endKind[B][baseB] = 'wall'; }
   }
@@ -516,6 +519,8 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     // skvoznoy kirish (1-qavat): koridorning narigi tomonidan koʻcha fasadigacha, xoll enida
     if (w.double) { const vo = side > 0 ? w.v0 : w.v1; S.entry = inter([box(w, uh0, uh1, ax - side * W / 2 + side * 0.02, vo)], [r]); }
   }
+  // L burchakning yumshoq talqini (qoʻl uchdan < 6 m) yadro sigʻdirmasa — avvalgi qatʼiy T qoidasi bilan qayta (zinasiz seksiya boʻlmasin)
+  if (!strictT && SECS.some((S, s) => secParts(s).length && !S.stairs.length)) return planCore(r, mods, mix, size, court, splitAbove, true);
   const blockers = SECS.flatMap(S => [...S.corr, ...S.stairs, ...S.lifts, ...S.halls, ...S.rooms]);
   const secMop = SECS.map(S => union([...S.corr, ...S.halls]));
   // yadro egallagan oraliqlar (qanot, tomon) — tasmani uzadi
@@ -599,7 +604,9 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     if (!changed) break;
   }
   const rest: XY[][] = [];
-  for (let i = apts.length - 1; i >= 0; i--) if (!ok(apts[i])) { rest.push(apts[i].ring); apts.splice(i, 1); }
+  // yakuniy saralash: yorugʻlik chegarasi 10 % yumshoq (qiyshiq uchdagi kvartira 10,7 m chuqurlik uchun texnikka aylanmasin)
+  const okFinal = (a: RuleApt) => { if (!SECS[a.sec]?.stairs.length) return ok(a); const f = front(a.ring); return door(a) && area(a.ring) >= 28 && f > 0 && area(a.ring) / f <= MAX_DEPTH * 1.1; };   // zinasiz (arka ustidagi) boʻlakda — avvalgi qatʼiy qoida
+  for (let i = apts.length - 1; i >= 0; i--) if (!okFinal(apts[i])) { rest.push(apts[i].ring); apts.splice(i, 1); }
   // 5.13 (ShNQ 2.01.02-04): seksiya qavatida kvartiralar > 500 m² — ikkinchi evakuatsiya zinasi. Birinchi zinadan eng uzoq,
   // koridorga tegib turgan kvartiraning koridor tomonidan zina oʻrni olinadi (qolgani kvartira boʻlib qolsa — kvartira, aks holda qoldiq)
   SECS.forEach((S, si) => {
