@@ -1515,7 +1515,11 @@ async function loadModel(name: string, buf: ArrayBuffer, offset: [number, number
     if (/\.obj$/i.test(name)) { const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js'); obj = new OBJLoader().parse(new TextDecoder().decode(buf)); }
     else { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); obj = (await new GLTFLoader().parseAsync(buf, '')).scene; }
     axo.modelOff = offset; axo.setModel(obj, colors); renderAxo();
-  } catch (e) { alert(`${tr('Model ochilmadi')}: ${(e as Error).message}`); }
+  } catch (e) {
+    // 02.11: alert sahifani toʻxtatib qoʻyardi va saqlangan buzuq model har ochilganda qaytardi — endi xabar va keshdan oʻchirish
+    toast(`${tr('Model ochilmadi')}: ${(e as Error).message}`);
+    try { await cacheDel('joy-model'); } catch { /* */ }
+  }
 }
 /** Master rejadan yuborilgan model («joy-inbox»): markaz va model joyi */
 async function takeInbox(): Promise<void> {
