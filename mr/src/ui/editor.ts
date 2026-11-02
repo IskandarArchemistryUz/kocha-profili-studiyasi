@@ -28,6 +28,7 @@ import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, Sect
 import { szzOf, limitAreaHa, isActive, limitZones, SZZ_DENY, type Limit, type LimitKind } from '../core/limits';
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
+import { accessStreet } from '../core/rowaccess';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
 import { applyRoadEdits, vtxOp, cutBetween, type VtxOp } from '../core/roadedit';
 import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../core/streetends';
@@ -2528,6 +2529,8 @@ export class Editor {
   private lowKind: LowKind = 'taunhaus';
   private lowSide: 1 | -1 | 0 = 1;
   private lowOff = 0;
+  /** 02.11 (egasi): qator chizigʻi boʻylab kirish koʻchasi (oʻtish yoʻli 8 m) va eng yaqin koʻchaga ulanish — sukut yoqiq */
+  private lowStreet = true;
   private lowRowBox(fr: ReturnType<typeof frame>, floorsMax = 3): HTMLElement {
     const drawingL = this.tool instanceof LineTool && this.step.id === 'hajm';
     const seg = <T extends string | number>(id: string, label: string, opts: [T, string][], cur: T, set: (v: T) => void) => h('div', { class: 'seg sm', id, role: 'group', 'aria-label': tr(label) }, ...opts.map(([v, n]) => h('button', { 'data-v': String(v), 'aria-pressed': cur === v, onclick: () => { set(v); this.renderPanel(); } }, tr(n))));
@@ -2542,17 +2545,24 @@ export class Editor {
       const site = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
       const along = (sd: 1 | -1, off: number) => lowriseAlong(off > 0 ? offsetLine(line, sd * off) : line, sd, this.lowKind, site, floorsMax <= 3 ? floorsMax : undefined).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
       // chiziq koʻcha oʻqi yoki qizil chiziq ustida boʻlsa — chekinish 0 da hamma uchastka koridorga tushadi: chekinish avtomatik oshiriladi
-      const houses = sides.flatMap(sd => { for (const off of this.lowOff > 0 ? [this.lowOff] : [0, 2, 4, 6, 8, 10, 13, 16, 20]) { const r = along(sd, off); if (r.length) return r; } return []; });
+      // 02.11: kirish koʻchasi — chiziq mavjud koʻcha ustida boʻlmasa, shu chiziq boʻylab oʻtish yoʻli (338-band) va uchi eng yaqin koʻchaga (≤ 120 m)
+      const access = this.lowStreet ? accessStreet(line, plan.corridors, [...doc.streets.map(st => st.axis.map(fr.toLocal)), ...this.ctxRoads().map(rd => rd.pts.map(q => fr.toLocal(q)))], profileWidth(profileById('otish-8'))) : null;
+      const base = access ? access.half + 0.5 : 0;
+      const houses = sides.flatMap(sd => { for (const off of this.lowOff > 0 ? [base + this.lowOff] : [base, base + 2, base + 4, base + 6, base + 8, base + 10, base + 13, base + 16, base + 20]) { const r = along(sd, off); if (r.length) return r; } return []; });
       if (!houses.length) { toast(tr('Chiziq boʻylab uy sigʻmadi — chiziq qisqa yoki koʻcha / bino ustiga tushadi')); return; }
       const grp = uid('qator_'), drop = staleGen(doc, grp, [], houses.map(hh => hh.plot));
-      this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, sections: houses.map(hh => ({ footprint: hh.ring.map(fr.toGeo), floors: hh.floors, nonRes: 0, use: 'turar' as Use, kind: hh.kind, plot: hh.plot.map(fr.toGeo), ...(hh.joint ? { joint: true } : {}) })) }));
-      toast(tf('${n} ta uy chiziq boʻylab qoʻyildi', { n: houses.length }));
+      this.run(() => {
+        if (access) this.store.dispatch({ type: 'addStreet', axis: access.axis.map(fr.toGeo), profile: 'otish-8' });
+        this.store.dispatch({ type: 'replaceGroup', grp, drop, sections: houses.map(hh => ({ footprint: hh.ring.map(fr.toGeo), floors: hh.floors, nonRes: 0, use: 'turar' as Use, kind: hh.kind, plot: hh.plot.map(fr.toGeo), ...(hh.joint ? { joint: true } : {}) })) });
+      });
+      toast(access ? tf('${n} ta uy va kirish koʻchasi (oʻtish yoʻli 8 m${c}) qoʻyildi', { n: houses.length, c: access.linked ? tr(', mavjud koʻchaga ulandi') : '' }) : tf('${n} ta uy chiziq boʻylab qoʻyildi', { n: houses.length }));
       if (this.tool) this.el.hint.textContent = this.tool.hint;
     };
     // uy turi — yuqoridagi tipologiya tugmasi (takrorlanmaydi, 31.10)
     return h('div', { class: 'group', id: 'lowRow' }, h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, tr('Chiziq boʻylab qator')), h('span', { class: 'sub' }, tr('Koʻcha oʻqi yoki qurilish chizigʻini chizing — bir yoki ikki tomoniga uchastkalar va uylar')))),
       h('div', { class: 'col', style: 'padding:0 12px 12px' },
         seg<1 | -1 | 0>('lowSide', 'Tomon', [[1, 'Chapga'], [-1, 'Oʻngga'], [0, 'Ikkala tomon']], this.lowSide, v => { this.lowSide = v; }),
+        h('div', { class: 'li', style: 'padding:0' }, h('span', { class: 'k' }, tr('Kirish koʻchasi'), h('span', { class: 'sub' }, tr('chiziq boʻylab oʻtish yoʻli 8 m (338-band), eng yaqin koʻchaga ulanadi'))), sw({ id: 'lowStreet', label: tr('Kirish koʻchasi'), on: this.lowStreet, onchange: v => { this.lowStreet = v; } })),
         h('div', { class: 'field' }, h('label', {}, tr('Chiziqdan chekinish, m')), off),
         h('span', { class: 't-small' }, (this.lowKind === 'yakka'
           ? tf('Uchastka ${w} × ${d} m (≥ 400 m², 75-band), oldi ${f} m, yon 3 m (100-band)', { w: P.plotW, d: P.plotD, f: P.front })

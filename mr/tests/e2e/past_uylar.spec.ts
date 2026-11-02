@@ -80,3 +80,33 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qator koʻ
   expect(res.g).toBeLessThan(g0);   // ustiga tushgan avtomatik uylar olib tashlandi
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/past_okoch_${w}${dark ? 'd' : 'l'}.png` });
 });
+
+/** 02.11 (egasi): uylar qatori koʻcha boʻlmagan joyda chizilsa — sukut boʻyicha kirish koʻchasi (oʻtish yoʻli 8 m) va eng yaqin koʻchaga ulanish */
+test('uylar qatori — kirish koʻchasi va mavjud koʻchaga ulanish', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('./'); await page.click('#newP');
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '240'); await page.fill('#rh', '200'); await page.click('#rectSite');
+  const c = await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), r = ed.store.doc.site.rings[0];
+    const x = r.reduce((t: number, p: number[]) => t + (p[0] - o[0]) * mx, 0) / r.length, y = r.reduce((t: number, p: number[]) => t + (p[1] - o[1]) * 111132, 0) / r.length;
+    const g = (a: number, b: number) => [o[0] + a / mx, o[1] + b / 111132];
+    ed.store.dispatch({ type: 'addStreet', axis: [g(x - 140, y - 60), g(x + 140, y - 60)], profile: 'mahalla-15' });   // janubda koʻcha
+    return [x, y]; });
+  await page.click('[data-step=hajm]');
+  await page.click('[data-typ=yakka]');
+  await expect(page.locator('#lowStreet')).toBeVisible();
+  await page.click('#lowSide [data-v="0"]');
+  await page.click('#lowDraw');
+  const bb = (await page.locator('#scene canvas').boundingBox())!;
+  const at = async (x: number, y: number) => { const s = await page.evaluate(([x, y]) => (window as any).__mr.scene.toScreen(x, y, 0), [x, y]) as { x: number; y: number }; await page.mouse.click(bb.x + s.x, bb.y + s.y); await page.waitForTimeout(150); };
+  // koʻchaga perpendikulyar, undan 30 m shimolda boshlanadi
+  await at(c[0], c[1] - 30); await at(c[0], c[1] + 80);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.streets.length), { timeout: 8000 }).toBe(2);
+  const st = await page.evaluate(() => (window as any).__mr.store.doc.streets[1]);
+  expect(st.profile).toBe('otish-8'); expect(st.axis.length).toBe(3);   // chiziq + ulanish nuqtasi
+  const n = await page.evaluate(() => (window as any).__mr.store.doc.buildings.filter((b: any) => b.gen?.plot && b.gen.grp.startsWith('qator_')).length);
+  expect(n).toBeGreaterThan(3);
+  // uylar yangi koʻcha koridoriga tushmaydi (reyestr: koʻcha ustida bino yoʻq)
+  expect(await page.evaluate(() => (window as any).__mr.last?.d.streetOverlap?.length ?? 0)).toBe(0);
+});
