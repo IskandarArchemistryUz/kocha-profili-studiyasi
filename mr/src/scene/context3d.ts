@@ -296,7 +296,7 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
       for (let k = 0; k < n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n; pts.push(new THREE.Vector3(x, H(x, y) + 1.2, -y)); }
     }
     pts.push(pts[0].clone());
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0xe0281e, dashSize: 18, gapSize: 7, depthTest: false }));
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0xe0281e, dashSize: 18, gapSize: 7 }));
     line.computeLineDistances(); line.renderOrder = 60; line.name = 'atrof chegarasi'; g.add(line);
   }
 
