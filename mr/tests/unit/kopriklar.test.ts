@@ -42,3 +42,23 @@ describe('koʻprik balandligi va pandus', () => {
     expect(r.elevated).toEqual([]); expect(r.flat).toHaveLength(1);
   });
 });
+
+/** 02.11 (2) (egasi: «hudud oʻrtasida koʻprik chiqib qoldi, uni na oʻchirib boʻladi na ushlab»): ariq ustidagi koʻprik koʻtarilmaydi */
+describe('faqat sath kesishmasidagi koʻprik koʻtariladi', () => {
+  it('ariq ustidagi yoʻlak koʻprigi (ostida yoʻl yoʻq) — tekis, pandussiz', () => {
+    const r = elevateRoads([
+      { id: 1, pts: [[0, 0], [8, 0]], w: 3, cls: 'footway', lvl: 1 },
+      { id: 2, pts: [[-300, 0], [0, 0]], w: 3, cls: 'footway' }, { id: 3, pts: [[8, 0], [300, 0]], w: 3, cls: 'footway' },
+    ]);
+    expect(r.elevated).toHaveLength(0);
+    expect(r.flat.map(f => f.id).sort()).toEqual([1, 2, 3]);
+    expect(r.flat.find(f => f.id === 1)!.lvl).toBe(0);
+  });
+  it('temir yoʻl ustidagi koʻprik va unga ulangan koʻprik boʻlagi — koʻtariladi', () => {
+    const r = elevateRoads([
+      { id: 1, pts: [[0, 0], [60, 0]], w: 12, cls: 'primary', lvl: 1 },
+      { id: 5, pts: [[60, 0], [90, 0]], w: 12, cls: 'primary', lvl: 1 },
+    ], [[[30, -100], [30, 100]]]);
+    expect(r.elevated.filter(e => e.bridge).map(e => e.id).sort()).toEqual([1, 5]);
+  });
+});
