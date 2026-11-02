@@ -157,8 +157,16 @@ export function planKey(doc: Project, b: { footprint: [number, number][] }): str
   let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 }
-/** Turar joy seksiyalari rejasi (uylar, taunhauslar va stilobat — kvartirali emas) */
+/** 02.11 (egasi: «sahna, Chizmadon va Varaqlar juda ogʻir»): reja hujjat oʻzgarmaguncha qayta hisoblanmaydi — panel, albom, varaqlar
+ * har chizishda chaqiradi. Hujjat oʻzgarmas (har oʻzgarishda yangi obyekt): binolar, joylashuv va sozlamalar boʻyicha kesh */
+let aptMemo: { k: unknown[]; v: SecPlan[] } | null = null;
 export function planApartments(doc: Project): SecPlan[] {
+  const k = [doc.buildings, doc.origin, doc.settings];
+  if (aptMemo && aptMemo.k.every((x, i) => x === k[i])) return aptMemo.v;
+  const v = planApartmentsRaw(doc); aptMemo = { k, v }; return v;
+}
+/** Turar joy seksiyalari rejasi (uylar, taunhauslar va stilobat — kvartirali emas) */
+function planApartmentsRaw(doc: Project): SecPlan[] {
   const fr = frame(doc.origin), mix = doc.settings.aptMix;
   const all = doc.buildings.filter(b => !SKIP.has(b.gen?.kind ?? '')).map(b => {
     const r = b.footprint.map(fr.toLocal); let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;

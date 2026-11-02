@@ -54,9 +54,12 @@ test('grafika: varaqlar (bosh reja, zonalash, figure-ground), SVG yuklab olish',
   await page.click('[data-kind=qavat]'); if (shots) await page.screenshot({ path: `${shots}/gx_qavat.png` });
   await page.click('#gxScale [data-scale="2000"]');
   await expect(page.locator('.gx-info')).toContainText('M 1:2000');
-  // varaqlar toʻplami (V2): 5 varaq, varaq qoʻshish; tekshiruv; yozuvlar jadvali
-  await expect(page.locator('[data-sheet]')).toHaveCount(1);
-  await page.click('#shAdd'); await expect(page.locator('[data-sheet]')).toHaveCount(2);
+  // varaqlar toʻplami: ochilgan varaq + sukut toʻplami (02.11: 7 reja namunasi va har bino turidan 1-qavat, tipik qavat); varaq qoʻshish
+  const n0 = await page.locator('[data-sheet]').count(); expect(n0).toBeGreaterThanOrEqual(8);
+  // ochilgan varaq (ramkadan) zonalashtirish edi — sukutdan u takrorlanmaydi; qolgan namunalar qoʻshilgan
+  for (const k of ['bosh', 'figura', 'landshaft', 'qavat', 'vaziyat']) expect(await page.evaluate(k => (window as any).__mr.store.doc.sheets.slice(1).some((s: any) => s.opts.kind === k && (s.opts.mode ?? 'reja') === 'reja'), k)).toBe(true);
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.sheets.filter((s: any) => s.opts.mode === 'qavat').length)).toBeGreaterThanOrEqual(1);
+  await page.click('#shAdd'); await expect(page.locator('[data-sheet]')).toHaveCount(n0 + 1);
   await expect(view.locator('#Shtamp')).toBeAttached();
   await page.click('#shChecks'); await expect(page.locator('.sh-menu [data-check=labels]')).toBeVisible(); await page.keyboard.press('Escape');
   await page.click('#gxDl');

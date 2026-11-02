@@ -128,7 +128,8 @@ export function paginate(fam: LFamily, mats: Material[], force: Record<number, s
   const titleEl = pool0.find(e => e.role === 'title') ?? null;
   if (fam.chrome !== 'poster') pool0 = pool0.filter(e => e.role !== 'title'); // sarlavha varaq tepasida (chrome)
   const pages = fam.pages.filter(p => !structural(p)), vis = new Set(pool0.map(e => e.id));
-  const maxDepth = fam.chrome === 'poster' ? 1 : 6, BEAM = 10, EXP = 7;
+  // 02.11 (egasi: albomga sukut boʻyicha barcha rejalar): sahifalar soni materiallarga qarab (avval 6 bilan cheklangan — qolganlari «Joy topilmadi»)
+  const maxDepth = fam.chrome === 'poster' ? 1 : Math.min(30, Math.max(6, Math.ceil(pool0.length / 2) + 2)), BEAM = 10, EXP = 7;
   let beam: PState[] = [{ seq: [], pool: pool0, score: 0 }];
   let done: PState[] = [];
   if (!pool0.length) return { pages: [], left: [], titleEl };

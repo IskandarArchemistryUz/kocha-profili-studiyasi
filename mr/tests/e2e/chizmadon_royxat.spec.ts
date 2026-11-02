@@ -21,10 +21,11 @@ test('Chizmadon «Loyihadan»: kvartirografiya materiallari bino boʻyicha guruh
   await expect(list.locator('.ch-sub')).toHaveCount(3);
   await expect(list.locator('.ch-sub[data-mat^="p:aptnav:"]')).toHaveCount(1);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/ch_royxat_1440.png` });
-  // ikkinchi binoni guruh tugmasi bilan yoqish — uchala material yoqiladi
+  // guruh tugmasi bilan yoqish / oʻchirish — uchala material birga (02.11: bino turlarining 1-qavat va tipik qavati sukut boʻyicha yoqilgan)
   if (nGrp > 1) {
-    const g2 = grp.nth(1); await g2.locator('.sw, button[role=switch]').first().click();
-    await expect(g2).not.toHaveClass(/off/);
+    const g2 = grp.nth(1), was = /\boff\b/.test((await g2.getAttribute('class')) ?? '');
+    await g2.locator('.sw, button[role=switch]').first().click();
+    if (was) await expect(g2).not.toHaveClass(/\boff\b/); else await expect(g2).toHaveClass(/\boff\b/);
   }
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.setViewportSize({ width: 1024, height: 768 });
