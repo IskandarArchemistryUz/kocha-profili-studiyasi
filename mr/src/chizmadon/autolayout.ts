@@ -73,7 +73,7 @@ export interface Fill {
 export function tryFill(page: LPage, pool: Material[], fam: LFamily, paired: Set<string> = new Set(pool.filter(e => e.visible).map(e => e.id))): Fill {
   const used = new Set<string>(), assign = new Map<number, Material>(), empty = new Set<number>();
   const order = page.slots.map((s, k) => [s, k] as const).sort((a, b) => cells(b[0]) - cells(a[0]));
-  const famPairs = fam.pages.some(p => p.pairs), partnered = (e: Material) => pool.some(q => q.pair === e.id);
+  const famPairs = fam.pages.some(p => p.pairs), partnered = (e: Material) => pool.some(q => q.pair === e.id && q.role === 'locator');   // 02.11: kvartirografiya rejasi — vaziyat sxemasi jufti bor; faqat jadvalli (yer balansi) — oddiy reja
   for (const [s, k] of order) {
     if (NEUTRAL[s.role] || isTitleSlot(s, fam)) continue;
     const acc = ACCEPT[s.role];

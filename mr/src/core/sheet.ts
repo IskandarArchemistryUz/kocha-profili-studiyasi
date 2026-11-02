@@ -12,8 +12,11 @@ import { profileById, profileWidth, type PartKind } from './profiles';
 import { offsetLine, projectStreetsGeo } from '../scene/streets3d';
 import { landscape } from './landscape';
 import { freeRect, pickLevel, labelLines, modeMax, type LabelMode } from './labels';
+import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES } from './limits';
+import { prodChecks } from './prodcheck';
+import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 
-export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat';
+export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -25,6 +28,7 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'qavat', name: 'Qavatlar soni', note: 'binolar qavatlar soni boʻyicha rangda' },
   { id: 'vaziyat', name: 'Vaziyat sxemasi', note: 'hudud shaharda: atrof, yoʻllar, uchastka' },
   { id: 'xizmat', name: 'Xizmat radiusi', note: 'piyoda yetib borish: tarmoq boʻylab masofa, obyektlar, uylar' },
+  { id: 'cheklov', name: 'Cheklovlar rejasi', note: 'qurib boʻlmaydigan joy, SMZ, ELU va yer balansi' },
 ];
 
 /** Bitta xizmat turi tahlili: piyoda tarmogʻi kesmalari (eng yaqin obyektgacha masofa, m), obyektlar, turar joy binolari */
@@ -113,7 +117,7 @@ export function recommendScale(ha: number, kind: SheetKind): { scale: number; sr
 /** Varaq turi boʻyicha masshtab oraligʻi (cheklovdan tashqarisi — eslatma, taqiq emas) */
 export const scaleRange = (k: SheetKind): [number, number] => k === 'vaziyat' ? [10000, 25000] : [500, 5000];
 
-export interface LegendItem { type: 'fill' | 'line' | 'dash' | 'tree' | 'swatch' | 'stop'; fill?: string; stroke?: string; label: string }
+export interface LegendItem { type: 'fill' | 'line' | 'dash' | 'tree' | 'swatch' | 'stop' | 'hatch'; fill?: string; stroke?: string; label: string }
 export interface PlotRow { code: string; use: string; color: string; ha: number; level: number }
 export interface SheetResult { svg: string; scale: number; widthMm: number; heightMm: number; legend: LegendItem[]; plots: PlotRow[]; labels: { full: number; total: number }; minText: number; fits: boolean; auto: boolean }
 
@@ -268,6 +272,8 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     if (K === 'zona') {
       g('Zonalar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${plotFill(b.use)}"${lP.outline ? ` stroke="#ffffff" stroke-width="${lw(Math.max(lP.mm, 0.35))}"` : ''} fill-rule="evenodd"/>`).join(''));
       for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: plotFill(u.id), label: tr(u.name) });
+    } else if (K === 'cheklov') {
+      g('Kvartallar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${mix(useDef(b.use).color, 0.62)}" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}" fill-rule="evenodd"/>`).join(''));
     } else if (K === 'landshaft') {
       g('Yashil_kvartallar', plan.blocks.filter(b => b.use === 'yashil' || b.use === 'himoya' || b.use === 'sport' || b.use === 'maydon').map(b => `<path d="${polyD(b.rings)}" fill="${b.use === 'yashil' || b.use === 'himoya' ? '#bcd9a3' : b.use === 'sport' ? '#cfe6ef' : '#efe9dc'}" fill-rule="evenodd"/>`).join(''));
       if (lP.outline) g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}"/>`).join(''));
@@ -360,6 +366,36 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     legend.push({ type: 'fill', fill: '#f3c9c4', stroke: '#1d1d1b', label: tr('Turar joy — radiusdan tashqarida') });
   }
 
+  // 4c. cheklovlar rejasi (02.11): qurib boʻlmaydigan joy (shtrix), cheklov obyektlari SMZ (SanQvaN 0350-17), ishlab chiqarish SMZ (ShNQ 2.07.01-23, 146), ELU oʻqi
+  const bal = K === 'cheklov' ? landBalance(doc) : null;
+  if (K === 'cheklov') {
+    const z = limitZones(doc), SZ = '#d9822b', PZ = '#8e6bb5', cl = (r: XY[]) => [...r, r[0]].map(p => [p[0], p[1]] as [number, number]);
+    const siteP: Polygon | null = site ? site.map(cl) : null;
+    if (z.soft.length) {
+      g('SMZ_cheklovlar', z.soft.map(sz => `<path d="${polyD(sz.rings)}" fill="${SZ}" fill-opacity="0.18" stroke="${SZ}" stroke-width="${lw(0.35)}" stroke-dasharray="2 1" fill-rule="evenodd"/>`).join(''));
+      const seen = new Set<string>();
+      for (const sz of z.soft) { const lab = `${tr('SMZ')} — ${tr(LIMIT_NAMES[sz.kind])}, ${sz.m} m${sz.cls ? ` (${sz.cls} ${tr('sinf')})` : ''}`; if (seen.has(lab)) continue; seen.add(lab); legend.push({ type: 'fill', fill: '#f6dcc0', stroke: SZ, label: lab }); }
+    }
+    const pz = prodChecks(doc).zones.map(q => { let mp: MultiPolygon = []; try { mp = polygonClipping.difference(bufferLocal(q.rings[0], q.szz, true), q.rings.map(cl) as Polygon); if (siteP) mp = polygonClipping.intersection(mp, siteP); } catch { mp = []; } return { q, mp }; }).filter(x => x.mp.length);
+    if (pz.length) {
+      g('SMZ_ishlab_chiqarish', pz.map(({ mp }) => `<path d="${polyD(mp.flatMap(pp => pp.map(r => r.slice(0, -1) as XY[])))}" fill="${PZ}" fill-opacity="0.14" stroke="${PZ}" stroke-width="${lw(0.35)}" stroke-dasharray="2 1" fill-rule="evenodd"/>`).join(''));
+      const seen = new Set<string>();
+      for (const { q } of pz) { const lab = `${tr('SMZ')} — ${tr(useDef(q.use).name)}, ${q.szz} m`; if (seen.has(lab)) continue; seen.add(lab); legend.push({ type: 'fill', fill: '#e6dcef', stroke: PZ, label: lab }); }
+    }
+    if (z.hard.length) {
+      const step = 1.6 / k;
+      g('Qurib_bolmaydigan', z.hard.map(pp => `<path d="${polyD(pp)}" fill="#ffffff" fill-opacity="0.55" stroke="#1d1d1b" stroke-width="${lw(0.35)}" fill-rule="evenodd"/>`).join('')
+        + `<path d="${hatchSegs(z.hard, step).map(([a, b]) => `M${P(a)}L${P(b)}`).join('')}" fill="none" stroke="#1d1d1b" stroke-width="${lw(0.13)}"/>`);
+      legend.push({ type: 'hatch', fill: '#ffffff', stroke: '#1d1d1b', label: tr('Qurib boʻlmaydigan joy (cheklov obyekti, ELU muhofaza zonasi)') });
+    }
+    const elu = (doc.limits ?? []).filter(l => l.kind === 'elu' && isActive(l) && l.axis && l.axis.length > 1);
+    if (elu.length) {
+      g('ELU', elu.map(l => `<path d="${lineD(l.axis!.map(fr.toLocal))}" fill="none" stroke="#c0392b" stroke-width="${lw(0.4)}" stroke-dasharray="5 1 1 1"/>`).join(''));
+      legend.push({ type: 'dash', stroke: '#c0392b', label: tr('ELU oʻqi') });
+    }
+    if (!z.soft.length && !z.hard.length && !pz.length && !elu.length) legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Cheklov belgilanmagan (1-qadam «Mavjud holat va cheklovlar»)') });
+  }
+
   // 4b. bekatlar
   const lT = Ly('stops');
   if (ctx?.stops?.length && lT.on && K !== 'figura') {
@@ -443,7 +479,21 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       lay('Shartli_belgilar', 'Shartli belgilar', out.join('')); y += 9 + legend.length * rowH;
     }
     if (inner?.side) { lay('Eksplikatsiya', 'Eksplikatsiya', inner.side(x0, y + 2, w, yEnd - stampH - sitH - 2)); }
-    if (S.plotTable && plots.length && !inner) {
+    if (bal && !inner) {
+      // yer balansi (02.11): hudud → qurib boʻlmaydigan / SMZ / yaroqli; funksiyalar boʻyicha kvartallar va koʻchalar
+      const rows = balanceRows(doc, tr), pc = (v: number) => bal.siteHa ? `${(v / bal.siteHa * 100).toFixed(1).replace('.', ',')} %` : '';
+      const ha = (v: number) => v.toFixed(2).replace('.', ',');
+      const rowH = 3.8, avail = yEnd - stampH - sitH - y - 10, fit = Math.max(0, Math.floor(avail / rowH) - 2), out: string[] = [];
+      out.push(`<text x="${x0}" y="${n2(y + 3.5)}" font-size="${T(3)}" font-weight="700" fill="#1d1d1b">${esc(tr('Yer balansi'))}</text>`);
+      const yh = y + 7.5; out.push(`<text x="${x0 + w - 16}" y="${n2(yh)}" font-size="${T(2.5)}" text-anchor="end" fill="#6b6965">ga</text><text x="${x0 + w}" y="${n2(yh)}" font-size="${T(2.5)}" text-anchor="end" fill="#6b6965">%</text>`);
+      rows.slice(0, fit).forEach((r, i) => {
+        const yy = yh + (i + 1) * rowH + (i >= 4 ? 1.2 : 0), tx = r.c ? x0 + 3.6 : x0;
+        if (i === 4) out.push(`<path d="M${x0},${n2(yy - 3.6)}h${n2(w)}" stroke="#c9c6bf" stroke-width="0.12"/>`);
+        if (r.c) out.push(`<rect x="${x0}" y="${n2(yy - 2.4)}" width="2.6" height="2.6" fill="${r.c}" stroke="#9a978f" stroke-width="0.1"/>`);
+        out.push(`<text x="${tx}" y="${n2(yy)}" font-size="${T(2.5)}"${r.b ? ' font-weight="700"' : ''} fill="#1d1d1b">${esc(r.t)}</text><text x="${x0 + w - 16}" y="${n2(yy)}" font-size="${T(2.5)}" text-anchor="end" font-family="IBM Plex Mono, Menlo, monospace" fill="#1d1d1b">${ha(r.v)}</text><text x="${x0 + w}" y="${n2(yy)}" font-size="${T(2.5)}" text-anchor="end" font-family="IBM Plex Mono, Menlo, monospace" fill="#6b6965">${pc(r.v)}</text>`);
+      });
+      lay('Yer_balansi', 'Yer balansi', out.join(''));
+    } else if (S.plotTable && plots.length && !inner) {
       const rowH = 3.8, avail = yEnd - stampH - sitH - y - 10, nRows = Math.max(0, Math.floor(avail / rowH) - 1), shown = plots.slice(0, Math.max(0, plots.length > nRows ? nRows - 1 : nRows)), out: string[] = [];
       if (nRows > 1) {
         out.push(`<text x="${x0}" y="${n2(y + 3.5)}" font-size="${T(3)}" font-weight="700" fill="#1d1d1b">${esc(tr('Yer uchastkalari'))}</text>`);
@@ -502,10 +552,30 @@ ${A.join('\n')}
   return { svg, scale, widthMm: pw, heightMm: ph, legend, plots, labels: { full, total: plots.length }, minText, fits, auto };
 }
 
+/** Yer balansi qatorlari (ga): hudud, qurib boʻlmaydigan, SMZ, yaroqli; keyin funksiyalar boʻyicha kvartallar va koʻchalar (qoldiq) */
+export interface BalanceRow { t: string; v: number; c?: string; b?: boolean }
+export function balanceRows(doc: Project, tr: (s: string) => string = s => s): BalanceRow[] {
+  const bal = landBalance(doc); if (!bal) return [];
+  const by = new Map<string, number>(); for (const b of computePlan(doc).blocks) by.set(b.use, (by.get(b.use) ?? 0) + b.area / 1e4);
+  const blk = [...by.values()].reduce((a, b) => a + b, 0);
+  return [
+    { t: tr('Loyihalash hududi'), v: bal.siteHa, b: true },
+    { t: tr('Qurib boʻlmaydigan joy'), v: bal.hardHa }, { t: tr('SMZ (turar joy taqiqlangan)'), v: bal.szzHa }, { t: tr('Turar joy uchun yaroqli'), v: bal.usableHa, b: true },
+    ...USES.filter(u => by.has(u.id)).map(u => ({ t: tr(u.name), v: by.get(u.id)!, c: mix(u.color, 0.15) })),
+    { t: tr('Koʻchalar va boshqa'), v: Math.max(0, bal.siteHa - blk), c: '#ecebe7' },
+  ];
+}
+/** Chizmadon jadvali uchun: [nom, ga, %] */
+export function balanceTable(doc: Project, tr: (s: string) => string = s => s): string[][] | null {
+  const r = balanceRows(doc, tr); if (!r.length) return null; const S0 = r[0].v || 1;
+  return [[tr('Yer balansi'), 'ga', '%'], ...r.map(x => [x.t, x.v.toFixed(2).replace('.', ','), (x.v / S0 * 100).toFixed(1).replace('.', ',')])];
+}
+
 function legendSym(it: LegendItem, sx: number, y: number): string {
   if (it.type === 'fill' || it.type === 'swatch') return `<rect x="${sx}" y="${n2(y - 0.2)}" width="6" height="3" fill="${it.fill}" stroke="${it.stroke ?? '#9a978f'}" stroke-width="0.15"/>`;
   if (it.type === 'line') return `<path d="M${sx},${n2(y + 1.3)}h6" stroke="${it.stroke}" stroke-width="0.4"/>`;
   if (it.type === 'dash') return `<rect x="${sx}" y="${n2(y - 0.2)}" width="6" height="3" fill="none" stroke="${it.stroke}" stroke-width="0.3" stroke-dasharray="1.2 0.6"/>`;
+  if (it.type === 'hatch') return `<rect x="${sx}" y="${n2(y - 0.2)}" width="6" height="3" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.25"/><path d="M${sx},${n2(y + 1.3)}l1.5,-1.5M${sx},${n2(y + 2.8)}l3,-3M${sx + 1.5},${n2(y + 2.8)}l3,-3M${sx + 3},${n2(y + 2.8)}l3,-3M${sx + 4.5},${n2(y + 2.8)}l1.5,-1.5" stroke="#1d1d1b" stroke-width="0.12"/>`;
   if (it.type === 'stop') return `<circle cx="${sx + 3}" cy="${n2(y + 1.3)}" r="1.4" fill="${it.fill}"/>`;
   return `<circle cx="${sx + 3}" cy="${n2(y + 1.3)}" r="1.4" fill="#ffffff" stroke="#7d8a6a" stroke-width="0.15"/>`;
 }

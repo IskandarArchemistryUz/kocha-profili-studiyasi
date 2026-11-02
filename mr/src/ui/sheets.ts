@@ -69,7 +69,7 @@ export function norm(o: Record<string, unknown>): SheetOpts {
  * zonalashtirish, figura-fon, landshaft, qavatlar soni, vaziyat sxemasi); har bino turidan 1-qavat va tipik qavat; har past qavatli uy
  * turidan har qavat rejasi (core/albumset).
  */
-const SET_V = 3;
+const SET_V = 4;
 function defaultSheets(doc: Project): SheetDoc[] {
   const base = lastOpts(), mk = (o: Partial<SheetOpts>): SheetDoc => ({ id: uid('sh_'), opts: { ...base, mode: 'reja', title: '', stamp: {}, ...o } as unknown as Record<string, unknown> });
   const out: SheetDoc[] = [
@@ -77,6 +77,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'bosh', scale: 0, layers: { bld: { fill: 'use' } } as SheetOpts['layers'], stamp: { sheet: 'Funksional reja' } }),
     mk({ kind: 'zona', scale: 0 }), mk({ kind: 'figura', scale: 0 }), mk({ kind: 'landshaft', scale: 0 }), mk({ kind: 'qavat', scale: 0 }),
     mk({ kind: 'vaziyat', scale: 10000 }),
+    mk({ kind: 'cheklov', scale: 0 }),   // 02.11: tahlil — cheklovlar rejasi va yer balansi
   ];
   for (const sv of ['mtm', 'maktab', 'poliklinika', 'bekat']) out.push(mk({ kind: 'xizmat', svc: sv, scale: 0 }));   // 02.11: tahlil — xizmat radiuslari (editor SVC_ON)
   for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));

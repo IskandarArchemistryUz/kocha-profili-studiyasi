@@ -37,7 +37,7 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   expect(await svgs()).toMatch(/Vaziyat sxemasi|Location plan|Ситуационная схема/i);
   // eksplikatsiya — alohida jadval (oʻng panel), reja katagida emas: jadval elementi va reja bitta varaqda
   const els = () => page.evaluate(() => [...document.querySelectorAll('.ch-body [data-el]')].map(e => e.getAttribute('data-el') ?? ''));
-  for (let i = 0; i < 8 && !(await els()).some(x => x.startsWith('p:apt:')); i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); }
+  for (let i = 0; i < 20 && !(await els()).some(x => x.startsWith('p:apt:')); i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); }
   expect(await page.locator('.ch-body [data-el^="p:aptx:"]').count()).toBeGreaterThan(0);
   // jadvalda kvartira turi rang namunasi bilan (rejadagi rang bilan bir xil)
   // 1-qavat (noturar) jadvali boʻsh boʻlishi mumkin — tipik qavat varagʻiga oʻtiladi

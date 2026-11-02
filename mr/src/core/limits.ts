@@ -128,6 +128,8 @@ export function bufferLocal(pts: XY[], m: number, closed: boolean): MultiPolygon
 const mpArea = (mp: MultiPolygon) => mp.reduce((s, p) => s + Math.abs(ringArea(open(p[0]))) - p.slice(1).reduce((t, h) => t + Math.abs(ringArea(open(h))), 0), 0);
 
 /** Faol (hisobga olinadigan) cheklovmi: buziladigan / koʻchiriladigan obyekt va demontaj ELU — yoʻq */
+/** Cheklov turi nomi (UI va varaqlar) */
+export const LIMIT_NAMES: Record<LimitKind, string> = { qabriston: 'Qabriston', issiqxona: 'Issiqxona', ombor: 'Ombor', temiryol: 'Temir yoʻl', elu: 'ELU', meros: 'Madaniy meros', suv: 'Suv obyekti', boshqa: 'Boshqa' };
 export const isActive = (l: Limit) => l.kind === 'elu' ? l.elu !== 'demontaj' : l.status === 'saqlanadi';
 
 let memo: { k: unknown[]; v: LimitZones } | null = null;

@@ -4,6 +4,7 @@ import { blankProject, migrate } from '../../src/core/doc';
 import { apply } from '../../src/core/commands';
 import { computePlan } from '../../src/core/plan';
 import { frame, area, type XY } from '../../src/core/geo';
+import { sheetSvg, SHEET_DEFAULT, balanceRows, balanceTable } from '../../src/core/sheet';
 
 const sq = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
 const mpA = (mp: XY[][][]) => mp.reduce((t, p) => t + area(p[0]) - p.slice(1).reduce((s, h) => s + area(h), 0), 0);
@@ -82,6 +83,19 @@ describe('hujjat: kvartallar va yer balansi', () => {
     const b = landBalance(mk([L({ kind: 'elu', kv: 110, elu: 'mavjud', axis: [[-200, 0], [200, 0]] as any })]))!;
     expect(b.hardHa).toBeCloseTo(300 * 40 / 1e4, 2);
     expect(b.szzHa).toBe(0);
+  });
+  it('cheklovlar varagʻi: shtrix, SMZ, ELU qatlamlari va yer balansi jadvali (02.11)', () => {
+    const d = mk([L({ rings: [sq(-20, -20, 20, 20) as any] }), L({ id: 'e', kind: 'elu', kv: 110, elu: 'mavjud', axis: [[-200, 120], [200, 120]] as any })]);
+    const r = sheetSvg(d, null, { ...SHEET_DEFAULT, kind: 'cheklov' }, new Date(0));
+    for (const id of ['Qurib_bolmaydigan', 'SMZ_cheklovlar', 'ELU', 'Yer_balansi']) expect(r.svg).toContain(`id="${id}"`);
+    const t = balanceTable(d)!, b = landBalance(d)!;
+    expect(t[0]).toEqual(['Yer balansi', 'ga', '%']);
+    expect(t[1][1]).toBe(b.siteHa.toFixed(2).replace('.', ',')); expect(t[1][2]).toBe('100,0');
+    // hudud = qurib boʻlmaydigan + SMZ + yaroqli
+    const rows = balanceRows(d); expect(rows[1].v + rows[2].v + rows[3].v).toBeCloseTo(rows[0].v, 6);
+    // funksiyalar + koʻchalar = hudud
+    expect(rows.slice(4).reduce((a, x) => a + x.v, 0)).toBeCloseTo(rows[0].v, 2);
+    expect(r.legend.some(x => x.type === 'hatch')).toBe(true);
   });
   it('fayldan: buzilgan cheklov tashlanadi, eski loyiha (limits yoʻq) ochiladi', () => {
     expect(cleanLimit({ id: 'a', kind: 'qabriston' })).toBeNull();

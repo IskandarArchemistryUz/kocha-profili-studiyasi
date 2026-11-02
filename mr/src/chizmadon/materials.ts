@@ -169,7 +169,7 @@ export interface PlanMap { svg: string; vb: [number, number, number, number]; w:
 export interface PlanSrc { id: string; name: string; on: boolean;
   /** fit — katak oʻlchami (mm): berilsa, reja shu oʻlchamga mos masshtabda chiziladi (qavat rejalari) */
   get: (fit?: { w: number; h: number; scale?: number }) => PlanMap | null | undefined;
-  /** reja bilan juft jadval (oʻng panelda) */ table?: { id: string; name: string; title: string; rows: () => string[][] | null };
+  /** reja bilan juft jadval (oʻng panelda) */ table?: { id: string; name: string; title: string; rows: () => string[][] | null; /** 02.11: erkin jadval (yer / yashil balansi) — reja bilan bitta varaqda boʻlishi shart emas */ free?: boolean };
   /** reja bilan juft vaziyat sxemasi (kichik katakda) */ nav?: { id: string; name: string; title: string; draw: (r: Rect) => string } }
 export interface ProjectSrc {
   plan?: { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number } | null;
@@ -274,7 +274,7 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
     if (p.table) {
       const tb = p.table; let rows: string[][] | null | undefined;
       const m = add({ id: tb.id, role: 'table', kind: 'expl', name: tb.name, title: tb.title } as Def, (r, ctx, bare) => { if (rows === undefined) { try { rows = tb.rows(); } catch { rows = null; } } return rows ? tableArt(rows, r, ctx, m, bare) : ''; }, p.on);
-      m.pair = p.id;
+      if (!tb.free) m.pair = p.id;
     }
   }
   if (src.plan && !src.plans) { const p = src.plan; const m = add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja', m.view)); }
