@@ -54,3 +54,26 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`cheklov ch
   await expect(page.locator('[data-lim]')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).__mr.store.doc.limits)).toBeUndefined();
 });
+
+/** 3-bosqich (02.11): reyestrda — SMZ ichidagi turar joy (SanPiN 0350-17, 2.17) va ELU zonasidagi bino (VMQ № 1050, 14) */
+test('cheklovlar reyestrda: SMZ ichida turar joy, ELU zonasida bino', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('./'); await page.click('#newP');
+  await page.click('[data-step=uchastka]');
+  await rectSite(page, 400, 400);
+  await page.evaluate(() => {
+    const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), my = 111132;
+    const r = ed.store.doc.site.rings[0], cx = r.reduce((t: number, p: number[]) => t + p[0], 0) / r.length, cy = r.reduce((t: number, p: number[]) => t + p[1], 0) / r.length;
+    const g = (x: number, y: number) => [cx + x / mx, cy + y / my];
+    const sq = (x0: number, y0: number, x1: number, y1: number) => [g(x0, y0), g(x1, y0), g(x1, y1), g(x0, y1)];
+    ed.store.dispatch({ type: 'addLimit', limit: { id: 'q1', kind: 'qabriston', status: 'saqlanadi', src: 'qolda', rings: [sq(-150, -150, -110, -110)] } });
+    ed.store.dispatch({ type: 'addLimit', limit: { id: 'e1', kind: 'elu', status: 'saqlanadi', src: 'qolda', elu: 'mavjud', kv: 110, axis: [g(-200, 120), g(200, 120)] } });
+    ed.store.dispatch({ type: 'addBuilding', footprint: sq(-90, -150, -60, -120), floors: 9, nonRes: 0, use: 'turar' });
+    ed.store.dispatch({ type: 'addBuilding', footprint: sq(0, 110, 30, 130), floors: 5, nonRes: 0, use: 'ofis' });
+  });
+  await page.click('#kMore');
+  await expect(page.locator('.drawer [data-rule=szz-217]')).toContainText('SanPiN RUz № 0350-17');
+  await expect(page.locator('.drawer [data-rule=szz-217] [data-s=fail]').first()).toBeVisible();
+  await expect(page.locator('.drawer [data-rule=elu-1050] [data-s=fail]').first()).toBeVisible();
+  await expect(page.locator('.drawer [data-rule=elu-251] [data-s=fail]').first()).toBeVisible();
+});

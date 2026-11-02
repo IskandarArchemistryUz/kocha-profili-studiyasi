@@ -20,6 +20,7 @@ import { useDef } from '../core/uses';
 import { edgeKinds, boundaryNeed, azOf } from '../core/setback';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
+import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
 /** Keyingi pogʻona izohi (41-jadval / 543-band): qaysi parsellar kichik va qancha maydon yetishmaydi — faqat ochilgan izohda */
@@ -517,10 +518,65 @@ export const RULES: Rule[] = [
         note: parts.join(' ') };
     },
   },
+  // 02.11, cheklovlar 3-bosqichi — asl matn: SanPiN RUz № 0350-17 (2.17, 2.20, 6.3, 6.4), VMQ № 1050 (14, 17), ShNQ 2.07.01-23 (251, 253)
+  {
+    id: 'szz-217',
+    title: 'SMZ ichida taqiqlangan funksiya',
+    source: { doc: 'SanPiN RUz № 0350-17', edition: '2017', clause: '2.17 (taqiq), 2.20 (ruxsat); SMZ — 6.3, 6.4; temir yoʻl — ShNQ 2.07.01-23, 359', verified: true },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc);
+      if (!c.any) return { status: 'na', unit: 'bino', limit: '0', note: 'Cheklov obyektlari kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
+      const ids = (v: SzzVerdict) => [...new Set(c.szz.filter(x => x.verdict === v).map(x => x.bid))];
+      const deny = ids('deny'), rev = ids('review'), allow = ids('allow');
+      if (!deny.length && !rev.length && !allow.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'SMZ ichida bino yoʻq.' };
+      const show = deny.length ? deny : rev.length ? rev : allow;
+      return { status: deny.length ? 'fail' : 'review', value: deny.length, unit: 'bino', limit: '0', where: { bids: show, rings: c.zoneRings },
+        note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (2.17); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (2.20; qabriston uchun — talqin).` };
+    },
+  },
+  {
+    id: 'elu-1050',
+    title: 'ELU muhofaza zonasida bino',
+    source: { doc: 'VMQ № 1050 (26.12.2018)', edition: '2018', clause: '14-band (zona), 17-band (bino — tarmoq egasining yozma roziligi); ≥ 330 kV — SanPiN 0350-17, 2.23.4', verified: true },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc), elu = (doc.limits ?? []).filter(l => l.kind === 'elu');
+      if (!elu.length) return { status: 'na', unit: 'bino', limit: '0', note: 'ELU kiritilmagan.' };
+      const ids = [...new Set(c.elu.map(x => x.bid))], kv = [...new Set(c.elu.map(x => `${x.kv} kV — ${x.m} m`))].join(', ');
+      if (!ids.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'ELU zonasida bino yoʻq.' };
+      return { status: 'fail', value: ids.length, unit: 'bino', limit: '0', where: { bids: ids, rings: c.zoneRings },
+        note: `ELU zonasida ${ids.length} ta bino (${kv}). Yechim: binoni zonadan chiqarish, ELU ni kabelga oʻtkazish yoki koʻchirish (tarmoq egasi bilan).` };
+    },
+  },
+  {
+    id: 'elu-251',
+    title: '35 kV va undan yuqori havo ELU turar joy hududi ustidan',
+    source: { ...SHNQ_2_07_01, clause: '251-band (turar joy hududidan tashqarida), 253-band (rekonstruksiyada chiqarish yoki kabelga)' },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc), hv = (doc.limits ?? []).filter(l => l.kind === 'elu' && (l.kv ?? 0) >= 35 && l.elu !== 'kabel' && l.elu !== 'demontaj');
+      if (!hv.length) return { status: 'na', unit: 'kvartal', limit: '0', note: '35 kV va undan yuqori havo ELU yoʻq.' };
+      const n = c.elu251.reduce((t, x) => t + x.blocks, 0), kv = c.elu251.map(x => `${x.kv} kV`).join(', ');
+      if (!n) return { status: 'pass', value: 0, unit: 'kvartal', limit: '0', note: 'Havo liniyalari turar joy kvartallari orqali oʻtmaydi.' };
+      return { status: 'fail', value: n, unit: 'kvartal', limit: '0',
+        note: `Havo liniyasi (${kv}) ${n} ta turar joy kvartali orqali oʻtadi. 253-band: liniyani turar joy hududidan chiqarish yoki kabelga almashtirish (ELU holati — «Kabelga»).` };
+    },
+  },
+  {
+    id: 'szz-manual',
+    title: 'SMZ yoki ELU zonasi qoʻlda kamaytirilgan',
+    source: { doc: 'SanPiN RUz № 0350-17', edition: '2017', clause: '2.9 izohi (rekonstruksiyada belgilangan tartibda tuzatish); 6.4 izohi («′» belgili obyektlar — sanitariya nazorati xulosasi bilan 2 baravargacha)', verified: true },
+    evaluate(_d, doc) {
+      const c = limitChecks(doc);
+      if (!c.any) return { status: 'na', unit: 'obyekt', limit: '0', note: 'Cheklov obyektlari kiritilmagan.' };
+      if (!c.manual.length) return { status: 'pass', value: 0, unit: 'obyekt', limit: '0', note: 'Barcha zonalar jadvaldagi qiymatda (yoki kattaroq).' };
+      const list = c.manual.map(x => `${x.m} m < ${x.table} m`).join(', ');
+      return { status: 'review', value: c.manual.length, unit: 'obyekt', limit: '0',
+        note: `Qoʻlda kamaytirilgan: ${list}. Davlat sanitariya nazoratining ijobiy xulosasi kerak; qabristonlar 6.4 dagi «′» belgili obyektlar qatorida emas.` };
+    },
+  },
 ];
 
 /** Oʻzbekiston meʼyoriy hujjati (ShNQ, QMQ, SanQvaN, OʻRQ, Toshkent dizayn-kodi …) */
-export const isUzDoc = (doc: string): boolean => /ShNQ|QMQ|SanQvaN|KMK|OʻRQ|O'RQ|Toshkent|Oʻz|Vazirlar Mahkamasi/i.test(doc);
+export const isUzDoc = (doc: string): boolean => /ShNQ|QMQ|SanQvaN|SanPiN RUz|VMQ №|KMK|OʻRQ|O'RQ|Toshkent|Oʻz|Vazirlar Mahkamasi/i.test(doc);
 /**
  * 33-band (egasi, 24.10: «hududga qarab»): loyiha Oʻzbekistondan tashqarida boʻlsa, Oʻzbekiston meʼyori u yerda
  * majburiy emas — «mos emas» natijasi «andoza (koʻrib chiqish)» ga aylanadi, izohda aytiladi; qiymat va chegara saqlanadi.
