@@ -92,9 +92,9 @@ describe('hujjat: kvartallar va yer balansi', () => {
     expect(t[0]).toEqual(['Yer balansi', 'ga', '%']);
     expect(t[1][1]).toBe(b.siteHa.toFixed(2).replace('.', ',')); expect(t[1][2]).toBe('100,0');
     // hudud = qurib boʻlmaydigan + SMZ + yaroqli
-    const rows = balanceRows(d); expect(rows[1].v + rows[2].v + rows[3].v).toBeCloseTo(rows[0].v, 6);
+    const rows = balanceRows(d); expect(rows[1].v! + rows[2].v! + rows[3].v!).toBeCloseTo(rows[0].v!, 6);
     // funksiyalar + koʻchalar = hudud
-    expect(rows.slice(4).reduce((a, x) => a + x.v, 0)).toBeCloseTo(rows[0].v, 2);
+    expect(rows.slice(4).reduce((a, x) => a + x.v!, 0)).toBeCloseTo(rows[0].v!, 2);
     expect(r.legend.some(x => x.type === 'hatch')).toBe(true);
   });
   it('fayldan: buzilgan cheklov tashlanadi, eski loyiha (limits yoʻq) ochiladi', () => {

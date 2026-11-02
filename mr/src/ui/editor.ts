@@ -1280,6 +1280,8 @@ export class Editor {
   private sunDate = '03-22';
   private insolRule: Result | null = null;
   private sunTime = 14;
+  /** 02.11: oxirgi insolyatsiya xaritasi — «Insolyatsiya» varagʻi uchun (qayta hisoblamaydi: tanga sarflanadi) */
+  private insolGrid: { pts: XY[]; hours: Float32Array; cell: number; date: string; buildings: unknown } | null = null;
   private insol: { busy: boolean; stats: { mean: number; ge2: number; ge3: number; bins: number[]; n: number; date: string } | null } = { busy: false, stats: null };
   private sunW: Worker | null = null;
 
@@ -1332,6 +1334,7 @@ export class Editor {
     };
     this.insol = { busy: false, stats: { mean: sum / n, ge2: ge2 / n, ge3: ge3 / n, bins: bins.map(v => v / n), n: hours.length, date: this.sunDate } };
     this.scene.setInsolation(pts, hours, cell);
+    this.insolGrid = { pts, hours, cell, date: this.sunDate, buildings: doc.buildings };
     this.renderPanel();
   }
 
@@ -4000,8 +4003,15 @@ export class Editor {
   }
   /** Tahlil varagʻi uchun atrof: atrof yuklanmagan boʻlsa ham tahlil chiziladi */
   private sheetCtxFor(kind: string): SheetCtx | null {
-    const c = this.sheetCtx(); if (kind !== 'xizmat') return c;
-    return { ...(c ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] }), svc: this.svcSheet() };
+    const c = this.sheetCtx(); if (kind !== 'xizmat' && kind !== 'insol') return c;
+    const base = c ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] };
+    if (kind === 'insol') return { ...base, insol: this.insolSheet() };
+    return { ...base, svc: this.svcSheet() };
+  }
+  private insolSheet(): SheetCtx['insol'] {
+    const I = this.insolGrid; if (!I) return null;
+    const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+    return { pts: I.pts, hours: I.hours, cell: I.cell, date: I.date, stale: I.buildings !== this.store.doc.buildings, bins: INSOL_BINS.map(([t, c, l]) => [t, hex(c), l] as [number, string, string]) };
   }
   private sheetCtx(): SheetCtx | null {
     const b = this.ctxMgr.current; if (!b) return null;
@@ -4062,6 +4072,11 @@ export class Editor {
       mk('p:plan:vaziyat', 'Vaziyat sxemasi', true, { kind: 'vaziyat' }),
       // 02.11: tahlil — cheklovlar rejasi va yer balansi (juft jadval)
       { ...mk('p:plan:cheklov', 'Cheklovlar rejasi', true, { kind: 'cheklov' }), table: { id: 'p:balans', name: 'Yer balansi', title: tr('Yer balansi'), rows: () => balanceTable(this.store.doc, tr), free: true } },
+      { ...mk('p:plan:yashil', 'Yashil balans', true, { kind: 'yashil' }), table: { id: 'p:yashilbal', name: 'Yashil balans jadvali', title: tr('Yashil balans'), rows: () => balanceTable(this.store.doc, tr, 'yashil'), free: true } },
+      { id: 'p:plan:insol', name: 'Insolyatsiya', on: true, get: () => {
+        const r = sheetSvg(this.store.doc, this.sheetCtxFor('insol'), { ...SHEET_DEFAULT, kind: 'insol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
+      } },
       // 02.11: tahlil varaqlari — xizmat radiusi (piyoda tarmogʻi boʻylab, 9-qadam tahlili); asosiylari sukut boʻyicha yoqilgan
       ...SERVICES.map(sv => { let c2: SheetCtx | null | undefined; return { id: `p:plan:svc:${sv.id}`, name: `${tr('Xizmat radiusi')} · ${tr(sv.name)}`, on: SVC_ON.includes(sv.id), get: () => {
         if (c2 === undefined) c2 = this.sheetCtxFor('xizmat');
@@ -4117,7 +4132,7 @@ export class Editor {
 
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
-    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
+    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
       axo: (look, viewId, detail, ratio) => {
         const sc = this.scene, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic' };
         sc.setStyle(map[look ?? 'oq']); sc.setDetail(look === 'qoralama' ? false : detail);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sheetSvg, sheetChecks, recommendScale, niceLen, SHEET_DEFAULT, type SheetCtx, type SheetOpts } from '../../src/core/sheet';
+import { sheetSvg, sheetChecks, recommendScale, niceLen, SHEET_DEFAULT, greenRows, type SheetCtx, type SheetOpts } from '../../src/core/sheet';
 import { blankProject, type Project } from '../../src/core/doc';
 import { frame, type XY } from '../../src/core/geo';
 
@@ -82,5 +82,19 @@ describe('Grafika varaqlari', () => {
     const v = sheetSvg(project(), ctx, opts({ kind: 'vaziyat' }));
     expect(v.scale).toBeGreaterThanOrEqual(2000); expect(v.svg).not.toContain('id="Qizil_chiziqlar"');
     expect(recommendScale(10, 'bosh').scale).toBe(1000); expect(recommendScale(34.5, 'zona').scale).toBe(2000); expect(recommendScale(80, 'bosh').scale).toBe(5000); expect(recommendScale(5, 'vaziyat').scale).toBe(10000);
+  });
+  it('tahlil (02.11): yashil balans jadvali va insolyatsiya xaritasi', () => {
+    const p = project(), g = greenRows(p), tot = g.find(r => /Jami yashil/.test(r.t))!;
+    expect(tot.v!).toBeCloseTo(g.slice(0, 3).reduce((a, r) => a + r.v!, 0), 6);
+    expect(tot.ok).toBe(tot.v! * 1e4 / (g[4].v! * 1e4) >= 0.25);
+    const y = sheetSvg(p, ctx, opts({ kind: 'yashil' }));
+    expect(y.svg).toContain('id="Yashil_balans"'); expect(y.svg).toContain('Yashil kvartallar');
+    // insolyatsiya: hisoblanmagan — izoh; hisoblangan — oraliq rangidagi katakchalar
+    expect(sheetSvg(p, ctx, opts({ kind: 'insol' })).legend.some(l => /hisoblanmagan/.test(l.label))).toBe(true);
+    const bins: [number, string, string][] = [[0, '#2b3a67', '< 1 soat'], [2, '#7fb3c8', '2–3'], [6, '#f9b24e', '≥ 6']];
+    const pts: XY[] = [[-50, -50], [0, 0], [50, 50]], r = sheetSvg(p, { ...ctx, insol: { pts, hours: [0.5, 2.5, 7], cell: 10, date: '03-22', bins } }, opts({ kind: 'insol' }));
+    const ins = r.svg.match(/<g id="Insolyatsiya"[^>]*>(.*?)<\/g>/s)![1];
+    for (const c of ['#2b3a67', '#7fb3c8', '#f9b24e']) expect(ins).toContain(`fill="${c}"`);
+    expect(r.legend.map(l => l.label).join('|')).toMatch(/22\.03/);
   });
 });
