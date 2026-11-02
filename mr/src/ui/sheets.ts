@@ -12,9 +12,10 @@ import { planApartments } from '../core/apartments';
 import { floorGroups, groupName } from '../core/floorplan';
 import { aptSheet, sheetGroup } from '../core/aptsheet';
 import { aptPicks, houseTypes } from '../core/albumset';
+import { SERVICES } from '../core/services';
 import { housePlan, housePlanSvg } from '../core/lowplan';
 import { sheetLayout, type SheetInner } from '../core/sheet';
-import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetOpts, type SheetResult, type Paper, type SheetLayerId } from '../core/sheet';
+import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetSvc, type SheetOpts, type SheetResult, type Paper, type SheetLayerId } from '../core/sheet';
 import { LABEL_MODES, type LabelMode } from '../core/labels';
 import { h, download, toast, svgIcon, icl, IC, fmt } from './dom';
 import { check, select, stepper, sw } from './controls';
@@ -25,6 +26,8 @@ import { svgPdf } from './pdf';
 export interface SheetsHost {
   doc: Project;
   ctx: SheetCtx | null;
+  /** 02.11: xizmat radiuslari tahlili (9-qadam) — «Xizmat radiusi» varaqlari uchun */
+  svc?: () => SheetSvc[];
   /** varaqlar va uslublarni hujjatga yozish */
   save: (sheets: SheetDoc[], styles: NonNullable<Project['sheetStyles']>) => void;
   /** reja va hajmlar DXF (mavjud eksport) */
@@ -66,7 +69,7 @@ export function norm(o: Record<string, unknown>): SheetOpts {
  * zonalashtirish, figura-fon, landshaft, qavatlar soni, vaziyat sxemasi); har bino turidan 1-qavat va tipik qavat; har past qavatli uy
  * turidan har qavat rejasi (core/albumset).
  */
-const SET_V = 2;
+const SET_V = 3;
 function defaultSheets(doc: Project): SheetDoc[] {
   const base = lastOpts(), mk = (o: Partial<SheetOpts>): SheetDoc => ({ id: uid('sh_'), opts: { ...base, mode: 'reja', title: '', stamp: {}, ...o } as unknown as Record<string, unknown> });
   const out: SheetDoc[] = [
@@ -75,6 +78,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'zona', scale: 0 }), mk({ kind: 'figura', scale: 0 }), mk({ kind: 'landshaft', scale: 0 }), mk({ kind: 'qavat', scale: 0 }),
     mk({ kind: 'vaziyat', scale: 10000 }),
   ];
+  for (const sv of ['mtm', 'maktab', 'poliklinika', 'bekat']) out.push(mk({ kind: 'xizmat', svc: sv, scale: 0 }));   // 02.11: tahlil — xizmat radiuslari (editor SVC_ON)
   for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));
   houseTypes(doc).forEach((t, i) => { for (let f = 1; f <= t.floors; f++) out.push(mk({ mode: 'uy', plan: { floor: i + 1, grp: f } })); });
   return out;
@@ -83,7 +87,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
 function upgradeSheets(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
   const k = `mr-sheets-v${SET_V}:${doc.id}`;
   try { if (localStorage.getItem(k)) return sheets; localStorage.setItem(k, '1'); } catch { return sheets; }
-  const sig = (o: Record<string, unknown>) => { const x = o as Partial<SheetOpts>; return `${x.mode ?? 'reja'}|${x.mode === 'qavat' || x.mode === 'uy' ? `${x.plan?.floor ?? 1}:${x.plan?.grp ?? ''}` : `${x.kind}|${x.stamp?.sheet ?? ''}`}`; };
+  const sig = (o: Record<string, unknown>) => { const x = o as Partial<SheetOpts>; return `${x.mode ?? 'reja'}|${x.mode === 'qavat' || x.mode === 'uy' ? `${x.plan?.floor ?? 1}:${x.plan?.grp ?? ''}` : `${x.kind}|${x.stamp?.sheet ?? ''}|${x.svc ?? ''}`}`; };
   const have = new Set(sheets.map(s => sig(s.opts)));
   return [...sheets, ...defaultSheets(doc).filter(s => !have.has(sig(s.opts)))];
 }
@@ -132,11 +136,14 @@ export function openGraphics(host: SheetsHost): void {
   let lastInner: SheetInner | undefined; const innerLabel = new WeakMap<SheetResult, string>();
   // 02.11 (egasi: «Varaqlarda qotish juda kuchli»): varaq natijasi kesh — sozlamasi, oʻrni va soni oʻzgarmaguncha qayta chizilmaydi
   // (avval roʻyxat har bosishda barcha varaqlarni toʻliq qayta chizardi — masshtab va ogohlantirish belgisi uchun)
+  let svcData: SheetSvc[] | undefined;
+  const svcs = (): SheetSvc[] => (svcData ??= host.svc?.() ?? []);
+  const ctxOf = (o: SheetOpts): SheetCtx | null => o.kind !== 'xizmat' ? host.ctx : { ...(host.ctx ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] }), svc: svcs() };
   const memo = new Map<string, { r: SheetResult; inner: SheetInner | undefined }>();
   const mkey = (o: SheetOpts, i: number) => `${i}|${sheets.length}|${JSON.stringify(o)}`;
   const run = (o: SheetOpts, i = cur): SheetResult => {
     const k = mkey(o, i), c = memo.get(k); if (c) { lastInner = c.inner; return c.r; }
-    const st = o.stamp ?? {}; const r = sheetSvg(doc, host.ctx, { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, (lastInner = innerOf(o))); r.svg = trSvg(r.svg); innerLabel.set(r, lastInner?.label ?? '');
+    const st = o.stamp ?? {}; const r = sheetSvg(doc, ctxOf(o), { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, (lastInner = innerOf(o))); r.svg = trSvg(r.svg); innerLabel.set(r, lastInner?.label ?? '');
     if (memo.size > 200) memo.clear(); memo.set(k, { r, inner: lastInner }); return r; };
   const peek = (i: number): SheetResult | null => memo.get(mkey(norm(sheets[i].opts), i))?.r ?? null;
   // roʻyxatdagi boshqa varaqlar — boʻsh vaqtda bittadan hisoblanadi, tayyor boʻlganda roʻyxat yangilanadi
@@ -208,7 +215,7 @@ export function openGraphics(host: SheetsHost): void {
     h('span', { class: 'sh-name' }, `${doc.name} · ${tr('Varaqlar')}`), h('span', { class: 'spacer' }),
     checksBtn, h('button', { class: 'btn btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)')));
 
-  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
+  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if ((o.mode ?? 'reja') === 'reja' && o.kind === 'xizmat') return `${tr('Xizmat radiusi')} · ${tr(SERVICES.find(x => x.id === (o.svc ?? 'mtm'))?.name ?? '')}`; if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
 
   /* ---------- menyular ---------- */
   function popMenu(anchor: HTMLElement, items: (HTMLElement | string)[]): void {
@@ -340,6 +347,8 @@ export function openGraphics(host: SheetsHost): void {
         h('div', { class: 'tiles c2 gx-kinds', role: 'radiogroup', 'aria-label': tr('Varaq turi') },
           ...SHEET_KINDS.map(k => tile({ 'data-kind': k.id, 'aria-pressed': o.kind === k.id && !open?.startsWith('style:'), title: tr(k.note), onclick: () => set({ kind: k.id, ...(k.id === 'vaziyat' && !o.scale ? { scale: 10000 } : {}) }) }, tr(k.name), tr(k.note))),
           ...styles.map(st => tile({ 'data-style-id': st.id, title: tr('Mening uslubim'), onclick: () => set({ ...norm(st.opts as Record<string, unknown>), title: o.title, stamp: o.stamp, center: o.center, rot: o.rot }) }, st.name, tr('Mening uslubim')))),
+          // 02.11: «Xizmat radiusi» — xizmat turi (9-qadam tahlili)
+          ...(o.kind === 'xizmat' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Xizmat turi'))), h('div', { class: 'tiles c2', id: 'shSvc', role: 'group', 'aria-label': tr('Xizmat turi') }, ...SERVICES.map(sv => tile({ 'data-svc': sv.id, 'aria-pressed': (o.svc ?? 'mtm') === sv.id, title: tr(sv.note), onclick: () => set({ svc: sv.id }) }, tr(sv.name), `${sv.r} m`)))] : []),
         ] : []),
         h('div', { class: 'glabel', 'data-sec': 'sheet' }, h('span', {}, tr('Varaq'))),
         h('div', { class: 'field' }, h('label', {}, tr('Format')), h('div', { class: 'seg sm', id: 'gxPaper' }, ...(['fit', 'A4', 'A3', 'A2', 'A1', 'A0'] as Paper[]).map(p => h('button', { 'data-v': p, 'aria-pressed': o.paper === p, onclick: () => set({ paper: p }) }, p === 'fit' ? tr('Moslash') : p)))),

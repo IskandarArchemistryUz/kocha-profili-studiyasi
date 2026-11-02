@@ -13,7 +13,7 @@ import { offsetLine, projectStreetsGeo } from '../scene/streets3d';
 import { landscape } from './landscape';
 import { freeRect, pickLevel, labelLines, modeMax, type LabelMode } from './labels';
 
-export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat';
+export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -24,8 +24,11 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'landshaft', name: 'Landshaft', note: 'yashil hududlar, daraxtlar, suv' },
   { id: 'qavat', name: 'Qavatlar soni', note: 'binolar qavatlar soni boʻyicha rangda' },
   { id: 'vaziyat', name: 'Vaziyat sxemasi', note: 'hudud shaharda: atrof, yoʻllar, uchastka' },
+  { id: 'xizmat', name: 'Xizmat radiusi', note: 'piyoda yetib borish: tarmoq boʻylab masofa, obyektlar, uylar' },
 ];
 
+/** Bitta xizmat turi tahlili: piyoda tarmogʻi kesmalari (eng yaqin obyektgacha masofa, m), obyektlar, turar joy binolari */
+export interface SheetSvc { id: string; name: string; r: number; rTxt: string; share: number; segs: { a: XY; b: XY; d: number }[]; src: XY[]; dem: { p: XY; bid: string; ok: boolean }[] }
 /** Atrof (mahalliy metrda) — editor ContextBundle dan tayyorlab beradi */
 export interface SheetCtx {
   buildings: { id: number; rings: XY[][]; h: number }[];
@@ -35,6 +38,8 @@ export interface SheetCtx {
   waterways: { pts: XY[]; w: number }[];
   green: { rings: XY[][]; kind: string }[];
   trees: XY[];
+  /** 02.11: xizmat radiuslari tahlili (9-qadam) — «Xizmat radiusi» varagʻi uchun (core/services) */
+  svc?: SheetSvc[];
   /** jamoat transporti bekatlari va metro kirishlari (10-qadam OSM obyektlari) */
   stops?: { p: XY; kind: 'bekat' | 'metro' }[];
 }
@@ -71,6 +76,8 @@ export interface SheetOpts {
   layers?: Partial<Record<SheetLayerId, Partial<SheetLayer>>>;
   /** varaq ramkasi (V3): markaz (mahalliy m) va burilish, ° (soat strelkasiga qarshi) */
   center?: XY; rot?: number;
+  /** 02.11: «Xizmat radiusi» varagʻi — xizmat turi (core/services Svc) */
+  svc?: string;
   /** shtamp */
   stamp?: { sheet?: string; author?: string; num?: string; index?: number; total?: number };
   /** rejim (MR-Varaqlar): reja · qavat rejalari · aksonometriya; oxirgi ikkisida chizma maydoniga tayyor mazmun qoʻyiladi */
@@ -336,6 +343,23 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     if ((ctx.water.length || ctx.waterways.length) && lW.on) legend.push({ type: 'fill', fill: C.water, label: tr('Suv') });
   }
 
+  // 4a. xizmat radiusi (02.11): piyoda tarmogʻi boʻylab eng yaqin obyektgacha masofa — 4 oraliq, obyektlar, turar joy binolari
+  const SV = K === 'xizmat' ? (ctx?.svc?.find(x => x.id === (o.svc ?? 'mtm')) ?? ctx?.svc?.[0]) : undefined;
+  if (K === 'xizmat' && SV) {
+    const Rr = SV.r, bands: [number, string, string][] = [[Rr * 0.5, '#1a9850', `≤ ${Math.round(Rr * 0.5)} m`], [Rr, '#91cf60', `${Math.round(Rr * 0.5)}–${Rr} m`], [Rr * 1.5, '#fdae61', `${Rr}–${Math.round(Rr * 1.5)} m`], [Infinity, '#d73027', `> ${Math.round(Rr * 1.5)} m`]];
+    const inV = (p: XY) => Math.abs(p[0] - cx) < R && Math.abs(p[1] - cy) < R;
+    const okB = new Map(SV.dem.map(d => [d.bid, d.ok]));
+    g('Turar_joy_radiusda', nb.filter(x => okB.has(x.b.id)).map(({ b, r }) => `<path d="${ringD(r)}" fill="${okB.get(b.id) ? '#cfe8c4' : '#f3c9c4'}" stroke="#1d1d1b" stroke-width="${lw(0.2)}"/>`).join(''));
+    bands.forEach(([max, c], i) => { const lo = i ? bands[i - 1][0] : -1, d = SV.segs.filter(q => q.d > lo && q.d <= max && (inV(q.a) || inV(q.b))).map(q => `M${P(q.a)}L${P(q.b)}`).join('');
+      if (d) g(`Piyoda_${i + 1}`, `<path d="${d}" fill="none" stroke="${c}" stroke-width="${lw(0.8)}" stroke-linecap="round"/>`); });
+    const src = SV.src.filter(inV);
+    g('Xizmat_obyektlari', src.map(p => `<circle cx="${X(p)}" cy="${Y(p)}" r="${n2(Rr * k)}" fill="none" stroke="#2a6fb0" stroke-width="${lw(0.18)}" stroke-dasharray="1.2 0.8" opacity="0.6"/><circle cx="${X(p)}" cy="${Y(p)}" r="1.4" fill="#2a6fb0" stroke="#ffffff" stroke-width="${lw(0.3)}"/>`).join(''));
+    for (const [, c, l] of bands) legend.push({ type: 'line', stroke: c, label: `${tr('Piyoda masofasi')} ${l}` });
+    legend.push({ type: 'stop', fill: '#2a6fb0', label: SV.src.length ? `${tr(SV.name)} (${tr('radius')} ${SV.rTxt})` : `${tr(SV.name)} — ${tr('obyekt topilmadi: atrofni yuklang yoki qoʻlda belgilang')}` });
+    legend.push({ type: 'fill', fill: '#cfe8c4', stroke: '#1d1d1b', label: `${tr('Turar joy — radius ichida')} (${Math.round(SV.share * 100)} %)` });
+    legend.push({ type: 'fill', fill: '#f3c9c4', stroke: '#1d1d1b', label: tr('Turar joy — radiusdan tashqarida') });
+  }
+
   // 4b. bekatlar
   const lT = Ly('stops');
   if (ctx?.stops?.length && lT.on && K !== 'figura') {
@@ -405,7 +429,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     out.push(`<text x="${n2(bx + len * k + 2)}" y="${by + 1.3}" font-size="${T(2.5)}" fill="#1d1d1b">m · M 1:${scale}</text>`);
     lay('Masshtab', 'Masshtab', `<rect x="${bx - 3}" y="${by - 5.4}" width="${n2(len * k + 30)}" height="8.4" fill="#ffffff" fill-opacity="0.85"/>${out.join('')}`);
   }
-  const kindName = inner?.name ? tr(inner.name) : tr(SHEET_KINDS.find(s2 => s2.id === K)!.name), d = date.toLocaleDateString('ru-RU'), ttl = esc(o.title || doc.name);
+  const kindName = inner?.name ? tr(inner.name) : SV ? `${tr('Xizmat radiusi')} · ${tr(SV.name)}` : tr(SHEET_KINDS.find(s2 => s2.id === K)!.name), d = date.toLocaleDateString('ru-RU'), ttl = esc(o.title || doc.name);
   // oʻng ustun: sarlavha → shartli belgilar → yer uchastkalari jadvali → vaziyat sxemasi → shtamp
   if (col) {
     const x0 = vx + vw + gap + 4, w = col - 8;

@@ -27,6 +27,14 @@ describe('Xizmatlar: piyoda tarmogʻi', () => {
     const a = distAt(n0, distances(n0, [[0, 0]]), [400, 400]), b = distAt(n1, distances(n1, [[0, 0]]), [400, 400]);
     expect(b).toBeLessThan(a * 0.8);
   });
+  it('loyiha koʻchalari oʻrtasidan kesishsa ham chorraha tugun boʻladi (OSM siz)', () => {
+    const streets: XY[][] = [[[0, 200], [600, 200]], [[300, 0], [300, 500]], [[0, 400], [600, 400]]];
+    const net = buildNet([], streets);
+    const D = distances(net, [[0, 200]]);
+    // (0,200) → chorraha (300,200) → (300,400) → (600,400): 300 + 200 + 300
+    expect(distAt(net, D, [600, 400])).toBeCloseTo(800, 0);
+    expect(distAt(net, D, [300, 0])).toBeCloseTo(500, 0);
+  });
   it('tahlil: aholi ulushi radius ichida', () => {
     const net = buildNet(split(gridLines()));
     const demand = [{ p: [100, 100] as XY, w: 1, bid: 'a' }, { p: [400, 400] as XY, w: 3, bid: 'b' }];
