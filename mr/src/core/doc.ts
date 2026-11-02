@@ -108,7 +108,7 @@ export interface ManualPoi { id: string; kind: 'mtm' | 'maktab' | 'poliklinika' 
 /** Saqlangan kamera koʻrinishi (mahalliy metr, three.js oʻqlari: y — yuqoriga, z = −shimol) */
 export interface SavedView { id: string; name: string; mode: 'plan' | 'axo' | 'persp'; pos: [number, number, number]; target: [number, number, number]; zoom: number; lens: number; twoPoint: boolean; frame: string }
 
-export interface ZoneLabel { id: string; at: LngLat; use: Use; /** shu kvartal uchun oxirgi generator parametrlari */ gen?: Record<string, unknown> }
+export interface ZoneLabel { id: string; at: LngLat; use: Use; /** 02.11: funksiya turi (logistika: tarqatish, sovutgich, …) */ sub?: string; /** shu kvartal uchun oxirgi generator parametrlari */ gen?: Record<string, unknown> }
 
 /** Yuk koʻtaruvchi tizim (QMQ 2.01.03-19, 3.1-jadval qatorlari) */
 export type ConstructSys = 'monolit' | 'karkas' | 'toldirgich' | 'gisht';
@@ -341,7 +341,7 @@ export function migrate(raw: unknown): Project {
     return { id: x.id, axis: x.axis.map((p: LngLat) => [p[0], p[1]] as LngLat), profile: typeof x.profile === 'string' ? x.profile : 'mahalla-15', ...(isNum(x.osm) ? { osm: x.osm } : {}), ...(x.gen === 'grid' ? { gen: 'grid' as const } : {}), ...(x.ends && typeof x.ends === 'object' && (['aylana', 'maydon'].includes(x.ends.a) || ['aylana', 'maydon'].includes(x.ends.b)) ? { ends: { ...(['aylana', 'maydon'].includes(x.ends.a) ? { a: x.ends.a } : {}), ...(['aylana', 'maydon'].includes(x.ends.b) ? { b: x.ends.b } : {}) } } : {}) };
   });
   const rounds: Round[] = (Array.isArray(d.rounds) ? d.rounds : []).filter((r: any) => r && typeof r.id === 'string' && isLL(r.at) && isNum(r.r) && r.r >= 8 && r.r <= 40).map((r: any) => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind === 'mini' || r.kind === 'kichik' || r.kind === 'katta' ? { kind: r.kind as RoundKind } : {}) }));
-  const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
+  const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(typeof z.sub === 'string' && /^[a-z_]{1,20}$/.test(z.sub) ? { sub: z.sub } : {}), ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
   const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
   const keepAt: Record<string, LngLat> = {}; if (d.keepAt && typeof d.keepAt === 'object') for (const [k, v] of Object.entries(d.keepAt)) if (isLL(v)) keepAt[k] = [(v as LngLat)[0], (v as LngLat)[1]];
   const keepRings: Record<string, Ring> = {}; if (d.keepRings && typeof d.keepRings === 'object') for (const [k, v] of Object.entries(d.keepRings)) if (isRing(v)) keepRings[k] = (v as LngLat[]).map(p => [p[0], p[1]] as LngLat);

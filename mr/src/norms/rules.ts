@@ -21,6 +21,7 @@ import { edgeKinds, boundaryNeed, azOf } from '../core/setback';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
+import { prodChecks } from '../core/prodcheck';
 
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
 /** Keyingi pogʻona izohi (41-jadval / 543-band): qaysi parsellar kichik va qancha maydon yetishmaydi — faqat ochilgan izohda */
@@ -571,6 +572,43 @@ export const RULES: Rule[] = [
       const list = c.manual.map(x => `${x.m} m < ${x.table} m`).join(', ');
       return { status: 'review', value: c.manual.length, unit: 'obyekt', limit: '0',
         note: `Qoʻlda kamaytirilgan: ${list}. Davlat sanitariya nazoratining ijobiy xulosasi kerak; qabristonlar 6.4 dagi «′» belgili obyektlar qatorida emas.` };
+    },
+  },
+  // 02.11: ishlab chiqarish zonalari (logistika, sanoat, kommunal, transport) — ShNQ 2.07.01-23, 146, 147, 174
+  {
+    id: 'prod-146',
+    title: 'Ishlab chiqarish zonasi SMZ ichida turar joy va ijtimoiy binolar',
+    source: { ...SHNQ_2_07_01, clause: '146-band; SMZ — SanPiN 0350-17, 6.3, 6.4 (omborlar uchun matnda yoʻq qiymat — andoza)' },
+    evaluate(_d, doc) {
+      const c = prodChecks(doc);
+      if (!c.zones.length) return { status: 'na', unit: 'bino', limit: '0', note: 'Ishlab chiqarish zonasi (logistika, sanoat, kommunal, transport) yoʻq.' };
+      if (!c.p146.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'Ishlab chiqarish SMZ ichida turar joy va ijtimoiy bino yoʻq.' };
+      return { status: 'fail', value: c.p146.length, unit: 'bino', limit: '0', where: { bids: c.p146.map(x => x.bid), rings: c.zoneRings },
+        note: `Ishlab chiqarish zonasi SMZ ichida ${c.p146.length} ta turar joy yoki ijtimoiy bino. Yechim: binoni SMZ dan chiqarish yoki SMZ qismini ruxsat etilgan funksiyaga (avtoturargoh, ofis, koʻkalamzor) berish.` };
+    },
+  },
+  {
+    id: 'prod-147',
+    title: 'Turar joy va ishlab chiqarish zonasi tutash',
+    source: { ...SHNQ_2_07_01, clause: '147-band (aralash joylashtirish mumkin emas)' },
+    evaluate(_d, doc) {
+      const c = prodChecks(doc);
+      if (!c.zones.length) return { status: 'na', unit: 'kvartal', limit: '0', note: 'Ishlab chiqarish zonasi yoʻq.' };
+      if (!c.p147.length) return { status: 'pass', value: 0, unit: 'kvartal', limit: '0', note: 'Turar joy kvartallari ishlab chiqarish zonasidan koʻcha yoki yashil tasma bilan ajratilgan.' };
+      return { status: 'fail', value: c.p147.length, unit: 'kvartal', limit: '0', where: { rings: c.zoneRings },
+        note: `${c.p147.length} juft kvartal tutash: turar joy va ishlab chiqarish orasida koʻcha yoki yashil tasma yoʻq (oraliq 6 m dan kam). Yechim: oraliqqa koʻcha yoki koʻkalamzor tasma.` };
+    },
+  },
+  {
+    id: 'logi-174',
+    title: 'Logistika — tashqi yoʻl yoki temir yoʻl yonida',
+    source: { ...SHNQ_2_07_01, clause: '174-band (omborlar — transport tugunlari, tashqi avtomobil va temir yoʻl yonida); masofa — andoza' },
+    evaluate(_d, doc) {
+      const c = prodChecks(doc), lg = c.zones.filter(z => z.use === 'logistika');
+      if (!lg.length) return { status: 'na', unit: 'kvartal', limit: '0', note: 'Logistika zonasi yoʻq.' };
+      if (!c.p174.length) return { status: 'pass', value: 0, unit: 'kvartal', limit: '0', note: 'Logistika zonalari magistral koʻcha yoki temir yoʻl yonida.' };
+      return { status: 'review', value: c.p174.length, unit: 'kvartal', limit: '0',
+        note: `${c.p174.length} ta logistika zonasi magistral koʻcha yoki temir yoʻldan uzoq (yuk terminali — temir yoʻldan ≤ 150 m, qolganlari ≤ 300 m; masofa — andoza). Magistral koʻcha loyiha koʻchalari va kiritilgan temir yoʻl boʻyicha tekshiriladi.` };
     },
   },
 ];

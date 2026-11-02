@@ -29,6 +29,8 @@ import { szzOf, limitAreaHa, isActive, limitZones, SZZ_DENY, type Limit, type Li
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { accessStreet } from '../core/rowaccess';
+import { LOGI, logiType, prodSzz } from '../core/logistics';
+import { PROD } from '../core/prodcheck';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
 import { applyRoadEdits, vtxOp, cutBetween, type VtxOp } from '../core/roadedit';
 import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../core/streetends';
@@ -128,9 +130,9 @@ const TOOLS: [ToolMode, string, string][] = [
   ['section', 'Kesim (S)', '<path d="M3 12h18" stroke-dasharray="3 2"/><path d="M6 12V6h12v6M6 12v6h12v-6" opacity=".45"/>'],
   ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
 ];
-const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Klaster', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', ofis_hovli: 'Hovlili ofis', meh_plita: 'Korpus + lobbi', meh_minora: 'Minora + stilobat', savdo_blok: 'Savdo markazi', savdo_minora: 'Savdo + minora', savdo_qator: 'Savdo qatori' };
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Klaster', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', ofis_hovli: 'Hovlili ofis', meh_plita: 'Korpus + lobbi', meh_minora: 'Minora + stilobat', savdo_blok: 'Savdo markazi', savdo_minora: 'Savdo + minora', savdo_qator: 'Savdo qatori', ombor: 'Ombor bloki' };
 /** Tipologiya guruhlari (31.10): avto · past qavatli (1–3 qavat) · koʻp qavatli turar joy · jamoat va tijorat */
-const TYPO_GROUPS: [string, Typology[]][] = [['', ['avto']], ['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['perimetr', 'qatorlar', 'blok_villa', 'villa', 'blok_minora', 'minora']], ['Ofis', ['ofis_plita', 'ofis_minora', 'ofis_hovli']], ['Mehmonxona', ['meh_plita', 'meh_minora']], ['Savdo', ['savdo_blok', 'savdo_minora', 'savdo_qator']]];
+const TYPO_GROUPS: [string, Typology[]][] = [['', ['avto']], ['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['perimetr', 'qatorlar', 'blok_villa', 'villa', 'blok_minora', 'minora']], ['Ofis', ['ofis_plita', 'ofis_minora', 'ofis_hovli']], ['Mehmonxona', ['meh_plita', 'meh_minora']], ['Savdo', ['savdo_blok', 'savdo_minora', 'savdo_qator']], ['Ishlab chiqarish', ['ombor']]];
 const LOW_T: Typology[] = ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster'];
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
@@ -3417,6 +3419,17 @@ export class Editor {
       const i = this.selBlock, b = plan.blocks[i], groups = [...new Set(USES.map(u => u.group))];
       body.append(h('div', { class: 'glabel' }, h('span', {}, `${this.unitName(i)} ${tr('funksiyasi')}`), h('span', {}, `${USES.length} ta · ${groups.length} ${tr('guruh')}`)),
         ...groups.map(g => h('div', { class: 'ugrp' }, h('span', {}, g), h('div', {}, ...USES.filter(u => u.group === g).map(u => h('button', { class: 'uchip', 'aria-pressed': b.use === u.id, 'data-use': u.id, onclick: () => this.setBlockUse(i, u.id) }, h('i', { style: `background:#${u.color.toString(16).padStart(6, '0')}` }), u.name))))),
+        ...(() => {
+          // 02.11: logistika turi (bitta zona, tur — parametr: SMZ, joylashuv sharti, keyin generator andozasi)
+          if (b.use !== 'logistika' && !PROD.includes(b.use)) return [];
+          const z = this.store.doc.zones.find(q => q.id === b.labelId), ps = prodSzz(b.use, z?.sub);
+          const setSub = (sub: string) => { if (!z) return; this.run(() => this.store.dispatch({ type: 'setZones', zones: this.store.doc.zones.map(q => q.id === z.id ? { ...q, sub } : q) })); };
+          return [
+            ...(b.use === 'logistika' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Logistika turi'))), h('div', { class: 'ugrp', id: 'logiType', role: 'group', 'aria-label': tr('Logistika turi') }, h('div', {}, ...LOGI.map(t => h('button', { class: 'uchip', 'aria-pressed': logiType(z?.sub).id === t.id, 'data-logi': t.id, onclick: () => setSub(t.id) }, tr(t.name)))))] : []),
+            ps ? h('span', { class: 't-small', id: 'prodSzz' }, `${tf('SMZ ${m} m', { m: ps.szz })} · ${tr(ps.ref)} · ${ps.flag === 'NORMA' ? tr('norma') : ps.flag === 'TALQIN' ? tr('talqin — tasdiqlash kerak') : tr('andoza')}`) : '',
+            h('span', { class: 't-small' }, tr('ShNQ 2.07.01-23: 146-band — SMZ ichida turar joy, MTM, maktab, sport yoʻq; 147 — turar joy bilan tutash emas (koʻcha yoki yashil tasma); 174 — omborlar tashqi yoʻl va temir yoʻl yonida.')),
+          ];
+        })(),
         h('span', { class: 't-small' }, tr('Maktab, MTM yoki poliklinika berilsa — bino avtomatik joylashadi.')));
       // parsellarga boʻlish
       const sizeT = h('b', { class: 'num', style: 'min-width:56px;text-align:right' }, `${fmt(this.parcelSize, 2)} ga`);

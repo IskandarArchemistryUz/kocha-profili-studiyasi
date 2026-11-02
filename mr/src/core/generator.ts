@@ -17,7 +17,7 @@ import { lowriseBlock } from './lowrise';
 import { openRing, despike } from './offset';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
-export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator';
+export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator' | 'ombor';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo' | 'arka';
 export type ParkingKind = 'yoq' | 'yer_osti' | 'stilobat' | 'yer_usti';
 
@@ -836,6 +836,14 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       notes.push(`Savdo markazi ${Math.round(sw)} × ${Math.round(sd)} m, ${Math.min(3, Math.max(1, g.maxF))} qavat; hovli — yer usti parkovka (413-band, 25 m²/joy)`);
       return { sections: [{ ring, floors: Math.min(3, Math.max(1, g.maxF)), kind: 'savdo', nonRes: Math.min(3, Math.max(1, g.maxF)), use: 'savdo' }], capFloors: null, notes };
     }
+    case 'ombor': {
+      // 02.11: ishlab chiqarish zonalari (logistika, sanoat, kommunal, transport) — bir qavatli katta oraliqli bino (≤ 180 × 72 m),
+      // uzun tomonga parallel; qolgan qism — yuk mashinalari hovlisi va manevr. Oʻlchamlar amaliyotdan — TAXMIN (7 tur boʻyicha andozalar keyin)
+      const R = bestRect(A, 180, 72);
+      if (!R) return { sections: [], capFloors: null, notes: ['Ombor binosi sigʻmadi — chekinishni kamaytiring'] };
+      notes.push(`Ombor bloki ${Math.round(R.w)} × ${Math.round(R.h)} m, 1 qavat (katta oraliq); qolgan hovli — yuk mashinalari maydoni (TAXMIN)`);
+      return { sections: [{ ring: R.ring, floors: 1, kind: 'savdo', nonRes: 1 }], capFloors: null, notes };
+    }
     case 'ofis_hovli': {
       // hovlili ofis bloki: perimetral, korpus 18 m (ikki tomonlama yoritish — andoza), 5–9 qavat, hammasi noturar; hovli — ichki skver
       const fl = Math.max(4, Math.min(9, g.maxF)), r = generateBase(block, { ...g, typology: 'perimetr', depth: 18, maxF: fl, minF: Math.min(g.minF, fl), passages: true }, floorH);
@@ -1014,7 +1022,7 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
   return out;
 }
 
-export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', ofis_hovli: 'Hovlili ofis bloki', meh_plita: 'Mehmonxona korpusi + lobbi', meh_minora: 'Mehmonxona minorasi + stilobat', savdo_blok: 'Savdo markazi + parkovka', savdo_minora: 'Savdo markazi + minora', savdo_qator: 'Koʻcha boʻyi savdo qatori' };
+export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', ofis_hovli: 'Hovlili ofis bloki', meh_plita: 'Mehmonxona korpusi + lobbi', meh_minora: 'Mehmonxona minorasi + stilobat', savdo_blok: 'Savdo markazi + parkovka', savdo_minora: 'Savdo markazi + minora', savdo_qator: 'Koʻcha boʻyi savdo qatori', ombor: 'Ombor bloki (1 qavat, katta oraliq)' };
 /** Funksiya boʻyicha odatiy generator sozlamalari (turar joydan tashqari); null — foydalanuvchi sozlamalari */
 /**
  * Parsel funksiyasiga mos tipologiyalar (egasi, 31.10): turar joy parseliga ofis / mehmonxona generatsiya qilinmaydi,
@@ -1024,6 +1032,8 @@ const T_LOW: Typology[] = ['yakka', 'taunhaus', 'juft', 'hovli', 'klaster', 'vil
 const T_RES: Typology[] = [...T_LOW, 'perimetr', 'qatorlar', 'minora', 'blok_minora', 'blok_villa'];
 const T_OFIS: Typology[] = ['ofis_plita', 'ofis_minora', 'ofis_hovli'], T_MEH: Typology[] = ['meh_plita', 'meh_minora'], T_SAVDO: Typology[] = ['savdo_blok', 'savdo_minora', 'savdo_qator'];
 const T_COM: Typology[] = [...T_OFIS, ...T_MEH, ...T_SAVDO];
+/** 02.11: ishlab chiqarish zonalari (ShNQ 2.07.01-23, 7-bob) */
+export const PROD_USES = ['logistika', 'sanoat', 'kommunal', 'transport'];
 export function typoAllowed(use: string): Typology[] {
   switch (use) {
     case 'yakka': return ['avto', ...T_LOW];
@@ -1032,6 +1042,8 @@ export function typoAllowed(use: string): Typology[] {
     case 'ofis': return T_OFIS;
     case 'mehmonxona': return [...T_MEH, 'ofis_minora'];
     case 'savdo': return T_SAVDO;
+    case 'mamuriy': return T_OFIS;
+    case 'logistika': case 'sanoat': case 'kommunal': case 'transport': return ['ombor'];
     default: return ['avto', ...T_RES, ...T_COM];
   }
 }
@@ -1047,6 +1059,8 @@ export function usePreset(use: string, g: GenParams): GenParams | null {
     case 'ofis': return { ...g, typology: T_OFIS.includes(g.typology) ? g.typology : 'ofis_plita', minF: 6, maxF: Math.max(6, Math.min(12, g.maxF)), towerF: Math.max(12, g.towerF ?? 16), nonRes: 0, far: 0, stylobate: 0, parking: g.parking === 'yoq' ? 'yer_osti' : g.parking };
     case 'mehmonxona': return { ...g, typology: [...T_MEH, 'ofis_minora'].includes(g.typology) ? g.typology : 'meh_plita', maxF: Math.max(4, Math.min(16, g.maxF)), towerF: Math.max(10, Math.min(25, g.towerF ?? 16)), nonRes: 0, far: 0, stylobate: 0 };
     case 'savdo': return { ...g, typology: T_SAVDO.includes(g.typology) ? g.typology : 'savdo_blok', maxF: Math.min(3, Math.max(1, g.maxF)), minF: 1, towerF: Math.max(9, g.towerF ?? 16), nonRes: 0, far: 0, stylobate: 0, parking: g.parking === 'yoq' ? 'yer_usti' : g.parking };
+    case 'mamuriy': return { ...g, typology: T_OFIS.includes(g.typology) ? g.typology : 'ofis_plita', minF: 3, maxF: Math.max(3, Math.min(9, g.maxF)), nonRes: 0, far: 0, stylobate: 0 };
+    case 'logistika': case 'sanoat': case 'kommunal': case 'transport': return { ...g, typology: 'ombor', minF: 1, maxF: 1, nonRes: 0, far: 0, stylobate: 0, parking: 'yer_usti' };
     default: return null;
   }
 }

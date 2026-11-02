@@ -20,6 +20,7 @@ export const PG: Record<string, Record<string, string>> = {
   "meh_plita": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><rect x=\"7\" y=\"18\" width=\"26\" height=\"12\" rx=\"0\" class=\"f1\"/><rect x=\"9\" y=\"21\" width=\"22\" height=\"6\" rx=\"0\" class=\"f3\"/><path d=\"M9 21h22v6H9z\" class=\"s\"/>",
   "meh_minora": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><rect x=\"7\" y=\"14\" width=\"26\" height=\"16\" rx=\"0\" class=\"f1\"/><rect x=\"15\" y=\"16\" width=\"10\" height=\"10\" rx=\"0\" class=\"f3\"/>",
   "savdo_minora": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><rect x=\"7\" y=\"8\" width=\"26\" height=\"16\" rx=\"0\" class=\"f2\"/><path d=\"M7 8h26v16H7z\" class=\"s\"/><rect x=\"11\" y=\"11\" width=\"9\" height=\"9\" rx=\"0\" class=\"f3\"/><path d=\"M8 28h24\" class=\"s\"/>",
+  "ombor": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><rect x=\"7\" y=\"8\" width=\"26\" height=\"13\" class=\"f2\"/><path d=\"M7 8h26v13H7z\" class=\"s\"/><path d=\"M11 21v-4h4v4M19 21v-4h4v4M27 21v-4h4v4M7 28h26\" class=\"s\"/>",
   "savdo_qator": "<rect x=\"4\" y=\"4\" width=\"32\" height=\"32\" rx=\"3\" class=\"site\"/><path d=\"M7 7h26v6H13v20H7z\" class=\"f2\"/><path d=\"M7 7h26v6H13v20H7z\" class=\"s\"/><path d=\"M19 7v6M25 7v6M7 19h6M7 26h6\" class=\"s\"/>"
  },
  "pmod": {

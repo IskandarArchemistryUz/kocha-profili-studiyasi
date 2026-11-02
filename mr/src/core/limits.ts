@@ -97,7 +97,7 @@ function eluTable(l: Pick<Limit, 'kv' | 'elu'>): Szz {
 
 /** SMZ ichida taqiqlangan (SanQvaN 0350-17, 2.17) va ruxsat etilgan (2.20, qabriston uchun — TALQIN) funksiyalar */
 export const SZZ_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'sport', 'yashil'];
-export const SZZ_ALLOW: readonly Use[] = ['avtoturargoh', 'savdo', 'ofis', 'poliklinika', 'texnik', 'maydon'];
+export const SZZ_ALLOW: readonly Use[] = ['avtoturargoh', 'savdo', 'ofis', 'poliklinika', 'texnik', 'maydon', 'mamuriy', 'logistika', 'sanoat', 'kommunal', 'transport'];   // 2.20: boshqaruv binolari, kichik sinfli korxonalar, omborlar (oziq-ovqatdan tashqari), garajlar
 
 export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; /** koʻpburchaklar (tashqi + teshiklar) — kesishma hisobi uchun */ polys: XY[][][]; m: number; cls?: string; ref: string; flag: Flag }
 export interface LimitZones {
