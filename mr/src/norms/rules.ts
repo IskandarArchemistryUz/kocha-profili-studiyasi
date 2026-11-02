@@ -284,7 +284,7 @@ export const RULES: Rule[] = [
     evaluate(_d, doc) {
       if (doc.buildings.length < 2) return { status: 'na', note: 'Binolar yoʻq' };
       const { pairs } = spacingIssues(doc);
-      const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun'), lt = pairs.filter(p => p.kind === 'uzun-torets' && !p.red), hard = pairs.filter(p => p.kind === 'torets' && !p.red && p.d < p.need - 0.5), red = pairs.filter(p => p.red), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length;
+      const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun'), lt = pairs.filter(p => p.kind === 'uzun-torets' && !p.red), hard = pairs.filter(p => p.kind === 'torets' && !p.red && p.d < p.need - 0.5), red = pairs.filter(p => p.red), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length, yk = pairs.filter(p => p.kind === 'yakka');
       const parts: string[] = [];
       if (ov) parts.push(`Ustma-ust tushgan binolar: ${ov} juft — qayta generatsiya qiling yoki ortiqchasini oʻchiring.`);
       if (lng.length) { const w = lng.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Derazali uzun tarzlar orasi yetmaydi — Hmax × kʏ (2-ilova; kʏ = ${String(w.ky ?? '').replace('.', ',')}), seysmik 8+ ballda ≥ 2·Hmax (8-izoh): ${lng.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
@@ -292,16 +292,17 @@ export const RULES: Rule[] = [
       if (hard.length) { const w = hard.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Toretslar orasi yetmaydi (derazali — (H1+H2)·0,3, biri derazasiz — 0,25, ikkalasi — 0,15; ≥ 6 m): ${hard.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (soft.length) parts.push(`Toretslar orasi (H1+H2)·0,3 dan kam: ${soft.length} juft — toretslar derazali boʻlsa yetmaydi.`);
       if (red.length) { const w = red.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Rekonstruksiya rejimi (7-izoh): ${red.length} juft jadval masofasidan kam, lekin yarmidan va 6 m dan koʻp (eng yaqini ${Math.round(w.d)} m, jadval ${Math.round(w.need)} m) — SanQvaN 0102-25 boʻyicha insolyatsiya hisobi bilan asoslansin (94–95-bandlar: kvartiralarda 1–2 xona, 22.03–22.09 da ≥ 2 soat). 2·Hmax va yongʻin masofalari qisqarmaydi.`); }
+      if (yk.length) { const w = yk.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Koʻp qavatli turar joy va uchastkali past uy orasi bino balandligidan kam (6-izoh; oynasiz tomondan — yarmi): ${yk.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (pass) parts.push(`Hovliga oʻtishlar (≤ 7,5 m): ${pass} ta — arka sifatida loyihalansin, aks holda toretslar orasi talab qilinadi.`);
-      const bad = ov + lng.length + lt.length + hard.length;
+      const bad = ov + lng.length + lt.length + hard.length + yk.length;
       // sahnada: muammoli juftlar va ular orasidagi eng qisqa kesma
-      const prob = pairs.filter(p => p.kind === 'ustma-ust' || lng.includes(p) || lt.includes(p) || hard.includes(p) || soft.includes(p) || red.includes(p)), fr = frame(doc.origin), R = new Map(doc.buildings.map(b => [b.id, b.footprint.map(fr.toLocal)]));
+      const prob = pairs.filter(p => p.kind === 'ustma-ust' || yk.includes(p) || lng.includes(p) || lt.includes(p) || hard.includes(p) || soft.includes(p) || red.includes(p)), fr = frame(doc.origin), R = new Map(doc.buildings.map(b => [b.id, b.footprint.map(fr.toLocal)]));
       // 10-band (egasi): kerakli masofa — eng yaqin nuqtadan shu yoʻnalishda talab uzunligida yashil kesma va «bor → kerak» yozuvi
       const cs = prob.flatMap(p => { const a = R.get(p.a), b = R.get(p.b); return a && b && p.kind !== 'ustma-ust' ? [{ p, s: closestSeg(a, b) }] : []; });
       const nd = cs.filter(({ p }) => p.need > p.d + 0.5 || (p.soft ?? 0) > p.d + 0.5).map(({ p, s }) => { const L = Math.max(p.need, p.soft ?? 0), n = needSeg(s[0], s[1], L); return { n, text: `${nm(p.d)} → ${nm(L)} m` }; });
       const where: Where | undefined = prob.length ? { bids: [...new Set(prob.flatMap(p => [p.a, p.b]))], segs: cs.map(x => x.s), ...(nd.length ? { need: { segs: nd.map(x => x.n), labels: nd.map(x => ({ at: x.n[1], text: x.text })) } } : {}) } : undefined;
       return { status: bad ? 'fail' : (soft.length || pass || red.length) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0', ...(where ? { where } : {}),
-        note: parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.' };
+        note: (parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.') + ' Qoʻllanish: 2-jadval — faqat 3+ qavatli koʻp kvartirali turar joy va yotoq oʻrinli binolar oʻzaro (79-band); noturar binolar va uchastkali past uylar oʻzaro tekshirilmaydi (78-band — insolyatsiya va yongʻin masofalari).' };
     },
   },
   {

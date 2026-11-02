@@ -29,6 +29,29 @@ describe('binolar orasidagi masofa (79-band 2-jadval)', () => {
   });
 });
 
+describe('qoʻllanish doirasi (79-band: 3+ qavatli koʻp kvartirali turar joy va yotoq oʻrinli binolar; 6, 8-izohlar) — 02.11', () => {
+  const H = (f: number) => f * blankProject('t').settings.floorHeight;
+  const mk = (b: Partial<Building>, r: XY[], id: string): Building => ({ ...bld(id, r, 12), ...b } as Building);
+  it('noturar binolar oʻzaro va noturar ↔ turar joy — 2-jadval qoʻyilmaydi', () => {
+    expect(spacingIssues(doc([mk({ use: 'ofis' }, rect(0, 0, 60, 15), 'a'), mk({ use: 'ofis' }, rect(0, 30, 60, 15), 'b')])).pairs).toEqual([]);
+    expect(spacingIssues(doc([mk({ use: 'ofis' }, rect(0, 0, 60, 15), 'a'), bld('b', rect(0, 30, 60, 15), 12)])).pairs).toEqual([]);
+  });
+  it('mehmonxona (yotoq oʻrinli) ↔ turar joy — jadval bor, lekin 8-izoh (turar joy oʻzaro) emas: Hmax·kʏ', () => {
+    const p = spacingIssues(doc([mk({ use: 'mehmonxona' }, rect(0, 0, 60, 15), 'a'), bld('b', rect(0, 30, 60, 15), 12)])).pairs[0];
+    expect(p).toMatchObject({ kind: 'uzun' }); expect(p.need).toBeCloseTo(H(12) * p.ky!, 6); expect(p.need).toBeLessThan(2 * H(12) * 1.2);
+  });
+  it('uchastkali past uylar (taunhaus) oʻzaro — tekshirilmaydi; koʻp qavatli ↔ taunhaus — 6-izoh: ≥ H, oynasiz tomondan H/2', () => {
+    const th = (id: string, r: XY[]) => ({ ...bld(id, r, 3), gen: { grp: id, kind: 'taunhaus', plot: r.map(fr.toGeo) } }) as Building;
+    expect(spacingIssues(doc([th('a', rect(0, 0, 40, 10)), th('b', rect(0, 16, 40, 10))])).pairs).toEqual([]);
+    const p = spacingIssues(doc([bld('m', rect(0, 0, 60, 15), 12), th('t', rect(0, 35, 40, 10))])).pairs;
+    expect(p).toHaveLength(1); expect(p[0]).toMatchObject({ kind: 'yakka', need: H(12) });
+    // oynasiz torets (gen.blind) — talab yarmi
+    const m2 = { ...bld('m', rect(0, 0, 15, 30), 12, 'g'), gen: { grp: 'g', kind: 'oddiy', blind: [1] } } as Building;
+    const q = spacingIssues(doc([m2, th('t', rect(28, 0, 10, 30))])).pairs[0];
+    expect(q).toMatchObject({ kind: 'yakka', need: H(12) / 2 });
+  });
+});
+
 describe('rekonstruksiya rejimi (79-band 2-jadval 7-izoh)', () => {
   const rec = (d: Project): Project => ({ ...d, settings: { ...d.settings, recon: true } });
   const ev = (d: Project) => RULES.find(x => x.id === 'spacing-79')!.evaluate({} as never, d);
