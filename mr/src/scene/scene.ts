@@ -925,6 +925,19 @@ export class Scene3D {
     segs(hatchSegs(z.hard, 3, 45), plain ? 0x6a6a6a : 0x4b4b4b, 0.48, 7.7);
     for (const l of ls) {
       const sel = l.id === this.selLimit, on = isActive(l), col = sel ? C.preview : on ? 0x2f2f2f : 0x8a8780;
+      // 4-bosqich: ELU tayanchlari (OSM power=tower/pole) — tik chiziq va tepada nuqta, simlar tayanchlar tepasi boʻylab.
+      // Balandlik kuchlanishga qarab — TAXMIN (normada yoʻq): ≤ 1 kV 9 m, ≤ 20 kV 11 m, 35 kV 18 m, 110 kV 26 m, 220 kV 32 m, undan yuqori 40 m
+      if (l.kind === 'elu' && l.poles?.length && l.elu !== 'kabel' && l.elu !== 'demontaj') {
+        const kv = l.kv ?? 10, hp = kv <= 1 ? 9 : kv <= 20 ? 11 : kv <= 35 ? 18 : kv <= 110 ? 26 : kv <= 220 ? 32 : 40, pc = sel ? C.preview : 0x4a3f6b;
+        const P = l.poles.map(fr.toLocal), v: number[] = [], tops: THREE.Vector3[] = [];
+        for (const q of P) { const g = this.H(q[0], q[1]); v.push(q[0], g, -q[1], q[0], g + hp, -q[1]); tops.push(new THREE.Vector3(q[0], g + hp, -q[1])); }
+        const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+        const pl = new THREE.LineSegments(pg, new THREE.LineBasicMaterial({ color: pc })); pl.renderOrder = 8.3; pl.userData.limit = true; pl.userData.poles = l.id; this.world.add(pl);
+        const pt = new THREE.Points(new THREE.BufferGeometry().setFromPoints(tops), new THREE.PointsMaterial({ color: pc, size: 6, sizeAttenuation: false })); pt.renderOrder = 8.4; pt.userData.limit = true; this.world.add(pt);
+        // simlar: oʻq boʻylab, har oʻq nuqtasiga eng yaqin tayanch tepasi
+        const ax = l.axis?.map(fr.toLocal) ?? [], wire = ax.map(a => { let b = tops[0], bd = Infinity; for (let i = 0; i < P.length; i++) { const d = Math.hypot(P[i][0] - a[0], P[i][1] - a[1]); if (d < bd) { bd = d; b = tops[i]; } } return bd < 20 ? b : new THREE.Vector3(a[0], this.H(a[0], a[1]) + hp, -a[1]); });
+        if (wire.length >= 2) { const wl = new THREE.Line(new THREE.BufferGeometry().setFromPoints(wire), new THREE.LineBasicMaterial({ color: pc })); wl.renderOrder = 8.3; wl.userData.limit = true; this.world.add(wl); }
+      }
       if (l.kind === 'elu') { if (!l.axis) continue; const p = l.axis.map(fr.toLocal); if (on) { const ln = line(densify(p, 6, false), sel ? C.preview : 0x7a4fb0, 0.6, false, 8.2, this.H); ln.userData.limit = true; this.world.add(ln); } else dashed(p, col, 0.6, 8.2, false); continue; }
       for (const r of l.rings ?? []) { const p = r.map(fr.toLocal); if (on) { const ln = line(densify(p, 6, true), col, 0.55, true, 8.1, this.H); ln.userData.limit = true; this.world.add(ln); } else dashed(p, col, 0.55, 8.1); }
     }

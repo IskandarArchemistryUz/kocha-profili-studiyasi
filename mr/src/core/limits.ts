@@ -33,6 +33,8 @@ export interface Limit {
   axis?: LngLat[];
   /** ELU kuchlanishi, kV */
   kv?: number;
+  /** ELU tayanchlari (OSM power=tower / pole) */
+  poles?: LngLat[];
   status: LimitStatus;
   elu?: EluStatus;
   /** qabriston: open — amaldagi; memorial — memorial majmua / kolumbariy; rural — qishloq qabristoni */
@@ -190,6 +192,7 @@ export function cleanLimit(x: any): Limit | null {
     id: x.id, kind: x.kind,
     ...(rings.length ? { rings } : {}), ...(axis ? { axis } : {}),
     ...(n(x.kv) && x.kv > 0 && x.kv <= 1500 ? { kv: x.kv } : {}),
+    ...(Array.isArray(x.poles) && x.poles.every(ll) && x.poles.length ? { poles: x.poles.slice(0, 2000).map((p: LngLat) => [p[0], p[1]] as LngLat) } : {}),
     status: ['saqlanadi', 'buziladi', 'kochiriladi'].includes(x.status) ? x.status : 'saqlanadi',
     ...(['mavjud', 'loyiha', 'kabel', 'demontaj'].includes(x.elu) ? { elu: x.elu } : {}),
     ...(x.sub && typeof x.sub === 'object' ? { sub: { ...(x.sub.open === false ? { open: false } : {}), ...(x.sub.memorial === true ? { memorial: true } : {}), ...(x.sub.rural === true ? { rural: true } : {}) } } : {}),

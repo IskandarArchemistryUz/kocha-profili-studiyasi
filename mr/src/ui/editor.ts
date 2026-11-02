@@ -104,7 +104,8 @@ import { aptSheet } from '../core/aptsheet';
 import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
-import type { ContextBundle } from '../context/load';
+import { overpass, type ContextBundle } from '../context/load';
+import { limitsQuery, parseLimitsOsm, newOnes } from '../context/limitsosm';
 import { summary } from '../context/osm';
 import { geocode, bboxKm, type Place } from '../context/geocode';
 import { WorldMap, zoomFor } from './worldmap';
@@ -2981,6 +2982,21 @@ export class Editor {
   /* ===== 1-qadam, 4-boʻlim: Mavjud holat va cheklovlar (02.11, cheklovlar 2-bosqichi) ===== */
   /** chizilayotgan cheklov turi (chizish asbobi faol boʻlsa) */
   private limDraw: LimitKind | null = null;
+  /** 4-bosqich: OSM dan aniqlash holati; tried — avtomatik urinish qilingan uchastkalar (bir marta) */
+  private limOsm: { busy: boolean; msg: string; tried: Set<string> } = { busy: false, msg: '', tried: new Set() };
+  private async detectLimits(auto: boolean): Promise<void> {
+    const doc = this.store.doc, site = doc.site?.rings[0]; if (!site || this.limOsm.busy) return;
+    this.limOsm.tried.add(JSON.stringify(site)); this.limOsm.busy = true; this.limOsm.msg = ''; this.renderPanel();
+    try {
+      const j = await overpass(limitsQuery(site), fetch.bind(globalThis), () => {}) as never;
+      const cur = this.store.doc, add = newOnes(parseLimitsOsm(j, site), cur.limits ?? [], cur.origin);
+      if (add.length) this.run(() => { for (const l of add) this.store.dispatch({ type: 'addLimit', limit: l }); });
+      const cnt = new Map<string, number>(); for (const l of add) cnt.set(this.limName(l.kind), (cnt.get(this.limName(l.kind)) ?? 0) + 1);
+      this.limOsm.msg = add.length ? tf('OSM: ${n} ta obyekt qoʻshildi — ${list}. Holatini tekshiring.', { n: add.length, list: [...cnt].map(([k, v]) => `${k} ${v}`).join(', ') })
+        : tr(auto ? 'OSM da uchastka atrofida cheklov obyektlari topilmadi — boʻlsa, qoʻlda chizing.' : 'OSM da yangi cheklov obyekti topilmadi — qoʻlda chizing.');
+    } catch (e) { this.limOsm.msg = tf('OSM maʼlumoti yuklanmadi (${e}) — qoʻlda chizing yoki keyinroq qayta urining.', { e: (e as Error).message.slice(0, 80) }); }
+    finally { this.limOsm.busy = false; this.renderPanel(); }
+  }
   private selLimit: string | null = null;
   private static LIM_KINDS: [LimitKind, string][] = [['qabriston', 'Qabriston'], ['issiqxona', 'Issiqxona'], ['ombor', 'Ombor'], ['temiryol', 'Temir yoʻl'], ['elu', 'ELU'], ['meros', 'Madaniy meros'], ['suv', 'Suv obyekti'], ['boshqa', 'Boshqa']];
   private limName(k: LimitKind): string { return tr(Editor.LIM_KINDS.find(x => x[0] === k)?.[1] ?? 'Boshqa'); }
@@ -2996,6 +3012,11 @@ export class Editor {
     const doc = this.store.doc, ls = doc.limits ?? [], box = h('div', { class: 'col', id: 'limBox' }), bal = this.last?.d.balance;
     if (ls.length && bal) box.append(h('div', { class: 'group flat', id: 'limBal', style: 'padding:10px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px' },
       ...([['Uchastka', bal.siteHa, 'lbSite'], ['Qurib boʻlmaydi', bal.hardHa, 'lbHard'], ['SMZ', bal.szzHa, 'lbSzz'], ['Yaroqli', bal.usableHa, 'lbUse']] as const).map(([k, v, id]) => h('div', { class: 'kpi' }, h('b', { id }, `${fmt(v, 2)} ga`), h('span', {}, tr(k))))));
+    // 4-bosqich: OSM dan aniqlash — atrof OSM dan yuklangan va cheklov hali yoʻq boʻlsa, bir marta oʻzi ishga tushadi
+    if (doc.site && doc.context.loaded && doc.limits === undefined && !this.limOsm.tried.has(JSON.stringify(doc.site.rings[0]))) queueMicrotask(() => void this.detectLimits(true));
+    box.append(h('button', { class: 'btn btn-block', id: 'limOsm', disabled: this.limOsm.busy, onclick: () => void this.detectLimits(false) }, ...icl('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', tr(this.limOsm.busy ? 'OSM dan aniqlanmoqda…' : 'OSM dan aniqlash'))));
+    if (this.limOsm.msg) box.append(h('div', { class: 'note', id: 'limOsmMsg' }, this.limOsm.msg));
+    box.append(h('span', { class: 't-small' }, tr('Qabriston, issiqxona, ombor, temir yoʻl, ELU (kuchlanishi va tayanchlari bilan), bogʻ va ekin maydonlari — uchastka atrofida 500 m. Yoʻq boʻlsa — qoʻlda chizing.')));
     box.append(h('div', { class: 'glabel' }, h('span', {}, tr('Chizish'))));
     if (this.limDraw && this.tool) box.append(h('button', { class: 'btn btn-primary btn-block', id: 'limStop', onclick: () => this.endTool() }, ...icl(IC.check, tf('Tugatish: ${k}', { k: this.limName(this.limDraw) }))),
       h('span', { class: 't-small' }, tr(this.limDraw === 'elu' ? 'Nuqtalarni bosing · 2× bosish yoki Enter — tugatish · Esc — bekor' : 'Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor')));
@@ -3008,9 +3029,10 @@ export class Editor {
     const list = h('div', { class: 'group', id: 'limList' });
     ls.forEach((l, i) => {
       const aHa = limitAreaHa(l, doc.origin), z = szzOf(l, aHa), sel = l.id === this.selLimit, on = isActive(l);
-      const sub = l.kind === 'elu' ? `${l.kv ?? '?'} kV · ${tr(EL.find(e => e[0] === (l.elu ?? 'mavjud'))?.[1] ?? 'Mavjud')}` : `${fmt(aHa, 2)} ga · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}`;
+      const sub = l.kind === 'elu' ? `${l.kv ?? '?'} kV · ${tr(EL.find(e => e[0] === (l.elu ?? 'mavjud'))?.[1] ?? 'Mavjud')}` : `${fmt(aHa, 2)} ga · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}`
+      const sub2 = `${sub}${l.kind === 'elu' && l.poles?.length ? ` · ${tf('${n} tayanch', { n: l.poles.length })}` : ''}${l.src === 'osm' ? ' · OSM' : ''}`;
       list.append(h('button', { class: 'li', 'data-lim': l.id, 'aria-pressed': sel, 'aria-expanded': sel, style: 'width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit;cursor:pointer', onclick: () => this.pickLimit(sel ? null : l.id) },
-        h('span', { class: 'k' }, `C-${i + 1} · ${l.name || this.limName(l.kind)}`, h('span', { class: 'sub' }, sub)),
+        h('span', { class: 'k' }, `C-${i + 1} · ${l.name ? tr(l.name) : this.limName(l.kind)}`, h('span', { class: 'sub' }, sub2)),
         h('span', { class: 'v' }, on && z.m > 0 ? `${fmt(z.m)} m${z.cls ? ' · ' + z.cls : ''}` : '—')));
       if (!sel) return;
       const ed = h('div', { class: 'col', 'data-limedit': l.id, style: 'padding:8px 12px 12px;gap:8px' });
