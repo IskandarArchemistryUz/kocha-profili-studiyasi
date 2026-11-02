@@ -106,7 +106,7 @@ import type { ChInbox } from '../chizmadon/model';
 import type { PlanSrc, PlanMap } from '../chizmadon/materials';
 import { aptPicks, houseTypes } from '../core/albumset';
 import { aptSheet } from '../core/aptsheet';
-import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts } from '../core/sheet';
+import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts, type SheetSvc } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import { overpass, type ContextBundle } from '../context/load';
@@ -157,6 +157,8 @@ function leadEl(t: string): HTMLElement {
   return d;
 }
 const chev = () => { const s = svgIcon('<path d="M9 6l6 6-6 6"/>'); s.classList.add('chev'); return s; };
+/** 02.11: albom va varaqlarda sukut boʻyicha xizmat radiusi tahlillari */
+export const SVC_ON: Svc[] = ['mtm', 'maktab', 'poliklinika', 'bekat'];
 const rTxt = (r: SvcResult) => r.rMin !== r.rMax ? `${r.rMin}–${r.rMax} m` : `${r.r} m`;
 const STATUS_TXT: Record<Result['status'], string> = { pass: 'mos', fail: 'mos emas', review: 'koʻrib chiqish', na: 'baholanmadi' };
 
@@ -1944,7 +1946,8 @@ export class Editor {
     this.svc.busy = false; this.runServices();
   }
 
-  private runServices(): void {
+  /** quiet — faqat hisob (sahna va panel yangilanmaydi): albom va varaqlar uchun (02.11) */
+  private runServices(quiet = false): void {
     const doc = this.store.doc, fr = frame(doc.origin), t0 = performance.now();
     const roads = this.svc.poi?.roads ?? (this.ctxRoads()).map(r => ({ cls: r.cls, pts: r.pts }));
     const lines = roads.filter(r => WALKABLE(r.cls)).map(r => r.pts.map(fr.toLocal));
@@ -1983,6 +1986,7 @@ export class Editor {
       status: !bad.length ? 'pass' : bad.some(r => r.share < 0.8) ? 'fail' : 'review', value: res.filter(r => r.share >= 0.999).length, unit: `/ ${res.length} tur`, limit: `${res.length} / ${res.length}`,
       note: `Aholi ulushi (turar joy maydoni boʻyicha) radius ichida: ${res.map(fmtR).join('; ')}. Masofa — piyoda tarmogʻi boʻylab (OSM + loyiha koʻchalari). Manba: loyiha parsellari va OSM obyektlari${dropped ? ` (uchastka ichidagi ${dropped} ta OSM obyekti buziladi deb chiqarildi)` : ''}. Bekat radiusi: shahar toifasi «${catName(cat)}»${T.cat ? ' (qoʻlda)' : ' (andoza)'}, ${T.center ? 'umumshahar markazi, ' : ''}hudud turi kvartal funksiyasidan${dh ? `, relyef tuzatmasi −${Math.round(dh / 10 * 50)} m (farq ${dh} m)` : ''} — 382–383-band. Metro 800 m — taxmin (ShNQ da yoʻq). OSM toʻliq emas — natija pastki baho.`,
     };
+    if (quiet) return;
     this.showSvc(); this.renderPanel(); this.renderKpi();
   }
 
@@ -3974,6 +3978,31 @@ export class Editor {
   }
 
   /** Grafika varaqlari uchun atrof — mahalliy metrda */
+  /**
+   * 02.11 (egasi: tahlil varaqlari — «piyoda masofasi va xizmat radiuslari»): 9-qadam tahlili varaq uchun — har xizmat turi:
+   * piyoda tarmogʻi kesmalari (masofa), obyektlar, turar joy binolari (radius ichida / tashqarida). Hisob 9-qadamdagi bilan bir xil.
+   */
+  /** Tarmoq qirralarini ≤ 12 m boʻlaklarga boʻlib, har boʻlak oʻrtasigacha masofa (rang chegarasi qirra ichida ham aniq tushadi) */
+  private svcSheet(): SheetSvc[] {
+    const pieces = (net: Net, D: Float64Array | number[], R: number) => net.segs.flatMap(([ia, ib]) => {
+      const a = net.xy[ia], b = net.xy[ib], Da = D[ia], Db = D[ib], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (!Number.isFinite(Da) && !Number.isFinite(Db)) return [];
+      const lo = Math.min(Da, Db); if (lo > 1.5 * R || L <= 12) return [{ a, b, d: Math.min(Da + L / 2, Db + L / 2) }];
+      const n = Math.ceil(L / 12), at = (t: number): XY => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      return Array.from({ length: n }, (_, k) => { const m = (k + 0.5) / n; return { a: at(k / n), b: at((k + 1) / n), d: Math.min(Da + m * L, Db + (1 - m) * L) }; });
+    });
+    const doc = this.store.doc;
+    if (!this.svc.res || this.svc.buildings !== doc.buildings) { try { this.runServices(true); } catch { return []; } }
+    const S = this.svc; if (!S.res || !S.net) return [];
+    return S.res.map(r => ({ id: r.kind, name: svcDef(r.kind).name, r: r.r, rTxt: rTxt(r), share: r.share,
+      segs: pieces(S.net!, r.D, r.r),
+      src: S.src[r.kind] ?? [], dem: S.demand.map((d, i) => ({ p: d.p, bid: d.bid, ok: r.dist[i] <= r.rd[i] })) }));
+  }
+  /** Tahlil varagʻi uchun atrof: atrof yuklanmagan boʻlsa ham tahlil chiziladi */
+  private sheetCtxFor(kind: string): SheetCtx | null {
+    const c = this.sheetCtx(); if (kind !== 'xizmat') return c;
+    return { ...(c ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] }), svc: this.svcSheet() };
+  }
   private sheetCtx(): SheetCtx | null {
     const b = this.ctxMgr.current; if (!b) return null;
     const fr = frame(this.store.doc.origin), L = (r: LngLat[]) => r.map(fr.toLocal), o = b.osm;
@@ -4031,6 +4060,12 @@ export class Editor {
       mk('p:plan:figura', 'Figura-fon', true, { kind: 'figura' }),
       mk('p:plan:landshaft', 'Landshaft', true, { kind: 'landshaft' }),
       mk('p:plan:vaziyat', 'Vaziyat sxemasi', true, { kind: 'vaziyat' }),
+      // 02.11: tahlil varaqlari — xizmat radiusi (piyoda tarmogʻi boʻylab, 9-qadam tahlili); asosiylari sukut boʻyicha yoqilgan
+      ...SERVICES.map(sv => { let c2: SheetCtx | null | undefined; return { id: `p:plan:svc:${sv.id}`, name: `${tr('Xizmat radiusi')} · ${tr(sv.name)}`, on: SVC_ON.includes(sv.id), get: () => {
+        if (c2 === undefined) c2 = this.sheetCtxFor('xizmat');
+        const r = sheetSvg(this.store.doc, c2, { ...SHEET_DEFAULT, kind: 'xizmat', svc: sv.id, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const m = mapOnly(r.svg, r.scale); return m ? { ...m, north: 0, legend: r.legend } : null;
+      } } as PlanSrc; }),
     ];
     const plans = planApartments(d2), picks = aptPicks(plans), picked = new Map(picks.map(p => [`${p.bi}|${p.kind}`, p]));
     // 02.11 (egasi: «har qavat rejasi shart emas — tipik va birinchi qavat»): har bino turidan 1-qavat va tipik qavat sukut boʻyicha albomda;
@@ -4080,7 +4115,7 @@ export class Editor {
 
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
-    openGraphics({ doc, ctx: this.sheetCtx(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
+    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
       axo: (look, viewId, detail, ratio) => {
         const sc = this.scene, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic' };
         sc.setStyle(map[look ?? 'oq']); sc.setDetail(look === 'qoralama' ? false : detail);
