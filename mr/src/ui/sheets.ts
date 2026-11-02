@@ -130,7 +130,20 @@ export function openGraphics(host: SheetsHost): void {
     return undefined;
   };
   let lastInner: SheetInner | undefined; const innerLabel = new WeakMap<SheetResult, string>();
-  const run = (o: SheetOpts, i = cur): SheetResult => { const st = o.stamp ?? {}; const r = sheetSvg(doc, host.ctx, { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, (lastInner = innerOf(o))); r.svg = trSvg(r.svg); innerLabel.set(r, lastInner?.label ?? ''); return r; };
+  // 02.11 (egasi: «Varaqlarda qotish juda kuchli»): varaq natijasi kesh — sozlamasi, oʻrni va soni oʻzgarmaguncha qayta chizilmaydi
+  // (avval roʻyxat har bosishda barcha varaqlarni toʻliq qayta chizardi — masshtab va ogohlantirish belgisi uchun)
+  const memo = new Map<string, { r: SheetResult; inner: SheetInner | undefined }>();
+  const mkey = (o: SheetOpts, i: number) => `${i}|${sheets.length}|${JSON.stringify(o)}`;
+  const run = (o: SheetOpts, i = cur): SheetResult => {
+    const k = mkey(o, i), c = memo.get(k); if (c) { lastInner = c.inner; return c.r; }
+    const st = o.stamp ?? {}; const r = sheetSvg(doc, host.ctx, { ...o, stamp: { ...st, num: st.num || `MR-${String(i + 1).padStart(2, '0')}`, index: i + 1, total: sheets.length } }, new Date(), false, tr, (lastInner = innerOf(o))); r.svg = trSvg(r.svg); innerLabel.set(r, lastInner?.label ?? '');
+    if (memo.size > 200) memo.clear(); memo.set(k, { r, inner: lastInner }); return r; };
+  const peek = (i: number): SheetResult | null => memo.get(mkey(norm(sheets[i].opts), i))?.r ?? null;
+  // roʻyxatdagi boshqa varaqlar — boʻsh vaqtda bittadan hisoblanadi, tayyor boʻlganda roʻyxat yangilanadi
+  let idleQ: number[] = [], idleT: ReturnType<typeof setTimeout> | null = null; const failed = new Set<string>();
+  const idle = () => { idleT = null; if (!list.isConnected) { idleQ = []; return; } const i = idleQ.shift(); if (i == null || i >= sheets.length) { if (!idleQ.length) renderList(); else idleT = setTimeout(idle, 0); return; }
+    const keep = lastInner, o = norm(sheets[i].opts); try { run(o, i); } catch { failed.add(mkey(o, i)); } lastInner = keep; idleT = setTimeout(idle, idleQ.length ? 16 : 0); };
+  const later = (i: number) => { if (failed.has(mkey(norm(sheets[i].opts), i))) return; if (!idleQ.includes(i)) idleQ.push(i); if (!idleT) idleT = setTimeout(idle, 120); };
   let last = run(O());
 
   const set = (patch: Partial<SheetOpts>) => { const o = { ...O(), ...patch }; sheets[cur] = { ...sheets[cur], opts: o as unknown as Record<string, unknown> }; persist(); render(); };
@@ -241,13 +254,14 @@ export function openGraphics(host: SheetsHost): void {
 
   /* ---------- chap: varaqlar toʻplami (V2) ---------- */
   function renderList(): void {
-    const warn = (i: number) => sheetChecks(i === cur ? last : run(norm(sheets[i].opts), i), norm(sheets[i].opts), tr).some(c => !c.ok && c.id !== 'stamp' && c.id !== 'scale');
+    const res = (i: number): SheetResult | null => { if (i === cur) return last; const r = peek(i); if (!r) later(i); return r; };
+    const warn = (i: number) => { const r = res(i); return !!r && sheetChecks(r, norm(sheets[i].opts), tr).some(c => !c.ok && c.id !== 'stamp' && c.id !== 'scale'); };
     list.replaceChildren(
       h('div', { class: 'sh-lh' }, h('b', {}, tr('Varaqlar toʻplami')), h('span', { class: 't-small' }, tf('${n} varaq · bitta PDF albom', { n: sheets.length }))),
       h('div', { class: 'sh-items', role: 'listbox', 'aria-label': tr('Varaqlar') }, ...sheets.map((s, i) => {
         const o = norm(s.opts), num = o.stamp?.num || `MR-${String(i + 1).padStart(2, '0')}`;
         return h('div', { class: 'sh-item', role: 'option', 'aria-selected': i === cur, 'data-sheet': i, onclick: () => { cur = i; render(); } },
-          h('span', { class: 'mono t-small' }, num), h('b', {}, sheetName(i)), h('span', { class: 't-small' }, `1:${(o.scale || (i === cur ? last : run(o, i)).scale).toLocaleString('ru-RU')} · ${o.paper === 'fit' ? tr('Moslash') : o.paper}`),
+          h('span', { class: 'mono t-small' }, num), h('b', {}, sheetName(i)), h('span', { class: 't-small' }, `1:${o.scale ? o.scale.toLocaleString('ru-RU') : (res(i)?.scale.toLocaleString('ru-RU') ?? '…')} · ${o.paper === 'fit' ? tr('Moslash') : o.paper}`),
           warn(i) ? h('span', { class: 'chip warn', title: tr('Eslatma bor') }, '!') : '',
           h('span', { class: 'sh-acts' },
             h('button', { class: 'btn icon-btn btn-sm btn-ghost', 'aria-label': tr('Yuqoriga'), disabled: !i, onclick: (e: Event) => { e.stopPropagation(); [sheets[i - 1], sheets[i]] = [sheets[i], sheets[i - 1]]; if (cur === i) cur--; else if (cur === i - 1) cur++; persist(); render(); } }, svgIcon('<path d="M6 15l6-6 6 6"/>')),
