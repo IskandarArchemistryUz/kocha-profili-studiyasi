@@ -106,7 +106,7 @@ import type { ChInbox } from '../chizmadon/model';
 import type { PlanSrc, PlanMap } from '../chizmadon/materials';
 import { aptPicks, houseTypes } from '../core/albumset';
 import { aptSheet } from '../core/aptsheet';
-import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts, type SheetSvc, balanceTable } from '../core/sheet';
+import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts, type SheetSvc, balanceTable, transportTable } from '../core/sheet';
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import { overpass, type ContextBundle } from '../context/load';
@@ -4073,6 +4073,7 @@ export class Editor {
       // 02.11: tahlil — cheklovlar rejasi va yer balansi (juft jadval)
       { ...mk('p:plan:cheklov', 'Cheklovlar rejasi', true, { kind: 'cheklov' }), table: { id: 'p:balans', name: 'Yer balansi', title: tr('Yer balansi'), rows: () => balanceTable(this.store.doc, tr), free: true } },
       { ...mk('p:plan:yashil', 'Yashil balans', true, { kind: 'yashil' }), table: { id: 'p:yashilbal', name: 'Yashil balans jadvali', title: tr('Yashil balans'), rows: () => balanceTable(this.store.doc, tr, 'yashil'), free: true } },
+      { ...mk('p:plan:transport', 'Transport sxemasi', true, { kind: 'transport' }), table: { id: 'p:transportbal', name: 'Koʻchalar va avtoturargohlar', title: tr('Koʻchalar va avtoturargohlar'), rows: () => transportTable(this.store.doc, tr), free: true } },
       { id: 'p:plan:insol', name: 'Insolyatsiya', on: true, get: () => {
         const r = sheetSvg(this.store.doc, this.sheetCtxFor('insol'), { ...SHEET_DEFAULT, kind: 'insol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
