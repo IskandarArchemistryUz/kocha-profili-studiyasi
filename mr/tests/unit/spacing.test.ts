@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { blankProject, type Building, type Project } from '../../src/core/doc';
 import { frame, type XY } from '../../src/core/geo';
 import { spacingIssues, staleGen } from '../../src/core/spacing';
+import { kyOf } from '../../src/core/setback';
 import { RULES } from '../../src/norms/rules';
 
 const O: [number, number] = [69.28, 41.31];
@@ -49,6 +50,26 @@ describe('qoʻllanish doirasi (79-band: 3+ qavatli koʻp kvartirali turar joy va
     const m2 = { ...bld('m', rect(0, 0, 15, 30), 12, 'g'), gen: { grp: 'g', kind: 'oddiy', blind: [1] } } as Building;
     const q = spacingIssues(doc([m2, th('t', rect(28, 0, 10, 30))])).pairs[0];
     expect(q).toMatchObject({ kind: 'yakka', need: H(12) / 2 });
+  });
+});
+
+describe('yoʻnalish koeffitsiyenti kʏ (2-ilova diagrammasi) va 45° gacha burchak — 02.11', () => {
+  const H = (f: number) => f * blankProject('t').settings.floorHeight;
+  const rot = (r: XY[], deg: number): XY[] => { const t = deg * Math.PI / 180, c = Math.cos(t), s2 = Math.sin(t); return r.map(([x, y]) => [x * c - y * s2, x * s2 + y * c] as XY); };
+  it('diagramma: 10° li sektorlar, 90° da takrorlanadi', () => {
+    expect([0, 4, 6, 14, 16, 26, 36, 45, 54, 56, 66, 76, 86, 90, 135, 180].map(kyOf)).toEqual([1.2, 1.2, 1.5, 1.5, 1.7, 1.9, 2.3, 2.3, 2.3, 1.9, 1.7, 1.5, 1.2, 1.2, 2.3, 1.2]);
+  });
+  it('seysmik 7: parallel uzun tomonlar — Hmax·kʏ; bino 45° ga burilsa talab 1,2 → 2,3', () => {
+    const d7 = (bs: Building[]) => ({ ...doc(bs), settings: { ...blankProject('t').settings, seismic: 7 } }) as Project;
+    const p0 = spacingIssues(d7([bld('a', rect(0, 0, 60, 15), 9), bld('b', rect(0, 30, 60, 15), 9)])).pairs[0];
+    expect(p0).toMatchObject({ kind: 'uzun', ky: 1.2 }); expect(p0.need).toBeCloseTo(H(9) * 1.2, 6);
+    const p45 = spacingIssues(d7([bld('a', rot(rect(0, 0, 60, 15), 45), 9), bld('b', rot(rect(0, 30, 60, 15), 45), 9)])).pairs[0];
+    expect(p45.ky).toBe(2.3); expect(p45.need).toBeCloseTo(H(9) * 2.3, 6);
+  });
+  it('uzun tomonlar 30° burchakda — hali «uzun» juftlik (avval torets deb olinardi); 8-izoh (parallel) qoʻllanmaydi', () => {
+    const a = bld('a', rect(0, 0, 60, 15), 9), b = bld('b', rot(rect(0, 0, 60, 15), 30).map(([x, y]) => [x + 10, y + 40] as XY), 9);
+    const p = spacingIssues(doc([a, b])).pairs.find(q => q.kind === 'uzun')!;
+    expect(p).toBeTruthy(); expect(p.need).toBeLessThan(2 * H(9)); expect(p.need).toBeCloseTo(H(9) * p.ky!, 6);
   });
 });
 

@@ -88,8 +88,9 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     if (!(x.res || x.sleep) || !(y.res || y.sleep)) continue;
     checked++;
     if (g.parallel >= 10) {
-      // 2-jadval: derazali uzun tarzlar orasi Hmax × kʏ (2-ilova, uzun tomon yoʻnalishi); 8-izoh: seysmik 8+ ballda turar joy binolari ≥ 2 × Hmax
-      const s8 = seis8 && x.res && y.res, ky = kyOf(azOf(g.dir)), need = Math.max(Hm * ky, s8 ? 2 * Hm : 0);
+      // 2-jadval: derazali uzun tarzlar orasi Hmax × kʏ (2-ilova: shimolga nisbatan 10° li sektorlar, 0° — 1,2 … 45° — 2,3; uzun tomonlar
+      // 45° gacha burchakda — ikkala yoʻnalishdan kattasi, TALQIN); 8-izoh: seysmik 8+ ballda turar joy binolarining parallel uzun tomonlari ≥ 2 × Hmax
+      const s8 = seis8 && x.res && y.res && g.pcos >= 0.966, ky = Math.max(kyOf(azOf(g.dir)), kyOf(azOf(g.dirB))), need = Math.max(Hm * ky, s8 ? 2 * Hm : 0);
       if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H, ky, ...(red(g.d, need) && !(s8 && need === 2 * Hm) ? { red: true } : {}) });
     }
     else if (g.la !== g.lb) {
@@ -111,9 +112,14 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
   return { pairs: out, checked };
 }
 
-/** Eng yaqin masofa va qarama-qarshi parallel qirralarning bir-birini «koʻradigan» qismi uzunligi (≤ 15°) */
-function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number; ia: number; ib: number; la: boolean; lb: boolean; dir: XY } {
-  let d = Infinity, par = 0, dir: XY = [1, 0];
+/**
+ * Eng yaqin masofa va qarama-qarshi uzun qirralarning bir-birini «koʻradigan» qismi uzunligi.
+ * 02.11: 2-ilova izohi — «коэффициентлар биноларнинг узун томонлари бир бирига нисбатан параллел ёки 45⁰ гача бурчак остида
+ * жойлашганда қўлланилиши керак» — uzun tomonlar juftligi 45° gacha (avval 15° — 15–45° dagi juftlar torets deb yengil tekshirilardi).
+ * pcos — shu juftlik burchagi kosinusi (8-izoh «узун (параллель) томонлари» — parallel deb ≤ 15° olinadi, TALQIN); dirB — ikkinchi qirra.
+ */
+function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number; ia: number; ib: number; la: boolean; lb: boolean; dir: XY; dirB: XY; pcos: number } {
+  let d = Infinity, par = 0, dir: XY = [1, 0], dirB: XY = [1, 0], pcos = 1;
   const E = (r: XY[]) => r.map((p, i) => { const q = r[(i + 1) % r.length]; return [p, q, isLong(r, p, q)] as [XY, XY, boolean]; });
   const ea = E(a), eb = E(b), cand: { d: number; i: number; j: number; anti: number }[] = [];
   ea.forEach(([p, q, la], i) => eb.forEach(([s, t, lb], j) => {
@@ -121,14 +127,14 @@ function gapInfo(a: XY[], b: XY[]): { d: number; parallel: number; ia: number; i
     const u = [q[0] - p[0], q[1] - p[1]], v = [t[0] - s[0], t[1] - s[1]], lu = Math.hypot(u[0], u[1]), lv = Math.hypot(v[0], v[1]);
     cand.push({ d: dd, i, j, anti: lu && lv ? (u[0] * v[0] + u[1] * v[1]) / lu / lv : 0 });
     if (!la || !lb) return;
-    const cos = Math.abs(u[0] * v[0] + u[1] * v[1]) / lu / lv; if (cos < 0.966) return;
+    const cos = Math.abs(u[0] * v[0] + u[1] * v[1]) / lu / lv; if (cos < Math.SQRT1_2 - 1e-9) return;
     const ux = u[0] / lu, uy = u[1] / lu, ts = [(s[0] - p[0]) * ux + (s[1] - p[1]) * uy, (t[0] - p[0]) * ux + (t[1] - p[1]) * uy];
     const ov = Math.min(lu, Math.max(...ts)) - Math.max(0, Math.min(...ts));
-    if (ov > par) { par = ov; dir = [ux, uy]; }
+    if (ov > par) { par = ov; dir = [ux, uy]; dirB = [v[0] / lv, v[1] / lv]; pcos = cos; }
   }));
   // eng yaqin juftlar ichidan — bir-biriga qaragani (CCW halqalarda qarama-qarshi yoʻnalish)
   const near = cand.filter(c => c.d <= d + 0.3).sort((x, y) => x.anti - y.anti)[0] ?? { i: 0, j: 0 };
-  return { d, parallel: par, ia: near.i, ib: near.j, la: ea[near.i]?.[2] ?? false, lb: eb[near.j]?.[2] ?? false, dir };
+  return { d, parallel: par, ia: near.i, ib: near.j, la: ea[near.i]?.[2] ?? false, lb: eb[near.j]?.[2] ?? false, dir, dirB, pcos };
 }
 /** Uzun tomon: qirra uzunligi bino qalinligidan (qirra oʻrtasidan ichkariga) ≥ 1,5 marta — torets va nuqtali minora emas */
 function isLong(r: XY[], p: XY, q: XY): boolean {
