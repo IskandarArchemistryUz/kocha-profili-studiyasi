@@ -2252,14 +2252,14 @@ export class Editor {
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
-    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]), ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) });
+    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]) });
     this.genNotes = asb ? [this.autoSbNote(asb), ...r.notes] : r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
     const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));
     if (drop.bids.length) this.genNotes = [...this.genNotes, tf('${n} ta eski avtomatik bino (oldingi generatsiyadan) almashtirildi — ustma-ust tushmasligi uchun', { n: drop.bids.length })];
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
-      sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind, ...(x.plot ? { plot: x.plot.map(fr.toGeo) } : {}), ...(x.joint ? { joint: true } : {}), ...(x.docks ? { docks: x.docks } : {}), ...(x.hall ? { hall: x.hall } : {}) })),
-      garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.truck ? { truck: true as const } : {}), ...(r.parking.spur ? { spur: r.parking.spur.map(fr.toGeo) } : {}) } : null }));
+      sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind, ...(x.plot ? { plot: x.plot.map(fr.toGeo) } : {}), ...(x.joint ? { joint: true } : {}) })),
+      garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}) } : null }));
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
   }
@@ -2478,8 +2478,6 @@ export class Editor {
           stp('gMax', tr('Qavat'), tr('kam qavatli: 1–3 (mansarda bilan), ShNQ 2.07.01-23, 2-band'), g.maxF <= 3 ? g.maxF : LOW[g.typology as LowKind].floors, 1, 3, 1, x => { g.maxF = Math.min(3, x); g.minF = Math.min(g.minF, g.maxF); }),
           // 02.11 (egasi: «yakka uylarda haliyam koʻchalar qurilmayapti»): chuqur kvartalda ichki oʻtish yoʻllari, har ikki qator uchastka orasida
           g.typology !== 'klaster' ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Ichki koʻchalar'), h('span', { class: 'sub' }, tr('chuqur kvartalda oʻtish yoʻllari 8 m (338-band) — har ikki qator uchastka orasida, chetdagi koʻchalarga ulanadi'))), sw({ id: 'lowInner', label: tr('Ichki koʻchalar'), on: this.lowInner, onchange: v => { this.lowInner = v; } })) : '') :
-        // 02.11: ishlab chiqarish (ombor bloki) — qavat va seksiya sozlamalari maʼnosiz (1 qavat, katta oraliq; oʻlchamlar tur boʻyicha — core/logigen)
-        g.typology === 'ombor' ? h('div', { class: 'group', id: 'omborInfo' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1 qavat, katta oraliq'), h('span', { class: 'sub' }, tr(selUse === 'logistika' ? 'bino, apron, dok darvozalar va tirkamalar — logistika turi boʻyicha (ANDOZA)' : 'bino oʻlchami — kvartalga qarab (ANDOZA)'))))) :
         h('div', { class: 'group' },
           stp('gMax', tr('Qavat, eng koʻp'), '1–40', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }),
           stp('gMin', tr('eng kam'), '1–40', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); }),
@@ -4306,7 +4304,7 @@ export class Editor {
           // Shift + bosish — tanlovga qoʻshish / olib tashlash
           const id = this.scene.pickBuilding(e.clientX, e.clientY), cid = id ? null : this.scene.pickAnyContext(e.clientX, e.clientY);
           const tg = <T,>(a: T[], v: T) => a.includes(v) ? a.filter(x => x !== v) : [...a, v];
-          const p = id || cid != null ? null : this.scene.pick(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null;
+          const p = id || cid != null ? null : this.scene.pickRoadPoint(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null;
           const uh = id || cid != null ? null : this.scene.pickUserFeature(e.clientX, e.clientY);
           if (id) this.setMarked(tg([...this.marked.b, ...(this.sel && this.sel !== id ? [this.sel] : [])], id), this.marked.c, this.store.doc, this.marked.r);
           else if (cid != null) this.setMarked([...this.marked.b, ...(this.sel ? [this.sel] : [])], tg(this.marked.c, cid), this.store.doc, this.marked.r);
@@ -4346,13 +4344,13 @@ export class Editor {
         if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k], at: this.keepAt(), rings: this.keepRings() })); return; }
         const oc = this.scene.pickAnyContext(e.clientX, e.clientY);
         if (oc != null) { this.setMarked([], [oc]); return; }
-        const p = this.scene.pick(e.clientX, e.clientY);
+        const p = this.scene.pickRoadPoint(e.clientX, e.clientY);
         { const rid = p ? this.osmRoadAt(p) : null; if (rid != null && !(p && this.plan().blocks.some(b => pointIn(p, b.rings)))) { this.setMarked([], [], this.store.doc, [rid]); return; } }
         if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); this.renderPanel(); }
         return;
       }
       if (this.step.id === 'kocha') {
-        const p = this.scene.pick(e.clientX, e.clientY), fr = frame(this.store.doc.origin);
+        const p = this.scene.pickRoadPoint(e.clientX, e.clientY), fr = frame(this.store.doc.origin);
         if (p) {
           const hit = this.streetAt(p);
           if (hit) { this.osmPick = null; this.scene.setPreview([]); this.pickStreet(hit); }
@@ -4376,7 +4374,7 @@ export class Editor {
       // atrofdagi (OSM) bino — tanlanadi (Delete bilan olib tashlanadi)
       if (!id) { const cid = this.scene.pickAnyContext(e.clientX, e.clientY); if (cid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked([], [cid]); return; } }
       // atrofdagi (OSM) yoʻl yoki trotuar — tanlanadi (Delete bilan olib tashlanadi; Shift — tanlovga qoʻshish)
-      if (!id) { const p = this.scene.pick(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null; if (rid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked(e.shiftKey ? this.marked.b : [], e.shiftKey ? this.marked.c : [], this.store.doc, e.shiftKey ? (this.marked.r.includes(rid) ? this.marked.r.filter(x => x !== rid) : [...this.marked.r, rid]) : [rid]); return; } }
+      if (!id) { const p = this.scene.pickRoadPoint(e.clientX, e.clientY), rid = p ? this.osmRoadAt(p) : null; if (rid != null) { if (this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); } this.setMarked(e.shiftKey ? this.marked.b : [], e.shiftKey ? this.marked.c : [], this.store.doc, e.shiftKey ? (this.marked.r.includes(rid) ? this.marked.r.filter(x => x !== rid) : [...this.marked.r, rid]) : [rid]); return; } }
       if (this.marked.b.length || this.marked.c.length || this.marked.r.length) this.setMarked([], []);
       if (id && id === this.sel && this.inspTab === 'qavat') {   // tanlangan binoda qavatni bosish — shu qavat
         const hit = this.scene.pickBuildingHit(e.clientX, e.clientY), b = this.store.doc.buildings.find(x => x.id === id);

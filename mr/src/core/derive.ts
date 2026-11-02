@@ -151,7 +151,7 @@ export function derive(doc: Project): Derived {
   const trade = ((gfaByUse.savdo ?? 0) + (gfaByUse.aralash ?? 0) + (gfaByUse.turar ?? 0)) * 0.7;
   const parkingParts = parkingNeed({ apartments, ofisGfa: gfaByUse.ofis ?? 0, tradeArea: trade, school: schoolCap, mtm: mtmCap, greenArea });
   const parkingReq = Object.values(parkingParts).reduce((a, b) => a + b, 0);
-  const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + (g.truck ? 0 : g.spaces), 0);   // yuk hovlisi tirkamalari — yengil avtomobil joyi emas
+  const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + g.spaces, 0);
   let resSections = 0, westFacing = 0; const westIds: string[] = [];
   for (const b of doc.buildings) {
     if (useDef(b.use).res <= 0 || b.gen?.kind === 'stilobat') continue;

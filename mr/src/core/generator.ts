@@ -14,7 +14,6 @@ import { signedArea, isSimple } from './geo';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { squareSections, avoidObstacles, assignEnds, type Obstacle3 } from './genfix';
 import { lowriseBlock } from './lowrise';
-import { logiLayout } from './logigen';
 import { openRing, despike } from './offset';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
@@ -67,13 +66,13 @@ export interface GenParams {
   parkNorm?: boolean;
 }
 /** Talab hisobi uchun loyiha sozlamalari */
-export interface GenOpts { use?: string; /** 02.11: logistika turi (ZoneLabel.sub) va yaqin temir yoʻl (mahalliy metr) — core/logigen */ logi?: string; rails?: XY[][]; aptNet?: number; netToGross?: number; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
+export interface GenOpts { use?: string; aptNet?: number; netToGross?: number; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
 
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
 /** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
-export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; /** past qavatli uy uchastkasi (lowrise) */ plot?: XY[]; /** derazasiz torets qirralari (ring[i]→ring[i+1]); generatsiyada belgilanadi */ blind?: number[]; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string; /** antiseysmik chok (L uy) */ joint?: boolean; /** 02.11: dok darvozalar — ring qirrasi va soni (core/logigen) */ docks?: { edge: number; n: number }[]; /** 02.11: zal balandligi, m (core/levels) */ hall?: number }
-export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number; need?: number; module?: ParkModule; stalls?: XY[][]; aisles?: XY[][]; /** 02.11: yuk hovlisi — stalls tirkama joylari, aisles apron (yengil avtomobil hisobiga kirmaydi); spur — temir yoʻl shoxobchasi */ truck?: true; spur?: XY[] }
+export interface GenSection { ring: XY[]; floors: number; kind: SecKind; nonRes: number; /** past qavatli uy uchastkasi (lowrise) */ plot?: XY[]; /** derazasiz torets qirralari (ring[i]→ring[i+1]); generatsiyada belgilanadi */ blind?: number[]; face?: { p: XY; n: XY }; /** pastki sathi (qavatlarda) — stilobat ustidagi seksiyalar uchun */ z0?: number; use?: string; /** antiseysmik chok (L uy) */ joint?: boolean }
+export interface GenParking { kind: Exclude<ParkingKind, 'yoq'>; ring: XY[]; levels: number; spaces: number; need?: number; module?: ParkModule; stalls?: XY[][]; aisles?: XY[][] }
 export interface GenResult { sections: GenSection[]; capFloors: number | null; notes: string[]; parking?: GenParking; typology?: Typology; far?: number }
 
 const sub = (a: XY, b: XY): XY => [a[0] - b[0], a[1] - b[1]];
@@ -843,7 +842,7 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       const R = bestRect(A, 180, 72);
       if (!R) return { sections: [], capFloors: null, notes: ['Ombor binosi sigʻmadi — chekinishni kamaytiring'] };
       notes.push(`Ombor bloki ${Math.round(R.w)} × ${Math.round(R.h)} m, 1 qavat (katta oraliq); qolgan hovli — yuk mashinalari maydoni (TAXMIN)`);
-      return { sections: [{ ring: R.ring, floors: 1, kind: 'savdo', nonRes: 1, hall: 9 }], capFloors: null, notes };   // zal 9 m — ANDOZA
+      return { sections: [{ ring: R.ring, floors: 1, kind: 'savdo', nonRes: 1 }], capFloors: null, notes };
     }
     case 'ofis_hovli': {
       // hovlili ofis bloki: perimetral, korpus 18 m (ikki tomonlama yoritish — andoza), 5–9 qavat, hammasi noturar; hovli — ichki skver
@@ -920,11 +919,6 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
       if (d < bd) { bd = d; best = rr; bx = { ...XS }; }
     }
     r = best ?? typoCore(block, t, g, floorH); if (best) XS = bx;
-  } else if (t === 'ombor' && opts.use === 'logistika') {
-    // 02.11: logistika — tur boʻyicha bino + apron + doklar + tirkamalar (+ temir yoʻl shoxobchasi); sigʻmasa — oddiy ombor bloki
-    const o0 = g.setbackRing ?? inset(clean(block), g.setback), lo = o0 ? logiLayout(clean(o0, 6), opts.logi, opts.rails) : null;
-    r = lo ? { sections: lo.sections.map(x => ({ ring: x.ring, floors: 1, kind: 'savdo' as SecKind, nonRes: 1, hall: lo.hall, ...(x.docks.length ? { docks: x.docks } : {}) })), capFloors: null, notes: lo.notes,
-      parking: { kind: 'yer_usti', ring: clean(o0!, 6), levels: 1, spaces: lo.trailers.length, stalls: lo.trailers, aisles: lo.apron, truck: true, ...(lo.spur ? { spur: lo.spur } : {}) } } : typoCore(block, t, g, floorH);
   } else r = typoCore(block, t, g, floorH);
   r.typology = t;
   if (t === 'yakka' || t === 'taunhaus' || t === 'juft' || t === 'hovli' || t === 'klaster') {
@@ -960,9 +954,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   }
   // avtoturargoh
   const pk = g.parking ?? 'yoq';
-  if (pk !== 'yoq' && outer && !r.parking?.truck) r.parking = placeParking(clean(outer, 6), r, g, t, opts) ?? undefined;
-  // dok darvozalar ring qirrasi raqami bilan — toʻsiq bilan qirqilib shakli oʻzgargan binoda olib tashlanadi
-  for (const s of r.sections) if (s.docks && s.ring.length !== 4) delete s.docks;
+  if (pk !== 'yoq' && outer) r.parking = placeParking(clean(outer, 6), r, g, t, opts) ?? undefined;
   archFloors(r.sections);
   dropStrays(r.sections, Math.max(6, 0.6 * g.maxF * floorH), r.notes);
   assignEnds(r.sections, opts.avoid ?? [], g.depth, floorH, g.groundH);
