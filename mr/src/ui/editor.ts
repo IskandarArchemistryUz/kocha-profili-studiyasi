@@ -25,6 +25,7 @@ import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
+import { szzOf, limitAreaHa, isActive, type Limit, type LimitKind } from '../core/limits';
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
@@ -297,7 +298,8 @@ export class Editor {
   private onChange(doc: Project): void {
     const p = this.prevDoc; this.prevDoc = doc;
     // faqat varaqlar oʻzgargan boʻlsa (Varaqlar oynasi) — sahna va panel qayta chizilmaydi
-    if ((Object.keys(doc) as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
+    // 02.11: ikkala hujjat kalitlari — kalit butunlay oʻchirilsa ham (masalan, oxirgi cheklov: `limits` yoʻqoladi) oʻzgarish sezilsin
+    if (([...new Set([...Object.keys(p), ...Object.keys(doc)])] as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
     // loyiha markazi koʻchdi (uchastka chizilgach, qidiruv, bekor qilish) — kamera va fon yerda joyida qoladi, sahna «sakramaydi»
     if (p.origin !== doc.origin) { const d = frame(p.origin).toLocal(doc.origin); if (Math.hypot(d[0], d[1]) < 60000) this.scene.shiftOrigin(d); }
     if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed || p.roadEdits !== doc.roadEdits || p.removedRoads !== doc.removedRoads) void this.ensureContext();
@@ -2976,6 +2978,68 @@ export class Editor {
   /* ===== 2-qadam: Uchastka (MR-Q1) ===== */
   /** 1-qadam, 3-blok: uchastkaga tutash yoʻllar (OSM, ≤ 30 m) — toifa, bir tomonlama; batafsil ulanish nuqtalari — 2-qadam «Koʻchalar» */
   private accessMemo: { k: unknown[]; v: Access[] } | null = null;
+  /* ===== 1-qadam, 4-boʻlim: Mavjud holat va cheklovlar (02.11, cheklovlar 2-bosqichi) ===== */
+  /** chizilayotgan cheklov turi (chizish asbobi faol boʻlsa) */
+  private limDraw: LimitKind | null = null;
+  private selLimit: string | null = null;
+  private static LIM_KINDS: [LimitKind, string][] = [['qabriston', 'Qabriston'], ['issiqxona', 'Issiqxona'], ['ombor', 'Ombor'], ['temiryol', 'Temir yoʻl'], ['elu', 'ELU'], ['meros', 'Madaniy meros'], ['suv', 'Suv obyekti'], ['boshqa', 'Boshqa']];
+  private limName(k: LimitKind): string { return tr(Editor.LIM_KINDS.find(x => x[0] === k)?.[1] ?? 'Boshqa'); }
+  private pickLimit(id: string | null): void { this.selLimit = id; this.scene.selectLimit(id); this.renderPanel(); }
+  private startLimit(kind: LimitKind): void {
+    const add = (l: Omit<Limit, 'id' | 'src' | 'status'>) => { const id = uid('lim_'); this.run(() => this.store.dispatch({ type: 'addLimit', limit: { id, src: 'qolda', status: 'saqlanadi', ...l } })); this.setTool(null); this.pickLimit(id); };
+    const t = kind === 'elu'
+      ? new LineTool(this.scene, r => { const f = frame(this.store.doc.origin); add({ kind, axis: r.map(f.toGeo), kv: 10, elu: 'mavjud' }); }, toast, p => p, 'ELU oʻqi: tayanchlar boʻylab nuqtalarni bosing · 2× bosish yoki Enter — tugatish · Esc — bekor')
+      : new PolygonTool(this.scene, r => { const f = frame(this.store.doc.origin); add({ kind, rings: [r.map(f.toGeo)] }); }, toast, 20);
+    this.setTool(t); this.limDraw = kind; this.renderPanel();
+  }
+  private limitsBlock(): HTMLElement {
+    const doc = this.store.doc, ls = doc.limits ?? [], box = h('div', { class: 'col', id: 'limBox' }), bal = this.last?.d.balance;
+    if (ls.length && bal) box.append(h('div', { class: 'group flat', id: 'limBal', style: 'padding:10px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px' },
+      ...([['Uchastka', bal.siteHa, 'lbSite'], ['Qurib boʻlmaydi', bal.hardHa, 'lbHard'], ['SMZ', bal.szzHa, 'lbSzz'], ['Yaroqli', bal.usableHa, 'lbUse']] as const).map(([k, v, id]) => h('div', { class: 'kpi' }, h('b', { id }, `${fmt(v, 2)} ga`), h('span', {}, tr(k))))));
+    box.append(h('div', { class: 'glabel' }, h('span', {}, tr('Chizish'))));
+    if (this.limDraw && this.tool) box.append(h('button', { class: 'btn btn-primary btn-block', id: 'limStop', onclick: () => this.endTool() }, ...icl(IC.check, tf('Tugatish: ${k}', { k: this.limName(this.limDraw) }))),
+      h('span', { class: 't-small' }, tr(this.limDraw === 'elu' ? 'Nuqtalarni bosing · 2× bosish yoki Enter — tugatish · Esc — bekor' : 'Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor')));
+    else box.append(h('div', { role: 'group', 'aria-label': tr('Cheklov turi'), style: 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px' },
+      ...Editor.LIM_KINDS.map(([k, t]) => h('button', { class: 'btn btn-sm', 'data-limadd': k, title: tf('${t} chizish', { t: tr(t) }), style: 'justify-content:flex-start;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', onclick: () => this.startLimit(k) }, ...icl(IC.plus, tr(t))))));
+    if (!ls.length) { box.append(h('span', { class: 't-small' }, tr('Uchastka ichidagi yoki yonidagi qabriston, issiqxona, ombor, temir yoʻl, ELU — turini tanlab, sahnada chizing. Sanitariya himoya zonasi (SMZ) va qurib boʻlmaydigan joy avtomatik hisoblanadi.'))); return box; }
+    const ST: [Limit['status'], string][] = [['saqlanadi', 'Saqlanadi'], ['buziladi', 'Buziladi'], ['kochiriladi', 'Koʻchiriladi']];
+    const EL: [NonNullable<Limit['elu']>, string][] = [['mavjud', 'Mavjud'], ['loyiha', 'Loyiha'], ['kabel', 'Kabelga'], ['demontaj', 'Demontaj']];
+    const upd = (id: string, patch: Partial<Omit<Limit, 'id'>>) => this.run(() => this.store.dispatch({ type: 'updateLimit', id, patch }));
+    const list = h('div', { class: 'group', id: 'limList' });
+    ls.forEach((l, i) => {
+      const aHa = limitAreaHa(l, doc.origin), z = szzOf(l, aHa), sel = l.id === this.selLimit, on = isActive(l);
+      const sub = l.kind === 'elu' ? `${l.kv ?? '?'} kV · ${tr(EL.find(e => e[0] === (l.elu ?? 'mavjud'))?.[1] ?? 'Mavjud')}` : `${fmt(aHa, 2)} ga · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}`;
+      list.append(h('button', { class: 'li', 'data-lim': l.id, 'aria-pressed': sel, 'aria-expanded': sel, style: 'width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit;cursor:pointer', onclick: () => this.pickLimit(sel ? null : l.id) },
+        h('span', { class: 'k' }, `C-${i + 1} · ${l.name || this.limName(l.kind)}`, h('span', { class: 'sub' }, sub)),
+        h('span', { class: 'v' }, on && z.m > 0 ? `${fmt(z.m)} m${z.cls ? ' · ' + z.cls : ''}` : '—')));
+      if (!sel) return;
+      const ed = h('div', { class: 'col', 'data-limedit': l.id, style: 'padding:8px 12px 12px;gap:8px' });
+      if (l.kind === 'elu') {
+        ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('ELU holati') }, ...EL.map(([k, t]) => h('button', { 'aria-pressed': (l.elu ?? 'mavjud') === k, 'data-elu': k, onclick: () => upd(l.id, { elu: k }) }, tr(t)))));
+        const kv = h('input', { type: 'number', class: 'input', min: 0.4, max: 1150, step: 'any', value: l.kv ?? 10, id: 'limKv', 'aria-label': tr('Kuchlanish, kV'), onchange: (e: Event) => { const v = +(e.target as HTMLInputElement).value; if (v > 0 && v <= 1150) upd(l.id, { kv: v }); } });
+        ed.append(h('div', { class: 'field' }, h('label', {}, tr('Kuchlanish')), h('span', { class: 'unit' }, kv, h('span', {}, 'kV'))));
+      } else ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Holati') }, ...ST.map(([k, t]) => h('button', { 'aria-pressed': l.status === k, 'data-lst': k, onclick: () => upd(l.id, { status: k }) }, tr(t)))));
+      if (l.kind === 'qabriston') {
+        const open = l.sub?.open !== false;
+        ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Qabriston') },
+          h('button', { 'aria-pressed': open, 'data-qab': 'open', onclick: () => upd(l.id, { sub: { open: true } }) }, tr('Amaldagi')),
+          h('button', { 'aria-pressed': !open, 'data-qab': 'closed', onclick: () => upd(l.id, { sub: { open: false } }) }, tr('Yopilgan'))));
+        if (!open) ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Yopilgan qabriston turi') },
+          h('button', { 'aria-pressed': !!l.sub?.memorial, onclick: () => upd(l.id, { sub: { ...l.sub, open: false, memorial: !l.sub?.memorial } }) }, tr('Memorial / kolumbariy')),
+          h('button', { 'aria-pressed': !!l.sub?.rural, onclick: () => upd(l.id, { sub: { ...l.sub, open: false, rural: !l.sub?.rural } }) }, tr('Qishloq qabristoni'))));
+      }
+      const buf = h('input', { type: 'number', class: 'input', min: 0, max: 2000, step: 1, value: l.szz ?? '', placeholder: String(szzOf({ ...l, szz: undefined }, aHa).m), id: 'limBuf', 'aria-label': tr('Bufer, m'),
+        onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { szz: undefined }); else if (+v >= 0 && +v <= 2000) upd(l.id, { szz: +v }); } });
+      ed.append(h('div', { class: 'row', style: 'align-items:flex-end' },
+        h('div', { class: 'field grow' }, h('label', {}, tr(l.kind === 'elu' ? 'Zona, har tomonga' : 'SMZ (bufer)')), h('span', { class: 'unit' }, buf, h('span', {}, 'm'))),
+        h('button', { class: 'btn icon-btn btn-danger', id: 'limDel', 'aria-label': tr('Cheklovni oʻchirish'), title: tr('Cheklovni oʻchirish'), onclick: () => { this.selLimit = null; this.scene.selectLimit(null); this.run(() => this.store.dispatch({ type: 'removeLimit', id: l.id })); } }, svgIcon(IC.trash))));
+      ed.append(h('span', { class: 't-small', 'data-limref': l.id }, `${z.ref} · ${z.flag === 'NORMA' ? tr('norma') : z.flag === 'TALQIN' ? tr('talqin — tasdiqlash kerak') : tr('taxmin')}${z.cls ? ` · ${tf('${c} sinf', { c: z.cls })}` : ''}`));
+      list.append(ed);
+    });
+    box.append(list, h('span', { class: 't-small' }, tr('Shtrix — qurib boʻlmaydigan joy; uzuq kontur — SMZ (SanQvaN 0350-17, 2.17: turar joy, maktab, MTM, sport, park taqiqlanadi). ELU zonasi — VMQ № 1050, 14-band va SanQvaN 0350-17, 2.23.4 ning kattasi.')));
+    return box;
+  }
+
   private accessBlock(): HTMLElement {
     const doc = this.store.doc, b = this.ctxMgr.current, box = h('div', { class: 'col', id: 'accessBox' });
     if (!doc.site || !b || !doc.context.loaded) { box.append(h('span', { class: 't-small' }, tr('Atrof yuklangach — uchastkaga tutash yoʻllar va ularning toifasi shu yerda chiqadi.'))); return box; }
@@ -3001,7 +3065,7 @@ export class Editor {
     // kiritilgan oʻlcham panel qayta chizilganda (masalan, atrof yuklanib boʻlganda) yoʻqolmasin
     const w = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: this.rectWH[0], id: 'rw', 'aria-label': tr('Eni, m'), oninput: (e: Event) => { const v = +(e.target as HTMLInputElement).value; if (v > 0) this.rectWH[0] = v; } }) as HTMLInputElement;
     const hh = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: this.rectWH[1], id: 'rh', 'aria-label': tr('Boʻyi, m'), oninput: (e: Event) => { const v = +(e.target as HTMLInputElement).value; if (v > 0) this.rectWH[1] = v; } }) as HTMLInputElement;
-    const drawing = this.tool instanceof PolygonTool, picking = this.tool instanceof ClickTool;
+    const drawing = this.tool instanceof PolygonTool && !this.limDraw, picking = this.tool instanceof ClickTool;
     body.append(doc.site
       ? h('div', { class: 'group flat', style: 'padding:10px 12px;display:flex;align-items:center;gap:10px' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', { id: 'siteHa' }, `${fmt(area, 2)} ga`), h('span', {}, tr('Uchastka maydoni'))), h('span', { class: 'chip ok' }, h('i'), tr('Yopiq')))
       : h('div', { class: 'note' }, tr('Uchastka hali chizilmagan.')));
@@ -3615,7 +3679,7 @@ export class Editor {
   /** «Tugatish» tugmasi: chizilgan nuqtalar saqlanadi, keyin asbob oʻchadi */
   private endTool(): void { this.tool?.commit?.(); this.setTool(null); }
   private setTool(t: Tool | null): void {
-    this.tool?.cancel(); this.tool = t; this.scene.setSnapMark(null);
+    this.tool?.cancel(); this.tool = t; this.scene.setSnapMark(null); if (!t) this.limDraw = null;
     /* chizish rejada aniq: sharq–shimol oʻqlari ekran oʻqlari bilan mos */
     if (t && this.scene.view !== 'plan' && !(t as { anyView?: boolean }).anyView) this.setView('plan');
     this.el.hint.hidden = !t; if (t) this.el.hint.textContent = t.hint;
@@ -3668,6 +3732,7 @@ export class Editor {
       body.append(sec(1, 'Joy', 'secJoy')); this.hududPanel(body);
       body.append(sec(2, 'Chegara', 'secSite')); this.uchastkaPanel(body);
       if (this.store.doc.site) { body.append(sec(3, 'Kirish va yoʻllar', 'secAccess')); body.append(this.accessBlock()); }
+      if (this.store.doc.site) { body.append(sec(4, 'Mavjud holat va cheklovlar', 'secLimits')); body.append(this.limitsBlock()); }
     }
     if (s.id === 'hajm') this.hajmPanel(body);
     if (s.id === 'kocha') this.kochaPanel(body);

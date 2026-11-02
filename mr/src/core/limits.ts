@@ -192,3 +192,34 @@ export function cleanLimit(x: any): Limit | null {
     ...(n(x.osm) ? { osm: x.osm } : {}), ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}),
   };
 }
+
+/** Cheklov maydoni, ga (ELU — 0) */
+export function limitAreaHa(l: Limit, origin: LngLat): number {
+  if (!l.rings?.length || l.rings[0].length < 3) return 0;
+  const fr = frame(origin); return Math.abs(ringArea(l.rings[0].map(fr.toLocal))) / 1e4;
+}
+
+/**
+ * Shtrix (rejada «qurib boʻlmaydi» belgisi): koʻpburchak(lar) ichida `step` m oraliqda, `deg` burchak ostida parallel kesmalar.
+ * Skanlash chizigʻi usuli — teshiklar (ichki halqalar) toq-juft qoida bilan chiqarib tashlanadi.
+ */
+export function hatchSegs(polys: XY[][][], step: number, deg = 45): [XY, XY][] {
+  const t = deg * Math.PI / 180, c = Math.cos(t), s = Math.sin(t);
+  const rot = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], back = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+  const out: [XY, XY][] = [];
+  for (const poly of polys) {
+    const R = poly.filter(r => r.length >= 3).map(r => r.map(rot)); if (!R.length) continue;
+    let y0 = Infinity, y1 = -Infinity; for (const r of R) for (const p of r) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    if (y1 - y0 > step * 4000) continue;   // himoya: juda koʻp chiziq
+    for (let y = Math.ceil(y0 / step) * step; y <= y1; y += step) {
+      const xs: number[] = [];
+      for (const r of R) for (let i = 0; i < r.length; i++) {
+        const a = r[i], b = r[(i + 1) % r.length];
+        if ((a[1] <= y) !== (b[1] <= y)) xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0]));
+      }
+      xs.sort((p, q) => p - q);
+      for (let i = 0; i + 1 < xs.length; i += 2) if (xs[i + 1] - xs[i] > 0.05) out.push([back([xs[i], y]), back([xs[i + 1], y])]);
+    }
+  }
+  return out;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { szzOf, eluZone, bufferLocal, limitZones, landBalance, cleanLimit, type Limit } from '../../src/core/limits';
+import { szzOf, eluZone, bufferLocal, limitZones, landBalance, cleanLimit, hatchSegs, type Limit } from '../../src/core/limits';
 import { blankProject, migrate } from '../../src/core/doc';
 import { apply } from '../../src/core/commands';
 import { computePlan } from '../../src/core/plan';
@@ -91,5 +91,20 @@ describe('hujjat: kvartallar va yer balansi', () => {
     expect(back.limits).toHaveLength(1);
     const old = { ...JSON.parse(JSON.stringify(d)) }; delete old.limits;
     expect(migrate(old).limits).toBeUndefined();
+  });
+});
+
+describe('hatchSegs', () => {
+  it('kvadrat ichida — har chiziq kvadrat ichida, uzunliklar yigʻindisi ≈ maydon / qadam', () => {
+    const sq: [number, number][] = [[0, 0], [100, 0], [100, 100], [0, 100]];
+    const segs = hatchSegs([[sq]], 5, 45);
+    const L = segs.reduce((t, [a, b]) => t + Math.hypot(b[0] - a[0], b[1] - a[1]), 0);
+    expect(Math.abs(L - 10000 / 5) / 2000).toBeLessThan(0.05);
+    for (const [a, b] of segs) for (const p of [a, b]) { expect(p[0]).toBeGreaterThan(-0.01); expect(p[0]).toBeLessThan(100.01); expect(p[1]).toBeGreaterThan(-0.01); expect(p[1]).toBeLessThan(100.01); }
+  });
+  it('teshik chiqarib tashlanadi', () => {
+    const sq: [number, number][] = [[0, 0], [100, 0], [100, 100], [0, 100]], hole: [number, number][] = [[25, 25], [75, 25], [75, 75], [25, 75]];
+    const L = (s: [[number, number], [number, number]][]) => s.reduce((t, [a, b]) => t + Math.hypot(b[0] - a[0], b[1] - a[1]), 0);
+    expect(Math.abs(L(hatchSegs([[sq, hole]], 5, 0)) - (10000 - 2500) / 5)).toBeLessThan(60);
   });
 });
