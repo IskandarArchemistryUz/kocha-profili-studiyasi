@@ -17,6 +17,7 @@ import type { ULFeature } from '../core/userlayers';
 import { endShapes } from '../core/streetends';
 import { projectStreetsGeo } from './streets3d';
 import { computePlan, interiorPoint } from '../core/plan';
+import { limitZones, hatchSegs, isActive } from '../core/limits';
 import { profileById } from '../core/profiles';
 import { MATS, roofParts, ROOF_RISE_MAX, type RoofPart } from '../core/roof';
 import { roofGroups } from '../core/roofsk';
@@ -122,6 +123,8 @@ export class Scene3D {
   private mode: ViewMode = 'plan';
   private selected: string | null = null;
   private selBlock: number | null = null;
+  /** 02.11: tanlangan cheklov (1-qadam, 4-boʻlim) */
+  private selLimit: string | null = null;
   private selStreet: string | null = null;
   private lastDoc: Project | null = null;
   private grid: THREE.Object3D[] = [];
@@ -679,6 +682,7 @@ export class Scene3D {
   }
   /** Tanlovni sahnani qayta qurmasdan oʻrnatish (keyin baribir update chaqiriladigan joylar uchun) */
   setSelection(id: string | null): void { this.selected = id; }
+  selectLimit(id: string | null): void { if (this.selLimit === id) return; this.selLimit = id; if (this.lastDoc) this.update(this.lastDoc); }
   selectBlock(i: number | null): void { this.selBlock = i; if (this.lastDoc) this.update(this.lastDoc); }
   setFacade(st: FacadeStyle): void { this.facade = st; if (this.lastDoc) this.update(this.lastDoc); }
   selectStreet(id: string | null): void { this.selStreet = id; if (this.lastDoc) this.update(this.lastDoc); }
@@ -896,6 +900,36 @@ export class Scene3D {
     }
   }
 
+  /**
+   * Cheklovlar (02.11): qurib boʻlmaydigan joy — toʻq kulrang shtrix; SMZ — sinf rangidagi uzuq kontur va siyrak shtrix;
+   * obyekt konturi; ELU — oʻq chizigʻi. Buziladigan / koʻchiriladigan — faqat uzuq kontur. Tanlangan — koʻk.
+   */
+  private drawLimits(doc: Project, fr: ReturnType<typeof frame>): void {
+    const ls = doc.limits ?? []; if (!ls.length) return;
+    const z = limitZones(doc), SZZC: Record<string, number> = { I: 0x8e2f2f, II: 0xb0443a, III: 0xc8682c, IV: 0xb8901c, V: 0x6f8f3a }, plain = this.style === 'arctic' || this.style === 'minimal';
+    const segs = (list: [XY, XY][], color: number, lift: number, order: number) => {
+      if (!list.length) return; const v: number[] = [];
+      for (const [a, b] of list) v.push(a[0], this.H(a[0], a[1]) + lift, -a[1], b[0], this.H(b[0], b[1]) + lift, -b[1]);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+      const m = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color })); m.renderOrder = order; m.userData.layer = 2; m.userData.limit = true; this.world.add(m);
+    };
+    const dashed = (r: XY[], color: number, lift: number, order: number, closed = true, d = 3) => {
+      const l = line(densify(r, 6, closed), color, lift, closed, order, this.H); (l.material as THREE.Material).dispose();
+      l.material = new THREE.LineDashedMaterial({ color, dashSize: d, gapSize: d * 0.7 }); l.computeLineDistances(); l.userData.layer = 2; l.userData.limit = true; this.world.add(l);
+    };
+    for (const s of z.soft) {
+      const c = plain ? 0x8a8780 : s.kind === 'temiryol' ? 0x7a5c99 : SZZC[s.cls ?? 'IV'] ?? 0xb8901c;
+      segs(hatchSegs([s.rings], 9, -45), c, 0.46, 7.6);
+      s.rings.forEach(r => dashed(r, c, 0.5, 7.8));
+    }
+    segs(hatchSegs(z.hard, 3, 45), plain ? 0x6a6a6a : 0x4b4b4b, 0.48, 7.7);
+    for (const l of ls) {
+      const sel = l.id === this.selLimit, on = isActive(l), col = sel ? C.preview : on ? 0x2f2f2f : 0x8a8780;
+      if (l.kind === 'elu') { if (!l.axis) continue; const p = l.axis.map(fr.toLocal); if (on) { const ln = line(densify(p, 6, false), sel ? C.preview : 0x7a4fb0, 0.6, false, 8.2, this.H); ln.userData.limit = true; this.world.add(ln); } else dashed(p, col, 0.6, 8.2, false); continue; }
+      for (const r of l.rings ?? []) { const p = r.map(fr.toLocal); if (on) { const ln = line(densify(p, 6, true), col, 0.55, true, 8.1, this.H); ln.userData.limit = true; this.world.add(ln); } else dashed(p, col, 0.55, 8.1); }
+    }
+  }
+
   update(doc: Project): void {
     this.lastDoc = doc;
     { const f0 = frame(doc.origin); this.isoLocal = this.iso ? this.iso.map(r => r.map(f0.toLocal)) : null; }
@@ -919,6 +953,7 @@ export class Scene3D {
         else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
       });
       rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
+      this.drawLimits(doc, fr);
       // daha va yer uchastkasi yozuvlari (4.1): yerga yotadi, boʻsh joyda, masshtabga qarab qisqaradi; tanlanganida — oq kartochka
       this.buildLabels(doc, plan, fr);
       // hovlilar: trotuar, maysa, yoʻlaklar, maydonchalar, daraxtlar
