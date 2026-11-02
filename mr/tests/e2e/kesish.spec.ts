@@ -27,5 +27,5 @@ test('parselni siniq chiziq bilan kesish va SMZ boʻyicha ajratish', async ({ pa
   const n0 = await page.evaluate(() => (window as any).__mr.store.doc.parcels.length);
   await page.click('#pSzz');
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.parcels.length), { timeout: 8000 }).toBeGreaterThan(n0);
-  expect(await page.evaluate(() => (window as any).__mr.store.doc.parcels.some((p: any) => p.use === 'yashil'))).toBe(true);
+  expect(await page.evaluate(() => (window as any).__mr.store.doc.parcels.some((p: any) => p.use === 'himoya'))).toBe(true);   // 3b: park SMZ da taqiq — himoya koʻkalamzorligi
 });

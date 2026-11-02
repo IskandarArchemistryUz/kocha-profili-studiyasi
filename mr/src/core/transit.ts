@@ -39,7 +39,7 @@ export const DEMO_YEAR = DEMO.year;
 export type StopZone = 'odatiy' | 'yakka' | 'dam';
 export const ZONE_NAME: Record<StopZone, string> = { odatiy: 'odatdagi', yakka: 'yakka tartibdagi uy-joy', dam: 'dam olish va sport zonasi' };
 /** Kvartal funksiyasidan hudud turi (avtomatik) */
-export const stopZone = (u: Use): StopZone => u === 'yakka' ? 'yakka' : u === 'sport' || u === 'yashil' || u === 'maydon' ? 'dam' : 'odatiy';
+export const stopZone = (u: Use): StopZone => u === 'yakka' ? 'yakka' : u === 'sport' || u === 'yashil' || u === 'himoya' || u === 'maydon' ? 'dam' : 'odatiy';
 
 export interface StopRadius { r: number; base: number; cut: number; clause: string }
 /**

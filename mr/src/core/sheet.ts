@@ -261,7 +261,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       g('Zonalar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${plotFill(b.use)}"${lP.outline ? ` stroke="#ffffff" stroke-width="${lw(Math.max(lP.mm, 0.35))}"` : ''} fill-rule="evenodd"/>`).join(''));
       for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: plotFill(u.id), label: tr(u.name) });
     } else if (K === 'landshaft') {
-      g('Yashil_kvartallar', plan.blocks.filter(b => b.use === 'yashil' || b.use === 'sport' || b.use === 'maydon').map(b => `<path d="${polyD(b.rings)}" fill="${b.use === 'yashil' ? '#bcd9a3' : b.use === 'sport' ? '#cfe6ef' : '#efe9dc'}" fill-rule="evenodd"/>`).join(''));
+      g('Yashil_kvartallar', plan.blocks.filter(b => b.use === 'yashil' || b.use === 'himoya' || b.use === 'sport' || b.use === 'maydon').map(b => `<path d="${polyD(b.rings)}" fill="${b.use === 'yashil' || b.use === 'himoya' ? '#bcd9a3' : b.use === 'sport' ? '#cfe6ef' : '#efe9dc'}" fill-rule="evenodd"/>`).join(''));
       if (lP.outline) g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}"/>`).join(''));
     } else if (K !== 'figura' && lP.outline) {
       g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}"/>`).join(''));

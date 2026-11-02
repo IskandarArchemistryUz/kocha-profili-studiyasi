@@ -2,7 +2,7 @@
  * Funksiyalar (zonalar) katalogi — yagona taʼrif: nomi, guruhi, rangi, turar joy ulushi, generator uchun odatiy qavatlar.
  * Ijtimoiy funksiyalar (maktab, MTM) keyin aholi soniga nisbatan ShNQ 2.07.01-23 boʻyicha tekshiriladi.
  */
-export type Use = 'turar' | 'yakka' | 'aralash' | 'maktab' | 'mtm' | 'poliklinika' | 'ijtimoiy' | 'mamuriy' | 'savdo' | 'ofis' | 'mehmonxona' | 'sport' | 'yashil' | 'maydon' | 'logistika' | 'sanoat' | 'kommunal' | 'transport' | 'avtoturargoh' | 'texnik';
+export type Use = 'turar' | 'yakka' | 'aralash' | 'maktab' | 'mtm' | 'poliklinika' | 'ijtimoiy' | 'mamuriy' | 'savdo' | 'ofis' | 'mehmonxona' | 'sport' | 'yashil' | 'himoya' | 'maydon' | 'logistika' | 'sanoat' | 'kommunal' | 'transport' | 'avtoturargoh' | 'texnik';
 
 export interface UseDef { id: Use; name: string; group: string; color: number; base: number; res: number; floors?: [number, number]; build: boolean }
 
@@ -21,6 +21,9 @@ export const USES: UseDef[] = [
   { id: 'mehmonxona', name: 'Mehmonxona', group: 'Tijorat', color: 0xb99ad6, base: 0x7a5aa0, res: 0, build: true },
   { id: 'sport', name: 'Sport', group: 'Ochiq joy', color: 0x8fcfe0, base: 0x4f8fa0, res: 0, build: false },
   { id: 'yashil', name: 'Park / bogʻ', group: 'Ochiq joy', color: 0xa8d08d, base: 0x7da36a, res: 0, build: false },
+  // 02.11 (cheklovlar 3b): SMZ ichidagi maxsus koʻkalamzorlik — SanPiN 0350-17, 2.19 (obodonlashtirish, daraxt-buta tasmasi); ShNQ 2.07.01-23, 475:
+  // «maxsus maqsadli» yashil, umumiy foydalanishdagi yashilga (park, 86-band balansi) kirmaydi. Park SMZ da taqiq (2.17) — shuning uchun alohida funksiya
+  { id: 'himoya', name: 'Himoya koʻkalamzorligi (SMZ)', group: 'Ochiq joy', color: 0x8fbf7e, base: 0x5f8f4e, res: 0, build: false },
   { id: 'maydon', name: 'Skver / maydon', group: 'Ochiq joy', color: 0xe3d9c6, base: 0xa89f8e, res: 0, build: false },
   // 02.11: ishlab chiqarish zonalari — ShNQ 2.07.01-23, 7-bob (141, 144: kommunal-ombor, sanoat; 146–147, 171–178); 8-bob — transport
   { id: 'logistika', name: 'Logistika va ombor', group: 'Ishlab chiqarish', color: 0xc9a27a, base: 0x8a6a4a, res: 0, floors: [1, 2], build: true },

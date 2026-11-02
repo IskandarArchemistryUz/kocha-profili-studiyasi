@@ -29,6 +29,7 @@ import { szzOf, limitAreaHa, isActive, limitZones, SZZ_DENY, type Limit, type Li
 import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { accessStreet, innerStreets } from '../core/rowaccess';
+import { denyZone, clipToSzz } from '../core/szzgen';
 import { LOGI, logiType, prodSzz } from '../core/logistics';
 import { PROD } from '../core/prodcheck';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
@@ -2253,6 +2254,10 @@ export class Editor {
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]), ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) });
+    // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanPiN 0350-17, 2.17; ShNQ 2.07.01-23, 146) — uylar olinadi, seksiyalar qisqartiriladi
+    { const dzOf = new Map<string, ReturnType<typeof denyZone>>(), dz = (u: string) => { if (!dzOf.has(u)) dzOf.set(u, denyZone(this.store.doc, u as Use)); return dzOf.get(u)!; };
+      const byUse = new Map<string, typeof r.sections>(); for (const x of r.sections) { const u = x.use ?? b.use; byUse.set(u, [...(byUse.get(u) ?? []), x]); }
+      r.sections = [...byUse].flatMap(([u, xs]) => clipToSzz(xs, dz(u), r.notes)); }
     this.genNotes = asb ? [this.autoSbNote(asb), ...r.notes] : r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
     const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));
@@ -3508,7 +3513,7 @@ export class Editor {
           const target = bp.list.find(p => (b.parcelId ? p.id === b.parcelId : true)) ?? bp.list[0], sp = target && splitByZones(target.rings, soft.flatMap(z => z.polys));
           if (!sp) return [];
           return [h('button', { class: 'btn btn-sm btn-block', id: 'pSzz', onclick: () => {
-            const deny = (SZZ_DENY as readonly string[]).includes(target.use), inUse: Use = deny ? 'yashil' : target.use;
+            const deny = (SZZ_DENY as readonly string[]).includes(target.use), inUse: Use = deny ? 'himoya' : target.use;   // 3b: park SMZ da taqiq (2.17) — himoya koʻkalamzorligi (2.19)
             this.commitParcels(bp.lab, [...bp.list.filter(p => p !== target), ...sp.inside.map(rr => ({ id: uid('pc_'), rings: rr, use: inUse })), ...sp.outside.map(rr => ({ id: uid('pc_'), rings: rr, use: target.use }))]);
             toast(deny ? tr('SMZ qismi ajratildi va koʻkalamzor qilib belgilandi (SanPiN 0350-17, 2.17 va 2.19) — kerak boʻlsa, ruxsat etilgan funksiyaga (avtoturargoh, savdo, ofis) almashtiring.') : tr('SMZ qismi alohida parsel qilib ajratildi.'));
           } }, ...icl('<path d="M4 20L20 4M4 4h7M13 20h7"/>', tf('SMZ chegarasi boʻyicha ajratish (${n} + ${m})', { n: sp.inside.length, m: sp.outside.length })))];
