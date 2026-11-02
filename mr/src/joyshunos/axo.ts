@@ -459,7 +459,7 @@ export class Axo {
       const isLine = (o as THREE.LineSegments).isLineSegments;
       if (id === 'binolar') {
         if (isLine) { m.color.setHex(edge); m.transparent = true; m.opacity = L === 'kontur' ? 0.9 : L === 'shisha' ? 0.55 : 0.45; }
-        else { m.color.setHex(wall); const em = (m as THREE.MeshLambertMaterial).emissive; if (em) em.setHex(dark ? 0x0b0c0e : 0x5c5a56); if (L !== 'oq') { m.transparent = true; m.opacity = L === 'shisha' ? 0.42 : 0.1; m.depthWrite = L === 'shisha'; } }
+        else { m.color.setHex(wall); const em = (m as THREE.MeshLambertMaterial).emissive; if (em) em.setHex(dark ? 0x0b0c0e : 0x5c5a56); if (L !== 'oq') { m.transparent = true; m.opacity = L === 'shisha' ? 0.42 : 0.1; m.depthWrite = true /* 02.11 (egasi): bino ichidan orqadagi tahlil koʻrinmasin */; } }
       } else if (!isLine) {
         const c = new THREE.Color(dark ? 0x15171a : 0xf7f6f3);
         if (o.name === 'daraxtlar' || o.parent?.name === 'daraxtlar' || o.userData.trunk === undefined && o.name === 'tanalar') { m.color.lerp(new THREE.Color(dark ? 0x3a4a3c : 0xbcc9b0), 0.85); m.transparent = true; m.opacity = 0.55; m.needsUpdate = true; }
@@ -479,7 +479,7 @@ export class Axo {
       const g = new THREE.Group(); g.name = 'uchastka'; g.userData.site = true;
       const y0 = (x: number, y: number) => (id === 'xizmat' ? this.slabTop + 0.5 : Math.max(H(x, y), this.slabTop) + 1.2);
       const pts = [...loc, loc[0]].map(([x, y]) => new THREE.Vector3(x, y0(x, y), -y));
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0xd2492f, dashSize: this.R * 0.012, gapSize: this.R * 0.008, depthTest: id === 'binolar' }));
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0xd2492f, dashSize: this.R * 0.012, gapSize: this.R * 0.008 }));
       line.computeLineDistances(); line.renderOrder = 45; g.add(line);
       try {
         const shp = new THREE.Shape(loc.map(([x, y]) => new THREE.Vector2(x, y)));
@@ -495,9 +495,9 @@ export class Axo {
     const C = 0xe0462a, base = Math.max(this.slabTop, Math.min(...loc.map(([x, y]) => H(x, y)))) + 1.4, L = this.siteLook;
     g.children.forEach(c => { c.visible = false; });
     const ring = [...loc, loc[0]].map(([x, y]) => new THREE.Vector3(x, base, -y));
-    const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ring, false, 'catmullrom', 0), ring.length * 8, this.R * 0.004, 6, false), new THREE.MeshBasicMaterial({ color: C, depthTest: false })); tube.renderOrder = 48; g.add(tube);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ring, false, 'catmullrom', 0), ring.length * 8, this.R * 0.004, 6, false), new THREE.MeshBasicMaterial({ color: C })); tube.renderOrder = 48; g.add(tube);
     const shp = new THREE.Shape(loc.map(([x, y]) => new THREE.Vector2(x, y)));
-    if (L === 'tola') { const fg = new THREE.ShapeGeometry(shp); fg.rotateX(-Math.PI / 2); fg.translate(0, base, 0); const f = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: 0x8fd16f, transparent: true, opacity: 0.92, depthTest: false })); f.renderOrder = 46; g.add(f); }
+    if (L === 'tola') { const fg = new THREE.ShapeGeometry(shp); fg.rotateX(-Math.PI / 2); fg.translate(0, base, 0); const f = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: 0x8fd16f, transparent: true, opacity: 0.92, depthWrite: false })); f.renderOrder = 46; g.add(f); }
     if (L === 'devor') {
       const Hh = Math.max(24, this.R * 0.07), pos: number[] = [], uv: number[] = [];
       for (let i = 1; i < ring.length; i++) { const a = ring[i - 1], b = ring[i]; pos.push(a.x, a.y, a.z, b.x, b.y, b.z, b.x, b.y + Hh, b.z, a.x, a.y, a.z, b.x, b.y + Hh, b.z, a.x, a.y + Hh, a.z); uv.push(0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1); }
@@ -509,7 +509,7 @@ export class Axo {
     if (L === 'shtrix') {
       const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d')!; x.strokeStyle = '#e0462a'; x.lineWidth = 6; for (let i = -64; i < 128; i += 16) { x.beginPath(); x.moveTo(i, 64); x.lineTo(i + 64, 0); x.stroke(); }
       const tx = new THREE.CanvasTexture(cv); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(0.12, 0.12);
-      const fg = new THREE.ShapeGeometry(shp); fg.rotateX(-Math.PI / 2); fg.translate(0, base - 0.2, 0); const f = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ map: tx, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false })); f.renderOrder = 46; g.add(f);
+      const fg = new THREE.ShapeGeometry(shp); fg.rotateX(-Math.PI / 2); fg.translate(0, base - 0.2, 0); const f = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ map: tx, transparent: true, opacity: 0.95, depthWrite: false })); f.renderOrder = 46; g.add(f);
     }
   }
   /** Uchastka chegarasining mahalliy koordinatalari (SVG eksporti uchun) */

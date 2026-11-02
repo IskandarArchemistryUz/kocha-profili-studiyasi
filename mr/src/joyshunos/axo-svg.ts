@@ -127,7 +127,8 @@ export function axoSvg(a: Axo, layered: boolean): string {
   if (site) for (const id of ['relyef', 'kochalar', 'yashil', 'binolar', 'xizmat'] as AxLayer[]) {
     if (!vis(id)) continue;
     const pts = site.map(([x, y]) => pr(x, y, (a.exploded ? top(id) : H(x, y)) + 1.2, id));
-    out[id].push(`<path d="${poly(pts)}" fill="#d2492f" fill-opacity=".14" stroke="#d2492f" stroke-width="1.4" stroke-dasharray="6 4"/>`);
+    // 02.11 (egasi): yer chizigʻi binolar ostida — qatlam boshiga (binolar uni toʻsadi)
+    out[id].unshift(`<path d="${poly(pts)}" fill="#d2492f" fill-opacity=".14" stroke="#d2492f" stroke-width="1.4" stroke-dasharray="6 4"/>`);
   }
 
   /* --- belgilar --- */

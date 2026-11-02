@@ -1646,17 +1646,18 @@ export class Scene3D {
         const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], l = Math.hypot(dx, dy); if (l < 0.01) continue;
         const nx = -dy / l * hw, ny = dx / l * hw; c.setHex(s.color);
         const v = [[s.a[0] + nx, s.a[1] + ny], [s.a[0] - nx, s.a[1] - ny], [s.b[0] - nx, s.b[1] - ny], [s.a[0] + nx, s.a[1] + ny], [s.b[0] - nx, s.b[1] - ny], [s.b[0] + nx, s.b[1] + ny]];
-        const ya = this.H(s.a[0], s.a[1]) + 1.2, yb = this.H(s.b[0], s.b[1]) + 1.2;
+        const ya = this.H(s.a[0], s.a[1]) + 2.5, yb = this.H(s.b[0], s.b[1]) + 2.5;   // 02.11: hovli maysasi va maydonchalar ustida (rejada ham), binolar ortida
         v.forEach((p, i) => { pos.push(p[0], [0, 1, 3].includes(i) ? ya : yb, -p[1]); col.push(c.r, c.g, c.b); });
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-      const l = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, depthTest: false, side: THREE.DoubleSide })); l.renderOrder = 12; this.scene.add(l); this.netObj.push(l);
+      // 02.11 (egasi): tahlil yerda yotadi va binolar ortida yashirinadi — chuqurlik tekshiruvi bilan, yer bilan «titramasin» — polygonOffset
+      const l = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 })); l.renderOrder = 12; this.scene.add(l); this.netObj.push(l);
     }
     for (const size of [...new Set(dots.map(d => d.size ?? 9))]) {
       const ds = dots.filter(d => (d.size ?? 9) === size), c = new THREE.Color(), col: number[] = [];
       const g = new THREE.BufferGeometry().setFromPoints(ds.map(d => new THREE.Vector3(d.p[0], this.H(d.p[0], d.p[1]) + 2, -d.p[1])));
       ds.forEach(d => { c.setHex(d.color); col.push(c.r, c.g, c.b); }); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-      const pt = new THREE.Points(g, new THREE.PointsMaterial({ vertexColors: true, size, sizeAttenuation: false, depthTest: false })); pt.renderOrder = 13; this.scene.add(pt); this.netObj.push(pt);
+      const pt = new THREE.Points(g, new THREE.PointsMaterial({ vertexColors: true, size, sizeAttenuation: false })); pt.renderOrder = 13; this.scene.add(pt); this.netObj.push(pt);
     }
     this.invalidate();
   }
