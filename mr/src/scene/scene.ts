@@ -7,6 +7,7 @@ import { lenLimit, jointOpt, jointScheme } from '../core/seysmik';
 import { bLevels } from '../core/levels';
 import { prodChecks } from '../core/prodcheck';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { LngLat, Project, Shade } from '../core/doc';
 import { frame, centroid, area, signedArea, type XY } from '../core/geo';
@@ -160,6 +161,9 @@ export class Scene3D {
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // 02.11 (egasi: «sahna juda ogʻir»): soya xaritasi faqat sahna mazmuni yoki quyosh oʻzgarganda qayta chiziladi — kamera aylanganda emas
+    // (soya kamerasi koʻrinishga bogʻliq emas: atrofdagi qutiga qotirilgan). Avval har kadrda soya oʻtishi ham chizilardi — chizish chaqiruvlari ikki baravar
+    this.renderer.shadowMap.autoUpdate = false;
     host.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color(0xf4f3f1);
 
@@ -179,7 +183,7 @@ export class Scene3D {
     this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -10000, 10000);
     this.cam = this.persp;
     this.ctl = new OrbitControls(this.persp, this.renderer.domElement);
-    this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); this.lodSoon(); });
+    this.ctl.addEventListener('change', () => { this.invalidate(false); this.onView?.(); this.lodSoon(); });
     this.setView('plan', true);
 
     // uzoqlashtirish chegarasida yana gʻildirak «tashqariga» — dunyo xaritasi ochiladi (editor: onZoomOutLimit).
@@ -196,11 +200,13 @@ export class Scene3D {
     }, { passive: true, capture: true });
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
-    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
+    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; if (this.shadowDirty) { this.shadowDirty = false; this.renderer.shadowMap.needsUpdate = true; } const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
     loop();
   }
 
-  invalidate(): void { this.dirty = true; }
+  /** shadow = false — faqat kamera oʻzgardi (soya xaritasi qayta chizilmaydi) */
+  invalidate(shadow = true): void { this.dirty = true; if (shadow) this.shadowDirty = true; }
+  private shadowDirty = true;
   /** Uzoqlashtirish chegarasiga yetildi va foydalanuvchi yana uzoqlashtirmoqchi */
   onZoomOutLimit: (() => void) | null = null;
   /** Ortogonal kamera: koʻrinish ≈ 16 km dan oshmasin (perspektivada — maxDistance) */
@@ -248,7 +254,7 @@ export class Scene3D {
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     else if (this.hand) this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-    this.ctl.addEventListener('change', () => { this.invalidate(); this.onView?.(); this.lodSoon(); });
+    this.ctl.addEventListener('change', () => { this.invalidate(false); this.onView?.(); this.lodSoon(); });
     this.ctl.update(); this.onView?.();
     this.resize();
   }
@@ -1035,11 +1041,14 @@ export class Scene3D {
         const alb = this.album, plainS = st === 'arctic' || st === 'minimal';
         const col = { pave: plainS ? 0xf4f3f0 : alb ? 0xf1eee8 : 0xdcd6cb, green: plainS ? 0xeceee8 : alb ? 0xd5e4c4 : 0xa9cc8c, path: plainS ? 0xf7f6f4 : alb ? 0xf6f3ee : 0xe7e0d2,
           bolalar: plainS ? 0xf0ede8 : 0xf0c58a, kattalar: plainS ? 0xf0ede8 : 0xeadfc8, sport: plainS ? 0xe9ece6 : 0x8fbf98, xojalik: plainS ? 0xeeeeee : 0xcfcac1, tajriba: plainS ? 0xeceee8 : 0xc9b48f };
+        // 02.11 (egasi: «sahna juda ogʻir»): hovli boʻlaklari (qoplama, maysa, yoʻlak, maydoncha) rang va sath boʻyicha bitta mesh —
+        // avval har boʻlak alohida mesh edi (94 binoli loyihada ~1000 chizish chaqiruvi, koʻpi bitta uchburchak)
+        const fillB = new Map<string, { c: number; order: number; gs: THREE.BufferGeometry[] }>();
         const fill = (mp: XY[][][], c: number, lift: number, order: number, Hf: HeightFn = this.H) => mp.forEach(poly => {
           if (!poly[0] || poly[0].length < 3) return;
           const sh = new THREE.Shape(poly[0].map(toV2)); poly.slice(1).forEach(hh => sh.holes.push(new THREE.Path(hh.map(toV2))));
-          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), Hf, lift, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5 - order, polygonOffsetUnits: -5 - order }));
-          m.renderOrder = 6.2 + order * 0.01; this.world.add(m);
+          const gg = drape(new THREE.ShapeGeometry(sh), Hf, lift, this.ctx ? 8 : 1e9), bk = `${c}|${order}`;
+          (fillB.get(bk) ?? fillB.set(bk, { c, order, gs: [] }).get(bk)!).gs.push(gg.index ? gg.toNonIndexed() : gg);
         });
         const yards = landscape(doc), trees: XY[] = [];
         // maydoncha jihozlari (playkit): rang boʻyicha bitta mesh va bitta LineSegments — sahna yengil
@@ -1103,6 +1112,13 @@ export class Scene3D {
         for (const [c, v] of Object.entries(kitL)) {
           const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
           const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: KC[c], transparent: true, opacity: 1 })); ls.renderOrder = 6.6; ls.userData.playKit = c; this.world.add(ls);
+        }
+        for (const { c, order, gs } of fillB.values()) {
+          const keep = (g: THREE.BufferGeometry) => { for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k); return g; };
+          const mg = gs.length === 1 ? keep(gs[0]) : mergeGeometries(gs.map(keep), false); if (!mg) continue;
+          if (gs.length > 1) gs.forEach(g => g.dispose());
+          const m = new THREE.Mesh(mg, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5 - order, polygonOffsetUnits: -5 - order }));
+          m.renderOrder = 6.2 + order * 0.01; this.world.add(m);
         }
         if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c));
         // hovliga kirishlar: arka (toʻq sariq), binolar oraligʻi (koʻk) — strelka hovliga; podyezd — kichik toʻq kvadrat
@@ -1317,7 +1333,7 @@ export class Scene3D {
   captureViews(doc: Project): Record<'plan' | 'axo' | 'persp', string> {
     const mode = this.mode, t = this.ctl.target.clone(), pp = this.persp.position.clone(), op = this.ortho.position.clone(), os = this.ortho.userData.s, oz = this.ortho.zoom;
     const out = {} as Record<'plan' | 'axo' | 'persp', string>;
-    for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); { const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
+    for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); { const c = this.rcam(); this.fitSprites(c); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, c); } out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
     this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz; this.capOrtho();
     this.resize(); this.ctl.update(); this.invalidate();
     return out;
@@ -1968,7 +1984,7 @@ export class Scene3D {
   /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
   snapshot(ratio = 0): string {
     this.refreshLod();
-    { const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); }
+    { const c = this.rcam(); this.fitSprites(c); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, c); }
     const c = this.renderer.domElement; if (!ratio) return c.toDataURL('image/png');
     const r = this.frameRect(ratio), k = c.width / (c.clientWidth || c.width), o = document.createElement('canvas');
     o.width = Math.round(r.w * k); o.height = Math.round(r.h * k);
