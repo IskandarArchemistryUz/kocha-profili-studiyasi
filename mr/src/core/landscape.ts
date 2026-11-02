@@ -166,6 +166,19 @@ function landscapeRaw(doc: Project): Yard[] {
     if (own.every(x => x.b.gen?.kind === 'taunhaus' || x.b.gen?.plot)) { const y = cached(`t|${bsig}|${own.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}`, () => lowYard(blk, bi, own, fr, townPlots(blk.rings[0], own), doc)); if (y) out.push({ ...y, block: bi }); return; }
     // 27.10 yengillik: kvartal hovlisi faqat shu kvartal binolari, avtoturargohi yoki shakli oʻzgarsa qayta hisoblanadi
     const parkIn = parkAll.filter(p => p.h.length && pointIn(p.h.reduce((a, q) => [a[0] + q[0] / p.h.length, a[1] + q[1] / p.h.length] as XY, [0, 0] as XY), blk.rings));
+    // 02.11 (egasi: «yakka uylarning baʼzilari uchastkasi bilan, baʼzilari hech nimasiz chiqyapti»): aralash kvartal — uchastkali uylar
+    // oʻz hovlisini oladi (uchastka, bogʻ, panjara), qolgan binolar umumiy hovlini uchastkalarni chetlab oladi
+    const withPlot = own.filter(x => x.b.gen?.plot);
+    if (withPlot.length) {
+      const lp = cached(`lm|${bsig}|${withPlot.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}`, () => lowYard(blk, bi, withPlot, fr, undefined, doc));
+      if (lp) out.push({ ...lp, block: bi });
+      const rest = own.filter(x => !x.b.gen?.plot), plotPolys = withPlot.map(x => [close(x.b.gen!.plot!.map(q => fr.toLocal(q)))] as Polygon);
+      if (!rest.length) return;
+      const yk = `rm|${bsig}|${rest.map(x => `${x.b.floors},${x.b.nonRes},${x.b.use},${sig(x.r)}`).join('#')}|${withPlot.map(x => sig(x.r)).join('#')}|${doc.settings.m2PerPerson}|${doc.settings.netToGross}`;
+      const yr = cached(yk, () => { const y = yardOf(blk, bi, rest, [...parkIn.map(q => [close(q.h)] as Polygon), ...plotPolys], doc, arches); if (y) y.entries = entriesOf(blk.rings[0], rest, arches); return y; });
+      if (yr) out.push({ ...yr, block: bi });
+      return;
+    }
     // 31.10: stilobat tomi — landshaft, yongʻin yoʻlagi (666, 667, 675–677-bandlar) va yerdan rampa
     const roofs: Yard[] = [], ramps: Polygon[] = [];
     for (const pod of own.filter(x => x.b.gen?.kind === 'stilobat' && x.b.floors > 0)) {
