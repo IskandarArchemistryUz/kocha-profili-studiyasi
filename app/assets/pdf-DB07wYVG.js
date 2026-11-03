@@ -1,0 +1,1 @@
+export{t as svgPdf}from"./pdf-DVl5F3ek.js";
