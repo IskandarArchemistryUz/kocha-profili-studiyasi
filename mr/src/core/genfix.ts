@@ -13,7 +13,7 @@ import { signedArea, obb2 } from './geo';
 import { openRing } from './offset';
 import type { GenSection } from './generator';
 
-export interface Obstacle3 { ring: XY[]; h: number }
+export interface Obstacle3 { ring: XY[]; h: number; /** 04.11: oʻz bufer masofasi (ELU zonasi — 0: zonadan tashqarida boʻlsa yetarli) */ gap?: number }
 
 const P = (r: XY[]): Polygon => [[...r, r[0]].map(p => [p[0], p[1]] as [number, number])];
 const ringsOf = (mp: MultiPolygon): XY[][] => mp.map(pp => { const r = pp[0].slice(0, -1).map(q => [q[0], q[1]] as XY); return signedArea(r) < 0 ? r.reverse() : r; });
@@ -99,7 +99,7 @@ export function squareSections(S: GenSection[], D: number, notes: string[]): Gen
  */
 export function avoidObstacles(S: GenSection[], obs: Obstacle3[], minF: number, floorH: number, notes: string[], gap = 6): GenSection[] {
   if (!obs.length) return S;
-  const bufs: Polygon[] = obs.map(o => P(buffer(o.ring, gap)));
+  const bufs: Polygon[] = obs.map(o => P(o.gap === 0 ? o.ring : buffer(o.ring, o.gap ?? gap)));
   let clipped = 0, removed = 0, capped = 0; const out: GenSection[] = [];
   for (const s0 of S) {
     let r: XY[] | null = s0.ring;
@@ -108,7 +108,7 @@ export function avoidObstacles(S: GenSection[], obs: Obstacle3[], minF: number, 
     const s: GenSection = { ...s0, ring: r };
     if (s.face) {
       let d = Infinity, ho = 0;
-      for (const o of obs) { const t = rayHitPar(s.face.p, s.face.n, o.ring); if (t < d) { d = t; ho = o.h; } }
+      for (const o of obs) { if (o.h <= 0) continue; const t = rayHitPar(s.face.p, s.face.n, o.ring); if (t < d) { d = t; ho = o.h; } }   // h = 0 — zona (ELU), balandlik talabi yoʻq
       if (Number.isFinite(d) && d < 200) {
         if (2 * ho > d + 0.5) { removed++; continue; }
         const cap = Math.floor(d / 2 / floorH);

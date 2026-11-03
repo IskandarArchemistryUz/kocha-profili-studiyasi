@@ -69,7 +69,7 @@ export function szzOf(l: Limit, areaHa: number): Szz {
       return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.4`, flag: 'TALQIN' });
     }
     case 'issiqxona': return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.3`, flag: 'NORMA' });
-    case 'ombor': return own({ m: 50, cls: 'V', ref: `${SAN}, 6.3; ShNQ 2.07.01-23, 173`, flag: 'NORMA' });
+    case 'ombor': return own({ m: 50, cls: 'V', ref: `${SAN}, 6.6 V sinf, 7 («Склады»); ShNQ 2.07.01-23, 173`, flag: 'NORMA' });
     case 'temiryol': return own({ m: 100, ref: 'ShNQ 2.07.01-23, 359', flag: 'NORMA' });
     case 'elu': return eluZone(l);
     default: return own({ m: 0, ref: '—', flag: 'TAXMIN' });
@@ -80,29 +80,45 @@ export function szzOf(l: Limit, areaHa: number): Szz {
 const VMQ: [number, number][] = [[1, 2], [20, 10], [35, 15], [110, 20], [220, 25], [500, 30]];
 /** SanQvaN 0350-17, 2.23.4 (sanitariya zonasi) */
 const SAN_ELU: [number, number][] = [[330, 20], [500, 30], [750, 40], [1150, 55]];
-/** ELU zonasi (oʻqdan har tomonga, m): ikki normaning kattasi; kabel — 1 m; demontaj — yoʻq. Jadvalda yoʻq kuchlanish — yuqori sinf qiymati (TAXMIN) */
+/**
+ * ELU zonasi (liniya oʻqidan har tomonga, m). VMQ 1050, 14 «а» va SanPiN 2.23.4 — zona CHETKI SIMDAN oʻlchanadi; ilovada liniya oʻq chizigʻi
+ * bilan kiritiladi, shuning uchun oʻqdan chetki simgacha yarim kenglik qoʻshiladi (ANDOZA — tipik tayanchlar boʻyicha, 04.11 audit).
+ * Ikki normaning kattasi; kabel — 1 m; demontaj — yoʻq. Kuchlanishi berilmagan liniya — 6–20 kV sinfi (TAXMIN, kuchlanishni kiriting).
+ * Jadvalda yoʻq kuchlanish (masalan 330 kV — VMQ da yoʻq) — yuqori sinf qiymati (TAXMIN).
+ */
+const WIRE_HALF: [number, number][] = [[1, 0], [20, 1], [35, 2], [110, 3], [220, 4], [330, 5], [500, 6.5], [750, 9], [1150, 12]];
 export function eluZone(l: Pick<Limit, 'kv' | 'elu' | 'szz'>): Szz {
   const base = eluTable(l);
   return l.szz != null && l.szz >= 0 ? { ...base, m: l.szz, ref: `${base.ref} · qoʻlda`, table: base.m } : base;
 }
 function eluTable(l: Pick<Limit, 'kv' | 'elu'>): Szz {
   if (l.elu === 'demontaj') return { m: 0, ref: 'VMQ № 1050, 14', flag: 'NORMA' };
-  if (l.elu === 'kabel') return { m: 1, ref: 'VMQ № 1050, 14', flag: 'NORMA' };
-  const kv = l.kv ?? 0;
-  const inVmq = kv <= 1 || (kv >= 6 && kv <= 20) || [35, 110, 220, 500].includes(kv), inSan = SAN_ELU.some(([k]) => k === kv);
-  const a = VMQ.find(([k]) => kv <= k)?.[1] ?? 0, b = kv >= 330 ? SAN_ELU.find(([k]) => kv <= k)?.[1] ?? 55 : 0, m = Math.max(a, b);
-  const ref = b > a ? `${SAN}, 2.23.4` : 'VMQ № 1050, 14';
-  return { m: m || 55, ref, flag: inVmq || inSan ? 'NORMA' : 'TAXMIN' };
+  if (l.elu === 'kabel') return { m: 1, ref: 'VMQ № 1050, 14 «б»', flag: 'NORMA' };
+  const unknown = !(l.kv != null && l.kv > 0), kv = unknown ? 10 : l.kv!;
+  const vRow = VMQ.find(([k]) => kv <= k), sRow = kv >= 330 ? SAN_ELU.find(([k]) => kv <= k) : undefined;
+  const a = vRow?.[1] ?? 0, b = sRow?.[1] ?? (kv > 1150 ? 55 : 0), z = Math.max(a, b) || 55;
+  // aniq qator: VMQ da 1 kV gacha, 6–20, 35, 110, 220, 500; SanPiN da 330, 500, 750, 1150 — qaysi qiymat olingan boʻlsa, oʻsha qator aniq boʻlishi kerak
+  const exact = z === b ? SAN_ELU.some(([k]) => k === kv) : (kv <= 1 || (kv >= 6 && kv <= 20) || [35, 110, 220, 500].includes(kv));
+  const half = WIRE_HALF.find(([k]) => kv <= k)?.[1] ?? 12;
+  const ref = `${z === b && b > a ? `${SAN}, 2.23.4` : 'VMQ № 1050, 14 «а»'} (chetki simdan) + ${half} m oʻqdan chetki simgacha (andoza)${unknown ? ' · kuchlanish berilmagan — 6–20 kV deb olindi' : ''}`;
+  return { m: z + half, ref, flag: unknown || !exact ? 'TAXMIN' : 'NORMA' };
 }
 
 /** SMZ ichida taqiqlangan (SanQvaN 0350-17, 2.17) va ruxsat etilgan (2.20, qabriston uchun — TALQIN) funksiyalar */
-export const SZZ_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'sport', 'yashil'];
-export const SZZ_ALLOW: readonly Use[] = ['himoya', 'avtoturargoh', 'savdo', 'ofis', 'poliklinika', 'texnik', 'maydon', 'mamuriy', 'logistika', 'sanoat', 'kommunal', 'transport'];   // 2.20: boshqaruv binolari, kichik sinfli korxonalar, omborlar (oziq-ovqatdan tashqari), garajlar
+// 04.11 (audit): 2.17 — «лечебно-профилактические и оздоровительные учреждения общего пользования», «парки», «спортивные сооружения»
+// taqiqlanadi → umumshahar poliklinikasi taqiqda (2.20 dagi poliklinika — faqat korxonaga xizmat qiluvchi, qoʻlda kelishiladi)
+export const SZZ_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'sport', 'yashil', 'poliklinika'];
+export const SZZ_ALLOW: readonly Use[] = ['himoya', 'avtoturargoh', 'savdo', 'ofis', 'texnik', 'maydon', 'mamuriy', 'logistika', 'sanoat', 'kommunal', 'transport'];   // 2.20: boshqaruv binolari, kichik sinfli korxonalar, omborlar (oziq-ovqatdan tashqari), garajlar
+/** 2.17: «оптовые склады продовольственного сырья и пищевых продуктов» — oziq-ovqat omborlari (LOGI turlari) SMZ da taqiqlanadi */
+export const SZZ_FOOD_LOGI: readonly string[] = ['sabzavot', 'sovutgich'];
 
 export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; /** koʻpburchaklar (tashqi + teshiklar) — kesishma hisobi uchun */ polys: XY[][][]; m: number; cls?: string; ref: string; flag: Flag }
 export interface LimitZones {
   /** qurib boʻlmaydigan joy (saqlanadigan obyekt konturi, temir yoʻl, ELU muhofaza zonasi) — uchastka bilan kesishgan, mahalliy */
   hard: XY[][][];
+  /** 04.11 (egasi, VMQ 1050): ELU muhofaza zonasi — bino qurib boʻlmaydi, lekin kvartaldan kesilmaydi: koʻkalam (maysa), yoʻl, oʻtish mumkin.
+   *  15-band «г»: bolalar va sport maydonchalari, garaj, turar joy — taqiq; 17-band «в»: daraxt ekish — egasining yozma roziligi bilan */
+  elu: XY[][][];
   /** SMZ (buferlar) — turar joy, maktab, MTM … taqiq (2.17), uchastka bilan kesishgan, hard ayirilgan */
   soft: SoftZone[];
 }
@@ -141,14 +157,14 @@ export function limitZones(doc: Project): LimitZones {
 }
 function limitZonesRaw(doc: Project): LimitZones {
   const ls = (doc.limits ?? []).filter(isActive);
-  if (!ls.length || !doc.site) return { hard: [], soft: [] };
+  if (!ls.length || !doc.site) return { hard: [], soft: [], elu: [] };
   const fr = frame(doc.origin), site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal)));
-  const hardParts: MultiPolygon[] = [], soft: { l: Limit; mp: MultiPolygon; s: Szz }[] = [];
+  const hardParts: MultiPolygon[] = [], eluParts: MultiPolygon[] = [], soft: { l: Limit; mp: MultiPolygon; s: Szz }[] = [];
   for (const l of ls) {
     if (l.kind === 'elu') {
       if (!l.axis || l.axis.length < 2) continue;
       const z = eluZone(l); if (z.m <= 0) continue;
-      hardParts.push(bufferLocal(l.axis.map(fr.toLocal), z.m, false));   // VMQ 1050, 17: zonada bino — egasining roziligisiz yoʻq
+      const b = bufferLocal(l.axis.map(fr.toLocal), z.m, false); hardParts.push(b); eluParts.push(b);   // VMQ 1050, 15 «ж», 17: zonada bino — yoʻq
       continue;
     }
     if (!l.rings?.length || l.rings[0].length < 3) continue;
@@ -166,7 +182,9 @@ function limitZonesRaw(doc: Project): LimitZones {
     if (mpArea(mp) < 1) continue;
     softOut.push({ id: z.l.id, kind: z.l.kind, rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: z.s.m, cls: z.s.cls, ref: z.s.ref, flag: z.s.flag });
   }
-  return { hard: hard.map(p => p.map(open)), soft: softOut };
+  let elu: MultiPolygon = [];
+  try { elu = eluParts.length ? polygonClipping.intersection(polygonClipping.union(eluParts[0], ...eluParts.slice(1)), site) : []; } catch { elu = []; }
+  return { hard: hard.map(p => p.map(open)), soft: softOut, elu: elu.map(p => p.map(open)) };
 }
 
 /** Yer balansi (ga): umumiy · qurib boʻlmaydigan (cheklov va ELU zonasi) · SMZ · yaroqli (turar joy uchun) */

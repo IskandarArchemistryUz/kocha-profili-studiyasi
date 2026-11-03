@@ -17,7 +17,10 @@ import { useDef, type Use } from './uses';
 
 export const PROD: readonly Use[] = ['logistika', 'sanoat', 'kommunal', 'transport'];
 /** 146-band roʻyxati (ilova funksiyalari) */
-export const DENY_146: readonly Use[] = ['turar', 'yakka', 'aralash', 'mehmonxona', 'maktab', 'mtm', 'sport'];
+// 04.11 (audit): 146-band — «… бошқа жамоат биноларини» ham (ishlab chiqarish bilan bogʻliq boʻlmagan): poliklinika, ijtimoiy, maʼmuriy, savdo, ofis;
+// «рекреация … мақсадлари учун фойдаланишга йўл қўйилмайди» — park, sport, maydon hududi (kvartal boʻyicha)
+export const DENY_146: readonly Use[] = ['turar', 'yakka', 'aralash', 'mehmonxona', 'maktab', 'mtm', 'sport', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis'];
+export const DENY_146_AREA: readonly Use[] = ['yashil', 'sport', 'maydon', 'yakka'];
 export const NEAR_174 = 300;   // m — tashqi yoʻl / temir yoʻlgacha «yonida» (TAXMIN: matnda masofa yoʻq)
 
 const close = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
@@ -28,7 +31,7 @@ const segD = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1]
 function ringDist(a: XY[], b: XY[]): number { let d = Infinity; for (const [P, Q] of [[a, b], [b, a]]) for (const p of P) for (let i = 0; i < Q.length; i++) d = Math.min(d, segD(p, Q[i], Q[(i + 1) % Q.length])); return d; }
 
 export interface ProdZone { block: number; use: Use; sub?: string; szz: number; ref: string; flag: string; rings: XY[][] }
-export interface ProdChecks { zones: ProdZone[]; p146: { bid: string; use: Use }[]; p147: { res: number; prod: number; d: number }[]; p174: { block: number; d: number }[]; zoneRings: XY[][] }
+export interface ProdChecks { zones: ProdZone[]; p146: { bid: string; use: Use }[]; /** 146: SMZ ga tushgan rekreatsiya / tomorqa hududlari */ p146b: { block: number; use: Use; rings: XY[][] }[]; p147: { res: number; prod: number; d: number }[]; p174: { block: number; d: number }[]; zoneRings: XY[][] }
 
 let memo: { k: unknown[]; v: ProdChecks } | null = null;
 export function prodChecks(doc: Project): ProdChecks {
@@ -37,7 +40,7 @@ export function prodChecks(doc: Project): ProdChecks {
   const v = raw(doc); memo = { k, v }; return v;
 }
 function raw(doc: Project): ProdChecks {
-  const out: ProdChecks = { zones: [], p146: [], p147: [], p174: [], zoneRings: [] };
+  const out: ProdChecks = { zones: [], p146: [], p146b: [], p147: [], p174: [], zoneRings: [] };
   if (!doc.site) return out;
   const plan = computePlan(doc), fr = frame(doc.origin);
   plan.blocks.forEach((b, i) => {
@@ -56,6 +59,11 @@ function raw(doc: Project): ProdChecks {
       let a = 0; try { a = mpA(polygonClipping.intersection(fp, mp) as never); } catch { /* */ }
       if (a >= 1 && !out.p146.some(x => x.bid === bd.id)) out.p146.push({ bid: bd.id, use: bd.use });
     }
+    plan.blocks.forEach((bl, i) => {
+      if (!DENY_146_AREA.includes(bl.use) || out.p146b.some(x => x.block === i)) return;
+      let a = 0; try { a = mpA(polygonClipping.intersection(bl.rings.map(close) as Polygon, mp) as never); } catch { /* */ }
+      if (a >= 10) out.p146b.push({ block: i, use: bl.use, rings: bl.rings });
+    });
   }
   // 147: turar joy kvartali ishlab chiqarish kvartaliga tutash (oraliq < 6 m — koʻcha yoki yashil tasma yoʻq)
   plan.blocks.forEach((b, i) => {

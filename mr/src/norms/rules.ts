@@ -581,11 +581,12 @@ export const RULES: Rule[] = [
       const c = limitChecks(doc);
       if (!c.any) return { status: 'na', unit: 'bino', limit: '0', note: 'Cheklov obyektlari kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
       const ids = (v: SzzVerdict) => [...new Set(c.szz.filter(x => x.verdict === v).map(x => x.bid))];
-      const deny = ids('deny'), rev = ids('review'), allow = ids('allow');
-      if (!deny.length && !rev.length && !allow.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'SMZ ichida bino yoʻq.' };
+      const deny = ids('deny'), rev = ids('review'), allow = ids('allow'), blk = [...new Set(c.szzBlocks.map(x => x.block))];
+      if (!deny.length && !rev.length && !allow.length && !blk.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'SMZ ichida bino yoʻq.' };
       const show = deny.length ? deny : rev.length ? rev : allow;
-      return { status: deny.length ? 'fail' : 'review', value: deny.length, unit: 'bino', limit: '0', where: { bids: show, rings: c.zoneRings },
-        note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (2.17); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (2.20; qabriston uchun — talqin).` };
+      // 04.11 (audit): park, sport, tomorqa, maktab/MTM/poliklinika hududi ham (binosiz) tekshiriladi; poliklinika va oziq-ovqat ombori — taqiq
+      return { status: deny.length || blk.length ? 'fail' : 'review', value: deny.length + blk.length, unit: 'bino', limit: '0', where: { bids: show, rings: [...c.zoneRings, ...c.szzBlocks.flatMap(x => x.rings)] },
+        note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (2.17); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (2.20; qabriston uchun — talqin). Taqiqlangan hudud (park, sport, tomorqa, maktab, MTM, poliklinika uchastkasi) SMZ ga tushgan: ${blk.length} ta kvartal/parsel. Poliklinika (umumiy foydalanish) va oziq-ovqat omborlari — 2.17 taqiqi; korxonaga xizmat qiluvchi poliklinika (2.20) — qoʻlda kelishiladi.` };
     },
   },
   {
@@ -651,9 +652,10 @@ export const RULES: Rule[] = [
     evaluate(_d, doc) {
       const c = prodChecks(doc);
       if (!c.zones.length) return { status: 'na', unit: 'bino', limit: '0', note: 'Ishlab chiqarish zonasi (logistika, sanoat, kommunal, transport) yoʻq.' };
-      if (!c.p146.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'Ishlab chiqarish SMZ ichida turar joy va ijtimoiy bino yoʻq.' };
-      return { status: 'fail', value: c.p146.length, unit: 'bino', limit: '0', where: { bids: c.p146.map(x => x.bid), rings: c.zoneRings },
-        note: `Ishlab chiqarish zonasi SMZ ichida ${c.p146.length} ta turar joy yoki ijtimoiy bino. Yechim: binoni SMZ dan chiqarish yoki SMZ qismini ruxsat etilgan funksiyaga (avtoturargoh, ofis, koʻkalamzor) berish.` };
+      if (!c.p146.length && !c.p146b.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'Ishlab chiqarish SMZ ichida turar joy va ijtimoiy bino yoʻq.' };
+      // 04.11 (audit): jamoat binolari (poliklinika, maʼmuriy, savdo, ofis) va rekreatsiya hududi ham taqiq; «ofisga bering» maslahati olib tashlandi
+      return { status: 'fail', value: c.p146.length + c.p146b.length, unit: 'bino', limit: '0', where: { bids: c.p146.map(x => x.bid), rings: [...c.zoneRings, ...c.p146b.flatMap(x => x.rings)] },
+        note: `Ishlab chiqarish zonasi SMZ ichida ${c.p146.length} ta turar joy, ijtimoiy yoki jamoat binosi va ${c.p146b.length} ta park, sport yoki tomorqa hududi (146-band). Yechim: binoni SMZ dan chiqarish yoki SMZ qismini himoya koʻkalamzorligi yoki avtoturargohga berish.` };
     },
   },
   {

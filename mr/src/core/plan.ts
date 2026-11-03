@@ -121,7 +121,10 @@ function computePlanRaw(doc: Project): PlanGeo {
   const inSite = corrU.length ? tryOp(() => polygonClipping.intersection(site, corrU), []) : [];
   let blocksMP = corrU.length ? tryOp(() => polygonClipping.difference(site, corrU), [site]) : [site];
   // 02.11: qurib boʻlmaydigan joy (saqlanadigan cheklov konturi, temir yoʻl, ELU muhofaza zonasi — core/limits.ts) kvartallardan ayiriladi
-  const hard = doc.limits?.length ? limitZones(doc).hard : [];
+  // 04.11 (egasi): ELU muhofaza zonasi kvartaldan kesilmaydi (koʻkalam, yoʻl mumkin) — faqat bino qoʻyilmaydi (generator toʻsigʻi, elu-1050)
+  const LZ = doc.limits?.length ? limitZones(doc) : null;
+  let hard: XY[][][] = LZ?.hard ?? [];
+  if (LZ && LZ.elu.length && hard.length) { try { hard = (polygonClipping.difference(hard.map(p => p.map(close)), LZ.elu.map(p => p.map(close))) as [number, number][][][]).map(p => p.map(open)); } catch { /* */ } }
   if (hard.length) blocksMP = tryOp(() => polygonClipping.difference(blocksMP, hard.map(p => p.map(close))), blocksMP);
   const area = (mp: MultiPolygon) => mp.reduce((s, p) => s + p.reduce((t, r, k) => t + (k ? -1 : 1) * Math.abs(ringArea(open(r))), 0), 0);
   const labels = doc.zones.map(z => ({ z, p: fr.toLocal(z.at) }));

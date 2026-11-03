@@ -30,16 +30,18 @@ describe('cheklovlar: SMZ jadvali (SanQvaN 0350-17, 6.3 / 6.4)', () => {
 
 describe('ELU zonasi (VMQ № 1050, 14-band; SanQvaN 0350-17, 2.23.4)', () => {
   it('kuchlanish boʻyicha, ikki normaning kattasi', () => {
+    // 04.11 (audit): zona chetki simdan — oʻqdan chetki simgacha yarim kenglik qoʻshiladi (andoza)
     expect(eluZone({ kv: 0.4 }).m).toBe(2);
-    expect(eluZone({ kv: 10 }).m).toBe(10);
-    expect(eluZone({ kv: 35 }).m).toBe(15);
-    expect(eluZone({ kv: 110 })).toMatchObject({ m: 20, ref: 'VMQ № 1050, 14', flag: 'NORMA' });
-    expect(eluZone({ kv: 220 }).m).toBe(25);
-    expect(eluZone({ kv: 500 }).m).toBe(30);
-    expect(eluZone({ kv: 750 })).toMatchObject({ m: 40, ref: 'SanQvaN 0350-17, 2.23.4' });
-    expect(eluZone({ kv: 1150 }).m).toBe(55);
-    expect(eluZone({ kv: 330 }).m).toBe(30);   // VMQ da 330 yoʻq — 500 sinfi (30) va SanQvaN 20 dan kattasi
+    expect(eluZone({ kv: 10 }).m).toBe(11);
+    expect(eluZone({ kv: 35 }).m).toBe(17);
+    expect(eluZone({ kv: 110 })).toMatchObject({ m: 23, flag: 'NORMA' });
+    expect(eluZone({ kv: 220 }).m).toBe(29);
+    expect(eluZone({ kv: 500 }).m).toBe(36.5);
+    expect(eluZone({ kv: 750 })).toMatchObject({ m: 49, flag: 'NORMA' });
+    expect(eluZone({ kv: 1150 }).m).toBe(67);
+    expect(eluZone({ kv: 330 })).toMatchObject({ m: 35, flag: 'TAXMIN' });   // VMQ da 330 yoʻq — 500 sinfi (30), SanPiN 20 dan kattasi
     expect(eluZone({ kv: 150 }).flag).toBe('TAXMIN');
+    expect(eluZone({}).flag).toBe('TAXMIN');   // kuchlanish berilmagan — 6–20 kV deb olinadi
     expect(eluZone({ kv: 110, elu: 'kabel' }).m).toBe(1);
     expect(eluZone({ kv: 110, elu: 'demontaj' }).m).toBe(0);
   });
@@ -81,8 +83,14 @@ describe('hujjat: kvartallar va yer balansi', () => {
   it('buziladigan obyekt — hisobga olinmaydi; ELU 110 kV — 40 m koridor qurib boʻlmaydi', () => {
     expect(landBalance(mk([L({ kind: 'issiqxona', status: 'buziladi', rings: [sq(-20, -20, 20, 20) as any] })]))!.hardHa).toBe(0);
     const b = landBalance(mk([L({ kind: 'elu', kv: 110, elu: 'mavjud', axis: [[-200, 0], [200, 0]] as any })]))!;
-    expect(b.hardHa).toBeCloseTo(300 * 40 / 1e4, 2);
+    expect(b.hardHa).toBeCloseTo(300 * 46 / 1e4, 2);   // (20 + 3) × 2
     expect(b.szzHa).toBe(0);
+  });
+  it('04.11 (egasi): ELU zonasi kvartaldan kesilmaydi (koʻkalam, yoʻl mumkin) — alohida «elu» qatlami; qabriston konturi esa kesiladi', () => {
+    const d0 = mk([]), d = mk([L({ kind: 'elu', kv: 110, elu: 'mavjud', axis: [[-200, 0], [200, 0]] as any })]);
+    const a0 = computePlan(d0).blocks.reduce((t, b) => t + b.area, 0), a1 = computePlan(d).blocks.reduce((t, b) => t + b.area, 0);
+    expect(a1).toBeCloseTo(a0, -1);
+    expect(limitZones(d).elu.length).toBe(1);
   });
   it('cheklovlar varagʻi: shtrix, SMZ, ELU qatlamlari va yer balansi jadvali (02.11)', () => {
     const d = mk([L({ rings: [sq(-20, -20, 20, 20) as any] }), L({ id: 'e', kind: 'elu', kv: 110, elu: 'mavjud', axis: [[-200, 120], [200, 120]] as any })]);

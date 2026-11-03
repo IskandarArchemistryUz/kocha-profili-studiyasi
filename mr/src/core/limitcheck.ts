@@ -13,7 +13,7 @@
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
 import { frame, type XY } from './geo';
-import { limitZones, eluZone, szzOf, limitAreaHa, bufferLocal, isActive, SZZ_DENY, SZZ_ALLOW, type LimitKind } from './limits';
+import { limitZones, eluZone, szzOf, limitAreaHa, bufferLocal, isActive, SZZ_DENY, SZZ_ALLOW, SZZ_FOOD_LOGI, type LimitKind } from './limits';
 import { computePlan } from './plan';
 import { useDef, type Use } from './uses';
 
@@ -29,13 +29,15 @@ function overlap(a: Polygon, polys: XY[][][]): number {
 
 export type SzzVerdict = 'deny' | 'review' | 'allow';
 /** Funksiya SMZ ichida: 2.17 — taqiq; 2.20 — ruxsat (qabriston va boshqa nokorxona obyektlari uchun TALQIN); roʻyxatda yoʻq — koʻrib chiqish */
-export function szzVerdict(u: Use): SzzVerdict { return SZZ_DENY.includes(u) ? 'deny' : SZZ_ALLOW.includes(u) ? 'allow' : 'review'; }
+export function szzVerdict(u: Use, logi?: string): SzzVerdict { return SZZ_DENY.includes(u) || (u === 'logistika' && !!logi && SZZ_FOOD_LOGI.includes(logi)) ? 'deny' : SZZ_ALLOW.includes(u) ? 'allow' : 'review'; }
 
 export interface SzzHit { bid: string; use: Use; limit: string; kind: LimitKind; m: number; cls?: string; area: number; verdict: SzzVerdict }
 export interface EluHit { bid: string; limit: string; kv: number; m: number; area: number }
 export interface Elu251 { limit: string; kv: number; blocks: number }
 export interface Manual { limit: string; kind: LimitKind; m: number; table: number }
-export interface LimitChecks { szz: SzzHit[]; elu: EluHit[]; elu251: Elu251[]; manual: Manual[]; any: boolean; zoneRings: XY[][] }
+/** 04.11 (audit): SMZ ga tushgan taqiqli funksiyali kvartal/parsellar (park, sport, turar joy …) — binosiz ham */
+export interface SzzBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][] }
+export interface LimitChecks { szz: SzzHit[]; szzBlocks: SzzBlockHit[]; elu: EluHit[]; elu251: Elu251[]; manual: Manual[]; any: boolean; zoneRings: XY[][] }
 
 let memo: { k: unknown[]; v: LimitChecks } | null = null;
 export function limitChecks(doc: Project): LimitChecks {
@@ -45,17 +47,26 @@ export function limitChecks(doc: Project): LimitChecks {
 }
 
 function raw(doc: Project): LimitChecks {
-  const ls = doc.limits ?? [], out: LimitChecks = { szz: [], elu: [], elu251: [], manual: [], any: ls.length > 0, zoneRings: [] };
+  const ls = doc.limits ?? [], out: LimitChecks = { szz: [], szzBlocks: [], elu: [], elu251: [], manual: [], any: ls.length > 0, zoneRings: [] };
   if (!ls.length || !doc.site) return out;
   const fr = frame(doc.origin), z = limitZones(doc);
   const fps = doc.buildings.map(b => ({ b, poly: [close(b.footprint.map(fr.toLocal))] as Polygon }));
+  const plan0 = computePlan(doc), inBl = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
+  // logistika binosining turi (oziq-ovqat ombori — 2.17 taqiq): bino turgan kvartal/parsel yorligʻidan
+  const logiOf = (b: Project['buildings'][number]): string | undefined => { if (b.use !== 'logistika') return undefined; const r = b.footprint.map(fr.toLocal), c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length]; const bl = plan0.blocks.find(k => inBl(c, k.rings[0])); return bl?.labelId ? doc.zones.find(q => q.id === bl.labelId)?.sub : undefined; };
   // 1) SMZ ichidagi binolar (2.17 / 2.20)
   for (const s of z.soft) {
     out.zoneRings.push(...s.rings);
     for (const { b, poly } of fps) {
       const a = overlap(poly, s.polys); if (a < 1) continue;
-      out.szz.push({ bid: b.id, use: b.use, limit: s.id, kind: s.kind, m: s.m, cls: s.cls, area: a, verdict: szzVerdict(b.use) });
+      out.szz.push({ bid: b.id, use: b.use, limit: s.id, kind: s.kind, m: s.m, cls: s.cls, area: a, verdict: szzVerdict(b.use, logiOf(b)) });
     }
+    plan0.blocks.forEach((bl, i) => {
+      // hudud boʻyicha taqiq (2.17): parklar, sport inshootlari, tomorqa (bogʻ-poliz) uchastkalari, taʼlim va davolash muassasalari hududi;
+      // koʻp kvartirali turar joy — binolar boʻyicha (yuqorida)
+      if (!['yashil', 'sport', 'yakka', 'maktab', 'mtm', 'poliklinika'].includes(bl.use)) return;
+      const a = overlap(bl.rings.map(close) as Polygon, s.polys); if (a >= 10) out.szzBlocks.push({ block: i, use: bl.use, limit: s.id, area: a, rings: bl.rings });
+    });
   }
   // 2) ELU muhofaza zonasidagi binolar (VMQ 1050, 14 va 17-band) va 3) ≥ 35 kV havo ELU turar joy kvartallari ustidan (ShNQ 251)
   const plan = computePlan(doc), resBlocks = plan.blocks.filter(b => useDef(b.use).res > 0);
