@@ -3139,7 +3139,7 @@ export class Editor {
   }
 
   private uchastkaPanel(body: HTMLElement): void {
-    const doc = this.store.doc, fr = frame(doc.origin), area = this.last?.d.siteHa ?? 0;
+    const doc = this.store.doc, area = this.last?.d.siteHa ?? 0;
     // kiritilgan oʻlcham panel qayta chizilganda (masalan, atrof yuklanib boʻlganda) yoʻqolmasin
     const w = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: this.rectWH[0], id: 'rw', 'aria-label': tr('Eni, m'), oninput: (e: Event) => { const v = +(e.target as HTMLInputElement).value; if (v > 0) this.rectWH[0] = v; } }) as HTMLInputElement;
     const hh = h('input', { type: 'number', class: 'input', min: 10, max: 4000, value: this.rectWH[1], id: 'rh', 'aria-label': tr('Boʻyi, m'), oninput: (e: Event) => { const v = +(e.target as HTMLInputElement).value; if (v > 0) this.rectWH[1] = v; } }) as HTMLInputElement;
@@ -3174,10 +3174,11 @@ export class Editor {
         h('div', { class: 'field grow' }, h('label', {}, tr('Eni')), h('span', { class: 'unit' }, w, h('span', {}, 'm'))),
         h('div', { class: 'field grow' }, h('label', {}, tr('Boʻyi')), h('span', { class: 'unit' }, hh, h('span', {}, 'm'))),
         h('button', { class: 'btn', id: 'rectSite', onclick: () => {
-          const a = Number(w.value), b = Number(hh.value); if (!(a >= 10 && b >= 10)) { toast(tr('Kamida 10 m')); return; } if (a > 4000 || b > 4000) { toast(tr('Koʻpi bilan 4000 m')); return; }
+          const a = this.rectWH[0], b = this.rectWH[1]; if (!(a >= 10 && b >= 10)) { toast(tr('Kamida 10 m')); return; } if (a > 4000 || b > 4000) { toast(tr('Koʻpi bilan 4000 m')); return; }
           const m = this.scene.viewExtent().c;   // ekran markazida (xarita surilgan boʻlsa ham)
           const r: XY[] = [[-a / 2, -b / 2], [a / 2, -b / 2], [a / 2, b / 2], [-a / 2, b / 2]].map(([x, y]) => [x + m[0], y + m[1]] as XY);
-          void this.putSite([r.map(fr.toGeo)], () => this.scene.frameDoc(this.store.doc));
+          const f0 = frame(this.store.doc.origin);   // bosish paytidagi kadr (panel chizilgandan keyin markaz koʻchgan boʻlishi mumkin)
+          void this.putSite([r.map(f0.toGeo)], () => this.scene.frameDoc(this.store.doc));
         } }, tr('Qoʻyish'))),
       h('span', { class: 't-small' }, '10–4000 m.'));
     (doc.site ? body : other).append(h('div', { class: 'glabel' }, h('span', {}, tr('Tahrirlash'))),
@@ -3808,6 +3809,10 @@ export class Editor {
     const s = this.step, i = STEPS.indexOf(s), p = this.el.panel;
     // shu qadam qayta chizilsa (bino tanlash, qavat) — panel aylantirish joyi saqlanadi
     const keep = p.dataset.mode === 'step' && p.dataset.step === s.id ? p.querySelector('.body')?.scrollTop ?? 0 : 0;
+    // 03.11 (audit): hisob tugab panel qayta chizilganda yozilayotgan maydon fokusini yoʻqotmasin — aks holda kiritilayotgan raqam
+    // (masalan uchastka eni) hech qayerga tushmaydi va sukut qiymati qoladi (generator «har xil natija» berishining sababi shu edi)
+    const ae = document.activeElement as HTMLInputElement | null, focus = p.dataset.step === s.id && ae && p.contains(ae) && ae.id && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')
+      ? { id: ae.id, v: ae.value, a: (() => { try { return ae.selectionStart; } catch { return null; } })(), b: (() => { try { return ae.selectionEnd; } catch { return null; } })() } : null;
     p.dataset.mode = 'step'; p.dataset.step = s.id;
     if (this.scene.selFloor != null) this.scene.setSelFloor(null);
     if (!this.sel) this.dragMode = 'auto';
@@ -3824,6 +3829,14 @@ export class Editor {
         h('button', { class: 'btn', disabled: !prev, onclick: () => prev && this.go(prev) }, ...icl(IC.back, tr('Oldingi'))),
         h('button', { class: 'btn primary', disabled: !next, onclick: () => next && this.go(next) }, tr('Keyingi'), svgIcon(IC.next))));
     if (keep) body.scrollTop = keep;
+    if (focus) {
+      const el = p.querySelector<HTMLInputElement>(`#${CSS.escape(focus.id)}`);
+      if (el && !el.disabled) {
+        if (el.value !== focus.v) { el.value = focus.v; el.dispatchEvent(new Event('input', { bubbles: true })); }
+        el.focus({ preventScroll: true });
+        try { if (focus.a != null && focus.b != null) el.setSelectionRange(focus.a, focus.b); else { const v = el.value; el.value = ''; el.value = v; } } catch { const v = el.value; el.value = ''; el.value = v; }   // number input: kursor oxirga
+      }
+    }
   }
 
   private panelBody(s: StepDef, body: HTMLElement): void {
