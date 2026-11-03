@@ -1,17 +1,18 @@
 /**
  * Berk koʻcha oxiri va chorraha aylanmalari (31.10).
  *  ShNQ 2.07.06-24, 57-band: berk koʻcha radiusi ≥ 15 m aylanish maydonchasi yoki 20 × 20 m maydoncha bilan tugaydi;
- *  ShNQ 2.07.06-24, 106-band: berk tor koʻcha ≤ 150 m;
+ *  ShNQ 2.07.06-24, 106-band: berk TOR koʻcha (piyoda yoʻlagi bilan birlashgan, eni ≥ 3,5 m) ≤ 150 m — 04.11 (audit): faqat tor koʻchaga;
  *  ShNQ 2.07.06-24, 27-band: kesishmalarda kichik aylanmalar (halqa) qilish mumkin.
  * Koʻcha uchidagi belgi — Street.ends (a — oʻqning boshi, b — oxiri); aylanma — Project.rounds (chorraha markazi).
  * Sahnada bitta tekis disk / halqa (yengil), kvartal chegarasidan (qizil chiziq) ayriladi.
  */
 import type { Project, Street, RoundKind } from './doc';
 import { frame, type XY } from './geo';
+import { profileById } from './profiles';
 
 export type EndKind = 'aylana' | 'maydon';
 export const TURN_R = 15, TURN_SQ = 20, WALK = 2.5;
-export interface DeadEnd { sid: string; end: 'a' | 'b'; p: XY; dir: XY; len: number; has?: EndKind }
+export interface DeadEnd { sid: string; end: 'a' | 'b'; p: XY; dir: XY; len: number; has?: EndKind; /** 04.11: berk tor koʻcha — qatnov qismi ≤ 3,5 m (106-band: ≤ 150 m) */ narrow?: boolean }
 export interface EndShape { kind: EndKind | 'halqa'; outer: XY[]; carriage: XY[]; island?: XY[]; at: XY; /** mini aylanmada orolcha — boʻyalgan, bosib oʻtiladigan */ paint?: boolean }
 /** Aylanma turlari (Koʻchasoz C dagi kabi): tashqi radius, orolcha radiusi; mini — orolcha boʻyalgan (yuk mashinasi bosib oʻtadi) */
 export const ROUND: Record<RoundKind, { r: number; island: number; paint?: boolean; name: string }> = {
@@ -47,7 +48,8 @@ export function deadEnds(doc: Project): DeadEnd[] {
       if (!site || !pin(p, site) || site.some((a, k) => segD(p, a, site[(k + 1) % site.length]) < 5)) continue;
       const l = Math.hypot(p[0] - q[0], p[1] - q[1]) || 1, t0 = end === 'a' ? 0 : Ltot;
       const ds = js.map(t => Math.abs(t - t0)), len = ds.length ? Math.min(...ds) : Ltot;
-      out.push({ sid: s.id, end, p, dir: [(p[0] - q[0]) / l, (p[1] - q[1]) / l], len, has: s.ends?.[end] });
+      const cw = profileById(s.profile).parts.filter(x => x.k === 'qatnov').reduce((t, x) => t + x.w, 0);
+      out.push({ sid: s.id, end, p, dir: [(p[0] - q[0]) / l, (p[1] - q[1]) / l], len, has: s.ends?.[end], ...(cw > 0 && cw <= 3.5 + 1e-6 ? { narrow: true } : {}) });
     }
   });
   return out;

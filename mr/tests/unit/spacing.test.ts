@@ -89,3 +89,32 @@ describe('qayta generatsiya: eski avtomatik binolar almashtiriladi', () => {
     expect(s.bids.sort()).toEqual(['old1', 'old2']);
   });
 });
+
+describe('04.11 audit: kʏ = 2,3 va stilobatdagi minoralar', () => {
+  const rot = (r: XY[], a: number): XY[] => r.map(([x, y]) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]);
+  it('45° yoʻnalishda 2·H dan uzoq, lekin H·kʏ dan yaqin — buzilish (avval qidiruv 2·H da toʻxtardi)', () => {
+    const a = -Math.PI / 4, tmp = spacingIssues(doc([bld('a', rot(rect(0, 0, 60, 15), a), 12), bld('b', rot(rect(0, 30, 60, 15), a), 12)])).pairs[0];
+    expect(tmp?.ky).toBeGreaterThan(2);                       // shu yoʻnalishda kʏ katta
+    const H = tmp.need / tmp.ky!, gap = 2.15 * H;            // 2·H < gap < kʏ·H
+    const p = spacingIssues(doc([bld('a', rot(rect(0, 0, 60, 15), a), 12), bld('b', rot(rect(0, 15 + gap, 60, 15), a), 12)])).pairs;
+    expect(p.map(x => x.kind)).toEqual(['uzun']);
+  });
+  it('bitta stilobat ustidagi ikki minora oʻzaro tekshiriladi; stilobat ↔ minora — yoʻq', () => {
+    const pod = { ...bld('p', rect(0, 0, 80, 60), 2, 'g'), gen: { grp: 'g', kind: 'stilobat' } } as Building;
+    const t1 = { ...bld('t1', rect(0, 0, 60, 15), 16, 'g'), z0: 2 } as Building, t2 = { ...bld('t2', rect(0, 40, 60, 15), 16, 'g'), z0: 2 } as Building;
+    const p = spacingIssues(doc([pod, t1, t2])).pairs;
+    expect(p.map(x => [x.a, x.b, x.kind])).toEqual([['t1', 't2', 'uzun']]);
+  });
+});
+
+describe('04.11 audit: QMQ 2.01.03-19, 3.1-jadval balandlik va 2-izoh', () => {
+  it('monolit 8 ball: 16 qavat — mos, 17 — mos emas; maktab 4 qavat — mos emas, 3 — mos; >9 ballda MTM 3 qavat — mos emas', () => {
+    const r = RULES.find(x => x.id === 'seismic-height')!;
+    const d = (bs: Building[], ball = 8) => ({ ...doc(bs), settings: { ...doc(bs).settings, seismic: ball } });
+    expect(r.evaluate({} as never, d([bld('a', rect(0, 0, 30, 15), 16)])).status).toBe('pass');
+    expect(r.evaluate({} as never, d([bld('a', rect(0, 0, 30, 15), 17)])).status).toBe('fail');
+    expect(r.evaluate({} as never, d([{ ...bld('m', rect(0, 0, 30, 15), 4), use: 'maktab' } as Building])).status).toBe('fail');
+    expect(r.evaluate({} as never, d([{ ...bld('m', rect(0, 0, 30, 15), 3), use: 'maktab' } as Building])).status).toBe('pass');
+    expect(r.evaluate({} as never, d([{ ...bld('k', rect(0, 0, 30, 15), 3), use: 'mtm' } as Building], 10)).status).toBe('fail');
+  });
+});

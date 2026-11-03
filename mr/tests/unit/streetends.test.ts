@@ -21,7 +21,7 @@ describe('Berk koʻcha oxiri va aylanmalar (31.10)', () => {
     const des = deadEnds(mk());
     expect(des.length).toBe(1); expect(des[0].sid).toBe('s2'); expect(des[0].end).toBe('b'); expect(des[0].len).toBeCloseTo(70, 0);
   });
-  it('57-band: burilish joyi yoʻq — fail; aylana qoʻyilsa — pass; 106-band: > 150 m — fail', () => {
+  it('57-band: burilish joyi yoʻq — fail; aylana qoʻyilsa — pass; 106-band (150 m) — faqat berk tor koʻchaga', () => {
     const r = RULES.find(x => x.id === 'dead-end-57')!, d = mk();
     expect(r.evaluate({} as any, d).status).toBe('fail');
     d.streets[1] = { ...d.streets[1], ...nextEnd(d.streets[1], 'b') };
@@ -29,7 +29,9 @@ describe('Berk koʻcha oxiri va aylanmalar (31.10)', () => {
     expect(r.evaluate({} as any, d).status).toBe('pass');
     const long = mk(160); long.site = { rings: [[[-100, -80], [100, -80], [100, 200], [-100, 200]].map(p => frame(long.origin).toGeo(p as XY))] } as any;
     long.streets[1] = { ...long.streets[1], ends: { b: 'maydon' } };
-    expect(r.evaluate({} as any, long).status).toBe('fail');
+    // 04.11 (audit): mahalla koʻchasi (qatnov 6,5 m) tor emas — 160 m berk koʻcha burilish maydonchasi bilan mos
+    expect(deadEnds(long)[0].narrow).toBeUndefined();
+    expect(r.evaluate({} as any, long).status).toBe('pass');
   });
   it('aylana va aylanma qizil chiziq ichida — kvartal maydoni kamayadi; hujjatda saqlanadi', () => {
     const d = mk(), a0 = computePlan(d).blocks.reduce((s, b) => s + b.area, 0);

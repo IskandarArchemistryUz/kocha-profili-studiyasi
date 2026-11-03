@@ -6,7 +6,7 @@ const R = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], [
 describe('seysmik boʻlmalar (QMQ 2.01.03-19, 3.1-jadval, 3.1.1)', () => {
   it('uzunlik chegarasi: monolit 60/45/36, karkas 100/80/60, gʻisht 40/30/20; 6 ball — cheklanmagan', () => {
     expect(lenLimit('monolit', 7)).toBe(60); expect(lenLimit('monolit', 8)).toBe(45); expect(lenLimit('monolit', 9)).toBe(36);
-    expect(lenLimit('karkas', 8)).toBe(80); expect(lenLimit('gisht', 9)).toBe(20); expect(lenLimit('monolit', 6)).toBeNull(); expect(lenLimit('toldirgich', 10)).toBe(40);
+    expect(lenLimit('karkas', 8)).toBe(80); expect(lenLimit('gisht', 9)).toBe(20); expect(lenLimit('monolit', 6)).toBeNull(); expect(lenLimit('toldirgich', 10)).toBe(24);   // 04.11: «>9» ustuni (avval 9 ustuni olinardi)
   });
   it('toʻrtburchak 48 × 15 — chiqish yoʻq; L 48 × 36 (qanot 15) — chiqish 21 m; kichik L (burchak 21 × 21) — 6 m', () => {
     expect(blockShape(R(0, 0, 48, 15))).toMatchObject({ rect: true, proj: [] });

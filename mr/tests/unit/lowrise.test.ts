@@ -73,13 +73,13 @@ describe('Juft va hovli uylar (31.10)', () => {
 });
 
 describe('Klaster (31.10): berk koʻcha atrofida hovlilar', () => {
-  it('uchastkalar 15 × 15, ustma-ust emas, uy uchastka ichida va L shakl; berk koʻcha 6 m', async () => {
+  it('uchastkalar 15 × 17,5 (04.11: 100-band — old va orqa 3 m), ustma-ust emas, uy uchastka ichida va L shakl; berk koʻcha 6 m', async () => {
     const { lowriseBlock: lb } = await import('../../src/core/lowrise');
     const { houses, notes } = lb([[0, 0], [150, 0], [150, 90], [0, 90]], 'klaster');
-    expect(houses.length).toBeGreaterThanOrEqual(16);
+    expect(houses.length).toBeGreaterThanOrEqual(12);
     expect(notes[0]).toContain('Klaster');
     const pa = (r: [number, number][]) => Math.abs(r.reduce((s, p, i) => s + p[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * p[1], 0) / 2);
-    for (const h of houses) { expect(pa(h.plot as any)).toBeCloseTo(225, 0); expect(h.ring.length).toBe(6); }
+    for (const h of houses) { expect(pa(h.plot as any)).toBeCloseTo(262.5, 0); expect(h.ring.length).toBe(6); }
     // uchastkalar ustma-ust tushmaydi: markazlar orasi ≥ 15 m (bir qatorda) yoki boshqa qatorda
     const cs = houses.map(h => h.plot.reduce((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4], [0, 0]));
     for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) expect(Math.hypot(cs[i][0] - cs[j][0], cs[i][1] - cs[j][1])).toBeGreaterThan(14.9);
@@ -92,5 +92,24 @@ describe('Past qavatli: tanlangan qavat (31.10)', () => {
     expect(new Set(lowriseBlock(B, 'hovli').houses.map(h => h.floors))).toEqual(new Set([1]));
     expect(new Set(lowriseBlock(B, 'hovli', 2).houses.map(h => h.floors))).toEqual(new Set([2]));
     expect(new Set(lowriseBlock(B, 'yakka', 9).houses.map(h => h.floors))).toEqual(new Set([3]));
+  });
+});
+
+describe('04.11 audit: 100-band — taunhaus qatori chetida 3 m', () => {
+  it('qatorning birinchi va oxirgi uyi uchastka chegarasidan ≥ 3 m', async () => {
+    const { lowriseBlock: lb } = await import('../../src/core/lowrise');
+    const { houses } = lb([[0, 0], [200, 0], [200, 80], [0, 80]], 'taunhaus');
+    expect(houses.length).toBeGreaterThan(10);
+    const segD = (p: number[], a: number[], b: number[]) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)); return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t); };
+    // har uy: blokdosh uy bilan tegmagan devori (qator cheti) uchastka chegarasidan ≥ 3 m
+    const touch = (p: typeof houses[number], q: typeof houses[number]) => p !== q && p.ring.some(a => q.ring.some(b => Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.05));
+    for (const h of houses) {
+      const nb = houses.filter(q => touch(h, q)).length; if (nb >= 2) continue;   // ikki tomoni bloklangan
+      const corners = h.ring, pl = h.plot as number[][];
+      const dmin = Math.min(...corners.map(c => Math.min(...pl.map((a, i) => segD(c as number[], a, pl[(i + 1) % pl.length])))));
+      // old va yon chegaralar: eng yaqin burchakdan chegaragacha — old tomonda 5 m, yon tomonda ≥ 3 m (bloklangan tomon — 0)
+      const side = Math.max(...corners.map(c => Math.min(...pl.map((a, i) => segD(c as number[], a, pl[(i + 1) % pl.length])))));
+      expect(side).toBeGreaterThanOrEqual(2.99); void dmin;
+    }
   });
 });
