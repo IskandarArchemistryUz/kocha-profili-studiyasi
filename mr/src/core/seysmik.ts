@@ -22,10 +22,37 @@ export const SYS: Record<ConstructSys, SysDef> = {
   toldirgich: { id: 'toldirgich', name: 'Toʻldiruvchili karkas (gʻisht, blok)', row: '1.2.2 е/ж', len: [80, 60, 40], proj: 6, core: true },
   gisht: { id: 'gisht', name: 'Gʻisht devorlar (qoʻlda terilgan, I toifa)', row: '5-qator', len: [40, 30, 20], proj: 2, core: false },
 };
-/** Boʻlma uzunligi chegarasi, m (ball 7–9; 9 dan katta — 9 ustuni, 7 dan kichik — NSTT: cheklanmagan) */
+/**
+ * 04.11 (audit): 3.1-jadval «>9» ustuni va balandlik (qavatlar soni) chegaralari — asl matndan (33–34-betlar), ustunlar 7 / 8 / 9 / >9 ball:
+ *   2 б (yaxlit temirbeton devorlar, qadam 4,2–6,6 m): 80(20) / 65(16) / 50(12) / 12(3); uzunlik >9 — 36;
+ *   1.2.2 б (bogʻlamli karkas): 56(16) / 42(12) / 33(9) / 15(4); uzunlik >9 — 40;
+ *   1.2.2 е (toʻldiruvchili karkas, II tur): 38(10) / 24(7) / 19(5) / 12(3); uzunlik >9 — 24;
+ *   5 (qoʻlda terilgan gʻisht, oliy va I toifa): 22(5) / 18(4) / 12(3) / — (>9 da qoʻllanmaydi).
+ * 2-izoh: 8 va 9 ballda shifoxona va maktab ≤ 3 qavat, bolalar bogʻchasi ≤ 2; 9 dan yuqori — uchalasi ≤ 2 qavat.
+ */
+export const SYS_HT: Record<ConstructSys, { h: (number | null)[]; f: (number | null)[]; len9p: number | null }> = {
+  monolit: { h: [80, 65, 50, 12], f: [20, 16, 12, 3], len9p: 36 },
+  karkas: { h: [56, 42, 33, 15], f: [16, 12, 9, 4], len9p: 40 },
+  toldirgich: { h: [38, 24, 19, 12], f: [10, 7, 5, 3], len9p: 24 },
+  gisht: { h: [22, 18, 12, null], f: [5, 4, 3, null], len9p: null },
+};
+/** Boʻlma uzunligi chegarasi, m (ball 7–9 va >9 — 10; 7 dan kichik — NSTT: cheklanmagan) */
 export function lenLimit(sys: ConstructSys, ball: number): number | null {
   const d = SYS[sys] ?? SYS.monolit; if (ball < 7) return null;
+  if (ball > 9) return SYS_HT[sys]?.len9p ?? 0;   // gʻisht devorlar >9 ballda — qoʻllanmaydi (0)
   return d.len[Math.max(0, Math.min(2, Math.round(ball) - 7))];
+}
+/** Balandlik (m) va qavatlar soni chegarasi; null — NSTT (cheklanmagan); h/f = null — bu tizim shu ballda qoʻllanmaydi */
+export function heightLimit(sys: ConstructSys, ball: number): { h: number | null; f: number | null } | null {
+  if (ball < 7) return null;
+  const t = SYS_HT[sys] ?? SYS_HT.monolit, i = ball > 9 ? 3 : Math.max(0, Math.min(2, Math.round(ball) - 7));
+  return { h: t.h[i], f: t.f[i] };
+}
+/** 2-izoh: ijtimoiy binolar qavatlari chegarasi (null — cheklov yoʻq) */
+export function socialFloorLimit(use: string, ball: number): number | null {
+  if (ball > 9) return use === 'maktab' || use === 'mtm' ? 2 : null;
+  if (ball >= 8) return use === 'maktab' ? 3 : use === 'mtm' ? 2 : null;
+  return null;
 }
 
 export interface BlockShape { /** eng katta oʻlcham (OBB), m */ len: number; /** chiqib turgan qismlar, m (toʻrtburchakda boʻsh) */ proj: number[]; /** toʻgʻri toʻrtburchakmi (OBB toʻldirilishi ≥ 92 %) */ rect: boolean }

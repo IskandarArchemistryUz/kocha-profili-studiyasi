@@ -13,7 +13,7 @@ import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
 import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
-import { checkBlock, lenLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
+import { checkBlock, lenLimit, heightLimit, socialFloorLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
 import { area as areaOf, obb2 } from '../core/geo';
 import { computePlan, corridor } from '../core/plan';
 import { useDef } from '../core/uses';
@@ -255,7 +255,7 @@ export const RULES: Rule[] = [
     evaluate(d) {
       if (!d.streetOverlap.length) return { status: d.streetArea > 0 ? 'pass' : 'na', value: 0, unit: 'bino', limit: '0', note: d.streetArea > 0 ? 'Hech bir bino loyiha koʻchasi koridoriga tushmaydi.' : 'Loyiha koʻchalari yoʻq.' };
       return { status: 'fail', value: d.streetOverlap.length, unit: 'bino', limit: '0', where: { bids: d.streetOverlap.map(x => x.bid), rings: d.streetOverlap.flatMap(x => x.polys) },
-        fix: { id: 'street-clear' as const, label: 'Binolarni koʻchadan chiqarish', hint: `${d.streetOverlap.length} ta bino eng yaqin koʻcha oʻqiga perpendikulyar, qizil chiziqdan 0,5 m tashqariga suriladi (bino panelidagi «Koʻchadan chiqarish» bilan bir xil).` },
+        fix: { id: 'street-clear' as const, label: 'Binolarni koʻchadan chiqarish', hint: `${d.streetOverlap.length} ta bino eng yaqin koʻcha oʻqiga perpendikulyar, qizil chiziqdan tashqariga suriladi: 3+ qavatli turar joy — H × 0,25 (79-band), boshqalari — 0,5 m (bino panelidagi «Koʻchadan chiqarish» bilan bir xil).` },
         note: `${d.streetOverlap.length} ta bino koʻcha koridoriga tushadi (jami ${Math.round(d.streetOverlap.reduce((t, x) => t + x.area, 0))} m²). Koʻcha siljitilganda qoʻlda chizilgan yoki qoldirilgan binolar — «Koʻchadan chiqarish» tugmasi bino panelida; yoki koʻchani qaytaring.` };
     },
   },
@@ -338,15 +338,16 @@ export const RULES: Rule[] = [
     id: 'redline-79',
     title: 'Binodan yoʻl tarafdagi hudud chegarasigacha (qizil chiziq)',
     source: { ...SHNQ_2_07_01, clause: '79-band, 2-jadval (H × 0,25)' },
-    evaluate(_d, doc) {
+    evaluate(d, doc) {
       const plan = computePlan(doc); if (!plan.corridors.length) return { status: 'na', unit: 'm', note: 'Loyiha koʻchalari yoʻq — qizil chiziq maʼlum emas. Mavjud (OSM) koʻchalar hisobga olinmaydi.' };
+      const inStreet = new Set((d.streetOverlap ?? []).map(x => x.bid));   // koridorga kirgan bino — «street-overlap» qoidasida
       const fr = frame(doc.origin), bad: { b: Project['buildings'][number]; d: number; need: number; seg: [XY, XY] }[] = []; let n = 0;
       for (const b of doc.buildings) {
-        if (b.floors < 3 || useDef(b.use).res <= 0) continue;   // 79-band: 3 va undan yuqori qavatli turar joy binolari
+        if (b.floors < 3 || useDef(b.use).res <= 0 || inStreet.has(b.id)) continue;   // 79-band: 3 va undan yuqori qavatli turar joy binolari
         const r = b.footprint.map(fr.toLocal), H = bLevels(doc.settings, b).top, need = H * 0.25; n++;
         let best: [XY, XY] | null = null, bd = Infinity;
         for (const poly of plan.corridors) for (const ring of poly) { const sg = closestSeg(r, ring), l = Math.hypot(sg[1][0] - sg[0][0], sg[1][1] - sg[0][1]); if (l < bd) { bd = l; best = sg; } }
-        if (best && bd > 0.3 && bd < need - 0.3) bad.push({ b, d: bd, need, seg: best });
+        if (best && bd < need - 0.3) bad.push({ b, d: bd, need, seg: best });
       }
       if (!n) return { status: 'na', unit: 'm', note: '3 va undan yuqori qavatli turar joy binolari yoʻq.' };
       const worst = bad.reduce<typeof bad[number] | null>((a, x) => (!a || x.d / x.need < a.d / a.need ? x : a), null);
@@ -463,16 +464,37 @@ export const RULES: Rule[] = [
     },
   },
   {
+    id: 'seismic-height',
+    title: 'Seysmik balandlik va qavatlar soni',
+    source: { doc: 'QMQ 2.01.03-19', edition: '2019', clause: '3.1-jadval (balandlik, qavatlar), 1, 2 va 7-izohlar', verified: true },
+    evaluate(_d, doc) {
+      const s = doc.settings, sys = s.construct ?? 'monolit', ball = s.seismic, lim = heightLimit(sys, ball), def = SYS[sys];
+      const bl = doc.buildings.filter(b => b.floors > 0 && b.gen?.kind !== 'stilobat');
+      if (!bl.length) return { status: 'na', unit: 'bino', note: 'Binolar yoʻq.' };
+      const bad: { id: string; why: string }[] = [];
+      for (const b of bl) {
+        const L = bLevels(s, b), fl = b.floors + (b.z0 ?? 0), H = L.top;   // 1-izoh: yer sathidan tashqi devorlar yuqorisigacha; 7-izoh: yer usti qavatlari
+        if (lim && lim.h == null) bad.push({ id: b.id, why: 'tizim qoʻllanmaydi' });
+        else if (lim && lim.h != null && (H > lim.h + 0.05 || (lim.f != null && fl > lim.f))) bad.push({ id: b.id, why: `${fl} qavat, ${Math.round(H)} m` });
+        const sf = socialFloorLimit(b.use, ball); if (sf != null && fl > sf) bad.push({ id: b.id, why: `${b.use} ${fl} > ${sf} qavat (2-izoh)` });
+      }
+      const ids = [...new Set(bad.map(x => x.id))];
+      const limTxt = lim == null ? 'NSTT' : lim.h == null ? 'qoʻllanmaydi' : `≤ ${lim.h} m (${lim.f})`, bt = ball > 9 ? '>9' : String(ball);
+      return { status: ids.length ? 'fail' : 'pass', value: ids.length, unit: `/ ${bl.length} bino`, limit: limTxt, ...(ids.length ? { where: { bids: ids } } : {}),
+        note: `${def.name} (${def.row}), ${bt} ball: balandlik va qavatlar soni — ${limTxt}. 8–9 ballda maktab ≤ 3, bogʻcha ≤ 2 qavat; 9 dan yuqori — ≤ 2 qavat (2-izoh).` };
+    },
+  },
+  {
     id: 'dead-end-57',
     title: 'Berk koʻcha oxiri: burilish joyi va uzunligi',
     source: { doc: 'ShNQ 2.07.06-24', edition: '2024', clause: '57, 106-bandlar', verified: true },
     evaluate(_d, doc) {
       const des = deadEnds(doc);
       if (!des.length) return { status: 'na', note: 'Loyiha koʻchalarida berk uch yoʻq' };
-      const miss = des.filter(e => !e.has), long = des.filter(e => e.len > 150);
+      const miss = des.filter(e => !e.has), long = des.filter(e => e.narrow && e.len > 150);   // 04.11 (audit): 150 m — faqat berk tor koʻcha (106-band)
       const parts = ['57-band: berk koʻcha radiusi ≥ 15 m aylanish maydonchasi yoki 20 × 20 m maydoncha bilan tugaydi'];
       if (miss.length) parts.push(`${miss.length} ta uchda burilish joyi yoʻq`);
-      parts.push('106-band: berk tor koʻcha ≤ 150 m');
+      parts.push('106-band: berk tor koʻcha (qatnov qismi 3,5 m) ≤ 150 m');
       if (long.length) parts.push(`${long.length} tasi uzun, eng uzuni ${Math.round(Math.max(...long.map(e => e.len)))} m`);
       return { status: miss.length || long.length ? 'fail' : 'pass', ...(miss.length || long.length ? { where: { pts: [...miss, ...long].map(e => e.p) } } : {}),
         ...(miss.length ? { fix: { id: 'dead-end' as const, label: 'Burilish maydonchasi qoʻyish', hint: `${miss.length} ta berk uchga R 15 m aylanish maydonchasi qoʻyiladi (57-band). 20 × 20 m maydonchaga — «Koʻchalar» qadamida. ${long.length ? '150 m dan uzun berk koʻchalarni (106-band) qisqartirish yoki ulash — qoʻlda.' : ''}`.trim() } } : {}), value: des.length - miss.length, unit: `/ ${des.length}`, limit: 'R ≥ 15 m yoki 20 × 20 m; ≤ 150 m', note: parts.join(' · ') };

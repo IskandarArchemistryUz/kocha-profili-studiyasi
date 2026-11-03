@@ -70,15 +70,18 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
   const red = (d: number, need: number) => recon && d >= Math.max(6, need / 2) - 0.5;
   for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
     const x = B[i], y = B[j], Hm = Math.max(x.H, y.H);
-    if (!bbHit(x.bb, y.bb, 2 * Hm + 1)) continue;
-    // stilobat ustidagi seksiya / bitta guruhning qoʻshni seksiyalari — bitta bino
-    if ((x.b.z0 || y.b.z0) && x.b.gen && y.b.gen && x.b.gen.grp === y.b.gen.grp) continue;
+    // 04.11 (audit): qidiruv masofasi eng katta talabgacha — kʏ = 2,3 (2-ilova, 40–50°) Hmax·2,3 > 2·Hmax
+    const reach = Math.max(6, 2.3 * Hm, 2 * Hm);
+    if (!bbHit(x.bb, y.bb, reach + 1)) continue;
+    // stilobat va uning ustidagi seksiya — bitta bino. 04.11 (audit): bitta stilobat ustidagi ikki minora oʻzaro tekshiriladi
+    // (umumiy devorli qoʻshni seksiyalar — pastda g.d < 0,5 bilan oʻtkaziladi)
+    if ((x.b.z0 || y.b.z0) && x.b.gen && y.b.gen && x.b.gen.grp === y.b.gen.grp && (x.b.gen.kind === 'stilobat' || y.b.gen.kind === 'stilobat' || !x.b.z0 || !y.b.z0)) continue;
     const ov = overlapArea(x.r, y.r);
     if (ov > 1) { out.push({ a: x.b.id, b: y.b.id, kind: 'ustma-ust', d: 0, need: 0, ha: x.H, hb: y.H }); continue; }
     const g = gapInfo(x.r, y.r);
     if (g.d < 0.5) continue;                                      // umumiy devor — bitta bino seksiyalari
     // 02.11 (egasi): fasadlar bir-biriga qaramasa — faqat burchaklar diagonal yaqin, fasad roʻparasida bino yoʻq — jadval talabi qoʻyilmaydi
-    if (!fronts(x.r, y.r, Math.max(6, 2 * Hm)) && !fronts(y.r, x.r, Math.max(6, 2 * Hm))) continue;
+    if (!fronts(x.r, y.r, reach) && !fronts(y.r, x.r, reach)) continue;
     // 6-izoh: koʻp qavatli turar joy ↔ uchastkali past uy — ≥ koʻp qavatli bino balandligi; oynasiz tomondan — yarmi
     if (x.low !== y.low) {
       const m = x.low ? y : x, mi = x.low ? g.ib : g.ia; if (!m.res) continue;

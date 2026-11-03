@@ -121,3 +121,14 @@ describe('botiq kvartal: burchaklar', () => {
     for (const s of c) for (let i = 0; i < s.ring.length; i++) { const p = s.ring[i], q = s.ring[(i + 1) % s.ring.length]; expect(Math.hypot(q[0] - p[0], q[1] - p[1])).toBeLessThanOrEqual(lim); }
   });
 });
+
+import { generate as gen04, DEFAULT_GEN as DG04 } from '../../src/core/generator';
+describe('04.11 audit: qatorlar orasi seysmiklikka qarab', () => {
+  it('8 ball — 2·Hmax; 7 ball — Hmax·kʏ (zichroq, qator koʻproq yoki teng)', () => {
+    const sq: [number, number][] = [[0, 0], [160, 0], [160, 260], [0, 260]];
+    const g = { ...DG04, typology: 'qatorlar' as const, maxF: 9 };
+    const a = gen04(sq, { ...g, seismic: 8 }), b = gen04(sq, { ...g, seismic: 7 });
+    expect(a.notes.join(' ')).toMatch(/2·Hmax/); expect(b.notes.join(' ')).toMatch(/Hmax·kʏ/);
+    expect(b.sections.length).toBeGreaterThanOrEqual(a.sections.length);
+  });
+});

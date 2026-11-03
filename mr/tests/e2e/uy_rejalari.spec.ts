@@ -30,6 +30,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`past qavat
   await page.evaluate(() => { const ed = (window as any).__mr; ed.sel = null; ed.scene.select(null); ed.renderAll(); });
   // hovli: milliy uslub — darvozaxona, ayvon; zamonaviyga oʻtkazish
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('[data-typ=hovli]'); await page.click('#genGo');
+  // 04.11: qoʻlda tahrirlangan (koʻzgu) blokli uylarning bir qismi qolishi mumkin — hovli uy tanlanadi (avval roʻyxatdagi birinchi uy olinardi — beqaror)
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.some((b: any) => b.footprint.length === 6))).toBe(true);
+  await page.evaluate(() => { const ed = (window as any).__mr, b = ed.store.doc.buildings.find((x: any) => x.footprint.length === 6); ed.sel = b.id; ed.scene.select(b.id); ed.renderAll(); });
   await page.click('[data-step=kvartira]');
   await expect(page.locator('#houseBox svg text', { hasText: 'darvozaxona' }).first()).toBeAttached();
   await expect(page.locator('#houseBox svg text', { hasText: 'ayvon' }).first()).toBeAttached();

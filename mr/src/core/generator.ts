@@ -16,6 +16,7 @@ import { squareSections, avoidObstacles, assignEnds, type Obstacle3 } from './ge
 import { lowriseBlock } from './lowrise';
 import { logiLayout } from './logigen';
 import { openRing, despike } from './offset';
+import { kyOf } from './setback';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator' | 'ombor';
@@ -46,6 +47,8 @@ export interface GenParams {
   setbackRing?: XY[];
   /** hisoblangan (saqlanmaydi): 1-qavat balandligi (settings.groundH, core/levels) — noturar 1-qavatli seksiyalar baland */
   groundH?: number;
+  /** 04.11 (audit): maydon seysmikligi, ball — 8+ da qatorlar orasi 2·Hmax (8-izoh), aks holda Hmax·kʏ (2-jadval) */
+  seismic?: number;
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
   passages: boolean;
   /** pastki noturar qavatlar (koʻchaga qaragan seksiyalarda) */
@@ -677,8 +680,10 @@ function mergeCorners(A: XY[], S: GenSection[], meta: { edge: number; first: boo
 function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
   // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0102-25, 3-band — turar joy obyektlari janubiy, janubi-sharqiy, sharqiy, shimoli-sharqiy yoʻnalishda;
   // 15-band — xona derazalari gʻarbga (200–290°) yoʻnaltirilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
-  const D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gap = Math.max(2 * H, 20); // izoh 8: ≥ 2·Hmax
-  notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
+  // izoh 8: seysmik 8+ ballda ≥ 2·Hmax; 04.11 (audit): 7 ballda — Hmax·kʏ (2-jadval, 2-ilova; qatorlar shimol–janub yoʻnalishida qaraydi)
+  const s8 = (g.seismic ?? 8) >= 8, D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gap = Math.max(s8 ? 2 * H : H * kyOf(0), 20);
+  notes.push(s8 ? `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`
+    : `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = Hmax·kʏ (ShNQ 2.07.01-23, 79-band 2-jadval, 2-ilova; 7 ball)`);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const p of A) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
   const poly: Polygon = [[...A, A[0]].map(p => [p[0], p[1]] as [number, number])];
@@ -699,7 +704,7 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
     }
   }
   if (!sections.length) notes.push('Qator sigʻmadi — chuqurlik yoki qavatni kamaytiring');
-  return { sections, capFloors: Math.floor((gap / 2 - dgOf(g, floorH)) / floorH), notes };
+  return { sections, capFloors: Math.floor((gap / (s8 ? 2 : kyOf(0)) - dgOf(g, floorH)) / floorH), notes };
 }
 
 /* ====================== tipologiyalar ====================== */
