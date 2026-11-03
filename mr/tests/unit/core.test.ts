@@ -136,6 +136,14 @@ describe('hosilalar va meʼyorlar', () => {
     expect(derive({ ...d, buildings: [b, arka] }).footprint).toBeCloseTo(f0 * 2, 1);
     expect(derive({ ...d, buildings: [b, top] }).footprint).toBeCloseTo(f0, 1);
   });
+  it('04.11 audit: 82-band — 3-jadval qavatlilik boʻyicha, aralashda 4-izoh formulasi', () => {
+    let d = sample();
+    let h = derive(d).housing82!; expect([Math.round(h.lo), Math.round(h.hi)]).toEqual([4200, 6000]);   // 9 qavat — oʻrta qavatli
+    expect(evaluateAll(derive(d), d).find(x => x.id === 'housing-82')!.limit).toBe('4 200–6 000');
+    const o = d.origin; d = apply(d, { type: 'addBuilding', footprint: rect(o, 10, 60, 60, 12), floors: 12, nonRes: 1 });
+    h = derive(d).housing82!;   // teng maydon emas: 9 qavat (8 turar) va 12 qavat (11 turar) — 100 / (a1/4200 + a2/6000)
+    const a1 = 8 / 19, a2 = 11 / 19; expect(h.lo).toBeCloseTo(1 / (a1 / 4200 + a2 / 6000), 0);
+  });
   it('maʼlumot boʻlmasa — baholanmaydi', () => {
     const d = blankProject();
     expect(evaluateAll(derive(d), d).every(r => r.status === 'na')).toBe(true);

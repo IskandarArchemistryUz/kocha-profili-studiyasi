@@ -149,12 +149,14 @@ export const RULES: Rule[] = [
     source: { ...SHNQ_2_07_01, clause: '84-band' },
     evaluate(d) {
       if (d.siteHa <= 0 || d.population <= 0) return { status: 'na', unit: 'kishi/ga', limit: '≤ 400', note: 'Uchastka yoki turar joy binolari yoʻq' };
+      // 04.11 (audit): 84-band — «кўп қаватли комплекс қурилишда»: faqat tomorqali uylar boʻlsa qoʻllanmaydi
+      if (d.housing82 && d.housing82.mix.every(x => x.cls.endsWith(' ga'))) return { status: 'na', unit: 'kishi/ga', limit: '≤ 400', note: 'Faqat tomorqali uylar — 84-band koʻp qavatli kompleks qurilishga tegishli.' };
       const lim = 400, v = d.density;
       return {
         status: v <= lim ? 'pass' : 'fail', value: v, unit: 'kishi/ga', limit: '≤ 400',
         delta: v > lim ? (v / lim - 1) * 100 : undefined,
         ...(v > lim ? { fix: { id: 'floors-down' as const, label: 'Turar qavatlarni kamaytirish', hint: `Zichlik ${Math.round(v)} → ≤ ${lim} kishi/ga: barcha turar joy binolarining turar qavatlari ≈ ${Math.round((1 - lim / v) * 100)} % ga kamaytiriladi (noturar qavatlar va stilobat oʻzgarmaydi, kamida 1 turar qavat). Muqobil — uchastkaga yashil yoki jamoat kvartali qoʻshish.` } } : {}),
-        note: 'Uchastka (netto) boʻyicha hisoblandi; meʼyor brutto yoki netto ekani band matnidan tekshirilsin.',
+        note: 'Koʻp qavatli kompleks qurilishda mavzening hisobiy aholi zichligi (84-band): loyiha uchastkasi mavze deb olindi (koʻchalar bilan). Aholi — 1-jadval taʼminoti boʻyicha.',
       };
     },
   },
@@ -189,13 +191,16 @@ export const RULES: Rule[] = [
     title: 'Uy-joy fondi zichligi',
     source: { ...SHNQ_2_07_01, clause: '82-band, 3-jadval' },
     evaluate(d) {
-      if (d.siteHa <= 0 || d.resNet <= 0) return { status: 'na', unit: 'm²/ga', limit: '2 200–7 500' };
-      const lo = 2200, hi = 7500, v = d.housingDensity;
+      const h = d.housing82;
+      if (d.siteHa <= 0 || d.resNet <= 0 || !h) return { status: 'na', unit: 'm²/ga', limit: '2 200–7 500' };
+      // 04.11 (audit): chegara qavatlilik sinfi boʻyicha (3-jadval), aralash qurilishda — 4-izoh formulasi; hisob hududi — 3-izoh
+      const lo = Math.round(h.lo), hi = Math.round(h.hi), v = h.v, lim = lo === hi ? `${n0(hi)}` : `${n0(lo)}–${n0(hi)}`;
+      const mix = h.mix.map(x => `${x.cls} ${Math.round(x.share * 100)} %`).join(', ');
       return {
-        status: v > hi ? 'fail' : v < lo ? 'review' : 'pass', value: v, unit: 'm²/ga', limit: '2 200–7 500',
+        status: v > hi + 0.5 ? 'fail' : v < lo - 0.5 ? 'review' : 'pass', value: v, unit: 'm²/ga', limit: lim,
         delta: v > hi ? (v / hi - 1) * 100 : undefined,
-        ...(v > hi ? { fix: { id: 'floors-down' as const, label: 'Turar qavatlarni kamaytirish', hint: `Uy-joy fondi ${Math.round(v)} → ≤ ${hi} m²/ga: turar qavatlar ≈ ${Math.round((1 - hi / v) * 100)} % ga kamaytiriladi (zichlik meʼyori bilan birga — qaysi biri qattiqroq boʻlsa).` } } : {}),
-        note: v < lo ? 'Pastki chegaradan kam — yer samarasiz ishlatilmoqdami?' : 'Hududiy birlik (mavze, kvartal) band matnidan tekshirilsin.',
+        ...(v > hi + 0.5 ? { fix: { id: 'floors-down' as const, label: 'Turar qavatlarni kamaytirish', hint: `Uy-joy fondi ${Math.round(v)} → ≤ ${hi} m²/ga: turar qavatlar ≈ ${Math.round((1 - hi / v) * 100)} % ga kamaytiriladi (zichlik meʼyori bilan birga — qaysi biri qattiqroq boʻlsa).` } } : {}),
+        note: `Qavatlilik boʻyicha (kam 1–3, oʻrta 4–9, koʻp 10–16, yuqori va baland ≥ 17; tomorqali — uchastka oʻlchami): ${mix}. Chegara — 4-izoh formulasi 100 / Σ(aᵢ/nᵢ). Hisob hududi ${h.baseHa.toFixed(2).replace('.', ',')} ga: tuman/shahar ahamiyatidagi obyektlar (ofis, mehmonxona, poliklinika, maʼmuriy, ishlab chiqarish) ayirilgan (3-izoh; TALQIN).`,
       };
     },
   },
@@ -287,9 +292,11 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (doc.settings.comp.regime !== 'orq1149') return { status: 'na', note: 'Koʻchirish rejimi — OʻRQ-781 (jamoat ehtiyojlari uchun olib qoʻyish). Renovatsiya rejimida tekshiriladi.' };
       if (d.siteHa <= 0) return { status: 'na', unit: '%', limit: '≥ 25' };
-      const v = d.greenShareTotal * 100;
+      // 04.11 (audit, «norma boʻyicha»): «yashil zonalar» — hududiy zonalashtirish toifasi (7-modda, 95-qator: zonalarni oʻzgartirish); hovli maysasi
+      // turar joy zonasining qismi — kirmaydi. Hisob: park/bogʻ va himoya koʻkalamzorligi zonalari ÷ butun qamrab olingan hudud (maktab/MTM ayirilmaydi)
+      const g = (d.zoneArea.yashil ?? 0) + (d.zoneArea.himoya ?? 0), v = g / (d.siteHa * 1e4) * 100;
       return { status: v >= 25 ? 'pass' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
-        note: 'Renovatsiya loyihasida qamrab olingan hududning kamida toʻrtdan bir qismi yashil zonalardan iborat boʻlishi kerak. Hisob: yashil kvartallar, hovli maysasi va (87-band) maydonchalar ÷ hudud.' };
+        note: 'Renovatsiya loyihasida qamrab olingan hududning kamida toʻrtdan bir qismi yashil zonalardan iborat boʻlishi kerak. Hisob: park/bogʻ va himoya koʻkalamzorligi zonalari ÷ butun hudud; hovli maysasi turar joy zonasiga tegishli — kirmaydi.' };
     },
   },
   {
