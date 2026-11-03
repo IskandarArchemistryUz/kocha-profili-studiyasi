@@ -3545,9 +3545,9 @@ export class Editor {
     try {
       const r = await fetch(MONITORING_URL, { cache: 'no-store' }); if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const m = parseMonitoring(await r.text()); if (!m || (!m.flat && !m.house)) throw new Error('maʼlumot yoʻq');
-      const c = this.store.doc.settings.comp, near = !!(m.flatNear || m.houseNear);
-      this.run(() => this.store.dispatch({ type: 'setSettings', patch: { comp: { ...c, priceFlat: m.flatNear ?? m.flat ?? c.priceFlat, priceHouse: m.houseNear ?? m.house ?? c.priceHouse, priceSource: `uybor.uz, Mirobod, ${m.date}${near ? ' — Fitrat atrofi 1,5 km median' : ' — tuman median'} (soʻralgan narx)` } } }));
-      this.monitorMsg = `Tuman median: kvartira ${m.flat ?? '—'}, hovli ${m.house ?? '—'} $/m²; atrof 1,5 km: ${m.flatNear ?? '—'} / ${m.houseNear ?? '—'} $/m² (${m.date}).`;
+      const c = this.store.doc.settings.comp;
+      this.run(() => this.store.dispatch({ type: 'setSettings', patch: { comp: { ...c, priceFlat: m.flat ?? c.priceFlat, priceHouse: m.house ?? c.priceHouse, priceSource: `uybor.uz, Toshkent, ${m.date} — shahar median (soʻralgan narx)` } } }));
+      this.monitorMsg = `Toshkent median: kvartira ${m.flat ?? '—'}, hovli ${m.house ?? '—'} $/m² (${m.date}).`;
     } catch (e) { this.monitorMsg = `Monitoring maʼlumoti olinmadi: ${(e as Error).message}. Narxni qoʻlda kiriting.`; }
     this.renderPanel();
   }

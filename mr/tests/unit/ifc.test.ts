@@ -5,7 +5,7 @@ import { frame, type XY } from '../../src/core/geo';
 
 const rect = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
 function project(): Project {
-  const p = blankProject('Fitrat koʻchasi'); const fr = frame(p.origin);
+  const p = blankProject('Sinov koʻchasi'); const fr = frame(p.origin);
   p.buildings = [
     { id: 'a', footprint: rect(0, 0, 40, 14).map(fr.toGeo), floors: 9, nonRes: 1, use: 'turar', mat: 'gisht', roof: 'quyosh' },
     { id: 's', footprint: rect(60, 0, 100, 40).map(fr.toGeo), floors: 2, nonRes: 2, use: 'savdo', gen: { grp: 'g', kind: 'stilobat' } },

@@ -234,7 +234,7 @@ export const DEFAULT_ORIGIN: LngLat = [69.2797, 41.3111];
 export const DEFAULT_SETTINGS: Settings = {
   norms: 'uz-2023',
   seismic: 8,
-  // Abdurauf Fitrat KZ hujjatida qoʻllangan qiymat; ShNQ bandi bilan tekshirilishi kerak (norms/params.ts)
+  // Mirobod KZ namunasi hujjatida qoʻllangan qiymat; ShNQ bandi bilan tekshirilishi kerak (norms/params.ts)
   m2PerPerson: 18,
   netToGross: 0.75,
   floorHeight: 3.3,

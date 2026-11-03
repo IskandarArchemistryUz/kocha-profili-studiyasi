@@ -13,7 +13,7 @@ function fixture(): unknown {
   el.push({ type: 'way', id: 503, tags: { building: 'retail' }, geometry: sq(-40, 20, 10, 10) });
   return { elements: el };
 }
-const CSV = 'sana,manba,hudud,kategoriya,api_jami,oqildi,yaroqli,median_usd_m2,p25_usd_m2,p75_usd_m2,atrof_1500m_soni,atrof_1500m_median_usd_m2\n2026-10-16,uybor.uz,Mirobod,hovli,17,17,10,1295,1176,1700,4,1281\n2026-10-16,uybor.uz,Mirobod,kvartira,238,238,179,2071,1601,2733,35,1739\n';
+const CSV = 'sana,manba,hudud,kategoriya,api_jami,oqildi,yaroqli,median_usd_m2,p25_usd_m2,p75_usd_m2,atrof_1500m_soni,atrof_1500m_median_usd_m2\n2026-10-16,uybor.uz,Toshkent,hovli,272,250,146,1223,909,1699,,\n2026-10-16,uybor.uz,Toshkent,kvartira,1836,1800,1228,1774,1362,2292,,\n2026-10-16,uybor.uz,tuman_204,kvartira,,240,179,2071,1601,2733,,\n';
 
 test('koʻchirish xarajati: monitoring narxi, OʻRQ-781 → OʻRQ-1149, TEP', async ({ page }) => {
   test.setTimeout(120_000);
@@ -29,8 +29,8 @@ test('koʻchirish xarajati: monitoring narxi, OʻRQ-781 → OʻRQ-1149, TEP', as
   await expect(page.locator('#compBox')).toBeVisible();
   await expect(page.locator('#compBox')).toContainText('Narx kiritilmagan');
   await page.click('#compMon');
-  await expect(page.locator('#compBox')).toContainText('Fitrat atrofi 1,5 km');
-  await expect(page.locator('[data-comp=priceFlat]')).toHaveValue('1739');
+  await expect(page.locator('#compBox')).toContainText('shahar median');
+  await expect(page.locator('[data-comp=priceFlat]')).toHaveValue('1774');
   await page.fill('[data-comp=priceNonres]', '1500'); await page.press('[data-comp=priceNonres]', 'Tab');
   await expect(page.locator('#compBox')).not.toContainText('Narx kiritilmagan');
   await expect(page.locator('#compTab')).toContainText('5 %');

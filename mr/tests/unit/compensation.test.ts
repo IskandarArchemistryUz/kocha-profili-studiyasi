@@ -31,8 +31,8 @@ describe('Koʻchirish xarajati (OʻRQ-781 / OʻRQ-1149)', () => {
   it('narx kiritilmagan toifa belgilanadi', () => {
     expect(compensation(list, { ...COMP_DEFAULT }).missing).toEqual(['hovli', 'kvartira', 'noturar']);
   });
-  it('monitoring CSV — oxirgi sana', () => {
-    const csv = 'sana,manba,hudud,kategoriya,api_jami,oqildi,yaroqli,median_usd_m2,p25_usd_m2,p75_usd_m2,atrof_1500m_soni,atrof_1500m_median_usd_m2\n2026-10-15,u,M,kvartira,1,1,1,1900,,,,1600\n2026-10-16,u,M,hovli,1,1,1,1295,,,,1281\n2026-10-16,u,M,kvartira,1,1,1,2071,,,,1739\n';
-    expect(parseMonitoring(csv)).toEqual({ date: '2026-10-16', flat: 2071, house: 1295, flatNear: 1739, houseNear: 1281 });
+  it('monitoring CSV — oxirgi sana, butun shahar qatori', () => {
+    const csv = 'sana,manba,hudud,kategoriya,api_jami,oqildi,yaroqli,median_usd_m2,p25_usd_m2,p75_usd_m2,atrof_1500m_soni,atrof_1500m_median_usd_m2\n2026-10-15,u,Toshkent,kvartira,1,1,1,1900,,,,\n2026-10-16,u,Toshkent,hovli,1,1,1,1295,,,,\n2026-10-16,u,Toshkent,kvartira,1,1,1,2071,,,,\n2026-10-16,u,tuman_204,kvartira,,1,1,2400,,,,\n';
+    expect(parseMonitoring(csv)).toEqual({ date: '2026-10-16', flat: 2071, house: 1295 });
   });
 });
