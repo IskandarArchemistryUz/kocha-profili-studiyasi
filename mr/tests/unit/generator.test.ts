@@ -33,6 +33,9 @@ describe('Seksiya generatori', () => {
     expect(tot(a)).toBeLessThan(tot(b));
     const ar = a.sections.filter(x => x.kind === 'arka'); expect(ar.length).toBeGreaterThan(0);
     for (const x of ar) expect((x.z0 ?? 0) * 3.3).toBeGreaterThanOrEqual(4.25);   // ShNQ 2.01.02-04, 1-son oʻzgartirish, 3.12
+    // 04.11 (egasi): arka = portal — 1-qavat ≥ 4,25 m boʻlsa faqat 1-qavat ochiq
+    const c = generate(sq(260, 120), { ...DEFAULT_GEN, passages: true, groundH: 4.5 });
+    for (const x of c.sections.filter(q => q.kind === 'arka')) expect(x.z0).toBe(1);
   });
   it('qatorlar: sharq–gʻarb, oraliq ≥ 2·Hmax', () => {
     const r = generate(sq(120, 200), { ...DEFAULT_GEN, typology: 'qatorlar', maxF: 9 });

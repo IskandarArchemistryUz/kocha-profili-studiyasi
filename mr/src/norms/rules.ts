@@ -276,6 +276,9 @@ export const RULES: Rule[] = [
     },
   },
   {
+    // 04.11 (egasi: «SanQvaN 15/16 — koʻrib toʻgʻrisini ol; mezon — generatsiya qulay shahar qura olsin»): 16-band matni (yashash xonalari
+    // 90°–290° ga qaratilmasin) 15-bandga (janubiy, janubi-sharqiy, sharqiy xonalar talab qilinadi) va 3-bandga zid — sharq, janub va gʻarbni
+    // birga taqiqlaydi, faqat shimolga qaragan uy qoladi (insolyatsiya 94–95-bandlari bajarilmaydi). Shuning uchun 15-band (200–290°) olinadi.
     id: 'west-facing',
     title: 'Yashash xonalari yoʻnalishi (gʻarb 200–290°)',
     source: { doc: 'SanQvaN 0102-25', edition: '2025', clause: '15-band; 3-band', verified: true },
@@ -440,6 +443,23 @@ export const RULES: Rule[] = [
     },
   },
   {
+    // 04.11 (audit, B6): chiqindi toʻplash shoxobchasi — xoʻjalik maydonchasida (4-jadval, 20 m); ShNQ 2.08.01-24, 346-band:
+    // derazalardan ≥ 20 m va ≤ 100 m. Har koʻp kvartirali turar joy binosidan eng yaqin xoʻjalik maydonchasigacha tekshiriladi
+    id: 'waste-346',
+    title: 'Chiqindi maydonchasi: binodan 20–100 m',
+    source: { doc: 'ShNQ 2.08.01-24', edition: '2024', clause: '346-band; ShNQ 2.07.01-23, 4-jadval (xoʻjalik maydonchasi)', verified: true },
+    evaluate(_d, doc) {
+      if (!doc.settings.yards) return { status: 'na', note: 'Hovli obodonlashtirish oʻchirilgan.' };
+      const fr = frame(doc.origin), ys = landscape(doc).filter(y => !y.social), bins = ys.flatMap(y => y.play.filter(p => p.kind === 'xojalik').map(p => p.ring));
+      const res = doc.buildings.filter(b => useDef(b.use).res > 0 && b.floors >= 3 && !b.gen?.plot && b.gen?.kind !== 'stilobat');
+      if (!res.length) return { status: 'na', note: 'Koʻp kvartirali turar joy binolari yoʻq.' };
+      const dist = (r: XY[], q: XY[]) => { let m = Infinity; for (const a of r) for (const b of q) m = Math.min(m, Math.hypot(a[0] - b[0], a[1] - b[1])); return m; };
+      const far = res.filter(b => { const r = b.footprint.map(fr.toLocal); return !bins.length || Math.min(...bins.map(q => dist(r, q))) > 100; });
+      return { status: far.length ? 'review' : 'pass', value: far.length, unit: `/ ${res.length} bino`, limit: '≤ 100 m', ...(far.length ? { where: { bids: far.map(b => b.id) } } : {}),
+        note: 'Chiqindi konteynerlari xoʻjalik maydonchasida (binolardan ≥ 20 m — maydoncha shunday joylanadi). 100 m dan uzoq yoki maydonchasiz binolar koʻrsatiladi; masofa burchaklar boʻyicha taxminiy. Maxsus mashina uchun 12 × 12 m burilish maydonchasi (347-band) — qoʻlda.' };
+    },
+  },
+  {
     id: 'play-89',
     title: 'Hovli maydonchalari (bolalar, kattalar, sport, xoʻjalik)',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '89-band, 4-jadval; 90–92-bandlar', verified: true },
@@ -489,6 +509,19 @@ export const RULES: Rule[] = [
       const limTxt = lim == null ? 'NSTT' : lim.h == null ? 'qoʻllanmaydi' : `≤ ${lim.h} m (${lim.f})`, bt = ball > 9 ? '>9' : String(ball);
       return { status: ids.length ? 'fail' : 'pass', value: ids.length, unit: `/ ${bl.length} bino`, limit: limTxt, ...(ids.length ? { where: { bids: ids } } : {}),
         note: `${def.name} (${def.row}), ${bt} ball: balandlik va qavatlar soni — ${limTxt}. 8–9 ballda maktab ≤ 3, bogʻcha ≤ 2 qavat; 9 dan yuqori — ≤ 2 qavat (2-izoh).` };
+    },
+  },
+  {
+    id: 'arch-159',
+    title: 'Arka (bino ostidan oʻtish): eni va balandligi',
+    source: { doc: 'ShNQ 2.08.01-24', edition: '2024', clause: '159-band (eni ≥ 3,5 m, balandligi ≥ 4,25 m)', verified: true },
+    evaluate(_d, doc) {
+      const fr = frame(doc.origin), ar = doc.buildings.filter(b => b.gen?.kind === 'arka');
+      if (!ar.length) return { status: 'na', unit: 'arka', note: 'Arkalar yoʻq.' };
+      const bad = ar.filter(b => { const o = obb2(b.footprint.map(fr.toLocal)); return bLevels(doc.settings, b).z0 < 4.25 - 0.01 || o.S < 3.5 - 0.01; });
+      const h = Math.min(...ar.map(b => bLevels(doc.settings, b).z0));
+      return { status: bad.length ? 'fail' : 'pass', value: bad.length, unit: `/ ${ar.length} arka`, limit: '≥ 3,5 × 4,25 m', ...(bad.length ? { where: { bids: bad.map(b => b.id) } } : {}),
+        note: `Arka ostida 1-qavat ochiq; eng past arka ${h.toFixed(2).replace('.', ',')} m. Transport oʻtadigan arka ≥ 4,25 m — loyiha sozlamasida 1-qavat balandligini (baland 1-qavat) ≥ 4,25 m qiling.` };
     },
   },
   {

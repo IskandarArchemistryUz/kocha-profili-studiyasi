@@ -38,7 +38,7 @@ export interface PlanOpts {
   scale: number; /** oʻqlar va oʻlchamlar */ dims: boolean; title: string;
   /** bino qavati (1 dan) — 1-qavat va noturar qavatlar reja turi shundan */ floor: number;
   /** qavat balandligi, m (tekshiruv uchun) */ fh?: number;
-  /** 1-qavat balandligi, m (core/levels; baland 1-qavat — zina 4 marshli) */ fh1?: number;
+  /** 1-qavat balandligi, m (core/levels; baland 1-qavat — zina 3 yoki 4 marshli) */ fh1?: number;
   /** antresol maydoni, m² (1-qavat rejasida yozuv; core/levels) */ ant?: number;
   /** tarjima (UI tr); yoʻq — oʻzbekcha */ tr?: (s: string) => string;
   /** balkon turi (turar qavatlarda, 2-qavatdan) */ bal?: Bal | null;
@@ -210,8 +210,9 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     // yarim balandlikda); rejada pastki juftlik chiziladi, yozuv bilan. Katak oʻlchami oʻzgarmaydi (har juftlik ≤ oddiy qavat balandligi).
     const fhF = o.floor === 1 && o.fh1 ? o.fh1 : (o.fh ?? 3), riseAll = Math.max(2, Math.ceil(fhF / 0.15));
     const fits = (n: number) => (Math.ceil(riseAll / n) - 1) * 0.3 <= L - 2 * 1.2 + 0.01;   // maydonchalar ≥ 1,2 m (marsh eni)
-    const nF = fits(2) ? 2 : 4, risers = Math.ceil(riseAll / (nF / 2)), treads = Math.ceil(risers / 2) - 1, FL = treads * 0.3, mid = W2 / 2;
-    if (nF === 4) { const cc = cen(st); out.push(`<text x="${X(cc[0])}" y="${(Number(Y(cc[1])) + 0.7).toFixed(2)}" font-size="1.7" font-weight="600" text-anchor="middle" fill="#141414" stroke="#f4f2ee" stroke-width="0.6" paint-order="stroke" data-stair4="1">${tf('${n} marsh · ${h} m', { n: 4, h: String(Math.round(fhF * 100) / 100).replace('.', ',') })}</text>`); }
+    // 04.11 (egasi): baland 1-qavatda avval uch marshli zina (ikki burilish) sinab koʻriladi, sigʻmasa — toʻrt marshli
+    const nF = fits(2) ? 2 : fits(3) ? 3 : 4, risers = Math.ceil(riseAll / (nF / 2)), treads = Math.ceil(risers / 2) - 1, FL = treads * 0.3, mid = W2 / 2;
+    if (nF > 2) { const cc = cen(st); out.push(`<text x="${X(cc[0])}" y="${(Number(Y(cc[1])) + 0.7).toFixed(2)}" font-size="1.7" font-weight="600" text-anchor="middle" fill="#141414" stroke="#f4f2ee" stroke-width="0.6" paint-order="stroke" data-stair4="1" data-marsh="${nF}">${tf('${n} marsh · ${h} m', { n: nF, h: String(Math.round(fhF * 100) / 100).replace('.', ',') })}</text>`); }
     const midLand = Math.max(Math.min(mid - 0.05, L - FL - 1.2), 0.9), f1 = L - midLand, f0 = Math.max(0.6, f1 - FL);
     for (let t = f0; t <= f1 + 1e-6; t += (f1 - f0) / Math.max(1, treads)) out.push(seg(P2(t, 0), P2(t, mid - 0.05), 'stroke="#141414" stroke-width="0.15"'), seg(P2(t, mid + 0.05), P2(t, W2), 'stroke="#141414" stroke-width="0.15"'));
     out.push(`<path d="${path([P2(f0, mid - 0.05), P2(f1, mid - 0.05), P2(f1, mid + 0.05), P2(f0, mid + 0.05)])}" fill="#141414"/>`);
