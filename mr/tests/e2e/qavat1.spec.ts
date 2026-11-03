@@ -20,7 +20,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`1-qavat ba
   const top = () => page.evaluate(id => { let y = -1e9; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.bid === id && o.geometry) { o.geometry.computeBoundingBox(); y = Math.max(y, o.geometry.boundingBox.max.y); } }); return y; }, bid);
   const t0 = await top();
   await page.fill('#iGroundH', '5.7'); await page.press('#iGroundH', 'Tab');
-  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.groundH)).toBe(5.7);
+  // 04.11 (egasi): 1-qavat balandligi shu binoning oʻziga yoziladi (qoʻlda chizilgan uyda ham berish mumkin)
+  await expect.poll(() => page.evaluate(id => (window as any).__mr.store.doc.buildings.find((x: any) => x.id === id).gh, bid)).toBe(5.7);
   await expect.poll(top).toBeGreaterThan(t0 + 2.3);
   if (process.env.GX_SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: `${process.env.GX_SHOTS}/qavat1_${w}${dark ? 'd' : 'l'}.png` }); }
 });

@@ -54,3 +54,13 @@ describe('antresol (01.11, egasi)', () => {
     const d1 = derive(p); expect(d1.antresol).toBeCloseTo(750 * 0.4, -1); expect(d1.gfa).toBeCloseTo(d0.gfa + d1.antresol, 3);
   });
 });
+
+describe('04.11 (egasi): binoning oʻz 1-qavat balandligi', () => {
+  it('qoʻlda chizilgan turar joy uyida (1-qavati turar) gh berilsa — 1-qavat shu balandlikda', () => {
+    const S = { floorHeight: 3.3, groundH: 5.7 };
+    expect(bLevels(S, { floors: 9, nonRes: 0 }).fh1).toBeCloseTo(3.3);
+    expect(bLevels(S, { floors: 9, nonRes: 0, gh: 4.5 } as any).fh1).toBeCloseTo(4.5);
+    expect(bLevels(S, { floors: 9, nonRes: 1, gh: 6.2 } as any).fh1).toBeCloseTo(6.2);
+    expect(bLevels(S, { floors: 9, nonRes: 1 }).fh1).toBeCloseTo(5.7);
+  });
+});

@@ -157,7 +157,11 @@ const FLOOR_H = 3.3;
 /** 01.11: baland 1-qavat qoʻshimchasi (groundH − qavat balandligi), m — 1-qavati noturar boʻlsa (core/levels.tallBase) */
 const dgOf = (g: GenParams, floorH: number): number => (g.nonRes > 0 && g.groundH && g.groundH > floorH ? g.groundH - floorH : 0);
 /** arka ostidagi ochiq balandlik, qavatlarda (2 × 3,3 = 6,6 m ≥ 4,25 m) */
-export const ARCH_F = 2;
+/** 04.11 (egasi: «arka = portal — faqat 1-qavat ochiq, yuqorisi seksiyaga ulangan»): arka ostida 1 qavat ochiq.
+ *  Transport oʻtadigan arka balandligi ≥ 4,25 m (ShNQ 2.08.01-24, 159-band) — 1-qavat balandligi bilan taʼminlanadi, `arch-159` qoidasi tekshiradi */
+export const ARCH_F = 1;
+/** Arka ostidagi ochiq qavatlar: 1-qavat ≥ 4,25 m boʻlsa — 1 (portal), aks holda 2 (balandlik talabi — ShNQ 2.08.01-24, 159; ShNQ 2.01.02-04, 1-son oʻzg., 3.12) */
+export const archF = (g: Pick<GenParams, 'groundH'>, floorH: number): number => ((g.groundH ?? floorH) >= 4.25 - 1e-6 ? ARCH_F : 2);
 
 export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenResult {
   const notes: string[] = [];
@@ -311,7 +315,7 @@ export function orthoFill(A: XY[], g: GenParams, notes: string[]): GenResult {
           meta.push({ edge: i, first: k === 0 && c0 === r0, last: k === sp.length - 1 && c1 === r1 });
         });
       }
-      for (const ar of arches) { sections.push({ ring: ar, floors: 1, kind: 'arka', nonRes: 0, z0: ARCH_F }); meta.push({ edge: i, first: false, last: false }); }   // arkalar — tasma seksiyalaridan keyin (facingCap tartibi oʻzgarmasin)
+      for (const ar of arches) { sections.push({ ring: ar, floors: 1, kind: 'arka', nonRes: 0, z0: archF(g, FLOOR_H) }); meta.push({ edge: i, first: false, last: false }); }   // arkalar — tasma seksiyalaridan keyin (facingCap tartibi oʻzgarmasin)
     }
   }
   if (!sections.length) { notes.push('Seksiya joylashmadi — kvartal bu chuqurlik uchun juda kichik yoki tor'); return { sections, capFloors: null, notes }; }
@@ -636,7 +640,7 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
     let s = t0; for (const gp of gaps) { cuts.push([s, gp - 3]); s = gp + 3; } cuts.push([s, t1]);
     // hovliga oʻtish — bo'shliq emas, ARKA: 6 m eni, 2 qavat balandlikda ochiq (ShNQ 2.01.02-04, 1-son oʻzgartirish, 3.12:
     // har 100 m da ≥ 3,5 m eni, ≥ 4,25 m balandlik); ustidagi qavatlar qoʻshni seksiyalar bilan bir xil (archFloors)
-    for (const gp of gaps) { const oa = add(P(i), mul(U(i), gp - 3)), ob = add(P(i), mul(U(i), gp + 3)); sections.push({ ring: [oa, ob, add(ob, mul(N(i), D)), add(oa, mul(N(i), D))], floors: 1, kind: 'arka', nonRes: 0, z0: ARCH_F }); }
+    for (const gp of gaps) { const oa = add(P(i), mul(U(i), gp - 3)), ob = add(P(i), mul(U(i), gp + 3)); sections.push({ ring: [oa, ob, add(ob, mul(N(i), D)), add(oa, mul(N(i), D))], floors: 1, kind: 'arka', nonRes: 0, z0: archF(g, floorH) }); }
     let idx = 0;
     for (const [c0, c1] of cuts) {
       const sp = spans(c0, c1, g.secLen, !!g.exact, g.maxLen);

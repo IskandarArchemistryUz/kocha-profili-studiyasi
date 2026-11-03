@@ -560,7 +560,9 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     const freeA = mpArea(free);
     // 31.10: bolalar maydonchasi birinchi (aks holda katta sport maydoni joyni egallab, bolalar maydonchasi tushmay qolardi)
     if (zones) for (const z of zones) place(z.kind, z.minD, Math.min(z.cap, freeA * z.share), Math.min(z.cap, freeA * z.share));   // maktab / MTM uchastkasi zonalari (andoza)
-    else { place('bolalar', 10, freeA * 0.2); place('kattalar', 6, freeA * 0.08); place('sport', 12, freeA * 0.3); place('xojalik', 20, freeA * 0.08); }
+    // 04.11 (egasi: «katta hovlida maydonchalar 4–5 emas, ~2 ta»): bolalar va kattalar dam olish maydonchasi — bitta (bolalar oʻyin + oʻrindiqlar,
+    // maydon 4-jadval yigʻindisi, masofa — qattiqrogʻi, 10 m), keyin sport; xoʻjalik maydonchasi — alohida (20 m, 4-jadval)
+    else { place('bolalar', 10, freeA * 0.28, pop * (PLAY_NORM.bolalar + PLAY_NORM.kattalar)); place('sport', 12, freeA * 0.3); place('xojalik', 20, freeA * 0.08); }
     // ichki yoʻlak: erkin hudud chegarasidan 5 m ichkarida (taxminan) — halqa
     const paths: MultiPolygon = [];
     for (const poly of freeR) {
