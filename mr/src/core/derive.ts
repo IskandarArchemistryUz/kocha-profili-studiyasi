@@ -45,6 +45,8 @@ export interface Derived {
   umnBlocks: { block: number; area: number; gfa: number; umn: number; bids: string[] }[];
   /** UMN uchastkalar boʻyicha: Σ GFA / Σ maydon (turar joy uchastkalari) */
   umn: number;
+  /** 04.11 (audit): 82-band, 3-jadval — qavatlilik boʻyicha aralash chegara (4-izoh formulasi) va 3-izoh hisob hududi */
+  housing82: { lo: number; hi: number; baseHa: number; v: number; mix: { cls: string; share: number }[] } | null;
   avgFloors: number;
   /** koʻchalar (qizil chiziqlar orasi) uchastka ichida, m² */
   streetArea: number;
@@ -207,10 +209,31 @@ export function derive(doc: Project): Derived {
   }
   const umnBlocks: Derived['umnBlocks'] = [...umnAcc].filter(([, e]) => e.res && plan.blocks[0] != null).map(([bi, e]) => ({ block: bi, area: plan.blocks[bi].area, gfa: e.gfa, umn: plan.blocks[bi].area > 0 ? e.gfa / plan.blocks[bi].area : 0, bids: e.bids }));
   const umnA = umnBlocks.reduce((t, x) => t + x.area, 0), umn = umnA > 0 ? umnBlocks.reduce((t, x) => t + x.gfa, 0) / umnA : 0;
+  // 82-band, 3-jadval: qavatlilik sinflari (ShNQ 2.07.01-23, atamalar: kam 1–3, oʻrta 4–9, koʻp 10–16, yuqori 17–24, baland ≥ 25);
+  // tomorqali uylar — uchastka oʻlchami boʻyicha (0,02–0,04 ga — 1 800; 0,04–0,10 — 1 200; 0,10–0,15 — 1 000). 4-izoh: 100 / Σ(aᵢ / nᵢ)
+  const H82: [string, number, number][] = [['1–3 qavat', 2200, 4200], ['4–9 qavat', 4200, 6000], ['10–16 qavat', 6000, 6700], ['17+ qavat', 6700, 7500]];
+  const byCls = new Map<string, { a: number; lo: number; hi: number }>();
+  for (const b of doc.buildings) {
+    const u = useDef(b.use); if (u.res <= 0 || b.gen?.kind === 'stilobat') continue;
+    const r = ringLocal(fr, b.footprint), a = area(r), rn = (b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) / Math.max(1, b.floors) : a) * Math.max(0, b.floors - b.nonRes) * resShare(b.use, b.nonRes) * s.netToGross;
+    if (rn <= 0) continue;
+    let key: string, lo: number, hi: number;
+    if (b.gen?.plot || b.use === 'yakka') { const pa = b.gen?.plot ? area(ringLocal(fr, b.gen.plot)) : 400; [key, lo, hi] = pa < 400 ? ['≤ 0,04 ga', 1800, 1800] : pa < 1000 ? ['0,04–0,10 ga', 1200, 1200] : ['0,10–0,15 ga', 1000, 1000]; }
+    else { const fl = b.floors + (b.z0 ?? 0), row = fl <= 3 ? H82[0] : fl <= 9 ? H82[1] : fl <= 16 ? H82[2] : H82[3]; [key, lo, hi] = row; }
+    const e = byCls.get(key) ?? { a: 0, lo, hi }; e.a += rn; byCls.set(key, e);
+  }
+  // 3-izoh: hisob hududi — turar joy, taʼlim, kundalik xizmat, koʻkalam va avtoturargohlar (koʻchalar bilan); tuman/shahar ahamiyatidagi obyektlar kirmaydi (TALQIN: ofis, mehmonxona, poliklinika, maʼmuriy, ishlab chiqarish, himoya)
+  const NOT82 = new Set(['ofis', 'mehmonxona', 'poliklinika', 'mamuriy', 'logistika', 'sanoat', 'kommunal', 'transport', 'himoya']);
+  const base82 = siteM2 - plan.blocks.filter(b => NOT82.has(b.use)).reduce((t, b) => t + b.area, 0);
+  const tot82 = [...byCls.values()].reduce((t, e) => t + e.a, 0);
+  const housing82: Derived['housing82'] = tot82 > 0 && base82 > 0 ? {
+    lo: 1 / [...byCls.values()].reduce((t, e) => t + (e.a / tot82) / e.lo, 0), hi: 1 / [...byCls.values()].reduce((t, e) => t + (e.a / tot82) / e.hi, 0),
+    baseHa: base82 / 1e4, v: resNet / (base82 / 1e4), mix: [...byCls].map(([cls, e]) => ({ cls, share: e.a / tot82 })),
+  } : null;
   const jobs = jobsFrom(gfaByUse);
   const yards = doc.settings.yards ? landscape(doc) : [], gb = greenBalance(doc, yards);
   const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + (y.social ? 0 : y.areas.play), 0);   // maktab / MTM maydonchalari — 4-jadval talabiga kirmaydi
-  return { antresol, umnBlocks, umn,
+  return { antresol, umnBlocks, umn, housing82,
     resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, socialPlots, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,
