@@ -76,7 +76,8 @@ export function szzGreen(doc: Project): SzzGreen[] {
 function raw(doc: Project): SzzGreen[] {
   if (!doc.site) return [];
   const fr = frame(doc.origin), site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal))), plan = computePlan(doc);
-  const greenMP = plan.blocks.filter(b => b.use === 'himoya' || b.use === 'yashil').map(b => b.rings.map(close) as Polygon);
+  // 04.11 (audit): faqat «Himoya koʻkalamzorligi» — park (umumiy foydalanishdagi yashil) SMZ da taqiqlangan (SanPiN 2.17; ShNQ 146, 475), koʻkalamga sanalmaydi
+  const greenMP = plan.blocks.filter(b => b.use === 'himoya').map(b => b.rings.map(close) as Polygon);
   const out: SzzGreen[] = [];
   const add = (id: string, label: string, cls: string, mp: MultiPolygon) => {
     const zone = tryMP(() => polygonClipping.intersection(mp, site), []), area = mpArea(zone); if (area < 50) return;

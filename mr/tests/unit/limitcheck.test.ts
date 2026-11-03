@@ -29,8 +29,17 @@ describe('qabriston SMZ — 6.4 talqini (02.11)', () => {
 describe('SMZ ichidagi funksiyalar (SanPiN 0350-17, 2.17 / 2.20)', () => {
   it('verdikt', () => {
     expect(szzVerdict('turar')).toBe('deny'); expect(szzVerdict('maktab')).toBe('deny'); expect(szzVerdict('yashil')).toBe('deny');
-    expect(szzVerdict('ofis')).toBe('allow'); expect(szzVerdict('poliklinika')).toBe('allow');
+    expect(szzVerdict('ofis')).toBe('allow');
+    // 04.11 (audit): 2.17 — umumiy foydalanishdagi davolash muassasasi va oziq-ovqat ombori taqiqda
+    expect(szzVerdict('poliklinika')).toBe('deny'); expect(szzVerdict('logistika', 'sabzavot')).toBe('deny'); expect(szzVerdict('logistika', 'tarqatish')).toBe('allow');
     expect(szzVerdict('mehmonxona')).toBe('review');
+  });
+  it('04.11 audit: SMZ ga tushgan park kvartali (binosiz) — taqiq', () => {
+    const qab = L({ rings: [sq(-20, -20, 20, 20) as any] });
+    const d = mk([qab], []);
+    d.zones = [{ id: 'z1', at: frame(d.origin).toGeo([60, 0]), use: 'yashil' } as any];
+    const c = limitChecks(d);
+    expect(c.szzBlocks.length).toBeGreaterThan(0); expect(c.szzBlocks[0].use).toBe('yashil');
   });
   it('qabriston 100 m SMZ ichidagi turar joy — fail, tashqaridagi — yoʻq; ofis — review', () => {
     const qab = L({ rings: [sq(-20, -20, 20, 20) as any] });

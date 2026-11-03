@@ -14,6 +14,7 @@ import { bLevels } from './levels';
 import type { Building, Project } from './doc';
 import { frame, area, signedArea, type XY } from './geo';
 import { computePlan, corridor, safeUnion, pointIn } from './plan';
+import { limitZones } from './limits';
 import { useDef, resShare } from './uses';
 import { inset, clean } from './generator';
 import { sportPark, type SportItem } from './sportpark';
@@ -122,7 +123,7 @@ const rectAt = (c: XY, a: number): XY[] => { const w = Math.min(40, Math.sqrt(a 
 
 let memo: { k: unknown[]; v: Yard[] } | null = null;
 export function landscape(doc: Project): Yard[] {
-  const k = [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.garages, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross, doc.keepRings];
+  const k = [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.garages, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross, doc.keepRings, doc.limits];
   if (memo && memo.k.every((x, i) => x === k[i])) return memo.v;
   const v = landscapeRaw(doc); memo = { k, v }; return v;
 }
@@ -141,9 +142,10 @@ function landscapeRaw(doc: Project): Yard[] {
   // saqlanadigan mavjud binolar — hovlida toʻsiq (trotuar, daraxt va maydonchalar ularga tushmaydi); aholi hisobiga kirmaydi
   for (const r of Object.values(doc.keepRings ?? {})) bl.push({ b: { id: '', footprint: r, floors: 0, nonRes: 0, use: 'texnik' } as unknown as Building, r: r.map(fr.toLocal) });
   const sig = (r: XY[]) => r.map(p => `${Math.round(p[0] * 100)},${Math.round(p[1] * 100)}`).join(';');
+  const eluSig = doc.limits?.length ? limitZones(doc).elu.map(p => sig(p[0])).join('#') : '';
   const parkAll = doc.garages.filter(g => g.kind === 'yer_usti' && g.stalls?.length).map(g => ({ g, h: hull([...g.stalls!, ...(g.aisles ?? [])].flat().map(fr.toLocal)) }));
   plan.blocks.forEach((blk, bi) => {
-    const bsig = `${blk.use}|${blk.rings.map(sig).join('/')}`;
+    const bsig = `${blk.use}|${blk.rings.map(sig).join('/')}|${eluSig}`;   // 04.11: ELU zonasi kvartalda qoladi — yard keshi unga bogʻliq
     if (blk.use === 'yashil' || blk.use === 'himoya' || blk.use === 'maydon' || blk.use === 'sport') { const y = cached(`o|${bsig}`, () => openSpace(blk, bi)); if (y) out.push({ ...y, block: bi }); return; }
     if (blk.use === 'maktab' || blk.use === 'mtm') {
       // 31.10 (egasi: «maktab va MTM hududlari landshafti»): uchastka zonalari — andoza (zonalar maydoni meʼyor matnidan emas)
@@ -526,7 +528,10 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     // aholi (shu kvartal binolari)
     const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * resShare(x.b.use, x.b.nonRes) * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
     // nomzod nuqtalar: erkin hududda, binolardan uzoqligi bilan
-    const freeR = toMP(free), cand: { p: XY; d: number }[] = [];
+    // 04.11 (egasi, VMQ 1050): ELU muhofaza zonasida maydonchalar (15 «г») va daraxtlar (17 «в» — egasining roziligisiz) yoʻq, maysa — mumkin
+    const eluMP: MultiPolygon = doc.limits?.length ? limitZones(doc).elu.map(p => p.map(close)) as MultiPolygon : [];
+    const freePlay = eluMP.length ? tryOp(() => polygonClipping.difference(free, eluMP), free) : free;
+    const freeR = toMP(freePlay), cand: { p: XY; d: number }[] = [];
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of blk.rings[0]) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
     const step = Math.max(3, Math.sqrt((x1 - x0) * (y1 - y0) / 2500));
     for (let x = x0 + step / 2; x < x1; x += step) for (let y = y0 + step / 2; y < y1; y += step) {
@@ -546,7 +551,7 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
           const bx: [number, number, number, number] = [Math.min(...r.map(q => q[0])), Math.min(...r.map(q => q[1])), Math.max(...r.map(q => q[0])), Math.max(...r.map(q => q[1]))];
           if (takenBB.some(t => bx[0] < t[2] && bx[2] > t[0] && bx[1] < t[3] && bx[3] > t[1])) continue;
           if (Math.min(...r.map(q => Math.min(...own.map(o => ringD(q, o.r))))) < minD - 1) continue;
-          const inside = tryOp(() => mpArea(polygonClipping.intersection(poly, free)), 0);
+          const inside = tryOp(() => mpArea(polygonClipping.intersection(poly, freePlay)), 0);
           if (inside < a * 0.97) continue;
           play.push({ kind, ring: r, need, area: a, kit: playKit(kind, r) }); taken = taken.length ? safeUnion([taken, poly]) : [poly]; takenBB.push([bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2]); return;
         }
@@ -581,6 +586,7 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     for (let x = x0 + 4; x < x1; x += 8) for (let y = y0 + 4; y < y1; y += 8) {
       const p: XY = [x + ((Math.round(y) * 7) % 3) - 1, y + ((Math.round(x) * 5) % 3) - 1];
       if (!gR.some(q => pointIn(p, q)) || tk.some(q => pointIn(p, q))) continue;
+      if (eluMP.length && toMP(eluMP).some(q => pointIn(p, q))) continue;
       if (own.some(o => ringD(p, o.r) < (useDef(o.b.use).res > 0 ? 10 : 5))) continue;
       if (fire && Math.min(...fire.tall.map(o => ringD(p, o.r))) < fire.d + fire.w + 1) continue;   // 676-band: yoʻlak va bino orasida daraxt qatori yoʻq
       trees.push(p);

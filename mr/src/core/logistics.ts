@@ -14,13 +14,14 @@
 export type Flag = 'NORMA' | 'TALQIN' | 'ANDOZA';
 export interface LogiType { id: string; name: string; szz: number; ref: string; flag: Flag; rail?: boolean }
 export const LOGI: LogiType[] = [
-  { id: 'tarqatish', name: 'Tarqatish markazi (umumtovar)', szz: 50, ref: 'SanPiN 0350-17, 6.3 V sinf («material omborlari»)', flag: 'TALQIN' },
-  { id: 'sovutgich', name: 'Sovutgichli ombor', szz: 50, ref: 'andoza (ShNQ 2.09.02-19 papkada yoʻq)', flag: 'ANDOZA' },
-  { id: 'sabzavot', name: 'Sabzavot-meva ombori', szz: 50, ref: 'ShNQ 2.07.01-23, 173; SanPiN 0350-17, 6.3 V sinf', flag: 'NORMA' },
-  { id: 'krossdok', name: 'Oxirgi mil / kross-dok', szz: 50, ref: 'andoza (shahar ichida, kichik)', flag: 'ANDOZA' },
+  { id: 'tarqatish', name: 'Tarqatish markazi (umumtovar)', szz: 50, ref: 'SanPiN 0350-17, 6.6 V sinf, 7 («Склады»)', flag: 'NORMA' },
+  { id: 'sovutgich', name: 'Sovutgichli ombor', szz: 50, ref: 'SanPiN 0350-17, 6.6 V sinf, 3 (oziq-ovqat mahsulotlari omborlari)', flag: 'NORMA' },
+  { id: 'sabzavot', name: 'Sabzavot-meva ombori', szz: 50, ref: 'ShNQ 2.07.01-23, 173; SanPiN 0350-17, 6.6 V sinf, 3 («овощей, фруктов»)', flag: 'NORMA' },
+  { id: 'krossdok', name: 'Oxirgi mil / kross-dok', szz: 50, ref: 'SanPiN 0350-17, 6.6 V sinf, 7 («Склады»)', flag: 'NORMA' },
   { id: 'terminal', name: 'Yuk terminali (temir yoʻl yonida)', szz: 100, ref: 'SanPiN 0350-17, 6.4 IV sinf («yuk avtotransporti turargohi, bojxona terminali»)', flag: 'TALQIN', rail: true },
-  { id: 'qurilish', name: 'Qurilish materiallari ombori', szz: 50, ref: 'SanPiN 0350-17, 6.3 V sinf («material omborlari»)', flag: 'TALQIN' },
-  { id: 'yoqilgi', name: 'Yoqilgʻi ombori', szz: 100, ref: 'SanPiN 0350-17, 6.3 IV sinf («yoqilgʻi-moylash materiallari omborlari»)', flag: 'NORMA' },
+  // 04.11 (audit): ochiq quruq qum, shagʻal, tosh — 6.6 III sinf, 5 (300 m); namlangan materiallar — V sinf, 1 (50 m)
+  { id: 'qurilish', name: 'Qurilish materiallari ombori', szz: 300, ref: 'SanPiN 0350-17, 6.6 III sinf, 5 (ochiq quruq qum, shagʻal, tosh); namlangan — V sinf, 1 (50 m)', flag: 'NORMA' },
+  { id: 'yoqilgi', name: 'Yoqilgʻi ombori', szz: 100, ref: 'SanPiN 0350-17, 6.3 IV sinf («yoqilgʻi-moylash materiallari omborlari» — qishloq xoʻjaligi boʻlimi qatori, shahar uchun talqin)', flag: 'TALQIN' },
 ];
 export const logiType = (id?: string): LogiType => LOGI.find(t => t.id === id) ?? LOGI[0];
 /** Boshqa ishlab chiqarish funksiyalari SMZ andozasi (turi aniqlanmaguncha; sanoat — ShNQ 2.09.02-19 bilan aniqlanadi) */

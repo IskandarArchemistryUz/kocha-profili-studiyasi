@@ -2203,6 +2203,8 @@ export class Editor {
     const gone = new Set(staleGen(doc, grp, area, []).bids);
     const out: Obstacle3[] = this.scene.inSite.filter(x => keep.has(x.id)).map(x => ({ ring: x.rings[0], h: x.h }));
     for (const b of doc.buildings) { if (b.gen?.grp === grp || gone.has(b.id)) continue; out.push({ ring: b.footprint.map(fr.toLocal), h: bLevels(doc.settings, b).top }); }
+    // 04.11 (egasi): ELU muhofaza zonasi kvartalda qoladi (koʻkalam, yoʻl), lekin bino qoʻyilmaydi — VMQ 1050, 15 «ж»
+    if (doc.limits?.length) for (const p of limitZones(doc).elu) out.push({ ring: p[0], h: 0, gap: 0 });
     return out;
   }
 
