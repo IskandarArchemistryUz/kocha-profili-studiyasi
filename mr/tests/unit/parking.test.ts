@@ -35,6 +35,10 @@ describe('Avtoturargoh: modul boʻyicha joylar (dizayn-kod 6.3)', () => {
   it('29-jadval: xonadonga 1, ofis 10 m² ga 1, savdo > 200 m² da 10 m² ga 1', () => {
     expect(parkingNeed({ apartments: 120.2, ofisGfa: 1000, tradeArea: 150 })).toMatchObject({ kvartiralar: 121, ofis: 100, savdo: 0 });
     expect(sumNeed(parkingNeed({ tradeArea: 700 }))).toBe(70);
+    // 04.11 (audit): 29-jadval — boshqa viloyatlarda 2 kvartiraga 1; savdo markazi 200 m² chegarasi har bino alohida
+    expect(parkingNeed({ apartments: 120, tashkent: false }).kvartiralar).toBe(60);
+    expect(parkingNeed({ tradeAreas: [150, 150, 300] }).savdo).toBe(30);
+    expect(parkingNeed({ hotelGfa: 3500, clinicGfa: 1000 })).toMatchObject({ mehmonxona: 20, poliklinika: 10 });
   });
 });
 

@@ -3,7 +3,7 @@
  *  · binolar atrofida 3 m trotuar (otmostka va kirish yoʻllari);
  *  · ShNQ 2.07.01-23, 89-band 4-jadval maydonchalari: bolalar 0,7 m²/kishi (binodan ≥ 10 m), kattalar dam olishi 0,1 (≥ 6 m),
  *    sport 2,0 (≥ 10 m), xoʻjalik 0,3 (≥ 20 m); 91-band — birlashtirilsa ≥ 150 m²;
- *  · qolgan qismi — maysa va daraxtlar (binodan ≥ 5 m, 485-band 35-jadval);
+ *  · qolgan qismi — maysa va daraxtlar (binodan ≥ 5 m, 485-band 35-jadval; turar joydan ≥ 10 m — SanQvaN 0102-25, 103-band);
  *  · ichki yoʻlak — hovli boʻylab halqa (2 m).
  * Yashillik balansi: 86-band — koʻp kvartirali turar joy zonasi yashil hududi (maktab/MTM uchastkalarisiz) ≥ 25 %;
  * 87-band — maydonchalar va yoʻlaklar uchastkaning 30 % idan oshmasa yashil hududga qoʻshiladi.
@@ -575,12 +575,13 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     let pathsIn: MultiPolygon = paths.length ? tryOp(() => polygonClipping.intersection(safeUnion(paths), free), [] as MultiPolygon) : [];
     if (pathsIn.length && taken.length) pathsIn = tryOp(() => polygonClipping.difference(pathsIn, taken), pathsIn);
     const green = tryOp(() => polygonClipping.difference(free, ...(taken.length ? [taken] : []), ...(pathsIn.length ? [pathsIn] : [])), free);
-    // daraxtlar: maysada, 8 m qadam, binodan ≥ 5 m, maydonchalarda emas
+    // daraxtlar: maysada, 8 m qadam, maydonchalarda emas; binodan ≥ 5 m (ShNQ 2.07.01-23, 35-jadval), turar joy binosidan ≥ 10 m —
+    // 04.11 (audit): SanQvaN 0102-25, 103-band: «baland shoxli daraxtlar binolardan 10 m dan kam boʻlmagan masofada»
     const trees: XY[] = [], gR = toMP(green), tk = toMP(taken);
     for (let x = x0 + 4; x < x1; x += 8) for (let y = y0 + 4; y < y1; y += 8) {
       const p: XY = [x + ((Math.round(y) * 7) % 3) - 1, y + ((Math.round(x) * 5) % 3) - 1];
       if (!gR.some(q => pointIn(p, q)) || tk.some(q => pointIn(p, q))) continue;
-      if (Math.min(...own.map(o => ringD(p, o.r))) < 5) continue;
+      if (own.some(o => ringD(p, o.r) < (useDef(o.b.use).res > 0 ? 10 : 5))) continue;
       if (fire && Math.min(...fire.tall.map(o => ringD(p, o.r))) < fire.d + fire.w + 1) continue;   // 676-band: yoʻlak va bino orasida daraxt qatori yoʻq
       trees.push(p);
     }

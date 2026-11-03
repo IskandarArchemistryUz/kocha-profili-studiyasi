@@ -21,4 +21,11 @@ describe('Quyosh', () => {
     expect(h[0]).toBeLessThan(total * 0.6);        // binoning shimoli — soyada
     expect(h[1]).toBeGreaterThan(h[0]);            // janubi — koʻproq quyosh
   });
+  it('04.11 audit (95-band «uzluksiz»): eng uzun uzluksiz davr jami soatdan kichik boʻlishi mumkin', () => {
+    // qoʻlda qadamlar: quyosh sharqdan, keyin janubdan, keyin gʻarbdan; nuqtadan janubda baland bino — oʻrtadagi qadam soyada
+    const steps = [{ alt: 20, az: 90, dt: 0.5 }, { alt: 20, az: 95, dt: 0.5 }, { alt: 20, az: 180, dt: 0.5 }, { alt: 20, az: 265, dt: 0.5 }, { alt: 20, az: 270, dt: 0.5 }];
+    const bld = [{ ring: [[-5, -15], [5, -15], [5, -5], [-5, -5]] as [number, number][], top: 40 }];
+    const run = new Float32Array(1), h = insolation([[0, 0]], [0], bld, steps, 400, run);
+    expect(h[0]).toBeCloseTo(2, 5); expect(run[0]).toBeCloseTo(1, 5);
+  });
 });
