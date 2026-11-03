@@ -23,11 +23,12 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Qurilish', 'Qurilish dogʻi', 'm²', d.footprint);
   add('Qurilish', 'Qurilish zichligi (GSI)', '%', d.gsi * 100);
   add('Qurilish', 'Umumiy qavatlar maydoni (GFA, yer usti)', 'm²', d.gfa);
-  add('Qurilish', 'UMN (FAR)', '', d.far);
+  add('Qurilish', 'UMN (66-band, turar joy uchastkalari)', '', d.umn, 'yer usti qavatlar maydoni / turar joy binosi uchastkasi; ≤ 4,5');
+  add('Qurilish', 'FAR (brutto, butun uchastka)', '', d.far);
   add('Qurilish', 'Oʻrtacha qavatlar', 'qavat', d.avgFloors);
   add('Qurilish', 'Turar joy GFA', 'm²', d.resGfa);
   add('Qurilish', 'Noturar GFA', 'm²', d.gfa - d.resGfa);
-  if (d.antresol > 0) add('Qurilish', 'Antresollar (foydali maydon, GFA ga kirmaydi)', 'm²', d.antresol, 'ShNQ 2.08.02-23 (maydonlarni hisoblash): antresollar foydali maydonga kiradi; 1-qavat maydonining 40 % i (andoza)');
+  if (d.antresol > 0) add('Qurilish', 'Antresollar (GFA ga kiritilgan)', 'm²', d.antresol, 'ShNQ 2.08.02-23, 11-ilova, 1-band: antresollar binoning umumiy maydoniga kiradi; 1-qavat maydonining 40 % i (andoza)');
   add('Turar joy', 'Kvartiralar umumiy maydoni (netto)', 'm²', d.resNet, `GFA × ${s.netToGross}`);
   add('Turar joy', 'Kvartiralar soni', 'ta', Math.round(d.apartments), d.aptSource === 'sxema' ? `kvartira sxemasi (miks ${s.aptMix.join('/')} %)` : `oʻrtacha ${s.aptNet} m² boʻyicha taxmin`);
   if (d.apartments > 0) add('Turar joy', 'Oʻrtacha kvartira (netto)', 'm²', d.resNet / d.apartments);

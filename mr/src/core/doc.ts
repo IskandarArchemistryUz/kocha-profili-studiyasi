@@ -234,8 +234,10 @@ export const DEFAULT_ORIGIN: LngLat = [69.2797, 41.3111];
 export const DEFAULT_SETTINGS: Settings = {
   norms: 'uz-2023',
   seismic: 8,
-  // Mirobod KZ namunasi hujjatida qoʻllangan qiymat; ShNQ bandi bilan tekshirilishi kerak (norms/params.ts)
-  m2PerPerson: 18,
+  // 04.11 (audit, egasi: «norma boʻyicha»): ShNQ 2.07.01-23, 1-jadval — biznes 40, ekonom 30, munitsipal 20 m²/kishi, ulushlari 15 / 50 / 30 %
+  // (maxsus 5 % — ShNQ 2.08.01 boʻyicha, hisobdan chiqarildi): (0,15·40 + 0,5·30 + 0,3·20) / 0,95 ≈ 28 — 68-band oʻrtacha koʻrsatkichi.
+  // Pastki chegara — 61-band: kishi boshiga ≥ 16 m² (ShNQ 2.08.01-24, 37-band ham). Avvalgi 18 m² matnda yoʻq edi
+  m2PerPerson: 28,
   netToGross: 0.75,
   floorHeight: 3.3,
   aptNet: 65,
@@ -307,6 +309,7 @@ export function migrate(raw: unknown): Project {
   if (!isLL(d.origin)) throw new SchemaError('origin notoʻgʻri');
   const s = { ...DEFAULT_SETTINGS, ...(d.settings as object || {}) } as Settings;
   for (const k of ['seismic', 'm2PerPerson', 'netToGross', 'floorHeight', 'aptNet'] as const) if (!isNum(s[k]) || s[k] <= 0) throw new SchemaError(`settings.${k} notoʻgʻri`);
+  if (s.m2PerPerson === 18) s.m2PerPerson = DEFAULT_SETTINGS.m2PerPerson;   // 04.11: eski sukut (matnda yoʻq) → 1-jadval oʻrtachasi
   if (s.groundH != null && !(isNum(s.groundH) && s.groundH >= 2.5 && s.groundH <= 8)) delete s.groundH;
   if (!Array.isArray(s.aptMix) || s.aptMix.length !== 4 || !s.aptMix.every(v => isNum(v) && v >= 0) || !s.aptMix.some(v => v > 0)) s.aptMix = [...DEFAULT_SETTINGS.aptMix];
   else s.aptMix = [...s.aptMix] as Settings['aptMix'];

@@ -24,9 +24,9 @@ test('qobiq: rail, asboblar paneli, Tab, til, tungi rejim', async ({ page }) => 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.click('#themeBtn');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  // koʻrsatkichlar: 4 asosiy, «hammasi» → 8
+  // koʻrsatkichlar: 4 asosiy, «hammasi» → 9 (04.11: UMN 66-band va FAR brutto alohida)
   await page.click('[data-step=uchastka]'); await page.click('#rectSite');
   await expect(page.locator('.kpibar .kpi:visible')).toHaveCount(4);
   await page.click('#kAll');
-  await expect(page.locator('.kpibar .kpi:visible')).toHaveCount(8);
+  await expect(page.locator('.kpibar .kpi:visible')).toHaveCount(9);
 });

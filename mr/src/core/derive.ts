@@ -9,7 +9,7 @@ import type { Project } from './doc';
 import { frame, polyArea, ringLocal, area, longFacadeAzimuths, obb2, type XY } from './geo';
 import { computePlan } from './plan';
 import { landBalance, type LandBalance } from './limits';
-import { useDef } from './uses';
+import { useDef, resShare } from './uses';
 import { planApartments } from './apartments';
 import { jobsFrom } from './jobs';
 import { tieredGfa } from './tiers';
@@ -38,8 +38,13 @@ export interface Derived {
   housingDensity: number;
   /** qurilish zichligi (GSI) = dogʻ / uchastka */
   gsi: number;
-  /** UMN / FAR = GFA / uchastka */
+  /** FAR (brutto) = barcha binolar GFA / butun uchastka (koʻchalar bilan) */
   far: number;
+  /** 04.11: UMN — ShNQ 2.07.01-23, 66-band: turar joy binosi yer usti qavatlari maydoni / unga ajratilgan uchastka (kvartal yoki parsel).
+   *  Faqat turar joy binosi bor uchastkalar; aralash uchastkada butun GFA olinadi (TALQIN) */
+  umnBlocks: { block: number; area: number; gfa: number; umn: number; bids: string[] }[];
+  /** UMN uchastkalar boʻyicha: Σ GFA / Σ maydon (turar joy uchastkalari) */
+  umn: number;
   avgFloors: number;
   /** koʻchalar (qizil chiziqlar orasi) uchastka ichida, m² */
   streetArea: number;
@@ -62,7 +67,7 @@ export interface Derived {
   schoolCap: number; mtmCap: number;
   /** turar joy binolariga oʻrnatilgan MTM oʻrinlari (543-band, 29 m²/oʻrin) */
   mtmBuiltIn: number;
-  /** baland 1-qavatdagi antresollar maydoni, m² (foydali maydonga kiradi, GFA ga emas — core/levels) */
+  /** baland 1-qavatdagi antresollar maydoni, m² — GFA ga kiradi (ShNQ 2.08.02-23, 11-ilova, 1-band) */
   antresol: number;
   /** maktab va MTM parsellari maydoni, m² — meʼyor izohida keyingi pogʻona uchun */
   socialPlots: { use: 'maktab' | 'mtm'; area: number }[];
@@ -103,14 +108,21 @@ export function derive(doc: Project): Derived {
   let footprint = 0, gfa = 0, resGfa = 0, greenRoof = 0, solarRoof = 0; const gfaByUse: Record<string, number> = {};
   for (const b of doc.buildings) {
     const r = ringLocal(fr, b.footprint), a = area(r);
-    if (!b.z0) footprint += a; // stilobat ustidagi seksiyalar dogʻi stilobatniki ichida — ikki marta sanalmaydi
+    // stilobat ustidagi seksiyalar dogʻi stilobatniki ichida — ikki marta sanalmaydi. 04.11: arka (bino ostidan oʻtish) dogʻga kiradi —
+    // ShNQ 2.08.01-24, 1-ilova, 10-band: «… bino ostidan oʻtish joylarining maydoni»; ShNQ 2.08.02-23, 11-ilova, 7-band
+    if (!b.z0 || b.gen?.kind === 'arka') footprint += a;
     // cheginishlar (terrasalar) boʻlsa — oʻrtacha qavat maydoni kamayadi; turar/noturar ulushi shu nisbatda
     const g = b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) : a * b.floors, k = g / (a * b.floors || 1);
     gfa += g;
     if (b.roof === 'yashil') greenRoof += a; if (b.roof === 'quyosh') solarRoof += a;
-    resGfa += k * a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
-    const nonResGfa = g - k * a * Math.max(0, b.floors - b.nonRes) * useDef(b.use).res;
-    gfaByUse[b.use] = (gfaByUse[b.use] ?? 0) + nonResGfa;
+    const rg = k * a * Math.max(0, b.floors - b.nonRes) * resShare(b.use, b.nonRes);
+    resGfa += rg;
+    const nonResGfa = g - rg;
+    // 04.11 (audit): antresol binoning umumiy maydoniga kiradi — ShNQ 2.08.02-23, 11-ilova, 1-band («Антресоллар … ҳам бинонинг умумий
+    // майдонига киритилиши керак»); ShNQ 2.08.01-24, 1-ilova, 8-band: ichki jamoat xonalari 2.08.02-23 boʻyicha hisoblanadi
+    const ant = hasAntresol(doc.settings, b) ? a * ANTRESOL_SHARE : 0;
+    gfa += ant;
+    gfaByUse[b.use] = (gfaByUse[b.use] ?? 0) + nonResGfa + ant;
   }
   const s = doc.settings;
   /* Taʼminot (m²/kishi) kvartiralar umumiy maydoniga nisbatan: kvartiralar maydoni = turar joy GFA × netto ulushi */
@@ -160,10 +172,23 @@ export function derive(doc: Project): Derived {
     resSections++;
     if (longFacadeAzimuths(r).some(a => a >= 200 && a <= 290)) { westFacing++; westIds.push(b.id); }
   }
+  // 66-band UMN: bino markazi qaysi uchastkada boʻlsa — oʻsha uchastkaga (yer usti GFA, antresol bilan; tashqi oʻlcham — xavfsiz tomonga)
+  const inR = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
+  const umnAcc = new Map<number, { gfa: number; res: boolean; bids: string[] }>();
+  for (const b of doc.buildings) {
+    if (b.floors <= 0) continue;
+    const r = ringLocal(fr, b.footprint), a = area(r), c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
+    const bi = plan.blocks.findIndex(k => inR(c, k.rings[0]) && !k.rings.slice(1).some(h => inR(c, h)));
+    if (bi < 0) continue;
+    const g = (b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) : a * b.floors) + (hasAntresol(s, b) ? a * ANTRESOL_SHARE : 0);
+    const e = umnAcc.get(bi) ?? { gfa: 0, res: false, bids: [] }; e.gfa += g; e.bids.push(b.id); if (useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat') e.res = true; umnAcc.set(bi, e);
+  }
+  const umnBlocks: Derived['umnBlocks'] = [...umnAcc].filter(([, e]) => e.res && plan.blocks[0] != null).map(([bi, e]) => ({ block: bi, area: plan.blocks[bi].area, gfa: e.gfa, umn: plan.blocks[bi].area > 0 ? e.gfa / plan.blocks[bi].area : 0, bids: e.bids }));
+  const umnA = umnBlocks.reduce((t, x) => t + x.area, 0), umn = umnA > 0 ? umnBlocks.reduce((t, x) => t + x.gfa, 0) / umnA : 0;
   const jobs = jobsFrom(gfaByUse);
   const yards = doc.settings.yards ? landscape(doc) : [], gb = greenBalance(doc, yards);
   const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + (y.social ? 0 : y.areas.play), 0);   // maktab / MTM maydonchalari — 4-jadval talabiga kirmaydi
-  return { antresol,
+  return { antresol, umnBlocks, umn,
     resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, socialPlots, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,

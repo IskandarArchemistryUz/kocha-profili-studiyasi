@@ -29,8 +29,7 @@ export function floorAt(s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Bu
 
 /**
  * Antresol (01.11, egasi: quruvchilar 1-qavatni baland sotadi — ijarachi ichida antresol quradi).
- * Maydon: ShNQ 2.08.02-23 (maydonlarni hisoblash) — antresollar foydali maydonga kiradi; bir necha qavat balandligidagi xona
- * umumiy maydonga bir qavat boʻyicha kiradi → GFA oʻzgarmaydi.
+ * Maydon (04.11, audit): ShNQ 2.08.02-23, 11-ilova, 1-band — antresollar binoning umumiy maydoniga kiradi → GFA ga qoʻshiladi (core/derive).
  * Balandlik: Strelka katalogi (kvartira, shift ≥ 4,8 m) — antresol ostida ≥ 2,5 m, ustida ≥ 2,1 m; ora yopma 0,3 m (andoza).
  * Ulush: 1-qavat maydonining 40 % i (andoza, egasi 01.11).
  */
