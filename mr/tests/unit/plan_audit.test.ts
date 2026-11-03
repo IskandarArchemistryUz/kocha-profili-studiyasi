@@ -30,7 +30,8 @@ describe('Chuqur va L kvartiralar (31.10)', () => {
   it('chuqur (13,5 m): orqa tasmada xoll va kiyimxonalar', () => {
     const I = aptInterior({ rooms: 2, ring: [[0, 0], [6.6, 0], [6.6, 13.5], [0, 13.5]], area: 89, door: [3.3, 13.5], doorLen: 1.8, mods: [0, 1] } as unknown as RuleApt, mk([0, 0], [6.6, 0], 2, 180));
     expect(I).not.toBeNull();
-    expect(I!.rooms.filter(r => r.kind === 'garderob').length).toBe(2);
+    // 3.11: umumiy xona orqasida ham kiyimxonalar (xona chuqurligi ≤ 6 m — SanQvaN 0102-25, 97-band); orqa tasmada (v > 10,5 m) — ikkitasi
+    expect(I!.rooms.filter(r => r.kind === 'garderob' && r.ring.every(p => p[1] >= 10.45)).length).toBe(2);
   });
   it('L shakl: qanot — derazali yotoqxona, umumiy devorda eshik', () => {
     const I = aptInterior({ rooms: 3, ring: [[0, 0], [9, 0], [9, 6.5], [4, 6.5], [4, 11.5], [0, 11.5]], area: 78.5, door: [6.5, 6.5], doorLen: 1.8, mods: [0, 1, 2, 3] } as unknown as RuleApt, [...mk([0, 0], [9, 0], 3, 180), ...mk([0, 11.5], [0, 6.5], 1, 270)]);

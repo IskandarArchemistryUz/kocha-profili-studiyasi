@@ -55,6 +55,14 @@ export const CORR_W = 1.6;                 // TAXMIN: umumiy koridor 1,6 m (5.27
 const STAIR_D = 2.8, STAIR_W = 2.8, LIFT = 2.2;
 /** zina katagi uzunligi, m: 3,3 m qavat — 22 × 150 mm, marshda 10 × 300 mm + ikki maydoncha 1,35 m (andoza; ShNQ 2.01.02-04, 5.30) */
 export const STAIR_LEN = 5.7;   // TAXMIN: yadro 6 m; zina 2,8 m; lift 2,2 × 2,2 m
+/**
+ * 3.11: torets (butun qanot chuqurligi boʻylab, ikki-uch fasadli) kvartiraning eng kichik eni — ANDOZA 5,4 m (≈ 1,5 modul).
+ * 1 modulli (3,3–3,7 m) torets kvartirasi 12–15 m chuqurlikda 45–55 m² li «koridor» boʻlib, ichki rejasi faqat uzunasiga
+ * tasmalar bilan sigʻardi (egasi, 3-bino: 1,6 m enli «xona»). 5,4 m da fasadda umumiy xona (ShNQ 2.08.01-24, 36-band: sof eni
+ * ≥ 3 m) yonida yotoqxona / oshxona yoki dahliz (40-band: ≥ 1,4 m) va sanuzel (43-band: ≥ 2,2 m) bir qatorda sigʻadi.
+ * Tor (≥ 3,1 m) kvartira baribir chiqsa (qoʻlda boʻlish, kichik qanot) — aptplan ikki fasadli shablon bilan xonani butun eni boʻylab beradi.
+ */
+export const TORETS_MIN = 5.4;
 const MOD = 3.3, SEC_MAX = 32, MAX_DEPTH = 10.5; // seksiya uzunligi 25–30 m (Strelka katalogi, «Seksiyali uy»; ≤ 32 m qabul qilindi); kvartira chuqurligi ≤ 10,5 m — TAXMIN
 /** kvartira yalpi maydoni (m²) — TAXMIN: S / M / L */
 const AREA: Record<'S' | 'M' | 'L', number[]> = { S: [0, 36, 52, 70, 88], M: [0, 42, 60, 80, 100], L: [0, 50, 72, 95, 118] };
@@ -434,7 +442,10 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
   // torets eni ≥ chuqurlikning 1/3.
   // 3+ qanotli (T, +) shakllarda — avvalgi qoida (sinovda yaxshiroq)
   const cap0 = (w: Wing) => Math.min((w.S - W) / 2, Math.max(1, Math.min(w.L >= 36 ? 2 : 1, Math.round(target(wantK()) / w.S / w.mw))) * w.mw);
-  const capW = (w: Wing) => !w.double ? 0 : wings.length > 2 ? cap0(w) : w.L >= 24 ? 0 : Math.min((w.S - W) / 2, Math.max(cap0(w), Math.ceil(w.S / 3 / w.mw - 0.15) * w.mw));
+  // 3.11 (egasi, 3-bino: 3,66 m enli torets kvartirasi uzunasiga ikki tasmaga boʻlinib, 1,6 m enli «xona» chiqdi): torets kvartirasi
+  // eni ≥ TORETS_MIN (modul toʻriga yaxlitlanadi, (S − koridor) / 2 dan oshmaydi) — 1 modulli (3,3–3,7 m) «koridor» kvartira boʻlmaydi
+  const torW = (w: Wing, c: number) => c <= 0 ? 0 : Math.min((w.S - W) / 2, Math.max(c, Math.ceil(TORETS_MIN / w.mw - 0.05) * w.mw));
+  const capW = (w: Wing) => !w.double ? 0 : torW(w, wings.length > 2 ? cap0(w) : w.L >= 24 ? 0 : Math.max(cap0(w), Math.ceil(w.S / 3 / w.mw - 0.15) * w.mw));
   for (const p of parts) {
     const w = wings[p.wing];
     p.k0 = Math.abs(p.ua - w.u0) < 0.05 ? endKind[p.wing][0] : 'wall';

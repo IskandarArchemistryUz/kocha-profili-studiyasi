@@ -60,11 +60,12 @@ describe('Kvartira ichki rejasi (31.10)', () => {
     }
     expect(beds / bedrooms).toBeGreaterThan(0.95);
   });
-  it('oshxona-mehmonxona: 2–4 xonalida 19–31 m²; 4 xonalida master-blok (oʻz sanuzeli)', () => {
+  it('oshxona-mehmonxona: 2–4 xonalida 16–31 m²; 4 xonalida master-blok (oʻz sanuzeli)', () => {
     for (const { k: k0, x } of all) {
       const k = x.kFit ?? k0;   // 01.11: sigʻmaganda xonalar soni kamaytirilgan reja
       const u = x.rooms.find(q => q.kind === 'umumiy');
-      if (k >= 2) { expect(u).toBeTruthy(); expect(u!.area).toBeGreaterThan(18.5); expect(u!.area).toBeLessThan(31); }
+      // 3.11: umumiy xona chuqurligi ≤ 6 m (SanQvaN 0102-25, 97-band) — maydoni kamaydi; pastki chegara — ShNQ 2.08.01-24, 35-band: ≥ 16 m² (oldin 18,5 — Strelka amaliyoti)
+      if (k >= 2) { expect(u).toBeTruthy(); expect(u!.area).toBeGreaterThanOrEqual(16); expect(u!.area).toBeLessThan(31); }
       if (k >= 4) { expect(x.master).toBe(true); expect(x.rooms.some(q => q.kind === 'master')).toBe(true); }
       if (x.master && k >= 3) expect(x.rooms.filter(q => q.wet).length).toBeGreaterThanOrEqual(2);   // master sanuzeli + umumiy
     }
