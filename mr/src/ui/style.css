@@ -434,6 +434,11 @@ body{background:var(--bg)}
 .pop[data-dir=up]{transform-origin:top right}
 .popbody{display:flex;flex-direction:column;gap:10px}
 .cmenu{position:fixed;z-index:60;animation:popIn .22s var(--spring);transform-origin:top left}
+/* 03.11: kvartal/parsel funksiyasi — kursor yonida */
+.usepop{position:fixed;z-index:95;animation:popIn .22s var(--spring);transform-origin:top left;width:min(360px,calc(100vw - 16px));max-height:min(70vh,520px);overflow:auto;padding:8px 10px 10px}
+.usepop .upg{display:grid;gap:4px;margin-top:6px}
+.usepop .upl{font-size:11px;color:var(--muted);letter-spacing:.02em}
+.usepop .upc{display:flex;flex-wrap:wrap;gap:4px}
 .menu button{cursor:pointer}.menu button:hover{background:var(--grouped)}
 .ctxbadge{position:absolute;left:calc(80px + var(--panel-w) + 140px);top:76px;z-index:12;font-size:12.5px;font-weight:500;padding:8px 14px;border-radius:var(--r-pill);color:var(--muted);background:var(--glass);box-shadow:var(--sh-float)}
 .pshut .ctxbadge{left:calc(80px + 140px)}
