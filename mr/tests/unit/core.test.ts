@@ -81,9 +81,11 @@ describe('buyruqlar va tarix', () => {
 });
 
 describe('hosilalar va meʼyorlar', () => {
-  /* 1 ga uchastka, 60×12 m, 9 qavatli, 1-qavat tijorat → 720×8 = 5760 m² turar GFA; ×0,75 = 4320; /18 = 240 kishi */
+  /* 1 ga uchastka, 60×12 m, 9 qavatli, 1-qavat tijorat → 720×8 = 5760 m² turar GFA; ×0,75 = 4320; /18 = 240 kishi
+     (04.11: sukut 28 m² — 1-jadval oʻrtachasi; bu test hisob formulasini tekshiradi, shuning uchun 18 aniq beriladi) */
   function sample() {
     let d = blankProject(); const o = d.origin;
+    d = apply(d, { type: 'setSettings', patch: { m2PerPerson: 18 } });
     d = apply(d, { type: 'setSite', rings: [rect(o, 0, 0, 100, 100)] });
     d = apply(d, { type: 'addBuilding', footprint: rect(o, 10, 10, 60, 12), floors: 9, nonRes: 1 });
     return d;
@@ -103,6 +105,36 @@ describe('hosilalar va meʼyorlar', () => {
     res = evaluateAll(derive(d), d);
     const r = res.find(x => x.id === 'density-84')!;
     expect(r.status).toBe('fail'); expect(r.delta).toBeCloseTo(20, 1);
+  });
+  it('04.11 audit: sukut 28 m²/kishi (1-jadval), eski 18 → 28; 61-band ≥ 16', () => {
+    expect(blankProject().settings.m2PerPerson).toBe(28);
+    const raw = JSON.parse(JSON.stringify(sample())); raw.settings.m2PerPerson = 18;
+    expect(migrate(raw).settings.m2PerPerson).toBe(28);
+    let d = apply(sample(), { type: 'setSettings', patch: { m2PerPerson: 15 } });
+    expect(evaluateAll(derive(d), d).find(x => x.id === 'pop-61')!.status).toBe('fail');
+    d = apply(d, { type: 'setSettings', patch: { m2PerPerson: 20 } });
+    expect(evaluateAll(derive(d), d).find(x => x.id === 'pop-61')!.status).toBe('pass');
+  });
+  it('04.11 audit: aralash binoda noturar qavat ikki marta ayirilmaydi', () => {
+    let d = sample(); d = { ...d, buildings: d.buildings.map(b => ({ ...b, use: 'aralash' as const })) };
+    expect(derive(d).resGfa).toBeCloseTo(5760, 1);   // 0,7 emas — 1-qavat allaqachon noturar
+    d = { ...d, buildings: d.buildings.map(b => ({ ...b, nonRes: 0 })) };
+    expect(derive(d).resGfa).toBeCloseTo(6480 * 0.7, 1);
+  });
+  it('04.11 audit: UMN 66-band — turar joy uchastkasi boʻyicha, ≤ 4,5', () => {
+    let d = sample();
+    const r = derive(d); expect(r.umnBlocks).toHaveLength(1);
+    expect(r.umn).toBeCloseTo(6480 / r.umnBlocks[0].area, 4);
+    expect(evaluateAll(r, d).find(x => x.id === 'umn-66')!.status).toBe('pass');
+    d = { ...d, buildings: d.buildings.map(b => ({ ...b, floors: 70 })) };
+    const r2 = evaluateAll(derive(d), d).find(x => x.id === 'umn-66')!;
+    expect(r2.status).toBe('fail'); expect(r2.where?.bids).toHaveLength(1); expect(r2.digits).toBe(2);
+  });
+  it('04.11 audit: arka (bino ostidan oʻtish) dogʻga kiradi, stilobat ustidagi seksiya — yoʻq', () => {
+    const d = sample(), b = d.buildings[0], f0 = derive(d).footprint;
+    const arka = { ...b, id: 'ark', z0: 2, gen: { kind: 'arka' } } as typeof b, top = { ...b, id: 'top', z0: 2 } as typeof b;
+    expect(derive({ ...d, buildings: [b, arka] }).footprint).toBeCloseTo(f0 * 2, 1);
+    expect(derive({ ...d, buildings: [b, top] }).footprint).toBeCloseTo(f0, 1);
   });
   it('maʼlumot boʻlmasa — baholanmaydi', () => {
     const d = blankProject();

@@ -14,7 +14,7 @@ import { bLevels } from './levels';
 import type { Building, Project } from './doc';
 import { frame, area, signedArea, type XY } from './geo';
 import { computePlan, corridor, safeUnion, pointIn } from './plan';
-import { useDef } from './uses';
+import { useDef, resShare } from './uses';
 import { inset, clean } from './generator';
 import { sportPark, type SportItem } from './sportpark';
 import { playKit, type KitPart } from './playkit';
@@ -295,7 +295,7 @@ function lowYard(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], f
   // umumiy hudud (uchastkalardan tashqari): bolalar va kattalar maydonchasi — aholi boʻyicha (4-jadval), joy boʻlsa
   const play: Yard['play'] = [];
   if (doc) {
-    const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * useDef(x.b.use).res * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
+    const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * resShare(x.b.use, x.b.nonRes) * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
     const plotMP = tryOp(() => safeUnion(plots.map(p => [close(p.plot)] as Polygon)), [] as MultiPolygon);
     const common = tryOp(() => polygonClipping.difference(B, ...(plotMP.length ? [plotMP] : []), ...own.map(x => [close(x.r)] as Polygon)), [] as MultiPolygon);
     const cR = toMP(common).filter(p => area(p[0]) > 250);
@@ -524,7 +524,7 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     if (fire?.mp.length) free = tryOp(() => polygonClipping.difference(free, fire.mp), free);
     if (!free.length) return null;
     // aholi (shu kvartal binolari)
-    const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * useDef(x.b.use).res * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
+    const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * resShare(x.b.use, x.b.nonRes) * doc.settings.netToGross / doc.settings.m2PerPerson, 0);
     // nomzod nuqtalar: erkin hududda, binolardan uzoqligi bilan
     const freeR = toMP(free), cand: { p: XY; d: number }[] = [];
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of blk.rings[0]) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }

@@ -35,4 +35,7 @@ export const USES: UseDef[] = [
 ];
 
 export const useDef = (u: string): UseDef => USES.find(x => x.id === u) ?? USES[0];
+/** Binoning turar qavatlaridagi turar joy ulushi. 04.11 (audit): «aralash» binoda pastki noturar qavatlar (nonRes) alohida ayiriladi —
+ *  shunda qolgan qavatlar toʻliq turar joy; 0,7 ulushi faqat noturar qavat berilmagan aralash bino uchun (ikki marta ayirilmaydi) */
+export const resShare = (use: string, nonRes: number): number => use === 'aralash' && nonRes >= 1 ? 1 : useDef(use).res;
 export const isUse = (u: unknown): u is Use => typeof u === 'string' && USES.some(x => x.id === u);

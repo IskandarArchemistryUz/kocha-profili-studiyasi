@@ -120,6 +120,8 @@ export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floo
 export interface Result {
   id: string; title: string; status: Status;
   value?: number; limit?: string; unit?: string;
+  /** qiymatning kasr xonalari (sukut 0) */
+  digits?: number;
   /** chegaradan chetlanish, % (musbat — oshib ketgan) */
   delta?: number;
   note?: string; source: Source;
@@ -153,6 +155,32 @@ export const RULES: Rule[] = [
         ...(v > lim ? { fix: { id: 'floors-down' as const, label: 'Turar qavatlarni kamaytirish', hint: `Zichlik ${Math.round(v)} → ≤ ${lim} kishi/ga: barcha turar joy binolarining turar qavatlari ≈ ${Math.round((1 - lim / v) * 100)} % ga kamaytiriladi (noturar qavatlar va stilobat oʻzgarmaydi, kamida 1 turar qavat). Muqobil — uchastkaga yashil yoki jamoat kvartali qoʻshish.` } } : {}),
         note: 'Uchastka (netto) boʻyicha hisoblandi; meʼyor brutto yoki netto ekani band matnidan tekshirilsin.',
       };
+    },
+  },
+  {
+    id: 'umn-66',
+    title: 'UMN — turar joy uchastkasi',
+    source: { ...SHNQ_2_07_01, clause: '66-band' },
+    evaluate(d) {
+      if (!d.umnBlocks.length) return { status: 'na', limit: '≤ 4,5', note: 'Turar joy binosi turgan uchastka yoʻq' };
+      const lim = 4.5, over = d.umnBlocks.filter(x => x.umn > lim), worst = d.umnBlocks.reduce((a, b) => b.umn > a.umn ? b : a);
+      return {
+        status: over.length ? 'fail' : 'pass', value: worst.umn, digits: 2, limit: '≤ 4,5',
+        delta: over.length ? (worst.umn / lim - 1) * 100 : undefined,
+        ...(over.length ? { where: { bids: over.flatMap(x => x.bids) } } : {}),
+        note: 'Har turar joy uchastkasi (kvartal yoki parsel) alohida: binolarning yer usti qavatlari maydoni / uchastka maydoni; eng kattasi koʻrsatiladi. Maydon tashqi oʻlcham boʻyicha olinadi — meʼyordagi ichki oʻlchamdan biroz katta (xavfsiz tomonga). Turar joy va noturar binolar bitta uchastkada boʻlsa — hammasi olinadi (TALQIN).',
+      };
+    },
+  },
+  {
+    id: 'pop-61',
+    title: 'Uy-joy bilan taʼminlanish, m²/kishi',
+    source: { ...SHNQ_2_07_01, clause: '61-band, 1-jadval' },
+    evaluate(d, doc) {
+      if (d.population <= 0) return { status: 'na', unit: 'm²/kishi', limit: '≥ 16' };
+      const v = doc.settings.m2PerPerson;
+      return { status: v >= 16 ? 'pass' : 'fail', value: v, unit: 'm²/kishi', limit: '≥ 16',
+        note: 'Aholi = kvartiralar umumiy maydoni ÷ taʼminot. 1-jadval: biznes 40, ekonom 30, munitsipal 20 m²/kishi; ulushlar boʻyicha oʻrtacha ≈ 28 (68-band). Taʼminot meʼyorlar roʻyxati tepasida tanlanadi.' };
     },
   },
   {

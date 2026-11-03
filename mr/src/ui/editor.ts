@@ -51,7 +51,7 @@ import { PARK_MOD, PARK_MODS } from '../core/parking';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
 import { saveMrReturn, consumeMrBack } from './mrback';
-import { USES, useDef } from '../core/uses';
+import { USES, useDef, resShare } from '../core/uses';
 import { gridAngle, merge, splitPath, splitByZones, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtcAt, sunPosition, type Prism } from '../core/sun';
@@ -712,7 +712,7 @@ export class Editor {
     const tabs = h('div', { class: 'seg', role: 'tablist' }, ...([['hajm', 'Hajm'], ['qavat', 'Qavatlar va terrasa']] as const).map(([k, t]) => h('button', { role: 'tab', 'aria-pressed': this.inspTab === k, 'data-itab': k, onclick: () => { this.inspTab = k; if (k !== 'qavat') this.scene.setSelFloor(null); this.renderInspector(); } }, tr(t))));
     const body = h('div', { class: 'body ibody' });
     const gfa = b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) : area(r) * b.floors, kk = gfa / (area(r) * b.floors || 1);
-    const resNet = kk * area(r) * Math.max(0, b.floors - b.nonRes) * u.res * s.netToGross;
+    const resNet = kk * area(r) * Math.max(0, b.floors - b.nonRes) * resShare(b.use, b.nonRes) * s.netToGross;
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     { const ov = this.last?.d.streetOverlap.find(x => x.bid === b.id);
       if (ov) body.append(h('div', { class: 'note bad', id: 'ovNote' }, tf('Bino koʻcha koridoriga ${a} m² tushadi (qizil chiziqlar ichida).', { a: fmt(ov.area) }),
@@ -1956,7 +1956,7 @@ export class Editor {
     const lines = roads.filter(r => WALKABLE(r.cls)).map(r => r.pts.map(fr.toLocal));
     const net = buildNet(lines, doc.streets.map(st => st.axis.map(fr.toLocal)));
     const demand: Demand[] = doc.buildings.filter(b => useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat' && b.floors > b.nonRes).map(b => {
-      const r = b.footprint.map(fr.toLocal); return { p: centroid(r), w: area(r) * (b.floors - b.nonRes) * useDef(b.use).res, bid: b.id };
+      const r = b.footprint.map(fr.toLocal); return { p: centroid(r), w: area(r) * (b.floors - b.nonRes) * resShare(b.use, b.nonRes), bid: b.id };
     });
     const blocks = this.plan().blocks;
     const src: Record<string, { pts: XY[] }[]> = {}; const add = (k: Svc, pts: XY[]) => (src[k] ??= []).push({ pts });
@@ -4235,7 +4235,9 @@ export class Editor {
       k('Uchastka, ga', d.siteHa ? fmt(d.siteHa, 2) : '—', undefined, 'kSite'),
       ...(d.balance ? [k('Yaroqli, ga', fmt(d.balance.usableHa, 2), undefined, 'kUsable')] : []),   // 02.11: cheklovlar boʻlsa — qurilishga yaroqli maydon
       k('GFA, m²', d.gfa ? fmt(d.gfa) : '—', undefined, 'kGfa'),
-      k('UMN (FAR)', d.far ? fmt(d.far, 2) : '—', undefined, undefined, false, true),
+      // 04.11 (audit): UMN — 66-band boʻyicha (turar joy uchastkasi, eng kattasi); FAR (brutto, butun uchastka) — barcha koʻrsatkichlarda
+      (() => { const u = abroadRules(c.results.filter(r => r.id === 'umn-66'), placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms)[0]; return k('UMN', u?.value ? fmt(u.value, 2) : '—', u?.status === 'na' ? undefined : u?.status, 'kUmn', false, true); })(),
+      k('FAR (brutto)', d.far ? fmt(d.far, 2) : '—', undefined, 'kFar', true),
       k('Qurilish zichligi', d.gsi ? fmt(d.gsi * 100, 0) + ' %' : '—', undefined, undefined, true),
       k('Oʻrt. qavat', d.avgFloors ? fmt(d.avgFloors, 1) : '—', undefined, undefined, true),
       k('Aholi', d.population ? fmt(d.population) : '—', undefined, 'kPop', false, true),
@@ -4296,6 +4298,11 @@ export class Editor {
         h('span', { class: 'k' }, tr('Rekonstruksiya / renovatsiya'), h('span', { class: 'sub' }, tr('79-band, 2-jadval, 7-izoh: insolyatsiya taʼminlansa jadval masofalari ikki barobargacha qisqaradi (≥ 6 m). 2·Hmax (8-izoh) va yongʻin masofalari qisqarmaydi.'))),
         sw({ id: 'reconOn', label: tr('Rekonstruksiya / renovatsiya'), on: this.store.doc.settings.recon === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { recon: v } })) }))),
       this.seismicRow(),
+      // 04.11 (audit): aholi hisobi — ShNQ 2.07.01-23, 1-jadval (qulaylik darajasi) va 61-band (≥ 16 m²/kishi)
+      (() => { const v = this.store.doc.settings.m2PerPerson, opts: [number, string][] = [[20, 'Munitsipal'], [28, 'Oʻrtacha'], [30, 'Ekonom'], [40, 'Biznes']];
+        return h('div', { class: 'group', id: 'popRow' }, h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
+          h('span', { class: 'k' }, tr('Uy-joy bilan taʼminlanish'), h('span', { class: 'sub' }, tr('Kishi boshiga kvartira umumiy maydoni, m² — 1-jadval; oʻrtacha — ulushlar boʻyicha (68-band); eng kami 16 (61-band)'))),
+          h('div', { class: 'seg sm', role: 'group', id: 'popSeg', 'aria-label': tr('Uy-joy bilan taʼminlanish') }, ...opts.map(([m, n]) => h('button', { 'aria-pressed': v === m, 'data-m2': m, title: `${tr(n)} · ${m} m²`, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { m2PerPerson: m } })) }, `${tr(n)} ${m}`))))); })(),
       h('div', { class: 'seg sm', role: 'group', id: 'regSeg' },
         h('button', { 'aria-pressed': this.regFilter === 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `${tr('Hammasi')} · ${all.length}`),
         h('button', { 'aria-pressed': this.regFilter === 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `${tr('Mos emas')} · ${bad}`)),
@@ -4306,7 +4313,7 @@ export class Editor {
           h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { if (!r.note) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
             h('span', { class: 'k' }, h('span', {}, tr(r.title), r.where && r.status !== 'pass' ? h('span', { class: 'wherechip', 'data-where': r.id, role: 'button', tabindex: 0, onclick: (e: Event) => { e.stopPropagation(); this.regOpen = r.id; this.showIssue(r, true); this.renderKpi(); }, onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); this.regOpen = r.id; this.showIssue(r, true); this.renderKpi(); } }, title: tr('Bosing — sahnada koʻrsatiladi') }, tr('sahnada')) : ''), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
             h('span', { class: 'rval' },
-              h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value)}${slash(r.unit) || (r.value === 0 && r.status === 'fail' && r.unit) ? ' ' + tr(r.unit!) : ''}`) : st),
+              h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value, r.digits ?? 0)}${slash(r.unit) || (r.value === 0 && r.status === 'fail' && r.unit) ? ' ' + tr(r.unit!) : ''}`) : st),
               // 01.11 (egasi: «0 qiymatlar qizil — xatomi?»): talab bor, loyihada esa umuman yoʻq (maktab, MTM, avtoturargoh, bogʻ) — shuni aniq yozamiz
               r.value === 0 && r.status === 'fail' ? h('span', { class: 't-small', 'data-nol': '' }, tr('loyihada yoʻq')) : '',
               lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),

@@ -188,7 +188,7 @@ details.tpl{border-top:.5px solid var(--hairline);padding-top:10px}
 .psec{padding:2px 0}
 
 /* pastki oyna (meʼyoriy reyestr, kesim): chap panel bilan bir xil koʻrinish, gorizontal skrollsiz */
-.dhead{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:16px 18px 10px;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.dhead{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:16px 18px 10px;background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .dhead h3{margin:0;flex:1;font:700 19px var(--sans);letter-spacing:-.015em}
 .drawer>p,.drawer>.secsvg,.drawer>.list,.drawer>.regw{margin:0 18px}
 .drawer>.secsvg{margin-top:6px;margin-bottom:12px}
