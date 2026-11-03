@@ -28,3 +28,17 @@ describe('koʻcha toʻri generatori', () => {
     expect(GRID_PRESETS.find(p => p.id === 'manhattan')!.h).toBe(274);
   });
 });
+
+import { gridStreetsAround as gsa04, lineHitsRing as lhr04, DEFAULT_GRID as DG4 } from '../../src/core/gridgen';
+describe('04.11 (egasi): koʻcha toʻri qabriston ustidan oʻtmaydi', () => {
+  it('avoid hududi — birorta koʻcha oʻqi uni kesmaydi', () => {
+    const site: [number, number][] = [[0, 0], [600, 0], [600, 500], [0, 500]];
+    const cem: [number, number][] = [[200, 150], [380, 150], [380, 330], [200, 330]];
+    const all = gsa04(site, [], { ...DG4, angle: 0 });
+    expect(all.some(s => lhr04(s.axis, cem))).toBe(true);   // avoidsiz — kesadi
+    const big: [number, number][] = [[190, 140], [390, 140], [390, 340], [190, 340]];   // kontur + koʻcha yarim kengligi
+    const av = gsa04(site, [], { ...DG4, angle: 0 }, [[[...big, big[0]]]]);
+    expect(av.length).toBeGreaterThan(0);
+    expect(av.some(s => lhr04(s.axis, cem))).toBe(false);
+  });
+});

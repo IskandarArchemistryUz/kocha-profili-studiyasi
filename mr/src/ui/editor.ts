@@ -25,8 +25,9 @@ import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
-import { szzOf, limitAreaHa, isActive, limitZones, SZZ_DENY, type Limit, type LimitKind } from '../core/limits';
-import { computePlan, pointIn, offsetLine, type PlanGeo } from '../core/plan';
+import { szzOf, limitAreaHa, isActive, limitZones, bufferLocal, SZZ_DENY, type Limit, type LimitKind } from '../core/limits';
+import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo } from '../core/plan';
+import type { MultiPolygon } from 'polygon-clipping';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { accessStreet, innerStreets } from '../core/rowaccess';
 import { denyZone, clipToSzz } from '../core/szzgen';
@@ -2959,8 +2960,11 @@ export class Editor {
     const ownAll = doc.streets.filter(st => st.gen !== 'grid').map(st => ({ axis: st.axis.map(fr.toLocal), half: profileWidth(profileById(st.profile)) / 2 })).filter(st => lineHitsRing(st.axis, site));
     const pHalf = profileWidth(profileById(this.gridPerimProf)) / 2, perim = this.gridPerim ? perimeterAxis(site, pHalf) : null;
     const keepC = [...keep.map(r => ({ axis: r.axis, half: r.half })), ...(this.gridKeep ? ownAll : []), ...(perim ? [{ axis: perim, half: pHalf }] : [])], nKeep = roads.length + ownAll.length;
+    // 04.11 (egasi): saqlanadigan cheklov obyektlari (qabriston, issiqxona …) ustidan toʻr oʻtmaydi — kontur asosiy koʻcha yarim kengligiga kengaytiriladi
+    const avoidG = (() => { const ls = (doc.limits ?? []).filter(l => isActive(l) && l.kind !== 'elu' && l.rings?.[0]); if (!ls.length) return [] as MultiPolygon; const hw = profileWidth(profileById(g.profiles.main)) / 2;
+      try { const parts = ls.map(l => bufferLocal(l.rings![0].map(fr.toLocal), hw, true)); return safeUnion(parts); } catch { return [] as MultiPolygon; } })();
     const apply = () => {
-      const v = vars[this.gridVar] ?? vars[0], sts = gridStreetsAround(site, keepC, v.g);
+      const v = vars[this.gridVar] ?? vars[0], sts = gridStreetsAround(site, keepC, v.g, avoidG);
       if (!sts.length && !keepC.length) { toast(tr('Uchastka tanlangan modul uchun kichik — modulni kichraytiring')); return; }
       /* toʻr va uchlarni yoʻllarga ulash — bitta buyruq: sahna, panel va hisob bir marta qayta quriladi, tarixda bitta qadam */
       const pAx = perim ? perimeterAxis(site, pHalf, sts.flatMap(st => [st.axis[0], st.axis[st.axis.length - 1]])) : null;   // birikish — toʻr uchlaridan uzoqda
@@ -2983,7 +2987,7 @@ export class Editor {
       h('div', { class: 'row', style: 'align-items:flex-end' }, num(tr('Eni'), 'w', 40, 600), h('button', { class: 'btn icon-btn', title: tr('Eni ↔ boʻyi'), 'aria-label': tr('Almashtirish'), onclick: () => { const t = g.w; g.w = g.h; g.h = t; this.renderPanel(); } }, svgIcon('<path d="M7 7h11l-3-3M17 17H6l3 3"/>')), num(tr('Boʻyi'), 'h', 40, 600)),
       h('div', { class: 'glabel' }, h('span', {}, tr('Joylashuv'))),
       h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Variantlar') }, ...vars.map((v, i) => h('button', { class: 'tile', 'data-gvar': i, 'aria-pressed': this.gridVar === i, onclick: () => { this.gridVar = i; this.renderPanel(); } },
-        h('span', { class: 'th', html: this.gridThumb(site, v.g, 64, 44) }), h('span', {}, tr(v.name)), h('span', { class: 'sub' }, `${gridStreetsAround(site, keepC, v.g).length} ${tr('koʻcha')}`)))),
+        h('span', { class: 'th', html: this.gridThumb(site, v.g, 64, 44) }), h('span', {}, tr(v.name)), h('span', { class: 'sub' }, `${gridStreetsAround(site, keepC, v.g, avoidG).length} ${tr('koʻcha')}`)))),
       h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Burilish')), h('div', { class: 'grow' }, ang), angT),
       this.compassBox(site, g),
       h('div', { class: 'group' }, profRow('main', tr('Asosiy')), profRow('minor', tr('Ikkilamchi')), h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 't-small', style: 'flex-basis:100%' }, tr('Asosiy koʻchalar')), mainSel)),

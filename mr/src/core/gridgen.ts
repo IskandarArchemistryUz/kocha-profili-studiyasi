@@ -100,15 +100,39 @@ export function gridVariants(site: XY[], base: GridParams): { name: string; g: G
  * joylanadi (bir xil burchakda) — toʻr koʻchalari mavjud koʻcha chetida tugaydi, kvartallar uning ustiga tushmaydi.
  * Moduldan kichik boʻlak — bitta kvartal boʻlib qoladi.
  */
-export function gridStreetsAround(site: XY[], keep: { axis: XY[]; half: number }[], g: GridParams): GridStreet[] {
+/**
+ * avoid — koʻcha toʻri oʻtmaydigan hududlar (04.11, egasi: «generator koʻcha toʻrini qabriston ustidan oʻtkazmasin»): saqlanadigan
+ * cheklov obyektlari konturi (qabriston, issiqxona va h.k.), koʻcha yarim kengligiga kengaytirilgan — toʻr shu hududlardan tashqarida quriladi
+ */
+export function gridStreetsAround(site: XY[], keep: { axis: XY[]; half: number }[], g: GridParams, avoid: MultiPolygon = []): GridStreet[] {
   const ang = g.angle ?? autoAngle(site), g2 = { ...g, angle: ang };
-  if (!keep.length) return gridStreets(site, g2);
+  if (!keep.length && !avoid.length) return gridStreets(site, g2);
   const cl = (r: XY[]): [number, number][] => [...r, r[0]].map(p => [p[0], p[1]]);
   let pieces: MultiPolygon;
-  try { const corr = keep.map(k => corridor(k.axis, k.half)).filter(m => m.length); pieces = corr.length ? polygonClipping.difference([cl(site)], safeUnion(corr)) : [[cl(site)]]; }
+  try { const corr: MultiPolygon[] = [...keep.map(k => corridor(k.axis, k.half)).filter(m => m.length), ...(avoid.length ? [avoid] : [])]; pieces = corr.length ? polygonClipping.difference([cl(site)], safeUnion(corr)) : [[cl(site)]]; }
   catch { return gridStreets(site, g2); }
   const out: GridStreet[] = [];
-  for (const p of pieces) { const r = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY); if (Math.abs(signedArea(r)) < g.w * g.h * 0.6) continue; out.push(...gridStreets(r, g2)); }
+  for (const p of pieces) {
+    const r = p[0].slice(0, -1).map(q => [q[0], q[1]] as XY); if (Math.abs(signedArea(r)) < g.w * g.h * 0.6) continue;
+    const holes = p.slice(1).map(h => h.slice(0, -1).map(q => [q[0], q[1]] as XY));
+    // teshiklar (avoid hududi uchastka ichida) — koʻcha oʻqi ulardan tashqaridagi boʻlaklarga ajratiladi
+    for (const st of gridStreets(r, g2)) {
+      if (!holes.length) { out.push(st); continue; }
+      let parts: XY[][] = [st.axis];
+      for (const h of holes) parts = parts.flatMap(sg => outside(sg[0], sg[sg.length - 1], h));
+      for (const sg of parts) if (Math.hypot(sg[1][0] - sg[0][0], sg[1][1] - sg[0][1]) >= 30) out.push({ ...st, axis: sg });
+    }
+  }
+  return out;
+}
+/** Kesmaning koʻpburchakdan tashqaridagi boʻlaklari */
+function outside(a: XY, b: XY, ring: XY[]): XY[][] {
+  const ins = clipSeg(a, b, ring), dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1;
+  const tOf = (p: XY) => ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2;
+  const iv = ins.map(sg => [tOf(sg[0]), tOf(sg[sg.length - 1])].sort((x, y) => x - y)).sort((x, y) => x[0] - y[0]);
+  const out: XY[][] = []; let t = 0;
+  for (const [t0, t1] of iv) { if (t0 > t + 1e-6) out.push([[a[0] + dx * t, a[1] + dy * t], [a[0] + dx * t0, a[1] + dy * t0]]); t = Math.max(t, t1); }
+  if (t < 1 - 1e-6) out.push([[a[0] + dx * t, a[1] + dy * t], b]);
   return out;
 }
 
