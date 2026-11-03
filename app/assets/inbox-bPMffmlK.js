@@ -1,1 +1,0 @@
-export{l as sendToRender}from"./inbox-7fAKWSfF.js";
