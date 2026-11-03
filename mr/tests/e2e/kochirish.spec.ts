@@ -29,7 +29,7 @@ test('koʻchirish xarajati: monitoring narxi, OʻRQ-781 → OʻRQ-1149, TEP', as
   await expect(page.locator('#compBox')).toBeVisible();
   await expect(page.locator('#compBox')).toContainText('Narx kiritilmagan');
   await page.click('#compMon');
-  await expect(page.locator('#compBox')).toContainText('Fitrat atrofi 1,5 km');
+  await expect(page.locator('#compBox')).toContainText('shahar median');
   await expect(page.locator('[data-comp=priceFlat]')).toHaveValue('1739');
   await page.fill('[data-comp=priceNonres]', '1500'); await page.press('[data-comp=priceNonres]', 'Tab');
   await expect(page.locator('#compBox')).not.toContainText('Narx kiritilmagan');

@@ -92,12 +92,14 @@ export function compensation(list: DemoBuilding[], p: CompParams): CompResult {
 }
 
 /** monitoring CSV (narx-monitoring tarmogʻi) dan oxirgi sana boʻyicha median $/m² */
-export function parseMonitoring(csv: string): { date: string; flat?: number; house?: number; flatNear?: number; houseNear?: number } | null {
+/** Narx monitoringi (toshkent_uybor.csv): eng soʻnggi sanadagi butun shahar qatori («hudud» = Toshkent; ustun boʻlmasa — har qanday qator). */
+export function parseMonitoring(csv: string): { date: string; flat?: number; house?: number } | null {
   const lines = csv.trim().split(/\r?\n/); if (lines.length < 2) return null;
   const head = lines[0].split(','), rows = lines.slice(1).map(l => l.split(','));
   const ix = (n: string) => head.indexOf(n), last = rows.map(r => r[ix('sana')]).sort().pop()!;
-  const get = (cat: string, col: string) => { const r = rows.filter(x => x[ix('sana')] === last && x[ix('kategoriya')] === cat).pop(); const v = r ? Number(r[ix(col)]) : NaN; return Number.isFinite(v) && v > 0 ? v : undefined; };
-  return { date: last, flat: get('kvartira', 'median_usd_m2'), house: get('hovli', 'median_usd_m2'), flatNear: get('kvartira', 'atrof_1500m_median_usd_m2'), houseNear: get('hovli', 'atrof_1500m_median_usd_m2') };
+  const city = (x: string[]) => ix('hudud') < 0 || x[ix('hudud')] === 'Toshkent';
+  const get = (cat: string, col: string) => { const r = rows.filter(x => x[ix('sana')] === last && x[ix('kategoriya')] === cat && city(x)).pop(); const v = r ? Number(r[ix(col)]) : NaN; return Number.isFinite(v) && v > 0 ? v : undefined; };
+  return { date: last, flat: get('kvartira', 'median_usd_m2'), house: get('hovli', 'median_usd_m2') };
 }
 
-export const MONITORING_URL = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/narx-monitoring/data/narx/mirobod_uybor.csv';
+export const MONITORING_URL = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/narx-monitoring/data/narx/toshkent_uybor.csv';

@@ -21,10 +21,10 @@ async function drawBuilding(page: Page, dx = 0) {
 test('yangi loyiha: nom saqlanadi va sahifa yangilanganda tiklanadi', async ({ page }) => {
   await newProject(page);
   const name = page.locator('.pname');
-  await name.fill('Fitrat sinov'); await name.press('Enter');
+  await name.fill('Mirobod sinov'); await name.press('Enter');
   await expect(page.locator('.save')).toHaveAttribute('data-s', 'saved', { timeout: 5000 });
   await page.reload();
-  await expect(page.locator('.pname')).toHaveValue('Fitrat sinov');
+  await expect(page.locator('.pname')).toHaveValue('Mirobod sinov');
 });
 
 test('uchastka, bino, koʻrsatkichlar, undo/redo va yangilanish', async ({ page }) => {

@@ -25,9 +25,9 @@ describe('IndexedDB', () => {
 
 describe('fayl', () => {
   it('eksport → import nusxa beradi', () => {
-    const a = blankProject('Fitrat');
+    const a = blankProject('Mirobod');
     const b = importJSON(exportJSON(a), () => uid('p_'));
-    expect(b.name).toBe('Fitrat'); expect(b.id).not.toBe(a.id);
+    expect(b.name).toBe('Mirobod'); expect(b.id).not.toBe(a.id);
     expect(() => importJSON('{"kind":"boshqa"}', () => 'x')).toThrow();
     expect(() => importJSON('emas json', () => 'x')).toThrow();
   });

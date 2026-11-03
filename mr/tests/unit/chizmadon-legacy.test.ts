@@ -4,7 +4,7 @@ import { pageSvg } from '../../src/chizmadon/render';
 
 /** Eski Albom (maket.html) hujjati — barcha element turlari */
 const OLD = {
-  id: 'main', name: 'Eski albom', meta: { author: 'I', proj: 'Fitrat' }, layers: [{ id: 'L0', name: 'Asosiy', vis: true }, { id: 'L1', name: 'Tahlil', vis: false }],
+  id: 'main', name: 'Eski albom', meta: { author: 'I', proj: 'Mirobod' }, layers: [{ id: 'L0', name: 'Asosiy', vis: true }, { id: 'L1', name: 'Tahlil', vis: false }],
   pages: [
     { id: 'a', fmt: 'A3', orient: 'L', tb: true, items: [
       { id: '1', t: 'rect', x: 10, y: 10, w: 50, h: 30, fill: '#8cc37a', stroke: '#141414', sw: 0.5, ls: 'dash', fop: 0.5 },

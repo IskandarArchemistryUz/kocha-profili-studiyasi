@@ -88,7 +88,7 @@ describe('Chizmadon — 7 bandli tekshiruv', () => {
     expect(pageChecks(g).find(x => x.id === 4)!.ok).toBe(true);
   });
   it('namunalar quriladi (loyiha xaritasi bilan)', () => {
-    const ctx = { title: 'Fitrat', place: 'Toshkent', date: '18.10.2026', author: 'I', map: { svg: '<rect width="10" height="10"/>', vb: [0, 0, 400, 300] as [number, number, number, number], w: 400, h: 300, scale: 2000 } };
+    const ctx = { title: 'Mirobod', place: 'Toshkent', date: '18.10.2026', author: 'I', map: { svg: '<rect width="10" height="10"/>', vb: [0, 0, 400, 300] as [number, number, number, number], w: 400, h: 300, scale: 2000 } };
     for (const f of LAYOUTS.families) for (const pg of f.pages) for (const fmt of f.formats) { const p = buildLayoutPage(f.id, pg.id, fmt, ctx); expect(p.els.length, `${pg.id} ${fmt}`).toBeGreaterThan(0); expect(pageSvg(p).svg.length).toBeGreaterThan(100); }
   });
 });

@@ -2,7 +2,7 @@
  * Meʼyorlar dvigateli: har bir band — maʼlumot yozuvi (manba, tahrir, chegara) + baholash funksiyasi.
  * Qoida qoʻshish yoki tahririni almashtirish ilovaning qolgan qismini oʻzgartirmaydi.
  * Qiymatlar loyihaning tekshirilgan hujjatlaridan (claude/archemistry-bloklar-va-normalar.md,
- * claude/abdurauf-fitrat-kz-normativ-audit.md); asl matn bilan solishtirilmaganlari `verified: false`.
+ * claude/mirobod-kz-normativ-audit.md); asl matn bilan solishtirilmaganlari `verified: false`.
  */
 import type { Derived } from '../core/derive';
 import { bLevels } from '../core/levels';
