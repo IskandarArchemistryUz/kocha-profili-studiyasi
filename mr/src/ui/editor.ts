@@ -3698,6 +3698,30 @@ export class Editor {
   }
 
   /* ---------- oʻng tugma menyusi ---------- */
+  /**
+   * 03.11 (egasi: «parselni ushlaganda sichqoncha yonida kichik oynada funksiyalar chiqsin — chap panelni pastga aylantirish shart boʻlmasin»):
+   * kvartal yoki parsel bosilganda kursor yonida funksiya tanlash oynasi; tanlansa — yopiladi. Esc yoki tashqariga bosish — yopadi.
+   */
+  private usePop(x: number, y: number, i: number): void {
+    document.querySelector('.usepop')?.remove();
+    if (this.step.id !== 'parsel') return;
+    const b = this.plan().blocks[i]; if (!b) return;
+    const groups = [...new Set(USES.map(u => u.group))];
+    const m = h('div', { class: 'menu usepop', role: 'dialog', 'aria-label': `${this.unitName(i)} ${tr('funksiyasi')}` },
+      h('div', { class: 'mh' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`),
+      ...groups.map(g => h('div', { class: 'upg' }, h('span', { class: 'upl' }, tr(g)), h('div', { class: 'upc' }, ...USES.filter(u => u.group === g).map(u =>
+        h('button', { class: 'uchip', 'data-use': u.id, 'aria-pressed': b.use === u.id, title: tr(u.name), onclick: () => { close(); this.setBlockUse(i, u.id); } },
+          h('i', { style: `background:#${u.color.toString(16).padStart(6, '0')}` }), tr(USE_SHORT[u.id] ?? u.name)))))));
+    document.body.append(m);
+    const w = m.offsetWidth, hh = m.offsetHeight;
+    m.style.left = `${Math.max(8, Math.min(x + 12, innerWidth - w - 8))}px`; m.style.top = `${Math.max(8, Math.min(y + 12, innerHeight - hh - 8))}px`;
+    const onDown = (e: PointerEvent) => { if (!m.contains(e.target as Node)) close(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const close = () => { m.remove(); document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey); };
+    setTimeout(() => { document.addEventListener('pointerdown', onDown, true); document.addEventListener('keydown', onKey); }, 0);
+    (m.querySelector('[aria-pressed="true"]') as HTMLElement | null ?? m.querySelector('.uchip') as HTMLElement | null)?.focus({ preventScroll: true });
+  }
+
   private ctxMenu(x: number, y: number): void {
     document.querySelector('.cmenu')?.remove();
     const doc = this.store.doc, id = this.scene.pickBuilding(x, y), b = id ? doc.buildings.find(q => q.id === id) : null;
@@ -3770,7 +3794,7 @@ export class Editor {
     if (this.locked(s) && s.phase > BUILT_PHASE) { toast(`«${s.title}» — ${this.locked(s)}`); }
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
     if (this.sframe) this.endFrame();
-    this.setTool(null); this.step = s; this.panelOpen = true; track(`mr/step/${s.id}`, true);
+    document.querySelector('.usepop')?.remove(); this.setTool(null); this.step = s; this.panelOpen = true; track(`mr/step/${s.id}`, true);
     this.closePop(); if (this.el.drawer.dataset.kind === 'section') this.el.drawer.hidden = true;   // oldingi qadamning ochiq oynalari yopiladi
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
@@ -4444,7 +4468,7 @@ export class Editor {
         if (oc != null) { this.setMarked([], [oc]); return; }
         const p = this.scene.pickRoadPoint(e.clientX, e.clientY);
         { const rid = p ? this.osmRoadAt(p) : null; if (rid != null && !(p && this.plan().blocks.some(b => pointIn(p, b.rings)))) { this.setMarked([], [], this.store.doc, [rid]); return; } }
-        if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)); this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); this.renderPanel(); }
+        if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)), was = this.selBlock; this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); this.renderPanel(); if (i >= 0 && i === was) this.usePop(e.clientX, e.clientY, i); }   // birinchi bosish — tanlaydi, tanlanganini yana bosish — funksiya oynasi
         return;
       }
       if (this.step.id === 'kocha') {
