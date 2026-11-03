@@ -12,7 +12,8 @@ export interface SvcDef { id: Svc; name: string; r: number; note: string }
 /** 38-jadval, shahar aholi punktlari ustuni; bekatlar — 382–383-band */
 export const SERVICES: SvcDef[] = [
   { id: 'mtm', name: 'MTM (bogʻcha)', r: 300, note: '300 m; past zichlikdagi (1–2 qavatli, tomorqali) hududda 500 m' },
-  { id: 'maktab', name: 'Maktab', r: 500, note: 'II bosqich (V–IX) 500 m; I bosqich (I–IV) 300 m, III bosqich (X–XI) 800 m' },
+  // 04.11 (audit): umumiy oʻrta maktab I–XI sinflarni oladi — eng qattiq (I bosqich, I–IV) radius olinadi
+  { id: 'maktab', name: 'Maktab', r: 300, note: 'I bosqich (I–IV sinf) 300 m — umumiy maktab uchun hal qiluvchi; II bosqich 500 m, III bosqich 800 m' },
   { id: 'poliklinika', name: 'Poliklinika', r: 1500, note: '1500 m' },
   { id: 'dorixona', name: 'Dorixona', r: 500, note: '500 m; past zichlikda 800 m' },
   { id: 'savdo', name: 'Kundalik savdo', r: 500, note: 'mahalliy markazlar, kundalik qatnov 300–500 m (yuqori chegara olindi)' },
@@ -22,6 +23,8 @@ export const SERVICES: SvcDef[] = [
   { id: 'metro', name: 'Metro bekati (kirish)', r: 800, note: 'ShNQ da metro uchun alohida radius berilmagan; 800 m (≈ 10 min piyoda) — taxmin, xalqaro amaliyot. Manba — metro kirishlari' },
 ];
 export const svcDef = (k: Svc) => SERVICES.find(s => s.id === k)!;
+/** 38-jadval: qurilish zichligi past (1–2 qavatli tomorqali uylar) hududida — MTM 500 m, dorixona 800 m */
+export const LOW_DENSITY_R: Partial<Record<Svc, number>> = { mtm: 500, dorixona: 800 };
 
 /* ---------------- piyoda tarmogʻi ---------------- */
 export interface Net { xy: XY[]; adj: { to: number; w: number }[][]; segs: [number, number][]; grid: Map<string, number[]>; C: number }

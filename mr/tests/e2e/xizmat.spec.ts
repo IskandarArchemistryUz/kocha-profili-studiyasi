@@ -23,7 +23,7 @@ test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', as
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.click('[data-step=xizmat]');
   await expect(page.locator('#svcTab')).toBeVisible({ timeout: 30000 });
-  // bogʻcha uchastka yonida (~130 m) — qisman qamrab oladi (02.11: avval 150/150 da edi — generator ikki xil natija bersa 0 % chiqib, CI beqaror edi); maktab ~1270 m da — 500 m radiusdan tashqarida
+  // bogʻcha uchastka yonida (~130 m) — qisman qamrab oladi (02.11: avval 150/150 da edi — generator ikki xil natija bersa 0 % chiqib, CI beqaror edi); maktab ~1270 m da — 300 m radiusdan tashqarida (04.11: I bosqich)
   const mtm = page.locator('#svcTab tr[data-svc=mtm] .chip'), sch = page.locator('#svcTab tr[data-svc=maktab] .chip');
   // OSM obyektlari kelguncha jadval 0 % koʻrsatishi mumkin — kutiladi (CI da beqaror edi)
   await expect.poll(async () => Number((await mtm.textContent())!.replace(/\D/g, '')), { timeout: 30000 }).toBeGreaterThan(0);

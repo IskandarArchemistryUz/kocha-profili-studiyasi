@@ -62,7 +62,7 @@ function rayEnter(p: XY, d: XY, r: XY[]): number {
  * Har nuqta uchun quyoshli soatlar. Prizmalar 20 m katakli indeksda; nur boʻylab faqat yaqin kataklar tekshiriladi.
  * z — nuqta balandligi (prizma top bilan bir xil sath tizimida).
  */
-export function insolation(pts: XY[], z: number[], prisms: Prism[], steps: SunStep[], maxDist = 400): Float32Array {
+export function insolation(pts: XY[], z: number[], prisms: Prism[], steps: SunStep[], maxDist = 400, run?: Float32Array): Float32Array {
   const C = 20, grid = new Map<string, number[]>(), bb: number[][] = [];
   prisms.forEach((pr, k) => {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -71,6 +71,8 @@ export function insolation(pts: XY[], z: number[], prisms: Prism[], steps: SunSt
     for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++) for (let j = Math.floor(y0 / C); j <= Math.floor(y1 / C); j++) { const key = `${i},${j}`; (grid.get(key) || grid.set(key, []).get(key)!).push(k); }
   });
   const out = new Float32Array(pts.length), stamp = new Int32Array(prisms.length).fill(-1);
+  // 04.11 (audit, 95-band «uzluksiz»): run berilsa — har nuqtaning eng uzun uzluksiz quyoshli davri (qadamlar vaqt tartibida)
+  const cur = run ? new Float32Array(pts.length) : null;
   let tick = 0;
   for (const st of steps) {
     const tanA = Math.tan(st.alt * RAD), d: XY = [Math.sin(st.az * RAD), Math.cos(st.az * RAD)];
@@ -92,6 +94,7 @@ export function insolation(pts: XY[], z: number[], prisms: Prism[], steps: SunSt
         }
       }
       if (lit) out[n] += st.dt;
+      if (cur && run) { cur[n] = lit ? cur[n] + st.dt : 0; if (cur[n] > run[n]) run[n] = cur[n]; }
     }
   }
   return out;

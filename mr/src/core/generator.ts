@@ -67,7 +67,7 @@ export interface GenParams {
   parkNorm?: boolean;
 }
 /** Talab hisobi uchun loyiha sozlamalari */
-export interface GenOpts { use?: string; /** 02.11: logistika turi (ZoneLabel.sub) va yaqin temir yoʻl (mahalliy metr) — core/logigen */ logi?: string; rails?: XY[][]; aptNet?: number; netToGross?: number; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
+export interface GenOpts { use?: string; /** 02.11: logistika turi (ZoneLabel.sub) va yaqin temir yoʻl (mahalliy metr) — core/logigen */ logi?: string; rails?: XY[][]; aptNet?: number; netToGross?: number; /** 04.11: 29-jadval — Toshkent shahri/viloyati (sukut) yoki boshqa viloyat */ tashkent?: boolean; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
 
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
@@ -973,15 +973,17 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
 
 /** 29-jadval talabi shu kvartal binolaridan (xonadonlar — turar GFA × netto ulushi ÷ oʻrtacha xonadon) */
 export function blockParkingNeed(sections: GenSection[], opts: GenOpts = {}): Record<string, number> {
-  let res = 0, ofis = 0, trade = 0;
+  let res = 0, ofis = 0, hotel = 0, clinic = 0; const trades: number[] = [];
   for (const s of sections) {
     if (s.kind === 'stilobat' && s.use === 'avtoturargoh') continue;
     const a = aOf(s.ring), u = s.use ?? opts.use ?? 'turar', nr = Math.min(s.floors, s.nonRes);
-    if (u === 'ofis' || u === 'mehmonxona') ofis += a * s.floors;
-    else if (u === 'savdo') trade += a * s.floors;
-    else if (u === 'turar' || u === 'aralash') { res += a * (s.floors - nr); trade += a * nr; }
+    if (u === 'ofis' || u === 'mamuriy') ofis += a * s.floors;
+    else if (u === 'mehmonxona') hotel += a * s.floors;
+    else if (u === 'poliklinika') clinic += a * s.floors;
+    else if (u === 'savdo') trades.push(a * s.floors * 0.7);
+    else if (u === 'turar' || u === 'aralash') { res += a * (s.floors - nr); if (nr > 0) trades.push(a * nr * 0.7); }
   }
-  return parkingNeed({ apartments: res * (opts.netToGross ?? 0.75) / (opts.aptNet ?? 65), ofisGfa: ofis, tradeArea: trade * 0.7 });
+  return parkingNeed({ apartments: res * (opts.netToGross ?? 0.75) / (opts.aptNet ?? 65), tashkent: opts.tashkent, ofisGfa: ofis, tradeAreas: trades, hotelGfa: hotel, clinicGfa: clinic });
 }
 
 const NEED_NAME: Record<string, string> = { kvartiralar: 'xonadonlar', ofis: 'ofis', savdo: 'savdo', maktab: 'maktab', mtm: 'MTM', park: 'park' };

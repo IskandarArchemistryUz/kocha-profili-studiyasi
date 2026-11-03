@@ -3,7 +3,7 @@
  * Aholi soni FAQAT shu yerda, bitta formula bilan hisoblanadi; maktab, MTM, yashillik va boshqa
  * ehtiyojlar keyingi bosqichlarda aynan shu sondan olinadi (KZ hujjatlaridagi «5 xil aholi» xatosi shu bilan yopiladi).
  */
-import { parkingNeed } from './parking';
+import { parkingNeed, isTashkent } from './parking';
 import { hasAntresol, ANTRESOL_SHARE } from './levels';
 import type { Project } from './doc';
 import { frame, polyArea, ringLocal, area, longFacadeAzimuths, obb2, type XY } from './geo';
@@ -65,7 +65,7 @@ export interface Derived {
   streetOverlap: { bid: string; area: number; polys: XY[][] }[];
   /** parsellar maydonidan kelib chiqadigan sigʻim: maktab (41-jadval), MTM (543-band) */
   schoolCap: number; mtmCap: number;
-  /** turar joy binolariga oʻrnatilgan MTM oʻrinlari (543-band, 29 m²/oʻrin) */
+  /** turar joy binolariga oʻrnatilgan MTM oʻrinlari: bino 33 m²/oʻrin (5-ilova), hovli uchastkasi 29 m²/oʻrin sigʻgancha (543-band) */
   mtmBuiltIn: number;
   /** baland 1-qavatdagi antresollar maydoni, m² — GFA ga kiradi (ShNQ 2.08.02-23, 11-ilova, 1-band) */
   antresol: number;
@@ -85,27 +85,33 @@ export interface Derived {
   playNeed: number; playGot: number;
 }
 
-/** 41-jadval: oʻquvchiga 20 m² (≤ 660), 15 m² (661–989), 10 m² (> 989) → maydonga sigʻadigan eng koʻp oʻquvchi */
+/** 41-jadval: oʻquvchiga 20 m² (40–660), 15 m² (661–989), 10 m² (> 989) → maydonga sigʻadigan eng koʻp oʻquvchi.
+ *  04.11 (audit, «norma boʻyicha»): har pogʻona oʻz chegarasida tekshiriladi — N oʻquvchi uchun talab N·m(N) ≤ maydon.
+ *  Jadval oʻzi uzilishli: 9 899 m² → 494 oʻrin (20 m²), 9 900 m² → 990 (10 m²); 15 m² pogʻonasi hech qachon eng katta sigʻim bermaydi */
 export function schoolCapacity(a: number): number {
-  if (a / 10 > 989) return Math.floor(a / 10);
-  if (a / 15 > 660) return Math.min(989, Math.floor(a / 15));
-  return Math.min(660, Math.floor(a / 20));
+  let c = 0;
+  if (a / 10 >= 990) c = Math.floor(a / 10);
+  if (a / 15 >= 661) c = Math.max(c, Math.min(989, Math.floor(a / 15)));
+  if (a / 20 >= 40) c = Math.max(c, Math.min(660, Math.floor(a / 20)));
+  return c;
 }
-/** 543-band: oʻringa 40 m² (≤ 100 oʻrin), 35 m² (> 100) */
-export function mtmCapacity(a: number): number { return a / 35 > 100 ? Math.floor(a / 35) : Math.min(100, Math.floor(a / 40)); }
+/** 543-band: oʻringa 40 m² (≤ 100 oʻrin), 35 m² (> 100) — har pogʻona oʻz chegarasida */
+export function mtmCapacity(a: number): number { return a / 35 >= 101 ? Math.floor(a / 35) : Math.min(100, Math.floor(a / 40)); }
 /** 41-jadval / 543-band pogʻonasi: yuqori pogʻonaga oʻtish uchun kerakli uchastka maydoni va undagi sigʻim (null — eng yuqori pogʻonada) */
 export function nextTier(use: 'maktab' | 'mtm', a: number): { area: number; cap: number } | null {
   const need = use === 'maktab' ? 990 * 10 : 101 * 35;
   return a < need ? { area: need, cap: use === 'maktab' ? 990 : 101 } : null;
 }
-/** turar joy binosiga oʻrnatilgan MTM: 1-qavat oyoq izining 80 % i, 12 m²/oʻrin (TAXMIN, SOCIAL.mtm.m2) */
-export const builtInMtm = (footprintM2: number): number => Math.floor(footprintM2 * 0.8 / 12);
+/** 04.11 (audit): turar joy binosiga oʻrnatilgan MTM — 1-qavat maydoni ÷ 33 m²/oʻrin (5-ilova, binoning hisobiy maydoni 1 oʻringa);
+ *  avvalgi 12 m² — 543-banddagi yakka uylar uchastkasi raqami edi */
+export const MTM_BLD_M2 = 33, MTM_PLOT_BUILTIN = 29;
+export const builtInMtm = (footprintM2: number): number => Math.floor(footprintM2 / MTM_BLD_M2);
 
 
 export function derive(doc: Project): Derived {
   const fr = frame(doc.origin);
   const siteM2 = doc.site ? polyArea(doc.site.rings.map(r => ringLocal(fr, r))) : 0;
-  let footprint = 0, gfa = 0, resGfa = 0, greenRoof = 0, solarRoof = 0; const gfaByUse: Record<string, number> = {};
+  let footprint = 0, gfa = 0, resGfa = 0, greenRoof = 0, solarRoof = 0; const gfaByUse: Record<string, number> = {}, tradeAreas: number[] = [];
   for (const b of doc.buildings) {
     const r = ringLocal(fr, b.footprint), a = area(r);
     // stilobat ustidagi seksiyalar dogʻi stilobatniki ichida — ikki marta sanalmaydi. 04.11: arka (bino ostidan oʻtish) dogʻga kiradi —
@@ -123,6 +129,8 @@ export function derive(doc: Project): Derived {
     const ant = hasAntresol(doc.settings, b) ? a * ANTRESOL_SHARE : 0;
     gfa += ant;
     gfaByUse[b.use] = (gfaByUse[b.use] ?? 0) + nonResGfa + ant;
+    // 29-jadval: «savdo maydoni 200 m² dan ziyod savdo markazlari» — har bino alohida (savdo maydoni ≈ 0,7·GFA, TAXMIN)
+    if (b.use === 'savdo' || b.use === 'aralash' || b.use === 'turar') { const t = (nonResGfa + ant) * 0.7; if (t > 0) tradeAreas.push(t); }
   }
   const s = doc.settings;
   /* Taʼminot (m²/kishi) kvartiralar umumiy maydoniga nisbatan: kvartiralar maydoni = turar joy GFA × netto ulushi */
@@ -155,13 +163,27 @@ export function derive(doc: Project): Derived {
     if (a > 1) streetOverlap.push({ bid: b.id, area: a, polys });
   }
   const schoolCap = plan.blocks.filter(b => b.use === 'maktab').reduce((t, b) => t + schoolCapacity(b.area), 0);
-  const mtmBuiltIn = doc.buildings.filter(b => b.mtm && b.nonRes >= 1 && useDef(b.use).res > 0).reduce((t, b) => t + builtInMtm(area(ringLocal(fr, b.footprint))), 0);
+  // 543-band: oʻrnatilgan MTM uchun uchastka 29 m²/oʻrin — kvartal hovlisidan (kvartal − binolar dogʻi); sigʻmagan oʻrinlar sanalmaydi
+  const inBl = (p: XY, k: { rings: XY[][] }) => { const inR2 = (q: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > q[1]) !== (r[j][1] > q[1]) && q[0] < (r[j][0] - r[i][0]) * (q[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; }; return inR2(p, k.rings[0]) && !k.rings.slice(1).some(h => inR2(p, h)); };
+  const ctr = (r: XY[]): XY => [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
+  const mtmByBlock = new Map<number, number>(); let mtmBuiltIn = 0;
+  for (const b of doc.buildings) {
+    if (!(b.mtm && b.nonRes >= 1 && useDef(b.use).res > 0)) continue;
+    const r = ringLocal(fr, b.footprint), n = builtInMtm(area(r)), bi = plan.blocks.findIndex(k => inBl(ctr(r), k));
+    if (bi < 0) { mtmBuiltIn += n; continue; }
+    mtmByBlock.set(bi, (mtmByBlock.get(bi) ?? 0) + n);
+  }
+  for (const [bi, n] of mtmByBlock) {
+    const k = plan.blocks[bi], foot = doc.buildings.filter(b => !b.z0 || b.gen?.kind === 'arka').map(b => ringLocal(fr, b.footprint)).filter(r => inBl(ctr(r), k)).reduce((t, r) => t + area(r), 0);
+    mtmBuiltIn += Math.min(n, Math.max(0, Math.floor((k.area - foot) / MTM_PLOT_BUILTIN)));
+  }
   const mtmCap = plan.blocks.filter(b => b.use === 'mtm').reduce((t, b) => t + mtmCapacity(b.area), 0) + mtmBuiltIn;
   const antresol = doc.buildings.filter(b => hasAntresol(s, b)).reduce((t, b) => t + area(ringLocal(fr, b.footprint)) * ANTRESOL_SHARE, 0);
   const socialPlots = plan.blocks.filter(b => b.use === 'maktab' || b.use === 'mtm').map(b => ({ use: b.use as 'maktab' | 'mtm', area: b.area }));
-  // 29-jadval (Toshkent): kvartiraga 1; maʼmuriy — har 10 m²; savdo (> 200 m² savdo maydoni) — har 10 m² savdo maydoni (≈ 0,7·GFA); maktab, MTM — 25 ga 1; park — har 0,05 ga
-  const trade = ((gfaByUse.savdo ?? 0) + (gfaByUse.aralash ?? 0) + (gfaByUse.turar ?? 0)) * 0.7;
-  const parkingParts = parkingNeed({ apartments, ofisGfa: gfaByUse.ofis ?? 0, tradeArea: trade, school: schoolCap, mtm: mtmCap, greenArea });
+  // 29-jadval (core/parking): koʻp qavatli turar joy — Toshkent shahri/viloyatida kvartiraga 1, boshqa viloyatlarda 2 kvartiraga 1
+  // (yakka uy va blokli uylar kirmaydi — oʻz uchastkasida); maʼmuriy/ofis — har 10 m²; savdo markazi > 200 m² — har bino alohida;
+  // maktab, MTM — 25 ga 1; poliklinika, mehmonxona — 5 ga 1 (sigʻim GFA dan, ANDOZA); park — har 0,05 ga
+  const parkingParts = parkingNeed({ apartments: Math.max(0, apartments - houses), tashkent: isTashkent(s.district), ofisGfa: (gfaByUse.ofis ?? 0) + (gfaByUse.mamuriy ?? 0), tradeAreas, school: schoolCap, mtm: mtmCap, greenArea, hotelGfa: gfaByUse.mehmonxona ?? 0, clinicGfa: gfaByUse.poliklinika ?? 0 });
   const parkingReq = Object.values(parkingParts).reduce((a, b) => a + b, 0);
   const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + (g.truck ? 0 : g.spaces), 0);   // yuk hovlisi tirkamalari — yengil avtomobil joyi emas
   let resSections = 0, westFacing = 0; const westIds: string[] = [];

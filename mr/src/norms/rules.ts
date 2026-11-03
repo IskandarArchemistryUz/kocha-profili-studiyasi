@@ -22,6 +22,7 @@ import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
+import { isTashkent } from '../core/parking';
 import { szzGreen } from '../core/szzgen';
 
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
@@ -230,7 +231,7 @@ export const RULES: Rule[] = [
       const lo = Math.ceil(d.population * 0.07), hi = Math.ceil(d.population * 0.125);
       const mw = d.mtmCap < lo ? socialNeed(doc, 'mtm', lo - d.mtmCap) : undefined;
       return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, ...(mw ? { where: mw } : {}), ...(d.mtmCap < lo ? { fix: { id: 'mtm' as const, label: '1-qavatlarga MTM joylash', hint: `Yetishmaydi ${lo - d.mtmCap} oʻrin. Turar joy binolarining 1-qavatiga MTM (543-band, uchastka 29 m²/oʻrin hovlidan) — kattaroq binolardan boshlab, kerakli oʻringa yetguncha; 1-qavati turar boʻlsa noturarga oʻtkaziladi. Alternativa — «MTM» parseli (≥ 3 535 m² — 35 m²/oʻrin).` } } : {}), unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
-        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi; bino maydoni 12 m²/oʻrin — taxmin).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
+        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi, sigʻmagani sanalmaydi; bino maydoni 33 m²/oʻrin — 5-ilova).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
     },
   },
   {
@@ -240,11 +241,11 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (d.parkingReq <= 0) return { status: 'na', unit: 'joy', note: 'Talab yoʻq (binolar yoʻq)' };
       const parts = Object.entries(d.parkingParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${v}`).join(', ');
-      const lack = d.parkingReq - d.parkingProv;
+      const lack = d.parkingReq - d.parkingProv, reg = isTashkent(doc.settings.district) ? 'Toshkent shahri va viloyati: kvartiraga 1' : 'boshqa viloyatlar: 2 kvartiraga 1';
       return { status: d.parkingProv >= d.parkingReq ? 'pass' : 'fail', value: d.parkingProv, unit: 'joy', limit: `≥ ${d.parkingReq}`,
         ...(lack > 0 ? { fix: { id: 'parking' as const, label: 'Yer osti avtoturargoh qoʻshish', hint: `Yetishmaydi ${lack} joy (≈ ${Math.round(lack * 30 / 1000) / 10} ming m² — 30 m²/joy). Turar joy kvartallari hovlisi ostiga yer osti avtoturargoh qoʻshiladi, sathlar soni meʼyor boʻyicha (1–4) — kvartallar qayta generatsiya qilinadi. Boshqa yoʻllar: stilobat ichida yoki alohida koʻp qavatli avtoturargoh (parsel «Avtoturargoh»).` } } : {}),
         // tarjima kaliti: ichma-ich shablonsiz (i18n ${…} namunasi bilan mos kelsin)
-        note: `Talab: ${parts} (Toshkent: kvartiraga 1). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` };
+        note: `Talab: ${parts} (${reg}). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` };
     },
   },
   {

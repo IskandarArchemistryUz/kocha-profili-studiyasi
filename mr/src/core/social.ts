@@ -23,11 +23,12 @@ export type SocialUse = 'maktab' | 'mtm' | 'poliklinika';
 export type Module = 'taroq' | 'hovli' | 'kompakt' | 'chiziq' | 'u' | 'blok' | 'l';
 
 export const SOCIAL: Record<SocialUse, { name: string; unit: string; m2: number; floors: number; maxFloors: number; modules: { id: Module; name: string; note: string }[] }> = {
-  maktab: { name: 'Maktab', unit: 'oʻquvchi', m2: 10, floors: 3, maxFloors: 4, modules: [
+  // 04.11 (audit): m2 — binoning hisobiy maydoni 1 oʻringa, ShNQ 2.07.01-23, 5-ilova (5-ustun): maktab 24, MTM 33 (avval 10 / 12 — manbasiz)
+  maktab: { name: 'Maktab', unit: 'oʻquvchi', m2: 24, floors: 3, maxFloors: 4, modules: [
     { id: 'taroq', name: 'Taroq (finger-plan)', note: 'koridor-oʻq va sinf qanotlari; qanotlar orasida yorugʻ hovlichalar — Yevropa va MDH maktablarida keng tarqalgan' },
     { id: 'hovli', name: 'Hovlili (atrium)', note: 'yopiq hovli atrofida sinflar — issiq iqlimda soyali ichki hovli (Oʻrta Osiyo madrasasi tamoyili)' },
     { id: 'kompakt', name: 'Kompakt blok', note: 'chuqur korpus, markazda yorugʻlik qudugʻi — Skandinaviya maktablari kabi qisqa yoʻllar, kam energiya' } ] },
-  mtm: { name: 'MTM (bogʻcha)', unit: 'oʻrin', m2: 12, floors: 2, maxFloors: 3, modules: [
+  mtm: { name: 'MTM (bogʻcha)', unit: 'oʻrin', m2: 33, floors: 2, maxFloors: 3, modules: [
     { id: 'chiziq', name: 'Guruh yacheykalari qatori', note: 'har guruh — alohida yacheyka, oʻyin maydoniga chiqishi bilan; janubga qaratiladi' },
     { id: 'u', name: 'U shakl', note: 'guruhlar himoyalangan hovli atrofida — shamol va changdan panoh' } ] },
   poliklinika: { name: 'Poliklinika', unit: 'qatnov/smena', m2: 15, floors: 4, maxFloors: 6, modules: [
@@ -107,7 +108,7 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   };
   const inside = () => [...secs, ...gym].every(r => r.every(p => pointIn(p, [inner!]) || pointIn(p, [ring])));
   let sc = 1; fit(sc);
-  for (let k = 0; k < 8 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
+  for (let k = 0; k < 14 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }   // 04.11: 5-ilova maydoni kattaroq — koʻproq qadam
   if (!inside()) {
     /* uchburchak / qiya parsel: OBB oʻrniga chekinish ichidagi eng katta toʻrtburchak — modul shu ramkaga joylanadi */
     const fr = freeRect([inner], [], 0);
@@ -116,7 +117,7 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
       const U2: XY = long ? u : [-u[1], u[0]];
       P = rot(U2, fr.c); W = (long ? fr.w : fr.h) * 0.98; D = (long ? fr.h : fr.w) * 0.98;
       sc = 1; fit(sc);
-      for (let k = 0; k < 10 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
+      for (let k = 0; k < 16 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
     }
   }
   if (!inside()) return { sections: [], gfa: 0, footprint: 0, notes: [...notes, 'Modul parselga sigʻmadi — boshqa modulni tanlang yoki parselni kattalashtiring'] };

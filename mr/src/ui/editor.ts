@@ -47,7 +47,7 @@ import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, type AutoSetback, type EdgeKind } from '../core/setback';
 import { DEFAULT_GEN, generate, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
-import { PARK_MOD, PARK_MODS } from '../core/parking';
+import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
 import { saveMrReturn, consumeMrBack } from './mrback';
@@ -66,7 +66,7 @@ import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
 import { SOCIAL, MOD_BW, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
-import { analyze, boundaryPts, buildNet, svcDef, SERVICES, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
+import { analyze, boundaryPts, buildNet, svcDef, SERVICES, LOW_DENSITY_R, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
 import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
 import { centroid, area, signedArea } from '../core/geo';
@@ -1315,22 +1315,23 @@ export class Editor {
     const z = pts.map(p => this.scene.H(p[0], p[1]));
     const [m, d] = this.sunDate.split('-').map(Number), steps = daySteps(2026, m, d, doc.origin[1], doc.origin[0]);
     this.insol = { busy: true, stats: null }; this.renderPanel();
-    let hours: Float32Array;
+    let hours: Float32Array, run: Float32Array;
     try {
       this.sunW ??= new Worker(new URL('../workers/sun.worker.ts', import.meta.url), { type: 'module' });
-      hours = await new Promise<Float32Array>((ok, no) => { const w = this.sunW!; w.onmessage = e => ok(e.data.hours); w.onerror = e => no(e); w.postMessage({ id: 1, pts, z, prisms, steps }); });
-    } catch { hours = insolation(pts, z, prisms, steps); }
+      [hours, run] = await new Promise<[Float32Array, Float32Array]>((ok, no) => { const w = this.sunW!; w.onmessage = e => ok([e.data.hours, e.data.run]); w.onerror = e => no(e); w.postMessage({ id: 1, pts, z, prisms, steps, run: true }); });
+    } catch { run = new Float32Array(pts.length); hours = insolation(pts, z, prisms, steps, 400, run); }
     const bins = INSOL_BINS.map(() => 0); let sum = 0, ge2 = 0, ge3 = 0;
     hours.forEach(hh => { sum += hh; if (hh >= 2) ge2++; if (hh >= 3) ge3++; let k = 0; INSOL_BINS.forEach(([t], i) => { if (hh >= t) k = i; }); bins[k]++; });
     const n = hours.length || 1;
-    let ge05 = 0, ge1 = 0; hours.forEach(hh => { if (hh >= 0.5) ge05++; if (hh >= 1) ge1++; });
+    // 04.11 (audit): 95-band — «uzluksiz»: jami soat emas, eng uzun uzluksiz quyoshli davr
+    let ge05 = 0, ge1 = 0; run.forEach(hh => { if (hh >= 0.5 - 1e-6) ge05++; if (hh >= 1 - 1e-6) ge1++; });
     const inPeriod = this.sunDate === '03-22' || this.sunDate === '09-22';
     this.insolRule = {
       id: 'insol-territory', title: 'Uy atrofidagi hudud insolyatsiyasi',
       source: { doc: 'SanQvaN 0102-25', edition: '2025', clause: '95-band (22.03–22.09: uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz)', verified: true },
       ...(!inPeriod ? { status: 'na' as const, note: 'Davr chegarasi — 22 mart yoki 22 sentabr sanasini tanlab hisoblang (eng qisqa kun).' }
-        : { status: (ge1 === n ? 'pass' : ge05 === n ? 'review' : 'fail') as Result['status'], ...(ge1 < n ? { where: { pts: pts.filter((_, i) => hours[i] < 1).slice(0, 600) } } : {}), value: ge1 / n * 100, unit: '% ≥ 1 soat', limit: '100',
-            note: `${fmt(ge05 / n * 100, 0)} % nuqta ≥ 0,5 soat, ${fmt(ge1 / n * 100, 0)} % — ≥ 1 soat (uchastka yer sathi, binolar dogʻidan tashqari). Xonalar uchun 2 soat uzluksiz (95-band) — «Kvartiralar» qadamida (deraza nuqtalari boʻyicha).` }),
+        : { status: (ge1 === n ? 'pass' : ge05 === n ? 'review' : 'fail') as Result['status'], ...(ge1 < n ? { where: { pts: pts.filter((_, i) => run[i] < 1 - 1e-6).slice(0, 600) } } : {}), value: ge1 / n * 100, unit: '% ≥ 1 soat', limit: '100',
+            note: `${fmt(ge05 / n * 100, 0)} % nuqta ≥ 0,5 soat, ${fmt(ge1 / n * 100, 0)} % — ≥ 1 soat uzluksiz (uchastka yer sathi, binolar dogʻidan tashqari). Xonalar uchun 2 soat uzluksiz (95-band) — «Kvartiralar» qadamida (deraza nuqtalari boʻyicha).` }),
     };
     this.insol = { busy: false, stats: { mean: sum / n, ge2: ge2 / n, ge3: ge3 / n, bins: bins.map(v => v / n), n: hours.length, date: this.sunDate } };
     this.scene.setInsolation(pts, hours, cell);
@@ -1979,7 +1980,9 @@ export class Editor {
     }
     dh = Math.round(dh);
     const blockOf = (p: XY) => blocks.find(b => pointIn(p, b.rings));
-    for (const d of demand) { const b = blockOf(d.p); d.r = { bekat: stopRadius(stopZone(b?.use ?? 'turar'), cat, T.center, dh).r }; }
+    // 04.11 (audit): 38-jadval — yakka/blokli (tomorqali) uylar hududida MTM 500 m, dorixona 800 m
+    const lowIds = new Set(doc.buildings.filter(b => b.gen?.plot || b.gen?.kind === 'uy' || b.gen?.kind === 'taunhaus' || b.use === 'yakka').map(b => b.id));
+    for (const d of demand) { const b = blockOf(d.p); d.r = { bekat: stopRadius(stopZone(b?.use ?? 'turar'), cat, T.center, dh).r, ...(lowIds.has(d.bid) ? LOW_DENSITY_R : {}) }; }
     this.svcTr = { cat, auto: !T.cat, city, dh, relief, blocks: blocks.map((b, i) => ({ i, use: b.use, zone: stopZone(b.use), r: stopRadius(stopZone(b.use), cat, T.center, dh).r })) };
     const res = analyze(net, demand, src as Record<Svc, { pts: XY[] }[]>);
     this.svc = { ...this.svc, res, demand, net, src: Object.fromEntries(Object.entries(src).map(([k, v]) => [k, v.flatMap(o => o.pts)])), ms: performance.now() - t0, buildings: doc.buildings };
@@ -2261,7 +2264,7 @@ export class Editor {
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
-    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]), ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) });
+    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]), ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) });
     // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanPiN 0350-17, 2.17; ShNQ 2.07.01-23, 146) — uylar olinadi, seksiyalar qisqartiriladi
     { const dzOf = new Map<string, ReturnType<typeof denyZone>>(), dz = (u: string) => { if (!dzOf.has(u)) dzOf.set(u, denyZone(this.store.doc, u as Use)); return dzOf.get(u)!; };
       const byUse = new Map<string, typeof r.sections>(); for (const x of r.sections) { const u = x.use ?? b.use; byUse.set(u, [...(byUse.get(u) ?? []), x]); }

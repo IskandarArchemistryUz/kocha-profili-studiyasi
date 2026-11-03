@@ -11,8 +11,9 @@ describe('Ijtimoiy binolar', () => {
     expect(socialDemand('poliklinika', 10000, r)).toBeCloseTo(260);
     expect(plotCapacity('maktab', 16000)).toBe(1600); expect(plotCapacity('maktab', 9000)).toBe(450); expect(plotCapacity('mtm', 7000)).toBe(200);
   });
+  // 04.11: 5-ilova — maktab 24, MTM 33 m²/oʻrin; 160 × 120 parselga 600 oʻquvchi va 120 oʻrin
   for (const [use, mods] of Object.entries(SOCIAL)) for (const m of mods.modules) it(`${use}: ${m.id} parsel ichida`, () => {
-    const ring = rect(0, 0, 160, 120), cap = use === 'maktab' ? 900 : use === 'mtm' ? 240 : 400;
+    const ring = rect(0, 0, 160, 120), cap = use === 'maktab' ? 600 : use === 'mtm' ? 120 : 400;
     const p = socialPlan(ring, use as 'maktab', cap, m.id, mods.m2, mods.floors, ring.map(() => 25));
     expect(p.sections.length).toBeGreaterThan(0);
     for (const s of p.sections) for (const q of s.ring) expect(pointIn(q, [ring])).toBe(true);

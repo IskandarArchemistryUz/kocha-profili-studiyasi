@@ -1,5 +1,5 @@
 /**
- * Avtoturargoh: meʼyoriy talab (ShNQ 2.07.01-23, 416-band, 29-jadval — Toshkent) va joylarni modul boʻyicha
+ * Avtoturargoh: meʼyoriy talab (ShNQ 2.07.01-23, 416-band, 29-jadval) va joylarni modul boʻyicha
  * joylashtirish (Toshkent dizayn-kodi, 6.3: turargoh turlari va eng kichik oʻlchamlari).
  *
  * Modul — ikki tomonlama qator: joy qatori + manevr boʻlagi + joy qatori. Joylar haqiqiy toʻrtburchak
@@ -18,13 +18,27 @@ export const PARK_MOD: Record<ParkModule, { short: string; W: number; L: number;
 };
 export const PARK_MODS = Object.keys(PARK_MOD) as ParkModule[];
 
-/** 29-jadval (Toshkent): kvartiraga 1; maʼmuriy — har 10 m²; savdo (> 200 m² savdo maydoni) — har 10 m²; maktab, MTM — 25 ga 1; park — har 0,05 ga */
-export function parkingNeed(x: { apartments?: number; ofisGfa?: number; tradeArea?: number; school?: number; mtm?: number; greenArea?: number }): Record<string, number> {
-  const trade = x.tradeArea ?? 0;
-  return {
-    kvartiralar: Math.ceil(x.apartments ?? 0), ofis: Math.ceil((x.ofisGfa ?? 0) / 10), savdo: trade > 200 ? Math.ceil(trade / 10) : 0,
+/** Toshkent shahri (SOATO 1726) va Toshkent viloyati (1727) — 29-jadval 1-qatori; boshqa viloyatlar — 2-qatori */
+export const isTashkent = (district: string): boolean => /^172[67]/.test(district);
+/** 04.11 (audit): mehmonxona oʻrni va poliklinika qatnovi binoning GFA sidan — ANDOZA (meʼyor matnida maydon↔sigʻim nisbati yoʻq) */
+export const HOTEL_M2_PER_BED = 35, CLINIC_M2_PER_VISIT = 20;
+
+/**
+ * 29-jadval (ShNQ 2.07.01-23, 416-band), «kamida»:
+ * koʻp qavatli turar joy — Toshkent shahri va viloyatida kvartiraga 1, boshqa viloyatlarda 2 kvartiraga 1 (yakka uy va blokli uylar — kirmaydi);
+ * maʼmuriy binolar — binoning har 10 m² iga 1; savdo maydoni 200 m² dan ziyod savdo markazi — har 10 m² savdo maydoniga 1 (har bino alohida);
+ * MTM — 25 bolaga 1, maktab — 25 oʻquvchiga 1; poliklinika — 5 qatnovchiga 1; mehmonxona — 5 oʻringa 1; madaniyat va istirohat bogʻi — har 0,05 ga ga 1
+ */
+export function parkingNeed(x: { apartments?: number; tashkent?: boolean; ofisGfa?: number; tradeArea?: number; tradeAreas?: number[]; school?: number; mtm?: number; greenArea?: number; hotelGfa?: number; clinicGfa?: number }): Record<string, number> {
+  const trades = x.tradeAreas ?? (x.tradeArea != null ? [x.tradeArea] : []);
+  const savdo = trades.reduce((t, a) => t + (a > 200 ? Math.ceil(a / 10) : 0), 0);
+  const out: Record<string, number> = {
+    kvartiralar: Math.ceil((x.apartments ?? 0) / (x.tashkent === false ? 2 : 1)), ofis: Math.ceil((x.ofisGfa ?? 0) / 10), savdo,
     maktab: Math.ceil((x.school ?? 0) / 25), mtm: Math.ceil((x.mtm ?? 0) / 25), park: Math.floor((x.greenArea ?? 0) / 500),
   };
+  if (x.hotelGfa) out.mehmonxona = Math.ceil(x.hotelGfa / HOTEL_M2_PER_BED / 5);
+  if (x.clinicGfa) out.poliklinika = Math.ceil(x.clinicGfa / CLINIC_M2_PER_VISIT / 5);
+  return out;
 }
 export const sumNeed = (p: Record<string, number>) => Object.values(p).reduce((a, b) => a + b, 0);
 

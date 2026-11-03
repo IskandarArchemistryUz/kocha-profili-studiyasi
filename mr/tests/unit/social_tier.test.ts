@@ -7,14 +7,16 @@ describe('41-jadval / 543-band pogʻonalari', () => {
     expect(nextTier('maktab', 8857)).toEqual({ area: 9900, cap: 990 });
     expect(schoolCapacity(9900)).toBe(990);
     expect(nextTier('maktab', 9900)).toBeNull();
+    // 04.11 (audit): 9 899 m² da 989 emas — 494 (989 oʻquvchiga 15 m² × 989 = 14 835 m² kerak)
+    expect(schoolCapacity(9899)).toBe(494); expect(schoolCapacity(13199)).toBe(1319);
   });
   it('MTM: 3 535 m² dan katta — 35 m²/oʻrin', () => {
     expect(mtmCapacity(3261)).toBe(81);
     expect(nextTier('mtm', 3261)).toEqual({ area: 3535, cap: 101 });
-    expect(mtmCapacity(3535)).toBe(101);
+    expect(mtmCapacity(3535)).toBe(101); expect(mtmCapacity(3534)).toBe(88);
   });
-  it('1-qavatdagi MTM: 12 m²/oʻrin (taxmin), oyoq izining 80 %', () => {
-    expect(builtInMtm(900)).toBe(60);
+  it('04.11 audit: 1-qavatdagi MTM — 33 m²/oʻrin (5-ilova)', () => {
+    expect(builtInMtm(900)).toBe(27);
   });
 });
 

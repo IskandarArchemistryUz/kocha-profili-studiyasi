@@ -11,7 +11,7 @@ const split = (ls: XY[][]) => ls.map(l => { const out: XY[] = []; const [a, b] =
 describe('Xizmatlar: piyoda tarmogʻi', () => {
   it('38-jadval radiuslari (shahar)', () => {
     const r = Object.fromEntries(SERVICES.map(s => [s.id, s.r]));
-    expect(r).toMatchObject({ mtm: 300, maktab: 500, poliklinika: 1500, dorixona: 500 });
+    expect(r).toMatchObject({ mtm: 300, maktab: 300, poliklinika: 1500, dorixona: 500 });
   });
   it('toʻrda masofa — Manhetten, toʻgʻri chiziq emas', () => {
     const net = buildNet(split(gridLines()));
