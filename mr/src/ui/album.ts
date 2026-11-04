@@ -46,7 +46,7 @@ const pin = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 
 
 /** Reja uslubi (31.10): mebel va oq-qora — har foydalanuvchida eslab qolinadi */
 /* mebel: 31.10 da vaqtincha oʻchirilgan edi (oʻtish joylarini toʻsardi); 01.11 tekshiruv va tuzatishlardan keyin egasi qayta yoqdi (#378, #381) */
-const LOOK: { furn: boolean; mono: boolean } = (() => { try { const v = JSON.parse(localStorage.getItem('mr-plan-look') ?? '{}'); return { furn: v.furn !== false, mono: v.mono === true }; } catch { return { furn: true, mono: false }; } })();
+const LOOK: { furn: boolean; mono: boolean; gen: boolean } = (() => { try { const v = JSON.parse(localStorage.getItem('mr-plan-look') ?? '{}'); return { furn: v.furn !== false, mono: v.mono === true, gen: v.gen === true }; } catch { return { furn: true, mono: false, gen: false }; } })();
 const saveLook = () => { try { localStorage.setItem('mr-plan-look', JSON.stringify(LOOK)); } catch { /* */ } };
 
 export function openAlbum(o: AlbumOpts): void {
@@ -94,7 +94,7 @@ export function openAlbum(o: AlbumOpts): void {
   const genplan = () => genplanSvg(o.plans, bid, o.name, b2 => { bid = b2; floor = Math.max(1, Math.min(secOf().f1, floor)); sel = []; selRoom = -1; msg = ''; render(); });
 
   function render(): void {
-    const pl = secOf(), si = o.plans.indexOf(pl), ft = floorTypeOf(pl, floor), editable = ft === 'typical' && view === 'reja', P = planOf(pl), V = variant(pl, floor);
+    const pl = secOf(), si = o.plans.indexOf(pl), ft = floorTypeOf(pl, floor), editable = ft === 'typical' && view === 'reja' && !LOOK.gen, P = planOf(pl), V = variant(pl, floor);
     sheet.style.display = view === 'variantlar' ? 'none' : ''; varsBox.style.display = view === 'variantlar' ? '' : 'none';
     const FI = view === 'insol' && insol ? floorInsol(V, pl.layout.mods, m => insol!.at(pl.bid, floor, m)) : null;
     // chap: genplan + kesim
@@ -120,10 +120,12 @@ export function openAlbum(o: AlbumOpts): void {
       editable ? h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Asbob') }, ...([['tanlash', 'Tanlash'], ['devor', 'Devor chizish']] as const).map(([k, t]) => h('button', { 'aria-pressed': mode === k, id: `albMode-${k}`, onclick: () => { mode = k; sel = []; selRoom = -1; msg = ''; render(); } }, tr(t)))) : '',
       h('div', { class: 'seg sm', role: 'group', id: 'albLook', 'aria-label': tr('Uslub') },
         h('button', { 'aria-pressed': LOOK.furn, id: 'albFurn', title: tr('Mebel (karavot, divan, stol, sanitariya jihozlari)'), onclick: () => { LOOK.furn = !LOOK.furn; saveLook(); render(); } }, tr('Mebel')),
-        h('button', { 'aria-pressed': LOOK.mono, id: 'albMono', title: tr('Oq-qora chizma (rangsiz)'), onclick: () => { LOOK.mono = !LOOK.mono; saveLook(); render(); } }, tr('Oq-qora'))),
+        h('button', { 'aria-pressed': LOOK.mono, id: 'albMono', title: tr('Oq-qora chizma (rangsiz)'), onclick: () => { LOOK.mono = !LOOK.mono; saveLook(); render(); } }, tr('Oq-qora')),
+        // 04.11 (egasi): katta master reja uchun — kvartiralarsiz, mebelsiz umumiy seksiya rejasi
+        h('button', { 'aria-pressed': LOOK.gen, id: 'albGen', title: tr('Umumiy seksiya rejasi: kvartiralarsiz va mebelsiz (katta master reja uchun)'), onclick: () => { LOOK.gen = !LOOK.gen; saveLook(); render(); } }, tr('Umumiy'))),
       h('button', { class: 'btn btn-sm', id: 'albSvg', onclick: () => o.download(`${o.docName}_bino${si + 1}_q${floor}.svg`, res.svg, 'image/svg+xml'), title: tr('Reja — SVG') }, 'SVG'),
-      h('button', { class: 'btn btn-sm', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), furn: LOOK.furn, mono: LOOK.mono, plan: planOf(pl) }), 'image/svg+xml'), title: tr('Barcha qavatlar') }, tr('Qavatlar')),
-      h('button', { class: 'btn btn-sm', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), furn: LOOK.furn, mono: LOOK.mono, plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); }, title: tr('Hamma binolar') }, tr('Binolar')),
+      h('button', { class: 'btn btn-sm', id: 'albFloors', onclick: () => o.download(`${o.docName}_bino${si + 1}_qavatlar.svg`, buildingFloorsSvg(pl, 200, o.name(pl, si), { ...o.opt(pl), furn: LOOK.furn && !LOOK.gen, mono: LOOK.mono, general: LOOK.gen, plan: planOf(pl) }), 'image/svg+xml'), title: tr('Barcha qavatlar') }, tr('Qavatlar')),
+      h('button', { class: 'btn btn-sm', id: 'albAll', onclick: () => { const s = allPlansSvg(o.plans, floor, 200, o.name, pl2 => ({ ...o.opt(pl2), furn: LOOK.furn && !LOOK.gen, mono: LOOK.mono, general: LOOK.gen, plan: planOf(pl2) })); if (s) o.download(`${o.docName}_rejalar_q${floor}.svg`, s, 'image/svg+xml'); }, title: tr('Hamma binolar') }, tr('Binolar')),
       h('button', { class: 'btn icon-btn btn-sm btn-ghost', id: 'albClose', 'aria-label': tr('Yopish'), onclick: close }, svgIcon(IC.x)));
     prevB.toggleAttribute('disabled', floor <= 1); nextB.toggleAttribute('disabled', floor >= pl.f1);
     if (view === 'kesim' && o.section) {
@@ -142,7 +144,7 @@ export function openAlbum(o: AlbumOpts): void {
     }
     // reja
     const tint = FI ? { fill: FI.apts.map(a => ST_FILL[a.status]), stroke: FI.apts.map((a, i) => (i === hiApt ? '#0a84ff' : ST_COL[a.status])), sub: FI.apts.map(a => (a.status === 'na' ? '—' : `${a.ok}/${a.need} ${a.status === 'ok' ? '✓' : '✗'}`)) } : undefined;
-    const res = floorPlanSvg(pl, { scale: 100, dims: view === 'olcham', title: `${o.name(pl, si)} · ${floor}-qavat`, floor, ...o.opt(pl), furn: LOOK.furn, mono: LOOK.mono && !FI, plan: P, sel: editable ? sel : [], selRoom: editable ? selRoom : -1, ...(FI ? { tint, num: true } : {}) });
+    const res = floorPlanSvg(pl, { scale: 100, dims: view === 'olcham', title: `${o.name(pl, si)} · ${floor}-qavat`, floor, ...o.opt(pl), furn: LOOK.furn && !LOOK.gen, mono: LOOK.mono && !FI, general: LOOK.gen && !FI, plan: P, sel: editable ? sel : [], selRoom: editable ? selRoom : -1, ...(FI ? { tint, num: true } : {}) });
     host.innerHTML = res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%" height="100%"');
     host.dataset.mode = editable ? mode : 'view';
     const svg = host.querySelector('svg') as SVGSVGElement;
