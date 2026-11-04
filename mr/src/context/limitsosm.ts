@@ -64,6 +64,16 @@ export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit
   const fr = frame(site[0]), S = site.map(fr.toLocal), out: Limit[] = [], els = j.elements ?? [];
   const add = (e: OsmEl, kind: LimitKind, extra: Partial<Limit>) => out.push({ id: `osm_${e.type[0]}${e.id}`, kind, status: 'saqlanadi', src: 'osm', osm: e.id, ...(e.tags?.name ? { name: e.tags.name.slice(0, 120) } : {}), ...extra } as Limit);
   const poles = els.filter(e => e.type === 'node' && e.lat != null && e.lon != null).map(e => [e.lon!, e.lat!] as LngLat);
+  // 04.11 (Murad Buildings sinovi, 7-band): zavod ichki temir yoʻl tarmoqlari avtomatik «saqlanadi» boʻlib, 100 m SMZ bilan katta joyni
+  // yopardi. Uchastka ichida toʻliq joylashgan va tashqi tarmoqqa ulanmagan shoxobchalar (bogʻlangan izlar guruhi) — «buziladi» taklifi
+  const rails = els.filter(e => e.tags?.railway === 'rail' && e.geometry && e.geometry.length >= 2).map(e => ({ id: e.id, loc: e.geometry!.map(p => fr.toLocal([p.lon, p.lat] as LngLat)) }));
+  const par = rails.map((_, i) => i), root = (i: number): number => (par[i] === i ? i : (par[i] = root(par[i])));
+  for (let i = 0; i < rails.length; i++) for (let j = i + 1; j < rails.length; j++) {
+    const A = rails[i].loc, B = rails[j].loc, ends = [A[0], A[A.length - 1], B[0], B[B.length - 1]];
+    if (ends.slice(0, 2).some(p => B.some((q, k) => k > 0 && segD(p, B[k - 1], q) <= 3)) || ends.slice(2).some(p => A.some((q, k) => k > 0 && segD(p, A[k - 1], q) <= 3))) par[root(i)] = root(j);
+  }
+  const outside = new Set<number>(); rails.forEach((r, i) => { if (r.loc.some(p => !pip(p, S))) outside.add(root(i)); });
+  const spur = new Set(rails.filter((_, i) => !outside.has(root(i))).map(r => r.id));
   for (const e of els) {
     const t = e.tags ?? {};
     if (e.type === 'node') continue;
@@ -82,7 +92,7 @@ export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit
       if (!near(loc, S, 110)) continue;
       const L = loc.length, left: XY[] = [], right: XY[] = [];
       for (let i = 0; i < L; i++) { const a = loc[Math.max(0, i - 1)], b = loc[Math.min(L - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l * 3, ny = dx / l * 3; left.push([loc[i][0] + nx, loc[i][1] + ny]); right.push([loc[i][0] - nx, loc[i][1] - ny]); }
-      add(e, 'temiryol', { rings: [[...left, ...right.reverse()].map(fr.toGeo)] });
+      add(e, 'temiryol', { rings: [[...left, ...right.reverse()].map(fr.toGeo)], ...(spur.has(e.id) ? { status: 'buziladi' as const, name: `${e.tags?.name ? e.tags.name.slice(0, 80) + ' — ' : ''}ichki shoxobcha: uchastka ichida, tashqi tarmoqqa ulanmagan — zavod bilan birga buziladi (taklif)` } : {}) });
       continue;
     }
     // poligonlar (way yoki multipolygon relation — tashqi halqa)
