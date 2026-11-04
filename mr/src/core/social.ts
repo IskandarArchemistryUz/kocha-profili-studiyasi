@@ -76,6 +76,7 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   void L; void S;
   const c: XY = [U[0] * (u0 + u1) / 2 + V[0] * (v0 + v1) / 2, U[1] * (u0 + u1) / 2 + V[1] * (v0 + v1) / 2];
   let P = rot(U, c), W = u1 - u0, D = v1 - v0;
+  const P0 = P, W0 = W, D0 = D;
   const box = (a: number, b: number, w: number, h: number): XY[] => [P(a, b), P(a + w, b), P(a + w, b + h), P(a, b + h)];
   const secs: XY[][] = [], gym: XY[][] = [];
   const fit = (scale: number) => {
@@ -106,7 +107,10 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
       const rest = At - len * dp; if (rest > 50 && (mod === 'l' || len >= W - 0.1)) secs.push(box(-W / 2, -D / 2 + dp, dp, Math.min(D - dp, rest / dp)));
     }
   };
-  const inside = () => [...secs, ...gym].every(r => r.every(p => pointIn(p, [inner!]) || pointIn(p, [ring])));
+  // 04.11 (Murad Buildings sinovi, 1-band — red-line-39): avval qatʼiy — bino va sport zali chekinish ichida (39-jadval: 25 m);
+  // sigʻmasa — parsel ichida (avvalgidek), izohda chetlanish aytiladi
+  let strict = true;
+  const inside = () => [...secs, ...gym].every(r => r.every(p => pointIn(p, [inner!]) || (!strict && pointIn(p, [ring]))));
   let sc = 1; fit(sc);
   for (let k = 0; k < 14 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }   // 04.11: 5-ilova maydoni kattaroq — koʻproq qadam
   if (!inside()) {
@@ -119,6 +123,12 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
       sc = 1; fit(sc);
       for (let k = 0; k < 16 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
     }
+  }
+  if (!inside()) {
+    // qatʼiy sigʻmadi — chekinishdan chiqishga ruxsat (avvalgi xatti-harakat), meʼyordan chetlanish izohda
+    strict = false; P = P0; W = W0; D = D0; sc = 1; fit(sc);
+    for (let k = 0; k < 14 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
+    if (inside() && edgeSetback.some(x => x > 6)) notes.push('Bino qizil chiziqdan 25 m chekinish (39-jadval) ichiga sigʻmadi — chekinishdan chiqadi: modulni ixchamroq tanlang yoki parselni kattalashtiring');
   }
   if (!inside()) return { sections: [], gfa: 0, footprint: 0, notes: [...notes, 'Modul parselga sigʻmadi — boshqa modulni tanlang yoki parselni kattalashtiring'] };
   const fp = secs.reduce((t, r) => t + area(r), 0), gfa = fp * floors + gym.reduce((t, r) => t + area(r) * 2, 0);
