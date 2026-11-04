@@ -95,3 +95,21 @@ describe('sanoat korxonasi', () => {
     const u = szzOf(base, 1); expect(u.m).toBe(100); expect(u.flag).toBe('TAXMIN');
   });
 });
+
+describe('04.11 (Murad sinovi, 8-band): Overpass javob bermasa — xarita qatlamidan zaxira', () => {
+  it('bino turi, qabriston, suv, temir yoʻl; tegsiz katta binolar — soni', async () => {
+    const { limitsFromContext } = await import('../../src/context/limitsosm');
+    const R = (x0: number, y0: number, x1: number, y1: number) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(p => fr.toGeo(p as XY));
+    const L = (pts: number[][]) => pts.map(p => fr.toGeo(p as XY));
+    const r = limitsFromContext({
+      buildings: [{ id: 1, rings: [R(260, -50, 360, 50)], kind: 'industrial' }, { id: 2, rings: [R(-260, -50, -230, -20)], kind: 'warehouse' }, { id: 3, rings: [R(400, 300, 480, 380)], kind: 'yes' }, { id: 4, rings: [R(0, 0, 10, 10)], kind: 'apartments' }],
+      green: [{ id: 5, rings: [R(-150, 250, -50, 330)], kind: 'cemetery' }, { id: 6, rings: [R(0, 250, 50, 300)], kind: 'park' }],
+      water: [{ id: 7, rings: [R(220, -300, 260, -250)], kind: 'pond' }],
+      waterways: [{ id: 8, pts: L([[-500, 260], [500, 260]]), cls: 'river', name: 'Bozsuv' }],
+      rails: [{ id: 9, pts: L([[-300, -260], [300, -260]]), cls: 'rail' }, { id: 10, pts: L([[-300, 0], [300, 0]]), cls: 'tram' }],
+    }, site);
+    const k = (id: number) => r.limits.find(l => l.osm === id)?.kind;
+    expect([k(1), k(2), k(4), k(5), k(6), k(7), k(8), k(9), k(10)]).toEqual(['sanoat', 'ombor', undefined, 'qabriston', undefined, 'suv', 'suv', 'temiryol', undefined]);
+    expect(r.bigUnknown).toBe(1);
+  });
+});

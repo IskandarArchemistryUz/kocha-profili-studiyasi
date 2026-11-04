@@ -136,3 +136,32 @@ export function newOnes(found: Limit[], have: Limit[], origin: LngLat): Limit[] 
     return true;
   });
 }
+
+/**
+ * 04.11 (Murad Buildings sinovi, 8-band): Overpass javob bermasa — atrof konteksti (xarita qatlami: OSM yoki OpenFreeMap vektor
+ * plitalari) dan zaxira aniqlash. Kontekst obyektlari Overpass elementlariga aylantirilib, xuddi shu `parseLimitsOsm` qoidalaridan
+ * oʻtadi: bino turi (industrial, manufacture → sanoat; warehouse → ombor; greenhouse → issiqxona), qabriston, suv yuzasi va oqimlari,
+ * temir yoʻl. ELU va yer foydalanishi kontekstda yoʻq. Tegsiz katta binolar (≥ 3000 m², 1000 m ichida) — faqat soni qaytariladi
+ * (sanoat boʻlishi mumkin, qoʻlda tekshiriladi).
+ */
+export interface CtxLite {
+  buildings: { id: number; rings: LngLat[][]; kind: string }[];
+  green: { id: number; rings: LngLat[][]; kind: string }[];
+  water: { id: number; rings: LngLat[][]; kind: string }[];
+  waterways: { id: number; pts: LngLat[]; cls: string; name?: string }[];
+  rails: { id: number; pts: LngLat[]; cls: string }[];
+}
+export function limitsFromContext(c: CtxLite, site: LngLat[]): { limits: Limit[]; bigUnknown: number } {
+  const geo = (r: LngLat[]): Geo[] => r.map(p => ({ lon: p[0], lat: p[1] })), shut = (r: LngLat[]) => [...geo(r), geo(r)[0]];
+  const els: OsmEl[] = [];
+  for (const b of c.buildings) if (/^(industrial|manufacture|warehouse|greenhouse)$/.test(b.kind) && b.rings[0]?.length >= 3) els.push({ type: 'way', id: b.id, tags: { building: b.kind }, geometry: shut(b.rings[0]) });
+  for (const g of c.green) if (g.kind === 'cemetery' && g.rings[0]?.length >= 3) els.push({ type: 'way', id: g.id, tags: { landuse: 'cemetery' }, geometry: shut(g.rings[0]) });
+  for (const w of c.water) if (w.rings[0]?.length >= 3) els.push({ type: 'way', id: w.id, tags: { natural: 'water', ...(/^(river|canal|stream|ditch|drain)$/.test(w.kind) ? { water: w.kind } : {}) }, geometry: shut(w.rings[0]) });
+  for (const w of c.waterways) if (/^(river|stream|canal|drain|ditch)$/.test(w.cls) && w.pts.length >= 2) els.push({ type: 'way', id: w.id, tags: { waterway: w.cls, ...(w.name ? { name: w.name } : {}) }, geometry: geo(w.pts) });
+  for (const r of c.rails) if (r.cls === 'rail' && r.pts.length >= 2) els.push({ type: 'way', id: r.id, tags: { railway: 'rail' }, geometry: geo(r.pts) });
+  const limits = parseLimitsOsm({ elements: els }, site);
+  const fr = frame(site[0]), S = site.map(fr.toLocal);
+  const area = (r: XY[]) => { let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; };
+  const bigUnknown = c.buildings.filter(b => b.kind === 'yes' && b.rings[0]?.length >= 3 && (() => { const l = b.rings[0].map(fr.toLocal); return area(l) >= 3000 && near(l, S, 1000); })()).length;
+  return { limits, bigUnknown };
+}
