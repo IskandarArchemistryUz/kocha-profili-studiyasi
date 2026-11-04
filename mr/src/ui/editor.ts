@@ -39,7 +39,7 @@ import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
-import { lenLimit, SYS } from '../core/seysmik';
+import { lenLimit, SYS, SEIS_PLACES, seisKey, seisByKey, seisForDistrict } from '../core/seysmik';
 import { CONSTRUCT_SYS } from '../core/doc';
 import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
@@ -1931,7 +1931,7 @@ export class Editor {
     // stat.uz — faqat Oʻzbekiston tumanlari; boshqa davlatda Toshkent raqamlari chalgʻitadi (egasi, 24.10)
     if (placeOf(doc.origin[0], doc.origin[1]).country !== 'UZ') return h('div', { class: 'col', id: 'demoBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Aholi yosh tarkibi')), h('span', {}, 'stat.uz')),
       h('span', { class: 't-small', id: 'demoAbroad' }, tr('Faqat Oʻzbekiston tumanlari uchun (stat.uz). Bu davlat uchun aholi maʼlumoti hali ulanmagan.')));
-    const sel = h('select', { class: 'select', id: 'district', 'aria-label': tr('Aholi yosh tarkibi (stat.uz)'), onchange: (e: Event) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: (e.target as HTMLSelectElement).value } })) },
+    const sel = h('select', { class: 'select', id: 'district', 'aria-label': tr('Aholi yosh tarkibi (stat.uz)'), onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value, sp = seisForDistrict(v); this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: v, ...(sp ? { seisPlace: seisKey(sp), seismic: sp.b } : {}) } })); } },   // 04.11: seysmiklik ham shu shahardan (1-ilova)
       ...demoTree().map(t => h('optgroup', { label: t.region.name }, ...[t.region, ...t.parts].map(x => { const o = h('option', { value: x.code }, x.code === t.region.code ? `${x.name} (${tr('jami')})` : x.name) as HTMLOptionElement; o.selected = x.code === cur; return o; }))));
     const k = r ? perThousand(r) : null;
     return h('div', { class: 'col', id: 'demoBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Aholi yosh tarkibi')), h('span', {}, 'stat.uz')), sel,
@@ -4268,11 +4268,27 @@ export class Editor {
     const set = (patch: Partial<typeof S0>) => this.run(() => this.store.dispatch({ type: 'setSettings', patch }));
     return h('div', { class: 'group', id: 'seisRow' },
       h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
-        h('span', { class: 'k' }, tr('Seysmik boʻlmalar'), h('span', { class: 'sub' }, tr('Maydon seysmikligi — SMT xaritasi yoki grunt toifasi boʻyicha (1.6-band, 1.1-jadval); Toshkent hududi — 8 ball (1-ilova). Boʻlma uzunligi — 3.1-jadval.'))),
+        h('span', { class: 'k' }, tr('Seysmik boʻlmalar'), h('span', { class: 'sub' }, tr('Maydon seysmikligi — SMT xaritasi yoki grunt toifasi boʻyicha (1.6-band, 1.1-jadval). Boʻlma uzunligi — 3.1-jadval.'))),
         h('div', { class: 'seg sm', role: 'group', id: 'seisBall', 'aria-label': tr('Seysmiklik, ball') }, ...[7, 8, 9, 10].map(b => h('button', { 'aria-pressed': S0.seismic === b, 'data-ball': b, onclick: () => set({ seismic: b }) }, b > 9 ? '>9' : `${b}`)))),   // 04.11: 3.1-jadval «>9» ustuni
+      this.seisPlaceRow(),
       h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
         h('div', { class: 'seg sm', role: 'group', id: 'seisSys', 'aria-label': tr('Yuk koʻtaruvchi tizim'), style: 'flex-wrap:wrap' }, ...CONSTRUCT_SYS.map(k => h('button', { 'aria-pressed': sys === k, 'data-sys': k, title: `${SYS[k].name} · ${SYS[k].row}`, onclick: () => set({ construct: k }) }, tr({ monolit: 'Monolit devor', karkas: 'Karkas', toldirgich: 'Toʻldiruvchili', gisht: 'Gʻisht' }[k])))),
         h('span', { class: 'chip', id: 'seisLim' }, lim == null ? tr('NSTT — cheklanmagan') : tf('boʻlma ≤ ${l} m · chiqish ≤ ${p} m', { l: lim, p: SYS[sys].proj }))));
+  }
+  /** 04.11 (egasi): aholi punkti — QMQ 2.01.03-19, 1-ilova; tanlansa ball shu punktdan olinadi */
+  private seisPlaceRow(): HTMLElement {
+    const S0 = this.store.doc.settings, cur = seisByKey(S0.seisPlace) ?? seisForDistrict(S0.district), ru = ['ru', 'uk', 'kk'].includes(getLang());
+    const nm = (p: (typeof SEIS_PLACES)[number]) => (ru ? p.ru : p.n);
+    const regs = [...new Set(SEIS_PLACES.map(p => p.r))];
+    const sel = h('select', { class: 'select', id: 'seisPlace', 'aria-label': tr('Aholi punkti (1-ilova)'), onchange: (e: Event) => { const p = seisByKey((e.target as HTMLSelectElement).value); if (p) this.run(() => this.store.dispatch({ type: 'setSettings', patch: { seisPlace: seisKey(p), seismic: p.b } })); } },
+      ...(cur ? [] : [h('option', { value: '', selected: true, disabled: true }, tr('Aholi punktini tanlang'))]),
+      ...regs.map(r => h('optgroup', { label: (demoRow(r)?.name ?? r).replace(/\s+/g, ' ') }, ...SEIS_PLACES.filter(p => p.r === r).sort((a, b) => nm(a).localeCompare(nm(b))).map(p => { const o = h('option', { value: seisKey(p) }, `${nm(p)} — ${p.b}${p.z ? '*' : ''}`) as HTMLOptionElement; o.selected = !!cur && seisKey(p) === seisKey(cur); return o; }))));
+    const diff = cur && cur.b !== S0.seismic;
+    return h('div', { class: 'li', id: 'seisPlaceRow', style: 'flex-wrap:wrap;gap:8px' },
+      h('span', { class: 'k' }, tr('Aholi punkti (1-ilova)'), h('span', { class: 'sub', id: 'seisPlaceSub' }, cur
+        ? tf('${p}: ${b} ball (II toifa grunt)${s}', { p: nm(cur), b: cur.z ? '9*' : cur.b, s: cur.m ? ' · ' + tr('SMT xaritasi bor') : '' }) + (diff ? ' · ' + tf('maydon ${m} ball — grunt toifasi boʻyicha (1.1-jadval)', { m: S0.seismic > 9 ? '>9' : S0.seismic }) : '')
+        : tr('Roʻyxatda yoʻq — ball qoʻlda (2-ilova, xarita)'))),
+      sel);
   }
   private regFilter: 'all' | 'fail' = 'all';
   /** sahnada koʻrsatilgan meʼyor bandi (31.10) */
