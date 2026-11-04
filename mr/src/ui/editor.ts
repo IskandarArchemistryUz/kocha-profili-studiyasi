@@ -2960,6 +2960,12 @@ export class Editor {
   private gridPerimProf = 'mahalla-15';
 
   /** Uchastkani kesib oʻtgan mavjud (OSM) avtomobil yoʻllari: kontekst kvadratiga qirqilgan oʻq, mos profil va koridor yarmi */
+  /** 04.11 (Murad Buildings sinovi, 7-band): uchastka ichidan oʻtadigan barcha mavjud (OSM) yoʻllar — piyoda va xizmat yoʻllari ham */
+  private siteRoadIds(): number[] {
+    const doc = this.store.doc; if (!doc.site || !this.ctxMgr.current) return [];
+    const fr = frame(doc.origin), site = doc.site.rings[0].map(fr.toLocal), skip = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
+    return this.ctxRoads().filter(r => !skip.has(r.id) && lineHitsRing(r.pts.map(fr.toLocal), site)).map(r => r.id);
+  }
   private siteRoads(): { osm: number; axis: XY[]; profile: string; half: number }[] {
     const doc = this.store.doc, b = this.ctxMgr.current; if (!b || !doc.site || !doc.context.loaded) return [];
     const fr = frame(doc.origin), site = doc.site.rings[0].map(fr.toLocal), R = doc.context.radius;
@@ -3053,6 +3059,9 @@ export class Editor {
         h('button', { class: 'btn btn-primary btn-lg grow', id: 'gridApply', onclick: apply }, tr(has ? 'Qayta qoʻllash' : 'Toʻrni qoʻllash')),
         has ? h('button', { class: 'btn btn-lg icon-btn', id: 'gridClear', title: tr('Toʻrni olib tashlash'), 'aria-label': tr('Toʻrni olib tashlash'), onclick: () => this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: [] })) }, svgIcon(IC.trash)) : ''),
       h('span', { class: 't-small' }, tr('Avvalgi toʻr almashtiriladi, qoʻlda chizilganlar qoladi. Uchlari 40 m ichidagi yoʻllarga ulanadi.')),
+      // 04.11 (Murad Buildings sinovi, 7-band): «Mavjud koʻchalarni saqlash» oʻchirilgach ham uchastka ichidagi OSM yoʻllari koʻrinib turardi
+      // va burilish maydonchasi ularning uchiga qoʻyilardi — bir tugma bilan olib tashlash (Ctrl+Z — qaytarish)
+      (() => { const ids = this.siteRoadIds(); return ids.length ? h('button', { class: 'btn btn-block', id: 'siteRoadsDel', onclick: () => { this.run(() => this.store.dispatch({ type: 'setRemovedRoads', ids: [...(this.store.doc.removedRoads ?? []), ...ids] })); toast(tf('${n} ta yoʻl olib tashlandi — «Koʻchalar» qadamida qaytariladi · Ctrl+Z — bekor qilish', { n: ids.length })); } }, ...icl(IC.trash, tf('Uchastka ichidagi mavjud yoʻllarni olib tashlash (${n})', { n: ids.length }))) : ''; })(),
       // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — blok moduli, oʻlcham, joylashuv, insolyatsiya kompasi (30.10, egasi) va «Toʻrni qoʻllash»;
       // burilish, profillar, perimetr va mavjud koʻchalar — «Qoʻshimcha» ichida (hech biri olib tashlanmagan, id lar saqlangan)
       h('details', { class: 'gen-more', id: 'gridMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n: 4 + (nKeep ? 1 : 0) })),
