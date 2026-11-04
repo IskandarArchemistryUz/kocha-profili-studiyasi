@@ -112,7 +112,11 @@ describe('04.11 audit: QMQ 2.01.03-19, 3.1-jadval balandlik va 2-izoh', () => {
     const r = RULES.find(x => x.id === 'seismic-height')!;
     const d = (bs: Building[], ball = 8) => ({ ...doc(bs), settings: { ...doc(bs).settings, seismic: ball } });
     expect(r.evaluate({} as never, d([bld('a', rect(0, 0, 30, 15), 16)])).status).toBe('pass');
-    expect(r.evaluate({} as never, d([bld('a', rect(0, 0, 30, 15), 17)])).status).toBe('fail');
+    // ShNQ 2.01.06-25: monolit, jadvaldan baland, lekin H ≤ 100 m — «koʻrib chiqish»; > 100 m — mos emas
+    expect(r.evaluate({} as never, d([bld('a', rect(0, 0, 30, 15), 17)])).status).toBe('review');
+    expect(r.evaluate({} as never, d([bld('a', rect(0, 0, 30, 15), 40)])).status).toBe('fail');
+    const kk = (bs: Building[]) => { const x = d(bs); return { ...x, settings: { ...x.settings, construct: 'karkas' as never } }; };
+    expect(r.evaluate({} as never, kk([bld('a', rect(0, 0, 30, 15), 30)])).status).toBe('fail');
     expect(r.evaluate({} as never, d([{ ...bld('m', rect(0, 0, 30, 15), 4), use: 'maktab' } as Building])).status).toBe('fail');
     expect(r.evaluate({} as never, d([{ ...bld('m', rect(0, 0, 30, 15), 3), use: 'maktab' } as Building])).status).toBe('pass');
     expect(r.evaluate({} as never, d([{ ...bld('k', rect(0, 0, 30, 15), 3), use: 'mtm' } as Building], 10)).status).toBe('fail');

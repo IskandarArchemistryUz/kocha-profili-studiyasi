@@ -19,7 +19,7 @@ import { frame, area, type XY } from './geo';
 import { computePlan } from './plan';
 import { derive, polyDist } from './derive';
 import { useDef } from './uses';
-import { heightLimit, checkBlock, jointOpt } from './seysmik';
+import { heightLimit, tallMax, checkBlock, jointOpt } from './seysmik';
 
 type B = Project['buildings'][number];
 export interface RepairResult { doc: Project; lowered: number; removed: number; joints: number; left: string[]; notes: string[] }
@@ -57,7 +57,9 @@ export function repairGen(doc0: Project, opts: { grps?: Set<string>; maxIter?: n
     for (const x of derive(doc).streetOverlap) { const b = pick([x.bid])[0]; if (b) { del(b); gone.add(b.id); changed = true; } else left.push('street-overlap'); }
     // 2) seysmik balandlik (3.1-jadval)
     const lim = heightLimit(doc.settings.construct ?? 'monolit', doc.settings.seismic);
-    if (lim?.f != null) for (const b of doc.buildings) { const m = pick([b.id])[0]; if (!m || m.gen?.kind === 'stilobat') continue; const capF = Math.min(lim.f - (m.z0 ?? 0), lim.h != null ? floorsUnder(doc, m, lim.h) : m.floors); if (m.floors > capF && capF >= 1) { if (setF(m, capF)) changed = true; } }
+    // 04.11: monolit — ShNQ 2.01.06-25 (≤ 100 m, alohida seysmik hisob — «koʻrib chiqish»); boshqa tizimlar — 3.1-jadval
+    const tm = tallMax(doc.settings.construct ?? 'monolit');
+    if (lim?.f != null) for (const b of doc.buildings) { const m = pick([b.id])[0]; if (!m || m.gen?.kind === 'stilobat') continue; const capF = tm != null ? floorsUnder(doc, m, tm) : Math.min(lim.f - (m.z0 ?? 0), lim.h != null ? floorsUnder(doc, m, lim.h) : m.floors); if (m.floors > capF && capF >= 1) { if (setF(m, capF)) changed = true; } }
     // 3) binolar orasi (79-band)
     for (const p of failingSpacing(doc)) {
       const c = pick([p.a, p.b]); if (!c.length) { left.push('spacing-79'); continue; }
