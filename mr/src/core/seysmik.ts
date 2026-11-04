@@ -14,6 +14,31 @@
 import { area, obb2, signedArea, type XY } from './geo';
 import { splitAtReflex } from './roof';
 import type { Building, ConstructSys } from './doc';
+import seisData from '../data/seysmik_punktlar.json';
+import { demoRow } from './demography';
+
+/**
+ * 04.11 (egasi): seysmiklik shahar boʻyicha — QMQ 2.01.03-19, 1-ilova (majburiy, 99–108-betlar): «Ҳудуднинг қабул қилинган
+ * сейсмиклиги ва сейсмик таъсирларнинг такрорийлиги кўрсатилган … аҳоли пунктлари рўйхати». Jadvalda 7 / 8 / 9 / 9* ball
+ * uchun zilzila takrorlanish davri (yil) berilgan; punktning seysmikligi — qiymati bor eng yuqori ustun (3-ilova, 4-band:
+ * «мумкин бўлган зилзиланинг максимал интенсивлиги»). «6 бал.» deb yozilganlari — 6. «*» — SMT xaritasi bor (1-izoh);
+ * 9* — ZMEB zonasi (2-izoh), ilovada 9 ball sifatida hisoblanadi. Qiymat II toifa grunt uchun (1.5-band); maydon
+ * seysmikligi grunt toifasiga qarab ±1 ball (1.6-band, 1.1-jadval). Matn PDF dan koʻchirilgan — Mingbuloq va Uchquduq
+ * qatorlarida qiymat oʻqilmadi, ular roʻyxatda yoʻq.
+ */
+export interface SeisPlace { /** viloyat kodi (stat.uz, 4 xona) */ r: string; /** nomi (oʻzbekcha, lotin) */ n: string; ru: string; /** ball */ b: number; /** 9* (ZMEB) */ z?: 1; /** SMT xaritasi bor (*) */ m?: 1 }
+export const SEIS_PLACES = (seisData as { rows: SeisPlace[] }).rows;
+export const seisKey = (p: SeisPlace): string => `${p.r}:${p.n}`;
+export const seisByKey = (k: string | undefined): SeisPlace | null => (k ? SEIS_PLACES.find(p => seisKey(p) === k) ?? null : null);
+const norm = (s: string) => s.toLowerCase().replace(/\(.*?\)/g, '').replace(/[ʻʼ'‘’`]/g, '').replace(/\s+/g, '').trim();
+/** Tumandan (stat.uz kodi) aholi punkti: shahar yoki tuman markazi nomi mos kelsa; Toshkent shahri — 1-ilovada Toshkent viloyati roʻyxatida */
+export function seisForDistrict(code: string): SeisPlace | null {
+  const reg = code.startsWith('1726') ? '1727' : code.slice(0, 4);
+  const name = code.startsWith('1726') ? 'Toshkent' : (demoRow(code)?.name ?? '').replace(/\s*(shahri|tumani)\s*$/i, '').replace(/shahri$/i, '');
+  if (!name || code.length === 4 && !code.startsWith('1726')) return null;
+  const k = norm(name);
+  return SEIS_PLACES.find(p => p.r === reg && norm(p.n) === k) ?? null;
+}
 
 export interface SysDef { id: ConstructSys; name: string; /** 3.1-jadval qatori */ row: string; /** boʻlma uzunligi, m: 7 / 8 / 9 ball */ len: [number, number, number]; /** chiqib turgan qism, m (3.1.1) */ proj: number; /** bikrlik yadrosi qoidasi (3.2.3) tegishli */ core: boolean }
 export const SYS: Record<ConstructSys, SysDef> = {
