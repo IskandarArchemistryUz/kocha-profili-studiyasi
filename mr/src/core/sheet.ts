@@ -4,6 +4,7 @@
  * har qatlam — alohida nomlangan <g> (Illustrator «qatlam» sifatida oʻqiydi).
  * Sof funksiya: DOM ga bogʻliq emas — birlik testlari bilan tekshiriladi.
  */
+import { contourStep, contourSegs, windowOf, slopeAt, HYPSO, type ReliefGrid } from './relief';
 import type { Project } from './doc';
 import { frame, centroid, area, type XY } from './geo';
 import { computePlan } from './plan';
@@ -18,7 +19,7 @@ import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES 
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 
-export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol';
+export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -34,6 +35,7 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'yashil', name: 'Yashil balans', note: 'yashil hududlar, hovli maysasi, maydonchalar; 25 % meʼyori' },
   { id: 'transport', name: 'Transport sxemasi', note: 'koʻchalar toifasi, velo yoʻlak, bekatlar va 400 m radius, avtoturargohlar' },
   { id: 'insol', name: 'Insolyatsiya', note: 'uchastka yer sathi: kuniga quyosh soatlari (6-qadam xaritasi)' },
+  { id: 'relyef', name: 'Relyef', note: 'balandliklar (gipsometriya), gorizontallar va qiyalik — AWS Terrain Tiles' },
   { id: 'shamol', name: 'Shamol', note: 'shamol guli (iqlim stansiyasi) va piyoda sathidagi oqim — qulaylik (6-qadam)' },
 ];
 
@@ -55,6 +57,8 @@ export interface SheetCtx {
   /** 04.11 (egasi: tahlil varaqlari — shamol): stansiya guli (16 yoʻnalish × tezlik oraliqlari, ulush) va 6-qadamda hisoblangan
    *  piyoda sathidagi oqim (katakchalar rangi — Lawson qulaylik sinfi yoki tezlik nisbati); legend — [rang, yorliq] */
   wind?: { station: string; src: string; rose: number[][]; dir: number; prevailing: string; mean: number; calm: number; pts?: XY[]; cols?: string[]; cell?: number; legend?: [string, string][]; mode?: string; stale?: boolean } | null;
+  /** 04.11 (egasi: tahlil varaqlari — relyef): atrof bilan yuklangan balandlik toʻri (core/relief) */
+  terrain?: ReliefGrid | null;
   /** jamoat transporti bekatlari va metro kirishlari (10-qadam OSM obyektlari) */
   stops?: { p: XY; kind: 'bekat' | 'metro' }[];
 }
@@ -303,6 +307,37 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       I.bins.forEach(([, c, l]) => legend.push({ type: 'fill', fill: c, label: `${tr('Quyosh')} ${tr(l)}${/soat/.test(l) ? '' : ` ${tr('soat')}`}` }));
       legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: `${tr('Sana')} ${I.date.split('-').reverse().join('.')} · SanQvaN 0102-25, 95-band${I.stale ? ` · ${tr('loyiha oʻzgargan — qayta hisoblang')}` : ''}` });
     } else legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Insolyatsiya hisoblanmagan — 6-qadam «Quyosh va shamol»') });
+  }
+
+  // 2a''. relyef (04.11): gipsometrik boʻyash (toʻr katakchalari, qator boʻyicha birlashtirilgan) va gorizontallar
+  if (K === 'relyef') {
+    const tf = (key: string, v: Record<string, unknown>) => tr(key).replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e]));
+    const G0 = ctx?.terrain, w = G0 ? windowOf(G0, [cx - R, cy - R, cx + R, cy + R]) : null;
+    if (G0 && w) {
+      const range = Math.max(0.5, w.max - w.min), cs = contourStep(range), bw = cs * Math.max(1, Math.ceil(range / cs / HYPSO.length)), b0 = Math.floor(w.min / bw) * bw, nb = Math.min(HYPSO.length, Math.ceil((w.max - b0) / bw + 1e-9));
+      const by: string[][] = HYPSO.map(() => []), st = G0.step, x0 = G0.c0[0] - G0.radius, y0 = G0.c0[1] - G0.radius;
+      for (let j = w.j0; j <= w.j1; j++) {
+        let run = -1, i0 = w.i0;
+        const flush = (i1: number) => { if (run < 0) return; const xa = x0 + (i0 - 0.5) * st, xb = x0 + (i1 + 0.5) * st, ya = y0 + (j - 0.5) * st, yb = y0 + (j + 0.5) * st; by[run].push(`M${P([xa, ya])}L${P([xb, ya])}L${P([xb, yb])}L${P([xa, yb])}Z`); };
+        for (let i = w.i0; i <= w.i1; i++) { const c = Math.max(0, Math.min(nb - 1, Math.floor((G0.h[j * G0.n + i] - b0) / bw))); if (c !== run) { flush(i - 1); run = c; i0 = i; } }
+        flush(w.i1);
+      }
+      g('Gipsometriya', by.map((d, c) => d.length ? `<path d="${d.join('')}" fill="${HYPSO[c]}"/>` : '').join(''));
+      const lvls: number[] = []; for (let v = Math.ceil(w.min / cs) * cs; v <= w.max; v += cs) lvls.push(Math.round(v * 100) / 100);
+      const idx = (v: number) => Math.abs(v / (cs * 5) - Math.round(v / (cs * 5))) < 1e-6;
+      const cl = contourSegs(G0, w, lvls);
+      g('Gorizontallar', cl.map(({ lv, segs }) => segs.length ? `<path d="${segs.map(([a, b]) => `M${P(a)}L${P(b)}`).join('')}" fill="none" stroke="#8a6f55" stroke-width="${lw(idx(lv) ? 0.28 : 0.1)}"${idx(lv) ? '' : ' stroke-opacity="0.8"'}/>` : '').join(''));
+      for (let c = nb - 1; c >= 0; c--) legend.push({ type: 'fill', fill: HYPSO[c], label: `${String(Math.round((b0 + c * bw) * 10) / 10).replace('.', ',')}–${String(Math.round((b0 + (c + 1) * bw) * 10) / 10).replace('.', ',')} m` });
+      legend.push({ type: 'line', stroke: '#8a6f55', label: tf('Gorizontallar: har ${a} m (qalin — ${b} m)', { a: String(cs).replace('.', ','), b: String(cs * 5).replace('.', ',') }) });
+      // uchastka: balandlik oraligʻi va oʻrtacha qiyalik
+      if (site) {
+        let mn = Infinity, mx = -Infinity, ss = 0, nn = 0, steep = 0;
+        const pin = (p: XY, r: XY[]) => { let c = false; for (let a = 0, b = r.length - 1; a < r.length; b = a++) if ((r[a][1] > p[1]) !== (r[b][1] > p[1]) && p[0] < (r[b][0] - r[a][0]) * (p[1] - r[a][1]) / (r[b][1] - r[a][1]) + r[a][0]) c = !c; return c; };
+        for (let j = w.j0; j <= w.j1; j++) for (let i = w.i0; i <= w.i1; i++) { const p: XY = [x0 + i * st, y0 + j * st]; if (!pin(p, site[0])) continue; const v = G0.h[j * G0.n + i], sl = slopeAt(G0, i, j); mn = Math.min(mn, v); mx = Math.max(mx, v); ss += sl; nn++; if (sl > 8) steep++; }
+        if (nn) legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tf('Uchastka: ${a}–${b} m, oʻrtacha qiyalik ${s} %, > 8 % — ${p} %', { a: String(Math.round(mn * 10) / 10).replace('.', ','), b: String(Math.round(mx * 10) / 10).replace('.', ','), s: String(Math.round(ss / nn * 10) / 10).replace('.', ','), p: Math.round(steep / nn * 100) }) });
+      }
+      legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tf('Relyef: AWS Terrain Tiles, qadam ${s} m', { s: G0.step }) });
+    } else legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Relyef yuklanmagan — 1-qadamda atrofni yuklang (relyef qatlami bilan)') });
   }
 
   // 2a'. shamol (04.11): 6-qadamda hisoblangan piyoda sathidagi oqim — katakchalar sinf rangida (bitta rang — bitta path)
