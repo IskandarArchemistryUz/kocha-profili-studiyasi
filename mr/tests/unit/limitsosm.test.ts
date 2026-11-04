@@ -69,3 +69,19 @@ describe('parselni kesish (02.11)', () => {
     expect(splitByZones([sq], [[[[200, 200], [210, 200], [210, 210]]]])).toBeNull();
   });
 });
+
+/** 04.11 (Murad Buildings sinovi, 7-band): zavod ichki temir yoʻl shoxobchalari — «buziladi» taklifi */
+describe('ichki temir yoʻl shoxobchasi', () => {
+  it('uchastka ichida toʻliq va tashqi tarmoqqa ulanmagan izlar guruhi — buziladi; tashqi tarmoqqa ulangan — saqlanadi', () => {
+    const j = { elements: [
+      { type: 'way', id: 11, tags: { railway: 'rail' }, geometry: [G(-150, 0), G(0, 0)] },          // ichida
+      { type: 'way', id: 12, tags: { railway: 'rail', service: 'spur' }, geometry: [G(0, 0), G(100, 50)] },   // 11 ga ulangan, ichida
+      { type: 'way', id: 13, tags: { railway: 'rail' }, geometry: [G(-150, -150), G(-50, -150)] },   // ichida, lekin 14 ga ulangan
+      { type: 'way', id: 14, tags: { railway: 'rail' }, geometry: [G(-50, -150), G(-50, -400)] },    // tashqariga chiqadi
+    ] };
+    const L = parseLimitsOsm(j as never, site), st = (id: number) => L.find(l => l.osm === id)?.status;
+    expect(st(11)).toBe('buziladi'); expect(st(12)).toBe('buziladi');
+    expect(st(13)).toBe('saqlanadi'); expect(st(14)).toBe('saqlanadi');
+    expect(L.find(l => l.osm === 11)?.name).toContain('zavod bilan birga buziladi');
+  });
+});
