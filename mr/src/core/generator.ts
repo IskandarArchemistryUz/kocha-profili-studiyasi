@@ -145,7 +145,7 @@ function insetMiter(r: XY[], d: number): XY[] | null {
 }
 
 /** Halqa ichidagi eng tor joy (OBB qisqa tomoni) — hovli kengligi taxmini */
-function minWidth(r: XY[]): number {
+export function minWidth(r: XY[]): number {
   let best = Infinity;
   for (let i = 0; i < r.length; i++) {
     const a = r[i], b = r[(i + 1) % r.length], u = unit(sub(b, a)), v: XY = [-u[1], u[0]];
@@ -981,7 +981,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   dropStrays(r.sections, Math.max(6, 0.6 * g.maxF * floorH), r.notes);
   assignEnds(r.sections, opts.avoid ?? [], g.depth, floorH, g.groundH);
   r.far = (gfaOf(r)) / site;
-  if (far > 0 && r.far < far - 0.15) r.notes.push(`UMN maqsadi ${String(far).replace('.', ',')} ga yetmadi (${r.far.toFixed(2).replace('.', ',')}): meʼyoriy oraliqlar bilan joy yetmadi — «Qavat, eng koʻp» ni oshiring (qavat qoʻshish orqali)`);
+  if (far > 0 && r.far < far - 0.15) r.notes.push(`UMN maqsadi ${String(far).replace('.', ',')} ga yetmadi (${r.far.toFixed(2).replace('.', ',')}): meʼyoriy oraliqlar bilan shuncha sigʻdi (chekinish H × 0,25, oraliq 2·H — qavat oshsa ular ham oshadi); qisqaroq seksiya, boshqa tipologiya yoki kattaroq daha`);
   return r;
 }
 

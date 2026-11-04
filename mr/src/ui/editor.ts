@@ -50,7 +50,7 @@ import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, type AutoSetback, type EdgeKind } from '../core/setback';
-import { DEFAULT_GEN, generate, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
+import { DEFAULT_GEN, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
@@ -2293,7 +2293,18 @@ export class Editor {
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
-    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]), ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) });
+    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), avoidG = this.genObstacles(b.parcelId ?? lab.id, b.rings[0]);
+    const run = (gx: GenParams) => { const a = this.autoSb(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
+    let { asb, r } = run(g);
+    // 04.11 (Murad Buildings sinovi, 2-band — D-14 uchburchak daha boʻsh qoldi): joy yetmasa, qavat oshirilmaydi (chekinish H × 0,25 va
+    // oraliq 2·H ham oshadi) — qavat pasaytirilib (16 → 12 → 9 → 7 → 5 → 3), keyin minora bilan qayta urinish; natija boʻlmasa — aniq sabab
+    const built = (x: typeof r) => x.sections.some(q => q.kind !== 'stilobat');
+    if (!built(r) && !LOW_T.includes(g.typology) && g.typology !== 'ombor' && useDef(b.use).res > 0) {
+      const tried: number[] = [];
+      for (const f of [12, 9, 7, 5, 3].filter(f => f < g.maxF)) { tried.push(f); const x = run({ ...g, maxF: f, minF: Math.min(g.minF, f) }); if (built(x.r)) { ({ asb, r } = x); r.notes.unshift(tf('Joy yetmadi (${a} qavatda: chekinish H × 0,25 va oraliq 2·H) — qavat ${b} gacha pasaytirildi', { a: g.maxF, b: f })); break; } }
+      if (!built(r) && g.typology !== 'minora') { const x = run({ ...g, typology: 'minora', maxF: Math.min(g.maxF, 9), minF: Math.min(g.minF, 5), towerF: Math.min(g.towerF ?? 16, 9) }); if (built(x.r)) { ({ asb, r } = x); r.notes.unshift(tr('Joy yetmadi — choʻziq seksiya oʻrniga minora (nuqtali bino), ≤ 9 qavat')); } }
+      if (!built(r)) { const w = minWidth(b.rings[0]), sb = this.autoSb(i, { ...g, maxF: 3, minF: Math.min(g.minF, 3) })?.dMin ?? g.setback; r.notes.unshift(tf('Bino sigʻmadi: dahaning eng tor joyi ≈ ${w} m; 3 qavatda ham chekinish ${s} m × 2 va seksiya chuqurligi ${d} m kerak', { w: Math.round(w), s: fmt(sb, 1), d: fmt(g.depth, 1) })); }
+    }
     // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanPiN 0350-17, 2.17; ShNQ 2.07.01-23, 146) — uylar olinadi, seksiyalar qisqartiriladi
     { const dzOf = new Map<string, ReturnType<typeof denyZone>>(), dz = (u: string) => { if (!dzOf.has(u)) dzOf.set(u, denyZone(this.store.doc, u as Use)); return dzOf.get(u)!; };
       const byUse = new Map<string, typeof r.sections>(); for (const x of r.sections) { const u = x.use ?? b.use; byUse.set(u, [...(byUse.get(u) ?? []), x]); }
