@@ -73,6 +73,14 @@ export function heightLimit(sys: ConstructSys, ball: number): { h: number | null
   const t = SYS_HT[sys] ?? SYS_HT.monolit, i = ball > 9 ? 3 : Math.max(0, Math.min(2, Math.round(ball) - 7));
   return { h: t.h[i], f: t.f[i] };
 }
+/**
+ * 04.11 (Murad Buildings sinovi, 4-band): ShNQ 2.01.06-25 «Seysmik hududlarda baland binolarni loyihalash» (QVUJKX vazirining
+ * 15.08.2025 dagi 01/2-38-son buyrugʻi, AV 13.10.2025 da 375-son bilan roʻyxatga olingan) — yangidan quriladigan baland binolar
+ * (2-bob: «balandligi 70 m dan baland») chiziqsiz hisob asosida loyihalanadi; 5-jadval (balandlik sinflari, BBS) — SLS 1, 1a, 2, 2a uchun
+ * H ≤ 100 m; 6–7-jadvallar — monolit temir-beton. Shu sababli monolit binoda QMQ 2.01.03-19, 3.1-jadval chegarasidan baland,
+ * lekin ≤ 100 m — «mos emas» emas, «koʻrib chiqish» (alohida seysmik hisob). null — tizim ShNQ 2.01.06-25 doirasida emas.
+ */
+export function tallMax(sys: ConstructSys): number | null { return sys === 'monolit' ? 100 : null; }
 /** 2-izoh: ijtimoiy binolar qavatlari chegarasi (null — cheklov yoʻq) */
 export function socialFloorLimit(use: string, ball: number): number | null {
   if (ball > 9) return use === 'maktab' || use === 'mtm' ? 2 : null;
