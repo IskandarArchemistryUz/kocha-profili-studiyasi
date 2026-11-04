@@ -151,6 +151,8 @@ export interface Settings {
   construct?: ConstructSys;
   /** 04.11 (egasi): seysmiklik olingan aholi punkti — QMQ 2.01.03-19, 1-ilova; kalit «viloyat kodi:nomi» */
   seisPlace?: string;
+  /** 04.11 (egasi): 1 xonali kvartiralar studiya formatida (oshxona umumiy xonada, oshxona qatori) */
+  studio1?: boolean;
   /** 04.11 (egasi): past uylar olovbardoshlik sinfi — ShNQ 2.07.01-23, 56-jadval ustunlari (0 — I–III C0 … 3 — IV–V C2–C3); yoʻq — 0 */
   fireLow?: 0 | 1 | 2 | 3;
   /** bekatgacha radius (core/transit.ts): shahar toifasi (null — stat.uz aholisidan andoza), umumshahar markazi, relyef tuzatmasi */
@@ -326,6 +328,7 @@ export function migrate(raw: unknown): Project {
   if (typeof s.yards !== 'boolean') s.yards = true;
   if (s.recon !== undefined && typeof s.recon !== 'boolean') delete s.recon;
   if (s.construct !== undefined && !CONSTRUCT_SYS.includes(s.construct)) delete s.construct;
+  if (s.studio1 !== undefined && typeof s.studio1 !== 'boolean') delete s.studio1;
   if (s.fireLow !== undefined && ![0, 1, 2, 3].includes(s.fireLow)) delete s.fireLow;
   if (s.seisPlace !== undefined && (typeof s.seisPlace !== 'string' || s.seisPlace.length > 80)) delete s.seisPlace;
   { const t = (s.transit && typeof s.transit === 'object' ? s.transit : {}) as Partial<Settings['transit']>;

@@ -194,6 +194,8 @@ function planApartmentsRaw(doc: Project): SecPlan[] {
         layout.apts = aptsOf(layout.plan, layout.mods); edited = 'ok';
       } else edited = 'eskirgan';
     }
+    // 04.11 (egasi): 1 xonalilar — studiya formati (loyiha sozlamasi); kvartiraning oʻz tanlovi (inner.studio) ustun
+    if (doc.settings.studio1 && layout.plan) for (const a of layout.plan.apts) if ((a.rooms || 1) <= 1 && a.inner?.studio == null) a.inner = { ...(a.inner ?? {}), studio: true };
     const halfDepth = Math.max(4, Math.min(9, sectionDepth(s.r, layout.mods) / 2));
     if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth, court, ...(edited ? { edited } : {}), ...(genPlan ? { genPlan } : {}) });
   }
