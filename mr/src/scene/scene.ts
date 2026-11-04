@@ -589,7 +589,10 @@ export class Scene3D {
   private liteDirty = false;
   onLite?: (on: boolean) => void;
   setLite(m: 'sodda' | 'toliq'): void { this.lite = m; this.applyLite(true); this.refreshLod(); }
-  private liteWanted(r = this.viewExtent().r): boolean { return this.lite === 'sodda' && !this.forceFull && r > Scene3D.LITE_VIEW; }
+  /** 04.11 (egasi): «Fasad va tom» qadamida — materiallar va fasad ranglari uzoqdan ham koʻrinsin: «Sodda» shu qadamda ishlamaydi */
+  private liteOff = false;
+  setLiteOff(on: boolean): void { if (on === this.liteOff) return; this.liteOff = on; this.applyLite(true); this.refreshLod(); }
+  private liteWanted(r = this.viewExtent().r): boolean { return this.lite === 'sodda' && !this.forceFull && !this.liteOff && r > Scene3D.LITE_VIEW; }
   /** «Sodda» holatini sahnaga qoʻllaydi (qayta qurmasdan: material va koʻrinish); force — joriy holat bilan bir xil boʻlsa ham */
   applyLite(force = false): void {
     const on = this.liteWanted();

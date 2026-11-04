@@ -35,3 +35,25 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`sahna: sod
   expect(await page.evaluate(() => localStorage.getItem('mr-lite'))).toBe('toliq');
   if (process.env.GX_SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/toliq_uzoq_${w}${dark ? 'd' : 'l'}.png` }); }
 });
+
+/** 04.11 (egasi: «bino materiallariga oʻtganda master rejani uzoqdan qaraganda ham fasad ranglari va materiallarini koʻra olamanmi?»):
+ *  «Fasad va tom» qadamida «Sodda» ishlamaydi — uzoqdan ham fasad teksturasi; boshqa qadamga qaytganda yana ishlaydi */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`Fasad qadamida uzoqdan ham toʻliq · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
+  await page.setViewportSize({ width: w, height: 860 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '240'); await page.fill('#rh', '180'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length)).toBeGreaterThan(4);
+  await page.click('[data-view=axo]');
+  await page.evaluate(() => { const m = (window as any).__mr; for (const b of m.store.doc.buildings) m.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { mat: 'gisht' } }); m.scene.frameDoc(m.store.doc); });
+  const on = () => page.evaluate(() => (window as any).__mr.scene.liteOn as boolean);
+  await expect.poll(on).toBe(true);
+  await page.click('[data-step=fasad]');
+  await expect.poll(on).toBe(false);
+  if (process.env.GX_SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: `${process.env.GX_SHOTS}/fasad_uzoq_${w}${dark ? 'd' : 'l'}.png` }); }
+  await page.click('[data-step=hajm]');
+  await expect.poll(on).toBe(true);
+});

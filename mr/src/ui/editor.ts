@@ -1630,6 +1630,7 @@ export class Editor {
   static readonly APT_COL: Record<number, number> = { 1: 0xf2b134, 2: 0xf08a4b, 3: 0x4fb08a, 4: 0x3f5b8a };
   /** kvartira «terisi» 3D da (turi yoki insolyatsiya natijasi boʻyicha) */
   private showAptBoxes(): void {
+    this.scene.setLiteOff(this.step.id === 'fasad');   // 04.11 (egasi): Fasad qadamida materiallar uzoqdan ham koʻrinsin
     if (this.step.id !== 'kvartira' || this.apt3d === 'yoq') { this.scene.setAptBoxes(null); this.scene.setAptVols(null); this.scene.setAptView(null); return; }
     const doc = this.store.doc, plans = planApartments(doc), fh = doc.settings.floorHeight, st = this.apt.stats, A = this.apt;
     const idx = new Map<string, number>(); if (st) A.pts.forEach((q, i) => idx.set(`${q.sec}|${q.f}|${q.m}`, i));
