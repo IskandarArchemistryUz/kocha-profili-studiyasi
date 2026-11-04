@@ -25,6 +25,7 @@ import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
 import { szzGreen } from '../core/szzgen';
+import { isActive } from '../core/limits';
 
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
 /** Keyingi pogʻona izohi (41-jadval / 543-band): qaysi parsellar kichik va qancha maydon yetishmaydi — faqat ochilgan izohda */
@@ -681,6 +682,21 @@ export const RULES: Rule[] = [
       if (!n) return { status: 'pass', value: 0, unit: 'kvartal', limit: '0', note: 'Havo liniyalari turar joy kvartallari orqali oʻtmaydi.' };
       return { status: 'fail', value: n, unit: 'kvartal', limit: '0',
         note: `Havo liniyasi (${kv}) ${n} ta turar joy kvartali orqali oʻtadi. 253-band: liniyani turar joy hududidan chiqarish yoki kabelga almashtirish (ELU holati — «Kabelga»).` };
+    },
+  },
+  // 04.11 (Murad Buildings sinovi, 6-band; egasi: «981-ni qoʻlla») — kengliklar VM 981-son nizomidan; hujjat kuchini yoʻqotgan (LexUz)
+  {
+    id: 'water-981',
+    title: 'Suvni muhofaza qilish zonasi va qirgʻoq boʻyi mintaqasi',
+    source: { doc: 'VM 981-son qarori (11.12.2019) nizomi; Suv kodeksi (30.07.2025)', edition: '2019 — 23.06.2026 dan kuchini yoʻqotgan (LexUz), oʻrnini bosuvchi hujjat aniqlanmagan', clause: '18, 21, 23, 29, 30, 31, 32, 35, 37-bandlar; Suv kodeksi 24-bob, 125–138-moddalar (rejim)', verified: false },
+    evaluate(_d, doc) {
+      const suv = (doc.limits ?? []).filter(l => l.kind === 'suv' && isActive(l));
+      if (!suv.length) return { status: 'na', unit: 'bino', limit: '0', note: 'Suv obyekti kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
+      const c = limitChecks(doc), sh = [...new Set(c.suv.filter(x => x.shore).map(x => x.bid))], zn = [...new Set(c.suv.filter(x => !x.shore && !sh.includes(x.bid)).map(x => x.bid))];
+      const own = suv.filter(l => l.szz != null || l.qir != null).length, tail = ` Kengliklar — 981-son nizom (oraliqning quyi chegarasi; yer turi, nishablik, sarf yoki hajmga qarab oshadi); aholi punktida — bosh reja boʻyicha (23, 37-bandlar). Hujjat LexUz da 23.06.2026 dan kuchini yoʻqotgan — amaldagi hujjat va kengliklar tasdiqlanishi kerak.${own ? ` Qoʻlda oʻzgartirilgan: ${own} ta obyekt.` : ''}`;
+      if (!sh.length && !zn.length) return { status: 'review', value: 0, unit: 'bino', limit: '0', where: { rings: c.suvRings }, note: `Qirgʻoq boʻyi mintaqasida va suvni muhofaza qilish zonasida bino yoʻq.${tail}` };
+      return { status: sh.length ? 'fail' : 'review', value: sh.length || zn.length, unit: 'bino', limit: '0', where: { bids: sh.length ? sh : zn, rings: c.suvRings },
+        note: `Qirgʻoq boʻyi mintaqasida ${sh.length} ta bino (qurilish taqiqlanadi, suv xoʻjaligi obyektlaridan tashqari); suvni muhofaza qilish zonasida ${zn.length} ta bino — zona rejimi (Suv kodeksi, 125–138-moddalar) boʻyicha koʻrib chiqiladi.${tail}` };
     },
   },
   {
