@@ -36,11 +36,13 @@ test('kvartiralar: miks, deraza insolyatsiyasi, fasad belgilari, reyestr', async
   await page.click('[data-a3d=insol]');
   await expect(page.locator('[data-a3d=insol]')).toHaveAttribute('aria-pressed', 'true');
   if (shots) await page.screenshot({ path: `${shots}/apt_insol.png` });
-  const nM = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));   // shu miksda M
+  // har tur kvartiraning oʻrtacha maydoni (#mixRow: «soni · ulushi · ~maydon m²»)
+  const areas = () => page.evaluate(() => [...document.querySelectorAll('#mixRow .t-small')].map(e => { const m = (e.textContent ?? '').replace(/\s/g, '').match(/~([\d]+)m/); return m ? +m[1] : 0; }));
+  const aM = await areas();   // shu miksda M
   await page.click('[data-size=L]');
   await expect(page.locator('[data-size=L]')).toHaveAttribute('aria-pressed', 'true');
-  const nL = Number((await page.locator('#aptPlan b').textContent())!.replace(/\D/g, ''));
-  expect(nL).toBeLessThanOrEqual(nM);   // L — kattaroq kvartiralar
+  // L — kattaroq kvartiralar (04.11: miks loyiha boʻyicha maqsadga tuzatiladi — soni emas, har turning maydoni solishtiriladi)
+  await expect.poll(async () => { const aL = await areas(); return aL.filter((x, i) => x > 0 && aM[i] > 0 && x > aM[i]).length; }).toBeGreaterThanOrEqual(2);
   await page.click('[data-size=M]');
   // seksiya rejasi: SVG koʻrinadi, yuklab olinadi
   await expect(page.locator('#planBox svg')).toBeVisible();
