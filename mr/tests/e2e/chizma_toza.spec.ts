@@ -50,3 +50,39 @@ test('kvartira ranglari — Sodda, uzoqdan', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as any).__mr.scene.liteOn)).toBe(true);
   if (process.env.GX_SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: `${process.env.GX_SHOTS}/kv_sodda_uzoq.png` }); }
 });
+
+/** 04.11 (egasi: «daha yozuvi bazida halaqit qilmoqda — kerak boʻlganda yoqsa boʻladigan»): chizmada yozuvlar sukut boʻyicha yoʻq, kalit bilan yoqiladi */
+test('chizma — yozuvlar kaliti (sukut oʻchiq)', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
+  await page.setViewportSize({ width: 1440, height: 860 });
+  await page.goto('./'); await page.click('#newP');
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '240'); await page.fill('#rh', '180'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length)).toBeGreaterThan(4);
+  // yozuvlar sahnada koʻrinadi; chizmada — faqat kalit yoqilganda
+  const during = (labels: boolean) => page.evaluate((l) => { const m = (window as any).__mr, sc = m.scene; let n = -1; sc.drawingShot(() => { sc.snapshot(); n = sc.glabs.filter((g: any) => g.mesh && g.mesh.visible).length - sc.glabs.filter((g: any) => g.mesh && g.level > 0).length; }, { labels: l }); return n; }, labels);
+  // yoqiq — sigʻadigan yozuvlar koʻrinadi (farq 0); oʻchiq — hech biri (farq = −sigʻadiganlar soni ≤ 0)
+  expect(await during(true)).toBe(0);
+  expect(await page.evaluate(() => { const m = (window as any).__mr, sc = m.scene; let n = -1; sc.drawingShot(() => { sc.snapshot(); n = sc.glabs.filter((g: any) => g.mesh && g.mesh.visible).length; }, { labels: false }); return n; })).toBe(0);
+  // sheets.ts: kalit #shAxoLab, sukut — oʻchiq (o.axo.labels === true boʻlgandagina yozuvlar)
+  expect(await page.evaluate(() => typeof (window as any).__mr.axoShot('oq', undefined, true, 1.5))).toBe('string');
+});
+
+/** Grafika → Akso: «Yozuvlar» kaliti (sukut oʻchiq) — 1440 px va 1024 px · tungi */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`Grafika akso — «Yozuvlar» kaliti · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
+  await page.setViewportSize({ width: w, height: 860 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '240'); await page.fill('#rh', '180'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length)).toBeGreaterThan(4);
+  await page.click('#gxOpen'); await page.click('#frOpen');
+  await page.click('#shMode [data-mode=akso]');
+  await expect(page.locator('#shAxoLab')).toHaveAttribute('aria-checked', 'false');
+  if (process.env.GX_SHOTS) { await page.waitForTimeout(800); await page.screenshot({ path: `${process.env.GX_SHOTS}/akso_yozuv_${w}${dark ? 'd' : 'l'}.png` }); }
+  await page.click('#shAxoLab');
+  await expect(page.locator('#shAxoLab')).toHaveAttribute('aria-checked', 'true');
+});

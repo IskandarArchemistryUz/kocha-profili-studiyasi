@@ -106,7 +106,7 @@ export interface SheetOpts {
   /** qavat rejasi varagʻi: floor — bino raqami (1 dan; tarixiy nom), grp — qavatlar guruhi (boʻlmasa — turar qavat) */
   /** qavat: floor — bino (1 dan), grp — qavat guruhi; uy (02.11): floor — uy turi (1 dan), grp — uy qavati (1 dan) */
   plan?: { look?: 'rang' | 'bir'; floor?: number; grp?: number };
-  axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama'; view?: string; shadow?: boolean };
+  axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama'; view?: string; shadow?: boolean; /** 04.11: daha, kvartal va koʻcha yozuvlari (sukut — yoʻq) */ labels?: boolean };
 }
 /** Tayyor mazmun (qavat rejalari yoki aksonometriya): chizma maydoniga (mm) joylanadi; masshtab yozuvi — label */
 export interface SheetInner { body: (vx: number, vy: number, vw: number, vh: number) => string; label: string; legend?: LegendItem[]; /** varaq nomi (sarlavha va shtampda) */ name?: string; /** oʻng ustunda shartli belgilar ostidagi mazmun (masalan, eksplikatsiya) */ side?: (x: number, y: number, w: number, yMax: number) => string }
