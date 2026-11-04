@@ -1077,7 +1077,7 @@ function litSides(r: XY[], wins: [XY, XY][]): { n: XY; depth: number; along: num
 const LIVE: InKind[] = ['umumiy', 'xona', 'yotoq', 'master'];
 /** Meʼyoriy tekshiruv (yuqoridagi izoh): [ogʻirlik, matn][] */
 export function normViol(I: AptInterior, a: RuleApt, mods: FacadeMod[]): [number, string][] {
-  const out: [number, string][] = [], k = I.kFit ?? Math.max(1, a.rooms || 1), N = NORM, f1 = (v: number) => v.toFixed(1);
+  const out: [number, string][] = [], k = I.kFit ?? Math.max(1, a.rooms || 1), N = NORM, f1 = (v: number) => v.toFixed(1).replace('.', ',');   // 04.11: interfeysda koʻrinadi — vergul
   const wins: [XY, XY][] = a.mods.map(i => mods[i]).filter(m => m && !m.blind).map(m => [m.a, m.b]);
   let entryA = 0, hasEntry = false;
   for (const q of I.rooms) {

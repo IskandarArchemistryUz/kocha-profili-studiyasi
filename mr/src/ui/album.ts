@@ -5,7 +5,7 @@
  * magnitli devor (modul chegarasiga tortiladi) va ikki tomondagi masofalar. Tahrir barcha turar qavatlarga qoʻllanadi.
  */
 import { h, toast, fmt, svgIcon, IC } from './dom';
-import { tr } from '../i18n';
+import { tr, tf as tfm } from '../i18n';
 import { range } from './controls';
 const CH_L = '<path d="M15 6l-6 6 6 6"/>', CH_R = '<path d="M9 6l6 6-6 6"/>';
 import { MOD_W, type SecPlan } from '../core/apartments';
@@ -191,6 +191,8 @@ export function openAlbum(o: AlbumOpts): void {
     info.replaceChildren(
       h('div', { class: 'glabel' }, h('span', {}, tr('Shu qavatda'))),
       h('div', { class: 'row2 alb-counts' }, ...[1, 2, 3, 4].map(n => h('div', { class: 'group flat', style: 'padding:9px 12px' }, h('div', { class: 'kpi' }, h('b', {}, h('i', { style: `background:${APT_FILL[n]}` }), String(k[n - 1])), h('span', {}, `${n} ${tr('xonali')}`))))),
+      // 04.11: meʼyorga mos kelmagan kvartiralar soni (rejada qizil «!»; kvartirani tanlang — roʻyxat)
+      (() => { const mods = pl.layout.mods, n = V.apts.filter(a => aptInterior(a, mods)?.norm?.length).length; return n ? h('div', { class: 'note warn', id: 'albNormCnt' }, tfm('${n} ta kvartira rejasi meʼyorga toʻliq mos emas — rejada «!», kvartirani tanlang', { n })) : ''; })(),
       V.rooms.length ? h('div', { class: 'opts' }, h('b', {}, `${tr('Xonalar')}:`), ' ' + V.rooms.map(q => tr(ROOM_LABEL[q.kind])).filter((x, i, a) => a.indexOf(x) === i).join(' · ')) : '',
       h('div', { class: 'glabel' }, h('span', {}, tr('Tahrir'))),
       !editable ? h('div', { class: 'note' }, `${floor}-qavat rejasi tipik qavatdan kelib chiqadi (${FLOOR_NAME[ft]}). Tahrir uchun ${tf}-qavatni oching.`, h('button', { class: 'btn btn-sm', style: 'margin-top:6px;display:flex', onclick: () => { floor = tf; render(); } }, `${tf}-${tr('qavatga')}`))
@@ -327,13 +329,15 @@ export function openAlbum(o: AlbumOpts): void {
    * surish (derazani kesmaydi), master-blok (avto / ha / yoʻq), hoʻl xonalar eshigi surma. Barcha turar qavatlarga qoʻllanadi.
    */
   function innerBox(P: RulePlan, i: number, btn: (id: string, t: string, on: () => void, dis?: boolean, title?: string) => HTMLElement): HTMLElement {
-    const a = P.apts[i], iv = a.inner ?? {}, has = !!aptInterior(a, secOf().layout.mods);
+    const a = P.apts[i], iv = a.inner ?? {}, I0 = aptInterior(a, secOf().layout.mods), has = !!I0;
     if (!has) return h('div', { class: 'note', id: 'albInNone' }, tr('Bu kvartira shakli uchun ichki reja hali yoʻq (burchak yoki ikki fasadli) — sxema koʻrsatiladi.'));
     const dK = iv.dK ?? 0, mods = secOf().layout.mods, sig = (x: ReturnType<typeof aptInterior>) => JSON.stringify(x?.rooms.map(q => q.ring));
     // eshik koridor kesmasiga bogʻliq: baʼzi kvartiralarda faqat bitta tomon mumkin — tugma oʻchiq
     const canFlip = sig(aptInterior({ ...a, inner: { ...iv, flip: !iv.flip } }, mods)) !== sig(aptInterior(a, mods));
     return h('div', { class: 'col', id: 'albInner', style: 'gap:6px' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Ichki reja')), dK ? h('span', { class: 'num' }, `${tr('umumiy xona')} ${dK > 0 ? '+' : ''}${fmt(dK, 1)} m`) : ''),
+      // 04.11: shu kvartira rejasining meʼyor buzilishlari (ShNQ 2.08.01-24, SanQvaN 0102-25; ANDOZA — meʼyorda yoʻq, aqlga sigʻadigan chegara)
+      I0?.norm?.length ? h('div', { class: 'note warn', id: 'albInNorm' }, h('b', {}, tr('Meʼyorga mos emas')), ...I0.norm.map(t => h('div', { class: 't-small' }, tr(t)))) : '',
       h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip, mv: undefined, dr: undefined, rk: undefined }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
       h('div', { class: 't-small', id: 'albWallHint', title: tr('Devorni sichqoncha bilan suring — 0,1 m qadam, modul chegarasiga tortiladi; tanlangan devor: strelkalar ±0,1 m, Tab — keyingisi, Esc — chiqish.') }, tr('Devor va eshiklar: sudrang; oʻlchamni bosib aniq qiymat yozing; xonani bosing — turi; eshik tanlansa Space — ochilish tomoni.')),
       iv.mv?.length || iv.dr?.length || iv.rk?.length ? btn('albWallReset', 'Devorlarni asliga qaytarish', () => apply(editInner(P, i, { mv: undefined, dr: undefined, rk: undefined }), true)) : '',
