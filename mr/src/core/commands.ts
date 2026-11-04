@@ -111,7 +111,17 @@ const copyRing = (r: Ring): Ring => r.map(p => [p[0], p[1]] as LngLat);
 
 export class CommandError extends Error {}
 
+/**
+ * 04.11 (Murad Buildings sinovi, 9-band): binolar oʻchirilganda, daha qayta boʻlinganda yoki funksiya almashganda guruhida bino qolmagan
+ * yer osti / stilobat avtoturargohi (`garages`) qolib ketardi — har buyruqdan keyin bunday garajlar olib tashlanadi
+ */
 export function apply(doc: Project, c: Command, now = new Date()): Project {
+  const d = apply0(doc, c, now);
+  if (!d.garages?.length) return d;
+  const live = new Set<string>(); for (const b of d.buildings) if (b.gen) live.add(b.gen.grp);
+  return d.garages.every(g => live.has(g.grp)) ? d : { ...d, garages: d.garages.filter(g => live.has(g.grp)) };
+}
+function apply0(doc: Project, c: Command, now: Date): Project {
   const d: Project = { ...doc, updated: now.toISOString() };
   switch (c.type) {
     case 'rename': {
