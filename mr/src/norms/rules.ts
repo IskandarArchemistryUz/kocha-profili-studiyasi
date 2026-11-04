@@ -14,7 +14,7 @@ import { landscape } from '../core/landscape';
 import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
 import { firePairs, FIRE_CLS } from '../core/firedist';
-import { checkBlock, lenLimit, heightLimit, socialFloorLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
+import { checkBlock, lenLimit, heightLimit, tallMax, socialFloorLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
 import { area as areaOf, obb2 } from '../core/geo';
 import { computePlan, corridor } from '../core/plan';
 import { useDef } from '../core/uses';
@@ -494,22 +494,28 @@ export const RULES: Rule[] = [
   {
     id: 'seismic-height',
     title: 'Seysmik balandlik va qavatlar soni',
-    source: { doc: 'QMQ 2.01.03-19', edition: '2019', clause: '3.1-jadval (balandlik, qavatlar), 1, 2 va 7-izohlar', verified: true },
+    source: { doc: 'QMQ 2.01.03-19; ShNQ 2.01.06-25', edition: '2019; 2025', clause: '3.1-jadval (balandlik, qavatlar), 1, 2 va 7-izohlar; ShNQ 2.01.06-25: 2-bob, 5-jadval', verified: true },
     evaluate(_d, doc) {
       const s = doc.settings, sys = s.construct ?? 'monolit', ball = s.seismic, lim = heightLimit(sys, ball), def = SYS[sys];
       const bl = doc.buildings.filter(b => b.floors > 0 && b.gen?.kind !== 'stilobat');
       if (!bl.length) return { status: 'na', unit: 'bino', note: 'Binolar yoʻq.' };
-      const bad: { id: string; why: string }[] = [];
+      const bad: { id: string; why: string }[] = [], tall: string[] = [], tm = tallMax(sys);
       for (const b of bl) {
         const L = bLevels(s, b), fl = b.floors + (b.z0 ?? 0), H = L.top;   // 1-izoh: yer sathidan tashqi devorlar yuqorisigacha; 7-izoh: yer usti qavatlari
         if (lim && lim.h == null) bad.push({ id: b.id, why: 'tizim qoʻllanmaydi' });
-        else if (lim && lim.h != null && (H > lim.h + 0.05 || (lim.f != null && fl > lim.f))) bad.push({ id: b.id, why: `${fl} qavat, ${Math.round(H)} m` });
+        else if (lim && lim.h != null && (H > lim.h + 0.05 || (lim.f != null && fl > lim.f))) {
+          // 04.11: ShNQ 2.01.06-25 — monolit, H ≤ 100 m (5-jadval): alohida seysmik hisob bilan loyihalanadi — «koʻrib chiqish»
+          if (tm != null && H <= tm + 0.05) tall.push(b.id); else bad.push({ id: b.id, why: `${fl} qavat, ${Math.round(H)} m` });
+        }
         const sf = socialFloorLimit(b.use, ball); if (sf != null && fl > sf) bad.push({ id: b.id, why: `${b.use} ${fl} > ${sf} qavat (2-izoh)` });
       }
       const ids = [...new Set(bad.map(x => x.id))];
       const limTxt = lim == null ? 'NSTT' : lim.h == null ? 'qoʻllanmaydi' : `≤ ${lim.h} m (${lim.f})`, bt = ball > 9 ? '>9' : String(ball);
-      return { status: ids.length ? 'fail' : 'pass', value: ids.length, unit: `/ ${bl.length} bino`, limit: limTxt, ...(ids.length ? { where: { bids: ids } } : {}),
-        note: `${def.name} (${def.row}), ${bt} ball: balandlik va qavatlar soni — ${limTxt}. 8–9 ballda maktab ≤ 3, bogʻcha ≤ 2 qavat; 9 dan yuqori — ≤ 2 qavat (2-izoh).` };
+      const tl = tall.filter(x => !ids.includes(x));
+      return { status: ids.length ? 'fail' : tl.length ? 'review' : 'pass', value: ids.length || tl.length, unit: `/ ${bl.length} bino`, limit: limTxt, ...(ids.length || tl.length ? { where: { bids: ids.length ? ids : tl } } : {}),
+        note: `${def.name} (${def.row}), ${bt} ball: balandlik va qavatlar soni — ${limTxt}. 8–9 ballda maktab ≤ 3, bogʻcha ≤ 2 qavat; 9 dan yuqori — ≤ 2 qavat (2-izoh).`
+          + (tl.length ? ` ${tl.length} ta monolit bino jadval chegarasidan baland, lekin ≤ ${tm} m: ShNQ 2.01.06-25 (01/2-38, 15.08.2025) boʻyicha alohida seysmik hisob talab qilinadi — 70 m dan baland bino (2-bob) chiziqsiz hisob asosida; balandlik sinfi — 5-jadval (SLS 1–2: H ≤ 100 m).` : '')
+          + (tm != null ? '' : ' ShNQ 2.01.06-25 (baland binolar) — monolit temir-beton uchun (6–7-jadvallar); bu tizimga qoʻllanmaydi.') };
     },
   },
   {
