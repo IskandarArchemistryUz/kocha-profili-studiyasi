@@ -73,7 +73,7 @@ export function norm(o: Record<string, unknown>): SheetOpts {
  * zonalashtirish, figura-fon, landshaft, qavatlar soni, vaziyat sxemasi); har bino turidan 1-qavat va tipik qavat; har past qavatli uy
  * turidan har qavat rejasi (core/albumset).
  */
-const SET_V = 8;   // 04.11: shamol va relyef varaqlari qoʻshildi
+const SET_V = 9;   // 04.11: shamol, relyef va qurilish navbati varaqlari qoʻshildi
 function defaultSheets(doc: Project): SheetDoc[] {
   const base = lastOpts(), mk = (o: Partial<SheetOpts>): SheetDoc => ({ id: uid('sh_'), opts: { ...base, mode: 'reja', title: '', stamp: {}, ...o } as unknown as Record<string, unknown> });
   const out: SheetDoc[] = [
@@ -85,6 +85,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'yashil', scale: 0 }), mk({ kind: 'insol', scale: 0 }),   // 02.11: tahlil — yashil balans, insolyatsiya
     mk({ kind: 'transport', scale: 0 }),   // 02.11: tahlil 4 — transport sxemasi
     mk({ kind: 'relyef', scale: 0 }),   // 04.11: tahlil — relyef
+    mk({ kind: 'navbat', scale: 0 }),   // 04.11: tahlil — qurilish navbati
     mk({ kind: 'shamol', scale: 0 }),   // 04.11: tahlil — shamol guli va oqim
   ];
   for (const sv of ['mtm', 'maktab', 'poliklinika', 'bekat']) out.push(mk({ kind: 'xizmat', svc: sv, scale: 0 }));   // 02.11: tahlil — xizmat radiuslari (editor SVC_ON)

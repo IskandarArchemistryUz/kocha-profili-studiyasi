@@ -158,7 +158,7 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
       const i = doc.buildings.findIndex(b => b.id === c.id);
       if (i < 0) throw new CommandError('Bino topilmadi');
       const b = { ...doc.buildings[i], ...c.patch };
-      if (b.gen && !c.patch.gen && Object.keys(c.patch).length) b.gen = { ...b.gen, edited: true };   // avtomatik bino qoʻlda tahrirlandi — qayta generatsiyadan oldin soʻraladi
+      if (b.gen && !c.patch.gen && Object.keys(c.patch).some(k => k !== 'stage')) b.gen = { ...b.gen, edited: true };   // 04.11: navbat — tahrir emas   // avtomatik bino qoʻlda tahrirlandi — qayta generatsiyadan oldin soʻraladi
       b.floors = Math.max(1, Math.round(b.floors));
       b.nonRes = b.gen?.kind === 'stilobat' ? b.floors : Math.max(0, Math.min(b.floors - 1, Math.round(b.nonRes)));
       if (c.patch.footprint) { b.footprint = copyRing(c.patch.footprint); if (b.gen?.blind && b.footprint.length !== doc.buildings[i].footprint.length) { const { blind: _x, ...g } = b.gen; b.gen = g; } }   // qirralar soni oʻzgarsa — torets belgilari yaroqsiz
@@ -257,9 +257,10 @@ export function apply(doc: Project, c: Command, now = new Date()): Project {
     case 'replaceGroup': {
       const dropB = new Set(c.drop?.bids ?? []), dropG = new Set(c.drop?.gids ?? []);
       const keep = doc.buildings.filter(b => b.gen?.grp !== c.grp && !(b.gen && dropB.has(b.id)));
+      const st0 = doc.buildings.find(b => b.gen?.grp === c.grp && b.stage)?.stage;   // 04.11: qayta generatsiyada kvartal navbati saqlanadi
       d.buildings = [...keep, ...c.sections.map(x => {
         const floors = Math.max(1, Math.round(x.floors));
-        return { id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: x.kind === 'stilobat' ? floors : Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind, ...(x.blind?.length ? { blind: [...x.blind] } : {}), ...(x.plot?.length ? { plot: copyRing(x.plot) } : {}) }, ...(x.z0 ? { z0: x.z0 } : {}), ...(x.joint ? { joint: true as const } : {}), ...(x.docks?.length ? { docks: x.docks.map(q => ({ ...q })) } : {}), ...(x.hall ? { hall: x.hall } : {}) };
+        return { ...(st0 ? { stage: st0 } : {}), id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: x.kind === 'stilobat' ? floors : Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind, ...(x.blind?.length ? { blind: [...x.blind] } : {}), ...(x.plot?.length ? { plot: copyRing(x.plot) } : {}) }, ...(x.z0 ? { z0: x.z0 } : {}), ...(x.joint ? { joint: true as const } : {}), ...(x.docks?.length ? { docks: x.docks.map(q => ({ ...q })) } : {}), ...(x.hall ? { hall: x.hall } : {}) };
       })];
       d.garages = [...doc.garages.filter(g => g.grp !== c.grp && !dropG.has(g.id)), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring), ...(c.garage.stalls ? { stalls: c.garage.stalls.map(copyRing) } : {}), ...(c.garage.aisles ? { aisles: c.garage.aisles.map(copyRing) } : {}), ...(c.garage.spur ? { spur: copyRing(c.garage.spur) } : {}) }] : [])];
       if (c.parcelGen) d.parcels = doc.parcels.map(p => p.id === c.grp ? { ...p, gen: { ...c.parcelGen } } : p);
