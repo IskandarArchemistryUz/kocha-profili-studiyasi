@@ -114,7 +114,7 @@ import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCAL
 import { uid } from '../core/doc';
 import { ContextManager } from '../context/manager';
 import { overpass, type ContextBundle } from '../context/load';
-import { limitsQuery, parseLimitsOsm, newOnes } from '../context/limitsosm';
+import { limitsQuery, parseLimitsOsm, newOnes, limitsFromContext } from '../context/limitsosm';
 import { summary } from '../context/osm';
 import { geocode, bboxKm, type Place } from '../context/geocode';
 import { WorldMap, zoomFor } from './worldmap';
@@ -3160,7 +3160,14 @@ export class Editor {
       const cnt = new Map<string, number>(); for (const l of add) cnt.set(this.limName(l.kind), (cnt.get(this.limName(l.kind)) ?? 0) + 1);
       this.limOsm.msg = add.length ? tf('OSM: ${n} ta obyekt qoʻshildi — ${list}. Holatini tekshiring.', { n: add.length, list: [...cnt].map(([k, v]) => `${k} ${v}`).join(', ') })
         : tr(auto ? 'OSM da uchastka atrofida cheklov obyektlari topilmadi — boʻlsa, qoʻlda chizing.' : 'OSM da yangi cheklov obyekti topilmadi — qoʻlda chizing.');
-    } catch (e) { this.limOsm.msg = tf('OSM maʼlumoti yuklanmadi (${e}) — qoʻlda chizing yoki keyinroq qayta urining.', { e: (e as Error).message.slice(0, 80) }); }
+    } catch (e) {
+      // 04.11 (Murad sinovi, 8-band): Overpass javob bermasa — xarita qatlamidan (atrof konteksti) zaxira aniqlash
+      const ctx = this.ctxMgr.current?.osm, cur = this.store.doc, fb = ctx ? limitsFromContext(ctx, site) : null, add = fb ? newOnes(fb.limits, cur.limits ?? [], cur.origin) : [];
+      if (add.length) this.run(() => { for (const l of add) this.store.dispatch({ type: 'addLimit', limit: l }); });
+      const why = (e as Error).message.slice(0, 80), big = fb?.bigUnknown ? ' ' + tf('Turi nomaʼlum ${n} ta katta bino (≥ 3000 m²) bor — sanoat boʻlsa, qoʻlda chizing.', { n: fb.bigUnknown }) : '';
+      this.limOsm.msg = add.length ? tf('OSM javob bermadi (${e}). Xarita qatlamidan ${n} ta obyekt qoʻshildi — holatini tekshiring.', { e: why, n: add.length }) + big
+        : tf('OSM maʼlumoti yuklanmadi (${e}) — qoʻlda chizing yoki keyinroq qayta urining.', { e: why }) + big;
+    }
     finally { this.limOsm.busy = false; this.renderPanel(); }
   }
   private selLimit: string | null = null;
