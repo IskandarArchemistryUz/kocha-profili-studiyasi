@@ -49,6 +49,8 @@ export interface GenParams {
   groundH?: number;
   /** 04.11 (audit): maydon seysmikligi, ball — 8+ da qatorlar orasi 2·Hmax (8-izoh), aks holda Hmax·kʏ (2-jadval) */
   seismic?: number;
+  /** tajriba: amaliyot rejimi — 7-izoh barcha 2-jadval masofalariga, jumladan 8-izohga (÷ 2, insolyatsiya hisobi bilan) */
+  recon?: boolean;
   /** 04.11: past uylar orasidagi yongʻin masofasi, m (ShNQ 2.07.01-23, 56-jadval; core/firedist) — yoʻq boʻlsa 6 */
   lowFire?: number;
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
@@ -546,6 +548,7 @@ const opposed = (a: GenSection, b: GenSection): boolean => !!a.face && !!b.face 
  * (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8). Ikkala seksiya ham cheklanadi.
  */
 function facingCap(r: GenResult, g: GenParams, floorH: number): void {
+  const KR = g.recon ? 0.5 : 1;
   // 1) qarshidagi qator meʼyoriy minimal qavatga ham sigʻmasa — keyin joylashganini (qisqaroq qirra) olib tashlaymiz:
   //    tor kvartalda bir tomonlama, lekin balandroq qurilish qavat soni 1–2 gacha tushirilgan ikki qatordan yaxshiroq
   let removed = 0; const gone: XY[] = [];
@@ -555,7 +558,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
       if (!s.face) return;
       r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < wd) { wd = eff; worst = [i, k]; } });
     });
-    if (!worst || (wd / 2 - dgOf(g, floorH)) / floorH >= g.minF) break;
+    if (!worst || (wd / (2 * KR) - dgOf(g, floorH)) / floorH >= g.minF) break;
     const [i, k] = worst as [number, number], rm = r.sections.splice(Math.max(i, k), 1)[0]; if (rm.face) gone.push(rm.face.n); removed++;
   }
   // shu qirradan qolgan, hech biriga tegmaydigan yakka boʻlaklar — «uzilib» qolmasin, ular ham olinadi
@@ -595,7 +598,7 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     let d = Infinity, j = -1;
     r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < d) { d = eff; j = k; } });
     if (!Number.isFinite(d) || d > 200) return;
-    const cap = Math.max(g.minF, Math.floor((d / 2 - dgOf(g, floorH)) / floorH));
+    const cap = Math.max(g.minF, Math.floor((d / (2 * KR) - dgOf(g, floorH)) / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
   });
   if (cut) r.notes.push(`${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (≥ 2·H, izoh 8)`);
@@ -607,7 +610,7 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
   const inner = insetMiter(A, D);
   if (!inner || inner.length !== A.length) return { sections: [], capFloors: null, notes: ['Kvartal perimetr uchun juda kichik — «qatorlar» ni sinab koʻring'] };
   // hovli: yopiq perimetr — 2,3·Hmax (izoh 3), oʻtishlar bilan — 2·Hmax (izoh 8, seysmik 8+)
-  const wc = minWidth(inner), k = g.passages ? 2 : 2.3;
+  const wc = minWidth(inner), k = (g.passages ? 2 : 2.3) * (g.recon ? 0.5 : 1);
   const cap = Math.max(1, Math.floor((wc / k - dgOf(g, floorH)) / floorH));
   if (cap < g.maxF) notes.push(`Hovli eni ${Math.round(wc)} m → qavat ≤ ${cap} (ShNQ 2.07.01-23, 79-band 2-jadval, izoh ${g.passages ? 8 : 3}: ${k.toString().replace('.', ',')}·Hmax)`);
   const maxF = Math.min(g.maxF, cap), minF = Math.min(g.minF, maxF);
@@ -690,7 +693,7 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
   // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0102-25, 3-band — turar joy obyektlari janubiy, janubi-sharqiy, sharqiy, shimoli-sharqiy yoʻnalishda;
   // 15-band — xona derazalari gʻarbga (200–290°) yoʻnaltirilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
   // izoh 8: seysmik 8+ ballda ≥ 2·Hmax; 04.11 (audit): 7 ballda — Hmax·kʏ (2-jadval, 2-ilova; qatorlar shimol–janub yoʻnalishida qaraydi)
-  const s8 = (g.seismic ?? 8) >= 8, D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gap = Math.max(s8 ? 2 * H : H * kyOf(0), 20);
+  const s8 = (g.seismic ?? 8) >= 8, D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gap = Math.max((s8 ? 2 * H : H * kyOf(0)) * (g.recon ? 0.5 : 1), 20);
   notes.push(s8 ? `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`
     : `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = Hmax·kʏ (ShNQ 2.07.01-23, 79-band 2-jadval, 2-ilova; 7 ball)`);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -713,7 +716,7 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
     }
   }
   if (!sections.length) notes.push('Qator sigʻmadi — chuqurlik yoki qavatni kamaytiring');
-  return { sections, capFloors: Math.floor((gap / (s8 ? 2 : kyOf(0)) - dgOf(g, floorH)) / floorH), notes };
+  return { sections, capFloors: Math.floor((gap / ((s8 ? 2 : kyOf(0)) * (g.recon ? 0.5 : 1)) - dgOf(g, floorH)) / floorH), notes };
 }
 
 /* ====================== tipologiyalar ====================== */

@@ -324,7 +324,7 @@ export const RULES: Rule[] = [
     evaluate(_d, doc) {
       if (doc.buildings.length < 2) return { status: 'na', note: 'Binolar yoʻq' };
       const { pairs } = spacingIssues(doc);
-      const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun'), lt = pairs.filter(p => p.kind === 'uzun-torets' && !p.red), hard = pairs.filter(p => p.kind === 'torets' && !p.red && p.d < p.need - 0.5), red = pairs.filter(p => p.red), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length, yk = pairs.filter(p => p.kind === 'yakka');
+      const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun' && !p.red), lt = pairs.filter(p => p.kind === 'uzun-torets' && !p.red), hard = pairs.filter(p => p.kind === 'torets' && !p.red && p.d < p.need - 0.5), red = pairs.filter(p => p.red), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length, yk = pairs.filter(p => p.kind === 'yakka');
       const parts: string[] = [];
       if (ov) parts.push(`Ustma-ust tushgan binolar: ${ov} juft — qayta generatsiya qiling yoki ortiqchasini oʻchiring.`);
       if (lng.length) { const w = lng.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Derazali uzun tarzlar orasi yetmaydi — Hmax × kʏ (2-ilova; kʏ = ${String(w.ky ?? '').replace('.', ',')}), seysmik 8+ ballda ≥ 2·Hmax (8-izoh): ${lng.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }

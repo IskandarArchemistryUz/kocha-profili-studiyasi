@@ -95,7 +95,7 @@ export function spacingIssues(doc: Project): { pairs: SpacingPair[]; checked: nu
     if (g.parallel >= 10) {
       // 2-jadval: derazali uzun tarzlar orasi Hmax × kʏ (2-ilova, uzun tomon yoʻnalishi); 8-izoh: seysmik 8+ ballda turar joy binolari ≥ 2 × Hmax
       const s8 = seis8 && x.res && y.res, ky = kyOf(azOf(g.dir)), need = Math.max(Hm * ky, s8 ? 2 * Hm : 0);
-      if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H, ky, ...(red(g.d, need) && !(s8 && need === 2 * Hm) ? { red: true } : {}) });
+      if (g.d < need - 0.5) out.push({ a: x.b.id, b: y.b.id, kind: 'uzun', d: g.d, need, ha: x.H, hb: y.H, ky, ...(red(g.d, need) ? { red: true } : {}) });
     }
     else if (g.la !== g.lb) {
       // derazali uzun tomon ↔ torets: 2·Hmax·0,3, ≥ 6 m (2-jadval)
