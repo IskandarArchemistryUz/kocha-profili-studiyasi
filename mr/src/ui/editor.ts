@@ -1971,11 +1971,23 @@ export class Editor {
   private poiKind: Svc = 'mtm';
   private poiName = '';
 
+  static POI_WAIT = 20_000;
   private async loadPoi(force = false): Promise<void> {
     if (this.svc.busy) return;
-    this.svc.busy = true; this.svc.err = ''; this.renderPanel();
-    try { this.svc.poi = await this.ctxMgr.loadPoi(this.store.doc.origin, force); }
-    catch (e) { this.svc.err = `OSM obyektlari yuklanmadi: ${(e as Error).message}. Faqat loyiha obyektlari va kontekst yoʻllari bilan hisoblanadi.`; }
+    // 04.11 (Murad Buildings sinovi, 5-band — «Overpass kutib qotadi, 30+ s natija ham, xato ham yoʻq»): loyihaning oʻz maktab, MTM va
+    // h.k. obyektlari boʻyicha radiuslar darhol hisoblanadi; OSM ≤ 20 s kutiladi, keyin aniq xabar (kech kelgan javob — keshga va natijaga)
+    this.svc.busy = true; this.svc.err = '';
+    if (!this.svc.res) this.runServices(true);
+    this.renderPanel();
+    const p = this.ctxMgr.loadPoi(this.store.doc.origin, force);
+    let late = false;
+    try { this.svc.poi = await Promise.race([p, new Promise<never>((_, no) => setTimeout(() => no(new Error('timeout')), Editor.POI_WAIT))]); }
+    catch (e) {
+      const to = (e as Error).message === 'timeout'; late = to;
+      this.svc.err = to ? tf('OSM ${s} s ichida javob bermadi — natija faqat loyiha obyektlari va kontekst yoʻllari bilan. «Qayta urinish» yoki obyektni qoʻlda qoʻshing (pastda).', { s: Math.round(Editor.POI_WAIT / 1000) })
+        : tf('OSM obyektlari yuklanmadi: ${e}. Faqat loyiha obyektlari va kontekst yoʻllari bilan hisoblanadi.', { e: (e as Error).message });
+    }
+    if (late) p.then(b => { if (this.svc.poi) return; this.svc.poi = b; this.svc.err = ''; this.runServices(this.step.id !== 'xizmat'); }).catch(() => {});
     this.svc.busy = false; this.runServices();
   }
 
@@ -2072,7 +2084,7 @@ export class Editor {
     const S = this.svc, hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     if (!S.res && !S.busy && !S.err) queueMicrotask(() => void this.loadPoi());
     if (S.busy) body.append(h('div', { class: 'note' }, tr('OSM: maktab, bogʻcha, poliklinika, dorixona, doʻkonlar va 2 km piyoda yoʻllari yuklanmoqda…')));
-    if (S.err && S.err !== 'yashirildi') body.append(h('div', { class: 'note warn' }, S.err));
+    if (S.err && S.err !== 'yashirildi') body.append(h('div', { class: 'note warn', id: 'svcErr' }, S.err), h('button', { class: 'btn btn-sm', id: 'svcRetry', onclick: () => void this.loadPoi(true) }, ...icl(DL, tr('Qayta urinish'))));
     if (S.res) {
       if (S.buildings !== this.store.doc.buildings) body.append(h('div', { class: 'row', style: 'gap:8px;align-items:center' }, h('span', { class: 't-small', style: 'flex:1' }, tr('Loyiha oʻzgardi — natija eskirgan.')), h('button', { class: 'btn btn-sm', onclick: () => this.runServices() }, tr('Qayta hisoblash'))));
       const cls = (x: number) => x >= 0.999 ? ['ok', 'pass'] : x >= 0.8 ? ['warn', 'review'] : ['bad', 'fail'];
