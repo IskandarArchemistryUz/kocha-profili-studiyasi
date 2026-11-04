@@ -13,7 +13,7 @@
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
 import { frame, type XY } from './geo';
-import { limitZones, eluZone, szzOf, limitAreaHa, bufferLocal, isActive, SZZ_DENY, SZZ_ALLOW, SZZ_FOOD_LOGI, type LimitKind } from './limits';
+import { limitZones, eluZone, szzOf, suvZones, limitAreaHa, bufferLocal, isActive, SZZ_DENY, SZZ_ALLOW, SZZ_FOOD_LOGI, type LimitKind } from './limits';
 import { computePlan } from './plan';
 import { useDef, type Use } from './uses';
 
@@ -37,7 +37,9 @@ export interface Elu251 { limit: string; kv: number; blocks: number }
 export interface Manual { limit: string; kind: LimitKind; m: number; table: number }
 /** 04.11 (audit): SMZ ga tushgan taqiqli funksiyali kvartal/parsellar (park, sport, turar joy …) — binosiz ham */
 export interface SzzBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][] }
-export interface LimitChecks { szz: SzzHit[]; szzBlocks: SzzBlockHit[]; elu: EluHit[]; elu251: Elu251[]; manual: Manual[]; any: boolean; zoneRings: XY[][] }
+/** 04.11: suvni muhofaza qilish zonasidagi bino (981-son nizom) va qirgʻoq boʻyi mintaqasiga tushgan bino */
+export interface SuvHit { bid: string; limit: string; m: number; area: number; shore: boolean }
+export interface LimitChecks { szz: SzzHit[]; szzBlocks: SzzBlockHit[]; elu: EluHit[]; elu251: Elu251[]; manual: Manual[]; suv: SuvHit[]; suvRings: XY[][]; any: boolean; zoneRings: XY[][] }
 
 let memo: { k: unknown[]; v: LimitChecks } | null = null;
 export function limitChecks(doc: Project): LimitChecks {
@@ -47,7 +49,7 @@ export function limitChecks(doc: Project): LimitChecks {
 }
 
 function raw(doc: Project): LimitChecks {
-  const ls = doc.limits ?? [], out: LimitChecks = { szz: [], szzBlocks: [], elu: [], elu251: [], manual: [], any: ls.length > 0, zoneRings: [] };
+  const ls = doc.limits ?? [], out: LimitChecks = { szz: [], szzBlocks: [], elu: [], elu251: [], manual: [], suv: [], suvRings: [], any: ls.length > 0, zoneRings: [] };
   if (!ls.length || !doc.site) return out;
   const fr = frame(doc.origin), z = limitZones(doc);
   const fps = doc.buildings.map(b => ({ b, poly: [close(b.footprint.map(fr.toLocal))] as Polygon }));
@@ -85,9 +87,19 @@ function raw(doc: Project): LimitChecks {
       if (n) out.elu251.push({ limit: l.id, kv, blocks: n });
     }
   }
+  // 3b) suv obyektlari (04.11): zonadagi binolar — koʻrib chiqish; qirgʻoq boʻyi mintaqasidagi binolar — taqiq
+  for (const w of z.water) { out.suvRings.push(...w.rings); for (const { b, poly } of fps) { const a = overlap(poly, w.polys); if (a >= 1) out.suv.push({ bid: b.id, limit: w.id, m: w.m, area: a, shore: false }); } }
+  for (const l of ls) {
+    if (l.kind !== 'suv' || !isActive(l)) continue;
+    const line = !l.rings?.length && !!l.axis && l.axis.length >= 2, pts = line ? l.axis!.map(fr.toLocal) : l.rings?.[0]?.map(fr.toLocal); if (!pts) continue;
+    const sh = suvZones(l).shore; if (sh.m <= 0 && line) continue;
+    const mp = bufferLocal(pts, sh.m, !line).map(p => p.map(r => r.slice(0, -1).map(q => [q[0], q[1]] as XY)));
+    out.suvRings.push(...mp.map(p => p[0]));
+    for (const { b, poly } of fps) { const a = overlap(poly, mp); if (a >= 1) out.suv.push({ bid: b.id, limit: l.id, m: sh.m, area: a, shore: true }); }
+  }
   // 4) qoʻlda kamaytirilgan bufer (jadvaldagidan kichik) — davlat sanitariya nazorati xulosasi kerak
   for (const l of ls) {
-    if (!isActive(l) || l.szz == null) continue;
+    if (!isActive(l) || l.szz == null || l.kind === 'suv') continue;   // suv — alohida qoida (water-981)
     const s = l.kind === 'elu' ? eluZone(l) : szzOf(l, limitAreaHa(l, doc.origin));
     if (s.table != null && s.m < s.table) out.manual.push({ limit: l.id, kind: l.kind, m: s.m, table: s.table });
   }
