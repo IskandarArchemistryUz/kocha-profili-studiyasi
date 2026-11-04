@@ -44,13 +44,17 @@ describe('antresol (01.11, egasi)', () => {
     expect(hasAntresol(S, { floors: 9, nonRes: 0, antresol: true })).toBe(false);
     expect(hasAntresol({ floorHeight: 3.3 }, { floors: 9, nonRes: 1, antresol: true })).toBe(false);
     expect(hasAntresol(S, { floors: 9, nonRes: 1, z0: 2, antresol: true })).toBe(false);
+    expect(hasAntresol(S, { floors: 9, nonRes: 1 })).toBe(true);                     // 04.11: avtomatik
+    expect(hasAntresol(S, { floors: 9, nonRes: 1, antresol: false })).toBe(false);  // qoʻlda oʻchirilgan
   });
   it('derive: antresol maydoni = 1-qavatning 40 % i, GFA ga qoʻshiladi (2.08.02-23, 11-ilova, 1-band)', () => {
     const p = blankProject('T'); const [lng, lat] = p.origin, k = 1 / 111320, kx = k / Math.cos(lat * Math.PI / 180), g = (x: number, y: number) => [lng + x * kx, lat + y * k] as [number, number];
     p.settings = { ...DEFAULT_SETTINGS, groundH: 5.7 };
     p.buildings = [{ id: 'a', footprint: [g(0, 0), g(50, 0), g(50, 15), g(0, 15)], floors: 9, nonRes: 1, use: 'turar' } as any];
+    // 04.11 (egasi): antresol avtomatik — balandlik yetsa bor; qoʻlda oʻchirilsa (false) — yoʻq
+    p.buildings = [{ ...p.buildings[0], antresol: false } as any];
     const d0 = derive(p); expect(d0.antresol).toBe(0);
-    p.buildings = [{ ...p.buildings[0], antresol: true } as any];
+    p.buildings = [{ ...p.buildings[0], antresol: undefined } as any];
     const d1 = derive(p); expect(d1.antresol).toBeCloseTo(750 * 0.4, -1); expect(d1.gfa).toBeCloseTo(d0.gfa + d1.antresol, 3);
   });
 });

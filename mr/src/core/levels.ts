@@ -43,6 +43,6 @@ export function antresolSplit(h: number): { lo: number; hi: number } | null {
   const hi = Math.max(ANTRESOL_HI, avail / 2), lo = avail - hi;
   return lo >= ANTRESOL_LO - 1e-6 ? { lo, hi } : { lo: ANTRESOL_LO, hi: avail - ANTRESOL_LO };
 }
-/** binoning antresoli bormi (belgilangan va 1-qavat balandligi yetadi) */
+/** binoning antresoli bormi: 04.11 (egasi) — avtomatik, 1-qavat noturar va balandligi yetsa (≥ 4,9 m); qoʻlda oʻchirilsa (antresol: false) — yoʻq */
 export const hasAntresol = (s: Pick<Settings, 'floorHeight' | 'groundH'>, b: Pick<Building, 'nonRes' | 'z0' | 'floors' | 'antresol'>): boolean =>
-  !!b.antresol && (b.nonRes ?? 0) >= 1 && !(b.z0 ?? 0) && antresolSplit(bLevels(s, b).fh1) != null;
+  b.antresol !== false && (b.nonRes ?? 0) >= 1 && !(b.z0 ?? 0) && antresolSplit(bLevels(s, b).fh1) != null;
