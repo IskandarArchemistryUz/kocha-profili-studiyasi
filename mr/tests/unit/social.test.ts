@@ -25,3 +25,18 @@ describe('Ijtimoiy binolar', () => {
     expect(p.notes.join(' ')).toMatch(/39-jadval/);
   });
 });
+
+describe('04.11 (Murad sinovi, 1-band): red-line-39 — maktab/MTM binosi 25 m chekinish ichida', () => {
+  const minDist = (secs: { ring: XY[] }[], y: number) => Math.min(...secs.flatMap(s => s.ring.map(p => p[1] - y)));
+  it('sigʻsa — hamma qism janubiy (koʻcha) qirradan ≥ 25 m', () => {
+    // 140 × 120 m parsel, janubiy qirra koʻchaga (25 m), qolganlari 6 m
+    const sp = socialPlan(rect(0, 0, 140, 120), 'maktab', 600, 'taroq', 24, 3, [25, 6, 6, 6]);
+    expect(sp.sections.length).toBeGreaterThan(0);
+    expect(minDist(sp.sections, 0)).toBeGreaterThanOrEqual(24.9);
+    expect(sp.notes.join(' ')).not.toContain('39-jadval) ichiga sigʻmadi');
+  });
+  it('sigʻmasa — bino baribir chiziladi, izohda chetlanish', () => {
+    const sp = socialPlan(rect(0, 0, 90, 40), 'mtm', 120, 'chiziq', 33, 2, [25, 25, 25, 25]);
+    expect(sp.sections.length).toBeGreaterThan(0); expect(sp.notes.join(' ')).toMatch(/25 m/);
+  });
+});
