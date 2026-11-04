@@ -4058,10 +4058,22 @@ export class Editor {
   }
   /** Tahlil varagʻi uchun atrof: atrof yuklanmagan boʻlsa ham tahlil chiziladi */
   private sheetCtxFor(kind: string): SheetCtx | null {
-    const c = this.sheetCtx(); if (kind !== 'xizmat' && kind !== 'insol') return c;
+    const c = this.sheetCtx(); if (kind !== 'xizmat' && kind !== 'insol' && kind !== 'shamol') return c;
     const base = c ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] };
     if (kind === 'insol') return { ...base, insol: this.insolSheet() };
+    if (kind === 'shamol') return { ...base, wind: this.windSheet() };
     return { ...base, svc: this.svcSheet() };
+  }
+  /** 04.11 (egasi: tahlil varaqlari — shamol): stansiya guli va 6-qadamda hisoblangan oqim (koʻrsatilgan rejimda) */
+  private windSheet(): SheetCtx['wind'] {
+    const now = this.windNow(); if (!now) return null;
+    const { st, km, src } = now, pv = prevailing(st), w = this.wind, hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+    const RAT: [number, number, string][] = [[0.4, 0x2b3a67, '< 0,4 pana'], [0.7, 0x4a6fa5, '0,4–0,7'], [0.9, 0x7fb3c8, '0,7–0,9'], [1.1, 0xe8e4c9, '0,9–1,1 ochiq joydek'], [1.3, 0xf6c86b, '1,1–1,3'], [1.5, 0xf29a4a, '1,3–1,5'], [Infinity, 0xd9534f, '> 1,5 tezlashish']];
+    const base = { station: `${src === 'era5' ? st.name : st.name.replace(/\./g, ' ')} · ${Math.round(km)} km`, src: src === 'era5' ? 'ERA5' : 'TMYx (EPW)', rose: st.rose, dir: w.stats?.dir ?? this.windDir ?? pv.deg, prevailing: rumbName(pv.k), mean: st.mean, calm: st.calm };
+    if (!w.stats || !w.pts || !w.ratio || !w.cell) return base;
+    const cols = w.mode === 'ratio' ? w.ratio.map(r => hex(RAT.find(x => r < x[0])![1])) : w.ratio.map(r => hex(LAWSON[lawsonClass(r * w.stats!.p95)][1]));
+    const legend: [string, string][] = w.mode === 'ratio' ? RAT.map(([, c, t]) => [hex(c), t]) : LAWSON.map(([, c, t]) => [hex(c), t]);
+    return { ...base, pts: w.pts, cols, cell: w.cell, legend, mode: w.mode };
   }
   private insolSheet(): SheetCtx['insol'] {
     const I = this.insolGrid; if (!I) return null;
@@ -4133,6 +4145,11 @@ export class Editor {
         const r = sheetSvg(this.store.doc, this.sheetCtxFor('insol'), { ...SHEET_DEFAULT, kind: 'insol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } },
+      // 04.11: tahlil — shamol (guli va oqim)
+      { id: 'p:plan:shamol', name: 'Shamol', on: true, get: () => {
+        const r = sheetSvg(this.store.doc, this.sheetCtxFor('shamol'), { ...SHEET_DEFAULT, kind: 'shamol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
+      } },
       // 02.11: tahlil varaqlari — xizmat radiusi (piyoda tarmogʻi boʻylab, 9-qadam tahlili); asosiylari sukut boʻyicha yoqilgan
       ...SERVICES.map(sv => { let c2: SheetCtx | null | undefined; return { id: `p:plan:svc:${sv.id}`, name: `${tr('Xizmat radiusi')} · ${tr(sv.name)}`, on: SVC_ON.includes(sv.id), get: () => {
         if (c2 === undefined) c2 = this.sheetCtxFor('xizmat');
@@ -4188,7 +4205,7 @@ export class Editor {
 
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
-    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
+    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
       axo: (look, viewId, detail, ratio) => {
         const sc = this.scene, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic' };
         sc.setStyle(map[look ?? 'oq']); sc.setDetail(look === 'qoralama' ? false : detail);
