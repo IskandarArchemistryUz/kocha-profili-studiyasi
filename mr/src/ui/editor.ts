@@ -2519,7 +2519,7 @@ export class Editor {
       // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — daha, tipologiya, qavatlar va «Variant taklif qil»; qolgani «Batafsil» ichida (hech biri olib tashlanmagan, id lar saqlangan)
       const isOmb = g.typology === 'ombor', stageEl = this.blockStageRow(), isoEl = this.scene.isolated ? '' : this.isoBtn(this.selBlock);
       const moreN = (isLow ? 0 : (isOmb ? 5 : 7) + (g.setbackAuto ? 2 : 0) + ((g.parkNorm ?? true) ? 0 : 1) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1)) + 1 + (stageEl ? 1 : 0) + (isoEl ? 1 : 0);
-      const more = h('details', { class: 'gen-more', id: 'genMore' }, h('summary', {}, tf('Batafsil · ${n}', { n: moreN })));
+      const more = h('details', { class: 'gen-more', id: 'genMore' }, h('summary', {}, tf('Qoʻshimcha · ${n}', { n: moreN })));
       const seisNote = (() => { const S0 = this.store.doc.settings, lim = lenLimit(S0.construct ?? 'monolit', S0.seismic); return lim != null && g.secLen > lim ? h('div', { class: 'li', id: 'seisLenNote' }, h('span', { class: 'chip warn' }, h('i'), tf('Seysmik boʻlma ≤ ${l} m', { l: lim })), h('span', { class: 't-small' }, tf('${s} ball, ${n} — generatsiyada seksiya ${l} m bilan cheklanadi (QMQ 2.01.03-19, 3.1-jadval)', { s: S0.seismic, n: SYS[S0.construct ?? 'monolit'].name, l: lim }))) : ''; })();
       body.append(typoPick,
         ...(isLow || g.typology !== 'avto' ? [] : farRow),
@@ -4394,7 +4394,11 @@ export class Editor {
     const o = this.store.doc.origin, abroad = placeOf(o[0], o[1]).norms !== 'UZ';
     return h('div', { class: 'regw' },
       abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr('Loyiha Oʻzbekistondan tashqarida: Oʻzbekiston meʼyorlari andoza sifatida koʻrsatiladi — «mos emas» oʻrniga «koʻrib chiqish». Mahalliy meʼyorlar profili hali ulanmagan.')) : '',
-      h('div', { class: 'group', id: 'reconRow' }, h('div', { class: 'li' },
+      // 04.11 (egasi: interfeysni soddalashtirish, A): hisob shartlari — «Qoʻshimcha» ichida, ekranda — joriy qiymatlar qisqa satrda; jadval darhol koʻrinadi
+      (() => { const S0 = this.store.doc.settings, n = 3 + (this.fireLowRow() ? 1 : 0);
+        const d = h('details', { class: 'gen-more', id: 'regSet', open: this.openDet.has('regSet') }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n })),
+          h('span', { class: 't-small', id: 'regSetSum', style: 'margin-left:8px' }, [S0.recon ? tr('Rekonstruksiya') : '', `${S0.seismic > 9 ? '>9' : S0.seismic} ${tr('ball')}`, tr(SYS[S0.construct ?? 'monolit'].name), `${S0.m2PerPerson} m²/${tr('kishi')}`].filter(Boolean).join(' · '))),
+        h('div', { class: 'group', id: 'reconRow' }, h('div', { class: 'li' },
         h('span', { class: 'k' }, tr('Rekonstruksiya / renovatsiya'), h('span', { class: 'sub' }, tr('79-band, 2-jadval, 7-izoh: insolyatsiya taʼminlansa jadval masofalari ikki barobargacha qisqaradi (≥ 6 m). 2·Hmax (8-izoh) va yongʻin masofalari qisqarmaydi.'))),
         sw({ id: 'reconOn', label: tr('Rekonstruksiya / renovatsiya'), on: this.store.doc.settings.recon === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { recon: v } })) }))),
       this.seismicRow(),
@@ -4403,7 +4407,9 @@ export class Editor {
       (() => { const v = this.store.doc.settings.m2PerPerson, opts: [number, string][] = [[20, 'Munitsipal'], [28, 'Oʻrtacha'], [30, 'Ekonom'], [40, 'Biznes']];
         return h('div', { class: 'group', id: 'popRow' }, h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
           h('span', { class: 'k' }, tr('Uy-joy bilan taʼminlanish'), h('span', { class: 'sub' }, tr('Kishi boshiga kvartira umumiy maydoni, m² — 1-jadval; oʻrtacha — ulushlar boʻyicha (68-band); eng kami 16 (61-band)'))),
-          h('div', { class: 'seg sm', role: 'group', id: 'popSeg', 'aria-label': tr('Uy-joy bilan taʼminlanish') }, ...opts.map(([m, n]) => h('button', { 'aria-pressed': v === m, 'data-m2': m, title: `${tr(n)} · ${m} m²`, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { m2PerPerson: m } })) }, `${tr(n)} ${m}`))))); })(),
+          h('div', { class: 'seg sm', role: 'group', id: 'popSeg', 'aria-label': tr('Uy-joy bilan taʼminlanish') }, ...opts.map(([m, n]) => h('button', { 'aria-pressed': v === m, 'data-m2': m, title: `${tr(n)} · ${m} m²`, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { m2PerPerson: m } })) }, `${tr(n)} ${m}`))))); })());
+        d.addEventListener('toggle', () => { if ((d as HTMLDetailsElement).open) this.openDet.add('regSet'); else this.openDet.delete('regSet'); });
+        return d; })(),
       h('div', { class: 'seg sm', role: 'group', id: 'regSeg' },
         h('button', { 'aria-pressed': this.regFilter === 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `${tr('Hammasi')} · ${all.length}`),
         h('button', { 'aria-pressed': this.regFilter === 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `${tr('Mos emas')} · ${bad}`)),

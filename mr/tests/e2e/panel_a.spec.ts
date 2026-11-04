@@ -11,7 +11,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qadam pane
   await expect(page.locator('#genMore')).not.toHaveAttribute('open', '');
   await expect(page.locator('#genGo')).toBeInViewport();
   // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda faqat asosiysi — qolgani «Batafsil» ichida, hech biri olib tashlanmagan
-  await expect(page.locator('#genMore > summary')).toContainText('Batafsil');
+  await expect(page.locator('#genMore > summary')).toContainText('Qoʻshimcha');
   for (const q of ['#gLen', '#gSty', '[data-park=yoq]', '#isoGo']) { await expect(page.locator(q)).toHaveCount(1); await expect(page.locator(q)).toBeHidden(); }
   expect(await page.evaluate(() => { const a = document.querySelector('#genGo')!, b = document.querySelector('#genMore')!; return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); })).toBe(true);
   if (process.env.GX_SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/panel_a_${w}${dark ? 'd' : 'l'}.png` }); }

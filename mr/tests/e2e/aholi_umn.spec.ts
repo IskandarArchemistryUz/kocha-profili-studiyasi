@@ -13,7 +13,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`aholi taʼ
   await expect(page.locator('#kUmn b')).not.toHaveText('—');
   const num = async () => Number((await page.locator('#kPop b').textContent())!.replace(/\D/g, ''));
   const p28 = await num();
-  await page.click('#kMore');
+  await page.click('#kMore'); await page.locator('.drawer #regSet > summary').click();   // 04.11 (A): hisob shartlari — «Qoʻshimcha» ichida
   const seg = page.locator('#popSeg');
   await expect(seg.locator('[data-m2="28"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-rule=umn-66]')).toHaveCount(1);

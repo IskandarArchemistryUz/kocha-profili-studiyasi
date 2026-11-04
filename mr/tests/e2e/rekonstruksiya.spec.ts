@@ -13,7 +13,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`rekonstruk
     mr.store.dispatch({ type: 'addBuilding', footprint: R(0), floors: 12 });
     mr.store.dispatch({ type: 'addBuilding', footprint: R(38), floors: 12 });
   });
-  await page.click('#kMore');
+  await page.click('#kMore'); await page.locator('.drawer #regSet > summary').click();   // 04.11 (A): hisob shartlari — «Qoʻshimcha» ichida
   const rule = page.locator('.drawer [data-rule=spacing-79]');
   await expect(rule.locator('.chip')).toHaveAttribute('data-s', 'fail');
   const on = page.locator('.drawer #reconOn');
