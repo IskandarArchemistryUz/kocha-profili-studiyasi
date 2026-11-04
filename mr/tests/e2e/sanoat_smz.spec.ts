@@ -11,7 +11,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`sanoat kor
   // sharqda zavod (uchastkadan 40 m)
   await page.evaluate(() => { const m = (window as any).__mr, o = m.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
     m.store.dispatch({ type: 'addLimit', limit: { id: 'zav', kind: 'sanoat', status: 'saqlanadi', src: 'qolda', rings: [[[190, -60], [320, -60], [320, 60], [190, 60]].map(g)] } }); m.pickLimit('zav'); m.renderPanel(); });
-  await page.locator('#limCls').scrollIntoViewIfNeeded();
+  await expect(page.locator('#limCls')).toBeVisible();
   await expect(page.locator('[data-clsnote]')).toBeVisible();
   await expect(page.locator('[data-limref=zav]')).toContainText('taxmin');
   const szzHa = () => page.evaluate(() => (window as any).__mr.last?.d.balance?.szzHa ?? 0);
