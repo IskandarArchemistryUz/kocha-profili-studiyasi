@@ -18,7 +18,7 @@ describe('kvartira ichki rejasi — ilova yoʻli bilan qamrov', () => {
       let d = blankProject('t') as any; const fr = frame(d.origin);
       d.site = { rings: [[[-W / 2, -H / 2], [W / 2, -H / 2], [W / 2, H / 2], [-W / 2, H / 2]].map(p => fr.toGeo(p as XY))] };
       const b = computePlan(d).blocks[0];
-      const r = generate(b.rings[0], { ...DEFAULT_GEN, depth }, d.settings.floorHeight, { use: 'turar', aptNet: d.settings.aptNet, netToGross: d.settings.netToGross });
+      const r = generate(b.rings[0], { ...DEFAULT_GEN, depth, groundH: 4.5 }, d.settings.floorHeight   /* 04.11: arkali toʻplam (oldingi namuna) */, { use: 'turar', aptNet: d.settings.aptNet, netToGross: d.settings.netToGross });
       d = apply(d, { type: 'replaceGroup', grp: 'g', sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: x.nonRes, use: 'turar', kind: x.kind, z0: x.z0, blind: x.blind })) } as any);
       for (const p of planApartments(d)) for (const a of p.layout.plan?.apts ?? []) {
         tot++; const I = aptInterior(a, p.layout.mods); if (!I) continue; ok++;
