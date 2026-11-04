@@ -85,3 +85,29 @@ describe('ichki temir yoʻl shoxobchasi', () => {
     expect(L.find(l => l.osm === 11)?.name).toContain('zavod bilan birga buziladi');
   });
 });
+
+/** 04.11 (Murad Buildings sinovi, 8-band): sanoat korxonasi — OSM dan aniqlanadi, SMZ sinf boʻyicha (SanQvaN 0350-17, 2.9) */
+import { szzOf } from '../../src/core/limits';
+describe('sanoat korxonasi', () => {
+  it('soʻrovda landuse=industrial, building=industrial|manufacture, man_made=works; radius 1000 m', () => {
+    const q = limitsQuery(site);
+    for (const k of ['"landuse"="industrial"', 'industrial|manufacture', '"man_made"="works"']) expect(q).toContain(k);
+  });
+  it('uchastka yonidagi zavod — saqlanadi; uchastka ichidagisi — buziladi; 1000 m dan uzoq — yoʻq', () => {
+    const j = { elements: [
+      { type: 'way', id: 21, tags: { landuse: 'industrial' }, geometry: sqG(300, -100, 600, 100) },
+      { type: 'way', id: 22, tags: { building: 'industrial' }, geometry: sqG(-50, -50, 50, 50) },
+      { type: 'way', id: 23, tags: { man_made: 'works' }, geometry: sqG(1500, 1500, 1600, 1600) },
+    ] };
+    const L = parseLimitsOsm(j as never, site);
+    expect(L.find(l => l.osm === 21)?.kind).toBe('sanoat'); expect(L.find(l => l.osm === 21)?.status).toBe('saqlanadi');
+    expect(L.find(l => l.osm === 22)?.status).toBe('buziladi');
+    expect(L.find(l => l.osm === 23)).toBeUndefined();
+  });
+  it('SMZ: I–V sinf 1000 / 500 / 300 / 100 / 50 m (NORMA); sinf yoʻq — IV, 100 m (TAXMIN)', () => {
+    const base = { id: 's', kind: 'sanoat' as const, rings: [], status: 'saqlanadi' as const, src: 'osm' as const };
+    expect([1, 2, 3, 4, 5].map(c => szzOf({ ...base, cls: c as 1 }, 1).m)).toEqual([1000, 500, 300, 100, 50]);
+    expect(szzOf({ ...base, cls: 1 }, 1).flag).toBe('NORMA');
+    const u = szzOf(base, 1); expect(u.m).toBe(100); expect(u.flag).toBe('TAXMIN');
+  });
+});
