@@ -20,7 +20,7 @@ import type { LngLat, Project, Ring } from './doc';
 import { frame, area as ringArea, type XY } from './geo';
 import type { Use } from './uses';
 
-export type LimitKind = 'qabriston' | 'issiqxona' | 'ombor' | 'temiryol' | 'elu' | 'meros' | 'suv' | 'boshqa';
+export type LimitKind = 'qabriston' | 'issiqxona' | 'ombor' | 'temiryol' | 'elu' | 'meros' | 'suv' | 'sanoat' | 'boshqa';
 export type LimitStatus = 'saqlanadi' | 'buziladi' | 'kochiriladi';
 /** ELU holati: mavjud / loyiha (rejada) / kabelga oʻtkaziladi / demontaj */
 export type EluStatus = 'mavjud' | 'loyiha' | 'kabel' | 'demontaj';
@@ -41,6 +41,8 @@ export interface Limit {
   sub?: { open?: boolean; memorial?: boolean; rural?: boolean };
   /** qoʻlda oʻzgartirilgan bufer, m (yoʻq — jadvaldan) */
   szz?: number;
+  /** 04.11: sanoat korxonasi sanitariya sinfi (SanQvaN 0350-17, 2.9-band: I–V); yoʻq — kiritilmagan (TAXMIN) */
+  cls?: 1 | 2 | 3 | 4 | 5;
   src: 'osm' | 'qolda' | 'import';
   osm?: number;
   name?: string;
@@ -71,6 +73,10 @@ export function szzOf(l: Limit, areaHa: number): Szz {
     case 'issiqxona': return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.3`, flag: 'NORMA' });
     case 'ombor': return own({ m: 50, cls: 'V', ref: `${SAN}, 6.6 V sinf, 7 («Склады»); ShNQ 2.07.01-23, 173`, flag: 'NORMA' });
     case 'temiryol': return own({ m: 100, ref: 'ShNQ 2.07.01-23, 359', flag: 'NORMA' });
+    // 04.11 (Murad Buildings sinovi, 8-band): 2.9-band — «1 класса - 1000 м, II - 500 м, III - 300 м, IV - 100 м, V - 50 м» (asl matn).
+    // Sinf korxona turiga qarab (5-boʻlim, sanitariya tasnifi); kiritilmagan boʻlsa — IV (100 m), TAXMIN: «korxona sinfini kiriting»
+    case 'sanoat': { const R = ['I', 'II', 'III', 'IV', 'V'] as const, M = [1000, 500, 300, 100, 50];
+      return l.cls ? own({ m: M[l.cls - 1], cls: R[l.cls - 1], ref: `${SAN}, 2.9`, flag: 'NORMA' }) : own({ m: 100, cls: 'IV', ref: `${SAN}, 2.9 — sinf kiritilmagan`, flag: 'TAXMIN' }); }
     case 'elu': return eluZone(l);
     default: return own({ m: 0, ref: '—', flag: 'TAXMIN' });
   }
@@ -145,7 +151,7 @@ const mpArea = (mp: MultiPolygon) => mp.reduce((s, p) => s + Math.abs(ringArea(o
 
 /** Faol (hisobga olinadigan) cheklovmi: buziladigan / koʻchiriladigan obyekt va demontaj ELU — yoʻq */
 /** Cheklov turi nomi (UI va varaqlar) */
-export const LIMIT_NAMES: Record<LimitKind, string> = { qabriston: 'Qabriston', issiqxona: 'Issiqxona', ombor: 'Ombor', temiryol: 'Temir yoʻl', elu: 'ELU', meros: 'Madaniy meros', suv: 'Suv obyekti', boshqa: 'Boshqa' };
+export const LIMIT_NAMES: Record<LimitKind, string> = { qabriston: 'Qabriston', issiqxona: 'Issiqxona', ombor: 'Ombor', temiryol: 'Temir yoʻl', elu: 'ELU', meros: 'Madaniy meros', suv: 'Suv obyekti', sanoat: 'Sanoat korxonasi', boshqa: 'Boshqa' };
 export const isActive = (l: Limit) => l.kind === 'elu' ? l.elu !== 'demontaj' : l.status === 'saqlanadi';
 
 let memo: { k: unknown[]; v: LimitZones } | null = null;
@@ -199,7 +205,7 @@ export function landBalance(doc: Project): LandBalance | null {
   return { siteHa: siteM2 / 1e4, hardHa: hardM2 / 1e4, szzHa: szzM2 / 1e4, usableHa: Math.max(0, siteM2 - hardM2 - szzM2) / 1e4 };
 }
 
-const KINDS: LimitKind[] = ['qabriston', 'issiqxona', 'ombor', 'temiryol', 'elu', 'meros', 'suv', 'boshqa'];
+const KINDS: LimitKind[] = ['qabriston', 'issiqxona', 'ombor', 'temiryol', 'elu', 'meros', 'suv', 'sanoat', 'boshqa'];
 const n = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const ll = (v: unknown): v is LngLat => Array.isArray(v) && v.length === 2 && n(v[0]) && n(v[1]) && Math.abs(v[0]) <= 180 && Math.abs(v[1]) <= 90;
 /** Fayldan oʻqilgan cheklovni tozalash (eski / buzilgan maʼlumot — null) */
@@ -217,6 +223,7 @@ export function cleanLimit(x: any): Limit | null {
     ...(['mavjud', 'loyiha', 'kabel', 'demontaj'].includes(x.elu) ? { elu: x.elu } : {}),
     ...(x.sub && typeof x.sub === 'object' ? { sub: { ...(x.sub.open === false ? { open: false } : {}), ...(x.sub.memorial === true ? { memorial: true } : {}), ...(x.sub.rural === true ? { rural: true } : {}) } } : {}),
     ...(n(x.szz) && x.szz >= 0 && x.szz <= 2000 ? { szz: x.szz } : {}),
+    ...([1, 2, 3, 4, 5].includes(x.cls) ? { cls: x.cls } : {}),
     src: ['osm', 'qolda', 'import'].includes(x.src) ? x.src : 'qolda',
     ...(n(x.osm) ? { osm: x.osm } : {}), ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}),
   };
