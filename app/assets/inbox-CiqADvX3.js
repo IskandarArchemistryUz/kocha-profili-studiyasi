@@ -1,0 +1,1 @@
+export{l as sendToRender}from"./inbox-Bd2_ijVD.js";
