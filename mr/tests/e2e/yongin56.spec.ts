@@ -13,7 +13,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`yongʻin m
     const G = (x: number) => [[0, 0], [10, 0], [10, 10], [0, 10]].map(([a, b]) => [lng + (a + x) / kx, lat + b / ky]);
     for (const [id, x] of [['h1', 0], ['h2', 14], ['h3', 32]] as const) mr.store.dispatch({ type: 'addBuilding', id, footprint: G(x), floors: 2, use: 'yakka' });
   });
-  await page.click('#kMore');
+  await page.click('#kMore'); await page.locator('.drawer #regSet > summary').click();   // 04.11 (A): hisob shartlari — «Qoʻshimcha» ichida
   const rule = page.locator('.drawer [data-rule=fire-56]');
   await expect(rule.locator('.chip')).toHaveAttribute('data-s', 'fail');
   await rule.locator('.li').click();

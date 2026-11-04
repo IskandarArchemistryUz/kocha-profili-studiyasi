@@ -7,7 +7,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`seysmiklik
   await page.goto('./'); await page.click('#newP');
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.waitForFunction(() => !!(window as any).__mr?.store?.doc?.origin);
-  await page.click('#kMore');
+  await page.click('#kMore'); await page.locator('.drawer #regSet > summary').click();   // 04.11 (A): hisob shartlari — «Qoʻshimcha» ichida
   const row = page.locator('.drawer #seisPlaceRow');
   await row.scrollIntoViewIfNeeded();
   await expect(page.locator('#seisPlaceSub')).toContainText('8');          // Toshkent — 8 ball (andoza)
