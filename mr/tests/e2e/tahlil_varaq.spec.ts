@@ -142,3 +142,30 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`shamol var
   if (process.env.GX_SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/tahlil_shamol_${w}${dark ? 'd' : 'l'}.png` }); }
   await page.keyboard.press('Escape');
 });
+
+/** 04.11 (egasi: tahlil varaqlari — relyef): atrof bilan yuklangan balandlik toʻri — gipsometriya, gorizontallar, uchastka qiyaligi */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`relyef varagʻi · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: w, height: 900 });
+  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  // relyef toʻri: tepalik (Toshkent atrofidagi kabi ~ 420–445 m)
+  await page.evaluate(() => {
+    const ed = (window as any).__mr, n = 81, step = 10, r = (n - 1) / 2 * step, h = new Float32Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const x = -r + i * step, y = -r + j * step; h[j * n + i] = 420 + 0.03 * x + 18 * Math.exp(-((x - 150) ** 2 + (y - 120) ** 2) / 20000); }
+    ed.ctxMgr.current = { osm: { roads: [], buildings: [], green: [], water: [], waterways: [], rails: [], trees: [] }, terrain: { n, step, radius: r, center: ed.store.doc.origin, h, min: 400, max: 450 } };
+  });
+  await page.click('[data-step=eksport]'); await page.click('#exGx');
+  await expect(page.locator('[data-sheet]').first()).toBeVisible();
+  const idx = await page.evaluate(() => [...document.querySelectorAll('[data-sheet]')].findIndex(e => /Relyef/.test(e.textContent ?? '')));
+  expect(idx).toBeGreaterThanOrEqual(0);
+  await page.locator('[data-sheet]').nth(idx).click();
+  const view = page.locator('#gxView svg');
+  await expect(view.locator('#Gipsometriya')).toBeAttached();
+  await expect(view.locator('#Gorizontallar')).toBeAttached();
+  await expect(page.locator('#gxView')).toContainText(/oʻrtacha qiyalik/);
+  if (process.env.GX_SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/tahlil_relyef_${w}${dark ? 'd' : 'l'}.png` }); }
+  await page.keyboard.press('Escape');
+});

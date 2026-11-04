@@ -4091,6 +4091,8 @@ export class Editor {
       waterways: o.waterways.map(x => ({ pts: L(x.pts), w: x.w })),
       green: o.green.map(x => ({ rings: x.rings.map(L), kind: x.kind })),
       trees: o.trees.map(fr.toLocal),
+      // 04.11: «Relyef» varagʻi — balandlik toʻri (mahalliy markaz bilan)
+      terrain: b.terrain ? { n: b.terrain.n, step: b.terrain.step, radius: b.terrain.radius, c0: fr.toLocal(b.terrain.center), h: b.terrain.h } : null,
       stops: [...(this.svc.poi?.pois ?? []).filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' })), ...this.store.doc.pois.filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' }))],
     };
   }
@@ -4143,6 +4145,12 @@ export class Editor {
       { ...mk('p:plan:transport', 'Transport sxemasi', true, { kind: 'transport' }), table: { id: 'p:transportbal', name: 'Koʻchalar va avtoturargohlar', title: tr('Koʻchalar va avtoturargohlar'), rows: () => transportTable(this.store.doc, tr), free: true } },
       { id: 'p:plan:insol', name: 'Insolyatsiya', on: true, get: () => {
         const r = sheetSvg(this.store.doc, this.sheetCtxFor('insol'), { ...SHEET_DEFAULT, kind: 'insol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
+      } },
+      // 04.11: tahlil — relyef (gipsometriya va gorizontallar)
+      { id: 'p:plan:relyef', name: 'Relyef', on: true, get: () => {
+        const c = this.sheetCtx(); if (!c?.terrain) return null;
+        const r = sheetSvg(this.store.doc, c, { ...SHEET_DEFAULT, kind: 'relyef', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } },
       // 04.11: tahlil — shamol (guli va oqim)
