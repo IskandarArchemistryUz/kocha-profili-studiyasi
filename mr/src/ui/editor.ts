@@ -1849,6 +1849,9 @@ export class Editor {
     const size = doc.settings.aptSize ?? 'M';
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartira miksi')), h('span', {}, tr('maqsad → natija'))),
       h('div', { class: 'group', id: 'mixRow' }, ...rows),
+      // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — miks va reja; izoh, kvartira oʻlchami va studiya — «Qoʻshimcha» ichida (hech biri olib tashlanmagan)
+      h('details', { class: 'gen-more', id: 'aptMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n: 2 })),
+        h('span', { class: 't-small', style: 'margin-left:8px' }, `${tr('Kvartira oʻlchami')} ${size}${doc.settings.studio1 ? ` · ${tr('studiya')}` : ''}`)),
       h('span', { class: 't-small' }, tr('Natija: soni · ulushi · oʻrtacha netto m². Ulushlar nisbat sifatida olinadi (yigʻindi 100 % boʻlishi shart emas). Maydon — rejadagi kvartira maydoni × 0,85 (devorlar), balkonsiz.')),
       h('div', { class: 'glabel' }, h('span', {}, tr('Kvartira oʻlchami'))),
       h('div', { class: 'seg', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name))),
@@ -1856,7 +1859,7 @@ export class Editor {
       // 04.11 (egasi): 1 xonali uchun studiya formati
       h('div', { class: 'group', id: 'studioRow' }, h('div', { class: 'li' },
         h('span', { class: 'k' }, tr('1 xonali — studiya'), h('span', { class: 'sub' }, tr('Oshxona umumiy xonada (oshxona qatori), alohida oshxona yoʻq. Xona eni ≥ 3 m (ShNQ 2.08.01-24, 36-band), chuqurligi ≤ 6 m (SanQvaN 0102-25, 97-band); sigʻmasa — oddiy reja.'))),
-        sw({ id: 'studio1', label: tr('1 xonali — studiya'), on: doc.settings.studio1 === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { studio1: v } })) }))));
+        sw({ id: 'studio1', label: tr('1 xonali — studiya'), on: doc.settings.studio1 === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { studio1: v } })) })))));
     this.housePanel(body);
     if (!plans.length) {
       if (doc.buildings.some(b => b.gen?.plot)) return;
