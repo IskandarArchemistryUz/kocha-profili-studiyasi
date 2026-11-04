@@ -2276,7 +2276,10 @@ export class Editor {
     }
     this.renderKpi();
   }
-  private generateBlock(i: number, quiet = false, over: Partial<GenParams> = {}): number {
+  /** 04.11 (Murad Buildings sinovi, 3-band): «Hammasi» — sukut boʻyicha hamma dahalar paneldagi sozlamalar bilan qayta quriladi;
+   *  «har daha oʻz sozlamasi bilan» — «Qoʻshimcha» dagi kalit (oldingi xatti-harakat) */
+  private allOwn = (() => { try { return localStorage.getItem('mr-all-own') === '1'; } catch { return false; } })();
+  private generateBlock(i: number, quiet = false, over: Partial<GenParams> = {}, panelAll = false): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
     const ud = useDef(b.use), name = this.unitName(i);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
@@ -2284,7 +2287,7 @@ export class Editor {
     // 02.11: past qavatli tipologiya, chuqur kvartal — avval ichki koʻchalar, keyin har yangi kvartal alohida (faqat bitta kvartal tugmasida)
     if (!quiet && this.lowInner && !b.parcelId) { const t0 = ({ ...(i === this.selBlock || !this.savedGen(i) ? this.gen : { ...DEFAULT_GEN, ...(this.savedGen(i) as Partial<GenParams>) }), ...over }).typology; if (['yakka', 'juft', 'taunhaus', 'hovli'].includes(t0) && typoAllowed(b.use).includes(t0)) { const n = this.innerStreetsGen(i, t0 as LowKind, over); if (n >= 0) return n; } }
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
-    const sg = this.savedGen(i), base: GenParams = { ...(i === this.selBlock || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) }), ...over };
+    const sg = this.savedGen(i), base: GenParams = { ...(i === this.selBlock || panelAll || !sg || sg.soc ? this.gen : { ...DEFAULT_GEN, ...(sg as Partial<GenParams>) }), ...over };
     const okT = typoAllowed(b.use), base1: GenParams = okT.includes(base.typology) ? base : { ...base, typology: okT[0] };
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
@@ -2499,7 +2502,7 @@ export class Editor {
       h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')));
     // 04.11 (egasi: interfeysni soddalashtirish, A): izolyatsiya — «Batafsil» ichida; izolyatsiya yoqiq boʻlsa chiqish tugmasi koʻrinib turadi
     if (this.scene.isolated) body.append(this.isoBtn(this.selBlock));
-    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
+    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr(this.allOwn ? 'Hamma dahalar — har biri oʻz sozlamasi bilan' : 'Hamma dahalar — paneldagi sozlamalar bilan'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true, {}, !this.allOwn); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) { const grp = u.parcelId ?? lab.id; this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, sections: [], drop: staleGen(this.store.doc, grp, u.rings[0], []) })); } } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
     if (socI != null) {
@@ -2526,7 +2529,7 @@ export class Editor {
         h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'))];
       // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — daha, tipologiya, qavatlar va «Variant taklif qil»; qolgani «Batafsil» ichida (hech biri olib tashlanmagan, id lar saqlangan)
       const isOmb = g.typology === 'ombor', stageEl = this.blockStageRow(), isoEl = this.scene.isolated ? '' : this.isoBtn(this.selBlock);
-      const moreN = (isLow ? 0 : (isOmb ? 5 : 7) + (g.setbackAuto ? 2 : 0) + ((g.parkNorm ?? true) ? 0 : 1) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1)) + 1 + (stageEl ? 1 : 0) + (isoEl ? 1 : 0);
+      const moreN = 1 + (isLow ? 0 : (isOmb ? 5 : 7) + (g.setbackAuto ? 2 : 0) + ((g.parkNorm ?? true) ? 0 : 1) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1)) + 1 + (stageEl ? 1 : 0) + (isoEl ? 1 : 0);
       const more = h('details', { class: 'gen-more', id: 'genMore' }, h('summary', {}, tf('Qoʻshimcha · ${n}', { n: moreN })));
       const seisNote = (() => { const S0 = this.store.doc.settings, lim = lenLimit(S0.construct ?? 'monolit', S0.seismic); return lim != null && g.secLen > lim ? h('div', { class: 'li', id: 'seisLenNote' }, h('span', { class: 'chip warn' }, h('i'), tf('Seysmik boʻlma ≤ ${l} m', { l: lim })), h('span', { class: 't-small' }, tf('${s} ball, ${n} — generatsiyada seksiya ${l} m bilan cheklanadi (QMQ 2.01.03-19, 3.1-jadval)', { s: S0.seismic, n: SYS[S0.construct ?? 'monolit'].name, l: lim }))) : ''; })();
       body.append(typoPick,
@@ -2569,6 +2572,9 @@ export class Editor {
           h('div', { class: 'glabel' }, h('span', {}, tr('Joylashtirish moduli')), h('span', {}, tr('dizayn-kod 6.3'))),
           h('div', { class: 'tiles c4', role: 'group', 'aria-label': tr('Joylashtirish moduli') }, ...PARK_MODS.map(k => h('button', { class: 'tile', 'aria-pressed': (g.parkModule ?? 'p90') === k, 'data-pmod': k, title: `${tr(PARK_MOD[k].name)}: ${tr(PARK_MOD[k].src)}`, onclick: () => { g.parkModule = k; this.renderPanel(); }, 'aria-label': tr(PARK_MOD[k].name), html: pg('pmod', k) + `<span>${tr(PARK_MOD[k].short)}</span>` }))),
           h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Joylar soni meʼyor boʻyicha'), h('span', { class: 'sub' }, tr('29-jadval talabi; yer osti sathlari avtomatik'))), sw({ id: 'gPNorm', label: tr('Joylar soni meʼyor boʻyicha'), on: g.parkNorm ?? true, onchange: v => { g.parkNorm = v; this.renderPanel(); } })))] : []),
+          // 04.11 (Murad Buildings sinovi, 3-band): «Hammasi» qaysi sozlamalar bilan qurishi
+          h('div', { class: 'group', id: 'allOwnRow' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('«Hammasi» — har daha oʻz sozlamasi bilan'), h('span', { class: 'sub' }, tr(this.allOwn ? 'Yoqiq: har daha oxirgi marta qurilgan sozlamasi bilan qayta quriladi' : 'Oʻchiq: hamma dahalar paneldagi sozlamalar bilan qayta quriladi (tipologiya daha funksiyasiga mos kelmasa — mosi)'))),
+            sw({ id: 'allOwn', label: tr('«Hammasi» — har daha oʻz sozlamasi bilan'), on: this.allOwn, onchange: v => { this.allOwn = v; try { localStorage.setItem('mr-all-own', v ? '1' : '0'); } catch { /* */ } this.renderPanel(); } }))),
           stageEl); return more; })());
       if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     }
