@@ -12,6 +12,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`studiya va
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.click('[data-step=kvartira]');
   await expect(page.locator('#aptPlan')).toContainText('xonadon');
+  await page.locator('#aptMore > summary').click();   // 04.11 (A): studiya — «Qoʻshimcha» ichida
   await page.locator('#studioRow').scrollIntoViewIfNeeded();
   await expect(page.locator('#studio1')).toHaveAttribute('aria-checked', 'false');
   await page.click('#studio1');
@@ -30,4 +31,25 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`studiya va
   if (process.env.GX_SHOTS) { await page.waitForTimeout(600); await page.screenshot({ path: `${process.env.GX_SHOTS}/umumiy_${w}${dark ? 'd' : 'l'}.png` }); }
   await page.click('#albGen');
   await expect.poll(() => page.locator('#albPlan svg path[data-apt]').count()).toBeGreaterThan(2);
+});
+
+/** 04.11 (egasi: interfeysni soddalashtirish, A): Kvartiralar — miks va reja ekranda, izoh/oʻlcham/studiya «Qoʻshimcha» ichida */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kvartiralar paneli A · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: w, height: 860 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]');
+  await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
+  await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await page.click('[data-step=kvartira]');
+  await expect(page.locator('#aptMore')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#aptMore > summary')).toContainText('Qoʻshimcha');
+  for (const q of ['#aptSize', '#studio1']) { await expect(page.locator(q)).toHaveCount(1); await expect(page.locator(q)).toBeHidden(); }
+  await expect(page.locator('#mixRow')).toBeVisible();
+  await page.locator('#planBox').scrollIntoViewIfNeeded(); await expect(page.locator('#planBox')).toBeVisible();
+  if (process.env.GX_SHOTS) { await page.locator('#mixRow').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/kv_a_${w}${dark ? 'd' : 'l'}.png` }); }
+  await page.click('[data-size=L]');
+  await expect(page.locator('#aptMore')).toHaveAttribute('open', '');
+  await expect(page.locator('[data-size=L]')).toHaveAttribute('aria-pressed', 'true');
 });
