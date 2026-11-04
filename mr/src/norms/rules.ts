@@ -13,6 +13,7 @@ import { spacingIssues } from '../core/spacing';
 import { landscape } from '../core/landscape';
 import { frame, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
+import { firePairs, FIRE_CLS } from '../core/firedist';
 import { checkBlock, lenLimit, heightLimit, socialFloorLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
 import { area as areaOf, obb2 } from '../core/geo';
 import { computePlan, corridor } from '../core/plan';
@@ -509,6 +510,27 @@ export const RULES: Rule[] = [
       const limTxt = lim == null ? 'NSTT' : lim.h == null ? 'qoʻllanmaydi' : `≤ ${lim.h} m (${lim.f})`, bt = ball > 9 ? '>9' : String(ball);
       return { status: ids.length ? 'fail' : 'pass', value: ids.length, unit: `/ ${bl.length} bino`, limit: limTxt, ...(ids.length ? { where: { bids: ids } } : {}),
         note: `${def.name} (${def.row}), ${bt} ball: balandlik va qavatlar soni — ${limTxt}. 8–9 ballda maktab ≤ 3, bogʻcha ≤ 2 qavat; 9 dan yuqori — ≤ 2 qavat (2-izoh).` };
+    },
+  },
+  {
+    id: 'fire-56',
+    title: 'Binolar orasidagi yongʻinga qarshi masofa',
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '641, 642, 649, 652-bandlar, 56-jadval', verified: true },
+    evaluate(_d, doc) {
+      const { pairs, checked } = firePairs(doc), cl = FIRE_CLS[doc.settings.fireLow ?? 0];
+      if (!checked) return { status: 'na', unit: 'juft', note: 'Yaqin (≤ 20 m) binolar juftlari yoʻq.' };
+      const w = pairs.length ? pairs.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)) : null, f = (x: number) => String(Math.round(x * 10) / 10).replace('.', ',');
+      const low = pairs.filter(p => p.low).length, p20 = pairs.some(p => p.plus20) || (doc.settings.seismic ?? 0) >= 9;
+      return { status: pairs.length ? 'fail' : 'pass', value: pairs.length, unit: 'juft', limit: '6–18 m',
+        ...(pairs.length ? { where: { bids: [...new Set(pairs.flatMap(p => [p.a, p.b]))], segs: pairs.map(p => p.seg) } } : {}),
+        ...(w ? { delta: (1 - w.d / w.need) * 100 } : {}),
+        note: [w ? `Masofa yetmaydi: ${pairs.length} juft, eng yaqini ${f(w.d)} m, talab ${f(w.need)} m.` : 'Barcha yaqin juftlar 56-jadval masofasiga mos.',
+          ...(low ? [`Shundan past uylar orasida — ${low}.`] : []),
+          `Koʻp qavatli binolar — I–III daraja, C0 (TAXMIN: monolit, karkas, gʻisht — yonmaydigan); past uylar — ${cl} (sozlamada).`,
+          'Ф1–Ф4 oʻzaro 6–15 m, Ф5 gacha 10–18 m; Ф5 oʻzaro — 644-band (boshqa meʼyor).',
+          ...(p20 ? ['9 ball va yuqori: Ф1 binolar orasi va IV–V darajali binolar orasi +20 % (649-band).'] : []),
+          'Tegib turgan (bloklangan, 101-band) uylar bitta blok deb olinadi.',
+          'Koʻr devorlar (648-band, −20 %) va avtomatik yongʻin oʻchirish (651-band, −50 % gacha) qoʻllanmadi — derazalar va jihozlar maʼlum emas.'].join(' ') };
     },
   },
   {

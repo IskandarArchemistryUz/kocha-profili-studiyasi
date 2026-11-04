@@ -73,13 +73,13 @@ describe('Juft va hovli uylar (31.10)', () => {
 });
 
 describe('Klaster (31.10): berk koʻcha atrofida hovlilar', () => {
-  it('uchastkalar 15 × 17,5 (04.11: 100-band — old va orqa 3 m), ustma-ust emas, uy uchastka ichida va L shakl; berk koʻcha 6 m', async () => {
+  it('uchastkalar 17,5 × 17,5 (04.11: 100-band — old va orqa 3 m; 56-jadval — qoʻshni klasterdagi uygacha ≥ 6 m), ustma-ust emas, uy uchastka ichida va L shakl; berk koʻcha 6 m', async () => {
     const { lowriseBlock: lb } = await import('../../src/core/lowrise');
     const { houses, notes } = lb([[0, 0], [150, 0], [150, 90], [0, 90]], 'klaster');
     expect(houses.length).toBeGreaterThanOrEqual(12);
     expect(notes[0]).toContain('Klaster');
     const pa = (r: [number, number][]) => Math.abs(r.reduce((s, p, i) => s + p[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * p[1], 0) / 2);
-    for (const h of houses) { expect(pa(h.plot as any)).toBeCloseTo(262.5, 0); expect(h.ring.length).toBe(6); }
+    for (const h of houses) { expect(pa(h.plot as any)).toBeCloseTo(306.25, 0); expect(h.ring.length).toBe(6); }
     // uchastkalar ustma-ust tushmaydi: markazlar orasi ≥ 15 m (bir qatorda) yoki boshqa qatorda
     const cs = houses.map(h => h.plot.reduce((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4], [0, 0]));
     for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) expect(Math.hypot(cs[i][0] - cs[j][0], cs[i][1] - cs[j][1])).toBeGreaterThan(14.9);

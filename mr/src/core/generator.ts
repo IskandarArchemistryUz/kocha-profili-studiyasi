@@ -49,6 +49,8 @@ export interface GenParams {
   groundH?: number;
   /** 04.11 (audit): maydon seysmikligi, ball — 8+ da qatorlar orasi 2·Hmax (8-izoh), aks holda Hmax·kʏ (2-jadval) */
   seismic?: number;
+  /** 04.11: past uylar orasidagi yongʻin masofasi, m (ShNQ 2.07.01-23, 56-jadval; core/firedist) — yoʻq boʻlsa 6 */
+  lowFire?: number;
   /** perimetrda har ~100 m da oʻtish (arka) qoldirish */
   passages: boolean;
   /** pastki noturar qavatlar (koʻchaga qaragan seksiyalarda) */
@@ -638,7 +640,9 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
     const gaps: number[] = [];
     if (g.passages && span > 70) { const m = Math.max(1, Math.floor(span / 100)); for (let k = 1; k <= m; k++) gaps.push(t0 + span * k / (m + 1)); }
     const cuts: number[][] = []; // [boshi, oxiri] boʻlaklar (oʻtishlar 6 m)
-    let s = t0; for (const gp of gaps) { cuts.push([s, gp - 3]); s = gp + 3; } cuts.push([s, t1]);
+    // 04.11: arkasiz oʻtish — ikki bino orasi; yongʻin masofasi ShNQ 2.07.01-23, 56-jadval (I–III C0: 6 m), 9+ ballda Ф1 orasi +20 % (649-band) — 7,2 m
+    const hg = !archF(g, floorH) && (g.seismic ?? 0) >= 9 ? 3.6 : 3;
+    let s = t0; for (const gp of gaps) { cuts.push([s, gp - hg]); s = gp + hg; } cuts.push([s, t1]);
     // hovliga oʻtish — bo'shliq emas, ARKA: 6 m eni, 2 qavat balandlikda ochiq (ShNQ 2.01.02-04, 1-son oʻzgartirish, 3.12:
     // har 100 m da ≥ 3,5 m eni, ≥ 4,25 m balandlik); ustidagi qavatlar qoʻshni seksiyalar bilan bir xil (archFloors)
     if (archF(g, floorH)) for (const gp of gaps) { const oa = add(P(i), mul(U(i), gp - 3)), ob = add(P(i), mul(U(i), gp + 3)); sections.push({ ring: [oa, ob, add(ob, mul(N(i), D)), add(oa, mul(N(i), D))], floors: 1, kind: 'arka', nonRes: 0, z0: archF(g, floorH) }); }
@@ -788,7 +792,7 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
     case 'yakka': case 'taunhaus': case 'juft': case 'hovli': case 'klaster': {
       // 31.10: past qavatli uylar — alohida qoida (core/lowrise): kvartal cheti (qizil chiziq) boʻylab avval uchastka, keyin uy;
       // chekinish uchastka ichida (oldi 5 m), shuning uchun kvartalning oʻzi olinadi (setback emas)
-      const { houses, notes: n2 } = lowriseBlock(clean(block, 4), t, g.maxF <= 3 ? g.maxF : undefined);
+      const { houses, notes: n2 } = lowriseBlock(clean(block, 4), t, g.maxF <= 3 ? g.maxF : undefined, g.lowFire);
       return { sections: houses.map(h => ({ ring: h.ring, floors: h.floors, kind: h.kind as SecKind, nonRes: 0, plot: h.plot, ...(h.joint ? { joint: true } : {}) })), capFloors: null, notes: [...notes, ...n2] };
     }
     case 'villa': {
