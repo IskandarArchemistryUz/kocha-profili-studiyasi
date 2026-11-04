@@ -2,6 +2,7 @@
  * Loyiha oynasi: chapda qadamlar qatori, yonida qadam paneli, markazda sahna, pastda koʻrsatkichlar.
  * Qadam almashganda faqat panel almashadi — sahna, kamera va hujjat joyida qoladi.
  */
+import { repairGen } from '../core/normfix';
 import { langMenu } from './langmenu';
 import { bLevels, levelZ, floorAt, groundH, antresolSplit, hasAntresol, ANTRESOL_SHARE, ANTRESOL_MIN_H } from '../core/levels';
 import type { LngLat, Project } from '../core/doc';
@@ -2304,8 +2305,22 @@ export class Editor {
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
       sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind, ...(x.plot ? { plot: x.plot.map(fr.toGeo) } : {}), ...(x.joint ? { joint: true } : {}), ...(x.docks ? { docks: x.docks } : {}), ...(x.hall ? { hall: x.hall } : {}) })),
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.truck ? { truck: true as const } : {}), ...(r.parking.spur ? { spur: r.parking.spur.map(fr.toGeo) } : {}) } : null }));
+    if (!quiet) { const fx = this.repairNorms(new Set([grp])); if (fx.length) this.genNotes = [...this.genNotes, ...fx]; }
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
+  }
+
+  /**
+   * 04.11 (Murad Buildings sinovi, 1-band): generatsiyadan keyin meʼyoriy qoidalar (spacing-79, fire-56, redline-79, street-overlap,
+   * seismic-height) ishga tushiriladi; avtomatik binolar qavati pasaytiriladi yoki seksiya olinadi (core/normfix). grps — faqat shu guruhlar.
+   */
+  private repairNorms(grps?: Set<string>): string[] {
+    const before = this.store.doc, r = repairGen(before, { grps });
+    if (r.lowered || r.removed || r.joints) {
+      const after = new Map(r.doc.buildings.map(b => [b.id, b]));
+      this.run(() => { for (const b of before.buildings) { const a = after.get(b.id); if (!a) this.store.dispatch({ type: 'removeBuilding', id: b.id }); else if (a.floors !== b.floors || !!a.joint !== !!b.joint) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: a.floors, ...(a.joint ? { joint: true } : {}), gen: b.gen } }); } });
+    }
+    return r.notes;
   }
 
   /**
@@ -2502,7 +2517,7 @@ export class Editor {
       h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')));
     // 04.11 (egasi: interfeysni soddalashtirish, A): izolyatsiya — «Batafsil» ichida; izolyatsiya yoqiq boʻlsa chiqish tugmasi koʻrinib turadi
     if (this.scene.isolated) body.append(this.isoBtn(this.selBlock));
-    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr(this.allOwn ? 'Hamma dahalar — har biri oʻz sozlamasi bilan' : 'Hamma dahalar — paneldagi sozlamalar bilan'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true, {}, !this.allOwn); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
+    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr(this.allOwn ? 'Hamma dahalar — har biri oʻz sozlamasi bilan' : 'Hamma dahalar — paneldagi sozlamalar bilan'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true, {}, !this.allOwn); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } const fx = this.repairNorms(); if (fx.length) { this.genNotes = fx; this.renderPanel(); } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) { const grp = u.parcelId ?? lab.id; this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, sections: [], drop: staleGen(this.store.doc, grp, u.rings[0], []) })); } } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
     if (socI != null) {
