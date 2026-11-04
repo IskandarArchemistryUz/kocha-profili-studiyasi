@@ -13,6 +13,10 @@
  *    qurish egasining yozma roziligi bilan.
  *  - ShNQ 2.07.01-23: 359-band (temir yoʻl — turar joydan 100 m SMZ, 50 m gacha kamaytirish mumkin), 173-band (sabzavot-meva
  *    omborlari ≥ 50 m).
+ *  - Suv obyektlari (04.11, Murad Buildings sinovi, 6-band; egasi: «981-ni qoʻlla»): VM ning 11.12.2019 dagi 981-son qarori bilan
+ *    tasdiqlangan nizom — 18, 21 (koʻl, suv ombori), 29, 30 (daryo), 31, 32, 35 (kanal), 23, 37 (aholi punktida — bosh reja boʻyicha)-bandlar.
+ *    DIQQAT: LexUz 981-son qarorni 23.06.2026 dan kuchini yoʻqotgan deb belgilaydi (VM 22.06.2026 dagi 317-son qarori), oʻrnini bosuvchi
+ *    hujjat aniqlanmagan — barcha kengliklar TALQIN. Zona rejimi — Suv kodeksi (30.07.2025), 24-bob, 125–138-moddalar (metr qiymatlari yoʻq).
  * Flag: NORMA — asl matndagi raqam; TALQIN — matn ikki xil oʻqiladi (egasi tasdiqlaydi); TAXMIN — matnda yoʻq.
  */
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
@@ -43,11 +47,17 @@ export interface Limit {
   szz?: number;
   /** 04.11: sanoat korxonasi sanitariya sinfi (SanQvaN 0350-17, 2.9-band: I–V); yoʻq — kiritilmagan (TAXMIN) */
   cls?: 1 | 2 | 3 | 4 | 5;
+  /** 04.11: suv obyekti — turi va toifasi. daryo: 1 katta (> 100 m³/s), 2 oʻrta (5–100), 3 kichik (2–5), 4 juda kichik (< 2);
+   *  kanal: 1 ichimlik suvi, 2 sugʻorish / kollektor. Koʻl va suv ombori — toifasiz */
+  suv?: { t: SuvType; q?: 1 | 2 | 3 | 4 };
+  /** 04.11: qoʻlda oʻzgartirilgan qirgʻoq boʻyi mintaqasi, m (yoʻq — jadvaldan); suv zonasi — `szz` */
+  qir?: number;
   src: 'osm' | 'qolda' | 'import';
   osm?: number;
   name?: string;
 }
 
+export type SuvType = 'daryo' | 'kol' | 'kanal';
 export type Flag = 'NORMA' | 'TALQIN' | 'TAXMIN';
 export interface Szz { m: number; cls?: 'I' | 'II' | 'III' | 'IV' | 'V'; ref: string; flag: Flag; /** qoʻlda oʻzgartirilganda — jadvaldagi qiymat */ table?: number }
 
@@ -78,8 +88,40 @@ export function szzOf(l: Limit, areaHa: number): Szz {
     case 'sanoat': { const R = ['I', 'II', 'III', 'IV', 'V'] as const, M = [1000, 500, 300, 100, 50];
       return l.cls ? own({ m: M[l.cls - 1], cls: R[l.cls - 1], ref: `${SAN}, 2.9`, flag: 'NORMA' }) : own({ m: 100, cls: 'IV', ref: `${SAN}, 2.9 — sinf kiritilmagan`, flag: 'TAXMIN' }); }
     case 'elu': return eluZone(l);
+    case 'suv': return suvZones(l).zone;
     default: return own({ m: 0, ref: '—', flag: 'TAXMIN' });
   }
+}
+
+const N981 = 'VM 981-son qarori (11.12.2019) nizomi', LOST = 'LexUz: 23.06.2026 dan kuchini yoʻqotgan, oʻrnini bosuvchi hujjat aniqlanmagan';
+/** Suv obyekti nomi (toifa bilan) — UI va varaqlar */
+export const SUV_NAMES: Record<SuvType, string> = { daryo: 'Daryo', kol: 'Koʻl, suv ombori', kanal: 'Kanal' };
+export const SUV_Q: Record<SuvType, string[]> = { daryo: ['Katta (> 100 m³/s)', 'Oʻrta (5–100 m³/s)', 'Kichik (2–5 m³/s)', 'Juda kichik (< 2 m³/s)'], kol: [], kanal: ['Ichimlik suvi', 'Sugʻorish, kollektor'] };
+/** tugmadagi qisqa yozuv (toʻliq — title): daryo — sarf oraligʻi */
+export const SUV_QS: Record<SuvType, string[]> = { daryo: ['> 100', '5–100', '2–5', '< 2'], kol: [], kanal: ['Ichimlik suvi', 'Sugʻorish, kollektor'] };
+/**
+ * 04.11 (Murad Buildings sinovi, 6-band): suvni muhofaza qilish zonasi (zone) va qirgʻoq boʻyi mintaqasi (shore), suv chetidan, m.
+ * 981-son nizomda kengliklar oraliq (yer turi, nishablik, hajm, chuqurlik boʻyicha) — sukut oraliqning quyi chegarasi, qoʻlda oshiriladi.
+ * Hujjat kuchini yoʻqotgan — flag doim TALQIN (egasi amaldagi hujjatni tasdiqlaguncha).
+ */
+export function suvZones(l: Pick<Limit, 'suv' | 'szz' | 'qir'>): { zone: Szz; shore: Szz } {
+  const t = l.suv?.t ?? 'daryo', q = l.suv?.q;
+  let z: [number, string], sh: [number, string];
+  if (t === 'kol') { z = [50, '18-band (50–250 m, hajm boʻyicha)']; sh = [35, '21-band (35–100 m; suv chetidan ≥ 20 m)']; }
+  else if (t === 'kanal') {
+    if (q === 2) { z = [0, '31, 32, 35-bandlar (sugʻorish va kollektor tarmoqlari — faqat qirgʻoq boʻyi mintaqasi)']; sh = [4.5, '31, 32, 35-bandlar (4,5–12 m, chuqurlik boʻyicha)']; }
+    else if (q === 1) { z = [50, '31, 32, 35-bandlar (ichimlik suvi kanallari: 50–150 m)']; sh = [0, 'ichimlik suvi kanali — qirgʻoq boʻyi mintaqasi kiritilmagan']; }
+    // toifa kiritilmagan — ikkalasining qattiqrogʻi: zona 50 m va qirgʻoq boʻyi 4,5 m
+    else { z = [50, '31, 32, 35-bandlar (ichimlik suvi kanali: 50–150 m; toifa kiritilmagan)']; sh = [4.5, '31, 32, 35-bandlar (sugʻorish va kollektor: 4,5–12 m; toifa kiritilmagan)']; }
+  } else {
+    const Z: [number, string][] = [[300, '300–500 m'], [100, '100–300 m'], [50, '50–100 m'], [35, '35–50 m']], r = Z[(q ?? 2) - 1] ?? Z[1];
+    z = [r[0], `29-band (${r[1]}, oʻrtacha koʻp yillik sarf boʻyicha${q ? '' : '; toifa kiritilmagan — oʻrta'})`]; sh = [25, '30-band (25–100 m, yer turi va nishablik boʻyicha)'];
+  }
+  const mk = (v: [number, string], own?: number): Szz => {
+    const base: Szz = { m: v[0], ref: `${N981}, ${v[1]}; aholi punktida — bosh reja boʻyicha (23, 37-bandlar) · ${LOST}`, flag: 'TALQIN' };
+    return own != null && own >= 0 ? { ...base, m: own, ref: `${base.ref} · qoʻlda`, table: base.m } : base;
+  };
+  return { zone: mk(z, l.szz), shore: mk(sh, l.qir) };
 }
 
 /** VMQ № 1050, 14-band (muhofaza zonasi, har tomonga): [kuchlanish sinfi, m]; 6–20 kV — bitta sinf */
@@ -127,6 +169,8 @@ export interface LimitZones {
   elu: XY[][][];
   /** SMZ (buferlar) — turar joy, maktab, MTM … taqiq (2.17), uchastka bilan kesishgan, hard ayirilgan */
   soft: SoftZone[];
+  /** 04.11: suvni muhofaza qilish zonalari (981-son nizom) — SMZ emas: turar joy taqiqlanmaydi, zona rejimi (Suv kodeksi, 125–138-moddalar) koʻrib chiqiladi */
+  water: SoftZone[];
 }
 
 const q3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -163,14 +207,25 @@ export function limitZones(doc: Project): LimitZones {
 }
 function limitZonesRaw(doc: Project): LimitZones {
   const ls = (doc.limits ?? []).filter(isActive);
-  if (!ls.length || !doc.site) return { hard: [], soft: [], elu: [] };
+  if (!ls.length || !doc.site) return { hard: [], soft: [], elu: [], water: [] };
   const fr = frame(doc.origin), site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal)));
-  const hardParts: MultiPolygon[] = [], eluParts: MultiPolygon[] = [], soft: { l: Limit; mp: MultiPolygon; s: Szz }[] = [];
+  const hardParts: MultiPolygon[] = [], eluParts: MultiPolygon[] = [], soft: { l: Limit; mp: MultiPolygon; s: Szz }[] = [], water: { l: Limit; mp: MultiPolygon; s: Szz }[] = [];
   for (const l of ls) {
     if (l.kind === 'elu') {
       if (!l.axis || l.axis.length < 2) continue;
       const z = eluZone(l); if (z.m <= 0) continue;
       const b = bufferLocal(l.axis.map(fr.toLocal), z.m, false); hardParts.push(b); eluParts.push(b);   // VMQ 1050, 15 «ж», 17: zonada bino — yoʻq
+      continue;
+    }
+    // 04.11: suv obyekti — suv yuzasi va qirgʻoq boʻyi mintaqasi qurib boʻlmaydi (hard), zona — alohida (water). Daryo/kanal chiziq
+    // bilan berilsa (OSM waterway) — suv chetidan emas, oʻqdan oʻlchanadi (TAXMIN: kenglik nomaʼlum)
+    if (l.kind === 'suv') {
+      const line = !l.rings?.length && l.axis && l.axis.length >= 2, pts = line ? l.axis!.map(fr.toLocal) : l.rings?.[0]?.map(fr.toLocal);
+      if (!pts || pts.length < (line ? 2 : 3)) continue;
+      const { zone, shore } = suvZones(l);
+      if (!line) hardParts.push([[close(pts)]]);
+      if (shore.m > 0) hardParts.push(bufferLocal(pts, shore.m, !line));
+      if (zone.m > shore.m) water.push({ l, mp: bufferLocal(pts, zone.m, !line), s: zone });
       continue;
     }
     if (!l.rings?.length || l.rings[0].length < 3) continue;
@@ -188,9 +243,16 @@ function limitZonesRaw(doc: Project): LimitZones {
     if (mpArea(mp) < 1) continue;
     softOut.push({ id: z.l.id, kind: z.l.kind, rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: z.s.m, cls: z.s.cls, ref: z.s.ref, flag: z.s.flag });
   }
+  const waterOut: SoftZone[] = [];
+  for (const z of water) {
+    let mp: MultiPolygon = [];
+    try { mp = polygonClipping.intersection(z.mp, site); if (hard.length && mp.length) mp = polygonClipping.difference(mp, hard); } catch { mp = []; }
+    if (mpArea(mp) < 1) continue;
+    waterOut.push({ id: z.l.id, kind: 'suv', rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: z.s.m, ref: z.s.ref, flag: z.s.flag });
+  }
   let elu: MultiPolygon = [];
   try { elu = eluParts.length ? polygonClipping.intersection(polygonClipping.union(eluParts[0], ...eluParts.slice(1)), site) : []; } catch { elu = []; }
-  return { hard: hard.map(p => p.map(open)), soft: softOut, elu: elu.map(p => p.map(open)) };
+  return { hard: hard.map(p => p.map(open)), soft: softOut, elu: elu.map(p => p.map(open)), water: waterOut };
 }
 
 /** Yer balansi (ga): umumiy · qurib boʻlmaydigan (cheklov va ELU zonasi) · SMZ · yaroqli (turar joy uchun) */
@@ -213,7 +275,7 @@ export function cleanLimit(x: any): Limit | null {
   if (!x || typeof x.id !== 'string' || !KINDS.includes(x.kind)) return null;
   const rings = Array.isArray(x.rings) ? x.rings.filter((r: unknown) => Array.isArray(r) && r.length >= 3 && r.every(ll)).map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) : [];
   const axis = Array.isArray(x.axis) && x.axis.length >= 2 && x.axis.every(ll) ? x.axis.map((p: LngLat) => [p[0], p[1]] as LngLat) : null;
-  if (x.kind === 'elu' ? !axis : !rings.length) return null;
+  if (x.kind === 'elu' ? !axis : x.kind === 'suv' ? !rings.length && !axis : !rings.length) return null;
   return {
     id: x.id, kind: x.kind,
     ...(rings.length ? { rings } : {}), ...(axis ? { axis } : {}),
@@ -224,6 +286,8 @@ export function cleanLimit(x: any): Limit | null {
     ...(x.sub && typeof x.sub === 'object' ? { sub: { ...(x.sub.open === false ? { open: false } : {}), ...(x.sub.memorial === true ? { memorial: true } : {}), ...(x.sub.rural === true ? { rural: true } : {}) } } : {}),
     ...(n(x.szz) && x.szz >= 0 && x.szz <= 2000 ? { szz: x.szz } : {}),
     ...([1, 2, 3, 4, 5].includes(x.cls) ? { cls: x.cls } : {}),
+    ...(x.kind === 'suv' && x.suv && ['daryo', 'kol', 'kanal'].includes(x.suv.t) ? { suv: { t: x.suv.t, ...([1, 2, 3, 4].includes(x.suv.q) ? { q: x.suv.q } : {}) } } : {}),
+    ...(n(x.qir) && x.qir >= 0 && x.qir <= 500 ? { qir: x.qir } : {}),
     src: ['osm', 'qolda', 'import'].includes(x.src) ? x.src : 'qolda',
     ...(n(x.osm) ? { osm: x.osm } : {}), ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}),
   };

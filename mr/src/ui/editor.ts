@@ -26,7 +26,7 @@ import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
-import { szzOf, limitAreaHa, isActive, limitZones, bufferLocal, SZZ_DENY, type Limit, type LimitKind } from '../core/limits';
+import { szzOf, suvZones, SUV_NAMES, SUV_Q, SUV_QS, limitAreaHa, isActive, limitZones, bufferLocal, SZZ_DENY, type Limit, type LimitKind, type SuvType } from '../core/limits';
 import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo } from '../core/plan';
 import type { MultiPolygon } from 'polygon-clipping';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
@@ -3171,7 +3171,7 @@ export class Editor {
     const add = (l: Omit<Limit, 'id' | 'src' | 'status'>) => { const id = uid('lim_'); this.run(() => this.store.dispatch({ type: 'addLimit', limit: { id, src: 'qolda', status: 'saqlanadi', ...l } })); this.setTool(null); this.pickLimit(id); };
     const t = kind === 'elu'
       ? new LineTool(this.scene, r => { const f = frame(this.store.doc.origin); add({ kind, axis: r.map(f.toGeo), kv: 10, elu: 'mavjud' }); }, toast, p => p, 'ELU oʻqi: tayanchlar boʻylab nuqtalarni bosing · 2× bosish yoki Enter — tugatish · Esc — bekor')
-      : new PolygonTool(this.scene, r => { const f = frame(this.store.doc.origin); add({ kind, rings: [r.map(f.toGeo)] }); }, toast, 20);
+      : new PolygonTool(this.scene, r => { const f = frame(this.store.doc.origin); add({ kind, rings: [r.map(f.toGeo)], ...(kind === 'suv' ? { suv: { t: 'kol' as SuvType } } : {}) }); }, toast, 20);
     this.setTool(t); this.limDraw = kind; this.renderPanel();
   }
   private limitsBlock(): HTMLElement {
@@ -3182,7 +3182,7 @@ export class Editor {
     if (doc.site && doc.context.loaded && doc.limits === undefined && !this.limOsm.tried.has(JSON.stringify(doc.site.rings[0]))) queueMicrotask(() => void this.detectLimits(true));
     box.append(h('button', { class: 'btn btn-block', id: 'limOsm', disabled: this.limOsm.busy, onclick: () => void this.detectLimits(false) }, ...icl('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', tr(this.limOsm.busy ? 'OSM dan aniqlanmoqda…' : 'OSM dan aniqlash'))));
     if (this.limOsm.msg) box.append(h('div', { class: 'note', id: 'limOsmMsg' }, this.limOsm.msg));
-    box.append(h('span', { class: 't-small' }, tr('Qabriston, issiqxona, ombor, temir yoʻl, ELU (kuchlanishi va tayanchlari bilan), bogʻ va ekin maydonlari — uchastka atrofida 500 m, sanoat korxonalari — 1000 m. Yoʻq boʻlsa — qoʻlda chizing.')));
+    box.append(h('span', { class: 't-small' }, tr('Qabriston, issiqxona, ombor, temir yoʻl, ELU (kuchlanishi va tayanchlari bilan), suv obyektlari, bogʻ va ekin maydonlari — uchastka atrofida 500 m, sanoat korxonalari — 1000 m. Yoʻq boʻlsa — qoʻlda chizing.')));
     // 04.11 (egasi: interfeysni soddalashtirish, A): qoʻlda chizish tugmalari (8 tur) — «Qoʻlda chizish» ichida; chizish davomida «Tugatish» koʻrinib turadi
     const limAdd = h('details', { class: 'gen-more', id: 'limAddMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻlda chizish · ${n}', { n: Editor.LIM_KINDS.length }))));
     if (this.limDraw && this.tool) box.append(h('button', { class: 'btn btn-primary btn-block', id: 'limStop', onclick: () => this.endTool() }, ...icl(IC.check, tf('Tugatish: ${k}', { k: this.limName(this.limDraw) }))),
@@ -3196,11 +3196,11 @@ export class Editor {
     const list = h('div', { class: 'group', id: 'limList' });
     ls.forEach((l, i) => {
       const aHa = limitAreaHa(l, doc.origin), z = szzOf(l, aHa), sel = l.id === this.selLimit, on = isActive(l);
-      const sub = l.kind === 'elu' ? `${l.kv ?? '?'} kV · ${tr(EL.find(e => e[0] === (l.elu ?? 'mavjud'))?.[1] ?? 'Mavjud')}` : `${fmt(aHa, 2)} ga · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}`
+      const sub = l.kind === 'suv' ? `${tr(SUV_NAMES[l.suv?.t ?? 'daryo'])} · ${l.rings?.length ? `${fmt(aHa, 2)} ga` : tr('oʻq')} · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}` : l.kind === 'elu' ? `${l.kv ?? '?'} kV · ${tr(EL.find(e => e[0] === (l.elu ?? 'mavjud'))?.[1] ?? 'Mavjud')}` : `${fmt(aHa, 2)} ga · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}`
       const sub2 = `${sub}${l.kind === 'elu' && l.poles?.length ? ` · ${tf('${n} tayanch', { n: l.poles.length })}` : ''}${l.src === 'osm' ? ' · OSM' : ''}`;
       list.append(h('button', { class: 'li', 'data-lim': l.id, 'aria-pressed': sel, 'aria-expanded': sel, style: 'width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit;cursor:pointer', onclick: () => this.pickLimit(sel ? null : l.id) },
         h('span', { class: 'k' }, `C-${i + 1} · ${l.name ? tr(l.name) : this.limName(l.kind)}`, h('span', { class: 'sub' }, sub2)),
-        h('span', { class: 'v' }, on && z.m > 0 ? `${fmt(z.m)} m${z.cls ? ' · ' + z.cls : ''}` : '—')));
+        h('span', { class: 'v' }, on && l.kind === 'suv' ? `${fmt(z.m)} / ${fmt(suvZones(l).shore.m)} m` : on && z.m > 0 ? `${fmt(z.m)} m${z.cls ? ' · ' + z.cls : ''}` : '—')));
       if (!sel) return;
       const ed = h('div', { class: 'col', 'data-limedit': l.id, style: 'padding:8px 12px 12px;gap:8px' });
       if (l.kind === 'elu') {
@@ -3212,6 +3212,19 @@ export class Editor {
       if (l.kind === 'sanoat') {
         ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Korxona sinfi'), id: 'limCls' }, ...([1, 2, 3, 4, 5] as const).map(k => h('button', { 'aria-pressed': l.cls === k, 'data-cls': k, title: `${['I', 'II', 'III', 'IV', 'V'][k - 1]} — ${[1000, 500, 300, 100, 50][k - 1]} m`, onclick: () => upd(l.id, { cls: k }) }, ['I', 'II', 'III', 'IV', 'V'][k - 1]))));
         if (!l.cls) ed.append(h('div', { class: 'note warn', 'data-clsnote': '' }, tr('Korxona sinfini kiriting (SanQvaN 0350-17, 5-boʻlim: sanitariya tasnifi). Hozircha IV sinf — 100 m deb olindi (taxmin).')));
+      }
+      // 04.11 (Murad Buildings sinovi, 6-band): suv obyekti turi va toifasi — VM 981-son nizomi (kuchini yoʻqotgan, talqin)
+      if (l.kind === 'suv') {
+        const st = l.suv?.t ?? 'daryo', qs = SUV_Q[st];
+        ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Suv obyekti turi'), id: 'limSuvT' }, ...(['daryo', 'kol', 'kanal'] as const).map(k => h('button', { 'aria-pressed': st === k, 'data-suvt': k, title: tr(SUV_NAMES[k]), onclick: () => upd(l.id, { suv: { t: k } }) }, tr(({ daryo: 'Daryo', kol: 'Koʻl', kanal: 'Kanal' } as const)[k])))));
+        if (st === 'daryo') ed.append(h('span', { class: 't-small' }, tr('Oʻrtacha koʻp yillik sarf, m³/s')));
+        if (qs.length) ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr(st === 'daryo' ? 'Oʻrtacha koʻp yillik sarf, m³/s' : 'Toifasi'), id: 'limSuvQ' }, ...qs.map((t, i) => h('button', { 'aria-pressed': l.suv?.q === i + 1, 'data-suvq': i + 1, title: tr(t), onclick: () => upd(l.id, { suv: { t: st, q: (i + 1) as 1 | 2 | 3 | 4 } }) }, st === 'daryo' ? SUV_QS.daryo[i] : tr(t)))));
+        if (qs.length && !l.suv?.q) ed.append(h('div', { class: 'note warn', 'data-suvnote': '' }, tr(st === 'daryo' ? 'Daryo toifasini kiriting (oʻrtacha koʻp yillik sarf). Hozircha «oʻrta» deb olindi.' : 'Kanal turini kiriting. Hozircha ikkalasining qattiqrogʻi olindi: zona 50 m, qirgʻoq boʻyi 4,5 m.')));
+        const zz = suvZones(l), qir = h('input', { type: 'number', class: 'input', min: 0, max: 500, step: 'any', value: l.qir ?? '', placeholder: String(suvZones({ ...l, qir: undefined }).shore.m), id: 'limQir', 'aria-label': tr('Qirgʻoq boʻyi mintaqasi, m'),
+          onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { qir: undefined }); else if (+v >= 0 && +v <= 500) upd(l.id, { qir: +v }); } });
+        ed.append(h('div', { class: 'row' }, h('div', { class: 'field grow' }, h('label', {}, tr('Qirgʻoq boʻyi mintaqasi (qurib boʻlmaydi)')), h('span', { class: 'unit' }, qir, h('span', {}, 'm')))),
+          h('span', { class: 't-small', 'data-suvref': l.id }, zz.shore.ref),
+          h('div', { class: 'note warn', 'data-suvlost': '' }, tr('VM 981-son qarori LexUz da 23.06.2026 dan kuchini yoʻqotgan, oʻrnini bosuvchi hujjat aniqlanmagan. Kengliklar — oraliqning quyi chegarasi (talqin); amaldagi hujjat boʻyicha tekshiring.')));
       }
       if (l.kind === 'qabriston') {
         const open = l.sub?.open !== false;
@@ -3228,7 +3241,7 @@ export class Editor {
       const buf = h('input', { type: 'number', class: 'input', min: 0, max: 2000, step: 1, value: l.szz ?? '', placeholder: String(szzOf({ ...l, szz: undefined }, aHa).m), id: 'limBuf', 'aria-label': tr('Bufer, m'),
         onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { szz: undefined }); else if (+v >= 0 && +v <= 2000) upd(l.id, { szz: +v }); } });
       ed.append(h('div', { class: 'row', style: 'align-items:flex-end' },
-        h('div', { class: 'field grow' }, h('label', {}, tr(l.kind === 'elu' ? 'Zona, har tomonga' : 'SMZ (bufer)')), h('span', { class: 'unit' }, buf, h('span', {}, 'm'))),
+        h('div', { class: 'field grow' }, h('label', {}, tr(l.kind === 'elu' ? 'Zona, har tomonga' : l.kind === 'suv' ? 'Suvni muhofaza qilish zonasi' : 'SMZ (bufer)')), h('span', { class: 'unit' }, buf, h('span', {}, 'm'))),
         h('button', { class: 'btn icon-btn btn-danger', id: 'limDel', 'aria-label': tr('Cheklovni oʻchirish'), title: tr('Cheklovni oʻchirish'), onclick: () => { this.selLimit = null; this.scene.selectLimit(null); this.run(() => this.store.dispatch({ type: 'removeLimit', id: l.id })); } }, svgIcon(IC.trash))));
       ed.append(h('span', { class: 't-small', 'data-limref': l.id }, `${z.ref} · ${z.flag === 'NORMA' ? tr('norma') : z.flag === 'TALQIN' ? tr('talqin — tasdiqlash kerak') : tr('taxmin')}${z.cls ? ` · ${tf('${c} sinf', { c: z.cls })}` : ''}`));
       list.append(ed);

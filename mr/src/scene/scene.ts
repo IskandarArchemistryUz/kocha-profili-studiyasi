@@ -993,6 +993,8 @@ export class Scene3D {
       segs(hatchSegs([s.rings], 9, -45), c, 0.46, 7.6);
       s.rings.forEach(r => dashed(r, c, 0.5, 7.8));
     }
+    // 04.11: suvni muhofaza qilish zonasi — koʻk uzuq kontur (SMZ emas, shtrixsiz)
+    for (const w of z.water) w.rings.forEach(r => dashed(r, plain ? 0x8a8780 : 0x2f7fb5, 0.5, 7.8));
     segs(hatchSegs(z.hard, 3, 45), plain ? 0x6a6a6a : 0x4b4b4b, 0.48, 7.7);
     for (const l of ls) {
       const sel = l.id === this.selLimit, on = isActive(l), col = sel ? C.preview : on ? 0x2f2f2f : 0x8a8780;
@@ -1009,6 +1011,7 @@ export class Scene3D {
         const ax = l.axis?.map(fr.toLocal) ?? [], wire = ax.map(a => { let b = tops[0], bd = Infinity; for (let i = 0; i < P.length; i++) { const d = Math.hypot(P[i][0] - a[0], P[i][1] - a[1]); if (d < bd) { bd = d; b = tops[i]; } } return bd < 20 ? b : new THREE.Vector3(a[0], this.H(a[0], a[1]) + hp, -a[1]); });
         if (wire.length >= 2) { const wl = new THREE.Line(new THREE.BufferGeometry().setFromPoints(wire), new THREE.LineBasicMaterial({ color: pc })); wl.renderOrder = 8.3; wl.userData.limit = true; this.world.add(wl); }
       }
+      if (l.kind === 'suv' && !l.rings?.length && l.axis) { const p = l.axis.map(fr.toLocal), ln = line(densify(p, 6, false), sel ? C.preview : on ? 0x2f7fb5 : 0x8a8780, 0.6, false, 8.2, this.H); ln.userData.limit = true; this.world.add(ln); continue; }
       if (l.kind === 'elu') { if (!l.axis) continue; const p = l.axis.map(fr.toLocal); if (on) { const ln = line(densify(p, 6, false), sel ? C.preview : 0x7a4fb0, 0.6, false, 8.2, this.H); ln.userData.limit = true; this.world.add(ln); } else dashed(p, col, 0.6, 8.2, false); continue; }
       for (const r of l.rings ?? []) { const p = r.map(fr.toLocal); if (on) { const ln = line(densify(p, 6, true), col, 0.55, true, 8.1, this.H); ln.userData.limit = true; this.world.add(ln); } else dashed(p, col, 0.55, 8.1); }
     }
