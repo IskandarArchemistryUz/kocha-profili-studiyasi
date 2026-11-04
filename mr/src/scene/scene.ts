@@ -1651,7 +1651,7 @@ export class Scene3D {
     const kk = (g: THREE.Object3D) => persp ? k * cp.distanceTo(g.getWorldPosition(v)) : k;
     const place = (gl: GLab, lv: 0 | 1 | 2 | 3, kx: number) => {
       gl.level = lv; if (!gl.mesh) return;
-      if (!lv) { gl.mesh.visible = false; return; }
+      if (!lv || this.labelsOff) { gl.mesh.visible = false; return; }
       const T = this.glabTex(gl, lv as 1 | 2 | 3)!, m = gl.mesh.material as THREE.MeshBasicMaterial;
       if (m.map !== T.t) { m.map = T.t; m.needsUpdate = true; }
       gl.mesh.scale.set(T.w * kx, T.h * kx, 1); gl.mesh.visible = true;
@@ -2024,19 +2024,23 @@ export class Scene3D {
    * shamol xaritasi, xato belgilari, tutqichlar va xarita qatlami vaqtincha oʻchiriladi; uslub (oq maket, funksiya, fasad…) — chizmaniki.
    * fn tugagach sahna avvalgi holatiga qaytadi.
    */
-  drawingShot<T>(fn: () => T): T {
+  private labelsOff = false;
+  drawingShot<T>(fn: () => T, o: { labels?: boolean } = {}): T {
     const d = this.lastDoc;
-    const saved = { iso: this.iso, apt: this.aptView, sel: this.selected, clip: this.renderer.clippingPlanes, expl: this.exploded };
+    const saved = { iso: this.iso, apt: this.aptView, sel: this.selected, selB: this.selBlock, clip: this.renderer.clippingPlanes, expl: this.exploded };
     const opt: (THREE.Object3D | null | undefined)[] = [this.insol, this.aptBoxes, this.marks, this.overlapG, this.snapMark, this.satLayer?.mesh, this.baseMap?.mesh];
-    const hide: THREE.Object3D[] = [this.issueG, this.markG, this.aptG, this.frameG, ...this.grid, ...this.handles, ...this.explodeLabels, ...opt.filter((o): o is THREE.Object3D => !!o)];
+    // 04.11 (egasi: «daha yozuvi bazida halaqit qilmoqda — kerak boʻlganda yoqsa boʻladigan»): labels: false — daha, kvartal, koʻcha va uy raqami yozuvlari chizmaga tushmaydi
+    const lab: THREE.Object3D[] = o.labels === false ? this.glabs.map(g => g.g).filter((g): g is THREE.Group => !!g) : [];
+    const hide: THREE.Object3D[] = [this.issueG, this.markG, this.aptG, this.frameG, ...this.grid, ...this.handles, ...this.explodeLabels, ...lab, ...opt.filter((x): x is THREE.Object3D => !!x)];
     const vis = hide.map(o => o.visible);
-    this.iso = null; this.isoLocal = null; this.aptView = null; this.selected = null; this.renderer.clippingPlanes = [];
+    this.iso = null; this.isoLocal = null; this.aptView = null; this.selected = null; this.selBlock = null; this.renderer.clippingPlanes = [];   // tanlangan daha kartochkasi (D-1 · UMN) ham
     if (saved.expl) { this.exploded = false; this.applyExplode(); }
     hide.forEach(o => { o.visible = false; });
     this.applyIsoCtx(); if (d) this.update(d);
+    this.labelsOff = o.labels === false;   // update yozuvlarni qayta quradi — joylashtirishda (fitSprites) yashiriladi
     try { return fn(); } finally {
-      this.iso = saved.iso; this.aptView = saved.apt; this.selected = saved.sel; this.renderer.clippingPlanes = saved.clip;
-      hide.forEach((o, i) => { o.visible = vis[i]; });
+      this.iso = saved.iso; this.aptView = saved.apt; this.selected = saved.sel; this.selBlock = saved.selB; this.renderer.clippingPlanes = saved.clip;
+      hide.forEach((o, i) => { o.visible = vis[i]; }); this.labelsOff = false;
       if (saved.expl) { this.exploded = true; this.applyExplode(); }
       this.applyIsoCtx(); if (d) this.update(d); this.invalidate();
     }
