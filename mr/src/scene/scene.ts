@@ -82,7 +82,7 @@ function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] 
     m4.compose(new THREE.Vector3(p[0], y + h + s * 0.6, -p[1]), new THREE.Quaternion(), new THREE.Vector3(s, s, s)); crown.setMatrixAt(i, m4);
     m4.compose(new THREE.Vector3(p[0], y + h / 2 + 0.3, -p[1]), new THREE.Quaternion(), new THREE.Vector3(1, h + 0.6, 1)); trunk.setMatrixAt(i, m4);
   });
-  crown.castShadow = true; crown.renderOrder = 12; trunk.renderOrder = 12;
+  crown.castShadow = true; crown.renderOrder = 12; trunk.renderOrder = 12; crown.userData.tree = 'crown'; trunk.userData.tree = 'trunk';
   return [crown, trunk];
 }
 
@@ -200,7 +200,7 @@ export class Scene3D {
     }, { passive: true, capture: true });
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
-    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.dirty) { this.dirty = false; if (this.shadowDirty) { this.shadowDirty = false; this.renderer.shadowMap.needsUpdate = true; } const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
+    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.liteDirty) { this.liteDirty = false; this.applyLite(true); } if (this.dirty) { this.dirty = false; if (this.shadowDirty) { this.shadowDirty = false; this.renderer.shadowMap.needsUpdate = true; } const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
     loop();
   }
 
@@ -575,7 +575,34 @@ export class Scene3D {
   private detIds = new Set<string>();
   private lodKey = '';
   private lodT = 0;
-  private lodSoon(): void { clearTimeout(this.lodT); this.lodT = window.setTimeout(() => this.refreshLod(), 250); }
+  private lodSoon(): void { clearTimeout(this.lodT); this.lodT = window.setTimeout(() => { this.applyLite(); this.refreshLod(); }, 250); }
+  /**
+   * 04.11 (egasi: sahnani yengillashtirish, B): «Sodda» rejim — koʻrinish yarim kengligi LITE_VIEW m dan katta boʻlsa
+   * derazalar teksturasi va geometrik fasad oʻchadi, daraxtlar tanasiz va soyasiz; yaqinlashganda qaytadi.
+   * «Toʻliq» — doim toʻliq. Albom, hisobot va sahna rasmi doim toʻliq (forceFull).
+   */
+  static LITE_VIEW = 150;
+  lite: 'sodda' | 'toliq' = 'sodda';
+  private liteOn = false;
+  private forceFull = false;
+  /** sahna (yoki binolar qismi) qayta qurilgach — keyingi kadrda «Sodda» holati daraxt va materiallarga qayta qoʻllanadi */
+  private liteDirty = false;
+  onLite?: (on: boolean) => void;
+  setLite(m: 'sodda' | 'toliq'): void { this.lite = m; this.applyLite(true); this.refreshLod(); }
+  private liteWanted(r = this.viewExtent().r): boolean { return this.lite === 'sodda' && !this.forceFull && r > Scene3D.LITE_VIEW; }
+  /** «Sodda» holatini sahnaga qoʻllaydi (qayta qurmasdan: material va koʻrinish); force — joriy holat bilan bir xil boʻlsa ham */
+  applyLite(force = false): void {
+    const on = this.liteWanted();
+    if (on === this.liteOn && !force) return;
+    this.liteOn = on;
+    this.world.traverse(o => {
+      const m = (o as THREE.Mesh).material;
+      if (m) for (const x of Array.isArray(m) ? m : [m]) { const wm = x.userData?.winMap as THREE.Texture | undefined; if (wm && ((x as THREE.MeshLambertMaterial).map !== (on ? null : wm))) { (x as THREE.MeshLambertMaterial).map = on ? null : wm; x.needsUpdate = true; } }
+      if (o.userData.tree === 'trunk') o.visible = !on;
+      else if (o.userData.tree === 'crown') o.castShadow = !on;
+    });
+    this.onLite?.(on); this.invalidate();
+  }
   /** Kamera oʻzgargach: geometrik fasadli binolar toʻplami oʻzgargan boʻlsa — sahna qayta quriladi */
   refreshLod(): void {
     const d = this.lastDoc; if (!d) return;
@@ -591,7 +618,7 @@ export class Scene3D {
   private pickLod(doc: Project): Set<string> {
     const out = new Set<string>(); if (this.selected) out.add(this.selected);
     if (this.aptView) return new Set();   // kvartiralar koʻrinishida fasad yoʻq
-    const { c, r } = this.viewExtent(); if (r > Scene3D.LOD_VIEW) return out;
+    const { c, r } = this.viewExtent(); if (r > Scene3D.LOD_VIEW || this.liteWanted(r)) return out;
     const fr = frame(doc.origin);
     const cand = doc.buildings.filter(b => this.facadeEligible(b) && (!this.isoLocal || this.inIso(b.footprint.map(fr.toLocal)))).map(b => {
       const ring = b.footprint.map(fr.toLocal), ct = centroid(ring); let per = 0;
@@ -830,6 +857,7 @@ export class Scene3D {
   }
   /** Faqat koʻrsatilgan binolarni qayta qurish (qolgan sahna — koʻchalar, dahalar, hovlilar, yozuvlar — tegilmaydi) */
   private rebuildBuildings(ids: Set<string>): void {
+    this.liteDirty = true;
     const B = this.bctx, doc = B?.doc; if (!B || !doc || !ids.size) return;
     const old = this.world.children.filter(o => ids.has(o.userData.bOwner as string));
     if (old.length) { const tmp = new THREE.Group(); old.forEach(o => tmp.add(o)); disposeGroup(tmp); }
@@ -852,7 +880,7 @@ export class Scene3D {
       const g = new THREE.ExtrudeGeometry(new THREE.Shape(ring.map(toV2)), { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base + z0, 0);
       if (b.mat && tinted && kind !== 'shop') color = MATS.find(m => m.id === b.mat)!.color;
       const wall = new THREE.MeshLambertMaterial({ color: dim ? 0xf4f3f0 : color });   // tanlangan — oʻz rangida, koʻk kontur bilan (fasad koʻrinsin)
-      if (kind && spec && !plain && !fn) wall.map = facadeTex(kind, spec, fh, MOD_W, aniso);
+      if (kind && spec && !plain && !fn) { wall.map = facadeTex(kind, spec, fh, MOD_W, aniso); wall.userData.winMap = wall.map; if (this.liteOn) wall.map = null; }
       if (det && (kind === 'res' || kind === 'shop')) wall.visible = false;   // devorni geometrik fasad almashtiradi
       const cap = new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : dim || plain ? 0xf6f5f2 : st === 'funksiya' ? color : C.roof });
       if (top && !sel && !dim && roofK === 'yashil') cap.color.setHex(plain ? 0xe6ece0 : 0x93b873);
@@ -1008,7 +1036,7 @@ export class Scene3D {
   update(doc: Project): void {
     this.lastDoc = doc;
     { const f0 = frame(doc.origin); this.isoLocal = this.iso ? this.iso.map(r => r.map(f0.toLocal)) : null; }
-    this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|');
+    this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|'); this.liteOn = this.liteWanted(); this.liteDirty = true;
     disposeGroup(this.world);
     const fr = frame(doc.origin);
     const toV2 = (p: XY) => new THREE.Vector2(p[0], p[1]);
@@ -1333,8 +1361,10 @@ export class Scene3D {
   captureViews(doc: Project): Record<'plan' | 'axo' | 'persp', string> {
     const mode = this.mode, t = this.ctl.target.clone(), pp = this.persp.position.clone(), op = this.ortho.position.clone(), os = this.ortho.userData.s, oz = this.ortho.zoom;
     const out = {} as Record<'plan' | 'axo' | 'persp', string>;
+    this.forceFull = true; this.applyLite(); this.refreshLod();
     for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); { const c = this.rcam(); this.fitSprites(c); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, c); } out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
     this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz; this.capOrtho();
+    this.forceFull = false; this.applyLite(); this.refreshLod();
     this.resize(); this.ctl.update(); this.invalidate();
     return out;
   }
@@ -1754,6 +1784,10 @@ export class Scene3D {
 
   /** GLB: loyiha qatlami (binolar, uchastka, koʻchalar); withCtx — atrofdagi kontekst ham. Y — yuqori, metr */
   async exportGLB(withCtx = false): Promise<Blob> {
+    this.forceFull = true; this.applyLite();
+    try { return await this.exportGLB0(withCtx); } finally { this.forceFull = false; this.applyLite(); }
+  }
+  private async exportGLB0(withCtx: boolean): Promise<Blob> {
     const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
     const root = new THREE.Group(); root.name = 'Archemistry';
     const proj = this.world.clone(true); proj.name = 'loyiha'; root.add(proj);
@@ -1983,7 +2017,10 @@ export class Scene3D {
 
   /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
   snapshot(ratio = 0): string {
-    this.refreshLod();
+    this.forceFull = true; try { return this.snapshot0(ratio); } finally { this.forceFull = false; this.applyLite(); this.refreshLod(); }
+  }
+  private snapshot0(ratio: number): string {
+    this.applyLite(); this.refreshLod();
     { const c = this.rcam(); this.fitSprites(c); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, c); }
     const c = this.renderer.domElement; if (!ratio) return c.toDataURL('image/png');
     const r = this.frameRect(ratio), k = c.width / (c.clientWidth || c.width), o = document.createElement('canvas');
