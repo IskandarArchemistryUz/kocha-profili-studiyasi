@@ -39,6 +39,7 @@ import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
+import { FIRE_CLS, isLowHouse, lowFireNeed } from '../core/firedist';
 import { lenLimit, SYS, SEIS_PLACES, seisKey, seisByKey, seisForDistrict } from '../core/seysmik';
 import { CONSTRUCT_SYS } from '../core/doc';
 import { PRESET_PROFILES } from '../core/presets';
@@ -2271,7 +2272,7 @@ export class Editor {
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
-    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]), ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) });
+    const S = this.store.doc.settings, fr = frame(this.store.doc.origin), asb = this.autoSb(i, g), r = generate(b.rings[0], { ...(asb ? { ...g, setback: asb.dMin, ...(asb.ring ? { setbackRing: asb.ring } : {}) } : g), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: this.genObstacles(b.parcelId ?? lab.id, b.rings[0]), ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) });
     // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanPiN 0350-17, 2.17; ShNQ 2.07.01-23, 146) — uylar olinadi, seksiyalar qisqartiriladi
     { const dzOf = new Map<string, ReturnType<typeof denyZone>>(), dz = (u: string) => { if (!dzOf.has(u)) dzOf.set(u, denyZone(this.store.doc, u as Use)); return dzOf.get(u)!; };
       const byUse = new Map<string, typeof r.sections>(); for (const x of r.sections) { const u = x.use ?? b.use; byUse.set(u, [...(byUse.get(u) ?? []), x]); }
@@ -2596,7 +2597,7 @@ export class Editor {
       const blockers = [...plan.corridors.flatMap(p => p.map(r => r)), ...doc.buildings.filter(b => !b.gen).map(b => b.footprint.map(fr.toLocal))];
       const hit = (r: XY[]) => blockers.some(q => q.length >= 3 && (r.some(p => pointIn(p, [q])) || q.some(p => pointIn(p, [r]))));
       const site = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
-      const along = (sd: 1 | -1, off: number) => lowriseAlong(off > 0 ? offsetLine(line, sd * off) : line, sd, this.lowKind, site, floorsMax <= 3 ? floorsMax : undefined).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
+      const along = (sd: 1 | -1, off: number) => lowriseAlong(off > 0 ? offsetLine(line, sd * off) : line, sd, this.lowKind, site, floorsMax <= 3 ? floorsMax : undefined, lowFireNeed(doc)).filter(hh => !hit(hh.plot.map(p => [p[0] * 0.98 + hh.ring[0][0] * 0.02, p[1] * 0.98 + hh.ring[0][1] * 0.02] as XY)) && !hit(hh.ring));
       // chiziq koʻcha oʻqi yoki qizil chiziq ustida boʻlsa — chekinish 0 da hamma uchastka koridorga tushadi: chekinish avtomatik oshiriladi
       // 02.11: kirish koʻchasi — chiziq mavjud koʻcha ustida boʻlmasa, shu chiziq boʻylab oʻtish yoʻli (338-band) va uchi eng yaqin koʻchaga (≤ 120 m)
       const access = this.lowStreet ? accessStreet(line, plan.corridors, [...doc.streets.map(st => st.axis.map(fr.toLocal)), ...this.ctxRoads().map(rd => rd.pts.map(q => fr.toLocal(q)))], profileWidth(profileById('otish-8'))) : null;
@@ -4275,6 +4276,14 @@ export class Editor {
         h('div', { class: 'seg sm', role: 'group', id: 'seisSys', 'aria-label': tr('Yuk koʻtaruvchi tizim'), style: 'flex-wrap:wrap' }, ...CONSTRUCT_SYS.map(k => h('button', { 'aria-pressed': sys === k, 'data-sys': k, title: `${SYS[k].name} · ${SYS[k].row}`, onclick: () => set({ construct: k }) }, tr({ monolit: 'Monolit devor', karkas: 'Karkas', toldirgich: 'Toʻldiruvchili', gisht: 'Gʻisht' }[k])))),
         h('span', { class: 'chip', id: 'seisLim' }, lim == null ? tr('NSTT — cheklanmagan') : tf('boʻlma ≤ ${l} m · chiqish ≤ ${p} m', { l: lim, p: SYS[sys].proj }))));
   }
+  /** 04.11 (egasi): past uylar olovbardoshligi — ShNQ 2.07.01-23, 56-jadval ustunlari; faqat past uylar boʻlsa koʻrinadi */
+  private fireLowRow(): HTMLElement | string {
+    if (!this.store.doc.buildings.some(isLowHouse)) return '';
+    const v = this.store.doc.settings.fireLow ?? 0;
+    return h('div', { class: 'group', id: 'fireLowRow' }, h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
+      h('span', { class: 'k' }, tr('Past uylar: olovbardoshlik'), h('span', { class: 'sub' }, tr('Daraja va konstruktiv yongʻin xavfi sinfi — yongʻinga qarshi masofa uchun (ShNQ 2.07.01-23, 56-jadval)'))),
+      h('div', { class: 'seg sm', role: 'group', id: 'fireLowSeg', 'aria-label': tr('Past uylar: olovbardoshlik') }, ...FIRE_CLS.map((n, i) => h('button', { 'aria-pressed': v === i, 'data-fc': i, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { fireLow: i as 0 | 1 | 2 | 3 } })) }, n)))));
+  }
   /** 04.11 (egasi): aholi punkti — QMQ 2.01.03-19, 1-ilova; tanlansa ball shu punktdan olinadi */
   private seisPlaceRow(): HTMLElement {
     const S0 = this.store.doc.settings, cur = seisByKey(S0.seisPlace) ?? seisForDistrict(S0.district), ru = ['ru', 'uk', 'kk'].includes(getLang());
@@ -4327,6 +4336,7 @@ export class Editor {
         h('span', { class: 'k' }, tr('Rekonstruksiya / renovatsiya'), h('span', { class: 'sub' }, tr('79-band, 2-jadval, 7-izoh: insolyatsiya taʼminlansa jadval masofalari ikki barobargacha qisqaradi (≥ 6 m). 2·Hmax (8-izoh) va yongʻin masofalari qisqarmaydi.'))),
         sw({ id: 'reconOn', label: tr('Rekonstruksiya / renovatsiya'), on: this.store.doc.settings.recon === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { recon: v } })) }))),
       this.seismicRow(),
+      this.fireLowRow(),
       // 04.11 (audit): aholi hisobi — ShNQ 2.07.01-23, 1-jadval (qulaylik darajasi) va 61-band (≥ 16 m²/kishi)
       (() => { const v = this.store.doc.settings.m2PerPerson, opts: [number, string][] = [[20, 'Munitsipal'], [28, 'Oʻrtacha'], [30, 'Ekonom'], [40, 'Biznes']];
         return h('div', { class: 'group', id: 'popRow' }, h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
