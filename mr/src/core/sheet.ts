@@ -18,7 +18,7 @@ import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES 
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 
-export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport';
+export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -34,6 +34,7 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'yashil', name: 'Yashil balans', note: 'yashil hududlar, hovli maysasi, maydonchalar; 25 % meʼyori' },
   { id: 'transport', name: 'Transport sxemasi', note: 'koʻchalar toifasi, velo yoʻlak, bekatlar va 400 m radius, avtoturargohlar' },
   { id: 'insol', name: 'Insolyatsiya', note: 'uchastka yer sathi: kuniga quyosh soatlari (6-qadam xaritasi)' },
+  { id: 'shamol', name: 'Shamol', note: 'shamol guli (iqlim stansiyasi) va piyoda sathidagi oqim — qulaylik (6-qadam)' },
 ];
 
 /** Bitta xizmat turi tahlili: piyoda tarmogʻi kesmalari (eng yaqin obyektgacha masofa, m), obyektlar, turar joy binolari */
@@ -51,6 +52,9 @@ export interface SheetCtx {
   svc?: SheetSvc[];
   /** 02.11: insolyatsiya xaritasi (6-qadam; yer sathi katakchalari, soat) — «Insolyatsiya» varagʻi; bins — [chegara soat, rang, yorliq] */
   insol?: { pts: XY[]; hours: ArrayLike<number>; cell: number; date: string; stale?: boolean; bins: [number, string, string][] } | null;
+  /** 04.11 (egasi: tahlil varaqlari — shamol): stansiya guli (16 yoʻnalish × tezlik oraliqlari, ulush) va 6-qadamda hisoblangan
+   *  piyoda sathidagi oqim (katakchalar rangi — Lawson qulaylik sinfi yoki tezlik nisbati); legend — [rang, yorliq] */
+  wind?: { station: string; src: string; rose: number[][]; dir: number; prevailing: string; mean: number; calm: number; pts?: XY[]; cols?: string[]; cell?: number; legend?: [string, string][]; mode?: string; stale?: boolean } | null;
   /** jamoat transporti bekatlari va metro kirishlari (10-qadam OSM obyektlari) */
   stops?: { p: XY; kind: 'bekat' | 'metro' }[];
 }
@@ -301,6 +305,18 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     } else legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Insolyatsiya hisoblanmagan — 6-qadam «Quyosh va shamol»') });
   }
 
+  // 2a'. shamol (04.11): 6-qadamda hisoblangan piyoda sathidagi oqim — katakchalar sinf rangida (bitta rang — bitta path)
+  if (K === 'shamol') {
+    const Wd = ctx?.wind;
+    if (Wd?.pts?.length && Wd.cols && Wd.cell) {
+      const h2 = Wd.cell / 2, by = new Map<string, string[]>();
+      Wd.pts.forEach((p, i) => { if (Math.abs(p[0] - cx) > R || Math.abs(p[1] - cy) > R) return; const c = Wd.cols![i]; if (!by.has(c)) by.set(c, []); by.get(c)!.push(`M${P([p[0] - h2, p[1] - h2])}L${P([p[0] + h2, p[1] - h2])}L${P([p[0] + h2, p[1] + h2])}L${P([p[0] - h2, p[1] + h2])}Z`); });
+      g('Shamol_oqimi', [...by].map(([c, d]) => `<path d="${d.join('')}" fill="${c}" fill-opacity="0.8"/>`).join(''));
+      (Wd.legend ?? []).forEach(([c, l]) => legend.push({ type: 'fill', fill: c, label: tr(l) }));
+      legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: `${tr(Wd.mode === 'ratio' ? 'Tezlik nisbati' : 'Qulaylik (Lawson)')}${Wd.stale ? ` · ${tr('loyiha oʻzgargan — qayta hisoblang')}` : ''}` });
+    } else legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr(Wd ? 'Shamol oqimi hisoblanmagan — 6-qadam «Quyosh va shamol»' : 'Shamol maʼlumoti yoʻq — 6-qadam «Quyosh va shamol»') });
+  }
+
   // 2b. hovlilar (obodonlashtirish)
   const lY = Ly('yards');
   if (doc.settings.yards && lY.on && (K === 'bosh' || LS)) {
@@ -501,6 +517,19 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   if (S.north && !inner) {
     const nx = vx + vw - 12, ny = vy + 14, a = n2(-rot * 180 / Math.PI);
     lay('Shimol', 'Shimol', `<g transform="rotate(${a} ${nx} ${ny})"><circle cx="${nx}" cy="${ny}" r="7" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.3"/><path d="M${nx},${ny - 6}L${nx + 2.6},${ny + 4}L${nx},${ny + 2.4}Z" fill="#1d1d1b"/><path d="M${nx},${ny - 6}L${nx - 2.6},${ny + 4}L${nx},${ny + 2.4}Z" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.25"/><text x="${nx}" y="${ny - 7.8}" font-size="${T(3)}" font-weight="700" text-anchor="middle" fill="#1d1d1b">N</text></g>`);
+  }
+  // 04.11: shamol guli — varaqning chap yuqori burchagida (shimol strelkasi bilan bir xil burilish), ustun yoʻnalish strelkasi
+  if (K === 'shamol' && ctx?.wind && !inner) {
+    const Wd = ctx.wind, rx = vx + 26, ry = vy + 26, RR = 18, a = n2(-rot * 180 / Math.PI), out: string[] = [`<circle cx="${rx}" cy="${ry}" r="${RR + 5}" fill="#ffffff" fill-opacity="0.92" stroke="#1d1d1b" stroke-width="0.25"/>`];
+    const tot = Wd.rose.map(r => r.reduce((x, y) => x + y, 0)), mx = Math.max(1e-9, ...tot), COLS = ['#d6e6f2', '#a9cbe3', '#72a7cf', '#3f7fb5', '#215a8f', '#0f3460'];
+    [0.5, 1].forEach(f => out.push(`<circle cx="${rx}" cy="${ry}" r="${n2(RR * f)}" fill="none" stroke="#c9c6bf" stroke-width="0.15"/>`));
+    const Q = (r: number, an: number) => `${n2(rx + r * Math.sin(an))},${n2(ry - r * Math.cos(an))}`;
+    Wd.rose.forEach((bins, kk) => { let acc = 0; const a0 = (kk * 22.5 - 9) * Math.PI / 180, a1 = (kk * 22.5 + 9) * Math.PI / 180;
+      bins.forEach((v, b) => { if (v <= 0) return; const r0 = RR * Math.sqrt(acc / mx), r1 = RR * Math.sqrt((acc + v) / mx); acc += v; out.push(`<path d="M${Q(r0, a0)}L${Q(r1, a0)}A${n2(r1)},${n2(r1)} 0 0 1 ${Q(r1, a1)}L${Q(r0, a1)}A${n2(r0)},${n2(r0)} 0 0 0 ${Q(r0, a0)}Z" fill="${COLS[Math.min(5, b)]}"/>`); }); });
+    const da = Wd.dir * Math.PI / 180;
+    out.push(`<path d="M${Q(RR + 4, da)}L${Q(RR * 0.25, da)}" stroke="#d0342c" stroke-width="0.6"/><circle cx="${n2(rx + (RR + 4) * Math.sin(da))}" cy="${n2(ry - (RR + 4) * Math.cos(da))}" r="0.9" fill="#d0342c"/>`);
+    [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([t, d]) => { const an = Number(d) * Math.PI / 180; out.push(`<text x="${n2(rx + (RR + 2.6) * Math.sin(an))}" y="${n2(ry - (RR + 2.6) * Math.cos(an) + 0.9)}" font-size="${T(2.5)}" text-anchor="middle" fill="#6b6965">${t}</text>`); });
+    lay('Shamol_guli', 'Shamol guli', `<g transform="rotate(${a} ${rx} ${ry})">${out.join('')}</g><text x="${rx}" y="${n2(ry + RR + 9)}" font-size="${T(2.5)}" text-anchor="middle" fill="#1d1d1b">${esc(`${Wd.station} · ${tr('ustun')}: ${tr(Wd.prevailing)}`)}</text><text x="${rx}" y="${n2(ry + RR + 12.5)}" font-size="${T(2.5)}" text-anchor="middle" fill="#6b6965">${esc(`${String(Wd.mean.toFixed(1)).replace('.', ',')} m/s · ${tr('shtil')} ${Math.round(Wd.calm * 100)} % · ${Wd.src}`)}</text>`);
   }
   if (S.scaleBar && !inner) {
     const len = niceLen(Math.min(vw * 0.3, 80) / k), seg = len / 4, bx = vx + 6, by = vy + vh - 8, out: string[] = [];
