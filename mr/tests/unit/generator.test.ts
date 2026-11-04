@@ -27,15 +27,15 @@ describe('Seksiya generatori', () => {
     expect(r.notes.join()).toContain('79-band');
   });
   it('oʻtishlar: uzun qirrada 6 m arka qoladi', () => {
-    const a = generate(sq(260, 120), { ...DEFAULT_GEN, passages: true }), b = generate(sq(260, 120), { ...DEFAULT_GEN, passages: false });
-    // 27.10: oʻtish — boʻshliq emas, arka (2 qavat ochiq, ustida qavatlar): yer sathidagi iz kichikroq, arka seksiyasi bor
+    // 04.11 (egasi): 1-qavat ≥ 4,25 m — arka (faqat 1-qavat ochiq, portal); pastroq — arka yoʻq, oʻtish ochiq oraliq
+    const a = generate(sq(260, 120), { ...DEFAULT_GEN, passages: true, groundH: 4.5 }), b = generate(sq(260, 120), { ...DEFAULT_GEN, passages: false });
     const tot = (r: typeof a) => r.sections.filter(x => !x.z0).reduce((s, x) => s + area(x.ring), 0);
     expect(tot(a)).toBeLessThan(tot(b));
     const ar = a.sections.filter(x => x.kind === 'arka'); expect(ar.length).toBeGreaterThan(0);
-    for (const x of ar) expect((x.z0 ?? 0) * 3.3).toBeGreaterThanOrEqual(4.25);   // ShNQ 2.01.02-04, 1-son oʻzgartirish, 3.12
-    // 04.11 (egasi): arka = portal — 1-qavat ≥ 4,25 m boʻlsa faqat 1-qavat ochiq
-    const c = generate(sq(260, 120), { ...DEFAULT_GEN, passages: true, groundH: 4.5 });
-    for (const x of c.sections.filter(q => q.kind === 'arka')) expect(x.z0).toBe(1);
+    for (const x of ar) expect(x.z0).toBe(1);
+    const c = generate(sq(260, 120), { ...DEFAULT_GEN, passages: true });   // 1-qavat 3,3 m
+    expect(c.sections.filter(q => q.kind === 'arka')).toHaveLength(0);
+    expect(tot(c)).toBeLessThan(tot(b));   // oʻtish ochiq oraliq boʻlib qoladi
   });
   it('qatorlar: sharq–gʻarb, oraliq ≥ 2·Hmax', () => {
     const r = generate(sq(120, 200), { ...DEFAULT_GEN, typology: 'qatorlar', maxF: 9 });

@@ -19,10 +19,14 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`antresol �
   await expect(page.locator('#iAnt')).toBeDisabled();
   await expect(page.locator('#iAntSub')).toContainText('4,9');
   await page.fill('#iGroundH', '5.7'); await page.press('#iGroundH', 'Tab');
+  // 04.11 (egasi): balandlik yetsa antresol avtomatik yoqiladi
   await expect(page.locator('#iAnt')).toBeEnabled();
-  await page.click('#iAnt');
+  await expect(page.locator('#iAnt')).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('#iAntSub')).toContainText('2,7');
   const bid = await page.evaluate(() => (window as any).__mr.sel as string);
-  expect(await page.evaluate(id => (window as any).__mr.store.doc.buildings.find((b: any) => b.id === id).antresol, bid)).toBe(true);
   if (process.env.GX_SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/antresol_${w}${dark ? 'd' : 'l'}.png` }); }
+  // qoʻlda oʻchirish mumkin
+  await page.click('#iAnt');
+  await expect(page.locator('#iAnt')).toHaveAttribute('aria-checked', 'false');
+  expect(await page.evaluate(id => (window as any).__mr.store.doc.buildings.find((b: any) => b.id === id).antresol, bid)).toBe(false);
 });
