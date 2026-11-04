@@ -20,7 +20,7 @@ import type { Limit, LimitKind } from '../core/limits';
 type Geo = { lat: number; lon: number };
 export interface OsmEl { type: 'node' | 'way' | 'relation'; id: number; tags?: Record<string, string>; lat?: number; lon?: number; geometry?: Geo[]; members?: { type: string; role: string; geometry?: Geo[] }[] }
 
-export const LIM_OSM_R = 500;
+export const LIM_OSM_R = 1000;   // 04.11: sanoat korxonasi I sinf SMZ — 1000 m (SanQvaN 0350-17, 2.9); avval 500
 
 export function limitsQuery(site: LngLat[], r = LIM_OSM_R): string {
   const fr = frame(site[0]), loc = site.map(fr.toLocal), xs = loc.map(p => p[0]), ys = loc.map(p => p[1]);
@@ -35,6 +35,7 @@ export function limitsQuery(site: LngLat[], r = LIM_OSM_R): string {
   way["power"~"^(line|minor_line|cable)$"];
   node["power"~"^(tower|pole)$"];
   way["landuse"~"^(orchard|vineyard|farmland)$"];
+  way["landuse"="industrial"]; relation["landuse"="industrial"]; way["building"~"^(industrial|manufacture)$"]; way["man_made"="works"];
 );
 out geom qt;`;
 }
@@ -92,6 +93,14 @@ export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit
     if (t.landuse === 'cemetery' || t.amenity === 'grave_yard') { if (near(loc, S, 500)) add(e, 'qabriston', { rings: [r] }); continue; }
     if (t.landuse === 'greenhouse_horticulture' || t.building === 'greenhouse') { if (near(loc, S, 100)) add(e, 'issiqxona', { rings: [r] }); continue; }
     if (t.building === 'warehouse') { if (near(loc, S, 50)) add(e, 'ombor', { rings: [r] }); continue; }
+    // 04.11 (Murad Buildings sinovi, 8-band): sanoat korxonasi — SMZ sinfi korxona turiga qarab (2.9-band), OSM da yoʻq — qoʻlda kiritiladi.
+    // Markazi uchastka ichida boʻlsa — qayta qurilayotgan korxona: «buziladi» (taklif)
+    if (t.landuse === 'industrial' || t.man_made === 'works' || (t.building && /^(industrial|manufacture)$/.test(t.building))) {
+      if (!near(loc, S, 1000)) continue;
+      const c: XY = [loc.reduce((a, p) => a + p[0], 0) / loc.length, loc.reduce((a, p) => a + p[1], 0) / loc.length];
+      add(e, 'sanoat', pip(c, S) ? { rings: [r], status: 'buziladi' } : { rings: [r] });
+      continue;
+    }
     if (t.landuse && /^(orchard|vineyard|farmland)$/.test(t.landuse)) {
       if (near(loc, S, 0)) add(e, 'boshqa', { rings: [r], status: 'buziladi', name: e.tags?.name ?? ({ orchard: 'Bogʻ', vineyard: 'Uzumzor', farmland: 'Ekin maydoni' } as Record<string, string>)[t.landuse] });
       continue;
