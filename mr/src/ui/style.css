@@ -953,3 +953,7 @@ details.sp-lead[open] .sp-more{display:none}
 .hbig-plan svg{width:100%;height:100%;max-height:100%}
 .hbig-side{overflow:auto;gap:8px;max-height:min(76vh,760px);padding-right:2px}
 @media (max-width:820px){.hbig-grid{grid-template-columns:1fr}.hbig-plan{height:48vh}.hbig-side{max-height:none}}
+/* 04.11: «Sodda / Toʻliq» kaliti qoʻshilgach 1024–1180 px da yuqori panel sigʻishi uchun — «saqlandi» faqat nuqta (title/role=status saqlanadi), nom torroq */
+@media (max-width:1520px){.top .save>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.pname{max-width:160px}.top .brand{font-size:0;gap:0}.top .brand .logo{margin:0 2px}}
+@media (max-width:1366px){.top .pname{max-width:110px;min-width:0}.top .btn.popbtn{padding-left:10px;padding-right:8px;gap:4px}.top .seg button{padding:0 8px}.top .btn.popbtn>svg{display:none}}
+@media (max-width:1180px){.top .pname{max-width:72px;width:72px}.top .seg button{padding:0 6px;font-size:12px}}
