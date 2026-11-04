@@ -859,6 +859,8 @@ export class Editor {
 
   /** parsellar qadamida buziladiganlar foydalanuvchi tanloviga koʻra, keyingi qadamlarda — yashirin */
   private goneHidden = false;
+  /** 3-qadam: birinchi bosilgan mavjud bino (ikkinchi bosish — saqlash ↔ buzish) */
+  private keepArm: number | null = null;
   private syncGone(): void { const ip = STEPS.findIndex(x => x.id === 'parsel'), i = STEPS.indexOf(this.step); this.scene.setHideGone(i > ip || this.goneHidden); }
   private renderAll(): void {
     this.syncFade(); this.syncGone();
@@ -3511,7 +3513,7 @@ export class Editor {
             h('button', { class: 'btn btn-sm', id: 'keepAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: this.scene.inSite.map(x => x.id), at: this.keepAt(), rings: this.keepRings() })) }, tr('Hammasini saqlash')),
             h('button', { class: 'btn btn-sm', id: 'dropAll', onclick: () => this.run(() => this.store.dispatch({ type: 'setKeep', keep: [] })) }, tr('Hammasini buzish')),
             dm.gone ? h('button', { class: this.goneHidden ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-ghost', id: 'goneHide', 'aria-pressed': this.goneHidden, onclick: () => { this.goneHidden = !this.goneHidden; this.syncGone(); this.renderPanel(); } }, this.goneHidden ? `${tr('Buziladiganlar yashirilgan')} (${dm.gone})` : `${tr('Buziladiganlarni yashirish')} (${dm.gone})`) : '')),
-        h('span', { class: 't-small' }, tr(this.goneHidden ? 'Buziladigan binolar sahnada koʻrinmaydi; hisob va koʻchirish xarajati saqlanadi. Qaytarib, binoni bosib saqlash ↔ buzishni almashtirasiz.' : 'Sahnada binoni bosing — saqlash ↔ buzish. Buziladiganlar shaffof qizil. Keyingi qadamlarda ular avtomatik olib tashlanadi.')));
+        h('span', { class: 't-small' }, tr(this.goneHidden ? 'Buziladigan binolar sahnada koʻrinmaydi; hisob va koʻchirish xarajati saqlanadi. Qaytarib, binoni ikki marta bosib saqlash ↔ buzishni almashtirasiz.' : 'Sahnada binoni ikki marta bosing — saqlash ↔ buzish (birinchi bosish dahani tanlaydi). Buziladiganlar shaffof qizil. Keyingi qadamlarda ular avtomatik olib tashlanadi.')));
     }
     const tot = plan.blocks.filter(b => !b.parcelId).length + new Set(plan.blocks.filter(b => b.parcelId).map(b => b.blockKey)).size;
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartallar va parsellar')), h('span', {}, `${tot} ta · ${fmt(plan.blocks.reduce((s, b) => s + b.area, 0) / 1e4, 2)} ga`)),
@@ -4606,9 +4608,17 @@ export class Editor {
       }
       if (this.step.id === 'parsel') {
         const cid = this.scene.pickContextBuilding(e.clientX, e.clientY);
-        if (cid != null) { const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k], at: this.keepAt(), rings: this.keepRings() })); return; }
-        const oc = this.scene.pickAnyContext(e.clientX, e.clientY);
-        if (oc != null) { this.setMarked([], [oc]); return; }
+        // 04.11 (Murad Buildings sinovi, 7-band): daha funksiyasini tanlamoqchi boʻlgan foydalanuvchi bilmasdan zavod binosini «saqlanadi»
+        // qilib qoʻymasin — birinchi bosish: daha tanlanadi va bino belgilanadi; shu binoni yana bir bosish — saqlash ↔ buzish
+        if (cid != null) {
+          if (this.keepArm === cid) { this.keepArm = null; const k = new Set(this.store.doc.keep); k.has(cid) ? k.delete(cid) : k.add(cid); this.run(() => this.store.dispatch({ type: 'setKeep', keep: [...k], at: this.keepAt(), rings: this.keepRings() })); toast(tr(k.has(cid) ? 'Bino saqlanadi' : 'Bino buziladi')); return; }
+          this.keepArm = cid;
+          toast(tr(this.store.doc.keep.includes(cid) ? 'Bino saqlanadi — buzish uchun shu binoni yana bir marta bosing' : 'Bino buziladi — saqlash uchun shu binoni yana bir marta bosing'));
+        } else {
+          this.keepArm = null;
+          const oc = this.scene.pickAnyContext(e.clientX, e.clientY);
+          if (oc != null) { this.setMarked([], [oc]); return; }
+        }
         const p = this.scene.pickRoadPoint(e.clientX, e.clientY);
         { const rid = p ? this.osmRoadAt(p) : null; if (rid != null && !(p && this.plan().blocks.some(b => pointIn(p, b.rings)))) { this.setMarked([], [], this.store.doc, [rid]); return; } }
         if (p) { const i = this.plan().blocks.findIndex(b => pointIn(p, b.rings)), was = this.selBlock; this.selBlock = i >= 0 ? i : null; this.scene.selectBlock(this.selBlock); this.renderPanel(); if (i >= 0 && i === was) this.usePop(e.clientX, e.clientY, i); }   // birinchi bosish — tanlaydi, tanlanganini yana bosish — funksiya oynasi
