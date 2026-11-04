@@ -2186,7 +2186,7 @@ export class Editor {
   }
   private openReport(): void {
     const w = window.open('', '_blank'); if (!w) { toast('Brauzer yangi oynani bloklayapti — ruxsat bering'); return; }
-    const shots = this.scene.captureViews(this.store.doc);
+    const shots = this.scene.drawingShot(() => this.scene.captureViews(this.store.doc));   // 04.11: hisobot rasmlari — sahnaning ish holatisiz
     const ctx = this.sheetCtx(), doc = this.store.doc, so = (kind: SheetKind) => ({ ...SHEET_DEFAULT, kind, paper: 'A4' as const, show: { ...SHEET_DEFAULT.show, title: false } });
     const sheets = doc.site || doc.buildings.length ? (['bosh', 'zona'] as SheetKind[]).map(k => { const r = sheetSvg(doc, ctx, so(k)); return { name: `${tr(k === 'bosh' ? 'Bosh reja' : 'Zonalash')}, M 1:${r.scale}`, svg: r.svg }; }) : [];
     w.document.open(); w.document.write(reportHtml(doc, shots, this.tep(), this.allRules(), this.reportNotes(), sheets)); w.document.close();
@@ -4148,7 +4148,8 @@ export class Editor {
         return mapOnly(r.svg, r.scale) ?? undefined;
       },
       plans: () => this.chPlans(),
-      scene: () => { try { return this.scene.snapshot(); } catch { return null; } },
+      // 04.11: Chizmadon «Sahna rasmi» — joriy kamera va uslub, lekin ish belgilarisiz (izolyatsiya, tanlov, tutqichlar, kesim)
+      scene: () => { try { return this.scene.drawingShot(() => this.scene.snapshot()); } catch { return null; } },
       // yopilganda manzil loyihaning oʻziga qaytadi (aks holda qayta yuklashda Chizmadon yana ochiladi)
       onClose: () => { if (/\/chizmadon$/.test(location.hash)) history.replaceState(null, '', `#/p/${this.store.doc.id}`); },
     });
@@ -4250,17 +4251,25 @@ export class Editor {
     return out;
   }
 
+  /**
+   * Chizma aksonometriyasi: uslub — chizmaniki (oq maket, funksiya, fasad, figura-fon, qoralama), sahnaning ish holati
+   * (izolyatsiya, tanlov, kesim, kvartira ranglari, insolyatsiya, «Sodda») chizmaga tushmaydi (04.11, egasi); keyin hammasi qaytadi.
+   */
+  private axoShot(look: string | undefined, viewId: string | undefined, detail: boolean, ratio: number): string {
+    const sc = this.scene, doc = this.store.doc, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic' };
+    try {
+      return sc.drawingShot(() => {
+        sc.setStyle(map[look ?? 'oq'] ?? 'arctic'); sc.setDetail(look === 'qoralama' ? false : detail);
+        const v = doc.views.find(x => x.id === viewId); if (v) sc.setCamera(v); else { if (sc.view !== 'axo') sc.setView('axo'); sc.frameDoc(doc); }
+        return sc.snapshot(ratio);
+      });
+    } finally { sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam); }
+  }
+
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
     openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
-      axo: (look, viewId, detail, ratio) => {
-        const sc = this.scene, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic' };
-        sc.setStyle(map[look ?? 'oq']); sc.setDetail(look === 'qoralama' ? false : detail);
-        const v = doc.views.find(x => x.id === viewId); if (v) sc.setCamera(v); else { if (sc.view !== 'axo') sc.setView('axo'); sc.frameDoc(this.store.doc); }
-        const url = sc.snapshot(ratio);
-        sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam);
-        return url;
-      },
+      axo: (look, viewId, detail, ratio) => this.axoShot(look, viewId, detail, ratio),
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
       toChizmadon: (svg, name, scale, north) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, north }); },
       dxf: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } });

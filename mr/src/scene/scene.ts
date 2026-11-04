@@ -2015,6 +2015,30 @@ export class Scene3D {
   /** uchastka ichidagi mavjud (OSM) binolar */
   get inSite(): { id: number; rings: XY[][]; h: number }[] { return this.ctx?.inSite ?? []; }
 
+  /**
+   * 04.11 (egasi: «chizmaga oʻtganingda barcha stillarda oʻziga tegishli grafikada koʻrsatsin»): chizma (Grafika, Chizmadon, hisobot)
+   * rasmi sahnaning ish holatiga bogʻliq emas — izolyatsiya, tanlangan bino, kesim, ajratish, kvartira ranglari, insolyatsiya va
+   * shamol xaritasi, xato belgilari, tutqichlar va xarita qatlami vaqtincha oʻchiriladi; uslub (oq maket, funksiya, fasad…) — chizmaniki.
+   * fn tugagach sahna avvalgi holatiga qaytadi.
+   */
+  drawingShot<T>(fn: () => T): T {
+    const d = this.lastDoc;
+    const saved = { iso: this.iso, apt: this.aptView, sel: this.selected, clip: this.renderer.clippingPlanes, expl: this.exploded };
+    const opt: (THREE.Object3D | null | undefined)[] = [this.insol, this.aptBoxes, this.marks, this.overlapG, this.snapMark, this.satLayer?.mesh, this.baseMap?.mesh];
+    const hide: THREE.Object3D[] = [this.issueG, this.markG, this.aptG, this.frameG, ...this.grid, ...this.handles, ...this.explodeLabels, ...opt.filter((o): o is THREE.Object3D => !!o)];
+    const vis = hide.map(o => o.visible);
+    this.iso = null; this.isoLocal = null; this.aptView = null; this.selected = null; this.renderer.clippingPlanes = [];
+    if (saved.expl) { this.exploded = false; this.applyExplode(); }
+    hide.forEach(o => { o.visible = false; });
+    this.applyIsoCtx(); if (d) this.update(d);
+    try { return fn(); } finally {
+      this.iso = saved.iso; this.aptView = saved.apt; this.selected = saved.sel; this.renderer.clippingPlanes = saved.clip;
+      hide.forEach((o, i) => { o.visible = vis[i]; });
+      if (saved.expl) { this.exploded = true; this.applyExplode(); }
+      this.applyIsoCtx(); if (d) this.update(d); this.invalidate();
+    }
+  }
+
   /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
   snapshot(ratio = 0): string {
     this.forceFull = true; try { return this.snapshot0(ratio); } finally { this.forceFull = false; this.applyLite(); this.refreshLod(); }
