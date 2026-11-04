@@ -1856,6 +1856,10 @@ export class Editor {
     const size = doc.settings.aptSize ?? 'M';
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartira miksi')), h('span', {}, tr('maqsad → natija'))),
       h('div', { class: 'group', id: 'mixRow' }, ...rows),
+      // 04.11 (Murad Buildings sinovi, 7-band): natija maqsaddan > 5 punkt farq qilsa — sababi (miks loyiha boʻyicha tuzatilgandan keyin ham)
+      (() => { const tot = sm.total; if (!tot) return ''; const big = sm.byK.map((e, i) => ({ k: i + 1, d: e.share - mix[i] / sum })).filter(x => Math.abs(x.d) > 0.05); if (!big.length) return '';
+        const few = big.filter(x => x.d < 0).map(x => `${x.k} ${tr('xonali')} ${fmt(x.d * 100, 0)} %`), many = big.filter(x => x.d > 0).map(x => `${x.k} ${tr('xonali')} +${fmt(x.d * 100, 0)} %`);
+        return h('div', { class: 'note warn', id: 'mixWhy' }, h('b', {}, [...few, ...many].join(' · ')), h('div', {}, tr('Miks loyiha boʻyicha tuzatildi, lekin seksiya shakli cheklaydi: burchak, torets va kalta seksiyalarda faqat kichik kvartiralar sigʻadi; katta kvartiraga kamida 3–4 modul (≈ 10–13 m) fasad va 2 tomonlama yoritish kerak. Yaqinlashtirish uchun: «Hajmlar» da seksiya uzunligini oshiring yoki burchak seksiyalarini kamaytiring; kvartira oʻlchami L.'))); })(),
       // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — miks va reja; izoh, kvartira oʻlchami va studiya — «Qoʻshimcha» ichida (hech biri olib tashlanmagan)
       h('details', { class: 'gen-more', id: 'aptMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n: 2 })),
         h('span', { class: 't-small', style: 'margin-left:8px' }, `${tr('Kvartira oʻlchami')} ${size}${doc.settings.studio1 ? ` · ${tr('studiya')}` : ''}`)),

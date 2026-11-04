@@ -167,7 +167,22 @@ export function planApartments(doc: Project): SecPlan[] {
 }
 /** Turar joy seksiyalari rejasi (uylar, taunhauslar va stilobat — kvartirali emas) */
 function planApartmentsRaw(doc: Project): SecPlan[] {
-  const fr = frame(doc.origin), mix = doc.settings.aptMix;
+  // 04.11 (Murad Buildings sinovi, 7-band: maqsad 20/40/30/10, natija 37/34/21/8): har seksiya oʻz miksiga yaqinlashtiriladi, lekin
+  // burchak va kalta seksiyalar kichik kvartiralarga moyil — loyiha boʻyicha jami miks maqsaddan > 5 punkt farq qilsa, seksiyalarga
+  // beriladigan miks teskari tomonga tuzatilib (×0,4…×2,5) qayta rejalanadi; jami farqi kichigi olinadi
+  const want = doc.settings.aptMix, sw = want.reduce((a, b) => a + b, 0) || 1, W = want.map(x => x / sw);
+  const dev = (pl: SecPlan[]) => { const sm = aptSummary(pl); return sm.total ? sm.byK.reduce((t, e, i) => t + Math.abs(e.share - (W[i] ?? 0)), 0) / 2 : 0; };
+  let best = planWithMix(doc, want), bd = dev(best);
+  let mix: number[] = want;
+  for (let it = 0; it < 2 && bd > 0.05; it++) {
+    const real = aptSummary(best).byK.map(e => e.share);
+    mix = mix.map((m, i) => W[i] > 0 ? m * Math.min(2.5, Math.max(0.4, W[i] / Math.max(0.03, real[i] ?? 0))) : 0);
+    const p = planWithMix(doc, mix), d = dev(p); if (d < bd - 0.005) { best = p; bd = d; } else break;
+  }
+  return best;
+}
+function planWithMix(doc: Project, mix: number[]): SecPlan[] {
+  const fr = frame(doc.origin);
   const all = doc.buildings.filter(b => !SKIP.has(b.gen?.kind ?? '')).map(b => {
     const r = b.footprint.map(fr.toLocal); let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const p of r) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
