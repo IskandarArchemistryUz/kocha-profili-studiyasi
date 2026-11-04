@@ -16,6 +16,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     await page.click('#gridBest');
     await expect(page.locator('#insolCompass .chip')).toContainText('4 / 4');
     await expect(page.locator('#gridBest')).toHaveCount(0);
+    await expect(page.locator('#gridMore > summary')).toContainText('45°');   // 04.11 (A): burilish — «Qoʻshimcha» ichida, qiymati yigʻiq satrda
     await expect(page.locator('#gridAngV')).toContainText('45°');
     if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/kompas_45${dark ? '_dark' : ''}.png` });
     await page.click('#gridApply');
@@ -25,3 +26,24 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     expect(angs.length).toBeGreaterThan(2); for (const q of angs) expect(q).toBeCloseTo(45, 0);
   });
 }
+
+/** 04.11 (egasi: interfeysni soddalashtirish, A): Koʻchalar → Toʻr — «Toʻrni qoʻllash» kompasdan keyin darhol; burilish, profillar, perimetr «Qoʻshimcha» ichida */
+for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`koʻcha toʻri paneli A · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
+  await page.setViewportSize({ width: w, height: 860 });
+  await page.goto('./'); await page.click('#newP');
+  if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '400'); await page.fill('#rh', '300'); await page.click('#rectSite');
+  await page.click('[data-step=kocha]'); if (await page.locator('[data-ktab=tor]').count()) await page.click('[data-ktab=tor]');
+  await expect(page.locator('#gridMore')).not.toHaveAttribute('open', '');
+  for (const q of ['#gridAng', '#gridPerim', '#gridMain']) { await expect(page.locator(q)).toHaveCount(1); await expect(page.locator(q)).toBeHidden(); }
+  await expect(page.locator('#insolCompass')).toBeVisible();
+  expect(await page.evaluate(() => { const a = document.querySelector('#insolCompass')!, b = document.querySelector('#gridApply')!, c = document.querySelector('#gridMore')!; return !!(a.compareDocumentPosition(b) & 4) && !!(b.compareDocumentPosition(c) & 4); })).toBe(true);
+  if (process.env.GX_SHOTS) { await page.locator('#gridApply').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/tor_a_${w}${dark ? 'd' : 'l'}.png` }); }
+  await page.click('#gridPerim');
+  await expect(page.locator('#gridMore')).toHaveAttribute('open', '');
+  await expect(page.locator('#gridMore > summary')).toContainText('perimetr');
+  await page.click('#gridApply');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.streets.length)).toBeGreaterThan(2);
+});

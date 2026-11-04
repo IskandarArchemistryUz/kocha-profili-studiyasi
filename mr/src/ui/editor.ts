@@ -3026,18 +3026,22 @@ export class Editor {
       h('div', { class: 'glabel' }, h('span', {}, tr('Joylashuv'))),
       h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Variantlar') }, ...vars.map((v, i) => h('button', { class: 'tile', 'data-gvar': i, 'aria-pressed': this.gridVar === i, onclick: () => { this.gridVar = i; this.renderPanel(); } },
         h('span', { class: 'th', html: this.gridThumb(site, v.g, 64, 44) }), h('span', {}, tr(v.name)), h('span', { class: 'sub' }, `${gridStreetsAround(site, keepC, v.g, avoidG).length} ${tr('koʻcha')}`)))),
-      h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Burilish')), h('div', { class: 'grow' }, ang), angT),
       this.compassBox(site, g),
-      h('div', { class: 'group' }, profRow('main', tr('Asosiy')), profRow('minor', tr('Ikkilamchi')), h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 't-small', style: 'flex-basis:100%' }, tr('Asosiy koʻchalar')), mainSel)),
-      h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Perimetr boʻylab koʻcha'), h('span', { class: 'sub' }, tr('Uchastka chegarasi boʻylab — qizil chiziq chegarada, toʻr koʻchalari unga ulanadi'))),
-        sw({ id: 'gridPerim', label: tr('Perimetr boʻylab koʻcha'), on: this.gridPerim, onchange: v => { this.gridPerim = v; this.renderPanel(); } })),
-        this.gridPerim ? h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('div', { style: 'flex-basis:100%' }, select({ id: 'gridPerimProf', 'aria-label': tr('Perimetr koʻchasi profili'), onchange: v => { this.gridPerimProf = v; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: this.gridPerimProf === x.id }))))) : ''),
-      nKeep ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mavjud koʻchalarni saqlash'), h('span', { class: 'sub' }, tf('${n} ta mavjud koʻcha uchastkani kesib oʻtadi — loyihaga olinadi, toʻr ular orasiga joylanadi', { n: nKeep }))),
-        sw({ id: 'gridKeep', label: tr('Mavjud koʻchalarni saqlash'), on: this.gridKeep, onchange: v => { this.gridKeep = v; this.renderPanel(); } }))) : '',
       h('div', { class: 'row' },
         h('button', { class: 'btn btn-primary btn-lg grow', id: 'gridApply', onclick: apply }, tr(has ? 'Qayta qoʻllash' : 'Toʻrni qoʻllash')),
         has ? h('button', { class: 'btn btn-lg icon-btn', id: 'gridClear', title: tr('Toʻrni olib tashlash'), 'aria-label': tr('Toʻrni olib tashlash'), onclick: () => this.run(() => this.store.dispatch({ type: 'setGridStreets', streets: [] })) }, svgIcon(IC.trash)) : ''),
-      h('span', { class: 't-small' }, tr('Avvalgi toʻr almashtiriladi, qoʻlda chizilganlar qoladi. Uchlari 40 m ichidagi yoʻllarga ulanadi.')));
+      h('span', { class: 't-small' }, tr('Avvalgi toʻr almashtiriladi, qoʻlda chizilganlar qoladi. Uchlari 40 m ichidagi yoʻllarga ulanadi.')),
+      // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — blok moduli, oʻlcham, joylashuv, insolyatsiya kompasi (30.10, egasi) va «Toʻrni qoʻllash»;
+      // burilish, profillar, perimetr va mavjud koʻchalar — «Qoʻshimcha» ichida (hech biri olib tashlanmagan, id lar saqlangan)
+      h('details', { class: 'gen-more', id: 'gridMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n: 4 + (nKeep ? 1 : 0) })),
+        h('span', { class: 't-small', style: 'margin-left:8px' }, `${angT.textContent} · ${fmt(profileWidth(profileById(g.profiles.main)), 0)} / ${fmt(profileWidth(profileById(g.profiles.minor)), 0)} m${this.gridPerim ? ` · ${tr('perimetr')}` : ''}`)),
+        h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Burilish')), h('div', { class: 'grow' }, ang), angT),
+        h('div', { class: 'group' }, profRow('main', tr('Asosiy')), profRow('minor', tr('Ikkilamchi')), h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 't-small', style: 'flex-basis:100%' }, tr('Asosiy koʻchalar')), mainSel)),
+        h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Perimetr boʻylab koʻcha'), h('span', { class: 'sub' }, tr('Uchastka chegarasi boʻylab — qizil chiziq chegarada, toʻr koʻchalari unga ulanadi'))),
+          sw({ id: 'gridPerim', label: tr('Perimetr boʻylab koʻcha'), on: this.gridPerim, onchange: v => { this.gridPerim = v; this.renderPanel(); } })),
+          this.gridPerim ? h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('div', { style: 'flex-basis:100%' }, select({ id: 'gridPerimProf', 'aria-label': tr('Perimetr koʻchasi profili'), onchange: v => { this.gridPerimProf = v; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: this.gridPerimProf === x.id }))))) : ''),
+        nKeep ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mavjud koʻchalarni saqlash'), h('span', { class: 'sub' }, tf('${n} ta mavjud koʻcha uchastkani kesib oʻtadi — loyihaga olinadi, toʻr ular orasiga joylanadi', { n: nKeep }))),
+          sw({ id: 'gridKeep', label: tr('Mavjud koʻchalarni saqlash'), on: this.gridKeep, onchange: v => { this.gridKeep = v; this.renderPanel(); } }))) : ''));
     body.append(box);
   }
 
@@ -3119,10 +3123,11 @@ export class Editor {
     box.append(h('button', { class: 'btn btn-block', id: 'limOsm', disabled: this.limOsm.busy, onclick: () => void this.detectLimits(false) }, ...icl('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', tr(this.limOsm.busy ? 'OSM dan aniqlanmoqda…' : 'OSM dan aniqlash'))));
     if (this.limOsm.msg) box.append(h('div', { class: 'note', id: 'limOsmMsg' }, this.limOsm.msg));
     box.append(h('span', { class: 't-small' }, tr('Qabriston, issiqxona, ombor, temir yoʻl, ELU (kuchlanishi va tayanchlari bilan), bogʻ va ekin maydonlari — uchastka atrofida 500 m. Yoʻq boʻlsa — qoʻlda chizing.')));
-    box.append(h('div', { class: 'glabel' }, h('span', {}, tr('Chizish'))));
+    // 04.11 (egasi: interfeysni soddalashtirish, A): qoʻlda chizish tugmalari (8 tur) — «Qoʻlda chizish» ichida; chizish davomida «Tugatish» koʻrinib turadi
+    const limAdd = h('details', { class: 'gen-more', id: 'limAddMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻlda chizish · ${n}', { n: Editor.LIM_KINDS.length }))));
     if (this.limDraw && this.tool) box.append(h('button', { class: 'btn btn-primary btn-block', id: 'limStop', onclick: () => this.endTool() }, ...icl(IC.check, tf('Tugatish: ${k}', { k: this.limName(this.limDraw) }))),
       h('span', { class: 't-small' }, tr(this.limDraw === 'elu' ? 'Nuqtalarni bosing · 2× bosish yoki Enter — tugatish · Esc — bekor' : 'Bosing — nuqta qoʻying · Backspace — oxirgisini oʻchirish · Esc — bekor')));
-    else box.append(h('div', { role: 'group', 'aria-label': tr('Cheklov turi'), style: 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px' },
+    else box.append(limAdd), limAdd.append(h('div', { role: 'group', 'aria-label': tr('Cheklov turi'), style: 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px' },
       ...Editor.LIM_KINDS.map(([k, t]) => h('button', { class: 'btn btn-sm', 'data-limadd': k, title: tf('${t} chizish', { t: tr(t) }), style: 'justify-content:flex-start;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', onclick: () => this.startLimit(k) }, ...icl(IC.plus, tr(t))))));
     if (!ls.length) { box.append(h('span', { class: 't-small' }, tr('Uchastka ichidagi yoki yonidagi qabriston, issiqxona, ombor, temir yoʻl, ELU — turini tanlab, sahnada chizing. Sanitariya himoya zonasi (SMZ) va qurib boʻlmaydigan joy avtomatik hisoblanadi.'))); return box; }
     const ST: [Limit['status'], string][] = [['saqlanadi', 'Saqlanadi'], ['buziladi', 'Buziladi'], ['kochiriladi', 'Koʻchiriladi']];
