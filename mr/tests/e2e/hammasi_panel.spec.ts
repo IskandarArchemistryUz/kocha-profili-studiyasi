@@ -15,12 +15,13 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`«Hammasi�
   await page.fill('#gMax', '14'); await page.press('#gMax', 'Tab');
   await page.click('#genAll');
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length), { timeout: 60000 }).toBeGreaterThan(10);
-  expect(await maxF()).toBeGreaterThan(9);
-  // panelda «eng koʻp» 9 — «Hammasi» hamma dahalarga qoʻllaydi
-  await page.fill('#gMax', '9'); await page.press('#gMax', 'Tab');
+  // 04.11: generator meʼyorga moslaydi (core/normfix) — qavat 14 dan pastroq boʻlishi mumkin, lekin 5 dan baland
+  expect(await maxF()).toBeGreaterThan(5);
+  // panelda «eng koʻp» 5 — «Hammasi» hamma dahalarga qoʻllaydi
+  await page.fill('#gMax', '5'); await page.press('#gMax', 'Tab');
   await expect(page.locator('#allOwn')).toHaveAttribute('aria-checked', 'false');
   await page.click('#genAll');
-  await expect.poll(maxF, { timeout: 60000 }).toBeLessThanOrEqual(9);
+  await expect.poll(maxF, { timeout: 60000 }).toBeLessThanOrEqual(5);
   if (process.env.GX_SHOTS) { await page.locator('#allOwnRow').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/hammasi_${w}${dark ? 'd' : 'l'}.png` }); }
   // «har daha oʻz sozlamasi bilan» — oldingi xatti-harakat: tanlanmagan dahalar oxirgi sozlamasi (9) bilan qoladi, panel 14 boʻlsa ham
   await page.click('#allOwn'); await expect(page.locator('#allOwn')).toHaveAttribute('aria-checked', 'true');
