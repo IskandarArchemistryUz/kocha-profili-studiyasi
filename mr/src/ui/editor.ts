@@ -268,6 +268,8 @@ export class Editor {
       this.prefBtn(lang, theme), this.acctBtn());
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
+    // 04.11 (beqaror testlar): hisob tugab panel qayta chizilishi yozuv paytida kechiktiriladi — fokus paneldan chiqqanda chiziladi
+    panel.addEventListener('focusout', (e: FocusEvent) => { if (this.panelDirty && !(e.relatedTarget instanceof Node && panel.contains(e.relatedTarget))) { this.panelDirty = false; this.renderPanel(); } });
     const kpi = h('div', { class: 'kpibar glassbar', role: 'group', 'aria-label': tr('Koʻrsatkichlar') });
     // asboblar: pastda markazda (7-qoida) — tanlash, qoʻl, chizgʻich, kesim, pipetka, bekor/qaytarish
     const tb = h('div', { class: 'tb glassbar', role: 'toolbar', 'aria-label': tr('Asboblar') });
@@ -3858,6 +3860,7 @@ export class Editor {
     });
   }
   private renderPanel(): void {
+    this.panelDirty = false;
     this.showAptBoxes(); this.syncBTools(); this.syncHandles();
     if (this.sframe) { this.el.panel.classList.remove('shut'); this.root?.classList.remove('pshut'); this.renderFramePanel(); return; }
     const shut = !this.panelOpen && !this.inspOn(); this.el.panel.classList.toggle('shut', shut); this.root?.classList.toggle('pshut', shut);
@@ -4284,6 +4287,11 @@ export class Editor {
   /* ---------- koʻrsatkichlar va meʼyorlar ---------- */
   /** koʻrsatkichlar: 4 asosiy koʻrinadi, «Barcha koʻrsatkichlar» — 8 ta; «Meʼyorlar» — pastki oyna (reyestr) */
   private kpiAll = false;
+  private panelDirty = false;
+  private typingInPanel(): boolean {
+    const ae = document.activeElement as HTMLInputElement | null;
+    return !!ae && this.el.panel.contains(ae) && (ae.tagName === 'TEXTAREA' || (ae.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(ae.type)));
+  }
   private renderKpi(): void {
     const c = this.last; if (!c) return;
     setExportArea(c.d.siteHa ?? 0); setExportProject(this.store.doc.id);   // narx × k = √(ga/3), loyiha shifti
@@ -4306,7 +4314,9 @@ export class Editor {
       h('button', { class: 'ib sm', id: 'kAll', 'aria-label': tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), title: tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), 'aria-pressed': this.kpiAll, onclick: () => { this.kpiAll = !this.kpiAll; this.renderKpi(); } }, svgIcon(this.kpiAll ? '<path d="M15 6l-6 6 6 6"/>' : '<path d="M9 6l6 6-6 6"/>')),
       h('button', { class: `btn more${open && this.el.drawer.dataset.kind === 'reg' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open && this.el.drawer.dataset.kind === 'reg', onclick: () => { const reg = this.el.drawer.dataset.kind === 'reg'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar'), (() => { /* 31.10 (A variant, 3-bosqich): holat doim koʻrinadi — mos emaslar soni (xorijda — andoza holatlari bilan) */ const rs = abroadRules(c.results, placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms), nf = rs.filter(r => r.status === 'fail').length, nr = rs.filter(r => r.status === 'review').length; return h('span', { class: 'kst', id: 'kStat', 'data-s': nf ? 'fail' : nr ? 'review' : 'pass', title: nf ? tf('${n} ta meʼyor mos emas', { n: nf }) : nr ? tf('${n} ta koʻrib chiqish', { n: nr }) : tr('Hammasi mos') }, h('i'), nf ? String(nf) : nr ? String(nr) : '✓'); })()));
     if (!this.el.drawer.hidden && this.el.drawer.dataset.kind === 'reg') this.el.drawer.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, tr('Meʼyoriy reyestr')), h('button', { class: 'ib sm', 'aria-label': tr('Yopish'), onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); } }, svgIcon(IC.x))), this.register());
-    if (['tekshiruv', 'uchastka', 'kocha', 'yashil'].includes(this.step.id)) this.renderPanel();
+    // 04.11 (beqaror testlar): son maydoniga yozilayotganda (masalan uchastka eni) qayta chizilsa, son belgilashi oʻqilmagani uchun yangi
+    // qiymat eskisiga qoʻshilib ketardi («120» + «400» → «120400» — uchastka qoʻyilmasdi). Yozuv tugaguncha (fokus paneldan chiqguncha) kutiladi.
+    if (['tekshiruv', 'uchastka', 'kocha', 'yashil'].includes(this.step.id)) { if (this.typingInPanel()) this.panelDirty = true; else this.renderPanel(); }
   }
 
   /** Seysmik boʻlmalar sozlamasi (QMQ 2.01.03-19): maydon balli (SMT xaritasi yoki grunt toifasi, 1.6-band) va yuk koʻtaruvchi tizim (3.1-jadval) */
