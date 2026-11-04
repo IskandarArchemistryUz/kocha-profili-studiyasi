@@ -30,6 +30,8 @@ export interface SheetsHost {
   svc?: () => SheetSvc[];
   /** 02.11: oxirgi insolyatsiya xaritasi (6-qadam) */
   insol?: () => SheetCtx['insol'];
+  /** 04.11: shamol guli va oxirgi oqim xaritasi (6-qadam) */
+  wind?: () => SheetCtx['wind'];
   /** varaqlar va uslublarni hujjatga yozish */
   save: (sheets: SheetDoc[], styles: NonNullable<Project['sheetStyles']>) => void;
   /** reja va hajmlar DXF (mavjud eksport) */
@@ -71,7 +73,7 @@ export function norm(o: Record<string, unknown>): SheetOpts {
  * zonalashtirish, figura-fon, landshaft, qavatlar soni, vaziyat sxemasi); har bino turidan 1-qavat va tipik qavat; har past qavatli uy
  * turidan har qavat rejasi (core/albumset).
  */
-const SET_V = 6;
+const SET_V = 7;   // 04.11: shamol varagʻi qoʻshildi
 function defaultSheets(doc: Project): SheetDoc[] {
   const base = lastOpts(), mk = (o: Partial<SheetOpts>): SheetDoc => ({ id: uid('sh_'), opts: { ...base, mode: 'reja', title: '', stamp: {}, ...o } as unknown as Record<string, unknown> });
   const out: SheetDoc[] = [
@@ -82,6 +84,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'cheklov', scale: 0 }),   // 02.11: tahlil — cheklovlar rejasi va yer balansi
     mk({ kind: 'yashil', scale: 0 }), mk({ kind: 'insol', scale: 0 }),   // 02.11: tahlil — yashil balans, insolyatsiya
     mk({ kind: 'transport', scale: 0 }),   // 02.11: tahlil 4 — transport sxemasi
+    mk({ kind: 'shamol', scale: 0 }),   // 04.11: tahlil — shamol guli va oqim
   ];
   for (const sv of ['mtm', 'maktab', 'poliklinika', 'bekat']) out.push(mk({ kind: 'xizmat', svc: sv, scale: 0 }));   // 02.11: tahlil — xizmat radiuslari (editor SVC_ON)
   for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));
@@ -144,9 +147,9 @@ export function openGraphics(host: SheetsHost): void {
   let svcData: SheetSvc[] | undefined;
   const svcs = (): SheetSvc[] => (svcData ??= host.svc?.() ?? []);
   const ctxOf = (o: SheetOpts): SheetCtx | null => {
-    if (o.kind !== 'xizmat' && o.kind !== 'insol') return host.ctx;
+    if (o.kind !== 'xizmat' && o.kind !== 'insol' && o.kind !== 'shamol') return host.ctx;
     const base = host.ctx ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] };
-    return o.kind === 'insol' ? { ...base, insol: host.insol?.() ?? null } : { ...base, svc: svcs() };
+    return o.kind === 'insol' ? { ...base, insol: host.insol?.() ?? null } : o.kind === 'shamol' ? { ...base, wind: host.wind?.() ?? null } : { ...base, svc: svcs() };
   };
   const memo = new Map<string, { r: SheetResult; inner: SheetInner | undefined }>();
   const mkey = (o: SheetOpts, i: number) => `${i}|${sheets.length}|${JSON.stringify(o)}`;

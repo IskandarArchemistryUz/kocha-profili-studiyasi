@@ -97,6 +97,18 @@ describe('Grafika varaqlari', () => {
     for (const c of ['#2b3a67', '#7fb3c8', '#f9b24e']) expect(ins).toContain(`fill="${c}"`);
     expect(r.legend.map(l => l.label).join('|')).toMatch(/22\.03/);
   });
+  it('tahlil (04.11): shamol — guli doim, oqim katakchalari hisoblangan boʻlsa', () => {
+    const p = project(), rose = Array.from({ length: 16 }, (_, k) => [k === 4 ? 0.1 : 0.02, 0.01, 0, 0, 0, 0]);
+    const w0 = { station: 'Tashkent 5 km', src: 'TMYx (EPW)', rose, dir: 90, prevailing: 'sharq', mean: 1.8, calm: 0.2 };
+    expect(sheetSvg(p, ctx, opts({ kind: 'shamol' })).legend.some(l => /maʼlumoti yoʻq/.test(l.label))).toBe(true);
+    const a = sheetSvg(p, { ...ctx, wind: w0 }, opts({ kind: 'shamol' }));
+    expect(a.svg).toContain('id="Shamol_guli"'); expect(a.svg).not.toContain('id="Shamol_oqimi"');
+    expect(a.legend.some(l => /hisoblanmagan/.test(l.label))).toBe(true);
+    const pts: XY[] = [[-50, -50], [0, 0], [50, 50]], b = sheetSvg(p, { ...ctx, wind: { ...w0, pts, cols: ['#2b3a67', '#e8e4c9', '#d9534f'], cell: 5, legend: [['#2b3a67', 'pana'], ['#d9534f', 'noqulay']], mode: 'lawson' } }, opts({ kind: 'shamol' }));
+    const g = b.svg.match(/<g id="Shamol_oqimi"[^>]*>(.*?)<\/g>/s)![1];
+    for (const c of ['#2b3a67', '#e8e4c9', '#d9534f']) expect(g).toContain(`fill="${c}"`);
+    expect(b.legend.map(l => l.label).join('|')).toMatch(/Lawson/);
+  });
   it('tahlil 4 (02.11): transport sxemasi — koʻcha toifasi, bekat radiusi, jadval', () => {
     const p = project(), fr = frame(p.origin);
     p.pois = [{ id: 'q', kind: 'bekat', at: fr.toGeo([0, -60]) } as never];
