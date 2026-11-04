@@ -1,0 +1,1 @@
+export{l as sendToRender}from"./inbox-DpHYpPm4.js";
