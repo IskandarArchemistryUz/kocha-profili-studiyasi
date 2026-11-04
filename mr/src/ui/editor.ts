@@ -215,6 +215,7 @@ export class Editor {
     try { if (localStorage.getItem('mr-paper') !== '0') this.el.scene.setAttribute('data-paper', ''); } catch { this.el.scene.setAttribute('data-paper', ''); }
     this.scene.onLabels = () => this.renderLblBar();
     try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
+    try { if (localStorage.getItem('mr-lite') === 'toliq') this.scene.lite = 'toliq'; } catch { /* */ }
     this.scene.update(doc); this.scene.frameDoc(doc);
     this.ul = new UserLayersUI({ store: this.store, scene: this.scene, run: fn => this.run(fn), refresh: () => this.refreshPop(), bundle: () => (this.store.doc.context.loaded ? this.ctxMgr.current : null), redrawContext: () => { if (this.store.doc.context.loaded) this.showContext(this.ctxMgr.current); } });
     this.ul.sync(doc);
@@ -249,6 +250,10 @@ export class Editor {
     const save = h('span', { class: 'save', 'data-s': 'saved', role: 'status' }, h('i'), saveT);
     const seg = h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Koʻrinish') },
       ...([['plan', 'Reja'], ['axo', 'Akso'], ['persp', 'Persp']] as [ViewMode, string][]).map(([k, t]) => h('button', { 'data-view': k, 'aria-pressed': k === 'plan', onclick: () => this.setView(k) }, tr(t))));
+    // 04.11 (egasi: sahnani yengillashtirish, B): «Sodda» — uzoqdan derazalar va daraxt tanalari oʻchadi, yaqinlashganda qaytadi; «Toʻliq» — doim toʻliq
+    let lite0: 'sodda' | 'toliq' = 'sodda'; try { if (localStorage.getItem('mr-lite') === 'toliq') lite0 = 'toliq'; } catch { /* */ }
+    const liteSeg = h('div', { class: 'seg sm', role: 'group', id: 'liteSeg', 'aria-label': tr('Sahna tafsiloti'), title: tr('Sodda: uzoqdan derazalar va daraxt tanalari koʻrsatilmaydi (yengil sahna), yaqinlashganda qaytadi. Rasm, albom va eksport doim toʻliq.') },
+      ...([['sodda', 'Sodda'], ['toliq', 'Toʻliq']] as const).map(([k, t]) => h('button', { 'data-lite': k, 'aria-pressed': lite0 === k, onclick: () => { this.scene.setLite(k); try { localStorage.setItem('mr-lite', k); } catch { /* */ } liteSeg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.lite === k))); } }, tr(t))));
     // til: 10 til, menyu (butun interfeys qayta chiziladi)
     const lang = langMenu(l => { void this.setLang(l); });
     const theme = ib('themeBtn', isDark() ? 'Yorugʻ rejim' : 'Tungi rejim', isDark() ? ICON.sun : ICON.moon, () => toggleTheme(), 'ib sm');
@@ -258,7 +263,7 @@ export class Editor {
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, logoSvg(18), 'Archemistry Lab'),
       h('span', { class: 'svcbadge' }, h('i'), tr('Master reja')),
       name, save, h('span', { class: 'spacer' }),
-      seg,
+      seg, liteSeg,
       this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
       // 31.10 (A variant, «Tartib»): taqdimot vositalari — bitta menyuda (Grafika, Chizmadon); id lar saqlangan
       this.popBtn('presPop', tr('Taqdimot'), () => h('div', { class: 'col menu-col' },
