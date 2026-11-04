@@ -9,6 +9,8 @@
  *  - temir yoʻl: railway=rail (oʻq atrofida 6 m yoʻlak — izlar koridori, TAXMIN);
  *  - ELU: power=line / minor_line (havo), power=cable (kabel); kuchlanish — voltage tegidan (V → kV, eng kattasi);
  *    tayanchlar — power=tower / pole nuqtalari, eng yaqin liniyaga (≤ 15 m) biriktiriladi;
+ *  - suv obyektlari (04.11, Murad sinovi, 6-band): waterway=river|stream|canal|drain|ditch (chiziq — oʻq), natural=water (koʻl, suv ombori;
+ *    water=river|canal — daryo/kanal yuzasi); toifa (sarf) OSM da yoʻq — river «oʻrta», stream «juda kichik», canal — kiritilmagan;
  *  - yer foydalanishi (qimmatli yerlar): landuse=orchard / vineyard / farmland — uchastka bilan kesishganlari, sukut «buziladi»
  *    (cheklov emas, yer balansi va yoʻqotiladigan yerlar uchun).
  * Hammasi src: 'osm', osm: id — foydalanuvchi holat, turini oʻzgartiradi yoki oʻchiradi.
@@ -35,6 +37,7 @@ export function limitsQuery(site: LngLat[], r = LIM_OSM_R): string {
   way["power"~"^(line|minor_line|cable)$"];
   node["power"~"^(tower|pole)$"];
   way["landuse"~"^(orchard|vineyard|farmland)$"];
+  way["waterway"~"^(river|stream|canal|drain|ditch)$"]["tunnel"!="culvert"]["tunnel"!="yes"]; way["natural"="water"]; relation["natural"="water"];
   way["landuse"="industrial"]; relation["landuse"="industrial"]; way["building"~"^(industrial|manufacture)$"]; way["man_made"="works"];
 );
 out geom qt;`;
@@ -87,6 +90,13 @@ export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit
       add(e, 'elu', { axis, ...(kv ? { kv } : {}), elu: t.power === 'cable' || t.location === 'underground' ? 'kabel' : 'mavjud', ...(pl.length ? { poles: pl } : {}) });
       continue;
     }
+    // 04.11: suv oqimi (chiziq) — daryo yoki kanal oʻqi
+    if (t.waterway && /^(river|stream|canal|drain|ditch)$/.test(t.waterway) && e.geometry && e.geometry.length >= 2) {
+      const axis = e.geometry.map(p => [p.lon, p.lat] as LngLat), loc = axis.map(fr.toLocal), riv = t.waterway === 'river' || t.waterway === 'stream';
+      if (!near(loc, S, riv ? 300 : 60)) continue;
+      add(e, 'suv', { axis, suv: riv ? { t: 'daryo', q: t.waterway === 'stream' ? 4 : 2 } : { t: 'kanal', ...(t.waterway === 'canal' ? {} : { q: 2 }) } });
+      continue;
+    }
     // temir yoʻl — oʻq atrofida 6 m izlar koridori
     if (t.railway === 'rail' && e.geometry && e.geometry.length >= 2) {
       const loc = e.geometry.map(p => [p.lon, p.lat] as XY).map(p => fr.toLocal(p as LngLat));
@@ -111,6 +121,11 @@ export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit
       add(e, 'sanoat', pip(c, S) ? { rings: [r], status: 'buziladi' } : { rings: [r] });
       continue;
     }
+    if (t.natural === 'water') {
+      const w = t.water ?? '', tp = /^(river|oxbow|stream)$/.test(w) ? 'daryo' : /^(canal|ditch|drain)$/.test(w) ? 'kanal' : 'kol';
+      if (near(loc, S, tp === 'daryo' ? 300 : 250)) add(e, 'suv', { rings: [r], suv: tp === 'daryo' ? { t: 'daryo', q: 2 } : { t: tp } });
+      continue;
+    }
     if (t.landuse && /^(orchard|vineyard|farmland)$/.test(t.landuse)) {
       if (near(loc, S, 0)) add(e, 'boshqa', { rings: [r], status: 'buziladi', name: e.tags?.name ?? ({ orchard: 'Bogʻ', vineyard: 'Uzumzor', farmland: 'Ekin maydoni' } as Record<string, string>)[t.landuse] });
       continue;
@@ -127,7 +142,7 @@ export function newOnes(found: Limit[], have: Limit[], origin: LngLat): Limit[] 
     if (f.osm != null && ids.has(f.osm)) return false;
     const c = cen(f);
     if (c && have.some(h => h.kind === f.kind && h.rings?.[0] && pip(c, h.rings[0].map(fr.toLocal)))) return false;
-    if (f.kind === 'elu' && f.axis) { const a = f.axis.map(fr.toLocal); if (have.some(h => h.kind === 'elu' && h.axis && a.every(p => h.axis!.map(fr.toLocal).some((q, i, arr) => i > 0 && segD(p, arr[i - 1], q) <= 20)))) return false; }
+    if ((f.kind === 'elu' || f.kind === 'suv') && f.axis) { const a = f.axis.map(fr.toLocal); if (have.some(h => h.kind === f.kind && h.axis && a.every(p => h.axis!.map(fr.toLocal).some((q, i, arr) => i > 0 && segD(p, arr[i - 1], q) <= 20)))) return false; }
     return true;
   });
 }

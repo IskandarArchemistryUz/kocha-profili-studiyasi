@@ -454,18 +454,27 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       const seen = new Set<string>();
       for (const { q } of pz) { const lab = `${tr('SMZ')} — ${tr(useDef(q.use).name)}, ${q.szz} m`; if (seen.has(lab)) continue; seen.add(lab); legend.push({ type: 'fill', fill: '#e6dcef', stroke: PZ, label: lab }); }
     }
+    // 04.11: suvni muhofaza qilish zonasi (981-son nizom) — koʻk uzuq kontur; qirgʻoq boʻyi mintaqasi — shtrix (qurib boʻlmaydi)
+    if (z.water.length) {
+      const WZ = '#2f7fb5';
+      g('Suv_muhofaza_zonasi', z.water.map(w => `<path d="${polyD(w.rings)}" fill="${WZ}" fill-opacity="0.12" stroke="${WZ}" stroke-width="${lw(0.35)}" stroke-dasharray="2 1" fill-rule="evenodd"/>`).join(''));
+      const seen = new Set<string>();
+      for (const w of z.water) { const lab = `${tr('Suvni muhofaza qilish zonasi')}, ${w.m} m`; if (seen.has(lab)) continue; seen.add(lab); legend.push({ type: 'fill', fill: '#d6e7f2', stroke: WZ, label: lab }); }
+    }
+    const suvL = (doc.limits ?? []).filter(l => l.kind === 'suv' && isActive(l) && !l.rings?.length && l.axis && l.axis.length > 1);
+    if (suvL.length) g('Suv_oqimi', suvL.map(l => `<path d="${lineD(l.axis!.map(fr.toLocal))}" fill="none" stroke="#2f7fb5" stroke-width="${lw(0.6)}"/>`).join(''));
     if (z.hard.length) {
       const step = 1.6 / k;
       g('Qurib_bolmaydigan', z.hard.map(pp => `<path d="${polyD(pp)}" fill="#ffffff" fill-opacity="0.55" stroke="#1d1d1b" stroke-width="${lw(0.35)}" fill-rule="evenodd"/>`).join('')
         + `<path d="${hatchSegs(z.hard, step).map(([a, b]) => `M${P(a)}L${P(b)}`).join('')}" fill="none" stroke="#1d1d1b" stroke-width="${lw(0.13)}"/>`);
-      legend.push({ type: 'hatch', fill: '#ffffff', stroke: '#1d1d1b', label: tr('Qurib boʻlmaydigan joy (cheklov obyekti, ELU muhofaza zonasi)') });
+      legend.push({ type: 'hatch', fill: '#ffffff', stroke: '#1d1d1b', label: tr((doc.limits ?? []).some(l => l.kind === 'suv' && isActive(l)) ? 'Qurib boʻlmaydigan joy (cheklov obyekti, ELU muhofaza zonasi, qirgʻoq boʻyi mintaqasi)' : 'Qurib boʻlmaydigan joy (cheklov obyekti, ELU muhofaza zonasi)') });
     }
     const elu = (doc.limits ?? []).filter(l => l.kind === 'elu' && isActive(l) && l.axis && l.axis.length > 1);
     if (elu.length) {
       g('ELU', elu.map(l => `<path d="${lineD(l.axis!.map(fr.toLocal))}" fill="none" stroke="#c0392b" stroke-width="${lw(0.4)}" stroke-dasharray="5 1 1 1"/>`).join(''));
       legend.push({ type: 'dash', stroke: '#c0392b', label: tr('ELU oʻqi') });
     }
-    if (!z.soft.length && !z.hard.length && !pz.length && !elu.length) legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Cheklov belgilanmagan (1-qadam «Mavjud holat va cheklovlar»)') });
+    if (!z.soft.length && !z.hard.length && !z.water.length && !pz.length && !elu.length) legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Cheklov belgilanmagan (1-qadam «Mavjud holat va cheklovlar»)') });
   }
 
   // 4d. transport sxemasi (02.11): koʻcha oʻqlari toifa rangida, velo yoʻlaklar, avtoturargohlar; bekatlar 400 m radiusi (382-band)
