@@ -39,6 +39,12 @@ export const test = base.extend({
       await page.evaluate((q) => { try { const e = document.querySelector(q); if (!e || e.closest('summary')) return; let d = e.closest('details:not([open])'); while (d) { (d as HTMLDetailsElement).open = true; d = d.parentElement?.closest('details:not([open])') ?? null; } } catch { /* Playwright selektori */ } }, sel).catch(() => {});
       return orig(sel, opts);
     }) as Page['click'];
+    // 04.11 (A): «Batafsil» ichidagi maydon — foydalanuvchi kabi avval yigʻiq boʻlim ochiladi
+    const origFill = page.fill.bind(page);
+    page.fill = (async (sel: string, v: string, opts?: Parameters<Page['fill']>[2]) => {
+      await page.evaluate((q) => { try { const e = document.querySelector(q); let d = e?.closest('details:not([open])') ?? null; while (d) { (d as HTMLDetailsElement).open = true; d = d.parentElement?.closest('details:not([open])') ?? null; } } catch { /* */ } }, sel).catch(() => {});
+      return origFill(sel, v, opts);
+    }) as Page['fill'];
     await use(page);
   },
 });
