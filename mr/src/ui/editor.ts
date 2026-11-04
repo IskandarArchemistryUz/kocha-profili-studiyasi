@@ -2488,7 +2488,9 @@ export class Editor {
     body.append(dropdown({ id: 'genBlock', 'aria-label': tr('Kvartal'), onchange: v => { this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
         [{ value: '', label: tr('— sahnada bosing yoki tanlang —'), selected: this.selBlock == null },
           ...plan.blocks.map((b, i) => ({ value: String(i), label: `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, sub: tr(useDef(b.use).name), selected: i === this.selBlock }))]),
-      h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')), this.isoBtn(this.selBlock));
+      h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')));
+    // 04.11 (egasi: interfeysni soddalashtirish, A): izolyatsiya — «Batafsil» ichida; izolyatsiya yoqiq boʻlsa chiqish tugmasi koʻrinib turadi
+    if (this.scene.isolated) body.append(this.isoBtn(this.selBlock));
     const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr('Turar joy, aralash, ijtimoiy va savdo kvartallarining hammasi'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) { const grp = u.parcelId ?? lab.id; this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, sections: [], drop: staleGen(this.store.doc, grp, u.rings[0], []) })); } } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
@@ -2514,8 +2516,11 @@ export class Editor {
       const farRow = isLow ? [] : [
         h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Maqsadli UMN (FAR)')), h('div', { class: 'grow' }, range({ min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', 'aria-label': tr('Maqsadli UMN (FAR)'), oninput: v => { g.far = v; ft.textContent = v > 0 ? fmt(v, 1) : tr('oʻchiq'); } })), ft),
         h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'))];
-      const moreN = isLow ? 0 : 5 + (g.setbackAuto ? 2 : 0) + ((g.parkNorm ?? true) ? 0 : 1) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1);
-      const more = isLow ? '' : h('details', { class: 'gen-more', id: 'genMore' }, h('summary', {}, tf('Qoʻshimcha sozlamalar · ${n}', { n: moreN })));
+      // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — daha, tipologiya, qavatlar va «Variant taklif qil»; qolgani «Batafsil» ichida (hech biri olib tashlanmagan, id lar saqlangan)
+      const isOmb = g.typology === 'ombor', stageEl = this.blockStageRow(), isoEl = this.scene.isolated ? '' : this.isoBtn(this.selBlock);
+      const moreN = (isLow ? 0 : (isOmb ? 5 : 7) + (g.setbackAuto ? 2 : 0) + ((g.parkNorm ?? true) ? 0 : 1) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1)) + 1 + (stageEl ? 1 : 0) + (isoEl ? 1 : 0);
+      const more = h('details', { class: 'gen-more', id: 'genMore' }, h('summary', {}, tf('Batafsil · ${n}', { n: moreN })));
+      const seisNote = (() => { const S0 = this.store.doc.settings, lim = lenLimit(S0.construct ?? 'monolit', S0.seismic); return lim != null && g.secLen > lim ? h('div', { class: 'li', id: 'seisLenNote' }, h('span', { class: 'chip warn' }, h('i'), tf('Seysmik boʻlma ≤ ${l} m', { l: lim })), h('span', { class: 't-small' }, tf('${s} ball, ${n} — generatsiyada seksiya ${l} m bilan cheklanadi (QMQ 2.01.03-19, 3.1-jadval)', { s: S0.seismic, n: SYS[S0.construct ?? 'monolit'].name, l: lim }))) : ''; })();
       body.append(typoPick,
         ...(isLow || g.typology !== 'avto' ? [] : farRow),
         isLow ? h('div', { class: 'group', id: 'lowFl' },
@@ -2527,12 +2532,17 @@ export class Editor {
         h('div', { class: 'group' },
           stp('gMax', tr('Qavat, eng koʻp'), '1–40', g.maxF, 1, 40, 1, x => { g.maxF = x; g.minF = Math.min(g.minF, x); }),
           stp('gMin', tr('eng kam'), '1–40', g.minF, 1, 40, 1, x => { g.minF = Math.min(x, g.maxF); }),
-          stp('gLen', tr('Seksiya uzunligi'), '15–60 m', g.secLen, 15, 60, 1, x => { g.secLen = x; }, 'm'),
-          (() => { const S0 = this.store.doc.settings, lim = lenLimit(S0.construct ?? 'monolit', S0.seismic); return lim != null && g.secLen > lim ? h('div', { class: 'li', id: 'seisLenNote' }, h('span', { class: 'chip warn' }, h('i'), tf('Seysmik boʻlma ≤ ${l} m', { l: lim })), h('span', { class: 't-small' }, tf('${s} ball, ${n} — generatsiyada seksiya ${l} m bilan cheklanadi (QMQ 2.01.03-19, 3.1-jadval)', { s: S0.seismic, n: SYS[S0.construct ?? 'monolit'].name, l: lim }))) : ''; })(),
-          stp('gSty', tr('Stilobat'), tr('qavat'), g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; })),
-        ['minora', 'blok_minora', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, stp('gTower', tr('Minora qavati'), '9–60', g.towerF ?? 16, 9, 60, 1, x => { g.towerF = x; })) : '',
-        ...(more ? [(() => { (more as HTMLElement).append(
+          ['minora', 'blok_minora', 'avto'].includes(g.typology) ? stp('gTower', tr('Minora qavati'), '9–60', g.towerF ?? 16, 9, 60, 1, x => { g.towerF = x; }) : '',
+          seisNote),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (ok) this.generateBlock(i); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
+          allBtn(), clearBtn(this.selBlock)),
+        isLow ? this.lowRowBox(fr, g.maxF) : '',
+        (() => { more.append(isoEl, ...(isLow ? [] : [
           ...(g.typology === 'avto' ? [] : farRow),
+          isOmb ? '' : h('div', { class: 'group' },
+            stp('gLen', tr('Seksiya uzunligi'), '15–60 m', g.secLen, 15, 60, 1, x => { g.secLen = x; }, 'm'),
+            stp('gSty', tr('Stilobat'), tr('qavat'), g.stylobate ?? 0, 0, 3, 1, x => { g.stylobate = x; })),
           h('div', { class: 'group' },
             stp('gDepth', tr('Chuqurlik'), '9–24 m', g.depth, 9, 24, 0.5, x => { g.depth = x; }, 'm'),
             h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Aniq oʻlcham'), h('span', { class: 'sub' }, tr(g.exact ? 'har seksiya aynan uzunlik × chuqurlik; qoldiq — izohda' : 'oʻchiq: qirra teng boʻlaklarga boʻlinadi (uzunlik — moʻljal)'))), sw({ id: 'gExact', label: tr('Aniq oʻlcham'), on: !!g.exact, onchange: v => { g.exact = v; this.renderPanel(); } })),
@@ -2544,18 +2554,14 @@ export class Editor {
               (() => { const a = this.selBlock != null ? this.autoSb(this.selBlock, g) : null; return h('div', { class: 'li', id: 'gSetAutoV' }, h('span', { class: 'k' }, h('b', { class: 'num' }, a ? (a.dMin === a.dMax ? `${fmt(a.dMin, a.dMin % 1 ? 1 : 0)} m` : `${fmt(a.dMin, a.dMin % 1 ? 1 : 0)}–${fmt(a.dMax, a.dMax % 1 ? 1 : 0)} m`) : '—'), h('span', { class: 'sub' }, a ? this.autoSbNote(a) : tr('Kvartalni tanlang — chekinish hisoblanadi')))); })()] :
               [stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm')]),
             ...((g.parkNorm ?? true) ? [] : [stp('gPL', tr('Yer osti'), tr('sath'), g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })])),
-          ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Har ~100 m da hovliga oʻtish (6 m)')), sw({ id: 'gPass', label: tr('Har ~100 m da hovliga oʻtish (6 m)'), on: g.passages, onchange: v => { g.passages = v; } }))) : ''); return more; })()] : []),
+          ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Har ~100 m da hovliga oʻtish (6 m)')), sw({ id: 'gPass', label: tr('Har ~100 m da hovliga oʻtish (6 m)'), on: g.passages, onchange: v => { g.passages = v; } }))) : '']),
         h('div', { class: 'glabel' }, h('span', {}, tr('Parkovka'))),
         h('div', { class: 'tiles c4 compact', role: 'group', 'aria-label': tr('Parkovka') }, ...(Object.keys(PARK_NAME) as ParkingKind[]).map(k => h('button', { class: 'tile', 'aria-pressed': (g.parking ?? 'yoq') === k, 'data-park': k, onclick: () => { g.parking = k; this.renderPanel(); }, html: pg('park', k) + `<span>${tr(PARK_NAME[k])}</span>` }))),
         ...((g.parking ?? 'yoq') !== 'yoq' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Joylashtirish moduli')), h('span', {}, tr('dizayn-kod 6.3'))),
           h('div', { class: 'tiles c4', role: 'group', 'aria-label': tr('Joylashtirish moduli') }, ...PARK_MODS.map(k => h('button', { class: 'tile', 'aria-pressed': (g.parkModule ?? 'p90') === k, 'data-pmod': k, title: `${tr(PARK_MOD[k].name)}: ${tr(PARK_MOD[k].src)}`, onclick: () => { g.parkModule = k; this.renderPanel(); }, 'aria-label': tr(PARK_MOD[k].name), html: pg('pmod', k) + `<span>${tr(PARK_MOD[k].short)}</span>` }))),
           h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Joylar soni meʼyor boʻyicha'), h('span', { class: 'sub' }, tr('29-jadval talabi; yer osti sathlari avtomatik'))), sw({ id: 'gPNorm', label: tr('Joylar soni meʼyor boʻyicha'), on: g.parkNorm ?? true, onchange: v => { g.parkNorm = v; this.renderPanel(); } })))] : []),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (ok) this.generateBlock(i); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
-          allBtn(), clearBtn(this.selBlock)),
-        isLow ? this.lowRowBox(fr, g.maxF) : '',
-        this.blockStageRow());
+          stageEl); return more; })());
       if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     }
     // binolar soni va tanlangan seksiya

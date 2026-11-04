@@ -182,6 +182,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qurilish n
   await page.click('[data-step=hajm]'); await page.click('#genAll');
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.buildings.length), { timeout: 30000 }).toBeGreaterThan(10);
   await page.selectOption('#genBlock', '1');
+  await page.locator('#genMore > summary').click();   // 04.11 (A): navbat — «Batafsil» ichida
   await expect(page.locator('#blkStage')).toBeVisible();
   await page.click('#blkStage [data-bstage="2"]');
   await expect(page.locator('#blkStage [data-bstage="2"]')).toHaveAttribute('aria-pressed', 'true');
