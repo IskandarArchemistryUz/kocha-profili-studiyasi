@@ -19,7 +19,7 @@ import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES 
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 
-export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef';
+export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -35,6 +35,7 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'yashil', name: 'Yashil balans', note: 'yashil hududlar, hovli maysasi, maydonchalar; 25 % meʼyori' },
   { id: 'transport', name: 'Transport sxemasi', note: 'koʻchalar toifasi, velo yoʻlak, bekatlar va 400 m radius, avtoturargohlar' },
   { id: 'insol', name: 'Insolyatsiya', note: 'uchastka yer sathi: kuniga quyosh soatlari (6-qadam xaritasi)' },
+  { id: 'navbat', name: 'Qurilish navbati', note: 'binolar navbat rangida; har navbat: binolar, maydon, xonadonlar' },
   { id: 'relyef', name: 'Relyef', note: 'balandliklar (gipsometriya), gorizontallar va qiyalik — AWS Terrain Tiles' },
   { id: 'shamol', name: 'Shamol', note: 'shamol guli (iqlim stansiyasi) va piyoda sathidagi oqim — qulaylik (6-qadam)' },
 ];
@@ -402,7 +403,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const lB = Ly('bld');
   if (nb.length && lB.on) {
     const order = [...nb].sort((a, b) => ((a.b.z0 ?? 0) + a.b.floors) - ((b.b.z0 ?? 0) + b.b.floors));
-    const fill = (b: Project['buildings'][number]) => K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? darker(useDef(b.use).color, 0.12) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(useDef(b.use).color, 0.1), lB.light) : '#ffffff';
+    const fill = (b: Project['buildings'][number]) => K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? darker(useDef(b.use).color, 0.12) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(useDef(b.use).color, 0.1), lB.light) : '#ffffff';
     const stroke = K === 'figura' || VZ || !lB.outline ? 'none' : '#1d1d1b';
     g('Yangi_binolar', order.map(({ b, r }) => `<path d="${ringD(r)}" fill="${fill(b)}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="${lw(K === 'bosh' ? lB.mm : Math.min(lB.mm, 0.3))}" stroke-linejoin="round"` : ''}/>`).join(''));
     if (K === 'bosh') legend.push({ type: 'fill', fill: '#ffffff', stroke: '#1d1d1b', label: tr('Loyihalanayotgan binolar') });
@@ -413,6 +414,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     }
   }
   if (K === 'qavat') for (const r of FLOOR_RAMP) legend.push({ type: 'fill', fill: r.color, label: tr(r.label) });
+  if (K === 'navbat') { const used = [...new Set(doc.buildings.map(stageOf))].sort(); for (const st of used) legend.push({ type: 'fill', fill: STAGE_COL[st - 1], stroke: '#1d1d1b', label: tf2(tr('${n}-navbat'), { n: st }) }); }
   if (ctx && S.context && K !== 'figura') {
     if (K === 'bosh' || LS || VZ) legend.push({ type: 'fill', fill: C.ctxB, stroke: C.ctxStroke === 'none' ? undefined : C.ctxStroke, label: tr('Mavjud binolar') });
     if (ctx.green.length && lG.on && !VZ) legend.push({ type: 'fill', fill: C.green, label: tr('Yashil hududlar') });
@@ -587,7 +589,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       lay('Shartli_belgilar', 'Shartli belgilar', out.join('')); y += 9 + legend.length * rowH;
     }
     if (inner?.side) { lay('Eksplikatsiya', 'Eksplikatsiya', inner.side(x0, y + 2, w, yEnd - stampH - sitH - 2)); }
-    const side = inner ? null : K === 'cheklov' && bal ? { id: 'Yer_balansi', title: 'Yer balansi', rows: balanceRows(doc, tr) } : K === 'transport' ? { id: 'Transport_balansi', title: 'Koʻchalar va avtoturargohlar', rows: transportRows(doc, tr), cols: ['km / joy', ''] } : K === 'yashil' ? { id: 'Yashil_balans', title: 'Yashil balans', rows: greenRows(doc, tr) } : null;
+    const side = inner ? null : K === 'navbat' ? { id: 'Navbatlar', title: 'Qurilish navbatlari', rows: stageRows(doc, tr), cols: ['m² / soni', ''] } : K === 'cheklov' && bal ? { id: 'Yer_balansi', title: 'Yer balansi', rows: balanceRows(doc, tr) } : K === 'transport' ? { id: 'Transport_balansi', title: 'Koʻchalar va avtoturargohlar', rows: transportRows(doc, tr), cols: ['km / joy', ''] } : K === 'yashil' ? { id: 'Yashil_balans', title: 'Yashil balans', rows: greenRows(doc, tr) } : null;
     if (side && side.rows.length) {
       // balans jadvali (02.11): yer balansi (cheklovlar varagʻi) yoki yashil balans (86, 87-band)
       const ha = (v: number) => v.toFixed(2).replace('.', ',');
@@ -719,6 +721,26 @@ export function transportRows(doc: Project, tr: (s: string) => string = s => s):
     const open = d.parkingProv - gs.reduce((t, q) => t + q.spaces, 0); if (open > 0) out.push({ t: tr('«Avtoturargoh» parsellari (25 m²/joy)'), vt: String(open) });
     out.push({ t: tr('Jami mavjud, joy'), vt: String(d.parkingProv), b: true, ok: d.parkingProv >= d.parkingReq, p: d.parkingProv >= d.parkingReq ? tr('mos') : `−${d.parkingReq - d.parkingProv}` });
   }
+  return out;
+}
+
+/** 04.11 (egasi: tahlil varaqlari — qurilish navbati): navbat raqami (yoʻq — 1), ranglari */
+export const stageOf = (b: { stage?: number }): number => Math.max(1, Math.min(5, Math.round(b.stage ?? 1)));
+export const STAGE_COL = ['#f2c14e', '#7fb3c8', '#e58e73', '#9ccf8a', '#b9a3d6'];
+const tf2 = (s: string, v: Record<string, unknown>) => s.replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e]));
+/** Navbatlar jadvali: har navbat — binolar soni, umumiy maydon (GFA ≈ dogʻ × qavatlar), xonadonlar (derive) */
+export function stageRows(doc: Project, tr: (s: string) => string = s => s): BalanceRow[] {
+  const fr = frame(doc.origin), used = [...new Set(doc.buildings.filter(b => b.floors > 0).map(stageOf))].sort();
+  const out: BalanceRow[] = []; let G = 0, A = 0;
+  const m2 = (v: number) => Math.round(v).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
+  for (const st of used) {
+    const bs = doc.buildings.filter(b => b.floors > 0 && stageOf(b) === st), gfa = bs.reduce((t, b) => t + area(b.footprint.map(fr.toLocal)) * b.floors, 0);
+    const d = derive({ ...doc, buildings: bs }), ap = d.apartments ?? 0; G += gfa; A += ap;
+    out.push({ t: tf2(tr('${n}-navbat'), { n: st }), vt: '', c: STAGE_COL[st - 1], b: true, sep: out.length > 0 });
+    out.push({ t: tr('Binolar soni'), vt: String(bs.length) }, { t: tr('Umumiy maydon (GFA), m²'), vt: m2(gfa) });
+    if (ap) out.push({ t: tr('Xonadonlar'), vt: String(Math.round(ap)) });
+  }
+  if (used.length > 1) out.push({ t: tr('Jami, m²'), vt: m2(G), b: true, sep: true }, ...(A ? [{ t: tr('Jami xonadonlar'), vt: String(Math.round(A)) }] : []));
   return out;
 }
 

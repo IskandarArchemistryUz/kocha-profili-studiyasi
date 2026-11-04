@@ -40,6 +40,7 @@ import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile }
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
 import { FIRE_CLS, isLowHouse, lowFireNeed } from '../core/firedist';
+import { stageRows } from '../core/sheet';
 import { lenLimit, SYS, SEIS_PLACES, seisKey, seisByKey, seisForDistrict } from '../core/seysmik';
 import { CONSTRUCT_SYS } from '../core/doc';
 import { PRESET_PROFILES } from '../core/presets';
@@ -737,6 +738,8 @@ export class Editor {
         h('div', { class: 'hrow' },
           h('div', { class: 'group grow' },
             row(tr('Qavatlar'), '1–60', stepper({ id: 'iFloors', label: tr('Qavatlar'), min: 1, max: 60, step: 1, value: b.floors, onchange: v => upd({ floors: v }, 'fl-' + b.id) })),
+            // 04.11 (egasi: tahlil varaqlari — qurilish navbati): binoning navbati (1–5)
+            row(tr('Qurilish navbati'), tr('«Qurilish navbati» varagʻi'), h('div', { class: 'seg sm', role: 'group', id: 'iStage', 'aria-label': tr('Qurilish navbati') }, ...[1, 2, 3, 4, 5].map(n => h('button', { 'aria-pressed': (b.stage ?? 1) === n, 'data-stage': n, onclick: () => upd({ stage: n === 1 ? undefined : n }) }, String(n))))),
             u.res > 0 ? row(tr('Noturar (pastda)'), `0–${Math.max(0, b.floors - 1)}`, stepper({ id: 'iNonRes', label: tr('Noturar (pastda)'), min: 0, max: Math.max(0, b.floors - 1), step: 1, value: b.nonRes, onchange: v => upd({ nonRes: v }, 'nr-' + b.id) })) : '',
             // 04.11 (egasi): 1-qavat balandligi har bir binoda (qoʻlda chizilgan turar joy uyida ham) — shu binoga yoziladi; stilobat ustidagi seksiyada — loyiha sozlamasi
             !(b.z0 ?? 0) && !b.hall ? row(`${tr('1-qavat balandligi')}, m`, tr(b.gh != null ? 'shu bino' : 'loyiha boʻyicha'), stepper({ id: 'iGroundH', label: tr('1-qavat balandligi'), min: 2.7, max: 7.5, step: 0.1, value: Math.round(bLevels(this.store.doc.settings, b).fh1 * 10) / 10, onchange: v => upd({ gh: Math.round(v * 10) / 10 }, 'gh-' + b.id) }))
@@ -2462,6 +2465,17 @@ export class Editor {
   }
 
   /* ===== 6-qadam: Hajmlar (MR-Q2) ===== */
+  /** 04.11 (egasi: tahlil varaqlari — qurilish navbati): tanlangan kvartaldagi barcha binolar navbati (qayta generatsiyada saqlanadi) */
+  private blockStageRow(): HTMLElement | string {
+    const i = this.selBlock, bl = i != null ? this.plan().blocks[i] : null; if (!bl) return '';
+    const fr = frame(this.store.doc.origin), ids = this.store.doc.buildings.filter(b => { const r = b.footprint.map(fr.toLocal), c: XY = [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length]; return pointIn(c, bl.rings); });
+    if (!ids.length) return '';
+    const cur = new Set(ids.map(b => b.stage ?? 1)), one = cur.size === 1 ? [...cur][0] : null;
+    const set = (n: number) => this.run(() => { for (const b of ids) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { stage: n === 1 ? undefined : n } }, 'stage-blk'); });
+    return h('div', { class: 'group', id: 'blkStage' }, h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
+      h('span', { class: 'k' }, tr('Qurilish navbati'), h('span', { class: 'sub' }, tf('kvartaldagi ${n} ta bino · «Qurilish navbati» varagʻi', { n: ids.length }))),
+      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Qurilish navbati') }, ...[1, 2, 3, 4, 5].map(n => h('button', { 'aria-pressed': one === n, 'data-bstage': n, onclick: () => set(n) }, String(n))))));
+  }
   private hajmPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), plan = this.plan();
     if (this.selBlock != null && !plan.blocks[this.selBlock]) this.selBlock = null;
@@ -2538,7 +2552,8 @@ export class Editor {
         h('div', { class: 'row' },
           h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (ok) this.generateBlock(i); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
           allBtn(), clearBtn(this.selBlock)),
-        isLow ? this.lowRowBox(fr, g.maxF) : '');
+        isLow ? this.lowRowBox(fr, g.maxF) : '',
+        this.blockStageRow());
       if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     }
     // binolar soni va tanlangan seksiya
@@ -4147,6 +4162,8 @@ export class Editor {
         const r = sheetSvg(this.store.doc, this.sheetCtxFor('insol'), { ...SHEET_DEFAULT, kind: 'insol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } },
+      // 04.11: tahlil — qurilish navbati (jadval bilan)
+      { ...mk('p:plan:navbat', 'Qurilish navbati', this.store.doc.buildings.some(b => (b.stage ?? 1) > 1), { kind: 'navbat' }), table: { id: 'p:navbatlar', name: 'Qurilish navbatlari', title: tr('Qurilish navbatlari'), rows: () => { const r = stageRows(this.store.doc, tr); return r.length ? [[tr('Qurilish navbatlari'), tr('m² / soni')], ...r.map(x => [x.t, x.vt ?? ''])] : null; }, free: true } },
       // 04.11: tahlil — relyef (gipsometriya va gorizontallar)
       { id: 'p:plan:relyef', name: 'Relyef', on: true, get: () => {
         const c = this.sheetCtx(); if (!c?.terrain) return null;
