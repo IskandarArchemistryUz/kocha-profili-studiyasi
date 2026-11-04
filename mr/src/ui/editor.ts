@@ -1847,7 +1847,11 @@ export class Editor {
       h('span', { class: 't-small' }, tr('Natija: soni · ulushi · oʻrtacha netto m². Ulushlar nisbat sifatida olinadi (yigʻindi 100 % boʻlishi shart emas). Maydon — rejadagi kvartira maydoni × 0,85 (devorlar), balkonsiz.')),
       h('div', { class: 'glabel' }, h('span', {}, tr('Kvartira oʻlchami'))),
       h('div', { class: 'seg', role: 'group', id: 'aptSize' }, ...APT_SIZES.map(x => h('button', { 'aria-pressed': size === x.id, 'data-size': x.id, title: x.note, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { aptSize: x.id as AptSize } })) }, x.name))),
-      h('div', { class: 'opts' }, ...APT_SIZES.map((x, i) => [i ? ' · ' : '', h('b', {}, `${x.name}:`), ` ${x.note}`]).flat()));
+      h('div', { class: 'opts' }, ...APT_SIZES.map((x, i) => [i ? ' · ' : '', h('b', {}, `${x.name}:`), ` ${x.note}`]).flat()),
+      // 04.11 (egasi): 1 xonali uchun studiya formati
+      h('div', { class: 'group', id: 'studioRow' }, h('div', { class: 'li' },
+        h('span', { class: 'k' }, tr('1 xonali — studiya'), h('span', { class: 'sub' }, tr('Oshxona umumiy xonada (oshxona qatori), alohida oshxona yoʻq. Xona eni ≥ 3 m (ShNQ 2.08.01-24, 36-band), chuqurligi ≤ 6 m (SanQvaN 0102-25, 97-band); sigʻmasa — oddiy reja.'))),
+        sw({ id: 'studio1', label: tr('1 xonali — studiya'), on: doc.settings.studio1 === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { studio1: v } })) }))));
     this.housePanel(body);
     if (!plans.length) {
       if (doc.buildings.some(b => b.gen?.plot)) return;

@@ -49,6 +49,8 @@ export interface PlanOpts {
   /** kvartira ichki rejasi (xonalar, devorlar, eshiklar) — standart: ha; false — eski sxema (sanuzel «S», punktir boʻlinmalar) */ inner?: boolean;
   /** mebel (31.10) — standart: yoʻq (vaqtincha oʻchirilgan) */ furn?: boolean;
   /** uslub: oq-qora (rangsiz kvartiralar, kulrang hoʻl xonalar) */ mono?: boolean;
+  /** 04.11 (egasi): umumiy seksiya rejasi — kvartiralarsiz va mebelsiz (katta master reja uchun): turar qism bitta zona, yadro, koridor, zinalar */
+  general?: boolean;
 }
 export const ROOM_LABEL: Record<RoomKind, string> = { texnik: 'texnik / ombor', ombor: 'yashovchilar omborlari', savdo: 'savdo / xizmat', velo: 'velo / kolyaska', zal: 'yashovchilar zali', tozalash: 'tozalash anjomlari ombori' };
 export const ROOM_FILL: Record<RoomKind, string> = { texnik: '#e4e1da', ombor: '#e6dcc8', savdo: '#cfe0f3', velo: '#dfe9d2', zal: '#efd9e8', tozalash: '#e4e1da' };
@@ -86,7 +88,8 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const G: RulePlan = { ...P0, stairs: P0.stairs.map(TR), lifts: P0.lifts.map(TR), mop: P0.mop.map(TR), rest: P0.rest.map(TR), fireWalls: P0.fireWalls.map(TR), rooms: P0.rooms.map(q => ({ ...q, ring: TR(q.ring), door: T(q.door) })), apts: P0.apts.map(a => ({ ...a, ring: TR(a.ring), door: T(a.door), wet: TR(a.wet), walls: a.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]) })) };
   const mods = pl0.layout.mods.map(m => ({ ...m, a: T(m.a), b: T(m.b) }));
   // kvartira ichki rejalari (31.10): asl koordinatalarda hisoblanadi, chizma oʻqlariga buriladi
-  const inner: (AptInterior | null)[] = P0.apts.map(a => o.inner === false ? null : aptInterior(a, pl0.layout.mods)).map(x => x && { ...x, rooms: x.rooms.map(q => ({ ...q, ring: TR(q.ring) })), walls: x.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]), doors: x.doors.map(d => ({ ...d, h: T(d.h), a: T(d.a), n: [d.n[0] * U[0] + d.n[1] * U[1], d.n[0] * V[0] + d.n[1] * V[1]] as XY })), entry: T(x.entry), kitchen: x.kitchen && [T(x.kitchen[0]), T(x.kitchen[1])] as [XY, XY], furn: x.furn?.map(f => ({ k: f.k, ring: TR(f.ring) })) });
+  const gen = o.general === true;
+  const inner: (AptInterior | null)[] = P0.apts.map(a => o.inner === false || gen ? null : aptInterior(a, pl0.layout.mods)).map(x => x && { ...x, rooms: x.rooms.map(q => ({ ...q, ring: TR(q.ring) })), walls: x.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]), doors: x.doors.map(d => ({ ...d, h: T(d.h), a: T(d.a), n: [d.n[0] * U[0] + d.n[1] * U[1], d.n[0] * V[0] + d.n[1] * V[1]] as XY })), entry: T(x.entry), kitchen: x.kitchen && [T(x.kitchen[0]), T(x.kitchen[1])] as [XY, XY], furn: x.furn?.map(f => ({ k: f.k, ring: TR(f.ring) })) });
   inner.forEach((x, i) => { if (x) G.apts[i].door = x.entry; });
   const outward = new Set(G.apts.filter((_, i) => inner[i]).map(a => a.ring));
   const northDeg = Math.atan2(U[0], U[1]) * 180 / Math.PI;   // shimol yoʻnalishi chizmada
@@ -142,8 +145,15 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     const c = labelPt(q.ring), A = area(q.ring) * 0.85;
     out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="1.9" text-anchor="middle" fill="#3a3936" pointer-events="none">${tr(ROOM_LABEL[q.kind])}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 2.6).toFixed(2)}" font-size="1.8" text-anchor="middle" fill="#6b6965" pointer-events="none">${n1(Math.round(A))} m²</text>`);
   });
+  // 04.11: umumiy reja — kvartiralar bitta «turar joy» zonasi (ichki chegara va yozuvlarsiz), yorliq eng katta boʻlakda
+  if (gen && G.apts.length) {
+    const fillG = o.mono ? '#ffffff' : '#f1e6cf';
+    for (const a of G.apts) out.push(`<path d="${path(a.ring)}" fill="${fillG}" stroke="${fillG}" stroke-width="0.6" stroke-linejoin="round" data-apt-gen="1"/>`);
+    const tot = G.apts.reduce((t, a) => t + a.area * 0.85, 0), big = G.apts.reduce((m, a) => (area(a.ring) > area(m.ring) ? a : m)), c = labelPt(big.ring);
+    out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#141414" pointer-events="none">${tr('turar joy')}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 3.2).toFixed(2)}" font-size="2.1" text-anchor="middle" fill="#3a3936" pointer-events="none">${tf('${n} kv. · ${a} m²', { n: G.apts.length, a: n1(Math.round(tot)) })}</text>`);
+  }
   // kvartiralar
-  G.apts.forEach((a, ai) => {
+  if (!gen) G.apts.forEach((a, ai) => {
     const sel = o.sel?.indexOf(ai) ?? -1;
     const tf = o.tint?.fill[ai], ts = o.tint?.stroke[ai];
     out.push(`<path d="${path(a.ring)}" fill="${tf ?? (o.mono ? '#ffffff' : APT_FILL[Math.min(4, a.rooms)])}" stroke="${sel >= 0 ? '#0a84ff' : ts ?? '#141414'}" stroke-width="${sel >= 0 ? 1.2 : ts ? 0.9 : 0.5}" stroke-linejoin="round" data-apt="${ai}"/>`);
@@ -182,7 +192,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#141414" pointer-events="none">${sel >= 0 ? `${'AB'[sel] ?? ''} · ` : ''}${a.rooms}x${inner[ai]?.kFit ? ` → ${inner[ai]!.kFit}x` : ''}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 3.2).toFixed(2)}" font-size="2.1" text-anchor="middle" fill="#3a3936" pointer-events="none">${o.tint?.sub[ai] ?? `${n1(Math.round((a.area * 0.85 + bA) * 10) / 10)} m²`}</text>`);
   });
   // eshiklar — kvartira / xona bilan MOP chegarasida 0,9 m oʻtish (devor uziladi) va yoy
-  for (const a of [...G.apts, ...G.rooms.filter(q => q.kind !== 'savdo')]) {
+  for (const a of [...(gen ? [] : G.apts), ...G.rooms.filter(q => q.kind !== 'savdo')]) {
     let best = 0, ea: XY = a.door, eb: XY = a.door;
     for (let i = 0; i < a.ring.length; i++) { const p = a.ring[i], q = a.ring[(i + 1) % a.ring.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]), t = ((a.door[0] - p[0]) * (q[0] - p[0]) + (a.door[1] - p[1]) * (q[1] - p[1])) / (l * l || 1), d = Math.hypot(p[0] + (q[0] - p[0]) * t - a.door[0], p[1] + (q[1] - p[1]) * t - a.door[1]); if (t >= 0 && t <= 1 && d < 0.05 && l > best) { best = l; ea = p; eb = q; } }
     const l = Math.hypot(eb[0] - ea[0], eb[1] - ea[1]) || 1, ux = (eb[0] - ea[0]) / l, uy = (eb[1] - ea[1]) / l, d0: XY = [a.door[0] - ux * 0.45, a.door[1] - uy * 0.45], d1: XY = [a.door[0] + ux * 0.45, a.door[1] + uy * 0.45];

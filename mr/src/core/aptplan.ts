@@ -1324,9 +1324,12 @@ function aptInterior0(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   const ov = a.inner ?? {};
   // koridor bilan umumiy kesma: eshik markazi undan chetlardan ≥ 0,6 m ichkarida (0,45 + 0,15)
   const ud0 = lu(a.door), h0 = Math.max(0.05, (a.doorLen ?? 1.8) / 2 - 0.6), udOf = (fl: boolean): [number, number] => fl ? [W - ud0 - h0, W - ud0 + h0] : [ud0 - h0, ud0 + h0];
-  let opts = [false, true].map(fl => ({ fl, L: layoutLocal(W, D, k, net, fl ? flipB(bounds) : bounds, fl ? flipW(wins) : wins, false, ov, ntOf(fl), udOf(fl)) }));
+  // 04.11 (egasi): «1 xonali uchun studiya formati» — sozlamada yoqilsa (inner.studio) avval studiya sinanadi, sigʻmasa — oddiy reja
+  const st0 = k <= 1 && ov.studio === true;
+  let opts = [false, true].map(fl => ({ fl, L: layoutLocal(W, D, k, net, fl ? flipB(bounds) : bounds, fl ? flipW(wins) : wins, st0, ov, ntOf(fl), udOf(fl)) }));
+  if (st0 && opts.every(o => typeof o.L === 'string')) opts = [false, true].map(fl => ({ fl, L: layoutLocal(W, D, k, net, fl ? flipB(bounds) : bounds, fl ? flipW(wins) : wins, false, ov, ntOf(fl), udOf(fl)) }));
   // 1 xonali: oshxona alohida sigʻmasa — studiya (xona + oshxona qatori, tasmada sanuzel va prixojaya)
-  if (k <= 1 && opts.every(o => typeof o.L === 'string')) opts = [false, true].map(fl => ({ fl, L: layoutLocal(W, D, k, net, fl ? flipB(bounds) : bounds, fl ? flipW(wins) : wins, true, ov, ntOf(fl), udOf(fl)) }));
+  if (k <= 1 && !st0 && opts.every(o => typeof o.L === 'string')) opts = [false, true].map(fl => ({ fl, L: layoutLocal(W, D, k, net, fl ? flipB(bounds) : bounds, fl ? flipW(wins) : wins, true, ov, ntOf(fl), udOf(fl)) }));
   // eshik umumiy xonadan uzoq uchida — dahliz eshik yonida, yoʻlak orqali umumiy xonaga
   if (!notch && opts.every(o => typeof o.L === 'string') && opts.some(o => o.L === 'eshik')) opts = [false, true].map(fl => ({ fl, L: layoutEnd(W, D, k, fl ? flipB(bounds) : bounds, fl ? flipW(wins) : wins, udOf(fl)) }));
   const ok = opts.filter(o => typeof o.L !== 'string') as { fl: boolean; L: Local }[];
