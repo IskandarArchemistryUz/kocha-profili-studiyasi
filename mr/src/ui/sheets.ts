@@ -41,7 +41,7 @@ export interface SheetsHost {
   /** qaysi varaqdan boshlash (V3 ramkasidan) */
   start?: number;
   /** aksonometriya rasmi (sahnadan, tanlangan uslub va koʻrinish bilan): data URL */
-  axo?: (look: NonNullable<SheetOpts['axo']>['look'], view: string | undefined, detail: boolean, ratio: number) => string;
+  axo?: (look: NonNullable<SheetOpts['axo']>['look'], view: string | undefined, detail: boolean, ratio: number, labels?: boolean) => string;
   /** saqlangan koʻrinishlar (Kamera) */
   views?: { id: string; name: string }[];
 }
@@ -136,9 +136,9 @@ export function openGraphics(host: SheetsHost): void {
       return { label: `${T.n} ${tr('uy')}`, name, body: (vx, vy, vw, vh) => `<svg x="${vx}" y="${vy}" width="${vw}" height="${vh}" viewBox="0 0 ${r.widthMm.toFixed(1)} ${r.heightMm.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
     }
     if (o.mode === 'akso') {
-      const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${(L.vw / L.vh).toFixed(2)}`;
+      const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${o.axo?.labels === true}|${(L.vw / L.vh).toFixed(2)}`;
       let url = axoCache.get(key);
-      if (!url && host.axo) { url = host.axo(o.axo?.look ?? 'oq', o.axo?.view, o.axo?.shadow !== false, L.vw / L.vh); axoCache.set(key, url); }
+      if (!url && host.axo) { url = host.axo(o.axo?.look ?? 'oq', o.axo?.view, o.axo?.shadow !== false, L.vw / L.vh, o.axo?.labels === true); axoCache.set(key, url); }
       return { label: 'M —', body: (vx, vy, vw, vh) => url ? `<image href="${url}" x="${vx}" y="${vy}" width="${vw}" height="${vh}" preserveAspectRatio="xMidYMid meet"/>` : '' };
     }
     return undefined;
@@ -355,6 +355,7 @@ export function openGraphics(host: SheetsHost): void {
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
           h('div', { class: 'field' }, h('label', {}, tr('Kamera')), select({ id: 'shView', 'aria-label': tr('Kamera'), onchange: v => set({ axo: { ...(o.axo ?? {}), view: v || undefined } }) }, [{ value: '', label: tr('Joriy aksonometriya'), selected: !o.axo?.view }, ...(host.views ?? []).map(v => ({ value: v.id, label: v.name, selected: o.axo?.view === v.id }))])),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Fasad derazalari'), h('span', { class: 'sub' }, tr('7-qadamdan'))), sw({ label: tr('Fasad derazalari'), on: o.axo?.shadow !== false, onchange: v => set({ axo: { ...(o.axo ?? {}), shadow: v } }) })),
+          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Yozuvlar'), h('span', { class: 'sub' }, tr('daha nomi va maydoni, UMN, koʻcha nomlari'))), sw({ id: 'shAxoLab', label: tr('Yozuvlar'), on: o.axo?.labels === true, onchange: v => set({ axo: { ...(o.axo ?? {}), labels: v } }) })),
           h('span', { class: 't-small' }, tr('Kamera — saqlangan koʻrinishlardan; rasm sahnadan olinadi (masshtabsiz).'))] : []),
         ...((o.mode ?? 'reja') === 'reja' ? [
         h('div', { class: 'glabel' }, h('span', {}, tr('Namuna')), h('span', {}, `${SHEET_KINDS.length} + ${tr('uslublar')}`)),
