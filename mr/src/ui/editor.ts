@@ -3139,7 +3139,7 @@ export class Editor {
     finally { this.limOsm.busy = false; this.renderPanel(); }
   }
   private selLimit: string | null = null;
-  private static LIM_KINDS: [LimitKind, string][] = [['qabriston', 'Qabriston'], ['issiqxona', 'Issiqxona'], ['ombor', 'Ombor'], ['temiryol', 'Temir yoʻl'], ['elu', 'ELU'], ['meros', 'Madaniy meros'], ['suv', 'Suv obyekti'], ['boshqa', 'Boshqa']];
+  private static LIM_KINDS: [LimitKind, string][] = [['qabriston', 'Qabriston'], ['issiqxona', 'Issiqxona'], ['ombor', 'Ombor'], ['temiryol', 'Temir yoʻl'], ['elu', 'ELU'], ['meros', 'Madaniy meros'], ['suv', 'Suv obyekti'], ['sanoat', 'Sanoat korxonasi'], ['boshqa', 'Boshqa']];
   private limName(k: LimitKind): string { return tr(Editor.LIM_KINDS.find(x => x[0] === k)?.[1] ?? 'Boshqa'); }
   private pickLimit(id: string | null): void { this.selLimit = id; this.scene.selectLimit(id); this.renderPanel(); }
   private startLimit(kind: LimitKind): void {
@@ -3157,7 +3157,7 @@ export class Editor {
     if (doc.site && doc.context.loaded && doc.limits === undefined && !this.limOsm.tried.has(JSON.stringify(doc.site.rings[0]))) queueMicrotask(() => void this.detectLimits(true));
     box.append(h('button', { class: 'btn btn-block', id: 'limOsm', disabled: this.limOsm.busy, onclick: () => void this.detectLimits(false) }, ...icl('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', tr(this.limOsm.busy ? 'OSM dan aniqlanmoqda…' : 'OSM dan aniqlash'))));
     if (this.limOsm.msg) box.append(h('div', { class: 'note', id: 'limOsmMsg' }, this.limOsm.msg));
-    box.append(h('span', { class: 't-small' }, tr('Qabriston, issiqxona, ombor, temir yoʻl, ELU (kuchlanishi va tayanchlari bilan), bogʻ va ekin maydonlari — uchastka atrofida 500 m. Yoʻq boʻlsa — qoʻlda chizing.')));
+    box.append(h('span', { class: 't-small' }, tr('Qabriston, issiqxona, ombor, temir yoʻl, ELU (kuchlanishi va tayanchlari bilan), bogʻ va ekin maydonlari — uchastka atrofida 500 m, sanoat korxonalari — 1000 m. Yoʻq boʻlsa — qoʻlda chizing.')));
     // 04.11 (egasi: interfeysni soddalashtirish, A): qoʻlda chizish tugmalari (8 tur) — «Qoʻlda chizish» ichida; chizish davomida «Tugatish» koʻrinib turadi
     const limAdd = h('details', { class: 'gen-more', id: 'limAddMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻlda chizish · ${n}', { n: Editor.LIM_KINDS.length }))));
     if (this.limDraw && this.tool) box.append(h('button', { class: 'btn btn-primary btn-block', id: 'limStop', onclick: () => this.endTool() }, ...icl(IC.check, tf('Tugatish: ${k}', { k: this.limName(this.limDraw) }))),
@@ -3183,6 +3183,11 @@ export class Editor {
         const kv = h('input', { type: 'number', class: 'input', min: 0.4, max: 1150, step: 'any', value: l.kv ?? 10, id: 'limKv', 'aria-label': tr('Kuchlanish, kV'), onchange: (e: Event) => { const v = +(e.target as HTMLInputElement).value; if (v > 0 && v <= 1150) upd(l.id, { kv: v }); } });
         ed.append(h('div', { class: 'field' }, h('label', {}, tr('Kuchlanish')), h('span', { class: 'unit' }, kv, h('span', {}, 'kV'))));
       } else ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Holati') }, ...ST.map(([k, t]) => h('button', { 'aria-pressed': l.status === k, 'data-lst': k, onclick: () => upd(l.id, { status: k }) }, tr(t)))));
+      // 04.11 (Murad Buildings sinovi, 8-band): sanoat korxonasi sanitariya sinfi — SanQvaN 0350-17, 2.9-band
+      if (l.kind === 'sanoat') {
+        ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Korxona sinfi'), id: 'limCls' }, ...([1, 2, 3, 4, 5] as const).map(k => h('button', { 'aria-pressed': l.cls === k, 'data-cls': k, title: `${['I', 'II', 'III', 'IV', 'V'][k - 1]} — ${[1000, 500, 300, 100, 50][k - 1]} m`, onclick: () => upd(l.id, { cls: k }) }, ['I', 'II', 'III', 'IV', 'V'][k - 1]))));
+        if (!l.cls) ed.append(h('div', { class: 'note warn', 'data-clsnote': '' }, tr('Korxona sinfini kiriting (SanQvaN 0350-17, 5-boʻlim: sanitariya tasnifi). Hozircha IV sinf — 100 m deb olindi (taxmin).')));
+      }
       if (l.kind === 'qabriston') {
         const open = l.sub?.open !== false;
         ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Qabriston') },
