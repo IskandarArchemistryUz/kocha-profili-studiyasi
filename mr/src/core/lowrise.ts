@@ -143,10 +143,44 @@ function clusterSeg(a: XY, b: XY, free: MultiPolygon, P: LowParams, out: LowHous
   return used.length ? tryOp(() => polygonClipping.union(used[0], ...used.slice(1)), [] as MultiPolygon) : [];
 }
 
+/**
+ * 04.11 (egasi: 56-jadval — past uylar orasidagi yongʻin masofasi): qoʻshni uylar orasi `fire` m dan kam boʻlmasin.
+ * fire — ShNQ 2.07.01-23, 56-jadval (olovbardoshlik sinfi, 9+ ballda 649-band +20 %); tegishli oʻlchamlar kengaytiriladi:
+ * yakka — yon masofa fire/2 (uchastka eni shunga koʻra); juft — juftlar orasi (tashqi yon) fire/2; hovli — uchastka eni 15 + fire;
+ * taunhaus — qatorlar orasi; klaster — orqa chegaragacha fire/2 va qatorlar oraligʻi.
+ */
+export function lowFit(kind: LowKind, fire = 6): LowParams {
+  const P = LOW[kind], h = fire / 2;
+  if (kind === 'yakka') { const side = Math.max(P.side, h); return { ...P, side, plotW: Math.max(P.plotW, P.maxW + 2 * side), plotD: Math.max(P.plotD, P.front + P.depth + side) }; }
+  if (kind === 'juft') { const side = Math.max(P.side, h); return { ...P, side, plotW: Math.max(P.plotW, P.maxW + side) }; }
+  if (kind === 'hovli') return { ...P, plotW: Math.max(P.plotW, 15 + fire), plotD: Math.max(P.plotD, P.front + 18 + h) };
+  if (kind === 'taunhaus') return { ...P, gap: Math.max(P.gap, fire) };
+  return { ...P, plotW: Math.max(P.plotW, P.front + P.depth + h), plotD: Math.max(P.plotD, P.maxW + fire) };
+}
+
+/** Halqalar orasidagi eng kichik masofa (kesishsa — 0) */
+function rd(a: XY[], b: XY[]): number {
+  if (a.some(p => pin(p, b)) || b.some(p => pin(p, a))) return 0;
+  const sg = (p: XY, q: XY, x: XY) => { const dx = q[0] - p[0], dy = q[1] - p[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((x[0] - p[0]) * dx + (x[1] - p[1]) * dy) / L)) : 0; return Math.hypot(x[0] - p[0] - dx * t, x[1] - p[1] - dy * t); };
+  let d = Infinity;
+  for (let i = 0; i < a.length; i++) for (const x of b) d = Math.min(d, sg(a[i], a[(i + 1) % a.length], x));
+  for (let i = 0; i < b.length; i++) for (const x of a) d = Math.min(d, sg(b[i], b[(i + 1) % b.length], x));
+  return d;
+}
+/** Burchaklarda (qoʻshni qirralar uchastkalari) yongʻin masofasi yetmagan uylar olib tashlanadi; bloklangan (tegib turgan) uylar — bitta bino */
+function fireThin(out: LowHouse[], fire: number): number {
+  const keep: LowHouse[] = []; let n = 0;
+  for (const h of out) {
+    const bad = keep.some(k => { const d = rd(h.ring, k.ring); return d >= 0.5 && d < fire - 0.05 && !keep.some(m => m !== k && rd(m.ring, k.ring) < 0.5 && rd(m.ring, h.ring) < 0.5); });
+    if (bad) n++; else keep.push(h);
+  }
+  out.splice(0, out.length, ...keep); return n;
+}
+
 /** Kvartal chetlari boʻylab (uzun qirralardan boshlab): har qirra — chiziq, burchaklarda uchastkalar ustma-ust tushmaydi */
 /** floors — tanlangan qavat (1–3, kam qavatli: ShNQ 2.07.01-23, 2-band); berilmasa — tur boʻyicha odatiy */
-export function lowriseBlock(block: XY[], kind: LowKind, floorsSel?: number): { houses: LowHouse[]; notes: string[] } {
-  const P = LOW[kind], floors = floorsSel != null ? Math.max(1, Math.min(3, Math.round(floorsSel))) : P.floors;
+export function lowriseBlock(block: XY[], kind: LowKind, floorsSel?: number, fire = 6): { houses: LowHouse[]; notes: string[] } {
+  const P = lowFit(kind, fire), floors = floorsSel != null ? Math.max(1, Math.min(3, Math.round(floorsSel))) : P.floors;
   const ring = signedArea(block) < 0 ? block.slice().reverse() : block.slice();
   let free: MultiPolygon = [[close(ring)]];
   const edges = ring.map((p, i) => ({ a: p, b: ring[(i + 1) % ring.length], L: Math.hypot(ring[(i + 1) % ring.length][0] - p[0], ring[(i + 1) % ring.length][1] - p[1]) })).filter(e => e.L >= P.plotW).sort((x, y) => y.L - x.L);
@@ -155,25 +189,28 @@ export function lowriseBlock(block: XY[], kind: LowKind, floorsSel?: number): { 
     const used = kind === 'klaster' ? clusterSeg(e.a, e.b, free, P, out, floors) : alongSeg(e.a, e.b, free, P, kind, out, floors);
     if (used.length) free = tryOp(() => polygonClipping.difference(free, used), free);
   }
+  const thin = fireThin(out, fire);
   const notes: string[] = [];
+  if (thin) notes.push(`${thin} ta uy burchakda olib tashlandi: qoʻshni uygacha yongʻin masofasi ${String(fire).replace('.', ',')} m dan kam (ShNQ 2.07.01-23, 56-jadval)`);
   if (out.length) notes.push(kind === 'yakka'
     ? `Yakka uylar: ${out.length} ta, uchastka ${P.plotW} × ${P.plotD} m ≥ 400 m² (75-band), oldi ${P.front} m, yon ${P.side} m (100-band), ${floors} qavat`
     : kind === 'taunhaus' ? `Taunhauslar: ${out.length} ta blok, eni ${P.plotW} m, qator ≤ ${P.rowMax} uy va ≤ ${P.rowLen} m (Strelka), oraliq ${P.gap} m; uchastka ≥ 200 m² (74-band), ${floors} qavat`
-    : kind === 'juft' ? `Juft uylar: ${out.length / 2} juft, uchastka ${P.plotW} × ${P.plotD} m, umumiy devor (101-band), tashqi yon ${P.side} m (100-band), juftlar orasi 6 m (56-jadval)`
+    : kind === 'juft' ? `Juft uylar: ${out.length / 2} juft, uchastka ${P.plotW} × ${P.plotD} m, umumiy devor (101-band), tashqi yon ${P.side} m (100-band), juftlar orasi ${2 * P.side} m (56-jadval)`
     : kind === 'klaster' ? `Klaster: ${out.length} ta hovli uy berk koʻchalar atrofida — modul ${P.plotW} × ${P.plotD} m (Kingo, K-03), berk koʻcha ${P.gap} m, ≤ ${P.rowMax} qator (K-01), har hovli quyoshga ochiq`
-    : `Hovli uylar: ${out.length} ta, uchastka ${P.plotW} × ${P.plotD} m, L shakl uy chap chegarada (101-band), hovli ichkarida, qoʻshnigacha 7 m (56-jadval)`);
+    : `Hovli uylar: ${out.length} ta, uchastka ${P.plotW} × ${P.plotD} m, L shakl uy chap chegarada (101-band), hovli ichkarida, qoʻshnigacha ${P.plotW - 15} m (56-jadval)`);
   else notes.push('Past qavatli uylar sigʻmadi — kvartal qirralari juda qisqa yoki tor');
   return { houses: out, notes };
 }
 
 /** Ixtiyoriy siniq chiziq boʻylab (side: 1 — chap, −1 — oʻng tomonga); area — joylash mumkin boʻlgan hudud (masalan, kvartal) */
-export function lowriseAlong(line: XY[], side: 1 | -1, kind: LowKind, area: XY[] | null, floorsSel?: number): LowHouse[] {
-  const P = LOW[kind], floors = floorsSel != null ? Math.max(1, Math.min(3, Math.round(floorsSel))) : P.floors, out: LowHouse[] = [];
+export function lowriseAlong(line: XY[], side: 1 | -1, kind: LowKind, area: XY[] | null, floorsSel?: number, fire = 6): LowHouse[] {
+  const P = lowFit(kind, fire), floors = floorsSel != null ? Math.max(1, Math.min(3, Math.round(floorsSel))) : P.floors, out: LowHouse[] = [];
   const pts = side === 1 ? line : line.slice().reverse();
   let free: MultiPolygon = area ? [[close(signedArea(area) < 0 ? area.slice().reverse() : area)]] : [[close([[-1e5, -1e5], [1e5, -1e5], [1e5, 1e5], [-1e5, 1e5]])]];
   for (let i = 0; i + 1 < pts.length; i++) {
     const used = kind === 'klaster' ? clusterSeg(pts[i], pts[i + 1], free, P, out, floors) : alongSeg(pts[i], pts[i + 1], free, P, kind, out, floors);
     if (used.length) free = tryOp(() => polygonClipping.difference(free, used), free);
   }
+  fireThin(out, fire);
   return out;
 }
