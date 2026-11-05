@@ -10,6 +10,7 @@ import { rulePlan, planChecks, floorVariant, sharedEdge, facadeSegs, type RulePl
 import type { Bal } from './facade';
 import { aptInterior, IN_LABEL, type AptInterior, type Furn } from './aptplan';
 import { gridChecks, gridWindows, ptOf, type StructGrid } from './axes';
+import { liftChecks } from './liftadj';
 
 export const APT_FILL: Record<number, string> = { 1: '#f6d58f', 2: '#f4b08a', 3: '#9bd3b8', 4: '#8fa5cc' };
 /** Mebel belgisi (chizma birliklarida): orqa qirra ring[0]→ring[1] devorda, ring[3] — old tomon */
@@ -83,13 +84,13 @@ function labelPt(r: XY[]): XY {
 /** Seksiya rejasi (saqlangan yoki qayta hisoblangan) */
 export function sectionPlan(pl: SecPlan): RulePlan { return pl.layout.plan ?? rulePlan(pl.ring, pl.layout.mods, [20, 40, 30, 10]); }
 /** Seksiya rejasi qoidalari tekshiruvi; fh — qavat balandligi */
-export function sectionChecks(pl: SecPlan, fh = 3): PlanCheck[] { const P = sectionPlan(pl); return [...planChecks(P, (pl.z0 + pl.f1 - 1) * fh, pl.layout.mods), ...(pl.grid ? gridChecks(pl.grid, P, pl.layout.mods, pl.f1) : [])]; }
+export function sectionChecks(pl: SecPlan, fh = 3): PlanCheck[] { const P = sectionPlan(pl); return [...planChecks(P, (pl.z0 + pl.f1 - 1) * fh, pl.layout.mods), ...liftChecks(P, pl.layout.mods), ...(pl.grid ? gridChecks(pl.grid, P, pl.layout.mods, pl.f1) : [])]; }
 
 export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const tr = o.tr ?? ((x: string) => x), tf = (k: string, v: Record<string, unknown>) => tr(k).replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e]));
   // chizma OBB oʻqlariga buriladi: uzun tomon gorizontal (oʻlcham zanjirlari va oʻqlar toʻgʻri)
   const { U } = obb2(pl0.ring), V: XY = [-U[1], U[0]], T = (p: XY): XY => [p[0] * U[0] + p[1] * U[1], p[0] * V[0] + p[1] * V[1]], TR = (r: XY[]) => r.map(T);
-  const ft = floorTypeOf(pl0, o.floor), PT = o.plan ?? sectionPlan(pl0), P0 = floorVariant(PT, ft, pl0.layout.mods), grid = o.axes === false ? undefined : pl0.grid, checks = [...planChecks(PT, (pl0.z0 + pl0.f1 - 1) * (o.fh ?? 3), pl0.layout.mods), ...(grid ? gridChecks(grid, PT, pl0.layout.mods, pl0.f1) : [])];
+  const ft = floorTypeOf(pl0, o.floor), PT = o.plan ?? sectionPlan(pl0), P0 = floorVariant(PT, ft, pl0.layout.mods), grid = o.axes === false ? undefined : pl0.grid, checks = [...planChecks(PT, (pl0.z0 + pl0.f1 - 1) * (o.fh ?? 3), pl0.layout.mods), ...(ft === 'typical' || ft === 'first' ? liftChecks(PT, pl0.layout.mods) : []), ...(grid ? gridChecks(grid, PT, pl0.layout.mods, pl0.f1) : [])];
   const G: RulePlan = { ...P0, stairs: P0.stairs.map(TR), lifts: P0.lifts.map(TR), mop: P0.mop.map(TR), rest: P0.rest.map(TR), fireWalls: P0.fireWalls.map(TR), rooms: P0.rooms.map(q => ({ ...q, ring: TR(q.ring), door: T(q.door) })), apts: P0.apts.map(a => ({ ...a, ring: TR(a.ring), door: T(a.door), wet: TR(a.wet), walls: a.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]) })) };
   const mods = pl0.layout.mods.map(m => ({ ...m, a: T(m.a), b: T(m.b) }));
   // kvartira ichki rejalari (31.10): asl koordinatalarda hisoblanadi, chizma oʻqlariga buriladi

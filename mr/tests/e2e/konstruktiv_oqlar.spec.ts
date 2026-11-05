@@ -16,6 +16,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`konstrukti
   await expect(page.locator('#albAxSys [data-sys=monolit]')).toHaveAttribute('aria-pressed', 'true');   // sukut — devor-pilonli
   const steps = await page.locator('#albAxSteps').textContent();
   expect(steps).toMatch(/\d{4}/);                                                                           // qadamlar mm da
+  // 05.11 (toʻr birinchi): kvartiralararo devorlar oʻqda (T1), oʻq derazadan oʻtmaydi (T2)
+  await expect(page.locator('#albAxChk')).not.toContainText('Yuk koʻtaruvchi devorlar oʻq ustida');
+  await expect(page.locator('#albAxChk')).not.toContainText('Oʻq deraza oʻrnidan oʻtmaydi');
   // «Oʻlchamlar»: oʻq doiralari (raqam va harf) chizmada
   await page.click('#albView [data-view=olcham]');
   const txt = await page.locator('#albPlan svg').first().evaluate(s => s.textContent ?? '');
