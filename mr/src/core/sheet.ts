@@ -14,6 +14,7 @@ import { derive } from './derive';
 import { offsetLine, projectStreetsGeo } from '../scene/streets3d';
 import { landscape, greenBalance } from './landscape';
 import { szzGreen } from './szzgen';
+import { entryRing } from './parkentry';
 import { freeRect, pickLevel, labelLines, modeMax, type LabelMode } from './labels';
 import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES } from './limits';
 import { prodChecks } from './prodcheck';
@@ -490,6 +491,15 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     if (gs.length) {
       g('Avtoturargohlar', gs.map(q => { const r = q.ring.map(fr.toLocal), c = centroid(r); return `<path d="${ringD(r)}" fill="${GK[q.kind][0]}" fill-opacity="0.85" stroke="#4b5563" stroke-width="${lw(0.25)}"${q.kind === 'yer_osti' ? ' stroke-dasharray="1.5 0.8"' : ''}/><text x="${X(c)}" y="${n2(+Y(c) + 1.2)}" font-size="${T(3.2)}" font-weight="700" text-anchor="middle" fill="#1f3a68">P</text>`; }).join(''));
       for (const k of ['yer_osti', 'stilobat', 'yer_usti', 'kop_qavatli']) if (gs.some(q => q.kind === k)) legend.push({ type: 'fill', fill: GK[k][0], stroke: '#4b5563', label: tr(GK[k][1]) });
+      // 05.11: kirish-chiqish (pandus) va shamollatish shaxtalari (414, 415-bandlar; SanPiN 6.4.1 8-izoh)
+      const ents = gs.flatMap(q => (q.entries ?? []).map(e => ({ at: fr.toLocal(e.at), kind: e.kind, ...(e.dir != null ? { dir: e.dir } : {}) })));
+      if (ents.length) {
+        g('Avtoturargoh_kirishlari', ents.map(e => { const r = entryRing(e), col = e.kind === 'rampa' ? '#d9a441' : '#5f6369'; let arrow = '';
+          if (e.kind === 'rampa') { const d = e.dir ?? 0, ux = Math.cos(d), uy = Math.sin(d), t0: XY = [e.at[0] - ux * 5, e.at[1] - uy * 5], t1: XY = [e.at[0] - ux * 1, e.at[1] - uy * 1]; arrow = `<path d="M${X(t0)} ${Y(t0)}L${X(t1)} ${Y(t1)}M${X([t1[0] - ux * 1.1 + uy * 0.8, t1[1] - uy * 1.1 - ux * 0.8])} ${Y([t1[0] - ux * 1.1 + uy * 0.8, t1[1] - uy * 1.1 - ux * 0.8])}L${X(t1)} ${Y(t1)}L${X([t1[0] - ux * 1.1 - uy * 0.8, t1[1] - uy * 1.1 + ux * 0.8])} ${Y([t1[0] - ux * 1.1 - uy * 0.8, t1[1] - uy * 1.1 + ux * 0.8])}" fill="none" stroke="#1d1d1b" stroke-width="${lw(0.3)}"/>`; }
+          return `<path d="${ringD(r)}" fill="${col}" stroke="#1d1d1b" stroke-width="${lw(0.25)}"/>${arrow}`; }).join(''));
+        if (ents.some(e => e.kind === 'rampa')) legend.push({ type: 'fill', fill: '#d9a441', stroke: '#1d1d1b', label: tr('Avtoturargoh kirish-chiqishi (pandus)') });
+        if (ents.some(e => e.kind === 'shaxta')) legend.push({ type: 'fill', fill: '#5f6369', stroke: '#1d1d1b', label: tr('Shamollatish shaxtasi') });
+      }
     }
     const man = doc.pois.filter(q => q.kind === 'bekat' || q.kind === 'metro').map(q => ({ p: fr.toLocal(q.at), kind: q.kind as 'bekat' | 'metro' }));
     const allSt = [...(ctx?.stops ?? []), ...man].filter(q => Math.abs(q.p[0] - cx) < R + 800 && Math.abs(q.p[1] - cy) < R + 800);

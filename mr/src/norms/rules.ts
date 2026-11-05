@@ -27,6 +27,8 @@ import { isTashkent } from '../core/parking';
 import { need413, T30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML } from '../core/mlpark';
 import { szzGreen } from '../core/szzgen';
 import { isActive } from '../core/limits';
+import { entryReport, hasEntryRules, isUg } from '../core/parkenv';
+import { type CheckKind } from '../core/parkentry';
 
 const mlOf = (doc: Project) => doc.garages.filter(g => g.kind === 'kop_qavatli');
 const mlSum = (doc: Project) => mlOf(doc).reduce((t, g) => t + g.spaces, 0);
@@ -52,6 +54,21 @@ function closestSeg(a: XY[], b: XY[]): [XY, XY] {
 }
 
 const nm = (v: number) => (Math.round(v * 10) / 10).toString().replace('.', ',');
+const EK: Record<CheckKind, string> = { chorraha: 'chorraha', bekat: 'bekat', deraza: 'turar / jamoat binosi', hudud: 'taʼlim / davolash hududi', maydoncha: 'dam olish maydonchasi' };
+/** Avtoturargoh kirishlari boʻyicha tekshiruv yigʻindisi (414 / 415): fails matni, where (nuqtalar, kesma va «bor → kerak» yozuvi) */
+function entryEval(doc: Project, gs: Project['garages'], pick: (c: { kind: CheckKind }) => boolean): { n: number; fails: string[]; revs: string[]; where?: Where; minX: number | null; noX: boolean } {
+  const fails: string[] = [], revs: string[] = [], pts: XY[] = [], segs: [XY, XY][] = [], nsegs: [XY, XY][] = [], labels: { at: XY; text: string }[] = []; let n = 0, minX: number | null = null, anyX = false;
+  for (const g of gs) for (const r of entryReport(doc, g)) {
+    n++; pts.push(r.e.at);
+    const cs = r.checks.filter(pick); if (cs.length) anyX = true;
+    for (const c of cs) { if (minX == null || c.d < minX) minX = c.d; if (c.ok) continue;
+      // 05.11: shaxta uchun joiz joy topilmagan (garaj chetiga qoʻyilgan) — «koʻrib chiqish», mos emas emas
+      (r.e.edge ? revs : fails).push(`${r.e.kind === 'shaxta' ? 'shaxta' : 'kirish'} → ${EK[c.kind]}${c.kind === 'chorraha' && c.main ? ' (magistral)' : ''}: ${nm(c.d)} m, kerak ${c.need} m`);
+      segs.push([r.e.at, c.to]); const ns = needSeg(r.e.at, c.to, c.need); nsegs.push(ns); labels.push({ at: ns[1], text: `${nm(c.d)} → ≥ ${c.need} m` }); }
+  }
+  const where: Where | undefined = n ? { pts, ...(segs.length ? { segs, need: { segs: nsegs, labels } } : {}) } : undefined;
+  return { n, fails, revs, ...(where ? { where } : {}), minX, noX: n > 0 && !anyX && pick({ kind: 'chorraha' }) };
+}
 /** kesma a→b yoʻnalishida, a dan L uzunlikdagi kesma (kerakli masofa) */
 function needSeg(a: XY, b: XY, L: number): [XY, XY] {
   const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [a, [a[0] + dx / l * L, a[1] + dy / l * L]];
@@ -322,8 +339,13 @@ export const RULES: Rule[] = [
     title: 'Avtoturargoh kirish-chiqishi va pandus',
     source: { ...SHNQ_2_07_01, clause: '414-band; pandus — ANDOZA (SP 113.13330.2016)', verified: false },
     evaluate(_d, doc) {
-      const ml = mlOf(doc); if (!ml.length) return { status: 'na', note: 'Koʻp qavatli avtoturargoh yoʻq.' };
-      return { status: 'review', unit: '', note: `414-band: kirish-chiqish joylari magistral koʻchalar chorrahasidan kamida 50 m, mahalliy koʻchalardan 20 m, jamoat transporti bekatidan 5 m — darvoza joyi loyihada aniqlanadi.\nPandus (ANDOZA — Oʻzbekiston normasi papkada yoʻq, SP 113.13330.2016 (RF) — taqqoslash uchun): qavat ${String(ML.floorH).replace('.', ',')} m, qiyalik ≤ 18 % (egri pandus ≤ 13 %), bir yoʻnalishli yoʻlak ≥ 3,5 m, uchlarida 3,6 m oʻtish uchastkalari — gorizontal uzunlik ${String(rampLen()).replace('.', ',')} m.` };
+      const gs = doc.garages.filter(hasEntryRules); if (!gs.length) return { status: 'na', note: 'Yer osti, stilobat yoki koʻp qavatli avtoturargoh yoʻq.' };
+      const ramp = `Pandus (ANDOZA — Oʻzbekiston normasi papkada yoʻq, SP 113.13330.2016 (RF) — taqqoslash uchun): qavat ${String(ML.floorH).replace('.', ',')} m, qiyalik ≤ 18 % (egri pandus ≤ 13 %), bir yoʻnalishli yoʻlak ≥ 3,5 m, uchlarida 3,6 m oʻtish uchastkalari — gorizontal uzunlik ${String(rampLen()).replace('.', ',')} m.`;
+      const E = entryEval(doc, gs, c => c.kind === 'chorraha' || c.kind === 'bekat');
+      const n = E.n, mx = E.minX == null ? '—' : nm(E.minX), fails = E.fails;
+      if (!n) return { status: 'review', unit: '', note: `414-band: kirish-chiqish joylari magistral koʻchalar chorrahasidan kamida 50 m, mahalliy koʻchalardan 20 m, jamoat transporti bekatidan 5 m. Kirish nuqtasi qoʻyilmagan (${gs.length} ta avtoturargoh) — Hajmlar qadamida «Kirish-chiqish → Avtomatik joylashtir» yoki sahnada belgini sudrang.\n${ramp}` };
+      return { status: fails.length ? 'fail' : E.noX ? 'review' : 'pass', value: fails.length, unit: 'ta', limit: '0', ...(E.where ? { where: E.where } : {}),
+        note: `414-band: kirish-chiqish magistral koʻchalar chorrahasidan ≥ 50 m, mahalliy koʻchalar chorrahasidan ≥ 20 m (TALQIN: «маҳаллий аҳамиятидаги кўчалардан 20 m» — chorrahadan), bekatdan ≥ 5 m. Kirishlar: ${n} ta; eng yaqin chorraha: ${mx} m.` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (E.noX ? '\nLoyiha koʻchalari chorrahasi topilmadi — kirish koʻcha tarmogʻi bilan koʻrib chiqilsin.' : '') + (doc.pois.some(q => q.kind === 'bekat' || q.kind === 'metro') ? '' : '\nBekatlar: qoʻlda qoʻshilgan POI yoʻq (OSM bekatlari bu tekshiruvda yoʻq).') + `\n${ramp}` };
     },
   },
   {
@@ -332,8 +354,14 @@ export const RULES: Rule[] = [
     title: 'Yer osti avtoturargoh: kirish-chiqish va shamollatish shaxtalari',
     source: { doc: 'ShNQ 2.07.01-23; SanPiN RUz № 0350-17', edition: '2023; 2017', clause: '415-band; 6.4.1-jadval, 8-izoh', verified: false },
     evaluate(_d, doc) {
-      const ug = doc.garages.filter(g => g.kind === 'yer_osti'); if (!ug.length) return { status: 'na', note: 'Yer osti avtoturargoh yoʻq.' };
-      return { status: 'review', unit: '', note: `Yer osti avtoturargohlar: ${ug.length} ta, ${ug.reduce((t, g) => t + g.spaces, 0)} joy. 415-band: kirish-chiqish joylari turar joy va jamoat binolari derazalaridan, taʼlim va davolash muassasalari hududlaridan kamida 15 m. SanPiN 0350-17, 6.4.1-jadval 8-izoh: kirish-chiqish va shamollatish shaxtalaridan maktab, MTM, davolash muassasalari, turar joy fasadlari va dam olish maydonchalarigacha kamida 15 m. Rampa va shaxtalar joyi modelda yoʻq — loyihada aniqlanadi.` };
+      const ug = doc.garages.filter(g => isUg(g) && !g.truck); if (!ug.length) return { status: 'na', note: 'Yer osti avtoturargoh yoʻq.' };
+      const nug = ug.length, sp = ug.reduce((t, g) => t + g.spaces, 0);
+      const head = `Yer osti avtoturargohlar: ${nug} ta, ${sp} joy. 415-band: kirish-chiqish joylari turar joy va jamoat binolari derazalaridan, taʼlim va davolash muassasalari hududlaridan kamida 15 m. SanPiN 0350-17, 6.4.1-jadval 8-izoh: kirish-chiqish va shamollatish shaxtalaridan maktab, MTM, davolash muassasalari, turar joy fasadlari va dam olish maydonchalarigacha kamida 15 m.`;
+      const E = entryEval(doc, ug, c => c.kind === 'deraza' || c.kind === 'hudud' || c.kind === 'maydoncha');
+      if (!E.n) return { status: 'review', unit: '', note: `${head} Pandus va shaxtalar qoʻyilmagan — Hajmlar qadamida «Kirish-chiqish → Avtomatik joylashtir».` };
+      const sh = ug.reduce((t, g) => t + (g.entries ?? []).filter(e => e.kind === 'shaxta').length, 0), np = E.n - sh, mx = E.minX == null ? '—' : nm(E.minX), fails = E.fails, revs = E.revs;
+      return { status: fails.length ? 'fail' : revs.length ? 'review' : 'pass', value: fails.length, unit: 'ta', limit: '0', ...(E.where ? { where: E.where } : {}),
+        note: `${head} Pandus ${np} ta, shaxta ${sh} ta (shaxtalar soni — ANDOZA: har 2 000 m² ga 1; hisob loyihada). Eng yaqin bino, hudud yoki maydoncha: ${mx} m. TALQIN: deraza va fasad — turar va jamoat binolarining butun konturi; dam olish maydonchalari — hovlidagi bolalar, kattalar va sport maydonchalari (xoʻjalik emas).` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (revs.length ? `\nShaxta uchun joiz joy topilmadi — garaj chetiga, koʻcha tomonga qoʻyildi; loyihada aniqlansin: ${revs.slice(0, 4).join('; ')}.` : '') };
     },
   },
   {
