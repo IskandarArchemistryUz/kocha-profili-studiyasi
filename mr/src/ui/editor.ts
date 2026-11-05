@@ -106,7 +106,7 @@ import { LiveBase, liveSize } from '../context/basemap';
 import { logoSvg } from './logo';
 import { openInKochasoz } from '../kochasoz/fromMr';
 import { PALETTES, basePrefs, setBasePrefs } from '../context/mapstyle';
-import { projectStreetsGeo } from '../scene/streets3d';
+import { projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
 import { norm as normSheet } from './sheets';
 import { openChizmadon } from '../chizmadon/ui';
@@ -543,7 +543,7 @@ export class Editor {
       blocks: plan.blocks.map(b => ({ rings: b.rings, use: b.use })), site: doc.site?.rings.map(r => r.map(fr.toLocal)) ?? null,
       roads: (sc?.roads ?? []).filter(r => !doc.streets.some(s => s.osm === r.id) && !(doc.removedRoads ?? []).includes(r.id)), green: sc?.green ?? [], water: sc?.water ?? [],
       yards: yardsL.map(y => ({ green: y.green, hard: [...y.paving, ...y.paths, ...y.play.map(q => [q.ring])] })),
-      trees: [...(sc?.trees ?? []).filter(t => !doc.site || !pointIn(t, doc.site.rings.map(r => r.map(fr.toLocal)))), ...projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0).trees, ...yardsL.flatMap(y => y.trees)],
+      trees: [...(sc?.trees ?? []).filter(t => !doc.site || !pointIn(t, doc.site.rings.map(r => r.map(fr.toLocal)))), ...projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0, [], { curbR: doc.settings.recon ? CURB_R_RECON : CURB_R }).trees, ...yardsL.flatMap(y => y.trees)],
     });
     const T = pts.map((p, i) => surfaceT(cover(p), total ? 1 - sun[i] / total : 0, canopy(p)));
     this.scene.setGroundMap(pts, T.map(heatColor), cell);
@@ -2994,12 +2994,19 @@ export class Editor {
         const q: XY = [u[0] + t * dx, u[1] + t * dy], d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d <= tol && d < bd - 1.5) { bd = d; best = q; kind = 'qirra'; }
       }
     };
-    for (const st of doc.streets) if (st.id !== skip) near(st.axis.map(fr.toLocal), 6, 6);
+    // 05.11: loyiha koʻchasi boʻgʻini/uchi — 8 m gacha (ANDOZA): tugun bir necha metr chetda qolib, chorraha ikkiga boʻlinmasin
+    for (const st of doc.streets) if (st.id !== skip) near(st.axis.map(fr.toLocal), 6, 8);
     if (best === p) {
       const b = this.ctxMgr.current, adopted = new Set([...doc.streets.map(x => x.osm), ...(doc.removedRoads ?? [])]);
-      if (b && doc.context.loaded && doc.context.layers.roads) for (const r of this.ctxRoads()) {
-        if (adopted.has(r.id) || /^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)) continue;
-        near(r.pts.map(fr.toLocal), r.w / 2 + 6, 8);
+      if (b && doc.context.loaded && doc.context.layers.roads) {
+        const rr = this.ctxRoads().filter(r => !adopted.has(r.id) && !/^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian)$/.test(r.cls)), rs = rr.map(r => r.pts.map(fr.toLocal));
+        // 05.11: OSM chorraha tuguni (≥ 2 yoʻl umumiy nuqtasi) 8 m ichida — oʻq boʻylab nuqtadan ustun (ANDOZA): loyiha tuguni kesishmaning oʻzida boʻlsin
+        const cnt = new Map<string, { n: number; p: XY }>(), k = (q: XY) => `${Math.round(q[0] * 2)},${Math.round(q[1] * 2)}`;
+        for (const a of rs) for (const q of new Map(a.map(q => [k(q), q])).values()) { const e = cnt.get(k(q)) ?? { n: 0, p: q }; e.n++; cnt.set(k(q), e); }
+        let jd = 8, jp: XY | null = null;
+        for (const e of cnt.values()) if (e.n >= 2) { const dd = Math.hypot(e.p[0] - p[0], e.p[1] - p[1]); if (dd <= jd) { jd = dd; jp = e.p; } }
+        if (jp) { best = jp; bd = jd; kind = 'uch'; }
+        else rr.forEach((r, i) => near(rs[i], r.w / 2 + 6, 8));
       }
     }
     this.scene.setSnapMark(best === p ? null : best, kind);
@@ -3932,7 +3939,7 @@ export class Editor {
   }
   private streetTrees(): number {
     const doc = this.store.doc, fr = frame(doc.origin);
-    return doc.streets.length ? projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0).trees.length : 0;
+    return doc.streets.length ? projectStreetsGeo(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), () => 0, [], { curbR: doc.settings.recon ? CURB_R_RECON : CURB_R }).trees.length : 0;
   }
 
   /* ---------- qadamlar ---------- */
