@@ -75,10 +75,13 @@ describe('rekonstruksiya rejimi (79-band 2-jadval 7-izoh)', () => {
     const r = ev(rec(mk(15))); expect(r.status).toBe('review'); expect(r.note).toContain('7-izoh');
     expect(ev(rec(mk(10))).status).toBe('fail');                    // 10 m < 24/2
   });
-  it('uzun tomonlar 2·Hmax (8-izoh) qisqarmaydi', () => {
-    const d = rec(doc([bld('a', rect(0, 0, 60, 15), 12), bld('b', rect(0, 45, 60, 15), 12)]));
-    expect(spacingIssues(d).pairs[0].red).toBeUndefined();
-    expect(ev(d).status).toBe('fail');
+  it('05.11: uzun tomonlar 2·Hmax (8-izoh) ham yarmigacha qisqaradi — ≥ Hmax koʻrib chiqish (TALQIN), < Hmax buzilish', () => {
+    const H = spacingIssues(doc([bld('a', rect(0, 0, 60, 15), 12), bld('b', rect(0, 45, 60, 15), 12)])).pairs[0].need / 2;
+    const mk = (gap: number) => doc([bld('a', rect(0, 0, 60, 15), 12), bld('b', rect(0, 15 + gap, 60, 15), 12)]);
+    expect(ev(mk(H + 2)).status).toBe('fail');                       // oddiy rejim: 2·Hmax
+    expect(spacingIssues(rec(mk(H + 2))).pairs[0]).toMatchObject({ kind: 'uzun', red: true, s8: true });
+    const r = ev(rec(mk(H + 2))); expect(r.status).toBe('review'); expect(r.note).toContain('TALQIN');
+    expect(ev(rec(mk(H - 3))).status).toBe('fail');
   });
 });
 

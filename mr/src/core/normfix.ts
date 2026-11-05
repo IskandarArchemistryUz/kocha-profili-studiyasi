@@ -26,7 +26,7 @@ export interface RepairResult { doc: Project; lowered: number; removed: number; 
 
 /** spacing-79 qoidasida «mos emas» hisoblanadigan juftlar (norms/rules.ts bilan bir xil tanlov) */
 export function failingSpacing(doc: Project): SpacingPair[] {
-  return spacingIssues(doc).pairs.filter(p => p.kind === 'ustma-ust' || p.kind === 'uzun' || p.kind === 'yakka' || (p.kind === 'uzun-torets' && !p.red) || (p.kind === 'torets' && !p.red && p.d < p.need - 0.5));
+  return spacingIssues(doc).pairs.filter(p => p.kind === 'ustma-ust' || (p.kind === 'uzun' && !p.red) || p.kind === 'yakka' || (p.kind === 'uzun-torets' && !p.red) || (p.kind === 'torets' && !p.red && p.d < p.need - 0.5));
 }
 
 /** H ≤ maxH boʻladigan eng koʻp qavat (bLevels boʻyicha: 1-qavat balandligi, stilobat va h.k. hisobga olinadi) */
