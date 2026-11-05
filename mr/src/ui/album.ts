@@ -440,7 +440,7 @@ export function openAlbum(o: AlbumOpts): void {
   /** V3: variantlar — generator maqsadli aralashmaga yaqin 3 ta reja; «Joriy» — hozirgi (tahrirlangan boʻlsa shu) */
   function computeVars(): void {
     const pl = secOf();
-    try { vars = planVariants(pl.ring, pl.layout.mods, varMix, varSize, pl.court ?? null, 4, pl.grid?.joints ?? []); } catch { vars = []; }
+    try { vars = planVariants(pl.ring, pl.layout.mods, varMix, varSize, pl.court ?? null, 4, pl.grid?.joints ?? [], pl.grid ? { system: pl.grid.system, seismic: pl.grid.seismic } : undefined); } catch { vars = []; }
     varSel = -1;
   }
   function renderVars(pl: SecPlan, si: number): void {

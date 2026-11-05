@@ -17,11 +17,12 @@
 import type { XY } from './geo';
 import { signedArea, obb2 } from './geo';
 import type { Prism, SunStep } from './sun';
-import { rulePlan, applyEdit, type RulePlan } from './sectionplan';
-import { structGrid, type StructGrid } from './axes';
+import { rulePlan, applyEdit, finishPlan, type RulePlan, type GridSys } from './sectionplan';
+import { structGrid, systemOf, stepSet, fillSpan, ptOf, type StructGrid } from './axes';
 import { bLevels } from './levels';
+import { fixLiftAdj } from './liftadj';
 
-export interface Module { a: XY; b: XY; /** deraza nuqtasi (fasaddan 0,3 m tashqarida) */ p: XY; /** tashqi normal azimuti, ° */ az: number; blind: boolean }
+export interface Module { a: XY; b: XY; /** deraza nuqtasi (fasaddan 0,3 m tashqarida) */ p: XY; /** tashqi normal azimuti, ° */ az: number; blind: boolean; /** 05.11: chegaralari konstruktiv oʻqda */ grid?: true }
 export interface Apt { rooms: number; /** modullar indekslari */ mods: number[]; /** yashash xonalari modullari */ living: number[]; /** qator oxirida joy yetmay kichraytirilgan — miksdan tashqari */ forced?: boolean; /** rejadagi umumiy maydon, m² (yalpi × 0,85) */ area?: number }
 /** plan — qavat rejasi (kommunikatsiya → kvartiralar), kvartiralar shundan olinadi */
 export interface Layout { mods: Module[]; apts: Apt[]; plan?: RulePlan }
@@ -45,24 +46,78 @@ export const badness = (a: number) => (isWest(a) ? 2 : 0) + Math.cos(a * Math.PI
  * Fasad ~3,3 m li modullarga (derazalar) boʻlinadi; kvartiralar QAVAT REJASIDAN olinadi (sectionplan.ts):
  * avval zina-lift yadrosi va koridor, keyin har kvartira koridorga eshik va fasadga deraza bilan.
  */
-export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M', court: XY | null = null, walls: [XY, XY][] = []): Layout {
-  const ring = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, mods: Module[] = [];
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i], b = ring[(i + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
-    const cnt = Math.floor(l / modW + 0.2); if (cnt < 1) continue;
-    const n: XY = [dy / l, -dx / l], w = l / cnt;
-    for (let k = 0; k < cnt; k++) {
-      const ma: XY = [a[0] + dx * k / cnt, a[1] + dy * k / cnt], mb: XY = [a[0] + dx * (k + 1) / cnt, a[1] + dy * (k + 1) / cnt];
-      const mid: XY = [(ma[0] + mb[0]) / 2, (ma[1] + mb[1]) / 2];
-      mods.push({ a: ma, b: mb, p: [mid[0] + n[0] * 0.3, mid[1] + n[1] * 0.3], az: az(n), blind: blindAt([mid[0] + n[0] * 0.8, mid[1] + n[1] * 0.8]) || w < 2.4 });
-    }
-  }
+export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M', court: XY | null = null, walls: [XY, XY][] = [], gs?: GridSys): Layout {
+  const ring = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0;
+  const mods = facadeMods(ring, blindAt, modW);
   // reja generatori bir necha variant yasaydi (sekin) — natija kesh: kontur, berk modullar, aralashma, oʻlcham, hovli nuqtasi
   const key = JSON.stringify([ring.map(p => [Math.round(p[0] * 1e3), Math.round(p[1] * 1e3)]), mods.map(m => m.blind ? 1 : 0).join(''), mix, modW, size, court && [Math.round(court[0] * 1e3), Math.round(court[1] * 1e3)], walls.map(w => w.map(p => [Math.round(p[0] * 10), Math.round(p[1] * 10)]))]);
-  let base = PLAN_CACHE.get(key);
-  if (!base) { base = rulePlan(ring, mods, mix, size, court, walls); PLAN_CACHE.set(key, base); if (PLAN_CACHE.size > 400) PLAN_CACHE.delete(PLAN_CACHE.keys().next().value!); }
+  const key2 = gs ? key + JSON.stringify(gs) : key;
+  let base = PLAN_CACHE.get(key2);
+  if (!base) { base = rulePlan(ring, mods, mix, size, court, walls, gs); PLAN_CACHE.set(key2, base); if (PLAN_CACHE.size > 400) PLAN_CACHE.delete(PLAN_CACHE.keys().next().value!); }
   const plan = structuredClone(base);
+  // 05.11 (egasi: «devorlar oynaga borib urilyapti»): toʻr birinchi — fasad modullari konstruktiv oʻqlar oraligʻiga moslanadi:
+  // har oraliqda bitta deraza (oʻrtada), karkasda — yarim oraliqlarda; kvartira va xona devorlari modul chegarasida (= oʻqda) — derazaga tegmaydi
+  // minora (nuqtali) rejasi — kvartiralar fasadga tik kesilgan: koʻndalang devorlar (bir uchi fasadda) oʻq boʻladi
+  if (gs && !plan.axisLines?.length) { const wl = wallLines(plan, ring); if (wl.length) plan.axisLines = wl; }
+  if (plan.axisLines?.length) {
+    const m2 = facadeMods(ring, blindAt, modW, plan.axisLines, gs ? stepSet(gs.system, gs.seismic) : undefined);
+    finishPlan(plan, m2, size, true);
+    return { mods: m2, apts: aptsOf(plan, m2), plan };
+  }
   return { mods, apts: aptsOf(plan, mods), plan };
+}
+/** Kvartira chegaralaridagi koʻndalang devorlar: bir uchi fasadda (konturda), fasadga tik — konstruktiv oʻq chizigʻi sifatida */
+function wallLines(plan: RulePlan, ring: XY[]): [XY, XY][] {
+  const segD = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]); };
+  const onEdge = (p: XY): number => { for (let i = 0; i < ring.length; i++) if (segD(p, ring[i], ring[(i + 1) % ring.length]) < 0.15) return i; return -1; };
+  const out: [XY, XY][] = [];
+  for (const a of plan.apts) for (let k = 0; k < a.ring.length; k++) {
+    const p = a.ring[k], q = a.ring[(k + 1) % a.ring.length], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy); if (L < 1) continue;
+    const ep = onEdge(p), eq = onEdge(q); if ((ep < 0) === (eq < 0)) continue;   // bitta uchi fasadda
+    const e = ep >= 0 ? ep : eq, A = ring[e], B = ring[(e + 1) % ring.length], ex = B[0] - A[0], ey = B[1] - A[1], el = Math.hypot(ex, ey) || 1;
+    if (Math.abs((dx * ex + dy * ey) / (L * el)) > 0.1) continue;   // fasadga tik emas
+    if (!out.some(([u, v]) => Math.hypot(u[0] - p[0], u[1] - p[1]) + Math.hypot(v[0] - q[0], v[1] - q[1]) < 0.3 || Math.hypot(u[0] - q[0], u[1] - q[1]) + Math.hypot(v[0] - p[0], v[1] - p[1]) < 0.3)) out.push([p, q]);
+  }
+  return out;
+}
+/**
+ * Fasad modullari. lines yoʻq — har qirra ~modW li teng boʻlaklar (eski yoʻl). lines bor (05.11) — qirraga perpendikulyar konstruktiv
+ * oʻqlar qirrani kesgan joylar modul chegarasi; oraliq ≥ 4,5 m (karkas, yadro oraligʻi) — teng 2–3 boʻlakka; oʻqsiz qirra (torets) — eski yoʻl.
+ */
+function facadeMods(ring: XY[], blindAt: (p: XY) => boolean, modW: number, lines?: [XY, XY][], S?: ReturnType<typeof stepSet>): Module[] {
+  const mods: Module[] = [];
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy); if (l < 0.5) continue;
+    const ux = dx / l, uy = dy / l, n: XY = [dy / l, -dx / l];
+    let ts: number[] = [];
+    if (lines) for (const [p, q] of lines) {
+      const lx = q[0] - p[0], ly = q[1] - p[1], ll = Math.hypot(lx, ly) || 1; if (Math.abs((lx * ux + ly * uy) / ll) > 0.1) continue;
+      // qirra va chiziq kesishuvi: qirradagi t, chiziq ichida (± 0,4 m)
+      const den = ux * ly / ll - uy * lx / ll; if (Math.abs(den) < 1e-9) continue;
+      const t = ((p[0] - a[0]) * ly / ll - (p[1] - a[1]) * lx / ll) / den, X: XY = [a[0] + ux * t, a[1] + uy * t];
+      const s = ((X[0] - p[0]) * lx + (X[1] - p[1]) * ly) / ll; if (s < -0.4 || s > ll + 0.4) continue;
+      if (t > 1.0 && t < l - 1.0) ts.push(t);
+    }
+    ts = ts.sort((x, y) => x - y).filter((t, k, arr) => k === 0 || t - arr[k - 1] > 0.6);
+    let cuts: number[];
+    if (lines && ts.length) {
+      const B = [0, ...ts, l]; cuts = [0];
+      // oraliq qadamdan katta — konstruktiv toʻr kabi (core/axes fillSpan) boʻlinadi; oraliq ≥ 4,5 m (karkas) — 2–3 deraza moduli
+      for (let k = 1; k < B.length; k++) {
+        const sp = B[k] - B[k - 1], bays = S && sp > S.max + 0.05 ? fillSpan(sp, S) : [sp]; let t = B[k - 1];
+        bays.forEach((bw, bi) => { const t1 = bi === bays.length - 1 ? B[k] : t + bw, w = t1 - t, nn = w >= 4.5 ? Math.max(1, Math.round(w / modW)) : 1; for (let j = 1; j < nn; j++) cuts.push(t + w * j / nn); cuts.push(t1); t = t1; });
+      }
+    } else {
+      const cnt = Math.floor(l / modW + 0.2); if (cnt < 1) continue;
+      cuts = Array.from({ length: cnt + 1 }, (_, k) => l * k / cnt);
+    }
+    for (let k = 0; k + 1 < cuts.length; k++) {
+      const t0 = cuts[k], t1 = cuts[k + 1], w = t1 - t0;
+      const ma: XY = [a[0] + ux * t0, a[1] + uy * t0], mb: XY = [a[0] + ux * t1, a[1] + uy * t1], mid: XY = [(ma[0] + mb[0]) / 2, (ma[1] + mb[1]) / 2];
+      mods.push({ a: ma, b: mb, p: [mid[0] + n[0] * 0.3, mid[1] + n[1] * 0.3], az: az(n), blind: blindAt([mid[0] + n[0] * 0.8, mid[1] + n[1] * 0.8]) || w < (lines ? 1.2 : 2.4), ...(lines && ts.length ? { grid: true as const } : {}) });   // toʻr oraliqlarida: ≥ 1,2 m — kichik deraza
+    }
+  }
+  return mods;
 }
 const PLAN_CACHE = new Map<string, RulePlan>();
 /** Rejadagi kvartiralar → insolyatsiya va hisob uchun roʻyxat (yashash xonalari — eng yaxshi yoʻnalishdagi derazalar) */
@@ -204,7 +259,7 @@ function planWithMix(doc: Project, mix: number[]): SecPlan[] {
     // 05.11: antiseysmik choklar avval (konstruktiv toʻr, QMQ 3.1.3) — reja seksiyalari chok chizigʻiga moslanadi, chok xonadan oʻtmaydi (3.1.4)
     const gOpts = { sys: doc.settings.construct ?? 'monolit', seismic: doc.settings.seismic ?? 8, H: bLevels(doc.settings, b).top, floors: b.floors } as const;
     const joints = structGrid(s.r, null, gOpts).joints;
-    const size = doc.settings.aptSize ?? 'M', layout = layoutSection(s.r, blindAt, mix, MOD_W, size, court, joints);
+    const size = doc.settings.aptSize ?? 'M', layout = layoutSection(s.r, blindAt, mix, MOD_W, size, court, joints, { system: systemOf(gOpts.sys), seismic: gOpts.seismic });
     // qoʻlda tahrir: kalit mos boʻlsa — tahrirlangan reja
     let edited: 'ok' | 'eskirgan' | undefined, genPlan: RulePlan | undefined;
     if (b.planEdit) {
@@ -216,9 +271,17 @@ function planWithMix(doc: Project, mix: number[]): SecPlan[] {
     }
     // 04.11 (egasi): 1 xonalilar — studiya formati (loyiha sozlamasi); kvartiraning oʻz tanlovi (inner.studio) ustun
     if (doc.settings.studio1 && layout.plan) for (const a of layout.plan.apts) if ((a.rooms || 1) <= 1 && a.inner?.studio == null) a.inner = { ...(a.inner ?? {}), studio: true };
+    // 05.11: ShNQ 2.08.01-24, 230-band — liftga tutash yashash xonasi boʻlsa ichki rejaning ikkinchi varianti (qoʻlda tahrir qilinmagan rejada)
+    if (layout.plan && edited !== 'ok') fixLiftAdj(layout.plan, layout.mods);
     const halfDepth = Math.max(4, Math.min(9, sectionDepth(s.r, layout.mods) / 2));
     // 05.11: konstruktiv toʻr — hujjat sozlamalari (tizim, seysmiklik) va shu seksiya rejasidan (yadro, kvartira devorlari — langarlar)
     const grid = layout.plan ? structGrid(s.r, layout.plan, gOpts) : undefined;
+    // 05.11: fasad modullari toʻrning barcha oʻqlari (raqamli va harfli) fasadni kesgan joylarda boʻlinadi — deraza hech qachon oʻq ustida emas (T2)
+    if (grid && layout.plan && layout.plan.axisLines?.length) {
+      const gl: [XY, XY][] = grid.blocks.flatMap(b => [...b.x.filter(a => a.kind !== 'sub').map(a => [ptOf(b, a.pos, b.v0), ptOf(b, a.pos, b.v1)] as [XY, XY]), ...b.y.map(a => [ptOf(b, b.u0, a.pos), ptOf(b, b.u1, a.pos)] as [XY, XY])]);
+      const m3 = facadeMods(s.r, blindAt, MOD_W, gl, stepSet(grid.system, grid.seismic));
+      if (m3.length) { layout.mods = m3; finishPlan(layout.plan, m3, size, true); layout.apts = aptsOf(layout.plan, m3); }
+    }
     if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, ...(grid ? { grid } : {}), f0: b.nonRes, f1: b.floors, z0, halfDepth, court, ...(edited ? { edited } : {}), ...(genPlan ? { genPlan } : {}) });
   }
   return out;

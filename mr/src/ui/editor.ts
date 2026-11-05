@@ -2188,6 +2188,10 @@ export class Editor {
       mk('plan-access', 'mop', 'Kvartiralarga kirish — faqat umumiy koridordan', { doc: 'Rejalash qoidasi', clause: 'zina-lift → koridor → kvartira', edition: '—', verified: true }, 'Har seksiya rejasida har kvartira eshigi MOP ga chiqadi, deraza fasadda; boshqa kvartira orqali kirish yoʻq.'),
       mk('plan-stairs', 'stairs', 'Evakuatsiya zinalari soni', { ...SHNQ, clause: '5.13' }, 'Qavatdagi kvartiralar maydoni > 500 m² boʻlgan seksiyalarda 2 ta zina.'),
       mk('plan-corridor', 'len', 'Umumiy koridor uzunligi', { ...SHNQ, clause: '5.25' }, 'Koridorlar ≤ 60 m (uzunrogʻi 2-tur toʻsiq bilan boʻlinadi).'),
+      // 05.11: ShNQ 2.08.01-24, 230–231-bandlar — lift shaxtasi yashash xonasiga tutashmaydi (yadro: zina | liftlar | xoll)
+      mk('plan-lift', 'lift-230', 'Lift shaxtasi yashash xonasiga tutashmaydi', { doc: 'ShNQ 2.08.01-24', clause: '230–231-bandlar', edition: '2024', verified: true }, 'Lift shaxtalari zina, lift oldi xolli, koridor va texnik xonalar bilan oʻralgan — yashash xonasiga tegmaydi.'),
+      (() => { const rv: string[] = [], bids: string[] = []; all.forEach((cs, i) => { const c = cs.find(x => x.id === 'zina-amaliyot'); if (c && c.ok === null) { rv.push(`${i + 1}-seksiya: ${c.value}`); bids.push(plans[i].bid); } });
+        return { id: 'plan-stair-bed', title: 'Zinapoya katagi yotoqxonaga tutashmaydi', source: { doc: 'Rejalash qoidasi', clause: 'AMALIYOT (shovqin; SHNQ 2.01.08-24 papkada yoʻq)', edition: '—', verified: false }, ...(bids.length ? { where: { bids } } : {}), status: rv.length ? 'review' : 'pass', value: plans.length - rv.length, unit: `/ ${plans.length} seksiya`, limit: 'hammasi', note: rv.length ? rv.join('; ') : 'Yotoqxonalar zinapoya katagiga tutashmaydi.' } as Result; })(),
     ] : [];
     this.planRuleCache = { doc, rules }; return rules;
   }

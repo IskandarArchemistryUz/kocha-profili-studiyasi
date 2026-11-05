@@ -15,6 +15,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kvartira m
   // 4 xonalini 40 % ga koʻtaramiz — sigʻmaydi, sababi yoziladi
   await page.evaluate(() => { const m = (window as any).__mr; m.store.dispatch({ type: 'setSettings', patch: { aptMix: [10, 20, 30, 40] } }); m.renderPanel(); });
   await expect(page.locator('#mixWhy')).toBeVisible({ timeout: 60000 });
-  await expect(page.locator('#mixWhy')).toContainText('4 xonali');
+  // 05.11: toʻr birinchi rejada 4 xonali sigʻishi mumkin — farq qaysi turda boʻlsa, oʻsha yoziladi
+  await expect(page.locator('#mixWhy')).toContainText(/\d xonali [+-−]?\d+ %/);
   if (process.env.GX_SHOTS) { await page.locator('#mixWhy').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/kv_miks_${w}${dark ? 'd' : 'l'}.png` }); }
 });

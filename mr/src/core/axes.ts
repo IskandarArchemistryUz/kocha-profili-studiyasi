@@ -121,7 +121,13 @@ export function structGrid(ring0: XY[], plan: RulePlan | null, o: GridOpts): Str
     let core: GridBlock['core'] = null; const coreList: { from: number; to: number }[] = [];
     if (plan) {
       // har seksiyaning oʻz yadrosi (zina + liftlar + lift oldi): seksiya boʻyicha guruh; seksiyalar boʻlmasa — u boʻyicha ≤ 3,2 m oraliq
-      const groups: XY[][][] = plan.sections.length ? plan.sections.map(sc => [...sc.stairs, ...sc.lifts]) : [[...plan.stairs, ...plan.lifts]];
+      const groups: XY[][][] = plan.axisCores?.length ? [] : plan.sections.length ? plan.sections.map(sc => [...sc.stairs, ...sc.lifts]) : [[...plan.stairs, ...plan.lifts]];
+      // 05.11 (toʻr birinchi): yadro oraliqlari rejadan (zina, liftlar, lift oldi xolli birga)
+      for (const [[a0, b0], [a1]] of plan.axisCores ?? []) {
+        const dx = b0[0] - a0[0], dy = b0[1] - a0[1], L = Math.hypot(dx, dy) || 1; if (Math.abs((dx * U[0] + dy * U[1]) / L) > 0.1) continue;
+        if (![0.1, 0.3, 0.5, 0.7, 0.9].some(t => inB([(a0[0] + a1[0]) / 2 + dx * t, (a0[1] + a1[1]) / 2 + dy * t]))) continue;
+        const f = pu(a0), t2 = pu(a1); coreList.push({ from: Math.min(f, t2), to: Math.max(f, t2) });
+      }
       for (const gq of groups) {
         const iv = gq.filter(c => inB(cen(c))).map(c => { const us = c.map(pu); return { from: Math.min(...us), to: Math.max(...us) }; }).sort((a, b) => a.from - b.from);
         const loc: { from: number; to: number }[] = [];
@@ -131,11 +137,25 @@ export function structGrid(ring0: XY[], plan: RulePlan | null, o: GridOpts): Str
       coreList.sort((a, b) => a.from - b.from);
       // yonma-yon seksiyalar yadrolari (yongʻin devori bilan ajratilgan, oraliq < 0,6 m) — umumiy oʻq devor oʻrtasida (ikki yadro oraligʻi, tor qadam qolmaydi)
       for (let i = 1; i < coreList.length; i++) if (coreList[i].from <= coreList[i - 1].to + 0.6 && coreList[i].from >= coreList[i - 1].to - 0.6) { const m = (coreList[i].from + coreList[i - 1].to) / 2; coreList[i - 1].to = m; coreList[i].from = m; }
+      // 05.11: karkasda ikki yadro orasi qadamdan tor (< 5,4 m) — bitta yadro oraligʻi (AMALIYOT)
+      if (system === 'frame') for (let i = coreList.length - 1; i > 0; i--) if (coreList[i].from - coreList[i - 1].to < S.min - 0.05) { coreList[i - 1].to = coreList[i].to; coreList.splice(i, 1); }
+      // minora rejasi (kvartiralar fasadga tik; yadro ichkarida, fasadga chiqmaydi): oʻqlar faqat kvartira devorlaridan — yadro chegarasi oʻq emas
+      if (plan.axisLines?.length && !plan.axisCores?.length) coreList.length = 0;
       for (const c of coreList) { c.from = r2(c.from); c.to = r2(c.to); anchors.add(c.from); anchors.add(c.to); }
       core = coreList[0] ?? null;
-      for (const a of plan.apts) { if (!inB(cen(a.ring))) continue; const us = a.ring.map(pu); soft.push(r2(Math.min(...us)), r2(Math.max(...us))); }
-      // seksiyalararo yongʻin devorlari — yumshoq langar (asosiy oʻqlar: qadam toʻplami + yadro + chok)
-      for (const f of plan.fireWalls) { if (f.length < 2 || !inB(cen(f))) continue; const d = [f[1][0] - f[0][0], f[1][1] - f[0][1]], L = Math.hypot(d[0], d[1]) || 1; if (Math.abs((d[0] * U[0] + d[1] * U[1]) / L) < 0.3) soft.push(r2(pu(f[0]))); }
+      if (plan.axisLines?.length) {
+        // 05.11 (toʻr birinchi): reja oʻqlari (kvartiralar shu chiziqlarda kesilgan) — qatʼiy langar; yadro ichidagilar tashlanadi
+        for (const [p, q] of plan.axisLines) {
+          const dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy) || 1; if (Math.abs((dx * U[0] + dy * U[1]) / L) > 0.1) continue;
+          if (![0.1, 0.3, 0.5, 0.7, 0.9].some(t => inB([p[0] + dx * t, p[1] + dy * t]))) continue;
+          const u = r2(pu(p)); if (u <= u0 + 0.3 || u >= u1 - 0.3 || coreList.some(c => u > c.from + 0.05 && u < c.to - 0.05)) continue;
+          anchors.add(u);
+        }
+      } else {
+        for (const a of plan.apts) { if (!inB(cen(a.ring))) continue; const us = a.ring.map(pu); soft.push(r2(Math.min(...us)), r2(Math.max(...us))); }
+        // seksiyalararo yongʻin devorlari — yumshoq langar (asosiy oʻqlar: qadam toʻplami + yadro + chok)
+        for (const f of plan.fireWalls) { if (f.length < 2 || !inB(cen(f))) continue; const d = [f[1][0] - f[0][0], f[1][1] - f[0][1]], L = Math.hypot(d[0], d[1]) || 1; if (Math.abs((d[0] * U[0] + d[1] * U[1]) / L) < 0.3) soft.push(r2(pu(f[0]))); }
+      }
     } else {
       const mid = (u0 + u1) / 2, cw = system === 'frame' ? S.pref : 5.7; core = { from: r2(mid - cw / 2), to: r2(mid + cw / 2) }; coreList.push(core); anchors.add(core.from); anchors.add(core.to);
     }
@@ -264,6 +284,9 @@ export function gridChecks(g: StructGrid, plan: RulePlan, mods: FacadeMod[], flo
   out.push({ id: 'ax-T4d', title: 'Chiqib turgan qismlar', ok: badP === 0, value: pj.length ? `${pj.map(f1).join(' / ')} m` : 'yoʻq', norm: `≤ ${pl} m`, source: `${QMQ}, 3.1.1` });
   // T5: karkas qadami
   if (g.system === 'frame') { const L5 = frameStepLimit(g.seismic), bad = g.blocks.flatMap(b => b.steps).filter(s => s > L5 + 0.05).length; out.push({ id: 'ax-T5', title: 'Karkas ramalar qadami', ok: bad === 0, value: bad ? `${bad} oraliq > ${L5} m` : `≤ ${L5} m`, norm: `${g.seismic} ballda ≤ ${L5} m`, source: `${QMQ}, 3.1-jadval, 1.2.2 б` }); }
+  // 05.11: eng kichik qadam — devorli < 2,7 m, karkas < 5,4 m (yadro oraligʻidan tashqari) — «koʻrib chiqish» (AMALIYOT, normada quyi chegara yoʻq)
+  { const S0 = stepSet(g.system, g.seismic), nar = g.blocks.flatMap(b => { const xs = b.x.filter(a => a.kind !== 'sub').sort((p, q) => p.pos - q.pos); return xs.slice(1).map((a, i) => ({ s: a.pos - xs[i].pos, lo: xs[i].pos, hi: a.pos })).filter(z => z.s < S0.min - 0.05 && !b.cores.some(c => z.lo >= c.from - 0.05 && z.hi <= c.to + 0.05)).map(z => z.s); });
+    out.push({ id: 'ax-T5min', title: 'Eng kichik oraliq', ok: nar.length ? null : true, value: nar.length ? `${nar.length} oraliq < ${f1(S0.min)} m (eng tori ${f1(Math.min(...nar))} m)` : `≥ ${f1(S0.min)} m`, norm: `${g.system === 'frame' ? 'karkas' : 'devorli'}: ≥ ${f1(S0.min)} m`, source: 'AMALIYOT (misollar: qadam toʻplami)' }); }
   // T6: vertikal uzluksizlik — toʻr bino uchun bitta (barcha qavatlar)
   out.push({ id: 'ax-T6', title: 'Toʻr barcha qavatlarda bitta', ok: true, value: 'turar, 1-qavat va yer osti — bir toʻr', norm: 'devor ustunga, ustun konsolga tayanmaydi', source: `${SH}, 34-band (B3)` });
   // T7: tizim ↔ balandlik

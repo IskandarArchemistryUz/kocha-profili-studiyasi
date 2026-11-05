@@ -143,8 +143,11 @@ const freeAt = (u: number, wins: [number, number][]) => wins.every(([a, b]) => u
 const hasWin = (a: number, b: number, wins: [number, number][]) => wins.some(([p, q]) => (p + q) / 2 > a + 0.2 && (p + q) / 2 < b - 0.2);
 
 /** Kesish nuqtasini tanlash: modul chegarasi (± tol) yoki derazasiz eng yaqin joy */
+/** 05.11 (toʻr birinchi): fasad modullari konstruktiv oʻqlar oraligʻida (FacadeMod.grid) — xona devorlari faqat modul chegarasida (= oʻqda) */
+let GRID = false;
 function pickCut(target: number, lo: number, hi: number, bounds: number[], wins: [number, number][]): number | null {
   const cand = bounds.filter(b => b >= lo && b <= hi).sort((p, q) => Math.abs(p - target) - Math.abs(q - target));
+  if (GRID && cand.length) return cand[0];
   if (cand.length && Math.abs(cand[0] - target) <= 0.9) return cand[0];
   for (let d = 0; d <= 1.6; d += 0.05) for (const s of [1, -1]) { const u = Math.round((target + s * d) * 100) / 100; if (u >= lo && u <= hi && freeAt(u, wins)) return u; }
   return cand.length ? cand[0] : null;
@@ -228,7 +231,9 @@ function layoutCore(W: number, D: number, k: number, net: number, bounds: number
     let c: number | undefined;
     for (const wv of [null, 1.6, 1.5]) {
       wpFix = wv;
-      const t = (cr[0] + cr[1]) / 2; c = [t - wpOf(t) / 2 - 0.1, cr[0] - wpOf(cr[0]) / 2 - 0.1, cr[1] - wpOf(cr[1]) / 2 - 0.1].map(x => Math.round(x * 100) / 100).find(x => x >= loK && x <= hiK && freeAt(x, wins) && hasWin(0, x, wins) && inC(eOf(x)));
+      const t = (cr[0] + cr[1]) / 2;
+      if (GRID) { c = bounds.filter(x => x >= loK && x <= hiK && hasWin(0, x, wins) && inC(eOf(x))).sort((p, q) => Math.abs(p - t) - Math.abs(q - t))[0]; if (c != null) break; }
+      c = [t - wpOf(t) / 2 - 0.1, cr[0] - wpOf(cr[0]) / 2 - 0.1, cr[1] - wpOf(cr[1]) / 2 - 0.1].map(x => Math.round(x * 100) / 100).find(x => x >= loK && x <= hiK && freeAt(x, wins) && hasWin(0, x, wins) && inC(eOf(x)));
       if (c != null) break;
     }
     if (c == null) return 'eshik';
@@ -1142,6 +1147,10 @@ export const normScore = (v: [number, string][]) => v.reduce((t, x) => t + x[0],
  */
 const HARD = 4;
 function aptInteriorK(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
+  const g0 = GRID; GRID = a.mods.length > 0 && a.mods.every(i => mods[i]?.grid === true);
+  try { return aptInteriorK0(a, mods); } finally { GRID = g0; }
+}
+function aptInteriorK0(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   const cands: { J: AptInterior; sc: number; v: [number, string][] }[] = [];
   // kFit (xonalar soni kamaytirilgan) variant darhol olinmaydi — faqat nomzod (har yoʻqotilgan xona uchun +6): 3 xonali kvartira
   // kichik buzilish (vannaxona 10 m²) uchun 35 m² xona + 32 m² oshxonali 1 xonaliga aylanib ketmasin
