@@ -55,6 +55,7 @@ export function lbm(nx: number, ny: number, solid: Uint8Array, steps = 2400, uIn
       if (solid[i]) continue;
       let rho = 0, ux = 0, uy = 0;
       for (let k = 0; k < 9; k++) { const v = f[k * N + i]; rho += v; ux += v * EX[k]; uy += v * EY[k]; }
+      if (!(rho > 1e-6) || !Number.isFinite(rho)) { for (let k = 0; k < 9; k++) f[k * N + i] = feq(k, 1, 0, 0); rho = 1; ux = 0; uy = 0; }   // yopiq choʻntak / nol taqsimot — tinch holatga
       ux /= rho; uy /= rho;
       for (let k = 0; k < 9; k++) {
         const v = f[k * N + i] + om * (feq(k, rho, ux, uy) - f[k * N + i]);
@@ -77,7 +78,7 @@ export function lbm(nx: number, ny: number, solid: Uint8Array, steps = 2400, uIn
   for (let i = 0; i < N; i++) {
     if (solid[i]) continue;
     let rho = 0, ux = 0, uy = 0; for (let k = 0; k < 9; k++) { const v = f[k * N + i]; rho += v; ux += v * EX[k]; uy += v * EY[k]; }
-    out[i] = Math.hypot(ux / rho, uy / rho) / uIn;
+    const r = Math.hypot(ux / rho, uy / rho) / uIn; out[i] = Number.isFinite(r) ? r : 0;
   }
   return out;
 }
@@ -108,6 +109,9 @@ export function windField(job: WindJob): WindOut {
       for (let k = 0; k + 1 < xs.length; k += 2) for (let i = Math.max(0, Math.ceil((xs[k] - x0) / cell - 0.5)); i <= Math.min(nx - 1, Math.floor((xs[k + 1] - x0) / cell - 0.5)); i++) solid[j * nx + i] = 1;
     }
   }
+  // 06.11 (egasi: «kutishda cheksiz davom etyapti»): bino kirish/chiqish ustuniga tushsa, chiqish chegarasi (nol gradient)
+  // qattiq katakdan nol taqsimotni koʻchirib oladi → rho = 0 → NaN butun maydonga tarqaladi. Chegaradagi 3 ustun doim ochiq.
+  for (let j = 0; j < ny; j++) for (const i of [0, 1, 2, nx - 3, nx - 2, nx - 1]) if (i >= 0 && i < nx) solid[j * nx + i] = 0;
   const ratio = lbm(nx, ny, solid, job.steps ?? 2400);
   return { ratio, nx, ny, cell, ox: x0, oy: y0, ang };
 }
@@ -122,6 +126,6 @@ export function sampleWind(w: WindOut, p: XY): number {
 
 /** Lawson (LDDC) toifasi — 5 % oshadigan tezlik (m/s) boʻyicha */
 export const LAWSON: [number, number, string][] = [[4, 0x4caf7d, 'Oʻtirish (< 4 m/s)'], [6, 0xa8d06b, 'Turish (4–6)'], [8, 0xf2d15b, 'Sayr (6–8)'], [10, 0xf29a4a, 'Tez yurish (8–10)'], [Infinity, 0xd9534f, 'Noqulay (≥ 10)']];
-export const lawsonClass = (v: number) => LAWSON.findIndex(([t]) => v < t);
+export const lawsonClass = (v: number) => { const k = LAWSON.findIndex(([t]) => v < t); return k < 0 ? 0 : k; };   // NaN → eng tinch sinf (yiqilmasin)
 /** 10 m (meteostansiya) → 1,5 m (piyoda): daraja qonuni, shahar atrofi α ≈ 0,25 */
 export const PED_FACTOR = Math.pow(1.5 / 10, 0.25);

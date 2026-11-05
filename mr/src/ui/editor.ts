@@ -1430,6 +1430,7 @@ export class Editor {
     this.wind = { ...this.wind, busy: true, stats: null }; this.renderPanel();
     const job: WindJob = { rings, box, fromDeg: dir, cell, steps: 2200 };
     let out: WindOut;
+    try {   // 06.11: har qanday xatoda «Hisoblanmoqda…» da qotib qolmasin
     try {
       this.windW ??= new Worker(new URL('../workers/wind.worker.ts', import.meta.url), { type: 'module' });
       out = await new Promise<WindOut>((ok, no) => { const w = this.windW!; w.onmessage = e => ok(e.data.out); w.onerror = e => no(e); w.postMessage({ id: 1, job }); });
@@ -1441,6 +1442,7 @@ export class Editor {
     pts.forEach((p, i) => { if (!pointIn(p, site)) return; n++; cls[lawsonClass(ratio[i] * p95)]++; if (ratio[i] > 1.2) amp++; });
     this.wind = { busy: false, mode: this.wind.mode, stats: { cls: cls.map(v => v / Math.max(1, n)), amp: amp / Math.max(1, n), n, dir, p95 }, pts, ratio, cell: step };
     this.showWind(); this.renderPanel();
+    } catch (e) { console.error(e); this.wind = { ...this.wind, busy: false, stats: null }; this.renderPanel(); toast(tr('Shamol hisobi bajarilmadi — qayta urinib koʻring.')); }
   }
 
   private showWind(): void {
