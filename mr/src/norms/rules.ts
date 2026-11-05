@@ -141,7 +141,7 @@ export type Status = 'pass' | 'fail' | 'review' | 'na';
 export interface Source { doc: string; clause: string; edition: string; verified: boolean }
 
 /** «Tuzat» tugmalari (31.10): har biri bitta bekor qilinadigan amal (Ctrl+Z) */
-export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end' | 'play-ug' | 'szz-belt';
+export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end' | 'play-ug' | 'szz-belt' | 'park-30';
 export interface Result {
   id: string; title: string; status: Status;
   value?: number; limit?: string; unit?: string;
@@ -322,8 +322,10 @@ export const RULES: Rule[] = [
         }
       }
       const cap = ml.map(g => `${g.spaces} joy → ${CAP_COL_NAME[capCol(g.spaces)]}`).join(', ');
+      const openG = ml.filter(g => g.kind === 'yer_usti' && (g.stalls?.length ?? 0) > 0);
       return { status: fails.length ? 'fail' : revs.length ? 'review' : 'pass', value: fails.length, unit: 'ta', limit: '0',
         ...(bids.size ? { where: { bids: [...bids] } } : {}),
+        ...((fails.length || revs.length) && openG.length ? { fix: { id: 'park-30' as const, label: 'Yaqin joylarni olib tashlash', hint: 'Ochiq avtoturargohning 30-jadval masofasini buzayotgan joylari olib tashlanadi; joylar kamaysa sigʻim ustuni kichrayadi va masofa ham qisqaradi. Yetishmagan joylar — 29-jadval qoidasida (yer osti yoki koʻp qavatli avtoturargoh).' } } : {}),
         note: `Yer usti avtoturargohdan masofa: turar joy old tomoni 12/15/25/35/50 m, derazasiz yon tomoni 12/10/15/25/35 m, jamoat binolari 10/10/15/25/25 m, maktab va taʼlim hududi 15/25/25/50/– m (sigʻim ≤ 10, 11–50, 51–100, 101–300, > 300). Sigʻim: ${cap}.` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (revs.length ? `\nKoʻrib chiqish: ${revs.slice(0, 4).join('; ')}.` : '') + '\nStatsionar davolash muassasalarigacha (25/50/–/–/– m) — loyihada bunday funksiya yoʻq, tekshirilmadi.' };
     },
   },
