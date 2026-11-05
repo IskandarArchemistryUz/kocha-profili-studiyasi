@@ -1253,7 +1253,7 @@ export class Scene3D {
           const sh = new THREE.Shape(r.map(toV2)), fg = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
           const fm = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: 0x8fa3b8, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
           fm.renderOrder = 6.4; fm.userData.garage = gr.id; fm.userData.ugPark = true; this.world.add(fm);
-          const c0 = centroid(r), v0 = r[0], dl = Math.hypot(c0[0] - v0[0], c0[1] - v0[1]) || 1, k = Math.min(1, 12 / dl), c: XY = [v0[0] + (c0[0] - v0[0]) * k, v0[1] + (c0[1] - v0[1]) * k], sp = labelSprite('P'); sp.position.set(c[0], this.H(c[0], c[1]) + 0.8, -c[1]);   // burchak yonida — daha yorligʻi bilan ustma-ust tushmasin sp.center.set(0.5, 0.5); sp.userData.ugPark = true; this.world.add(sp);
+          const c0 = centroid(r), v0 = r[0], dl = Math.hypot(c0[0] - v0[0], c0[1] - v0[1]) || 1, k = Math.min(1, 12 / dl), c: XY = [v0[0] + (c0[0] - v0[0]) * k, v0[1] + (c0[1] - v0[1]) * k], sp = labelSprite('P'); sp.position.set(c[0], this.H(c[0], c[1]) + 0.8, -c[1]);   // burchak yonida — daha yorligʻi bilan ustma-ust tushmasin sp.center.set(0.5, 0.5); sp.userData.ugPark = true; if (this.entryMarks) this.world.add(sp);
         }
         const l = line(densify(r, 6, true), col, 0.5, true, 8, this.H); (l.material as THREE.Material).dispose();
         l.material = new THREE.LineDashedMaterial({ color: col, dashSize: ug ? 6 : 2, gapSize: ug ? 2 : 1.5 }); l.computeLineDistances(); l.userData.ugPark = ug; this.world.add(l);
@@ -1272,7 +1272,8 @@ export class Scene3D {
           lp.push(t0[0], z + 0.02, -t0[1], t1[0], z + 0.02, -t1[1]); for (const sg of [1, -1]) lp.push(t1[0], z + 0.02, -t1[1], t1[0] - ux * 1.1 + uy * sg * 0.8, z + 0.02, -(t1[1] - uy * 1.1 - ux * sg * 0.8)); }
         const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
         const ls = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x1d1d1b })); ls.renderOrder = 12.5; ls.userData.entry = true; this.world.add(ls);
-        const sp = labelSprite(e.kind === 'rampa' ? 'P' : 'V', true); sp.position.set(at[0], z + 0.6, -at[1]); sp.userData.entry = true; this.world.add(sp);
+        // 05.11 (egasi: «P va V lar halaqit qilyapti»): harf belgilari Qatlamlar → Yozuvlar dan oʻchiriladi; pandus/shaxta shakli qoladi
+        if (this.entryMarks) { const sp = labelSprite(e.kind === 'rampa' ? 'P' : 'V', true); sp.position.set(at[0], z + 0.6, -at[1]); sp.userData.entry = true; this.world.add(sp); }
       }
     });
     // 02.11: temir yoʻl shoxobchasi (yuk terminali) — ikki rels (1520 mm) va shpallar
@@ -1745,6 +1746,9 @@ export class Scene3D {
   setBlockLabels(on: boolean): void { this.blockLabels = on; if (this.lastDoc) this.update(this.lastDoc); }
   /** binolar ustida qavatlar soni */
   floorLabels = false;
+  /** Avtoturargoh «P» / «V» harf belgilari (pandus, shamollatish shaxtasi, yer osti parkovka) */
+  entryMarks = (() => { try { return localStorage.getItem('mr.entryMarks') !== '0'; } catch { return true; } })();
+  setEntryMarks(on: boolean): void { this.entryMarks = on; try { localStorage.setItem('mr.entryMarks', on ? '1' : '0'); } catch { /* */ } if (this.lastDoc) this.update(this.lastDoc); }
   setFloorLabels(on: boolean): void { this.floorLabels = on; if (this.lastDoc) this.update(this.lastDoc); }
   private explodeStep = 0;
   explodeGap = 0.6;

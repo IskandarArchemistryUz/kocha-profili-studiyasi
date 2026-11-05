@@ -30,4 +30,14 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`avtoturarg
   // sahnada belgi (pandus va shaxta)
   await expect.poll(() => page.evaluate(() => { let c = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.entry) c++; }); return c; }), { timeout: 15_000 }).toBeGreaterThan(2);
   if (process.env.GX_SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/kirish_${w}${dark ? 'd' : 'l'}.png` }); }
+  // 05.11 (egasi: «P va V lar halaqit qilyapti»): Qatlamlar → Yozuvlar → «Avtoturargoh belgilari» — harflar oʻchadi, pandus/shaxta shakli qoladi
+  const sprites = () => page.evaluate(() => { let c = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.entry && o.isSprite) c++; }); return c; });
+  expect(await sprites()).toBeGreaterThan(1);
+  await page.click('#layPop');
+  await expect(page.locator('#pvOn')).toBeVisible();
+  await page.locator('#pvOn').click();
+  await expect.poll(sprites, { timeout: 10_000 }).toBe(0);
+  await expect.poll(() => page.evaluate(() => { let c = 0; (window as any).__mr.scene.world.traverse((o: any) => { if (o.userData?.entry) c++; }); return c; })).toBeGreaterThan(1);
+  if (process.env.GX_SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.GX_SHOTS}/kirish_pv_off_${w}${dark ? 'd' : 'l'}.png` }); }
+  await page.locator('#pvOn').click(); await expect.poll(sprites, { timeout: 10_000 }).toBeGreaterThan(1);
 });
