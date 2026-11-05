@@ -1295,8 +1295,10 @@ export class Scene3D {
 
   /** Chizilayotgan shakl (koʻk chiziq + nuqtalar) */
   /** labels — har kesma uzunligi chiziqning oʻzida (chizgʻich, chizish) */
-  setPreview(pts: XY[], closed = false, labels = false): void {
+  setPreview(pts: XY[], closed = false, labels = false, rings: XY[][] = []): void {
     disposeGroup(this.prev);
+    // 05.11: qoʻshimcha yopiq halqalar (chiziq boʻylab seksiyalar chegarasi)
+    for (const r of rings) if (r.length >= 3) this.prev.add(line(densify(r, 10, true), C.preview, 0.5, true, 20, this.H, false));
     if (pts.length) {
       this.prev.add(line(densify(pts, 10, closed), C.preview, 0.5, closed, 20, this.H, false));
       const dots = new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], this.H(p[0], p[1]) + 0.5, -p[1]))), new THREE.PointsMaterial({ color: C.preview, size: 7, sizeAttenuation: false, depthTest: false }));

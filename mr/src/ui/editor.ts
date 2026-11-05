@@ -25,7 +25,8 @@ import { toggleTheme, isDark, onTheme } from './theme';
 import { range, select, stepper, sw , dropdown } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
-import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, type Tool } from './tools';
+import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, StripTool, type Tool } from './tools';
+import { stripSections } from '../core/stripline';
 import { szzOf, suvZones, SUV_NAMES, SUV_Q, SUV_QS, limitAreaHa, isActive, limitZones, bufferLocal, SZZ_DENY, type Limit, type LimitKind, type SuvType } from '../core/limits';
 import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo } from '../core/plan';
 import type { MultiPolygon } from 'polygon-clipping';
@@ -2640,9 +2641,9 @@ export class Editor {
     const nr = h('input', { type: 'number', class: 'input', min: 0, max: 10, value: this.nonRes, id: 'nr', 'aria-label': tr('Noturar pastki') }) as HTMLInputElement;
     fl.onchange = () => { this.floors = Math.max(1, Math.min(60, Math.round(Number(fl.value) || 1))); };
     nr.onchange = () => { this.nonRes = Math.max(0, Math.min(10, Math.round(Number(nr.value) || 0))); };
-    const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm', drawingA = this.tool instanceof AxisTool;
+    const drawing = this.tool instanceof RectTool, drawingP = this.tool instanceof PolygonTool && this.step.id === 'hajm', drawingA = this.tool instanceof AxisTool, drawingS = this.tool instanceof StripTool;
     const addB = (r: XY[]) => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); this.el.hint.textContent = this.tool?.hint ?? ''; };
-    body.append(h('details', { class: 'how manual', open: drawing || drawingP || drawingA || !gens }, h('summary', {}, svgIcon(IC.pencil), tr('Qoʻlda bino chizish')),
+    body.append(h('details', { class: 'how manual', open: drawing || drawingP || drawingA || drawingS || !gens }, h('summary', {}, svgIcon(IC.pencil), tr('Qoʻlda bino chizish')),
       h('div', { class: 'col' },
         h('div', { class: 'row2' }, h('div', { class: 'field' }, h('label', {}, tr('Qavatlar')), fl), h('div', { class: 'field' }, h('label', {}, tr('Noturar pastki')), nr)),
         h('div', { class: 'row', style: 'flex-wrap:wrap' },
@@ -2655,8 +2656,10 @@ export class Editor {
           h('button', { class: drawingP ? 'btn btn-primary grow' : 'btn grow', style: 'min-width:118px', id: 'drawPoly', title: tr('Erkin shakl: nuqtalarni bosing, birinchi nuqta yoki Enter — yopish'), onclick: () => drawingP ? this.endTool() : this.setTool(new PolygonTool(this.scene, r => {
             this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }));
             this.setTool(new PolygonTool(this.scene, r2 => { this.run(() => this.store.dispatch({ type: 'addBuilding', footprint: r2.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes })); }, toast, 20));
-          }, toast, 20)) }, ...(drawingP ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Erkin shakl'))))),
-        drawingA ? this.axisRow() : drawingP || drawing ? this.dimRow(drawing) : '',
+          }, toast, 20)) }, ...(drawingP ? [tr('Toʻxtatish')] : icl(IC.plus, tr('Erkin shakl')))),
+          // 05.11 (egasi): chiziq boʻylab ulangan seksiyalar — oʻq chiziladi, har segment D chuqurlikdagi seksiya (core/stripline)
+          h('button', { class: drawingS ? 'btn btn-primary grow' : 'btn grow', style: 'min-width:118px', id: 'drawStrip', title: tr('Seksiyalar oʻqini siniq chiziq bilan chizing — burilishlarda umumiy devor bilan ulangan seksiyalar quriladi'), onclick: () => drawingS ? this.endTool() : this.setTool(this.stripTool()) }, ...(drawingS ? icl(IC.check, tr('Chizishni tugatish')) : icl(IC.plus, tr('Chiziq boʻylab'))))),
+        drawingA ? this.axisRow() : drawingS ? this.stripRow() : drawingP || drawing ? this.dimRow(drawing) : '',
         h('span', { class: 't-small' }, tr('Uchlar va qirralarga yopishadi (Shift — oʻchiq). Kesma uzunligi chiziqda koʻrinadi.')))));
   }
   /**
@@ -2714,6 +2717,27 @@ export class Editor {
   }
   /** «Oʻq boʻylab» chuqurligi (m): paneldagi maydon; boshlangʻich — generator chuqurligi */
   private axisDepth = 15;
+  /** chiziq boʻylab seksiyalar: boʻlak uzunligi — generator seksiya uzunligi va seysmik boʻlma chegarasi (QMQ 2.01.03-19, 3.1-jadval) */
+  private stripMax(): number { const S = this.store.doc.settings, lim = lenLimit(S.construct ?? 'monolit', S.seismic); return Math.min(this.gen.secLen || 30, lim ?? Infinity); }
+  private stripTool(): StripTool {
+    const fr = frame(this.store.doc.origin);
+    return new StripTool(this.scene, line => {
+      const r = stripSections(line, this.axisDepth, this.stripMax());
+      if (r.err) { toast(tr(r.err)); return; }
+      const key = `strip-${Date.now()}`;
+      this.run(() => { for (const g of r.rings) this.store.dispatch({ type: 'addBuilding', footprint: g.map(fr.toGeo), floors: this.floors, nonRes: this.nonRes }, key); });
+      toast(tf('${n} ta seksiya qoʻshildi (chuqurligi ${d} m)', { n: r.rings.length, d: String(this.axisDepth).replace('.', ',') }));
+      this.el.hint.textContent = this.tool?.hint ?? '';
+    }, toast, line => stripSections(line, this.axisDepth, this.stripMax()).rings);
+  }
+  private stripRow(): HTMLElement {
+    const dep = h('input', { type: 'number', class: 'input', id: 'stripDepth', placeholder: '15', step: '0.5', min: 4, 'aria-label': tr('Chuqurlik, m'), value: String(this.axisDepth) }) as HTMLInputElement;
+    dep.onchange = () => { const d = Number(String(dep.value).replace(',', '.')); if (Number.isFinite(d) && d >= 4 && d <= 40) this.axisDepth = d; };
+    const ml = this.stripMax();
+    return h('div', { class: 'col', id: 'stripRow' },
+      h('div', { class: 'row2' }, h('div', { class: 'field' }, h('label', {}, tr('Chuqurlik, m')), dep)),
+      h('span', { class: 't-small' }, Number.isFinite(ml) ? tf('Segment ${l} m dan uzun boʻlsa — teng seksiyalarga boʻlinadi (seksiya uzunligi va seysmik boʻlma). Uzunlikni yozib Enter — keyingi nuqta.', { l: String(Math.round(ml * 10) / 10).replace('.', ',') }) : tr('Uzunlikni yozib Enter — keyingi nuqta.')));
+  }
   private axisRow(): HTMLElement {
     const num = (id: string, ph: string, label: string, v = '') => h('input', { type: 'number', class: 'input', id, placeholder: ph, step: '0.5', 'aria-label': label, value: v }) as HTMLInputElement;
     const val = (i: HTMLInputElement) => { const v = Number(String(i.value).replace(',', '.')); return i.value !== '' && Number.isFinite(v) ? v : null; };
