@@ -19,7 +19,7 @@ import { openRing, despike } from './offset';
 import { kyOf } from './setback';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
 
-export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator' | 'ombor';
+export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'ochiq' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator' | 'ombor';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo' | 'arka';
 export type ParkingKind = 'yoq' | 'yer_osti' | 'stilobat' | 'yer_usti';
 
@@ -810,6 +810,30 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
       notes.push(`Minoralar orasi ${Math.round(gap)} m — (H1+H2)·0,3 (79-band 2-jadval), ≥ 25 m`);
       return { sections: sq.map(ring => ({ ring, floors: tf, kind: 'minora' as SecKind, nonRes: g.nonRes })), capFloors: null, notes };
     }
+    case 'ochiq': {
+      // 05.11 (egasi, «formes urbaines» D/H): ochiq kvartal (îlot ouvert, C. de Portzamparc) — perimetr boʻlaklarga boʻlinadi:
+      // burchak L-binolari qoladi, har qirra oʻrtasida oraliq ochiladi, janubiy qirra (hovliga quyosh) siyrak; hovli yopiq emas —
+      // 3-izoh (2,3·Hmax) emas, 8-izoh (2·Hmax) qoʻllanadi. Balandlik pogʻonali (perimetr kabi: burchak baland, janub past).
+      const r = generateBase(block, { ...g, typology: 'perimetr', passages: true }, floorH);
+      const odd = r.sections.map((s, i) => ({ s, i })).filter(x => x.s.kind === 'oddiy' && x.s.face);
+      const groups = new Map<string, { s: GenSection; i: number; t: number }[]>();
+      for (const x of odd) {
+        const n = x.s.face!.n, key = `${Math.round(n[0] * 10)},${Math.round(n[1] * 10)}`, t = x.s.face!.p[0] * -n[1] + x.s.face!.p[1] * n[0];
+        (groups.get(key) ?? groups.set(key, []).get(key)!).push({ ...x, t });
+      }
+      const drop = new Set<number>();
+      for (const [, arr] of groups) {
+        arr.sort((a, b) => a.t - b.t);
+        const south = arr[0].s.face!.n[1] > 0.55;   // ichki normal shimolga — bino janubiy qirrada
+        if (south) { for (let k = 1; k < arr.length; k += 2) drop.add(arr[k].i); }
+        else if (arr.length >= 3) drop.add(arr[Math.floor(arr.length / 2)].i);
+      }
+      const removed = drop.size; r.sections = r.sections.filter((_, i) => !drop.has(i));
+      // arka endi kerak emas — oraliqlar ochiq
+      r.sections = r.sections.filter(s => s.kind !== 'arka');
+      if (removed) r.notes.push(`Ochiq kvartal: ${removed} ta seksiya oʻrnida oraliq (janubiy qirra siyrak — hovliga quyosh; har qirrada oʻtish)`);
+      return r;
+    }
     case 'blok_minora': {
       const r = generateBase(block, { ...g, typology: 'perimetr' }, floorH);
       // shimoliy burchak(lar) — minora (janubiy hovliga soya tushmasin)
@@ -1049,14 +1073,14 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
   return out;
 }
 
-export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', ofis_hovli: 'Hovlili ofis bloki', meh_plita: 'Mehmonxona korpusi + lobbi', meh_minora: 'Mehmonxona minorasi + stilobat', savdo_blok: 'Savdo markazi + parkovka', savdo_minora: 'Savdo markazi + minora', savdo_qator: 'Koʻcha boʻyi savdo qatori', ombor: 'Ombor bloki (1 qavat, katta oraliq)' };
+export const TYPO_NAME: Record<Typology, string> = { avto: 'Avto (UMN boʻyicha)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar (ikki xonadonli)', hovli: 'Hovli uylar (oʻzbek tipi)', klaster: 'Klaster: berk koʻcha atrofida hovlilar', villa: 'Shahar villalari', perimetr: 'Perimetral blok', ochiq: 'Ochiq kvartal (îlot ouvert)', qatorlar: 'Kenglik qatorlari (sharq–gʻarb)', minora: 'Minoralar', blok_minora: 'Blok + burchak minorasi', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari + stilobat', ofis_hovli: 'Hovlili ofis bloki', meh_plita: 'Mehmonxona korpusi + lobbi', meh_minora: 'Mehmonxona minorasi + stilobat', savdo_blok: 'Savdo markazi + parkovka', savdo_minora: 'Savdo markazi + minora', savdo_qator: 'Koʻcha boʻyi savdo qatori', ombor: 'Ombor bloki (1 qavat, katta oraliq)' };
 /** Funksiya boʻyicha odatiy generator sozlamalari (turar joydan tashqari); null — foydalanuvchi sozlamalari */
 /**
  * Parsel funksiyasiga mos tipologiyalar (egasi, 31.10): turar joy parseliga ofis / mehmonxona generatsiya qilinmaydi,
  * ofis yoki mehmonxona parseliga — turar joy. Aralash — ikkalasi ham.
  */
 const T_LOW: Typology[] = ['yakka', 'taunhaus', 'juft', 'hovli', 'klaster', 'villa'];
-const T_RES: Typology[] = [...T_LOW, 'perimetr', 'qatorlar', 'minora', 'blok_minora', 'blok_villa'];
+const T_RES: Typology[] = [...T_LOW, 'perimetr', 'ochiq', 'qatorlar', 'minora', 'blok_minora', 'blok_villa'];
 const T_OFIS: Typology[] = ['ofis_plita', 'ofis_minora', 'ofis_hovli'], T_MEH: Typology[] = ['meh_plita', 'meh_minora'], T_SAVDO: Typology[] = ['savdo_blok', 'savdo_minora', 'savdo_qator'];
 const T_COM: Typology[] = [...T_OFIS, ...T_MEH, ...T_SAVDO];
 /** 02.11: ishlab chiqarish zonalari (ShNQ 2.07.01-23, 7-bob) */
