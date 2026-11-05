@@ -2283,6 +2283,11 @@ export class Editor {
       const moves = ids.map(id2 => ({ id: id2, m: this.outOfStreet(id2) })).filter(x => x.m);
       this.run(() => { for (const x of moves) this.store.dispatch({ type: 'updateBuilding', id: x.id, patch: { footprint: x.m!.footprint } }); });
       toast(tf('${n} ta bino koʻchadan chiqarildi', { n: moves.length }));
+    } else if (id === 'play-ug') {
+      // 05.11: ShNQ 2.07.01-23, 92-band — yer usti avtoturargohlarini yer osti qilish: hovli boʻshaydi, maydonchalar uning tomida
+      const gs = doc.garages.filter(g => g.kind === 'yer_usti' && !g.truck && (g.stalls?.length ?? 0) > 0);
+      this.run(() => { for (const g of gs) this.store.dispatch({ type: 'updateGarage', id: g.id, patch: { kind: 'yer_osti' } }); });
+      toast(tf('${n} ta avtoturargoh yer ostiga oʻtkazildi', { n: gs.length }));
     } else if (id === 'dead-end') {
       const miss = deadEnds(doc).filter(e => !e.has);
       this.run(() => { for (const e of miss) { const st = this.store.doc.streets.find(x => x.id === e.sid); if (!st) continue; this.store.dispatch({ type: 'updateStreet', id: st.id, patch: { ends: { ...(st.ends ?? {}), [e.end]: 'aylana' } } }); } });
@@ -3910,6 +3915,13 @@ export class Editor {
             row(tr('Hovli maydonchalari'), '4-jadval', d?.playNeed ? `${fmt(d.playGot)} / ${fmt(d.playNeed)} m²` : '—', chip('play-89', '4-jadval')),
             row(tr('Daraxtlar: hovlida / koʻchada'), '', `${fmt(d?.yardTrees ?? 0)} / ${fmt(this.streetTrees())}`),
             d?.greenRoof ? row(tr('Yashil tomlar (hisobga kirmaydi)'), '', `${fmt(d.greenRoof)} m²`) : ''),
+          // 05.11: 90-band — qisqartirish asoslari (faktga bogʻliq, sukut — oʻchiq)
+          h('div', { class: 'group', id: 'play90' },
+            h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mavze sport-sogʻlomlashtirish majmuasi bor'), h('span', { class: 'sub' }, tr('90-band: bolalar, kattalar va sport maydonchalari ×0,5'))),
+              sw({ id: 'play90Sport', label: tr('Mavze sport-sogʻlomlashtirish majmuasi bor'), on: doc.settings.play90?.sport === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { play90: { ...(doc.settings.play90 ?? {}), sport: v } } })) })),
+            h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Chang boʻronli hudud, xoʻjalik uchun yopiq inshoot'), h('span', { class: 'sub' }, tr('90-band: xoʻjalik maydonchasi ×0,5'))),
+              sw({ id: 'play90Dust', label: tr('Chang boʻronli hudud, xoʻjalik uchun yopiq inshoot'), on: doc.settings.play90?.dust === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { play90: { ...(doc.settings.play90 ?? {}), dust: v } } })) }))),
+          d?.playRoof ? h('span', { class: 't-small' }, tf('Shundan stilobat tomida ${a} m² (92-band)', { a: fmt(d.playRoof) })) : '',
           h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Hovlilarni avtomatik obodonlashtirish'), h('span', { class: 'sub' }, tr('trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'))),
             sw({ id: 'yardsOn', label: tr('Hovlilarni avtomatik obodonlashtirish: trotuar, maysa, maydonchalar, yoʻlak, daraxtlar'), on: doc.settings.yards, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { yards: v } })) }))),
           h('span', { class: 't-small' }, tr('Hovlilar: binolar atrofida 3 m trotuar; 4-jadval maydonchalari binolardan meʼyoriy masofada (bolalar ≥ 10 m, kattalar ≥ 6, sport ≥ 10, xoʻjalik ≥ 20); qolgani maysa, daraxtlar binodan ≥ 5 m. Bu eskiz — joylashuvni loyihachi aniqlaydi.')))),

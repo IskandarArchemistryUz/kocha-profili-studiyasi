@@ -151,6 +151,9 @@ export interface Settings {
   yards: boolean;
   /** rekonstruksiya / renovatsiya / murakkab shaharsozlik sharoiti: 2-jadval masofalari insolyatsiya taʼminlansa ikki barobargacha qisqaradi (79-band, 2-jadval, 7-izoh) */
   recon?: boolean;
+  /** 05.11: ShNQ 2.07.01-23, 90-band — maydonchalarni ikki baravargacha qisqartirish asoslari (faktga bogʻliq, sukut — oʻchiq):
+   *  sport — mavze miqyosida sport-sogʻlomlashtirish majmuasi (bolalar, kattalar, sport ×0,5); dust — chang boʻronli hudud, xoʻjalik uchun yopiq inshoot (xoʻjalik ×0,5) */
+  play90?: { sport?: boolean; dust?: boolean };
   /** yuk koʻtaruvchi tizim — QMQ 2.01.03-19, 3.1-jadval (boʻlma uzunligi chegarasi); yoʻq — monolit devorlar */
   construct?: ConstructSys;
   /** 04.11 (egasi): seysmiklik olingan aholi punkti — QMQ 2.01.03-19, 1-ilova; kalit «viloyat kodi:nomi» */
@@ -331,6 +334,7 @@ export function migrate(raw: unknown): Project {
   for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
   if (typeof s.yards !== 'boolean') s.yards = true;
   if (s.recon !== undefined && typeof s.recon !== 'boolean') delete s.recon;
+  if (s.play90 !== undefined) { const q = s.play90 as any; if (!q || typeof q !== 'object') delete s.play90; else s.play90 = { ...(q.sport === true ? { sport: true } : {}), ...(q.dust === true ? { dust: true } : {}) }; }
   if (s.construct !== undefined && !CONSTRUCT_SYS.includes(s.construct)) delete s.construct;
   if (s.studio1 !== undefined && typeof s.studio1 !== 'boolean') delete s.studio1;
   if (s.fireLow !== undefined && ![0, 1, 2, 3].includes(s.fireLow)) delete s.fireLow;

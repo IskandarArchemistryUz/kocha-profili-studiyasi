@@ -85,6 +85,8 @@ export interface Derived {
   yardGreen: number; yardPlay: number; greenCounted: number; greenBase: number; greenShareTotal: number; yardTrees: number;
   /** 4-jadval maydonchalari: talab va joylashtirilgan, m² */
   playNeed: number; playGot: number;
+  /** 05.11: 90-band qisqartirishidan oldingi talab; stilobat tomidagi maydonchalar (92-band); birlashtirilgan maydonchalar (91-band) soni va 150 m² dan kichiklari */
+  playNeed0: number; playRoof: number; playComb: number; playCombSmall: number;
 }
 
 /** 41-jadval: oʻquvchiga 20 m² (40–660), 15 m² (661–989), 10 m² (> 989) → maydonga sigʻadigan eng koʻp oʻquvchi.
@@ -242,9 +244,14 @@ export function derive(doc: Project): Derived {
   } : null;
   const jobs = jobsFrom(gfaByUse);
   const yards = doc.settings.yards ? landscape(doc) : [], gb = greenBalance(doc, yards);
-  const playNeed = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik), playGot = yards.reduce((t, y) => t + (y.social ? 0 : y.areas.play), 0);   // maktab / MTM maydonchalari — 4-jadval talabiga kirmaydi
+  // 05.11: 90-band — sport majmuasi boʻlsa bolalar, kattalar, sport; chang boʻronli hududda yopiq inshoot boʻlsa xoʻjalik — ikki baravargacha (×0,5)
+  const p90 = s.play90 ?? {}, kS = p90.sport ? 0.5 : 1, kD = p90.dust ? 0.5 : 1;
+  const playNeed0 = population * (PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport + PLAY_NORM.xojalik);
+  const playNeed = population * ((PLAY_NORM.bolalar + PLAY_NORM.kattalar + PLAY_NORM.sport) * kS + PLAY_NORM.xojalik * kD), playGot = yards.reduce((t, y) => t + (y.social ? 0 : y.areas.play), 0);
+  const playRoof = yards.reduce((t, y) => t + (!y.social && y.z ? y.areas.play : 0), 0);
+  const combs = yards.flatMap(y => y.social ? [] : y.play.filter(q => q.comb)), playComb = combs.length, playCombSmall = combs.filter(q => q.area < 150 - 0.5).length;   // maktab / MTM maydonchalari — 4-jadval talabiga kirmaydi
   return { antresol, umnBlocks, umn, housing82,
-    resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, jobsRatio: population > 0 ? jobs / population : 0,
+    resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, playNeed0, playRoof, playComb, playCombSmall, jobsRatio: population > 0 ? jobs / population : 0,
     apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, socialPlots, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
