@@ -16,6 +16,7 @@ import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
+import { paintLegend, type LegendItem } from '../core/axopaint';
 import { abroadRules, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
@@ -4561,20 +4562,29 @@ export class Editor {
    * (izolyatsiya, tanlov, kesim, kvartira ranglari, insolyatsiya, «Sodda») chizmaga tushmaydi (04.11, egasi); keyin hammasi qaytadi.
    */
   private axoShot(look: string | undefined, viewId: string | undefined, detail: boolean, ratio: number, labels = false): string {
-    const sc = this.scene, doc = this.store.doc, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic' };
+    const sc = this.scene, doc = this.store.doc, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic', qavatlilik: 'arctic', kontekst: 'arctic', demontaj: 'arctic' };
+    // 06.11 (akso uslublari 4–6): qavatlilik, loyiha va kontekst, saqlanadi/buziladi — oq maket ustida bitta urgʻu
+    const paint = look === 'qavatlilik' || look === 'kontekst' || look === 'demontaj' ? look : null;
     try {
       return sc.drawingShot(() => {
-        sc.setStyle(map[look ?? 'oq'] ?? 'arctic'); sc.setDetail(look === 'qoralama' ? false : detail);
+        sc.setStyle(map[look ?? 'oq'] ?? 'arctic'); sc.setPaint(paint); sc.setDetail(look === 'qoralama' || paint ? false : detail);
         const v = doc.views.find(x => x.id === viewId); if (v) sc.setCamera(v); else { if (sc.view !== 'axo') sc.setView('axo'); sc.frameDoc(doc); }
         return sc.snapshot(ratio);
       }, { labels });
-    } finally { sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam); }
+    } finally { sc.setPaint(null); sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam); }
+  }
+  /** Akso varagʻi legendasi — faqat sahnada bor toifalar (uslub 4–6) */
+  private axoLegend(look: string | undefined): LegendItem[] {
+    if (look !== 'qavatlilik' && look !== 'kontekst' && look !== 'demontaj') return [];
+    const doc = this.store.doc, d = this.scene.inSite.length ? this.demolition() : null;
+    return paintLegend(look, doc.buildings.filter(b => b.floors > 0), d?.kept ?? 0, d?.gone ?? 0);
   }
 
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
     openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
       axo: (look, viewId, detail, ratio, labels) => this.axoShot(look, viewId, detail, ratio, labels === true),
+      axoLegend: look => this.axoLegend(look),
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
       toChizmadon: (svg, name, scale, north) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, north }); },
       dxf: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } });
