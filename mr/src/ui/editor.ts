@@ -2561,7 +2561,7 @@ export class Editor {
         ...m.liner.map(q => ({ footprint: q.map(fr.toGeo), floors: 2, nonRes: 1, use: 'savdo' as const, kind: 'savdo' }))],
       garage: { kind: 'kop_qavatli', ring: m.ring.map(fr.toGeo), levels: m.levels, spaces: m.spaces, module: m.mod, ramp: m.ramp, stalls: G(m.stalls), aisles: G(m.aisles), ramps: G(m.ramps), cores: G(m.cores), perFloor: m.perFloor } }));
     this.mlPick.delete(grp); this.placeEntries(grp, true);
-    this.genNotes = [tf('Bino ${l} × ${w} m, ${n} qator; ${t}, joylar ${md}; zina-lift tugunlari ${c} ta (eng uzoq joydan ≤ ${e} m, ANDOZA); ustun toʻri — har 3 joyda', { l: fmt(m.L, 1), w: fmt(m.W, 1), n: m.bays, t: tr(ML_RAMP_NAME[m.ramp]).toLowerCase(), md: PARK_MOD[m.mod].short, c: m.nCores, e: ML.evac }), ...m.notes.map(x => tr(x))];
+    this.genNotes = [tf('Bino ${l} × ${w} m, ${n} qator; ${t}, joylar ${md}; zina-lift tugunlari ${c} ta (eng uzoq joydan ≤ ${e} m, ANDOZA); ustun toʻri — har 3 joyda', { l: fmt(m.L, 1), w: fmt(m.W, 1), n: m.bays, t: tr(ML_RAMP_NAME[m.ramp]).toLowerCase(), md: PARK_MOD[m.mod].short, c: m.nCores, e: ML.evac }), ...(m.ramp === 'yarim' ? [tf('Yarim qavatli: bino ikki yarmi ½ qavatga siljigan, pandus ≈ ${r} m — ikki yarim orasidagi qoʻsh qator uchlarida.', { r: fmt(m.rampL, 1) })] : m.ramp === 'qiya' && m.slope != null ? [tf('Qiya qavat: pol qiyaligi ${s} % — alohida pandus yoʻq, joylar qiya polda.', { s: fmt(m.slope * 100, 1) })] : m.ramp === 'spiral' ? [tf('Tashqi spiral pandus: R ${r} m, bino uchida (ANDOZA).', { r: ML.helixR })] : [])];
     if (!quiet) toast(tf('${n}: koʻp qavatli avtoturargoh — ${k} joy', { n: name, k: m.spaces }));
     return 1;
   }
@@ -2605,12 +2605,12 @@ export class Editor {
       h('div', { class: 'seg sm', id: 'mlFloors', role: 'group', 'aria-label': tr('Qavatlar') }, ...[2, 3, 4, 5].map(f => h('button', { 'data-pfl': f, 'aria-pressed': st.f === f, onclick: () => pick({ f }) }, String(f))))),
       // 05.11 (egasi: misollar papkasi «parkovka»): pandus tizimi, joy burchagi, perimetrda savdo lentasi
       h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, tr('Pandus tizimi'), h('span', { class: 'sub' }, tr('Avto — eng koʻp joy beradigani'))),
-        h('div', { class: 'seg sm', id: 'mlRamp', role: 'group', 'aria-label': tr('Pandus tizimi'), style: 'flex:1 1 100%;flex-wrap:wrap' },
+        h('div', { class: 'seg sm wrap', id: 'mlRamp', role: 'group', 'aria-label': tr('Pandus tizimi'), style: 'flex:1 1 100%;display:flex;height:auto;row-gap:2px;padding:2px' },
           ...(['auto', ...ML_RAMPS] as const).map(r => h('button', { 'data-pramp': r, 'aria-pressed': st.r === r, onclick: () => pick({ r }) }, r === 'auto' ? tr('Avto') : tr(ML_RAMP_NAME[r]))))),
       h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Joy burchagi'), h('span', { class: 'sub' }, tr('60° va 45° — bir yoʻnalishli yoʻlak'))),
         h('div', { class: 'seg sm', id: 'mlMod', role: 'group', 'aria-label': tr('Joy burchagi') }, ...(['auto', ...ML_MODS] as const).map(m => h('button', { 'data-pmod': m, 'aria-pressed': st.m === m, onclick: () => pick({ m }) }, m === 'auto' ? tr('Avto') : PARK_MOD[m].short)))),
       h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Perimetrda savdo lentasi'), h('span', { class: 'sub' }, tf('1–2-qavat, chuqurligi ${d} m — koʻchaga jonli fasad', { d: ML.linerD }))),
-        h('div', { class: 'seg sm', id: 'mlLiner', role: 'group', 'aria-label': tr('Perimetrda savdo lentasi') }, h('button', { 'aria-pressed': !st.ln, onclick: () => pick({ ln: false }) }, tr('Yoʻq')), h('button', { 'aria-pressed': st.ln, onclick: () => pick({ ln: true }) }, tr('Ha')))));
+        h('div', { class: 'seg sm', id: 'mlLiner', role: 'group', 'aria-label': tr('Perimetrda savdo lentasi') }, h('button', { 'aria-pressed': !st.ln, onclick: () => pick({ ln: false }) }, tr('Kerak emas')), h('button', { 'aria-pressed': st.ln, onclick: () => pick({ ln: true }) }, tr('Kerak')))));
     if (gar) {
       const pf = gar.perFloor ?? [], p0 = pf[0] ?? 0, p1 = pf[1] ?? p0, A = b?.area ?? 0;
       box.append(
