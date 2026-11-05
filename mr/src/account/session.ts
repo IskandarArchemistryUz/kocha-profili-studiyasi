@@ -58,6 +58,7 @@ export interface OwnerStats {
   at: string;
   users: { total: number; d1: number; d7: number; d30: number; google: number; email: number; phone: number; active7: number; active30: number };
   signups: { day: string; c: number }[];
+  people?: { at: string | null; who: string | null; method: 'google' | 'email' | 'phone'; balance: number; seen: string | null }[];
   payments: { paid: number; revenue: number; revenue30: number; buyers: number; open: number; cancelled: number;
     byPack: { pack: string; c: number; s: number }[]; byPs: { ps: string; c: number; s: number }[];
     recent: { id: number; pack: string; coins: number; amount: number; ps: string; state: string; at: string; who: string | null }[] };

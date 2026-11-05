@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import pg from 'pg';
 import { fromPglite, fromPool, migrate } from '../src/db.js';
 import { buildApp, COOKIE } from '../src/app.js';
-import { maskEmail } from '../src/owner.js';
+import { maskEmail, maskPhone } from '../src/owner.js';
 
 let db, app, sent;
 beforeEach(async () => {
@@ -79,5 +79,17 @@ describe('egasi paneli', () => {
       expect((await grant(c, { email: 'ali@mail.uz', coins: 10, key: 'k-cccccccc', ...bad })).statusCode).toBe(400);
     expect((await db.query(`SELECT count(*)::int AS c FROM users`)).rows[0].c).toBe(2);
   });
+  it('roʻyxatdan oʻtganlar: toʻlov qilmaganlar ham; usul, balans, oxirgi kirish; hali kirmagan (sinov kirishi bilan ochilgan) — seen: null', async () => {
+    await login('ali@mail.uz');
+    await login('+998901234567');
+    const c = await login('boss@archemistry.uz');
+    await grant(c, { email: 'yangi@mail.com', coins: 40, key: 'k-dddddddd' });
+    const p = (await stats(c)).json().people;
+    expect(p.map((x) => x.who)).toEqual(['ya•••@mail.com', 'bo••@archemistry.uz', '+998•••••4567', 'al•@mail.uz']);
+    expect(p[0]).toMatchObject({ method: 'email', balance: 40, seen: null });
+    expect(p[2]).toMatchObject({ method: 'phone', balance: 0 });
+    expect(p[3].seen).toBeTruthy(); expect(p[3].at).toBeTruthy();
+  });
+  it('maskPhone', () => { expect(maskPhone('+998901234567')).toBe('+998•••••4567'); expect(maskPhone(null)).toBeNull(); });
   it('maskEmail', () => { expect(maskEmail('iskandar@gmail.com')).toBe('is••••••@gmail.com'); expect(maskEmail(null)).toBeNull(); });
 });

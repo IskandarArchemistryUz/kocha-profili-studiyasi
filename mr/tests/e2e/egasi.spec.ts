@@ -6,6 +6,8 @@ const STATS = {
   at: '2026-10-29T07:00:00.000Z',
   users: { total: 42, d1: 2, d7: 9, d30: 30, google: 25, email: 15, phone: 2, active7: 11, active30: 27 },
   signups: [{ day: '2026-10-27', c: 4 }, { day: '2026-10-28', c: 7 }],
+  people: [{ at: '2026-10-28T11:00:00Z', who: 'fr••••••@gmail.com', method: 'email', balance: 1000, seen: null },
+    { at: '2026-10-27T08:00:00Z', who: 'da••••@gmail.com', method: 'google', balance: 0, seen: '2026-10-28T06:30:00Z' }],
   payments: { paid: 3, revenue: 177000, revenue30: 177000, buyers: 2, open: 1, cancelled: 2,
     byPack: [{ pack: 'p10', c: 2, s: 78000 }, { pack: 'p30', c: 1, s: 99000 }], byPs: [{ ps: 'payme', c: 2, s: 138000 }, { ps: 'click', c: 1, s: 39000 }],
     recent: [{ id: 9, pack: 'p30', coins: 30, amount: 99000, ps: 'payme', state: 'paid', at: '2026-10-28T10:00:00Z', who: 'al••••@mail.uz' },
@@ -39,7 +41,11 @@ test('egasi: bosh sahifada «Panel» → koʻrsatkichlar, jadvallar, havolalar',
   await expect(page.locator('[data-k=users] b')).toHaveText('42');
   await expect(page.locator('[data-k=revenue] b')).toContainText('177');
   await expect(page.locator('.own-bars .bar')).toHaveCount(30);
-  await expect(page.locator('.own-t').nth(2)).toContainText('al••••@mail.uz');
+  await expect(page.locator('.own-t').nth(3)).toContainText('al••••@mail.uz');
+  await expect(page.locator('#ownPeople tbody tr')).toHaveCount(2);                // toʻlov qilmaganlar ham koʻrinadi
+  await expect(page.locator('#ownPeople tbody tr').first()).toContainText('fr••••••@gmail.com');
+  await expect(page.locator('#ownPeople tbody tr').first()).toContainText('hali kirmagan');
+  await expect(page.locator('#ownPeople tbody tr').nth(1)).toContainText('Google');
   await expect(page.locator('#ownerPage')).not.toContainText('boss@mail.uz');
   await expect(page.locator('#ownGoat')).toHaveAttribute('href', 'https://archemistry.goatcounter.com');
   await expect(page.locator('#ownMc')).toHaveAttribute('target', '_blank');
