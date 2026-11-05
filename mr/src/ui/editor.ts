@@ -89,6 +89,7 @@ import { winDef, type Win, type Bal } from '../core/facade';
 import { facadePreview, roofShape, roofCover, roofOf, WIN_OPTS, BAL_OPTS, WINPAT_OPTS, BALPAT_OPTS, SHAPE_OPTS, COVER_OPTS, PARAPET_OPTS, SHADE_OPTS, USE_SHORT } from './facadeui';
 import type { Command } from '../core/commands';
 import { pushEdge, tieredGfa } from '../core/tiers';
+import { snapMove, snapPush, edgeSize, pushForSize, ringGap, edgeOf } from '../core/snapbld';
 import type { Shade } from '../core/doc';
 import { hydrology, HAND_BINS, TWI_BINS, type Hydro } from '../core/hydro';
 import { UserLayersUI } from './userlayersui';
@@ -761,7 +762,7 @@ export class Editor {
           h('div', { class: 'msec', 'aria-hidden': 'true', html: `<svg viewBox="0 0 64 ${H}" width="40" height="${H * 40 / 64}" preserveAspectRatio="none">${sec}<path d="M0 ${H - 1}H64" stroke="currentColor" stroke-width="2"/></svg>` })),
         h('span', { class: 't-small', id: 'bldEditHint' }, tr('Xaritada: tom ustidagi toʻq sariq tutqich — qavatlar; burchak tutqichlari — oyoq izi.')),
         h('div', { class: 'glabel' }, h('span', {}, tr('Sichqoncha bilan'))),
-        h('span', { class: 't-small', id: 'dragHint' }, tr(this.dragMode === 'yoq' ? 'Tahrir qulflangan — sahnadagi asboblar panelida qulfni oching.' : 'Devorni torting — devor parallel suriladi; tomni torting — bino siljiydi; burchak nuqtasi — shaklni oʻzgartiradi; Alt + oʻrtadagi nuqta — yangi burchak.')),
+        h('span', { class: 't-small', id: 'dragHint' }, tr(this.dragMode === 'yoq' ? 'Tahrir qulflangan — sahnadagi asboblar panelida qulfni oching.' : 'Devorni torting — devor parallel suriladi, oʻlcham yozuvda koʻrinadi; tortish paytida yoki keyin raqam yozib Enter — aniq oʻlcham. Tomni torting — bino siljiydi va 1,5 m ichida qoʻshni bino devoriga yopishadi (Alt — yopishmasdan). Burchak nuqtasi — shaklni oʻzgartiradi; Alt + oʻrtadagi nuqta — yangi burchak.')),
         h('div', { class: 'glabel' }, h('span', {}, tr('Natija'))),
         h('div', { class: 'row2' },
           kpi(`${fmt(gfa)} m²`, 'GFA'), kpi(`${fmt(bLevels(s, b).top, 1)} m`, 'Balandlik'),
@@ -2801,6 +2802,8 @@ export class Editor {
    * Shift bosilganda — oʻchiq. Belgisi sahnada: qizil halqa — uch, koʻk — qirra.
    */
   private shiftDown = false;
+  /** 05.11: devor sudralayotganda (yoki hozirgina sudralgan) — raqam yozib aniq oʻlcham; true — tugma ishlatildi */
+  private dragKeys: ((e: KeyboardEvent) => boolean) | null = null;
   private lastHint = '';
   private snapPt(p: XY, mark = false): XY {
     if (this.shiftDown) { if (mark) this.scene.setSnapMark(null); return p; }
@@ -4545,7 +4548,40 @@ export class Editor {
     const c = this.scene.renderer.domElement;
     let down: { x: number; y: number } | null = null;
     // bino muharriri: devorni itarish / binoni siljitish (sichqoncha bilan)
-    let drag: { mode: 'push' | 'move' | 'floor'; id: string; p0: XY; r0: XY[]; edge: number; n: XY; floor: number; tiers0: { from: number; inset: number; edge?: number }[] } | null = null, raf = 0, pend: XY | null = null;
+    let drag: { mode: 'push' | 'move' | 'floor'; id: string; p0: XY; r0: XY[]; edge: number; n: XY; floor: number; tiers0: { from: number; inset: number; edge?: number }[]; key?: string; fixed?: boolean } | null = null, raf = 0, pend: XY | null = null, alt = false;
+    // 05.11 (egasi): yopishish, aniq oʻlcham va sudrash yozuvi — core/snapbld
+    let buf = '', armed: { id: string; edge: number; r0: XY[] } | null = null;
+    const others = (id: string, r: XY[]): XY[][] => {
+      const fr = frame(this.store.doc.origin), xs = r.map(p => p[0]), ys = r.map(p => p[1]), x0 = Math.min(...xs) - 40, x1 = Math.max(...xs) + 40, y0 = Math.min(...ys) - 40, y1 = Math.max(...ys) + 40;
+      return this.store.doc.buildings.filter(b => b.id !== id && b.floors > 0).map(b => b.footprint.map(fr.toLocal) as XY[]).filter(o => o.some(p => p[0] > x0 && p[0] < x1 && p[1] > y0 && p[1] < y1));
+    };
+    const n1 = (v: number) => fmt(Math.round(v * 10) / 10, 1);
+    const sizeLabel = (r0: XY[], r: XY[], edge: number): [XY, string] => {
+      const s0 = edgeSize(r0, edge), s1 = edgeSize(r, edge), e = edgeOf(r, edge), dd = s1 - s0, m: XY = [(e.a[0] + e.b[0]) / 2 - e.n[0] * Math.min(3, s1 / 3), (e.a[1] + e.b[1]) / 2 - e.n[1] * Math.min(3, s1 / 3)];   // devor yonida, bino ichida — asboblar paneli ostida qolmaydi
+      return [m, buf ? tf('Oʻlcham: ${v} m — Enter', { v: buf }) : tf('${a} → ${b} m (${d})', { a: n1(s0), b: n1(s1), d: `${dd >= 0 ? '+' : '−'}${n1(Math.abs(dd))}` })];
+    };
+    const clearDragUi = () => { buf = ''; armed = null; this.dragKeys = null; this.scene.setDragLabel(null); this.scene.setSnapMark(null); };
+    const applySize = (id: string, edge: number, r0: XY[], v: number, key: string): XY[] | null => {
+      const fr = frame(this.store.doc.origin), r = pushEdge(r0, edge, pushForSize(r0, edge, v)); if (!r) return null;
+      this.run(() => this.store.dispatch({ type: 'updateBuilding', id, patch: { footprint: r.map(fr.toGeo) } }, key)); return r;
+    };
+    const onDragKey = (e: KeyboardEvent): boolean => {
+      const tgt = drag && drag.mode === 'push' ? { id: drag.id, edge: drag.edge, r0: drag.r0 } : armed; if (!tgt) return false;
+      if (/^[0-9]$/.test(e.key) || ((e.key === ',' || e.key === '.') && !/[.,]/.test(buf))) { buf += e.key === ',' ? '.' : e.key; }
+      else if (e.key === 'Backspace' && buf) buf = buf.slice(0, -1);
+      else if (e.key === 'Escape') { if (buf) buf = ''; else { clearDragUi(); return true; } }
+      else if (e.key === 'Enter' && buf) {
+        const v = parseFloat(buf); buf = '';
+        if (Number.isFinite(v) && v >= 3 && v <= 300) {
+          const r = applySize(tgt.id, tgt.edge, tgt.r0, v, `dsz-${tgt.id}-${Date.now()}`);
+          if (r && drag) drag.fixed = true;
+          if (r) { const [m, t] = sizeLabel(tgt.r0, r, tgt.edge); this.scene.setDragLabel(m, t); if (armed) armed = { ...armed, r0: r }; toast(tf('Oʻlcham ${v} m qoʻyildi', { v: n1(v) })); }
+        } else toast(tr('Oʻlcham 3–300 m oraligʻida boʻlsin'));
+        return true;
+      } else return false;
+      { const fr = frame(this.store.doc.origin), b = this.store.doc.buildings.find(x => x.id === tgt.id); if (b) { const [m, t] = sizeLabel(tgt.r0, b.footprint.map(fr.toLocal), tgt.edge); this.scene.setDragLabel(m, t); } }
+      return true;
+    };
     let rdown: { x: number; y: number } | null = null;
     // koʻcha nuqtasini sudrash (uchlari yoʻllarga yopishadi)
     let hdrag: { hs: NonNullable<ReturnType<Editor['handleSet']>>; i: number; a0: XY[]; key: string } | null = null;
@@ -4562,6 +4598,8 @@ export class Editor {
       if (e.button === 2) { rdown = { x: e.clientX, y: e.clientY }; return; }
       if (e.button !== 0) return;
       down = { x: e.clientX, y: e.clientY };
+      if (armed || buf) clearDragUi();
+      alt = e.altKey;
       if (e.shiftKey && !this.tool) {
         const el = h('div', { class: 'selbox', 'aria-hidden': 'true' }) as HTMLDivElement; document.body.append(el);
         box = { x: e.clientX, y: e.clientY, el }; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return;
@@ -4578,7 +4616,7 @@ export class Editor {
             const g1 = this.scene.pick(e.clientX, e.clientY), b = this.store.doc.buildings.find(x => x.id === hs.floor!.bid);
             if (g1 && b) { const r0 = hs.pts, n0 = r0.length, ed = (hd.i - 1 + n0) % n0, a0 = r0[ed], q0 = r0[(ed + 1) % n0], L0 = Math.hypot(q0[0] - a0[0], q0[1] - a0[1]) || 1, ccw0 = signedArea(r0) > 0;
               drag = { mode: 'push', id: b.id, p0: g1, r0, edge: ed, n: [(ccw0 ? 1 : -1) * (q0[1] - a0[1]) / L0, (ccw0 ? -1 : 1) * (q0[0] - a0[0]) / L0], floor: 0, tiers0: b.tiers ?? [] };
-              this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return; }
+              this.dragKeys = onDragKey; this.scene.setOrbit(false); c.setPointerCapture(e.pointerId); return; }
           }
           const a = hs.pts.slice(), n = a.length;
           if (hd.ins) { const p = a[hd.i - 1], q = a[hd.i % n]; a.splice(hd.i, 0, [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]); }
@@ -4600,6 +4638,7 @@ export class Editor {
       for (let k = 0; k < n; k++) { const a = r0[k], q = r0[(k + 1) % n], dx = q[0] - a[0], dy = q[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((hit.p[0] - a[0]) * dx + (hit.p[1] - a[1]) * dy) / L2)), d = Math.hypot(a[0] + t * dx - hit.p[0], a[1] + t * dy - hit.p[1]); if (d < bd) { bd = d; edge = k; } }
       const a = r0[edge], q = r0[(edge + 1) % n], L = Math.hypot(q[0] - a[0], q[1] - a[1]) || 1, ccw = signedArea(r0) > 0;
       drag = { mode, id: b.id, p0: g0, r0, edge, n: [(ccw ? 1 : -1) * (q[1] - a[1]) / L, (ccw ? -1 : 1) * (q[0] - a[0]) / L], floor, tiers0: b.tiers ?? [] };
+      if (mode === 'push') this.dragKeys = onDragKey;
       this.scene.setOrbit(false); c.setPointerCapture(e.pointerId);
     });
     const applyDrag = () => {
@@ -4613,13 +4652,29 @@ export class Editor {
         this.run(() => this.store.dispatch({ type: 'updateBuilding', id: drag!.id, patch: { tiers } }, `fdrag-${drag!.id}-${drag!.p0.join()}`));
         return;
       }
-      if (drag.mode === 'move') r = Math.hypot(dx, dy) < 0.3 ? drag.r0 : drag.r0.map(p => [p[0] + dx, p[1] + dy] as XY);
-      else { const d = Math.round((dx * drag.n[0] + dy * drag.n[1]) * 2) / 2; r = d ? pushEdge(drag.r0, drag.edge, d) : drag.r0; }
+      if (drag.fixed) return;   // oʻlcham yozib qoʻyildi — sichqoncha endi oʻzgartirmaydi
+      if (drag.mode === 'move') {
+        r = Math.hypot(dx, dy) < 0.3 ? drag.r0 : drag.r0.map(p => [p[0] + dx, p[1] + dy] as XY);
+        // yopishish: qoʻshni bino devoriga / burchagiga (Alt — yopishmasdan)
+        const os = others(drag.id, r), sn = alt || r === drag.r0 ? null : snapMove(r, os);
+        if (sn?.kind) r = r.map(p => [p[0] + sn.dx, p[1] + sn.dy] as XY);
+        this.scene.setSnapMark(sn?.at ?? null, sn?.kind === 'uch' ? 'uch' : 'qirra');
+        if (r !== drag.r0) {
+          const g = os.length ? Math.min(...os.map(o => ringGap(r!, o))) : Infinity, c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, Math.min(...r.map(p => p[1])) - 3];   // yozuv bino ostida (janubda) — tutqichlar va asboblar panelini yopmaydi
+          this.scene.setDragLabel(c, [tf('siljish ${d} m', { d: n1(Math.hypot(r[0][0] - drag.r0[0][0], r[0][1] - drag.r0[0][1])) }), sn?.kind ? tr('yopishdi') : Number.isFinite(g) && g < 60 ? tf('qoʻshni binogacha ${d} m', { d: n1(g) }) : ''].filter(Boolean).join(' · '), 'past');
+        }
+      } else {
+        let d = Math.round((dx * drag.n[0] + dy * drag.n[1]) * 2) / 2, at: XY | null = null;
+        if (!alt) { const raw = dx * drag.n[0] + dy * drag.n[1], sp = snapPush(drag.r0, drag.edge, raw, others(drag.id, drag.r0)); if (sp.at) { d = sp.d; at = sp.at; } }
+        this.scene.setSnapMark(at, 'qirra');
+        r = d ? pushEdge(drag.r0, drag.edge, d) : drag.r0;
+        if (r) { const [m, t] = sizeLabel(drag.r0, r, drag.edge); this.scene.setDragLabel(m, t); }
+      }
       if (r) this.run(() => this.store.dispatch({ type: 'updateBuilding', id: drag!.id, patch: { footprint: r!.map(fr.toGeo) } }, `drag-${drag!.id}-${drag!.p0.join()}`));
     };
     c.addEventListener('pointermove', e => {
       if (box) { Object.assign(box.el.style, { left: `${Math.min(box.x, e.clientX)}px`, top: `${Math.min(box.y, e.clientY)}px`, width: `${Math.abs(e.clientX - box.x)}px`, height: `${Math.abs(e.clientY - box.y)}px` }); return; }
-      if (drag) { const p = this.scene.pick(e.clientX, e.clientY); if (p) { pend = p; if (!raf) raf = requestAnimationFrame(applyDrag); } return; }
+      if (drag) { alt = e.altKey; const p = this.scene.pick(e.clientX, e.clientY); if (p) { pend = p; if (!raf) raf = requestAnimationFrame(applyDrag); } return; }
       if (fdrag) {
         const fh = this.store.doc.settings.floorHeight, fl = Math.max(1, Math.min(60, fdrag.floors0 + Math.round((fdrag.y0 - e.clientY) / fdrag.pxPerM / fh))), fd = fdrag;
         const b = this.store.doc.buildings.find(x => x.id === fd.id); if (b && b.floors !== fl) this.run(() => this.store.dispatch({ type: 'updateBuilding', id: fd.id, patch: { floors: fl, nonRes: Math.min(b.nonRes, fl) } }, fd.key));
@@ -4657,7 +4712,14 @@ export class Editor {
         if (this.marked.b.length + this.marked.c.length + this.marked.r.length > 1 && this.sel) { this.sel = null; this.scene.select(null); this.renderAll(); this.setMarked(this.marked.b, this.marked.c, this.store.doc, this.marked.r); }
         return;
       }
-      if (drag) { drag = null; pend = null; down = null; this.scene.setOrbit(true); return; }
+      if (drag) {
+        // devor surilgan boʻlsa — shu devorga raqam yozib aniq oʻlcham qoʻyish mumkin (boshqa joy bosilguncha yoki Esc)
+        const d0 = drag, fr = frame(this.store.doc.origin), b = this.store.doc.buildings.find(x => x.id === d0.id);
+        if (d0.mode === 'push' && b) { armed = { id: d0.id, edge: d0.edge, r0: d0.r0 }; this.dragKeys = onDragKey; const [m, t] = sizeLabel(d0.r0, b.footprint.map(fr.toLocal), d0.edge); this.scene.setDragLabel(m, t); }
+        else { this.scene.setDragLabel(null); this.dragKeys = null; }
+        this.scene.setSnapMark(null);
+        drag = null; pend = null; down = null; this.scene.setOrbit(true); return;
+      }
       if (hdrag && !hdrag.hs.closed && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 4) {
         // nuqtani bosish (sudramasdan) — tanlanadi; oraliqni bosish — yangi nuqta qoʻshilib tanlanadi (31.10)
         const hd0 = hdrag; if (hd0.a0.length !== hd0.hs.pts.length) hd0.hs.apply(hd0.a0, hd0.key);
@@ -4747,6 +4809,7 @@ export class Editor {
       if (document.querySelector('.gx')) return;
       if (this.world.open) { if (e.key === 'Escape' && !(e.target as HTMLElement)?.matches?.('input,textarea')) { e.preventDefault(); this.closeWorld(); } return; }   // Varaqlar / Chizmadon oynasi ochiq — oʻz klaviaturasi bor
       const typing = (e.target as HTMLElement)?.matches?.('input,textarea,select');
+      if (!typing && this.dragKeys?.(e)) { e.preventDefault(); return; }
       // oʻlcham yozilayotgan boʻlsa Esc faqat yozuvni oʻchiradi, asbob qoladi
       const hadBuf = !!(this.tool as { buf?: string } | null)?.buf;
       if (!typing && this.tool?.key?.(e)) { e.preventDefault(); if (this.tool) this.el.hint.textContent = this.tool.hint; if (e.key === 'Escape' && !hadBuf) this.setTool(null); return; }
