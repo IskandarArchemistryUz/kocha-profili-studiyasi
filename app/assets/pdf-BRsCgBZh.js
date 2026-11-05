@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-2hkpTG_1.js";

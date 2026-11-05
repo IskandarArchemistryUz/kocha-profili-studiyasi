@@ -24,11 +24,14 @@ export async function grantCoins(db, wallet, { email, coins, note, key, by }) {
   return { applied: r.applied, balance: r.balance, isNew, who: maskEmail(t.value), coins };
 }
 const n = (v) => Number(v ?? 0);
+const iso = (v) => v?.toISOString?.() ?? (v == null ? null : String(v));
 export const maskEmail = (e) => {
   if (!e) return null;
   const [u, d] = String(e).split('@');
   return `${u.slice(0, 2)}${'•'.repeat(Math.max(1, Math.min(6, u.length - 2)))}@${d ?? ''}`;
 };
+
+export const maskPhone = (p) => (p ? `${String(p).slice(0, 4)}${'•'.repeat(5)}${String(p).slice(-4)}` : null);
 
 export async function ownerStats(db, now = new Date()) {
   const one = async (sql, p = []) => (await db.query(sql, p)).rows[0] ?? {};
@@ -47,6 +50,11 @@ export async function ownerStats(db, now = new Date()) {
   const signups = await all(`SELECT to_char(created_at AT TIME ZONE 'Asia/Tashkent', 'YYYY-MM-DD') AS day, count(*) AS c
       FROM users WHERE created_at > $1::timestamptz - interval '30 days' GROUP BY 1 ORDER BY 1`, [t]);
 
+  // roʻyxatdan oʻtganlar (oxirgi 50): kim, qanday kirgan, balans, oxirgi kirish — toʻlov qilmaganlar ham koʻrinadi
+  const people = await all(`SELECT u.email, u.phone, u.google_sub IS NOT NULL AS google, u.created_at,
+      (SELECT coalesce(sum(l.delta), 0) FROM ledger l WHERE l.user_id = u.id) AS balance,
+      (SELECT max(s.created_at) FROM sessions s WHERE s.user_id = u.id) AS seen
+      FROM users u ORDER BY u.id DESC LIMIT 50`);
   const pay = await one(`SELECT count(*) FILTER (WHERE state = 'paid') AS paid,
       coalesce(sum(amount) FILTER (WHERE state = 'paid'), 0) AS revenue,
       coalesce(sum(amount) FILTER (WHERE state = 'paid' AND paid_at > $1::timestamptz - interval '30 days'), 0) AS revenue30,
@@ -73,6 +81,8 @@ export async function ownerStats(db, now = new Date()) {
     at: t,
     users: { total: n(u.total), d1: n(u.d1), d7: n(u.d7), d30: n(u.d30), google: n(u.google), email: n(u.email), phone: n(u.phone), active7: n(active.d7), active30: n(active.d30) },
     signups: signups.map((r) => ({ day: r.day, c: n(r.c) })),
+    people: people.map((r) => ({ at: iso(r.created_at), who: maskEmail(r.email) ?? maskPhone(r.phone), method: r.google ? 'google' : r.email ? 'email' : 'phone',
+      balance: n(r.balance), seen: iso(r.seen) })),
     payments: { paid: n(pay.paid), revenue: n(pay.revenue), revenue30: n(pay.revenue30), buyers: n(pay.buyers), open: n(pay.open), cancelled: n(pay.cancelled),
       byPack: byPack.map((r) => ({ pack: r.pack, c: n(r.c), s: n(r.s) })), byPs: byPs.map((r) => ({ ps: r.ps ?? '—', c: n(r.c), s: n(r.s) })),
       recent: recent.map((r) => ({ id: n(r.id), pack: r.pack, coins: n(r.coins), amount: n(r.amount), ps: r.ps ?? '—', state: r.state,
