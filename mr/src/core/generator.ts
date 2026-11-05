@@ -45,6 +45,12 @@ export interface GenParams {
   siteEdges?: 'kocha' | 'qoshni';
   /** hisoblangan (saqlanmaydi): har qirra boʻyicha chekinishdan keyingi joylashtirish chegarasi — inset oʻrniga */
   setbackRing?: XY[];
+  /** 05.11 (egasi: «yer osti parkovkani chekinishga nima aloqasi bor?»): yer osti avtoturargoh chegarasi kvartal/parsel chegarasidan —
+   *  koʻcha tomondan ugStreet, qoʻshni tomondan ugSide, m (ANDOZA; ShNQ 2.07.01-23, 209-band 8-jadval — tarmoqlardan poydevorgacha).
+   *  ugRing — hisoblangan (saqlanmaydi): qirra turiga qarab ichkariga surilgan halqa */
+  ugStreet?: number;
+  ugSide?: number;
+  ugRing?: XY[];
   /** hisoblangan (saqlanmaydi): 1-qavat balandligi (settings.groundH, core/levels) — noturar 1-qavatli seksiyalar baland */
   groundH?: number;
   /** 04.11 (audit): maydon seysmikligi, ball — 8+ da qatorlar orasi 2·Hmax (8-izoh), aks holda Hmax·kʏ (2-jadval) */
@@ -77,6 +83,8 @@ export interface GenParams {
 /** Talab hisobi uchun loyiha sozlamalari */
 export interface GenOpts { use?: string; /** 02.11: logistika turi (ZoneLabel.sub) va yaqin temir yoʻl (mahalliy metr) — core/logigen */ logi?: string; rails?: XY[][]; aptNet?: number; netToGross?: number; /** 04.11: 29-jadval — Toshkent shahri/viloyati (sukut) yoki boshqa viloyat */ tashkent?: boolean; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
 
+/** 05.11: yer osti avtoturargoh chegarasi — kvartal chegarasidan, m (ANDOZA) */
+export const UG_STREET = 3, UG_SIDE = 1;
 export const DEFAULT_GEN: GenParams = { typology: 'perimetr', maxF: 12, minF: 5, depth: 15, secLen: 30, setback: 6, passages: true, nonRes: 1, far: 0, towerF: 16, stylobate: 0, parking: 'yoq', parkLevels: 1, parkModule: 'p90', parkNorm: true };
 
 /** face — hovliga qaragan fasad oʻrtasi va ichkari normal (qarshidagi binogacha masofa uchun) */
@@ -981,7 +989,12 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   }
   // avtoturargoh
   const pk = g.parking ?? 'yoq';
-  if (pk !== 'yoq' && outer && !r.parking?.truck) r.parking = placeParking(clean(outer, 6), r, g, t, opts) ?? undefined;
+  // 05.11: yer osti — kvartal chegarasidan (koʻcha UG_STREET, qoʻshni UG_SIDE; ANDOZA), yer usti chekinishiga bogʻlanmaydi
+  const ugA = pk === 'yer_osti' ? (g.ugRing ?? inset(clean(block), g.ugStreet ?? UG_STREET)) : null;
+  if (pk !== 'yoq' && (outer || ugA) && !r.parking?.truck) {
+    r.parking = placeParking(clean((ugA ?? outer)!, 6), r, g, t, opts) ?? undefined;
+    if (r.parking && pk === 'yer_osti') r.notes.push(`Yer osti avtoturargoh chegarasi kvartal chegarasidan: koʻcha tomondan ${String(g.ugStreet ?? UG_STREET).replace('.', ',')} m, qoʻshni tomondan ${String(g.ugSide ?? UG_SIDE).replace('.', ',')} m (ANDOZA). ShNQ 2.07.01-23, 209-band 8-jadval: yer osti tarmoqlaridan poydevorgacha (matnda «энг узоқ» — TALQIN: eng kichik ruxsat etilgan masofa) suv quvuri 5, oʻzi oqar kanalizatsiya 3, gaz 2–10, issiqlik 2 (5), kabellar 0,6, kanal va tonnel 2 m; 203-band: qizil chiziqdan telefon kanalizatsiyasi va kabellar birinchi; choʻkuvchan II tur gruntda (10-izoh) 5–15 m — tarmoqlar sxemasi bilan aniqlansin`);
+  }
   // dok darvozalar ring qirrasi raqami bilan — toʻsiq bilan qirqilib shakli oʻzgargan binoda olib tashlanadi
   for (const s of r.sections) if (s.docks && s.ring.length !== 4) delete s.docks;
   archFloors(r.sections);

@@ -485,7 +485,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     const velo: string[] = [];
     for (const { axis, prof } of ps) { const W = profileWidth(prof); let off = -W / 2; for (const pt of prof.parts) { const mid = off + pt.w / 2; off += pt.w; if (pt.k === 'velo') velo.push(`<path d="${lineD(offsetLine(axis, mid))}" fill="none" stroke="#1f8fd6" stroke-width="${lw(0.45)}" stroke-dasharray="1.2 0.6"/>`); } }
     if (velo.length) { g('Velo_yolaklar', velo.join('')); legend.push({ type: 'dash', stroke: '#1f8fd6', label: tr('Velo yoʻlak') }); }
-    const GK: Record<string, [string, string]> = { yer_osti: ['#c9c2ea', 'Yer osti avtoturargohi'], stilobat: ['#b8bfc6', 'Stilobatdagi avtoturargoh'], yer_usti: ['#e3e6ea', 'Ochiq avtoturargoh'], kop_qavatli: ['#aeb4bb', 'Koʻp qavatli avtoturargoh'] };
+    const GK: Record<string, [string, string]> = { yer_osti: ['#cdd6e0', 'Yer osti avtoturargohi'], stilobat: ['#b8bfc6', 'Stilobatdagi avtoturargoh'], yer_usti: ['#e3e6ea', 'Ochiq avtoturargoh'], kop_qavatli: ['#aeb4bb', 'Koʻp qavatli avtoturargoh'] };
     const gs = doc.garages.filter(q => !q.truck);
     if (gs.length) {
       g('Avtoturargohlar', gs.map(q => { const r = q.ring.map(fr.toLocal), c = centroid(r); return `<path d="${ringD(r)}" fill="${GK[q.kind][0]}" fill-opacity="0.85" stroke="#4b5563" stroke-width="${lw(0.25)}"${q.kind === 'yer_osti' ? ' stroke-dasharray="1.5 0.8"' : ''}/><text x="${X(c)}" y="${n2(+Y(c) + 1.2)}" font-size="${T(3.2)}" font-weight="700" text-anchor="middle" fill="#1f3a68">P</text>`; }).join(''));
