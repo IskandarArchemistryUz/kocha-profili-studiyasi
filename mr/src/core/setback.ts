@@ -19,6 +19,11 @@ export const SB_MAX = 20;        // generator chegarasi (gSet 0–20 m)
 export interface AutoSetback { d: number; H: number; W: number; k: number; min: number; wFound: boolean }
 
 /** H — koʻchaga qaragan fasad balandligi, m; W — koʻcha kengligi (null — nomaʼlum); k — H/W chegarasi */
+/** 05.11: 79-band 2-jadval qoʻllanadigan funksiyalar — 3+ qavatli koʻp kvartirali turar joy va yotoq oʻrinli binolar (mehmonxona).
+ *  Asl matn: «Уч ва ундан юқори кўп қаватли турар жой бинолари ва барча ётоқ ўринлари мавжуд бўлган бинолар орасидаги масофалар» */
+export const SB79_USES: ReadonlySet<string> = new Set(['turar', 'aralash', 'mehmonxona']);
+export const sb79Applies = (use: string, floors: number): boolean => SB79_USES.has(use) && floors >= 3;
+
 export function autoSetback(H: number, W: number | null, nonResGround: boolean, k = SB_HW): AutoSetback {
   const w = W ?? SB_W_DEF, min = nonResGround ? SB_MIN_PUB : SB_MIN_RES, kk = Math.max(0.3, k);
   const raw = (H / kk - w) / 2, d = Math.min(SB_MAX, Math.max(min, Math.round(raw * 2) / 2));

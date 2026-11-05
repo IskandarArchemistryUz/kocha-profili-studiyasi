@@ -327,6 +327,16 @@ export const RULES: Rule[] = [
     },
   },
   {
+    // 05.11 (egasi): yer osti avtoturargoh — chegarasi chekinishga bogʻlanmaydi; kirish-chiqish va shamollatish 15 m
+    id: 'ug-park-415',
+    title: 'Yer osti avtoturargoh: kirish-chiqish va shamollatish shaxtalari',
+    source: { doc: 'ShNQ 2.07.01-23; SanPiN RUz № 0350-17', edition: '2023; 2017', clause: '415-band; 6.4.1-jadval, 8-izoh', verified: false },
+    evaluate(_d, doc) {
+      const ug = doc.garages.filter(g => g.kind === 'yer_osti'); if (!ug.length) return { status: 'na', note: 'Yer osti avtoturargoh yoʻq.' };
+      return { status: 'review', unit: '', note: `Yer osti avtoturargohlar: ${ug.length} ta, ${ug.reduce((t, g) => t + g.spaces, 0)} joy. 415-band: kirish-chiqish joylari turar joy va jamoat binolari derazalaridan, taʼlim va davolash muassasalari hududlaridan kamida 15 m. SanPiN 0350-17, 6.4.1-jadval 8-izoh: kirish-chiqish va shamollatish shaxtalaridan maktab, MTM, davolash muassasalari, turar joy fasadlari va dam olish maydonchalarigacha kamida 15 m. Rampa va shaxtalar joyi modelda yoʻq — loyihada aniqlanadi.` };
+    },
+  },
+  {
     id: 'street-overlap',
     title: 'Bino koʻcha qizil chiziqlari ichida',
     source: { doc: 'Rejalash qoidasi', edition: '—', clause: 'qizil chiziq ichida qurilish yoʻq (koʻcha koridori boʻsh)', verified: false },
