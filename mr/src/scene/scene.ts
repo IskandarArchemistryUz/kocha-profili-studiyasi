@@ -21,6 +21,7 @@ import { projectStreetsGeo } from './streets3d';
 import { computePlan, interiorPoint } from '../core/plan';
 import { limitZones, hatchSegs, isActive } from '../core/limits';
 import { profileById } from '../core/profiles';
+import { entryRing } from '../core/parkentry';
 import { MATS, roofParts, ROOF_RISE_MAX, type RoofPart } from '../core/roof';
 import { roofGroups } from '../core/roofsk';
 import { winDef, balAt, strSeed, type Bal, type BalPat } from '../core/facade';
@@ -1256,6 +1257,22 @@ export class Scene3D {
         }
         const l = line(densify(r, 6, true), col, 0.5, true, 8, this.H); (l.material as THREE.Material).dispose();
         l.material = new THREE.LineDashedMaterial({ color: col, dashSize: ug ? 6 : 2, gapSize: ug ? 2 : 1.5 }); l.computeLineDistances(); l.userData.ugPark = ug; this.world.add(l);
+      }
+    });
+    // 05.11: avtoturargoh kirish-chiqish (pandus — sariq toʻrtburchak, strelka, «P») va shamollatish shaxtasi (kvadrat, «V»)
+    doc.garages.forEach(gr => {
+      for (const e of gr.entries ?? []) {
+        const at = fr.toLocal(e.at), ring = entryRing({ at, kind: e.kind, ...(e.dir != null ? { dir: e.dir } : {}) });
+        if (!this.inIso(ring)) continue;
+        const z = this.H(at[0], at[1]) + 0.45, col = e.kind === 'rampa' ? 0xd9a441 : 0x5f6369;
+        const sh = new THREE.Shape(ring.map(toV2)), g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); g.translate(0, z, 0);
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -7, polygonOffsetUnits: -7 })); m.renderOrder = 12; m.userData.garage = gr.id; m.userData.entry = true; this.world.add(m);
+        const lp: number[] = []; for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; lp.push(a[0], z + 0.02, -a[1], b[0], z + 0.02, -b[1]); }
+        if (e.kind === 'rampa') { const d = e.dir ?? 0, ux = Math.cos(d), uy = Math.sin(d), t0: XY = [at[0] - ux * 5, at[1] - uy * 5], t1: XY = [at[0] - ux * 1, at[1] - uy * 1];
+          lp.push(t0[0], z + 0.02, -t0[1], t1[0], z + 0.02, -t1[1]); for (const sg of [1, -1]) lp.push(t1[0], z + 0.02, -t1[1], t1[0] - ux * 1.1 + uy * sg * 0.8, z + 0.02, -(t1[1] - uy * 1.1 - ux * sg * 0.8)); }
+        const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+        const ls = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x1d1d1b })); ls.renderOrder = 12.5; ls.userData.entry = true; this.world.add(ls);
+        const sp = labelSprite(e.kind === 'rampa' ? 'P' : 'V', true); sp.position.set(at[0], z + 0.6, -at[1]); sp.userData.entry = true; this.world.add(sp);
       }
     });
     // 02.11: temir yoʻl shoxobchasi (yuk terminali) — ikki rels (1520 mm) va shpallar

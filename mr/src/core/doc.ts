@@ -106,7 +106,9 @@ export interface Street { id: string; axis: LngLat[]; profile: string; /** oʻq 
 
 /** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
 /** Avtoturargoh (generator): yer usti boʻlsa — joylar va manevr boʻlaklari (dizayn-kod 6.3 moduli); need — 29-jadval talabi */
-export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti' | 'kop_qavatli'; ring: Ring; levels: number; spaces: number; need?: number; module?: 'p90' | 'p60' | 'p45' | 'par'; stalls?: Ring[]; aisles?: Ring[]; /** 02.11: yuk hovlisi — stalls tirkama joylari, aisles apron; yengil avtomobil joylariga kirmaydi */ truck?: true; /** temir yoʻl shoxobchasi oʻqi */ spur?: LngLat[]; /** 05.11: koʻp qavatli — pandus yoʻlaklari va zina-lift tugunlari (tipik qavat), har qavat joylari */ ramps?: Ring[]; cores?: Ring[]; perFloor?: number[] }
+export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti' | 'kop_qavatli'; ring: Ring; levels: number; spaces: number; need?: number; module?: 'p90' | 'p60' | 'p45' | 'par'; stalls?: Ring[]; aisles?: Ring[]; /** 02.11: yuk hovlisi — stalls tirkama joylari, aisles apron; yengil avtomobil joylariga kirmaydi */ truck?: true; /** temir yoʻl shoxobchasi oʻqi */ spur?: LngLat[]; /** 05.11: koʻp qavatli — pandus yoʻlaklari va zina-lift tugunlari (tipik qavat), har qavat joylari */ ramps?: Ring[]; cores?: Ring[]; perFloor?: number[]; /** 05.11: kirish-chiqish (pandus) va shamollatish shaxtalari — 414, 415-bandlar, SanPiN 6.4.1 8-izoh (core/parkentry) */ entries?: GarageEntry[] }
+/** at — pandus tashqi uchi (yoki shaxta markazi); dir — chiqish yoʻnalishi, radian (mahalliy oʻqlar, x sharq) */
+export interface GarageEntry { at: LngLat; dir?: number; kind: 'rampa' | 'shaxta'; /** shaxta uchun joiz joy topilmadi — garaj chetiga qoʻyildi (qoida: koʻrib chiqish) */ edge?: true }
 
 export interface Parcel { id: string; block: string; rings: Ring[]; use: Use; /** shu yer uchastkasi uchun oxirgi generator parametrlari (seksiya oʻlchamlari va h.k.) */ gen?: Record<string, unknown> }
 
@@ -379,6 +381,7 @@ export function migrate(raw: unknown): Project {
       ...(Array.isArray(x.aisles) && x.aisles.every(isRing) ? { aisles: x.aisles.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
       ...(Array.isArray(x.ramps) && x.ramps.every(isRing) ? { ramps: x.ramps.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
       ...(Array.isArray(x.cores) && x.cores.every(isRing) ? { cores: x.cores.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
+      ...(Array.isArray(x.entries) ? { entries: x.entries.filter((e: any) => e && isLL(e.at) && (e.kind === 'rampa' || e.kind === 'shaxta')).map((e: any) => ({ at: [e.at[0], e.at[1]] as LngLat, kind: e.kind, ...(isNum(e.dir) ? { dir: e.dir } : {}), ...(e.edge === true ? { edge: true as const } : {}) })) } : {}),
       ...(Array.isArray(x.perFloor) && x.perFloor.every(isNum) ? { perFloor: x.perFloor.map((v: number) => Math.max(0, Math.round(v))) } : {}),
       ...(x.truck === true ? { truck: true as const } : {}), ...(Array.isArray(x.spur) && x.spur.length >= 2 && x.spur.every(isLL) ? { spur: x.spur.map((p: LngLat) => [p[0], p[1]] as LngLat) } : {}) }));
   const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
