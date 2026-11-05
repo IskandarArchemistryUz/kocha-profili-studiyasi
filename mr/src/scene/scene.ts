@@ -1246,8 +1246,16 @@ export class Scene3D {
         const sh = new THREE.Shape(r.map(toV2)), g = drape(new THREE.ShapeGeometry(sh), this.H, 0.35, this.ctx ? 8 : 1e9);
         const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xa9adb3, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })); m.renderOrder = 6.5; this.world.add(m);
       } else {
-        const l = line(densify(r, 6, true), 0x7a4fb0, 0.5, true, 8, this.H); (l.material as THREE.Material).dispose();
-        l.material = new THREE.LineDashedMaterial({ color: 0x7a4fb0, dashSize: 2, gapSize: 1.5 }); l.computeLineDistances(); this.world.add(l);
+        // 05.11 (egasi: binafsha uzuq chiziq chekinishga oʻxshardi): yer osti — och toʻldirma, uzun shtrix va «P» belgisi
+        const ug = gr.kind === 'yer_osti', col = ug ? 0x4f6b86 : 0x7a4fb0;
+        if (ug) {
+          const sh = new THREE.Shape(r.map(toV2)), fg = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
+          const fm = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: 0x8fa3b8, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+          fm.renderOrder = 6.4; fm.userData.garage = gr.id; fm.userData.ugPark = true; this.world.add(fm);
+          const c0 = centroid(r), v0 = r[0], dl = Math.hypot(c0[0] - v0[0], c0[1] - v0[1]) || 1, k = Math.min(1, 12 / dl), c: XY = [v0[0] + (c0[0] - v0[0]) * k, v0[1] + (c0[1] - v0[1]) * k], sp = labelSprite('P'); sp.position.set(c[0], this.H(c[0], c[1]) + 0.8, -c[1]);   // burchak yonida — daha yorligʻi bilan ustma-ust tushmasin sp.center.set(0.5, 0.5); sp.userData.ugPark = true; this.world.add(sp);
+        }
+        const l = line(densify(r, 6, true), col, 0.5, true, 8, this.H); (l.material as THREE.Material).dispose();
+        l.material = new THREE.LineDashedMaterial({ color: col, dashSize: ug ? 6 : 2, gapSize: ug ? 2 : 1.5 }); l.computeLineDistances(); l.userData.ugPark = ug; this.world.add(l);
       }
     });
     // 02.11: temir yoʻl shoxobchasi (yuk terminali) — ikki rels (1520 mm) va shpallar
@@ -1607,8 +1615,10 @@ export class Scene3D {
       if (i === this.selBlock) {
         // tanlangan: oq kartochka — toʻliq + UMN, qavat
         let gfa = 0, fl = 0;
-        doc.buildings.forEach(q => { const r = q.footprint.map(fr.toLocal), c = centroid(r); if (b.rings.some(rr => pointInRing(c, rr))) { gfa += area(r) * q.floors; fl = Math.max(fl, (q.z0 ?? 0) + q.floors); } });
-        const sp = labelCard([code, tr(useDef(b.use).name), ar, ...(gfa ? [`UMN ${(gfa / b.area).toFixed(2).replace('.', ',')} · ${fl} ${tr('qavat')}`] : [])]), c = interiorPoint(b.rings);
+        // 05.11: UMN (66-band) — faqat turar joy binolari va ularning stilobati; noturar daha — «Zichlik (brutto)» (normativ UMN emas)
+        const resB = useDef(b.use).res > 0;
+        doc.buildings.forEach(q => { const r = q.footprint.map(fr.toLocal), c = centroid(r); if (b.rings.some(rr => pointInRing(c, rr))) { if (!resB || useDef(q.use).res > 0 || q.gen?.kind === 'stilobat') gfa += area(r) * q.floors; fl = Math.max(fl, (q.z0 ?? 0) + q.floors); } });
+        const sp = labelCard([code, tr(useDef(b.use).name), ar, ...(gfa ? [`${resB ? 'UMN' : tr('Zichlik (brutto)')} ${(gfa / b.area).toFixed(2).replace('.', ',')} · ${fl} ${tr('qavat')}`] : [])]), c = interiorPoint(b.rings);
         sp.position.set(c[0], this.H(c[0], c[1]) + 0.6, -c[1]); sp.userData.layer = 2; this.world.add(sp);
       }
       // 27.10 yengillik: faqat kvartal qutisiga tegadigan toʻsiqlar; natija kesh (shakl va toʻsiqlar oʻzgarmasa)

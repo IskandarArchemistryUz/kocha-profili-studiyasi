@@ -50,8 +50,8 @@ import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel, RoundKind } from '../core/doc';
-import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, type AutoSetback, type EdgeKind } from '../core/setback';
-import { DEFAULT_GEN, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
+import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, sb79Applies, type AutoSetback, type EdgeKind } from '../core/setback';
+import { DEFAULT_GEN, UG_STREET, UG_SIDE, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
 import { mlParking, need413, pct5, ML, OPEN_413 } from '../core/mlpark';
 import { aptRooms } from '../core/aptrooms';
@@ -2318,7 +2318,7 @@ export class Editor {
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), avoidG = this.genObstacles(b.parcelId ?? lab.id, b.rings[0]);
-    const run = (gx: GenParams) => { const a = this.autoSb(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
+    const run = (gx: GenParams) => { const a = this.autoSb(i, gx), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
     let { asb, r } = run(g);
     // 04.11 (Murad Buildings sinovi, 2-band — D-14 uchburchak daha boʻsh qoldi): joy yetmasa, qavat oshirilmaydi (chekinish H × 0,25 va
     // oraliq 2·H ham oshadi) — qavat pasaytirilib (16 → 12 → 9 → 7 → 5 → 3), keyin minora bilan qayta urinish; natija boʻlmasa — aniq sabab
@@ -2386,13 +2386,28 @@ export class Editor {
    * uchastka cheti — «koʻcha» (H × 0,25) yoki «qoʻshni» (derazali uzun tarz H × kʏ / 2). Ixtiyoriy andoza H/W (hw > 0) — koʻcha qirralarida qoʻshiladi.
    * H — yer sathidan eng yuqori qavat tepasigacha (core/levels: baland 1-qavat bilan). Past qavatlilarda — null (oʻz qoidasi).
    */
-  private autoSb(i: number, g: GenParams): { ring: XY[] | null; d: number[]; kinds: EdgeKind[]; H: number; dMin: number; dMax: number; hw?: AutoSetback } | null {
-    if (!g.setbackAuto || LOW_T.includes(g.typology)) return null;
+  /** 05.11: kvartal qirralari turi (koʻcha / qoʻshni) va loyiha koʻchalari — chekinish va yer osti avtoturargoh chegarasi uchun */
+  private edgeInfo(i: number, g: GenParams): { ring: XY[]; kinds: EdgeKind[]; streets: { axis: XY[]; w: number }[] } | null {
     const b = this.plan().blocks[i]; if (!b) return null;
     const doc = this.store.doc, fr = frame(doc.origin), ring = b.rings[0];
     const streets = doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), w: profileWidth(profileById(s.profile)) }));
+    return { ring, streets, kinds: edgeKinds(ring, streets, g.siteEdges ?? doc.siteEdges ?? 'kocha') };
+  }
+  /** 05.11 (egasi): yer osti avtoturargoh chegarasi — kvartal chegarasidan, koʻcha qirralarida ugStreet, qoʻshni qirralarida ugSide (ANDOZA) */
+  private ugRing(i: number, g: GenParams): XY[] | null {
+    if ((g.parking ?? 'yoq') !== 'yer_osti') return null;
+    const e = this.edgeInfo(i, g); if (!e) return null;
+    return insetVar(e.ring, e.kinds.map(k => (k === 'kocha' ? g.ugStreet ?? UG_STREET : g.ugSide ?? UG_SIDE)));
+  }
+  private autoSb(i: number, g: GenParams): { ring: XY[] | null; d: number[]; kinds: EdgeKind[]; H: number; dMin: number; dMax: number; hw?: AutoSetback; andoza?: boolean } | null {
+    if (!g.setbackAuto || LOW_T.includes(g.typology)) return null;
+    const b = this.plan().blocks[i], e = this.edgeInfo(i, g); if (!b || !e) return null;
+    const doc = this.store.doc, { ring, streets, kinds } = e;
     const F = g.typology === 'minora' ? (g.towerF ?? g.maxF) : g.maxF, H = bLevels(doc.settings, { floors: F, nonRes: g.nonRes ?? 0 }).top;
-    const kinds = edgeKinds(ring, streets, g.siteEdges ?? doc.siteEdges ?? 'kocha');
+    // 05.11 (egasi: «nega chekinish barcha turdagi binolar uchun bir xil?»): 79-band — «Уч ва ундан юқори кўп қаватли турар жой бинолари ва
+    // барча ётоқ ўринлари мавжуд бўлган бинолар орасидаги масофалар» — 2-jadval faqat 3+ qavatli turar joy va yotoq oʻrinli binolarga.
+    // Ofis, savdo, maʼmuriy va boshqa noturar — 2-jadval chekinishi yoʻq: qoʻlda berilgan chekinish (ANDOZA)
+    if (!sb79Applies(b.use, F)) { const d = ring.map(() => g.setback); return { ring: insetVar(ring, d), d, kinds, H, dMin: g.setback, dMax: g.setback, andoza: true }; }
     const hwOn = (g.hw ?? SB_HW) > 0, hw = hwOn ? autoSetback(H, blockStreetWidth(ring, streets), (g.nonRes ?? 0) > 0, g.hw) : undefined;
     const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], n = boundaryNeed(kinds[k], H, true, azOf([q[0] - p[0], q[1] - p[1]])); return Math.round(Math.max(n, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
     return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), hw };
@@ -2400,6 +2415,7 @@ export class Editor {
   private autoSbNote(a: NonNullable<ReturnType<Editor['autoSb']>>): string {
     const ks = a.kinds.map((k, i) => ({ k, d: a.d[i] })), kc = ks.filter(x => x.k === 'kocha'), qs = ks.filter(x => x.k === 'qoshni');
     const rng = (xs: { d: number }[]) => { const lo = Math.min(...xs.map(x => x.d)), hi = Math.max(...xs.map(x => x.d)); return lo === hi ? fmt(lo, lo % 1 ? 1 : 0) : `${fmt(lo, lo % 1 ? 1 : 0)}–${fmt(hi, hi % 1 ? 1 : 0)}`; };
+    if (a.andoza) return tf('Chekinish ${d} m — ANDOZA; 2-jadval qoʻllanmaydi (79-band: 3+ qavatli turar joy va yotoq oʻrinli binolar)', { d: fmt(a.dMin, a.dMin % 1 ? 1 : 0) });
     return [tf('Chekinish (79-band, 2-jadval): H = ${h} m', { h: fmt(a.H, 1) }),
       ...(kc.length ? [tf('koʻcha tomoni ${d} m (H × 0,25)', { d: rng(kc) })] : []),
       ...(qs.length ? [tf('qoʻshni tomoni ${d} m (H × kʏ / 2)', { d: rng(qs) })] : []),
@@ -2532,8 +2548,9 @@ export class Editor {
     const gar = doc.garages.find(g => g.grp === grp && g.kind === 'kop_qavatli');
     const pick = (p: Partial<{ t: 'ochiq' | 'kop'; f: number }>) => { if (grp) this.mlPick.set(grp, { ...st, ...p }); this.renderPanel(); };
     const box = h('div', { class: 'group', id: 'mlPark' },
-      h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Avtoturargoh turi'), h('span', { class: 'sub' }, tr('ShNQ 2.07.01-23, 410 va 413-bandlar'))),
-        h('div', { class: 'seg sm', id: 'mlType', role: 'group', 'aria-label': tr('Avtoturargoh turi') },
+      // 05.11: 1024 px da yorliq ikkiga notoʻgʻri boʻlinardi — yorliq va tugmalar alohida qatorda
+      h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, tr('Avtoturargoh turi'), h('span', { class: 'sub' }, tr('ShNQ 2.07.01-23, 410 va 413-bandlar'))),
+        h('div', { class: 'seg sm', id: 'mlType', role: 'group', 'aria-label': tr('Avtoturargoh turi'), style: 'flex:1 1 100%' },
           h('button', { 'data-ptype': 'ochiq', 'aria-pressed': st.t === 'ochiq', onclick: () => pick({ t: 'ochiq' }) }, tr('Ochiq')),
           h('button', { 'data-ptype': 'kop', 'aria-pressed': st.t === 'kop', onclick: () => pick({ t: 'kop' }) }, tr('Koʻp qavatli')))));
     if (st.t === 'ochiq') {
@@ -2635,7 +2652,7 @@ export class Editor {
         h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'))];
       // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — daha, tipologiya, qavatlar va «Variant taklif qil»; qolgani «Batafsil» ichida (hech biri olib tashlanmagan, id lar saqlangan)
       const isOmb = g.typology === 'ombor', stageEl = this.blockStageRow(), isoEl = this.scene.isolated ? '' : this.isoBtn(this.selBlock);
-      const moreN = 1 + (isLow ? 0 : (isOmb ? 5 : 7) + (g.setbackAuto ? 2 : 0) + ((g.parkNorm ?? true) ? 0 : 1) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1)) + 1 + (stageEl ? 1 : 0) + (isoEl ? 1 : 0);
+      const moreN = 1 + (isLow ? 0 : (isOmb ? 5 : 7) + (g.setbackAuto ? 2 : 0) + ((g.parkNorm ?? true) ? 0 : 1) + ((g.parking ?? 'yoq') === 'yer_osti' ? 2 : 0) + (['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? 1 : 0) + (g.typology === 'avto' ? 0 : 1)) + 1 + (stageEl ? 1 : 0) + (isoEl ? 1 : 0);
       const more = h('details', { class: 'gen-more', id: 'genMore' }, h('summary', {}, tf('Qoʻshimcha · ${n}', { n: moreN })));
       const seisNote = (() => { const S0 = this.store.doc.settings, lim = lenLimit(S0.construct ?? 'monolit', S0.seismic); return lim != null && g.secLen > lim ? h('div', { class: 'li', id: 'seisLenNote' }, h('span', { class: 'chip warn' }, h('i'), tf('Seysmik boʻlma ≤ ${l} m', { l: lim })), h('span', { class: 't-small' }, tf('${s} ball, ${n} — generatsiyada seksiya ${l} m bilan cheklanadi (QMQ 2.01.03-19, 3.1-jadval)', { s: S0.seismic, n: SYS[S0.construct ?? 'monolit'].name, l: lim }))) : ''; })();
       body.append(typoPick,
@@ -2670,7 +2687,11 @@ export class Editor {
               stp('gHW', tr('H/W chegarasi'), tr('qoʻshimcha andoza · 0 — oʻchiq'), g.hw ?? SB_HW, 0, 3, 0.1, x => { g.hw = x; }),
               (() => { const a = this.selBlock != null ? this.autoSb(this.selBlock, g) : null; return h('div', { class: 'li', id: 'gSetAutoV' }, h('span', { class: 'k' }, h('b', { class: 'num' }, a ? (a.dMin === a.dMax ? `${fmt(a.dMin, a.dMin % 1 ? 1 : 0)} m` : `${fmt(a.dMin, a.dMin % 1 ? 1 : 0)}–${fmt(a.dMax, a.dMax % 1 ? 1 : 0)} m`) : '—'), h('span', { class: 'sub' }, a ? this.autoSbNote(a) : tr('Kvartalni tanlang — chekinish hisoblanadi')))); })()] :
               [stp('gSet', tr('Chekinish'), '0–20 m', g.setback, 0, 20, 0.5, x => { g.setback = x; }, 'm')]),
-            ...((g.parkNorm ?? true) ? [] : [stp('gPL', tr('Yer osti'), tr('sath'), g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })])),
+            ...((g.parkNorm ?? true) ? [] : [stp('gPL', tr('Yer osti'), tr('sath'), g.parkLevels ?? 1, 1, 4, 1, x => { g.parkLevels = x; })]),
+            // 05.11: yer osti avtoturargoh chegarasi kvartal chegarasidan (ANDOZA; 209-band 8-jadval — tarmoqlar sxemasi bilan aniqlansin)
+            ...((g.parking ?? 'yoq') === 'yer_osti' ? [
+              stp('gUgS', tr('Yer osti: koʻcha tomondan'), tr('ANDOZA · 209-band, 8-jadval'), g.ugStreet ?? UG_STREET, 0, 15, 0.5, x => { g.ugStreet = x; }, 'm'),
+              stp('gUgQ', tr('Yer osti: qoʻshni tomondan'), tr('ANDOZA · texnik zaxira'), g.ugSide ?? UG_SIDE, 0, 10, 0.5, x => { g.ugSide = x; }, 'm')] : [])),
           ['perimetr', 'blok_minora', 'blok_villa', 'avto'].includes(g.typology) ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Har ~100 m da hovliga oʻtish (6 m)')), sw({ id: 'gPass', label: tr('Har ~100 m da hovliga oʻtish (6 m)'), on: g.passages, onchange: v => { g.passages = v; } }))) : '']),
         h('div', { class: 'glabel' }, h('span', {}, tr('Parkovka'))),
         h('div', { class: 'tiles c4 compact', role: 'group', 'aria-label': tr('Parkovka') }, ...(Object.keys(PARK_NAME) as ParkingKind[]).map(k => h('button', { class: 'tile', 'aria-pressed': (g.parking ?? 'yoq') === k, 'data-park': k, onclick: () => { g.parking = k; this.renderPanel(); }, html: pg('park', k) + `<span>${tr(PARK_NAME[k])}</span>` }))),

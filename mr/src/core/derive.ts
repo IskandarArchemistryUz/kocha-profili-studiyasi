@@ -204,10 +204,17 @@ export function derive(doc: Project): Derived {
   const umnAcc = new Map<number, { gfa: number; res: boolean; bids: string[] }>();
   for (const b of doc.buildings) {
     if (b.floors <= 0) continue;
+    // 05.11 (egasi: «qoida boʻyicha parkovka UMN ga kirishi kerakmi?»): 66-band — «турар жой биносининг умумий майдони (ерустидаги барча
+    // қаватларнинг фойдали майдонлари йиғиндиси) … ер участкаси майдонига нисбати» — faqat turar joy binosi va uning yer usti qismi (stilobat);
+    // alohida noturar binolar (koʻp qavatli avtoturargoh, ofis, savdo, maktab…) qoʻshilmaydi
+    const isSt = b.gen?.kind === 'stilobat';
+    if (useDef(b.use).res <= 0 && !isSt) continue;
     const r = ringLocal(fr, b.footprint), a = area(r), c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
     const bi = plan.blocks.findIndex(k => inR(c, k.rings[0]) && !k.rings.slice(1).some(h => inR(c, h)));
     if (bi < 0) continue;
-    const g = (b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) : a * b.floors) + (hasAntresol(s, b) ? a * ANTRESOL_SHARE : 0);
+    // stilobat avtoturargohi: pandus foydali maydonga kirmaydi (TALQIN: ShNQ 2.08.02-23, 11-ilova, 2-band) — pandus halqalari maʼlum boʻlsa ayiriladi
+    const ramp = isSt && b.use === 'avtoturargoh' ? doc.garages.filter(q => q.kind === 'stilobat' && q.grp === b.gen?.grp).reduce((t, q) => t + (q.ramps ?? []).reduce((u, rr) => u + area(ringLocal(fr, rr)), 0) * q.levels, 0) : 0;
+    const g = Math.max(0, (b.tiers?.length ? tieredGfa(r, b.floors, b.tiers) : a * b.floors) + (hasAntresol(s, b) ? a * ANTRESOL_SHARE : 0) - ramp);
     const e = umnAcc.get(bi) ?? { gfa: 0, res: false, bids: [] }; e.gfa += g; e.bids.push(b.id); if (useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat') e.res = true; umnAcc.set(bi, e);
   }
   const umnBlocks: Derived['umnBlocks'] = [...umnAcc].filter(([, e]) => e.res && plan.blocks[0] != null).map(([bi, e]) => ({ block: bi, area: plan.blocks[bi].area, gfa: e.gfa, umn: plan.blocks[bi].area > 0 ? e.gfa / plan.blocks[bi].area : 0, bids: e.bids }));
