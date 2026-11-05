@@ -20,7 +20,7 @@ describe('Chizmadon — avtomatik albom', () => {
     for (const f of LAYOUTS.families) for (const fmt of f.formats) {
       const A = buildAlbum({ fam: f, fmt, pal: f.pal ?? 'arch', mats, R });
       expect(A.pages.length, f.id).toBeGreaterThan(0);
-      for (const ap of A.pages) { expect(ap.svg, `${f.id}/${fmt}`).not.toMatch(/NaN|undefined|Infinity/); expect(ap.cells.length).toBe(ap.fill.assign.size); }
+      for (const ap of A.pages) { expect(ap.svg, `${f.id}/${fmt}`).not.toMatch(/NaN|undefined|Infinity/); expect(ap.cells.length).toBe(ap.fill.assign.size + (ap.fill.att?.size ?? 0)); }   // 06.11: biriktirilgan shartli belgilar — oʻz katagi
       expect(A.pages.map(x => x.svg).join('')).toContain('data-el="loc0"');
     }
   });

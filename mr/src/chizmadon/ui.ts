@@ -908,7 +908,7 @@ export function openChizmadon(host: ChHost): void {
     const key = `${d.cur}:${o.svg.length}:${o.svg.slice(-160)}`;
     const mapRoles = new Set(['locator', 'plan']);
     const hasMap = (pk ? [...pk.assign.values()].some(m => mapRoles.has(m.role)) : false) || p.els.some(e => e.t === 'map');
-    const hasLegend = (LAST?.PG.pages ?? []).some(q => [...q.assign.values()].some(m => m.role === 'legend')) || allPages().some(q => q.els.some(e => e.t === 'legend'));
+    const hasLegend = (LAST?.PG.pages ?? []).some(q => [...q.assign.values(), ...(q.att?.values() ?? [])].some(m => m.role === 'legend')) || allPages().some(q => q.els.some(e => e.t === 'legend'));
     const cs = sheetChecks({ svg: o.svg, empty: pk ? pk.empty.size : 0, left: auto ? (LAST?.PG.left ?? []).map(m => m.name) : [], hasMap, hasLegend, share: rasterShare(key, o.svg, o.widthMm, o.heightMm) }, tr);
     const ok = cs.filter(c => c.st === 'o').length;
     const old = pageChecks(p, tr);

@@ -4,7 +4,7 @@
  * DOM ga bogʻliq emas: ekranda ham, eksportda ham, testlarda ham bir xil.
  */
 import { type LFamily } from './layouts';
-import { type Material, type Paginated, type Fill, paginate, applyOv, type Ov } from './autolayout';
+import { type Material, type Paginated, type Fill, paginate, applyOv, attachLeft, type Ov } from './autolayout';
 import { renderPage, LIB, PAL, T, L0, n2, slotRectOf, str0, type Frame, type PageTxt } from './sheet';
 import type { Cell } from './bind';
 import type { ChRect } from './model';
@@ -36,11 +36,18 @@ export function setCustomPal(c: { base: string; over: Record<string, string> } |
   PAL.custom = { ...(PAL[c.base] ?? PAL.arch), ...c.over, name: 'Mening uslubim' };
 }
 
+/** Shartli belgilar tasmasi: keng katakda oʻng ustun (≤ 32 %, ≤ 56u), baland katakda pastki qator (≤ 34 %, ≤ 44u); oraliq 3u */
+export function legendStrip(r: ChRect, u: number): { rest: ChRect; leg: ChRect } {
+  const g = 3 * u;
+  if (r.w >= r.h * 1.15) { const w = Math.min(0.32 * r.w, 56 * u), h = Math.min(r.h, 44 * u); return { rest: { x: r.x, y: r.y, w: r.w - w - g, h: r.h }, leg: { x: r.x + r.w - w, y: r.y + r.h - h, w, h } }; }
+  const h = Math.min(0.34 * r.h, 44 * u); return { rest: { x: r.x, y: r.y, w: r.w, h: r.h - h - g }, leg: { x: r.x, y: r.y + r.h - h, w: r.w, h } };
+}
 const cellsArea = (s: { fx?: number; fw?: number; fh?: number; cs?: number; rs?: number }) => (s.fx != null ? (s.fw ?? 0) * (s.fh ?? 0) * 0.0096 : (s.cs ?? 1) * (s.rs ?? 1));
 
 export function buildAlbum(a: AlbumIn): Album {
   const f = a.fam, PG = paginate(f, a.mats, a.force ?? {});
   const ov = applyOv(PG, a.ov ?? [], a.mats);
+  attachLeft(PG);
   const pages = PG.pages.map((pk, pi): AlbumPage => {
     // varaq sarlavhasi: 1-varaqda — «Sarlavha» materiali, keyin — eng katta material nomi (tahlil modullari boʻlsa — «Hudud tahlili»)
     const own = a.ttl?.[pi]?.trim();
@@ -63,6 +70,17 @@ export function buildAlbum(a: AlbumIn): Album {
         cells.push({ el: el.id, r: { ...r } });
         const c = { ...ctx } as never;
         const draw = (rr: ChRect, bare: boolean) => (el.render ? el.render(rr, c, bare) : drawEl(el, rr, c, a.R, bare));
+        // 06.11: biriktirilgan shartli belgilar — katak ichidan tasma (keng katakda oʻngda, baland katakda pastda), material qolgan qismida
+        const att = s.role === 'module' ? undefined : pk.att?.get(k);
+        if (att) {
+          const lr = legendStrip(r, ctx.u), rest = lr.rest;
+          cells[cells.length - 1].r = { ...rest };   // bogʻlangan shakllar materialning koʻrinadigan qismiga nisbatan
+          cells.push({ el: att.id, r: { ...lr.leg } });
+          const lsvg = att.render ? att.render(lr.leg, c, false) : drawEl(att, lr.leg, c, a.R, false);
+          if (a.sel === el.id) selUi += `<rect x="${n2(rest.x - 1.2)}" y="${n2(rest.y - 1.2)}" width="${n2(rest.w + 2.4)}" height="${n2(rest.h + 2.4)}" rx="${n2(1.5 * ctx.u)}" fill="none" stroke="#2a6fb0" stroke-width="${n2(0.6 * ctx.u)}" data-sel="1"/>`;
+          if (a.sel === att.id) selUi += `<rect x="${n2(lr.leg.x - 1.2)}" y="${n2(lr.leg.y - 1.2)}" width="${n2(lr.leg.w + 2.4)}" height="${n2(lr.leg.h + 2.4)}" rx="${n2(1.5 * ctx.u)}" fill="none" stroke="#2a6fb0" stroke-width="${n2(0.6 * ctx.u)}" data-sel="1"/>`;
+          return `<g data-el="${el.id}" data-k="${k}"><rect x="${n2(rest.x)}" y="${n2(rest.y)}" width="${n2(rest.w)}" height="${n2(rest.h)}" fill="#fff" fill-opacity="0"/>${draw(rest, false)}</g><g data-el="${att.id}" data-att="1"><rect x="${n2(lr.leg.x)}" y="${n2(lr.leg.y)}" width="${n2(lr.leg.w)}" height="${n2(lr.leg.h)}" fill="#fff" fill-opacity="0"/>${lsvg}</g>`;
+        }
         // tahlil moduli: «N. Sarlavha» + material (sarlavhasiz)
         let svg = s.role === 'module'
           ? T(r.x, r.y + 4 * ctx.u, `${++modN}. ${str0(el.title)}`, { s: 3.4 * ctx.u, w: 700, c: el.accent || ctx.P.acc, raw: 1 }) + draw({ x: r.x, y: r.y + 7 * ctx.u, w: r.w, h: r.h - 8 * ctx.u }, true)
