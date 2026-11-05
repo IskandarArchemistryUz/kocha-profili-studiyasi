@@ -325,14 +325,14 @@ export const RULES: Rule[] = [
     evaluate(_d, doc) {
       if (doc.buildings.length < 2) return { status: 'na', note: 'Binolar yoʻq' };
       const { pairs } = spacingIssues(doc);
-      const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun'), lt = pairs.filter(p => p.kind === 'uzun-torets' && !p.red), hard = pairs.filter(p => p.kind === 'torets' && !p.red && p.d < p.need - 0.5), red = pairs.filter(p => p.red), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length, yk = pairs.filter(p => p.kind === 'yakka');
+      const ov = pairs.filter(p => p.kind === 'ustma-ust').length, lng = pairs.filter(p => p.kind === 'uzun' && !p.red), lt = pairs.filter(p => p.kind === 'uzun-torets' && !p.red), hard = pairs.filter(p => p.kind === 'torets' && !p.red && p.d < p.need - 0.5), red = pairs.filter(p => p.red), soft = pairs.filter(p => p.kind === 'torets' && p.d >= p.need - 0.5), pass = pairs.filter(p => p.kind === 'otish').length, yk = pairs.filter(p => p.kind === 'yakka');
       const parts: string[] = [];
       if (ov) parts.push(`Ustma-ust tushgan binolar: ${ov} juft — qayta generatsiya qiling yoki ortiqchasini oʻchiring.`);
       if (lng.length) { const w = lng.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Derazali uzun tarzlar orasi yetmaydi — Hmax × kʏ (2-ilova; kʏ = ${String(w.ky ?? '').replace('.', ',')}), seysmik 8+ ballda ≥ 2·Hmax (8-izoh): ${lng.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (lt.length) { const w = lt.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Uzun tomon va torets orasi 2·Hmax·0,3 dan va 6 m dan kam: ${lt.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (hard.length) { const w = hard.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Toretslar orasi yetmaydi (derazali — (H1+H2)·0,3, biri derazasiz — 0,25, ikkalasi — 0,15; ≥ 6 m): ${hard.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (soft.length) parts.push(`Toretslar orasi (H1+H2)·0,3 dan kam: ${soft.length} juft — toretslar derazali boʻlsa yetmaydi.`);
-      if (red.length) { const w = red.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Rekonstruksiya rejimi (7-izoh): ${red.length} juft jadval masofasidan kam, lekin yarmidan va 6 m dan koʻp (eng yaqini ${Math.round(w.d)} m, jadval ${Math.round(w.need)} m) — SanQvaN 0102-25 boʻyicha insolyatsiya hisobi bilan asoslansin (94–95-bandlar: kvartiralarda 1–2 xona, 22.03–22.09 da ≥ 2 soat). 2·Hmax va yongʻin masofalari qisqarmaydi.`); }
+      if (red.length) { const w = red.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Rekonstruksiya rejimi (7-izoh): ${red.length} juft jadval masofasidan kam, lekin yarmidan va 6 m dan koʻp (eng yaqini ${Math.round(w.d)} m, jadval ${Math.round(w.need)} m) — SanQvaN 0102-25 boʻyicha insolyatsiya hisobi bilan asoslansin (94–95-bandlar: kvartiralarda 1–2 xona, 22.03–22.09 da ≥ 2 soat). Yongʻin masofalari (56-jadval) qisqarmaydi.`); if (red.some(p => p.s8)) parts.push(`Seysmik 8+ ballda uzun tarzlar orasi ham yarmiga (2·Hmax → Hmax) qisqartirildi: ${red.filter(p => p.s8).length} juft. TALQIN — 7-izoh «jadvalda keltirilgan masofalar» deydi, 8-izoh shu jadval izohi; ekspertiza bilan kelishilsin.`); }
       if (yk.length) { const w = yk.reduce((a, b) => (b.d / b.need < a.d / a.need ? b : a)); parts.push(`Koʻp qavatli turar joy va uchastkali past uy orasi bino balandligidan kam (6-izoh; oynasiz tomondan — yarmi): ${yk.length} juft, eng yomoni ${Math.round(w.d)} m, talab ${Math.round(w.need)} m.`); }
       if (pass) parts.push(`Hovliga oʻtishlar (≤ 7,5 m): ${pass} ta — arka sifatida loyihalansin, aks holda toretslar orasi talab qilinadi.`);
       const bad = ov + lng.length + lt.length + hard.length + yk.length;
@@ -406,7 +406,7 @@ export const RULES: Rule[] = [
   {
     id: 'hovli-79-3',
     title: 'Yopiq ichki hovli: ichki fasadlar orasi (Hmax × 2,3)',
-    source: { ...SHNQ_2_07_01, clause: '79-band, 2-jadval, 3-izoh' },
+    source: { ...SHNQ_2_07_01, clause: '79-band, 2-jadval, 3 va 7-izohlar' },
     evaluate(_d, doc) {
       // yopiq hovli — binolar (antiseysmik choklar va arkalar bilan birga) toʻliq oʻrab olgan boʻshliq:
       // har bir izning 1,5 m tasmasi bilan birlashmasidagi teshik (≤ 3 m tirqishlar yopiladi)
@@ -427,10 +427,12 @@ export const RULES: Rule[] = [
         res.push({ h, S, need: Hm * 2.3, Hm, ids: near.map(b => b.id), c, U: [-o.U[1], o.U[0]] });
       }
       if (!res.length) return { status: 'na', note: 'Yopiq hovli turar joy binolari bilan oʻralmagan.' };
-      const bad = res.filter(x => x.S < x.need - 0.5), worst = res.reduce((a, x) => (x.S / x.need < a.S / a.need ? x : a));
+      // 05.11 (egasi): rekonstruksiya rejimi — 7-izoh bilan yarmigacha (≥ 6 m): «mos emas» emas, «koʻrib chiqish» (TALQIN)
+      const rc = doc.settings.recon === true, low = res.filter(x => x.S < x.need - 0.5), bad = low.filter(x => !rc || x.S < Math.max(6, x.need / 2) - 0.5), worst = res.reduce((a, x) => (x.S / x.need < a.S / a.need ? x : a));
+      const redN = low.length - bad.length;
       const where: Where | undefined = bad.length ? { bids: [...new Set(bad.flatMap(x => x.ids))], need: { segs: bad.map(x => [[x.c[0] - x.U[0] * x.need / 2, x.c[1] - x.U[1] * x.need / 2], [x.c[0] + x.U[0] * x.need / 2, x.c[1] + x.U[1] * x.need / 2]] as [XY, XY]), labels: bad.map(x => ({ at: [x.c[0] + x.U[0] * x.need / 2, x.c[1] + x.U[1] * x.need / 2] as XY, text: `${nm(x.S)} → ${nm(x.need)} m` })) } } : undefined;
-      return { status: bad.length ? 'fail' : 'pass', value: worst.S, unit: 'm', limit: `≥ ${nm(worst.need)} (Hmax ${nm(worst.Hm)} × 2,3)`, ...(where ? { where } : {}),
-        note: `Yopiq ichki hovlisi bor turar joylarda binolarning ichki fasadlari orasidagi masofa Hmax × 2,3 qabul qilinadi (3-izoh). Hovlilar: ${res.length}; eng tori ${nm(worst.S)} m (hovlining qisqa oʻlchami), talab ${nm(worst.need)} m. Hmax — hovlini oʻrab turgan binolarning eng balandi (1-izoh: yer sathidan eng yuqori qavat tom yopmasigacha).` };
+      return { status: bad.length ? 'fail' : redN ? 'review' : 'pass', value: worst.S, unit: 'm', limit: `≥ ${nm(worst.need)} (Hmax ${nm(worst.Hm)} × 2,3)`, ...(where ? { where } : {}),
+        note: `Yopiq ichki hovlisi bor turar joylarda binolarning ichki fasadlari orasidagi masofa Hmax × 2,3 qabul qilinadi (3-izoh). Hovlilar: ${res.length}; eng tori ${nm(worst.S)} m (hovlining qisqa oʻlchami), talab ${nm(worst.need)} m. Hmax — hovlini oʻrab turgan binolarning eng balandi (1-izoh: yer sathidan eng yuqori qavat tom yopmasigacha).` + (redN ? `\nRekonstruksiya rejimi (7-izoh): ${redN} ta hovli talabdan tor, lekin yarmidan va 6 m dan keng — insolyatsiya hisobi bilan asoslansin (TALQIN: 7-izoh 3-izohga ham qoʻllandi).` : '') };
     },
   },
   {

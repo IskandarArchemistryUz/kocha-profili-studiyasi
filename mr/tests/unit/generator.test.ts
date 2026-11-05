@@ -26,6 +26,13 @@ describe('Seksiya generatori', () => {
     expect(Math.max(...r.sections.map(s => s.floors))).toBeLessThanOrEqual(r.capFloors!);
     expect(r.notes.join()).toContain('79-band');
   });
+  it('05.11: rekonstruksiya rejimi (7-izoh) — hovli va qatorlar talabi yarmiga, qavat koʻproq', () => {
+    const a = generate(sq(90, 90), { ...DEFAULT_GEN, maxF: 20 }), b = generate(sq(90, 90), { ...DEFAULT_GEN, maxF: 20, recon: true });
+    expect(b.capFloors!).toBeGreaterThan(a.capFloors!);
+    const q = generate(sq(120, 200), { ...DEFAULT_GEN, typology: 'qatorlar', maxF: 12, seismic: 8 }), qr = generate(sq(120, 200), { ...DEFAULT_GEN, typology: 'qatorlar', maxF: 12, seismic: 8, recon: true });
+    expect(qr.sections.length).toBeGreaterThan(q.sections.length);
+    expect(qr.notes.join()).toContain('7-izoh');
+  });
   it('oʻtishlar: uzun qirrada 6 m arka qoladi', () => {
     // 04.11 (egasi): 1-qavat ≥ 4,25 m — arka (faqat 1-qavat ochiq, portal); pastroq — arka yoʻq, oʻtish ochiq oraliq
     const a = generate(sq(260, 120), { ...DEFAULT_GEN, passages: true, groundH: 4.5 }), b = generate(sq(260, 120), { ...DEFAULT_GEN, passages: false });

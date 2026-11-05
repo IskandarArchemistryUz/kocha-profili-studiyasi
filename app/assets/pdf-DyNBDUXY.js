@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-DalVp9e3.js";
