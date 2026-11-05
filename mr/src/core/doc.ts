@@ -256,7 +256,9 @@ export const DEFAULT_SETTINGS: Settings = {
   netToGross: 0.75,
   floorHeight: 3.3,
   aptNet: 65,
-  aptMix: [20, 40, 30, 10],
+  // 05.11 (egasi: «kompaniyalar koʻproq 1 xonali va studiya quradi — oson sotiladi»): yangi loyihalar sukuti kichik kvartiralarga
+  // surildi (avval 20/40/30/10). Saqlangan loyihalar oʻz miksini saqlaydi (migratsiya faqat yoʻq yoki buzuq miksni almashtiradi). ANDOZA
+  aptMix: [45, 35, 15, 5],
   aptSize: 'M',
   district: '1726',
   comp: { ...COMP_DEFAULT },

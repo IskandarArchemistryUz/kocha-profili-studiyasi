@@ -33,6 +33,7 @@ export interface RuleApt {
   /** hovli tomonidagi tasmada (1-qavatda — yashovchilar xonalari) */ court?: boolean;
   /** qiyshiq devor yonidagi ponasimon qoʻshimcha (lodjiya) — kvartira halqasiga kiritilgan */ loggia?: XY[][];
   /** ichki reja qoʻlda sozlamalari (V2, 31.10) — aptplan */ inner?: InnerOv;
+  /** 05.11: koridor uchidagi C/L torets kvartirasi (dahlizi — koridor qoldigʻi) */ torets?: boolean;
 }
 /** Kvartira ichki rejasi qoʻlda: flip — umumiy xona qarama-qarshi tomonda; dK — umumiy xona devori siljishi, m; master — master-blok majburan yoqilgan/oʻchirilgan; slide — hoʻl xonalar eshigi surma */
 export interface InnerOv { /** 04.11 (egasi): 1 xonali — studiya formati (oshxona umumiy xonada) */ studio?: boolean; flip?: boolean; dK?: number; master?: boolean; slide?: boolean; /** 31.10: qoʻlda surilgan ichki devorlar — [oʻq (0: u, 1: v), asl koordinata, oraliq boshi, oxiri, siljish m] (mahalliy reja tizimida) */ mv?: [number, number, number, number, number][]; /** eshiklar: [devor, kesma, s (m, devor boshidan), tomon ±1, ilgak 0/1] */ dr?: [number, number, number, number, number][]; /** xona turlari: [xona tartibi, tur] */ rk?: [number, string][] }
@@ -70,6 +71,8 @@ export const STAIR_LEN = 5.7;   // TAXMIN: yadro 6 m; zina 2,8 m; lift 2,2 × 2,
  * Tor (≥ 3,1 m) kvartira baribir chiqsa (qoʻlda boʻlish, kichik qanot) — aptplan ikki fasadli shablon bilan xonani butun eni boʻylab beradi.
  */
 export const TORETS_MIN = 5.4;
+/** 05.11 (egasi chizmasi: «S 27 m²»): koridor uchidagi studiya (bitta oraliq + koridor qoldigʻi) — eng kichik maydon, m² (ANDOZA; boshqa kvartiralar ≥ 28) */
+const TOR_STUDIO = 25;
 const MOD = 3.3, SEC_MAX = 32, MAX_DEPTH = 10.5; // seksiya uzunligi 25–30 m (Strelka katalogi, «Seksiyali uy»; ≤ 32 m qabul qilindi); kvartira chuqurligi ≤ 10,5 m — TAXMIN
 /** kvartira yalpi maydoni (m²) — TAXMIN: S / M / L */
 const AREA: Record<'S' | 'M' | 'L', number[]> = { S: [0, 36, 52, 70, 88], M: [0, 42, 60, 80, 100], L: [0, 50, 72, 95, 118] };
@@ -137,7 +140,7 @@ export function sharedAny(a: XY[], list: XY[][]): { len: number; mid: XY; best: 
 interface Wing { ring: XY[]; U: XY; V: XY; u0: number; u1: number; v0: number; v1: number; S: number; L: number; double: boolean; court: 1 | -1; mw: number }
 type EndKind = 'free' | 'wall' | 'corner' | 'base';
 interface LJoint { A: number; B: number; endA: 0 | 1; baseB: 0 | 1; uX: number; uAx: number; bu0: number; bu1: number; sB: 1 | -1 }
-interface Part { wing: number; sec: number; ua: number; ub: number; k0: EndKind; k1: EndKind; t0: number; t1: number }
+interface Part { wing: number; sec: number; ua: number; ub: number; k0: EndKind; k1: EndKind; t0: number; t1: number; /** 05.11 (egasi): shu uchida C torets kvartirasi — koridor uchigacha bormaydi */ c0?: boolean; c1?: boolean }
 
 const acen = (r: XY[]): XY => { let a = 0, x = 0, y = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length], c = p[0] * q[1] - q[0] * p[1]; a += c; x += (p[0] + q[0]) * c; y += (p[1] + q[1]) * c; } return a ? [x / (3 * a), y / (3 * a)] : cen(r); };
 /** a ning b ga tegib turgan eng uzun qirrasi yoʻnalishi */
@@ -496,6 +499,20 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     const blindEnd = (end: 0 | 1): boolean => { const uE = end ? w.u1 : w.u0, ms = mods.filter(m => { const c: XY = [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2], v = vOf(w, c); return Math.abs(uOf(w, c) - uE) < 0.6 && v > w.v0 - 0.3 && v < w.v1 + 0.3; }); return ms.length > 0 && ms.every(m => m.blind); };
     p.t0 = p.k0 === 'free' ? p.ua + (blindEnd(0) ? 0.1 : capW(w)) : p.k0 === 'wall' ? p.ua + 0.1 : p.k0 === 'corner' ? J0!.uX - W / 2 : J0!.uAx - W / 2;
     p.t1 = p.k1 === 'free' ? p.ub - (blindEnd(1) ? 0.1 : capW(w)) : p.k1 === 'wall' ? p.ub - 0.1 : p.k1 === 'corner' ? J1!.uX + W / 2 : J1!.uAx + W / 2;
+    // 05.11 (egasi chizmasi, «koridor uchi isrof»): uzun ikki tomonlama qanotda (torets qopqogʻi yoʻq) va seksiya devori uchida koridor
+    // seksiya uchigacha bormaydi — chetki oraliq butun chuqurlikda (koridor qoldigʻi bilan) torets kvartirasiga beriladi; 5-bosqichda
+    // unga bir tomondan yana bitta oraliq qoʻshiladi (C/L shakl, ikki fasad + torets). AMALIYOT
+    // uchdagi studiya (bitta oraliq × (yarim chuqurlik + koridor)) ≥ 25 m² va ≤ 8,5 m chuqur boʻlsa (≈ 14–15 m qanot — Toshkentdagi odatiy seksiya);
+    // sayoz (≈ 12–13 m) va chuqur (≥ 16 m) qanotda — avvalgi tartib (koridor uchigacha): u yerda C/L kvartira ichki rejasi sinovda yiqildi
+    const dTor = (w.S - W) / 2 + W;
+    if (w.double && w.mw * dTor >= TOR_STUDIO && dTor <= 8.5) {
+      const cOk = (k: EndKind, e: 0 | 1) => (k === 'free' && capW(w) === 0 && !blindEnd(e)) || (k === 'wall' && !blindEnd(e));
+      // yadro + har tomonda kamida bitta oraliq qolsin (kalta seksiyada — faqat bitta uchida, avval ochiq uch)
+      const need0 = LIFT + 2.4 + STAIR_W + 0.2 + 3 * w.mw;
+      const try2 = (n0: boolean, n1: boolean) => { const t0c = n0 ? p.ua + w.mw : p.t0, t1c = n1 ? p.ub - w.mw : p.t1; if ((n0 || n1) && t1c - t0c >= need0) { p.t0 = t0c; p.t1 = t1c; p.c0 = n0; p.c1 = n1; return true; } return false; };
+      const o0 = cOk(p.k0, 0), o1 = cOk(p.k1, 1);
+      if (!try2(o0, o1)) { const f0 = o0 && p.k0 === 'free', f1 = o1 && p.k1 === 'free'; if (!(f0 && try2(true, false)) && !(f1 && try2(false, true)) && !(o0 && try2(true, false))) { if (o1) try2(false, true); } }
+    }
     // kichik boʻlak (15 × 15 qanot boʻlagi, 30.10): torets qopqoqlari yadroga joy qoldirmasa — qopqoqlar qisqartiriladi, yadro (lift | xoll | zina, 7,4 m) sigʻsin; zinasiz seksiya boʻlmaydi
     const need = LIFT + 2.4 + STAIR_W + 0.2, lack = need - (p.t1 - p.t0);
     if (lack > 0 && w.double) {
@@ -550,7 +567,10 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     // yadro bilan devor / koridor uchi orasida kvartira sigʻmaydigan tor boʻlak qolmasin
     // devor yonidagi tor boʻlak (qoʻshni kvartira yoʻq) torets yonidagidan yomonroq
     const gap = (g: number, k: EndKind) => g > 0.3 && g < 4.5 ? (k === 'wall' ? 60 : 50) : 0, hallDepth = (u: number) => Math.abs(facadeAt(u + (LIFT + cw - STAIR_W) / 2) - vIn), deadEnd = (u: number) => hallDepth(u) > LIFT + 1.4 + STAIR_D + MOD + 0.5 ? 200 : 0;   // lift oldi xolli fasadga yetmaydi (qarshisi boshqa qanot ichi) — kirish/yorugʻlik yoʻq (30.10)
-    const cost = (u: number) => lost(u) * 10 + gap(u - lo, p.k0) + gap(hi - u - cw, p.k1) + deadEnd(u) + Math.abs(u + cw / 2 - mid) * 0.05;
+    // 05.11: C torets uchiga yopishgan yadro torets kvartirasiga ikkinchi oraliqni bermaydi — kamida 1,5 oraliq nari
+    // (yadro bilan C uchi orasidagi bitta oraliq — aynan torets kvartirasining ikkinchi oraligʻi, tor boʻlak emas)
+    const gC = (g: number, k: EndKind, c?: boolean) => !c ? gap(g, k) : g < w.mw * 0.9 ? 45 : Math.abs(g - w.mw) < 0.6 ? 0 : gap(g - w.mw, k);
+    const cost = (u: number) => lost(u) * 10 + gC(u - lo, p.k0, p.c0) + gC(hi - u - cw, p.k1, p.c1) + deadEnd(u) + Math.abs(u + cw / 2 - mid) * 0.05;
     const mid = (p.ua + p.ub) / 2;
     { const d0 = depthAt(lo); vOut = vIn + side * Math.min(d0, LIFT + 1.4 + STAIR_D + MOD); }
     const uc0 = [...cand].sort((a, b) => cost(a) - cost(b))[0], uc1 = uc0 + cw;
@@ -592,7 +612,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     for (let i = cm.length - 1; i > 0; i--) if (cm[i][0] - cm[i - 1][1] < SS.min - 0.05) { cm[i - 1][1] = cm[i][1]; cm.splice(i, 1); }
     wCores[wi] = cm;
     const hard: number[] = [w.u0, w.u1, ...ps.flatMap(p => [p.ua, p.ub]), ...cm.flatMap(c => c)].sort((x, y) => x - y).filter((u, i, a) => i === 0 || u - a[i - 1] > 0.3);
-    const soft = ps.flatMap(p => [p.t0, p.t1]).filter(t => t > w.u0 + 0.5 && t < w.u1 - 0.5 && !cm.some(c => t > c[0] - 0.05 && t < c[1] + 0.05) && hard.every(h => Math.abs(h - t) >= 2.4));
+    const soft = ps.flatMap(p => [p.t0, p.t1]).filter(t => t > w.u0 + 0.5 && t < w.u1 - 0.5 && !cm.some(c => t > c[0] - 0.05 && t < c[1] + 0.05) && hard.every(h => Math.abs(h - t) >= Math.max(2.4, SS.min - 0.05)));
     const A = [...hard, ...soft].sort((x, y) => x - y).filter((u, i, a) => i === 0 || u - a[i - 1] > 0.3);
     const out: number[] = [A[0]];
     for (let i = 1; i < A.length; i++) {
@@ -611,13 +631,38 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     const w = wings[p.wing], wi = p.wing, cut = (bx: XY[]) => diff(inter([w.ring], [bx]), blockers);
     let a = Math.min(p.ub, Math.max(p.ua, p.t0)), b = Math.max(p.ua, Math.min(p.ub, p.t1));
     if (SS && wLines[wi].length) { a = Math.min(p.ub, Math.max(p.ua, snapL(wi, a))); b = Math.max(p.ua, Math.min(p.ub, snapL(wi, b))); }
+    const n0 = apts.length;
     if (a > p.ua + 0.5) for (const z of cut(box(w, p.ua, a, w.v0 - 1, w.v1 + 1))) if (area(z) > 2) apts.push(mk(z, 0, wi, p.sec, false));
+    const fd0 = apts.slice(n0).sort((x, y) => y.area - x.area)[0], n1 = apts.length;
     if (b < p.ub - 0.5) for (const z of cut(box(w, b, p.ub, w.v0 - 1, w.v1 + 1))) if (area(z) > 2) apts.push(mk(z, 0, wi, p.sec, false));
+    const fd1 = apts.slice(n1).sort((x, y) => y.area - x.area)[0];
     const ax = axisV(w), sides: (1 | -1)[] = w.double ? [1, -1] : [(-w.court) as 1 | -1];
+    // 05.11 (egasi): C torets kvartirasi — butun chuqurlikdagi uch oraligʻiga hovli tomondan yana bitta oraliq (yadro tegmasa)
+    const nextL = (u: number, dir: 1 | -1): number => { const L = SS && wLines[wi].length ? wLines[wi].filter(x => dir > 0 ? x > u + 0.3 : x < u - 0.3).sort((x, y) => dir * (x - y)) : []; return L.length ? L[0] : u + dir * w.mw; };
+    const cSide = (w.court || 1) as 1 | -1, cExt: { m0?: number; m1?: number } = {};
+    const coreHit = (u0: number, u1: number) => coreIv(w, cSide).some(([c0, c1]) => c1 > Math.min(u0, u1) + 0.05 && c0 < Math.max(u0, u1) - 0.05);
+    if (p.c0 && fd0) { const m = nextL(a, 1); if (m < b - w.mw * 0.9 && !coreHit(a, m)) cExt.m0 = m; }
+    if (p.c1 && fd1) { const m = nextL(b, -1); if (m > a + w.mw * 0.9 && !coreHit(m, b) && (cExt.m0 == null || m > cExt.m0 + w.mw * 0.9)) cExt.m1 = m; }
     for (const side of sides) {
       const vIn = ax + side * W / 2, vOut = side > 0 ? w.v1 : w.v0, depth = Math.abs(vOut - vIn); if (depth < 3 || b - a < 0.5) continue;
+      const sa = side === cSide && cExt.m0 != null ? cExt.m0 : a, sb = side === cSide && cExt.m1 != null ? cExt.m1 : b;
+      if (side === cSide) for (const [fd, u0, u1] of [[fd0, a, cExt.m0], [fd1, cExt.m1, b]] as [RuleApt | undefined, number | undefined, number | undefined][]) {
+        if (!fd || u0 == null || u1 == null) continue;
+        const ext = cut(box(w, u0, u1, Math.min(vIn, vOut) - 0.01, Math.max(vIn, vOut) + 0.01));
+        // avval — egasi chizmasidagi kabi ikki toʻgʻri toʻrtburchak kvartira: hovli tomoni (uch + qoʻshimcha oraliq) va narigi tomon + koridor
+        // qoldigʻi (dahliz) (yuqori 1–3, pastki 1–2); narigi tomon < 28 m² boʻlsa (sayoz qanot) — bitta C/L kvartira (ikki fasad + torets)
+        {
+          const ue0 = fd === fd0 ? p.ua : b, ue1 = fd === fd0 ? a : p.ub, vo = cSide > 0 ? w.v0 : w.v1;
+          const pa = cut(box(w, ue0, ue1, cSide > 0 ? vo - 1 : vIn, cSide > 0 ? vIn : vo + 1)).filter(z => area(z) > 2).sort((x, y) => area(y) - area(x))[0];
+          const pc = union([...cut(box(w, Math.min(ue0, u0), Math.max(ue1, u1), cSide > 0 ? vIn : vOut - 1, cSide > 0 ? vOut + 1 : vIn))]);
+          if (pa && pc.length === 1 && area(pa) >= TOR_STUDIO && area(pc[0]) >= 28 && sharedAny(pa, secMop[p.sec] ?? []).len >= 0.9 && sharedAny(pc[0], secMop[p.sec] ?? []).len >= 0.9) { fd.ring = pa; fd.area = area(pa); fd.court = false; fd.torets = true; fd.rooms = 1; apts.push(mk(pc[0], 1, wi, p.sec, true)); continue; }
+        }
+        const u = union([fd.ring, ...ext]);
+        if (u.length === 1) { fd.ring = u[0]; fd.area = area(u[0]); fd.court = false; fd.torets = true; }
+      }
+      if (sb - sa < 0.5) continue;
       // tasma oraligʻi minus yadrolar
-      let ivs: [number, number][] = [[a, b]];
+      let ivs: [number, number][] = [[sa, sb]];
       for (const [c0, c1] of coreIv(w, side)) ivs = ivs.flatMap(([x, y]) => c1 <= x + 0.05 || c0 >= y - 0.05 ? [[x, y] as [number, number]] : [[x, c0], [c1, y]].filter(([m, n]) => n - m > 0.3) as [number, number][]);
       for (const [ia, ib] of ivs) {
         if (SS && wLines[wi].length) {
@@ -646,7 +691,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
   const front = (ring: XY[]) => winOf(ring).reduce((t, i) => t + Math.hypot(mods[i].b[0] - mods[i].a[0], mods[i].b[1] - mods[i].a[1]), 0);
   const door = (a: RuleApt) => sharedAny(a.ring, secMop[a.sec] ?? []).len >= 0.9;
   const lit = (ring: XY[]) => { const f = front(ring); return f > 0 && area(ring) / f <= MAX_DEPTH; };
-  const ok = (a: RuleApt) => door(a) && lit(a.ring) && area(a.ring) >= 28;
+  const ok = (a: RuleApt) => door(a) && lit(a.ring) && area(a.ring) >= (a.torets ? TOR_STUDIO : 28);
   // shakl: choʻziq (eni:boʻyi > 1:3,2) yoki notekis (oʻrab turgan toʻrtburchakning < 70 %) — qoʻshni bilan birlashtirishga urinish
   const shapeOk = (q: XY[]) => { const o = obb2(q); return o.L / Math.max(0.1, o.S) <= 3.2 && area(q) / (o.L * o.S) >= 0.7; };
   for (let g = 0; g < 6; g++) {
@@ -698,7 +743,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
   }
   const rest: XY[][] = [];
   // yakuniy saralash: yorugʻlik chegarasi 10 % yumshoq (qiyshiq uchdagi kvartira 10,7 m chuqurlik uchun texnikka aylanmasin)
-  const okFinal = (a: RuleApt) => { if (!SECS[a.sec]?.stairs.length) return ok(a); const f = front(a.ring); return door(a) && area(a.ring) >= 28 && f > 0 && area(a.ring) / f <= MAX_DEPTH * 1.1; };   // zinasiz (arka ustidagi) boʻlakda — avvalgi qatʼiy qoida
+  const okFinal = (a: RuleApt) => { if (!SECS[a.sec]?.stairs.length) return ok(a); const f = front(a.ring); return door(a) && area(a.ring) >= (a.torets ? TOR_STUDIO : 28) && f > 0 && area(a.ring) / f <= MAX_DEPTH * 1.1; };   // zinasiz (arka ustidagi) boʻlakda — avvalgi qatʼiy qoida
   for (let i = apts.length - 1; i >= 0; i--) if (!okFinal(apts[i])) { rest.push(apts[i].ring); apts.splice(i, 1); }
   // 5.13 (ShNQ 2.01.02-04): seksiya qavatida kvartiralar > 500 m² — ikkinchi evakuatsiya zinasi. Birinchi zinadan eng uzoq,
   // koridorga tegib turgan kvartiraning koridor tomonidan zina oʻrni olinadi (qolgani kvartira boʻlib qolsa — kvartira, aks holda qoldiq)
@@ -865,6 +910,8 @@ export function finishPlan(plan: RulePlan, mods: FacadeMod[], size: 'S' | 'M' | 
     const byArea = a.area <= (target(1) + target(2)) / 2 ? 1 : a.area <= (target(2) + target(3)) / 2 ? 2 : a.area <= (target(3) + target(4)) / 2 ? 3 : 4;
     if (!a.rooms || (!keepRooms && Math.abs(target(a.rooms) - a.area) > 0.2 * target(a.rooms))) a.rooms = byArea;
     a.rooms = Math.max(1, Math.min(a.rooms, a.mods.length));   // har yashash xonasi derazali
+    // 05.11: C/L torets kvartirasida bitta deraza oraligʻi dahliz (koridor qoldigʻi) yonida qoladi — xonalar derazadan bitta kam
+    if (a.torets) a.rooms = Math.max(1, Math.min(a.rooms, a.mods.length - 1));
     const sd = doorEdge(a.ring, plan.sections[a.sec]?.mop ?? plan.mop, a.mods.map(i => mods[i]).filter(Boolean)); a.door = sd.mid; a.doorLen = sd.best;
     a.wet = wetZone(a.ring, a.door);
     a.walls = roomWalls(a, mods);
@@ -1076,7 +1123,11 @@ export function planChecks(pl: RulePlan, h: number, mods: FacadeMod[] = []): Pla
   let overlap = 0; for (let i = 0; i < pl.apts.length; i++) for (let j = i + 1; j < pl.apts.length; j++) overlap += inter([pl.apts[i].ring], [pl.apts[j].ring]).reduce((s, q) => s + area(q), 0);
   const big = secs.map(s => totalArea(pl, s.apts)), over = big.filter((A, k) => A > 500 && secs[k].stairs.length < 2).length;
   const perSec = secs.map(s => s.apts.length), maxPer = Math.max(0, ...perSec);
-  const far = Math.max(0, ...pl.apts.map((a, i) => { const s = secOf(i); const sc = (s?.stairs ?? pl.stairs).map(cen); return sc.length ? Math.min(...sc.map(c => Math.abs(a.door[0] - c[0]) + Math.abs(a.door[1] - c[1]))) : 0; }));
+  // 05.11: kvartira eshigi (koridor bilan umumiy qirra oʻrtasi) → zina katagi eshigi (koridor bilan umumiy qirra); yoʻlak boʻylab — Manhetten masofasi
+  const far = Math.max(0, ...pl.apts.map((a, i) => { const s = secOf(i), mop = s?.mop ?? pl.mop, dd = sharedAny(a.ring, mop), d = dd.len >= 0.9 ? dd.mid : a.door; const sc = (s?.stairs ?? pl.stairs).map(q => { const e = sharedAny(q, mop); return e.len >= 0.5 ? e.mid : cen(q); }); return sc.length ? Math.min(...sc.map(c => Math.abs(d[0] - c[0]) + Math.abs(d[1] - c[1]))) : 0; }));
+  // ShNQ 2.08.01-24: 173-band — derazasiz yoʻlakda eng uzoq kvartira eshigidan zinagacha ≤ 12 m; 174-band — yoʻlakda deraza yoki tutun chiqarish
+  // klapani boʻlsa 7-jadvalning «boshi berk yoʻlak» ustuni (I, II olovbardoshlik, CO — 25 m; daraja sukuti TALQIN); 175-band — 28 m va undan baland binoda ≤ 12 m
+  const evacOk = far <= 12.05 ? true : h < 28 && far <= 25.05 ? null : false;
   const rest = pl.rest.reduce((t, q) => t + area(q), 0);
   return [
     { id: 'mop', title: 'Har kvartiraga eshik oʻz seksiyasi koridoridan', ok: noDoor === 0 && overlap < 0.5, value: noDoor ? `${noDoor} ta kvartiraga MOP dan kirish yoʻq` : `${pl.apts.length} / ${pl.apts.length}, boshqa kvartira orqali kirish yoʻq`, norm: 'kirish → zina-lift → koridor → kvartira', source: 'Rejalash qoidasi (evakuatsiya yoʻli faqat umumiy joylar orqali)' },
@@ -1090,7 +1141,7 @@ export function planChecks(pl: RulePlan, h: number, mods: FacadeMod[] = []): Pla
     { id: 'h28', title: 'Tutunsiz zina', ok: h > 28 ? null : true, value: `yuqori qavat ≈ ${Math.round(h)} m`, norm: h > 28 ? '> 28 m — tutunsiz zina (Н1) kerak' : '≤ 28 m — oddiy zina', source: 'ShNQ 2.01.02-04, 5.40' },
     // kirish (egasi, 30.10): har seksiya xolli (1-qavatda skvoznoy kirish bilan) kamida ikki qarama-qarshi fasadga — koʻcha va hovli — chiqadi
     { id: 'kirish', title: 'Kirish: koʻcha va hovli tomondan', ok: entryBad.length ? false : entryNa ? null : true, value: entryBad.length ? `${entryBad.length} seksiya faqat bir tomonga chiqadi` : entryNa ? (mods.length ? 'burchak boʻlmasi — ochiq fasadlar bir tomonda; hovliga chiqish qoʻshni boʻlma orqali' : 'fasad modullari berilmagan') : `${secs.length} seksiya — ikki tomonlama`, norm: 'seksiya xolli (skvoznoy kirish) ikki qarama-qarshi fasadga chiqadi', source: 'Rejalash qoidasi (Strelka, «Kirish guruhi»)' },
-    { id: 'evac', title: 'Eng uzoq eshikdan zinagacha', ok: null, value: `≈ ${Math.round(far)} m`, norm: 'chegara ShNQ 2.08.01-19 da (5.23 havola qiladi) — matni kerak', source: 'ShNQ 2.01.02-04, 5.23' },
+    { id: 'evac', title: 'Eng uzoq kvartira eshigidan zinagacha (boshi berk yoʻlak)', ok: evacOk, value: `≈ ${f1(far)} m`, norm: h >= 28 ? '≤ 12 m (28 m va undan baland bino)' : evacOk === null ? '≤ 12 m derazasiz yoʻlakda; yoʻlakda deraza yoki tutun chiqarish klapani boʻlsa ≤ 25 m (I, II daraja, CO — TALQIN)' : '≤ 12 m derazasiz yoʻlakda (deraza yoki tutun chiqarish klapani bilan ≤ 25 m)', source: 'ShNQ 2.08.01-24, 172–175-bandlar, 7-jadval' },
     ...(rest > 3 ? [{ id: 'rest', title: 'Kvartiraga aylanmagan maydon (texnik)', ok: rest < 15 ? true : null, value: `≈ ${Math.round(rest)} m²`, norm: 'kam boʻlsin', source: 'Rejalash qoidasi' } as PlanCheck] : []),
   ];
 }
