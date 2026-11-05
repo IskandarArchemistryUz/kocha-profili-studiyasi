@@ -8,7 +8,7 @@ import { makePayments } from './payments.js';
 import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { registerData } from './data/routes.js';
-import { ownerStats } from './owner.js';
+import { ownerStats, grantCoins } from './owner.js';
 import { ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
@@ -122,6 +122,17 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     if (!u.email || !OWN.has(u.email.toLowerCase())) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
     reply.header('cache-control', 'no-store');
     return ownerStats(db, now ? now() : new Date());
+  });
+
+  // Sinov kirishi: egasi pochta boʻyicha tanga beradi (sotuv emas — daftarda 'promo'); daqiqasiga 10 tadan koʻp emas
+  app.post('/owner/grant', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    if (!u.email || !OWN.has(u.email.toLowerCase())) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
+    if (limited(`grant:${u.id}`, 10)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
+    const b = req.body ?? {};
+    const r = await grantCoins(db, wallet, { email: b.email, coins: b.coins, note: b.note, key: b.key, by: u.email.toLowerCase() });
+    req.log.info({ grant: { by: u.id, who: r.who, coins: r.coins, applied: r.applied } }, 'sinov kirishi: tanga berildi');
+    return r;
   });
 
   app.get('/me/history', async (req, reply) => {

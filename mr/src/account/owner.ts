@@ -1,7 +1,7 @@
 /** Egasi paneli (#/egasi): foydalanuvchilar, to'lovlar, tanga sarfi — server /owner/stats; tashriflar — GoatCounter havolasi */
 import { h, fmt, icl, IC } from '../ui/dom';
 import { tr, tf } from '../i18n';
-import { ownerStats, check, type OwnerStats } from './session';
+import { ownerStats, ownerGrant, check, type OwnerStats } from './session';
 
 const GOAT = 'https://archemistry.goatcounter.com';
 const MERCHANT = 'https://merchant.multicard.uz';
@@ -25,7 +25,37 @@ function bars(days: { day: string; c: number }[]): HTMLElement {
     ...out.map((d) => h('span', { class: 'bar', title: `${d.day}: ${d.c}`, style: `height:${Math.max(2, (d.c / max) * 100)}%` })));
 }
 
-function render(s: OwnerStats): HTMLElement[] {
+const GRANT_MAX = 5000;
+const when = (at: string) => new Date(at).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'short', timeStyle: 'short' });
+const newKey = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`);
+
+/** Sinov kirishi: pochta boʻyicha tanga berish. Ikki bosqich (avval nima boʻlishi koʻrsatiladi, keyin «Tasdiqlash») — xato pochtaga ketmasin. */
+function grantForm(reload: () => void): HTMLElement {
+  let key = newKey(), armed = false, busy = false;
+  const email = h('input', { class: 'input', id: 'ownGrantEmail', type: 'email', autocomplete: 'off', placeholder: tr('pochta@misol.uz'), 'aria-label': tr('Pochta manzili') }) as HTMLInputElement;
+  const coins = h('input', { class: 'input', id: 'ownGrantCoins', type: 'number', min: 1, max: GRANT_MAX, step: 1, inputmode: 'numeric', placeholder: tr('Tanga soni'), 'aria-label': tr('Tanga soni') }) as HTMLInputElement;
+  const note = h('input', { class: 'input', id: 'ownGrantNote', maxlength: 200, value: tr('Sinov kirishi'), 'aria-label': tr('Izoh') }) as HTMLInputElement;
+  const msg = h('p', { class: 't-small own-grant-msg', id: 'ownGrantMsg', role: 'status' });
+  const go = h('button', { class: 'btn btn-sm', id: 'ownGrantGo', type: 'submit' }, tr('Tanga berish'));
+  const disarm = () => { if (!armed) return; armed = false; go.textContent = tr('Tanga berish'); msg.textContent = ''; };
+  [email, coins, note].forEach((el) => el.addEventListener('input', disarm));
+  const form = h('form', { class: 'own-grant', id: 'ownGrant', onsubmit: (e: Event) => {
+    e.preventDefault(); if (busy) return;
+    const em = email.value.trim().toLowerCase(), n = Number(coins.value);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em) || !Number.isInteger(n) || n < 1 || n > GRANT_MAX) { armed = false; go.textContent = tr('Tanga berish'); msg.textContent = tr('Pochta va 1 dan 5000 gacha tanga sonini kiriting.'); return; }
+    if (!armed) { armed = true; go.textContent = tr('Tasdiqlash'); msg.textContent = tf('${e} hisobiga ${n} tanga beriladi. Sotuv hisoblanmaydi.', { e: em, n: fmt(n) }); return; }
+    busy = true; go.disabled = true;
+    void ownerGrant(em, n, note.value.trim(), key).then((r) => {
+      msg.textContent = (r.applied ? tf('Berildi: ${e} — ${n} tanga, balans ${b}.', { e: em, n: fmt(r.coins), b: fmt(r.balance) }) : tr('Bu soʻrov allaqachon bajarilgan — tanga qayta yozilmadi.'))
+        + (r.isNew ? ' ' + tr('Hisob hali ochilmagan edi — shu pochta bilan kirganda tanga tayyor turadi.') : '');
+      key = newKey(); email.value = ''; coins.value = ''; reload();
+    }, (err: Error) => { msg.textContent = err.message; }).finally(() => { busy = false; armed = false; go.disabled = false; go.textContent = tr('Tanga berish'); });
+  } }, email, coins, note, go);
+  return h('section', { class: 'own-sec', id: 'ownGrantSec' }, h('h2', {}, tr('Sinov kirishi')),
+    h('p', { class: 't-small' }, tr('Pochta boʻyicha tanga berish — sotuv emas, statistikada «sovgʻa» qatorida koʻrinadi.')), form, msg);
+}
+
+function render(s: OwnerStats, grant: HTMLElement): HTMLElement[] {
   const u = s.users, p = s.payments, c = s.coins;
   const stateName: Record<string, string> = { paid: tr('toʻlangan'), new: tr('kutilmoqda'), cancelled: tr('bekor') };
   return [
@@ -55,6 +85,9 @@ function render(s: OwnerStats): HTMLElement[] {
       h('div', { class: 'own-two' },
         h('div', {}, h('h3', {}, tr('Tanga sarfi — 30 kun')), table([tr('Turi'), tr('Nima'), tr('Soni'), tr('Tanga')], c.spend30.map((r) => [r.reason, r.item, r.c, r.coins]), tr('Hali sarf yoʻq'))),
         h('div', {}, h('h3', {}, tr('Toza yuklashlar — 30 kun')), table([tr('Nima'), tr('Soni')], c.exports30.map((r) => [r.bundle, r.c]), tr('Hali yuklash yoʻq'))))),
+    grant,
+    h('section', { class: 'own-sec' }, h('h3', {}, tr('Berilgan sinov kirishlari')),
+      table([tr('Vaqt'), tr('Kim'), tr('Tanga'), tr('Izoh')], (c.grants ?? []).map((r) => [when(r.at), r.who ?? '—', fmt(r.coins), r.note || '—']), tr('Hali sinov kirishi berilmagan'))),
     h('section', { class: 'own-sec own-links' }, h('h2', {}, tr('Boshqa manbalar')),
       h('a', { class: 'btn', href: GOAT, target: '_blank', rel: 'noopener', id: 'ownGoat' }, tr('Tashriflar va xizmatlar — GoatCounter ↗')),
       h('a', { class: 'btn', href: MERCHANT, target: '_blank', rel: 'noopener', id: 'ownMc' }, tr('Toʻlovlar va bankka oʻtkazmalar — Multicard ↗')),
@@ -70,13 +103,14 @@ export async function ownerPage(root: HTMLElement): Promise<void> {
     h('div', { class: 'home-top' }, h('a', { class: 'btn btn-ghost btn-sm', href: '#/', style: 'text-decoration:none' }, ...icl(IC.back, tr('Loyihalar'))),
       h('button', { class: 'btn btn-sm', id: 'ownRefresh', onclick: () => void load() }, tr('Yangilash'))),
     h('h1', { class: 't-display' }, tr('Egasi paneli')), upd, body));
+  const grant = grantForm(() => void load());
   async function load(): Promise<void> {
     try {
       const me = await check(true);
       if (!me?.owner) { body.replaceChildren(h('p', { class: 't-small own-empty', id: 'ownDenied' }, tr('Bu sahifa faqat sayt egasi uchun.'))); return; }
       const s = await ownerStats();
       upd.textContent = tf('Yangilangan: ${t}', { t: new Date(s.at).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' }) });
-      body.replaceChildren(...render(s));
+      body.replaceChildren(...render(s, grant));
     } catch (e) { body.replaceChildren(h('p', { class: 't-small own-empty' }, (e as Error).message)); }
   }
   await load();

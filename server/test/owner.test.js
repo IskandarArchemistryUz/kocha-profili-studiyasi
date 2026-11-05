@@ -49,5 +49,35 @@ describe('egasi paneli', () => {
     expect(j.payments.recent[0].who).toBe('al•@mail.uz');
     expect(JSON.stringify(j)).not.toContain('ali@mail.uz');
   });
+  const grant = (cookie, payload) => app.inject({ method: 'POST', url: '/owner/grant', headers: cookie ? { cookie } : {}, payload });
+  it('sinov kirishi: faqat egasi; yangi pochtaga hisob ochiladi, tanga bir marta yoziladi va sotuvga qoʻshilmaydi', async () => {
+    const body = { email: ' Francois@Mail.com ', coins: 1000, note: 'Sinov kirishi — 1 yil', key: 'k-12345678' };
+    expect((await grant(null, body)).statusCode).toBe(401);
+    expect((await grant(await login('ali@mail.uz'), body)).statusCode).toBe(403);
+    const c = await login('boss@archemistry.uz');
+    const r = await grant(c, body);
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ applied: true, balance: 1000, isNew: true, who: 'fr••••••@mail.com', coins: 1000 });
+    expect((await grant(c, body)).json()).toMatchObject({ applied: false, balance: 1000, isNew: false }); // ikki marta bosilgan
+    const fc = await login('francois@mail.com'); // keyin shu pochta bilan kiradi — tanga tayyor
+    const me = (await app.inject({ method: 'GET', url: '/me', headers: { cookie: fc } })).json();
+    expect(me.balance).toBe(1000);
+    const hist = (await app.inject({ method: 'GET', url: '/me/history', headers: { cookie: fc } })).json().items;
+    expect(hist[0]).toMatchObject({ delta: 1000, reason: 'promo' });
+    const j = (await stats(c)).json();
+    expect(j.payments).toMatchObject({ paid: 0, revenue: 0 });
+    expect(j.coins).toMatchObject({ bought: 0, granted: 1000 });
+    expect(j.coins.grants[0]).toMatchObject({ coins: 1000, note: 'Sinov kirishi — 1 yil', who: 'fr••••••@mail.com' });
+    expect(JSON.stringify(j)).not.toContain('boss@archemistry.uz');
+  });
+  it('sinov kirishi: mavjud hisobga qoʻshiladi; notoʻgʻri miqdor, pochta va kalit — 400', async () => {
+    await login('ali@mail.uz');
+    const c = await login('boss@archemistry.uz');
+    expect((await grant(c, { email: 'ali@mail.uz', coins: 50, key: 'k-aaaaaaaa' })).json()).toMatchObject({ applied: true, balance: 50, isNew: false });
+    expect((await grant(c, { email: 'ali@mail.uz', coins: 25, key: 'k-bbbbbbbb' })).json().balance).toBe(75);
+    for (const bad of [{ coins: 0 }, { coins: 5001 }, { coins: 1.5 }, { coins: '10' }, { email: '+998901234567' }, { email: 'yoq' }, { key: 'x' }])
+      expect((await grant(c, { email: 'ali@mail.uz', coins: 10, key: 'k-cccccccc', ...bad })).statusCode).toBe(400);
+    expect((await db.query(`SELECT count(*)::int AS c FROM users`)).rows[0].c).toBe(2);
+  });
   it('maskEmail', () => { expect(maskEmail('iskandar@gmail.com')).toBe('is••••••@gmail.com'); expect(maskEmail(null)).toBeNull(); });
 });
