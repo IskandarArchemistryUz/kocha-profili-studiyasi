@@ -59,7 +59,7 @@ export type Command =
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
   | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use' | 'rings'>> }
   /** 05.11: avtoturargoh kirish-chiqish va shamollatish shaxtalari */
-  | { type: 'updateGarage'; id: string; patch: Partial<Pick<Garage, 'entries'>> }
+  | { type: 'updateGarage'; id: string; patch: Partial<Pick<Garage, 'entries' | 'kind'>> }
   /** generator natijasi: shu guruhdagi seksiyalarni almashtirish (boʻsh roʻyxat — tozalash); zona belgisiga parametrlar yoziladi */
   | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: string; z0?: number; blind?: number[]; plot?: Ring; joint?: boolean; docks?: { edge: number; n: number }[]; hall?: number }[]; label?: ZoneLabel; garage?: Omit<Garage, 'id' | 'grp'> | null; /** yer uchastkasi (grp = parsel id) parametrlari */ parcelGen?: Record<string, unknown>; /** shu hududdagi boshqa guruhlarning eski avtomatik binolari va avtoturargohlari (ustiga qurilmasin) */ drop?: { bids: string[]; gids: string[] } };
 
@@ -269,8 +269,10 @@ function apply0(doc: Project, c: Command, now: Date): Project {
     }
     case 'updateGarage': {
       const i = doc.garages.findIndex(g => g.id === c.id); if (i < 0) throw new CommandError('Avtoturargoh topilmadi');
-      d.garages = doc.garages.slice(); d.garages[i] = { ...doc.garages[i], ...(c.patch.entries ? { entries: c.patch.entries.map(e => ({ ...e, at: [e.at[0], e.at[1]] as LngLat })) } : {}) };
+      d.garages = doc.garages.slice(); d.garages[i] = { ...doc.garages[i], ...(c.patch.kind ? { kind: c.patch.kind } : {}), ...(c.patch.entries ? { entries: c.patch.entries.map(e => ({ ...e, at: [e.at[0], e.at[1]] as LngLat })) } : {}) };
       if (c.patch.entries === undefined && 'entries' in c.patch) delete d.garages[i].entries;
+      // 05.11 (92-band): yer usti → yer osti — joylar va yoʻlaklar sxemasi yer ustida qolmaydi (hovli boʻshaydi)
+      if (c.patch.kind && c.patch.kind !== 'yer_usti') { delete d.garages[i].stalls; delete d.garages[i].aisles; }
       return d;
     }
     case 'replaceGroup': {

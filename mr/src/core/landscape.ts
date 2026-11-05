@@ -81,7 +81,7 @@ export interface Yard {
   /** kvartal indeksi (computePlan blocks) */
   block: number;
   paving: XY[][][]; green: XY[][][]; paths: XY[][][];
-  play: { kind: PlayKind; ring: XY[]; need: number; area: number; kit?: KitPart[] }[];
+  play: { kind: PlayKind; ring: XY[]; need: number; area: number; kit?: KitPart[]; /** 05.11: bolalar + kattalar birlashtirilgan (91-band: ≥ 150 m²) */ comb?: true }[];
   /** 31.10: maktab / MTM uchastkasi — turar joy hovlisi hisoblariga (86-band balansi, 4-jadval maydonchalari) kirmaydi */
   social?: 'maktab' | 'mtm';
   trees: XY[];
@@ -540,9 +540,9 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     }
     cand.sort((a, b) => b.d - a.d); cand.length = Math.min(cand.length, 400);
     const play: Yard['play'] = []; let taken: MultiPolygon = []; const takenBB: [number, number, number, number][] = [];
-    const place = (kind: PlayKind, minD: number, cap: number, need0?: number) => {
-      const need = need0 ?? (kind === 'tajriba' ? 0 : pop * PLAY_NORM[kind]); if (need < 15) return;
-      for (let a = Math.min(need, cap); a >= Math.min(need, cap) * 0.4; a *= 0.8) {
+    const place = (kind: PlayKind, minD: number, cap: number, need0?: number, minA = 0, comb = false): boolean => {
+      const need = need0 ?? (kind === 'tajriba' ? 0 : pop * PLAY_NORM[kind]); if (need < 15) return false;
+      for (let a = Math.min(need, cap); a >= Math.max(minA, Math.min(need, cap) * 0.4); a *= 0.8) {
         for (const c of cand) {
           if (c.d < minD) break;
           const r = rectAt(c.p, a), poly: Polygon = [close(r)];
@@ -553,16 +553,22 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
           if (Math.min(...r.map(q => Math.min(...own.map(o => ringD(q, o.r))))) < minD - 1) continue;
           const inside = tryOp(() => mpArea(polygonClipping.intersection(poly, freePlay)), 0);
           if (inside < a * 0.97) continue;
-          play.push({ kind, ring: r, need, area: a, kit: playKit(kind, r) }); taken = taken.length ? safeUnion([taken, poly]) : [poly]; takenBB.push([bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2]); return;
+          play.push({ kind, ring: r, need, area: a, kit: playKit(kind, r), ...(comb ? { comb: true as const } : {}) }); taken = taken.length ? safeUnion([taken, poly]) : [poly]; takenBB.push([bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2]); return true;
         }
       }
+      return false;
     };
     const freeA = mpArea(free);
     // 31.10: bolalar maydonchasi birinchi (aks holda katta sport maydoni joyni egallab, bolalar maydonchasi tushmay qolardi)
     if (zones) for (const z of zones) place(z.kind, z.minD, Math.min(z.cap, freeA * z.share), Math.min(z.cap, freeA * z.share));   // maktab / MTM uchastkasi zonalari (andoza)
     // 04.11 (egasi: «katta hovlida maydonchalar 4–5 emas, ~2 ta»): bolalar va kattalar dam olish maydonchasi — bitta (bolalar oʻyin + oʻrindiqlar,
     // maydon 4-jadval yigʻindisi, masofa — qattiqrogʻi, 10 m), keyin sport; xoʻjalik maydonchasi — alohida (20 m, 4-jadval)
-    else { place('bolalar', 10, freeA * 0.28, pop * (PLAY_NORM.bolalar + PLAY_NORM.kattalar)); place('sport', 12, freeA * 0.3); place('xojalik', 20, freeA * 0.08); }
+    // 05.11: ShNQ 2.07.01-23, 91-band — birlashtirilgan maydoncha «150 m² dan kam boʻlmasligi lozim»: sigʻmasa — bolalar va kattalar alohida
+    else {
+      const nb = pop * (PLAY_NORM.bolalar + PLAY_NORM.kattalar);
+      if (!(nb >= 15 && place('bolalar', 10, Math.max(freeA * 0.28, Math.min(150, freeA * 0.5)), Math.max(150, nb), 150, true))) { place('bolalar', 10, freeA * 0.245); place('kattalar', 6, freeA * 0.035); }
+      place('sport', 12, freeA * 0.3); place('xojalik', 20, freeA * 0.08);
+    }
     // ichki yoʻlak: erkin hudud chegarasidan 5 m ichkarida (taxminan) — halqa
     const paths: MultiPolygon = [];
     for (const poly of freeR) {
