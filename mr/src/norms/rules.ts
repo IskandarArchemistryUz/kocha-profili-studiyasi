@@ -25,7 +25,7 @@ import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
 import { need413, T30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML } from '../core/mlpark';
-import { szzGreen } from '../core/szzgen';
+import { szzGreen, szzBelt, BELT_GAP } from '../core/szzgen';
 import { isActive } from '../core/limits';
 import { entryReport, hasEntryRules, isUg } from '../core/parkenv';
 import { type CheckKind } from '../core/parkentry';
@@ -141,7 +141,7 @@ export type Status = 'pass' | 'fail' | 'review' | 'na';
 export interface Source { doc: string; clause: string; edition: string; verified: boolean }
 
 /** «Tuzat» tugmalari (31.10): har biri bitta bekor qilinadigan amal (Ctrl+Z) */
-export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end' | 'play-ug';
+export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end' | 'play-ug' | 'szz-belt';
 export interface Result {
   id: string; title: string; status: Status;
   value?: number; limit?: string; unit?: string;
@@ -865,6 +865,25 @@ export const RULES: Rule[] = [
       return { status: bad.length ? 'fail' : 'pass', value: pc(worst.share), unit: '%', limit: `≥ ${pc(worst.need)}`, where: { rings: (bad.length ? bad : z).flatMap(x => x.rings) },
         note: bad.length ? `SMZ ning uchastka ichidagi qismida koʻkalam yetarli emas (${list}). Koʻcha koridorlari ham hisob maydonida (2.19: qatnov qismi foizni kamaytirmaydi). Yechim: SMZ qismini «Himoya koʻkalamzorligi (SMZ)» funksiyasiga bering (Parsellar → «SMZ chegarasi boʻyicha ajratish»). Koʻkalam — himoya koʻkalamzorligi va park kvartallari (talqin); qabriston SMZ i uchun qoʻllash — talqin.`
           : `SMZ koʻkalamzorligi yetarli (${list}).` };
+    },
+  },
+  // 06.11 — SanPiN RUz № 0350-17, 2.19 (asl matn): selitebnaya hudud tomonida daraxt-buta tasmasi ≥ 50 m, zona ≤ 100 m boʻlsa ≥ 20 m
+  {
+    id: 'szz-belt',
+    title: 'SMZ: turar joy tomonida daraxt-buta tasmasi',
+    source: { doc: 'SanPiN RUz № 0350-17', edition: '2017', clause: '2.19 (≥ 50 m; zona ≤ 100 m boʻlsa ≥ 20 m)', verified: true },
+    evaluate(_d, doc) {
+      const z = szzBelt(doc);
+      if (!z.length) return { status: 'na', unit: 'm', limit: '≥ 50 / ≥ 20', note: 'Uchastka ichida turar joy tomonga qaragan SMZ yoʻq.' };
+      const tol = (x: typeof z[number]) => x.miss <= Math.max(50, 0.02 * x.area);
+      const bad = z.filter(x => !tol(x)), worst = [...z].sort((a, b) => (a.width - a.need) - (b.width - b.need))[0];
+      const list = z.map(x => `${Math.round(x.width)} / ${Math.round(x.need)} m`).join('; '), needs = bad.map(x => `${Math.round(x.need)} m`).join(', '), missM = Math.round(bad.reduce((t, x) => t + x.miss, 0)), gap = BELT_GAP;
+      const parts = [bad.length ? `Daraxt-buta tasmasi yetarli emas (${list}). Koʻkalamsiz qismi: ${missM} m².` : `Daraxt-buta tasmasi yetarli (${list}).`];
+      if (z.some(x => x.outside)) parts.push('SMZ ning bir qismi uchastkadan tashqarida — faqat uchastka ichidagi qismi tekshirildi.');
+      parts.push(`Tasma — SMZ ning tashqi qismi, turar joy, maktab, MTM, poliklinika, sport va park kvartallari tomonida (selitebnaya hudud — 2.17 roʻyxati, TALQIN; oradagi koʻcha uchun ${gap} m — ANDOZA; koʻcha koridorlari hisobga olinmaydi). Daraxt-buta tasmasi — «Himoya koʻkalamzorligi (SMZ)» kvartallari.`);
+      return { status: bad.length ? 'fail' : 'pass', value: Math.round(worst.width), unit: 'm', limit: `≥ ${Math.round(worst.need)}`,
+        ...(bad.length ? { where: { rings: bad.flatMap(x => x.missRings.map(p => p[0])) }, fix: { id: 'szz-belt' as const, label: 'Daraxt-buta tasmasini ajratish', hint: `Turar joy tomonidagi ${needs} enli tasma «Himoya koʻkalamzorligi» parseli qilib ajratiladi. Binolar oʻchirilmaydi — tasmaga tushganlari izohda aytiladi.` } } : {}),
+        note: parts.join(' ') };
     },
   },
   // 02.11: ishlab chiqarish zonalari (logistika, sanoat, kommunal, transport) — ShNQ 2.07.01-23, 146, 147, 174

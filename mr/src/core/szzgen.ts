@@ -14,7 +14,7 @@
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
 import { frame, type XY } from './geo';
-import { limitZones, bufferLocal } from './limits';
+import { limitZones, bufferLocal, SZZ_DENY } from './limits';
 import { szzVerdict } from './limitcheck';
 import { prodChecks, DENY_146 } from './prodcheck';
 import { computePlan } from './plan';
@@ -86,5 +86,69 @@ function raw(doc: Project): SzzGreen[] {
   };
   for (const s of limitZones(doc).soft) add(s.id, s.kind, s.cls ?? 'IV', s.polys.map(p => p.map(close)) as MultiPolygon);
   for (const z of prodChecks(doc).zones) add(`prod${z.block}`, z.use, clsOfM(z.szz), tryMP(() => polygonClipping.difference(bufferLocal(z.rings[0], z.szz, true), z.rings.map(close) as Polygon), []));
+  return out;
+}
+
+/**
+ * 06.11 — SanPiN RUz № 0350-17, 2.19 (asl matn): «со стороны селитебной территории надлежит предусматривать полосу
+ * древесно-кустарниковых насаждений шириной не менее 50 м, а при ширине зоны до 100 м не менее 20 метров».
+ * Hisob (har SMZ uchun, uchastka ichidagi qismi):
+ *  - kerakli en W = 50 m, SMZ kengligi ≤ 100 m boʻlsa 20 m; SMZ W dan tor boʻlsa — butun eni (NORMA + TALQIN);
+ *  - tasma joyi = SMZ ning tashqi W qismi (manbadan m − W dan uzoq) — selitebnaya hudud tomonida: turar joy, MTM, maktab,
+ *    poliklinika, sport, park kvartallari (2.17 roʻyxati — SZZ_DENY; selitebnaya = shu roʻyxat — TALQIN) dan W + GAP ichida;
+ *    GAP = 30 m — oradagi koʻcha koridori uchun (ANDOZA); koʻcha koridorlari tasmadan chiqariladi (TALQIN);
+ *  - daraxt-buta tasmasi = «Himoya koʻkalamzorligi» kvartallari/parsellari (park SMZ da taqiq — 2.17);
+ *  - eng tor eni — 5 m qadam bilan: tasma qaysi engacha ≥ 98 % koʻkalam bilan qoplangan.
+ */
+export const BELT_GAP = 30;
+export interface SzzBelt { id: string; label: string; m: number; need: number; area: number; miss: number; width: number; rings: XY[][]; missRings: XY[][][]; outside: boolean }
+let memoB: { k: unknown[]; v: SzzBelt[] } | null = null;
+export function szzBelt(doc: Project): SzzBelt[] {
+  const k = [doc.limits, doc.site, doc.origin, doc.zones, doc.parcels, doc.streets];
+  if (memoB && memoB.k.every((x, i) => x === k[i])) return memoB.v;
+  const v = beltRaw(doc); memoB = { k, v }; return v;
+}
+function beltRaw(doc: Project): SzzBelt[] {
+  if (!doc.site) return [];
+  const fr = frame(doc.origin), site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal))), plan = computePlan(doc);
+  const green: MultiPolygon = plan.blocks.filter(b => b.use === 'himoya').map(b => b.rings.map(close) as Polygon);
+  const resi: MultiPolygon = plan.blocks.filter(b => (SZZ_DENY as readonly string[]).includes(b.use)).map(b => b.rings.map(close) as Polygon);
+  const corr: MultiPolygon = plan.corridors.map(p => p.map(close) as Polygon);
+  if (!resi.length) return [];
+  const U = (mp: MultiPolygon[]): MultiPolygon => { const nz = mp.filter(x => x.length); return nz.length ? tryMP(() => polygonClipping.union(nz[0], ...nz.slice(1)), nz.flat()) : []; };
+  const greenU = U([green]), corrU = U([corr]);
+  const out: SzzBelt[] = [];
+  const add = (id: string, label: string, src: XY[], m: number, full: MultiPolygon, siteCut: boolean) => {
+    const zone = tryMP(() => polygonClipping.intersection(full, site), []); if (mpArea(zone) < 50) return;
+    const need = m <= 100 ? Math.min(20, m) : 50;
+    // selitebnaya — SMZ dan tashqaridagi qismi
+    const res = tryMP(() => polygonClipping.difference(U([resi]), full), []); if (mpArea(res) < 50) return;
+    const near = U(res.map(p => bufferLocal(open(p[0]), need + BELT_GAP, true)));
+    const band = (w: number): MultiPolygon => {
+      const inner = m - w > 0.5 ? bufferLocal(src, m - w, true) : [];
+      let b = inner.length ? tryMP(() => polygonClipping.difference(zone, inner), zone) : zone;
+      b = tryMP(() => polygonClipping.intersection(b, near), []);
+      if (corrU.length && b.length) b = tryMP(() => polygonClipping.difference(b, corrU), b);
+      return b;
+    };
+    const B = band(need), a = mpArea(B); if (a < 50) return;
+    const missMP = greenU.length ? tryMP(() => polygonClipping.difference(B, greenU), B) : B, miss = mpArea(missMP);
+    let width = 0;
+    for (let w = 5; w <= need + 1e-6; w += 5) { const bw = band(Math.min(w, need)), aw = mpArea(bw); if (aw < 1) continue; const cov = greenU.length ? mpArea(tryMP(() => polygonClipping.intersection(bw, greenU), [])) : 0; if (cov >= 0.98 * aw) width = Math.min(w, need); else break; }
+    if (miss <= Math.max(50, 0.02 * a)) width = need;
+    out.push({ id, label, m, need, area: a, miss, width, rings: B.map(p => open(p[0])), missRings: missMP.filter(p => ringA(p[0]) > 20).map(p => p.map(open)), outside: siteCut });
+  };
+  const siteA = mpArea([site]);
+  for (const l of (doc.limits ?? [])) {
+    const s = limitZones(doc).soft.find(z => z.id === l.id); if (!s || !l.rings?.length) continue;
+    const src = l.rings[0].map(fr.toLocal), full = bufferLocal(src, s.m, true);
+    const fullA = mpArea(full), inA = mpArea(tryMP(() => polygonClipping.intersection(full, site), []));
+    add(l.id, l.kind, src, s.m, tryMP(() => polygonClipping.difference(full, [close(src)]), full), inA < fullA - 1 && inA < siteA);
+  }
+  for (const z of prodChecks(doc).zones) {
+    const full = tryMP(() => polygonClipping.difference(bufferLocal(z.rings[0], z.szz, true), z.rings.map(close) as Polygon), []);
+    const fullA = mpArea(full), inA = mpArea(tryMP(() => polygonClipping.intersection(full, site), []));
+    add(`prod${z.block}`, z.use, z.rings[0], z.szz, full, inA < fullA - 1);
+  }
   return out;
 }
