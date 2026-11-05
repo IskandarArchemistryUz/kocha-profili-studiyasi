@@ -104,3 +104,23 @@ export function insetVar(ring: XY[], d: number[]): XY[] | null {
     return best;
   } catch { return null; }
 }
+
+/**
+ * 05.11 (egasi: «chekinish har qirrada oʻsha qirradagi seksiyaning haqiqiy balandligidan»): har kvartal qirrasi uchun unga qaragan
+ * seksiyalarning eng balandi. Seksiya qirraga «qaraydi», agar uning biror nuqtasi qirra segmentidan reach m ichida boʻlsa va
+ * segment boʻylab proyeksiyasi qirra oraligʻi bilan ≥ 2 m kesishsa. Qaragan seksiya boʻlmasa — null (umumiy H olinadi).
+ * 1-oʻtish — umumiy H, 2-oʻtish — shu balandliklar bilan (79-band, 2-jadval: H — loyihalashtirilgan binoning balandligi, 1-izoh).
+ */
+export function edgeHeights(ring: XY[], secs: { ring: XY[]; H: number }[], reach: number): (number | null)[] {
+  return ring.map((a, i) => {
+    const b = ring[(i + 1) % ring.length], ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey) || 1, ux = ex / L, uy = ey / L;
+    let best: number | null = null;
+    for (const s of secs) {
+      let near = false, t0 = Infinity, t1 = -Infinity;
+      for (const p of s.ring) { if (segD(p, a, b) <= reach) near = true; const t = (p[0] - a[0]) * ux + (p[1] - a[1]) * uy; t0 = Math.min(t0, t); t1 = Math.max(t1, t); }
+      if (!near || Math.min(t1, L) - Math.max(t0, 0) < 2) continue;
+      if (best == null || s.H > best) best = s.H;
+    }
+    return best;
+  });
+}
