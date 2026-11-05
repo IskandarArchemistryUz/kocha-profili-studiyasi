@@ -58,6 +58,8 @@ export type Command =
   /** kvartal parsellarini almashtirish (boʻlish, kesish, birlashtirish; boʻsh — kvartal butun) */
   | { type: 'setParcels'; block: string; parcels: Omit<Parcel, 'block'>[]; label?: ZoneLabel }
   | { type: 'updateParcel'; id: string; patch: Partial<Pick<Parcel, 'use' | 'rings'>> }
+  /** 05.11: avtoturargoh kirish-chiqish va shamollatish shaxtalari */
+  | { type: 'updateGarage'; id: string; patch: Partial<Pick<Garage, 'entries'>> }
   /** generator natijasi: shu guruhdagi seksiyalarni almashtirish (boʻsh roʻyxat — tozalash); zona belgisiga parametrlar yoziladi */
   | { type: 'replaceGroup'; grp: string; sections: { footprint: Ring; floors: number; nonRes: number; use: Building['use']; kind: string; z0?: number; blind?: number[]; plot?: Ring; joint?: boolean; docks?: { edge: number; n: number }[]; hall?: number }[]; label?: ZoneLabel; garage?: Omit<Garage, 'id' | 'grp'> | null; /** yer uchastkasi (grp = parsel id) parametrlari */ parcelGen?: Record<string, unknown>; /** shu hududdagi boshqa guruhlarning eski avtomatik binolari va avtoturargohlari (ustiga qurilmasin) */ drop?: { bids: string[]; gids: string[] } };
 
@@ -103,6 +105,7 @@ export function label(c: Command): string {
     case 'removeView': return 'Koʻrinish oʻchirildi';
     case 'setParcels': return 'Parsellar';
     case 'updateParcel': return 'Parsel funksiyasi';
+    case 'updateGarage': return 'Avtoturargoh kirish-chiqishi';
     case 'replaceGroup': return c.sections.length ? 'Seksiyalar generatsiyasi' : 'Seksiyalar tozalandi';
   }
 }
@@ -264,6 +267,12 @@ function apply0(doc: Project, c: Command, now: Date): Project {
       const i = doc.parcels.findIndex(p => p.id === c.id); if (i < 0) throw new CommandError('Parsel topilmadi');
       d.parcels = doc.parcels.slice(); d.parcels[i] = { ...doc.parcels[i], ...c.patch }; return d;
     }
+    case 'updateGarage': {
+      const i = doc.garages.findIndex(g => g.id === c.id); if (i < 0) throw new CommandError('Avtoturargoh topilmadi');
+      d.garages = doc.garages.slice(); d.garages[i] = { ...doc.garages[i], ...(c.patch.entries ? { entries: c.patch.entries.map(e => ({ ...e, at: [e.at[0], e.at[1]] as LngLat })) } : {}) };
+      if (c.patch.entries === undefined && 'entries' in c.patch) delete d.garages[i].entries;
+      return d;
+    }
     case 'replaceGroup': {
       const dropB = new Set(c.drop?.bids ?? []), dropG = new Set(c.drop?.gids ?? []);
       const keep = doc.buildings.filter(b => b.gen?.grp !== c.grp && !(b.gen && dropB.has(b.id)));
@@ -272,7 +281,7 @@ function apply0(doc: Project, c: Command, now: Date): Project {
         const floors = Math.max(1, Math.round(x.floors));
         return { ...(st0 ? { stage: st0 } : {}), id: uid('b_'), footprint: copyRing(x.footprint), floors, nonRes: x.kind === 'stilobat' || x.kind === 'parking' ? floors : Math.max(0, Math.min(floors - 1, Math.round(x.nonRes))), use: x.use, gen: { grp: c.grp, kind: x.kind, ...(x.blind?.length ? { blind: [...x.blind] } : {}), ...(x.plot?.length ? { plot: copyRing(x.plot) } : {}) }, ...(x.z0 ? { z0: x.z0 } : {}), ...(x.joint ? { joint: true as const } : {}), ...(x.docks?.length ? { docks: x.docks.map(q => ({ ...q })) } : {}), ...(x.hall ? { hall: x.hall } : {}) };
       })];
-      d.garages = [...doc.garages.filter(g => g.grp !== c.grp && !dropG.has(g.id)), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring), ...(c.garage.stalls ? { stalls: c.garage.stalls.map(copyRing) } : {}), ...(c.garage.aisles ? { aisles: c.garage.aisles.map(copyRing) } : {}), ...(c.garage.spur ? { spur: copyRing(c.garage.spur) } : {}), ...(c.garage.ramps ? { ramps: c.garage.ramps.map(copyRing) } : {}), ...(c.garage.cores ? { cores: c.garage.cores.map(copyRing) } : {}), ...(c.garage.perFloor ? { perFloor: [...c.garage.perFloor] } : {}) }] : [])];
+      d.garages = [...doc.garages.filter(g => g.grp !== c.grp && !dropG.has(g.id)), ...(c.garage ? [{ ...c.garage, id: uid('g_'), grp: c.grp, ring: copyRing(c.garage.ring), ...(c.garage.stalls ? { stalls: c.garage.stalls.map(copyRing) } : {}), ...(c.garage.aisles ? { aisles: c.garage.aisles.map(copyRing) } : {}), ...(c.garage.spur ? { spur: copyRing(c.garage.spur) } : {}), ...(c.garage.ramps ? { ramps: c.garage.ramps.map(copyRing) } : {}), ...(c.garage.cores ? { cores: c.garage.cores.map(copyRing) } : {}), ...(c.garage.perFloor ? { perFloor: [...c.garage.perFloor] } : {}), ...(c.garage.entries ? { entries: c.garage.entries.map(e => ({ ...e, at: [e.at[0], e.at[1]] as LngLat })) } : {}) }] : [])];
       if (c.parcelGen) d.parcels = doc.parcels.map(p => p.id === c.grp ? { ...p, gen: { ...c.parcelGen } } : p);
       if (c.label) { const z = c.label; d.zones = [...doc.zones.filter(q => q.id !== z.id), { ...z, at: [z.at[0], z.at[1]] as LngLat }]; }
       return d;

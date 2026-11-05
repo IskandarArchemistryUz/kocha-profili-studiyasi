@@ -5,7 +5,7 @@
 import { repairGen } from '../core/normfix';
 import { langMenu } from './langmenu';
 import { bLevels, levelZ, floorAt, groundH, antresolSplit, hasAntresol, ANTRESOL_SHARE, ANTRESOL_MIN_H } from '../core/levels';
-import type { LngLat, Project } from '../core/doc';
+import type { LngLat, Project, Garage } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
@@ -54,6 +54,7 @@ import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, in
 import { DEFAULT_GEN, UG_STREET, UG_SIDE, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
 import { mlParking, need413, pct5, ML, OPEN_413 } from '../core/mlpark';
+import { autoEntries, entryReport, hasEntryRules, isUg } from '../core/parkenv';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
 import { saveMrReturn, consumeMrBack } from './mrback';
@@ -2353,6 +2354,7 @@ export class Editor {
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, drop, label: b.parcelId ? undefined : { ...lab, gen: { ...base } }, ...(b.parcelId ? { parcelGen: { ...base } } : {}),
       sections: r.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: (use === 'turar' && x.kind === 'qator') ? 0 : x.nonRes, use: (x.use as Use) ?? use, kind: x.kind, z0: x.z0, blind: x.blind, ...(x.plot ? { plot: x.plot.map(fr.toGeo) } : {}), ...(x.joint ? { joint: true } : {}), ...(x.docks ? { docks: x.docks } : {}), ...(x.hall ? { hall: x.hall } : {}) })),
       garage: r.parking ? { kind: r.parking.kind, ring: r.parking.ring.map(fr.toGeo), levels: r.parking.levels, spaces: r.parking.spaces, ...(r.parking.need != null ? { need: r.parking.need } : {}), ...(r.parking.module ? { module: r.parking.module } : {}), ...(r.parking.stalls ? { stalls: r.parking.stalls.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.aisles ? { aisles: r.parking.aisles.map(q => q.map(fr.toGeo)) } : {}), ...(r.parking.truck ? { truck: true as const } : {}), ...(r.parking.spur ? { spur: r.parking.spur.map(fr.toGeo) } : {}) } : null }));
+    if (r.parking && (r.parking.kind === 'yer_osti' || r.parking.kind === 'stilobat')) this.placeEntries(grp, true);
     if (!quiet) { const fx = this.repairNorms(new Set([grp])); if (fx.length) this.genNotes = [...this.genNotes, ...fx]; }
     if (!quiet) toast(r.sections.length ? `${name}: ${r.sections.length} seksiya` : (r.notes[0] ?? 'Seksiya joylashmadi'));
     return r.sections.length;
@@ -2554,10 +2556,31 @@ export class Editor {
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, ...(b.parcelId ? { parcelGen: gen } : { label: { ...lab, gen } }),
       sections: [{ footprint: m.ring.map(fr.toGeo), floors: m.levels, nonRes: m.levels, use: 'avtoturargoh', kind: 'parking' }],
       garage: { kind: 'kop_qavatli', ring: m.ring.map(fr.toGeo), levels: m.levels, spaces: m.spaces, module: 'p90', stalls: G(m.stalls), aisles: G(m.aisles), ramps: G(m.ramps), cores: G(m.cores), perFloor: m.perFloor } }));
-    this.mlPick.delete(grp);
+    this.mlPick.delete(grp); this.placeEntries(grp, true);
     this.genNotes = [tf('Bino ${l} × ${w} m, ${n} qator; pandus ikki yoʻnalishli, ${r} m (qiyalik 18 %, ANDOZA)', { l: fmt(m.L, 1), w: fmt(m.W, 1), n: m.bays, r: fmt(m.rampL, 1) })];
     if (!quiet) toast(tf('${n}: koʻp qavatli avtoturargoh — ${k} joy', { n: name, k: m.spaces }));
     return 1;
+  }
+  /** 05.11: avtoturargoh kirish-chiqish (pandus) va shamollatish shaxtalari — avtomatik joylashtirish (core/parkenv) */
+  private garageOf(grp: string | null): Garage | null { return grp ? this.store.doc.garages.find(g => g.grp === grp && hasEntryRules(g)) ?? null : null; }
+  private placeEntries(grp: string | null, quiet = false): void {
+    const g = this.garageOf(grp); if (!g) return;
+    const fr = frame(this.store.doc.origin), es = autoEntries(this.store.doc, g);
+    this.run(() => this.store.dispatch({ type: 'updateGarage', id: g.id, patch: { entries: es.map(e => ({ at: fr.toGeo(e.at), kind: e.kind, ...(e.dir != null ? { dir: e.dir } : {}), ...(e.edge ? { edge: true as const } : {}) })) } }, `gent-${g.id}`));
+    if (!quiet) { toast(tf('Kirish-chiqish joylashtirildi: ${n} ta (pandus va shaxtalar)', { n: es.length })); this.syncHandles(); this.renderPanel(); }
+  }
+  private entrySection(i: number): HTMLElement | '' {
+    const grp = this.mlGrp(i), g = this.garageOf(grp); if (!g) return '';
+    const rep = entryReport(this.store.doc, g), ug = isUg(g);
+    const EK: Record<string, string> = { chorraha: 'chorraha', bekat: 'bekat', deraza: 'turar / jamoat binosi', hudud: 'taʼlim / davolash hududi', maydoncha: 'dam olish maydonchasi' };
+    const rows = rep.map((r, k) => { const w = r.worst; return h('div', { class: 'li', 'data-entry': String(k) }, h('span', { class: 'k' }, r.e.kind === 'rampa' ? tr('Pandus (kirish-chiqish)') : tf('Shamollatish shaxtasi ${n}', { n: k }), h('span', { class: 'sub' }, w ? `${tr(EK[w.kind])} ${fmt(w.d, 1)} m · ≥ ${w.need} m` : tr('yaqin obyekt yoʻq'))),
+      h('span', { class: w ? (w.ok ? 'chip ok' : 'chip bad') : 'chip ok' }, w ? (w.ok ? '✓' : '✗') : '✓')); });
+    return h('div', { class: 'group', id: 'entBox' },
+      h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, h('b', {}, tr('Kirish-chiqish va shamollatish')), h('span', { class: 'sub' }, tr(ug ? '414, 415-bandlar; SanPiN 0350-17, 6.4.1-jadval 8-izoh — belgini sahnada sudrang' : '414-band: chorrahadan 50 / 20 m, bekatdan 5 m — belgini sahnada sudrang'))),
+        h('button', { class: 'btn btn-sm', id: 'entAuto', style: 'flex:1 1 100%', onclick: () => this.placeEntries(grp) }, tr('Avtomatik joylashtir'))),
+      ...rows,
+      ...(rows.length ? [] : [h('div', { class: 't-small', id: 'entNone' }, tr('Kirish nuqtasi qoʻyilmagan — qoidalar «koʻrib chiqish» holatida.'))]),
+      ...(ug ? [h('div', { class: 't-small' }, tr('Pandus izi 6 × 3,5 m, shaxta 2 × 2 m, shaxtalar soni — har 2 000 m² ga 1, koʻpi bilan 6 — ANDOZA.'))] : []));
   }
   private parkingSection(i: number): HTMLElement {
     const plan = this.plan(), b = plan.blocks[i], grp = this.mlGrp(i), st = this.mlState(i), doc = this.store.doc;
@@ -2641,7 +2664,7 @@ export class Editor {
     const parkI = this.selBlock != null && plan.blocks[this.selBlock]?.use === 'avtoturargoh' ? this.selBlock : null;
     if (parkI != null) {
       const st = this.mlState(parkI);
-      body.append(this.parkingSection(parkI),
+      body.append(this.parkingSection(parkI), this.entrySection(parkI),
         h('div', { class: 'row' }, st.t === 'kop' ? h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => void useHeavy('gen').then(ok => { if (ok) { this.generateParking(parkI, st.f); this.renderPanel(); } }) }, tr('Joylashtirish'), this.ptag('gen')) : h('span', { class: 'grow' }), allBtn(), clearBtn(parkI)));
       if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
     } else if (socI != null) {
@@ -2719,6 +2742,7 @@ export class Editor {
           h('div', { class: 'group', id: 'allOwnRow' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('«Hammasi» — har daha oʻz sozlamasi bilan'), h('span', { class: 'sub' }, tr(this.allOwn ? 'Yoqiq: har daha oxirgi marta qurilgan sozlamasi bilan qayta quriladi' : 'Oʻchiq: hamma dahalar paneldagi sozlamalar bilan qayta quriladi (tipologiya daha funksiyasiga mos kelmasa — mosi)'))),
             sw({ id: 'allOwn', label: tr('«Hammasi» — har daha oʻz sozlamasi bilan'), on: this.allOwn, onchange: v => { this.allOwn = v; try { localStorage.setItem('mr-all-own', v ? '1' : '0'); } catch { /* */ } this.renderPanel(); } }))),
           stageEl); return more; })());
+      if (this.selBlock != null) { const es = this.entrySection(this.selBlock); if (es) body.append(es); }
       if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
     }
     // binolar soni va tanlangan seksiya
@@ -2982,7 +3006,7 @@ export class Editor {
    * Tutqichlar (sudrash bilan tahrirlash): qadam va tanlovga koʻra — koʻcha oʻqi (Koʻchalar), uchastka chegarasi (Uchastka),
    * parsel chegarasi (Parsellar), bino oyoq izi (Hajmlar). closed — halqa; apply — yangi nuqtalar hujjatga; floor — qavat tutqichi (bino tepasida).
    */
-  private handleSet(): { id: string; pts: XY[]; closed: boolean; min: number; street?: boolean; apply: (pts: XY[], key: string) => void; floor?: { c: XY; z: number; bid: string } } | null {
+  private handleSet(): { id: string; pts: XY[]; closed: boolean; min: number; street?: boolean; /** alohida nuqtalar: oraliq tutqichi va qoʻshish yoʻq */ points?: boolean; apply: (pts: XY[], key: string) => void; floor?: { c: XY; z: number; bid: string } } | null {
     const doc = this.store.doc, fr = frame(doc.origin); if (this.tool) return null;
     const st = this.step.id;
     if (st === 'kocha' && !this.selStreet && this.osmPick) { const o = this.osmPick;
@@ -2993,6 +3017,11 @@ export class Editor {
       return { id: 'site', pts: r[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => { const rr = [pts.map(fr.toGeo), ...r.slice(1)]; this.run(() => this.store.dispatch({ type: 'setSite', rings: rr }, key)); } }; }
     if (st === 'parsel' && this.selBlock != null) { const b = this.plan().blocks[this.selBlock], pc = b?.parcelId ? doc.parcels.find(p => p.id === b.parcelId) : null; if (!pc) return null;
       return { id: pc.id, pts: pc.rings[0].map(fr.toLocal), closed: true, min: 3, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateParcel', id: pc.id, patch: { rings: [pts.map(fr.toGeo), ...pc.rings.slice(1)] } }, key)) }; }
+    if (st === 'hajm' && !this.sel && !this.tool && this.selBlock != null) {
+      // 05.11: avtoturargoh kirish-chiqish va shaxta nuqtalari — alohida tutqichlar (oraliq nuqtasi yoʻq)
+      const g = this.garageOf(this.mlGrp(this.selBlock)); if (!g || !g.entries?.length) return null;
+      return { id: `ent-${g.id}`, pts: g.entries.map(e => fr.toLocal(e.at)), closed: false, min: 1, points: true, apply: (pts, key) => this.run(() => this.store.dispatch({ type: 'updateGarage', id: g.id, patch: { entries: g.entries!.map((e, k) => pts[k] ? { ...e, at: fr.toGeo(pts[k]) } : e).filter((_, k) => k < pts.length) } }, key)) };
+    }
     if (st === 'hajm' && this.sel && this.dragMode !== 'yoq') { const b = doc.buildings.find(x => x.id === this.sel); if (!b) return null;
       const r = b.footprint.map(fr.toLocal), LV = bLevels(doc.settings, b), base = Math.min(...r.map(p => this.scene.H(p[0], p[1]))) + LV.z0;
       const c: XY = [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length];
@@ -3003,7 +3032,7 @@ export class Editor {
     const hs = this.handleSet();
     if (!hs) { this.scene.setHandles([]); return; }
     const a = hs.pts, n = a.length, mids: XY[] = [];
-    for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n]; mids.push([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]); }
+    if (!hs.points) for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n]; mids.push([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]); }
     this.scene.setHandles(a, mids, hs.floor ? { c: hs.floor.c, z: hs.floor.z } : null, this.selVtx != null && this.selVtx < n && !hs.closed ? a[this.selVtx] : null);
   }
   /** ekrandagi (x, y) ga eng yaqin tutqich: i — nuqta indeksi; ins — oraliqdan yangi nuqta; floor — qavat tutqichi */
@@ -3013,7 +3042,7 @@ export class Editor {
     const test = (p: XY, z: number, i: number, ins: boolean, tol: number, floor = false) => { const s2 = this.scene.toScreen(p[0], p[1], z), d = Math.hypot(s2.x - x, s2.y - y); if (d < Math.min(bd, tol)) { bd = d; best = { i, ins, floor }; } };
     if (hs.floor) test(hs.floor.c, hs.floor.z, -1, false, 14, true);
     a.forEach((p, i) => test(p, this.scene.H(p[0], p[1]) + 0.8, i, false, 12));
-    for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n], m: XY = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; test(m, this.scene.H(m[0], m[1]) + 0.8, i, true, 9); }
+    if (!hs.points) for (let i = 1; i < n + (hs.closed ? 1 : 0); i++) { const p = a[i - 1], q = a[i % n], m: XY = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; test(m, this.scene.H(m[0], m[1]) + 0.8, i, true, 9); }
     return best;
   }
 
@@ -4802,7 +4831,7 @@ export class Editor {
       }
       if (hdrag) {
         const p0 = this.scene.pick(e.clientX, e.clientY); if (!p0) return;
-        const hs = hdrag.hs, end = !hs.closed && (hdrag.i === 0 || hdrag.i === hdrag.a0.length - 1), p = hs.street && end ? this.snapStreet(p0, hs.id) : this.snapPt(p0, true);
+        const hs = hdrag.hs, end = !hs.closed && !hs.points && (hdrag.i === 0 || hdrag.i === hdrag.a0.length - 1), p = hs.street && end ? this.snapStreet(p0, hs.id) : hs.points ? p0 : this.snapPt(p0, true);
         const a = hdrag.a0.map((q, k) => k === hdrag!.i ? p : q);
         hs.apply(a, hdrag.key); return;
       }
@@ -4845,7 +4874,7 @@ export class Editor {
         const hd0 = hdrag; if (hd0.a0.length !== hd0.hs.pts.length) hd0.hs.apply(hd0.a0, hd0.key);
         this.selVtx = hd0.i; hdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); this.renderPanel(); return;
       }
-      if (hdrag || fdrag) { hdrag = null; fdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); return; }
+      if (hdrag || fdrag) { const pts = !!hdrag?.hs.points; hdrag = null; fdrag = null; down = null; this.scene.setOrbit(true); this.scene.setSnapMark(null); this.syncHandles(); if (pts) this.renderPanel(); return; }
       if (this.mode === 'pipette' && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 5) { down = null; const id = this.scene.pickBuilding(e.clientX, e.clientY); if (id) this.pipette(id); return; }
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; }
       down = null;
