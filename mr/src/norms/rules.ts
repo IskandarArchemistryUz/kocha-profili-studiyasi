@@ -24,9 +24,14 @@ import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
+import { need413, T30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML } from '../core/mlpark';
 import { szzGreen } from '../core/szzgen';
 import { isActive } from '../core/limits';
 
+const mlOf = (doc: Project) => doc.garages.filter(g => g.kind === 'kop_qavatli');
+const mlSum = (doc: Project) => mlOf(doc).reduce((t, g) => t + g.spaces, 0);
+const cOf = (r: XY[]): XY => [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
+const inR = (q: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > q[1]) !== (r[j][1] > q[1]) && q[0] < (r[j][0] - r[i][0]) * (q[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 const n0 = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
 /** Keyingi pogʻona izohi (41-jadval / 543-band): qaysi parsellar kichik va qancha maydon yetishmaydi — faqat ochilgan izohda */
 function tierNote(d: Derived, use: 'maktab' | 'mtm'): string {
@@ -252,7 +257,73 @@ export const RULES: Rule[] = [
       return { status: d.parkingProv >= d.parkingReq ? 'pass' : 'fail', value: d.parkingProv, unit: 'joy', limit: `≥ ${d.parkingReq}`,
         ...(lack > 0 ? { fix: { id: 'parking' as const, label: 'Yer osti avtoturargoh qoʻshish', hint: `Yetishmaydi ${lack} joy (≈ ${Math.round(lack * 30 / 1000) / 10} ming m² — 30 m²/joy). Turar joy kvartallari hovlisi ostiga yer osti avtoturargoh qoʻshiladi, sathlar soni meʼyor boʻyicha (1–4) — kvartallar qayta generatsiya qilinadi. Boshqa yoʻllar: stilobat ichida yoki alohida koʻp qavatli avtoturargoh (parsel «Avtoturargoh»).` } } : {}),
         // tarjima kaliti: ichma-ich shablonsiz (i18n ${…} namunasi bilan mos kelsin)
-        note: `Talab: ${parts} (${reg}). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` };
+        note: `Talab: ${parts} (${reg}). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` + (mlSum(doc) ? `\nKoʻp qavatli avtoturargohlar: ${mlSum(doc)} joy — qavat rejalaridan (pandus, yoʻlak va zina-lift tugunlari chiqarilgan).` : '') };
+    },
+  },
+  {
+    id: 'park-413',
+    title: 'Koʻp qavatli avtoturargoh: yer uchastkasi bir joyga',
+    source: { ...SHNQ_2_07_01, clause: '413-band' },
+    evaluate(_d, doc) {
+      const ml = mlOf(doc); if (!ml.length) return { status: 'na', note: 'Koʻp qavatli avtoturargoh yoʻq («Avtoturargoh» parseli → «Koʻp qavatli»).' };
+      const plan = computePlan(doc), fr = frame(doc.origin);
+      const rows = ml.map(g => { const r = g.ring.map(fr.toLocal), c = cOf(r), k = plan.blocks.find(b => inR(c, b.rings[0])), A = k?.area ?? areaOf(r), per = g.spaces ? A / g.spaces : Infinity; return { g, A, per, need: need413(g.levels) }; });
+      const bad = rows.filter(x => x.per < x.need - 0.05), w = rows.reduce((a, x) => (x.per / x.need < a.per / a.need ? x : a));
+      return { status: bad.length ? 'fail' : 'pass', value: Math.round(w.per * 10) / 10, unit: 'm²/joy', limit: `≥ ${w.need}`,
+        note: `Bir mashina-joyga yer uchastkasi kamida: 2 qavatli — 20, 3 — 14, 4 — 12, 5 — 10, ochiq — 25 m² (413-band). Eng zichi: ${Math.round(w.A)} m² ÷ ${w.g.spaces} joy = ${Math.round(w.per * 10) / 10} m² (${w.g.levels} qavat, talab ${w.need}).` + (bad.length ? `\nMos emas: ${bad.length} ta — qavatni kamaytiring yoki uchastkani kengaytiring.` : '') };
+    },
+  },
+  {
+    id: 'park-30',
+    title: 'Avtoturargohdan binolargacha masofa (30-jadval)',
+    source: { ...SHNQ_2_07_01, clause: '418-band, 30-jadval' },
+    evaluate(_d, doc) {
+      const ml = mlOf(doc); if (!ml.length) return { status: 'na', note: 'Koʻp qavatli avtoturargoh yoʻq.' };
+      const fr = frame(doc.origin), plan = computePlan(doc), fails: string[] = [], revs: string[] = []; const bids = new Set<string>();
+      const PUB = new Set(['maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona', 'sport', 'aralash']);
+      for (const g of ml) {
+        const r = g.ring.map(fr.toLocal), col = capCol(g.spaces), cn = CAP_COL_NAME[col];
+        for (const b of doc.buildings) {
+          if (b.gen?.grp === g.grp || b.use === 'avtoturargoh') continue;
+          const u = useDef(b.use), d = ringDist(r, b.footprint.map(fr.toLocal)); if (d > 60) continue;
+          if (u.res > 0) {
+            const fN = T30.front[col]!, bN = T30.blind[col]!;
+            if (d < Math.min(fN, bN) - 0.3) { fails.push(`turar joy ${Math.round(d)} m < ${Math.min(fN, bN)} m`); bids.add(b.id); }
+            else if (d < fN - 0.3) { revs.push(`turar joy ${Math.round(d)} m: derazasiz yon tomoni boʻlsa ≥ ${bN} m yetadi, old tomoni — ${fN} m`); bids.add(b.id); }
+          } else if (PUB.has(b.use)) { const n = T30.pub[col]!; if (d < n - 0.3) { fails.push(`jamoat binosi ${Math.round(d)} m < ${n} m`); bids.add(b.id); } }
+        }
+        // maktab va MTM hududlarigacha (territoriya chegarasi)
+        for (const k of plan.blocks) {
+          if (k.use !== 'maktab' && k.use !== 'mtm') continue;
+          const d = ringDist(r, k.rings[0]); if (d > 80) continue; const n = T30.school[col];
+          if (n == null) revs.push(`maktab/MTM hududi ${Math.round(d)} m — sigʻim ${cn}: jadvalda qiymat yoʻq («–»), sanitariya nazorati bilan kelishiladi`);
+          else if (d < n - 0.3) fails.push(`maktab/MTM hududi ${Math.round(d)} m < ${n} m`);
+        }
+      }
+      const cap = ml.map(g => `${g.spaces} joy → ${CAP_COL_NAME[capCol(g.spaces)]}`).join(', ');
+      return { status: fails.length ? 'fail' : revs.length ? 'review' : 'pass', value: fails.length, unit: 'ta', limit: '0',
+        ...(bids.size ? { where: { bids: [...bids] } } : {}),
+        note: `Yer usti avtoturargohdan masofa: turar joy old tomoni 12/15/25/35/50 m, derazasiz yon tomoni 12/10/15/25/35 m, jamoat binolari 10/10/15/25/25 m, maktab va taʼlim hududi 15/25/25/50/– m (sigʻim ≤ 10, 11–50, 51–100, 101–300, > 300). Sigʻim: ${cap}.` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (revs.length ? `\nKoʻrib chiqish: ${revs.slice(0, 4).join('; ')}.` : '') };
+    },
+  },
+  {
+    id: 'park-411',
+    title: 'Nogironlar va elektromobil joylari',
+    source: { ...SHNQ_2_07_01, clause: '411–412-bandlar' },
+    evaluate(_d, doc) {
+      const ml = mlOf(doc); if (!ml.length) return { status: 'na', note: 'Koʻp qavatli avtoturargoh yoʻq.' };
+      const n = mlSum(doc), inv = pct5(n), ev412 = doc.buildings.some(b => b.use === 'savdo' || b.use === 'mehmonxona');
+      return { status: 'pass', value: inv, unit: 'joy', limit: `≥ ${inv}`,
+        note: `411-band: nogironligi boʻlgan shaxslar uchun joylarning kamida 5 % (kamida 1): ${n} dan ${inv} joy — 1-qavatda, kirishga yaqin ajratiladi.` + (ev412 ? `\n412-band: loyihada savdo / mehmonxona bor — ularning avtoturargohida kamida 5 % (kamida 1) elektromobil quvvatlash joyi: ${pct5(n)} joy (TALQIN: koʻp qavatli avtoturargoh shu obyektlarga xizmat qiladi deb olindi).` : '\n412-band: elektromobil quvvatlash joylari savdo va biznes markazlari, mehmonxona va boshqa sanab oʻtilgan obyektlar avtoturargohlari uchun talab qilinadi — loyihada bunday obyekt yoʻq (TALQIN).') };
+    },
+  },
+  {
+    id: 'park-414',
+    title: 'Avtoturargoh kirish-chiqishi va pandus',
+    source: { ...SHNQ_2_07_01, clause: '414-band; pandus — ANDOZA (SP 113.13330.2016)', verified: false },
+    evaluate(_d, doc) {
+      const ml = mlOf(doc); if (!ml.length) return { status: 'na', note: 'Koʻp qavatli avtoturargoh yoʻq.' };
+      return { status: 'review', unit: '', note: `414-band: kirish-chiqish joylari magistral koʻchalar chorrahasidan kamida 50 m, mahalliy koʻchalardan 20 m, jamoat transporti bekatidan 5 m — darvoza joyi loyihada aniqlanadi.\nPandus (ANDOZA — Oʻzbekiston normasi papkada yoʻq, SP 113.13330.2016 (RF) — taqqoslash uchun): qavat ${String(ML.floorH).replace('.', ',')} m, qiyalik ≤ 18 % (egri pandus ≤ 13 %), bir yoʻnalishli yoʻlak ≥ 3,5 m, uchlarida 3,6 m oʻtish uchastkalari — gorizontal uzunlik ${String(rampLen()).replace('.', ',')} m.` };
     },
   },
   {

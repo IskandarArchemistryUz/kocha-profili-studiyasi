@@ -485,11 +485,11 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     const velo: string[] = [];
     for (const { axis, prof } of ps) { const W = profileWidth(prof); let off = -W / 2; for (const pt of prof.parts) { const mid = off + pt.w / 2; off += pt.w; if (pt.k === 'velo') velo.push(`<path d="${lineD(offsetLine(axis, mid))}" fill="none" stroke="#1f8fd6" stroke-width="${lw(0.45)}" stroke-dasharray="1.2 0.6"/>`); } }
     if (velo.length) { g('Velo_yolaklar', velo.join('')); legend.push({ type: 'dash', stroke: '#1f8fd6', label: tr('Velo yoʻlak') }); }
-    const GK: Record<string, [string, string]> = { yer_osti: ['#c9c2ea', 'Yer osti avtoturargohi'], stilobat: ['#b8bfc6', 'Stilobatdagi avtoturargoh'], yer_usti: ['#e3e6ea', 'Ochiq avtoturargoh'] };
+    const GK: Record<string, [string, string]> = { yer_osti: ['#c9c2ea', 'Yer osti avtoturargohi'], stilobat: ['#b8bfc6', 'Stilobatdagi avtoturargoh'], yer_usti: ['#e3e6ea', 'Ochiq avtoturargoh'], kop_qavatli: ['#aeb4bb', 'Koʻp qavatli avtoturargoh'] };
     const gs = doc.garages.filter(q => !q.truck);
     if (gs.length) {
       g('Avtoturargohlar', gs.map(q => { const r = q.ring.map(fr.toLocal), c = centroid(r); return `<path d="${ringD(r)}" fill="${GK[q.kind][0]}" fill-opacity="0.85" stroke="#4b5563" stroke-width="${lw(0.25)}"${q.kind === 'yer_osti' ? ' stroke-dasharray="1.5 0.8"' : ''}/><text x="${X(c)}" y="${n2(+Y(c) + 1.2)}" font-size="${T(3.2)}" font-weight="700" text-anchor="middle" fill="#1f3a68">P</text>`; }).join(''));
-      for (const k of ['yer_osti', 'stilobat', 'yer_usti']) if (gs.some(q => q.kind === k)) legend.push({ type: 'fill', fill: GK[k][0], stroke: '#4b5563', label: tr(GK[k][1]) });
+      for (const k of ['yer_osti', 'stilobat', 'yer_usti', 'kop_qavatli']) if (gs.some(q => q.kind === k)) legend.push({ type: 'fill', fill: GK[k][0], stroke: '#4b5563', label: tr(GK[k][1]) });
     }
     const man = doc.pois.filter(q => q.kind === 'bekat' || q.kind === 'metro').map(q => ({ p: fr.toLocal(q.at), kind: q.kind as 'bekat' | 'metro' }));
     const allSt = [...(ctx?.stops ?? []), ...man].filter(q => Math.abs(q.p[0] - cx) < R + 800 && Math.abs(q.p[1] - cy) < R + 800);
@@ -726,7 +726,7 @@ export function transportRows(doc: Project, tr: (s: string) => string = s => s):
   const d = derive(doc), gs = doc.garages.filter(q => !q.truck), sp = (k: string) => gs.filter(q => q.kind === k).reduce((t, q) => t + q.spaces, 0);
   if (d.parkingReq > 0 || gs.length) {
     out.push({ t: tr('Avtoturargoh talabi (29-jadval), joy'), vt: String(d.parkingReq), sep: true });
-    for (const [k, n] of [['yer_osti', 'Yer osti avtoturargohi'], ['stilobat', 'Stilobatdagi avtoturargoh'], ['yer_usti', 'Ochiq avtoturargoh']] as const) { const v = sp(k); if (v) out.push({ t: tr(n), vt: String(v) }); }
+    for (const [k, n] of [['yer_osti', 'Yer osti avtoturargohi'], ['stilobat', 'Stilobatdagi avtoturargoh'], ['yer_usti', 'Ochiq avtoturargoh'], ['kop_qavatli', 'Koʻp qavatli avtoturargoh']] as const) { const v = sp(k); if (v) out.push({ t: tr(n), vt: String(v) }); }
     const open = d.parkingProv - gs.reduce((t, q) => t + q.spaces, 0); if (open > 0) out.push({ t: tr('«Avtoturargoh» parsellari (25 m²/joy)'), vt: String(open) });
     out.push({ t: tr('Jami mavjud, joy'), vt: String(d.parkingProv), b: true, ok: d.parkingProv >= d.parkingReq, p: d.parkingProv >= d.parkingReq ? tr('mos') : `−${d.parkingReq - d.parkingProv}` });
   }

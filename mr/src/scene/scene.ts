@@ -1226,6 +1226,22 @@ export class Scene3D {
         for (const q of S) for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; lp.push(a[0], this.H(a[0], a[1]) + 0.42, -a[1], b[0], this.H(b[0], b[1]) + 0.42, -b[1]); }
         const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
         const ls = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })); ls.renderOrder = 6.7; this.world.add(ls);
+      } else if (gr.kind === 'kop_qavatli' && gr.stalls?.length) {
+        // 05.11: koʻp qavatli avtoturargoh — tipik qavat rejasi tom ustida: yoʻlaklar, joylar, pandus (sariq) va zina-lift tugunlari
+        const pb = doc.buildings.find(b => b.gen?.grp === gr.grp && b.use === 'avtoturargoh'), z0 = Math.min(...r.map(p => this.H(p[0], p[1]))) + (pb ? bLevels(doc.settings, pb).top : gr.levels * doc.settings.floorHeight) + 0.3;
+        const flat = (qs: XY[][], dz: number) => { const a: number[] = []; for (const q of qs) for (let i = 1; i + 1 < q.length; i++) a.push(q[0][0], z0 + dz, -q[0][1], q[i][0], z0 + dz, -q[i][1], q[i + 1][0], z0 + dz, -q[i + 1][1]); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a, 3)); return g; };
+        const loc = (rs: [number, number][][] | undefined) => (rs ?? []).map(q => q.map(fr.toLocal));
+        const mat = (c: number) => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+        const S = loc(gr.stalls), A = loc(gr.aisles), R = loc(gr.ramps), C = loc(gr.cores);
+        for (const [qs, c, dz] of [[A, 0x8e9298, 0], [S, 0xc3c7cc, 0.01], [R, 0xd9a441, 0.02], [C, 0x5f6369, 0.02]] as const) { if (!qs.length) continue; const m = new THREE.Mesh(flat(qs as XY[][], dz), mat(c)); m.renderOrder = 11; m.userData.garage = gr.id; this.world.add(m); }
+        const lp: number[] = [];
+        for (const q of [...S, ...R]) for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; lp.push(a[0], z0 + 0.3, -a[1], b[0], z0 + 0.3, -b[1]); }
+        // pandus yoʻnalishi — har yoʻlak boʻylab strelka
+        R.forEach((q, ri) => { const e0: XY = [(q[0][0] + q[3][0]) / 2, (q[0][1] + q[3][1]) / 2], e1: XY = [(q[1][0] + q[2][0]) / 2, (q[1][1] + q[2][1]) / 2], m0 = ri % 2 ? e1 : e0, m1 = ri % 2 ? e0 : e1, L = Math.hypot(m1[0] - m0[0], m1[1] - m0[1]) || 1, ux = (m1[0] - m0[0]) / L, uy = (m1[1] - m0[1]) / L;
+          const tip: XY = [m0[0] + ux * L * 0.75, m0[1] + uy * L * 0.75]; lp.push(m0[0] + ux * L * 0.25, z0 + 0.3, -(m0[1] + uy * L * 0.25), tip[0], z0 + 0.3, -tip[1]);
+          for (const sg of [1, -1]) lp.push(tip[0], z0 + 0.3, -tip[1], tip[0] - ux * 1.2 - uy * sg * 0.9, z0 + 0.3, -(tip[1] - uy * 1.2 + ux * sg * 0.9)); });
+        const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+        const ls = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })); ls.renderOrder = 11.5; this.world.add(ls);
       } else if (gr.kind === 'yer_usti') {
         const sh = new THREE.Shape(r.map(toV2)), g = drape(new THREE.ShapeGeometry(sh), this.H, 0.35, this.ctx ? 8 : 1e9);
         const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xa9adb3, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })); m.renderOrder = 6.5; this.world.add(m);
