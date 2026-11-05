@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { structGrid, fillSpan, stepSet, jointWidthMm, gridChecks, gridWindows, snapMarks } from '../../src/core/axes';
 import { rulePlan, type FacadeMod } from '../../src/core/sectionplan';
 import type { XY } from '../../src/core/geo';
+import { layoutSection } from '../../src/core/apartments';
+import { liftAdj, liftChecks } from '../../src/core/liftadj';
 
 const rect = (w: number, h: number, x = 0, y = 0): XY[] => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
 /** fasad modullari — ~3,3 m, CCW halqa boʻylab (ichki normal chapda) */
@@ -85,5 +87,47 @@ describe('konstruktiv oʻqlar (05.11)', () => {
     expect(ch.find(c => c.id === 'ax-T7')?.ok).toBeNull();     // < 70 m: ShNQ 2.01.06-25 — konstruktor tasdigʻi
     const w = gridWindows(g, mods); expect(w.length).toBe(mods.length);
     expect(snapMarks(g, pl.apts[0].ring, [1, 0]).length).toBeGreaterThan(0);
+  });
+});
+
+describe('toʻr birinchi: reja oʻqlarga quriladi (05.11, egasi: «devorlar oynaga borib urilyapti»)', () => {
+  const gsW = { system: 'wall' as const, seismic: 8 };
+  const run = (r: XY[], sys: 'monolit' | 'karkas' = 'monolit') => {
+    const gs = { system: sys === 'karkas' ? 'frame' as const : 'wall' as const, seismic: 8 };
+    const j = structGrid(r, null, { sys, seismic: 8, H: 27 }).joints;
+    const L = layoutSection(r, () => false, [20, 40, 30, 10], 3.3, 'M', null, j, gs);
+    const g = structGrid(r, L.plan!, { sys, seismic: 8, H: 27 });
+    return { L, g, ch: gridChecks(g, L.plan!, L.mods, 9) };
+  };
+  it('50 × 15 m devorli: T1 = 0 (kvartiralararo devor oʻqda), T2 = 0 (deraza oʻqda emas), qadamlar 2,7–4,2 yoki yadro', () => {
+    const { L, g, ch } = run(rect(50, 15));
+    expect(L.plan!.axisLines!.length).toBeGreaterThan(6);
+    expect(ch.find(c => c.id === 'ax-T1')?.ok).toBe(true);
+    expect(ch.find(c => c.id === 'ax-T2')?.ok).toBe(true);
+    for (const b of g.blocks) { const core = b.cores.map(c => c.to - c.from); expect(b.steps.every(st => (st >= 2.65 && st <= 4.25) || core.some(c => Math.abs(c - st) < 0.06))).toBe(true); }
+    // har modul (deraza) bitta oraliq ichida — modul chegaralari oʻqlarda yoki ularning orasida, oʻqni kesib oʻtmaydi
+    expect(gridWindows(g, L.mods).every(w => !w.moved && !w.onAxis)).toBe(true);
+  });
+  it('L shakl va 30 × 14: kvartira chegaralari oʻqlarda; lift shaxtasi yashash xonasiga tegmaydi (ShNQ 2.08.01-24, 230-band)', () => {
+    for (const r of [rect(30, 14), [[0, 0], [40, 0], [40, 15], [15, 15], [15, 40], [0, 40]] as XY[]]) {
+      const { L, ch } = run(r);
+      expect(ch.find(c => c.id === 'ax-T1')?.ok).toBe(true);
+      expect(liftAdj(L.plan!, L.mods).lift).toHaveLength(0);
+      expect(liftChecks(L.plan!, L.mods).find(c => c.id === 'lift-230')?.ok).toBe(true);
+    }
+  });
+  it('karkas: tor oraliq (< 5,4 m) — «koʻrib chiqish» (T5min), qadam chegarasi 7,5 m dan oshmaydi', () => {
+    const { ch } = run(rect(50, 15), 'karkas');
+    expect(ch.find(c => c.id === 'ax-T5')?.ok).toBe(true);
+    expect(ch.find(c => c.id === 'ax-T5min')).toBeTruthy();
+    expect(ch.find(c => c.id === 'ax-T1')?.ok).toBe(true);
+  });
+  it('lift-230: yotoqxona lift shaxtasiga tutashsa — mos emas; oshxona — mumkin', () => {
+    const lift: XY[] = [[0, 0], [2.2, 0], [2.2, 2.2], [0, 2.2]], apt: XY[] = [[2.2, 0], [8, 0], [8, 6], [2.2, 6]];
+    const P = { kind: 'ikki', stairs: [], lifts: [lift], mop: [], apts: [{ rooms: 2, ring: apt, area: 34.8, door: [5, 6] as XY, mods: [], wet: [], walls: [], wing: 0, sec: 0 }], sections: [], fireWalls: [], rest: [], rooms: [], corridorLen: 0, corridorW: 1.6 } as unknown as Parameters<typeof liftAdj>[0];
+    const room = (kind: string) => () => ({ rooms: [{ ring: [[2.2, 0], [5, 0], [5, 3], [2.2, 3]] as XY[], kind, area: 8.4, wet: false }], walls: [], doors: [] }) as never;
+    expect(liftAdj(P, [], room('yotoq')).lift).toHaveLength(1);
+    expect(liftAdj(P, [], room('oshxona')).lift).toHaveLength(0);
+    void gsW;
   });
 });
