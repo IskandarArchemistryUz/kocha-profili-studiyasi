@@ -2550,7 +2550,7 @@ export class Editor {
   }
   private generateParking(i: number, floors: number, quiet = false): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
-    const fr = frame(this.store.doc.origin), grp = b.parcelId ?? lab.id, m = mlParking(b.rings[0], floors), name = this.unitName(i);
+    const fr = frame(this.store.doc.origin), grp = b.parcelId ?? lab.id, m = mlParking(b.rings[0], floors, b.area), name = this.unitName(i);
     if (!m) { this.genNotes = [tf('Koʻp qavatli avtoturargoh sigʻmadi: chekinish ${s} m bilan kamida ≈ 56 × 25 m toʻrtburchak kerak (pandus, yoʻlaklar, joylar).', { s: ML.setback })]; if (!quiet) { toast(this.genNotes[0]); this.renderPanel(); } return 0; }
     const gen = { mlType: 'kop', mlFloors: m.levels }, G = (rs: XY[][]) => rs.map(r => r.map(fr.toGeo));
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, ...(b.parcelId ? { parcelGen: gen } : { label: { ...lab, gen } }),

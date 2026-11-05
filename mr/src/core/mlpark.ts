@@ -113,7 +113,7 @@ function floorPlan(L: number, W: number, nb: number, rl: number): { stalls: [num
  * Parsel halqasi (mahalliy metr) ichida koʻp qavatli avtoturargoh: eng katta toʻrtburchak (har qirra yoʻnalishida sinab), eni modulga
  * (pandus tasmasi + yoʻlak + joy = 18,8 m, keyin har qator 16,6 m) qisqartiriladi.
  */
-export function mlParking(ring: XY[], levels: number): MlPark | null {
+export function mlParking(ring: XY[], levels: number, land?: number): MlPark | null {
   const lv = Math.max(2, Math.min(5, Math.round(levels)));
   const rl = rampLen(), first = rampWidth() + ML.aisle + ML.stallL, bay = 2 * ML.stallL + ML.aisle, minL = 2 * ML.aisle + rl + (ML.coreStalls + 4) * ML.stallW;
   const ccw = signedArea(ring) > 0 ? ring : [...ring].reverse();
@@ -127,6 +127,19 @@ export function mlParking(ring: XY[], levels: number): MlPark | null {
     if (!best || n > best.n) best = { a, L, W, x0: b.x0, y0: b.y0 + (Wr - W) / 2, nb, n };
   }
   if (!best) return null;
+  // 05.11 (Rohat sinovi): 413-band — bir joyga yer uchastkasi need413(lv) m² dan kam boʻlmasin; bino qisqartiriladi (avval uzunlik, keyin qatorlar),
+  // boʻshagan yer — ochiq maydon / koʻkalam. Joylar soni yetmasa — ikkinchi avtoturargoh (qavat oshirish 413 ni buzadi)
+  const cap = land && land > 0 ? Math.floor(land / need413(lv)) : Infinity;
+  const tot = (L: number, W: number, nb: number) => { const n = floorPlan(L, W, nb, rl).stalls.length; return n * lv - ML.gateStalls; };
+  if (tot(best.L, best.W, best.nb) > cap) {
+    let fit: typeof best | null = null;
+    for (let nb = best.nb; nb >= 1 && !fit; nb--) {
+      const W = first + (nb - 1) * bay;
+      for (let L = best.L; L >= minL; L -= ML.stallW) { if (tot(L, W, nb) <= cap) { fit = { ...best, nb, W, L, x0: best.x0 + (best.L - L) / 2, y0: best.y0 + (best.W - W) / 2, n: 0 }; break; } }
+    }
+    if (!fit) return null;
+    best = fit;
+  }
   const { a, L, W, x0, y0, nb } = best, fp = floorPlan(L, W, nb, rl);
   const toW = (u: number, v: number): XY => { const p = rotP([x0 + u, y0 + v], a); return [p[0], p[1]]; };
   const rect = (q: [number, number, number, number]): XY[] => [toW(q[0], q[1]), toW(q[2], q[1]), toW(q[2], q[3]), toW(q[0], q[3])];
