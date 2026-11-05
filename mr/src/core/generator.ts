@@ -17,7 +17,8 @@ import { lowriseBlock } from './lowrise';
 import { logiLayout } from './logigen';
 import { openRing, despike } from './offset';
 import { kyOf } from './setback';
-import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule, type Obstacle } from './parking';
+import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule } from './parking';
+import { t30Need, COL_MAX, CAP_COL_NAME } from './mlpark';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator' | 'ombor';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo' | 'arka';
@@ -1041,12 +1042,19 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
   } else {
     // yer usti: binolardan bufer (turar — 10 m, boshqa — 3 m); joylar va boʻlaklar hovlining koʻpi bilan 35 % ida, savdo markazida — butun hovli
     const ground = r.sections.filter(s => !s.z0 && !(s.kind === 'stilobat' && s.use === 'avtoturargoh'));
-    const obs: Obstacle[] = ground.map(s => ({ ring: s.ring, buf: (s.use ?? opts.use ?? 'turar') === 'turar' || s.use === 'aralash' ? 10 : 3 }));
-    const L = layoutStalls(A, obs, mod);
+    // 06.11 (c55): bufer — ShNQ 2.07.01-23, 418-band, 30-jadval: sigʻim ustuni (≤ 10 / 11–50 / 51–100 / 101–300 / > 300) boʻyicha;
+    // kichik ustundan boshlab: ustun toʻlsa — keyingisi (masofa oshadi, joy kamayadi), toʻlmasa — kattarogʻi foyda bermaydi
     const free = Math.max(0, aOf(A) - ground.reduce((s, x) => s + aOf(x.ring), 0));
     const cap = t === 'savdo_blok' ? Infinity : Math.floor(free * 0.35 / stallGross(mod));
-    const n = Math.min(L.n, cap, norm ? Math.max(need, 0) : Infinity);
+    const want = Math.min(cap, norm ? Math.max(need, 0) : Infinity);
+    const bufOf = (s: GenSection, c: number) => { const u = s.use ?? opts.use ?? 'turar', n = t30Need(u, u === 'turar' || u === 'aralash', c); return n == null ? 3 : n + 0.5; };
+    let L = layoutStalls(A, ground.map(s => ({ ring: s.ring, buf: bufOf(s, 0) })), mod), n = Math.min(L.n, want, COL_MAX[0]), col = 0;
+    for (let c = 1; c < COL_MAX.length && n >= COL_MAX[c - 1] && want > COL_MAX[c - 1]; c++) {
+      const Lc = layoutStalls(A, ground.map(s => ({ ring: s.ring, buf: bufOf(s, c) })), mod), nc = Math.min(Lc.n, want, COL_MAX[c]);
+      if (nc > n) { L = Lc; n = nc; col = c; } else break;
+    }
     const K = trimStalls(L, n, A);
+    if (K.n && want > K.n && n === COL_MAX[col]) r.notes.push(`30-jadval (418-band): ochiq avtoturargoh ${CAP_COL_NAME[col]} joy guruhi boʻyicha binolardan meʼyoriy masofada joylandi; kattaroq guruh uchun masofa oshadi va hovliga sigʻmaydi`);
     if (!K.n) { r.notes.push('Yer usti avtoturargoh uchun hovlida joy yoʻq — yer osti variantini tanlang'); return null; }
     // #25: boʻlaklar bir-biriga va koʻchaga (kvartal chegarasi) ulanadi
     const acc = parkAccess(K, A, ground.map(s => s.ring));

@@ -54,7 +54,7 @@ import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, sb79Applies, edgeHeights, type AutoSetback, type EdgeKind } from '../core/setback';
 import { DEFAULT_GEN, UG_STREET, UG_SIDE, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
-import { mlParking, need413, pct5, ML, OPEN_413 } from '../core/mlpark';
+import { mlParking, need413, pct5, ML, OPEN_413, trimT30, ringDist, type T30Obs } from '../core/mlpark';
 import { autoEntries, entryReport, hasEntryRules, isUg } from '../core/parkenv';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
@@ -2310,6 +2310,24 @@ export class Editor {
       const inBelt = doc.buildings.filter(b => hits([b.footprint.map(fr.toLocal)])).length;
       this.selBlock = null; this.scene.selectBlock(null);
       toast(tf('${n} ta daraxt-buta tasmasi parseli ajratildi (SanPiN 0350-17, 2.19)', { n }) + (inBelt ? ' ' + tf('Tasmaga ${m} ta bino tushadi — ularni koʻchiring yoki olib tashlang.', { m: inBelt }) : ''));
+    } else if (id === 'park-30') {
+      // 06.11 (c55): ShNQ 2.07.01-23, 418-band, 30-jadval — ochiq avtoturargohning masofani buzayotgan joylari olib tashlanadi
+      const plan = computePlan(doc), gs = doc.garages.filter(g => g.kind === 'yer_usti' && !g.truck && (g.stalls?.length ?? 0) > 0);
+      let cut = 0, left = 0;
+      this.run(() => {
+        for (const g of gs) {
+          const st = g.stalls!.map(q => q.map(fr.toLocal));
+          const obs: T30Obs[] = [
+            ...doc.buildings.filter(b => b.use !== 'avtoturargoh').map(b => ({ ring: b.footprint.map(fr.toLocal), use: b.use, res: useDef(b.use).res > 0 })),
+            ...plan.blocks.filter(k => k.use === 'maktab' || k.use === 'mtm').map(k => ({ ring: k.rings[0], use: k.use, res: false, terr: true })),
+          ];
+          const keep = trimT30(st, obs); if (keep.length === st.length) continue;
+          const kept = keep.map(i => st[i]), ais = (g.aisles ?? []).map(q => q.map(fr.toLocal)).filter(a => kept.some(q => ringDist(q, a) < 1));
+          cut += st.length - keep.length; left += keep.length;
+          this.store.dispatch({ type: 'updateGarage', id: g.id, patch: { stalls: kept.map(q => q.map(fr.toGeo)), aisles: ais.map(q => q.map(fr.toGeo)), spaces: keep.length } });
+        }
+      });
+      toast(cut ? tf('30-jadval: ${n} ta joy olib tashlandi, ${m} ta qoldi — yetishmagan joylar 29-jadval qoidasida (yer osti yoki koʻp qavatli avtoturargoh)', { n: cut, m: left }) : tr('Olib tashlanadigan joy topilmadi — masofani binolarni surib tuzating'));
     } else if (id === 'play-ug') {
       // 05.11: ShNQ 2.07.01-23, 92-band — yer usti avtoturargohlarini yer osti qilish: hovli boʻshaydi, maydonchalar uning tomida
       const gs = doc.garages.filter(g => g.kind === 'yer_usti' && !g.truck && (g.stalls?.length ?? 0) > 0);

@@ -143,3 +143,35 @@ export function mlParking(ring: XY[], levels: number): MlPark | null {
 export function ringDist(a: XY[], b: XY[]): number {
   let d = Infinity; for (const p of a) d = Math.min(d, edgeD(p, b)); for (const p of b) d = Math.min(d, edgeD(p, a)); return d;
 }
+
+/** 30-jadval sigʻim ustunining yuqori chegarasi (≤ 10, 11–50, 51–100, 101–300, > 300) */
+export const COL_MAX = [10, 50, 100, 300, Infinity] as const;
+/** 30-jadvaldagi «жамоат бинолари» (park-30 qoidasi bilan bir xil roʻyxat) */
+export const PUB30 = new Set(['maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona', 'sport', 'aralash']);
+/**
+ * 06.11 (c55): ochiq avtoturargoh joylaridan binogacha talab qilinadigan masofa, m — 30-jadval, sigʻim ustuni c.
+ * Turar joy — «олд томонидан» (derazasiz yon tomon modelda aniqlanmaydi — qattiqroq qiymat, TALQIN);
+ * maktab/MTM binosi — «мактаблар, таълим ташкилотлари» (hudud oʻrniga bino — TALQIN; «–» > 300 — 101–300 qiymati, TALQIN);
+ * boshqa jamoat binolari — «жамоат бинолари». null — 30-jadvalga kirmaydi.
+ */
+export function t30Need(use: string, res: boolean, c: number): number | null {
+  if (res) return T30.front[c];
+  if (use === 'maktab' || use === 'mtm') return T30.school[c] ?? T30.school[3];
+  if (PUB30.has(use)) return T30.pub[c];
+  return null;
+}
+export interface T30Obs { ring: XY[]; use: string; res: boolean; /** maktab/MTM hududi (kvartal) — school ustuni */ terr?: boolean }
+/**
+ * 30-jadvalni buzayotgan joylarni olib tashlash. Har sigʻim ustuni c uchun: shu ustun masofasini bajaradigan joylar, koʻpi bilan
+ * ustun chegarasicha (binolardan eng uzoqlari qoladi); eng koʻp joy qoladigan ustun tanlanadi. Natija — qoladigan joylar indekslari.
+ */
+export function trimT30(stalls: XY[][], obs: T30Obs[]): number[] {
+  const near = (i: number, c: number) => Math.min(...obs.map(o => { const n = o.terr ? T30.school[c] ?? T30.school[3] : t30Need(o.use, o.res, c); return n == null ? Infinity : ringDist(stalls[i], o.ring) - n; }));
+  let best: number[] = [];
+  for (let c = 0; c < COL_MAX.length; c++) {
+    const ok = stalls.map((_, i) => ({ i, m: near(i, c) })).filter(x => x.m >= -0.3).sort((a, b) => b.m - a.m);
+    const pick = ok.slice(0, Math.min(ok.length, COL_MAX[c])).map(x => x.i);
+    if (pick.length > best.length) best = pick;
+  }
+  return best.sort((a, b) => a - b);
+}
