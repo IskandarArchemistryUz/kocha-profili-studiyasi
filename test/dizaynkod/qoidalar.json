@@ -1,0 +1,210 @@
+{
+  "manba": {
+    "hujjat": "Xalq deputatlari Toshkent shahar Kengashining qarori",
+    "raqam": "VII-19-17-14-0-K/26",
+    "sana": "2026-02-17",
+    "ilova": "2-ilova, P2.3 «Tijorat obyektlari uchun shahar dizayni elementlarini joylashtirish qoidalari»",
+    "fayl": "D:\\Work\\normalar\\VII-19-17-14-0-K_26 dizayn kod.pdf",
+    "izoh": "Raqamlar asl matndan. Matnda zona raqamlari ikki joyda farq qiladi: 1-ilova U5=piyoda, U6=maydon, U7=TPU; P2.3 jadvallarida U6=piyoda, U7=maydon. Bu faylda 1-ilova tipologiyasi asos; jadval havolalari shunga moslangan. «Y1-2» xatolari U1-2 deb oʻqilgan."
+  },
+  "zonalar": {
+    "U1": "Markaziy koʻcha, transport faolligi past (2–4 tasma)",
+    "U2": "Markaziy koʻcha, transport faolligi yuqori (5–8 tasma)",
+    "U3": "Periferik koʻcha, past (2–4 tasma)",
+    "U4": "Periferik koʻcha, yuqori (5–8 tasma)",
+    "U5": "Piyodalar koʻchasi",
+    "U6": "Shahar maydoni",
+    "U7": "Transport almashish tuguni (TPU)",
+    "M": "Mahalla (M1–M8)",
+    "O": "Jamoat obyektlari (O1–O4; O4 = savdo markazi)",
+    "P": "Dam olish majmualari (P1–P5)"
+  },
+  "sinflar": {
+    "A": "Peshlavha (yozuv, vyveska)",
+    "B": "Oyna, vitrina, eshik, markiza",
+    "C": "Reklama konstruksiyasi"
+  },
+  "turlar": {
+    "A1": {"nom": "Devor yozuvi: poydevorsiz hajmli harflar", "band": "2.4.2"},
+    "A2": {"nom": "Devor yozuvi: poydevorli (substratdagi harflar)", "band": "2.4.3"},
+    "A3": {"nom": "Kirish guruhi soyaboni (visor) ustidagi yozuv", "band": "2.4.4"},
+    "A4": {"nom": "Fasad yuqori qismi / tom yozuvi (faqat O1–O4)", "band": "2.4.5"},
+    "A5": {"nom": "Konsol paneli", "band": "2.4.6"},
+    "A6": {"nom": "Axborot lavhasi (maʼlumot plitasi)", "band": "2.4.7"},
+    "A7": {"nom": "Stend va stela (faqat O1–O4)", "band": "2.4.8"},
+    "B1": {"nom": "Vitrina va eshik bezagi", "band": "2.4.9"},
+    "B2": {"nom": "Deraza markizasi", "band": "2.4.10"},
+    "B3": {"nom": "Aksiya stikeri (vaqtinchalik okleyka)", "band": "6.5.6"},
+    "C": {"nom": "Statsionar reklama konstruksiyasi (5.3 tipologiyasi)", "band": "5.3, 5.4"}
+  },
+  "olchov_turlari": {
+    "kamera": "geometriya — kameradan oʻlchanadi",
+    "surat": "rang, yoritish turi, material — suratdan, foydalanuvchi tasdiqlaydi",
+    "savol": "kelishuv, muddat, roʻyxat — foydalanuvchidan soʻraladi",
+    "hisob": "boshqa oʻlchovlardan hisoblanadi (nisbat, maydon ulushi)"
+  },
+  "holatlar": ["majburiy", "tavsiya", "kelishuv_bilan"],
+
+  "umumiy_qoidalar": [
+    {"id": "A.2.4.1.maydon", "sinf": "A", "tur": "*", "zona": ["*"], "parametr": "fasaddagi_barcha_belgilar_maydoni_foiz", "max": 20, "birlik": "%", "band": "2.4.1", "holat": "majburiy", "olchov": "hisob", "matn": "Fasaddagi barcha belgilarning umumiy maydoni fasad maydonining 20 % dan oshmasligi kerak"},
+    {"id": "A.2.4.1.soni", "sinf": "A", "tur": "*", "zona": ["*"], "parametr": "tashkilotga_belgilar_soni", "max_asosiy": 1, "max_qoshimcha": 1, "band": "2.4.1", "holat": "majburiy", "olchov": "savol", "matn": "Har tashkilotga 1 asosiy (eshik/visor/tom) + 1 qoʻshimcha (lavha, konsol yoki stela)"},
+    {"id": "A.2.4.1.oq", "sinf": "A", "tur": "*", "zona": ["*"], "parametr": "bir_jabhada_bir_oq", "band": "2.4.1", "holat": "majburiy", "olchov": "kamera", "matn": "Bir jabhada bir nechta ijarachi belgilari bitta gorizontal oʻqda boʻlishi kerak"},
+    {"id": "A.2.4.1.meros", "sinf": "A", "tur": "*", "zona": ["*"], "shart": "madaniy_meros=true", "ruxsat_turlar": ["A1"], "band": "2.4.1", "holat": "majburiy", "olchov": "savol", "matn": "Madaniy meros va tarixiy binolarda faqat poydevorsiz hajmli harflar; qalqon, quti, fon taqiqlanadi"},
+    {"id": "A.2.4.1.til", "sinf": "A", "tur": "*", "zona": ["*"], "parametr": "ozbek_matni_ulushi_foiz", "min": 60, "birlik": "%", "band": "2.4.1", "holat": "majburiy", "olchov": "surat", "matn": "Oʻzbek matni birinchi (yuqoridan/chapdan), umumiy hajmning ≥ 60 %; roʻyxatdan oʻtgan brend tarjimasiz qolishi mumkin"},
+    {"id": "A.2.4.1.reklama", "sinf": "A", "tur": "*", "zona": ["*"], "band": "2.4.1", "holat": "majburiy", "olchov": "savol", "matn": "Tipologiyaga kirmagan hamma narsa (ekran, yugurish chizigʻi, banner, stend) reklama konstruksiyasi sifatida 5-bob bilan tartibga solinadi → C sinf"}
+  ],
+
+  "qoidalar": [
+
+    {"id": "A1.U12.harf_h", "sinf": "A", "tur": "A1", "zona": ["U1","U2"], "parametr": "harf_balandligi", "min": 20, "max": 50, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.U12.harf_q", "sinf": "A", "tur": "A1", "zona": ["U1","U2"], "parametr": "harf_qalinligi", "min": 5, "max": 15, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.U12.uzunlik", "sinf": "A", "tur": "A1", "zona": ["U1","U2"], "parametr": "yozuv_uzunligi_fasad_foiz", "max": 60, "birlik": "%", "band": "2.4.2", "holat": "majburiy", "olchov": "hisob", "matn": "Bitta tijorat obyekti jabhasi kengligining 60 % dan oshmasligi kerak"},
+    {"id": "A1.U12.oraliq", "sinf": "A", "tur": "A1", "zona": ["U1","U2"], "parametr": "memoriy_elementdan_masofa", "min": 10, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera", "matn": "Eshik ustidagi meʼmoriy elementdan ≥ 10 sm va ikkinchi qavat boshidan ≥ 10 sm; elementlarni yopmaslik"},
+    {"id": "A1.U12.yoritish", "sinf": "A", "tur": "A1", "zona": ["U1","U2"], "parametr": "yorqinlik", "max": 100, "birlik": "kd/m²", "rang_harorati": [3000, 4000], "band": "2.4.2", "holat": "majburiy", "olchov": "surat", "matn": "Kontur yoki ichki, statik yoritish; miltillash taqiqlangan"},
+    {"id": "A1.U12.rang", "sinf": "A", "tur": "A1", "zona": ["U1","U2"], "parametr": "harf_rangi", "band": "2.4.2", "holat": "majburiy", "olchov": "surat", "matn": "Harf rangi jabhaga mos"},
+    {"id": "A1.U12.taqiq", "sinf": "A", "tur": "A1", "zona": ["U1","U2"], "parametr": "taqiqlar", "band": "2.4.2", "holat": "majburiy", "olchov": "savol", "matn": "Miltillovchi yoritish; takrorlanish; meʼmoriy elementlarni yopish; jabhadan tashqariga chiqish"},
+
+    {"id": "A1.U34.harf_h", "sinf": "A", "tur": "A1", "zona": ["U3","U4"], "parametr": "harf_balandligi", "min": 20, "max": 50, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera", "matn": "U1-2 ga oʻxshash"},
+    {"id": "A1.U34.harf_q", "sinf": "A", "tur": "A1", "zona": ["U3","U4"], "parametr": "harf_qalinligi", "min": 5, "max": 15, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.U34.uzunlik", "sinf": "A", "tur": "A1", "zona": ["U3","U4"], "parametr": "yozuv_uzunligi_fasad_foiz", "max": 60, "birlik": "%", "band": "2.4.2", "holat": "majburiy", "olchov": "hisob"},
+    {"id": "A1.U34.oraliq", "sinf": "A", "tur": "A1", "zona": ["U3","U4"], "parametr": "memoriy_elementdan_masofa", "min": 5, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera", "matn": "Ikkinchi qavat darajasida joylashtirishga ruxsat beriladi"},
+    {"id": "A1.U34.soni", "sinf": "A", "tur": "A1", "zona": ["U3","U4"], "parametr": "bir_jabhada_belgi_soni", "max": 1, "max_muassasaga": 2, "band": "2.4.2", "holat": "majburiy", "olchov": "savol", "matn": "Bitta jabhada 1 belgidan koʻp emas; muassasaga 2 belgiga ruxsat"},
+    {"id": "A1.U34.rang", "sinf": "A", "tur": "A1", "zona": ["U3","U4"], "parametr": "harf_rangi", "band": "2.4.2", "holat": "majburiy", "olchov": "surat", "matn": "Qarama-qarshi (kontrast) ranglar mumkin"},
+
+    {"id": "A1.U56.harf_h", "sinf": "A", "tur": "A1", "zona": ["U5","U6"], "parametr": "harf_balandligi", "min": 20, "max": 60, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera", "matn": "Jadvalda «U1 piyodalar koʻchasi va U7 shahar maydonlari» deb yozilgan"},
+    {"id": "A1.U56.boshqa", "sinf": "A", "tur": "A1", "zona": ["U5","U6"], "parametr": "boshqa", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera", "matn": "Qalinlik, uzunlik, joylashuv, hizalama — U3-4 ga oʻxshash"},
+
+    {"id": "A1.M.harf_h", "sinf": "A", "tur": "A1", "zona": ["M"], "parametr": "harf_balandligi", "min": 10, "max": 30, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.M.harf_q", "sinf": "A", "tur": "A1", "zona": ["M"], "parametr": "harf_qalinligi", "min": 10, "max": 20, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.M.yoritish", "sinf": "A", "tur": "A1", "zona": ["M"], "parametr": "yorqinlik", "max": 70, "birlik": "kd/m²", "band": "2.4.2", "holat": "tavsiya", "olchov": "surat", "matn": "Yoritish istalmagan; boʻlsa orqa yorugʻlik minimal, 70 kd/m² gacha"},
+    {"id": "A1.M.hizalama", "sinf": "A", "tur": "A1", "zona": ["M"], "parametr": "hizalama", "band": "2.4.2", "holat": "tavsiya", "olchov": "kamera", "matn": "Hizalama erkin boʻlishi mumkin, lekin bitta jabhada"},
+
+    {"id": "A1.O.harf_h", "sinf": "A", "tur": "A1", "zona": ["O"], "parametr": "harf_balandligi", "min": 20, "max": 70, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.O.harf_q", "sinf": "A", "tur": "A1", "zona": ["O"], "parametr": "harf_qalinligi", "min": 5, "max": 15, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.O.uzunlik", "sinf": "A", "tur": "A1", "zona": ["O"], "parametr": "yozuv_uzunligi_fasad_foiz", "max": 60, "birlik": "%", "band": "2.4.2", "holat": "majburiy", "olchov": "hisob"},
+    {"id": "A1.O.hizalama", "sinf": "A", "tur": "A1", "zona": ["O"], "parametr": "hizalama", "band": "2.4.2", "holat": "tavsiya", "olchov": "kamera", "matn": "Moslashuvchan hizalama, jabhaning umumiy uslubini saqlab"},
+
+    {"id": "A1.P.harf_h", "sinf": "A", "tur": "A1", "zona": ["P"], "parametr": "harf_balandligi", "min": 15, "max": 50, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A1.P.harf_q", "sinf": "A", "tur": "A1", "zona": ["P"], "parametr": "harf_qalinligi", "min": 5, "max": 15, "birlik": "sm", "band": "2.4.2", "holat": "majburiy", "olchov": "kamera"},
+
+    {"id": "A2.*.fon", "sinf": "A", "tur": "A2", "zona": ["*"], "parametr": "fon_rangi", "band": "2.4.3", "holat": "majburiy", "olchov": "surat", "matn": "Past toʻyingan ranglar, fasadga mos; bir binodagi obyektlar fon ranglari mos; fonning ichki yoritilishi taqiqlangan"},
+    {"id": "A2.*.yoritish", "sinf": "A", "tur": "A2", "zona": ["*"], "parametr": "yorqinlik", "max": 100, "birlik": "kd/m²", "rang_harorati": [3000, 4000], "band": "2.4.3", "holat": "majburiy", "olchov": "surat"},
+    {"id": "A2.U12.harf_h", "sinf": "A", "tur": "A2", "zona": ["U1","U2"], "parametr": "harf_balandligi", "min": 20, "max": 50, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.U12.harf_q", "sinf": "A", "tur": "A2", "zona": ["U1","U2"], "parametr": "harf_qalinligi", "min": 5, "max": 15, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.U12.uzunlik", "sinf": "A", "tur": "A2", "zona": ["U1","U2"], "parametr": "yozuv_uzunligi_fasad_foiz", "max": 60, "birlik": "%", "band": "2.4.3", "holat": "majburiy", "olchov": "hisob"},
+    {"id": "A2.U12.poydevor_h", "sinf": "A", "tur": "A2", "zona": ["U1","U2"], "parametr": "poydevor_balandligi", "max": 100, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.U12.oraliq", "sinf": "A", "tur": "A2", "zona": ["U1","U2"], "parametr": "memoriy_elementdan_masofa", "min": 5, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.U12.taqiq", "sinf": "A", "tur": "A2", "zona": ["U1","U2"], "parametr": "taqiqlar", "band": "2.4.3", "holat": "majburiy", "olchov": "savol", "matn": "Madaniy merosda taqiqlangan; miltillash; takrorlanish; bir-biri ustiga chiqish; fasaddan tashqarida va 1-qavat darajasidan boshqa joyda; banner"},
+    {"id": "A2.U34.poydevor_h", "sinf": "A", "tur": "A2", "zona": ["U3","U4"], "parametr": "poydevor_balandligi", "max": 120, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera", "matn": "Qolgani U1-2 ga oʻxshash; bir jabhada 1 belgi, muassasaga 2"},
+    {"id": "A2.U34.harf_h", "sinf": "A", "tur": "A2", "zona": ["U3","U4"], "parametr": "harf_balandligi", "min": 20, "max": 50, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.U56.taqiq", "sinf": "A", "tur": "A2", "zona": ["U5","U6"], "parametr": "taqiq", "band": "2.4.3", "holat": "majburiy", "olchov": "savol", "matn": "Piyoda koʻcha va maydonda poydevorli yozuv TAQIQLANGAN — faqat poydevorsiz hajmli harf (A1)"},
+    {"id": "A2.M.harf_h", "sinf": "A", "tur": "A2", "zona": ["M"], "parametr": "harf_balandligi", "min": 10, "max": 30, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.M.harf_q", "sinf": "A", "tur": "A2", "zona": ["M"], "parametr": "harf_qalinligi", "min": 10, "max": 20, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.O.harf_h", "sinf": "A", "tur": "A2", "zona": ["O"], "parametr": "harf_balandligi", "min": 20, "max": 70, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A2.P.harf_h", "sinf": "A", "tur": "A2", "zona": ["P"], "parametr": "harf_balandligi", "min": 15, "max": 50, "birlik": "sm", "band": "2.4.3", "holat": "majburiy", "olchov": "kamera"},
+
+    {"id": "A3.*.umumiy", "sinf": "A", "tur": "A3", "zona": ["*"], "parametr": "umumiy", "band": "2.4.4", "holat": "majburiy", "olchov": "savol", "matn": "Faqat fasad pasportida soyabon yechimi boʻlsa; asosan alohida harflar (lightbox); harf va logotip rangi neytral/oq/yorugʻ; ichki yoritish 100 kd/m², 3000–4000 K"},
+    {"id": "A3.U.harf_h", "sinf": "A", "tur": "A3", "zona": ["U1","U2","U3","U4","U5","U6","U7","P"], "parametr": "harf_balandligi", "min": 20, "max": 50, "birlik": "sm", "band": "2.4.4", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A3.U.harf_q", "sinf": "A", "tur": "A3", "zona": ["U1","U2","U3","U4","U5","U6","U7","P"], "parametr": "harf_qalinligi", "min": 5, "max": 15, "birlik": "sm", "band": "2.4.4", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A3.U.uzunlik", "sinf": "A", "tur": "A3", "zona": ["U1","U2","U3","U4","U5","U6","U7","P"], "parametr": "yozuv_uzunligi_visor_foiz", "max": 70, "birlik": "%", "band": "2.4.4", "holat": "majburiy", "olchov": "hisob", "matn": "Bitta obyekt visori kengligining 70 % dan oshmaydi"},
+    {"id": "A3.U.oyna_masofa", "sinf": "A", "tur": "A3", "zona": ["U1","U2","U3","U4","U5","U6","U7","P"], "parametr": "ikkinchi_qavat_oynasidan_masofa", "min": 40, "birlik": "sm", "band": "2.4.4", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A3.U.poydevor", "sinf": "A", "tur": "A3", "zona": ["U1","U2","U3","U4","U5","U6","U7","P"], "parametr": "poydevor", "band": "2.4.4", "holat": "majburiy", "olchov": "surat", "matn": "Faqat poydevorsiz hajmli harflar; istisno — bino pasporti boʻyicha; obyekt pasportida asl boʻlmagan binolarda taqiqlangan"},
+    {"id": "A3.M.harf_h", "sinf": "A", "tur": "A3", "zona": ["M"], "parametr": "harf_balandligi", "min": 10, "max": 30, "birlik": "sm", "band": "2.4.4", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A3.M.harf_q", "sinf": "A", "tur": "A3", "zona": ["M"], "parametr": "harf_qalinligi", "min": 10, "max": 20, "birlik": "sm", "band": "2.4.4", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A3.O.harf_h", "sinf": "A", "tur": "A3", "zona": ["O"], "parametr": "harf_balandligi", "min": 20, "max": 70, "birlik": "sm", "band": "2.4.4", "holat": "majburiy", "olchov": "kamera"},
+
+    {"id": "A4.O.ruxsat", "sinf": "A", "tur": "A4", "zona": ["O"], "parametr": "ruxsat", "band": "2.4.5", "holat": "majburiy", "olchov": "savol", "matn": "Faqat O1–O4 jamoat binolari; turar joy jabhasida taqiqlangan (fasad pasportida boʻlsa istisno)"},
+    {"id": "A4.O.maydon", "sinf": "A", "tur": "A4", "zona": ["O"], "parametr": "belgi_maydoni_fasad_foiz", "max": 10, "birlik": "%", "band": "2.4.5", "holat": "majburiy", "olchov": "hisob", "matn": "Bitta katta belgi, jabhaning 10 % dan koʻp emas"},
+    {"id": "A4.O4.langar_h", "sinf": "A", "tur": "A4", "zona": ["O4"], "parametr": "langar_belgi_balandligi", "min": 50, "max": 150, "birlik": "sm", "band": "2.4.5", "holat": "majburiy", "olchov": "kamera", "matn": "Savdo markazi langar ijarachisi"},
+    {"id": "A4.O4.langar_w", "sinf": "A", "tur": "A4", "zona": ["O4"], "parametr": "langar_belgi_kengligi_fasad_foiz", "max": 70, "birlik": "%", "band": "2.4.5", "holat": "majburiy", "olchov": "hisob"},
+    {"id": "A4.O4.langar_oraliq", "sinf": "A", "tur": "A4", "zona": ["O4"], "parametr": "memoriy_elementdan_masofa", "min": 30, "birlik": "sm", "band": "2.4.5", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A4.O4.langar_q", "sinf": "A", "tur": "A4", "zona": ["O4"], "parametr": "harf_qalinligi", "min": 10, "max": 30, "birlik": "sm", "band": "2.4.5", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A4.O4.langar_masofa", "sinf": "A", "tur": "A4", "zona": ["O4"], "parametr": "belgilar_orasidagi_masofa", "min": 150, "birlik": "sm", "band": "2.4.5", "holat": "majburiy", "olchov": "kamera", "matn": "Langar belgilari orasida 1,5–2 m"},
+    {"id": "A4.O4.qavat", "sinf": "A", "tur": "A4", "zona": ["O4"], "parametr": "belgi_balandligi_qavat_boyicha", "jadval": {"1": {"langar": [80,120], "tom": [100,150]}, "2": {"langar": [120,150], "tom": [150,200]}, "3-4": {"langar": [150,200], "tom": [200,250]}, "4+": {"langar": [200,250], "tom": [250,300], "max_fasad_foiz": 10}}, "birlik": "sm", "band": "2.4.5", "holat": "majburiy", "olchov": "kamera"},
+
+    {"id": "A5.*.umumiy", "sinf": "A", "tur": "A5", "zona": ["*"], "parametr": "umumiy", "band": "2.4.6", "holat": "majburiy", "olchov": "surat", "matn": "Ikki tomonlama ichki yoritishli lightbox (boshqa yechim — hokimlik bilan kelishib); fon bitta rang; 100 kd/m², 3000–4000 K"},
+    {"id": "A5.*.taqiq", "sinf": "A", "tur": "A5", "zona": ["*"], "parametr": "taqiqlar", "band": "2.4.6", "holat": "majburiy", "olchov": "savol", "matn": "Miltillash; notekis yorugʻlik; tashkilotga 1 konsol; meʼmoriy elementni yopish; 2-qavat yoki podval oynasi darajasida joylashtirish"},
+    {"id": "A5.U.balandlik", "sinf": "A", "tur": "A5", "zona": ["U1","U2","U3","U4","U5","U6"], "parametr": "panel_balandligi", "min": 20, "max": 40, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A5.U.uzunlik", "sinf": "A", "tur": "A5", "zona": ["U1","U2","U3","U4","U5","U6"], "parametr": "panel_uzunligi", "min": 20, "max": 40, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A5.U7.olcham", "sinf": "A", "tur": "A5", "zona": ["U7"], "parametr": "panel_olchami", "max": 60, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera", "matn": "TPU uchun 60×60 sm gacha"},
+    {"id": "A5.U.burchak", "sinf": "A", "tur": "A5", "zona": ["U1","U2","U3","U4","U5","U6","U7"], "parametr": "bino_burchagidan_masofa", "min": 50, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A5.U.oraliq", "sinf": "A", "tur": "A5", "zona": ["U1","U2","U3","U4","U5","U6","U7"], "parametr": "konsollar_orasidagi_masofa", "min": 1000, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera", "matn": "Bitta jabhada konsol panellari orasi ≥ 10 m"},
+    {"id": "A5.U.joy", "sinf": "A", "tur": "A5", "zona": ["U1","U2","U3","U4","U5","U6","U7"], "parametr": "joylashuv", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera", "matn": "Kirish ustidagi belgi darajasida, bitta oʻqda; meʼmoriy elementdan 5 sm, 2-qavat boshidan 5 sm"},
+    {"id": "A5.M.balandlik", "sinf": "A", "tur": "A5", "zona": ["M"], "parametr": "panel_balandligi", "min": 15, "max": 30, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A5.M.qavs", "sinf": "A", "tur": "A5", "zona": ["M"], "parametr": "qavs_uzunligi", "min": 15, "max": 30, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera", "matn": "Hizalama erkin, kirish guruhi bilan markazlashtirilgan"},
+    {"id": "A5.O.balandlik", "sinf": "A", "tur": "A5", "zona": ["O"], "parametr": "panel_balandligi", "min": 20, "max": 50, "birlik": "sm", "band": "2.4.6", "holat": "majburiy", "olchov": "kamera", "matn": "Uzunligi 20 sm dan"},
+
+    {"id": "A6.U12.balandlik", "sinf": "A", "tur": "A6", "zona": ["U1","U2"], "parametr": "lavha_balandligi", "min": 10, "max": 30, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.U12.kenglik", "sinf": "A", "tur": "A6", "zona": ["U1","U2"], "parametr": "lavha_kengligi", "min": 10, "max": 40, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.U12.joy", "sinf": "A", "tur": "A6", "zona": ["U1","U2"], "parametr": "joylashuv", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera", "matn": "Eshik yonida koʻz darajasida; eshikdan 100 mm; qoplama (trotuar) yuqori darajasidan 1200 mm"},
+    {"id": "A6.U12.yoritish", "sinf": "A", "tur": "A6", "zona": ["U1","U2"], "parametr": "yorqinlik", "max": 70, "birlik": "kd/m²", "rang_harorati": [3000, 4000], "band": "2.4.7", "holat": "majburiy", "olchov": "surat"},
+    {"id": "A6.U34.balandlik", "sinf": "A", "tur": "A6", "zona": ["U3","U4"], "parametr": "lavha_balandligi", "min": 10, "max": 20, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.U34.kenglik", "sinf": "A", "tur": "A6", "zona": ["U3","U4"], "parametr": "lavha_kengligi", "min": 10, "max": 30, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.U56.balandlik", "sinf": "A", "tur": "A6", "zona": ["U5","U6"], "parametr": "lavha_balandligi", "min": 10, "max": 40, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.U56.kenglik", "sinf": "A", "tur": "A6", "zona": ["U5","U6"], "parametr": "lavha_kengligi", "min": 10, "max": 50, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.M.balandlik", "sinf": "A", "tur": "A6", "zona": ["M"], "parametr": "lavha_balandligi", "min": 10, "max": 15, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.M.kenglik", "sinf": "A", "tur": "A6", "zona": ["M"], "parametr": "lavha_kengligi", "min": 10, "max": 25, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "A6.O.balandlik", "sinf": "A", "tur": "A6", "zona": ["O"], "parametr": "lavha_balandligi", "min": 10, "max": 50, "birlik": "sm", "band": "2.4.7", "holat": "majburiy", "olchov": "kamera"},
+
+    {"id": "B1.*.plyonka", "sinf": "B", "tur": "B1", "zona": ["*"], "parametr": "shaffof_bolmagan_plyonka_foiz", "max": 30, "birlik": "%", "band": "2.4.9", "holat": "majburiy", "olchov": "kamera", "matn": "Har oyna / shaffof eshik maydonining 30 % dan oshmasligi kerak (translyutsent, matlashgan plyonka istisno)"},
+    {"id": "B1.*.tavsif", "sinf": "B", "tur": "B1", "zona": ["*"], "parametr": "xizmat_tavsifi_foiz", "max": 20, "birlik": "%", "band": "2.4.9", "holat": "majburiy", "olchov": "kamera", "matn": "Asosiy xizmat/mahsulot tavsifi — har shaffof element maydonining 20 % gacha"},
+    {"id": "B1.*.eshik_logo", "sinf": "B", "tur": "B1", "zona": ["*"], "parametr": "eshik_logotip_foiz", "max": 10, "birlik": "%", "band": "2.4.9", "holat": "majburiy", "olchov": "kamera", "matn": "Kompaniya logotipi eshik shaffof yuzasining 10 % gacha"},
+    {"id": "B1.*.eshik_blok", "sinf": "B", "tur": "B1", "zona": ["*"], "parametr": "malumot_bloki", "max_w": 60, "max_h": 90, "balandlik_oraligi": [120, 220], "birlik": "sm", "band": "2.4.9", "holat": "majburiy", "olchov": "kamera", "matn": "Ish vaqti/kontakt bloki ≤ 60×90 sm; trotuardan 1,2–2,2 m oraligʻida"},
+    {"id": "B1.*.matn_h", "sinf": "B", "tur": "B1", "zona": ["*"], "parametr": "matn_trotuardan_balandligi", "min": 100, "birlik": "sm", "band": "2.4.9", "holat": "majburiy", "olchov": "kamera", "matn": "Matnli maʼlumot trotuardan ≥ 1000 mm"},
+    {"id": "B1.*.mazmun", "sinf": "B", "tur": "B1", "zona": ["*"], "parametr": "mazmun", "band": "2.4.9", "holat": "majburiy", "olchov": "savol", "matn": "Faoliyatga aloqasiz maʼlumot taqiqlangan; aksident shrift taqiqlangan; yorqin ranglar (brend istisno) taqiqlangan; vitrina ichi tartibga solinmaydi"},
+    {"id": "B1.*.material", "sinf": "B", "tur": "B1", "zona": ["*"], "parametr": "material", "band": "2.4.9", "holat": "tavsiya", "olchov": "savol", "matn": "Vinil plyonka 50–150 mkm, ≥ 3 yil; banner matosi va qogʻoz tavsiya etilmaydi"},
+
+    {"id": "B2.*.chiqish", "sinf": "B", "tur": "B2", "zona": ["*"], "parametr": "markiza_chiqishi", "max": 150, "birlik": "sm", "band": "2.4.10", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "B2.*.kenglik", "sinf": "B", "tur": "B2", "zona": ["*"], "parametr": "markiza_kengligi", "band": "2.4.10", "holat": "majburiy", "olchov": "kamera", "matn": "Oyna proyomi yoki kirish zonasi chegarasi doirasida"},
+    {"id": "B2.*.yopish", "sinf": "B", "tur": "B2", "zona": ["*"], "parametr": "oynani_yopish_foiz", "max": 30, "birlik": "%", "band": "2.4.10", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "B2.*.logo", "sinf": "B", "tur": "B2", "zona": ["*"], "parametr": "logotip_foiz", "max": 20, "birlik": "%", "band": "2.4.10", "holat": "majburiy", "olchov": "kamera"},
+    {"id": "B2.*.rang", "sinf": "B", "tur": "B2", "zona": ["*"], "parametr": "ranglar_soni", "max": 2, "band": "2.4.10", "holat": "majburiy", "olchov": "surat", "matn": "Bir rangli neytral — kelishuvsiz; yorqin/naqshli — kelishuv bilan; ≥ 3 rang taqiqlangan"},
+    {"id": "B2.*.taqiq", "sinf": "B", "tur": "B2", "zona": ["*"], "parametr": "taqiqlar", "band": "2.4.10", "holat": "majburiy", "olchov": "savol", "matn": "Yoritishli markiza; bezak elementlariga mahkamlash; markizada reklama; bir fasadda turli oʻlchamdagi markizalar"},
+
+    {"id": "B3.*.muddat", "sinf": "B", "tur": "B3", "zona": ["*"], "parametr": "muddat", "max_ketma_ket_oy": 2, "max_yillik_oy": 4, "band": "6.5.6", "holat": "majburiy", "olchov": "savol", "matn": "Aksiya stikeri — ketma-ket ≤ 2 oy, yiliga ≤ 4 oy"},
+    {"id": "B3.*.plyonka", "sinf": "B", "tur": "B3", "zona": ["*"], "parametr": "stiker_maydoni_foiz", "max": 40, "birlik": "%", "band": "6.5.6", "holat": "majburiy", "olchov": "kamera", "matn": "Opaq boʻlmagan plyonka bilan yopish — umumiy maydonning 40 % gacha"},
+    {"id": "B3.*.matn", "sinf": "B", "tur": "B3", "zona": ["*"], "parametr": "aksiya_matni_foiz", "max": 10, "birlik": "%", "band": "6.5.6", "holat": "majburiy", "olchov": "kamera", "matn": "Maxsus taklif matni — har shaffof element maydonining 10 % gacha"},
+    {"id": "B3.*.mazmun", "sinf": "B", "tur": "B3", "zona": ["*"], "parametr": "mazmun", "band": "6.5.6", "holat": "majburiy", "olchov": "savol", "matn": "Narx va mahsulot xususiyati taqiqlangan; faoliyatga aloqasiz maʼlumot taqiqlangan"},
+
+    {"id": "C.5.3.tipologiya", "sinf": "C", "tur": "C", "zona": ["*"], "parametr": "konstruksiya_gabariti", "band": "5.3", "holat": "majburiy", "olchov": "kamera", "jadval": [
+      {"n": 1, "nom": "City-format", "w": 1.2, "h": 1.8, "toifa": "kichik", "joy": "piyoda zonasi buferi"},
+      {"n": 2, "nom": "Ustunli City-format", "w": 1.2, "h": 1.8, "toifa": "kichik", "joy": "piyoda zonasi buferi"},
+      {"n": 3, "nom": "Axborot koʻrsatgichi", "w": 1.1, "h": 1.8, "toifa": "kichik", "joy": "piyoda zonasi buferi"},
+      {"n": 4, "nom": "Pilon", "w": 1.4, "h": 2.8, "toifa": "kichik", "joy": "piyoda zonasi buferi"},
+      {"n": 5, "nom": "Burchakli pilon", "w": 1.4, "h": 3.0, "toifa": "afisha", "joy": "piyoda yoʻlagi"},
+      {"n": 6, "nom": "Aylana pilon", "w": 2.3, "h": 4.7, "toifa": "afisha", "joy": "piyoda yoʻlagi"},
+      {"n": 7, "nom": "Koʻrgazma stendi", "w": 1.8, "h": 1.75, "toifa": "afisha", "joy": "piyoda yoʻlagi", "izoh": "yoki 1,5×1,5"},
+      {"n": 8, "nom": "Axborot stendi", "w": 4, "h": 2, "toifa": "katta", "joy": "piyoda zonasi buferi"},
+      {"n": 9, "nom": "City-format-plus", "w": 2, "h": 4, "toifa": "katta", "joy": "piyoda zonasi buferi"},
+      {"n": 10, "nom": "Senior", "w": 4, "h": 3, "toifa": "katta", "joy": "maxsus ajratilgan hudud"},
+      {"n": 11, "nom": "Billbord", "w": 6, "h": 3, "toifa": "katta", "joy": "maxsus ajratilgan hudud"},
+      {"n": 12, "nom": "Billbord-plus", "w": 8, "h": 4, "toifa": "katta", "joy": "maxsus ajratilgan hudud"},
+      {"n": 13, "nom": "Supersayt", "w": 10, "h": 5, "toifa": "katta", "joy": "maxsus ajratilgan hudud"},
+      {"n": 14, "nom": "Stela", "h": [3, 15], "toifa": "maxsus", "joy": "tijorat obyekti hududi chegarasida"},
+      {"n": 15, "nom": "Brandmauer", "gabarit": "loyiha boʻyicha", "toifa": "maxsus", "joy": "oynasiz fasad"},
+      {"n": 16, "nom": "Tom usti konstruksiyasi", "gabarit": "loyiha boʻyicha", "toifa": "maxsus", "joy": "koʻp qavatli ommaviy bino tomi"},
+      {"n": 17, "nom": "Mediaekran", "gabarit": "loyiha boʻyicha", "toifa": "maxsus", "joy": "ommaviy bino fasadi"},
+      {"n": 18, "nom": "Bekatga integratsiyalangan City-format", "w": 1.2, "h": 1.8, "toifa": "bekat", "joy": "jamoat transporti bekati tarkibida"},
+      {"n": 19, "nom": "Bekatga integratsiyalangan axborot stendi", "gabarit": "loyiha boʻyicha", "toifa": "bekat", "joy": "bekat tarkibida"},
+      {"n": 20, "nom": "Bekatga integratsiyalangan konstruksiya", "gabarit": "loyiha boʻyicha", "toifa": "bekat", "joy": "bekat tarkibida"}
+    ], "birlik": "m", "matn": "5.4 bandda joylashuvga qarab ruxsat etilgan turlar beriladi — zona × tur matritsasi alohida kiritiladi"},
+
+    {"id": "C.6.5.5.ochilish", "sinf": "C", "tur": "C", "zona": ["*"], "parametr": "ochilish_bezagi", "max_kun": 14, "maydon_foiz": {"meros": 15, "oddiy": 20, "savdo_markazi": 25}, "band": "6.5.5", "holat": "majburiy", "olchov": "savol", "matn": "Ochilish bezagi ≤ 14 kun; «Biz ochiqmiz» banneri ≤ 1,5×0,5 m, 1 ta; logotipli shar va reklama banneri taqiqlangan"}
+  ],
+
+  "hujjatdagi_ziddiyatlar": [
+    "Zona raqamlari: 1-ilova U5/U6/U7 ≠ P2.3 jadvallari U6/U7 — tasdiqlash kerak",
+    "Mahalla: 1-ilovada M1–M5, P2.3 jadvallarida M1–M8",
+    "«Y1-2», «y1-2» — U1-2 ning xatosi",
+    "2.4.7 U3–U4 yoritish: «U1-2 ga oʻxshash tarzda taqiqlangan» — maʼnosi noaniq",
+    "2.4.2 U3–U4 va 2.4.3 U3–U4 jadvallari deyarli bir xil (nusxa?) — ikkalasida ham oraliq 5 sm",
+    "Ruscha tarjima izlari: «Uyingizda» = «на здании (tom/fasad tepasi)», «Hizalama» = выравнивание"
+  ],
+
+  "keyingi_etap": [
+    "5.4 — reklama konstruksiyasi zona × tur ruxsat matritsasi",
+    "2.4.8 stend/stela, 2.4.11 rang tavsiyalari",
+    "1-ilova zona chegaralari (OSM taxminiy → rasmiy sxema)",
+    "Madaniy meros roʻyxati"
+  ]
+}

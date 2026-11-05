@@ -1,0 +1,400 @@
+<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style></head><body><title>Dizayn-kod tekshiruv</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen mobile tool. Sticky step bar on top, scrolling body, fixed action bar at bottom.
+   Archemistry Lab tokens: Archivo + Plex Mono, black primary, yellow ground, blue selection. */
+:root{
+  --bg:#f6f4ee; --surface:#ffffff; --fg:#17181a; --muted:#6b6965; --line:#dcd8cf;
+  --accent:#f2c53d; --sel:#2458b8; --ok:#2b7449; --warn:#95620f; --bad:#b23a2e; --na:#8a8780;
+  --okbg:#e6f1ea; --warnbg:#f7eedb; --badbg:#f6e3e0; --nabg:#ecebe7;
+  --ff:"Archivo",system-ui,-apple-system,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#17181a; --surface:#212224; --fg:#f0eee8; --muted:#a39f97; --line:#363739;
+  --accent:#e4b935; --sel:#6f9bea; --ok:#6fbf8a; --warn:#d9a24a; --bad:#e1796c; --na:#8a8780;
+  --okbg:#1e2f26; --warnbg:#332a16; --badbg:#36201c; --nabg:#2a2b2c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17181a; --surface:#212224; --fg:#f0eee8; --muted:#a39f97; --line:#363739;
+  --accent:#e4b935; --sel:#6f9bea; --ok:#6fbf8a; --warn:#d9a24a; --bad:#e1796c; --na:#8a8780;
+  --okbg:#1e2f26; --warnbg:#332a16; --badbg:#36201c; --nabg:#2a2b2c; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--ff);font-size:15px;line-height:1.45;display:flex;flex-direction:column}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+*{box-sizing:border-box}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px 8px}
+.brand{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.brand h1{font-size:16px;font-weight:700;margin:0;letter-spacing:-.01em}
+.brand small{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.steps{display:flex;gap:4px;margin-top:8px}
+.steps span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps span.done{background:var(--fg)} .steps span.cur{background:var(--accent)}
+.stepname{font-size:12px;color:var(--muted);margin-top:6px;font-family:var(--mono)}
+main{flex:1;overflow-y:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 90px}
+section{display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto}
+h2{font-size:20px;font-weight:600;margin:0;text-wrap:balance;letter-spacing:-.01em}
+p{margin:0} .hint{color:var(--muted);font-size:13px}
+.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.opt{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 12px;cursor:pointer;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;gap:2px;min-width:0}
+.opt b{font-weight:600;font-size:14px} .opt small{color:var(--muted);font-size:12px}
+.opt[aria-pressed="true"]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
+.opt:focus-visible,.btn:focus-visible,button:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:600;font-size:14px;border-radius:var(--r);padding:11px 16px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer}
+.btn.sec{background:var(--surface);color:var(--fg);border-color:var(--line)}
+.btn.small{padding:7px 11px;font-size:13px;border-radius:9px}
+.btn[disabled]{opacity:.4;cursor:default}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12px;font-family:var(--mono);background:var(--nabg);color:var(--fg)}
+.chip.ok{background:var(--okbg);color:var(--ok)} .chip.bad{background:var(--badbg);color:var(--bad)} .chip.warn{background:var(--warnbg);color:var(--warn)} .chip.na{color:var(--na)}
+.toggle{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 12px}
+.toggle input{width:18px;height:18px;margin:0;accent-color:var(--fg)}
+.toggle span{flex:1;min-width:0}
+footer{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--bg);border-top:1px solid var(--line);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px calc(10px + env(safe-area-inset-bottom,0px))}
+footer .in{max-width:640px;margin:0 auto;display:flex;gap:8px;justify-content:space-between}
+/* canvas */
+.stage{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;max-width:100%}
+.stage canvas{display:block;width:100%;height:auto;touch-action:none;max-width:100%}
+.stage .empty{padding:40px 16px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.tools{display:flex;flex-direction:column;gap:6px}
+.tool{display:grid;grid-template-columns:22px 1fr auto auto;gap:8px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;min-width:0}
+.tool .sw{width:14px;height:14px;border-radius:3px}
+.tool .nm{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool .val{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.tool.active{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
+.tool input{width:72px;font:inherit;font-family:var(--mono);font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--fg)}
+/* verdict */
+.vl{display:flex;flex-direction:column;gap:6px}
+.v{display:grid;grid-template-columns:6px 1fr auto;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:10px;overflow:hidden;min-width:0}
+.v .bar{background:var(--na)} .v.ok .bar{background:var(--ok)} .v.bad .bar{background:var(--bad)} .v.warn .bar{background:var(--warn)}
+.v .body{padding:8px 0 8px 2px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.v .t{font-size:14px;font-weight:500} .v .m{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.v .q{padding:8px 10px;display:flex;gap:4px;align-items:center}
+.v .q button{font:inherit;font-size:12px;padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.v .q button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sum div{border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.sum b{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1} .sum small{font-size:11px;font-family:var(--mono)}
+.sum .ok{background:var(--okbg);color:var(--ok)} .sum .bad{background:var(--badbg);color:var(--bad)} .sum .na{background:var(--nabg);color:var(--na)}
+pre.rep{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:0;max-height:40vh;overflow:auto}
+.src{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.mode{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.mode button{flex:1;font:inherit;font-size:13px;padding:7px 10px;border:0;background:var(--surface);color:var(--fg);cursor:pointer}
+.mode button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+@media (prefers-reduced-motion:no-preference){.opt,.btn{transition:transform .1s}.opt:active,.btn:active{transform:scale(.97)}}
+</style>
+
+<header>
+  <div class="brand"><h1>Dizayn-kod tekshiruv</h1><small>VII-19-17-14-0-K/26 · prototip</small></div>
+  <div class="steps" id="steps"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="stepname" id="stepname"></div>
+</header>
+
+<main>
+<!-- 1 JOY -->
+<section id="s1">
+  <h2>Qayerda?</h2>
+  <p class="hint">Zona 1-ilova tipologiyasi boʻyicha. Rasmiy chegara sxemalari tuman meʼmorlaridan kelgunga qadar zonani oʻzingiz tanlaysiz.</p>
+  <div class="mode" role="group" aria-label="Rejim">
+    <button type="button" id="modeT" aria-pressed="true">Tadbirkor</button>
+    <button type="button" id="modeN" aria-pressed="false">Nazoratchi</button>
+  </div>
+  <div class="lbl">Zona</div>
+  <div class="grid" id="zones"></div>
+  <label class="toggle"><input type="checkbox" id="meros"><span><b>Madaniy meros / tarixiy bino</b><br><small class="hint">Faqat poydevorsiz hajmli harflarga ruxsat (2.4.1)</small></span></label>
+  <div class="lbl">Manzil (ixtiyoriy)</div>
+  <input id="addr" type="text" placeholder="Koʻcha, uy" style="font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--fg)">
+</section>
+
+<!-- 2 OBYEKT -->
+<section id="s2" hidden>
+  <h2>Nima tekshiriladi?</h2>
+  <div class="lbl">Sinf</div>
+  <div class="grid" id="classes"></div>
+  <div class="lbl">Tur</div>
+  <div class="grid" id="types"></div>
+  <p class="hint" id="typeHint"></p>
+</section>
+
+<!-- 3 SURAT -->
+<section id="s3">
+  <h2>Surat va oʻlchov</h2>
+  <p class="hint">Fasadni toʻgʻridan suratga oling. Avval maʼlum oʻlchamli narsani belgilang (eshik ≈ 210 sm, gʻisht qatori ≈ 7,5 sm), keyin har parametrni ikki bosish bilan chizing.</p>
+  <div class="row">
+    <button type="button" class="btn small" id="live">● Jonli kamera</button>
+    <button type="button" class="btn sec small" id="freeze" hidden>Muzlatish</button>
+    <label class="btn sec small" for="photo">Surat</label>
+    <input id="photo" type="file" accept="image/*" capture="environment" hidden>
+    <button type="button" class="btn sec small" id="clearAll">Tozalash</button>
+  </div>
+  <div class="stage" id="stage">
+    <div class="empty" id="empty"><span>Kamera yoki surat</span><small id="camNote">«Jonli kamera» — HTTPS manzilda ishlaydi; kamera ruxsatini bering</small></div>
+    <video id="vid" playsinline muted hidden></video>
+    <canvas id="cv" hidden></canvas>
+  </div>
+  <div class="lbl">Oʻlchovlar</div>
+  <div class="tools" id="tools"></div>
+</section>
+
+<!-- 4 HUKM -->
+<section id="s4" hidden>
+  <h2>Natija</h2>
+  <div class="sum" id="sum"></div>
+  <p class="hint">Kamera oʻlchay olmagan qoidalar savol sifatida beriladi. «Kelishuv» — hujjatda «vakolatli organ bilan kelishilgan holda» deb yozilgan holat.</p>
+  <div class="vl" id="verdicts"></div>
+</section>
+
+<!-- 5 HISOBOT -->
+<section id="s5" hidden>
+  <h2>Hisobot</h2>
+  <p class="hint" id="repHint"></p>
+  <pre class="rep" id="rep"></pre>
+  <div class="row"><button type="button" class="btn" id="copy">Nusxa olish</button><span class="src" id="copied"></span></div>
+  <p class="src">Manba: Xalq deputatlari Toshkent shahar Kengashining 2026-yil 17-fevraldagi VII-19-17-14-0-K/26-son qarori, 2-ilova, P2.3.</p>
+</section>
+</main>
+
+<footer><div class="in">
+  <button type="button" class="btn sec" id="back">Orqaga</button>
+  <button type="button" class="btn" id="next">Davom etish</button>
+</div></footer>
+
+<script id="rules" type="application/json">{"manba":{"hujjat":"Xalq deputatlari Toshkent shahar Kengashining qarori","raqam":"VII-19-17-14-0-K/26","sana":"2026-02-17","ilova":"2-ilova, P2.3 «Tijorat obyektlari uchun shahar dizayni elementlarini joylashtirish qoidalari»","fayl":"D:\\Work\\normalar\\VII-19-17-14-0-K_26 dizayn kod.pdf","izoh":"Raqamlar asl matndan. Matnda zona raqamlari ikki joyda farq qiladi: 1-ilova U5=piyoda, U6=maydon, U7=TPU; P2.3 jadvallarida U6=piyoda, U7=maydon. Bu faylda 1-ilova tipologiyasi asos; jadval havolalari shunga moslangan. «Y1-2» xatolari U1-2 deb oʻqilgan."},"zonalar":{"U1":"Markaziy koʻcha, transport faolligi past (2–4 tasma)","U2":"Markaziy koʻcha, transport faolligi yuqori (5–8 tasma)","U3":"Periferik koʻcha, past (2–4 tasma)","U4":"Periferik koʻcha, yuqori (5–8 tasma)","U5":"Piyodalar koʻchasi","U6":"Shahar maydoni","U7":"Transport almashish tuguni (TPU)","M":"Mahalla (M1–M8)","O":"Jamoat obyektlari (O1–O4; O4 = savdo markazi)","P":"Dam olish majmualari (P1–P5)"},"sinflar":{"A":"Peshlavha (yozuv, vyveska)","B":"Oyna, vitrina, eshik, markiza","C":"Reklama konstruksiyasi"},"turlar":{"A1":{"nom":"Devor yozuvi: poydevorsiz hajmli harflar","band":"2.4.2"},"A2":{"nom":"Devor yozuvi: poydevorli (substratdagi harflar)","band":"2.4.3"},"A3":{"nom":"Kirish guruhi soyaboni (visor) ustidagi yozuv","band":"2.4.4"},"A4":{"nom":"Fasad yuqori qismi / tom yozuvi (faqat O1–O4)","band":"2.4.5"},"A5":{"nom":"Konsol paneli","band":"2.4.6"},"A6":{"nom":"Axborot lavhasi (maʼlumot plitasi)","band":"2.4.7"},"A7":{"nom":"Stend va stela (faqat O1–O4)","band":"2.4.8"},"B1":{"nom":"Vitrina va eshik bezagi","band":"2.4.9"},"B2":{"nom":"Deraza markizasi","band":"2.4.10"},"B3":{"nom":"Aksiya stikeri (vaqtinchalik okleyka)","band":"6.5.6"},"C":{"nom":"Statsionar reklama konstruksiyasi (5.3 tipologiyasi)","band":"5.3, 5.4"}},"olchov_turlari":{"kamera":"geometriya — kameradan oʻlchanadi","surat":"rang, yoritish turi, material — suratdan, foydalanuvchi tasdiqlaydi","savol":"kelishuv, muddat, roʻyxat — foydalanuvchidan soʻraladi","hisob":"boshqa oʻlchovlardan hisoblanadi (nisbat, maydon ulushi)"},"holatlar":["majburiy","tavsiya","kelishuv_bilan"],"umumiy_qoidalar":[{"id":"A.2.4.1.maydon","sinf":"A","tur":"*","zona":["*"],"parametr":"fasaddagi_barcha_belgilar_maydoni_foiz","max":20,"birlik":"%","band":"2.4.1","holat":"majburiy","olchov":"hisob","matn":"Fasaddagi barcha belgilarning umumiy maydoni fasad maydonining 20 % dan oshmasligi kerak"},{"id":"A.2.4.1.soni","sinf":"A","tur":"*","zona":["*"],"parametr":"tashkilotga_belgilar_soni","max_asosiy":1,"max_qoshimcha":1,"band":"2.4.1","holat":"majburiy","olchov":"savol","matn":"Har tashkilotga 1 asosiy (eshik/visor/tom) + 1 qoʻshimcha (lavha, konsol yoki stela)"},{"id":"A.2.4.1.oq","sinf":"A","tur":"*","zona":["*"],"parametr":"bir_jabhada_bir_oq","band":"2.4.1","holat":"majburiy","olchov":"kamera","matn":"Bir jabhada bir nechta ijarachi belgilari bitta gorizontal oʻqda boʻlishi kerak"},{"id":"A.2.4.1.meros","sinf":"A","tur":"*","zona":["*"],"shart":"madaniy_meros=true","ruxsat_turlar":["A1"],"band":"2.4.1","holat":"majburiy","olchov":"savol","matn":"Madaniy meros va tarixiy binolarda faqat poydevorsiz hajmli harflar; qalqon, quti, fon taqiqlanadi"},{"id":"A.2.4.1.til","sinf":"A","tur":"*","zona":["*"],"parametr":"ozbek_matni_ulushi_foiz","min":60,"birlik":"%","band":"2.4.1","holat":"majburiy","olchov":"surat","matn":"Oʻzbek matni birinchi (yuqoridan/chapdan), umumiy hajmning ≥ 60 %; roʻyxatdan oʻtgan brend tarjimasiz qolishi mumkin"},{"id":"A.2.4.1.reklama","sinf":"A","tur":"*","zona":["*"],"band":"2.4.1","holat":"majburiy","olchov":"savol","matn":"Tipologiyaga kirmagan hamma narsa (ekran, yugurish chizigʻi, banner, stend) reklama konstruksiyasi sifatida 5-bob bilan tartibga solinadi → C sinf"}],"qoidalar":[{"id":"A1.U12.harf_h","sinf":"A","tur":"A1","zona":["U1","U2"],"parametr":"harf_balandligi","min":20,"max":50,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.U12.harf_q","sinf":"A","tur":"A1","zona":["U1","U2"],"parametr":"harf_qalinligi","min":5,"max":15,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.U12.uzunlik","sinf":"A","tur":"A1","zona":["U1","U2"],"parametr":"yozuv_uzunligi_fasad_foiz","max":60,"birlik":"%","band":"2.4.2","holat":"majburiy","olchov":"hisob","matn":"Bitta tijorat obyekti jabhasi kengligining 60 % dan oshmasligi kerak"},{"id":"A1.U12.oraliq","sinf":"A","tur":"A1","zona":["U1","U2"],"parametr":"memoriy_elementdan_masofa","min":10,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera","matn":"Eshik ustidagi meʼmoriy elementdan ≥ 10 sm va ikkinchi qavat boshidan ≥ 10 sm; elementlarni yopmaslik"},{"id":"A1.U12.yoritish","sinf":"A","tur":"A1","zona":["U1","U2"],"parametr":"yorqinlik","max":100,"birlik":"kd/m²","rang_harorati":[3000,4000],"band":"2.4.2","holat":"majburiy","olchov":"surat","matn":"Kontur yoki ichki, statik yoritish; miltillash taqiqlangan"},{"id":"A1.U12.rang","sinf":"A","tur":"A1","zona":["U1","U2"],"parametr":"harf_rangi","band":"2.4.2","holat":"majburiy","olchov":"surat","matn":"Harf rangi jabhaga mos"},{"id":"A1.U12.taqiq","sinf":"A","tur":"A1","zona":["U1","U2"],"parametr":"taqiqlar","band":"2.4.2","holat":"majburiy","olchov":"savol","matn":"Miltillovchi yoritish; takrorlanish; meʼmoriy elementlarni yopish; jabhadan tashqariga chiqish"},{"id":"A1.U34.harf_h","sinf":"A","tur":"A1","zona":["U3","U4"],"parametr":"harf_balandligi","min":20,"max":50,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera","matn":"U1-2 ga oʻxshash"},{"id":"A1.U34.harf_q","sinf":"A","tur":"A1","zona":["U3","U4"],"parametr":"harf_qalinligi","min":5,"max":15,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.U34.uzunlik","sinf":"A","tur":"A1","zona":["U3","U4"],"parametr":"yozuv_uzunligi_fasad_foiz","max":60,"birlik":"%","band":"2.4.2","holat":"majburiy","olchov":"hisob"},{"id":"A1.U34.oraliq","sinf":"A","tur":"A1","zona":["U3","U4"],"parametr":"memoriy_elementdan_masofa","min":5,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera","matn":"Ikkinchi qavat darajasida joylashtirishga ruxsat beriladi"},{"id":"A1.U34.soni","sinf":"A","tur":"A1","zona":["U3","U4"],"parametr":"bir_jabhada_belgi_soni","max":1,"max_muassasaga":2,"band":"2.4.2","holat":"majburiy","olchov":"savol","matn":"Bitta jabhada 1 belgidan koʻp emas; muassasaga 2 belgiga ruxsat"},{"id":"A1.U34.rang","sinf":"A","tur":"A1","zona":["U3","U4"],"parametr":"harf_rangi","band":"2.4.2","holat":"majburiy","olchov":"surat","matn":"Qarama-qarshi (kontrast) ranglar mumkin"},{"id":"A1.U56.harf_h","sinf":"A","tur":"A1","zona":["U5","U6"],"parametr":"harf_balandligi","min":20,"max":60,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera","matn":"Jadvalda «U1 piyodalar koʻchasi va U7 shahar maydonlari» deb yozilgan"},{"id":"A1.U56.boshqa","sinf":"A","tur":"A1","zona":["U5","U6"],"parametr":"boshqa","band":"2.4.2","holat":"majburiy","olchov":"kamera","matn":"Qalinlik, uzunlik, joylashuv, hizalama — U3-4 ga oʻxshash"},{"id":"A1.M.harf_h","sinf":"A","tur":"A1","zona":["M"],"parametr":"harf_balandligi","min":10,"max":30,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.M.harf_q","sinf":"A","tur":"A1","zona":["M"],"parametr":"harf_qalinligi","min":10,"max":20,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.M.yoritish","sinf":"A","tur":"A1","zona":["M"],"parametr":"yorqinlik","max":70,"birlik":"kd/m²","band":"2.4.2","holat":"tavsiya","olchov":"surat","matn":"Yoritish istalmagan; boʻlsa orqa yorugʻlik minimal, 70 kd/m² gacha"},{"id":"A1.M.hizalama","sinf":"A","tur":"A1","zona":["M"],"parametr":"hizalama","band":"2.4.2","holat":"tavsiya","olchov":"kamera","matn":"Hizalama erkin boʻlishi mumkin, lekin bitta jabhada"},{"id":"A1.O.harf_h","sinf":"A","tur":"A1","zona":["O"],"parametr":"harf_balandligi","min":20,"max":70,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.O.harf_q","sinf":"A","tur":"A1","zona":["O"],"parametr":"harf_qalinligi","min":5,"max":15,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.O.uzunlik","sinf":"A","tur":"A1","zona":["O"],"parametr":"yozuv_uzunligi_fasad_foiz","max":60,"birlik":"%","band":"2.4.2","holat":"majburiy","olchov":"hisob"},{"id":"A1.O.hizalama","sinf":"A","tur":"A1","zona":["O"],"parametr":"hizalama","band":"2.4.2","holat":"tavsiya","olchov":"kamera","matn":"Moslashuvchan hizalama, jabhaning umumiy uslubini saqlab"},{"id":"A1.P.harf_h","sinf":"A","tur":"A1","zona":["P"],"parametr":"harf_balandligi","min":15,"max":50,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A1.P.harf_q","sinf":"A","tur":"A1","zona":["P"],"parametr":"harf_qalinligi","min":5,"max":15,"birlik":"sm","band":"2.4.2","holat":"majburiy","olchov":"kamera"},{"id":"A2.*.fon","sinf":"A","tur":"A2","zona":["*"],"parametr":"fon_rangi","band":"2.4.3","holat":"majburiy","olchov":"surat","matn":"Past toʻyingan ranglar, fasadga mos; bir binodagi obyektlar fon ranglari mos; fonning ichki yoritilishi taqiqlangan"},{"id":"A2.*.yoritish","sinf":"A","tur":"A2","zona":["*"],"parametr":"yorqinlik","max":100,"birlik":"kd/m²","rang_harorati":[3000,4000],"band":"2.4.3","holat":"majburiy","olchov":"surat"},{"id":"A2.U12.harf_h","sinf":"A","tur":"A2","zona":["U1","U2"],"parametr":"harf_balandligi","min":20,"max":50,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.U12.harf_q","sinf":"A","tur":"A2","zona":["U1","U2"],"parametr":"harf_qalinligi","min":5,"max":15,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.U12.uzunlik","sinf":"A","tur":"A2","zona":["U1","U2"],"parametr":"yozuv_uzunligi_fasad_foiz","max":60,"birlik":"%","band":"2.4.3","holat":"majburiy","olchov":"hisob"},{"id":"A2.U12.poydevor_h","sinf":"A","tur":"A2","zona":["U1","U2"],"parametr":"poydevor_balandligi","max":100,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.U12.oraliq","sinf":"A","tur":"A2","zona":["U1","U2"],"parametr":"memoriy_elementdan_masofa","min":5,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.U12.taqiq","sinf":"A","tur":"A2","zona":["U1","U2"],"parametr":"taqiqlar","band":"2.4.3","holat":"majburiy","olchov":"savol","matn":"Madaniy merosda taqiqlangan; miltillash; takrorlanish; bir-biri ustiga chiqish; fasaddan tashqarida va 1-qavat darajasidan boshqa joyda; banner"},{"id":"A2.U34.poydevor_h","sinf":"A","tur":"A2","zona":["U3","U4"],"parametr":"poydevor_balandligi","max":120,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera","matn":"Qolgani U1-2 ga oʻxshash; bir jabhada 1 belgi, muassasaga 2"},{"id":"A2.U34.harf_h","sinf":"A","tur":"A2","zona":["U3","U4"],"parametr":"harf_balandligi","min":20,"max":50,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.U56.taqiq","sinf":"A","tur":"A2","zona":["U5","U6"],"parametr":"taqiq","band":"2.4.3","holat":"majburiy","olchov":"savol","matn":"Piyoda koʻcha va maydonda poydevorli yozuv TAQIQLANGAN — faqat poydevorsiz hajmli harf (A1)"},{"id":"A2.M.harf_h","sinf":"A","tur":"A2","zona":["M"],"parametr":"harf_balandligi","min":10,"max":30,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.M.harf_q","sinf":"A","tur":"A2","zona":["M"],"parametr":"harf_qalinligi","min":10,"max":20,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.O.harf_h","sinf":"A","tur":"A2","zona":["O"],"parametr":"harf_balandligi","min":20,"max":70,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A2.P.harf_h","sinf":"A","tur":"A2","zona":["P"],"parametr":"harf_balandligi","min":15,"max":50,"birlik":"sm","band":"2.4.3","holat":"majburiy","olchov":"kamera"},{"id":"A3.*.umumiy","sinf":"A","tur":"A3","zona":["*"],"parametr":"umumiy","band":"2.4.4","holat":"majburiy","olchov":"savol","matn":"Faqat fasad pasportida soyabon yechimi boʻlsa; asosan alohida harflar (lightbox); harf va logotip rangi neytral/oq/yorugʻ; ichki yoritish 100 kd/m², 3000–4000 K"},{"id":"A3.U.harf_h","sinf":"A","tur":"A3","zona":["U1","U2","U3","U4","U5","U6","U7","P"],"parametr":"harf_balandligi","min":20,"max":50,"birlik":"sm","band":"2.4.4","holat":"majburiy","olchov":"kamera"},{"id":"A3.U.harf_q","sinf":"A","tur":"A3","zona":["U1","U2","U3","U4","U5","U6","U7","P"],"parametr":"harf_qalinligi","min":5,"max":15,"birlik":"sm","band":"2.4.4","holat":"majburiy","olchov":"kamera"},{"id":"A3.U.uzunlik","sinf":"A","tur":"A3","zona":["U1","U2","U3","U4","U5","U6","U7","P"],"parametr":"yozuv_uzunligi_visor_foiz","max":70,"birlik":"%","band":"2.4.4","holat":"majburiy","olchov":"hisob","matn":"Bitta obyekt visori kengligining 70 % dan oshmaydi"},{"id":"A3.U.oyna_masofa","sinf":"A","tur":"A3","zona":["U1","U2","U3","U4","U5","U6","U7","P"],"parametr":"ikkinchi_qavat_oynasidan_masofa","min":40,"birlik":"sm","band":"2.4.4","holat":"majburiy","olchov":"kamera"},{"id":"A3.U.poydevor","sinf":"A","tur":"A3","zona":["U1","U2","U3","U4","U5","U6","U7","P"],"parametr":"poydevor","band":"2.4.4","holat":"majburiy","olchov":"surat","matn":"Faqat poydevorsiz hajmli harflar; istisno — bino pasporti boʻyicha; obyekt pasportida asl boʻlmagan binolarda taqiqlangan"},{"id":"A3.M.harf_h","sinf":"A","tur":"A3","zona":["M"],"parametr":"harf_balandligi","min":10,"max":30,"birlik":"sm","band":"2.4.4","holat":"majburiy","olchov":"kamera"},{"id":"A3.M.harf_q","sinf":"A","tur":"A3","zona":["M"],"parametr":"harf_qalinligi","min":10,"max":20,"birlik":"sm","band":"2.4.4","holat":"majburiy","olchov":"kamera"},{"id":"A3.O.harf_h","sinf":"A","tur":"A3","zona":["O"],"parametr":"harf_balandligi","min":20,"max":70,"birlik":"sm","band":"2.4.4","holat":"majburiy","olchov":"kamera"},{"id":"A4.O.ruxsat","sinf":"A","tur":"A4","zona":["O"],"parametr":"ruxsat","band":"2.4.5","holat":"majburiy","olchov":"savol","matn":"Faqat O1–O4 jamoat binolari; turar joy jabhasida taqiqlangan (fasad pasportida boʻlsa istisno)"},{"id":"A4.O.maydon","sinf":"A","tur":"A4","zona":["O"],"parametr":"belgi_maydoni_fasad_foiz","max":10,"birlik":"%","band":"2.4.5","holat":"majburiy","olchov":"hisob","matn":"Bitta katta belgi, jabhaning 10 % dan koʻp emas"},{"id":"A4.O4.langar_h","sinf":"A","tur":"A4","zona":["O4"],"parametr":"langar_belgi_balandligi","min":50,"max":150,"birlik":"sm","band":"2.4.5","holat":"majburiy","olchov":"kamera","matn":"Savdo markazi langar ijarachisi"},{"id":"A4.O4.langar_w","sinf":"A","tur":"A4","zona":["O4"],"parametr":"langar_belgi_kengligi_fasad_foiz","max":70,"birlik":"%","band":"2.4.5","holat":"majburiy","olchov":"hisob"},{"id":"A4.O4.langar_oraliq","sinf":"A","tur":"A4","zona":["O4"],"parametr":"memoriy_elementdan_masofa","min":30,"birlik":"sm","band":"2.4.5","holat":"majburiy","olchov":"kamera"},{"id":"A4.O4.langar_q","sinf":"A","tur":"A4","zona":["O4"],"parametr":"harf_qalinligi","min":10,"max":30,"birlik":"sm","band":"2.4.5","holat":"majburiy","olchov":"kamera"},{"id":"A4.O4.langar_masofa","sinf":"A","tur":"A4","zona":["O4"],"parametr":"belgilar_orasidagi_masofa","min":150,"birlik":"sm","band":"2.4.5","holat":"majburiy","olchov":"kamera","matn":"Langar belgilari orasida 1,5–2 m"},{"id":"A4.O4.qavat","sinf":"A","tur":"A4","zona":["O4"],"parametr":"belgi_balandligi_qavat_boyicha","jadval":{"1":{"langar":[80,120],"tom":[100,150]},"2":{"langar":[120,150],"tom":[150,200]},"3-4":{"langar":[150,200],"tom":[200,250]},"4+":{"langar":[200,250],"tom":[250,300],"max_fasad_foiz":10}},"birlik":"sm","band":"2.4.5","holat":"majburiy","olchov":"kamera"},{"id":"A5.*.umumiy","sinf":"A","tur":"A5","zona":["*"],"parametr":"umumiy","band":"2.4.6","holat":"majburiy","olchov":"surat","matn":"Ikki tomonlama ichki yoritishli lightbox (boshqa yechim — hokimlik bilan kelishib); fon bitta rang; 100 kd/m², 3000–4000 K"},{"id":"A5.*.taqiq","sinf":"A","tur":"A5","zona":["*"],"parametr":"taqiqlar","band":"2.4.6","holat":"majburiy","olchov":"savol","matn":"Miltillash; notekis yorugʻlik; tashkilotga 1 konsol; meʼmoriy elementni yopish; 2-qavat yoki podval oynasi darajasida joylashtirish"},{"id":"A5.U.balandlik","sinf":"A","tur":"A5","zona":["U1","U2","U3","U4","U5","U6"],"parametr":"panel_balandligi","min":20,"max":40,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera"},{"id":"A5.U.uzunlik","sinf":"A","tur":"A5","zona":["U1","U2","U3","U4","U5","U6"],"parametr":"panel_uzunligi","min":20,"max":40,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera"},{"id":"A5.U7.olcham","sinf":"A","tur":"A5","zona":["U7"],"parametr":"panel_olchami","max":60,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera","matn":"TPU uchun 60×60 sm gacha"},{"id":"A5.U.burchak","sinf":"A","tur":"A5","zona":["U1","U2","U3","U4","U5","U6","U7"],"parametr":"bino_burchagidan_masofa","min":50,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera"},{"id":"A5.U.oraliq","sinf":"A","tur":"A5","zona":["U1","U2","U3","U4","U5","U6","U7"],"parametr":"konsollar_orasidagi_masofa","min":1000,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera","matn":"Bitta jabhada konsol panellari orasi ≥ 10 m"},{"id":"A5.U.joy","sinf":"A","tur":"A5","zona":["U1","U2","U3","U4","U5","U6","U7"],"parametr":"joylashuv","band":"2.4.6","holat":"majburiy","olchov":"kamera","matn":"Kirish ustidagi belgi darajasida, bitta oʻqda; meʼmoriy elementdan 5 sm, 2-qavat boshidan 5 sm"},{"id":"A5.M.balandlik","sinf":"A","tur":"A5","zona":["M"],"parametr":"panel_balandligi","min":15,"max":30,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera"},{"id":"A5.M.qavs","sinf":"A","tur":"A5","zona":["M"],"parametr":"qavs_uzunligi","min":15,"max":30,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera","matn":"Hizalama erkin, kirish guruhi bilan markazlashtirilgan"},{"id":"A5.O.balandlik","sinf":"A","tur":"A5","zona":["O"],"parametr":"panel_balandligi","min":20,"max":50,"birlik":"sm","band":"2.4.6","holat":"majburiy","olchov":"kamera","matn":"Uzunligi 20 sm dan"},{"id":"A6.U12.balandlik","sinf":"A","tur":"A6","zona":["U1","U2"],"parametr":"lavha_balandligi","min":10,"max":30,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.U12.kenglik","sinf":"A","tur":"A6","zona":["U1","U2"],"parametr":"lavha_kengligi","min":10,"max":40,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.U12.joy","sinf":"A","tur":"A6","zona":["U1","U2"],"parametr":"joylashuv","band":"2.4.7","holat":"majburiy","olchov":"kamera","matn":"Eshik yonida koʻz darajasida; eshikdan 100 mm; qoplama (trotuar) yuqori darajasidan 1200 mm"},{"id":"A6.U12.yoritish","sinf":"A","tur":"A6","zona":["U1","U2"],"parametr":"yorqinlik","max":70,"birlik":"kd/m²","rang_harorati":[3000,4000],"band":"2.4.7","holat":"majburiy","olchov":"surat"},{"id":"A6.U34.balandlik","sinf":"A","tur":"A6","zona":["U3","U4"],"parametr":"lavha_balandligi","min":10,"max":20,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.U34.kenglik","sinf":"A","tur":"A6","zona":["U3","U4"],"parametr":"lavha_kengligi","min":10,"max":30,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.U56.balandlik","sinf":"A","tur":"A6","zona":["U5","U6"],"parametr":"lavha_balandligi","min":10,"max":40,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.U56.kenglik","sinf":"A","tur":"A6","zona":["U5","U6"],"parametr":"lavha_kengligi","min":10,"max":50,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.M.balandlik","sinf":"A","tur":"A6","zona":["M"],"parametr":"lavha_balandligi","min":10,"max":15,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.M.kenglik","sinf":"A","tur":"A6","zona":["M"],"parametr":"lavha_kengligi","min":10,"max":25,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"A6.O.balandlik","sinf":"A","tur":"A6","zona":["O"],"parametr":"lavha_balandligi","min":10,"max":50,"birlik":"sm","band":"2.4.7","holat":"majburiy","olchov":"kamera"},{"id":"B1.*.plyonka","sinf":"B","tur":"B1","zona":["*"],"parametr":"shaffof_bolmagan_plyonka_foiz","max":30,"birlik":"%","band":"2.4.9","holat":"majburiy","olchov":"kamera","matn":"Har oyna / shaffof eshik maydonining 30 % dan oshmasligi kerak (translyutsent, matlashgan plyonka istisno)"},{"id":"B1.*.tavsif","sinf":"B","tur":"B1","zona":["*"],"parametr":"xizmat_tavsifi_foiz","max":20,"birlik":"%","band":"2.4.9","holat":"majburiy","olchov":"kamera","matn":"Asosiy xizmat/mahsulot tavsifi — har shaffof element maydonining 20 % gacha"},{"id":"B1.*.eshik_logo","sinf":"B","tur":"B1","zona":["*"],"parametr":"eshik_logotip_foiz","max":10,"birlik":"%","band":"2.4.9","holat":"majburiy","olchov":"kamera","matn":"Kompaniya logotipi eshik shaffof yuzasining 10 % gacha"},{"id":"B1.*.eshik_blok","sinf":"B","tur":"B1","zona":["*"],"parametr":"malumot_bloki","max_w":60,"max_h":90,"balandlik_oraligi":[120,220],"birlik":"sm","band":"2.4.9","holat":"majburiy","olchov":"kamera","matn":"Ish vaqti/kontakt bloki ≤ 60×90 sm; trotuardan 1,2–2,2 m oraligʻida"},{"id":"B1.*.matn_h","sinf":"B","tur":"B1","zona":["*"],"parametr":"matn_trotuardan_balandligi","min":100,"birlik":"sm","band":"2.4.9","holat":"majburiy","olchov":"kamera","matn":"Matnli maʼlumot trotuardan ≥ 1000 mm"},{"id":"B1.*.mazmun","sinf":"B","tur":"B1","zona":["*"],"parametr":"mazmun","band":"2.4.9","holat":"majburiy","olchov":"savol","matn":"Faoliyatga aloqasiz maʼlumot taqiqlangan; aksident shrift taqiqlangan; yorqin ranglar (brend istisno) taqiqlangan; vitrina ichi tartibga solinmaydi"},{"id":"B1.*.material","sinf":"B","tur":"B1","zona":["*"],"parametr":"material","band":"2.4.9","holat":"tavsiya","olchov":"savol","matn":"Vinil plyonka 50–150 mkm, ≥ 3 yil; banner matosi va qogʻoz tavsiya etilmaydi"},{"id":"B2.*.chiqish","sinf":"B","tur":"B2","zona":["*"],"parametr":"markiza_chiqishi","max":150,"birlik":"sm","band":"2.4.10","holat":"majburiy","olchov":"kamera"},{"id":"B2.*.kenglik","sinf":"B","tur":"B2","zona":["*"],"parametr":"markiza_kengligi","band":"2.4.10","holat":"majburiy","olchov":"kamera","matn":"Oyna proyomi yoki kirish zonasi chegarasi doirasida"},{"id":"B2.*.yopish","sinf":"B","tur":"B2","zona":["*"],"parametr":"oynani_yopish_foiz","max":30,"birlik":"%","band":"2.4.10","holat":"majburiy","olchov":"kamera"},{"id":"B2.*.logo","sinf":"B","tur":"B2","zona":["*"],"parametr":"logotip_foiz","max":20,"birlik":"%","band":"2.4.10","holat":"majburiy","olchov":"kamera"},{"id":"B2.*.rang","sinf":"B","tur":"B2","zona":["*"],"parametr":"ranglar_soni","max":2,"band":"2.4.10","holat":"majburiy","olchov":"surat","matn":"Bir rangli neytral — kelishuvsiz; yorqin/naqshli — kelishuv bilan; ≥ 3 rang taqiqlangan"},{"id":"B2.*.taqiq","sinf":"B","tur":"B2","zona":["*"],"parametr":"taqiqlar","band":"2.4.10","holat":"majburiy","olchov":"savol","matn":"Yoritishli markiza; bezak elementlariga mahkamlash; markizada reklama; bir fasadda turli oʻlchamdagi markizalar"},{"id":"B3.*.muddat","sinf":"B","tur":"B3","zona":["*"],"parametr":"muddat","max_ketma_ket_oy":2,"max_yillik_oy":4,"band":"6.5.6","holat":"majburiy","olchov":"savol","matn":"Aksiya stikeri — ketma-ket ≤ 2 oy, yiliga ≤ 4 oy"},{"id":"B3.*.plyonka","sinf":"B","tur":"B3","zona":["*"],"parametr":"stiker_maydoni_foiz","max":40,"birlik":"%","band":"6.5.6","holat":"majburiy","olchov":"kamera","matn":"Opaq boʻlmagan plyonka bilan yopish — umumiy maydonning 40 % gacha"},{"id":"B3.*.matn","sinf":"B","tur":"B3","zona":["*"],"parametr":"aksiya_matni_foiz","max":10,"birlik":"%","band":"6.5.6","holat":"majburiy","olchov":"kamera","matn":"Maxsus taklif matni — har shaffof element maydonining 10 % gacha"},{"id":"B3.*.mazmun","sinf":"B","tur":"B3","zona":["*"],"parametr":"mazmun","band":"6.5.6","holat":"majburiy","olchov":"savol","matn":"Narx va mahsulot xususiyati taqiqlangan; faoliyatga aloqasiz maʼlumot taqiqlangan"},{"id":"C.5.3.tipologiya","sinf":"C","tur":"C","zona":["*"],"parametr":"konstruksiya_gabariti","band":"5.3","holat":"majburiy","olchov":"kamera","jadval":[{"n":1,"nom":"City-format","w":1.2,"h":1.8,"toifa":"kichik","joy":"piyoda zonasi buferi"},{"n":2,"nom":"Ustunli City-format","w":1.2,"h":1.8,"toifa":"kichik","joy":"piyoda zonasi buferi"},{"n":3,"nom":"Axborot koʻrsatgichi","w":1.1,"h":1.8,"toifa":"kichik","joy":"piyoda zonasi buferi"},{"n":4,"nom":"Pilon","w":1.4,"h":2.8,"toifa":"kichik","joy":"piyoda zonasi buferi"},{"n":5,"nom":"Burchakli pilon","w":1.4,"h":3.0,"toifa":"afisha","joy":"piyoda yoʻlagi"},{"n":6,"nom":"Aylana pilon","w":2.3,"h":4.7,"toifa":"afisha","joy":"piyoda yoʻlagi"},{"n":7,"nom":"Koʻrgazma stendi","w":1.8,"h":1.75,"toifa":"afisha","joy":"piyoda yoʻlagi","izoh":"yoki 1,5×1,5"},{"n":8,"nom":"Axborot stendi","w":4,"h":2,"toifa":"katta","joy":"piyoda zonasi buferi"},{"n":9,"nom":"City-format-plus","w":2,"h":4,"toifa":"katta","joy":"piyoda zonasi buferi"},{"n":10,"nom":"Senior","w":4,"h":3,"toifa":"katta","joy":"maxsus ajratilgan hudud"},{"n":11,"nom":"Billbord","w":6,"h":3,"toifa":"katta","joy":"maxsus ajratilgan hudud"},{"n":12,"nom":"Billbord-plus","w":8,"h":4,"toifa":"katta","joy":"maxsus ajratilgan hudud"},{"n":13,"nom":"Supersayt","w":10,"h":5,"toifa":"katta","joy":"maxsus ajratilgan hudud"},{"n":14,"nom":"Stela","h":[3,15],"toifa":"maxsus","joy":"tijorat obyekti hududi chegarasida"},{"n":15,"nom":"Brandmauer","gabarit":"loyiha boʻyicha","toifa":"maxsus","joy":"oynasiz fasad"},{"n":16,"nom":"Tom usti konstruksiyasi","gabarit":"loyiha boʻyicha","toifa":"maxsus","joy":"koʻp qavatli ommaviy bino tomi"},{"n":17,"nom":"Mediaekran","gabarit":"loyiha boʻyicha","toifa":"maxsus","joy":"ommaviy bino fasadi"},{"n":18,"nom":"Bekatga integratsiyalangan City-format","w":1.2,"h":1.8,"toifa":"bekat","joy":"jamoat transporti bekati tarkibida"},{"n":19,"nom":"Bekatga integratsiyalangan axborot stendi","gabarit":"loyiha boʻyicha","toifa":"bekat","joy":"bekat tarkibida"},{"n":20,"nom":"Bekatga integratsiyalangan konstruksiya","gabarit":"loyiha boʻyicha","toifa":"bekat","joy":"bekat tarkibida"}],"birlik":"m","matn":"5.4 bandda joylashuvga qarab ruxsat etilgan turlar beriladi — zona × tur matritsasi alohida kiritiladi"},{"id":"C.6.5.5.ochilish","sinf":"C","tur":"C","zona":["*"],"parametr":"ochilish_bezagi","max_kun":14,"maydon_foiz":{"meros":15,"oddiy":20,"savdo_markazi":25},"band":"6.5.5","holat":"majburiy","olchov":"savol","matn":"Ochilish bezagi ≤ 14 kun; «Biz ochiqmiz» banneri ≤ 1,5×0,5 m, 1 ta; logotipli shar va reklama banneri taqiqlangan"}],"hujjatdagi_ziddiyatlar":["Zona raqamlari: 1-ilova U5/U6/U7 ≠ P2.3 jadvallari U6/U7 — tasdiqlash kerak","Mahalla: 1-ilovada M1–M5, P2.3 jadvallarida M1–M8","«Y1-2», «y1-2» — U1-2 ning xatosi","2.4.7 U3–U4 yoritish: «U1-2 ga oʻxshash tarzda taqiqlangan» — maʼnosi noaniq","2.4.2 U3–U4 va 2.4.3 U3–U4 jadvallari deyarli bir xil (nusxa?) — ikkalasida ham oraliq 5 sm","Ruscha tarjima izlari: «Uyingizda» = «на здании (tom/fasad tepasi)», «Hizalama» = выравнивание"],"keyingi_etap":["5.4 — reklama konstruksiyasi zona × tur ruxsat matritsasi","2.4.8 stend/stela, 2.4.11 rang tavsiyalari","1-ilova zona chegaralari (OSM taxminiy → rasmiy sxema)","Madaniy meros roʻyxati"]}</script>
+<script>
+const R = JSON.parse(document.getElementById('rules').textContent);
+const $ = s => document.querySelector(s);
+const STEPS = ['Joy','Obyekt','Surat','Natija','Hisobot'];
+const S = { step:0, mode:'T', zona:'U1', meros:false, sinf:'A', tur:'A1', img:null, marks:{}, answers:{}, scale:null };
+
+/* zona kodi → qoidalardagi zona ro'yxati bilan mos kelish */
+const ZONES = [['U1','Markaziy, 2–4 tasma'],['U2','Markaziy, 5–8 tasma'],['U3','Periferik, 2–4 tasma'],['U4','Periferik, 5–8 tasma'],['U5','Piyodalar koʻchasi'],['U6','Shahar maydoni'],['U7','TPU'],['M','Mahalla'],['O','Jamoat obyekti'],['O4','Savdo markazi'],['P','Dam olish']];
+function zoneMatch(list){ return list.includes('*') || list.includes(S.zona) || (S.zona==='O4' && list.includes('O')); }
+
+/* parametr → qanday o'lchanadi. line: 2 nuqta; rect: 2 burchak; pair: ikki o'lchov nisbati */
+const MEAS = {
+  harf_balandligi:{k:'line',n:'Harf balandligi'}, harf_qalinligi:{k:'line',n:'Harf qalinligi (yon burchakdan)'},
+  poydevor_balandligi:{k:'line',n:'Poydevor balandligi'}, memoriy_elementdan_masofa:{k:'line',n:'Meʼmoriy elementgacha masofa'},
+  ikkinchi_qavat_oynasidan_masofa:{k:'line',n:'2-qavat oynasigacha masofa'}, panel_balandligi:{k:'line',n:'Panel balandligi'},
+  panel_uzunligi:{k:'line',n:'Panel uzunligi'}, panel_olchami:{k:'line',n:'Panel oʻlchami'}, qavs_uzunligi:{k:'line',n:'Qavs uzunligi'},
+  bino_burchagidan_masofa:{k:'line',n:'Bino burchagidan masofa'}, konsollar_orasidagi_masofa:{k:'line',n:'Konsollar orasi'},
+  lavha_balandligi:{k:'line',n:'Lavha balandligi'}, lavha_kengligi:{k:'line',n:'Lavha kengligi'},
+  markiza_chiqishi:{k:'line',n:'Markiza chiqishi'}, matn_trotuardan_balandligi:{k:'line',n:'Matn trotuardan balandligi'},
+  belgilar_orasidagi_masofa:{k:'line',n:'Belgilar orasi'}, langar_belgi_balandligi:{k:'line',n:'Langar belgi balandligi'},
+  yozuv_uzunligi_fasad_foiz:{k:'pair',a:['yozuv_uzunligi','Yozuv uzunligi'],b:['fasad_kengligi','Obyekt fasadi kengligi']},
+  yozuv_uzunligi_visor_foiz:{k:'pair',a:['yozuv_uzunligi','Yozuv uzunligi'],b:['visor_kengligi','Soyabon kengligi']},
+  langar_belgi_kengligi_fasad_foiz:{k:'pair',a:['belgi_kengligi','Belgi kengligi'],b:['fasad_kengligi','Doʻkon fasadi kengligi']},
+  belgi_maydoni_fasad_foiz:{k:'area',a:['belgi_r','Belgi (toʻrtburchak)'],b:['fasad_r','Jabha (toʻrtburchak)']},
+  fasaddagi_barcha_belgilar_maydoni_foiz:{k:'area',a:['belgilar_r','Barcha belgilar'],b:['fasad_r','Jabha (toʻrtburchak)']},
+  shaffof_bolmagan_plyonka_foiz:{k:'area',a:['yopiq_r','Yopiq (plyonka) qism'],b:['oyna_r','Oyna / eshik shishasi']},
+  xizmat_tavsifi_foiz:{k:'area',a:['tavsif_r','Xizmat tavsifi'],b:['oyna_r','Oyna / eshik shishasi']},
+  eshik_logotip_foiz:{k:'area',a:['logo_r','Logotip'],b:['oyna_r','Eshik shishasi']},
+  oynani_yopish_foiz:{k:'area',a:['markiza_r','Markiza yopgan qism'],b:['oyna_r','Oyna proyomi']},
+  logotip_foiz:{k:'area',a:['logo_r','Logotip'],b:['markiza_r','Markiza']},
+  stiker_maydoni_foiz:{k:'area',a:['stiker_r','Stiker'],b:['oyna_r','Oyna']},
+  aksiya_matni_foiz:{k:'area',a:['matn_r','Aksiya matni'],b:['oyna_r','Oyna']},
+  konstruksiya_gabariti:{k:'rect',n:'Konstruksiya gabariti'},
+  malumot_bloki:{k:'rect',n:'Maʼlumot bloki'}
+};
+const COLORS=['#2458b8','#b23a2e','#2b7449','#95620f','#7a3fa0','#0e7c86','#c2612a','#5a5a5a'];
+
+/* ---------- rendering steps ---------- */
+function show(){
+  for(let i=0;i<5;i++){ $('#s'+(i+1)).hidden = i!==S.step; }
+  [...$('#steps').children].forEach((el,i)=>{ el.className = i<S.step?'done': i===S.step?'cur':''; });
+  $('#stepname').textContent = (S.step+1)+' / 5 · '+STEPS[S.step];
+  $('#back').disabled = S.step===0;
+  $('#next').textContent = S.step===4?'Yangi tekshiruv':'Davom etish';
+  if(S.step===2) buildTools();
+  if(S.step===3) buildVerdicts();
+  if(S.step===4) buildReport();
+  $('main').scrollTop=0;
+}
+$('#back').onclick=()=>{ if(S.step>0){S.step--;show();} };
+$('#next').onclick=()=>{ if(S.step===4){ S.marks={}; S.answers={}; S.scale=null; S.step=0; show(); return;} S.step++; show(); };
+
+function pills(el, items, cur, on){
+  el.innerHTML='';
+  items.forEach(([k,label,sub])=>{
+    const b=document.createElement('button'); b.type='button'; b.className='opt'; b.setAttribute('aria-pressed', String(k===cur));
+    b.innerHTML='<b></b><small></small>'; b.firstChild.textContent=label; b.lastChild.textContent=sub||k;
+    b.onclick=()=>{ on(k); }; el.appendChild(b);
+  });
+}
+function step1(){
+  pills($('#zones'), ZONES.map(([k,n])=>[k,n,k]), S.zona, k=>{S.zona=k; step1();});
+}
+$('#meros').onchange=e=>S.meros=e.target.checked;
+$('#modeT').onclick=()=>{S.mode='T';$('#modeT').setAttribute('aria-pressed','true');$('#modeN').setAttribute('aria-pressed','false');};
+$('#modeN').onclick=()=>{S.mode='N';$('#modeN').setAttribute('aria-pressed','true');$('#modeT').setAttribute('aria-pressed','false');};
+function step2(){
+  pills($('#classes'), Object.entries(R.sinflar), S.sinf, k=>{ S.sinf=k; S.tur=Object.keys(R.turlar).find(t=>t[0]===k); step2(); });
+  const types=Object.entries(R.turlar).filter(([k])=>k[0]===S.sinf).map(([k,v])=>[k,v.nom,'band '+v.band]);
+  pills($('#types'), types, S.tur, k=>{S.tur=k; step2();});
+  const n = applicable().length;
+  $('#typeHint').textContent = S.zona+' zonasi, '+S.tur+' turi uchun '+n+' ta qoida topildi.';
+}
+
+/* ---------- rules for current selection ---------- */
+function applicable(){
+  const gen = R.umumiy_qoidalar.filter(q=>q.sinf===S.sinf);
+  const sp = R.qoidalar.filter(q=>q.tur===S.tur && zoneMatch(q.zona));
+  return [...sp, ...gen];
+}
+/* which measurements the tools panel needs */
+function neededMeasures(){
+  const out=[]; const seen=new Set();
+  const add=(id,name,kind)=>{ if(!seen.has(id)){seen.add(id); out.push({id,name,kind});} };
+  add('scale','Masshtab: maʼlum uzunlik','line');
+  applicable().forEach(q=>{
+    const m=MEAS[q.parametr]; if(!m) return;
+    if(m.k==='line'||m.k==='rect') add(q.parametr, m.n, m.k);
+    if(m.k==='pair'){ add(m.a[0],m.a[1],'line'); add(m.b[0],m.b[1],'line'); }
+    if(m.k==='area'){ add(m.a[0],m.a[1],'rect'); add(m.b[0],m.b[1],'rect'); }
+  });
+  return out;
+}
+
+/* ---------- canvas ---------- */
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let active=null, pending=null;
+$('#photo').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const img=new Image(); img.onload=()=>{ S.img=img; S.marks={}; S.scale=null; $('#empty').hidden=true; cv.hidden=false;
+    const W=Math.min(img.width,1600); cv.width=W; cv.height=Math.round(img.height*W/img.width); draw(); buildTools(); };
+  img.src=URL.createObjectURL(f);
+};
+$('#clearAll').onclick=()=>{ S.marks={}; S.scale=null; draw(); buildTools(); };
+
+/* ---- jonli kamera: video kadrlar kanvasga chiziladi, belgilar ustiga ---- */
+const vid=$('#vid'); let stream=null, liveRAF=0;
+$('#live').onclick=async()=>{
+  if(stream){ stopLive(); return; }
+  if(!navigator.mediaDevices?.getUserMedia){ $('#camNote').textContent='Bu brauzerda kamera APIsi yoʻq (HTTPS kerak).'; return; }
+  try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false}); }
+  catch(e){ $('#camNote').textContent='Kamera ochilmadi: '+(e.name||e.message); return; }
+  vid.srcObject=stream; await vid.play();
+  cv.width=vid.videoWidth||1280; cv.height=vid.videoHeight||720; cv.hidden=false; $('#empty').hidden=true; $('#freeze').hidden=false;
+  $('#live').textContent='■ Toʻxtatish'; S.img=null; S.marks={}; S.scale=null; buildTools();
+  const loop=()=>{ if(!stream) return; ctx.drawImage(vid,0,0,cv.width,cv.height); drawMarks(); liveRAF=requestAnimationFrame(loop); }; loop();
+};
+$('#freeze').onclick=()=>{ if(!stream) return; const img=new Image(); img.onload=()=>{ S.img=img; stopLive(); draw(); }; img.src=cv.toDataURL('image/jpeg',.92); };
+function stopLive(){ cancelAnimationFrame(liveRAF); if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } vid.srcObject=null; $('#freeze').hidden=true; $('#live').textContent='● Jonli kamera'; if(!S.img){ cv.hidden=true; $('#empty').hidden=false; } }
+const isLive=()=>!!stream;
+function pt(ev){ const r=cv.getBoundingClientRect(); const t=ev.touches?ev.touches[0]:ev; return {x:(t.clientX-r.left)*cv.width/r.width, y:(t.clientY-r.top)*cv.height/r.height}; }
+cv.addEventListener('pointerdown',ev=>{
+  if(!active||!(S.img||isLive())) return; ev.preventDefault();
+  const p=pt(ev);
+  if(!pending){ pending=p; draw(); return; }
+  S.marks[active.id]={kind:active.kind,a:pending,b:p}; pending=null;
+  if(active.id==='scale') S.scale={cm:(+document.getElementById('scalecm')?.value)||210};
+  active=null; draw(); buildTools();
+});
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function cmPerPx(){ const m=S.marks.scale; if(!m||!S.scale) return null; return S.scale.cm/dist(m.a,m.b); }
+function valueOf(id){ const m=S.marks[id]; const k=cmPerPx(); if(!m||!k) return null;
+  if(m.kind==='line') return dist(m.a,m.b)*k;
+  const w=Math.abs(m.a.x-m.b.x)*k, h=Math.abs(m.a.y-m.b.y)*k; return {w,h,area:w*h}; }
+function draw(){
+  if(isLive()) return; /* jonli rejimda loop chizadi */
+  if(!S.img) return; ctx.drawImage(S.img,0,0,cv.width,cv.height); drawMarks();
+}
+function drawMarks(){
+  const tools=neededMeasures(); const k=cmPerPx();
+  ctx.lineWidth=Math.max(2,cv.width/400); ctx.font=Math.round(cv.width/45)+'px '+getComputedStyle(document.body).fontFamily;
+  tools.forEach((t,i)=>{ const m=S.marks[t.id]; if(!m) return; const c=COLORS[i%COLORS.length]; ctx.strokeStyle=c; ctx.fillStyle=c;
+    if(m.kind==='line'){ ctx.beginPath(); ctx.moveTo(m.a.x,m.a.y); ctx.lineTo(m.b.x,m.b.y); ctx.stroke(); dot(m.a,c); dot(m.b,c);
+      const v=t.id==='scale'?S.scale.cm:(k?dist(m.a,m.b)*k:null); label((m.a.x+m.b.x)/2,(m.a.y+m.b.y)/2, v!=null?Math.round(v)+' sm':'?', c); }
+    else { ctx.strokeRect(Math.min(m.a.x,m.b.x),Math.min(m.a.y,m.b.y),Math.abs(m.a.x-m.b.x),Math.abs(m.a.y-m.b.y));
+      const v=valueOf(t.id); label(Math.min(m.a.x,m.b.x)+6,Math.min(m.a.y,m.b.y)+ctx.measureText('M').width*1.6, v?Math.round(v.w)+'×'+Math.round(v.h)+' sm':'?', c); } });
+  if(pending){ dot(pending, active?COLORS[tools.findIndex(t=>t===active)%COLORS.length]:'#000'); }
+}
+function dot(p,c){ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(p.x,p.y,ctx.lineWidth*2.2,0,7); ctx.fill(); }
+function label(x,y,s,c){ const w=ctx.measureText(s).width+10, h=parseInt(ctx.font)*1.5; ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fillRect(x-w/2,y-h/2,w,h); ctx.fillStyle=c; ctx.textBaseline='middle'; ctx.textAlign='center'; ctx.fillText(s,x,y); ctx.textAlign='start'; }
+
+function buildTools(){
+  const el=$('#tools'); el.innerHTML=''; const tools=neededMeasures();
+  tools.forEach((t,i)=>{
+    const d=document.createElement('div'); d.className='tool'+(active===t?' active':''); const m=S.marks[t.id];
+    const sw=document.createElement('span'); sw.className='sw'; sw.style.background=COLORS[i%COLORS.length];
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=t.name;
+    const val=document.createElement('span'); val.className='val';
+    if(t.id==='scale'){ const inp=document.createElement('input'); inp.type='number'; inp.id='scalecm'; inp.value=S.scale?S.scale.cm:210; inp.setAttribute('aria-label','Maʼlum uzunlik, sm');
+      inp.oninput=()=>{ if(S.marks.scale){ S.scale={px:1,cm:+inp.value||0}; draw(); } }; val.appendChild(inp); val.append(' sm'); }
+    else { const v=valueOf(t.id); val.textContent = v==null?(m?'masshtab?':'—'): (t.kind==='line'?Math.round(v)+' sm':Math.round(v.w)+'×'+Math.round(v.h)+' sm'); }
+    const b=document.createElement('button'); b.type='button'; b.className='btn sec small'; b.textContent=m?'Qayta':'Chizish';
+    b.onclick=()=>{ if(!S.img&&!isLive()){ $('#live').click(); return;} active=t; pending=null; buildTools(); draw(); };
+    d.append(sw,nm,val,b); el.appendChild(d);
+  });
+}
+
+/* ---------- verdicts ---------- */
+function fmtRange(q){ const u=q.birlik||''; if(q.min!=null&&q.max!=null) return q.min+'–'+q.max+' '+u; if(q.max!=null) return '≤ '+q.max+' '+u; if(q.min!=null) return '≥ '+q.min+' '+u; return ''; }
+function evaluate(){
+  const out=[];
+  applicable().forEach(q=>{
+    const m=MEAS[q.parametr]; let status='na', measured=null, note='';
+    if(m && (q.min!=null||q.max!=null)){
+      let v=null;
+      if(m.k==='line'){ v=valueOf(q.parametr); }
+      else if(m.k==='rect'){ const r=valueOf(q.parametr); if(r){ v=Math.max(r.w,r.h); if(q.max_w!=null){ status=(r.w<=q.max_w&&r.h<=q.max_h)?'ok':'bad'; measured=Math.round(r.w)+'×'+Math.round(r.h)+' sm'; v=null; } } }
+      else if(m.k==='pair'){ const a=valueOf(m.a[0]), b=valueOf(m.b[0]); if(a!=null&&b!=null&&b>0) v=a/b*100; }
+      else if(m.k==='area'){ const a=valueOf(m.a[0]), b=valueOf(m.b[0]); if(a&&b&&b.area>0) v=a.area/b.area*100; }
+      if(v!=null){ measured=(q.birlik==='%'?v.toFixed(1)+' %':Math.round(v)+' '+(q.birlik||'')); status=((q.min==null||v>=q.min)&&(q.max==null||v<=q.max))?'ok':'bad'; }
+      if(measured==null && !(m.k==='rect'&&status!=='na')) { status='na'; note='oʻlchanmagan'; }
+    } else if(q.parametr==='konstruksiya_gabariti'){
+      const r=valueOf('konstruksiya_gabariti'); if(r){ const w=r.w/100,h=r.h/100; let best=null,bd=1e9;
+        q.jadval.forEach(t=>{ if(t.w){ const d=Math.abs(t.w-w)+Math.abs(t.h-h); if(d<bd){bd=d;best=t;} } });
+        measured=w.toFixed(2)+'×'+h.toFixed(2)+' m'; if(best){ note='Eng yaqin tur: '+best.nom+' ('+best.w+'×'+best.h+') · joy: '+best.joy; status=bd<0.3?'ok':'warn'; } }
+      else note='oʻlchanmagan';
+    } else {
+      const a=S.answers[q.id]; status = a==='ha'?'ok': a==='yoq'?'bad': a==='kelishuv'?'warn':'na';
+    }
+    if(q.holat==='tavsiya' && status==='bad') status='warn';
+    out.push({q,status,measured,note,ask:!(m&&(q.min!=null||q.max!=null))&&q.parametr!=='konstruksiya_gabariti'});
+  });
+  /* meros: poydevorli yoki boshqa turlar taqiqlangan */
+  if(S.meros && S.sinf==='A' && S.tur!=='A1') out.unshift({q:{id:'meros',band:'2.4.1',matn:'Madaniy meros binosida faqat poydevorsiz hajmli harflar (A1) ruxsat etilgan',parametr:'meros'},status:'bad',measured:null,note:'',ask:false});
+  return out;
+}
+function askLabel(q){ if(q.parametr==='taqiqlar'||q.parametr==='taqiq') return 'Taqiqlar buzilmaganmi?'; return (q.matn||q.parametr.replace(/_/g,' '))+' — bajarilganmi?'; }
+function buildVerdicts(){
+  const res=evaluate(); const el=$('#verdicts'); el.innerHTML='';
+  const c={ok:0,bad:0,warn:0,na:0}; res.forEach(r=>c[r.status]++);
+  $('#sum').innerHTML='<div class="ok"><b>'+c.ok+'</b><small>mos</small></div><div class="bad"><b>'+c.bad+'</b><small>mos emas</small></div><div class="na"><b>'+(c.na+c.warn)+'</b><small>savol / kelishuv</small></div>';
+  res.forEach(r=>{
+    const q=r.q; const d=document.createElement('div'); d.className='v '+r.status;
+    const t=document.createElement('div'); t.className='t'; t.textContent = r.ask?askLabel(q):(MEAS[q.parametr]?.n || (MEAS[q.parametr]?.a?.[1]+' / '+MEAS[q.parametr]?.b?.[1]) || q.parametr);
+    const m=document.createElement('div'); m.className='m';
+    m.textContent='band '+q.band+(fmtRange(q)?' · talab '+fmtRange(q):'')+(r.measured?' · oʻlchov '+r.measured:'')+(r.note?' · '+r.note:'');
+    const body=document.createElement('div'); body.className='body'; body.append(t,m);
+    if(!r.ask && q.matn && !MEAS[q.parametr]){ const x=document.createElement('div'); x.className='m'; x.textContent=q.matn; body.appendChild(x); }
+    if(r.ask && q.matn && MEAS[q.parametr]===undefined && q.parametr!=='taqiqlar'){ /* matn already in label */ }
+    const side=document.createElement('div'); side.className='q';
+    if(r.ask){ [['ha','Ha'],['yoq','Yoʻq'],['kelishuv','Kelishuv']].forEach(([k,l])=>{ const b=document.createElement('button'); b.type='button'; b.textContent=l; b.setAttribute('aria-pressed',String(S.answers[q.id]===k)); b.onclick=()=>{S.answers[q.id]=k; buildVerdicts();}; side.appendChild(b); }); }
+    else { const s=document.createElement('span'); s.className='chip '+r.status; s.textContent={ok:'mos',bad:'mos emas',warn:'tavsiya',na:'—'}[r.status]; side.appendChild(s); }
+    const bar=document.createElement('div'); bar.className='bar';
+    d.append(bar,body,side); el.appendChild(d);
+  });
+}
+function buildReport(){
+  const res=evaluate(); const d=new Date();
+  const L=[]; L.push('DIZAYN-KOD TEKSHIRUVI — '+(S.mode==='N'?'nazorat bayonnomasi (qoralama)':'tadbirkor oldindan tekshiruvi'));
+  L.push('Sana: '+d.toLocaleString('uz-UZ')); if($('#addr').value) L.push('Manzil: '+$('#addr').value);
+  L.push('Zona: '+S.zona+' · Obyekt: '+S.sinf+' / '+S.tur+' — '+R.turlar[S.tur].nom+(S.meros?' · madaniy meros':''));
+  if(S.scale&&S.marks.scale) L.push('Masshtab: '+S.scale.cm+' sm = '+Math.round(dist(S.marks.scale.a,S.marks.scale.b))+' px');
+  L.push('');
+  const lab={ok:'MOS',bad:'MOS EMAS',warn:'KELISHUV/TAVSIYA',na:'TEKSHIRILMADI'};
+  res.forEach(r=>{ const q=r.q; L.push('['+lab[r.status]+'] band '+q.band+' · '+(q.parametr||'').replace(/_/g,' ')+(fmtRange(q)?' · talab '+fmtRange(q):'')+(r.measured?' · oʻlchov '+r.measured:'')+(r.note?' · '+r.note:'')); });
+  L.push(''); L.push('Manba: Toshkent shahar Kengashi qarori VII-19-17-14-0-K/26 (17.02.2026), 2-ilova, P2.3.');
+  L.push('Zona chegarasi foydalanuvchi tomonidan tanlangan; rasmiy sxema bilan tasdiqlanmagan.');
+  $('#rep').textContent=L.join('\n');
+  $('#repHint').textContent = S.mode==='N' ? 'Nazoratchi rejimi: toʻliq versiyada surat, GPS va sana bilan PDF bayonnoma chiqadi.' : 'Tadbirkor rejimi: natija buyurtma berishdan oldin dizaynerga yuboriladi.';
+}
+$('#copy').onclick=()=>{ const t=$('#rep').textContent; navigator.clipboard?.writeText(t).then(()=>{$('#copied').textContent='nusxalandi';},()=>{ const r=document.createRange(); r.selectNodeContents($('#rep')); getSelection().removeAllRanges(); getSelection().addRange(r); $('#copied').textContent='matn belgilandi — nusxa oling'; }); };
+
+step1(); step2(); show();
+</script>
+</body></html>
