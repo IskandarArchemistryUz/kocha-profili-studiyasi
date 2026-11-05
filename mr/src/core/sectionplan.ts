@@ -19,6 +19,7 @@
 import polygonClipping, { type Polygon, type MultiPolygon } from 'polygon-clipping';
 import { area, obb2, signedArea, type XY } from './geo';
 import { splitAtReflex } from './roof';
+import { snapMarks, type StructGrid } from './axes';
 
 export interface FacadeMod { a: XY; b: XY; az: number; blind: boolean }
 export interface RuleApt {
@@ -119,8 +120,9 @@ function edgeDir(a: XY[], b: XY[]): XY | null {
  * court — hovli (xususiy hudud) tomonidagi nuqta (kvartal markazi); berilmasa — bino ogʻirlik markazi (L/T da ichki tomon),
  * u ham aniq boʻlmasa — qoʻshni bino tegib turgan yoki shimoliy tomon.
  */
-export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null): RulePlan {
-  return planVariants(ring0, mods, mix, size, court)[0].plan;
+/** walls — 05.11: majburiy seksiya devorlari (antiseysmik choklar, core/axes) — seksiya chegarasi va yadrolar shu chiziqlarga moslanadi (QMQ 2.01.03-19, 3.1.4: chok xonadan oʻtmaydi) */
+export function rulePlan(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, walls: [XY, XY][] = []): RulePlan {
+  return planVariants(ring0, mods, mix, size, court, 3, walls)[0].plan;
 }
 
 export interface PlanVariant { plan: RulePlan; score: number; eff: number; mix: number[]; mixDev: number }
@@ -132,13 +134,13 @@ const mixDevOf = (real: number[], want: number[]) => { const w = normMix(want); 
  * Variantlar: generator kirish aralashmasini natijaga qarab tuzatib (birlashtirish va boʻlish ulushlarni siljitadi) bir necha
  * reja yasaydi va umumiy baho boʻyicha saralaydi: kvartiralar ulushi − 0,3 × aralashmadan chetlanish − qorongʻi/notekis jarimalari.
  */
-export function planVariants(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, n = 3): PlanVariant[] {
+export function planVariants(ring0: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, n = 3, walls: [XY, XY][] = []): PlanVariant[] {
   const r = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, want = normMix(mix);
   const ev = (pl: RulePlan): PlanVariant => { const real = planMix(pl), dev = mixDevOf(real, want), eff = pl.apts.reduce((t, a) => t + a.area, 0) / (area(r) || 1); return { plan: pl, score: planScore(pl, r, mods) - 0.3 * dev, eff, mix: real, mixDev: dev }; };
   const out: PlanVariant[] = [];
   let inMix = mix, split: number | undefined;
   for (let k = 0; k < n; k++) {
-    const v = ev(planOnce(r, mods, inMix, size, court, split));
+    const v = ev(planOnce(r, mods, inMix, size, court, split, walls));
     if (!out.some(o => o.plan.apts.length === v.plan.apts.length && Math.abs(o.eff - v.eff) < 1e-6 && o.mix.every((x, i) => Math.abs(x - v.mix[i]) < 1e-6))) out.push(v);
     if (v.mixDev < 0.04) break;
     // tuzatish: kam chiqqan tur ogʻirligi oshiriladi, koʻp chiqqani kamaytiriladi
@@ -163,12 +165,12 @@ function robust(pl: RulePlan): boolean {
   return true;
 }
 
-function planOnce(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L', court: XY | null, splitAbove?: number): RulePlan {
+function planOnce(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L', court: XY | null, splitAbove?: number, walls: [XY, XY][] = []): RulePlan {
   // ozgina qiyshiq devorlar: reja ichki toʻgʻri burchakli shaklda quriladi, devor yonidagi ponasimon qoldiq — kvartiraga (lodjiya)
-  const R = rectify(r), p0 = planCore(r, mods, mix, size, court, splitAbove);
+  const R = rectify(r), p0 = planCore(r, mods, mix, size, court, splitAbove, false, walls);
   if (slimApts(p0, r, mods)) finishPlan(p0, mods, size);
   if (!R) return p0;
-  const pl = planCore(R, facadeModsFor(R, mods), mix, size, court, splitAbove);
+  const pl = planCore(R, facadeModsFor(R, mods), mix, size, court, splitAbove, false, walls);
   // toʻgʻrilangan shakl asl konturdan chiqqan joylari kesiladi
   const clip = (qs: XY[][]) => qs.flatMap(q => inter([q], [r]));
   pl.apts = pl.apts.flatMap(a => { const ps = inter([a.ring], [r]).sort((x, y) => area(y) - area(x)); return ps[0] && area(ps[0]) > 2 ? [{ ...a, ring: ps[0] }] : []; });
@@ -339,7 +341,7 @@ function isCross(r: XY[]): boolean {
   const d = refl.map(p => Math.hypot(p[0] - cx, p[1] - cy)), dm = Math.max(...d), dn = Math.min(...d);
   return dn > 3 && dm / dn < 1.6;   // markaz kvadratga yaqin
 }
-function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, splitAbove?: number, strictT = false): RulePlan {
+function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, splitAbove?: number, strictT = false, walls: [XY, XY][] = []): RulePlan {
   const W = CORR_W;
   const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
   const wantK = mixPicker(mix);
@@ -404,6 +406,11 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     } else { tWalls.push({ w: A, u: uX }); endKind[B][baseB] = 'wall'; }
   }
 
+  // 05.11: antiseysmik choklar (core/axes) — qanotga koʻndalang chiziq seksiya devori boʻladi (chok xonadan oʻtmaydi — 3.1.4)
+  for (const [wa0, wb0] of walls) {
+    const m: XY = [(wa0[0] + wb0[0]) / 2, (wa0[1] + wb0[1]) / 2], d: XY = [wb0[0] - wa0[0], wb0[1] - wa0[1]], dl = Math.hypot(d[0], d[1]) || 1;
+    wings.forEach((w, k) => { if (!pointIn(m, w.ring) && !w.ring.some(p => Math.hypot(p[0] - m[0], p[1] - m[1]) < 0.5)) return; if (Math.abs((d[0] * w.U[0] + d[1] * w.U[1]) / dl) > 0.3) return; const u = uOf(w, m); if (u - w.u0 > 1 && w.u1 - u > 1 && !tWalls.some(t => t.w === k && Math.abs(t.u - u) < 1)) tWalls.push({ w: k, u }); });
+  }
   // 3) seksiyalar: burchak seksiyalari (L), qolgan uzunlik — ≤ 36 m boʻlaklar
   const corners: LJoint[] = [], claims: { w: number; a: number; b: number; sec: number }[] = [];
   let nSec = 0;
@@ -879,16 +886,18 @@ export function editSplitAt(pl: RulePlan, i: number, U: XY, tc: number, mods: Fa
  * Devor chizish (magnitli): kursorga eng yaqin kvartira qirrasi yoʻnalishida, perpendikulyar devor; oʻrni modul chegarasiga
  * (0,6 m gacha) yoki 0,1 m qadamga tortiladi. Qaytaradi: devor chizigʻi va ikki tomondagi masofalar.
  */
-export function wallPreview(pl: RulePlan, i: number, cur: XY, mods: FacadeMod[]): { U: XY; t: number; line: [XY, XY]; w1: number; w2: number; snapped: boolean } | null {
+/** grid — 05.11 (V2): devor konstruktiv oʻq yoki yarim oraliqqa yopishadi (modul chegarasi oʻrniga) */
+export function wallPreview(pl: RulePlan, i: number, cur: XY, mods: FacadeMod[], grid?: StructGrid): { U: XY; t: number; line: [XY, XY]; w1: number; w2: number; snapped: boolean } | null {
   const a = pl.apts[i]; if (!a) return null;
   let U: XY | null = null, bd = Infinity;
   for (let k = 0; k < a.ring.length; k++) { const p = a.ring[k], q = a.ring[(k + 1) % a.ring.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l < 2) continue; const ux = (q[0] - p[0]) / l, uy = (q[1] - p[1]) / l, tt = Math.max(0, Math.min(l, (cur[0] - p[0]) * ux + (cur[1] - p[1]) * uy)), d = Math.hypot(p[0] + ux * tt - cur[0], p[1] + uy * tt - cur[1]); if (d < bd) { bd = d; U = [ux, uy]; } }
   if (!U) return null;
   const T = (p: XY) => p[0] * U![0] + p[1] * U![1], N: XY = [-U[1], U[0]], ts = a.ring.map(T), t0 = Math.min(...ts), t1 = Math.max(...ts);
   let t = T(cur), snapped = false;
-  const marks = mods.flatMap(m => [m.a, m.b]).filter(p => pointIn(p, a.ring) || a.ring.some((q, k) => { const r2 = a.ring[(k + 1) % a.ring.length]; return Math.abs((p[0] - q[0]) * (r2[1] - q[1]) - (p[1] - q[1]) * (r2[0] - q[0])) < 0.05 * Math.hypot(r2[0] - q[0], r2[1] - q[1]); })).map(T);
+  const gm = grid ? snapMarks(grid, a.ring, U) : [];
+  const marks = gm.length ? gm : mods.flatMap(m => [m.a, m.b]).filter(p => pointIn(p, a.ring) || a.ring.some((q, k) => { const r2 = a.ring[(k + 1) % a.ring.length]; return Math.abs((p[0] - q[0]) * (r2[1] - q[1]) - (p[1] - q[1]) * (r2[0] - q[0])) < 0.05 * Math.hypot(r2[0] - q[0], r2[1] - q[1]); })).map(T);
   const near = marks.sort((x, y) => Math.abs(x - t) - Math.abs(y - t))[0];
-  if (near != null && Math.abs(near - t) < 0.6) { t = near; snapped = true; } else t = Math.round(t * 10) / 10;
+  if (near != null && Math.abs(near - t) < (gm.length ? 0.9 : 0.6)) { t = near; snapped = true; } else t = Math.round(t * 10) / 10;
   t = Math.max(t0 + 1.2, Math.min(t1 - 1.2, t));
   const ns = a.ring.map(p => p[0] * N[0] + p[1] * N[1]), n0 = Math.min(...ns), n1 = Math.max(...ns), P = (nn: number): XY => [U![0] * t + N[0] * nn, U![1] * t + N[1] * nn];
   return { U, t, line: [P(n0), P(n1)], w1: t - t0, w2: t1 - t, snapped };

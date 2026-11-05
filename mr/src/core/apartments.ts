@@ -18,6 +18,8 @@ import type { XY } from './geo';
 import { signedArea, obb2 } from './geo';
 import type { Prism, SunStep } from './sun';
 import { rulePlan, applyEdit, type RulePlan } from './sectionplan';
+import { structGrid, type StructGrid } from './axes';
+import { bLevels } from './levels';
 
 export interface Module { a: XY; b: XY; /** deraza nuqtasi (fasaddan 0,3 m tashqarida) */ p: XY; /** tashqi normal azimuti, ° */ az: number; blind: boolean }
 export interface Apt { rooms: number; /** modullar indekslari */ mods: number[]; /** yashash xonalari modullari */ living: number[]; /** qator oxirida joy yetmay kichraytirilgan — miksdan tashqari */ forced?: boolean; /** rejadagi umumiy maydon, m² (yalpi × 0,85) */ area?: number }
@@ -43,7 +45,7 @@ export const badness = (a: number) => (isWest(a) ? 2 : 0) + Math.cos(a * Math.PI
  * Fasad ~3,3 m li modullarga (derazalar) boʻlinadi; kvartiralar QAVAT REJASIDAN olinadi (sectionplan.ts):
  * avval zina-lift yadrosi va koridor, keyin har kvartira koridorga eshik va fasadga deraza bilan.
  */
-export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M', court: XY | null = null): Layout {
+export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: number[] = MIX_DEFAULT, modW = MOD_W, size: AptSize = 'M', court: XY | null = null, walls: [XY, XY][] = []): Layout {
   const ring = signedArea(ring0) < 0 ? [...ring0].reverse() : ring0, mods: Module[] = [];
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i], b = ring[(i + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
@@ -56,9 +58,9 @@ export function layoutSection(ring0: XY[], blindAt: (p: XY) => boolean, mix: num
     }
   }
   // reja generatori bir necha variant yasaydi (sekin) — natija kesh: kontur, berk modullar, aralashma, oʻlcham, hovli nuqtasi
-  const key = JSON.stringify([ring.map(p => [Math.round(p[0] * 1e3), Math.round(p[1] * 1e3)]), mods.map(m => m.blind ? 1 : 0).join(''), mix, modW, size, court && [Math.round(court[0] * 1e3), Math.round(court[1] * 1e3)]]);
+  const key = JSON.stringify([ring.map(p => [Math.round(p[0] * 1e3), Math.round(p[1] * 1e3)]), mods.map(m => m.blind ? 1 : 0).join(''), mix, modW, size, court && [Math.round(court[0] * 1e3), Math.round(court[1] * 1e3)], walls.map(w => w.map(p => [Math.round(p[0] * 10), Math.round(p[1] * 10)]))]);
   let base = PLAN_CACHE.get(key);
-  if (!base) { base = rulePlan(ring, mods, mix, size, court); PLAN_CACHE.set(key, base); if (PLAN_CACHE.size > 400) PLAN_CACHE.delete(PLAN_CACHE.keys().next().value!); }
+  if (!base) { base = rulePlan(ring, mods, mix, size, court, walls); PLAN_CACHE.set(key, base); if (PLAN_CACHE.size > 400) PLAN_CACHE.delete(PLAN_CACHE.keys().next().value!); }
   const plan = structuredClone(base);
   return { mods, apts: aptsOf(plan, mods), plan };
 }
@@ -147,7 +149,7 @@ export function aptSummary(plans: SecPlan[]): { total: number; forced: number; b
 import { frame } from './geo';
 import { useDef } from './uses';
 
-export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** qoʻlda tahrir: qoʻllandi yoki bino oʻzgargani uchun eskirdi */ edited?: 'ok' | 'eskirgan'; /** tahrirdan oldingi (generatsiya qilingan) reja */ genPlan?: RulePlan; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number; /** hovli markazi (variantlar uchun) */ court?: XY | null }
+export interface SecPlan { bid: string; ring: XY[]; layout: Layout; /** 05.11: konstruktiv toʻr (seysmik boʻlmalar, oʻqlar) — barcha qavatlar uchun bitta */ grid?: StructGrid; /** qoʻlda tahrir: qoʻllandi yoki bino oʻzgargani uchun eskirdi */ edited?: 'ok' | 'eskirgan'; /** tahrirdan oldingi (generatsiya qilingan) reja */ genPlan?: RulePlan; /** turar joy qavatlari [f0, f1) — bino pastidan */ f0: number; f1: number; z0: number; /** seksiya yarim chuqurligi, m (kvartira maydoni taxmini uchun) */ halfDepth: number; /** hovli markazi (variantlar uchun) */ court?: XY | null }
 
 const SKIP = new Set(['stilobat', 'uy', 'taunhaus']);
 
@@ -199,7 +201,10 @@ function planWithMix(doc: Project, mix: number[]): SecPlan[] {
     const z0 = b.z0 ?? 0, top = z0 + b.floors;
     // berk devor: qoʻshni seksiya shu sathda tegib tursa
     const blindAt = (p: XY) => all.some(o => o !== s && p[0] >= o.bb[0] && p[0] <= o.bb[2] && p[1] >= o.bb[1] && p[1] <= o.bb[3] && (o.b.z0 ?? 0) < top && (o.b.z0 ?? 0) + o.b.floors > z0 + b.nonRes && inside(p, o.r));
-    const size = doc.settings.aptSize ?? 'M', layout = layoutSection(s.r, blindAt, mix, MOD_W, size, court);
+    // 05.11: antiseysmik choklar avval (konstruktiv toʻr, QMQ 3.1.3) — reja seksiyalari chok chizigʻiga moslanadi, chok xonadan oʻtmaydi (3.1.4)
+    const gOpts = { sys: doc.settings.construct ?? 'monolit', seismic: doc.settings.seismic ?? 8, H: bLevels(doc.settings, b).top, floors: b.floors } as const;
+    const joints = structGrid(s.r, null, gOpts).joints;
+    const size = doc.settings.aptSize ?? 'M', layout = layoutSection(s.r, blindAt, mix, MOD_W, size, court, joints);
     // qoʻlda tahrir: kalit mos boʻlsa — tahrirlangan reja
     let edited: 'ok' | 'eskirgan' | undefined, genPlan: RulePlan | undefined;
     if (b.planEdit) {
@@ -212,7 +217,9 @@ function planWithMix(doc: Project, mix: number[]): SecPlan[] {
     // 04.11 (egasi): 1 xonalilar — studiya formati (loyiha sozlamasi); kvartiraning oʻz tanlovi (inner.studio) ustun
     if (doc.settings.studio1 && layout.plan) for (const a of layout.plan.apts) if ((a.rooms || 1) <= 1 && a.inner?.studio == null) a.inner = { ...(a.inner ?? {}), studio: true };
     const halfDepth = Math.max(4, Math.min(9, sectionDepth(s.r, layout.mods) / 2));
-    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, f0: b.nonRes, f1: b.floors, z0, halfDepth, court, ...(edited ? { edited } : {}), ...(genPlan ? { genPlan } : {}) });
+    // 05.11: konstruktiv toʻr — hujjat sozlamalari (tizim, seysmiklik) va shu seksiya rejasidan (yadro, kvartira devorlari — langarlar)
+    const grid = layout.plan ? structGrid(s.r, layout.plan, gOpts) : undefined;
+    if (layout.apts.length) out.push({ bid: b.id, ring: s.r, layout, ...(grid ? { grid } : {}), f0: b.nonRes, f1: b.floors, z0, halfDepth, court, ...(edited ? { edited } : {}), ...(genPlan ? { genPlan } : {}) });
   }
   return out;
 }
