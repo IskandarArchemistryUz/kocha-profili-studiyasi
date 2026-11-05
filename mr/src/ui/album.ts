@@ -10,6 +10,7 @@ import { range } from './controls';
 const CH_L = '<path d="M15 6l-6 6 6 6"/>', CH_R = '<path d="M9 6l6 6-6 6"/>';
 import { MOD_W, type SecPlan } from '../core/apartments';
 import { floorPlanSvg, floorGroups, floorTypeOf, buildingFloorsSvg, allPlansSvg, FLOOR_NAME, ROOM_LABEL, APT_FILL, type PlanOpts } from '../core/floorplan';
+import { gridChecks } from '../core/axes';
 import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, editRoomToApt, editInner, floorVariant, wallPreview, planChecks, planVariants, planMix, type RulePlan, type EditResult, type RoomKind, type PlanVariant } from '../core/sectionplan';
 import type { XY } from '../core/geo';
 import { floorInsol, EDGE_H, type AptInsol, type InsolStatus } from '../core/insolplan';
@@ -39,6 +40,7 @@ export interface AlbumOpts {
   /** kvartira miksi (hujjat sozlamasi) — variantlar uchun boshlangʻich maqsad */ mix: number[];
   /** ochilganda koʻrinish (V5: «Insolyatsiya» — derazalar hisobidan) */ view?: AlbView;
   insol?: InsolView | null; runInsol?: () => Promise<InsolView | null>;
+  /** 05.11: konstruktiv tizim oʻzgartirish (devor-pilonli ↔ karkas) — hujjat sozlamasi, albom qayta ochiladi */ onConstruct?: (sys: 'monolit' | 'karkas', bid: string, floor: number, view: AlbView) => void;
   /** «Kesim» koʻrinishi (31.10): seksiya va atrofdagi binolar (mahalliy metr, balandlik) va kenglik */ section?: (bid: string) => { sel: SecBld; others: SecBld[]; lat: number } | null;
 }
 const ROOM_COL: Record<RoomKind, string> = { texnik: '#cfcbc3', ombor: '#d9cdb5', savdo: '#9fc0e3', velo: '#c5d9b0', zal: '#e2bcd6', tozalash: '#cfcbc3' };
@@ -165,7 +167,7 @@ export function openAlbum(o: AlbumOpts): void {
       let last: { i: number; U: XY; t: number } | null = null;
       svg.addEventListener('mousemove', e => {
         const p = toPlan(e), i = P.apts.findIndex(a => pin(p, a.ring)); g.replaceChildren(); last = null; if (i < 0) return;
-        const w = wallPreview(P, i, p, pl.layout.mods); if (!w) return; last = { i, U: w.U, t: w.t };
+        const w = wallPreview(P, i, p, pl.layout.mods, pl.grid); if (!w) return; last = { i, U: w.U, t: w.t };
         const [a, b] = w.line.map(res.toSvg), ln = document.createElementNS(ns, 'path');
         ln.setAttribute('d', `M${a[0]} ${a[1]}L${b[0]} ${b[1]}`); ln.setAttribute('stroke', w.snapped ? '#0a84ff' : '#ff9f0a'); ln.setAttribute('stroke-width', '0.8'); ln.setAttribute('stroke-dasharray', '1.2 0.8'); g.append(ln);
         const mid: XY = [(w.line[0][0] + w.line[1][0]) / 2, (w.line[0][1] + w.line[1][1]) / 2];
@@ -196,7 +198,7 @@ export function openAlbum(o: AlbumOpts): void {
       V.rooms.length ? h('div', { class: 'opts' }, h('b', {}, `${tr('Xonalar')}:`), ' ' + V.rooms.map(q => tr(ROOM_LABEL[q.kind])).filter((x, i, a) => a.indexOf(x) === i).join(' · ')) : '',
       h('div', { class: 'glabel' }, h('span', {}, tr('Tahrir'))),
       !editable ? h('div', { class: 'note' }, `${floor}-qavat rejasi tipik qavatdan kelib chiqadi (${FLOOR_NAME[ft]}). Tahrir uchun ${tf}-qavatni oching.`, h('button', { class: 'btn btn-sm', style: 'margin-top:6px;display:flex', onclick: () => { floor = tf; render(); } }, `${tf}-${tr('qavatga')}`))
-        : mode === 'devor' ? h('div', { class: 'note' }, 'Kvartira ustida yuring: devor koʻk — modul chegarasiga tortildi, toʻq sariq — erkin (0,1 m qadam). Bosing — kvartira ikkiga boʻlinadi. Ikki tomondagi masofa koʻrsatiladi.')
+        : mode === 'devor' ? h('div', { class: 'note' }, tr(pl.grid ? 'Kvartira ustida yuring: devor koʻk — konstruktiv oʻq yoki yarim oraliqqa tortildi, toʻq sariq — erkin (0,1 m qadam). Bosing — kvartira ikkiga boʻlinadi. Ikki tomondagi masofa koʻrsatiladi.' : 'Kvartira ustida yuring: devor koʻk — modul chegarasiga tortildi, toʻq sariq — erkin (0,1 m qadam). Bosing — kvartira ikkiga boʻlinadi. Ikki tomondagi masofa koʻrsatiladi.'))
         : h('div', { class: 'alb-edit' },
           sa ? h('div', { class: 'alb-selc' }, h('i', { style: `background:${APT_FILL[Math.min(4, sa.rooms)]}` }), h('b', {}, `${sa.rooms} xonali`), h('span', { class: 'num' }, `${fmt(sa.area * 0.85, 1)} m² · ${sa.mods.length} deraza`)) : two ? h('div', { class: 'alb-selc' }, h('b', {}, tr('A va B tanlandi'))) : h('div', { class: 'note' }, tr('Kvartirani bosing — xonalar (ichki reja) tahriri ochiladi; ikkinchisini ham bossangiz — A va B chegarasi.')),
           sa ? innerBox(P, sel[0], btn) : '',
@@ -207,12 +209,33 @@ export function openAlbum(o: AlbumOpts): void {
       msg ? h('div', { class: msgBad ? 'note warn' : 'note', id: 'albMsg' }, msg) : h('div', { class: bad.length ? 'note bad' : 'note ok', id: 'albMsg' }, bad.length ? `${tr('Qoida buzilgan')}: ${bad.map(c => c.title.toLowerCase()).join('; ')}` : tr('Qoidalar bajarilgan: har kvartiraga koridordan eshik, deraza, yorugʻlik.')),
       h('div', { class: 'glabel' }, h('span', {}, tr('Bino jami'))),
       h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Kvartiralar')), h('span', { class: 'v' }, fmt(allApts))), h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1–2 xonali ulushi')), h('span', { class: 'v' }, `${allApts ? Math.round(small / allApts * 100) : 0} %`)), h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Seksiyalar')), h('span', { class: 'v' }, String(P.sections.length)))),
+      ...axesBox(pl),
       h('span', { class: 'spacer' }),
       h('div', { class: 'row' },
         btn('albUndo', 'Orqaga', () => { const hs = hist.get(bid); const p = hs?.pop(); if (p) { work.set(bid, p); dirty.add(bid); sel = []; render(); } }, !(hist.get(bid)?.length)),
         btn('albReset', 'Asl reja', () => { (hist.get(bid) ?? hist.set(bid, []).get(bid)!).push(planOf(pl)); work.set(bid, genOf(pl)); dirty.add(bid); sel = []; render(); }),
         h('button', { class: 'btn btn-primary btn-sm grow', id: 'albSave', disabled: !dirty.size, onclick: () => { for (const b of dirty) { const s2 = o.plans.find(p => p.bid === b)!; const w = work.get(b)!; o.onSave(b, w === genOf(s2) ? null : w); } dirty.clear(); closeArmed = false; toast('Reja saqlandi — barcha turar qavatlarga qoʻllandi'); render(); } }, dirty.size ? `Saqlash (${dirty.size})` : 'Saqlangan')));
     msgBad = false;
+  }
+  /**
+   * 05.11: «Oʻqlar» — konstruktiv toʻr (core/axes): tizim (devor-pilonli / karkas — seg), boʻlmalar, chok eni, qadamlar, T1–T7 tekshiruvlari.
+   * Oʻqlar chizmada «Oʻlchamlar» koʻrinishida; tizim oʻzgarsa albom qayta ochiladi (reja va toʻr qayta hisoblanadi).
+   */
+  function axesBox(pl: SecPlan): HTMLElement[] {
+    const g = pl.grid; if (!g) return [];
+    const P = planOf(pl), ch = gridChecks(g, P, pl.layout.mods, pl.f1), bad = ch.filter(c => c.ok === false), rev = ch.filter(c => c.ok === null);
+    const steps = g.blocks.map(b => b.steps.map(s => String(Math.round(s * 1000))).join('–')).join(' | ');
+    const sysSeg = h('div', { class: 'seg sm', role: 'group', id: 'albAxSys', 'aria-label': tr('Konstruktiv tizim') }, ...([['monolit', 'Devor-pilonli'], ['karkas', 'Karkas']] as const).map(([k, t]) => h('button', { 'aria-pressed': g.system === (k === 'karkas' ? 'frame' : 'wall'), 'data-sys': k, disabled: !o.onConstruct, onclick: () => o.onConstruct?.(k, bid, floor, view) }, tr(t))));
+    return [
+      h('div', { class: 'glabel' }, h('span', {}, tr('Oʻqlar'))),
+      h('div', { class: 'group', id: 'albAxes' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Konstruktiv tizim'), h('span', { class: 'sub' }, g.system === 'frame' ? tr('karkas: qadam 6,0–7,2 m, kvartira yarim oraliq aniqligida') : tr('devor-pilonli: qadam 3,0–4,2 m, kvartira = butun oraliqlar'))), sysSeg),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Seysmik boʻlmalar'), h('span', { class: 'sub' }, g.blocks.length > 1 ? tfm('chok ${w} mm (QMQ 2.01.03-19, 3.1.4)', { w: g.jointMm }) : tr('bitta boʻlma — chok yoʻq'))), h('span', { class: 'v' }, String(g.blocks.length))),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qadamlar, mm'), h('span', { class: 'sub', id: 'albAxSteps' }, steps)), h('span', { class: 'v' }, `${g.seismic} ${tr('ball')}`)),
+        ...g.notes.map(n => h('div', { class: 'note warn' }, tr(n))),
+        h('div', { class: bad.length ? 'note bad' : rev.length ? 'note warn' : 'note ok', id: 'albAxChk' }, bad.length ? `${tr('Buzilgan')}: ${bad.map(c => tr(c.title)).join('; ')}` : rev.length ? `${tr('Koʻrib chiqish')}: ${rev.map(c => tr(c.title)).join('; ')}` : tr('T1–T7 tekshiruvlari oʻtdi')),
+        h('div', { class: 'note' }, tr('Oʻqlar va oʻlcham zanjiri — «Oʻlchamlar» koʻrinishida; devor rejimida devor oʻq yoki yarim oraliqqa yopishadi.'))),
+    ];
   }
   /**
    * 31.10 (egasi, ArchiCAD/Revit kabi): tanlangan kvartiraning ichki devorlarini sudrash — 0,1 m qadam, modul chegarasiga tortiladi,
@@ -417,7 +440,7 @@ export function openAlbum(o: AlbumOpts): void {
   /** V3: variantlar — generator maqsadli aralashmaga yaqin 3 ta reja; «Joriy» — hozirgi (tahrirlangan boʻlsa shu) */
   function computeVars(): void {
     const pl = secOf();
-    try { vars = planVariants(pl.ring, pl.layout.mods, varMix, varSize, pl.court ?? null, 4); } catch { vars = []; }
+    try { vars = planVariants(pl.ring, pl.layout.mods, varMix, varSize, pl.court ?? null, 4, pl.grid?.joints ?? []); } catch { vars = []; }
     varSel = -1;
   }
   function renderVars(pl: SecPlan, si: number): void {
