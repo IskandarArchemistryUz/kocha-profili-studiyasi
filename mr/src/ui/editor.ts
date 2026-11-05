@@ -53,6 +53,7 @@ import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, type AutoSetback, type EdgeKind } from '../core/setback';
 import { DEFAULT_GEN, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
+import { mlParking, need413, pct5, ML, OPEN_413 } from '../core/mlpark';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
 import { saveMrReturn, consumeMrBack } from './mrback';
@@ -2304,6 +2305,8 @@ export class Editor {
   private generateBlock(i: number, quiet = false, over: Partial<GenParams> = {}, panelAll = false): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
     const ud = useDef(b.use), name = this.unitName(i);
+    // 05.11: «Avtoturargoh» — koʻp qavatli tanlangan boʻlsa, «Hammasi» ham qayta quradi
+    if (b.use === 'avtoturargoh' && this.savedGen(i)?.mlType === 'kop') return this.generateParking(i, Number(this.savedGen(i)?.mlFloors) || 3, quiet);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
     if (isSocial(b.use)) return this.generateSocial(i, quiet);
     // 02.11: past qavatli tipologiya, chuqur kvartal — avval ichki koʻchalar, keyin har yangi kvartal alohida (faqat bitta kvartal tugmasida)
@@ -2504,6 +2507,56 @@ export class Editor {
     if (!quiet) toast(`${this.unitName(i)}: ${SOCIAL[t.use].name.toLowerCase()} — ${fmt(t.cap)} ${SOCIAL[t.use].unit}, ${fmt(sp.gfa)} m²`);
     return sp.sections.length;
   }
+  /** 05.11: «Avtoturargoh» birligi — tur tanlovi (ochiq / koʻp qavatli), qavatlar; tanlov joylashtirilguncha shu yerda */
+  private mlPick = new Map<string, { t: 'ochiq' | 'kop'; f: number }>();
+  private mlGrp(i: number): string | null { const b = this.plan().blocks[i]; return b ? b.parcelId ?? this.blockLabel(i)?.id ?? null : null; }
+  private mlState(i: number): { t: 'ochiq' | 'kop'; f: number } {
+    const grp = this.mlGrp(i), sg = this.savedGen(i), gar = this.store.doc.garages.find(g => g.grp === grp && g.kind === 'kop_qavatli');
+    return (grp ? this.mlPick.get(grp) : undefined) ?? { t: gar || sg?.mlType === 'kop' ? 'kop' : 'ochiq', f: gar?.levels ?? (Number(sg?.mlFloors) || 3) };
+  }
+  private generateParking(i: number, floors: number, quiet = false): number {
+    const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
+    const fr = frame(this.store.doc.origin), grp = b.parcelId ?? lab.id, m = mlParking(b.rings[0], floors), name = this.unitName(i);
+    if (!m) { this.genNotes = [tf('Koʻp qavatli avtoturargoh sigʻmadi: chekinish ${s} m bilan kamida ≈ 56 × 25 m toʻrtburchak kerak (pandus, yoʻlaklar, joylar).', { s: ML.setback })]; if (!quiet) { toast(this.genNotes[0]); this.renderPanel(); } return 0; }
+    const gen = { mlType: 'kop', mlFloors: m.levels }, G = (rs: XY[][]) => rs.map(r => r.map(fr.toGeo));
+    this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, ...(b.parcelId ? { parcelGen: gen } : { label: { ...lab, gen } }),
+      sections: [{ footprint: m.ring.map(fr.toGeo), floors: m.levels, nonRes: m.levels, use: 'avtoturargoh', kind: 'parking' }],
+      garage: { kind: 'kop_qavatli', ring: m.ring.map(fr.toGeo), levels: m.levels, spaces: m.spaces, module: 'p90', stalls: G(m.stalls), aisles: G(m.aisles), ramps: G(m.ramps), cores: G(m.cores), perFloor: m.perFloor } }));
+    this.mlPick.delete(grp);
+    this.genNotes = [tf('Bino ${l} × ${w} m, ${n} qator; pandus ikki yoʻnalishli, ${r} m (qiyalik 18 %, ANDOZA)', { l: fmt(m.L, 1), w: fmt(m.W, 1), n: m.bays, r: fmt(m.rampL, 1) })];
+    if (!quiet) toast(tf('${n}: koʻp qavatli avtoturargoh — ${k} joy', { n: name, k: m.spaces }));
+    return 1;
+  }
+  private parkingSection(i: number): HTMLElement {
+    const plan = this.plan(), b = plan.blocks[i], grp = this.mlGrp(i), st = this.mlState(i), doc = this.store.doc;
+    const gar = doc.garages.find(g => g.grp === grp && g.kind === 'kop_qavatli');
+    const pick = (p: Partial<{ t: 'ochiq' | 'kop'; f: number }>) => { if (grp) this.mlPick.set(grp, { ...st, ...p }); this.renderPanel(); };
+    const box = h('div', { class: 'group', id: 'mlPark' },
+      h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Avtoturargoh turi'), h('span', { class: 'sub' }, tr('ShNQ 2.07.01-23, 410 va 413-bandlar'))),
+        h('div', { class: 'seg sm', id: 'mlType', role: 'group', 'aria-label': tr('Avtoturargoh turi') },
+          h('button', { 'data-ptype': 'ochiq', 'aria-pressed': st.t === 'ochiq', onclick: () => pick({ t: 'ochiq' }) }, tr('Ochiq')),
+          h('button', { 'data-ptype': 'kop', 'aria-pressed': st.t === 'kop', onclick: () => pick({ t: 'kop' }) }, tr('Koʻp qavatli')))));
+    if (st.t === 'ochiq') {
+      box.append(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Ochiq avtoturargoh'), h('span', { class: 'sub' }, tf('${a} m²/joy (413-band)', { a: OPEN_413 }))), h('b', { class: 'num', id: 'mlOpen' }, tf('≈ ${n} joy', { n: Math.floor((b?.area ?? 0) / OPEN_413) }))));
+      if (gar) box.append(h('div', { class: 'note warn' }, tr('Bu parselda koʻp qavatli avtoturargoh qurilgan — «Tozalash» bilan olib tashlang.')));
+      return box;
+    }
+    box.append(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qavatlar'), h('span', { class: 'sub' }, tf('413-band: bir joyga ≥ ${a} m² yer', { a: need413(st.f) }))),
+      h('div', { class: 'seg sm', id: 'mlFloors', role: 'group', 'aria-label': tr('Qavatlar') }, ...[2, 3, 4, 5].map(f => h('button', { 'data-pfl': f, 'aria-pressed': st.f === f, onclick: () => pick({ f }) }, String(f))))));
+    if (gar) {
+      const pf = gar.perFloor ?? [], p0 = pf[0] ?? 0, p1 = pf[1] ?? p0, A = b?.area ?? 0;
+      box.append(
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Sigʻim'), h('span', { class: 'sub' }, tr('qavat rejasi boʻyicha: pandus, yoʻlaklar, zina-lift tugunlari chiqarilgan; 1-qavatda nazorat punkti')))),
+        h('div', { class: 'li' }, h('b', { class: 'num', id: 'mlCap' }, gar.levels > 1 ? tf('1-qavat ${a} + ${n} qavat × ${m} = ${k} joy', { a: p0, n: gar.levels - 1, m: p1, k: gar.spaces }) : tf('Jami ${k} joy', { k: gar.spaces }))),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Yer uchastkasi bir joyga'), h('span', { class: 'sub' }, tf('413-band: ${l} qavatda ≥ ${n} m²', { l: gar.levels, n: need413(gar.levels) }))),
+          h('b', { class: 'num', id: 'ml413' }, `${fmt(gar.spaces ? A / gar.spaces : 0, 1)} m²`)),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Nogironlar uchun joy'), h('span', { class: 'sub' }, tr('411-band: kamida 5 %, kamida 1 — 1-qavatda'))), h('b', { class: 'num' }, String(pct5(gar.spaces)))),
+        ...(gar.spaces && A / gar.spaces < need413(gar.levels) - 0.05 ? [h('div', { class: 'note warn', id: 'ml413warn' }, tf('413-band boʻyicha bu uchastkada ${l} qavatda koʻpi bilan ${m} joy — qavatni kamaytiring.', { l: gar.levels, m: Math.floor(A / need413(gar.levels)) }))] : []),
+        h('div', { class: 't-small' }, tf('Pandus, yoʻlak va qavat balandligi — ANDOZA (SP 113.13330.2016, taqqoslash uchun): qavat ${h} m, qiyalik ≤ 18 %, yoʻlak ≥ 3,5 m.', { h: fmt(ML.floorH, 1) })));
+      if (st.f !== gar.levels) box.append(h('div', { class: 'note warn' }, tf('Tanlangan ${f} qavat — qayta joylashtiring.', { f: st.f })));
+    } else box.append(h('div', { class: 't-small', id: 'mlHint' }, tr('«Joylashtirish» — parsel ichida toʻrtburchak bino, har qavatda pandus, manevr yoʻlagi va joylar.')));
+    return box;
+  }
   private socialSection(i: number): HTMLElement | '' {
     const t = this.socTarget(i); if (!t) return '';
     const S = SOCIAL[t.use], b = this.plan().blocks[i], key = `${b.parcelId ?? b.labelId ?? String(i)}|${b.use}`;
@@ -2552,7 +2605,13 @@ export class Editor {
     const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr(this.allOwn ? 'Hamma dahalar — har biri oʻz sozlamasi bilan' : 'Hamma dahalar — paneldagi sozlamalar bilan'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true, {}, !this.allOwn); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } const fx = this.repairNorms(); if (fx.length) { this.genNotes = fx; this.renderPanel(); } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) { const grp = u.parcelId ?? lab.id; this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, sections: [], drop: staleGen(this.store.doc, grp, u.rings[0], []) })); } } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
-    if (socI != null) {
+    const parkI = this.selBlock != null && plan.blocks[this.selBlock]?.use === 'avtoturargoh' ? this.selBlock : null;
+    if (parkI != null) {
+      const st = this.mlState(parkI);
+      body.append(this.parkingSection(parkI),
+        h('div', { class: 'row' }, st.t === 'kop' ? h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => void useHeavy('gen').then(ok => { if (ok) { this.generateParking(parkI, st.f); this.renderPanel(); } }) }, tr('Joylashtirish'), this.ptag('gen')) : h('span', { class: 'grow' }), allBtn(), clearBtn(parkI)));
+      if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
+    } else if (socI != null) {
       body.append(this.socialSection(socI),
         h('div', { class: 'row' }, h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => void useHeavy('gen').then(ok => { if (ok) this.generateSocial(socI); }) }, tr('Joylashtirish'), this.ptag('gen')), allBtn(), clearBtn(socI)));
       if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
