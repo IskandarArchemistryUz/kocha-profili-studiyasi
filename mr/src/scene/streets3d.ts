@@ -120,6 +120,10 @@ export interface RoadTarget { pts: XY[]; w: number; sw: number; bb?: number[] }
 const withBB = (r: RoadTarget): RoadTarget => { const m = r.w / 2 + r.sw + 1; let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of r.pts) { if (p[0] < a) a = p[0]; if (p[1] < b) b = p[1]; if (p[0] > c) c = p[0]; if (p[1] > d) d = p[1]; } return { ...r, bb: [a - m, b - m, c + m, d + m] }; };
 const outBB = (p: XY, r: RoadTarget) => !!r.bb && (p[0] < r.bb[0] || p[1] < r.bb[1] || p[0] > r.bb[2] || p[1] > r.bb[3]);
 const ASPH = /^(qatnov|avtobus|tramvay|parkovka|velo)$/;
+/** qatnov qismi (chorrahada asfalt — faqat shu) */
+const CARR = /^(qatnov|avtobus|tramvay)$/;
+/** ShNQ 2.07.01-23, 341-band: qatnov qismi burilish radiusi trotuar va ajratuvchi chetidan ≥ 15 m; rekonstruksiya va qurilgan hududda 5 m gacha */
+export const CURB_R = 15, CURB_R_RECON = 5;
 export const asTargets = (osm: StreetIn[]): RoadTarget[] => osm.filter(r => !FOOT.test(r.cls)).map(r => ({ pts: r.pts, w: r.w, sw: sidewalkW(r.cls) }));
 
 /**
@@ -210,7 +214,36 @@ export function splitOutside(axis: XY[], tg: RoadTarget[]): XY[][] {
   return out;
 }
 
-export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn[] = []): ProjStreetGeo {
+/**
+ * 05.11 (egasi skrinshoti: bulvar burilish nuqtasida boshqa koʻchalar ulangan — ajratuvchi tugungacha borardi, tashqi burchakda
+ * trotuar doirasi «choʻqqi» boʻlib chiqardi): chorraha boʻlgan ichki boʻgʻinda koʻcha ikki boʻlakka ajratiladi — shunda har boʻlak
+ * uchi oddiy chorraha kabi qisqartiriladi (trimAtRoads, curbFillets), ajratuvchi/yashil/trotuar chorraha chetida tugaydi.
+ * Chorraha boʻgʻini: (1) boshqa loyiha koʻchasining uchi shu boʻgʻindan koridor yarim kengligi ichida; yoki
+ * (2) boshqa koʻcha boʻgʻini bilan ustma-ust (≤ 1 m) — X chorraha. Oddiy burilish (boshqa koʻcha yoʻq) — oʻzgarmaydi.
+ */
+export function splitAtJunctions(list: ProjStreet[]): ProjStreet[] {
+  const halfW = (s: ProjStreet) => s.parts.reduce((a, p) => a + p.w, 0) / 2;
+  const d = (a: XY, b: XY) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const out: ProjStreet[] = [];
+  for (const s of list) {
+    const n = s.axis.length; if (n < 3) { out.push(s); continue; }
+    const hs = halfW(s), cut: number[] = [];
+    for (let i = 1; i < n - 1; i++) {
+      const v = s.axis[i];
+      const hit = list.some(t => t !== s && t.axis.length >= 2 && (
+        [t.axis[0], t.axis[t.axis.length - 1]].some(e => d(e, v) <= Math.max(hs, 1)) ||
+        t.axis.slice(1, -1).some(q => d(q, v) <= 1)));
+      if (hit) cut.push(i);
+    }
+    if (!cut.length) { out.push(s); continue; }
+    let a = 0;
+    for (const [k, i] of [...cut, n - 1].entries()) { out.push({ ...s, id: k ? `${s.id}#${k}` : s.id, axis: s.axis.slice(a, i + 1) }); a = i; }
+  }
+  return out;
+}
+
+export function projectStreetsGeo(list0: ProjStreet[], H: HeightFn, osm: StreetIn[] = [], opt: { curbR?: number } = {}): ProjStreetGeo {
+  const list = splitAtJunctions(list0), R = opt.curbR ?? CURB_R;
   const L: Record<string, Buf> = {}, layer = (k: string, lift: number) => (L[k] ??= new Buf(H, lift));
   const trees: XY[] = [];
   const half = (s: ProjStreet) => s.parts.reduce((a, p) => a + p.w, 0) / 2;
@@ -229,12 +262,95 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
   const T = new Map<ProjStreet, ReturnType<typeof trimAtRoads>>(); for (const s of list) T.set(s, trimAtRoads(s.axis, targets(s)));
   // qizil chiziqlar: koridorlar birlashmasining konturi — chorrahada kesishmaydi, uchlari yoʻl chetida
   const red = corridorOutlines(list.map(s => ({ axis: T.get(s)!.body, half: half(s) })), osmT.map(r => ({ axis: r.pts, half: r.w / 2 + r.sw })));
+
+  /* ---- 05.11 (egasi chizmasi): chorraha = qatnov qismlari birlashmasi; har burchakda ikki qatnov cheti R radiusli yoy bilan
+     (ShNQ 2.07.01-23, 341-band: trotuar va ajratuvchi chetidan ≥ 15 m, rekonstruksiyada 5 m gacha); trotuar burchakdan aylanib
+     qizil chiziq burchagigacha; yashil tasma, velo, parkovka va daraxtlar yoy boshlanishidan oldin tugaydi; ajratuvchi kesishgan
+     qatnovlar chetida yumaloq uch bilan tugaydi. Faqat ≥ 2 loyiha koʻchasi uchi uchrashgan tugunda (T — oʻrtaga ulangan — avvalgidek). */
+  interface JEnd { s: ProjStreet; k: 0 | 1; e: XY; o: XY; n: XY; sg: number; cmin: number; cmax: number; bd: number; sCw: number; sCcw: number; sCore: number; jc?: XY }
+  const jends: JEnd[] = [];
+  for (const s of list) {
+    const { body, hit } = T.get(s)!; if (s.axis.length < 2) continue;
+    const W = half(s) * 2; let o = -W / 2, cmin = Infinity, cmax = -Infinity;
+    for (const p of s.parts) { const o0 = o, o1 = o + p.w; o = o1; if (CARR.test(p.k)) { cmin = Math.min(cmin, o0); cmax = Math.max(cmax, o1); } }
+    if (!(cmin < cmax)) continue;
+    for (const k of [0, 1] as const) {
+      if (!hit[k]) continue;
+      const e = k === 0 ? s.axis[0] : s.axis[s.axis.length - 1], pv = k === 0 ? s.axis[1] : s.axis[s.axis.length - 2], dl = Math.hypot(pv[0] - e[0], pv[1] - e[1]); if (dl < 0.5) continue;
+      const ov: XY = [(pv[0] - e[0]) / dl, (pv[1] - e[1]) / dl], sg = k === 0 ? 1 : -1, be = k === 0 ? body[0] : body[body.length - 1];
+      // tashqi (koʻcha ichiga) yoʻnalish oʻqida: chap normal — soat miliga teskari tomon; profil siljishlari koʻcha yoʻnalishiga nisbatan → sg
+      jends.push({ s, k, e, o: ov, n: [-ov[1], ov[0]], sg, cmin: sg > 0 ? cmin : -cmax, cmax: sg > 0 ? cmax : -cmin, bd: (be[0] - e[0]) * ov[0] + (be[1] - e[1]) * ov[1], sCw: NaN, sCcw: NaN, sCore: 0 });
+    }
+  }
+  const at = (j: JEnd, sd: number, off: number): XY => [j.e[0] + j.o[0] * sd + j.n[0] * off, j.e[1] + j.o[1] * sd + j.n[1] * off];
+  const q = layer('qatnov', 0.12), used = new Set<JEnd>();
+  for (const j0 of jends) {
+    if (used.has(j0)) continue;
+    const grp = jends.filter(j => !used.has(j) && Math.hypot(j.e[0] - j0.e[0], j.e[1] - j0.e[1]) <= 10);
+    if (grp.length < 2) continue;
+    grp.forEach(j => used.add(j));
+    const c: XY = [grp.reduce((t, j) => t + j.e[0], 0) / grp.length, grp.reduce((t, j) => t + j.e[1], 0) / grp.length];
+    grp.forEach(j => { j.jc = c; });
+    const ord = [...grp].sort((a, b) => Math.atan2(a.o[1], a.o[0]) - Math.atan2(b.o[1], b.o[0]));
+    const core: XY[] = [];
+    for (let i = 0; i < ord.length; i++) {
+      const A = ord[i], B = ord[(i + 1) % ord.length];
+      core.push(at(A, 0, A.cmin), at(A, 0, A.cmax));
+      let ang = Math.atan2(B.o[1], B.o[0]) - Math.atan2(A.o[1], A.o[0]); while (ang <= 1e-6) ang += 2 * Math.PI;
+      const PA = at(A, 0, A.cmax), PB = at(B, 0, B.cmin), den = A.o[0] * B.o[1] - A.o[1] * B.o[0];
+      const tA = ((PB[0] - PA[0]) * B.o[1] - (PB[1] - PA[1]) * B.o[0]) / den, X: XY = [PA[0] + A.o[0] * tA, PA[1] + A.o[1] * tA];
+      if (ang > Math.PI * 0.95 || !Number.isFinite(tA) || Math.hypot(X[0] - c[0], X[1] - c[1]) > 60) {
+        // deyarli toʻgʻri davom (yoki burchak juda katta) — yoysiz: chetlar uchidan qoʻshiladi
+        A.sCcw = Math.max(isNaN(A.sCcw) ? 0 : A.sCcw, 0); B.sCw = Math.max(isNaN(B.sCw) ? 0 : B.sCw, 0); continue;
+      }
+      // burchak: ikki qatnov cheti X da kesishadi; R radiusli yoy (tashqi burchak — trotuar tomoni) bilan aylantiriladi
+      const tau = R / Math.tan(ang / 2), bl = Math.hypot(A.o[0] + B.o[0], A.o[1] + B.o[1]) || 1, bis: XY = [(A.o[0] + B.o[0]) / bl, (A.o[1] + B.o[1]) / bl];
+      const TA: XY = [X[0] + A.o[0] * tau, X[1] + A.o[1] * tau], TB: XY = [X[0] + B.o[0] * tau, X[1] + B.o[1] * tau];
+      const O: XY = [X[0] + bis[0] * R / Math.sin(ang / 2), X[1] + bis[1] * R / Math.sin(ang / 2)];
+      let a1 = Math.atan2(TA[1] - O[1], TA[0] - O[0]), a2 = Math.atan2(TB[1] - O[1], TB[0] - O[0]);
+      if (a2 - a1 > Math.PI) a2 -= 2 * Math.PI; if (a1 - a2 > Math.PI) a2 += 2 * Math.PI;
+      const arc: XY[] = [TA]; for (let m = 1; m < 12; m++) { const g = a1 + (a2 - a1) * m / 12; arc.push([O[0] + Math.cos(g) * R, O[1] + Math.sin(g) * R]); } arc.push(TB);
+      for (let m = 1; m < arc.length; m++) q.tri(X, arc[m - 1], arc[m]);
+      core.push(X);
+      const dA = (TA[0] - A.e[0]) * A.o[0] + (TA[1] - A.e[1]) * A.o[1], dB = (TB[0] - B.e[0]) * B.o[0] + (TB[1] - B.e[1]) * B.o[1];
+      A.sCcw = Math.max(isNaN(A.sCcw) ? 0 : A.sCcw, dA); B.sCw = Math.max(isNaN(B.sCw) ? 0 : B.sCw, dB);
+      const xA = (X[0] - A.e[0]) * A.o[0] + (X[1] - A.e[1]) * A.o[1], xB = (X[0] - B.e[0]) * B.o[0] + (X[1] - B.e[1]) * B.o[1];
+      A.sCore = Math.max(A.sCore, xA); B.sCore = Math.max(B.sCore, xB);
+    }
+    // markaz: c dan yelpigʻich (bir-birini qoplashi zarar qilmaydi — bitta rang)
+    for (let i = 0; i < core.length; i++) q.tri(c, core[i], core[(i + 1) % core.length]);
+    // har uch: qatnov qismi (butun eni, ajratuvchi oraligʻi bilan) uchdan kesishgan qatnovlar chetigacha (undan nari — oʻz qatnovi va yoylar)
+    for (const j of grp) {
+      const rd = T.get(j.s)!.road, re = j.k === 0 ? rd[0] : rd[rd.length - 1], r0 = (re[0] - j.e[0]) * j.o[0] + (re[1] - j.e[1]) * j.o[1];
+      q.band(j.e, at(j, Math.max(j.sCore, r0) + 0.5, 0), j.cmin, j.cmax);
+    }
+  }
+  const jOf = (s: ProjStreet, k: 0 | 1) => jends.find(j => j.s === s && j.k === k && j.jc);
+  /** chiziqni uchidan d masofagacha qisqartirish (k = 0 — boshi, 1 — oxiri) */
+  const cutEnd = (ax: XY[], k: 0 | 1, d: number): XY[] => {
+    const a = k === 0 ? ax : [...ax].reverse(); let acc = 0;
+    for (let i = 1; i < a.length; i++) { const L0 = Math.hypot(a[i][0] - a[i - 1][0], a[i][1] - a[i - 1][1]); if (acc + L0 > d) { const t = (d - acc) / L0, p: XY = [a[i - 1][0] + (a[i][0] - a[i - 1][0]) * t, a[i - 1][1] + (a[i][1] - a[i - 1][1]) * t], r = [p, ...a.slice(i)]; return k === 0 ? r : r.reverse(); } acc += L0; }
+    return [];
+  };
   for (const s of list) {
     const W = half(s) * 2, { body, road, hit } = T.get(s)!;
+    const J: [JEnd | undefined, JEnd | undefined] = [jOf(s, 0), jOf(s, 1)];
     // oʻrtasi OSM yoʻlni kesib oʻtsa — yoʻl zonasida trotuar/yashil yoʻq (uchlari allaqachon qisqartirilgan)
     const bodies = splitOutside(body, osmT);
-    // asos: butun kenglik — trotuar rangida (boʻgʻinlarda doira)
+    // asos: butun kenglik — trotuar rangida (boʻgʻinlarda doira); chorraha uchida qizil chiziqqacha (burchakdan aylanib davom etadi)
     for (const bp of bodies) layer('trotuar', 0.08).ribbon(bp, W / 2, false);
+    /** chorraha uchida qism qayergacha: tomonga qarab (yoy boshlanishi); yoʻq boʻlsa — tana (qizil chiziq) */
+    const partAxis = (o0: number, o1: number, med: boolean): XY[][] => {
+      let ax = s.axis;
+      for (const k of [1, 0] as const) {
+        const j = J[k];
+        if (!j) { if (hit[k]) { const be = k === 0 ? body[0] : body[body.length - 1], d = Math.hypot(be[0] - ax[k === 0 ? 0 : ax.length - 1][0], be[1] - ax[k === 0 ? 0 : ax.length - 1][1]); ax = cutEnd(ax, k, d); } continue; }
+        const lo = j.sg * o0, hi = j.sg * o1, mid = (lo + hi) / 2;
+        const d = med ? j.sCore + Math.abs(hi - lo) / 2 + 0.5 : mid > j.cmax - 0.01 ? (isNaN(j.sCcw) ? j.bd : j.sCcw + 1) : mid < j.cmin + 0.01 ? (isNaN(j.sCw) ? j.bd : j.sCw + 1) : j.sCore;
+        ax = cutEnd(ax, k, Math.max(0, d));
+      }
+      return ax.length >= 2 ? splitOutside(ax, osmT) : [];
+    };
     let o = -W / 2, aL = Infinity, aR = -Infinity;
     for (const p of s.parts) { const o0 = o, o1 = o + p.w; o = o1; if (ASPH.test(p.k)) { aL = Math.min(aL, o0); aR = Math.max(aR, o1); } }
     o = -W / 2;
@@ -242,7 +358,11 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
       const o0 = o, o1 = o + p.w; o = o1;
       if (p.k === 'trotuar') continue;
       const b = layer(p.k === 'ajratuvchi' ? 'yashil' : p.k, p.k === 'qatnov' ? 0.12 : 0.1);
-      for (const ax of ASPH.test(p.k) ? [road] : bodies) for (let i = 1; i < ax.length; i++) b.band(ax[i - 1], ax[i], o0, o1);
+      const med = p.k === 'ajratuvchi', axs = CARR.test(p.k) ? [road] : (J[0] || J[1]) ? partAxis(o0, o1, med) : (ASPH.test(p.k) ? [road] : bodies);
+      for (const ax of axs) for (let i = 1; i < ax.length; i++) b.band(ax[i - 1], ax[i], o0, o1);
+      // ajratuvchi chorraha kirishida yumaloq uch bilan tugaydi
+      if (med) for (const k of [0, 1] as const) { const j = J[k]; if (!j) continue; const ax = axs.flat(); if (!ax.length) continue; const pe = k === 0 ? axs[0][0] : axs[axs.length - 1][axs[axs.length - 1].length - 1], m = (o0 + o1) / 2 * j.sg;
+        const cc: XY = [pe[0] + j.n[0] * m, pe[1] + j.n[1] * m]; b.disc(cc, p.w / 2); }
       if (p.k === 'qatnov') for (let i = 1; i < road.length - 1; i++) {
         // ichki boʻgʻinda asfalt yaxlit
         const c = road[i], mid = (o0 + o1) / 2, prev = road[i - 1], next = road[i + 1], dx = next[0] - prev[0], dy = next[1] - prev[1], Ln = Math.hypot(dx, dy) || 1;
@@ -250,9 +370,11 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
       }
       if ((p.k === 'yashil' && p.w >= 1.4) || (p.k === 'ajratuvchi' && p.w >= 3)) {
         const mid = (o0 + o1) / 2;
-        for (let i = 1; i < body.length; i++) {
-          const a = body[i - 1], c = body[i], dx = c[0] - a[0], dy = c[1] - a[1], Ls = Math.hypot(dx, dy); if (Ls < 4) continue;
-          for (let t = 4; t < Ls - 3; t += 8) { const q: XY = [a[0] + dx / Ls * t - dy / Ls * mid, a[1] + dy / Ls * t + dx / Ls * mid]; if (!nearOther(q, s)) trees.push(q); }
+        // chorraha uchida daraxtlar yashil tasma tugashidan 2 m oldin (koʻrinish uchburchagi)
+        const tax = (J[0] || J[1]) ? partAxis(o0, o1, med).map(a => a.length >= 2 ? (J[0] ? cutEnd(a, 0, 2) : a) : a).map(a => a.length >= 2 && J[1] ? cutEnd(a, 1, 2) : a).filter(a => a.length >= 2) : [body];
+        for (const tb of tax) for (let i = 1; i < tb.length; i++) {
+          const a = tb[i - 1], c = tb[i], dx = c[0] - a[0], dy = c[1] - a[1], Ls = Math.hypot(dx, dy); if (Ls < 4) continue;
+          for (let t = 4; t < Ls - 3; t += 8) { const q2: XY = [a[0] + dx / Ls * t - dy / Ls * mid, a[1] + dy / Ls * t + dx / Ls * mid]; if (!(J[0] || J[1]) && nearOther(q2, s)) continue; trees.push(q2); }
         }
       }
       if (p.k === 'qatnov' && (p.lanes ?? 1) >= 2) {
@@ -265,12 +387,28 @@ export function projectStreetsGeo(list: ProjStreet[], H: HeightFn, osm: StreetIn
         }
       }
     }
-    // bordyur kesigi: ulangan uchlarda asfalt burchaklari yoy bilan toʻldiriladi (trotuar uziladi)
+    // bordyur kesigi (T — boshqa koʻcha oʻrtasiga yoki OSM yoʻlga ulangan uch): asfalt burchaklari yoy bilan toʻldiriladi
     if (aL < aR) for (const [k, tgt] of hit.entries()) {
-      if (!tgt || s.axis.length < 2) continue;
+      if (!tgt || s.axis.length < 2 || J[k as 0 | 1]) continue;
       const end = k === 0 ? s.axis[0] : s.axis[s.axis.length - 1], prev = k === 0 ? s.axis[1] : s.axis[s.axis.length - 2];
-      const q = layer('qatnov', 0.12);
       for (const poly of curbFillets(end, prev, aL, aR, tgt)) for (let i = 1; i < poly.length - 1; i++) q.tri(poly[0], poly[i], poly[i + 1]);
+    }
+  }
+  // chorraha burchaklari — qoʻshni ikki koʻcha tanasi chetlari orasidagi joy trotuar bilan (qizil chiziqlar burchagigacha); asfalt ostida qoladi
+  const tw = layer('trotuar', 0.08);
+  const done = new Set<XY>();
+  for (const j0 of jends) {
+    if (!j0.jc || done.has(j0.jc)) continue; const c = j0.jc; done.add(c);
+    const ord = jends.filter(j => j.jc === c).sort((a, b) => Math.atan2(a.o[1], a.o[0]) - Math.atan2(b.o[1], b.o[0]));
+    for (let i = 0; i < ord.length; i++) {
+      const A = ord[i], B = ord[(i + 1) % ord.length], hA = half(A.s), hB = half(B.s);
+      const EA = at(A, A.bd, hA), EB = at(B, B.bd, -hB);
+      tw.tri(c, at(A, A.bd, -hA), EA);
+      let ang = Math.atan2(B.o[1], B.o[0]) - Math.atan2(A.o[1], A.o[0]); while (ang <= 1e-6) ang += 2 * Math.PI;
+      if (ang > Math.PI * 0.95) { tw.tri(c, EA, EB); continue; }
+      const den = A.o[0] * B.o[1] - A.o[1] * B.o[0], t = ((EB[0] - EA[0]) * B.o[1] - (EB[1] - EA[1]) * B.o[0]) / den, X: XY = [EA[0] + A.o[0] * t, EA[1] + A.o[1] * t];
+      if (!Number.isFinite(t) || Math.hypot(X[0] - c[0], X[1] - c[1]) > 3 * Math.max(hA, hB)) { tw.tri(c, EA, EB); continue; }
+      tw.tri(c, EA, X); tw.tri(c, X, EB);
     }
   }
   const layers: Record<string, number[]> = {}; for (const k in L) layers[k] = L[k].p;

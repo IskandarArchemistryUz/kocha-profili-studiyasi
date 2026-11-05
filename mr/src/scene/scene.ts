@@ -17,7 +17,7 @@ import { buildContext, buildingMeshes, houseRoofRise, satTint, type ContextScene
 import { applyVisibility, buildUserLayer, geomKey, paintUserLayer, type UL3D } from './userlayers3d';
 import type { ULFeature } from '../core/userlayers';
 import { endShapes } from '../core/streetends';
-import { projectStreetsGeo } from './streets3d';
+import { projectStreetsGeo, CURB_R, CURB_R_RECON } from './streets3d';
 import { computePlan, interiorPoint } from '../core/plan';
 import { limitZones, hatchSegs, isActive } from '../core/limits';
 import { profileById } from '../core/profiles';
@@ -766,7 +766,7 @@ export class Scene3D {
     return hit ? (hit.object.userData.cid as number) : null;
   }
 
-  private streetGeoKey: { streets: Project['streets']; origin: Project['origin']; ctx: ContextScene | null; H: HeightFn; sg: ReturnType<typeof projectStreetsGeo> } | null = null;
+  private streetGeoKey: { streets: Project['streets']; origin: Project['origin']; ctx: ContextScene | null; H: HeightFn; curbR: number; sg: ReturnType<typeof projectStreetsGeo> } | null = null;
   /** Binolar qismini qayta qurish uchun kontekst (oxirgi update dan); tanlov va LOD oʻzgarganda faqat tegishli binolar qayta quriladi */
   private bctx: BCtx | null = null;
   /* ---------- 10-band: ishlanayotgan hududni izolyatsiya qilish ----------
@@ -1176,8 +1176,16 @@ export class Scene3D {
     if (doc.streets.length) {
       // koʻcha geometriyasi (OSM yoʻllar bilan ulanish, qizil chiziqlar) qimmat — koʻchalar, markaz yoki kontekst oʻzgarmasa keshdan
       const sk = this.streetGeoKey;
-      let sg = sk && sk.streets === doc.streets && sk.origin === doc.origin && sk.ctx === this.ctx && sk.H === this.H ? sk.sg : null;
-      if (!sg) { sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H, this.ctx?.roads ?? []); this.streetGeoKey = { streets: doc.streets, origin: doc.origin, ctx: this.ctx, H: this.H, sg }; }
+      const curbR = doc.settings.recon ? CURB_R_RECON : CURB_R;
+      let sg = sk && sk.streets === doc.streets && sk.origin === doc.origin && sk.ctx === this.ctx && sk.H === this.H && sk.curbR === curbR ? sk.sg : null;
+      if (!sg) { sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H, this.ctx?.roads ?? [], { curbR }); this.streetGeoKey = { streets: doc.streets, origin: doc.origin, ctx: this.ctx, H: this.H, curbR, sg }; }
+      // 05.11 (egasi skrinshoti: chorrahada kulrang/qora «choʻqqi»): qizil chiziq ichidagi butun koridor (kvartallar shundan kesiladi) avval
+      // trotuar rangida — koʻcha qatlamlari qoplamagan burchak (masalan burilish boʻgʻinining tashqi burchagi) ostidan fon koʻrinmasin
+      { const pal = (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL);
+        for (const poly of computePlan(doc).corridors) { if (!poly[0] || poly[0].length < 3) continue;
+          const sh = new THREE.Shape(poly[0].map(toV2)); poly.slice(1).forEach(hh => sh.holes.push(new THREE.Path(hh.map(toV2))));
+          const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 0.06, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: pal.trotuar, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+          m.renderOrder = 8.9; m.userData.corrBase = true; this.world.add(m); } }
       const ord: [string, number][] = [['trotuar', 9], ['yashil', 9.1], ['velo', 9.1], ['parkovka', 9.1], ['qatnov', 9.2], ['avtobus', 9.2], ['tramvay', 9.2], ['chiziq', 9.3]];
       for (const [k, o] of ord) {
         const arr = sg.layers[k]; if (!arr?.length) continue;

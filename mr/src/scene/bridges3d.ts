@@ -40,14 +40,24 @@ function splitAt(pts: XY[], s: number): [XY[], XY[]] {
 const segX = (a: XY, b: XY, c: XY, d: XY) => { const o = (p: XY, q: XY, r: XY) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])); return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0; };
 const crosses = (p: XY[], q: XY[]) => { for (let i = 1; i < p.length; i++) for (let j = 1; j < q.length; j++) if (segX(p[i - 1], p[i], q[j - 1], q[j])) return true; return false; };
 
+/** 05.11: kalta koʻprik (zanjir uzunligi) — ariq/kanal koʻprigi; ostidan faqat piyoda/xizmat yoʻli oʻtsa koʻtarilmaydi (ANDOZA) */
+export const SHORT_BRIDGE = 20;
+const MINOR = /^(footway|path|cycleway|steps|track|bridleway|corridor|pedestrian|service|living_street)$/;
 /**
  * Qaysi koʻprik haqiqatan koʻtariladi (02.11, egasi: «hudud oʻrtasida koʻprik chiqib qoldi»): OSM da ariq, kanal va jar ustidagi
  * kichik koʻpriklar ham bridge=yes — ular yer sathida qoladi. Koʻtariladi faqat ostidan yoʻl yoki temir yoʻl oʻtadigan koʻprik
- * (sath kesishmasi) va unga uchma-uch ulangan koʻprik boʻlaklari.
+ * (sath kesishmasi) va unga uchma-uch ulangan koʻprik boʻlaklari. 05.11: zanjiri ≤ SHORT_BRIDGE m va ostidan faqat piyoda/xizmat
+ * yoʻli oʻtadigan koʻprik ham yer sathida (ariq boʻyidagi yoʻlak ustidagi kichik koʻprik 6,5 m ga koʻtarilib qolardi).
  */
 export function gradeBridges(roads: RoadIn[], rails: XY[][] = []): Set<number> {
   const bridges = roads.filter(r => (r.lvl ?? 0) > 0 && r.pts.length >= 2), flat = roads.filter(r => !((r.lvl ?? 0) > 0));
-  const on = new Set<number>(bridges.filter(b => flat.some(f => crosses(b.pts, f.pts)) || rails.some(r => crosses(b.pts, r))).map(b => b.id));
+  const len = (b: RoadIn) => b.pts.slice(1).reduce((t, p, i) => t + segLen(b.pts[i], p), 0);
+  // uchma-uch ulangan koʻprik boʻlaklari — bitta zanjir; uzunligi — yigʻindi
+  const chain = (b0: RoadIn): number => { const seen = new Set([b0.id]), q = [b0]; let L = 0;
+    while (q.length) { const b = q.pop()!; L += len(b); const ends = [b.pts[0], b.pts[b.pts.length - 1]].map(key);
+      for (const o of bridges) if (!seen.has(o.id) && [o.pts[0], o.pts[o.pts.length - 1]].some(p => ends.includes(key(p)))) { seen.add(o.id); q.push(o); } }
+    return L; };
+  const on = new Set<number>(bridges.filter(b => rails.some(r => crosses(b.pts, r)) || flat.some(f => crosses(b.pts, f.pts) && (!MINOR.test(f.cls) || chain(b) > SHORT_BRIDGE))).map(b => b.id));
   for (let ch = true; ch;) { ch = false; for (const b of bridges) { if (on.has(b.id)) continue; const ends = [b.pts[0], b.pts[b.pts.length - 1]].map(key);
     if (bridges.some(o => on.has(o.id) && [o.pts[0], o.pts[o.pts.length - 1]].some(p => ends.includes(key(p))))) { on.add(b.id); ch = true; } } }
   return on;
