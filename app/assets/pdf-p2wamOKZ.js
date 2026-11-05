@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-CJP7r9_v.js";
