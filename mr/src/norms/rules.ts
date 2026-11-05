@@ -141,7 +141,7 @@ export type Status = 'pass' | 'fail' | 'review' | 'na';
 export interface Source { doc: string; clause: string; edition: string; verified: boolean }
 
 /** «Tuzat» tugmalari (31.10): har biri bitta bekor qilinadigan amal (Ctrl+Z) */
-export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end';
+export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end' | 'play-ug';
 export interface Result {
   id: string; title: string; status: Status;
   value?: number; limit?: string; unit?: string;
@@ -579,9 +579,37 @@ export const RULES: Rule[] = [
     evaluate(d, doc) {
       if (d.population <= 0) return { status: 'na', unit: 'm²', limit: '3,1 m²/kishi' };
       if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchirilgan (4-qadam, Yashil) — maydonchalar tekshirilmadi.', fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar avtomatik obodonlashtiriladi: 4-jadval maydonchalari binolardan meʼyoriy masofada, trotuar, maysa va daraxtlar.' } };
-      const v = d.playNeed > 0 ? d.playGot / d.playNeed * 100 : 0;
-      return { status: v >= 99 ? 'pass' : v >= 50 ? 'review' : 'fail', value: d.playGot, unit: 'm²', limit: `${Math.round(d.playNeed)} (3,1 m²/kishi)`,
-        note: `Talab: bolalar 0,7 + kattalar 0,1 + sport 2,0 + xoʻjalik 0,3 m²/kishi; joylashtirilgan ${Math.round(v)} %. 90-band: chang boʻronli hududlarda yoki mavze sport majmuasi boʻlsa — ikki baravargacha qisqartirish mumkin; 92-band: zichlik > 7000 m²/ga — tomlarga joylashtirish.` };
+      const p90 = doc.settings.play90 ?? {}, perP = d.population > 0 ? d.playNeed / d.population : 3.1;
+      // 05.11: 92-band — «уй-жой қурилишининг зичлиги … 7000 m2/ha дан ортиқ» hududlarda maydonchalarni yer osti / yarim yer osti inshootlari tomlariga
+      // joylashtirish «керак» (NORMA). Kichik zichlikda tom maydonchalari ham hisobga olinadi — taqiq yoʻq (TALQIN), lekin yerdagisi yetmasa «koʻrib chiqish»
+      const dens = d.housing82?.v ?? d.housingDensity, dense = dens > 7000, ground = d.playGot - d.playRoof;
+      const v = d.playNeed > 0 ? d.playGot / d.playNeed * 100 : 0, vG = d.playNeed > 0 ? ground / d.playNeed * 100 : 0;
+      let status: Status = v >= 99 ? 'pass' : v >= 50 ? 'review' : 'fail';
+      const parts = [`Talab: bolalar 0,7 + kattalar 0,1 + sport 2,0 + xoʻjalik 0,3 m²/kishi; joylashtirilgan ${Math.round(v)} %.`];
+      if (p90.sport || p90.dust) {
+        parts.push('90-band qoʻllandi (ikki baravargacha qisqartirish).');
+        if (p90.sport) parts.push('Mavze sport-sogʻlomlashtirish majmuasi — bolalar, kattalar va sport maydonchalari ×0,5.');
+        if (p90.dust) parts.push('Chang boʻronli hudud, xoʻjalik uchun yopiq inshoot — xoʻjalik maydonchasi ×0,5.');
+        parts.push(`Qisqartirishsiz talab ${Math.round(d.playNeed0)} m²; asos loyiha hujjatida koʻrsatilsin.`);
+      }
+      else parts.push('90-band: chang boʻronli hududda xoʻjalik uchun yopiq inshoot qurilsa yoki mavze sport-sogʻlomlashtirish majmuasi boʻlsa — ikki baravargacha qisqartirish mumkin (Yashil qadami → Batafsil; faktga bogʻliq, avtomatik yoqilmaydi).');
+      if (d.playRoof > 0) {
+        if (dense) parts.push(`92-band: uy-joy zichligi ${Math.round(dens)} m²/ga > 7000 — stilobat tomidagi ${Math.round(d.playRoof)} m² maydonchalar hisobga olindi.`);
+        else { parts.push(`Stilobat tomidagi ${Math.round(d.playRoof)} m² maydonchalar ham hisobga olindi (zichlik ${Math.round(dens)} m²/ga ≤ 7000; 92-band tomlarni zich hudud uchun nazarda tutadi, taqiqlamaydi — TALQIN).`); if (status === 'pass' && vG < 99) status = 'review'; }
+      } else if (dense && status !== 'pass') parts.push(`92-band: uy-joy zichligi ${Math.round(dens)} m²/ga > 7000 — maydonchalarni yer osti va yarim yer osti inshootlari tomlariga joylashtirish va tomlarni koʻkalamzorlashtirish kerak.`);
+      const ug = doc.garages.filter(g => g.kind === 'yer_usti' && !g.truck && (g.stalls?.length ?? 0) > 0);
+      return { status, value: d.playGot, unit: 'm²', limit: p90.sport || p90.dust ? `${Math.round(d.playNeed)} (${String(Math.round(perP * 100) / 100).replace('.', ',')} m²/kishi)` : `${Math.round(d.playNeed)} (3,1 m²/kishi)`, note: parts.join(' '),
+        ...(status !== 'pass' && ug.length ? { fix: { id: 'play-ug' as const, label: 'Avtoturargohni yer ostiga', hint: `${ug.length} ta yer usti avtoturargoh yer osti qilinadi — hovli boʻshaydi, maydonchalar uning tomiga joylashadi (92-band).` } } : {}) };
+    },
+  },
+  {
+    id: 'play-91',
+    title: 'Birlashtirilgan maydoncha ≥ 150 m²',
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '91-band', verified: true },
+    evaluate(d, doc) {
+      if (!doc.settings.yards || d.playComb === 0) return { status: 'na', unit: 'ta', limit: '≥ 150 m²' };
+      return { status: d.playCombSmall ? 'fail' : 'pass', value: d.playCombSmall, unit: `/ ${d.playComb} ta`, limit: '≥ 150 m²',
+        note: [`Bolalar oʻyin va kattalar dam olish maydonchalari birlashtirilgan: ${d.playComb} ta.`, '91-band: «майдончаларнинг юзаси 150 m2 дан кам бўлмаслиги лозим».', ...(d.playCombSmall ? [`${d.playCombSmall} tasi kichik — alohida qiling yoki kattalashtiring.`] : [])].join(' ') };
     },
   },
   {
