@@ -295,14 +295,18 @@ export const RULES: Rule[] = [
     title: 'Avtoturargohdan binolargacha masofa (30-jadval)',
     source: { ...SHNQ_2_07_01, clause: '418-band, 30-jadval' },
     evaluate(_d, doc) {
-      const ml = mlOf(doc); if (!ml.length) return { status: 'na', note: 'Koʻp qavatli avtoturargoh yoʻq.' };
+      // 06.11 (B6): 30-jadval — «ерусти, ерусти-ерости ҳамда очиқ автотураргоҳлар»: koʻp qavatli va ochiq (yer usti) avtoturargohlar
+      const ml = doc.garages.filter(g => (g.kind === 'kop_qavatli' || g.kind === 'yer_usti') && !g.truck && g.spaces > 0); if (!ml.length) return { status: 'na', note: 'Yer usti yoki koʻp qavatli avtoturargoh yoʻq.' };
       const fr = frame(doc.origin), plan = computePlan(doc), fails: string[] = [], revs: string[] = []; const bids = new Set<string>();
       const PUB = new Set(['maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona', 'sport', 'aralash']);
       for (const g of ml) {
         const r = g.ring.map(fr.toLocal), col = capCol(g.spaces), cn = CAP_COL_NAME[col];
+        // 06.11: ochiq avtoturargoh konturi butun hovli boʻlishi mumkin — masofa mashina-joylardan (stalls) oʻlchanadi
+        const stl = g.kind === 'yer_usti' && g.stalls?.length ? g.stalls.map(q => q.map(fr.toLocal)) : null;
+        const dist = (o: XY[]) => stl ? stl.reduce((m, q) => Math.min(m, ringDist(q, o)), Infinity) : ringDist(r, o);
         for (const b of doc.buildings) {
-          if (b.gen?.grp === g.grp || b.use === 'avtoturargoh') continue;
-          const u = useDef(b.use), d = ringDist(r, b.footprint.map(fr.toLocal)); if (d > 60) continue;
+          if ((g.kind === 'kop_qavatli' && b.gen?.grp === g.grp) || b.use === 'avtoturargoh') continue;
+          const u = useDef(b.use), d = dist(b.footprint.map(fr.toLocal)); if (d > 60) continue;
           if (u.res > 0) {
             const fN = T30.front[col]!, bN = T30.blind[col]!;
             if (d < Math.min(fN, bN) - 0.3) { fails.push(`turar joy ${Math.round(d)} m < ${Math.min(fN, bN)} m`); bids.add(b.id); }
@@ -312,7 +316,7 @@ export const RULES: Rule[] = [
         // maktab va MTM hududlarigacha (territoriya chegarasi)
         for (const k of plan.blocks) {
           if (k.use !== 'maktab' && k.use !== 'mtm') continue;
-          const d = ringDist(r, k.rings[0]); if (d > 80) continue; const n = T30.school[col];
+          const d = dist(k.rings[0]); if (d > 80) continue; const n = T30.school[col];
           if (n == null) revs.push(`maktab/MTM hududi ${Math.round(d)} m — sigʻim ${cn}: jadvalda qiymat yoʻq («–»), sanitariya nazorati bilan kelishiladi`);
           else if (d < n - 0.3) fails.push(`maktab/MTM hududi ${Math.round(d)} m < ${n} m`);
         }
@@ -320,7 +324,7 @@ export const RULES: Rule[] = [
       const cap = ml.map(g => `${g.spaces} joy → ${CAP_COL_NAME[capCol(g.spaces)]}`).join(', ');
       return { status: fails.length ? 'fail' : revs.length ? 'review' : 'pass', value: fails.length, unit: 'ta', limit: '0',
         ...(bids.size ? { where: { bids: [...bids] } } : {}),
-        note: `Yer usti avtoturargohdan masofa: turar joy old tomoni 12/15/25/35/50 m, derazasiz yon tomoni 12/10/15/25/35 m, jamoat binolari 10/10/15/25/25 m, maktab va taʼlim hududi 15/25/25/50/– m (sigʻim ≤ 10, 11–50, 51–100, 101–300, > 300). Sigʻim: ${cap}.` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (revs.length ? `\nKoʻrib chiqish: ${revs.slice(0, 4).join('; ')}.` : '') };
+        note: `Yer usti avtoturargohdan masofa: turar joy old tomoni 12/15/25/35/50 m, derazasiz yon tomoni 12/10/15/25/35 m, jamoat binolari 10/10/15/25/25 m, maktab va taʼlim hududi 15/25/25/50/– m (sigʻim ≤ 10, 11–50, 51–100, 101–300, > 300). Sigʻim: ${cap}.` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (revs.length ? `\nKoʻrib chiqish: ${revs.slice(0, 4).join('; ')}.` : '') + '\nStatsionar davolash muassasalarigacha (25/50/–/–/– m) — loyihada bunday funksiya yoʻq, tekshirilmadi.' };
     },
   },
   {
@@ -328,10 +332,31 @@ export const RULES: Rule[] = [
     title: 'Nogironlar va elektromobil joylari',
     source: { ...SHNQ_2_07_01, clause: '411–412-bandlar' },
     evaluate(_d, doc) {
-      const ml = mlOf(doc); if (!ml.length) return { status: 'na', note: 'Koʻp qavatli avtoturargoh yoʻq.' };
-      const n = mlSum(doc), inv = pct5(n), ev412 = doc.buildings.some(b => b.use === 'savdo' || b.use === 'mehmonxona');
+      // 06.11 (B6): 411-band barcha avtoturargohlarga (yer osti, stilobat, yer usti, koʻp qavatli; yuk hovlisidan tashqari)
+      const all = doc.garages.filter(g => !g.truck && g.spaces > 0); if (!all.length) return { status: 'na', note: 'Avtoturargoh yoʻq.' };
+      const n = all.reduce((t, g) => t + g.spaces, 0), inv = pct5(n), ev412 = doc.buildings.some(b => b.use === 'savdo' || b.use === 'mehmonxona');
       return { status: 'pass', value: inv, unit: 'joy', limit: `≥ ${inv}`,
-        note: `411-band: nogironligi boʻlgan shaxslar uchun joylarning kamida 5 % (kamida 1): ${n} dan ${inv} joy — 1-qavatda, kirishga yaqin ajratiladi.` + (ev412 ? `\n412-band: loyihada savdo / mehmonxona bor — ularning avtoturargohida kamida 5 % (kamida 1) elektromobil quvvatlash joyi: ${pct5(n)} joy (TALQIN: koʻp qavatli avtoturargoh shu obyektlarga xizmat qiladi deb olindi).` : '\n412-band: elektromobil quvvatlash joylari savdo va biznes markazlari, mehmonxona va boshqa sanab oʻtilgan obyektlar avtoturargohlari uchun talab qilinadi — loyihada bunday obyekt yoʻq (TALQIN).') };
+        note: `411-band: nogironligi boʻlgan shaxslar uchun joylarning kamida 5 % (kamida 1): ${n} dan ${inv} joy (${all.length} ta avtoturargoh). Joylashuvi — kirishga yaqin (AMALIYOT).` + (ev412 ? `\n412-band: loyihada savdo / mehmonxona bor — ularning loyihasiga elektromobil quvvatlash stansiyalari kiritilishi lozim. Normada joylar ulushi berilmagan: ${pct5(n)} joy (5 %) — ANDOZA.` : '\n412-band: elektromobil quvvatlash joylari savdo va biznes markazlari, mehmonxona va boshqa sanab oʻtilgan obyektlar avtoturargohlari uchun talab qilinadi — loyihada bunday obyekt yoʻq (TALQIN).') };
+    },
+  },
+  {
+    // 06.11 (B6): 88-band — velosiped va boshqa mobil vositalar saqlash maydonchasi; oʻlchami 4-jadvalda berilmagan
+    id: 'velo-88',
+    title: 'Velosiped va mobil vositalar maydonchasi',
+    source: { ...SHNQ_2_07_01, clause: '88-band, 4-jadval' },
+    evaluate(d) {
+      if (d.population <= 0) return { status: 'na', note: 'Turar joy yoʻq.' };
+      return { status: 'na', note: '88-band: turar joy mavzesida velosiped va boshqa mobil vositalarni (samokat, nogironlar va bolalar aravachalari) saqlash maydonchasi boʻlishi kerak. 4-jadvalda uning oʻlchami va binolargacha masofasi berilmagan — maydon talabi hisoblanmaydi, hovli rejasida joy qoldiring.' };
+    },
+  },
+  {
+    // 06.11 (B6): 257–258-bandlar — TP / taqsimlash punkti; modelda TP obyekti yoʻq — talab izohda
+    id: 'tp-257',
+    title: 'Transformator podstansiyasi (TP) va taqsimlash punkti',
+    source: { ...SHNQ_2_07_01, clause: '257–258-bandlar' },
+    evaluate(_d, doc) {
+      if (!doc.buildings.length) return { status: 'na', note: 'Binolar yoʻq.' };
+      return { status: 'na', note: '257-band: alohida turgan taqsimlash punktlari va 6–20 kV kuchlanishli, koʻpi bilan ikki transformatorli (har biri 1000 gacha — matnda «1000 kV қуввати», kVA nazarda tutilgan — TALQIN) podstansiyalar turar joy va jamoat binolaridan kamida 10 m, davolash-profilaktika muassasalari binolaridan kamida 25 m. 258-band: maktab va MTM hududida TP va taqsimlash punkti joylashtirilmaydi. TP loyihada obyekt sifatida yoʻq — joyi va soni muhandislik (elektr taʼminoti) loyihasida belgilanadi; masofalar tekshirilmadi.' };
     },
   },
   {
