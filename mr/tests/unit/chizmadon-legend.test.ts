@@ -14,8 +14,18 @@ describe('28-band: reja katagida shartli belgilar rejaning ustiga tushmaydi', ()
     const L = planWithLegend(items as never, { x: 0, y: 0, w: 70, h: 160 }, 1);
     expect(L.legend).not.toBeNull(); expect(inter(L.plan, L.legend!)).toBe(0); expect(L.legend!.y).toBeGreaterThan(L.plan.y + L.plan.h - 1e-9);
   });
-  it('kichik katak — faqat reja (avval quti rejaning yarmini yopardi)', () => {
+  it('kichik katak — belgilar rejaning ustiga tushmaydi, reja ≥ 40 % (06.11: avval belgilar butunlay yoʻqolardi)', () => {
     const r = { x: 0, y: 0, w: 60, h: 40 }, L = planWithLegend(items as never, r, 1);
+    expect(L.legend).not.toBeNull(); expect(inter(L.plan, L.legend!)).toBe(0); expect(L.plan.w * L.plan.h).toBeGreaterThan(0.4 * r.w * r.h - 1e-9);
+  });
+  it('juda kichik katak — faqat reja', () => {
+    const r = { x: 0, y: 0, w: 24, h: 16 }, L = planWithLegend(items as never, r, 1);
     expect(L.legend).toBeNull(); expect(L.plan).toEqual(r);
+  });
+  it('uzun yozuv oʻraladi — quti katakdan chiqmaydi (06.11: «Relyef yuklanmagan…» belgisi joy topmasdi)', () => {
+    const long = [{ type: 'fill', fill: '#fff', label: 'Relyef yuklanmagan — 1-qadamda atrofni yuklang (relyef qatlami bilan)' }];
+    const r = { x: 0, y: 0, w: 120, h: 90 }, L = planWithLegend(long as never, r, 1);
+    expect(L.legend).not.toBeNull(); expect(inter(L.plan, L.legend!)).toBe(0);
+    expect(L.legend!.x + L.legend!.w).toBeLessThanOrEqual(r.x + r.w + 1e-9); expect(L.lay!.lines[0].length).toBeGreaterThan(1);
   });
 });

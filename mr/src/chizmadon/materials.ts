@@ -201,34 +201,45 @@ export function fitMap(id: string, src0: { svg?: string; src?: string; vb?: [num
   return elSvg(e, DUMMY, { idp: `mt${id}`, tr: s => s }).replace(/ data-id="[^"]*"/g, '');
 }
 /** Reja shartli belgilari — katakning chap-pastki burchagida oq quti (≤ 8 ta) */
-/** Shartli belgilar qutisi oʻlchami (mm) */
-function legendSize(items: PlanMap['legend'], u: number): { w: number; h: number } | null {
+/** Shartli belgilar qutisi: oʻlcham (mm) va har yozuv qatorlari. maxW berilsa, uzun yozuv soʻz boʻyicha bir necha qatorga oʻraladi (06.11) */
+interface LegLay { w: number; h: number; lines: string[][] }
+function legendLayout(items: PlanMap['legend'], u: number, maxW = Infinity): LegLay | null {
   if (!items?.length) return null;
-  const it = items.slice(0, 8), lh = 3.6 * u, pad = 2 * u;
-  return { w: pad * 2 + 6 * u + Math.max(...it.map(q => q.label.length)) * 1.25 * u, h: pad * 2 + it.length * lh };
+  const it = items.slice(0, 8), pad = 2 * u, cw = 1.25 * u, sw = 5 * u, maxC = Math.max(8, Math.floor((maxW - pad * 2 - sw) / cw));
+  const lines = it.map(q => { const out: string[] = []; let cur = ''; for (const wd of q.label.split(/\s+/)) { if (cur && (cur + ' ' + wd).length > maxC) { out.push(cur); cur = wd; } else cur = cur ? cur + ' ' + wd : wd; } if (cur) out.push(cur); return out.length ? out : ['']; });
+  const longest = Math.max(...lines.flat().map(l => l.length)), n = lines.reduce((a, l) => a + l.length, 0);
+  return { w: pad * 2 + sw + 1 * u + longest * cw, h: pad * 2 + it.length * 1.2 * u + n * 2.6 * u, lines };
 }
 /**
  * 28-band: reja va shartli belgilar bitta katakda — quti rejaning USTIGA tushmaydi. Keng katakda reja chapda, quti oʻngda;
  * baland katakda reja tepada, quti pastda; ikkalasiga joy yetmasa (kichik katak) — faqat reja (belgilar alohida «Shartli belgilar» materialida).
+ * 06.11: uzun yozuvlar oʻraladi; kichik katakda reja ≥ 40 % (≥ 20u) qolsa ham belgilar chiqadi.
  */
-export function planWithLegend(items: PlanMap['legend'], r: Rect, u: number): { plan: Rect; legend: Rect | null } {
-  const L = legendSize(items, u); if (!L) return { plan: r, legend: null };
+export function planWithLegend(items: PlanMap['legend'], r: Rect, u: number): { plan: Rect; legend: Rect | null; lay?: LegLay } {
   const g = 2 * u;
-  if (r.w - L.w - g >= Math.max(0.55 * r.w, 30 * u) && L.h <= r.h) return { plan: { ...r, w: r.w - L.w - g }, legend: { x: r.x + r.w - L.w, y: r.y + r.h - L.h, w: L.w, h: L.h } };
-  if (r.h - L.h - g >= Math.max(0.55 * r.h, 30 * u) && L.w <= r.w) return { plan: { ...r, h: r.h - L.h - g }, legend: { x: r.x, y: r.y + r.h - L.h, w: Math.min(r.w, L.w), h: L.h } };
+  for (const [fr, mn] of [[0.55, 30], [0.4, 20]] as const) {
+    const Lr = legendLayout(items, u, r.w * (1 - fr) - g); if (!Lr) return { plan: r, legend: null };
+    const Lb = legendLayout(items, u, r.w)!;
+    const right = () => r.w - Lr.w - g >= Math.max(fr * r.w, mn * u) && Lr.h <= r.h ? { plan: { ...r, w: r.w - Lr.w - g }, legend: { x: r.x + r.w - Lr.w, y: r.y + r.h - Lr.h, w: Lr.w, h: Lr.h }, lay: Lr } : null;
+    const below = () => r.h - Lb.h - g >= Math.max(fr * r.h, mn * u) && Lb.w <= r.w ? { plan: { ...r, h: r.h - Lb.h - g }, legend: { x: r.x, y: r.y + r.h - Lb.h, w: Math.min(r.w, Lb.w), h: Lb.h }, lay: Lb } : null;
+    const hit = r.h > r.w ? below() ?? right() : right() ?? below();   // baland katakda — avval pastga
+    if (hit) return hit;
+  }
   return { plan: r, legend: null };
 }
-function legendBox(items: PlanMap['legend'], r: Rect, ctx: { u: number; P: Record<string, string> }): string {
+function legendBox(items: PlanMap['legend'], r: Rect, ctx: { u: number; P: Record<string, string> }, lay?: LegLay): string {
   if (!items?.length) return '';
-  const u = ctx.u, Q = DP(ctx.P), it = items.slice(0, 8), lh = 3.6 * u, pad = 2 * u, h = r.h, w = r.w;
+  const u = ctx.u, Q = DP(ctx.P), it = items.slice(0, 8), pad = 2 * u, h = r.h, w = r.w, L = lay ?? legendLayout(items, u)!;
   const x = r.x, y = r.y;
   let g = `<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="#ffffff" fill-opacity=".93" stroke="${Q.grid}" stroke-width="${n2(0.2 * u)}"/>`;
+  let yy = y + pad;
   it.forEach((q, k) => {
-    const cy = y + pad + k * lh + lh * 0.72, sx = x + pad;
+    const ls = L.lines[k] ?? [q.label], cy = yy + 2.6 * u * 0.72 + 0.6 * u, sx = x + pad;
     if (q.type === 'line' || q.type === 'dash') g += `<path d="M${n2(sx)} ${n2(cy - 0.9 * u)}h${n2(3.6 * u)}" stroke="${q.stroke ?? q.fill ?? Q.ink}" stroke-width="${n2(0.5 * u)}"${q.type === 'dash' ? ` stroke-dasharray="${n2(1 * u)} ${n2(0.6 * u)}"` : ''}/>`;
     else if (q.type === 'tree' || q.type === 'stop') g += `<circle cx="${n2(sx + 1.8 * u)}" cy="${n2(cy - 0.9 * u)}" r="${n2(1.1 * u)}" fill="${q.fill ?? '#9cc27f'}" stroke="${q.stroke ?? 'none'}" stroke-width="${n2(0.15 * u)}"/>`;
     else g += R0(sx, cy - 2.1 * u, 3.6 * u, 2.4 * u, q.fill ?? '#ffffff', ` stroke="${q.stroke ?? Q.line}" stroke-width="${n2(0.15 * u)}"`);
-    g += T(sx + 5 * u, cy, q.label, { s: 2.2 * u, c: Q.ink });
+    ls.forEach((t, i) => { g += T(sx + 5 * u, cy + i * 2.6 * u, t, { s: 2.2 * u, c: Q.ink }); });
+    yy += ls.length * 2.6 * u + 1.2 * u;
   });
   return g;
 }
@@ -264,7 +275,7 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
         return head(pm, r.x, r.y, u, DP(ctx.P), F.sub || null, bare) + fitMap(p.id.replace(/[^\w-]/g, '_'), { ...F, contain: true }, rr, p.name, pm.view);
       }
       const lay = planWithLegend(M.legend, r, ctx.u);
-      return fitMap(p.id.replace(/[^\w-]/g, '_'), M, lay.plan, p.name, pm.view) + (lay.legend ? legendBox(M.legend, lay.legend, ctx) : '');
+      return fitMap(p.id.replace(/[^\w-]/g, '_'), M, lay.plan, p.name, pm.view) + (lay.legend ? legendBox(M.legend, lay.legend, ctx, lay.lay) : '');
     }, p.on);
     if (p.nav) {
       const nv = p.nav;
