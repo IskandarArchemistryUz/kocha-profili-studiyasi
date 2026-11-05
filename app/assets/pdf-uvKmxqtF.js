@@ -1,0 +1,1 @@
+export{t as svgPdf}from"./pdf-xbW4_gOZ.js";

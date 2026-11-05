@@ -1323,6 +1323,18 @@ export class Scene3D {
     this.invalidate();
   }
   private snapMark: THREE.Mesh | null = null;
+  /** 05.11: sudrash paytidagi oʻlcham yozuvi (devor yonida «15,0 → 18,5 m (+3,5)»); text — e2e uchun ham */
+  dragText: string | null = null;
+  private dragLbl: THREE.Sprite | null = null;
+  setDragLabel(at: XY | null, text = '', anchor: 'past' | 'markaz' = 'markaz'): void {
+    if (this.dragLbl) { this.scene.remove(this.dragLbl); (this.dragLbl.material as THREE.SpriteMaterial).map?.dispose(); (this.dragLbl.material as THREE.Material).dispose(); this.dragLbl = null; }
+    this.dragText = at ? text : null;
+    if (at && text) {
+      const sp = labelSprite(text, true); sp.position.set(at[0], this.H(at[0], at[1]) + 1.2, -at[1]); sp.center.set(0.5, anchor === 'past' ? 1 : 0.5); (sp.material as THREE.SpriteMaterial).depthTest = false; sp.renderOrder = 120;
+      this.dragLbl = sp; this.scene.add(sp);
+    }
+    this.invalidate();
+  }
 
   /** Tahrirlash tutqichlari (koʻcha uchlari, blok burchaklari): v — tutqich, m — oraliq (yangi nuqta qoʻshish) */
   private handles: THREE.Points[] = [];
@@ -1514,7 +1526,7 @@ export class Scene3D {
     const H = this.host.clientHeight || 1, P = cam as THREE.PerspectiveCamera & THREE.OrthographicCamera;
     const k = P.isOrthographicCamera ? (P.top - P.bottom) / (P.zoom || 1) / H : 2 / (P.projectionMatrix.elements[5] * H);
     const fit = (o: THREE.Object3D) => { const px = o.userData.px as [number, number] | undefined; if (px) { o.scale.set(px[0] * k, px[1] * k, 1); const me = o.userData.minExt as number | undefined; if (me != null) o.visible = me / k >= px[0] * 0.85; } };
-    this.world.children.forEach(fit); this.prev.children.forEach(fit); this.issueG.children.forEach(fit); this.explodeLabels.forEach(fit); for (const x of this.ul.values()) x.u.labels.forEach(fit);
+    this.world.children.forEach(fit); this.prev.children.forEach(fit); this.issueG.children.forEach(fit); this.explodeLabels.forEach(fit); if (this.dragLbl) fit(this.dragLbl); for (const x of this.ul.values()) x.u.labels.forEach(fit);
     this.fitLabels(cam, k);
   }
 
