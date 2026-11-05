@@ -347,3 +347,66 @@ export class SectionLineTool implements Tool {
   key(e: KeyboardEvent): boolean { return e.key === 'Escape'; }
   cancel(): void { this.a = null; this.scene.setPreview([]); }
 }
+
+/**
+ * Chiziq boʻylab ulangan seksiyalar (05.11, egasi): siniq chiziq — seksiyalar oʻqi (core/stripline).
+ * Bosish — nuqta; uzunlikni yozib Enter (masalan 32 yoki 32<90) — keyingi nuqta kursor yoʻnalishida;
+ * Enter (boʻsh), ikki marta bosish yoki «Chizishni tugatish» — seksiyalarni qoʻyish. Oldindan koʻrishda — seksiya chegaralari.
+ */
+export class StripTool implements Tool {
+  readonly snapTo = true;
+  private pts: XY[] = [];
+  private cur: XY | null = null;
+  private dbl = new Dbl();
+  buf = '';
+  constructor(private scene: Scene3D, private done: (line: XY[]) => void, private err: (m: string) => void, private outline: (line: XY[]) => XY[][] = () => []) {}
+  get hint(): string {
+    if (this.buf) return `Uzunlik: ${this.buf} m — Enter · «<» bilan burchak (masalan 32<90) · Esc — oʻchirish`;
+    return this.pts.length < 2 ? 'Seksiyalar oʻqi: nuqtalarni bosing · uzunlikni yozib Enter (masalan 32 yoki 32<90) · Esc — bekor'
+      : 'Ikki marta bosish, Enter yoki «Chizishni tugatish» — seksiyalarni qoʻyish · Backspace — oxirgisi · Esc — bekor';
+  }
+  get count(): number { return this.pts.length; }
+  click(xy: XY, e: PointerEvent): void {
+    if (this.dbl.is(e) && this.pts.length >= 2) { this.finish(); return; }
+    this.buf = ''; this.pts.push(xy); this.draw();
+  }
+  move(xy: XY): void { this.cur = xy; this.draw(); }
+  private dir(ang: number | null): XY {
+    if (ang != null) { const a = ang * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }
+    const p = this.pts[this.pts.length - 1];
+    if (this.cur) { const dx = this.cur[0] - p[0], dy = this.cur[1] - p[1], L = Math.hypot(dx, dy); if (L > 0.01) return [dx / L, dy / L]; }
+    if (this.pts.length >= 2) { const q = this.pts[this.pts.length - 2], dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
+    return [1, 0];
+  }
+  addSide(len: number, ang: number | null = null): boolean {
+    if (!this.pts.length || !(len > 0)) { this.err(this.pts.length ? 'Uzunlik musbat son boʻlsin' : 'Avval sahnada birinchi nuqtani bosing'); return false; }
+    const p = this.pts[this.pts.length - 1], d = this.dir(ang);
+    this.pts.push([p[0] + d[0] * len, p[1] + d[1] * len]); this.buf = ''; this.draw(); return true;
+  }
+  key(e: KeyboardEvent): boolean {
+    const k = e.key;
+    if (this.pts.length && !e.ctrlKey && !e.metaKey && !e.altKey && /^[0-9.,<-]$/.test(k)) { if (k !== '-' || this.buf.endsWith('<')) { this.buf += k; this.draw(); } return true; }
+    if (k === 'Enter') {
+      if (this.buf) { const v = parseLen(this.buf); if (!v) { this.err(`Oʻlcham tushunilmadi: «${this.buf}» — masalan 32 yoki 32<90`); this.buf = ''; this.draw(); return true; } this.addSide(v.len, v.ang); return true; }
+      this.finish(); return true;
+    }
+    if (k === 'Backspace') { if (this.buf) this.buf = this.buf.slice(0, -1); else this.pts.pop(); this.draw(); return true; }
+    if (k === 'Escape') { if (this.buf) { this.buf = ''; this.draw(); return true; } this.cancel(); return true; }
+    return false;
+  }
+  private finish(): void {
+    const p = this.pts.filter((q, i) => i === 0 || Math.hypot(q[0] - this.pts[i - 1][0], q[1] - this.pts[i - 1][1]) > 0.5);
+    if (p.length < 2) { this.err('Kamida 2 nuqta kerak'); return; }
+    this.pts = []; this.buf = ''; this.scene.setPreview([]); this.done(p);
+  }
+  commit(): void { if (this.pts.length >= 2) this.finish(); }
+  private draw(): void {
+    let c = this.cur;
+    const v = this.buf ? parseLen(this.buf) : null;
+    if (v && this.pts.length) { const p = this.pts[this.pts.length - 1], d = this.dir(v.ang); c = [p[0] + d[0] * v.len, p[1] + d[1] * v.len]; }
+    const line = c && this.pts.length ? [...this.pts, c] : this.pts;
+    // oʻq (uzunlik yozuvlari bilan) va seksiyalar chegarasi
+    this.scene.setPreview(line, false, true, line.length >= 2 ? this.outline(line) : []);
+  }
+  cancel(): void { this.pts = []; this.cur = null; this.buf = ''; this.scene.setPreview([]); }
+}
