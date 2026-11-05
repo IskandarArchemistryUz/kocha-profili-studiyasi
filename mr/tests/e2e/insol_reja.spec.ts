@@ -50,7 +50,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qavat reja
   await page.click('#albPrev'); await expect(page.locator('#albView [data-view=insol]')).toHaveAttribute('aria-pressed', 'true');
   await page.click('#albView [data-view=olcham]');
   await expect(page.locator('#albInsolKpi')).toHaveCount(0);
-  await expect(page.locator('#albPlan svg text', { hasText: '3,25' }).first()).toBeVisible();
+  // 05.11: oʻlchamlar konstruktiv oʻqlar qadamidan (mm) — masalan 3400, yadro oraligʻi «7400*»
+  await expect(page.locator('#albPlan svg text', { hasText: /^\d{4}\*?$/ }).first()).toBeVisible();
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/v5_dims_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#albView [data-view=reja]');
   await page.click('#albClose');

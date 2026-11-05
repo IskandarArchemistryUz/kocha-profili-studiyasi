@@ -9,6 +9,7 @@ import { type SecPlan } from './apartments';
 import { rulePlan, planChecks, floorVariant, sharedEdge, facadeSegs, type RulePlan, type PlanCheck, type FloorType, type RoomKind } from './sectionplan';
 import type { Bal } from './facade';
 import { aptInterior, IN_LABEL, type AptInterior, type Furn } from './aptplan';
+import { gridChecks, gridWindows, ptOf, type StructGrid } from './axes';
 
 export const APT_FILL: Record<number, string> = { 1: '#f6d58f', 2: '#f4b08a', 3: '#9bd3b8', 4: '#8fa5cc' };
 /** Mebel belgisi (chizma birliklarida): orqa qirra ring[0]→ring[1] devorda, ring[3] — old tomon */
@@ -53,6 +54,8 @@ export interface PlanOpts {
   general?: boolean;
   /** 04.11: kvartira rejasi meʼyor buzilishi belgisi (aptplan normViol) — sukut: ha */
   normMarks?: boolean;
+  /** 05.11: konstruktiv oʻqlar (SecPlan.grid) — sukut: ha (dims bilan) */
+  axes?: boolean;
 }
 export const ROOM_LABEL: Record<RoomKind, string> = { texnik: 'texnik / ombor', ombor: 'yashovchilar omborlari', savdo: 'savdo / xizmat', velo: 'velo / kolyaska', zal: 'yashovchilar zali', tozalash: 'tozalash anjomlari ombori' };
 export const ROOM_FILL: Record<RoomKind, string> = { texnik: '#e4e1da', ombor: '#e6dcc8', savdo: '#cfe0f3', velo: '#dfe9d2', zal: '#efd9e8', tozalash: '#e4e1da' };
@@ -80,13 +83,13 @@ function labelPt(r: XY[]): XY {
 /** Seksiya rejasi (saqlangan yoki qayta hisoblangan) */
 export function sectionPlan(pl: SecPlan): RulePlan { return pl.layout.plan ?? rulePlan(pl.ring, pl.layout.mods, [20, 40, 30, 10]); }
 /** Seksiya rejasi qoidalari tekshiruvi; fh — qavat balandligi */
-export function sectionChecks(pl: SecPlan, fh = 3): PlanCheck[] { return planChecks(sectionPlan(pl), (pl.z0 + pl.f1 - 1) * fh, pl.layout.mods); }
+export function sectionChecks(pl: SecPlan, fh = 3): PlanCheck[] { const P = sectionPlan(pl); return [...planChecks(P, (pl.z0 + pl.f1 - 1) * fh, pl.layout.mods), ...(pl.grid ? gridChecks(pl.grid, P, pl.layout.mods, pl.f1) : [])]; }
 
 export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const tr = o.tr ?? ((x: string) => x), tf = (k: string, v: Record<string, unknown>) => tr(k).replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e]));
   // chizma OBB oʻqlariga buriladi: uzun tomon gorizontal (oʻlcham zanjirlari va oʻqlar toʻgʻri)
   const { U } = obb2(pl0.ring), V: XY = [-U[1], U[0]], T = (p: XY): XY => [p[0] * U[0] + p[1] * U[1], p[0] * V[0] + p[1] * V[1]], TR = (r: XY[]) => r.map(T);
-  const ft = floorTypeOf(pl0, o.floor), PT = o.plan ?? sectionPlan(pl0), P0 = floorVariant(PT, ft, pl0.layout.mods), checks = planChecks(PT, (pl0.z0 + pl0.f1 - 1) * (o.fh ?? 3), pl0.layout.mods);
+  const ft = floorTypeOf(pl0, o.floor), PT = o.plan ?? sectionPlan(pl0), P0 = floorVariant(PT, ft, pl0.layout.mods), grid = o.axes === false ? undefined : pl0.grid, checks = [...planChecks(PT, (pl0.z0 + pl0.f1 - 1) * (o.fh ?? 3), pl0.layout.mods), ...(grid ? gridChecks(grid, PT, pl0.layout.mods, pl0.f1) : [])];
   const G: RulePlan = { ...P0, stairs: P0.stairs.map(TR), lifts: P0.lifts.map(TR), mop: P0.mop.map(TR), rest: P0.rest.map(TR), fireWalls: P0.fireWalls.map(TR), rooms: P0.rooms.map(q => ({ ...q, ring: TR(q.ring), door: T(q.door) })), apts: P0.apts.map(a => ({ ...a, ring: TR(a.ring), door: T(a.door), wet: TR(a.wet), walls: a.walls.map(([p, q]) => [T(p), T(q)] as [XY, XY]) })) };
   const mods = pl0.layout.mods.map(m => ({ ...m, a: T(m.a), b: T(m.b) }));
   // kvartira ichki rejalari (31.10): asl koordinatalarda hisoblanadi, chizma oʻqlariga buriladi
@@ -263,10 +266,15 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   }
   // derazalar: kvartira modullari oʻrtasida 1,6 m
   const used = new Set(G.apts.flatMap(a => a.mods));
-  mods.forEach((m, i) => { if (!used.has(i)) return; const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], l = Math.hypot(dx, dy) || 1, w = Math.min(1.6, l * 0.5), c: XY = [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2], ux = dx / l * w / 2, uy = dy / l * w / 2;
+  // 05.11: toʻr bor — deraza oraliq ichida (oʻq deraza oʻrnidan oʻtmaydi, AMALIYOT 2.6)
+  const gw = grid ? gridWindows(grid, pl0.layout.mods).map(w => T(w.c)) : null;
+  mods.forEach((m, i) => { if (!used.has(i)) return; const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], l = Math.hypot(dx, dy) || 1, w = Math.min(1.6, l * 0.5), c: XY = gw?.[i] ?? [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2], ux = dx / l * w / 2, uy = dy / l * w / 2;
     out.push(seg([c[0] - ux, c[1] - uy], [c[0] + ux, c[1] + uy], 'stroke="#fff" stroke-width="0.9"'), seg([c[0] - ux, c[1] - uy], [c[0] + ux, c[1] + uy], 'stroke="#141414" stroke-width="0.25"')); });
+  // 05.11: konstruktiv oʻqlar — haqiqiy toʻrdan (seysmik boʻlmalar, yadro, kvartira devorlari); raqamli oʻqlar pastda, harfli chapda,
+  // oʻlcham zanjiri haqiqiy qadamlardan, gabarit alohida qator; chok juft oʻqlari «3с | 1с»
+  if (o.dims && grid) drawAxes(out, grid, T, X, Y, k, fs, W, H, tf);
   // oʻqlar va oʻlchamlar: pastda — modullar, chapda — chuqurlik
-  if (o.dims) {
+  if (o.dims && !grid) {
     const { L, S } = obb2(r);
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (const p of r) { u0 = Math.min(u0, p[0]); u1 = Math.max(u1, p[0]); v0 = Math.min(v0, p[1]); v1 = Math.max(v1, p[1]); }
@@ -291,6 +299,84 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   return { svg, widthMm: W, heightMm: H, apts: P0.apts.map(a => ({ rooms: a.rooms, area: a.area * 0.85, ring: a.ring })), plan: P0, checks, type: ft,
     toSvg: (p: XY) => { const q = T(p); return [Number(X(q[0])), Number(Y(q[1]))]; },
     toPlan: (sx: number, sy: number) => { const u = (sx - pad - 5) / k + x0, v = y1 - (sy - pad - 12) / k; return [U[0] * u + V[0] * v, U[1] * u + V[1] * v]; } };
+}
+
+/**
+ * Konstruktiv oʻqlar chizmasi. Har boʻlma oʻz U/V oʻqlarida: raqamli (koʻndalang) oʻqlar — chiziq butun boʻlma boʻylab, doira va
+ * raqam sahifada pastki uchida (vertikal qanotda — chap uchida); harfli — chap (vertikal qanotda — pastki) uchida.
+ * Oʻlcham zanjiri — asosiy oʻqlar orasidagi qadamlar, keyin gabarit. Chok oʻqlari «с» bilan, chok chizigʻi qalinroq.
+ */
+function drawAxes(out: string[], g: StructGrid, T: (p: XY) => XY, X: (x: number) => string, Y: (y: number) => string, k: number, fs: number, W: number, H: number, tf: (k: string, v: Record<string, unknown>) => string): void {
+  const pg = (p: XY): [number, number] => { const q = T(p); return [Number(X(q[0])), Number(Y(q[1]))]; };
+  const f2 = (v: number) => v.toFixed(2), txt = (x: number, y: number, t: string, size: number, extra = '') => `<text x="${f2(x)}" y="${f2(y)}" font-size="${f2(size)}" text-anchor="middle" fill="#141414"${extra}>${esc(t)}</text>`;
+  const circle = (x: number, y: number, t: string) => `<circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(2 * fs)}" fill="#fff" stroke="#141414" stroke-width="0.25"/>` + txt(x, y + 0.7 * fs, t, 1.7 * fs, ' font-weight="600"');
+  const ext = 6 / fs;   // mm, oʻq chizigʻi konturdan tashqarida
+  let coreMark = false;
+  for (const b of g.blocks) {
+    const ud = T([b.U[0], b.U[1]]), horiz = Math.abs(ud[0]) >= Math.abs(ud[1]);
+    // raqamli oʻqlar (u = const): chiziq v0−ext … v1+ext
+    const numAt = (u: number): [[number, number], [number, number]] => [pg(ptOf(b, u, b.v0 - ext / k)), pg(ptOf(b, u, b.v1 + ext / k))];
+    const letAt = (v: number): [[number, number], [number, number]] => [pg(ptOf(b, b.u0 - ext / k, v)), pg(ptOf(b, b.u1 + ext / k, v))];
+    // yorliq tomoni: raqamli — pastda (gorizontal qanot) / chapda (vertikal); harfli — chapda / pastda (vertikal qanotda — tepada);
+    // L/П shaklda yorliq boshqa qanot ichiga tushsa — qarama-qarshi uchiga (05.11)
+    const others = g.blocks.filter(o => o !== b);
+    const free = (p: XY) => !others.some(o => pin(p, o.ring)) && !pin(p, g.ring);
+    const numFree = (u: number): [boolean, boolean] => [free(ptOf(b, u, b.v0 - (ext + 12 * fs) / k)), free(ptOf(b, u, b.v1 + (ext + 12 * fs) / k))];
+    const letFree = (v: number): [boolean, boolean] => [free(ptOf(b, b.u0 - (ext + 12 * fs) / k, v)), free(ptOf(b, b.u1 + (ext + 12 * fs) / k, v))];
+    const pick = (e: [[number, number], [number, number]], mode: 'down' | 'left' | 'up', fr: [boolean, boolean]): [number, number] => {
+      const i0 = mode === 'down' ? (e[0][1] >= e[1][1] ? 0 : 1) : mode === 'up' ? (e[0][1] <= e[1][1] ? 0 : 1) : (e[0][0] <= e[1][0] ? 0 : 1);
+      return fr[i0] || !fr[1 - i0] ? e[i0] : e[1 - i0];
+    };
+    const numMode: 'down' | 'left' = horiz ? 'down' : 'left', letMode: 'down' | 'left' | 'up' = horiz ? 'left' : 'up';
+    // yorliqlar bir boʻlmada bitta tomonda (aks holda oʻlcham zanjiri reja ustidan oʻtadi): koʻpchilik ovozi
+    const vote = (fr: [boolean, boolean][]): [boolean, boolean] => { const a = fr.filter(f => f[0]).length, c = fr.filter(f => f[1]).length; return [a >= c, c > a]; };
+    const numSide = vote(b.x.filter(a => a.kind !== 'sub').map(a => numFree(a.pos))), letSide = vote(b.y.map(a => letFree(a.pos)));
+    const dashes = 'stroke="#141414" stroke-width="0.18" stroke-dasharray="5 1.2 0.8 1.2"';
+    const mains = b.x.filter(a => a.kind !== 'sub');
+    const lab: { p: [number, number]; id: string; pos: number }[] = []; let labOd: [number, number] | null = null;
+    for (const a of mains) {
+      const e = numAt(a.pos); out.push(`<path d="M${f2(e[0][0])} ${f2(e[0][1])}L${f2(e[1][0])} ${f2(e[1][1])}" ${a.kind === 'joint' ? 'stroke="#141414" stroke-width="0.35"' : dashes}/>`);
+      const p = pick(e, numMode, numSide), o = p === e[0] ? e[1] : e[0], dv = [p[0] - o[0], p[1] - o[1]], dl = Math.hypot(dv[0], dv[1]) || 1, q: [number, number] = [p[0] + dv[0] / dl * 2.6 * fs, p[1] + dv[1] / dl * 2.6 * fs];
+      labOd = [dv[0] / dl, dv[1] / dl];
+      // chok juft oʻqlari «8с | 1с»: doiralar bir-birining ustiga tushmasin — boʻlma ichiga qarab suriladi
+      if (a.kind === 'joint') { const sg = a === mains[0] ? 1 : -1, ul = Math.hypot(ud[0], ud[1]) || 1; q[0] += sg * ud[0] / ul * 2.3 * fs; q[1] -= sg * ud[1] / ul * 2.3 * fs; }
+      out.push(`<path d="M${f2(p[0])} ${f2(p[1])}L${f2(q[0])} ${f2(q[1])}" stroke="#141414" stroke-width="0.18"/>`);
+      lab.push({ p: q, id: a.id, pos: a.pos });
+    }
+    for (const l of lab) out.push(circle(l.p[0], l.p[1], l.id));
+    // oʻlcham zanjiri: yorliq doiralaridan tashqarida (od — tashqi yoʻnalish); qadamlar, keyin gabarit
+    const chain = (ls: { p: [number, number]; pos: number }[], od: [number, number], d: number, size: number, bold: boolean, whole: boolean, mark: (a: number, b: number) => boolean = () => false) => {
+      if (ls.length < 2) return;
+      const at = (q: [number, number]): [number, number] => [q[0] + od[0] * d, q[1] + od[1] * d], al: [number, number] = [-od[1], od[0]];
+      const c0 = at(ls[0].p), c1 = at(ls[ls.length - 1].p);
+      out.push(`<path d="M${f2(c0[0])} ${f2(c0[1])}L${f2(c1[0])} ${f2(c1[1])}" stroke="#141414" stroke-width="0.25"/>`);
+      const rot = (Math.atan2(al[1], al[0]) * 180 / Math.PI + 360) % 360, rr = rot > 90 && rot < 270 ? rot - 180 : rot;   // matn chapdan oʻngga / pastdan tepaga
+      const label = (m: [number, number], t: string) => { const tp: [number, number] = [m[0] - od[0] * 0.8, m[1] - od[1] * 0.8]; return `<text transform="translate(${f2(tp[0])} ${f2(tp[1])}) rotate(${f2(rr)})" font-size="${f2(size)}"${bold ? ' font-weight="600"' : ''} text-anchor="middle" fill="#141414">${t}</text>`; };
+      const idx = whole ? [0, ls.length - 1] : ls.map((_, i) => i);
+      for (const i of idx) { const q = at(ls[i].p); out.push(`<path d="M${f2(q[0] - od[0] * 1.2)} ${f2(q[1] - od[1] * 1.2)}L${f2(q[0] + od[0] * 1.2)} ${f2(q[1] + od[1] * 1.2)}" stroke="#141414" stroke-width="0.25"/>`); }
+      if (whole) out.push(label([(c0[0] + c1[0]) / 2, (c0[1] + c1[1]) / 2], String(Math.round(Math.abs(ls[ls.length - 1].pos - ls[0].pos) * 1000))));
+      else for (let i = 1; i < ls.length; i++) { const a = at(ls[i - 1].p), q = at(ls[i].p); out.push(label([(a[0] + q[0]) / 2, (a[1] + q[1]) / 2], String(Math.round(Math.abs(ls[i].pos - ls[i - 1].pos) * 1000)) + (mark(ls[i - 1].pos, ls[i].pos) ? '*' : ''))); }
+    };
+    // yadro oraligʻi qadami toʻplamdan tashqari boʻlishi mumkin — «*» bilan belgilanadi (izoh pastda)
+    const isCore = (a: number, c: number) => b.cores.some(k => Math.min(a, c) >= k.from - 0.06 && Math.max(a, c) <= k.to + 0.06);
+    if (mains.some((a, i) => i && isCore(mains[i - 1].pos, a.pos))) coreMark = true;
+    if (mains.length >= 2 && labOd) { chain(lab, labOd, 4.2 * fs, 1.6 * fs, false, false, isCore); chain(lab, labOd, 7.4 * fs, 1.8 * fs, true, true); }
+    // harfli oʻqlar
+    const labY: { p: [number, number]; id: string; pos: number }[] = []; let labYOd: [number, number] | null = null;
+    for (const a of b.y) {
+      const e = letAt(a.pos); out.push(`<path d="M${f2(e[0][0])} ${f2(e[0][1])}L${f2(e[1][0])} ${f2(e[1][1])}" ${dashes}/>`);
+      const p = pick(e, letMode, letSide), o = p === e[0] ? e[1] : e[0], dv = [p[0] - o[0], p[1] - o[1]], dl = Math.hypot(dv[0], dv[1]) || 1, q: [number, number] = [p[0] + dv[0] / dl * 2.6 * fs, p[1] + dv[1] / dl * 2.6 * fs];
+      labYOd = [dv[0] / dl, dv[1] / dl];
+      out.push(`<path d="M${f2(p[0])} ${f2(p[1])}L${f2(q[0])} ${f2(q[1])}" stroke="#141414" stroke-width="0.18"/>`);
+      labY.push({ p: q, id: a.id, pos: a.pos });
+    }
+    for (const l of labY) out.push(circle(l.p[0], l.p[1], l.id));
+    if (labY.length >= 2 && labYOd) chain(labY, labYOd, 4.2 * fs, 1.6 * fs, false, false);
+  }
+  // chok chiziqlari (boʻlmalar orasida) — qalin
+  for (const [c, d] of g.joints) { const a = pg(c), e = pg(d); out.push(`<path d="M${f2(a[0])} ${f2(a[1])}L${f2(e[0])} ${f2(e[1])}" stroke="#141414" stroke-width="0.5"/>`); }
+  if (coreMark) out.push(`<text x="${f2(W / 2)}" y="${f2(H - (g.blocks.length > 1 ? 10.5 : 6.5))}" font-size="${f2(1.8 * fs)}" text-anchor="middle" fill="#141414">${esc(tf('* — zina-lift yadrosi oraligʻi', {}))}</text>`);
+  if (g.blocks.length > 1) out.push(txt(W / 2, H - 6.5, tf('${n} seysmik boʻlma · antiseysmik chok ${w} mm (QMQ 2.01.03-19, 3.1.4)', { n: g.blocks.length, w: g.jointMm }), 2 * fs));
 }
 
 /** Rejalar toʻplami — bitta SVG varaq, toʻrga joylangan */
