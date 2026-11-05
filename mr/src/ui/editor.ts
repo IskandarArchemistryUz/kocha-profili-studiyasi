@@ -50,7 +50,7 @@ import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel, RoundKind } from '../core/doc';
-import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, sb79Applies, type AutoSetback, type EdgeKind } from '../core/setback';
+import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, sb79Applies, edgeHeights, type AutoSetback, type EdgeKind } from '../core/setback';
 import { DEFAULT_GEN, UG_STREET, UG_SIDE, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
 import { mlParking, need413, pct5, ML, OPEN_413 } from '../core/mlpark';
@@ -2318,8 +2318,19 @@ export class Editor {
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), avoidG = this.genObstacles(b.parcelId ?? lab.id, b.rings[0]);
-    const run = (gx: GenParams) => { const a = this.autoSb(i, gx), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
+    const run = (gx: GenParams, edgeH?: (number | null)[]) => { const a = this.autoSb(i, gx, edgeH), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
     let { asb, r } = run(g);
+    // 05.11 (egasi): 2-oʻtish — chekinish har qirrada shu qirraga qaragan seksiyalarning haqiqiy balandligidan (79-band 1-izoh: loyihalashtirilgan
+    // binoning balandligi); janub qirrasi pastroq → chekinish kichik → hovli kengroq. Yaqinlashguncha (farq ≤ 0,3 m) koʻpi bilan 3 oʻtish
+    for (let it = 0; it < 3; it++) {
+      const a0 = asb; if (!a0 || a0.andoza) break;
+      const secs = r.sections.filter(x => x.kind !== 'arka').map(x => ({ ring: x.ring, H: bLevels(S, { floors: x.floors, nonRes: x.nonRes, z0: x.z0 }).top }));
+      if (!secs.length) break;
+      const eh = edgeHeights(b.rings[0], secs, a0.dMax + 1.5), a2 = this.autoSb(i, g, eh);   // chekinish chizigʻida turgan seksiyalar
+      if (!a2 || Math.max(...a2.d.map((v, k) => Math.abs(v - a0.d[k]))) <= 0.3) { if (a2?.hs) asb = { ...a0, hs: a2.hs }; break; }
+      const x = run(g, eh); if (!x.r.sections.some(q => q.kind !== 'stilobat')) break;
+      ({ asb, r } = x);
+    }
     // 04.11 (Murad Buildings sinovi, 2-band — D-14 uchburchak daha boʻsh qoldi): joy yetmasa, qavat oshirilmaydi (chekinish H × 0,25 va
     // oraliq 2·H ham oshadi) — qavat pasaytirilib (16 → 12 → 9 → 7 → 5 → 3), keyin minora bilan qayta urinish; natija boʻlmasa — aniq sabab
     const built = (x: typeof r) => x.sections.some(q => q.kind !== 'stilobat');
@@ -2399,24 +2410,27 @@ export class Editor {
     const e = this.edgeInfo(i, g); if (!e) return null;
     return insetVar(e.ring, e.kinds.map(k => (k === 'kocha' ? g.ugStreet ?? UG_STREET : g.ugSide ?? UG_SIDE)));
   }
-  private autoSb(i: number, g: GenParams): { ring: XY[] | null; d: number[]; kinds: EdgeKind[]; H: number; dMin: number; dMax: number; hw?: AutoSetback; andoza?: boolean } | null {
+  private autoSb(i: number, g: GenParams, edgeH?: (number | null)[]): { ring: XY[] | null; d: number[]; kinds: EdgeKind[]; H: number; dMin: number; dMax: number; hw?: AutoSetback; andoza?: boolean; /** 05.11: har qirra balandligi (2-oʻtish) */ hs?: number[] } | null {
     if (!g.setbackAuto || LOW_T.includes(g.typology)) return null;
     const b = this.plan().blocks[i], e = this.edgeInfo(i, g); if (!b || !e) return null;
     const doc = this.store.doc, { ring, streets, kinds } = e;
     const F = g.typology === 'minora' ? (g.towerF ?? g.maxF) : g.maxF, H = bLevels(doc.settings, { floors: F, nonRes: g.nonRes ?? 0 }).top;
+    // 05.11 (egasi): 2-oʻtish — har qirrada shu qirraga qaragan seksiyalarning haqiqiy balandligi (core/setback.edgeHeights); qaragan seksiya yoʻq — umumiy H
+    const Hk = (k: number) => edgeH?.[k] ?? H;
     // 05.11 (egasi: «nega chekinish barcha turdagi binolar uchun bir xil?»): 79-band — «Уч ва ундан юқори кўп қаватли турар жой бинолари ва
     // барча ётоқ ўринлари мавжуд бўлган бинолар орасидаги масофалар» — 2-jadval faqat 3+ qavatli turar joy va yotoq oʻrinli binolarga.
     // Ofis, savdo, maʼmuriy va boshqa noturar — 2-jadval chekinishi yoʻq: qoʻlda berilgan chekinish (ANDOZA)
     if (!sb79Applies(b.use, F)) { const d = ring.map(() => g.setback); return { ring: insetVar(ring, d), d, kinds, H, dMin: g.setback, dMax: g.setback, andoza: true }; }
     const hwOn = (g.hw ?? SB_HW) > 0, hw = hwOn ? autoSetback(H, blockStreetWidth(ring, streets), (g.nonRes ?? 0) > 0, g.hw) : undefined;
-    const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], n = boundaryNeed(kinds[k], H, true, azOf([q[0] - p[0], q[1] - p[1]])); return Math.round(Math.max(n, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
-    return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), hw };
+    const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], n = boundaryNeed(kinds[k], Hk(k), true, azOf([q[0] - p[0], q[1] - p[1]])); return Math.round(Math.max(n, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
+    return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), hw, ...(edgeH ? { hs: ring.map((_, k) => Hk(k)) } : {}) };
   }
   private autoSbNote(a: NonNullable<ReturnType<Editor['autoSb']>>): string {
     const ks = a.kinds.map((k, i) => ({ k, d: a.d[i] })), kc = ks.filter(x => x.k === 'kocha'), qs = ks.filter(x => x.k === 'qoshni');
     const rng = (xs: { d: number }[]) => { const lo = Math.min(...xs.map(x => x.d)), hi = Math.max(...xs.map(x => x.d)); return lo === hi ? fmt(lo, lo % 1 ? 1 : 0) : `${fmt(lo, lo % 1 ? 1 : 0)}–${fmt(hi, hi % 1 ? 1 : 0)}`; };
     if (a.andoza) return tf('Chekinish ${d} m — ANDOZA; 2-jadval qoʻllanmaydi (79-band: 3+ qavatli turar joy va yotoq oʻrinli binolar)', { d: fmt(a.dMin, a.dMin % 1 ? 1 : 0) });
-    return [tf('Chekinish (79-band, 2-jadval): H = ${h} m', { h: fmt(a.H, 1) }),
+    const hsR = a.hs ? (() => { const lo = Math.min(...a.hs), hi = Math.max(...a.hs); return lo === hi ? fmt(lo, 1) : `${fmt(lo, 1)}–${fmt(hi, 1)}`; })() : null;
+    return [hsR && hsR !== fmt(a.H, 1) ? tf('Chekinish (79-band, 2-jadval): H qirralar boʻyicha ${h} m (shu qirradagi seksiyalar)', { h: hsR }) : tf('Chekinish (79-band, 2-jadval): H = ${h} m', { h: fmt(a.H, 1) }),
       ...(kc.length ? [tf('koʻcha tomoni ${d} m (H × 0,25)', { d: rng(kc) })] : []),
       ...(qs.length ? [tf('qoʻshni tomoni ${d} m (H × kʏ / 2)', { d: rng(qs) })] : []),
       ...(a.hw ? [tf('andoza H/W ≤ ${k} — ${d} m', { k: fmt(a.hw.k, 1), d: fmt(a.hw.d, 1) })] : [])].join(' · ');
