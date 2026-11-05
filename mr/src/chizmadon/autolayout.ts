@@ -67,6 +67,8 @@ export interface Fill {
   score: number;
   /** shu oʻringa muqobil varaq turlari (ball boʻyicha, ≤ 6) */
   alts?: Fill[];
+  /** 06.11: oʻz katagi topilmagan shartli belgilar — shu katakdagi material yonida (katak ichidan ajratiladi, chizma ustiga tushmaydi) */
+  att?: Map<number, Material>;
 }
 
 /** Bitta varaq turini materiallar bilan sinab toʻldirish. Katta kataklar birinchi. */
@@ -193,10 +195,34 @@ export function dropReject(slot: LSlot, m: Material): string | null {
   return accepts(slot.role, m.role) ? null : LAYOUTS.roles[slot.role][0];
 }
 
+/**
+ * 06.11 (03.11 roʻyxati: «Chizmadon «Shartli belgilar» joy topmaydi»): maket oilasida boʻsh legenda/izoh katagi qolmasa,
+ * shartli belgilar joysiz qolardi (kichik material — qoʻshimcha varaq ochilmaydi). Endi u oʻzi tushuntiradigan materialning
+ * katagiga biriktiriladi: avval joylashuv xaritasi yoki diagramma (hudud tahlili belgilari), boʻlmasa eng katta reja/rasm.
+ * Chizishda katak ichidan alohida tasma ajratiladi (album.ts) — xarita ustiga tushmaydi.
+ */
+export function attachLeft(PG: Paginated): void {
+  PG.pages.forEach(pk => { delete pk.att; });
+  for (const L of PG.left.filter(e => e.role === 'legend')) {
+    let best: { pi: number; k: number; sc: number } | null = null;
+    PG.pages.forEach((pk, pi) => pk.assign.forEach((el, k) => {
+      if (pk.att?.has(k)) return;
+      const rel = el.role === 'locator' || el.role === 'chart' ? 2 : el.role === 'plan' || el.role === 'image' ? 1 : 0;
+      if (!rel) return;
+      const sc = rel * 1000 + cells(pk.page.slots[k]);
+      if (!best || sc > best.sc) best = { pi, k, sc };
+    }));
+    const b = best as { pi: number; k: number } | null;
+    if (!b) continue;
+    (PG.pages[b.pi].att ??= new Map()).set(b.k, L);
+    PG.left = PG.left.filter(e => e.id !== L.id);
+  }
+}
+
 /** Material qaysi varaq va katakda: id → {pi, k} */
 export function placements(PG: Paginated): Record<string, { pi: number; k: number }> {
   const out: Record<string, { pi: number; k: number }> = {};
-  PG.pages.forEach((pk, pi) => pk.assign.forEach((el, k) => { out[el.id] = { pi, k }; }));
+  PG.pages.forEach((pk, pi) => { pk.assign.forEach((el, k) => { out[el.id] = { pi, k }; }); pk.att?.forEach((el, k) => { out[el.id] ??= { pi, k }; }); });
   return out;
 }
 
