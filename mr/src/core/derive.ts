@@ -187,7 +187,10 @@ export function derive(doc: Project): Derived {
   // maktab, MTM — 25 ga 1; poliklinika, mehmonxona — 5 ga 1 (sigʻim GFA dan, ANDOZA); park — har 0,05 ga
   const parkingParts = parkingNeed({ apartments: Math.max(0, apartments - houses), tashkent: isTashkent(s.district), ofisGfa: (gfaByUse.ofis ?? 0) + (gfaByUse.mamuriy ?? 0), tradeAreas, school: schoolCap, mtm: mtmCap, greenArea, hotelGfa: gfaByUse.mehmonxona ?? 0, clinicGfa: gfaByUse.poliklinika ?? 0 });
   const parkingReq = Object.values(parkingParts).reduce((a, b) => a + b, 0);
-  const parkingProv = Math.floor((zoneArea.avtoturargoh ?? 0) / 25) + doc.garages.reduce((t, g) => t + (g.truck ? 0 : g.spaces), 0);   // yuk hovlisi tirkamalari — yengil avtomobil joyi emas
+  // 05.11: koʻp qavatli avtoturargoh turgan «Avtoturargoh» parseli ochiq (25 m²/joy) deb ikki marta hisoblanmaydi — joylar qavat rejalaridan
+  const mlC = doc.garages.filter(g => g.kind === 'kop_qavatli').map(g => ctr(ringLocal(fr, g.ring)));
+  const mlArea = plan.blocks.filter(k => k.use === 'avtoturargoh' && mlC.some(c => inBl(c, k))).reduce((t, k) => t + k.area, 0);
+  const parkingProv = Math.floor(Math.max(0, (zoneArea.avtoturargoh ?? 0) - mlArea) / 25) + doc.garages.reduce((t, g) => t + (g.truck ? 0 : g.spaces), 0);   // yuk hovlisi tirkamalari — yengil avtomobil joyi emas
   let resSections = 0, westFacing = 0; const westIds: string[] = [];
   for (const b of doc.buildings) {
     if (useDef(b.use).res <= 0 || b.gen?.kind === 'stilobat') continue;

@@ -106,7 +106,7 @@ export interface Street { id: string; axis: LngLat[]; profile: string; /** oʻq 
 
 /** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
 /** Avtoturargoh (generator): yer usti boʻlsa — joylar va manevr boʻlaklari (dizayn-kod 6.3 moduli); need — 29-jadval talabi */
-export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti'; ring: Ring; levels: number; spaces: number; need?: number; module?: 'p90' | 'p60' | 'p45' | 'par'; stalls?: Ring[]; aisles?: Ring[]; /** 02.11: yuk hovlisi — stalls tirkama joylari, aisles apron; yengil avtomobil joylariga kirmaydi */ truck?: true; /** temir yoʻl shoxobchasi oʻqi */ spur?: LngLat[] }
+export interface Garage { id: string; grp: string; kind: 'yer_osti' | 'stilobat' | 'yer_usti' | 'kop_qavatli'; ring: Ring; levels: number; spaces: number; need?: number; module?: 'p90' | 'p60' | 'p45' | 'par'; stalls?: Ring[]; aisles?: Ring[]; /** 02.11: yuk hovlisi — stalls tirkama joylari, aisles apron; yengil avtomobil joylariga kirmaydi */ truck?: true; /** temir yoʻl shoxobchasi oʻqi */ spur?: LngLat[]; /** 05.11: koʻp qavatli — pandus yoʻlaklari va zina-lift tugunlari (tipik qavat), har qavat joylari */ ramps?: Ring[]; cores?: Ring[]; perFloor?: number[] }
 
 export interface Parcel { id: string; block: string; rings: Ring[]; use: Use; /** shu yer uchastkasi uchun oxirgi generator parametrlari (seksiya oʻlchamlari va h.k.) */ gen?: Record<string, unknown> }
 
@@ -373,10 +373,13 @@ export function migrate(raw: unknown): Project {
   const limits: Limit[] = (Array.isArray(d.limits) ? d.limits : []).map(cleanLimit).filter((x: Limit | null): x is Limit => !!x);
   const roadEdits = (Array.isArray(d.roadEdits) ? d.roadEdits : []).filter((e: any) => e && isNum(e.id) && Array.isArray(e.parts)).map((e: any) => ({ id: e.id as number, parts: (e.parts as any[]).filter(p => Array.isArray(p) && p.length >= 2 && p.every(isLL)).map((p: any[]) => p.map(q => [q[0], q[1]] as LngLat)) }));
   const garages: Garage[] = (Array.isArray(d.garages) ? d.garages : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.grp === 'string' && isRing(x.ring) && isNum(x.spaces))
-    .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)),
+    .map((x: any) => ({ id: x.id, grp: x.grp, kind: (['yer_osti', 'stilobat', 'yer_usti', 'kop_qavatli'].includes(x.kind) ? x.kind : 'yer_osti'), ring: x.ring.map((p: LngLat) => [p[0], p[1]] as LngLat), levels: isNum(x.levels) ? x.levels : 1, spaces: Math.max(0, Math.round(x.spaces)),
       ...(isNum(x.need) ? { need: Math.max(0, Math.round(x.need)) } : {}), ...(['p90', 'p60', 'p45', 'par'].includes(x.module) ? { module: x.module } : {}),
       ...(Array.isArray(x.stalls) && x.stalls.every(isRing) ? { stalls: x.stalls.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
       ...(Array.isArray(x.aisles) && x.aisles.every(isRing) ? { aisles: x.aisles.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
+      ...(Array.isArray(x.ramps) && x.ramps.every(isRing) ? { ramps: x.ramps.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
+      ...(Array.isArray(x.cores) && x.cores.every(isRing) ? { cores: x.cores.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)) } : {}),
+      ...(Array.isArray(x.perFloor) && x.perFloor.every(isNum) ? { perFloor: x.perFloor.map((v: number) => Math.max(0, Math.round(v))) } : {}),
       ...(x.truck === true ? { truck: true as const } : {}), ...(Array.isArray(x.spur) && x.spur.length >= 2 && x.spur.every(isLL) ? { spur: x.spur.map((p: LngLat) => [p[0], p[1]] as LngLat) } : {}) }));
   const parcels: Parcel[] = (Array.isArray(d.parcels) ? d.parcels : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.block === 'string' && Array.isArray(x.rings) && x.rings.length && x.rings.every(isRing))
     .map((x: any) => ({ id: x.id, block: x.block, rings: x.rings.map((r: LngLat[]) => r.map(p => [p[0], p[1]] as LngLat)), use: isUse(x.use) ? x.use : 'turar', ...(x.gen && typeof x.gen === 'object' && !Array.isArray(x.gen) ? { gen: { ...x.gen } } : {}) }));
