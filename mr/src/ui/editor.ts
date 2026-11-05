@@ -53,7 +53,7 @@ import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, sb79Applies, edgeHeights, type AutoSetback, type EdgeKind } from '../core/setback';
 import { DEFAULT_GEN, UG_STREET, UG_SIDE, generate, minWidth, usePreset, typoAllowed, useCompatible, PARK_NAME, TYPO_NAME, type GenParams, type ParkingKind, type Typology } from '../core/generator';
 import { PARK_MOD, PARK_MODS, isTashkent } from '../core/parking';
-import { mlParking, need413, pct5, ML, OPEN_413 } from '../core/mlpark';
+import { mlParking, need413, pct5, ML, OPEN_413, ML_RAMPS, ML_RAMP_NAME, ML_MODS, type MlRamp, type MlMod } from '../core/mlpark';
 import { autoEntries, entryReport, hasEntryRules, isUg } from '../core/parkenv';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
@@ -177,6 +177,7 @@ function mapOnly(svg: string, scale: number): { svg: string; vb: [number, number
   return { svg: inner, vb: [10, 10, W - 20, H - 20], w: W - 20, h: H - 20, scale };
 }
 
+type MlSt = { t: 'ochiq' | 'kop'; f: number; r: MlRamp | 'auto'; m: MlMod | 'auto'; ln: boolean };
 export class Editor {
   readonly store: Store;
   private scene!: Scene3D;
@@ -2542,22 +2543,25 @@ export class Editor {
     return sp.sections.length;
   }
   /** 05.11: «Avtoturargoh» birligi — tur tanlovi (ochiq / koʻp qavatli), qavatlar; tanlov joylashtirilguncha shu yerda */
-  private mlPick = new Map<string, { t: 'ochiq' | 'kop'; f: number }>();
+  private mlPick = new Map<string, MlSt>();
   private mlGrp(i: number): string | null { const b = this.plan().blocks[i]; return b ? b.parcelId ?? this.blockLabel(i)?.id ?? null : null; }
-  private mlState(i: number): { t: 'ochiq' | 'kop'; f: number } {
+  private mlState(i: number): MlSt {
     const grp = this.mlGrp(i), sg = this.savedGen(i), gar = this.store.doc.garages.find(g => g.grp === grp && g.kind === 'kop_qavatli');
-    return (grp ? this.mlPick.get(grp) : undefined) ?? { t: gar || sg?.mlType === 'kop' ? 'kop' : 'ochiq', f: gar?.levels ?? (Number(sg?.mlFloors) || 3) };
+    const r = (ML_RAMPS as string[]).includes(String(sg?.mlRamp)) ? sg!.mlRamp as MlRamp : 'auto', m = (ML_MODS as string[]).includes(String(sg?.mlMod)) ? sg!.mlMod as MlMod : 'auto';
+    return (grp ? this.mlPick.get(grp) : undefined) ?? { t: gar || sg?.mlType === 'kop' ? 'kop' : 'ochiq', f: gar?.levels ?? (Number(sg?.mlFloors) || 3), r, m, ln: sg?.mlLiner === true };
   }
   private generateParking(i: number, floors: number, quiet = false): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
-    const fr = frame(this.store.doc.origin), grp = b.parcelId ?? lab.id, m = mlParking(b.rings[0], floors, b.area), name = this.unitName(i);
+    const st = this.mlState(i), fr = frame(this.store.doc.origin), grp = b.parcelId ?? lab.id, m = mlParking(b.rings[0], floors, { land: b.area, ramp: st.r, mod: st.m, liner: st.ln }), name = this.unitName(i);
     if (!m) { this.genNotes = [tf('Koʻp qavatli avtoturargoh sigʻmadi: chekinish ${s} m bilan kamida ≈ 56 × 25 m toʻrtburchak kerak (pandus, yoʻlaklar, joylar).', { s: ML.setback })]; if (!quiet) { toast(this.genNotes[0]); this.renderPanel(); } return 0; }
-    const gen = { mlType: 'kop', mlFloors: m.levels }, G = (rs: XY[][]) => rs.map(r => r.map(fr.toGeo));
+    const gen = { mlType: 'kop', mlFloors: m.levels, mlRamp: st.r, mlMod: st.m, mlLiner: st.ln }, G = (rs: XY[][]) => rs.map(r => r.map(fr.toGeo));
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, ...(b.parcelId ? { parcelGen: gen } : { label: { ...lab, gen } }),
-      sections: [{ footprint: m.ring.map(fr.toGeo), floors: m.levels, nonRes: m.levels, use: 'avtoturargoh', kind: 'parking' }],
-      garage: { kind: 'kop_qavatli', ring: m.ring.map(fr.toGeo), levels: m.levels, spaces: m.spaces, module: 'p90', stalls: G(m.stalls), aisles: G(m.aisles), ramps: G(m.ramps), cores: G(m.cores), perFloor: m.perFloor } }));
+      sections: [{ footprint: m.ring.map(fr.toGeo), floors: m.levels, nonRes: m.levels, use: 'avtoturargoh', kind: 'parking' },
+        // 05.11: «oʻralgan» avtoturargoh — perimetrda 2 qavatli savdo/ofis lentasi (ANDOZA, De Werf misoli)
+        ...m.liner.map(q => ({ footprint: q.map(fr.toGeo), floors: 2, nonRes: 1, use: 'savdo' as const, kind: 'savdo' }))],
+      garage: { kind: 'kop_qavatli', ring: m.ring.map(fr.toGeo), levels: m.levels, spaces: m.spaces, module: m.mod, ramp: m.ramp, stalls: G(m.stalls), aisles: G(m.aisles), ramps: G(m.ramps), cores: G(m.cores), perFloor: m.perFloor } }));
     this.mlPick.delete(grp); this.placeEntries(grp, true);
-    this.genNotes = [tf('Bino ${l} × ${w} m, ${n} qator; pandus ikki yoʻnalishli, ${r} m (qiyalik 18 %, ANDOZA)', { l: fmt(m.L, 1), w: fmt(m.W, 1), n: m.bays, r: fmt(m.rampL, 1) })];
+    this.genNotes = [tf('Bino ${l} × ${w} m, ${n} qator; ${t}, joylar ${md}; zina-lift tugunlari ${c} ta (eng uzoq joydan ≤ ${e} m, ANDOZA); ustun toʻri — har 3 joyda', { l: fmt(m.L, 1), w: fmt(m.W, 1), n: m.bays, t: tr(ML_RAMP_NAME[m.ramp]).toLowerCase(), md: PARK_MOD[m.mod].short, c: m.nCores, e: ML.evac }), ...m.notes.map(x => tr(x))];
     if (!quiet) toast(tf('${n}: koʻp qavatli avtoturargoh — ${k} joy', { n: name, k: m.spaces }));
     return 1;
   }
@@ -2585,7 +2589,7 @@ export class Editor {
   private parkingSection(i: number): HTMLElement {
     const plan = this.plan(), b = plan.blocks[i], grp = this.mlGrp(i), st = this.mlState(i), doc = this.store.doc;
     const gar = doc.garages.find(g => g.grp === grp && g.kind === 'kop_qavatli');
-    const pick = (p: Partial<{ t: 'ochiq' | 'kop'; f: number }>) => { if (grp) this.mlPick.set(grp, { ...st, ...p }); this.renderPanel(); };
+    const pick = (p: Partial<MlSt>) => { if (grp) this.mlPick.set(grp, { ...st, ...p }); this.renderPanel(); };
     const box = h('div', { class: 'group', id: 'mlPark' },
       // 05.11: 1024 px da yorliq ikkiga notoʻgʻri boʻlinardi — yorliq va tugmalar alohida qatorda
       h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, tr('Avtoturargoh turi'), h('span', { class: 'sub' }, tr('ShNQ 2.07.01-23, 410 va 413-bandlar'))),
@@ -2598,7 +2602,15 @@ export class Editor {
       return box;
     }
     box.append(h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qavatlar'), h('span', { class: 'sub' }, tf('413-band: bir joyga ≥ ${a} m² yer', { a: need413(st.f) }))),
-      h('div', { class: 'seg sm', id: 'mlFloors', role: 'group', 'aria-label': tr('Qavatlar') }, ...[2, 3, 4, 5].map(f => h('button', { 'data-pfl': f, 'aria-pressed': st.f === f, onclick: () => pick({ f }) }, String(f))))));
+      h('div', { class: 'seg sm', id: 'mlFloors', role: 'group', 'aria-label': tr('Qavatlar') }, ...[2, 3, 4, 5].map(f => h('button', { 'data-pfl': f, 'aria-pressed': st.f === f, onclick: () => pick({ f }) }, String(f))))),
+      // 05.11 (egasi: misollar papkasi «parkovka»): pandus tizimi, joy burchagi, perimetrda savdo lentasi
+      h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, tr('Pandus tizimi'), h('span', { class: 'sub' }, tr('Avto — eng koʻp joy beradigani'))),
+        h('div', { class: 'seg sm', id: 'mlRamp', role: 'group', 'aria-label': tr('Pandus tizimi'), style: 'flex:1 1 100%;flex-wrap:wrap' },
+          ...(['auto', ...ML_RAMPS] as const).map(r => h('button', { 'data-pramp': r, 'aria-pressed': st.r === r, onclick: () => pick({ r }) }, r === 'auto' ? tr('Avto') : tr(ML_RAMP_NAME[r]))))),
+      h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Joy burchagi'), h('span', { class: 'sub' }, tr('60° va 45° — bir yoʻnalishli yoʻlak'))),
+        h('div', { class: 'seg sm', id: 'mlMod', role: 'group', 'aria-label': tr('Joy burchagi') }, ...(['auto', ...ML_MODS] as const).map(m => h('button', { 'data-pmod': m, 'aria-pressed': st.m === m, onclick: () => pick({ m }) }, m === 'auto' ? tr('Avto') : PARK_MOD[m].short)))),
+      h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Perimetrda savdo lentasi'), h('span', { class: 'sub' }, tf('1–2-qavat, chuqurligi ${d} m — koʻchaga jonli fasad', { d: ML.linerD }))),
+        h('div', { class: 'seg sm', id: 'mlLiner', role: 'group', 'aria-label': tr('Perimetrda savdo lentasi') }, h('button', { 'aria-pressed': !st.ln, onclick: () => pick({ ln: false }) }, tr('Yoʻq')), h('button', { 'aria-pressed': st.ln, onclick: () => pick({ ln: true }) }, tr('Ha')))));
     if (gar) {
       const pf = gar.perFloor ?? [], p0 = pf[0] ?? 0, p1 = pf[1] ?? p0, A = b?.area ?? 0;
       box.append(
@@ -2608,7 +2620,8 @@ export class Editor {
           h('b', { class: 'num', id: 'ml413' }, `${fmt(gar.spaces ? A / gar.spaces : 0, 1)} m²`)),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Nogironlar uchun joy'), h('span', { class: 'sub' }, tr('411-band: kamida 5 %, kamida 1 — 1-qavatda'))), h('b', { class: 'num' }, String(pct5(gar.spaces)))),
         ...(gar.spaces && A / gar.spaces < need413(gar.levels) - 0.05 ? [h('div', { class: 'note warn', id: 'ml413warn' }, tf('413-band boʻyicha bu uchastkada ${l} qavatda koʻpi bilan ${m} joy — qavatni kamaytiring.', { l: gar.levels, m: Math.floor(A / need413(gar.levels)) }))] : []),
-        h('div', { class: 't-small' }, tf('Pandus, yoʻlak va qavat balandligi — ANDOZA (SP 113.13330.2016, taqqoslash uchun): qavat ${h} m, qiyalik ≤ 18 %, yoʻlak ≥ 3,5 m.', { h: fmt(ML.floorH, 1) })));
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Pandus tizimi')), h('b', { id: 'mlRampNow' }, `${tr(ML_RAMP_NAME[gar.ramp ?? 'togri'])} · ${PARK_MOD[gar.module ?? 'p90'].short}`)),
+        h('div', { class: 't-small' }, tf('Pandus, yoʻlak va qavat balandligi — ANDOZA (SP 113.13330.2016, taqqoslash uchun): qavat ${h} m, qiyalik ≤ 15 %, yoʻlak ≥ 3,5 m; zina-lift tugunlari — eng uzoq joydan ≤ ${e} m (ShNQ 2.05.07-24 matni normalar papkasida yoʻq).', { h: fmt(ML.floorH, 1), e: ML.evac })));
       if (st.f !== gar.levels) box.append(h('div', { class: 'note warn' }, tf('Tanlangan ${f} qavat — qayta joylashtiring.', { f: st.f })));
     } else box.append(h('div', { class: 't-small', id: 'mlHint' }, tr('«Joylashtirish» — parsel ichida toʻrtburchak bino, har qavatda pandus, manevr yoʻlagi va joylar.')));
     return box;
