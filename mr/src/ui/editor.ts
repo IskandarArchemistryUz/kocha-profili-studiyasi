@@ -2,6 +2,7 @@
  * Loyiha oynasi: chapda qadamlar qatori, yonida qadam paneli, markazda sahna, pastda koʻrsatkichlar.
  * Qadam almashganda faqat panel almashadi — sahna, kamera va hujjat joyida qoladi.
  */
+import polygonClipping from 'polygon-clipping';
 import { repairGen } from '../core/normfix';
 import { langMenu } from './langmenu';
 import { bLevels, levelZ, floorAt, groundH, antresolSplit, hasAntresol, ANTRESOL_SHARE, ANTRESOL_MIN_H } from '../core/levels';
@@ -32,7 +33,7 @@ import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo } from '../co
 import type { MultiPolygon } from 'polygon-clipping';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { accessStreet, innerStreets } from '../core/rowaccess';
-import { denyZone, clipToSzz } from '../core/szzgen';
+import { denyZone, clipToSzz, szzBelt } from '../core/szzgen';
 import { LOGI, logiType, prodSzz } from '../core/logistics';
 import { PROD } from '../core/prodcheck';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
@@ -2284,6 +2285,29 @@ export class Editor {
       const moves = ids.map(id2 => ({ id: id2, m: this.outOfStreet(id2) })).filter(x => x.m);
       this.run(() => { for (const x of moves) this.store.dispatch({ type: 'updateBuilding', id: x.id, patch: { footprint: x.m!.footprint } }); });
       toast(tf('${n} ta bino koʻchadan chiqarildi', { n: moves.length }));
+    } else if (id === 'szz-belt') {
+      // 06.11: SanPiN 0350-17, 2.19 — turar joy tomonidagi SMZ tasmasi «Himoya koʻkalamzorligi» parseli qilib ajratiladi; binolar oʻchirilmaydi
+      const bad = szzBelt(doc).filter(x => x.miss > Math.max(50, 0.02 * x.area)), miss = bad.flatMap(x => x.missRings);
+      if (!miss.length) return;
+      const plan = this.plan(), seen = new Set<number>(); let n = 0;
+      const hits = (rings: XY[][]) => miss.some(m => { try { return polygonClipping.intersection([rings[0].map(p => [p[0], p[1]] as [number, number])], m.map(r => r.map(p => [p[0], p[1]] as [number, number]))).length > 0; } catch { return false; } });
+      this.run(() => {
+        for (const b of plan.blocks) {
+          if (seen.has(b.blockKey) || b.use === 'himoya' || !hits(b.rings)) continue; seen.add(b.blockKey);
+          const bp = this.blockParcels(b); if (!bp) continue;
+          const next: { id: string; rings: XY[][]; use: Use }[] = []; let ch = false;
+          for (const p of bp.list) {
+            if (p.use === 'himoya' || !hits(p.rings)) { next.push(p); continue; }
+            const sp = splitByZones(p.rings, miss);
+            if (sp) { next.push(...sp.inside.map(rr => ({ id: uid('pc_'), rings: rr, use: 'himoya' as Use })), ...sp.outside.map(rr => ({ id: uid('pc_'), rings: rr, use: p.use }))); ch = true; n += sp.inside.length; }
+            else { next.push({ ...p, use: 'himoya' }); ch = true; n++; }
+          }
+          if (ch) this.store.dispatch({ type: 'setParcels', block: bp.lab.id, label: bp.lab, parcels: next.map(p => ({ id: p.id, rings: p.rings.map(r => r.map(fr.toGeo)), use: p.use })) });
+        }
+      });
+      const inBelt = doc.buildings.filter(b => hits([b.footprint.map(fr.toLocal)])).length;
+      this.selBlock = null; this.scene.selectBlock(null);
+      toast(tf('${n} ta daraxt-buta tasmasi parseli ajratildi (SanPiN 0350-17, 2.19)', { n }) + (inBelt ? ' ' + tf('Tasmaga ${m} ta bino tushadi — ularni koʻchiring yoki olib tashlang.', { m: inBelt }) : ''));
     } else if (id === 'play-ug') {
       // 05.11: ShNQ 2.07.01-23, 92-band — yer usti avtoturargohlarini yer osti qilish: hovli boʻshaydi, maydonchalar uning tomida
       const gs = doc.garages.filter(g => g.kind === 'yer_usti' && !g.truck && (g.stalls?.length ?? 0) > 0);
