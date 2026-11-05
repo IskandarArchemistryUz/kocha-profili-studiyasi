@@ -25,9 +25,28 @@ import type { XY } from './geo';
 import { PARK_MOD } from './parking';
 
 export const ML = {
-  floorH: 3.0, clear: 2.2, slope: 0.18, slopeCurve: 0.13, lane: 3.5, sep: 0.5, trans: 3.6, setback: 3,
+  floorH: 3.0, clear: 2.2, slope: 0.15, slopeCurve: 0.13, lane: 3.5, sep: 0.5, trans: 3.6, setback: 3,
   stallW: PARK_MOD.p90.W, stallL: PARK_MOD.p90.L, aisle: PARK_MOD.p90.A, coreStalls: 3, gateStalls: 2,
+  /** 05.11 (egasi: misollar papkasi «parkovka»): ustun har 3 joyda, 0,6 m → toʻr 8,1 m (misollar: 7,8–8,1 m) — ANDOZA */
+  col: 0.6, colEvery: 3,
+  /** koʻndalang (burilish) yoʻlagi bino uchlarida, m */
+  endAisle: 6.0,
+  /** qiya qavat: pol qiyaligi ≤ 5 % (misol: 3,9 %) — ANDOZA */
+  floorSlope: 0.05,
+  /** tashqi spiral (ikki yoʻlakli, konsentrik): tashqi radius 11 m, ichki 3,1 m (RU sxema, qavat 2,8–3,0 m) — ANDOZA */
+  helixR: 11, helixRin: 3.1,
+  /** evakuatsiya: istalgan joydan eng yaqin zina tuguniga ≤ 40 m (toʻgʻri chiziq) — ANDOZA: ShNQ 2.05.07-24 «Avtoturargohlar» normalar papkasida yoʻq */
+  evac: 40,
+  /** «oʻralgan» avtoturargoh: 1–2-qavat perimetrida savdo/ofis lentasi chuqurligi, m — ANDOZA (De Werf, Amsterdam) */
+  linerD: 9,
 } as const;
+/** 05.11: pandus tizimi (misollar: tekis qavat + toʻgʻri pandus; yarim qavatli; qiya qavat; tashqi spiral) */
+export type MlRamp = 'togri' | 'yarim' | 'qiya' | 'spiral';
+export const ML_RAMPS: MlRamp[] = ['togri', 'yarim', 'qiya', 'spiral'];
+export const ML_RAMP_NAME: Record<MlRamp, string> = { togri: 'Toʻgʻri pandus', yarim: 'Yarim qavatli', qiya: 'Qiya qavat', spiral: 'Tashqi spiral' };
+export type MlMod = 'p90' | 'p60' | 'p45';
+export const ML_MODS: MlMod[] = ['p90', 'p60', 'p45'];
+export interface MlOpts { ramp?: MlRamp | 'auto'; mod?: MlMod | 'auto'; liner?: boolean; land?: number }
 /** 413-band: bir mashina-joyga yer uchastkasi, m² (kamida) */
 export const ML_413: Record<number, number> = { 2: 20, 3: 14, 4: 12, 5: 10 };
 export const OPEN_413 = 25;
@@ -54,6 +73,7 @@ export interface MlPark {
   ring: XY[]; levels: number; perFloor: number[]; spaces: number;
   stalls: XY[][]; aisles: XY[][]; ramps: XY[][]; cores: XY[][];
   L: number; W: number; bays: number; rampL: number; notes: string[];
+  ramp: MlRamp; mod: MlMod; nCores: number; liner: XY[][]; slope?: number;
 }
 
 const rotP = (p: XY, a: number): XY => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)];
@@ -87,68 +107,142 @@ function bestRect(r: XY[], sb: number): { x0: number; x1: number; y0: number; y1
   return out;
 }
 
-/** Bitta qavat rejasi (u, v — mahalliy) */
-function floorPlan(L: number, W: number, nb: number, rl: number): { stalls: [number, number, number, number][]; aisles: [number, number, number, number][]; ramps: [number, number, number, number][]; cores: [number, number, number, number][] } {
-  const sw = ML.stallW, sl = ML.stallL, A = ML.aisle, rw = rampWidth();
-  const stalls: [number, number, number, number][] = [], aisles: [number, number, number, number][] = [], ramps: [number, number, number, number][] = [], cores: [number, number, number, number][] = [];
-  const u0 = A, u1 = L - A;   // koʻndalang yoʻlaklar orasida
-  aisles.push([0, 0, A, W], [L - A, 0, L, W]);
-  const ra = u0, rb = u0 + rl;   // pandus — birinchi koʻndalang yoʻlakdan keyin
-  ramps.push([ra, 0, rb, ML.lane], [ra, ML.lane + ML.sep, rb, rw]);
-  const row = (v0: number, from: number, to: number, skip: (u: number) => boolean) => { for (let u = from; u + sw <= to + 1e-6; u += sw) if (!skip(u)) stalls.push([u, v0, u + sw, v0 + sl]); };
-  // 1-qator: pandus tasmasi (pandusdan keyin — joylar, yoʻlakka tutash), 2-yadro tuguni pandusdan keyin
-  const c1: [number, number, number, number] = [rb, rw - sl, rb + ML.coreStalls * sw, rw]; cores.push(c1);
-  row(rw - sl, rb + ML.coreStalls * sw, u1, () => false);
-  aisles.push([u0, rw, u1, rw + A]);
-  let v = rw + A;
-  row(v, u0, u1, () => false); v += sl;
-  for (let k = 1; k < nb; k++) { row(v, u0, u1, () => false); v += sl; aisles.push([u0, v, u1, v + A]); v += A; row(v, u0, u1, () => false); v += sl; }
-  // 1-yadro — oxirgi qator uchida
-  const c2: [number, number, number, number] = [u1 - ML.coreStalls * sw, v - sl, u1, v]; cores.push(c2);
-  const hit = (s: [number, number, number, number], c: [number, number, number, number]) => s[0] < c[2] - 1e-6 && s[2] > c[0] + 1e-6 && s[1] < c[3] - 1e-6 && s[3] > c[1] + 1e-6;
-  return { stalls: stalls.filter(s => !cores.some(c => hit(s, c))), aisles, ramps, cores };
+type R4 = [number, number, number, number];
+/** Modul: qator boʻylab qadam, qator chuqurligi (yoʻlakka perpendikulyar), yoʻlak eni; burchakli — bir yoʻnalishli yoʻlak */
+function modDims(m: MlMod): { W: number; L: number; th: number; pitch: number; d: number; A: number } {
+  const P = PARK_MOD[m], th = P.deg * Math.PI / 180, W = P.W, L = m === 'p90' ? ML.stallL : P.L;
+  return { W, L, th, pitch: W / Math.sin(th), d: L * Math.sin(th) + W * Math.abs(Math.cos(th)), A: m === 'p90' ? ML.aisle : P.A };
+}
+interface Row { e: number; s: 1 | -1; dir: 1 | -1; wall: boolean }
+interface Plan { stalls: XY[][]; aisles: R4[]; ramps: XY[][]; cores: R4[]; cols: R4[]; slope?: number; rampL: number }
+const rq = (q: R4): XY[] => [[q[0], q[1]], [q[2], q[1]], [q[2], q[3]], [q[0], q[3]]];
+const hitR = (a: R4, b: R4) => a[0] < b[2] - 1e-6 && a[2] > b[0] + 1e-6 && a[1] < b[3] - 1e-6 && a[3] > b[1] + 1e-6;
+
+/** Eni: bay soni boʻyicha (toʻgʻri pandusda birinchi devor qatori oʻrnida pandus tasmasi) */
+function widthOf(ramp: MlRamp, md: ReturnType<typeof modDims>, nb: number): number {
+  const bay = md.A + 2 * md.d;
+  return ramp === 'togri' ? Math.max(rampWidth(), md.d) + md.A + md.d + (nb - 1) * bay : nb * bay;
+}
+
+/** Bitta qavat rejasi (u — uzunlik, v — eni, mahalliy) */
+function floorPlan(L: number, W: number, nb: number, ramp: MlRamp, md: ReturnType<typeof modDims>): Plan | null {
+  const E = ML.endAisle, ue0 = E, ue1 = L - E, A = md.A, d = md.d, bay = A + 2 * d;
+  if (ue1 - ue0 < 20) return null;
+  const aisles: R4[] = [[0, 0, E, W], [L - E, 0, L, W]], ramps: XY[][] = [], blocked: R4[] = [], rows: Row[] = [];
+  let rampL = 0, slope: number | undefined;
+  if (ramp === 'togri') {
+    const rw = Math.max(rampWidth(), d), rl = rampLen(); rampL = rl;
+    if (ue0 + rl + 10 > ue1) return null;
+    ramps.push(rq([ue0, 0, ue0 + rl, ML.lane]), rq([ue0, ML.lane + ML.sep, ue0 + rl, rampWidth()]));
+    blocked.push([ue0, 0, ue0 + rl, rw]);
+    rows.push({ e: rw, s: -1, dir: 1, wall: true }); aisles.push([ue0, rw, ue1, rw + A]); rows.push({ e: rw + A, s: 1, dir: 1, wall: false });
+    let v = rw + A + d;
+    for (let k = 1; k < nb; k++) { const dir: 1 | -1 = k % 2 ? -1 : 1; rows.push({ e: v + d, s: -1, dir, wall: false }); aisles.push([ue0, v + d, ue1, v + d + A]); rows.push({ e: v + d + A, s: 1, dir, wall: k === nb - 1 }); v += bay; }
+  } else {
+    if (nb < 2 && ramp !== 'spiral') return null;
+    for (let k = 0; k < nb; k++) { const v = k * bay, dir: 1 | -1 = k % 2 ? -1 : 1; rows.push({ e: v + d, s: -1, dir, wall: k === 0 }); aisles.push([ue0, v + d, ue1, v + d + A]); rows.push({ e: v + d + A, s: 1, dir, wall: k === nb - 1 }); }
+    const vm = Math.floor(nb / 2) * bay;   // ikki yarim orasidagi qoʻsh qator chizigʻi
+    if (ramp === 'yarim') {
+      const rl = rampLen(ML.floorH / 2); rampL = rl; if (ue0 + 2 * rl + 10 > ue1) return null;
+      for (const [a, b] of [[ue0, ue0 + rl], [ue1 - rl, ue1]]) { ramps.push(rq([a, vm - d, b, vm - d + ML.lane]), rq([a, vm + d - ML.lane, b, vm + d])); blocked.push([a, vm - d, b, vm + d]); }
+    } else if (ramp === 'qiya') {
+      slope = (ML.floorH / 2) / (ue1 - ue0); if (slope > ML.floorSlope + 1e-9) return null;
+    }
+  }
+  // zina-lift tugunlari: avval ikki uchida (devor qatorlari), keyin eng uzoq nuqtaga yaqin qatorga — evakuatsiya radiusi ≤ ML.evac (ANDOZA)
+  const walls = rows.filter(r => r.wall), cl = ML.coreStalls * md.pitch, cores: R4[] = [];
+  const coreAt = (r: Row, u: number): R4 => { const v0 = r.s > 0 ? r.e : r.e - d; return [u, v0, u + cl, v0 + d]; };
+  const place = (r: Row, u0: number) => { let u = Math.max(ue0, Math.min(ue1 - cl, u0)); for (let t = 0; t < 60; t++) { const c = coreAt(r, u); if (!blocked.some(b => hitR(b, c)) && !cores.some(b => hitR(b, c))) { cores.push(c); return true; } u += (t % 2 ? -1 : 1) * (t + 1) * 1.5; u = Math.max(ue0, Math.min(ue1 - cl, u)); } return false; };
+  place(walls[0] ?? rows[0], ue0); place(walls[walls.length - 1] ?? rows[rows.length - 1], ue1 - cl);
+  const pts: XY[] = []; for (let u = 0; u <= L + 1e-6; u += 4) for (let v = 0; v <= W + 1e-6; v += 4) pts.push([u, v]);
+  const dc = (p: XY) => Math.min(...cores.map(c => Math.hypot(p[0] - (c[0] + c[2]) / 2, p[1] - (c[1] + c[3]) / 2)));
+  for (let n = 0; n < 24; n++) {
+    let fp: XY = pts[0], fd = -1; for (const q of pts) { const x = dc(q); if (x > fd) { fd = x; fp = q; } }
+    if (fd <= ML.evac) break;
+    const r = rows.slice().sort((x, y) => Math.abs(x.e + x.s * d / 2 - fp[1]) - Math.abs(y.e + y.s * d / 2 - fp[1]))[0];
+    if (!place(r, fp[0] - cl / 2)) break;
+  }
+  const bl = [...blocked, ...cores], stalls: XY[][] = [], cols: R4[] = [];
+  for (const r of rows) {
+    const ct = Math.cos(md.th), st = Math.sin(md.th), a: XY = [r.dir * ct, r.s * st], nn: XY = [st, -r.s * r.dir * ct];
+    const shift = r.dir > 0 && ct > 1e-6 ? md.W * ct : 0;
+    let u = ue0 + (r.dir < 0 ? md.L * ct : 0), k = 0;
+    while (true) {
+      const F: XY = [u, r.e + r.s * shift];
+      const q: XY[] = [F, [F[0] + md.W * nn[0], F[1] + md.W * nn[1]], [F[0] + md.W * nn[0] + md.L * a[0], F[1] + md.W * nn[1] + md.L * a[1]], [F[0] + md.L * a[0], F[1] + md.L * a[1]]];
+      const us = q.map(p => p[0]), vs = q.map(p => p[1]), bb: R4 = [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
+      if (bb[2] > ue1 + 1e-6) break;
+      if (!bl.some(b => hitR(b, bb))) { stalls.push(q); k++; if (k % ML.colEvery === 0) { const cv = r.s > 0 ? r.e + d - 0.6 : r.e - d; cols.push([u + md.pitch, cv, u + md.pitch + ML.col, cv + 0.6]); u += ML.col; } }
+      else k = 0;
+      u += md.pitch;
+    }
+  }
+  return { stalls, aisles, ramps, cores, cols, slope, rampL };
+}
+
+/** Tashqi spiral: annulus boʻlaklari (toʻrtburchaklar) + ulovchi yoʻlak; markaz (cx, cy) */
+function helix(cx: number, cy: number, x0: number): XY[][] {
+  const R = ML.helixR, r = ML.helixRin, n = 16, out: XY[][] = [rq([x0, cy - ML.lane, cx - R + 0.5, cy + ML.lane])];
+  for (let k = 0; k < n; k++) { const a0 = 2 * Math.PI * k / n, a1 = 2 * Math.PI * (k + 1) / n; out.push([[cx + r * Math.cos(a0), cy + r * Math.sin(a0)], [cx + R * Math.cos(a0), cy + R * Math.sin(a0)], [cx + R * Math.cos(a1), cy + R * Math.sin(a1)], [cx + r * Math.cos(a1), cy + r * Math.sin(a1)]]); }
+  return out;
 }
 
 /**
- * Parsel halqasi (mahalliy metr) ichida koʻp qavatli avtoturargoh: eng katta toʻrtburchak (har qirra yoʻnalishida sinab), eni modulga
- * (pandus tasmasi + yoʻlak + joy = 18,8 m, keyin har qator 16,6 m) qisqartiriladi.
+ * Parsel halqasi (mahalliy metr) ichida koʻp qavatli avtoturargoh: eng katta toʻrtburchak (har qirra yoʻnalishida), pandus tizimi va joy moduli
+ * boʻyicha eng koʻp joy beradigan variant («auto») yoki tanlangani. 413-band: land berilsa joylar soni land / need413 dan oshmaydi — bino qisqartiriladi.
  */
-export function mlParking(ring: XY[], levels: number, land?: number): MlPark | null {
+export function mlParking(ring: XY[], levels: number, landOrOpts?: number | MlOpts): MlPark | null {
+  const o: MlOpts = typeof landOrOpts === 'number' ? { land: landOrOpts } : landOrOpts ?? {};
   const lv = Math.max(2, Math.min(5, Math.round(levels)));
-  const rl = rampLen(), first = rampWidth() + ML.aisle + ML.stallL, bay = 2 * ML.stallL + ML.aisle, minL = 2 * ML.aisle + rl + (ML.coreStalls + 4) * ML.stallW;
   const ccw = signedArea(ring) > 0 ? ring : [...ring].reverse();
-  let best: { a: number; L: number; W: number; x0: number; y0: number; nb: number; n: number } | null = null;
+  const sb = ML.setback + (o.liner ? ML.linerD : 0);
+  const rampsT: MlRamp[] = o.ramp && o.ramp !== 'auto' ? [o.ramp] : ML_RAMPS, modsT: MlMod[] = o.mod && o.mod !== 'auto' ? [o.mod] : ML_MODS;
+  const cap = o.land && o.land > 0 ? Math.floor(o.land / need413(lv)) : Infinity;
+  const tot = (p: Plan) => p.stalls.length * lv - ML.gateStalls;
+  interface Cand { a: number; x0: number; y0: number; L: number; W: number; nb: number; ramp: MlRamp; mod: MlMod; p: Plan; hx: number }
+  const cands: Cand[] = [];
   const angles = new Set<number>(); for (let i = 0; i < ccw.length; i++) { const p = ccw[i], q = ccw[(i + 1) % ccw.length]; if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 5) continue; const a = Math.atan2(q[1] - p[1], q[0] - p[0]); angles.add(Math.round(a * 1000) / 1000); angles.add(Math.round((a + Math.PI / 2) * 1000) / 1000); }
   for (const a of angles) {
-    const R = ccw.map(p => rotP(p, -a)), b = bestRect(R, ML.setback); if (!b) continue;
-    const L = b.x1 - b.x0, Wr = b.y1 - b.y0; if (L < minL || Wr < first) continue;
-    const nb = 1 + Math.floor((Wr - first) / bay), W = first + (nb - 1) * bay;
-    const fp = floorPlan(L, W, nb, rl), n = fp.stalls.length;
-    if (!best || n > best.n) best = { a, L, W, x0: b.x0, y0: b.y0 + (Wr - W) / 2, nb, n };
+    const R = ccw.map(p => rotP(p, -a)), b = bestRect(R, sb); if (!b) continue;
+    const L0 = b.x1 - b.x0, Wr = b.y1 - b.y0;
+    for (const mod of modsT) for (const ramp of rampsT) {
+      const md = modDims(mod), hx = ramp === 'spiral' ? 2 * ML.helixR + 2 : 0, L = L0 - hx;
+      if (ramp === 'spiral' && Wr < 2 * ML.helixR) continue;
+      let nb = 0; while (widthOf(ramp, md, nb + 1) <= Wr + 1e-6) nb++;
+      if (nb < 1) continue;
+      const W = widthOf(ramp, md, nb), p = floorPlan(L, W, nb, ramp, md); if (!p || !p.stalls.length) continue;
+      cands.push({ a, x0: b.x0, y0: b.y0 + (Wr - W) / 2, L, W, nb, ramp, mod, p, hx });
+    }
+  }
+  if (!cands.length) return null;
+  cands.sort((x, y) => tot(y.p) - tot(x.p));
+  // 413-band: eng yaxshi bir necha variant qisqartiriladi (avval uzunlik, keyin qatorlar), keyin eng koʻpi tanlanadi
+  let best: Cand | null = null;
+  if (cap === Infinity) best = cands[0];
+  else for (const c of cands.slice(0, 8)) {
+    let fit: Cand | null = tot(c.p) <= cap ? c : null;
+    const md = modDims(c.mod);
+    for (let nb = c.nb; nb >= 1 && !fit; nb--) {
+      const W = widthOf(c.ramp, md, nb);
+      for (let L = c.L; L >= 30; L -= md.pitch) { const p = floorPlan(L, W, nb, c.ramp, md); if (p && tot(p) <= cap) { fit = { ...c, nb, W, L, p, x0: c.x0 + (c.L - L) / 2, y0: c.y0 + (c.W - W) / 2 }; break; } }
+    }
+    if (fit && (!best || tot(fit.p) > tot(best.p))) best = fit;
   }
   if (!best) return null;
-  // 05.11 (Rohat sinovi): 413-band — bir joyga yer uchastkasi need413(lv) m² dan kam boʻlmasin; bino qisqartiriladi (avval uzunlik, keyin qatorlar),
-  // boʻshagan yer — ochiq maydon / koʻkalam. Joylar soni yetmasa — ikkinchi avtoturargoh (qavat oshirish 413 ni buzadi)
-  const cap = land && land > 0 ? Math.floor(land / need413(lv)) : Infinity;
-  const tot = (L: number, W: number, nb: number) => { const n = floorPlan(L, W, nb, rl).stalls.length; return n * lv - ML.gateStalls; };
-  if (tot(best.L, best.W, best.nb) > cap) {
-    let fit: typeof best | null = null;
-    for (let nb = best.nb; nb >= 1 && !fit; nb--) {
-      const W = first + (nb - 1) * bay;
-      for (let L = best.L; L >= minL; L -= ML.stallW) { if (tot(L, W, nb) <= cap) { fit = { ...best, nb, W, L, x0: best.x0 + (best.L - L) / 2, y0: best.y0 + (best.W - W) / 2, n: 0 }; break; } }
-    }
-    if (!fit) return null;
-    best = fit;
-  }
-  const { a, L, W, x0, y0, nb } = best, fp = floorPlan(L, W, nb, rl);
-  const toW = (u: number, v: number): XY => { const p = rotP([x0 + u, y0 + v], a); return [p[0], p[1]]; };
-  const rect = (q: [number, number, number, number]): XY[] => [toW(q[0], q[1]), toW(q[2], q[1]), toW(q[2], q[3]), toW(q[0], q[3])];
-  const per = fp.stalls.length, perFloor = Array.from({ length: lv }, (_, k) => k === 0 ? Math.max(0, per - ML.gateStalls) : per);
-  const spaces = perFloor.reduce((t, x) => t + x, 0);
+  const { a, x0, y0, L, W, nb, p, ramp, mod } = best;
+  const toW = (u: number, v: number): XY => rotP([x0 + u, y0 + v], a);
+  const wq = (q: XY[]) => q.map(([u, v]) => toW(u, v)), wr = (q: R4) => wq(rq(q));
+  const rampsW = ramp === 'spiral' ? helix(L + 1 + ML.helixR, W / 2, L).map(wq) : p.ramps.map(wq);
+  const D = ML.linerD, liner = o.liner ? [[-D, -D, L + (ramp === 'spiral' ? 0 : D), 0], [-D, W, L + (ramp === 'spiral' ? 0 : D), W + D], [-D, 0, 0, W], ...(ramp === 'spiral' ? [] : [[L, 0, L + D, W]])].map(q => wr(q as R4)) : [];
+  const per = p.stalls.length, perFloor = Array.from({ length: lv }, (_, k) => k === 0 ? Math.max(0, per - ML.gateStalls) : per);
+  const notes: string[] = [];
+  if (ramp === 'yarim') notes.push('Yarim qavatli: bino ikki yarmi ½ qavatga siljigan, pandus qisqa (≈ ' + p.rampL.toFixed(1) + ' m) — ikki yarim orasidagi qoʻsh qator uchlarida.');
+  if (ramp === 'qiya' && p.slope != null) notes.push(`Qiya qavat: pol qiyaligi ${(p.slope * 100).toFixed(1)} % — alohida pandus yoʻq, joylar qiya polda.`);
+  if (ramp === 'spiral') notes.push(`Tashqi spiral pandus: R ${ML.helixR} m, bino uchida (ANDOZA).`);
   return {
-    ring: rect([0, 0, L, W]), levels: lv, perFloor, spaces, stalls: fp.stalls.map(rect), aisles: fp.aisles.map(rect), ramps: fp.ramps.map(rect), cores: fp.cores.map(rect),
-    L: Math.round(L * 10) / 10, W: Math.round(W * 10) / 10, bays: nb, rampL: rl,
-    notes: [],
+    ring: wr([0, 0, L, W]), levels: lv, perFloor, spaces: perFloor.reduce((t, x) => t + x, 0),
+    stalls: p.stalls.map(wq), aisles: p.aisles.map(wr), ramps: rampsW, cores: [...p.cores, ...p.cols].map(wr),
+    L: Math.round(L * 10) / 10, W: Math.round(W * 10) / 10, bays: nb, rampL: p.rampL, notes, ramp, mod, nCores: p.cores.length, liner, ...(p.slope != null ? { slope: p.slope } : {}),
   };
 }
 
