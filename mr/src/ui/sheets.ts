@@ -42,6 +42,8 @@ export interface SheetsHost {
   start?: number;
   /** aksonometriya rasmi (sahnadan, tanlangan uslub va koʻrinish bilan): data URL */
   axo?: (look: NonNullable<SheetOpts['axo']>['look'], view: string | undefined, detail: boolean, ratio: number, labels?: boolean) => string;
+  /** 06.11: akso uslublari 4–6 legendasi (faqat sahnada bor toifalar) */
+  axoLegend?: (look: NonNullable<SheetOpts['axo']>['look']) => { color: number; label: string; hatch?: boolean }[];
   /** saqlangan koʻrinishlar (Kamera) */
   views?: { id: string; name: string }[];
 }
@@ -139,7 +141,8 @@ export function openGraphics(host: SheetsHost): void {
       const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${o.axo?.labels === true}|${(L.vw / L.vh).toFixed(2)}`;
       let url = axoCache.get(key);
       if (!url && host.axo) { url = host.axo(o.axo?.look ?? 'oq', o.axo?.view, o.axo?.shadow !== false, L.vw / L.vh, o.axo?.labels === true); axoCache.set(key, url); }
-      return { label: 'M —', body: (vx, vy, vw, vh) => url ? `<image href="${url}" x="${vx}" y="${vy}" width="${vw}" height="${vh}" preserveAspectRatio="xMidYMid meet"/>` : '' };
+      const lg = host.axoLegend?.(o.axo?.look ?? 'oq') ?? [];
+      return { label: 'M —', body: (vx, vy, vw, vh) => (url ? `<image href="${url}" x="${vx}" y="${vy}" width="${vw}" height="${vh}" preserveAspectRatio="xMidYMid meet"/>` : '') + axoLegendSvg(o.axo?.look, lg, vx, vy, vh) };
     }
     return undefined;
   };
@@ -352,7 +355,7 @@ export function openGraphics(host: SheetsHost): void {
         })() : []),
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
-          h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
+          h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama'], ['qavatlilik', 'Qavatlilik'], ['kontekst', 'Loyiha va kontekst'], ['demontaj', 'Saqlanadi va buziladi']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
           h('div', { class: 'field' }, h('label', {}, tr('Kamera')), select({ id: 'shView', 'aria-label': tr('Kamera'), onchange: v => set({ axo: { ...(o.axo ?? {}), view: v || undefined } }) }, [{ value: '', label: tr('Joriy aksonometriya'), selected: !o.axo?.view }, ...(host.views ?? []).map(v => ({ value: v.id, label: v.name, selected: o.axo?.view === v.id }))])),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Fasad derazalari'), h('span', { class: 'sub' }, tr('7-qadamdan'))), sw({ label: tr('Fasad derazalari'), on: o.axo?.shadow !== false, onchange: v => set({ axo: { ...(o.axo ?? {}), shadow: v } }) })),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Yozuvlar'), h('span', { class: 'sub' }, tr('daha nomi va maydoni, UMN, koʻcha nomlari'))), sw({ id: 'shAxoLab', label: tr('Yozuvlar'), on: o.axo?.labels === true, onchange: v => set({ axo: { ...(o.axo ?? {}), labels: v } }) })),
@@ -420,4 +423,16 @@ export function openGraphics(host: SheetsHost): void {
   render();
   requestAnimationFrame(applyZoom);
   new ResizeObserver(() => { if (!zoom) applyZoom(); }).observe(view);
+}
+
+/** Akso varagʻi legendasi (mm): chap pastki burchakda, faqat bor toifalar; legenda boʻsh boʻlsa — hech narsa */
+function axoLegendSvg(look: string | undefined, items: { color: number; label: string; hatch?: boolean }[], vx: number, vy: number, vh: number): string {
+  if (!items.length) return '';
+  const title = look === 'qavatlilik' ? tr('Qavatlar soni') : look === 'kontekst' ? tr('Loyiha va kontekst') : tr('Saqlanadi va buziladi');
+  const hex = (c: number) => '#' + c.toString(16).padStart(6, '0'), lh = 5, w = 46, h = 8 + items.length * lh, x = vx + 4, y = vy + vh - h - 4;
+  const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  return `<g data-axo-legend="1"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" fill-opacity=".92" stroke="#d7d4cd" stroke-width=".2"/>`
+    + `<text x="${x + 3}" y="${y + 5}" font-size="2.8" font-weight="600" fill="#1d1d1b">${esc(title)}</text>`
+    + items.map((it, i) => { const yy = y + 8 + i * lh; return `<rect x="${x + 3}" y="${yy}" width="6" height="3.4" fill="${hex(it.color)}"${it.hatch ? ' fill-opacity=".35" stroke="#c0392b" stroke-width=".3" stroke-dasharray=".8 .6"' : ' stroke="#8f8a80" stroke-width=".15"'}/><text x="${x + 11}" y="${yy + 2.8}" font-size="2.6" fill="#3a3936">${esc(tr(it.label))}</text>`; }).join('')
+    + '</g>';
 }
