@@ -1,5 +1,28 @@
 /* Egasi paneli: foydalanuvchilar, to'lovlar, tanga sarfi — faqat OWNER_EMAILS dagi hisoblarga (GET /owner/stats).
-   Shaxsiy ma'lumot minimal: pochta yarim yashirin, karta raqami ko'rsatilmaydi. */
+   Shaxsiy ma'lumot minimal: pochta yarim yashirin, karta raqami ko'rsatilmaydi.
+   Sinov kirishi (POST /owner/grant): egasi pochta bo'yicha tanga beradi — sotuv emas, daftarda reason 'promo'. */
+import { normalizeTarget } from './auth.js';
+import { WalletError } from './wallet.js';
+
+export const GRANT_MAX = 5000;
+const KEY_RE = /^[\w-]{8,64}$/;
+
+/**
+ * Sinov kirishi: pochta bo'yicha tanga berish. Hisob hali ochilmagan bo'lsa — yaratiladi (shu pochta bilan kirganda tanga tayyor turadi).
+ * key — brauzer bergan bir martalik kalit: tugma ikki marta bosilsa ham tanga bir marta yoziladi.
+ */
+export async function grantCoins(db, wallet, { email, coins, note, key, by }) {
+  const t = normalizeTarget(email);
+  if (t.kind !== 'email') throw new WalletError('bad_target', 'pochta manzili kerak');
+  if (!Number.isInteger(coins) || coins <= 0 || coins > GRANT_MAX) throw new WalletError('bad_amount', `miqdor 1 dan ${GRANT_MAX} gacha butun son bo'lishi kerak`);
+  if (typeof key !== 'string' || !KEY_RE.test(key)) throw new WalletError('bad_key', 'kalit noto\'g\'ri');
+  const text = String(note ?? '').trim().slice(0, 200);
+  const ins = await db.query(`INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING RETURNING id`, [t.value]);
+  const isNew = ins.rows.length === 1;
+  const id = isNew ? ins.rows[0].id : (await db.query(`SELECT id FROM users WHERE email = $1`, [t.value])).rows[0].id;
+  const r = await wallet.credit(id, coins, 'promo', `grant:${key}`, `${text}${text ? ' · ' : ''}by ${by}`);
+  return { applied: r.applied, balance: r.balance, isNew, who: maskEmail(t.value), coins };
+}
 const n = (v) => Number(v ?? 0);
 export const maskEmail = (e) => {
   if (!e) return null;
@@ -42,6 +65,8 @@ export async function ownerStats(db, now = new Date()) {
       WHERE delta < 0 AND created_at > $1::timestamptz - interval '30 days' GROUP BY 1, 2 ORDER BY coins DESC LIMIT 20`, [t]);
   const exportsFree = await all(`SELECT bundle, count(*) AS c FROM exports WHERE created_at > $1::timestamptz - interval '30 days'
       GROUP BY bundle ORDER BY c DESC LIMIT 20`, [t]);
+  const grants = await all(`SELECT l.delta, l.note, l.created_at, u.email FROM ledger l JOIN users u ON u.id = l.user_id
+      WHERE l.reason = 'promo' ORDER BY l.id DESC LIMIT 15`);
   const projects = await one(`SELECT count(*) AS n, coalesce(sum(spent), 0) AS spent, coalesce(sum(gen_used), 0) AS gen FROM project_spend`);
 
   return {
@@ -54,7 +79,8 @@ export async function ownerStats(db, now = new Date()) {
         at: (r.paid_at ?? r.created_at)?.toISOString?.() ?? String(r.paid_at ?? r.created_at), who: maskEmail(r.email) })) },
     coins: { bought: n(coins.bought), granted: n(coins.granted), spent: n(coins.spent),
       spend30: spend.map((r) => ({ reason: r.reason, item: r.item, c: n(r.c), coins: n(r.coins) })),
-      exports30: exportsFree.map((r) => ({ bundle: r.bundle, c: n(r.c) })) },
+      exports30: exportsFree.map((r) => ({ bundle: r.bundle, c: n(r.c) })),
+      grants: grants.map((r) => ({ coins: n(r.delta), note: String(r.note ?? '').replace(/\s*·?\s*by \S+$/, ''), at: r.created_at?.toISOString?.() ?? String(r.created_at), who: maskEmail(r.email) })) },
     projects: { n: n(projects.n), spent: n(projects.spent), gen: n(projects.gen) },
   };
 }

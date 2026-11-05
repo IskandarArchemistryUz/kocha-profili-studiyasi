@@ -61,8 +61,12 @@ export interface OwnerStats {
   payments: { paid: number; revenue: number; revenue30: number; buyers: number; open: number; cancelled: number;
     byPack: { pack: string; c: number; s: number }[]; byPs: { ps: string; c: number; s: number }[];
     recent: { id: number; pack: string; coins: number; amount: number; ps: string; state: string; at: string; who: string | null }[] };
-  coins: { bought: number; granted: number; spent: number; spend30: { reason: string; item: string; c: number; coins: number }[]; exports30: { bundle: string; c: number }[] };
+  coins: { bought: number; granted: number; spent: number; spend30: { reason: string; item: string; c: number; coins: number }[]; exports30: { bundle: string; c: number }[];
+    grants?: { coins: number; note: string; at: string; who: string | null }[] };
   projects: { n: number; spent: number; gen: number };
 }
 export const ownerStats = (): Promise<OwnerStats> => call<OwnerStats>('/owner/stats');
+/** Sinov kirishi: pochta boʻyicha tanga berish (sotuv emas). key — bir martalik kalit: ikki marta bosilsa ham bir marta yoziladi */
+export interface GrantRes { applied: boolean; balance: number; isNew: boolean; who: string | null; coins: number }
+export const ownerGrant = (email: string, coins: number, note: string, key: string): Promise<GrantRes> => call<GrantRes>('/owner/grant', { email, coins, note, key });
 

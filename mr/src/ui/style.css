@@ -860,6 +860,10 @@ textarea.ch-inedit{padding:10px 12px}
 .own-t th{text-align:left;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--hairline)}
 .own-t td{padding:7px 10px;border-bottom:1px solid var(--hairline);color:var(--ink);font-variant-numeric:tabular-nums}
 .own-t tr:last-child td{border-bottom:0}
+.own-grant{display:grid;grid-template-columns:minmax(200px,2fr) minmax(110px,1fr) minmax(160px,2fr) auto;gap:8px;align-items:center;margin-top:10px}
+.own-grant .input{background:var(--surface);box-shadow:var(--sh-card)}
+.own-grant-msg{min-height:18px;margin:8px 0 0}
+@media (max-width:760px){.own-grant{grid-template-columns:1fr 1fr}}
 .own-empty{color:var(--muted)}
 .own-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .own-links h2{flex-basis:100%}
