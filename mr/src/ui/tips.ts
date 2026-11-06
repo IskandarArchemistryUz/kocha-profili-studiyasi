@@ -7,23 +7,25 @@
  */
 import './tips.css';
 import TX from './tips.json';
-import { getLang, onLang, tr } from '../i18n';
+import { getLang, onLang, tr, trSvg } from '../i18n';
 import { priceTag, heavyPrice, itemPrice, onPrices, type Heavy } from '../account/pay';
+import { ANIM } from './tipanim';
 
 type Price = 'free' | { heavy: Heavy } | { item: string; only?: boolean };
-interface Tip { sel: string; d: string; p?: Price }
+/** a — kanvasdagi animatsiya(lar) raqami; ikkitasi boʻlsa navbat bilan (avval kursor harakati, keyin natija) */
+interface Tip { sel: string; d: string; p?: Price; a?: string[] }
 
 const TIPS: Tip[] = [
   /* yuqori panel */
   { sel: '#back', d: 'Loyihalar roʻyxatiga qaytish. Loyiha avtomatik saqlangan.' },
   { sel: 'input.pname', d: 'Loyiha nomi: oʻzgartiring va Enter bosing.' },
   { sel: '.save[data-s]', d: 'Loyiha shu brauzerda avtomatik saqlanadi. Boshqa kompyuter uchun — 11-qadamda «Loyiha fayli (JSON)».' },
-  { sel: '[data-view="plan"]', d: 'Yuqoridan koʻrinish. Chizish shu rejimda ishlaydi.' },
-  { sel: '[data-view="axo"]', d: 'Hajmlarni burchakdan, perspektivasiz koʻrish.' },
-  { sel: '[data-view="persp"]', d: 'Inson koʻzi kabi koʻrinish. Koʻz sathi — «Kamera» menyusida.' },
+  { sel: '[data-view="plan"]', d: 'Yuqoridan koʻrinish. Chizish shu rejimda ishlaydi.', a: ['27'] },
+  { sel: '[data-view="axo"]', d: 'Hajmlarni burchakdan, perspektivasiz koʻrish.', a: ['27'] },
+  { sel: '[data-view="persp"]', d: 'Inson koʻzi kabi koʻrinish. Koʻz sathi — «Kamera» menyusida.', a: ['27'] },
   { sel: '#liteSeg [data-lite]', d: '«Sodda» uzoqdagi derazalar va daraxtlarni yashiradi — sahna tezroq. Eksport doim toʻliq.' },
   { sel: '#camPop', d: 'Obyektiv, koʻz sathi, 2 nuqtali perspektiva, kadr va saqlangan koʻrinishlar.' },
-  { sel: '#presPop', d: 'Varaq ramkasini xaritaga qoʻyish va Chizmadon taqdimot albomi.' },
+  { sel: '#presPop', d: 'Varaq ramkasini xaritaga qoʻyish va Chizmadon taqdimot albomi.', a: ['25'] },
   { sel: '#prefPop', d: 'Til (10 ta) va tungi rejim.' },
   { sel: '#acctIn, #homeIn', d: 'Pochta orqali kirish: parol kerak emas, 6 xonali kod keladi. 1-qadamdan keyin kerak.' },
   { sel: '#acctPop', d: 'Hisob: tanga balansi, xarid va sarf tarixi.' },
@@ -47,9 +49,9 @@ const TIPS: Tip[] = [
   /* pastki asboblar */
   { sel: '[data-tool="select"]', d: 'Bino, koʻcha yoki dahani tanlash.' },
   { sel: '[data-tool="hand"]', d: 'Xaritani surish. Boʻsh joyda sudrash ham suradi.' },
-  { sel: '[data-tool="measure"]', d: 'Masofa va maydonni oʻlchash. Ikki marta bosish — tugatish.' },
-  { sel: '[data-tool="section"]', d: 'Gorizontal yoki chizilgan vertikal kesim.' },
-  { sel: '[data-tool="pipette"]', d: 'Fasad uslubini koʻchirish: avval namuna binoni, keyin boshqalarini bosing.' },
+  { sel: '[data-tool="measure"]', d: 'Masofa va maydonni oʻlchash. Ikki marta bosish — tugatish.', a: ['6B'] },
+  { sel: '[data-tool="section"]', d: 'Gorizontal yoki chizilgan vertikal kesim.', a: ['7B'] },
+  { sel: '[data-tool="pipette"]', d: 'Fasad uslubini koʻchirish: avval namuna binoni, keyin boshqalarini bosing.', a: ['8B'] },
   { sel: '#undo', d: 'Oxirgi amalni bekor qilish.' },
   { sel: '#redo', d: 'Bekor qilinganni qaytarish.' },
   /* koʻrsatkichlar */
@@ -59,49 +61,49 @@ const TIPS: Tip[] = [
   { sel: '#kUmn', d: 'Umumiy maydon / uchastka maydoni. Rang — meʼyor holati.' },
   { sel: '#kPop', d: 'Turar maydon va uy-joy normasidan hisoblangan aholi.' },
   { sel: '#kAll', d: 'FAR, qurilish zichligi, oʻrtacha qavat, zichlik va ish oʻrinlari.' },
-  { sel: '#kMore', d: '✓ — hammasi mos; raqam — mos kelmagan meʼyorlar. Bosing: roʻyxat, «Qayerda» va «Tuzatish».' },
+  { sel: '#kMore', d: '✓ — hammasi mos; raqam — mos kelmagan meʼyorlar. Bosing: roʻyxat, «Qayerda» va «Tuzatish».', a: ['20'] },
   { sel: '#scaleChip', d: 'Ekrandagi taxminiy masshtab.' },
   /* 1-qadam */
   { sel: '#qGo', d: 'Manzil, joy nomi yoki koordinata (41.31, 69.28).' },
-  { sel: '#ctxLoad', d: 'Ekran markazi atrofidagi binolar, yoʻllar, suv, relyef va sunʼiy yoʻldosh surati (OpenStreetMap).', p: 'free' },
-  { sel: '#drawSite', d: 'Burchaklarni ketma-ket bosing. Enter — tugatish, Backspace — oxirgi nuqta, Esc — bekor.', p: 'free' },
-  { sel: '#pickBlock', d: 'Koʻchalar bilan oʻralgan dahani bir bosishda chegara qilish.', p: 'free' },
+  { sel: '#ctxLoad', d: 'Ekran markazi atrofidagi binolar, yoʻllar, suv, relyef va sunʼiy yoʻldosh surati (OpenStreetMap).', p: 'free', a: ['3A'] },
+  { sel: '#drawSite', d: 'Burchaklarni ketma-ket bosing. Enter — tugatish, Backspace — oxirgi nuqta, Esc — bekor.', p: 'free', a: ['4B'] },
+  { sel: '#pickBlock', d: 'Koʻchalar bilan oʻralgan dahani bir bosishda chegara qilish.', p: 'free', a: ['5B'] },
   { sel: '#rectSite', d: 'Ekran markaziga berilgan oʻlchamdagi toʻrtburchak uchastka.', p: 'free' },
   { sel: '#siteFile', d: 'KML/KMZ, GeoJSON yoki DXF fayldan chegara.', p: 'free' },
   { sel: '#limOsm', d: 'Uchastkadagi cheklovlarni (qabriston, ELU, suv, sanoat) OSM dan aniqlash.', p: 'free' },
   /* 2-qadam */
-  { sel: '#gridApply', d: 'Tanlangan modul boʻyicha uchastkaga koʻcha toʻri.', p: 'free' },
-  { sel: '#gridBest', d: 'Toʻrni insolyatsiya uchun eng yaxshi burchakka burish.' },
-  { sel: '#drawStreet', d: 'Koʻcha oʻqini nuqtalab chizing; profil — tanlangan karta.', p: 'free' },
+  { sel: '#gridApply', d: 'Tanlangan modul boʻyicha uchastkaga koʻcha toʻri.', p: 'free', a: ['9A'] },
+  { sel: '#gridBest', d: 'Toʻrni insolyatsiya uchun eng yaxshi burchakka burish.', a: ['9B'] },
+  { sel: '#drawStreet', d: 'Koʻcha oʻqini nuqtalab chizing; profil — tanlangan karta.', p: 'free', a: ['10B', '10A'] },
   { sel: '#adoptOsm', d: 'Mavjud (OSM) yoʻlni loyiha koʻchasiga aylantirish.' },
   { sel: '#stKs', d: 'Koʻcha kesimini Koʻchasoz vositasida batafsil ochish.' },
   /* 3–4-qadam */
   { sel: '#keepAll', d: 'Uchastkadagi barcha mavjud binolarni saqlash.' },
   { sel: '#dropAll', d: 'Barcha mavjud binolarni buzishga belgilash — koʻchirish xarajati hisoblanadi.' },
-  { sel: '#pSplit', d: 'Dahani berilgan oʻlcham va burchak boʻyicha yer uchastkalariga boʻlish.', p: 'free' },
+  { sel: '#pSplit', d: 'Dahani berilgan oʻlcham va burchak boʻyicha yer uchastkalariga boʻlish.', p: 'free', a: ['11B'] },
   { sel: '#isoGo', d: 'Faqat shu dahani koʻrsatish.' },
   { sel: '#yardsOn', d: 'Hovlilarda oʻyin, sport va dam olish maydonchalarini avtomatik joylash (ShNQ 2.07.01-23, 90-band).' },
   /* 5-qadam */
-  { sel: '#genGo', d: 'Tanlangan dahaga seksiyalarni meʼyorlar asosida joylashtiradi: chekinish, insolyatsiya, yongʻin yoʻllari.', p: { heavy: 'gen' } },
-  { sel: '#genAll', d: 'Barcha dahalarni bir hisobda generatsiya qilish.', p: { heavy: 'gen' } },
+  { sel: '#genGo', d: 'Tanlangan dahaga seksiyalarni meʼyorlar asosida joylashtiradi: chekinish, insolyatsiya, yongʻin yoʻllari.', p: { heavy: 'gen' }, a: ['13A'] },
+  { sel: '#genAll', d: 'Barcha dahalarni bir hisobda generatsiya qilish.', p: { heavy: 'gen' }, a: ['13A'] },
   { sel: '#genClear', d: 'Dahadagi binolarni olib tashlash.' },
   { sel: '#gFar', d: 'Generatsiya shu zichlikka (UMN) intiladi.' },
-  { sel: '#drawBld, #drawPoly, #drawAxis, #drawStrip', d: 'Binoni qoʻlda chizish: toʻrtburchak, erkin shakl, oʻq yoki chiziq boʻylab.', p: 'free' },
+  { sel: '#drawBld, #drawPoly, #drawAxis, #drawStrip', d: 'Binoni qoʻlda chizish: toʻrtburchak, erkin shakl, oʻq yoki chiziq boʻylab.', p: 'free', a: ['12A', '12B'] },
   /* 6, 8, 9-qadam */
-  { sel: '#insolGo', d: 'Uchastka insolyatsiyasi (SanQvaN 0102-25). Loyiha oʻzgarsa — qayta bosing.', p: { heavy: 'sun' } },
-  { sel: '#windGo', d: 'Piyoda sathida shamol qulayligi (Lawson). Loyiha oʻzgarsa — qayta bosing.', p: { heavy: 'wind' } },
+  { sel: '#insolGo', d: 'Uchastka insolyatsiyasi (SanQvaN 0102-25). Loyiha oʻzgarsa — qayta bosing.', p: { heavy: 'sun' }, a: ['14B', '14A'] },
+  { sel: '#windGo', d: 'Piyoda sathida shamol qulayligi (Lawson). Loyiha oʻzgarsa — qayta bosing.', p: { heavy: 'wind' }, a: ['15B', '15A'] },
   { sel: '#sunTime', d: 'Soyalarni kun davomida koʻrish.', p: 'free' },
-  { sel: '#aptGo', d: 'Har derazaning insolyatsiya davomiyligi.', p: { heavy: 'flats' } },
+  { sel: '#aptGo', d: 'Har derazaning insolyatsiya davomiyligi.', p: { heavy: 'flats' }, a: ['16B', '16A'] },
   { sel: '#planEditBtn', d: 'Poetaj rejalar albomini ochish.' },
   { sel: '#poiAdd', d: 'Xaritada yoʻq xizmat obyektini qoʻlda belgilash.' },
   /* 11-qadam */
   { sel: '#exPdf', d: 'Hisobot brauzer chop etish oynasi orqali PDF boʻladi.', p: 'free' },
   { sel: '#exJson', d: 'Toʻliq zaxira — boshqa kompyuterda ochish uchun.', p: 'free' },
   { sel: '#exXlsx', d: 'TEP va meʼyorlar reyestri Excel jadvalda.', p: { item: 'mr.tik', only: true } },
-  { sel: '#exPng', d: 'Joriy koʻrinish rasmi.', p: { item: 'mr.png' } },
+  { sel: '#exPng', d: 'Joriy koʻrinish rasmi.', p: { item: 'mr.png' }, a: ['24'] },
   { sel: '#exGx', d: 'Bosh reja, zonalash va aksonometriya varaqlari, albom.' },
   { sel: '#exCh', d: 'Chizmadon: taqdimot albomi.' },
-  { sel: '#exAi', d: 'Qatlamli bosh reja Illustrator uchun.', p: { item: 'mr.sheet' } },
+  { sel: '#exAi', d: 'Qatlamli bosh reja Illustrator uchun.', p: { item: 'mr.sheet' }, a: ['24'] },
   { sel: '#exDxf', d: 'Reja va hajmlar AutoCAD uchun, qatlamlar bilan.', p: { item: 'mr.dxf', only: true } },
   { sel: '#exGlb, #exObj, #exGlbCtx', d: '3D model (Blender, SketchUp, Rhino).', p: { item: 'mr.glb', only: true } },
   { sel: '#exIfc', d: 'BIM model (IFC4) — ArchiCAD, Revit.', p: { item: 'mr.ifc', only: true } },
@@ -109,7 +111,7 @@ const TIPS: Tip[] = [
   { sel: '#exRen', d: 'Joriy kadrni Render studiyasiga yuborish.' },
   /* varaqlar oynasi */
   { sel: '#shAlbum, #gxAlbum', d: 'Barcha varaqlar bitta PDF albomda.', p: { item: 'mr.album' } },
-  { sel: '#gxPdf, #gxSvg, #gxAi, #gxPng, #gxPng3', d: 'Joriy varaq.', p: { item: 'mr.sheet' } },
+  { sel: '#gxPdf, #gxSvg, #gxAi, #gxPng, #gxPng3', d: 'Joriy varaq.', p: { item: 'mr.sheet' }, a: ['24'] },
   { sel: '#gxDxf', d: 'Varaq chiziqlari AutoCAD uchun.', p: { item: 'mr.dxf', only: true } },
   /* bosh sahifa */
   { sel: '#newP', d: 'Boʻsh loyiha — 1-qadamdan boshlaysiz.' },
@@ -173,6 +175,11 @@ function build(e: HTMLElement, t: Tip): HTMLElement {
   if (head) { const h = document.createElement('div'); h.className = 'tip-h'; h.textContent = head; b.append(h); }
   const d = document.createElement('div'); d.className = 'tip-d'; d.textContent = tipText(t.d); b.append(d);
   for (const w of lines.slice(1)) { const x = document.createElement('div'); x.className = 'tip-warn'; x.textContent = w; b.append(x); }
+  if (t.a?.length) {
+    const box = document.createElement('div'); box.className = 'tip-anim'; box.dataset.n = String(t.a.length); box.setAttribute('aria-hidden', 'true');
+    for (const id of t.a) { const v = document.createElement('div'); v.className = 'tip-av'; v.innerHTML = `<svg viewBox="0 0 260 84" width="256" height="83">${trSvg(ANIM[id] ?? '')}</svg>`; box.append(v); }
+    b.append(box);
+  }
   if (t.p) { const r = priceRow(t.p); if (r) b.append(r); }
   return b;
 }

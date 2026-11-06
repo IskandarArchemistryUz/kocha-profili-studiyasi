@@ -22,4 +22,11 @@
 @keyframes tip-in{from{opacity:0; transform:translateY(2px)}to{opacity:1; transform:none}}
 .tip-card[data-side="right"]{animation-name:tip-in-r}
 @keyframes tip-in-r{from{opacity:0; transform:translateX(-2px)}to{opacity:1; transform:none}}
-@media (prefers-reduced-motion: reduce){.tip-card{animation:none}}
+/* qisqa animatsiya (tipanim.ts): toʻq kichik ekran; ikkita boʻlsa — 3,6 s dan navbat bilan */
+.tip-card .tip-anim{position:relative; width:256px; height:83px; margin:4px 0 2px; border-radius:8px; background:#252523; overflow:hidden}
+.tip-card .tip-av{position:absolute; inset:0}
+.tip-card .tip-anim[data-n="2"] .tip-av{animation:tip-alt 7.2s steps(1,end) infinite}
+.tip-card .tip-anim[data-n="2"] .tip-av:nth-child(2){animation-delay:-3.6s}
+@keyframes tip-alt{0%{opacity:1}50%{opacity:0}}
+.tip-card:has(.tip-anim){max-width:282px}
+@media (prefers-reduced-motion: reduce){.tip-card{animation:none}.tip-card .tip-anim[data-n="2"] .tip-av:nth-child(2){display:none}.tip-card .tip-av{animation:none!important}}
