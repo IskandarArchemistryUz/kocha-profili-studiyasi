@@ -12,7 +12,7 @@
  * 652-band: tomorqadagi bir va ikki xonadonli uylar va xoʻjalik imoratlaridan qoʻshni uchastkadagilarigacha — ham 56-jadval;
  *   01/2-42 (09.12.2025) qoʻshimchasi: bitta yer uchastkasidagi turar joy binolari va xoʻjalik imoratlari orasidagi masofa normalanmaydi
  *   (past uy uchastkasi — gen.plot; ikkala past uy bitta uchastkada boʻlsa — juft tekshirilmaydi).
- * 6511-band (01/2-42): qarama-qarshi devor I-turdagi yongʻinga qarshi, oyna-eshiksiz — masofa normalanmaydi; modelda devor turi yoʻq (izohda).
+ * 651¹-band (01/2-42): qarama-qarshi devor I-turdagi yongʻinga qarshi, oyna-eshiksiz — masofa normalanmaydi; modelda devor turi yoʻq (izohda).
  * 101-band (bloklash): chegaradosh uylar yopishib qurilishi mumkin — tegib turgan (< 0,5 m) juftlar bitta blok, tekshirilmaydi.
  * TAXMIN: olovbardoshlik sinfi — koʻp qavatli binolar (monolit, karkas, gʻisht — yonmaydigan) I–III C0; past uylar — sozlamada
  *   (settings.fireLow, sukut I–III C0). Funksional sinf (ShNQ 2.01.02-04) — funksiyadan: turar joy, mehmonxona, bogʻcha — Ф1;

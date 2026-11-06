@@ -180,7 +180,7 @@ const SHNQ_2_07_01: Omit<Source, 'clause'> = { doc: 'ShNQ 2.07.01-23', edition: 
 export { GREEN_86, GREEN_474 };
 /** 06.11 — Qurilish vazirining 09.12.2025 dagi 01/2-42-son buyrugʻi (AV 17.12.2025, № 380): ShNQ 2.07.01-23 ga 53 band oʻzgartirish */
 const PARK_4242 = '01/2-42 buyrugʻi (09.12.2025): Toshkent shahri va viloyatida 10 kvartiraga 7 joy (avval kvartiraga 1); 29-jadval izohining 1-bandi (500 m gacha uzoqlikdagi avtoturargoh) kuchini yoʻqotgan.';
-const FIRE_6511 = '6511-band (01/2-42): Ф1–Ф4, I–II darajali binolarda qarama-qarshi devor (yoki maxsus mustaqil devor) I-turdagi yongʻinga qarshi va oyna-eshiksiz boʻlsa — masofa normalanmaydi; modelda bunday devor belgilanmagan.';
+const FIRE_6511 = '651¹-band (01/2-42): Ф1–Ф4, I–II darajali binolarda qarama-qarshi devor (yoki maxsus mustaqil devor) I-turdagi yongʻinga qarshi va oyna-eshiksiz boʻlsa — masofa normalanmaydi; modelda bunday devor belgilanmagan.';
 /** 06.11 (c61): 0103-25-son SanQvaN (SEO qoʻmitasi 15.08.2025 dagi 24-son qarori, AV 29.09.2025, № 373) — SanPiN 0350-17 oʻrniga (2-ilova, 3-band) */
 const SANQ: Omit<Source, 'clause'> = { doc: 'SanQvaN 0103-25', edition: '2025', verified: true };
 
@@ -798,7 +798,7 @@ export const RULES: Rule[] = [
   {
     id: 'fire-56',
     title: 'Binolar orasidagi yongʻinga qarshi masofa',
-    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '641, 642, 649, 652, 6511-bandlar, 56-jadval (01/2-42 tahririda)', verified: true },
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '641, 642, 649, 652, 651¹-bandlar, 56-jadval (01/2-42 tahririda)', verified: true },
     evaluate(_d, doc) {
       const { pairs, checked } = firePairs(doc), cl = FIRE_CLS[doc.settings.fireLow ?? 0];
       if (!checked) return { status: 'na', unit: 'juft', note: 'Yaqin (≤ 20 m) binolar juftlari yoʻq.' };
@@ -935,14 +935,17 @@ export const RULES: Rule[] = [
       const c = { ...c0, szz: c0.szz.filter(x => x.kind !== 'qabriston'), szzBlocks: c0.szzBlocks.filter(x => !qabIds.has(x.limit)) };
       if (!c.any) return { status: 'na', unit: 'bino', limit: '0', note: 'Cheklov obyektlari kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
       const ids = (v: SzzVerdict) => [...new Set(c.szz.filter(x => x.verdict === v).map(x => x.bid))];
-      const deny = ids('deny'), rev = ids('review'), allow = ids('allow'), blk = [...new Set(c.szzBlocks.filter(x => !x.amal).map(x => x.block))];
+      const deny = ids('deny'), rev = ids('review'), allow = ids('allow'), blk = [...new Set(c.szzBlocks.filter(x => !x.amal && !x.guess).map(x => x.block))];
+      // 07.11 (c70): OSM teglaridan taxmin qilingan SMZ obyekti (oʻlcham/quvvat nomaʼlum) — «koʻrib chiqish»
+      const gB = [...new Set(c.szz.filter(x => x.guess).map(x => x.bid))].length, gK = [...new Set(c.szzBlocks.filter(x => x.guess).map(x => x.block))].length;
+      const guess = gB || gK ? `\nOSM teglaridan taxmin qilingan SMZ obyekti (oʻlcham yoki quvvat nomaʼlum — eng ehtiyotkor qator olindi): ${gB} ta bino va ${gK} ta kvartal — obyekt turini «Mavjud holat va cheklovlar» da aniqlashtiring.` : '';
       const amB = [...new Set(c.szz.filter(x => x.amal && SZZ_DENY.includes(x.use)).map(x => x.bid))].length, amK = [...new Set(c.szzBlocks.filter(x => x.amal).map(x => x.block))].length;
       const amal = amB || amK ? `\nQabriston SMZ i: amaldagi normada (0103-25) qiymat yoʻq; oldingi 0350-17, 6.4 qiymati — maʼlumot uchun (AMALIYOT), baholanmadi. Unda ${amB} ta bino va ${amK} ta kvartal 12-band roʻyxatidagi funksiyada — koʻrib chiqish.` : '';
-      if (!deny.length && !rev.length && !allow.length && !blk.length) return { status: amK ? 'review' : 'pass', value: 0, unit: 'bino', limit: '0', note: 'SMZ ichida bino yoʻq.' + amal };
+      if (!deny.length && !rev.length && !allow.length && !blk.length) return { status: amK || gK ? 'review' : 'pass', value: 0, unit: 'bino', limit: '0', note: 'SMZ ichida bino yoʻq.' + amal + guess };
       const show = deny.length ? deny : rev.length ? rev : allow;
       // 04.11 (audit): park, sport, tomorqa, maktab/MTM/poliklinika hududi ham (binosiz) tekshiriladi; poliklinika va oziq-ovqat ombori — taqiq
       return { status: deny.length || blk.length ? 'fail' : 'review', value: deny.length + blk.length, unit: 'bino', limit: '0', where: { bids: show, rings: [...c.zoneRings, ...c.szzBlocks.flatMap(x => x.rings)] },
-        note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (12-band); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (14-band: sinfi past obyektlar — TALQIN; himoya koʻkalamzorligi — 13-band). Taqiqlangan hudud (park, sport, tomorqa, maktab, MTM, poliklinika, ijtimoiy uchastka) SMZ ga tushgan: ${blk.length} ta kvartal/parsel. Poliklinika (umumiy foydalanish) va oziq-ovqat omborxonalari — 12-band taqiqi; obyekt tarkibidagi poliklinika, oʻquv binosi, ishlab chiqarishga taalluqli savdo va umumiy ovqatlanish (14-band) — qoʻlda kelishiladi. Boshqaruv binolari, avtoturargoh, umumiy savdo va muhandislik 14-band roʻyxatida yoʻq (oldingi 0350-17, 2.20 da bor edi) — koʻrib chiqish.` + amal };
+        note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (12-band); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (14-band: sinfi past obyektlar — TALQIN; himoya koʻkalamzorligi — 13-band). Taqiqlangan hudud (park, sport, tomorqa, maktab, MTM, poliklinika, ijtimoiy uchastka) SMZ ga tushgan: ${blk.length} ta kvartal/parsel. Poliklinika (umumiy foydalanish) va oziq-ovqat omborxonalari — 12-band taqiqi; obyekt tarkibidagi poliklinika, oʻquv binosi, ishlab chiqarishga taalluqli savdo va umumiy ovqatlanish (14-band) — qoʻlda kelishiladi. Boshqaruv binolari, avtoturargoh, umumiy savdo va muhandislik 14-band roʻyxatida yoʻq (oldingi 0350-17, 2.20 da bor edi) — koʻrib chiqish.` + amal + guess + (limitZones(doc).soft.some(z => z.deny) ? '\nMasofa talablari (SMZ emas): transformator podstansiyasi — ShNQ 2.07.01-23, 257-band (turar joy va jamoat binolaridan ≥ 10 m); GTP — ShNQ 2.04.08-22, 240-band, 10-jadval (bino va inshootlargacha 10 / 15 m).' : '') };
     },
   },
   // 06.11 (c65, egasi): qabriston SMZ i — VM 101, 50-band (turi boʻyicha 500 / 300 / 100 / 50 m) + SanQvaN 0103-25, 12 va 14-bandlar

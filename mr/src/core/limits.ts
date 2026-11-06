@@ -29,7 +29,7 @@ import type { LngLat, Project, Ring } from './doc';
 import { frame, area as ringArea, type XY } from './geo';
 import type { Use } from './uses';
 
-export type LimitKind = 'qabriston' | 'issiqxona' | 'ombor' | 'temiryol' | 'elu' | 'meros' | 'suv' | 'sanoat' | 'boshqa';
+export type LimitKind = 'qabriston' | 'issiqxona' | 'ombor' | 'temiryol' | 'elu' | 'meros' | 'suv' | 'sanoat' | 'obyekt' | 'boshqa';
 export type LimitStatus = 'saqlanadi' | 'buziladi' | 'kochiriladi';
 /** ELU holati: mavjud / loyiha (rejada) / kabelga oʻtkaziladi / demontaj */
 export type EluStatus = 'mavjud' | 'loyiha' | 'kabel' | 'demontaj';
@@ -57,6 +57,12 @@ export interface Limit {
   suv?: { t: SuvType; q?: 1 | 2 | 3 | 4 };
   /** 04.11: qoʻlda oʻzgartirilgan qirgʻoq boʻyi mintaqasi, m (yoʻq — jadvaldan); suv zonasi — `szz` */
   qir?: number;
+  /** 07.11 (c70): SMZ obyekti — SanQvaN 0103-25 1-ilova / 4-ilova qatori yoki ShNQ masofa qatori (OBJ katalogi kaliti) */
+  obj?: string;
+  /** 07.11 (c70): 4-ilova quvvat ustuni (1 — ≤ 200 m³ … 4 — 50 000–280 000 m³) */
+  objq?: 1 | 2 | 3 | 4;
+  /** 07.11 (c70): OSM teglaridan taxmin qilingan qator (oʻlcham/quvvat nomaʼlum — eng ehtiyotkor qator, «koʻrib chiqish») */
+  objGuess?: boolean;
   src: 'osm' | 'qolda' | 'import';
   osm?: number;
   name?: string;
@@ -65,7 +71,11 @@ export interface Limit {
 /** 06.11 (c63): bezak — fontan, bezak hovuzi, basseyn (suv obyekti emas: suvni muhofaza zonasi qoʻllanmaydi) */
 export type SuvType = 'daryo' | 'kol' | 'kanal' | 'bezak';
 export type Flag = 'NORMA' | 'TALQIN' | 'TAXMIN' | 'AMALIYOT';
-export interface Szz { m: number; cls?: 'I' | 'II' | 'III' | 'IV' | 'V'; ref: string; flag: Flag; /** qoʻlda oʻzgartirilganda — jadvaldagi qiymat */ table?: number }
+export interface Szz { m: number; cls?: 'I' | 'II' | 'III' | 'IV' | 'V'; ref: string; flag: Flag; /** qoʻlda oʻzgartirilganda — jadvaldagi qiymat */ table?: number;
+  /** 07.11 (c70): SMZ obyekti nomi (katalogdan) */ name?: string;
+  /** 07.11 (c70): taqiq roʻyxati 12-banddan farq qilsa (ShNQ masofalari: TP — turar joy va jamoat binolari; GTP — barcha binolar) */ deny?: readonly Use[] | 'all';
+  /** 07.11 (c70): SMZ emas — normadagi masofa (13-band koʻkalamzorlik foizi qoʻllanmaydi) */ nosmz?: true;
+  /** 07.11 (c70): OSM teglaridan taxmin — taqiq «koʻrib chiqish» ga tushiriladi */ guess?: true }
 
 const SAN = 'SanQvaN 0103-25';
 /** bekor qilingan SanPiN 0350-17 (0103-25, 2-ilova, 3-band) — faqat AMALIYOT qiymatlari uchun */
@@ -99,6 +109,7 @@ export function szzOf(l: Limit, areaHa: number): Szz {
       return l.cls ? own({ m: M[l.cls - 1], cls: R[l.cls - 1], ref: `${SAN}, 7-band (1-ilova, ${l.cls}-sinf)`, flag: 'NORMA' }) : own({ m: 100, cls: 'IV', ref: `${SAN}, 7-band — sinf kiritilmagan`, flag: 'TAXMIN' }); }
     case 'elu': return eluZone(l);
     case 'suv': return suvZones(l).zone;
+    case 'obyekt': return objZone(l, own);
     default: return own({ m: 0, ref: '—', flag: 'TAXMIN' });
   }
 }
@@ -136,6 +147,86 @@ export function suvZones(l: Pick<Limit, 'suv' | 'szz' | 'qir'>): { zone: Szz; sh
     return own != null && own >= 0 ? { ...base, m: own, ref: `${base.ref} · qoʻlda`, table: base.m } : base;
   };
   return { zone: mk(z, l.szz), shore: mk(sh, l.qir) };
+}
+
+/**
+ * 07.11 (c70, egasi: «benzin quyish va metan/propan shoxobchalari SMZ chiqmaydi, yana turli zonalar qolib ketgan»): SMZ obyektlari katalogi.
+ * Asl matn: SanQvaN 0103-25, 7-band (1-sinf 1000 · 2 — 500 · 3 — 300 · 4 — 100 · 5 — 50 m), 1-ilova (obyektlar tasnifi — qator raqami
+ * ilovadagi tartib raqami), 4-ilova (oqova suvlarni tozalash qurilmalari, quvvat boʻyicha), 17-band (4-ilovaga havola);
+ * ShNQ 2.07.01-23 (joriy tahrir), 257-band (6–20 kV TP va taqsimlash punktlari — turar joy va jamoat binolaridan ≥ 10 m, davolash-
+ * profilaktika muassasalaridan ≥ 25 m); ShNQ 2.04.08-22, 240-band, 10-jadval (alohida turgan GTP — bino va inshootlargacha: kirish
+ * bosimi 0,6 MPa gacha — 10 m, 0,6–1,2 MPa — 15 m; 0,3 MPa gacha — meʼyorlanmaydi; 241 — tor sharoitda 30 % gacha kamaytirish).
+ * Yongʻinga qarshi masofalar: ShNQ 2.07.01-23, 643-band (AYoQSh va gaz taʼminoti obyektlari — yongʻin xavfsizligi texnik normalari),
+ * 663-band (AYoQSh rezervuar va kolonkalaridan binolargacha — SHNQ 2.09.20-08) — bu hujjat normalar toʻplamida yoʻq, qiymat qoʻyilmagan.
+ */
+export type ObjGroup = 'yoqilgi' | 'qozonxona' | 'gaz' | 'tp' | 'transport' | 'avtoservis' | 'yuvish' | 'chiqindi' | 'oqova' | 'bozor' | 'kremator' | 'vet' | 'qushxona' | 'stadion' | 'otochirish';
+export interface ObjRow { key: string; g: ObjGroup; /** qisqa nom (UI) */ t: string; /** manba qatori */ ref: string; cls?: 1 | 2 | 3 | 4 | 5; m: number; /** 4-ilova: quvvat ustunlari boʻyicha m (null — jadvalda yoʻq) */ q?: (number | null)[]; deny?: readonly Use[] | 'all'; nosmz?: true }
+const C = (cls: 1 | 2 | 3 | 4 | 5) => [1000, 500, 300, 100, 50][cls - 1];
+const R1 = (row: number, cls: 1 | 2 | 3 | 4 | 5, what: string) => ({ ref: `${SAN}, 7-band; 1-ilova, ${cls}-sinf, ${row} («${what}»)`, cls, m: C(cls) });
+const R4 = (what: string) => `${SAN}, 17-band; 4-ilova («${what}»)`;
+const PUBLIC: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona'];
+export const OBJ_GROUPS: [ObjGroup, string][] = [['yoqilgi', 'Yoqilgʻi quyish (AYoQSh, AGTKSh, AGZS)'], ['qozonxona', 'Qozonxona, issiqlik stansiyasi'], ['gaz', 'Gaz (GTS, GTP)'], ['tp', 'Transformator podstansiyasi'], ['transport', 'Avtovokzal, avtopark, depo'], ['avtoservis', 'Avtoservis'], ['yuvish', 'Avtomobil yuvish'], ['chiqindi', 'Chiqindi obyektlari'], ['oqova', 'Oqova suv tozalash, nasos'], ['bozor', 'Bozor'], ['kremator', 'Krematoriy'], ['vet', 'Veterinariya'], ['qushxona', 'Qushxona'], ['stadion', 'Stadion'], ['otochirish', 'Oʻt oʻchirish deposi']];
+export const OBJ: ObjRow[] = [
+  { key: 'yoqilgi_414', g: 'yoqilgi', t: 'Suyuq va gaz yoqilgʻi quyish', ...R1(414, 4, 'Suyuq va gaz motorli avtomobillarga yoqilgʻi quyish shoxobchalari') },
+  { key: 'yoqilgi_491', g: 'yoqilgi', t: 'Faqat suyuq, ≤ 3 quyish joyi', ...R1(491, 5, 'Yengil transport vositalariga faqat suyuq yoqilgʻi quyish shoxobchalari, 3 dan koʻp boʻlmagan yoqilgʻi quyish joyi …') },
+  { key: 'agtksh_492', g: 'yoqilgi', t: 'Metan (AGTKSh), ≤ 500 avto/kun', ...R1(492, 5, 'Avtomobillarga gaz toʻldirish kompressor shoxobchalari, kompressorlar bino yoki konteyner ichida, bir kunda 500 dan koʻp boʻlmagan avtomobillarga …') },
+  { key: 'agzs_494', g: 'yoqilgi', t: 'Propan (AGZS)', ...R1(494, 5, 'Avtomobillarga gaz quyish shoxobchalari, faqat suyultirilgan uglevodorodlarni …') },
+  { key: 'kriogen_493', g: 'yoqilgi', t: 'Kriogen, sigʻim 50 m³', ...R1(493, 5, 'Kriogen … shoxobchalari, … suyultirilgan gazni saqlash sigʻimi 50 m3 hajmda …') },
+  { key: 'kriogen_422', g: 'yoqilgi', t: 'Kriogen, sigʻim 50–100 m³', ...R1(422, 4, 'Kriogen … shoxobchalari, … saqlash sigʻimlari 50 dan 100 m3 gacha boʻlganda') },
+  { key: 'ygm_425', g: 'yoqilgi', t: 'Yoqilgʻi-moylash materiallari ombori', ...R1(425, 4, 'Yoqilgʻi-moylash materiallari omborlari') },
+  { key: 'qozon_290', g: 'qozonxona', t: 'Issiqlik stansiyasi, qozonxona ≤ 200 Gkal/soat', ...R1(290, 3, 'Quvvati soatiga 200 Gkal gacha boʻlgan issiqlik stansiyalari va issiqlik qozonxonalari') },
+  { key: 'qozon_402', g: 'qozonxona', t: 'Markaziy issiqlik manbai, 5 Gkal/soat', ...R1(402, 4, 'Quvvati soatiga 5 Gkal boʻlgan markaziy issiqlik energiyalarini ishlab chiqarish') },
+  { key: 'gts_198', g: 'gaz', t: 'Magistral GTS (odorizatsiya bilan)', ...R1(198, 3, 'Merkaptandan odorizatsiya qurilmalari bilan jihozlangan magistral gaz quvurlarining gaz taqsimlash stansiyalari') },
+  { key: 'gtp_06', g: 'gaz', t: 'GTP, kirish bosimi ≤ 0,6 MPa', ref: 'ShNQ 2.04.08-22, 240-band, 10-jadval (0,6 MPa gacha — bino va inshootlargacha 10 m; 0,3 MPa gacha — meʼyorlanmaydi)', m: 10, deny: 'all', nosmz: true },
+  { key: 'gtp_12', g: 'gaz', t: 'GTP, kirish bosimi 0,6–1,2 MPa', ref: 'ShNQ 2.04.08-22, 240-band, 10-jadval (0,6–1,2 MPa — bino va inshootlargacha 15 m)', m: 15, deny: 'all', nosmz: true },
+  { key: 'tp_257', g: 'tp', t: 'TP yoki taqsimlash punkti, 6–20 kV', ref: 'ShNQ 2.07.01-23, 257-band (shovqin: turar joy va jamoat binolaridan ≥ 10 m; davolash-profilaktika muassasalaridan ≥ 25 m — ilova 10 m ni tekshiradi)', m: 10, deny: PUBLIC, nosmz: true },
+  { key: 'avtovokzal_308', g: 'transport', t: 'Avtovokzal', ...R1(308, 3, 'Avtovokzal') },
+  { key: 'avtopark_309', g: 'transport', t: 'Avtobus/trolleybus parki, tramvay va metro deposi (taʼmirlash bilan)', ...R1(309, 3, 'Avtobus va trolleybus parklari, tramvay va metro depolari (taʼmirlash tarmogʻi bilan)') },
+  { key: 'avtopark_419', g: 'transport', t: 'Avtobus/trolleybus parki, ≤ 300 texnika', ...R1(419, 4, 'Avtobus va troleybus parklari (300 donagacha texnikasi boʻlganda)') },
+  { key: 'yuk_307', g: 'transport', t: 'Yuk avtomobillariga xizmat', ...R1(307, 3, 'Yuk avtomobillariga xizmat koʻrsatuvchi obyektlar') },
+  { key: 'avtoservis_423', g: 'avtoservis', t: 'Avtoservis, > 5 joy', ...R1(423, 4, 'Yuk va yengil avtomobillarga xizmat koʻrsatish (5 ta joydan ziyod boʻlgan) obyektlari') },
+  { key: 'avtoservis_487', g: 'avtoservis', t: 'Yengil avtomobil servisi (boʻyash, temirchiliksiz)', ...R1(487, 5, 'Yengil avtomobillarga texnik xizmat koʻrsatish va taʼmirlash (boʻyash va temirchilik ishlaridan tashqari)') },
+  { key: 'yuvish_421', g: 'yuvish', t: 'Avtoyuvish, > 2 joy', ...R1(421, 4, 'Avtomobillarni yuvish shoxobchalari (yuvish joyi 2 tadan koʻp boʻlgan)') },
+  { key: 'yuvish_489', g: 'yuvish', t: 'Avtoyuvish, ≤ 2 joy', ...R1(489, 5, 'Avtomobillarni yuvish shoxobchalari (yuvish joyi 2 tadan koʻp boʻlmagan)') },
+  { key: 'poligon_168', g: 'chiqindi', t: 'Qattiq maishiy chiqindi poligoni', ...R1(168, 2, 'Qattiq maishiy chiqindi poligonlari') },
+  { key: 'kompost_305', g: 'chiqindi', t: 'Chiqindilarni kompostlash joyi', ...R1(305, 3, 'Chiqindilarni kompostlash joyi') },
+  { key: 'qaytayuk_420', g: 'chiqindi', t: 'Chiqindilarni qayta yuklash joyi', ...R1(420, 4, 'Chiqindilarni qayta yuklash joylari') },
+  { key: 'vaqtincha_412', g: 'chiqindi', t: 'Chiqindilarni vaqtincha saqlash joyi', ...R1(412, 4, 'Chiqindilarni vaqtincha saqlash joylari') },
+  { key: 'oqova_mb', g: 'oqova', t: 'Mexanik-biologik tozalash, choʻkindi maydonchasi bilan', ref: R4('Bijgʻigan choʻkindilarni ushlab qoluvchi maydonchasi boʻlgan mexanik va biologik tozalash qurilmasi …'), m: 500, q: [150, 200, 400, 500] },
+  { key: 'oqova_mbt', g: 'oqova', t: 'Mexanik-biologik tozalash, choʻkindiga termomexanik ishlov', ref: R4('Yopiq binolarda choʻkindilarga termomexanik ishlov beruvchi mexanik va biologik tozalash qurilmasi'), m: 400, q: [100, 150, 300, 400] },
+  { key: 'oqova_filtr', g: 'oqova', t: 'Filtrlash maydoni', ref: R4('Filtrlash maydoni'), m: 500, q: [200, 300, 500, null] },
+  { key: 'oqova_sugor', g: 'oqova', t: 'Sugʻoriladigan maydon', ref: R4('Sugʻoriladigan maydon'), m: 400, q: [150, 200, 400, null] },
+  { key: 'oqova_biohovuz', g: 'oqova', t: 'Biologik hovuz', ref: R4('Biologik hovuz'), m: 300, q: [200, 200, 300, 300] },
+  { key: 'oqova_aylanma', g: 'oqova', t: 'Aylanma oksidlash kanali', ref: R4('Aylanma oksidlash kanallari boʻlgan qurilma'), m: 150, q: [150, null, null, null] },
+  { key: 'oqova_nasos', g: 'oqova', t: 'Oqova suv nasos stansiyasi', ref: R4('Nasos stansiyalari'), m: 30, q: [15, 20, 20, 30] },
+  { key: 'bozor_488', g: 'bozor', t: 'Ulgurji va oziq-ovqat bozori, savdo majmuasi', ...R1(488, 5, 'Ulgurji bozorlar, sanoat va oziq-ovqat mollari bozorlari, koʻp tarmoqli savdo majmualari') },
+  { key: 'kremator_79', g: 'kremator', t: 'Krematoriy (bir pechdan koʻp)', ...R1(79, 1, 'Bitta pechkadan koʻp boʻlgan krematoriyalar') },
+  { key: 'vet_380', g: 'vet', t: 'Veterinariya, hayvonlarni saqlash bilan', ...R1(380, 4, 'Veterinariya davolash maskani, hayvonlarni saqlash, vivariya, kinologiya markazi') },
+  { key: 'vet_458', g: 'vet', t: 'Veterinariya, hayvonlarni saqlamasdan', ...R1(458, 5, 'Hayvonlarni saqlamagan holda uy hayvonlarni davolashi') },
+  { key: 'qushxona_149', g: 'qushxona', t: 'Qushxona, > 50 hayvon', ...R1(149, 2, 'Qushxonalarda 51 donadan koʻp hayvonlarni soʻyish …') },
+  { key: 'qushxona_266', g: 'qushxona', t: 'Qushxona, ≤ 50 hayvon', ...R1(266, 3, 'Qushxonalarda 50 donagacha hayvonlarni soʻyish') },
+  { key: 'stadion_310', g: 'stadion', t: 'Ochiq stadion, > 500 tomoshabin', ...R1(310, 3, 'Ochiq tipdagi 500 nafardan ziyod tomoshabin oʻrinlari boʻlgan sport sogʻlomlashtirish inshootlari') },
+  { key: 'stadion_418', g: 'stadion', t: 'Ochiq stadion, 100–500 tomoshabin', ...R1(418, 4, 'Ochiq tipdagi 500 nafargacha tomoshabin oʻrinlari boʻlgan sport-sogʻlomlashtirish inshootlari') },
+  { key: 'stadion_486', g: 'stadion', t: 'Ochiq stadion, ≤ 100 tomoshabin', ...R1(486, 5, 'Ochiq tipdagi 100 nafargacha tomoshabin oʻrinlari boʻlgan sport-sogʻlomlashtirish inshootlari') },
+  { key: 'otochirish_485', g: 'otochirish', t: 'Oʻt oʻchirish deposi', ...R1(485, 5, 'Oʻt oʻchirish deposi') },
+];
+export const OBJ_BY: Record<string, ObjRow> = Object.fromEntries(OBJ.map(r => [r.key, r]));
+/** 4-ilova quvvat ustunlari (jadvalda birlik «m3»; izohlarda «m³/s» — sutkalik quvvat deb olindi, TALQIN) */
+export const OQOVA_Q = ['≤ 200 m³', '200–5 000 m³', '5 000–50 000 m³', '50 000–280 000 m³'];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V'] as const;
+/** SMZ obyekti zonasi: qator tanlanmagan — TAXMIN (4-sinf, 100 m); OSM taxmini — TALQIN («koʻrib chiqish»); 4-ilova quvvat kiritilmagan — eng katta ustun (TALQIN) */
+export function objZone(l: Pick<Limit, 'obj' | 'objq' | 'objGuess' | 'szz'>, own: (s: Szz) => Szz = s => s): Szz {
+  const r = l.obj ? OBJ_BY[l.obj] : undefined;
+  if (!r) return own({ m: 100, cls: 'IV', ref: `${SAN}, 7-band; 1-ilova — obyekt turi kiritilmagan`, flag: 'TAXMIN' });
+  let m = r.m, ref = r.ref, flag: Flag = l.objGuess ? 'TALQIN' : 'NORMA';
+  if (r.q) {
+    const v = l.objq ? r.q[l.objq - 1] : null;
+    if (v != null) ref = `${ref}, ${OQOVA_Q[l.objq! - 1]}`;
+    else { m = Math.max(...r.q.filter((x): x is number => x != null)); ref = `${ref} — quvvat kiritilmagan, eng kattasi olindi`; flag = 'TALQIN'; }
+    if (v != null) m = v;
+  }
+  if (l.objGuess) ref = `${ref} · OSM teglaridan taxmin (oʻlcham yoki quvvat nomaʼlum — eng ehtiyotkor qator)`;
+  return own({ m, ...(r.cls ? { cls: ROMAN[r.cls - 1] } : {}), ref, flag, name: r.t, ...(r.deny ? { deny: r.deny } : {}), ...(r.nosmz ? { nosmz: true as const } : {}), ...(l.objGuess ? { guess: true as const } : {}) });
 }
 
 /** VMQ № 1050, 14-band (muhofaza zonasi, har tomonga): [kuchlanish sinfi, m]; 6–20 kV — bitta sinf */
@@ -190,7 +281,8 @@ export const QAB100_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab
 /** dam olish zonasi va jamoat uchastkasi sifatida hudud boʻyicha tekshiriladigan funksiyalar (binosiz ham) */
 export const QAB100_AREA: readonly Use[] = ['yashil', 'sport', 'maydon', 'yakka', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy'];
 
-export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; /** koʻpburchaklar (tashqi + teshiklar) — kesishma hisobi uchun */ polys: XY[][][]; m: number; cls?: string; ref: string; flag: Flag }
+export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; /** koʻpburchaklar (tashqi + teshiklar) — kesishma hisobi uchun */ polys: XY[][][]; m: number; cls?: string; ref: string; flag: Flag;
+  /** 07.11 (c70): SMZ obyekti nomi; taqiq roʻyxati (12-banddan farqli); SMZ emas (masofa); OSM taxmini */ name?: string; deny?: readonly Use[] | 'all'; nosmz?: true; guess?: true }
 export interface LimitZones {
   /** qurib boʻlmaydigan joy (saqlanadigan obyekt konturi, temir yoʻl, ELU muhofaza zonasi) — uchastka bilan kesishgan, mahalliy */
   hard: XY[][][];
@@ -227,7 +319,7 @@ const mpArea = (mp: MultiPolygon) => mp.reduce((s, p) => s + Math.abs(ringArea(o
 
 /** Faol (hisobga olinadigan) cheklovmi: buziladigan / koʻchiriladigan obyekt va demontaj ELU — yoʻq */
 /** Cheklov turi nomi (UI va varaqlar) */
-export const LIMIT_NAMES: Record<LimitKind, string> = { qabriston: 'Qabriston', issiqxona: 'Issiqxona', ombor: 'Ombor', temiryol: 'Temir yoʻl', elu: 'ELU', meros: 'Madaniy meros', suv: 'Suv obyekti', sanoat: 'Sanoat korxonasi', boshqa: 'Boshqa' };
+export const LIMIT_NAMES: Record<LimitKind, string> = { qabriston: 'Qabriston', issiqxona: 'Issiqxona', ombor: 'Ombor', temiryol: 'Temir yoʻl', elu: 'ELU', meros: 'Madaniy meros', suv: 'Suv obyekti', sanoat: 'Sanoat korxonasi', obyekt: 'SMZ obyekti', boshqa: 'Boshqa' };
 export const isActive = (l: Limit) => l.kind === 'elu' ? l.elu !== 'demontaj' : l.status === 'saqlanadi';
 
 let memo: { k: unknown[]; v: LimitZones } | null = null;
@@ -274,7 +366,8 @@ function limitZonesRaw(doc: Project): LimitZones {
     let mp: MultiPolygon = [];
     try { mp = polygonClipping.intersection(z.mp, site); if (hard.length && mp.length) mp = polygonClipping.difference(mp, hard); } catch { mp = []; }
     if (mpArea(mp) < 1) continue;
-    softOut.push({ id: z.l.id, kind: z.l.kind, rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: z.s.m, cls: z.s.cls, ref: z.s.ref, flag: z.s.flag });
+    softOut.push({ id: z.l.id, kind: z.l.kind, rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: z.s.m, cls: z.s.cls, ref: z.s.ref, flag: z.s.flag,
+      ...(z.s.name ? { name: z.s.name } : {}), ...(z.s.deny ? { deny: z.s.deny } : {}), ...(z.s.nosmz ? { nosmz: true as const } : {}), ...(z.s.guess ? { guess: true as const } : {}) });
   }
   const waterOut: SoftZone[] = [];
   for (const z of water) {
@@ -307,7 +400,7 @@ export function landBalance(doc: Project): LandBalance | null {
   return { siteHa: siteM2 / 1e4, hardHa: hardM2 / 1e4, szzHa: szzM2 / 1e4, usableHa: Math.max(0, siteM2 - hardM2 - szzM2) / 1e4 };
 }
 
-const KINDS: LimitKind[] = ['qabriston', 'issiqxona', 'ombor', 'temiryol', 'elu', 'meros', 'suv', 'sanoat', 'boshqa'];
+const KINDS: LimitKind[] = ['qabriston', 'issiqxona', 'ombor', 'temiryol', 'elu', 'meros', 'suv', 'sanoat', 'obyekt', 'boshqa'];
 const n = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const ll = (v: unknown): v is LngLat => Array.isArray(v) && v.length === 2 && n(v[0]) && n(v[1]) && Math.abs(v[0]) <= 180 && Math.abs(v[1]) <= 90;
 /** Fayldan oʻqilgan cheklovni tozalash (eski / buzilgan maʼlumot — null) */
@@ -328,6 +421,7 @@ export function cleanLimit(x: any): Limit | null {
     ...([1, 2, 3, 4, 5].includes(x.cls) ? { cls: x.cls } : {}),
     ...(x.kind === 'suv' && x.suv && ['daryo', 'kol', 'kanal', 'bezak'].includes(x.suv.t) ? { suv: { t: x.suv.t, ...([1, 2, 3, 4].includes(x.suv.q) ? { q: x.suv.q } : {}) } } : {}),
     ...(n(x.qir) && x.qir >= 0 && x.qir <= 500 ? { qir: x.qir } : {}),
+    ...(x.kind === 'obyekt' && typeof x.obj === 'string' && OBJ_BY[x.obj] ? { obj: x.obj } : {}), ...(x.kind === 'obyekt' && [1, 2, 3, 4].includes(x.objq) ? { objq: x.objq } : {}), ...(x.kind === 'obyekt' && x.objGuess === true ? { objGuess: true } : {}),
     src: ['osm', 'qolda', 'import'].includes(x.src) ? x.src : 'qolda',
     ...(n(x.osm) ? { osm: x.osm } : {}), ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}),
   };
