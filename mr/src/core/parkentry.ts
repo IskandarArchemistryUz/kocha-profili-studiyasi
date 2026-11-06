@@ -9,11 +9,13 @@
  *    ochiladi, undan 20 m uzoqda boʻlolmaydi); magistral (tuman / shahar) koʻcha qatnashgan chorraha — 50 m.
  *  - ShNQ 2.07.01-23, 415-band: «Ерости автотураргоҳларининг кириш-чиқиш жойлари турар жой ва жамоат бинолари деразаларидан,
  *    шунингдек таълим ва даволаш муассасалари ҳудудларидан камида 15 m узоқликда бўлиши керак.»
- *  - SanPiN RUz № 0350-17, 6.4.1-jadval, 8-izoh: «Минимальное расстояние от въездов-выездов и от вентиляционных шахт подземных
- *    гаражей до территории школ, детских дошкольных учреждений, лечебно-профилактических учреждений, фасадов жилых домов,
- *    площадок отдыха должно составлять не менее 15 м.»
- *    TALQIN: «деразалари» / «фасадлар» — turar va jamoat binolarining izi (derazalar qaysi tarzda ekani modelda yoʻq — xavfsiz tomonga,
- *    butun kontur); «площадки отдыха» — hovlidagi bolalar, kattalar va sport maydonchalari (xoʻjalik maydonchasi emas).
+ *  - ShNQ 2.05.07-24, 10-band: «Jamoat va turar joy obyektlari binolarida joylashgan avtomobillar uchun yer osti, yarim yer osti toʻxtash
+ *    joylarining kirish-chiqish joyidan jamoat va turar joy obyekti binosigacha boʻlgan masofa belgilanmaydi» — oʻz binosi (garaj ustidagi
+ *    bino, TALQIN) kirish-chiqish uchun tekshirilmaydi (EntryEnv.host).
+ *  - 06.11 (c61): bekor qilingan SanPiN 0350-17, 6.4.1-jadval 8-izohi (shamollatish shaxtalari, dam olish maydonchalari — 15 m) amaldagi
+ *    SanQvaN 0103-25 da yoʻq. Shaxtalar va maydonchalar uchun 415-band qiymati (15 m) qoldirildi — AMALIYOT/TALQIN.
+ *    TALQIN: «деразалари» — turar va jamoat binolarining izi (derazalar qaysi tarzda ekani modelda yoʻq — xavfsiz tomonga,
+ *    butun kontur); dam olish maydonchalari — hovlidagi bolalar, kattalar va sport maydonchalari (xoʻjalik maydonchasi emas).
  * ANDOZA: pandus izi 6 × 3,5 m (bir yoʻnalishli yoʻlak, SP 113.13330.2016 — taqqoslash uchun); shamollatish shaxtasi 2 × 2 m,
  *  har 2 000 m² garaj maydoniga 1 ta, koʻpi bilan 6 ta (hisob loyihada); nomzod nuqtalar qadami 5 m. Shaxtalar binolar, dam olish
  *  maydonchalari va taʼlim / davolash hududlaridan eng uzoq joyga qoʻyiladi.
@@ -31,6 +33,7 @@ export interface EntryEnv {
   /** taʼlim va davolash muassasalari hududlari */ edu: XY[][];
   /** dam olish va oʻyin maydonchalari */ rest: XY[][];
   /** barcha binolar (shaxta uchun) */ buildings: XY[][];
+  /** ShNQ 2.05.07-24, 10-band: yer osti garaji joylashgan oʻz binosi (turar / jamoat) — kirish-chiqishdan tekshirilmaydi, shaxtadan tekshiriladi */ host?: XY[][];
 }
 export type CheckKind = 'chorraha' | 'bekat' | 'deraza' | 'hudud' | 'maydoncha';
 export interface EntryCheck { kind: CheckKind; d: number; need: number; ok: boolean; /** eng yaqin nuqta (sahnada kesma uchun) */ to: XY; /** magistral chorraha */ main?: boolean }
@@ -73,7 +76,7 @@ export function entryChecks(p: XY, env: EntryEnv, ug: boolean, kind: EntryKind =
     for (const s of env.stops) { const d = Math.hypot(s[0] - p[0], s[1] - p[1]); if (d < NEED.stop + 30) out.push({ kind: 'bekat', d, need: NEED.stop, ok: d >= NEED.stop - 0.3, to: s }); }
   }
   if (ug) {
-    for (const r of env.windows) { const x = ringDist(p, r); if (x.d < NEED.win + 30) out.push({ kind: 'deraza', d: x.d, need: NEED.win, ok: x.d >= NEED.win - 0.3, to: x.q }); }
+    for (const r of kind === 'shaxta' ? [...env.windows, ...(env.host ?? [])] : env.windows) { const x = ringDist(p, r); if (x.d < NEED.win + 30) out.push({ kind: 'deraza', d: x.d, need: NEED.win, ok: x.d >= NEED.win - 0.3, to: x.q }); }
     for (const r of env.edu) { const x = ringDist(p, r); if (x.d < NEED.edu + 30) out.push({ kind: 'hudud', d: x.d, need: NEED.edu, ok: x.d >= NEED.edu - 0.3, to: x.q }); }
     for (const r of env.rest) { const x = ringDist(p, r); if (x.d < NEED.rest + 30) out.push({ kind: 'maydoncha', d: x.d, need: NEED.rest, ok: x.d >= NEED.rest - 0.3, to: x.q }); }
   }
@@ -116,16 +119,16 @@ export function autoEntry(gar: XY[], env: EntryEnv, ug: boolean): EntryLocal | n
 /**
  * Shamollatish shaxtalari (05.11, koordinator: shaxtalar sport maydonchalari ustiga tushgan edi): garaj halqasi ichida toʻr
  * nomzodlari; joiz nomzod — binolardan ≥ 2 m (bino ostida emas), dam olish va sport maydonchalari, taʼlim / davolash hududlari va
- * turar / jamoat binolaridan ≥ 15 m (SanPiN 0350-17, 6.4.1-jadval 8-izoh). Ochkoʻz tanlov: himoyalangan obyektlardan va oldingi
+ * turar / jamoat binolaridan ≥ 15 m (415-band qiymati — TALQIN; bekor qilingan 0350-17, 6.4.1-jadval 8-izohi 0103-25 da yoʻq). Ochkoʻz tanlov: himoyalangan obyektlardan va oldingi
  * shaxtalardan eng uzoq (shaxtalar orasi ≥ 10 m). Joiz joy yetmasa — garaj chetida, koʻcha tomondagi (yashil tasma) nuqta, edge
  * belgisi bilan: qoida uni «koʻrib chiqish» deb baholaydi. Soni — har 2 000 m² ga 1, koʻpi bilan 6 (ANDOZA).
  */
-export function autoShafts(gar: XY[], env: Pick<EntryEnv, 'buildings' | 'windows' | 'rest' | 'edu' | 'streets'>, n = Math.min(SHAFT_MAX, Math.max(1, Math.ceil(ringArea(gar) / SHAFT_PER_M2)))): EntryLocal[] {
+export function autoShafts(gar: XY[], env: Pick<EntryEnv, 'buildings' | 'windows' | 'rest' | 'edu' | 'streets' | 'host'>, n = Math.min(SHAFT_MAX, Math.max(1, Math.ceil(ringArea(gar) / SHAFT_PER_M2)))): EntryLocal[] {
   if (gar.length < 3) return [];
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of gar) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
   const st = Math.max(2, Math.min(4, Math.min(x1 - x0, y1 - y0) / 6)), cands: XY[] = [];
   for (let x = x0 + st / 2; x < x1; x += st) for (let y = y0 + st / 2; y < y1; y += st) { const p: XY = [x, y]; if (inR(p, gar)) cands.push(p); }
-  const prot = [...env.windows, ...env.rest, ...env.edu];
+  const prot = [...env.windows, ...(env.host ?? []), ...env.rest, ...env.edu];
   const dP = (p: XY) => Math.min(Infinity, ...prot.map(r => ringDist(p, r).d)), dB = (p: XY) => Math.min(Infinity, ...env.buildings.map(b => ringDist(p, b).d));
   const ok = cands.map(p => ({ p, d: dP(p) })).filter(x => x.d >= NEED.rest && dB(x.p) >= 2);
   const out: EntryLocal[] = [];

@@ -17,20 +17,25 @@ const mk = (limits: Limit[], blds: { r: XY[]; use: string }[]) => {
 };
 const rule = (id: string, d: any) => RULES.find(r => r.id === id)!.evaluate({} as any, d);
 
-describe('qabriston SMZ — 6.4 talqini (02.11)', () => {
+/** 06.11 (c61): SanQvaN 0103-25 da qabriston yoʻq — oldingi 0350-17, 6.4 qiymatlari maʼlumot uchun (AMALIYOT) */
+describe('qabriston SMZ — AMALIYOT (0103-25 da yoʻq; oldingi 0350-17, 6.4)', () => {
   it('qishloq qabristoni ≤ 2 ga — amaldagi boʻlsa ham V (alohida nomlangan band)', () => {
-    expect(szzOf(L({ sub: { rural: true } }), 1.5)).toMatchObject({ m: 50, cls: 'V', flag: 'NORMA' });
+    expect(szzOf(L({ sub: { rural: true } }), 1.5)).toMatchObject({ m: 50, cls: 'V', flag: 'AMALIYOT' });
     expect(szzOf(L({ sub: { rural: true } }), 3)).toMatchObject({ m: 100, cls: 'IV' });
-    expect(szzOf(L({ sub: { open: false } }), 30)).toMatchObject({ m: 100, cls: 'IV', flag: 'TALQIN' });
+    expect(szzOf(L({ sub: { open: false } }), 30)).toMatchObject({ m: 100, cls: 'IV', flag: 'AMALIYOT' });
+    expect(szzOf(L({}), 4).ref).toContain('0103-25 da qabriston yoʻq');
     expect(szzOf(L({ szz: 60 }), 4)).toMatchObject({ m: 60, table: 100 });
   });
 });
 
-describe('SMZ ichidagi funksiyalar (SanPiN 0350-17, 2.17 / 2.20)', () => {
+describe('SMZ ichidagi funksiyalar (SanQvaN 0103-25, 12 / 14-band)', () => {
   it('verdikt', () => {
     expect(szzVerdict('turar')).toBe('deny'); expect(szzVerdict('maktab')).toBe('deny'); expect(szzVerdict('yashil')).toBe('deny');
-    expect(szzVerdict('ofis')).toBe('allow');
-    // 04.11 (audit): 2.17 — umumiy foydalanishdagi davolash muassasasi va oziq-ovqat ombori taqiqda
+    // 12-band: ijtimoiy soha obyektlari; 14-band roʻyxati qisqardi — ofis, avtoturargoh, savdo, muhandislik — koʻrib chiqish
+    expect(szzVerdict('ijtimoiy')).toBe('deny');
+    expect(szzVerdict('ofis')).toBe('review'); expect(szzVerdict('avtoturargoh')).toBe('review'); expect(szzVerdict('savdo')).toBe('review');
+    expect(szzVerdict('himoya')).toBe('allow'); expect(szzVerdict('sanoat')).toBe('allow');
+    // 12-band — sogʻliqni saqlash muassasasi va oziq-ovqat omborxonasi taqiqda
     expect(szzVerdict('poliklinika')).toBe('deny'); expect(szzVerdict('logistika', 'sabzavot')).toBe('deny'); expect(szzVerdict('logistika', 'tarqatish')).toBe('allow');
     expect(szzVerdict('mehmonxona')).toBe('review');
   });
@@ -41,15 +46,21 @@ describe('SMZ ichidagi funksiyalar (SanPiN 0350-17, 2.17 / 2.20)', () => {
     const c = limitChecks(d);
     expect(c.szzBlocks.length).toBeGreaterThan(0); expect(c.szzBlocks[0].use).toBe('yashil');
   });
-  it('qabriston 100 m SMZ ichidagi turar joy — fail, tashqaridagi — yoʻq; ofis — review', () => {
-    const qab = L({ rings: [sq(-20, -20, 20, 20) as any] });
-    const d = mk([qab], [{ r: sq(40, -10, 70, 10), use: 'turar' }, { r: sq(200, -10, 230, 10), use: 'turar' }, { r: sq(-10, 50, 10, 80), use: 'ofis' }]);
+  it('issiqxona 100 m SMZ ichidagi turar joy — fail, tashqaridagi — yoʻq; ofis — review', () => {
+    const iss = L({ kind: 'issiqxona', rings: [sq(-20, -20, 20, 20) as any] });
+    const d = mk([iss], [{ r: sq(40, -10, 70, 10), use: 'turar' }, { r: sq(200, -10, 230, 10), use: 'turar' }, { r: sq(-10, 50, 10, 80), use: 'ofis' }]);
     const c = limitChecks(d);
-    expect(c.szz.map(x => [x.bid, x.verdict])).toEqual([['b0', 'deny'], ['b2', 'allow']]);
+    expect(c.szz.map(x => [x.bid, x.verdict])).toEqual([['b0', 'deny'], ['b2', 'review']]);
     expect(rule('szz-217', d)).toMatchObject({ status: 'fail', value: 1 });
-    const d2 = mk([qab], [{ r: sq(-10, 50, 10, 80), use: 'ofis' }]);
+    const d2 = mk([iss], [{ r: sq(-10, 50, 10, 80), use: 'ofis' }]);
     expect(rule('szz-217', d2).status).toBe('review');
     expect(rule('szz-217', mk([], [])).status).toBe('na');
+  });
+  it('qabriston SMZ i (AMALIYOT) ichidagi turar joy — mos emas emas, koʻrib chiqish; izohda «baholanmadi»', () => {
+    const qab = L({ rings: [sq(-20, -20, 20, 20) as any] });
+    const d = mk([qab], [{ r: sq(40, -10, 70, 10), use: 'turar' }]);
+    expect(limitChecks(d).szz.map(x => [x.bid, x.verdict, x.amal])).toEqual([['b0', 'review', true]]);
+    const r = rule('szz-217', d); expect(r.status).toBe('review'); expect(r.note).toContain('AMALIYOT'); expect(r.note).toContain('baholanmadi');
   });
   it('buziladigan qabriston — SMZ yoʻq', () => {
     const d = mk([L({ rings: [sq(-20, -20, 20, 20) as any], status: 'buziladi' })], [{ r: sq(40, -10, 70, 10), use: 'turar' }]);

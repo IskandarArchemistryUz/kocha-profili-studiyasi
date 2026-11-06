@@ -6,7 +6,7 @@ import { apply } from '../../src/core/commands';
 import { RULES } from '../../src/norms/rules';
 import { frame, type XY } from '../../src/core/geo';
 
-/** 06.11 — SanPiN RUz № 0350-17, 2.19: selitebnaya hudud tomonida daraxt-buta tasmasi ≥ 50 m (zona ≤ 100 m — ≥ 20 m) */
+/** 06.11 — bekor qilingan SanPiN RUz № 0350-17, 2.19 (AMALIYOT; c61 — sozlama, sukut oʻchiq): daraxt-buta tasmasi ≥ 50 m (zona ≤ 100 m — ≥ 20 m) */
 const sq = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
 const rule = RULES.find(r => r.id === 'szz-belt')!;
 /** qabriston 40 × 40 (IV sinf, SMZ 100 m) markazda; uchastka 600 × 600; turar joy kvartali; ixtiyoriy himoya parseli (halqa eni w) */
@@ -24,13 +24,18 @@ const mk = (use = 'turar', w = 0) => {
       { id: 'p3', rings: [sq(-300, -300, 300, 300).map(G), [...outer].reverse().map(G)], use: 'turar' },
     ] } as any);
   }
+  d.settings = { ...d.settings, szzBelt: true };
   return d;
 };
 
 describe('szzBelt — 2.19 daraxt-buta tasmasi', () => {
   it('SMZ 100 m → kerakli en 20 m; koʻkalam yoʻq — fail, Tuzat bor', () => {
     const b = szzBelt(mk()); expect(b).toHaveLength(1); expect(b[0].need).toBe(20); expect(b[0].width).toBe(0);
-    const r = rule.evaluate({} as any, mk()); expect(r.status).toBe('fail'); expect(r.fix?.id).toBe('szz-belt');
+    const r = rule.evaluate({} as any, mk()); expect(r.status).toBe('review'); expect(r.fix?.id).toBe('szz-belt'); expect(r.note).toContain('AMALIYOT');
+  });
+  it('sozlama oʻchiq (sukut) — baholanmaydi, izohda 0103-25', () => {
+    const d = mk(); d.settings = { ...d.settings, szzBelt: undefined };
+    const r = rule.evaluate({} as any, d); expect(r.status).toBe('na'); expect(r.note).toContain('0103-25'); expect(r.fix).toBeUndefined();
   });
   it('turar joy yoʻq (ofis) — na', () => {
     expect(rule.evaluate({} as any, mk('ofis')).status).toBe('na');
@@ -38,6 +43,6 @@ describe('szzBelt — 2.19 daraxt-buta tasmasi', () => {
   it('SMZ tashqi qismi (dumaloq burchaklar bilan) himoya — pass; 10 m — fail, eng tor eni < 20 m', () => {
     const ok = mk('turar', 46); expect(rule.evaluate({} as any, ok).status).toBe('pass'); expect(szzBelt(ok)[0].width).toBe(20);
     const half = mk('turar', 10), b = szzBelt(half)[0];
-    expect(rule.evaluate({} as any, half).status).toBe('fail'); expect(b.width).toBeLessThan(20); expect(b.miss).toBeGreaterThan(100);
+    expect(rule.evaluate({} as any, half).status).toBe('review'); expect(b.width).toBeLessThan(20); expect(b.miss).toBeGreaterThan(100);
   });
 });

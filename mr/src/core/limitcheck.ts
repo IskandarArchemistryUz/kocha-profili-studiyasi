@@ -2,10 +2,13 @@
  * Cheklovlar boʻyicha meʼyoriy tekshiruvlar (02.11, cheklovlar 3-bosqichi) — sof funksiyalar, reyestr (norms/rules.ts) uchun.
  *
  * Asl matn (egasining normalar papkasi):
- *  - SanPiN RUz № 0350-17, 2.17: SMZ ichida turar joy binolari, MTM, boshqa taʼlim muassasalari, dacha va bogʻ-poliz,
- *    sport inshootlari, parklar, davolash-profilaktika va sogʻlomlashtirish muassasalari joylashtirilmaydi.
- *  - 2.20: SMZ ichida boshqaruv binolari, oʻquv binolari, doʻkon, umumiy ovqatlanish, poliklinika, garaj, avtoturargoh, omborlar
- *    (oziq-ovqatdan tashqari), muhandislik tarmoqlari … «shu va qoʻshni korxonalarga xizmat bilan bogʻliq» — qabriston uchun TALQIN.
+ *  - SanQvaN 0103-25, 12-band: SMZ da aholi turar joylari; oziq-ovqat ishlab chiqaruvchi korxonalar, oziq-ovqat omborxonalari, ichimlik
+ *    suvi inshootlari; ijtimoiy soha obyektlari (MTM, taʼlim va sogʻliqni saqlash muassasalari), aholi dam olish joylari, sport inshootlari
+ *    joylashtirilmaydi.
+ *  - 14-band: SMZ ga xavflilik sinfi past obyektlar; obyekt tarkibidagi oʻquv binolari, ishlab chiqarishga taalluqli savdo, umumiy
+ *    ovqatlanish, poliklinika va ilmiy-tadqiqot laboratoriyalari joylashtiriladi.
+ *  - Qabriston SMZ i (0103-25 da yoʻq, AMALIYOT — bekor qilingan 0350-17, 6.4): taqiq «koʻrib chiqish» ga tushiriladi, hududlar
+ *    «mos emas» bermaydi (amal — alohida hisob).
  *  - VMQ № 1050, 14-band (muhofaza zonasi), 17-band (zonada bino qurish — egasining yozma roziligi bilan).
  *  - ShNQ 2.07.01-23, 251-band: 35 kV va undan yuqori havo ELU turar joy hududlaridan tashqarida oʻtkaziladi; 253-band —
  *    rekonstruksiyada chiqarish yoki kabelga almashtirish.
@@ -28,15 +31,15 @@ function overlap(a: Polygon, polys: XY[][][]): number {
 }
 
 export type SzzVerdict = 'deny' | 'review' | 'allow';
-/** Funksiya SMZ ichida: 2.17 — taqiq; 2.20 — ruxsat (qabriston va boshqa nokorxona obyektlari uchun TALQIN); roʻyxatda yoʻq — koʻrib chiqish */
+/** Funksiya SMZ ichida: 0103-25, 12-band — taqiq; 14-band — ruxsat; roʻyxatda yoʻq — koʻrib chiqish */
 export function szzVerdict(u: Use, logi?: string): SzzVerdict { return SZZ_DENY.includes(u) || (u === 'logistika' && !!logi && SZZ_FOOD_LOGI.includes(logi)) ? 'deny' : SZZ_ALLOW.includes(u) ? 'allow' : 'review'; }
 
-export interface SzzHit { bid: string; use: Use; limit: string; kind: LimitKind; m: number; cls?: string; area: number; verdict: SzzVerdict }
+export interface SzzHit { bid: string; use: Use; limit: string; kind: LimitKind; m: number; cls?: string; area: number; verdict: SzzVerdict; /** AMALIYOT zonasida (qabriston) — 12-band taqiqi qoʻllanmaydi */ amal?: boolean }
 export interface EluHit { bid: string; limit: string; kv: number; m: number; area: number }
 export interface Elu251 { limit: string; kv: number; blocks: number }
 export interface Manual { limit: string; kind: LimitKind; m: number; table: number }
 /** 04.11 (audit): SMZ ga tushgan taqiqli funksiyali kvartal/parsellar (park, sport, turar joy …) — binosiz ham */
-export interface SzzBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][] }
+export interface SzzBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][]; amal?: boolean }
 /** 04.11: suvni muhofaza qilish zonasidagi bino (981-son nizom) va qirgʻoq boʻyi mintaqasiga tushgan bino */
 export interface SuvHit { bid: string; limit: string; m: number; area: number; shore: boolean }
 export interface LimitChecks { szz: SzzHit[]; szzBlocks: SzzBlockHit[]; elu: EluHit[]; elu251: Elu251[]; manual: Manual[]; suv: SuvHit[]; suvRings: XY[][]; any: boolean; zoneRings: XY[][] }
@@ -54,20 +57,22 @@ function raw(doc: Project): LimitChecks {
   const fr = frame(doc.origin), z = limitZones(doc);
   const fps = doc.buildings.map(b => ({ b, poly: [close(b.footprint.map(fr.toLocal))] as Polygon }));
   const plan0 = computePlan(doc), inBl = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
-  // logistika binosining turi (oziq-ovqat ombori — 2.17 taqiq): bino turgan kvartal/parsel yorligʻidan
+  // logistika binosining turi (oziq-ovqat omborxonasi — 12-band taqiqi): bino turgan kvartal/parsel yorligʻidan
   const logiOf = (b: Project['buildings'][number]): string | undefined => { if (b.use !== 'logistika') return undefined; const r = b.footprint.map(fr.toLocal), c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length]; const bl = plan0.blocks.find(k => inBl(c, k.rings[0])); return bl?.labelId ? doc.zones.find(q => q.id === bl.labelId)?.sub : undefined; };
-  // 1) SMZ ichidagi binolar (2.17 / 2.20)
+  // 1) SMZ ichidagi binolar (12 / 14-band); AMALIYOT zonasi (qabriston) — taqiq «koʻrib chiqish» ga tushiriladi
   for (const s of z.soft) {
     out.zoneRings.push(...s.rings);
+    const amal = s.flag === 'AMALIYOT';
     for (const { b, poly } of fps) {
       const a = overlap(poly, s.polys); if (a < 1) continue;
-      out.szz.push({ bid: b.id, use: b.use, limit: s.id, kind: s.kind, m: s.m, cls: s.cls, area: a, verdict: szzVerdict(b.use, logiOf(b)) });
+      const v = szzVerdict(b.use, logiOf(b));
+      out.szz.push({ bid: b.id, use: b.use, limit: s.id, kind: s.kind, m: s.m, cls: s.cls, area: a, verdict: amal && v === 'deny' ? 'review' : v, ...(amal ? { amal: true } : {}) });
     }
     plan0.blocks.forEach((bl, i) => {
-      // hudud boʻyicha taqiq (2.17): parklar, sport inshootlari, tomorqa (bogʻ-poliz) uchastkalari, taʼlim va davolash muassasalari hududi;
+      // hudud boʻyicha taqiq (12-band): aholi dam olish joylari (park), sport inshootlari, turar joy (yakka uylar uchastkalari), taʼlim va sogʻliqni saqlash muassasalari hududi;
       // koʻp kvartirali turar joy — binolar boʻyicha (yuqorida)
-      if (!['yashil', 'sport', 'yakka', 'maktab', 'mtm', 'poliklinika'].includes(bl.use)) return;
-      const a = overlap(bl.rings.map(close) as Polygon, s.polys); if (a >= 10) out.szzBlocks.push({ block: i, use: bl.use, limit: s.id, area: a, rings: bl.rings });
+      if (!['yashil', 'sport', 'yakka', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy'].includes(bl.use)) return;
+      const a = overlap(bl.rings.map(close) as Polygon, s.polys); if (a >= 10) out.szzBlocks.push({ block: i, use: bl.use, limit: s.id, area: a, rings: bl.rings, ...(amal ? { amal: true } : {}) });
     });
   }
   // 2) ELU muhofaza zonasidagi binolar (VMQ 1050, 14 va 17-band) va 3) ≥ 35 kV havo ELU turar joy kvartallari ustidan (ShNQ 251)
