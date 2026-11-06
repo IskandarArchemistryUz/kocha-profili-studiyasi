@@ -9,7 +9,10 @@
  * 649-band: 9 ball va undan yuqori hududda Ф1 binolar orasidagi va IV–V darajali Ф1–Ф4 binolar orasidagi masofa +20 %.
  * 648-band (koʻr devorlar, I–II C0, yonmaydigan tom: −20 %) va 651-band (avtomatik yongʻin oʻchirish: −50 % gacha) —
  *   deraza va jihozlar maʼlum emas, qoʻllanmaydi (izohda aytiladi).
- * 652-band: tomorqadagi bir va ikki xonadonli uylar va xoʻjalik imoratlaridan qoʻshni uchastkadagilarigacha — ham 56-jadval.
+ * 652-band: tomorqadagi bir va ikki xonadonli uylar va xoʻjalik imoratlaridan qoʻshni uchastkadagilarigacha — ham 56-jadval;
+ *   01/2-42 (09.12.2025) qoʻshimchasi: bitta yer uchastkasidagi turar joy binolari va xoʻjalik imoratlari orasidagi masofa normalanmaydi
+ *   (past uy uchastkasi — gen.plot; ikkala past uy bitta uchastkada boʻlsa — juft tekshirilmaydi).
+ * 6511-band (01/2-42): qarama-qarshi devor I-turdagi yongʻinga qarshi, oyna-eshiksiz — masofa normalanmaydi; modelda devor turi yoʻq (izohda).
  * 101-band (bloklash): chegaradosh uylar yopishib qurilishi mumkin — tegib turgan (< 0,5 m) juftlar bitta blok, tekshirilmaydi.
  * TAXMIN: olovbardoshlik sinfi — koʻp qavatli binolar (monolit, karkas, gʻisht — yonmaydigan) I–III C0; past uylar — sozlamada
  *   (settings.fireLow, sukut I–III C0). Funksional sinf (ShNQ 2.01.02-04) — funksiyadan: turar joy, mehmonxona, bogʻcha — Ф1;
@@ -55,6 +58,15 @@ function closest(a: XY[], b: XY[]): { d: number; p: XY; q: XY } {
   return best;
 }
 
+/** Ikkala past uy bitta uchastkada (biri ikkinchisining uchastkasi ichida) — 652-band, 01/2-42 qoʻshimchasi */
+function samePlot(A: { b: Building; r: XY[]; low: boolean }, B: { b: Building; r: XY[]; low: boolean }, toL: (p: [number, number]) => XY): boolean {
+  if (!A.low || !B.low) return false;
+  const pa = A.b.gen?.plot?.map(toL), pb = B.b.gen?.plot?.map(toL); if (!pa && !pb) return false;
+  const c = (r: XY[]): XY => [r.reduce((s, p) => s + p[0], 0) / r.length, r.reduce((s, p) => s + p[1], 0) / r.length];
+  const inR = (p: XY, r: XY[]) => { let k = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) k = !k; return k; };
+  return (!!pa && inR(c(B.r), pa)) || (!!pb && inR(c(A.r), pb));
+}
+
 export interface FirePair { a: string; b: string; d: number; need: number; plus20: boolean; seg: [XY, XY]; low: boolean }
 /** Barcha juftlar (yaqinlari, ≤ 20 m), talabdan kami — buzilish */
 export function firePairs(doc: Project): { pairs: FirePair[]; checked: number } {
@@ -77,6 +89,7 @@ export function firePairs(doc: Project): { pairs: FirePair[]; checked: number } 
   const pairs: FirePair[] = []; let checked = 0;
   for (const { i, j, n, c } of near) {
     if (root(i) === root(j)) continue;   // bir blok ichidagi uylar (oraliqdagi uy orqali tutashgan)
+    if (samePlot(bl[i], bl[j], fr.toLocal)) continue;   // 652-band (01/2-42): bitta yer uchastkasi ichida — normalanmaydi
     checked++; if (c.d >= n.need - 0.05) continue;
     const A = bl[i], B = bl[j];
     pairs.push({ a: A.b.id, b: B.b.id, d: c.d, need: n.need, plus20: n.plus20, seg: [c.p, c.q], low: A.low && B.low });

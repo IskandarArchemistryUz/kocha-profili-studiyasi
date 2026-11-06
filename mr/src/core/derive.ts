@@ -184,7 +184,7 @@ export function derive(doc: Project): Derived {
   const mtmCap = plan.blocks.filter(b => b.use === 'mtm').reduce((t, b) => t + mtmCapacity(b.area), 0) + mtmBuiltIn;
   const antresol = doc.buildings.filter(b => hasAntresol(s, b)).reduce((t, b) => t + area(ringLocal(fr, b.footprint)) * ANTRESOL_SHARE, 0);
   const socialPlots = plan.blocks.filter(b => b.use === 'maktab' || b.use === 'mtm').map(b => ({ use: b.use as 'maktab' | 'mtm', area: b.area }));
-  // 29-jadval (core/parking): koʻp qavatli turar joy — Toshkent shahri/viloyatida kvartiraga 1, boshqa viloyatlarda 2 kvartiraga 1
+  // 29-jadval (core/parking): koʻp qavatli turar joy — Toshkent shahri/viloyatida 10 kvartiraga 7 (01/2-42 tahriri), boshqa viloyatlarda 2 kvartiraga 1
   // (yakka uy va blokli uylar kirmaydi — oʻz uchastkasida); maʼmuriy/ofis — har 10 m²; savdo markazi > 200 m² — har bino alohida;
   // maktab, MTM — 25 ga 1; poliklinika, mehmonxona — 5 ga 1 (sigʻim GFA dan, ANDOZA); park — har 0,05 ga
   const parkingParts = parkingNeed({ apartments: Math.max(0, apartments - houses), tashkent: isTashkent(s.district), ofisGfa: (gfaByUse.ofis ?? 0) + (gfaByUse.mamuriy ?? 0), tradeAreas, school: schoolCap, mtm: mtmCap, greenArea, hotelGfa: gfaByUse.mehmonxona ?? 0, clinicGfa: gfaByUse.poliklinika ?? 0 });
