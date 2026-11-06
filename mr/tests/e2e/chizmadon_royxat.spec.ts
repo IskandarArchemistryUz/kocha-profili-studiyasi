@@ -16,7 +16,7 @@ test('Chizmadon «Loyihadan»: kvartirografiya materiallari bino boʻyicha guruh
   // yopiq guruh — ichidagilar koʻrinmaydi; har guruh — 3 ta material
   await expect(list.locator('[data-mat^="p:aptnav:"]')).toHaveCount(0);
   const nGrp = await grp.count();
-  expect(await list.locator('.li').count()).toBeLessThan(56);   // 02.11: tahlil materiallari — +4 xizmat radiusi, cheklovlar + yer balansi, yashil balans + jadval, insolyatsiya
+  expect(await list.locator('.li').count()).toBeLessThan(59);   // 02.11: tahlil materiallari — +4 xizmat radiusi, cheklovlar + yer balansi, yashil balans + jadval, insolyatsiya; 06.11: +3 yer sathi xaritasi (qizish, HAND, TWI)
   await grp.first().click();
   await expect(list.locator('.ch-sub')).toHaveCount(3);
   await expect(list.locator('.ch-sub[data-mat^="p:aptnav:"]')).toHaveCount(1);

@@ -134,6 +134,8 @@ import { isLinkOwner, setExportArea, setExportProject } from '../core/wm';
 import { buyDialog } from '../account/buy';
 import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
+/** yer sathi xaritasi legendasi (Qatlamlar paneli va varaq) */
+type MapInfo = { title: string; bins: { color: number; label: string }[]; stats: string[]; note: string };
 type ToolMode = 'select' | 'hand' | 'measure' | 'section' | 'pipette';
 const TOOLS: [ToolMode, string, string][] = [
   ['select', 'Tanlash (V)', '<path d="M5 3l14 8-6 2-3 6z"/>'],
@@ -464,7 +466,7 @@ export class Editor {
 
   /* ---------- tahliliy qatlamlar: qavatlar soni, yuza qizishi, suv bosish (HAND), namlik (TWI) ---------- */
   private mapKind: 'yoq' | 'issiq' | 'hand' | 'twi' = 'yoq';
-  private mapInfo: { title: string; bins: { color: number; label: string }[]; stats: string[]; note: string } | null = null;
+  private mapInfo: MapInfo | null = null;
   private mapBusy = false;
   private hydroCache: { key: string; hy: Hydro; g: TerrainGrid; c0: XY } | null = null;
   private layPop(): HTMLElement {
@@ -501,8 +503,8 @@ export class Editor {
     if (!this.mapInfo) { el?.remove(); return; }
     if (!el) { el = h('div', { class: 'maplegend', role: 'status' }); this.el.stage.append(el); }
     const m = this.mapInfo, hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
-    el.replaceChildren(h('b', {}, m.title), h('div', { class: 'legend' }, ...m.bins.map(b => h('div', {}, h('i', { style: `background:${hex(b.color)}` }), b.label))),
-      ...m.stats.map(t => h('div', { class: 'st' }, t)), h('div', { class: 'nt' }, m.note),
+    el.replaceChildren(h('b', {}, tr(m.title)), h('div', { class: 'legend' }, ...m.bins.map(b => h('div', {}, h('i', { style: `background:${hex(b.color)}` }), tr(b.label)))),
+      ...m.stats.map(t => h('div', { class: 'st' }, t)), h('div', { class: 'nt' }, tr(m.note)),
       h('button', { class: 'ib sm', title: 'Yopish', 'aria-label': 'Xaritani olib tashlash', onclick: () => void this.runMap('yoq') }, svgIcon(IC.x)));
   }
   private async runMap(k: 'yoq' | 'issiq' | 'hand' | 'twi'): Promise<void> {
@@ -549,16 +551,24 @@ export class Editor {
     });
     const T = pts.map((p, i) => surfaceT(cover(p), total ? 1 - sun[i] / total : 0, canopy(p)));
     this.scene.setGroundMap(pts, T.map(heatColor), cell);
+    this.heatCache = { pts, cols: T.map(heatColor), cell, buildings: doc.buildings, streets: doc.streets, info: null as unknown as MapInfo };
     const site = doc.site?.rings.map(r => r.map(fr.toLocal));
     const inS = site ? pts.map(p => pointIn(p, site)) : pts.map(() => true);
     const S = T.filter((_, i) => inS[i]), O = T.filter((_, i) => !inS[i]), mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / (a.length || 1);
     this.mapInfo = {
       title: 'Yuza qizishi (taxmin), °C', bins: HEAT_BINS,
-      stats: [`Uchastka: oʻrtacha ${fmt(mean(S), 1)} °C · ≥ 52 °C — ${fmt(S.filter(t => t >= 52).length / (S.length || 1) * 100, 0)} %`, ...(O.length ? [`Atrof (120 m): oʻrtacha ${fmt(mean(O), 1)} °C`] : [])],
+      stats: [tf('Uchastka: oʻrtacha ${a} °C · ≥ 52 °C — ${b} %', { a: fmt(mean(S), 1), b: fmt(S.filter(t => t >= 52).length / (S.length || 1) * 100, 0) }), ...(O.length ? [tf('Atrof (120 m): oʻrtacha ${a} °C', { a: fmt(mean(O), 1) })] : [])],
       note: '15 iyul, 11:00–17:00: qoplama turi (OSM va loyiha) + binolar soyasi + daraxt toji. Sunʼiy yoʻldosh oʻlchovi emas — variantlarni solishtirish uchun.',
     };
+    this.heatCache.info = this.mapInfo;
   }
   private hydroMap(k: 'hand' | 'twi'): void {
+    const d = this.hydroData(k);
+    this.scene.setGroundMap(d.pts, d.cols, d.cell);
+    this.mapInfo = d.info;
+  }
+  /** HAND / TWI katakchalari va legenda — sahna qatlami ham, varaq ham shundan (06.11) */
+  private hydroData(k: 'hand' | 'twi'): { pts: XY[]; cols: number[]; cell: number; info: MapInfo } {
     const b = this.ctxMgr.current, doc = this.store.doc, fr = frame(doc.origin);
     if (!b?.terrain) throw new Error('Relyef yuklanmagan: 1-qadamda atrofni yuklang (relyef qatlami bilan)');
     const key = `${b.fetched}|${doc.origin.join(',')}`;
@@ -575,17 +585,29 @@ export class Editor {
       if (!bin) continue;
       pts.push([x + c0[0], y + c0[1]]); cols.push(bin.color); vals.push(v);
     }
-    this.scene.setGroundMap(pts, cols, g.step);
     const site = doc.site?.rings.map(r => r.map(fr.toLocal));
     let stats: string[] = [];
     if (site) {
       let n = 0, a = 0, bb = 0;
       for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { const p: XY = [-g.radius + i * g.step + c0[0], -g.radius + j * g.step + c0[1]]; if (!pointIn(p, site)) continue; n++; const v = k === 'hand' ? hy.hand[j * g.n + i] : hy.twi[j * g.n + i]; if (k === 'hand' ? v < 1 : v >= 12) a++; if (k === 'hand' ? v < 2 : v >= 10) bb++; }
-      stats = [k === 'hand' ? `Uchastka: < 1 m — ${fmt(a / (n || 1) * 100, 0)} %, < 2 m — ${fmt(bb / (n || 1) * 100, 0)} %` : `Uchastka: TWI ≥ 12 — ${fmt(a / (n || 1) * 100, 0)} %, ≥ 10 — ${fmt(bb / (n || 1) * 100, 0)} %`];
+      stats = [k === 'hand' ? tf('Uchastka: < 1 m — ${a} %, < 2 m — ${b} %', { a: fmt(a / (n || 1) * 100, 0), b: fmt(bb / (n || 1) * 100, 0) }) : tf('Uchastka: TWI ≥ 12 — ${a} %, ≥ 10 — ${b} %', { a: fmt(a / (n || 1) * 100, 0), b: fmt(bb / (n || 1) * 100, 0) })];
     }
-    this.mapInfo = k === 'hand'
+    const info = k === 'hand'
       ? { title: 'Suv bosish xavfi — HAND', bins: HAND_BINS, stats, note: 'Drenaj (OSM soy, kanal, ariq yoki oqim ≥ 2 ga) ustidan balandlik, relyef 10 m. Skrining: yomgʻir kanalizatsiyasi hisobga olinmaydi.' }
       : { title: 'Topografik namlik indeksi — TWI', bins: TWI_BINS, stats, note: 'ln(a / tan β): yuqori qiymat — suv yigʻiladigan, yerosti suvi yaqin pastliklar. Relyef 10 m.' };
+    return { pts, cols, cell: g.step, info };
+  }
+  private heatCache: { pts: XY[]; cols: number[]; cell: number; buildings: unknown; streets: unknown; info: MapInfo } | null = null;
+  /** 06.11 (egasi: yer sathi xaritalari varaqlarga): varaq uchun maʼlumot — HAND/TWI relyefdan darhol, yuza qizishi Qatlamlar panelida hisoblangani */
+  private gmapSheet(k: 'issiq' | 'hand' | 'twi'): SheetCtx['gmap'] {
+    const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+    const out = (d: { pts: XY[]; cols: number[]; cell: number; info: MapInfo }, stale = false) =>
+      ({ pts: d.pts, cols: d.cols.map(hex), cell: d.cell, title: d.info.title, legend: d.info.bins.map(b => [hex(b.color), b.label] as [string, string]), stats: d.info.stats, note: d.info.note, stale });
+    if (k === 'issiq') {
+      const H = this.heatCache; if (!H) return { err: 'Yuza qizishi hisoblanmagan — Qatlamlar → Yer sathi xaritasi → Yuza qizishi' };
+      const doc = this.store.doc; return out(H, H.buildings !== doc.buildings || H.streets !== doc.streets);
+    }
+    try { return out(this.hydroData(k)); } catch { return { err: 'Relyef yuklanmagan — 1-qadamda atrofni yuklang (relyef qatlami bilan)' }; }
   }
 
   private frameId = 'erkin';
@@ -4441,8 +4463,10 @@ export class Editor {
   }
   /** Tahlil varagʻi uchun atrof: atrof yuklanmagan boʻlsa ham tahlil chiziladi */
   private sheetCtxFor(kind: string): SheetCtx | null {
-    const c = this.sheetCtx(); if (kind !== 'xizmat' && kind !== 'insol' && kind !== 'shamol') return c;
+    const GM = kind === 'issiq' || kind === 'hand' || kind === 'twi';
+    const c = this.sheetCtx(); if (kind !== 'xizmat' && kind !== 'insol' && kind !== 'shamol' && !GM) return c;
     const base = c ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] };
+    if (GM) return { ...base, gmap: this.gmapSheet(kind as 'issiq' | 'hand' | 'twi') };
     if (kind === 'insol') return { ...base, insol: this.insolSheet() };
     if (kind === 'shamol') return { ...base, wind: this.windSheet() };
     return { ...base, svc: this.svcSheet() };
@@ -4544,6 +4568,12 @@ export class Editor {
         const r = sheetSvg(this.store.doc, this.sheetCtxFor('shamol'), { ...SHEET_DEFAULT, kind: 'shamol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } },
+      // 06.11 (egasi): yer sathi xaritalari — yuza qizishi, suv bosish xavfi (HAND), namlik (TWI); maʼlumot boʻlsa yoqilgan
+      ...(([['issiq', 'Yuza qizishi'], ['hand', 'Suv bosish xavfi (HAND)'], ['twi', 'Namlik (TWI)']] as const).map(([k, nm]) => { const has = () => { const g = this.gmapSheet(k); return !!g && 'pts' in g && g.pts.length > 0; }; return { id: `p:plan:${k}`, name: nm, on: k === 'issiq' ? !!this.heatCache : !!this.ctxMgr.current?.terrain, get: () => {
+        if (!has()) return null;
+        const r = sheetSvg(this.store.doc, this.sheetCtxFor(k), { ...SHEET_DEFAULT, kind: k, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
+      } } as PlanSrc; })),
       // 02.11: tahlil varaqlari — xizmat radiusi (piyoda tarmogʻi boʻylab, 9-qadam tahlili); asosiylari sukut boʻyicha yoqilgan
       ...SERVICES.map(sv => { let c2: SheetCtx | null | undefined; return { id: `p:plan:svc:${sv.id}`, name: `${tr('Xizmat radiusi')} · ${tr(sv.name)}`, on: SVC_ON.includes(sv.id), get: () => {
         if (c2 === undefined) c2 = this.sheetCtxFor('xizmat');
@@ -4622,7 +4652,7 @@ export class Editor {
 
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
-    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
+    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), gmap: k => this.gmapSheet(k), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
       axo: (look, viewId, detail, ratio, labels) => this.axoShot(look, viewId, detail, ratio, labels === true),
       axoLegend: look => this.axoLegend(look),
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),

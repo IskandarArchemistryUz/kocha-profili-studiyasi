@@ -236,6 +236,7 @@ function legendBox(items: PlanMap['legend'], r: Rect, ctx: { u: number; P: Recor
   it.forEach((q, k) => {
     const ls = L.lines[k] ?? [q.label], cy = yy + 2.6 * u * 0.72 + 0.6 * u, sx = x + pad;
     if (q.type === 'line' || q.type === 'dash') g += `<path d="M${n2(sx)} ${n2(cy - 0.9 * u)}h${n2(3.6 * u)}" stroke="${q.stroke ?? q.fill ?? Q.ink}" stroke-width="${n2(0.5 * u)}"${q.type === 'dash' ? ` stroke-dasharray="${n2(1 * u)} ${n2(0.6 * u)}"` : ''}/>`;
+    else if (q.type === 'text') { /* 06.11: izoh davomi — belgisiz */ }
     else if (q.type === 'tree' || q.type === 'stop') g += `<circle cx="${n2(sx + 1.8 * u)}" cy="${n2(cy - 0.9 * u)}" r="${n2(1.1 * u)}" fill="${q.fill ?? '#9cc27f'}" stroke="${q.stroke ?? 'none'}" stroke-width="${n2(0.15 * u)}"/>`;
     else g += R0(sx, cy - 2.1 * u, 3.6 * u, 2.4 * u, q.fill ?? '#ffffff', ` stroke="${q.stroke ?? Q.line}" stroke-width="${n2(0.15 * u)}"`);
     ls.forEach((t, i) => { g += T(sx + 5 * u, cy + i * 2.6 * u, t, { s: 2.2 * u, c: Q.ink }); });

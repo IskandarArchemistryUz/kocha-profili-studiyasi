@@ -32,6 +32,8 @@ export interface SheetsHost {
   insol?: () => SheetCtx['insol'];
   /** 04.11: shamol guli va oxirgi oqim xaritasi (6-qadam) */
   wind?: () => SheetCtx['wind'];
+  /** 06.11: yer sathi xaritalari (yuza qizishi, HAND, TWI) — Qatlamlar paneli bilan bir xil hisob */
+  gmap?: (k: 'issiq' | 'hand' | 'twi') => SheetCtx['gmap'];
   /** varaqlar va uslublarni hujjatga yozish */
   save: (sheets: SheetDoc[], styles: NonNullable<Project['sheetStyles']>) => void;
   /** reja va hajmlar DXF (mavjud eksport) */
@@ -75,7 +77,7 @@ export function norm(o: Record<string, unknown>): SheetOpts {
  * zonalashtirish, figura-fon, landshaft, qavatlar soni, vaziyat sxemasi); har bino turidan 1-qavat va tipik qavat; har past qavatli uy
  * turidan har qavat rejasi (core/albumset).
  */
-const SET_V = 9;   // 04.11: shamol, relyef va qurilish navbati varaqlari qoʻshildi
+const SET_V = 10;   // 04.11: shamol, relyef va qurilish navbati; 06.11: yuza qizishi, HAND, TWI varaqlari
 function defaultSheets(doc: Project): SheetDoc[] {
   const base = lastOpts(), mk = (o: Partial<SheetOpts>): SheetDoc => ({ id: uid('sh_'), opts: { ...base, mode: 'reja', title: '', stamp: {}, ...o } as unknown as Record<string, unknown> });
   const out: SheetDoc[] = [
@@ -89,6 +91,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'relyef', scale: 0 }),   // 04.11: tahlil — relyef
     mk({ kind: 'navbat', scale: 0 }),   // 04.11: tahlil — qurilish navbati
     mk({ kind: 'shamol', scale: 0 }),   // 04.11: tahlil — shamol guli va oqim
+    mk({ kind: 'issiq', scale: 0 }), mk({ kind: 'hand', scale: 0 }), mk({ kind: 'twi', scale: 0 }),   // 06.11: tahlil — yer sathi xaritalari
   ];
   for (const sv of ['mtm', 'maktab', 'poliklinika', 'bekat']) out.push(mk({ kind: 'xizmat', svc: sv, scale: 0 }));   // 02.11: tahlil — xizmat radiuslari (editor SVC_ON)
   for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));
@@ -152,8 +155,10 @@ export function openGraphics(host: SheetsHost): void {
   let svcData: SheetSvc[] | undefined;
   const svcs = (): SheetSvc[] => (svcData ??= host.svc?.() ?? []);
   const ctxOf = (o: SheetOpts): SheetCtx | null => {
-    if (o.kind !== 'xizmat' && o.kind !== 'insol' && o.kind !== 'shamol') return host.ctx;
+    const GM = o.kind === 'issiq' || o.kind === 'hand' || o.kind === 'twi';
+    if (o.kind !== 'xizmat' && o.kind !== 'insol' && o.kind !== 'shamol' && !GM) return host.ctx;
     const base = host.ctx ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] };
+    if (GM) return { ...base, gmap: host.gmap?.(o.kind as 'issiq' | 'hand' | 'twi') ?? null };
     return o.kind === 'insol' ? { ...base, insol: host.insol?.() ?? null } : o.kind === 'shamol' ? { ...base, wind: host.wind?.() ?? null } : { ...base, svc: svcs() };
   };
   const memo = new Map<string, { r: SheetResult; inner: SheetInner | undefined }>();
