@@ -83,7 +83,8 @@ function defaultSheets(doc: Project): SheetDoc[] {
   const out: SheetDoc[] = [
     mk({ kind: 'bosh', scale: 0 }),
     mk({ kind: 'bosh', scale: 0, layers: { bld: { fill: 'use' } } as SheetOpts['layers'], stamp: { sheet: 'Funksional reja' } }),
-    mk({ kind: 'zona', scale: 0 }), mk({ kind: 'figura', scale: 0 }), mk({ kind: 'landshaft', scale: 0 }), mk({ kind: 'qavat', scale: 0 }),
+    mk({ kind: 'zona', scale: 0 }), mk({ kind: 'parsel', scale: 0 }),   // 06.11: parsellar rejasi (sukut toʻplamiga; SET_V oshirilmadi — mavjud albomlarga oʻzi qoʻshilmaydi)
+    mk({ kind: 'figura', scale: 0 }), mk({ kind: 'landshaft', scale: 0 }), mk({ kind: 'qavat', scale: 0 }),
     mk({ kind: 'vaziyat', scale: 10000 }),
     mk({ kind: 'cheklov', scale: 0 }),   // 02.11: tahlil — cheklovlar rejasi va yer balansi
     mk({ kind: 'yashil', scale: 0 }), mk({ kind: 'insol', scale: 0 }),   // 02.11: tahlil — yashil balans, insolyatsiya
