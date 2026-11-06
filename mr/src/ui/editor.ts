@@ -2333,7 +2333,7 @@ export class Editor {
       this.run(() => { for (const x of moves) this.store.dispatch({ type: 'updateBuilding', id: x.id, patch: { footprint: x.m!.footprint } }); });
       toast(tf('${n} ta bino koʻchadan chiqarildi', { n: moves.length }));
     } else if (id === 'szz-belt') {
-      // 06.11: SanPiN 0350-17, 2.19 — turar joy tomonidagi SMZ tasmasi «Himoya koʻkalamzorligi» parseli qilib ajratiladi; binolar oʻchirilmaydi
+      // 06.11: bekor qilingan SanPiN 0350-17, 2.19 (AMALIYOT, sozlama bilan yoqiladi) — turar joy tomonidagi SMZ tasmasi «Himoya koʻkalamzorligi» parseli qilib ajratiladi; binolar oʻchirilmaydi
       const bad = szzBelt(doc).filter(x => x.miss > Math.max(50, 0.02 * x.area)), miss = bad.flatMap(x => x.missRings);
       if (!miss.length) return;
       const plan = this.plan(), seen = new Set<number>(); let n = 0;
@@ -2354,7 +2354,7 @@ export class Editor {
       });
       const inBelt = doc.buildings.filter(b => hits([b.footprint.map(fr.toLocal)])).length;
       this.selBlock = null; this.scene.selectBlock(null);
-      toast(tf('${n} ta daraxt-buta tasmasi parseli ajratildi (SanPiN 0350-17, 2.19)', { n }) + (inBelt ? ' ' + tf('Tasmaga ${m} ta bino tushadi — ularni koʻchiring yoki olib tashlang.', { m: inBelt }) : ''));
+      toast(tf('${n} ta daraxt-buta tasmasi parseli ajratildi (AMALIYOT: bekor qilingan SanPiN 0350-17, 2.19)', { n }) + (inBelt ? ' ' + tf('Tasmaga ${m} ta bino tushadi — ularni koʻchiring yoki olib tashlang.', { m: inBelt }) : ''));
     } else if (id === 'park-30') {
       // 06.11 (c55): ShNQ 2.07.01-23, 418-band, 30-jadval — ochiq avtoturargohning masofani buzayotgan joylari olib tashlanadi
       const plan = computePlan(doc), gs = doc.garages.filter(g => g.kind === 'yer_usti' && !g.truck && (g.stalls?.length ?? 0) > 0);
@@ -2364,7 +2364,7 @@ export class Editor {
           const st = g.stalls!.map(q => q.map(fr.toLocal));
           const obs: T30Obs[] = [
             ...doc.buildings.filter(b => b.use !== 'avtoturargoh').map(b => ({ ring: b.footprint.map(fr.toLocal), use: b.use, res: useDef(b.use).res > 0 })),
-            ...plan.blocks.filter(k => k.use === 'maktab' || k.use === 'mtm').map(k => ({ ring: k.rings[0], use: k.use, res: false, terr: true })),
+            ...plan.blocks.filter(k => k.use === 'maktab' || k.use === 'mtm' || k.use === 'sport').map(k => ({ ring: k.rings[0], use: k.use, res: false, terr: true })),
           ];
           const keep = trimT30(st, obs); if (keep.length === st.length) continue;
           const kept = keep.map(i => st[i]), ais = (g.aisles ?? []).map(q => q.map(fr.toLocal)).filter(a => kept.some(q => ringDist(q, a) < 1));
@@ -2460,7 +2460,7 @@ export class Editor {
       if (!built(r) && g.typology !== 'minora') { const x = run({ ...g, typology: 'minora', maxF: Math.min(g.maxF, 9), minF: Math.min(g.minF, 5, g.maxF), towerF: Math.min(g.towerF ?? 16, 9, g.maxF) }); if (built(x.r)) { ({ asb, r } = x); r.notes.unshift(tr('Joy yetmadi — choʻziq seksiya oʻrniga minora (nuqtali bino), ≤ 9 qavat')); } }
       if (!built(r)) { const w = minWidth(b.rings[0]), sb = this.autoSb(i, { ...g, maxF: 3, minF: Math.min(g.minF, 3) })?.dMin ?? g.setback; r.notes.unshift(tf('Bino sigʻmadi: dahaning eng tor joyi ≈ ${w} m; 3 qavatda ham chekinish ${s} m × 2 va seksiya chuqurligi ${d} m kerak', { w: Math.round(w), s: fmt(sb, 1), d: fmt(g.depth, 1) })); }
     }
-    // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanPiN 0350-17, 2.17; ShNQ 2.07.01-23, 146) — uylar olinadi, seksiyalar qisqartiriladi
+    // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanQvaN 0103-25, 12-band; ShNQ 2.07.01-23, 146; qabriston — AMALIYOT, ehtiyot uchun) — uylar olinadi, seksiyalar qisqartiriladi
     { const dzOf = new Map<string, ReturnType<typeof denyZone>>(), dz = (u: string) => { if (!dzOf.has(u)) dzOf.set(u, denyZone(this.store.doc, u as Use)); return dzOf.get(u)!; };
       const byUse = new Map<string, typeof r.sections>(); for (const x of r.sections) { const u = x.use ?? b.use; byUse.set(u, [...(byUse.get(u) ?? []), x]); }
       r.sections = [...byUse].flatMap(([u, xs]) => clipToSzz(xs, dz(u), r.notes)); }
@@ -2693,7 +2693,7 @@ export class Editor {
     const rows = rep.map((r, k) => { const w = r.worst; return h('div', { class: 'li', 'data-entry': String(k) }, h('span', { class: 'k' }, r.e.kind === 'rampa' ? tr('Pandus (kirish-chiqish)') : tf('Shamollatish shaxtasi ${n}', { n: k }), h('span', { class: 'sub' }, w ? `${tr(EK[w.kind])} ${fmt(w.d, 1)} m · ≥ ${w.need} m` : tr('yaqin obyekt yoʻq'))),
       h('span', { class: w ? (w.ok ? 'chip ok' : 'chip bad') : 'chip ok' }, w ? (w.ok ? '✓' : '✗') : '✓')); });
     return h('div', { class: 'group', id: 'entBox' },
-      h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, h('b', {}, tr('Kirish-chiqish va shamollatish')), h('span', { class: 'sub' }, tr(ug ? '414, 415-bandlar; SanPiN 0350-17, 6.4.1-jadval 8-izoh — belgini sahnada sudrang' : '414-band: chorrahadan 50 / 20 m, bekatdan 5 m — belgini sahnada sudrang'))),
+      h('div', { class: 'li', style: 'flex-wrap:wrap;row-gap:8px' }, h('span', { class: 'k', style: 'flex:1 1 100%' }, h('b', {}, tr('Kirish-chiqish va shamollatish')), h('span', { class: 'sub' }, tr(ug ? '414, 415-bandlar; ShNQ 2.05.07-24, 10-band (oʻz binosi) — belgini sahnada sudrang' : '414-band: chorrahadan 50 / 20 m, bekatdan 5 m — belgini sahnada sudrang'))),
         h('button', { class: 'btn btn-sm', id: 'entAuto', style: 'flex:1 1 100%', onclick: () => this.placeEntries(grp) }, tr('Avtomatik joylashtir'))),
       ...rows,
       ...(rows.length ? [] : [h('div', { class: 't-small', id: 'entNone' }, tr('Kirish nuqtasi qoʻyilmagan — qoidalar «koʻrib chiqish» holatida.'))]),
@@ -3491,10 +3491,10 @@ export class Editor {
         const kv = h('input', { type: 'number', class: 'input', min: 0.4, max: 1150, step: 'any', value: l.kv ?? 10, id: 'limKv', 'aria-label': tr('Kuchlanish, kV'), onchange: (e: Event) => { const v = +(e.target as HTMLInputElement).value; if (v > 0 && v <= 1150) upd(l.id, { kv: v }); } });
         ed.append(h('div', { class: 'field' }, h('label', {}, tr('Kuchlanish')), h('span', { class: 'unit' }, kv, h('span', {}, 'kV'))));
       } else ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Holati') }, ...ST.map(([k, t]) => h('button', { 'aria-pressed': l.status === k, 'data-lst': k, onclick: () => upd(l.id, { status: k }) }, tr(t)))));
-      // 04.11 (Murad Buildings sinovi, 8-band): sanoat korxonasi sanitariya sinfi — SanQvaN 0350-17, 2.9-band
+      // 04.11 (Murad Buildings sinovi, 8-band); 06.11 (c61): sanoat korxonasi xavflilik sinfi — SanQvaN 0103-25, 7-band, 1-ilova (1–5-sinf)
       if (l.kind === 'sanoat') {
         ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Korxona sinfi'), id: 'limCls' }, ...([1, 2, 3, 4, 5] as const).map(k => h('button', { 'aria-pressed': l.cls === k, 'data-cls': k, title: `${['I', 'II', 'III', 'IV', 'V'][k - 1]} — ${[1000, 500, 300, 100, 50][k - 1]} m`, onclick: () => upd(l.id, { cls: k }) }, ['I', 'II', 'III', 'IV', 'V'][k - 1]))));
-        if (!l.cls) ed.append(h('div', { class: 'note warn', 'data-clsnote': '' }, tr('Korxona sinfini kiriting (SanQvaN 0350-17, 5-boʻlim: sanitariya tasnifi). Hozircha IV sinf — 100 m deb olindi (taxmin).')));
+        if (!l.cls) ed.append(h('div', { class: 'note warn', 'data-clsnote': '' }, tr('Korxona sinfini kiriting (SanQvaN 0103-25, 1-ilova: obyektlarning sanitariya tasnifi, 1–5-sinf). Hozircha 4-sinf — 100 m deb olindi (taxmin).')));
       }
       // 04.11 (Murad Buildings sinovi, 6-band): suv obyekti turi va toifasi — VM 981-son nizomi (kuchini yoʻqotgan, talqin)
       if (l.kind === 'suv') {
@@ -3519,17 +3519,17 @@ export class Editor {
           h('button', { 'aria-pressed': !!l.sub?.rural, onclick: () => upd(l.id, { sub: { ...l.sub, open: false, rural: !l.sub?.rural } }) }, tr('Qishloq qabristoni'))));
         else ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Qabriston turi') },
           h('button', { 'aria-pressed': !!l.sub?.rural, 'data-qab': 'rural', onclick: () => upd(l.id, { sub: { ...l.sub, rural: !l.sub?.rural } }) }, tr('Qishloq qabristoni (≤ 2 ga)'))));
-        if (!open) ed.append(h('span', { class: 't-small', 'data-qabnote': '' }, tr('Yopilganlik rasmiy hujjat bilan tasdiqlanadi. SanPiN 0350-17, 6.4: yopilgan qabriston IV (100 m) va V (50 m) sinflarda — memorial majmuasi V, qolgani IV (talqin); 50 m gacha kamaytirish — davlat sanitariya nazorati xulosasi bilan.')));
+        if (!open) ed.append(h('span', { class: 't-small', 'data-qabnote': '' }, tr('Yopilganlik rasmiy hujjat bilan tasdiqlanadi. Amaldagi SanQvaN 0103-25 da qabriston yoʻq — qiymat bekor qilingan SanPiN 0350-17, 6.4 dan, maʼlumot uchun (AMALIYOT): yopilgan qabriston IV (100 m), memorial majmuasi V (50 m).')));
       }
       const buf = h('input', { type: 'number', class: 'input', min: 0, max: 2000, step: 1, value: l.szz ?? '', placeholder: String(szzOf({ ...l, szz: undefined }, aHa).m), id: 'limBuf', 'aria-label': tr('Bufer, m'),
         onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { szz: undefined }); else if (+v >= 0 && +v <= 2000) upd(l.id, { szz: +v }); } });
       ed.append(h('div', { class: 'row', style: 'align-items:flex-end' },
         h('div', { class: 'field grow' }, h('label', {}, tr(l.kind === 'elu' ? 'Zona, har tomonga' : l.kind === 'suv' ? 'Suvni muhofaza qilish zonasi' : 'SMZ (bufer)')), h('span', { class: 'unit' }, buf, h('span', {}, 'm'))),
         h('button', { class: 'btn icon-btn btn-danger', id: 'limDel', 'aria-label': tr('Cheklovni oʻchirish'), title: tr('Cheklovni oʻchirish'), onclick: () => { this.selLimit = null; this.scene.selectLimit(null); this.run(() => this.store.dispatch({ type: 'removeLimit', id: l.id })); } }, svgIcon(IC.trash))));
-      ed.append(h('span', { class: 't-small', 'data-limref': l.id }, `${z.ref} · ${z.flag === 'NORMA' ? tr('norma') : z.flag === 'TALQIN' ? tr('talqin — tasdiqlash kerak') : tr('taxmin')}${z.cls ? ` · ${tf('${c} sinf', { c: z.cls })}` : ''}`));
+      ed.append(h('span', { class: 't-small', 'data-limref': l.id }, `${z.ref} · ${z.flag === 'NORMA' ? tr('norma') : z.flag === 'TALQIN' ? tr('talqin — tasdiqlash kerak') : z.flag === 'AMALIYOT' ? tr('amaliyot — amaldagi normada qiymat yoʻq, baholanmaydi') : tr('taxmin')}${z.cls ? ` · ${tf('${c} sinf', { c: z.cls })}` : ''}`));
       list.append(ed);
     });
-    box.append(list, h('span', { class: 't-small' }, tr('Shtrix — qurib boʻlmaydigan joy; uzuq kontur — SMZ (SanQvaN 0350-17, 2.17: turar joy, maktab, MTM, sport, park taqiqlanadi). ELU zonasi — VMQ № 1050, 14-band va SanQvaN 0350-17, 2.23.4 ning kattasi.')));
+    box.append(list, h('span', { class: 't-small' }, tr('Shtrix — qurib boʻlmaydigan joy; uzuq kontur — SMZ (SanQvaN 0103-25, 12-band: turar joy, maktab, MTM, sogʻliqni saqlash, sport, park taqiqlanadi). ELU zonasi — VMQ № 1050, 14-band va SanQvaN 0103-25, 15-band ning kattasi.')));
     return box;
   }
 
@@ -3939,7 +3939,7 @@ export class Editor {
           return [h('button', { class: 'btn btn-sm btn-block', id: 'pSzz', onclick: () => {
             const deny = (SZZ_DENY as readonly string[]).includes(target.use), inUse: Use = deny ? 'himoya' : target.use;   // 3b: park SMZ da taqiq (2.17) — himoya koʻkalamzorligi (2.19)
             this.commitParcels(bp.lab, [...bp.list.filter(p => p !== target), ...sp.inside.map(rr => ({ id: uid('pc_'), rings: rr, use: inUse })), ...sp.outside.map(rr => ({ id: uid('pc_'), rings: rr, use: target.use }))]);
-            toast(deny ? tr('SMZ qismi ajratildi va koʻkalamzor qilib belgilandi (SanPiN 0350-17, 2.17 va 2.19) — kerak boʻlsa, ruxsat etilgan funksiyaga (avtoturargoh, savdo, ofis) almashtiring.') : tr('SMZ qismi alohida parsel qilib ajratildi.'));
+            toast(deny ? tr('SMZ qismi ajratildi va koʻkalamzor qilib belgilandi (SanQvaN 0103-25, 12 va 13-bandlar) — kerak boʻlsa, ruxsat etilgan funksiyaga (sinfi past ishlab chiqarish obyekti, 14-band) almashtiring.') : tr('SMZ qismi alohida parsel qilib ajratildi.'));
           } }, ...icl('<path d="M4 20L20 4M4 4h7M13 20h7"/>', tf('SMZ chegarasi boʻyicha ajratish (${n} + ${m})', { n: sp.inside.length, m: sp.outside.length })))];
         })(),
         b.parcelId ? h('span', { class: 't-small', id: 'parcelEditHint' }, tr('Parsel chegarasini sahnada burchaklaridan sudrab toʻgʻrilang (oraliq nuqta — yangi burchak, ikki marta bosish — oʻchirish).')) : '',
@@ -4802,12 +4802,16 @@ export class Editor {
     return h('div', { class: 'regw' },
       abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr('Loyiha Oʻzbekistondan tashqarida: Oʻzbekiston meʼyorlari andoza sifatida koʻrsatiladi — «mos emas» oʻrniga «koʻrib chiqish». Mahalliy meʼyorlar profili hali ulanmagan.')) : '',
       // 04.11 (egasi: interfeysni soddalashtirish, A): hisob shartlari — «Qoʻshimcha» ichida, ekranda — joriy qiymatlar qisqa satrda; jadval darhol koʻrinadi
-      (() => { const S0 = this.store.doc.settings, n = 3 + (this.fireLowRow() ? 1 : 0);
+      (() => { const S0 = this.store.doc.settings, n = 4 + (this.fireLowRow() ? 1 : 0);
         const d = h('details', { class: 'gen-more', id: 'regSet', open: this.openDet.has('regSet') }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n })),
           h('span', { class: 't-small', id: 'regSetSum', style: 'margin-left:8px' }, [S0.recon ? tr('Rekonstruksiya') : '', `${S0.seismic > 9 ? '>9' : S0.seismic} ${tr('ball')}`, tr(SYS[S0.construct ?? 'monolit'].name), `${S0.m2PerPerson} m²/${tr('kishi')}`].filter(Boolean).join(' · '))),
         h('div', { class: 'group', id: 'reconRow' }, h('div', { class: 'li' },
         h('span', { class: 'k' }, tr('Rekonstruksiya / renovatsiya'), h('span', { class: 'sub' }, tr('79-band, 2-jadval, 7-izoh: rekonstruksiya, renovatsiya va murakkab shaharsozlik sharoitida insolyatsiya taʼminlansa jadval masofalari ikki barobargacha qisqaradi (≥ 6 m). Seysmik 2·Hmax (8-izoh) ham yarmiga — TALQIN. Yongʻin masofalari qisqarmaydi.'))),
         sw({ id: 'reconOn', label: tr('Rekonstruksiya / renovatsiya'), on: this.store.doc.settings.recon === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { recon: v } })) }))),
+        // 06.11 (c61, egasi): SMZ daraxt-buta tasmasi — bekor qilingan SanPiN 0350-17, 2.19; 0103-25 da yoʻq — sukut oʻchiq, yoqilsa AMALIYOT
+        h('div', { class: 'group', id: 'szzBeltRow' }, h('div', { class: 'li' },
+        h('span', { class: 'k' }, tr('SMZ daraxt-buta tasmasi (AMALIYOT)'), h('span', { class: 'sub' }, tr('Amaldagi SanQvaN 0103-25 da talab yoʻq. Yoqilsa — bekor qilingan SanPiN 0350-17, 2.19 boʻyicha tekshiriladi (turar joy tomonida ≥ 50 m, zona ≤ 100 m boʻlsa ≥ 20 m); natija «koʻrib chiqish» dan yuqori boʻlmaydi.'))),
+        sw({ id: 'szzBeltOn', label: tr('SMZ daraxt-buta tasmasi (AMALIYOT)'), on: this.store.doc.settings.szzBelt === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { szzBelt: v } })) }))),
       this.seismicRow(),
       this.fireLowRow(),
       // 04.11 (audit): aholi hisobi — ShNQ 2.07.01-23, 1-jadval (qulaylik darajasi) va 61-band (≥ 16 m²/kishi)

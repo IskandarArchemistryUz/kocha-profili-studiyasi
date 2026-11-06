@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { intersections, entryChecks, autoEntry, autoShafts, entryRing, worstCheck, ringDist, NEED, type EntryEnv } from '../../src/core/parkentry';
-import { autoEntries, entryReport } from '../../src/core/parkenv';
+import { autoEntries, entryReport, entryEnv } from '../../src/core/parkenv';
 import { blankProject, type Building, type Garage, type Project } from '../../src/core/doc';
 import { frame, type XY } from '../../src/core/geo';
 import { RULES } from '../../src/norms/rules';
@@ -12,7 +12,7 @@ const fr = frame(O);
 /** kvartal 0..100 × 0..80; janubda magistral (y = −15), gʻarbda mahalliy (x = −10) — chorraha (−10, −15) */
 const env0 = (): EntryEnv => ({ block: sq(0, 0, 100, 80), streets: [{ axis: [[-60, -15], [160, -15]], w: 30, main: true }, { axis: [[-10, -60], [-10, 140]], w: 20, main: false }], stops: [], windows: [], edu: [], rest: [], buildings: [] });
 
-describe('avtoturargoh kirish-chiqishi (05.11): 414, 415-bandlar, SanPiN 6.4.1 8-izoh', () => {
+describe('avtoturargoh kirish-chiqishi (05.11): 414, 415-bandlar', () => {
   it('chorrahalar: kesishma va tutashgan uch, magistral belgisi', () => {
     const x = intersections(env0().streets); expect(x).toHaveLength(1); expect(x[0].main).toBe(true); expect(x[0].p[0]).toBeCloseTo(-10); expect(x[0].p[1]).toBeCloseTo(-15);
     const t = intersections([{ axis: [[0, 0], [100, 0]], w: 20, main: false }, { axis: [[50, 1], [50, 80]], w: 20, main: false }]);   // uchi oʻqqa 1 m da tutashgan
@@ -84,5 +84,21 @@ describe('avtoturargoh kirish-chiqishi (05.11): 414, 415-bandlar, SanPiN 6.4.1 8
     const d4 = doc(g([toG(es[0]), { at: fr.toGeo([40, 5]), kind: 'shaxta', edge: true }]), [house(13)].map(b => ({ ...b, id: 'h4', footprint: sq(20, 13, 40, 14).map(fr.toGeo) })));
     const r4 = ev('ug-park-415', { ...d4, garages: [{ ...d4.garages[0], entries: [{ at: fr.toGeo([90, 5]), kind: 'rampa', dir: -Math.PI / 2 }, { at: fr.toGeo([40, 5]), kind: 'shaxta', edge: true }] }] });
     expect(r4.status).toBe('review');
+  });
+});
+
+/** 06.11 (c61): ShNQ 2.05.07-24, 10-band — binoda joylashgan yer osti avtoturargohi kirish-chiqishidan oʻz binosigacha masofa belgilanmaydi */
+describe('ug-park-415: oʻz binosi (ShNQ 2.05.07-24, 10-band)', () => {
+  it('garaj bino ostida — pandus oʻz binosiga yaqin boʻlsa ham mos emas emas; shaxta oʻz binosidan tekshiriladi; manba — 0350-17 siz', () => {
+    const base = blankProject('t'), ring = sq(20, 20, 40, 10);
+    const g: Garage = { id: 'g1', grp: 'b1', kind: 'yer_osti', ring: ring.map(fr.toGeo), levels: 1, spaces: 40, entries: [{ at: fr.toGeo([25, 20]), kind: 'rampa', dir: -Math.PI / 2 }] };
+    const host: Building = { id: 'h', footprint: sq(15, 15, 55, 25).map(fr.toGeo), floors: 9, nonRes: 0, use: 'turar' } as Building;
+    const d: Project = { ...base, origin: O, buildings: [host], garages: [g], settings: { ...base.settings, yards: false }, site: { rings: [sq(0, 0, 100, 80).map(fr.toGeo)] } as Project['site'] };
+    const env = entryEnv(d, g); expect(env.windows).toHaveLength(0); expect(env.host).toHaveLength(1);
+    const ev = (x: Project) => RULES.find(r => r.id === 'ug-park-415')!.evaluate(derive(x), x);
+    expect(ev(d).status).toBe('pass'); expect(ev(d).note).toContain('2.05.07-24');
+    const sh: Project = { ...d, garages: [{ ...g, entries: [...g.entries!, { at: fr.toGeo([40, 25]), kind: 'shaxta' }] }] };
+    expect(ev(sh).status).toBe('fail');
+    expect(RULES.find(r => r.id === 'ug-park-415')!.source.doc).not.toContain('0350');
   });
 });

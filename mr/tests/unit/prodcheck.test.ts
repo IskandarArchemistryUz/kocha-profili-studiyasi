@@ -25,9 +25,12 @@ const mk = (sub?: string, house = true) => {
 describe('logistika turlari (02.11)', () => {
   it('SMZ va manba', () => {
     expect(prodSzz('logistika', 'sabzavot')).toMatchObject({ szz: 50, flag: 'NORMA' });
-    expect(prodSzz('logistika', 'yoqilgi')).toMatchObject({ szz: 100, flag: 'TALQIN' });   // 6.3 — qishloq xoʻjaligi boʻlimi qatori
-    expect(prodSzz('logistika', 'sovutgich')).toMatchObject({ szz: 50, flag: 'NORMA' });   // 04.11: 6.6 V-3
-    expect(prodSzz('logistika', 'qurilish')).toMatchObject({ szz: 300, flag: 'NORMA' });   // 04.11: 6.6 III-5
+    // 06.11 (c61): SanQvaN 0103-25, 1-ilova — 425 (4-sinf, transport va kommunal boʻlimi), 465 (5-sinf), 299 (3-sinf) / 480 (5-sinf) — ikki qator
+    expect(prodSzz('logistika', 'yoqilgi')).toMatchObject({ szz: 100, flag: 'NORMA' });
+    expect(prodSzz('logistika', 'sovutgich')).toMatchObject({ szz: 50, flag: 'NORMA' });
+    expect(prodSzz('logistika', 'qurilish')).toMatchObject({ szz: 300, flag: 'TALQIN' });
+    expect(prodSzz('logistika', 'tarqatish')).toMatchObject({ szz: 50, flag: 'TALQIN' });
+    expect(prodSzz('logistika', 'terminal')?.ref).toContain('413');
     expect(logiType('terminal').rail).toBe(true); expect(logiType(undefined).id).toBe('tarqatish');
     expect(prodSzz('sanoat')?.flag).toBe('ANDOZA'); expect(prodSzz('turar')).toBeNull();
   });

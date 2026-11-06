@@ -22,7 +22,7 @@ import type { Limit, LimitKind } from '../core/limits';
 type Geo = { lat: number; lon: number };
 export interface OsmEl { type: 'node' | 'way' | 'relation'; id: number; tags?: Record<string, string>; lat?: number; lon?: number; geometry?: Geo[]; members?: { type: string; role: string; geometry?: Geo[] }[] }
 
-export const LIM_OSM_R = 1000;   // 04.11: sanoat korxonasi I sinf SMZ — 1000 m (SanQvaN 0350-17, 2.9); avval 500
+export const LIM_OSM_R = 1000;   // 04.11: sanoat korxonasi I sinf SMZ — 1000 m (SanQvaN 0103-25, 7-band: 1-sinf); avval 500
 
 export function limitsQuery(site: LngLat[], r = LIM_OSM_R): string {
   const fr = frame(site[0]), loc = site.map(fr.toLocal), xs = loc.map(p => p[0]), ys = loc.map(p => p[1]);

@@ -1,6 +1,6 @@
 import { test, expect } from './fx';
 
-/** 06.11 — SanPiN RUz № 0350-17, 2.19: turar joy tomonida daraxt-buta tasmasi ≥ 50 m (zona ≤ 100 m — ≥ 20 m); «Tuzat» — himoya parseli */
+/** 06.11 — bekor qilingan SanPiN RUz № 0350-17, 2.19 (AMALIYOT; c61 — sukut oʻchiq, «Qoʻshimcha» da yoqiladi): daraxt-buta tasmasi ≥ 50 m (zona ≤ 100 m — ≥ 20 m); «Tuzat» — himoya parseli */
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`SMZ daraxt-buta tasmasi · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(150_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
@@ -17,7 +17,14 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`SMZ daraxt
   await page.click('[data-use=turar]');
   await page.click('#kMore');
   const row = page.locator('.drawer [data-rule=szz-belt]');
-  await expect(row.locator('[data-s=fail]').first()).toBeVisible();
+  // sukut — oʻchiq (0103-25 da talab yoʻq): baholanmaydi
+  await expect(row.locator('[data-s=na]').first()).toBeVisible();
+  await page.locator('.drawer #regSet > summary').click();
+  await page.locator('.drawer #szzBeltOn').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.szzBelt)).toBe(true);
+  // yoqilganda — AMALIYOT: eng koʻpi «koʻrib chiqish», «mos emas» emas
+  await expect(row.locator('[data-s=review]').first()).toBeVisible();
+  await expect(row.locator('[data-s=fail]')).toHaveCount(0);
   await row.locator('button.li').click();
   await expect(page.locator('#fix-szz-belt')).toBeVisible();
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/szz_tasma_oldin_${w}${dark ? 'd' : 'l'}.png` });

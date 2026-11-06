@@ -4,10 +4,13 @@
  * qurib boʻlmaydigan va SMZ zonalari, yer balansi — har safar shu yerda hisoblanadi.
  *
  * Normalar (asl matndan, egasining normalar papkasi va lex.uz):
- *  - SanQvaN (СанПиН РУз) № 0350-17: 2.9 (SMZ sinflari I 1000 · II 500 · III 300 · IV 100 · V 50 m), 6.3 (issiqxona va parnik
- *    xoʻjaliklari — IV; meva, sabzavot, kartoshka, don, material omborlari — V), 6.4 (qabriston: > 20 ga — II; 10–20 ga — III;
- *    < 10 ga va yopilgan — IV; yopilgan memorial, kolumbariy, qishloq qabristoni ≤ 2 ga — V), 2.17 (SMZ ichida taqiq), 2.20 (SMZ
- *    ichida ruxsat), 2.23.4 (ELU sanitariya zonasi: 330 kV — 20 m, 500 — 30, 750 — 40, 1150 — 55 m).
+ *  - 0103-25-son SanQvaN «Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlari» (SEO qoʻmitasi
+ *    15.08.2025 dagi 24-son qarori, AV 29.09.2025, № 373; 2-ilova 3-band — SanPiN 0350-17 bekor): 7-band (SMZ: 1-ilovaning 1-sinfi
+ *    1000 · 2 — 500 · 3 — 300 · 4 — 100 · 5 — 50 m), 1-ilova (obyektlar tasnifi: teplitsa va parnik xoʻjaliklari — 4-sinf, 381; don, meva
+ *    va sabzavot omborxonalari — 5-sinf, 456), 12-band (SMZ ichida taqiq), 14-band (SMZ ichida ruxsat), 15-band (ET SMZ: 1 kV gacha — 2 m,
+ *    20 — 10, 35 — 15, 110 — 20, 220 — 25, 500 — 30, 750 — 40, 1150 kV gacha — 55 m).
+ *    0103-25 da QABRISTON yoʻq — SMZ oldingi SanPiN 0350-17, 6.4 qiymatidan maʼlumot uchun chiziladi (flag AMALIYOT; tekshiruvlarda
+ *    «mos emas» berilmaydi — «koʻrib chiqish»).
  *  - VMQ № 1050, 26.12.2018 «Электр тармоғи хўжалиги объектларини муҳофаза қилиш қоидалари», 14-band (havo ELU muhofaza zonasi
  *    har tomonga: ≤ 1 kV — 2 m; 6–20 kV — 10; 35 — 15; 110 — 20; 220 — 25; 500 — 30 m; yer osti kabeli — 1 m); 17-band — zonada bino
  *    qurish egasining yozma roziligi bilan.
@@ -17,7 +20,8 @@
  *    tasdiqlangan nizom — 18, 21 (koʻl, suv ombori), 29, 30 (daryo), 31, 32, 35 (kanal), 23, 37 (aholi punktida — bosh reja boʻyicha)-bandlar.
  *    DIQQAT: LexUz 981-son qarorni 23.06.2026 dan kuchini yoʻqotgan deb belgilaydi (VM 22.06.2026 dagi 317-son qarori), oʻrnini bosuvchi
  *    hujjat aniqlanmagan — barcha kengliklar TALQIN. Zona rejimi — Suv kodeksi (30.07.2025), 24-bob, 125–138-moddalar (metr qiymatlari yoʻq).
- * Flag: NORMA — asl matndagi raqam; TALQIN — matn ikki xil oʻqiladi (egasi tasdiqlaydi); TAXMIN — matnda yoʻq.
+ * Flag: NORMA — asl matndagi raqam; TALQIN — matn ikki xil oʻqiladi (egasi tasdiqlaydi); TAXMIN — matnda yoʻq;
+ *       AMALIYOT — amaldagi normada qiymat yoʻq, bekor qilingan hujjat qiymati maʼlumot uchun (baholanmaydi).
  */
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import type { LngLat, Project, Ring } from './doc';
@@ -45,7 +49,7 @@ export interface Limit {
   sub?: { open?: boolean; memorial?: boolean; rural?: boolean };
   /** qoʻlda oʻzgartirilgan bufer, m (yoʻq — jadvaldan) */
   szz?: number;
-  /** 04.11: sanoat korxonasi sanitariya sinfi (SanQvaN 0350-17, 2.9-band: I–V); yoʻq — kiritilmagan (TAXMIN) */
+  /** 04.11: sanoat korxonasi sanitariya sinfi (SanQvaN 0103-25, 7-band, 1-ilova: 1–5-sinf); yoʻq — kiritilmagan (TAXMIN) */
   cls?: 1 | 2 | 3 | 4 | 5;
   /** 04.11: suv obyekti — turi va toifasi. daryo: 1 katta (> 100 m³/s), 2 oʻrta (5–100), 3 kichik (2–5), 4 juda kichik (< 2);
    *  kanal: 1 ichimlik suvi, 2 sugʻorish / kollektor. Koʻl va suv ombori — toifasiz */
@@ -58,35 +62,33 @@ export interface Limit {
 }
 
 export type SuvType = 'daryo' | 'kol' | 'kanal';
-export type Flag = 'NORMA' | 'TALQIN' | 'TAXMIN';
+export type Flag = 'NORMA' | 'TALQIN' | 'TAXMIN' | 'AMALIYOT';
 export interface Szz { m: number; cls?: 'I' | 'II' | 'III' | 'IV' | 'V'; ref: string; flag: Flag; /** qoʻlda oʻzgartirilganda — jadvaldagi qiymat */ table?: number }
 
-const SAN = 'SanQvaN 0350-17';
-/** Cheklov turi va maydoniga (ga) koʻra SMZ — SanQvaN 0350-17, 6.3 / 6.4; temir yoʻl — ShNQ 2.07.01-23, 359 */
+const SAN = 'SanQvaN 0103-25';
+/** bekor qilingan SanPiN 0350-17 (0103-25, 2-ilova, 3-band) — faqat AMALIYOT qiymatlari uchun */
+const OLD = 'SanPiN 0350-17, 6.4 (bekor qilingan) — 0103-25 da qabriston yoʻq';
+/** Cheklov turi va maydoniga (ga) koʻra SMZ — SanQvaN 0103-25, 7-band va 1-ilova; temir yoʻl — ShNQ 2.07.01-23, 359; qabriston — AMALIYOT */
 export function szzOf(l: Limit, areaHa: number): Szz {
   const own = (s: Szz): Szz => l.szz != null && l.szz >= 0 ? { ...s, m: l.szz, flag: s.flag, ref: `${s.ref} · qoʻlda`, table: s.m } : s;
   switch (l.kind) {
     case 'qabriston': {
-      const open = l.sub?.open !== false;
-      // 6.4, V sinf, 6-band: «…сельские кладбища (до 2 га)» — alohida nomlangan (aniqroq band), amaldagi boʻlsa ham V
-      if (l.sub?.rural && areaHa <= 2) return own({ m: 50, cls: 'V', ref: `${SAN}, 6.4`, flag: 'NORMA' });
-      if (open) {
-        if (areaHa > 20) return own({ m: 500, cls: 'II', ref: `${SAN}, 6.4`, flag: 'NORMA' });
-        if (areaHa >= 10) return own({ m: 300, cls: 'III', ref: `${SAN}, 6.4`, flag: 'NORMA' });
-        return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.4`, flag: 'NORMA' });
-      }
-      // 6.4 da «yopilgan qabriston» ham IV (12-band), ham V (6-band) sinfda. V da memorial majmua, kolumbariy, qishloq qabristoni bilan
-      // bir guruhda — yopilgan memorial → V; qolgan yopilgan → IV (xavfsizroq; dafn toʻxtagach xavf asta kamayadi) — TALQIN
-      if (l.sub?.memorial) return own({ m: 50, cls: 'V', ref: `${SAN}, 6.4`, flag: 'NORMA' });
-      return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.4`, flag: 'TALQIN' });
+      // 06.11 (c61): 0103-25 ning 1-ilovasida qabriston (dafn joyi) qatori yoʻq — amaldagi normada qiymat yoʻq.
+      // Oldingi 0350-17, 6.4 qiymatlari maʼlumot uchun (AMALIYOT): > 20 ga — II; 10–20 ga — III; < 10 ga va yopilgan — IV;
+      // yopilgan memorial, kolumbariy, qishloq qabristoni ≤ 2 ga — V
+      const open = l.sub?.open !== false, A = (m: number, cls: Szz['cls']) => own({ m, cls, ref: OLD, flag: 'AMALIYOT' });
+      if (l.sub?.rural && areaHa <= 2) return A(50, 'V');
+      if (open) return areaHa > 20 ? A(500, 'II') : areaHa >= 10 ? A(300, 'III') : A(100, 'IV');
+      return l.sub?.memorial ? A(50, 'V') : A(100, 'IV');
     }
-    case 'issiqxona': return own({ m: 100, cls: 'IV', ref: `${SAN}, 6.3`, flag: 'NORMA' });
-    case 'ombor': return own({ m: 50, cls: 'V', ref: `${SAN}, 6.6 V sinf, 7 («Склады»); ShNQ 2.07.01-23, 173`, flag: 'NORMA' });
+    case 'issiqxona': return own({ m: 100, cls: 'IV', ref: `${SAN}, 7-band; 1-ilova, 4-sinf, 381 («teplitsa va parnik xoʻjaliklari»)`, flag: 'NORMA' });
+    // 1-ilovada umumiy «ombor» qatori yoʻq: 5-sinf, 456 — don, meva va sabzavotlarni saqlash omborxonalari (TALQIN); ShNQ 173 — sabzavot-meva ≥ 50 m
+    case 'ombor': return own({ m: 50, cls: 'V', ref: `${SAN}, 1-ilova, 5-sinf, 456 (umumiy ombor qatori yoʻq); ShNQ 2.07.01-23, 173`, flag: 'TALQIN' });
     case 'temiryol': return own({ m: 100, ref: 'ShNQ 2.07.01-23, 359', flag: 'NORMA' });
-    // 04.11 (Murad Buildings sinovi, 8-band): 2.9-band — «1 класса - 1000 м, II - 500 м, III - 300 м, IV - 100 м, V - 50 м» (asl matn).
-    // Sinf korxona turiga qarab (5-boʻlim, sanitariya tasnifi); kiritilmagan boʻlsa — IV (100 m), TAXMIN: «korxona sinfini kiriting»
+    // 06.11 (c61): 0103-25, 7-band — 1-ilovaning 1-sinfi 1000 m, 2 — 500, 3 — 300, 4 — 100, 5 — 50 m (ifloslantiruvchi manbadan).
+    // Sinf korxona turiga qarab (1-ilova); kiritilmagan boʻlsa — 4-sinf (100 m), TAXMIN: «korxona sinfini kiriting». Ichki belgi — I–V
     case 'sanoat': { const R = ['I', 'II', 'III', 'IV', 'V'] as const, M = [1000, 500, 300, 100, 50];
-      return l.cls ? own({ m: M[l.cls - 1], cls: R[l.cls - 1], ref: `${SAN}, 2.9`, flag: 'NORMA' }) : own({ m: 100, cls: 'IV', ref: `${SAN}, 2.9 — sinf kiritilmagan`, flag: 'TAXMIN' }); }
+      return l.cls ? own({ m: M[l.cls - 1], cls: R[l.cls - 1], ref: `${SAN}, 7-band (1-ilova, ${l.cls}-sinf)`, flag: 'NORMA' }) : own({ m: 100, cls: 'IV', ref: `${SAN}, 7-band — sinf kiritilmagan`, flag: 'TAXMIN' }); }
     case 'elu': return eluZone(l);
     case 'suv': return suvZones(l).zone;
     default: return own({ m: 0, ref: '—', flag: 'TAXMIN' });
@@ -126,13 +128,14 @@ export function suvZones(l: Pick<Limit, 'suv' | 'szz' | 'qir'>): { zone: Szz; sh
 
 /** VMQ № 1050, 14-band (muhofaza zonasi, har tomonga): [kuchlanish sinfi, m]; 6–20 kV — bitta sinf */
 const VMQ: [number, number][] = [[1, 2], [20, 10], [35, 15], [110, 20], [220, 25], [500, 30]];
-/** SanQvaN 0350-17, 2.23.4 (sanitariya zonasi) */
-const SAN_ELU: [number, number][] = [[330, 20], [500, 30], [750, 40], [1150, 55]];
+/** SanQvaN 0103-25, 15-band (ET SMZ, «… kV gacha»): [kuchlanish, m] */
+const SAN_ELU: [number, number][] = [[1, 2], [20, 10], [35, 15], [110, 20], [220, 25], [500, 30], [750, 40], [1150, 55]];
 /**
- * ELU zonasi (liniya oʻqidan har tomonga, m). VMQ 1050, 14 «а» va SanPiN 2.23.4 — zona CHETKI SIMDAN oʻlchanadi; ilovada liniya oʻq chizigʻi
+ * ELU zonasi (liniya oʻqidan har tomonga, m). VMQ 1050, 14 «а» — zona CHETKI SIMDAN oʻlchanadi (0103-25, 15-band — «ETning radiusi
+ * boʻylab», oʻlchash nuqtasi aytilmagan — chetki simdan, TALQIN); ilovada liniya oʻq chizigʻi
  * bilan kiritiladi, shuning uchun oʻqdan chetki simgacha yarim kenglik qoʻshiladi (ANDOZA — tipik tayanchlar boʻyicha, 04.11 audit).
  * Ikki normaning kattasi; kabel — 1 m; demontaj — yoʻq. Kuchlanishi berilmagan liniya — 6–20 kV sinfi (TAXMIN, kuchlanishni kiriting).
- * Jadvalda yoʻq kuchlanish (masalan 330 kV — VMQ da yoʻq) — yuqori sinf qiymati (TAXMIN).
+ * 0103-25, 15-band «… kV gacha» — oraliqdagi kuchlanish (masalan 330 kV) yuqori qatorga kiradi (NORMA); 1150 kV dan yuqori — TAXMIN.
  */
 const WIRE_HALF: [number, number][] = [[1, 0], [20, 1], [35, 2], [110, 3], [220, 4], [330, 5], [500, 6.5], [750, 9], [1150, 12]];
 export function eluZone(l: Pick<Limit, 'kv' | 'elu' | 'szz'>): Szz {
@@ -143,21 +146,24 @@ function eluTable(l: Pick<Limit, 'kv' | 'elu'>): Szz {
   if (l.elu === 'demontaj') return { m: 0, ref: 'VMQ № 1050, 14', flag: 'NORMA' };
   if (l.elu === 'kabel') return { m: 1, ref: 'VMQ № 1050, 14 «б»', flag: 'NORMA' };
   const unknown = !(l.kv != null && l.kv > 0), kv = unknown ? 10 : l.kv!;
-  const vRow = VMQ.find(([k]) => kv <= k), sRow = kv >= 330 ? SAN_ELU.find(([k]) => kv <= k) : undefined;
+  const vRow = VMQ.find(([k]) => kv <= k), sRow = SAN_ELU.find(([k]) => kv <= k);
   const a = vRow?.[1] ?? 0, b = sRow?.[1] ?? (kv > 1150 ? 55 : 0), z = Math.max(a, b) || 55;
-  // aniq qator: VMQ da 1 kV gacha, 6–20, 35, 110, 220, 500; SanPiN da 330, 500, 750, 1150 — qaysi qiymat olingan boʻlsa, oʻsha qator aniq boʻlishi kerak
-  const exact = z === b ? SAN_ELU.some(([k]) => k === kv) : (kv <= 1 || (kv >= 6 && kv <= 20) || [35, 110, 220, 500].includes(kv));
+  // 0103-25, 15-band «gacha» — har kuchlanish oʻz qatorida (aniq); 1150 kV dan yuqori — jadvaldan tashqari (TAXMIN)
+  const exact = kv <= 1150;
   const half = WIRE_HALF.find(([k]) => kv <= k)?.[1] ?? 12;
-  const ref = `${z === b && b > a ? `${SAN}, 2.23.4` : 'VMQ № 1050, 14 «а»'} (chetki simdan) + ${half} m oʻqdan chetki simgacha (andoza)${unknown ? ' · kuchlanish berilmagan — 6–20 kV deb olindi' : ''}`;
+  const ref = `${b > a ? `${SAN}, 15-band` : `VMQ № 1050, 14 «а»; ${SAN}, 15-band`} (chetki simdan) + ${half} m oʻqdan chetki simgacha (andoza)${unknown ? ' · kuchlanish berilmagan — 6–20 kV deb olindi' : ''}`;
   return { m: z + half, ref, flag: unknown || !exact ? 'TAXMIN' : 'NORMA' };
 }
 
-/** SMZ ichida taqiqlangan (SanQvaN 0350-17, 2.17) va ruxsat etilgan (2.20, qabriston uchun — TALQIN) funksiyalar */
-// 04.11 (audit): 2.17 — «лечебно-профилактические и оздоровительные учреждения общего пользования», «парки», «спортивные сооружения»
-// taqiqlanadi → umumshahar poliklinikasi taqiqda (2.20 dagi poliklinika — faqat korxonaga xizmat qiluvchi, qoʻlda kelishiladi)
-export const SZZ_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'sport', 'yashil', 'poliklinika'];
-export const SZZ_ALLOW: readonly Use[] = ['himoya', 'avtoturargoh', 'savdo', 'ofis', 'texnik', 'maydon', 'mamuriy', 'logistika', 'sanoat', 'kommunal', 'transport'];   // 2.20: boshqaruv binolari, kichik sinfli korxonalar, omborlar (oziq-ovqatdan tashqari), garajlar
-/** 2.17: «оптовые склады продовольственного сырья и пищевых продуктов» — oziq-ovqat omborlari (LOGI turlari) SMZ da taqiqlanadi */
+/** SMZ ichida taqiqlangan (SanQvaN 0103-25, 12-band) va ruxsat etilgan (14-band) funksiyalar */
+// 12-band: aholi turar joylari; oziq-ovqat ishlab chiqaruvchi korxonalar, oziq-ovqat omborxonalari, ichimlik suvi inshootlari; ijtimoiy soha
+// obyektlari (MTM, taʼlim, sogʻliqni saqlash), aholi dam olish joylari (park — TALQIN), sport inshootlari → «Boshqa ijtimoiy» ham taqiqda
+export const SZZ_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'sport', 'yashil', 'poliklinika', 'ijtimoiy'];
+// 14-band: «xavflilik sinfi past boʻlgan obyektlar» (ishlab chiqarish funksiyalari — sinfi pastligi TALQIN) va obyekt tarkibidagi oʻquv binolari,
+// ishlab chiqarishga taalluqli savdo, umumiy ovqatlanish, poliklinika, ilmiy-tadqiqot laboratoriyalari (qoʻlda kelishiladi). Himoya koʻkalamzorligi —
+// 13-band (SMZ ni koʻkalamzorlashtirish). 0350-17, 2.20 dagi boshqaruv binolari, garaj va avtoturargoh, umumiy savdo, muhandislik — roʻyxatda yoʻq → koʻrib chiqish
+export const SZZ_ALLOW: readonly Use[] = ['himoya', 'logistika', 'sanoat', 'kommunal', 'transport'];
+/** 12-band: «oziq-ovqat mahsulotlar omborxonalari» — oziq-ovqat omborlari (LOGI turlari) SMZ da taqiqlanadi */
 export const SZZ_FOOD_LOGI: readonly string[] = ['sabzavot', 'sovutgich'];
 
 export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; /** koʻpburchaklar (tashqi + teshiklar) — kesishma hisobi uchun */ polys: XY[][][]; m: number; cls?: string; ref: string; flag: Flag }

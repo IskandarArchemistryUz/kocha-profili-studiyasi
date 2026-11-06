@@ -154,6 +154,8 @@ export interface Settings {
   /** 05.11: ShNQ 2.07.01-23, 90-band — maydonchalarni ikki baravargacha qisqartirish asoslari (faktga bogʻliq, sukut — oʻchiq):
    *  sport — mavze miqyosida sport-sogʻlomlashtirish majmuasi (bolalar, kattalar, sport ×0,5); dust — chang boʻronli hudud, xoʻjalik uchun yopiq inshoot (xoʻjalik ×0,5) */
   play90?: { sport?: boolean; dust?: boolean };
+  /** 06.11 (c61, egasi): SMZ daraxt-buta tasmasi tekshiruvi — bekor qilingan SanPiN 0350-17, 2.19 (AMALIYOT); 0103-25 da yoʻq, sukut — oʻchiq */
+  szzBelt?: boolean;
   /** yuk koʻtaruvchi tizim — QMQ 2.01.03-19, 3.1-jadval (boʻlma uzunligi chegarasi); yoʻq — monolit devorlar */
   construct?: ConstructSys;
   /** 04.11 (egasi): seysmiklik olingan aholi punkti — QMQ 2.01.03-19, 1-ilova; kalit «viloyat kodi:nomi» */

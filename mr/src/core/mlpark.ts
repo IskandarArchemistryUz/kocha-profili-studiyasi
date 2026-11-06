@@ -44,6 +44,15 @@ export const rampWidth = (): number => 2 * ML.lane + ML.sep;
 export const T30 = {
   front: [12, 15, 25, 35, 50], blind: [12, 10, 15, 25, 35], pub: [10, 10, 15, 25, 25], school: [15, 25, 25, 50, null], hosp: [25, 50, null, null, null],
 } as const satisfies Record<string, readonly (number | null)[]>;
+/** 06.11 (c61): SanQvaN 0103-25, 17-band, 3-ilova — ochiq avtoturargoh SMZ, m (ustunlar T30 bilan bir xil); null — «-» */
+export const Q3 = {
+  win: [10, 12, 15, 25, 35], blind: [10, 15, 25, 35, 50], social: [15, 25, 25, 50, null], hosp: [25, 50, null, null, null],
+} as const satisfies Record<string, readonly (number | null)[]>;
+const maxN = (...v: (number | null)[]): number | null => v.every(x => x == null) ? null : Math.max(...v.filter((x): x is number => x != null));
+/** ikki normaning kattasi (TALQIN): turar joy — tomon modelda aniqlanmaydi, shuning uchun ShNQ old/derazasiz va 3-ilova derazali/derazasiz tomonlarning kattasi */
+export const RES30: number[] = T30.front.map((f, i) => maxN(f, T30.blind[i], Q3.win[i], Q3.blind[i])!);
+/** MTM, taʼlim, dam olish joylari va sport inshootlari — ShNQ «мактаблар, таълим» va 3-ilova 3-qatorining kattasi */
+export const SOC30: (number | null)[] = T30.school.map((v, i) => maxN(v, Q3.social[i]));
 export const capCol = (n: number): number => n <= 10 ? 0 : n <= 50 ? 1 : n <= 100 ? 2 : n <= 300 ? 3 : 4;
 export const CAP_COL_NAME = ['≤ 10', '11–50', '51–100', '101–300', '> 300'];
 
@@ -150,13 +159,13 @@ export const COL_MAX = [10, 50, 100, 300, Infinity] as const;
 export const PUB30 = new Set(['maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona', 'sport', 'aralash']);
 /**
  * 06.11 (c55): ochiq avtoturargoh joylaridan binogacha talab qilinadigan masofa, m — 30-jadval, sigʻim ustuni c.
- * Turar joy — «олд томонидан» (derazasiz yon tomon modelda aniqlanmaydi — qattiqroq qiymat, TALQIN);
- * maktab/MTM binosi — «мактаблар, таълим ташкилотлари» (hudud oʻrniga bino — TALQIN; «–» > 300 — 101–300 qiymati, TALQIN);
+ * Turar joy — ShNQ 30-jadval va SanQvaN 0103-25, 3-ilova tomonlarining kattasi (RES30; tomon modelda aniqlanmaydi — TALQIN);
+ * maktab/MTM va sport — SOC30 (hudud oʻrniga bino — TALQIN; «–» > 300 — 101–300 qiymati, TALQIN);
  * boshqa jamoat binolari — «жамоат бинолари». null — 30-jadvalga kirmaydi.
  */
 export function t30Need(use: string, res: boolean, c: number): number | null {
-  if (res) return T30.front[c];
-  if (use === 'maktab' || use === 'mtm') return T30.school[c] ?? T30.school[3];
+  if (res) return RES30[c];
+  if (use === 'maktab' || use === 'mtm' || use === 'sport') return SOC30[c] ?? SOC30[3];
   if (PUB30.has(use)) return T30.pub[c];
   return null;
 }
@@ -166,7 +175,7 @@ export interface T30Obs { ring: XY[]; use: string; res: boolean; /** maktab/MTM 
  * ustun chegarasicha (binolardan eng uzoqlari qoladi); eng koʻp joy qoladigan ustun tanlanadi. Natija — qoladigan joylar indekslari.
  */
 export function trimT30(stalls: XY[][], obs: T30Obs[]): number[] {
-  const near = (i: number, c: number) => Math.min(...obs.map(o => { const n = o.terr ? T30.school[c] ?? T30.school[3] : t30Need(o.use, o.res, c); return n == null ? Infinity : ringDist(stalls[i], o.ring) - n; }));
+  const near = (i: number, c: number) => Math.min(...obs.map(o => { const n = o.terr ? SOC30[c] ?? SOC30[3] : t30Need(o.use, o.res, c); return n == null ? Infinity : ringDist(stalls[i], o.ring) - n; }));
   let best: number[] = [];
   for (let c = 0; c < COL_MAX.length; c++) {
     const ok = stalls.map((_, i) => ({ i, m: near(i, c) })).filter(x => x.m >= -0.3).sort((a, b) => b.m - a.m);
