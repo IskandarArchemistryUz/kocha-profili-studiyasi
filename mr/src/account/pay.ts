@@ -321,3 +321,10 @@ export async function siteGate(pid: string, ha: number): Promise<boolean> {
     go.focus();
   });
 }
+
+/** Tugma izohi uchun: eksport turi narxi (tanga, uchastka koeffitsienti bilan); egasi / hisob oʻchiq yoki narxlar hali yoʻq — null */
+export function itemPrice(id: string): number | null {
+  if (freeMode()) return null;
+  const t = PR?.items[id]; if (!t) { void loadPrices(); return null; }
+  return Math.round(t.coins * (t.mr ? kOf(exportArea()) : 1));
+}

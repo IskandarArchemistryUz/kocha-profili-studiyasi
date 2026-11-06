@@ -9,6 +9,7 @@ import { listProjects, getProject, putProject, deleteProject, importJSON, import
 import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
 import { tr, autoTranslate } from './i18n';
+import { initTips } from './ui/tips';   // tugma izohlari (tanishtiruv, A qism)
 import { initStats } from './core/stats';
 import { coinsDialog } from './account/pay';   // + yuklash darvozasi: bepul (belgili) / toza (tanga)
 import { handlePayReturn, buyDialog } from './account/buy';
@@ -20,6 +21,7 @@ import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
 initStats('mr', /chizmadon/.test(location.hash) ? 'chizmadon' : '');
 autoTranslate();
+initTips();
 // Payme / Click sahifasidan qaytish (?tolov=<id>) — toʻlov holati va balans
 if (new URLSearchParams(location.search).has('tolov')) void handlePayReturn();
 
