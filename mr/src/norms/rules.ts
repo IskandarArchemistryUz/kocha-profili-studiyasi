@@ -165,6 +165,10 @@ export interface Rule {
 }
 
 const SHNQ_2_07_01: Omit<Source, 'clause'> = { doc: 'ShNQ 2.07.01-23', edition: '2023', verified: true };
+/** 06.11 — Qurilish vazirining 09.12.2025 dagi 01/2-42-son buyrugʻi (AV 17.12.2025, № 380): ShNQ 2.07.01-23 ga 53 band oʻzgartirish */
+const PARK_4242 = '01/2-42 buyrugʻi (09.12.2025): Toshkent shahri va viloyatida 10 kvartiraga 7 joy (avval kvartiraga 1); 29-jadval izohining 1-bandi (500 m gacha uzoqlikdagi avtoturargoh) kuchini yoʻqotgan.';
+const FIRE_6511 = '6511-band (01/2-42): Ф1–Ф4, I–II darajali binolarda qarama-qarshi devor (yoki maxsus mustaqil devor) I-turdagi yongʻinga qarshi va oyna-eshiksiz boʻlsa — masofa normalanmaydi; modelda bunday devor belgilanmagan.';
+const SZZ_0103 = 'SanPiN 0350-17 bekor qilingan (SanQvaN 0103-25, 2-ilova); qiymatlar keyingi PR da 0103-25 ga oʻtkaziladi.';
 
 /** 06.11 (c58): 79-band, 2-jadval — «mos emas» juftlardagi binolar (ustma-ust tushganlar bundan mustasno; spacing-79 bilan bir xil saralash) */
 export function spacingBadIds(doc: Project): string[] {
@@ -273,15 +277,16 @@ export const RULES: Rule[] = [
   {
     id: 'parking',
     title: 'Avtoturargoh joylari',
-    source: { ...SHNQ_2_07_01, clause: '416-band, 29-jadval; 413-band (ochiq — 25 m²/joy)' },
+    source: { ...SHNQ_2_07_01, clause: '416-band, 29-jadval (01/2-42 tahririda); 413-band (ochiq — 25 m²/joy)' },
     evaluate(d, doc) {
       if (d.parkingReq <= 0) return { status: 'na', unit: 'joy', note: 'Talab yoʻq (binolar yoʻq)' };
       const parts = Object.entries(d.parkingParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${v}`).join(', ');
-      const lack = d.parkingReq - d.parkingProv, reg = isTashkent(doc.settings.district) ? 'Toshkent shahri va viloyati: kvartiraga 1' : 'boshqa viloyatlar: 2 kvartiraga 1';
+      const lack = d.parkingReq - d.parkingProv, reg = isTashkent(doc.settings.district) ? 'Toshkent shahri va viloyati: 10 kvartiraga 7' : 'boshqa viloyatlar: 2 kvartiraga 1';
       return { status: d.parkingProv >= d.parkingReq ? 'pass' : 'fail', value: d.parkingProv, unit: 'joy', limit: `≥ ${d.parkingReq}`,
         ...(lack > 0 ? { fix: { id: 'parking' as const, label: 'Yer osti avtoturargoh qoʻshish', hint: `Yetishmaydi ${lack} joy (≈ ${Math.round(lack * 30 / 1000) / 10} ming m² — 30 m²/joy). Turar joy kvartallari hovlisi ostiga yer osti avtoturargoh qoʻshiladi, sathlar soni meʼyor boʻyicha (1–4) — kvartallar qayta generatsiya qilinadi. Boshqa yoʻllar: stilobat ichida yoki alohida koʻp qavatli avtoturargoh (parsel «Avtoturargoh»).` } } : {}),
         // tarjima kaliti: ichma-ich shablonsiz (i18n ${…} namunasi bilan mos kelsin)
-        note: `Talab: ${parts} (${reg}). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` + (mlSum(doc) ? `\nKoʻp qavatli avtoturargohlar: ${mlSum(doc)} joy — qavat rejalaridan (pandus, yoʻlak va zina-lift tugunlari chiqarilgan).` : '') };
+        note: `Talab: ${parts} (${reg}). Taʼminot: «Avtoturargoh» parsellari (ochiq, 25 m²/joy, 413-band) + generator parkovkalari (yer osti/stilobat — 30 m²/joy brutto, taxmin). ${aptSrc(d, doc)}` + (mlSum(doc) ? `\nKoʻp qavatli avtoturargohlar: ${mlSum(doc)} joy — qavat rejalaridan (pandus, yoʻlak va zina-lift tugunlari chiqarilgan).` : '')
+          + '\n' + PARK_4242 };
     },
   },
   {
@@ -699,7 +704,7 @@ export const RULES: Rule[] = [
   {
     id: 'fire-56',
     title: 'Binolar orasidagi yongʻinga qarshi masofa',
-    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '641, 642, 649, 652-bandlar, 56-jadval', verified: true },
+    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '641, 642, 649, 652, 6511-bandlar, 56-jadval (01/2-42 tahririda)', verified: true },
     evaluate(_d, doc) {
       const { pairs, checked } = firePairs(doc), cl = FIRE_CLS[doc.settings.fireLow ?? 0];
       if (!checked) return { status: 'na', unit: 'juft', note: 'Yaqin (≤ 20 m) binolar juftlari yoʻq.' };
@@ -714,7 +719,8 @@ export const RULES: Rule[] = [
           'Ф1–Ф4 oʻzaro 6–15 m, Ф5 gacha 10–18 m; Ф5 oʻzaro — 644-band (boshqa meʼyor).',
           ...(p20 ? ['9 ball va yuqori: Ф1 binolar orasi va IV–V darajali binolar orasi +20 % (649-band).'] : []),
           'Tegib turgan (bloklangan, 101-band) uylar bitta blok deb olinadi.',
-          'Koʻr devorlar (648-band, −20 %) va avtomatik yongʻin oʻchirish (651-band, −50 % gacha) qoʻllanmadi — derazalar va jihozlar maʼlum emas.'].join(' ') };
+          'Koʻr devorlar (648-band, −20 %) va avtomatik yongʻin oʻchirish (651-band, −50 % gacha) qoʻllanmadi — derazalar va jihozlar maʼlum emas.',
+          'Bitta yer uchastkasidagi turar joy binolari va xoʻjalik imoratlari orasi normalanmaydi (652-band, 01/2-42).', FIRE_6511].join(' ') };
     },
   },
   {
@@ -832,7 +838,7 @@ export const RULES: Rule[] = [
       const show = deny.length ? deny : rev.length ? rev : allow;
       // 04.11 (audit): park, sport, tomorqa, maktab/MTM/poliklinika hududi ham (binosiz) tekshiriladi; poliklinika va oziq-ovqat ombori — taqiq
       return { status: deny.length || blk.length ? 'fail' : 'review', value: deny.length + blk.length, unit: 'bino', limit: '0', where: { bids: show, rings: [...c.zoneRings, ...c.szzBlocks.flatMap(x => x.rings)] },
-        note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (2.17); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (2.20; qabriston uchun — talqin). Taqiqlangan hudud (park, sport, tomorqa, maktab, MTM, poliklinika uchastkasi) SMZ ga tushgan: ${blk.length} ta kvartal/parsel. Poliklinika (umumiy foydalanish) va oziq-ovqat omborlari — 2.17 taqiqi; korxonaga xizmat qiluvchi poliklinika (2.20) — qoʻlda kelishiladi.` };
+        note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (2.17); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (2.20; qabriston uchun — talqin). Taqiqlangan hudud (park, sport, tomorqa, maktab, MTM, poliklinika uchastkasi) SMZ ga tushgan: ${blk.length} ta kvartal/parsel. Poliklinika (umumiy foydalanish) va oziq-ovqat omborlari — 2.17 taqiqi; korxonaga xizmat qiluvchi poliklinika (2.20) — qoʻlda kelishiladi.\n` + SZZ_0103 };
     },
   },
   {
@@ -935,7 +941,7 @@ export const RULES: Rule[] = [
       if (!c.p146.length && !c.p146b.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', note: 'Ishlab chiqarish SMZ ichida turar joy va ijtimoiy bino yoʻq.' };
       // 04.11 (audit): jamoat binolari (poliklinika, maʼmuriy, savdo, ofis) va rekreatsiya hududi ham taqiq; «ofisga bering» maslahati olib tashlandi
       return { status: 'fail', value: c.p146.length + c.p146b.length, unit: 'bino', limit: '0', where: { bids: c.p146.map(x => x.bid), rings: [...c.zoneRings, ...c.p146b.flatMap(x => x.rings)] },
-        note: `Ishlab chiqarish zonasi SMZ ichida ${c.p146.length} ta turar joy, ijtimoiy yoki jamoat binosi va ${c.p146b.length} ta park, sport yoki tomorqa hududi (146-band). Yechim: binoni SMZ dan chiqarish yoki SMZ qismini himoya koʻkalamzorligi yoki avtoturargohga berish.` };
+        note: `Ishlab chiqarish zonasi SMZ ichida ${c.p146.length} ta turar joy, ijtimoiy yoki jamoat binosi va ${c.p146b.length} ta park, sport yoki tomorqa hududi (146-band). Yechim: binoni SMZ dan chiqarish yoki SMZ qismini himoya koʻkalamzorligi yoki avtoturargohga berish.\n` + SZZ_0103 };
     },
   },
   {

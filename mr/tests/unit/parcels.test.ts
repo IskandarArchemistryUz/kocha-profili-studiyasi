@@ -60,7 +60,7 @@ describe('Xizmatlar va avtoturargoh (ShNQ 2.07.01-23)', () => {
     expect(dd.aptSource).toBe('sxema');
     expect(dd.apartments).toBe(planApartments(d).reduce((t, p) => t + p.layout.apts.length * (p.f1 - p.f0), 0));
     expect(dd.resNet / dd.apartments).toBeGreaterThan(35); expect(dd.resNet / dd.apartments).toBeLessThan(90);
-    expect(dd.parkingReq).toBe(Math.ceil(dd.apartments));
+    expect(dd.parkingReq).toBe(Math.ceil(dd.apartments * 7 / 10 - 1e-9));   // 01/2-42: Toshkentda 10 kvartiraga 7
     expect(rs.find(r => r.id === 'parking')!.status).toBe('fail');
     expect(rs.find(r => r.id === 'school')!.status).toBe('fail');
   });
