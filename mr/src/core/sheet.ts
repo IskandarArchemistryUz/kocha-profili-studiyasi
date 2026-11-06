@@ -20,13 +20,15 @@ import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES 
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 
-export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi';
+export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
 export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'bosh', name: 'Bosh reja', note: 'chiziqli reja: binolar, koʻchalar, daraxtlar, qavatlar soni' },
   { id: 'zona', name: 'Zonalashtirish', note: 'daha va yer uchastkalari funksiya rangida' },
+  // 06.11 (egasi: «qoʻshimcha yana bitta listga parsel plani, yani faqat parsellari toʻliq rangda koʻrinadi, ichida binolarisiz»)
+  { id: 'parsel', name: 'Parsellar rejasi', note: 'parsellar toʻliq funksiya rangida, binolarsiz; koʻcha hududi va qizil chiziqlar' },
   { id: 'figura', name: 'Figura-fon', note: 'binolar qora, boʻsh joy oq — shahar toʻqimasi' },
   { id: 'landshaft', name: 'Landshaft', note: 'yashil hududlar, daraxtlar, suv' },
   { id: 'qavat', name: 'Qavatlar soni', note: 'binolar qavatlar soni boʻyicha rangda' },
@@ -142,7 +144,7 @@ export function recommendScale(ha: number, kind: SheetKind): { scale: number; sr
 export const scaleRange = (k: SheetKind): [number, number] => k === 'vaziyat' ? [10000, 25000] : [500, 5000];
 
 export interface LegendItem { type: 'fill' | 'line' | 'dash' | 'tree' | 'swatch' | 'stop' | 'hatch' | 'text'; fill?: string; stroke?: string; label: string }
-export interface PlotRow { code: string; use: string; color: string; ha: number; level: number }
+export interface PlotRow { code: string; use: string; color: string; ha: number; level: number; /** parsellar rejasidagi toʻliq rang */ full?: string }
 export interface SheetResult { svg: string; scale: number; widthMm: number; heightMm: number; legend: LegendItem[]; plots: PlotRow[]; labels: { full: number; total: number }; minText: number; fits: boolean; auto: boolean }
 
 const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
@@ -238,7 +240,9 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
 
   const L: string[] = [], legend: LegendItem[] = [];
   const g = (id: string, body: string, attrs = '') => { if (body) L.push(ai ? `<g id="${id}" i:layer="yes" inkscape:groupmode="layer" inkscape:label="${id}"><g clip-path="url(#vp)"${attrs}>${body}</g></g>` : `<g id="${id}" inkscape:groupmode="layer" inkscape:label="${id}"${attrs}>${body}</g>`); };
-  const VZ = K === 'vaziyat', LS = K === 'landshaft' || K === 'yashil';
+  const VZ = K === 'vaziyat', LS = K === 'landshaft' || K === 'yashil', PR = K === 'parsel';
+  /** parsellar rejasi (06.11): atrof xira */
+  const fade = PR ? ' opacity="0.45"' : '';
   const C = {
     bg: '#ffffff',
     ctxB: K === 'figura' ? '#1d1d1b' : K === 'qavat' ? '#e4e2dd' : VZ ? '#d9d6cf' : '#e7e5e0',
@@ -259,9 +263,9 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const lG = Ly('green'), lW = Ly('water'), lC = Ly('ctx'), lD = Ly('demo');
   if (ctx && S.context) {
     if (K !== 'figura') {
-      if (lG.on && lG.fill !== 'none') g('Atrof_yashil', ctx.green.filter(a => a.rings[0] && vis(a.rings[0])).map(a => `<path d="${polyD(a.rings)}" fill="${lite(/wood|forest|scrub/.test(a.kind) ? C.wood : C.green, lG.light)}" fill-rule="evenodd"/>`).join(''), outside);
+      if (lG.on && lG.fill !== 'none') g('Atrof_yashil', ctx.green.filter(a => a.rings[0] && vis(a.rings[0])).map(a => `<path d="${polyD(a.rings)}" fill="${lite(/wood|forest|scrub/.test(a.kind) ? C.wood : C.green, lG.light)}" fill-rule="evenodd"/>`).join(''), outside + fade);
       if (lW.on) g('Atrof_suv', ctx.water.filter(a => a[0] && vis(a[0])).map(a => `<path d="${polyD(a)}" fill="${lite(C.water, lW.light)}" fill-rule="evenodd"/>`).join('')
-        + ctx.waterways.filter(w => vis(w.pts)).map(w => `<path d="${lineD(w.pts)}" fill="none" stroke="${C.water}" stroke-width="${n2(Math.max(0.4, w.w * k))}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''));
+        + ctx.waterways.filter(w => vis(w.pts)).map(w => `<path d="${lineD(w.pts)}" fill="none" stroke="${C.water}" stroke-width="${n2(Math.max(0.4, w.w * k))}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), fade);
     }
     const roads = ctx.roads.filter(r => !adopted.has(r.id) && vis(r.pts) && !/^(footway|path|steps|track|bridleway|corridor|cycleway)$/.test(r.cls));
     if (K !== 'figura' && roads.length && Ly('streets').on) {
@@ -269,21 +273,21 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       const minW = VZ ? 0.35 : 0;
       g('Atrof_yollar', roads.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="${C.roadEdge}" stroke-width="${n2(Math.max(minW + 0.2, (r.w + 2 * sw(r.cls)) * k + 0.25))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
         + roads.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#f6f5f2" stroke-width="${n2(Math.max(minW, (r.w + 2 * sw(r.cls)) * k))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
-        + roads.filter(r => sw(r.cls) > 0).map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#e9e7e2" stroke-width="${n2(r.w * k)}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), VZ ? '' : outside);
+        + roads.filter(r => sw(r.cls) > 0).map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#e9e7e2" stroke-width="${n2(r.w * k)}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), (VZ ? '' : outside) + fade);
     }
-    if (K !== 'figura' && ctx.rails.length) g('Atrof_temir_yol', ctx.rails.filter(vis).map(l => `<path d="${lineD(l)}" fill="none" stroke="#9a978f" stroke-width="${lw(0.35)}" stroke-dasharray="3 1.2"/>`).join(''), outside);
+    if (K !== 'figura' && ctx.rails.length) g('Atrof_temir_yol', ctx.rails.filter(vis).map(l => `<path d="${lineD(l)}" fill="none" stroke="#9a978f" stroke-width="${lw(0.35)}" stroke-dasharray="3 1.2"/>`).join(''), outside + fade);
     const rmv = new Set(doc.removed ?? []), cb = ctx.buildings.filter(b => b.rings[0] && vis(b.rings[0]) && !rmv.has(b.id));
     const kept = cb.filter(b => !inSite(centroid(b.rings[0])) || keep.has(b.id));
     const gone = cb.filter(b => inSite(centroid(b.rings[0])) && !keep.has(b.id));
     if (lC.on) g('Atrof_binolar', kept.map(b => {
       const fill = lC.fill === 'none' ? 'none' : K === 'qavat' ? floorColor(Math.max(1, Math.round(b.h / 3.2))) : lite(C.ctxB, lC.light);
       return `<path d="${polyD(b.rings)}" fill="${fill}" fill-rule="evenodd"${C.ctxStroke !== 'none' && lC.outline ? ` stroke="${C.ctxStroke}" stroke-width="${lw(lC.mm)}"` : ''}/>`;
-    }).join(''));
-    if (S.demolished && lD.on && K !== 'figura' && !VZ && gone.length) {
+    }).join(''), fade);
+    if (S.demolished && lD.on && K !== 'figura' && !VZ && !PR && gone.length) {
       g('Buziladigan_binolar', gone.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#c0392b" stroke-width="${lw(lD.mm)}" stroke-dasharray="1.2 0.8"/>`).join(''));
       legend.push({ type: 'dash', stroke: '#c0392b', label: `${tr('Buziladigan binolar')} (${gone.length})` });
     }
-    if (S.trees && lG.on && K !== 'figura' && !VZ) {
+    if (S.trees && lG.on && K !== 'figura' && !VZ && !PR) {
       const tr2 = ctx.trees.filter(t => !inSite(t) && Math.abs(t[0] - cx) < R && Math.abs(t[1] - cy) < R);
       g('Atrof_daraxtlar', tr2.map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.5, 2.5 * k))}" fill="${C.tree === 'none' ? 'none' : mix(0x9cc27f, 0.35)}" stroke="${C.treeStroke}" stroke-width="${lw(0.08)}"/>`).join(''));
     }
@@ -291,11 +295,16 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
 
   // 2. daha va yer uchastkalari
   const lP = Ly('plots');
+  const parcelFill = (u: string) => darker(useDef(u as never).color, 0.12);   // toʻliq (quyuqroq) funksiya rangi
   const plotFill = (u: string) => lP.fill === 'none' ? 'none' : lP.fill === 'one' ? (lP.light ? '#f4f3f0' : '#ecebe7') : mix(useDef(u as never).color, lP.light ? 0.45 : 0.15);
   if (lP.on && !VZ) {
     if (K === 'zona') {
       g('Zonalar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${plotFill(b.use)}"${lP.outline ? ` stroke="#ffffff" stroke-width="${lw(Math.max(lP.mm, 0.35))}"` : ''} fill-rule="evenodd"/>`).join(''));
       for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: plotFill(u.id), label: tr(u.name) });
+    } else if (PR) {
+      // parsellar rejasi (06.11): toʻliq funksiya rangi, qora kontur; ichida binolar, daraxtlar, maydonchalar yoʻq
+      g('Parsellar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${parcelFill(b.use)}" stroke="#1d1d1b" stroke-width="${lw(Math.max(lP.mm, 0.35))}" stroke-linejoin="round" fill-rule="evenodd"/>`).join(''));
+      for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: parcelFill(u.id), stroke: '#1d1d1b', label: tr(u.name) });
     } else if (K === 'cheklov') {
       g('Kvartallar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${mix(useDef(b.use).color, 0.62)}" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}" fill-rule="evenodd"/>`).join(''));
     } else if (LS) {
@@ -417,7 +426,14 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       return out.join('');
     };
     const out: string[] = [];
-    if (!VZ) {
+    if (PR) {
+      // parsellar rejasi: qizil chiziqlar oraligʻi (koʻcha hududi) — och pushti, qatnov qismi — och kulrang
+      const all = Object.entries(sg.layers).filter(([k2]) => k2 !== 'chiziq').map(([, a]) => triD(a)).join('');
+      if (all) out.push(`<path d="${all}" fill="#f6dcd8"/>`);
+      const q = triD(sg.layers.qatnov); if (q) out.push(`<path d="${q}" fill="#e7e4df"/>`);
+      if (all) legend.push({ type: 'fill', fill: '#f6dcd8', label: tr('Koʻcha hududi (qizil chiziqlar oraligʻi)') });
+      if (q) legend.push({ type: 'fill', fill: '#e7e4df', label: tr('Qatnov qismi') });
+    } else if (!VZ) {
       const base = triD(sg.layers.trotuar); if (base) out.push(`<path d="${base}" fill="${PART_COL.trotuar}"/>`);
       if (lS.fill !== 'none') for (const k of ['yashil', 'velo', 'parkovka', 'avtobus', 'tramvay', 'qatnov'] as const) {
         const d = triD(sg.layers[k]); if (!d) continue;
@@ -433,7 +449,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       g('Qizil_chiziqlar', clip + sg.red.map(r => `<path d="${lineD(r)}" fill="none" stroke="#d0342c" stroke-width="${lw(lS.mm)}" stroke-linejoin="round"/>`).join('') + clipE);
       legend.push({ type: 'line', stroke: '#d0342c', label: tr('Qizil chiziqlar') });
     }
-    if (S.trees && lG.on && !VZ) {
+    if (S.trees && lG.on && !VZ && !PR) {
       const tr2 = sg.trees.filter(t => !site0 || inSite(t));
       g('Kocha_daraxtlari', tr2.map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.6, 3 * k))}" fill="${LS ? '#9cc27f' : '#ffffff'}" stroke="${LS ? '#5f8f3e' : '#7d8a6a'}" stroke-width="${lw(0.12)}"/>`).join(''));
       if (tr2.length) legend.push({ type: 'tree', label: tr('Daraxtlar') });
@@ -442,7 +458,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
 
   // 4. yangi binolar
   const lB = Ly('bld');
-  if (nb.length && lB.on) {
+  if (nb.length && lB.on && !PR) {
     const order = [...nb].sort((a, b) => ((a.b.z0 ?? 0) + a.b.floors) - ((b.b.z0 ?? 0) + b.b.floors));
     const fill = (b: Project['buildings'][number]) => K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? darker(useDef(b.use).color, 0.12) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(useDef(b.use).color, 0.1), lB.light) : '#ffffff';
     const stroke = K === 'figura' || VZ || !lB.outline ? 'none' : '#1d1d1b';
@@ -571,17 +587,17 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const plots: PlotRow[] = [];
   let full = 0;
   {
-    const idx = new Map<number, number>(), obst = nb.map(x => x.r), kM = scale / 1000, max = S.labels ? modeMax(o.labelMode ?? 'auto') : 0, out: string[] = [];
+    const idx = new Map<number, number>(), obst = PR ? [] : nb.map(x => x.r), kM = scale / 1000, max = S.labels ? modeMax(o.labelMode ?? 'auto') : 0, out: string[] = [];
     const angDeg = (a: number) => -(a - rot) * 180 / Math.PI;
     plan.blocks.forEach(b => {
       const n = (idx.get(b.blockKey) ?? 0) + 1; idx.set(b.blockKey, n);
       const code = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`, use = tr(SHORT[b.use] ?? useDef(b.use).name), ar = `${(b.area / 1e4).toFixed(2).replace('.', ',')} ga`;
       const rect = VZ || K === 'figura' ? null : freeRect(b.rings, obst);
       const lv = max ? pickLevel(rect, code, use, ar, kM, 3.5, 2.5, max as 0 | 1 | 2 | 3) : 0;
-      plots.push({ code, use: tr(useDef(b.use).name), color: mix(useDef(b.use).color, 0.15), ha: b.area / 1e4, level: lv });
+      plots.push({ code, use: tr(useDef(b.use).name), color: mix(useDef(b.use).color, 0.15), full: parcelFill(b.use), ha: b.area / 1e4, level: lv });
       if (lv === 3) full++;
       if (!lv || !rect) return;
-      const lines = labelLines(lv, code, use, ar), halo = K === 'zona' ? plotFill(b.use) : '#ffffff';
+      const lines = labelLines(lv, code, use, ar), halo = K === 'zona' ? plotFill(b.use) : PR ? parcelFill(b.use) : '#ffffff';
       const v = toV(rect.c), fsz = lines.map((_t, i) => i ? 2.5 : 3.5), gapL = 0.35 * 2.5, H = fsz.reduce((a2, b2) => a2 + b2, 0) + gapL * (lines.length - 1);
       let acc = -H / 2;
       const body = lines.map((t, i) => { acc += fsz[i]; const yy = acc - fsz[i] * 0.18; acc += gapL; return `<text y="${n2(yy)}" font-size="${T(fsz[i])}"${i === 0 ? ' font-weight="700"' : ''}${i === 0 || (i === lines.length - 1 && lines.length > 1) ? ' font-family="IBM Plex Mono, Menlo, monospace"' : ''}>${esc(t)}</text>`; }).join('');
@@ -655,7 +671,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       lay('Shartli_belgilar', 'Shartli belgilar', out.join('')); y += 9 + legend.length * rowH;
     }
     if (inner?.side) { lay('Eksplikatsiya', 'Eksplikatsiya', inner.side(x0, y + 2, w, yEnd - stampH - sitH - 2)); }
-    const side = inner ? null : K === 'navbat' ? { id: 'Navbatlar', title: 'Qurilish navbatlari', rows: stageRows(doc, tr), cols: ['m² / soni', ''] } : K === 'cheklov' && bal ? { id: 'Yer_balansi', title: 'Yer balansi', rows: balanceRows(doc, tr) } : K === 'transport' ? { id: 'Transport_balansi', title: 'Koʻchalar va avtoturargohlar', rows: transportRows(doc, tr), cols: ['km / joy', ''] } : K === 'yashil' ? { id: 'Yashil_balans', title: 'Yashil balans', rows: greenRows(doc, tr) } : null;
+    const side = inner ? null : K === 'navbat' ? { id: 'Navbatlar', title: 'Qurilish navbatlari', rows: stageRows(doc, tr), cols: ['m² / soni', ''] } : K === 'cheklov' && bal ? { id: 'Yer_balansi', title: 'Yer balansi', rows: balanceRows(doc, tr) } : K === 'transport' ? { id: 'Transport_balansi', title: 'Koʻchalar va avtoturargohlar', rows: transportRows(doc, tr), cols: ['km / joy', ''] } : K === 'yashil' ? { id: 'Yashil_balans', title: 'Yashil balans', rows: greenRows(doc, tr) } : PR ? { id: 'Parsellar_jadvali', title: 'Parsellar', rows: parcelRows(doc, plots, tr) } : null;
     if (side && side.rows.length) {
       // balans jadvali (02.11): yer balansi (cheklovlar varagʻi) yoki yashil balans (86, 87-band)
       const ha = (v: number) => v.toFixed(2).replace('.', ',');
@@ -734,6 +750,19 @@ ${A.join('\n')}
 export interface BalanceRow { t: string; v?: number; /** qiymat matni (v oʻrniga, masalan joylar soni) */ vt?: string; p?: string; ok?: boolean; c?: string; b?: boolean; sep?: boolean }
 const pct = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')} %`;
 /** Yer balansi qatorlari (ga): hudud, qurib boʻlmaydigan, SMZ, yaroqli; keyin funksiyalar boʻyicha kvartallar va koʻchalar (qoldiq) */
+/**
+ * Parsellar jadvali (06.11, «Parsellar rejasi» varagʻi): har parsel — kod va funksiya, ga, loyihalash hududidan ulush; koʻchalar va jami.
+ * Ulush asosi — loyiha chegarasi (yoʻq boʻlsa — parsellar yigʻindisi).
+ */
+export function parcelRows(doc: Project, plots: PlotRow[], tr: (s: string) => string = s => s): BalanceRow[] {
+  if (!plots.length) return [];
+  const sum = plots.reduce((t, r) => t + r.ha, 0), siteHa = doc.site ? (landBalance(doc)?.siteHa ?? sum) : sum, B = siteHa || 1;
+  const rows: BalanceRow[] = plots.map(r => ({ t: `${r.code} · ${r.use}`, v: r.ha, p: pct(r.ha / B), c: r.full ?? r.color }));
+  rows.push({ t: tr('Parsellar jami'), v: sum, p: pct(sum / B), b: true, sep: true });
+  if (doc.site && siteHa > sum + 0.005) rows.push({ t: tr('Koʻchalar va boshqa'), v: siteHa - sum, p: pct((siteHa - sum) / B), c: '#f6dcd8' });
+  if (doc.site) rows.push({ t: tr('Loyihalash hududi'), v: siteHa, p: '100,0 %', b: true });
+  return rows;
+}
 export function balanceRows(doc: Project, tr: (s: string) => string = s => s): BalanceRow[] {
   const bal = landBalance(doc); if (!bal) return [];
   const by = new Map<string, number>(); for (const b of computePlan(doc).blocks) by.set(b.use, (by.get(b.use) ?? 0) + b.area / 1e4);
