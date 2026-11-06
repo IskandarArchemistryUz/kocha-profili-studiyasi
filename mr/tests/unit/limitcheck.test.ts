@@ -19,9 +19,9 @@ const rule = (id: string, d: any) => RULES.find(r => r.id === id)!.evaluate({} a
 
 /** 06.11 (c63): qabriston SMZ — VM 101-son qarori, 1-ilova, 50-band (NORMA) */
 describe('qabriston SMZ — VM 101, 50-band', () => {
-  it('qishloq va kolumbariy ≥ 50 m, lekin bino devoridan ≥ 100 m — 100; yopiq 100; qoʻlda bufer', () => {
-    expect(szzOf(L({ sub: { rural: true } }), 1.5)).toMatchObject({ m: 100, flag: 'NORMA' });
-    expect(szzOf(L({ sub: { rural: true } }), 3).m).toBe(100);
+  it('06.11 (c65): qishloq va kolumbariy — SMZ 50 m (100 m — alohida halqa, qab-100); yopiq 100; qoʻlda bufer', () => {
+    expect(szzOf(L({ sub: { rural: true } }), 1.5)).toMatchObject({ m: 50, flag: 'NORMA' });
+    expect(szzOf(L({ sub: { memorial: true } }), 3).m).toBe(50);
     expect(szzOf(L({ sub: { open: false } }), 30)).toMatchObject({ m: 100, flag: 'NORMA' });
     expect(szzOf(L({}), 4).ref).toContain('VM 101-son qarori (04.04.2011), 1-ilova, 50-band');
     expect(szzOf(L({ szz: 60 }), 4)).toMatchObject({ m: 60, table: 300 });
@@ -60,7 +60,8 @@ describe('SMZ ichidagi funksiyalar (SanQvaN 0103-25, 12 / 14-band)', () => {
     const qab = L({ rings: [sq(-20, -20, 20, 20) as any] });
     const d = mk([qab], [{ r: sq(40, -10, 70, 10), use: 'turar' }]);
     expect(limitChecks(d).szz.map(x => [x.bid, x.verdict, x.amal])).toEqual([['b0', 'deny', undefined]]);
-    expect(rule('szz-217', d).status).toBe('fail');
+    expect(rule('qab-szz', d).status).toBe('fail');
+    expect(rule('szz-217', d).status).toBe('pass');   // 06.11 (c65): qabriston SMZ i — alohida qoida
   });
   it('buziladigan qabriston — SMZ yoʻq', () => {
     const d = mk([L({ rings: [sq(-20, -20, 20, 20) as any], status: 'buziladi' })], [{ r: sq(40, -10, 70, 10), use: 'turar' }]);

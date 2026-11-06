@@ -20,10 +20,12 @@ const mk = (zones: { at: XY; use: string }[] = [], kind: Limit['kind'] = 'qabris
 const sec = (r: XY[], extra: Partial<GenSection> = {}): GenSection => ({ ring: r, floors: 9, kind: 'oddiy', nonRes: 0, ...extra });
 
 describe('denyZone / clipToSzz', () => {
-  it('turar joy uchun — qabriston SMZ (100 m); ofis uchun — boʻsh', () => {
+  it('turar joy uchun — qabriston SMZ (100 m); ofis (jamoat binosi, VM 101, 50-band) — ham taqiq; logistika — boʻsh', () => {
     const d = mk();
     expect(mpArea(denyZone(d, 'turar'))).toBeGreaterThan(30000);
-    expect(denyZone(d, 'ofis')).toHaveLength(0);
+    expect(mpArea(denyZone(d, 'ofis'))).toBeGreaterThan(30000);
+    expect(denyZone(d, 'logistika')).toHaveLength(0);
+    expect(denyZone(d, 'avtoturargoh')).toHaveLength(0);
   });
   it('SMZ ichidagi uy olinadi, chetidagi seksiya qisqartiriladi, tashqaridagi qoladi', () => {
     const dz = denyZone(mk(), 'turar'), notes: string[] = [];

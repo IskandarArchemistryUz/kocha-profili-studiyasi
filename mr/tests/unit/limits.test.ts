@@ -11,14 +11,14 @@ const mpA = (mp: XY[][][]) => mp.reduce((t, p) => t + area(p[0]) - p.slice(1).re
 const L = (o: Partial<Limit>): Limit => ({ id: 'c1', kind: 'qabriston', status: 'saqlanadi', src: 'qolda', ...o } as Limit);
 
 describe('cheklovlar: SMZ jadvali (SanQvaN 0103-25, 7-band, 1-ilova; qabriston — VM 101, 50-band)', () => {
-  it('06.11 (c63): qabriston — VM 101-son qarori, 1-ilova, 50-band; bino devoridan ≥ 100 m (SMZ kamida 100 m)', () => {
+  it('06.11 (c63, c65): qabriston — VM 101-son qarori, 1-ilova, 50-band; SMZ turi boʻyicha (100 m masofa — alohida halqa)', () => {
     expect(szzOf(L({}), 25)).toMatchObject({ m: 500, flag: 'NORMA' });
     expect(szzOf(L({}), 45)).toMatchObject({ m: 500, flag: 'TALQIN' });
     expect(szzOf(L({}), 15)).toMatchObject({ m: 300, flag: 'NORMA' });
     expect(szzOf(L({}), 4)).toMatchObject({ m: 300, ref: 'VM 101-son qarori (04.04.2011), 1-ilova, 50-band — 20 ga dan kichik: SMZ 300 m' });
-    expect(szzOf(L({ sub: { memorial: true } }), 4)).toMatchObject({ m: 100, flag: 'NORMA' });
-    expect(szzOf(L({ sub: { rural: true } }), 1.5).m).toBe(100);
-    expect(szzOf(L({ sub: { rural: true } }), 1.5).ref).toContain('devoridan ≥ 100 m — kattasi olindi');
+    expect(szzOf(L({ sub: { memorial: true } }), 4)).toMatchObject({ m: 50, flag: 'NORMA' });
+    expect(szzOf(L({ sub: { rural: true } }), 1.5).m).toBe(50);
+    expect(szzOf(L({ sub: { rural: true } }), 1.5).ref).not.toContain('kattasi olindi');
     expect(szzOf(L({ sub: { crem: true } }), 4).m).toBe(100);
     expect(szzOf(L({ sub: { open: false } }), 30)).toMatchObject({ m: 100, flag: 'NORMA' });
     expect(szzOf(L({ sub: { open: false } }), 4).cls).toBeUndefined();

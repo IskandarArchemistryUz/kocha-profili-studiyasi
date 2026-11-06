@@ -16,7 +16,7 @@
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
 import { frame, type XY } from './geo';
-import { limitZones, eluZone, szzOf, suvZones, limitAreaHa, bufferLocal, isActive, SZZ_DENY, SZZ_ALLOW, SZZ_FOOD_LOGI, type LimitKind } from './limits';
+import { limitZones, eluZone, szzOf, suvZones, limitAreaHa, bufferLocal, isActive, SZZ_DENY, SZZ_ALLOW, SZZ_FOOD_LOGI, QAB100_DENY, QAB100_AREA, type LimitKind } from './limits';
 import { computePlan } from './plan';
 import { useDef, type Use } from './uses';
 
@@ -42,7 +42,10 @@ export interface Manual { limit: string; kind: LimitKind; m: number; table: numb
 export interface SzzBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][]; amal?: boolean }
 /** 04.11: suvni muhofaza qilish zonasidagi bino (981-son nizom) va qirgʻoq boʻyi mintaqasiga tushgan bino */
 export interface SuvHit { bid: string; limit: string; m: number; area: number; shore: boolean }
-export interface LimitChecks { szz: SzzHit[]; szzBlocks: SzzBlockHit[]; elu: EluHit[]; elu251: Elu251[]; manual: Manual[]; suv: SuvHit[]; suvRings: XY[][]; any: boolean; zoneRings: XY[][] }
+/** 06.11 (c65): qabristondan 100 m ichidagi turar joy / jamoat binosi (VM 101, 50-band) va dam olish zonasi yoki jamoat uchastkasi */
+export interface QabHit { bid: string; use: Use; limit: string; area: number; smz: number }
+export interface QabBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][] }
+export interface LimitChecks { qab: QabHit[]; qabBlocks: QabBlockHit[]; qabRings: XY[][]; szz: SzzHit[]; szzBlocks: SzzBlockHit[]; elu: EluHit[]; elu251: Elu251[]; manual: Manual[]; suv: SuvHit[]; suvRings: XY[][]; any: boolean; zoneRings: XY[][] }
 
 let memo: { k: unknown[]; v: LimitChecks } | null = null;
 export function limitChecks(doc: Project): LimitChecks {
@@ -52,7 +55,7 @@ export function limitChecks(doc: Project): LimitChecks {
 }
 
 function raw(doc: Project): LimitChecks {
-  const ls = doc.limits ?? [], out: LimitChecks = { szz: [], szzBlocks: [], elu: [], elu251: [], manual: [], suv: [], suvRings: [], any: ls.length > 0, zoneRings: [] };
+  const ls = doc.limits ?? [], out: LimitChecks = { qab: [], qabBlocks: [], qabRings: [], szz: [], szzBlocks: [], elu: [], elu251: [], manual: [], suv: [], suvRings: [], any: ls.length > 0, zoneRings: [] };
   if (!ls.length || !doc.site) return out;
   const fr = frame(doc.origin), z = limitZones(doc);
   const fps = doc.buildings.map(b => ({ b, poly: [close(b.footprint.map(fr.toLocal))] as Polygon }));
@@ -65,7 +68,8 @@ function raw(doc: Project): LimitChecks {
     const amal = s.flag === 'AMALIYOT';
     for (const { b, poly } of fps) {
       const a = overlap(poly, s.polys); if (a < 1) continue;
-      const v = szzVerdict(b.use, logiOf(b));
+      // 06.11 (c65): qabriston SMZ i — VM 101, 50-band: «SҲZ ҳудудида бирор-бир турар жой ва жамоат биноларини қуриш тақиқланади»
+      const v = s.kind === 'qabriston' && QAB100_DENY.includes(b.use) ? 'deny' : szzVerdict(b.use, logiOf(b));
       out.szz.push({ bid: b.id, use: b.use, limit: s.id, kind: s.kind, m: s.m, cls: s.cls, area: a, verdict: amal && v === 'deny' ? 'review' : v, ...(amal ? { amal: true } : {}) });
     }
     plan0.blocks.forEach((bl, i) => {
@@ -73,6 +77,18 @@ function raw(doc: Project): LimitChecks {
       // koʻp kvartirali turar joy — binolar boʻyicha (yuqorida)
       if (!['yashil', 'sport', 'yakka', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy'].includes(bl.use)) return;
       const a = overlap(bl.rings.map(close) as Polygon, s.polys); if (a >= 10) out.szzBlocks.push({ block: i, use: bl.use, limit: s.id, area: a, rings: bl.rings, ...(amal ? { amal: true } : {}) });
+    });
+  }
+  // 1b) 06.11 (c65): qabriston chegarasidan 100 m — turar joy, jamoat binolari va dam olish zonalari (VM 101, 50-band); garaj, avtoturargoh, ombor — ruxsat
+  for (const q of z.qab) {
+    out.qabRings.push(...q.rings);
+    for (const { b, poly } of fps) {
+      if (!QAB100_DENY.includes(b.use)) continue;
+      const a = overlap(poly, q.polys); if (a >= 1) out.qab.push({ bid: b.id, use: b.use, limit: q.id, area: a, smz: q.smz });
+    }
+    plan0.blocks.forEach((bl, i) => {
+      if (!QAB100_AREA.includes(bl.use)) return;
+      const a = overlap(bl.rings.map(close) as Polygon, q.polys); if (a >= 10) out.qabBlocks.push({ block: i, use: bl.use, limit: q.id, area: a, rings: bl.rings });
     });
   }
   // 2) ELU muhofaza zonasidagi binolar (VMQ 1050, 14 va 17-band) va 3) ≥ 35 kV havo ELU turar joy kvartallari ustidan (ShNQ 251)

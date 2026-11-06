@@ -485,6 +485,13 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       const seen = new Set<string>();
       for (const w of z.water) { const lab = `${tr('Suvni muhofaza qilish zonasi')}, ${w.m} m`; if (seen.has(lab)) continue; seen.add(lab); legend.push({ type: 'fill', fill: '#d6e7f2', stroke: WZ, label: lab }); }
     }
+    // 06.11 (c65): qabristondan 100 m — turar joy, jamoat binolari, dam olish zonalari (VM 101, 50-band); SMZ ≥ 100 m boʻlsa ustma-ust — chizilmaydi
+    const qz = z.qab.filter(q => q.smz < q.m);
+    if (qz.length) {
+      const QZ = '#5b4a6e';
+      g('Qabriston_100m', qz.map(q => `<path d="${polyD(q.rings)}" fill="none" stroke="${QZ}" stroke-width="${lw(0.35)}" stroke-dasharray="3 1.5" fill-rule="evenodd"/>`).join(''));
+      legend.push({ type: 'dash', stroke: QZ, label: tr('Qabristondan 100 m: turar joy, jamoat binolari, dam olish zonalari') });
+    }
     const suvL = (doc.limits ?? []).filter(l => l.kind === 'suv' && isActive(l) && !l.rings?.length && l.axis && l.axis.length > 1);
     if (suvL.length) g('Suv_oqimi', suvL.map(l => `<path d="${lineD(l.axis!.map(fr.toLocal))}" fill="none" stroke="#2f7fb5" stroke-width="${lw(0.6)}"/>`).join(''));
     if (z.hard.length) {
@@ -498,7 +505,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       g('ELU', elu.map(l => `<path d="${lineD(l.axis!.map(fr.toLocal))}" fill="none" stroke="#c0392b" stroke-width="${lw(0.4)}" stroke-dasharray="5 1 1 1"/>`).join(''));
       legend.push({ type: 'dash', stroke: '#c0392b', label: tr('ELU oʻqi') });
     }
-    if (!z.soft.length && !z.hard.length && !z.water.length && !pz.length && !elu.length) legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Cheklov belgilanmagan (1-qadam «Mavjud holat va cheklovlar»)') });
+    if (!z.soft.length && !z.hard.length && !z.water.length && !z.qab.length && !pz.length && !elu.length) legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Cheklov belgilanmagan (1-qadam «Mavjud holat va cheklovlar»)') });
   }
 
   // 4d. transport sxemasi (02.11): koʻcha oʻqlari toifa rangida, velo yoʻlaklar, avtoturargohlar; bekatlar 400 m radiusi (382-band)

@@ -1001,6 +1001,8 @@ export class Scene3D {
     }
     // 04.11: suvni muhofaza qilish zonasi — koʻk uzuq kontur (SMZ emas, shtrixsiz)
     for (const w of z.water) w.rings.forEach(r => dashed(r, plain ? 0x8a8780 : 0x2f7fb5, 0.5, 7.8));
+    // 06.11 (c65): qabristondan 100 m — turar joy, jamoat binolari, dam olish zonalari (VM 101, 50-band); SMZ ≥ 100 m boʻlsa ustma-ust — chizilmaydi
+    for (const q of z.qab) if (q.smz < q.m) q.rings.forEach(r => dashed(r, plain ? 0x6a6a6a : 0x5b4a6e, 0.52, 7.85, true, 5));
     segs(hatchSegs(z.hard, 3, 45), plain ? 0x6a6a6a : 0x4b4b4b, 0.48, 7.7);
     for (const l of ls) {
       const sel = l.id === this.selLimit, on = isActive(l), col = sel ? C.preview : on ? 0x2f2f2f : 0x8a8780;
