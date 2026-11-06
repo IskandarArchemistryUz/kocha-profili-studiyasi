@@ -65,7 +65,7 @@ describe('suv obyekti zonalari (981-son nizom)', () => {
     const ls = parseLimitsOsm({ elements: [
       { type: 'way', id: 1, tags: { waterway: 'river', name: 'Chirchiq' }, geometry: [G(-500, 300), G(500, 300)] },
       { type: 'way', id: 2, tags: { waterway: 'canal' }, geometry: [G(-500, 230), G(500, 230)] },
-      { type: 'way', id: 3, tags: { natural: 'water' }, geometry: [G(250, -50), G(300, -50), G(300, 0), G(250, 0), G(250, -50)] },
+      { type: 'way', id: 3, tags: { natural: 'water', water: 'lake' }, geometry: [G(250, -50), G(300, -50), G(300, 0), G(250, 0), G(250, -50)] },   // 06.11 (c63): tegsiz < 0,5 ga — bezak suvi, shuning uchun lake
       { type: 'way', id: 4, tags: { waterway: 'ditch' }, geometry: [G(-500, 900), G(500, 900)] },   // uzoq
     ] } as never, site);
     const by = (id: number) => ls.find(l => l.osm === id);

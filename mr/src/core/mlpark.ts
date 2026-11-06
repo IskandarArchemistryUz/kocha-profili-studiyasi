@@ -49,8 +49,17 @@ export const Q3 = {
   win: [10, 12, 15, 25, 35], blind: [10, 15, 25, 35, 50], social: [15, 25, 25, 50, null], hosp: [25, 50, null, null, null],
 } as const satisfies Record<string, readonly (number | null)[]>;
 const maxN = (...v: (number | null)[]): number | null => v.every(x => x == null) ? null : Math.max(...v.filter((x): x is number => x != null));
-/** ikki normaning kattasi (TALQIN): turar joy — tomon modelda aniqlanmaydi, shuning uchun ShNQ old/derazasiz va 3-ilova derazali/derazasiz tomonlarning kattasi */
-export const RES30: number[] = T30.front.map((f, i) => maxN(f, T30.blind[i], Q3.win[i], Q3.blind[i])!);
+/**
+ * 06.11 (c63, egasi): 3-ilovada derazali / derazasiz qatorlar ShNQ 30-jadvalga nisbatan almashgan koʻrinadi (0103-25: derazali 10/12/15/25/35,
+ * derazasiz 10/15/25/35/50; ShNQ: old tomon 12/15/25/35/50, derazasiz 12/10/15/25/35) — TALQIN. Qoʻllanadi:
+ *  - WIN30 — derazali tomon: ShNQ «олд томонидан» va 3-ilova 1-qatorining kattasi (NORMA);
+ *  - derazasiz tomon (generator belgilagan derazasiz torets, Building.gen.blind) — ShNQ «деразасиз ён томонидан» (NORMA);
+ *    faqat 3-ilova 2-qatori buzilsa — «koʻrib chiqish» (TALQIN).
+ * Tomon nomaʼlum (derazasiz torets belgilanmagan) — derazali deb olinadi.
+ */
+export const WIN30: number[] = T30.front.map((f, i) => maxN(f, Q3.win[i])!);
+/** turar joy uchun talab (tomon nomaʼlum — derazali): generator va «olib tashlash» tuzatishi shu qiymat bilan ishlaydi */
+export const RES30: number[] = WIN30;
 /** MTM, taʼlim, dam olish joylari va sport inshootlari — ShNQ «мактаблар, таълим» va 3-ilova 3-qatorining kattasi */
 export const SOC30: (number | null)[] = T30.school.map((v, i) => maxN(v, Q3.social[i]));
 export const capCol = (n: number): number => n <= 10 ? 0 : n <= 50 ? 1 : n <= 100 ? 2 : n <= 300 ? 3 : 4;
@@ -159,7 +168,7 @@ export const COL_MAX = [10, 50, 100, 300, Infinity] as const;
 export const PUB30 = new Set(['maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona', 'sport', 'aralash']);
 /**
  * 06.11 (c55): ochiq avtoturargoh joylaridan binogacha talab qilinadigan masofa, m — 30-jadval, sigʻim ustuni c.
- * Turar joy — ShNQ 30-jadval va SanQvaN 0103-25, 3-ilova tomonlarining kattasi (RES30; tomon modelda aniqlanmaydi — TALQIN);
+ * Turar joy — derazali tomon (RES30 = WIN30: ShNQ old tomon va 3-ilova derazali qatorining kattasi);
  * maktab/MTM va sport — SOC30 (hudud oʻrniga bino — TALQIN; «–» > 300 — 101–300 qiymati, TALQIN);
  * boshqa jamoat binolari — «жамоат бинолари». null — 30-jadvalga kirmaydi.
  */

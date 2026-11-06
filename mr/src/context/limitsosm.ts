@@ -11,6 +11,7 @@
  *    tayanchlar — power=tower / pole nuqtalari, eng yaqin liniyaga (≤ 15 m) biriktiriladi;
  *  - suv obyektlari (04.11, Murad sinovi, 6-band): waterway=river|stream|canal|drain|ditch (chiziq — oʻq), natural=water (koʻl, suv ombori;
  *    water=river|canal — daryo/kanal yuzasi); toifa (sarf) OSM da yoʻq — river «oʻrta», stream «juda kichik», canal — kiritilmagan;
+ *    06.11 (c63): amenity=fountain, leisure=swimming_pool, water=pond|reflecting_pool|basin|fountain va tabiiy tegsiz < 0,5 ga suv — bezak suvi;
  *  - yer foydalanishi (qimmatli yerlar): landuse=orchard / vineyard / farmland — uchastka bilan kesishganlari, sukut «buziladi»
  *    (cheklov emas, yer balansi va yoʻqotiladigan yerlar uchun).
  * Hammasi src: 'osm', osm: id — foydalanuvchi holat, turini oʻzgartiradi yoki oʻchiradi.
@@ -37,7 +38,7 @@ export function limitsQuery(site: LngLat[], r = LIM_OSM_R): string {
   way["power"~"^(line|minor_line|cable)$"];
   node["power"~"^(tower|pole)$"];
   way["landuse"~"^(orchard|vineyard|farmland)$"];
-  way["waterway"~"^(river|stream|canal|drain|ditch)$"]["tunnel"!="culvert"]["tunnel"!="yes"]; way["natural"="water"]; relation["natural"="water"];
+  way["waterway"~"^(river|stream|canal|drain|ditch)$"]["tunnel"!="culvert"]["tunnel"!="yes"]; way["natural"="water"]; relation["natural"="water"]; way["amenity"="fountain"]; way["leisure"="swimming_pool"];
   way["landuse"="industrial"]; relation["landuse"="industrial"]; way["building"~"^(industrial|manufacture)$"]; way["man_made"="works"];
 );
 out geom qt;`;
@@ -54,6 +55,19 @@ const near = (pts: XY[], site: XY[], m: number) => pts.some(p => distToRing(p, s
   || site.some(q => pts.some((a, i) => i > 0 && segD(q, pts[i - 1], a) <= m))
   || pts.some((a, i) => i > 0 && site.some((_q, k) => segX(pts[i - 1], a, site[k], site[(k + 1) % site.length])));
 const segX = (a: XY, b: XY, c: XY, d: XY) => { const o = (p: XY, q: XY, r: XY) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])); return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b); };
+
+/** 06.11 (c63): bezak suvi chegarasi — 0,5 ga (ANDOZA) */
+export const DECOR_MAX_M2 = 5000;
+const NATURAL_WATER = /^(lake|reservoir|river|oxbow|stream|canal|ditch|drain|lagoon|rapids|stream_pool|wastewater|lock)$/;
+const DECOR_WATER = /^(pond|reflecting_pool|basin|fountain|pool|moat)$/;
+/** natural=water — bezak suvimi: water=pond|reflecting_pool|basin|fountain yoki tabiiy teg yoʻq va maydoni < 0,5 ga */
+export function isDecor(t: Record<string, string>, loc: XY[]): boolean {
+  const w = t.water ?? '';
+  if (DECOR_WATER.test(w)) return true;
+  if (NATURAL_WATER.test(w) || t.name && /(suv ombori|водохранилищ|reservoir|koʻl|ko'l|озеро)/i.test(t.name)) return false;
+  let a = 0; for (let i = 0; i < loc.length; i++) { const p = loc[i], q = loc[(i + 1) % loc.length]; a += p[0] * q[1] - q[0] * p[1]; }
+  return Math.abs(a) / 2 < DECOR_MAX_M2;
+}
 
 /** voltage tegi (V, «;» bilan bir nechta) → kV, eng kattasi; yoʻq — undefined */
 export function kvOf(v?: string): number | undefined {
@@ -121,6 +135,12 @@ export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit
       add(e, 'sanoat', pip(c, S) ? { rings: [r], status: 'buziladi' } : { rings: [r] });
       continue;
     }
+    // 06.11 (c63, egasi: «oddiy fontan hududidanham shunday katta zona»): fontan, bezak hovuzi, basseyn — bezak suvi (zonasiz, TALQIN);
+    // tabiiy suv teglari (lake, reservoir, river …) boʻlmagan 0,5 ga dan kichik yopiq suv yuzasi ham bezak (ANDOZA). Faqat uchastka ichida va yonida
+    if (t.amenity === 'fountain' || t.leisure === 'swimming_pool' || (t.natural === 'water' && isDecor(t, loc))) {
+      if (near(loc, S, 0)) add(e, 'suv', { rings: [r], suv: { t: 'bezak' } });
+      continue;
+    }
     if (t.natural === 'water') {
       const w = t.water ?? '', tp = /^(river|oxbow|stream)$/.test(w) ? 'daryo' : /^(canal|ditch|drain)$/.test(w) ? 'kanal' : 'kol';
       if (near(loc, S, tp === 'daryo' ? 300 : 250)) add(e, 'suv', { rings: [r], suv: tp === 'daryo' ? { t: 'daryo', q: 2 } : { t: tp } });
@@ -166,7 +186,7 @@ export function limitsFromContext(c: CtxLite, site: LngLat[]): { limits: Limit[]
   const els: OsmEl[] = [];
   for (const b of c.buildings) if (/^(industrial|manufacture|warehouse|greenhouse)$/.test(b.kind) && b.rings[0]?.length >= 3) els.push({ type: 'way', id: b.id, tags: { building: b.kind }, geometry: shut(b.rings[0]) });
   for (const g of c.green) if (g.kind === 'cemetery' && g.rings[0]?.length >= 3) els.push({ type: 'way', id: g.id, tags: { landuse: 'cemetery' }, geometry: shut(g.rings[0]) });
-  for (const w of c.water) if (w.rings[0]?.length >= 3) els.push({ type: 'way', id: w.id, tags: { natural: 'water', ...(/^(river|canal|stream|ditch|drain)$/.test(w.kind) ? { water: w.kind } : {}) }, geometry: shut(w.rings[0]) });
+  for (const w of c.water) if (w.rings[0]?.length >= 3) els.push({ type: 'way', id: w.id, tags: { natural: 'water', ...(/^(river|canal|stream|ditch|drain|lake|reservoir|pond|reflecting_pool|basin|fountain)$/.test(w.kind) ? { water: w.kind } : {}) }, geometry: shut(w.rings[0]) });
   for (const w of c.waterways) if (/^(river|stream|canal|drain|ditch)$/.test(w.cls) && w.pts.length >= 2) els.push({ type: 'way', id: w.id, tags: { waterway: w.cls, ...(w.name ? { name: w.name } : {}) }, geometry: geo(w.pts) });
   for (const r of c.rails) if (r.cls === 'rail' && r.pts.length >= 2) els.push({ type: 'way', id: r.id, tags: { railway: 'rail' }, geometry: geo(r.pts) });
   const limits = parseLimitsOsm({ elements: els }, site);

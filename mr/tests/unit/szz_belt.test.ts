@@ -13,7 +13,7 @@ const rule = RULES.find(r => r.id === 'szz-belt')!;
 const mk = (use = 'turar', w = 0) => {
   let d = blankProject('t') as any; const fr = frame(d.origin), G = (p: XY) => fr.toGeo(p);
   d.site = { rings: [sq(-300, -300, 300, 300).map(G)] };
-  d = apply(d, { type: 'addLimit', limit: { id: 'q1', kind: 'qabriston', status: 'saqlanadi', src: 'qolda', rings: [sq(-20, -20, 20, 20).map(G)] } as Limit } as any);
+  d = apply(d, { type: 'addLimit', limit: { id: 'q1', kind: 'qabriston', status: 'saqlanadi', src: 'qolda', rings: [sq(-20, -20, 20, 20).map(G)], sub: { open: false } } as Limit } as any);   // yopiq — 100 m (VM 101)
   d = apply(d, { type: 'setZones', zones: [{ id: 'z0', at: G([250, 250]), use }] } as any);
   if (w > 0) {
     // kvartal parsellari: kvadrat halqa (120 − w … 120 m) — himoya; SMZ burchaklari dumaloq, shuning uchun 20 m tasmani toʻliq qoplash uchun w ≈ 46

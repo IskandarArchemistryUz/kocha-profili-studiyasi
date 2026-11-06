@@ -17,14 +17,14 @@ const mk = (limits: Limit[], blds: { r: XY[]; use: string }[]) => {
 };
 const rule = (id: string, d: any) => RULES.find(r => r.id === id)!.evaluate({} as any, d);
 
-/** 06.11 (c61): SanQvaN 0103-25 da qabriston yoʻq — oldingi 0350-17, 6.4 qiymatlari maʼlumot uchun (AMALIYOT) */
-describe('qabriston SMZ — AMALIYOT (0103-25 da yoʻq; oldingi 0350-17, 6.4)', () => {
-  it('qishloq qabristoni ≤ 2 ga — amaldagi boʻlsa ham V (alohida nomlangan band)', () => {
-    expect(szzOf(L({ sub: { rural: true } }), 1.5)).toMatchObject({ m: 50, cls: 'V', flag: 'AMALIYOT' });
-    expect(szzOf(L({ sub: { rural: true } }), 3)).toMatchObject({ m: 100, cls: 'IV' });
-    expect(szzOf(L({ sub: { open: false } }), 30)).toMatchObject({ m: 100, cls: 'IV', flag: 'AMALIYOT' });
-    expect(szzOf(L({}), 4).ref).toContain('0103-25 da qabriston yoʻq');
-    expect(szzOf(L({ szz: 60 }), 4)).toMatchObject({ m: 60, table: 100 });
+/** 06.11 (c63): qabriston SMZ — VM 101-son qarori, 1-ilova, 50-band (NORMA) */
+describe('qabriston SMZ — VM 101, 50-band', () => {
+  it('qishloq va kolumbariy ≥ 50 m, lekin bino devoridan ≥ 100 m — 100; yopiq 100; qoʻlda bufer', () => {
+    expect(szzOf(L({ sub: { rural: true } }), 1.5)).toMatchObject({ m: 100, flag: 'NORMA' });
+    expect(szzOf(L({ sub: { rural: true } }), 3).m).toBe(100);
+    expect(szzOf(L({ sub: { open: false } }), 30)).toMatchObject({ m: 100, flag: 'NORMA' });
+    expect(szzOf(L({}), 4).ref).toContain('VM 101-son qarori (04.04.2011), 1-ilova, 50-band');
+    expect(szzOf(L({ szz: 60 }), 4)).toMatchObject({ m: 60, table: 300 });
   });
 });
 
@@ -56,11 +56,11 @@ describe('SMZ ichidagi funksiyalar (SanQvaN 0103-25, 12 / 14-band)', () => {
     expect(rule('szz-217', d2).status).toBe('review');
     expect(rule('szz-217', mk([], [])).status).toBe('na');
   });
-  it('qabriston SMZ i (AMALIYOT) ichidagi turar joy — mos emas emas, koʻrib chiqish; izohda «baholanmadi»', () => {
+  it('06.11 (c63): qabriston SMZ i ichidagi turar joy — mos emas (VM 101, 50-band: SMZ da turar joy va jamoat binolari taqiqlanadi)', () => {
     const qab = L({ rings: [sq(-20, -20, 20, 20) as any] });
     const d = mk([qab], [{ r: sq(40, -10, 70, 10), use: 'turar' }]);
-    expect(limitChecks(d).szz.map(x => [x.bid, x.verdict, x.amal])).toEqual([['b0', 'review', true]]);
-    const r = rule('szz-217', d); expect(r.status).toBe('review'); expect(r.note).toContain('AMALIYOT'); expect(r.note).toContain('baholanmadi');
+    expect(limitChecks(d).szz.map(x => [x.bid, x.verdict, x.amal])).toEqual([['b0', 'deny', undefined]]);
+    expect(rule('szz-217', d).status).toBe('fail');
   });
   it('buziladigan qabriston — SMZ yoʻq', () => {
     const d = mk([L({ rings: [sq(-20, -20, 20, 20) as any], status: 'buziladi' })], [{ r: sq(40, -10, 70, 10), use: 'turar' }]);

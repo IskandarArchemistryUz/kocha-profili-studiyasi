@@ -8,7 +8,7 @@
  *    chiqarilmaydi (TALQIN; oldingi 0350-17, 2.19 dagi «avtomagistral foizni kamaytirmaydi» izohi 0103-25 da yoʻq).
  * ShNQ 2.07.01-23, 146 — ishlab chiqarish zonasi SMZ ida turar joy va ijtimoiy binolar yoʻq (prodcheck.DENY_146).
  * Koʻkalam deb «Himoya koʻkalamzorligi (SMZ)» va «Park / bogʻ» kvartallari olinadi (TALQIN: hovli maysasi va koʻcha tasmalari
- * hisobga olinmaydi). Qabriston SMZ i — AMALIYOT (0103-25 da qabriston yoʻq): foiz hisoblanadi, lekin «mos emas» berilmaydi (amal).
+ * hisobga olinmaydi). Qabriston SMZ i (VM 101, 50-band) — 13-band 1-ilova obyektlari uchun, qabriston u yerda yoʻq: foiz hisoblanadi, lekin «mos emas» berilmaydi (amal).
  */
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
@@ -26,7 +26,7 @@ const ringA = (r: [number, number][]) => { let a = 0; for (let i = 1; i < r.leng
 export const mpArea = (mp: MultiPolygon) => mp.reduce((t, p) => t + ringA(p[0]) - p.slice(1).reduce((u, h) => u + ringA(h), 0), 0);
 const tryMP = (f: () => MultiPolygon, d: MultiPolygon): MultiPolygon => { try { return f(); } catch { return d; } };
 
-/** Funksiya uchun taqiqlangan SMZ hududi (mahalliy metr): cheklov obyektlari SMZ (12-band; qabriston — AMALIYOT, ehtiyot uchun ham chiqariladi) + ishlab chiqarish SMZ (146); own — shu kvartalning oʻzi (ishlab chiqarish kvartalining oʻz SMZ i oʻziga taqiq emas) */
+/** Funksiya uchun taqiqlangan SMZ hududi (mahalliy metr): cheklov obyektlari SMZ (12-band; qabriston — VM 101, 50-band: SMZ da turar joy va jamoat binolari taqiqlanadi) + ishlab chiqarish SMZ (146); own — shu kvartalning oʻzi (ishlab chiqarish kvartalining oʻz SMZ i oʻziga taqiq emas) */
 export function denyZone(doc: Project, use: Use): MultiPolygon {
   const parts: MultiPolygon[] = [];
   if (szzVerdict(use) === 'deny') for (const s of limitZones(doc).soft) parts.push(s.polys.map(p => p.map(close)) as MultiPolygon);
@@ -83,7 +83,8 @@ function raw(doc: Project): SzzGreen[] {
     const green = greenMP.reduce((t, g) => t + mpArea(tryMP(() => polygonClipping.intersection(zone, g), [])), 0);   // yashil kvartallar bir-birini qoplamaydi
     out.push({ id, label, cls, need: needOf(cls), area, green, share: area ? green / area : 0, rings: zone.map(p => open(p[0])), ...(amal ? { amal: true } : {}) });
   };
-  for (const s of limitZones(doc).soft) add(s.id, s.kind, s.cls ?? 'IV', s.polys.map(p => p.map(close)) as MultiPolygon, s.flag === 'AMALIYOT');
+  // 06.11 (c63): qabriston SMZ i — VM 101, 50-band (koʻkalamzorlik foizi yoʻq; 13-band — 1-ilova obyektlari uchun): foiz maʼlumot uchun (amal)
+  for (const s of limitZones(doc).soft) add(s.id, s.kind, s.cls ?? 'IV', s.polys.map(p => p.map(close)) as MultiPolygon, s.flag === 'AMALIYOT' || s.kind === 'qabriston');
   for (const z of prodChecks(doc).zones) add(`prod${z.block}`, z.use, clsOfM(z.szz), tryMP(() => polygonClipping.difference(bufferLocal(z.rings[0], z.szz, true), z.rings.map(close) as Polygon), []));
   return out;
 }

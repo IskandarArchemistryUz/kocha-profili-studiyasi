@@ -22,6 +22,16 @@ describe('B6: avtoturargoh masofalari, nogironlar joylari, velo, TP', () => {
     expect(ev('park-30', doc([], [house(40)])).status).toBe('na');
     expect(ev('park-30', doc([lot(30, 'yer_osti')], [house(28)])).status).toBe('na');   // yer osti — 415-band (ug-park-415)
   });
+  it('06.11 (c63): derazasiz torets (gen.blind) — ShNQ 30-jadval (10 m); faqat 3-ilova 2-qatori (15 m) buzilsa — koʻrib chiqish (TALQIN)', () => {
+    const g = (sp: number): Garage => ({ id: 'gt', grp: 'b2', kind: 'yer_usti', ring: sq(13.5, 0, 3, 20).map(fr.toGeo), levels: 1, spaces: sp });
+    // torets (0-qirra, 30 m eni) avtoturargohga qaragan; derazali yon tomonlar ≈ 18 m da
+    const gab = (y: number, blind?: number[]): Building => ({ id: 'g' + y, footprint: sq(0, y, 30, 60).map(fr.toGeo), floors: 9, nonRes: 0, use: 'turar', gen: { grp: 'b1', kind: 'oddiy', ...(blind ? { blind } : {}) } } as Building);
+    const r = ev('park-30', doc([g(30)], [gab(32, [0])]));
+    expect(r.status).toBe('review'); expect(r.note).toContain('almashgan boʻlishi mumkin');
+    expect(ev('park-30', doc([g(30)], [gab(29, [0])])).status).toBe('fail');   // 9 m < 10 (ShNQ derazasiz)
+    expect(ev('park-30', doc([g(30)], [gab(32)])).status).toBe('fail');        // torets belgilanmagan — derazali deb: 12 < 15
+    expect(ev('park-30', doc([g(30)], [gab(36, [0])])).status).toBe('pass');
+  });
   it('411-band: barcha avtoturargohlar joylari yigʻiladi', () => {
     const r = ev('park-411', doc([lot(30), lot(70, 'yer_osti', 100)], [house(60)]));
     expect(r.value).toBe(5); expect(r.note).toContain('100');

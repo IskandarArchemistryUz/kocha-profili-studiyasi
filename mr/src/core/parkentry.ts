@@ -11,7 +11,8 @@
  *    шунингдек таълим ва даволаш муассасалари ҳудудларидан камида 15 m узоқликда бўлиши керак.»
  *  - ShNQ 2.05.07-24, 10-band: «Jamoat va turar joy obyektlari binolarida joylashgan avtomobillar uchun yer osti, yarim yer osti toʻxtash
  *    joylarining kirish-chiqish joyidan jamoat va turar joy obyekti binosigacha boʻlgan masofa belgilanmaydi» — oʻz binosi (garaj ustidagi
- *    bino, TALQIN) kirish-chiqish uchun tekshirilmaydi (EntryEnv.host).
+ * *    bino, TALQIN) kirish-chiqish uchun tekshirilmaydi (EntryEnv.host). 06.11 (c63): oʻz binosi — garaj konturi bilan kesishgan yoki
+ *    unga tutash (≤ 0,5 m) bino yoki stilobat (TALQIN).
  *  - 06.11 (c61): bekor qilingan SanPiN 0350-17, 6.4.1-jadval 8-izohi (shamollatish shaxtalari, dam olish maydonchalari — 15 m) amaldagi
  *    SanQvaN 0103-25 da yoʻq. Shaxtalar va maydonchalar uchun 415-band qiymati (15 m) qoldirildi — AMALIYOT/TALQIN.
  *    TALQIN: «деразалари» — turar va jamoat binolarining izi (derazalar qaysi tarzda ekani modelda yoʻq — xavfsiz tomonga,

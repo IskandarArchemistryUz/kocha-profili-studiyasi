@@ -21,6 +21,16 @@ function overlapA(a: XY[], b: XY[]): number { try { return (polygonClipping.inte
 const cOf = (r: XY[]): XY => [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
 const inR = (p: XY, r: XY[]): boolean => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 
+/** 06.11 (c63): «binoda joylashgan» garaj — bino konturiga tutashlik chegarasi, m (TALQIN) */
+export const HOST_GAP = 0.5;
+const segGap = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)); return Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]); };
+/** ikki halqa chegaralari orasidagi eng kichik masofa, m */
+function ringGap(a: XY[], b: XY[]): number {
+  let d = Infinity;
+  for (const [P, Q] of [[a, b], [b, a]] as const) for (const p of P) for (let i = 0; i < Q.length; i++) d = Math.min(d, segGap(p, Q[i], Q[(i + 1) % Q.length]));
+  return d;
+}
+
 export function entryEnv(doc: Project, g: Garage): EntryEnv {
   const fr = frame(doc.origin), plan = computePlan(doc), r = g.ring.map(fr.toLocal), c = cOf(r);
   const blk = plan.blocks.find(b => inR(c, b.rings[0]));
@@ -29,9 +39,10 @@ export function entryEnv(doc: Project, g: Garage): EntryEnv {
   const stops = doc.pois.filter(q => q.kind === 'bekat' || q.kind === 'metro').map(q => fr.toLocal(q.at));
   const bs = doc.buildings.filter(b => !own.has(b.id) && b.floors > 0).map(b => ({ b, r: b.footprint.map(fr.toLocal) }));
   // 06.11 (c61): ShNQ 2.05.07-24, 10-band — binoda joylashgan yer osti avtoturargohi kirish-chiqishidan oʻz binosigacha masofa belgilanmaydi.
-  // Oʻz binosi — garaj maydonining kamida yarmi ostida joylashgan bino (garaj binoda joylashgan, TALQIN; hovli ostidagi umumiy garajda
-  // binolar oʻz binosi hisoblanmaydi); shaxtalar uchun oʻz binosi ham tekshiriladi (10-band faqat kirish-chiqish haqida)
-  const ug = isUg(g), gA = ringA(r), host = (x: { r: XY[] }) => ug && gA > 0 && overlapA(x.r, r) >= 0.5 * gA;
+  // 06.11 (c63, egasi): oʻz binosi — yer osti / yarim yer osti garaj konturi bilan kesishgan yoki unga tutash (≤ 0,5 m) turar yoki jamoat
+  // binosi (garaj shu binoda / stilobat ostida joylashgan — TALQIN; oldingi «garaj maydonining yarmi» sharti olib tashlandi).
+  // Boshqa binolarga masofa — ShNQ 2.07.01-23, 415-band; shaxtalar uchun oʻz binosi ham tekshiriladi (10-band faqat kirish-chiqish haqida)
+  const ug = isUg(g), host = (x: { r: XY[] }) => ug && (overlapA(x.r, r) > 0.5 || ringGap(x.r, r) <= HOST_GAP);
   const wins = bs.filter(x => useDef(x.b.use).res > 0 || PUB.has(x.b.use)), windows = wins.filter(x => !host(x)).map(x => x.r), hostW = wins.filter(host).map(x => x.r);
   const edu = plan.blocks.filter(b => EDU.has(b.use)).map(b => b.rings[0]);
   // TALQIN (oldingi 0350-17, 6.4.1-jadval 8-izohidagi «площадки отдыха» — 0103-25 da yoʻq; AMALIYOT): bolalar, kattalar va sport maydonchalari (xoʻjalik emas)
