@@ -1,0 +1,25 @@
+/* Tugma izohlari (tips.ts): toʻq karta yorugʻ interfeysda, och karta tungi rejimda */
+.tip-card{
+  --tip-bg:#141414; --tip-fg:#f2f1ee; --tip-muted:#d6d3cc; --tip-chip:#363633;
+  --tip-ok:#6cc08f; --tip-ok-bg:rgba(108,192,143,.16); --tip-warn:#e0b25a;
+  position:fixed; z-index:10000; max-width:280px; box-sizing:border-box;
+  padding:10px 12px; border-radius:12px; background:var(--tip-bg); color:var(--tip-fg);
+  box-shadow:var(--sh-pop); font:400 12px/17px var(--sans); pointer-events:none;
+  display:flex; flex-direction:column; gap:4px;
+  animation:tip-in var(--t-fast) var(--ease) both;
+}
+[data-theme="dark"] .tip-card{
+  --tip-bg:#f2f1ee; --tip-fg:#141414; --tip-muted:#3a3936; --tip-chip:#e3e1dc;
+  --tip-ok:#2b7449; --tip-ok-bg:#e6f2ea; --tip-warn:#95620f;
+}
+.tip-card .tip-h{font-weight:600; font-size:13px; line-height:18px; white-space:pre-line}
+.tip-card .tip-d{color:var(--tip-muted)}
+.tip-card .tip-warn{color:var(--tip-warn); font-weight:600}
+.tip-card .tip-price{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
+.tip-card .tip-chip{font-size:11px; line-height:15px; font-weight:600; padding:2px 8px; border-radius:var(--r-pill); background:var(--tip-chip); color:var(--tip-muted)}
+.tip-card .tip-chip.ok{background:var(--tip-ok-bg); color:var(--tip-ok)}
+.tip-card .tip-chip.coin{font-family:var(--mono); font-weight:500; color:var(--tip-fg)}
+@keyframes tip-in{from{opacity:0; transform:translateY(2px)}to{opacity:1; transform:none}}
+.tip-card[data-side="right"]{animation-name:tip-in-r}
+@keyframes tip-in-r{from{opacity:0; transform:translateX(-2px)}to{opacity:1; transform:none}}
+@media (prefers-reduced-motion: reduce){.tip-card{animation:none}}
