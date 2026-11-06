@@ -30,7 +30,8 @@ const tryMP = (f: () => MultiPolygon, d: MultiPolygon): MultiPolygon => { try { 
 export function denyZone(doc: Project, use: Use): MultiPolygon {
   const parts: MultiPolygon[] = [];
   const lz = limitZones(doc);
-  for (const s of lz.soft) if (szzVerdict(use) === 'deny' || (s.kind === 'qabriston' && QAB100_DENY.includes(use))) parts.push(s.polys.map(p => p.map(close)) as MultiPolygon);
+  // 07.11 (c70): ShNQ masofalari (TP — 257, GTP — ShNQ 2.04.08-22, 240) — oʻz roʻyxati boʻyicha
+  for (const s of lz.soft) if (s.deny ? s.deny === 'all' || s.deny.includes(use) : szzVerdict(use) === 'deny' || (s.kind === 'qabriston' && QAB100_DENY.includes(use))) parts.push(s.polys.map(p => p.map(close)) as MultiPolygon);
   // 06.11 (c65): qabriston chegarasidan 100 m — turar joy, jamoat binolari, dam olish zonalari qoʻyilmaydi (VM 101, 50-band); garaj, avtoturargoh — mumkin
   if (QAB100_DENY.includes(use)) for (const q of lz.qab) parts.push(q.polys.map(p => p.map(close)) as MultiPolygon);
   if (DENY_146.includes(use) || useDef(use).res > 0) for (const z of prodChecks(doc).zones) {
@@ -87,7 +88,8 @@ function raw(doc: Project): SzzGreen[] {
     out.push({ id, label, cls, need: needOf(cls), area, green, share: area ? green / area : 0, rings: zone.map(p => open(p[0])), ...(amal ? { amal: true } : {}) });
   };
   // 06.11 (c63): qabriston SMZ i — VM 101, 50-band (koʻkalamzorlik foizi yoʻq; 13-band — 1-ilova obyektlari uchun): foiz maʼlumot uchun (amal)
-  for (const s of limitZones(doc).soft) add(s.id, s.kind, s.cls ?? 'IV', s.polys.map(p => p.map(close)) as MultiPolygon, s.flag === 'AMALIYOT' || s.kind === 'qabriston');
+  // 07.11 (c70): masofa zonalari (TP, GTP — SMZ emas) koʻkalamzorlik hisobiga kirmaydi
+  for (const s of limitZones(doc).soft) if (!s.nosmz) add(s.id, s.kind, s.cls ?? 'IV', s.polys.map(p => p.map(close)) as MultiPolygon, s.flag === 'AMALIYOT' || s.kind === 'qabriston');
   for (const z of prodChecks(doc).zones) add(`prod${z.block}`, z.use, clsOfM(z.szz), tryMP(() => polygonClipping.difference(bufferLocal(z.rings[0], z.szz, true), z.rings.map(close) as Polygon), []));
   return out;
 }
@@ -143,7 +145,7 @@ function beltRaw(doc: Project): SzzBelt[] {
   };
   const siteA = mpArea([site]);
   for (const l of (doc.limits ?? [])) {
-    const s = limitZones(doc).soft.find(z => z.id === l.id); if (!s || !l.rings?.length) continue;
+    const s = limitZones(doc).soft.find(z => z.id === l.id); if (!s || s.nosmz || !l.rings?.length) continue;   // 07.11 (c70): masofa (TP, GTP) — tasma yoʻq
     const src = l.rings[0].map(fr.toLocal), full = bufferLocal(src, s.m, true);
     const fullA = mpArea(full), inA = mpArea(tryMP(() => polygonClipping.intersection(full, site), []));
     add(l.id, l.kind, src, s.m, tryMP(() => polygonClipping.difference(full, [close(src)]), full), inA < fullA - 1 && inA < siteA);

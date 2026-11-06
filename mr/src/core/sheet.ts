@@ -511,7 +511,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     if (z.soft.length) {
       g('SMZ_cheklovlar', z.soft.map(sz => `<path d="${polyD(sz.rings)}" fill="${SZ}" fill-opacity="0.18" stroke="${SZ}" stroke-width="${lw(0.35)}" stroke-dasharray="2 1" fill-rule="evenodd"/>`).join(''));
       const seen = new Set<string>();
-      for (const sz of z.soft) { const lab = `${tr('SMZ')} — ${tr(LIMIT_NAMES[sz.kind])}, ${sz.m} m${sz.cls ? ` (${sz.cls} ${tr('sinf')})` : ''}`; if (seen.has(lab)) continue; seen.add(lab); legend.push({ type: 'fill', fill: '#f6dcc0', stroke: SZ, label: lab }); }
+      for (const sz of z.soft) { const lab = `${tr(sz.nosmz ? 'Masofa' : 'SMZ')} — ${tr(sz.name ?? LIMIT_NAMES[sz.kind])}, ${sz.m} m${sz.cls ? ` (${sz.cls} ${tr('sinf')})` : ''}`; if (seen.has(lab)) continue; seen.add(lab); legend.push({ type: 'fill', fill: '#f6dcc0', stroke: SZ, label: lab }); }
     }
     const pz = prodChecks(doc).zones.map(q => { let mp: MultiPolygon = []; try { mp = polygonClipping.difference(bufferLocal(q.rings[0], q.szz, true), q.rings.map(cl) as Polygon); if (siteP) mp = polygonClipping.intersection(mp, siteP); } catch { mp = []; } return { q, mp }; }).filter(x => x.mp.length);
     if (pz.length) {
