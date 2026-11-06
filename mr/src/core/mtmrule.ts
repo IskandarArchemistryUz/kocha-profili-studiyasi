@@ -2,8 +2,8 @@
  * 06.11 (c62, egasi: «bogʻchada boʻsh yer gʻalati turibdi; qoida qanday — bino qancha qismni egallaydi, qavatliligi qanday»):
  * MTM uchastkasi tarkibi. Meʼyor (asl matn): 543-band — uchastka 40 / 35 m² oʻringa; 5-ilova (5-ustun) — bino 33 m² oʻringa;
  * QMQ 2.01.03-19, 3.1-jadval 2-izoh — 8–9 ballda bogʻcha 2 qavat bilan cheklanadi; 39-jadval — qizil chiziqdan 25 m.
- * ShNQ 2.07.01-23, 544-band MTM va hududini ShNQ 2.08.02-09 ga yuboradi — bu hujjat normalar toʻplamida yoʻq, shuning uchun
- * guruh hajmi, guruh maydonchasi, umumiy sport maydoni, xoʻjalik zonasi va koʻkalamzorlik ulushi — ANDOZA (MDH amaliyoti).
+ * ShNQ 2.07.01-23, 544-band (01/2-42 tahririda) MTM va hududini ShNQ 2.08.02-23 ga yuboradi (avval 2.08.02-09) — unda MTM guruh
+ * maydonchalari va hududi boʻyicha talab yoʻq (c68 tekshiruvi), shuning uchun guruh hajmi, guruh maydonchasi, umumiy sport maydoni, xoʻjalik zonasi va koʻkalamzorlik ulushi — ANDOZA (MDH amaliyoti).
  */
 export const MTM = {
   /** ANDOZA: bir guruhda bolalar soni */
