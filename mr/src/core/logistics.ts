@@ -7,28 +7,33 @@
  *    joylashtirish mumkin emas), 173 (sabzavot-meva omborlari SMZ ≥ 50 m), 174 (aholiga kundalik xizmat bilan bogʻliq boʻlmagan omborlar —
  *    transport tugunlari, tashqi avtomobil va temir yoʻl yonida), 178 (kommunal-ombor zonasi: eng yirik va yirik shaharlarda 2 m²/kishi,
  *    boshqa shaharlarda 2,5 m²/kishi).
- *  - SanPiN RUz № 0350-17: 6.3 IV sinf (100 m) — yoqilgʻi-moylash materiallari omborlari; 6.3 V sinf (50 m) — meva, sabzavot, kartoshka,
- *    don omborlari, material omborlari; 6.4 IV sinf (100 m) — shaharlararo yuk avtotransporti turargohlari, bojxona terminallari.
- * Omborlar SMZ sinflari uchun ShNQ 2.09.02-19 va SanQvaN 0019-21 normalar papkasida yoʻq — matnda boʻlmagan qiymat «ANDOZA».
+ *  - SanQvaN 0103-25 (SanPiN 0350-17 oʻrniga), 7-band va 1-ilova: 5-sinf (50 m) — 456 «don, meva va sabzavotlarni saqlash omborxonalari»,
+ *    464 «meva va sabzavotlarni ulgurji saqlash joyi», 465 «past haroratda oziq-ovqat mahsulotlarini saqlash joyi (> 600 t)», 480 «qurilish
+ *    (qum, tosh) materiallarini ortish-tushirish va ochiq joyda saqlash», 482 «oziq-ovqat … meva-sabzavotlarni ortish-tushirish va saqlash»;
+ *    4-sinf (100 m) — 413 «shaharlararo yuk tashish uchun avtoturargohlar, bojxona terminallari», 419 «avtobus va troleybus parklari (300
+ *    donagacha)», 425 «yoqilgʻi-moylash materiallari omborlari»; 3-sinf (300 m) — 299 «quruq qum, tosh va boshqa qurilish materiallari
+ *    ortish-tushirish va ochiq joyda saqlash», 308 «avtovokzal», 309 «avtobus va trolleybus parklari, tramvay va metro depolari (taʼmirlash
+ *    tarmogʻi bilan)». Umumtovar ombor (oziq-ovqatsiz) qatori 1-ilovada yoʻq — 5-sinf, TALQIN.
+ * Matnda boʻlmagan qiymat — «ANDOZA».
  */
 export type Flag = 'NORMA' | 'TALQIN' | 'ANDOZA';
 export interface LogiType { id: string; name: string; szz: number; ref: string; flag: Flag; rail?: boolean }
 export const LOGI: LogiType[] = [
-  { id: 'tarqatish', name: 'Tarqatish markazi (umumtovar)', szz: 50, ref: 'SanPiN 0350-17, 6.6 V sinf, 7 («Склады»)', flag: 'NORMA' },
-  { id: 'sovutgich', name: 'Sovutgichli ombor', szz: 50, ref: 'SanPiN 0350-17, 6.6 V sinf, 3 (oziq-ovqat mahsulotlari omborlari)', flag: 'NORMA' },
-  { id: 'sabzavot', name: 'Sabzavot-meva ombori', szz: 50, ref: 'ShNQ 2.07.01-23, 173; SanPiN 0350-17, 6.6 V sinf, 3 («овощей, фруктов»)', flag: 'NORMA' },
-  { id: 'krossdok', name: 'Oxirgi mil / kross-dok', szz: 50, ref: 'SanPiN 0350-17, 6.6 V sinf, 7 («Склады»)', flag: 'NORMA' },
-  { id: 'terminal', name: 'Yuk terminali (temir yoʻl yonida)', szz: 100, ref: 'SanPiN 0350-17, 6.4 IV sinf («yuk avtotransporti turargohi, bojxona terminali»)', flag: 'TALQIN', rail: true },
-  // 04.11 (audit): ochiq quruq qum, shagʻal, tosh — 6.6 III sinf, 5 (300 m); namlangan materiallar — V sinf, 1 (50 m)
-  { id: 'qurilish', name: 'Qurilish materiallari ombori', szz: 300, ref: 'SanPiN 0350-17, 6.6 III sinf, 5 (ochiq quruq qum, shagʻal, tosh); namlangan — V sinf, 1 (50 m)', flag: 'NORMA' },
-  { id: 'yoqilgi', name: 'Yoqilgʻi ombori', szz: 100, ref: 'SanPiN 0350-17, 6.3 IV sinf («yoqilgʻi-moylash materiallari omborlari» — qishloq xoʻjaligi boʻlimi qatori, shahar uchun talqin)', flag: 'TALQIN' },
+  { id: 'tarqatish', name: 'Tarqatish markazi (umumtovar)', szz: 50, ref: 'SanQvaN 0103-25, 1-ilova, 5-sinf (umumtovar ombor qatori yoʻq)', flag: 'TALQIN' },
+  { id: 'sovutgich', name: 'Sovutgichli ombor', szz: 50, ref: 'SanQvaN 0103-25, 1-ilova, 5-sinf, 465 (past haroratda, > 600 t), 482', flag: 'NORMA' },
+  { id: 'sabzavot', name: 'Sabzavot-meva ombori', szz: 50, ref: 'ShNQ 2.07.01-23, 173; SanQvaN 0103-25, 1-ilova, 5-sinf, 456, 464', flag: 'NORMA' },
+  { id: 'krossdok', name: 'Oxirgi mil / kross-dok', szz: 50, ref: 'SanQvaN 0103-25, 1-ilova, 5-sinf (umumtovar ombor qatori yoʻq)', flag: 'TALQIN' },
+  { id: 'terminal', name: 'Yuk terminali (temir yoʻl yonida)', szz: 100, ref: 'SanQvaN 0103-25, 1-ilova, 4-sinf, 413 («shaharlararo yuk avtoturargohlari, bojxona terminallari»)', flag: 'TALQIN', rail: true },
+  // 06.11 (c61): 1-ilovada ikki qator — 299 (3-sinf, «quruq» qum, tosh) va 480 (5-sinf, qum, tosh); ochiq quruq material — 300 m (TALQIN)
+  { id: 'qurilish', name: 'Qurilish materiallari ombori', szz: 300, ref: 'SanQvaN 0103-25, 1-ilova, 3-sinf, 299 (quruq, ochiq saqlash); 5-sinf, 480 — 50 m', flag: 'TALQIN' },
+  { id: 'yoqilgi', name: 'Yoqilgʻi ombori', szz: 100, ref: 'SanQvaN 0103-25, 1-ilova, 4-sinf, 425 («yoqilgʻi-moylash materiallari omborlari»)', flag: 'NORMA' },
 ];
 export const logiType = (id?: string): LogiType => LOGI.find(t => t.id === id) ?? LOGI[0];
-/** Boshqa ishlab chiqarish funksiyalari SMZ andozasi (turi aniqlanmaguncha; sanoat — ShNQ 2.09.02-19 bilan aniqlanadi) */
+/** Boshqa ishlab chiqarish funksiyalari SMZ andozasi (turi aniqlanmaguncha; sanoat — 1-ilova sinfi bilan aniqlanadi) */
 export const PROD_SZZ: Record<string, { szz: number; ref: string; flag: Flag }> = {
-  sanoat: { szz: 100, ref: 'andoza (IV sinf; aniq sinf — ShNQ 2.09.02-19, papkada yoʻq)', flag: 'ANDOZA' },
-  kommunal: { szz: 50, ref: 'andoza (V sinf)', flag: 'ANDOZA' },
-  transport: { szz: 50, ref: 'andoza (V sinf; avtobus vokzali, depo — SanPiN 0350-17, 6.4 III sinf 300 m)', flag: 'ANDOZA' },
+  sanoat: { szz: 100, ref: 'andoza (4-sinf; aniq sinf — SanQvaN 0103-25, 1-ilova)', flag: 'ANDOZA' },
+  kommunal: { szz: 50, ref: 'andoza (5-sinf)', flag: 'ANDOZA' },
+  transport: { szz: 50, ref: 'andoza (5-sinf; avtovokzal, taʼmirli depo — 0103-25, 1-ilova, 3-sinf 300 m; avtobus parki ≤ 300 — 4-sinf 100 m)', flag: 'ANDOZA' },
 };
 export function prodSzz(use: string, sub?: string): { szz: number; ref: string; flag: Flag } | null {
   if (use === 'logistika') { const t = logiType(sub); return { szz: t.szz, ref: t.ref, flag: t.flag }; }

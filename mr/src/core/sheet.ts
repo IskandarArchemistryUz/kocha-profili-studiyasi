@@ -462,7 +462,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     legend.push({ type: 'fill', fill: '#f3c9c4', stroke: '#1d1d1b', label: tr('Turar joy — radiusdan tashqarida') });
   }
 
-  // 4c. cheklovlar rejasi (02.11): qurib boʻlmaydigan joy (shtrix), cheklov obyektlari SMZ (SanQvaN 0350-17), ishlab chiqarish SMZ (ShNQ 2.07.01-23, 146), ELU oʻqi
+  // 4c. cheklovlar rejasi (02.11): qurib boʻlmaydigan joy (shtrix), cheklov obyektlari SMZ (SanQvaN 0103-25; qabriston — AMALIYOT), ishlab chiqarish SMZ (ShNQ 2.07.01-23, 146), ELU oʻqi
   const bal = K === 'cheklov' ? landBalance(doc) : null;
   if (K === 'cheklov') {
     const z = limitZones(doc), SZ = '#d9822b', PZ = '#8e6bb5', cl = (r: XY[]) => [...r, r[0]].map(p => [p[0], p[1]] as [number, number]);
@@ -723,7 +723,7 @@ export function balanceRows(doc: Project, tr: (s: string) => string = s => s): B
 }
 /**
  * Yashil balans (ShNQ 2.07.01-23, 86-band ≥ 25 %, 87-band — maydoncha va yoʻlaklar uchastkaning 30 % igacha; hisob asosi maktab va MTM
- * uchastkalarisiz — core/landscape.greenBalance bilan bir xil) va SMZ koʻkalamzorligi (SanPiN 0350-17, 2.19 — core/szzgen).
+ * uchastkalarisiz — core/landscape.greenBalance bilan bir xil) va SMZ koʻkalamzorligi (SanQvaN 0103-25, 13-band — core/szzgen).
  */
 export function greenRows(doc: Project, tr: (s: string) => string = s => s): BalanceRow[] {
   if (!doc.site) return [];

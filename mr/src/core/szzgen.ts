@@ -1,15 +1,14 @@
 /**
  * Cheklovlar 3b (02.11): generator SMZ ichiga taqiqlangan funksiyani qoʻymaydi; SMZ koʻkalamzorligi.
  *
- * Asl matn (egasining normalar papkasi, SanPiN RUz № 0350-17):
- *  - 2.17 — SMZ ichida turar joy, MTM, taʼlim, sport, parklar … joylashtirilmaydi (ilovada SZZ_DENY);
- *  - 2.19 — «Санитарно-защитная зона для предприятий IV, V классов должна быть максимально озеленена (не менее 60% площадки);
- *    для предприятий II и III класса — не менее 50%; для предприятий I класса и зон большой протяженности — не менее 40% ее
- *    территории». Avtomagistral qatnov qismi koʻkalamzorlik foizini kamaytirishga asos boʻlmaydi — shuning uchun koʻcha koridorlari
- *    hisob maydonidan chiqarilmaydi.
+ * Asl matn (egasining normalar papkasi, SanQvaN 0103-25):
+ *  - 12-band — SMZ da aholi turar joylari, MTM, taʼlim, sogʻliqni saqlash, dam olish joylari, sport … joylashtirilmaydi (ilovada SZZ_DENY);
+ *  - 13-band — «1-sinfga kiruvchi obyektlar SMZning 40 foizi, 2 va 3-sinflarga kiruvchi obyektlar SMZning 50 foizi, 4 va 5-sinflarga
+ *    kiruvchi obyektlar SMZning 60 foizi koʻkalamzorlashtirilishi va obodonlashtirilishi kerak». Koʻcha koridorlari hisob maydonidan
+ *    chiqarilmaydi (TALQIN; oldingi 0350-17, 2.19 dagi «avtomagistral foizni kamaytirmaydi» izohi 0103-25 da yoʻq).
  * ShNQ 2.07.01-23, 146 — ishlab chiqarish zonasi SMZ ida turar joy va ijtimoiy binolar yoʻq (prodcheck.DENY_146).
  * Koʻkalam deb «Himoya koʻkalamzorligi (SMZ)» va «Park / bogʻ» kvartallari olinadi (TALQIN: hovli maysasi va koʻcha tasmalari
- * hisobga olinmaydi). Qabriston SMZ i uchun 2.19 ni qoʻllash — TALQIN (matn korxonalar haqida).
+ * hisobga olinmaydi). Qabriston SMZ i — AMALIYOT (0103-25 da qabriston yoʻq): foiz hisoblanadi, lekin «mos emas» berilmaydi (amal).
  */
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
@@ -27,7 +26,7 @@ const ringA = (r: [number, number][]) => { let a = 0; for (let i = 1; i < r.leng
 export const mpArea = (mp: MultiPolygon) => mp.reduce((t, p) => t + ringA(p[0]) - p.slice(1).reduce((u, h) => u + ringA(h), 0), 0);
 const tryMP = (f: () => MultiPolygon, d: MultiPolygon): MultiPolygon => { try { return f(); } catch { return d; } };
 
-/** Funksiya uchun taqiqlangan SMZ hududi (mahalliy metr): cheklov obyektlari SMZ (2.17) + ishlab chiqarish SMZ (146); own — shu kvartalning oʻzi (ishlab chiqarish kvartalining oʻz SMZ i oʻziga taqiq emas) */
+/** Funksiya uchun taqiqlangan SMZ hududi (mahalliy metr): cheklov obyektlari SMZ (12-band; qabriston — AMALIYOT, ehtiyot uchun ham chiqariladi) + ishlab chiqarish SMZ (146); own — shu kvartalning oʻzi (ishlab chiqarish kvartalining oʻz SMZ i oʻziga taqiq emas) */
 export function denyZone(doc: Project, use: Use): MultiPolygon {
   const parts: MultiPolygon[] = [];
   if (szzVerdict(use) === 'deny') for (const s of limitZones(doc).soft) parts.push(s.polys.map(p => p.map(close)) as MultiPolygon);
@@ -56,18 +55,18 @@ export function clipToSzz(sections: GenSection[], deny: MultiPolygon, notes: str
     const { blind: _b, docks: _d, face: _f, ...base } = s;
     out.push({ ...base, ring: open(rest[0]) }); cut++;
   }
-  if (gone) notes.push(`${gone} ta bino SMZ ichiga tushgani uchun qoʻyilmadi (SanPiN 0350-17, 2.17; ShNQ 2.07.01-23, 146)`);
-  if (cut) notes.push(`${cut} ta seksiya SMZ chegarasi boʻyicha qisqartirildi (SanPiN 0350-17, 2.17)`);
+  if (gone) notes.push(`${gone} ta bino SMZ ichiga tushgani uchun qoʻyilmadi (SanQvaN 0103-25, 12-band; ShNQ 2.07.01-23, 146)`);
+  if (cut) notes.push(`${cut} ta seksiya SMZ chegarasi boʻyicha qisqartirildi (SanQvaN 0103-25, 12-band)`);
   return out;
 }
 
-export interface SzzGreen { id: string; label: string; cls: string; need: number; area: number; green: number; share: number; rings: XY[][] }
+export interface SzzGreen { id: string; label: string; cls: string; need: number; area: number; green: number; share: number; rings: XY[][]; /** AMALIYOT zonasi (qabriston) */ amal?: boolean }
 const needOf = (cls?: string) => cls === 'I' ? 0.4 : cls === 'II' || cls === 'III' ? 0.5 : 0.6;
-/** ishlab chiqarish SMZ masofasidan sinf (SanPiN 0350-17: I — 1000, II — 500, III — 300, IV — 100, V — 50 m) */
+/** ishlab chiqarish SMZ masofasidan sinf (SanQvaN 0103-25, 7-band: 1 — 1000, 2 — 500, 3 — 300, 4 — 100, 5 — 50 m) */
 const clsOfM = (m: number) => m >= 1000 ? 'I' : m >= 500 ? 'II' : m >= 300 ? 'III' : m >= 100 ? 'IV' : 'V';
 
 let memo: { k: unknown[]; v: SzzGreen[] } | null = null;
-/** 2.19: har SMZ ning uchastka ichidagi qismi va undagi koʻkalam ulushi */
+/** 13-band: har SMZ ning uchastka ichidagi qismi va undagi koʻkalam ulushi */
 export function szzGreen(doc: Project): SzzGreen[] {
   const k = [doc.limits, doc.site, doc.origin, doc.zones, doc.parcels, doc.streets];
   if (memo && memo.k.every((x, i) => x === k[i])) return memo.v;
@@ -76,28 +75,28 @@ export function szzGreen(doc: Project): SzzGreen[] {
 function raw(doc: Project): SzzGreen[] {
   if (!doc.site) return [];
   const fr = frame(doc.origin), site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal))), plan = computePlan(doc);
-  // 04.11 (audit): faqat «Himoya koʻkalamzorligi» — park (umumiy foydalanishdagi yashil) SMZ da taqiqlangan (SanPiN 2.17; ShNQ 146, 475), koʻkalamga sanalmaydi
+  // 04.11 (audit): faqat «Himoya koʻkalamzorligi» — park (aholi dam olish joyi) SMZ da taqiqlangan (0103-25, 12-band; ShNQ 146, 475), koʻkalamga sanalmaydi
   const greenMP = plan.blocks.filter(b => b.use === 'himoya').map(b => b.rings.map(close) as Polygon);
   const out: SzzGreen[] = [];
-  const add = (id: string, label: string, cls: string, mp: MultiPolygon) => {
+  const add = (id: string, label: string, cls: string, mp: MultiPolygon, amal = false) => {
     const zone = tryMP(() => polygonClipping.intersection(mp, site), []), area = mpArea(zone); if (area < 50) return;
     const green = greenMP.reduce((t, g) => t + mpArea(tryMP(() => polygonClipping.intersection(zone, g), [])), 0);   // yashil kvartallar bir-birini qoplamaydi
-    out.push({ id, label, cls, need: needOf(cls), area, green, share: area ? green / area : 0, rings: zone.map(p => open(p[0])) });
+    out.push({ id, label, cls, need: needOf(cls), area, green, share: area ? green / area : 0, rings: zone.map(p => open(p[0])), ...(amal ? { amal: true } : {}) });
   };
-  for (const s of limitZones(doc).soft) add(s.id, s.kind, s.cls ?? 'IV', s.polys.map(p => p.map(close)) as MultiPolygon);
+  for (const s of limitZones(doc).soft) add(s.id, s.kind, s.cls ?? 'IV', s.polys.map(p => p.map(close)) as MultiPolygon, s.flag === 'AMALIYOT');
   for (const z of prodChecks(doc).zones) add(`prod${z.block}`, z.use, clsOfM(z.szz), tryMP(() => polygonClipping.difference(bufferLocal(z.rings[0], z.szz, true), z.rings.map(close) as Polygon), []));
   return out;
 }
 
 /**
- * 06.11 — SanPiN RUz № 0350-17, 2.19 (asl matn): «со стороны селитебной территории надлежит предусматривать полосу
+ * 06.11 — bekor qilingan SanPiN RUz № 0350-17, 2.19 (AMALIYOT; 0103-25 da yoʻq, sozlama bilan yoqiladi): «со стороны селитебной территории надлежит предусматривать полосу
  * древесно-кустарниковых насаждений шириной не менее 50 м, а при ширине зоны до 100 м не менее 20 метров».
  * Hisob (har SMZ uchun, uchastka ichidagi qismi):
  *  - kerakli en W = 50 m, SMZ kengligi ≤ 100 m boʻlsa 20 m; SMZ W dan tor boʻlsa — butun eni (NORMA + TALQIN);
  *  - tasma joyi = SMZ ning tashqi W qismi (manbadan m − W dan uzoq) — selitebnaya hudud tomonida: turar joy, MTM, maktab,
- *    poliklinika, sport, park kvartallari (2.17 roʻyxati — SZZ_DENY; selitebnaya = shu roʻyxat — TALQIN) dan W + GAP ichida;
+ *    poliklinika, sport, park kvartallari (12-band roʻyxati — SZZ_DENY; selitebnaya = shu roʻyxat — TALQIN) dan W + GAP ichida;
  *    GAP = 30 m — oradagi koʻcha koridori uchun (ANDOZA); koʻcha koridorlari tasmadan chiqariladi (TALQIN);
- *  - daraxt-buta tasmasi = «Himoya koʻkalamzorligi» kvartallari/parsellari (park SMZ da taqiq — 2.17);
+ *  - daraxt-buta tasmasi = «Himoya koʻkalamzorligi» kvartallari/parsellari (park SMZ da taqiq — 12-band);
  *  - eng tor eni — 5 m qadam bilan: tasma qaysi engacha ≥ 98 % koʻkalam bilan qoplangan.
  */
 export const BELT_GAP = 30;

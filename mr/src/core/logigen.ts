@@ -3,7 +3,7 @@
  *
  * Har tur uchun bitta bir qavatli katta oraliqli bino + yuk mashinalari hovlisi (apron) + dok darvozalar + tirkama turargohi;
  * yuk terminalida — temir yoʻl tomonda shoxobcha (berk yoʻl) va yuklash platformasi.
- * ShNQ 2.07.01-23 va SanPiN 0350-17 da omborlar bino oʻlchamlari, apron chuqurligi, dok qadami yoʻq — barcha oʻlchamlar ANDOZA
+ * ShNQ 2.07.01-23 va SanQvaN 0103-25 da omborlar bino oʻlchamlari, apron chuqurligi, dok qadami yoʻq — barcha oʻlchamlar ANDOZA
  * (xalqaro amaliyot: zal balandligi 8–12 m; yarim tirkamali avtopoyezd 16,5 m, apron 35 m — orqaga yurib dokka kirish va manevr; dok qadami 4 m;
  * tirkama joyi 3,6 × 16 m; shoxobcha — 1 iz + 4 m platforma ≈ 10 m). Aniq qiymat — ShNQ 2.09.02-19 (papkada yoʻq) va texnologik loyiha.
  * Kvartal shaklidan qatʼi nazar, uzun qirra yoʻnalishida toʻgʻri toʻrtburchak «bino + apron» toʻplami joylanadi.

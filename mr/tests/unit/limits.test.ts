@@ -10,25 +10,26 @@ const sq = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], 
 const mpA = (mp: XY[][][]) => mp.reduce((t, p) => t + area(p[0]) - p.slice(1).reduce((s, h) => s + area(h), 0), 0);
 const L = (o: Partial<Limit>): Limit => ({ id: 'c1', kind: 'qabriston', status: 'saqlanadi', src: 'qolda', ...o } as Limit);
 
-describe('cheklovlar: SMZ jadvali (SanQvaN 0350-17, 6.3 / 6.4)', () => {
-  it('qabriston maydoni va holatiga koʻra', () => {
-    expect(szzOf(L({}), 25)).toMatchObject({ m: 500, cls: 'II', flag: 'NORMA' });
+describe('cheklovlar: SMZ jadvali (SanQvaN 0103-25, 7-band, 1-ilova; qabriston — AMALIYOT)', () => {
+  it('qabriston maydoni va holatiga koʻra — 0103-25 da yoʻq, oldingi 0350-17, 6.4 (AMALIYOT)', () => {
+    expect(szzOf(L({}), 25)).toMatchObject({ m: 500, cls: 'II', flag: 'AMALIYOT' });
     expect(szzOf(L({}), 15)).toMatchObject({ m: 300, cls: 'III' });
-    expect(szzOf(L({}), 4)).toMatchObject({ m: 100, cls: 'IV', ref: 'SanQvaN 0350-17, 6.4' });
-    expect(szzOf(L({ sub: { open: false, memorial: true } }), 4)).toMatchObject({ m: 50, cls: 'V', flag: 'NORMA' });
+    expect(szzOf(L({}), 4)).toMatchObject({ m: 100, cls: 'IV', ref: 'SanPiN 0350-17, 6.4 (bekor qilingan) — 0103-25 da qabriston yoʻq' });
+    expect(szzOf(L({ sub: { open: false, memorial: true } }), 4)).toMatchObject({ m: 50, cls: 'V', flag: 'AMALIYOT' });
     expect(szzOf(L({ sub: { open: false, rural: true } }), 1.5)).toMatchObject({ m: 50, cls: 'V' });
-    expect(szzOf(L({ sub: { open: false } }), 4)).toMatchObject({ m: 100, cls: 'IV', flag: 'TALQIN' });
+    expect(szzOf(L({ sub: { open: false } }), 4)).toMatchObject({ m: 100, cls: 'IV', flag: 'AMALIYOT' });
   });
   it('issiqxona, ombor, temir yoʻl; qoʻlda bufer ustun', () => {
-    expect(szzOf(L({ kind: 'issiqxona' }), 3)).toMatchObject({ m: 100, cls: 'IV', ref: 'SanQvaN 0350-17, 6.3' });
-    expect(szzOf(L({ kind: 'ombor' }), 1)).toMatchObject({ m: 50, cls: 'V' });
+    expect(szzOf(L({ kind: 'issiqxona' }), 3)).toMatchObject({ m: 100, cls: 'IV', flag: 'NORMA', ref: 'SanQvaN 0103-25, 7-band; 1-ilova, 4-sinf, 381 («teplitsa va parnik xoʻjaliklari»)' });
+    expect(szzOf(L({ kind: 'ombor' }), 1)).toMatchObject({ m: 50, cls: 'V', flag: 'TALQIN' });
+    expect(szzOf(L({ kind: 'sanoat', cls: 2 }), 1)).toMatchObject({ m: 500, cls: 'II', flag: 'NORMA', ref: 'SanQvaN 0103-25, 7-band (1-ilova, 2-sinf)' });
     expect(szzOf(L({ kind: 'temiryol' }), 1)).toMatchObject({ m: 100, ref: 'ShNQ 2.07.01-23, 359' });
     expect(szzOf(L({ kind: 'temiryol', szz: 50 }), 1).m).toBe(50);
     expect(szzOf(L({ kind: 'meros' }), 1).m).toBe(0);
   });
 });
 
-describe('ELU zonasi (VMQ № 1050, 14-band; SanQvaN 0350-17, 2.23.4)', () => {
+describe('ELU zonasi (VMQ № 1050, 14-band; SanQvaN 0103-25, 15-band)', () => {
   it('kuchlanish boʻyicha, ikki normaning kattasi', () => {
     // 04.11 (audit): zona chetki simdan — oʻqdan chetki simgacha yarim kenglik qoʻshiladi (andoza)
     expect(eluZone({ kv: 0.4 }).m).toBe(2);
@@ -39,8 +40,11 @@ describe('ELU zonasi (VMQ № 1050, 14-band; SanQvaN 0350-17, 2.23.4)', () => {
     expect(eluZone({ kv: 500 }).m).toBe(36.5);
     expect(eluZone({ kv: 750 })).toMatchObject({ m: 49, flag: 'NORMA' });
     expect(eluZone({ kv: 1150 }).m).toBe(67);
-    expect(eluZone({ kv: 330 })).toMatchObject({ m: 35, flag: 'TAXMIN' });   // VMQ da 330 yoʻq — 500 sinfi (30), SanPiN 20 dan kattasi
-    expect(eluZone({ kv: 150 }).flag).toBe('TAXMIN');
+    // 0103-25, 15-band «… kV gacha»: 330 kV — «500 kV gacha» 30 m (oldingi 0350-17, 2.23.4 — 20 m); 150 kV — «220 gacha» 25 m
+    expect(eluZone({ kv: 330 })).toMatchObject({ m: 35, flag: 'NORMA' });
+    expect(eluZone({ kv: 150 })).toMatchObject({ m: 29, flag: 'NORMA' });
+    expect(eluZone({ kv: 750 }).ref).toContain('SanQvaN 0103-25, 15-band');
+    expect(eluZone({ kv: 1500 }).flag).toBe('TAXMIN');
     expect(eluZone({}).flag).toBe('TAXMIN');   // kuchlanish berilmagan — 6–20 kV deb olinadi
     expect(eluZone({ kv: 110, elu: 'kabel' }).m).toBe(1);
     expect(eluZone({ kv: 110, elu: 'demontaj' }).m).toBe(0);
