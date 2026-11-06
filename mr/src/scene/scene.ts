@@ -20,7 +20,8 @@ import { endShapes } from '../core/streetends';
 import { projectStreetsGeo, CURB_R, CURB_R_RECON, clipLineToRings, inRings } from './streets3d';
 import { siteMask, outsideAs } from './siteFade';
 import { CC } from './context3d';
-import { computePlan, interiorPoint } from '../core/plan';
+import { computePlan, interiorPoint, corridor } from '../core/plan';
+import { reachCarriage, crossing, openOnEdge } from '../core/firelink';
 import { limitZones, hatchSegs, isActive } from '../core/limits';
 import { profileById } from '../core/profiles';
 import { entryRing } from '../core/parkentry';
@@ -417,6 +418,33 @@ export class Scene3D {
     if (frameIt && all.length) this.frameRings([all]);
     this.invalidate();
   }
+  /** 07.11 (c69): yongʻin yoʻlagi oʻtishlari — loyiha koʻchasigacha (landshaftda hisoblangan) va uchastka chegarasidagi ogʻizlardan
+   *  atrofdagi (OSM) yoʻl qatnov qismigacha (shu yerda, chunki atrof yoʻllari faqat sahnada bor). Yetmagan ogʻizlar — `open`. */
+  fireCross(doc: Project): { polys: XY[][]; curbs: [XY, XY][]; open: XY[] } {
+    const out = { polys: [] as XY[][], curbs: [] as [XY, XY][], open: [] as XY[] };
+    if (!doc.settings.yards) return out;
+    const all = landscape(doc), ys = all.filter(y => y.fire?.mouths?.length && !y.z);
+    if (!ys.length) return out;
+    const roads = (this.ctx?.roads ?? []).filter(r => r.pts.length >= 2 && !/^(footway|path|steps|track|bridleway|corridor|cycleway|pedestrian)$/.test(r.cls));
+    const key = { ys: all, roads };
+    if (this.fireX && this.fireX.k.ys === all && this.fireX.k.roads.length === roads.length && this.fireX.k.roads.every((r, i) => r === roads[i])) return this.fireX.v;
+    let carr: XY[][][] | null = null;
+    for (const y of ys) {
+      for (const c of y.fire!.cross ?? []) out.polys.push(c[0]);
+      out.curbs.push(...(y.fire!.curbs ?? []));
+      for (const m of y.fire!.mouths!) {
+        if (m.t != null) continue;
+        if (!m.site) { out.open.push(m.p); continue; }
+        carr ??= roads.flatMap(r => corridor(r.pts, Math.max(2, r.w / 2)).map(p => p.map(q => q.slice(0, -1).map(v => [v[0], v[1]] as XY))));
+        const t = reachCarriage(m, carr);
+        if (t == null) { out.open.push(m.p); continue; }
+        const c = crossing(m, t, undefined, { half: y.fire!.w / 2 }); out.polys.push(c.poly); out.curbs.push(c.curb);
+      }
+    }
+    this.fireX = { k: key, v: out };
+    return out;
+  }
+  private fireX: { k: { ys: unknown[]; roads: unknown[] }; v: { polys: XY[][]; curbs: [XY, XY][]; open: XY[] } } | null = null;
   setMarked(doc: Project, bids: string[], cids: number[], roads: { pts: XY[]; w: number }[] = []): void {
     disposeGroup(this.markG); if (!this.markG.parent) this.scene.add(this.markG);
     const fr = frame(doc.origin), cs = new Set(cids);
@@ -1096,7 +1124,7 @@ export class Scene3D {
           const gg = drape(new THREE.ShapeGeometry(sh), Hf, lift, this.ctx ? 8 : 1e9), bk = `${c}|${order}`;
           (fillB.get(bk) ?? fillB.set(bk, { c, order, gs: [] }).get(bk)!).gs.push(gg.index ? gg.toNonIndexed() : gg);
         });
-        const yards = landscape(doc), trees: XY[] = [];
+        const yards = landscape(doc), trees: XY[] = [], siteRL = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
         // maydoncha jihozlari (playkit): rang boʻyicha bitta mesh va bitta LineSegments — sahna yengil
         const kitF: Record<string, THREE.Shape[]> = {}, kitL: Record<string, number[]> = {}, fenceV: number[] = [], fenceTop: number[] = [];
         for (const y of yards) {
@@ -1106,7 +1134,7 @@ export class Scene3D {
           const Hy: HeightFn = pb ? () => zr : this.H;
           if (this.isoLocal && plan.blocks[y.block] && !this.inIso(plan.blocks[y.block].rings[0])) continue;   // izolyatsiya: faqat hudud hovlilari
           fill(y.paving, col.pave, 0.32, 1, Hy); fill(y.green, col.green, 0.33, 2, Hy); fill(y.paths, col.path, 0.34, 3, Hy);
-          if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5, Hy); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, Hy); l.userData.fireLane = true; this.world.add(l); } }
+          if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5, Hy); if (y.fire.turns?.length) fill(y.fire.turns, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5, Hy); const fe = [plan.blocks[y.block]?.rings[0] ?? [], ...(siteRL ? [siteRL] : [])]; for (const poly of y.fire.lane) for (const r of poly) for (const pl of (y.z ? [[...r, r[0]]] : openOnEdge(r, fe, 0.4, (y.fire.mouths ?? []).map(m => ({ p: m.p, r: y.fire!.w / 2 + 3.5 }))))) { const l = line(densify(pl, 6), plainS ? 0xb9b6ae : 0xc0503a, 0.42, false, 6.55, Hy); l.userData.fireLane = true; this.world.add(l); } }
           for (const q of y.play) {
             fill([[q.ring]], col[q.kind], 0.35, 4, Hy); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, Hy));
             // 06.11 (c62): MTM guruh maydonchasi soyaboni — 2,6 m balandlikda yupqa tom va 4 ustun (ANDOZA)
@@ -1225,11 +1253,24 @@ export class Scene3D {
           const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(new THREE.Shape(r.map(p => new THREE.Vector2(p[0], p[1])))), this.H, 0.16 + (o - 9.2) * 0.1, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: pal[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 }));
           m.renderOrder = o; this.world.add(fz(m, k));
         })); }
+      // 07.11 (c69, egasi: «yongʻin yoʻllari koʻchalarga ulanmayapti»): hovli yongʻin yoʻlagidan qatnov qismigacha oʻtish (trotuar va
+      // yashil tasma ustida, pasaytirilgan bordyur bilan) — core/firelink.ts; uchastka chegarasidagi ogʻizlar — atrofdagi (OSM) yoʻllargacha
+      const fx = this.fireCross(doc);
+      if (fx.polys.length) {
+        const fcol = st === 'arctic' || st === 'minimal' ? 0xe6e4df : this.album ? 0xe4ddd0 : 0xcdc4b4;
+        for (const r of fx.polys) { const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(new THREE.Shape(r.map(toV2))), this.H, 0.13, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: fcol, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4.2, polygonOffsetUnits: -4.2 }));
+          m.renderOrder = 9.15; m.userData.fireCross = true; this.world.add(m); }
+        for (const c of fx.curbs) { const l = line([c[0], c[1]], st === 'arctic' || st === 'minimal' ? 0x9a978f : 0x6d6a63, 0.2, false, 9.4, this.H); l.userData.fireCurb = true; this.world.add(l); }
+      }
+      // koʻchaga yetmagan ogʻiz — qizil «×» (meʼyorlar roʻyxatida fire-666 «koʻrib chiqish»)
+      for (const p of fx.open) for (const [a, b] of [[[-2, -2], [2, 2]], [[-2, 2], [2, -2]]] as [XY, XY][]) { const l = line([[p[0] + a[0], p[1] + a[1]], [p[0] + b[0], p[1] + b[1]]], 0xd64532, 0.6, false, 9.6, this.H); l.userData.fireOpen = true; this.world.add(l); }
       (siteR ? sg.red.flatMap(r => clipLineToRings(r, siteR)) : sg.red).forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); l.userData.redLine = true; this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
       // aylana / aylanma ichidagi koʻcha daraxtlari olinmaydi
       const ends = endShapes(doc), trees0 = ends.length ? sg.trees.filter(p => !ends.some(e => Math.hypot(p[0] - e.at[0], p[1] - e.at[1]) < (e.kind === 'maydon' ? 15 : e.kind === 'aylana' ? 18 : Math.hypot(e.outer[0][0] - e.at[0], e.outer[0][1] - e.at[1]) + 1))) : sg.trees;
-      const trees = siteR ? trees0.filter(p => inRings(p, siteR)) : trees0;
+      const trees1 = siteR ? trees0.filter(p => inRings(p, siteR)) : trees0;
+      // 07.11 (c69): yongʻin yoʻlagi oʻtishidagi koʻcha daraxtlari olinadi (676-band ruhida — mashina oʻtadigan joyda daraxt yoʻq)
+      const trees = fx.polys.length ? trees1.filter(p => !fx.polys.some(r => inRings(p, [r]))) : trees1;
       if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c).map(o => { o.userData.streetTrees = true; return o; }));
     }
     tag(1);
