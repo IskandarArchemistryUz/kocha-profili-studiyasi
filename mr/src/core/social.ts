@@ -28,7 +28,7 @@ export const SOCIAL: Record<SocialUse, { name: string; unit: string; m2: number;
     { id: 'taroq', name: 'Taroq (finger-plan)', note: 'koridor-oʻq va sinf qanotlari; qanotlar orasida yorugʻ hovlichalar — Yevropa va MDH maktablarida keng tarqalgan' },
     { id: 'hovli', name: 'Hovlili (atrium)', note: 'yopiq hovli atrofida sinflar — issiq iqlimda soyali ichki hovli (Oʻrta Osiyo madrasasi tamoyili)' },
     { id: 'kompakt', name: 'Kompakt blok', note: 'chuqur korpus, markazda yorugʻlik qudugʻi — Skandinaviya maktablari kabi qisqa yoʻllar, kam energiya' } ] },
-  mtm: { name: 'MTM (bogʻcha)', unit: 'oʻrin', m2: 33, floors: 2, maxFloors: 3, modules: [
+  mtm: { name: 'MTM (bogʻcha)', unit: 'oʻrin', m2: MTM_M2, floors: 2, maxFloors: 3, modules: [
     { id: 'chiziq', name: 'Guruh yacheykalari qatori', note: 'har guruh — alohida yacheyka, oʻyin maydoniga chiqishi bilan; janubga qaratiladi' },
     { id: 'u', name: 'U shakl', note: 'guruhlar himoyalangan hovli atrofida — shamol va changdan panoh' } ] },
   poliklinika: { name: 'Poliklinika', unit: 'qatnov/smena', m2: 15, floors: 4, maxFloors: 6, modules: [
@@ -53,7 +53,10 @@ export function plotCapacity(use: SocialUse, a: number): number {
   return Math.floor(a / 5000 * 750);
 }
 
-export interface SocialPlan { sections: { ring: XY[]; floors: number }[]; gfa: number; footprint: number; notes: string[] }
+export interface SocialPlan { sections: { ring: XY[]; floors: number }[]; gfa: number; footprint: number; notes: string[]; /** modul kichraytirish koeffitsiyenti (1 — toʻliq sigʻim) */ scale?: number }
+
+import { MTM_M2 } from './mtmrule';
+export { MTM, mtmGroups, MTM_M2 } from './mtmrule';
 
 const rot = (U: XY, c: XY) => (u: number, v: number): XY => [c[0] + U[0] * u - U[1] * v, c[1] + U[1] * u + U[0] * v];
 
@@ -76,8 +79,12 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   void L; void S;
   const c: XY = [U[0] * (u0 + u1) / 2 + V[0] * (v0 + v1) / 2, U[1] * (u0 + u1) / 2 + V[1] * (v0 + v1) / 2];
   let P = rot(U, c), W = u1 - u0, D = v1 - v0;
+  // 06.11 (c62): MTM — bino uchastkaning shimoliy chetida, guruh maydonchalari janubda (quyosh tomonda); toʻrtburchak qirralar
+  // uchastka OBB oʻqiga parallel (90°). v = −D/2 — shimol: V shimolga qarasa oʻq teskari olinadi
+  const flip = use === 'mtm' && V[1] > 1e-6, P1 = P;
+  if (flip) P = (u, v) => P1(u, -v);
   const P0 = P, W0 = W, D0 = D;
-  const box = (a: number, b: number, w: number, h: number): XY[] => [P(a, b), P(a + w, b), P(a + w, b + h), P(a, b + h)];
+  const box = (a: number, b: number, w: number, h: number): XY[] => { const r: XY[] = [P(a, b), P(a + w, b), P(a + w, b + h), P(a, b + h)]; return signedArea(r) < 0 ? r.reverse() : r; };
   const secs: XY[][] = [], gym: XY[][] = [];
   const fit = (scale: number) => {
     secs.length = 0; gym.length = 0;
@@ -88,6 +95,18 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
       const n = Math.max(1, Math.min(Math.floor((Ls + 12) / 26), Math.ceil(Math.max(0, At - Ls * sp) / (wd * Math.max(6, Lw)))));
       for (let i = 0; i < n; i++) { const x = n === 1 ? -wd / 2 : -Ls / 2 + i * (Ls - wd) / (n - 1); if (Lw > 6) secs.push(box(x, -D / 2 + sp, wd, Lw)); }
       if (use === 'maktab' && W - Ls > 26) gym.push(box(Ls / 2 + 2, -D / 2, Math.min(36, W / 2 - Ls / 2 - 2), 24));
+    } else if (use === 'mtm' && mod === 'chiziq') {
+      // 06.11 (c62): bitta yaxlit bino — guruh yacheykalari qatori (eni BW) shimoliy chetda; sigʻmasa — janubga qanotlar (taroq),
+      // qanotlar orasi ≥ 24 m (ANDOZA): guruh maydonchalari qanotlar orasiga tushadi. Avvalgi alohida kataklar (19 ta quti) — oʻrniga
+      const t = BW, Lmax = Math.min(W, BL), Lb = At / t;
+      if (Lb <= Lmax) { const L1 = Math.max(Math.min(Lmax, 24), Lb); secs.push(box(-L1 / 2, -D / 2, L1, t)); }
+      else {
+        const Ls = Lmax; secs.push(box(-Ls / 2, -D / 2, Ls, t));
+        const rest = At - Ls * t, nMax = Math.max(1, Math.floor((Ls - t) / (t + 24)) + 1);
+        let Lw = Math.min(D - t - 8, 30), n = Math.ceil(rest / (t * Math.max(6, Lw)));
+        if (n > nMax) { n = nMax; Lw = Math.min(D - t - 6, rest / (n * t)); }
+        if (Lw >= 6) for (let i = 0; i < n; i++) { const x = n === 1 ? -t / 2 : -Ls / 2 + i * (Ls - t) / (n - 1); secs.push(box(x, -D / 2 + t, t, Lw)); }
+      }
     } else if (mod === 'hovli' || mod === 'u') {
       const t = BW;
       let a = Math.min(W, Math.max(36, Math.sqrt(At) * 1.25)), b = (At / t + 4 * t - 2 * a) / 2; if (mod === 'u') b = (At / t + 2 * t - a) / 2;
@@ -119,7 +138,7 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
     if (fr && fr.w >= 12 && fr.h >= 12) {
       const u: XY = [Math.cos(fr.ang), Math.sin(fr.ang)], long = fr.w >= fr.h;
       const U2: XY = long ? u : [-u[1], u[0]];
-      P = rot(U2, fr.c); W = (long ? fr.w : fr.h) * 0.98; D = (long ? fr.h : fr.w) * 0.98;
+      P = rot(U2, fr.c); if (use === 'mtm' && U2[0] > 1e-6) { const P2 = P; P = (u, v) => P2(u, -v); } W = (long ? fr.w : fr.h) * 0.98; D = (long ? fr.h : fr.w) * 0.98;
       sc = 1; fit(sc);
       for (let k = 0; k < 16 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }
     }
@@ -134,5 +153,5 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   const fp = secs.reduce((t, r) => t + area(r), 0), gfa = fp * floors + gym.reduce((t, r) => t + area(r) * 2, 0);
   if (BL < Infinity && gfa < gfaT * 0.95 && sc >= 0.99) notes.push(`Korpus uzunligi ${Math.round(BL)} m bilan cheklangan — sigʻim ~${Math.round(cap * gfa / gfaT)} ${SOCIAL[use].unit}.`);
   if (sc < 0.99) notes.push(`Parsel kichik: modul ${Math.round(sc * 100)} % ga kichraytirildi — sigʻim ~${Math.round(cap * sc)} ${SOCIAL[use].unit}.`);
-  return { sections: [...secs.map(r => ({ ring: r, floors })), ...gym.map(r => ({ ring: r, floors: 2 }))], gfa, footprint: fp, notes };
+  return { sections: [...secs.map(r => ({ ring: r, floors })), ...gym.map(r => ({ ring: r, floors: 2 }))], gfa, footprint: fp, notes, scale: sc };
 }

@@ -45,7 +45,7 @@ import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridS
 import { insolCompass, type Compass } from '../core/kompas';
 import { FIRE_CLS, isLowHouse, lowFireNeed } from '../core/firedist';
 import { stageRows } from '../core/sheet';
-import { lenLimit, SYS, SEIS_PLACES, seisKey, seisByKey, seisForDistrict } from '../core/seysmik';
+import { lenLimit, SYS, SEIS_PLACES, seisKey, seisByKey, seisForDistrict, socialFloorLimit } from '../core/seysmik';
 import { CONSTRUCT_SYS } from '../core/doc';
 import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
@@ -74,7 +74,7 @@ import { injectCss as injectChzCss } from './chzsend';
 import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
-import { SOCIAL, MOD_BW, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
+import { SOCIAL, MOD_BW, MTM, mtmGroups, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
 import { analyze, boundaryPts, buildNet, svcDef, SERVICES, LOW_DENSITY_R, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
 import { CITY_CATS, catName, cityCategory, cityOf, stopRadius, stopZone, ZONE_NAME, type CityCat, type StopZone } from '../core/transit';
@@ -2648,14 +2648,23 @@ export class Editor {
     const near = (p: XY) => lines.some(r => { for (let k = 0; k < r.length; k++) { const a = r[k], q = r[(k + 1) % r.length], dx = q[0] - a[0], dy = q[1] - a[1], L2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); if (Math.hypot(a[0] + dx * u - p[0], a[1] + dy * u - p[1]) < 1.5) return true; } return false; });
     const red = t.use !== 'poliklinika' ? 25 : 6;
     const sb = ring.map((p, k) => near([(p[0] + ring[(k + 1) % n][0]) / 2, (p[1] + ring[(k + 1) % n][1]) / 2]) ? red : 6);
-    const sp = socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], this.socFloors[t.use], sb, this.socBW[t.use] ?? undefined, this.socBL[t.use] || undefined);
+    // 06.11 (c62): QMQ 2.01.03-19, 3.1-jadval 2-izoh — 8–9 ballda bogʻcha 2 qavat, maktab 3; > 9 ballda ikkalasi 2 qavat
+    const fLim = socialFloorLimit(t.use, this.store.doc.settings.seismic) ?? SOCIAL[t.use].maxFloors, fl0 = Math.min(this.socFloors[t.use], fLim), fNotes: string[] = [];
+    if (fl0 < this.socFloors[t.use]) fNotes.push(tf('Qavatlar ${a} → ${b}: QMQ 2.01.03-19, 3.1-jadval 2-izoh (${s} ball).', { a: this.socFloors[t.use], b: fl0, s: this.store.doc.settings.seismic }));
+    const run = (f: number) => socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], f, sb, this.socBW[t.use] ?? undefined, this.socBL[t.use] || undefined);
+    let sp = run(fl0), fl = fl0;
+    // MTM: sigʻmasa — qavat meʼyor chegarasigacha oshiriladi (avval 1–2 qavat; ANDOZA tartibi)
+    if (t.use === 'mtm' && (sp.scale ?? 1) < 0.99 && fl0 < fLim) { const sp2 = run(fLim); if (sp2.sections.length && (sp2.scale ?? 1) > (sp.scale ?? 1)) { sp = sp2; fl = fLim; fNotes.push(tf('Bino sigʻmadi — ${n} qavat olindi (meʼyor chegarasi).', { n: fLim })); } }
+    const capAct = t.use === 'mtm' ? Math.min(t.cap, Math.floor(sp.gfa / this.socM2[t.use] + 1e-6)) : t.cap;   // MTM: bino sigʻimi (5-ilova)
+    if (t.use === 'mtm' && sp.sections.length && capAct < t.cap * 0.95 && (sp.scale ?? 1) >= 0.99) fNotes.push(tf('Bino toʻliq sigʻmadi: ${a} / ${b} oʻrin — chekinishlar ichida joy kam (qizil chiziqdan 25 m, 39-jadval). Parselni kattalashtiring yoki modulni oʻzgartiring.', { a: capAct, b: t.cap }));
     const soc = { soc: { mod: this.socMod[t.use], m2: this.socM2[t.use], floors: this.socFloors[t.use], bw: this.socBW[t.use], bl: this.socBL[t.use], cap: t.cap } };
-    this.genNotes = [`${SOCIAL[t.use].name}: ${fmt(t.cap)} ${SOCIAL[t.use].unit} · ${fmt(sp.gfa)} m² GFA · ${this.socFloors[t.use]} qavat (taxmin ${this.socM2[t.use]} m²/${SOCIAL[t.use].unit})`, ...sp.notes]; this.genFar = null;
+    const grp = t.use === 'mtm' ? [tf('Guruhlar: ${g} (${n} boladan — ANDOZA); guruh maydonchalari ${g} × ${p} m² soyabon bilan, sport maydoni, xoʻjalik zonasi — uchastkada.', { g: mtmGroups(capAct), n: MTM.group, p: MTM.play })] : [];
+    this.genNotes = [tf('${n}: ${c} ${u} · ${g} m² GFA · ${f} qavat (${m} m²/${u})', { n: SOCIAL[t.use].name, c: fmt(capAct), u: SOCIAL[t.use].unit, g: fmt(sp.gfa), f: fl, m: this.socM2[t.use] }), ...fNotes, ...grp, ...sp.notes]; this.genFar = null;
     if (!sp.sections.length) { if (!quiet) toast(sp.notes[0] ?? 'Joylashmadi'); return 0; }
     const sgrp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, sgrp, b.rings[0], sp.sections.map(x => x.ring));
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: sgrp, drop, label: b.parcelId ? undefined : { ...lab, gen: soc }, ...(b.parcelId ? { parcelGen: soc } : {}),
       sections: sp.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: 0, use: t.use, kind: 'ijtimoiy' })), garage: null }));
-    if (!quiet) toast(`${this.unitName(i)}: ${SOCIAL[t.use].name.toLowerCase()} — ${fmt(t.cap)} ${SOCIAL[t.use].unit}, ${fmt(sp.gfa)} m²`);
+    if (!quiet) toast(`${this.unitName(i)}: ${SOCIAL[t.use].name.toLowerCase()} — ${fmt(capAct)} ${SOCIAL[t.use].unit}, ${fmt(sp.gfa)} m²`);
     return sp.sections.length;
   }
   /** 05.11: «Avtoturargoh» birligi — tur tanlovi (ochiq / koʻp qavatli), qavatlar; tanlov joylashtirilguncha shu yerda */
@@ -2747,7 +2756,11 @@ export class Editor {
       h('div', { class: 'glabel' }, h('span', {}, `${tr('Modul')} · ${S.name.toLowerCase()}`)),
       h('div', { class: S.modules.length > 2 ? 'tiles' : 'tiles c2', role: 'group', 'aria-label': tr('Modul') }, ...S.modules.map(m => h('button', { class: 'tile', 'data-mod': m.id, 'aria-pressed': this.socMod[t.use] === m.id, title: m.note, onclick: () => { this.socMod[t.use] = m.id; this.renderPanel(); }, html: pg('soc', m.id) + `<span>${m.name}</span>` }))),
       h('span', { class: 't-small' }, S.modules.find(m => m.id === this.socMod[t.use])!.note),
-      h('span', { class: 't-small' }, tf('Qizil chiziqdan ${t.use === \'poliklinika\' ? \'6\' : \'25\'} m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — taxmin (ShNQ 2.08.02-23 da maktab va MTM binosi maydoni berilmagan; xalqaro va MDH tipik loyihalari oraligʻi).', { "t.use === 'poliklinika' ? '6' : '25'": t.use === 'poliklinika' ? '6' : '25' })));
+      // 06.11 (c62): MTM uchastkasi tarkibi — meʼyor va andoza qayerdan
+      ...(t.use === 'mtm' ? [h('span', { class: 't-small', id: 'mtmRules' }, tf('Uchastka — 543-band (40 / 35 m² oʻringa), bino — 33 m² oʻringa (5-ilova), 8–9 ballda 2 qavat (QMQ 2.01.03-19, 3.1-jadval 2-izoh). Guruh — ${n} bola, har guruhga ${p} m² maydoncha soyabon bilan, sport maydoni, xoʻjalik zonasi, koʻkalamzorlik ≥ ${g} % — ANDOZA (544-band yuborgan ShNQ 2.08.02-09 toʻplamda yoʻq).', { n: MTM.group, p: MTM.play, g: Math.round(MTM.green * 100) }))] : []),
+      // 06.11 (c62): maktab / MTM bino maydoni — 5-ilova (5-ustun: 24 / 33 m² oʻringa), «taxmin» emas
+      h('span', { class: 't-small' }, t.use === 'poliklinika' ? tf('Qizil chiziqdan ${t.use === \'poliklinika\' ? \'6\' : \'25\'} m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — taxmin (ShNQ 2.08.02-23 da maktab va MTM binosi maydoni berilmagan; xalqaro va MDH tipik loyihalari oraligʻi).', { "t.use === 'poliklinika' ? '6' : '25'": '6' })
+        : tr('Qizil chiziqdan 25 m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — 5-ilova (5-ustun): maktab 24 m², MTM 33 m².')));
   }
 
   /* ===== 6-qadam: Hajmlar (MR-Q2) ===== */
