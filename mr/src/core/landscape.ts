@@ -13,7 +13,11 @@ import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clippi
 import { bLevels } from './levels';
 import type { Building, Project } from './doc';
 import { frame, area, signedArea, type XY } from './geo';
-import { computePlan, corridor, safeUnion, pointIn } from './plan';
+import { computePlan, corridor, safeUnion, pointIn, offsetLine } from './plan';
+import { profileById } from './profiles';
+import { fireMouths, reachCarriage, crossing, carriageOf, FIRE_TURN, type FireMouth } from './firelink';
+/** ogʻiz ichkarisidagi toʻgʻri davomi uzunligi uchun (yumaloqlash radiusi bilan bir xil) */
+const FIRE_R_IN = 6;
 import { limitZones } from './limits';
 import { useDef, resShare } from './uses';
 import { inset, clean } from './generator';
@@ -105,7 +109,10 @@ export interface Yard {
   /** hovliga kirishlar (genplanda): arka, binolar oraligʻi (torets orasidan), podyezd — p nuqta, d hovli tomon yoʻnalish (birlik) */
   entries?: Entry[];
   /** yongʻin-qutqaruv yoʻlagi hovlida (faqat kerak boʻlsa): lane — qoplama, w — eni, d — devorgacha (ichki chetidan), hmax — eng baland bino */
-  fire?: { lane: XY[][][]; w: number; d: number; hmax: number; area: number };
+  fire?: { lane: XY[][][]; w: number; d: number; hmax: number; area: number;
+    /** 07.11 (c69): kvartal chetidagi ogʻizlar; cross — trotuar/yashil tasma orqali qatnov qismigacha oʻtish; curbs — pasaytirilgan bordyur;
+     *  turns — boshi berk boʻlak uchida aylanish maydonchasi; unreached — loyiha koʻchasi tomonida qatnov qismiga yetmagan ogʻizlar soni */
+    mouths?: FireMouth[]; cross?: XY[][][]; curbs?: [XY, XY][]; turns?: XY[][][]; unreached?: number };
   /** past qavatli uylar uchastkalari chegarasi (devor / panjara) — 31.10 */
   fences?: XY[][];
   /** uchastkalar ichidagi bezak (ekin pushtalari) — maydonchalardan tashqari */
@@ -217,7 +224,63 @@ function landscapeRaw(doc: Project): Yard[] {
     if (y0) out.push({ ...y0, block: bi });
     out.push(...roofs);
   });
-  return out;
+  return fireLinks(doc, plan, bl, out);
+}
+/**
+ * 07.11 (c69, egasi: «yongʻin yoʻllari koʻchalarga ulanmayapti»): hovlidagi yoʻlak kvartal chetida (qizil chiziqda) tugar edi —
+ * trotuar va yashil tasma ustidan qatnov qismigacha oʻtish (pasaytirilgan bordyur, tutashish yoyi — core/firelink.ts).
+ * Loyiha koʻchasi qatnov qismi shu yerda; uchastka chegarasidagi (mavjud OSM koʻchasi tomondagi) ogʻizlar — sahnada atrof yoʻllari bilan.
+ * Boshi berk boʻlak (halqa emas) — uchida 12 × 12 m aylanish maydonchasi (335-band oʻxshatish, TALQIN).
+ */
+let carrMemo: { k: unknown[]; v: XY[][][] } | null = null;
+function fireLinks(doc: Project, plan: ReturnType<typeof computePlan>, bl: Own[], ys: Yard[]): Yard[] {
+  if (!ys.some(y => y.fire && !y.z)) return ys;
+  const fr = frame(doc.origin);
+  const ck = [doc.streets, doc.origin];
+  if (!carrMemo || !carrMemo.k.every((x, i) => x === ck[i])) carrMemo = { k: ck, v: carriageOf(doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), (a, h) => toMP(corridor(a, h)), offsetLine) };
+  const carr = carrMemo.v, site = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
+  return ys.map(y => {
+    if (!y.fire || y.z || !y.fire.lane.length) return y;
+    const blk = plan.blocks[y.block]; if (!blk) return y;
+    const mouths = fireMouths(y.fire.lane, blk.rings[0], site);
+    const cross: XY[][][] = [], curbs: [XY, XY][] = [], stubs: Polygon[] = [];
+    const W = y.fire.w, B: Polygon = blk.rings.map(close), fp = bl.filter(x => x.b.floors > 0).map(x => [close(x.r)] as Polygon);
+    // ogʻiz ichkarisi: yoʻlakning yumaloqlangan uchi oʻrniga toʻgʻri davomi (eni — 667-band eni), binolar kesilgan
+    const stub = (m: FireMouth) => { const c = crossing(m, 0.1, 0.1, { half: W / 2, inner: FIRE_R_IN + W }); stubs.push([close(c.poly)]); };
+    for (const m of mouths) {
+      if (m.site) { stub(m); continue; }   // mavjud koʻcha tomoni — tashqi qismi sahnada (OSM yoʻllari bilan)
+      const t = reachCarriage(m, carr);
+      if (t == null) continue;
+      m.t = t; stub(m);
+      const c = crossing(m, t, undefined, { half: W / 2 });
+      const outer = tryOp(() => polygonClipping.difference([close(c.poly)], B), [] as MultiPolygon);
+      cross.push(...toMP(outer)); curbs.push(c.curb);
+    }
+    let lane = y.fire.lane;
+    if (stubs.length) {
+      const ins = tryOp(() => polygonClipping.difference(polygonClipping.intersection(safeUnion(stubs), B), ...fp), [] as MultiPolygon);
+      // mm ga yaxlitlash — polygon-clipping aniqlik xatolari (yumaloqlangan halqa va toʻgʻri davom tutashuvi)
+      const sn = (r: [number, number][]) => r.map(([x, q]) => [Math.round(x * 1000) / 1000, Math.round(q * 1000) / 1000] as [number, number]);
+      if (ins.length) { const u = safeUnion([...lane.map(p => p.map(r => sn(close(r)))) as MultiPolygon, ...ins.map(p => p.map(sn))] as Polygon[]); if (u.length) lane = toMP(u); }
+    }
+    // boshi berk boʻlaklar (teshiksiz, ya'ni halqa emas): ogʻizdan eng uzoq nuqtada aylanish maydonchasi
+    const turns: XY[][][] = [];
+    for (const poly of y.fire.lane) {
+      if (poly.length > 1 || !poly[0]) continue;
+      const R = poly[0], ms = mouths.filter(m => R.some(q => Math.hypot(q[0] - m.p[0], q[1] - m.p[1]) < m.w));
+      if (!ms.length) continue;
+      let far: XY = R[0], fd = -1; for (const q of R) { const d = Math.min(...ms.map(m => Math.hypot(q[0] - m.p[0], q[1] - m.p[1]))); if (d > fd) { fd = d; far = q; } }
+      if (fd < 25) continue;
+      const m0 = ms[0], u: XY = [far[0] - m0.p[0], far[1] - m0.p[1]], L = Math.hypot(u[0], u[1]) || 1, a: XY = [u[0] / L, u[1] / L], e: XY = [-a[1], a[0]], h = FIRE_TURN / 2;
+      const c: XY = [far[0] - a[0] * h, far[1] - a[1] * h];
+      const sq: XY[] = [[c[0] + a[0] * h + e[0] * h, c[1] + a[1] * h + e[1] * h], [c[0] - a[0] * h + e[0] * h, c[1] - a[1] * h + e[1] * h], [c[0] - a[0] * h - e[0] * h, c[1] - a[1] * h - e[1] * h], [c[0] + a[0] * h - e[0] * h, c[1] + a[1] * h - e[1] * h]];
+      const fp = bl.filter(x => x.b.floors > 0).map(x => [close(x.r)] as Polygon);
+      const cut = tryOp(() => polygonClipping.difference(polygonClipping.intersection([close(sq)], blk.rings.map(close) as Polygon), ...fp), [] as MultiPolygon);
+      if (cut.length) turns.push(...toMP(cut));
+    }
+    const unreached = mouths.filter(m => !m.site && m.t == null).length;
+    return { ...y, fire: { ...y.fire, lane, mouths, cross, curbs, ...(turns.length ? { turns } : {}), unreached } };
+  });
 }
 /**
  * Past qavatli uylar hovlisi (31.10, «past-qavatli-uylar-qoidalari»): har uchastka — bogʻ (uy va oldi yoʻlagidan tashqari);
@@ -443,7 +506,10 @@ function fireLane(own: Own[], free: MultiPolygon, st: Project['settings'], arche
   // kvartal chetigacha (koʻchaga) bogʻlovchi yoʻlak; oʻtish markazidan hovli tomon — yoʻlak oʻqigacha (d + w + 2 m)
   if (mp.length && B) {
     const gaps = entriesOf(open(B[0]), all, arches).filter(e => e.kind === 'oraliq' && (e.w ?? 0) >= w + 1);
-    const links = gaps.map(e => tryOp(() => polygonClipping.intersection(corridor([[e.p[0] - e.d[0] * 60, e.p[1] - e.d[1] * 60], [e.p[0] + e.d[0] * (d + w + 2), e.p[1] + e.d[1] * (d + w + 2)]], w / 2), B), [] as MultiPolygon)).filter(l => l.length);
+    // 07.11 (c69): hovli tomonga — halqa yoʻlakka yetguncha (avval qat'iy d + w + 2 m: chuqur binolar oraligʻida halqaga yetmay qolardi)
+    const ringMP = toMP(mp), inLane = (q: XY) => ringMP.some(poly => pointIn(q, poly));
+    const into = (e: Entry): number => { for (let t = 0; t <= 80; t += 0.5) if (inLane([e.p[0] + e.d[0] * t, e.p[1] + e.d[1] * t])) return t + w / 2; return d + w + 2; };
+    const links = gaps.map(e => tryOp(() => polygonClipping.intersection(corridor([[e.p[0] - e.d[0] * 60, e.p[1] - e.d[1] * 60], [e.p[0] + e.d[0] * into(e), e.p[1] + e.d[1] * into(e)]], w / 2), B), [] as MultiPolygon)).filter(l => l.length);
     if (links.length) { mp = tryOp(() => polygonClipping.union(mp, ...links), mp); mp = tryOp(() => polygonClipping.difference(mp, ...all.map(x => [close(x.r)] as Polygon)), mp); }
   }
   // stilobat tomi: rampadan yoʻlakka ulanish

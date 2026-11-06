@@ -11,6 +11,7 @@ import { CATS, checkProfile, profileById, profileWidth } from '../core/profiles'
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 import { spacingIssues } from '../core/spacing';
 import { landscape, GREEN_86, GREEN_474 } from '../core/landscape';
+import { FIRE_LINK_MAX, FIRE_LINK_R } from '../core/firelink';
 import { frame, centroid, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
 import { firePairs, FIRE_CLS } from '../core/firedist';
@@ -871,14 +872,20 @@ export const RULES: Rule[] = [
       if (!doc.settings.yards) return { status: 'review', note: 'Hovli obodonlashtirish oʻchiq — hovlidagi yoʻlak tekshirilmadi (Yashil qadami).', fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar obodonlashtiriladi va hovlidagi yongʻin yoʻlagi (667, 675, 676-bandlar) avtomatik chiziladi.' } };
       const ys = landscape(doc).filter(y => y.fire), bad = ys.filter(y => !y.fire!.area), noIn = ys.filter(y => !y.z && y.fire!.area && !(y.entries ?? []).some(e => e.kind === 'arka' || (e.kind === 'oraliq' && (e.w ?? 0) >= y.fire!.w)));
       const roofs = ys.filter(y => y.z), noRamp = roofs.filter(y => y.fire!.area && !y.ramp);
+      // 07.11 (c69): yoʻlak koʻchaga ulanishi — kvartal chetidagi ogʻizdan loyiha koʻchasi qatnov qismigacha oʻtish (340, 666-bandlar)
+      const gnd = ys.filter(y => !y.z && y.fire!.area), noLink = gnd.filter(y => !(y.fire!.mouths ?? []).length), cut = gnd.filter(y => (y.fire!.unreached ?? 0) > 0);
       const w = Math.max(0, ...ys.map(y => y.fire!.w));
       const fr = frame(doc.origin), P = computePlan(doc), ringOf = (y: (typeof ys)[number]) => y.roofOf ? doc.buildings.find(b => b.id === y.roofOf)?.footprint.map(fr.toLocal) : P.blocks[y.block]?.rings[0];
-      const wh = [...bad, ...noIn, ...noRamp].map(ringOf).filter((r): r is XY[] => !!r);
+      const wh = [...bad, ...noIn, ...noRamp, ...noLink, ...cut].map(ringOf).filter((r): r is XY[] => !!r);
       // 666-band: qurilish maydoni > 10 000 m² yoki eni > 100 m — barcha tomondan
       const big = doc.buildings.filter(b => b.gen?.kind === 'stilobat').map(b => b.footprint.map(fr.toLocal)).filter(r => areaOf(r) > 10000 || obb2(r).S > 100).length;
       let note = `Binoning ikkala uzun tomonidan yetib kelish (666-band, F1.3, H ≥ 28 m): hovlida eni ${w} m yoʻlak (667-band), ichki chetidan devorgacha 9 m (675-band: 8–10 m), yoʻlak va bino orasida daraxt qatori yoʻq (676-band).`;
       if (bad.length) note += ` Hovlida yoʻlak sigʻmadi: ${bad.length} kvartal — hovlini kengaytiring yoki qavatlarni kamaytiring.`;
       if (noIn.length) note += ` Hovliga mashina kirishi (arka yoki ≥ ${w} m oraliq) topilmadi: ${noIn.length} kvartal.`;
+      const nCut = cut.reduce((t, y) => t + (y.fire!.unreached ?? 0), 0);
+      if (noLink.length) note += ` Yoʻlak kvartal chetiga (koʻchaga) chiqmaydi: ${noLink.length} kvartal — mashina koʻchadan kira olmaydi (340, 666-bandlar).`;
+      if (cut.length) note += ` Yoʻlak ogʻzidan ${FIRE_LINK_MAX} m ichida loyiha koʻchasining qatnov qismi topilmadi: ${nCut} ta ogʻiz — oʻtish yoʻlini koʻchagacha davom ettiring.`;
+      if (gnd.some(y => (y.fire!.cross ?? []).length)) note += ` Koʻchaga ulanish: trotuar va yashil tasma orqali oʻtish, pasaytirilgan bordyur, tutashish yoyi R ${FIRE_LINK_R} m (ANDOZA).`;
       if (roofs.length) {
         const rp = roofs.find(y => y.ramp)?.ramp;
         note += ` Stilobat tomida yoʻlak: ${roofs.length} ta (ustidagi binolar F1.3 ≥ 28 m yoki jamoat ≥ 18 m). 677-band: tom konstruksiyasi yongʻin avtomobilining har oʻqidan ≥ 16 t yukka hisoblanadi.`;
@@ -886,7 +893,7 @@ export const RULES: Rule[] = [
         if (noRamp.length) note += ` Rampa sigʻmadi: ${noRamp.length} ta stilobat — chekinishni kengaytiring yoki rampani bino ichida loyihalang.`;
       }
       if (big) note += ` 666-band: qurilish maydoni 10 000 m² dan yoki eni 100 m dan katta stilobat — ${big} ta: barcha tomondan yetib kelish kerak (koʻchalar va hovli yoʻlagi bilan tekshiring).`;
-      return { status: bad.length || noRamp.length ? 'fail' : noIn.length || big ? 'review' : 'pass', ...(wh.length ? { where: { rings: wh } } : {}), value: ys.length - bad.length - noRamp.length, unit: 'kvartal', limit: `${ys.length}`, note };
+      return { status: bad.length || noRamp.length || noLink.length ? 'fail' : noIn.length || big || cut.length ? 'review' : 'pass', ...(wh.length ? { where: { rings: wh } } : {}), value: ys.length - bad.length - noRamp.length, unit: 'kvartal', limit: `${ys.length}`, note };
     },
   },
   {
