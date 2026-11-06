@@ -11,7 +11,7 @@ import { computePlan } from './plan';
 import { useDef, USES } from './uses';
 import { profileById, profileWidth, type PartKind, type Cat } from './profiles';
 import { derive } from './derive';
-import { offsetLine, projectStreetsGeo } from '../scene/streets3d';
+import { offsetLine, projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { landscape, greenBalance } from './landscape';
 import { szzGreen } from './szzgen';
 import { entryRing } from './parkentry';
@@ -395,29 +395,46 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     if (yards.some(y => y.play.length)) legend.push({ type: 'fill', fill: L2 ? '#f6dcae' : '#ffffff', stroke: '#8f8676', label: tr('Hovli maydonchalari (4-jadval)') });
   }
 
-  // 3. loyiha koʻchalari: har tasma — oʻqdan siljigan siniq chiziq, kengligi tasma kengligida
+  // 3. loyiha koʻchalari — 06.11: sahna bilan bir xil geometriya (tugunlar, bordyur yoylari, trotuar burchakda aylanadi, qizil chiziq
+  //    burchagi yoy bilan, koʻcha ogʻzi va berk uch ochiq); varaqda faqat uchastka (loyiha chegarasi) ichida — tashqarisi kesiladi
   const lS = Ly('streets');
   const ps = doc.streets.map(s => ({ s, axis: s.axis.map(fr.toLocal), prof: profileById(s.profile) }));
   if (ps.length && K !== 'figura' && lS.on) {
+    const osmR = (ctx?.roads ?? []).filter(r => !adopted.has(r.id)).map(r => ({ pts: r.pts, cls: r.cls, w: r.w }));
+    const sg = projectStreetsGeo(ps.map(x => ({ id: x.s.id, axis: x.axis, parts: x.prof.parts })), () => 0, osmR, { curbR: doc.settings.recon ? CURB_R_RECON : CURB_R });
+    const clip = site ? '<g clip-path="url(#ichki)">' : '', clipE = site ? '</g>' : '';
+    /** uchburchaklar (Buf: x, h, −y) → bitta path; hammasi bir yoʻnalishda (nonzero — ustma-ust joyda teshik boʻlmaydi) */
+    const triD = (arr: number[] | undefined) => {
+      if (!arr?.length) return '';
+      const out: string[] = [];
+      for (let i = 0; i + 8 < arr.length; i += 9) {
+        let a: XY = [arr[i], -arr[i + 2]], b: XY = [arr[i + 3], -arr[i + 5]]; const c: XY = [arr[i + 6], -arr[i + 8]];
+        const cr = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); if (Math.abs(cr) < 1e-6) continue;
+        if (cr < 0) [a, b] = [b, a];
+        if (!vis([a, b, c])) continue;
+        out.push(`M${P(a)}L${P(b)}L${P(c)}Z`);
+      }
+      return out.join('');
+    };
     const out: string[] = [];
     if (!VZ) {
-      for (const { axis, prof } of ps) { const W = profileWidth(prof); out.push(`<path d="${lineD(axis)}" fill="none" stroke="${PART_COL.trotuar}" stroke-width="${n2(W * k)}" stroke-linejoin="round"/>`); }
-      if (lS.fill !== 'none') for (const { axis, prof } of ps) {
-        const W = profileWidth(prof); let off = -W / 2;
-        for (const p of prof.parts) {
-          const mid = off + p.w / 2; off += p.w; if (p.k === 'trotuar') continue;
-          const col2 = LS && (p.k === 'yashil' || p.k === 'ajratuvchi') ? '#bcd9a3' : lS.fill === 'one' ? '#ecebe7' : PART_COL[p.k];
-          out.push(`<path d="${lineD(offsetLine(axis, mid))}" fill="none" stroke="${lite(col2, lS.light)}" stroke-width="${n2(p.w * k)}" stroke-linejoin="round"/>`);
-        }
+      const base = triD(sg.layers.trotuar); if (base) out.push(`<path d="${base}" fill="${PART_COL.trotuar}"/>`);
+      if (lS.fill !== 'none') for (const k of ['yashil', 'velo', 'parkovka', 'avtobus', 'tramvay', 'qatnov'] as const) {
+        const d = triD(sg.layers[k]); if (!d) continue;
+        const col2 = LS && k === 'yashil' ? '#bcd9a3' : lS.fill === 'one' ? '#ecebe7' : PART_COL[k];
+        out.push(`<path d="${d}" fill="${lite(col2, lS.light)}"/>`);
       }
-    } else out.push(...ps.map(({ axis, prof }) => `<path d="${lineD(axis)}" fill="none" stroke="#f6f5f2" stroke-width="${n2(Math.max(0.5, profileWidth(prof) * k))}"/>`));
-    g('Loyiha_kochalari', out.join(''));
-    if (lS.outline && !VZ) {
-      g('Qizil_chiziqlar', ps.map(({ axis, prof }) => { const W = profileWidth(prof); return [W / 2, -W / 2].map(d => `<path d="${lineD(offsetLine(axis, d))}" fill="none" stroke="#d0342c" stroke-width="${lw(lS.mm)}"/>`).join(''); }).join(''));
+    } else {
+      const d = Object.entries(sg.layers).filter(([k]) => k !== 'chiziq').map(([, a]) => triD(a)).join('');
+      if (d) out.push(`<path d="${d}" fill="#f6f5f2"/>`);
+    }
+    if (out.length) g('Loyiha_kochalari', clip + out.join('') + clipE);
+    if (lS.outline && !VZ && sg.red.length) {
+      g('Qizil_chiziqlar', clip + sg.red.map(r => `<path d="${lineD(r)}" fill="none" stroke="#d0342c" stroke-width="${lw(lS.mm)}" stroke-linejoin="round"/>`).join('') + clipE);
       legend.push({ type: 'line', stroke: '#d0342c', label: tr('Qizil chiziqlar') });
     }
     if (S.trees && lG.on && !VZ) {
-      const tr2 = projectStreetsGeo(ps.map(x => ({ id: x.s.id, axis: x.axis, parts: x.prof.parts })), () => 0).trees;
+      const tr2 = sg.trees.filter(t => !site0 || inSite(t));
       g('Kocha_daraxtlari', tr2.map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.6, 3 * k))}" fill="${LS ? '#9cc27f' : '#ffffff'}" stroke="${LS ? '#5f8f3e' : '#7d8a6a'}" stroke-width="${lw(0.12)}"/>`).join(''));
       if (tr2.length) legend.push({ type: 'tree', label: tr('Daraxtlar') });
     }
@@ -705,7 +722,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"${ai ? ' xmlns:i="http://ns.adobe.com/AdobeIllustrator/10.0/"' : ''} width="${pw}mm" height="${ph}mm" viewBox="0 0 ${pw} ${ph}" font-family="${esc(fam)}">
 <title>${esc((o.title || doc.name) + ' — ' + kindName)}</title>
-<defs><clipPath id="vp"><rect x="${vx}" y="${vy}" width="${n2(vw)}" height="${n2(vh)}"/></clipPath>${site ? `<mask id="tashqari" maskUnits="userSpaceOnUse" x="0" y="0" width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" fill="#fff"/><path d="${polyD(site)}" fill="#000" fill-rule="evenodd"/></mask>` : ''}</defs>
+<defs><clipPath id="vp"><rect x="${vx}" y="${vy}" width="${n2(vw)}" height="${n2(vh)}"/></clipPath>${site ? `<clipPath id="ichki"><path d="${polyD(site)}" clip-rule="evenodd"/></clipPath><mask id="tashqari" maskUnits="userSpaceOnUse" x="0" y="0" width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" fill="#fff"/><path d="${polyD(site)}" fill="#000" fill-rule="evenodd"/></mask>` : ''}</defs>
 ${ai ? `<g id="Fon" i:layer="yes" inkscape:groupmode="layer" inkscape:label="Fon"><rect width="${pw}" height="${ph}" fill="${C.bg}"/></g>` : `<rect width="${pw}" height="${ph}" fill="${C.bg}"/>`}
 ${ai ? L.join('\n') : `<g clip-path="url(#vp)">${L.join('\n')}</g>`}
 ${A.join('\n')}
