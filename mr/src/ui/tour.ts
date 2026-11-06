@@ -20,7 +20,7 @@ const STEPS: Step[] = [
   { sel: '#ctxLoad', open1: true, a: '3A', t: 'Atrofni yuklang', b: 'Mavjud binolar, yoʻllar, suv, relyef va sunʼiy yoʻldosh surati yuklanadi. Bepul. Ekran markazi atrofida yuklanadi — shuning uchun avval joyni toping.', more: 'Radius 300 m dan 4 km gacha. Atrof yuklangach kirish yoʻllari, xizmatlar va cheklovlar avtomatik hisoblanadi.' },
   { sel: '#drawSite', open1: true, a: '4B', t: 'Uchastka chegarasini chizing', b: 'Uch usul: sahnada chizish (burchaklarni bosing, Enter — tugatish), dahani bir bosishda aniqlash yoki eni × boʻyi bilan toʻrtburchak. Tayyor chegara boʻlsa — KML/KMZ, GeoJSON yoki DXF fayldan.', more: 'Chizilgach dastur cheklovlarni (qabriston, ELU, suv, sanoat SMZ) topadi va yaroqli maydonni hisoblaydi. Burchaklarni keyin sudrab tahrirlaysiz. Chizish bepul.' },
   { sel: '.tb', a: '19', t: 'Asboblar va oʻng tugma', b: 'Tanlash (V), Qoʻl (H), Chizgʻich (M), Kesim (S), Uslub nusxasi (I), Bekor qilish va Qaytarish (Ctrl+Z / Ctrl+Shift+Z).', more: 'Koʻp amallar oʻng tugma menyusida: qavat qoʻshish, nusxa, oʻchirish, dahani izolyatsiya qilish. Chizish paytida koʻrinish avtomatik «Reja»ga oʻtadi.' },
-  { sel: '.seg:has([data-view])', a: '27', t: 'Koʻrinish va saqlash', b: 'Reja, Aksonometriya, Perspektiva — kamera turi. Loyiha avtomatik saqlanadi, lekin faqat shu brauzerda — zaxira uchun 11-qadamda «Loyiha fayli (JSON)».', more: 'Sodda / Toʻliq — ogʻir sahnada tezlik uchun. Kamera — koʻz sathi va saqlangan koʻrinishlar. Taqdimot — varaqlar va albom. Yuqoridagi «?» shu tanishtiruvni qayta ochadi.' },
+  { sel: '.seg:has([data-view])', a: '27', t: 'Koʻrinish va saqlash', b: 'Reja, Aksonometriya, Perspektiva — kamera turi. Loyiha avtomatik saqlanadi, lekin faqat shu brauzerda — zaxira uchun 11-qadamda «Loyiha fayli (JSON)».', more: 'Sodda / Toʻliq — ogʻir sahnada tezlik uchun. Kamera — koʻz sathi va saqlangan koʻrinishlar. Taqdimot — varaqlar va albom. Oʻng yuqoridagi «?» shu tanishtiruvni qayta ochadi.' },
   { sel: '.kpibar', a: '20', t: 'Koʻrsatkichlar va meʼyorlar', b: 'Har oʻzgarishda yangilanadi: uchastka, umumiy maydon, UMN, aholi. «Meʼyorlar»: ✓ — hammasi mos, raqam — mos kelmaganlar soni.', more: 'Bosilsa roʻyxat ochiladi: band, qiymat, chegara, natija. «Qayerda» muammoni sahnada koʻrsatadi, ayrim qatorlarda «Tuzatish» tugmasi bor.' },
   { sel: 'nav.rail', a: '13A', t: 'Loyiha qanday quriladi', b: '1) Koʻchalar (2): «Toʻr» → «Toʻrni qoʻllash» — koʻchalar uchastkani dahalarga boʻladi. 2) Dahalar (3): dahani bosing va funksiyani tanlang. 3) Hajmlar (5): dahani tanlab «Variant taklif qil». 4) Tekshiruv (10) va eksport (11).', more: '4, 6, 7, 8, 9-qadamlar — chuqurlashtirish uchun, tartib majburiy emas. 5-qadamda bino tanlansa panel inspektorga aylanadi: qaytish — «← 5-qadam» yoki Esc.' },
   { sel: '#acctIn, #acctPop', t: 'Asosiy ish — bepul', b: 'Loyihalash, chizish va tekshirish uchun hech narsa toʻlamaysiz. Tanga faqat ogʻir hisoblar (haftada 1 tasi sovgʻa) va toza fayllar (DXF, IFC, 3D, Excel) uchun kerak.', more: 'Hech narsa soʻramasdan yechilmaydi: narx tugma izohida oldindan koʻrinadi va har safar tasdiqlaysiz. Bitta loyiha uchun yuqori chegara bor. 1-qadam kirishsiz; davom etish uchun pochta orqali kiring — 6 xonali kod keladi.' },
@@ -135,15 +135,16 @@ function close(mark = true): void {
   if (prevFocus instanceof HTMLElement) prevFocus.focus({ preventScroll: true });
 }
 
-/** Yuqori panelda «?» tugmasi (muharrir qayta chizsa — qaytadan qoʻyiladi) */
+/** Xarita tugmalari qatorida (Xarita · Qatlamlar · Dunyo yonida) «?» tugmasi — yuqori panel 1024 px da sigʻishi uchun u yerga qoʻyilmaydi.
+ *  Muharrir qayta chizsa — qaytadan qoʻyiladi. */
 function ensureBtn(): void {
   if (document.getElementById('tourBtn')) return;
-  const pref = document.getElementById('prefPop'); if (!pref?.parentElement) return;
-  const b = el('button', pref.className.replace('popbtn', '').trim() || 'btn', '?');
+  const w = document.getElementById('worldBtn'); if (!w?.parentElement) return;
+  const b = el('button', w.className || 'mapbtn', '?');
   b.id = 'tourBtn'; b.type = 'button';
   b.setAttribute('aria-label', tourText('Tanishtiruvni qayta ochish')); b.title = tourText('Tanishtiruvni qayta ochish');
   b.onclick = () => startTour(0);
-  pref.parentElement.insertBefore(b, pref);
+  w.after(b);
 }
 
 let inited = false;
