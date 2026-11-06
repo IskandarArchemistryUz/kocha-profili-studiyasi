@@ -19,6 +19,7 @@ import { useDef, resShare } from './uses';
 import { inset, clean } from './generator';
 import { sportPark, type SportItem } from './sportpark';
 import { playKit, type KitPart } from './playkit';
+import { MTM, mtmGroups, MTM_M2 } from './mtmrule';
 
 /**
  * Ochiq joylar eskizi (generator): park — halqa va diagonal yoʻlaklar, markazda maydoncha, daraxtlar toʻri (9 m);
@@ -71,17 +72,33 @@ const RES_USES = new Set(['turar', 'aralash', 'yakka']);   // 02.11: «Yakka uyl
  * Ulushlar — erkin hududdan, binodan masofa (minD) — taxminiy; aniq tarkib — ShNQ 2.08 (taʼlim binolari) va topshiriq.
  * ShNQ 2.07.01-23, 4-jadval 1-izoh: mavzedagi katta yoshdagilar sport maydonchalari maktab sport maydonlari bilan birlashtiriladi.
  */
-const SOCIAL_ZONES: Record<'maktab' | 'mtm', { kind: PlayKind; minD: number; share: number; cap: number }[]> = {
+/** n — maydonchalar soni (har biri alohida), a — har birining aniq maydoni (m²); boʻlmasa — ulush va chegara */
+type Zone = { kind: PlayKind; minD: number; share: number; cap: number; n?: number; a?: number };
+const SOCIAL_ZONES: Record<'maktab' | 'mtm', Zone[]> = {
   maktab: [{ kind: 'sport', minD: 6, share: 0.3, cap: 4500 }, { kind: 'tajriba', minD: 6, share: 0.08, cap: 1200 }, { kind: 'bolalar', minD: 8, share: 0.08, cap: 900 }, { kind: 'kattalar', minD: 6, share: 0.05, cap: 400 }, { kind: 'xojalik', minD: 10, share: 0.03, cap: 300 }],
   mtm: [{ kind: 'bolalar', minD: 6, share: 0.4, cap: 4000 }, { kind: 'sport', minD: 8, share: 0.12, cap: 900 }, { kind: 'tajriba', minD: 6, share: 0.06, cap: 400 }, { kind: 'xojalik', minD: 10, share: 0.04, cap: 200 }],
 };
+
+/** 06.11 (c62): MTM uchastkasi zonalari — guruhlar soni bino maydonidan (5-ilova: 33 m²/oʻrin), maydonchalar — ANDOZA (social.ts, MTM) */
+export function mtmZones(gfa: number): Zone[] {
+  const cap = Math.floor(gfa / MTM_M2 + 1e-6), g = mtmGroups(Math.max(1, cap));
+  return [{ kind: 'bolalar', minD: 4, share: 0, cap: MTM.play, n: g, a: MTM.play }, { kind: 'sport', minD: 6, share: 0, cap: MTM.sport, n: Math.max(1, Math.ceil(cap / 150)), a: MTM.sport },
+    { kind: 'tajriba', minD: 6, share: 0.06, cap: 400 }, { kind: 'xojalik', minD: 10, share: 0, cap: MTM.xojalik, a: MTM.xojalik }];
+}
+/** soyabon: maydonchaning bir chetida (uzun tomoni boʻylab), andoza 6 × 4 m, maydonchadan 0,5 m ichkarida */
+export function canopyOf(r: XY[]): XY[] {
+  const xs = r.map(p => p[0]), ys = r.map(p => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys), W = Math.max(...xs) - x0, H = Math.max(...ys) - y0;
+  const [cl, cs] = MTM.canopy, a = Math.min(cl, (W >= H ? W : H) - 1), b = Math.min(cs, (W >= H ? H : W) * 0.45);
+  return W >= H ? [[x0 + W - 0.5 - a, y0 + H - 0.5 - b], [x0 + W - 0.5, y0 + H - 0.5 - b], [x0 + W - 0.5, y0 + H - 0.5], [x0 + W - 0.5 - a, y0 + H - 0.5]]
+    : [[x0 + W - 0.5 - b, y0 + H - 0.5 - a], [x0 + W - 0.5, y0 + H - 0.5 - a], [x0 + W - 0.5, y0 + H - 0.5], [x0 + W - 0.5 - b, y0 + H - 0.5]];
+}
 
 export interface Entry { kind: 'arka' | 'oraliq' | 'podyezd'; p: XY; d: XY; w?: number }
 export interface Yard {
   /** kvartal indeksi (computePlan blocks) */
   block: number;
   paving: XY[][][]; green: XY[][][]; paths: XY[][][];
-  play: { kind: PlayKind; ring: XY[]; need: number; area: number; kit?: KitPart[]; /** 05.11: bolalar + kattalar birlashtirilgan (91-band: ≥ 150 m²) */ comb?: true }[];
+  play: { kind: PlayKind; ring: XY[]; need: number; area: number; kit?: KitPart[]; /** 05.11: bolalar + kattalar birlashtirilgan (91-band: ≥ 150 m²) */ comb?: true; /** 06.11 (c62): MTM guruh maydonchasi soyaboni (ANDOZA) */ canopy?: XY[] }[];
   /** 31.10: maktab / MTM uchastkasi — turar joy hovlisi hisoblariga (86-band balansi, 4-jadval maydonchalari) kirmaydi */
   social?: 'maktab' | 'mtm';
   trees: XY[];
@@ -151,7 +168,12 @@ function landscapeRaw(doc: Project): Yard[] {
       // 31.10 (egasi: «maktab va MTM hududlari landshafti»): uchastka zonalari — andoza (zonalar maydoni meʼyor matnidan emas)
       const ownS = bl.filter(x => !x.b.z0 && x.b.floors > 0 && pointIn(x.r.reduce((s2, p) => [s2[0] + p[0] / x.r.length, s2[1] + p[1] / x.r.length] as XY, [0, 0] as XY), blk.rings));
       const kind = blk.use as 'maktab' | 'mtm';
-      const y = cached(`m|${bsig}|${ownS.map(x => sig(x.r)).join('#')}`, () => { const z = yardOf(blk, bi, ownS.length ? ownS : [], [], doc, [], undefined, SOCIAL_ZONES[kind]); if (!z) return null;
+      // 06.11 (c62): MTM — har guruhga alohida oʻyin maydonchasi soyabon bilan (ANDOZA), guruhlar soni bino sigʻimidan (5-ilova, 33 m²/oʻrin);
+      // bino yoʻq boʻlsa — uchastka zonalari chizilmaydi (boʻsh maydonda «bogʻcha» koʻrinishi chalgʻitadi)
+      if (kind === 'mtm' && !ownS.length) return;
+      const zones = kind === 'mtm' ? mtmZones(ownS.reduce((t, x) => t + area(x.r) * x.b.floors, 0)) : SOCIAL_ZONES[kind];
+      const y = cached(`m|${bsig}|${ownS.map(x => sig(x.r) + ':' + x.b.floors).join('#')}`, () => { const z = yardOf(blk, bi, ownS.length ? ownS : [], [], doc, [], undefined, zones); if (!z) return null;
+        if (kind === 'mtm') for (const q of z.play) if (q.kind === 'bolalar') q.canopy = canopyOf(q.ring);
         // daraxtlar: uchastka chegarasi boʻylab yashil tasma (chekdan ≤ 10 m) + ichkarida siyrak (har uchinchisi) — ochiq maydon koʻproq qoladi
         const trees = z.trees.filter((p, i) => ringD(p, blk.rings[0]) < 10 || i % 3 === 0);
         return { ...z, trees, social: kind }; });
@@ -513,7 +535,7 @@ export function entriesOf(outer: XY[], own: Own[], arches: Own[]): Entry[] {
   }
   return out;
 }
-function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], park: Polygon[], doc: Project, arches: Own[] = [], roof?: { extra: MultiPolygon[] }, zones?: { kind: PlayKind; minD: number; share: number; cap: number }[]): Yard | null {
+function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], park: Polygon[], doc: Project, arches: Own[] = [], roof?: { extra: MultiPolygon[] }, zones?: Zone[]): Yard | null {
     const B: Polygon = blk.rings.map(close);
     const fp = safeUnion(own.map(x => [close(x.r)] as Polygon));
     // binolar atrofidagi 3 m trotuar
@@ -560,7 +582,7 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     };
     const freeA = mpArea(free);
     // 31.10: bolalar maydonchasi birinchi (aks holda katta sport maydoni joyni egallab, bolalar maydonchasi tushmay qolardi)
-    if (zones) for (const z of zones) place(z.kind, z.minD, Math.min(z.cap, freeA * z.share), Math.min(z.cap, freeA * z.share));   // maktab / MTM uchastkasi zonalari (andoza)
+    if (zones) for (const z of zones) for (let k = 0; k < (z.n ?? 1); k++) place(z.kind, z.minD, z.a ?? Math.min(z.cap, freeA * z.share), z.a ?? Math.min(z.cap, freeA * z.share));   // maktab / MTM uchastkasi zonalari (andoza)
     // 04.11 (egasi: «katta hovlida maydonchalar 4–5 emas, ~2 ta»): bolalar va kattalar dam olish maydonchasi — bitta (bolalar oʻyin + oʻrindiqlar,
     // maydon 4-jadval yigʻindisi, masofa — qattiqrogʻi, 10 m), keyin sport; xoʻjalik maydonchasi — alohida (20 m, 4-jadval)
     // 05.11: ShNQ 2.07.01-23, 91-band — birlashtirilgan maydoncha «150 m² dan kam boʻlmasligi lozim»: sigʻmasa — bolalar va kattalar alohida

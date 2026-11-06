@@ -39,7 +39,7 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Iqtisod', 'Ish oʻrinlari (taxmin)', 'ta', Math.round(d.jobs), 'noturar GFA ÷ bandlik zichligi (core/jobs.ts)');
   if (d.population > 0) add('Iqtisod', 'Ish oʻrinlari aholiga nisbati', '', d.jobsRatio, '1,0 dan past — yotoqxona tuman');
   add('Ijtimoiy', 'Maktab oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.schoolCap, `talab ≥ ${Math.ceil(d.population * 0.165)} (5-ilova)`);
-  add('Ijtimoiy', 'MTM oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.mtmCap, `talab ≥ ${Math.ceil(d.population * 0.07)} (5-ilova)`);
+  add('Ijtimoiy', 'MTM oʻrinlari (binosi bor parsellar)', 'oʻrin', d.mtmCap, `talab ≥ ${Math.ceil(d.population * 0.07)} (5-ilova)`);
   add('Yashil', 'Yashil zonalar', 'm²', d.greenArea);
   add('Yashil', 'Yashil zona, kishi boshiga', 'm²/kishi', d.greenPerPerson, '36-jadval: ≥ 3–4');
   if (d.yardGreen > 0) { add('Yashil', 'Hovlilar maysasi', 'm²', d.yardGreen); add('Yashil', 'Hovli maydonchalari', 'm²', d.playGot, `talab ${Math.round(d.playNeed)} (4-jadval)`); add('Yashil', 'Hovli daraxtlari', 'ta', d.yardTrees); }

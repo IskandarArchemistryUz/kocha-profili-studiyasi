@@ -21,6 +21,7 @@ import { useDef } from '../core/uses';
 import { edgeKinds, boundaryNeed, azOf } from '../core/setback';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
+import { MTM, mtmGroups } from '../core/mtmrule';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
@@ -44,6 +45,14 @@ function tierNote(d: Derived, use: 'maktab' | 'mtm'): string {
   const parts = low.map(({ p, t }) => `${n0(p.area)} m² → ${cap(p.area)}; +${n0(t!.area - p.area)} m² → ${t!.cap}`);
   return ` Pogʻona: ${low.length} / ${ps.length} parsel ${lim} dan kichik — ${parts.join(' · ')}. Qavat qoʻshish sigʻimni oshirmaydi (meʼyor — yer maydoni).`;
 }
+
+/** 06.11 (c62): binosiz MTM parsellari — sigʻim hisobga olinmagan */
+function mtmEmpty(d: Derived): string {
+  const e = d.mtmPlots.filter(p => !p.bld); if (!e.length) return '';
+  return ' ' + tfU('${n} ta «MTM» parselida bino yoʻq — ≈ ${c} oʻrin hisobga olinmadi (Hajmlar → Joylashtirish).', { n: e.length, c: e.reduce((t, p) => t + p.plot, 0) });
+}
+/** kalit andozasi (i18n strings.json da ${…} bilan) → oʻzbekcha matn; tarjima koʻrsatishda dyn() orqali */
+const tfU = (k: string, v: Record<string, unknown>) => k.replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e] ?? ''));
 
 /** Ikki koʻpburchak orasidagi eng qisqa kesma (uchdan qirragacha) */
 function closestSeg(a: XY[], b: XY[]): [XY, XY] {
@@ -271,7 +280,34 @@ export const RULES: Rule[] = [
       const lo = Math.ceil(d.population * 0.07), hi = Math.ceil(d.population * 0.125);
       const mw = d.mtmCap < lo ? socialNeed(doc, 'mtm', lo - d.mtmCap) : undefined;
       return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, ...(mw ? { where: mw } : {}), ...(d.mtmCap < lo ? { fix: { id: 'mtm' as const, label: '1-qavatlarga MTM joylash', hint: `Yetishmaydi ${lo - d.mtmCap} oʻrin. Turar joy binolarining 1-qavatiga MTM (543-band, uchastka 29 m²/oʻrin hovlidan) — kattaroq binolardan boshlab, kerakli oʻringa yetguncha; 1-qavati turar boʻlsa noturarga oʻtkaziladi. Alternativa — «MTM» parseli (≥ 3 535 m² — 35 m²/oʻrin).` } } : {}), unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
-        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellari maydonidan (40 m² — 100 oʻringacha, 35 m² — undan ortiq).${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi, sigʻmagani sanalmaydi; bino maydoni 33 m²/oʻrin — 5-ilova).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
+        note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellaridan: uchastka (543-band: 40 m² — 100 oʻringacha, 35 m² — undan ortiq) va bino (33 m²/oʻrin, 5-ilova) sigʻimining kichigi; binosiz parsel hisobga olinmaydi.${mtmEmpty(d)}${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi, sigʻmagani sanalmaydi; bino maydoni 33 m²/oʻrin — 5-ilova).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
+    },
+  },
+  {
+    // 06.11 (c62, egasi: «qoida qanday — bino qancha qismni egallaydi, qavatliligi qanday»): MTM uchastkasi va binosi
+    id: 'mtm-plot',
+    title: 'MTM uchastkasi va binosi',
+    source: { ...SHNQ_2_07_01, clause: '543-band; 5-ilova (33 m²/oʻrin); QMQ 2.01.03-19, 3.1-jadval 2-izoh; maydonchalar — ANDOZA' },
+    evaluate(d, doc) {
+      if (!d.mtmPlots.length) return { status: 'na', unit: 'oʻrin', note: '«MTM» parseli yoʻq.' };
+      const plan = computePlan(doc), yards = landscape(doc), lim = socialFloorLimit('mtm', doc.settings.seismic);
+      const mb = plan.blocks.map((b, bi) => ({ b, bi })).filter(x => x.b.use === 'mtm');
+      const parts: string[] = []; let bad = false, rev = false;
+      d.mtmPlots.forEach((p, k) => {
+        const n = k + 1;
+        if (!p.bld) { rev = true; parts.push(tfU('MTM ${n}: bino yoʻq — sigʻim hisobga olinmadi (uchastka boʻyicha ≈ ${c} oʻrin)', { n, c: p.plot })); return; }
+        const req = p.cap <= 100 ? 40 : 35, per = p.cap ? p.area / p.cap : 0;
+        if (p.cap && per < req - 0.05) bad = true;
+        parts.push(tfU('MTM ${n}: ${c} oʻrin, uchastka ${a} m² — ${r} m²/oʻrin (543-band: ≥ ${q})', { n, c: p.cap, a: n0(p.area), r: nm(per), q: req }));
+        if (lim != null && p.floors > lim) bad = true;
+        parts.push(tfU('${f} qavat (QMQ 2.01.03-19, 3.1-jadval 2-izoh: ≤ ${l})', { f: p.floors, l: lim ?? '—' }));
+        const y = yards.find(q => q.social === 'mtm' && q.block === mb[k]?.bi), g = mtmGroups(p.cap), pl = y ? y.play.filter(q => q.kind === 'bolalar').length : 0, gr = y ? y.areas.green / Math.max(1, p.area) : 0;
+        if (pl < g) rev = true; if (gr < MTM.green - 0.005) rev = true;
+        parts.push(tfU('guruh maydonchalari ${a} / ${b} (ANDOZA: ${m} m², soyabon bilan)', { a: pl, b: g, m: MTM.play }));
+        parts.push(tfU('koʻkalamzorlik ${v} % (ANDOZA: ≥ ${m} %)', { v: Math.round(gr * 100), m: Math.round(MTM.green * 100) }));
+      });
+      const val = d.mtmPlots.reduce((t, p) => t + p.cap, 0);
+      return { status: bad ? 'fail' : rev ? 'review' : 'pass', value: val, unit: 'oʻrin', note: parts.join('; ') + '\n' + 'Guruh — 20 bola, maydonchalar, sport va xoʻjalik zonasi, koʻkalamzorlik — ANDOZA: 544-band yuborgan ShNQ 2.08.02-09 normalar toʻplamida yoʻq.' };
     },
   },
   {

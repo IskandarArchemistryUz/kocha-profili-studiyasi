@@ -1103,6 +1103,13 @@ export class Scene3D {
           if (y.fire) { fill(y.fire.lane, plainS ? 0xe6e4df : alb ? 0xe4ddd0 : 0xcdc4b4, 0.345, 3.5, Hy); for (const poly of y.fire.lane) for (const r of poly) { const l = line(densify([...r], 6, true), plainS ? 0xb9b6ae : 0xc0503a, 0.42, true, 6.55, Hy); l.userData.fireLane = true; this.world.add(l); } }
           for (const q of y.play) {
             fill([[q.ring]], col[q.kind], 0.35, 4, Hy); this.world.add(line(densify([...q.ring], 6, true), plainS ? 0xc9c6bf : 0x9a8f7c, 0.4, true, 6.5, Hy));
+            // 06.11 (c62): MTM guruh maydonchasi soyaboni — 2,6 m balandlikda yupqa tom va 4 ustun (ANDOZA)
+            if (q.canopy) {
+              const c0 = q.canopy.reduce((a, p) => [a[0] + p[0] / 4, a[1] + p[1] / 4] as XY, [0, 0] as XY), z0 = Hy(c0[0], c0[1]);
+              const g = new THREE.ExtrudeGeometry(new THREE.Shape(q.canopy.map(toV2)), { depth: 0.15, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
+              const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: plainS ? 0xf2f1ee : 0xe9dcc4 })); m.position.y = z0 + 2.6; m.castShadow = true; m.userData.canopy = true; this.world.add(m);
+              for (const p of q.canopy) { const pg = new THREE.BoxGeometry(0.14, 2.6, 0.14), pm = new THREE.Mesh(pg, new THREE.MeshLambertMaterial({ color: plainS ? 0xb9b6ae : 0x8a6f4e })); const ux = p[0] + (c0[0] - p[0]) * 0.04, uy = p[1] + (c0[1] - p[1]) * 0.04; pm.position.set(ux, z0 + 1.3, -uy); pm.userData.canopy = true; this.world.add(pm); }
+            }
             for (const k of q.kit ?? []) {
               if (k.f) (kitF[pb ? `${k.c}@${zr}` : k.c] ??= []).push(new THREE.Shape(k.f.map(toV2)));
               if (k.l) { const a = (kitL[k.c] ??= []); for (let i = 1; i < k.l.length; i++) { const p0 = k.l[i - 1], p1 = k.l[i]; a.push(p0[0], Hy(p0[0], p0[1]) + 0.43, -p0[1], p1[0], Hy(p1[0], p1[1]) + 0.43, -p1[1]); } }
