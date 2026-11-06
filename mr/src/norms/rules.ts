@@ -141,7 +141,7 @@ export type Status = 'pass' | 'fail' | 'review' | 'na';
 export interface Source { doc: string; clause: string; edition: string; verified: boolean }
 
 /** «Tuzat» tugmalari (31.10): har biri bitta bekor qilinadigan amal (Ctrl+Z) */
-export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end' | 'play-ug' | 'szz-belt' | 'park-30';
+export type FixId = 'parking' | 'mtm' | 'seismic-joint' | 'podium-joint' | 'floors-down' | 'yards-on' | 'street-clear' | 'dead-end' | 'play-ug' | 'szz-belt' | 'park-30' | 'hovli-floors' | 'seismic-floors' | 'spacing-floors' | 'redline-move';
 export interface Result {
   id: string; title: string; status: Status;
   value?: number; limit?: string; unit?: string;
@@ -165,6 +165,13 @@ export interface Rule {
 }
 
 const SHNQ_2_07_01: Omit<Source, 'clause'> = { doc: 'ShNQ 2.07.01-23', edition: '2023', verified: true };
+
+/** 06.11 (c58): 79-band, 2-jadval — «mos emas» juftlardagi binolar (ustma-ust tushganlar bundan mustasno; spacing-79 bilan bir xil saralash) */
+export function spacingBadIds(doc: Project): string[] {
+  const { pairs } = spacingIssues(doc);
+  const bad = pairs.filter(p => (p.kind === 'uzun' && !p.red) || (p.kind === 'uzun-torets' && !p.red) || (p.kind === 'torets' && !p.red && p.d < p.need - 0.5) || p.kind === 'yakka');
+  return [...new Set(bad.flatMap(p => [p.a, p.b]))];
+}
 
 export const RULES: Rule[] = [
   {
@@ -479,6 +486,7 @@ export const RULES: Rule[] = [
       const nd = cs.filter(({ p }) => p.need > p.d + 0.5 || (p.soft ?? 0) > p.d + 0.5).map(({ p, s }) => { const L = Math.max(p.need, p.soft ?? 0), n = needSeg(s[0], s[1], L); return { n, text: `${nm(p.d)} → ${nm(L)} m` }; });
       const where: Where | undefined = prob.length ? { bids: [...new Set(prob.flatMap(p => [p.a, p.b]))], segs: cs.map(x => x.s), ...(nd.length ? { need: { segs: nd.map(x => x.n), labels: nd.map(x => ({ at: x.n[1], text: x.text })) } } : {}) } : undefined;
       return { status: bad ? 'fail' : (soft.length || pass || red.length) ? 'review' : 'pass', value: bad, unit: 'juft', limit: '0', ...(where ? { where } : {}),
+        ...(bad && !ov ? { fix: { id: 'spacing-floors' as const, label: 'Baland binoning qavatlarini kamaytirish', hint: 'Masofa yetmaydigan juftlarda balandroq binoning qavati bittadan kamaytiriladi, toki 2-jadval masofasi bajarilguncha. Bino 3 qavatdan pastga tushirilmaydi; toretslar orasi 6 m dan kam boʻlsa, qavat yordam bermaydi — binoni suring. Bekor qilish — Ctrl+Z.' } } : {}),
         note: (parts.length ? parts.join(' ') : 'Ustma-ust tushgan va yaqin joylashgan binolar yoʻq. Avtomatik binolarda torets derazalari generatsiyada belgilangan; qoʻlda chizilganlarda — eng qatʼiy holat.') + ' Qoʻllanish: 2-jadval — faqat 3+ qavatli koʻp kvartirali turar joy va yotoq oʻrinli binolar oʻzaro (79-band); noturar binolar va uchastkali past uylar oʻzaro tekshirilmaydi (78-band — insolyatsiya va yongʻin masofalari).' + ' Tarzlar bir-biriga qaramasa (fasad roʻparasida bino yoʻq, faqat burchaklar diagonal yaqin) — jadval talabi qoʻyilmaydi (TALQIN).' };
     },
   },
@@ -501,6 +509,7 @@ export const RULES: Rule[] = [
       const worst = bad.reduce<typeof bad[number] | null>((a, x) => (!a || x.d / x.need < a.d / a.need ? x : a), null);
       const where: Where | undefined = bad.length ? { bids: bad.map(x => x.b.id), segs: bad.map(x => x.seg), need: { segs: bad.map(x => needSeg(x.seg[1], x.seg[0], x.need)), labels: bad.map(x => { const q = needSeg(x.seg[1], x.seg[0], x.need)[1]; return { at: q, text: `${nm(x.d)} → ${nm(x.need)} m` }; }) } } : undefined;
       return { status: bad.length ? 'fail' : 'pass', value: bad.length, unit: `/ ${n} bino`, limit: 'H × 0,25', ...(where ? { where } : {}),
+        ...(bad.length ? { fix: { id: 'redline-move' as const, label: 'Binolarni qizil chiziqdan surish', hint: 'Qizil chiziqqa H × 0,25 dan yaqin binolar koʻchadan ichkariga yetarli masofaga suriladi. Qavatlar va shakl oʻzgarmaydi; qoʻshni binolar bilan masofani qayta tekshiring. Bekor qilish — Ctrl+Z.' } } : {}),
         note: `Yoʻl tarafdagi hudud chegarasigacha (loyiha koʻchasi qizil chizigʻi) har qanday tarzdan H × 0,25; H — yer sathidan eng yuqori qavat tom yopmasigacha (1-izoh).${worst ? ` Eng yaqini ${nm(worst.d)} m, talab ${nm(worst.need)} m.` : ''} Qoʻshni taraf hudud chegarasigacha: derazali uzun tarz H × kʏ / 2, yon tarz H × 0,25 (I–II darajada ≥ 6 m) — uchastka chetlari turi generatorda («Uchastka chetlari») tanlanadi. Qizil chiziqqa tutash (0 m) binolar — «Koʻcha koridori» bandida.` };
     },
   },
@@ -568,6 +577,7 @@ export const RULES: Rule[] = [
       const redN = low.length - bad.length;
       const where: Where | undefined = bad.length ? { bids: [...new Set(bad.flatMap(x => x.ids))], need: { segs: bad.map(x => [[x.c[0] - x.U[0] * x.need / 2, x.c[1] - x.U[1] * x.need / 2], [x.c[0] + x.U[0] * x.need / 2, x.c[1] + x.U[1] * x.need / 2]] as [XY, XY]), labels: bad.map(x => ({ at: [x.c[0] + x.U[0] * x.need / 2, x.c[1] + x.U[1] * x.need / 2] as XY, text: `${nm(x.S)} → ${nm(x.need)} m` })) } } : undefined;
       return { status: bad.length ? 'fail' : redN ? 'review' : 'pass', value: worst.S, unit: 'm', limit: `≥ ${nm(worst.need)} (Hmax ${nm(worst.Hm)} × 2,3)`, ...(where ? { where } : {}),
+        ...(bad.length ? { fix: { id: 'hovli-floors' as const, label: 'Hovli atrofidagi qavatlarni kamaytirish', hint: 'Hovlini oʻrab turgan eng baland binoning qavati bittadan kamaytiriladi, toki hovli eni Hmax × 2,3 ga yetguncha (3-izoh). Bino 3 qavatdan pastga tushirilmaydi va oʻchirilmaydi; bekor qilish — Ctrl+Z.' } } : {}),
         note: `Yopiq ichki hovlisi bor turar joylarda binolarning ichki fasadlari orasidagi masofa Hmax × 2,3 qabul qilinadi (3-izoh). Hovlilar: ${res.length}; eng tori ${nm(worst.S)} m (hovlining qisqa oʻlchami), talab ${nm(worst.need)} m. Hmax — hovlini oʻrab turgan binolarning eng balandi (1-izoh: yer sathidan eng yuqori qavat tom yopmasigacha).` + (redN ? `\nRekonstruksiya rejimi (7-izoh): ${redN} ta hovli talabdan tor, lekin yarmidan va 6 m dan keng — insolyatsiya hisobi bilan asoslansin (TALQIN: 7-izoh 3-izohga ham qoʻllandi).` : '') };
     },
   },
@@ -680,6 +690,7 @@ export const RULES: Rule[] = [
       const limTxt = lim == null ? 'NSTT' : lim.h == null ? 'qoʻllanmaydi' : `≤ ${lim.h} m (${lim.f})`, bt = ball > 9 ? '>9' : String(ball);
       const tl = tall.filter(x => !ids.includes(x));
       return { status: ids.length ? 'fail' : tl.length ? 'review' : 'pass', value: ids.length || tl.length, unit: `/ ${bl.length} bino`, limit: limTxt, ...(ids.length || tl.length ? { where: { bids: ids.length ? ids : tl } } : {}),
+        ...(ids.length ? { fix: { id: 'seismic-floors' as const, label: 'Qavatlarni seysmik chegaraga tushirish', hint: '3.1-jadval va 2-izoh chegarasidan baland binolarning qavatlari chegaragacha kamaytiriladi. Binolar oʻchirilmaydi; bekor qilish — Ctrl+Z.' } } : {}),
         note: `${def.name} (${def.row}), ${bt} ball: balandlik va qavatlar soni — ${limTxt}. 8–9 ballda maktab ≤ 3, bogʻcha ≤ 2 qavat; 9 dan yuqori — ≤ 2 qavat (2-izoh).`
           + (tl.length ? ` ${tl.length} ta monolit bino jadval chegarasidan baland, lekin ≤ ${tm} m: ShNQ 2.01.06-25 (01/2-38, 15.08.2025) boʻyicha alohida seysmik hisob talab qilinadi — 70 m dan baland bino (2-bob) chiziqsiz hisob asosida; balandlik sinfi — 5-jadval (SLS 1–2: H ≤ 100 m).` : '')
           + (tm != null ? '' : ' ShNQ 2.01.06-25 (baland binolar) — monolit temir-beton uchun (6–7-jadvallar); bu tizimga qoʻllanmaydi.') };

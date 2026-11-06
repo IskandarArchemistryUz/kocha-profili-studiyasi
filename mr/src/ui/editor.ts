@@ -17,7 +17,7 @@ import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from 
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
-import { abroadRules, type Result, type FixId } from '../norms/rules';
+import { abroadRules, RULES, spacingBadIds, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { siteAccess, accessVerdict, type Access } from '../core/access';
@@ -2265,6 +2265,28 @@ export class Editor {
   }
 
   /** 31.10 (egasi): meʼyorga moslash — «Tuzat» tugmalari */
+  /** 06.11 (c58): qoidani berilgan hujjatda baholash (fix simulyatsiyasi uchun) */
+  private evalRule(id: string, doc: Project, d?: ReturnType<typeof derive>): Result | null {
+    const r = RULES.find(x => x.id === id); if (!r) return null;
+    return { id: r.id, title: r.title, source: r.source, ...r.evaluate(d ?? derive(doc), doc) } as Result;
+  }
+  /** 06.11 (c58): qoida «mos» boʻlguncha buzuvchilar ichidan eng baland binoning turar qavatini bittadan kamaytirish (≥ 3 qavat, stilobat emas) */
+  private shrinkFloors(rid: string, ids?: (d: Project) => string[]): { ch: { id: string; floors: number }[]; drop: number; left: boolean } {
+    const doc0 = this.store.doc, f0 = new Map(doc0.buildings.map(b => [b.id, b.floors])); let bs = doc0.buildings, left = true;
+    const d0 = derive(doc0);   // hovli-79-3, seismic-height, spacing-79 Derived dan foydalanmaydi — har qadamda qayta hisoblanmaydi
+    for (let it = 0; it < 300; it++) {
+      const cur = { ...doc0, buildings: bs };
+      let want: Set<string>;
+      if (ids) { want = new Set(ids(cur)); if (!want.size) { left = false; break; } }
+      else { const r = this.evalRule(rid, cur, d0); if (!r || r.status !== 'fail') { left = false; break; } want = new Set(r.where?.bids ?? []); }
+      const cand = bs.filter(b => want.has(b.id) && b.gen?.kind !== 'stilobat' && b.floors - 1 >= Math.min(f0.get(b.id) ?? b.floors, 3) && b.floors - 1 > (b.nonRes ?? 0));
+      if (!cand.length) break;
+      const top = cand.reduce((a, b) => (bLevels(cur.settings, b).top > bLevels(cur.settings, a).top ? b : a));
+      bs = bs.map(b => (b.id === top.id ? { ...b, floors: b.floors - 1 } : b));
+    }
+    const ch = bs.filter(b => b.floors !== f0.get(b.id)).map(b => ({ id: b.id, floors: b.floors }));
+    return { ch, drop: ch.reduce((t, x) => t + (f0.get(x.id)! - x.floors), 0), left };
+  }
   private applyFix(id: FixId): void {
     const doc = this.store.doc, fr = frame(doc.origin);
     if (id === 'seismic-joint') {
@@ -2342,6 +2364,24 @@ export class Editor {
       const pods = doc.buildings.filter(b => isPodium(b) && !b.joint);
       this.run(() => { for (const b of pods) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { joint: true } }); });
       toast(tf('${n} ta stilobatga choklar sxemasi qoʻyildi', { n: pods.length }));
+    } else if (id === 'hovli-floors' || id === 'seismic-floors' || id === 'spacing-floors') {
+      // 06.11 (c58): qavatlarni kamaytirish — qoida «mos» boʻlguncha eng baland buzuvchi bino bittadan pasaytiriladi; binolar oʻchirilmaydi
+      const rid = id === 'hovli-floors' ? 'hovli-79-3' : id === 'seismic-floors' ? 'seismic-height' : 'spacing-79';
+      const r = this.shrinkFloors(rid, id === 'spacing-floors' ? spacingBadIds : undefined);
+      this.run(() => { for (const x of r.ch) this.store.dispatch({ type: 'updateBuilding', id: x.id, patch: { floors: x.floors } }); });
+      toast(r.ch.length ? tf('${n} ta binoning qavatlari kamaytirildi (jami −${k} qavat)', { n: r.ch.length, k: r.drop }) + (r.left ? ' · ' + tr('Qoida hali bajarilmadi — qolganini qoʻlda tuzating.') : '') : tr('Qavatni kamaytirish bilan tuzatib boʻlmaydi — binolarni suring yoki qayta generatsiya qiling.'));
+    } else if (id === 'redline-move') {
+      // 06.11 (c58): 79-band, 2-jadval (H × 0,25) — bino koʻchadan ichkariga suriladi; qavat va shakl oʻzgarmaydi
+      const moves = new Map<string, XY>(); let cur = doc;
+      for (let it = 0; it < 3; it++) {
+        const r = this.evalRule('redline-79', cur); const w = r?.where; if (!r || r.status !== 'fail' || !w?.bids || !w.segs || !w.need?.segs) break;
+        w.bids.forEach((bid, i) => { const sg = w.segs![i], ns = w.need!.segs![i]; if (!sg || !ns) return; const dx = sg[0][0] - sg[1][0], dy = sg[0][1] - sg[1][1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+          const mv: XY = [ns[1][0] - sg[0][0] + ux * 0.3, ns[1][1] - sg[0][1] + uy * 0.3], o = moves.get(bid) ?? [0, 0]; moves.set(bid, [o[0] + mv[0], o[1] + mv[1]]); });
+        cur = { ...doc, buildings: doc.buildings.map(b => { const m = moves.get(b.id); return m ? { ...b, footprint: b.footprint.map(p => { const q = fr.toLocal(p); return fr.toGeo([q[0] + m[0], q[1] + m[1]]); }) } : b; }) };
+      }
+      const ch = cur.buildings.filter(b => moves.has(b.id));
+      this.run(() => { for (const b of ch) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { footprint: b.footprint } }); });
+      toast(tf('${n} ta bino qizil chiziqdan surildi', { n: ch.length }) + ' · ' + tr('Qoʻshni binolar bilan masofani tekshiring.'));
     } else if (id === 'mtm') {
       const d = derive(doc), need = Math.ceil(d.population * 0.07) - d.mtmCap; if (need <= 0) return;
       const cand = doc.buildings.filter(b => !b.mtm && useDef(b.use).res > 0 && b.floors >= 3 && !['uy', 'taunhaus', 'villa', 'stilobat'].includes(b.gen?.kind ?? '')).map(b => ({ b, n: builtInMtm(area(b.footprint.map(fr.toLocal))) })).filter(x => x.n >= 15).sort((p, q) => q.n - p.n);
