@@ -29,7 +29,7 @@ import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, StripTool, type Tool } from './tools';
 import { stripSections } from '../core/stripline';
-import { szzOf, suvZones, SUV_NAMES, SUV_Q, SUV_QS, limitAreaHa, isActive, limitZones, bufferLocal, SZZ_DENY, type Limit, type LimitKind, type SuvType } from '../core/limits';
+import { szzOf, suvZones, objZone, OBJ, OBJ_BY, OBJ_GROUPS, OQOVA_Q, SUV_NAMES, SUV_Q, SUV_QS, limitAreaHa, isActive, limitZones, bufferLocal, SZZ_DENY, type Limit, type LimitKind, type SuvType, type ObjGroup } from '../core/limits';
 import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo } from '../core/plan';
 import type { MultiPolygon } from 'polygon-clipping';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
@@ -3461,7 +3461,9 @@ export class Editor {
     finally { this.limOsm.busy = false; this.renderPanel(); }
   }
   private selLimit: string | null = null;
-  private static LIM_KINDS: [LimitKind, string][] = [['qabriston', 'Qabriston'], ['issiqxona', 'Issiqxona'], ['ombor', 'Ombor'], ['temiryol', 'Temir yoʻl'], ['elu', 'ELU'], ['meros', 'Madaniy meros'], ['suv', 'Suv obyekti'], ['sanoat', 'Sanoat korxonasi'], ['boshqa', 'Boshqa']];
+  /** 07.11 (c70): SMZ obyekti — qator tanlanmagan cheklov uchun ochilgan guruh */
+  private objGroup = new Map<string, ObjGroup>();
+  private static LIM_KINDS: [LimitKind, string][] = [['qabriston', 'Qabriston'], ['issiqxona', 'Issiqxona'], ['ombor', 'Ombor'], ['temiryol', 'Temir yoʻl'], ['elu', 'ELU'], ['meros', 'Madaniy meros'], ['suv', 'Suv obyekti'], ['sanoat', 'Sanoat korxonasi'], ['obyekt', 'SMZ obyekti'], ['boshqa', 'Boshqa']];
   private limName(k: LimitKind): string { return tr(Editor.LIM_KINDS.find(x => x[0] === k)?.[1] ?? 'Boshqa'); }
   private pickLimit(id: string | null): void { this.selLimit = id; this.scene.selectLimit(id); this.renderPanel(); }
   private startLimit(kind: LimitKind): void {
@@ -3480,6 +3482,8 @@ export class Editor {
     box.append(h('button', { class: 'btn btn-block', id: 'limOsm', disabled: this.limOsm.busy, onclick: () => void this.detectLimits(false) }, ...icl('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', tr(this.limOsm.busy ? 'OSM dan aniqlanmoqda…' : 'OSM dan aniqlash'))));
     if (this.limOsm.msg) box.append(h('div', { class: 'note', id: 'limOsmMsg' }, this.limOsm.msg));
     box.append(h('span', { class: 't-small' }, tr('Qabriston, issiqxona, ombor, temir yoʻl, ELU (kuchlanishi va tayanchlari bilan), suv obyektlari, bogʻ va ekin maydonlari — uchastka atrofida 500 m, sanoat korxonalari — 1000 m. Yoʻq boʻlsa — qoʻlda chizing.')));
+    // 07.11 (c70): SMZ obyektlari — SanQvaN 0103-25 1-ilova / 4-ilova, ShNQ masofalari
+    box.append(h('span', { class: 't-small', id: 'limOsmObj' }, tr('SMZ obyektlari ham aniqlanadi: yoqilgʻi quyish shoxobchalari (benzin, metan, propan), qozonxona, transformator podstansiyasi, GTP, avtovokzal, avtopark, avtoservis, avtoyuvish, bozor, oqova suv tozalash va nasos stansiyasi, chiqindi obyektlari, krematoriy, veterinariya, qushxona, stadion, oʻt oʻchirish deposi — SanQvaN 0103-25, 1-ilova va 4-ilova.')));
     // 04.11 (egasi: interfeysni soddalashtirish, A): qoʻlda chizish tugmalari (8 tur) — «Qoʻlda chizish» ichida; chizish davomida «Tugatish» koʻrinib turadi
     const limAdd = h('details', { class: 'gen-more', id: 'limAddMore' }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻlda chizish · ${n}', { n: Editor.LIM_KINDS.length }))));
     if (this.limDraw && this.tool) box.append(h('button', { class: 'btn btn-primary btn-block', id: 'limStop', onclick: () => this.endTool() }, ...icl(IC.check, tf('Tugatish: ${k}', { k: this.limName(this.limDraw) }))),
@@ -3496,7 +3500,7 @@ export class Editor {
       const sub = l.kind === 'suv' ? `${tr(SUV_NAMES[l.suv?.t ?? 'daryo'])} · ${l.rings?.length ? `${fmt(aHa, 2)} ga` : tr('oʻq')} · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}` : l.kind === 'elu' ? `${l.kv ?? '?'} kV · ${tr(EL.find(e => e[0] === (l.elu ?? 'mavjud'))?.[1] ?? 'Mavjud')}` : `${fmt(aHa, 2)} ga · ${tr(ST.find(x => x[0] === l.status)?.[1] ?? '')}`
       const sub2 = `${sub}${l.kind === 'elu' && l.poles?.length ? ` · ${tf('${n} tayanch', { n: l.poles.length })}` : ''}${l.src === 'osm' ? ' · OSM' : ''}`;
       list.append(h('button', { class: 'li', 'data-lim': l.id, 'aria-pressed': sel, 'aria-expanded': sel, style: 'width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit;cursor:pointer', onclick: () => this.pickLimit(sel ? null : l.id) },
-        h('span', { class: 'k' }, `C-${i + 1} · ${l.name ? tr(l.name) : this.limName(l.kind)}`, h('span', { class: 'sub' }, sub2)),
+        h('span', { class: 'k' }, `C-${i + 1} · ${l.name ? tr(l.name) : l.kind === 'obyekt' && l.obj && OBJ_BY[l.obj] ? tr(OBJ_BY[l.obj].t) : this.limName(l.kind)}`, h('span', { class: 'sub' }, sub2)),
         h('span', { class: 'v' }, on && l.kind === 'suv' ? `${fmt(z.m)} / ${fmt(suvZones(l).shore.m)} m` : on && z.m > 0 ? `${fmt(z.m)} m${z.cls ? ' · ' + z.cls : ''}` : '—')));
       if (!sel) return;
       const ed = h('div', { class: 'col', 'data-limedit': l.id, style: 'padding:8px 12px 12px;gap:8px' });
@@ -3509,6 +3513,21 @@ export class Editor {
       if (l.kind === 'sanoat') {
         ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Korxona sinfi'), id: 'limCls' }, ...([1, 2, 3, 4, 5] as const).map(k => h('button', { 'aria-pressed': l.cls === k, 'data-cls': k, title: `${['I', 'II', 'III', 'IV', 'V'][k - 1]} — ${[1000, 500, 300, 100, 50][k - 1]} m`, onclick: () => upd(l.id, { cls: k }) }, ['I', 'II', 'III', 'IV', 'V'][k - 1]))));
         if (!l.cls) ed.append(h('div', { class: 'note warn', 'data-clsnote': '' }, tr('Korxona sinfini kiriting (SanQvaN 0103-25, 1-ilova: obyektlarning sanitariya tasnifi, 1–5-sinf). Hozircha 4-sinf — 100 m deb olindi (taxmin).')));
+      }
+      // 07.11 (c70): SMZ obyekti — guruh va qator (SanQvaN 0103-25 1-ilova / 4-ilova; TP — ShNQ 2.07.01-23, 257; GTP — ShNQ 2.04.08-22, 240)
+      if (l.kind === 'obyekt') {
+        const cur = l.obj ? OBJ_BY[l.obj] : undefined, g = cur?.g ?? this.objGroup.get(l.id);
+        ed.append(h('span', { class: 't-small' }, tr('Obyekt turi')), h('div', { role: 'group', 'aria-label': tr('Obyekt turi'), id: 'limObjG', style: 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px' },
+          ...OBJ_GROUPS.map(([k, t]) => h('button', { class: 'btn btn-sm', 'aria-pressed': g === k, 'data-objg': k, title: tr(t), style: 'justify-content:flex-start;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',
+            onclick: () => { const rows = OBJ.filter(r => r.g === k); this.objGroup.set(l.id, k); if (rows.length === 1) upd(l.id, { obj: rows[0].key, objGuess: false }); else this.renderPanel(); } }, tr(t)))));
+        if (g) ed.append(h('div', { class: 'col', role: 'group', 'aria-label': tr('Obyekt qatori'), id: 'limObjR', style: 'gap:4px' },
+          ...OBJ.filter(r => r.g === g).map(r => { const z = objZone({ obj: r.key, objq: l.objq }); return h('button', { class: 'btn btn-sm', 'aria-pressed': l.obj === r.key, 'data-obj': r.key, title: r.ref, style: 'justify-content:space-between;min-width:0;text-align:left;white-space:normal;height:auto;padding:6px 10px',
+            onclick: () => upd(l.id, { obj: r.key, objGuess: false }) }, h('span', {}, tr(r.t)), h('span', { class: 'mono', style: 'white-space:nowrap;margin-left:8px' }, `${z.m} m${z.cls ? ' · ' + z.cls : ''}`)); })));
+        if (cur?.q) ed.append(h('span', { class: 't-small' }, tr('Quvvati (4-ilova)')), h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Quvvati (4-ilova)'), id: 'limObjQ' },
+          ...OQOVA_Q.map((t, i) => h('button', { 'aria-pressed': l.objq === i + 1, 'data-objq': i + 1, title: t, disabled: cur.q![i] == null, onclick: () => upd(l.id, { objq: (i + 1) as 1 | 2 | 3 | 4, objGuess: false }) }, ['≤ 200', '≤ 5 000', '≤ 50 000', '≤ 280 000'][i]))));
+        if (!cur) ed.append(h('div', { class: 'note warn', 'data-objnote': '' }, tr('Obyekt turini tanlang (SanQvaN 0103-25, 1-ilova). Hozircha 4-sinf — 100 m deb olindi (taxmin).')));
+        else if (l.objGuess) ed.append(h('div', { class: 'note warn', 'data-objguess': '' }, tr('OSM teglaridan aniqlandi: oʻlcham yoki quvvat nomaʼlum — eng ehtiyotkor qator olindi, natija «koʻrib chiqish». Toʻgʻri qatorni tanlang.')));
+        if (cur?.g === 'yoqilgi' || cur?.g === 'gaz') ed.append(h('span', { class: 't-small', 'data-objfire': '' }, tr('Yongʻinga qarshi masofalar (rezervuar va kolonkalardan binolargacha) — ShNQ 2.07.01-23, 643 va 663-bandlar SHNQ 2.09.20-08 ga havola qiladi; bu hujjat normalar toʻplamida yoʻq, ilova tekshirmaydi.')));
       }
       // 04.11 (Murad Buildings sinovi, 6-band): suv obyekti turi va toifasi — VM 981-son nizomi (kuchini yoʻqotgan, talqin)
       if (l.kind === 'suv') {

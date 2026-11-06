@@ -13,12 +13,16 @@
  *    water=river|canal — daryo/kanal yuzasi); toifa (sarf) OSM da yoʻq — river «oʻrta», stream «juda kichik», canal — kiritilmagan;
  *    06.11 (c63): amenity=fountain, leisure=swimming_pool, water=pond|reflecting_pool|basin|fountain va tabiiy tegsiz < 0,5 ga suv — bezak suvi;
  *  - yer foydalanishi (qimmatli yerlar): landuse=orchard / vineyard / farmland — uchastka bilan kesishganlari, sukut «buziladi»
- *    (cheklov emas, yer balansi va yoʻqotiladigan yerlar uchun).
+ *    (cheklov emas, yer balansi va yoʻqotiladigan yerlar uchun);
+ *  - 07.11 (c70): SMZ obyektlari (`objOf`, katalog — limits.ts OBJ): amenity=fuel (fuel:* teglari), bus_station, car_wash, marketplace,
+ *    crematorium, veterinary, fire_station, waste_transfer_station; shop=car_repair; power=substation; pipeline=substation (GTP);
+ *    man_made=wastewater_plant / pumping_station (oqova); building=boiler_house; landuse=landfill / depot; industrial=slaughterhouse;
+ *    leisure=stadium. Nuqta obyektlar — 10 m doira (ANDOZA). Qidiruv radiusi — obyekt zonasi.
  * Hammasi src: 'osm', osm: id — foydalanuvchi holat, turini oʻzgartiradi yoki oʻchiradi.
  */
 import type { LngLat } from '../core/doc';
 import { frame, type XY } from '../core/geo';
-import type { Limit, LimitKind } from '../core/limits';
+import { objZone, type Limit, type LimitKind } from '../core/limits';
 
 type Geo = { lat: number; lon: number };
 export interface OsmEl { type: 'node' | 'way' | 'relation'; id: number; tags?: Record<string, string>; lat?: number; lon?: number; geometry?: Geo[]; members?: { type: string; role: string; geometry?: Geo[] }[] }
@@ -40,6 +44,9 @@ export function limitsQuery(site: LngLat[], r = LIM_OSM_R): string {
   way["landuse"~"^(orchard|vineyard|farmland)$"];
   way["waterway"~"^(river|stream|canal|drain|ditch)$"]["tunnel"!="culvert"]["tunnel"!="yes"]; way["natural"="water"]; relation["natural"="water"]; way["amenity"="fountain"]; way["leisure"="swimming_pool"];
   way["landuse"="industrial"]; relation["landuse"="industrial"]; way["building"~"^(industrial|manufacture)$"]; way["man_made"="works"];
+  nwr["amenity"~"^(fuel|bus_station|car_wash|marketplace|crematorium|veterinary|fire_station|waste_transfer_station)$"]; nwr["shop"="car_repair"];
+  nwr["power"="substation"]; nwr["pipeline"="substation"]; nwr["man_made"~"^(wastewater_plant|pumping_station)$"]; nwr["building"="boiler_house"];
+  way["landuse"~"^(landfill|depot)$"]; nwr["industrial"="slaughterhouse"]; way["leisure"="stadium"];
 );
 out geom qt;`;
 }
@@ -77,11 +84,59 @@ export function kvOf(v?: string): number | undefined {
   const m = Math.max(...n); return m >= 100 ? Math.round(m / 100) / 10 : m;   // 110000 → 110; 400 → 0,4; «10» (kV yozilgan) — oʻzi
 }
 
+/** 07.11 (c70): nuqta obyekt (OSM node) — r = 10 m doira (12 burchak, ANDOZA: manba konturi nomaʼlum) */
+export const POINT_R = 10;
+function pointRing(fr: ReturnType<typeof frame>, p: LngLat): LngLat[] { const c = fr.toLocal(p); return Array.from({ length: 12 }, (_, i) => { const a = (i + 0.5) / 12 * Math.PI * 2; return fr.toGeo([c[0] + Math.cos(a) * POINT_R, c[1] + Math.sin(a) * POINT_R]); }); }
+const yes = (v?: string) => !!v && v !== 'no';
+/**
+ * 07.11 (c70): OSM teglari → SMZ obyekti katalogi qatori (limits.ts, OBJ). guess — oʻlcham, quvvat yoki tur teglardan aniqlanmadi:
+ * eng ehtiyotkor qator olinadi, natija «koʻrib chiqish» (TALQIN), foydalanuvchi panelda aniqlashtiradi.
+ *  - amenity=fuel: fuel:* teglari. Suyuq + gaz — 414 (4-sinf); faqat propan (fuel:lpg) — 494 (5-sinf); faqat metan (fuel:cng) — 492 sharti
+ *    (≤ 500 avto/kun, kompressor bino ichida) nomaʼlum → 414 (guess); faqat LNG — sigʻim nomaʼlum → 422 (guess); faqat suyuq — 491 sharti
+ *    (≤ 3 joy) nomaʼlum → 414 (guess); teg yoʻq — 414 (guess). Nomda «metan/AGNKS» — metan, «propan/AGZS» — propan deb olinadi.
+ *  - power=substation: ≤ 20 kV (yoki substation=minor_distribution) — TP, 257-band; kuchlanish yoʻq — TP (guess); > 20 kV — normada
+ *    masofa yoʻq (ilovaga qoʻshilmaydi; ELU liniyalari 15-band boʻyicha alohida).
+ *  - pipeline=substation (gaz) — GTP, bosim nomaʼlum → 15 m (guess).
+ */
+export function objOf(t: Record<string, string>): { key: string; guess: boolean } | null {
+  const a = t.amenity ?? '', nm = `${t.name ?? ''} ${t.brand ?? ''}`;
+  if (a === 'fuel') {
+    const liquid = ['diesel', 'petrol', 'gasoline', 'octane_80', 'octane_91', 'octane_92', 'octane_95', 'octane_98', 'octane_100', 'e10', 'e85'].some(k => yes(t[`fuel:${k}`]));
+    const cng = yes(t['fuel:cng']) || yes(t['fuel:biogas']) || /metan|AGNKS|AGTKSh|АГНКС|АГЗКС|метан|CNG/i.test(nm), lpg = yes(t['fuel:lpg']) || /propan|AGZS|АГЗС|пропан|LPG/i.test(nm), lng = yes(t['fuel:lng']);
+    if (liquid && (cng || lpg || lng)) return { key: 'yoqilgi_414', guess: false };
+    if (lpg && !cng && !lng && !liquid) return { key: 'agzs_494', guess: false };
+    if (lng && !cng && !lpg) return { key: 'kriogen_422', guess: true };
+    return { key: 'yoqilgi_414', guess: true };
+  }
+  if (t.power === 'substation') {
+    const kv = kvOf(t.voltage);
+    if (kv != null && kv > 20) return null;
+    return { key: 'tp_257', guess: kv == null && t.substation !== 'minor_distribution' };
+  }
+  if (t.pipeline === 'substation' && (!t.substance || /gas/.test(t.substance))) return { key: 'gtp_12', guess: true };
+  if (t.man_made === 'wastewater_plant') return { key: 'oqova_mb', guess: true };
+  if (t.man_made === 'pumping_station' && /sewage|wastewater/.test(`${t.pumping_station ?? ''} ${t.substance ?? ''}`)) return { key: 'oqova_nasos', guess: true };
+  if (t.building === 'boiler_house') return { key: 'qozon_290', guess: true };
+  if (a === 'bus_station') return { key: 'avtovokzal_308', guess: false };
+  if (t.landuse === 'depot') return { key: 'avtopark_309', guess: true };
+  if (a === 'car_wash') return { key: 'yuvish_421', guess: true };
+  if (t.shop === 'car_repair') return { key: 'avtoservis_423', guess: true };
+  if (a === 'marketplace') return { key: 'bozor_488', guess: false };
+  if (a === 'crematorium') return { key: 'kremator_79', guess: true };
+  if (a === 'veterinary') return { key: 'vet_380', guess: true };
+  if (a === 'fire_station') return { key: 'otochirish_485', guess: false };
+  if (a === 'waste_transfer_station') return { key: 'qaytayuk_420', guess: false };
+  if (t.landuse === 'landfill') return { key: 'poligon_168', guess: true };
+  if (t.industrial === 'slaughterhouse') return { key: 'qushxona_149', guess: true };
+  if (t.leisure === 'stadium') return { key: 'stadion_310', guess: true };
+  return null;
+}
+
 /** Overpass javobidan cheklovlar roʻyxati; site — uchastka (LngLat) */
 export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit[] {
   const fr = frame(site[0]), S = site.map(fr.toLocal), out: Limit[] = [], els = j.elements ?? [];
   const add = (e: OsmEl, kind: LimitKind, extra: Partial<Limit>) => out.push({ id: `osm_${e.type[0]}${e.id}`, kind, status: 'saqlanadi', src: 'osm', osm: e.id, ...(e.tags?.name ? { name: e.tags.name.slice(0, 120) } : {}), ...extra } as Limit);
-  const poles = els.filter(e => e.type === 'node' && e.lat != null && e.lon != null).map(e => [e.lon!, e.lat!] as LngLat);
+  const poles = els.filter(e => e.type === 'node' && e.lat != null && e.lon != null && /^(tower|pole)$/.test(e.tags?.power ?? '')).map(e => [e.lon!, e.lat!] as LngLat);
   // 04.11 (Murad Buildings sinovi, 7-band): zavod ichki temir yoʻl tarmoqlari avtomatik «saqlanadi» boʻlib, 100 m SMZ bilan katta joyni
   // yopardi. Uchastka ichida toʻliq joylashgan va tashqi tarmoqqa ulanmagan shoxobchalar (bogʻlangan izlar guruhi) — «buziladi» taklifi
   const rails = els.filter(e => e.tags?.railway === 'rail' && e.geometry && e.geometry.length >= 2).map(e => ({ id: e.id, loc: e.geometry!.map(p => fr.toLocal([p.lon, p.lat] as LngLat)) }));
@@ -94,6 +149,16 @@ export function parseLimitsOsm(j: { elements?: OsmEl[] }, site: LngLat[]): Limit
   const spur = new Set(rails.filter((_, i) => !outside.has(root(i))).map(r => r.id));
   for (const e of els) {
     const t = e.tags ?? {};
+    // 07.11 (c70): SMZ obyektlari (nuqta, chiziq yoki poligon) — SanQvaN 0103-25 1-ilova / 4-ilova, ShNQ masofalari
+    const ob = objOf(t);
+    if (ob) {
+      const r = e.type === 'node' ? (e.lat != null && e.lon != null ? pointRing(fr, [e.lon, e.lat]) : null) : e.type === 'way' ? ring(e.geometry) : ring(e.members?.find(m => m.role === 'outer')?.geometry);
+      if (!r || r.length < 3) continue;
+      const loc = r.map(fr.toLocal), z = objZone({ obj: ob.key, objGuess: ob.guess });
+      if (!near(loc, S, Math.max(z.m, 10))) continue;
+      add(e, 'obyekt', { rings: [r], obj: ob.key, ...(ob.guess ? { objGuess: true } : {}) });
+      continue;
+    }
     if (e.type === 'node') continue;
     // ELU
     if (t.power && /^(line|minor_line|cable)$/.test(t.power) && e.geometry && e.geometry.length >= 2) {

@@ -34,12 +34,12 @@ export type SzzVerdict = 'deny' | 'review' | 'allow';
 /** Funksiya SMZ ichida: 0103-25, 12-band — taqiq; 14-band — ruxsat; roʻyxatda yoʻq — koʻrib chiqish */
 export function szzVerdict(u: Use, logi?: string): SzzVerdict { return SZZ_DENY.includes(u) || (u === 'logistika' && !!logi && SZZ_FOOD_LOGI.includes(logi)) ? 'deny' : SZZ_ALLOW.includes(u) ? 'allow' : 'review'; }
 
-export interface SzzHit { bid: string; use: Use; limit: string; kind: LimitKind; m: number; cls?: string; area: number; verdict: SzzVerdict; /** AMALIYOT zonasida (qabriston) — 12-band taqiqi qoʻllanmaydi */ amal?: boolean }
+export interface SzzHit { bid: string; use: Use; limit: string; kind: LimitKind; m: number; cls?: string; area: number; verdict: SzzVerdict; /** AMALIYOT zonasida (qabriston) — 12-band taqiqi qoʻllanmaydi */ amal?: boolean; /** 07.11 (c70): OSM taxmini zonasida */ guess?: boolean }
 export interface EluHit { bid: string; limit: string; kv: number; m: number; area: number }
 export interface Elu251 { limit: string; kv: number; blocks: number }
 export interface Manual { limit: string; kind: LimitKind; m: number; table: number }
 /** 04.11 (audit): SMZ ga tushgan taqiqli funksiyali kvartal/parsellar (park, sport, turar joy …) — binosiz ham */
-export interface SzzBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][]; amal?: boolean }
+export interface SzzBlockHit { block: number; use: Use; limit: string; area: number; rings: XY[][]; amal?: boolean; /** 07.11 (c70) */ guess?: boolean }
 /** 04.11: suvni muhofaza qilish zonasidagi bino (981-son nizom) va qirgʻoq boʻyi mintaqasiga tushgan bino */
 export interface SuvHit { bid: string; limit: string; m: number; area: number; shore: boolean }
 /** 06.11 (c65): qabristondan 100 m ichidagi turar joy / jamoat binosi (VM 101, 50-band) va dam olish zonasi yoki jamoat uchastkasi */
@@ -65,18 +65,21 @@ function raw(doc: Project): LimitChecks {
   // 1) SMZ ichidagi binolar (12 / 14-band); AMALIYOT zonasi (qabriston) — taqiq «koʻrib chiqish» ga tushiriladi
   for (const s of z.soft) {
     out.zoneRings.push(...s.rings);
-    const amal = s.flag === 'AMALIYOT';
+    const amal = s.flag === 'AMALIYOT', guess = !!s.guess;
     for (const { b, poly } of fps) {
       const a = overlap(poly, s.polys); if (a < 1) continue;
       // 06.11 (c65): qabriston SMZ i — VM 101, 50-band: «SҲZ ҳудудида бирор-бир турар жой ва жамоат биноларини қуриш тақиқланади»
-      const v = s.kind === 'qabriston' && QAB100_DENY.includes(b.use) ? 'deny' : szzVerdict(b.use, logiOf(b));
-      out.szz.push({ bid: b.id, use: b.use, limit: s.id, kind: s.kind, m: s.m, cls: s.cls, area: a, verdict: amal && v === 'deny' ? 'review' : v, ...(amal ? { amal: true } : {}) });
+      // 07.11 (c70): ShNQ masofalari (TP — 257-band, GTP — ShNQ 2.04.08-22, 240-band) — oʻz taqiq roʻyxati; boshqa funksiya — ruxsat
+      const v: SzzVerdict = s.deny ? (s.deny === 'all' || s.deny.includes(b.use) ? 'deny' : 'allow') : s.kind === 'qabriston' && QAB100_DENY.includes(b.use) ? 'deny' : szzVerdict(b.use, logiOf(b));
+      // OSM taxmini (oʻlcham nomaʼlum, eng ehtiyotkor qator) — taqiq «koʻrib chiqish» ga tushiriladi
+      out.szz.push({ bid: b.id, use: b.use, limit: s.id, kind: s.kind, m: s.m, cls: s.cls, area: a, verdict: (amal || guess) && v === 'deny' ? 'review' : v, ...(amal ? { amal: true } : {}), ...(guess ? { guess: true } : {}) });
     }
+    if (s.deny) continue;   // masofa talablari (TP, GTP) — faqat binolar uchun
     plan0.blocks.forEach((bl, i) => {
       // hudud boʻyicha taqiq (12-band): aholi dam olish joylari (park), sport inshootlari, turar joy (yakka uylar uchastkalari), taʼlim va sogʻliqni saqlash muassasalari hududi;
       // koʻp kvartirali turar joy — binolar boʻyicha (yuqorida)
       if (!['yashil', 'sport', 'yakka', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy'].includes(bl.use)) return;
-      const a = overlap(bl.rings.map(close) as Polygon, s.polys); if (a >= 10) out.szzBlocks.push({ block: i, use: bl.use, limit: s.id, area: a, rings: bl.rings, ...(amal ? { amal: true } : {}) });
+      const a = overlap(bl.rings.map(close) as Polygon, s.polys); if (a >= 10) out.szzBlocks.push({ block: i, use: bl.use, limit: s.id, area: a, rings: bl.rings, ...(amal ? { amal: true } : {}), ...(guess ? { guess: true } : {}) });
     });
   }
   // 1b) 06.11 (c65): qabriston chegarasidan 100 m — turar joy, jamoat binolari va dam olish zonalari (VM 101, 50-band); garaj, avtoturargoh, ombor — ruxsat
