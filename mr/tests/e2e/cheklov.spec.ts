@@ -38,12 +38,12 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`cheklov ch
   await expect(page.locator('#kUsable')).toBeVisible();
   await page.locator('[data-limref]').scrollIntoViewIfNeeded(); await page.waitForTimeout(500);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/cheklov_${w}${dark ? 'd' : 'l'}.png` });
-  // yopilgan → 100 m (VM 101, 50-band); kolumbariy — SMZ ≥ 50 m, lekin bino devoridan ≥ 100 m
+  // yopilgan → 100 m (VM 101, 50-band); kolumbariy — SMZ ≥ 50 m (06.11, c65: bino devoridan ≥ 100 m — alohida halqa, qab-100)
   await page.click('[data-qab=closed]');
   await expect(page.locator('[data-qabnote]')).toContainText('VM 101');
   await expect(page.locator('[data-lim]').first()).toContainText('100 m');
   await page.click('[data-qab=open]'); await page.click('#limQabT [data-qab=kolumb]');
-  await expect(page.locator('[data-lim]').first()).toContainText('100 m');
+  await expect(page.locator('[data-lim]').first()).toContainText('50 m');
   await expect(page.locator('[data-limref]')).toContainText('kolumbariy');
   // qoʻlda bufer
   await page.fill('#limBuf', '75'); await page.locator('#limBuf').press('Enter'); await page.locator('#limBuf').blur();

@@ -3538,7 +3538,7 @@ export class Editor {
             h('div', { class: 'seg sm full' }, qb(QT[0]), qb(QT[1])), h('div', { class: 'seg sm full' }, qb(QT[2]), qb(QT[3]))));
         }
         ed.append(h('span', { class: 't-small', 'data-qabnote': '' }, tr(!open ? 'Yopilganlik rasmiy hujjat bilan tasdiqlanadi. Yopiq qabriston SMZ i 100 m — sanitariya-epidemiologiya xizmati bilan kelishib 50 m gacha kamaytirilishi mumkin, lekin turar joy va jamoat binolari devoridan kamida 100 m qoladi (VM 101-son qarori, 1-ilova, 50-band).'
-          : 'VM 101-son qarori, 1-ilova, 50-band: SMZ da turar joy va jamoat binolari qurish taqiqlanadi; turar joy, jamoat binolari va dam olish zonalari devoridan qabristongacha kamida 100 m. Markazlashmagan suv taʼminotida SMZ 500 m gacha oshirilishi mumkin — kerak boʻlsa SMZ ni qoʻlda kiriting.')));
+          : 'VM 101-son qarori, 1-ilova, 50-band: SMZ da turar joy va jamoat binolari qurish taqiqlanadi. Alohida talab — turar joy, jamoat binolari va dam olish zonalari devoridan qabristongacha kamida 100 m (sahnada binafsha uzuq chiziq); garaj, avtoturargoh, ombor va yoʻl bu oraliqda mumkin. Markazlashmagan suv taʼminotida SMZ 500 m gacha oshirilishi mumkin — kerak boʻlsa SMZ ni qoʻlda kiriting.')));
       }
       const buf = h('input', { type: 'number', class: 'input', min: 0, max: 2000, step: 1, value: l.szz ?? '', placeholder: String(szzOf({ ...l, szz: undefined }, aHa).m), id: 'limBuf', 'aria-label': tr('Bufer, m'),
         onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { szz: undefined }); else if (+v >= 0 && +v <= 2000) upd(l.id, { szz: +v }); } });

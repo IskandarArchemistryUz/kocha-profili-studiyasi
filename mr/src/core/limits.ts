@@ -78,9 +78,10 @@ export function szzOf(l: Limit, areaHa: number): Szz {
     case 'qabriston': {
       // 06.11 (c63, egasi): VM 101-son qarori (04.04.2011), 1-ilova (dafn etish joylarini saqlash nizomi), 50-band:
       // yangi 20–40 ga — 500 m, < 20 ga — 300 m; qishloq (1000 xonadondan kam) va kolumbariy — kamida 50 m; yopiq va kuydirishdan keyin
-      // dafn etiladigan — 100 m (yopiqda sanepid kelishuvi bilan 50 m gacha). Turar joy, jamoat binolari va dam olish zonalari devoridan
-      // qabristongacha — kamida 100 m: shuning uchun SMZ (bino taqiqi zonasi) kamida 100 m olinadi (kattasi)
-      const N = (m: number, what: string, flag: Szz['flag'] = 'NORMA') => own({ m: Math.max(m, 100), ref: `${VM101} — ${what}${m < 100 ? `; turar joy, jamoat binolari va dam olish zonalari devoridan ≥ 100 m — kattasi olindi` : ''}`, flag });
+      // dafn etiladigan — 100 m (yopiqda sanepid kelishuvi bilan 50 m gacha).
+      // 06.11 (c65, egasi): «turar joy, jamoat binolari va dam olish zonalari devoridan qabristongacha ≥ 100 m» — SMZ emas, alohida talab:
+      // SMZ oʻz qiymatida (50 m ham), 100 m — alohida halqa (qabZones, QAB100_DENY) faqat shu uch turdagi obyektlar uchun
+      const N = (m: number, what: string, flag: Szz['flag'] = 'NORMA') => own({ m, ref: `${VM101} — ${what}`, flag });
       if (l.sub?.open === false) return N(100, 'yopiq qabriston: SMZ 100 m (sanepid kelishuvi bilan 50 m gacha)');
       if (l.sub?.crem) return N(100, 'kuydirishdan keyin dafn etiladigan qabriston: SMZ 100 m');
       if (l.sub?.memorial) return N(50, 'kolumbariy: SMZ ≥ 50 m');
@@ -177,6 +178,18 @@ export const SZZ_ALLOW: readonly Use[] = ['himoya', 'logistika', 'sanoat', 'komm
 /** 12-band: «oziq-ovqat mahsulotlar omborxonalari» — oziq-ovqat omborlari (LOGI turlari) SMZ da taqiqlanadi */
 export const SZZ_FOOD_LOGI: readonly string[] = ['sabzavot', 'sovutgich'];
 
+/**
+ * 06.11 (c65, egasi): VM 101-son qarori, 1-ilova, 50-band — «Турар жой ва жамоат бинолари ҳамда дам олиш зоналари деворидан
+ * қабристонгача масофа 100 метрдан кам бўлмаслиги керак». Qabriston chegarasidan 100 m — SMZ dan alohida halqa; kamaytirish
+ * (sanepid kelishuvi) faqat yopiq qabriston SMZ iga tegishli, bu masofaga qoʻllanmaydi. Taqiq: turar joy, jamoat binolari (har qanday
+ * jamoat funksiyasi) va dam olish zonalari (park, bogʻ, sport, maydon). Garaj, avtoturargoh, ombor, yoʻl, muhandislik — ruxsat.
+ */
+export const QAB100 = 100;
+export const QAB100_REF = 'VM 101-son qarori (04.04.2011), 1-ilova, 50-band: «Турар жой ва жамоат бинолари ҳамда дам олиш зоналари деворидан қабристонгача масофа 100 метрдан кам бўлмаслиги керак»';
+export const QAB100_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona', 'sport', 'yashil', 'maydon'];
+/** dam olish zonasi va jamoat uchastkasi sifatida hudud boʻyicha tekshiriladigan funksiyalar (binosiz ham) */
+export const QAB100_AREA: readonly Use[] = ['yashil', 'sport', 'maydon', 'yakka', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy'];
+
 export interface SoftZone { id: string; kind: LimitKind; rings: XY[][]; /** koʻpburchaklar (tashqi + teshiklar) — kesishma hisobi uchun */ polys: XY[][][]; m: number; cls?: string; ref: string; flag: Flag }
 export interface LimitZones {
   /** qurib boʻlmaydigan joy (saqlanadigan obyekt konturi, temir yoʻl, ELU muhofaza zonasi) — uchastka bilan kesishgan, mahalliy */
@@ -188,6 +201,8 @@ export interface LimitZones {
   soft: SoftZone[];
   /** 04.11: suvni muhofaza qilish zonalari (981-son nizom) — SMZ emas: turar joy taqiqlanmaydi, zona rejimi (Suv kodeksi, 125–138-moddalar) koʻrib chiqiladi */
   water: SoftZone[];
+  /** 06.11 (c65): qabriston chegarasidan 100 m — turar joy, jamoat binolari va dam olish zonalari uchun (VM 101, 50-band); smz — shu qabriston SMZ i, m */
+  qab: (SoftZone & { smz: number })[];
 }
 
 const q3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -224,9 +239,9 @@ export function limitZones(doc: Project): LimitZones {
 }
 function limitZonesRaw(doc: Project): LimitZones {
   const ls = (doc.limits ?? []).filter(isActive);
-  if (!ls.length || !doc.site) return { hard: [], soft: [], elu: [], water: [] };
+  if (!ls.length || !doc.site) return { hard: [], soft: [], elu: [], water: [], qab: [] };
   const fr = frame(doc.origin), site: Polygon = doc.site.rings.map(r => close(r.map(fr.toLocal)));
-  const hardParts: MultiPolygon[] = [], eluParts: MultiPolygon[] = [], soft: { l: Limit; mp: MultiPolygon; s: Szz }[] = [], water: { l: Limit; mp: MultiPolygon; s: Szz }[] = [];
+  const hardParts: MultiPolygon[] = [], eluParts: MultiPolygon[] = [], soft: { l: Limit; mp: MultiPolygon; s: Szz }[] = [], water: { l: Limit; mp: MultiPolygon; s: Szz }[] = [], qab: { l: Limit; mp: MultiPolygon; s: Szz }[] = [];
   for (const l of ls) {
     if (l.kind === 'elu') {
       if (!l.axis || l.axis.length < 2) continue;
@@ -250,6 +265,7 @@ function limitZonesRaw(doc: Project): LimitZones {
     hardParts.push([[close(loc)]]);
     const s = szzOf(l, aHa);
     if (s.m > 0) soft.push({ l, mp: bufferLocal(loc, s.m, true), s });
+    if (l.kind === 'qabriston') qab.push({ l, mp: bufferLocal(loc, QAB100, true), s });
   }
   let hard: MultiPolygon = [];
   try { hard = hardParts.length ? polygonClipping.intersection(polygonClipping.union(hardParts[0], ...hardParts.slice(1)), site) : []; } catch { hard = []; }
@@ -267,9 +283,16 @@ function limitZonesRaw(doc: Project): LimitZones {
     if (mpArea(mp) < 1) continue;
     waterOut.push({ id: z.l.id, kind: 'suv', rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: z.s.m, ref: z.s.ref, flag: z.s.flag });
   }
+  const qabOut: LimitZones['qab'] = [];
+  for (const z of qab) {
+    let mp: MultiPolygon = [];
+    try { mp = polygonClipping.intersection(z.mp, site); if (hard.length && mp.length) mp = polygonClipping.difference(mp, hard); } catch { mp = []; }
+    if (mpArea(mp) < 1) continue;
+    qabOut.push({ id: z.l.id, kind: 'qabriston', rings: mp.flatMap(p => p.map(open)), polys: mp.map(p => p.map(open)), m: QAB100, ref: QAB100_REF, flag: 'NORMA', smz: z.s.m });
+  }
   let elu: MultiPolygon = [];
   try { elu = eluParts.length ? polygonClipping.intersection(polygonClipping.union(eluParts[0], ...eluParts.slice(1)), site) : []; } catch { elu = []; }
-  return { hard: hard.map(p => p.map(open)), soft: softOut, elu: elu.map(p => p.map(open)), water: waterOut };
+  return { hard: hard.map(p => p.map(open)), soft: softOut, elu: elu.map(p => p.map(open)), water: waterOut, qab: qabOut };
 }
 
 /** Yer balansi (ga): umumiy · qurib boʻlmaydigan (cheklov va ELU zonasi) · SMZ · yaroqli (turar joy uchun) */

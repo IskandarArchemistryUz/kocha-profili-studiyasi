@@ -21,8 +21,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qabriston 
   await expect(page.locator('[data-limref=qab]')).toContainText('norma');
   await page.click('#limQabT [data-qab=rural]');
   await expect(page.locator('#limQabT [data-qab=rural]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-limref=qab]')).toContainText('kattasi olindi');
-  await expect(page.locator('[data-lim=qab] .v')).toContainText('100 m');
+  // 06.11 (c65): qishloq — SMZ 50 m; 100 m — alohida halqa (qab-100)
+  await expect(page.locator('[data-limref=qab]')).not.toContainText('kattasi olindi');
+  await expect(page.locator('[data-lim=qab] .v')).toContainText('50 m');
   if (process.env.GX_SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: `${process.env.GX_SHOTS}/qabriston_${w}${dark ? 'd' : 'l'}.png` }); }
   // fontan uchastka ichida — bezak suvi: suvni muhofaza zonasi va qirgʻoq boʻyi mintaqasi yoʻq
   await add({ id: 'fon', kind: 'suv', status: 'saqlanadi', src: 'qolda', suv: { t: 'bezak' }, rings: [[[-30, -20], [0, -20], [0, 10], [-30, 10]]] }, 'fon');
