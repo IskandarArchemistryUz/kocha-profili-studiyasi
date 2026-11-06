@@ -27,7 +27,7 @@ import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
 import { need413, T30, Q3, WIN30, SOC30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML } from '../core/mlpark';
 import { szzGreen, szzBelt, BELT_GAP } from '../core/szzgen';
-import { isActive, SZZ_DENY } from '../core/limits';
+import { isActive, SZZ_DENY, limitZones } from '../core/limits';
 import { entryReport, hasEntryRules, isUg } from '../core/parkenv';
 import { type CheckKind } from '../core/parkentry';
 
@@ -878,7 +878,9 @@ export const RULES: Rule[] = [
     title: 'SMZ ichida taqiqlangan funksiya',
     source: { ...SANQ, clause: '12-band (taqiq), 14-band (ruxsat); SMZ — 7-band, 1-ilova; temir yoʻl — ShNQ 2.07.01-23, 359' },
     evaluate(_d, doc) {
-      const c = limitChecks(doc);
+      // 06.11 (c65): qabriston SMZ i — alohida qoida (qab-szz, VM 101, 50-band)
+      const c0 = limitChecks(doc), qabIds = new Set((doc.limits ?? []).filter(l => l.kind === 'qabriston').map(l => l.id));
+      const c = { ...c0, szz: c0.szz.filter(x => x.kind !== 'qabriston'), szzBlocks: c0.szzBlocks.filter(x => !qabIds.has(x.limit)) };
       if (!c.any) return { status: 'na', unit: 'bino', limit: '0', note: 'Cheklov obyektlari kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
       const ids = (v: SzzVerdict) => [...new Set(c.szz.filter(x => x.verdict === v).map(x => x.bid))];
       const deny = ids('deny'), rev = ids('review'), allow = ids('allow'), blk = [...new Set(c.szzBlocks.filter(x => !x.amal).map(x => x.block))];
@@ -889,6 +891,38 @@ export const RULES: Rule[] = [
       // 04.11 (audit): park, sport, tomorqa, maktab/MTM/poliklinika hududi ham (binosiz) tekshiriladi; poliklinika va oziq-ovqat ombori — taqiq
       return { status: deny.length || blk.length ? 'fail' : 'review', value: deny.length + blk.length, unit: 'bino', limit: '0', where: { bids: show, rings: [...c.zoneRings, ...c.szzBlocks.flatMap(x => x.rings)] },
         note: `SMZ ichida: taqiqlangan funksiyada ${deny.length} ta bino (12-band); roʻyxatlarda yoʻq funksiyada ${rev.length} ta — sanitariya nazorati bilan kelishiladi; ruxsat etilgan funksiyada ${allow.length} ta (14-band: sinfi past obyektlar — TALQIN; himoya koʻkalamzorligi — 13-band). Taqiqlangan hudud (park, sport, tomorqa, maktab, MTM, poliklinika, ijtimoiy uchastka) SMZ ga tushgan: ${blk.length} ta kvartal/parsel. Poliklinika (umumiy foydalanish) va oziq-ovqat omborxonalari — 12-band taqiqi; obyekt tarkibidagi poliklinika, oʻquv binosi, ishlab chiqarishga taalluqli savdo va umumiy ovqatlanish (14-band) — qoʻlda kelishiladi. Boshqaruv binolari, avtoturargoh, umumiy savdo va muhandislik 14-band roʻyxatida yoʻq (oldingi 0350-17, 2.20 da bor edi) — koʻrib chiqish.` + amal };
+    },
+  },
+  // 06.11 (c65, egasi): qabriston SMZ i — VM 101, 50-band (turi boʻyicha 500 / 300 / 100 / 50 m) + SanQvaN 0103-25, 12 va 14-bandlar
+  {
+    id: 'qab-szz',
+    title: 'Qabriston SMZ',
+    source: { doc: 'VM 101-son qarori (04.04.2011)', edition: '2011', clause: '1-ilova, 50-band; SanQvaN 0103-25, 12-band (taqiq), 14-band (ruxsat)', verified: true },
+    evaluate(_d, doc) {
+      const qs = (doc.limits ?? []).filter(l => l.kind === 'qabriston' && isActive(l));
+      if (!qs.length) return { status: 'na', unit: 'bino', limit: '0', note: 'Saqlanadigan qabriston kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
+      const c = limitChecks(doc), ids = new Set(qs.map(l => l.id)), hits = c.szz.filter(x => x.kind === 'qabriston'), blocks = c.szzBlocks.filter(x => ids.has(x.limit));
+      const zones = limitZones(doc).soft.filter(z => z.kind === 'qabriston'), ms = [...new Set(zones.map(z => z.m))].sort((a, b) => a - b).map(m => `${m} m`).join(', ');
+      const by = (v: SzzVerdict) => [...new Set(hits.filter(x => x.verdict === v).map(x => x.bid))], deny = by('deny'), rev = by('review'), blk = [...new Set(blocks.map(x => x.block))];
+      const base = `SMZ: ${ms || '—'} (VM 101, 50-band: yangi 20–40 ga — 500 m, 20 ga dan kichik — 300 m; yopiq va kuydirishdan keyin dafn — 100 m, yopiqda sanepid kelishuvi bilan 50 m gacha; qishloq va kolumbariy — ≥ 50 m). «SҲZ ҳудудида бирор-бир турар жой ва жамоат биноларини қуриш тақиқланади»; SanQvaN 0103-25, 12-band roʻyxati (dam olish joylari, sport inshootlari) ham taqiq. 100 m masofa — alohida qoida.`;
+      if (!deny.length && !rev.length && !blk.length) return { status: 'pass', value: 0, unit: 'bino', limit: '0', ...(zones.length ? { where: { rings: zones.flatMap(z => z.rings) } } : {}), note: `Qabriston SMZ ida taqiqlangan funksiyali bino yoki hudud yoʻq. ${base}` };
+      return { status: deny.length || blk.length ? 'fail' : 'review', value: deny.length + blk.length, unit: 'bino', limit: '0', where: { bids: deny.length ? deny : rev, rings: [...zones.flatMap(z => z.rings), ...blocks.flatMap(x => x.rings)] },
+        note: `Qabriston SMZ ida: taqiqlangan funksiyada ${deny.length} ta bino, ${blk.length} ta kvartal/parsel (park, sport, tomorqa, maktab, MTM, poliklinika); roʻyxatlarda yoʻq funksiyada ${rev.length} ta bino — sanitariya nazorati bilan kelishiladi. ${base}` };
+    },
+  },
+  // 06.11 (c65, egasi): VM 101, 50-band — qabriston SMZ idan alohida, 100 m masofa talabi
+  {
+    id: 'qab-100',
+    title: 'Qabristondan turar joy, jamoat binolari va dam olish zonalarigacha ≥ 100 m',
+    source: { doc: 'VM 101-son qarori (04.04.2011)', edition: '2011', clause: '1-ilova, 50-band', verified: true },
+    evaluate(_d, doc) {
+      const qs = (doc.limits ?? []).filter(l => l.kind === 'qabriston' && isActive(l));
+      if (!qs.length) return { status: 'na', unit: 'bino', limit: '≥ 100 m', note: 'Saqlanadigan qabriston kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
+      const c = limitChecks(doc), bids = [...new Set(c.qab.map(x => x.bid))], blk = [...new Set(c.qabBlocks.map(x => x.block))];
+      const quote = 'Asl matn: «Турар жой ва жамоат бинолари ҳамда дам олиш зоналари деворидан қабристонгача масофа 100 метрдан кам бўлмаслиги керак». Masofa SMZ dan alohida: sanepid kelishuvi bilan kamaytirish (yopiq qabriston SMZ i) bu talabga qoʻllanmaydi. Garaj, avtoturargoh, ombor, yoʻl, muhandislik obyektlari 100 m ichida mumkin (SMZ ichida — SMZ rejimi boʻyicha).';
+      if (!bids.length && !blk.length) return { status: 'pass', value: 0, unit: 'bino', limit: '≥ 100 m', ...(c.qabRings.length ? { where: { rings: c.qabRings } } : {}), note: `Qabristondan 100 m ichida turar joy, jamoat binosi va dam olish zonasi yoʻq. ${quote}` };
+      return { status: 'fail', value: bids.length + blk.length, unit: 'bino', limit: '≥ 100 m', where: { bids, rings: [...c.qabRings, ...c.qabBlocks.flatMap(x => x.rings)] },
+        note: `Qabristondan 100 m ichida: ${bids.length} ta turar joy yoki jamoat binosi, ${blk.length} ta dam olish zonasi yoki jamoat uchastkasi (park, sport, maydon, maktab, MTM, poliklinika, tomorqa). ${quote}` };
     },
   },
   {

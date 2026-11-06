@@ -13,7 +13,7 @@
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import type { Project } from './doc';
 import { frame, type XY } from './geo';
-import { limitZones, bufferLocal, SZZ_DENY } from './limits';
+import { limitZones, bufferLocal, SZZ_DENY, QAB100_DENY } from './limits';
 import { szzVerdict } from './limitcheck';
 import { prodChecks, DENY_146 } from './prodcheck';
 import { computePlan } from './plan';
@@ -29,7 +29,10 @@ const tryMP = (f: () => MultiPolygon, d: MultiPolygon): MultiPolygon => { try { 
 /** Funksiya uchun taqiqlangan SMZ hududi (mahalliy metr): cheklov obyektlari SMZ (12-band; qabriston — VM 101, 50-band: SMZ da turar joy va jamoat binolari taqiqlanadi) + ishlab chiqarish SMZ (146); own — shu kvartalning oʻzi (ishlab chiqarish kvartalining oʻz SMZ i oʻziga taqiq emas) */
 export function denyZone(doc: Project, use: Use): MultiPolygon {
   const parts: MultiPolygon[] = [];
-  if (szzVerdict(use) === 'deny') for (const s of limitZones(doc).soft) parts.push(s.polys.map(p => p.map(close)) as MultiPolygon);
+  const lz = limitZones(doc);
+  for (const s of lz.soft) if (szzVerdict(use) === 'deny' || (s.kind === 'qabriston' && QAB100_DENY.includes(use))) parts.push(s.polys.map(p => p.map(close)) as MultiPolygon);
+  // 06.11 (c65): qabriston chegarasidan 100 m — turar joy, jamoat binolari, dam olish zonalari qoʻyilmaydi (VM 101, 50-band); garaj, avtoturargoh — mumkin
+  if (QAB100_DENY.includes(use)) for (const q of lz.qab) parts.push(q.polys.map(p => p.map(close)) as MultiPolygon);
   if (DENY_146.includes(use) || useDef(use).res > 0) for (const z of prodChecks(doc).zones) {
     const own: Polygon = z.rings.map(close);
     parts.push(tryMP(() => polygonClipping.difference(bufferLocal(z.rings[0], z.szz, true), own), []));
