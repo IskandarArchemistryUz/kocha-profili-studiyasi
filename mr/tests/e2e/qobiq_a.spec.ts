@@ -14,8 +14,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qobiq A ·
   await page.locator('#prefPop').click();
   await expect(page.locator('.pop #langSw')).toBeVisible(); await expect(page.locator('.pop #themeBtn')).toBeVisible();
   await page.waitForTimeout(450); if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/qobiq_sozlama_${w}${dark ? 'd' : 'l'}.png` });
-  // oʻngdagi uch tugma — bitta guruhda
-  const n = await page.evaluate(() => document.querySelectorAll('.mapctl.one > *').length);
+  // oʻngdagi uch tugma — bitta guruhda (06.11: tanishtiruv «?» tugmasi ham shu guruhda, hisobga kirmaydi)
+  const n = await page.evaluate(() => document.querySelectorAll('.mapctl.one > :not(#tourBtn)').length);
   expect(n).toBe(3);
   await page.keyboard.press('Escape'); await page.click('#chOpen');   // fx: menyu yopiq boʻlsa avval ochadi
   await expect(page.locator('.gx.ch')).toBeVisible();

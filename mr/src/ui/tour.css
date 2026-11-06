@@ -1,0 +1,31 @@
+/* Yoʻlboshlovchi tur (tour.ts): xira fon + yoritilgan joy (puls) + kartochka */
+.tour-root{position:fixed; inset:0; z-index:10001}
+.tour-spot{position:fixed; border-radius:16px; pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(18,18,18,.58), 0 0 0 2px #fff, 0 0 0 6px rgba(240,179,35,.55);
+  animation:tour-pulse 2.4s ease-in-out infinite; transition:left .25s var(--ease), top .25s var(--ease), width .25s var(--ease), height .25s var(--ease)}
+.tour-spot.none{left:50%; top:50%; width:0; height:0; box-shadow:0 0 0 9999px rgba(18,18,18,.58); animation:none}
+@keyframes tour-pulse{0%,100%{box-shadow:0 0 0 9999px rgba(18,18,18,.58), 0 0 0 2px #fff, 0 0 0 6px rgba(240,179,35,.55)}50%{box-shadow:0 0 0 9999px rgba(18,18,18,.58), 0 0 0 2px #fff, 0 0 0 12px rgba(240,179,35,0)}}
+.tour-card{position:fixed; width:min(420px, calc(100vw - 16px)); box-sizing:border-box; padding:22px; border-radius:var(--r-panel);
+  background:var(--surface); color:var(--ink); box-shadow:var(--sh-pop); display:flex; flex-direction:column; gap:12px;
+  font:400 13.5px/20px var(--sans); animation:tour-in var(--t-fast) var(--ease) both}
+@keyframes tour-in{from{opacity:0; transform:translateY(4px)}to{opacity:1; transform:none}}
+.tour-card .tour-head{display:flex; align-items:center; justify-content:space-between}
+.tour-card .tour-n{font-size:11px; font-weight:600; color:var(--muted)}
+.tour-card .tour-dots{display:flex; gap:4px}
+.tour-card .tour-dots i{width:6px; height:6px; border-radius:9px; background:var(--fill-2)}
+.tour-card .tour-dots i.was{background:var(--faint)}
+.tour-card .tour-dots i.on{width:18px; background:var(--ink)}
+.tour-card h2{margin:0; font-size:22px; line-height:26px; font-weight:600; letter-spacing:-.02em}
+.tour-card .tour-b{margin:0; color:var(--ink-2)}
+.tour-card .tour-anim{height:120px; border-radius:var(--r-tile); background:#252523; overflow:hidden}
+.tour-card .tour-more{border-top:.5px solid var(--hairline); padding-top:10px}
+.tour-card .tour-more summary{font-weight:600; cursor:pointer}
+.tour-card .tour-more p{margin:8px 0 0; font-size:12px; line-height:17px; color:var(--muted)}
+.tour-card .tour-foot{display:flex; align-items:center; gap:8px}
+.tour-card .tour-sp{flex:1}
+.tour-card button{font:600 13.5px var(--sans); border:0; cursor:pointer}
+.tour-card .tour-skip{height:36px; background:transparent; color:var(--muted); padding:0 4px}
+.tour-card .tour-back{height:44px; border-radius:var(--r-tile); background:var(--fill); color:var(--ink); padding:0 16px}
+.tour-card .tour-next{height:44px; border-radius:var(--r-tile); background:var(--ink); color:var(--surface); padding:0 20px}
+.tour-card button:focus-visible, .tour-card summary:focus-visible{outline:2px solid var(--sel); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){.tour-spot{animation:none; transition:none}.tour-card{animation:none}.tour-card .tour-anim *{animation:none!important}}

@@ -26,6 +26,7 @@ const TIPS: Tip[] = [
   { sel: '#liteSeg [data-lite]', d: '«Sodda» uzoqdagi derazalar va daraxtlarni yashiradi — sahna tezroq. Eksport doim toʻliq.' },
   { sel: '#camPop', d: 'Obyektiv, koʻz sathi, 2 nuqtali perspektiva, kadr va saqlangan koʻrinishlar.' },
   { sel: '#presPop', d: 'Varaq ramkasini xaritaga qoʻyish va Chizmadon taqdimot albomi.', a: ['25'] },
+  { sel: '#tourBtn', d: 'Master reja boʻyicha 2 daqiqalik tanishtiruv.' },
   { sel: '#prefPop', d: 'Til (10 ta) va tungi rejim.' },
   { sel: '#acctIn, #homeIn', d: 'Pochta orqali kirish: parol kerak emas, 6 xonali kod keladi. 1-qadamdan keyin kerak.' },
   { sel: '#acctPop', d: 'Hisob: tanga balansi, xarid va sarf tarixi.' },
@@ -177,7 +178,7 @@ function build(e: HTMLElement, t: Tip): HTMLElement {
   for (const w of lines.slice(1)) { const x = document.createElement('div'); x.className = 'tip-warn'; x.textContent = w; b.append(x); }
   if (t.a?.length) {
     const box = document.createElement('div'); box.className = 'tip-anim'; box.dataset.n = String(t.a.length); box.setAttribute('aria-hidden', 'true');
-    for (const id of t.a) { const v = document.createElement('div'); v.className = 'tip-av'; v.innerHTML = `<svg viewBox="0 0 260 84" width="256" height="83">${trSvg(ANIM[id] ?? '')}</svg>`; box.append(v); }
+    for (const id of t.a) { const v = document.createElement('div'); v.className = 'tip-av'; v.innerHTML = `<svg viewBox="0 0 260 84" width="256" height="83">${id === '27' ? ANIM[id] : trSvg(ANIM[id] ?? '')}</svg>`; box.append(v); }
     b.append(box);
   }
   if (t.p) { const r = priceRow(t.p); if (r) b.append(r); }
