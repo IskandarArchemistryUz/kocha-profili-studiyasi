@@ -25,7 +25,9 @@ export const HOTEL_M2_PER_BED = 35, CLINIC_M2_PER_VISIT = 20;
 
 /**
  * 29-jadval (ShNQ 2.07.01-23, 416-band), «kamida»:
- * koʻp qavatli turar joy — Toshkent shahri va viloyatida kvartiraga 1, boshqa viloyatlarda 2 kvartiraga 1 (yakka uy va blokli uylar — kirmaydi);
+ * koʻp qavatli turar joy — Toshkent shahri va viloyatida 10 kvartiraga 7 (01/2-42 buyruq tahriri, 09.12.2025, AV 17.12.2025 № 380;
+ *   avval kvartiraga 1), boshqa viloyatlarda 2 kvartiraga 1 (yakka uy va blokli uylar — kirmaydi);
+ * 29-jadval izohining 1-bandi (500 m gacha uzoqlikdagi avtoturargohdan foydalanish) 01/2-42 bilan kuchini yoʻqotgan;
  * maʼmuriy binolar — binoning har 10 m² iga 1; savdo maydoni 200 m² dan ziyod savdo markazi — har 10 m² savdo maydoniga 1 (har bino alohida);
  * MTM — 25 bolaga 1, maktab — 25 oʻquvchiga 1; poliklinika — 5 qatnovchiga 1; mehmonxona — 5 oʻringa 1; madaniyat va istirohat bogʻi — har 0,05 ga ga 1
  */
@@ -33,7 +35,7 @@ export function parkingNeed(x: { apartments?: number; tashkent?: boolean; ofisGf
   const trades = x.tradeAreas ?? (x.tradeArea != null ? [x.tradeArea] : []);
   const savdo = trades.reduce((t, a) => t + (a > 200 ? Math.ceil(a / 10) : 0), 0);
   const out: Record<string, number> = {
-    kvartiralar: Math.ceil((x.apartments ?? 0) / (x.tashkent === false ? 2 : 1)), ofis: Math.ceil((x.ofisGfa ?? 0) / 10), savdo,
+    kvartiralar: x.tashkent === false ? Math.ceil((x.apartments ?? 0) / 2) : Math.ceil((x.apartments ?? 0) * 7 / 10 - 1e-9), ofis: Math.ceil((x.ofisGfa ?? 0) / 10), savdo,
     maktab: Math.ceil((x.school ?? 0) / 25), mtm: Math.ceil((x.mtm ?? 0) / 25), park: Math.floor((x.greenArea ?? 0) / 500),
   };
   if (x.hotelGfa) out.mehmonxona = Math.ceil(x.hotelGfa / HOTEL_M2_PER_BED / 5);

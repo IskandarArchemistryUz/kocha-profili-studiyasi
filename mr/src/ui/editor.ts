@@ -1913,7 +1913,7 @@ export class Editor {
     }
     body.append(h('div', { class: 'group', id: 'aptPlan' }, h('div', { class: 'li' },
       h('span', { class: 'k' }, h('b', {}, `${fmt(perFloor)} ${tr('kvartira')}`), ` · ${fmt(plans.length)} ${tr('seksiya')}`,
-        h('span', { class: 'sub' }, tf('Reja qoidadan: seksiya → hovlidan kirish → zina-lift → qisqa koridor → har kvartiraga eshik, fasadga deraza (modul ${fmt(MOD_W, 1)} m), qorongʻi kvartira yoʻq. Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (kvartiraga 1 joy) ham olinadi.', { 'fmt(MOD_W, 1)': fmt(MOD_W, 1), size }))),
+        h('span', { class: 'sub' }, tf('Reja qoidadan: seksiya → hovlidan kirish → zina-lift → qisqa koridor → har kvartiraga eshik, fasadga deraza (modul ${fmt(MOD_W, 1)} m), qorongʻi kvartira yoʻq. Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (Toshkentda 10 kvartiraga 7 joy) ham olinadi.', { 'fmt(MOD_W, 1)': fmt(MOD_W, 1), size }))),
       sm.forced ? h('span', { class: 'chip warn', 'data-s': 'review' }, `${fmt(sm.forced)} ${tr('miksdan tashqari')}`) : '')));
     // blok → qavat → reja (dizayn: «Kvartiralar A»): genplanda bino, qavat ‹ › , reja eskizi; «Albomda ochish» — toʻliq ekran, tahrir
     let insolAlbum: (() => void) | null = null;
