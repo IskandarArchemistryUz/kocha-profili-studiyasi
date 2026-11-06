@@ -10,7 +10,7 @@ import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
 import { tr, autoTranslate } from './i18n';
 import { initTips } from './ui/tips';   // tugma izohlari (tanishtiruv, A qism)
-import { initTour } from './ui/tour';   // yoʻlboshlovchi tur (tanishtiruv, B qism)
+import { initTour, tourText } from './ui/tour';   // yoʻlboshlovchi tur (tanishtiruv, B qism)
 import { initStats } from './core/stats';
 import { coinsDialog } from './account/pay';   // + yuklash darvozasi: bepul (belgili) / toza (tanga)
 import { handlePayReturn, buyDialog } from './account/buy';
@@ -126,6 +126,7 @@ async function home(): Promise<void> {
     h('p', { class: 't-small lead' }, tr('Uchastkadan meʼyoriy tekshiruvgacha — bitta 3D oynada. Har bir koʻrsatkich bitta modeldan hisoblanadi va ShNQ bandiga bogʻlanadi.')),
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
       h('button', { class: 'btn btn-primary btn-lg', id: 'newP', onclick: async () => { const p = blankProject(tr('Yangi loyiha')); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, tr('Yangi loyiha'))),
+      h('a', { class: 'btn btn-lg', id: 'sampleP', href: '#/namuna', style: 'text-decoration:none' }, ...icl(OPEN, tourText('Namuna loyihani ochish'))),
       h('button', { class: 'btn btn-lg', id: 'openFile', onclick: () => file.click() }, ...icl(OPEN, tr('Fayldan ochish'))), file),
     list.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...list.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id },
       h('b', {}, p.name),

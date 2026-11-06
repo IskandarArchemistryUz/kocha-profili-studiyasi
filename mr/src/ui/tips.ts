@@ -115,6 +115,7 @@ const TIPS: Tip[] = [
   { sel: '#gxPdf, #gxSvg, #gxAi, #gxPng, #gxPng3', d: 'Joriy varaq.', p: { item: 'mr.sheet' }, a: ['24'] },
   { sel: '#gxDxf', d: 'Varaq chiziqlari AutoCAD uchun.', p: { item: 'mr.dxf', only: true } },
   /* bosh sahifa */
+  { sel: '#sampleP', d: 'Tayyor misol: Yangi Toshkent, 80A lot (3,95 ga) — koʻcha, ikki daha, 6 qavatli turar joy, bogʻcha va park, yer osti avtoturargoh. Nusxasi ochiladi.' },
   { sel: '#newP', d: 'Boʻsh loyiha — 1-qadamdan boshlaysiz.' },
   { sel: '#openFile', d: 'Avval saqlangan loyiha fayli (JSON).' },
   { sel: 'button[data-del]', d: 'Loyihani butunlay oʻchirish — qaytarib boʻlmaydi.' },
