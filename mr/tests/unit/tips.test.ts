@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+// @ts-ignore — node modullari (faqat test)
+import { readFileSync } from 'fs';
 
 /* Tugma izohlari: har izoh matni 9 tilga tarjima qilingan (oʻzbekchasi — kalit), joy egalari saqlangan */
-const dir = fileURLToPath(new URL('../../src/ui/', import.meta.url));
-const src = readFileSync(dir + 'tips.ts', 'utf8');
-const TX = JSON.parse(readFileSync(dir + 'tips.json', 'utf8')) as Record<string, string[]>;
+const src = readFileSync(new URL('../../src/ui/tips.ts', import.meta.url), 'utf8') as string;
+const TX = JSON.parse(readFileSync(new URL('../../src/ui/tips.json', import.meta.url), 'utf8')) as Record<string, string[]>;
 
 describe('tips', () => {
   const ds = [...src.matchAll(/\bd: '([^']+)'/g)].map(m => m[1]);
