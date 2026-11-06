@@ -20,7 +20,7 @@ import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES 
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 
-export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat';
+export type SheetKind = 'bosh' | 'zona' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -39,6 +39,10 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'navbat', name: 'Qurilish navbati', note: 'binolar navbat rangida; har navbat: binolar, maydon, xonadonlar' },
   { id: 'relyef', name: 'Relyef', note: 'balandliklar (gipsometriya), gorizontallar va qiyalik — AWS Terrain Tiles' },
   { id: 'shamol', name: 'Shamol', note: 'shamol guli (iqlim stansiyasi) va piyoda sathidagi oqim — qulaylik (6-qadam)' },
+  // 06.11 (egasi: «mana bu analizlar nega varaqlarga bormaydi?»): «Qatlamlar → Yer sathi xaritasi» tahlillari
+  { id: 'issiq', name: 'Yuza qizishi', note: 'taxmin: qoplama + soya, 15 iyul 11–17' },
+  { id: 'hand', name: 'Suv bosish xavfi (HAND)', note: 'drenajdan balandlik, relyef boʻyicha' },
+  { id: 'twi', name: 'Namlik (TWI)', note: 'suv yigʻiladigan pastliklar' },
 ];
 
 /** Bitta xizmat turi tahlili: piyoda tarmogʻi kesmalari (eng yaqin obyektgacha masofa, m), obyektlar, turar joy binolari */
@@ -59,6 +63,9 @@ export interface SheetCtx {
   /** 04.11 (egasi: tahlil varaqlari — shamol): stansiya guli (16 yoʻnalish × tezlik oraliqlari, ulush) va 6-qadamda hisoblangan
    *  piyoda sathidagi oqim (katakchalar rangi — Lawson qulaylik sinfi yoki tezlik nisbati); legend — [rang, yorliq] */
   wind?: { station: string; src: string; rose: number[][]; dir: number; prevailing: string; mean: number; calm: number; pts?: XY[]; cols?: string[]; cell?: number; legend?: [string, string][]; mode?: string; stale?: boolean } | null;
+  /** 06.11: yer sathi xaritasi (yuza qizishi, HAND, TWI) — katakchalar rangi, legenda [rang, yorliq], uchastka statistikasi, izoh;
+   *  err — maʼlumot yoʻq / hisoblanmagan (varaqda shu yozuv chiqadi) */
+  gmap?: { pts: XY[]; cols: string[]; cell: number; title: string; legend: [string, string][]; stats: string[]; note: string; stale?: boolean } | { err: string } | null;
   /** 04.11 (egasi: tahlil varaqlari — relyef): atrof bilan yuklangan balandlik toʻri (core/relief) */
   terrain?: ReliefGrid | null;
   /** jamoat transporti bekatlari va metro kirishlari (10-qadam OSM obyektlari) */
@@ -134,7 +141,7 @@ export function recommendScale(ha: number, kind: SheetKind): { scale: number; sr
 /** Varaq turi boʻyicha masshtab oraligʻi (cheklovdan tashqarisi — eslatma, taqiq emas) */
 export const scaleRange = (k: SheetKind): [number, number] => k === 'vaziyat' ? [10000, 25000] : [500, 5000];
 
-export interface LegendItem { type: 'fill' | 'line' | 'dash' | 'tree' | 'swatch' | 'stop' | 'hatch'; fill?: string; stroke?: string; label: string }
+export interface LegendItem { type: 'fill' | 'line' | 'dash' | 'tree' | 'swatch' | 'stop' | 'hatch' | 'text'; fill?: string; stroke?: string; label: string }
 export interface PlotRow { code: string; use: string; color: string; ha: number; level: number }
 export interface SheetResult { svg: string; scale: number; widthMm: number; heightMm: number; legend: LegendItem[]; plots: PlotRow[]; labels: { full: number; total: number }; minText: number; fits: boolean; auto: boolean }
 
@@ -340,6 +347,22 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       }
       legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tf('Relyef: AWS Terrain Tiles, qadam ${s} m', { s: G0.step }) });
     } else legend.push({ type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: tr('Relyef yuklanmagan — 1-qadamda atrofni yuklang (relyef qatlami bilan)') });
+  }
+
+  // 2a'''. yer sathi xaritalari (06.11): yuza qizishi, suv bosish xavfi (HAND), namlik (TWI) — «Qatlamlar → Yer sathi xaritasi» bilan bir xil hisob
+  if (K === 'issiq' || K === 'hand' || K === 'twi') {
+    const M = ctx?.gmap, info = (label: string) => {   // uzun izoh oʻng ustundan chiqmasin: ~46 belgilik qatorlarga (birinchisi belgili, qolgani belgisiz)
+      const ws = label.split(' '), ls: string[] = ['']; for (const wd of ws) { const c = ls[ls.length - 1]; if (c && (c + ' ' + wd).length > 46) ls.push(wd); else ls[ls.length - 1] = c ? c + ' ' + wd : wd; }
+      ls.forEach((l, i) => legend.push(i ? { type: 'text', label: l } : { type: 'fill', fill: '#ffffff', stroke: '#9a978f', label: l }));
+    };
+    if (M && 'pts' in M && M.pts.length) {
+      const h2 = M.cell / 2, by = new Map<string, string[]>();
+      M.pts.forEach((p, i) => { if (Math.abs(p[0] - cx) > R || Math.abs(p[1] - cy) > R) return; const c = M.cols[i]; if (!by.has(c)) by.set(c, []); by.get(c)!.push(`M${P([p[0] - h2, p[1] - h2])}L${P([p[0] + h2, p[1] - h2])}L${P([p[0] + h2, p[1] + h2])}L${P([p[0] - h2, p[1] + h2])}Z`); });
+      g(K === 'issiq' ? 'Yuza_qizishi' : K === 'hand' ? 'Suv_bosish_HAND' : 'Namlik_TWI', [...by].map(([c, d]) => `<path d="${d.join('')}" fill="${c}" fill-opacity="0.8"/>`).join(''));
+      M.legend.forEach(([c, l]) => legend.push({ type: 'fill', fill: c, label: tr(l) }));
+      M.stats.forEach(t => info(tr(t)));
+      info(`${tr(M.note)}${M.stale ? ` · ${tr('loyiha oʻzgargan — qayta hisoblang')}` : ''}`);
+    } else info(tr(M && 'err' in M ? M.err : 'Maʼlumot yoʻq'));
   }
 
   // 2a'. shamol (04.11): 6-qadamda hisoblangan piyoda sathidagi oqim — katakchalar sinf rangida (bitta rang — bitta path)
@@ -770,6 +793,7 @@ export function transportTable(doc: Project, tr: (s: string) => string = s => s)
 }
 
 function legendSym(it: LegendItem, sx: number, y: number): string {
+  if (it.type === 'text') return '';   // 06.11: uzun izohning davomi (belgisiz qator)
   if (it.type === 'fill' || it.type === 'swatch') return `<rect x="${sx}" y="${n2(y - 0.2)}" width="6" height="3" fill="${it.fill}" stroke="${it.stroke ?? '#9a978f'}" stroke-width="0.15"/>`;
   if (it.type === 'line') return `<path d="M${sx},${n2(y + 1.3)}h6" stroke="${it.stroke}" stroke-width="0.4"/>`;
   if (it.type === 'dash') return `<rect x="${sx}" y="${n2(y - 0.2)}" width="6" height="3" fill="none" stroke="${it.stroke}" stroke-width="0.3" stroke-dasharray="1.2 0.6"/>`;
