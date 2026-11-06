@@ -20,3 +20,13 @@ describe('tips', () => {
     }
   });
 });
+
+describe('tour', () => {
+  const tsrc = readFileSync(new URL('../../src/ui/tour.ts', import.meta.url), 'utf8') as string;
+  const TT = JSON.parse(readFileSync(new URL('../../src/ui/tour.json', import.meta.url), 'utf8')) as Record<string, string[]>;
+  it('tur matnlari 9 tilga tarjima qilingan', () => {
+    const keys = [...tsrc.matchAll(/\b(?:t|b|more): '([^']+)'/g), ...tsrc.matchAll(/tourText\('([^']+)'/g)].map(m => m[1]);
+    expect(keys.length).toBeGreaterThan(25);
+    for (const k of keys) { expect(TT[k], k).toBeDefined(); expect(TT[k].length, k).toBe(9); }
+  });
+});
