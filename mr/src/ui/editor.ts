@@ -17,7 +17,7 @@ import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from 
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
-import { abroadRules, RULES, spacingBadIds, type Result, type FixId } from '../norms/rules';
+import { abroadRules, RULES, spacingBadIds, GREEN_86, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
 import { siteAccess, accessVerdict, type Access } from '../core/access';
@@ -1538,7 +1538,8 @@ export class Editor {
     this.windSection(body);
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Usul va cheklovlar')), h('div', { class: 'col' },
       h('span', {}, tr('Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0102-25, 95-band — 22 mart – 22 sentabr davrida xonada 2 soat, uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz quyosh. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.')),
-      h('span', {}, tr('Usul: 2D Lattice Boltzmann, piyoda sathida, bitta yoʻnalish. Bino ustidan oqish, turbulentlik va daraxtlar hisobga olinmaydi — dastlabki loyiha uchun sifat bahosi (tunnel, pana, burchak zonalari). Qulaylik mezoni — Lawson (LDDC), xalqaro amaliyot; Oʻzbekiston meʼyori emas.')))));
+      h('span', {}, tr('Usul: 2D Lattice Boltzmann, piyoda sathida, bitta yoʻnalish. Bino ustidan oqish, turbulentlik va daraxtlar hisobga olinmaydi — dastlabki loyiha uchun sifat bahosi (tunnel, pana, burchak zonalari). Qulaylik mezoni — Lawson (LDDC), xalqaro amaliyot; Oʻzbekiston meʼyori emas.')),
+      h('span', { id: 'wind491' }, tr('ShNQ 2.07.01-23, 49¹-band (01/2-14 tahririda): shaharlarning bosh rejalarida ventilyatsiya yoʻlaklari nazarda tutiladi — ulardagi binolarning balandligi, zichligi va uzluksiz fronti shamolning erkin harakatini cheklamasligi kerak. Bu hisob yoʻlaklarni aniqlamaydi va tekshirmaydi — faqat shamol tezlashadigan va pana zonalarni sifat jihatidan koʻrsatadi.')))));
     queueMicrotask(() => this.applySun());
   }
 
@@ -2757,7 +2758,7 @@ export class Editor {
       h('div', { class: S.modules.length > 2 ? 'tiles' : 'tiles c2', role: 'group', 'aria-label': tr('Modul') }, ...S.modules.map(m => h('button', { class: 'tile', 'data-mod': m.id, 'aria-pressed': this.socMod[t.use] === m.id, title: m.note, onclick: () => { this.socMod[t.use] = m.id; this.renderPanel(); }, html: pg('soc', m.id) + `<span>${m.name}</span>` }))),
       h('span', { class: 't-small' }, S.modules.find(m => m.id === this.socMod[t.use])!.note),
       // 06.11 (c62): MTM uchastkasi tarkibi — meʼyor va andoza qayerdan
-      ...(t.use === 'mtm' ? [h('span', { class: 't-small', id: 'mtmRules' }, tf('Uchastka — 543-band (40 / 35 m² oʻringa), bino — 33 m² oʻringa (5-ilova), 8–9 ballda 2 qavat (QMQ 2.01.03-19, 3.1-jadval 2-izoh). Guruh — ${n} bola, har guruhga ${p} m² maydoncha soyabon bilan, sport maydoni, xoʻjalik zonasi, koʻkalamzorlik ≥ ${g} % — ANDOZA (544-band yuborgan ShNQ 2.08.02-09 toʻplamda yoʻq).', { n: MTM.group, p: MTM.play, g: Math.round(MTM.green * 100) }))] : []),
+      ...(t.use === 'mtm' ? [h('span', { class: 't-small', id: 'mtmRules' }, tf('Uchastka — 543-band (40 / 35 m² oʻringa), bino — 33 m² oʻringa (5-ilova), 8–9 ballda 2 qavat (QMQ 2.01.03-19, 3.1-jadval 2-izoh). Guruh — ${n} bola, har guruhga ${p} m² maydoncha soyabon bilan, sport maydoni, xoʻjalik zonasi, koʻkalamzorlik ≥ ${g} % — ANDOZA (544-band ShNQ 2.08.02-23 ga yuboradi — unda bu talablar yoʻq).', { n: MTM.group, p: MTM.play, g: Math.round(MTM.green * 100) }))] : []),
       // 06.11 (c62): maktab / MTM bino maydoni — 5-ilova (5-ustun: 24 / 33 m² oʻringa), «taxmin» emas
       h('span', { class: 't-small' }, t.use === 'poliklinika' ? tf('Qizil chiziqdan ${t.use === \'poliklinika\' ? \'6\' : \'25\'} m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — taxmin (ShNQ 2.08.02-23 da maktab va MTM binosi maydoni berilmagan; xalqaro va MDH tipik loyihalari oraligʻi).', { "t.use === 'poliklinika' ? '6' : '25'": '6' })
         : tr('Qizil chiziqdan 25 m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — 5-ilova (5-ustun): maktab 24 m², MTM 33 m².')));
@@ -4029,9 +4030,9 @@ export class Editor {
     const leg = (cls: string, name: string, v: string) => h('span', { class: 'gl' }, h('i', { class: cls }), `${tr(name)} ${v}`);
     body.append(
       h('div', { class: 'group flat', id: 'greenKpi', style: 'padding:12px;display:flex;flex-direction:column;gap:8px' },
-        h('div', { class: 'row' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', {}, `${fmt(share, 0)} %`), h('span', {}, tr('Yashillik darajasi'))), chip('green-86', `${tr('meʼyor')} ≥ 25 %`)),
+        h('div', { class: 'row' }, h('div', { class: 'kpi', style: 'flex:1' }, h('b', {}, `${fmt(share, 0)} %`), h('span', {}, tr('Yashillik darajasi'))), chip('green-86', `${tr('meʼyor')} ≥ ${GREEN_86} %`)),
         h('div', { class: 'gbar', role: 'img', 'aria-label': `${tr('Yashillik darajasi')} ${fmt(share, 0)} %` },
-          h('div', { class: 'gfill' }, seg('g-park', d?.greenArea ?? 0), seg('g-yard', d?.yardGreen ?? 0), seg('g-play', d?.yardPlay ?? 0)), h('b', { style: 'left:25%', title: '25 %' })),
+          h('div', { class: 'gfill' }, seg('g-park', d?.greenArea ?? 0), seg('g-yard', d?.yardGreen ?? 0), seg('g-play', d?.yardPlay ?? 0)), h('b', { style: `left:${GREEN_86}%`, title: `${GREEN_86} %` })),
         h('div', { class: 'glegend' },
           leg('g-park', 'Park va skverlar', `${fmt(d?.greenArea ?? 0)} m²`),
           leg('g-yard', 'Hovli maysasi', noYards ? `— ${tr('oʻchiq')}` : `${fmt(d?.yardGreen ?? 0)} m²`),

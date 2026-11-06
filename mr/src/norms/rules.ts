@@ -10,13 +10,13 @@ import type { Project } from '../core/doc';
 import { CATS, checkProfile, profileById, profileWidth } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 import { spacingIssues } from '../core/spacing';
-import { landscape } from '../core/landscape';
-import { frame, type XY } from '../core/geo';
+import { landscape, GREEN_86, GREEN_474 } from '../core/landscape';
+import { frame, centroid, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
 import { firePairs, FIRE_CLS } from '../core/firedist';
 import { checkBlock, lenLimit, heightLimit, tallMax, socialFloorLimit, SYS, FIRE_COMP_ANDOZA, fireComp, isPodium, jointOpt, jointScheme } from '../core/seysmik';
 import { area as areaOf, obb2 } from '../core/geo';
-import { computePlan, corridor } from '../core/plan';
+import { computePlan, corridor, pointIn } from '../core/plan';
 import { useDef } from '../core/uses';
 import { edgeKinds, boundaryNeed, azOf } from '../core/setback';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
@@ -173,7 +173,10 @@ export interface Rule {
   evaluate(d: Derived, doc: Project): Omit<Result, 'id' | 'title' | 'source'>;
 }
 
-const SHNQ_2_07_01: Omit<Source, 'clause'> = { doc: 'ShNQ 2.07.01-23', edition: '2023', verified: true };
+/** 06.11 (c68): joriy (konsolidatsiyalangan) tahrir — 01/2-42 (09.12.2025, № 380), 01/2-3 (21.01.2026, № 383), 01/2-14 (06.04.2026, № 397),
+ *  01/2-15 (06.04.2026, № 396), 01/2-24 (17.06.2026, № 407) buyruqlari bilan (normalar/ShNQ-2.07.01-23-joriy-tahrir.txt) */
+const SHNQ_2_07_01: Omit<Source, 'clause'> = { doc: 'ShNQ 2.07.01-23', edition: '2023 (joriy tahrir: 01/2-42, 01/2-3, 01/2-14, 01/2-15, 01/2-24)', verified: true };
+export { GREEN_86, GREEN_474 };
 /** 06.11 — Qurilish vazirining 09.12.2025 dagi 01/2-42-son buyrugʻi (AV 17.12.2025, № 380): ShNQ 2.07.01-23 ga 53 band oʻzgartirish */
 const PARK_4242 = '01/2-42 buyrugʻi (09.12.2025): Toshkent shahri va viloyatida 10 kvartiraga 7 joy (avval kvartiraga 1); 29-jadval izohining 1-bandi (500 m gacha uzoqlikdagi avtoturargoh) kuchini yoʻqotgan.';
 const FIRE_6511 = '6511-band (01/2-42): Ф1–Ф4, I–II darajali binolarda qarama-qarshi devor (yoki maxsus mustaqil devor) I-turdagi yongʻinga qarshi va oyna-eshiksiz boʻlsa — masofa normalanmaydi; modelda bunday devor belgilanmagan.';
@@ -308,7 +311,7 @@ export const RULES: Rule[] = [
         parts.push(tfU('koʻkalamzorlik ${v} % (ANDOZA: ≥ ${m} %)', { v: Math.round(gr * 100), m: Math.round(MTM.green * 100) }));
       });
       const val = d.mtmPlots.reduce((t, p) => t + p.cap, 0);
-      return { status: bad ? 'fail' : rev ? 'review' : 'pass', value: val, unit: 'oʻrin', note: parts.join('; ') + '\n' + 'Guruh — 20 bola, maydonchalar, sport va xoʻjalik zonasi, koʻkalamzorlik — ANDOZA: 544-band yuborgan ShNQ 2.08.02-09 normalar toʻplamida yoʻq.' };
+      return { status: bad ? 'fail' : rev ? 'review' : 'pass', value: val, unit: 'oʻrin', note: parts.join('; ') + '\n' + 'Guruh — 20 bola, maydonchalar, sport va xoʻjalik zonasi, koʻkalamzorlik — ANDOZA: 544-band (01/2-42 tahririda) ShNQ 2.08.02-23 ga yuboradi, unda MTM guruh maydonchalari va hududi boʻyicha talab yoʻq.' };
     },
   },
   {
@@ -502,16 +505,58 @@ export const RULES: Rule[] = [
   },
   {
     id: 'green-86',
-    title: 'Turar joy zonasining yashil hududi (≥ 25 %)',
-    source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '86, 87, 474-bandlar', verified: true },
+    // 06.11 (c68): 86-band 01/2-15 buyrugʻi (06.04.2026) tahririda — 25 % → 30 %; 474-bandning umumiy 25 % i — alohida «green-474»
+    title: 'Turar joy zonasining yashil hududi (≥ 30 %)',
+    source: { ...SHNQ_2_07_01, clause: '86-band (01/2-15 tahririda), 87-band' },
     evaluate(d, doc) {
-      if (d.greenBase <= 0) return { status: 'na', unit: '%', limit: '≥ 25' };
+      const L = GREEN_86, lim = `≥ ${L}`;
+      if (d.greenBase <= 0) return { status: 'na', unit: '%', limit: lim };
       const v = d.greenShareTotal * 100;
       // hovli obodonlashtirish oʻchiq — hovli maysasi hisobga kirmagan: «mos emas» emas, «koʻrib chiqish» (hisob toʻliq emas)
       const noYards = !doc.settings.yards && doc.buildings.length > 0;
-      return { status: v >= 25 ? 'pass' : noYards ? 'review' : 'fail', value: v, unit: '%', limit: '≥ 25', delta: v < 25 ? (v / 25 - 1) * 100 : undefined,
-        ...(noYards && v < 25 ? { fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar avtomatik obodonlashtiriladi (trotuar, maysa, 4-jadval maydonchalari, daraxtlar) — hovli maysasi va maydonchalar (87-band) hisobga kiradi.' } } : {}),
+      return { status: v >= L ? 'pass' : noYards ? 'review' : 'fail', value: v, unit: '%', limit: lim, delta: v < L ? (v / L - 1) * 100 : undefined,
+        ...(noYards && v < L ? { fix: { id: 'yards-on' as const, label: 'Hovlilarni obodonlashtirish', hint: 'Hovlilar avtomatik obodonlashtiriladi (trotuar, maysa, 4-jadval maydonchalari, daraxtlar) — hovli maysasi va maydonchalar (87-band) hisobga kiradi.' } } : {}),
         note: (noYards ? 'Hovli maysasi hisobga olinmadi — «Hovlilarni avtomatik obodonlashtirish» oʻchiq (Yashil qadami).\n' : '') + `Hisob: yashil kvartallar ${Math.round(d.greenArea)} m² + hovli maysasi ${Math.round(d.yardGreen)} m² + maydoncha va yoʻlaklar ${Math.round(d.yardPlay)} m² (87-band: uchastkaning 30 % idan oshmasa) ÷ mavze maydoni (maktab va MTM uchastkalarisiz, 86-band) ${Math.round(d.greenBase)} m².` };
+    },
+  },
+  {
+    // 06.11 (c68): 474-band, 1-xatboshi — aholi punkti hududlarida, shu jumladan turar joy yoki aralash qurilish hududlarida mavzening umumiy
+    // koʻkalamzorlashtirilganlik darajasi ≥ 25 % (86-banddan farqli: hisob asosi — butun mavze, maktab va MTM uchastkalari bilan)
+    id: 'green-474',
+    title: 'Mavzening umumiy koʻkalamzorlashtirilganlik darajasi (≥ 25 %)',
+    source: { ...SHNQ_2_07_01, clause: '474-band, 1-xatboshi' },
+    evaluate(d, doc) {
+      const plan = computePlan(doc), base = plan.blocks.reduce((t, b) => t + b.area, 0) + plan.corridorArea, L = GREEN_474, lim = `≥ ${L}`;
+      if (base <= 0 || d.greenCounted <= 0 && !doc.buildings.length) return { status: 'na', unit: '%', limit: lim };
+      const v = d.greenCounted / base * 100, noYards = !doc.settings.yards && doc.buildings.length > 0;
+      return { status: v >= L ? 'pass' : noYards ? 'review' : 'fail', value: v, unit: '%', limit: lim, delta: v < L ? (v / L - 1) * 100 : undefined,
+        note: `Hisob: yashil hudud ${Math.round(d.greenCounted)} m² (86-band hisobidagi bilan bir xil) ÷ butun mavze ${Math.round(base)} m² (maktab va MTM uchastkalari bilan; ularning ichidagi yashil hisobga olinmadi — ehtiyot tomonga, TALQIN).` };
+    },
+  },
+  {
+    // 06.11 (c68): 474-band, 3-xatboshi (01/2-3 buyrugʻi, 21.01.2026, № 383) — faqat Toshkent shahri: balandligi ≥ 12 m yoki umumiy maydoni
+    // ≥ 500 m² yakka uy-joylar va hajmi ≥ 300 m³ noturar binolar (sanoatdan tashqari) — bino umumiy maydonining har 100 m² ga ≥ 1 daraxt, 2 buta
+    id: 'trees-474',
+    title: 'Toshkent: daraxt va buta koʻchatlari (har 100 m² ga 1 daraxt va 2 buta)',
+    source: { ...SHNQ_2_07_01, clause: '474-band, 3-xatboshi (01/2-3 tahririda)' },
+    evaluate(_d, doc) {
+      if (!/^1726/.test(doc.settings.district ?? '')) return { status: 'na', unit: 'daraxt', note: 'Talab faqat Toshkent shahri hududida qoʻllanadi (474-band, 01/2-3 buyrugʻi bilan qoʻshilgan xatboshi).' };
+      const fr = frame(doc.origin), s = doc.settings, plan = computePlan(doc), sel: { id: string; gfa: number; blk: number }[] = [];
+      for (const b of doc.buildings) {
+        const u = useDef(b.use), r = b.footprint.map(fr.toLocal), a = areaOf(r), h = bLevels(s, b).h, gfa = a * b.floors;
+        const yakka = b.use === 'yakka' || ((b.gen?.kind === 'uy' || b.gen?.kind === 'taunhaus') && u.res > 0);
+        const noturar = u.res === 0 && b.use !== 'sanoat';
+        if (!(yakka ? h >= 12 - 1e-6 || gfa >= 500 : noturar ? a * h >= 300 : false)) continue;
+        const c = centroid(r);
+        sel.push({ id: b.id, gfa, blk: plan.blocks.findIndex(k => pointIn(c, k.rings)) });
+      }
+      if (!sel.length) return { status: 'na', unit: 'daraxt', note: 'Mos bino yoʻq: koʻp kvartirali uylar bu xatboshiga kirmaydi; yakka uy (≥ 12 m yoki ≥ 500 m²) va noturar bino (≥ 300 m³, sanoatdan tashqari) — loyihada yoʻq.' };
+      const need = sel.reduce((t, x) => t + Math.ceil(x.gfa / 100 - 1e-9), 0), blks = new Set(sel.map(x => x.blk).filter(i => i >= 0));
+      const yards = doc.settings.yards ? landscape(doc) : [], got = yards.filter(y => blks.has(y.block)).reduce((t, y) => t + y.trees.length, 0);
+      const ok = got >= need, gfaSum = Math.round(sel.reduce((t, x) => t + x.gfa, 0)), need2 = need * 2;
+      return { status: ok ? 'review' : doc.settings.yards ? 'fail' : 'review', value: got, unit: 'daraxt', limit: `≥ ${need}`, where: { bids: sel.map(x => x.id) },
+        note: `Mos binolar: ${sel.length} ta, umumiy maydon ${gfaSum} m² (tashqi oʻlcham boʻyicha). Talab: ${need} daraxt va ${need2} buta. Loyihada shu binolar kvartallaridagi hovli daraxtlari: ${got}.`
+          + '\n' + 'Butalar modelda yoʻq — «koʻrib chiqish». Taunhaus — yakka uy-joy deb olindi (TALQIN).' + (doc.settings.yards ? '' : '\n' + 'Hovli obodonlashtirish oʻchiq — daraxtlar sanalmadi.') };
     },
   },
   {
