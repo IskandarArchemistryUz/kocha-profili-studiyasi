@@ -5,7 +5,7 @@
  *    sport 2,0 (≥ 10 m), xoʻjalik 0,3 (≥ 20 m); 91-band — birlashtirilsa ≥ 150 m²;
  *  · qolgan qismi — maysa va daraxtlar (binodan ≥ 5 m, 485-band 35-jadval; turar joydan ≥ 10 m — SanQvaN 0102-25, 103-band);
  *  · ichki yoʻlak — hovli boʻylab halqa (2 m).
- * Yashillik balansi: 86-band — koʻp kvartirali turar joy zonasi yashil hududi (maktab/MTM uchastkalarisiz) ≥ 25 %;
+ * Yashillik balansi: 86-band — koʻp kvartirali turar joy zonasi yashil hududi (maktab/MTM uchastkalarisiz) ≥ 30 % (01/2-15 tahriri, 06.04.2026; avval 25 %);
  * 87-band — maydonchalar va yoʻlaklar uchastkaning 30 % idan oshmasa yashil hududga qoʻshiladi.
  * Bu sxema — eskiz: aniq joylashtirish loyihachining qarori.
  */
@@ -628,6 +628,10 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     };
 }
 
+/** 86-band (ShNQ 2.07.01-23, 01/2-15 tahriri, 06.04.2026): koʻp kvartirali turar joy zonasi koʻkalamzor hududi ≥ 30 % (avval 25 %) */
+export const GREEN_86 = 30;
+/** 474-band, 1-xatboshi: aholi punkti hududlari, shu jumladan mavzening umumiy koʻkalamzorlashtirilganlik darajasi ≥ 25 % */
+export const GREEN_474 = 25;
 /** Yashillik balansi: yashil kvartallar + hovli maysasi (+ 87-band: maydoncha va yoʻlaklar, agar ≤ 30 %) */
 export function greenBalance(doc: Project, yards: Yard[]): { blocksGreen: number; yardGreen: number; yardPlay: number; counted: number; base: number; share: number; trees: number } {
   const plan = computePlan(doc);

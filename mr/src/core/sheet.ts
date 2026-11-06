@@ -12,7 +12,7 @@ import { useDef, USES } from './uses';
 import { profileById, profileWidth, type PartKind, type Cat } from './profiles';
 import { derive } from './derive';
 import { offsetLine, projectStreetsGeo, buildNet, asTargets, CURB_R, CURB_R_RECON } from '../scene/streets3d';
-import { landscape, greenBalance } from './landscape';
+import { landscape, greenBalance, GREEN_86 } from './landscape';
 import { szzGreen } from './szzgen';
 import { entryRing } from './parkentry';
 import { freeRect, pickLevel, labelLines, modeMax, type LabelMode } from './labels';
@@ -35,7 +35,7 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'vaziyat', name: 'Vaziyat sxemasi', note: 'hudud shaharda: atrof, yoʻllar, uchastka' },
   { id: 'xizmat', name: 'Xizmat radiusi', note: 'piyoda yetib borish: tarmoq boʻylab masofa, obyektlar, uylar' },
   { id: 'cheklov', name: 'Cheklovlar rejasi', note: 'qurib boʻlmaydigan joy, SMZ, ELU va yer balansi' },
-  { id: 'yashil', name: 'Yashil balans', note: 'yashil hududlar, hovli maysasi, maydonchalar; 25 % meʼyori' },
+  { id: 'yashil', name: 'Yashil balans', note: 'yashil hududlar, hovli maysasi, maydonchalar; 30 % meʼyori' },
   { id: 'transport', name: 'Transport sxemasi', note: 'koʻchalar toifasi, velo yoʻlak, bekatlar va 400 m radius, avtoturargohlar' },
   { id: 'insol', name: 'Insolyatsiya', note: 'uchastka yer sathi: kuniga quyosh soatlari (6-qadam xaritasi)' },
   { id: 'navbat', name: 'Qurilish navbati', note: 'binolar navbat rangida; har navbat: binolar, maydon, xonadonlar' },
@@ -783,7 +783,7 @@ export function balanceRows(doc: Project, tr: (s: string) => string = s => s): B
   ];
 }
 /**
- * Yashil balans (ShNQ 2.07.01-23, 86-band ≥ 25 %, 87-band — maydoncha va yoʻlaklar uchastkaning 30 % igacha; hisob asosi maktab va MTM
+ * Yashil balans (ShNQ 2.07.01-23, 86-band ≥ 30 % — 01/2-15 tahriri, 87-band — maydoncha va yoʻlaklar uchastkaning 30 % igacha; hisob asosi maktab va MTM
  * uchastkalarisiz — core/landscape.greenBalance bilan bir xil) va SMZ koʻkalamzorligi (SanQvaN 0103-25, 13-band — core/szzgen).
  */
 export function greenRows(doc: Project, tr: (s: string) => string = s => s): BalanceRow[] {
@@ -793,7 +793,7 @@ export function greenRows(doc: Project, tr: (s: string) => string = s => s): Bal
     R({ t: tr('Yashil kvartallar'), v: g.blocksGreen / 1e4, c: '#bcd9a3' }),
     R({ t: tr('Hovli maysasi'), v: g.yardGreen / 1e4, c: '#cfe3bc' }),
     R({ t: tr('Maydoncha va yoʻlaklar (87-band, ≤ 30 %)'), v: g.yardPlay / 1e4, c: '#f6dcae' }),
-    { t: `${tr('Jami yashil')} (${tr('meʼyor')} ≥ 25 %)`, v: g.counted / 1e4, p: pct(g.share), ok: g.share >= 0.25, b: true, sep: true },
+    { t: `${tr('Jami yashil')} (${tr('meʼyor')} ≥ ${GREEN_86} %)`, v: g.counted / 1e4, p: pct(g.share), ok: g.share >= GREEN_86 / 100, b: true, sep: true },
     { t: tr('Hisob asosi (maktab va MTM uchastkalarisiz)'), v: g.base / 1e4, p: '100,0 %' },
   ];
   if (!doc.settings.yards) out.push({ t: tr('Hovli obodonlashtirish oʻchiq — hovli maysasi hisobga olinmadi') });

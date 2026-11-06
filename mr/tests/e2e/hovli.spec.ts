@@ -14,7 +14,7 @@ test('hovli obodonlashtirish va yashillik balansi', async ({ page }) => {
   expect(t).toMatch(/Hovli maydonchalari(4-jadval)?[\d\s]+\/[\d\s]+m²/);
   if (shots) await page.screenshot({ path: `${shots}/hovli.png` });
   await page.click('#kMore');
-  await expect(page.locator('.drawer [data-rule=green-86]')).toContainText('86, 87, 474-bandlar');
+  await expect(page.locator('.drawer [data-rule=green-86]')).toContainText('86-band (01/2-15 tahririda), 87-band');
   await expect(page.locator('.drawer [data-rule=play-89]')).toBeAttached();
   await page.click('#kMore');
   // 27.10 (A variant): bitta foiz + manbalar chizigʻi; kalit «Batafsil» ichida
