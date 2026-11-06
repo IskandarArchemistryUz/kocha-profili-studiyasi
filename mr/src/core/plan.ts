@@ -52,8 +52,8 @@ export function offsetLine(axis: XY[], d: number): XY[] {
 }
 
 /** Koʻchalar koridorlari birlashmasining konturlari (qizil chiziqlar): chorrahada kesishmaydi, T-ulanishda uzilib ulanadi */
-export function corridorOutlines(list: { axis: XY[]; half: number }[], cutters: { axis: XY[]; half: number }[] = []): XY[][] {
-  const corr = list.map(s => corridor(s.axis, s.half)).filter(m => m.length);
+export function corridorOutlines(list: { axis: XY[]; half: number }[], cutters: { axis: XY[]; half: number }[] = [], extra: XY[][] = []): XY[][] {
+  const corr = [...list.map(s => corridor(s.axis, s.half)), ...extra.filter(r => r.length >= 3).map(r => [[close(r)]] as MultiPolygon)].filter(m => m.length);
   if (!corr.length) return [];
   let u = safeUnion(corr);
   // mavjud (OSM) yoʻllar zonasi (qatnov + trotuar) koridorlardan olib tashlanadi — qizil chiziq yoʻl chetida tugaydi, uni kesib oʻtmaydi
