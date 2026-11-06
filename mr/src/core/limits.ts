@@ -9,8 +9,9 @@
  *    1000 · 2 — 500 · 3 — 300 · 4 — 100 · 5 — 50 m), 1-ilova (obyektlar tasnifi: teplitsa va parnik xoʻjaliklari — 4-sinf, 381; don, meva
  *    va sabzavot omborxonalari — 5-sinf, 456), 12-band (SMZ ichida taqiq), 14-band (SMZ ichida ruxsat), 15-band (ET SMZ: 1 kV gacha — 2 m,
  *    20 — 10, 35 — 15, 110 — 20, 220 — 25, 500 — 30, 750 — 40, 1150 kV gacha — 55 m).
- *    0103-25 da QABRISTON yoʻq — SMZ oldingi SanPiN 0350-17, 6.4 qiymatidan maʼlumot uchun chiziladi (flag AMALIYOT; tekshiruvlarda
- *    «mos emas» berilmaydi — «koʻrib chiqish»).
+ *    0103-25 da QABRISTON yoʻq. 06.11 (c63): qabriston SMZ — VM ning 04.04.2011 dagi 101-son qarori, 1-ilova, 50-band (NORMA):
+ *    yangi 20–40 ga — 500 m, < 20 ga — 300 m; qishloq va kolumbariy ≥ 50 m; yopiq va kuydirishdan keyin dafn — 100 m; turar joy,
+ *    jamoat binolari va dam olish zonalari devoridan ≥ 100 m (SMZ kamida 100 m olinadi); SMZ da turar joy va jamoat binolari taqiqlanadi.
  *  - VMQ № 1050, 26.12.2018 «Электр тармоғи хўжалиги объектларини муҳофаза қилиш қоидалари», 14-band (havo ELU muhofaza zonasi
  *    har tomonga: ≤ 1 kV — 2 m; 6–20 kV — 10; 35 — 15; 110 — 20; 220 — 25; 500 — 30 m; yer osti kabeli — 1 m); 17-band — zonada bino
  *    qurish egasining yozma roziligi bilan.
@@ -45,8 +46,8 @@ export interface Limit {
   poles?: LngLat[];
   status: LimitStatus;
   elu?: EluStatus;
-  /** qabriston: open — amaldagi; memorial — memorial majmua / kolumbariy; rural — qishloq qabristoni */
-  sub?: { open?: boolean; memorial?: boolean; rural?: boolean };
+  /** qabriston: open — amaldagi (false — yopiq); memorial — kolumbariy; rural — qishloq qabristoni (1000 xonadondan kam); crem — kuydirishdan keyin dafn */
+  sub?: { open?: boolean; memorial?: boolean; rural?: boolean; /** 06.11 (c63): kuydirishdan keyin dafn etiladigan (VM 101, 50-band) */ crem?: boolean };
   /** qoʻlda oʻzgartirilgan bufer, m (yoʻq — jadvaldan) */
   szz?: number;
   /** 04.11: sanoat korxonasi sanitariya sinfi (SanQvaN 0103-25, 7-band, 1-ilova: 1–5-sinf); yoʻq — kiritilmagan (TAXMIN) */
@@ -61,25 +62,31 @@ export interface Limit {
   name?: string;
 }
 
-export type SuvType = 'daryo' | 'kol' | 'kanal';
+/** 06.11 (c63): bezak — fontan, bezak hovuzi, basseyn (suv obyekti emas: suvni muhofaza zonasi qoʻllanmaydi) */
+export type SuvType = 'daryo' | 'kol' | 'kanal' | 'bezak';
 export type Flag = 'NORMA' | 'TALQIN' | 'TAXMIN' | 'AMALIYOT';
 export interface Szz { m: number; cls?: 'I' | 'II' | 'III' | 'IV' | 'V'; ref: string; flag: Flag; /** qoʻlda oʻzgartirilganda — jadvaldagi qiymat */ table?: number }
 
 const SAN = 'SanQvaN 0103-25';
 /** bekor qilingan SanPiN 0350-17 (0103-25, 2-ilova, 3-band) — faqat AMALIYOT qiymatlari uchun */
-const OLD = 'SanPiN 0350-17, 6.4 (bekor qilingan) — 0103-25 da qabriston yoʻq';
-/** Cheklov turi va maydoniga (ga) koʻra SMZ — SanQvaN 0103-25, 7-band va 1-ilova; temir yoʻl — ShNQ 2.07.01-23, 359; qabriston — AMALIYOT */
+/** 06.11 (c63): qabriston — VM 101-son qarori, 1-ilova, 50-band (egasining normalar papkasi: VM-101-2011-qabriston.txt) */
+const VM101 = 'VM 101-son qarori (04.04.2011), 1-ilova, 50-band';
+/** Cheklov turi va maydoniga (ga) koʻra SMZ — SanQvaN 0103-25, 7-band va 1-ilova; temir yoʻl — ShNQ 2.07.01-23, 359; qabriston — VM 101, 50-band */
 export function szzOf(l: Limit, areaHa: number): Szz {
   const own = (s: Szz): Szz => l.szz != null && l.szz >= 0 ? { ...s, m: l.szz, flag: s.flag, ref: `${s.ref} · qoʻlda`, table: s.m } : s;
   switch (l.kind) {
     case 'qabriston': {
-      // 06.11 (c61): 0103-25 ning 1-ilovasida qabriston (dafn joyi) qatori yoʻq — amaldagi normada qiymat yoʻq.
-      // Oldingi 0350-17, 6.4 qiymatlari maʼlumot uchun (AMALIYOT): > 20 ga — II; 10–20 ga — III; < 10 ga va yopilgan — IV;
-      // yopilgan memorial, kolumbariy, qishloq qabristoni ≤ 2 ga — V
-      const open = l.sub?.open !== false, A = (m: number, cls: Szz['cls']) => own({ m, cls, ref: OLD, flag: 'AMALIYOT' });
-      if (l.sub?.rural && areaHa <= 2) return A(50, 'V');
-      if (open) return areaHa > 20 ? A(500, 'II') : areaHa >= 10 ? A(300, 'III') : A(100, 'IV');
-      return l.sub?.memorial ? A(50, 'V') : A(100, 'IV');
+      // 06.11 (c63, egasi): VM 101-son qarori (04.04.2011), 1-ilova (dafn etish joylarini saqlash nizomi), 50-band:
+      // yangi 20–40 ga — 500 m, < 20 ga — 300 m; qishloq (1000 xonadondan kam) va kolumbariy — kamida 50 m; yopiq va kuydirishdan keyin
+      // dafn etiladigan — 100 m (yopiqda sanepid kelishuvi bilan 50 m gacha). Turar joy, jamoat binolari va dam olish zonalari devoridan
+      // qabristongacha — kamida 100 m: shuning uchun SMZ (bino taqiqi zonasi) kamida 100 m olinadi (kattasi)
+      const N = (m: number, what: string, flag: Szz['flag'] = 'NORMA') => own({ m: Math.max(m, 100), ref: `${VM101} — ${what}${m < 100 ? `; turar joy, jamoat binolari va dam olish zonalari devoridan ≥ 100 m — kattasi olindi` : ''}`, flag });
+      if (l.sub?.open === false) return N(100, 'yopiq qabriston: SMZ 100 m (sanepid kelishuvi bilan 50 m gacha)');
+      if (l.sub?.crem) return N(100, 'kuydirishdan keyin dafn etiladigan qabriston: SMZ 100 m');
+      if (l.sub?.memorial) return N(50, 'kolumbariy: SMZ ≥ 50 m');
+      if (l.sub?.rural) return N(50, 'qishloq qabristoni (1000 xonadondan kam aholi punkti): SMZ ≥ 50 m');
+      if (areaHa > 40) return own({ m: 500, ref: `${VM101} — ${Math.round(areaHa)} ga: 50-bandda 20–40 ga gacha, 500 m olindi`, flag: 'TALQIN' });
+      return areaHa >= 20 ? N(500, '20–40 ga: SMZ 500 m') : N(300, '20 ga dan kichik: SMZ 300 m');
     }
     case 'issiqxona': return own({ m: 100, cls: 'IV', ref: `${SAN}, 7-band; 1-ilova, 4-sinf, 381 («teplitsa va parnik xoʻjaliklari»)`, flag: 'NORMA' });
     // 1-ilovada umumiy «ombor» qatori yoʻq: 5-sinf, 456 — don, meva va sabzavotlarni saqlash omborxonalari (TALQIN); ShNQ 173 — sabzavot-meva ≥ 50 m
@@ -97,10 +104,10 @@ export function szzOf(l: Limit, areaHa: number): Szz {
 
 const N981 = 'VM 981-son qarori (11.12.2019) nizomi', LOST = 'LexUz: 23.06.2026 dan kuchini yoʻqotgan, oʻrnini bosuvchi hujjat aniqlanmagan';
 /** Suv obyekti nomi (toifa bilan) — UI va varaqlar */
-export const SUV_NAMES: Record<SuvType, string> = { daryo: 'Daryo', kol: 'Koʻl, suv ombori', kanal: 'Kanal' };
-export const SUV_Q: Record<SuvType, string[]> = { daryo: ['Katta (> 100 m³/s)', 'Oʻrta (5–100 m³/s)', 'Kichik (2–5 m³/s)', 'Juda kichik (< 2 m³/s)'], kol: [], kanal: ['Ichimlik suvi', 'Sugʻorish, kollektor'] };
+export const SUV_NAMES: Record<SuvType, string> = { daryo: 'Daryo', kol: 'Koʻl, suv ombori', kanal: 'Kanal', bezak: 'Bezak suvi (fontan, hovuz)' };
+export const SUV_Q: Record<SuvType, string[]> = { daryo: ['Katta (> 100 m³/s)', 'Oʻrta (5–100 m³/s)', 'Kichik (2–5 m³/s)', 'Juda kichik (< 2 m³/s)'], kol: [], kanal: ['Ichimlik suvi', 'Sugʻorish, kollektor'], bezak: [] };
 /** tugmadagi qisqa yozuv (toʻliq — title): daryo — sarf oraligʻi */
-export const SUV_QS: Record<SuvType, string[]> = { daryo: ['> 100', '5–100', '2–5', '< 2'], kol: [], kanal: ['Ichimlik suvi', 'Sugʻorish, kollektor'] };
+export const SUV_QS: Record<SuvType, string[]> = { daryo: ['> 100', '5–100', '2–5', '< 2'], kol: [], kanal: ['Ichimlik suvi', 'Sugʻorish, kollektor'], bezak: [] };
 /**
  * 04.11 (Murad Buildings sinovi, 6-band): suvni muhofaza qilish zonasi (zone) va qirgʻoq boʻyi mintaqasi (shore), suv chetidan, m.
  * 981-son nizomda kengliklar oraliq (yer turi, nishablik, hajm, chuqurlik boʻyicha) — sukut oraliqning quyi chegarasi, qoʻlda oshiriladi.
@@ -108,6 +115,10 @@ export const SUV_QS: Record<SuvType, string[]> = { daryo: ['> 100', '5–100', '
  */
 export function suvZones(l: Pick<Limit, 'suv' | 'szz' | 'qir'>): { zone: Szz; shore: Szz } {
   const t = l.suv?.t ?? 'daryo', q = l.suv?.q;
+  if (t === 'bezak') {
+    const b: Szz = { m: 0, ref: 'Bezak suvi (fontan, bezak hovuzi, basseyn) — 981-son nizomdagi suv obyekti emas, suvni muhofaza zonasi va qirgʻoq boʻyi mintaqasi qoʻllanmaydi (TALQIN); OSM dan 0,5 ga dan kichik yopiq suv — bezak deb olinadi (ANDOZA)', flag: 'TALQIN' };
+    return { zone: b, shore: b };
+  }
   let z: [number, string], sh: [number, string];
   if (t === 'kol') { z = [50, '18-band (50–250 m, hajm boʻyicha)']; sh = [35, '21-band (35–100 m; suv chetidan ≥ 20 m)']; }
   else if (t === 'kanal') {
@@ -289,10 +300,10 @@ export function cleanLimit(x: any): Limit | null {
     ...(Array.isArray(x.poles) && x.poles.every(ll) && x.poles.length ? { poles: x.poles.slice(0, 2000).map((p: LngLat) => [p[0], p[1]] as LngLat) } : {}),
     status: ['saqlanadi', 'buziladi', 'kochiriladi'].includes(x.status) ? x.status : 'saqlanadi',
     ...(['mavjud', 'loyiha', 'kabel', 'demontaj'].includes(x.elu) ? { elu: x.elu } : {}),
-    ...(x.sub && typeof x.sub === 'object' ? { sub: { ...(x.sub.open === false ? { open: false } : {}), ...(x.sub.memorial === true ? { memorial: true } : {}), ...(x.sub.rural === true ? { rural: true } : {}) } } : {}),
+    ...(x.sub && typeof x.sub === 'object' ? { sub: { ...(x.sub.open === false ? { open: false } : {}), ...(x.sub.memorial === true ? { memorial: true } : {}), ...(x.sub.rural === true ? { rural: true } : {}), ...(x.sub.crem === true ? { crem: true } : {}) } } : {}),
     ...(n(x.szz) && x.szz >= 0 && x.szz <= 2000 ? { szz: x.szz } : {}),
     ...([1, 2, 3, 4, 5].includes(x.cls) ? { cls: x.cls } : {}),
-    ...(x.kind === 'suv' && x.suv && ['daryo', 'kol', 'kanal'].includes(x.suv.t) ? { suv: { t: x.suv.t, ...([1, 2, 3, 4].includes(x.suv.q) ? { q: x.suv.q } : {}) } } : {}),
+    ...(x.kind === 'suv' && x.suv && ['daryo', 'kol', 'kanal', 'bezak'].includes(x.suv.t) ? { suv: { t: x.suv.t, ...([1, 2, 3, 4].includes(x.suv.q) ? { q: x.suv.q } : {}) } } : {}),
     ...(n(x.qir) && x.qir >= 0 && x.qir <= 500 ? { qir: x.qir } : {}),
     src: ['osm', 'qolda', 'import'].includes(x.src) ? x.src : 'qolda',
     ...(n(x.osm) ? { osm: x.osm } : {}), ...(typeof x.name === 'string' && x.name ? { name: x.name.slice(0, 120) } : {}),

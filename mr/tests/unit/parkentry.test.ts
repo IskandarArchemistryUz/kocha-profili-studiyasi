@@ -75,7 +75,11 @@ describe('avtoturargoh kirish-chiqishi (05.11): 414, 415-bandlar', () => {
     expect(ev('park-414', d1).status).toBe('pass'); expect(ev('ug-park-415', d1).status).toBe('pass');
     expect(entryReport(d1, d1.garages[0]).every(r => !r.worst || r.worst.ok)).toBe(true);
     // uy pandusdan 8 m da (y = 13..27, kirish y ≈ 5) → 415-band mos emas; where — nuqta va kesma
-    const d2 = doc(g([toG(es[0])]), [house(13)]), r2 = ev('ug-park-415', d2);
+    // 06.11 (c63): garaj konturi bilan kesishgan uy — oʻz binosi (2.05.07-24, 10-band) — pandusga yaqin boʻlsa ham mos
+    expect(ev('ug-park-415', doc(g([toG(es[0])]), [house(13)])).status).toBe('pass');
+    // garaj uydan 1 m da (tutash emas, > 0,5 m) — boshqa bino, 415-band
+    const g2 = (en: Garage['entries']): Garage => ({ ...g(en), ring: sq(5, 5, 90, 7).map(fr.toGeo) });
+    const d2 = doc(g2([toG(es[0])]), [house(13)]), r2 = ev('ug-park-415', d2);
     expect(r2.status).toBe('fail'); expect(r2.where?.pts).toHaveLength(1); expect(r2.where?.need?.labels?.[0].text).toContain('≥ 15 m');
     // magistral chorrahaga 30 m: (−10,−15) → kirish (10, 5) ≈ 28 m → 414 mos emas
     const d3 = doc(g([{ at: fr.toGeo([10, 5]), kind: 'rampa', dir: -Math.PI / 2 }]), [house(40)]);

@@ -7,8 +7,8 @@
  *    joylashtirilmaydi.
  *  - 14-band: SMZ ga xavflilik sinfi past obyektlar; obyekt tarkibidagi oʻquv binolari, ishlab chiqarishga taalluqli savdo, umumiy
  *    ovqatlanish, poliklinika va ilmiy-tadqiqot laboratoriyalari joylashtiriladi.
- *  - Qabriston SMZ i (0103-25 da yoʻq, AMALIYOT — bekor qilingan 0350-17, 6.4): taqiq «koʻrib chiqish» ga tushiriladi, hududlar
- *    «mos emas» bermaydi (amal — alohida hisob).
+ *  - Qabriston SMZ i — VM 101-son qarori, 1-ilova, 50-band (06.11, c63): «SҲZ ҳудудида бирор-бир турар жой ва жамоат биноларини
+ *    қуриш тақиқланади» — 12-band roʻyxati bilan birga tekshiriladi (NORMA). AMALIYOT zonasi qolsa — taqiq «koʻrib chiqish» ga tushiriladi.
  *  - VMQ № 1050, 14-band (muhofaza zonasi), 17-band (zonada bino qurish — egasining yozma roziligi bilan).
  *  - ShNQ 2.07.01-23, 251-band: 35 kV va undan yuqori havo ELU turar joy hududlaridan tashqarida oʻtkaziladi; 253-band —
  *    rekonstruksiyada chiqarish yoki kabelga almashtirish.
@@ -95,7 +95,7 @@ function raw(doc: Project): LimitChecks {
   // 3b) suv obyektlari (04.11): zonadagi binolar — koʻrib chiqish; qirgʻoq boʻyi mintaqasidagi binolar — taqiq
   for (const w of z.water) { out.suvRings.push(...w.rings); for (const { b, poly } of fps) { const a = overlap(poly, w.polys); if (a >= 1) out.suv.push({ bid: b.id, limit: w.id, m: w.m, area: a, shore: false }); } }
   for (const l of ls) {
-    if (l.kind !== 'suv' || !isActive(l)) continue;
+    if (l.kind !== 'suv' || !isActive(l) || l.suv?.t === 'bezak') continue;   // 06.11 (c63): bezak suvi — zona yoʻq
     const line = !l.rings?.length && !!l.axis && l.axis.length >= 2, pts = line ? l.axis!.map(fr.toLocal) : l.rings?.[0]?.map(fr.toLocal); if (!pts) continue;
     const sh = suvZones(l).shore; if (sh.m <= 0 && line) continue;
     const mp = bufferLocal(pts, sh.m, !line).map(p => p.map(r => r.slice(0, -1).map(q => [q[0], q[1]] as XY)));

@@ -12,8 +12,8 @@ const sq = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], 
 const mk = (zones: { at: XY; use: string }[] = [], kind: Limit['kind'] = 'qabriston') => {
   let d = blankProject('t') as any; const fr = frame(d.origin), G = (p: XY) => fr.toGeo(p);
   d.site = { rings: [sq(-300, -300, 300, 300).map(G)] };
-  // qabriston 40 × 40 m (< 10 ga, amaldagi) — IV sinf, 100 m
-  d = apply(d, { type: 'addLimit', limit: { id: 'q1', kind, status: 'saqlanadi', src: 'qolda', rings: [sq(-20, -20, 20, 20).map(G)] } as Limit } as any);
+  // qabriston 40 × 40 m, yopiq — 100 m (VM 101, 50-band; 06.11 c63)
+  d = apply(d, { type: 'addLimit', limit: { id: 'q1', kind, status: 'saqlanadi', src: 'qolda', rings: [sq(-20, -20, 20, 20).map(G)], ...(kind === 'qabriston' ? { sub: { open: false } } : {}) } as Limit } as any);
   if (zones.length) d = apply(d, { type: 'setZones', zones: zones.map((z, i) => ({ id: `z${i}`, at: G(z.at), use: z.use })) } as any);
   return d;
 };
@@ -41,14 +41,14 @@ describe('denyZone / clipToSzz', () => {
 });
 
 describe('szzGreen — 0103-25, 13-band', () => {
-  it('koʻkalam yoʻq — issiqxona (4-sinf, ≥ 60 %) fail; qabriston (AMALIYOT) — koʻrib chiqish', () => {
+  it('koʻkalam yoʻq — issiqxona (4-sinf, ≥ 60 %) fail; qabriston (VM 101 — 13-band qoʻllanmaydi) — koʻrib chiqish', () => {
     const d = mk([{ at: [150, 150], use: 'turar' }], 'issiqxona');
     const g = szzGreen(d); expect(g).toHaveLength(1); expect(g[0]).toMatchObject({ cls: 'IV', need: 0.6 });
     expect(g[0].share).toBeLessThan(0.01); expect(g[0].amal).toBeUndefined();
     expect(RULES.find(r => r.id === 'szz-219')!.evaluate({} as any, d)).toMatchObject({ status: 'fail' });
     const q = mk([{ at: [150, 150], use: 'turar' }]);
     expect(szzGreen(q)[0].amal).toBe(true);
-    const r = RULES.find(r => r.id === 'szz-219')!.evaluate({} as any, q); expect(r.status).toBe('review'); expect(r.note).toContain('AMALIYOT');
+    const r = RULES.find(r => r.id === 'szz-219')!.evaluate({} as any, q); expect(r.status).toBe('review'); expect(r.note).toContain('VM 101');
   });
   it('butun uchastka himoya koʻkalamzorligi — pass', () => {
     const d = mk([{ at: [150, 150], use: 'himoya' }]);

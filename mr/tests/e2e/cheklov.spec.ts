@@ -27,9 +27,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`cheklov ch
   await expect(page.locator('[data-lim]')).toHaveCount(1);
   const row = page.locator('[data-lim]').first();
   await expect(row).toContainText('C-1');
-  await expect(row).toContainText('100 m · IV');   // < 10 ga amaldagi — 0103-25 da yoʻq; oldingi 0350-17, 6.4, IV sinf (AMALIYOT)
-  await expect(page.locator('[data-limref]')).toContainText('SanPiN 0350-17, 6.4 (bekor qilingan) — 0103-25 da qabriston yoʻq');
-  await expect(page.locator('[data-limref]')).toContainText('amaliyot');
+  await expect(row).toContainText('300 m');   // 06.11 (c63): < 20 ga — VM 101-son qarori, 1-ilova, 50-band
+  await expect(page.locator('[data-limref]')).toContainText('VM 101-son qarori (04.04.2011), 1-ilova, 50-band');
+  await expect(page.locator('[data-limref]')).toContainText('norma');
   // yer balansi: yaroqli < uchastka
   const ha = async (id: string) => parseFloat((await page.locator(`#${id}`).innerText()).replace(',', '.'));
   await expect.poll(() => ha('lbSite'), { timeout: 8000 }).toBeCloseTo(9, 1);
@@ -38,12 +38,13 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`cheklov ch
   await expect(page.locator('#kUsable')).toBeVisible();
   await page.locator('[data-limref]').scrollIntoViewIfNeeded(); await page.waitForTimeout(500);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/cheklov_${w}${dark ? 'd' : 'l'}.png` });
-  // yopilgan → 100 m, memorial → 50 m, V sinf (AMALIYOT — 0103-25 da qabriston yoʻq)
+  // yopilgan → 100 m (VM 101, 50-band); kolumbariy — SMZ ≥ 50 m, lekin bino devoridan ≥ 100 m
   await page.click('[data-qab=closed]');
-  await expect(page.locator('[data-qabnote]')).toContainText('0103-25');
-  await expect(page.locator('[data-limref]')).toContainText('amaliyot');
-  await page.getByRole('button', { name: 'Memorial / kolumbariy' }).click();
-  await expect(page.locator('[data-lim]').first()).toContainText('50 m · V');
+  await expect(page.locator('[data-qabnote]')).toContainText('VM 101');
+  await expect(page.locator('[data-lim]').first()).toContainText('100 m');
+  await page.click('[data-qab=open]'); await page.click('#limQabT [data-qab=kolumb]');
+  await expect(page.locator('[data-lim]').first()).toContainText('100 m');
+  await expect(page.locator('[data-limref]')).toContainText('kolumbariy');
   // qoʻlda bufer
   await page.fill('#limBuf', '75'); await page.locator('#limBuf').press('Enter'); await page.locator('#limBuf').blur();
   await expect(page.locator('[data-lim]').first()).toContainText('75 m');
