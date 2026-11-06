@@ -10,14 +10,18 @@ const sq = (x0: number, y0: number, x1: number, y1: number): XY[] => [[x0, y0], 
 const mpA = (mp: XY[][][]) => mp.reduce((t, p) => t + area(p[0]) - p.slice(1).reduce((s, h) => s + area(h), 0), 0);
 const L = (o: Partial<Limit>): Limit => ({ id: 'c1', kind: 'qabriston', status: 'saqlanadi', src: 'qolda', ...o } as Limit);
 
-describe('cheklovlar: SMZ jadvali (SanQvaN 0103-25, 7-band, 1-ilova; qabriston — AMALIYOT)', () => {
-  it('qabriston maydoni va holatiga koʻra — 0103-25 da yoʻq, oldingi 0350-17, 6.4 (AMALIYOT)', () => {
-    expect(szzOf(L({}), 25)).toMatchObject({ m: 500, cls: 'II', flag: 'AMALIYOT' });
-    expect(szzOf(L({}), 15)).toMatchObject({ m: 300, cls: 'III' });
-    expect(szzOf(L({}), 4)).toMatchObject({ m: 100, cls: 'IV', ref: 'SanPiN 0350-17, 6.4 (bekor qilingan) — 0103-25 da qabriston yoʻq' });
-    expect(szzOf(L({ sub: { open: false, memorial: true } }), 4)).toMatchObject({ m: 50, cls: 'V', flag: 'AMALIYOT' });
-    expect(szzOf(L({ sub: { open: false, rural: true } }), 1.5)).toMatchObject({ m: 50, cls: 'V' });
-    expect(szzOf(L({ sub: { open: false } }), 4)).toMatchObject({ m: 100, cls: 'IV', flag: 'AMALIYOT' });
+describe('cheklovlar: SMZ jadvali (SanQvaN 0103-25, 7-band, 1-ilova; qabriston — VM 101, 50-band)', () => {
+  it('06.11 (c63): qabriston — VM 101-son qarori, 1-ilova, 50-band; bino devoridan ≥ 100 m (SMZ kamida 100 m)', () => {
+    expect(szzOf(L({}), 25)).toMatchObject({ m: 500, flag: 'NORMA' });
+    expect(szzOf(L({}), 45)).toMatchObject({ m: 500, flag: 'TALQIN' });
+    expect(szzOf(L({}), 15)).toMatchObject({ m: 300, flag: 'NORMA' });
+    expect(szzOf(L({}), 4)).toMatchObject({ m: 300, ref: 'VM 101-son qarori (04.04.2011), 1-ilova, 50-band — 20 ga dan kichik: SMZ 300 m' });
+    expect(szzOf(L({ sub: { memorial: true } }), 4)).toMatchObject({ m: 100, flag: 'NORMA' });
+    expect(szzOf(L({ sub: { rural: true } }), 1.5).m).toBe(100);
+    expect(szzOf(L({ sub: { rural: true } }), 1.5).ref).toContain('devoridan ≥ 100 m — kattasi olindi');
+    expect(szzOf(L({ sub: { crem: true } }), 4).m).toBe(100);
+    expect(szzOf(L({ sub: { open: false } }), 30)).toMatchObject({ m: 100, flag: 'NORMA' });
+    expect(szzOf(L({ sub: { open: false } }), 4).cls).toBeUndefined();
   });
   it('issiqxona, ombor, temir yoʻl; qoʻlda bufer ustun', () => {
     expect(szzOf(L({ kind: 'issiqxona' }), 3)).toMatchObject({ m: 100, cls: 'IV', flag: 'NORMA', ref: 'SanQvaN 0103-25, 7-band; 1-ilova, 4-sinf, 381 («teplitsa va parnik xoʻjaliklari»)' });
@@ -74,10 +78,10 @@ describe('hujjat: kvartallar va yer balansi', () => {
     return d;
   };
   it('saqlanadigan qabriston konturi kvartaldan ayiriladi, 100 m SMZ — balansda', () => {
-    const d0 = mk([]), d = mk([L({ rings: [sq(-20, -20, 20, 20) as any] })]);
+    const d0 = mk([]), d = mk([L({ rings: [sq(-20, -20, 20, 20) as any], sub: { open: false } })]);   // yopiq — 100 m (VM 101, 50-band)
     const a0 = computePlan(d0).blocks.reduce((t, b) => t + b.area, 0), a1 = computePlan(d).blocks.reduce((t, b) => t + b.area, 0);
     expect(a0 - a1).toBeCloseTo(1600, -1);
-    const z = limitZones(d); expect(z.soft).toHaveLength(1); expect(z.soft[0]).toMatchObject({ m: 100, cls: 'IV' });
+    const z = limitZones(d); expect(z.soft).toHaveLength(1); expect(z.soft[0]).toMatchObject({ m: 100, flag: 'NORMA' });
     const b = landBalance(d)!;
     expect(b.siteHa).toBeCloseTo(9, 2); expect(b.hardHa).toBeCloseTo(0.16, 2);
     // SMZ: 40 × 40 kvadrat atrofida 100 m — uchastka (300 × 300) ichida toʻliq: 240² dan burchaklar yumaloq ayirmasi, kontur ayirilgan

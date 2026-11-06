@@ -462,7 +462,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     legend.push({ type: 'fill', fill: '#f3c9c4', stroke: '#1d1d1b', label: tr('Turar joy — radiusdan tashqarida') });
   }
 
-  // 4c. cheklovlar rejasi (02.11): qurib boʻlmaydigan joy (shtrix), cheklov obyektlari SMZ (SanQvaN 0103-25; qabriston — AMALIYOT), ishlab chiqarish SMZ (ShNQ 2.07.01-23, 146), ELU oʻqi
+  // 4c. cheklovlar rejasi (02.11): qurib boʻlmaydigan joy (shtrix), cheklov obyektlari SMZ (SanQvaN 0103-25; qabriston — VM 101, 50-band), ishlab chiqarish SMZ (ShNQ 2.07.01-23, 146), ELU oʻqi
   const bal = K === 'cheklov' ? landBalance(doc) : null;
   if (K === 'cheklov') {
     const z = limitZones(doc), SZ = '#d9822b', PZ = '#8e6bb5', cl = (r: XY[]) => [...r, r[0]].map(p => [p[0], p[1]] as [number, number]);

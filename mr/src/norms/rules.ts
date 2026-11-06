@@ -24,7 +24,7 @@ import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
-import { need413, T30, RES30, SOC30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML } from '../core/mlpark';
+import { need413, T30, Q3, WIN30, SOC30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML } from '../core/mlpark';
 import { szzGreen, szzBelt, BELT_GAP } from '../core/szzgen';
 import { isActive, SZZ_DENY } from '../core/limits';
 import { entryReport, hasEntryRules, isUg } from '../core/parkenv';
@@ -308,8 +308,8 @@ export const RULES: Rule[] = [
     title: 'Avtoturargohdan binolargacha masofa (30-jadval)',
     source: { doc: 'ShNQ 2.07.01-23; SanQvaN 0103-25', edition: '2023; 2025', clause: '418-band, 30-jadval; 17-band, 3-ilova', verified: true },
     evaluate(_d, doc) {
-      // 06.11 (c61): ikki norma — ShNQ 30-jadval va 0103-25, 3-ilova (ochiq avtoturargoh SMZ); har katakda kattasi (TALQIN). 3-ilovada derazasiz
-      // tomon derazali tomondan katta (ShNQ da teskari) — ziddiyat; tomon modelda aniqlanmaydi, shuning uchun turar joy uchun ikki tomonning kattasi
+      // 06.11 (c61): ikki norma — ShNQ 30-jadval va 0103-25, 3-ilova (ochiq avtoturargoh SMZ). 06.11 (c63, egasi): 3-ilovada derazali/derazasiz
+      // qatorlar almashgan koʻrinadi — derazali tomon: kattasi (NORMA); derazasiz torets (gen.blind): ShNQ (NORMA), faqat 3-ilova — koʻrib chiqish (TALQIN)
       // 06.11 (B6): 30-jadval — «ерусти, ерусти-ерости ҳамда очиқ автотураргоҳлар»: koʻp qavatli va ochiq (yer usti) avtoturargohlar
       const ml = doc.garages.filter(g => (g.kind === 'kop_qavatli' || g.kind === 'yer_usti') && !g.truck && g.spaces > 0); if (!ml.length) return { status: 'na', note: 'Yer usti yoki koʻp qavatli avtoturargoh yoʻq.' };
       const fr = frame(doc.origin), plan = computePlan(doc), fails: string[] = [], revs: string[] = []; const bids = new Set<string>();
@@ -323,8 +323,14 @@ export const RULES: Rule[] = [
           if ((g.kind === 'kop_qavatli' && b.gen?.grp === g.grp) || b.use === 'avtoturargoh') continue;
           const u = useDef(b.use), d = dist(b.footprint.map(fr.toLocal)); if (d > 60) continue;
           if (u.res > 0) {
-            const n = RES30[col];
-            if (d < n - 0.3) { fails.push(`turar joy ${Math.round(d)} m < ${n} m`); bids.add(b.id); }
+            // 06.11 (c63): derazali tomon — WIN30 (NORMA); derazasiz torets (gen.blind) — ShNQ 30-jadval (NORMA), faqat 3-ilova 2-qatori — koʻrib chiqish (TALQIN)
+            const fp = b.footprint.map(fr.toLocal), bl = new Set((b.gen?.blind ?? []).filter(i => i >= 0 && i < fp.length));
+            const ed = (i: number) => dist([fp[i], fp[(i + 1) % fp.length]]), idx = fp.map((_, i) => i);
+            const dW = bl.size ? Math.min(...idx.filter(i => !bl.has(i)).map(ed)) : d, dB = bl.size ? Math.min(...[...bl].map(ed)) : Infinity;
+            const nW = WIN30[col], nB = T30.blind[col]!, nQ = Q3.blind[col]!;
+            if (dW < nW - 0.3) { fails.push(`turar joyning derazali tomoni ${Math.round(dW)} m < ${nW} m`); bids.add(b.id); }
+            else if (dB < nB - 0.3) { fails.push(`turar joyning derazasiz toretsi ${Math.round(dB)} m < ${nB} m`); bids.add(b.id); }
+            else if (dB < nQ - 0.3) revs.push(`turar joyning derazasiz toretsi ${Math.round(dB)} m: ShNQ 30-jadval ${nB} m bajarildi, 0103-25, 3-ilova 2-qatori ${nQ} m — 3-ilovada derazali/derazasiz qatorlar ShNQ 30-jadvalga nisbatan almashgan boʻlishi mumkin (TALQIN)`);
           } else if (b.use === 'maktab' || b.use === 'mtm' || b.use === 'sport') {
             const n = SOC30[col] ?? SOC30[3]!; if (d < n - 0.3) { fails.push(`taʼlim yoki sport binosi ${Math.round(d)} m < ${n} m`); bids.add(b.id); }
           } else if (PUB.has(b.use)) { const n = T30.pub[col]!; if (d < n - 0.3) { fails.push(`jamoat binosi ${Math.round(d)} m < ${n} m`); bids.add(b.id); } }
@@ -342,7 +348,7 @@ export const RULES: Rule[] = [
       return { status: fails.length ? 'fail' : revs.length ? 'review' : 'pass', value: fails.length, unit: 'ta', limit: '0',
         ...(bids.size ? { where: { bids: [...bids] } } : {}),
         ...((fails.length || revs.length) && openG.length ? { fix: { id: 'park-30' as const, label: 'Yaqin joylarni olib tashlash', hint: 'Ochiq avtoturargohning 30-jadval masofasini buzayotgan joylari olib tashlanadi; joylar kamaysa sigʻim ustuni kichrayadi va masofa ham qisqaradi. Yetishmagan joylar — 29-jadval qoidasida (yer osti yoki koʻp qavatli avtoturargoh).' } } : {}),
-        note: `Yer usti avtoturargohdan masofa (sigʻim ≤ 10, 11–50, 51–100, 101–300, > 300). ShNQ 30-jadval: turar joy old tomoni 12/15/25/35/50 m, derazasiz yon tomoni 12/10/15/25/35 m, jamoat binolari 10/10/15/25/25 m, maktab va taʼlim 15/25/25/50/– m. SanQvaN 0103-25, 3-ilova: turar joyning derazali tomoni 10/12/15/25/35 m, derazasiz tomoni 10/15/25/35/50 m; MTM, taʼlim, dam olish joylari va sport inshootlari 15/25/25/50/– m. Qoʻllangani — har katakda kattasi (TALQIN): turar joy 12/15/25/35/50 m (ikki normada derazasiz tomon qiymatlari zid — tomon modelda aniqlanmaydi), taʼlim va sport 15/25/25/50/– m, jamoat binolari 10/10/15/25/25 m. Sigʻim: ${cap}.` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (revs.length ? `\nKoʻrib chiqish: ${revs.slice(0, 4).join('; ')}.` : '') + '\nStatsionar davolash muassasalarigacha (25/50/–/–/– m) — loyihada bunday funksiya yoʻq, tekshirilmadi.' };
+        note: `Yer usti avtoturargohdan masofa (sigʻim ≤ 10, 11–50, 51–100, 101–300, > 300). ShNQ 30-jadval: turar joy old tomoni 12/15/25/35/50 m, derazasiz yon tomoni 12/10/15/25/35 m, jamoat binolari 10/10/15/25/25 m, maktab va taʼlim 15/25/25/50/– m. SanQvaN 0103-25, 3-ilova: turar joyning derazali tomoni 10/12/15/25/35 m, derazasiz tomoni 10/15/25/35/50 m; MTM, taʼlim, dam olish joylari va sport inshootlari 15/25/25/50/– m. Qoʻllangani: turar joyning derazali tomoni — ikkalasining kattasi 12/15/25/35/50 m (NORMA); derazasiz torets (generator belgilagan) — ShNQ 12/10/15/25/35 m (NORMA), 3-ilova 2-qatori faqat buzilsa — «koʻrib chiqish»: 3-ilovada derazali/derazasiz qatorlar ShNQ 30-jadvalga nisbatan almashgan boʻlishi mumkin (TALQIN); torets belgilanmagan bino — derazali deb olinadi. Taʼlim va sport — kattasi 15/25/25/50/– m, jamoat binolari 10/10/15/25/25 m. Sigʻim: ${cap}.` + (fails.length ? `\nMos emas: ${fails.slice(0, 4).join('; ')}.` : '') + (revs.length ? `\nKoʻrib chiqish: ${revs.slice(0, 4).join('; ')}.` : '') + '\nStatsionar davolash muassasalarigacha (25/50/–/–/– m) — loyihada bunday funksiya yoʻq, tekshirilmadi.' };
     },
   },
   {
@@ -401,7 +407,7 @@ export const RULES: Rule[] = [
     evaluate(_d, doc) {
       const ug = doc.garages.filter(g => isUg(g) && !g.truck); if (!ug.length) return { status: 'na', note: 'Yer osti avtoturargoh yoʻq.' };
       const nug = ug.length, sp = ug.reduce((t, g) => t + g.spaces, 0);
-      const head = `Yer osti avtoturargohlar: ${nug} ta, ${sp} joy. 415-band: kirish-chiqish joylari turar joy va jamoat binolari derazalaridan, taʼlim va davolash muassasalari hududlaridan kamida 15 m. ShNQ 2.05.07-24, 10-band: bino ichidagi (binoga joylashgan) yer osti avtoturargohi kirish-chiqishidan oʻz binosigacha masofa belgilanmaydi — oʻz binosi tekshirilmaydi. Shamollatish shaxtalari — 415-band qiymati (15 m) bilan, TALQIN: amaldagi normada shaxta uchun alohida qiymat yoʻq (bekor qilingan 0350-17, 6.4.1-jadval 8-izohi 0103-25 da yoʻq).`;
+      const head = `Yer osti avtoturargohlar: ${nug} ta, ${sp} joy. 415-band: kirish-chiqish joylari turar joy va jamoat binolari derazalaridan, taʼlim va davolash muassasalari hududlaridan kamida 15 m. ShNQ 2.05.07-24, 10-band: bino ichidagi (binoga joylashgan) yer osti avtoturargohi kirish-chiqishidan oʻz binosigacha masofa belgilanmaydi — oʻz binosi tekshirilmaydi. Oʻz binosi — garaj konturi bilan kesishgan yoki unga tutash (≤ 0,5 m) bino yoki stilobat (TALQIN); boshqa binolar — 415-band boʻyicha. Shamollatish shaxtalari — 415-band qiymati (15 m) bilan, TALQIN: amaldagi normada shaxta uchun alohida qiymat yoʻq (bekor qilingan 0350-17, 6.4.1-jadval 8-izohi 0103-25 da yoʻq).`;
       const E = entryEval(doc, ug, c => c.kind === 'deraza' || c.kind === 'hudud' || c.kind === 'maydoncha');
       if (!E.n) return { status: 'review', unit: '', note: `${head} Pandus va shaxtalar qoʻyilmagan — Hajmlar qadamida «Kirish-chiqish → Avtomatik joylashtir».` };
       const sh = ug.reduce((t, g) => t + (g.entries ?? []).filter(e => e.kind === 'shaxta').length, 0), np = E.n - sh, mx = E.minX == null ? '—' : nm(E.minX), fails = E.fails, revs = E.revs;
@@ -881,8 +887,9 @@ export const RULES: Rule[] = [
     title: 'Suvni muhofaza qilish zonasi va qirgʻoq boʻyi mintaqasi',
     source: { doc: 'VM 981-son qarori (11.12.2019) nizomi; Suv kodeksi (30.07.2025)', edition: '2019 — 23.06.2026 dan kuchini yoʻqotgan (LexUz), oʻrnini bosuvchi hujjat aniqlanmagan', clause: '18, 21, 23, 29, 30, 31, 32, 35, 37-bandlar; Suv kodeksi 24-bob, 125–138-moddalar (rejim)', verified: false },
     evaluate(_d, doc) {
-      const suv = (doc.limits ?? []).filter(l => l.kind === 'suv' && isActive(l));
-      if (!suv.length) return { status: 'na', unit: 'bino', limit: '0', note: 'Suv obyekti kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
+      // 06.11 (c63): bezak suvi (fontan, bezak hovuzi, basseyn) — 981-son nizomdagi suv obyekti emas (TALQIN), tekshirilmaydi
+      const suv = (doc.limits ?? []).filter(l => l.kind === 'suv' && isActive(l) && l.suv?.t !== 'bezak');
+      if (!suv.length) return { status: 'na', unit: 'bino', limit: '0', note: (doc.limits ?? []).some(l => l.kind === 'suv' && l.suv?.t === 'bezak') ? 'Faqat bezak suvi (fontan, bezak hovuzi) — suvni muhofaza zonasi qoʻllanmaydi (TALQIN).' : 'Suv obyekti kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
       const c = limitChecks(doc), sh = [...new Set(c.suv.filter(x => x.shore).map(x => x.bid))], zn = [...new Set(c.suv.filter(x => !x.shore && !sh.includes(x.bid)).map(x => x.bid))];
       const own = suv.filter(l => l.szz != null || l.qir != null).length, tail = ` Kengliklar — 981-son nizom (oraliqning quyi chegarasi; yer turi, nishablik, sarf yoki hajmga qarab oshadi); aholi punktida — bosh reja boʻyicha (23, 37-bandlar). Hujjat LexUz da 23.06.2026 dan kuchini yoʻqotgan — amaldagi hujjat va kengliklar tasdiqlanishi kerak.${own ? ` Qoʻlda oʻzgartirilgan: ${own} ta obyekt.` : ''}`;
       if (!sh.length && !zn.length) return { status: 'review', value: 0, unit: 'bino', limit: '0', where: { rings: c.suvRings }, note: `Qirgʻoq boʻyi mintaqasida va suvni muhofaza qilish zonasida bino yoʻq.${tail}` };
@@ -914,7 +921,7 @@ export const RULES: Rule[] = [
       const bad = z.filter(x => x.share + 1e-6 < x.need), badN = bad.filter(x => !x.amal), worst = [...z].sort((a, b) => (a.share - a.need) - (b.share - b.need))[0];
       const pc = (v: number) => Math.round(v * 100);
       const list = z.map(x => `${x.cls}: ${pc(x.share)} % / ${pc(x.need)} %`).join("; ");
-      const amal = z.some(x => x.amal) ? ' Qabriston SMZ i: 13-band 1-ilova obyektlari uchun, qabriston 0103-25 da yoʻq — foiz maʼlumot uchun (AMALIYOT), «mos emas» berilmaydi.' : '';
+      const amal = z.some(x => x.amal) ? ' Qabriston SMZ i (VM 101, 50-band): 13-band 1-ilova obyektlari uchun, qabriston u yerda yoʻq — foiz maʼlumot uchun, «mos emas» berilmaydi.' : '';
       return { status: badN.length ? 'fail' : bad.length ? 'review' : 'pass', value: pc(worst.share), unit: '%', limit: `≥ ${pc(worst.need)}`, where: { rings: (bad.length ? bad : z).flatMap(x => x.rings) },
         note: (bad.length ? `SMZ ning uchastka ichidagi qismida koʻkalam yetarli emas (${list}). Koʻcha koridorlari ham hisob maydonida (TALQIN). Yechim: SMZ qismini «Himoya koʻkalamzorligi (SMZ)» funksiyasiga bering (Parsellar → «SMZ chegarasi boʻyicha ajratish»). Koʻkalam — himoya koʻkalamzorligi kvartallari (TALQIN).`
           : `SMZ koʻkalamzorligi yetarli (${list}).`) + amal };

@@ -125,7 +125,30 @@ describe('04.11 (Murad sinovi, 8-band): Overpass javob bermasa — xarita qatlam
       rails: [{ id: 9, pts: L([[-300, -260], [300, -260]]), cls: 'rail' }, { id: 10, pts: L([[-300, 0], [300, 0]]), cls: 'tram' }],
     }, site);
     const k = (id: number) => r.limits.find(l => l.osm === id)?.kind;
-    expect([k(1), k(2), k(4), k(5), k(6), k(7), k(8), k(9), k(10)]).toEqual(['sanoat', 'ombor', undefined, 'qabriston', undefined, 'suv', 'suv', 'temiryol', undefined]);
+    // 06.11 (c63): 7 — uchastkadan tashqaridagi kichik hovuz (pond) — bezak suvi, olinmaydi
+    expect([k(1), k(2), k(4), k(5), k(6), k(7), k(8), k(9), k(10)]).toEqual(['sanoat', 'ombor', undefined, 'qabriston', undefined, undefined, 'suv', 'temiryol', undefined]);
     expect(r.bigUnknown).toBe(1);
+  });
+});
+
+describe('06.11 (c63): bezak suvi — fontan, hovuz, basseyn (suvni muhofaza zonasisiz)', () => {
+  it('amenity=fountain, water=pond, < 0,5 ga tegsiz suv — bezak; katta yoki lake/reservoir — koʻl', async () => {
+    const { isDecor } = await import('../../src/context/limitsosm');
+    const loc = (w: number) => [[0, 0], [w, 0], [w, w], [0, w]] as XY[];
+    expect(isDecor({ water: 'pond' }, loc(200))).toBe(true);
+    expect(isDecor({}, loc(60))).toBe(true);
+    expect(isDecor({}, loc(80))).toBe(false);
+    expect(isDecor({ water: 'reservoir' }, loc(30))).toBe(false);
+    const r = parseLimitsOsm({ elements: [
+      { type: 'way', id: 1, tags: { amenity: 'fountain' }, geometry: sqG(-10, -10, 10, 10) },
+      { type: 'way', id: 2, tags: { natural: 'water' }, geometry: sqG(50, 50, 100, 100) },
+      { type: 'way', id: 3, tags: { natural: 'water', water: 'lake' }, geometry: sqG(-150, -150, -120, -120) },
+      { type: 'way', id: 4, tags: { leisure: 'swimming_pool' }, geometry: sqG(400, 400, 420, 420) },
+    ] } as any, site);
+    const by = (id: number) => r.find(l => l.osm === id);
+    expect(by(1)?.suv?.t).toBe('bezak'); expect(by(2)?.suv?.t).toBe('bezak'); expect(by(3)?.suv?.t).toBe('kol'); expect(by(4)).toBeUndefined();
+    const { suvZones } = await import('../../src/core/limits');
+    expect(suvZones(by(1)!).zone.m).toBe(0); expect(suvZones(by(1)!).shore.m).toBe(0);
+    expect(limitsQuery(site)).toContain('"amenity"="fountain"');
   });
 });

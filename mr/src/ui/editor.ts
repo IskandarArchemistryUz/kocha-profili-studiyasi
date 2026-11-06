@@ -2460,7 +2460,7 @@ export class Editor {
       if (!built(r) && g.typology !== 'minora') { const x = run({ ...g, typology: 'minora', maxF: Math.min(g.maxF, 9), minF: Math.min(g.minF, 5, g.maxF), towerF: Math.min(g.towerF ?? 16, 9, g.maxF) }); if (built(x.r)) { ({ asb, r } = x); r.notes.unshift(tr('Joy yetmadi — choʻziq seksiya oʻrniga minora (nuqtali bino), ≤ 9 qavat')); } }
       if (!built(r)) { const w = minWidth(b.rings[0]), sb = this.autoSb(i, { ...g, maxF: 3, minF: Math.min(g.minF, 3) })?.dMin ?? g.setback; r.notes.unshift(tf('Bino sigʻmadi: dahaning eng tor joyi ≈ ${w} m; 3 qavatda ham chekinish ${s} m × 2 va seksiya chuqurligi ${d} m kerak', { w: Math.round(w), s: fmt(sb, 1), d: fmt(g.depth, 1) })); }
     }
-    // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanQvaN 0103-25, 12-band; ShNQ 2.07.01-23, 146; qabriston — AMALIYOT, ehtiyot uchun) — uylar olinadi, seksiyalar qisqartiriladi
+    // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanQvaN 0103-25, 12-band; ShNQ 2.07.01-23, 146; qabriston — VM 101, 50-band) — uylar olinadi, seksiyalar qisqartiriladi
     { const dzOf = new Map<string, ReturnType<typeof denyZone>>(), dz = (u: string) => { if (!dzOf.has(u)) dzOf.set(u, denyZone(this.store.doc, u as Use)); return dzOf.get(u)!; };
       const byUse = new Map<string, typeof r.sections>(); for (const x of r.sections) { const u = x.use ?? b.use; byUse.set(u, [...(byUse.get(u) ?? []), x]); }
       r.sections = [...byUse].flatMap(([u, xs]) => clipToSzz(xs, dz(u), r.notes)); }
@@ -3499,27 +3499,33 @@ export class Editor {
       // 04.11 (Murad Buildings sinovi, 6-band): suv obyekti turi va toifasi — VM 981-son nizomi (kuchini yoʻqotgan, talqin)
       if (l.kind === 'suv') {
         const st = l.suv?.t ?? 'daryo', qs = SUV_Q[st];
-        ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Suv obyekti turi'), id: 'limSuvT' }, ...(['daryo', 'kol', 'kanal'] as const).map(k => h('button', { 'aria-pressed': st === k, 'data-suvt': k, title: tr(SUV_NAMES[k]), onclick: () => upd(l.id, { suv: { t: k } }) }, tr(({ daryo: 'Daryo', kol: 'Koʻl', kanal: 'Kanal' } as const)[k])))));
+        ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Suv obyekti turi'), id: 'limSuvT' }, ...(['daryo', 'kol', 'kanal', 'bezak'] as const).map(k => h('button', { 'aria-pressed': st === k, 'data-suvt': k, title: tr(SUV_NAMES[k]), onclick: () => upd(l.id, { suv: { t: k } }) }, tr(({ daryo: 'Daryo', kol: 'Koʻl', kanal: 'Kanal', bezak: 'Bezak' } as const)[k])))));
+        // 06.11 (c63): bezak suvi — zona yoʻq; turini koʻl yoki boshqasiga qoʻlda oʻzgartirish mumkin
+        if (st === 'bezak') ed.append(h('div', { class: 'note', 'data-suvbezak': '' }, tr('Bezak suvi (fontan, bezak hovuzi, basseyn) — suv obyekti emas: suvni muhofaza zonasi va qirgʻoq boʻyi mintaqasi qoʻllanmaydi (talqin). Tabiiy koʻl yoki suv ombori boʻlsa — «Koʻl» ni tanlang.')));
         if (st === 'daryo') ed.append(h('span', { class: 't-small' }, tr('Oʻrtacha koʻp yillik sarf, m³/s')));
         if (qs.length) ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr(st === 'daryo' ? 'Oʻrtacha koʻp yillik sarf, m³/s' : 'Toifasi'), id: 'limSuvQ' }, ...qs.map((t, i) => h('button', { 'aria-pressed': l.suv?.q === i + 1, 'data-suvq': i + 1, title: tr(t), onclick: () => upd(l.id, { suv: { t: st, q: (i + 1) as 1 | 2 | 3 | 4 } }) }, st === 'daryo' ? SUV_QS.daryo[i] : tr(t)))));
         if (qs.length && !l.suv?.q) ed.append(h('div', { class: 'note warn', 'data-suvnote': '' }, tr(st === 'daryo' ? 'Daryo toifasini kiriting (oʻrtacha koʻp yillik sarf). Hozircha «oʻrta» deb olindi.' : 'Kanal turini kiriting. Hozircha ikkalasining qattiqrogʻi olindi: zona 50 m, qirgʻoq boʻyi 4,5 m.')));
         const zz = suvZones(l), qir = h('input', { type: 'number', class: 'input', min: 0, max: 500, step: 'any', value: l.qir ?? '', placeholder: String(suvZones({ ...l, qir: undefined }).shore.m), id: 'limQir', 'aria-label': tr('Qirgʻoq boʻyi mintaqasi, m'),
           onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { qir: undefined }); else if (+v >= 0 && +v <= 500) upd(l.id, { qir: +v }); } });
-        ed.append(h('div', { class: 'row' }, h('div', { class: 'field grow' }, h('label', {}, tr('Qirgʻoq boʻyi mintaqasi (qurib boʻlmaydi)')), h('span', { class: 'unit' }, qir, h('span', {}, 'm')))),
+        if (st !== 'bezak') ed.append(h('div', { class: 'row' }, h('div', { class: 'field grow' }, h('label', {}, tr('Qirgʻoq boʻyi mintaqasi (qurib boʻlmaydi)')), h('span', { class: 'unit' }, qir, h('span', {}, 'm')))),
           h('span', { class: 't-small', 'data-suvref': l.id }, zz.shore.ref),
           h('div', { class: 'note warn', 'data-suvlost': '' }, tr('VM 981-son qarori LexUz da 23.06.2026 dan kuchini yoʻqotgan, oʻrnini bosuvchi hujjat aniqlanmagan. Kengliklar — oraliqning quyi chegarasi (talqin); amaldagi hujjat boʻyicha tekshiring.')));
       }
+      // 06.11 (c63): VM 101-son qarori, 1-ilova, 50-band — turi: amaldagi (maydon boʻyicha 300 / 500 m), qishloq va kolumbariy (≥ 50 m),
+      // kuydirishdan keyin dafn va yopiq (100 m); turar joy, jamoat binolari devoridan ≥ 100 m
       if (l.kind === 'qabriston') {
-        const open = l.sub?.open !== false;
+        const open = l.sub?.open !== false, kind = !open ? 'closed' : l.sub?.rural ? 'rural' : l.sub?.memorial ? 'kolumb' : l.sub?.crem ? 'crem' : 'shahar';
         ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Qabriston') },
           h('button', { 'aria-pressed': open, 'data-qab': 'open', onclick: () => upd(l.id, { sub: { open: true } }) }, tr('Amaldagi')),
           h('button', { 'aria-pressed': !open, 'data-qab': 'closed', onclick: () => upd(l.id, { sub: { open: false } }) }, tr('Yopilgan'))));
-        if (!open) ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Yopilgan qabriston turi') },
-          h('button', { 'aria-pressed': !!l.sub?.memorial, onclick: () => upd(l.id, { sub: { ...l.sub, open: false, memorial: !l.sub?.memorial } }) }, tr('Memorial / kolumbariy')),
-          h('button', { 'aria-pressed': !!l.sub?.rural, onclick: () => upd(l.id, { sub: { ...l.sub, open: false, rural: !l.sub?.rural } }) }, tr('Qishloq qabristoni'))));
-        else ed.append(h('div', { class: 'seg sm full', role: 'group', 'aria-label': tr('Qabriston turi') },
-          h('button', { 'aria-pressed': !!l.sub?.rural, 'data-qab': 'rural', onclick: () => upd(l.id, { sub: { ...l.sub, rural: !l.sub?.rural } }) }, tr('Qishloq qabristoni (≤ 2 ga)'))));
-        if (!open) ed.append(h('span', { class: 't-small', 'data-qabnote': '' }, tr('Yopilganlik rasmiy hujjat bilan tasdiqlanadi. Amaldagi SanQvaN 0103-25 da qabriston yoʻq — qiymat bekor qilingan SanPiN 0350-17, 6.4 dan, maʼlumot uchun (AMALIYOT): yopilgan qabriston IV (100 m), memorial majmuasi V (50 m).')));
+        if (open) {
+          const QT = [['shahar', 'Shahar', 'Yangi yoki amaldagi qabriston: 20–40 ga — 500 m, 20 ga dan kichik — 300 m'], ['rural', 'Qishloq', 'Qishloq qabristoni (1000 xonadondan kam aholi punkti): ≥ 50 m'], ['kolumb', 'Kolumbariy', 'Kolumbariy: ≥ 50 m'], ['crem', 'Kuydirish', 'Kuydirishdan keyin dafn etiladigan qabriston: 100 m']] as const;
+          const qb = ([k, t, d]: typeof QT[number]) => h('button', { 'aria-pressed': kind === k, 'data-qab': k, title: tr(d), onclick: () => upd(l.id, { sub: { open: true, ...(k === 'rural' ? { rural: true } : k === 'kolumb' ? { memorial: true } : k === 'crem' ? { crem: true } : {}) } }) }, tr(t));
+          ed.append(h('div', { class: 'col', role: 'group', 'aria-label': tr('Qabriston turi'), id: 'limQabT', style: 'gap:4px' },
+            h('div', { class: 'seg sm full' }, qb(QT[0]), qb(QT[1])), h('div', { class: 'seg sm full' }, qb(QT[2]), qb(QT[3]))));
+        }
+        ed.append(h('span', { class: 't-small', 'data-qabnote': '' }, tr(!open ? 'Yopilganlik rasmiy hujjat bilan tasdiqlanadi. Yopiq qabriston SMZ i 100 m — sanitariya-epidemiologiya xizmati bilan kelishib 50 m gacha kamaytirilishi mumkin, lekin turar joy va jamoat binolari devoridan kamida 100 m qoladi (VM 101-son qarori, 1-ilova, 50-band).'
+          : 'VM 101-son qarori, 1-ilova, 50-band: SMZ da turar joy va jamoat binolari qurish taqiqlanadi; turar joy, jamoat binolari va dam olish zonalari devoridan qabristongacha kamida 100 m. Markazlashmagan suv taʼminotida SMZ 500 m gacha oshirilishi mumkin — kerak boʻlsa SMZ ni qoʻlda kiriting.')));
       }
       const buf = h('input', { type: 'number', class: 'input', min: 0, max: 2000, step: 1, value: l.szz ?? '', placeholder: String(szzOf({ ...l, szz: undefined }, aHa).m), id: 'limBuf', 'aria-label': tr('Bufer, m'),
         onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { szz: undefined }); else if (+v >= 0 && +v <= 2000) upd(l.id, { szz: +v }); } });

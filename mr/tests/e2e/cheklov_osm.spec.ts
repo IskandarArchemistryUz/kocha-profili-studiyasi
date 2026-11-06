@@ -29,7 +29,7 @@ test('OSM dan cheklovlar: qabriston, 110 kV ELU tayanchlari bilan, bogʻ', async
   await expect(page.locator('[data-lim]')).toHaveCount(3, { timeout: 15000 });
   await expect(page.locator('#limOsmMsg')).toContainText('3');
   const rows = page.locator('[data-lim]');
-  await expect(rows.filter({ hasText: 'Eski qabriston' })).toContainText('100 m · IV');
+  await expect(rows.filter({ hasText: 'Eski qabriston' })).toContainText('300 m');   // 06.11 (c63): VM 101, 50-band — < 20 ga
   await expect(rows.filter({ hasText: '110 kV' })).toContainText('2 tayanch');
   await expect(rows.filter({ hasText: '110 kV' })).toContainText('OSM');
   await expect(rows.filter({ hasText: 'Bogʻ' })).toContainText('Buziladi');
