@@ -11,7 +11,7 @@ import { computePlan } from './plan';
 import { useDef, USES } from './uses';
 import { profileById, profileWidth, type PartKind, type Cat } from './profiles';
 import { derive } from './derive';
-import { offsetLine, projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
+import { offsetLine, projectStreetsGeo, buildNet, asTargets, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { landscape, greenBalance } from './landscape';
 import { szzGreen } from './szzgen';
 import { entryRing } from './parkentry';
@@ -269,11 +269,19 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     }
     const roads = ctx.roads.filter(r => !adopted.has(r.id) && vis(r.pts) && !/^(footway|path|steps|track|bridleway|corridor|cycleway)$/.test(r.cls));
     if (K !== 'figura' && roads.length && Ly('streets').on) {
-      const sw = (c: string) => /^(motorway|trunk|primary|secondary)/.test(c) ? 4 : /^tertiary/.test(c) ? 3 : /^service/.test(c) ? 0 : 2.2;
+      const sw0 = (c: string) => /^(motorway|trunk|primary|secondary)/.test(c) ? 4 : /^tertiary/.test(c) ? 3 : /^service/.test(c) ? 0 : 2.2;
       const minW = VZ ? 0.35 : 0;
-      g('Atrof_yollar', roads.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="${C.roadEdge}" stroke-width="${n2(Math.max(minW + 0.2, (r.w + 2 * sw(r.cls)) * k + 0.25))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
-        + roads.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#f6f5f2" stroke-width="${n2(Math.max(minW, (r.w + 2 * sw(r.cls)) * k))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
-        + roads.filter(r => sw(r.cls) > 0).map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#e9e7e2" stroke-width="${n2(r.w * k)}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), (VZ ? '' : outside) + fade);
+      /* 06.11, 23:10 (egasi): loyiha koʻchasining uchastkadan tashqaridagi qismi — atrofdagi mavjud koʻchalar uslubida, mavjud koʻchagacha
+         ulangan (tugun modeli bilan choʻzilgan oʻq); maska bilan faqat tashqarida — ichkarisi loyiha uslubida (3-band) */
+      const projR: { pts: XY[]; w: number; s: number }[] = site && !VZ && doc.streets.length
+        ? buildNet(doc.streets.map(s => ({ id: s.id, axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), asTargets(roads.map(r => ({ pts: r.pts, cls: r.cls, w: r.w })))).list
+          .map(s => { const W = s.parts.reduce((t, p) => t + p.w, 0), a = s.parts.filter(p => /^(qatnov|avtobus|tramvay|parkovka|velo)$/.test(p.k)).reduce((t, p) => t + p.w, 0); return { pts: s.axis, w: a || W, s: a ? (W - a) / 2 : 0 }; })
+          .filter(r => r.pts.length >= 2 && vis(r.pts))
+        : [];
+      const all = [...roads.map(r => ({ pts: r.pts, w: r.w, s: sw0(r.cls) })), ...projR];
+      g('Atrof_yollar', all.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="${C.roadEdge}" stroke-width="${n2(Math.max(minW + 0.2, (r.w + 2 * r.s) * k + 0.25))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
+        + all.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#f6f5f2" stroke-width="${n2(Math.max(minW, (r.w + 2 * r.s) * k))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
+        + all.filter(r => r.s > 0).map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#e9e7e2" stroke-width="${n2(r.w * k)}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), (VZ ? '' : outside) + fade);
     }
     if (K !== 'figura' && ctx.rails.length) g('Atrof_temir_yol', ctx.rails.filter(vis).map(l => `<path d="${lineD(l)}" fill="none" stroke="#9a978f" stroke-width="${lw(0.35)}" stroke-dasharray="3 1.2"/>`).join(''), outside + fade);
     const rmv = new Set(doc.removed ?? []), cb = ctx.buildings.filter(b => b.rings[0] && vis(b.rings[0]) && !rmv.has(b.id));
