@@ -17,7 +17,9 @@ import { buildContext, buildingMeshes, houseRoofRise, satTint, type ContextScene
 import { applyVisibility, buildUserLayer, geomKey, paintUserLayer, type UL3D } from './userlayers3d';
 import type { ULFeature } from '../core/userlayers';
 import { endShapes } from '../core/streetends';
-import { projectStreetsGeo, CURB_R, CURB_R_RECON } from './streets3d';
+import { projectStreetsGeo, CURB_R, CURB_R_RECON, clipLineToRings, inRings } from './streets3d';
+import { siteMask, outsideAs } from './siteFade';
+import { CC } from './context3d';
 import { computePlan, interiorPoint } from '../core/plan';
 import { limitZones, hatchSegs, isActive } from '../core/limits';
 import { profileById } from '../core/profiles';
@@ -107,6 +109,8 @@ export const EXPLODE_NAMES = ['Atrof', 'Koʻchalar', 'Kvartallar va zonalar', 'B
 const DARK = { bg: 0x161615, ground: 0x252523, gridTint: 0x3a3a38 };
 /** Past qavatli uylar uchastkasi devori balandligi, m (andoza) */
 const FENCE_H = 1.8;
+/** loyiha koʻchasi qatlamlari: asfalt turidagilar (tashqi qism kontekst asfalti rangida) */
+const ASPH_K = /^(qatnov|avtobus|tramvay|parkovka|velo)$/;
 const C = { ground: 0xeceae5, grid: 0xd9d6cf, gridMajor: 0xc6c2b9, site: 0xf3e3b4, siteLine: 0xc0392b, bld: 0xf7f6f2, bldSel: 0xcfe0f1, roof: 0xdedad2, edge: 0x3c3c3c, preview: 0x2a6fb0 };
 
 const bbox = (r: XY[]): [number, number, number, number] => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of r) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); } return [a, b, c, d]; };
@@ -1193,30 +1197,40 @@ export class Scene3D {
       const curbR = doc.settings.recon ? CURB_R_RECON : CURB_R;
       let sg = sk && sk.streets === doc.streets && sk.origin === doc.origin && sk.ctx === this.ctx && sk.H === this.H && sk.curbR === curbR ? sk.sg : null;
       if (!sg) { sg = projectStreetsGeo(doc.streets.map(st => ({ id: st.id, axis: st.axis.map(fr.toLocal), parts: profileById(st.profile).parts })), this.H, this.ctx?.roads ?? [], { curbR }); this.streetGeoKey = { streets: doc.streets, origin: doc.origin, ctx: this.ctx, H: this.H, curbR, sg }; }
+      // 06.11 (egasi): geometriya kesilmaydi — uchastka ichidagi qismi tiniq, tashqarisi xira (sheyder niqobi); qizil chiziq va daraxtlar faqat ichida
+      const siteR = doc.site ? doc.site.rings.map(r => r.map(fr.toLocal)) : null, mask = siteMask(siteR);
+      // 23:10 (egasi): tashqi qism — atrofdagi mavjud koʻchalar uslubida (kontekst yoʻli rangi, joriy uslubda)
+      const ctxCol = (name: string, def: number, ord?: number): THREE.Color => { let c: THREE.Color | null = null;
+        this.ctx?.group.traverse(o => { const mm = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined; if (!c && o.name === name && mm?.color && (ord == null || mm.userData?.order === ord)) c = mm.color.clone(); });
+        return c ?? new THREE.Color(def); };
+      const OUT = mask ? { asph: ctxCol('yoʻllar', CC.asphalt, 3.1), walk: ctxCol('trotuarlar', CC.sidewalk), mark: ctxCol('chiziqlar', CC.mark) } : null;
+      const outKind = (k: string): 'asph' | 'walk' | 'mark' => k === 'chiziq' ? 'mark' : ASPH_K.test(k) ? 'asph' : 'walk';
+      const fz = <T extends THREE.Mesh>(m: T, k: string): T => { if (mask && OUT) { outsideAs(m.material as THREE.Material, mask, OUT[outKind(k)]); m.userData.siteOut = outKind(k); } return m; };
       // 05.11 (egasi skrinshoti: chorrahada kulrang/qora «choʻqqi»): qizil chiziq ichidagi butun koridor (kvartallar shundan kesiladi) avval
       // trotuar rangida — koʻcha qatlamlari qoplamagan burchak (masalan burilish boʻgʻinining tashqi burchagi) ostidan fon koʻrinmasin
       { const pal = (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL);
         for (const poly of computePlan(doc).corridors) { if (!poly[0] || poly[0].length < 3) continue;
           const sh = new THREE.Shape(poly[0].map(toV2)); poly.slice(1).forEach(hh => sh.holes.push(new THREE.Path(hh.map(toV2))));
           const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(sh), this.H, 0.06, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: pal.trotuar, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-          m.renderOrder = 8.9; m.userData.corrBase = true; this.world.add(m); } }
+          m.renderOrder = 8.9; m.userData.corrBase = true; this.world.add(fz(m, 'trotuar')); } }
       const ord: [string, number][] = [['trotuar', 9], ['yashil', 9.1], ['velo', 9.1], ['parkovka', 9.1], ['qatnov', 9.2], ['avtobus', 9.2], ['tramvay', 9.2], ['chiziq', 9.3]];
       for (const [k, o] of ord) {
         const arr = sg.layers[k]; if (!arr?.length) continue;
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL)[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(m);
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL)[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 })); m.renderOrder = o; m.frustumCulled = false; this.world.add(fz(m, k));
       }
       // berk koʻcha burilish joylari va chorraha aylanmalari (57, 27-band): uchta tekis shakl — yengil
       { const pal = (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL);
         endShapes(doc).forEach(e => ([['trotuar', e.outer, 9.25], ['qatnov', e.carriage, 9.35], ...(e.island ? [[e.paint ? 'trotuar' : 'yashil', e.island, 9.45]] : [])] as [string, XY[], number][]).forEach(([k, r, o]) => {
           const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(new THREE.Shape(r.map(p => new THREE.Vector2(p[0], p[1])))), this.H, 0.16 + (o - 9.2) * 0.1, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: pal[k], depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 - o * 0.1, polygonOffsetUnits: -3 - o * 0.1 }));
-          m.renderOrder = o; this.world.add(m);
+          m.renderOrder = o; this.world.add(fz(m, k));
         })); }
-      sg.red.forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); this.world.add(l); });
+      (siteR ? sg.red.flatMap(r => clipLineToRings(r, siteR)) : sg.red).forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); l.userData.redLine = true; this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
       // aylana / aylanma ichidagi koʻcha daraxtlari olinmaydi
-      const ends = endShapes(doc), trees = ends.length ? sg.trees.filter(p => !ends.some(e => Math.hypot(p[0] - e.at[0], p[1] - e.at[1]) < (e.kind === 'maydon' ? 15 : e.kind === 'aylana' ? 18 : Math.hypot(e.outer[0][0] - e.at[0], e.outer[0][1] - e.at[1]) + 1))) : sg.trees;
-      if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c));
+      const ends = endShapes(doc), trees0 = ends.length ? sg.trees.filter(p => !ends.some(e => Math.hypot(p[0] - e.at[0], p[1] - e.at[1]) < (e.kind === 'maydon' ? 15 : e.kind === 'aylana' ? 18 : Math.hypot(e.outer[0][0] - e.at[0], e.outer[0][1] - e.at[1]) + 1))) : sg.trees;
+      const trees = siteR ? trees0.filter(p => inRings(p, siteR)) : trees0;
+      if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c).map(o => { o.userData.streetTrees = true; return o; }));
     }
     tag(1);
     // uchastka ichidagi mavjud binolar: saqlanadigan — oddiy, qolgani — buziladigan (shaffof qizil)

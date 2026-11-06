@@ -34,6 +34,8 @@ export class Buf {
       this.quad([p0[0] + nx * off0, p0[1] + ny * off0], [p1[0] + nx * off0, p1[1] + ny * off0], [p1[0] + nx * off1, p1[1] + ny * off1], [p0[0] + nx * off1, p0[1] + ny * off1]);
     }
   }
+  /** c markazli yelpigʻich: c → arc[k] → arc[k+1] */
+  fan(c: XY, arc: XY[]) { for (let k = 1; k < arc.length; k++) this.tri(c, arc[k - 1], arc[k]); }
   disc(c: XY, r: number) { const n = r > 5 ? 16 : 10; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, b = (i + 1) / n * Math.PI * 2; this.tri(c, [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r], [c[0] + Math.cos(b) * r, c[1] + Math.sin(b) * r]); } }
   /** caps=false — uchlar toʻgʻri kesilgan (loyiha koʻchalari), true — yumaloq (OSM: uzilgan boʻlaklar ulansin) */
   ribbon(pts: XY[], r: number, caps = true) {
@@ -46,7 +48,58 @@ export interface StreetGeo { sidewalk: number[]; asphalt: number[]; major: numbe
 
 const key = (p: XY) => `${Math.round(p[0] * 2)},${Math.round(p[1] * 2)}`;
 
-export function streetsGeo(list: StreetIn[], H: HeightFn): StreetGeo {
+/** Mavjud (OSM) koʻchalar: chorraha va burilishlarda bordyur yoyi radiusi, m — ANDOZA (egasi, 06.11: «po umolchaniyu 6 m») */
+export const OSM_CURB_R = 6;
+/** yoy boʻlaklari soni — sahna yengil boʻlsin */
+const ARC_SEG = 6;
+const cross = (a: XY, b: XY) => a[0] * b[1] - a[1] * b[0];
+
+/**
+ * OSM tugunlaridagi bordyur yoylari. Har tugunda yoʻnalishlar burchak boʻyicha saralanadi; qoʻshni ikki yoʻnalish orasi 20°–170° boʻlsa
+ * (chorrahaning botiq burchagi yoki burilishning ichki tomoni) — ikkala qatnov cheti chizigʻiga urinuvchi R radiusli yoy. Yoy uchlari
+ * boʻlakning yarmidan oshsa, R kichraytiriladi (0,6 baravardan, 3 marta), sigʻmasa — yoy qoʻyilmaydi.
+ * c — qatnov chetlari kesishgan burchak nuqtasi, arc — urinish nuqtalari orasidagi yoy (c dan yelpigʻich bilan toʻldiriladi).
+ */
+export function osmFillets(list: StreetIn[], R0 = OSM_CURB_R): { c: XY; arc: XY[]; major: boolean }[] {
+  type Arm = { u: XY; a: number; r: number; L: number; major: boolean };
+  const nodes = new Map<string, { p: XY; arms: Arm[] }>();
+  for (const s of list) {
+    if (FOOT.test(s.cls)) continue;
+    const r = s.w / 2, major = MAJOR.test(s.cls);
+    s.pts.forEach((p, i) => {
+      const add = (q: XY) => { const dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy); if (L < 0.5) return;
+        const k = key(p), e = nodes.get(k) || { p, arms: [] }; e.arms.push({ u: [dx / L, dy / L], a: Math.atan2(dy, dx), r, L, major }); nodes.set(k, e); };
+      if (i > 0) add(s.pts[i - 1]); if (i < s.pts.length - 1) add(s.pts[i + 1]);
+    });
+  }
+  const out: { c: XY; arc: XY[]; major: boolean }[] = [];
+  const MIN = 20 * Math.PI / 180, MAX = 170 * Math.PI / 180;
+  for (const { p, arms } of nodes.values()) {
+    if (arms.length < 2) continue;
+    arms.sort((x, y) => x.a - y.a);
+    for (let i = 0; i < arms.length; i++) {
+      const A = arms[i], B = arms[(i + 1) % arms.length];
+      let th = B.a - A.a; if (th <= 0) th += Math.PI * 2;
+      if (th < MIN || th > MAX) continue;
+      const n1: XY = [-A.u[1], A.u[0]], n2: XY = [B.u[1], -B.u[0]], c0 = cross(A.u, B.u);
+      if (Math.abs(c0) < 1e-6) continue;
+      // p + n1·a1 + t·u1 = p + n2·a2 + s·u2
+      const sol = (a1: number, a2: number) => { const d: XY = [n2[0] * a2 - n1[0] * a1, n2[1] * a2 - n1[1] * a1]; return { t: cross(d, B.u) / c0, s: cross(d, A.u) / c0 }; };
+      const k0 = sol(A.r, B.r), C: XY = [p[0] + n1[0] * A.r + A.u[0] * k0.t, p[1] + n1[1] * A.r + A.u[1] * k0.t];
+      let R = R0, k = sol(A.r + R, B.r + R);
+      for (let g = 0; g < 3 && (k.t > A.L / 2 || k.s > B.L / 2); g++) { R *= 0.6; k = sol(A.r + R, B.r + R); }
+      if (k.t > A.L / 2 || k.s > B.L / 2 || k.t <= 0 || k.s <= 0 || R < 1) continue;
+      const O: XY = [p[0] + n1[0] * (A.r + R) + A.u[0] * k.t, p[1] + n1[1] * (A.r + R) + A.u[1] * k.t];
+      const a0 = Math.atan2(-n1[1], -n1[0]); let da = Math.atan2(-n2[1], -n2[0]) - a0;
+      while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+      const arc: XY[] = []; for (let j = 0; j <= ARC_SEG; j++) { const a = a0 + da * j / ARC_SEG; arc.push([O[0] + Math.cos(a) * R, O[1] + Math.sin(a) * R]); }
+      out.push({ c: C, arc, major: A.major && B.major });
+    }
+  }
+  return out;
+}
+
+export function streetsGeo(list: StreetIn[], H: HeightFn, curbR = OSM_CURB_R): StreetGeo {
   const sw = new Buf(H, 0.08), as = new Buf(H, 0.1), mj = new Buf(H, 0.11), ft = new Buf(H, 0.09), mk = new Buf(H, 0.13);
   // chorrahalar: bir nechta koʻcha uchrashgan nuqta → u yerdagi eng keng yarim kenglik
   const nodes = new Map<string, { n: number; r: number; p: XY }>();
@@ -69,6 +122,8 @@ export function streetsGeo(list: StreetIn[], H: HeightFn): StreetGeo {
     if (swW) sw.ribbon(s.pts, r + swW);
     (MAJOR.test(s.cls) ? mj : as).ribbon(s.pts, r);
   }
+  // 06.11 (egasi): chorraha va burilishlarda bordyur yoyi — har tugundagi qoʻshni ikki yoʻnalish orasidagi botiq burchakka asfalt yelpigʻichi
+  for (const f of osmFillets(list, curbR)) (f.major ? mj : as).fan(f.c, f.arc);
 
   // chiziqlar (alohida sikl — trotuar/asfalt hammasi chizilgandan keyin)
   for (const s of list) {
@@ -113,6 +168,40 @@ export interface ProjStreetGeo { layers: Record<string, number[]>; trees: XY[]; 
 
 const segDist = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]); };
 const lineDist = (p: XY, l: XY[]) => { let m = Infinity; for (let i = 1; i < l.length; i++) m = Math.min(m, segDist(p, l[i - 1], l[i])); return m; };
+
+/** Nuqta halqalar ichidami (juft-toq qoidasi: teshiklar va bir nechta boʻlak) */
+export function inRings(p: XY, rings: XY[][]): boolean {
+  let ins = false;
+  for (const r of rings) for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const a = r[i], b = r[j];
+    if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) ins = !ins;
+  }
+  return ins;
+}
+/** Siniq chiziqni halqalar bilan kesish: faqat ichidagi boʻlaklar qoladi (06.11: qizil chiziq sahnada faqat uchastka ichida) */
+export function clipLineToRings(line: XY[], rings: XY[][]): XY[][] {
+  const out: XY[][] = []; let cur: XY[] = [];
+  const flush = () => { if (cur.length >= 2) out.push(cur); cur = []; };
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1], b = line[i], dx = b[0] - a[0], dy = b[1] - a[1];
+    const ts = [0, 1];
+    for (const r of rings) for (let k = 0; k < r.length; k++) {
+      const c = r[k], d = r[(k + 1) % r.length], ex = d[0] - c[0], ey = d[1] - c[1], den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const t = ((c[0] - a[0]) * ey - (c[1] - a[1]) * ex) / den, u = ((c[0] - a[0]) * dy - (c[1] - a[1]) * dx) / den;
+      if (t > 0 && t < 1 && u >= 0 && u <= 1) ts.push(t);
+    }
+    ts.sort((x, y) => x - y);
+    for (let j = 1; j < ts.length; j++) {
+      const t0 = ts[j - 1], t1 = ts[j]; if (t1 - t0 < 1e-9) continue;
+      const P = (t: number): XY => [a[0] + dx * t, a[1] + dy * t], m = P((t0 + t1) / 2);
+      if (inRings(m, rings)) { const p0 = P(t0); if (!cur.length) cur.push(p0); else { const q = cur[cur.length - 1]; if (Math.hypot(q[0] - p0[0], q[1] - p0[1]) > 1e-6) { flush(); cur.push(p0); } } cur.push(P(t1)); }
+      else flush();
+    }
+  }
+  flush();
+  return out;
+}
 
 /** Ulanish nishoni: boshqa yoʻl (OSM yoki loyiha koʻchasi) — oʻqi, qatnov kengligi w, qatnovdan qizil chiziqgacha sw */
 export interface RoadTarget { pts: XY[]; w: number; sw: number; bb?: number[] }
@@ -185,6 +274,8 @@ export function curbFillets(end: XY, prev: XY, eL: number, eR: number, tg: RoadT
     const t = Math.min(Math.max(14, R * 1.6), R / Math.tan(th / 2)), bis: XY = [back[0] + w2[0], back[1] + w2[1]], bl = Math.hypot(bis[0], bis[1]) || 1;
     const O: XY = [C[0] + bis[0] / bl * R / Math.sin(th / 2), C[1] + bis[1] / bl * R / Math.sin(th / 2)];
     const T1: XY = [C[0] + back[0] * t, C[1] + back[1] * t], T2: XY = [C[0] + w2[0] * t, C[1] + w2[1] * t];
+    // 06.11: yoy yoʻl cheti boʻylab yoʻlning oʻzi tugagan joydan nariga chiqmasin (qisqa boʻlak / tugaydigan yoʻl — «tikan» chiqardi)
+    if (lineDist(T2, tg.pts) > tg.w / 2 + 0.6) continue;
     let a1 = Math.atan2(T2[1] - O[1], T2[0] - O[0]), a2 = Math.atan2(T1[1] - O[1], T1[0] - O[0]);
     if (a2 - a1 > Math.PI) a2 -= 2 * Math.PI; if (a1 - a2 > Math.PI) a2 += 2 * Math.PI;
     const poly: XY[] = [C, T2];
@@ -454,7 +545,7 @@ function redChains(list: ProjStreet[]): { s: ProjStreet; mem: Set<ProjStreet> }[
 }
 
 export function projectStreetsGeo(list0: ProjStreet[], H: HeightFn, osm: StreetIn[] = [], opt: { curbR?: number } = {}): ProjStreetGeo {
-  const R = opt.curbR ?? CURB_R;
+  const R0 = opt.curbR ?? CURB_R, R = R0;
   const L: Record<string, Buf> = {}, layer = (k: string, lift: number) => (L[k] ??= new Buf(H, lift));
   const trees: XY[] = [];
   const half = (s: ProjStreet) => s.parts.reduce((a, p) => a + p.w, 0) / 2;
@@ -534,6 +625,10 @@ export function projectStreetsGeo(list0: ProjStreet[], H: HeightFn, osm: StreetI
         continue;
       }
       // burchak: ikki qatnov cheti X da kesishadi; R radiusli yoy (tashqi burchak — trotuar tomoni) bilan aylantiriladi
+      // 06.11: yoy urinish nuqtasi koʻcha boʻlagining narigi uchidan oshmasin (qisqa boʻlak, keyin yana chorraha — «tikan» chiqardi):
+      // sigʻmasa radius kichraytiriladi
+      const avail = (j: JEnd) => j.s.axis.reduce((t, p, i) => i ? t + Math.hypot(p[0] - j.s.axis[i - 1][0], p[1] - j.s.axis[i - 1][1]) : 0, 0) - Math.max(0, (X[0] - j.e[0]) * j.o[0] + (X[1] - j.e[1]) * j.o[1]);
+      const R = Math.max(0.5, Math.min(R0, Math.max(0, Math.min(avail(A), avail(B)) - 0.5) * Math.tan(ang / 2)));
       const tau = R / Math.tan(ang / 2), bl = Math.hypot(A.o[0] + B.o[0], A.o[1] + B.o[1]) || 1, bis: XY = [(A.o[0] + B.o[0]) / bl, (A.o[1] + B.o[1]) / bl];
       {
         // 06.11 (egasi: qizil chiziq burchagi ham yoy bilan): qizil chiziqlar burchagi bordyur yoyiga parallel — radius R − (qatnov chetidan qizil chiziqgacha)
