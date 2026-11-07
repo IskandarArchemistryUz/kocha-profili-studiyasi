@@ -170,10 +170,16 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
       for (const q of inn.rooms) out.push(`<path d="${path(q.ring)}" fill="${q.wet ? '#ffffff' : tf ?? (o.mono ? '#ffffff' : APT_FILL[Math.min(4, a.rooms)])}" stroke="none" pointer-events="none"/>${q.wet ? `<path d="${path(q.ring)}" fill="url(#tile)" stroke="none" pointer-events="none"/>` : ''}`);
       if (inn.kitchen && (o.furn !== true || !inn.furn)) out.push(seg(inn.kitchen[0], inn.kitchen[1], 'stroke="#6b6965" stroke-width="0.18" stroke-dasharray="0.8 0.5"'));
       if (o.furn === true && inn.furn) for (const f of inn.furn) out.push(`<g data-furn="${f.k}">${furnSvg(f, X, Y, k)}</g>`);
-      for (const [p, q] of inn.walls) out.push(seg(p, q, `stroke="#141414" stroke-width="${(0.1 * k).toFixed(2)}" stroke-linecap="butt"`));
+      // 07.11 (egasi, 06.11 17:36 — «?» belgilari): umumiy xona orqasidagi sayoz (< 1,0 m) kiyimxona tasmasi — devor shkafi: old devori
+      // yupqa chiziq, ichida shkaf belgisi (diagonal); avval qalin devor boʻlagi boʻlib, nimaligi tushunarsiz edi
+      const shk = inn.rooms.filter(q => q.kind === 'garderob' && q.ring.length === 4 && Math.min(Math.hypot(q.ring[1][0] - q.ring[0][0], q.ring[1][1] - q.ring[0][1]), Math.hypot(q.ring[2][0] - q.ring[1][0], q.ring[2][1] - q.ring[1][1])) < 1.0);
+      const inShk = (p: XY, r: { ring: XY[] }) => { const [o, a1, , b1] = r.ring, ux = a1[0] - o[0], uy = a1[1] - o[1], vx = b1[0] - o[0], vy = b1[1] - o[1], lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy), pu = ((p[0] - o[0]) * ux + (p[1] - o[1]) * uy) / lu, pv = ((p[0] - o[0]) * vx + (p[1] - o[1]) * vy) / lv; return pu > -0.06 && pu < lu + 0.06 && pv > -0.06 && pv < lv + 0.06; };
+      const onShk = (p: XY, q: XY) => shk.some(r => inShk(p, r) && inShk(q, r));
+      for (const [p, q] of inn.walls) out.push(seg(p, q, `stroke="#141414" stroke-width="${((onShk(p, q) ? 0.04 : 0.1) * k).toFixed(2)}" stroke-linecap="butt"`));
+      for (const r of shk) out.push(`<path d="M${X(r.ring[0][0])} ${Y(r.ring[0][1])}L${X(r.ring[2][0])} ${Y(r.ring[2][1])}" stroke="#6b6965" stroke-width="${(0.015 * k).toFixed(2)}" pointer-events="none" data-shkaf=""/>`);
       for (const d of inn.doors) {
         const tip: XY = [d.h[0] + d.n[0] * d.w, d.h[1] + d.n[1] * d.w];
-        if (d.kind === 'slide') { const ux = (d.a[0] - d.h[0]) / d.w, uy = (d.a[1] - d.h[1]) / d.w, o1: XY = [d.h[0] + d.n[0] * 0.09, d.h[1] + d.n[1] * 0.09], o2: XY = [d.a[0] + ux * 0.1 + d.n[0] * 0.09, d.a[1] + uy * 0.1 + d.n[1] * 0.09]; out.push(seg(o1, o2, `stroke="#141414" stroke-width="${(0.05 * k).toFixed(2)}"`)); continue; }
+        if (d.kind === 'slide') { const ux = (d.a[0] - d.h[0]) / d.w, uy = (d.a[1] - d.h[1]) / d.w, o1: XY = [d.h[0] + d.n[0] * 0.09, d.h[1] + d.n[1] * 0.09], o2: XY = [d.a[0] + ux * 0.1 + d.n[0] * 0.09, d.a[1] + uy * 0.1 + d.n[1] * 0.09]; out.push(seg(o1, o2, `stroke="#141414" stroke-width="${((shk.some(r => inShk(d.h, r) && inShk(d.a, r)) ? 0.025 : 0.05) * k).toFixed(2)}"`)); continue; }
         // yoy: SVG da y teskari — aylanish yoʻnalishi chizma koordinatalarida
         const sx = (p: XY) => [Number(X(p[0])), Number(Y(p[1]))], [hx, hy] = sx(d.h), [tx, ty] = sx(tip), [ax, ay] = sx(d.a), cr = (tx - hx) * (ay - hy) - (ty - hy) * (ax - hx);
         out.push(seg(d.h, tip, `stroke="#141414" stroke-width="${(0.03 * k).toFixed(2)}"`), `<path d="M${tx.toFixed(2)} ${ty.toFixed(2)}A${(d.w * k).toFixed(2)} ${(d.w * k).toFixed(2)} 0 0 ${cr > 0 ? 1 : 0} ${ax.toFixed(2)} ${ay.toFixed(2)}" fill="none" stroke="#141414" stroke-width="${(0.015 * k).toFixed(2)}" stroke-dasharray="${(0.06 * k).toFixed(2)} ${(0.04 * k).toFixed(2)}"/>`);
@@ -182,7 +188,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
       for (const q of inn.rooms) {
         if (q === big) continue;
         const c = labelPt(q.ring), w = Math.min(...[0, 1].map(j => Math.max(...q.ring.map(p => p[j])) - Math.min(...q.ring.map(p => p[j]))));
-        if (w < 0.9) continue;
+        if (w < 0.9 || shk.includes(q)) continue;
         const nm = IN_LABEL[q.kind], f2 = Math.max(rf * 0.55, Math.min(w < 1.5 ? rf * 0.8 : rf, (w - 0.2) * k / (nm.length * 0.55)));   // uzun nom tor xonaga sigʻsin
         out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="${f2.toFixed(2)}" text-anchor="middle" fill="#3a3936" pointer-events="none">${nm}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + f2 * 1.15).toFixed(2)}" font-size="${(f2 * 0.9).toFixed(2)}" text-anchor="middle" fill="#6b6965" pointer-events="none">${n1(Math.round(q.area * 10) / 10)}</text>`);
       }
@@ -205,10 +211,18 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     for (let i = 0; i < a.ring.length; i++) { const p = a.ring[i], q = a.ring[(i + 1) % a.ring.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]), t = ((a.door[0] - p[0]) * (q[0] - p[0]) + (a.door[1] - p[1]) * (q[1] - p[1])) / (l * l || 1), d = Math.hypot(p[0] + (q[0] - p[0]) * t - a.door[0], p[1] + (q[1] - p[1]) * t - a.door[1]); if (t >= 0 && t <= 1 && d < 0.05 && l > best) { best = l; ea = p; eb = q; } }
     const l = Math.hypot(eb[0] - ea[0], eb[1] - ea[1]) || 1, ux = (eb[0] - ea[0]) / l, uy = (eb[1] - ea[1]) / l, d0: XY = [a.door[0] - ux * 0.45, a.door[1] - uy * 0.45], d1: XY = [a.door[0] + ux * 0.45, a.door[1] + uy * 0.45];
     let nx = -uy, ny = ux; const c = cen(a.ring); if ((c[0] - a.door[0]) * nx + (c[1] - a.door[1]) * ny < 0) { nx = -nx; ny = -ny; }
-    // ichki rejali kvartira: kirish eshigi koridorga (tashqariga) ochiladi — Strelka katalogi chizmalari
-    if (outward.has(a.ring)) { nx = -nx; ny = -ny; }
-    const tip: XY = [d0[0] + nx * 0.9, d0[1] + ny * 0.9];
-    out.push(seg(d0, d1, `stroke="#fff" stroke-width="${(0.2 * k + 0.4).toFixed(2)}" stroke-linecap="butt"`), seg(d0, tip, 'stroke="#141414" stroke-width="0.25"'), `<path d="M${X(tip[0])} ${Y(tip[1])}A${(0.9 * k).toFixed(2)} ${(0.9 * k).toFixed(2)} 0 0 ${nx * uy - ny * ux > 0 ? 0 : 1} ${X(d1[0])} ${Y(d1[1])}" fill="none" stroke="#141414" stroke-width="0.18"/>`);
+    // 07.11 (egasi, 06.11 17:36 — kirish eshiklari koridorga ochilib, qarama-qarshi eshiklar bilan toʻqnashardi): ichki rejali kvartirada
+    // kirish eshigi dahliz ichiga ochiladi (TALQIN: ShNQ 2.08.01-24 64-band tashqariga ochilishni faqat yarim yertoʻla qavati uchun talab qiladi;
+    // umumiy koridor eni eshik tabaqasi bilan qisqarmaydi). Tabaqa ichki devorga urilsa — ikkinchi ilgak, u ham boʻlmasa — avvalgidek tashqariga
+    let h0 = d0, h1 = d1;
+    if (outward.has(a.ring)) {
+      const iw = inner[G.apts.indexOf(a as (typeof G.apts)[number])]?.walls ?? [];
+      const dseg = (p: XY, s0: XY, s1: XY) => { const dx = s1[0] - s0[0], dy = s1[1] - s0[1], L2 = dx * dx + dy * dy || 1e-12, t = Math.max(0, Math.min(1, ((p[0] - s0[0]) * dx + (p[1] - s0[1]) * dy) / L2)); return Math.hypot(p[0] - s0[0] - t * dx, p[1] - s0[1] - t * dy); };
+      const free = (hg: XY, fr: XY) => { const ex = fr[0] - hg[0], ey = fr[1] - hg[1]; for (let i = 1; i <= 6; i++) for (let j = 0; j <= 6; j++) { const t = j / 6 * Math.PI / 2, r = 0.9 * i / 6, ca = Math.cos(t), sa = Math.sin(t); const pt: XY = [hg[0] + r * (ca * ex / 0.9 + sa * nx), hg[1] + r * (ca * ey / 0.9 + sa * ny)]; if (iw.some(([p, q]) => dseg(pt, p, q) < 0.07)) return false; } return true; };
+      if (free(d0, d1)) { /* ilgak d0 */ } else if (free(d1, d0)) { h0 = d1; h1 = d0; } else { nx = -nx; ny = -ny; }
+    }
+    const tip: XY = [h0[0] + nx * 0.9, h0[1] + ny * 0.9], hx = (h1[0] - h0[0]) / 0.9, hy = (h1[1] - h0[1]) / 0.9;
+    out.push(seg(d0, d1, `stroke="#fff" stroke-width="${(0.2 * k + 0.4).toFixed(2)}" stroke-linecap="butt"`), seg(h0, tip, 'stroke="#141414" stroke-width="0.25"'), `<path d="M${X(tip[0])} ${Y(tip[1])}A${(0.9 * k).toFixed(2)} ${(0.9 * k).toFixed(2)} 0 0 ${nx * hy - ny * hx > 0 ? 0 : 1} ${X(h1[0])} ${Y(h1[1])}" fill="none" stroke="#141414" stroke-width="0.18"/>`);
   }
   // qolgan — texnik / ombor (shtrix)
   for (const q of G.rest) { const cc = cen(q); out.push(`<path d="${path(q)}" fill="url(#hatch)" stroke="#141414" stroke-width="0.3"/>`); if (area(q) > 8) out.push(`<text x="${X(cc[0])}" y="${Y(cc[1])}" font-size="1.8" text-anchor="middle" fill="#6b6965">${tr('texnik')}</text>`); }
