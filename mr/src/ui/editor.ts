@@ -2218,6 +2218,11 @@ export class Editor {
       mk('plan-corridor', 'len', 'Umumiy koridor uzunligi', { ...SHNQ, clause: '5.25' }, 'Koridorlar ≤ 60 m (uzunrogʻi 2-tur toʻsiq bilan boʻlinadi).'),
       // 05.11: ShNQ 2.08.01-24, 230–231-bandlar — lift shaxtasi yashash xonasiga tutashmaydi (yadro: zina | liftlar | xoll)
       mk('plan-lift', 'lift-230', 'Lift shaxtasi yashash xonasiga tutashmaydi', { doc: 'ShNQ 2.08.01-24', clause: '230–231-bandlar', edition: '2024', verified: true }, 'Lift shaxtalari zina, lift oldi xolli, koridor va texnik xonalar bilan oʻralgan — yashash xonasiga tegmaydi.'),
+      // 07.11 (egasi: koridor va zinaga tabiiy yorugʻlik): ShNQ 2.08.01-24, 325, 168-bandlar — zina katagi tashqi devorda derazali;
+      // 325, 328-bandlar — yoʻlakli turda umumiy yoʻlak derazasi ≥ 1:16 (seksiya turi — 173-band, TALQIN)
+      // izoh — qatʼiy matn (seksiyalar roʻyxati emas: «N-seksiya: …; …» birikmasi tarjimada buziladi); qaysi binolar — sahnada belgilanadi
+      { ...mk('plan-stairlight', 'stairlight', 'Zinapoya katagining tabiiy yoritilishi', { doc: 'ShNQ 2.08.01-24', clause: '325, 168-bandlar', edition: '2024', verified: true }, 'Har seksiyada zina katagi tashqi devorga chiqadi — derazali.'), ...(agg('stairlight').bad ? { note: 'Zina katagi tashqi devorga chiqmaydigan (derazasiz) seksiyalar sahnada belgilangan — zinani fasadga chiqaring.' } : {}) },
+      { ...mk('plan-corrlight', 'corrlight', 'Umumiy yoʻlakning tabiiy yoritilishi', { doc: 'ShNQ 2.08.01-24', clause: '325, 328, 173, 174-bandlar', edition: '2024', verified: true }, 'Yoʻlakli seksiyalarda yoʻlak derazasi pol yuzasining 1:16 dan kam emas; seksiya turida derazasiz xollga ruxsat (173-band).'), ...(agg('corrlight').bad ? { note: 'Yoʻlakli seksiyalarda (eshikdan zinagacha > 12 m) yoʻlak derazasi pol yuzasining 1:16 dan kam — seksiyalar sahnada belgilangan.' } : {}) },
       (() => { const rv: string[] = [], bids: string[] = []; all.forEach((cs, i) => { const c = cs.find(x => x.id === 'zina-amaliyot'); if (c && c.ok === null) { rv.push(`${i + 1}-seksiya: ${c.value}`); bids.push(plans[i].bid); } });
         return { id: 'plan-stair-bed', title: 'Zinapoya katagi yotoqxonaga tutashmaydi', source: { doc: 'Rejalash qoidasi', clause: 'AMALIYOT (shovqin; SHNQ 2.01.08-24 papkada yoʻq)', edition: '—', verified: false }, ...(bids.length ? { where: { bids } } : {}), status: rv.length ? 'review' : 'pass', value: plans.length - rv.length, unit: `/ ${plans.length} seksiya`, limit: 'hammasi', note: rv.length ? rv.join('; ') : 'Yotoqxonalar zinapoya katagiga tutashmaydi.' } as Result; })(),
     ] : [];
@@ -4179,7 +4184,10 @@ export class Editor {
     const onDown = (e: PointerEvent) => { if (!m.contains(e.target as Node)) close(); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     const close = () => { m.remove(); document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey); };
-    setTimeout(() => { document.addEventListener('pointerdown', onDown, true); document.addEventListener('keydown', onKey); }, 0);
+    // 08.11 (CI: Esc ochilgandan darhol bosilsa oyna yopilmasdi): keydown — darhol (ochuvchi bosish faqat pointerdown ga taʼsir qiladi),
+    // pointerdown — keyingi siklda (aks holda oynani ochgan bosishning oʻzi uni yopardi)
+    document.addEventListener('keydown', onKey);
+    setTimeout(() => { if (m.isConnected) document.addEventListener('pointerdown', onDown, true); }, 0);
     (m.querySelector('[aria-pressed="true"]') as HTMLElement | null ?? m.querySelector('.uchip') as HTMLElement | null)?.focus({ preventScroll: true });
   }
 
