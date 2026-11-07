@@ -34,10 +34,10 @@ describe('koʻp qavatli avtoturargoh (05.11)', () => {
     expect(m.spaces).toBe(m.perFloor.reduce((a, b) => a + b, 0));
     expect(m.ramps).toHaveLength(2);
     expect(m.cores).toHaveLength(2);
-    // har joy 2,5 × 5,3 m, bino ichida, bir-biriga tushmaydi
+    // har joy 2,5 × 5,5 m (SHNQ 2.05.07-24, 1-ilova 4-izoh), bino ichida, bir-biriga tushmaydi
     const A = area(m.ring);
-    expect(m.stalls.length * 2.5 * 5.3).toBeLessThan(A);
-    expect(m.stalls.every(s => Math.abs(area(s) - 2.5 * 5.3) < 0.05)).toBe(true);
+    expect(m.stalls.length * 2.5 * 5.5).toBeLessThan(A);
+    expect(m.stalls.every(s => Math.abs(area(s) - 2.5 * 5.5) < 0.05)).toBe(true);
     // brutto ≈ 25–40 m² bir joyga (pandus, yoʻlak, tugunlar bilan)
     const gross = A / m.perFloor[1]; expect(gross).toBeGreaterThan(22); expect(gross).toBeLessThan(40);
     // chekinish 3 m — parsel ichida
