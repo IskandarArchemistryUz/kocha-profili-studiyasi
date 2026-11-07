@@ -192,11 +192,47 @@ export function generateBase(block: XY[], g: GenParams, floorH = FLOOR_H): GenRe
   // toʻgʻri burchakli (90° ± 12°) qavariq kvartal — klassik perimetr; qolgani — faqat toʻgʻri toʻrtburchak seksiyalar (orthoFill):
   // qiya qirrali parselda seksiya chegaradan chekinadi, shakli buzilmaydi (27.10, tester: «qiyshiq, noodatiy formalar»)
   const maxDev = Math.max(...A.map((_, i) => { const u1 = unit(sub(A[i], A[(i - 1 + A.length) % A.length])), u2 = unit(sub(A[(i + 1) % A.length], A[i])); return Math.abs(Math.acos(Math.max(-1, Math.min(1, -(u1[0] * u2[0] + u1[1] * u2[1])))) * 180 / Math.PI - 90); }));
-  let r = allConvex && minAng >= 50 && maxDev <= 12 && insetMiter(A, g.depth) ? perimeter(A, g, floorH, notes) : null;
+  // 07.11 (egasi: «toʻgʻri kvadrat parseldayam burchak seksiyalari qiyshiq — nega 90° boʻlolmaydi?»): kvartal burchaklari 90° dan
+  // ≤ ORTHO_TOL farq qilsa (OSM koʻcha oʻqlari biroz qiya — koʻzga toʻgʻri toʻrtburchak), qirralar eng uzun qirraga nisbatan 0/90° ga
+  // tekislanadi va chekinish chizigʻi ichiga suriladi — burchak seksiyalari toʻgʻri burchakli. Kattaroq ogʻishda — avvalgidek kvartal burchagiga ergashadi
+  const Aq = allConvex && maxDev > 0.05 && maxDev <= ORTHO_TOL ? orthoSnap(A) : null;
+  const AP = Aq ?? A;
+  let r = allConvex && minAng >= 50 && maxDev <= 12 && insetMiter(AP, g.depth) ? perimeter(AP, g, floorH, notes) : null;
   // hovli shunchalik torki, minimal qavat ham sigʻmaydi — yopiq perimetr oʻrniga qirralar boʻylab (qarshi qatorlar olib tashlanadi)
   if (!r || !r.sections.length || (r.capFloors != null && r.capFloors < g.minF)) { notes.length = 0; r = orthoFill(A, g, notes); }
   facingCap(r, g, floorH);
   return r;
+}
+
+/** 07.11: «koʻzga toʻgʻri» kvartal — burchaklari 90° dan shuncha (°) farq qilsa toʻgʻri burchakka tekislanadi (TALQIN) */
+export const ORTHO_TOL = 4;
+/**
+ * Qavariq koʻpburchak qirralarini eng uzun qirra yoʻnalishiga nisbatan 0/90° ga tekislash: har qirra chizigʻi oʻz uchlaridan
+ * ichkariroq tomonga suriladi (natija A ichida — chekinish buzilmaydi); uchlar — qoʻshni chiziqlar kesishmasi.
+ * Biror qirra ORTHO_TOL dan koʻp ogʻsa yoki ketma-ket qirralar parallel boʻlib qolsa — null.
+ */
+export function orthoSnap(A: XY[], tol = ORTHO_TOL): XY[] | null {
+  const n = A.length; if (n < 4) return null;
+  const sg = signedArea(A) >= 0 ? 1 : -1;
+  let L0 = -1, th0 = 0;
+  for (let i = 0; i < n; i++) { const a = A[i], b = A[(i + 1) % n], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l > L0) { L0 = l; th0 = Math.atan2(b[1] - a[1], b[0] - a[0]); } }
+  const lines: { u: XY; N: XY; c: number; k: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = A[i], b = A[(i + 1) % n], th = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    const k = Math.round((th - th0) / (Math.PI / 2)), s = th0 + k * Math.PI / 2;
+    if (Math.abs(th - s) * 180 / Math.PI > tol) return null;
+    const u: XY = [Math.cos(s), Math.sin(s)], N: XY = [-u[1] * sg, u[0] * sg];   // ichkari normal
+    lines.push({ u, N, c: Math.max(N[0] * a[0] + N[1] * a[1], N[0] * b[0] + N[1] * b[1]), k: ((k % 4) + 4) % 4 });
+  }
+  const out: XY[] = [];
+  for (let i = 0; i < n; i++) {
+    const p = lines[(i - 1 + n) % n], q = lines[i];
+    if (p.k % 2 === q.k % 2) return null;   // parallel qoʻshni qirralar
+    const det = p.N[0] * q.N[1] - p.N[1] * q.N[0]; if (Math.abs(det) < 1e-9) return null;
+    out.push([(p.c * q.N[1] - p.N[1] * q.c) / det, (p.N[0] * q.c - p.c * q.N[0]) / det]);
+  }
+  if (!isSimple(out) || Math.abs(signedArea(out)) < 0.85 * Math.abs(signedArea(A))) return null;
+  return out;
 }
 
 /**

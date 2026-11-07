@@ -21,8 +21,11 @@ function tower(ring: XY[], mix = [20, 40, 30, 10]): RulePlan {
     for (let j = i + 1; j < pl.apts.length; j++) expect(ov(pl.apts[i].ring, pl.apts[j].ring)).toBeLessThan(0.3);
     for (const m of [...pl.mop, ...pl.stairs, ...pl.lifts]) expect(ov(pl.apts[i].ring, m)).toBeLessThan(0.3);
   }
-  // yadro markazda: zina va liftlar fasadga tegmaydi
-  for (const q of [...pl.stairs, ...pl.lifts]) for (const p of q) expect(Math.min(...ring.map((_, k) => { const a = ring[k], b = ring[(k + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); return Math.abs((p[0] - a[0]) * dy - (p[1] - a[1]) * dx) / L; }))).toBeGreaterThan(3);
+  // yadro markazda: liftlar fasadga tegmaydi; 07.11 (ShNQ 2.08.01-24, 325, 168-bandlar): zina katagi koʻr boʻlmagan yon fasadga chiqariladi — derazali
+  const dF = (p: XY) => Math.min(...ring.map((_, k) => { const a = ring[k], b = ring[(k + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); return Math.abs((p[0] - a[0]) * dy - (p[1] - a[1]) * dx) / L; }));
+  for (const q of pl.lifts) for (const p of q) expect(dF(p)).toBeGreaterThan(3);
+  for (const q of pl.stairs) expect(Math.min(...q.map(dF))).toBeLessThan(0.05);
+  expect(ch.find(c => c.id === 'stairlight')!.ok).toBe(true);
   const sum = [...pl.apts.map(a => a.ring), ...pl.mop, ...pl.stairs, ...pl.lifts, ...pl.rest, ...pl.rooms.map(q => q.ring)].reduce((s, q) => s + area(q), 0);
   expect(Math.abs(sum - area(ring))).toBeLessThan(area(ring) * 0.03);
   return pl;
