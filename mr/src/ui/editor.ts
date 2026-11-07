@@ -4184,7 +4184,10 @@ export class Editor {
     const onDown = (e: PointerEvent) => { if (!m.contains(e.target as Node)) close(); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     const close = () => { m.remove(); document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey); };
-    setTimeout(() => { document.addEventListener('pointerdown', onDown, true); document.addEventListener('keydown', onKey); }, 0);
+    // 08.11 (CI: Esc ochilgandan darhol bosilsa oyna yopilmasdi): keydown — darhol (ochuvchi bosish faqat pointerdown ga taʼsir qiladi),
+    // pointerdown — keyingi siklda (aks holda oynani ochgan bosishning oʻzi uni yopardi)
+    document.addEventListener('keydown', onKey);
+    setTimeout(() => { if (m.isConnected) document.addEventListener('pointerdown', onDown, true); }, 0);
     (m.querySelector('[aria-pressed="true"]') as HTMLElement | null ?? m.querySelector('.uchip') as HTMLElement | null)?.focus({ preventScroll: true });
   }
 

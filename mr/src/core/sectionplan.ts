@@ -880,7 +880,7 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   ];
   // 08.11 (egasi: zina doim fasadga perpendikulyar — tor tomoni fasadda): fasadgacha < 6 m (kichik minora, burchak boʻlmasi) — katak
   // halqa koridor ichiga kiradi (halqa shu burchakda uziladi, aylanib oʻtiladi); 5,7 m sigʻmasa — eng yaqin yechim, «koʻrib chiqish»
-  const ext = (tag: SC['tag'], len: number): SC => { const L2 = len + CORR_W;   // halqani butun eni boʻyicha kesadi (MOP teshiksiz boʻlib qoladi)
+  const ext = (tag: SC['tag'], len: number): SC => { const L2 = len + CORR_W + 0.1;   // halqani butun eni boʻyicha kesadi (MOP teshiksiz boʻlib qoladi; 0,1 m — yadro chetiga kiradi)
     return tag === 'u+' ? { tag, len, full: box(u1 - L2, u1, cv - b, cv - b + SW), st: box(u1 - L2, u1, cv - b, cv - b + SW), strip: null, blind: blindSide(u1, 0, 1) }
       : tag === 'u-' ? { tag, len, full: box(u0, u0 + L2, cv + b - SW, cv + b), st: box(u0, u0 + L2, cv + b - SW, cv + b), strip: null, blind: blindSide(u0, 0, 1) }
       : tag === 'v+' ? { tag, len, full: box(cu + a - SW, cu + a, v1 - L2, v1), st: box(cu + a - SW, cu + a, v1 - L2, v1), strip: null, blind: blindSide(0, v1, 0) }
@@ -890,6 +890,8 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   const pick0 = cross ? null : scs.find(c => okC(c, SL)), pick1 = cross || pick0 ? null : exts.filter(c => okC(c, 4.0 - CORR_W)).sort((x, y) => y.len - x.len)[0] ?? null;
   const pickS = pick0 ?? pick1 ?? null, OFF = STAIR_W, towerShort = pick1 && pick1.len + CORR_W < STAIR_LEN - 0.3 ? 1 : 0;
   const sSide = pickS?.tag ?? '';
+  // halqa ichiga kirgan zina: qoʻshni boʻlakning MOP ga tegish oraligʻi zina boshlangan joygacha qisqaradi (har kvartira koridorga tegsin)
+  const eT = pick1?.tag ?? '', eL = !pick1 ? 0 : eT === 'u+' ? u1 - (pick1.len + CORR_W + 0.1) : eT === 'u-' ? u0 + pick1.len + CORR_W + 0.1 : eT === 'v+' ? v1 - (pick1.len + CORR_W + 0.1) : v0 + pick1.len + CORR_W + 0.1;
   const stairF = pickS?.st ?? null, stripF = pickS?.strip ?? null;
   const stairs = [stairF ?? box(c1u - STAIR_W, c1u, c0v, c1v)];
   // «+» katta qavat (> 500 m² — ShNQ 2.01.02-04, 5.13): ikkinchi zina vestibyulning yuqori tasmasida (halqa eni ≥ 2,8 m boʻlsa)
@@ -898,7 +900,7 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   // MOP — teshiksiz toʻrtburchaklar: halqa koridorning 4 tomoni + lift oldi xolli (polygon-clipping teshikli halqasini «pieces» tashlaydi)
   const mop0 = [...(stair2 ? [box(cu - a, c0u, c1v, cv + b), box(c0u, c0u + 6, c1v + STAIR_W, cv + b), box(c0u + 6, cu + a, c1v, cv + b)] : [box(cu - a, cu + a, c1v, cv + b)]), box(cu - a, cu + a, cv - b, c0v), box(cu - a, c0u, c0v, c1v), box(c1u, cu + a, c0v, c1v), box(c0u + LIFT, stairF ? c1u : c1u - STAIR_W, c0v, c1v), ...(stripF ? [stripF] : [])];
   // halqa ichiga kirgan zina (pick1) — MOP dan ayiriladi
-  const mop = pick1 && stairF ? diff(mop0, [stairF], 'none').filter(q => area(q) > 0.3) : mop0;
+  const mop = pick1 && stairF ? mop0.flatMap(q => diff([q], [stairF], 'a')).filter(q => area(q) > 0.3) : mop0;   // har toʻrtburchak alohida (birlashma teshikli halqa boʻlib tushib qolmasin)
   // «parrak» boʻlaklari: [u0, cu+a]×[cv+b, v1] (yuqori), [cu+a, u1]×[cv-b, v1] (oʻng), [cu-a, u1]×[v0, cv-b] (past), [u0, cu-a]×[v0, cv+b] (chap)
   type Piece = { box: [number, number, number, number]; axis: 'u' | 'v'; lo: number; hi: number; dir: 1 | -1 };
   // axis — boʻlak boʻylab kesish oʻqi; [lo, hi] — MOP tomoni (kesimlar shu oraliqdan chiqmasin); dir — burchak qaysi uchida (−1 — boshida)
@@ -910,10 +912,10 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
     { box: [cu - armH, cu + armH, v0, cv - b], axis: 'u', lo: cu - a, hi: cu + a, dir: 1 },
     { box: [u0, cu - a, cv - armH, cv + armH], axis: 'v', lo: cv - b, hi: cv + b, dir: -1 },
   ] : [
-    { box: [u0, sSide === 'v+' ? cu + a - OFF : cu + a, cv + b, v1], axis: 'u', lo: cu - a, hi: sSide === 'v+' ? cu + a - OFF : cu + a, dir: -1 },
-    { box: [cu + a, u1, sSide === 'u+' ? cv - b + OFF : cv - b, v1], axis: 'v', lo: sSide === 'u+' ? cv - b + OFF : cv - b, hi: cv + b, dir: 1 },
-    { box: [sSide === 'v-' ? cu - a + OFF : cu - a, u1, v0, cv - b], axis: 'u', lo: sSide === 'v-' ? cu - a + OFF : cu - a, hi: cu + a, dir: 1 },
-    { box: [u0, cu - a, v0, sSide === 'u-' ? cv + b - OFF : cv + b], axis: 'v', lo: cv - b, hi: sSide === 'u-' ? cv + b - OFF : cv + b, dir: -1 },
+    { box: [u0, sSide === 'v+' ? cu + a - OFF : cu + a, cv + b, v1], axis: 'u', lo: eT === 'u-' ? eL : cu - a, hi: sSide === 'v+' ? cu + a - OFF : cu + a, dir: -1 },
+    { box: [cu + a, u1, sSide === 'u+' ? cv - b + OFF : cv - b, v1], axis: 'v', lo: sSide === 'u+' ? cv - b + OFF : cv - b, hi: eT === 'v+' ? eL : cv + b, dir: 1 },
+    { box: [sSide === 'v-' ? cu - a + OFF : cu - a, u1, v0, cv - b], axis: 'u', lo: sSide === 'v-' ? cu - a + OFF : cu - a, hi: eT === 'u+' ? eL : cu + a, dir: 1 },
+    { box: [u0, cu - a, v0, sSide === 'u-' ? cv + b - OFF : cv + b], axis: 'v', lo: eT === 'v-' ? eL : cv - b, hi: sSide === 'u-' ? cv + b - OFF : cv + b, dir: -1 },
   ];
   const apts: RuleApt[] = [], rest: XY[][] = [];
   const mk = (ring: XY[], k: number): RuleApt => ({ rooms: k, ring, area: area(ring), door: cen(ring), mods: [], wet: [], walls: [], wing: 0, sec: 0 });
