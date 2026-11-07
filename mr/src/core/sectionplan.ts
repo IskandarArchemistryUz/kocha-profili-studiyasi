@@ -43,6 +43,8 @@ export interface PlanRoom { ring: XY[]; kind: RoomKind; sec: number; door: XY }
 export interface RuleSection { mop: XY[][]; stairs: XY[][]; lifts: XY[][]; apts: number[]; corridorLen: number; corner: boolean; /** 1-qavatda koʻcha tomondan kirish (skvoznoy kirish xolli) */ entry?: XY[][] }
 export interface RulePlan {
   kind: 'ikki' | 'bir' | 'aralash';
+  /** 08.11: fasadga chiqarilgan, lekin marsh uzunligi (≥ 5,7 m) sigʻmagan zina kataklari soni — «koʻrib chiqish» */
+  shortStairs?: number;
   stairs: XY[][]; lifts: XY[][];
   /** koridor + lift oldi (MOP), barcha seksiyalar */ mop: XY[][];
   apts: RuleApt[];
@@ -380,6 +382,8 @@ function isCross(r: XY[]): boolean {
   const d = refl.map(p => Math.hypot(p[0] - cx, p[1] - cy)), dm = Math.max(...d), dn = Math.min(...d);
   return dn > 3 && dm / dn < 1.6;   // markaz kvadratga yaqin
 }
+/** 08.11: koʻpburchakning barcha burchaklari 90° / 270° (± 2°) — toʻgʻri burchakli bino (qiyshiq L da burchak zinasi chorakda qoladi) */
+const ringOrtho = (q: XY[]) => q.every((p, i) => { const a = q[(i + q.length - 1) % q.length], c = q[(i + 1) % q.length], ux = p[0] - a[0], uy = p[1] - a[1], vx = c[0] - p[0], vy = c[1] - p[1], l = Math.hypot(ux, uy) * Math.hypot(vx, vy); return l < 1e-9 || Math.abs(ux * vx + uy * vy) / l < 0.035 || Math.abs(ux * vy - uy * vx) / l < 0.035; });
 function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 'L' = 'M', court: XY | null = null, splitAbove?: number, strictT = false, walls: [XY, XY][] = [], gs?: GridSys): RulePlan {
   const W = CORR_W;
   const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
@@ -534,6 +538,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
 
   // 4) yadrolar
   const SECS: { corr: XY[][]; stairs: XY[][]; lifts: XY[][]; halls: XY[][]; rooms: XY[][]; corner: boolean; entry?: XY[][] }[] = [];
+  let shortN = 0;   // 08.11: fasadga chiqqan, lekin qisqa (< 5,7 m) zina kataklari
   for (let s = 0; s < nSec; s++) {
     const ps = secParts(s), S: (typeof SECS)[number] = { corr: ps.flatMap(corrOf), stairs: [], lifts: [], halls: [], rooms: [], corner: false };
     SECS.push(S); if (!ps.length) continue;
@@ -553,10 +558,13 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
         // burchakda — fasadga faqat nuqtada tegadi; zina katagi chorakdan tashqariga, A qanotning hovli fasadiga (ichki burchakdan keyin, 6 m)
         // chiqariladi — derazali; chorak — liftlar (fasad tomonda, 230-band: zina, xoll, koridor bilan oʻralgan) va lift oldi xolli;
         // B qanotdagi xoll tasmasi hovliga chiqadi (kirish va yoʻlak derazasi)
-        // chuqurlik yetsa (koridordan fasadgacha ≥ 5,7 m) — marshlar fasadga perpendikulyar, katak koridorga ham tegadi (oddiy yadrodagidek, eni 2,8 m);
-        // aks holda — fasad boʻylab 6 m
-        const dQ = Math.abs(vR - qv0), perp = dQ >= 5.7 && dQ < 7.5, SLc = perp ? STAIR_W : 6.0, vS = perp ? qv0 - J.sB * 0.02 : vR - J.sB * STAIR_W;
-        const stairOut = inter([box(A, uR - dirU * 0.02, uR + dirU * SLc, vR, vS)], [r]).filter(q => area(q) > 0.9 * SLc * Math.abs(vR - vS) && Math.abs((dirU > 0 ? A.u1 : A.u0) - uR) - SLc >= 6.6);   // qanot qoʻli zinadan keyin ≥ 2 modul — oxirgi kvartira zina atrofida «L» boʻlib qolmasin
+        // 08.11 (egasi: «zina shaxtasini fasad boʻylab emas, fasadga perpendikulyar — kamroq joy egallaydi»): katak doim tor tomoni
+        // (2,8 m) bilan fasadda, marshlar fasadga perpendikulyar; uzunligi 5,7 m — koridorgacha qolgan oraliq xoll; chuqurlik 5,7 m dan
+        // kam boʻlsa — koridorgacha (qisqa katak, «koʻrib chiqish»)
+        const dQ = Math.abs(vR - qv0), SLc = STAIR_W, Ls = Math.min(dQ, STAIR_LEN), vS = dQ - Ls < 0.6 ? qv0 - J.sB * 0.02 : vR - J.sB * Ls;
+        const stairOut = inter([box(A, uR - dirU * 0.02, uR + dirU * SLc, vR, vS)], [r]).filter(q => area(q) > 0.9 * SLc * Math.abs(vR - vS) && Math.abs((dirU > 0 ? A.u1 : A.u0) - uR) - SLc >= 6.6 && ringOrtho(r));   // qiyshiq (≠ 90°) burchakda — zina chorakda qoladi (ponasimon kvartira, hoʻl xona choʻziladi)   // qanot qoʻli zinadan keyin ≥ 2 modul — oxirgi kvartira zina atrofida «L» boʻlib qolmasin
+        if (stairOut.length && Math.abs(vS - qv0) > 0.05 && dQ - Ls >= 0.6) S.halls.push(box(A, uR - dirU * 0.02, uR + dirU * SLc, vS, qv0 - J.sB * 0.02));
+        if (stairOut.length && Math.abs(vR - vS) < STAIR_LEN - 0.3) shortN++;
         if (stairOut.length) {
           S.stairs.push(stairOut[0]);
           for (let k = 0; k < nL; k++) S.lifts.push(box(A, qu0 + dirU * k * LIFT, qu0 + dirU * (k + 1) * LIFT, vR - J.sB * LIFT, vR));
@@ -803,8 +811,10 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
       const stIn = inter([st], [a.ring]); if (!stIn.length || area(stIn[0]) < STAIR_W * Math.min(SD, dMax) * 0.9) continue;
       if (full && !openTouch(stIn[0])) continue;
       const restA = diff([a.ring], [stIn[0]], 'none').sort((x, y) => area(y) - area(x));
-      S.stairs.push(stIn[0]);
       const na: RuleApt = { ...a, ring: restA[0] ?? a.ring, area: restA[0] ? area(restA[0]) : 0, rooms: 0 };
+      // 08.11: fasadgacha zina kvartirani yoʻqotmasin — qolgan qismi kvartira boʻlib qolmasa, keyingi nomzod
+      if (full && !(restA[0] && ok(na))) continue;
+      S.stairs.push(stIn[0]);
       if (restA[0] && ok(na)) apts[i] = na; else { apts.splice(i, 1); if (restA[0]) rest.push(restA[0]); }
       for (const z of restA.slice(1)) if (area(z) > 0.5) rest.push(z);
       done = true; break;
@@ -818,6 +828,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
   const mop = secMop.flat(), stairs = SECS.flatMap(S => S.stairs), lifts = SECS.flatMap(S => S.lifts);
   const rooms: PlanRoom[] = SECS.flatMap((S, s) => S.rooms.map(q => ({ ring: q, kind: 'texnik' as RoomKind, sec: s, door: cen(q) })));
   const plan: RulePlan = { kind: wings.every(w => w.double) ? 'ikki' : wings.every(w => !w.double) ? 'bir' : 'aralash', stairs, lifts, mop, apts, sections, fireWalls, rest, rooms, corridorLen: Math.max(0, ...sections.map(s => s.corridorLen)), corridorW: W };
+  if (shortN) plan.shortStairs = shortN;
   if (SS) { plan.axisLines = wings.flatMap((w, wi) => wLines[wi].map(u => [P(w, u, w.v0), P(w, u, w.v1)] as [XY, XY])); plan.axisCores = wings.flatMap((w, wi) => wCores[wi].map(([c0, c1]) => [[P(w, c0, w.v0), P(w, c0, w.v1)], [P(w, c1, w.v0), P(w, c1, w.v1)]] as [[XY, XY], [XY, XY]])); }
   plan.rest.push(...diff([r], [...mop, ...stairs, ...lifts, ...apts.map(a => a.ring), ...rest, ...fireWalls, ...rooms.map(q => q.ring)], 'none').filter(q => area(q) > 1.5));
   finishPlan(plan, mods, size);
@@ -867,16 +878,17 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
     { tag: 'v+', len: v1 - (cv + b), full: box(cu + a - SW, cu + a, cv + b, v1), st: box(cu + a - SW, cu + a, v1 - SL, v1), strip: v1 - SL - (cv + b) > 0.05 ? box(cu + a - SW, cu + a, cv + b, v1 - SL) : null, blind: blindSide(0, v1, 0) },
     { tag: 'v-', len: (cv - b) - v0, full: box(cu - a, cu - a + SW, v0, cv - b), st: box(cu - a, cu - a + SW, v0, v0 + SL), strip: (cv - b) - (v0 + SL) > 0.05 ? box(cu - a, cu - a + SW, v0 + SL, cv - b) : null, blind: blindSide(0, v0, 0) },
   ];
-  // fasadgacha < 6 m (kichik minora, burchak boʻlmasi): zina katagi fasad boʻylab (uzun tomoni fasadda, 2,8 m chuqurlikda), halqadan unga xoll
-  const SA = SL, along: SC[] = [
-    { tag: 'u+', len: u1 - (cu + a), full: box(cu + a, u1, cv - b, cv - b + SA), st: box(u1 - SW, u1, cv - b, cv - b + SA), strip: u1 - SW - (cu + a) > 0.05 ? box(cu + a, u1 - SW, cv - b, cv - b + SA) : null, blind: blindSide(u1, 0, 1) },
-    { tag: 'u-', len: (cu - a) - u0, full: box(u0, cu - a, cv + b - SA, cv + b), st: box(u0, u0 + SW, cv + b - SA, cv + b), strip: (cu - a) - (u0 + SW) > 0.05 ? box(u0 + SW, cu - a, cv + b - SA, cv + b) : null, blind: blindSide(u0, 0, 1) },
-    { tag: 'v+', len: v1 - (cv + b), full: box(cu + a - SA, cu + a, cv + b, v1), st: box(cu + a - SA, cu + a, v1 - SW, v1), strip: v1 - SW - (cv + b) > 0.05 ? box(cu + a - SA, cu + a, cv + b, v1 - SW) : null, blind: blindSide(0, v1, 0) },
-    { tag: 'v-', len: (cv - b) - v0, full: box(cu - a, cu - a + SA, v0, cv - b), st: box(cu - a, cu - a + SA, v0, v0 + SW), strip: (cv - b) - (v0 + SW) > 0.05 ? box(cu - a, cu - a + SA, v0 + SW, cv - b) : null, blind: blindSide(0, v0, 0) },
-  ];
+  // 08.11 (egasi: zina doim fasadga perpendikulyar — tor tomoni fasadda): fasadgacha < 6 m (kichik minora, burchak boʻlmasi) — katak
+  // halqa koridor ichiga kiradi (halqa shu burchakda uziladi, aylanib oʻtiladi); 5,7 m sigʻmasa — eng yaqin yechim, «koʻrib chiqish»
+  const ext = (tag: SC['tag'], len: number): SC => { const L2 = len + CORR_W;   // halqani butun eni boʻyicha kesadi (MOP teshiksiz boʻlib qoladi)
+    return tag === 'u+' ? { tag, len, full: box(u1 - L2, u1, cv - b, cv - b + SW), st: box(u1 - L2, u1, cv - b, cv - b + SW), strip: null, blind: blindSide(u1, 0, 1) }
+      : tag === 'u-' ? { tag, len, full: box(u0, u0 + L2, cv + b - SW, cv + b), st: box(u0, u0 + L2, cv + b - SW, cv + b), strip: null, blind: blindSide(u0, 0, 1) }
+      : tag === 'v+' ? { tag, len, full: box(cu + a - SW, cu + a, v1 - L2, v1), st: box(cu + a - SW, cu + a, v1 - L2, v1), strip: null, blind: blindSide(0, v1, 0) }
+      : { tag, len, full: box(cu - a, cu - a + SW, v0, v0 + L2), st: box(cu - a, cu - a + SW, v0, v0 + L2), strip: null, blind: blindSide(0, v0, 0) }; };
+  const exts = scs.map(c => ext(c.tag, c.len));
   const okC = (c: SC, need: number) => c.len >= need && !c.blind && inR(c.full) && openTouchT(c.st);
-  const pick0 = cross ? null : scs.find(c => okC(c, SL)), pick1 = cross || pick0 ? null : along.find(c => okC(c, SW) && (c.tag[0] === 'u' ? 2 * b : 2 * a) >= SA + 2.4);
-  const pickS = pick0 ?? pick1 ?? null, OFF = pick1 ? SA : STAIR_W;
+  const pick0 = cross ? null : scs.find(c => okC(c, SL)), pick1 = cross || pick0 ? null : exts.filter(c => okC(c, 4.0 - CORR_W)).sort((x, y) => y.len - x.len)[0] ?? null;
+  const pickS = pick0 ?? pick1 ?? null, OFF = STAIR_W, towerShort = pick1 && pick1.len + CORR_W < STAIR_LEN - 0.3 ? 1 : 0;
   const sSide = pickS?.tag ?? '';
   const stairF = pickS?.st ?? null, stripF = pickS?.strip ?? null;
   const stairs = [stairF ?? box(c1u - STAIR_W, c1u, c0v, c1v)];
@@ -884,7 +896,9 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   const stair2 = cross && b - ch / 2 >= STAIR_W && area(r) - cw * ch > 560 ? box(c0u, c0u + 6, c1v, c1v + STAIR_W) : null; if (stair2) stairs.push(stair2);
   const tech = c1v - (c0v + 2 * LIFT) >= 1.2 ? [box(c0u, c0u + LIFT, c0v + 2 * LIFT, c1v)] : [];
   // MOP — teshiksiz toʻrtburchaklar: halqa koridorning 4 tomoni + lift oldi xolli (polygon-clipping teshikli halqasini «pieces» tashlaydi)
-  const mop = [...(stair2 ? [box(cu - a, c0u, c1v, cv + b), box(c0u, c0u + 6, c1v + STAIR_W, cv + b), box(c0u + 6, cu + a, c1v, cv + b)] : [box(cu - a, cu + a, c1v, cv + b)]), box(cu - a, cu + a, cv - b, c0v), box(cu - a, c0u, c0v, c1v), box(c1u, cu + a, c0v, c1v), box(c0u + LIFT, stairF ? c1u : c1u - STAIR_W, c0v, c1v), ...(stripF ? [stripF] : [])];
+  const mop0 = [...(stair2 ? [box(cu - a, c0u, c1v, cv + b), box(c0u, c0u + 6, c1v + STAIR_W, cv + b), box(c0u + 6, cu + a, c1v, cv + b)] : [box(cu - a, cu + a, c1v, cv + b)]), box(cu - a, cu + a, cv - b, c0v), box(cu - a, c0u, c0v, c1v), box(c1u, cu + a, c0v, c1v), box(c0u + LIFT, stairF ? c1u : c1u - STAIR_W, c0v, c1v), ...(stripF ? [stripF] : [])];
+  // halqa ichiga kirgan zina (pick1) — MOP dan ayiriladi
+  const mop = pick1 && stairF ? diff(mop0, [stairF], 'none').filter(q => area(q) > 0.3) : mop0;
   // «parrak» boʻlaklari: [u0, cu+a]×[cv+b, v1] (yuqori), [cu+a, u1]×[cv-b, v1] (oʻng), [cu-a, u1]×[v0, cv-b] (past), [u0, cu-a]×[v0, cv+b] (chap)
   type Piece = { box: [number, number, number, number]; axis: 'u' | 'v'; lo: number; hi: number; dir: 1 | -1 };
   // axis — boʻlak boʻylab kesish oʻqi; [lo, hi] — MOP tomoni (kesimlar shu oraliqdan chiqmasin); dir — burchak qaysi uchida (−1 — boshida)
@@ -955,6 +969,7 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   const sections: RuleSection[] = [{ mop, stairs, lifts, apts: apts.map((_, i) => i), corridorLen: (2 * a + 2 * b) * 2 - 4 * W, corner: false, ...(entry.length ? { entry } : {}) }];
   const rooms: PlanRoom[] = tech.map(q => ({ ring: q, kind: 'texnik' as RoomKind, sec: 0, door: cen(q) }));
   const plan: RulePlan = { kind: 'ikki', stairs, lifts, mop, apts, sections, fireWalls: [], rest, rooms, corridorLen: sections[0].corridorLen, corridorW: W };
+  if (towerShort) plan.shortStairs = towerShort;
   plan.rest.push(...diff([r], [...mop, ...stairs, ...lifts, ...apts.map(q => q.ring), ...rest, ...tech], 'none').filter(q => area(q) > 1.5));
   finishPlan(plan, mods, size);
   return plan;
@@ -1228,7 +1243,7 @@ export function planChecks(pl: RulePlan, h: number, mods: FacadeMod[] = []): Pla
     // kirish (egasi, 30.10): har seksiya xolli (1-qavatda skvoznoy kirish bilan) kamida ikki qarama-qarshi fasadga — koʻcha va hovli — chiqadi
     { id: 'kirish', title: 'Kirish: koʻcha va hovli tomondan', ok: entryBad.length ? false : entryNa ? null : true, value: entryBad.length ? `${entryBad.length} seksiya faqat bir tomonga chiqadi` : entryNa ? (mods.length ? 'burchak boʻlmasi — ochiq fasadlar bir tomonda; hovliga chiqish qoʻshni boʻlma orqali' : 'fasad modullari berilmagan') : `${secs.length} seksiya — ikki tomonlama`, norm: 'seksiya xolli (skvoznoy kirish) ikki qarama-qarshi fasadga chiqadi', source: 'Rejalash qoidasi (Strelka, «Kirish guruhi»)' },
     { id: 'evac', title: 'Eng uzoq kvartira eshigidan zinagacha (boshi berk yoʻlak)', ok: evacOk, value: `≈ ${f1(far)} m`, norm: h >= 28 ? '≤ 12 m (28 m va undan baland bino)' : evacOk === null ? '≤ 12 m derazasiz yoʻlakda; yoʻlakda deraza yoki tutun chiqarish klapani boʻlsa ≤ 25 m (I, II daraja, CO — TALQIN)' : '≤ 12 m derazasiz yoʻlakda (deraza yoki tutun chiqarish klapani bilan ≤ 25 m)', source: 'ShNQ 2.08.01-24, 172–175-bandlar, 7-jadval' },
-    { id: 'stairlight', title: 'Zinapoya katagining tabiiy yoritilishi', ok: !mods.length || !stairsAll.length ? null : darkStairs === 0, value: !mods.length ? 'fasad modullari berilmagan' : !stairsAll.length ? 'zina yoʻq' : darkStairs ? 'zina katagi tashqi devorga chiqmaydi (derazasiz)' : `zina katagi tashqi devorda derazali: ${nStairs} ta`, norm: h < 28 ? 'har qavatda tashqi devorda deraza (L1 zinapoya)' : 'tabiiy yoritilgan zinapoya katagi; > 28 m — tutunsiz zina turi ShNQ 2.01.02-04 boʻyicha (TALQIN)', source: h < 28 ? 'ShNQ 2.08.01-24, 325, 168-bandlar' : 'ShNQ 2.08.01-24, 325-band' },
+    { id: 'stairlight', title: 'Zinapoya katagining tabiiy yoritilishi', ok: !mods.length || !stairsAll.length ? null : darkStairs ? false : pl.shortStairs ? null : true, value: !mods.length ? 'fasad modullari berilmagan' : !stairsAll.length ? 'zina yoʻq' : darkStairs ? 'zina katagi tashqi devorga chiqmaydi (derazasiz)' : pl.shortStairs ? 'zina katagi fasadda, lekin marsh uzunligi 5,7 m dan kam — koʻrib chiqish' : `zina katagi tashqi devorda derazali: ${nStairs} ta`, norm: h < 28 ? 'har qavatda tashqi devorda deraza (L1 zinapoya)' : 'tabiiy yoritilgan zinapoya katagi; > 28 m — tutunsiz zina turi ShNQ 2.01.02-04 boʻyicha (TALQIN)', source: h < 28 ? 'ShNQ 2.08.01-24, 325, 168-bandlar' : 'ShNQ 2.08.01-24, 325-band' },
     { id: 'corrlight', title: 'Umumiy yoʻlakning tabiiy yoritilishi', ok: !mods.length ? null : corrBad.length ? false : true, value: !mods.length ? 'fasad modullari berilmagan' : !corrSecs.length ? 'seksiya turi — derazasiz xoll (eshikdan zinagacha ≤ 12 m)' : corrBad.length ? 'yoʻlakli seksiyada yoʻlak derazasi pol yuzasining 1:16 dan kam' : `yoʻlakli seksiya: deraza / pol ${ratioTxt}`, norm: 'yoʻlakli turda deraza yuzasi ≥ pol yuzasining 1:16 (deraza balandligi 1,5 m — ANDOZA); seksiya turida (eshikdan zinagacha ≤ 12 m) derazasiz xollga ruxsat — TALQIN', source: 'ShNQ 2.08.01-24, 325, 328, 173, 174-bandlar' },
     ...(rest > 3 ? [{ id: 'rest', title: 'Kvartiraga aylanmagan maydon (texnik)', ok: rest < 15 ? true : null, value: `≈ ${Math.round(rest)} m²`, norm: 'kam boʻlsin', source: 'Rejalash qoidasi' } as PlanCheck] : []),
   ];
