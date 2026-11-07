@@ -25,9 +25,9 @@ const LIB={
   water:{n:'Kanal / suv yoqasi',a:'Suv',c:'green',w:3,col:'#7fb2cf'},
   bikepark:{n:'Veloavtoturargoh',a:'V-park',c:'bike',w:2,col:'#7fb3a5'},
   bikeprot:{n:'Himoyalangan velo yoʻlak (bordyur bilan)',a:'Velo+',c:'bike',w:2.2,col:'#3f917d',capM:[2500,2500]},
-  park30:{n:'Avtoturargoh — 30° burchakli',a:'P 30°',c:'park',w:4.7,col:'#858891',road:1,sp:5},
-  park45:{n:'Avtoturargoh — 45° burchakli',a:'P 45°',c:'park',w:5.3,col:'#81848d',road:1,sp:3.54},
-  park90:{n:'Avtoturargoh — perpendikulyar (90°)',a:'P 90°',c:'park',w:5,col:'#7d8089',road:1,sp:2.5},
+  park30:{n:'Avtoturargoh — 30° burchakli',a:'P 30°',c:'park',w:4.9,col:'#858891',road:1,sp:5},
+  park45:{n:'Avtoturargoh — 45° burchakli',a:'P 45°',c:'park',w:5.7,col:'#81848d',road:1,sp:3.54},
+  park90:{n:'Avtoturargoh — perpendikulyar (90°)',a:'P 90°',c:'park',w:5.5,col:'#7d8089',road:1,sp:2.5},
   parkkerb:{n:'Avtoturargoh — trotuar ustida (yarim)',a:'P ½',c:'park',w:1.2,col:'#a3a6ad'},
   loading:{n:'Yuk tushirish / taksi zonasi',a:'Yuk/taksi',c:'park',w:2.5,col:'#9a8f7c',road:1},
   turn:{n:'Burilish boʻlagi (markaziy/choʻntak)',a:'Burilish',c:'car',w:3.25,col:'#62676d',road:1},
@@ -1105,7 +1105,9 @@ const DK={
   furn:{n:'Jihozlar zonasi (skameyka, chiroq)',col:'#cdbfa3',cat:'ped'},
 };
 const isPk=k=>typeof k==='string'&&k.startsWith('park');
-const PKW={park:2.3,park30:4.7,park45:5.3,park90:5};
+/* 07.11: SHNQ 2.05.07-24, 1-ilova 4-izoh — avtomobil-oʻrni ≥ 5,5 × 2,5 m (NORMA); burchakli qator chuqurligi = 5,5·sin θ + 2,5·cos θ:
+   30° → 4,9; 45° → 5,7; 90° → 5,5 m. Parallel — 2,3 m (dizayn-kod 6.3; uzunligi 6 m) */
+const PKW={park:2.3,park30:4.9,park45:5.7,park90:5.5};
 const DCAT={car:['Avto yoʻl','#3c3e43'],pt:['Jamoat transporti','#9e3a32'],bike:['Velo','#2f8f58'],ped:['Piyoda','#d6c3a2'],green:['Yashil','#6f8f4e']};
 
 /* parametrik kesim generatori (Konstruktor va tayyor modullar shundan hosil boʻladi) */

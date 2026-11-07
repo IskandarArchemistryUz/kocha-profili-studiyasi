@@ -12,5 +12,9 @@ describe('Koʻcha shablonlari', () => {
     expect(profileById('s-tramm').parts.some(x => x.k === 'tramvay')).toBe(true);
     expect(profileById('s-ped').cat).toBe('piyoda');
   });
+  it('07.11: burchakli avtoturargoh chuqurligi — SHNQ 2.05.07-24, 1-ilova 4-izoh (5,5 × 2,5 m): 90° → 5,5; 45° → 5,7; 30° → 4,9 m', () => {
+    const pw = (id: string) => profileById(id).parts.filter(x => x.k === 'parkovka').map(x => x.w);
+    expect(pw('s-res90')).toEqual([5.5]); expect(pw('s-res45')).toEqual([5.7, 5.7]); expect(pw('s-r4p30')).toEqual([4.9, 4.9]);
+  });
   it('mavjud asosiy profillar oʻzgarmadi', () => { expect(profileById('mahalla-15').name).toBe('Mahalla koʻchasi'); expect(toParts([['lane', 3], ['lane', 3]])[0].lanes).toBe(2); });
 });

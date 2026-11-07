@@ -8,7 +8,9 @@ import type { Cat, Part, PartKind, Profile } from './profiles';
 
 type S = [string, number];
 interface O { f?: number; b?: number; lw?: number; oneway?: number; contra?: number; park?: string; pw?: number; pang?: number; bike?: string; bus?: string; tram?: string; service?: number; spark?: number; sep?: number; rain?: number; rw?: number; green?: number; furn?: number; walk?: number; med?: string; mw?: number }
-const PKW: Record<string, number> = { park: 2.3, park30: 4.7, park45: 5.3, park90: 5 };
+/** 07.11: SHNQ 2.05.07-24, 1-ilova 4-izoh — avtomobil-oʻrni ≥ 5,5 × 2,5 m (NORMA); burchakli qator chuqurligi = 5,5·sin θ + 2,5·cos θ:
+ *  30° → 4,9; 45° → 5,7; 90° → 5,5 m. Parallel 2,3 m — dizayn-kod 6.3 (uzunligi 6 m) */
+const PKW: Record<string, number> = { park: 2.3, park30: 4.9, park45: 5.7, park90: 5.5 };
 
 function gen(o: O): S[] {
   const lw = o.lw || 3.5;
