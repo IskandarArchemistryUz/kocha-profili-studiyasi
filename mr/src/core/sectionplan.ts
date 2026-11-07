@@ -509,12 +509,16 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     // unga bir tomondan yana bitta oraliq qoʻshiladi (C/L shakl, ikki fasad + torets). AMALIYOT
     // uchdagi studiya (bitta oraliq × (yarim chuqurlik + koridor)) ≥ 25 m² va ≤ 8,5 m chuqur boʻlsa (≈ 14–15 m qanot — Toshkentdagi odatiy seksiya);
     // sayoz (≈ 12–13 m) va chuqur (≥ 16 m) qanotda — avvalgi tartib (koridor uchigacha): u yerda C/L kvartira ichki rejasi sinovda yiqildi
-    const dTor = (w.S - W) / 2 + W;
-    if (w.double && w.mw * dTor >= TOR_STUDIO && dTor <= 8.5) {
-      const cOk = (k: EndKind, e: 0 | 1) => (k === 'free' && capW(w) === 0 && !blindEnd(e)) || (k === 'wall' && !blindEnd(e));
+    // 07.11 (egasi, 06.11 17:36: «P/C torets barcha chuqurliklarda»): chegara 14–15 m dan 14–17 m gacha kengaytirildi (uch chuqurligi
+    // ≤ 9,4 m; P/C rejasida ortgan chuqurlik ichki yoʻlakka, xona ≤ 6 m). Sayoz (≤ 13 m) qanotda uch studiyasi < 25 m² va P oyogʻi
+    // ≤ 5,7 m — C/L reja oddiy zaxira rejaga tushadi (sinov: 33 × 12, 33 × 13); chuqur (≥ 18 m) perimetr qanotlarida uchda 1 oraliqli
+    // (3,3 × 18 m) «koridor» kvartira qolib ketardi (mebel tekshiruvi) — u yerda avvalgi tartib
+    const dTor = (w.S - W) / 2 + W, nb = 1;
+    if (w.double && w.mw * dTor >= TOR_STUDIO && dTor <= 9.4) {
+      const cOk = (k: EndKind, e: 0 | 1) => (k === 'free' && capW(w) === 0 && !blindEnd(e)) || (k === 'wall' && dTor <= 8.5 && !blindEnd(e));   // 07.11: 16–17 m qanotda seksiyalar orasidagi devor uchida — avvalgi tartib (u yerda P/C reja zaxiraga tushardi)
       // yadro + har tomonda kamida bitta oraliq qolsin (kalta seksiyada — faqat bitta uchida, avval ochiq uch)
       const need0 = LIFT + 2.4 + STAIR_W + 0.2 + 3 * w.mw;
-      const try2 = (n0: boolean, n1: boolean) => { const t0c = n0 ? p.ua + w.mw : p.t0, t1c = n1 ? p.ub - w.mw : p.t1; if ((n0 || n1) && t1c - t0c >= need0) { p.t0 = t0c; p.t1 = t1c; p.c0 = n0; p.c1 = n1; return true; } return false; };
+      const try2 = (n0: boolean, n1: boolean) => { const t0c = n0 ? p.ua + nb * w.mw : p.t0, t1c = n1 ? p.ub - nb * w.mw : p.t1; if ((n0 || n1) && t1c - t0c >= need0) { p.t0 = t0c; p.t1 = t1c; p.c0 = n0; p.c1 = n1; return true; } return false; };
       const o0 = cOk(p.k0, 0), o1 = cOk(p.k1, 1);
       if (!try2(o0, o1)) { const f0 = o0 && p.k0 === 'free', f1 = o1 && p.k1 === 'free'; if (!(f0 && try2(true, false)) && !(f1 && try2(false, true)) && !(o0 && try2(true, false))) { if (o1) try2(false, true); } }
     }
