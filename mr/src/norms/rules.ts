@@ -26,7 +26,7 @@ import { MTM, mtmGroups } from '../core/mtmrule';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
-import { need413, T30, Q3, WIN30, SOC30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML } from '../core/mlpark';
+import { need413, T30, Q3, WIN30, SOC30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML, rampNeed, rampOk, liftNeed, evLoss } from '../core/mlpark';
 import { szzGreen, szzBelt, BELT_GAP } from '../core/szzgen';
 import { isActive, SZZ_DENY, limitZones } from '../core/limits';
 import { entryReport, hasEntryRules, isUg } from '../core/parkenv';
@@ -183,6 +183,8 @@ const PARK_4242 = '01/2-42 buyrugʻi (09.12.2025): Toshkent shahri va viloyatida
 const FIRE_6511 = '651¹-band (01/2-42): Ф1–Ф4, I–II darajali binolarda qarama-qarshi devor (yoki maxsus mustaqil devor) I-turdagi yongʻinga qarshi va oyna-eshiksiz boʻlsa — masofa normalanmaydi; modelda bunday devor belgilanmagan.';
 /** 06.11 (c61): 0103-25-son SanQvaN (SEO qoʻmitasi 15.08.2025 dagi 24-son qarori, AV 29.09.2025, № 373) — SanPiN 0350-17 oʻrniga (2-ilova, 3-band) */
 const SANQ: Omit<Source, 'clause'> = { doc: 'SanQvaN 0103-25', edition: '2025', verified: true };
+/** 07.11 (c73): SHNQ 2.05.07-24 «Avtoturargohlar» — 01/2-6 (24.01.2025) buyrugʻi, 01/2-32 (06.08.2026) tahriri bilan */
+const SHNQ_2_05_07: Omit<Source, 'clause'> = { doc: 'SHNQ 2.05.07-24', edition: '2024 (01/2-32 tahriri bilan)', verified: true };
 
 /** 06.11 (c58): 79-band, 2-jadval — «mos emas» juftlardagi binolar (ustma-ust tushganlar bundan mustasno; spacing-79 bilan bir xil saralash) */
 export function spacingBadIds(doc: Project): string[] {
@@ -404,6 +406,42 @@ export const RULES: Rule[] = [
     },
   },
   {
+    // 07.11 (c73): SHNQ 2.05.07-24 — joy oʻlchami, balandlik, rampalar, liftlar, EV va nogironlar joylari (har talab — alohida qator)
+    id: 'park-20507',
+    title: 'Avtoturargoh: joy oʻlchami, rampalar, liftlar (SHNQ 2.05.07-24)',
+    source: { ...SHNQ_2_05_07, clause: '1-ilova 4-izoh; 29, 34, 37, 41, 171¹, 180, 255-bandlar' },
+    evaluate(_d, doc) {
+      const all = doc.garages.filter(g => !g.truck && g.spaces > 0); if (!all.length) return { status: 'na', note: 'Avtoturargoh yoʻq.' };
+      const fr = frame(doc.origin), lines: string[] = [];
+      // 1-ilova 4-izoh: joylar 5,5 × 2,5 m — saqlangan joy toʻrtburchaklarining eng kichik tomonlari
+      let mnL = Infinity, mnW = Infinity; const old = all.filter(g => (g.stalls ?? []).some(r => { const q = r.map(fr.toLocal); if (q.length < 4) return false; const a = Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]), b = Math.hypot(q[2][0] - q[1][0], q[2][1] - q[1][1]), lo = Math.min(a, b), hi = Math.max(a, b); mnL = Math.min(mnL, hi); mnW = Math.min(mnW, lo); return hi < 5.45 || lo < 2.45; }));
+      lines.push('Joy oʻlchami: kamida 5,5 × 2,5 m (1-ilova, 4-izoh) — barcha avtoturargohlar, shu jumladan ochiq turdagilar (SHNQ qamrovi, 14-band).');
+      if (Number.isFinite(mnL)) lines.push(`Sahnadagi joylar: eng kichigi ${nm(mnW)} × ${nm(mnL)} m.`);
+      if (old.length) lines.push(`Mos emas: ${old.length} ta avtoturargohda 5,5 m dan qisqa joylar (eski 5,3 m modul) — Hajmlar qadamida qayta generatsiya qiling.`);
+      lines.push('Balandlik: eng baland avtomobildan 0,2 m ortiq, kamida 2 m (29-band); qabul qilingan gabarit 2,2 m — «katta» sinf 1970 mm + 0,2 m (TALQIN: sinf loyiha topshirigʻida beriladi).');
+      // 37-band: rampalar soni — 1-qavatdan tashqari qavatlardagi joylar; yer ostida — barcha qavatlar. Bizda har avtoturargohda bitta ikki tasmali rampa (TALQIN)
+      const multi = all.filter(g => g.kind !== 'yer_usti' && (g.kind === 'yer_osti' || g.levels > 1));
+      const above = (g: typeof all[number]) => g.kind === 'yer_osti' ? g.spaces : Math.max(0, g.spaces - (g.perFloor?.[0] ?? Math.round(g.spaces / Math.max(1, g.levels))));
+      const rampBad = multi.filter(g => !rampOk(above(g), 1));
+      if (multi.length) {
+        const w = multi.reduce((a, g) => above(g) > above(a) ? g : a), n = above(w);
+        lines.push('Rampa: toʻgʻri ≤ 18 %, egri ≤ 13 %, ochiq (himoyalanmagan) < 10 %; yurish qismi eni ≥ 3,5 m; egri qismning tashqi radiusi ≥ 7,4 m (41-band). Generator rampasi: 18 %, 2 × 3,5 m.');
+        lines.push(`Rampalar soni (37-band): eng kattasida rampa orqali harakatlanadigan ${n} joy — ${rampNeed(n).text}. Har avtoturargohda bitta ikki tasmali rampa (TALQIN).`);
+        if (rampBad.length) lines.push(`Mos emas: ${rampBad.length} ta avtoturargohda 1000 dan ortiq joy — ikkinchi ikki tasmali rampa kerak.`);
+      }
+      // 34-band: liftlar (koʻp qavatli avtoturargoh binolari)
+      const ml = all.filter(g => g.kind === 'kop_qavatli'), lifts = ml.reduce((t, g) => t + liftNeed(above(g)), 0);
+      if (ml.length) lines.push(`Liftlar (34-band): 1-qavatdan yuqoridagi har 100 joyga bitta yoʻlovchi lift — ${lifts} ta kerak; zina-lift tugunlaridagi liftlar soni modelda hisoblanmaydi — koʻrib chiqing.`);
+      // 412-band (ShNQ 2.07.01-23) + 171¹, 180-bandlar: EV joylari
+      const n = all.reduce((t, g) => t + g.spaces, 0), ev412 = doc.buildings.some(b => b.use === 'savdo' || b.use === 'mehmonxona');
+      if (ev412) lines.push(`Elektromobil joylari: ${pct5(n)} ta (5 %, ShNQ 2.07.01-23, 412-band), har biri 3,0 × 6,0 m (180-band); ichki avtoturargohda faqat −1 yoki +1 qavatda (171¹-band). Oddiy joylar oʻrnida qoʻyilsa ${evLoss(pct5(n))} ta joy kamayadi.`);
+      else lines.push('Elektromobil joylari: loyihada 412-banddagi obyektlar (savdo, mehmonxona va h.k.) yoʻq — talab qilinmaydi; qoʻyilsa — 3,0 × 6,0 m, ichki avtoturargohda faqat −1 yoki +1 qavatda (171¹, 180-bandlar).');
+      lines.push('Nogironlar joylari: yer usti avtoturargohda 1-qavatda, yer ostida — yuqoridan 1-qavatda, kirish yoki lift yonida (255-band); oʻlchami SHNQ 2.07.02-24 boʻyicha (254-band; hujjat normalar toʻplamida yoʻq).');
+      const bad = old.length + rampBad.length;
+      return { status: bad ? 'fail' : ml.length ? 'review' : 'pass', value: bad, unit: 'ta', limit: '0', note: lines.join('\n') };
+    },
+  },
+  {
     // 06.11 (B6): 88-band — velosiped va boshqa mobil vositalar saqlash maydonchasi; oʻlchami 4-jadvalda berilmagan
     id: 'velo-88',
     title: 'Velosiped va mobil vositalar maydonchasi',
@@ -426,10 +464,10 @@ export const RULES: Rule[] = [
   {
     id: 'park-414',
     title: 'Avtoturargoh kirish-chiqishi va pandus',
-    source: { ...SHNQ_2_07_01, clause: '414-band; pandus — ANDOZA (SP 113.13330.2016)', verified: false },
+    source: { ...SHNQ_2_07_01, clause: '414-band; pandus — SHNQ 2.05.07-24, 41-band' },
     evaluate(_d, doc) {
       const gs = doc.garages.filter(hasEntryRules); if (!gs.length) return { status: 'na', note: 'Yer osti, stilobat yoki koʻp qavatli avtoturargoh yoʻq.' };
-      const ramp = `Pandus (ANDOZA — Oʻzbekiston normasi papkada yoʻq, SP 113.13330.2016 (RF) — taqqoslash uchun): qavat ${String(ML.floorH).replace('.', ',')} m, qiyalik ≤ 18 % (egri pandus ≤ 13 %), bir yoʻnalishli yoʻlak ≥ 3,5 m, uchlarida 3,6 m oʻtish uchastkalari — gorizontal uzunlik ${String(rampLen()).replace('.', ',')} m.`;
+      const ramp = `Pandus (SHNQ 2.05.07-24, 41-band): qiyalik ≤ 18 % (egri ≤ 13 %, ochiq < 10 %), yurish qismi ≥ 3,5 m, egri qismning tashqi radiusi ≥ 7,4 m; qavat ${String(ML.floorH).replace('.', ',')} m, uchlarida 3,6 m oʻtish uchastkalari (TALQIN, 169⁵-band) — gorizontal uzunlik ${String(rampLen()).replace('.', ',')} m.`;
       const E = entryEval(doc, gs, c => c.kind === 'chorraha' || c.kind === 'bekat');
       const n = E.n, mx = E.minX == null ? '—' : nm(E.minX), fails = E.fails;
       if (!n) return { status: 'review', unit: '', note: `414-band: kirish-chiqish joylari magistral koʻchalar chorrahasidan kamida 50 m, mahalliy koʻchalardan 20 m, jamoat transporti bekatidan 5 m. Kirish nuqtasi qoʻyilmagan (${gs.length} ta avtoturargoh) — Hajmlar qadamida «Kirish-chiqish → Avtomatik joylashtir» yoki sahnada belgini sudrang.\n${ramp}` };
