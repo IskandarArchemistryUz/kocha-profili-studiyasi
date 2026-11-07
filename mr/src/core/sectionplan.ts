@@ -813,7 +813,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
       const restA = diff([a.ring], [stIn[0]], 'none').sort((x, y) => area(y) - area(x));
       const na: RuleApt = { ...a, ring: restA[0] ?? a.ring, area: restA[0] ? area(restA[0]) : 0, rooms: 0 };
       // 08.11: fasadgacha zina kvartirani yoʻqotmasin — qolgan qismi kvartira boʻlib qolmasa, keyingi nomzod
-      if (full && !(restA[0] && ok(na))) continue;
+      if (full && !(restA[0] && ok(na) && na.area >= 36 && obb2(restA[0]).S >= 5.2)) continue;   // qolgan qismi toʻla kvartira (ichki reja sigʻsin)
       S.stairs.push(stIn[0]);
       if (restA[0] && ok(na)) apts[i] = na; else { apts.splice(i, 1); if (restA[0]) rest.push(restA[0]); }
       for (const z of restA.slice(1)) if (area(z) > 0.5) rest.push(z);

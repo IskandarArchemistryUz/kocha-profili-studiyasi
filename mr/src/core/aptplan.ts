@@ -1348,7 +1348,12 @@ function simpleInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
     if (D < 5.4) {
       // sayoz: ustunlar fasad boʻylab — [xona][dahliz + sanuzel ustuni eshik roʻparasida][xona]
       if (dv < D - 0.4) continue;
-      const cw = 1.8, c0 = Math.max(0, Math.min(W - cw, du - cw / 2)), c1 = c0 + cw, ss = Math.min(2.2, D - 1.6); if (ss < 1.5) continue;
+      const cw = 1.8, ss = Math.min(2.2, D - 1.6); if (ss < 1.5) continue;
+      let c0 = Math.max(0, Math.min(W - cw, du - cw / 2));
+      // 08.11: eshik oʻrtada va ikki yon boʻlak ham < 2,6 m (masalan 6,5 m enli 1 xonali) — dahliz ustuni eshikni ichida saqlagan holda
+      // bir tomonga suriladi, shunda bir yonda ≥ 2,6 m xona sigʻadi (aks holda kvartira ichki rejasiz qolardi)
+      if (c0 < 2.6 && W - c0 - cw < 2.6 && W - cw >= 2.6) { for (const t of [2.6, W - cw - 2.6]) if (t >= 0 && t + cw <= W && du >= t + 0.1 && du <= t + cw - 0.1) { c0 = t; break; } }
+      const c1 = c0 + cw;
       const left = c0, right = W - c1, ks: [number, number][] = [];
       if (left >= 2.6) ks.push([0, c0]); if (right >= 2.6) ks.push([c1, W]); if (!ks.length) continue;
       const k = Math.min(k0, ks.length), use = ks.sort((p, q) => (q[1] - q[0]) - (p[1] - p[0])).slice(0, k), kinds = kindsOf(k);
