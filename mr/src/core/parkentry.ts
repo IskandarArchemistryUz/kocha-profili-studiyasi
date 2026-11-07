@@ -17,7 +17,7 @@
  *    SanQvaN 0103-25 da yoʻq. Shaxtalar va maydonchalar uchun 415-band qiymati (15 m) qoldirildi — AMALIYOT/TALQIN.
  *    TALQIN: «деразалари» — turar va jamoat binolarining izi (derazalar qaysi tarzda ekani modelda yoʻq — xavfsiz tomonga,
  *    butun kontur); dam olish maydonchalari — hovlidagi bolalar, kattalar va sport maydonchalari (xoʻjalik maydonchasi emas).
- * ANDOZA: pandus izi 6 × 3,5 m (bir yoʻnalishli yoʻlak, SP 113.13330.2016 — taqqoslash uchun); shamollatish shaxtasi 2 × 2 m,
+ * ANDOZA: pandus izi 6 × 3,5 m (bir yoʻnalishli yoʻlak eni — SHNQ 2.05.07-24, 41-band; iz uzunligi 6 m — ANDOZA); shamollatish shaxtasi 2 × 2 m,
  *  har 2 000 m² garaj maydoniga 1 ta, koʻpi bilan 6 ta (hisob loyihada); nomzod nuqtalar qadami 5 m. Shaxtalar binolar, dam olish
  *  maydonchalari va taʼlim / davolash hududlaridan eng uzoq joyga qoʻyiladi.
  */

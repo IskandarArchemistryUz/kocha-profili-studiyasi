@@ -2735,7 +2735,7 @@ export class Editor {
           h('b', { class: 'num', id: 'ml413' }, `${fmt(gar.spaces ? A / gar.spaces : 0, 1)} m²`)),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Nogironlar uchun joy'), h('span', { class: 'sub' }, tr('411-band: kamida 5 %, kamida 1 — 1-qavatda'))), h('b', { class: 'num' }, String(pct5(gar.spaces)))),
         ...(gar.spaces && A / gar.spaces < need413(gar.levels) - 0.05 ? [h('div', { class: 'note warn', id: 'ml413warn' }, tf('413-band boʻyicha bu uchastkada ${l} qavatda koʻpi bilan ${m} joy — qavatni kamaytiring.', { l: gar.levels, m: Math.floor(A / need413(gar.levels)) }))] : []),
-        h('div', { class: 't-small' }, tf('Pandus, yoʻlak va qavat balandligi — ANDOZA (SP 113.13330.2016, taqqoslash uchun): qavat ${h} m, qiyalik ≤ 18 %, yoʻlak ≥ 3,5 m.', { h: fmt(ML.floorH, 1) })));
+        h('div', { class: 't-small' }, tf('Pandus — SHNQ 2.05.07-24, 41-band: qiyalik ≤ 18 % (egri ≤ 13 %), yoʻlak ≥ 3,5 m, tashqi radius ≥ 7,4 m; joy 5,5 × 2,5 m (1-ilova); qavat ${h} m — ANDOZA.', { h: fmt(ML.floorH, 1) })));
       if (st.f !== gar.levels) box.append(h('div', { class: 'note warn' }, tf('Tanlangan ${f} qavat — qayta joylashtiring.', { f: st.f })));
     } else box.append(h('div', { class: 't-small', id: 'mlHint' }, tr('«Joylashtirish» — parsel ichida toʻrtburchak bino, har qavatda pandus, manevr yoʻlagi va joylar.')));
     return box;

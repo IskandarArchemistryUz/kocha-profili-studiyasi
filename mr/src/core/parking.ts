@@ -9,11 +9,14 @@
 import type { XY } from './geo';
 
 export type ParkModule = 'p90' | 'p60' | 'p45' | 'par';
-/** W — joy eni, L — uzunligi, A — manevr boʻlagi, deg — boʻlakka nisbatan burchak (dizayn-kod 6.3, eng kichik qiymatlar) */
+/** W — joy eni, L — uzunligi, A — manevr boʻlagi, deg — boʻlakka nisbatan burchak (dizayn-kod 6.3, eng kichik qiymatlar).
+ * 07.11 (c73): SHNQ 2.05.07-24, 1-ilova 4-izohi — avtomobil-oʻrinlarining minimal oʻlchamlari 5,5 × 2,5 m (NORMA); SHNQ qamrovi —
+ * barcha avtoturargohlar, shu jumladan ochiq turdagilar (muqaddima, 14-band: sigʻim 1-ilova oʻlchamlari boʻyicha). Shuning uchun
+ * 90°, 60° va 45° modullarda joy uzunligi 5,3 / 5,0 → 5,5 m; parallel 6,0 × 2,5 m — talabdan katta. Boʻlak eni normada berilmagan — ANDOZA. */
 export const PARK_MOD: Record<ParkModule, { short: string; W: number; L: number; A: number; deg: number; name: string; src: string }> = {
-  p90: { short: '90°', W: 2.5, L: 5.3, A: 6.0, deg: 90, name: 'Perpendikulyar 90°', src: '5–5,5 × 2,5–2,7 m, boʻlak ≥ 6 m' },
-  p60: { short: '60°', W: 2.5, L: 5.0, A: 5.0, deg: 60, name: 'Burchakli 60°', src: '4,5–5 × 2,5 m, boʻlak 4,5–5 m' },
-  p45: { short: '45°', W: 2.5, L: 5.0, A: 4.5, deg: 45, name: 'Burchakli 45°', src: '4,5–5 × 2,5 m, boʻlak 4,5–5 m' },
+  p90: { short: '90°', W: 2.5, L: 5.5, A: 6.0, deg: 90, name: 'Perpendikulyar 90°', src: '5–5,5 × 2,5–2,7 m, boʻlak ≥ 6 m' },
+  p60: { short: '60°', W: 2.5, L: 5.5, A: 5.0, deg: 60, name: 'Burchakli 60°', src: '4,5–5 × 2,5 m, boʻlak 4,5–5 m' },
+  p45: { short: '45°', W: 2.5, L: 5.5, A: 4.5, deg: 45, name: 'Burchakli 45°', src: '4,5–5 × 2,5 m, boʻlak 4,5–5 m' },
   par: { short: 'Parallel', W: 2.5, L: 6.0, A: 3.5, deg: 0, name: 'Parallel', src: '5,5–6 × 2,3–2,5 m, boʻlak ≥ 3 m' },
 };
 export const PARK_MODS = Object.keys(PARK_MOD) as ParkModule[];

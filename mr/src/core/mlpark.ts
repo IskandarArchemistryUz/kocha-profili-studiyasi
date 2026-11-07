@@ -11,21 +11,36 @@
  *  - 414-band — kirish-chiqish joylari magistral koʻchalar chorrahasidan ≥ 50 m, mahalliy koʻchalardan ≥ 20 m, bekatdan ≥ 5 m;
  *  - 418-band, 30-jadval — yer usti va ochiq avtoturargohlardan binolargacha masofa (sigʻimga qarab).
  *
- * ANDOZA (Oʻzbekiston normasi normalar papkasida yoʻq — SP 113.13330.2016 (RF) — taqqoslash uchun):
- *  - qavat balandligi 3,0 m (gabarit ≥ 2,2 m); toʻgʻri pandus qiyaligi ≤ 18 % (egri ≤ 13 %); bir yoʻnalishli pandus eni ≥ 3,5 m;
- *    pandus uchlarida oʻtish uchastkalari — qiyaligi yarmi, uzunligi 3,6 m: gorizontal uzunlik = H / i + 3,6 (3 m da ≈ 20,3 m);
- *  - joy 2,5 × 5,3 m, manevr yoʻlagi 6,0 m (PARK_MOD.p90 — Toshkent dizayn-kodi 6.3); tashqi chekinish 3 m;
+ * NORMA (asl matn, SHNQ 2.05.07-24 «Avtoturargohlar», 01/2-32 tahriri bilan) — 07.11 (c73):
+ *  - 1-ilova, 4-izoh — avtomobil-oʻrinlarining minimal oʻlchamlari 5,5 × 2,5 m (avval 5,3 m edi — dizayn-kod 6.3);
+ *  - 29-band — saqlash xonasi, rampa va darvoza balandligi eng baland avtomobildan 0,2 m ortiq, lekin ≥ 2 m;
+ *    1-ilova: «katta» sinf avtomobil balandligi 1970 mm → 2,17 m → gabarit 2,2 m (TALQIN: sinf topshiriqda berilmagan);
+ *  - 34-band — 1-qavatdan tashqari qavatlardagi har 100 avtomobilga bitta yoʻlovchi lift;
+ *  - 37-band — rampalar soni (1-qavatdan tashqari qavatlardagi avtomobillar boʻyicha; yer ostida — barcha qavatlar):
+ *    100 gacha — bitta bir tasmali (signalizatsiya bilan); 1000 gacha — 1–2 ikki tasmali yoki 2–3 bir tasmali;
+ *    1000 dan ortiq — 2–3 ikki tasmali yoki teng qiymatli kombinatsiya;
+ *  - 41-band — toʻgʻri rampa ≤ 18 %, egri ≤ 13 %, ochiq (himoyalanmagan) < 10 %; koʻndalang < 6 %; yurish qismi eni ≥ 3,5 m;
+ *    egri qismning tashqi radiusi ≥ 7,4 m;
+ *  - 58-band — ikki yoʻlli rampada 0,15 × 0,2 m oʻrta toʻsiq (bizda ajratgich 0,5 m — kattaroq);
+ *  - 171¹-band — ichki avtoturargohlarda EQS faqat −1 yoki +1 qavatda; 180-band — EV joyi 3,0 × 6,0 m
+ *    (yoʻlak boʻylab parallel — 2,5 × 6,0 m);
+ *  - 255-band — nogironlar joylari yer usti avtoturargohning 1-qavatida, yer ostida — yuqoridan 1-qavatda, kirish yoki lift yonida.
+ *
+ * ANDOZA / TALQIN:
+ *  - qavat balandligi 3,0 m; pandus uchlarida 3,6 m oʻtish uchastkalari (qiyaligi yarmi) — SHNQ 2.05.07-24 da faqat togʻ hududlari
+ *    uchun (169⁵-band: nishablik 10 % dan oshsa) — tekislikka ham qoʻllanadi (TALQIN): gorizontal uzunlik = H / i + 3,6 (3 m da ≈ 20,3 m);
+ *  - manevr yoʻlagi 6,0 m (normada qiymat yoʻq — dizayn-kod 6.3); tashqi chekinish 3 m;
  *  - har qavatda 2 ta evakuatsiya zinasi / lift tuguni (har biri 3 joy oʻrnida), 1-qavatda nazorat punkti (2 joy oʻrnida).
  *
  * Reja (mahalliy u — bino uzunligi, v — eni): [pandus tasmasi 7,5 m: ikki yoʻnalish 3,5 + 3,5 + ajratgich 0,5] [yoʻlak 6] [joylar 5,3],
  * keyin ikki tomonlama qatorlar [joylar 5,3][yoʻlak 6][joylar 5,3]; ikki uchida koʻndalang yoʻlak 6 m (qatorlar yoʻlaklarini ulaydi).
- * Pandus tasmasining pandusdan boshqa qismida — joylar (yoʻlakka tutash 5,3 m). Pandus barcha qavatlarda bir joyda (ustma-ust).
+ * Pandus tasmasining pandusdan boshqa qismida — joylar (yoʻlakka tutash 5,5 m). Pandus barcha qavatlarda bir joyda (ustma-ust).
  */
 import type { XY } from './geo';
 import { PARK_MOD } from './parking';
 
 export const ML = {
-  floorH: 3.0, clear: 2.2, slope: 0.18, slopeCurve: 0.13, lane: 3.5, sep: 0.5, trans: 3.6, setback: 3,
+  floorH: 3.0, clear: 2.2, slope: 0.18, slopeCurve: 0.13, slopeOpen: 0.10, slopeCross: 0.06, lane: 3.5, rOuter: 7.4, sep: 0.5, trans: 3.6, setback: 3, minClear: 2.0,
   stallW: PARK_MOD.p90.W, stallL: PARK_MOD.p90.L, aisle: PARK_MOD.p90.A, coreStalls: 3, gateStalls: 2,
 } as const;
 /** 413-band: bir mashina-joyga yer uchastkasi, m² (kamida) */
@@ -39,6 +54,22 @@ export function rampLen(H: number = ML.floorH, i: number = ML.slope, t: number =
   return Math.round((H / i - t + 2 * t) * 10) / 10;
 }
 export const rampWidth = (): number => 2 * ML.lane + ML.sep;
+
+/** SHNQ 2.05.07-24, 37-band: kerakli rampalar (cars — 1-qavatdan tashqari qavatlardagi joylar; yer ostida — barcha qavatlar).
+ *  two — ikki tasmali rampalar soni (eng kami), one — muqobil bir tasmali soni (eng kami) */
+export function rampNeed(cars: number): { two: number; one: number; text: string } {
+  if (cars <= 0) return { two: 0, one: 0, text: '—' };
+  if (cars <= 100) return { two: 0, one: 1, text: '100 gacha — bitta bir tasmali rampa (signalizatsiya bilan)' };
+  if (cars <= 1000) return { two: 1, one: 2, text: '1000 gacha — 1–2 ta ikki tasmali yoki 2–3 ta bir tasmali rampa' };
+  return { two: 2, one: 4, text: '1000 dan ortiq — 2–3 ta ikki tasmali rampa yoki teng qiymatli kombinatsiya' };
+}
+/** rampalar talabi bajarilganmi: ikki tasmali rampa ikkita bir tasmaliga teng (TALQIN: «teng qiymatli kombinatsiya») */
+export const rampOk = (cars: number, twoLane: number, oneLane = 0): boolean => { const r = rampNeed(cars); return 2 * twoLane + oneLane >= Math.max(2 * r.two, r.one); };
+/** SHNQ 2.05.07-24, 34-band: yoʻlovchi liftlar — 1-qavatdan tashqari qavatlardagi har 100 avtomobilga bitta */
+export const liftNeed = (carsAbove: number): number => Math.ceil(Math.max(0, carsAbove) / 100);
+/** SHNQ 2.05.07-24, 180-band: EV joyi 3,0 × 6,0 m; oddiy joy oʻrnida qoʻyilsa qatorda yoʻqotiladigan oddiy joylar soni (5,5 × 2,5 modulda) */
+export const EV_W = 3.0, EV_L = 6.0;
+export const evLoss = (ev: number, stallW: number = ML.stallW): number => ev > 0 ? Math.ceil(ev * (EV_W - stallW) / stallW) : 0;
 
 /** 30-jadval (418-band): masofa, m — sigʻim ustunlari: ≤ 10, 11–50, 51–100, 101–300, > 300; null — jadvalda «–» */
 export const T30 = {

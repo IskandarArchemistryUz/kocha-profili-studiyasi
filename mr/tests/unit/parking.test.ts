@@ -8,10 +8,10 @@ const sq = (w: number, h: number, x = 0, y = 0): XY[] => [[x, y], [x + w, y], [x
 const ov = (a: XY[], b: XY[]) => { try { return polygonClipping.intersection([[...a, a[0]]] as never, [[...b, b[0]]] as never).reduce((s, p) => s + area(p[0].slice(0, -1) as XY[]), 0); } catch { return 0; } };
 
 describe('Avtoturargoh: modul boʻyicha joylar (dizayn-kod 6.3)', () => {
-  it('90°: 60 × 40 m maydonda joylar oʻlchami 2,5 × 5,3, ustma-ust tushmaydi, maydon ichida', () => {
+  it('90°: 60 × 40 m maydonda joylar oʻlchami 2,5 × 5,5 (SHNQ 2.05.07-24, 1-ilova), ustma-ust tushmaydi, maydon ichida', () => {
     const A = sq(60, 40), L = layoutStalls(A, [], 'p90');
     expect(L.n).toBeGreaterThan(70);   // ≈ 2 400 m² / ~25 m²
-    for (const q of L.stalls) { expect(area(q)).toBeCloseTo(2.5 * 5.3, 1); for (const p of q) { expect(p[0]).toBeGreaterThanOrEqual(-1e-6); expect(p[0]).toBeLessThanOrEqual(60 + 1e-6); expect(p[1]).toBeLessThanOrEqual(40 + 1e-6); } }
+    for (const q of L.stalls) { expect(area(q)).toBeCloseTo(2.5 * 5.5, 1); for (const p of q) { expect(p[0]).toBeGreaterThanOrEqual(-1e-6); expect(p[0]).toBeLessThanOrEqual(60 + 1e-6); expect(p[1]).toBeLessThanOrEqual(40 + 1e-6); } }
     for (let i = 0; i < L.stalls.length; i++) for (let j = i + 1; j < L.stalls.length; j++) expect(ov(L.stalls[i], L.stalls[j])).toBeLessThan(0.01);
     for (const a of L.aisles) for (const q of L.stalls) expect(ov(a, q)).toBeLessThan(0.01);
   });
@@ -21,7 +21,7 @@ describe('Avtoturargoh: modul boʻyicha joylar (dizayn-kod 6.3)', () => {
       const L = layoutStalls(A, [], m); n[m] = L.n;
       for (const q of L.stalls) expect(area(q)).toBeCloseTo(PARK_MOD[m].W * PARK_MOD[m].L, 1);
     }
-    expect(n.p90).toBeGreaterThan(n.p45); expect(n.p60).toBeGreaterThan(n.par);
+    expect(n.p90).toBeGreaterThan(n.p45); expect(n.p90).toBeGreaterThan(n.par);   // 07.11 (c73): 60° joy 5,5 m — 80 × 50 da paralleldan kam chiqishi mumkin
   });
   it('toʻsiq (bino) va bufer: joylar binoga tegmaydi, 10 m dan yaqin emas', () => {
     const A = sq(100, 60), bld = sq(20, 20, 40, 20), L = layoutStalls(A, [{ ring: bld, buf: 10 }], 'p90');
