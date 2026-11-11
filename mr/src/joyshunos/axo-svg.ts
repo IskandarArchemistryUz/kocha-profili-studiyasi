@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { frame } from '../core/geo';
 import { sunPosition, localToUtcAt } from '../core/sun';
 import { tr } from '../i18n';
-import { AX_LAYERS, SUN_DAYS, axCols, ringLabel, type Axo, type AxLayer } from './axo';
+import { AX_LAYERS, SUN_DAYS, axCols, ringLabel, flowLevel, type Axo, type AxLayer } from './axo';
 
 type P2 = [number, number];
 const f1 = (v: number) => v.toFixed(1);
@@ -135,6 +135,10 @@ export function axoSvg(a: Axo, layered: boolean): string {
   /* --- belgilar --- */
   if (vis('xizmat')) for (const p of st.pins) {
     const [x0, y0] = pr(p.x, p.y, p.z - Math.max(16, R * 0.05), 'xizmat'), [x1, y1] = pr(p.x, p.y, p.z, 'xizmat'), tw = p.label.length * 5.6 + 18;
+    if (a.labelMode === 'raqam') {
+      out.xizmat.push(`<path d="M${f1(x0)} ${f1(y0)}L${f1(x1)} ${f1(y1)}" stroke="#6b6965" stroke-width=".8"/>`, p.n ? `<circle cx="${f1(x1)}" cy="${f1(y1 - 9)}" r="8" fill="#fff" stroke="${p.col}" stroke-width="2"/><text x="${f1(x1)}" y="${f1(y1 - 5.5)}" font-size="10" font-weight="700" fill="#141414" text-anchor="middle">${p.n}</text>` : `<circle cx="${f1(x1)}" cy="${f1(y1)}" r="3" fill="${p.col}"/>`);
+      continue;
+    }
     out.xizmat.push(`<path d="M${f1(x0)} ${f1(y0)}L${f1(x1)} ${f1(y1)}" stroke="#6b6965" stroke-width=".8"/><circle cx="${f1(x1)}" cy="${f1(y1)}" r="3" fill="${p.col}"/>`,
       `<rect x="${f1(x1 - 6)}" y="${f1(y1 - 28)}" width="${f1(tw)}" height="18" rx="5" fill="#fff" stroke="#e3e1dc" stroke-width=".5"/><circle cx="${f1(x1 + 2)}" cy="${f1(y1 - 19)}" r="3" fill="${p.col}"/><text x="${f1(x1 + 9)}" y="${f1(y1 - 15.5)}" font-size="10" font-weight="600" fill="#3a3936">${esc(p.label)}</text>`);
   }
@@ -146,14 +150,14 @@ export function axoSvg(a: Axo, layered: boolean): string {
     out.shamol.push(`<path d="${d.join('')}" fill="${AC.wind}" fill-opacity=".32"/>`);
     const smax = Math.max(...st.flows.map(f => f.share), 1e-6);
     st.flows.forEach((f, rank) => {
-      const n = 4 - rank, width = R * (0.012 + 0.016 * f.share / smax), an = f.deg * Math.PI / 180, dir: P2 = [-Math.sin(an), -Math.cos(an)], sd: P2 = [-dir[1], dir[0]], h0 = R * (0.07 + 0.02 * rank);
+      const n = 4 - rank, width = R * 0.026 * flowLevel(f.share / smax), an = f.deg * Math.PI / 180, dir: P2 = [-Math.sin(an), -Math.cos(an)], sd: P2 = [-dir[1], dir[0]], h0 = R * (0.07 + 0.02 * rank);
       for (let k = 0; k < n; k++) {
         const o = (k - (n - 1) / 2) * R * 0.16 + R * 0.05 * (rank - 1), bend = R * (0.12 + 0.05 * k) * (rank % 2 ? -1 : 1);
         const p0: P2 = [-dir[0] * R + sd[0] * o, -dir[1] * R + sd[1] * o], p2: P2 = [-dir[0] * R * (0.22 + 0.06 * k) + sd[0] * o * 0.7, -dir[1] * R * (0.22 + 0.06 * k) + sd[1] * o * 0.7];
         const p1: P2 = [(p0[0] + p2[0]) / 2 + sd[0] * bend, (p0[1] + p2[1]) / 2 + sd[1] * bend], pts: P2[] = [];
         for (let i = 0; i <= 30; i++) { const t = i / 30, x = (1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0], y = (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]; pts.push(pr(x, y, h0 * (0.6 + 0.4 * Math.sin(Math.PI * t)), 'shamol')); }
         const e = pts[30], q = pts[28], dx = e[0] - q[0], dy = e[1] - q[1], dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl, sw = Math.max(2, width * 0.35);
-        out.shamol.push(`<path d="${line(pts)}" fill="none" stroke="${f.col}" stroke-width="${f1(sw)}" stroke-linecap="round" stroke-opacity=".85"/><path d="M${f1(e[0] + ux * sw * 2.6)} ${f1(e[1] + uy * sw * 2.6)}L${f1(e[0] - uy * sw * 1.6)} ${f1(e[1] + ux * sw * 1.6)}L${f1(e[0] + uy * sw * 1.6)} ${f1(e[1] - ux * sw * 1.6)}Z" fill="${f.col}"/>`);
+        out.shamol.push(`<path d="${line(pts)}" fill="none" stroke="${inp.dark ? '#17181a' : '#fff'}" stroke-width="${f1(sw * 1.9)}" stroke-linecap="round" stroke-opacity=".75"/><path d="${line(pts)}" fill="none" stroke="${f.col}" stroke-width="${f1(sw)}" stroke-linecap="round" stroke-opacity=".85"/><path d="M${f1(e[0] + ux * sw * 2.6)} ${f1(e[1] + uy * sw * 2.6)}L${f1(e[0] - uy * sw * 1.6)} ${f1(e[1] + ux * sw * 1.6)}L${f1(e[0] + uy * sw * 1.6)} ${f1(e[1] - ux * sw * 1.6)}Z" fill="${f.col}"/>`);
       }
     });
   }

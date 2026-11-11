@@ -1,0 +1,1 @@
+export{t as svgPdf}from"./pdf-CiF-2jtS.js";

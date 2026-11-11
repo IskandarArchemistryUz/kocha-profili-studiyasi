@@ -58,6 +58,8 @@ export function topFlows(w: AxWind): AxFlow[] {
 export const SUN_DAYS: [number, number, string][] = [[3, 21, '21 mart'], [6, 21, '21 iyun'], [12, 21, '21 dekabr']];
 
 const NAME2LAYER: Record<string, AxLayer> = { relyef: 'relyef', yashil: 'yashil', suv: 'yashil', ariqlar: 'yashil', daraxtlar: 'yashil', 'yoʻlaklar': 'kochalar', trotuarlar: 'kochalar', 'yoʻllar': 'kochalar', chiziqlar: 'kochalar', 'temir yoʻl': 'kochalar', binolar: 'binolar', tomlar: 'binolar' };
+/** Raqamli yorliqlar soni (E4b): roʻyxat ≤ 8, qolganlari faqat nuqta */
+export const PIN_MAX = 8;
 const SUN0 = 0xe8a317, WIND0 = 0x3f8f6b, RING0 = 0xc0643a, SITE0 = 0xd2492f, SITE0S = 0xe0462a;
 let SUN_COL = SUN0, WIND_COL = WIND0, RING_COL = RING0, SITE_COL = SITE0, SITE_COLS = SITE0S;
 /** Joriy (foydalanuvchi yoki uslub) tahlil ranglari — SVG eksporti shu bilan bir xil boʻladi */
@@ -120,6 +122,10 @@ export class Axo {
   cityLook: 'odatiy' | 'oq' | 'shisha' | 'kontur' = 'oq';
   /** uchastka koʻrinishi: punktir · toʻla rang · devor · shtrix */
   siteLook: 'punktir' | 'tola' | 'devor' | 'shtrix' = 'tola';
+  /** E4b: xizmat yorligʻi — raqam (xaritada ①②③, nomlar chetdagi roʻyxatda, ≤ 8) yoki nom (avvalgi) */
+  labelMode: 'raqam' | 'nom' = 'raqam';
+  /** Raqamlangan obyektlar (markazga yaqinlik tartibida) — chetdagi roʻyxat uchun */
+  pinList: { n: number; label: string; col: string; d: number }[] = [];
   private cars: { pts: Float32Array; road: Uint16Array; s: Float32Array; v: Float32Array; side: Int8Array; geo: THREE.BufferGeometry } | null = null;
   private roadsT: { p: THREE.Vector3[]; cum: number[]; len: number; w: number }[] = [];
   exploded = false;
@@ -185,7 +191,7 @@ export class Axo {
     applyCols(inp.cols);
     this.inp = inp; this.R = inp.r;
     for (const g of this.groups.values()) { g.traverse(o => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); }); g.clear(); }
-    this.labels.forEach(l => l.el.remove()); this.labels = []; this.pinObjs = [];
+    this.labels.forEach(l => l.el.remove()); this.labels = []; this.pinObjs = []; this.pinList = [];
     this.scene.background = new THREE.Color(inp.dark ? 0x17181a : 0xf4f2ee);
     const fr = frame(inp.center), Hs = terrainSampler(inp.bundle.terrain), H = (x: number, y: number) => Hs(x, y); this.H = H;
     // kontekst (OSM): qismlari qatlamlarga taqsimlanadi
@@ -326,17 +332,21 @@ export class Axo {
   private pins(fr: ReturnType<typeof frame>, H: (x: number, y: number) => number, pins: AxPin[]): void {
     const g = this.groups.get('xizmat')!, hgt = Math.max(16, this.R * 0.05);
     const pos: number[] = [];
-    const seen: XYL[] = [];
-    for (const p of pins) {
+    const seen: XYL[] = [], num = this.labelMode === 'raqam';
+    const list = pins.map(p => { const [x, y] = fr.toLocal(p.at); return { p, x, y, d: Math.hypot(x, y) }; });
+    if (num) list.sort((a, b) => a.d - b.d);
+    for (const { p, x, y, d } of list) {
       if (seen.length >= 60) break;
-      const [x, y] = fr.toLocal(p.at);
       if (seen.some(q => q.l === p.label && Math.hypot(q.x - x, q.y - y) < 180)) continue;
       seen.push({ x, y, l: p.label });
+      const n = num && this.pinList.length < PIN_MAX ? this.pinList.push({ n: this.pinList.length + 1, label: p.label, col: p.col, d }) : 0;
       const moved = this.pinMoves.get(p.label + '@' + Math.round(x) + ',' + Math.round(y));
       const px = moved ? moved[0] : x, py = moved ? moved[1] : y, z0 = H(px, py);
       const s = new THREE.Mesh(new THREE.SphereGeometry(Math.max(2.4, this.R * 0.008), 12, 8), new THREE.MeshBasicMaterial({ color: p.col })); s.position.set(px, z0 + hgt, -py); s.userData.pin = true; g.add(s);
       const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(px, z0, -py), new THREE.Vector3(px, z0 + hgt, -py)]), new THREE.LineBasicMaterial({ color: 0x6b6965 })); g.add(stem);
-      const el = document.createElement('div'); el.className = 'axo-pin'; el.innerHTML = `<i style="background:${p.col}"></i>${escapeHtml(p.label)}`;
+      const el = document.createElement('div'); el.className = num ? (n ? 'axo-pin num' : 'axo-pin dot') : 'axo-pin';
+      el.innerHTML = num ? (n ? `<b style="--pc:${p.col}">${n}</b>` : '') : `<i style="background:${p.col}"></i>${escapeHtml(p.label)}`;
+      if (num) el.title = p.label;
       const lb: Lbl = { el, p: new THREE.Vector3(px, z0 + hgt, -py), layer: 'xizmat', kind: 'pin' };
       this.overlay.append(el); this.labels.push(lb);
       this.pinObjs.push({ key: p.label + '@' + Math.round(x) + ',' + Math.round(y), sphere: s, stem, lbl: lb, label: p.label, col: p.col, hgt });
@@ -364,7 +374,7 @@ export class Axo {
     const smax = Math.max(...this.flows.map(f => f.share), 1e-6);
     this.flows.forEach((f, rank) => {
       const tex = chevronTex(); this.flowTex.push({ t: tex, v: f.v });
-      const n = 4 - rank, width = R * (0.012 + 0.016 * f.share / smax), a = f.deg * Math.PI / 180;
+      const n = 4 - rank, width = R * 0.026 * flowLevel(f.share / smax), a = f.deg * Math.PI / 180;
       const dir = new THREE.Vector2(-Math.sin(a), -Math.cos(a));            // oqim yoʻnalishi (x — sharq, y — shimol)
       const side = new THREE.Vector2(-dir.y, dir.x);
       for (let k = 0; k < n; k++) {
@@ -373,7 +383,7 @@ export class Axo {
         const p2 = dir.clone().multiplyScalar(-R * (0.22 + 0.06 * k)).add(side.clone().multiplyScalar(off * 0.7));
         const p1 = p0.clone().lerp(p2, 0.5).add(side.clone().multiplyScalar(bend));
         const h0 = R * (0.07 + 0.02 * rank);
-        const fl = flowRibbon(p0, p1, p2, width, h0, f.col, tex); fl.userData.flow = rank; fl.traverse(o => { o.userData.flow = rank; }); g.add(fl);
+        const fl = flowRibbon(p0, p1, p2, width, h0, f.col, tex, this.inp?.dark ? '#17181a' : '#ffffff'); fl.userData.flow = rank; fl.traverse(o => { o.userData.flow = rank; }); g.add(fl);
       }
     });
   }
@@ -632,9 +642,9 @@ export class Axo {
   resetPins(): void { this.pinMoves.clear(); if (this.inp) this.setData(this.inp); }
 
   /** Eksport uchun ichki maʼlumot */
-  exportState(): { cam: THREE.Camera; w: number; h: number; groups: Map<AxLayer, THREE.Group>; inp: AxInput | null; R: number; clipR: number; slabTop: number; pins: { x: number; y: number; z: number; label: string; col: string; layer: AxLayer }[]; flows: AxFlow[]; H: (x: number, y: number) => number; model: THREE.Object3D | null } {
+  exportState(): { cam: THREE.Camera; w: number; h: number; groups: Map<AxLayer, THREE.Group>; inp: AxInput | null; R: number; clipR: number; slabTop: number; pins: { x: number; y: number; z: number; label: string; col: string; layer: AxLayer; n: number }[]; flows: AxFlow[]; H: (x: number, y: number) => number; model: THREE.Object3D | null } {
     return { cam: this.cam(), w: this.host.clientWidth, h: this.host.clientHeight, groups: this.groups, inp: this.inp, R: this.R, clipR: (this.inp?.bundle.radius ?? this.R) * 0.98, slabTop: this.slabTop,
-      pins: this.pinObjs.map(p => ({ x: p.sphere.position.x, y: -p.sphere.position.z, z: p.sphere.position.y, label: p.label, col: p.col, layer: 'xizmat' as AxLayer })), flows: this.flows, H: this.H, model: this.model };
+      pins: this.pinObjs.map(p => ({ x: p.sphere.position.x, y: -p.sphere.position.z, z: p.sphere.position.y, label: p.label, col: p.col, layer: 'xizmat' as AxLayer, n: Number(p.lbl.el.querySelector('b')?.textContent ?? 0) || 0 })), flows: this.flows, H: this.H, model: this.model };
   }
 
   /** Massing: koʻrinib turgan binolar, relyef, uchastka va model — GLB yoki OBJ (Y — yuqori, metr) */
@@ -762,8 +772,8 @@ export class Axo {
       const [x, y, ok] = this.project(l.p, l.layer, cam, w, h);
       if (l.kind === 'side') continue;
       l.el.hidden = !ok; l.el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
-      if (l.kind === 'pin' && ok) {
-        const bw = (l.el as HTMLElement & { _w?: number })._w ??= l.el.offsetWidth || 80, r = [x - 6, y - 28, x - 6 + bw, y - 8];
+      if (l.kind === 'pin' && ok && !l.el.classList.contains('dot')) {
+        const isN = l.el.classList.contains('num'), bw = (l.el as HTMLElement & { _w?: number })._w ??= l.el.offsetWidth || 80, r = isN ? [x - 10, y - 29, x + 10, y - 9] : [x - 6, y - 28, x - 6 + bw, y - 8];
         if (boxes.some(b => r[0] < b[2] && r[2] > b[0] && r[1] < b[3] && r[3] > b[1])) l.el.hidden = true; else boxes.push(r);
       }
     }
@@ -797,6 +807,11 @@ export class Axo {
     this.overlay.querySelectorAll<HTMLElement>('.axo-pin,.axo-hour,.axo-side').forEach(el => {
       if (el.hidden) return; const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
       const lx = r.left - hb.left, ly = r.top - hb.top;
+      if (el.classList.contains('num')) {   // E4b: raqamli doira
+        const b = el.querySelector('b') as HTMLElement | null; if (!b) return; const br = b.getBoundingClientRect(), c2 = getComputedStyle(b), cx = br.left - hb.left + br.width / 2, cy = br.top - hb.top + br.height / 2;
+        x.beginPath(); x.arc(cx, cy, br.width / 2, 0, Math.PI * 2); x.fillStyle = c2.backgroundColor; x.fill(); x.lineWidth = 2; x.strokeStyle = b.style.getPropertyValue('--pc') || '#333'; x.stroke(); x.lineWidth = 1;
+        x.fillStyle = c2.color; x.font = `${c2.fontWeight} ${c2.fontSize} ${c2.fontFamily}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(b.textContent || '', cx, cy + 0.5); x.textAlign = 'start'; return;
+      }
       if (cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)') { x.fillStyle = cs.backgroundColor; roundRect(x, lx, ly, r.width, r.height, 6); x.fill(); }
       x.fillStyle = cs.color; x.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; x.textBaseline = 'middle';
       const dot = el.querySelector('i') as HTMLElement | null;
@@ -840,7 +855,9 @@ function chevronTex(): THREE.CanvasTexture {
   const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 /** Egri lenta-strelka (kvadratik Bezier) — tekstura uzunlik boʻylab takrorlanadi, oxirida uchburchak uchi */
-function flowRibbon(p0: THREE.Vector2, p1: THREE.Vector2, p2: THREE.Vector2, w: number, h: number, col: string, tex: THREE.Texture): THREE.Group {
+/** Oqim intensivligi 3 darajada (E4b): ≥ 75 % — qalin, ≥ 45 % — oʻrta, qolgani — ingichka (eng kuchli yoʻnalishga nisbatan) */
+export function flowLevel(r: number): number { return r >= 0.75 ? 1 : r >= 0.45 ? 0.62 : 0.38; }
+function flowRibbon(p0: THREE.Vector2, p1: THREE.Vector2, p2: THREE.Vector2, w: number, h: number, col: string, tex: THREE.Texture, haloCol?: string): THREE.Group {
   const N = 40, pts: THREE.Vector2[] = [];
   for (let i = 0; i <= N; i++) { const t = i / N, a = p0.clone().multiplyScalar((1 - t) ** 2), b = p1.clone().multiplyScalar(2 * (1 - t) * t), c = p2.clone().multiplyScalar(t * t); pts.push(a.add(b).add(c)); }
   const pos: number[] = [], uv: number[] = []; let L = 0;
@@ -860,7 +877,14 @@ function flowRibbon(p0: THREE.Vector2, p1: THREE.Vector2, p2: THREE.Vector2, w: 
   const A = e.clone().add(n.clone().multiplyScalar(w * 1.3)), B = e.clone().sub(n.clone().multiplyScalar(w * 1.3)), C = e.clone().add(d.clone().multiplyScalar(w * 2.6));
   const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute([A.x, yE, -A.y, B.x, yE, -B.y, C.x, yE, -C.y], 3));
   const head = new THREE.Mesh(hg, new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.95, depthWrite: false })); head.renderOrder = 38;
-  const g = new THREE.Group(); g.add(rib, head); return g;
+  const g = new THREE.Group(); g.add(rib, head);
+  // oq halo: lenta ostida biroz kengroq, xaritadan ajratadi
+  if (haloCol) {
+    const hp: number[] = []; for (let i = 0; i < pts.length; i++) { const d2 = (i < N ? pts[i + 1].clone().sub(pts[i]) : pts[i].clone().sub(pts[i - 1])).normalize(), nr = new THREE.Vector2(-d2.y, d2.x).multiplyScalar(w * 0.85), y = h * (0.6 + 0.4 * Math.sin(Math.PI * i / N)) - 0.15; hp.push(pts[i].x + nr.x, y, -(pts[i].y + nr.y), pts[i].x - nr.x, y, -(pts[i].y - nr.y)); }
+    const hg2 = new THREE.BufferGeometry(); hg2.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); hg2.setIndex(idx);
+    const halo = new THREE.Mesh(hg2, new THREE.MeshBasicMaterial({ color: haloCol, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false })); halo.renderOrder = 36; halo.userData.halo = true; g.add(halo);
+  }
+  return g;
 }
 
 /** Yerdagi uzuq-uzuq halqa (lenta — WebGL chiziqlari 1 px dan qalin chizilmaydi) */
