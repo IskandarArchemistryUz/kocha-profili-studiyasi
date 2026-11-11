@@ -11,7 +11,7 @@ import type { ContextBundle } from '../context/load';
 import { CRS_LIST, UL_KINDS, UL_LIMITS, categoriesOf, extentKm2, floorsOf, guessFields, osmDuplicates, parseGeoJSON, planImport, tierFor, zoneStats, type CRS, type ParsedFile, type ULFeature, type ULKind, type UserLayerMeta } from '../core/userlayers';
 import { deleteLayerData, getLayerData, putLayerData } from '../storage/db';
 import { h, svgIcon, toast, fmt } from './dom';
-import { range, select, seg, sw } from './controls';
+import { dropdown, range, seg, sw } from './controls';
 import { tr, tf } from '../i18n';
 
 const IC = {
@@ -181,8 +181,8 @@ export class UserLayersUI {
     const zones = this.data.get(m.id);
     const box = h('div', { class: 'col', style: 'gap:6px' },
       h('div', { class: 'row2' },
-        select({ 'aria-label': tr('Binolar qatlami'), onchange: v => { this.statsSel.bld = v || null; this.host.refresh(); } }, [{ value: '', label: tr('— binolarsiz —'), selected: !bld }, ...blds.map(x => ({ value: x.id, label: x.name, selected: x.id === bld }))]),
-        select({ 'aria-label': tr('Aholi punkti chegarasi'), onchange: v => { this.statsSel.clip = v || null; this.host.refresh(); } }, [{ value: '', label: tr('— chegara tanlanmagan —'), selected: !clip }, ...clips.map(x => ({ value: x.id, label: x.name, selected: x.id === clip }))])));
+        dropdown({ 'aria-label': tr('Binolar qatlami'), onchange: v => { this.statsSel.bld = v || null; this.host.refresh(); } }, [{ value: '', label: tr('— binolarsiz —'), selected: !bld }, ...blds.map(x => ({ value: x.id, label: x.name, selected: x.id === bld }))]),
+        dropdown({ 'aria-label': tr('Aholi punkti chegarasi'), onchange: v => { this.statsSel.clip = v || null; this.host.refresh(); } }, [{ value: '', label: tr('— chegara tanlanmagan —'), selected: !clip }, ...clips.map(x => ({ value: x.id, label: x.name, selected: x.id === clip }))])));
     if (!zones) { box.append(h('span', { class: 't-small' }, tr('yuklanmoqda…'))); return box; }
     const bm = bld ? L.find(x => x.id === bld)! : null, bf = bld ? this.data.get(bld) ?? [] : [];
     const S = zoneStats(zones, m.nameField, bm ? bf.map(f => ({ f, floors: floorsOf(f, bm, fh) })) : [], clip ? this.data.get(clip) ?? [] : []);
@@ -207,12 +207,12 @@ export class UserLayersUI {
       h('span', { class: 't-small', style: 'font-weight:600' }, tr('Qatlam turi')),
       seg(UL_KINDS.map(k => ({ id: k.id, label: tr(k.name) })), P.kind, v => set({ kind: v }), { id: 'ulKind', class: 'seg sm', 'aria-label': tr('Qatlam turi') }),
       h('span', { class: 't-small' }, tr(UL_KINDS.find(k => k.id === P.kind)!.note)),
-      h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Koordinata tizimi')), select({ id: 'ulCrs', onchange: v => set({ crs: v as CRS }) }, CRS_LIST.map(c => ({ value: c.id, label: tr(c.name), selected: c.id === P.crs })))),
-      P.kind !== 'chegara' ? h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Toifa maydoni (rang va alohida yoqish)')), select({ id: 'ulCat', onchange: v => set({ cat: v || null }) }, opt(P.cat, tr('— bitta rang —')))) : '',
-      P.kind === 'chegara' || P.kind === 'yer' ? h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Nom maydoni')), select({ id: 'ulName', onchange: v => set({ name: v || null }) }, opt(P.name, tr('— nomsiz —')))) : '',
+      h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Koordinata tizimi')), dropdown({ id: 'ulCrs', onchange: v => set({ crs: v as CRS }) }, CRS_LIST.map(c => ({ value: c.id, label: tr(c.name), selected: c.id === P.crs })))),
+      P.kind !== 'chegara' ? h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Toifa maydoni (rang va alohida yoqish)')), dropdown({ id: 'ulCat', onchange: v => set({ cat: v || null }) }, opt(P.cat, tr('— bitta rang —')))) : '',
+      P.kind === 'chegara' || P.kind === 'yer' ? h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Nom maydoni')), dropdown({ id: 'ulName', onchange: v => set({ name: v || null }) }, opt(P.name, tr('— nomsiz —')))) : '',
       P.kind === 'bino' ? h('div', { class: 'row2' },
-        h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Balandlik, m')), select({ id: 'ulH', onchange: v => set({ height: v || null }) }, opt(P.height, '—'))),
-        h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Qavatlar')), select({ id: 'ulFl', onchange: v => set({ floors: v || null }) }, opt(P.floors, '—')))) : '',
+        h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Balandlik, m')), dropdown({ id: 'ulH', onchange: v => set({ height: v || null }) }, opt(P.height, '—'))),
+        h('label', { class: 'field' }, h('span', { class: 't-small' }, tr('Qavatlar')), dropdown({ id: 'ulFl', onchange: v => set({ floors: v || null }) }, opt(P.floors, '—')))) : '',
       P.kind === 'chegara' && pl.slivers ? h('div', { class: 'row', style: 'gap:8px;align-items:center;justify-content:space-between' },
         h('span', { class: 't-small' }, tf('Nomsiz mayda boʻlaklar (< 10 ga): ${n} ta — tashlash', { n: pl.slivers })), sw({ id: 'ulDrop', label: tr('Mayda boʻlaklarni tashlash'), on: P.drop, onchange: v => set({ drop: v }) })) : '',
       ...pl.warn.map(w => h('div', { class: 'note warn' }, tr(w))),

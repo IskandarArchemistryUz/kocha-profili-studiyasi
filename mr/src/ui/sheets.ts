@@ -18,7 +18,7 @@ import { sheetLayout, type SheetInner } from '../core/sheet';
 import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetSvc, type SheetOpts, type SheetResult, type Paper, type SheetLayerId } from '../core/sheet';
 import { LABEL_MODES, type LabelMode } from '../core/labels';
 import { h, download, toast, svgIcon, icl, IC, fmt } from './dom';
-import { check, dropdown, select, stepper, sw } from './controls';
+import { check, dropdown, stepper, sw } from './controls';
 import { tr, tf, trSvg } from '../i18n';
 import { logoSvg } from './logo';
 import { gstylePicker } from './gstylepick';
@@ -477,7 +477,7 @@ export function openGraphics(host: SheetsHost): void {
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama'], ['qavatlilik', 'Qavatlilik'], ['kontekst', 'Loyiha va kontekst'], ['demontaj', 'Saqlanadi va buziladi']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
-          h('div', { class: 'field' }, h('label', {}, tr('Kamera')), select({ id: 'shView', 'aria-label': tr('Kamera'), onchange: v => set({ axo: { ...(o.axo ?? {}), view: v || undefined } }) }, [{ value: '', label: tr('Joriy aksonometriya'), selected: !o.axo?.view }, ...(host.views ?? []).map(v => ({ value: v.id, label: v.name, selected: o.axo?.view === v.id }))])),
+          h('div', { class: 'field' }, h('label', {}, tr('Kamera')), dropdown({ id: 'shView', 'aria-label': tr('Kamera'), onchange: v => set({ axo: { ...(o.axo ?? {}), view: v || undefined } }) }, [{ value: '', label: tr('Joriy aksonometriya'), selected: !o.axo?.view }, ...(host.views ?? []).map(v => ({ value: v.id, label: v.name, selected: o.axo?.view === v.id }))])),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Fasad derazalari'), h('span', { class: 'sub' }, tr('7-qadamdan'))), sw({ label: tr('Fasad derazalari'), on: o.axo?.shadow !== false, onchange: v => set({ axo: { ...(o.axo ?? {}), shadow: v } }) })),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Yozuvlar'), h('span', { class: 'sub' }, tr('daha nomi va maydoni, UMN, koʻcha nomlari'))), sw({ id: 'shAxoLab', label: tr('Yozuvlar'), on: o.axo?.labels === true, onchange: v => set({ axo: { ...(o.axo ?? {}), labels: v } }) })),
           h('span', { class: 't-small' }, tr('Kamera — saqlangan koʻrinishlardan; rasm sahnadan olinadi (masshtabsiz).')),
@@ -514,7 +514,7 @@ export function openGraphics(host: SheetsHost): void {
           frow('deco', tr('Bezaklar'), `${nDeco} / 9`, () => [
             h('div', { class: 'group flat' }, ...decos.map(([k, t]) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: !!S[k], 'data-show': k, onchange: v => set({ show: { ...S, [k]: v } }) })))),
             S.grid ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Toʻr qadami'), h('span', { class: 'sub' }, tr('0 — avtomatik'))), stepper({ label: tr('Toʻr qadami'), min: 0, max: 2000, step: 50, value: o.gridStep ?? 0, unit: 'm', onchange: v => set({ gridStep: v }) })) : '',
-            h('div', { class: 'field' }, h('label', {}, tr('Shrift')), select({ 'aria-label': tr('Shrift'), id: 'gxFont', onchange: v => set({ font: v }) }, FONTS.map(f => ({ value: f, label: f, selected: (o.font ?? 'Archivo') === f }))))]),
+            h('div', { class: 'field' }, h('label', {}, tr('Shrift')), dropdown({ 'aria-label': tr('Shrift'), id: 'gxFont', onchange: v => set({ font: v }) }, FONTS.map(f => ({ value: f, label: f, selected: (o.font ?? 'Archivo') === f }))))]),
           frow('lay', tr('Qatlamlar'), `${nLay} / ${SHEET_LAYERS.length}`, () => SHEET_LAYERS.map(l => layerRow(l.id))),
           frow('stamp', tr('Sarlavha va shtamp'), o.title || doc.name, () => {
             const inp = (id: string, label: string, val: string, on: (v: string) => void, ph = '') => { const e = h('input', { class: 'input', type: 'text', id, value: val, placeholder: ph, 'aria-label': label }) as HTMLInputElement; e.onchange = () => on(e.value); return h('div', { class: 'field' }, h('label', { for: id }, label), e); };

@@ -67,37 +67,67 @@ export function seg<T extends string>(items: { id: T; label: string; attrs?: Att
 /**
  * Ochiladigan roʻyxat (brauzerning select oynasi oʻrniga — 6-qoida): koʻrinadigan tugma + oʻz menyusi (.menu.dd-menu).
  * Ichida yashirin <select> (id, aria, e2e selectOption shu orqali) — tanlov unga yoziladi va «change» chiqaradi.
+ * c78: disabled (kulrang, bosilmaydi), group (sarlavha + yashirin <optgroup>), harf bilan qidirish; menyu ekranga sigʻadigan
+ * tomonga ochiladi va sahifa/panel aylantirilsa yopiladi (position:fixed menyu tugmadan ajralib qolmasin).
  */
-export function dropdown(attrs: Attrs & { onchange?: (v: string) => void }, opts: { value: string; label: string; selected?: boolean; sub?: string }[]): HTMLDivElement {
+export type DdOpt = { value: string; label: string; selected?: boolean; disabled?: boolean; sub?: string; group?: string };
+export function dropdown(attrs: Attrs & { onchange?: (v: string) => void }, opts: DdOpt[]): HTMLDivElement {
   const { onchange, ...rest } = attrs;
+  const aria = rest['aria-label'] != null ? String(rest['aria-label']) : null;
   const s = h('select', { class: 'vh', tabindex: -1, ...rest }) as HTMLSelectElement;
-  for (const o of opts) s.append(h('option', { value: o.value, selected: !!o.selected }, o.label));
-  const lab = () => opts.find(o => o.value === s.value)?.label ?? opts[0]?.label ?? '—';
+  let og: HTMLOptGroupElement | null = null;
+  for (const o of opts) {
+    const el = h('option', { value: o.value, selected: !!o.selected, disabled: !!o.disabled }, o.label);
+    if (o.group != null) { if (og?.label !== o.group) { og = h('optgroup', { label: o.group }) as HTMLOptGroupElement; s.append(og); } og.append(el); }
+    else { og = null; s.append(el); }
+  }
+  const lab = () => s.selectedOptions[0]?.textContent || '—';
   const txt = h('span', { class: 'dd-l' }, lab());
-  let menu: HTMLElement | null = null;
-  const close = () => { menu?.remove(); menu = null; btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); };
+  let menu: HTMLElement | null = null, typed = '', typedAt = 0;
+  const close = () => { menu?.remove(); menu = null; btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); removeEventListener('scroll', onScroll, true); removeEventListener('resize', close); };
   const outside = (e: Event) => { if (menu && !menu.contains(e.target as Node) && !btn.contains(e.target as Node)) close(); };
+  const onScroll = (e: Event) => { if (menu && !menu.contains(e.target as Node)) close(); };
   const choose = (v: string) => { close(); if (s.value === v) return; s.value = v; txt.textContent = lab(); s.dispatchEvent(new Event('change', { bubbles: true })); btn.focus(); };
   const open = () => {
     if (menu) { close(); return; }
-    menu = h('div', { class: 'menu dd-menu', role: 'listbox', 'aria-label': String(rest['aria-label'] ?? '') },
-      ...opts.map(o => h('button', { type: 'button', role: 'option', 'aria-selected': o.value === s.value, 'data-v': o.value, onclick: () => choose(o.value) },
-        h('span', {}, o.label, o.sub ? h('small', {}, o.sub) : ''), o.value === s.value ? svgIcon('<path d="M5 12l5 5 9-10"/>') : '')));
+    let g: string | undefined;
+    const kids: HTMLElement[] = [];
+    for (const o of opts) {
+      if (o.group != null && o.group !== g) kids.push(h('div', { class: 'mh dd-g', role: 'presentation' }, o.group));
+      g = o.group;
+      kids.push(h('button', { type: 'button', role: 'option', 'aria-selected': o.value === s.value, 'aria-disabled': !!o.disabled, disabled: !!o.disabled, 'data-v': o.value, onclick: () => { if (!o.disabled) choose(o.value); } },
+        h('span', {}, o.label, o.sub ? h('small', {}, o.sub) : ''), o.value === s.value && !o.disabled ? svgIcon('<path d="M5 12l5 5 9-10"/>') : ''));
+    }
+    menu = h('div', { class: 'menu dd-menu', role: 'listbox', 'aria-label': aria ?? '' }, ...kids);
+    const items = () => [...menu!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
     menu.addEventListener('keydown', e => {
-      const items = [...menu!.querySelectorAll('button')], i = items.indexOf(document.activeElement as HTMLButtonElement);
-      if (e.key === 'ArrowDown') { e.preventDefault(); items[Math.min(items.length - 1, i + 1)]?.focus(); }
-      if (e.key === 'ArrowUp') { e.preventDefault(); items[Math.max(0, i - 1)]?.focus(); }
-      if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
+      if (e.key !== 'Tab') e.stopPropagation();   // menyu ichidagi tugmalar ilova tezkor tugmalariga (V, H, S…, Esc) oʻtmasin
+      const it = items(), i = it.indexOf(document.activeElement as HTMLButtonElement);
+      if (e.key === 'ArrowDown') { e.preventDefault(); it[Math.min(it.length - 1, i + 1)]?.focus(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); it[Math.max(0, i - 1)]?.focus(); }
+      else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); it[e.key === 'Home' ? 0 : it.length - 1]?.focus(); }
+      else if (e.key === 'Escape' || e.key === 'Tab') { if (e.key === 'Escape') e.preventDefault(); close(); btn.focus(); }
+      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {   // harf bilan qidirish (uzun roʻyxatlar: aholi punktlari, tumanlar)
+        const now = performance.now(); typed = (now - typedAt < 700 ? typed : '') + e.key.toLowerCase(); typedAt = now;
+        const hit = it.find((b, k) => k > (typed.length === 1 ? i : i - 1) && b.textContent!.toLowerCase().startsWith(typed)) ?? it.find(b => b.textContent!.toLowerCase().startsWith(typed));
+        hit?.focus();
+      }
     });
     document.body.append(menu);
-    const r = btn.getBoundingClientRect(), mh = Math.min(menu.scrollHeight, 360);
-    menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - Math.max(r.width, 240) - 8))}px`; menu.style.minWidth = `${r.width}px`;
-    menu.style.top = `${r.bottom + mh + 8 > innerHeight ? Math.max(8, r.top - mh - 6) : r.bottom + 6}px`;
+    // joylash: pastda sigʻsa — pastga, aks holda kengroq tomonga (balandlik shu joyga qisqaradi, ichi aylanadi)
+    const r = btn.getBoundingClientRect(), gap = 6, pad = 8, want = Math.min(menu.scrollHeight, 360);
+    const below = innerHeight - r.bottom - gap - pad, above = r.top - gap - pad;
+    const down = want <= below || below >= above, mh = Math.max(120, Math.min(want, down ? below : above));
+    menu.style.maxHeight = `${mh}px`; menu.style.minWidth = `${r.width}px`; menu.style.maxWidth = `${Math.min(480, innerWidth - 2 * pad)}px`;
+    const w = menu.offsetWidth, hh = menu.offsetHeight;
+    menu.style.left = `${Math.max(pad, Math.min(r.left, innerWidth - w - pad))}px`;
+    menu.style.top = `${down ? Math.min(r.bottom + gap, innerHeight - hh - pad) : Math.max(pad, r.top - gap - hh)}px`;
     btn.setAttribute('aria-expanded', 'true');
-    (menu.querySelector('[aria-selected=true]') as HTMLElement | null ?? menu.querySelector('button'))?.focus();
-    setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+    const f = menu.querySelector<HTMLElement>('[aria-selected=true]:not(:disabled)') ?? items()[0];
+    f?.focus({ preventScroll: true }); f?.scrollIntoView({ block: 'nearest' });
+    setTimeout(() => { if (!menu) return; document.addEventListener('pointerdown', outside, true); addEventListener('scroll', onScroll, true); addEventListener('resize', close); }, 0);
   };
-  const btn = h('button', { type: 'button', class: 'select dd-btn', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': String(rest['aria-label'] ?? ''), onclick: open,
+  const btn = h('button', { type: 'button', class: 'select dd-btn', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': aria, onclick: open,
     onkeydown: (e: KeyboardEvent) => { if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!menu) open(); } } }, txt) as HTMLButtonElement;
   s.addEventListener('change', () => { txt.textContent = lab(); onchange?.(s.value); });
   return h('div', { class: 'dd' }, btn, s) as HTMLDivElement;

@@ -26,7 +26,7 @@ import { siteAccess, accessVerdict, type Access } from '../core/access';
 const HAJM = () => STEPS.find(x => x.id === 'hajm')!;
 import { tr, tf, getLang, setLang, type Lang } from '../i18n';
 import { toggleTheme, isDark, onTheme } from './theme';
-import { range, select, stepper, sw , dropdown } from './controls';
+import { dropdown, range, stepper, sw } from './controls';
 import { pg } from './pictos';
 import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, StripTool, type Tool } from './tools';
@@ -823,7 +823,7 @@ export class Editor {
       ins.onchange = () => { this.tierInset = Math.max(0.5, Number(ins.value) || 3); };
       const n = r.length, az = (k: number) => { const a = r[k], q = r[(k + 1) % n], ccw = signedArea(r) > 0, ox = (ccw ? 1 : -1) * (q[1] - a[1]), oy = (ccw ? -1 : 1) * (q[0] - a[0]); return ((Math.atan2(ox, oy) * 180 / Math.PI) + 360) % 360; };
       const side = (a: number) => tr(['shimol', 'shimoli-sharq', 'sharq', 'janubi-sharq', 'janub', 'janubi-gʻarb', 'gʻarb', 'shimoli-gʻarb'][Math.round(a / 45) % 8]);
-      const edgeSel = select({ id: 'tEdge', 'aria-label': tr('Tomon'), onchange: v => { this.tierEdge = v === '' ? null : Number(v); } },
+      const edgeSel = dropdown({ id: 'tEdge', 'aria-label': tr('Tomon'), onchange: v => { this.tierEdge = v === '' ? null : Number(v); } },
         [{ value: '', label: tr('Barcha tomondan'), selected: this.tierEdge == null }, ...r.map((_, k) => ({ value: String(k), label: `${k + 1}-${tr('devor')} · ${side(az(k))} (${Math.round(Math.hypot(r[(k + 1) % n][0] - r[k][0], r[(k + 1) % n][1] - r[k][1]))} m)`, selected: this.tierEdge === k }))]);
       const tiers = b.tiers ?? [];
       body.append(
@@ -1511,7 +1511,7 @@ export class Editor {
     }
     const { st, km, src } = now, pv = prevailing(st);
     const dir = this.windDir ?? pv.deg;
-    const sel = select({ id: 'windDir', 'aria-label': tr('Hisob yoʻnalishi (qayerdan esadi)'), onchange: v => { this.windDir = Number(v); this.renderPanel(); } },
+    const sel = dropdown({ id: 'windDir', 'aria-label': tr('Hisob yoʻnalishi (qayerdan esadi)'), onchange: v => { this.windDir = Number(v); this.renderPanel(); } },
       Array.from({ length: 16 }, (_, k) => ({ value: String(k * 22.5), label: `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ' + tr('ustun') : ''}`, selected: Math.abs(k * 22.5 - dir) < 1 })));
     body.append(h('div', { class: 'col', id: 'windBox' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', { id: 'windStn' }, `${src === 'era5' ? st.name : st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`)),
@@ -1587,7 +1587,7 @@ export class Editor {
     // jonli fasad koʻrinishi
     body.append(h('div', { class: 'fpv', id: 'facPreview', role: 'img', 'aria-label': tr('Fasad koʻrinishi'), html: facadePreview({ mat: (mat.top ?? 'suvoq') as Mat, win: (win.top ?? 'yoq') as Win | 'yoq', bal: (bal.top ?? 'yoq') as Bal, shape: shape.top ?? 'tekis', cover: cover.top ?? 'oddiy', parapet: par.top ?? 0, shade: (shd.top ?? 'yoq') as Shade | 'yoq' }) }));
     // qaysi binolarga
-    const useSel = select({ id: 'lookUse', 'aria-label': tr('Funksiya'), onchange: v => { this.lookUse = v; this.renderPanel(); } }, uses.map(u => ({ value: u, label: useDef(u).name, selected: u === this.lookUse })));
+    const useSel = dropdown({ id: 'lookUse', 'aria-label': tr('Funksiya'), onchange: v => { this.lookUse = v; this.renderPanel(); } }, uses.map(u => ({ value: u, label: useDef(u).name, selected: u === this.lookUse })));
     body.append(h('div', { class: 'group flat', style: 'padding:8px;display:flex;flex-direction:column;gap:8px' },
       h('div', { class: 'seg', role: 'group', id: 'lookSeg', 'aria-label': tr('Qaysi binolarga') },
         h('button', { 'data-look': 'sel', 'aria-pressed': this.lookTarget === 'sel', disabled: !sel, title: sel ? '' : tr('Sahnada binoni bosing'), onclick: () => { this.lookTarget = 'sel'; this.renderPanel(); } }, tr('Tanlangan')),
@@ -2011,8 +2011,8 @@ export class Editor {
     // stat.uz — faqat Oʻzbekiston tumanlari; boshqa davlatda Toshkent raqamlari chalgʻitadi (egasi, 24.10)
     if (placeOf(doc.origin[0], doc.origin[1]).country !== 'UZ') return h('div', { class: 'col', id: 'demoBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Aholi yosh tarkibi')), h('span', {}, 'stat.uz')),
       h('span', { class: 't-small', id: 'demoAbroad' }, tr('Faqat Oʻzbekiston tumanlari uchun (stat.uz). Bu davlat uchun aholi maʼlumoti hali ulanmagan.')));
-    const sel = h('select', { class: 'select', id: 'district', 'aria-label': tr('Aholi yosh tarkibi (stat.uz)'), onchange: (e: Event) => { const v = (e.target as HTMLSelectElement).value, sp = seisForDistrict(v); this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: v, ...(sp ? { seisPlace: seisKey(sp), seismic: sp.b } : {}) } })); } },   // 04.11: seysmiklik ham shu shahardan (1-ilova)
-      ...demoTree().map(t => h('optgroup', { label: t.region.name }, ...[t.region, ...t.parts].map(x => { const o = h('option', { value: x.code }, x.code === t.region.code ? `${x.name} (${tr('jami')})` : x.name) as HTMLOptionElement; o.selected = x.code === cur; return o; }))));
+    const sel = dropdown({ id: 'district', 'aria-label': tr('Aholi yosh tarkibi (stat.uz)'), onchange: v => { const sp = seisForDistrict(v); this.run(() => this.store.dispatch({ type: 'setSettings', patch: { district: v, ...(sp ? { seisPlace: seisKey(sp), seismic: sp.b } : {}) } })); } },   // 04.11: seysmiklik ham shu shahardan (1-ilova)
+      demoTree().flatMap(t => [t.region, ...t.parts].map(x => ({ value: x.code, label: x.code === t.region.code ? `${x.name} (${tr('jami')})` : x.name, selected: x.code === cur, group: t.region.name }))));
     const k = r ? perThousand(r) : null;
     return h('div', { class: 'col', id: 'demoBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Aholi yosh tarkibi')), h('span', {}, 'stat.uz')), sel,
       r && k ? h('span', { class: 't-small' }, tf('${fmt(r.pop)} kishi (${DEMO.year}). 1000 kishiga: maktab yoshi (7–17) ${fmt(k.school, 0)}, maktabgacha (3–6) ${fmt(k.mtm, 0)}, 65+ — ${fmt(k.elderly, 0)}. Maktab va MTM tekshiruvida taqqoslanadi; 3–5 yosh qoldiq usulida hisoblangan.', { 'fmt(r.pop)': fmt(r.pop), 'DEMO.year': DEMO.year, 'fmt(k.school, 0)': fmt(k.school, 0), 'fmt(k.mtm, 0)': fmt(k.mtm, 0), 'fmt(k.elderly, 0)': fmt(k.elderly, 0) })) : '');
@@ -2108,7 +2108,7 @@ export class Editor {
     const set = (patch: Partial<typeof T>) => { this.run(() => this.store.dispatch({ type: 'setSettings', patch: { transit: { ...T, ...patch } } })); this.runServices(); };
     const big = X.cat === 'engyirik' || X.cat === 'yirik', base0 = stopRadius('odatiy', X.cat, T.center, 0).base;
     const tbl = (head: string[], rows: (string | Node)[][]) => h('table', { class: 'tbl' }, h('thead', {}, h('tr', {}, ...head.map(x => h('th', {}, x)))), h('tbody', {}, ...rows.map(r => h('tr', {}, ...r.map((c, i) => h('td', i === 1 ? { class: 'num' } : {}, c))))));
-    const catSel = this.trCatOpen ? select({ id: 'trCat', 'aria-label': tr('Shahar toifasi'), onchange: v => { this.trCatOpen = false; set({ cat: v === '' ? null : v as CityCat }); } },
+    const catSel = this.trCatOpen ? dropdown({ id: 'trCat', 'aria-label': tr('Shahar toifasi'), onchange: v => { this.trCatOpen = false; set({ cat: v === '' ? null : v as CityCat }); } },
       [{ value: '', label: `${tr('Avtomatik (andoza)')}${X.city ? ` · ${catName(cityCategory(X.city.pop))}` : ''}`, selected: !T.cat }, ...CITY_CATS.map(c => ({ value: c.id, label: `${tr(c.name)} · ${c.range}`, selected: T.cat === c.id }))]) : '';
     const shown = X.blocks.filter(b => useDef(b.use).res > 0 || b.zone !== 'odatiy');
     return h('div', { class: 'group', id: 'trBox', style: 'padding:12px;display:flex;flex-direction:column;gap:10px' },
@@ -2160,7 +2160,7 @@ export class Editor {
     } else if (S.err === 'yashirildi') body.append(h('button', { class: 'btn btn-primary btn-block', onclick: () => { this.svc.err = ''; void this.loadPoi(); } }, ...icl(WALK, tr('Xizmatlar tahlili'))));
     // qoʻlda obyekt qoʻshish (OSM da yoʻq bogʻcha, maktab…)
     const doc = this.store.doc, fr = frame(doc.origin);
-    const kindSel = select({ id: 'poiKind', 'aria-label': tr('Turi'), onchange: v => { this.poiKind = v as Svc; } }, SERVICES.map(x => ({ value: x.id, label: tr(x.name), selected: x.id === this.poiKind })));
+    const kindSel = dropdown({ id: 'poiKind', 'aria-label': tr('Turi'), onchange: v => { this.poiKind = v as Svc; } }, SERVICES.map(x => ({ value: x.id, label: tr(x.name), selected: x.id === this.poiKind })));
     const nameIn = h('input', { class: 'input', id: 'poiName', 'aria-label': tr('Nomi'), placeholder: tr('Nomi (ixtiyoriy), masalan 45-MTM'), value: this.poiName }) as HTMLInputElement;
     nameIn.oninput = () => { this.poiName = nameIn.value; };
     const placing = this.tool instanceof ClickTool && this.tool.hint.startsWith('Obyekt');
@@ -3400,9 +3400,9 @@ export class Editor {
     const angV = g.angle == null ? 0 : Math.round(g.angle - autoAngle(site));
     const angT = h('b', { class: 'num', id: 'gridAngV', style: 'min-width:64px;text-align:right' }, `${angV}°${angV === 0 ? ' · avto' : ''}`);
     const ang = range({ min: -90, max: 90, step: 5, value: angV, id: 'gridAng', 'aria-label': tr('Burilish'), oninput: v => { g.angle = autoAngle(site) + v; this.gridVar = 0; angT.textContent = `${v}°${v === 0 ? ' · avto' : ''}`; }, onchange: () => this.renderPanel() });
-    const mainSel = select({ id: 'gridMain', 'aria-label': tr('Asosiy koʻchalar'), onchange: v => { g.mainEvery = Number(v); this.renderPanel(); } }, [[0, 'Hammasi ikkilamchi'], [2, 'Har 2-chisi asosiy'], [3, 'Har 3-chisi asosiy'], [4, 'Har 4-chisi asosiy']].map(([v, t]) => ({ value: String(v), label: tr(t as string), selected: g.mainEvery === v })));
+    const mainSel = dropdown({ id: 'gridMain', 'aria-label': tr('Asosiy koʻchalar'), onchange: v => { g.mainEvery = Number(v); this.renderPanel(); } }, [[0, 'Hammasi ikkilamchi'], [2, 'Har 2-chisi asosiy'], [3, 'Har 3-chisi asosiy'], [4, 'Har 4-chisi asosiy']].map(([v, t]) => ({ value: String(v), label: tr(t as string), selected: g.mainEvery === v })));
     const profRow = (key: 'main' | 'minor', lbl: string) => { const p = profileById(g.profiles[key]), iss = checkProfile(p).length;
-      const sel = select({ 'aria-label': lbl, onchange: v => { g.profiles = { ...g.profiles, [key]: v }; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: g.profiles[key] === x.id })));
+      const sel = dropdown({ 'aria-label': lbl, onchange: v => { g.profiles = { ...g.profiles, [key]: v }; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: g.profiles[key] === x.id })));
       return h('div', { class: 'li prof-row', style: 'flex-wrap:wrap' }, h('span', { class: 'chip' }, lbl), h('span', { style: 'flex:1' }), h('span', { class: iss ? 'chip warn' : 'chip ok' }, h('i'), iss ? `${iss} ${tr('chetlanish')}` : 'ShNQ ✓'), h('span', { class: 'v' }, `${fmt(profileWidth(p), 0)} m`), h('span', { class: 'k', style: 'flex-basis:100%' }, p.name, h('span', { class: 'sub' }, p.note)), h('div', { style: 'flex-basis:100%' }, sel)); };
     box.append(
       h('div', { class: 'glabel' }, h('span', {}, tr('Blok moduli')), h('span', {}, pre ? `${pre.name} · ${g.w} × ${g.h} m` : `${g.w} × ${g.h} m`)),
@@ -3428,7 +3428,7 @@ export class Editor {
         h('div', { class: 'group' }, profRow('main', tr('Asosiy')), profRow('minor', tr('Ikkilamchi')), h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('span', { class: 't-small', style: 'flex-basis:100%' }, tr('Asosiy koʻchalar')), mainSel)),
         h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Perimetr boʻylab koʻcha'), h('span', { class: 'sub' }, tr('Uchastka chegarasi boʻylab — qizil chiziq chegarada, toʻr koʻchalari unga ulanadi'))),
           sw({ id: 'gridPerim', label: tr('Perimetr boʻylab koʻcha'), on: this.gridPerim, onchange: v => { this.gridPerim = v; this.renderPanel(); } })),
-          this.gridPerim ? h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('div', { style: 'flex-basis:100%' }, select({ id: 'gridPerimProf', 'aria-label': tr('Perimetr koʻchasi profili'), onchange: v => { this.gridPerimProf = v; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: this.gridPerimProf === x.id }))))) : ''),
+          this.gridPerim ? h('div', { class: 'li', style: 'flex-wrap:wrap' }, h('div', { style: 'flex-basis:100%' }, dropdown({ id: 'gridPerimProf', 'aria-label': tr('Perimetr koʻchasi profili'), onchange: v => { this.gridPerimProf = v; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: this.gridPerimProf === x.id }))))) : ''),
         nKeep ? h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mavjud koʻchalarni saqlash'), h('span', { class: 'sub' }, tf('${n} ta mavjud koʻcha uchastkani kesib oʻtadi — loyihaga olinadi, toʻr ular orasiga joylanadi', { n: nKeep }))),
           sw({ id: 'gridKeep', label: tr('Mavjud koʻchalarni saqlash'), on: this.gridKeep, onchange: v => { this.gridKeep = v; this.renderPanel(); } }))) : ''));
     body.append(box);
@@ -4852,9 +4852,9 @@ export class Editor {
     const S0 = this.store.doc.settings, cur = seisByKey(S0.seisPlace) ?? seisForDistrict(S0.district), ru = ['ru', 'uk', 'kk'].includes(getLang());
     const nm = (p: (typeof SEIS_PLACES)[number]) => (ru ? p.ru : p.n);
     const regs = [...new Set(SEIS_PLACES.map(p => p.r))];
-    const sel = h('select', { class: 'select', id: 'seisPlace', 'aria-label': tr('Aholi punkti (1-ilova)'), onchange: (e: Event) => { const p = seisByKey((e.target as HTMLSelectElement).value); if (p) this.run(() => this.store.dispatch({ type: 'setSettings', patch: { seisPlace: seisKey(p), seismic: p.b } })); } },
-      ...(cur ? [] : [h('option', { value: '', selected: true, disabled: true }, tr('Aholi punktini tanlang'))]),
-      ...regs.map(r => h('optgroup', { label: (demoRow(r)?.name ?? r).replace(/\s+/g, ' ') }, ...SEIS_PLACES.filter(p => p.r === r).sort((a, b) => nm(a).localeCompare(nm(b))).map(p => { const o = h('option', { value: seisKey(p) }, `${nm(p)} — ${p.b}${p.z ? '*' : ''}`) as HTMLOptionElement; o.selected = !!cur && seisKey(p) === seisKey(cur); return o; }))));
+    const sel = dropdown({ id: 'seisPlace', 'aria-label': tr('Aholi punkti (1-ilova)'), onchange: v => { const p = seisByKey(v); if (p) this.run(() => this.store.dispatch({ type: 'setSettings', patch: { seisPlace: seisKey(p), seismic: p.b } })); } }, [
+      ...(cur ? [] : [{ value: '', label: tr('Aholi punktini tanlang'), selected: true, disabled: true }]),
+      ...regs.flatMap(r => { const g = (demoRow(r)?.name ?? r).replace(/\s+/g, ' '); return SEIS_PLACES.filter(p => p.r === r).sort((a, b) => nm(a).localeCompare(nm(b))).map(p => ({ value: seisKey(p), label: `${nm(p)} — ${p.b}${p.z ? '*' : ''}`, selected: !!cur && seisKey(p) === seisKey(cur), group: g })); })]);
     const diff = cur && cur.b !== S0.seismic;
     return h('div', { class: 'li', id: 'seisPlaceRow', style: 'flex-wrap:wrap;gap:8px' },
       h('span', { class: 'k' }, tr('Aholi punkti (1-ilova)'), h('span', { class: 'sub', id: 'seisPlaceSub' }, cur
