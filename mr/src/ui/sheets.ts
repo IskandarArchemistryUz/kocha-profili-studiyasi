@@ -21,6 +21,8 @@ import { h, download, toast, svgIcon, icl, IC, fmt } from './dom';
 import { check, select, stepper, sw } from './controls';
 import { tr, tf, trSvg } from '../i18n';
 import { logoSvg } from './logo';
+import { gstylePicker } from './gstylepick';
+import { gstyleById } from '../core/gstyle';
 import { svgPdf } from './pdf';
 
 export interface SheetsHost {
@@ -43,7 +45,7 @@ export interface SheetsHost {
   /** qaysi varaqdan boshlash (V3 ramkasidan) */
   start?: number;
   /** aksonometriya rasmi (sahnadan, tanlangan uslub va koʻrinish bilan): data URL */
-  axo?: (look: NonNullable<SheetOpts['axo']>['look'], view: string | undefined, detail: boolean, ratio: number, labels?: boolean) => string;
+  axo?: (look: NonNullable<SheetOpts['axo']>['look'], view: string | undefined, detail: boolean, ratio: number, labels?: boolean, gstyle?: string) => string;
   /** 06.11: akso uslublari 4–6 legendasi (faqat sahnada bor toifalar) */
   axoLegend?: (look: NonNullable<SheetOpts['axo']>['look']) => { color: number; label: string; hatch?: boolean }[];
   /** saqlangan koʻrinishlar (Kamera) */
@@ -142,9 +144,9 @@ export function openGraphics(host: SheetsHost): void {
       return { label: `${T.n} ${tr('uy')}`, name, body: (vx, vy, vw, vh) => `<svg x="${vx}" y="${vy}" width="${vw}" height="${vh}" viewBox="0 0 ${r.widthMm.toFixed(1)} ${r.heightMm.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
     }
     if (o.mode === 'akso') {
-      const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${o.axo?.labels === true}|${(L.vw / L.vh).toFixed(2)}`;
+      const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${o.axo?.labels === true}|${(L.vw / L.vh).toFixed(2)}|${o.gstyle ?? ''}`;
       let url = axoCache.get(key);
-      if (!url && host.axo) { url = host.axo(o.axo?.look ?? 'oq', o.axo?.view, o.axo?.shadow !== false, L.vw / L.vh, o.axo?.labels === true); axoCache.set(key, url); }
+      if (!url && host.axo) { url = host.axo(o.axo?.look ?? 'oq', o.axo?.view, o.axo?.shadow !== false, L.vw / L.vh, o.axo?.labels === true, o.gstyle); axoCache.set(key, url); }
       const lg = host.axoLegend?.(o.axo?.look ?? 'oq') ?? [];
       return { label: 'M —', body: (vx, vy, vw, vh) => (url ? `<image href="${url}" x="${vx}" y="${vy}" width="${vw}" height="${vh}" preserveAspectRatio="xMidYMid meet"/>` : '') + axoLegendSvg(o.axo?.look, lg, vx, vy, vh) };
     }
@@ -374,6 +376,13 @@ export function openGraphics(host: SheetsHost): void {
           // 02.11: «Xizmat radiusi» — xizmat turi (9-qadam tahlili)
           ...(o.kind === 'xizmat' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Xizmat turi'))), h('div', { class: 'tiles c2', id: 'shSvc', role: 'group', 'aria-label': tr('Xizmat turi') }, ...SERVICES.map(sv => tile({ 'data-svc': sv.id, 'aria-pressed': (o.svc ?? 'mtm') === sv.id, title: tr(sv.note), onclick: () => set({ svc: sv.id }) }, tr(sv.name), `${sv.r} m`)))] : []),
         ] : []),
+        // c74: grafika shabloni (ranglar, chiziq, atrof, daraxtlar) — varaq sozlamasi; «Barcha varaqlarga» — butun albomga
+        ...((o.mode ?? 'reja') === 'reja' || o.mode === 'akso' ? [
+          h('div', { class: 'glabel', 'data-sec': 'gstyle' }, h('span', {}, tr('Grafika shabloni')), h('span', {}, tr(gstyleById(o.gstyle).name))),
+          gstylePicker('shGStyle', o.gstyle, v => set({ gstyle: v === 'joriy' ? undefined : v })),
+          ...(o.kind === 'parsel' && (o.mode ?? 'reja') === 'reja' ? [h('div', { class: 'field' }, h('label', {}, tr('Yer uchastkalari')), h('div', { class: 'seg sm', id: 'shParcel' }, ...([['rang', 'Funksiya rangida'], ['kulrang', 'Bir xil quyuq kulrang']] as const).map(([k, t]) => h('button', { 'data-parcel': k, 'aria-pressed': (o.parcel ?? 'rang') === k, onclick: () => set({ parcel: k === 'rang' ? undefined : k }) }, tr(t)))))] : []),
+          h('button', { class: 'btn btn-sm btn-block', id: 'shGStyleAll', onclick: () => { const g = O().gstyle; sheets = sheets.map(x => ({ ...x, opts: { ...x.opts, gstyle: g } })); persist(); render(); toast(tf('Shablon ${n} varaqqa qoʻllandi', { n: sheets.length })); } }, tr('Barcha varaqlarga qoʻllash')),
+          h('span', { class: 't-small' }, tr('Shablon funksiyalar ranglarini, atrof (och fon xarita), chiziq qalinligini va daraxtlarni almashtiradi. Shartli belgilar tuzilishi oʻzgarmaydi.'))] : []),
         h('div', { class: 'glabel', 'data-sec': 'sheet' }, h('span', {}, tr('Varaq'))),
         h('div', { class: 'field' }, h('label', {}, tr('Format')), h('div', { class: 'seg sm', id: 'gxPaper' }, ...(['fit', 'A4', 'A3', 'A2', 'A1', 'A0'] as Paper[]).map(p => h('button', { 'data-v': p, 'aria-pressed': o.paper === p, onclick: () => set({ paper: p }) }, p === 'fit' ? tr('Moslash') : p)))),
         h('div', { class: 'field' }, h('label', {}, tr('Yoʻnalish')), h('div', { class: 'seg sm', id: 'gxOrient' }, h('button', { 'data-v': 'true', 'aria-pressed': o.landscape, disabled: o.paper === 'fit', onclick: () => set({ landscape: true }) }, tr('Yotiq')), h('button', { 'data-v': 'false', 'aria-pressed': !o.landscape, disabled: o.paper === 'fit', onclick: () => set({ landscape: false }) }, tr('Tik')))),
