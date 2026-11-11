@@ -545,6 +545,8 @@ details.manual{border-top:0;padding-top:0;display:block}
 .alb-gpbox{padding:6px}
 .alb-legend{flex-direction:row;flex-wrap:wrap;gap:4px 10px;font-size:11.5px;color:var(--ink-2)}
 .alb-counts .kpi b{display:flex;align-items:center;gap:6px}.alb-counts .kpi b i{width:10px;height:10px;border-radius:3px;flex:none}
+/* c79: dahliz va yoʻlaklar eni (ShNQ 2.08.01-24, 40-band) — qavat jadvali */
+.p40t{padding:4px 8px;gap:0}.p40r{display:grid;grid-template-columns:1fr 64px 64px 64px;align-items:center;gap:6px;min-height:28px;font-size:12px;border-radius:8px;padding:0 4px}.p40r>span:not(:first-child){justify-self:end}.p40h{min-height:22px;font-size:11px;color:var(--ink-2);font-weight:600}.p40r[role=button]{cursor:pointer;transition:background .15s}.p40r[role=button]:hover,.p40r[aria-pressed=true]{background:var(--fill)}.p40r[role=button]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.p40hint{color:var(--warn)}
 .alb-edit{display:flex;flex-direction:column;gap:6px}
 .row4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .alb-info{background:var(--grouped)}

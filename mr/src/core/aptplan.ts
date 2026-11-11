@@ -155,11 +155,36 @@ function pickCut(target: number, lo: number, hi: number, bounds: number[], wins:
 
 /** Xonalar dasturi mahalliy koordinatalarda (umumiy xona chapda, u = 0 tomonda) */
 function layoutLocal(W: number, D: number, k: number, net: number, bounds: number[], wins: [number, number][], studio = false, ov: InnerOv = {}, nt?: Notch, cr?: [number, number]): Local | string {
-  const L0 = layoutCore(W, D, k, net, bounds, wins, studio, ov, nt, cr);
-  return typeof L0 === 'string' || !nt ? L0 : cutNotch(L0, W, nt);
+  // 11.11 (c79): avval keng yoʻlak (1,4 / 1,3 m oʻqlarda) — yotoqlar meʼyoriy minimumdan katta qolsa; aks holda oldingi qoida
+  for (const hdP of k >= 3 && !studio ? [CORR_H, 1.3, 0] : [0]) {
+    const L0 = layoutCore(W, D, k, net, bounds, wins, studio, ov, nt, cr, hdP);
+    if (hdP > 0 && (typeof L0 === 'string' || !bedsOk(L0) || !no97Worse(L0, () => layoutCore(W, D, k, net, bounds, wins, studio, ov, nt, cr, 0)))) continue;
+    return typeof L0 === 'string' || !nt ? L0 : cutNotch(L0, W, nt);
+  }
+  return 'tor';
+}
+/**
+ * c79: yotoqlar chuqurligi yoʻlak hisobiga kamaygandan keyin ham meʼyorda: ShNQ 2.08.01-24, 35-band — yotoqxona ≥ 8 m²
+ * (asosiy / ikki kishilik ≥ 12 m²); 36-band — eni ≥ 2,4 m (ikkala oʻlchami ham). Sof oʻlcham — oʻq − T.
+ */
+/**
+ * c79: SanQvaN 0102-25, 97-band — xona kengligi chuqurligining ikki baravaridan oshmasin. Sayozroq yotoq bu buzilishni koʻpaytirmasin:
+ * keng yoʻlakli variantda buzilgan yotoqlar soni oldingi (tor yoʻlakli) variantdagidan koʻp boʻlmasin.
+ */
+function no97Worse(L: Local, base: () => Local | string): boolean {
+  const n = (X: Local) => X.rooms.filter(q => (q.kind === 'yotoq' || q.kind === 'master') && q.r[2] - q.r[0] > 2 * (q.r[3] - q.r[1]) + 0.05).length;
+  const m = n(L); if (!m) return true;
+  const B = base(); return typeof B !== 'string' && m <= n(B);
+}
+function bedsOk(L: Local): boolean {
+  return L.rooms.every(q => {
+    if (q.kind !== 'yotoq' && q.kind !== 'master') return true;
+    const w = q.r[2] - q.r[0], d = q.r[3] - q.r[1], A = (w - T) * (d - T);
+    return Math.min(w, d) - T >= NORM.bedW - 1e-6 && A >= (q.kind === 'master' ? 12 : 8) - 0.05;
+  });
 }
 
-function layoutCore(W: number, D: number, k: number, net: number, bounds: number[], wins: [number, number][], studio: boolean, ov: InnerOv, nt?: Notch, cr?: [number, number]): Local | string {
+function layoutCore(W: number, D: number, k: number, net: number, bounds: number[], wins: [number, number][], studio: boolean, ov: InnerOv, nt?: Notch, cr?: [number, number], hdP = 0): Local | string {
   // cr — kirish eshigi markazi turishi mumkin boʻlgan oraliq (koridor bilan umumiy kesma, chetlaridan 0,6 m ichkarida)
   const s0 = D <= 5.6 ? 2.0 : D <= 6.4 ? 2.2 : D <= 7.2 ? 2.4 : D <= 9 ? 2.6 : 2.8;
   const L: Local = { rooms: [], walls: [], entry: [0, D], master: false };
@@ -202,8 +227,11 @@ function layoutCore(W: number, D: number, k: number, net: number, bounds: number
   const Du = D > NORM.depth1 + 0.05 ? D - Math.max(0.6, D - NORM.depth1) : D, zB = D - Du;
   // 07.11: xollli (3+ xonali) kvartirada yoʻlak 1,4 m (CORR_H) — xizmat tasmasi 0,2 m chuqurroq (yotoqlar ≥ 3,2 m qolsa)
   const s1 = Math.max(needHall ? Math.max(s0, D < 6 ? 2.3 : 2.5) : s0, zB > 0 ? zB + (k <= 1 ? 1.25 : 1.0) : 0);
-  const s = needHall && s1 < CORR_H + 1.25 && D - (CORR_H + 1.25) >= 3.2 ? CORR_H + 1.25 : s1, f = D - s;
-  if (f < 2.8 - 1e-6) return 'sayoz';
+  // 11.11 (c79, egasi: «koridor eni juda tor»): hdP > 0 — yoʻlak shu enida (oʻqlarda), joy yotoqlar chuqurligidan olinadi
+  // (≥ 2,8 m; maydon / eni layoutLocal da tekshiriladi); hdP = 0 — oldingi qoida (yotoqlar ≥ 3,2 m qolsa 1,4 m, aks holda 1,2 m)
+  const s = needHall && (hdP > 0 ? s1 < hdP + 1.25 : s1 < CORR_H + 1.25 && D - (CORR_H + 1.25) >= 3.2) ? (hdP || CORR_H) + 1.25 : s1, f = D - s;
+  // c79: keng yoʻlak varianti (hdP > 0) — yotoq chuqurligi ANDOZA 2,8 m emas, 36-band minimumigacha (sof 2,4 m; maydon bedsOk da)
+  if (f < (hdP > 0 ? NORM.bedW + T : 2.8) - 1e-6) return 'sayoz';
   // umumiy xona eni: maqsad maydon / chuqurlik (Strelka 28-bob: 70–100 m² da 23–28 m²)
   // umumiy xona maqsadi; chap kemtik uning maydonidan yeydi — oʻrnini toʻldirish uchun kengroq
   const aK = (k <= 1 ? 17 : k === 2 ? 22 : k === 3 ? 25 : 27) + (nt?.side === 'L' ? nt.w * (D - nt.Dn) : 0);
@@ -320,7 +348,7 @@ function layoutCore(W: number, D: number, k: number, net: number, bounds: number
     return L;
   }
   // xoll + hoʻl xonalar tasmasi; master — oxirgi uya, tasmasi ostida garderob va sanuzel
-  const hd = s - CORR_H >= 1.24 ? CORR_H : 1.2, fh = f + hd;   // 3.11: ShNQ 2.08.01-24, 40-band — yoʻlak sof eni ≥ 1,1 m (devor oʻqlari orasida 1,2 m; oldin s < 2,5 da 1,1)
+  const hd = hdP > 0 ? (s - hdP >= 1.24 ? hdP : 1.2) : s - CORR_H >= 1.24 ? CORR_H : 1.2, fh = f + hd;   // 3.11: ShNQ 2.08.01-24, 40-band — yoʻlak sof eni ≥ 1,1 m (devor oʻqlari orasida 1,2 m; oldin s < 2,5 da 1,1)
   let hallEnd = We;
   if (master) {
     // xoll master eshigigacha; garderob ≤ 1,5 + sanuzel ≤ 2,7 m — ortigʻi xollga (sanuzel haddan katta boʻlmasin)
@@ -391,11 +419,21 @@ function wetRow(Lw: number, small: InKind = 'sanuzel', dep = 1.6): [number, InKi
  * dahliz eshik yonida (u = W tomonda), undan umumiy xonagacha yoʻlak, yoʻlak ostida hoʻl xonalar. 2–4 xonali (master-bloksiz).
  */
 function layoutEnd(W: number, D: number, k: number, bounds: number[], wins: [number, number][], cr: [number, number]): Local | string {
+  // 11.11 (c79): layoutLocal dagi kabi — avval keng yoʻlak (yotoqlar meʼyorda qolsa), keyin oldingi qoida
+  let why: string = 'tor';
+  for (const hdP of k >= 2 ? [CORR_H, 1.3, 0] : [0]) {
+    const L0 = layoutEnd0(W, D, k, bounds, wins, cr, hdP);
+    if (hdP > 0 && (typeof L0 === 'string' || !bedsOk(L0) || !no97Worse(L0, () => layoutEnd0(W, D, k, bounds, wins, cr, 0)))) { if (typeof L0 === 'string') why = L0; continue; }
+    return L0;
+  }
+  return why;
+}
+function layoutEnd0(W: number, D: number, k: number, bounds: number[], wins: [number, number][], cr: [number, number], hdP: number): Local | string {
   if (k < 2) return 'uch';
   // 3.11: SanQvaN 97-band — umumiy xona chuqurligi ≤ 6 m (layoutCore dagi kabi): orqa boʻlak — umumiy xonadan kiriladigan kiyimxonalar
   const Du = D > NORM.depth1 + 0.05 ? D - Math.max(0.6, D - NORM.depth1) : D, zB = D - Du;
-  const bed = k - 1, sE = Math.max(D <= 6.4 ? 2.45 : 2.6, zB > 0 ? zB + 1.3 : 0), s = sE < CORR_H + 1.25 && D - (CORR_H + 1.25) >= 3.2 ? CORR_H + 1.25 : sE, hd = s - CORR_H >= 1.24 && (zB <= 0 || s >= zB + CORR_H + 0.1) ? CORR_H : 1.2, f = D - s;
-  if (f < 2.75 - 1e-6 || s - hd < 1.24) return 'sayoz';   // 3.11: yoʻlak 1,2 m (sof 1,1 — 40-band) — hoʻl xonalar 1,25 m
+  const bed = k - 1, sE = Math.max(D <= 6.4 ? 2.45 : 2.6, zB > 0 ? zB + 1.3 : 0), hw = hdP || CORR_H, s = hdP > 0 ? Math.max(sE, hw + 1.25, zB > 0 ? zB + hw + 0.1 : 0) : sE < CORR_H + 1.25 && D - (CORR_H + 1.25) >= 3.2 ? CORR_H + 1.25 : sE, hd = s - hw >= 1.24 && (zB <= 0 || s >= zB + hw + 0.1) ? hw : 1.2, f = D - s;
+  if (f < (hdP > 0 ? NORM.bedW + T : 2.75) - 1e-6 || s - hd < 1.24) return 'sayoz';   // 3.11: yoʻlak 1,2 m (sof 1,1 — 40-band) — hoʻl xonalar 1,25 m
   const aK = k === 2 ? 22 : k === 3 ? 25 : 27, loK = NORM.liveW + T, hiK = Math.min(5.4, W - bed * 2.6);
   if (hiK < loK) return 'tor';
   const wK = pickCut(Math.min(hiK, Math.max(loK, aK / D)), loK, hiK, bounds, wins);
@@ -1047,7 +1085,42 @@ function sane(I: AptInterior): boolean {
  * ShNQ 2.08.01-24, 40-band — yashash xonalariga olib boradigan yoʻlak sof eni ≥ 1,1 m (eng kami 1,2 m oʻqlarda, joy yetmasa).
  */
 export const CORR_H = 1.4;
-export const NORM = { liveW: 3.0, bedW: 2.4, liveA1: 14, liveA: 16, bedA: 8, bedA2: 12, kitA1: 5, kitA: 8, kitW: 1.7, hallW: 1.4, corrW: 1.1, entryA: 4, wcW: 1.6, bathW: 2.2, bathA: 4, depth1: 6.0 } as const;
+export const NORM = { liveW: 3.0, bedW: 2.4, liveA1: 14, liveA: 16, bedA: 8, bedA2: 12, kitA1: 5, kitA: 8, kitW: 1.7, hallW: 1.4, corrW: 1.1, auxW: 0.9, entryA: 4, wcW: 1.6, bathW: 2.2, bathA: 4, depth1: 6.0 } as const;
+/**
+ * 11.11 (c79, egasi: «koridor eni juda tor»): ShNQ 2.08.01-24, 40-band boʻyicha oʻtish joylari sof eni (devor oʻqi eni − T).
+ * dahliz — prixojaya; live — yashash xonasiga eshigi bor yoʻlak (≥ 1,1 m); aux — faqat yordamchi (hoʻl xona, kiyimxona) xonalarga
+ * olib boradigan yoʻlak (≥ 0,9 m). TALQIN: yoʻlak turi — undan ochiladigan eshiklar boʻyicha.
+ */
+export interface PassW { kind: 'dahliz' | 'live' | 'aux'; w: number; room?: InRoom }
+export function passWidths(I: AptInterior): PassW[] {
+  const out: PassW[] = [];
+  const at = (p: XY) => I.rooms.find(q => inPoly(p, q.ring));
+  const link = new Map<InRoom, Set<InKind>>();
+  for (const d of I.doors) {
+    const m: XY = [(d.h[0] + d.a[0]) / 2, (d.h[1] + d.a[1]) / 2], p = at([m[0] + d.n[0] * 0.25, m[1] + d.n[1] * 0.25]), q = at([m[0] - d.n[0] * 0.25, m[1] - d.n[1] * 0.25]);
+    if (!p || !q || p === q) continue;
+    for (const [x, y] of [[p, q], [q, p]] as const) { if (!link.has(x)) link.set(x, new Set()); link.get(x)!.add(y.kind); }
+  }
+  for (const q of I.rooms) {
+    if (q.kind !== 'prixojaya' && q.kind !== 'xoll') continue;
+    const w = Math.round((roomWidth(q.ring) - T) * 100) / 100;
+    if (q.kind === 'prixojaya') { out.push({ kind: 'dahliz', w }); continue; }
+    out.push({ kind: [...(link.get(q) ?? [])].some(k => LIVE.includes(k)) ? 'live' : 'aux', w, room: q });
+  }
+  return out;
+}
+/** c79: 40-band talablari (sof eni, m) va ANDOZA — yashash xonalariga yoʻlak 1,3 m (oʻqlarda 1,4), yordamchiga afzali 1,1 m */
+export const PASS40 = { src: 'ShNQ 2.08.01-24, 40-band', dahliz: 1.4, live: 1.1, aux: 0.9, liveGood: 1.3, auxGood: 1.1 } as const;
+/** c79: kvartira boʻyicha eng tor dahliz / yoʻlak (yashash) / yoʻlak (yordamchi) sof eni; yoʻq boʻlsa — null */
+export function pass40(I: AptInterior): Record<PassW['kind'], number | null> {
+  const P = passWidths(I), mn = (k: PassW['kind']) => { const v = P.filter(p => p.kind === k).map(p => p.w); return v.length ? Math.min(...v) : null; };
+  return { dahliz: mn('dahliz'), live: mn('live'), aux: mn('aux') };
+}
+/** c79: holat — fail (meʼyordan kam), review (meʼyorda, lekin tor: yoʻlak < 1,3 / yordamchi < 1,1), pass */
+export function pass40State(kind: PassW['kind'], w: number): 'pass' | 'review' | 'fail' {
+  const P = PASS40, min = kind === 'dahliz' ? P.dahliz : kind === 'live' ? P.live : P.aux, good = kind === 'live' ? P.liveGood : kind === 'aux' ? P.auxGood : min;
+  return w < min - 0.015 ? 'fail' : w < good - 0.015 ? 'review' : 'pass';
+}
 const CAP = { sanuzel: 7, vanna: 8, hx: 4, kir: 6, garderob12: 6, garderob3: 8, prixojaya: 12 } as const;   // ANDOZA
 /** Xona eni (TALQIN: yuqorida) */
 export function roomWidth(r: XY[]): number {
@@ -1099,6 +1172,7 @@ export function normViol(I: AptInterior, a: RuleApt, mods: FacadeMod[]): [number
   const out: [number, string][] = [], k = I.kFit ?? Math.max(1, a.rooms || 1), N = NORM, f1 = (v: number) => v.toFixed(1).replace('.', ',');   // 04.11: interfeysda koʻrinadi — vergul
   const wins: [XY, XY][] = a.mods.map(i => mods[i]).filter(m => m && !m.blind).map(m => [m.a, m.b]);
   let entryA = 0, hasEntry = false;
+  const pw = passWidths(I);
   for (const q of I.rooms) {
     // TALQIN: eni — devorlar orasidagi sof oʻlcham: kontur (devor oʻqi) eni − ichki devor qalinligi T (maydon ham sof — q.area)
     const w = roomWidth(q.ring) - T, A = q.area, nm = IN_LABEL[q.kind];
@@ -1127,7 +1201,9 @@ export function normViol(I: AptInterior, a: RuleApt, mods: FacadeMod[]): [number
       if (A > CAP.prixojaya) out.push([3, `dahliz ${f1(A)} > ${CAP.prixojaya} m² (ANDOZA)`]);
     } else if (q.kind === 'xoll') {
       entryA += A;
-      if (w < N.corrW - 0.02) out.push([5, `40-band: yoʻlak eni ${f1(w)} < 1,1 m`]);
+      // c79: yordamchi xonalarga (hoʻl xona, kiyimxona) olib boradigan yoʻlak — ≥ 0,9 m; yashash xonalariga — ≥ 1,1 m (40-band)
+      const aux = pw.find(p => p.room === q)?.kind === 'aux';
+      if (aux ? w < N.auxW - 0.02 : w < N.corrW - 0.02) out.push([5, aux ? `40-band: yordamchi xonalarga yoʻlak eni ${f1(w)} < 0,9 m` : `40-band: yoʻlak eni ${f1(w)} < 1,1 m`]);
     } else if (q.kind === 'sanuzel' || q.kind === 'hx') {
       // ANDOZA: hojatxona jihozi (unitaz) sigʻishi kerak — mebel joylashtirilgan rejada tekshiriladi
       if (I.furn?.length && !I.furn.some(f => f.k === 'wc' && inPoly(f.ring.reduce((t, p) => [t[0] + p[0] / f.ring.length, t[1] + p[1] / f.ring.length] as XY, [0, 0] as XY), q.ring))) out.push([4, `${nm}: unitaz sigʻmaydi (ANDOZA)`]);

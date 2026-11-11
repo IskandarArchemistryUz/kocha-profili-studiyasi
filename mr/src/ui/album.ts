@@ -15,7 +15,7 @@ import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, edit
 import type { XY } from '../core/geo';
 import { floorInsol, EDGE_H, type AptInsol, type InsolStatus } from '../core/insolplan';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
-import { aptInterior, IN_LABEL } from '../core/aptplan';
+import { aptInterior, IN_LABEL, pass40, pass40State, PASS40, type AptInterior } from '../core/aptplan';
 import { buildingSection, type SecBld } from '../core/bldsection';
 
 /** V5: «Kvartiralar» qadamidagi derazalar hisobi — bino, qavat (1 dan), modul → uzluksiz quyosh, soat */
@@ -195,6 +195,7 @@ export function openAlbum(o: AlbumOpts): void {
       h('div', { class: 'row2 alb-counts' }, ...[1, 2, 3, 4].map(n => h('div', { class: 'group flat', style: 'padding:9px 12px' }, h('div', { class: 'kpi' }, h('b', {}, h('i', { style: `background:${APT_FILL[n]}` }), String(k[n - 1])), h('span', {}, `${n} ${tr('xonali')}`))))),
       // 04.11: meʼyorga mos kelmagan kvartiralar soni (rejada qizil «!»; kvartirani tanlang — roʻyxat)
       (() => { const mods = pl.layout.mods, n = V.apts.filter(a => aptInterior(a, mods)?.norm?.length).length; return n ? h('div', { class: 'note warn', id: 'albNormCnt' }, tfm('${n} ta kvartira rejasi meʼyorga toʻliq mos emas — rejada «!», kvartirani tanlang', { n })) : ''; })(),
+      pass40Table(V, pl.layout.mods, editable),
       V.rooms.length ? h('div', { class: 'opts' }, h('b', {}, `${tr('Xonalar')}:`), ' ' + V.rooms.map(q => tr(ROOM_LABEL[q.kind])).filter((x, i, a) => a.indexOf(x) === i).join(' · ')) : '',
       h('div', { class: 'glabel' }, h('span', {}, tr('Tahrir'))),
       !editable ? h('div', { class: 'note' }, `${floor}-qavat rejasi tipik qavatdan kelib chiqadi (${FLOOR_NAME[ft]}). Tahrir uchun ${tf}-qavatni oching.`, h('button', { class: 'btn btn-sm', style: 'margin-top:6px;display:flex', onclick: () => { floor = tf; render(); } }, `${tf}-${tr('qavatga')}`))
@@ -348,6 +349,34 @@ export function openAlbum(o: AlbumOpts): void {
     wallTab = () => { selWall = (selWall + 1) % H.length; render(); };
   }
   /**
+   * c79 (11.11, egasi: «koridor eni juda tor»): ShNQ 2.08.01-24, 40-band — dahliz va yoʻlaklar sof eni, haqiqiy / talab.
+   * Holat: qizil — meʼyordan kam; sariq — meʼyorda, lekin tor (yashash xonalariga yoʻlak < 1,3 m, yordamchiga < 1,1 m — ANDOZA); yashil — yaxshi.
+   */
+  function pass40Cell(kind: 'dahliz' | 'live' | 'aux', w: number | null): HTMLElement {
+    if (w == null) return h('span', { class: 't-small' }, '—');
+    const st = pass40State(kind, w);
+    return h('span', { class: 'chip p40', 'data-s': st, title: st === 'review' ? tr('tor, lekin meʼyorda') : '' }, `${fmt(w, 2)} m`);
+  }
+  function pass40Box(I: AptInterior): HTMLElement {
+    const v = pass40(I), row = (kind: 'dahliz' | 'live' | 'aux', label: string, req: number) =>
+      h('div', { class: 'li', 'data-p40': kind }, h('span', { class: 'k' }, tr(label), h('span', { class: 'sub' }, tfm('meʼyor ≥ ${n} m', { n: fmt(req, 1) }))), h('span', { class: 'v' }, pass40Cell(kind, v[kind])));
+    const tight = v.live != null && pass40State('live', v.live) === 'review';
+    return h('div', { class: 'col p40box', id: 'albIn40', style: 'gap:4px' },
+      h('div', { class: 'glabel' }, h('span', {}, tr('Dahliz va yoʻlaklar eni (sof)')), h('span', { class: 'num' }, PASS40.src)),
+      h('div', { class: 'group' }, row('dahliz', 'dahliz', PASS40.dahliz), row('live', 'yoʻlak — yashash xonalariga', PASS40.live), row('aux', 'yoʻlak — yordamchi xonalarga', PASS40.aux)),
+      tight ? h('div', { class: 't-small p40hint' }, tr('Yoʻlak tor, lekin meʼyorda: xona chuqurligi meʼyoriy minimumga yetgan (ANDOZA: 1,3 m).')) : '');
+  }
+  /** c79: qavat boʻyicha — har kvartira: dahliz / yoʻlak / yordamchi yoʻlak sof eni (40-band) */
+  function pass40Table(V: RulePlan, mods: Parameters<typeof aptInterior>[1], pick: boolean): HTMLElement | '' {
+    const rows = V.apts.map((a, i) => ({ a, i, I: a.mods.length ? aptInterior(a, mods) : null })).filter(r => r.I);
+    if (!rows.length) return '';
+    const head = h('div', { class: 'p40r p40h' }, h('span', {}, tr('Kvartira')), h('span', {}, tr('dahliz')), h('span', {}, tr('yoʻlak')), h('span', {}, tr('yordamchi')));
+    return h('div', { class: 'col', id: 'albPass40', style: 'gap:4px' },
+      h('div', { class: 'glabel' }, h('span', {}, tr('Dahliz va yoʻlaklar eni (sof)')), h('span', { class: 'num' }, PASS40.src)),
+      h('div', { class: 'group p40t' }, head, ...rows.map(({ a, i, I }) => { const v = pass40(I!); return h('div', { class: 'p40r', 'data-apt40': i, ...(pick ? { role: 'button', tabindex: 0, 'aria-pressed': sel.length === 1 && sel[0] === i, title: tr('Kvartirani tanlash'), onclick: () => { sel = [i]; selRoom = -1; render(); }, onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter') { sel = [i]; selRoom = -1; render(); } } } : {}) }, h('span', { class: 'num' }, `${a.rooms}x · ${fmt(a.area * 0.85, 1)} m²`), pass40Cell('dahliz', v.dahliz), pass40Cell('live', v.live), pass40Cell('aux', v.aux)); })),
+      h('div', { class: 't-small' }, tfm('meʼyor: dahliz ≥ ${a} m, yoʻlak ≥ ${b} m, yordamchi ≥ ${c} m', { a: fmt(PASS40.dahliz, 1), b: fmt(PASS40.live, 1), c: fmt(PASS40.aux, 1) })));
+  }
+  /**
    * V2 (egasi, 31.10): tanlangan kvartiraning ichki rejasini qoʻlda sozlash — umumiy xona qaysi tomonda, uning devorini 0,3 m ga
    * surish (derazani kesmaydi), master-blok (avto / ha / yoʻq), hoʻl xonalar eshigi surma. Barcha turar qavatlarga qoʻllanadi.
    */
@@ -361,6 +390,7 @@ export function openAlbum(o: AlbumOpts): void {
       h('div', { class: 'glabel' }, h('span', {}, tr('Ichki reja')), dK ? h('span', { class: 'num' }, `${tr('umumiy xona')} ${dK > 0 ? '+' : ''}${fmt(dK, 1)} m`) : ''),
       // 04.11: shu kvartira rejasining meʼyor buzilishlari (ShNQ 2.08.01-24, SanQvaN 0102-25; ANDOZA — meʼyorda yoʻq, aqlga sigʻadigan chegara)
       I0?.norm?.length ? h('div', { class: 'note warn', id: 'albInNorm' }, h('b', {}, tr('Meʼyorga mos emas')), ...I0.norm.map(t => h('div', { class: 't-small' }, tr(t)))) : '',
+      I0 ? pass40Box(I0) : '',
       h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip, mv: undefined, dr: undefined, rk: undefined }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
       h('div', { class: 't-small', id: 'albWallHint', title: tr('Devorni sichqoncha bilan suring — 0,1 m qadam, modul chegarasiga tortiladi; tanlangan devor: strelkalar ±0,1 m, Tab — keyingisi, Esc — chiqish.') }, tr('Devor va eshiklar: sudrang; oʻlchamni bosib aniq qiymat yozing; xonani bosing — turi; eshik tanlansa Space — ochilish tomoni.')),
       iv.mv?.length || iv.dr?.length || iv.rk?.length ? btn('albWallReset', 'Devorlarni asliga qaytarish', () => apply(editInner(P, i, { mv: undefined, dr: undefined, rk: undefined }), true)) : '',
