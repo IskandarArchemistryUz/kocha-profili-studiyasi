@@ -359,7 +359,7 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     const bg = buildingsGeo(bl, H);
     if (bg) {
       const m = new THREE.Mesh(bg.mesh, new THREE.MeshLambertMaterial({ color: CC.bld })); m.name = 'binolar'; m.castShadow = m.receiveShadow = true; m.renderOrder = 10;
-      const e = new THREE.LineSegments(bg.edges, new THREE.LineBasicMaterial({ color: CC.bldEdge, transparent: true, opacity: 0.35 })); e.renderOrder = 11;
+      const e = new THREE.LineSegments(bg.edges, new THREE.LineBasicMaterial({ color: CC.bldEdge, transparent: true, opacity: 0.35 })); e.renderOrder = 11; e.name = 'bino qirralari';   // c77: nom — varaq muharririda «Atrof binolari» qatlami
       g.add(m, e);
       if (bg.roof) { const rm = new THREE.Mesh(bg.roof, new THREE.MeshLambertMaterial({ color: CC.roof, side: THREE.DoubleSide })); rm.name = 'tomlar'; rm.castShadow = rm.receiveShadow = true; rm.renderOrder = 10; g.add(rm); }
     }
