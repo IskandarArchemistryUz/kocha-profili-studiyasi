@@ -1366,6 +1366,7 @@ export class Editor {
     const [m, d] = this.sunDate.split('-').map(Number), o = this.store.doc.origin;
     const p = sunPosition(localToUtcAt(2026, m, d, this.sunTime, o[1], o[0]), o[1], o[0]);
     this.scene.setSun(p.alt, p.az);
+    this.scene.setLiveShadows(this.step.id === 'quyosh' && p.alt > 0);   // L9: faqat shu qadamda (surgich onchange qadam almashgach ham kelishi mumkin)
     const t = this.el.panel.querySelector<HTMLElement>('#sunInfo');
     if (t) t.textContent = `${String(Math.floor(this.sunTime)).padStart(2, '0')}:${String(Math.round(this.sunTime % 1 * 60)).padStart(2, '0')} · balandlik ${fmt(p.alt, 1)}° · azimut ${fmt(p.az, 0)}°`;
   }
@@ -1563,7 +1564,8 @@ export class Editor {
         h('div', { class: 'leg' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', {}, tr(t)), h('b', {}, `${fmt(st.bins[i] * 100, 0)} %`)))),
         h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, tr('Xaritani yashirish')));
     }
-    body.append(h('span', { class: 'norm' }, svgIcon(IC.book), 'SanQvaN 0102-25 · 95-band'));
+    // L10 (11.11): SanQvaN — Oʻzbekiston meʼyori; xorijiy meʼyorlar toʻplamida yorliq koʻrsatilmaydi (NYC loyihasida chiqardi)
+    if (this.normSet() === 'UZ') body.append(h('span', { class: 'norm' }, svgIcon(IC.book), 'SanQvaN 0102-25 · 95-band'));
     this.windSection(body);
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Usul va cheklovlar')), h('div', { class: 'col' },
       h('span', {}, tr('Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0102-25, 95-band — 22 mart – 22 sentabr davrida xonada 2 soat, uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz quyosh. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.')),
@@ -4376,6 +4378,7 @@ export class Editor {
     if (this.sframe) this.endFrame();
     document.querySelector('.usepop')?.remove(); this.setTool(null); this.step = s; this.panelOpen = true; track(`mr/step/${s.id}`, true);
     if (!this.last) void this.recompute();   // 11.11 (L2/L4): natija yoʻq qolgan boʻlsa — qadam almashganda qayta hisob
+    if (s.id !== 'quyosh') this.scene.setLiveShadows(false);   // L9: jonli soyalar faqat «Quyosh va shamol» qadamida
     this.closePop(); if (this.el.drawer.dataset.kind === 'section') this.el.drawer.hidden = true;   // oldingi qadamning ochiq oynalari yopiladi
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }

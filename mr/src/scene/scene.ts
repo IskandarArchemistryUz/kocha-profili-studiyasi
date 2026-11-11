@@ -1432,7 +1432,30 @@ export class Scene3D {
     });
     tag(3);
     this.applyExplode();
+    if (this.liveSh) this.syncShadowCatcher();
     this.invalidate();
+  }
+
+  /**
+   * 11.11 (L9, video yozishda: 6-qadamda soyalar yerga, hovliga va qoʻshni binolarga tushmasdi — faqat fasadlar yorugʻ/qorongʻi).
+   * Sabab: kontekst bilan yer tekisligi relyef ostiga tushadi, yerdagi hamma qatlam (OSM, dahalar, koʻchalar, hovli) MeshBasic —
+   * soya qabul qilmaydi; binolarda receiveShadow yoʻq edi. Yechim (faqat «Quyosh va shamol» qadamida): relyefga yopishgan
+   * ShadowMaterial «soya ushlagich» (yer qatlamlari ustida, binolar ostida) va binolar soya qabul qiladi.
+   */
+  private liveSh = false;
+  private shCatch: THREE.Mesh | null = null;
+  setLiveShadows(on: boolean): void { if (this.liveSh === on) return; this.liveSh = on; this.syncShadowCatcher(); this.invalidate(); }
+  private syncShadowCatcher(): void {
+    if (this.shCatch) { this.scene.remove(this.shCatch); this.shCatch.geometry.dispose(); (this.shCatch.material as THREE.Material).dispose(); this.shCatch = null; }
+    const recv = (o: THREE.Object3D) => { const m = o as THREE.Mesh; if (!m.isMesh || !m.castShadow) return; const mats = Array.isArray(m.material) ? m.material : [m.material]; if (mats.some(x => x instanceof THREE.MeshBasicMaterial)) return;
+      if (m.userData.recv0 == null) m.userData.recv0 = m.receiveShadow; m.receiveShadow = this.liveSh || !!m.userData.recv0; };
+    this.world.traverse(recv); this.ctx?.group.traverse(recv);
+    if (!this.liveSh) return;
+    const r = Math.max(300, this.sun.shadow.camera.right || 400);
+    const g = drape(new THREE.PlaneGeometry(2 * r, 2 * r, 1, 1), this.H, 0.9, 10);
+    const m = new THREE.Mesh(g, new THREE.ShadowMaterial({ opacity: 0.3, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 }));
+    m.receiveShadow = true; m.renderOrder = 8; m.name = 'soya'; m.userData.shadowCatcher = true;
+    this.scene.add(m); this.shCatch = m;
   }
 
   /** Chizilayotgan shakl (koʻk chiziq + nuqtalar) */
@@ -1900,6 +1923,7 @@ export class Scene3D {
     const dir = new THREE.Vector3(Math.sin(z) * Math.cos(a), up, -Math.cos(z) * Math.cos(a)).normalize();
     this.sun.position.copy(dir.multiplyScalar(1500));
     this.sun.intensity = alt > 0 ? 0.6 + 1.2 * Math.min(1, Math.sin(a) * 1.6) : 0.15;
+    this.sun.target.updateMatrixWorld();   // L9: target sahnada emas — matritsa aniq yangilansin
     this.invalidate();
   }
 
