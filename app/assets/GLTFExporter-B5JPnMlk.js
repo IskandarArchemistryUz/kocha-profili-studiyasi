@@ -1,1 +1,0 @@
-export{t as GLTFExporter}from"./GLTFExporter-DOQ_wJ7j.js";
