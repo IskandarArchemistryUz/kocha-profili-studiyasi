@@ -22,7 +22,6 @@ import { pageChecks, applyFix, sheetChecks, type Check9 } from './check';
 import { LAYOUTS, buildLayoutPage, type LFamily, type TplCtx } from './layouts';
 import { legacyPending, legacyTaken, convertMaketDoc, matToInbox } from './legacy';
 import { TOOLS, type Tool, FLOWS, BANDS, ZONES, MOBILITY, DASHES, ICON_GROUPS, iconById, LOOKS, TREES, PALETTES, paletteById, FONTS, TEXT_KINDS } from './catalog';
-import { wmCanvas } from '../core/wm';
 
 import { familyById, accepts, placements, type Material } from './autolayout';
 import { buildAlbum, inner, slotAt, setCustomPal, type Album } from './album';
@@ -1518,7 +1517,7 @@ export function openChizmadon(host: ChHost): void {
       const pp = new PptxGen(), out = pagesOut(), f = out[0];
       pp.defineLayout({ name: 'CH', width: f.widthMm / 25.4, height: f.heightMm / 25.4 }); pp.layout = 'CH'; pp.title = d.title;
       for (const p of out) {
-        const c = wmCanvas(await rasterize(p.svg, p.widthMm, p.heightMm, 150)), s = pp.addSlide();
+        const c = await rasterize(p.svg, p.widthMm, p.heightMm, 150), s = pp.addSlide();   // E1: PPTX faqat tanga bilan — belgi qoʻyilmaydi (oldin toʻlangan PPTX da ham bor edi)
         const k = Math.min(f.widthMm / p.widthMm, f.heightMm / p.heightMm), w = p.widthMm * k / 25.4, hh = p.heightMm * k / 25.4;
         s.addImage({ data: c.toDataURL('image/png'), x: (f.widthMm / 25.4 - w) / 2, y: (f.heightMm / 25.4 - hh) / 2, w, h: hh });
       }

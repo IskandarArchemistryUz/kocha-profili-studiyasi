@@ -7,9 +7,10 @@ import '../ui/ds2.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { h, svgIcon, toast } from '../ui/dom';
+import { h, svgIcon, download } from '../ui/dom';
+import '../account/pay';   // E1: yuklash darvozasi (GLB — faqat tanga)
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
-import { tr, tf, setLang, onLang } from '../i18n';
+import { tr, setLang, onLang } from '../i18n';
 import { VEHICLES, buildVehicle, triCount, type VehicleKind } from '../scene/vehicles';
 
 const KINDS = Object.keys(VEHICLES) as VehicleKind[];
@@ -57,9 +58,8 @@ function theme(): void { const dk = isDark(); scene.background = new THREE.Color
 async function glb(): Promise<void> {
   if (!model) return;
   const ex = new GLTFExporter(), buf = await ex.parseAsync(model, { binary: true }) as ArrayBuffer;
-  const a = h('a', { href: URL.createObjectURL(new Blob([buf], { type: 'model/gltf-binary' })), download: `archemistry_${cur}.glb` }); a.click();
-  setTimeout(() => URL.revokeObjectURL((a as HTMLAnchorElement).href), 2000);
-  toast(tf('${f} yuklab olindi', { f: `archemistry_${cur}.glb` }));
+  // E1 (11.11): darvoza orqali — GLB faqat toza fayl (tanga bilan); oldin darvozasiz edi
+  download(`archemistry_${cur}.glb`, new Blob([buf], { type: 'model/gltf-binary' }), 'model/gltf-binary', 'mr.glb');
 }
 const view = h('div', { class: 'tr-view' }, renderer.domElement);
 function draw(): void {

@@ -132,10 +132,10 @@ function short(msg: HTMLElement, e: ApiError, need: number): void {
 }
 
 /* ---------- 1) toza yuklash ---------- */
-async function gate(o: { name: string; item?: string; sample: string | Blob }): Promise<ExportMode | null> {
+async function gate(o: { name: string; item?: string; sample: string | Blob; paid?: boolean }): Promise<ExportMode | null> {
   if (isOwner() || ALWAYS_FREE.test(o.name) && !/\.geojson$/i.test(o.name)) return 'clean';
   if (!authRequired()) return 'wm';   // hisob oʻchirilgan (mahalliy sinov) — avvalgidek: belgili bepul fayl
-  const item = itemFor(o.name, o.item), paidOnly = PAID_ONLY.test(o.name), area = exportArea();
+  const item = itemFor(o.name, o.item), paidOnly = !!o.paid || PAID_ONLY.test(o.name), area = exportArea();
   let price: number | null = null;
   try { price = (await quote([item], area)).coins; } catch { /* oflayn — narxsiz koʻrsatamiz */ }
   await check();   // balans qatori uchun (kirmagan — null)
@@ -147,9 +147,9 @@ async function gate(o: { name: string; item?: string; sample: string | Blob }): 
       ? tf('${e} — faqat toza fayl: tanga bilan. Bir xil holatni qayta yuklash — bepul.', { e: ext })
       : tr('Belgili fayl koʻrib chiqish uchun yetadi. Topshirish uchun — toza fayl.'));
     const pr = price == null ? '…' : tf('${n} tanga', { n: fmt(price) });
-    const paid = opt('kdClean', 'pri', tr('Toza fayl'), tr('belgisiz · shu holatni qayta yuklash bepul'), pr, () => void buy());
+    const paid = opt('kdClean', 'pri', tr('Toza fayl'), /\.(svg|pdf)$/i.test(o.name) ? tr('vektor · belgisiz · shu holatni qayta yuklash bepul') : tr('belgisiz · shu holatni qayta yuklash bepul'), pr, () => void buy());
     const opts = h('div', { class: 'kd-opts' },
-      paidOnly ? '' : opt('kdWm', '', tr('Belgi bilan'), tr('«ARCHEMISTRY · BEPUL» setkasi'), tr('bepul'), () => { res = 'wm'; D.close(); }),
+      paidOnly ? '' : opt('kdWm', '', tr('Belgi bilan'), /\.pdf$/i.test(o.name) ? tr('rasm PDF · 1600 px · belgi rasmga pishirilgan') : /\.(svg|png|jpe?g)$/i.test(o.name) ? tr('PNG · 1600 px · belgi rasmga pishirilgan') : tr('«ARCHEMISTRY · BEPUL» setkasi'), tr('bepul'), () => { res = 'wm'; D.close(); }),
       paid);
     D.box.append(h('p', { class: 't-small mono', style: 'margin:0;color:var(--muted)' }, o.name), opts, balRow(), projRow(), D.msg);
     void D.done.then(() => resolve(res));

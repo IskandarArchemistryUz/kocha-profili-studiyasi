@@ -52,8 +52,10 @@ test('toza yuklash: SVG — tanlov, toza fayl tanga bilan va belgisiz, belgili �
   expect(st.tickets).toHaveLength(1); expect(st.tickets[0].items).toEqual(['ks.section']); expect(st.tickets[0].stateHash).toMatch(/^[a-f0-9]{40}$/);
   await expect(page.locator('.toast').last()).toContainText('3 tanga yechildi');
   // belgili — bepul, server chaqirilmaydi
+  // E1 (11.11): belgili bepul — vektor emas, 1600 px PNG
   const dl2 = page.waitForEvent('download'); await svg.click(); await page.click('#kdWm');
-  expect(readFileSync((await (await dl2).path())!, 'utf8')).toContain('ARCHEMISTRY · BEPUL');
+  const d2 = await dl2; expect(d2.suggestedFilename()).toMatch(/\.png$/);
+  const b2 = readFileSync((await d2.path())!); expect(b2.subarray(1, 4).toString()).toBe('PNG'); expect(b2.toString('latin1')).not.toContain('<text');
   expect(st.tickets).toHaveLength(1);
 });
 

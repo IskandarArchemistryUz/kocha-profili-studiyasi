@@ -1,6 +1,6 @@
 /** Kichik DOM yordamchilari — freymvorksiz, lekin bir xil uslubda */
-import { trSvg, getLang } from '../i18n';
-import { needWm, wmFile, exportGate, asClean } from '../core/wm';
+import { trSvg, getLang, tr } from '../i18n';
+import { needWm, wmFree, exportGate, asClean } from '../core/wm';
 type Attrs = Record<string, string | number | boolean | null | undefined | ((e: any) => void)>;
 type Child = Node | string | number | null | undefined | false | Child[];
 
@@ -54,7 +54,8 @@ export function download(name: string, data: string | Blob, type = 'application/
   void exportGate({ name, item, sample: d }).then(mode => {
     if (!mode) return;
     if (mode === 'clean') { void asClean(() => save(name, d, type)); return; }
-    if (needWm() && /\.(svg|png|jpe?g)$/i.test(name)) { void wmFile(name, d, type).then(x => save(name, x, type)).catch(() => save(name, d, type)); return; }
+    // E1 (11.11): bepul SVG → belgili PNG (1600 px); xato boʻlsa toza fayl saqlanmaydi (oldin .catch toza faylni berib yuborardi)
+    if (needWm() && /\.(svg|png|jpe?g|dxf)$/i.test(name)) { void wmFree(name, d, type).then(x => save(x.name, x.data, x.type)).catch(() => toast(tr('Faylni tayyorlab boʻlmadi — qayta urinib koʻring'))); return; }
     save(name, d, type);
   });
 }
