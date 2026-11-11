@@ -139,3 +139,88 @@ export function passportSheets(I: RepInput, chz = false): string[] {
   more.forEach((s, i) => pages.push(wrapSvg(header(i + 2, of) + layer('03_Pasport', '03 Pasport', s) + st(i + 2, of))));
   return pages;
 }
+
+/* ============ E4c: aksonometriya tahlil varagʻi (A3) va 5 varaqlik seriya ============ */
+export interface AxoSheetInput {
+  kicker: string; title: string; sub: string; n: number; of: number;
+  img: string; imgW: number; imgH: number;
+  big: { v: string; k: string } | null;
+  legend: [string, string][];
+  objects: { n: number; name: string; d: string; src: string; col: string }[];
+  plan: { r: number; rings: number[]; site: [number, number][] | null; pts: { x: number; y: number; col: string; n: number }[]; north: string };
+  note: string | null;
+  labels: { legend: string; objects: string; plan: string; src: string; date: string };
+  src: string; date: string;
+  stamp: RepInput['stamp'];
+}
+/** Bitta varaq: chapda ~2/3 aksonometriya, oʻngda sarlavha, asosiy raqam, shartli belgilar, obyektlar, mini reja; pastda shtamp */
+export function axoSheet(I: AxoSheetInput): string {
+  const [W, H] = A3, M = 10, stampH = 20, bot = H - M - stampH - 4, imgX = M, imgW = 268, imgH = bot - M, colX = M + imgW + 8, colW = W - M - colX;
+  const o: string[] = [];
+  // aksonometriya
+  o.push(layer('01_Aksonometriya', '01 Aksonometriya', `<defs><clipPath id="axClip"><rect x="${imgX}" y="${M}" width="${imgW}" height="${imgH}" rx="2"/></clipPath></defs>`
+    + `<rect x="${imgX}" y="${M}" width="${imgW}" height="${imgH}" rx="2" fill="#f6f5f2"/>`
+    + `<image x="${imgX}" y="${M}" width="${imgW}" height="${imgH}" preserveAspectRatio="xMidYMid slice" href="${I.img}" xlink:href="${I.img}" clip-path="url(#axClip)"/>`
+    + `<rect x="${imgX}" y="${M}" width="${imgW}" height="${imgH}" rx="2" fill="none" stroke="${INK}" stroke-width="0.3"/>`));
+  // sarlavha
+  let y = M + 4;
+  const hd: string[] = [`<text x="${colX}" y="${y}" font-size="2.6" font-family="${MONO}" letter-spacing="0.4" fill="${ACC}">${esc(I.kicker.toUpperCase())}</text>`,
+    `<text x="${W - M}" y="${y}" font-size="2.6" font-family="${MONO}" text-anchor="end" fill="${MUTED}">${String(I.n).padStart(2, '0')} / ${String(I.of).padStart(2, '0')}</text>`];
+  y += 9; wrap(I.title, colW, 7, 0.55).slice(0, 2).forEach(l => { hd.push(`<text x="${colX}" y="${n2(y)}" font-size="7" font-weight="700" fill="${INK}">${esc(l)}</text>`); y += 7.5; });
+  wrap(I.sub, colW, 2.8).slice(0, 3).forEach(l => { hd.push(`<text x="${colX}" y="${n2(y)}" font-size="2.8" fill="${MUTED}">${esc(l)}</text>`); y += 3.6; });
+  y += 1.5; hd.push(`<line x1="${colX}" x2="${W - M}" y1="${n2(y)}" y2="${n2(y)}" stroke="${INK}" stroke-width="0.35"/>`); y += 4;
+  if (I.big) { y += 11; hd.push(`<text x="${colX}" y="${n2(y)}" font-size="14" font-weight="700" fill="${INK}">${esc(I.big.v)}</text>`); y += 4.5; wrap(I.big.k, colW, 2.6).slice(0, 2).forEach(l => { hd.push(`<text x="${colX}" y="${n2(y)}" font-size="2.6" fill="${MUTED}">${esc(l)}</text>`); y += 3.4; }); y += 3; }
+  o.push(layer('00_Sarlavha', '00 Sarlavha', hd.join('')));
+  // shartli belgilar
+  const lg: string[] = [];
+  if (I.legend.length) {
+    lg.push(`<text x="${colX}" y="${n2(y)}" font-size="2.2" font-family="${MONO}" fill="${MUTED}">${esc(I.labels.legend.toUpperCase())}</text>`); y += 4;
+    for (const [c, t] of I.legend) { lg.push(`<rect x="${colX}" y="${n2(y - 2.3)}" width="4" height="2.6" rx="0.6" fill="${c}"/><text x="${colX + 6}" y="${n2(y)}" font-size="2.5" fill="${INK}">${esc(wrap(t, colW - 6, 2.5)[0] ?? '')}</text>`); y += 3.8; }
+    y += 2.5;
+  }
+  o.push(layer('02_Shartli_belgilar', '02 Shartli belgilar', lg.join('')));
+  // obyektlar
+  const ob: string[] = [];
+  const planS = 54, planY = bot - planS - 9;
+  if (I.objects.length) {
+    ob.push(`<text x="${colX}" y="${n2(y)}" font-size="2.2" font-family="${MONO}" fill="${MUTED}">${esc(I.labels.objects.toUpperCase())}</text>`); y += 4.2;
+    for (const p of I.objects) {
+      if (y > planY - 4) break;
+      ob.push(`<circle cx="${colX + 1.8}" cy="${n2(y - 0.9)}" r="1.8" fill="#ffffff" stroke="${p.col}" stroke-width="0.5"/><text x="${colX + 1.8}" y="${n2(y)}" font-size="1.9" font-weight="700" text-anchor="middle" fill="${INK}">${p.n}</text>`
+        + `<text x="${colX + 5}" y="${n2(y)}" font-size="2.5" fill="${INK}">${esc((wrap(p.name, colW - 34, 2.5)[0] ?? ''))}</text>`
+        + `<text x="${W - M - 12}" y="${n2(y)}" font-size="2.4" text-anchor="end" font-family="${MONO}" fill="${INK}">${esc(p.d)}</text><text x="${W - M}" y="${n2(y)}" font-size="2" text-anchor="end" font-family="${MONO}" fill="${MUTED}">${esc(p.src)}</text>`);
+      y += 3.9;
+    }
+  }
+  if (I.note) wrap(I.note, colW, 2.4).slice(0, 4).forEach(l => { if (y < planY - 3) { ob.push(`<text x="${colX}" y="${n2(y + 1)}" font-size="2.4" fill="${WARN}">${esc(l)}</text>`); y += 3.2; } });
+  o.push(layer('03_Obyektlar', '03 Obyektlar', ob.join('')));
+  // mini reja: doira, halqalar, uchastka, obyekt nuqtalari, shimol, masshtab
+  const P = I.plan, cx = colX + planS / 2, cy = planY + planS / 2, k = (planS / 2 - 3) / P.r, pp = (x: number, y2: number) => `${n2(cx + x * k)} ${n2(cy - y2 * k)}`;
+  const pl: string[] = [`<text x="${colX}" y="${n2(planY - 2)}" font-size="2.2" font-family="${MONO}" fill="${MUTED}">${esc(I.labels.plan.toUpperCase())}</text>`,
+    `<rect x="${colX}" y="${planY}" width="${planS}" height="${planS}" rx="1.5" fill="#f6f5f2" stroke="${LINE}" stroke-width="0.25"/>`];
+  for (const r of P.rings) pl.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(r * k)}" fill="none" stroke="${r === P.r ? ACC : MUTED}" stroke-width="${r === P.r ? 0.35 : 0.2}" stroke-dasharray="${r === P.r ? '1.2 0.8' : '0.6 0.8'}"/>`);
+  if (P.site && P.site.length > 2) pl.push(`<path d="M${P.site.map(([x, y2]) => pp(x, y2)).join('L')}Z" fill="#d2492f" fill-opacity=".18" stroke="#d2492f" stroke-width="0.35"/>`);
+  for (const q of P.pts) { if (Math.hypot(q.x, q.y) > P.r * 1.02) continue; pl.push(q.n ? `<circle cx="${n2(cx + q.x * k)}" cy="${n2(cy - q.y * k)}" r="1.4" fill="#ffffff" stroke="${q.col}" stroke-width="0.4"/><text x="${n2(cx + q.x * k)}" y="${n2(cy - q.y * k + 0.6)}" font-size="1.5" font-weight="700" text-anchor="middle" fill="${INK}">${q.n}</text>` : `<circle cx="${n2(cx + q.x * k)}" cy="${n2(cy - q.y * k)}" r="0.55" fill="${q.col}"/>`); }
+  pl.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="0.9" fill="${INK}"/>`, north(colX + planS + 9, planY + 8, P.north));
+  { const m = [50, 100, 200, 250, 500, 1000].filter(v => v <= P.r * 0.6).pop() ?? 50, L = m * k, sx = colX + planS + 3, sy = planY + planS - 2;
+    pl.push(`<g data-name="Masshtab"><rect x="${n2(sx)}" y="${n2(sy)}" width="${n2(L / 2)}" height="1" fill="${INK}"/><rect x="${n2(sx + L / 2)}" y="${n2(sy)}" width="${n2(L / 2)}" height="1" fill="#ffffff" stroke="${INK}" stroke-width="0.2"/><text x="${n2(sx)}" y="${n2(sy - 1.2)}" font-size="2" font-family="${MONO}" fill="${INK}">0</text><text x="${n2(sx + L)}" y="${n2(sy - 1.2)}" font-size="2" text-anchor="middle" font-family="${MONO}" fill="${INK}">${m} m</text></g>`); }
+  pl.push(`<text x="${colX + planS + 3}" y="${n2(planY + planS / 2 + 2)}" font-size="2" font-family="${MONO}" fill="${MUTED}">${esc(`${I.labels.date}: ${I.date}`)}</text>`);
+  wrap(`${I.labels.src}: ${I.src}`, colW, 2, 0.58).slice(0, 2).forEach((l, i) => pl.push(`<text x="${colX}" y="${n2(bot - 2.6 + i * 2.6)}" font-size="2" fill="${MUTED}">${esc(l)}</text>`));
+  o.push(layer('04_Mini_reja', '04 Mini reja', pl.join('')));
+  o.push(stampSvg(I.stamp, I.n, I.of));
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}" font-family="${FONT}"><rect width="${W}" height="${H}" fill="#ffffff"/>${o.join('')}</svg>`;
+}
+/** Shtamp (pasport varagʻidagi bilan bir xil) */
+function stampSvg(S: RepInput['stamp'], pg: number, of: number): string {
+  const [W, H] = A3, M = 10, stampH = 20, y = H - M - stampH, cells: [number, string, string][] = [[70, S.org, S.service], [120, S.placeL, S.place], [55, S.authorL, ''], [35, S.dateL, S.date], [25, S.sheetL, `${pg} / ${of}`], [W - 2 * M - 305, S.srcL, S.sources]];
+  let x = M; const o: string[] = [`<rect x="${M}" y="${y}" width="${W - 2 * M}" height="${stampH}" fill="#ffffff" stroke="${INK}" stroke-width="0.35"/>`];
+  for (const [w, k, v] of cells) {
+    if (x > M) o.push(`<line x1="${n2(x)}" x2="${n2(x)}" y1="${y}" y2="${y + stampH}" stroke="${INK}" stroke-width="0.2"/>`);
+    o.push(`<text x="${n2(x + 2.5)}" y="${y + 4.6}" font-size="2" font-family="${MONO}" fill="${MUTED}">${esc(k.toUpperCase())}</text>`);
+    wrap(v, w - 5, 2.5).slice(0, 4).forEach((l, i) => o.push(`<text x="${n2(x + 2.5)}" y="${n2(y + 9 + i * 3.2)}" font-size="2.5"${i === 0 && w < 80 ? ' font-weight="700"' : ''} fill="${INK}">${esc(l)}</text>`));
+    if (!v && k === S.authorL) o.push(`<line x1="${n2(x + 2.5)}" x2="${n2(x + w - 3)}" y1="${y + 14}" y2="${y + 14}" stroke="${LINE}" stroke-width="0.25"/>`);
+    x += w;
+  }
+  o.push(`<text x="${W - M}" y="${H - M + 4}" font-size="2" text-anchor="end" fill="${MUTED}">${esc(S.note)}</text>`);
+  return layer('09_Shtamp', '09 Shtamp', o.join(''));
+}
