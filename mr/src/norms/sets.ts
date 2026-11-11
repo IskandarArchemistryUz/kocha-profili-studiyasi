@@ -6,9 +6,10 @@
  *  - UZ   — barcha qoidalar majburiy, generator ShNQ boʻyicha (oʻzgarishsiz);
  *  - intl — A (fizik va xavfsizlik), C (loyiha konverti), D (cheklovlar) — tavsiya; B (mintaqaviy siyosat) — oʻchiq.
  *
- * Xalqaro andoza masofalari — NSW Apartment Design Guide (2015), 3F «Visual privacy», 3F-1 design criteria 1
- * (binolar orasi va chegaragacha, balandlik boʻyicha). Qiymatlar NSW Planning Portal'dagi rasmiy ADG muvofiqlik
- * baholashlaridan olindi; ADG asl PDF'i bilan solishtirilmagan → verified: false.
+ * Xalqaro andoza masofalari — NSW Apartment Design Guide (2015), 3F «Visual privacy», 3F-1 design criteria 1:
+ * yon va orqa chegaragacha — H ≤ 12 m (4 qavat): 6 m yashash xonalari va balkonlar / 3 m boshqa xonalar; ≤ 25 m (5–8): 9 / 4,5 m;
+ * > 25 m (9+): 12 / 6 m. Izoh: bir uchastkadagi binolar orasi — talablar yigʻindisi (3F.2-rasm).
+ * 11.11: asl PDF (planning.nsw.gov.au, Part 3 «Siting the development») bilan solishtirildi — mos.
  */
 export type NormSet = 'UZ' | 'intl';
 /** A — fizik va xavfsizlik; B — mintaqaviy siyosat (UZ/MDH); C — loyiha konverti (zonalash); D — cheklovlar (zona va bufer) */
@@ -71,3 +72,8 @@ export const intlRowGap = (H: number): number => adgSep(H, true);
 
 /** Chegaragacha chekinish (qoʻshni uchastka) — ADG: binolar orasining yarmi (masofa «teng boʻlinadi», 3F-1) */
 export const intlSideSetback = (H: number, longWin: boolean): number => adgSep(H, longWin) / 2;
+
+/** ADG 3F-1: binoning oʻz balandligi boʻyicha chegaragacha ulushi, m (yashash xonalari): 6 / 9 / 12 */
+export const adgHalf = (H: number): number => adgSep(H, true) / 2;
+/** ADG: oʻz ulushi r m boʻlsa ruxsat etilgan eng katta balandlik, m (0 — sigʻmaydi; Infinity — cheklanmaydi) */
+export const adgMaxHHalf = (r: number): number => adgMaxH(2 * r, true);

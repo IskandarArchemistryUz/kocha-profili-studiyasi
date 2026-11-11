@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { generate, DEFAULT_GEN, type Typology } from '../../src/core/generator';
 import { boundaryNeed } from '../../src/core/setback';
 import { RULES, abroadRules, OFF_NOTE, type Result } from '../../src/norms/rules';
-import { RULE_KIND, levelOf, adgSep, adgMaxH, facingMaxH } from '../../src/norms/sets';
+import { RULE_KIND, levelOf, adgSep, adgMaxH, facingMaxH, adgHalf, adgMaxHHalf } from '../../src/norms/sets';
+import { avoidObstacles } from '../../src/core/genfix';
+import type { GenSection } from '../../src/core/generator';
 import type { XY } from '../../src/core/geo';
 
 /** 11.11: meʼyorlar toʻplamlari, 1-bosqich (claude/normalar-toplamlar-inventar-11-11.md) */
@@ -84,5 +86,29 @@ describe('Hisobot — xorijda B oʻchiq', () => {
     const [b, a] = abroadRules(rs, 'intl');
     expect(b.status).toBe('na'); expect(b.fix).toBeUndefined(); expect(b.note).toContain(OFF_NOTE);
     expect(a.status).toBe('review'); expect(a.fix).toBeDefined();
+  });
+});
+
+describe('Mavjud (saqlanadigan) bino yonida — avoidObstacles', () => {
+  // seksiya 0..60 × 0..15, fasadi shimolga (y+); mavjud bino 30 m shimolda, 30 m (10 qavat) baland
+  const sec = (): GenSection => ({ ring: [[0, 0], [60, 0], [60, 15], [0, 15]], floors: 16, kind: 'oddiy', nonRes: 0, face: { p: [30, 15], n: [0, 1] } });
+  const obs = [{ ring: [[0, 45], [60, 45], [60, 60], [0, 60]] as XY[], h: 30 }];
+  it('ADG ulushlari: 6 / 9 / 12 m; qolgan ulushdan balandlik', () => {
+    expect([adgHalf(12), adgHalf(20), adgHalf(30)]).toEqual([6, 9, 12]);
+    expect([adgMaxHHalf(5), adgMaxHHalf(6), adgMaxHHalf(9), adgMaxHHalf(12)]).toEqual([0, 12, 25, Infinity]);
+  });
+  it('UZ: 30 m masofa, mavjud bino 30 m — 2·H > d → seksiya olinadi (oʻzgarishsiz)', () => {
+    const n: string[] = []; expect(avoidObstacles([sec()], obs, 5, H3, n)).toHaveLength(0);
+    expect(n.join()).toContain('8-izoh');
+  });
+  it('intl: 30 m − mavjud binoning ulushi 12 m = 18 m ≥ 12 → yangi bino cheklanmaydi', () => {
+    const n: string[] = [], r = avoidObstacles([sec()], obs, 5, H3, n, 6, 2, 'intl');
+    expect(r).toHaveLength(1); expect(r[0].floors).toBe(16); expect(n.join()).not.toContain('izoh');
+  });
+  it('intl: 20 m — qolgan ulush 8 m → H ≤ 12 m (4 qavat); minF 5 sigʻmaydi → olinadi, minF 3 → 4 qavat', () => {
+    const near = [{ ...obs[0], ring: obs[0].ring.map(p => [p[0], p[1] - 10] as XY) }];
+    expect(avoidObstacles([sec()], near, 5, H3, [], 6, 2, 'intl')).toHaveLength(0);
+    const n: string[] = [], r = avoidObstacles([sec()], near, 3, H3, n, 6, 2, 'intl');
+    expect(r[0].floors).toBe(4); expect(n.join()).toContain('xalqaro andoza');
   });
 });

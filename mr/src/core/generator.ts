@@ -1013,7 +1013,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   }
   // notekis parsel: oʻtkir uchlar tik qirqiladi, tor boʻlaklar olinadi; mavjud binolar — toʻsiq (ustiga qurilmaydi, masofa saqlanadi)
   r.sections = squareSections(r.sections, g.depth, r.notes);
-  if (opts.avoid?.length) r.sections = avoidObstacles(r.sections, opts.avoid, g.minF, floorH, r.notes, 6, 2 * rk(g));
+  if (opts.avoid?.length) r.sections = avoidObstacles(r.sections, opts.avoid, g.minF, floorH, r.notes, 6, 2 * rk(g), g.norms);
   // yupqa qismlar (31.10, egasi: «yupqa qatlam ajralib chiqyapti»): eni 6 m dan tor uch va oyoqlar olinadi (morfologik ochish)
   { let fixed = 0, gone = 0; r.sections = r.sections.flatMap(s => { if (s.kind === 'stilobat' || s.kind === 'arka' || s.kind === 'savdo' || okRect(s.ring, 6)) return [s]; const a0 = aOf(s.ring), o = openRing(s.ring, 6); if (!o) { const d = despike(s.ring); return [d.length !== s.ring.length ? (fixed++, { ...s, ring: d }) : s]; } /* hisob xatosi — tikansiz asl shakl */ if (aOf(o) < 90) { gone++; return []; } if (a0 - aOf(o) > 1) { fixed++; return [{ ...s, ring: o }]; } return [s]; });
     if (fixed) r.notes.push(`${fixed} ta seksiyada eni 6 m dan tor uch yoki boʻlak olib tashlandi`); if (gone) r.notes.push(`${gone} ta juda tor seksiya olib tashlandi (eni < 6 m)`); }

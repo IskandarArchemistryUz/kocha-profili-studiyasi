@@ -7,6 +7,7 @@
  *    Toʻsiqdan ≥ 6 m (ShNQ 2.07.01-23, 79-band 2-jadval: hisoblangan masofa 6 m dan kam boʻlmasin) ichidagi qism kesiladi;
  *    qarshidagi toʻsiqqacha masofa boʻyicha qavat cheklanadi: parallel uzun tomonlar orasi ≥ 2·Hmax (8-izoh).
  */
+import { adgHalf, adgMaxHHalf, ADG_SRC, type NormSet } from '../norms/sets';
 import polygonClipping, { type Polygon, type MultiPolygon } from 'polygon-clipping';
 import type { XY } from './geo';
 import { signedArea, obb2 } from './geo';
@@ -97,7 +98,9 @@ export function squareSections(S: GenSection[], D: number, notes: string[]): Gen
  * Toʻsiqlar: ulardan 6 m ichidagi qism kesiladi; seksiya fasadidan qarshidagi toʻsiqqacha masofa d boʻyicha:
  * 2·Hmax ≤ d (rekonstruksiyada, 7-izoh — Hmax ≤ d: k2 = 1) boʻlishi uchun qavat kamaytiriladi; toʻsiqning oʻzi d/2 dan baland boʻlsa yoki minF sigʻmasa — seksiya olinadi.
  */
-export function avoidObstacles(S: GenSection[], obs: Obstacle3[], minF: number, floorH: number, notes: string[], gap = 6, k2 = 2): GenSection[] {
+export function avoidObstacles(S: GenSection[], obs: Obstacle3[], minF: number, floorH: number, notes: string[], gap = 6, k2 = 2, set?: NormSet): GenSection[] {
+  // 11.11 (norms/sets): xalqaro toʻplamda — ADG 3F-1: orasi = ikkala binoning oʻz ulushlari yigʻindisi (6 / 9 / 12 m balandlik boʻyicha)
+  const intl = set === 'intl';
   if (!obs.length) return S;
   const bufs: Polygon[] = obs.map(o => P(o.gap === 0 ? o.ring : buffer(o.ring, o.gap ?? gap)));
   let clipped = 0, removed = 0, capped = 0; const out: GenSection[] = [];
@@ -110,13 +113,19 @@ export function avoidObstacles(S: GenSection[], obs: Obstacle3[], minF: number, 
       let d = Infinity, ho = 0;
       for (const o of obs) { if (o.h <= 0) continue; const t = rayHitPar(s.face.p, s.face.n, o.ring); if (t < d) { d = t; ho = o.h; } }   // h = 0 — zona (ELU), balandlik talabi yoʻq
       if (Number.isFinite(d) && d < 200) {
-        if (k2 * ho > d + 0.5) { removed++; continue; }
-        const cap = Math.floor(d / k2 / floorH);
+        if (intl ? adgHalf(minF * floorH) + adgHalf(ho) > d + 0.5 : k2 * ho > d + 0.5) { removed++; continue; }
+        const cap = intl ? Math.floor(Math.min(1e4, adgMaxHHalf(d - adgHalf(ho))) / floorH) : Math.floor(d / k2 / floorH);
         if (cap < minF) { removed++; continue; }
         if (s.floors > cap) { s.floors = cap; capped++; }
       }
     }
     out.push(s);
+  }
+  if (intl) {
+    if (clipped) notes.push(`${clipped} ta seksiya mavjud/saqlanadigan binolardan ≥ ${gap} m qilib qirqildi (xalqaro andoza)`);
+    if (removed) notes.push(`${removed} ta seksiya olib tashlandi: mavjud binoga juda yaqin (xalqaro andoza: ${ADG_SRC})`);
+    if (capped) notes.push(`${capped} ta seksiyaning qavati qarshidagi mavjud binogacha masofa boʻyicha kamaytirildi (xalqaro andoza: ${ADG_SRC})`);
+    return out;
   }
   if (clipped) notes.push(`${clipped} ta seksiya mavjud/saqlanadigan binolardan ≥ ${gap} m qilib qirqildi (79-band 2-jadval: ≥ 6 m)`);
   if (removed) notes.push(k2 < 2 ? `${removed} ta seksiya olib tashlandi: mavjud binoga juda yaqin (rekonstruksiya: ≥ Hmax, 7-izoh)` : `${removed} ta seksiya olib tashlandi: mavjud binoga juda yaqin (≥ 2·Hmax, 8-izoh)`);
