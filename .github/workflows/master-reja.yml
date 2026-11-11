@@ -49,13 +49,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: mr/package-lock.json }
       - run: npm ci
-      # 11.11: apt mirror / DNS xatosi (security.ubuntu.com) e2e ni kod sababsiz yiqitardi — 3 marta urinish, soʻng deps'siz
+      # 11.11: apt (security.ubuntu.com) DNS xatosi e2e ni kod sababsiz yiqitardi, har urinish ~7 daq. Runner da Chromium kutubxonalari
+      # bor (yetishmagani faqat CJK/qoʻshimcha shriftlar) — apt siz, faqat brauzer
       - name: Playwright Chromium
-        timeout-minutes: 15
-        shell: bash
-        run: |
-          for i in 1 2 3; do npx playwright install --with-deps chromium && exit 0; echo "::warning::playwright --with-deps urinish $i yiqildi"; sleep 30; done
-          npx playwright install chromium
+        timeout-minutes: 10
+        run: npx playwright install chromium
       - name: E2E testlar (${{ matrix.shard }}/4)
         run: npx playwright test --shard=${{ matrix.shard }}/4 2>&1 | tee e2e.log; exit ${PIPESTATUS[0]}
         shell: bash
