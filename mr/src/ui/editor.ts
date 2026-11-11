@@ -2872,6 +2872,8 @@ export class Editor {
       // asosiy parametrlar ochiq; qolganlari «Qoʻshimcha» ichida (A variant) — id lar va funksiyalar saqlangan
       const farRow = isLow ? [] : [
         h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Maqsadli UMN (FAR)')), h('div', { class: 'grow' }, range({ min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', 'aria-label': tr('Maqsadli UMN (FAR)'), oninput: v => { g.far = v; ft.textContent = v > 0 ? fmt(v, 1) : tr('oʻchiq'); } })), ft),
+        // 11.11 (L3): «Hammasi — har daha oʻz sozlamasi bilan» yoqiq boʻlsa paneldagi UMN boshqa dahalarga qoʻllanmaydi — aniq aytiladi
+        this.allOwn && (g.far ?? 0) > 0 ? h('div', { class: 't-small', id: 'gFarOwn', style: 'color:var(--warn)' }, tr('«Hammasi» har daha oʻz sozlamasi bilan: bu UMN faqat shu dahaga. Hammasiga qoʻllash uchun «Qoʻshimcha» dagi kalitni oʻchiring.')) : '',
         h('span', { class: 't-small' }, tr(g.typology === 'avto' ? 'Avto: < 0,6 yakka uylar · < 1,3 villalar · < 3,5 perimetral blok · ≥ 3,5 blok + minora' : 'Berilsa — qavatlar shu qiymatga yaqinlashtiriladi (eng koʻp qavat — chegara)'))];
       // 04.11 (egasi: interfeysni soddalashtirish, A): ekranda — daha, tipologiya, qavatlar va «Variant taklif qil»; qolgani «Batafsil» ichida (hech biri olib tashlanmagan, id lar saqlangan)
       const isOmb = g.typology === 'ombor', stageEl = this.blockStageRow(), isoEl = this.scene.isolated ? '' : this.isoBtn(this.selBlock);
