@@ -105,6 +105,8 @@ const cross = (a: XY, b: XY) => a[0] * b[1] - a[1] * b[0];
 
 /** 12-band: aniq oʻlcham statistikasi (generate() da nolga tushiriladi) */
 let XS = { full: 0, short: 0, gap: 0, stretch: 0 };
+/** 11.11 (L3): UMN maqsadi boʻyicha tanlovda erishilgan eng kam / eng koʻp UMN (qavat minF…maxF) */
+let farLo = Infinity, farHi = 0;
 /**
  * Qirra oraligʻini [c0, c1] seksiyalarga boʻlish.
  * Moʻljal rejimi — teng boʻlaklar (uzunlik ≈ len). Aniq rejim — har seksiya aynan len; qoldiq ≥ 9 m — qisqa seksiya (oxirida),
@@ -981,6 +983,7 @@ function okRect(r: XY[], w: number): boolean {
 }
 /** Asosiy kirish: tipologiya, maqsadli UMN, stilobat va parkovka */
 export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenOpts = {}): GenResult {
+  farLo = Infinity; farHi = 0;
   XS = { full: 0, short: 0, gap: 0, stretch: 0 };
   const site = aOf(clean(block));
   const far = g.far ?? 0;
@@ -989,8 +992,10 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   if (far > 0 && !['yakka', 'taunhaus', 'juft', 'hovli', 'klaster'].includes(t)) {
     // maxF ni minF…maxF oraligʻida tanlash: UMN maqsadga eng yaqin (oshmasdan afzal)
     let best: GenResult | null = null, bd = Infinity, bx = { ...XS };
+    farLo = Infinity; farHi = 0;
     for (let f = Math.max(1, g.minF); f <= Math.max(g.minF, g.maxF); f++) {
       const gg = { ...g, maxF: f, towerF: Math.max(f, Math.min(g.towerF ?? 16, f + 6)) }, rr = typoCore(block, t, gg, floorH), v = gfaOf(rr) / site;
+      farLo = Math.min(farLo, v); farHi = Math.max(farHi, v);   // 11.11 (L3): erishiladigan oraliq (qavat minF…maxF)
       const d = Math.abs(v - far) + (v > far ? 0.15 : 0);
       if (d < bd) { bd = d; best = rr; bx = { ...XS }; }
     }
@@ -1048,6 +1053,9 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   assignEnds(r.sections, opts.avoid ?? [], g.depth, floorH, g.groundH);
   r.far = (gfaOf(r)) / site;
   if (far > 0 && r.far < far - 0.15) r.notes.push(`UMN maqsadi ${String(far).replace('.', ',')} ga yetmadi (${r.far.toFixed(2).replace('.', ',')}): meʼyoriy oraliqlar bilan shuncha sigʻdi (chekinish H × 0,25, oraliq 2·H — qavat oshsa ular ham oshadi); qisqaroq seksiya, boshqa tipologiya yoki kattaroq daha`);
+  // 11.11 (L3, egasi: NYC da 1,0 / 1,5 / 1,9 → hammasida 1,67): pastga yetmasa ham xabar — eng kam qavat chegarasi
+  if (far > 0 && r.far > far + 0.15) r.notes.push(`UMN maqsadi ${String(far).replace('.', ',')} dan oshdi (${r.far.toFixed(2).replace('.', ',')}): eng kam qavat ${g.minF} — «Qavat, eng kam» ni pasaytiring yoki seksiyalarni kamaytiring`);
+  if (far > 0 && Number.isFinite(farLo) && farHi > 0 && (r.far < far - 0.15 || r.far > far + 0.15)) r.notes.push(`Shu daha uchun erishiladigan UMN (taxminan): ${farLo.toFixed(2).replace('.', ',')}–${farHi.toFixed(2).replace('.', ',')} (qavat ${g.minF}–${Math.max(g.minF, g.maxF)})`);
   return r;
 }
 
