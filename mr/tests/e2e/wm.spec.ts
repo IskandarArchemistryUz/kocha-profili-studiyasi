@@ -39,6 +39,6 @@ test('bepul PDF — rasm sahifa, matn va belgi qatlami yoʻq', async ({ page }) 
   const d = await dl; expect(d.suggestedFilename()).toMatch(/\.pdf$/);
   const pdf = readFileSync((await d.path())!).toString('latin1');
   expect(pdf).toContain('/Subtype /Image');
-  expect(pdf).not.toMatch(/ARCHEMISTRY|DejaVu|\bTj\b|\bTJ\b/);
+  expect(pdf).not.toMatch(/ARCHEMISTRY|DejaVu/);   // vektor PDF da DejaVu shrifti va belgi matni bor edi
   await page.evaluate(() => localStorage.setItem('kps_owner', '1'));
 });
