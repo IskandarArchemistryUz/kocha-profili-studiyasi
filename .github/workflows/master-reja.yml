@@ -20,7 +20,20 @@ jobs:
       - name: Yigʻish (tur tekshiruvi bilan)
         run: npm run build
       - name: Saytdagi app/ yigʻilgan natija bilan bir xilmi
-        run: git diff --exit-code -- ../app ../css/ds2.css || (echo "app/ eskirgan — mr ichida npm run build qiling va natijani commit qiling" && exit 1)
+        # git diff yangi (kuzatilmagan) fayllarni ko'rmaydi — #503 da shu sabab sayt 404 bo'lgan; porcelain ularni ham ushlaydi
+        run: |
+          s=$(git status --porcelain -- ../app ../css/ds2.css)
+          if [ -n "$s" ]; then echo "$s"; echo "app/ eskirgan yoki yangi fayllar commit qilinmagan — mr ichida npm run build, keyin git add ../app (yangi fayllar bilan)"; exit 1; fi
+      - name: app/*.html murojaat qiladigan har bir asset repoda bormi
+        working-directory: .
+        run: |
+          miss=0
+          for h in app/*.html; do
+            for f in $(grep -oE 'assets/[A-Za-z0-9_.-]+' "$h" | sort -u); do
+              git cat-file -e "HEAD:app/$f" 2>/dev/null || { echo "::error title=Yetishmayotgan asset::$h -> app/$f"; miss=1; }
+            done
+          done
+          exit $miss
 
   e2e:
     # E2E 4 ta parallel oqimda (yigʻilgan app/ repoda — har oqim qayta yigʻmaydi; app eskirmaganini «test» ishi tekshiradi)
