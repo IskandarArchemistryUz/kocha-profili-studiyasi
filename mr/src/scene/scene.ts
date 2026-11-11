@@ -1740,7 +1740,7 @@ export class Scene3D {
         // 05.11: UMN (66-band) — faqat turar joy binolari va ularning stilobati; noturar daha — «Zichlik (brutto)» (normativ UMN emas)
         const resB = useDef(b.use).res > 0;
         doc.buildings.forEach(q => { const r = q.footprint.map(fr.toLocal), c = centroid(r); if (b.rings.some(rr => pointInRing(c, rr))) { if (!resB || useDef(q.use).res > 0 || q.gen?.kind === 'stilobat') gfa += area(r) * q.floors; fl = Math.max(fl, (q.z0 ?? 0) + q.floors); } });
-        const sp = labelCard([code, tr(useDef(b.use).name), ar, ...(gfa ? [`${resB ? 'UMN' : tr('Zichlik (brutto)')} ${(gfa / b.area).toFixed(2).replace('.', ',')} · ${fl} ${tr('qavat')}`] : [])]), c = interiorPoint(b.rings);
+        const sp = labelCard([code, tr(useDef(b.use).name), ar, ...(gfa ? [`${resB ? tr('UMN') : tr('Zichlik (brutto)')} ${(gfa / b.area).toFixed(2).replace('.', ',')} · ${fl} ${tr('qavat')}`] : [])]), c = interiorPoint(b.rings);
         sp.position.set(c[0], this.H(c[0], c[1]) + 0.6, -c[1]); sp.userData.layer = 2; this.world.add(sp);
       }
       // 27.10 yengillik: faqat kvartal qutisiga tegadigan toʻsiqlar; natija kesh (shakl va toʻsiqlar oʻzgarmasa)
