@@ -2,7 +2,7 @@ import { test, expect, type Page } from './fx';
 
 /**
  * c74 (egasi 06.11): grafika shablonlari — varaq sozlamasida tanlanadi (funksional reja, zonalashtirish, yer uchastkalari rejasi),
- * «Barcha varaqlarga», parsellar «bir xil quyuq kulrang»; sahna (3D) shabloni loyihada saqlanadi; Chizmadon albomida — «Uslub» boʻlimida.
+ * «Barcha varaqlarga», parsellar «bir xil kulrang»; sahna (3D) shabloni loyihada saqlanadi; Chizmadon albomida — «Uslub» boʻlimida.
  * Sukut — «Asl uslub» (mavjud loyihalar koʻrinishi oʻzgarmaydi). GX_SHOTS — har shablon uchun skrinshotlar.
  */
 const SHOTS = process.env.GX_SHOTS;
@@ -68,11 +68,11 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`grafika sh
   // tanlov varaqda saqlanadi
   const saved = await page.evaluate(() => (window as any).__mr.store.doc.sheets.map((x: any) => x.opts.gstyle ?? 'joriy'));
   expect(saved.filter((x: string) => x === 'tuproq').length).toBe(3);
-  // parsellar: bir xil quyuq kulrang
+  // parsellar: bir xil kulrang (11.11: sukut — och #8c8a85)
   await page.locator('[data-sheet]').nth(idx.parsel).click();
   await page.click('#shParcel [data-parcel=kulrang]');
   const fills = await view.locator('#Parsellar path').evaluateAll(ps => [...new Set(ps.map(p => p.getAttribute('fill')))]);
-  expect(fills).toEqual(['#4f4e4a']);
+  expect(fills).toEqual(['#8c8a85']);
   if (SHOTS) { await page.waitForTimeout(250); await view.screenshot({ path: `${SHOTS}/varaq_parsel_kulrang_${tag}.png` }); await page.screenshot({ path: `${SHOTS}/varaq_panel_${tag}.png` }); }
   await page.click('#shParcel [data-parcel=rang]');
   // barcha varaqlarga

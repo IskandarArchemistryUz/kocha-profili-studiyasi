@@ -157,6 +157,7 @@ function apply0(doc: Project, c: Command, now: Date): Project {
       const cx = { ...doc.context, ...rest, layers: { ...doc.context.layers, ...(layers || {}) } };
       if (!(cx.radius >= CTX_R_MIN && cx.radius <= CTX_R_MAX)) throw new CommandError('Radius 100–6000 m oraligʻida boʻlsin');
       if (cx.area && cx.area.length < 3) throw new CommandError('Atrof chegarasi kamida 3 nuqta');
+      if (cx.gsSat !== true) delete cx.gsSat;
       d.context = cx; return d;
     }
     case 'setSite': {

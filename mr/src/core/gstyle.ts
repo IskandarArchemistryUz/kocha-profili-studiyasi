@@ -60,8 +60,74 @@ const hexN = (s: string) => parseInt(s.slice(1), 16);
 /** Funksiya rangi (son): shablon palitrasi yoki USES */
 export const useColorOf = (g: GStyle | null | undefined, u: string): number => { const c = g?.uses?.[u as Use]; return c ? hexN(c) : useDef(u).color; };
 
-/** «Bir xil quyuq kulrang» parsellar (06.11, egasi) */
-export const PARCEL_GREY = '#4f4e4a';
+/**
+ * «Bir xil kulrang» parsellar (06.11, egasi). 11.11 (egasi: «koʻzga keskin tashlanmasin»): sukut — ochroq iliq kulrang;
+ * varaq sozlamasida tayyor namunalar (och → toʻq, oxirgisi — avvalgi #4f4e4a) yoki istalgan hex (SheetOpts.parcelGrey).
+ */
+export const PARCEL_GREY = '#8c8a85';
+export const PARCEL_GREY_OLD = '#4f4e4a';
+export const PARCEL_GREYS = ['#d6d4cf', '#bcbab4', '#a4a29c', '#8c8a85', '#74726d', '#5f5d59', '#4f4e4a'];
+const HEX6 = /^#[0-9a-f]{6}$/i;
+/** Varaqdagi kulrang (notoʻgʻri qiymat — sukut) */
+export const parcelGrey = (v?: string | null): string => (v && HEX6.test(v) ? v.toLowerCase() : PARCEL_GREY);
+/** WCAG nisbiy yorqinlik va kontrast */
+const lum = (h: string) => { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+export const contrast = (a: string, b: string): number => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+/** Kulrang ustidagi yozuv rangi: oq yoki qora — qaysi biri kontrastliroq boʻlsa */
+export const inkOn = (bg: string): string => (contrast(bg, '#ffffff') > contrast(bg, '#1d1d1b') ? '#ffffff' : '#1d1d1b');
+
+/* ---------- 3D sahna foni (11.11, egasi): shablonda xarita qatlami — shablonning och vektor foni ---------- */
+/** Kontekst sozlamasi: shablon tanlanganda sputnik faqat qoʻlda yoqilgan boʻlsa (gsSat); «Asl uslub»da — oddiy tanlov (base) */
+export const sceneBase = (gs: string | null | undefined, cs: { base: 'maket' | 'sputnik'; gsSat?: boolean }): 'maket' | 'sputnik' =>
+  isGStyle(gs) && gs !== 'joriy' ? (cs.gsSat ? 'sputnik' : 'maket') : cs.base;
+const mixW = (h: string, t: number) => '#' + [1, 3, 5].map(i => { const v = parseInt(h.slice(i, i + 2), 16); return Math.round(v + (255 - v) * t).toString(16).padStart(2, '0'); }).join('');
+const mixC = (a: string, b: string, t: number) => '#' + [1, 3, 5].map(i => { const x = parseInt(a.slice(i, i + 2), 16), y = parseInt(b.slice(i, i + 2), 16); return Math.round(x + (y - x) * t).toString(16).padStart(2, '0'); }).join('');
+/** Shablon fonining yer rangi — varaq atrofi (oq qogʻoz) va yoʻl chetlari orasida, juda och */
+export const gsGround = (c: GCtx): string => mixW(c.roadEdge, 0.7);
+/** 3D kontekst qismlari (context3d nomlari) uchun shablon ranglari; line — bino qirralari */
+export function gsScenePal(g: GStyle): { pal: Record<string, number>; line: number; bg: number } | null {
+  const c = g.ctx; if (!c) return null;
+  const n = hexN, gr = gsGround(c), st = c.bldStroke === 'none' ? mixC(c.bld, c.roadEdge, 0.6) : c.bldStroke;
+  return {
+    pal: { relyef: n(gr), yashil: n(c.green), suv: n(c.water), ariqlar: n(c.water), 'yoʻlaklar': n(c.road), trotuarlar: n(c.roadEdge), 'yoʻllar': n(c.road), chiziqlar: n(c.road),
+      binolar: n(c.bld), tomlar: n(mixC(c.bld, st, 0.5)), daraxtlar: sceneTreeCols(g)?.[0] ?? n(c.wood), bordyurlar: n(gsKerb(g)), 'temir yoʻl': n(mixC(c.roadEdge, g.ink, 0.25)), 'koʻpriklar': n(c.road), 'koʻprik tayanchlari': n(c.roadEdge) },
+    line: n(mixC(st, g.ink, 0.45)), bg: n(gr),
+  };
+}
+/**
+ * 11.11 (egasi: «yoʻllar fonda zoʻrgʻa ajraladi»): bordyur — asfalt chetidagi ingichka tasma rangi; shablon chiziq rangidan
+ * (bino qirralari → siyoh) olinadi, yoʻl cheti rangiga yaqinlashtirilgan — oq yoʻl va och yer fonida aniq, lekin keskin emas.
+ */
+export function gsKerb(g: GStyle): string {
+  const c = g.ctx!, st = c.bldStroke === 'none' ? mixC(c.bld, c.roadEdge, 0.6) : c.bldStroke;
+  return mixC(c.roadEdge, mixC(st, g.ink, 0.45), 0.85);
+}
+
+/* ---------- 3D sahna daraxtlari ranglari (11.11, egasi) ---------- */
+const hsl = (n: number): [number, number, number] => { const r = (n >> 16 & 255) / 255, gg = (n >> 8 & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l]; const s = d / (1 - Math.abs(2 * l - 1)); const h = mx === r ? ((gg - b) / d + 6) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4; return [h * 60, s, l]; };
+const fromHsl = (h: number, s: number, l: number): number => { const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [r, g, b].reduce((a, v) => a * 256 + Math.round((v + m) * 255), 0); };
+/** sahna daraxtlari: toʻyinganlik chegarasi, yorqinlik oraligʻi va yashil ton (°) */
+export const SCENE_TREE = { sMax: 0.3, lMin: 0.6, lMax: 0.8, hue: 95, pull: 0.5 };
+/** Bitta rangni «xira yashil»ga: ton yashilga yaqinlashtiriladi, toʻyinganlik ≤ sMax, yorqinlik [lMin, lMax] da */
+export function muteTree(n: number): number {
+  const [h, s, l] = hsl(n), T = SCENE_TREE;
+  return fromHsl(s < 0.05 ? h : h + (T.hue - h) * T.pull, Math.min(s, T.sMax), Math.min(T.lMax, Math.max(T.lMin, l)));
+}
+/**
+ * 3D sahna daraxtlari ranglari (11.11, egasi: «yorqin daraxt ranglari — faqat varaqlar uchun»): toj SHAKLLARI shablonniki, ranglar
+ * esa har shablonda xira (Pastel landshaft koʻrinishi) — sahnada daraxtlar loyiha va fonni bosib ketmaydi. Varaqlar (2D va
+ * varaq aksonometriyasi — drawingShot) shablonning oʻz ranglarida (trees, trees3d) qoladi. null — shablonda 3D daraxtlar yoʻq.
+ */
+export const sceneTreeCols = (g: GStyle | null | undefined): number[] | null => g?.trees3d ? g.trees3d.map(muteTree) : null;
+
+/** MapLibre stilistik xarita palitrasi (mapstyle.ts Palette) — atrof yuklanguncha va atrof kvadratidan tashqarida */
+export function gsMapPalette(g: GStyle): { n: string; bg: string; water: string; park: string; road: string; rc: string; bld: string; bl: string; bw: number; rail: string; label: string } | null {
+  const c = g.ctx; if (!c) return null;
+  return { n: g.name, bg: gsGround(c), water: c.water, park: c.green, road: c.road, rc: c.roadEdge, bld: c.bld, bl: c.bldStroke === 'none' ? mixC(c.bld, c.roadEdge, 0.6) : c.bldStroke, bw: 0.5, rail: c.roadEdge, label: mixC(g.ink, '#ffffff', 0.25) };
+}
 
 /* ---------- 2D daraxt belgilari (Chizmadon katalogidagi 12 Toshkent daraxti) ---------- */
 const n2 = (v: number) => (Math.round(v * 100) / 100).toString();

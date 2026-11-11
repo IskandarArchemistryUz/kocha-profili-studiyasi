@@ -22,7 +22,8 @@ import { check, select, stepper, sw } from './controls';
 import { tr, tf, trSvg } from '../i18n';
 import { logoSvg } from './logo';
 import { gstylePicker } from './gstylepick';
-import { gstyleById } from '../core/gstyle';
+import { gstyleById, PARCEL_GREY, PARCEL_GREYS, parcelGrey } from '../core/gstyle';
+import { openColor } from './colorpicker';
 import { svgPdf } from './pdf';
 
 export interface SheetsHost {
@@ -178,6 +179,18 @@ export function openGraphics(host: SheetsHost): void {
   const later = (i: number) => { if (failed.has(mkey(norm(sheets[i].opts), i))) return; if (!idleQ.includes(i)) idleQ.push(i); if (!idleT) idleT = setTimeout(idle, 120); };
   let last = run(O());
 
+  /** 11.11: «Bir xil kulrang» tusi — tayyor namunalar (och → toʻq) va istalgan HEX (ilovaning rang tanlash oynasi; native input yoʻq) */
+  const greyPick = (o: SheetOpts): HTMLElement => {
+    const cur = parcelGrey(o.parcelGrey), put = (c: string) => set({ parcelGrey: c === PARCEL_GREY ? undefined : c });
+    const prev = h('i', { style: `background:${cur}` }), val = h('code', { id: 'shPGreyV' }, cur);
+    const anyB: HTMLElement = h('button', { class: 'pg-any', id: 'shPGreyHex', type: 'button', 'aria-pressed': !PARCEL_GREYS.includes(cur), title: tr('Istalgan rang (HEX)'),
+      onclick: () => openColor(anyB, cur, { title: tr('Parsellar rangi'), swatches: PARCEL_GREYS, onChange: v => { prev.style.background = v; val.textContent = v; }, onDone: v => put(v), onCancel: v => { prev.style.background = v; val.textContent = v; } }) }, prev, 'HEX');
+    return h('div', { class: 'field pg-field' }, h('label', {}, tr('Kulrang tusi')),
+      h('div', { class: 'pg', id: 'shPGrey', role: 'radiogroup', 'aria-label': tr('Kulrang tusi') },
+        ...PARCEL_GREYS.map(c => h('button', { class: 'pg-sw', type: 'button', role: 'radio', 'data-grey': c, 'aria-checked': c === cur, 'aria-pressed': c === cur, 'aria-label': c, title: c, style: `background:${c}`, onclick: () => put(c) })),
+        anyB),
+      h('span', { class: 't-small' }, tr('och → toʻq'), ' · ', val));
+  };
   const set = (patch: Partial<SheetOpts>) => { const o = { ...O(), ...patch }; sheets[cur] = { ...sheets[cur], opts: o as unknown as Record<string, unknown> }; persist(); render(); };
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(O())); } catch { /* */ } host.save(sheets, styles); };
 
@@ -380,7 +393,8 @@ export function openGraphics(host: SheetsHost): void {
         ...((o.mode ?? 'reja') === 'reja' || o.mode === 'akso' ? [
           h('div', { class: 'glabel', 'data-sec': 'gstyle' }, h('span', {}, tr('Grafika shabloni')), h('span', {}, tr(gstyleById(o.gstyle).name))),
           gstylePicker('shGStyle', o.gstyle, v => set({ gstyle: v === 'joriy' ? undefined : v })),
-          ...(o.kind === 'parsel' && (o.mode ?? 'reja') === 'reja' ? [h('div', { class: 'field' }, h('label', {}, tr('Yer uchastkalari')), h('div', { class: 'seg sm', id: 'shParcel' }, ...([['rang', 'Funksiya rangida'], ['kulrang', 'Bir xil quyuq kulrang']] as const).map(([k, t]) => h('button', { 'data-parcel': k, 'aria-pressed': (o.parcel ?? 'rang') === k, onclick: () => set({ parcel: k === 'rang' ? undefined : k }) }, tr(t)))))] : []),
+          ...(o.kind === 'parsel' && (o.mode ?? 'reja') === 'reja' ? [h('div', { class: 'field' }, h('label', {}, tr('Yer uchastkalari')), h('div', { class: 'seg sm', id: 'shParcel' }, ...([['rang', 'Funksiya rangida'], ['kulrang', 'Bir xil kulrang']] as const).map(([k, t]) => h('button', { 'data-parcel': k, 'aria-pressed': (o.parcel ?? 'rang') === k, onclick: () => set({ parcel: k === 'rang' ? undefined : k }) }, tr(t))))),
+            ...(o.parcel === 'kulrang' ? [greyPick(o)] : [])] : []),
           h('button', { class: 'btn btn-sm btn-block', id: 'shGStyleAll', onclick: () => { const g = O().gstyle; sheets = sheets.map(x => ({ ...x, opts: { ...x.opts, gstyle: g } })); persist(); render(); toast(tf('Shablon ${n} varaqqa qoʻllandi', { n: sheets.length })); } }, tr('Barcha varaqlarga qoʻllash')),
           h('span', { class: 't-small' }, tr('Shablon funksiyalar ranglarini, atrof (och fon xarita), chiziq qalinligini va daraxtlarni almashtiradi. Shartli belgilar tuzilishi oʻzgarmaydi.'))] : []),
         h('div', { class: 'glabel', 'data-sec': 'sheet' }, h('span', {}, tr('Varaq'))),
