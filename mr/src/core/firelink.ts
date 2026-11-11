@@ -122,13 +122,13 @@ export function crossing(m: FireMouth, t: number, R0 = FIRE_LINK_R, o: { half?: 
  * Koʻcha qatnov qismlari (loyiha koʻchalari): profil tasmalaridan qatnov / avtobus / tramvay boʻlaklari oʻq boʻylab.
  * `corr` — koridor quruvchi (plan.corridor), `off` — oʻqni siljitish (plan.offsetLine).
  */
-export function carriageOf(streets: { axis: XY[]; parts: { k: string; w: number }[] }[], corr: (axis: XY[], half: number) => MP, off: (axis: XY[], d: number) => XY[]): MP {
+export function carriageOf(streets: { axis: XY[]; parts: { k: string; w: number }[] }[], corr: (axis: XY[], half: number) => MP, off: (axis: XY[], d: number) => XY[], kinds = /^(qatnov|avtobus|tramvay)$/): MP {
   const out: MP = [];
   for (const s of streets) {
     if (s.axis.length < 2) continue;
     const W = s.parts.reduce((t, p) => t + p.w, 0); let c = -W / 2;
     for (const p of s.parts) {
-      if (/^(qatnov|avtobus|tramvay)$/.test(p.k)) { const mid = c + p.w / 2; for (const poly of corr(Math.abs(mid) < 1e-6 ? s.axis : off(s.axis, mid), p.w / 2 + 0.05)) out.push(poly); }
+      if (kinds.test(p.k)) { const mid = c + p.w / 2; for (const poly of corr(Math.abs(mid) < 1e-6 ? s.axis : off(s.axis, mid), p.w / 2 + 0.05)) out.push(poly); }
       c += p.w;
     }
   }

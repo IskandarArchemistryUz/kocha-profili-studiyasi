@@ -19,7 +19,7 @@ export type Level = 'majburiy' | 'tavsiya' | 'andoza' | 'ochiq';
 export const RULE_KIND: Readonly<Record<string, RuleKind>> = {
   // A — fizik va xavfsizlik
   'street-profiles': 'A', 'park-413': 'A', 'park-411': 'A', 'park-20507': 'A', 'park-414': 'A', 'street-overlap': 'A',
-  'seismic-blocks': 'A', 'seismic-height': 'A', 'fire-56': 'A', 'arch-159': 'A', 'dead-end-57': 'A', 'fire-666': 'A', 'fire-podium': 'A',
+  'seismic-blocks': 'A', 'seismic-height': 'A', 'fire-56': 'A', 'arch-159': 'A', 'dead-end-57': 'A', 'fire-666': 'A', 'fire-666-low': 'A', 'fire-podium': 'A',
   // B — mintaqaviy siyosat
   'pop-61': 'B', school: 'B', mtm: 'B', 'school-plot': 'B', 'mtm-plot': 'B', 'park-30': 'B', 'ug-park-415': 'B', 'velo-88': 'B',
   'tp-257': 'B', 'red-line-39': 'B', 'west-facing': 'B', 'renov-green-7': 'B', 'green-86': 'B', 'green-474': 'B', 'trees-474': 'B',
