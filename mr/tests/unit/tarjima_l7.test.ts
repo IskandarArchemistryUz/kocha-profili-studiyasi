@@ -14,6 +14,9 @@ describe('L7 tarjimalar', () => {
     expect(I.tr('oʻquvchi')).toBe('students');
     expect(I.tr('UMN')).toBe('FAR');
     expect(I.tr('Meʼyorga moslash: 3 ta seksiyaning qavati pasaytirildi (79-band 2-jadval: binolar orasi ≥ 2·Hmax, qizil chiziqqacha H × 0,25; QMQ 2.01.03-19, 3.1-jadval)')).toMatch(/^Code fit: floors lowered in 3 sections/);
+    // L8: Chizmadon material nomi — bino raqami va qavat bilan (oldin «Building Apartment schedule · 1 · 1st floor»)
+    expect(I.tr(`Xonadonlar eksplikatsiyasi · 1-bino · ${I.tr('1-qavat')}`)).toBe('Apartment schedule · Building 1 · 1st floor');
+    expect(I.tr(`Kvartirografiya · 6-bino · ${I.tr('1-qavat')}`)).toBe('Apartment mix · Building 6 · 1st floor');
     I.setLang('ru');
     expect(I.tr('$/m²·yil')).toBe('$/м²·год');
     I.setLang('uz');
