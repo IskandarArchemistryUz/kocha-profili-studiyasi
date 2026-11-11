@@ -351,9 +351,12 @@ export class Editor {
     this.renderAll(); this.recompute();
   }
 
+  private recSeq = 0;
   private async recompute(): Promise<void> {
-    const doc = this.store.doc, c = await this.compute.run(doc);
-    if (doc !== this.store.doc) return; // eskirgan natija
+    // 11.11 (L4): eskirgan natija — faqat undan keyin yangi hisob boshlangan boʻlsa. Oldin `doc !== store.doc` edi: hisob paytida
+    // faqat varaqlar / vaqt belgisi oʻzgarsa (onChange qayta hisob boshlamaydi) yangi natija ham tashlanib, KPI eski qolardi
+    const seq = ++this.recSeq, doc = this.store.doc, c = await this.compute.run(doc);
+    if (seq !== this.recSeq) return;
     this.last = c; this.renderKpi(); this.refreshIssue();
     { this.scene.setStreetOverlap(c.d.streetOverlap.flatMap(x => { const b = doc.buildings.find(y => y.id === x.bid); const top = b ? bLevels(doc.settings, b).top : 0; return x.polys.map(ring => ({ ring, top })); })); }
   }
@@ -4146,6 +4149,8 @@ export class Editor {
     const plan = this.plan(), d = this.last?.d, doc = this.store.doc, R = (id: string) => this.last?.results.find(r => r.id === id);
     const chip = (id: string, t: string) => { const r = R(id); if (!r) return ''; const c = r.status === 'pass' ? 'ok' : r.status === 'fail' ? 'bad' : r.status === 'review' ? 'warn' : 'na'; return h('span', { class: `chip ${c}`, 'data-s': r.status, title: r.note ?? '' }, h('i'), t); };
     const row = (k: string, sub: string, v: string, c: HTMLElement | string = '') => h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), h('span', { class: 'v' }, v), c);
+    // 11.11 (L2): hisob natijasi hali yoʻq (yoki eskirgan) — 0 koʻrsatilmaydi, qayta hisoblanadi
+    if (!d) { void this.recompute(); body.append(h('div', { class: 'note', id: 'greenWait' }, tr('Hisoblanmoqda…'))); return; }
     const share = (d?.greenShareTotal ?? 0) * 100, base = Math.max(1, d?.greenBase ?? 0), noYards = !doc.settings.yards && doc.buildings.length > 0;
     // 27.10 (A variant): bitta foiz + manbalar boʻyicha toʻplangan chiziq; qolganlari «Batafsil» ichida
     const seg = (cls: string, v: number) => v > 0 ? h('i', { class: cls, style: `width:${Math.min(100, v / base * 100).toFixed(2)}%` }) : '';
@@ -4362,6 +4367,7 @@ export class Editor {
     else if (this.locked(s)) { toast(this.locked(s)!); return; }
     if (this.sframe) this.endFrame();
     document.querySelector('.usepop')?.remove(); this.setTool(null); this.step = s; this.panelOpen = true; track(`mr/step/${s.id}`, true);
+    if (!this.last) void this.recompute();   // 11.11 (L2/L4): natija yoʻq qolgan boʻlsa — qadam almashganda qayta hisob
     this.closePop(); if (this.el.drawer.dataset.kind === 'section') this.el.drawer.hidden = true;   // oldingi qadamning ochiq oynalari yopiladi
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
