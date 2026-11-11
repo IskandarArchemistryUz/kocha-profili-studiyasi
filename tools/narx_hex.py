@@ -23,6 +23,7 @@ from narx_stats import parse, clean, q
 # Toʻr boshi — oʻzgartirmang (katak id lari kunlar orasida mos kelsin)
 LAT0, LNG0 = 41.10, 69.05
 M_LAT = 111320.0
+BBOX = (40.95, 41.55, 68.95, 69.65)   # Toshkent atrofi: lat_min, lat_max, lng_min, lng_max
 M_LNG = 111320.0 * math.cos(math.radians(41.3))
 HEAD = ['sana', 'manba', 'kategoriya', 'olcham_m', 'katak', 'markaz_lat', 'markaz_lng',
         'yaroqli', 'median_usd_m2', 'p25_usd_m2', 'p75_usd_m2']
@@ -106,13 +107,14 @@ def main():
     shahar = {}
     for cat, c in parse(a.src).items():
         ok, *_ = clean(c['rows'], cat)
+        ok = [r for r in ok if BBOX[0] <= r['lat'] <= BBOX[1] and BBOX[2] <= r['lng'] <= BBOX[3]]   # xato koordinatalar toʻrni choʻzmasin
         cats[cat] = [(xy(r['lat'], r['lng']), r['v']) for r in ok]
         # shahar boʻyicha: umumiy + yangi / ikkilamchi
-        for scat, sub in [(cat, ok)] + ([] if cat.startswith('ijara') else
+        for scat, sub in [(cat, ok)] + ([] if False else
                                         [(f'{cat}_yangi', [r for r in ok if r['nb'] == 'true']),
                                          (f'{cat}_ikkilamchi', [r for r in ok if r['nb'] == 'false'])]):
             vals = [r['v'] for r in sub]
-            if vals and (scat == cat or any(r['nb'] for r in ok)):
+            if vals and (scat == cat or any(r['nb'] in ('true', 'false') for r in ok)):
                 dp = 1 if cat.startswith('ijara') else None
                 shahar[scat] = [len(vals), round(st.median(vals), dp), round(q(vals, .25), dp), round(q(vals, .75), dp)]
     # «hammasi» — faqat sotuv (ijara $/m²/oy — boshqa birlik)

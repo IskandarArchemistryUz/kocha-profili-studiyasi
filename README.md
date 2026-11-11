@@ -11,7 +11,8 @@ sotuvdagi kvartira va hovli uylar (har biri **yangi** / **ikkilamchi** — eʼlo
 
 - Bu **soʻralgan narx** (eʼlon), sotilgan narx emas; odatda bitim narxidan baland. Auksion boshlangʻich narxlari chiqariladi.
 - Takror joylangan eʼlonlar (bir xil narx, maydon, koordinata) va chetki qiymatlar (sotuv: < 150 yoki > 15 000 $/m²; ijara: < 0,5 yoki > 100 $/m²/oy) chiqariladi.
-- Yangi / ikkilamchi — sotuvchi belgilagan `isNewBuilding` (true / false); belgisiz eʼlonlar faqat umumiy qatorga kiradi. Belgi ba'zan matnga zid boʻladi.
+- Yangi / ikkilamchi — sotuvchi belgilagan `isNewBuilding` (true / false); belgisiz eʼlonlar faqat umumiy qatorga kiradi. Belgi baʼzan matnga zid boʻladi. Sotuvdagi hovlilarda bu belgi amalda boʻsh (null) — hovli uchun yangi / ikkilamchi boʻlinmasi chiqmaydi.
+- Kesh: oldin oʻqilgan URL lar eski (haftalab eskirgan) javob qaytarishi mumkin. Shuning uchun har oy `limit` qiymati oʻzgartiriladi va har sahifadagi TOTAL page=1 dagisiga teng boʻlishi tekshiriladi.
 - «atrof_1500m» ustunlari faqat `--markaz LAT,LNG` berilganda toʻldiriladi (aks holda boʻsh).
 - Hovli uylarda maydon — eʼlondagi «umumiy maydon» (yer uchastkasi emas).
 - Xom eʼlonlar saqlanmaydi — faqat jamlanma. 5 tadan kam eʼlonli katakda narx yozilmaydi.

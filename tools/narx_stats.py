@@ -3,7 +3,7 @@
 Narx monitoringi (oyiga bir marta): uybor.uz eʼlonlari → jamlangan statistika.
 Kirish (fayl): har qator «kategoriya|id;usd;m2;xona;lat;lng;auksion;upAt[;districtId[;isNewBuilding]]», hamda «kategoriya|TOTAL=n».
   Kategoriyalar: kvartira, hovli (sotuv); ijara_kvartira, ijara_hovli (ijara, oylik narx).
-  Sotuv kategoriyalari uchun isNewBuilding boʻyicha qoʻshimcha qatorlar: «<kat>_yangi» (true) va «<kat>_ikkilamchi» (false);
+  Har kategoriya uchun isNewBuilding boʻyicha qoʻshimcha qatorlar: «<kat>_yangi» (true) va «<kat>_ikkilamchi» (false);
   null / yoʻq — faqat umumiy qatorga kiradi.
   Ijara: $/m² — oyiga; yaroqli oraliq 0,5…100 $/m²/oy (sotuvda 150…15 000 $/m²).
 Chiqish: data/narx/mirobod_uybor.csv ga har kategoriya uchun bitta qator (shu sana boʻlsa — almashtiriladi).
@@ -110,11 +110,13 @@ SEG = (('yangi', 'true'), ('ikkilamchi', 'false'))
 
 
 def segments(cat, rows):
-    """(kategoriya, qatorlar) juftlari: umumiy + sotuv uchun yangi / ikkilamchi (agar isNewBuilding maʼlum boʻlsa)."""
+    """(kategoriya, qatorlar) juftlari: umumiy + yangi / ikkilamchi (agar isNewBuilding maʼlum boʻlsa)."""
     out = [(cat, rows)]
-    if not cat.startswith('ijara') and any(r['nb'] for r in rows):
+    if any(r['nb'] in ('true', 'false') for r in rows):
         for nom, val in SEG:
-            out.append((f'{cat}_{nom}', [r for r in rows if r['nb'] == val]))
+            sub = [r for r in rows if r['nb'] == val]
+            if sub:
+                out.append((f'{cat}_{nom}', sub))
     return out
 
 
