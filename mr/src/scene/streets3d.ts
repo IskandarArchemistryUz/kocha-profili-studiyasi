@@ -44,7 +44,10 @@ export class Buf {
   }
 }
 
-export interface StreetGeo { sidewalk: number[]; asphalt: number[]; major: number[]; foot: number[]; marks: number[] }
+/** kerb — 11.11 (egasi: «yoʻllar fonda ajralib tursin»): asfalt chetidagi ingichka bordyur tasmasi (shablon vektor fonida koʻrinadi) */
+export interface StreetGeo { sidewalk: number[]; asphalt: number[]; major: number[]; foot: number[]; marks: number[]; kerb: number[] }
+/** Bordyur tasmasi kengligi, m (1:3600 rejada ~2 px; 11.11 egasi: «sezilarliroq, lekin katta farq qilmasin») */
+export const KERB_W = 1.0;
 
 const key = (p: XY) => `${Math.round(p[0] * 2)},${Math.round(p[1] * 2)}`;
 
@@ -60,7 +63,7 @@ const cross = (a: XY, b: XY) => a[0] * b[1] - a[1] * b[0];
  * boʻlakning yarmidan oshsa, R kichraytiriladi (0,6 baravardan, 3 marta), sigʻmasa — yoy qoʻyilmaydi.
  * c — qatnov chetlari kesishgan burchak nuqtasi, arc — urinish nuqtalari orasidagi yoy (c dan yelpigʻich bilan toʻldiriladi).
  */
-export function osmFillets(list: StreetIn[], R0 = OSM_CURB_R): { c: XY; arc: XY[]; major: boolean }[] {
+export function osmFillets(list: StreetIn[], R0 = OSM_CURB_R): { c: XY; arc: XY[]; major: boolean; o: XY; R: number }[] {
   type Arm = { u: XY; a: number; r: number; L: number; major: boolean };
   const nodes = new Map<string, { p: XY; arms: Arm[] }>();
   for (const s of list) {
@@ -72,7 +75,7 @@ export function osmFillets(list: StreetIn[], R0 = OSM_CURB_R): { c: XY; arc: XY[
       if (i > 0) add(s.pts[i - 1]); if (i < s.pts.length - 1) add(s.pts[i + 1]);
     });
   }
-  const out: { c: XY; arc: XY[]; major: boolean }[] = [];
+  const out: { c: XY; arc: XY[]; major: boolean; o: XY; R: number }[] = [];
   const MIN = 20 * Math.PI / 180, MAX = 170 * Math.PI / 180;
   for (const { p, arms } of nodes.values()) {
     if (arms.length < 2) continue;
@@ -93,14 +96,14 @@ export function osmFillets(list: StreetIn[], R0 = OSM_CURB_R): { c: XY; arc: XY[
       const a0 = Math.atan2(-n1[1], -n1[0]); let da = Math.atan2(-n2[1], -n2[0]) - a0;
       while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
       const arc: XY[] = []; for (let j = 0; j <= ARC_SEG; j++) { const a = a0 + da * j / ARC_SEG; arc.push([O[0] + Math.cos(a) * R, O[1] + Math.sin(a) * R]); }
-      out.push({ c: C, arc, major: A.major && B.major });
+      out.push({ c: C, arc, major: A.major && B.major, o: O, R });
     }
   }
   return out;
 }
 
 export function streetsGeo(list: StreetIn[], H: HeightFn, curbR = OSM_CURB_R): StreetGeo {
-  const sw = new Buf(H, 0.08), as = new Buf(H, 0.1), mj = new Buf(H, 0.11), ft = new Buf(H, 0.09), mk = new Buf(H, 0.13);
+  const sw = new Buf(H, 0.08), as = new Buf(H, 0.1), mj = new Buf(H, 0.11), ft = new Buf(H, 0.09), mk = new Buf(H, 0.13), kb = new Buf(H, 0.09);
   // chorrahalar: bir nechta koʻcha uchrashgan nuqta → u yerdagi eng keng yarim kenglik
   const nodes = new Map<string, { n: number; r: number; p: XY }>();
   for (const s of list) {
@@ -121,9 +124,14 @@ export function streetsGeo(list: StreetIn[], H: HeightFn, curbR = OSM_CURB_R): S
     const swW = sidewalkW(s.cls);
     if (swW) sw.ribbon(s.pts, r + swW);
     (MAJOR.test(s.cls) ? mj : as).ribbon(s.pts, r);
+    kb.ribbon(s.pts, r + KERB_W);   // asfaltdan biroz kengroq, uning ostida — chetida ingichka tasma qoladi
   }
   // 06.11 (egasi): chorraha va burilishlarda bordyur yoyi — har tugundagi qoʻshni ikki yoʻnalish orasidagi botiq burchakka asfalt yelpigʻichi
-  for (const f of osmFillets(list, curbR)) (f.major ? mj : as).fan(f.c, f.arc);
+  for (const f of osmFillets(list, curbR)) {
+    (f.major ? mj : as).fan(f.c, f.arc);
+    // bordyur ham yoy boʻylab: yoy markazi tomon KERB_W ga kichraytirilgan yelpigʻich (asfalt yelpigʻichi uni yopadi — yoy tashqarisida tasma qoladi)
+    const k = Math.max(0, (f.R - KERB_W) / f.R); kb.fan(f.c, f.arc.map(p => [f.o[0] + (p[0] - f.o[0]) * k, f.o[1] + (p[1] - f.o[1]) * k] as XY));
+  }
 
   // chiziqlar (alohida sikl — trotuar/asfalt hammasi chizilgandan keyin)
   for (const s of list) {
@@ -155,7 +163,7 @@ export function streetsGeo(list: StreetIn[], H: HeightFn, curbR = OSM_CURB_R): S
       }
     }
   }
-  return { sidewalk: sw.p, asphalt: as.p, major: mj.p, foot: ft.p, marks: mk.p };
+  return { sidewalk: sw.p, asphalt: as.p, major: mj.p, foot: ft.p, marks: mk.p, kerb: kb.p };
 }
 
 /* ---------- loyiha koʻchalari (profil boʻyicha) ---------- */

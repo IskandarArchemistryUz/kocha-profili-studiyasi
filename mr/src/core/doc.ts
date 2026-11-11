@@ -180,6 +180,8 @@ export interface ContextSettings {
   loaded: boolean;
   /** atrof chegarasi (ixtiyoriy): berilsa — atrof shu poligon qutisi boʻyicha yuklanadi va unga qirqiladi; radius — qutining yarmi */
   area?: LngLat[] | null;
+  /** 11.11: grafika shablonida sunʼiy yoʻldosh qoʻlda yoqilgan (sukut — shablonning och vektor foni); «Asl uslub»da ishlatilmaydi */
+  gsSat?: boolean;
 }
 /** Atrof radiusi chegaralari, m: oddiy (radius tugmalari) va chegara boʻyicha (katta hudud) */
 export const CTX_R_MIN = 100, CTX_R_MAX = 6000;
@@ -356,6 +358,7 @@ export function migrate(raw: unknown): Project {
     loaded: cx.loaded === true,
     layers: { ...DEFAULT_CONTEXT.layers, ...(cx.layers || {}) },
     ...(Array.isArray(cx.area) && isRing(cx.area) ? { area: cx.area.map(p => [p[0], p[1]] as LngLat) } : {}),
+    ...(cx.gsSat === true ? { gsSat: true } : {}),
   };
   let site: Site | null = null;
   if (d.site != null) {

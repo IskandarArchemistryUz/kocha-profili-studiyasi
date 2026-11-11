@@ -51,7 +51,7 @@ import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
 import { gstylePicker } from './gstylepick';
-import { gstyleById, useColorOf } from '../core/gstyle';
+import { gstyleById, useColorOf, sceneBase } from '../core/gstyle';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, sb79Applies, edgeHeights, type AutoSetback, type EdgeKind } from '../core/setback';
@@ -110,7 +110,7 @@ import { loadBaseMap, type TerrainGrid } from '../context/tiles';
 import { LiveBase, liveSize } from '../context/basemap';
 import { logoSvg } from './logo';
 import { openInKochasoz } from '../kochasoz/fromMr';
-import { PALETTES, basePrefs, setBasePrefs } from '../context/mapstyle';
+import { PALETTES, palOf, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
 import { norm as normSheet } from './sheets';
@@ -332,7 +332,7 @@ export class Editor {
     if (([...new Set([...Object.keys(p), ...Object.keys(doc)])] as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
     // loyiha markazi koʻchdi (uchastka chizilgach, qidiruv, bekor qilish) — kamera va fon yerda joyida qoladi, sahna «sakramaydi»
     if (p.origin !== doc.origin) { const d = frame(p.origin).toLocal(doc.origin); if (Math.hypot(d[0], d[1]) < 60000) this.scene.shiftOrigin(d); }
-    if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed || p.roadEdits !== doc.roadEdits || p.removedRoads !== doc.removedRoads) void this.ensureContext();
+    if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed || p.roadEdits !== doc.roadEdits || p.removedRoads !== doc.removedRoads || p.gstyle !== doc.gstyle) void this.ensureContext();
     if (this.marked.b.length || this.marked.c.length || this.marked.r.length) { const rm = new Set(doc.removed ?? []), rr = new Set(doc.removedRoads ?? []), keepR = this.marked.r.filter(x => !rr.has(x)); this.setMarked(this.marked.b.filter(id => doc.buildings.some(b => b.id === id)), this.marked.c.filter(id => !rm.has(id)), doc, keepR); }
     if (this.selStreet && !doc.streets.some(x => x.id === this.selStreet)) { this.selStreet = null; this.scene.selectStreet(null); }
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
@@ -441,17 +441,29 @@ export class Editor {
   private closePop(): void { if (!this.pop) return; this.root.querySelector(`#${this.pop.dataset.for}`)?.setAttribute('aria-expanded', 'false'); this.pop.remove(); this.pop = null; }
   private refreshPop(): void { const p = this.pop; if (!p) return; const id = p.dataset.for!; p.replaceChildren(id === 'stylePop' ? this.stylePop() : id === 'layPop' ? this.layPop() : this.camPop()); }
 
+  /** 11.11: sahna fon xaritasi — shablonda och vektor fon (sputnik — faqat qoʻlda, context.gsSat), «Asl uslub»da — context.base */
+  private get effBase(): 'maket' | 'sputnik' { const d = this.store.doc; return sceneBase(d.gstyle, d.context); }
+  /** shablon foni faolmi (shablon tanlangan va sputnik qoʻlda yoqilmagan) */
+  private get gsBg(): boolean { const g = this.store.doc.gstyle; return !!g && g !== 'joriy' && this.effBase === 'maket'; }
+  /** stilistik xarita palitrasi: shablonda — «gs:<id>», aks holda foydalanuvchi tanlovi */
+  private get palKey(): string { return this.gsBg ? `gs:${this.store.doc.gstyle}` : basePrefs().pal; }
+  /** Fon tanlovi: shablonda — faqat context.gsSat (asl uslubdagi tanlov saqlanadi), aks holda — context.base */
+  private pickBase(k: 'maket' | 'sputnik'): void {
+    const g = this.store.doc.gstyle, gs = !!g && g !== 'joriy';
+    this.run(() => this.store.dispatch({ type: 'setContext', patch: gs ? { gsSat: k === 'sputnik' } : { base: k } }));
+  }
   private stylePop(): HTMLElement {
-    const cs = this.store.doc.context, img = !!this.ctxMgr.current?.imagery;
+    const cs = this.store.doc.context, img = !!this.ctxMgr.current?.imagery, eb = this.effBase, gsBg = this.gsBg;
     const gapR = range({ min: 0.2, max: 1.5, step: 0.05, value: this.scene.explodeGap, id: 'exGap', 'aria-label': tr('Qatlamlar oraligʻi'), disabled: !this.scene.exploded, oninput: v => this.scene.setExploded(this.scene.exploded, v) });
     const gapIn = gapR.querySelector('input')!;
     const li = (k: string, sub: string, ctl: Node) => h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), ctl);
     const tile = (attrs: Record<string, unknown>, t: string, sub: string) => h('button', { class: 'tile', ...attrs }, h('b', {}, t), h('span', { class: 'sub' }, sub));
-    const pal = !(cs.loaded || cs.base === 'sputnik');
+    const pal = !(cs.loaded || eb === 'sputnik') && !gsBg;
     return h('div', { class: 'popbody' },
-      h('div', { class: 'glabel' }, h('span', {}, tr('Fon xaritasi'))),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Fon xaritasi')), gsBg ? h('span', { id: 'baseGs' }, tr('shablon rangida')) : ''),
       h('div', { class: 'tiles c2', role: 'group', id: 'baseSw' }, ...([['maket', cs.loaded ? 'Maket' : 'Stilistik', cs.loaded ? 'oq relyef, OSM qatlamlari' : 'cheksiz vektor xarita'], ['sputnik', 'Sunʼiy yoʻldosh', img || !cs.loaded ? 'Esri World Imagery' : 'atrofni qayta yuklang']] as const).map(([k, t, n]) =>
-        tile({ 'data-base': k, 'aria-pressed': cs.base === k, disabled: k === 'sputnik' && !img && cs.loaded, onclick: () => { this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })); this.refreshPop(); } }, tr(t), tr(n)))),
+        tile({ 'data-base': k, 'aria-pressed': eb === k, disabled: k === 'sputnik' && !img && cs.loaded, onclick: () => { this.pickBase(k); this.refreshPop(); } }, tr(t), tr(n)))),
+      gsBg ? h('span', { class: 't-small', id: 'baseGsNote' }, tr('Grafika shablonida fon — shablonning och vektor xaritasi. Sunʼiy yoʻldoshni shu yerda qoʻlda yoqish mumkin.')) : '',
       pal ? h('div', { class: 'glabel' }, h('span', {}, tr('Xarita uslubi')), h('span', {}, tf('${n} ta', { n: Object.keys(PALETTES).length }))) : '',
       pal ? h('div', { class: 'ugrp', role: 'group', id: 'palSw', 'aria-label': tr('Xarita uslubi') }, h('div', {}, ...Object.entries(PALETTES).map(([k, p]) =>
         h('button', { class: 'uchip', 'data-pal': k, title: p.n, 'aria-pressed': basePrefs().pal === k, onclick: () => { setBasePrefs({ pal: k }); void this.showBaseMap(); this.refreshPop(); } },
@@ -939,11 +951,11 @@ export class Editor {
   private liveT = 0;
   private baseFail = false;
   private async showBaseMap(): Promise<void> {
-    const doc = this.store.doc, key = `${doc.origin.join(',')}|${doc.context.base}|${basePrefs().pal}|${basePrefs().labels}`;
+    const doc = this.store.doc, key = `${doc.origin.join(',')}|${this.effBase}|${this.palKey}|${basePrefs().labels}`;
     if (key === this.baseKey) return; this.baseKey = key; this.liveAt = null;
     if (!navigator.webdriver && !this.baseFail) { this.followBase(true); return; }
     try {   // zaxira: Esri plitkalari, bir martalik rasm
-      const sat = doc.context.base === 'sputnik';
+      const sat = this.effBase === 'sputnik';
       const img = await loadBaseMap(doc.origin, 1500, sat ? 'sputnik' : 'maket');
       if (this.baseKey !== key || this.store.doc.context.loaded) return;
       await this.scene.setBaseMap(img, doc.origin);
@@ -976,8 +988,8 @@ export class Editor {
   private followCtx(now = false): void {
     const doc = this.store.doc, b = this.ctxMgr.current;
     if (navigator.webdriver || !b) return;   // baseFail (vektor fon zaxirasi) bunga taalluqli emas
-    const v = this.scene.viewExtent(), R = doc.context.radius, sat = doc.context.base === 'sputnik', pr = basePrefs();
-    const key = `${doc.origin.join(',')}|${doc.context.base}|${pr.pal}|${pr.labels}`;
+    const v = this.scene.viewExtent(), R = doc.context.radius, sat = this.effBase === 'sputnik', pr = basePrefs();
+    const key = `${doc.origin.join(',')}|${this.effBase}|${this.palKey}|${pr.labels}`;
     const kind: 'detail' | 'around' | null = sat && b.imagery && v.r < Math.min(700, R * 0.8) ? 'detail' : v.r > R * 0.9 ? 'around' : null;
     const L = this.ctxLive;
     if (!kind) { if (L?.kind === 'detail') { this.ctxLive = null; this.scene.setSatLayer(null, doc.origin); } clearTimeout(this.liveT); return; }
@@ -987,25 +999,25 @@ export class Editor {
   }
   private async drawCtxLive(kind: 'detail' | 'around', c: XY, r: number, key: string): Promise<void> {
     // kvadrat koʻrinishdan 1,5 barobar katta: keyingi qayta chizishgacha (1,25·r yoki 0,3·r surish) keng ekranning cheti qora qolmasin
-    const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs(), R = Math.min(40000, r * 1.5);
+    const doc = this.store.doc, sat = this.effBase === 'sputnik', pr = basePrefs(), pk = this.palKey, R = Math.min(40000, r * 1.5);
     this.live ??= new LiveBase(...liveSize(this.el.scene));
     this.ctxLive = { kind, c, r, key };
-    const img = await this.live.render(frame(doc.origin).toGeo(c), R, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
+    const img = await this.live.render(frame(doc.origin).toGeo(c), R, sat ? 'sat' : 'stil', pk, pr.labels).catch(() => null);
     if (!img || this.ctxLive?.key !== key || this.ctxLive.kind !== kind || !this.store.doc.context.loaded || this.store.doc.origin !== doc.origin) return;
     if (kind === 'detail') { this.scene.setSatLayer(img, doc.origin); return; }
     this.scene.setSatLayer(null, doc.origin);
-    await this.scene.setBaseMap({ ...img, bg: sat ? '#2b2d2f' : PALETTES[pr.pal].bg }, doc.origin);
+    await this.scene.setBaseMap({ ...img, bg: sat ? '#2b2d2f' : palOf(pk).bg }, doc.origin);
   }
   private async drawLive(c: XY, r: number, key: string): Promise<void> {
-    const doc = this.store.doc, sat = doc.context.base === 'sputnik', pr = basePrefs();
+    const doc = this.store.doc, sat = this.effBase === 'sputnik', pr = basePrefs(), pk = this.palKey;
     this.live ??= new LiveBase(...liveSize(this.el.scene));
     this.liveAt = { c, r: r * 1.15, key };
-    const img = await this.live.render(frame(doc.origin).toGeo(c), r * 1.15, sat ? 'sat' : 'stil', pr.pal, pr.labels).catch(() => null);
+    const img = await this.live.render(frame(doc.origin).toGeo(c), r * 1.15, sat ? 'sat' : 'stil', pk, pr.labels).catch(() => null);
     if (this.baseKey !== key || this.store.doc.context.loaded) return;
     if (!img) { this.baseFail = true; this.baseKey = ''; this.liveAt = null; void this.showBaseMap(); return; }
     const first = !this.scene.hasBaseMap;
     if (this.store.doc.origin !== doc.origin) return;
-    await this.scene.setBaseMap({ ...img, bg: sat ? '#2b2d2f' : PALETTES[pr.pal].bg }, doc.origin);
+    await this.scene.setBaseMap({ ...img, bg: sat ? '#2b2d2f' : palOf(pk).bg }, doc.origin);
     this.baseAttr(sat, 'Fon: © OpenMapTiles · OpenFreeMap'); this.baseDrawn();
     if (first && !this.framedCtx && !doc.site && !doc.buildings.length) { this.framedCtx = true; this.scene.frameRadius(600); }
   }
@@ -1044,7 +1056,7 @@ export class Editor {
     });
     this.el.attr.hidden = !b;
     const ovt = this.el.attr.querySelector('.ovt') as HTMLElement | null; if (ovt) ovt.hidden = !(b?.ovm && (b.ovm.added || b.ovm.heights));
-    (this.el.attr.querySelector('.sat') as HTMLElement).hidden = doc.context.base !== 'sputnik';
+    (this.el.attr.querySelector('.sat') as HTMLElement).hidden = this.effBase !== 'sputnik';
   }
   private framedCtx = false;
   /** uchastka ichidagi atrof binolari markazi (geo) — saqlanganlarni qayta topish uchun */
@@ -1118,7 +1130,7 @@ export class Editor {
     this.closePop();
     const o = this.store.doc.origin, v = this.scene.viewExtent(), here = frame(o).toGeo(v.c);
     // 3D dagi aynan shu markaz va masshtab bilan ochiladi — uzoqlashtirish uzilmasdan davom etadi
-    await this.world.show(here, zoomFor(this.scene.viewHalfWidth(), here[1], this.el.scene.clientWidth || 1000), bbox, mark ?? o, this.store.doc.context.base === 'sputnik' ? 'sat' : 'stil');
+    await this.world.show(here, zoomFor(this.scene.viewHalfWidth(), here[1], this.el.scene.clientWidth || 1000), bbox, mark ?? o, this.effBase === 'sputnik' ? 'sat' : 'stil');
     this.el.stage.classList.add('wm-on');
   }
   private closeWorld(): void { this.world.hide(); this.el.stage.classList.remove('wm-on'); }
@@ -1312,7 +1324,7 @@ export class Editor {
       body.append(this.ctxLayerChips());   // 27.10: qatlamlar yana koʻrinadigan joyda (#277 da «Atrof sozlamalari» ichida yashirinib qolgandi)
       more.append(
         h('div', { class: 'glabel' }, h('span', {}, tr('Yer qoplami'))),
-        h('div', { class: 'seg sm', role: 'group' }, ...([['maket', 'Maket'], ['sputnik', 'Sunʼiy yoʻldosh']] as const).map(([k, t]) => h('button', { 'aria-pressed': cs.base === k, 'data-base': k, disabled: k === 'sputnik' && !b.imagery, onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { base: k } })) }, tr(t)))),
+        h('div', { class: 'seg sm', role: 'group' }, ...([['maket', 'Maket'], ['sputnik', 'Sunʼiy yoʻldosh']] as const).map(([k, t]) => h('button', { 'aria-pressed': this.effBase === k, 'data-base': k, disabled: k === 'sputnik' && !b.imagery, onclick: () => this.pickBase(k) }, tr(t)))),
         h('div', { class: 'row' },
           h('button', { class: 'btn btn-sm btn-ghost', onclick: () => this.run(() => this.store.dispatch({ type: 'setContext', patch: { loaded: false } })) }, tr('Yashirish'))));
       // yangilash — holat qatori ostida, koʻrinib turadi
