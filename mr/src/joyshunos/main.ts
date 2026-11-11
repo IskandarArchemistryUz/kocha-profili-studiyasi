@@ -1394,14 +1394,14 @@ let axBundle: { key: string; b: ContextBundle } | null = null, axMsg = '', axSat
 type AxSt = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal' | 'tungi' | 'palitra';
 const AX_STYLES: [AxSt, string, string][] = [['albom', 'Qogʻoz', 'oq binolar, soyalar'], ['rangli', 'Shahar ranglari', 'OSM ranglari, sunʼiy yoʻldosh'], ['arctic', 'Gips maket', 'oq gil model'], ['funksiya', 'Funksional', 'funksiya ranglari'], ['minimal', 'Chizma', 'oq-qora grafika'], ['tungi', 'Tungi', 'qorongʻi fon, yorqin tahlil'], ['palitra', 'Xarita palitrasi', '7 ta uslubdan']];
 let axStyle: AxSt = (() => { try { const v = localStorage.getItem('joy-axstyle') ?? localStorage.getItem('mr-style'); return AX_STYLES.some(x => x[0] === v) ? v as AxSt : 'albom'; } catch { return 'albom'; } })();
-const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean; sun?: string; col?: Record<string, string> } | null; } catch { return null; } })() ?? {};
+const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean; sun?: string; col?: Record<string, string>; lbl?: string } | null; } catch { return null; } })() ?? {};
 /** E4a: foydalanuvchi ranglari (asosiy obyekt, tahlil 1, tahlil 2, atrof) — boʻsh boʻlsa uslub rangi */
 type AxColKey = 'main' | 'a1' | 'a2' | 'atrof';
 const AX_COLS: [AxColKey, string, string][] = [['main', 'Asosiy obyekt', 'uchastka va markaz'], ['a1', 'Tahlil 1', 'quyosh, shamol'], ['a2', 'Tahlil 2', 'radius halqasi'], ['atrof', 'Atrof binolari', 'kontekst']];
 const AX_SW = ['#d2492f', '#e0532c', '#c0643a', '#e8a317', '#f2c94c', '#3f8f6b', '#2f8a5f', '#3a7bd5', '#24507e', '#7b74d6', '#141518', '#5c5a55', '#9a978f', '#c9c2b5', '#dedad2', '#f1efea', '#ffffff', '#2a2e34'];
 const axCol: Partial<Record<AxColKey, string>> = (() => { const o: Partial<Record<AxColKey, string>> = {}; const c = AXST.col ?? {}; for (const [k] of AX_COLS) { const v = c[k]; if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) o[k] = v.toLowerCase(); } return o; })();
 let axColOpen = false;
-function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle, city: axo.cityLook, site: axo.siteLook, col: axCol })); } catch { /* */ } }
+function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle, city: axo.cityLook, site: axo.siteLook, col: axCol, lbl: axo.labelMode })); } catch { /* */ } }
 function renderMode(): void {
   modeSw.replaceChildren(h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') },
     ...([['map', 'Xarita'], ['axo', 'Aksonometriya']] as const).map(([k, n]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, onclick: () => setMode(k) }, tr(n)))));
@@ -1422,6 +1422,7 @@ async function enterAxo(): Promise<void> {
     if (Array.isArray(AXST.order) && AXST.order.length === AX.AX_LAYERS.length) axo.order = AXST.order as typeof axo.order;
     if (AXST.sun === 'yelpigich') axo.sunStyle = 'yelpigich';
     { const A = AXST as { city?: string; site?: string }; if (A.city && ['odatiy', 'oq', 'shisha', 'kontur'].includes(A.city)) axo.cityLook = A.city as typeof axo.cityLook; if (A.site && ['punktir', 'tola', 'devor', 'shtrix'].includes(A.site)) axo.siteLook = A.site as typeof axo.siteLook; }
+    if (AXST.lbl === 'nom' || AXST.lbl === 'raqam') axo.labelMode = AXST.lbl;
     if (AXST.vis) Object.assign(axo.vis, AXST.vis);
     axo.exploded = !!AXST.ex; if (AXST.gap) axo.gap = AXST.gap; if (AXST.day != null) axo.day = AXST.day; if (AXST.hour != null) axo.hour = AXST.hour; if (AXST.anim === false) axo.animate = false;
     axo.onChange = () => { renderNotes(); axSyncTime(); };
@@ -1488,6 +1489,8 @@ function renderAxo(): void {
     h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Shahar fonda'), id: 'axCity' }, ...([['oq', 'Oq'], ['shisha', 'Shisha'], ['kontur', 'Kontur'], ['odatiy', 'Odatiy']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': a.cityLook === k, onclick: () => { a.cityLook = k; axSave(); axBuild(); renderAxo(); } }, tr(n)))),
     h('div', { class: 't-small' }, tr('Uchastka')),
     h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Uchastka'), id: 'axSite' }, ...([['tola', 'Yashil'], ['devor', 'Devor'], ['shtrix', 'Shtrix'], ['punktir', 'Punktir']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': a.siteLook === k, onclick: () => { a.siteLook = k; axSave(); axBuild(); renderAxo(); } }, tr(n)))),
+    h('div', { class: 't-small' }, tr('Obyekt yorliqlari')),
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Obyekt yorliqlari'), id: 'axLbl' }, ...([['raqam', 'Raqam va roʻyxat'], ['nom', 'Nom xaritada']] as const).map(([k, n]) => h('button', { type: 'button', 'data-lbl': k, 'aria-pressed': a.labelMode === k, onclick: () => { a.labelMode = k; axSave(); axBuild(); renderAxo(); } }, tr(n)))),
     h('div', { class: 'glabel' }, tr('Loyiha')),
     h('div', { class: 'row wrap' },
       h('button', { type: 'button', class: 'btn btn-sm', id: 'axModel', title: tr('OBJ yoki GLB (metr, Y — yuqoriga); markaz — tanlangan nuqta'), onclick: () => pickModel() }, tr('Model yuklash')),
@@ -1571,6 +1574,8 @@ function renderNotes(): void {
     h('ul', {}, it(axCol.a1 ?? '#e8a317', 'Quyosh yoʻli (soatlar)'), it('#e0532c', 'Quyosh', 'big'), it(axCol.a1 ?? '#3f8f6b', 'Shamol guli'),
       ...(a?.flows ?? []).map((f, i) => h('li', {}, h('i', { class: 'bar', style: `background:${f.col}` }), tf('Shamol ${n}: ${d} · ${p} % · ${v} m/s', { n: i + 1, d: tr(dir8(f.deg)), p: fmt(f.share * 100), v: fmt(f.v, 1) }))),
       it('#4c5bd4', 'Xizmatlar'), it('#7a5a3c', 'Raqobatchilar'), it(axCol.a2 ?? '#c0643a', 'Masofa halqalari', 'ring'), it('#6b6965', 'Binolar soyasi', 'sq'), S.site ? it(axCol.main ?? '#d2492f', 'Uchastka', 'ring') : null),
+    ...(a && a.labelMode === 'raqam' && a.pinList.length && a.vis.xizmat ? [h('div', { class: 'glabel' }, tr('Obyektlar')),
+      h('ol', { class: 'pl', id: 'axPinList' }, ...a.pinList.map(p => h('li', {}, h('b', { style: `--pc:${p.col}` }, String(p.n)), h('span', { title: p.label }, p.label), h('em', {}, `${fmt(Math.round(p.d / 10) * 10)} m`))))] : []),
     h('p', { class: 't-small' }, tr('Binolar balandligi OSM dan; yozilmaganlari qavat soni yoki maydoniga qarab taxmin qilingan.')),
   );
 }

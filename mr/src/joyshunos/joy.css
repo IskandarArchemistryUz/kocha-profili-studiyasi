@@ -138,6 +138,15 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .axo-ov>[hidden]{display:none}
 .axo-pin{margin:-28px 0 0 -6px;display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px 0 5px;border-radius:6px;background:var(--surface);box-shadow:var(--sh-card);font-size:10.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
 .axo-pin i{width:7px;height:7px;border-radius:50%;flex:none}
+/* E4b: raqamli yorliq (nomlar chetdagi roʻyxatda) */
+.axo-pin.num{margin:-30px 0 0 -11px;width:22px;height:22px;padding:0;justify-content:center;border-radius:50%;background:none;box-shadow:none;overflow:visible}
+.axo-pin.num b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:0 0 0 2px var(--pc),var(--sh-card);font:700 11px/1 inherit;color:var(--ink)}
+.axo-pin.dot{display:none}
+.joy-notes .pl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.joy-notes .pl li{display:flex;align-items:center;gap:8px;font-size:12px}
+.joy-notes .pl b{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--pc);font-size:10px}
+.joy-notes .pl span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.joy-notes .pl em{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums}
 .axo-hour{margin:-20px 0 0 -6px;font-size:11px;font-weight:700;color:#b07a10;text-shadow:0 0 3px var(--bg),0 0 3px var(--bg)}
 .axo-hour.dim{opacity:.4;font-size:9.5px}
 .axo-side{display:flex;align-items:flex-start;gap:10px;width:240px}
