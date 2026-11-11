@@ -26,5 +26,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`Xizmatlar 
   await expect(page.locator('#svcErr')).toContainText('javob bermadi', { timeout: 8000 });
   expect(Date.now() - t0).toBeLessThan(15000);
   await expect(page.locator('#svcRetry')).toBeVisible();
+  // 11.11 (L6): obyekti topilmagan turlar — qizil 0 % emas, kulrang «maʼlumot yuklanmadi»; loyihaning oʻz maktabi — odatdagidek
+  await expect(page.locator('#svcTab [data-svc=poliklinika] .chip')).toHaveAttribute('data-s', 'na');
+  await expect(page.locator('#svcTab [data-svc=poliklinika] .chip')).toHaveText('yuklanmadi');
+  await expect(page.locator('#svcTab [data-svc=maktab] .chip')).not.toHaveAttribute('data-s', 'na');
   if (process.env.GX_SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/xizmat_taymaut_${w}${dark ? 'd' : 'l'}.png` }); }
 });
