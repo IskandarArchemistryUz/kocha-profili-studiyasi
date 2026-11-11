@@ -17,12 +17,12 @@ for (const [w, dark] of [[1024, true], [1440, false]] as const) test(`Meʼyorlar
   await expect(page.locator('#secNorms b')).toHaveText('4');
   await expect(page.locator('#secLimits b')).toHaveText('5');
   await expect(page.locator('#normBox [data-norms=UZ]')).toHaveAttribute('aria-checked', 'true');
-  await expect(page.locator('#normCnt b').first()).toHaveText('53');
+  await expect(page.locator('#normCnt b').first()).toHaveText('54');
   await expect(page.locator('#normLocal')).toHaveCount(0);
   // taqqoslash uchun — xalqaro andoza
   await page.click('#normBox [data-norms=intl]');
   await expect(page.locator('#normBox [data-norms=intl]')).toHaveAttribute('aria-checked', 'true');
-  await expect(page.locator('#normCnt b')).toHaveText(['0', '31', '22']);
+  await expect(page.locator('#normCnt b')).toHaveText(['0', '32', '22']);
   await expect(page.locator('#normNote')).toBeVisible();
   expect(await page.evaluate(() => (window as any).__mr.store.doc.settings.normSet)).toBe('intl');
   await page.locator('#secNorms').scrollIntoViewIfNeeded();
