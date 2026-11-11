@@ -114,6 +114,20 @@ export function openChizmadon(host: ChHost): void {
   const fmtOf = (f: LFamily = fam()) => (f.formats.includes(d.auto.fmt[f.id]) ? d.auto.fmt[f.id] : f.formats[0]);
   const site = (): { lat: number; lon: number } => d.auto.site ?? (host.origin ? { lat: host.origin[1], lon: host.origin[0] } : presets()[0] ?? { lat: 41.2995, lon: 69.2401 });
   const matSet = (id: string): ChMatSet => (d.auto.mats[id] ??= {});
+  /**
+   * L8b (11.11, egasi tasdiqladi): taqdimot shablonlarida (investor, ikki ustunli) sukut boʻyicha faqat asosiy materiallar — bosh reja, render,
+   * zonalash, TIK va bitta kvartirografiya. Har binoning qavat rejasi, eksplikatsiyasi va vaziyat sxemasi oʻchiq (chap roʻyxatda bir bosishda
+   * yoqiladi) va «Joy topilmadi» ga tushmaydi. Foydalanuvchi aniq yoqqan/oʻchirgan material oʻzgarmaydi. Albom va qoʻmita — avvalgidek.
+   */
+  function taqdimotDefaults(f: LFamily): void {
+    if (f.group !== 'Taqdimot') return;
+    let kept = false;
+    for (const m of MATS) {
+      if (!/^p:apt(x|nav)?:/.test(m.id) || d.auto.mats[m.id]?.visible != null) continue;
+      if (!kept && m.visible && /^p:apt:[^:]+$/.test(m.id)) { kept = true; continue; }   // bitta kvartirografiya (birinchi bino, tipik qavat)
+      m.visible = false;
+    }
+  }
   const allPages = (): ChPage[] => [...VP, ...d.pages];
   const isAuto = (i = d.cur) => i < nAuto;
   const EMPTY: ChPage = blankPage('—');
@@ -182,6 +196,7 @@ export function openChizmadon(host: ChHost): void {
     MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats), ...siteMaterials(() => R!, d.auto.mats)];
     setCustomPal(d.auto.custom); if (d.auto.pal === 'custom' && !d.auto.custom) d.auto.pal = 'arch';
     const f = fam(), fmt = fmtOf(f);
+    taqdimotDefaults(f);
     LAST = buildAlbum({ fam: f, fmt, pal: d.auto.pal, mats: MATS, force: d.auto.force, ov: d.auto.ov, slots: d.auto.slots, R, sel: matSel, place: R ? placeName(R) : host.place, txt: albumTxt(), ttl: d.auto.ttl, chap: d.auto.chap });
     d.auto.ov = LAST.ov; nAuto = LAST.pages.length; PLACE = placements(LAST.PG);
     BG = LAST.pages.map(ap => inner(ap.svg)); UIX = LAST.pages.map(ap => ap.ui);
