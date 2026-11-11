@@ -1548,6 +1548,8 @@ function renderAxo(): void {
         h('button', { type: 'button', role: 'menuitem', id: 'exGlb', onclick: () => doExport('glb') }, tr('Massing · GLB')),
         h('button', { type: 'button', role: 'menuitem', id: 'exObj', onclick: () => doExport('obj') }, tr('Massing · OBJ')),
         h('button', { type: 'button', role: 'menuitem', id: 'exChz', onclick: () => doExport('chz') }, tr('Chizmadonga yuborish')),
+        h('button', { type: 'button', role: 'menuitem', id: 'exSheet', onclick: () => void axoSheets('one') }, tr('Varaq · A3 PDF (joriy koʻrinish)')),
+        h('button', { type: 'button', role: 'menuitem', id: 'exSeries', onclick: () => void axoSheets('all') }, tr('Seriya · 5 varaq A3 PDF')),
         h('button', { type: 'button', role: 'menuitem', id: 'exRen', onclick: () => void toRender() }, tr('Render studiyasiga'))));
       return w; })(),
     (() => { const c = coinLabel('PNG · 4K', 'joy.png'); return h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'axPng', title: c.title, onclick: () => void exportPng() }, c.text); })(),   // E3: narx tugmada
@@ -1600,6 +1602,72 @@ async function doExport(k: 'svgL' | 'svg' | 'glb' | 'obj' | 'chz'): Promise<void
     }
     save2(fileName(k === 'svgL' ? 'ai.svg' : 'svg'), new Blob([txt], { type: 'image/svg+xml' }));
   } catch (e) { alert((e as Error).message); }
+}
+/* ---------------- E4c: aksonometriya tahlil varagʻi (A3) va 5 varaqlik seriya ---------------- */
+type AxSheetKind = 'joriy' | 'piyoda' | 'transport' | 'xizmat' | 'quyosh' | 'shamol';
+const AX_BASE: import('./axo').AxLayer[] = ['relyef', 'kochalar', 'yashil', 'binolar'];
+const AX_SHEETS: [AxSheetKind, string, import('./axo').AxLayer[]][] = [
+  ['piyoda', 'Piyoda yetish', AX_BASE], ['transport', 'Transport', [...AX_BASE, 'transport']], ['xizmat', 'Xizmatlar', [...AX_BASE, 'xizmat']],
+  ['quyosh', 'Quyosh va soya', [...AX_BASE, 'quyosh']], ['shamol', 'Shamol', [...AX_BASE, 'shamol']],
+];
+let sheetBusy = false;
+/** Joriy kadr (bir xil kamera) → JPEG data URL */
+async function axShot(a: import('./axo').Axo): Promise<{ url: string; w: number; h: number }> {
+  await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  const blob = await a.png(2400), bmp = await createImageBitmap(blob), cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
+  const g = cv.getContext('2d')!; g.fillStyle = '#ffffff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(bmp, 0, 0);
+  return { url: cv.toDataURL('image/jpeg', 0.9), w: cv.width, h: cv.height };
+}
+async function axoSheets(which: 'one' | 'all'): Promise<void> {
+  expOpen = false; renderAxo(); const a = axo, A = AX; if (!a || !A || sheetBusy) return;
+  sheetBusy = true; toast(tr('Varaq tayyorlanmoqda…'));
+  const keep = { vis: { ...a.vis }, day: a.day, hour: a.hour };
+  try {
+    const R = await import('./report');
+    const date = new Date().toISOString().slice(0, 10), addr = D.addr.st === 'ok' ? D.addr.v! : `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`;
+    const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132, loc = (p: LngLat) => ({ x: (p[0] - S.c[0]) * kx, y: (p[1] - S.c[1]) * ky });
+    const w = windV(), flows = w ? A.topFlows({ petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean }) : [];
+    const pois = (D.poi.v?.pois ?? []).filter(p => SVC_KINDS.includes(p.kind) && distM(S.c, p.at) <= S.r);
+    const comps = (D.comp.v ?? []).filter(c => c.d <= S.r);
+    const step = S.r > 600 ? 200 : 100, rings: number[] = []; for (let r = step; r < S.r; r += step) rings.push(r); rings.push(S.r);
+    const src = `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles')}${w ? ` · EPW TMYx: ${TMYX_ATTR}` : ''}`;
+    const kinds = which === 'all' ? AX_SHEETS : [['joriy', 'Joy tahlili', [] as import('./axo').AxLayer[]] as [AxSheetKind, string, import('./axo').AxLayer[]]];
+    const pages: { svg: string; widthMm: number; heightMm: number }[] = [];
+    for (let i = 0; i < kinds.length; i++) {
+      const [k, name, lay] = kinds[i];
+      if (k !== 'joriy') { for (const id of A.AX_LAYERS.map(l => l.id)) a.vis[id] = lay.includes(id); a.applyLayers(); }
+      if (k === 'quyosh') a.setTime(2, 12);   // 21 dekabr 12:00 — soyalar
+      const shot = await axShot(a);
+      const on = (id: import('./axo').AxLayer) => a.eff(id);
+      const legend: [string, string][] = [];
+      if (on('relyef')) legend.push([axCol.a2 ?? '#c0643a', tf('Masofa halqalari · ${r} m ≈ ${m} daq piyoda', { r: S.r, m: walkMin(S.r) })]);
+      if (S.site) legend.push([axCol.main ?? '#d2492f', tr('Uchastka')]);
+      if (on('transport')) legend.push(['#ff7a2f', tr('Transport oqimi (sxema)')]);
+      if (on('xizmat')) { const seen = new Set<string>(); for (const p of pois) if (!seen.has(p.kind)) { seen.add(p.kind); legend.push([SVC_COL[p.kind], tr(SVC_SHORT[p.kind])]); } if (comps.length) legend.push(['#7a5a3c', tr('Raqobatchilar')]); }
+      if (on('quyosh')) legend.push([axCol.a1 ?? '#e8a317', tr('Quyosh yoʻli (soatlar)')], ['#6b6965', tf('Binolar soyasi · ${d} ${h}', { d: tr(A.SUN_DAYS[a.day][2]), h: `${String(Math.floor(a.hour)).padStart(2, '0')}:${String(Math.round(a.hour % 1 * 60)).padStart(2, '0')}` })]);
+      if (on('shamol')) flows.forEach((f, j) => legend.push([f.col, tf('Shamol ${n}: ${d} · ${p} %', { n: j + 1, d: tr(dir8(f.deg)), p: fmt(f.share * 100) })]));
+      let big: { v: string; k: string } | null = null, note: string | null = null;
+      if (k === 'piyoda' || k === 'joriy') big = { v: `${walkMin(S.r)} ${tr('daq')}`, k: tf('${r} m radius — piyoda (toʻgʻri chiziqda)', { r: S.r }) };
+      if (k === 'transport') big = { v: String(pois.filter(p => p.kind === 'bekat' || p.kind === 'metro').length), k: tf('Jamoat transporti bekatlari · ${r} m ichida', { r: S.r }) };
+      if (k === 'xizmat') big = { v: String(pois.length + comps.length), k: tf('Xizmat obyektlari · ${r} m ichida', { r: S.r }) };
+      if (k === 'quyosh') { const si = a.sunInfo(); big = si ? { v: `${fmt(si.alt)}°`, k: tr('Quyosh balandligi · 21 dekabr 12:00') } : null; }
+      if (k === 'shamol') { if (flows.length) big = { v: tr(dir8(flows[0].deg)), k: tf('Asosiy shamol yoʻnalishi · ${p} % soat', { p: fmt(flows[0].share * 100) }) }; else note = tr('Shamol maʼlumoti yoʻq — strelkalar chizilmadi.'); }
+      const objects = on('xizmat') && a.labelMode === 'raqam' ? a.pinList.map(p => ({ n: p.n, name: p.label, d: `${fmt(Math.round(p.d / 10) * 10)} m`, src: 'OSM', col: p.col })) : [];
+      const pts = on('xizmat') ? [...pois.map(p => ({ ...loc(p.at), col: SVC_COL[p.kind], n: 0 })), ...comps.map(c => ({ ...loc(c.at), col: '#7a5a3c', n: 0 })), ...(a.labelMode === 'raqam' ? a.pinList.map(p => ({ x: p.x, y: p.y, col: p.col, n: p.n })) : [])] : [];
+      pages.push({ widthMm: R.A3[0], heightMm: R.A3[1], svg: R.axoSheet({
+        kicker: `${tr('Joyshunos')} · ${tr('Aksonometriya')}`, title: tr(name), sub: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, n: i + 1, of: kinds.length,
+        img: shot.url, imgW: shot.w, imgH: shot.h, big, legend, objects, note,
+        plan: { r: S.r, rings, site: S.site ? S.site.map(p => { const q = loc(p); return [q.x, q.y] as [number, number]; }) : null, pts, north: tr('Sh') },
+        labels: { legend: tr('Shartli belgilar'), objects: tr('Obyektlar'), plan: tr('Mini reja'), src: tr('Manba'), date: tr('Sana') }, src, date,
+        stamp: { org: 'Archemistry Lab', service: tr('Joyshunos'), placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'), sources: src,
+          note: tr('Avtomatik varaq: ochiq maʼlumotlar va modellar; joyida tekshiring.') },
+      }) });
+      if (k === 'quyosh') a.setTime(keep.day, keep.hour);
+    }
+    const { svgPdf } = await import('../ui/pdf');
+    await svgPdf(pages, `joyshunos-${which === 'all' ? 'seriya' : 'varaq'}-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}.pdf`, which === 'all' ? 'joy.passport.all' : 'joy.passport');
+  } catch (e) { toast(`${tr('Varaq tayyorlanmadi')}: ${(e as Error).message}`); }
+  finally { Object.assign(a.vis, keep.vis); a.applyLayers(); a.setTime(keep.day, keep.hour); sheetBusy = false; renderAxo(); }
 }
 /** Model: OBJ yoki GLB (fayldan) — IndexedDB da saqlanadi va keyingi ochilishda tiklanadi */
 function pickModel(): void {

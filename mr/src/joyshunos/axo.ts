@@ -125,7 +125,7 @@ export class Axo {
   /** E4b: xizmat yorligʻi — raqam (xaritada ①②③, nomlar chetdagi roʻyxatda, ≤ 8) yoki nom (avvalgi) */
   labelMode: 'raqam' | 'nom' = 'raqam';
   /** Raqamlangan obyektlar (markazga yaqinlik tartibida) — chetdagi roʻyxat uchun */
-  pinList: { n: number; label: string; col: string; d: number }[] = [];
+  pinList: { n: number; label: string; col: string; d: number; x: number; y: number }[] = [];
   private cars: { pts: Float32Array; road: Uint16Array; s: Float32Array; v: Float32Array; side: Int8Array; geo: THREE.BufferGeometry } | null = null;
   private roadsT: { p: THREE.Vector3[]; cum: number[]; len: number; w: number }[] = [];
   exploded = false;
@@ -339,7 +339,7 @@ export class Axo {
       if (seen.length >= 60) break;
       if (seen.some(q => q.l === p.label && Math.hypot(q.x - x, q.y - y) < 180)) continue;
       seen.push({ x, y, l: p.label });
-      const n = num && this.pinList.length < PIN_MAX ? this.pinList.push({ n: this.pinList.length + 1, label: p.label, col: p.col, d }) : 0;
+      const n = num && this.pinList.length < PIN_MAX ? this.pinList.push({ n: this.pinList.length + 1, label: p.label, col: p.col, d, x, y }) : 0;
       const moved = this.pinMoves.get(p.label + '@' + Math.round(x) + ',' + Math.round(y));
       const px = moved ? moved[0] : x, py = moved ? moved[1] : y, z0 = H(px, py);
       const s = new THREE.Mesh(new THREE.SphereGeometry(Math.max(2.4, this.R * 0.008), 12, 8), new THREE.MeshBasicMaterial({ color: p.col })); s.position.set(px, z0 + hgt, -py); s.userData.pin = true; g.add(s);
