@@ -278,6 +278,27 @@ export const SZZ_FOOD_LOGI: readonly string[] = ['sabzavot', 'sovutgich'];
 export const QAB100 = 100;
 export const QAB100_REF = 'VM 101-son qarori (04.04.2011), 1-ilova, 50-band: «Турар жой ва жамоат бинолари ҳамда дам олиш зоналари деворидан қабристонгача масофа 100 метрдан кам бўлмаслиги керак»';
 export const QAB100_DENY: readonly Use[] = ['turar', 'yakka', 'aralash', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy', 'mamuriy', 'savdo', 'ofis', 'mehmonxona', 'sport', 'yashil', 'maydon'];
+/**
+ * 11.11 (c75, egasi: «qoida boʻyicha nima ruxsat etilmagan boʻlsa shular, ruxsat etilganini qoʻysa boʻladi»): 100 m ichidagi taqiqning
+ * har funksiya boʻyicha asosi. «Жамоат бинолари» qamrovi — ShNQ 2.08.02-23 «Жамоат бинолари ва иншоотлари» (asl matn): 4-bob, 170-band
+ * («… меҳмонхоналар, туристик базалар …»), 7-bob (savdo va umumiy ovqatlanish), 8-bob (maʼmuriy boshqaruv organlari, idoralar),
+ * 882-band roʻyxati («бошқариш органлари, ҳар хил йўналишдаги идоралар, офислар, фирмаларнинг бинолари»; doʻkonlar; mehmonxonalar),
+ * 10-ilova, 28-jadval (funksional yongʻin xavfi tasnifi: mehmonxona — F 1.2, savdo — F 3.1, idora va ofis — F 4.3).
+ * Mehmonxona, maʼmuriy va ofis — avval TALQIN edi, endi NORMA. Park va skver «дам олиш зоналари» deb olinadi — TALQIN.
+ * Roʻyxatda yoʻq funksiyalar (garaj, avtoturargoh, ombor, sanoat, kommunal, transport, muhandislik, himoya koʻkalamzorligi) — ruxsat.
+ */
+const Q50 = 'VM 101, 1-ilova, 50-band', J = 'ShNQ 2.08.02-23 «Jamoat binolari va inshootlari»';
+export const QAB100_BASIS: Partial<Record<Use, { flag: Flag; ref: string }>> = {
+  turar: { flag: 'NORMA', ref: `${Q50} — turar joy` }, yakka: { flag: 'NORMA', ref: `${Q50} — turar joy` }, aralash: { flag: 'NORMA', ref: `${Q50} — turar joy` },
+  maktab: { flag: 'NORMA', ref: `${Q50} — jamoat binosi; ${J}, 10-ilova, 28-jadval (F 4.1)` }, mtm: { flag: 'NORMA', ref: `${Q50} — jamoat binosi; ${J}, 10-ilova, 28-jadval (F 1.1)` },
+  poliklinika: { flag: 'NORMA', ref: `${Q50} — jamoat binosi` }, ijtimoiy: { flag: 'NORMA', ref: `${Q50} — jamoat binosi` },
+  savdo: { flag: 'NORMA', ref: `${Q50} — jamoat binosi; ${J}, 7-bob; 882-band; 10-ilova, 28-jadval (F 3.1)` },
+  mehmonxona: { flag: 'NORMA', ref: `${Q50} — jamoat binosi; ${J}, 4-bob, 170-band; 882-band; 10-ilova, 28-jadval (F 1.2)` },
+  mamuriy: { flag: 'NORMA', ref: `${Q50} — jamoat binosi; ${J}, 8-bob; 882-band; 10-ilova, 28-jadval (F 4.3)` },
+  ofis: { flag: 'NORMA', ref: `${Q50} — jamoat binosi; ${J}, 8-bob; 882-band; 10-ilova, 28-jadval (F 4.3)` },
+  sport: { flag: 'NORMA', ref: `${Q50} — dam olish zonasi; ${J}, 5-bob` },
+  yashil: { flag: 'TALQIN', ref: `${Q50} — dam olish zonasi (park)` }, maydon: { flag: 'TALQIN', ref: `${Q50} — dam olish zonasi (skver)` },
+};
 /** dam olish zonasi va jamoat uchastkasi sifatida hudud boʻyicha tekshiriladigan funksiyalar (binosiz ham) */
 export const QAB100_AREA: readonly Use[] = ['yashil', 'sport', 'maydon', 'yakka', 'maktab', 'mtm', 'poliklinika', 'ijtimoiy'];
 

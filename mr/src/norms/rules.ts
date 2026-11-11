@@ -22,13 +22,13 @@ import { useDef } from '../core/uses';
 import { edgeKinds, boundaryNeed, azOf } from '../core/setback';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
-import { MTM, mtmGroups } from '../core/mtmrule';
+import { MTM, mtmGroups, SCHOOL_M2, schoolPlotPer } from '../core/mtmrule';
 import { limitChecks, type SzzVerdict } from '../core/limitcheck';
 import { prodChecks } from '../core/prodcheck';
 import { isTashkent } from '../core/parking';
 import { need413, T30, Q3, WIN30, SOC30, capCol, CAP_COL_NAME, pct5, ringDist, rampLen, ML, rampNeed, rampOk, liftNeed, evLoss } from '../core/mlpark';
 import { szzGreen, szzBelt, BELT_GAP } from '../core/szzgen';
-import { isActive, SZZ_DENY, limitZones } from '../core/limits';
+import { isActive, SZZ_DENY, limitZones, QAB100_BASIS } from '../core/limits';
 import { entryReport, hasEntryRules, isUg } from '../core/parkenv';
 import { type CheckKind } from '../core/parkentry';
 
@@ -51,6 +51,11 @@ function tierNote(d: Derived, use: 'maktab' | 'mtm'): string {
 function mtmEmpty(d: Derived): string {
   const e = d.mtmPlots.filter(p => !p.bld); if (!e.length) return '';
   return ' ' + tfU('${n} ta «MTM» parselida bino yoʻq — ≈ ${c} oʻrin hisobga olinmadi (Hajmlar → Joylashtirish).', { n: e.length, c: e.reduce((t, p) => t + p.plot, 0) });
+}
+/** 11.11 (c75): binosiz maktab parsellari — sigʻim hisobga olinmagan */
+function schoolEmpty(d: Derived): string {
+  const e = d.schoolPlots.filter(p => !p.bld); if (!e.length) return '';
+  return ' ' + tfU('${n} ta «Maktab» parselida bino yoʻq — ≈ ${c} oʻrin hisobga olinmadi (Hajmlar → Joylashtirish).', { n: e.length, c: e.reduce((t, p) => t + p.plot, 0) });
 }
 /** kalit andozasi (i18n strings.json da ${…} bilan) → oʻzbekcha matn; tarjima koʻrsatishda dyn() orqali */
 const tfU = (k: string, v: Record<string, unknown>) => k.replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e] ?? ''));
@@ -275,7 +280,7 @@ export const RULES: Rule[] = [
       const lo = Math.ceil(d.population * 0.165), hi = Math.ceil(d.population * 0.28);
       const sw = d.schoolCap < lo ? socialNeed(doc, 'maktab', lo - d.schoolCap) : undefined;
       return { status: d.schoolCap >= lo ? 'pass' : 'fail', value: d.schoolCap, unit: 'oʻrin', limit: `≥ ${lo}`, ...(sw ? { where: sw } : {}), delta: d.schoolCap < lo ? (1 - d.schoolCap / lo) * -100 : undefined,
-        note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellari maydonidan 41-jadval boʻyicha (20/15/10 m² oʻquvchiga). Yaqin atrofdagi mavjud maktablar hisobga olinmagan.${tierNote(d, 'maktab')}${demoNote(doc, d.population, 'school')}` };
+        note: `Talab ${lo}–${hi} oʻrin (1-navbat 165–280 / 1000). Sigʻim «Maktab» parsellaridan: uchastka (41-jadval: 20/15/10 m² oʻquvchiga) va bino (24 m²/oʻrin, 5-ilova) sigʻimining kichigi; binosiz parsel hisobga olinmaydi.${schoolEmpty(d)}${d.schoolPlots.some(p => p.bld) ? ` ${tfU('Bino / uchastka sigʻimi: ${l}.', { l: d.schoolPlots.filter(p => p.bld).map(p => tfU('${a} / ${b} oʻrin', { a: p.built, b: p.plot })).join('; ') })}` : ''} Yaqin atrofdagi mavjud maktablar hisobga olinmagan.${tierNote(d, 'maktab')}${demoNote(doc, d.population, 'school')}` };
     },
   },
   {
@@ -288,6 +293,28 @@ export const RULES: Rule[] = [
       const mw = d.mtmCap < lo ? socialNeed(doc, 'mtm', lo - d.mtmCap) : undefined;
       return { status: d.mtmCap >= lo ? 'pass' : 'fail', value: d.mtmCap, ...(mw ? { where: mw } : {}), ...(d.mtmCap < lo ? { fix: { id: 'mtm' as const, label: '1-qavatlarga MTM joylash', hint: `Yetishmaydi ${lo - d.mtmCap} oʻrin. Turar joy binolarining 1-qavatiga MTM (543-band, uchastka 29 m²/oʻrin hovlidan) — kattaroq binolardan boshlab, kerakli oʻringa yetguncha; 1-qavati turar boʻlsa noturarga oʻtkaziladi. Alternativa — «MTM» parseli (≥ 3 535 m² — 35 m²/oʻrin).` } } : {}), unit: 'oʻrin', limit: `≥ ${lo}`, delta: d.mtmCap < lo ? (1 - d.mtmCap / lo) * -100 : undefined,
         note: `Talab ${lo}–${hi} oʻrin. Sigʻim «MTM» parsellaridan: uchastka (543-band: 40 m² — 100 oʻringacha, 35 m² — undan ortiq) va bino (33 m²/oʻrin, 5-ilova) sigʻimining kichigi; binosiz parsel hisobga olinmaydi.${mtmEmpty(d)}${d.mtmBuiltIn ? ` Shundan ${d.mtmBuiltIn} oʻrin — turar joy binolarining 1-qavatida (543-band: uchastka 29 m²/oʻrin, hovlidan ajratiladi, sigʻmagani sanalmaydi; bino maydoni 33 m²/oʻrin — 5-ilova).` : ' Turar joy binosining 1-qavatiga oʻrnatish mumkin (543-band, 29 m²/oʻrin) — bino inspektorida «1-qavatda MTM».'}${tierNote(d, 'mtm')}${demoNote(doc, d.population, 'mtm')}` };
+    },
+  },
+  {
+    // 11.11 (c75, egasi): maktab uchastkasi va binosi — bino boʻlmasa sigʻim 0; bino sigʻimi / uchastka sigʻimi «a / b oʻrin»
+    id: 'school-plot',
+    title: 'Maktab uchastkasi va binosi',
+    source: { ...SHNQ_2_07_01, clause: '549-band, 41-jadval (uchastka); 5-ilova (24 m²/oʻrin); QMQ 2.01.03-19, 3.1-jadval 2-izoh (qavat)' },
+    evaluate(d, doc) {
+      if (!d.schoolPlots.length) return { status: 'na', unit: 'oʻrin', note: '«Maktab» parseli yoʻq.' };
+      const lim = socialFloorLimit('maktab', doc.settings.seismic), parts: string[] = []; let bad = false, rev = false;
+      d.schoolPlots.forEach((p, k) => {
+        const n = k + 1;
+        if (!p.bld) { rev = true; parts.push(tfU('Maktab ${n}: bino yoʻq — sigʻim hisobga olinmadi (uchastka boʻyicha ≈ ${c} oʻrin)', { n, c: p.plot })); return; }
+        parts.push(tfU('Maktab ${n}: ${a} / ${b} oʻrin (bino ${g} m² ÷ ${m} m² — 5-ilova / uchastka ${s} m² — 41-jadval), hisobda ${c}', { n, a: p.built, b: p.plot, g: n0(p.gfa), m: SCHOOL_M2, s: n0(p.area), c: p.cap }));
+        const req = schoolPlotPer(p.cap), per = p.cap ? p.area / p.cap : 0;
+        if (p.cap && per < req - 0.05) bad = true;
+        if (p.built < p.plot * 0.95) rev = true;
+        if (lim != null && p.floors > lim) bad = true;
+        parts.push(lim != null ? tfU('${f} qavat (QMQ 2.01.03-19, 3.1-jadval 2-izoh: ≤ ${l})', { f: p.floors, l: lim }) : tfU('${f} qavat (seysmiklik 8 balldan past, normada chegara yoʻq — ANDOZA: 3)', { f: p.floors }));
+      });
+      const val = d.schoolPlots.reduce((t, p) => t + p.cap, 0);
+      return { status: bad ? 'fail' : rev ? 'review' : 'pass', value: val, unit: 'oʻrin', note: parts.join('; ') + '\n' + 'Bino sigʻimi — umumiy maydon ÷ 24 m²/oʻrin (5-ilova, 5-ustun); uchastka sigʻimi — 41-jadval; hisobdagi sigʻim — ikkalasining kichigi. Bino uchastka sigʻimidan kichik boʻlsa — «koʻrib chiqish»: binoni kattalashtiring (Hajmlar → Joylashtirish).' };
     },
   },
   {
@@ -1012,10 +1039,12 @@ export const RULES: Rule[] = [
       const qs = (doc.limits ?? []).filter(l => l.kind === 'qabriston' && isActive(l));
       if (!qs.length) return { status: 'na', unit: 'bino', limit: '≥ 100 m', note: 'Saqlanadigan qabriston kiritilmagan (1-qadam, «Mavjud holat va cheklovlar»).' };
       const c = limitChecks(doc), bids = [...new Set(c.qab.map(x => x.bid))], blk = [...new Set(c.qabBlocks.map(x => x.block))];
-      const quote = 'Asl matn: «Турар жой ва жамоат бинолари ҳамда дам олиш зоналари деворидан қабристонгача масофа 100 метрдан кам бўлмаслиги керак». Masofa SMZ dan alohida: sanepid kelishuvi bilan kamaytirish (yopiq qabriston SMZ i) bu talabga qoʻllanmaydi. Garaj, avtoturargoh, ombor, yoʻl, muhandislik obyektlari 100 m ichida mumkin (SMZ ichida — SMZ rejimi boʻyicha).';
+      // 11.11 (c75): jamoat binolari qamrovi — ShNQ 2.08.02-23 (4-bob 170, 7-bob, 8-bob, 882-band; 10-ilova, 28-jadval) — mehmonxona, maʼmuriy, ofis — NORMA
+      const quote = 'Asl matn: «Турар жой ва жамоат бинолари ҳамда дам олиш зоналари деворидан қабристонгача масофа 100 метрдан кам бўлмаслиги керак». Masofa SMZ dan alohida: sanepid kelishuvi bilan kamaytirish (yopiq qabriston SMZ i) bu talabga qoʻllanmaydi. Jamoat binolari — ShNQ 2.08.02-23 «Jamoat binolari va inshootlari» qamrovi: mehmonxonalar (4-bob, 170-band), savdo (7-bob), maʼmuriy boshqaruv organlari, idoralar va ofislar (8-bob, 882-band) — NORMA. Park va skver dam olish zonasi deb olinadi — TALQIN. Normada taqiqlanmagan funksiyalar — garaj, avtoturargoh, ombor, sanoat, kommunal, transport, yoʻl va muhandislik obyektlari — 100 m ichida mumkin (SMZ ichida — SMZ rejimi boʻyicha).';
+      const byUse = [...new Set(c.qab.map(x => x.use))].map(u => tfU('${u}: ${n} ta (${f})', { u: useDef(u).name, n: new Set(c.qab.filter(x => x.use === u).map(x => x.bid)).size, f: QAB100_BASIS[u]?.flag ?? 'NORMA' })).join('; ');
       if (!bids.length && !blk.length) return { status: 'pass', value: 0, unit: 'bino', limit: '≥ 100 m', ...(c.qabRings.length ? { where: { rings: c.qabRings } } : {}), note: `Qabristondan 100 m ichida turar joy, jamoat binosi va dam olish zonasi yoʻq. ${quote}` };
       return { status: 'fail', value: bids.length + blk.length, unit: 'bino', limit: '≥ 100 m', where: { bids, rings: [...c.qabRings, ...c.qabBlocks.flatMap(x => x.rings)] },
-        note: `Qabristondan 100 m ichida: ${bids.length} ta turar joy yoki jamoat binosi, ${blk.length} ta dam olish zonasi yoki jamoat uchastkasi (park, sport, maydon, maktab, MTM, poliklinika, tomorqa). ${quote}` };
+        note: `Qabristondan 100 m ichida: ${bids.length} ta turar joy yoki jamoat binosi, ${blk.length} ta dam olish zonasi yoki jamoat uchastkasi (park, sport, maydon, maktab, MTM, poliklinika, tomorqa).${byUse ? ` ${tfU('Binolar funksiyasi: ${l}.', { l: byUse })}` : ''} ${quote}` };
     },
   },
   {

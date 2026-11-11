@@ -18,7 +18,11 @@ test('ijtimoiy binolar: funksiya berilganda maktab avtomatik, modullar, MTM', as
   await expect(page.locator('#genNotes')).toContainText('umumiy maydon (GFA)');
   if (shots) await page.screenshot({ path: `${shots}/maktab_hovli.png` });
   await page.fill('#socCap', '600'); await page.press('#socCap', 'Tab'); await page.click('#genGo');
-  await expect(page.locator('#genNotes')).toContainText('600 oʻquvchi');
+  // 11.11 (c75): izohda haqiqiy sigʻim — bino GFA ÷ 24 m²/oʻrin (5-ilova), soʻralgan 600 dan oshmaydi; modul kichraytirilsa — izohda aytiladi
+  await expect(page.locator('#socCap')).toHaveValue('600');
+  const gn = (await page.locator('#genNotes').innerText()).replace(/\u00a0/g, ' '), cap = +(/Maktab: ([\d ]+) oʻquvchi/.exec(gn)?.[1] ?? '0').replace(/ /g, '');
+  expect(cap).toBeGreaterThan(0); expect(cap).toBeLessThanOrEqual(600);
+  if (cap < 600) expect(gn).toMatch(/kichraytirildi|toʻliq sigʻmadi/);
   await page.click('[data-step=parsel]');
   if (await page.locator('[data-block="0"][aria-selected=true]').count() === 0) await page.locator('[data-block="0"]').click();
   await page.click('[data-use=mtm]');
