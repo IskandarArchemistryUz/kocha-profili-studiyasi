@@ -76,6 +76,7 @@ import { injectCss as injectChzCss } from './chzsend';
 import { facadeSegs } from '../core/sectionplan';
 import { planApartments, planKey, windowPoints, windowSun, evaluateApts, isWest, MOD_W, aptSummary, APT_SIZES, type AptStats, type SecPlan, type AptSize } from '../core/apartments';
 import { DEMO, demoRow, demoTree, perThousand } from '../core/demography';
+import { schoolVolume } from '../core/mtmrule';
 import { SOCIAL, MOD_BW, MTM, mtmGroups, isSocial, socialDemand, plotCapacity, socialPlan, type SocialUse, type Module } from '../core/social';
 import { analyze, boundaryPts, buildNet, svcDef, SERVICES, LOW_DENSITY_R, WALKABLE, type Demand, type Net, type Svc, type SvcResult } from '../core/services';
 import type { PoiBundle } from '../context/poi';
@@ -2665,9 +2666,10 @@ export class Editor {
     const run = (f: number) => socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], f, sb, this.socBW[t.use] ?? undefined, this.socBL[t.use] || undefined);
     let sp = run(fl0), fl = fl0;
     // MTM: sigʻmasa — qavat meʼyor chegarasigacha oshiriladi (avval 1–2 qavat; ANDOZA tartibi)
-    if (t.use === 'mtm' && (sp.scale ?? 1) < 0.99 && fl0 < fLim) { const sp2 = run(fLim); if (sp2.sections.length && (sp2.scale ?? 1) > (sp.scale ?? 1)) { sp = sp2; fl = fLim; fNotes.push(tf('Bino sigʻmadi — ${n} qavat olindi (meʼyor chegarasi).', { n: fLim })); } }
-    const capAct = t.use === 'mtm' ? Math.min(t.cap, Math.floor(sp.gfa / this.socM2[t.use] + 1e-6)) : t.cap;   // MTM: bino sigʻimi (5-ilova)
-    if (t.use === 'mtm' && sp.sections.length && capAct < t.cap * 0.95 && (sp.scale ?? 1) >= 0.99) fNotes.push(tf('Bino toʻliq sigʻmadi: ${a} / ${b} oʻrin — chekinishlar ichida joy kam (qizil chiziqdan 25 m, 39-jadval). Parselni kattalashtiring yoki modulni oʻzgartiring.', { a: capAct, b: t.cap }));
+    // 11.11 (c75): maktab ham — sigʻmasa qavat meʼyor chegarasigacha (QMQ 2.01.03-19: 8–9 ballda 3; past seysmiklikda — 4, ANDOZA)
+    if ((t.use === 'mtm' || t.use === 'maktab') && (sp.scale ?? 1) < 0.99 && fl0 < fLim) { const sp2 = run(fLim); if (sp2.sections.length && (sp2.scale ?? 1) > (sp.scale ?? 1)) { sp = sp2; fl = fLim; fNotes.push(tf('Bino sigʻmadi — ${n} qavat olindi (meʼyor chegarasi).', { n: fLim })); } }
+    const capAct = t.use !== 'poliklinika' ? Math.min(t.cap, Math.floor(sp.gfa / this.socM2[t.use] + 1e-6)) : t.cap;   // MTM, maktab: bino sigʻimi (5-ilova: 33 / 24 m²/oʻrin)
+    if (t.use !== 'poliklinika' && sp.sections.length && capAct < t.cap * 0.95 && (sp.scale ?? 1) >= 0.99) fNotes.push(tf('Bino toʻliq sigʻmadi: ${a} / ${b} oʻrin — chekinishlar ichida joy kam (qizil chiziqdan 25 m, 39-jadval). Parselni kattalashtiring yoki modulni oʻzgartiring.', { a: capAct, b: t.cap }));
     const soc = { soc: { mod: this.socMod[t.use], m2: this.socM2[t.use], floors: this.socFloors[t.use], bw: this.socBW[t.use], bl: this.socBL[t.use], cap: t.cap } };
     const grp = t.use === 'mtm' ? [tf('Guruhlar: ${g} (${n} boladan — ANDOZA); guruh maydonchalari ${g} × ${p} m² soyabon bilan, sport maydoni, xoʻjalik zonasi — uchastkada.', { g: mtmGroups(capAct), n: MTM.group, p: MTM.play })] : [];
     this.genNotes = [tf('${n}: ${c} ${u} · ${g} m² GFA · ${f} qavat (${m} m²/${u})', { n: SOCIAL[t.use].name, c: fmt(capAct), u: SOCIAL[t.use].unit, g: fmt(sp.gfa), f: fl, m: this.socM2[t.use] }), ...fNotes, ...grp, ...sp.notes]; this.genFar = null;
@@ -2769,6 +2771,12 @@ export class Editor {
       h('span', { class: 't-small' }, S.modules.find(m => m.id === this.socMod[t.use])!.note),
       // 06.11 (c62): MTM uchastkasi tarkibi — meʼyor va andoza qayerdan
       ...(t.use === 'mtm' ? [h('span', { class: 't-small', id: 'mtmRules' }, tf('Uchastka — 543-band (40 / 35 m² oʻringa), bino — 33 m² oʻringa (5-ilova), 8–9 ballda 2 qavat (QMQ 2.01.03-19, 3.1-jadval 2-izoh). Guruh — ${n} bola, har guruhga ${p} m² maydoncha soyabon bilan, sport maydoni, xoʻjalik zonasi, koʻkalamzorlik ≥ ${g} % — ANDOZA (544-band ShNQ 2.08.02-23 ga yuboradi — unda bu talablar yoʻq).', { n: MTM.group, p: MTM.play, g: Math.round(MTM.green * 100) }))] : []),
+      // 11.11 (c75): maktab binosi hajmi sigʻimdan — umumiy maydon (5-ilova), qavat (QMQ 2.01.03-19 yoki ANDOZA), dogʻ, kerakli uchastka (41-jadval)
+      ...(t.use === 'maktab' ? (() => { const v = schoolVolume(t.cap, this.store.doc.settings.seismic, this.socFloors.maktab); return [h('div', { class: 'group', id: 'schVol' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Bino umumiy maydoni'), h('span', { class: 'sub' }, tf('${c} oʻrin × ${m} m² — 5-ilova', { c: fmt(v.cap), m: this.socM2.maktab }))), h('b', { class: 'num', 'data-schv': 'gfa' }, `${fmt(v.cap * this.socM2.maktab)} m²`)),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qavatlar'), h('span', { class: 'sub' }, v.floorsFlag === 'NORMA' ? tr('QMQ 2.01.03-19, 3.1-jadval 2-izoh') : tr('ANDOZA — normada chegara yoʻq'))), h('b', { class: 'num', 'data-schv': 'fl' }, String(v.floors))),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Bino dogʻi'), h('span', { class: 'sub' }, tr('umumiy maydon ÷ qavatlar'))), h('b', { class: 'num', 'data-schv': 'fp' }, `≈ ${fmt(v.cap * this.socM2.maktab / v.floors)} m²`)),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Kerakli uchastka'), h('span', { class: 'sub' }, tf('41-jadval: ${p} m² oʻquvchiga', { p: v.per }))), h('b', { class: 'num', 'data-schv': 'plot' }, `${fmt(v.plot)} m²`)))]; })() : []),
       // 06.11 (c62): maktab / MTM bino maydoni — 5-ilova (5-ustun: 24 / 33 m² oʻringa), «taxmin» emas
       h('span', { class: 't-small' }, t.use === 'poliklinika' ? tf('Qizil chiziqdan ${t.use === \'poliklinika\' ? \'6\' : \'25\'} m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — taxmin (ShNQ 2.08.02-23 da maktab va MTM binosi maydoni berilmagan; xalqaro va MDH tipik loyihalari oraligʻi).', { "t.use === 'poliklinika' ? '6' : '25'": '6' })
         : tr('Qizil chiziqdan 25 m (39-jadval), qoʻshni parseldan 6 m. Bino maydoni oʻringa — 5-ilova (5-ustun): maktab 24 m², MTM 33 m².')));
@@ -3537,6 +3545,8 @@ export class Editor {
           ...OQOVA_Q.map((t, i) => h('button', { 'aria-pressed': l.objq === i + 1, 'data-objq': i + 1, title: t, disabled: cur.q![i] == null, onclick: () => upd(l.id, { objq: (i + 1) as 1 | 2 | 3 | 4, objGuess: false }) }, ['≤ 200', '≤ 5 000', '≤ 50 000', '≤ 280 000'][i]))));
         if (!cur) ed.append(h('div', { class: 'note warn', 'data-objnote': '' }, tr('Obyekt turini tanlang (SanQvaN 0103-25, 1-ilova). Hozircha 4-sinf — 100 m deb olindi (taxmin).')));
         else if (l.objGuess) ed.append(h('div', { class: 'note warn', 'data-objguess': '' }, tr('OSM teglaridan aniqlandi: oʻlcham yoki quvvat nomaʼlum — eng ehtiyotkor qator olindi, natija «koʻrib chiqish». Toʻgʻri qatorni tanlang.')));
+        // 11.11 (c75, egasi): AYoQSh — sukut 414 (4-sinf, 100 m); shart bajarilsa 491 / 492 (5-sinf, 50 m) qoʻlda tanlanadi
+        if (g === 'yoqilgi' && (!cur || cur.key === 'yoqilgi_414')) ed.append(h('div', { class: 'note', 'data-objyoq': '' }, tr('Sukut — 414-qator (4-sinf, 100 m; OSM dan aniqlansa — koʻrib chiqish). Sharti bajarilsa 50 m qatorni tanlang: faqat suyuq yoqilgʻi, 3 dan koʻp boʻlmagan quyish joyi — 491-qator; metan (AGTKSh), kompressorlar bino yoki konteyner ichida, kuniga 500 dan koʻp boʻlmagan avtomobil — 492-qator (SanQvaN 0103-25, 1-ilova, 5-sinf).')));
         if (cur?.g === 'yoqilgi' || cur?.g === 'gaz') ed.append(h('span', { class: 't-small', 'data-objfire': '' }, tr('Yongʻinga qarshi masofalar (rezervuar va kolonkalardan binolargacha) — ShNQ 2.07.01-23, 643 va 663-bandlar SHNQ 2.09.20-08 ga havola qiladi; bu hujjat normalar toʻplamida yoʻq, ilova tekshirmaydi.')));
       }
       // 04.11 (Murad Buildings sinovi, 6-band): suv obyekti turi va toifasi — VM 981-son nizomi (kuchini yoʻqotgan, talqin)
@@ -3568,7 +3578,7 @@ export class Editor {
             h('div', { class: 'seg sm full' }, qb(QT[0]), qb(QT[1])), h('div', { class: 'seg sm full' }, qb(QT[2]), qb(QT[3]))));
         }
         ed.append(h('span', { class: 't-small', 'data-qabnote': '' }, tr(!open ? 'Yopilganlik rasmiy hujjat bilan tasdiqlanadi. Yopiq qabriston SMZ i 100 m — sanitariya-epidemiologiya xizmati bilan kelishib 50 m gacha kamaytirilishi mumkin, lekin turar joy va jamoat binolari devoridan kamida 100 m qoladi (VM 101-son qarori, 1-ilova, 50-band).'
-          : 'VM 101-son qarori, 1-ilova, 50-band: SMZ da turar joy va jamoat binolari qurish taqiqlanadi. Alohida talab — turar joy, jamoat binolari va dam olish zonalari devoridan qabristongacha kamida 100 m (sahnada binafsha uzuq chiziq); garaj, avtoturargoh, ombor va yoʻl bu oraliqda mumkin. Markazlashmagan suv taʼminotida SMZ 500 m gacha oshirilishi mumkin — kerak boʻlsa SMZ ni qoʻlda kiriting.')));
+          : 'VM 101-son qarori, 1-ilova, 50-band: SMZ da turar joy va jamoat binolari qurish taqiqlanadi. Alohida talab — turar joy, jamoat binolari (maktab, MTM, poliklinika, savdo, mehmonxona, maʼmuriy bino, ofis — ShNQ 2.08.02-23, 4-bob 170-band, 8-bob, 882-band) va dam olish zonalari devoridan qabristongacha kamida 100 m (sahnada binafsha uzuq chiziq); garaj, avtoturargoh, ombor, sanoat, muhandislik va yoʻl bu oraliqda mumkin. Markazlashmagan suv taʼminotida SMZ 500 m gacha oshirilishi mumkin — kerak boʻlsa SMZ ni qoʻlda kiriting.')));
       }
       const buf = h('input', { type: 'number', class: 'input', min: 0, max: 2000, step: 1, value: l.szz ?? '', placeholder: String(szzOf({ ...l, szz: undefined }, aHa).m), id: 'limBuf', 'aria-label': tr('Bufer, m'),
         onchange: (e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); if (v === '') upd(l.id, { szz: undefined }); else if (+v >= 0 && +v <= 2000) upd(l.id, { szz: +v }); } });

@@ -9,8 +9,9 @@ import type { Cat, Part, PartKind, Profile } from './profiles';
 type S = [string, number];
 interface O { f?: number; b?: number; lw?: number; oneway?: number; contra?: number; park?: string; pw?: number; pang?: number; bike?: string; bus?: string; tram?: string; service?: number; spark?: number; sep?: number; rain?: number; rw?: number; green?: number; furn?: number; walk?: number; med?: string; mw?: number }
 /** 07.11: SHNQ 2.05.07-24, 1-ilova 4-izoh — avtomobil-oʻrni ≥ 5,5 × 2,5 m (NORMA); burchakli qator chuqurligi = 5,5·sin θ + 2,5·cos θ:
- *  30° → 4,9; 45° → 5,7; 90° → 5,5 m. Parallel 2,3 m — dizayn-kod 6.3 (uzunligi 6 m) */
-const PKW: Record<string, number> = { park: 2.3, park30: 4.9, park45: 5.7, park90: 5.5 };
+ *  30° → 4,9; 45° → 5,7; 90° → 5,5 m. 11.11 (c75, egasi): parallel — eni 2,5 m (4-izoh, NORMA; avval 2,3 — dizayn-kod 6.3);
+ *  uzunligi 6,0 m (180-band: oʻtish yoʻli boʻylab parallel joy 2500×6000 mm — TALQIN) */
+export const PKW: Record<string, number> = { park: 2.5, park30: 4.9, park45: 5.7, park90: 5.5 };
 
 function gen(o: O): S[] {
   const lw = o.lw || 3.5;
@@ -21,10 +22,10 @@ function gen(o: O): S[] {
     for (let i = 0; i < n; i++) a.push(['lane', lw]);
     if (o.bus === 'curb') a.push(['bus', 3.5]);
     if (o.tram === 'side') a.push(['tram', 3.2]);
-    if (o.park === 'both' || (o.park === 'right' && dir > 0)) { const pk = o.pang ? 'park' + o.pang : 'park'; a.push(['park', o.pang ? PKW[pk] : (o.pw || 2.3)]); }
+    if (o.park === 'both' || (o.park === 'right' && dir > 0)) { const pk = o.pang ? 'park' + o.pang : 'park'; a.push(['park', o.pang ? PKW[pk] : (o.pw || PKW.park)]); }
     if (o.bike === 'lane') a.push(['bike', 1.8]);
     if (o.bike === 'prot') { a.push(['buffer', 0.8]); a.push(['bike', 2]); }
-    if (o.service) { a.push(['green', o.sep || 4]); for (let i = 0; i < o.service; i++) a.push(['lane', 3.5]); if (o.spark) a.push(['park', 2.3]); }
+    if (o.service) { a.push(['green', o.sep || 4]); for (let i = 0; i < o.service; i++) a.push(['lane', 3.5]); if (o.spark) a.push(['park', PKW.park]); }
     if (o.bike === 'track') { a.push(['green', 1.2]); a.push(['bike', 2]); }
     if (o.bike === 'track2' && dir > 0) { a.push(['green', 1.2]); a.push(['bike', 3]); }
     if (o.rain) a.push(['green', o.rw || 2]);
@@ -59,11 +60,11 @@ const P = (g: string, n: string, o: O | null): { g: string; n: string; o: O | nu
 export const PRESET_DEFS: Record<string, { g: string; n: string; o: O | null }> = {
   shared: P('Mahalla va turar joy', 'Yashash koʻchasi — umumiy sirt', null),
   res1: P('Mahalla va turar joy', 'Mahalla koʻchasi 1+1, ariqli', { f: 1, b: 1, lw: 3, green: 1.2, walk: 2 }),
-  res: P('Mahalla va turar joy', 'Mahalla koʻchasi + avtoturargoh (2 tomon)', { f: 1, b: 1, lw: 3, park: 'both', pw: 2.2, green: 1.2, walk: 2 }),
-  resp1: P('Mahalla va turar joy', 'Mahalla koʻchasi + avtoturargoh (1 tomon)', { f: 1, b: 1, lw: 3, park: 'right', pw: 2.2, green: 1.2, walk: 2 }),
+  res: P('Mahalla va turar joy', 'Mahalla koʻchasi + avtoturargoh (2 tomon)', { f: 1, b: 1, lw: 3, park: 'both', pw: 2.5, green: 1.2, walk: 2 }),
+  resp1: P('Mahalla va turar joy', 'Mahalla koʻchasi + avtoturargoh (1 tomon)', { f: 1, b: 1, lw: 3, park: 'right', pw: 2.5, green: 1.2, walk: 2 }),
   res45: P('Mahalla va turar joy', 'Mahalla koʻchasi + 45° avtoturargoh', { f: 1, b: 1, lw: 3, park: 'both', pang: 45, green: 1.2, walk: 2 }),
   res90: P('Mahalla va turar joy', 'Bir tomonlama + perpendikulyar avtoturargoh', { oneway: 1, f: 1, lw: 3.5, park: 'right', pang: 90, green: 1.2, walk: 2 }),
-  resOne: P('Mahalla va turar joy', 'Bir tomonlama mahalla koʻchasi + avtoturargoh', { oneway: 1, f: 1, lw: 3.5, park: 'right', pw: 2.2, green: 1, walk: 2 }),
+  resOne: P('Mahalla va turar joy', 'Bir tomonlama mahalla koʻchasi + avtoturargoh', { oneway: 1, f: 1, lw: 3.5, park: 'right', pw: 2.5, green: 1, walk: 2 }),
   school: P('Mahalla va turar joy', 'Maktab oldi (tor boʻlak, keng trotuar)', { f: 1, b: 1, lw: 3, green: 1.5, walk: 4 }),
   r2: P('Shahar koʻchalari', '2 boʻlak (1+1)', { f: 1, b: 1, green: 1.5, walk: 2.5 }),
   r2b: P('Shahar koʻchalari', '2 boʻlak + velo boʻlaklar', { f: 1, b: 1, lw: 3.25, bike: 'lane', green: 1.5, walk: 2.5 }),

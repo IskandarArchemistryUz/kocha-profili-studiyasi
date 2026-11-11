@@ -16,5 +16,10 @@ describe('Koʻcha shablonlari', () => {
     const pw = (id: string) => profileById(id).parts.filter(x => x.k === 'parkovka').map(x => x.w);
     expect(pw('s-res90')).toEqual([5.5]); expect(pw('s-res45')).toEqual([5.7, 5.7]); expect(pw('s-r4p30')).toEqual([4.9, 4.9]);
   });
+  it('11.11 (c75): parallel avtoturargoh eni 2,5 m — SHNQ 2.05.07-24, 1-ilova 4-izoh (avval 2,3 / 2,2)', () => {
+    const pw = (id: string) => profileById(id).parts.filter(x => x.k === 'parkovka').map(x => x.w);
+    expect(pw('s-r2pb')).toEqual([2.5, 2.5]); expect(pw('s-res')).toEqual([2.5, 2.5]); expect(pw('s-resp1')).toEqual([2.5]); expect(pw('s-resOne')).toEqual([2.5]);
+    expect(PRESET_PROFILES.flatMap(p => p.parts.filter(x => x.k === 'parkovka').map(x => x.w)).every(w => w >= 2.5)).toBe(true);
+  });
   it('mavjud asosiy profillar oʻzgarmadi', () => { expect(profileById('mahalla-15').name).toBe('Mahalla koʻchasi'); expect(toParts([['lane', 3], ['lane', 3]])[0].lanes).toBe(2); });
 });

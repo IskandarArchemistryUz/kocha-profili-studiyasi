@@ -38,7 +38,9 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Turar joy', 'Uy-joy fondi zichligi', 'm²/ga', d.housingDensity, '82-band, 3-jadval');
   add('Iqtisod', 'Ish oʻrinlari (taxmin)', 'ta', Math.round(d.jobs), 'noturar GFA ÷ bandlik zichligi (core/jobs.ts)');
   if (d.population > 0) add('Iqtisod', 'Ish oʻrinlari aholiga nisbati', '', d.jobsRatio, '1,0 dan past — yotoqxona tuman');
-  add('Ijtimoiy', 'Maktab oʻrinlari (parsellar sigʻimi)', 'oʻrin', d.schoolCap, `talab ≥ ${Math.ceil(d.population * 0.165)} (5-ilova)`);
+  // 11.11 (c75): binosiz maktab parseli — 0; izohda «bino / uchastka» sigʻimi
+  const sp = (d.schoolPlots ?? []).filter(p => p.bld), spN = sp.length ? ` · ${sp.map(p => `${p.built} / ${p.plot} oʻrin`).join('; ')}` : '';
+  add('Ijtimoiy', 'Maktab oʻrinlari (binosi bor parsellar)', 'oʻrin', d.schoolCap, `talab ≥ ${Math.ceil(d.population * 0.165)} (5-ilova)${spN}`);
   add('Ijtimoiy', 'MTM oʻrinlari (binosi bor parsellar)', 'oʻrin', d.mtmCap, `talab ≥ ${Math.ceil(d.population * 0.07)} (5-ilova)`);
   add('Yashil', 'Yashil zonalar', 'm²', d.greenArea);
   add('Yashil', 'Yashil zona, kishi boshiga', 'm²/kishi', d.greenPerPerson, '36-jadval: ≥ 3–4');
