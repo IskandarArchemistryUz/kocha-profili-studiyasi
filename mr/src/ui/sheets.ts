@@ -18,13 +18,15 @@ import { sheetLayout, type SheetInner } from '../core/sheet';
 import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetSvc, type SheetOpts, type SheetResult, type Paper, type SheetLayerId } from '../core/sheet';
 import { LABEL_MODES, type LabelMode } from '../core/labels';
 import { h, download, toast, svgIcon, icl, IC, fmt } from './dom';
-import { check, select, stepper, sw } from './controls';
+import { check, dropdown, select, stepper, sw } from './controls';
 import { tr, tf, trSvg } from '../i18n';
 import { logoSvg } from './logo';
 import { gstylePicker } from './gstylepick';
 import { gstyleById, PARCEL_GREY, PARCEL_GREYS, parcelGrey } from '../core/gstyle';
 import { openColor } from './colorpicker';
 import { svgPdf } from './pdf';
+import { AXO_LAYERS, AXO_LAYER_IDS, AXO_MATS, normAxoEdit, axoEditKey, axoEditCount, copyAxoEdit, hitPick, type AxoEdit, type AxoLayerId, type AxoMatId, type AxoPick } from '../core/axoedit';
+import { useDef } from '../core/uses';
 
 export interface SheetsHost {
   doc: Project;
@@ -46,7 +48,10 @@ export interface SheetsHost {
   /** qaysi varaqdan boshlash (V3 ramkasidan) */
   start?: number;
   /** aksonometriya rasmi (sahnadan, tanlangan uslub va koʻrinish bilan): data URL */
-  axo?: (look: NonNullable<SheetOpts['axo']>['look'], view: string | undefined, detail: boolean, ratio: number, labels?: boolean, gstyle?: string) => string;
+  axo?: (look: NonNullable<SheetOpts['axo']>['look'], view: string | undefined, detail: boolean, ratio: number, labels?: boolean, gstyle?: string, edit?: AxoEdit) => string;
+  /** c77: oxirgi akso rasmidagi binolar (rasmda bosib tanlash) va sahnada maʼlumoti bor qatlamlar */
+  axoPicks?: () => AxoPick[];
+  axoLayers?: () => AxoLayerId[];
   /** 06.11: akso uslublari 4–6 legendasi (faqat sahnada bor toifalar) */
   axoLegend?: (look: NonNullable<SheetOpts['axo']>['look']) => { color: number; label: string; hatch?: boolean }[];
   /** saqlangan koʻrinishlar (Kamera) */
@@ -126,7 +131,12 @@ export function openGraphics(host: SheetsHost): void {
   const O = (): SheetOpts => norm(sheets[cur].opts);
   const ha = doc.site ? (() => { const r = doc.site!.rings[0]; let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2 * 111320 * 111132 * Math.cos(r[0][1] * Math.PI / 180) / 1e4; })() : 0;
   const plans = planApartments(doc), houses = houseTypes(doc);
-  const axoCache = new Map<string, string>();
+  const axoCache = new Map<string, { url: string; picks: AxoPick[] }>();
+  /** c77: akso rasmi kaliti (namuna, kamera, soya, yozuvlar, nisbat, shablon va muharrir sozlamasi) */
+  const axoKey = (o: SheetOpts) => { const L = sheetLayout(o); return `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${o.axo?.labels === true}|${(L.vw / L.vh).toFixed(2)}|${o.gstyle ?? ''}|${axoEditKey(normAxoEdit(o.axo?.edit))}`; };
+  /** c77: muharrirda tanlangan bino (faqat panel holati) va sahnadagi qatlamlar */
+  let axSel: string | null = null;
+  const axLayers = new Set<AxoLayerId>(host.axoLayers?.() ?? AXO_LAYER_IDS);
   const innerOf = (o: SheetOpts): SheetInner | undefined => {
     if (o.mode === 'qavat') {
       if (!plans.length) return { label: 'M —', body: (vx, vy, vw, vh) => `<text x="${vx + vw / 2}" y="${vy + vh / 2}" font-size="5" text-anchor="middle" fill="#6b6965">${tr('Turar joy seksiyalari yoʻq')}</text>` };
@@ -145,11 +155,13 @@ export function openGraphics(host: SheetsHost): void {
       return { label: `${T.n} ${tr('uy')}`, name, body: (vx, vy, vw, vh) => `<svg x="${vx}" y="${vy}" width="${vw}" height="${vh}" viewBox="0 0 ${r.widthMm.toFixed(1)} ${r.heightMm.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
     }
     if (o.mode === 'akso') {
-      const L = sheetLayout(o), key = `${o.axo?.look ?? 'oq'}|${o.axo?.view ?? ''}|${o.axo?.shadow !== false}|${o.axo?.labels === true}|${(L.vw / L.vh).toFixed(2)}|${o.gstyle ?? ''}`;
-      let url = axoCache.get(key);
-      if (!url && host.axo) { url = host.axo(o.axo?.look ?? 'oq', o.axo?.view, o.axo?.shadow !== false, L.vw / L.vh, o.axo?.labels === true, o.gstyle); axoCache.set(key, url); }
-      const lg = host.axoLegend?.(o.axo?.look ?? 'oq') ?? [];
-      return { label: 'M —', body: (vx, vy, vw, vh) => (url ? `<image href="${url}" x="${vx}" y="${vy}" width="${vw}" height="${vh}" preserveAspectRatio="xMidYMid meet"/>` : '') + axoLegendSvg(o.axo?.look, lg, vx, vy, vh) };
+      const L = sheetLayout(o), key = axoKey(o), ed = normAxoEdit(o.axo?.edit);
+      let shot = axoCache.get(key);
+      if (!shot && host.axo) { const url = host.axo(o.axo?.look ?? 'oq', o.axo?.view, o.axo?.shadow !== false, L.vw / L.vh, o.axo?.labels === true, o.gstyle, ed); shot = { url, picks: host.axoPicks?.() ?? [] }; axoCache.set(key, shot); }
+      const url = shot?.url;
+      // c77: loyiha binolariga aniq rang berilgan boʻlsa — uslub 4–6 legendasi (sinf ranglari) notoʻgʻri boʻlib qoladi, koʻrsatilmaydi
+      const lg = ed?.col?.loyiha ? [] : host.axoLegend?.(o.axo?.look ?? 'oq') ?? [];
+      return { label: 'M —', body: (vx, vy, vw, vh) => (url ? `<image data-axo-img="1" href="${url}" x="${vx}" y="${vy}" width="${vw}" height="${vh}" preserveAspectRatio="xMidYMid meet"/>` : '') + axoLegendSvg(o.axo?.look, lg, vx, vy, vh) };
     }
     return undefined;
   };
@@ -180,15 +192,23 @@ export function openGraphics(host: SheetsHost): void {
   let last = run(O());
 
   /** 11.11: «Bir xil kulrang» tusi — tayyor namunalar (och → toʻq) va istalgan HEX (ilovaning rang tanlash oynasi; native input yoʻq) */
+  /**
+   * Rang namunalari qatori (11.11 «Kulrang tusi» komponenti, c77 da umumlashtirildi): tayyor namunalar va istalgan HEX —
+   * ilovaning rang tanlash oynasi (native input yoʻq). cur — joriy rang (null — andoza, hech biri tanlanmagan).
+   */
+  const swRow = (a: { id: string; attr: string; hexId: string; title: string; cp?: string; sw: string[]; cur: string | null; put: (c: string) => void; live?: (c: string) => void }): HTMLElement => {
+    const prev = h('i', { style: `background:${a.cur ?? 'transparent'}` });
+    const anyB: HTMLElement = h('button', { class: 'pg-any', id: a.hexId, type: 'button', 'aria-pressed': !!a.cur && !a.sw.includes(a.cur), title: tr('Istalgan rang (HEX)'),
+      onclick: () => openColor(anyB, a.cur ?? a.sw[0], { title: a.cp ?? a.title, swatches: a.sw, onChange: v => { prev.style.background = v; a.live?.(v); }, onDone: v => a.put(v), onCancel: v => { prev.style.background = a.cur ?? 'transparent'; a.live?.(v); } }) }, prev, 'HEX');
+    return h('div', { class: 'pg', id: a.id, role: 'radiogroup', 'aria-label': a.title },
+      ...a.sw.map(c => h('button', { class: 'pg-sw', type: 'button', role: 'radio', [`data-${a.attr}`]: c, 'aria-checked': c === a.cur, 'aria-pressed': c === a.cur, 'aria-label': c, title: c, style: `background:${c}`, onclick: () => a.put(c) })),
+      anyB);
+  };
   const greyPick = (o: SheetOpts): HTMLElement => {
     const cur = parcelGrey(o.parcelGrey), put = (c: string) => set({ parcelGrey: c === PARCEL_GREY ? undefined : c });
-    const prev = h('i', { style: `background:${cur}` }), val = h('code', { id: 'shPGreyV' }, cur);
-    const anyB: HTMLElement = h('button', { class: 'pg-any', id: 'shPGreyHex', type: 'button', 'aria-pressed': !PARCEL_GREYS.includes(cur), title: tr('Istalgan rang (HEX)'),
-      onclick: () => openColor(anyB, cur, { title: tr('Parsellar rangi'), swatches: PARCEL_GREYS, onChange: v => { prev.style.background = v; val.textContent = v; }, onDone: v => put(v), onCancel: v => { prev.style.background = v; val.textContent = v; } }) }, prev, 'HEX');
+    const val = h('code', { id: 'shPGreyV' }, cur);
     return h('div', { class: 'field pg-field' }, h('label', {}, tr('Kulrang tusi')),
-      h('div', { class: 'pg', id: 'shPGrey', role: 'radiogroup', 'aria-label': tr('Kulrang tusi') },
-        ...PARCEL_GREYS.map(c => h('button', { class: 'pg-sw', type: 'button', role: 'radio', 'data-grey': c, 'aria-checked': c === cur, 'aria-pressed': c === cur, 'aria-label': c, title: c, style: `background:${c}`, onclick: () => put(c) })),
-        anyB),
+      swRow({ id: 'shPGrey', attr: 'grey', hexId: 'shPGreyHex', title: tr('Kulrang tusi'), cp: tr('Parsellar rangi'), sw: PARCEL_GREYS, cur, put, live: v => { val.textContent = v; } }),
       h('span', { class: 't-small' }, tr('och → toʻq'), ' · ', val));
   };
   const set = (patch: Partial<SheetOpts>) => { const o = { ...O(), ...patch }; sheets[cur] = { ...sheets[cur], opts: o as unknown as Record<string, unknown> }; persist(); render(); };
@@ -320,15 +340,95 @@ export function openGraphics(host: SheetsHost): void {
       h('button', { class: 'btn btn-primary btn-block', id: 'shAlbum', onclick: pdfAll }, ...icl('<path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/>', tr('Albom — PDF'))));
   }
 
+
+  /* ---------- c77: aksonometriya muharriri («Qatlamlar va ranglar», sukut — yopiq) ---------- */
+  const edOf = (o: SheetOpts): AxoEdit => structuredClone(normAxoEdit(o.axo?.edit) ?? {});
+  const setEd = (f: (e: AxoEdit) => void) => { const o = O(), e = edOf(o); f(e); set({ axo: { ...(o.axo ?? {}), edit: normAxoEdit(e) } }); };
+  const bldName = (i: number) => { const b = doc.buildings[i]; return `№ ${i + 1} · ${tr(useDef(b.use).name)} · ${tf('${n} qavat', { n: (b.z0 ?? 0) + b.floors })}`; };
+  function axoSection(o: SheetOpts): HTMLElement {
+    const e = edOf(o), hid = new Set(e.hide ?? []), n = axoEditCount(e);
+    const layerRow = (L: (typeof AXO_LAYERS)[number]) => {
+      const id = L.id, isO = open === `A:${id}`, c = e.col?.[id] ?? null, tree = id === 'daraxt';
+      const chip = tree && !c ? (e.trees === 'xira' ? tr('xira') : tr('shablon')) : c ?? tr('andoza');
+      const put = (v: string) => setEd(x => { x.col = { ...(x.col ?? {}), [id]: v }; if (tree) delete x.trees; });
+      return h('div', { class: 'sh-lay', 'data-axrow': id },
+        h('div', { class: 'li' },
+          check(h('span', { class: 'k' }, tr(L.name)), { checked: !hid.has(id), 'data-axl': id, onchange: v => setEd(x => { const s2 = new Set(x.hide ?? []); if (v) s2.delete(id); else s2.add(id); x.hide = [...s2]; }) }),
+          h('button', { class: 'ax-chip', type: 'button', 'data-axc': id, 'data-v': c ?? '', 'aria-expanded': isO, title: `${tr('Rang')}: ${chip}`, 'aria-label': `${tr(L.name)} — ${tr('Rang')}: ${chip}`, onclick: () => { open = isO ? 'axo' : `A:${id}`; renderSide(); } },
+            h('i', { class: c ? '' : 'auto', style: c ? `background:${c}` : '' }), svgIcon(isO ? '<path d="M6 15l6-6 6 6"/>' : '<path d="M6 9l6 6 6-6"/>'))),
+        isO ? h('div', { class: 'sh-layin' },
+          tree ? h('div', { class: 'seg sm', id: 'shAxTree', role: 'group', 'aria-label': tr('Daraxtlar') }, ...([['shablon', 'Shablon'], ['xira', 'Xira'], ['rang', 'Rang']] as const).map(([k, t]) =>
+            h('button', { type: 'button', 'data-axtree': k, 'aria-pressed': (c ? 'rang' : e.trees === 'xira' ? 'xira' : 'shablon') === k, onclick: () => setEd(x => {
+              if (x.col) delete x.col.daraxt; delete x.trees;
+              if (k === 'xira') x.trees = 'xira'; if (k === 'rang') x.col = { ...(x.col ?? {}), daraxt: L.sw[3] }; }) }, tr(t)))) : '',
+          swRow({ id: `shAxSw-${id}`, attr: 'axsw', hexId: `shAxHex-${id}`, title: tr(L.name), sw: L.sw, cur: c, put }),
+          h('div', { class: 'row', style: 'gap:6px;align-items:center' },
+            h('span', { class: 't-small', style: 'flex:1' }, c ? h('code', {}, c) : tr(tree ? 'Shablonning yorqin ranglari (varaq uchun)' : 'Namuna va grafika shabloni rangi')),
+            h('button', { class: 'btn btn-sm btn-ghost', type: 'button', 'data-axreset': id, disabled: !c && !(tree && e.trees), onclick: () => setEd(x => { if (x.col) delete x.col[id]; if (tree) delete x.trees; }) }, tr('Andoza')))) : '');
+    };
+    // alohida bino: rasmda bosib yoki roʻyxatdan
+    const bi = axSel ? doc.buildings.findIndex(b => b.id === axSel) : -1, B = bi >= 0 ? e.bld?.[axSel!] ?? {} : null;
+    const setB = (f: (b: NonNullable<AxoEdit['bld']>[string]) => void) => setEd(x => { const bb = { ...(x.bld?.[axSel!] ?? {}) }; f(bb); x.bld = { ...(x.bld ?? {}), [axSel!]: bb }; });
+    const txt = h('input', { class: 'input', type: 'text', id: 'shAxBldTxt', maxlength: 60, value: B?.text ?? '', placeholder: bi >= 0 ? tr(useDef(doc.buildings[bi].use).name) : '', 'aria-label': tr('Tom yozuvi') }) as HTMLInputElement;
+    txt.onchange = () => setB(b => { b.text = txt.value.trim() || undefined; });
+    const nB = Object.keys(e.bld ?? {}).length;
+    return h('div', { class: 'group sh-frows', 'data-sec': 'axo' }, frow('axo', tr('Qatlamlar va ranglar'), n ? tf('${n} oʻzgarish', { n }) : tr('andoza'), () => [
+      h('div', { class: 'glabel' }, h('span', {}, tr('Qatlamlar'))),
+      h('div', { class: 'group flat', id: 'shAxLayers' }, ...AXO_LAYERS.filter(L => axLayers.has(L.id)).map(layerRow)),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Binolar materiali'))),
+      h('div', { class: 'tiles c3 ax-mats', id: 'shAxMat', role: 'group', 'aria-label': tr('Binolar materiali') },
+        h('button', { class: 'tile', type: 'button', 'data-axmat': '', 'aria-pressed': !e.mat, onclick: () => setEd(x => { delete x.mat; }) }, h('b', {}, tr('Namuna'))),
+        ...AXO_MATS.map(m => h('button', { class: 'tile', type: 'button', 'data-axmat': m.id, 'aria-pressed': e.mat === m.id, onclick: () => setEd(x => { x.mat = m.id; }) }, h('i', { class: 'ax-mat', style: `background:#${m.color.toString(16).padStart(6, '0')}${m.opacity < 1 ? ';opacity:.7' : ''}` }), h('b', {}, tr(m.name))))),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Alohida bino')), nB ? h('span', {}, `${nB}`) : ''),
+      dropdown({ id: 'shAxBld', 'aria-label': tr('Alohida bino'), onchange: v => { axSel = v || null; renderSide(); drawSel(); } },
+        [{ value: '', label: tr('— rasmda bosing yoki tanlang —'), selected: !axSel }, ...doc.buildings.map((b, i) => ({ value: b.id, label: bldName(i), selected: b.id === axSel, sub: e.bld?.[b.id] ? tr('oʻzgartirilgan') : undefined })).filter((_, i) => doc.buildings[i].floors > 0)]),
+      ...(B ? [
+        swRow({ id: 'shAxBldSw', attr: 'axbc', hexId: 'shAxBldHex', title: tr('Fasad rangi'), sw: AXO_LAYERS[0].sw, cur: B.col ?? null, put: v => setB(b => { b.col = v; }) }),
+        h('div', { class: 'tiles c3 ax-mats', id: 'shAxBldMat', role: 'group', 'aria-label': tr('Material') },
+          h('button', { class: 'tile', type: 'button', 'data-axbm': '', 'aria-pressed': !B.mat, onclick: () => setB(b => { delete b.mat; }) }, h('b', {}, tr('Umumiy'))),
+          ...AXO_MATS.map(m => h('button', { class: 'tile', type: 'button', 'data-axbm': m.id, 'aria-pressed': B.mat === m.id, onclick: () => setB(b => { b.mat = m.id as AxoMatId; }) }, h('i', { class: 'ax-mat', style: `background:#${m.color.toString(16).padStart(6, '0')}${m.opacity < 1 ? ';opacity:.7' : ''}` }), h('b', {}, tr(m.name))))),
+        h('div', { class: 'field' }, h('label', { for: 'shAxBldTxt' }, tr('Tom yozuvi'), h('span', { class: 'sub' }, ` · ${tr('nom oʻrniga')}`)), txt),
+        h('button', { class: 'btn btn-sm btn-block', id: 'shAxBldClr', type: 'button', disabled: !Object.keys(B).length, onclick: () => setEd(x => { if (x.bld) delete x.bld[axSel!]; }) }, tr('Tozalash'))] :
+        [h('span', { class: 't-small' }, tr('Rasmda binoni bosing — fasad rangi, materiali va tom yozuvi shu binoga beriladi.'))]),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Tom yozuvlari'))),
+      ...([['floors', 'Qavatlar soni', 'shAxRFl'], ['num', 'Bino raqami', 'shAxRNum'], ['name', 'Bino nomi', 'shAxRName']] as const).map(([k, t, id]) =>
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr(t)), sw({ id, label: tr(t), on: e.roof?.[k] === true, onchange: v => setEd(x => { x.roof = { ...(x.roof ?? {}), [k]: v }; }) }))),
+      h('button', { class: 'btn btn-sm btn-block', id: 'shAxAll', type: 'button', onclick: () => { const r = copyAxoEdit(sheets, edOf(O())); sheets = r.sheets; persist(); render(); toast(tf('Sozlama ${n} ta akso varaqqa qoʻllandi', { n: r.n })); } }, tr('Barcha varaqlarga qoʻllash')),
+      h('span', { class: 't-small' }, tr('Faqat koʻrinish — hisob-kitob oʻzgarmaydi. «Andoza» — namuna va grafika shabloni rangi. Funksiya, qavatlilik, kontekst va demontaj namunalarida bino rangi faqat aniq tanlanganda almashadi (material — faqat yuzasi). «Barcha varaqlarga» — butun muharrir sozlamasi (alohida binolar bilan) loyihaning barcha akso varaqlariga koʻchiriladi; namuna va kamera har varaqda oʻziniki.'))]));
+  }
+  /** Tanlangan bino — koʻrinishda koʻk kontur (faqat ekranda; varaq SVG/PDF ga tushmaydi) */
+  function drawSel(): void {
+    view.querySelector('[data-axsel]')?.remove();
+    const o = O(); if (o.mode !== 'akso' || !axSel) return;
+    const img = view.querySelector('image[data-axo-img]') as SVGImageElement | null, p = axoCache.get(axoKey(o))?.picks.find(q => q.id === axSel); if (!img || !p) return;
+    const ix = +img.getAttribute('x')!, iy = +img.getAttribute('y')!, iw = +img.getAttribute('width')!, ih = +img.getAttribute('height')!;
+    const pt = (a: number[], i: number) => `${(ix + a[i] * iw).toFixed(2)},${(iy + a[i + 1] * ih).toFixed(2)}`;
+    const ring = (a: number[]) => `M${a.filter((_, i) => i % 2 === 0).map((_, k) => pt(a, k * 2)).join('L')}Z`;
+    let d = ring(p.top); const n = p.top.length / 2;
+    for (let i = 0; i < n; i++) { const k = (i + 1) % n; d += `M${pt(p.bot, i * 2)}L${pt(p.bot, k * 2)}L${pt(p.top, k * 2)}L${pt(p.top, i * 2)}Z`; }
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    g.setAttribute('d', d); g.setAttribute('data-axsel', '1'); g.setAttribute('fill', '#2a6fb0'); g.setAttribute('fill-opacity', '.16'); g.setAttribute('stroke', '#2a6fb0'); g.setAttribute('stroke-width', '.35'); g.setAttribute('stroke-linejoin', 'round'); g.setAttribute('pointer-events', 'none');
+    img.parentNode!.insertBefore(g, img.nextSibling);
+  }
+  // rasmda binoni bosib tanlash (muharrir ochiq boʻlganda; «Qoʻl» rejimida — yoʻq)
+  view.addEventListener('click', ev => {
+    const o = O(); if (hand || o.mode !== 'akso' || !(open === 'axo' || open?.startsWith('A:'))) return;
+    const img = view.querySelector('image[data-axo-img]') as SVGImageElement | null; if (!img) return;
+    const r = img.getBoundingClientRect(); if (!r.width || !r.height) return;
+    const id = hitPick(axoCache.get(axoKey(o))?.picks ?? [], (ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height);
+    axSel = id; renderSide(); drawSel();
+  });
+
   /* ---------- oʻng: tanlangan varaq sozlamasi (V1) ---------- */
   const frow = (id: string, title: string, val: string, body: () => (Node | string)[]) => {
-    const isOpen = open === id || (id === 'lay' && !!open?.startsWith('L:'));
+    const isOpen = open === id || (id === 'lay' && !!open?.startsWith('L:')) || (id === 'axo' && !!open?.startsWith('A:'));
     return h('div', { class: 'sh-sec', 'data-sec': id },
       h('button', { class: 'li frow', 'aria-expanded': isOpen, 'data-frow': id, onclick: () => { open = isOpen ? null : id; renderSide(); } }, h('span', { class: 'k' }, title), h('span', { class: 'v t-small' }, val), svgIcon(isOpen ? '<path d="M6 15l6-6 6 6"/>' : '<path d="M6 9l6 6 6-6"/>')),
       isOpen ? h('div', { class: 'frowin' }, ...body()) : '');
   };
   function renderSide(): void {
     const o = O(), S = { ...SHEET_DEFAULT.show, ...o.show }, rec = recommendScale(ha, o.kind);
+    view.classList.toggle('axpick', o.mode === 'akso' && (open === 'axo' || !!open?.startsWith('A:')));
     const decos: [keyof SheetOpts['show'], string][] = [['title', 'Sarlavha'], ['scaleBar', 'Masshtab chizgʻichi'], ['north', 'Shimol'], ['legend', 'Shartli belgilar'], ['frame', 'Ramka'], ['grid', 'Koordinata toʻri'], ['stamp', 'Shtamp'], ['plotTable', 'Yer uchastkalari jadvali'], ['situation', 'Vaziyat sxemasi']];
     const nDeco = decos.filter(([k]) => S[k]).length;
     const nLay = SHEET_LAYERS.filter(l => layerOf(o, l.id).on).length;
@@ -380,7 +480,8 @@ export function openGraphics(host: SheetsHost): void {
           h('div', { class: 'field' }, h('label', {}, tr('Kamera')), select({ id: 'shView', 'aria-label': tr('Kamera'), onchange: v => set({ axo: { ...(o.axo ?? {}), view: v || undefined } }) }, [{ value: '', label: tr('Joriy aksonometriya'), selected: !o.axo?.view }, ...(host.views ?? []).map(v => ({ value: v.id, label: v.name, selected: o.axo?.view === v.id }))])),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Fasad derazalari'), h('span', { class: 'sub' }, tr('7-qadamdan'))), sw({ label: tr('Fasad derazalari'), on: o.axo?.shadow !== false, onchange: v => set({ axo: { ...(o.axo ?? {}), shadow: v } }) })),
           h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Yozuvlar'), h('span', { class: 'sub' }, tr('daha nomi va maydoni, UMN, koʻcha nomlari'))), sw({ id: 'shAxoLab', label: tr('Yozuvlar'), on: o.axo?.labels === true, onchange: v => set({ axo: { ...(o.axo ?? {}), labels: v } }) })),
-          h('span', { class: 't-small' }, tr('Kamera — saqlangan koʻrinishlardan; rasm sahnadan olinadi (masshtabsiz).'))] : []),
+          h('span', { class: 't-small' }, tr('Kamera — saqlangan koʻrinishlardan; rasm sahnadan olinadi (masshtabsiz).')),
+          axoSection(o)] : []),
         ...((o.mode ?? 'reja') === 'reja' ? [
         h('div', { class: 'glabel' }, h('span', {}, tr('Namuna')), h('span', {}, `${SHEET_KINDS.length} + ${tr('uslublar')}`)),
         h('div', { class: 'tiles c2 gx-kinds', role: 'radiogroup', 'aria-label': tr('Varaq turi') },
@@ -443,7 +544,7 @@ export function openGraphics(host: SheetsHost): void {
     info.replaceChildren(h('span', {}, `${o.paper === 'fit' ? tr('Moslash') : o.paper} · ${fmt(last.widthMm, 0)} × ${fmt(last.heightMm, 0)} mm · ${o.mode === 'qavat' || o.mode === 'akso' || o.mode === 'uy' ? (innerLabel.get(last) ?? '') : `M 1:${last.scale}`}${host.ctx || o.mode === 'qavat' || o.mode === 'uy' ? '' : ` · ${tr('atrof yuklanmagan')}`}`));
     const n = sheetChecks(last, o, tr).filter(c => !c.ok).length;
     checksBtn.className = `chip ${n ? 'warn' : 'ok'} sh-checks`; checksBtn.replaceChildren(h('i'), n ? tf('${n} ta eslatma', { n }) : tr('Eslatma yoʻq'));
-    renderList(); renderSide(); applyZoom();
+    renderList(); renderSide(); applyZoom(); drawSel();
     const sc = side.querySelector('.sh-scroll'); if (sc) sc.scrollTop = keep;
   }
 

@@ -17,6 +17,7 @@ import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from 
 import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
+import { resolveAxo, type AxoEdit, type AxoPick } from '../core/axoedit';
 import { abroadRules, RULES, spacingBadIds, GREEN_86, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
@@ -4711,7 +4712,9 @@ export class Editor {
    * Chizma aksonometriyasi: uslub — chizmaniki (oq maket, funksiya, fasad, figura-fon, qoralama), sahnaning ish holati
    * (izolyatsiya, tanlov, kesim, kvartira ranglari, insolyatsiya, «Sodda») chizmaga tushmaydi (04.11, egasi); keyin hammasi qaytadi.
    */
-  private axoShot(look: string | undefined, viewId: string | undefined, detail: boolean, ratio: number, labels = false, gs?: string): string {
+  /** c77: oxirgi varaq aksonometriyasi rasmidagi binolar (rasmda bosib tanlash uchun) */
+  private axoPicksLast: AxoPick[] = [];
+  private axoShot(look: string | undefined, viewId: string | undefined, detail: boolean, ratio: number, labels = false, gs?: string, edit?: AxoEdit): string {
     const sc = this.scene, doc = this.store.doc, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic', qavatlilik: 'arctic', kontekst: 'arctic', demontaj: 'arctic' };
     // 06.11 (akso uslublari 4–6): qavatlilik, loyiha va kontekst, saqlanadi/buziladi — oq maket ustida bitta urgʻu
     const paint = look === 'qavatlilik' || look === 'kontekst' || look === 'demontaj' ? look : null;
@@ -4719,9 +4722,11 @@ export class Editor {
       return sc.drawingShot(() => {
         sc.setGStyleOverride(gs ?? null); sc.setStyle(map[look ?? 'oq'] ?? 'arctic'); sc.setPaint(paint); sc.setDetail(look === 'qoralama' || paint ? false : detail);
         const v = doc.views.find(x => x.id === viewId); if (v) sc.setCamera(v); else { if (sc.view !== 'axo') sc.setView('axo'); sc.frameDoc(doc); }
-        return sc.snapshot(ratio);
+        // c77: varaq muharriri (qatlamlar, ranglar, material, tom yozuvlari) — faqat shu rasmda
+        sc.setAxoApply(resolveAxo(edit, look, doc.buildings, u => tr(useDef(u).name), tf));
+        const url = sc.snapshot(ratio); this.axoPicksLast = sc.axoPicks(ratio); return url;
       }, { labels });
-    } finally { sc.setPaint(null); sc.setGStyleOverride(null); sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam); }
+    } finally { sc.setAxoApply(null); sc.setPaint(null); sc.setGStyleOverride(null); sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam); }
   }
   /** Akso varagʻi legendasi — faqat sahnada bor toifalar (uslub 4–6) */
   private axoLegend(look: string | undefined): LegendItem[] {
@@ -4733,8 +4738,9 @@ export class Editor {
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
     openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), gmap: k => this.gmapSheet(k), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
-      axo: (look, viewId, detail, ratio, labels, gs) => this.axoShot(look, viewId, detail, ratio, labels === true, gs),
+      axo: (look, viewId, detail, ratio, labels, gs, edit) => this.axoShot(look, viewId, detail, ratio, labels === true, gs, edit),
       axoLegend: look => this.axoLegend(look),
+      axoPicks: () => this.axoPicksLast, axoLayers: () => this.scene.axoLayers(),
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
       toChizmadon: (svg, name, scale, north) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, north }); },
       dxf: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } });

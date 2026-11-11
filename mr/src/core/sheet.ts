@@ -20,6 +20,7 @@ import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES 
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import { gstyleById, useColorOf, styledTree, parcelGrey, inkOn } from './gstyle';
+import type { AxoEdit } from './axoedit';
 
 export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
@@ -121,7 +122,8 @@ export interface SheetOpts {
   gstyle?: string; parcel?: 'rang' | 'kulrang';
   /** 11.11: «bir xil kulrang» parsellar rangi (#rrggbb; yoʻq — PARCEL_GREY) */
   parcelGrey?: string;
-  axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama' | 'qavatlilik' | 'kontekst' | 'demontaj'; view?: string; shadow?: boolean; /** 04.11: daha, kvartal va koʻcha yozuvlari (sukut — yoʻq) */ labels?: boolean };
+  axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama' | 'qavatlilik' | 'kontekst' | 'demontaj'; view?: string; shadow?: boolean; /** 04.11: daha, kvartal va koʻcha yozuvlari (sukut — yoʻq) */ labels?: boolean;
+    /** c77 (11.11): aksonometriya muharriri — qatlamlar, ranglar, material, alohida binolar, tom yozuvlari (core/axoedit; yoʻq — avvalgidek) */ edit?: AxoEdit };
 }
 /** Tayyor mazmun (qavat rejalari yoki aksonometriya): chizma maydoniga (mm) joylanadi; masshtab yozuvi — label */
 export interface SheetInner { body: (vx: number, vy: number, vw: number, vh: number) => string; label: string; legend?: LegendItem[]; /** varaq nomi (sarlavha va shtampda) */ name?: string; /** oʻng ustunda shartli belgilar ostidagi mazmun (masalan, eksplikatsiya) */ side?: (x: number, y: number, w: number, yMax: number) => string }
