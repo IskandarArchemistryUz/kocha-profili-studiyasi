@@ -12,7 +12,7 @@ import { frame } from '../core/geo';
 import { terrainSampler } from '../context/tiles';
 import { buildContext } from '../scene/context3d';
 import { sunPosition, localToUtcAt } from '../core/sun';
-import { tr } from '../i18n';
+import { tr, tf } from '../i18n';
 import type { Palette } from '../context/mapstyle';
 import { STYLE_PAL, type SceneStyle } from '../scene/styles';
 import { CC } from '../scene/context3d';
@@ -31,9 +31,15 @@ export const AX_LAYERS: { id: AxLayer; name: string; sub: string; color: string 
 export type AxView = 'plan' | 'axo' | 'persp';
 export interface AxPin { at: LngLat; label: string; col: string }
 export interface AxWind { petals: number[]; rose: number[][]; bins: number[]; mean: number }
-export interface AxInput { bundle: ContextBundle; center: LngLat; r: number; pins: AxPin[]; wind: AxWind | null; sat: boolean; dark: boolean; pal: Palette; site: LngLat[] | null; style: AxStyle }
+export interface AxInput { bundle: ContextBundle; center: LngLat; r: number; pins: AxPin[]; wind: AxWind | null; sat: boolean; dark: boolean; pal: Palette; site: LngLat[] | null; style: AxStyle; cols?: AxCols }
 /** 3D uslub: Master rejadagi 5 uslub yoki xarita palitrasi */
-export type AxStyle = SceneStyle | 'palitra';
+export type AxStyle = SceneStyle | 'palitra' | 'tungi';
+/** Foydalanuvchi ranglari (E4a): asosiy obyekt, tahlil 1 (quyosh, shamol), tahlil 2 (radius), atrof binolari. Boʻsh — uslub rangi. */
+export interface AxCols { main?: string; a1?: string; a2?: string; atrof?: string }
+/** «Tungi» uslub: qorongʻi fon, xira atrof, yorqin tahlil */
+const TUNGI = { pal: { relyef: 0x16181b, yashil: 0x1f2b24, suv: 0x17232e, ariqlar: 0x17232e, 'yoʻlaklar': 0x24272c, trotuarlar: 0x24272c, 'yoʻllar': 0x2d3036, chiziqlar: 0x34383e, binolar: 0x2a2e34, tomlar: 0x363b42, daraxtlar: 0x26372b } as Record<string, number>, lerp: 0.85, line: 0x59616c as number | null, bg: 0x101113 };
+const stylePal = (st: Exclude<AxStyle, 'rangli' | 'palitra'>) => st === 'tungi' ? TUNGI : STYLE_PAL[st];
+const hex6 = (c: string | undefined) => c && /^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : undefined;
 /** Shamol yoʻnalishlari (asosiy, ikkinchi, uchinchi): sektor azimuti, ulushi, oʻrtacha tezligi */
 export interface AxFlow { deg: number; share: number; v: number; col: string; moved?: boolean }
 export const FLOW_COLS = ['#2f8a5f', '#3a7bd5', '#e07b39'];
@@ -52,7 +58,17 @@ export function topFlows(w: AxWind): AxFlow[] {
 export const SUN_DAYS: [number, number, string][] = [[3, 21, '21 mart'], [6, 21, '21 iyun'], [12, 21, '21 dekabr']];
 
 const NAME2LAYER: Record<string, AxLayer> = { relyef: 'relyef', yashil: 'yashil', suv: 'yashil', ariqlar: 'yashil', daraxtlar: 'yashil', 'yoʻlaklar': 'kochalar', trotuarlar: 'kochalar', 'yoʻllar': 'kochalar', chiziqlar: 'kochalar', 'temir yoʻl': 'kochalar', binolar: 'binolar', tomlar: 'binolar' };
-const SUN_COL = 0xe8a317, WIND_COL = 0x3f8f6b, RING_COL = 0xc0643a;
+const SUN0 = 0xe8a317, WIND0 = 0x3f8f6b, RING0 = 0xc0643a, SITE0 = 0xd2492f, SITE0S = 0xe0462a;
+let SUN_COL = SUN0, WIND_COL = WIND0, RING_COL = RING0, SITE_COL = SITE0, SITE_COLS = SITE0S;
+/** Joriy (foydalanuvchi yoki uslub) tahlil ranglari — SVG eksporti shu bilan bir xil boʻladi */
+export function axCols(): { sun: string; wind: string; ring: string; site: string } { const x = (c: number) => '#' + c.toString(16).padStart(6, '0'); return { sun: x(SUN_COL), wind: x(WIND_COL), ring: x(RING_COL), site: x(SITE_COL) }; }
+function applyCols(c: AxCols | undefined): void {
+  const n = (v: string | undefined, d: number) => { const h = hex6(v); return h ? parseInt(h.slice(1), 16) : d; };
+  SUN_COL = n(c?.a1, SUN0); WIND_COL = n(c?.a1, WIND0); RING_COL = n(c?.a2, RING0); SITE_COL = n(c?.main, SITE0); SITE_COLS = n(c?.main, SITE0S);
+}
+
+/** Masofa halqasi yozuvi: 400 m karrali halqalarda va asosiy radiusda piyoda daqiqasi (80 m/daq ≈ 5 km/soat) */
+export function ringLabel(r: number, main = false): string { const m = Math.round(r / 80); return (main || r % 400 === 0) && m >= 1 ? tf('${r} m · ${m} daq', { r, m }) : `${r} m`; }
 
 interface XYL { x: number; y: number; l: string }
 interface Lbl { el: HTMLElement; p: THREE.Vector3; layer: AxLayer; kind: 'pin' | 'hour' | 'side' | 'pinD' }
@@ -166,6 +182,7 @@ export class Axo {
 
   /* ---------------- sahnani qurish ---------------- */
   setData(inp: AxInput): void {
+    applyCols(inp.cols);
     this.inp = inp; this.R = inp.r;
     for (const g of this.groups.values()) { g.traverse(o => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); }); g.clear(); }
     this.labels.forEach(l => l.el.remove()); this.labels = []; this.pinObjs = [];
@@ -191,6 +208,7 @@ export class Axo {
     if (inp.style === 'palitra') this.paint(inp.pal, inp.sat, ground); else this.paintStyle(inp.style);
     this.groups.get('binolar')!.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
     this.cityTone(inp.dark);
+    this.atrofTone(inp.cols?.atrof);
     // eng past relyef nuqtasi — plastinkalar shu sathda
     let hmin = Infinity; for (let i = -20; i <= 20; i++) for (let j = -20; j <= 20; j++) { const x = i / 20 * clipR, y = j / 20 * clipR; if (x * x + y * y <= clipR * clipR) hmin = Math.min(hmin, H(x, y)); }
     this.slabTop = Number.isFinite(hmin) ? hmin - 0.3 : -0.3;
@@ -214,13 +232,13 @@ export class Axo {
     const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
     if (inp.style === 'palitra') return inp.pal;
     if (inp.style === 'rangli') return { n: 'Shahar ranglari', bg: hex(CC.ground), water: hex(CC.water), park: hex(CC.green), road: hex(CC.asphalt), rc: hex(CC.sidewalk), bld: hex(CC.bld), bl: hex(CC.bldEdge), bw: .5, rail: hex(CC.rail), label: '#3a3936' };
-    const S = STYLE_PAL[inp.style].pal, line = STYLE_PAL[inp.style].line;
+    const S = stylePal(inp.style).pal, line = stylePal(inp.style).line;
     return { n: inp.style, bg: hex(S.relyef), water: hex(S.suv), park: hex(S.yashil), road: hex(S['yoʻllar']), rc: hex(S.trotuarlar), bld: hex(S.binolar), bl: hex(line ?? 0x9a958c), bw: .5, rail: '#c9c4bb', label: '#5d5a54' };
   }
   /** Master reja uslubi: kontekst qismlari nomi boʻyicha (rangli — asl OSM ranglari) */
-  private paintStyle(st: SceneStyle): void {
+  private paintStyle(st: Exclude<AxStyle, 'palitra'>): void {
     if (st === 'rangli') return;
-    const S = STYLE_PAL[st], W = new THREE.Color(0xffffff);
+    const S = stylePal(st), W = new THREE.Color(st === 'tungi' ? TUNGI.bg : 0xffffff);
     for (const g of this.groups.values()) g.traverse(o => {
       const m = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined; if (!m?.color || o.parent?.userData.slab || o.userData.slab) return;
       const isLine = o instanceof THREE.LineSegments, pal = S.pal[o.name];
@@ -288,7 +306,7 @@ export class Axo {
     for (const r of radii) {
       const main = r === R;
       g.add(dashRing(r, main ? Math.max(1.4, R * 0.004) : Math.max(0.8, R * 0.0022), main ? 26 : 14, main ? 0.55 : 0.5, main ? RING_COL : (dark ? 0x8a877f : 0x6b6965), H));
-      const lab = this.textPlane(`${r} m`, Math.max(14, R * 0.06), main ? '#c0643a' : ink);
+      const lab = this.textPlane(ringLabel(r, main), Math.max(14, R * 0.06), main ? axCols().ring : ink);
       const a = -0.75 * Math.PI; lab.position.set(Math.cos(a) * r, H(Math.cos(a) * r, Math.sin(a) * r) + 14, -Math.sin(a) * r);
       lab.rotation.z = a + Math.PI / 2; g.add(lab);
     }
@@ -449,6 +467,15 @@ export class Axo {
   /** Yoyilganda koʻrinadimi: quyosh va shamol diagrammasi faqat yigʻilgan koʻrinishda */
   eff(id: AxLayer): boolean { return this.vis[id] && !(this.exploded && (id === 'shamol' || id === 'quyosh')); }
 
+  /** Atrof binolari foydalanuvchi rangida (uchastka va model emas) */
+  private atrofTone(c: string | undefined): void {
+    const h = hex6(c); if (!h) return;
+    this.groups.get('binolar')!.traverse(o => {
+      if (o.userData.slab || o.parent?.userData.slab || o.userData.site || o.parent?.userData.site) return;
+      const m = (o as THREE.Mesh).material as THREE.MeshLambertMaterial | undefined; if (!m?.color || (o as THREE.LineSegments).isLineSegments) return;
+      if (o.name === 'binolar' || o.name === 'tomlar' || o.parent?.name === 'binolar') m.color.set(h);
+    });
+  }
   /** Tahlil fonida shahar: oq maket / shisha / kontur — tahlil qatlamlari koʻrinib tursin */
   private cityTone(dark: boolean): void {
     const L = this.cityLook; if (L === 'odatiy') return;
@@ -479,12 +506,12 @@ export class Axo {
       const g = new THREE.Group(); g.name = 'uchastka'; g.userData.site = true;
       const y0 = (x: number, y: number) => (id === 'xizmat' ? this.slabTop + 0.5 : Math.max(H(x, y), this.slabTop) + 1.2);
       const pts = [...loc, loc[0]].map(([x, y]) => new THREE.Vector3(x, y0(x, y), -y));
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0xd2492f, dashSize: this.R * 0.012, gapSize: this.R * 0.008 }));
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: SITE_COL, dashSize: this.R * 0.012, gapSize: this.R * 0.008 }));
       line.computeLineDistances(); line.renderOrder = 45; g.add(line);
       try {
         const shp = new THREE.Shape(loc.map(([x, y]) => new THREE.Vector2(x, y)));
         const fg = new THREE.ShapeGeometry(shp); fg.rotateX(-Math.PI / 2); fg.translate(0, Math.max(this.slabTop, H(loc[0][0], loc[0][1])) + 1, 0);
-        const fill = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: 0xd2492f, transparent: true, opacity: id === 'binolar' ? 0.12 : 0.18, depthWrite: false, side: THREE.DoubleSide })); fill.renderOrder = 44; g.add(fill);
+        const fill = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: SITE_COL, transparent: true, opacity: id === 'binolar' ? 0.12 : 0.18, depthWrite: false, side: THREE.DoubleSide })); fill.renderOrder = 44; g.add(fill);
       } catch { /* notoʻgʻri koʻpburchak */ }
       if (this.siteLook !== 'punktir' && id === 'binolar') this.siteStrong(g, loc, H);
       this.groups.get(id)!.add(g);
@@ -492,7 +519,7 @@ export class Axo {
   }
   /** Uchastkani kuchli ajratish: qalin kontur (quvur) + uslubga koʻra toʻldirish / devor / shtrix */
   private siteStrong(g: THREE.Group, loc: [number, number][], H: (x: number, y: number) => number): void {
-    const C = 0xe0462a, base = Math.max(this.slabTop, Math.min(...loc.map(([x, y]) => H(x, y)))) + 1.4, L = this.siteLook;
+    const C = SITE_COLS, base = Math.max(this.slabTop, Math.min(...loc.map(([x, y]) => H(x, y)))) + 1.4, L = this.siteLook;
     g.children.forEach(c => { c.visible = false; });
     const ring = [...loc, loc[0]].map(([x, y]) => new THREE.Vector3(x, base, -y));
     const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ring, false, 'catmullrom', 0), ring.length * 8, this.R * 0.004, 6, false), new THREE.MeshBasicMaterial({ color: C })); tube.renderOrder = 48; g.add(tube);
@@ -507,7 +534,7 @@ export class Axo {
       const fg = new THREE.ShapeGeometry(shp); fg.rotateX(-Math.PI / 2); fg.translate(0, base - 0.2, 0); const f = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: C, transparent: true, opacity: 0.22, depthWrite: false })); f.renderOrder = 46; g.add(f);
     }
     if (L === 'shtrix') {
-      const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d')!; x.strokeStyle = '#e0462a'; x.lineWidth = 6; for (let i = -64; i < 128; i += 16) { x.beginPath(); x.moveTo(i, 64); x.lineTo(i + 64, 0); x.stroke(); }
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d')!; x.strokeStyle = '#' + SITE_COLS.toString(16).padStart(6, '0'); x.lineWidth = 6; for (let i = -64; i < 128; i += 16) { x.beginPath(); x.moveTo(i, 64); x.lineTo(i + 64, 0); x.stroke(); }
       const tx = new THREE.CanvasTexture(cv); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(0.12, 0.12);
       const fg = new THREE.ShapeGeometry(shp); fg.rotateX(-Math.PI / 2); fg.translate(0, base - 0.2, 0); const f = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ map: tx, transparent: true, opacity: 0.95, depthWrite: false })); f.renderOrder = 46; g.add(f);
     }

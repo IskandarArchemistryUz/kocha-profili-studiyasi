@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { frame } from '../core/geo';
 import { sunPosition, localToUtcAt } from '../core/sun';
 import { tr } from '../i18n';
-import { AX_LAYERS, SUN_DAYS, type Axo, type AxLayer } from './axo';
+import { AX_LAYERS, SUN_DAYS, axCols, ringLabel, type Axo, type AxLayer } from './axo';
 
 type P2 = [number, number];
 const f1 = (v: number) => v.toFixed(1);
@@ -16,6 +16,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;
 
 export function axoSvg(a: Axo, layered: boolean): string {
   const st = a.exportState(), inp = st.inp; if (!inp) throw new Error(tr('Sahna hali tayyor emas'));
+  const AC = axCols();
   const { cam, w, h, groups, R, clipR, slabTop, H } = st, P = a.P, fr = frame(inp.center);
   const off = (id: AxLayer) => groups.get(id)!.position.y;
   const v3 = new THREE.Vector3();
@@ -49,8 +50,8 @@ export function axoSvg(a: Axo, layered: boolean): string {
     for (const r of radii) {
       const pts: P2[] = []; for (let i = 0; i <= 120; i++) { const t = i / 120 * Math.PI * 2, x = Math.cos(t) * r, y = Math.sin(t) * r; pts.push(pr(x, y, Math.max(H(x, y), top('relyef')) + 0.7, 'relyef')); }
       const main = r === R, [lx, ly] = pr(Math.cos(-0.75 * Math.PI) * r, Math.sin(-0.75 * Math.PI) * r, top('relyef') + 1, 'relyef');
-      out.relyef.push(`<path d="${line(pts)}" fill="none" stroke="${main ? '#c0643a' : '#6b6965'}" stroke-width="${main ? 1.6 : 0.9}" stroke-dasharray="${main ? '7 4' : '4 5'}"/>`,
-        `<text x="${f1(lx)}" y="${f1(ly)}" font-size="11" font-weight="600" fill="${main ? '#c0643a' : '#3a3936'}" stroke="#fff" stroke-width="3" paint-order="stroke" text-anchor="middle">${r} m</text>`);
+      out.relyef.push(`<path d="${line(pts)}" fill="none" stroke="${main ? AC.ring : '#6b6965'}" stroke-width="${main ? 1.6 : 0.9}" stroke-dasharray="${main ? '7 4' : '4 5'}"/>`,
+        `<text x="${f1(lx)}" y="${f1(ly)}" font-size="11" font-weight="600" fill="${main ? AC.ring : '#3a3936'}" stroke="#fff" stroke-width="3" paint-order="stroke" text-anchor="middle">${esc(ringLabel(r, main))}</text>`);
     }
     const RC = R * 1.08, cp: P2[] = []; for (let i = 0; i <= 120; i++) { const t = i / 120 * Math.PI * 2; cp.push(pr(Math.cos(t) * RC, Math.sin(t) * RC, top('relyef') + 0.8, 'relyef')); }
     out.relyef.push(`<path d="${line(cp)}" fill="none" stroke="#3a3936" stroke-width=".8"/>`);
@@ -128,7 +129,7 @@ export function axoSvg(a: Axo, layered: boolean): string {
     if (!vis(id)) continue;
     const pts = site.map(([x, y]) => pr(x, y, (a.exploded ? top(id) : H(x, y)) + 1.2, id));
     // 02.11 (egasi): yer chizigʻi binolar ostida — qatlam boshiga (binolar uni toʻsadi)
-    out[id].unshift(`<path d="${poly(pts)}" fill="#d2492f" fill-opacity=".14" stroke="#d2492f" stroke-width="1.4" stroke-dasharray="6 4"/>`);
+    out[id].unshift(`<path d="${poly(pts)}" fill="${AC.site}" fill-opacity=".14" stroke="${AC.site}" stroke-width="1.4" stroke-dasharray="6 4"/>`);
   }
 
   /* --- belgilar --- */
@@ -142,7 +143,7 @@ export function axoSvg(a: Axo, layered: boolean): string {
   if (vis('shamol') && inp.wind) {
     const pet = inp.wind.petals, mx = Math.max(...pet, 1e-6), r0 = R * 0.04, rM = R * 0.3, d: string[] = [];
     pet.forEach((v, i) => { const r = r0 + v / mx * (rM - r0), pts: P2[] = []; for (let k = 0; k <= 6; k++) { const an = (i * 22.5 - 9 + 3 * k) * Math.PI / 180; pts.push(pr(Math.sin(an) * r, Math.cos(an) * r, 1.2, 'shamol')); } for (let k = 6; k >= 0; k--) { const an = (i * 22.5 - 9 + 3 * k) * Math.PI / 180; pts.push(pr(Math.sin(an) * r0, Math.cos(an) * r0, 1.2, 'shamol')); } d.push(poly(pts)); });
-    out.shamol.push(`<path d="${d.join('')}" fill="#3f8f6b" fill-opacity=".32"/>`);
+    out.shamol.push(`<path d="${d.join('')}" fill="${AC.wind}" fill-opacity=".32"/>`);
     const smax = Math.max(...st.flows.map(f => f.share), 1e-6);
     st.flows.forEach((f, rank) => {
       const n = 4 - rank, width = R * (0.012 + 0.016 * f.share / smax), an = f.deg * Math.PI / 180, dir: P2 = [-Math.sin(an), -Math.cos(an)], sd: P2 = [-dir[1], dir[0]], h0 = R * (0.07 + 0.02 * rank);
@@ -163,11 +164,11 @@ export function axoSvg(a: Axo, layered: boolean): string {
     SUN_DAYS.forEach(([mo, dd], k) => {
       const pts: [number, number, number][] = []; for (let t = 4; t <= 21; t += 0.25) { const s = sunPosition(localToUtcAt(2026, mo, dd, t, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); if (s.alt > 0) pts.push(sv(s.alt, s.az)); }
       if (pts.length < 2) return; const sel = k === a.day, sp = pts.map(p => pr(p[0], p[1], p[2], 'quyosh'));
-      if (sel) { const c0 = pr(0, 0, 0, 'quyosh'); out.quyosh.push(`<path d="M${f1(c0[0])} ${f1(c0[1])}L${sp.map(p => `${f1(p[0])} ${f1(p[1])}`).join('L')}Z" fill="#e8a317" fill-opacity=".18"/>`); }
-      out.quyosh.push(`<path d="${line(sp)}" fill="none" stroke="#e8a317" stroke-width="${sel ? 1.6 : 1}" stroke-dasharray="5 4" stroke-opacity="${sel ? 1 : 0.5}"/>`);
-      for (let t = 5; t <= 20; t++) { const s = sunPosition(localToUtcAt(2026, mo, dd, t, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); if (s.alt <= 0) continue; const [x, y] = pr(...sv(s.alt, s.az), 'quyosh'); out.quyosh.push(`<circle cx="${f1(x)}" cy="${f1(y)}" r="${sel ? 3 : 2}" fill="#e8a317" fill-opacity="${sel ? 1 : 0.5}"/>${sel ? `<text x="${f1(x)}" y="${f1(y - 7)}" font-size="10" font-weight="700" fill="#b07a10" text-anchor="middle">${t}</text>` : ''}`); }
+      if (sel) { const c0 = pr(0, 0, 0, 'quyosh'); out.quyosh.push(`<path d="M${f1(c0[0])} ${f1(c0[1])}L${sp.map(p => `${f1(p[0])} ${f1(p[1])}`).join('L')}Z" fill="${AC.sun}" fill-opacity=".18"/>`); }
+      out.quyosh.push(`<path d="${line(sp)}" fill="none" stroke="${AC.sun}" stroke-width="${sel ? 1.6 : 1}" stroke-dasharray="5 4" stroke-opacity="${sel ? 1 : 0.5}"/>`);
+      for (let t = 5; t <= 20; t++) { const s = sunPosition(localToUtcAt(2026, mo, dd, t, inp.center[1], inp.center[0]), inp.center[1], inp.center[0]); if (s.alt <= 0) continue; const [x, y] = pr(...sv(s.alt, s.az), 'quyosh'); out.quyosh.push(`<circle cx="${f1(x)}" cy="${f1(y)}" r="${sel ? 3 : 2}" fill="${AC.sun}" fill-opacity="${sel ? 1 : 0.5}"/>${sel ? `<text x="${f1(x)}" y="${f1(y - 7)}" font-size="10" font-weight="700" fill="#b07a10" text-anchor="middle">${t}</text>` : ''}`); }
     });
-    const si = a.sunInfo(); if (si && si.alt > 0) { const [x, y] = pr(...sv(si.alt, si.az), 'quyosh'), c0 = pr(0, 0, 0, 'quyosh'); out.quyosh.push(`<path d="M${f1(x)} ${f1(y)}L${f1(c0[0])} ${f1(c0[1])}" stroke="#e8a317" stroke-dasharray="5 4"/><circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="#e0532c"/>`); }
+    const si = a.sunInfo(); if (si && si.alt > 0) { const [x, y] = pr(...sv(si.alt, si.az), 'quyosh'), c0 = pr(0, 0, 0, 'quyosh'); out.quyosh.push(`<path d="M${f1(x)} ${f1(y)}L${f1(c0[0])} ${f1(c0[1])}" stroke="${AC.sun}" stroke-dasharray="5 4"/><circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="#e0532c"/>`); }
   }
 
   /* --- yigʻish --- */

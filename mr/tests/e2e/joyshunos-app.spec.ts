@@ -142,8 +142,8 @@ test('aksonometriya: sahna, izohlar, vaqt, portlatish, qatlam tartibi, PNG', asy
   await expect(page.locator('.joy-notes')).toContainText('21 dekabr');
   // shamol: 3 yoʻnalish izohda (animatsiyali strelkalar)
   await expect(page.locator('.joy-notes')).toContainText('Shamol 1:');
-  // 3D uslub: Master rejadagi 5 uslub + xarita palitrasi
-  await expect(page.locator('.joy-sty button')).toHaveCount(6);
+  // 3D uslub: Master rejadagi 5 uslub + «Tungi» (E4a) + xarita palitrasi
+  await expect(page.locator('.joy-sty button')).toHaveCount(7);
   await page.locator('.joy-sty [data-sty=rangli]').click();
   await expect(page.locator('.joy-sty [data-sty=rangli]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('.joy-sty [data-sty=palitra]').click();
