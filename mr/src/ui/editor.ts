@@ -18,6 +18,7 @@ import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
 import { resolveAxo, type AxoEdit, type AxoPick } from '../core/axoedit';
+import type { NormSet } from '../norms/sets';
 import { abroadRules, RULES, spacingBadIds, GREEN_86, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
@@ -2178,6 +2179,8 @@ export class Editor {
   }
 
   /* ---------- 5-bosqich: hisobot va TEP ---------- */
+  /** 11.11: loyiha joyining meʼyorlar toʻplami (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
+  private normSet(): NormSet { const o = this.store.doc.origin; return placeOf(o[0], o[1]).norms; }
   private allRules(): Result[] { const o = this.store.doc.origin; return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], placeOf(o[0], o[1]).norms); }
   /**
    * 01.11 (egasi): atrofdagi (OSM) turar joy binolarigacha masofa — ShNQ 2.07.01-23, 79-band, 2-jadval (3 va undan yuqori qavatli)
@@ -2463,7 +2466,7 @@ export class Editor {
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), avoidG = this.genObstacles(b.parcelId ?? lab.id, b.rings[0]);
-    const run = (gx: GenParams, edgeH?: (number | null)[]) => { const a = this.autoSb(i, gx, edgeH), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc) }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
+    const run = (gx: GenParams, edgeH?: (number | null)[]) => { const a = this.autoSb(i, gx, edgeH), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc), norms: this.normSet() }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
     let { asb, r } = run(g);
     // 05.11 (egasi): 2-oʻtish — chekinish har qirrada shu qirraga qaragan seksiyalarning haqiqiy balandligidan (79-band 1-izoh: loyihalashtirilgan
     // binoning balandligi); janub qirrasi pastroq → chekinish kichik → hovli kengroq. Yaqinlashguncha (farq ≤ 0,3 m) koʻpi bilan 3 oʻtish
@@ -2556,7 +2559,7 @@ export class Editor {
     const e = this.edgeInfo(i, g); if (!e) return null;
     return insetVar(e.ring, e.kinds.map(k => (k === 'kocha' ? g.ugStreet ?? UG_STREET : g.ugSide ?? UG_SIDE)));
   }
-  private autoSb(i: number, g: GenParams, edgeH?: (number | null)[]): { ring: XY[] | null; d: number[]; kinds: EdgeKind[]; H: number; dMin: number; dMax: number; hw?: AutoSetback; andoza?: boolean; /** 05.11: har qirra balandligi (2-oʻtish) */ hs?: number[] } | null {
+  private autoSb(i: number, g: GenParams, edgeH?: (number | null)[]): { ring: XY[] | null; d: number[]; kinds: EdgeKind[]; H: number; dMin: number; dMax: number; hw?: AutoSetback; andoza?: boolean; /** 11.11: xalqaro toʻplam (norms/sets) */ intl?: boolean; /** 05.11: har qirra balandligi (2-oʻtish) */ hs?: number[] } | null {
     if (!g.setbackAuto || LOW_T.includes(g.typology)) return null;
     const b = this.plan().blocks[i], e = this.edgeInfo(i, g); if (!b || !e) return null;
     const doc = this.store.doc, { ring, streets, kinds } = e;
@@ -2568,13 +2571,18 @@ export class Editor {
     // Ofis, savdo, maʼmuriy va boshqa noturar — 2-jadval chekinishi yoʻq: qoʻlda berilgan chekinish (ANDOZA)
     if (!sb79Applies(b.use, F)) { const d = ring.map(() => g.setback); return { ring: insetVar(ring, d), d, kinds, H, dMin: g.setback, dMax: g.setback, andoza: true }; }
     const hwOn = (g.hw ?? SB_HW) > 0, hw = hwOn ? autoSetback(H, blockStreetWidth(ring, streets), (g.nonRes ?? 0) > 0, g.hw) : undefined;
-    const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], n = boundaryNeed(kinds[k], Hk(k), true, azOf([q[0] - p[0], q[1] - p[1]])); return Math.round(Math.max(n, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
-    return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), hw, ...(edgeH ? { hs: ring.map((_, k) => Hk(k)) } : {}) };
+    // 11.11: xalqaro toʻplam — koʻcha tomoni qoʻlda berilgan chekinish (mahalliy zonalash sharti), qoʻshni tomoni ADG 3F-1
+    const set = this.normSet(), intl = set === 'intl';
+    const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], n = boundaryNeed(kinds[k], Hk(k), true, azOf([q[0] - p[0], q[1] - p[1]]), set); return Math.round(Math.max(n, intl && kinds[k] === 'kocha' ? g.setback : 0, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
+    return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), hw, ...(edgeH ? { hs: ring.map((_, k) => Hk(k)) } : {}), ...(intl ? { intl: true } : {}) };
   }
   private autoSbNote(a: NonNullable<ReturnType<Editor['autoSb']>>): string {
     const ks = a.kinds.map((k, i) => ({ k, d: a.d[i] })), kc = ks.filter(x => x.k === 'kocha'), qs = ks.filter(x => x.k === 'qoshni');
     const rng = (xs: { d: number }[]) => { const lo = Math.min(...xs.map(x => x.d)), hi = Math.max(...xs.map(x => x.d)); return lo === hi ? fmt(lo, lo % 1 ? 1 : 0) : `${fmt(lo, lo % 1 ? 1 : 0)}–${fmt(hi, hi % 1 ? 1 : 0)}`; };
     if (a.andoza) return tf('Chekinish ${d} m — ANDOZA; 2-jadval qoʻllanmaydi (79-band: 3+ qavatli turar joy va yotoq oʻrinli binolar)', { d: fmt(a.dMin, a.dMin % 1 ? 1 : 0) });
+    if (a.intl) return [tf('Chekinish (xalqaro andoza): H = ${h} m', { h: fmt(a.H, 1) }),
+      ...(kc.length ? [tf('koʻcha tomoni ${d} m (qoʻlda — mahalliy zonalash sharti)', { d: rng(kc) })] : []),
+      ...(qs.length ? [tf('qoʻshni tomoni ${d} m (ADG 3F-1: binolar orasining yarmi)', { d: rng(qs) })] : [])].join(' · ');
     const hsR = a.hs ? (() => { const lo = Math.min(...a.hs), hi = Math.max(...a.hs); return lo === hi ? fmt(lo, 1) : `${fmt(lo, 1)}–${fmt(hi, 1)}`; })() : null;
     return [hsR && hsR !== fmt(a.H, 1) ? tf('Chekinish (79-band, 2-jadval): H qirralar boʻyicha ${h} m (shu qirradagi seksiyalar)', { h: hsR }) : tf('Chekinish (79-band, 2-jadval): H = ${h} m', { h: fmt(a.H, 1) }),
       ...(kc.length ? [tf('koʻcha tomoni ${d} m (H × 0,25)', { d: rng(kc) })] : []),
@@ -4886,7 +4894,7 @@ export class Editor {
     const slash = (u?: string) => !!u && u.startsWith('/');
     const o = this.store.doc.origin, abroad = placeOf(o[0], o[1]).norms !== 'UZ';
     return h('div', { class: 'regw' },
-      abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr('Loyiha Oʻzbekistondan tashqarida: Oʻzbekiston meʼyorlari andoza sifatida koʻrsatiladi — «mos emas» oʻrniga «koʻrib chiqish». Mahalliy meʼyorlar profili hali ulanmagan.')) : '',
+      abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr('Loyiha Oʻzbekistondan tashqarida — xalqaro toʻplam: yongʻin, xavfsizlik va zichlik meʼyorlari tavsiya («koʻrib chiqish»), Oʻzbekiston mintaqaviy meʼyorlari (maktab va MTM oʻrinlari, insolyatsiya oraliqlari, maydonchalar) oʻchiq. Binolar orasi — ADG 3F-1 andozasi.')) : '',
       // 04.11 (egasi: interfeysni soddalashtirish, A): hisob shartlari — «Qoʻshimcha» ichida, ekranda — joriy qiymatlar qisqa satrda; jadval darhol koʻrinadi
       (() => { const S0 = this.store.doc.settings, n = 4 + (this.fireLowRow() ? 1 : 0);
         const d = h('details', { class: 'gen-more', id: 'regSet', open: this.openDet.has('regSet') }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n })),
