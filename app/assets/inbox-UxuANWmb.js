@@ -1,1 +1,0 @@
-export{l as sendToRender}from"./inbox-CoXa_E_c.js";
