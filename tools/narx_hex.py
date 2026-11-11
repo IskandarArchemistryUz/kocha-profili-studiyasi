@@ -103,11 +103,21 @@ def main():
     ap.add_argument('--json', default='data/narx/toshkent_hex.json')
     a = ap.parse_args()
     cats = {}
+    shahar = {}
     for cat, c in parse(a.src).items():
-        ok, *_ = clean(c['rows'])
+        ok, *_ = clean(c['rows'], cat)
         cats[cat] = [(xy(r['lat'], r['lng']), r['v']) for r in ok]
-    cats['hammasi'] = [v for k in list(cats) for v in cats[k]]
-    allpts = [p for p, _ in cats['hammasi']]
+        # shahar boʻyicha: umumiy + yangi / ikkilamchi
+        for scat, sub in [(cat, ok)] + ([] if cat.startswith('ijara') else
+                                        [(f'{cat}_yangi', [r for r in ok if r['nb'] == 'true']),
+                                         (f'{cat}_ikkilamchi', [r for r in ok if r['nb'] == 'false'])]):
+            vals = [r['v'] for r in sub]
+            if vals and (scat == cat or any(r['nb'] for r in ok)):
+                dp = 1 if cat.startswith('ijara') else None
+                shahar[scat] = [len(vals), round(st.median(vals), dp), round(q(vals, .25), dp), round(q(vals, .75), dp)]
+    # «hammasi» — faqat sotuv (ijara $/m²/oy — boshqa birlik)
+    cats['hammasi'] = [v for k in list(cats) if not k.startswith('ijara') for v in cats[k]]
+    allpts = [p for p, _ in cats['hammasi']] or [p for k in cats for p, _ in cats[k]]
     H = hull(allpts)
     rows, feats = [], []
     kat = {}
@@ -132,7 +142,8 @@ def main():
                 pr = {'kat': cat, 'olcham_m': w, 'katak': f'{qh}_{rh}'}
                 if len(v) >= a.min:
                     shown += 1
-                    m, p25, p75 = round(st.median(v)), round(q(v, .25)), round(q(v, .75))
+                    dp = 1 if cat.startswith('ijara') else None
+                    m, p25, p75 = round(st.median(v), dp), round(q(v, .25), dp), round(q(v, .75), dp)
                     pr.update(n=len(v), median=m, p25=p25, p75=p75)
                     rows.append([a.sana, 'uybor.uz', cat, w, f'{qh}_{rh}', lat, lng, len(v), m, p25, p75])
                     compact.append([qh, rh, len(v), m, p25, p75])
@@ -150,17 +161,12 @@ def main():
     with open(a.csv, 'w', encoding='utf-8', newline='') as fh:
         wr = csv.writer(fh); wr.writerow(HEAD); wr.writerows(keep + rows)
     gj = {'type': 'FeatureCollection',
-          'meta': {'sana': a.sana, 'manba': 'uybor.uz (soʻralgan narx, bitim narxi emas)', 'birlik': 'USD/m²', 'min_eʼlon': a.min,
+          'meta': {'sana': a.sana, 'manba': 'uybor.uz (soʻralgan narx, bitim narxi emas)', 'birlik': 'USD/m² (ijara_* — USD/m² oyiga)', 'min_eʼlon': a.min,
                    'olchamlar_m': a.olcham, 'izoh': 'olcham_m — olti burchakning qarama-qarshi tomonlari orasidagi masofa'},
           'features': feats}
     with open(a.geojson, 'w', encoding='utf-8') as fh:
         json.dump(gj, fh, ensure_ascii=False, separators=(',', ':'))
-    shahar = {}
-    for cat in ('kvartira', 'hovli'):
-        vals = [v for _, v in cats.get(cat, [])]
-        if vals:
-            shahar[cat] = [len(vals), round(st.median(vals)), round(q(vals, .25)), round(q(vals, .75))]
-    cj = {'v': 1, 'sana': a.sana, 'manba': 'uybor.uz', 'birlik': 'USD/m²', 'min': a.min,
+    cj = {'v': 1, 'sana': a.sana, 'manba': 'uybor.uz', 'birlik': 'USD/m² (ijara_* — USD/m² oyiga)', 'min': a.min,
           'toʻr': {'lat0': LAT0, 'lng0': LNG0, 'm_lat': M_LAT, 'm_lng_lat': 41.3,
                    'tur': 'pointy-top axial (q, r); olcham — qarama-qarshi tomonlar orasi, m'},
           'kat': kat, 'shahar': shahar,

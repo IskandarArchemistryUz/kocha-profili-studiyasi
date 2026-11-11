@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-Kunlik narx monitoringi (sinov): uybor.uz eʼlonlari → jamlangan statistika.
-Kirish (fayl): har qator «kategoriya|id;usd;m2;xona;lat;lng;auksion;upAt[;districtId]», hamda «kategoriya|TOTAL=n».
+Narx monitoringi (oyiga bir marta): uybor.uz eʼlonlari → jamlangan statistika.
+Kirish (fayl): har qator «kategoriya|id;usd;m2;xona;lat;lng;auksion;upAt[;districtId[;isNewBuilding]]», hamda «kategoriya|TOTAL=n».
+  Kategoriyalar: kvartira, hovli (sotuv); ijara_kvartira, ijara_hovli (ijara, oylik narx).
+  Sotuv kategoriyalari uchun isNewBuilding boʻyicha qoʻshimcha qatorlar: «<kat>_yangi» (true) va «<kat>_ikkilamchi» (false);
+  null / yoʻq — faqat umumiy qatorga kiradi.
+  Ijara: $/m² — oyiga; yaroqli oraliq 0,5…100 $/m²/oy (sotuvda 150…15 000 $/m²).
 Chiqish: data/narx/mirobod_uybor.csv ga har kategoriya uchun bitta qator (shu sana boʻlsa — almashtiriladi).
 Xom eʼlonlar saqlanmaydi (repo ochiq) — faqat jamlanma.
 Eslatma: bu SOʻRALGAN narx, sotilgan narx emas; auksion boshlangʻich narxlari chiqariladi.
@@ -15,7 +19,7 @@ import argparse, csv, math, statistics as st, sys, os, datetime as dt
 
 NEAR_M = 1500
 HEAD = ['sana', 'manba', 'hudud', 'kategoriya', 'api_jami', 'oqildi', 'yaroqli', 'median_usd_m2', 'p25_usd_m2', 'p75_usd_m2',
-        'atrof_1500m_soni', 'atrof_1500m_median_usd_m2', 'auksion_chiqarildi', 'takror_chiqarildi', 'chetki_chiqarildi', 'yangi_30kun_ulushi']
+        'atrof_1500m_soni', 'atrof_1500m_median_usd_m2', 'auksion_chiqarildi', 'takror_chiqarildi', 'chetki_chiqarildi', 'yangi_30kun_ulushi', 'median_narx_usd']
 
 
 def dist(a, b):
@@ -46,13 +50,19 @@ def parse(src_path):
                 continue
             try:
                 c['rows'].append({'id': f[0], 'usd': float(f[1]), 'm2': float(f[2]), 'lat': float(f[4]), 'lng': float(f[5]),
-                                  'auc': f[6].strip() == 'true', 'up': f[7].strip(), 'd': f[8].strip() if len(f) > 8 else ''})
+                                  'auc': f[6].strip() == 'true', 'up': f[7].strip(), 'd': f[8].strip() if len(f) > 8 else '',
+                                  'nb': f[9].strip() if len(f) > 9 else ''})
             except ValueError:
                 pass
     return cats
 
 
-def clean(rows):
+def oraliq(cat):
+    """Yaroqli $/m² oraligʻi: ijara — oyiga."""
+    return (0.5, 100) if cat.startswith('ijara') else (150, 15000)
+
+
+def clean(rows, cat='kvartira'):
     """Takror, auksion va chetki qiymatlarni chiqaradi; (yaroqli, auksion, takror, chetki) qaytaradi."""
     ids, seen = set(), set(); auc = dup = bad = 0; ok = []
     for r in rows:
@@ -68,7 +78,8 @@ def clean(rows):
         if r['m2'] <= 10:
             bad += 1; continue
         v = r['usd'] / r['m2']
-        if not 150 <= v <= 15000:
+        lo, hi = oraliq(cat)
+        if not lo <= v <= hi:
             bad += 1; continue
         r['v'] = v; ok.append(r)
     return ok, auc, dup, bad
@@ -76,7 +87,7 @@ def clean(rows):
 
 def stats(today, now, hudud, cat, total, rows, markaz=None):
     atrof = markaz is not None
-    ok, auc, dup, bad = clean(rows)
+    ok, auc, dup, bad = clean(rows, cat)
     vals = [r['v'] for r in ok]
     near = [r['v'] for r in ok if atrof and dist(markaz, (r['lat'], r['lng'])) <= NEAR_M]
     fresh = 0
@@ -86,10 +97,25 @@ def stats(today, now, hudud, cat, total, rows, markaz=None):
                 fresh += 1
         except ValueError:
             pass
-    R = lambda x: round(x) if x is not None else ''
+    ij = cat.startswith('ijara')
+    R = lambda x: (round(x, 1) if ij else round(x)) if x is not None else ''
+    prices = [r['usd'] for r in ok]
     return [today, 'uybor.uz', hudud, cat, total, len(rows), len(ok),
             R(st.median(vals) if vals else None), R(q(vals, .25) if vals else None), R(q(vals, .75) if vals else None),
-            len(near) if atrof else '', R(st.median(near) if near and atrof else None), auc, dup, bad, round(fresh / len(ok), 2) if ok else '']
+            len(near) if atrof else '', R(st.median(near) if near and atrof else None), auc, dup, bad, round(fresh / len(ok), 2) if ok else '',
+            round(st.median(prices)) if prices else '']
+
+
+SEG = (('yangi', 'true'), ('ikkilamchi', 'false'))
+
+
+def segments(cat, rows):
+    """(kategoriya, qatorlar) juftlari: umumiy + sotuv uchun yangi / ikkilamchi (agar isNewBuilding maʼlum boʻlsa)."""
+    out = [(cat, rows)]
+    if not cat.startswith('ijara') and any(r['nb'] for r in rows):
+        for nom, val in SEG:
+            out.append((f'{cat}_{nom}', [r for r in rows if r['nb'] == val]))
+    return out
 
 
 def main():
@@ -113,10 +139,12 @@ def main():
             total = ''           # tuman boʻyicha API jami nomaʼlum
         else:
             total = c['total']
-        out.append(stats(today, now, a.hudud, cat, total, rows, markaz))
+        for k, (scat, srows) in enumerate(segments(cat, rows)):
+            out.append(stats(today, now, a.hudud, scat, total if k == 0 else '', srows, markaz))
         if a.tumanlar:
             for d in sorted({r['d'] for r in rows if r['d']}, key=lambda x: int(x) if x.isdigit() else 0):
-                out.append(stats(today, now, 'tuman_' + d, cat, '', [r for r in rows if r['d'] == d], markaz))
+                for scat, srows in segments(cat, [r for r in rows if r['d'] == d]):
+                    out.append(stats(today, now, 'tuman_' + d, scat, '', srows, markaz))
     old = []
     if os.path.exists(out_path):
         with open(out_path, encoding='utf-8') as fh:
