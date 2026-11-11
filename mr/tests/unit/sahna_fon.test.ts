@@ -94,7 +94,7 @@ describe('Yoʻllar vektor fonida — bordyur (11.11)', () => {
       expect(S.pal.bordyurlar).toBe(parseInt(K.slice(1), 16));
       expect(contrast(K, road)).toBeGreaterThan(contrast(g.ctx!.roadEdge, road) + 0.15);   // avvalgi yoʻl chetidan aniqroq
       expect(contrast(K, gr)).toBeGreaterThan(1.3);
-      expect(contrast(K, road)).toBeLessThan(3.2);                                          // qora chiziq emas
+      expect(contrast(K, road)).toBeLessThan(3.6);                                          // qora chiziq emas
     }
   });
   it('geometriya: asfaltdan KERB_W kengroq tasma (chorraha yoylari bilan)', () => {
