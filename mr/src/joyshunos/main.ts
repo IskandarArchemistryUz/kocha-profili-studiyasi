@@ -40,7 +40,7 @@ import { nearestStation, type Climate } from '../core/wind';
 import { windAt, TMYX_ATTR } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
-import '../account/pay';
+import { coinLabel, onPrices } from '../account/pay';   // + yuklash darvozasi
 import { layerIcon, GROUP_COL } from './layerIcons';
 import { windFlow } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
@@ -547,8 +547,8 @@ function renderPass(addr: string): void {
     h('div', { class: 'joy-repw' },
       h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'repBtn', 'aria-haspopup': 'menu', 'aria-expanded': repOpen, disabled: repBusy, onclick: () => { repOpen = !repOpen; renderRight(); } }, ic(ICON.doc), tr('Hisobot'), ic(ICON.chev)),
       repOpen ? h('div', { class: 'joy-menu up', role: 'menu', id: 'repMenu' },
-        item('repPdf', 'PDF', tr('Hisobot (A3)'), () => void report('pdf')),
-        item('repSvg', 'SVG', tr('Illustrator uchun qatlamli SVG'), () => void report('svg')),
+        ((c = coinLabel('PDF', 'joy.passport.all')) => item('repPdf', c.text, tr('Hisobot (A3)'), () => void report('pdf'), c.title ?? undefined))(),   // E3: barcha varaqlar
+        ((c = coinLabel('SVG', 'joy.passport')) => item('repSvg', c.text, tr('Illustrator uchun qatlamli SVG'), () => void report('svg'), c.title ?? undefined))(),
         item('repChz', tr('Chizmadonga'), tr('Hisobot (A3)'), () => void report('chz')),
         item('albOpen', tr('Albom, hisobot va plakat'), 'PDF · Chizmadon', () => albomDialog())) : null),
   ].filter((x): x is NonNullable<typeof x> => !!x));
@@ -1071,7 +1071,7 @@ async function albom(out: 'pdf' | 'chz'): Promise<void> {
     };
     const pages = kind === 'hisobot' ? A.shortReport(I) : kind === 'albom' ? A.swissSheets(I) : [A.galleryPoster(I, layers[0] ?? null)];
     const fname = `joy-${kind}-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
-    if (out === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(p => ({ svg: p.svg, widthMm: p.w, heightMm: p.h })), `${fname}.pdf`); }
+    if (out === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(p => ({ svg: p.svg, widthMm: p.w, heightMm: p.h })), `${fname}.pdf`, pages.length > 1 ? 'joy.passport.all' : 'joy.passport'); }   // E3
     else {
       const items = pages.map(p => ({ name: `${p.name} · ${addr}`, kind: 'sheet' as const, svg: p.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''), vb: [0, 0, p.w, p.h] as [number, number, number, number], w: p.w, h: p.h }));
       const { sendSheet } = await import('../ui/chzsend');
@@ -1217,7 +1217,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
     };
     const pages = R.passportSheets(inp, kind === 'chz');
     const name = `joy-pasporti-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
-    if (kind === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(svg => ({ svg, widthMm: S0[0], heightMm: S0[1] })), `${name}.pdf`); }
+    if (kind === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(svg => ({ svg, widthMm: S0[0], heightMm: S0[1] })), `${name}.pdf`, pages.length > 1 ? 'joy.passport.all' : 'joy.passport'); }   // E3
     else if (kind === 'svg') save2(`${name}.svg`, new Blob([pages[0]], { type: 'image/svg+xml' }));
     else {
       const inner = pages[0].replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
@@ -1446,14 +1446,14 @@ function renderAxo(): void {
     h('button', { type: 'button', class: 'btn btn-sm btn-ghost', title: tr('Koʻrinishni tiklash'), onclick: () => a.reset() }, tr('Markaz')),
     (() => { const w = h('div', { class: 'joy-exw' }, h('button', { type: 'button', class: 'btn btn-sm', id: 'axExp', 'aria-expanded': expOpen, onclick: () => { expOpen = !expOpen; renderAxo(); } }, tr('Eksport'), ic(ICON.chev)));
       if (expOpen) w.append(h('div', { class: 'joy-menu up', role: 'menu' },
-        h('button', { type: 'button', role: 'menuitem', id: 'exSvgL', onclick: () => doExport('svgL') }, tr('SVG · Illustrator (qatlamlar)')),
-        h('button', { type: 'button', role: 'menuitem', id: 'exSvg', onclick: () => doExport('svg') }, tr('SVG · oddiy')),
+        (() => { const c = coinLabel(tr('SVG · Illustrator (qatlamlar)'), 'joy.axo'); return h('button', { type: 'button', role: 'menuitem', id: 'exSvgL', title: c.title, onclick: () => doExport('svgL') }, c.text); })(),
+        (() => { const c = coinLabel(tr('SVG · oddiy'), 'joy.axo'); return h('button', { type: 'button', role: 'menuitem', id: 'exSvg', title: c.title, onclick: () => doExport('svg') }, c.text); })(),
         h('button', { type: 'button', role: 'menuitem', id: 'exGlb', onclick: () => doExport('glb') }, tr('Massing · GLB')),
         h('button', { type: 'button', role: 'menuitem', id: 'exObj', onclick: () => doExport('obj') }, tr('Massing · OBJ')),
         h('button', { type: 'button', role: 'menuitem', id: 'exChz', onclick: () => doExport('chz') }, tr('Chizmadonga yuborish')),
         h('button', { type: 'button', role: 'menuitem', id: 'exRen', onclick: () => void toRender() }, tr('Render studiyasiga'))));
       return w; })(),
-    h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'axPng', onclick: () => void exportPng() }, 'PNG · 4K'),
+    (() => { const c = coinLabel('PNG · 4K', 'joy.png'); return h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'axPng', title: c.title, onclick: () => void exportPng() }, c.text); })(),   // E3: narx tugmada
   );
   axSyncTime = renderAxoTime;
   function renderAxoTime(): void { if (!a) return; const p = (a.hour - 5) / 15 * 100; (rng.querySelector('em') as HTMLElement).style.width = `${p}%`; (rng.querySelector('i') as HTMLElement).style.left = `${p}%`; rng.setAttribute('aria-valuenow', String(a.hour)); const t = document.getElementById('axTm'); if (t) t.textContent = hh(a.hour); }
@@ -1549,15 +1549,16 @@ async function exportPng(): Promise<void> {
   const b = document.getElementById('axPng') as HTMLButtonElement | null; if (b) { b.disabled = true; b.textContent = '…'; }
   try {
     const raw = await axo.png(3840), nm = `joyshunos-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}.png`;
-    const mode = await exportGate({ name: nm, item: 'joy.axo', sample: raw }); if (!mode) { if (b) { b.disabled = false; b.textContent = 'PNG · 4K'; } return; }
+    const mode = await exportGate({ name: nm, item: 'joy.png', sample: raw }); if (!mode) { if (b) { b.disabled = false; b.textContent = coinLabel('PNG · 4K', 'joy.png').text; } return; }
     const blob = mode === 'clean' ? raw : await freeRaster(raw), u = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = u; a.download = nm; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
   } catch (e) { alert((e as Error).message); }
-  if (b) { b.disabled = false; b.textContent = 'PNG · 4K'; }
+  if (b) { b.disabled = false; b.textContent = coinLabel('PNG · 4K', 'joy.png').text; }
 }
 
 function renderAll(): void { root.classList.toggle('an-kocha', isK()); renderHeader(); renderLeft(); renderRight(); renderAsk(); renderBase(); renderMode(); if (mode === 'axo') renderAxo(); document.title = `${tr('Joyshunos')} · Archemistry Lab`; }
 renderAll();
+onPrices(() => renderAll());   // E3: narx yuklangach tugmalardagi tanga
 onLang(() => { renderAll(); paint(); document.documentElement.lang = getLang(); });
 onTheme(() => { renderHeader(); restyle(); if (mode === 'axo') axBuild(); });
 document.addEventListener('keydown', e => {

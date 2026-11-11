@@ -240,7 +240,7 @@ const REASON: Record<string, string> = { export: 'Toza fayl', trial: 'Ogʻir his
 const ITEM_NAME: Record<string, string> = {
   'mr.album': 'Albom PDF', 'mr.dxf': 'DXF — reja', 'mr.dxf3d': 'DXF — 3D', 'mr.glb': 'GLB / OBJ', 'mr.tik': 'TIK — Excel', 'mr.norm': 'Meʼyoriy hisobot', 'mr.ifc': 'IFC4',
   'mr.sheet': 'Varaq', 'mr.axo': 'Aksonometriya', 'mr.floors': 'Qavat rejalari', 'mr.png': 'PNG', 'chz.album': 'Chizmadon albomi', 'ks.section': 'Koʻcha kesimi', 'ks.a3': 'Koʻchasoz A3',
-  'ks.dxf': 'Koʻchasoz DXF', 'joy.passport': 'Joy pasporti', 'joy.axo': 'Joyshunos aksonometriya', wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Generatsiya',
+  'ks.dxf': 'Koʻchasoz DXF', 'joy.passport': 'Joy pasporti', 'joy.axo': 'Joyshunos aksonometriya', 'joy.png': 'Joyshunos PNG 4K', 'joy.passport.all': 'Toʻliq hudud pasporti', wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Generatsiya',
 };
 function label(x: HistItem): [string, string] {
   const what = String(x.ref ?? '').split('@')[0], parts = what.split('+').map(s => tr(ITEM_NAME[s] ?? '')).filter(Boolean);
@@ -323,6 +323,13 @@ export async function siteGate(pid: string, ha: number): Promise<boolean> {
 }
 
 /** Tugma izohi uchun: eksport turi narxi (tanga, uchastka koeffitsienti bilan); egasi / hisob oʻchiq yoki narxlar hali yoʻq — null */
+/** E3 (11.11): soʻmdagi taxmin — 10 talik toʻplam narxi boʻyicha (39 000 / 10; ANDOZA) */
+export const UZS_PER_COIN = 3900;
+/** E3: tugma yorligʻi — faqat tanga («PDF · 5 tanga»), soʻmdagi taxmin — title (kursor ustiga kelganda). Narx nomaʼlum / egasi — asl yorliq */
+export function coinLabel(base: string, id: string): { text: string; title: string | null } {
+  const n = itemPrice(id); if (n == null || !n) return { text: base, title: null };
+  return { text: `${base} · ${tf('${n} tanga', { n: fmt(n) })}`, title: tf('≈ ${s} soʻm — toza fayl (belgisiz). Bepul — belgili rasm.', { s: fmt(n * UZS_PER_COIN) }) };
+}
 export function itemPrice(id: string): number | null {
   if (freeMode()) return null;
   const t = PR?.items[id]; if (!t) { void loadPrices(); return null; }

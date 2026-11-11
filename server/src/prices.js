@@ -31,7 +31,9 @@ export const ITEMS = Object.freeze({
   'ks.dxf':       { coins: 5,  mr: false },
   // Joyshunos
   'joy.passport': { coins: 5,  mr: false }, // toza pasport PDF
-  'joy.axo':      { coins: 5,  mr: false }, // aksonometriya SVG
+  'joy.axo':      { coins: 5,  mr: false }, // aksonometriya SVG (qatlamli)
+  'joy.png':      { coins: 2,  mr: false }, // E3 (11.11): aksonometriya PNG 4K, belgisiz
+  'joy.passport.all': { coins: 15, mr: false }, // E3 (11.11): toʻliq hudud pasporti / albom — barcha varaqlar
   // Atrof eksporti
   'ctx.4':        { coins: 2,  mr: false },
   'ctx.8':        { coins: 4,  mr: false },
@@ -56,6 +58,7 @@ export function projectCap(ha) {
 
 /** Toʻplamlar (soʻm, USD) — narxlar sahifasidagi kartalar */
 export const PACKS = Object.freeze([
+  { id: 'p5',    coins: 5,    uzs: 21000,   usd: 2 },   // E3 (11.11): mikro toʻplam — bitta varaq narxi
   { id: 'p10',   coins: 10,   uzs: 39000,   usd: 4 },
   { id: 'p30',   coins: 30,   uzs: 99000,   usd: 10 },
   { id: 'p100',  coins: 100,  uzs: 290000,  usd: 25 },
