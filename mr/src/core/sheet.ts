@@ -19,6 +19,7 @@ import { freeRect, pickLevel, labelLines, modeMax, type LabelMode } from './labe
 import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES } from './limits';
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
+import { gstyleById, useColorOf, styledTree, PARCEL_GREY } from './gstyle';
 
 export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
@@ -116,6 +117,8 @@ export interface SheetOpts {
   /** qavat rejasi varagʻi: floor — bino raqami (1 dan; tarixiy nom), grp — qavatlar guruhi (boʻlmasa — turar qavat) */
   /** qavat: floor — bino (1 dan), grp — qavat guruhi; uy (02.11): floor — uy turi (1 dan), grp — uy qavati (1 dan) */
   plan?: { look?: 'rang' | 'bir'; floor?: number; grp?: number };
+  /** c74: grafika shabloni (core/gstyle; sukut — «joriy», hozirgi koʻrinish) va parsellar rejasi: funksiya rangida yoki bir xil quyuq kulrang */
+  gstyle?: string; parcel?: 'rang' | 'kulrang';
   axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama' | 'qavatlilik' | 'kontekst' | 'demontaj'; view?: string; shadow?: boolean; /** 04.11: daha, kvartal va koʻcha yozuvlari (sukut — yoʻq) */ labels?: boolean };
 }
 /** Tayyor mazmun (qavat rejalari yoki aksonometriya): chizma maydoniga (mm) joylanadi; masshtab yozuvi — label */
@@ -196,6 +199,11 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const nb = doc.buildings.map(b => ({ b, r: b.footprint.map(fr.toLocal) }));
   const K = o.kind;
   const Ly = (id: SheetLayerId) => layerOf(o, id);
+  // c74: grafika shabloni — «joriy» boʻlsa GS = null va hamma narsa avvalgidek
+  const G0 = gstyleById(o.gstyle), GS = G0.id === 'joriy' ? null : G0, GX = GS?.ctx ?? null, LW = GS?.line ?? 1, INK = GS?.ink ?? '#1d1d1b';
+  const ucol = (u: string) => useColorOf(GS, u);
+  const treeSvg = (t: XY, r: number, fill: string, stroke: string, sw: number) => GS?.trees ? styledTree(GS, +X(t), +Y(t), r, t) : `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(r)}" fill="${fill}" stroke="${stroke}" stroke-width="${lw(sw)}"/>`;
+  const treeLeg = (): LegendItem => GS?.trees ? { type: 'tree', label: tr('Daraxtlar'), fill: GS.trees.fills[0], stroke: GS.trees.stroke } : { type: 'tree', label: tr('Daraxtlar') };
 
   // chizma oʻlchami: uchastka (yoʻq boʻlsa — binolar va koʻchalar); vaziyat sxemasida — atrof ham
   const pts: XY[] = [...(site?.[0] ?? []), ...nb.flatMap(x => x.r), ...doc.streets.flatMap(s => s.axis.map(fr.toLocal))];
@@ -245,12 +253,13 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const fade = PR ? ' opacity="0.45"' : '';
   const C = {
     bg: '#ffffff',
-    ctxB: K === 'figura' ? '#1d1d1b' : K === 'qavat' ? '#e4e2dd' : VZ ? '#d9d6cf' : '#e7e5e0',
-    ctxStroke: K === 'figura' || VZ ? 'none' : '#cfccc5',
-    roadEdge: K === 'figura' ? 'none' : '#d6d3cc',
-    green: LS ? '#cfe3bc' : K === 'figura' ? '#ffffff' : '#e6eedd',
-    wood: LS ? '#b5d39c' : '#dde8d2',
-    water: K === 'figura' ? '#ffffff' : '#d3e4ee',
+    ctxB: K === 'figura' ? '#1d1d1b' : K === 'qavat' ? '#e4e2dd' : GX ? GX.bld : VZ ? '#d9d6cf' : '#e7e5e0',
+    ctxStroke: K === 'figura' || (VZ && !GX) ? 'none' : GX ? GX.bldStroke : '#cfccc5',
+    roadEdge: K === 'figura' ? 'none' : GX ? GX.roadEdge : '#d6d3cc',
+    road: GX ? GX.road : '#f6f5f2', road2: GX ? GX.road : '#e9e7e2',
+    green: LS ? '#cfe3bc' : K === 'figura' ? '#ffffff' : GX ? GX.green : '#e6eedd',
+    wood: LS ? '#b5d39c' : GX ? GX.wood : '#dde8d2',
+    water: K === 'figura' ? '#ffffff' : GX ? GX.water : '#d3e4ee',
     tree: LS ? '#9cc27f' : 'none', treeStroke: LS ? '#6f9f4c' : '#9a9a92',
   };
   const lite = (c: string, on: boolean) => on ? mix(parseInt(c.slice(1), 16), 0.45) : c;
@@ -280,8 +289,8 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
         : [];
       const all = [...roads.map(r => ({ pts: r.pts, w: r.w, s: sw0(r.cls) })), ...projR];
       g('Atrof_yollar', all.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="${C.roadEdge}" stroke-width="${n2(Math.max(minW + 0.2, (r.w + 2 * r.s) * k + 0.25))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
-        + all.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#f6f5f2" stroke-width="${n2(Math.max(minW, (r.w + 2 * r.s) * k))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
-        + all.filter(r => r.s > 0).map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="#e9e7e2" stroke-width="${n2(r.w * k)}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), (VZ ? '' : outside) + fade);
+        + all.map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="${C.road}" stroke-width="${n2(Math.max(minW, (r.w + 2 * r.s) * k))}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
+        + all.filter(r => r.s > 0).map(r => `<path d="${lineD(r.pts)}" fill="none" stroke="${C.road2}" stroke-width="${n2(r.w * k)}" stroke-linecap="round" stroke-linejoin="round"/>`).join(''), (VZ ? '' : outside) + fade);
     }
     if (K !== 'figura' && ctx.rails.length) g('Atrof_temir_yol', ctx.rails.filter(vis).map(l => `<path d="${lineD(l)}" fill="none" stroke="#9a978f" stroke-width="${lw(0.35)}" stroke-dasharray="3 1.2"/>`).join(''), outside + fade);
     const rmv = new Set(doc.removed ?? []), cb = ctx.buildings.filter(b => b.rings[0] && vis(b.rings[0]) && !rmv.has(b.id));
@@ -297,29 +306,34 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     }
     if (S.trees && lG.on && K !== 'figura' && !VZ && !PR) {
       const tr2 = ctx.trees.filter(t => !inSite(t) && Math.abs(t[0] - cx) < R && Math.abs(t[1] - cy) < R);
-      g('Atrof_daraxtlar', tr2.map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.5, 2.5 * k))}" fill="${C.tree === 'none' ? 'none' : mix(0x9cc27f, 0.35)}" stroke="${C.treeStroke}" stroke-width="${lw(0.08)}"/>`).join(''));
+      g('Atrof_daraxtlar', tr2.map(t => treeSvg(t, Math.max(0.5, 2.5 * k), C.tree === 'none' ? 'none' : mix(0x9cc27f, 0.35), C.treeStroke, 0.08)).join(''));
     }
   }
 
   // 2. daha va yer uchastkalari
   const lP = Ly('plots');
-  const parcelFill = (u: string) => darker(useDef(u as never).color, 0.12);   // toʻliq (quyuqroq) funksiya rangi
-  const plotFill = (u: string) => lP.fill === 'none' ? 'none' : lP.fill === 'one' ? (lP.light ? '#f4f3f0' : '#ecebe7') : mix(useDef(u as never).color, lP.light ? 0.45 : 0.15);
+  // c74: «bir xil quyuq kulrang» parsellar (o.parcel) va shablon palitrasi; shablonda toʻliq rang quyuqlashtirilmaydi (shablon ranglari oʻzi toʻyingan)
+  const grey = PR && o.parcel === 'kulrang';
+  const parcelFill = (u: string) => grey ? PARCEL_GREY : GS ? hex(ucol(u)) : darker(ucol(u), 0.12);   // toʻliq (quyuqroq) funksiya rangi
+  const plotFill = (u: string) => lP.fill === 'none' ? 'none' : lP.fill === 'one' ? (lP.light ? '#f4f3f0' : '#ecebe7') : mix(ucol(u), lP.light ? 0.45 : GS ? 0.05 : 0.15);
   if (lP.on && !VZ) {
     if (K === 'zona') {
-      g('Zonalar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${plotFill(b.use)}"${lP.outline ? ` stroke="#ffffff" stroke-width="${lw(Math.max(lP.mm, 0.35))}"` : ''} fill-rule="evenodd"/>`).join(''));
+      g('Zonalar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${plotFill(b.use)}"${lP.outline ? ` stroke="#ffffff" stroke-width="${lw(Math.max(lP.mm, 0.35) * LW)}"` : ''} fill-rule="evenodd"/>`).join(''));
       for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: plotFill(u.id), label: tr(u.name) });
     } else if (PR) {
       // parsellar rejasi (06.11): toʻliq funksiya rangi, qora kontur; ichida binolar, daraxtlar, maydonchalar yoʻq
-      g('Parsellar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${parcelFill(b.use)}" stroke="#1d1d1b" stroke-width="${lw(Math.max(lP.mm, 0.35))}" stroke-linejoin="round" fill-rule="evenodd"/>`).join(''));
-      for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: parcelFill(u.id), stroke: '#1d1d1b', label: tr(u.name) });
+      const pS = grey ? '#ffffff' : INK;
+      g('Parsellar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${parcelFill(b.use)}" stroke="${pS}" stroke-width="${lw(Math.max(lP.mm, 0.35) * (grey ? 1.4 : LW))}" stroke-linejoin="round" fill-rule="evenodd"/>`).join(''));
+      if (grey) { if (plan.blocks.length) legend.push({ type: 'fill', fill: PARCEL_GREY, stroke: '#1d1d1b', label: tr('Yer uchastkalari') }); }
+      else for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: parcelFill(u.id), stroke: INK, label: tr(u.name) });
     } else if (K === 'cheklov') {
-      g('Kvartallar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${mix(useDef(b.use).color, 0.62)}" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}" fill-rule="evenodd"/>`).join(''));
+      g('Kvartallar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${mix(ucol(b.use), 0.62)}" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}" fill-rule="evenodd"/>`).join(''));
     } else if (LS) {
       g('Yashil_kvartallar', plan.blocks.filter(b => b.use === 'yashil' || b.use === 'himoya' || b.use === 'sport' || b.use === 'maydon').map(b => `<path d="${polyD(b.rings)}" fill="${b.use === 'yashil' || b.use === 'himoya' ? '#bcd9a3' : b.use === 'sport' ? '#cfe6ef' : '#efe9dc'}" fill-rule="evenodd"/>`).join(''));
       if (lP.outline) g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}"/>`).join(''));
     } else if (K !== 'figura' && lP.outline) {
-      g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="none" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}"/>`).join(''));
+      // c74: shablonda loyiha hududi rangli (kvartallar funksiya rangining och tusida), atrof oq
+      g('Kvartal_chegaralari', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${GS && K === 'bosh' && lP.fill === 'use' ? mix(ucol(b.use), 0.72) : 'none'}" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}"${GS ? ' fill-rule="evenodd"' : ''}/>`).join(''));
     }
   }
 
@@ -400,7 +414,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     const yards = landscape(doc), L2 = LS;
     const out: string[] = [];
     for (const y of yards) {
-      if (lY.fill !== 'none') y.green.forEach(p => out.push(`<path d="${polyD(p)}" fill="${lite(L2 ? '#cfe3bc' : '#eef3e8', lY.light)}" fill-rule="evenodd"/>`));
+      if (lY.fill !== 'none') y.green.forEach(p => out.push(`<path d="${polyD(p)}" fill="${lite(L2 ? '#cfe3bc' : GX ? GX.green : '#eef3e8', lY.light)}" fill-rule="evenodd"/>`));
       y.paths.forEach(p => out.push(`<path d="${polyD(p)}" fill="#ffffff"${lY.outline ? ` stroke="#c9c4b9" stroke-width="${lw(lY.mm)}"` : ''} fill-rule="evenodd"/>`));
       y.play.forEach(q => out.push(`<path d="${ringD(q.ring)}" fill="${L2 ? ({ bolalar: '#f6dcae', kattalar: '#efe6d3', sport: '#bcd9c2', xojalik: '#e2ded6', tajriba: '#e3d6bd' } as Record<string, string>)[q.kind] : '#ffffff'}" stroke="#8f8676" stroke-width="${lw(Math.max(lY.mm, 0.15))}"/>`));
     }
@@ -408,7 +422,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     const SPC: Record<string, string> = { stadion: '#bcd9b0', yolka: '#e7b9ab', futbol: '#bcd9b0', minifutbol: '#c6dfbb', tennis: '#b7cde3', basket: '#ecc9a7', voley: '#efdcae', workout: '#dcdad5', basseyn: '#b9dff0', yopiq: '#e6e9ee' };
     for (const y of yards) for (const q of y.sport ?? []) { out.push(`<path d="${ringD(q.ring)}" fill="${L2 ? SPC[q.k] : '#ffffff'}" stroke="#8f8676" stroke-width="${lw(Math.max(lY.mm, 0.13))}"/>`); for (const ln of q.k === 'basseyn' ? [] : q.lines) out.push(`<polyline points="${ln.map(p => `${X(p)},${Y(p)}`).join(' ')}" fill="none" stroke="${L2 ? '#ffffff' : '#b9b3a6'}" stroke-width="${lw(0.1)}"/>`); }
     g('Hovlilar', out.join(''));
-    if (S.trees && lG.on) g('Hovli_daraxtlari', yards.flatMap(y => y.trees).map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.6, 2.8 * k))}" fill="${L2 ? '#9cc27f' : '#ffffff'}" stroke="${L2 ? '#5f8f3e' : '#7d8a6a'}" stroke-width="${lw(0.12)}"/>`).join(''));
+    if (S.trees && lG.on) g('Hovli_daraxtlari', yards.flatMap(y => y.trees).map(t => treeSvg(t, Math.max(0.6, 2.8 * k), L2 ? '#9cc27f' : '#ffffff', L2 ? '#5f8f3e' : '#7d8a6a', 0.12)).join(''));
     if (yards.some(y => y.play.length)) legend.push({ type: 'fill', fill: L2 ? '#f6dcae' : '#ffffff', stroke: '#8f8676', label: tr('Hovli maydonchalari (4-jadval)') });
   }
 
@@ -459,8 +473,8 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     }
     if (S.trees && lG.on && !VZ && !PR) {
       const tr2 = sg.trees.filter(t => !site0 || inSite(t));
-      g('Kocha_daraxtlari', tr2.map(t => `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(Math.max(0.6, 3 * k))}" fill="${LS ? '#9cc27f' : '#ffffff'}" stroke="${LS ? '#5f8f3e' : '#7d8a6a'}" stroke-width="${lw(0.12)}"/>`).join(''));
-      if (tr2.length) legend.push({ type: 'tree', label: tr('Daraxtlar') });
+      g('Kocha_daraxtlari', tr2.map(t => treeSvg(t, Math.max(0.6, 3 * k), LS ? '#9cc27f' : '#ffffff', LS ? '#5f8f3e' : '#7d8a6a', 0.12)).join(''));
+      if (tr2.length) legend.push(treeLeg());
     }
   }
 
@@ -468,10 +482,10 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const lB = Ly('bld');
   if (nb.length && lB.on && !PR) {
     const order = [...nb].sort((a, b) => ((a.b.z0 ?? 0) + a.b.floors) - ((b.b.z0 ?? 0) + b.b.floors));
-    const fill = (b: Project['buildings'][number]) => K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? darker(useDef(b.use).color, 0.12) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(useDef(b.use).color, 0.1), lB.light) : '#ffffff';
-    const stroke = K === 'figura' || VZ || !lB.outline ? 'none' : '#1d1d1b';
-    g('Yangi_binolar', order.map(({ b, r }) => `<path d="${ringD(r)}" fill="${fill(b)}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="${lw(K === 'bosh' ? lB.mm : Math.min(lB.mm, 0.3))}" stroke-linejoin="round"` : ''}/>`).join(''));
-    if (K === 'bosh') legend.push({ type: 'fill', fill: '#ffffff', stroke: '#1d1d1b', label: tr('Loyihalanayotgan binolar') });
+    const fill = (b: Project['buildings'][number]) => K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.12)) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(ucol(b.use), GS ? 0 : 0.1), lB.light) : '#ffffff';
+    const stroke = K === 'figura' || VZ || !lB.outline ? 'none' : INK;
+    g('Yangi_binolar', order.map(({ b, r }) => `<path d="${ringD(r)}" fill="${fill(b)}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="${lw((K === 'bosh' ? lB.mm : Math.min(lB.mm, 0.3)) * LW)}" stroke-linejoin="round"` : ''}/>`).join(''));
+    if (K === 'bosh') legend.push({ type: 'fill', fill: '#ffffff', stroke: INK, label: tr('Loyihalanayotgan binolar') });
     if (K === 'figura') legend.push({ type: 'fill', fill: '#1d1d1b', label: tr('Binolar (mavjud va loyiha)') });
     if (S.labels && K !== 'figura' && !VZ) {
       const fs = 2.5;
@@ -602,7 +616,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       const code = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`, use = tr(SHORT[b.use] ?? useDef(b.use).name), ar = `${(b.area / 1e4).toFixed(2).replace('.', ',')} ga`;
       const rect = VZ || K === 'figura' ? null : freeRect(b.rings, obst);
       const lv = max ? pickLevel(rect, code, use, ar, kM, 3.5, 2.5, max as 0 | 1 | 2 | 3) : 0;
-      plots.push({ code, use: tr(useDef(b.use).name), color: mix(useDef(b.use).color, 0.15), full: parcelFill(b.use), ha: b.area / 1e4, level: lv });
+      plots.push({ code, use: tr(useDef(b.use).name), color: mix(ucol(b.use), GS ? 0.05 : 0.15), full: parcelFill(b.use), ha: b.area / 1e4, level: lv });
       if (lv === 3) full++;
       if (!lv || !rect) return;
       const lines = labelLines(lv, code, use, ar), halo = K === 'zona' ? plotFill(b.use) : PR ? parcelFill(b.use) : '#ffffff';
@@ -860,7 +874,7 @@ function legendSym(it: LegendItem, sx: number, y: number): string {
   if (it.type === 'dash') return `<rect x="${sx}" y="${n2(y - 0.2)}" width="6" height="3" fill="none" stroke="${it.stroke}" stroke-width="0.3" stroke-dasharray="1.2 0.6"/>`;
   if (it.type === 'hatch') return `<rect x="${sx}" y="${n2(y - 0.2)}" width="6" height="3" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.25"/><path d="M${sx},${n2(y + 1.3)}l1.5,-1.5M${sx},${n2(y + 2.8)}l3,-3M${sx + 1.5},${n2(y + 2.8)}l3,-3M${sx + 3},${n2(y + 2.8)}l3,-3M${sx + 4.5},${n2(y + 2.8)}l1.5,-1.5" stroke="#1d1d1b" stroke-width="0.12"/>`;
   if (it.type === 'stop') return `<circle cx="${sx + 3}" cy="${n2(y + 1.3)}" r="1.4" fill="${it.fill}"/>`;
-  return `<circle cx="${sx + 3}" cy="${n2(y + 1.3)}" r="1.4" fill="#ffffff" stroke="#7d8a6a" stroke-width="0.15"/>`;
+  return `<circle cx="${sx + 3}" cy="${n2(y + 1.3)}" r="1.4" fill="${it.fill ?? '#ffffff'}" stroke="${it.stroke ?? '#7d8a6a'}" stroke-width="0.15"/>`;
 }
 
 /** Varaq tekshiruvi (MR-Varaqlar): qisqargan yozuvlar, < 2,5 mm matn, varaqdan chiqqan hudud, andoza/nostandart masshtab, boʻsh shtamp */

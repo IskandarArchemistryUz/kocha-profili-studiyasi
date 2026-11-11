@@ -75,6 +75,8 @@ export const clampView = (v: ChView): ChView => ({ z: Math.max(1, Math.min(8, v.
 /** Avtomatik albom: maket oilasi, format, uslub, hudud, majburlangan varaq turlari, sudrab qoʻyishlar */
 export interface ChAuto {
   fam: string; fmt: Record<string, string>; pal: string;
+  /** c74: Master reja rejalarining grafika shabloni (core/gstyle; yoʻq — «joriy») */
+  gstyle?: string;
   /** «Mening uslubim»: asos palitra va oʻzgartirilgan ranglar */
   custom: { base: string; over: Record<string, string> } | null;
   site: { lat: number; lon: number } | null;
@@ -171,6 +173,7 @@ function normAuto(x: any): ChAuto {
   if (typeof x.fam === 'string') a.fam = x.fam.slice(0, 20);
   if (x.fmt && typeof x.fmt === 'object') for (const [k, v] of Object.entries(x.fmt)) if (typeof v === 'string') a.fmt[k.slice(0, 20)] = v.slice(0, 20);
   if (typeof x.pal === 'string') a.pal = x.pal.slice(0, 20);
+  if (typeof x.gstyle === 'string' && x.gstyle !== 'joriy') a.gstyle = x.gstyle.slice(0, 20);
   if (x.custom && typeof x.custom === 'object' && typeof x.custom.base === 'string') a.custom = { base: x.custom.base, over: Object.fromEntries(Object.entries(x.custom.over ?? {}).filter(([, v]) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v as string))) as Record<string, string> };
   if (x.site && Number.isFinite(x.site.lat) && Number.isFinite(x.site.lon)) a.site = { lat: num(x.site.lat, 41.3, -85, 85), lon: num(x.site.lon, 69.3, -180, 180) };
   if (x.force && typeof x.force === 'object') for (const [k, v] of Object.entries(x.force)) if (typeof v === 'string' && /^\d+$/.test(k)) a.force[+k] = v;

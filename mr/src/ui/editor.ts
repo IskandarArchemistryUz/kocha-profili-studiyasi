@@ -50,6 +50,8 @@ import { CONSTRUCT_SYS } from '../core/doc';
 import { PRESET_PROFILES } from '../core/presets';
 import { sectionSvg, PART_NAME } from './section';
 import { ZONE_COL } from '../scene/scene';
+import { gstylePicker } from './gstylepick';
+import { gstyleById, useColorOf } from '../core/gstyle';
 import { clipLine } from '../scene/context3d';
 import type { Use, ZoneLabel, RoundKind } from '../core/doc';
 import { autoSetback, blockStreetWidth, SB_HW, edgeKinds, boundaryNeed, azOf, insetVar, sb79Applies, edgeHeights, type AutoSetback, type EdgeKind } from '../core/setback';
@@ -456,6 +458,9 @@ export class Editor {
       pal ? h('div', { class: 'group' }, li(tr('Koʻcha va joy nomlari'), '', sw({ id: 'palLab', label: tr('Koʻcha va joy nomlari'), on: basePrefs().labels, onchange: v => { setBasePrefs({ labels: v }); void this.showBaseMap(); } }))) : '',
       h('div', { class: 'glabel' }, h('span', {}, tr('Uslub')), h('span', {}, tf('${n} ta', { n: STYLES.length }))),
       h('div', { class: 'tiles c2' }, ...STYLES.map(x => tile({ 'data-style': x.id, 'aria-pressed': x.id === this.stylePref, onclick: () => { this.stylePref = x.id; this.syncFade(); } }, tr(x.name), tr(x.note)))),
+      // c74: sahna grafika shabloni — loyihada saqlanadi (doc.gstyle); funksiya ranglari va daraxtlar; varaqlar va albom — oʻz sozlamasida
+      h('div', { class: 'glabel' }, h('span', {}, tr('Grafika shabloni')), h('span', {}, tr('loyihada saqlanadi'))),
+      gstylePicker('scGStyle', this.store.doc.gstyle, v => { this.run(() => this.store.dispatch({ type: 'setGStyle', id: v })); this.refreshPop(); }),
       h('div', { class: 'group' },
         li(tr('Batafsil fasad (3D)'), tr('derazalar, romlar, balkonlar'), sw({ id: 'detOn', label: tr('Batafsil fasad (3D)'), on: this.scene.detail, onchange: v => { this.scene.setDetail(v); try { localStorage.setItem('mr-detail', v ? '1' : '0'); } catch { /* */ } } })),
         li(tr('Qogʻoz teksturasi'), tr('mayda don va gʻijim — faqat ekranda, eksportga kirmaydi'), sw({ id: 'paperOn', label: tr('Qogʻoz teksturasi'), on: this.el.scene.hasAttribute('data-paper'), onchange: v => { this.el.scene.toggleAttribute('data-paper', v); try { localStorage.setItem('mr-paper', v ? '1' : '0'); } catch { /* */ } } })),
@@ -3914,7 +3919,7 @@ export class Editor {
     const tot = plan.blocks.filter(b => !b.parcelId).length + new Set(plan.blocks.filter(b => b.parcelId).map(b => b.blockKey)).size;
     body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Kvartallar va parsellar')), h('span', {}, `${tot} ta · ${fmt(plan.blocks.reduce((s, b) => s + b.area, 0) / 1e4, 2)} ga`)),
       h('div', { class: 'group', role: 'listbox', 'aria-label': tr('Kvartallar va parsellar') }, ...plan.blocks.map((b, i) => h('button', { class: 'li', role: 'option', 'aria-selected': i === this.selBlock, 'data-block': i, style: i === this.selBlock ? 'background:var(--sel-soft)' : '', onclick: () => { this.selBlock = i === this.selBlock ? null : i; this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
-        h('i', { class: 'sw', style: `background:#${(ZONE_COL[b.use] ?? 0xcccccc).toString(16).padStart(6, '0')}` }), h('span', { class: 'k' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, h('span', { class: 'sub' }, useDef(b.use).name))))));
+        h('i', { class: 'sw', style: `background:#${this.zcol(b.use).toString(16).padStart(6, '0')}` }), h('span', { class: 'k' }, `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, h('span', { class: 'sub' }, useDef(b.use).name))))));
     if (this.selBlock == null) { body.append(h('div', { class: 'note' }, tr('Kvartal yoki parselni roʻyxatdan yoki sahnada bosib tanlang.'))); }
     else {
       const i = this.selBlock, b = plan.blocks[i], groups = [...new Set(USES.map(u => u.group))];
@@ -4550,6 +4555,10 @@ export class Editor {
       stops: [...(this.svc.poi?.pois ?? []).filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' })), ...this.store.doc.pois.filter(p => p.kind === 'bekat' || p.kind === 'metro').map(p => ({ p: fr.toLocal(p.at), kind: p.kind as 'bekat' | 'metro' }))],
     };
   }
+  /** c74: Chizmadon albomi rejalarining grafika shabloni (albom ochilganda va «Uslub» boʻlimida beriladi) */
+  private chGs: string | undefined;
+  /** funksiya rangi sahna shabloni boʻyicha (ro'yxat va legendalar sahna bilan bir xil) */
+  private zcol(u: string): number { const g = gstyleById(this.store.doc.gstyle); return g.id === 'joriy' ? ZONE_COL[u] ?? 0xcccccc : useColorOf(g, u); }
   /** Chizmadon (CH-Yagona): albom loyiha bilan saqlanadi; Varaqlardan kelgan xarita — «Loyihadan» */
   openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
     if (needsLogin()) { void ensureLogin(undefined, 'Chizmadonda ishlash uchun kiring. Hisob bepul.').then(ok => { if (ok) this.openCh(incoming); }); return; }
@@ -4560,11 +4569,13 @@ export class Editor {
       tik: () => this.tep().filter(r => r.v != null && r.v !== '').slice(0, 14).map(r => [r.name, r.unit, typeof r.v === 'number' ? fmt(r.v, Math.abs(r.v) < 10 ? 2 : 0) : String(r.v)]),
       siteMap: () => {
         const d2 = this.store.doc; if (!d2.site && !d2.buildings.length) return undefined;
-        const o: SheetOpts = { ...SHEET_DEFAULT, kind: 'zona', show: { ...SHEET_DEFAULT.show, title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false, scaleBar: false, north: false } };
+        const o: SheetOpts = { ...SHEET_DEFAULT, kind: 'zona', gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false, scaleBar: false, north: false } };
         const r = sheetSvg(d2, this.sheetCtx(), o, new Date(), false, tr);
         return mapOnly(r.svg, r.scale) ?? undefined;
       },
       plans: () => this.chPlans(),
+      // c74: albom rejalarining grafika shabloni (Chizmadon «Uslub» boʻlimi)
+      gstyle: id => { this.chGs = id; },
       // 04.11: Chizmadon «Sahna rasmi» — joriy kamera va uslub, lekin ish belgilarisiz (izolyatsiya, tanlov, tutqichlar, kesim)
       scene: () => { try { return this.scene.drawingShot(() => this.scene.snapshot()); } catch { return null; } },
       // yopilganda manzil loyihaning oʻziga qaytadi (aks holda qayta yuklashda Chizmadon yana ochiladi)
@@ -4582,7 +4593,7 @@ export class Editor {
     const off = { title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false, scaleBar: false, north: false };
     const mk = (id: string, name: string, on: boolean, o: Partial<SheetOpts>): PlanSrc => ({ id, name, on, get: () => {
       if (ctx === undefined) ctx = this.sheetCtx();
-      const r = sheetSvg(this.store.doc, ctx, { ...SHEET_DEFAULT, ...o, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+      const r = sheetSvg(this.store.doc, ctx, { ...SHEET_DEFAULT, ...o, gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
       const m = mapOnly(r.svg, r.scale); return m ? { ...m, north: -(o.rot ?? 0), legend: r.legend } : null;
     } });
     const out: PlanSrc[] = [
@@ -4599,7 +4610,7 @@ export class Editor {
       { ...mk('p:plan:yashil', 'Yashil balans', true, { kind: 'yashil' }), table: { id: 'p:yashilbal', name: 'Yashil balans jadvali', title: tr('Yashil balans'), rows: () => balanceTable(this.store.doc, tr, 'yashil'), free: true } },
       { ...mk('p:plan:transport', 'Transport sxemasi', true, { kind: 'transport' }), table: { id: 'p:transportbal', name: 'Koʻchalar va avtoturargohlar', title: tr('Koʻchalar va avtoturargohlar'), rows: () => transportTable(this.store.doc, tr), free: true } },
       { id: 'p:plan:insol', name: 'Insolyatsiya', on: true, get: () => {
-        const r = sheetSvg(this.store.doc, this.sheetCtxFor('insol'), { ...SHEET_DEFAULT, kind: 'insol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const r = sheetSvg(this.store.doc, this.sheetCtxFor('insol'), { ...SHEET_DEFAULT, kind: 'insol', gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } },
       // 04.11: tahlil — qurilish navbati (jadval bilan)
@@ -4607,24 +4618,24 @@ export class Editor {
       // 04.11: tahlil — relyef (gipsometriya va gorizontallar)
       { id: 'p:plan:relyef', name: 'Relyef', on: true, get: () => {
         const c = this.sheetCtx(); if (!c?.terrain) return null;
-        const r = sheetSvg(this.store.doc, c, { ...SHEET_DEFAULT, kind: 'relyef', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const r = sheetSvg(this.store.doc, c, { ...SHEET_DEFAULT, kind: 'relyef', gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } },
       // 04.11: tahlil — shamol (guli va oqim)
       { id: 'p:plan:shamol', name: 'Shamol', on: true, get: () => {
-        const r = sheetSvg(this.store.doc, this.sheetCtxFor('shamol'), { ...SHEET_DEFAULT, kind: 'shamol', show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const r = sheetSvg(this.store.doc, this.sheetCtxFor('shamol'), { ...SHEET_DEFAULT, kind: 'shamol', gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } },
       // 06.11 (egasi): yer sathi xaritalari — yuza qizishi, suv bosish xavfi (HAND), namlik (TWI); maʼlumot boʻlsa yoqilgan
       ...(([['issiq', 'Yuza qizishi'], ['hand', 'Suv bosish xavfi (HAND)'], ['twi', 'Namlik (TWI)']] as const).map(([k, nm]) => { const has = () => { const g = this.gmapSheet(k); return !!g && 'pts' in g && g.pts.length > 0; }; return { id: `p:plan:${k}`, name: nm, on: k === 'issiq' ? !!this.heatCache : !!this.ctxMgr.current?.terrain, get: () => {
         if (!has()) return null;
-        const r = sheetSvg(this.store.doc, this.sheetCtxFor(k), { ...SHEET_DEFAULT, kind: k, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const r = sheetSvg(this.store.doc, this.sheetCtxFor(k), { ...SHEET_DEFAULT, kind: k, gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, legend: r.legend } : null;
       } } as PlanSrc; })),
       // 02.11: tahlil varaqlari — xizmat radiusi (piyoda tarmogʻi boʻylab, 9-qadam tahlili); asosiylari sukut boʻyicha yoqilgan
       ...SERVICES.map(sv => { let c2: SheetCtx | null | undefined; return { id: `p:plan:svc:${sv.id}`, name: `${tr('Xizmat radiusi')} · ${tr(sv.name)}`, on: SVC_ON.includes(sv.id), get: () => {
         if (c2 === undefined) c2 = this.sheetCtxFor('xizmat');
-        const r = sheetSvg(this.store.doc, c2, { ...SHEET_DEFAULT, kind: 'xizmat', svc: sv.id, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
+        const r = sheetSvg(this.store.doc, c2, { ...SHEET_DEFAULT, kind: 'xizmat', svc: sv.id, gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, north: 0, legend: r.legend } : null;
       } } as PlanSrc; }),
     ];
@@ -4678,17 +4689,17 @@ export class Editor {
    * Chizma aksonometriyasi: uslub — chizmaniki (oq maket, funksiya, fasad, figura-fon, qoralama), sahnaning ish holati
    * (izolyatsiya, tanlov, kesim, kvartira ranglari, insolyatsiya, «Sodda») chizmaga tushmaydi (04.11, egasi); keyin hammasi qaytadi.
    */
-  private axoShot(look: string | undefined, viewId: string | undefined, detail: boolean, ratio: number, labels = false): string {
+  private axoShot(look: string | undefined, viewId: string | undefined, detail: boolean, ratio: number, labels = false, gs?: string): string {
     const sc = this.scene, doc = this.store.doc, cam = sc.getCamera(), prevD = sc.detail, map: Record<string, SceneStyle> = { oq: 'arctic', funksiya: 'funksiya', fasad: 'albom', figura: 'minimal', qoralama: 'arctic', qavatlilik: 'arctic', kontekst: 'arctic', demontaj: 'arctic' };
     // 06.11 (akso uslublari 4–6): qavatlilik, loyiha va kontekst, saqlanadi/buziladi — oq maket ustida bitta urgʻu
     const paint = look === 'qavatlilik' || look === 'kontekst' || look === 'demontaj' ? look : null;
     try {
       return sc.drawingShot(() => {
-        sc.setStyle(map[look ?? 'oq'] ?? 'arctic'); sc.setPaint(paint); sc.setDetail(look === 'qoralama' || paint ? false : detail);
+        sc.setGStyleOverride(gs ?? null); sc.setStyle(map[look ?? 'oq'] ?? 'arctic'); sc.setPaint(paint); sc.setDetail(look === 'qoralama' || paint ? false : detail);
         const v = doc.views.find(x => x.id === viewId); if (v) sc.setCamera(v); else { if (sc.view !== 'axo') sc.setView('axo'); sc.frameDoc(doc); }
         return sc.snapshot(ratio);
       }, { labels });
-    } finally { sc.setPaint(null); sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam); }
+    } finally { sc.setPaint(null); sc.setGStyleOverride(null); sc.setStyle(this.stylePref); sc.setDetail(prevD); sc.setCamera(cam); }
   }
   /** Akso varagʻi legendasi — faqat sahnada bor toifalar (uslub 4–6) */
   private axoLegend(look: string | undefined): LegendItem[] {
@@ -4700,7 +4711,7 @@ export class Editor {
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
     openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), gmap: k => this.gmapSheet(k), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
-      axo: (look, viewId, detail, ratio, labels) => this.axoShot(look, viewId, detail, ratio, labels === true),
+      axo: (look, viewId, detail, ratio, labels, gs) => this.axoShot(look, viewId, detail, ratio, labels === true, gs),
       axoLegend: look => this.axoLegend(look),
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
       toChizmadon: (svg, name, scale, north) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, north }); },
@@ -4736,10 +4747,10 @@ export class Editor {
           h('button', { 'aria-pressed': this.plotFilter === 'short', onclick: () => { this.plotFilter = 'short'; this.openPlots(true); } }, `${tr('Yozuvi qisqargan')} · ${short}`)),
         h('span', { class: 't-small' }, tr('Kod · funksiya · maydon, ga. Qatorni bosing — xarita shu uchastkaga boradi.')),
         h('div', { class: 'group', id: 'plotList' }, ...list.map(r => h('button', { class: 'li', 'data-plot': r.i, 'aria-pressed': r.i === this.selBlock, style: r.i === this.selBlock ? 'background:var(--sel-soft)' : '', onclick: () => { this.selBlock = r.i; this.scene.selectBlock(r.i); this.scene.frameRings(r.b.rings); this.openPlots(true); if (this.step.id === 'parsel' || this.step.id === 'hajm') this.renderPanel(); } },
-          h('i', { style: `width:12px;height:12px;border-radius:3px;flex:none;background:${hex(ZONE_COL[r.b.use] ?? 0xdddddd)}` }),
+          h('i', { style: `width:12px;height:12px;border-radius:3px;flex:none;background:${hex(this.zcol(r.b.use))}` }),
           h('span', { class: 'mono', style: 'min-width:64px' }, r.code), h('span', { class: 'k' }, tr(useDef(r.b.use).name)), h('span', { class: 'v num' }, fmt(r.b.area / 1e4, 2))))),
         h('div', { class: 'glabel' }, h('span', {}, tr('Shartli belgilar'))),
-        h('div', { class: 'leg' }, ...[...cnt].sort((a, b) => b[1] - a[1]).map(([u, n]) => h('div', {}, h('i', { style: `background:${hex(ZONE_COL[u] ?? 0xdddddd)}` }), h('span', {}, tr(useDef(u as Use).name)), h('b', {}, String(n))))),
+        h('div', { class: 'leg' }, ...[...cnt].sort((a, b) => b[1] - a[1]).map(([u, n]) => h('div', {}, h('i', { style: `background:${hex(this.zcol(u))}` }), h('span', {}, tr(useDef(u as Use).name)), h('b', {}, String(n))))),
         h('span', { class: 't-small' }, `${tr('Daha')} ${daha} · ${tr('uchastka')} ${rows.length} · ${fmt(ha, 1)} ga`)));
   }
   private plotsReq = false;

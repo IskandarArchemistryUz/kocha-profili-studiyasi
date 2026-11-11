@@ -34,6 +34,9 @@ import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
 import { landscape } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
 import { USES, useDef } from '../core/uses';
+import { gstyleById, type GStyle } from '../core/gstyle';
+import { TREES } from '../chizmadon/catalog';
+import { treeAt } from '../core/gstyle';
 import { freeRect, modeMax, screenScale, mainAngle, type FreeRect, type LabelMode } from '../core/labels';
 import { tr } from '../i18n';
 import { paintColor, paintEdge, KEPT_COL, type AxoPaint } from '../core/axopaint';
@@ -89,6 +92,36 @@ function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] 
   });
   crown.castShadow = true; crown.renderOrder = 12; trunk.renderOrder = 12; crown.userData.tree = 'crown'; trunk.userData.tree = 'trunk';
   return [crown, trunk];
+}
+
+/**
+ * c74 (egasi 06.11): shablon daraxtlari — dumaloq emas, katalogdagi toj shakllari (catalog.ts: round/oval, umbrella/spread, cone, column),
+ * och ranglar, maksimal yengil: 3 ta toj InstancedMesh (ikosaedr 0-daraja — 20 uchburchak, 6 qirrali konus — 12, choʻzilgan oktaedr — 8)
+ * va 1 ta tana (4 qirrali ochiq silindr — 8 uchburchak); rang — instansiya rangi (alohida material yoʻq). Avvalgi: 80 + 20 uchburchak.
+ */
+const TREE_GEO = { ico: new THREE.IcosahedronGeometry(1, 0), cone: new THREE.ConeGeometry(0.85, 1.9, 6, 1), col: new THREE.OctahedronGeometry(1, 0), trunk: new THREE.CylinderGeometry(0.16, 0.22, 1, 4, 1, true) };
+function styledTreeMeshes(pts: XY[], H: HeightFn, cols: number[]): THREE.Object3D[] {
+  const kinds: ('ico' | 'cone' | 'col')[] = [], sc: [number, number, number][] = [];
+  pts.forEach(p => { const t = TREES[treeAt(p[0], p[1])]; const c = t.crown;
+    if (c === 'cone') { kinds.push('cone'); sc.push([1, 1, 1]); }
+    else if (c === 'column') { kinds.push('col'); sc.push([0.7, 2.3, 0.7]); }
+    else if (c === 'umbrella' || c === 'spread') { kinds.push('ico'); sc.push([1.3, 0.62, 1.3]); }
+    else if (c === 'oval') { kinds.push('ico'); sc.push([0.9, 1.25, 0.9]); }
+    else { kinds.push('ico'); sc.push([1, 1, 1]); } });
+  const out: THREE.Object3D[] = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
+  for (const k of ['ico', 'cone', 'col'] as const) {
+    const idx = pts.map((_, i) => i).filter(i => kinds[i] === k); if (!idx.length) continue;
+    const im = new THREE.InstancedMesh(TREE_GEO[k], new THREE.MeshLambertMaterial({ color: 0xffffff }), idx.length);
+    idx.forEach((i, j) => { const p = pts[i], y = H(p[0], p[1]), s = 2.4 + ((i * 37) % 10) / 10, h = 3.5 + ((i * 53) % 10) / 5, [a, b] = sc[i];
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (i * 1.7) % 6.28);
+      m4.compose(new THREE.Vector3(p[0], y + h + s * b * 0.55, -p[1]), q, new THREE.Vector3(s * a, s * b, s * a)); im.setMatrixAt(j, m4);
+      im.setColorAt(j, col.setHex(cols[(i * 7 + treeAt(p[0], p[1])) % cols.length])); });
+    im.castShadow = true; im.renderOrder = 12; im.userData.tree = 'crown'; out.push(im);
+  }
+  const trunk = new THREE.InstancedMesh(TREE_GEO.trunk, new THREE.MeshLambertMaterial({ color: 0x9a8a76 }), pts.length);
+  pts.forEach((p, i) => { const y = H(p[0], p[1]), h = 3.5 + ((i * 53) % 10) / 5; m4.compose(new THREE.Vector3(p[0], y + h / 2 + 0.3, -p[1]), new THREE.Quaternion(), new THREE.Vector3(1, h + 0.6, 1)); trunk.setMatrixAt(i, m4); });
+  trunk.renderOrder = 12; trunk.userData.tree = 'trunk'; out.push(trunk);
+  return out;
 }
 
 export type ViewMode = 'plan' | 'axo' | 'persp';
@@ -935,7 +968,7 @@ export class Scene3D {
     if (b.gen && (b.gen.kind === 'uy' || b.gen.kind === 'taunhaus')) {
       // past uylar — qiya tom bilan (kontekstdagi kabi); 31.10: material, tom turi, derazalar, eshik, ayvon, balkon (fasad qadami)
       const flatRoof = b.roof === 'tekis' || b.roof === 'yashil' || b.roof === 'quyosh';
-      const objs = buildingMeshes([{ id: 0, rings: [r], h: LV.h, kind: flatRoof ? 'tekis' : 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : pc != null ? pc : plain ? 0xffffff : b.mat && st !== 'funksiya' ? MATS.find(m => m.id === b.mat)!.color : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : b.roof === 'yashil' ? 0x93b873 : b.roof === 'quyosh' ? 0x4c5866 : 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
+      const objs = buildingMeshes([{ id: 0, rings: [r], h: LV.h, kind: flatRoof ? 'tekis' : 'house' }], this.H, new THREE.MeshLambertMaterial({ color: sel ? C.bldSel : pc != null ? pc : plain ? 0xffffff : b.mat && st !== 'funksiya' ? MATS.find(m => m.id === b.mat)!.color : st === 'funksiya' ? this.zc(b.use) ?? C.bld : (USE_COL[b.use] ?? C.bld) }), new THREE.MeshLambertMaterial({ color: plain ? 0xf1efea : b.roof === 'yashil' ? 0x93b873 : b.roof === 'quyosh' ? 0x4c5866 : 0xc98f7a, side: THREE.DoubleSide }), new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: 0.45 }));
       objs.forEach(o => { o.userData.bid = b.id; o.castShadow = o.receiveShadow = true; this.world.add(o); });
       if (!dim && st !== 'funksiya' && pc == null) { const hd = houseDetail(b, r, Math.min(...r.map(p => this.H(p[0], p[1]))), fh, doc.buildings.filter(o => o !== b && o.gen && (o.gen.kind === 'uy' || o.gen.kind === 'taunhaus')).map(o => o.footprint.map(fr.toLocal)), plain); if (hd) { hd.userData.bid = b.id; this.world.add(hd); } }
       return;
@@ -943,7 +976,7 @@ export class Scene3D {
     const nr = Math.min(b.nonRes, b.floors - (b.gen?.kind === 'stilobat' ? 0 : 1));
     const parking = b.gen?.kind === 'stilobat' && b.use === 'avtoturargoh', office = b.use === 'ofis' || b.use === 'mehmonxona';
     const baseC = pc != null ? pc : dim ? 0xebe9e4 : plain ? (st === 'minimal' ? 0xe6e6e6 : 0xf0eee9) : st === 'funksiya' ? tint(BASE_COL[b.use] ?? 0x9c7b6e, 0.15) : BASE_COL[b.use] ?? 0x9c7b6e;
-    const topC = pc != null ? pc : dim ? 0xf4f3f0 : plain ? 0xffffff : st === 'funksiya' ? ZONE_COL[b.use] ?? C.bld : USE_COL[b.use] ?? C.bld;
+    const topC = pc != null ? pc : dim ? 0xf4f3f0 : plain ? 0xffffff : st === 'funksiya' ? this.zc(b.use) ?? C.bld : USE_COL[b.use] ?? C.bld;
     const tiers = TP[bi], last = tiers[tiers.length - 1];
     tiers.forEach((t, ti) => {
       const up = ti > 0;   // yuqori pogʻonalar — toʻliq kontur bilan
@@ -971,7 +1004,7 @@ export class Scene3D {
         const v: number[] = [], w: number[] = [];
         for (const pr of parts) { for (let i = 0; i < pr.tris.length; i += 3) v.push(pr.tris[i], topZ + pr.tris[i + 2], -pr.tris[i + 1]); for (let i = 0; i < pr.walls.length; i += 3) w.push(pr.walls[i], topZ + pr.walls[i + 2], -pr.walls[i + 1]); }
         // tom rangi uslubga koʻra: Albom — xira terrakota, Rangli — toʻyingan, Arctic/Minimal — oq, Funksiya — zona rangi
-        const rc = pc != null ? pc : dim ? 0xf1efea : plain ? 0xf3f1ec : st === 'funksiya' ? tint(ZONE_COL[b.use] ?? C.bld, 0.35) : this.album ? 0xcfb2a3 : 0xb9765c;
+        const rc = pc != null ? pc : dim ? 0xf1efea : plain ? 0xf3f1ec : st === 'funksiya' ? tint(this.zc(b.use) ?? C.bld, 0.35) : this.album ? 0xcfb2a3 : 0xb9765c;
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
         const tiles = !plain && st !== 'funksiya' && pc == null && !dim && this.detail;
         if (tiles) g.setAttribute('uv', new THREE.Float32BufferAttribute(roofUV(v), 2));
@@ -1079,8 +1112,18 @@ export class Scene3D {
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x3d4147, side: THREE.DoubleSide })); m.renderOrder = 11; m.userData.docks = true; m.userData.layer = 3; this.world.add(m);
   }
 
+  /** c74: grafika shabloni — loyihaniki (doc.gstyle) yoki varaq aksonometriyasi uchun vaqtincha (setGStyleOverride) */
+  private gsc: GStyle | null = null;
+  private gsOv: string | null = null;
+  /** funksiya rangi: shablon palitrasi yoki ZONE_COL */
+  private zc(u: string): number | undefined { const c = this.gsc?.uses?.[u as keyof NonNullable<GStyle['uses']>]; return c ? parseInt(c.slice(1), 16) : ZONE_COL[u]; }
+  private treeObjs(pts: XY[], H: HeightFn, color: number): THREE.Object3D[] { const T = this.gsc?.trees3d; return T && this.style !== 'minimal' ? styledTreeMeshes(pts, H, this.style === 'arctic' ? T.map(c => tint(c, 0.55)) : T) : treeMeshes(pts, H, color); }
+  /** Varaq aksonometriyasi: shu varaq shabloni bilan suratga olish (null — loyihaniki) */
+  setGStyleOverride(id: string | null): void { if (id === this.gsOv) return; this.gsOv = id; if (this.lastDoc) this.update(this.lastDoc); }
+  get gstyle(): string { return this.gsc?.id ?? 'joriy'; }
   update(doc: Project): void {
     this.lastDoc = doc;
+    { const g = gstyleById(this.gsOv ?? doc.gstyle), was = this.gsc; this.gsc = g.id === 'joriy' ? null : g; if (was !== this.gsc) this.applyStyle(); }
     { const f0 = frame(doc.origin); this.isoLocal = this.iso ? this.iso.map(r => r.map(f0.toLocal)) : null; }
     this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|'); this.liteOn = this.liteWanted(); this.liteDirty = true;
     disposeGroup(this.world);
@@ -1096,7 +1139,7 @@ export class Scene3D {
         const sh = new THREE.Shape(b.rings[0].map(toV2)); b.rings.slice(1).forEach(h => sh.holes.push(new THREE.Path(h.map(toV2))));
         const g = drape(new THREE.ShapeGeometry(sh), this.H, 0.3, this.ctx ? 8 : 1e9);
         const sel = i === this.selBlock, out = !this.inIso(b.rings[0]);
-        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st === 'minimal' ? 0xeeeeee : st === 'arctic' ? tint(ZONE_COL[b.use] ?? C.site, 0.55) : ZONE_COL[b.use] ?? C.site, transparent: true, opacity: (sel ? 0.9 : plain ? 0.55 : this.ctx ? 0.62 : 0.75) * (out ? 0.3 : 1), depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st === 'minimal' ? 0xeeeeee : st === 'arctic' ? tint(this.zc(b.use) ?? C.site, 0.55) : this.zc(b.use) ?? C.site, transparent: true, opacity: (sel ? 0.9 : plain ? 0.55 : this.ctx ? 0.62 : 0.75) * (out ? 0.3 : 1), depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
         m.renderOrder = 6; m.userData.block = i; m.userData.layer = 2; this.world.add(m);
         if (sel) b.rings.forEach(r => this.world.add(line(densify(r, 10, true), C.preview, 0.45, true, 8, this.H)));
         else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
@@ -1175,7 +1218,7 @@ export class Scene3D {
             const v: number[] = []; for (const [i0, i1] of (zs[1] - zs[0] > zs[3] - zs[0] ? [[0, 1], [3, 2]] : [[0, 3], [1, 2]])) v.push(R[i0][0], zs[i0] + 0.9, -R[i0][1], R[i1][0], zs[i1] + 0.9, -R[i1][1]);   // toʻsiq (0,9 m)
             const gl = new THREE.BufferGeometry(); gl.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); this.world.add(new THREE.LineSegments(gl, new THREE.LineBasicMaterial({ color: plainS ? 0xb9b6ae : 0xc0503a })));
           }
-          if (pb) { if (y.trees.length) this.world.add(...treeMeshes(y.trees, Hy, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c)); } else trees.push(...y.trees);
+          if (pb) { if (y.trees.length) this.world.add(...this.treeObjs(y.trees, Hy, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c)); } else trees.push(...y.trees);
         }
         if (fenceV.length) {
           const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(fenceV, 3)); g.computeVertexNormals();
@@ -1201,7 +1244,7 @@ export class Scene3D {
           const m = new THREE.Mesh(mg, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5 - order, polygonOffsetUnits: -5 - order }));
           m.renderOrder = 6.2 + order * 0.01; this.world.add(m);
         }
-        if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c));
+        if (trees.length) this.world.add(...this.treeObjs(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : alb ? 0xa9c993 : 0x6f9f4c));
         // hovliga kirishlar: arka (toʻq sariq), binolar oraligʻi (koʻk) — strelka hovliga; podyezd — kichik toʻq kvadrat
         const shp: Record<'arka' | 'oraliq' | 'podyezd', THREE.Shape[]> = { arka: [], oraliq: [], podyezd: [] };
         for (const y of yards) for (const e of y.entries ?? []) {
@@ -1271,7 +1314,7 @@ export class Scene3D {
       const trees1 = siteR ? trees0.filter(p => inRings(p, siteR)) : trees0;
       // 07.11 (c69): yongʻin yoʻlagi oʻtishidagi koʻcha daraxtlari olinadi (676-band ruhida — mashina oʻtadigan joyda daraxt yoʻq)
       const trees = fx.polys.length ? trees1.filter(p => !fx.polys.some(r => inRings(p, [r]))) : trees1;
-      if (trees.length) this.world.add(...treeMeshes(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c).map(o => { o.userData.streetTrees = true; return o; }));
+      if (trees.length) this.world.add(...this.treeObjs(trees, this.H, st === 'arctic' ? 0xeef1ea : st === 'minimal' ? 0xd2d2d2 : this.album ? 0x9fbf86 : 0x6f9f4c).map(o => { o.userData.streetTrees = true; return o; }));
     }
     tag(1);
     // uchastka ichidagi mavjud binolar: saqlanadigan — oddiy, qolgani — buziladigan (shaffof qizil)
@@ -1632,7 +1675,7 @@ export class Scene3D {
         m.needsUpdate = true;
       }
     });
-    this.scene.background = new THREE.Color(this.dark ? DARK.bg : S ? S.bg : 0xf4f3f1);
+    this.scene.background = new THREE.Color(this.dark ? DARK.bg : S ? (this.gsc ? 0xffffff : S.bg) : 0xf4f3f1);   // c74: shablonda atrof oq
     (this.ground.material as THREE.MeshLambertMaterial).color.setHex(this.groundHex());
     for (const g of this.grid) ((g as THREE.LineSegments).material as THREE.LineBasicMaterial).color.setHex(this.dark ? DARK.gridTint : 0xffffff);
     this.invalidate();
@@ -1640,7 +1683,7 @@ export class Scene3D {
   /** 31.10 (egasi: «tungi rejimda sahna foni yorugʻ qolyapti»): sahna foni, yer va toʻr — tungi rejimda qorongʻi; loyiha ranglari oʻzgarmaydi */
   private dark = false;
   setDark(on: boolean): void { if (on === this.dark) return; this.dark = on; this.applyStyle(); }
-  private groundHex(): number { return this.dark ? DARK.ground : this.style === 'minimal' || this.style === 'arctic' ? 0xf7f6f4 : C.ground; }
+  private groundHex(): number { return this.dark ? DARK.ground : this.gsc && this.style !== 'rangli' ? 0xfbfbfa : this.style === 'minimal' || this.style === 'arctic' ? 0xf7f6f4 : C.ground; }
 
   /** Yorliqlar ekranda doimiy piksel oʻlchamida (ortho kamerada sizeAttenuation ishlamaydi — shu yerda hisoblanadi) */
   private fitSprites(cam: THREE.Camera): void {
@@ -1706,7 +1749,7 @@ export class Scene3D {
     plan.blocks.forEach((b, i) => {
       const n = (idx.get(b.blockKey) ?? 0) + 1; idx.set(b.blockKey, n);
       const code = b.parcelId ? `D-${b.blockKey + 1}.${n}` : `D-${b.blockKey + 1}`, use = tr(USE_LABEL[b.use] ?? useDef(b.use).name), ar = tr(fmtA(b.area));
-      const halo = hex(tint(ZONE_COL[b.use] ?? C.site, 0.45));
+      const halo = hex(tint(this.zc(b.use) ?? C.site, 0.45));
       if (i === this.selBlock) {
         // tanlangan: oq kartochka — toʻliq + UMN, qavat
         let gfa = 0, fl = 0;
@@ -2177,12 +2220,15 @@ export class Scene3D {
     this.iso = null; this.isoLocal = null; this.aptView = null; this.selected = null; this.selBlock = null; this.renderer.clippingPlanes = [];   // tanlangan daha kartochkasi (D-1 · UMN) ham
     if (saved.expl) { this.exploded = false; this.applyExplode(); }
     hide.forEach(o => { o.visible = false; });
+    // c74: chizma (varaq, albom) doim oq — tungi rejimda ham rasm yorugʻ fonda olinadi
+    const dk = this.dark; if (dk) { this.dark = false; this.applyStyle(); }
     this.applyIsoCtx(); if (d) this.update(d);
     this.labelsOff = o.labels === false;   // update yozuvlarni qayta quradi — joylashtirishda (fitSprites) yashiriladi
     try { return fn(); } finally {
       this.iso = saved.iso; this.aptView = saved.apt; this.selected = saved.sel; this.selBlock = saved.selB; this.renderer.clippingPlanes = saved.clip;
       hide.forEach((o, i) => { o.visible = vis[i]; }); this.labelsOff = false;
       if (saved.expl) { this.exploded = true; this.applyExplode(); }
+      if (dk) { this.dark = true; this.applyStyle(); }
       this.applyIsoCtx(); if (d) this.update(d); this.invalidate();
     }
   }
