@@ -54,7 +54,7 @@ describe('Grafika shablonlari', () => {
       expect(f.svg).toMatch(new RegExp(`id="Atrof_binolar"[^]*?fill="${g.ctx!.bld}"`));
     }
   });
-  it('parsellar: «bir xil quyuq kulrang» varianti — bitta rang, bitta shartli belgi', () => {
+  it('parsellar: «bir xil kulrang» varianti — bitta rang, bitta shartli belgi', () => {
     const r = sheetSvg(project(), ctx, opts({ kind: 'parsel', parcel: 'kulrang' }), D);
     const par = r.svg.match(/id="Parsellar"[^]*?<\/g>/)![0];
     expect(par.match(/fill="#[0-9a-f]{6}"/g)!.every(x => x === `fill="${PARCEL_GREY}"`)).toBe(true);

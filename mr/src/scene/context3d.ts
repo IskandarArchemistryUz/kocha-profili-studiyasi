@@ -9,6 +9,7 @@ import type { ContextSettings } from '../core/doc';
 import type { ContextBundle } from '../context/load';
 import { imageryUV } from '../context/tiles';
 import { streetsGeo, type StreetIn } from './streets3d';
+import { styledTreeMeshes } from './trees3d';
 import { elevateRoads, bridgeMeshes } from './bridges3d';
 
 export const CC = {
@@ -240,7 +241,11 @@ function treePositions(b: ContextBundle, fr: Frame, R: number, avoid: (p: XY) =>
   return out;
 }
 
-export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; /** uchastkadan tashqaridagi koʻrinadigan binolar (tanlash uchun) */ blds: CtxBld[]; /** koʻrsatilgan OSM yoʻllari (mahalliy) — loyiha koʻchalari ularga ulanadi */ roads: StreetIn[]; dispose(): void; maskTrees(ring: XY[] | null): void }
+export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; /** uchastkadan tashqaridagi koʻrinadigan binolar (tanlash uchun) */ blds: CtxBld[]; /** koʻrsatilgan OSM yoʻllari (mahalliy) — loyiha koʻchalari ularga ulanadi */ roads: StreetIn[]; dispose(): void; maskTrees(ring: XY[] | null): void;
+  /** 11.11: grafika shablonida OSM daraxtlari — shablon toj shakllari va och ranglari (null — asl dumaloq tojlar) */
+  setTreeStyle(cols: number[] | null): void;
+  /** hozirgi daraxtlar: «asl» yoki «shablon» */
+  readonly treeStyle: 'asl' | 'shablon' | null }
 
 /** Butun kontekst sahnasini qurish */
 export interface CtxBld { id: number; rings: XY[][]; h: number; kind?: string }
@@ -335,6 +340,8 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     const sg = streetsGeo(sts, H);
     const add = (arr: number[], col: number, ord: number, name: string) => { if (!arr.length) return; const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.add(overlay(geo, flatMat(col, ord), ord, name)); };
     add(sg.foot, CC.foot, 3, 'yoʻlaklar'); add(sg.sidewalk, CC.sidewalk, 3.05, 'trotuarlar');
+    // 11.11: bordyur tasmasi — faqat grafika shablonining vektor fonida koʻrinadi (scene.applyStyle); asl uslub va sputnikda yashirin
+    if (sg.kerb.length) { const kg = new THREE.BufferGeometry(); kg.setAttribute('position', new THREE.Float32BufferAttribute(sg.kerb, 3)); const km = overlay(kg, flatMat(CC.sidewalk, 3.08), 3.08, 'bordyurlar'); km.visible = false; g.add(km); }
     add(sg.asphalt, CC.asphalt, 3.1, 'yoʻllar'); add(sg.major, CC.asphaltMajor, 3.15, 'yoʻllar'); add(sg.marks, CC.mark, 3.3, 'chiziqlar');
   }
   if (L.rail) {
@@ -380,18 +387,38 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
       g.add(crown, trunk);
     }
   }
+  // 11.11: daraxtlar toʻplami — asl (dumaloq toj + tana) yoki shablon (3 toj shakli + tana); guruhda faqat bittasi turadi
+  const classic = g.getObjectByName('daraxtlar') as THREE.InstancedMesh | undefined;
+  const treePts: XY[] = (classic?.userData.pts as XY[] | undefined) ?? [];
+  const classicSet: THREE.InstancedMesh[] = classic ? [classic, classic.userData.trunk as THREE.InstancedMesh] : [];
+  let styled: THREE.InstancedMesh[] = [], styledKey = '', mask: XY[] | null = null;
+  /** bitta InstancedMesh: uchastka ichidagi nusxalar nolga (pi — nusxa → nuqta indeksi; yoʻq — bir xil) */
+  const maskOne = (m: THREE.InstancedMesh) => {
+    const a = m.instanceMatrix.array as Float32Array, pi = m.userData.pi as number[] | undefined; a.set(m.userData.m0);
+    if (mask && mask.length > 2) for (let j = 0; j < m.count; j++) if (pip(treePts[pi ? pi[j] : j], mask)) a.fill(0, j * 16, j * 16 + 16);
+    m.instanceMatrix.needsUpdate = true;
+  };
+  /** guruhdan olinganda izolyatsiya holati tiklanadi (scene.applyIsoCtx qayta qoʻllaydi) */
+  const detach = (o: THREE.Object3D) => { const u = o.userData as { isoV?: boolean }; if (u.isoV != null) { o.visible = u.isoV; delete u.isoV; } g.remove(o); };
+  const disposeStyled = () => { for (const m of styled) { g.remove(m); (m.material as THREE.Material).dispose(); m.dispose(); } styled = []; };   // geometriya umumiy (trees3d)
   return {
     group: g, ground, inSite, blds, roads: shownRoads,
+    get treeStyle() { return classic ? (styled.length ? 'shablon' : 'asl') : null; },
     /** Loyiha uchastkasi ichidagi kontekst daraxtlarini yashirish (uchastka loyihalanadi) */
-    maskTrees(ring) {
-      const crown = g.getObjectByName('daraxtlar') as THREE.InstancedMesh | undefined; if (!crown) return;
-      const trunk = crown.userData.trunk as THREE.InstancedMesh, pts = crown.userData.pts as XY[];
-      const a = crown.instanceMatrix.array as Float32Array, b = trunk.instanceMatrix.array as Float32Array;
-      a.set(crown.userData.m0); b.set(trunk.userData.m0);
-      if (ring && ring.length > 2) pts.forEach((p, i) => { if (pip(p, ring)) { a.fill(0, i * 16, i * 16 + 16); b.fill(0, i * 16, i * 16 + 16); } });
-      crown.instanceMatrix.needsUpdate = trunk.instanceMatrix.needsUpdate = true;
+    maskTrees(ring) { mask = ring; for (const m of [...classicSet, ...styled]) maskOne(m); },
+    setTreeStyle(cols) {
+      if (!classic) return;
+      const k = cols?.join(',') ?? '';
+      if (k === styledKey) return; styledKey = k;
+      disposeStyled();
+      if (!cols) { for (const m of classicSet) if (!m.parent) g.add(m); return; }
+      classicSet.forEach(detach);
+      styled = styledTreeMeshes(treePts, H, cols) as THREE.InstancedMesh[];
+      for (const m of styled) { m.name = m.userData.tree === 'trunk' ? 'shablon tanalari' : 'shablon daraxtlari'; m.userData.ctxTree = true; m.userData.m0 = Float32Array.from(m.instanceMatrix.array); maskOne(m); g.add(m); }
     },
     dispose() {
+      disposeStyled();
+      for (const m of classicSet) if (!m.parent) g.add(m);
       g.traverse(o => { const m = o as THREE.Mesh; m.geometry?.dispose(); const mt = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mt) ? mt : mt ? [mt] : []).forEach(x => x.dispose()); });
     },
   };

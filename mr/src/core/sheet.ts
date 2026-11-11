@@ -19,7 +19,7 @@ import { freeRect, pickLevel, labelLines, modeMax, type LabelMode } from './labe
 import { limitZones, landBalance, hatchSegs, bufferLocal, isActive, LIMIT_NAMES } from './limits';
 import { prodChecks } from './prodcheck';
 import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
-import { gstyleById, useColorOf, styledTree, PARCEL_GREY } from './gstyle';
+import { gstyleById, useColorOf, styledTree, parcelGrey, inkOn } from './gstyle';
 
 export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
@@ -119,6 +119,8 @@ export interface SheetOpts {
   plan?: { look?: 'rang' | 'bir'; floor?: number; grp?: number };
   /** c74: grafika shabloni (core/gstyle; sukut — «joriy», hozirgi koʻrinish) va parsellar rejasi: funksiya rangida yoki bir xil quyuq kulrang */
   gstyle?: string; parcel?: 'rang' | 'kulrang';
+  /** 11.11: «bir xil kulrang» parsellar rangi (#rrggbb; yoʻq — PARCEL_GREY) */
+  parcelGrey?: string;
   axo?: { look?: 'oq' | 'funksiya' | 'fasad' | 'figura' | 'qoralama' | 'qavatlilik' | 'kontekst' | 'demontaj'; view?: string; shadow?: boolean; /** 04.11: daha, kvartal va koʻcha yozuvlari (sukut — yoʻq) */ labels?: boolean };
 }
 /** Tayyor mazmun (qavat rejalari yoki aksonometriya): chizma maydoniga (mm) joylanadi; masshtab yozuvi — label */
@@ -313,8 +315,8 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   // 2. daha va yer uchastkalari
   const lP = Ly('plots');
   // c74: «bir xil quyuq kulrang» parsellar (o.parcel) va shablon palitrasi; shablonda toʻliq rang quyuqlashtirilmaydi (shablon ranglari oʻzi toʻyingan)
-  const grey = PR && o.parcel === 'kulrang';
-  const parcelFill = (u: string) => grey ? PARCEL_GREY : GS ? hex(ucol(u)) : darker(ucol(u), 0.12);   // toʻliq (quyuqroq) funksiya rangi
+  const grey = PR && o.parcel === 'kulrang', PG = parcelGrey(o.parcelGrey);
+  const parcelFill = (u: string) => grey ? PG : GS ? hex(ucol(u)) : darker(ucol(u), 0.12);   // toʻliq (quyuqroq) funksiya rangi
   const plotFill = (u: string) => lP.fill === 'none' ? 'none' : lP.fill === 'one' ? (lP.light ? '#f4f3f0' : '#ecebe7') : mix(ucol(u), lP.light ? 0.45 : GS ? 0.05 : 0.15);
   if (lP.on && !VZ) {
     if (K === 'zona') {
@@ -324,7 +326,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       // parsellar rejasi (06.11): toʻliq funksiya rangi, qora kontur; ichida binolar, daraxtlar, maydonchalar yoʻq
       const pS = grey ? '#ffffff' : INK;
       g('Parsellar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${parcelFill(b.use)}" stroke="${pS}" stroke-width="${lw(Math.max(lP.mm, 0.35) * (grey ? 1.4 : LW))}" stroke-linejoin="round" fill-rule="evenodd"/>`).join(''));
-      if (grey) { if (plan.blocks.length) legend.push({ type: 'fill', fill: PARCEL_GREY, stroke: '#1d1d1b', label: tr('Yer uchastkalari') }); }
+      if (grey) { if (plan.blocks.length) legend.push({ type: 'fill', fill: PG, stroke: '#1d1d1b', label: tr('Yer uchastkalari') }); }
       else for (const u of USES) if (plan.blocks.some(b => b.use === u.id)) legend.push({ type: 'fill', fill: parcelFill(u.id), stroke: INK, label: tr(u.name) });
     } else if (K === 'cheklov') {
       g('Kvartallar', plan.blocks.map(b => `<path d="${polyD(b.rings)}" fill="${mix(ucol(b.use), 0.62)}" stroke="#b9b5ab" stroke-width="${lw(lP.mm)}" fill-rule="evenodd"/>`).join(''));
@@ -623,7 +625,8 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       const v = toV(rect.c), fsz = lines.map((_t, i) => i ? 2.5 : 3.5), gapL = 0.35 * 2.5, H = fsz.reduce((a2, b2) => a2 + b2, 0) + gapL * (lines.length - 1);
       let acc = -H / 2;
       const body = lines.map((t, i) => { acc += fsz[i]; const yy = acc - fsz[i] * 0.18; acc += gapL; return `<text y="${n2(yy)}" font-size="${T(fsz[i])}"${i === 0 ? ' font-weight="700"' : ''}${i === 0 || (i === lines.length - 1 && lines.length > 1) ? ' font-family="IBM Plex Mono, Menlo, monospace"' : ''}>${esc(t)}</text>`; }).join('');
-      out.push(`<g transform="translate(${n2(v[0])} ${n2(v[1])}) rotate(${n2(angDeg(rect.ang))})" text-anchor="middle" fill="#1d1d1b" stroke="${halo}" stroke-width="0.6" stroke-linejoin="round" paint-order="stroke">${body}</g>`);
+      // 11.11: kulrang parsellarda yozuv rangi — oq yoki qora, qaysi biri kontrastliroq (WCAG)
+      out.push(`<g transform="translate(${n2(v[0])} ${n2(v[1])}) rotate(${n2(angDeg(rect.ang))})" text-anchor="middle" fill="${grey ? inkOn(PG) : '#1d1d1b'}" stroke="${halo}" stroke-width="0.6" stroke-linejoin="round" paint-order="stroke">${body}</g>`);
     });
     g('Yer_uchastkalari_yozuvlari', out.join(''));
   }

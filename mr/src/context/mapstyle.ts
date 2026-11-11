@@ -5,6 +5,7 @@
 export const OFM = 'https://tiles.openfreemap.org/planet';
 const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
 import { imageryTemplate, ESRI_IMAGERY_ATTR } from './esrikey';
+import { gstyleById, gsMapPalette } from '../core/gstyle';
 
 export interface Palette { n: string; bg: string; water: string; park: string; road: string; rc: string; bld: string; bl: string; bw: number; rail: string; label: string }
 export const PALETTES: Record<string, Palette> = {
@@ -19,6 +20,9 @@ export const PALETTES: Record<string, Palette> = {
   oq: { n: 'Oq maket', bg: '#f6f6f5', water: '#e4eef2', park: '#eef3ea', road: '#ffffff', rc: '#dcdcd9', bld: '#ffffff', bl: '#9a978f', bw: .6, rail: '#dcdcd9', label: '#6f6d68' },
   kok: { n: 'Koʻk chizma', bg: '#0f2740', water: '#0b1f33', park: '#163b4a', road: '#1a3d61', rc: '#1a3d61', bld: '#1d4670', bl: '#5d8fc2', bw: .6, rail: '#24507e', label: '#a9c4e2' },
 };
+
+/** Palitra kaliti: PALETTES dagi yoki «gs:<shablon>» (11.11: grafika shabloni tanlanganda — shablonning och vektor foni) */
+export const palOf = (k: string): Palette => (k.startsWith('gs:') ? gsMapPalette(gstyleById(k.slice(3))) : null) ?? PALETTES[k] ?? PALETTES.arch;
 
 /** portal boʻylab umumiy tanlov (eski sahifalar ham shu kalitni oʻqiydi) */
 /** Qoʻlda tanlangan ranglar (palitra ustidan): fon, binolar, koʻchalar, yashil, suv */
@@ -42,7 +46,7 @@ const NAME = ['coalesce', ['get', 'name:uz'], ['get', 'name:latin'], ['get', 'na
 
 /** MapLibre uslubi: «stil» palitrasi yoki sunʼiy yoʻldosh */
 export function mapStyle(kind: 'stil' | 'sat', palKey = 'arch', labels = true, custom: Custom = {}): unknown {
-  const p0 = PALETTES[palKey] ?? PALETTES.arch, p = { ...p0, ...custom, ...(custom.road ? { rc: custom.road } : {}) }, L: unknown[] = [];
+  const p0 = palOf(palKey), p = { ...p0, ...custom, ...(custom.road ? { rc: custom.road } : {}) }, L: unknown[] = [];
   if (kind === 'sat') {
     return { version: 8, glyphs: GLYPHS, sources: { s: { type: 'raster', tiles: [imageryTemplate()], tileSize: 256, maxzoom: 19, attribution: `Powered by Esri · ${ESRI_IMAGERY_ATTR}` } }, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#2b2d2f' } }, { id: 'sat', type: 'raster', source: 's' }] };
   }

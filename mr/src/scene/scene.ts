@@ -34,9 +34,8 @@ import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
 import { landscape } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
 import { USES, useDef } from '../core/uses';
-import { gstyleById, type GStyle } from '../core/gstyle';
-import { TREES } from '../chizmadon/catalog';
-import { treeAt } from '../core/gstyle';
+import { gstyleById, gsScenePal, sceneBase, sceneTreeCols, type GStyle } from '../core/gstyle';
+import { styledTreeMeshes } from './trees3d';
 import { freeRect, modeMax, screenScale, mainAngle, type FreeRect, type LabelMode } from '../core/labels';
 import { tr } from '../i18n';
 import { paintColor, paintEdge, KEPT_COL, type AxoPaint } from '../core/axopaint';
@@ -92,36 +91,6 @@ function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] 
   });
   crown.castShadow = true; crown.renderOrder = 12; trunk.renderOrder = 12; crown.userData.tree = 'crown'; trunk.userData.tree = 'trunk';
   return [crown, trunk];
-}
-
-/**
- * c74 (egasi 06.11): shablon daraxtlari — dumaloq emas, katalogdagi toj shakllari (catalog.ts: round/oval, umbrella/spread, cone, column),
- * och ranglar, maksimal yengil: 3 ta toj InstancedMesh (ikosaedr 0-daraja — 20 uchburchak, 6 qirrali konus — 12, choʻzilgan oktaedr — 8)
- * va 1 ta tana (4 qirrali ochiq silindr — 8 uchburchak); rang — instansiya rangi (alohida material yoʻq). Avvalgi: 80 + 20 uchburchak.
- */
-const TREE_GEO = { ico: new THREE.IcosahedronGeometry(1, 0), cone: new THREE.ConeGeometry(0.85, 1.9, 6, 1), col: new THREE.OctahedronGeometry(1, 0), trunk: new THREE.CylinderGeometry(0.16, 0.22, 1, 4, 1, true) };
-function styledTreeMeshes(pts: XY[], H: HeightFn, cols: number[]): THREE.Object3D[] {
-  const kinds: ('ico' | 'cone' | 'col')[] = [], sc: [number, number, number][] = [];
-  pts.forEach(p => { const t = TREES[treeAt(p[0], p[1])]; const c = t.crown;
-    if (c === 'cone') { kinds.push('cone'); sc.push([1, 1, 1]); }
-    else if (c === 'column') { kinds.push('col'); sc.push([0.7, 2.3, 0.7]); }
-    else if (c === 'umbrella' || c === 'spread') { kinds.push('ico'); sc.push([1.3, 0.62, 1.3]); }
-    else if (c === 'oval') { kinds.push('ico'); sc.push([0.9, 1.25, 0.9]); }
-    else { kinds.push('ico'); sc.push([1, 1, 1]); } });
-  const out: THREE.Object3D[] = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
-  for (const k of ['ico', 'cone', 'col'] as const) {
-    const idx = pts.map((_, i) => i).filter(i => kinds[i] === k); if (!idx.length) continue;
-    const im = new THREE.InstancedMesh(TREE_GEO[k], new THREE.MeshLambertMaterial({ color: 0xffffff }), idx.length);
-    idx.forEach((i, j) => { const p = pts[i], y = H(p[0], p[1]), s = 2.4 + ((i * 37) % 10) / 10, h = 3.5 + ((i * 53) % 10) / 5, [a, b] = sc[i];
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (i * 1.7) % 6.28);
-      m4.compose(new THREE.Vector3(p[0], y + h + s * b * 0.55, -p[1]), q, new THREE.Vector3(s * a, s * b, s * a)); im.setMatrixAt(j, m4);
-      im.setColorAt(j, col.setHex(cols[(i * 7 + treeAt(p[0], p[1])) % cols.length])); });
-    im.castShadow = true; im.renderOrder = 12; im.userData.tree = 'crown'; out.push(im);
-  }
-  const trunk = new THREE.InstancedMesh(TREE_GEO.trunk, new THREE.MeshLambertMaterial({ color: 0x9a8a76 }), pts.length);
-  pts.forEach((p, i) => { const y = H(p[0], p[1]), h = 3.5 + ((i * 53) % 10) / 5; m4.compose(new THREE.Vector3(p[0], y + h / 2 + 0.3, -p[1]), new THREE.Quaternion(), new THREE.Vector3(1, h + 0.6, 1)); trunk.setMatrixAt(i, m4); });
-  trunk.renderOrder = 12; trunk.userData.tree = 'trunk'; out.push(trunk);
-  return out;
 }
 
 export type ViewMode = 'plan' | 'axo' | 'persp';
@@ -1117,13 +1086,22 @@ export class Scene3D {
   private gsOv: string | null = null;
   /** funksiya rangi: shablon palitrasi yoki ZONE_COL */
   private zc(u: string): number | undefined { const c = this.gsc?.uses?.[u as keyof NonNullable<GStyle['uses']>]; return c ? parseInt(c.slice(1), 16) : ZONE_COL[u]; }
-  private treeObjs(pts: XY[], H: HeightFn, color: number): THREE.Object3D[] { const T = this.gsc?.trees3d; return T && this.style !== 'minimal' ? styledTreeMeshes(pts, H, this.style === 'arctic' ? T.map(c => tint(c, 0.55)) : T) : treeMeshes(pts, H, color); }
+  /** shablon daraxtlari ranglari (null — asl dumaloq): «Chizma» uslubida — asl, «Gips maket»da — ochroq */
+  /** 11.11 (egasi): sahnada — xira daraxt ranglari (sceneTreeCols), varaq/albom rasmida (drawingShot) — shablonning oʻz ranglari */
+  private treeCols(): number[] | null { const T = this.inShot ? this.gsc?.trees3d : sceneTreeCols(this.gsc); return T && this.style !== 'minimal' ? (this.style === 'arctic' ? T.map(c => tint(c, 0.55)) : T) : null; }
+  private treeObjs(pts: XY[], H: HeightFn, color: number): THREE.Object3D[] { const T = this.treeCols(); return T ? styledTreeMeshes(pts, H, T) : treeMeshes(pts, H, color); }
+  /** 11.11: OSM kontekst daraxtlari ham shablon shakli va rangida (InstancedMesh, kam poligon); «Asl uslub»da — avvalgidek */
+  private syncCtxTrees(): void { if (!this.ctx) return; const was = this.ctx.treeStyle; this.ctx.setTreeStyle(this.treeCols()); if (was !== this.ctx.treeStyle && (this.iso || this.aptView)) this.applyIsoCtx(); }
+  /** kontekst sputnik tasviri bilan qurilganmi (shablon foni sputnikda qoʻllanmaydi) */
+  private ctxSat = false;
+  /** 11.11: shablonning och vektor foni — kontekst qismlari ranglari (sputnikda, «Chizma» va «Gips maket» uslublarida — yoʻq) */
+  private gsPal(): ReturnType<typeof gsScenePal> { return this.gsc && !this.ctxSat && this.style !== 'minimal' && this.style !== 'arctic' ? gsScenePal(this.gsc) : null; }
   /** Varaq aksonometriyasi: shu varaq shabloni bilan suratga olish (null — loyihaniki) */
   setGStyleOverride(id: string | null): void { if (id === this.gsOv) return; this.gsOv = id; if (this.lastDoc) this.update(this.lastDoc); }
   get gstyle(): string { return this.gsc?.id ?? 'joriy'; }
   update(doc: Project): void {
     this.lastDoc = doc;
-    { const g = gstyleById(this.gsOv ?? doc.gstyle), was = this.gsc; this.gsc = g.id === 'joriy' ? null : g; if (was !== this.gsc) this.applyStyle(); }
+    { const g = gstyleById(this.gsOv ?? doc.gstyle), was = this.gsc; this.gsc = g.id === 'joriy' ? null : g; if (was !== this.gsc) this.applyStyle(); this.syncCtxTrees(); }
     { const f0 = frame(doc.origin); this.isoLocal = this.iso ? this.iso.map(r => r.map(f0.toLocal)) : null; }
     this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|'); this.liteOn = this.liteWanted(); this.liteDirty = true;
     disposeGroup(this.world);
@@ -1605,13 +1583,14 @@ export class Scene3D {
 
   /** Kontekstni oʻrnatish (null — olib tashlash). Loyiha markazi yoki koʻrinish sozlamalari oʻzgarsa qayta quriladi. */
   async setContext(b: ContextBundle | null, doc: Project): Promise<void> {
-    const cs = doc.context;
+    // 11.11: grafika shablonida xarita qatlami — shablonning och vektor foni (sputnik — faqat qoʻlda, cs.gsSat); «Asl uslub»da — cs.base
+    const { gsSat: _gs, ...cs0 } = doc.context, cs = { ...cs0, base: sceneBase(doc.gstyle, doc.context) };
     const adopted = [...doc.streets.filter(x => x.osm != null).map(x => x.osm!), ...(doc.removedRoads ?? [])];
     const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}|${this.hideOsmKey}|${JSON.stringify(doc.roadEdits ?? [])}` : '';
     if (key === this.ctxKey) return;
     this.ctxKey = key; this.bundle = b;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
-    if (!b) { this.H = () => 0; this.setSatLayer(null, doc.origin); this.grid.forEach(g => g.visible = !this.baseMap); this.ground.position.y = 0; this.update(doc); return; }
+    if (!b) { this.ctxSat = false; this.H = () => 0; this.setSatLayer(null, doc.origin); this.grid.forEach(g => g.visible = !this.baseMap); this.ground.position.y = 0; this.update(doc); return; }
     const fr = frame(doc.origin);
     // relyef markazi — loyiha markazi (kontekst keshi boshqa markazda olingan boʻlishi mumkin)
     const base = terrainSampler(cs.layers.relief ? b.terrain : null);
@@ -1629,9 +1608,11 @@ export class Scene3D {
       tex = this.tex!.t;
     }
     this.ctx = buildContext(b, fr, cs, this.H, tex, doc.site ? doc.site.rings[0].map(fr.toLocal) : null, new Set(adopted), new Set([...(doc.removed ?? []), ...this.hideOsm]));
+    this.ctxSat = cs.base === 'sputnik' && !!tex;
     this.scene.add(this.ctx.group);
     this.setSatLayer(null, doc.origin);
-    if (this.album) this.applyStyle();
+    this.syncCtxTrees();
+    if (this.album || this.gsc) this.applyStyle();
     if (this.iso || this.aptView) this.applyIsoCtx();
     this.grid.forEach(g => g.visible = false);
     const T = cs.layers.relief ? b.terrain : null;
@@ -1655,7 +1636,7 @@ export class Scene3D {
   setStyle(st: SceneStyle): void { if (st === this.style) return; this.style = st; this.album = st !== 'rangli'; this.applyStyle(); if (this.lastDoc) this.update(this.lastDoc); }
   get albumOn(): boolean { return this.album; }
   private applyStyle(): void {
-    const S = this.style === 'rangli' ? null : STYLE_PAL[this.style];
+    const GP = this.gsPal(), S = GP ? { pal: GP.pal, lerp: 0.65, line: GP.line, bg: GP.bg } : this.style === 'rangli' ? null : STYLE_PAL[this.style];
     const W = new THREE.Color(0xffffff), roots: THREE.Object3D[] = [...(this.ctx ? [this.ctx.group] : []), ...this.far];
     type M = THREE.Material & { color?: THREE.Color; map?: THREE.Texture | null };
     for (const root of roots) root.traverse(o => {
@@ -1665,6 +1646,7 @@ export class Scene3D {
         const u = m.userData as { s0?: { c?: THREE.Color; map?: THREE.Texture | null } };
         u.s0 ??= { c: m.color?.clone(), map: m.map ?? null };
         const f = u.s0;
+        if (o.name === 'bordyurlar') o.visible = !!GP;   // 11.11: bordyur tasmasi — faqat shablon vektor fonida
         const sat = !!f.map && !!this.tex && f.map === this.tex.t;   // sunʼiy yoʻldosh tasviri — har uslubda saqlanadi
         if (S && sat) { if (f.c) m.color?.copy(f.c); m.map = f.map; }
         else if (S) {
@@ -1675,7 +1657,7 @@ export class Scene3D {
         m.needsUpdate = true;
       }
     });
-    this.scene.background = new THREE.Color(this.dark ? DARK.bg : S ? (this.gsc ? 0xffffff : S.bg) : 0xf4f3f1);   // c74: shablonda atrof oq
+    this.scene.background = new THREE.Color(this.dark ? DARK.bg : GP ? GP.bg : S ? (this.gsc ? 0xffffff : S.bg) : 0xf4f3f1);   // c74: shablonda atrof oq; 11.11 — shablon fonining yer rangi
     (this.ground.material as THREE.MeshLambertMaterial).color.setHex(this.groundHex());
     for (const g of this.grid) ((g as THREE.LineSegments).material as THREE.LineBasicMaterial).color.setHex(this.dark ? DARK.gridTint : 0xffffff);
     this.invalidate();
@@ -1683,7 +1665,7 @@ export class Scene3D {
   /** 31.10 (egasi: «tungi rejimda sahna foni yorugʻ qolyapti»): sahna foni, yer va toʻr — tungi rejimda qorongʻi; loyiha ranglari oʻzgarmaydi */
   private dark = false;
   setDark(on: boolean): void { if (on === this.dark) return; this.dark = on; this.applyStyle(); }
-  private groundHex(): number { return this.dark ? DARK.ground : this.gsc && this.style !== 'rangli' ? 0xfbfbfa : this.style === 'minimal' || this.style === 'arctic' ? 0xf7f6f4 : C.ground; }
+  private groundHex(): number { const GP = this.gsPal(); return this.dark ? DARK.ground : GP ? GP.bg : this.gsc && this.style !== 'rangli' ? 0xfbfbfa : this.style === 'minimal' || this.style === 'arctic' ? 0xf7f6f4 : C.ground; }
 
   /** Yorliqlar ekranda doimiy piksel oʻlchamida (ortho kamerada sizeAttenuation ishlamaydi — shu yerda hisoblanadi) */
   private fitSprites(cam: THREE.Camera): void {
@@ -2209,6 +2191,8 @@ export class Scene3D {
    * fn tugagach sahna avvalgi holatiga qaytadi.
    */
   private labelsOff = false;
+  /** drawingShot ichida: varaq rasmi — daraxtlar shablonning oʻz (yorqin) ranglarida */
+  private inShot = false;
   drawingShot<T>(fn: () => T, o: { labels?: boolean } = {}): T {
     const d = this.lastDoc;
     const saved = { iso: this.iso, apt: this.aptView, sel: this.selected, selB: this.selBlock, clip: this.renderer.clippingPlanes, expl: this.exploded };
@@ -2222,14 +2206,14 @@ export class Scene3D {
     hide.forEach(o => { o.visible = false; });
     // c74: chizma (varaq, albom) doim oq — tungi rejimda ham rasm yorugʻ fonda olinadi
     const dk = this.dark; if (dk) { this.dark = false; this.applyStyle(); }
-    this.applyIsoCtx(); if (d) this.update(d);
+    this.inShot = true; this.applyIsoCtx(); if (d) this.update(d);
     this.labelsOff = o.labels === false;   // update yozuvlarni qayta quradi — joylashtirishda (fitSprites) yashiriladi
     try { return fn(); } finally {
       this.iso = saved.iso; this.aptView = saved.apt; this.selected = saved.sel; this.selBlock = saved.selB; this.renderer.clippingPlanes = saved.clip;
       hide.forEach((o, i) => { o.visible = vis[i]; }); this.labelsOff = false;
       if (saved.expl) { this.exploded = true; this.applyExplode(); }
       if (dk) { this.dark = true; this.applyStyle(); }
-      this.applyIsoCtx(); if (d) this.update(d); this.invalidate();
+      this.inShot = false; this.applyIsoCtx(); if (d) this.update(d); this.invalidate();
     }
   }
 
