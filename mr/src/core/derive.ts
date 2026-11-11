@@ -8,7 +8,7 @@ import { hasAntresol, ANTRESOL_SHARE } from './levels';
 import type { Project } from './doc';
 import { frame, polyArea, ringLocal, area, longFacadeAzimuths, obb2, type XY } from './geo';
 import { computePlan } from './plan';
-import { MTM_M2 } from './mtmrule';
+import { MTM_M2, SCHOOL_M2 } from './mtmrule';
 import { landBalance, type LandBalance } from './limits';
 import { useDef, resShare } from './uses';
 import { planApartments } from './apartments';
@@ -68,6 +68,8 @@ export interface Derived {
   streetOverlap: { bid: string; area: number; polys: XY[][] }[];
   /** parsellar maydonidan kelib chiqadigan sigʻim: maktab (41-jadval), MTM (543-band) */
   schoolCap: number; mtmCap: number;
+  /** 11.11 (c75): «Maktab» parsellari — uchastka sigʻimi (41-jadval), bino sigʻimi (GFA ÷ 24 m²/oʻrin, 5-ilova), hisobdagi sigʻim (binosiz — 0), qavat, binolar soni, GFA */
+  schoolPlots: { area: number; plot: number; built: number; cap: number; floors: number; bld: number; gfa: number }[];
   /** 06.11 (c62): MTM parsellari — uchastka sigʻimi (543-band), bino sigʻimi (GFA ÷ m²/oʻrin), hisobdagi sigʻim, qavat, binolar soni */
   mtmPlots: { area: number; plot: number; built: number; cap: number; floors: number; bld: number }[];
   /** turar joy binolariga oʻrnatilgan MTM oʻrinlari: bino 33 m²/oʻrin (5-ilova), hovli uchastkasi 29 m²/oʻrin sigʻgancha (543-band) */
@@ -169,7 +171,6 @@ export function derive(doc: Project): Derived {
     for (const mp of plan.corridors) { let cut: Polygon[] = []; try { cut = polygonClipping.intersection([r] as Polygon, mp as Polygon) as Polygon[]; } catch { cut = []; } for (const poly of cut) for (const ring of poly) { const q = ring.map(p => [p[0], p[1]] as XY); const aa = Math.abs(area(q)); if (aa > 1) { polys.push(q); a += aa; } } }
     if (a > 1) streetOverlap.push({ bid: b.id, area: a, polys });
   }
-  const schoolCap = plan.blocks.filter(b => b.use === 'maktab').reduce((t, b) => t + schoolCapacity(b.area), 0);
   // 543-band: oʻrnatilgan MTM uchun uchastka 29 m²/oʻrin — kvartal hovlisidan (kvartal − binolar dogʻi); sigʻmagan oʻrinlar sanalmaydi
   const inBl = (p: XY, k: { rings: XY[][] }) => { const inR2 = (q: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > q[1]) !== (r[j][1] > q[1]) && q[0] < (r[j][0] - r[i][0]) * (q[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; }; return inR2(p, k.rings[0]) && !k.rings.slice(1).some(h => inR2(p, h)); };
   const ctr = (r: XY[]): XY => [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length];
@@ -194,6 +195,16 @@ export function derive(doc: Project): Derived {
     return { area: k.area, plot, built, cap: own.length ? Math.min(plot, built) : 0, floors: own.reduce((t, x) => Math.max(t, x.b.floors), 0), bld: own.length };
   });
   const mtmCap = mtmPlots.reduce((t, p) => t + p.cap, 0) + mtmBuiltIn;
+  // 11.11 (c75, egasi): maktab parseli sigʻimi — MTM dagi kabi: faqat parselda maktab binosi boʻlsa, uchastka (41-jadval) va bino
+  // (GFA ÷ 24 m²/oʻrin, 5-ilova) sigʻimining kichigi; binosiz parsel — 0 (avval parsel maydonidan hisoblanardi)
+  const schoolPlots = plan.blocks.filter(b => b.use === 'maktab').map(k => {
+    const own = doc.buildings.filter(b => b.floors > 0 && !b.z0 && b.use === 'maktab').map(b => ({ b, r: ringLocal(fr, b.footprint) })).filter(x => inBl(ctr(x.r), k));
+    const g = (k.parcelId ? doc.parcels.find(p => p.id === k.parcelId)?.gen : doc.zones.find(z => z.id === k.labelId)?.gen) as { soc?: { m2?: number } } | undefined;
+    const m2 = typeof g?.soc?.m2 === 'number' && g.soc.m2 > 0 ? g.soc.m2 : SCHOOL_M2, gfa = own.reduce((t, x) => t + area(x.r) * x.b.floors, 0);
+    const plot = schoolCapacity(k.area), built = Math.floor(gfa / m2 + 1e-6);
+    return { area: k.area, plot, built, cap: own.length ? Math.min(plot, built) : 0, floors: own.reduce((t, x) => Math.max(t, x.b.floors), 0), bld: own.length, gfa };
+  });
+  const schoolCap = schoolPlots.reduce((t, p) => t + p.cap, 0);
   const antresol = doc.buildings.filter(b => hasAntresol(s, b)).reduce((t, b) => t + area(ringLocal(fr, b.footprint)) * ANTRESOL_SHARE, 0);
   const socialPlots = plan.blocks.filter(b => b.use === 'maktab' || b.use === 'mtm').map(b => ({ use: b.use as 'maktab' | 'mtm', area: b.area }));
   // 29-jadval (core/parking): koʻp qavatli turar joy — Toshkent shahri/viloyatida 10 kvartiraga 7 (01/2-42 tahriri), boshqa viloyatlarda 2 kvartiraga 1
@@ -264,7 +275,7 @@ export function derive(doc: Project): Derived {
   const combs = yards.flatMap(y => y.social ? [] : y.play.filter(q => q.comb)), playComb = combs.length, playCombSmall = combs.filter(q => q.area < 150 - 0.5).length;   // maktab / MTM maydonchalari — 4-jadval talabiga kirmaydi
   return { antresol, umnBlocks, umn, housing82,
     resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, playNeed0, playRoof, playComb, playCombSmall, jobsRatio: population > 0 ? jobs / population : 0,
-    apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, mtmPlots, socialPlots, parkingReq, parkingProv, parkingParts,
+    apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, mtmPlots, schoolPlots, socialPlots, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
     siteHa, balance: doc.limits?.length ? landBalance(doc) : null, buildings: doc.buildings.length, footprint, gfa, resGfa, resNet, population,

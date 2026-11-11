@@ -11,7 +11,7 @@ const LIB={
   bike1:{n:'Velo yoʻlak (1 yoʻnalish)',a:'Velo',c:'bike',w:1.8,col:'#4fa585',capM:[2500,2500]},
   bike2:{n:'Velo yoʻlak (2 yoʻnalish)',a:'Velo ⇅',c:'bike',w:3,col:'#3e9a74',capM:[2500,2500]},
   buffer:{n:'Himoya bufer',a:'Bufer',c:'other',w:.6,col:'#d6d1c6'},
-  park:{n:'Avtoturargoh (parallel)',a:'Park.',c:'park',w:2.4,col:'#6e7178',road:1},
+  park:{n:'Avtoturargoh (parallel)',a:'Park.',c:'park',w:2.5,col:'#6e7178',road:1},
   lane:{n:'Avto harakat boʻlagi',a:'Avto',c:'car',w:3.3,col:'#4b4e55',road:1,cap:[600,1600]},
   mixed:{n:'Aralash boʻlak (avto + avtobus)',a:'Avto+A',c:'car',w:3.5,col:'#5d585a',road:1,cap:[1000,2800]},
   bus:{n:'Ajratilgan avtobus boʻlagi',a:'Avtobus',c:'transit',w:3.5,col:'#bf5a4d',road:1,cap:[4000,8000]},
@@ -356,7 +356,7 @@ function guess(t){
   else notes.push('Trotuar tegi yoʻq — ikki tomonda bor deb olindi.');
   const cyc=k=>/lane|track/.test(t['cycleway:'+k]||t['cycleway:both']||t.cycleway||'');
   const pk=k=>/lane|parallel|street_side|on_street|half_on_kerb/.test(t['parking:'+k]||t['parking:both']||t['parking:lane:'+k]||t['parking:lane:both']||'');
-  const side=(k)=>{const a=[];if(k==='left'?sL:sR)a.push(mk('walk',2.25));if(cyc(k))a.push(mk('bike1',1.5));if(pk(k))a.push(mk('park',2.4));return a;};
+  const side=(k)=>{const a=[];if(k==='left'?sL:sR)a.push(mk('walk',2.25));if(cyc(k))a.push(mk('bike1',1.5));if(pk(k))a.push(mk('park',2.5));return a;};
   const mid=[]; for(let i=0;i<lanes;i++){mid.push(mk('lane',lw)); if(!oneway&&lanes>=4&&big&&i===lanes/2-1) mid.push(mk('median',2));}
   if(!oneway&&lanes>=4&&big) notes.push('Ajratuvchi polosa (2 m) taxminiy qoʻshildi — satellitda tekshiring.');
   const L=side('left'),Rr=side('right').reverse();
@@ -464,7 +464,7 @@ function template(t){
   if(t==='complete'){side=[['walk',2.4],['trees',2],['bike1',1.8],['buffer',.6]];mid=[['lane',3.25],['lane',3.25]];}
   if(t==='brt'){side=[['walk',2.4],['ariq',1.2],['bike1',1.8],['buffer',.5]];mid=[['lane',3.25],['bus',3.5],['median',2.5],['bus',3.5],['lane',3.25]];}
   if(t==='tram'){side=[['walk',2.4],['trees',2],['bike1',1.8],['buffer',.5]];mid=[['lane',3.25],['median',1.5],['tram',3.2],['tram',3.2],['median',1.5],['lane',3.25]];}
-  if(t==='calm'){side=[['walk',2],['ariq',1.2],['park',2.2]];mid=[['lane',3],['lane',3]];}
+  if(t==='calm'){side=[['walk',2],['ariq',1.2],['park',2.5]];mid=[['lane',3],['lane',3]];}
   // mid already symmetric for brt/tram (listed fully); for complete/calm mid is two directions
   const arr=[...side.map(([k,w])=>mk(k,w)),...mid.map(([k,w])=>mk(k,w)),...[...side].reverse().map(([k,w])=>mk(k,w))];
   const tmp=S.prof[S.active]; S.prof[S.active]=arr; fit(S.active); const out=S.prof[S.active]; S.prof[S.active]=tmp;
@@ -1106,8 +1106,9 @@ const DK={
 };
 const isPk=k=>typeof k==='string'&&k.startsWith('park');
 /* 07.11: SHNQ 2.05.07-24, 1-ilova 4-izoh — avtomobil-oʻrni ≥ 5,5 × 2,5 m (NORMA); burchakli qator chuqurligi = 5,5·sin θ + 2,5·cos θ:
-   30° → 4,9; 45° → 5,7; 90° → 5,5 m. Parallel — 2,3 m (dizayn-kod 6.3; uzunligi 6 m) */
-const PKW={park:2.3,park30:4.9,park45:5.7,park90:5.5};
+   30° → 4,9; 45° → 5,7; 90° → 5,5 m. 11.11 (c75, egasi): parallel — eni 2,5 m (4-izoh, NORMA; avval 2,3 — dizayn-kod 6.3);
+   uzunligi 6,0 m (180-band: oʻtish yoʻli boʻylab parallel joy 2500×6000 mm — TALQIN) */
+const PKW={park:2.5,park30:4.9,park45:5.7,park90:5.5};
 const DCAT={car:['Avto yoʻl','#3c3e43'],pt:['Jamoat transporti','#9e3a32'],bike:['Velo','#2f8f58'],ped:['Piyoda','#d6c3a2'],green:['Yashil','#6f8f4e']};
 
 /* parametrik kesim generatori (Konstruktor va tayyor modullar shundan hosil boʻladi) */
@@ -1119,10 +1120,10 @@ function gen(o){
     for(let i=0;i<n;i++)a.push(['lane',lw,dir]);
     if(o.bus==='curb')a.push(['bus',3.5,dir]);
     if(o.tram==='side')a.push(['tram',3.2,dir]);
-    if(o.park==='both'||(o.park==='right'&&dir>0)){const pk=o.pang?'park'+o.pang:'park';a.push([pk,o.pang?PKW[pk]:(o.pw||2.3),dir]);}
+    if(o.park==='both'||(o.park==='right'&&dir>0)){const pk=o.pang?'park'+o.pang:'park';a.push([pk,o.pang?PKW[pk]:(o.pw||PKW.park),dir]);}
     if(o.bike==='lane')a.push(['bike',1.8,dir]);
     if(o.bike==='prot'){a.push(['buffer',.8]);a.push(['bike',2,dir]);}
-    if(o.service){a.push(['green',o.sep||4]);for(let i=0;i<o.service;i++)a.push(['lane',3.5,dir]);if(o.spark)a.push(['park',2.3,dir]);}
+    if(o.service){a.push(['green',o.sep||4]);for(let i=0;i<o.service;i++)a.push(['lane',3.5,dir]);if(o.spark)a.push(['park',PKW.park,dir]);}
     if(o.bike==='track'){a.push(['green',1.2]);a.push(['bike',2,dir]);}
     if(o.bike==='track2'&&dir>0){a.push(['green',1.2]);a.push(['bike',3,0]);}
     if(o.rain)a.push(['rain',o.rw||2]);
@@ -1150,12 +1151,12 @@ const PRESETS={
   // Mahalla va turar joy
   shared:P_('Mahalla va turar joy','Yashash koʻchasi — umumiy sirt',null),
   res1:P_('Mahalla va turar joy','Mahalla koʻchasi 1+1, ariqli',{f:1,b:1,lw:3,green:1.2,walk:2}),
-  res:P_('Mahalla va turar joy','Mahalla koʻchasi + avtoturargoh (2 tomon)',{f:1,b:1,lw:3,park:'both',pw:2.2,green:1.2,walk:2}),
-  resp1:P_('Mahalla va turar joy','Mahalla koʻchasi + avtoturargoh (1 tomon)',{f:1,b:1,lw:3,park:'right',pw:2.2,green:1.2,walk:2}),
+  res:P_('Mahalla va turar joy','Mahalla koʻchasi + avtoturargoh (2 tomon)',{f:1,b:1,lw:3,park:'both',pw:2.5,green:1.2,walk:2}),
+  resp1:P_('Mahalla va turar joy','Mahalla koʻchasi + avtoturargoh (1 tomon)',{f:1,b:1,lw:3,park:'right',pw:2.5,green:1.2,walk:2}),
   res45:P_('Mahalla va turar joy','Mahalla koʻchasi + 45° avtoturargoh',{f:1,b:1,lw:3,park:'both',pang:45,green:1.2,walk:2}),
   res90:P_('Mahalla va turar joy','Bir tomonlama + perpendikulyar avtoturargoh',{oneway:1,f:1,lw:3.5,park:'right',pang:90,green:1.2,walk:2}),
   r4p30:P_('Shahar koʻchalari','4 boʻlak + 30° avtoturargoh',{f:2,b:2,lw:3.25,park:'both',pang:30,green:1.5,walk:3}),
-  resOne:P_('Mahalla va turar joy','Bir tomonlama mahalla koʻchasi + avtoturargoh',{oneway:1,f:1,lw:3.5,park:'right',pw:2.2,green:1,walk:2}),
+  resOne:P_('Mahalla va turar joy','Bir tomonlama mahalla koʻchasi + avtoturargoh',{oneway:1,f:1,lw:3.5,park:'right',pw:2.5,green:1,walk:2}),
   school:P_('Mahalla va turar joy','Maktab oldi (tor boʻlak, keng trotuar)',{f:1,b:1,lw:3,green:1.5,walk:4}),
   // Shahar koʻchalari
   r2:P_('Shahar koʻchalari','2 boʻlak (1+1)',{f:1,b:1,green:1.5,walk:2.5}),
