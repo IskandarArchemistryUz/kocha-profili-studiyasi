@@ -42,6 +42,8 @@ import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColo
 import { initStats } from '../core/stats';
 import { coinLabel, onPrices } from '../account/pay';   // + yuklash darvozasi
 import { layerIcon, GROUP_COL } from './layerIcons';
+import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
+import { dropdown, sw as swc, seg } from '../ui/controls';
 import { windFlow } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
@@ -75,7 +77,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { siteSt?: SiteSt; c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha' }
+interface State { siteSt?: SiteSt; c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha'; /** E2: foydalanuvchi qoʻshgan obyektlar (bogʻcha, maktab…) — OSM da yoʻqlari */ added?: AddedObj[] }
 /** uchastka uslubi xaritada */
 type SiteSt = 'kontur' | 'yashil' | 'shtrix' | 'yorug';
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
@@ -127,7 +129,7 @@ function computeNet(): void {
       if (job === 'reach') {
         const f = PERSONA[V('piyoda').st]?.v / 5 || 1; m.reach = reach(m.net, [5, 10, 15].map(x => x * f)); m.reach.mins = [5, 10, 15]; m.pers = V('piyoda').st;
         const near: Partial<Record<Svc, number>> = {};
-        for (const k of ['bekat', 'metro', 'maktab', 'mtm', 'dorixona', 'savdo'] as Svc[]) { let best = Infinity; for (const p of pb.pois) if (p.kind === k) best = Math.min(best, distAt(m.net, m.reach.D, m.fr.toLocal(p.at))); if (Number.isFinite(best)) near[k] = best; }
+        for (const k of ['bekat', 'metro', 'maktab', 'mtm', 'dorixona', 'savdo'] as Svc[]) { let best = Infinity; for (const p of normPois(pb.pois, S.added ?? [])) if (p.kind === k) best = Math.min(best, distAt(m.net, m.reach.D, m.fr.toLocal(p.at))); if (Number.isFinite(best)) near[k] = best; }   // E2: hisobga kiritilgan qoʻshilganlar ham
         m.near = near;
       } else if (job === 'flow') {
         const W: Partial<Record<Svc, number>> = { metro: 14, bekat: 6, savdo: 3, maktab: 3, poliklinika: 2, mtm: 1.5, dorixona: 1.5, sport: 1.5, mahalla: 1 };
@@ -447,11 +449,18 @@ function renderRightH(): void {
   if (isOn('xizmat')) {
     const p = D.poi.v, cnt = p ? countPoi(p.pois, S.c, S.r, SVC_KINDS) : [];
     const tot = cnt.reduce((a, c) => a + c.n, 0);
-    const chk = (k: Svc) => { const c = cnt.find(x => x.kind === k); if (!c) return null; const def = svcDef(k), ok = c.nearest != null && c.nearest <= def.r;
-      return h('li', { class: ok ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, c.nearest == null ? tr('topilmadi') : `${fmt(c.nearest)} m`), h('em', {}, `≤ ${def.r} m`)); };
+    // E2 (11.11): xulosa 3 holatda — «Topildi — N m (OSM / siz qoʻshgan)», «OSM maʼlumotida topilmadi — joyida tekshiring» + qoʻshish; «yoʻq» deyilmaydi
+    const rows = p ? svcRows(p.pois, S.added ?? [], S.c, ['bekat', 'maktab', 'mtm', 'poliklinika', 'dorixona'], k => svcDef(k).r) : [];
+    const stChip = (st: string, r: number) => st === 'ok' ? h('span', { class: 'chip ok' }, tr('Topildi')) : st === 'far' ? h('span', { class: 'chip na' }, tf('${r} m dan uzoq', { r })) : st === 'own' ? h('span', { class: 'chip na' }, tr('hisobga kirmagan')) : h('span', { class: 'chip warn' }, tr('Topilmadi'));
+    const svcRow = (x: ReturnType<typeof svcRows>[number]) => h('li', { class: 'joy-svc', 'data-svc': x.kind, 'data-st': x.st },
+      h('div', { class: 'r1' }, h('span', {}, tr(svcDef(x.kind).name)), stChip(x.st, x.r)),
+      x.osm == null && x.own == null
+        ? h('div', { class: 'r2' }, tr('OSM maʼlumotida topilmadi — joyida tekshiring.'), h('button', { type: 'button', class: 'btn btn-sm', 'data-add': x.kind, onclick: () => startPlace(x.kind) }, `+ ${tr('Xaritaga qoʻshish')}`))
+        : h('div', { class: 'r2 mono' }, ...[x.osm != null ? h('span', {}, `${fmt(x.osm)} m · OSM`) : null, x.own != null ? h('span', {}, `${fmt(x.own)} m · ${tr('siz qoʻshgan')}`) : null].filter(Boolean) as HTMLElement[]));
     cards.push(card(L('xizmat'), 'OSM', p ? tf('${n} obyekt', { n: tot }) : '—',
-      p ? [cnt.filter(c => c.n).map(c => `${tr(SVC_SHORT[c.kind])} ${c.n}`).join(' · ') || tr('Doira ichida obyekt yoʻq'),
-        h('ul', { class: 'joy-norm' }, chk('bekat'), chk('maktab'), chk('mtm'), chk('dorixona')),
+      p ? [cnt.filter(c => c.n).map(c => `${tr(SVC_SHORT[c.kind])} ${c.n}`).join(' · ') || tr('Doira ichida OSM obyekti topilmadi'),
+        h('ul', { class: 'joy-norm joy-svcs' }, ...rows.map(svcRow)),
+        h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'joyAddObj', onclick: () => startPlace(placing ? null : 'mtm') }, placing ? tr('Qoʻshishni bekor qilish') : `+ ${tr('Obyekt qoʻshish')}`),
         h('span', { class: 'src' }, tr('Eng yaqini (toʻgʻri chiziq) va meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band. OSM toʻliq emas: «kamida shuncha».'))] : [],
       null, D.poi));
   }
@@ -481,7 +490,7 @@ function renderRightH(): void {
     cards.push(card(L('piyoda'), tr('OSM tarmoq'), r ? tf('${h} ga · 15 daqiqa', { h: ha(r.area[2]) }) : '—',
       r ? [tf('5 daqiqa: ${a} ga · 10 daqiqa: ${b} ga · 15 daqiqa: ${c} ga (yoʻllardan 40 m)', { a: ha(r.area[0]), b: ha(r.area[1]), c: ha(r.area[2]) }), h('br'),
         r.directness != null ? tf('Tarmoq toʻgʻriligi: ${d} (1 — toʻgʻri chiziq; 0,7 dan past — aylanma yoʻllar)', { d: fmt(r.directness, 2) }) : '',
-        h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('yoʻq') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[V('piyoda').st]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
+        h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('topilmadi') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[V('piyoda').st]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
         h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), V('piyoda').st !== 'yosh' ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[V('piyoda').st].note) })}` : '')] : [],
       null, r ? undefined : busy));
   }
@@ -659,6 +668,67 @@ async function reverse(c: LngLat): Promise<string> {
 let map: MLMap | null = null;
 let rose: Marker | null = null, rlab: Marker | null = null;
 let MK: ((el: HTMLElement) => Marker) | null = null;
+
+/* ---------------- E2 (11.11): foydalanuvchi qoʻshgan obyektlar ---------------- */
+const ADD_KINDS: Svc[] = ['mtm', 'maktab', 'poliklinika', 'dorixona', 'bekat', 'metro', 'savdo', 'sport'];
+let placing: Svc | null = null, objOpen: string | null = null, objMore = false;
+const addMk: Marker[] = [];
+/** Xaritada qoʻyishni boshlash (null — bekor qilish) */
+function startPlace(k: Svc | null): void {
+  placing = k; objOpen = null;
+  if (k) toast(tf('Xaritada ${n} joyini bosing · Esc — bekor qilish', { n: tr(svcDef(k).name).toLowerCase() }));
+  renderRight(); syncAdded();
+}
+function placeAdded(c: LngLat): void {
+  const o: AddedObj = { id: newId(), kind: placing!, at: c, own: 'xususiy', norm: false };
+  S.added = [...(S.added ?? []), o]; placing = null; objOpen = o.id; objMore = false; save();
+  if (NM) NM.near = undefined; computeNet(); renderRight(); syncAdded();
+}
+function updAdded(id: string, p: Partial<AddedObj> | null): void {
+  S.added = p ? (S.added ?? []).map(x => x.id === id ? { ...x, ...p } : x) : (S.added ?? []).filter(x => x.id !== id);
+  if (!p) objOpen = null;
+  save(); if (NM) { NM.near = undefined; NM.reach = undefined; } computeNet(); renderRight(); syncAdded();
+}
+/** Markerlar: punktir doira + tartib raqami (OSM belgisidan farqli), bosilsa — karta */
+let addKey = '';
+function syncAdded(): void {
+  const key = JSON.stringify([S.added ?? [], objOpen, isOn('xizmat'), isK(), !!map, !!MK]); if (key === addKey && addMk.length === (S.added ?? []).length) { renderObjCard(); return; }
+  addKey = key;
+  addMk.splice(0).forEach(m => m.remove());
+  if (!map || !MK || !isOn('xizmat') || isK()) { renderObjCard(); return; }
+  (S.added ?? []).forEach((o, i) => {
+    const el = h('button', { type: 'button', class: 'joy-addmk', 'data-obj': o.id, 'aria-pressed': objOpen === o.id, title: `${tr(svcDef(o.kind).name)}${o.name ? ` · ${o.name}` : ''} · ${tr('siz qoʻshgan')}`, style: `--oc:${SVC_COL[o.kind]}`,
+      onclick: (e: Event) => { e.stopPropagation(); objOpen = objOpen === o.id ? null : o.id; objMore = false; syncAdded(); } }, String(i + 1));
+    addMk.push(MK!(el).setLngLat(o.at as [number, number]).addTo(map!));
+  });
+  renderObjCard();
+}
+const objCard = h('div', { class: 'joy-objcard', role: 'dialog', 'aria-label': tr('Qoʻshilgan obyekt'), hidden: true });
+function renderObjCard(): void {
+  const o = (S.added ?? []).find(x => x.id === objOpen), i = (S.added ?? []).findIndex(x => x.id === objOpen);
+  objCard.hidden = !o; if (!o) { objCard.replaceChildren(); return; }
+  if (!objCard.isConnected) document.body.append(objCard);
+  const nameIn = h('input', { class: 'input', id: 'objName', 'aria-label': tr('Nomi'), placeholder: tr('masalan, Quyoshcha bogʻchasi'), value: o.name ?? '' }) as HTMLInputElement;
+  nameIn.onchange = () => updAdded(o.id, { name: nameIn.value.trim() || undefined });
+  const capIn = h('input', { class: 'input mono', id: 'objCap', type: 'number', min: 0, step: 10, 'aria-label': tr('Sigʻim'), placeholder: tr('ixtiyoriy'), value: o.cap ?? '' }) as HTMLInputElement;
+  capIn.onchange = () => { const v = Number(capIn.value); updAdded(o.id, { cap: v > 0 ? Math.round(v) : undefined }); };
+  objCard.replaceChildren(
+    h('div', { class: 'oh' }, h('span', { class: 'joy-addmk sm', style: `--oc:${SVC_COL[o.kind]}` }, String(i + 1)), h('b', {}, tr('Qoʻshilgan obyekt')), h('span', { class: 't-small' }, tr('siz qoʻshgan')),
+      h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', 'aria-label': tr('Yopish'), onclick: () => { objOpen = null; syncAdded(); } }, '×')),
+    h('label', { class: 'fl' }, tr('Turi'), dropdown({ id: 'objKind', 'aria-label': tr('Turi'), onchange: v => updAdded(o.id, { kind: v as Svc }) }, ADD_KINDS.map(k => ({ value: k, label: tr(svcDef(k).name), selected: k === o.kind })))),
+    h('label', { class: 'fl' }, tr('Nomi'), nameIn),
+    h('div', { class: 'fl' }, h('span', {}, tr('Egalik')), seg<Own>([{ id: 'davlat', label: tr('Davlat') }, { id: 'xususiy', label: tr('Xususiy') }], o.own ?? 'xususiy', v => updAdded(o.id, { own: v }), { id: 'objOwn', 'aria-label': tr('Egalik') })),
+    // egasi: «ortiqcha maʼlumot boʻlmasin» — sigʻim va meʼyoriy hisob yigʻilgan «Qoʻshimcha» ichida
+    h('div', { class: 'more' },
+      h('button', { type: 'button', class: 'mh', id: 'objMore', 'aria-expanded': objMore, onclick: () => { objMore = !objMore; renderObjCard(); } }, h('span', {}, tr('Qoʻshimcha')), h('span', { class: 't-small' }, tr('sigʻim, hisob')), svgIcon(objMore ? '<path d="M6 9l6 6 6-6"/>' : '<path d="M9 6l6 6-6 6"/>')),
+      objMore ? h('div', { class: 'mb' },
+        h('label', { class: 'li' }, h('span', {}, tr('Sigʻim')), capIn),
+        h('div', { class: 'li' }, h('span', {}, tr('Meʼyoriy hisobga kiritish')), swc({ id: 'objNorm', label: tr('Meʼyoriy hisobga kiritish'), on: !!o.norm, onchange: v => updAdded(o.id, { norm: v }) })),
+        h('div', { class: 't-small' }, tr('Oʻchiq boʻlsa, xaritada koʻrinadi, lekin qamrov hisobiga kirmaydi.'))) : ''),
+    h('div', { class: 'ft' }, h('button', { type: 'button', class: 'btn btn-sm btn-ghost danger', id: 'objDel', onclick: () => updAdded(o.id, null) }, tr('Oʻchirish')), h('span', { style: 'flex:1' }),
+      h('button', { type: 'button', class: 'btn btn-sm btn-primary', onclick: () => { objOpen = null; syncAdded(); } }, tr('Tayyor'))));
+}
+addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Escape' && (placing || objOpen)) { placing = null; objOpen = null; renderRight(); syncAdded(); } });
 streetInit({
   map: () => map,
   rerender: () => { renderLeft(); renderRight(); if (isK()) { const lg = streetLegend(); legend.replaceChildren(...lg); legend.hidden = !lg.length; } },
@@ -724,7 +794,7 @@ async function initMap(): Promise<void> {
   map.on('style.load', () => { addOverlays(); applySite(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
-  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
+  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (placing) { placeAdded(c); return; } if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
   map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } else if (isK()) { e.preventDefault(); streetFinish(); } });
   map.on('moveend', () => {
     S.z = +map!.getZoom().toFixed(2); save();
@@ -801,6 +871,7 @@ function blankPng(): string { if (!blank) { const c = document.createElement('ca
 let slopeKey = '', narxKey = '';
 const HUD_LAYERS = ['joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
+  syncAdded();   // E2
   const m = map;
   if (isK()) {
     if (m && m.getSource('joy-ring')) for (const id of HUD_LAYERS) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', 'none');

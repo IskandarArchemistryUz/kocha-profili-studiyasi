@@ -473,3 +473,22 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 }
 @media (max-width:1280px){.joy-base{left:332px}}
 #joy.an-kocha .joy-lp{max-height:calc(100% - 150px)}
+/* E2 (11.11): qoʻshilgan obyektlar — punktir doira + raqam (OSM belgisidan farqli), karta, xizmatlar xulosasi */
+.joy-addmk{width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--oc,#141414);background:var(--surface,#fff);color:var(--ink,#141414);font:600 11px Archivo,sans-serif;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.18);transition:transform .15s}
+.joy-addmk:hover,.joy-addmk[aria-pressed=true]{transform:scale(1.15)}
+.joy-addmk.sm{width:22px;height:22px;cursor:default;box-shadow:none}
+.joy-objcard{position:fixed;right:350px;bottom:96px;z-index:40;width:300px;max-height:calc(100vh - 120px);overflow:auto;background:var(--surface,#fff);color:var(--ink,#141414);border-radius:16px;box-shadow:0 0 0 .5px rgba(0,0,0,.08),0 18px 48px rgba(0,0,0,.16);padding:14px;display:flex;flex-direction:column;gap:10px}
+.joy-objcard .oh{display:flex;align-items:center;gap:8px}.joy-objcard .oh b{flex:1;font-size:15px}
+.joy-objcard .fl{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;color:var(--ink-2,#6b6965)}
+.joy-objcard .more{background:var(--fill,#f7f6f3);border-radius:12px;overflow:hidden}
+.joy-objcard .more .mh{width:100%;display:flex;align-items:center;gap:6px;height:38px;padding:0 12px;border:0;background:transparent;color:inherit;font:13px Archivo,sans-serif;text-align:left;cursor:pointer}.joy-objcard .more .mh span:first-child{flex:1}
+.joy-objcard .more .mh svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.joy-objcard .more .mb{display:flex;flex-direction:column;gap:6px;padding:0 12px 10px}
+.joy-objcard .more .li{display:flex;align-items:center;gap:10px;font-size:13px}.joy-objcard .more .li>span{flex:1}.joy-objcard .more .li .input{width:110px;text-align:right}
+.joy-objcard .ft{display:flex;align-items:center;gap:8px}.joy-objcard .danger{color:var(--bad,#b23a2e)}
+.joy-svcs{display:flex;flex-direction:column;gap:0;padding:0;margin:6px 0}
+.joy-svcs li.joy-svc{display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:7px 0;border-top:.5px solid var(--hairline,rgba(20,20,20,.09))}
+.joy-svcs li.joy-svc:first-child{border-top:0}
+.joy-svc .r1{display:flex;align-items:center;gap:8px}.joy-svc .r1>span:first-child{flex:1;font-weight:600}
+.joy-svc .r2{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:var(--ink-2,#6b6965)}
+.joy-svc .r2.mono{font-family:'IBM Plex Mono',monospace}
