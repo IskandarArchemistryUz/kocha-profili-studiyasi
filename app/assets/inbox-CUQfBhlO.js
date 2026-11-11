@@ -1,1 +1,0 @@
-export{l as sendToRender}from"./inbox-DCI7Yair.js";

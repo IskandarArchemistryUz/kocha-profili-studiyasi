@@ -1,0 +1,1 @@
+export{l as sendToRender}from"./inbox-C3v_4_hH.js";
