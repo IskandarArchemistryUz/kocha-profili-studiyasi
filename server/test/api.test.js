@@ -4,7 +4,7 @@ import pg from 'pg';
 import { fromPglite, fromPool, migrate } from '../src/db.js';
 import { buildApp, COOKIE } from '../src/app.js';
 import { normalizeTarget } from '../src/auth.js';
-import { priceOf, areaK, projectCap } from '../src/prices.js';
+import { priceOf, areaK, projectCap, PACKS } from '../src/prices.js';
 import { weekKey } from '../src/wallet.js';
 
 let db, app, sent, clock;
@@ -48,6 +48,10 @@ describe('narx', () => {
   });
   it('koeffitsiyent faqat MR amallarga; takror bir marta', () => {
     expect(priceOf(['chz.album', 'mr.png', 'mr.png'], 80).coins).toBe(88);
+    // E3 (11.11): Joyshunos PNG 4K — 2, toʻliq pasport — 15; mikro toʻplam 5 tanga ≈ 21 000 soʻm
+    expect(priceOf(['joy.png'], 80).coins).toBe(2);
+    expect(priceOf(['joy.passport.all'], 0).coins).toBe(15);
+    expect(PACKS.find(p => p.id === 'p5')).toMatchObject({ coins: 5, uzs: 21000 });
     expect(priceOf(['ks.dxf', 'joy.passport'], 80).coins).toBe(10);
     expect([priceOf(['mr.site'], 4).coins, priceOf(['mr.site'], 30).coins, priceOf(['mr.site'], 80).coins]).toEqual([12, 32, 52]);
   });

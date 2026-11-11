@@ -181,7 +181,7 @@ body{margin:0}
 .st.th .mnav .tl{background:none;color:var(--mut);font-size:14px;border:0;padding:0;cursor:pointer}
 .st.th .mnav .tm{background:none;width:24px;height:24px}
 /* narxlar minimal */
-.st .pk{display:grid;grid-template-columns:repeat(4,1fr)}
+.st .pk{display:grid;grid-template-columns:repeat(5,1fr)}
 .st .pk div{padding:22px 0 0;display:flex;flex-direction:column;gap:6px;border-top:.5px solid var(--hl)}
 .st .pk div.on{border-top:2px solid var(--fg)}
 .st details.q{border-top:.5px solid var(--hl);padding:18px 0}
