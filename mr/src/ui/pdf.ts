@@ -1,5 +1,5 @@
 /** Vektor PDF: jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari). Varaqlar va Chizmadon uchun umumiy. */
-import { wmSvg, exportGate, asClean } from '../core/wm';
+import { exportGate, asClean, needWm, svgCanvas, wmCanvas, FREE_PX } from '../core/wm';
 export interface PdfPage { svg: string; widthMm: number; heightMm: number }
 /* ---------- PDF (vektor): jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari) ---------- */
 let pdfLib: Promise<{ jsPDF: typeof import('jspdf').jsPDF; svg2pdf: typeof import('svg2pdf.js').svg2pdf; fonts: [string, string] }> | null = null;
@@ -17,7 +17,8 @@ export async function svgPdf(pages: PdfPage[], name: string, item?: string): Pro
   if (!pages.length) return;
   const mode = await exportGate({ name, item: item ?? (pages.length === 1 && !/chizmadon|kochasoz|joyshunos/.test(location.pathname + location.hash) ? 'mr.sheet' : undefined), sample: pages.map(p => p.svg).join('\n') });
   if (!mode) return;
-  return mode === 'clean' ? asClean(() => makePdf(pages, name)) : makePdf(pages, name);
+  // E1 (11.11): bepul PDF — vektor emas, har sahifa bitta rasm (uzun tomoni 1600 px, belgi pishirilgan)
+  return mode === 'clean' ? asClean(() => makePdf(pages, name)) : needWm() ? makeRasterPdf(pages, name) : makePdf(pages, name);
 }
 async function makePdf(pages: PdfPage[], name: string): Promise<void> {
   const { jsPDF, svg2pdf, fonts } = await loadPdf();
@@ -28,10 +29,23 @@ async function makePdf(pages: PdfPage[], name: string): Promise<void> {
   for (let i = 0; i < pages.length; i++) {
     const r = pages[i];
     if (i) pdf.addPage([r.widthMm, r.heightMm], r.widthMm > r.heightMm ? 'landscape' : 'portrait');
-    const el = new DOMParser().parseFromString(wmSvg(r.svg).replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"'), 'image/svg+xml').documentElement;
+    const el = new DOMParser().parseFromString(r.svg.replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"'), 'image/svg+xml').documentElement;
     const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-99999px;top:0'; host.append(el); document.body.append(host);
     try { await svg2pdf(el as unknown as Element, pdf, { x: 0, y: 0, width: r.widthMm, height: r.heightMm }); } finally { host.remove(); }
   }
   pdf.save(name);
 }
 
+/** Bepul PDF: sahifa — rasm (JPEG), belgi piksellarda; matn va vektor yoʻq */
+async function makeRasterPdf(pages: PdfPage[], name: string): Promise<void> {
+  const { jsPDF } = await import('jspdf');
+  const first = pages[0];
+  const pdf = new jsPDF({ unit: 'mm', format: [first.widthMm, first.heightMm], orientation: first.widthMm > first.heightMm ? 'landscape' : 'portrait', compress: true });
+  for (let i = 0; i < pages.length; i++) {
+    const r = pages[i];
+    if (i) pdf.addPage([r.widthMm, r.heightMm], r.widthMm > r.heightMm ? 'landscape' : 'portrait');
+    const c = wmCanvas(await svgCanvas(r.svg, FREE_PX));
+    pdf.addImage(c.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, r.widthMm, r.heightMm);
+  }
+  pdf.save(name);
+}

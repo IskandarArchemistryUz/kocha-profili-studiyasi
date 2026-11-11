@@ -45,7 +45,7 @@ import { layerIcon, GROUP_COL } from './layerIcons';
 import { windFlow } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
-import { wmFile, wmRaster, exportGate, isOwner } from '../core/wm';
+import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
@@ -1486,7 +1486,7 @@ function fileName(ext: string): string { return `joyshunos-${S.c[1].toFixed(4)}-
 /** Joyshunos fayllari: bepul — belgili, toza — tanga bilan (GLB/OBJ — faqat toza) */
 function save2(name: string, b0: Blob): void {
   const item = /\.(glb|obj)$/i.test(name) ? 'mr.glb' : /\.svg$/i.test(name) && /joyshunos-/.test(name) ? 'joy.axo' : 'joy.passport';
-  void exportGate({ name, item, sample: b0 }).then(mode => { if (!mode) return; if (mode === 'clean') save2raw(name, b0); else void wmFile(name, b0, b0.type).then(b => save2raw(name, b as Blob)); });
+  void exportGate({ name, item, sample: b0 }).then(mode => { if (!mode) return; if (mode === 'clean') save2raw(name, b0); else void wmFree(name, b0, b0.type).then(x => save2raw(x.name, x.data as Blob)).catch(() => toast(tr('Faylni tayyorlab boʻlmadi — qayta urinib koʻring'))); });   // E1: bepul SVG — belgili PNG
 }
 function save2raw(name: string, b: Blob): void { const u = URL.createObjectURL(b), x = document.createElement('a'); x.href = u; x.download = name; document.body.append(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
 async function doExport(k: 'svgL' | 'svg' | 'glb' | 'obj' | 'chz'): Promise<void> {
@@ -1550,7 +1550,7 @@ async function exportPng(): Promise<void> {
   try {
     const raw = await axo.png(3840), nm = `joyshunos-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}.png`;
     const mode = await exportGate({ name: nm, item: 'joy.axo', sample: raw }); if (!mode) { if (b) { b.disabled = false; b.textContent = 'PNG · 4K'; } return; }
-    const blob = mode === 'clean' ? raw : await wmRaster(raw), u = URL.createObjectURL(blob), a = document.createElement('a');
+    const blob = mode === 'clean' ? raw : await freeRaster(raw), u = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = u; a.download = nm; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
   } catch (e) { alert((e as Error).message); }
   if (b) { b.disabled = false; b.textContent = 'PNG · 4K'; }

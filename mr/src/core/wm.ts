@@ -1,6 +1,6 @@
 /* Bepul yuklashlar uchun setkasimon belgi «ARCHEMISTRY · BEPUL» (vaqtincha — hamma yuklashga, server va tarif ishga tushguncha).
    Egasi — belgisiz: akkaunt boʻyicha (server OWNER_EMAILS → /me owner) yoki «?egasi=…» havolasi bilan (kps_owner).
-   SVG va PDF — vektor matnlar (svg2pdf pattern'ni qoʻllamaydi), PNG — kanvasda chiziladi, DXF — alohida qatlam.
+   11.11 (E1): bepul SVG/PDF/PNG — faqat rasm (1600 px, belgi pishirilgan; freeRaster / wmFree). DXF — alohida qatlam (faqat tanga).
    Loyiha fayli (.json), IFC, GLB, OBJ, Excel — oʻzgarmaydi. */
 import { getLang } from '../i18n';
 
@@ -45,7 +45,7 @@ export const needWm = (): boolean => !isOwner() && cleanDepth === 0;
 /* ---------- eksport darvozasi: bepul (belgili) yoki toza (tanga) ---------- */
 export type ExportMode = 'wm' | 'clean';
 /** name — fayl nomi, item — narx roʻyxatidagi id (server/src/prices.js), sample — holat xeshi uchun mazmun */
-export type ExportGate = (o: { name: string; item?: string; sample: string | Blob }) => Promise<ExportMode | null>;
+export type ExportGate = (o: { name: string; item?: string; sample: string | Blob; paid?: boolean }) => Promise<ExportMode | null>;   // paid — bepul varianti yoʻq (E1: Render studiyasiga yuborish)
 let gateFn: ExportGate | null = null;
 export const setExportGate = (g: ExportGate): void => { gateFn = g; };
 /** Darvoza ulanmagan boʻlsa (masalan, testda) — avvalgidek: belgili bepul fayl */
@@ -92,6 +92,55 @@ export function wmCanvas(c: HTMLCanvasElement): HTMLCanvasElement {
   g.restore(); return c;
 }
 
+/* ---------- E1 (11.11): bepul yoʻl hech qachon vektor bermaydi ----------
+   Foydalanuvchi bepul SVG/PDF dagi vektor belgini CorelDRAW da Ungroup → Delete bilan olib tashlagan. Endi bepul fayl — faqat rasm:
+   uzun tomoni FREE_PX gacha, belgi piksellarga pishirilgan va faqat varaq (kanvas) chegarasida. Vektor va 4K / 300 dpi — tanga bilan. */
+export const FREE_PX = 1600;
+/** SVG oʻlchami (viewBox yoki width/height) */
+export function svgSize(svg: string): [number, number] {
+  const head = /<svg\b[^>]*>/i.exec(svg)?.[0] ?? '';
+  const vb = /viewBox="\s*[-\d.e]+[\s,]+[-\d.e]+[\s,]+([-\d.e]+)[\s,]+([-\d.e]+)\s*"/i.exec(head);
+  if (vb) return [+vb[1], +vb[2]];
+  return [parseFloat(/\bwidth="([\d.]+)/.exec(head)?.[1] ?? '0'), parseFloat(/\bheight="([\d.]+)/.exec(head)?.[1] ?? '0')];
+}
+/** Bepul rasm oʻlchami: uzun tomoni ≤ maxPx (SVG — aynan maxPx) */
+export function freeDims(w: number, h: number, maxPx = FREE_PX, exact = false): [number, number] {
+  const k = exact ? maxPx / Math.max(w, h) : Math.min(1, maxPx / Math.max(w, h));
+  return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))];
+}
+/** SVG → oq fonli kanvas (uzun tomoni maxPx) */
+export async function svgCanvas(svg: string, maxPx = FREE_PX): Promise<HTMLCanvasElement> {
+  let [w, h] = svgSize(svg); if (!(w > 0 && h > 0)) { w = maxPx; h = maxPx; }
+  const [cw, ch] = freeDims(w, h, maxPx, true), c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  try { const img = new Image(); img.src = url; await img.decode(); const g = c.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch); g.drawImage(img, 0, 0, cw, ch); }
+  finally { URL.revokeObjectURL(url); }
+  return c;
+}
+const toPng = (c: HTMLCanvasElement): Promise<Blob> => new Promise((ok, no) => c.toBlob(b => (b ? ok(b) : no(new Error('PNG'))), 'image/png'));
+/** Bepul rasm: SVG matni, rastr (Blob / data: URL) yoki kanvas → uzun tomoni ≤ maxPx, belgi pishirilgan PNG */
+export async function freeRaster(src: string | Blob | HTMLCanvasElement, maxPx = FREE_PX): Promise<Blob> {
+  let c: HTMLCanvasElement;
+  if (typeof src === 'string' && !src.startsWith('data:')) c = await svgCanvas(src, maxPx);
+  else {
+    const img: CanvasImageSource = src instanceof HTMLCanvasElement ? src : await createImageBitmap(typeof src === 'string' ? await (await fetch(src)).blob() : src);
+    const w = (img as HTMLCanvasElement).width, h = (img as HTMLCanvasElement).height, [cw, ch] = freeDims(w, h, maxPx);
+    c = document.createElement('canvas'); c.width = cw; c.height = ch; c.getContext('2d')!.drawImage(img, 0, 0, cw, ch);
+    (img as ImageBitmap).close?.();
+  }
+  wmCanvas(c);
+  return toPng(c);
+}
+/** Bepul yuklash: fayl nomi / maʼlumot / tur. SVG → «….png» (rasm), PNG/JPG → 1600 px belgili PNG, DXF — belgi qatlami */
+export async function wmFree(name: string, data: string | Blob, type: string): Promise<{ name: string; data: string | Blob; type: string }> {
+  if (!needWm()) return { name, data, type };
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (ext === 'svg') return { name: name.replace(/\.svg$/i, '.png'), data: await freeRaster(typeof data === 'string' ? data : await data.text()), type: 'image/png' };
+  if (ext === 'png' || ext === 'jpg' || ext === 'jpeg') return { name: name.replace(/\.(jpe?g)$/i, '.png'), data: await freeRaster(data), type: 'image/png' };
+  if (ext === 'dxf') return { name, data: typeof data === 'string' ? wmDxf(data) : new Blob([wmDxf(await data.text())], { type: type || 'application/dxf' }), type };
+  return { name, data, type };
+}
+
 /** PNG/JPG (Blob yoki data: URL) → belgili PNG Blob */
 export async function wmRaster(src: Blob | string): Promise<Blob> {
   const blob = typeof src === 'string' ? await (await fetch(src)).blob() : src;
@@ -131,12 +180,11 @@ export function wmDxf(dxf: string): string {
   return L.join(nl);
 }
 
-/** download() uchun: fayl nomi va maʼlumotga qarab belgi qoʻyish */
+/** download() uchun: fayl nomi va maʼlumotga qarab belgi qoʻyish (E1: SVG endi rasmga aylanadi — nomini wmFree beradi) */
 export async function wmFile(name: string, data: string | Blob, type: string): Promise<string | Blob> {
   if (!needWm()) return data;
   const ext = (name.split('.').pop() || '').toLowerCase();
-  if (ext === 'svg') return typeof data === 'string' ? wmSvg(data) : new Blob([wmSvg(await data.text())], { type: 'image/svg+xml' });
-  if (ext === 'png' || ext === 'jpg' || ext === 'jpeg') return wmRaster(data);
+  if (ext === 'svg' || ext === 'png' || ext === 'jpg' || ext === 'jpeg') return (await wmFree(name, data, type)).data;
   if (ext === 'dxf') return typeof data === 'string' ? wmDxf(data) : new Blob([wmDxf(await data.text())], { type: type || 'application/dxf' });
   return data;
 }
