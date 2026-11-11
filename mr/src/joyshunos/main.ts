@@ -1391,11 +1391,17 @@ let AX: AxoMod | null = null;
 let axo: InstanceType<AxoMod['Axo']> | null = null;
 let axBundle: { key: string; b: ContextBundle } | null = null, axMsg = '', axSat = false, axBusy = false;
 /** 3D uslub: Master rejadagi uslublar bilan bir xil (kalit umumiy — «mr-style») yoki xarita palitrasi */
-type AxSt = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal' | 'palitra';
-const AX_STYLES: [AxSt, string, string][] = [['albom', 'Qogʻoz', 'oq binolar, soyalar'], ['rangli', 'Shahar ranglari', 'OSM ranglari, sunʼiy yoʻldosh'], ['arctic', 'Gips maket', 'oq gil model'], ['funksiya', 'Funksional', 'funksiya ranglari'], ['minimal', 'Chizma', 'oq-qora grafika'], ['palitra', 'Xarita palitrasi', '7 ta uslubdan']];
+type AxSt = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal' | 'tungi' | 'palitra';
+const AX_STYLES: [AxSt, string, string][] = [['albom', 'Qogʻoz', 'oq binolar, soyalar'], ['rangli', 'Shahar ranglari', 'OSM ranglari, sunʼiy yoʻldosh'], ['arctic', 'Gips maket', 'oq gil model'], ['funksiya', 'Funksional', 'funksiya ranglari'], ['minimal', 'Chizma', 'oq-qora grafika'], ['tungi', 'Tungi', 'qorongʻi fon, yorqin tahlil'], ['palitra', 'Xarita palitrasi', '7 ta uslubdan']];
 let axStyle: AxSt = (() => { try { const v = localStorage.getItem('joy-axstyle') ?? localStorage.getItem('mr-style'); return AX_STYLES.some(x => x[0] === v) ? v as AxSt : 'albom'; } catch { return 'albom'; } })();
-const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean; sun?: string } | null; } catch { return null; } })() ?? {};
-function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle, city: axo.cityLook, site: axo.siteLook })); } catch { /* */ } }
+const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean; sun?: string; col?: Record<string, string> } | null; } catch { return null; } })() ?? {};
+/** E4a: foydalanuvchi ranglari (asosiy obyekt, tahlil 1, tahlil 2, atrof) — boʻsh boʻlsa uslub rangi */
+type AxColKey = 'main' | 'a1' | 'a2' | 'atrof';
+const AX_COLS: [AxColKey, string, string][] = [['main', 'Asosiy obyekt', 'uchastka va markaz'], ['a1', 'Tahlil 1', 'quyosh, shamol'], ['a2', 'Tahlil 2', 'radius halqasi'], ['atrof', 'Atrof binolari', 'kontekst']];
+const AX_SW = ['#d2492f', '#e0532c', '#c0643a', '#e8a317', '#f2c94c', '#3f8f6b', '#2f8a5f', '#3a7bd5', '#24507e', '#7b74d6', '#141518', '#5c5a55', '#9a978f', '#c9c2b5', '#dedad2', '#f1efea', '#ffffff', '#2a2e34'];
+const axCol: Partial<Record<AxColKey, string>> = (() => { const o: Partial<Record<AxColKey, string>> = {}; const c = AXST.col ?? {}; for (const [k] of AX_COLS) { const v = c[k]; if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) o[k] = v.toLowerCase(); } return o; })();
+let axColOpen = false;
+function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle, city: axo.cityLook, site: axo.siteLook, col: axCol })); } catch { /* */ } }
 function renderMode(): void {
   modeSw.replaceChildren(h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') },
     ...([['map', 'Xarita'], ['axo', 'Aksonometriya']] as const).map(([k, n]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, onclick: () => setMode(k) }, tr(n)))));
@@ -1439,7 +1445,7 @@ function axBuild(): void {
     const cat = CATS.find(c => c.id === S.cat) ?? CATS[0];
     for (const c of D.comp.v ?? []) if (c.d <= S.r) pins.push({ at: c.at, label: c.name || tr(cat.name), col: '#7a5a3c' });
     const w = windV();
-    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark(), pal: PALETTES[palKey()], site: S.site ?? null, style: axStyle });
+    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark() || axStyle === 'tungi', pal: PALETTES[palKey()], site: S.site ?? null, style: axStyle, cols: { ...axCol } });
     renderNotes();
   }, 150);
 }
@@ -1447,6 +1453,22 @@ function ensureComp(): void { const keep = S.on; if (!isOn('raqobat')) S.on = [.
 function ensureWind(): void { const keep = S.on; if (!isOn('shamol')) S.on = [...S.on, 'shamol']; ensure(); S.on = keep; }
 const axMsgEl = h('div', { class: 'joy-axmsg' });
 function renderAxoMsg(): void { axMsgEl.textContent = axMsg; axMsgEl.hidden = !axMsg; if (!axMsgEl.isConnected) axoEl.append(axMsgEl); }
+/** «Ranglar» bloki (E4a): sukut boʻyicha yopiq; har guruh uchun namuna ranglar, «Uslub» — uslub rangiga qaytish */
+function axColsBlock(): HTMLElement {
+  const n = Object.keys(axCol).length;
+  const set = (k: AxColKey, v: string | null) => { if (v) axCol[k] = v; else delete axCol[k]; axSave(); axBuild(); renderAxo(); };
+  return h('div', { class: 'joy-axcols', id: 'axCols' },
+    h('button', { type: 'button', class: 'hd', 'aria-expanded': axColOpen, onclick: () => { axColOpen = !axColOpen; renderAxo(); } },
+      h('span', {}, tr('Ranglar')), n ? h('span', { class: 'chip' }, tf('${n} ta oʻzgartirilgan', { n })) : h('span', { class: 't-small' }, tr('uslub ranglari')), ic(ICON.chev)),
+    ...(axColOpen ? [
+      ...AX_COLS.map(([k, nm, sub]) => h('div', { class: 'grp', 'data-col': k },
+        h('div', { class: 'gl' }, h('i', { class: 'cur', style: axCol[k] ? `background:${axCol[k]}` : '' }), h('b', {}, tr(nm)), h('span', { class: 't-small' }, tr(sub))),
+        h('div', { class: 'joy-sws', role: 'group', 'aria-label': tr(nm) },
+          h('button', { type: 'button', class: 'joy-sw auto', 'data-sw': '', 'aria-pressed': !axCol[k], title: tr('Uslub rangi'), 'aria-label': tr('Uslub rangi'), onclick: () => set(k, null) }, 'A'),
+          ...AX_SW.map(c => h('button', { type: 'button', class: 'joy-sw', 'data-sw': c, 'aria-pressed': axCol[k] === c, 'aria-label': c, title: c, style: `background:${c}`, onclick: () => set(k, c) }))))),
+      h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'axColReset', disabled: !n, onclick: () => { for (const [k] of AX_COLS) delete axCol[k]; axSave(); axBuild(); renderAxo(); } }, tr('Uslub ranglariga qaytarish')),
+    ] : []));
+}
 function renderAxo(): void {
   renderAxoMsg();
   const A = AX, a = axo;
@@ -1483,6 +1505,7 @@ function renderAxo(): void {
     h('div', { class: 'glabel' }, tr('Uslub')),
     h('div', { class: 'joy-sty', role: 'group', 'aria-label': tr('Uslub') }, ...AX_STYLES.map(([k, n, sub]) => h('button', { type: 'button', 'data-sty': k, 'aria-pressed': axStyle === k, onclick: () => { axStyle = k; try { localStorage.setItem('joy-axstyle', k); } catch { /* */ } axBuild(); renderAxo(); } }, h('b', {}, tr(n)), h('span', {}, tr(sub))))),
     ...(axStyle === 'palitra' ? [(() => { const m = palMenu(() => { axBuild(); renderAxo(); renderBase(); }); m.classList.add('inline'); return m; })()] : []),
+    axColsBlock(),
     h('div', { class: 'glabel' }, tr('Qatlamlar · pastdan yuqoriga')),
     h('ol', { class: 'joy-axlist' }, ...a.order.map((id, i) => {
       const L = A.AX_LAYERS.find(l => l.id === id)!;
@@ -1545,9 +1568,9 @@ function renderNotes(): void {
     row(tr('Shamol'), w ? `${tr(dir8(w.k * 22.5))} · ${fmt(w.share * 100)} %` : '—'),
     row(tr('Radius'), `${S.r} m`),
     h('div', { class: 'glabel' }, tr('Izohlar')),
-    h('ul', {}, it('#e8a317', 'Quyosh yoʻli (soatlar)'), it('#e0532c', 'Quyosh', 'big'), it('#3f8f6b', 'Shamol guli'),
+    h('ul', {}, it(axCol.a1 ?? '#e8a317', 'Quyosh yoʻli (soatlar)'), it('#e0532c', 'Quyosh', 'big'), it(axCol.a1 ?? '#3f8f6b', 'Shamol guli'),
       ...(a?.flows ?? []).map((f, i) => h('li', {}, h('i', { class: 'bar', style: `background:${f.col}` }), tf('Shamol ${n}: ${d} · ${p} % · ${v} m/s', { n: i + 1, d: tr(dir8(f.deg)), p: fmt(f.share * 100), v: fmt(f.v, 1) }))),
-      it('#4c5bd4', 'Xizmatlar'), it('#7a5a3c', 'Raqobatchilar'), it('#c0643a', 'Masofa halqalari', 'ring'), it('#6b6965', 'Binolar soyasi', 'sq')),
+      it('#4c5bd4', 'Xizmatlar'), it('#7a5a3c', 'Raqobatchilar'), it(axCol.a2 ?? '#c0643a', 'Masofa halqalari', 'ring'), it('#6b6965', 'Binolar soyasi', 'sq'), S.site ? it(axCol.main ?? '#d2492f', 'Uchastka', 'ring') : null),
     h('p', { class: 't-small' }, tr('Binolar balandligi OSM dan; yozilmaganlari qavat soni yoki maydoniga qarab taxmin qilingan.')),
   );
 }
