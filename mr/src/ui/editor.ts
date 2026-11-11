@@ -18,7 +18,7 @@ import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
 import { resolveAxo, type AxoEdit, type AxoPick } from '../core/axoedit';
-import type { NormSet } from '../norms/sets';
+import { levelOf, type NormSet } from '../norms/sets';
 import { abroadRules, RULES, spacingBadIds, GREEN_86, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
@@ -2180,8 +2180,9 @@ export class Editor {
 
   /* ---------- 5-bosqich: hisobot va TEP ---------- */
   /** 11.11: loyiha joyining meʼyorlar toʻplami (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
-  private normSet(): NormSet { const o = this.store.doc.origin; return placeOf(o[0], o[1]).norms; }
-  private allRules(): Result[] { const o = this.store.doc.origin; return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], placeOf(o[0], o[1]).norms); }
+  /** 11.11: loyiha joyining meʼyorlar toʻplami — qoʻlda tanlangani (settings.normSet), boʻlmasa joy boʻyicha (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
+  private normSet(): NormSet { const o = this.store.doc.origin; return this.store.doc.settings.normSet ?? placeOf(o[0], o[1]).norms; }
+  private allRules(): Result[] { return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], this.normSet()); }
   /**
    * 01.11 (egasi): atrofdagi (OSM) turar joy binolarigacha masofa — ShNQ 2.07.01-23, 79-band, 2-jadval (3 va undan yuqori qavatli)
    * va 6-izoh (koʻp qavatli ↔ yakka uy: ≥ koʻp qavatli bino balandligi). Vazifa: OSM «building» tegi yoki foydalanuvchi belgisi
@@ -3512,6 +3513,27 @@ export class Editor {
       : new PolygonTool(this.scene, r => { const f = frame(this.store.doc.origin); add({ kind, rings: [r.map(f.toGeo)], ...(kind === 'suv' ? { suv: { t: 'kol' as SuvType } } : {}) }); }, toast, 20);
     this.setTool(t); this.limDraw = kind; this.renderPanel();
   }
+  /** 11.11 (meʼyorlar toʻplami, 2-bosqich; kanvas «Me'yorlar to'plami — interfeys maketi», 1-doska): joy boʻyicha aniqlangan toʻplam,
+   *  qoʻlda almashtirish (taqqoslash uchun), majburiy / tavsiya / oʻchiq qoidalar soni va meʼyorlar roʻyxatiga havola */
+  private normsBlock(): HTMLElement {
+    const doc = this.store.doc, place = placeOf(doc.origin[0], doc.origin[1]), auto = place.norms, cur = this.normSet();
+    const cn = placeLabel(place, getLang()).split(' · ')[0] || '—';
+    const pick = (v: NormSet) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { normSet: v === auto ? undefined : v } }));
+    const opt = (v: NormSet, t: string, sub: string) => h('button', { type: 'button', role: 'radio', 'data-norms': v, 'aria-checked': v === cur, 'aria-pressed': v === cur, onclick: () => pick(v) },
+      h('span', {}, tr(t), v !== auto ? h('span', { class: 't-small' }, ` · ${tr('taqqoslash uchun')}`) : ''), h('small', {}, tr(sub)));
+    const cnt = { majburiy: 0, tavsiya: 0, ochiq: 0 } as Record<string, number>;
+    for (const r of RULES) { const l = levelOf(r.id, cur); if (l) cnt[l === 'andoza' ? 'tavsiya' : l]++; }
+    const ord: NormSet[] = auto === 'UZ' ? ['UZ', 'intl'] : ['intl', 'UZ'];
+    const T: Record<NormSet, [string, string]> = { UZ: ['Oʻzbekiston · ShNQ', 'Barcha meʼyorlar majburiy: ShNQ, QMQ, SanQvaN, VM qarorlari.'], intl: ['Xalqaro andoza', 'Yongʻin va xavfsizlik — tavsiya; Oʻzbekiston mintaqaviy meʼyorlari oʻchiq; binolar orasi — ADG 3F-1.'] };
+    return h('div', { class: 'col', id: 'normBox' },
+      h('span', { class: 't-small', id: 'normPlace' }, tf('Joy boʻyicha aniqlandi: ${c}', { c: cn })),
+      h('div', { class: 'optl', role: 'radiogroup', 'aria-label': tr('Meʼyorlar toʻplami') }, ...ord.map(v => opt(v, ...T[v]))),
+      ...(auto === 'intl' ? [h('span', { class: 't-small', id: 'normLocal' }, tf('Mahalliy toʻplam: ${c} uchun hali ulanmagan.', { c: cn }))] : []),
+      h('div', { class: 'rtiles', id: 'normCnt', style: 'grid-template-columns:repeat(3,minmax(0,1fr))' },
+        ...([['majburiy', cnt.majburiy], ['tavsiya', cnt.tavsiya], ['oʻchiq', cnt.ochiq]] as const).map(([k, v]) => h('div', {}, h('b', {}, String(v)), h('small', {}, tr(k))))),
+      ...(doc.settings.normSet ? [h('div', { class: 'note', id: 'normNote' }, tr('Binolar yangi toʻplam boʻyicha qayta joylashadi: 5-qadamda «Variant taklif qil».'))] : []),
+      h('button', { class: 'btn btn-block', id: 'normReg', onclick: () => { this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = false; this.renderKpi(); } }, tr('Meʼyorlar roʻyxatini ochish')));
+  }
   private limitsBlock(): HTMLElement {
     const doc = this.store.doc, ls = doc.limits ?? [], box = h('div', { class: 'col', id: 'limBox' }), bal = this.last?.d.balance;
     if (ls.length && bal) box.append(h('div', { class: 'group flat', id: 'limBal', style: 'padding:10px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px' },
@@ -4377,7 +4399,9 @@ export class Editor {
       body.append(sec(1, 'Joy', 'secJoy')); this.hududPanel(body);
       body.append(sec(2, 'Chegara', 'secSite')); this.uchastkaPanel(body);
       if (this.store.doc.site) { body.append(sec(3, 'Kirish va yoʻllar', 'secAccess')); body.append(this.accessBlock()); }
-      if (this.store.doc.site) { body.append(sec(4, 'Mavjud holat va cheklovlar', 'secLimits')); body.append(this.limitsBlock()); }
+      // 11.11 (egasi): meʼyorlar toʻplami cheklovlardan oldin — SMZ, ELU, qabriston buferi tanlangan toʻplamga bogʻliq
+      if (this.store.doc.site) { body.append(sec(4, 'Meʼyorlar toʻplami', 'secNorms')); body.append(this.normsBlock()); }
+      if (this.store.doc.site) { body.append(sec(5, 'Mavjud holat va cheklovlar', 'secLimits')); body.append(this.limitsBlock()); }
     }
     if (s.id === 'hajm') this.hajmPanel(body);
     if (s.id === 'kocha') this.kochaPanel(body);
@@ -4802,7 +4826,7 @@ export class Editor {
   private renderKpi(): void {
     const c = this.last; if (!c) return;
     setExportArea(c.d.siteHa ?? 0); setExportProject(this.store.doc.id);   // narx × k = √(ga/3), loyiha shifti
-    const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms)[0];
+    const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), this.normSet())[0];
     const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));
     const open = !this.el.drawer.hidden;
     this.el.kpi.classList.toggle('all', this.kpiAll);
@@ -4811,7 +4835,7 @@ export class Editor {
       ...(d.balance ? [k('Yaroqli, ga', fmt(d.balance.usableHa, 2), undefined, 'kUsable')] : []),   // 02.11: cheklovlar boʻlsa — qurilishga yaroqli maydon
       k('GFA, m²', d.gfa ? fmt(d.gfa) : '—', undefined, 'kGfa'),
       // 04.11 (audit): UMN — 66-band boʻyicha (turar joy uchastkasi, eng kattasi); FAR (brutto, butun uchastka) — barcha koʻrsatkichlarda
-      (() => { const u = abroadRules(c.results.filter(r => r.id === 'umn-66'), placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms)[0]; return k('UMN', u?.value ? fmt(u.value, 2) : '—', u?.status === 'na' ? undefined : u?.status, 'kUmn', false, true); })(),
+      (() => { const u = abroadRules(c.results.filter(r => r.id === 'umn-66'), this.normSet())[0]; return k('UMN', u?.value ? fmt(u.value, 2) : '—', u?.status === 'na' ? undefined : u?.status, 'kUmn', false, true); })(),
       k('FAR (brutto)', d.far ? fmt(d.far, 2) : '—', undefined, 'kFar', true),
       k('Qurilish zichligi', d.gsi ? fmt(d.gsi * 100, 0) + ' %' : '—', undefined, undefined, true),
       k('Oʻrt. qavat', d.avgFloors ? fmt(d.avgFloors, 1) : '—', undefined, undefined, true),
@@ -4819,7 +4843,7 @@ export class Editor {
       k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens', true),
       k('Ish oʻrni', d.jobs >= 1 ? fmt(d.jobs) : '—', undefined, 'kJobs', true),
       h('button', { class: 'ib sm', id: 'kAll', 'aria-label': tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), title: tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), 'aria-pressed': this.kpiAll, onclick: () => { this.kpiAll = !this.kpiAll; this.renderKpi(); } }, svgIcon(this.kpiAll ? '<path d="M15 6l-6 6 6 6"/>' : '<path d="M9 6l6 6-6 6"/>')),
-      h('button', { class: `btn more${open && this.el.drawer.dataset.kind === 'reg' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open && this.el.drawer.dataset.kind === 'reg', onclick: () => { const reg = this.el.drawer.dataset.kind === 'reg'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar'), (() => { /* 31.10 (A variant, 3-bosqich): holat doim koʻrinadi — mos emaslar soni (xorijda — andoza holatlari bilan) */ const rs = abroadRules(c.results, placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms), nf = rs.filter(r => r.status === 'fail').length, nr = rs.filter(r => r.status === 'review').length; return h('span', { class: 'kst', id: 'kStat', 'data-s': nf ? 'fail' : nr ? 'review' : 'pass', title: nf ? tf('${n} ta meʼyor mos emas', { n: nf }) : nr ? tf('${n} ta koʻrib chiqish', { n: nr }) : tr('Hammasi mos') }, h('i'), nf ? String(nf) : nr ? String(nr) : '✓'); })()));
+      h('button', { class: `btn more${open && this.el.drawer.dataset.kind === 'reg' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open && this.el.drawer.dataset.kind === 'reg', onclick: () => { const reg = this.el.drawer.dataset.kind === 'reg'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar'), (() => { /* 31.10 (A variant, 3-bosqich): holat doim koʻrinadi — mos emaslar soni (xorijda — andoza holatlari bilan) */ const rs = abroadRules(c.results, this.normSet()), nf = rs.filter(r => r.status === 'fail').length, nr = rs.filter(r => r.status === 'review').length; return h('span', { class: 'kst', id: 'kStat', 'data-s': nf ? 'fail' : nr ? 'review' : 'pass', title: nf ? tf('${n} ta meʼyor mos emas', { n: nf }) : nr ? tf('${n} ta koʻrib chiqish', { n: nr }) : tr('Hammasi mos') }, h('i'), nf ? String(nf) : nr ? String(nr) : '✓'); })()));
     if (!this.el.drawer.hidden && this.el.drawer.dataset.kind === 'reg') this.el.drawer.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, tr('Meʼyoriy reyestr')), h('button', { class: 'ib sm', 'aria-label': tr('Yopish'), onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); } }, svgIcon(IC.x))), this.register());
     // 04.11 (beqaror testlar): son maydoniga yozilayotganda (masalan uchastka eni) qayta chizilsa, son belgilashi oʻqilmagani uchun yangi
     // qiymat eskisiga qoʻshilib ketardi («120» + «400» → «120400» — uchastka qoʻyilmasdi). Yozuv tugaguncha (fokus paneldan chiqguncha) kutiladi.
@@ -4892,9 +4916,9 @@ export class Editor {
     const bad = all.filter(r => r.status === 'fail').length, rs = this.regFilter === 'fail' ? all.filter(r => r.status === 'fail' || r.status === 'review') : all;
     const CLS: Record<Result['status'], string> = { pass: 'ok', fail: 'bad', review: 'warn', na: 'na' };
     const slash = (u?: string) => !!u && u.startsWith('/');
-    const o = this.store.doc.origin, abroad = placeOf(o[0], o[1]).norms !== 'UZ';
+    const abroad = this.normSet() !== 'UZ';
     return h('div', { class: 'regw' },
-      abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr('Loyiha Oʻzbekistondan tashqarida — xalqaro toʻplam: yongʻin, xavfsizlik va zichlik meʼyorlari tavsiya («koʻrib chiqish»), Oʻzbekiston mintaqaviy meʼyorlari (maktab va MTM oʻrinlari, insolyatsiya oraliqlari, maydonchalar) oʻchiq. Binolar orasi — ADG 3F-1 andozasi.')) : '',
+      abroad ? h('div', { class: 'note', id: 'regAbroad' }, tr(this.store.doc.settings.normSet === 'intl' && placeOf(this.store.doc.origin[0], this.store.doc.origin[1]).norms === 'UZ' ? 'Taqqoslash: Oʻzbekistondagi loyiha xalqaro andoza bilan tekshirilmoqda — natija rasmiy emas. Joy va uchastka → «Meʼyorlar toʻplami».' : 'Loyiha Oʻzbekistondan tashqarida — xalqaro toʻplam: yongʻin, xavfsizlik va zichlik meʼyorlari tavsiya («koʻrib chiqish»), Oʻzbekiston mintaqaviy meʼyorlari (maktab va MTM oʻrinlari, insolyatsiya oraliqlari, maydonchalar) oʻchiq. Binolar orasi — ADG 3F-1 andozasi.')) : '',
       // 04.11 (egasi: interfeysni soddalashtirish, A): hisob shartlari — «Qoʻshimcha» ichida, ekranda — joriy qiymatlar qisqa satrda; jadval darhol koʻrinadi
       (() => { const S0 = this.store.doc.settings, n = 4 + (this.fireLowRow() ? 1 : 0);
         const d = h('details', { class: 'gen-more', id: 'regSet', open: this.openDet.has('regSet') }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n })),
