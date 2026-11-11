@@ -230,7 +230,7 @@ export class Editor {
     this.scene.onLabels = () => this.renderLblBar();
     try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
     try { if (localStorage.getItem('mr-lite') === 'toliq') this.scene.lite = 'toliq'; } catch { /* */ }
-    this.scene.update(doc); this.scene.frameDoc(doc);
+    this.safeSceneUpdate(doc); this.scene.frameDoc(doc);
     this.ul = new UserLayersUI({ store: this.store, scene: this.scene, run: fn => this.run(fn), refresh: () => this.refreshPop(), bundle: () => (this.store.doc.context.loaded ? this.ctxMgr.current : null), redrawContext: () => { if (this.store.doc.context.loaded) this.showContext(this.ctxMgr.current); } });
     this.ul.sync(doc);
     this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = tr(s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'); });
@@ -313,7 +313,7 @@ export class Editor {
   /** Til almashtirish: barcha panellar qayta chiziladi (matnlar i18n dan) */
   private async setLang(l: Lang): Promise<void> {
     await setLang(l);   // yangi til lugʻati yuklanguncha kutiladi
-    this.scene.update(this.store.doc);   // xaritadagi yozuvlar (canvas) — yangi tilda
+    this.safeSceneUpdate(this.store.doc);   // xaritadagi yozuvlar (canvas) — yangi tilda
     this.el.saveT.textContent = tr(this.el.save.dataset.s === 'saved' ? 'saqlandi' : this.el.save.dataset.s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!');
     this.closePop(); this.renderAll(); this.renderKpi(); this.renderToolPanel();
   }
@@ -327,6 +327,12 @@ export class Editor {
     this.el.seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === m)));
   }
 
+  /** 11.11 (L1): sahnani qurishda xato boʻlsa ham panel va hisob ishlayversin — loyiha ochiladi, egasiga bitta ogohlantirish */
+  private sceneErr = false;
+  private safeSceneUpdate(doc: Project): void {
+    try { this.scene.update(doc); this.sceneErr = false; }
+    catch (e) { console.error('[L1] sahna xatosi', e); if (!this.sceneErr) toast(tr('Sahnada buzuq obyekt oʻtkazib yuborildi — loyiha ochiq, maʼlumotlar saqlangan')); this.sceneErr = true; }
+  }
   private onChange(doc: Project): void {
     const p = this.prevDoc; this.prevDoc = doc;
     // faqat varaqlar oʻzgargan boʻlsa (Varaqlar oynasi) — sahna va panel qayta chizilmaydi
@@ -340,7 +346,7 @@ export class Editor {
     if (this.sel && !doc.buildings.some(b => b.id === this.sel)) this.sel = null;
     if (p.buildings !== doc.buildings && this.apt.stats) this.clearApt();
     (this.el.name as HTMLInputElement).value = doc.name;
-    this.scene.setSelection(this.sel); this.scene.update(doc);
+    this.scene.setSelection(this.sel); this.safeSceneUpdate(doc);
     if (p.userLayers !== doc.userLayers || p.origin !== doc.origin || p.settings.floorHeight !== doc.settings.floorHeight) this.ul.sync(doc);
     this.renderAll(); this.recompute();
   }
