@@ -2707,12 +2707,12 @@ export class Editor {
     if (t.use !== 'poliklinika' && sp.sections.length && capAct < t.cap * 0.95 && (sp.scale ?? 1) >= 0.99) fNotes.push(tf('Bino toʻliq sigʻmadi: ${a} / ${b} oʻrin — chekinishlar ichida joy kam (qizil chiziqdan 25 m, 39-jadval). Parselni kattalashtiring yoki modulni oʻzgartiring.', { a: capAct, b: t.cap }));
     const soc = { soc: { mod: this.socMod[t.use], m2: this.socM2[t.use], floors: this.socFloors[t.use], bw: this.socBW[t.use], bl: this.socBL[t.use], cap: t.cap } };
     const grp = t.use === 'mtm' ? [tf('Guruhlar: ${g} (${n} boladan — ANDOZA); guruh maydonchalari ${g} × ${p} m² soyabon bilan, sport maydoni, xoʻjalik zonasi — uchastkada.', { g: mtmGroups(capAct), n: MTM.group, p: MTM.play })] : [];
-    this.genNotes = [tf('${n}: ${c} ${u} · ${g} m² GFA · ${f} qavat (${m} m²/${u})', { n: SOCIAL[t.use].name, c: fmt(capAct), u: SOCIAL[t.use].unit, g: fmt(sp.gfa), f: fl, m: this.socM2[t.use] }), ...fNotes, ...grp, ...sp.notes]; this.genFar = null;
+    this.genNotes = [tf('${n}: ${c} ${u} · ${g} m² GFA · ${f} qavat (${m} m²/${u})', { n: tr(SOCIAL[t.use].name), c: fmt(capAct), u: tr(SOCIAL[t.use].unit), g: fmt(sp.gfa), f: fl, m: this.socM2[t.use] }), ...fNotes, ...grp, ...sp.notes]; this.genFar = null;
     if (!sp.sections.length) { if (!quiet) toast(sp.notes[0] ?? 'Joylashmadi'); return 0; }
     const sgrp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, sgrp, b.rings[0], sp.sections.map(x => x.ring));
     this.run(() => this.store.dispatch({ type: 'replaceGroup', grp: sgrp, drop, label: b.parcelId ? undefined : { ...lab, gen: soc }, ...(b.parcelId ? { parcelGen: soc } : {}),
       sections: sp.sections.map(x => ({ footprint: x.ring.map(fr.toGeo), floors: x.floors, nonRes: 0, use: t.use, kind: 'ijtimoiy' })), garage: null }));
-    if (!quiet) toast(`${this.unitName(i)}: ${SOCIAL[t.use].name.toLowerCase()} — ${fmt(capAct)} ${SOCIAL[t.use].unit}, ${fmt(sp.gfa)} m²`);
+    if (!quiet) toast(`${this.unitName(i)}: ${tr(SOCIAL[t.use].name).toLowerCase()} — ${fmt(capAct)} ${tr(SOCIAL[t.use].unit)}, ${fmt(sp.gfa)} m²`);
     return sp.sections.length;
   }
   /** 05.11: «Avtoturargoh» birligi — tur tanlovi (ochiq / koʻp qavatli), qavatlar; tanlov joylashtirilguncha shu yerda */
@@ -2795,7 +2795,7 @@ export class Editor {
       h('div', { class: 'group' },
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Ehtiyoj'), h('span', { class: 'sub' }, tr('loyiha aholisi, stat.uz'))), h('span', { class: 'v' }, t.demand ? `${fmt(t.demand)} ${S.unit}` : '—')),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Parsel sigʻimi'), h('span', { class: 'sub' }, t.use === 'maktab' ? '41-jadval' : t.use === 'mtm' ? '543-band' : '45-jadval, taxmin')), h('span', { class: 'v' }, `${fmt(t.plot)} ${S.unit}`)),
-        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Sigʻim'), h('span', { class: 'sub' }, S.unit)), stepper({ id: 'socCap', label: `${tr('Sigʻim')}, ${S.unit}`, min: 10, max: 5000, step: 10, value: t.cap, onchange: v => { this.socCap[key] = Math.max(10, v); this.renderPanel(); } })),
+        h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Sigʻim'), h('span', { class: 'sub' }, tr(S.unit))), stepper({ id: 'socCap', label: `${tr('Sigʻim')}, ${tr(S.unit)}`, min: 10, max: 5000, step: 10, value: t.cap, onchange: v => { this.socCap[key] = Math.max(10, v); this.renderPanel(); } })),
         h('div', { class: 'li' }, h('span', { class: 'k' }, `m² / ${unit0}`), stepper({ id: 'socM2', label: `m²/${unit0}`, min: 4, max: 40, step: 0.5, value: this.socM2[t.use], onchange: v => { this.socM2[t.use] = Math.max(4, v); this.renderPanel(); } })),
         h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Qavat'), h('span', { class: 'sub' }, `1–${S.maxFloors}`)), stepper({ id: 'socFl', label: tr('Qavat'), min: 1, max: S.maxFloors, step: 1, value: this.socFloors[t.use], onchange: v => { this.socFloors[t.use] = v; this.renderPanel(); } })),
         // 12-band: korpus oʻlchamlari
@@ -4083,6 +4083,8 @@ export class Editor {
           h('button', { class: 'btn btn-sm grow', id: 'pClear', disabled: !b.parcelId, onclick: () => { const bp = this.blockParcels(b); if (bp) { this.run(() => this.store.dispatch({ type: 'setParcels', block: bp.lab.id, parcels: [] })); this.selBlock = null; this.scene.selectBlock(null); } } }, tr('Butun kvartal'))),
         ...(() => {
           // 02.11 (egasi): kvartal yoki parselni SMZ (bufer) chegarasi boʻyicha bir bosishda ajratish
+          // 11.11 (L8): SMZ — Oʻzbekiston meʼyorlari tushunchasi (SanQvaN 0103-25); xorijiy toʻplamda tugma koʻrsatilmaydi (NYC da chiqardi)
+          if (this.normSet() !== 'UZ') return [];
           const soft = limitZones(this.store.doc).soft; if (!soft.length) return [];
           const bp = this.blockParcels(b); if (!bp) return [];
           const target = bp.list.find(p => (b.parcelId ? p.id === b.parcelId : true)) ?? bp.list[0], sp = target && splitByZones(target.rings, soft.flatMap(z => z.polys));
@@ -4133,7 +4135,7 @@ export class Editor {
       h('div', { class: 'col' },
         h('div', { class: 'seg sm', role: 'group' }, ...([['orq781', '781: olib qoʻyish'], ['orq1149', '1149: renovatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': c.regime === k, 'data-regime': k, onclick: () => set({ regime: k }) }, t))),
         h('div', { class: 'row3' }, num('priceFlat', tr('Kvartira'), '$/m²', 10), num('priceHouse', tr('Hovli'), '$/m²', 10), num('priceNonres', tr('Noturar'), '$/m²', 10)),
-        h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', id: 'compMon', onclick: () => void this.loadMonitoring() }, tr('Monitoringdan')), h('span', { class: 't-small', id: 'compSrc' }, c.priceSource ? `${tr('Manba')}: ${c.priceSource}` : tr('Manba: kiritilmagan'))),
+        h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', id: 'compMon', onclick: () => void this.loadMonitoring() }, tr('Monitoringdan')), h('span', { class: 't-small', id: 'compSrc' }, c.priceSource ? `${tr('Manba')}: ${tr(c.priceSource)}` : tr('Manba: kiritilmagan'))),
         this.monitorMsg ? h('div', { class: 'note' }, this.monitorMsg) : '',
         h('div', { class: 'row2' }, num('rentRate', tr('Ijara'), '$/m²·oy', 0.5), num('rentMonths', tr('Ijara'), tr('oy')), num('movingPerHh', tr('Koʻchish'), '$/xon.', 10), num('profitRate', tr('Foyda'), '$/m²·yil', 5)),
         h('table', { class: 'tbl', id: 'compTab' },
