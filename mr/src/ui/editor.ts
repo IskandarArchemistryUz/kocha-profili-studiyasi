@@ -3513,6 +3513,40 @@ export class Editor {
       : new PolygonTool(this.scene, r => { const f = frame(this.store.doc.origin); add({ kind, rings: [r.map(f.toGeo)], ...(kind === 'suv' ? { suv: { t: 'kol' as SuvType } } : {}) }); }, toast, 20);
     this.setTool(t); this.limDraw = kind; this.renderPanel();
   }
+  /** 11.11: 1-qadam yigʻiladigan boʻlimlar — sukut yoqiq; «mr-acc»=0 (testlar umumiy sozlamasi) — eski koʻrinish */
+  private accOn(): boolean { try { return localStorage.getItem('mr-acc') !== '0'; } catch { return true; } }
+  /** foydalanuvchi ochgan boʻlim (null — avtomatik: birinchi bajarilmagan) */
+  private uchOpen: number | null = null;
+  /** 1-qadam: 5 boʻlim — sarlavha (raqam yoki ✓, nom, xulosa) va tana; yigʻiq tanalar ham quriladi (ichki ishlar — atrofdan cheklovlarni aniqlash va b. — avvalgidek ishlaydi), faqat yashiriladi */
+  private uchAccordion(body: HTMLElement): void {
+    const doc = this.store.doc, site = !!doc.site, loaded = !!doc.context.loaded, b = this.ctxMgr.current;
+    const place = placeOf(doc.origin[0], doc.origin[1]), cn = placeLabel(place, getLang()).split(' · ')[0] || '';
+    const ctxSum = loaded && b ? `${cn ? cn + ' · ' : ''}${fmt(b.osm.buildings.length)} ${tr('bino')}` : tr('atrof yuklanmagan');
+    const lims = doc.limits ?? [], bal = this.last?.d.balance;
+    const S: { n: number; id: string; t: string; done: boolean; lock: boolean; sum: string | (() => string); fill: (box: HTMLElement) => void }[] = [
+      { n: 1, id: 'secJoy', t: 'Joy', done: loaded, lock: false, sum: ctxSum, fill: x => this.hududPanel(x) },
+      { n: 2, id: 'secSite', t: 'Chegara', done: site, lock: false, sum: site ? `${fmt(this.last?.d.siteHa ?? 0, 2)} ga` : tr('chizilmagan'), fill: x => this.uchastkaPanel(x) },
+      { n: 3, id: 'secAccess', t: 'Kirish va yoʻllar', done: site && loaded, lock: !site, sum: () => site && loaded && this.accessMemo ? tf('${n} yoʻl tutash', { n: this.accessMemo.v.length }) : '', fill: x => x.append(this.accessBlock()) },
+      { n: 4, id: 'secNorms', t: 'Meʼyorlar toʻplami', done: site, lock: !site, sum: tr(this.normSet() === 'UZ' ? 'Oʻzbekiston · ShNQ' : 'Xalqaro andoza'), fill: x => x.append(this.normsBlock()) },
+      { n: 5, id: 'secLimits', t: 'Mavjud holat va cheklovlar', done: site && doc.limits !== undefined, lock: !site, sum: site && doc.limits !== undefined ? `${tf('${n} cheklov', { n: lims.length })}${bal ? ' · ' + tf('yaroqli ${a} ga', { a: fmt(bal.usableHa, 2) }) : ''}` : '', fill: x => x.append(this.limitsBlock()) },
+    ];
+    const auto = !loaded && !site ? 1 : !site ? 2 : (S.find(x => !x.done)?.n ?? 4);
+    const cur = this.uchOpen != null && !S[this.uchOpen - 1]?.lock ? this.uchOpen : auto;
+    const CHK = '<path d="M5 12l5 5 9-10"/>', CHV = '<path d="M9 6l6 6-6 6"/>';
+    body.append(h('div', { class: 'acc-list', id: 'uchAcc' }, ...S.map(x => {
+      const open = x.n === cur, bd = h('div', { class: 'acc-b', id: `${x.id}Body`, hidden: !open });
+      if (!x.lock) x.fill(bd);
+      const sum = typeof x.sum === 'function' ? x.sum() : x.sum;
+      return h('div', { class: `acc${open ? ' open' : ''}${x.lock ? ' lock' : ''}`, 'data-sec': x.n },
+        h('button', { class: 'acc-h', type: 'button', id: x.id, 'aria-expanded': open, 'aria-controls': `${x.id}Body`, disabled: x.lock, title: x.lock ? tr('Avval uchastkani chizing') : null,
+          onclick: () => { this.uchOpen = open ? 0 : x.n; this.renderPanel(); } },
+          h('b', { class: x.done && !open ? 'done' : open ? 'cur' : '' }, ...(x.done && !open ? [svgIcon(CHK)] : [String(x.n)])),
+          h('span', { class: 'acc-t' }, tr(x.t)),
+          h('span', { class: 'acc-s' }, x.lock ? tr('Avval uchastkani chizing') : sum),
+          h('span', { class: `acc-c${open ? ' up' : ''}`, 'aria-hidden': 'true' }, svgIcon(CHV))),
+        bd);
+    })));
+  }
   /** 11.11 (meʼyorlar toʻplami, 2-bosqich; kanvas «Me'yorlar to'plami — interfeys maketi», 1-doska): joy boʻyicha aniqlangan toʻplam,
    *  qoʻlda almashtirish (taqqoslash uchun), majburiy / tavsiya / oʻchiq qoidalar soni va meʼyorlar roʻyxatiga havola */
   private normsBlock(): HTMLElement {
@@ -4395,6 +4429,9 @@ export class Editor {
     const doc = this.store.doc;
     if (s.id === 'uchastka') {
       // 1-qadam (27.10: «Hudud» + «Uchastka»): Joy → Chegara → Kirish va yoʻllar
+      // 11.11 (egasi, kanvas «Me'yorlar to'plami — interfeys maketi», 5–6-doskalar): yigʻiladigan boʻlimlar — bitta boʻlim ochiq,
+      // qolganlari bir qatorlik xulosa bilan. Testlar umumiy sozlamasi (tests/e2e/fx.ts) «mr-acc»=0 qoʻyadi — eski koʻrinish (hammasi ochiq)
+      if (this.accOn()) { this.uchAccordion(body); return; }
       const sec = (n: number, t: string, id: string) => h('div', { class: 'stepsec', id }, h('b', {}, String(n)), h('span', {}, tr(t)));
       body.append(sec(1, 'Joy', 'secJoy')); this.hududPanel(body);
       body.append(sec(2, 'Chegara', 'secSite')); this.uchastkaPanel(body);
