@@ -64,7 +64,7 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('—');
   await expect(page.locator('[data-card=shamol] .sub')).toContainText('Stansiya');
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/);
-  await expect(page.locator('[data-card=xizmat] .joy-norm li')).toHaveCount(4);
+  await expect(page.locator('[data-card=xizmat] .joy-norm li')).toHaveCount(5);   // E2: bekat, maktab, MTM, poliklinika, dorixona
   await expect(page.locator('[data-card=raqobat] .big')).toHaveText(/^\d+ ta$/);
   // A2: piyoda yetish, odamlar oqimi (beta), shovqin (beta)
   for (const id of ['piyoda', 'oqim', 'shovqin']) await joyClick(page, id, '.switch');
