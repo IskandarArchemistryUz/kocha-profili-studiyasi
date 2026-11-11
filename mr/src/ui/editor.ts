@@ -1366,6 +1366,7 @@ export class Editor {
     const [m, d] = this.sunDate.split('-').map(Number), o = this.store.doc.origin;
     const p = sunPosition(localToUtcAt(2026, m, d, this.sunTime, o[1], o[0]), o[1], o[0]);
     this.scene.setSun(p.alt, p.az);
+    this.scene.setLiveShadows(this.step.id === 'quyosh' && p.alt > 0);   // L9: faqat shu qadamda (surgich onchange qadam almashgach ham kelishi mumkin)
     const t = this.el.panel.querySelector<HTMLElement>('#sunInfo');
     if (t) t.textContent = `${String(Math.floor(this.sunTime)).padStart(2, '0')}:${String(Math.round(this.sunTime % 1 * 60)).padStart(2, '0')} · balandlik ${fmt(p.alt, 1)}° · azimut ${fmt(p.az, 0)}°`;
   }
@@ -4376,6 +4377,7 @@ export class Editor {
     if (this.sframe) this.endFrame();
     document.querySelector('.usepop')?.remove(); this.setTool(null); this.step = s; this.panelOpen = true; track(`mr/step/${s.id}`, true);
     if (!this.last) void this.recompute();   // 11.11 (L2/L4): natija yoʻq qolgan boʻlsa — qadam almashganda qayta hisob
+    if (s.id !== 'quyosh') this.scene.setLiveShadows(false);   // L9: jonli soyalar faqat «Quyosh va shamol» qadamida
     this.closePop(); if (this.el.drawer.dataset.kind === 'section') this.el.drawer.hidden = true;   // oldingi qadamning ochiq oynalari yopiladi
     if (s.id !== 'kocha' && this.selStreet) { this.selStreet = null; this.scene.selectStreet(null); }
     if (s.id !== 'kocha' && this.osmPick) { this.osmPick = null; this.scene.setPreview([]); }
