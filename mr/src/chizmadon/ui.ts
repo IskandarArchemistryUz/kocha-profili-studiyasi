@@ -15,6 +15,7 @@ import { tr, tf, trSvg, getLang } from '../i18n';
 import { logoSvg } from '../ui/logo';
 import { svgPdf } from '../ui/pdf';
 import { openColor } from '../ui/colorpicker';
+import { gstylePicker } from '../ui/gstylepick';
 import { type ChDoc, type ChEl, type ChPage, type ChInbox, type ChPaper, type ElType, type ChMatSet, type ChView, clampView, PLAN_SCALES, normDoc, blankPage, cid, pageSize, bbox, moved, fitTo, mapScale, mapNorth } from './model';
 import { pageSvg, textHeight, legendHeight } from './render';
 import { pageChecks, applyFix, sheetChecks, type Check9 } from './check';
@@ -44,6 +45,8 @@ export interface ChHost {
   siteMap: () => TplCtx['map'] | undefined;
   /** 19-band: Master rejaning barcha rejalari (bosh reja, land use, funksional, qavatlilik, kvartirografiya…) — «Loyihadan» materiallari */
   plans?: () => PlanSrc[];
+  /** c74: albom rejalari (plans) uchun grafika shabloni — keyingi plans().get() shu bilan chizadi */
+  gstyle?: (id: string | undefined) => void;
   /** joriy 3D sahna rasmi (data URL) */
   scene: () => string | null;
   /** ochilganda «Loyihadan» ga qoʻshiladigan narsa */
@@ -124,7 +127,8 @@ export function openChizmadon(host: ChHost): void {
   let PLAN: TplCtx['map'] | null | undefined, TIK: string[][] | undefined;
   const planOnce = () => { if (PLAN === undefined) { const m = host.siteMap(); PLAN = m ? { ...m, svg: trSvg(m.svg) } : null; } return PLAN; };
   const tikOnce = () => (TIK ??= host.tik());
-  let PLANS: PlanSrc[] | undefined;
+  let PLANS: PlanSrc[] | undefined, GSK = '';
+  host.gstyle?.(undefined);
   const plansOnce = (): PlanSrc[] | undefined => {
     if (!host.plans) return undefined;
     // fit (katak oʻlchami) — har oʻlcham uchun alohida kesh (qavat rejalari katakka mos masshtabda chiziladi)
@@ -174,6 +178,8 @@ export function openChizmadon(host: ChHost): void {
   function relayout(wb = true): void {
     if (wb) writeBack();
     const s = site(); R = resolve(s.lat, s.lon);
+    // c74: shablon oʻzgargan boʻlsa — rejalar keshi yangilanadi
+    if ((d.auto.gstyle ?? '') !== GSK) { GSK = d.auto.gstyle ?? ''; host.gstyle?.(d.auto.gstyle); PLANS = undefined; }
     MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats), ...siteMaterials(() => R!, d.auto.mats)];
     setCustomPal(d.auto.custom); if (d.auto.pal === 'custom' && !d.auto.custom) d.auto.pal = 'arch';
     const f = fam(), fmt = fmtOf(f);
@@ -499,7 +505,11 @@ export function openChizmadon(host: ChHost): void {
   }
   function styleSec(): (HTMLElement | string)[] {
     const P0 = PAL[d.auto.pal] ?? PAL.arch;
-    return [h('div', { class: 'glabel' }, h('span', {}, tr('Maket uslubi'))),
+    return [
+      // c74: Master reja rejalarining grafika shabloni (funksiyalar ranglari, och atrof, chiziq, daraxtlar) — albom boʻyicha saqlanadi
+      h('div', { class: 'glabel' }, h('span', {}, tr('Grafika shabloni')), h('span', {}, tr('rejalar'))),
+      gstylePicker('chGStyle', d.auto.gstyle, v => autoMut(() => { if (v === 'joriy') delete d.auto.gstyle; else d.auto.gstyle = v; })),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Maket uslubi'))),
       h('div', { class: 'ch-chips', id: 'chSheetPal' }, ...Object.keys(PAL).map(k => h('button', { class: 'chip', 'data-spal': k, 'aria-pressed': d.auto.pal === k, onclick: () => autoMut(() => { d.auto.pal = k; }) }, h('i', { style: `background:${PAL[k].acc}` }), tr(PAL[k].name)))),
       h('div', { class: 'ch-paled', id: 'chPalEd' }, ...PKEYS.map(([key, n]) => h('button', { 'data-cpick': key, 'aria-label': tf('${n} rangini tanlash', { n: tr(n) }), onclick: (e: Event) => {
         const was = JSON.stringify(d.auto.custom), wasPal = d.auto.pal;

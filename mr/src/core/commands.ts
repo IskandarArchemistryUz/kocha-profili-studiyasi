@@ -7,6 +7,7 @@ import { type Building, type ContextSettings, type LngLat, type Project, type Ri
 import { frame } from './geo';
 import type { UserLayerMeta } from './userlayers';
 import type { Limit } from './limits';
+import { isGStyle } from './gstyle';
 
 export type Command =
   | { type: 'rename'; name: string }
@@ -49,6 +50,7 @@ export type Command =
   | { type: 'addView'; view: SavedView }
   /** varaqlar toʻplami va saqlangan uslublar (MR-Varaqlar) */
   | { type: 'setSheets'; sheets?: SheetDoc[]; styles?: Project['sheetStyles'] }
+  | { type: 'setGStyle'; id: string }
   | { type: 'setChizmadon'; data: Record<string, unknown> }
   /** import qilingan qatlam tavsifi (obyektlar IndexedDB ga oldindan yoziladi) */
   | { type: 'addUserLayer'; meta: UserLayerMeta }
@@ -98,6 +100,7 @@ export function label(c: Command): string {
     case 'styleBuildings': return c.ayvon ? 'Ayvon' : c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : c.parapet != null ? 'Parapet' : c.shade ? 'Quyosh himoyasi' : 'Fasad materiali';
     case 'addView': return 'Koʻrinish saqlandi';
     case 'setSheets': return 'Varaqlar';
+    case 'setGStyle': return 'Grafika shabloni';
     case 'setChizmadon': return 'Chizmadon';
     case 'addUserLayer': return `Qatlam qoʻshildi: ${c.meta.name}`;
     case 'updateUserLayer': return 'overrides' in c.patch ? 'Obyekt rangi' : 'Qatlam sozlamasi';
@@ -252,6 +255,7 @@ function apply0(doc: Project, c: Command, now: Date): Project {
       if (L.length) d.userLayers = L; else delete d.userLayers;
       return d;
     }
+    case 'setGStyle': { if (isGStyle(c.id) && c.id !== 'joriy') d.gstyle = c.id; else delete d.gstyle; return d; }
     case 'setSheets': { if (c.sheets) d.sheets = c.sheets.map(x => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); if (c.styles) d.sheetStyles = c.styles.map(x => ({ ...x, opts: JSON.parse(JSON.stringify(x.opts)) })); return d; }
     case 'addView': d.views = [...doc.views, { ...c.view, pos: [...c.view.pos] as SavedView['pos'], target: [...c.view.target] as SavedView['target'] }]; return d;
     case 'removeView': d.views = doc.views.filter(x => x.id !== c.id); return d;

@@ -1,0 +1,1 @@
+export{t as GLTFExporter}from"./GLTFExporter-BTIUd2Qe.js";

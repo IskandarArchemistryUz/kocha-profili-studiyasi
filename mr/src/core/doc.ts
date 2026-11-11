@@ -16,6 +16,7 @@ export interface Site {
 }
 
 import { isUse, type Use } from './uses';
+import { isGStyle } from './gstyle';
 import { COMP_DEFAULT, type CompParams } from './compensation';
 import { isMat, isRoof, type Mat, type Roof } from './roof';
 import type { Tier } from './tiers';
@@ -236,6 +237,8 @@ export interface Project {
   sheets?: SheetDoc[];
   /** saqlangan varaq uslublari («Mening uslubim») */
   sheetStyles?: { id: string; name: string; opts: Record<string, unknown> }[];
+  /** c74: 3D sahna grafika shabloni (core/gstyle; yoʻq — «joriy», hozirgi koʻrinish). Varaqlar va albomda — oʻz sozlamasida */
+  gstyle?: string;
   /** Chizmadon albomi (taqdimot va diagramma muharriri): sxema — chizmadon/model.ts, ochilganda tozalanadi */
   chizmadon?: Record<string, unknown>;
   /** fayldan import qilingan qatlamlar tavsifi (binolar, chegaralar, yer, chiziqlar); obyektlar — IndexedDB da (core/userlayers.ts) */
@@ -406,6 +409,7 @@ export function migrate(raw: unknown): Project {
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
     origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(Object.keys(removedAt).length ? { removedAt } : {}), ...(siteEdges ? { siteEdges } : {}), ...(Object.keys(ctxUse).length ? { ctxUse } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}), ...(limits.length ? { limits } : {}),
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
+    ...(isGStyle(d.gstyle) && d.gstyle !== 'joriy' ? { gstyle: d.gstyle } : {}),
     ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
     ...(() => { const ul = cleanUserLayers(d.userLayers); return ul.length ? { userLayers: ul } : {}; })(),
     ...(() => { const st = (Array.isArray(d.sheetStyles) ? d.sheetStyles : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.name === 'string' && x.opts && typeof x.opts === 'object').slice(0, 30).map((x: any) => ({ id: x.id, name: x.name.slice(0, 60), opts: JSON.parse(JSON.stringify(x.opts)) })); return st.length ? { sheetStyles: st } : {}; })(),
