@@ -20,6 +20,7 @@ import { area as areaOf, obb2 } from '../core/geo';
 import { computePlan, corridor, pointIn } from '../core/plan';
 import { useDef } from '../core/uses';
 import { edgeKinds, boundaryNeed, azOf } from '../core/setback';
+import { levelOf, type NormSet } from './sets';
 import polygonClipping, { type Polygon } from 'polygon-clipping';
 import { nextTier, schoolCapacity, mtmCapacity } from '../core/derive';
 import { MTM, mtmGroups, SCHOOL_M2, schoolPlotPer } from '../core/mtmrule';
@@ -1188,11 +1189,16 @@ export const isUzDoc = (doc: string): boolean => /ShNQ|QMQ|SanQvaN|SanPiN RUz|VM
  * majburiy emas — «mos emas» natijasi «andoza (koʻrib chiqish)» ga aylanadi, izohda aytiladi; qiymat va chegara saqlanadi.
  * Mahalliy meʼyorlar profili ulanganda (xalqaro → NYC/NL → RU/KZ) shu yerda almashtiriladi.
  */
-export function abroadRules(rs: Result[], norms: 'UZ' | 'intl'): Result[] {
+export function abroadRules(rs: Result[], norms: NormSet): Result[] {
   if (norms === 'UZ') return rs;
-  return rs.map(r => !isUzDoc(r.source.doc) ? r : { ...r, status: r.status === 'fail' ? 'review' : r.status, note: `${ABROAD_NOTE}${r.note ? '\n' + r.note : ''}` });
+  return rs.map(r => {
+    // 11.11 (norms/sets): B — mintaqaviy siyosat (UZ/MDH) xorijda oʻchiq: natija «—», «Tuzat» tugmasi yoʻq, chegara va qiymat izohda qoladi
+    if (levelOf(r.id, norms) === 'ochiq') { const { fix: _f, ...x } = r; return { ...x, status: 'na' as const, note: `${OFF_NOTE}${r.note ? '\n' + r.note : ''}` }; }
+    return !isUzDoc(r.source.doc) ? r : { ...r, status: r.status === 'fail' ? 'review' : r.status, note: `${ABROAD_NOTE}${r.note ? '\n' + r.note : ''}` };
+  });
 }
 export const ABROAD_NOTE = 'Andoza: Oʻzbekiston meʼyori — bu hududda majburiy emas.';
+export const OFF_NOTE = 'Oʻchiq: Oʻzbekiston mintaqaviy meʼyori — xalqaro toʻplamda qoʻllanmaydi.';
 
 export function evaluateAll(d: Derived, doc: Project, rules: Rule[] = RULES): Result[] {
   return rules.map(r => ({ id: r.id, title: r.title, source: r.source, ...r.evaluate(d, doc) }));

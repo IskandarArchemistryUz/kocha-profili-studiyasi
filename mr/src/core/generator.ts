@@ -19,6 +19,7 @@ import { openRing, despike } from './offset';
 import { kyOf } from './setback';
 import { layoutStalls, trimStalls, parkAccess, parkingNeed, sumNeed, stallGross, PARK_MOD, type ParkModule } from './parking';
 import { t30Need, COL_MAX, CAP_COL_NAME } from './mlpark';
+import { facingMaxH, adgMaxH, intlRowGap, ADG_SRC, type NormSet } from '../norms/sets';
 
 export type Typology = 'avto' | 'yakka' | 'taunhaus' | 'juft' | 'hovli' | 'klaster' | 'villa' | 'perimetr' | 'qatorlar' | 'minora' | 'blok_minora' | 'blok_villa' | 'ofis_plita' | 'ofis_minora' | 'ofis_hovli' | 'meh_plita' | 'meh_minora' | 'savdo_blok' | 'savdo_minora' | 'savdo_qator' | 'ombor';
 export type SecKind = 'burchak' | 'oddiy' | 'qator' | 'uy' | 'taunhaus' | 'villa' | 'minora' | 'stilobat' | 'savdo' | 'arka';
@@ -80,6 +81,8 @@ export interface GenParams {
   exact?: boolean;
   /** joylar soni 29-jadval talabi boʻyicha (yer osti sathlari avtomatik) */
   parkNorm?: boolean;
+  /** 11.11: hisoblangan (saqlanmaydi): meʼyorlar toʻplami (norms/sets) — 'intl' da masofalar ADG 3F-1, parkovka talabi yoʻq; yoʻq / 'UZ' — ShNQ (oʻzgarishsiz) */
+  norms?: NormSet;
 }
 /** Talab hisobi uchun loyiha sozlamalari */
 export interface GenOpts { use?: string; /** 02.11: logistika turi (ZoneLabel.sub) va yaqin temir yoʻl (mahalliy metr) — core/logigen */ logi?: string; rails?: XY[][]; aptNet?: number; netToGross?: number; /** 04.11: 29-jadval — Toshkent shahri/viloyati (sukut) yoki boshqa viloyat */ tashkent?: boolean; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
@@ -604,9 +607,9 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     let worst: [number, number] | null = null, wd = Infinity;
     r.sections.forEach((s, i) => {
       if (!s.face) return;
-      r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < wd) { wd = eff; worst = [i, k]; } });
+      r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const hm = facingMaxH(g.norms, t, hitLong(s.face!.p, s.face!.n, o.ring, g.depth), k2); if (hm < wd) { wd = hm; worst = [i, k]; } });
     });
-    if (!worst || (wd / k2 - dgOf(g, floorH)) / floorH >= g.minF) break;
+    if (!worst || (wd - dgOf(g, floorH)) / floorH >= g.minF) break;
     const [i, k] = worst as [number, number], rm = r.sections.splice(Math.max(i, k), 1)[0]; if (rm.face) gone.push(rm.face.n); removed++;
   }
   // shu qirradan qolgan, hech biriga tegmaydigan yakka boʻlaklar — «uzilib» qolmasin, ular ham olinadi
@@ -638,18 +641,21 @@ function facingCap(r: GenResult, g: GenParams, floorH: number): void {
     }
     if (!done) break;
   }
-  if (removed) r.notes.push(g.recon ? `${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (rekonstruksiya: ≥ H, 79-band 2-jadval, 7-izoh)` : `${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (≥ 2·H, ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
+  if (removed && g.norms === 'intl') r.notes.push(`${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (xalqaro andoza: ${ADG_SRC})`);
+  else if (removed) r.notes.push(g.recon ? `${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (rekonstruksiya: ≥ H, 79-band 2-jadval, 7-izoh)` : `${removed} ta seksiya olib tashlandi: qarshidagi binogacha masofa ${g.minF} qavatga ham yetmaydi (≥ 2·H, ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`);
   // 2) qolganlarida — masofa boʻyicha qavat cheklovi
   let cut = 0;
   r.sections.forEach((s, i) => {
     if (!s.face) return;
     let d = Infinity, j = -1;
-    r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const eff = hitLong(s.face!.p, s.face!.n, o.ring, g.depth) ? t : (t < 6 ? 0 : t / 0.3); if (eff < d) { d = eff; j = k; } });
-    if (!Number.isFinite(d) || d > 200) return;
-    const cap = Math.max(g.minF, Math.floor((d / k2 - dgOf(g, floorH)) / floorH));
+    r.sections.forEach((o, k) => { if (k === i || (joined(s.ring, o.ring) && !opposed(s, o))) return; const t = rayHit(s.face!.p, s.face!.n, o.ring, true); if (!Number.isFinite(t)) return; const hm = facingMaxH(g.norms, t, hitLong(s.face!.p, s.face!.n, o.ring, g.depth), k2); if (hm < d) { d = hm; j = k; } });
+    // d — ruxsat etilgan balandlik, m (UZ: samarali masofa / k2 — avvalgi «eff > 200» sharti d·k2 > 200 ga teng)
+    if (!Number.isFinite(d) || d * k2 > 200) return;
+    const cap = Math.max(g.minF, Math.floor((d - dgOf(g, floorH)) / floorH));
     for (const x of [s, r.sections[j]]) if (x.floors > cap) { x.floors = cap; cut++; }
   });
-  if (cut) r.notes.push(g.recon ? `${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (rekonstruksiya: ≥ H, 7-izoh)` : `${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (≥ 2·H, izoh 8)`);
+  if (cut && g.norms === 'intl') r.notes.push(`${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (xalqaro andoza: ${ADG_SRC})`);
+  else if (cut) r.notes.push(g.recon ? `${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (rekonstruksiya: ≥ H, 7-izoh)` : `${cut} ta seksiyaning qavati qarshidagi binogacha masofa boʻyicha kamaytirildi (≥ 2·H, izoh 8)`);
 }
 
 function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult {
@@ -658,9 +664,11 @@ function perimeter(A: XY[], g: GenParams, floorH: number, notes: string[]): GenR
   const inner = insetMiter(A, D);
   if (!inner || inner.length !== A.length) return { sections: [], capFloors: null, notes: ['Kvartal perimetr uchun juda kichik — «qatorlar» ni sinab koʻring'] };
   // hovli: yopiq perimetr — 2,3·Hmax (izoh 3), oʻtishlar bilan — 2·Hmax (izoh 8, seysmik 8+)
-  const wc = minWidth(inner), k = (g.passages ? 2 : 2.3) * rk(g);
-  const cap = Math.max(1, Math.floor((wc / k - dgOf(g, floorH)) / floorH));
-  if (cap < g.maxF) notes.push(`Hovli eni ${Math.round(wc)} m → qavat ≤ ${cap} (ShNQ 2.07.01-23, 79-band 2-jadval, izoh ${g.passages ? 8 : 3}: ${k.toString().replace('.', ',')}·Hmax)`);
+  const wc = minWidth(inner), k = (g.passages ? 2 : 2.3) * rk(g), intl = g.norms === 'intl';
+  // 11.11: xalqaro andoza — hovli eni ADG 3F-1 (yashash xonalari bir-biriga qaraydi) boʻyicha balandlik
+  const cap = Math.max(1, Math.floor(((intl ? adgMaxH(wc, true) : wc / k) - dgOf(g, floorH)) / floorH));
+  if (cap < g.maxF && intl) notes.push(`Hovli eni ${Math.round(wc)} m → qavat ≤ ${cap} (xalqaro andoza: ${ADG_SRC})`);
+  else if (cap < g.maxF) notes.push(`Hovli eni ${Math.round(wc)} m → qavat ≤ ${cap} (ShNQ 2.07.01-23, 79-band 2-jadval, izoh ${g.passages ? 8 : 3}: ${k.toString().replace('.', ',')}·Hmax)`);
   const maxF = Math.min(g.maxF, cap), minF = Math.min(g.minF, maxF);
   const sections: GenSection[] = [];
   const P = (i: number) => A[(i + n) % n];
@@ -741,8 +749,9 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
   // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0102-25, 3-band — turar joy obyektlari janubiy, janubi-sharqiy, sharqiy, shimoli-sharqiy yoʻnalishda;
   // 15-band — xona derazalari gʻarbga (200–290°) yoʻnaltirilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
   // izoh 8: seysmik 8+ ballda ≥ 2·Hmax; 04.11 (audit): 7 ballda — Hmax·kʏ (2-jadval, 2-ilova; qatorlar shimol–janub yoʻnalishida qaraydi)
-  const s8 = (g.seismic ?? 8) >= 8, D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gk = (s8 ? 2 : kyOf(0)) * rk(g), gap = Math.max(gk * H, g.recon ? 6 : 20);
-  if (g.recon) notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m — rekonstruksiya rejimi: jadval masofasining yarmi (ShNQ 2.07.01-23, 79-band 2-jadval, 7-izoh; 8-izohga ham qoʻllandi — TALQIN), insolyatsiya hisobi bilan asoslansin`);
+  const s8 = (g.seismic ?? 8) >= 8, D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gk = (s8 ? 2 : kyOf(0)) * rk(g), intl = g.norms === 'intl', gap = intl ? intlRowGap(H) : Math.max(gk * H, g.recon ? 6 : 20);
+  if (intl) notes.push(`Qatorlar sharq–gʻarb yoʻnalishida; orasi ${Math.round(gap)} m (xalqaro andoza: ${ADG_SRC})`);
+  else if (g.recon) notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m — rekonstruksiya rejimi: jadval masofasining yarmi (ShNQ 2.07.01-23, 79-band 2-jadval, 7-izoh; 8-izohga ham qoʻllandi — TALQIN), insolyatsiya hisobi bilan asoslansin`);
   else notes.push(s8 ? `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`
     : `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = Hmax·kʏ (ShNQ 2.07.01-23, 79-band 2-jadval, 2-ilova; 7 ball)`);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -1061,7 +1070,8 @@ const NEED_NAME: Record<string, string> = { kvartiralar: 'xonadonlar', ofis: 'of
 /** Avtoturargoh: joylar modul boʻyicha (dizayn-kod 6.3), soni — 29-jadval talabi boʻyicha (yoki sigʻimicha) */
 function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: GenOpts): GenParking | null {
   const pk = g.parking ?? 'yoq'; if (pk === 'yoq') return null;
-  const mod: ParkModule = g.parkModule ?? 'p90', M = PARK_MOD[mod], norm = g.parkNorm ?? true;
+  // 11.11: xalqaro toʻplamda 29-jadval talabi yoʻq — joylar sigʻimicha (yer osti — paneldagi sathlar soni), talab foydalanuvchining uchastka shartlaridan (keyingi bosqich)
+  const intlP = g.norms === 'intl', mod: ParkModule = g.parkModule ?? 'p90', M = PARK_MOD[mod], norm = (g.parkNorm ?? true) && !intlP;
   const parts = blockParkingNeed(r.sections, opts), need = sumNeed(parts);
   const needTxt = Object.entries(parts).filter(([, v]) => v > 0).map(([k, v]) => `${NEED_NAME[k] ?? k} ${v}`).join(' · ');
   const modTxt = `${M.name}, ${String(M.W).replace('.', ',')} × ${String(M.L).replace('.', ',')} m, boʻlak ${String(M.A).replace('.', ',')} m`;
@@ -1073,7 +1083,7 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
     const per = Math.floor(layoutStalls(A, [], mod).n * 0.8);
     if (per <= 0) { r.notes.push('Avtoturargoh uchun joy yetarli emas'); return null; }
     const lv = pk === 'stilobat' ? st : norm ? Math.max(1, Math.min(4, Math.ceil(need / per))) : Math.max(1, Math.round(g.parkLevels ?? 1));
-    out = { kind: pk, ring: A, levels: lv, spaces: per * lv, need, module: mod };
+    out = { kind: pk, ring: A, levels: lv, spaces: per * lv, ...(intlP ? {} : { need }), module: mod };
     r.notes.push(`Avtoturargoh (${PARK_NAME[pk]}): ${out.spaces} joy — ${lv} sath × ${per} joy (${modTxt}; rampa, tugunlar va ustunlar −20 %)`);
   } else {
     // yer usti: binolardan bufer (turar — 10 m, boshqa — 3 m); joylar va boʻlaklar hovlining koʻpi bilan 35 % ida, savdo markazida — butun hovli
@@ -1083,24 +1093,24 @@ function placeParking(A: XY[], r: GenResult, g: GenParams, t: Typology, opts: Ge
     const free = Math.max(0, aOf(A) - ground.reduce((s, x) => s + aOf(x.ring), 0));
     const cap = t === 'savdo_blok' ? Infinity : Math.floor(free * 0.35 / stallGross(mod));
     const want = Math.min(cap, norm ? Math.max(need, 0) : Infinity);
-    const bufOf = (s: GenSection, c: number) => { const u = s.use ?? opts.use ?? 'turar', n = t30Need(u, u === 'turar' || u === 'aralash', c); return n == null ? 3 : n + 0.5; };
+    const bufOf = (s: GenSection, c: number) => { if (intlP) return 3; const u = s.use ?? opts.use ?? 'turar', n = t30Need(u, u === 'turar' || u === 'aralash', c); return n == null ? 3 : n + 0.5; };   // intl: 30-jadval (B) oʻchiq — 3 m ANDOZA
     let L = layoutStalls(A, ground.map(s => ({ ring: s.ring, buf: bufOf(s, 0) })), mod), n = Math.min(L.n, want, COL_MAX[0]), col = 0;
     for (let c = 1; c < COL_MAX.length && n >= COL_MAX[c - 1] && want > COL_MAX[c - 1]; c++) {
       const Lc = layoutStalls(A, ground.map(s => ({ ring: s.ring, buf: bufOf(s, c) })), mod), nc = Math.min(Lc.n, want, COL_MAX[c]);
       if (nc > n) { L = Lc; n = nc; col = c; } else break;
     }
     const K = trimStalls(L, n, A);
-    if (K.n && want > K.n && n === COL_MAX[col]) r.notes.push(`30-jadval (418-band): ochiq avtoturargoh ${CAP_COL_NAME[col]} joy guruhi boʻyicha binolardan meʼyoriy masofada joylandi; kattaroq guruh uchun masofa oshadi va hovliga sigʻmaydi`);
+    if (!intlP && K.n && want > K.n && n === COL_MAX[col]) r.notes.push(`30-jadval (418-band): ochiq avtoturargoh ${CAP_COL_NAME[col]} joy guruhi boʻyicha binolardan meʼyoriy masofada joylandi; kattaroq guruh uchun masofa oshadi va hovliga sigʻmaydi`);
     if (!K.n) { r.notes.push('Yer usti avtoturargoh uchun hovlida joy yoʻq — yer osti variantini tanlang'); return null; }
     // #25: boʻlaklar bir-biriga va koʻchaga (kvartal chegarasi) ulanadi
     const acc = parkAccess(K, A, ground.map(s => s.ring));
-    out = { kind: pk, ring: A, levels: 1, spaces: K.n, need, module: mod, stalls: K.stalls, aisles: K.aisles };
+    out = { kind: pk, ring: A, levels: 1, spaces: K.n, ...(intlP ? {} : { need }), module: mod, stalls: K.stalls, aisles: K.aisles };
     r.notes.push(`Avtoturargoh (${PARK_NAME[pk]}): ${K.n} joy (${modTxt})`);
     const accLen = String(Math.round((acc?.len ?? 0) * 10) / 10).replace('.', ',');
     if (acc) r.notes.push(`Kirish yoʻli: ${accLen} m, eni 5,5 m (ShNQ 2.07.06-24, 106-band); chiqish kvartal burchagidan ≥ 20 m (ShNQ 2.07.01-23, 414-band)`);
     else r.notes.push('Avtoturargohni koʻchaga ulab boʻlmadi — binolar toʻsadi; kirish yoʻlini qoʻlda chizing');
   }
-  if (need > 0) {
+  if (need > 0 && !intlP) {
     r.notes.push(`Talab: ${need} joy (29-jadval: ${needTxt})`);
     if (out.spaces < need) {
       const per = Math.max(1, Math.floor(layoutStalls(A, [], mod).n * 0.8));

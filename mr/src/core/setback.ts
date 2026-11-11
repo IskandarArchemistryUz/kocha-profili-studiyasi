@@ -9,6 +9,7 @@
  */
 import type { XY } from './geo';
 import PC from 'polygon-clipping';
+import { intlSideSetback, type NormSet } from '../norms/sets';
 
 export const SB_HW = 0;          // andoza: H/W chegarasi (0 — oʻchiq; meʼyor 2-jadval boʻyicha)
 export const SB_W_DEF = 15;      // andoza: koʻcha kengligi nomaʼlum boʻlsa, m
@@ -70,7 +71,9 @@ export const azOf = (u: XY): number => ((Math.atan2(u[0], u[1]) * 180 / Math.PI)
 
 export type EdgeKind = 'kocha' | 'qoshni';
 /** 2-jadval: chegara turi va tarz boʻyicha talab, m */
-export function boundaryNeed(kind: EdgeKind, H: number, longWin: boolean, azDeg: number): number {
+export function boundaryNeed(kind: EdgeKind, H: number, longWin: boolean, azDeg: number, set?: NormSet): number {
+  // 11.11: xalqaro andoza — koʻcha tomoni meʼyorlanmaydi (0: chaqiruvchi qoʻlda berilgan chekinishni oladi), qoʻshni tomoni ADG 3F-1 (orasining yarmi)
+  if (set === 'intl') return kind === 'kocha' ? 0 : intlSideSetback(H, longWin);
   if (kind === 'kocha') return H * 0.25;
   return longWin ? H * kyOf(azDeg) / 2 : Math.max(6, H * 0.25);
 }
