@@ -7,6 +7,8 @@ export const UZ_INIT = () => { try {
   // eksport testlari fayl tarkibini tekshiradi — sukut boʻyicha «egasi» (belgisiz); belgining oʻzi wm.spec.ts da
   // Esri kaliti testda olinmaydi (kalitsiz zaxira manzil; tarmoqqa chiqilmaydi)
   if (sessionStorage.getItem('kps_esri') == null) sessionStorage.setItem('kps_esri', '');
+  // 11.11: 1-qadam yigʻiladigan boʻlimlari testlarda sukut boʻyicha oʻchiq (eski koʻrinish — hammasi ochiq); oʻz testi — akkordeon.spec.ts
+  if (localStorage.getItem('mr-acc') == null) localStorage.setItem('mr-acc', '0');
   if (!sessionStorage.getItem('wm-test') && localStorage.getItem('kps_owner') == null) localStorage.setItem('kps_owner', '1');
 } catch { /* */ } };
 

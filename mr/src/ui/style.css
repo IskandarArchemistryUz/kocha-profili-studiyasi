@@ -981,3 +981,25 @@ details.sp-lead[open] .sp-more{display:none}
 @media (max-width:1520px){.top .save>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.pname{max-width:160px}.top .brand{font-size:0;gap:0}.top .brand .logo{margin:0 2px}}
 @media (max-width:1366px){.top .pname{max-width:110px;min-width:0}.top .btn.popbtn{padding-left:10px;padding-right:8px;gap:4px}.top .seg button{padding:0 8px}.top .btn.popbtn>svg{display:none}}
 @media (max-width:1180px){.top .pname{max-width:72px;width:72px}.top .seg button{padding:0 6px;font-size:12px}}
+
+/* 11.11 (egasi): 1-qadam yigʻiladigan boʻlimlar — kanvas «Me'yorlar to'plami — interfeys maketi», 5-doska */
+.acc-list{display:flex;flex-direction:column;gap:8px}
+.acc{background:var(--grouped);border-radius:var(--r-card,16px);transition:background var(--t-fast,.16s)}
+.acc.open{background:var(--surface);box-shadow:0 0 0 1px var(--hairline)}
+.acc-h{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:12px 14px;border:0;background:transparent;font:inherit;color:var(--ink);text-align:left;cursor:pointer;border-radius:inherit;box-sizing:border-box}
+.acc-h:focus-visible{outline:2px solid var(--sel);outline-offset:-2px}
+.acc-h>b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--fill);font-size:11px;flex:none}
+.acc-h>b.cur{background:var(--ink);color:var(--surface)}
+.acc-h>b.done{background:var(--ok-soft);color:var(--ok)}
+.acc-h>b svg{width:12px;height:12px;stroke-width:3}
+.acc-t{font-weight:600;font-size:13.5px;flex:none}
+.acc-s{flex:1;min-width:0;text-align:right;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-c{flex:none;color:var(--muted);display:inline-flex;transition:transform var(--t-fast,.16s)}
+.acc-c svg{width:14px;height:14px}
+.acc-c.up{transform:rotate(90deg)}
+.acc.lock .acc-h{cursor:default;opacity:.55}
+.acc-b{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.acc-b[hidden]{display:none}
+.acc-c svg,.acc-h>b svg{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+.acc-c svg{stroke-width:2}
+.acc.open .acc-s{visibility:hidden}
