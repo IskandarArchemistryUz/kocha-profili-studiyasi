@@ -27,6 +27,13 @@ export async function delOut(id: string): Promise<void> { await cachePut(K_OUT, 
 
 /** Boshqa xizmatdan: kadrni qoʻshish va Render studiyasini ochish (render.html shu rasmni asos qilib ochadi) */
 export async function sendToRender(s: Omit<RenderSrc, 'id' | 't'>, href = './render.html'): Promise<void> {
+  // E1 (11.11, egasi: b variant): toza rasm Render studiyasiga — PNG narxida (2 tanga); oldin darvozasiz ketardi va u yerdan saqlab olinardi
+  if (s.from !== 'fayl' && s.from !== 'natija') {
+    const { exportGate, needWm, freeRaster } = await import('../core/wm');
+    const mode = await exportGate({ name: `render-${s.from}.png`, item: 'mr.png', sample: s.img, paid: true });
+    if (!mode) return;
+    if (mode === 'wm' && needWm()) { const b = await freeRaster(s.img); s = { ...s, w: undefined, h: undefined, img: await new Promise<string>((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => no(r.error); r.readAsDataURL(b); }) }; }   // hisob oʻchiq (mahalliy sinov) — belgili
+  }
   if (!s.w && typeof Image !== 'undefined') { const im = new Image(); im.src = s.img; try { await im.decode(); s = { ...s, w: im.naturalWidth, h: im.naturalHeight }; } catch { /* oʻlchamsiz */ } }
   const it = await addSrc(s);
   location.href = `${href}#/s/${it.id}`;
