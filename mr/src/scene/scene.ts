@@ -39,6 +39,8 @@ import { styledTreeMeshes } from './trees3d';
 import { freeRect, modeMax, screenScale, mainAngle, type FreeRect, type LabelMode } from '../core/labels';
 import { tr } from '../i18n';
 import { paintColor, paintEdge, KEPT_COL, type AxoPaint } from '../core/axopaint';
+import type { AxoApply, AxoLayerId, AxoPick } from '../core/axoedit';
+import { applyAxo, placeSprites, presentLayers, type AxoScene } from './axoapply';
 
 export const ZONE_COL: Record<string, number> = Object.fromEntries(USES.map(u => [u.id, u.color]));
 const tint = (c: number, k: number) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, f = (x: number) => Math.round(x + (255 - x) * k); return (f(r) << 16) | (f(g) << 8) | f(b); };
@@ -1120,9 +1122,9 @@ export class Scene3D {
         const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st === 'minimal' ? 0xeeeeee : st === 'arctic' ? tint(this.zc(b.use) ?? C.site, 0.55) : this.zc(b.use) ?? C.site, transparent: true, opacity: (sel ? 0.9 : plain ? 0.55 : this.ctx ? 0.62 : 0.75) * (out ? 0.3 : 1), depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
         m.renderOrder = 6; m.userData.block = i; m.userData.layer = 2; this.world.add(m);
         if (sel) b.rings.forEach(r => this.world.add(line(densify(r, 10, true), C.preview, 0.45, true, 8, this.H)));
-        else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
+        else if (b.parcelId) b.rings.forEach(r => { const l = line(densify(r, 10, true), plain ? 0xb9b5ad : 0x9a8a68, 0.22, true, 7.5, this.H); l.userData.layer = 2; l.userData.parcelLine = true; this.world.add(l); });   // parsel chegarasi (bir xil rangli qoʻshnilardan ajratish)
       });
-      rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; this.world.add(l); });
+      rings.forEach(r => { const l = line(densify(r, 10, true), C.siteLine, 0.4, true, 7, this.H); l.userData.layer = 2; l.userData.siteLine = true; this.world.add(l); });
       this.drawLimits(doc, fr);
       // 02.11: ishlab chiqarish zonalari SMZ (core/prodcheck: tur boʻyicha bufer) — uzuq kontur, ichiga shtrix tushmaydi (zona oʻzi rangli)
       for (const r of prodChecks(doc).zoneRings) {
@@ -1254,7 +1256,7 @@ export class Scene3D {
         return c ?? new THREE.Color(def); };
       const OUT = mask ? { asph: ctxCol('yoʻllar', CC.asphalt, 3.1), walk: ctxCol('trotuarlar', CC.sidewalk), mark: ctxCol('chiziqlar', CC.mark) } : null;
       const outKind = (k: string): 'asph' | 'walk' | 'mark' => k === 'chiziq' ? 'mark' : ASPH_K.test(k) ? 'asph' : 'walk';
-      const fz = <T extends THREE.Mesh>(m: T, k: string): T => { if (mask && OUT) { outsideAs(m.material as THREE.Material, mask, OUT[outKind(k)]); m.userData.siteOut = outKind(k); } return m; };
+      const fz = <T extends THREE.Mesh>(m: T, k: string): T => { m.userData.part = k; if (mask && OUT) { outsideAs(m.material as THREE.Material, mask, OUT[outKind(k)]); m.userData.siteOut = outKind(k); m.userData.sfC = OUT[outKind(k)]; } return m; };   // c77: part, sfC — varaq aksonometriyasi muharriri (yoʻl rangi)
       // 05.11 (egasi skrinshoti: chorrahada kulrang/qora «choʻqqi»): qizil chiziq ichidagi butun koridor (kvartallar shundan kesiladi) avval
       // trotuar rangida — koʻcha qatlamlari qoplamagan burchak (masalan burilish boʻgʻinining tashqi burchagi) ostidan fon koʻrinmasin
       { const pal = (st === 'arctic' ? PART_ARC : st === 'minimal' ? PART_MIN : this.album ? PART_ALB : PART_COL);
@@ -2217,13 +2219,47 @@ export class Scene3D {
     }
   }
 
+  /* ---------- c77: varaq aksonometriyasi muharriri (core/axoedit, scene/axoapply) ---------- */
+  /** Faqat drawingShot ichida (varaq rasmi): qatlamlar, ranglar, material, tom yozuvlari — snapshot vaqtida qoʻllanib, darhol qaytariladi */
+  private axoApply: AxoApply | null = null;
+  setAxoApply(a: AxoApply | null): void { this.axoApply = a; }
+  private get axoScene(): AxoScene { return { world: this.world, ctx: this.ctx?.group ?? null, far: this.far, ground: this.ground, scene: this.scene }; }
+  /** Sahnada maʼlumoti bor qatlamlar (varaq panelida faqat shular) */
+  axoLayers(): AxoLayerId[] { return presentLayers(this.axoScene); }
+  /** Loyiha binolari: oyoq izi (mahalliy), asos va tom balandligi (tom yozuvlari va rasmda tanlash uchun) */
+  private bldTops(): { id: string; r: XY[]; base: number; top: number; c: XY; rise: number }[] {
+    const d = this.lastDoc; if (!d) return [];
+    const fr = frame(d.origin);
+    return d.buildings.filter(b => b.floors > 0).map(b => {
+      const r = b.footprint.map(fr.toLocal), g0 = Math.min(...r.map(p => this.H(p[0], p[1]))), LV = bLevels(d.settings, b), gr = this.bctx?.GR.get(b.id);
+      const rise = gr ? gr.h : b.roof === 'ikki' || b.roof === 'tort' || b.roof === 'bir' ? Math.max(0, ...(roofParts(r, b.roof) ?? []).map(q => q.h)) : 0;
+      return { id: b.id, r, base: g0 + LV.z0, top: g0 + LV.top, c: centroid(r), rise };
+    });
+  }
+  /**
+   * Oxirgi rasm kadrida binolar (0..1 — rasm eniga va boʻyiga nisbatan): tom va asos halqalari, kameragacha masofa.
+   * drawingShot ichida, snapshot bilan bir xil kamera va nisbatda chaqiriladi.
+   */
+  axoPicks(ratio = 0): AxoPick[] {
+    const cam = this.rcam(), W = this.host.clientWidth || 1, H = this.host.clientHeight || 1, R = ratio ? this.frameRect(ratio) : { x: 0, y: 0, w: W, h: H };
+    cam.updateMatrixWorld(); const v = new THREE.Vector3(), r4 = (n: number) => Math.round(n * 1e4) / 1e4;
+    const pr = (x: number, y: number, z: number): [number, number] => { v.set(x, z, -y).project(cam); return [r4(((v.x + 1) / 2 * W - R.x) / R.w), r4(((1 - v.y) / 2 * H - R.y) / R.h)]; };
+    return this.bldTops().map(b => {
+      const top = b.r.flatMap(p => pr(p[0], p[1], b.top + b.rise)), bot = b.r.flatMap(p => pr(p[0], p[1], b.base));
+      return { id: b.id, top, bot, d: Math.round(cam.position.distanceTo(new THREE.Vector3(b.c[0], b.top, -b.c[1])) * 10) / 10 };
+    });
+  }
+
   /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
   snapshot(ratio = 0): string {
     this.forceFull = true; try { return this.snapshot0(ratio); } finally { this.forceFull = false; this.applyLite(); this.refreshLod(); }
   }
   private snapshot0(ratio: number): string {
     this.applyLite(); this.refreshLod();
-    { const c = this.rcam(); this.fitSprites(c); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, c); }
+    // c77: varaq muharriri sozlamasi — faqat shu kadr uchun (render dan keyin qaytariladi)
+    const AX = this.axoApply ? applyAxo(this.axoScene, this.axoApply, new Map(this.bldTops().map(b => [b.id, new THREE.Vector3(b.c[0], b.top + b.rise + 2, -b.c[1])])), labelSprite) : null;
+    try { const c = this.rcam(); this.fitSprites(c); if (AX?.sprites.length) placeSprites(AX.sprites, c, this.host.clientWidth || 1, this.host.clientHeight || 1); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, c); }
+    finally { AX?.undo(); }
     const c = this.renderer.domElement; if (!ratio) return c.toDataURL('image/png');
     const r = this.frameRect(ratio), k = c.width / (c.clientWidth || c.width), o = document.createElement('canvas');
     o.width = Math.round(r.w * k); o.height = Math.round(r.h * k);
