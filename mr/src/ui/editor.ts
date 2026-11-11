@@ -2092,10 +2092,12 @@ export class Editor {
     this.svcTr = { cat, auto: !T.cat, city, dh, relief, blocks: blocks.map((b, i) => ({ i, use: b.use, zone: stopZone(b.use), r: stopRadius(stopZone(b.use), cat, T.center, dh).r })) };
     const res = analyze(net, demand, src as Record<Svc, { pts: XY[] }[]>);
     this.svc = { ...this.svc, res, demand, net, src: Object.fromEntries(Object.entries(src).map(([k, v]) => [k, v.flatMap(o => o.pts)])), ms: performance.now() - t0, buildings: doc.buildings };
-    const bad = res.filter(r => r.share < 0.999), fmtR = (r: SvcResult) => `${svcDef(r.kind).name} ${rTxt(r)} — ${fmt(r.share * 100, 0)} %`;
+    // 11.11 (L6): OSM yuklanmagan va obyekt topilmagan tur — baholanmaydi (qizil 0 % emas; «tuman yomon» boʻlib koʻrinardi)
+    const noOsm = !this.svc.poi, unk = (r: SvcResult) => noOsm && r.sources === 0;
+    const bad = res.filter(r => !unk(r) && r.share < 0.999), nUnk = res.filter(unk).length, fmtR = (r: SvcResult) => `${svcDef(r.kind).name} ${rTxt(r)} — ${fmt(r.share * 100, 0)} %`;
     this.svcRule = !demand.length ? null : {
       id: 'service-radius', title: 'Xizmat koʻrsatish radiuslari (piyoda)', source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '539-band, 38-jadval (shahar); bekatlar — 382-band', verified: true },
-      status: !bad.length ? 'pass' : bad.some(r => r.share < 0.8) ? 'fail' : 'review', value: res.filter(r => r.share >= 0.999).length, unit: `/ ${res.length} tur`, limit: `${res.length} / ${res.length}`,
+      status: bad.some(r => r.share < 0.8) ? 'fail' : bad.length || nUnk ? 'review' : 'pass', value: res.filter(r => !unk(r) && r.share >= 0.999).length, unit: `/ ${res.length} tur`, limit: `${res.length} / ${res.length}`,
       note: `Aholi ulushi (turar joy maydoni boʻyicha) radius ichida: ${res.map(fmtR).join('; ')}. Masofa — piyoda tarmogʻi boʻylab (OSM + loyiha koʻchalari). Manba: loyiha parsellari va OSM obyektlari${dropped ? ` (uchastka ichidagi ${dropped} ta OSM obyekti buziladi deb chiqarildi)` : ''}. Bekat radiusi: shahar toifasi «${catName(cat)}»${T.cat ? ' (qoʻlda)' : ' (andoza)'}, ${T.center ? 'umumshahar markazi, ' : ''}hudud turi kvartal funksiyasidan${dh ? `, relyef tuzatmasi −${Math.round(dh / 10 * 50)} m (farq ${dh} m)` : ''} — 382–383-band. Metro 800 m — taxmin (ShNQ da yoʻq). OSM toʻliq emas — natija pastki baho.`,
     };
     if (quiet) return;
@@ -2157,7 +2159,9 @@ export class Editor {
         h('thead', {}, h('tr', {}, h('th', {}, tr('Xizmat')), h('th', {}, tr('Radius')), h('th', {}, tr('Obyekt')), h('th', {}, tr('Aholi')))),
         h('tbody', {}, ...S.res.map(r => h('tr', { 'data-svc': r.kind, 'aria-selected': r.kind === S.sel, style: `cursor:pointer;${r.kind === S.sel ? 'background:var(--sel-soft)' : ''}`, onclick: () => { this.svc.sel = r.kind; this.showSvc(); this.renderPanel(); } },
           h('td', {}, tr(svcDef(r.kind).name)), h('td', { class: 'num', style: 'white-space:nowrap' }, rTxt(r)), h('td', { class: 'num' }, String(r.sources)),
-          h('td', {}, h('span', { class: `chip ${cls(r.share)[0]}`, 'data-s': cls(r.share)[1] }, `${fmt(r.share * 100, 0)} %`))))))));
+          h('td', {}, !S.poi && r.sources === 0
+            ? h('span', { class: 'chip na', 'data-s': 'na', title: tr('OSM javob bermadi — obyektlar yuklanmadi. «Qayta urinish» yoki obyektni qoʻlda qoʻshing.') }, tr('yuklanmadi'))   // 11.11 (L6): qizil 0 % emas
+            : h('span', { class: `chip ${cls(r.share)[0]}`, 'data-s': cls(r.share)[1] }, `${fmt(r.share * 100, 0)} %`))))))));
       const r = S.res.find(x => x.kind === S.sel)!, def = svcDef(S.sel), far = S.demand.map((_d, i) => r.dist[i] > r.rd[i] ? r.dist[i] : -1).filter(x => x >= 0);
       body.append(h('div', { class: 'col', id: 'svcSt' }, h('b', { style: 'font-size:12.5px' }, `${tr(def.name)}: ${tr(def.note)}`),
         h('span', { class: 't-small' }, far.length ? tf('${fmt(far.length)} / ${fmt(S.demand.length)} seksiya radiusdan tashqarida, eng uzoq ${Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + \' m\' : \'yetib boʻlmaydi\'}', { 'fmt(far.length)': fmt(far.length), 'fmt(S.demand.length)': fmt(S.demand.length), "Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : 'yetib boʻlmaydi'": Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : tr('yetib boʻlmaydi') }) : tf('Barcha ${fmt(S.demand.length)} seksiya radius ichida', { 'fmt(S.demand.length)': fmt(S.demand.length) }),
