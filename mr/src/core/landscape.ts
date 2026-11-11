@@ -233,12 +233,23 @@ function landscapeRaw(doc: Project): Yard[] {
  * Boshi berk boʻlak (halqa emas) — uchida 12 × 12 m aylanish maydonchasi (335-band oʻxshatish, TALQIN).
  */
 let carrMemo: { k: unknown[]; v: XY[][][] } | null = null;
+/** Loyiha koʻchalarining qatnov qismi (mahalliy koordinatalarda, keshlangan) — 11.11 (L5): fire-666-low ham ishlatadi */
+export function docCarriage(doc: Project): XY[][][] {
+  const fr = frame(doc.origin), ck = [doc.streets, doc.origin];
+  if (!carrMemo || !carrMemo.k.every((x, i) => x === ck[i])) carrMemo = { k: ck, v: carriageOf(doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), (a, h) => toMP(corridor(a, h)), offsetLine) };
+  return carrMemo.v;
+}
+let driveMemo: { k: unknown[]; v: XY[][][] } | null = null;
+/** 11.11 (L5): qatnov qismi + trotuar — 669-band (asosiy kirish bilan birlashgan piyoda yoʻlagi oʻtish yoʻli eniga qoʻshiladi; TALQIN) */
+export function docDrive(doc: Project): XY[][][] {
+  const fr = frame(doc.origin), ck = [doc.streets, doc.origin];
+  if (!driveMemo || !driveMemo.k.every((x, i) => x === ck[i])) driveMemo = { k: ck, v: carriageOf(doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), (a, h) => toMP(corridor(a, h)), offsetLine, /^(qatnov|avtobus|tramvay|trotuar)$/) };
+  return driveMemo.v;
+}
 function fireLinks(doc: Project, plan: ReturnType<typeof computePlan>, bl: Own[], ys: Yard[]): Yard[] {
   if (!ys.some(y => y.fire && !y.z)) return ys;
   const fr = frame(doc.origin);
-  const ck = [doc.streets, doc.origin];
-  if (!carrMemo || !carrMemo.k.every((x, i) => x === ck[i])) carrMemo = { k: ck, v: carriageOf(doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), parts: profileById(s.profile).parts })), (a, h) => toMP(corridor(a, h)), offsetLine) };
-  const carr = carrMemo.v, site = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
+  const carr = docCarriage(doc), site = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
   return ys.map(y => {
     if (!y.fire || y.z || !y.fire.lane.length) return y;
     const blk = plan.blocks[y.block]; if (!blk) return y;

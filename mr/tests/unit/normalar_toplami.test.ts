@@ -12,11 +12,11 @@ const sq = (w: number, h: number): XY[] => [[0, 0], [w, 0], [w, h], [0, h]];
 const H3 = 3;
 
 describe('Meʼyorlar toʻplami — tasnif', () => {
-  it('RULES dagi har bir qoida A/B/C/D dan biriga ajratilgan (53 ta)', () => {
+  it('RULES dagi har bir qoida A/B/C/D dan biriga ajratilgan (54 ta; 11.11: fire-666-low)', () => {
     const ids = RULES.map(r => r.id);
     expect(ids.filter(id => !RULE_KIND[id])).toEqual([]);
     expect(Object.keys(RULE_KIND).filter(id => !ids.includes(id))).toEqual([]);
-    expect(ids).toHaveLength(53);
+    expect(ids).toHaveLength(54);
   });
   it('daraja: UZ — majburiy; intl — B oʻchiq, A/C/D tavsiya; tasniflanmagan — null', () => {
     expect(levelOf('fire-56', 'UZ')).toBe('majburiy');
