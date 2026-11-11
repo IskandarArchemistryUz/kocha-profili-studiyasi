@@ -1564,7 +1564,8 @@ export class Editor {
         h('div', { class: 'leg' }, ...INSOL_BINS.map(([, c, t], i) => h('div', {}, h('i', { style: `background:#${c.toString(16).padStart(6, '0')}` }), h('span', {}, tr(t)), h('b', {}, `${fmt(st.bins[i] * 100, 0)} %`)))),
         h('button', { class: 'btn btn-sm btn-ghost', onclick: () => { this.insol.stats = null; this.scene.setInsolation(null); this.renderPanel(); } }, tr('Xaritani yashirish')));
     }
-    body.append(h('span', { class: 'norm' }, svgIcon(IC.book), 'SanQvaN 0102-25 · 95-band'));
+    // L10 (11.11): SanQvaN — Oʻzbekiston meʼyori; xorijiy meʼyorlar toʻplamida yorliq koʻrsatilmaydi (NYC loyihasida chiqardi)
+    if (this.normSet() === 'UZ') body.append(h('span', { class: 'norm' }, svgIcon(IC.book), 'SanQvaN 0102-25 · 95-band'));
     this.windSection(body);
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Usul va cheklovlar')), h('div', { class: 'col' },
       h('span', {}, tr('Hisob: 15 daqiqalik qadamlar, quyosh balandligi > 3°, loyiha binolari + saqlanadigan va atrofdagi (300 m) mavjud binolar. Meʼyor: SanQvaN 0102-25, 95-band — 22 mart – 22 sentabr davrida xonada 2 soat, uy atrofidagi hududda kamida 0,5 — 1 soat uzluksiz quyosh. Hudud natijasi reyestrga qoʻshiladi; xonalar (derazalar) — «Kvartiralar» qadamida.')),
