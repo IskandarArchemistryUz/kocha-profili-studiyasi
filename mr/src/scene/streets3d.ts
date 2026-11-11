@@ -686,7 +686,7 @@ export function projectStreetsGeo(list0: ProjStreet[], H: HeightFn, osm: StreetI
     for (let i = 1; i < a.length; i++) { const L0 = Math.hypot(a[i][0] - a[i - 1][0], a[i][1] - a[i - 1][1]); if (acc + L0 > d) { const t = (d - acc) / L0, p: XY = [a[i - 1][0] + (a[i][0] - a[i - 1][0]) * t, a[i - 1][1] + (a[i][1] - a[i - 1][1]) * t], r = [p, ...a.slice(i)]; return k === 0 ? r : r.reverse(); } acc += L0; }
     return [];
   };
-  for (const s of list) {
+  for (const s of list) try {
     const W = half(s) * 2, { body, road, hit } = T.get(s)!;
     const J: [JEnd | undefined, JEnd | undefined] = [jOf(s, 0), jOf(s, 1)];
     // oʻrtasi OSM yoʻlni kesib oʻtsa — yoʻl zonasida trotuar/yashil yoʻq (uchlari allaqachon qisqartirilgan)
@@ -697,6 +697,8 @@ export function projectStreetsGeo(list0: ProjStreet[], H: HeightFn, osm: StreetI
     const partAxis = (o0: number, o1: number, med: boolean): XY[][] => {
       let ax = s.axis;
       for (const k of [1, 0] as const) {
+        // 11.11 (L1, 45° toʻr): qisqa boʻlak bir uchidan qisqartirilib boʻsh qolsa — ikkinchi uchi uchun ax[0] yoʻq edi (TypeError, panel boʻsh)
+        if (ax.length < 2 || body.length < 2) return [];
         const j = J[k];
         if (!j) { if (hit[k]) { const be = k === 0 ? body[0] : body[body.length - 1], d = Math.hypot(be[0] - ax[k === 0 ? 0 : ax.length - 1][0], be[1] - ax[k === 0 ? 0 : ax.length - 1][1]); ax = cutEnd(ax, k, d); } continue; }
         const lo = j.sg * o0, hi = j.sg * o1, mid = (lo + hi) / 2;
@@ -747,7 +749,7 @@ export function projectStreetsGeo(list0: ProjStreet[], H: HeightFn, osm: StreetI
       const end = k === 0 ? s.axis[0] : s.axis[s.axis.length - 1], prev = k === 0 ? s.axis[1] : s.axis[s.axis.length - 2];
       for (const poly of curbFillets(end, prev, aL, aR, tgt, R)) for (let i = 1; i < poly.length - 1; i++) q.tri(poly[0], poly[i], poly[i + 1]);
     }
-  }
+  } catch (e) { console.warn('[L1] buzuq koʻcha geometriyasi oʻtkazib yuborildi', s.id, e); }   // 11.11: bitta buzuq koʻcha butun sahnani (va panelni) toʻxtatmasin
   // chorraha burchaklari — qoʻshni ikki koʻcha tanasi chetlari orasidagi joy trotuar bilan (qizil chiziqlar burchagigacha); asfalt ostida qoladi
   const tw = layer('trotuar', 0.08);
   const done = new Set<XY>();
