@@ -3,6 +3,7 @@
  * alohida xarita kutubxonasi yoʻq. Koordinatalar: X — sharq, Z — janub (−shimol), Y — yuqoriga, metrda.
  * Sahna faqat oʻzgarishda chiziladi (render on demand) — boʻsh turganda protsessorni yuklamaydi.
  */
+import { cutGeom } from '../core/streetcut';
 import { lenLimit, jointOpt, jointScheme } from '../core/seysmik';
 import { bLevels } from '../core/levels';
 import { prodChecks } from '../core/prodcheck';
@@ -1289,6 +1290,23 @@ export class Scene3D {
       for (const p of fx.open) for (const [a, b] of [[[-2, -2], [2, 2]], [[-2, 2], [2, -2]]] as [XY, XY][]) { const l = line([[p[0] + a[0], p[1] + a[1]], [p[0] + b[0], p[1] + b[1]]], 0xd64532, 0.6, false, 9.6, this.H); l.userData.fireOpen = true; this.world.add(l); }
       (siteR ? sg.red.flatMap(r => clipLineToRings(r, siteR)) : sg.red).forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); l.userData.redLine = true; this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
+      // 12.11: koʻcha kesimlari A–A — chiziq (shtrix-punktir), uchlarida qalin tirnoq va harf (core/streetcut)
+      for (const c of doc.cuts ?? []) {
+        const g = cutGeom(doc, c); if (!g) continue;
+        // chiziq — 0,5 m enli shtrixlar (WebGL chizigʻi 1 px — xaritada koʻrinmaydi), uchlarida koʻrish yoʻnalishi tirnogʻi
+        const quads: XY[][] = [], u: XY = [g.b[0] - g.a[0], g.b[1] - g.a[1]], Lc = Math.hypot(u[0], u[1]), ux = u[0] / Lc, uy = u[1] / Lc, w = 0.3;
+        const quad = (p0: XY, p1: XY, hw: number) => { const nx = -(p1[1] - p0[1]), ny = p1[0] - p0[0], l = Math.hypot(nx, ny) || 1; quads.push([[p0[0] + nx / l * hw, p0[1] + ny / l * hw], [p1[0] + nx / l * hw, p1[1] + ny / l * hw], [p1[0] - nx / l * hw, p1[1] - ny / l * hw], [p0[0] - nx / l * hw, p0[1] - ny / l * hw]]); };
+        for (let s0 = 0; s0 < Lc; s0 += 4) { const s1 = Math.min(Lc, s0 + (s0 === 0 || s0 + 4 >= Lc ? 3 : 2.4)); quad([g.a[0] + ux * s0, g.a[1] + uy * s0], [g.a[0] + ux * s1, g.a[1] + uy * s1], w); }
+        for (const p of [g.a, g.b]) quad([p[0] + g.dir[0] * 0.3, p[1] + g.dir[1] * 0.3], [p[0] - g.dir[0] * 3.5, p[1] - g.dir[1] * 3.5], w);
+        const arr: number[] = [];
+        for (const q of quads) for (const i of [0, 1, 2, 0, 2, 3]) { const v = q[i]; arr.push(v[0], this.H(v[0], v[1]) + 0.8, -v[1]); }
+        const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+        const cm = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ color: 0x1d1d1b, depthTest: false, side: THREE.DoubleSide })); cm.renderOrder = 46; cm.userData.cut = c.id; this.world.add(cm);
+        for (const [p, sg] of [[g.a, -1], [g.b, 1]] as [XY, number][]) {
+          const sp = labelSprite(c.label, true), q: XY = [p[0] + g.n[0] * sg * 3, p[1] + g.n[1] * sg * 3];
+          sp.position.set(q[0], this.H(q[0], q[1]) + 1, -q[1]); sp.center.set(0.5, 0.5); (sp.material as THREE.SpriteMaterial).depthTest = false; sp.renderOrder = 47; sp.userData.cutLbl = c.label; this.world.add(sp);
+        }
+      }
       // aylana / aylanma ichidagi koʻcha daraxtlari olinmaydi
       const ends = endShapes(doc), trees0 = ends.length ? sg.trees.filter(p => !ends.some(e => Math.hypot(p[0] - e.at[0], p[1] - e.at[1]) < (e.kind === 'maydon' ? 15 : e.kind === 'aylana' ? 18 : Math.hypot(e.outer[0][0] - e.at[0], e.outer[0][1] - e.at[1]) + 1))) : sg.trees;
       const trees1 = siteR ? trees0.filter(p => inRings(p, siteR)) : trees0;

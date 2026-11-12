@@ -105,6 +105,8 @@ export type StreetEnd = 'aylana' | 'maydon';
 /** Chorraha aylanmasi (31.10): kind — mini (R 8, bosib oʻtiladigan orolcha), kichik (R 14), katta (R 22) */
 export type RoundKind = 'mini' | 'kichik' | 'katta';
 export interface Round { id: string; at: LngLat; r: number; kind?: RoundKind }
+/** Koʻcha kesimi chizigʻi (A–A): koʻcha va oʻq boshidan masofa, m (core/streetcut) */
+export interface StreetCut { id: string; street: string; t: number; label: string }
 export interface Street { id: string; axis: LngLat[]; profile: string; /** oʻq boshi (a) va oxiri (b) dagi burilish joyi */ ends?: { a?: StreetEnd; b?: StreetEnd }; /** OSM dagi mavjud koʻcha loyihaga olingan boʻlsa — uning way id si (kontekstda u endi chizilmaydi) */ osm?: number; /** generator yaratgan (toʻr) — qayta generatsiyada almashtiriladi */ gen?: 'grid' }
 
 /** Zona belgisi: shu nuqtani oʻz ichiga olgan kvartal shu funksiyada (kvartal geometriyasi har safar qayta hisoblanadi) */
@@ -216,6 +218,8 @@ export interface Project {
   streets: Street[];
   /** Loyiha koʻcha profillari (Koʻchasozda tahrirlangan) — id «u_…» */
   profiles?: Profile[];
+  /** Koʻcha kesimlari A–A, B–B … — «Koʻcha profili» varaqlari */
+  cuts?: StreetCut[];
   /** chorraha aylanmalari (31.10) */
   rounds?: Round[];
   zones: ZoneLabel[];
@@ -392,6 +396,7 @@ export function migrate(raw: unknown): Project {
     if (!x || typeof x.id !== 'string' || !isLine(x.axis)) throw new SchemaError(`streets[${i}] notoʻgʻri`);
     return { id: x.id, axis: x.axis.map((p: LngLat) => [p[0], p[1]] as LngLat), profile: typeof x.profile === 'string' ? x.profile : 'mahalla-15', ...(isNum(x.osm) ? { osm: x.osm } : {}), ...(x.gen === 'grid' ? { gen: 'grid' as const } : {}), ...(x.ends && typeof x.ends === 'object' && (['aylana', 'maydon'].includes(x.ends.a) || ['aylana', 'maydon'].includes(x.ends.b)) ? { ends: { ...(['aylana', 'maydon'].includes(x.ends.a) ? { a: x.ends.a } : {}), ...(['aylana', 'maydon'].includes(x.ends.b) ? { b: x.ends.b } : {}) } } : {}) };
   });
+  const cuts: StreetCut[] = (Array.isArray(d.cuts) ? d.cuts : []).filter((c: any) => c && typeof c.id === 'string' && typeof c.street === 'string' && isNum(c.t) && typeof c.label === 'string').map((c: any) => ({ id: c.id, street: c.street, t: Math.max(0, c.t), label: c.label.slice(0, 2) }));
   const profiles: Profile[] = (Array.isArray(d.profiles) ? d.profiles : []).map(cleanProfile).filter((p: Profile | null): p is Profile => !!p);
   const rounds: Round[] = (Array.isArray(d.rounds) ? d.rounds : []).filter((r: any) => r && typeof r.id === 'string' && isLL(r.at) && isNum(r.r) && r.r >= 8 && r.r <= 40).map((r: any) => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind === 'mini' || r.kind === 'kichik' || r.kind === 'katta' ? { kind: r.kind as RoundKind } : {}) }));
   const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(typeof z.sub === 'string' && /^[a-z_]{1,20}$/.test(z.sub) ? { sub: z.sub } : {}), ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
@@ -427,7 +432,7 @@ export function migrate(raw: unknown): Project {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(profiles.length ? { profiles } : {}), ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(Object.keys(removedAt).length ? { removedAt } : {}), ...(siteEdges ? { siteEdges } : {}), ...(Object.keys(ctxUse).length ? { ctxUse } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}), ...(limits.length ? { limits } : {}),
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(profiles.length ? { profiles } : {}), ...(cuts.length ? { cuts } : {}), ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(Object.keys(removedAt).length ? { removedAt } : {}), ...(siteEdges ? { siteEdges } : {}), ...(Object.keys(ctxUse).length ? { ctxUse } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}), ...(limits.length ? { limits } : {}),
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
     ...(isGStyle(d.gstyle) && d.gstyle !== 'joriy' ? { gstyle: d.gstyle } : {}),
     ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
