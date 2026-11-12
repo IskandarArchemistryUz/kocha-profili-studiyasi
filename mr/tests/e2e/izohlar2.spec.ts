@@ -48,7 +48,7 @@ test('chap paneldagi bino muharriri, deraza/balkon turlari, tomlar, xarita boshq
   await expect(page.locator('.drawer .rrow').first()).toBeVisible();
   const ov = await page.locator('.drawer').evaluate(e => e.scrollWidth - e.clientWidth);
   expect(ov).toBeLessThanOrEqual(1);
-  await page.click('#regSeg button:last-child');
+  await page.click('#regSeg [data-f=fail]');
   if (shots) await page.screenshot({ path: `${shots}/iz_reyestr.png` });
   await page.click('#kMore');
   // koʻcha kesimi — katta koʻrinish

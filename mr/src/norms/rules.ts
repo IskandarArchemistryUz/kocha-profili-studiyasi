@@ -1217,15 +1217,20 @@ export const isUzDoc = (doc: string): boolean => /ShNQ|QMQ|SanQvaN|SanPiN RUz|VM
  * majburiy emas — «mos emas» natijasi «andoza (koʻrib chiqish)» ga aylanadi, izohda aytiladi; qiymat va chegara saqlanadi.
  * Mahalliy meʼyorlar profili ulanganda (xalqaro → NYC/NL → RU/KZ) shu yerda almashtiriladi.
  */
-export function abroadRules(rs: Result[], norms: NormSet): Result[] {
+export function abroadRules(rs: Result[], norms: NormSet, on: readonly string[] = []): Result[] {
   if (norms === 'UZ') return rs;
   return rs.map(r => {
     // 11.11 (norms/sets): B — mintaqaviy siyosat (UZ/MDH) xorijda oʻchiq: natija «—», «Tuzat» tugmasi yoʻq, chegara va qiymat izohda qoladi
-    if (levelOf(r.id, norms) === 'ochiq') { const { fix: _f, ...x } = r; return { ...x, status: 'na' as const, note: `${OFF_NOTE}${r.note ? '\n' + r.note : ''}` }; }
+    // 12.11 (3-bosqich): foydalanuvchi «Tahlil sifatida yoqish» desa — baholanadi, lekin «mos emas» emas, «koʻrib chiqish» (tahlil)
+    if (levelOf(r.id, norms) === 'ochiq') {
+      if (on.includes(r.id)) return { ...r, status: r.status === 'fail' ? 'review' as const : r.status, note: `${ANALYSIS_NOTE}${r.note ? '\n' + r.note : ''}` };
+      const { fix: _f, ...x } = r; return { ...x, status: 'na' as const, note: `${OFF_NOTE}${r.note ? '\n' + r.note : ''}` };
+    }
     return !isUzDoc(r.source.doc) ? r : { ...r, status: r.status === 'fail' ? 'review' : r.status, note: `${ABROAD_NOTE}${r.note ? '\n' + r.note : ''}` };
   });
 }
 export const ABROAD_NOTE = 'Andoza: Oʻzbekiston meʼyori — bu hududda majburiy emas.';
+export const ANALYSIS_NOTE = 'Tahlil: Oʻzbekiston mintaqaviy meʼyori — xalqaro toʻplamda majburiy emas, maʼlumot uchun baholandi.';
 export const OFF_NOTE = 'Oʻchiq: Oʻzbekiston mintaqaviy meʼyori — xalqaro toʻplamda qoʻllanmaydi.';
 
 export function evaluateAll(d: Derived, doc: Project, rules: Rule[] = RULES): Result[] {

@@ -16,10 +16,10 @@ test('Parij: reyestrda xorij izohi, ShNQ «mos emas» yoʻq; Toshkentda — avva
   test.setTimeout(120_000);
   await proj(page, [2.3522, 48.8566]);
   await expect(page.locator('#regAbroad')).toBeVisible();
-  await expect(page.locator('#regSeg button:last-child')).toContainText('· 0');
+  await expect(page.locator('#regSeg [data-f=fail]')).toContainText('· 0');
   await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/meyor_xorij_dark.png` });
   await proj(page, [69.2797, 41.3111]);
   await expect(page.locator('#regAbroad')).toHaveCount(0);
-  await expect(page.locator('#regSeg button:last-child')).not.toContainText('· 0');   // Toshkentda shu loyihada «mos emas» bandlar bor
+  await expect(page.locator('#regSeg [data-f=fail]')).not.toContainText('· 0');   // Toshkentda shu loyihada «mos emas» bandlar bor
 });

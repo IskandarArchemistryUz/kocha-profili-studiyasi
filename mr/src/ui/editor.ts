@@ -2,7 +2,7 @@
  * Loyiha oynasi: chapda qadamlar qatori, yonida qadam paneli, markazda sahna, pastda koʻrsatkichlar.
  * Qadam almashganda faqat panel almashadi — sahna, kamera va hujjat joyida qoladi.
  */
-import { siteCondResults } from '../norms/sitecond';
+import { siteCondResults, isSiteRule } from '../norms/sitecond';
 import polygonClipping from 'polygon-clipping';
 import { repairGen } from '../core/normfix';
 import { langMenu } from './langmenu';
@@ -2198,7 +2198,7 @@ export class Editor {
   /** 11.11: loyiha joyining meʼyorlar toʻplami (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
   /** 11.11: loyiha joyining meʼyorlar toʻplami — qoʻlda tanlangani (settings.normSet), boʻlmasa joy boʻyicha (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
   private normSet(): NormSet { const o = this.store.doc.origin; return this.store.doc.settings.normSet ?? placeOf(o[0], o[1]).norms; }
-  private allRules(): Result[] { return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], this.normSet()).concat(this.last ? siteCondResults(this.last.d, this.store.doc) : []); }
+  private allRules(): Result[] { return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], this.normSet(), this.store.doc.settings.normOn).concat(this.last ? siteCondResults(this.last.d, this.store.doc) : []); }
   /**
    * 01.11 (egasi): atrofdagi (OSM) turar joy binolarigacha masofa — ShNQ 2.07.01-23, 79-band, 2-jadval (3 va undan yuqori qavatli)
    * va 6-izoh (koʻp qavatli ↔ yakka uy: ≥ koʻp qavatli bino balandligi). Vazifa: OSM «building» tegi yoki foydalanuvchi belgisi
@@ -4958,7 +4958,7 @@ export class Editor {
   private renderKpi(): void {
     const c = this.last; if (!c) return;
     setExportArea(c.d.siteHa ?? 0); setExportProject(this.store.doc.id);   // narx × k = √(ga/3), loyiha shifti
-    const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), this.normSet())[0];
+    const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), this.normSet(), this.store.doc.settings.normOn)[0];
     const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));
     const open = !this.el.drawer.hidden;
     this.el.kpi.classList.toggle('all', this.kpiAll);
@@ -4967,7 +4967,7 @@ export class Editor {
       ...(d.balance ? [k('Yaroqli, ga', fmt(d.balance.usableHa, 2), undefined, 'kUsable')] : []),   // 02.11: cheklovlar boʻlsa — qurilishga yaroqli maydon
       k('GFA, m²', d.gfa ? fmt(d.gfa) : '—', undefined, 'kGfa'),
       // 04.11 (audit): UMN — 66-band boʻyicha (turar joy uchastkasi, eng kattasi); FAR (brutto, butun uchastka) — barcha koʻrsatkichlarda
-      (() => { const u = abroadRules(c.results.filter(r => r.id === 'umn-66'), this.normSet())[0]; return k('UMN', u?.value ? fmt(u.value, 2) : '—', u?.status === 'na' ? undefined : u?.status, 'kUmn', false, true); })(),
+      (() => { const u = abroadRules(c.results.filter(r => r.id === 'umn-66'), this.normSet(), this.store.doc.settings.normOn)[0]; return k('UMN', u?.value ? fmt(u.value, 2) : '—', u?.status === 'na' ? undefined : u?.status, 'kUmn', false, true); })(),
       k('FAR (brutto)', d.far ? fmt(d.far, 2) : '—', undefined, 'kFar', true),
       k('Qurilish zichligi', d.gsi ? fmt(d.gsi * 100, 0) + ' %' : '—', undefined, undefined, true),
       k('Oʻrt. qavat', d.avgFloors ? fmt(d.avgFloors, 1) : '—', undefined, undefined, true),
@@ -4975,7 +4975,7 @@ export class Editor {
       k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens', true),
       k('Ish oʻrni', d.jobs >= 1 ? fmt(d.jobs) : '—', undefined, 'kJobs', true),
       h('button', { class: 'ib sm', id: 'kAll', 'aria-label': tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), title: tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), 'aria-pressed': this.kpiAll, onclick: () => { this.kpiAll = !this.kpiAll; this.renderKpi(); } }, svgIcon(this.kpiAll ? '<path d="M15 6l-6 6 6 6"/>' : '<path d="M9 6l6 6-6 6"/>')),
-      h('button', { class: `btn more${open && this.el.drawer.dataset.kind === 'reg' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open && this.el.drawer.dataset.kind === 'reg', onclick: () => { const reg = this.el.drawer.dataset.kind === 'reg'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar'), (() => { /* 31.10 (A variant, 3-bosqich): holat doim koʻrinadi — mos emaslar soni (xorijda — andoza holatlari bilan) */ const rs = abroadRules(c.results, this.normSet()).concat(siteCondResults(c.d, this.store.doc)), nf = rs.filter(r => r.status === 'fail').length, nr = rs.filter(r => r.status === 'review').length; return h('span', { class: 'kst', id: 'kStat', 'data-s': nf ? 'fail' : nr ? 'review' : 'pass', title: nf ? tf('${n} ta meʼyor mos emas', { n: nf }) : nr ? tf('${n} ta koʻrib chiqish', { n: nr }) : tr('Hammasi mos') }, h('i'), nf ? String(nf) : nr ? String(nr) : '✓'); })()));
+      h('button', { class: `btn more${open && this.el.drawer.dataset.kind === 'reg' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open && this.el.drawer.dataset.kind === 'reg', onclick: () => { const reg = this.el.drawer.dataset.kind === 'reg'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar'), (() => { /* 31.10 (A variant, 3-bosqich): holat doim koʻrinadi — mos emaslar soni (xorijda — andoza holatlari bilan) */ const rs = abroadRules(c.results, this.normSet(), this.store.doc.settings.normOn).concat(siteCondResults(c.d, this.store.doc)), nf = rs.filter(r => r.status === 'fail').length, nr = rs.filter(r => r.status === 'review').length; return h('span', { class: 'kst', id: 'kStat', 'data-s': nf ? 'fail' : nr ? 'review' : 'pass', title: nf ? tf('${n} ta meʼyor mos emas', { n: nf }) : nr ? tf('${n} ta koʻrib chiqish', { n: nr }) : tr('Hammasi mos') }, h('i'), nf ? String(nf) : nr ? String(nr) : '✓'); })()));
     if (!this.el.drawer.hidden && this.el.drawer.dataset.kind === 'reg') this.el.drawer.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, tr('Meʼyoriy reyestr')), h('button', { class: 'ib sm', 'aria-label': tr('Yopish'), onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); } }, svgIcon(IC.x))), this.register());
     // 04.11 (beqaror testlar): son maydoniga yozilayotganda (masalan uchastka eni) qayta chizilsa, son belgilashi oʻqilmagani uchun yangi
     // qiymat eskisiga qoʻshilib ketardi («120» + «400» → «120400» — uchastka qoʻyilmasdi). Yozuv tugaguncha (fokus paneldan chiqguncha) kutiladi.
@@ -5018,7 +5018,7 @@ export class Editor {
         : tr('Roʻyxatda yoʻq — ball qoʻlda (2-ilova, xarita)'))),
       sel);
   }
-  private regFilter: 'all' | 'fail' = 'all';
+  private regFilter: 'all' | 'fail' | 'review' | 'off' = 'all';
   /** sahnada koʻrsatilgan meʼyor bandi (31.10) */
   private issueId: string | null = null;
   /** Bandni sahnada koʻrsatish yoki tozalash; true — koʻrsatildi */
@@ -5045,7 +5045,13 @@ export class Editor {
   private regOpen: string | null = null;
   private register(): HTMLElement {
     const all = this.allRules();
-    const bad = all.filter(r => r.status === 'fail').length, rs = this.regFilter === 'fail' ? all.filter(r => r.status === 'fail' || r.status === 'review') : all;
+    // 12.11 (meʼyorlar toʻplami, 3-bosqich, 2-band): daraja belgilari — Shart (siz kiritdingiz) / Majburiy / Tavsiya / Oʻchiq; saralash — mos emas, koʻrib chiqish, oʻchiq
+    const set = this.normSet(), on = this.store.doc.settings.normOn ?? [];
+    const lvl = (id: string): 'shart' | 'majburiy' | 'tavsiya' | 'ochiq' | null => isSiteRule(id) ? 'shart' : levelOf(id, set) === 'andoza' ? 'tavsiya' : levelOf(id, set) as 'majburiy' | 'tavsiya' | 'ochiq' | null;
+    const off = all.filter(r => lvl(r.id) === 'ochiq'), bad = all.filter(r => r.status === 'fail').length, rev = all.filter(r => r.status === 'review').length;
+    const rs = this.regFilter === 'fail' ? all.filter(r => r.status === 'fail') : this.regFilter === 'review' ? all.filter(r => r.status === 'review') : this.regFilter === 'off' ? off : all;
+    const LV: Record<string, [string, string]> = { shart: ['Shart', 'm'], majburiy: ['Majburiy', 'm'], tavsiya: ['Tavsiya', 's'], ochiq: ['Oʻchiq', 'o'] };
+    const nSc = siteCondCount(this.store.doc.settings.siteCond);
     const CLS: Record<Result['status'], string> = { pass: 'ok', fail: 'bad', review: 'warn', na: 'na' };
     const slash = (u?: string) => !!u && u.startsWith('/');
     const abroad = this.normSet() !== 'UZ';
@@ -5071,20 +5077,32 @@ export class Editor {
           h('div', { class: 'seg sm', role: 'group', id: 'popSeg', 'aria-label': tr('Uy-joy bilan taʼminlanish') }, ...opts.map(([m, n]) => h('button', { 'aria-pressed': v === m, 'data-m2': m, title: `${tr(n)} · ${m} m²`, onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { m2PerPerson: m } })) }, `${tr(n)} ${m}`))))); })());
         d.addEventListener('toggle', () => { if ((d as HTMLDetailsElement).open) this.openDet.add('regSet'); else this.openDet.delete('regSet'); });
         return d; })(),
-      h('div', { class: 'seg sm', role: 'group', id: 'regSeg' },
-        h('button', { 'aria-pressed': this.regFilter === 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `${tr('Hammasi')} · ${all.length}`),
-        h('button', { 'aria-pressed': this.regFilter === 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `${tr('Mos emas')} · ${bad}`)),
+      h('div', { class: 'reg-set', id: 'regSetChips' },
+        h('span', { class: 'chip lvl-set' }, tr(set === 'UZ' ? 'Oʻzbekiston · ShNQ' : 'Xalqaro andoza')),
+        nSc ? h('span', { class: 'chip lvl-sc' }, `${tr('Uchastka shartlari')} · ${nSc}`) : '',
+        h('button', { type: 'button', class: 'linkbtn', id: 'regSwitch', onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); this.go(STEPS.find(x => x.id === 'uchastka')!); queueMicrotask(() => document.getElementById('secNorms')?.scrollIntoView({ block: 'start' })); } }, tr('Almashtirish'))),
+      h('div', { class: 'seg sm', role: 'group', id: 'regSeg', 'aria-label': tr('Saralash') },
+        h('button', { 'aria-pressed': this.regFilter === 'all', 'data-f': 'all', onclick: () => { this.regFilter = 'all'; this.renderKpi(); } }, `${tr('Hammasi')} · ${all.length}`),
+        h('button', { 'aria-pressed': this.regFilter === 'fail', 'data-f': 'fail', onclick: () => { this.regFilter = 'fail'; this.renderKpi(); } }, `${tr('Mos emas')} · ${bad}`),
+        h('button', { 'aria-pressed': this.regFilter === 'review', 'data-f': 'review', onclick: () => { this.regFilter = 'review'; this.renderKpi(); } }, `${tr('Koʻrib chiqish')} · ${rev}`),
+        ...(off.length ? [h('button', { 'aria-pressed': this.regFilter === 'off', 'data-f': 'off', onclick: () => { this.regFilter = 'off'; this.renderKpi(); } }, `${tr('Oʻchiq')} · ${off.length}`)] : [])),
+      h('div', { class: 'lvl-legend', id: 'regLegend' },
+        ...(nSc ? [h('span', {}, h('span', { class: 'lvl m' }, tr('Shart')), tr('siz kiritdingiz'))] : []),
+        ...(set === 'UZ' ? [h('span', {}, h('span', { class: 'lvl m' }, tr('Majburiy')), 'ShNQ, QMQ, SanQvaN')] : [h('span', {}, h('span', { class: 'lvl s' }, tr('Tavsiya')), tr('xalqaro andoza')), h('span', {}, h('span', { class: 'lvl o' }, tr('Oʻchiq')), tr('mintaqaviy'))])),
       h('div', { class: 'group reg' }, ...rs.map(r => {
         const open = this.regOpen === r.id, st = tr(STATUS_TXT[r.status]);
         const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + r.unit : ''}` : '', dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
+        const isOff = lvl(r.id) === 'ochiq', anOn = on.includes(r.id);
         return h('div', { class: 'rrow', 'data-rule': r.id },
           h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { if (!r.note) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },
             h('span', { class: 'k' }, h('span', {}, tr(r.title), r.where && r.status !== 'pass' ? h('span', { class: 'wherechip', 'data-where': r.id, role: 'button', tabindex: 0, onclick: (e: Event) => { e.stopPropagation(); this.regOpen = r.id; this.showIssue(r, true); this.renderKpi(); }, onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); this.regOpen = r.id; this.showIssue(r, true); this.renderKpi(); } }, title: tr('Bosing — sahnada koʻrsatiladi') }, tr('sahnada')) : ''), h('span', { class: 'sub mono' }, `${tr(`${r.source.doc} · ${r.source.clause}`)}${r.source.verified ? '' : ` (${tr('tekshirilsin')})`}`)),
             h('span', { class: 'rval' },
+              (() => { const L = lvl(r.id); return L ? h('span', { class: `lvl ${LV[L][1]}`, 'data-lvl': L }, tr(LV[L][0])) : ''; })(),
               h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value, r.digits ?? 0)}${slash(r.unit) || (r.value === 0 && r.status === 'fail' && r.unit) ? ' ' + tr(r.unit!) : ''}`) : st),
               // 01.11 (egasi: «0 qiymatlar qizil — xatomi?»): talab bor, loyihada esa umuman yoʻq (maktab, MTM, avtoturargoh, bogʻ) — shuni aniq yozamiz
               r.value === 0 && r.status === 'fail' ? h('span', { class: 't-small', 'data-nol': '' }, tr('loyihada yoʻq')) : '',
               lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),
+          isOff ? h('div', { class: 'row an-row' }, sw({ id: `an-${r.id}`, label: `${tr('Tahlil sifatida yoqish')} — ${tr(r.title)}`, on: anOn, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { normOn: v ? [...on, r.id] : on.filter(x => x !== r.id) } })) }), h('span', { class: 't-small' }, tr('Tahlil sifatida yoqish'))) : '',
           r.note || (r.where && r.status !== 'pass') ? h('div', { class: 'rnote', hidden: !open }, r.note ? tr(r.note) : '',
             r.fix ? h('div', { class: 'col fixbox', style: 'margin-top:8px;gap:6px' }, h('span', { class: 't-small' }, tr(r.fix.hint)), h('button', { class: 'btn btn-sm btn-primary', id: `fix-${r.id}`, style: 'align-self:flex-start', onclick: (e: Event) => { e.stopPropagation(); this.applyFix(r.fix!.id); } }, tr(r.fix.label))) : '',
             this.issueId === r.id ? h('div', { class: 'row', style: 'margin-top:6px;gap:6px' },
