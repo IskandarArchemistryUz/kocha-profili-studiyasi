@@ -48,12 +48,13 @@ import { windFlow } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
+import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
 type Group = 'yer' | 'iqlim' | 'shahar' | 'biznes';
-type LayerId = 'relyef' | 'nishab' | 'yuza' | 'issiqlik' | 'quyosh' | 'shamol' | 'shovqin' | 'xizmat' | 'piyoda' | 'oqim' | 'raqobat' | 'narx';
+type LayerId = 'relyef' | 'nishab' | 'yuza' | 'issiqlik' | 'quyosh' | 'shamol' | 'shovqin' | 'xizmat' | 'piyoda' | 'skaner' | 'oqim' | 'raqobat' | 'narx';
 interface LayerDef { id: LayerId; g: Group; name: string; src: string; color: string; ready: boolean; beta?: boolean }
 const LAYERS: LayerDef[] = [
   { id: 'relyef', g: 'yer', name: 'Relyef', src: 'AWS Terrain', color: '#8b7a6a', ready: true },
@@ -65,6 +66,7 @@ const LAYERS: LayerDef[] = [
   { id: 'shovqin', g: 'iqlim', name: 'Shovqin', src: 'model', color: '#c2416b', ready: true, beta: true },
   { id: 'xizmat', g: 'shahar', name: 'Xizmatlar', src: 'OSM', color: '#2a9d8f', ready: true },
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
+  { id: 'skaner', g: 'shahar', name: 'Ijtimoiy skaner', src: 'tarmoq', color: '#c0643a', ready: true, beta: true },
   { id: 'oqim', g: 'biznes', name: 'Odamlar oqimi', src: 'model', color: '#4c5bd4', ready: true, beta: true },
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
   { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true },
@@ -140,6 +142,26 @@ function computeNet(): void {
       }
     } catch (e) { console.warn('Joyshunos model', e); }
     nmBusy = false; renderRight(); paint(); computeNet();
+  }, 30);
+}
+/* ---------- ijtimoiy skaner (12.11): har bino uchun xizmatlarga piyoda yetish bali — skaner.ts ---------- */
+let SK: { key: string; res: SkResult; rings: LngLat[][]; area: number[]; h: number[] } | null = null, skBusy = false, skSel: number | null = null;
+function computeSk(): void {
+  if (!isOn('skaner') || skBusy) return;
+  const pb = D.poi.v, b = axBundle?.b; if (!pb || !b) return;
+  const m = netModels(); if (!m) return;
+  const key = `${m.key}|${axBundle!.key}|${(S.added ?? []).filter(x => x.norm).map(x => x.id).join()}`;
+  if (SK?.key === key) return;
+  skBusy = true;
+  setTimeout(() => {
+    try {
+      const fr = m.fr, rings: LngLat[][] = [], loc: [number, number][][] = [], area: number[] = [], hh: number[] = [];
+      for (const bd of b.osm.buildings) { const r = bd.rings[0]; if (!r || r.length < 3) continue; const L = r.map(p => fr.toLocal(p) as [number, number]); const cx = L.reduce((a, p) => a + p[0], 0) / L.length, cy = L.reduce((a, p) => a + p[1], 0) / L.length; if (Math.hypot(cx, cy) > S.r) continue; const a = ringArea(r); if (a < 12) continue; rings.push(r); loc.push(L); area.push(a); hh.push(bd.h); }
+      const pois: Partial<Record<Svc, [number, number][]>> = {};
+      for (const p of normPois(pb.pois, S.added ?? [])) (pois[p.kind] ??= []).push(fr.toLocal(p.at) as [number, number]);
+      SK = { key, res: skScan(m.net, loc, pois), rings, area, h: hh }; skSel = null;
+    } catch (e) { console.warn('Joyshunos skaner', e); }
+    skBusy = false; renderRight(); paint();
   }, 30);
 }
 /* ---------- quyosh va soya (binolar — kontekst toʻplamidan, aksonometriya bilan umumiy) ---------- */
@@ -497,6 +519,22 @@ function renderRightH(): void {
         h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), V('piyoda').st !== 'yosh' ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[V('piyoda').st].note) })}` : '')] : [],
       null, r ? undefined : busy));
   }
+  if (isOn('skaner')) {
+    const r = SK?.res, sel = r && skSel != null ? r.b[skSel] : null, R = (k: Svc) => svcDef(k).r;
+    const dTxt = (b: NonNullable<typeof sel>, i: number) => { const d = Math.min(...SK_DIMS[i].kinds.map(k => b.d[k] ?? Infinity)); return Number.isFinite(d) ? `${fmt(d)} m` : tr('topilmadi'); };
+    const norm = (i: number) => `≤ ${SK_DIMS[i].kinds.map(R).join(' / ')} m`;
+    const busySk: Ld<unknown> = D.poi.st === 'err' ? D.poi : axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
+    const low = r ? r.bins[0] + r.bins[1] : 0;
+    cards.push(card(L('skaner'), 'OSM', sel ? `${sel.comp} / 100` : r ? tf('${n} bino · oʻrtacha ${c}', { n: fmt(r.b.length), c: r.comp }) : '—',
+      r ? [
+        sel ? h('span', {}, tf('Bino: iz maydoni ${a} m², balandligi ≈ ${h} m (OSM yoki taxmin).', { a: fmt(SK!.area[skSel!]), h: fmt(SK!.h[skSel!]) }), h('br'),
+          sel.s[sel.weak] < 100 ? h('b', { style: `color:${SK_COL[SK_DIMS[sel.weak].id]}` }, tf('Asosiy bosim: ${n} — ${v} ball.', { n: tr(SK_DIMS[sel.weak].name), v: sel.s[sel.weak] })) : tr('Barcha yoʻnalishlar meʼyor radiusi ichida.'))
+          : h('span', {}, tf('Doira ichidagi binolar. 60 balldan past: ${n} ta. Binoni bosing — uning pasporti.', { n: fmt(low) })),
+        h('ul', { class: 'joy-norm', id: 'joySk' }, ...SK_DIMS.map((d, i) => { const v = sel ? sel.s[i] : r.mean[i]; return h('li', { class: v >= 100 ? 'ok' : 'warn', 'data-dim': d.id }, h('span', {}, tr(d.name)), h('b', {}, sel ? dTxt(sel, i) : tf('${v} ball', { v })), h('em', {}, sel ? tf('${v} ball', { v }) : norm(i))); })),
+        sel ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'joySkAll', onclick: () => { skSel = null; renderRight(); paint(); } }, tr('Butun hudud')) : '',
+        h('span', { class: 'src' }, tr('Masofa — har bino markazidan piyoda tarmogʻi boʻylab eng yaqin obyektgacha. Ball: meʼyor radiusi ichida 100, uch baravar uzoqda 0 (ShNQ 2.07.01-23, 38-jadval; bekat — 382-band). Transport — bekat va metroning yaxshisi. Bu xonadon haqidagi kuzatuv emas — joy bahosi; OSM toʻliq emas.'))] : [],
+      null, r ? undefined : busySk));
+  }
   if (isOn('oqim')) {
     const F = NM?.flow, v = F && NM ? flowAt(NM.net, F) : null;
     cards.push(card(L('oqim'), tr('model'), v != null ? tr(flowClass(v)) : '—',
@@ -639,7 +677,8 @@ function ensure(): void {
     const R = Math.max(r, 500) + 100, g = await loadTerrain(c, R, bboxAround(c, R * 1.1), fetch.bind(globalThis), 10);
     if (!g) throw new Error(tr('relyef plitkalari ochilmadi')); return { g, s: terrainStats(g, r) };
   });
-  if ((isOn('xizmat') || isOn('piyoda') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
+  if ((isOn('xizmat') || isOn('piyoda') || isOn('skaner') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
+  if (isOn('skaner') && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();
   computeNet();
   if (isOn('issiqlik') && D.lst.st === 'idle') run('lst', () => lstJob(c));
   // uy narxlari — butun shahar uchun bitta fayl (nuqtaga bogʻliq emas, seq bilan bekor qilinmaydi)
@@ -803,7 +842,7 @@ async function initMap(): Promise<void> {
   map.on('style.load', () => { addOverlays(); applySite(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
-  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (placing) { placeAdded(c); return; } if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else pick(c); });
+  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (placing) { placeAdded(c); return; } if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else if (isOn('skaner') && SK && map!.getLayer('joy-skan-f')) { const f = map!.queryRenderedFeatures(e.point, { layers: ['joy-skan-f'] })[0]; if (f) { skSel = Number(f.properties?.i); renderRight(); paint(); } else pick(c); } else pick(c); });
   map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } else if (isK()) { e.preventDefault(); streetFinish(); } });
   map.on('moveend', () => {
     S.z = +map!.getZoom().toFixed(2); save();
@@ -841,6 +880,10 @@ function addOverlays(): void {
   heatKey = sunKey = shadowKey = '';
   m.addSource('joy-noise', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-noise', type: 'raster', source: 'joy-noise', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
+  // ijtimoiy skaner: binolar umumiy ball (yoki eng zaif yoʻnalish) rangida; tanlangan bino — koʻk kontur
+  m.addSource('joy-skan', { type: 'geojson', data: fc([]) as never }); skKey = '';
+  m.addLayer({ id: 'joy-skan-f', type: 'fill', source: 'joy-skan', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.92 } } as never);
+  m.addLayer({ id: 'joy-skan-s', type: 'line', source: 'joy-skan', filter: ['==', ['get', 'i'], -1], layout: { visibility: 'none' }, paint: { 'line-color': '#2a6fb0', 'line-width': 2.5 } } as never);
   // izochiziqlar (relyef — topo, issiqlik — izotermalar, shovqin — izofonlar) va nishab strelkalari
   for (const id of ['joy-topo', 'joy-iso', 'joy-arr', 'joy-wind']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   m.addLayer({ id: 'joy-wind', type: 'line', source: 'joy-wind', layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['get', 'w'], 'line-opacity': 0.85 } } as never);
@@ -877,8 +920,8 @@ function addOverlays(): void {
 }
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
-let slopeKey = '', narxKey = '';
-const HUD_LAYERS = ['joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+let slopeKey = '', narxKey = '', skKey = '';
+const HUD_LAYERS = ['joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -889,6 +932,7 @@ function paint(): void {
     return;
   }
   if (m && m.getSource('joy-ring')) { streetHide(m); for (const id of ['joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p']) m.setLayoutProperty(id, 'visibility', 'visible'); if (rlab) rlab.addTo(m); }
+  computeSk();
   paintH();
 }
 function paintH(): void {
@@ -913,6 +957,10 @@ function paintH(): void {
   { const d = D.narx.v, on = isOn('narx') && !!d;
     if (on) { const k = katOf(V('narx').st), key = `${d!.sana}|${k}`; if (key !== narxKey) { narxKey = key; (m.getSource('joy-narx') as GeoJSONSource).setData(narxFC(d!, k) as never); } }
     for (const id of ['joy-narx-f', 'joy-narx-l']) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
+  { const on = isOn('skaner') && !!SK, zaif = V('skaner').st === 'zaif';
+    if (on) { const key = `${SK!.key}|${zaif}`; if (key !== skKey) { skKey = key; (m.getSource('joy-skan') as GeoJSONSource).setData(fc(SK!.res.b.map((b, i) => ({ type: 'Feature', properties: { i, col: zaif ? (b.s[b.weak] >= 100 ? '#dedbd4' : SK_COL[SK_DIMS[b.weak].id]) : skColor(b.comp) }, geometry: { type: 'Polygon', coordinates: [[...SK!.rings[i], SK!.rings[i][0]]] } }))) as never); } }
+    for (const id of ['joy-skan-f', 'joy-skan-s']) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+    m.setFilter('joy-skan-s', ['==', ['get', 'i'], on && skSel != null ? skSel : -1]); }
   const p = isOn('xizmat') ? D.poi.v?.pois ?? [] : [];
   (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r, k: x.kind }); }).filter(Boolean)) as never);
   const cp = isOn('raqobat') ? D.comp.v ?? [] : [];
@@ -962,6 +1010,9 @@ function paintH(): void {
   if (isOn('narx') && D.narx.v) { const k = katOf(V('narx').st), b = narxBreaks(D.narx.v, k), pal = NARX_PAL.slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x, narxDp(k));
     lg.push(h('div', { class: 'lg' }, h('b', {}, isIjara(k) ? tr('Ijara, $/m²·oy') : tr('Uy narxi, $/m² (soʻralgan, median)')), ...pal.map((c, i) => h('span', {}, h('i', { style: `background:${c}` }), i === 0 ? `< ${f0(b[0])}` : i === b.length ? `≥ ${f0(b[b.length - 1])}` : `${f0(b[i - 1])}–${f0(b[i])}`)),
       h('span', {}, h('i', { style: 'background:#ffffff;box-shadow:inset 0 0 0 1px #b9b5ad' }), tr('maʼlumot yetarli emas')))); }
+  if (isOn('skaner') && SK) lg.push(V('skaner').st === 'zaif'
+    ? h('div', { class: 'lg' }, h('b', {}, tr('Eng zaif yoʻnalish')), ...SK_DIMS.map(d => h('span', {}, h('i', { style: `background:${SK_COL[d.id]}` }), tr(d.name))), h('span', {}, h('i', { style: 'background:#dedbd4' }), tr('hammasi meʼyorda')))
+    : h('div', { class: 'lg' }, h('b', {}, tr('Ijtimoiy skaner: umumiy ball')), ...SK_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
   if (isOn('nishab') && t) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Nishab')), ...SLOPE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (p.length) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Xizmatlar')), ...SVC_KINDS.map(k => h('span', {}, h('i', { class: 'dot', style: `background:${SVC_COL[k]}` }), tr(SVC_SHORT[k])))));
   if (cp.length) lg.push(h('div', { class: 'lg' }, h('span', {}, h('i', { class: 'dot', style: 'background:#7a5a3c' }), tr((CATS.find(c => c.id === S.cat) ?? CATS[0]).name))));
@@ -1072,6 +1123,7 @@ function focusMap(m: MLMap): void {
   set('joy-shadow', 'raster-opacity', q('quyosh', 0.2, 0.55));
   set('joy-noise', 'raster-opacity', q('shovqin', 0.3, 0.9) * (V('shovqin').st === 'kontur' ? 0.25 : 1));
   set('joy-walk', 'line-opacity', q('piyoda', 0.45, 1));
+  set('joy-skan-f', 'fill-opacity', q('skaner', 0.5, 0.95));
   set('joy-wind', 'line-opacity', q('shamol', 0.45, 1)); set('joy-wind-a', 'icon-opacity', q('shamol', 0.45, 1));
   set('joy-flow', 'line-opacity', q('oqim', 0.45, 1));
   set('joy-flow', 'line-width', ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.6 + V('oqim').k, 1, 3 + 9 * V('oqim').k]);
