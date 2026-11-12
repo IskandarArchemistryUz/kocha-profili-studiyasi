@@ -47,7 +47,7 @@ describe('koridor uchi va torets kvartiralari (05.11, egasi chizmasi)', () => {
     }
     expect(planChecks(pl, 25, lay.mods).filter(c => c.ok === false).map(c => c.id)).toEqual([]);
     expect(ch.filter(c => c.ok === false).map(c => c.id)).toEqual([]);
-  });
+  }, 30_000);   // 12.11: reja tanlovida torets seksiyasi kvartiralarining ichki rejasi tekshiriladi (sekinroq)
   it('juda chuqur (20 m) qanot — avvalgi tartib (uch kvartirasi ichki rejasi sigʻmaydi)', () => {
     const { pl } = run(rect(60, 20));
     expect(pl.apts.some(a => a.torets)).toBe(false);

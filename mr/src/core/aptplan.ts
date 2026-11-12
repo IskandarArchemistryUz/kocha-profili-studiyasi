@@ -1236,7 +1236,7 @@ export const normScore = (v: [number, string][]) => v.reduce((t, x) => t + x[0],
  * AptInterior.norm da koʻrinadi).
  */
 const HARD = 4;
-function aptInteriorK(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
+export function aptInteriorK(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
   const g0 = GRID; GRID = a.mods.length > 0 && a.mods.every(i => mods[i]?.grid === true);
   try { return aptInteriorK0(a, mods); } finally { GRID = g0; }
 }

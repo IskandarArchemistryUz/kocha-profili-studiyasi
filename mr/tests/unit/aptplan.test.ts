@@ -74,7 +74,8 @@ describe('Kvartira ichki rejasi (31.10)', () => {
 
 describe('Ichki rejani qoʻlda sozlash (V2, 31.10)', () => {
   const r: XY[] = [[0, 0], [60, 0], [60, 18], [0, 18]], mods = layoutSection(r, () => false).mods, pl = rulePlan(r, mods, [0, 20, 40, 40], 'M');
-  const i = pl.apts.findIndex(a => a.rooms >= 3 && aptInterior(a, mods));
+  // 12.11: 18 m qanot uchida endi P/C torets kvartirasi (ichki rejasi qanotli shablonda, flip yoʻq) — oddiy (toʻgʻri toʻrtburchak) kvartira olinadi
+  const i = pl.apts.findIndex(a => a.rooms >= 3 && !a.torets && aptInterior(a, mods));
   it('flip — umumiy xona boshqa tomonda; dK — devor siljiydi; master yoʻq/ha; surma eshiklar', async () => {
     const { editInner } = await import('../../src/core/sectionplan');
     expect(i).toBeGreaterThanOrEqual(0);
