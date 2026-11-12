@@ -136,3 +136,8 @@ CREATE TABLE IF NOT EXISTS project_spend (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, project)
 );
+
+-- egasi paneli (2026-11-12): kirish davlati/shahri — Cloudflare sarlavhasidan (CF-IPCountry, cf-ipcity); IP saqlanmaydi
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS country TEXT;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;

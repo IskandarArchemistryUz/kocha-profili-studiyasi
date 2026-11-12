@@ -1,7 +1,9 @@
-/** Egasi paneli (#/egasi): foydalanuvchilar, to'lovlar, tanga sarfi — server /owner/stats; tashriflar — GoatCounter havolasi */
-import { h, fmt, icl, IC } from '../ui/dom';
-import { tr, tf } from '../i18n';
-import { ownerStats, ownerGrant, check, type OwnerStats } from './session';
+/** Egasi paneli (#/egasi): foydalanuvchilar, to'lovlar, tanga sarfi — server /owner/stats; tashriflar — GoatCounter havolasi.
+ *  Pochtalar sukut boʻyicha yashirin («Koʻrsatish» — /owner/reveal); qator bosilsa — foydalanuvchi kartochkasi (/owner/user/:id). */
+import './account.css';
+import { h, fmt, icl, IC, svgIcon } from '../ui/dom';
+import { tr, tf, getLang } from '../i18n';
+import { ownerStats, ownerGrant, ownerReveal, ownerUser, check, type OwnerStats, type OwnerContact } from './session';
 
 const GOAT = 'https://archemistry.goatcounter.com';
 const MERCHANT = 'https://merchant.multicard.uz';
@@ -10,11 +12,34 @@ const so = (v: number) => `${fmt(v)} ${tr('soʻm')}`;
 function kpi(id: string, label: string, value: string, sub?: string): HTMLElement {
   return h('div', { class: 'own-kpi', 'data-k': id }, h('span', { class: 'k' }, label), h('b', {}, value), sub ? h('small', {}, sub) : '');
 }
-function table(head: string[], rows: (string | number)[][], empty: string): HTMLElement {
+type Cell = string | number | HTMLElement;
+/** open[i] berilsa — qator bosiladi (klaviaturadan ham) va foydalanuvchi kartochkasi ochiladi */
+function table(head: string[], rows: Cell[][], empty: string, open?: ((() => void) | null)[]): HTMLElement {
   if (!rows.length) return h('p', { class: 't-small own-empty' }, empty);
   return h('table', { class: 'own-t' }, h('thead', {}, h('tr', {}, ...head.map((x) => h('th', {}, x)))),
-    h('tbody', {}, ...rows.map((r) => h('tr', {}, ...r.map((c) => h('td', {}, String(c)))))));
+    h('tbody', {}, ...rows.map((r, i) => {
+      const go = open?.[i];
+      const cells = r.map((c) => h('td', {}, c instanceof HTMLElement ? c : String(c)));
+      return go ? h('tr', { class: 'own-click', tabindex: 0, onclick: go, onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } } }, ...cells)
+        : h('tr', {}, ...cells);
+    })));
 }
+
+/* ---------- davlat: bayroq + nom (Intl, interfeys tilida) ---------- */
+const flag = (cc: string) => /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((c) => 0x1f1a5 + c.charCodeAt(0))) : '';
+function countryName(cc: string): string {
+  try { return new Intl.DisplayNames([getLang(), 'en'], { type: 'region' }).of(cc) ?? cc; } catch { return cc; }
+}
+const country = (cc?: string | null): string => (cc ? `${flag(cc)} ${countryName(cc)}`.trim() : '—');
+
+/* ---------- pochtani ochish: holat sahifa davomida saqlanadi (Yangilash bosilsa ham) ---------- */
+let shown = false;
+const contacts = new Map<number, OwnerContact>();
+/** Kim: yashirin boʻlsa — server bergan yarim yashirin qiymat, ochiq boʻlsa — toʻliq pochta (yoki telefon) */
+const whoOf = (uid: number | undefined, masked: string | null): string => {
+  const c = shown && uid ? contacts.get(uid) : undefined;
+  return c ? (c.email ?? c.phone ?? masked ?? '—') : (masked ?? '—');
+};
 function bars(days: { day: string; c: number }[]): HTMLElement {
   const map = new Map(days.map((d) => [d.day, d.c]));
   const out: { day: string; c: number }[] = [];
@@ -55,8 +80,10 @@ function grantForm(reload: () => void): HTMLElement {
     h('p', { class: 't-small' }, tr('Pochta boʻyicha tanga berish — sotuv emas, statistikada «sovgʻa» qatorida koʻrinadi.')), form, msg);
 }
 
-function render(s: OwnerStats, grant: HTMLElement): HTMLElement[] {
+function render(s: OwnerStats, grant: HTMLElement, toggle: HTMLElement): HTMLElement[] {
   const u = s.users, p = s.payments, c = s.coins;
+  const card = (uid?: number) => (uid ? () => void userCard(uid) : null);
+  const cs = s.countries;
   const stateName: Record<string, string> = { paid: tr('toʻlangan'), new: tr('kutilmoqda'), cancelled: tr('bekor') };
   return [
     h('section', { class: 'own-sec' }, h('h2', {}, tr('Foydalanuvchilar')),
@@ -65,10 +92,15 @@ function render(s: OwnerStats, grant: HTMLElement): HTMLElement[] {
         kpi('active', tr('Faol (kirgan)'), fmt(u.active7), tf('7 kunda · 30 kunda ${n}', { n: u.active30 })),
         kpi('method', tr('Kirish usuli'), `${u.google} / ${u.email} / ${u.phone}`, tr('Google / pochta / telefon'))),
       h('h3', {}, tr('Roʻyxatdan oʻtish — 30 kun')), bars(s.signups),
-      h('h3', {}, tr('Oxirgi roʻyxatdan oʻtganlar')),
-      h('div', { class: 'own-scroll', id: 'ownPeople' }, table([tr('Roʻyxatdan oʻtgan'), tr('Kim'), tr('Kirish usuli'), tr('Balans'), tr('Oxirgi kirish')],
-        (s.people ?? []).map((r) => [r.at ? when(r.at) : '—', r.who ?? '—', r.method === 'google' ? 'Google' : tr(r.method === 'email' ? 'pochta' : 'telefon'), fmt(r.balance), r.seen ? when(r.seen) : tr('hali kirmagan')]),
-        tr('Hali foydalanuvchi yoʻq')))),
+      h('div', { class: 'own-h3row' }, h('h3', {}, tr('Oxirgi roʻyxatdan oʻtganlar')), toggle),
+      h('p', { class: 't-small own-hint' }, tr('Batafsil koʻrish uchun qatorni bosing')),
+      h('div', { class: 'own-scroll', id: 'ownPeople' }, table([tr('Roʻyxatdan oʻtgan'), tr('Kim'), tr('Davlat'), tr('Kirish usuli'), tr('Balans'), tr('Oxirgi kirish')],
+        (s.people ?? []).map((r) => [r.at ? when(r.at) : '—', whoOf(r.uid, r.who), country(r.country), r.method === 'google' ? 'Google' : tr(r.method === 'email' ? 'pochta' : 'telefon'), fmt(r.balance), r.seen ? when(r.seen) : tr('hali kirmagan')]),
+        tr('Hali foydalanuvchi yoʻq'), (s.people ?? []).map((r) => card(r.uid)))),
+      cs ? h('div', { class: 'own-two', id: 'ownCountries' },
+        h('div', {}, h('h3', {}, tr('Roʻyxatdan oʻtganlar davlati')), table([tr('Davlat'), tr('Soni')], cs.users.map((r) => [country(r.country), r.c]), tr('Hali davlat maʼlumoti yoʻq'))),
+        h('div', {}, h('h3', {}, tr('30 kunda kirganlar')), table([tr('Davlat'), tr('Soni')], cs.active30.map((r) => [country(r.country), r.c]), tr('Hali davlat maʼlumoti yoʻq'))),
+        cs.unknown ? h('p', { class: 't-small own-empty own-span' }, tf('Davlati nomaʼlum: ${n} — eski hisoblar yoki Cloudflare davlatni bermagan', { n: fmt(cs.unknown) })) : '') : ''),
     h('section', { class: 'own-sec' }, h('h2', {}, tr('Toʻlovlar')),
       h('div', { class: 'own-kpis' },
         kpi('revenue', tr('Jami tushum'), so(p.revenue), tf('30 kunda ${s}', { s: so(p.revenue30) })),
@@ -79,8 +111,8 @@ function render(s: OwnerStats, grant: HTMLElement): HTMLElement[] {
         h('div', {}, h('h3', {}, tr('Toʻlov tizimi')), table([tr('Tizim'), tr('Soni'), tr('Summa')], p.byPs.map((r) => [r.ps, r.c, so(r.s)]), tr('Hali toʻlov yoʻq')))),
       h('h3', {}, tr('Oxirgi buyurtmalar')),
       table(['#', tr('Vaqt'), tr('Kim'), tr('Toʻplam'), tr('Summa'), tr('Tizim'), tr('Holat')],
-        p.recent.map((r) => [r.id, new Date(r.at).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'short', timeStyle: 'short' }), r.who ?? '—', `${r.pack} (${r.coins})`, so(r.amount), r.ps, stateName[r.state] ?? r.state]),
-        tr('Hali buyurtma yoʻq'))),
+        p.recent.map((r) => [r.id, new Date(r.at).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent', dateStyle: 'short', timeStyle: 'short' }), whoOf(r.uid, r.who), `${r.pack} (${r.coins})`, so(r.amount), r.ps, stateName[r.state] ?? r.state]),
+        tr('Hali buyurtma yoʻq'), p.recent.map((r) => card(r.uid)))),
     h('section', { class: 'own-sec' }, h('h2', {}, tr('Tangalar va xizmatlar')),
       h('div', { class: 'own-kpis' },
         kpi('bought', tr('Sotib olingan'), fmt(c.bought), tf('sovgʻa ${n}', { n: c.granted })),
@@ -91,12 +123,48 @@ function render(s: OwnerStats, grant: HTMLElement): HTMLElement[] {
         h('div', {}, h('h3', {}, tr('Toza yuklashlar — 30 kun')), table([tr('Nima'), tr('Soni')], c.exports30.map((r) => [r.bundle, r.c]), tr('Hali yuklash yoʻq'))))),
     grant,
     h('section', { class: 'own-sec' }, h('h3', {}, tr('Berilgan sinov kirishlari')),
-      table([tr('Vaqt'), tr('Kim'), tr('Tanga'), tr('Izoh')], (c.grants ?? []).map((r) => [when(r.at), r.who ?? '—', fmt(r.coins), r.note || '—']), tr('Hali sinov kirishi berilmagan'))),
+      table([tr('Vaqt'), tr('Kim'), tr('Tanga'), tr('Izoh')], (c.grants ?? []).map((r) => [when(r.at), whoOf(r.uid, r.who), fmt(r.coins), r.note || '—']), tr('Hali sinov kirishi berilmagan'),
+        (c.grants ?? []).map((r) => card(r.uid)))),
     h('section', { class: 'own-sec own-links' }, h('h2', {}, tr('Boshqa manbalar')),
       h('a', { class: 'btn', href: GOAT, target: '_blank', rel: 'noopener', id: 'ownGoat' }, tr('Tashriflar va xizmatlar — GoatCounter ↗')),
       h('a', { class: 'btn', href: MERCHANT, target: '_blank', rel: 'noopener', id: 'ownMc' }, tr('Toʻlovlar va bankka oʻtkazmalar — Multicard ↗')),
       h('p', { class: 't-small' }, tr('GoatCounter: sahifa koʻrishlar, qayerdan kelgan, mamlakat va hodisalar (ev/… — qadamlar, eksportlar, ogʻir hisoblar). Statistika anonim.'))),
   ];
+}
+
+/* ---------- foydalanuvchi kartochkasi ---------- */
+async function userCard(uid: number): Promise<void> {
+  document.getElementById('ownCard')?.remove();
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  const close = () => { wrap.remove(); removeEventListener('keydown', onKey, true); };
+  const content = h('div', { class: 'own-card-body' }, h('p', { class: 't-small' }, tr('Yuklanmoqda…')));
+  const title = h('h2', { id: 'ownCardT' }, tr('Foydalanuvchi'));
+  const box = h('div', { class: 'kd-box own-card' },
+    h('button', { class: 'ib sm kd-x', type: 'button', 'aria-label': tr('Yopish'), title: tr('Yopish'), onclick: close }, svgIcon(IC.x)), title, content);
+  const wrap = h('div', { class: 'kd', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'ownCardT', id: 'ownCard', onclick: (e: Event) => { if (e.target === wrap) close(); } }, box);
+  document.body.append(wrap); addEventListener('keydown', onKey, true);
+  try {
+    const u = await ownerUser(uid);
+    const stateName: Record<string, string> = { paid: tr('toʻlangan'), new: tr('kutilmoqda'), cancelled: tr('bekor') };
+    const t = (at: string | null) => (at ? when(at) : '—');
+    title.textContent = u.email ?? u.phone ?? `#${u.id}`;
+    const meta = [u.name, u.method === 'google' ? 'Google' : tr(u.method === 'email' ? 'pochta' : 'telefon'), country(u.country), u.lang?.toUpperCase(), tf('roʻyxatdan oʻtgan: ${t}', { t: t(u.at) })].filter(Boolean).join(' · ');
+    content.replaceChildren(
+      h('p', { class: 't-small own-meta' }, meta),
+      h('div', { class: 'own-kpis own-kpis-sm' },
+        kpi('bal', tr('Balans'), fmt(u.coins.balance)),
+        kpi('bought', tr('Sotib olingan'), fmt(u.coins.bought), tf('sovgʻa ${n}', { n: u.coins.granted })),
+        kpi('spent', tr('Sarflangan'), fmt(u.coins.spent))),
+      h('div', { class: 'own-two' },
+        h('div', {}, h('h3', {}, tr('Kirishlar')), table([tr('Vaqt'), tr('Davlat'), tr('Shahar')], u.sessions.map((r) => [t(r.at), country(r.country), r.city ?? '—']), tr('Hali kirish yoʻq'))),
+        h('div', {}, h('h3', {}, tr('Xizmatlar boʻyicha sarf')), table([tr('Nima'), tr('Soni'), tr('Tanga')], u.spendByItem.map((r) => [r.item, r.c, r.coins]), tr('Hali sarf yoʻq')))),
+      h('div', { class: 'own-two' },
+        h('div', {}, h('h3', {}, tr('Buyurtmalar')), table([tr('Vaqt'), tr('Toʻplam'), tr('Summa'), tr('Holat')], u.orders.map((r) => [t(r.at), `${r.pack} (${r.coins})`, so(r.amount), stateName[r.state] ?? r.state]), tr('Hali buyurtma yoʻq'))),
+        h('div', {}, h('h3', {}, tr('Loyihalar')), table([tr('Loyiha'), tr('Tanga'), tr('Generatsiya'), tr('Vaqt')], u.projects.map((r) => [r.project, r.spent, r.gen, t(r.at)]), tr('Hali pullik loyiha yoʻq')))),
+      h('h3', {}, tr('Tanga harakati')),
+      h('div', { class: 'own-scroll own-scroll-sm' }, table([tr('Vaqt'), tr('Oʻzgarish'), tr('Turi'), tr('Nima'), tr('Izoh')],
+        u.ledger.map((r) => [t(r.at), (r.delta > 0 ? '+' : '') + fmt(r.delta), r.reason, r.item, r.note || '—']), tr('Hali tanga harakati yoʻq'))));
+  } catch (e) { content.replaceChildren(h('p', { class: 't-small own-empty' }, (e as Error).message)); }
 }
 
 export async function ownerPage(root: HTMLElement): Promise<void> {
@@ -108,13 +176,32 @@ export async function ownerPage(root: HTMLElement): Promise<void> {
       h('button', { class: 'btn btn-sm', id: 'ownRefresh', onclick: () => void load() }, tr('Yangilash'))),
     h('h1', { class: 't-display' }, tr('Egasi paneli')), upd, body));
   const grant = grantForm(() => void load());
+  let last: OwnerStats | null = null;
+  const toggle = h('button', { class: 'btn btn-ghost btn-sm', id: 'ownReveal', type: 'button', 'aria-pressed': 'false', onclick: () => void flip() }) as HTMLButtonElement;
+  const label = () => { toggle.textContent = shown ? tr('Pochtalarni yashirish') : tr('Pochtalarni koʻrsatish'); toggle.setAttribute('aria-pressed', String(shown)); };
+  const ids = (s: OwnerStats) => [...new Set([...(s.people ?? []).map((r) => r.uid), ...s.payments.recent.map((r) => r.uid), ...(s.coins.grants ?? []).map((r) => r.uid)]
+    .filter((x): x is number => !!x && !contacts.has(x)))];
+  async function fetchContacts(s: OwnerStats): Promise<void> {
+    const need = ids(s); if (!need.length) return;
+    const r = await ownerReveal(need);
+    for (const [k, v] of Object.entries(r.contacts)) contacts.set(Number(k), v);
+  }
+  const paint = () => { if (last) body.replaceChildren(...render(last, grant, toggle)); label(); };
+  async function flip(): Promise<void> {
+    if (!last) return;
+    if (!shown) { toggle.disabled = true; try { await fetchContacts(last); shown = true; } catch (e) { upd.textContent = (e as Error).message; } finally { toggle.disabled = false; } }
+    else shown = false;
+    paint();
+  }
   async function load(): Promise<void> {
     try {
       const me = await check(true);
       if (!me?.owner) { body.replaceChildren(h('p', { class: 't-small own-empty', id: 'ownDenied' }, tr('Bu sahifa faqat sayt egasi uchun.'))); return; }
       const s = await ownerStats();
+      if (shown) await fetchContacts(s);
+      last = s;
       upd.textContent = tf('Yangilangan: ${t}', { t: new Date(s.at).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' }) });
-      body.replaceChildren(...render(s, grant));
+      paint();
     } catch (e) { body.replaceChildren(h('p', { class: 't-small own-empty' }, (e as Error).message)); }
   }
   await load();

@@ -8,7 +8,7 @@ import { makePayments } from './payments.js';
 import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { registerData } from './data/routes.js';
-import { ownerStats, grantCoins } from './owner.js';
+import { ownerStats, grantCoins, ownerUser, ownerReveal, geoOf } from './owner.js';
 import { ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
@@ -86,7 +86,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   app.post('/auth/verify', async (req, reply) => {
     if (limited('v:' + req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
-    const r = await auth.verifyCode(req.body?.target, req.body?.code);
+    const r = await auth.verifyCode(req.body?.target, req.body?.code, geoOf(req.headers));
     setSession(reply, r.token);
     return { ok: true, isNew: r.isNew };
   });
@@ -100,7 +100,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     let claims;
     try { claims = await google(req.body?.credential); }
     catch { return reply.code(401).send({ error: 'google', message: 'Google tokeni tasdiqlanmadi' }); }
-    const r = await auth.loginGoogle(claims);
+    const r = await auth.loginGoogle(claims, geoOf(req.headers));
     setSession(reply, r.token);
     return { ok: true, isNew: r.isNew };
   });
@@ -122,6 +122,27 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     if (!u.email || !OWN.has(u.email.toLowerCase())) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
     reply.header('cache-control', 'no-store');
     return ownerStats(db, now ? now() : new Date());
+  });
+
+  const isOwner = (u) => !!u.email && OWN.has(u.email.toLowerCase());
+  // Pochtani ochib koʻrsatish: roʻyxat sukut boʻyicha yashirin, «Koʻrsatish» bosilganda shu id lar uchun toʻliq pochta/telefon
+  app.post('/owner/reveal', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    if (!isOwner(u)) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
+    reply.header('cache-control', 'no-store');
+    const r = await ownerReveal(db, req.body?.ids);
+    req.log.info({ reveal: { by: u.id, n: Object.keys(r.contacts).length } }, 'egasi: pochtalar ochildi');
+    return r;
+  });
+
+  // Foydalanuvchi kartochkasi: kirishlar (davlat bilan), tanga harakati, buyurtmalar, loyihalar
+  app.get('/owner/user/:id', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    if (!isOwner(u)) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
+    reply.header('cache-control', 'no-store');
+    const card = await ownerUser(db, req.params.id);
+    if (!card) return reply.code(404).send({ error: 'not_found', message: 'foydalanuvchi topilmadi' });
+    return card;
   });
 
   // Sinov kirishi: egasi pochta boʻyicha tanga beradi (sotuv emas — daftarda 'promo'); daqiqasiga 10 tadan koʻp emas
