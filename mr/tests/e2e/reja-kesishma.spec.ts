@@ -28,6 +28,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qayta gene
   await page.click('#kMore');
   const rule = page.locator('.drawer [data-rule=spacing-79]');
   await expect(rule).toBeVisible();
-  await expect(rule).not.toContainText('Ustma-ust');
+  // 12.11: buzilish matni («Ustma-ust tushgan binolar: N juft») — oʻtgan qoida izohida «Ustma-ust tushgan va yaqin … yoʻq» ham bor
+  await expect(rule).not.toContainText('Ustma-ust tushgan binolar:');
   if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/kes_${w}${dark ? 'd' : 'l'}.png` });
 });
