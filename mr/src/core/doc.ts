@@ -24,6 +24,7 @@ import type { Tier } from './tiers';
 import { isULKind, type UserLayerMeta } from './userlayers';
 import { isWin, isBal, isWinPat, isBalPat, type Win, type Bal, type WinPat, type BalPat } from './facade';
 import { cleanLimit, type Limit } from './limits';
+import type { Profile, Part, PartKind, Cat } from './profiles';
 export type { Use };
 
 /** Uy rejasi tahriri (31.10, egasi: taunhaus rejasini tahrirlab boʻlmadi) */
@@ -213,6 +214,8 @@ export interface Project {
   site: Site | null;
   buildings: Building[];
   streets: Street[];
+  /** Loyiha koʻcha profillari (Koʻchasozda tahrirlangan) — id «u_…» */
+  profiles?: Profile[];
   /** chorraha aylanmalari (31.10) */
   rounds?: Round[];
   zones: ZoneLabel[];
@@ -389,6 +392,7 @@ export function migrate(raw: unknown): Project {
     if (!x || typeof x.id !== 'string' || !isLine(x.axis)) throw new SchemaError(`streets[${i}] notoʻgʻri`);
     return { id: x.id, axis: x.axis.map((p: LngLat) => [p[0], p[1]] as LngLat), profile: typeof x.profile === 'string' ? x.profile : 'mahalla-15', ...(isNum(x.osm) ? { osm: x.osm } : {}), ...(x.gen === 'grid' ? { gen: 'grid' as const } : {}), ...(x.ends && typeof x.ends === 'object' && (['aylana', 'maydon'].includes(x.ends.a) || ['aylana', 'maydon'].includes(x.ends.b)) ? { ends: { ...(['aylana', 'maydon'].includes(x.ends.a) ? { a: x.ends.a } : {}), ...(['aylana', 'maydon'].includes(x.ends.b) ? { b: x.ends.b } : {}) } } : {}) };
   });
+  const profiles: Profile[] = (Array.isArray(d.profiles) ? d.profiles : []).map(cleanProfile).filter((p: Profile | null): p is Profile => !!p);
   const rounds: Round[] = (Array.isArray(d.rounds) ? d.rounds : []).filter((r: any) => r && typeof r.id === 'string' && isLL(r.at) && isNum(r.r) && r.r >= 8 && r.r <= 40).map((r: any) => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind === 'mini' || r.kind === 'kichik' || r.kind === 'katta' ? { kind: r.kind as RoundKind } : {}) }));
   const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(typeof z.sub === 'string' && /^[a-z_]{1,20}$/.test(z.sub) ? { sub: z.sub } : {}), ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
   const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
@@ -423,11 +427,26 @@ export function migrate(raw: unknown): Project {
     schema: SCHEMA, id: d.id, name: d.name,
     created: typeof d.created === 'string' ? d.created : new Date().toISOString(),
     updated: typeof d.updated === 'string' ? d.updated : new Date().toISOString(),
-    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(Object.keys(removedAt).length ? { removedAt } : {}), ...(siteEdges ? { siteEdges } : {}), ...(Object.keys(ctxUse).length ? { ctxUse } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}), ...(limits.length ? { limits } : {}),
+    origin: [d.origin[0], d.origin[1]], settings: s, context, site, buildings, streets, ...(profiles.length ? { profiles } : {}), ...(rounds.length ? { rounds } : {}), zones, keep, ...(Object.keys(keepAt).length ? { keepAt } : {}), ...(Object.keys(keepRings).length ? { keepRings } : {}), parcels, garages, pois, views, ...(removed.length ? { removed } : {}), ...(Object.keys(removedAt).length ? { removedAt } : {}), ...(siteEdges ? { siteEdges } : {}), ...(Object.keys(ctxUse).length ? { ctxUse } : {}), ...(removedRoads.length ? { removedRoads } : {}), ...(roadEdits.length ? { roadEdits } : {}), ...(limits.length ? { limits } : {}),
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
     ...(isGStyle(d.gstyle) && d.gstyle !== 'joriy' ? { gstyle: d.gstyle } : {}),
     ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
     ...(() => { const ul = cleanUserLayers(d.userLayers); return ul.length ? { userLayers: ul } : {}; })(),
     ...(() => { const st = (Array.isArray(d.sheetStyles) ? d.sheetStyles : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.name === 'string' && x.opts && typeof x.opts === 'object').slice(0, 30).map((x: any) => ({ id: x.id, name: x.name.slice(0, 60), opts: JSON.parse(JSON.stringify(x.opts)) })); return st.length ? { sheetStyles: st } : {}; })(),
   };
+}
+
+const PART_KINDS = new Set<PartKind>(['trotuar', 'yashil', 'velo', 'parkovka', 'qatnov', 'ajratuvchi', 'avtobus', 'tramvay']);
+const PCATS = new Set<Cat>(['mahalliy', 'tuman-magistral', 'shahar-magistral-3', 'otish', 'piyoda']);
+/** Loyiha profili (Koʻchasozdan): notoʻgʻrisi tashlanadi */
+export function cleanProfile(x: any): Profile | null {
+  if (!x || typeof x.id !== 'string' || typeof x.name !== 'string' || !PCATS.has(x.cat) || !Array.isArray(x.parts)) return null;
+  const parts: Part[] = x.parts.filter((q: any) => q && PART_KINDS.has(q.k) && typeof q.w === 'number' && q.w > 0 && q.w < 200)
+    .map((q: any) => (typeof q.lanes === 'number' && q.lanes >= 1 ? { k: q.k, w: q.w, lanes: Math.round(q.lanes) } : { k: q.k, w: q.w }));
+  if (!parts.length) return null;
+  const p: Profile = { id: x.id, name: x.name.slice(0, 120), note: typeof x.note === 'string' ? x.note.slice(0, 200) : '', cat: x.cat, parts };
+  const k = x.ks;
+  if (k && Array.isArray(k.els) && k.els.every((e: any) => Array.isArray(e) && typeof e[0] === 'string' && typeof e[1] === 'number'))
+    p.ks = { els: k.els.map((e: any) => [e[0], e[1], e[2] && typeof e[2] === 'object' ? Object.fromEntries(Object.entries(e[2]).filter(([, v]) => typeof v === 'boolean')) as Record<string, boolean> : {}]), ...(typeof k.sk === 'string' ? { sk: k.sk } : {}), ...(typeof k.uk === 'string' ? { uk: k.uk } : {}) };
+  return p;
 }

@@ -248,3 +248,5 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 .ks-fmenu{position:absolute;right:0;top:38px;z-index:20;min-width:220px;display:flex;flex-direction:column;padding:6px;border-radius:14px;background:var(--surface);box-shadow:var(--sh-pop)}
 .ks-fmenu button{display:flex;align-items:center;justify-content:space-between;gap:12px;height:34px;padding:0 10px;border:0;border-radius:9px;background:transparent;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;text-align:left}
 .ks-fmenu button:hover{background:var(--fill)}
+body.ks-embed .eko{display:none}
+body.ks-embed .ws-b{top:-64px}

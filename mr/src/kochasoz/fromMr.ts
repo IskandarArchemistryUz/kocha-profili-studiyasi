@@ -2,7 +2,7 @@
  * Master reja koʻchasi (core/profiles: Profile) → Koʻchasoz B kesimi (els, rl, toifa).
  * Boʻlaklar soni saqlanadi: «qatnov 7 m, 2 boʻlak» → ikki «Harakat 3,5 m» zonasi. Elementlar (daraxt, chiroq) — andoza.
  */
-import type { Profile, Cat } from '../core/profiles';
+import type { Profile, Cat, Part, PartKind } from '../core/profiles';
 
 export type KsEl = [string, number, Record<string, boolean>];
 export interface KsStreet { els: KsEl[]; rl: number; tplName: string; sk: string; uk: string; U: never[]; PL: never[]; sel: number; selU: number }
@@ -14,6 +14,10 @@ const UK: Record<Cat, string> = { mahalliy: 'M1', 'tuman-magistral': 'U3', 'shah
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export function profileToKs(p: Profile, name?: string): KsStreet {
+  if (p.ks?.els.length) {   // Koʻchasozda tahrirlangan — aynan tiklanadi
+    const els = p.ks.els.map(e => [e[0], e[1], { ...e[2] }] as KsEl);
+    return { els, rl: r2(els.reduce((a, e) => a + e[1], 0)), tplName: name ?? p.name, sk: p.ks.sk ?? SK[p.cat] ?? 'mh', uk: p.ks.uk ?? UK[p.cat] ?? 'M1', U: [], PL: [], sel: 0, selU: -1 };
+  }
   const els: KsEl[] = [];
   const split = (t: string, w: number, n: number, o: Record<string, boolean> = {}) => { const k = Math.max(1, n); for (let i = 0; i < k; i++) els.push([t, r2(w / k), { ...o }]); };
   for (const part of p.parts) {
@@ -33,11 +37,34 @@ export function profileToKs(p: Profile, name?: string): KsStreet {
 }
 
 /** Koʻchasoz holatiga yozish (app/kochasoz.html B shu kalitdan oʻqiydi) */
-export function openInKochasoz(p: Profile, name?: string): void {
+/** Koʻchasoz B uchun koʻcha holatini tayyorlash (ks-street) */
+export function prepKochasoz(p: Profile, name?: string): void {
   try {
     const cur = JSON.parse(localStorage.getItem('ks-street') || '{}');
     const { sel: _s, selU: _u, ...st } = profileToKs(p, name);
     localStorage.setItem('ks-street', JSON.stringify({ ...cur, ...st }));
   } catch { /* xotira yopiq — Koʻchasoz oʻz namunasi bilan ochiladi */ }
-  location.href = './kochasoz.html#/b';
+}
+export function openInKochasoz(p: Profile, name?: string): void { prepKochasoz(p, name); location.href = './kochasoz.html#/b'; }
+
+/** Koʻchasoz elementi → MR qismi. Fasad oldi va texnik polosa — trotuarga, ariq/kanal — yashil tasmaga qoʻshiladi (TALQIN: MR profilida alohida tur yoʻq) */
+const KIND: Record<string, PartKind> = { front: 'trotuar', piy: 'trotuar', mebel: 'trotuar', yash: 'yashil', ariq: 'yashil', kanal: 'yashil', velo: 'velo', park: 'parkovka', qat: 'qatnov', bus: 'avtobus', tram: 'tramvay', med: 'ajratuvchi' };
+const LANED = new Set<PartKind>(['qatnov', 'avtobus', 'tramvay']);
+const CAT_OF: Record<string, Cat> = { mh: 'mahalliy', tm: 'tuman-magistral', sh3: 'shahar-magistral-3', pd: 'piyoda' };
+
+/**
+ * Koʻchasoz B kesimi → Master reja profili (teskari yoʻnalish).
+ * Yonma-yon bir xil turdagi elementlar bitta qismga birlashadi (harakat boʻlaklari — lanes soni bilan).
+ * Asl elementlar ks ga saqlanadi: profil Koʻchasozda qayta ochilsa aynan tiklanadi.
+ */
+export function ksToProfile(st: { els: KsEl[]; sk?: string; uk?: string }, base: Profile, id: string, name: string): Profile {
+  const parts: Part[] = [];
+  for (const e of st.els) {
+    const k = KIND[e[0]]; if (!k || !(e[1] > 0)) continue;
+    const last = parts.at(-1);
+    if (last && last.k === k) { last.w = r2(last.w + e[1]); if (LANED.has(k)) last.lanes = (last.lanes ?? 1) + 1; }
+    else parts.push(LANED.has(k) ? { k, w: r2(e[1]), lanes: 1 } : { k, w: r2(e[1]) });
+  }
+  const cat: Cat = base.cat === 'otish' && st.sk === 'mh' ? 'otish' : (st.sk && CAT_OF[st.sk]) || base.cat;
+  return { id, name, note: base.note, cat, parts, ks: { els: st.els.map(e => [e[0], e[1], { ...e[2] }]), ...(st.sk ? { sk: st.sk } : {}), ...(st.uk ? { uk: st.uk } : {}) } };
 }

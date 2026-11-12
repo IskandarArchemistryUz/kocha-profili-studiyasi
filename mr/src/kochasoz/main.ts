@@ -42,6 +42,9 @@ const BETA = (() => {
     return localStorage.getItem('ks-beta') === '1';
   } catch { return false; }
 })();
+/** ?embed — Master reja ichidagi oyna (MR «Koʻchasozda tahrirlash»): sarlavha yoʻq, faqat B; har oʻzgarish ota oynaga yuboriladi */
+const EMBED = (() => { try { return new URLSearchParams(location.search).has('embed') && window.parent !== window; } catch { return false; } })();
+if (EMBED) document.body.classList.add('ks-embed');
 const READY_BOARDS = new Set<BoardId>(['b', 'varaq']);
 const READY_MODES = new Set(['B']);
 const HIDDEN_MODES = new Set(['E']);
@@ -140,6 +143,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && fileOpen) 
 
 /* ---------- marshrut ---------- */
 function route(): { id: BoardId } {
+  if (EMBED) return { id: 'b' };
   const m = /^#\/(a|b|c|e|grafika|varaq)\b/.exec(location.hash), id = (m?.[1] as BoardId) ?? 'b';
   return { id: ready(id) ? id : 'b' };
 }
@@ -165,6 +169,7 @@ async function show(): Promise<void> {
     const { pendingTpl: _p, ...rest } = street; LS.set('ks-street', rest);
   }
   if (id === 'varaq') inst.state = { ...inst.state, sel: -1, selU: -1 };
+  if (EMBED) inst.state = { ...inst.state, view: 0 };   // MR oynasi — Kesim koʻrinishidan
   if (id === 'b' && !BETA && !READY_VIEWS.has(inst.state.view as number)) inst.state = { ...inst.state, view: 0 };
   let t: ReturnType<typeof setTimeout> | undefined;
   inst.__changed = () => { clearTimeout(t); t = setTimeout(() => persist(id, inst), 200); };
@@ -173,6 +178,7 @@ async function show(): Promise<void> {
   const m = mount(stage, tpl.default, inst, gate);
   current = { id, m };
   if (id === 'b') fitWidth(inst);
+  if (EMBED) persist(id, inst);   // ota oyna boshlangʻich holatni ham olsin
   (window as unknown as { __ks: unknown }).__ks = current;   // e2e testlar uchun
 }
 /** B: kesim chizmasi kartani toʻldiradi — viewBox eni karta nisbatiga qarab (pastki qator shu bilan bir vertikalda) */
@@ -188,6 +194,7 @@ function persist(id: BoardId, inst: DCLogic): void {
   const st = inst.state as Record<string, unknown>, shared = SHARED[id] ?? [];
   LS.set(`ks-${id}`, omit(st, [...shared, ...VOLATILE]));
   if (shared.length) LS.set('ks-street', { ...(LS.get('ks-street') ?? {}), ...pick(st, shared) });
+  if (EMBED && id === 'b') try { window.parent.postMessage({ type: 'ks-street', st: { els: st.els, sk: st.sk, uk: st.uk, rl: st.rl } }, location.origin); } catch { /* ota oyna yopilgan */ }
 }
 function allState(): Record<string, unknown> {
   if (current) persist(current.id, current.m.inst);

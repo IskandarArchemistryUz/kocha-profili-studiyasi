@@ -20,7 +20,9 @@ export const CATS: Record<Cat, CatNorm> = {
   piyoda: { name: 'Piyodalar koʻchasi', clause: '20-jadval: kenglik hisob-kitob boʻyicha' },
 };
 
-export interface Profile { id: string; name: string; note: string; cat: Cat; parts: Part[] }
+/** ks — Koʻchasozda tahrirlangan asl kesim (B elementlari): qayta ochilganda aynan tiklanadi (MR qismlari undan soddalashtirilgan) */
+export interface KsKeep { els: [string, number, Record<string, boolean>][]; sk?: string; uk?: string }
+export interface Profile { id: string; name: string; note: string; cat: Cat; parts: Part[]; ks?: KsKeep }
 
 const P = (k: PartKind, w: number, lanes?: number): Part => (lanes ? { k, w, lanes } : { k, w });
 
@@ -35,7 +37,11 @@ export const PROFILES: Profile[] = [
 
 /** eski (2-bosqich) profil id lari → yangilari */
 const ALIAS: Record<string, string> = { 'servis-9': 'otish-8', 'mahalla-12': 'mahalla-15', 'tuman-30': 'tuman-40' };
-export const profileById = (id: string): Profile => PROFILES.find(p => p.id === (ALIAS[id] ?? id)) ?? PRESET_PROFILES.find(p => p.id === id) ?? PROFILES[1];
+/** Loyiha (hujjat) profillari — Koʻchasozdan qoʻllanganlar (doc.profiles). Store har oʻzgarishda yangilaydi. */
+let USER: Profile[] = [];
+export function setUserProfiles(list: Profile[] | undefined): void { USER = list ?? []; }
+export const userProfiles = (): Profile[] => USER;
+export const profileById = (id: string): Profile => USER.find(p => p.id === id) ?? PROFILES.find(p => p.id === (ALIAS[id] ?? id)) ?? PRESET_PROFILES.find(p => p.id === id) ?? PROFILES[1];
 export const profileWidth = (p: Profile): number => p.parts.reduce((s, x) => s + x.w, 0);
 
 export interface Issue { what: string; value: string; norm: string }
