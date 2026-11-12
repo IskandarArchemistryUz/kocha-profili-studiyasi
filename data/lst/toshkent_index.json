@@ -1,0 +1,25 @@
+{
+ "hudud": "toshkent",
+ "bbox": [
+  69.1,
+  41.15,
+  69.5,
+  41.45
+ ],
+ "nx": 400,
+ "ny": 300,
+ "qadam": 0.001,
+ "kodlash": "uint16 LE, (°C+50)*100, 0 = yo'q, 0-qator shimol",
+ "manba": "Landsat 8/9 Collection 2 Level-2 ST_B10 (USGS), Microsoft Planetary Computer",
+ "piksel_m": 100,
+ "davr": "iyun–avgust medianasi",
+ "yillar": {
+  "2025": {
+   "fayl": "toshkent_2025.bin",
+   "N": 21,
+   "sahna": 42,
+   "qamrov": 1.0,
+   "median": 45.12
+  }
+ }
+}
