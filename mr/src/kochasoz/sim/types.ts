@@ -1,4 +1,4 @@
-/* Koʻchasoz · Harakat modeli (Vissim/Visum-lite) — umumiy turlar.
+/* Koʻchasoz · Harakat modeli — umumiy turlar.
    Birliklar: metr, soniya, m/s. Strategiya: claude/harakat-modeli-strategiya-12-11.md (loyiha hujjati). */
 
 export type XY = [number, number];
