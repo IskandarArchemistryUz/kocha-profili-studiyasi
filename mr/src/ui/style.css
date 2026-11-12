@@ -1033,3 +1033,5 @@ details.sp-lead[open] .sp-more{display:none}
 .lvl-legend>span{display:inline-flex;align-items:center;gap:5px}
 .reg .rval{align-items:flex-end}
 .reg .an-row{display:flex;align-items:center;gap:8px;padding:0 14px 10px}
+/* 12.11: Konsepsiya rejimi (3-bosqich, 3-band) */
+#conceptRow{display:flex;align-items:center;gap:12px;padding:6px 2px}

@@ -1230,6 +1230,7 @@ export function abroadRules(rs: Result[], norms: NormSet, on: readonly string[] 
   });
 }
 export const ABROAD_NOTE = 'Andoza: Oʻzbekiston meʼyori — bu hududda majburiy emas.';
+export const CONCEPT_NOTE = 'Konsepsiya rejimi: ShNQ tekshiruvi — «koʻrib chiqish»; hokimiyatga topshirishdan oldin rejimni oʻchiring va mos emaslarni tuzating.';
 export const ANALYSIS_NOTE = 'Tahlil: Oʻzbekiston mintaqaviy meʼyori — xalqaro toʻplamda majburiy emas, maʼlumot uchun baholandi.';
 export const OFF_NOTE = 'Oʻchiq: Oʻzbekiston mintaqaviy meʼyori — xalqaro toʻplamda qoʻllanmaydi.';
 
