@@ -10,7 +10,8 @@ import type { Project } from '../core/doc';
 import { CATS, checkProfile, profileById, profileWidth } from '../core/profiles';
 import { DEMO, demoRow, perThousand, mtmNeedPerThousand } from '../core/demography';
 import { spacingIssues } from '../core/spacing';
-import { landscape, docDrive, GREEN_86, GREEN_474 } from '../core/landscape';
+import { landscape, GREEN_86, GREEN_474 } from '../core/landscape';
+import { fireLowAccess, FIRE_LOW_D } from '../core/fireaccess';
 import { FIRE_LINK_MAX, FIRE_LINK_R } from '../core/firelink';
 import { frame, centroid, type XY } from '../core/geo';
 import { deadEnds } from '../core/streetends';
@@ -968,23 +969,9 @@ export const RULES: Rule[] = [
     title: 'Yongʻin-qutqaruv texnikasining yetib kelishi (bitta uzun tomondan, H < 28 m)',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '666, 669, 675-bandlar', verified: true },
     evaluate(_d, doc) {
-      const fr = frame(doc.origin), Ht = (b: Project['buildings'][number]) => bLevels(doc.settings, b).top;
-      // F1.3 — koʻp kvartirali turar joy (past uylar — yakka/blokli — boshqa qoida; 28 m dan baland — fire-666)
-      const bs = doc.buildings.filter(b => useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat' && !b.gen?.plot && b.gen?.kind !== 'uy' && b.gen?.kind !== 'taunhaus' && b.use !== 'yakka' && b.floors >= 3 && Ht(b) < 28 && !((b.z0 ?? 0) > 0));
+      // 12.11: hisob core/fireaccess (yongʻin marshrutlari varagʻi bilan umumiy) — natija oʻzgarmagan
+      const F = fireLowAccess(doc), bs = F.ids, bad = F.bad, D = FIRE_LOW_D;
       if (!bs.length) return { status: 'na', note: 'Balandligi 28 m dan past koʻp kvartirali turar joy binolari yoʻq.' };
-      // yetib keladigan sirt: loyiha koʻchalari va oʻtish yoʻllarining qatnov qismi va trotuari (669-band, TALQIN) + hovlidagi yongʻin yoʻlagi
-      const drive: XY[][][] = [...docDrive(doc), ...(doc.settings.yards ? landscape(doc).flatMap(y => y.fire && !y.z ? y.fire.lane : []) : [])];
-      const segD = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0; return Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]); };
-      const dist = (p: XY): number => { let m = Infinity; for (const poly of drive) { if (poly[0] && pointIn(p, [poly[0]])) return 0; for (const r of poly) for (let i = 0; i < r.length; i++) m = Math.min(m, segD(p, r[i], r[(i + 1) % r.length])); } return m; };
-      const D = 8;   // 675-band: H < 28 m — kelish joyining ichki chetidan devorgacha 5–8 m
-      const bad: string[] = [];
-      for (const b of bs) {
-        const r = b.footprint.map(fr.toLocal), n = r.length, len = (i: number) => Math.hypot(r[(i + 1) % n][0] - r[i][0], r[(i + 1) % n][1] - r[i][1]);
-        const mx = Math.max(...r.map((_, i) => len(i))), sides = r.map((_, i) => i).filter(i => len(i) >= 0.6 * mx);
-        // uzun tomon butun uzunligi boʻylab (666-band): tomon boʻyicha 5 nuqta
-        const ok = sides.some(i => { const a = r[i], c = r[(i + 1) % n]; return [0.05, 0.27, 0.5, 0.73, 0.95].every(t => dist([a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t]) <= D + 0.5); });
-        if (!ok) bad.push(b.id);
-      }
       const note = `Balandligi 28 m dan past koʻp kvartirali binoga yongʻin-qutqaruv avtomobili kamida bitta uzun tomondan, butun uzunligi boʻylab yetib kelishi kerak (666-band); kelish joyining ichki chetidan devorgacha 5–8 m (675-band). Tekshiruv: loyiha koʻchalari va oʻtish yoʻllarining qatnov qismi, trotuari (TALQIN: 669-band — asosiy kirish bilan birlashgan piyoda yoʻlagi oʻtish yoʻli eniga qoʻshiladi) hamda hovlidagi yongʻin yoʻlagi; ${bs.length} ta bino, ${bs.length - bad.length} tasida bajarilgan.`
         + (bad.length ? ` ${bad.length} ta binoning uzun tomoni ${D} m ichida qatnov qismiga yoki trotuarga yetmaydi — oʻtish yoʻli qoʻshing yoki binoni yaqinlashtiring. Uchastka chegarasidagi mavjud koʻchalar hisobga olinmagan — ularga qaragan bino boʻlsa, qoʻlda tasdiqlang.` : '');
       return { status: bad.length ? 'review' : 'pass', ...(bad.length ? { where: { bids: bad } } : {}), value: bs.length - bad.length, unit: 'bino', limit: `${bs.length}`, note };

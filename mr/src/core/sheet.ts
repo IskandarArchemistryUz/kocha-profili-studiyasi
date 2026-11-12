@@ -12,6 +12,8 @@ import { computePlan } from './plan';
 import { useDef, USES } from './uses';
 import { profileById, profileWidth, type PartKind, type Cat } from './profiles';
 import { derive, ringDist } from './derive';
+import { fireLowAccess } from './fireaccess';
+import { bLevels } from './levels';
 import { offsetLine, projectStreetsGeo, buildNet, asTargets, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { landscape, greenBalance, GREEN_86 } from './landscape';
 import { szzGreen } from './szzgen';
@@ -23,7 +25,7 @@ import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clippi
 import { gstyleById, useColorOf, styledTree, parcelGrey, inkOn } from './gstyle';
 import type { AxoEdit } from './axoedit';
 
-export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi' | 'ijtimoiy' | 'parkovka' | 'parkstrat';
+export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi' | 'ijtimoiy' | 'parkovka' | 'parkstrat' | 'yongin';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -45,6 +47,8 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   // 12.11 (eski navbat, 3-band): avtoturargohlar sxemasi — turlar, joylar, pandus, 300 m (417-band) va talab/taʼminot jadvali
   { id: 'parkovka', name: 'Avtoturargohlar sxemasi', note: 'yer osti, stilobat, ochiq va koʻp qavatli avtoturargohlar, kirishlar, 300 m radius, talab va taʼminot' },
   { id: 'parkstrat', name: 'Parkovka strategiyasi', note: 'har uydan eng yaqin avtoturargohgacha masofa, avtoturargohlar sigʻimi, piyoda koʻchalar, turlar ulushi' },
+  // 12.11 (eski navbat, 5-band; L5 qoidasi ustiga)
+  { id: 'yongin', name: 'Yongʻin marshrutlari', note: 'yongʻin avtomobili yetib keladigan sirt, hovli yoʻlaklari, har bino uchun kelish tomoni va 5–8 m zona' },
   { id: 'insol', name: 'Insolyatsiya', note: 'uchastka yer sathi: kuniga quyosh soatlari (6-qadam xaritasi)' },
   { id: 'navbat', name: 'Qurilish navbati', note: 'binolar navbat rangida; har navbat: binolar, maydon, xonadonlar' },
   { id: 'relyef', name: 'Relyef', note: 'balandliklar (gipsometriya), gorizontallar va qiyalik — AWS Terrain Tiles' },
@@ -270,6 +274,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   if (PS_G.length) for (const x of nb) { if (useDef(x.b.use).res <= 0) continue; let best = Infinity, seg: [XY, XY] | null = null; const c = centroid(x.r);
     for (const { r } of PS_G) { const d = ringDist(r, x.r); if (d < best) { best = d; let bp: XY = r[0], bd = Infinity; for (let i = 0; i < r.length; i++) { const a = r[i], b2 = r[(i + 1) % r.length], dx = b2[0] - a[0], dy = b2[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((c[0] - a[0]) * dx + (c[1] - a[1]) * dy) / L2)), p: XY = [a[0] + dx * t, a[1] + dy * t], dd = Math.hypot(p[0] - c[0], p[1] - c[1]); if (dd < bd) { bd = dd; bp = p; } } seg = [c, bp]; } }
     PS_D.set(x.b.id, best); if (seg && best > 0) PS_L.set(x.b.id, seg); }
+  const FA = K === 'yongin' ? fireLowAccess(doc) : null;
   const PS_BAND = (d: number): [string, string] => d <= 100 ? ['#1a9850', '≤ 100 m'] : d <= 200 ? ['#91cf60', '100–200 m'] : d <= 300 ? ['#fdae61', '200–300 m'] : ['#d73027', '> 300 m'];
   const PK_FAR = new Set(K === 'parkovka' && PK_G.length ? nb.filter(x => useDef(x.b.use).res > 0 && !PK_G.some(gr => ringDist(gr, x.r) <= PK_R)).map(x => x.b.id) : []);
   /** parsellar rejasi (06.11): atrof xira */
@@ -505,7 +510,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const lB = Ly('bld');
   if (nb.length && lB.on && !PR) {
     const order = [...nb].sort((a, b) => ((a.b.z0 ?? 0) + a.b.floors) - ((b.b.z0 ?? 0) + b.b.floors));
-    const fill = (b: Project['buildings'][number]) => K === 'parkstrat' ? (PS_D.has(b.id) ? mix(parseInt(PS_BAND(PS_D.get(b.id)!)[0].slice(1), 16), 0.55) : '#ecebe7') : K === 'parkovka' ? (PK_FAR.has(b.id) ? '#f6dcd5' : '#ecebe7') : K === 'ijtimoiy' ? (SOC.has(b.use) ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.08)) : mix(ucol(b.use), 0.62)) : K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.12)) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(ucol(b.use), GS ? 0 : 0.1), lB.light) : '#ffffff';
+    const fill = (b: Project['buildings'][number]) => K === 'yongin' ? (FA?.bad.includes(b.id) ? '#f3c9c4' : FA?.side.has(b.id) ? '#dfe9d6' : bLevels(doc.settings, b).top >= 28 ? '#f1d9a8' : '#ecebe7') : K === 'parkstrat' ? (PS_D.has(b.id) ? mix(parseInt(PS_BAND(PS_D.get(b.id)!)[0].slice(1), 16), 0.55) : '#ecebe7') : K === 'parkovka' ? (PK_FAR.has(b.id) ? '#f6dcd5' : '#ecebe7') : K === 'ijtimoiy' ? (SOC.has(b.use) ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.08)) : mix(ucol(b.use), 0.62)) : K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.12)) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(ucol(b.use), GS ? 0 : 0.1), lB.light) : '#ffffff';
     const stroke = K === 'figura' || VZ || !lB.outline ? 'none' : INK;
     const bw = (b: Project['buildings'][number]) => K === 'ijtimoiy' ? (SOC.has(b.use) ? 0.35 : 0.12) : K === 'bosh' ? lB.mm : Math.min(lB.mm, 0.3);
     g('Yangi_binolar', order.map(({ b, r }) => `<path d="${ringD(r)}" fill="${fill(b)}"${stroke !== 'none' ? ` stroke="${K === 'ijtimoiy' && !SOC.has(b.use) ? '#8e8a82' : stroke}" stroke-width="${lw(bw(b) * LW)}" stroke-linejoin="round"` : ''}/>`).join(''));
@@ -695,6 +700,27 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       const used = new Set([...PS_D.values()].map(d => PS_BAND(d)[1]));
       for (const d of [50, 150, 250, 400]) { const [c2, l] = PS_BAND(d); if (used.has(l)) legend.push({ type: 'line', stroke: c2, label: `${tr('Turar joydan avtoturargohgacha')} ${l}` }); }
     } else legend.push({ type: 'text', label: tr('Avtoturargoh yoʻq — 5-qadamda «Avtoturargoh» (yer osti / ochiq / koʻp qavatli) tanlang') });
+  }
+
+  // 4g. yongʻin marshrutlari (12.11, eski navbat 5-band; L5): yetib keladigan sirt — loyiha koʻchalari qatnov qismi va trotuari (669-band, TALQIN),
+  // hovlidagi yongʻin yoʻlagi (667-band); H < 28 m binoda yetib keladigan uzun tomon va undan 5–8 m zona (666, 675-bandlar)
+  if (K === 'yongin' && FA) {
+    if (FA.drive.length) { g('Kochalar_qatnov_qismi', FA.drive.map(mp => `<path d="${polyD(mp)}" fill="#d9d4cb" fill-rule="evenodd"/>`).join('')); legend.push({ type: 'fill', fill: '#d9d4cb', label: tr('Koʻcha qatnov qismi va trotuar (666, 669-bandlar)') }); }
+    if (FA.lanes.length) { g('Hovli_yongin_yolaklari', FA.lanes.map(mp => `<path d="${polyD(mp)}" fill="#f0b7ab" stroke="#c0392b" stroke-width="${lw(0.25)}" fill-rule="evenodd"/>`).join('')); legend.push({ type: 'fill', fill: '#f0b7ab', stroke: '#c0392b', label: tr('Hovlidagi yongʻin yoʻlagi (667-band)') }); }
+    const zone: string[] = [], line: string[] = [];
+    for (const { b, r } of nb) { const sd = FA.side.get(b.id); if (!sd) continue;
+      const [a, c] = sd, dx = c[0] - a[0], dy = c[1] - a[1], L = Math.hypot(dx, dy) || 1, ccw = r.reduce((t, p, i) => t + p[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * p[1], 0) > 0;
+      const nx = (ccw ? dy : -dy) / L, ny = (ccw ? -dx : dx) / L, off = (p: XY, d: number): XY => [p[0] + nx * d, p[1] + ny * d];   // tashqariga normal
+      zone.push(`<path d="M${P(off(a, 5))}L${P(off(c, 5))}L${P(off(c, 8))}L${P(off(a, 8))}Z" fill="#c0392b" fill-opacity="0.22" stroke="none"/>`);
+      line.push(`<path d="M${P(a)}L${P(c)}" stroke="#c0392b" stroke-width="${lw(0.7)}" stroke-linecap="round"/>`); }
+    if (zone.length) { g('Kelish_zonasi', zone.join('')); legend.push({ type: 'fill', fill: '#efc3bd', label: tr('Kelish joyi: devordan 5–8 m (675-band)') }); }
+    if (line.length) { L.push(`<g id="Kelish_tomoni" inkscape:groupmode="layer" inkscape:label="Kelish tomoni"><g clip-path="url(#vp)">${line.join('')}</g></g>`); legend.push({ type: 'line', stroke: '#c0392b', label: tr('Yetib kelish tomoni (666-band)') }); }
+    if (FA.side.size) legend.push({ type: 'fill', fill: '#dfe9d6', stroke: INK, label: `${tr('H < 28 m — bitta uzun tomondan yetib keladi')} (${FA.side.size})` });
+    if (FA.bad.length) legend.push({ type: 'fill', fill: '#f3c9c4', stroke: INK, label: `${tr('H < 28 m — uzun tomon 8 m ichida yetmaydi')} (${FA.bad.length})` });
+    const hi = nb.filter(x => useDef(x.b.use).res > 0 && bLevels(doc.settings, x.b).top >= 28).length;
+    if (hi) legend.push({ type: 'fill', fill: '#f1d9a8', stroke: INK, label: `${tr('H ≥ 28 m — ikkala uzun tomondan (666-band; hovli yoʻlagi)')} (${hi})` });
+    if (!FA.ids.length && !hi) legend.push({ type: 'text', label: tr('Balandligi 28 m dan past koʻp kvartirali turar joy binolari yoʻq.') });
+    if (FA.bad.length) legend.push({ type: 'text', label: tr('Uchastka chegarasidagi mavjud koʻchalar hisobga olinmagan.') });
   }
 
   // 4d. transport sxemasi (02.11): koʻcha oʻqlari toifa rangida, velo yoʻlaklar, avtoturargohlar; bekatlar 400 m radiusi (382-band)
