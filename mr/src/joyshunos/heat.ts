@@ -91,6 +91,18 @@ export const LST_DEV_BINS: [number, string, string][] = [[-99, '#2c6fb0', '< −
 export function devColor(d: number): string { let c = LST_DEV_BINS[0][1]; for (const [v, col] of LST_DEV_BINS) if (d >= v) c = col; return c; }
 export function lstMean(g: LstGrid): number { let s = 0, n = 0; const c = (g.n - 1) / 2; for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { const v = g.v[j * g.n + i]; if (Number.isNaN(v) || Math.hypot(i - c, j - c) * g.step > g.R) continue; s += v; n++; } return n ? s / n : NaN; }
 
+/** Toʻrdan silliq qiymat (bilinear): x — sharqqa, y — shimolga (metr, markazdan); NaN kataklar ogʻirlikdan chiqariladi.
+ * 12.11 (egasi): issiqlik 100 m piksel boʻlib «kvadrat» koʻrinmasin — doira ichida silliq sirt. */
+export function bilinear(v: Float32Array, n: number, step: number, x: number, y: number): number {
+  const c = (n - 1) / 2, fx = x / step + c, fy = y / step + c, i = Math.floor(fx), j = Math.floor(fy), tx = fx - i, ty = fy - j;
+  let s = 0, w = 0;
+  for (const [di, dj, wt] of [[0, 0, (1 - tx) * (1 - ty)], [1, 0, tx * (1 - ty)], [0, 1, (1 - tx) * ty], [1, 1, tx * ty]] as const) {
+    const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= n || jj >= n || wt <= 0) continue;
+    const q = v[jj * n + ii]; if (Number.isNaN(q)) continue; s += q * wt; w += wt;
+  }
+  return w > 1e-6 ? s / w : NaN;
+}
+
 /* ---------- Landsat 8/9 (oldindan hisoblangan, lst-data branchi) ----------
  * Quvur: landsat_yoz_harorat.py (USGS Landsat C2 L2 ST_B10, Microsoft Planetary Computer) — iyun–avgust medianasi, haqiqiy piksel 100 m.
  * Fayl: uint16 LE = (°C + 50) · 100, 0 — maʼlumot yoʻq; 0-qator shimol; qadam `qadam` gradus. Qamrovdan tashqarida MODIS ishlatiladi. */

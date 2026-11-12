@@ -50,3 +50,28 @@ export function windFlow(blds: XY[][], fromDeg: number, R: number, density = 0.5
   return out;
 }
 function inPoly(x: number, y: number, P: XY[]): boolean { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [a, b] = P[i], [e, f] = P[j]; if ((b > y) !== (f > y) && x < (e - a) * (y - b) / (f - b) + a) c = !c; } return c; }
+
+/** Siniq chiziqni doira (markaz 0,0, radius r) bilan kesish: faqat ichki boʻlaklar, chegarada aniq nuqta bilan (12.11 — doiradan hech narsa chiqmasin) */
+export function clipLine(pts: XY[], r: number): XY[][] {
+  const out: XY[][] = []; let cur: XY[] = [];
+  const inside = (p: XY) => Math.hypot(p[0], p[1]) <= r;
+  const cross = (a: XY, b: XY): XY => {   // a→b kesmasining doira bilan kesishishi (bitta nuqta ichkarida)
+    const dx = b[0] - a[0], dy = b[1] - a[1], A = dx * dx + dy * dy, B = 2 * (a[0] * dx + a[1] * dy), C = a[0] * a[0] + a[1] * a[1] - r * r;
+    const D = Math.sqrt(Math.max(0, B * B - 4 * A * C)), t1 = (-B - D) / (2 * A), t2 = (-B + D) / (2 * A), t = t1 >= 0 && t1 <= 1 ? t1 : t2;
+    return [a[0] + dx * t, a[1] + dy * t];
+  };
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], pin = inside(p);
+    if (i > 0) {
+      const q = pts[i - 1], qin = inside(q);
+      if (pin !== qin) { const x = cross(q, p); if (qin) { cur.push(x); if (cur.length > 1) out.push(cur); cur = []; } else cur = [x]; }
+      else if (!pin && !qin) {   // ikkala uchi tashqarida, lekin kesma doirani kesib oʻtishi mumkin
+        const dx = p[0] - q[0], dy = p[1] - q[1], A = dx * dx + dy * dy, B = 2 * (q[0] * dx + q[1] * dy), C = q[0] * q[0] + q[1] * q[1] - r * r, Dd = B * B - 4 * A * C;
+        if (A > 0 && Dd > 0) { const t1 = (-B - Math.sqrt(Dd)) / (2 * A), t2 = (-B + Math.sqrt(Dd)) / (2 * A); if (t1 > 0 && t2 < 1) out.push([[q[0] + dx * t1, q[1] + dy * t1], [q[0] + dx * t2, q[1] + dy * t2]]); }
+      }
+    }
+    if (pin) cur.push(p);
+  }
+  if (cur.length > 1) out.push(cur);
+  return out;
+}

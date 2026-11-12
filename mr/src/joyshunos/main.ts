@@ -29,7 +29,7 @@ import { distAt, type Net } from '../core/services';
 import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
 import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
-import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, type LstGrid, type Px } from './heat';
+import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, bilinear, type LstGrid, type Px } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
 import { daySteps, insolation, sunPosition, localToUtcAt, type Prism } from '../core/sun';
 import { placeOf, placeLabel, utcLabel, tzOffsetH } from '../core/place';
@@ -44,7 +44,7 @@ import { coinLabel, onPrices } from '../account/pay';   // + yuklash darvozasi
 import { layerIcon, GROUP_COL } from './layerIcons';
 import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
-import { windFlow } from './windflow';
+import { windFlow, clipLine } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
@@ -943,7 +943,7 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-narx-l', type: 'line', source: 'joy-narx', layout: { visibility: 'none' }, paint: { 'line-color': ['case', ['==', ['get', 'm'], null], '#b9b5ad', '#ffffff'], 'line-width': 0.7, 'line-opacity': 0.8 } } as never, before);
   for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow', 'joy-cov']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   for (const id of ['joy-heat', 'joy-sun', 'joy-shadow']) m.addSource(id, { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
-  m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
+  m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
   m.addLayer({ id: 'joy-sun', type: 'raster', source: 'joy-sun', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } } as never, before);
   m.addLayer({ id: 'joy-shadow', type: 'raster', source: 'joy-shadow', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.4, 'raster-fade-duration': 0 } } as never, before);
   heatKey = sunKey = shadowKey = '';
@@ -1047,13 +1047,13 @@ function paintH(): void {
   (m.getSource('joy-walk') as GeoJSONSource).setData(fc(wf.reverse()) as never);
   (m.getSource('joy-flow') as GeoJSONSource).setData(fc(ff.sort((x, y) => ((x as { properties: { f: number } }).properties.f - (y as { properties: { f: number } }).properties.f))) as never);
   if (nm && isOn('shovqin') && nm.noise) {
-    const vn = V('shovqin'), k = `${nm.key}|n|${vn.p}|${vn.st}`; if (k !== noiseKey) { noiseKey = k; const im = gridImage(nm.noise.v, nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) || (vn.st === '65' && v < 65) ? null : noiseCol(v), 190); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
+    const vn = V('shovqin'), k = `${nm.key}|n|${vn.p}|${vn.st}`; if (k !== noiseKey) { noiseKey = k; const im = gridImage(nm.noise.v, nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) || (vn.st === '65' && v < 65) ? null : noiseCol(v), 190, nm.noise.R); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
     m.setLayoutProperty('joy-noise', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-noise', 'visibility', 'none');
   // issiqlik oroli — yozgi LST (6 km doira)
   const upd = (id: string, im: { url: string; coords: [number, number][] }) => (m.getSource(id) as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords });
   const lg0 = D.lst.v;
-  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', (vh.st === 'geks' ? hexImage : gridImage)(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
+  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${S.r}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); const hc = (v: number) => Number.isNaN(v) ? null : heatCol(v - mu); upd('joy-heat', vh.st === 'geks' ? hexImage(lg0.v, lg0.n, lg0.step, S.r, hc, 210, S.r) : smoothImage(lg0.v, lg0.n, lg0.step, S.r, hc, 210)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
   // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
   const sm = SM;
@@ -1128,7 +1128,7 @@ function paintIso(m: MLMap): void {
   if (heatIso && lg0) {
     const mu = lstMean(lg0); let lo = Infinity, hi = -Infinity; for (const v of lg0.v) if (!Number.isNaN(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
     const lv: number[] = []; for (let v = Math.ceil((lo - mu) * 2) / 2; v <= hi - mu; v += 0.5) lv.push(mu + v);
-    for (const L of isolines(lg0.v, lg0.n, lg0.step, lv, lg0.R)) for (const line of joinSegs(L.segs)) iso.push({ type: 'Feature', properties: { c: heatCol(L.lv - mu), mj: Math.abs((L.lv - mu) % 1) < 0.01 }, geometry: { type: 'LineString', coordinates: line.map(geo(S.c)) } });
+    for (const L of isolines(lg0.v, lg0.n, lg0.step, lv, S.r)) for (const line of joinSegs(L.segs)) iso.push({ type: 'Feature', properties: { c: heatCol(L.lv - mu), mj: Math.abs((L.lv - mu) % 1) < 0.01 }, geometry: { type: 'LineString', coordinates: line.map(geo(S.c)) } });
   }
   if (noiseIso && nz) for (const L of isolines(nz.v, nz.n, nz.step, [50, 55, 60, 65, 70, 75])) for (const line of joinSegs(L.segs)) iso.push({ type: 'Feature', properties: { c: noiseCol(L.lv + 0.1), mj: L.lv === 65 }, geometry: { type: 'LineString', coordinates: line.map(geo(S.c)) } });
   (m.getSource('joy-topo') as GeoJSONSource).setData(fc(topo) as never);
@@ -1150,8 +1150,8 @@ function paintWind(m: MLMap): void {
   const pal = VIEW.shamol.pals![vw.p][1], lines = windFlow(blds, w.w.k * 22.5, R, 0.25 + 0.6 * vw.k), feats: unknown[] = [];
   for (const L of lines) for (let i = 0; i < L.pts.length - 1; i += 5) {
     const seg = L.pts.slice(i, i + 6), vv = L.v.slice(i, i + 6).reduce((a, b) => a + b, 0) / Math.min(6, L.v.length - i);
-    if (seg.length < 2 || Math.hypot(seg[0][0], seg[0][1]) > S.r * 1.05) continue;
-    feats.push({ type: 'Feature', properties: { c: rampColor(pal, 0.25 + 0.75 * vv), w: 0.8 + 2.6 * vv * (0.5 + vw.k), h: i % 40 === 0 }, geometry: { type: 'LineString', coordinates: seg.map(p => fr.toGeo(p)) } });
+    if (seg.length < 2) continue;
+    for (const part of clipLine(seg, S.r)) feats.push({ type: 'Feature', properties: { c: rampColor(pal, 0.25 + 0.75 * vv), w: 0.8 + 2.6 * vv * (0.5 + vw.k), h: i % 40 === 0 && part.length === seg.length }, geometry: { type: 'LineString', coordinates: part.map(p => fr.toGeo(p)) } });
   }
   (m.getSource('joy-wind') as GeoJSONSource).setData(fc(feats) as never);
 }
@@ -1315,8 +1315,8 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
         lines: cs.map(c => ({ pts: [], multi: c.segs.map(sg => [sg[0], sg[1]]), w: Math.round(c.lv / st) % 5 === 0 ? 0.45 : 0.2, col: '#7a5a3c', op: 0.85 })) };
     }
     case 'nishab': { const t = D.ter.v; return t ? { quiet: true, rasters: [ras(slopeImage(t.g, S.r + 100), 0.85)] } : {}; }
-    case 'issiqlik': { const g = D.lst.v; if (!g) return {}; const mu = lstMean(g); return { quiet: true, rasters: [ras(gridImage(g.v, g.n, g.step, g.R, v => Number.isNaN(v) ? null : devColor(v - mu), 255, g.R), 0.72, half * 1.5)] }; }
-    case 'shovqin': { const g = nm?.noise; return g ? { quiet: true, rasters: [ras(gridImage(g.v, g.n, g.step, g.R, v => Number.isNaN(v) ? null : noiseColor(v), 230), 0.8)] } : {}; }
+    case 'issiqlik': { const g = D.lst.v; if (!g) return {}; const mu = lstMean(g); return { quiet: true, rasters: [ras(smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : devColor(v - mu), 255), 0.72, half * 1.5)] }; }
+    case 'shovqin': { const g = nm?.noise; return g ? { quiet: true, rasters: [ras(gridImage(g.v, g.n, g.step, g.R, v => Number.isNaN(v) ? null : noiseColor(v), 230, g.R), 0.8)] } : {}; }
     case 'quyosh': {
       const sm = SM; if (!sm?.hours) return {};
       const v = new Float32Array(sm.n * sm.n).fill(NaN); sm.idx.forEach((o, i) => { v[o] = sm.hours![i]; });
@@ -1443,13 +1443,28 @@ function gridImage(vals: Float32Array, n: number, step: number, R: number, col: 
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132, H = R + step / 2;
   return { url: cv.toDataURL(), coords: [[S.c[0] - H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] - H / ky], [S.c[0] - H / kx, S.c[1] - H / ky]] };
 }
+/** Silliq sirt (12.11): toʻr bilinear oʻqiladi, rasm faqat tahlil doirasi (clip) ichida — tashqarida hech narsa chizilmaydi; cheti 1 px yumshoq */
+function smoothImage(vals: Float32Array, n: number, step: number, clip: number, col: (v: number) => string | null, alpha = 200, px = 384): { url: string; coords: [number, number][] } {
+  const cv = document.createElement('canvas'); cv.width = cv.height = px;
+  const cx = cv.getContext('2d')!, img = cx.createImageData(px, px), k = 2 * clip / px;
+  for (let r = 0; r < px; r++) for (let q = 0; q < px; q++) {
+    const x = -clip + (q + 0.5) * k, y = clip - (r + 0.5) * k, d = Math.hypot(x, y); if (d > clip) continue;
+    const c = col(bilinear(vals, n, step, x, y)); if (!c) continue; const o = (r * px + q) * 4, edge = Math.min(1, (clip - d) / k);
+    img.data[o] = parseInt(c.slice(1, 3), 16); img.data[o + 1] = parseInt(c.slice(3, 5), 16); img.data[o + 2] = parseInt(c.slice(5, 7), 16); img.data[o + 3] = Math.round(alpha * edge);
+  }
+  cx.putImageData(img, 0, 0);
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132, H = clip;
+  return { url: cv.toDataURL(), coords: [[S.c[0] - H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] - H / ky], [S.c[0] - H / kx, S.c[1] - H / ky]] };
+}
 /** Geksagonlar: toʻr qiymatlari olti burchakli kataklarga (eni ≈ 4 toʻr qadami); rasm 512 px */
 function hexImage(vals: Float32Array, n: number, step: number, R: number, col: (v: number) => string | null, alpha = 200, clip?: number): { url: string; coords: [number, number][] } {
   const P = 512, H = R + step / 2, k = P / (2 * H), cv = document.createElement('canvas'); cv.width = cv.height = P;
-  const cx = cv.getContext('2d')!, c0 = (n - 1) / 2, hr = Math.max(step * 2.2, R / 18);
+  const cx = cv.getContext('2d')!, c0 = (n - 1) / 2, hr = Math.max(step * 1.3, R / 16);
   cx.globalAlpha = alpha / 255;
-  for (let row = 0, y = -R; y <= R; y += hr * 1.5, row++) for (let x = -R + (row % 2) * hr * 0.866; x <= R; x += hr * 1.732) {
-    if (clip != null && Math.hypot(x, y) > clip) continue;
+  // 12.11 (egasi): hech narsa tahlil doirasidan tashqariga chiqmasin — chetdagi olti burchaklar doira boʻyicha kesiladi
+  if (clip != null) { cx.beginPath(); cx.arc(H * k, H * k, clip * k, 0, Math.PI * 2); cx.clip(); }
+  for (let row = 0, y = -R - hr; y <= R + hr; y += hr * 1.5, row++) for (let x = -R - hr + (row % 2) * hr * 0.866; x <= R + hr; x += hr * 1.732) {
+    if (clip != null && Math.hypot(x, y) > clip + hr) continue;
     const i = Math.round(x / step + c0), j = Math.round(y / step + c0); if (i < 0 || j < 0 || i >= n || j >= n) continue;
     const c = col(vals[j * n + i]); if (!c) continue;
     cx.fillStyle = c; cx.beginPath();
