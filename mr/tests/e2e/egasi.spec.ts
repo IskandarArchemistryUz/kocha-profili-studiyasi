@@ -16,8 +16,18 @@ const STATS = {
     grants: [{ coins: 100, note: 'Sinov kirishi', at: '2026-10-28T09:00:00Z', who: 'mu••••@mail.uz' }] },
   projects: { n: 4, spent: 31, gen: 6 },
 };
-async function mockApi(page: Page, owner: boolean) {
-  const hits = { stats: 0, grants: [] as { email: string; coins: number; note: string; key: string }[] };
+// 12.11.2026: uid, davlat, davlatlar jadvali — pochta ochish va kartochka sinovi uchun
+const STATS2 = { ...STATS,
+  countries: { users: [{ country: 'UZ', c: 30 }, { country: 'KZ', c: 2 }], active30: [{ country: 'UZ', c: 20 }], unknown: 10 },
+  people: [{ uid: 7, country: 'UZ', at: '2026-10-28T11:00:00Z', who: 'fr••••••@gmail.com', method: 'email', balance: 1000, seen: null },
+    { uid: 8, country: null, at: '2026-10-27T08:00:00Z', who: 'da••••@gmail.com', method: 'google', balance: 0, seen: '2026-10-28T06:30:00Z' }] };
+const CARD = { id: 7, email: 'francois@gmail.com', phone: null, name: 'François', lang: 'en', country: 'UZ', method: 'email', at: '2026-10-28T11:00:00Z',
+  coins: { balance: 1000, bought: 0, granted: 1000, spent: 0 },
+  sessions: [{ at: '2026-10-28T11:00:00Z', country: 'UZ', city: 'Tashkent' }], countries: [{ country: 'UZ', c: 1 }],
+  spendByItem: [{ item: 'akso', reason: 'export', c: 2, coins: 10 }], ledger: [{ delta: 1000, reason: 'promo', item: 'grant:k', note: 'Sinov kirishi', at: '2026-10-28T11:00:00Z' }],
+  orders: [], projects: [{ project: 'p-1', spent: 7, gen: 1, at: '2026-10-28T11:00:00Z' }], exports: [] };
+async function mockApi(page: Page, owner: boolean, stats: unknown = STATS) {
+  const hits = { stats: 0, reveal: [] as number[][], card: 0, grants: [] as { email: string; coins: number; note: string; key: string }[] };
   await page.route(`${API}/**`, async r => {
     const u = new URL(r.request().url());
     const cors = { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' };
@@ -25,7 +35,10 @@ async function mockApi(page: Page, owner: boolean) {
     if (u.pathname === '/me') return json(200, { id: 1, email: 'boss@mail.uz', phone: null, name: null, balance: 30, trialsLeft: 3, owner });
     if (u.pathname === '/auth/config') return json(200, { email: true, phone: false, google: null });
     if (u.pathname === '/pay/config') return json(200, { payme: true, click: true, multicard: true, packs: [] });
-    if (u.pathname === '/owner/stats') { hits.stats++; return owner ? json(200, STATS) : json(403, { error: 'forbidden' }); }
+    if (u.pathname === '/owner/stats') { hits.stats++; return owner ? json(200, stats) : json(403, { error: 'forbidden' }); }
+    if (u.pathname === '/owner/reveal') { const b = r.request().postDataJSON(); hits.reveal.push(b.ids);
+      return json(200, { contacts: { 7: { email: 'francois@gmail.com', phone: null, name: null }, 8: { email: 'davron@gmail.com', phone: null, name: null } } }); }
+    if (u.pathname === '/owner/user/7') { hits.card++; return json(200, CARD); }
     if (u.pathname === '/owner/grant') { const b = r.request().postDataJSON(); hits.grants.push(b); return owner ? json(200, { applied: true, balance: b.coins, isNew: true, who: 'fr••••••@mail.com', coins: b.coins }) : json(403, { error: 'forbidden' }); }
     return json(404, {});
   });
@@ -101,4 +114,35 @@ test('egasi: sinov kirishi — ikki bosqichda tanga beriladi, roʻyxat yangilana
   await expect.poll(() => hits.stats).toBe(2);
   const w = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(w).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
+test('egasi: pochtalar sukut boʻyicha yashirin, «Koʻrsatish» — toʻliq; davlat ustuni; qator bosilsa — kartochka', async ({ page }) => {
+  const hits = await mockApi(page, true, STATS2);
+  await page.goto('./#/egasi');
+  const first = page.locator('#ownPeople tbody tr').first();
+  await expect(first).toContainText('fr••••••@gmail.com');
+  await expect(first).toContainText('🇺🇿');
+  await expect(page.locator('#ownCountries')).toContainText('🇰🇿');
+  await expect(page.locator('#ownCountries')).toContainText('10');
+  expect(hits.reveal.length).toBe(0);
+  await page.click('#ownReveal');
+  await expect(first).toContainText('francois@gmail.com');
+  await expect(page.locator('#ownPeople tbody tr').nth(1)).toContainText('davron@gmail.com');
+  expect(hits.reveal[0].sort()).toEqual([7, 8]);
+  await expect(page.locator('#ownReveal')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('#ownRefresh');                                   // yangilanganda ham ochiq qoladi
+  await expect.poll(() => hits.stats).toBe(2);
+  await expect(page.locator('#ownPeople tbody tr').first()).toContainText('francois@gmail.com');
+  await page.click('#ownReveal');
+  await expect(page.locator('#ownPeople tbody tr').first()).toContainText('fr••••••@gmail.com');
+  await page.locator('#ownPeople tbody tr').first().click();
+  await expect(page.locator('#ownCard')).toBeVisible();
+  await expect(page.locator('#ownCardT')).toHaveText('francois@gmail.com');
+  await expect(page.locator('#ownCard')).toContainText('Tashkent');
+  await expect(page.locator('#ownCard')).toContainText('akso');
+  await expect(page.locator('#ownCard')).toContainText('p-1');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/egasi_kartochka.png` });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#ownCard')).toHaveCount(0);
+  expect(hits.card).toBe(1);
 });

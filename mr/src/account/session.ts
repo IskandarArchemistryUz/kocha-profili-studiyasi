@@ -58,15 +58,32 @@ export interface OwnerStats {
   at: string;
   users: { total: number; d1: number; d7: number; d30: number; google: number; email: number; phone: number; active7: number; active30: number };
   signups: { day: string; c: number }[];
-  people?: { at: string | null; who: string | null; method: 'google' | 'email' | 'phone'; balance: number; seen: string | null }[];
+  countries?: { users: { country: string; c: number }[]; active30: { country: string; c: number }[]; unknown: number };
+  people?: { uid?: number; country?: string | null; at: string | null; who: string | null; method: 'google' | 'email' | 'phone'; balance: number; seen: string | null }[];
   payments: { paid: number; revenue: number; revenue30: number; buyers: number; open: number; cancelled: number;
     byPack: { pack: string; c: number; s: number }[]; byPs: { ps: string; c: number; s: number }[];
-    recent: { id: number; pack: string; coins: number; amount: number; ps: string; state: string; at: string; who: string | null }[] };
+    recent: { id: number; uid?: number; pack: string; coins: number; amount: number; ps: string; state: string; at: string; who: string | null }[] };
   coins: { bought: number; granted: number; spent: number; spend30: { reason: string; item: string; c: number; coins: number }[]; exports30: { bundle: string; c: number }[];
-    grants?: { coins: number; note: string; at: string; who: string | null }[] };
+    grants?: { uid?: number; coins: number; note: string; at: string; who: string | null }[] };
   projects: { n: number; spent: number; gen: number };
 }
 export const ownerStats = (): Promise<OwnerStats> => call<OwnerStats>('/owner/stats');
+/** «Koʻrsatish»: shu id lar uchun toʻliq pochta/telefon (roʻyxat sukut boʻyicha yashirin) */
+export interface OwnerContact { email: string | null; phone: string | null; name: string | null }
+export const ownerReveal = (ids: number[]): Promise<{ contacts: Record<string, OwnerContact> }> => call('/owner/reveal', { ids });
+/** Foydalanuvchi kartochkasi */
+export interface OwnerUser {
+  id: number; email: string | null; phone: string | null; name: string | null; lang: string; country: string | null; method: 'google' | 'email' | 'phone'; at: string | null;
+  coins: { balance: number; bought: number; granted: number; spent: number };
+  sessions: { at: string | null; country: string | null; city: string | null }[];
+  countries: { country: string; c: number }[];
+  spendByItem: { item: string; reason: string; c: number; coins: number }[];
+  ledger: { delta: number; reason: string; item: string; note: string; at: string | null }[];
+  orders: { id: number; pack: string; coins: number; amount: number; state: string; ps: string; at: string | null }[];
+  projects: { project: string; spent: number; gen: number; at: string | null }[];
+  exports: { bundle: string; c: number }[];
+}
+export const ownerUser = (id: number): Promise<OwnerUser> => call<OwnerUser>(`/owner/user/${id}`);
 /** Sinov kirishi: pochta boʻyicha tanga berish (sotuv emas). key — bir martalik kalit: ikki marta bosilsa ham bir marta yoziladi */
 export interface GrantRes { applied: boolean; balance: number; isNew: boolean; who: string | null; coins: number }
 export const ownerGrant = (email: string, coins: number, note: string, key: string): Promise<GrantRes> => call<GrantRes>('/owner/grant', { email, coins, note, key });
