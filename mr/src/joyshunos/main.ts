@@ -29,7 +29,7 @@ import { distAt, type Net } from '../core/services';
 import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
 import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
-import { loadLst, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, type LstGrid, type Px } from './heat';
+import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, type LstGrid, type Px } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
 import { daySteps, insolation, sunPosition, localToUtcAt, type Prism } from '../core/sun';
 import { placeOf, placeLabel, utcLabel, tzOffsetH } from '../core/place';
@@ -59,7 +59,7 @@ const LAYERS: LayerDef[] = [
   { id: 'relyef', g: 'yer', name: 'Relyef', src: 'AWS Terrain', color: '#8b7a6a', ready: true },
   { id: 'nishab', g: 'yer', name: 'Nishab', src: 'relyefdan', color: '#eaa56b', ready: true },
   { id: 'yuza', g: 'yer', name: 'Yuza tasnifi', src: 'yoʻldosh', color: '#b9cfa6', ready: false },
-  { id: 'issiqlik', g: 'yer', name: 'Issiqlik oroli', src: 'MODIS', color: '#d9503f', ready: true, beta: true },
+  { id: 'issiqlik', g: 'yer', name: 'Issiqlik oroli', src: 'yoʻldosh', color: '#d9503f', ready: true, beta: true },
   { id: 'quyosh', g: 'iqlim', name: 'Quyosh va soya', src: 'OSM', color: '#e8a317', ready: true },
   { id: 'shamol', g: 'iqlim', name: 'Shamol', src: 'EPW · ERA5', color: '#3f8f6b', ready: true },
   { id: 'shovqin', g: 'iqlim', name: 'Shovqin', src: 'model', color: '#c2416b', ready: true, beta: true },
@@ -512,10 +512,13 @@ function renderRightH(): void {
   }
   if (isOn('issiqlik')) {
     const g = D.lst.v, st = g ? lstStats(g, S.r) : null, sg = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 1)}`;
-    cards.push(card(L('issiqlik'), 'NASA GIBS', st && !Number.isNaN(st.inside) ? `≈ ${fmt(st.inside, 1)} °C` : '—',
-      g && st ? [tf('Yer yuzasi harorati (LST), ${y} yil iyul–avgust, kunduzi ≈ 10:30 — ${k} ta 8 kunlik kompozit oʻrtachasi.', { y: g.year, k: g.used }), h('br'),
+    const ls = g?.src === 'landsat';
+    cards.push(card(L('issiqlik'), ls ? 'USGS Landsat' : 'NASA GIBS', st && !Number.isNaN(st.inside) ? `≈ ${fmt(st.inside, 1)} °C` : '—',
+      g && st ? [ls ? tf('Yer yuzasi harorati (LST), ${y} yil iyun–avgust medianasi, kunduzi ≈ 10:40 — ${k} ta bulutsiz kun (Landsat 8/9).', { y: g.year, k: g.used })
+        : tf('Yer yuzasi harorati (LST), ${y} yil iyul–avgust, kunduzi ≈ 10:30 — ${k} ta 8 kunlik kompozit oʻrtachasi.', { y: g.year, k: g.used }), h('br'),
         Number.isNaN(st.delta) ? '' : tf('Atrofdagi 6 km oʻrtachasidan farq: ${d} °C', { d: sg(st.delta) }), h('br'),
-        h('span', { class: 'src' }, tr('NASA GIBS · MODIS Terra MOD11A2 (1 km). Havo harorati emas — sirt harorati; 1 km piksel — mahalla darajasi, alohida bino emas.'))] : [],
+        h('span', { class: 'src' }, ls ? tr('USGS Landsat 8/9 Collection 2, ST_B10 (piksel 100 m). Havo harorati emas — sirt harorati; 100 m piksel — mahalla va kvartal darajasi, alohida bino emas.')
+          : tr('NASA GIBS · MODIS Terra MOD11A2 (1 km). Havo harorati emas — sirt harorati; 1 km piksel — mahalla darajasi, alohida bino emas.'))] : [],
       null, D.lst));
   }
   if (isOn('quyosh')) {
@@ -621,8 +624,11 @@ async function getTile(date: string, z: number, x: number, y: number): Promise<P
   return { w: bm.width, h: bm.height, data: g.getImageData(0, 0, bm.width, bm.height).data };
 }
 async function lstJob(c: LngLat): Promise<LstGrid> {
+  // Landsat (100 m, oldindan hisoblangan) — qamrov boʻlsa; aks holda MODIS (1 km)
+  const gl = await loadLstLandsat(c, 6000, 100, fetch.bind(globalThis)).catch(() => null);
+  if (gl) return gl;
   cmap ??= fetch(LST_CMAP).then(r => { if (!r.ok) throw new Error(`GIBS ${r.status}`); return r.text(); }).then(parseCmap).catch(e => { cmap = null; throw e; });
-  const g = await loadLst(c, 6000, 250, await cmap, getTile);
+  const g: LstGrid = { ...(await loadLst(c, 6000, 250, await cmap, getTile)), src: 'modis', px: 1000 };
   if (!g.used) throw new Error(tr('sunʼiy yoʻldosh maʼlumoti yoʻq'));
   return g;
 }
@@ -930,7 +936,7 @@ function paintH(): void {
   // issiqlik oroli — yozgi LST (6 km doira)
   const upd = (id: string, im: { url: string; coords: [number, number][] }) => (m.getSource(id) as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords });
   const lg0 = D.lst.v;
-  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${lg0.year}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', (vh.st === 'geks' ? hexImage : gridImage)(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
+  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); upd('joy-heat', (vh.st === 'geks' ? hexImage : gridImage)(lg0.v, lg0.n, lg0.step, lg0.R, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, lg0.R)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
   // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
   const sm = SM;
@@ -979,7 +985,7 @@ function paintIso(m: MLMap): void {
   const topoOn = isOn('relyef') && !!t && V('relyef').st === 'topo', arrOn = isOn('nishab') && !!t && V('nishab').st === 'strelka';
   const vi = V('issiqlik'), vn = V('shovqin');
   const heatIso = isOn('issiqlik') && !!lg0 && vi.st === 'izoterma', noiseIso = isOn('shovqin') && !!nz && vn.st === 'kontur';
-  const key = [S.c.join(), S.r, topoOn, arrOn, heatIso && `${lg0!.year}|${vi.p}|${vi.k.toFixed(2)}`, noiseIso && `${NM!.key}|${vn.p}`, isDark()].join('|');
+  const key = [S.c.join(), S.r, topoOn, arrOn, heatIso && `${lg0!.year}|${lg0!.src}|${vi.p}|${vi.k.toFixed(2)}`, noiseIso && `${NM!.key}|${vn.p}`, isDark()].join('|');
   vis('joy-topo', topoOn); vis('joy-topo-l', topoOn); vis('joy-arr', arrOn); vis('joy-iso', heatIso || noiseIso);
   if (key === isoKey) return; isoKey = key;
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
@@ -1285,7 +1291,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
       map: shot ? { url: shot.url, mPerMm: shot.side / mapS, rose: w ? roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null, ringLabel: tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) }) } : null,
       legends: collectLegends(), cards: collectCards(),
       stamp: { org: 'Archemistry Lab', service: tr('Joyshunos'), placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'),
-        sources: `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0102-25')} · ${w?.src === 'era5' || w?.src === 'power' ? `${srcShort(w.src)}: ${srcAttr(w.src)}` : `EPW TMYx: ${srcAttr('epw')}`}`,
+        sources: `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0102-25')}${D.lst.v?.src === 'landsat' ? ' · USGS Landsat 8/9' : ''} · ${w?.src === 'era5' || w?.src === 'power' ? `${srcShort(w.src)}: ${srcAttr(w.src)}` : `EPW TMYx: ${srcAttr('epw')}`}`,
         note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
       labels: { north: tr('Sh'), more: tr('Davomi keyingi varaqda →'), noMap: tr('Xarita surati olinmadi') },
     };
