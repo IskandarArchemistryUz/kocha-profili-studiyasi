@@ -1294,6 +1294,33 @@ function segXY(sg,o){
 }
 const effRad=(sg,i)=>Math.max(sg.rad&&sg.rad[i]!=null?sg.rad[i]:0,layOf(sg).outer+1);
 function lineInt(p,u,q,v){const den=u[0]*v[1]-u[1]*v[0];if(Math.abs(den)<1e-6)return null;const dx=q[0]-p[0],dy=q[1]-p[1];const t1=(dx*v[1]-dy*v[0])/den,t2=(dx*u[1]-dy*u[0])/den;return {p:[p[0]+t1*u[0],p[1]+t1*u[1]],t1,t2};}
+/* boʻlak ulagichi: toʻgʻri kesma + aylana yoyi + toʻgʻri kesma (kirish va chiqish boʻlagiga urinma); deyarli parallel boʻlsa — kubik egri */
+function connPath(A,ha,B,hb){const X=lineInt(A,ha,B,[-hb[0],-hb[1]]);
+  if(X&&X.t1>.3&&X.t2>.3){const u1=[-ha[0],-ha[1]],u2=hb,phi=Math.acos(Math.max(-1,Math.min(1,u1[0]*u2[0]+u1[1]*u2[1])));
+    if(phi>Math.PI-.03)return [A,B];
+    const td=Math.min(X.t1,X.t2),r=td*Math.tan(phi/2),T1=[X.p[0]+u1[0]*td,X.p[1]+u1[1]*td],T2=[X.p[0]+u2[0]*td,X.p[1]+u2[1]*td];
+    let bx=u1[0]+u2[0],by=u1[1]+u2[1];const bl=Math.hypot(bx,by)||1,dc=r/Math.sin(phi/2),C=[X.p[0]+bx/bl*dc,X.p[1]+by/bl*dc];
+    const a1=Math.atan2(T1[1]-C[1],T1[0]-C[0]);let da=Math.atan2(T2[1]-C[1],T2[0]-C[0])-a1;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+    const pts=[A,T1],nn=Math.max(6,Math.ceil(Math.abs(da)/.08));for(let k=1;k<nn;k++){const t=a1+da*k/nn;pts.push([C[0]+r*Math.cos(t),C[1]+r*Math.sin(t)]);}pts.push(T2,B);return pts;}
+  const D=Math.hypot(B[0]-A[0],B[1]-A[1])*.42,c1=[A[0]+ha[0]*D,A[1]+ha[1]*D],c2=[B[0]-hb[0]*D,B[1]-hb[1]*D],pts=[];
+  for(let k=0;k<=24;k++){const t=k/24,m=1-t;pts.push([m*m*m*A[0]+3*m*m*t*c1[0]+3*m*t*t*c2[0]+t*t*t*B[0],m*m*m*A[1]+3*m*m*t*c1[1]+3*m*t*t*c2[1]+t*t*t*B[1]]);}return pts;}
+/* chorrahadagi boʻlak ulanishlari (1.18 strelkasi boʻyicha). YHQ: chapga — chetki chapdan chap chetga, oʻngga — chetki oʻngdan oʻng chetga; toʻgʻri boʻlaklar tartibi saqlanadi.
+   E — qoʻllar: {a, hin (kirish yoʻnalishi), out (chiqish yoʻnalishi), lanes (kiruvchi, chapdan oʻngga: {x,code,P}), exits (chiquvchi, chapdan oʻngga: {x,P})} */
+function laneConnections(E){const res=[],th=(h,v)=>Math.atan2(h[0]*v[1]-h[1]*v[0],h[0]*v[0]+h[1]*v[1]);
+  E.forEach(e=>{if(!e.lanes.length)return;const tg={};
+    E.forEach(f=>{if(f===e||!f.exits.length)return;const t=th(e.hin,f.out),c=Math.abs(t)<=.61?'S':t>0?'L':'R';
+      const sc=c==='S'?-Math.abs(t):c==='L'?-Math.abs(t-Math.PI/2):-Math.abs(t+Math.PI/2);if(!tg[c]||sc>tg[c].sc)tg[c]={f,sc};});
+    ['L','S','R'].forEach(m=>{const T2=tg[m];if(!T2)return;const src=e.lanes.filter(l=>l.code.includes(m));if(!src.length)return;
+      const dst=T2.f.exits,isB=x=>x.x.k==='bus';
+      const map2=(S2,D2)=>{if(!S2.length||!D2.length)return;const ns=S2.length,nd=D2.length;
+        const add=(s,d)=>res.push({from:e,to:T2.f,m,s,d});
+        if(m==='L'){S2.forEach((s,i)=>add(s,D2[Math.min(i,nd-1)]));return;}
+        if(m==='R'){S2.forEach((s,i)=>add(s,D2[Math.max(0,nd-ns+i)]));return;}
+        let best=null;for(let sh=Math.min(0,nd-ns);sh<=Math.max(0,nd-ns);sh++){let c=0;S2.forEach((s,i)=>{c+=Math.abs(Math.abs(s.x.mid)-Math.abs(D2[Math.max(0,Math.min(nd-1,i+sh))].x.mid));});if(!best||c<best.c-1e-9)best={c,sh};}
+        S2.forEach((s,i)=>add(s,D2[Math.max(0,Math.min(nd-1,i+best.sh))]));};
+      const gD=dst.filter(d=>!isB(d)),bD=dst.filter(isB);
+      map2(src.filter(l=>!isB(l)),gD.length?gD:dst);map2(src.filter(isB),bD.length?bD:gD);});});
+  return res;}
 
 /* =====================================================================
    1.18 YOʻNALISH STRELKALARI — chorrahaga yaqinlashishda har bir boʻlakka
@@ -1620,6 +1647,18 @@ function buildShapes0(){
         poly([...pts.map(p=>p[0]),...pts.map(p=>p[1]).reverse()].map(q=>toLL(q,o)),'#bdb39e','ped',8);});
       if(rt.sig)mark('svetofor');}
   });
+  // boʻlak ulagichlari (koʻrinish: Belgilar → «Boʻlak ulagichlari»)
+  if(ds.conn)ds.nodes.forEach(n=>{const k=nodeKind(n);if(k!=='x'&&k!=='sig')return;const A2=arms[n.id]||[];if(A2.length<2)return;
+    const E=A2.map(a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],lay=a.lay,cw=(a.atA?a.sg.cwA:a.sg.cwB)!==false&&lay.road.some(x=>!isPk(x.k)),z=cw?.5+cwW:1;
+      const fS=frameAt(a.xy,cc,a.atA?z+1:T-z-1),fE=frameAt(a.xy,cc,a.atA?z:T-z),out=a.atA?fS.t:[-fS.t[0],-fS.t[1]],hin=[-out[0],-out[1]];
+      const pt=(f,d)=>[f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],lv=[-out[1],out[0]],outDir=a.atA?1:-1;
+      const exits=lay.st.filter(x=>(x.k==='lane'||x.k==='bus')&&x.dir===outDir).map(x=>({x,P:pt(fE,x.mid)}))
+        .sort((p,q)=>((q.P[0]-fE.p[0])*lv[0]+(q.P[1]-fE.p[1])*lv[1])-((p.P[0]-fE.p[0])*lv[0]+(p.P[1]-fE.p[1])*lv[1]));
+      const lanes=arrowPlan(a.sg,!a.atA).map(pl=>({x:pl.x,code:pl.code||'',P:pt(fS,pl.x.mid)}));
+      return {a,hin,out,lanes,exits};});
+    laneConnections(E).forEach(c=>{const pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out);
+      line(pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5);});
+  });
   freeShapes(ds,o,poly,line,mark);
   return {sh,marks};
 }
@@ -1927,7 +1966,7 @@ function renderDesignPanel(){
     <div class="sec-h">Chegaralar (namuna, normativ emas)</div>
     <div class="thr" style="margin-top:0"><div class="field"><label for="dLmin">Min. boʻlak eni, m</label><input id="dLmin" type="number" step="0.05" value="${ds.thr.laneMin}"></div><div class="field"><label for="dLmax">Maks. boʻlak eni, m</label><input id="dLmax" type="number" step="0.05" value="${ds.thr.laneMax}"></div>
     <div class="field"><label for="dCw">Oʻtish joyi eni, m</label><input id="dCw" type="number" step="0.5" value="${ds.thr.cw}"></div><div class="field"><label for="dPg">Toʻxtashsiz masofa, m</label><input id="dPg" type="number" step="0.5" value="${ds.thr.parkGap}"></div></div>
-    <div class="sec-h">Yoʻl belgilari</div><div class="tools"><button class="btn primary" id="dAuto">Belgilarni avtomatik qoʻyish</button><button class="btn" id="dAllS">Barcha belgilarni tanlash</button><span class="small">chorraha, halqa, oʻtish joyi, bekat, bir tomonlama</span></div>`;
+    <div class="sec-h">Yoʻl belgilari</div><div class="tools"><button class="btn primary" id="dAuto">Belgilarni avtomatik qoʻyish</button><button class="btn" id="dAllS">Barcha belgilarni tanlash</button><span class="small">chorraha, halqa, oʻtish joyi, bekat, bir tomonlama</span></div><div class="tools"><label class="small"><input type="checkbox" id="dConn" ${ds.conn?'checked':''}> Boʻlak ulagichlari — chorrahada qaysi boʻlak qayerga ulanadi</label></div>`;
   }
   if(tab==='stats'){
     const st=designStats(),{marks}=buildShapes();
@@ -1948,6 +1987,7 @@ function renderDesignPanel(){
   el.querySelectorAll('[data-iss]').forEach(b=>{const go=()=>{const [r1,i1]=b.dataset.iss.split(':');focusIssue(r1,+i1);};b.onclick=e=>{if(e.target.closest('[data-fix]'))return;go();};b.onkeydown=e=>{if(e.key==='Enter')go();};});
   el.querySelectorAll('[data-fix]').forEach(b=>b.onclick=()=>{const [r1,i1]=b.dataset.fix.split(':');fixIssue(r1,+i1);});
   const num=(id,fn)=>{const i=q(id);if(i)i.onchange=()=>{const v=parseFloat(i.value);if(v>0){fn(v);afterDesign();}};};
+  if(q('#dConn'))q('#dConn').onchange=e=>{ds.conn=e.target.checked;afterDesign();};
   num('#dLmin',v=>ds.thr.laneMin=v);num('#dLmax',v=>ds.thr.laneMax=v);num('#dCw',v=>ds.thr.cw=v);num('#dPg',v=>ds.thr.parkGap=v);
   if(tab==='prop'&&selOk){if(sel.t==='seg')bindSegEditor(el,segById(sel.id));if(sel.t==='sign')bindSignEditor(el,signById(sel.id));}
   if(tab==='prop'&&ds.tool==='sign')bindSignCatalog(el);
