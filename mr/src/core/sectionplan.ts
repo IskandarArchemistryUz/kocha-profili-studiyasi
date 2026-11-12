@@ -929,17 +929,36 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   const exts = scs.map(c => ext(c.tag, c.len));
   const okC = (c: SC, need: number) => c.len >= need && !c.blind && inR(c.full) && openTouchT(c.st);
   const pick0 = cross ? null : scs.find(c => okC(c, SL)), pick1 = cross || pick0 ? null : exts.filter(c => okC(c, 4.0 - CORR_W)).sort((x, y) => y.len - x.len)[0] ?? null;
-  const pickS = pick0 ?? pick1 ?? null, OFF = STAIR_W, towerShort = pick1 && pick1.len + CORR_W < STAIR_LEN - 0.3 ? 1 : 0;
+  // 12.11 (eski navbat, 8-band; 06.11 egasi, bino 47): «+» minorada ham zina fasadga — qanotning ichki burchak yonidagi yon devoriga
+  // (tor tomoni fasadda, 08.11 qoidasi): katak qanot boshida, vestibyulga tegadi; qanotning qolgan eni boʻyicha shu tasma — MOP (kvartiralar eshigi)
+  type XC = { tag: 'v+' | 'u+' | 'v-' | 'u-'; st: XY[]; strip: XY[] };
+  const armHc = cross ? armH0 : 0;
+  const xcs: XC[] = armHc > 0 ? [
+    { tag: 'v+', st: box(cu + armHc - SL, cu + armHc, cv + b, cv + b + SW), strip: box(cu - armHc, cu + armHc - SL, cv + b, cv + b + SW) },
+    { tag: 'u+', st: box(cu + a, cu + a + SW, cv - armHc, cv - armHc + SL), strip: box(cu + a, cu + a + SW, cv - armHc + SL, cv + armHc) },
+    { tag: 'v-', st: box(cu - armHc, cu - armHc + SL, cv - b - SW, cv - b), strip: box(cu - armHc + SL, cu + armHc, cv - b - SW, cv - b) },
+    { tag: 'u-', st: box(cu - a - SW, cu - a, cv + armHc - SL, cv + armHc), strip: box(cu - a - SW, cu - a, cv - armHc, cv + armHc - SL) },
+  ] : [];
+  const armLen = (t: XC['tag']) => (t === 'v+' ? v1 - (cv + b) : t === 'v-' ? (cv - b) - v0 : t === 'u+' ? u1 - (cu + a) : (cu - a) - u0);
+  const okX = (c: XC) => 2 * armHc - SL >= 3.3 && armLen(c.tag) - SW >= 6 && inR(c.st) && openTouchT(c.st);
+  const pickX = xcs.find(okX) ?? null;
+  // katta qavat (> 500 m², ShNQ 2.01.02-04, 5.13) — ikkinchi zina ham fasadga: qarama-qarshi (boʻlmasa qoʻshni) qanotda
+  const OPP: Record<string, string> = { 'v+': 'v-', 'v-': 'v+', 'u+': 'u-', 'u-': 'u+' };
+  const bigX = !!pickX && area(r) - (LIFT + 2.4 + STAIR_W) * Math.max(2 * LIFT + 1.6, 6.0) > 560;
+  const pickX2 = bigX ? (xcs.find(c => c.tag === OPP[pickX!.tag] && okX(c)) ?? xcs.find(c => c !== pickX && okX(c)) ?? null) : null;
+  const XT = new Set<string>([pickX?.tag ?? '', pickX2?.tag ?? ''].filter(Boolean)), xT = (t: string) => XT.has(t);
+  const pickS = pick0 ?? pick1 ?? (pickX ? { tag: pickX.tag, len: 0, full: pickX.st, st: pickX.st, strip: pickX.strip, blind: false } : null), OFF = STAIR_W, towerShort = pick1 && pick1.len + CORR_W < STAIR_LEN - 0.3 ? 1 : 0;
   const sSide = pickS?.tag ?? '';
   // halqa ichiga kirgan zina: qoʻshni boʻlakning MOP ga tegish oraligʻi zina boshlangan joygacha qisqaradi (har kvartira koridorga tegsin)
   const eT = pick1?.tag ?? '', eL = !pick1 ? 0 : eT === 'u+' ? u1 - (pick1.len + CORR_W + 0.1) : eT === 'u-' ? u0 + pick1.len + CORR_W + 0.1 : eT === 'v+' ? v1 - (pick1.len + CORR_W + 0.1) : v0 + pick1.len + CORR_W + 0.1;
   const stairF = pickS?.st ?? null, stripF = pickS?.strip ?? null;
   const stairs = [stairF ?? box(c1u - STAIR_W, c1u, c0v, c1v)];
   // «+» katta qavat (> 500 m² — ShNQ 2.01.02-04, 5.13): ikkinchi zina vestibyulning yuqori tasmasida (halqa eni ≥ 2,8 m boʻlsa)
-  const stair2 = cross && b - ch / 2 >= STAIR_W && area(r) - cw * ch > 560 ? box(c0u, c0u + 6, c1v, c1v + STAIR_W) : null; if (stair2) stairs.push(stair2);
+  const stair2 = pickX2 ? null : cross && b - ch / 2 >= STAIR_W && area(r) - cw * ch > 560 ? box(c0u, c0u + 6, c1v, c1v + STAIR_W) : null; if (stair2) stairs.push(stair2);
+  if (pickX2) stairs.push(pickX2.st);
   const tech = c1v - (c0v + 2 * LIFT) >= 1.2 ? [box(c0u, c0u + LIFT, c0v + 2 * LIFT, c1v)] : [];
   // MOP — teshiksiz toʻrtburchaklar: halqa koridorning 4 tomoni + lift oldi xolli (polygon-clipping teshikli halqasini «pieces» tashlaydi)
-  const mop0 = [...(stair2 ? [box(cu - a, c0u, c1v, cv + b), box(c0u, c0u + 6, c1v + STAIR_W, cv + b), box(c0u + 6, cu + a, c1v, cv + b)] : [box(cu - a, cu + a, c1v, cv + b)]), box(cu - a, cu + a, cv - b, c0v), box(cu - a, c0u, c0v, c1v), box(c1u, cu + a, c0v, c1v), box(c0u + LIFT, stairF ? c1u : c1u - STAIR_W, c0v, c1v), ...(stripF ? [stripF] : [])];
+  const mop0 = [...(stair2 ? [box(cu - a, c0u, c1v, cv + b), box(c0u, c0u + 6, c1v + STAIR_W, cv + b), box(c0u + 6, cu + a, c1v, cv + b)] : [box(cu - a, cu + a, c1v, cv + b)]), box(cu - a, cu + a, cv - b, c0v), box(cu - a, c0u, c0v, c1v), box(c1u, cu + a, c0v, c1v), box(c0u + LIFT, stairF ? c1u : c1u - STAIR_W, c0v, c1v), ...(stripF ? [stripF] : []), ...(pickX2 ? [pickX2.strip] : [])];
   // halqa ichiga kirgan zina (pick1) — MOP dan ayiriladi
   const mop = pick1 && stairF ? mop0.flatMap(q => diff([q], [stairF], 'a')).filter(q => area(q) > 0.3) : mop0;   // har toʻrtburchak alohida (birlashma teshikli halqa boʻlib tushib qolmasin)
   // «parrak» boʻlaklari: [u0, cu+a]×[cv+b, v1] (yuqori), [cu+a, u1]×[cv-b, v1] (oʻng), [cu-a, u1]×[v0, cv-b] (past), [u0, cu-a]×[v0, cv+b] (chap)
@@ -948,10 +967,10 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   // «+»: boʻlaklar — toʻrt qanot (halqa koridordan qanot uchigacha, qanot eni boʻyicha boʻlinadi: har kvartira yon fasad + torets yarmi)
   const armH = armH0;
   const pieces: Piece[] = cross && armH > 0 ? [
-    { box: [cu - armH, cu + armH, cv + b, v1], axis: 'u', lo: cu - a, hi: cu + a, dir: -1 },
-    { box: [cu + a, u1, cv - armH, cv + armH], axis: 'v', lo: cv - b, hi: cv + b, dir: 1 },
-    { box: [cu - armH, cu + armH, v0, cv - b], axis: 'u', lo: cu - a, hi: cu + a, dir: 1 },
-    { box: [u0, cu - a, cv - armH, cv + armH], axis: 'v', lo: cv - b, hi: cv + b, dir: -1 },
+    { box: [cu - armH, cu + armH, xT('v+') ? cv + b + SW : cv + b, v1], axis: 'u', lo: cu - a, hi: xT('v+') ? cu + armH - SL : cu + a, dir: -1 },
+    { box: [xT('u+') ? cu + a + SW : cu + a, u1, cv - armH, cv + armH], axis: 'v', lo: xT('u+') ? cv - armH + SL : cv - b, hi: cv + b, dir: 1 },
+    { box: [cu - armH, cu + armH, v0, xT('v-') ? cv - b - SW : cv - b], axis: 'u', lo: xT('v-') ? cu - armH + SL : cu - a, hi: cu + a, dir: 1 },
+    { box: [u0, xT('u-') ? cu - a - SW : cu - a, cv - armH, cv + armH], axis: 'v', lo: cv - b, hi: xT('u-') ? cv + armH - SL : cv + b, dir: -1 },
   ] : [
     { box: [u0, sSide === 'v+' ? cu + a - OFF : cu + a, cv + b, v1], axis: 'u', lo: eT === 'u-' ? eL : cu - a, hi: sSide === 'v+' ? cu + a - OFF : cu + a, dir: -1 },
     { box: [cu + a, u1, sSide === 'u+' ? cv - b + OFF : cv - b, v1], axis: 'v', lo: sSide === 'u+' ? cv - b + OFF : cv - b, hi: eT === 'v+' ? eL : cv + b, dir: 1 },

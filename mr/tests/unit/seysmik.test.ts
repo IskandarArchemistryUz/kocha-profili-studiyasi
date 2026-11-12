@@ -75,8 +75,9 @@ describe('«+», «U», «T» shakllar (30.10): markaz va tutashuvlar', () => {
   const run = (ring: XY[]) => { const L = layoutSection(ring, () => false, [20, 40, 30, 10], 3.3, 'M'), pl = L.plan!; return { pl, bad: planChecks(pl, 25, L.mods as never).filter(c => c.ok === false).map(c => c.id) }; };
   it('«+» 36 × 36 — minora rejasi: yadro markazda, qanotlarda 8 kvartira, ikkita zina (> 500 m²), tekshiruvlar oʻtadi', () => {
     const { pl, bad } = run([[12, 0], [24, 0], [24, 12], [36, 12], [36, 24], [24, 24], [24, 36], [12, 36], [12, 24], [0, 24], [0, 12], [12, 12]]);
-    // 07.11: «+» minorada yadro (ikkala zina) markazda — tabiiy yorugʻlik tekshiruvlari (325, 328) buzilishni koʻrsatadi; yechim ochiq masala
-    expect(pl.sections.length).toBe(1); expect(pl.apts.length).toBe(8); expect(pl.stairs.length).toBe(2); expect(bad.filter(b => b !== 'stairlight' && b !== 'corrlight')).toEqual([]);
+    // 12.11 (eski navbat, 8-band): ikkala zina qanotlar yon devorida — fasadda, tabiiy yorugʻlik bilan (325-band); qanot boshidagi
+    // zina tasmasi hisobiga bitta kvartira kamayishi mumkin (8 → 7)
+    expect(pl.sections.length).toBe(1); expect(pl.apts.length).toBeGreaterThanOrEqual(7); expect(pl.stairs.length).toBe(2); expect(bad.filter(b => b !== 'corrlight')).toEqual([]);
   });
   it('«U» 45 × 30 va 60 × 36 — har seksiya xolli koʻcha va hovliga chiqadi (burchakda 90°), tupik xoll yoʻq', () => {
     for (const ring of [[[0, 0], [45, 0], [45, 30], [33, 30], [33, 12], [12, 12], [12, 30], [0, 30]], [[0, 0], [60, 0], [60, 36], [45, 36], [45, 15], [15, 15], [15, 36], [0, 36]]] as XY[][]) {
