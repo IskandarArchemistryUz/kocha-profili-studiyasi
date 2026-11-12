@@ -114,6 +114,7 @@ import { loadBaseMap, type TerrainGrid } from '../context/tiles';
 import { LiveBase, liveSize } from '../context/basemap';
 import { logoSvg } from './logo';
 import { openKsWindow } from './kswin';
+import { project, nextCutLabel } from '../core/streetcut';
 import { PALETTES, palOf, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
@@ -3997,6 +3998,7 @@ export class Editor {
           ...(iss.length ? iss.map(x => h('div', {}, `${x.what}: ${x.value} — ${tr('meʼyor')} ${x.norm}`)) : [tr('Meʼyorga mos.')])));
         if (p) body.append(h('button', { class: 'btn btn-block', id: 'stKs', title: tr('Koʻchasoz: kesim muharriri — Dizayn-kod zonalari, muhandislik tarmoqlari, reja, aksonometriya, albom varagʻi'), onclick: () => this.openKsWin(st!, p, doc.streets.indexOf(st!)) },
           h('i', { style: 'width:8px;height:8px;border-radius:4px;background:var(--svc-ks);flex:none' }), tr('Koʻchasozda tahrirlash')));
+        if (st) this.cutCard(body, st.id);
       }
       this.endsPanel(body);
     } else body.append(h('div', { class: 'note' }, tr('Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.')));
@@ -4015,6 +4017,28 @@ export class Editor {
         this.renderPanel();
         toast(scope === 'tpl' ? tf('«${name}» andozalarga qoʻshildi', { name: np.name }) : tf('Koʻcha profili qoʻllandi: ${n} ta koʻcha', { n: streets.length }));
       } });
+  }
+
+  /** 12.11: koʻcha kesimlari (A–A …): roʻyxat, qoʻyish (sahnada koʻcha ustini bosish), oʻchirish — «Koʻcha profili» varaqlari shulardan */
+  private cutCard(body: HTMLElement, sid: string): void {
+    const doc = this.store.doc, cuts = doc.cuts ?? [], mine = cuts.filter(c => c.street === sid), sn = doc.streets.findIndex(x => x.id === sid) + 1;
+    const place = () => this.setTool(new ClickTool(tr('Koʻcha ustini bosing — kesim chizigʻi shu joyga qoʻyiladi · Esc — bekor'), xy => {
+      const d = this.store.doc, fr = frame(d.origin);
+      // avval tanlangan koʻcha, boʻlmasa — eng yaqini (qizil chiziqlar ichida)
+      const cand = d.streets.map(x => { const pr = project(x.axis.map(q => fr.toLocal(q) as XY), xy); return { x, ...pr, half: profileWidth(profileById(x.profile)) / 2 }; }).filter(c => c.d <= c.half + 2);
+      const hit = cand.find(c => c.x.id === sid) ?? cand.sort((a, b) => a.d - b.d)[0];
+      if (!hit) { toast(tr('Koʻcha ustini bosing')); return; }
+      const label = nextCutLabel(d);
+      this.run(() => this.store.dispatch({ type: 'setCuts', cuts: [...(d.cuts ?? []), { id: uid('cut_'), street: hit.x.id, t: Math.round(hit.t * 10) / 10, label }] }));
+      this.setTool(null); this.renderPanel();
+      toast(tf('Kesim ${l}–${l} qoʻyildi — Varaqlarda «Koʻcha profili ${l}–${l}»', { l: label }));
+    }));
+    body.append(h('div', { class: 'note', id: 'cutCard' },
+      h('b', {}, tr('Kesim chizigʻi')),
+      ...mine.map(c => h('div', { class: 'li', 'data-cut': c.id }, h('span', { class: 'cutlbl' }, c.label), h('span', { class: 'k' }, `${c.label}–${c.label} · ${tr('Koʻcha')} ${sn}, ${fmt(c.t, 0)} m`),
+        h('button', { class: 'btn icon-btn btn-sm btn-ghost', 'aria-label': tr('Kesimni oʻchirish'), title: tr('Oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'setCuts', cuts: cuts.filter(x => x.id !== c.id) })) }, svgIcon(IC.x)))),
+      h('button', { class: 'btn btn-block', id: 'cutAdd', onclick: place }, tr('Kesim chizigʻini qoʻyish')),
+      h('span', { class: 't-small' }, tr('Sahnada koʻcha ustini bosing — Varaqlarda «Koʻcha profili A–A» paydo boʻladi.'))));
   }
 
   private pickStreet(id: string | null): void { if (id !== this.selStreet) this.selVtx = null; this.selStreet = id; this.scene.selectStreet(id); const st = this.store.doc.streets.find(x => x.id === id); if (st) this.profile = st.profile; this.renderPanel(); }

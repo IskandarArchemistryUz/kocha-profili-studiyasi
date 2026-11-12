@@ -1070,3 +1070,8 @@ details.sp-lead[open] .sp-more{display:none}
 .ksw-side{border-left:0;border-top:.5px solid var(--hairline);display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);grid-template-areas:"h l" "c s" "c t";gap:6px 16px;padding:10px 16px;overflow:visible}
 .ksw-side .ksw-h{grid-area:h;font-size:13px}.ksw-chk{grid-area:c}.ksw-side .ksw-lbl{grid-area:l}.ksw-scope{grid-area:s}.ksw-side .t-small{grid-area:t}
 .ksw-r{padding:6px 10px;font-size:12px}.ksw-opt{min-height:30px;padding:4px 10px;font-size:12px}.ksw-scope{flex-direction:row;flex-wrap:wrap}}
+/* 12.11: koʻcha kesimi kartochkasi */
+#cutCard{display:flex;flex-direction:column;gap:8px}
+#cutCard .li{display:flex;align-items:center;gap:8px;padding:0}
+#cutCard .cutlbl{width:24px;height:24px;border-radius:12px;background:var(--ink);color:var(--surface);display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+#cutCard .k{flex:1;font-size:13px}
