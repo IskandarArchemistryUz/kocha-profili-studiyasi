@@ -2,6 +2,7 @@
    Muhit oʻzgaruvchilari (.env.example ga qarang). Maxfiy qiymatlar repoga yozilmaydi. */
 import pg from 'pg';
 import { fromPool, migrate } from './db.js';
+import { pruneEvents } from './events.js';
 import { buildApp } from './app.js';
 import { makeSender } from './mailer.js';
 import { makeGoogleVerifier } from './google.js';
@@ -16,6 +17,9 @@ const need = (k) => { if (!env[k]) { console.error(`${k} berilmagan`); process.e
 const pool = new pg.Pool({ connectionString: need('DATABASE_URL'), max: 10 });
 const db = fromPool(pool);
 await migrate(db);
+// foydalanish hodisalari: 400 kundan eskisini kuniga bir marta tozalash
+const prune = () => pruneEvents(db).catch((e) => console.error('events prune', e));
+void prune(); setInterval(prune, 24 * 3600e3).unref();
 
 const app = await buildApp({
   db,

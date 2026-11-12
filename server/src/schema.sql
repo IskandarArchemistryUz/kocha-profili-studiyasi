@@ -162,4 +162,20 @@ CREATE TABLE IF NOT EXISTS private_features (
   props       JSONB NOT NULL,
   geom        JSONB NOT NULL
 );
-CREATE INDEX IF NOT EXISTS private_features_bb ON private_features (layer_id, minx, miny)
+CREATE INDEX IF NOT EXISTS private_features_bb ON private_features (layer_id, minx, miny);
+
+-- foydalanish hodisalari (2026-11-12): anonim ID (localStorage), kirgan boʻlsa — user_id; IP saqlanmaydi.
+-- Maqsad: voronka, qaytish, eng koʻp bosiladigan tugmalar. Loyiha mazmuni, joy, matn yuborilmaydi.
+CREATE TABLE IF NOT EXISTS events (
+  id BIGSERIAL PRIMARY KEY,
+  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  anon TEXT NOT NULL,
+  user_id BIGINT,
+  svc TEXT NOT NULL,
+  name TEXT NOT NULL,
+  props JSONB,
+  country TEXT
+);
+CREATE INDEX IF NOT EXISTS events_at ON events (at);
+CREATE INDEX IF NOT EXISTS events_anon ON events (anon, at);
+CREATE INDEX IF NOT EXISTS events_user ON events (user_id, at) WHERE user_id IS NOT NULL;

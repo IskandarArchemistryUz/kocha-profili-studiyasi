@@ -83,6 +83,16 @@ export interface OwnerUser {
   projects: { project: string; spent: number; gen: number; at: string | null }[];
   exports: { bundle: string; c: number }[];
 }
+/** Foydalanish: voronka, qaytish, eng koʻp harakatlar (server events jadvali) */
+export interface OwnerUsage {
+  since: string | null; anons30: number;
+  funnel: { key: 'open' | 'step1' | 'login' | 'step3' | 'paid'; c: number }[];
+  daily: { d: string; who: number }[];
+  services: { svc: string; who: number; c: number }[];
+  top: { svc: string; name: string; c: number; who: number }[];
+  cohorts: { wk: string; size: number; w: number[] }[];
+}
+export const ownerUsage = (): Promise<OwnerUsage> => call<OwnerUsage>('/owner/usage');
 export const ownerUser = (id: number): Promise<OwnerUser> => call<OwnerUser>(`/owner/user/${id}`);
 /** Sinov kirishi: pochta boʻyicha tanga berish (sotuv emas). key — bir martalik kalit: ikki marta bosilsa ham bir marta yoziladi */
 export interface GrantRes { applied: boolean; balance: number; isNew: boolean; who: string | null; coins: number }

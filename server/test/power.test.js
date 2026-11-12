@@ -73,8 +73,13 @@ describe('GET /data/wind (NASA POWER — ERA5 kaliti yoʻq)', () => {
     const app = await buildApp({ db, ...base({ cache: makeCache({ dir }), era5: makeEra5({ key: null }), power: makePower({ fetchImpl: fake, base: 'https://power.test/api' }), powerWaitMs: 100 }) });
     const r1 = await app.inject({ url: '/data/wind?lat=48.85&lon=2.35' });
     expect(r1.statusCode).toBe(202); expect(r1.json().source).toBe('power');
-    await new Promise((ok) => setTimeout(ok, 1200));
-    const r2 = await app.inject({ url: '/data/wind?lat=48.85&lon=2.35' });
+    // fondagi ish tugashini kutamiz (sekin CI da 1,2 s yetmay qolardi) — keshga tushguncha, koʻpi bilan 6 s
+    let r2;
+    for (let t = 0; t < 30; t++) {
+      await new Promise((ok) => setTimeout(ok, 200));
+      r2 = await app.inject({ url: '/data/wind?lat=48.85&lon=2.35' });
+      if (r2.headers['x-cache'] === 'hit') break;
+    }
     expect(r2.statusCode).toBe(200); expect(r2.headers['x-cache']).toBe('hit'); expect(calls).toHaveLength(10);
     await app.close();
     // ERA5 bor, lekin Copernicus 500 — POWER
