@@ -70,6 +70,7 @@ import { saveMrReturn, consumeMrBack } from './mrback';
 import { USES, useDef, resShare } from '../core/uses';
 import { gridAngle, merge, splitPath, splitByZones, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
+import { roadStubs, type Stub } from '../core/roadstubs';
 import { daySteps, insolation, localToUtcAt, sunPosition, type Prism } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
@@ -3874,6 +3875,16 @@ export class Editor {
   private kochaTab: 'tor' | 'prof' | 'chiz' | null = null;
   private profQ = '';
   private profGroup = 'all';
+  private stubMemo: { k: unknown[]; v: Stub[] } | null = null;
+  /** 12.11 (egasi): uchastka chegarasida toʻxtagan mavjud (OSM) yoʻllar va ularning ichkariga davomi */
+  private stubs(): Stub[] {
+    const doc = this.store.doc; if (!doc.site || !doc.context.loaded || !doc.context.layers.roads || !this.ctxMgr.current) return [];
+    const roads = this.ctxRoads(), k = [doc.site, doc.streets, doc.removedRoads, roads, doc.origin];
+    if (this.stubMemo && this.stubMemo.k.every((x, i) => x === k[i])) return this.stubMemo.v;
+    const fr = frame(doc.origin), gone = new Set(doc.removedRoads ?? []);
+    const v = roadStubs(doc.site.rings[0].map(fr.toLocal), roads.filter(r => !gone.has(r.id)).map(r => ({ id: r.id, cls: r.cls, sub: r.sub, pts: r.pts.map(fr.toLocal) })), doc.streets.map(x => x.axis.map(fr.toLocal)));
+    this.stubMemo = { k, v }; return v;
+  }
   private kochaPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), drawing = this.tool instanceof LineTool;
     // tanlangan koʻcha (yoki yangi koʻcha profili) — katta koʻndalang kesim
@@ -3888,6 +3899,19 @@ export class Editor {
       body.append(h('div', { class: 'row', style: 'gap:6px' }, this.cutBtn()));
       if (this.selVtx != null) body.append(this.vtxPanel(stSel.axis.length));
     }
+    // 12.11 (egasi): uchastka chegarasida toʻxtagan mavjud yoʻllarni ichkariga davom ettirish (core/roadstubs)
+    { const st = this.stubs(); if (st.length) {
+      const segs = st.map(x => [x.axis[0], x.axis[x.axis.length - 1]] as [XY, XY]);
+      body.append(h('div', { class: 'group', id: 'stubCard' },
+        h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, tf('Chegarada toʻxtagan mavjud yoʻllar: ${n}', { n: st.length })), h('span', { class: 'sub' }, tr('Ularni uchastka ichiga davom ettirib, loyiha koʻchasiga yoki qarshi tomondagi yoʻlga ulash mumkin. Profil — mavjud yoʻl sinfidan.')))),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn btn-sm grow', id: 'stubShow', onclick: () => this.scene.setIssues(doc, { pts: segs.map(q => q[0]), need: { segs } }) }, tr('Koʻrsatish')),
+          h('button', { class: 'btn btn-sm btn-primary grow', id: 'stubGo', onclick: () => {
+            const prev = this.plan(); this.scene.setIssues(doc, null);
+            this.run(() => { for (const x of st) this.store.dispatch({ type: 'addStreet', axis: x.axis.map(fr.toGeo), profile: x.profile }); });
+            this.regenAfterStreets(prev); this.renderPanel();
+            toast(tf('${n} ta yoʻl davom ettirildi · Ctrl+Z — qaytarish', { n: st.length }));
+          } }, tr('Davom ettirish'))))); } }
     if (this.kochaTab == null) this.kochaTab = doc.streets.length ? 'chiz' : 'tor';
     if (drawing && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
     if (this.osmPick && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
