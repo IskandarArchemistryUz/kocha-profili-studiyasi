@@ -45,7 +45,7 @@ import { layerIcon, GROUP_COL } from './layerIcons';
 import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
 import { windFlow, clipLine } from './windflow';
-import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, type LayerView } from './viewcfg';
+import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, SHADE_PAL, SHADE_BINS, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
@@ -1066,7 +1066,7 @@ function paintH(): void {
   // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
   const sm = SM;
   if (isOn('quyosh') && sm?.hours) {
-    const k = `${sm.key}|h`; if (k !== sunKey) { sunKey = k; const v = new Float32Array(sm.n * sm.n).fill(NaN); sm.idx.forEach((o, i) => { v[o] = sm.hours![i]; }); upd('joy-sun', gridImage(v, sm.n, sm.step, (sm.n - 1) / 2 * sm.step, x => Number.isNaN(x) ? null : sunColor(x), 200)); }
+    const k = `${sm.key}|h|${V('quyosh').st}`; if (k !== sunKey) { sunKey = k; const v = new Float32Array(sm.n * sm.n).fill(NaN); sm.idx.forEach((o, i) => { v[o] = sm.hours![i]; }); upd('joy-sun', gridImage(v, sm.n, sm.step, (sm.n - 1) / 2 * sm.step, sunCol(sm.hours!), 200)); }
     m.setLayoutProperty('joy-sun', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-sun', 'visibility', 'none');
   if (isOn('quyosh') && sm) {
@@ -1080,7 +1080,9 @@ function paintH(): void {
   // legenda: nishab va xizmatlar
   const lg: Node[] = [];
   if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([d0, , n], i) => h('span', {}, h('i', { style: `background:${heatCol(i === 0 ? -4 : i === LST_DEV_BINS.length - 1 ? 4 : (d0 + LST_DEV_BINS[i + 1][0]) / 2)}` }), n))));
-  if (sm?.hours && isOn('quyosh')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
+  if (sm?.hours && isOn('quyosh')) lg.push(V('quyosh').st === 'soya'
+    ? h('div', { class: 'lg' }, h('b', {}, tf('Soyada, soat · ${d}', { d: tr(sunDay()[2]) })), ...SHADE_BINS.map(([v, n]) => h('span', {}, h('i', { style: `background:${rampColor(SHADE_PAL, v / 10)}` }), n)))
+    : h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
   if (nm?.reach && isOn('piyoda')) lg.push(nm.pers === 'hammasi'
     ? h('div', { class: 'lg' }, h('b', {}, tr('10 daqiqada kim qayergacha yetadi')), ...PERSONA_ALL.map(p => h('span', {}, h('i', { style: `background:${p.col}` }), tr(p.name))))
     : h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
@@ -1106,6 +1108,12 @@ function paintH(): void {
   }
 }
 /** Issiqlik rangi: tanlangan shkala; intensivlik — kontrast (kichik farqlar ham koʻrinsin) */
+/** Quyosh qatlami rangi: «Quyosh soatlari» — SUN_BINS; «Soya soatlari» — kunduzgi mumkin boʻlgan soatdan (eng ochiq nuqta) quyoshli soatlar ayirmasi */
+function sunCol(hours: ArrayLike<number>): (x: number) => string | null {
+  if (V('quyosh').st !== 'soya') return x => Number.isNaN(x) ? null : sunColor(x);
+  let mx = 0; for (let i = 0; i < hours.length; i++) if (hours[i] > mx) mx = hours[i];
+  return x => Number.isNaN(x) ? null : rampColor(SHADE_PAL, Math.max(0, mx - x) / 10);
+}
 function heatCol(d: number): string { const v = V('issiqlik'), pal = VIEW.issiqlik.pals![v.p][1]; return rampColor(pal, 0.5 + d / (2 * (4.6 - 3.4 * v.k))); }
 function noiseCol(db: number): string { const v = V('shovqin'), pal = VIEW.shovqin.pals![v.p][1], i = NOISE_BINS.findIndex(([t]) => db < t); return pal[Math.min(pal.length - 1, i < 0 ? pal.length - 1 : i)]; }
 /** Izochiziqlar va strelkalar: relyef (topo), nishab (pasayish), issiqlik (izotermalar), shovqin (izofonlar) */
@@ -1331,7 +1339,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       const sm = SM; if (!sm?.hours) return {};
       const v = new Float32Array(sm.n * sm.n).fill(NaN); sm.idx.forEach((o, i) => { v[o] = sm.hours![i]; });
       const [mm, dd] = sunDay(), hr = sunHour(), sp = sunPosition(localToUtcAt(2026, mm, dd, hr, S.c[1], S.c[0]), S.c[1], S.c[0]);
-      return { quiet: true, rasters: [ras(gridImage(v, sm.n, sm.step, (sm.n - 1) / 2 * sm.step, x => Number.isNaN(x) ? null : sunColor(x), 235), 0.85), ras(shadowImage(sm.prisms, sp.alt, sp.az, S.r), 0.28)] };
+      return { quiet: true, rasters: [ras(gridImage(v, sm.n, sm.step, (sm.n - 1) / 2 * sm.step, sunCol(sm.hours!), 235), 0.85), ras(shadowImage(sm.prisms, sp.alt, sp.az, S.r), 0.28)] };
     }
     case 'piyoda': {
       if (!nm?.reach) return {};

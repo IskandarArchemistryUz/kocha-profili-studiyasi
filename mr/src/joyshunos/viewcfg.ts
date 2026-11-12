@@ -21,7 +21,7 @@ export const VIEW: Record<string, ViewDef> = {
   raqobat: { styles: [['nuqta', 'Nuqtalar'], ['zichlik', 'Zichlik']], k: true },
   narx: { axes: [['Bitim', [['sotuv', 'Sotuv'], ['ijara', 'Ijara']]], ['Turi', [['kvartira', 'Kvartira'], ['hovli', 'Hovli uy'], ['hammasi', 'Hammasi']]],
     ['Bozor', [['hammasi', 'Hammasi'], ['yangi', 'Yangi bino'], ['ikkilamchi', 'Ikkilamchi uy']]]], k: true },
-  quyosh: { k: true },
+  quyosh: { styles: [['quyosh', 'Quyosh soatlari'], ['soya', 'Soya soatlari']], k: true },
   piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh'], ['hammasi', 'Hammasi']], k: true },
   oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur']], k: true },
   skaner: { stLabel: 'Rang', styles: [['umumiy', 'Umumiy ball'], ['zaif', 'Eng zaif yoʻnalish']], k: true },
@@ -112,3 +112,6 @@ export const PERSONA_ALL: { ids: string[]; name: string; v: number; col: string 
   { ids: ['homilador'], name: 'Homilador', v: 3.8, col: '#8a6bb0' }, { ids: ['sayyoh'], name: 'Sayyoh', v: 4.0, col: '#3f8f8a' }, { ids: ['yosh'], name: 'Kattalar', v: 5.0, col: '#3d5a8a' },
 ];
 
+/** Soya soatlari (13.11, kanvas 8b): 0 — kun boʻyi quyosh (sariq) → 10+ soat soyada (toʻq koʻk); referens «Shading time» shkalasi */
+export const SHADE_PAL = ['#ffe14d', '#ffab2e', '#f2542d', '#d6246e', '#8f1fa3', '#3b1f8f', '#141850'];
+export const SHADE_BINS: [number, string][] = [[0, '0'], [2, '2'], [4, '4'], [6, '6'], [8, '8'], [10, '10+']];
