@@ -2,10 +2,12 @@
    POST /data/overpass — Overpass so'rovi (brauzerdagi bilan bir xil), javob 30 kun keshlanadi; barcha serverlarga birdan, birinchi javob (≤ 25 s).
    GET  /data/sources  — manbalar reyestri (litsenziya, atributsiya).
    GET  /data/overture/buildings?bbox=w,s,e,n — Overture binolari (≤ 0,06°), 90 kun kesh; kalit bbox 4 xonaga yaxlitlanadi.
-   GET  /data/wind?lat=&lon= — ERA5 shamol guli (0,25° katak), 10 yil kesh; tayyorlanayotgan bo'lsa 202. */
+   GET  /data/wind?lat=&lon= — ERA5 shamol guli (0,25° katak), 10 yil kesh; tayyorlanayotgan bo'lsa 202.
+        ERA5 kaliti yo'q yoki Copernicus yiqilsa — NASA POWER (kalitsiz, 0,5° katak), 10 yil kesh (12.11.2026). */
 import { SOURCES, sourceInfo } from './sources.js';
 import { makeOverture, MAX_SPAN } from './overture.js';
 import { snap } from './era5.js';
+import { snapP } from './power.js';
 
 export const OVERPASS_SERVERS = [
   'https://overpass-api.de/api/interpreter',
@@ -15,7 +17,7 @@ export const OVERPASS_SERVERS = [
 ];
 const MAX_Q = 8000;
 
-export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 25_000, overture = makeOverture({ fetchImpl }), era5 = null }) {
+export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 25_000, overture = makeOverture({ fetchImpl }), era5 = null, power = null, powerWaitMs = 20_000 }) {
   app.get('/data/sources', async () => ({ sources: Object.keys(SOURCES).map(sourceInfo) }));
 
   const inflight = new Map();   // bir xil so'rov bir vaqtda kelsa — bitta tashqi so'rov
@@ -86,21 +88,50 @@ export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS
     } catch (e) { req.log.warn(e); return reply.code(502).send({ error: 'upstream', message: 'Overture ma’lumoti olinmadi' }); }
   });
 
-  /* ---------- ERA5 shamol ---------- */
+  /* ---------- shamol: ERA5 → NASA POWER ---------- */
+  const pwInflight = new Map();
+  const viaPower = async (req, reply, lat, lon) => {
+    const src = SOURCES.power, key = `power:wind:${snapP(lat)},${snapP(lon)}`;
+    const hit = await cache.get(key, src.ttlDays);
+    if (hit) return reply.header('content-type', 'application/json').header('x-cache', 'hit').header('x-source', 'power').send(hit.body);
+    let job = pwInflight.get(key);
+    if (!job) {
+      job = (async () => {
+        const r = await power.get(lat, lon);
+        const body = JSON.stringify({ source: 'power', attribution: src.attribution, licence: src.licence, lat: r.lat, lon: r.lon, station: r.station });
+        await cache.put(key, body, { source: 'power', licence: src.licence, attribution: src.attribution, odbl: false });
+        return body;
+      })().finally(() => pwInflight.delete(key));
+      pwInflight.set(key, job);
+    }
+    // 10 yillik qator 10 ta so'rov — 30 s dan oshishi mumkin (nginx uzadi): kutish cheklangan, ulgurmasa 202 (ilova keyinroq so'raydi, ish davom etadi)
+    let tm; const done = await Promise.race([job.then((b) => ({ b }), (e) => ({ e })), new Promise((ok) => { tm = setTimeout(() => ok(null), powerWaitMs); })]); clearTimeout(tm);
+    if (!done) return reply.code(202).header('retry-after', '15').send({ status: 'pending', source: 'power', message: 'NASA POWER ma’lumoti tayyorlanmoqda' });
+    if (done.e) { req.log.warn(done.e); return reply.code(502).send({ error: 'upstream', message: String(done.e.message || 'NASA POWER javob bermadi').slice(0, 160) }); }
+    return reply.header('content-type', 'application/json').header('x-cache', 'miss').header('x-source', 'power').send(done.b);
+  };
   app.get('/data/wind', async (req, reply) => {
     const lat = Number(req.query?.lat), lon = Number(req.query?.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return reply.code(400).send({ error: 'bad_request', message: 'lat va lon kerak' });
-    if (!era5?.enabled) return reply.code(503).send({ error: 'disabled', message: 'ERA5 ulanmagan (CDS_API_KEY yo‘q)' });
-    const src = SOURCES.era5, key = `era5:wind:${snap(lat)},${snap(lon)}`;
-    const hit = await cache.get(key, src.ttlDays);
-    if (hit) return reply.header('content-type', 'application/json').header('x-cache', 'hit').header('x-source', 'era5').send(hit.body);
+    if (!era5?.enabled && !power?.enabled) return reply.code(503).send({ error: 'disabled', message: 'ERA5 ulanmagan (CDS_API_KEY yo‘q)' });
+    if (era5?.enabled) {
+      const src = SOURCES.era5, key = `era5:wind:${snap(lat)},${snap(lon)}`;
+      const hit = await cache.get(key, src.ttlDays);
+      if (hit) return reply.header('content-type', 'application/json').header('x-cache', 'hit').header('x-source', 'era5').send(hit.body);
+    }
     if (limited?.(req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'Juda ko‘p so‘rov — birozdan keyin' });
+    if (!era5?.enabled) return viaPower(req, reply, lat, lon);
     try {
+      const src = SOURCES.era5, key = `era5:wind:${snap(lat)},${snap(lon)}`;
       const r = await era5.get(lat, lon);
       if (r.status !== 'ready') return reply.code(202).header('retry-after', '20').send({ status: 'pending', message: 'ERA5 ma’lumoti tayyorlanmoqda (Copernicus navbati)' });
       const body = JSON.stringify({ source: 'era5', attribution: src.attribution, licence: src.licence, lat: r.lat, lon: r.lon, station: r.station });
       await cache.put(key, body, { source: 'era5', licence: src.licence, attribution: src.attribution, odbl: false });
       return reply.header('content-type', 'application/json').header('x-cache', 'miss').header('x-source', 'era5').send(body);
-    } catch (e) { req.log.warn(e); return reply.code(502).send({ error: 'upstream', message: String(e.message || 'ERA5 javob bermadi').slice(0, 160) }); }
+    } catch (e) {
+      req.log.warn(e);
+      if (power?.enabled) return viaPower(req, reply, lat, lon);   // Copernicus yiqildi — kalitsiz manba
+      return reply.code(502).send({ error: 'upstream', message: String(e.message || 'ERA5 javob bermadi').slice(0, 160) });
+    }
   });
 }
