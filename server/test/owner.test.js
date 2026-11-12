@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import pg from 'pg';
 import { fromPglite, fromPool, migrate } from '../src/db.js';
 import { buildApp, COOKIE } from '../src/app.js';
-import { maskEmail, maskPhone } from '../src/owner.js';
+import { maskEmail, maskPhone, geoOf } from '../src/owner.js';
 
 let db, app, sent;
 beforeEach(async () => {
@@ -18,9 +18,9 @@ beforeEach(async () => {
 });
 afterEach(async () => { await app.close(); await db.close(); });
 
-async function login(target) {
+async function login(target, headers = {}) {
   await app.inject({ method: 'POST', url: '/auth/code', payload: { target } });
-  const r = await app.inject({ method: 'POST', url: '/auth/verify', payload: { target, code: sent.at(-1) } });
+  const r = await app.inject({ method: 'POST', url: '/auth/verify', payload: { target, code: sent.at(-1) }, headers });
   return `${COOKIE}=${r.cookies.find((c) => c.name === COOKIE).value}`;
 }
 const stats = (cookie) => app.inject({ method: 'GET', url: '/owner/stats', headers: cookie ? { cookie } : {} });
@@ -89,6 +89,55 @@ describe('egasi paneli', () => {
     expect(p[0]).toMatchObject({ method: 'email', balance: 40, seen: null });
     expect(p[2]).toMatchObject({ method: 'phone', balance: 0 });
     expect(p[3].seen).toBeTruthy(); expect(p[3].at).toBeTruthy();
+  });
+  it('davlat: Cloudflare sarlavhasidan sessiya va hisobga yoziladi (birinchisi qoladi); statistikada davlatlar', async () => {
+    await login('ali@mail.uz', { 'cf-ipcountry': 'UZ', 'cf-ipcity': 'Tashkent' });
+    // ikkinchi kirish boshqa davlatdan (kod soʻrash cheklovi tufayli sessiya toʻgʻridan-toʻgʻri)
+    await db.query(`INSERT INTO sessions (token_hash, user_id, expires_at, country) SELECT 'h2', id, now() + interval '1 day', 'KZ' FROM users WHERE email = 'ali@mail.uz'`);
+    await login('bob@mail.com');
+    const c = await login('boss@archemistry.uz', { 'cf-ipcountry': 'UZ' });
+    const j = (await stats(c)).json();
+    expect(j.countries.users).toEqual([{ country: 'UZ', c: 2 }]);
+    expect(j.countries.active30).toEqual([{ country: 'UZ', c: 2 }, { country: 'KZ', c: 1 }]);
+    expect(j.countries.unknown).toBe(1);
+    const ali = j.people.find((x) => x.who === 'al•@mail.uz');
+    expect(ali.country).toBe('UZ'); expect(ali.uid).toBeGreaterThan(0);
+  });
+  const reveal = (cookie, ids) => app.inject({ method: 'POST', url: '/owner/reveal', headers: cookie ? { cookie } : {}, payload: { ids } });
+  const card = (cookie, id) => app.inject({ method: 'GET', url: `/owner/user/${id}`, headers: cookie ? { cookie } : {} });
+  it('Koʻrsatish: toʻliq pochta faqat egasiga va faqat soʻralgan id lar uchun', async () => {
+    const a = await login('ali@mail.uz');
+    await login('+998901234567');
+    const c = await login('boss@archemistry.uz');
+    const p = (await stats(c)).json().people;
+    const ids = p.map((x) => x.uid);
+    expect((await reveal(null, ids)).statusCode).toBe(401);
+    expect((await reveal(a, ids)).statusCode).toBe(403);
+    const r = (await reveal(c, [ids[1], ids[2], 'x', -1])).json().contacts;
+    expect(Object.values(r).map((x) => x.email ?? x.phone).sort()).toEqual(['+998901234567', 'ali@mail.uz']);
+    expect((await reveal(c, [])).json()).toEqual({ contacts: {} });
+  });
+  it('foydalanuvchi kartochkasi: kirishlar, tanga, buyurtmalar, loyihalar; begona — 403, yoʻq — 404', async () => {
+    const a = await login('ali@mail.uz', { 'cf-ipcountry': 'UZ', 'cf-ipcity': 'Samarkand' });
+    const c = await login('boss@archemistry.uz');
+    const { rows: [u] } = await db.query(`SELECT id FROM users WHERE email = 'ali@mail.uz'`);
+    await db.query(`INSERT INTO orders (user_id, pack, coins, amount, provider, state, paid_at) VALUES ($1, 'p10', 10, 39000, 'multicard', 'paid', now())`, [u.id]);
+    await db.query(`INSERT INTO ledger (user_id, delta, reason, ref) VALUES ($1, 10, 'payment', 'order:1'), ($1, -5, 'export', 'akso@h1'), ($1, -2, 'export', 'akso@h2')`, [u.id]);
+    await db.query(`INSERT INTO project_spend (user_id, project, spent, gen_used) VALUES ($1, 'p-1', 7, 1)`, [u.id]);
+    expect((await card(a, u.id)).statusCode).toBe(403);
+    expect((await card(c, 999999)).statusCode).toBe(404);
+    expect((await card(c, 'abc')).statusCode).toBe(404);
+    const j = (await card(c, u.id)).json();
+    expect(j).toMatchObject({ email: 'ali@mail.uz', method: 'email', country: 'UZ', coins: { balance: 3, bought: 10, spent: 7 } });
+    expect(j.sessions[0]).toMatchObject({ country: 'UZ', city: 'Samarkand' });
+    expect(j.spendByItem[0]).toMatchObject({ item: 'akso', c: 2, coins: 7 });
+    expect(j.orders[0]).toMatchObject({ amount: 39000, state: 'paid' });
+    expect(j.projects[0]).toMatchObject({ project: 'p-1', spent: 7, gen: 1 });
+  });
+  it('geoOf', () => {
+    expect(geoOf({ 'cf-ipcountry': 'uz', 'cf-ipcity': 'Tashkent' })).toEqual({ country: 'UZ', city: 'Tashkent' });
+    expect(geoOf({ 'cf-ipcountry': 'DE', 'cf-ipcity': 'M%C3%BCnchen' })).toEqual({ country: 'DE', city: 'München' });
+    expect(geoOf({ 'cf-ipcountry': 'XX' })).toBeNull(); expect(geoOf({})).toBeNull(); expect(geoOf({ 'cf-ipcountry': '<script>' })).toBeNull();
   });
   it('maskPhone', () => { expect(maskPhone('+998901234567')).toBe('+998•••••4567'); expect(maskPhone(null)).toBeNull(); });
   it('maskEmail', () => { expect(maskEmail('iskandar@gmail.com')).toBe('is••••••@gmail.com'); expect(maskEmail(null)).toBeNull(); });

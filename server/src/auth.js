@@ -49,7 +49,7 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
   }
 
   /** Kod toʻgʻri boʻlsa — foydalanuvchi (kerak boʻlsa yaratiladi) va yangi sessiya tokeni */
-  async function verifyCode(raw, code) {
+  async function verifyCode(raw, code, geo = null) {
     const t = normalizeTarget(raw);
     if (!/^\d{6}$/.test(String(code ?? ''))) throw new AuthError('bad_code', 'kod 6 ta raqamdan iborat');
     return db.tx(async (q) => {
@@ -68,14 +68,17 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
       let u = (await q.query(`SELECT id FROM users WHERE ${col} = $1`, [t.value])).rows[0];
       const isNew = !u;
       if (!u) u = (await q.query(`INSERT INTO users (${col}) VALUES ($1) RETURNING id`, [t.value])).rows[0];
-      return { userId: Number(u.id), token: await newSession(q, u.id), isNew };
+      return { userId: Number(u.id), token: await newSession(q, u.id, geo), isNew };
     }).then((r) => { if (r.error) throw r.error; return r; });
   }
 
-  async function newSession(q, userId) {
+  /** geo — Cloudflare bergan davlat/shahar (IP manzilning oʻzi saqlanmaydi); hisobning birinchi davlati users.country ga yoziladi */
+  async function newSession(q, userId, geo = null) {
     const token = randomBytes(32).toString('base64url');
-    await q.query(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
-      [sha(token), userId, new Date(now().getTime() + SESSION_DAYS * 864e5)]);
+    const country = geo?.country ?? null, city = geo?.city ?? null;
+    await q.query(`INSERT INTO sessions (token_hash, user_id, expires_at, country, city) VALUES ($1, $2, $3, $4, $5)`,
+      [sha(token), userId, new Date(now().getTime() + SESSION_DAYS * 864e5), country, city]);
+    if (country) await q.query(`UPDATE users SET country = $1 WHERE id = $2 AND country IS NULL`, [country, userId]);
     return token;
   }
 
@@ -83,7 +86,7 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
    * Google bilan kirish: tasdiqlangan token maʼlumoti (sub, email, email_verified, name) — tekshiruv google.js da.
    * Avval google_sub boʻyicha, keyin shu pochta bilan ochilgan hisob boʻyicha topiladi (hisoblar birlashadi).
    */
-  async function loginGoogle(c) {
+  async function loginGoogle(c, geo = null) {
     if (!c || typeof c.sub !== 'string' || !c.sub) throw new AuthError('google', 'Google maʼlumoti notoʻgʻri');
     if (!c.email || c.email_verified !== true) throw new AuthError('google_email', 'Google hisobining pochtasi tasdiqlanmagan');
     const email = String(c.email).toLowerCase(), name = typeof c.name === 'string' ? c.name.slice(0, 120) : null;
@@ -95,7 +98,7 @@ export function makeAuth({ db, pepper, send, now = () => new Date() }) {
         if (u) await q.query(`UPDATE users SET google_sub = $1, name = COALESCE(name, $2) WHERE id = $3`, [c.sub, name, u.id]);
         else { u = (await q.query(`INSERT INTO users (email, google_sub, name) VALUES ($1, $2, $3) RETURNING id`, [email, c.sub, name])).rows[0]; isNew = true; }
       }
-      return { userId: Number(u.id), token: await newSession(q, u.id), isNew };
+      return { userId: Number(u.id), token: await newSession(q, u.id, geo), isNew };
     });
   }
 
