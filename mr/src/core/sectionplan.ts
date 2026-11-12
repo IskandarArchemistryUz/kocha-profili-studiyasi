@@ -121,7 +121,7 @@ export function sharedEdge(a: XY[], b: XY[], tol = 0.12): { len: number; mid: XY
  * Kvartira eshigi (05.11): MOP bilan umumiy kesmalar ichidan (≥ 1,0 m) fasad derazalaridan eng uzoqdagisi — orqa (koridor) devori.
  * Yadro tartibi «zina | liftlar | xoll» da lift oldi xolli kvartiraning yon devoriga ham tegadi — eshik yon devorga tushmasin.
  */
-export function doorEdge(a: XY[], list: XY[][], wins: FacadeMod[]): { len: number; mid: XY; best: number } {
+export function doorEdge(a: XY[], list: XY[][], wins: FacadeMod[], end = false): { len: number; mid: XY; best: number } {
   const all = sharedAny(a, list), segs: { mid: XY; len: number; d: XY }[] = [];
   for (const b of list) for (let i = 0; i < a.length; i++) {
     const p = a[i], q = a[(i + 1) % a.length], L = Math.hypot(q[0] - p[0], q[1] - p[1]); if (L < 1e-6) continue;
@@ -138,6 +138,13 @@ export function doorEdge(a: XY[], list: XY[][], wins: FacadeMod[]): { len: numbe
   const dirs: { d: XY; l: number }[] = [];
   for (const m of wins) { if (m.blind) continue; const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], l = Math.hypot(dx, dy); if (l < 0.3) continue; const g = dirs.find(x => Math.abs(x.d[0] * dx + x.d[1] * dy) / l > 0.95); if (g) g.l += l; else dirs.push({ d: [dx / l, dy / l], l }); }
   const F = dirs.sort((x, y) => y.l - x.l)[0]; if (!F) return all;
+  // 12.11 (P/C torets kvartirasi): eshik koridor uchida (fasadga perpendikulyar devorda) — dahliz koridor qoldigʻi boʻladi
+  if (end) {
+    // koridor oʻqi — MOP ning eng uzun qirrasi; eshik shunga perpendikulyar (koridor uchidagi) devorda
+    let cd: XY | null = null, cl = 0; for (const b of list) for (let j = 0; j < b.length; j++) { const r = b[j], t = b[(j + 1) % b.length], l = Math.hypot(t[0] - r[0], t[1] - r[1]); if (l > cl) { cl = l; cd = [(t[0] - r[0]) / l, (t[1] - r[1]) / l]; } }
+    const pe = cd ? segs.filter(x => Math.abs(x.d[0] * cd![0] + x.d[1] * cd![1]) < 0.2 && x.len >= 1.2).sort((x, y) => y.len - x.len)[0] : undefined;
+    if (pe) return { len: all.len, mid: pe.mid, best: pe.len };
+  }
   const par = segs.filter(x => Math.abs(x.d[0] * F.d[0] + x.d[1] * F.d[1]) > 0.95).sort((x, y) => y.len - x.len)[0];
   if (!par || Math.abs(par.len - all.best) < 0.05) return all;
   return { len: all.len, mid: par.mid, best: par.len };
@@ -517,8 +524,8 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
     // ≤ 9,4 m; P/C rejasida ortgan chuqurlik ichki yoʻlakka, xona ≤ 6 m). Sayoz (≤ 13 m) qanotda uch studiyasi < 25 m² va P oyogʻi
     // ≤ 5,7 m — C/L reja oddiy zaxira rejaga tushadi (sinov: 33 × 12, 33 × 13); chuqur (≥ 18 m) perimetr qanotlarida uchda 1 oraliqli
     // (3,3 × 18 m) «koridor» kvartira qolib ketardi (mebel tekshiruvi) — u yerda avvalgi tartib
-    const dTor = (w.S - W) / 2 + W, nb = 1;
-    if (w.double && w.mw * dTor >= TOR_STUDIO && dTor <= 9.4) {
+    const dTor = (w.S - W) / 2 + W, nb = w.mw * dTor >= TOR_STUDIO ? 1 : 2;
+    if (w.double && nb * w.mw * dTor >= TOR_STUDIO && dTor <= 10.1) {
       const cOk = (k: EndKind, e: 0 | 1) => (k === 'free' && capW(w) === 0 && !blindEnd(e)) || (k === 'wall' && dTor <= 8.5 && !blindEnd(e));   // 07.11: 16–17 m qanotda seksiyalar orasidagi devor uchida — avvalgi tartib (u yerda P/C reja zaxiraga tushardi)
       // yadro + har tomonda kamida bitta oraliq qolsin (kalta seksiyada — faqat bitta uchida, avval ochiq uch)
       const need0 = LIFT + 2.4 + STAIR_W + 0.2 + 3 * w.mw;
@@ -997,7 +1004,7 @@ export function finishPlan(plan: RulePlan, mods: FacadeMod[], size: 'S' | 'M' | 
     // 05.11: C/L torets kvartirasida bitta deraza oraligʻi dahliz (koridor qoldigʻi) yonida qoladi — xonalar derazadan bitta kam
     // 05.11 (egasi, 20:30): uch (P/C) kvartirasi — 2x/3x
     if (a.torets) a.rooms = Math.max(1, Math.min(a.rooms, a.mods.length - 1, 3));
-    const sd = doorEdge(a.ring, plan.sections[a.sec]?.mop ?? plan.mop, a.mods.map(i => mods[i]).filter(Boolean)); a.door = sd.mid; a.doorLen = sd.best;
+    const sd = doorEdge(a.ring, plan.sections[a.sec]?.mop ?? plan.mop, a.mods.map(i => mods[i]).filter(Boolean), !!a.torets); a.door = sd.mid; a.doorLen = sd.best;
     a.wet = wetZone(a.ring, a.door);
     a.walls = roomWalls(a, mods);
   }

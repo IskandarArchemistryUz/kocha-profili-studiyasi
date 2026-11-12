@@ -1049,7 +1049,7 @@ export function aptInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
  * kiyimxona ≤ 14 m², bitta yashash xonasi ≤ 55 m². Aks holda keyingi variant (kamroq xona, oʻrab turgan toʻrtburchak, zaxira) sinanadi.
  */
 function sane(I: AptInterior): boolean {
-  return I.rooms.every(q => { const A = area(q.ring); return WET.includes(q.kind) ? A <= 12 : q.kind === 'prixojaya' ? A <= 16 : q.kind === 'garderob' ? A <= 14 : q.kind === 'xoll' ? A <= 14 : A <= 55; });
+  return I.rooms.every(q => { const A = area(q.ring); return WET.includes(q.kind) ? A <= 12 : q.kind === 'prixojaya' ? A <= 16 : q.kind === 'garderob' ? A <= 14 : q.kind === 'xoll' ? A <= 16.5 : A <= 55; });
 }
 
 /**
@@ -1257,7 +1257,7 @@ function wingsInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
     const U0 = g.U, N0: XY = [-U0[1], U0[0]], m0 = g.m[0];
     const lu = (p: XY) => (p[0] - m0.a[0]) * U0[0] + (p[1] - m0.a[1]) * U0[1], lv = (p: XY) => (p[0] - m0.a[0]) * N0[0] + (p[1] - m0.a[1]) * N0[1];
     const L = a.ring.map(p => [lu(p), lv(p)] as XY), u0 = Math.min(...L.map(p => p[0])), u1 = Math.max(...L.map(p => p[0])), v0 = Math.min(...L.map(p => p[1])), v1 = Math.max(...L.map(p => p[1]));
-    const D = v1 - v0, WW = u1 - u0; if (D < 9 || D > 20 || WW < 4.5 || WW > 14) continue;
+    const D = v1 - v0, WW = u1 - u0; if (D < 9 || D > 21 || WW < 4.5 || WW > 14) continue;
     const onA = g.m.filter(m => Math.abs(lv(m.a) - v0) < 0.35), onB = g.m.filter(m => Math.abs(lv(m.a) - v1) < 0.35); if (!onA.length || !onB.length) continue;
     const midV = [...new Set(L.map(p => Math.round((p[1] - v0) * 100) / 100).filter(v => v > 0.3 && v < D - 0.3))].sort((x, y) => x - y);
     if (midV.length < 1 || midV.length > 2) continue;
@@ -1292,16 +1292,33 @@ function wingsInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
     const hDoor = (y: number, x0: number, x1: number, ds: number, sgn: number, w = 0.8) => wall(x0, y, x1, y, [{ k: 'door', s: ds - x0, w, side: (sgn > 0 ? 1 : -1) as 1 | -1, hinge: 0 }]);
     room(0, vA, Ws, vB, 'prixojaya');
     const fronts: { i: number; w: number; d: number; gable: boolean }[] = [];
+    // 12.11 (sayoz qanot P/C, ikki oraliqli uch): derazali oraliqlar xonalardan ortiq boʻlsa — hoʻl boʻlmagan qanotning dahlizga yaqin
+    // ikki oraligʻi bitta xonaga (umumiy xona) qoʻshiladi; aks holda ikkinchi «oshxona» chiqardi
+    const nB = (q: FacadeMod[], Wq: number) => bays(q, Wq).length - 1;
+    let extra = nB(onA, Wa) + nB(onB, Wb) - ((wetA ? !narrowA : !narrowB) ? 1 : 0) - (k + 1);
     for (const isA of [true, false]) {
-      const Wq = isA ? Wa : Wb, bq = bays(isA ? onA : onB, Wq), dep = isA ? vA : D - vB, back = isA ? vA : vB, sgn = isA ? -1 : 1;
+      const Wq = isA ? Wa : Wb, bq = bays(isA ? onA : onB, Wq);
+      if (extra > 0 && isA !== wetA && bq.length > 3) { bq.splice(bq.length - 2, 1); extra--; }
+      const dep = isA ? vA : D - vB, back = isA ? vA : vB, sgn = isA ? -1 : 1;
       const V = (t: number) => back + sgn * t, isWet = isA === wetA, narrow = isA ? narrowA : narrowB;
       if (dep < 4.5) return null;
       const front = (j: number, t0: number, kind: InKind = 'yotoq', poly?: XY[]) => { const x0 = bq[j], x1 = bq[j + 1]; fronts.push({ i: room(x0, V(t0), x1, V(dep), kind, poly), w: x1 - x0, d: dep - t0, gable: j === 0 }); };
       // xona orqa devori (v = V(t)) — eshik [d0, d1] oraligʻida (yoʻlak / dahliz tomoni)
       const backWall = (j: number, t: number, d0: number, d1: number) => { const x0 = bq[j], x1 = bq[j + 1], a0 = Math.max(x0, d0) + 0.21, a1 = Math.min(x1, d1) - 0.21; if (a1 - a0 < 0.7) return false;   /* DOOR_GAP: jamba qoʻshni devor yuzasidan ≥ 0,15 m */ const w = Math.min(0.8, a1 - a0); hDoor(V(t), x0, x1, a1 - w, -sgn, w); return true; };
-      if (isWet && narrow) {
+      if (isWet && narrow && dep - NORM.depth1 > dw + 0.2) {
+        // 12.11 (P/C chuqur qanot, ≥ 18 m): tor qanot chuqur — xona chuqurligi ≤ 6 m (SanQvaN 0102-25, 97-band); orqada hoʻl xona,
+        // dahlizdan yoʻlak (xoll) va kiyimxona, xona — fasad tomonda butun eni boʻylab
+        const x1 = bq[1], tr = dep - NORM.depth1; if (x1 - ws < 1.15) return null;
+        room(0, V(0), ws, V(dw), 'sanuzel'); room(ws, V(0), x1, V(tr), 'xoll');
+        if (tr - dw >= 1.0) { room(0, V(dw), ws, V(tr), 'garderob'); wall(ws, V(dw), ws, V(tr), [{ k: 'door', s: Math.max(0.15, (tr - dw - 0.7) / 2), w: Math.min(0.7, tr - dw - 0.3), side: (isA ? 1 : -1) as 1 | -1, hinge: 0 }]); }
+        wall(0, V(dw), ws, V(dw)); wall(ws, V(0), ws, V(dw), [{ k: 'door', s: 0.3, w: 0.7, side: (isA ? -1 : 1) as 1 | -1, hinge: 0 }]);
+        fronts.push({ i: room(0, V(tr), x1, V(dep), 'yotoq'), w: x1, d: dep - tr, gable: true }); { const dwid = Math.min(0.8, x1 - ws - 0.42); hDoor(V(tr), 0, x1, x1 - 0.21 - dwid, -sgn, dwid); }
+        wall(0, back, ws, back); { const dwid = Math.min(0.8, x1 - ws - 0.4); if (dwid < 0.6 - 1e-6) return null; hDoor(back, ws, x1, ws + (x1 - ws - dwid) / 2, sgn, dwid); }
+        for (let j = 1; j < bq.length - 1; j++) { front(j, 0); }
+      } else if (isWet && narrow) {
         // tor qanot (P oyogʻi): orqada hoʻl xona [0, ws], xona — L shakl (dahlizdan kirish uyasi bilan)
-        if (Wq - ws < 0.85 || dep - dw < 3.0) return null;
+        // 12.11 (sayoz 12–13 m qanot): xona oldi ≥ 2,6 m (avval 3,0) — L shakl yotoqxona ≈ 11–12 m²
+        if (Wq - ws < 0.85 || dep - dw < 2.6) return null;
         room(0, V(0), ws, V(dw), 'sanuzel');
         const x1 = bq[1], poly: XY[] = [[0, V(dw)], [ws, V(dw)], [ws, V(0)], [x1, V(0)], [x1, V(dep)], [0, V(dep)]];
         fronts.push({ i: room(0, V(0), x1, V(dep), 'yotoq', poly), w: x1, d: dep - dw, gable: true });
@@ -1313,7 +1330,9 @@ function wingsInterior(a: RuleApt, mods: FacadeMod[]): AptInterior | null {
         const xh = ws + h; if (dep - dw < 3.0 || Wq < xh + 0.5) return null;
         room(0, V(0), ws, V(dw), 'sanuzel');
         room(ws, V(0), xh, V(dw - h), 'xoll'); room(ws, V(dw - h), Wq, V(dw), 'xoll');
-        if (Wq - xh >= 1.2) { room(xh, V(0), Wq, V(dw - h), 'garderob'); wall(xh, V(0), xh, V(dw - h), [{ k: 'door', s: 0.25, w: Math.min(0.7, dw - h - 0.4), side: (isA ? 1 : -1) as 1 | -1, hinge: 0 }]); wall(xh, V(dw - h), Wq, V(dw - h)); }
+        // 12.11: kiyimxona ≤ 7,5 m² (ANDOZA chegarasi 8 m²) — keng qanotda ortgani yoʻlak (xoll)
+        const gW = Math.min(Wq - xh, 7.5 / Math.max(0.5, dw - h)); if (Wq - xh - gW > 0.05) room(xh + gW, V(0), Wq, V(dw - h), 'xoll');
+        if (gW >= 1.2) { room(xh, V(0), xh + gW, V(dw - h), 'garderob'); wall(xh, V(0), xh, V(dw - h), [{ k: 'door', s: 0.25, w: Math.min(0.7, dw - h - 0.4), side: (isA ? 1 : -1) as 1 | -1, hinge: 0 }]); wall(xh, V(dw - h), xh + gW, V(dw - h)); if (Wq - xh - gW > 0.05) wall(xh + gW, V(0), xh + gW, V(dw - h)); }
         wall(ws, V(0), ws, V(dw), [{ k: 'door', s: dw - h + 0.2, w: 0.7, side: (isA ? -1 : 1) as 1 | -1, hinge: 0 }]);
         wall(0, back, ws, back); if (Wq > Ws + 0.3) wall(Ws, back, Wq, back);
         // torets va keyingi oraliq — bitta xona (umumiy xona, ikki derazali): torets oraligʻida eshikka joy yetmaydi (sanuzel + yoʻlak)
