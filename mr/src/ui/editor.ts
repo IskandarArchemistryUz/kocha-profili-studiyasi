@@ -2,6 +2,7 @@
  * Loyiha oynasi: chapda qadamlar qatori, yonida qadam paneli, markazda sahna, pastda koʻrsatkichlar.
  * Qadam almashganda faqat panel almashadi — sahna, kamera va hujjat joyida qoladi.
  */
+import { siteCondResults } from '../norms/sitecond';
 import polygonClipping from 'polygon-clipping';
 import { repairGen } from '../core/normfix';
 import { langMenu } from './langmenu';
@@ -18,7 +19,7 @@ import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
 import { resolveAxo, type AxoEdit, type AxoPick } from '../core/axoedit';
-import { levelOf, type NormSet } from '../norms/sets';
+import { levelOf, SITE_COND_FIELDS, cleanSiteCond, siteCondCount, type NormSet, type SiteCond } from '../norms/sets';
 import { abroadRules, RULES, spacingBadIds, GREEN_86, type Result, type FixId } from '../norms/rules';
 import { h, IC, icl, svgIcon, fmt, toast, download } from './dom';
 import { STEPS, BUILT_PHASE, type StepDef } from './steps';
@@ -2197,7 +2198,7 @@ export class Editor {
   /** 11.11: loyiha joyining meʼyorlar toʻplami (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
   /** 11.11: loyiha joyining meʼyorlar toʻplami — qoʻlda tanlangani (settings.normSet), boʻlmasa joy boʻyicha (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
   private normSet(): NormSet { const o = this.store.doc.origin; return this.store.doc.settings.normSet ?? placeOf(o[0], o[1]).norms; }
-  private allRules(): Result[] { return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], this.normSet()); }
+  private allRules(): Result[] { return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...this.planRules(), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], this.normSet()).concat(this.last ? siteCondResults(this.last.d, this.store.doc) : []); }
   /**
    * 01.11 (egasi): atrofdagi (OSM) turar joy binolarigacha masofa — ShNQ 2.07.01-23, 79-band, 2-jadval (3 va undan yuqori qavatli)
    * va 6-izoh (koʻp qavatli ↔ yakka uy: ≥ koʻp qavatli bino balandligi). Vazifa: OSM «building» tegi yoki foydalanuvchi belgisi
@@ -2482,7 +2483,7 @@ export class Editor {
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), avoidG = this.genObstacles(b.parcelId ?? lab.id, b.rings[0]);
-    const run = (gx: GenParams, edgeH?: (number | null)[]) => { const a = this.autoSb(i, gx, edgeH), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc), norms: this.normSet() }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
+    const run = (gx0: GenParams, edgeH?: (number | null)[]) => { const gx = this.siteCondGen(gx0), a = this.autoSb(i, gx, edgeH), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc), norms: this.normSet() }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
     let { asb, r } = run(g);
     // 05.11 (egasi): 2-oʻtish — chekinish har qirrada shu qirraga qaragan seksiyalarning haqiqiy balandligidan (79-band 1-izoh: loyihalashtirilgan
     // binoning balandligi); janub qirrasi pastroq → chekinish kichik → hovli kengroq. Yaqinlashguncha (farq ≤ 0,3 m) koʻpi bilan 3 oʻtish
@@ -2585,12 +2586,33 @@ export class Editor {
     // 05.11 (egasi: «nega chekinish barcha turdagi binolar uchun bir xil?»): 79-band — «Уч ва ундан юқори кўп қаватли турар жой бинолари ва
     // барча ётоқ ўринлари мавжуд бўлган бинолар орасидаги масофалар» — 2-jadval faqat 3+ qavatli turar joy va yotoq oʻrinli binolarga.
     // Ofis, savdo, maʼmuriy va boshqa noturar — 2-jadval chekinishi yoʻq: qoʻlda berilgan chekinish (ANDOZA)
-    if (!sb79Applies(b.use, F)) { const d = ring.map(() => g.setback); return { ring: insetVar(ring, d), d, kinds, H, dMin: g.setback, dMax: g.setback, andoza: true }; }
+    // 12.11 (meʼyorlar toʻplami, 3-bosqich): «Uchastka shartlari» — koʻcha / yon / orqa chekinishlari kiritilgan boʻlsa, generator ham shunga amal qiladi
+    const sc = doc.settings.siteCond, anyK = kinds.includes('kocha');
+    const scEdge = (k: number): number | undefined => {
+      if (!sc) return undefined;
+      if (kinds[k] === 'kocha') return sc.sbStreet;
+      const n = kinds.length, adj = kinds[(k + n - 1) % n] === 'kocha' || kinds[(k + 1) % n] === 'kocha';
+      return !anyK || adj ? sc.sbSide : sc.sbRear;
+    };
+    if (!sb79Applies(b.use, F)) { const d = ring.map((_, k) => Math.max(g.setback, scEdge(k) ?? 0)); return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), andoza: true }; }
     const hwOn = (g.hw ?? SB_HW) > 0, hw = hwOn ? autoSetback(H, blockStreetWidth(ring, streets), (g.nonRes ?? 0) > 0, g.hw) : undefined;
     // 11.11: xalqaro toʻplam — koʻcha tomoni qoʻlda berilgan chekinish (mahalliy zonalash sharti), qoʻshni tomoni ADG 3F-1
     const set = this.normSet(), intl = set === 'intl';
-    const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], n = boundaryNeed(kinds[k], Hk(k), true, azOf([q[0] - p[0], q[1] - p[1]]), set); return Math.round(Math.max(n, intl && kinds[k] === 'kocha' ? g.setback : 0, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
+    const d = ring.map((p, k) => { const q = ring[(k + 1) % ring.length], s0 = scEdge(k);
+      // xalqaro toʻplamda kiritilgan shart andoza (ADG) oʻrniga; Oʻzbekistonda ShNQ talabi bilan kattasi
+      const n = intl && s0 !== undefined ? 0 : boundaryNeed(kinds[k], Hk(k), true, azOf([q[0] - p[0], q[1] - p[1]]), set);
+      return Math.round(Math.max(n, s0 ?? 0, intl && kinds[k] === 'kocha' && s0 === undefined ? g.setback : 0, kinds[k] === 'kocha' && hw ? hw.d : 0) * 10) / 10; });
     return { ring: insetVar(ring, d), d, kinds, H, dMin: Math.min(...d), dMax: Math.max(...d), hw, ...(edgeH ? { hs: ring.map((_, k) => Hk(k)) } : {}), ...(intl ? { intl: true } : {}) };
+  }
+  /** 12.11 (uchastka shartlari): balandlik chegarasi — qavatlar soni kamayadi; binolar orasi — generator qator oraligʻi */
+  private siteCondGen(g: GenParams): GenParams {
+    const sc = this.store.doc.settings.siteCond; if (!sc) return g;
+    const r: GenParams = { ...g, ...(sc.gap !== undefined ? { gapMin: sc.gap } : {}) };
+    if (sc.hMax !== undefined) {
+      const fit = (F: number) => { let f = F; while (f > 1 && bLevels(this.store.doc.settings, { floors: f, nonRes: g.nonRes ?? 0 }).top > sc.hMax! + 0.05) f--; return f; };
+      r.maxF = fit(g.maxF); r.minF = Math.min(g.minF, r.maxF); if (g.towerF !== undefined) r.towerF = fit(g.towerF);
+    }
+    return r;
   }
   private autoSbNote(a: NonNullable<ReturnType<Editor['autoSb']>>): string {
     const ks = a.kinds.map((k, i) => ({ k, d: a.d[i] })), kc = ks.filter(x => x.k === 'kocha'), qs = ks.filter(x => x.k === 'qoshni');
@@ -3544,7 +3566,7 @@ export class Editor {
       { n: 1, id: 'secJoy', t: 'Joy', done: loaded, lock: false, sum: ctxSum, fill: x => this.hududPanel(x) },
       { n: 2, id: 'secSite', t: 'Chegara', done: site, lock: false, sum: site ? `${fmt(this.last?.d.siteHa ?? 0, 2)} ga` : tr('chizilmagan'), fill: x => this.uchastkaPanel(x) },
       { n: 3, id: 'secAccess', t: 'Kirish va yoʻllar', done: site && loaded, lock: !site, sum: () => site && loaded && this.accessMemo ? tf('${n} yoʻl tutash', { n: this.accessMemo.v.length }) : '', fill: x => x.append(this.accessBlock()) },
-      { n: 4, id: 'secNorms', t: 'Meʼyorlar toʻplami', done: site, lock: !site, sum: tr(this.normSet() === 'UZ' ? 'Oʻzbekiston · ShNQ' : 'Xalqaro andoza'), fill: x => x.append(this.normsBlock()) },
+      { n: 4, id: 'secNorms', t: 'Meʼyorlar toʻplami', done: site, lock: !site, sum: tr(this.normSet() === 'UZ' ? 'Oʻzbekiston · ShNQ' : 'Xalqaro andoza') + (siteCondCount(this.store.doc.settings.siteCond) ? ` · ${tf('${n} ta shart', { n: siteCondCount(this.store.doc.settings.siteCond) })}` : ''), fill: x => x.append(this.normsBlock()) },
       { n: 5, id: 'secLimits', t: 'Mavjud holat va cheklovlar', done: site && doc.limits !== undefined, lock: !site, sum: site && doc.limits !== undefined ? `${tf('${n} cheklov', { n: lims.length })}${bal ? ' · ' + tf('yaroqli ${a} ga', { a: fmt(bal.usableHa, 2) }) : ''}` : '', fill: x => x.append(this.limitsBlock()) },
     ];
     const auto = !loaded && !site ? 1 : !site ? 2 : (S.find(x => !x.done)?.n ?? 4);
@@ -3583,7 +3605,57 @@ export class Editor {
       h('div', { class: 'rtiles', id: 'normCnt', style: 'grid-template-columns:repeat(3,minmax(0,1fr))' },
         ...([['majburiy', cnt.majburiy], ['tavsiya', cnt.tavsiya], ['oʻchiq', cnt.ochiq]] as const).map(([k, v]) => h('div', {}, h('b', {}, String(v)), h('small', {}, tr(k))))),
       ...(doc.settings.normSet ? [h('div', { class: 'note', id: 'normNote' }, tr('Binolar yangi toʻplam boʻyicha qayta joylashadi: 5-qadamda «Variant taklif qil».'))] : []),
+      this.siteCondEntry(),
       h('button', { class: 'btn btn-block', id: 'normReg', onclick: () => { this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = false; this.renderKpi(); } }, tr('Meʼyorlar roʻyxatini ochish')));
+  }
+  /* ---------- 12.11: «Uchastka shartlari» (meʼyorlar toʻplami, 3-bosqich, 1-band; kanvas «Me'yorlar to'plami — interfeys maketi», 2-doska) ---------- */
+  private scOpen = false;
+  private scDraft: SiteCond | null = null;
+  private static SC_KEY = 'mr-sitecond-sets';
+  private scSaved(): { name: string; c: SiteCond }[] {
+    try { const a = JSON.parse(localStorage.getItem(Editor.SC_KEY) ?? '[]'); return Array.isArray(a) ? a.flatMap(x => { const c = cleanSiteCond(x?.c); return c && typeof x?.name === 'string' ? [{ name: x.name.slice(0, 60), c }] : []; }).slice(0, 12) : []; } catch { return []; }
+  }
+  /** 4-boʻlimdagi kirish: kiritilgan shartlar soni va «Uchastka shartlari» tugmasi; ochilganda — forma */
+  private siteCondEntry(): HTMLElement {
+    const c = this.store.doc.settings.siteCond, n = siteCondCount(c);
+    if (this.scOpen) return this.siteCondForm();
+    return h('div', { class: 'group flat sc-entry', id: 'scEntry' },
+      h('button', { type: 'button', class: 'row', id: 'scOpen', onclick: () => { this.scOpen = true; this.scDraft = { ...(c ?? {}) }; this.renderPanel(); } },
+        h('span', { class: 'col', style: 'flex:1;gap:2px;text-align:left' }, h('b', {}, tr('Uchastka shartlari')),
+          h('span', { class: 't-small' }, n ? tf('${n} ta shart kiritilgan — majburiy tekshiruv', { n }) : tr('Zonalash yoki brifdagi raqamlar: UMN, balandlik, chekinishlar, parkovka'))),
+        n ? h('span', { class: 'chip ok', id: 'scCnt' }, String(n)) : '', svgIcon(IC.next)));
+  }
+  private siteCondForm(): HTMLElement {
+    const D = this.scDraft ?? (this.scDraft = { ...(this.store.doc.settings.siteCond ?? {}) });
+    const set = this.normSet(), andoza = set === 'UZ' ? 'boʻsh — ShNQ' : 'boʻsh — ADG 3F-1';
+    const num = (f: typeof SITE_COND_FIELDS[number]) => {
+      const inp = h('input', { class: 'input sc-num', type: 'text', inputmode: 'decimal', id: `sc_${f.k}`, placeholder: '—', 'aria-label': tr(f.t), value: D[f.k] !== undefined ? String(D[f.k]).replace('.', ',') : '' }) as HTMLInputElement;
+      inp.oninput = () => { const t = inp.value.trim().replace(',', '.'); if (!t) { delete D[f.k]; inp.removeAttribute('aria-invalid'); return; }
+        const v = Number(t), ok = Number.isFinite(v) && v >= f.lim[0] && v <= f.lim[1]; if (ok) D[f.k] = v; else delete D[f.k]; inp.toggleAttribute('aria-invalid', !ok); };
+      const sub = f.sub === 'boʻsh — toʻplam andozasi' ? andoza : f.sub;
+      return h('label', { class: 'row', for: `sc_${f.k}` }, h('span', { class: 'col', style: 'flex:1;gap:1px' }, h('span', {}, tr(f.t)), sub ? h('span', { class: 't-small' }, tr(sub)) : ''), inp, h('span', { class: 'sc-u' }, f.u));
+    };
+    const grp = (g: string, t: string) => [h('div', { class: 'glabel' }, tr(t)), h('div', { class: 'group flat sc-grp' }, ...SITE_COND_FIELDS.filter(f => f.g === g).map(num))];
+    const srcI = h('input', { class: 'input', type: 'text', id: 'scSrc', placeholder: tr('Zonalash hujjati, zona, modda'), value: D.src ?? '', 'aria-label': tr('Manba') }) as HTMLInputElement;
+    srcI.oninput = () => { D.src = srcI.value; };
+    const close = () => { this.scOpen = false; this.scDraft = null; this.renderPanel(); };
+    const apply = () => { const c = cleanSiteCond(D); this.scOpen = false; this.scDraft = null; this.run(() => this.store.dispatch({ type: 'setSettings', patch: { siteCond: c } })); toast(c ? tr('Uchastka shartlari qoʻllandi — 5-qadamda «Variant taklif qil» bilan binolar shartga moslashadi') : tr('Uchastka shartlari tozalandi')); };
+    const saved = this.scSaved();
+    const save = () => { const c = cleanSiteCond(D); if (!c) { toast(tr('Avval kamida bitta shart kiriting')); return; }
+      const name = (c.src || tf('Shartlar ${n}', { n: saved.length + 1 })).slice(0, 60), list = [{ name, c }, ...saved.filter(x => x.name !== name)].slice(0, 12);
+      try { localStorage.setItem(Editor.SC_KEY, JSON.stringify(list)); } catch { /* saqlash imkoni yoʻq */ }
+      toast(tf('«${n}» toʻplam sifatida saqlandi', { n: name })); this.renderPanel(); };
+    return h('div', { class: 'col sc-form', id: 'scForm' },
+      h('button', { type: 'button', class: 'btn btn-ghost btn-sm sc-back', id: 'scBack', onclick: close }, svgIcon(IC.back), tr('Meʼyorlar toʻplami')),
+      h('b', { class: 'sc-ttl' }, tr('Uchastka shartlari')),
+      h('span', { class: 't-small' }, tr('Zonalash xaritasi yoki buyurtmachi brifidagi raqamlar. Kiritilgan qiymat — majburiy tekshiruv, boʻsh qolgani — andoza.')),
+      ...(saved.length ? [h('div', { class: 'glabel' }, tr('Saqlangan toʻplamlar')), h('div', { class: 'sc-saved', id: 'scSaved' }, ...saved.map(x => h('button', { type: 'button', class: 'chip', title: x.name, onclick: () => { this.scDraft = { ...x.c }; this.renderPanel(); } }, x.name)))] : []),
+      ...grp('hajm', 'Hajm'), ...grp('chek', 'Chekinishlar'), ...grp('orq', 'Oraliq va parkovka'),
+      h('div', { class: 'glabel' }, tr('Manba')), h('span', { class: 't-small' }, tr('Hujjat va band — albom va hisobotga yoziladi')), srcI,
+      h('div', { class: 'sc-foot' },
+        h('button', { type: 'button', class: 'btn', id: 'scSave', onclick: save }, tr('Toʻplam sifatida saqlash')),
+        h('button', { type: 'button', class: 'btn btn-primary', id: 'scApply', onclick: apply }, tr('Qoʻllash'))),
+      siteCondCount(this.store.doc.settings.siteCond) ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', id: 'scClear', onclick: () => { for (const k of Object.keys(D)) delete (D as Record<string, unknown>)[k]; apply(); } }, tr('Shartlarni tozalash')) : '');
   }
   private limitsBlock(): HTMLElement {
     const doc = this.store.doc, ls = doc.limits ?? [], box = h('div', { class: 'col', id: 'limBox' }), bal = this.last?.d.balance;
@@ -4903,7 +4975,7 @@ export class Editor {
       k('Zichlik, kishi/ga', d.density ? fmt(d.density) : '—', dens?.status, 'kDens', true),
       k('Ish oʻrni', d.jobs >= 1 ? fmt(d.jobs) : '—', undefined, 'kJobs', true),
       h('button', { class: 'ib sm', id: 'kAll', 'aria-label': tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), title: tr(this.kpiAll ? 'Asosiy koʻrsatkichlar' : 'Barcha koʻrsatkichlar'), 'aria-pressed': this.kpiAll, onclick: () => { this.kpiAll = !this.kpiAll; this.renderKpi(); } }, svgIcon(this.kpiAll ? '<path d="M15 6l-6 6 6 6"/>' : '<path d="M9 6l6 6-6 6"/>')),
-      h('button', { class: `btn more${open && this.el.drawer.dataset.kind === 'reg' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open && this.el.drawer.dataset.kind === 'reg', onclick: () => { const reg = this.el.drawer.dataset.kind === 'reg'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar'), (() => { /* 31.10 (A variant, 3-bosqich): holat doim koʻrinadi — mos emaslar soni (xorijda — andoza holatlari bilan) */ const rs = abroadRules(c.results, this.normSet()), nf = rs.filter(r => r.status === 'fail').length, nr = rs.filter(r => r.status === 'review').length; return h('span', { class: 'kst', id: 'kStat', 'data-s': nf ? 'fail' : nr ? 'review' : 'pass', title: nf ? tf('${n} ta meʼyor mos emas', { n: nf }) : nr ? tf('${n} ta koʻrib chiqish', { n: nr }) : tr('Hammasi mos') }, h('i'), nf ? String(nf) : nr ? String(nr) : '✓'); })()));
+      h('button', { class: `btn more${open && this.el.drawer.dataset.kind === 'reg' ? ' on' : ''}`, id: 'kMore', 'aria-expanded': open && this.el.drawer.dataset.kind === 'reg', onclick: () => { const reg = this.el.drawer.dataset.kind === 'reg'; this.el.drawer.dataset.kind = 'reg'; this.el.drawer.hidden = reg ? !this.el.drawer.hidden : false; this.renderKpi(); } }, tr('Meʼyorlar'), (() => { /* 31.10 (A variant, 3-bosqich): holat doim koʻrinadi — mos emaslar soni (xorijda — andoza holatlari bilan) */ const rs = abroadRules(c.results, this.normSet()).concat(siteCondResults(c.d, this.store.doc)), nf = rs.filter(r => r.status === 'fail').length, nr = rs.filter(r => r.status === 'review').length; return h('span', { class: 'kst', id: 'kStat', 'data-s': nf ? 'fail' : nr ? 'review' : 'pass', title: nf ? tf('${n} ta meʼyor mos emas', { n: nf }) : nr ? tf('${n} ta koʻrib chiqish', { n: nr }) : tr('Hammasi mos') }, h('i'), nf ? String(nf) : nr ? String(nr) : '✓'); })()));
     if (!this.el.drawer.hidden && this.el.drawer.dataset.kind === 'reg') this.el.drawer.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, tr('Meʼyoriy reyestr')), h('button', { class: 'ib sm', 'aria-label': tr('Yopish'), onclick: () => { this.el.drawer.hidden = true; this.renderKpi(); } }, svgIcon(IC.x))), this.register());
     // 04.11 (beqaror testlar): son maydoniga yozilayotganda (masalan uchastka eni) qayta chizilsa, son belgilashi oʻqilmagani uchun yangi
     // qiymat eskisiga qoʻshilib ketardi («120» + «400» → «120400» — uchastka qoʻyilmasdi). Yozuv tugaguncha (fokus paneldan chiqguncha) kutiladi.

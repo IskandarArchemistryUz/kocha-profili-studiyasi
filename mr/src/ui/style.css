@@ -1003,3 +1003,18 @@ details.sp-lead[open] .sp-more{display:none}
 .acc-c svg,.acc-h>b svg{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
 .acc-c svg{stroke-width:2}
 .acc.open .acc-s{visibility:hidden}
+/* 12.11: «Uchastka shartlari» (meʼyorlar toʻplami, 3-bosqich) */
+.sc-entry .row{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;color:var(--ink);font:inherit;cursor:pointer}
+.sc-entry .row svg{width:16px;height:16px;color:var(--muted);flex:none}
+.sc-form{gap:8px}
+.sc-form .sc-back{align-self:flex-start;gap:4px;color:var(--muted);padding-left:2px}
+.sc-form .sc-back svg{width:14px;height:14px}
+.sc-form .sc-ttl{font-size:18px;letter-spacing:-.01em}
+.sc-grp .row{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:.5px solid var(--line);cursor:text}
+.sc-grp .row:first-child{border-top:0}
+.sc-grp .sc-num{width:82px;flex:none;text-align:right;font-variant-numeric:tabular-nums}
+.sc-grp .sc-num[aria-invalid]{box-shadow:inset 0 0 0 1.5px var(--bad,#b23a2e)}
+.sc-grp .sc-u{width:22px;flex:none;color:var(--muted);font-size:12px}
+.sc-saved{display:flex;flex-wrap:wrap;gap:6px}
+.sc-saved .chip{border:0;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.sc-foot{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px}
