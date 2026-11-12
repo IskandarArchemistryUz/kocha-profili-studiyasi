@@ -48,6 +48,7 @@ import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridS
 import { insolCompass, type Compass } from '../core/kompas';
 import { FIRE_CLS, isLowHouse, lowFireNeed } from '../core/firedist';
 import { stageRows } from '../core/sheet';
+import { proposeStages } from '../core/phasing';
 import { lenLimit, SYS, SEIS_PLACES, seisKey, seisByKey, seisForDistrict, socialFloorLimit } from '../core/seysmik';
 import { CONSTRUCT_SYS } from '../core/doc';
 import { PRESET_PROFILES } from '../core/presets';
@@ -2856,7 +2857,15 @@ export class Editor {
     const set = (n: number) => this.run(() => { for (const b of ids) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { stage: n === 1 ? undefined : n } }, 'stage-blk'); });
     return h('div', { class: 'group', id: 'blkStage' }, h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
       h('span', { class: 'k' }, tr('Qurilish navbati'), h('span', { class: 'sub' }, tf('kvartaldagi ${n} ta bino · «Qurilish navbati» varagʻi', { n: ids.length }))),
-      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Qurilish navbati') }, ...[1, 2, 3, 4, 5].map(n => h('button', { 'aria-pressed': one === n, 'data-bstage': n, onclick: () => set(n) }, String(n))))));
+      h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Qurilish navbati') }, ...[1, 2, 3, 4, 5].map(n => h('button', { 'aria-pressed': one === n, 'data-bstage': n, onclick: () => set(n) }, String(n))))),
+      // 12.11 (eski navbat, 6-band): barcha kvartallar uchun navbatlarni taklif qilish (core/phasing — tashqi chegaradan ichkariga, ijtimoiy birinchi, GFA teng)
+      h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
+        h('span', { class: 'k' }, tr('Navbatlarni taklif qilish'), h('span', { class: 'sub' }, tr('barcha kvartallar: chegaradan ichkariga, ijtimoiy obyektlar 1-navbatda, maydon teng'))),
+        h('div', { class: 'seg sm', role: 'group', id: 'stageAuto', 'aria-label': tr('Navbatlar soni') }, ...[2, 3, 4, 5].map(n => h('button', { 'data-nstage': n, title: tf('${n} navbat', { n }), onclick: () => {
+          const P = proposeStages(this.store.doc, n);
+          this.run(() => { for (const [id, st] of P.stage) { const b = this.store.doc.buildings.find(x => x.id === id); if (b && (b.stage ?? 1) !== st) this.store.dispatch({ type: 'updateBuilding', id, patch: { stage: st === 1 ? undefined : st } }, 'stage-auto'); } });
+          toast(tf('${n} navbat taklif qilindi — «Qurilish navbati» varagʻida koʻring', { n }));
+        } }, String(n))))));
   }
   private hajmPanel(body: HTMLElement): void {
     const doc = this.store.doc, fr = frame(doc.origin), plan = this.plan();
