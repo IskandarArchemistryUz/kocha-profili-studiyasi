@@ -141,10 +141,15 @@ test('raqobatchilar ikonka rejimi (13.11, kanvas 14c)', async ({ page }) => {
   expect(await page.evaluate(() => (window as any).joyMap.getPaintProperty('joy-comp', 'circle-opacity'))).toBe(0);
   await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
   await expect.poll(() => vis(page, 'joy-comp-i')).toBe('none');
+  expect(errs).toEqual([]);
+});
 test('odamlar oqimi: «Yoʻllar dastasi» (13.11, kanvas 13b)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
   await joyClick(page, 'oqim', '.switch');
   await joyClick(page, 'oqim', '.lt');
+  await openView(page);
   await page.locator('.jv-st button', { hasText: 'Yoʻllar dastasi' }).click();
   const paint = (k: string) => page.evaluate(k => (window as any).joyMap.getPaintProperty('joy-flow', k), k);
   await expect.poll(() => paint('line-color')).toBe('#5b1f8a');
