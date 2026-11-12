@@ -9,6 +9,7 @@ import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { registerData } from './data/routes.js';
 import { ownerStats, grantCoins, ownerUser, ownerReveal, geoOf } from './owner.js';
+import { parseBatch, insertEvents, eventStats } from './events.js';
 import { makePrivate, parseBbox, PrivateError } from './private.js';
 import { ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
@@ -126,6 +127,27 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   });
 
   const isOwner = (u) => !!u.email && OWN.has(u.email.toLowerCase());
+
+  // Foydalanish hodisalari (brauzerdan sendBeacon — text/plain JSON). Javob har doim 204; egasi va robotlar yozilmaydi.
+  app.addContentTypeParser('text/plain', { parseAs: 'string', bodyLimit: 32 * 1024 }, (req, body, done) => done(null, body));
+  app.post('/ev', { logLevel: 'warn' }, async (req, reply) => {
+    if (limited('e:' + req.ip, 120)) return reply.code(204).send();
+    const b = parseBatch(req.body);
+    if (!b || !b.rows.length) return reply.code(204).send();
+    let u = null;
+    try { u = await auth.userByToken(req.cookies[COOKIE]); } catch { /* sessiyasiz ham yoziladi */ }
+    if (u && isOwner(u)) return reply.code(204).send();
+    await insertEvents(db, b, u?.id ?? null, geoOf(req.headers)?.country ?? null);
+    return reply.code(204).send();
+  });
+
+  // Egasi: voronka, qaytish, eng koʻp harakatlar (alohida — /owner/stats ni sekinlashtirmasin)
+  app.get('/owner/usage', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    if (!isOwner(u)) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
+    reply.header('cache-control', 'no-store');
+    return eventStats(db, now ? now() : new Date());
+  });
   // Pochtani ochib koʻrsatish: roʻyxat sukut boʻyicha yashirin, «Koʻrsatish» bosilganda shu id lar uchun toʻliq pochta/telefon
   app.post('/owner/reveal', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;

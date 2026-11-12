@@ -3,7 +3,7 @@
 import './account.css';
 import { h, fmt, icl, IC, svgIcon } from '../ui/dom';
 import { tr, tf, getLang } from '../i18n';
-import { ownerStats, ownerGrant, ownerReveal, ownerUser, check, type OwnerStats, type OwnerContact } from './session';
+import { ownerStats, ownerGrant, ownerReveal, ownerUser, ownerUsage, check, type OwnerStats, type OwnerContact, type OwnerUsage } from './session';
 
 const GOAT = 'https://archemistry.goatcounter.com';
 const MERCHANT = 'https://merchant.multicard.uz';
@@ -40,13 +40,13 @@ const whoOf = (uid: number | undefined, masked: string | null): string => {
   const c = shown && uid ? contacts.get(uid) : undefined;
   return c ? (c.email ?? c.phone ?? masked ?? '—') : (masked ?? '—');
 };
-function bars(days: { day: string; c: number }[]): HTMLElement {
+function bars(days: { day: string; c: number }[], label = tr('Kunlik roʻyxatdan oʻtish, 30 kun')): HTMLElement {
   const map = new Map(days.map((d) => [d.day, d.c]));
   const out: { day: string; c: number }[] = [];
   const today = new Date();
   for (let i = 29; i >= 0; i--) { const d = new Date(today.getTime() - i * 864e5); const k = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tashkent' }); out.push({ day: k, c: map.get(k) ?? 0 }); }
   const max = Math.max(1, ...out.map((d) => d.c));
-  return h('div', { class: 'own-bars', role: 'img', 'aria-label': tr('Kunlik roʻyxatdan oʻtish, 30 kun') },
+  return h('div', { class: 'own-bars', role: 'img', 'aria-label': label },
     ...out.map((d) => h('span', { class: 'bar', title: `${d.day}: ${d.c}`, style: `height:${Math.max(2, (d.c / max) * 100)}%` })));
 }
 
@@ -132,6 +132,38 @@ function render(s: OwnerStats, grant: HTMLElement, toggle: HTMLElement): HTMLEle
   ];
 }
 
+/* ---------- foydalanish: voronka, qaytish, eng koʻp harakatlar (/owner/usage) ---------- */
+const SVC: Record<string, string> = { mr: 'Master reja', joy: 'Joyshunos', ks: 'Koʻchasoz', ren: 'Render' };
+const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)} %` : '—');
+function usage(x: OwnerUsage): HTMLElement {
+  const FL: Record<string, string> = {
+    open: tr('Master rejani ochdi'), step1: tr('1-qadam: joy va uchastka'), login: tr('Hisobga kirdi'),
+    step3: tr('3-qadam: parsellar va zonalar'), paid: tr('Birinchi pullik harakat'),
+  };
+  const top = x.funnel[0]?.c ?? 0;
+  const funnel = h('div', { class: 'own-funnel', id: 'ownFunnel' }, ...x.funnel.map((f, i) => {
+    const prev = i ? x.funnel[i - 1].c : f.c;
+    return h('div', { class: 'own-fl' },
+      h('span', { class: 'own-fl-l' }, FL[f.key] ?? f.key),
+      h('span', { class: 'own-fl-bar' }, h('i', { style: `width:${top ? Math.max(1, (f.c / top) * 100) : 0}%` })),
+      h('b', {}, fmt(f.c)),
+      h('small', {}, i ? tf('oldingisidan ${p}', { p: pct(f.c, prev) }) : ''));
+  }));
+  const label = (n: string) => n.replace(/^click\//, '').replace(/^[a-z]+\//, '');
+  return h('section', { class: 'own-sec', id: 'ownUsage' }, h('h2', {}, tr('Foydalanish')),
+    h('p', { class: 't-small own-hint' }, x.since ? tf('Maʼlumot yigʻilishi boshlangan: ${t}', { t: when(x.since) }) : tr('Hali maʼlumot yoʻq')),
+    h('h3', {}, tr('Faol brauzerlar — 30 kun')), bars(x.daily.map((d) => ({ day: d.d, c: d.who })), tr('Kunlik faol brauzerlar, 30 kun')),
+    h('h3', {}, tr('Voronka — 30 kun')), funnel,
+    h('div', { class: 'own-two' },
+      h('div', {}, h('h3', {}, tr('Xizmatlar — 30 kun')), table([tr('Xizmat'), tr('Brauzerlar'), tr('Soni')], x.services.map((r) => [SVC[r.svc] ?? r.svc, r.who, r.c]), tr('Hali maʼlumot yoʻq'))),
+      h('div', {}, h('h3', {}, tr('Qaytish — roʻyxatdan oʻtgan haftasi boʻyicha')),
+        table([tr('Hafta'), tr('Soni'), ...[1, 2, 3, 4].map((k) => tf('${n}-hafta', { n: k }))],
+          x.cohorts.map((r) => [r.wk, r.size, ...r.w.map((v) => `${v} (${pct(v, r.size)})`)]), tr('Hali maʼlumot yoʻq')))),
+    h('h3', {}, tr('Eng koʻp harakatlar — 30 kun')),
+    h('div', { class: 'own-scroll own-scroll-sm', id: 'ownTop' }, table([tr('Xizmat'), tr('Harakat'), tr('Soni'), tr('Brauzerlar')],
+      x.top.map((r) => [SVC[r.svc] ?? r.svc, label(r.name), r.c, r.who]), tr('Hali maʼlumot yoʻq'))));
+}
+
 /* ---------- foydalanuvchi kartochkasi ---------- */
 async function userCard(uid: number): Promise<void> {
   document.getElementById('ownCard')?.remove();
@@ -175,6 +207,8 @@ export async function ownerPage(root: HTMLElement): Promise<void> {
     h('div', { class: 'home-top' }, h('a', { class: 'btn btn-ghost btn-sm', href: '#/', style: 'text-decoration:none' }, ...icl(IC.back, tr('Loyihalar'))),
       h('button', { class: 'btn btn-sm', id: 'ownRefresh', onclick: () => void load() }, tr('Yangilash'))),
     h('h1', { class: 't-display' }, tr('Egasi paneli')), upd, body));
+  const use = h('div', { class: 'own-body' });
+  body.after(use);
   const grant = grantForm(() => void load());
   let last: OwnerStats | null = null;
   const toggle = h('button', { class: 'btn btn-ghost btn-sm', id: 'ownReveal', type: 'button', 'aria-pressed': 'false', onclick: () => void flip() }) as HTMLButtonElement;
@@ -197,6 +231,8 @@ export async function ownerPage(root: HTMLElement): Promise<void> {
     try {
       const me = await check(true);
       if (!me?.owner) { body.replaceChildren(h('p', { class: 't-small own-empty', id: 'ownDenied' }, tr('Bu sahifa faqat sayt egasi uchun.'))); return; }
+      // foydalanish boʻlimi — alohida soʻrov (ogʻirroq); xato boʻlsa asosiy panel baribir chiqadi
+      void ownerUsage().then((x) => use.replaceChildren(usage(x))).catch((e) => use.replaceChildren(h('p', { class: 't-small own-empty' }, (e as Error).message)));
       const s = await ownerStats();
       if (shown) await fetchContacts(s);
       last = s;

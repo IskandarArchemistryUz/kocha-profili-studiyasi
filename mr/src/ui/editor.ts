@@ -225,6 +225,7 @@ export class Editor {
     this.step = STEPS.find(s => s.id === (doc.site ? 'hajm' : 'uchastka'))!;
     // kirish talab qilinsa: sessiya aniqlanguncha 3-qadamdan keyingisi ochilmaydi (Uchastka koʻrsatiladi)
     if (needsLogin(this.step.id)) { const want = this.step; this.step = STEPS.find(s => s.id === 'uchastka')!; void checkAuth().then(m => { if (m && this.step.id === 'uchastka') this.go(want); }); }
+    track(`mr/step/${this.step.id}`, true);   // boshlangʻich qadam ham voronkaga (egasi paneli)
     this.root = this.build();
     host.replaceChildren(this.root);
     this.scene = new Scene3D(this.el.scene);

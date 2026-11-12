@@ -26,6 +26,10 @@ const CARD = { id: 7, email: 'francois@gmail.com', phone: null, name: 'François
   sessions: [{ at: '2026-10-28T11:00:00Z', country: 'UZ', city: 'Tashkent' }], countries: [{ country: 'UZ', c: 1 }],
   spendByItem: [{ item: 'akso', reason: 'export', c: 2, coins: 10 }], ledger: [{ delta: 1000, reason: 'promo', item: 'grant:k', note: 'Sinov kirishi', at: '2026-10-28T11:00:00Z' }],
   orders: [], projects: [{ project: 'p-1', spent: 7, gen: 1, at: '2026-10-28T11:00:00Z' }], exports: [] };
+const USAGE = { since: '2026-11-12T20:00:00Z', anons30: 40,
+  funnel: [{ key: 'open', c: 40 }, { key: 'step1', c: 20 }, { key: 'login', c: 10 }, { key: 'step3', c: 5 }, { key: 'paid', c: 2 }],
+  daily: [{ d: '2026-11-12', who: 12 }], services: [{ svc: 'mr', who: 40, c: 300 }, { svc: 'joy', who: 6, c: 20 }],
+  top: [{ svc: 'mr', name: 'click/mr/kgo', c: 55, who: 9 }], cohorts: [{ wk: '2026-11-02', size: 10, w: [4, 2, 0, 0] }] };
 async function mockApi(page: Page, owner: boolean, stats: unknown = STATS) {
   const hits = { stats: 0, reveal: [] as number[][], card: 0, grants: [] as { email: string; coins: number; note: string; key: string }[] };
   await page.route(`${API}/**`, async r => {
@@ -38,6 +42,7 @@ async function mockApi(page: Page, owner: boolean, stats: unknown = STATS) {
     if (u.pathname === '/owner/stats') { hits.stats++; return owner ? json(200, stats) : json(403, { error: 'forbidden' }); }
     if (u.pathname === '/owner/reveal') { const b = r.request().postDataJSON(); hits.reveal.push(b.ids);
       return json(200, { contacts: { 7: { email: 'francois@gmail.com', phone: null, name: null }, 8: { email: 'davron@gmail.com', phone: null, name: null } } }); }
+    if (u.pathname === '/owner/usage') return owner ? json(200, USAGE) : json(403, { error: 'forbidden' });
     if (u.pathname === '/owner/user/7') { hits.card++; return json(200, CARD); }
     if (u.pathname === '/owner/grant') { const b = r.request().postDataJSON(); hits.grants.push(b); return owner ? json(200, { applied: true, balance: b.coins, isNew: true, who: 'fr••••••@mail.com', coins: b.coins }) : json(403, { error: 'forbidden' }); }
     return json(404, {});
@@ -53,7 +58,7 @@ test('egasi: bosh sahifada «Panel» → koʻrsatkichlar, jadvallar, havolalar',
   await expect(page.locator('#ownerPage')).toBeVisible();
   await expect(page.locator('[data-k=users] b')).toHaveText('42');
   await expect(page.locator('[data-k=revenue] b')).toContainText('177');
-  await expect(page.locator('.own-bars .bar')).toHaveCount(30);
+  await expect(page.locator('#ownerPage .own-body').first().locator('.own-bars .bar')).toHaveCount(30);
   await expect(page.locator('.own-t').nth(3)).toContainText('al••••@mail.uz');
   await expect(page.locator('#ownPeople tbody tr')).toHaveCount(2);                // toʻlov qilmaganlar ham koʻrinadi
   await expect(page.locator('#ownPeople tbody tr').first()).toContainText('fr••••••@gmail.com');
@@ -145,4 +150,18 @@ test('egasi: pochtalar sukut boʻyicha yashirin, «Koʻrsatish» — toʻliq; da
   await page.keyboard.press('Escape');
   await expect(page.locator('#ownCard')).toHaveCount(0);
   expect(hits.card).toBe(1);
+});
+
+test('egasi: foydalanish — voronka, xizmatlar, qaytish, eng koʻp harakatlar', async ({ page }) => {
+  await mockApi(page, true);
+  await page.goto('./#/egasi');
+  const f = page.locator('#ownFunnel .own-fl');
+  await expect(f).toHaveCount(5);
+  await expect(f.nth(1)).toContainText('20');
+  await expect(f.nth(1)).toContainText('50 %');
+  await expect(f.nth(4)).toContainText('40 %');
+  await expect(page.locator('#ownUsage')).toContainText('Joyshunos');
+  await expect(page.locator('#ownUsage')).toContainText('4 (40 %)');
+  await expect(page.locator('#ownTop')).toContainText('kgo');
+  if (process.env.GX_SHOTS) await page.locator('#ownUsage').screenshot({ path: `${process.env.GX_SHOTS}/egasi_foydalanish.png` });
 });

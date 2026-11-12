@@ -12,6 +12,7 @@ hdr = hdr.replace(' aria-current="page"', '')
 foot = body_line[body_line.index('<footer class="mfoot">'):body_line.index('</footer>') + 9]
 
 EDITION = '21.10.2026'
+PRIV_EDITION = '13.11.2026'   # maxfiylik: foydalanish statistikasi (oʻz serverimiz) qoʻshildi
 MAIL = 'info@archemistry.uz'
 REQ = {
  'uz': 'YaTT Soliyev Iskandar Jaxongir oʻgʻli · davlat roʻyxatidan oʻtkazilgan: 08.08.2025, № 7066967 · STIR 563413523 · manzil: Toshkent shahri, Yakkasaroy tumani, Kichik xalqa yoʻli, 28-uy · hisob raqami 20218000907288528001, ATIB «Ipak Yoʻli» Yakkasaroy filiali, MFO 01028 · pochta ' + MAIL + ' · telefon +998 99 430 11 77',
@@ -155,7 +156,8 @@ PRIV = {
  ('5. Cookie va brauzer xotirasi', 'ul', [
   '<code>ks_sess</code> — kirish sessiyasi (60 kun, faqat server oʻqiydi).',
   'Brauzer xotirasida — til, rejim, loyihalar va sozlamalar.',
-  'Statistika: GoatCounter, cookiesiz va shaxsga doir maʼlumotsiz — faqat hodisa nomi (masalan, qaysi qadam ochilgani). «Do Not Track» yoqilgan boʻlsa — hech narsa yuborilmaydi.']),
+  'Statistika: GoatCounter, cookiesiz va shaxsga doir maʼlumotsiz — faqat hodisa nomi (masalan, qaysi qadam ochilgani). «Do Not Track» yoqilgan boʻlsa — hech narsa yuborilmaydi.',
+  'Foydalanish statistikasi (oʻz serverimizda): brauzer xotirasidagi tasodifiy anonim belgi (<code>ax-anon</code>, cookie emas), hodisa nomi (qaysi qadam ochilgani, qaysi tugma bosilgani), ekran kengligi, kelgan sayt domeni va UTM belgilari, IP manzil boʻyicha aniqlangan davlat. Hisobga kirgan boʻlsangiz, hodisa hisobingizga bogʻlanadi. IP manzil, loyiha mazmuni, joylashuv va matn yozilmaydi. Maqsad — xizmatni yaxshilash va qaysi qism koʻp ishlatilishini bilish; maʼlumot 400 kun saqlanadi. «Do Not Track» yoqilgan boʻlsa — yuborilmaydi.']),
  ('6. Huquqlaringiz', 'p', ['Maʼlumotlaringiz haqida bilish, ularni tuzatish, oʻchirish va qayta ishlashga roziligingizni qaytarib olish huquqingiz bor. Soʻrovni ' + MAIL + ' manziliga yuboring; javob 10 ish kuni ichida beriladi. Hisob oʻchirilsa, kirib boʻlmaydi va ishlatilmagan tangalar yoʻqoladi (<a href="oferta.html">ofertaning 6-boʻlimi</a>dagi qaytarish shartlari bundan mustasno).']),
  ('7. Rozilik', 'p', ['Hisob ochib, Foydalanuvchi ushbu siyosatda koʻrsatilgan maʼlumotlarni koʻrsatilgan maqsadlarda qayta ishlashga rozilik beradi.']),
 ]),
@@ -182,7 +184,8 @@ PRIV = {
  ('5. Cookies and browser storage', 'ul', [
   '<code>ks_sess</code> — sign-in session (60 days, read only by the server).',
   'Browser storage — language, theme, projects and settings.',
-  'Analytics: GoatCounter, cookieless and without personal data — only the event name (e.g. which step was opened). With “Do Not Track” enabled nothing is sent.']),
+  'Analytics: GoatCounter, cookieless and without personal data — only the event name (e.g. which step was opened). With “Do Not Track” enabled nothing is sent.',
+  'Usage statistics (on our own server): a random anonymous identifier in browser storage (<code>ax-anon</code>, not a cookie), the event name (which step was opened, which button was pressed), screen width, the referring site’s domain and UTM tags, and the country derived from the IP address. If you are signed in, events are linked to your account. The IP address, project contents, location and text are not recorded. Purpose: improving the service and learning which parts are used most; the data is kept for 400 days. With “Do Not Track” enabled nothing is sent.']),
  ('6. Your rights', 'p', ['You have the right to know about your data, to correct and delete it, and to withdraw your consent to its processing. Send requests to ' + MAIL + '; we respond within 10 business days. If the account is deleted, it can no longer be accessed and unused credits are lost (except for the refund terms in <a href="oferta.html">section 6 of the offer</a>).']),
  ('7. Consent', 'p', ['By creating an account, the User consents to the processing of the data listed in this policy for the stated purposes.']),
 ]),
@@ -209,7 +212,8 @@ PRIV = {
  ('5. Cookie и память браузера', 'ul', [
   '<code>ks_sess</code> — сессия входа (60 дней, читает только сервер).',
   'В памяти браузера — язык, тема, проекты и настройки.',
-  'Статистика: GoatCounter, без cookie и без персональных данных — только название события (например, какой шаг открыт). При включённом «Do Not Track» ничего не отправляется.']),
+  'Статистика: GoatCounter, без cookie и без персональных данных — только название события (например, какой шаг открыт). При включённом «Do Not Track» ничего не отправляется.',
+  'Статистика использования (на нашем сервере): случайный анонимный идентификатор в памяти браузера (<code>ax-anon</code>, не cookie), название события (какой шаг открыт, какая кнопка нажата), ширина экрана, домен сайта-источника и UTM-метки, страна, определённая по IP-адресу. Если вы вошли в аккаунт, события связываются с аккаунтом. IP-адрес, содержимое проектов, местоположение и тексты не записываются. Цель — улучшать сервис и понимать, какие части используются чаще; данные хранятся 400 дней. При включённом «Do Not Track» ничего не отправляется.']),
  ('6. Ваши права', 'p', ['Вы вправе знать о своих данных, исправлять и удалять их, а также отозвать согласие на обработку. Направьте запрос на ' + MAIL + '; ответ — в течение 10 рабочих дней. При удалении учётной записи вход становится невозможен, неиспользованные монеты сгорают (за исключением условий возврата в <a href="oferta.html">разделе 6 оферты</a>).']),
  ('7. Согласие', 'p', ['Создавая учётную запись, Пользователь даёт согласие на обработку указанных в политике данных в указанных целях.']),
 ]),
@@ -230,13 +234,13 @@ def section(title, kind, items, lead=None):
     else: out += ''.join(items)
     return out
 
-def page(fname, title_uz, desc, data, other_href, other_idx, intro=False):
+def page(fname, title_uz, desc, data, other_href, other_idx, intro=False, edition=EDITION):
     blocks = ''
     for l in ('uz', 'en', 'ru'):
         d = data[l]
         if intro: h1, opr, secs = d
         else: (h1, secs), opr = d, None
-        body = f'<h1>{h1}</h1><p class="lmeta">{LBL[l][0]}: {EDITION}</p>'
+        body = f'<h1>{h1}</h1><p class="lmeta">{LBL[l][0]}: {edition}</p>'
         if opr: body += f'<p>{opr}</p>'
         for s in secs: body += section(*s)
         body += f'<p class="lnote">{LBL[l][1]}</p><p class="lnote"><a href="{other_href}">{LBL[l][other_idx]} →</a></p>'
@@ -261,5 +265,5 @@ def page(fname, title_uz, desc, data, other_href, other_idx, intro=False):
     (ROOT / fname).write_text(out, encoding='utf-8')
 
 page('oferta.html', 'Ommaviy oferta', 'archemistry.uz xizmatlaridan foydalanish shartnomasi (ommaviy oferta): xizmat tarkibi, narx va toʻlov, pulni qaytarish, rekvizitlar.', OFERTA, 'maxfiylik.html', 3)
-page('maxfiylik.html', 'Maxfiylik siyosati', 'archemistry.uz shaxsga doir maʼlumotlarni qayta ishlash siyosati: qanday maʼlumot, qayerda saqlanadi, kimga beriladi, huquqlaringiz.', PRIV, 'oferta.html', 2, intro=True)
+page('maxfiylik.html', 'Maxfiylik siyosati', 'archemistry.uz shaxsga doir maʼlumotlarni qayta ishlash siyosati: qanday maʼlumot, qayerda saqlanadi, kimga beriladi, huquqlaringiz.', PRIV, 'oferta.html', 2, intro=True, edition=PRIV_EDITION)
 print('ok')
