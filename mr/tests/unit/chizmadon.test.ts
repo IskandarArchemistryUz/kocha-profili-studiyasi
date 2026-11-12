@@ -70,6 +70,9 @@ describe('Chizmadon — SVG', () => {
     expect(svg).toContain('<tspan'); expect(svg).toContain('Shtamp'); expect(svg).toContain('id="cmm1a"');
     expect(svg).not.toContain('<filter'); expect(svg).not.toContain('<pattern');
     expect(() => new DOMParserLike(svg)).not.toThrow();
+    // 12.11: shtampda meʼyorlar toʻplami qatori (Varaqlardagi bilan bir xil)
+    const s2 = pageSvg(p, { stamp: { title: 'Loyiha', author: 'I', date: '12.11.2026', norms: 'Meʼyorlar: Oʻzbekiston · ShNQ' } }).svg;
+    expect(s2).toContain('data-norms="1"'); expect(s2).toContain('Meʼyorlar: Oʻzbekiston · ShNQ'); expect(svg).not.toContain('data-norms');
   });
   it('silliq egri va teng oraliq', () => {
     expect(smoothD([[0, 0], [10, 0], [20, 10]])).toMatch(/^M0 0C/);
