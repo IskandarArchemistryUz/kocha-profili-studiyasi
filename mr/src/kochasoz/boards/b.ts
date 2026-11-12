@@ -9,6 +9,7 @@ import { PK, ulbl, drag, svgUnitsPerPx } from '../kit';
 import { PROFILES } from '../../core/profiles';
 import { PRESET_PROFILES } from '../../core/presets';
 import { profileToKs } from '../fromMr';
+import { KSZ, KIOSK_NOTE, kioskPropose, kioskChecks, kioskRule } from '../kiosk';
 import { tr, getLang } from '../../i18n';
 import UA_ from './ua.json';
 export default class Component extends DCLogic {
@@ -394,6 +395,13 @@ export default class Component extends DCLogic {
       if (p.t === 'gul') { bx(cx - 0.4, y, h, 0.8, Math.min(0.8, l), 0.45, CON); ['#e7a0b4', '#f2c14e', '#e7a0b4'].forEach(function (c4, j) { var q8 = P(cx - 0.2 + j * 0.2, y + 0.4, h + 0.62); A(El(q8[0], q8[1], 0.18 * k, 0.13 * k), line ? '#ffffff' : c4, line ? INK : '#9a6b5c', 0.4); }); shrub(cx, y + 0.4, h + 0.45, 0.3); return; }
       if (p.t === 'yuklash') { mark(x0, x1, y, l, 0.012, line ? INK : '#c79a12', 'YUK'); return; }
       if (p.t === 'taksi') { mark(x0, x1, y, l, 0.012, line ? INK : '#c79a12', 'TAKSI'); return; }
+      if (p.t === 'kiosk' || p.t === 'pavilyon') { var dQ = e[0] === 'front' ? (leftZ ? 1 : -1) : e[0] === 'yash' ? (leftZ ? -1 : 1) : 0, kd = Math.min(KSZ[p.t][0], w - 0.2), kx = dQ > 0 ? x0 + 0.1 : dQ < 0 ? x1 - 0.1 - kd : cx - kd / 2, kh = KSZ[p.t][1], gX = dQ < 0 ? kx : kx + kd;
+        bx(kx, y, h, kd, l, kh - 0.25, C3(['#efe9dd', '#cfc6b4', '#ddd5c5']));
+        A(poly([[gX, y + 0.3, h + 0.9], [gX, y + l - 0.3, h + 0.9], [gX, y + l - 0.3, h + 2.4], [gX, y + 0.3, h + 2.4]]), GLS, '#8f8a80', 0.5, line ? 1 : 0.8);
+        bx(kx - 0.15, y - 0.15, h + kh - 0.25, kd + 0.3, l + 0.3, 0.25, C3(['#6e6a62', '#55524b', '#5f5b54'])); return; }
+      if (p.t === 'peshtaxta') { var pd = Math.min(1.2, w - 0.2), pxx = cx - pd / 2;
+        bx(pxx, y, h, pd, l, 0.95, WOOD); [y + 0.05, y + l - 0.1].forEach(function (yy) { seg3([pxx, yy, h], [pxx, yy, h + 2.4], INK, 0.8); seg3([pxx + pd, yy, h], [pxx + pd, yy, h + 2.4], INK, 0.8); });
+        A(poly([[pxx - 0.3, y - 0.3, h + 2.4], [pxx + pd + 0.3, y - 0.3, h + 2.4], [pxx + pd + 0.3, y + l + 0.3, h + 2.4], [pxx - 0.3, y + l + 0.3, h + 2.4]]), line ? '#ffffff' : '#e8b45a', INK, 0.6, 0.95); return; }
     }
     PLA.forEach(function (p) { var i = p.z, cx = (zx[i][0] + zx[i][1]) / 2; ob(cx, p.y + p.l / 2, function () { drawPL(p); }); });
     els.forEach(function (e, i) { var f = e[2] || {}, x0 = zx[i][0], x1 = zx[i][1], cx = (x0 + x1) / 2, h = T[e[0]][1], left = cx < rl / 2, dir = left ? 1 : -1;
@@ -877,6 +885,11 @@ export default class Component extends DCLogic {
           else if (p.t === 'axlat') add(El(cx, ym, 0.3 * px, 0.3 * px), '#ffffff', VB.st, 0.8);
           else if (p.t === 'daraxt') AS.pDaraxt(L, cx, ym, px, Math.min(3, Math.max(1.6, w / px / 2 + 0.8)), Math.round(p.y));
           else if (p.t === 'gul') { add(Rr(cx - 0.45 * px, ym - 0.45 * px, 0.9 * px, 0.9 * px, 1), line ? '#fff' : '#d8cdb8', INK, 0.7); AS.pDaraxt(L, cx, ym, px, 0.55, 3); }
+          else if (p.t === 'kiosk' || p.t === 'pavilyon' || p.t === 'peshtaxta') { var dP = e[0] === 'front' ? (left ? 1 : -1) : e[0] === 'yash' ? (left ? -1 : 1) : 0, kd2 = Math.min(KSZ[p.t][0] * px, w - 2 * pad);
+            var kr = kioskRule(s.uk), kof = Math.min(w - kd2 - 2 * pad, ((e[0] === 'front' ? kr.facade : kr.curb) || 0) * px), kx2 = dP > 0 ? x0 + pad + Math.max(0, kof) : dP < 0 ? x1 - pad - kd2 - Math.max(0, kof) : cx - kd2 / 2, sv = Math.min(1.5 * px, dP > 0 ? x1 - kx2 - kd2 : dP < 0 ? kx2 - x0 : 0);
+            if (sv > 1) add(Rr(dP > 0 ? kx2 + kd2 : kx2 - sv, ya, sv, hh, 0), 'none', '#9a978f', 0.6, 1, '3 2');   // oldidagi 1,5 m maydon (P2.3 4.4.1)
+            add(Rr(kx2, ya, kd2, hh, 1), line ? '#fff' : (p.t === 'peshtaxta' ? '#f6dfb0' : '#efe2c6'), INK, 1, 1, p.t === 'peshtaxta' ? '4 2' : null);
+            tx(kx2 + kd2 / 2, ym + 3, p.t === 'kiosk' ? 'K' : p.t === 'pavilyon' ? 'P' : 'S', 8.5, INK, 700, 'Archivo, sans-serif', 'middle'); }
           else if (p.t === 'yuklash') { add(Rr(x0 + pad, ya, w - 2 * pad, hh, 0), line ? '#fff' : '#f4ecd2', '#c98a12', 1); for (var q9 = ya; q9 < yb; q9 += 0.8 * px) add('M' + (x0 + pad) + ' ' + q9 + 'L' + (x1 - pad) + ' ' + Math.min(yb, q9 + (w - 2 * pad)), null, '#c98a12', 0.5, 0.5); tx(cx, ym + 3, 'YUK', 8, '#a26c0a', 700); }
           else if (p.t === 'taksi') { add(Rr(x0 + pad, ya, w - 2 * pad, hh, 0), null, '#c98a12', 1.2, 1, '5 3'); tx(cx, ya + 10, 'TAKSI', 7.5, '#a26c0a', 700); AS.pMashina(L, cx, ym, px, !left); }
           if (on) add(Rr(x0 + 1, ya - 1, w - 2, hh + 2, 2), null, '#4c5bd4', 1.2, 1, '3 2');
@@ -977,7 +990,7 @@ export default class Component extends DCLogic {
     var EDGES = [['bino', 'Bino'], ['bog', 'Bogʻ'], ['ochiq', 'Ochiq'], ['qiyalik', 'Qiyalik'], ['suv', 'Suv']];
     function autoAll() { var N = [], list = ['UT', 'DH', 'W', 'SS', 'SD', 'G', 'E', 'T', 'SL', 'UD'].filter(function (k) { return k !== 'UT'; }); var SK = []; list.forEach(function (k) { var c = UCd(k), x = place(k, N, k === 'W' ? -1 : 0); if (lastPlace >= 400) SK.push(k); else N.push({ k: k, x: x, d: c[3] }); }); if (roadW > 22) { var xw = place('W', N, 1); if (lastPlace >= 400) SK.push('W'); else N.push({ k: 'W', x: xw, d: 2.5 }); } self.setState({ U: N, showU: true, selU: -1, uSkip: SK }); }
     var szt = su ? ztype(su.x) : '';
-    var CAT = { parklet: ['Parklet', ['park'], 6, 'Dizayn-kod 13 · andoza'], bekat: ['Bekat', ['park', 'yash', 'mebel', 'bus'], 10, 'Dizayn-kod 5'], shpalera: ['Shpalera', ['yash', 'med', 'front', 'park'], 8, 'jonli toʻsiq · ShNQ 35-jad.'], buta: ['Butalar', ['yash', 'med', 'front'], 3, 'ShNQ 35-jad.'], terrasa: ['Terrasa · stol-stul', ['front'], 6, 'Dizayn-kod 13.3–13.4'], velopark: ['Velo turargoh', ['yash', 'front', 'mebel'], 5, 'Dizayn-kod 7.4'], samokat: ['Samokat turargohi', ['yash', 'front', 'mebel', 'park'], 4, 'andoza'], orindiq: ['Oʻrindiq', ['yash', 'front', 'mebel'], 2, 'Dizayn-kod 3.3'], axlat: ['Axlat qutisi', ['mebel', 'yash', 'front'], 0.6, ''], daraxt: ['Daraxt', ['park', 'yash', 'med', 'front'], 2.5, 'ShNQ 35-jad.'], gul: ['Gul tuvak', ['front', 'yash'], 1, 'Dizayn-kod 13.4'], yuklash: ['Yuk tushirish', ['park'], 8, 'andoza'], taksi: ['Taksi', ['park'], 6, 'Dizayn-kod 6.4.2'] };
+    var CAT = { parklet: ['Parklet', ['park'], 6, 'Dizayn-kod 13 · andoza'], bekat: ['Bekat', ['park', 'yash', 'mebel', 'bus'], 10, 'Dizayn-kod 5'], shpalera: ['Shpalera', ['yash', 'med', 'front', 'park'], 8, 'jonli toʻsiq · ShNQ 35-jad.'], buta: ['Butalar', ['yash', 'med', 'front'], 3, 'ShNQ 35-jad.'], terrasa: ['Terrasa · stol-stul', ['front'], 6, 'Dizayn-kod 13.3–13.4'], velopark: ['Velo turargoh', ['yash', 'front', 'mebel'], 5, 'Dizayn-kod 7.4'], samokat: ['Samokat turargohi', ['yash', 'front', 'mebel', 'park'], 4, 'andoza'], orindiq: ['Oʻrindiq', ['yash', 'front', 'mebel'], 2, 'Dizayn-kod 3.3'], axlat: ['Axlat qutisi', ['mebel', 'yash', 'front'], 0.6, ''], daraxt: ['Daraxt', ['park', 'yash', 'med', 'front'], 2.5, 'ShNQ 35-jad.'], gul: ['Gul tuvak', ['front', 'yash'], 1, 'Dizayn-kod 13.4'], yuklash: ['Yuk tushirish', ['park'], 8, 'andoza'], taksi: ['Taksi', ['park'], 6, 'Dizayn-kod 6.4.2'], kiosk: ['Kiosk (kichik, ≤ 10 m²)', ['yash', 'front', 'med'], 3, 'Dizayn-kod P2.3 4.4.2'], pavilyon: ['Savdo pavilyoni (oʻrta, ≤ 25 m²)', ['yash', 'front', 'med'], 6.6, 'Dizayn-kod P2.3 4.4.3'], peshtaxta: ['Ochiq savdo peshtaxtasi', ['yash', 'front', 'med'], 2.1, 'Dizayn-kod P2.3 4.4.5'] };
     var LMg = 544 / px, PLs = s.PL || [], selT = els[Math.min(s.sel, els.length - 1)] ? els[Math.min(s.sel, els.length - 1)][0] : '';
     /* zona tartibi oʻzgarsa — rejadagi joylashtirilgan elementlar (parklet, shpalera…) oʻz zonasi bilan koʻchadi; −1 — oʻchadi */
     function remapPL(f) { return (self.state.PL || []).map(function (p) { return Object.assign({}, p, { z: f(p.z) }); }).filter(function (p) { return p.z >= 0; }); }
@@ -988,6 +1001,7 @@ export default class Component extends DCLogic {
       R.push({ st: e[1] >= need[0] - 0.01 ? 'ok' : 'bad', n: 'Turargoh ' + (a2 ? a2 + '°' : 'parallel') + ': chuqurlik ≥ ' + fm(need[0]) + ' m', src: 'Dizayn-kod 6.3 · ' + need[2], v: fm(e[1]), c: DC[e[1] >= need[0] - 0.01 ? 'ok' : 'bad'] });
       R.push({ st: man >= need[1] ? 'ok' : 'warn', n: 'Manevr boʻlagi ≥ ' + fm(need[1]) + ' m', src: 'Dizayn-kod 6.3', v: fm(man), c: DC[man >= need[1] ? 'ok' : 'warn'] }); });
     if (els.some(function (e) { return e[0] === 'park'; }) && ['U2', 'U4', 'U5'].indexOf(s.uk) >= 0) R.push({ st: 'warn', n: 'Koʻcha boʻylab turargoh taqiqlangan (faqat choʻntak/taksi)', src: 'Dizayn-kod 6.4.2 · ' + s.uk, v: s.uk, c: DC.warn });
+    kioskChecks(els, s.PL || [], s.uk, firstR, lastR).forEach(function (r) { R.push({ st: r.st, n: r.n, src: r.src, v: r.v, c: DC[r.st] }); });
     nOk = R.filter(function (r) { return r.st === 'ok'; }).length;
     /* sudrash: 1 ekran pikseli → metr (chizma va pastki qator bir xil kenglikda) */
     function mpp() { return svgUnitsPerPx() / px; }
@@ -1074,6 +1088,9 @@ export default class Component extends DCLogic {
       blks: blks, rlLp: pv(0), rlRp: pv(rl), hnd: HND, uh: UH, bb: BB, shnd: SH, ufb: ufb,
       ubs: U.map(function (u, j) { var c = UCd(u.k), on = s.selU === j, ev = evalU(u, U.filter(function (o, q) { return q !== j; })); return { k: ulbl(u.k), l: pv(u.x), tp: UROW[j] ? '20px' : '4px', down: udown(j, false), c: c[2], bg: on ? c[2] : '#fff', p: on ? 'true' : 'false', sh: ev.worst === 'bad' ? '0 0 0 2px #b23a2e' : 'none', pick: function () { self.setState({ selU: j }); } }; }),
       isPlanZone: isPlanZone,
+      kioskNote: KIOSK_NOTE(s.uk),
+      kioskAuto: function () { var add = kioskPropose(els, self.state.PL || [], s.uk, LMg); if (!add.length) { self.setState({ kioskMsg: 'Kiosk uchun mos bufer zona yoʻq (eni yetmaydi yoki bu koʻcha turida taqiqlangan).' }); return; } updPL(function (N) { add.forEach(function (a) { N.push(a); }); return { kioskMsg: add.length + ' ta kiosk joyi qoʻyildi.' }; }); },
+      kioskMsg: s.kioskMsg || '',
       pang: selT === 'park' ? [[0, '∥ Parallel'], [45, '45°'], [90, '90°']].map(function (v) { var cur = (els[cz][2] || {}).ang || 0; return { n: v[1], p: cur === v[0] ? 'true' : 'false', pick: function () { upd(function (E, i) { E[i][2].ang = v[0]; E[i][1] = { 0: 2.5, 45: 5.0, 90: 5.0 }[v[0]]; }); } }; }) : [],
       pangNote: selT === 'park' ? 'Dizayn-kod 6.3: ' + ANG[(els[cz][2] || {}).ang || 0][2] + '. Burchak oʻzgarsa, zona eni moslashadi.' : 'Elementni bosing — zonadagi birinchi boʻsh joyga qoʻyiladi.',
       paddB: Object.keys(CAT).some(function (k) { return CAT[k][1].indexOf(selT) >= 0; }),
