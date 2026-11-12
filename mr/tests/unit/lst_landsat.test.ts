@@ -54,6 +54,9 @@ describe('Landsat issiqlik toʻri', () => {
     const g = await loadLstLandsat(C, 6000, 100, ok, ['toshkent'], 'https://t1');
     expect(g?.src).toBe('landsat');
     expect(g?.year).toBe(2025);
+    expect(g?.years).toEqual(Object.keys(IX.yillar).map(Number).sort((a, b) => a - b));
+    const w = await loadLstLandsat(C, 6000, 100, ok, ['toshkent'], 'https://t1', 1999);   // yoʻq yil — oxirgisi
+    expect(w?.year).toBe(2025);
     expect(await loadLstLandsat([66.9, 39.6], 6000, 100, ok, ['toshkent'], 'https://t1')).toBeNull();
     const bad = (async () => new Response('', { status: 404 })) as unknown as typeof fetch;
     expect(await loadLstLandsat(C, 6000, 100, bad, ['toshkent'], 'https://t2')).toBeNull();

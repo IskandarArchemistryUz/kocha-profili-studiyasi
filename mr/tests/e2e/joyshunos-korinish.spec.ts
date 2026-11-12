@@ -101,8 +101,14 @@ test('shamol oqim chiziqlari planda', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as any).joyMap.getSource('joy-wind')?._data?.features?.length ?? 0), { timeout: 60_000 }).toBeGreaterThan(20);
   await expect.poll(() => vis(page, 'joy-wind')).toBe('visible');
   await openView(page);
+  // 13.11 (kanvas 12b): tezlik maydoni — rang rastri + oq oqim chiziqlari, doira ichida
+  await page.locator('.jv-st button', { hasText: 'Tezlik' }).click();
+  await expect.poll(() => vis(page, 'joy-windf')).toBe('visible');
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getSource('joy-windf').coordinates[0][0])).toBeGreaterThan(1);
+  if (process.env.SHOT) { await page.waitForTimeout(800); await page.screenshot({ path: process.env.SHOT }); }
   await page.locator('.jv-st button', { hasText: 'Faqat shamol guli' }).click();
   await expect.poll(() => vis(page, 'joy-wind')).toBe('none');
+  await expect.poll(() => vis(page, 'joy-windf')).toBe('none');
   expect(errs).toEqual([]);
 });
 test('xizmatlar ikonka rejimi', async ({ page }) => {
@@ -114,7 +120,41 @@ test('xizmatlar ikonka rejimi', async ({ page }) => {
   await openView(page);
   await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
   await expect.poll(() => vis(page, 'joy-poi-i')).toBe('none');
+  // 13.11 (kanvas 9b): pufakchalar — ijtimoiy obyektlar atrofida shaffof doira
+  await page.locator('.jv-st button', { hasText: 'Pufakchalar' }).click();
+  await expect.poll(() => vis(page, 'joy-poi-h')).toBe('visible');
+  await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
+  await expect.poll(() => vis(page, 'joy-poi-h')).toBe('none');
   if (process.env.SHOT) { await page.locator('.jv-st button', { hasText: 'Ikonkalar' }).click(); await page.waitForTimeout(800); await page.screenshot({ path: process.env.SHOT }); }
+  expect(errs).toEqual([]);
+});
+test('raqobatchilar ikonka rejimi (13.11, kanvas 14c)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=raqobat] .big')).not.toHaveText('—', { timeout: 30_000 });
+  await joyClick(page, 'raqobat', '.lt');
+  await expect.poll(() => vis(page, 'joy-comp-i')).toBe('none');
+  await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Ikonkalar' }).click();
+  await expect.poll(() => vis(page, 'joy-comp-i')).toBe('visible');
+  expect(await page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-comp-i', 'icon-image'))).toMatch(/^comp-/);
+  expect(await page.evaluate(() => (window as any).joyMap.getPaintProperty('joy-comp', 'circle-opacity'))).toBe(0);
+  await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
+  await expect.poll(() => vis(page, 'joy-comp-i')).toBe('none');
+  expect(errs).toEqual([]);
+});
+test('odamlar oqimi: «Yoʻllar dastasi» (13.11, kanvas 13b)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await joyClick(page, 'oqim', '.switch');
+  await joyClick(page, 'oqim', '.lt');
+  await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Yoʻllar dastasi' }).click();
+  const paint = (k: string) => page.evaluate(k => (window as any).joyMap.getPaintProperty('joy-flow', k), k);
+  await expect.poll(() => paint('line-color')).toBe('#5b1f8a');
+  await page.locator('.jv-st button', { hasText: 'Qalinlik' }).click();
+  await expect.poll(async () => typeof (await paint('line-color'))).toBe('object');
   expect(errs).toEqual([]);
 });
 test('piyoda: persona boʻyicha yetish', async ({ page }) => {

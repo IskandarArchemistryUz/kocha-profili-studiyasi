@@ -522,3 +522,6 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .joy-pvp > summary { cursor: pointer; font-size: 12px; font-weight: 600; }
 .joy-pvp[open] > summary { margin-bottom: 4px; }
 .joy-pvl { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; }
+/* Issiqlik: Landsat arxivi yili (13.11) */
+.joy-year { display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
+.joy-year select { font: inherit; font-size: 13px; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--line, #d6d4cf); background: var(--panel, #fff); color: inherit; }

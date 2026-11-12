@@ -240,6 +240,13 @@ test('A3: issiqlik oroli (MODIS, beta) va quyosh/soya xaritada', async ({ page }
   await expect(page.locator('#sunHour')).not.toHaveText(h0!);
   await expect(page.locator('.joy-legend')).toContainText('Quyoshli soatlar');
   await expect(page.locator('.joy-legend')).toContainText('Yer yuzasi harorati');
+  // 13.11 (kanvas 8b): «Soya soatlari» uslubi — soyada oʻtgan soatlar shkalasi
+  const jv = page.locator('[data-card=quyosh] .jv-btn');
+  if ((await jv.getAttribute('aria-expanded')) !== 'true') await jv.click();
+  await page.locator('.jv-st button', { hasText: 'Soya soatlari' }).click();
+  await expect(page.locator('.joy-legend')).toContainText('Soyada, soat');
+  await page.locator('.jv-st button', { hasText: 'Quyosh soatlari' }).click();
+  await expect(page.locator('.joy-legend')).toContainText('Quyoshli soatlar');
   await page.waitForTimeout(800);
   await page.screenshot({ path: 'test-results/joy-a3.png' });
   await page.emulateMedia({ colorScheme: 'dark' });
