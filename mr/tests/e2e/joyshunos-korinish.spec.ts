@@ -120,6 +120,11 @@ test('xizmatlar ikonka rejimi', async ({ page }) => {
   await openView(page);
   await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
   await expect.poll(() => vis(page, 'joy-poi-i')).toBe('none');
+  // 13.11 (kanvas 9b): pufakchalar — ijtimoiy obyektlar atrofida shaffof doira
+  await page.locator('.jv-st button', { hasText: 'Pufakchalar' }).click();
+  await expect.poll(() => vis(page, 'joy-poi-h')).toBe('visible');
+  await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
+  await expect.poll(() => vis(page, 'joy-poi-h')).toBe('none');
   if (process.env.SHOT) { await page.locator('.jv-st button', { hasText: 'Ikonkalar' }).click(); await page.waitForTimeout(800); await page.screenshot({ path: process.env.SHOT }); }
   expect(errs).toEqual([]);
 });

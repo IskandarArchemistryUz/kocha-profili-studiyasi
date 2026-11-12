@@ -984,6 +984,8 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-cov-f', type: 'fill', source: 'joy-cov', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.08 } });
   m.addLayer({ id: 'joy-cov-l', type: 'line', source: 'joy-cov', layout: { visibility: 'none' }, paint: { 'line-color': ['get', 'col'], 'line-width': 1.2, 'line-dasharray': [3, 3], 'line-opacity': 0.7 } });
   m.addLayer({ id: 'joy-comp-hm', type: 'heatmap', source: 'joy-comp', layout: { visibility: 'none' }, paint: { 'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 13, 22, 17, 80], 'heatmap-intensity': 1, 'heatmap-opacity': 0.75, 'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(243,227,211,0)', 0.25, '#f3e3d3', 0.6, '#c79a6c', 1, '#7a5a3c'] } });
+  // «Pufakchalar» (13.11, kanvas 9b): ijtimoiy obyektlar atrofida toifa rangidagi shaffof pufakcha (~50 m, faqat koʻrinish — meʼyoriy radius emas)
+  m.addLayer({ id: 'joy-poi-h', type: 'circle', source: 'joy-poi', filter: ['in', ['get', 'k'], ['literal', ['maktab', 'mtm', 'poliklinika', 'sport']]], layout: { visibility: 'none' }, paint: { 'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 13, 3, 18, 96], 'circle-color': ['get', 'col'], 'circle-opacity': ['case', ['get', 'in'], 0.28, 0.1], 'circle-stroke-width': 0 } } as never);
   m.addLayer({ id: 'joy-poi', type: 'circle', source: 'joy-poi', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 3, 17, 6], 'circle-color': ['get', 'col'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-opacity': ['case', ['get', 'in'], 1, 0.35], 'circle-stroke-opacity': ['case', ['get', 'in'], 1, 0.35] } } as never);
   // xizmatlar ikonkalari: rangli doira + oq piktogramma (canvas → rasm)
   for (const k of SVC_KINDS) if (!m.hasImage(`svc-${k}`)) m.addImage(`svc-${k}`, svcIcon(k), { pixelRatio: 2 });
@@ -998,7 +1000,7 @@ function addOverlays(): void {
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '', narxKey = '', skKey = '';
-const HUD_LAYERS = ['joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -1246,6 +1248,7 @@ function focusMap(m: MLMap): void {
     vis('joy-cov-f', cv); vis('joy-cov-l', cv); set('joy-cov-f', 'fill-opacity', 0.1 * x);
     set('joy-flow', 'line-blur', V('oqim').st === 'nur' ? 2 + 4 * V('oqim').k : 0); }
   { const ci = isOn('raqobat') && V('raqobat').st === 'ikonka'; if (m.getLayer('joy-comp-i')) { m.setLayoutProperty('joy-comp-i', 'visibility', ci ? 'visible' : 'none'); m.setLayoutProperty('joy-comp-i', 'icon-image', `comp-${S.cat}`); m.setPaintProperty('joy-comp-i', 'icon-opacity', ['case', ['get', 'in'], c, 0.45 * c]); } if (ci) { set('joy-comp', 'circle-opacity', 0); set('joy-comp', 'circle-stroke-opacity', 0); } }
+  { const pf = isOn('xizmat') && V('xizmat').st === 'pufak'; if (m.getLayer('joy-poi-h')) { m.setLayoutProperty('joy-poi-h', 'visibility', pf ? 'visible' : 'none'); m.setPaintProperty('joy-poi-h', 'circle-opacity', ['case', ['get', 'in'], 0.28 * x, 0.1 * x]); } }
   { const ic = isOn('xizmat') && V('xizmat').st === 'ikonka'; if (m.getLayer('joy-poi-i')) { m.setLayoutProperty('joy-poi-i', 'visibility', ic ? 'visible' : 'none'); m.setPaintProperty('joy-poi-i', 'icon-opacity', ['case', ['get', 'in'], x, 0.45 * x]); } if (ic) { set('joy-poi', 'circle-opacity', 0); set('joy-poi', 'circle-stroke-opacity', 0); } }
   roseK = k('shamol') * (isOn('shamol') && V('shamol').st === 'oqim' ? 0.45 : 1);
 }
