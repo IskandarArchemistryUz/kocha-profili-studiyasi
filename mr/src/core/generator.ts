@@ -29,6 +29,8 @@ export interface GenParams {
   typology: Typology;
   /** eng koʻp va eng kam qavat */
   maxF: number; minF: number;
+  /** 12.11 (uchastka shartlari): binolar orasi, eng kam, m — qator oraligʻi shundan kam boʻlmaydi (xalqaro toʻplamda ADG oʻrniga) */
+  gapMin?: number;
   /** seksiya chuqurligi (eni), m */
   depth: number;
   /** seksiya uzunligi (moʻljal), m */
@@ -751,8 +753,8 @@ function rows(A: XY[], g: GenParams, floorH: number, notes: string[]): GenResult
   // kenglik boʻylab qatorlar (uzun oʻqi sharq–gʻarb): SanQvaN 0102-25, 3-band — turar joy obyektlari janubiy, janubi-sharqiy, sharqiy, shimoli-sharqiy yoʻnalishda;
   // 15-band — xona derazalari gʻarbga (200–290°) yoʻnaltirilmaydi, bu joylashuvda fasadlar janub va shimolga qaraydi
   // izoh 8: seysmik 8+ ballda ≥ 2·Hmax; 04.11 (audit): 7 ballda — Hmax·kʏ (2-jadval, 2-ilova; qatorlar shimol–janub yoʻnalishida qaraydi)
-  const s8 = (g.seismic ?? 8) >= 8, D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gk = (s8 ? 2 : kyOf(0)) * rk(g), intl = g.norms === 'intl', gap = intl ? intlRowGap(H) : Math.max(gk * H, g.recon ? 6 : 20);
-  if (intl) notes.push(`Qatorlar sharq–gʻarb yoʻnalishida; orasi ${Math.round(gap)} m (xalqaro andoza: ${ADG_SRC})`);
+  const s8 = (g.seismic ?? 8) >= 8, D = g.depth, H = g.maxF * floorH + dgOf(g, floorH), gk = (s8 ? 2 : kyOf(0)) * rk(g), intl = g.norms === 'intl', gap = intl ? (g.gapMin ?? intlRowGap(H)) : Math.max(gk * H, g.recon ? 6 : 20, g.gapMin ?? 0);
+  if (intl) notes.push(g.gapMin !== undefined ? `Qatorlar sharq–gʻarb yoʻnalishida; orasi ${Math.round(gap)} m (uchastka sharti)` : `Qatorlar sharq–gʻarb yoʻnalishida; orasi ${Math.round(gap)} m (xalqaro andoza: ${ADG_SRC})`);
   else if (g.recon) notes.push(`Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m — rekonstruksiya rejimi: jadval masofasining yarmi (ShNQ 2.07.01-23, 79-band 2-jadval, 7-izoh; 8-izohga ham qoʻllandi — TALQIN), insolyatsiya hisobi bilan asoslansin`);
   else notes.push(s8 ? `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = 2·Hmax (ShNQ 2.07.01-23, 79-band 2-jadval, izoh 8)`
     : `Qatorlar sharq–gʻarb yoʻnalishida (SanQvaN 0102-25, 3 va 15-bandlar); orasi ${Math.round(gap)} m = Hmax·kʏ (ShNQ 2.07.01-23, 79-band 2-jadval, 2-ilova; 7 ball)`);

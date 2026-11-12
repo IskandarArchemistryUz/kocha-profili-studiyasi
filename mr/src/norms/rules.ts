@@ -62,7 +62,7 @@ function schoolEmpty(d: Derived): string {
 const tfU = (k: string, v: Record<string, unknown>) => k.replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e] ?? ''));
 
 /** Ikki koʻpburchak orasidagi eng qisqa kesma (uchdan qirragacha) */
-function closestSeg(a: XY[], b: XY[]): [XY, XY] {
+export function closestSeg(a: XY[], b: XY[]): [XY, XY] {
   let best: [XY, XY] = [a[0], b[0]], bd = Infinity;
   const proj = (p: XY, u: XY, v: XY): XY => { const dx = v[0] - u[0], dy = v[1] - u[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / L2)); return [u[0] + dx * t, u[1] + dy * t]; };
   for (const [P, Q] of [[a, b], [b, a]] as [XY[], XY[]][]) for (const p of P) for (let i = 0; i < Q.length; i++) { const q = proj(p, Q[i], Q[(i + 1) % Q.length]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; best = P === a ? [p, q] : [q, p]; } }
@@ -86,7 +86,7 @@ function entryEval(doc: Project, gs: Project['garages'], pick: (c: { kind: Check
   return { n, fails, revs, ...(where ? { where } : {}), minX, noX: n > 0 && !anyX && pick({ kind: 'chorraha' }) };
 }
 /** kesma a→b yoʻnalishida, a dan L uzunlikdagi kesma (kerakli masofa) */
-function needSeg(a: XY, b: XY, L: number): [XY, XY] {
+export function needSeg(a: XY, b: XY, L: number): [XY, XY] {
   const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [a, [a[0] + dx / l * L, a[1] + dy / l * L]];
 }
 /** sigʻim funksiyasi boʻyicha n oʻringa yetadigan eng kichik maydon, m² (41-jadval / 543-band pogʻonalari bilan) */

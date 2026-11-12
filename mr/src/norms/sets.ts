@@ -77,3 +77,40 @@ export const intlSideSetback = (H: number, longWin: boolean): number => adgSep(H
 export const adgHalf = (H: number): number => adgSep(H, true) / 2;
 /** ADG: oʻz ulushi r m boʻlsa ruxsat etilgan eng katta balandlik, m (0 — sigʻmaydi; Infinity — cheklanmaydi) */
 export const adgMaxHHalf = (r: number): number => adgMaxH(2 * r, true);
+
+/**
+ * 12.11 (meʼyorlar toʻplami, 3-bosqich, 1-band; kanvas «Me'yorlar to'plami — interfeys maketi», «Uchastka shartlari»):
+ * zonalash xaritasi yoki buyurtmachi brifidagi raqamlar. Kiritilgan qiymat — majburiy tekshiruv (har ikki toʻplamda),
+ * generator ham shunga amal qiladi; boʻsh qolgani — toʻplam andozasi (UZ — ShNQ, intl — ADG 3F-1).
+ */
+export interface SiteCond {
+  far?: number; cover?: number; hMax?: number;
+  sbStreet?: number; sbSide?: number; sbRear?: number; gap?: number;
+  parkMin?: number; parkMax?: number; green?: number;
+  src?: string;
+}
+export type SiteCondKey = Exclude<keyof SiteCond, 'src'>;
+/** maydonlar: kalit, nom, izoh, birlik, chegara [min, max], kasr xonasi */
+export const SITE_COND_FIELDS: { k: SiteCondKey; g: 'hajm' | 'chek' | 'orq'; t: string; sub?: string; u: string; lim: [number, number]; dg: number }[] = [
+  { k: 'far', g: 'hajm', t: 'UMN (FAR), eng koʻp', u: '', lim: [0.05, 30], dg: 2 },
+  { k: 'cover', g: 'hajm', t: 'Qurilish zichligi, eng koʻp', u: '%', lim: [1, 100], dg: 0 },
+  { k: 'hMax', g: 'hajm', t: 'Balandlik, eng koʻp', u: 'm', lim: [3, 500], dg: 1 },
+  { k: 'sbStreet', g: 'chek', t: 'Koʻcha tomoni', sub: 'qizil chiziqdan', u: 'm', lim: [0, 100], dg: 1 },
+  { k: 'sbSide', g: 'chek', t: 'Yon tomoni', sub: 'boʻsh — toʻplam andozasi', u: 'm', lim: [0, 100], dg: 1 },
+  { k: 'sbRear', g: 'chek', t: 'Orqa tomoni', sub: 'boʻsh — toʻplam andozasi', u: 'm', lim: [0, 100], dg: 1 },
+  { k: 'gap', g: 'orq', t: 'Binolar orasi, eng kam', sub: 'boʻsh — toʻplam andozasi', u: 'm', lim: [0, 200], dg: 1 },
+  { k: 'parkMin', g: 'orq', t: 'Parkovka, xonadonga — kamida', u: '', lim: [0, 5], dg: 2 },
+  { k: 'parkMax', g: 'orq', t: 'Parkovka, xonadonga — koʻpi bilan', u: '', lim: [0, 5], dg: 2 },
+  { k: 'green', g: 'orq', t: 'Yashil ulush, kamida', u: '%', lim: [0, 100], dg: 0 },
+];
+/** saqlangan loyihadan oʻqish: notoʻgʻri qiymatlar tashlanadi; hech narsa qolmasa — undefined */
+export function cleanSiteCond(x: unknown): SiteCond | undefined {
+  if (!x || typeof x !== 'object') return undefined;
+  const o = x as Record<string, unknown>, r: SiteCond = {};
+  for (const f of SITE_COND_FIELDS) { const v = o[f.k]; if (typeof v === 'number' && Number.isFinite(v) && v >= f.lim[0] && v <= f.lim[1]) r[f.k] = v; }
+  if (r.parkMin !== undefined && r.parkMax !== undefined && r.parkMax < r.parkMin) delete r.parkMax;
+  if (typeof o.src === 'string' && o.src.trim()) r.src = o.src.trim().slice(0, 240);
+  return Object.keys(r).length ? r : undefined;
+}
+/** kiritilgan raqamli shartlar soni */
+export const siteCondCount = (c: SiteCond | undefined): number => c ? SITE_COND_FIELDS.filter(f => c[f.k] !== undefined).length : 0;

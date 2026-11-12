@@ -15,6 +15,7 @@ export interface Site {
   rings: Ring[];
 }
 
+import { cleanSiteCond, type SiteCond } from '../norms/sets';
 import { isUse, type Use } from './uses';
 import { isGStyle } from './gstyle';
 import { COMP_DEFAULT, type CompParams } from './compensation';
@@ -154,6 +155,8 @@ export interface Settings {
   recon?: boolean;
   /** 11.11 (meʼyorlar toʻplami, 2-bosqich): qoʻlda tanlangan toʻplam; yoʻq — joy boʻyicha (core/place: Oʻzbekiston — 'UZ', boshqa — 'intl') */
   normSet?: 'UZ' | 'intl';
+  /** 12.11 (meʼyorlar toʻplami, 3-bosqich): uchastka shartlari — zonalash yoki brifdagi raqamlar (norms/sets SiteCond) */
+  siteCond?: SiteCond;
   /** 05.11: ShNQ 2.07.01-23, 90-band — maydonchalarni ikki baravargacha qisqartirish asoslari (faktga bogʻliq, sukut — oʻchiq):
    *  sport — mavze miqyosida sport-sogʻlomlashtirish majmuasi (bolalar, kattalar, sport ×0,5); dust — chang boʻronli hudud, xoʻjalik uchun yopiq inshoot (xoʻjalik ×0,5) */
   play90?: { sport?: boolean; dust?: boolean };
@@ -346,6 +349,7 @@ export function migrate(raw: unknown): Project {
   if (typeof s.yards !== 'boolean') s.yards = true;
   if (s.recon !== undefined && typeof s.recon !== 'boolean') delete s.recon;
   if (s.normSet !== undefined && s.normSet !== 'UZ' && s.normSet !== 'intl') delete s.normSet;
+  if (s.siteCond !== undefined) { const c = cleanSiteCond(s.siteCond); if (c) s.siteCond = c; else delete s.siteCond; }
   if (s.play90 !== undefined) { const q = s.play90 as any; if (!q || typeof q !== 'object') delete s.play90; else s.play90 = { ...(q.sport === true ? { sport: true } : {}), ...(q.dust === true ? { dust: true } : {}) }; }
   if (s.construct !== undefined && !CONSTRUCT_SYS.includes(s.construct)) delete s.construct;
   if (s.studio1 !== undefined && typeof s.studio1 !== 'boolean') delete s.studio1;
