@@ -3,7 +3,7 @@ import { deflateSync } from 'node:zlib';
 
 /** Issiqlik oroli: Toshkentda Landsat (100 m, lst-data branchi), qamrovdan tashqarida yoki xatoda — MODIS (GIBS).
  *  Tarmoq soxtalashtiriladi: Landsat indeksi va toʻri sunʼiy (gʻarbi (markaz) 40 °C, 69,3° dan sharqi 44 °C), GIBS — bir rangli plitka. */
-const IX = { hudud: 'toshkent', bbox: [69.1, 41.15, 69.5, 41.45], nx: 400, ny: 300, qadam: 0.001, piksel_m: 100, yillar: { '2025': { fayl: 'toshkent_2025.bin', N: 21, sahna: 42, qamrov: 1 } } };
+const IX = { hudud: 'toshkent', bbox: [69.1, 41.15, 69.5, 41.45], nx: 400, ny: 300, qadam: 0.001, piksel_m: 100, yillar: { '2024': { fayl: 'toshkent_2024.bin', N: 18, sahna: 40, qamrov: 1 }, '2025': { fayl: 'toshkent_2025.bin', N: 21, sahna: 42, qamrov: 1 } } };
 function bin(): Buffer {
   const b = Buffer.alloc(IX.nx * IX.ny * 2);
   for (let r = 0; r < IX.ny; r++) for (let c = 0; c < IX.nx; c++) b.writeUInt16LE(Math.round(((c < 200 ? 40 : 44) + 50) * 100), (r * IX.nx + c) * 2);
@@ -84,5 +84,19 @@ test('issiqlik: faqat tahlil doirasi ichida, silliq (12.11)', async ({ page }) =
   expect(r.corner).toBe(0);
   expect(r.mid).toBeGreaterThan(0);
   expect(r.size).toBeGreaterThanOrEqual(256);
+  expect(errs).toEqual([]);
+});
+
+test('issiqlik: Landsat arxivi — yil tanlash (13.11)', async ({ page }) => {
+  test.setTimeout(150_000);
+  const errs: string[] = []; await open(page, errs, true);
+  await joyClick(page, 'issiqlik', '.switch');
+  const card = page.locator('[data-card=issiqlik]');
+  await expect(card.locator('.big')).toHaveText(/°C/, { timeout: 60_000 });
+  const sel = card.locator('.joy-year select');
+  await expect(sel).toHaveValue('2025');
+  await sel.selectOption('2024');
+  await expect(card).toContainText('2024 yil', { timeout: 30_000 });
+  await expect(card).toContainText('18');
   expect(errs).toEqual([]);
 });

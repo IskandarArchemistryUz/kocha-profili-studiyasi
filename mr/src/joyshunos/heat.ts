@@ -42,7 +42,7 @@ export function tileXY(p: LngLat, z: number): [number, number] {
 
 export interface Px { w: number; h: number; data: Uint8ClampedArray }
 /** src: 'landsat' — oldindan hisoblangan Landsat to'ri (100 m), aks holda MODIS (GIBS, 1 km); used — kompozitlar (MODIS) yoki bulutsiz kunlar (Landsat) soni */
-export interface LstGrid { n: number; step: number; R: number; v: Float32Array; year: number; used: number; src?: 'landsat' | 'modis'; px?: number }
+export interface LstGrid { n: number; step: number; R: number; v: Float32Array; year: number; used: number; src?: 'landsat' | 'modis'; px?: number; /** Landsat: mavjud yillar (13.11 — yil tanlash) */ years?: number[] }
 /** Markaz atrofida R metrli kvadrat toʻr (qadam step) — yozgi kompozitlar oʻrtachasi, °C (maʼlumot yoʻq — NaN) */
 export async function loadLst(c: LngLat, R: number, step: number, cm: CMap, getTile: (date: string, z: number, x: number, y: number) => Promise<Px | null>, now = new Date()): Promise<LstGrid> {
   const { year, dates } = lstDates(now), n = Math.round(2 * R / step) + 1;
@@ -139,17 +139,18 @@ export function landsatGrid(ix: LstIndex, year: number, q: Uint16Array, c: LngLa
 }
 const ixCache = new Map<string, Promise<LstIndex | null>>(), binCache = new Map<string, Promise<Uint16Array>>();
 /** Uchastka Landsat qamrovida boʻlsa — Landsat to'ri, aks holda null (MODIS ga qaytiladi). Tarmoq xatosi ham null. */
-export async function loadLstLandsat(c: LngLat, R: number, step: number, f: typeof fetch = fetch, regions = LST_REGIONS, base = LST_DATA): Promise<LstGrid | null> {
+export async function loadLstLandsat(c: LngLat, R: number, step: number, f: typeof fetch = fetch, regions = LST_REGIONS, base = LST_DATA, want?: number): Promise<LstGrid | null> {
   for (const h of regions) {
     const ku = `${base}/${h}_index.json`;
     if (!ixCache.has(ku)) ixCache.set(ku, f(ku).then(r => (r.ok ? r.json() as Promise<LstIndex> : null)).catch(() => null));
     const ix = await ixCache.get(ku)!; if (!ix || !lstIndexHas(ix, c)) { if (!ix) ixCache.delete(ku); continue; }
-    const y = lstLatestYear(ix); if (y == null) continue;
+    const y = lstLatestYear(ix, want); if (y == null) continue;
     const bu = `${base}/${ix.yillar[String(y)].fayl}`;
     if (!binCache.has(bu)) binCache.set(bu, f(bu).then(async r => { if (!r.ok) throw new Error(`Landsat ${r.status}`); return new Uint16Array(await r.arrayBuffer()); }));
     let q: Uint16Array; try { q = await binCache.get(bu)!; } catch { binCache.delete(bu); return null; }
     if (q.length !== ix.nx * ix.ny) return null;
     const { g, cover } = landsatGrid(ix, y, q, c, R, step);
+    g.years = Object.keys(ix.yillar).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
     return cover >= LST_MIN_COVER ? g : null;
   }
   return null;
