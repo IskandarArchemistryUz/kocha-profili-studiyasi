@@ -39,6 +39,13 @@ describe('Minora qavat rejasi (13-band)', () => {
     for (const c of r) expect(pl.apts.some(a => a.ring.some(p => Math.hypot(p[0] - c[0], p[1] - c[1]) < 0.1))).toBe(true);
     expect(pl.rest.reduce((t, q) => t + area(q), 0)).toBeLessThan(15);
   });
+  it('«+» minora: zina katagi qanot yon devorida — fasadga chiqadi (12.11, 325-band)', () => {
+    // 38 × 38, qanot eni 14 m
+    const A = 7, B = 19, cross: XY[] = [[-A, -B], [A, -B], [A, -A], [B, -A], [B, A], [A, A], [A, B], [-A, B], [-A, A], [-B, A], [-B, -A], [-A, -A]];
+    const pl = tower(cross);
+    expect(pl.apts.length).toBeGreaterThanOrEqual(8);
+    tower(rot(cross, 0.4));
+  });
   it('28 × 24 va burilgan minora', () => { tower(rect(28, 24)); tower(rot(rect(24, 24), 0.6)); });
   it('faqat 1 xonali miks — kvartiralar koʻpayadi', () => {
     const a = tower(rect(24, 24)).apts.length, b = tower(rect(24, 24), [100, 0, 0, 0]).apts.length;
