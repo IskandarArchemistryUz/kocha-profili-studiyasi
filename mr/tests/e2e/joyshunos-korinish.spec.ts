@@ -101,8 +101,14 @@ test('shamol oqim chiziqlari planda', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as any).joyMap.getSource('joy-wind')?._data?.features?.length ?? 0), { timeout: 60_000 }).toBeGreaterThan(20);
   await expect.poll(() => vis(page, 'joy-wind')).toBe('visible');
   await openView(page);
+  // 13.11 (kanvas 12b): tezlik maydoni — rang rastri + oq oqim chiziqlari, doira ichida
+  await page.locator('.jv-st button', { hasText: 'Tezlik' }).click();
+  await expect.poll(() => vis(page, 'joy-windf')).toBe('visible');
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getSource('joy-windf').coordinates[0][0])).toBeGreaterThan(1);
+  if (process.env.SHOT) { await page.waitForTimeout(800); await page.screenshot({ path: process.env.SHOT }); }
   await page.locator('.jv-st button', { hasText: 'Faqat shamol guli' }).click();
   await expect.poll(() => vis(page, 'joy-wind')).toBe('none');
+  await expect.poll(() => vis(page, 'joy-windf')).toBe('none');
   expect(errs).toEqual([]);
 });
 test('xizmatlar ikonka rejimi', async ({ page }) => {
