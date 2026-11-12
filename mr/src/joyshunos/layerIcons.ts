@@ -12,6 +12,7 @@ export const LAYER_ICON: Record<string, string> = {
   shovqin: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/>',
   xizmat: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
   piyoda: '<path d="M4 16v-2.4C4 11.5 3 10.5 3 8c0-2.7 1.5-6 4.5-6C9.4 2 10 3.8 10 5.5c0 3.1-2 5.7-2 8.7V16a2 2 0 1 1-4 0z"/><path d="M20 20v-2.4c0-2.1 1-3.1 1-5.6 0-2.7-1.5-6-4.5-6C14.6 6 14 7.8 14 9.5c0 3.1 2 5.7 2 8.7V20a2 2 0 1 0 4 0z"/><path d="M16 17h4M4 13h4"/>',
+  skaner: '<rect x="3" y="8" width="8" height="13" rx="1"/><path d="M6 12h2M6 16h2"/><circle cx="16.5" cy="8.5" r="4"/><path d="M19.5 11.5l2.5 2.5"/>',
   oqim: '<path d="M3 7c4 0 6 4 9 4s5-4 9-4"/><path d="M3 13c4 0 6 4 9 4s5-4 9-4"/><path d="M18 5l3 2-3 2M18 11l3 2-3 2"/>',
   raqobat: '<circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/>',
   narx: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M12 13v5M10.5 14.2c0-.8.7-1.2 1.5-1.2s1.5.4 1.5 1.1c0 1.5-3 .9-3 2.4 0 .7.7 1.1 1.5 1.1s1.5-.4 1.5-1.2"/>',

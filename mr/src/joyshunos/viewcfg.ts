@@ -24,6 +24,7 @@ export const VIEW: Record<string, ViewDef> = {
   quyosh: { k: true },
   piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh']], k: true },
   oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur']], k: true },
+  skaner: { stLabel: 'Rang', styles: [['umumiy', 'Umumiy ball'], ['zaif', 'Eng zaif yoʻnalish']], k: true },
 };
 export const view = (V: Record<string, LayerView> | undefined, id: string): Required<LayerView> => {
   const d = VIEW[id], v = V?.[id] ?? {};

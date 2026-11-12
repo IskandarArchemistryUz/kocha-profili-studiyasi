@@ -20,7 +20,7 @@ export interface Road { cls: string; pts: XY[] }
 export function walkNet(roads: Road[]): Net { return buildNet(roads.filter(r => WALKABLE(r.cls)).map(r => r.pts)); }
 
 /* ---------------- Dijkstra (oʻtmishdosh bilan) ---------------- */
-function sssp(net: Net, src: XY[], limit: number): { D: Float64Array; P: Int32Array } {
+export function sssp(net: Net, src: XY[], limit: number): { D: Float64Array; P: Int32Array } {
   const n = net.xy.length, D = new Float64Array(n).fill(Infinity), P = new Int32Array(n).fill(-1);
   const hk: number[] = [], hv: number[] = [];
   const push = (d: number, i: number) => { hk.push(d); hv.push(i); let k = hk.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (hk[p] <= hk[k]) break; [hk[p], hk[k]] = [hk[k], hk[p]]; [hv[p], hv[k]] = [hv[k], hv[p]]; k = p; } };
