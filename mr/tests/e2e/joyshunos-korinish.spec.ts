@@ -130,6 +130,15 @@ test('raqobatchilar ikonka rejimi (13.11, kanvas 14c)', async ({ page }) => {
   expect(await page.evaluate(() => (window as any).joyMap.getPaintProperty('joy-comp', 'circle-opacity'))).toBe(0);
   await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
   await expect.poll(() => vis(page, 'joy-comp-i')).toBe('none');
+test('odamlar oqimi: «Yoʻllar dastasi» (13.11, kanvas 13b)', async ({ page }) => {
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await joyClick(page, 'oqim', '.switch');
+  await joyClick(page, 'oqim', '.lt');
+  await page.locator('.jv-st button', { hasText: 'Yoʻllar dastasi' }).click();
+  const paint = (k: string) => page.evaluate(k => (window as any).joyMap.getPaintProperty('joy-flow', k), k);
+  await expect.poll(() => paint('line-color')).toBe('#5b1f8a');
+  await page.locator('.jv-st button', { hasText: 'Qalinlik' }).click();
+  await expect.poll(async () => typeof (await paint('line-color'))).toBe('object');
   expect(errs).toEqual([]);
 });
 test('piyoda: persona boʻyicha yetish', async ({ page }) => {

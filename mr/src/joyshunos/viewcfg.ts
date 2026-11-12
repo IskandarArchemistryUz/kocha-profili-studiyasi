@@ -21,9 +21,9 @@ export const VIEW: Record<string, ViewDef> = {
   raqobat: { styles: [['nuqta', 'Nuqtalar'], ['zichlik', 'Zichlik'], ['ikonka', 'Ikonkalar']], k: true },
   narx: { axes: [['Bitim', [['sotuv', 'Sotuv'], ['ijara', 'Ijara']]], ['Turi', [['kvartira', 'Kvartira'], ['hovli', 'Hovli uy'], ['hammasi', 'Hammasi']]],
     ['Bozor', [['hammasi', 'Hammasi'], ['yangi', 'Yangi bino'], ['ikkilamchi', 'Ikkilamchi uy']]]], k: true },
-  quyosh: { styles: [['quyosh', 'Quyosh soatlari'], ['soya', 'Soya soatlari']], k: true },
+  quyosh: { k: true },
   piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh'], ['hammasi', 'Hammasi']], k: true },
-  oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur']], k: true },
+  oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur'], ['dasta', 'Yoʻllar dastasi']], k: true },
   skaner: { stLabel: 'Rang', styles: [['umumiy', 'Umumiy ball'], ['zaif', 'Eng zaif yoʻnalish']], k: true },
 };
 export const view = (V: Record<string, LayerView> | undefined, id: string): Required<LayerView> => {

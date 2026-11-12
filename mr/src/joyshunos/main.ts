@@ -1229,6 +1229,10 @@ function focusMap(m: MLMap): void {
   set('joy-wind', 'line-opacity', q('shamol', 0.45, 1)); set('joy-wind-a', 'icon-opacity', q('shamol', 0.45, 1));
   set('joy-flow', 'line-opacity', q('oqim', 0.45, 1));
   set('joy-flow', 'line-width', ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.6 + V('oqim').k, 1, 3 + 9 * V('oqim').k]);
+  // «Yoʻllar dastasi» (13.11, kanvas 13b): bitta binafsha rang, shaffoflik — oqim kuchi; koʻp yoʻl ustma-ust tushgan joy toʻqroq
+  const dasta = V('oqim').st === 'dasta';
+  set('joy-flow', 'line-color', dasta ? '#5b1f8a' : ['interpolate', ['linear'], ['get', 'f'], 0.1, '#c9d4f5', 0.5, '#6f82e0', 1, '#1f2f9e']);
+  if (dasta) { set('joy-flow', 'line-opacity', ['*', q('oqim', 0.5, 1), ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.18, 1, 0.95]]); set('joy-flow', 'line-width', ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.8, 1, 2 + 4 * V('oqim').k]); }
   const x = k('xizmat'), c = k('raqobat');
   set('joy-poi', 'circle-opacity', ['case', ['get', 'in'], x, 0.35 * x]); set('joy-poi', 'circle-stroke-opacity', ['case', ['get', 'in'], x, 0.35 * x]);
   set('joy-comp', 'circle-opacity', ['case', ['get', 'in'], c, 0.4 * c]); set('joy-comp', 'circle-stroke-opacity', c);
@@ -1366,7 +1370,8 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
     case 'oqim': {
       if (!nm?.flow) return {};
       const bins: XY[][][] = [[], [], [], [], []]; nm.net.segs.forEach(([a, b], s2) => { const f = nm.flow![s2]; if (f >= 0.08) bins[Math.min(4, Math.floor(f * 5))].push([nm.net.xy[a] as XY, nm.net.xy[b] as XY]); });
-      return { quiet: true, lines: bins.map((m, k) => ({ pts: [], multi: m, w: 0.3 + k * 0.45, col: ['#c9d4f5', '#9aaaf0', '#6f82e0', '#4456c4', '#1f2f9e'][k], op: 0.95 })) };
+      const ds = V('oqim').st === 'dasta';
+      return { quiet: true, lines: bins.map((m, k) => ({ pts: [], multi: m, w: ds ? 0.25 + k * 0.2 : 0.3 + k * 0.45, col: ds ? '#5b1f8a' : ['#c9d4f5', '#9aaaf0', '#6f82e0', '#4456c4', '#1f2f9e'][k], op: ds ? 0.2 + k * 0.19 : 0.95 })) };
     }
     case 'xizmat': {
       const ps = (D.poi.v?.pois ?? []).filter(p => SVC_KINDS.includes(p.kind)).map(p => ({ p, xy: toL(p.at) })).filter(q => Math.abs(q.xy[0]) < half && Math.abs(q.xy[1]) < half);
