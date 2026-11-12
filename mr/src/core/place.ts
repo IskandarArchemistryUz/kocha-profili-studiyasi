@@ -6,6 +6,7 @@
  */
 import tzlookup from '@photostructure/tz-lookup';
 import ct from 'countries-and-timezones';
+import { COUNTRY_UZ } from './countries-uz';
 
 export interface Place {
   /** IANA vaqt mintaqasi, masalan «Europe/Paris» */
@@ -59,6 +60,8 @@ export const SHNQ_ABROAD = 'andoza: Oʻzbekiston ShNQ qiymati — bu hududda me�
 /** Joyning qisqa yozuvi: «Fransiya · Europe/Paris · UTC+2» */
 export function placeLabel(p: Place, lang = 'en', utcMs = Date.UTC(2026, 6, 15, 12)): string {
   let nm = p.countryName;
+  // 12.11 (egasi: «tiliga qarab, oʻzbekchada Oʻzbekiston koʻrinadi»): oʻzbekcha — ilovadagi jadvaldan
+  if (lang === 'uz' && p.country && COUNTRY_UZ[p.country]) return [COUNTRY_UZ[p.country], p.tz, utcLabel(tzOffsetH(p.tz, utcMs))].filter(Boolean).join(' · ');
   try {
     // oʻzbekcha — lotin yozuvida; brauzerda uz-Latn maʼlumoti boʻlmasa (kirill yoki boshqa til qaytsa) — inglizcha nom
     const loc = lang === 'uz' ? 'uz-Latn' : lang;
