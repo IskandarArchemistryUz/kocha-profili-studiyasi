@@ -34,3 +34,14 @@ describe('Avtoturargohlar sxemasi', () => {
     expect(sheetSvg(p, null, opts()).legend.some(l => /Avtoturargoh yoʻq/.test(l.label))).toBe(true);
   });
 });
+
+describe('Parkovka strategiyasi', () => {
+  it('masofa chiziqlari oraliq rangida, sigʻim doiralari, jadval: turlar ulushi va masofalar', () => {
+    const r = sheetSvg(project(-480), null, opts({ kind: 'parkstrat' }));
+    for (const id of ['Masofa_chiziqlari', 'Avtoturargoh_sigimi', 'Parkovka_strategiyasi']) expect(r.svg).toContain(`id="${id}"`);
+    expect(r.svg).toContain('>120<');
+    const L = r.legend.map(l => l.label);
+    expect(L.some(l => /≤ 100 m/.test(l))).toBe(true); expect(L.some(l => /> 300 m/.test(l))).toBe(true);
+    expect(r.svg).toContain('100 %');
+  });
+});
