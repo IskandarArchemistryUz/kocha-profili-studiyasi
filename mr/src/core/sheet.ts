@@ -4,6 +4,7 @@
  * har qatlam — alohida nomlangan <g> (Illustrator «qatlam» sifatida oʻqiydi).
  * Sof funksiya: DOM ga bogʻliq emas — birlik testlari bilan tekshiriladi.
  */
+import { placeOf } from './place';
 import { contourStep, contourSegs, windowOf, slopeAt, HYPSO, type ReliefGrid } from './relief';
 import type { Project } from './doc';
 import { frame, centroid, area, type XY } from './geo';
@@ -691,7 +692,14 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     let y = vy + 4;
     const yEnd = vy + vh - 4;
     if (S.title) { lay('Sarlavha', 'Sarlavha', `<text x="${x0}" y="${n2(y + 5)}" font-size="${T(Math.min(6, w / 14))}" font-weight="700" fill="#1d1d1b">${ttl}</text><text x="${x0}" y="${n2(y + 10)}" font-size="${T(2.8)}" fill="#55524b">${esc(kindName)} · ${scaleTxt} · ${d}</text>`); y += 15; }
-    const stampH = S.stamp ? 30 : 0, sitH = S.situation ? Math.min(55, w * 0.7) + 6 : 0;
+    // 12.11 (meʼyorlar toʻplami, 3-bosqich, 4-band): shtampda qoʻllangan toʻplam qatori va konsepsiya belgisi
+    const nset = doc.settings.normSet ?? placeOf(doc.origin[0], doc.origin[1]).norms, concept = nset === 'UZ' && doc.settings.concept === true, sc = doc.settings.siteCond;
+    const normTxt = `${tr('Meʼyorlar')}: ${nset === 'UZ' ? tr('Oʻzbekiston · ShNQ') + (concept ? ` (${tr('konsepsiya rejimi')})` : '') : `${tr('Xalqaro andoza')} (NSW ADG 3F-1)`}${sc ? ` + ${tr('uchastka shartlari')}${sc.src ? ` — ${tr('manba')}: ${sc.src}` : ''}` : ''}`;
+    const nmx = Math.max(20, Math.floor((w - 3) / 1.32)), nLines: string[] = [];
+    for (const wd of normTxt.split(' ')) { const L = nLines.length ? nLines[nLines.length - 1] : null; if (L !== null && (L + ' ' + wd).length <= nmx) nLines[nLines.length - 1] = L + ' ' + wd; else nLines.push(wd); }
+    if (nLines.length > 2) { nLines.length = 2; nLines[1] = nLines[1].slice(0, nmx - 1) + '…'; }
+    const nH = 1.2 + nLines.length * 3.4;
+    const stampH = S.stamp ? 30 + nH + (concept ? 5 : 0) : 0, sitH = S.situation ? Math.min(55, w * 0.7) + 6 : 0;
     if (S.legend && legend.length) {
       const rowH = 4.6, out: string[] = [`<text x="${x0}" y="${n2(y + 3.5)}" font-size="${T(3)}" font-weight="700" fill="#1d1d1b">${esc(tr('Shartli belgilar'))}</text>`];
       legend.forEach((it, i) => { const yy = y + 7 + i * rowH; out.push(legendSym(it, x0, yy), `<text x="${x0 + 8}" y="${n2(yy + 2.3)}" font-size="${T(2.5)}" fill="#1d1d1b">${esc(it.label)}</text>`); });
@@ -741,10 +749,13 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       const sy = yEnd - stampH + 2, st = o.stamp ?? {}, rows: [string, string][] = [[tr('Loyiha'), o.title || doc.name], [tr('Varaq'), `${st.num ? st.num + ' · ' : ''}${st.sheet || kindName}`], [tr('Muallif'), st.author || ''], [tr('Masshtab'), inner ? inner.label.replace(/^M /, '') : `1:${scale}`], [tr('Sana'), d], [tr('Varaq'), `${st.index ?? 1} / ${st.total ?? 1}`]];
       const out = [`<rect x="${x0}" y="${n2(sy)}" width="${n2(w)}" height="${stampH - 2}" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.3"/>`];
       rows.forEach(([a, b], i) => { const yy = sy + 4.3 + i * 4.6; if (i) out.push(`<path d="M${x0},${n2(yy - 3.4)}h${n2(w)}" stroke="#1d1d1b" stroke-width="0.12"/>`); out.push(`<text x="${x0 + 1.5}" y="${n2(yy)}" font-size="${T(2.5)}" fill="#6b6965">${esc(a)}</text><text x="${x0 + 22}" y="${n2(yy)}" font-size="${T(2.5)}" fill="#1d1d1b">${esc(b)}</text>`); });
-      out.push(`<path d="M${x0 + 20},${n2(sy)}v${stampH - 2}" stroke="#1d1d1b" stroke-width="0.12"/>`);
+      out.push(`<path d="M${x0 + 20},${n2(sy)}v${rows.length * 4.6 + 0.4}" stroke="#1d1d1b" stroke-width="0.12"/>`);
+      { const ny = sy + rows.length * 4.6 + 0.6;
+        out.push(`<path d="M${x0},${n2(ny)}h${n2(w)}" stroke="#1d1d1b" stroke-width="0.12"/><text x="${x0 + 1.5}" y="${n2(ny + 3.3)}" font-size="${T(2.5)}" fill="#1d1d1b" data-norms="${nset}">${nLines.map((l, i) => `<tspan x="${x0 + 1.5}" dy="${i ? 3.4 : 0}">${esc(l)}</tspan>`).join('')}</text>`);
+        if (concept) out.push(`<rect x="${x0}" y="${n2(ny + nH)}" width="${n2(w)}" height="4.6" fill="#f8efd9" stroke="#1d1d1b" stroke-width="0.12"/><text x="${x0 + 1.5}" y="${n2(ny + nH + 3.3)}" font-size="${T(2.5)}" font-weight="700" fill="#95620f" data-concept="1">${esc(tr('ShNQ tekshiruvidan oʻtmagan — konsepsiya').toUpperCase().replace('SHNQ', 'ShNQ'))}</text>`); }
       lay('Shtamp', 'Shtamp', out.join(''));
     }
-    lay('Muallif', 'Muallif', `<text x="${n2(x0 + w)}" y="${n2(vy + vh + 4.5)}" font-size="${T(2.5)}" text-anchor="end" fill="#8a857c">Archemistry Lab · Master reja · ${esc(tr('Asos'))}: OpenStreetMap · ShNQ 2.07.01-23 · ${esc(tr('qavat'))} ${fh} m</text>`);
+    lay('Muallif', 'Muallif', `<text x="${n2(x0 + w)}" y="${n2(vy + vh + 4.5)}" font-size="${T(2.5)}" text-anchor="end" fill="#8a857c">Archemistry Lab · Master reja · ${esc(tr('Asos'))}: OpenStreetMap · ${nset === 'UZ' ? 'ShNQ 2.07.01-23' : 'NSW ADG 3F-1'} · ${esc(tr('qavat'))} ${fh} m</text>`);
   } else {
     if (S.legend && legend.length) {
       const rowH = 4.6, w = 60, hgt = 7 + legend.length * rowH, lx = vx + vw - w - 4, ly = vy + vh - hgt - 4, out: string[] = [];
