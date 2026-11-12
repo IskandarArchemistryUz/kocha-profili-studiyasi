@@ -27,7 +27,7 @@ for (const [w, dark] of [[1024, true], [1440, false]] as const) test(`Parij va T
   await expect(page.locator('#regAbroad')).toContainText('ADG 3F-1');
   await expect(page.locator('.rrow[data-rule=school] [data-s=na]')).toBeVisible();
   await expect(page.locator('.rrow[data-rule=spacing-79] [data-s=na]')).toBeVisible();
-  await expect(page.locator('#regSeg button:last-child')).toContainText('· 0');
+  await expect(page.locator('#regSeg [data-f=fail]')).toContainText('· 0');
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/toplam_parij_reyestr_${w}${dark ? 'd' : 'l'}.png` });
   await proj(page, [69.2797, 41.3111], w);
   await expect(page.locator('#genNotes')).not.toContainText('xalqaro andoza');
