@@ -79,3 +79,21 @@ test('Shamol: Parijda yaqin stansiya yoʻq — ERA5 (server orqali); navbatda �
   await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_era5_dark.png` });
 });
+
+test('Shamol: ERA5 kaliti yoʻq — NASA POWER (kalitsiz, server orqali); navbatda — kutish yozuvi (12.11)', async ({ page }) => {
+  const st = JSON.parse(readFileSync('public/climate/uz_climate.json', 'utf8')).stations[0];
+  let mode: 'pending' | 'ok' = 'pending';
+  await page.route(/\/data\/wind\?/, r => mode === 'pending' ? r.fulfill({ status: 202, json: { status: 'pending', source: 'power' } }) : r.fulfill({ json: { source: 'power', station: { ...st, name: 'NASA POWER -33.50, 18.50', lat: -33.5, lon: 18.5 } } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openAt(page, [18.4241, -33.9249], 'uz', ['shamol']);
+  await expect(page.locator('#windEra')).toContainText('NASA POWER');
+  mode = 'ok';
+  await openAt(page, [18.4241, -33.9249], 'uz', ['shamol']);
+  await expect(page.locator('[data-card=shamol] #windSrc')).toContainText('NASA POWER');
+  await expect(page.locator('[data-card=shamol] .big')).not.toHaveText('—');
+  await expect(page.locator('#windFar')).toHaveCount(0);
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_power_light.png` });
+  await page.setViewportSize({ width: 1024, height: 720 });
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_power_dark.png` });
+});

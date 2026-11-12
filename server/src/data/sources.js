@@ -14,6 +14,10 @@ export const SOURCES = {
     name: 'ERA5 (Copernicus Climate Change Service)', licence: 'Copernicus licence (C3S)', url: 'https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-timeseries',
     attribution: 'Contains modified Copernicus Climate Change Service information 2026 (ERA5, Hersbach et al.)', odbl: false, ttlDays: 3650,
   },
+  power: {
+    name: 'NASA POWER (Prediction Of Worldwide Energy Resources)', licence: 'NASA Earth Science data — no restrictions (commercial use allowed)', url: 'https://power.larc.nasa.gov/docs/referencing/',
+    attribution: 'Data obtained from the NASA Langley Research Center (LaRC) POWER Project funded through the NASA Earth Science/Applied Science Program.', odbl: false, ttlDays: 3650,
+  },
   worldcover: {
     name: 'ESA WorldCover 2021', licence: 'CC BY 4.0', url: 'https://esa-worldcover.org/en/data-access',
     attribution: '© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium', odbl: false, ttlDays: 365,

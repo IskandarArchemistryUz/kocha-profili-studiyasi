@@ -23,4 +23,13 @@ describe('Shamol manbasi joyga qarab', () => {
     const n = await windAt(C, 144.96, -37.81, res(503, { error: 'disabled' }), 'https://api.test');
     expect(n.kind).toBe('none'); if (n.kind === 'none') expect(n.why).toBe('off');
   });
+  it('ERA5 kaliti yoʻq — server NASA POWER bilan javob beradi (12.11): manba «power», navbat ham «power»', async () => {
+    const pw: Station = { ...era, name: 'NASA POWER -33.50, 18.50', lat: -33.5, lon: 18.5 };
+    const a = await windAt(C, 18.42, -33.92, res(200, { source: 'power', station: pw }), 'https://api.test');
+    expect(a.kind).toBe('ok'); if (a.kind === 'ok') expect(a.src).toBe('power');
+    const b = await windAt(C, 18.43, -33.93, res(500, {}), 'https://api.test');   // xotiradan — manba saqlanadi
+    expect(b.kind === 'ok' && b.src).toBe('power');
+    const p = await windAt(C, 151.2, -33.87, res(202, { status: 'pending', source: 'power' }), 'https://api.test');
+    expect(p.kind === 'pending' && p.src).toBe('power');
+  });
 });

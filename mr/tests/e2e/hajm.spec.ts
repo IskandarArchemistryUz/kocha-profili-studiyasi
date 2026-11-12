@@ -153,3 +153,20 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`tijorat va
   await page.waitForTimeout(700);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/tijorat_${w}${dark ? 'd' : 'l'}.png` });
 });
+
+test('shamol: ERA5 kaliti yoʻq — NASA POWER manba satri va iqtibosi (12.11)', async ({ page }) => {
+  const rose = Array.from({ length: 16 }, (_, k) => [k === 10 ? 0.3 : 0.04, 0.01, 0, 0, 0, 0]);
+  await page.route(/\/data\/wind\?/, r => r.fulfill({ json: { source: 'power', station: { name: 'NASA POWER 48.50, 2.50', file: 'NASA POWER 2015–2024', lat: 48.5, lon: 2.5, elev: null, hours: 87600, calm: 0.05, rose, mean: 3.4, p95: 7.1, monthT: Array(12).fill(12), monthV: Array(12).fill(3.4) } } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.evaluate(() => (window as any).__mr.store.dispatch({ type: 'moveProject', origin: [2.3522, 48.8566], carry: false }));
+  await page.click('[data-step=uchastka]'); await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
+  await page.click('[data-step=quyosh]');
+  await expect(page.locator('#windSrc')).toContainText('NASA POWER (MERRA-2)', { timeout: 15000 });
+  await expect(page.locator('#windSrc')).toContainText('NASA Langley Research Center');
+  await expect(page.locator('#windStn')).toContainText('NASA POWER 48.50, 2.50');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/mr_power_light.png` });
+  await page.setViewportSize({ width: 1024, height: 720 });
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/mr_power_dark.png` });
+});

@@ -37,7 +37,7 @@ import type { XY } from '../core/geo';
 import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
 import { nearestStation, type Climate } from '../core/wind';
-import { windAt, TMYX_ATTR } from '../core/windsrc';
+import { windAt, srcAttr, srcShort, type WindSrc, type GlobalSrc } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
 import { coinLabel, onPrices } from '../account/pay';   // + yuklash darvozasi
@@ -104,7 +104,7 @@ let roseK = 1;
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
-const D: { narx: Ld<NarxData>; addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean; src: 'epw' | 'era5'; pending?: boolean }>; lst: Ld<LstGrid> } =
+const D: { narx: Ld<NarxData>; addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean; src: WindSrc; pending?: GlobalSrc }>; lst: Ld<LstGrid> } =
   { narx: { st: 'idle' }, addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
@@ -439,11 +439,11 @@ function renderRightH(): void {
   }
   if (isOn('shamol')) {
     const w0 = D.wind.v, w = windV();
-    cards.push(card(L('shamol'), w?.src === 'era5' ? 'ERA5' : 'EPW', w ? tr(dir8(w.w.k * 22.5)) : '—',
-      w0?.pending ? [h('span', { class: 'src', id: 'windEra' }, tr('ERA5 maʼlumoti tayyorlanmoqda (Copernicus navbati) — bir necha daqiqada oʻzi yangilanadi.'))]
-      : w0?.far ? [h('span', { class: 'err', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: w0.name, k: fmt(w0.km) })), h('br'), h('span', { class: 'src' }, tr('Global shamol maʼlumoti (ERA5) hozir olinmadi.'))]
+    cards.push(card(L('shamol'), w ? srcShort(w.src) : 'EPW', w ? tr(dir8(w.w.k * 22.5)) : '—',
+      w0?.pending ? [h('span', { class: 'src', id: 'windEra' }, tr(w0.pending === 'power' ? 'NASA POWER maʼlumoti tayyorlanmoqda — bir necha daqiqada oʻzi yangilanadi.' : 'ERA5 maʼlumoti tayyorlanmoqda (Copernicus navbati) — bir necha daqiqada oʻzi yangilanadi.'))]
+      : w0?.far ? [h('span', { class: 'err', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: w0.name, k: fmt(w0.km) })), h('br'), h('span', { class: 'src' }, tr('Global shamol maʼlumoti (ERA5, NASA POWER) hozir olinmadi.'))]
       : w ? [tf('Ustun yoʻnalish (qayerdan) — vaqtning ${p} %; oʻrtacha ${v} m/s; tinch ${c} %.', { p: fmt(w.w.share * 100), v: fmt(w.w.mean, 1), c: fmt(w.w.calm * 100) }), h('br'),
-        h('span', { class: 'src', id: 'windSrc' }, w.src === 'era5' ? tf('ERA5 (Copernicus) · 0,25° katak, ${k} km · 2015–2024', { k: fmt(w.km, 1) }) : tf('Stansiya: ${n}, ${k} km · TMYx 2011–2025', { n: w.name, k: fmt(w.km, 1) }))] : [],
+        h('span', { class: 'src', id: 'windSrc' }, w.src === 'era5' ? tf('ERA5 (Copernicus) · 0,25° katak, ${k} km · 2015–2024', { k: fmt(w.km, 1) }) : w.src === 'power' ? tf('NASA POWER · 0,5° katak, ${k} km · 2015–2024', { k: fmt(w.km, 1) }) : tf('Stansiya: ${n}, ${k} km · TMYx 2011–2025', { n: w.name, k: fmt(w.km, 1) }))] : [],
       null, D.wind));
   }
   if (isOn('xizmat')) {
@@ -646,10 +646,10 @@ function ensure(): void {
     if (!climate) { const res = await fetch('./climate/uz_climate.json'); if (!res.ok) throw new Error(`${res.status}`); climate = await res.json() as Climate; }
     // 34-band: yaqin EPW stansiyasi boʻlmasa — ERA5 (server orqali); navbatda boʻlsa 20 s dan keyin qayta
     const a = await windAt(climate, c[0], c[1]);
-    if (a.kind === 'ok') return { w: windSummary(a.s), name: a.src === 'era5' ? a.s.name : a.s.name.replace(/\./g, ' '), km: a.km, bins: climate.bins, far: false, src: a.src };
+    if (a.kind === 'ok') return { w: windSummary(a.s), name: a.src !== 'epw' ? a.s.name : a.s.name.replace(/\./g, ' '), km: a.km, bins: climate.bins, far: false, src: a.src };
     if (a.kind === 'pending') { const k0 = c.join(); setTimeout(() => { if (S.c.join() === k0 && D.wind.v?.pending) { D.wind = { st: 'idle' }; ensure(); } }, 20_000); }
     const { s, km } = nearestStation(climate, c[0], c[1]);
-    return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km, bins: climate.bins, far: true, src: 'epw' as const, pending: a.kind === 'pending' };
+    return { w: windSummary(s), name: s.name.replace(/\./g, ' '), km, bins: climate.bins, far: true, src: 'epw' as const, pending: a.kind === 'pending' ? a.src : undefined };
   });
 }
 /** Shamol — faqat yaqin stansiya boʻlsa (aks holda xaritada ham, aksonometriyada ham koʻrsatilmaydi) */
@@ -1282,7 +1282,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
       map: shot ? { url: shot.url, mPerMm: shot.side / mapS, rose: w ? roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') : null, ringLabel: tf('${r} m · ${m} daqiqa piyoda', { r: S.r, m: walkMin(S.r) }) } : null,
       legends: collectLegends(), cards: collectCards(),
       stamp: { org: 'Archemistry Lab', service: tr('Joyshunos'), placeL: tr('Hudud'), place: `${addr} · ${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`, authorL: tr('Muallif'), dateL: tr('Sana'), date, sheetL: tr('Varaq'), srcL: tr('Manbalar'),
-        sources: `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0102-25')} · EPW TMYx: ${TMYX_ATTR}`,
+        sources: `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles · NASA GIBS / MODIS · ShNQ 2.07.01-23 · SanQvaN 0102-25')} · ${w?.src === 'era5' || w?.src === 'power' ? `${srcShort(w.src)}: ${srcAttr(w.src)}` : `EPW TMYx: ${srcAttr('epw')}`}`,
         note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
       labels: { north: tr('Sh'), more: tr('Davomi keyingi varaqda →'), noMap: tr('Xarita surati olinmadi') },
     };
@@ -1630,7 +1630,7 @@ async function axoSheets(which: 'one' | 'all'): Promise<void> {
     const pois = (D.poi.v?.pois ?? []).filter(p => SVC_KINDS.includes(p.kind) && distM(S.c, p.at) <= S.r);
     const comps = (D.comp.v ?? []).filter(c => c.d <= S.r);
     const step = S.r > 600 ? 200 : 100, rings: number[] = []; for (let r = step; r < S.r; r += step) rings.push(r); rings.push(S.r);
-    const src = `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles')}${w ? ` · EPW TMYx: ${TMYX_ATTR}` : ''}`;
+    const src = `${tr('© OpenStreetMap hissachilari · AWS Terrain Tiles')}${w ? ` · ${w.src === 'epw' ? 'EPW TMYx' : srcShort(w.src)}: ${srcAttr(w.src)}` : ''}`;
     const kinds = which === 'all' ? AX_SHEETS : [['joriy', 'Joy tahlili', [] as import('./axo').AxLayer[]] as [AxSheetKind, string, import('./axo').AxLayer[]]];
     const pages: { svg: string; widthMm: number; heightMm: number }[] = [];
     for (let i = 0; i < kinds.length; i++) {

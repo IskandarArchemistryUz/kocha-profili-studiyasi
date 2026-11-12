@@ -71,7 +71,7 @@ import { computeWhole } from '../core/plan';
 import { daySteps, insolation, localToUtcAt, sunPosition, type Prism } from '../core/sun';
 import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
-import { windAt, windSrcLine, ERA5_ATTR, TMYX_ATTR, type WindAt } from '../core/windsrc';
+import { windAt, windSrcLine, srcAttr, srcShort, type WindAt, type WindSrc } from '../core/windsrc';
 import { INSOL_BINS } from '../scene/scene';
 import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
 import { openAlbum, genplanSvg, type InsolView } from './album';
@@ -1426,11 +1426,11 @@ export class Editor {
   /** 34-band: uzoq joyda ERA5 (server orqali) — joy kaliti, natija, yuklanmoqda */
   private era: { key: string; v: WindAt | null; busy: boolean; t?: number } | null = null;
   /** Hisob uchun shamol stansiyasi: yaqin EPW yoki ERA5 (tayyor boʻlsa) */
-  private windNow(): { st: Station; km: number; src: 'epw' | 'era5' } | null {
+  private windNow(): { st: Station; km: number; src: WindSrc } | null {
     if (!this.climate) return null;
     const o = this.store.doc.origin, n = nearestStation(this.climate, o[0], o[1]);
     if (n.km <= WIND_MAX_KM) return { st: n.s, km: n.km, src: 'epw' };
-    const e = this.era; return e && e.key === `${o[0].toFixed(4)},${o[1].toFixed(4)}` && e.v?.kind === 'ok' ? { st: e.v.s, km: e.v.km, src: 'era5' } : null;
+    const e = this.era; return e && e.key === `${o[0].toFixed(4)},${o[1].toFixed(4)}` && e.v?.kind === 'ok' ? { st: e.v.s, km: e.v.km, src: e.v.src } : null;
   }
   private loadEra(): void {
     const o = this.store.doc.origin, key = `${o[0].toFixed(4)},${o[1].toFixed(4)}`;
@@ -1514,10 +1514,10 @@ export class Editor {
       // yaqin stansiya yoʻq — ERA5 (server orqali)
       this.loadEra();
       const n = nearestStation(this.climate, doc.origin[0], doc.origin[1]), e = this.era?.v;
-      body.append(h('div', { class: 'col', id: 'windBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', {}, 'ERA5')),
-        !e || this.era?.busy ? h('div', { class: 'note', id: 'windEra' }, tr('Global shamol maʼlumoti (ERA5) yuklanmoqda…'))
-          : e.kind === 'pending' ? h('div', { class: 'note', id: 'windEra' }, tr('ERA5 maʼlumoti tayyorlanmoqda (Copernicus navbati) — bir necha daqiqada oʻzi yangilanadi.'))
-            : h('div', { class: 'note warn', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: n.s.name.replace(/\./g, ' '), k: fmt(n.km, 0) }), ' ', tr('Global shamol maʼlumoti (ERA5) hozir olinmadi.'))));
+      body.append(h('div', { class: 'col', id: 'windBox' }, h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', {}, 'ERA5 · NASA POWER')),
+        !e || this.era?.busy ? h('div', { class: 'note', id: 'windEra' }, tr('Global shamol maʼlumoti (ERA5, NASA POWER) yuklanmoqda…'))
+          : e.kind === 'pending' ? h('div', { class: 'note', id: 'windEra' }, tr(e.src === 'power' ? 'NASA POWER maʼlumoti tayyorlanmoqda — bir necha daqiqada oʻzi yangilanadi.' : 'ERA5 maʼlumoti tayyorlanmoqda (Copernicus navbati) — bir necha daqiqada oʻzi yangilanadi.'))
+            : h('div', { class: 'note warn', id: 'windFar' }, tf('Eng yaqin iqlim stansiyasi (${n}) ${k} km uzoqda — bu hudud uchun shamol maʼlumoti ishonchli emas.', { n: n.s.name.replace(/\./g, ' '), k: fmt(n.km, 0) }), ' ', tr('Global shamol maʼlumoti (ERA5, NASA POWER) hozir olinmadi.'))));
       return;
     }
     const { st, km, src } = now, pv = prevailing(st);
@@ -1525,13 +1525,13 @@ export class Editor {
     const sel = dropdown({ id: 'windDir', 'aria-label': tr('Hisob yoʻnalishi (qayerdan esadi)'), onchange: v => { this.windDir = Number(v); this.renderPanel(); } },
       Array.from({ length: 16 }, (_, k) => ({ value: String(k * 22.5), label: `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ' + tr('ustun') : ''}`, selected: Math.abs(k * 22.5 - dir) < 1 })));
     body.append(h('div', { class: 'col', id: 'windBox' },
-      h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', { id: 'windStn' }, `${src === 'era5' ? st.name : st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`)),
+      h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', { id: 'windStn' }, `${src !== 'epw' ? st.name : st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`)),
       h('div', { class: 'group flat', style: 'padding:10px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px' },
         h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.mean, 1)} m/s`), h('span', {}, `${tr('oʻrtacha')} · ${tr('shtil')} ${fmt(st.calm * 100, 0)} %`)),
         h('div', { class: 'kpi' }, h('b', {}, `${rumbName(pv.k)}`), h('span', {}, `${tr('ustun yoʻnalish')} · ${fmt(pv.share * 100, 0)} %`)),
         h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.p95, 1)} m/s`), h('span', {}, tr('5 % vaqt oshadi')))),
       this.windRose(st),
-      h('span', { class: 't-small', id: 'windSrc' }, tr(windSrcLine(src)), ` ${src === 'era5' ? ERA5_ATTR : TMYX_ATTR}.`),
+      h('span', { class: 't-small', id: 'windSrc' }, tr(windSrcLine(src)), ` ${srcAttr(src)}.`),
       h('div', { class: 'field' }, h('label', {}, tr('Hisob yoʻnalishi (qayerdan esadi)')), sel),
       h('button', { class: 'btn btn-block', id: 'windGo', disabled: this.wind.busy, onclick: () => void this.runWind() }, tr(this.wind.busy ? 'Hisoblanmoqda… (5–15 s)' : 'Shamol oqimi (piyoda sathi)'), this.wind.busy ? '' : this.ptag('wind'))));
     const w = this.wind.stats;
@@ -4723,7 +4723,7 @@ export class Editor {
     const now = this.windNow(); if (!now) return null;
     const { st, km, src } = now, pv = prevailing(st), w = this.wind, hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
     const RAT: [number, number, string][] = [[0.4, 0x2b3a67, '< 0,4 pana'], [0.7, 0x4a6fa5, '0,4–0,7'], [0.9, 0x7fb3c8, '0,7–0,9'], [1.1, 0xe8e4c9, '0,9–1,1 ochiq joydek'], [1.3, 0xf6c86b, '1,1–1,3'], [1.5, 0xf29a4a, '1,3–1,5'], [Infinity, 0xd9534f, '> 1,5 tezlashish']];
-    const base = { station: `${src === 'era5' ? st.name : st.name.replace(/\./g, ' ')} · ${Math.round(km)} km`, src: src === 'era5' ? 'ERA5' : 'TMYx (EPW)', rose: st.rose, dir: w.stats?.dir ?? this.windDir ?? pv.deg, prevailing: rumbName(pv.k), mean: st.mean, calm: st.calm };
+    const base = { station: `${src !== 'epw' ? st.name : st.name.replace(/\./g, ' ')} · ${Math.round(km)} km`, src: src === 'epw' ? 'TMYx (EPW)' : srcShort(src), rose: st.rose, dir: w.stats?.dir ?? this.windDir ?? pv.deg, prevailing: rumbName(pv.k), mean: st.mean, calm: st.calm };
     if (!w.stats || !w.pts || !w.ratio || !w.cell) return base;
     const cols = w.mode === 'ratio' ? w.ratio.map(r => hex(RAT.find(x => r < x[0])![1])) : w.ratio.map(r => hex(LAWSON[lawsonClass(r * w.stats!.p95)][1]));
     const legend: [string, string][] = w.mode === 'ratio' ? RAT.map(([, c, t]) => [hex(c), t]) : LAWSON.map(([, c, t]) => [hex(c), t]);
