@@ -141,3 +141,25 @@ CREATE TABLE IF NOT EXISTS project_spend (
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS country TEXT;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;
+
+-- egasining shaxsiy maʼlumot qatlami (2026-11-12): masalan, tozalangan kadastr (qavat, xonadon, yil) — faqat yuklagan hisobga koʻrinadi.
+-- Xususiyatlar faqat ruxsat etilgan roʻyxatdan (private.js: PROPS); shaxsga oid maydonlar qabul qilinmaydi.
+CREATE TABLE IF NOT EXISTS private_layers (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  source      TEXT NOT NULL,
+  n           INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS private_features (
+  id          BIGSERIAL PRIMARY KEY,
+  layer_id    BIGINT NOT NULL REFERENCES private_layers(id) ON DELETE CASCADE,
+  minx        DOUBLE PRECISION NOT NULL,
+  miny        DOUBLE PRECISION NOT NULL,
+  maxx        DOUBLE PRECISION NOT NULL,
+  maxy        DOUBLE PRECISION NOT NULL,
+  props       JSONB NOT NULL,
+  geom        JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS private_features_bb ON private_features (layer_id, minx, miny)

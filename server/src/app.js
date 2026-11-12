@@ -9,6 +9,7 @@ import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { registerData } from './data/routes.js';
 import { ownerStats, grantCoins, ownerUser, ownerReveal, geoOf } from './owner.js';
+import { makePrivate, parseBbox, PrivateError } from './private.js';
 import { ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
@@ -52,8 +53,8 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   };
 
   app.setErrorHandler((err, req, reply) => {
-    if (err instanceof AuthError || err instanceof WalletError || err instanceof PriceError) {
-      const status = err.code === 'insufficient' ? 402 : err.code === 'rate' || err.code === 'cooldown' ? 429 : 400;
+    if (err instanceof AuthError || err instanceof WalletError || err instanceof PriceError || err instanceof PrivateError) {
+      const status = err.code === 'insufficient' ? 402 : err.code === 'rate' || err.code === 'cooldown' ? 429 : err.code === 'not_found' ? 404 : 400;
       return reply.code(status).send({ error: err.code ?? 'bad_request', message: err.message, need: err.need, balance: err.balance });
     }
     if (err.validation) return reply.code(400).send({ error: 'bad_request', message: err.message });
@@ -155,6 +156,25 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     req.log.info({ grant: { by: u.id, who: r.who, coins: r.coins, applied: r.applied } }, 'sinov kirishi: tanga berildi');
     return r;
   });
+
+  /* ---------- shaxsiy maʼlumot qatlami (12.11): hozircha faqat egasi; maʼlumot faqat yuklagan hisobga koʻrinadi ---------- */
+  const priv = makePrivate(db);
+  async function requireOwner(req, reply) {
+    const u = await requireUser(req, reply); if (!u) return null;
+    if (!isOwner(u)) { reply.code(403).send({ error: 'forbidden', message: 'hozircha faqat egasi uchun' }); return null; }
+    reply.header('cache-control', 'no-store');
+    return u;
+  }
+  app.get('/private/layers', async (req, reply) => { const u = await requireOwner(req, reply); if (!u) return; return { layers: await priv.layers(u.id) }; });
+  app.post('/private/layers', async (req, reply) => { const u = await requireOwner(req, reply); if (!u) return; return priv.create(u.id, req.body ?? {}); });
+  // nginx tanasi ≤ 128 KB — brauzer boʻlib yuboradi
+  app.post('/private/layers/:id/features', { bodyLimit: 124 * 1024 }, async (req, reply) => {
+    const u = await requireOwner(req, reply); if (!u) return;
+    if (limited(`priv:${u.id}`, 240)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
+    return priv.add(u.id, req.params.id, req.body?.features);
+  });
+  app.post('/private/layers/:id/delete', async (req, reply) => { const u = await requireOwner(req, reply); if (!u) return; return priv.remove(u.id, req.params.id); });
+  app.get('/private/features', async (req, reply) => { const u = await requireOwner(req, reply); if (!u) return; return priv.features(u.id, parseBbox(req.query?.bbox)); });
 
   app.get('/me/history', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
