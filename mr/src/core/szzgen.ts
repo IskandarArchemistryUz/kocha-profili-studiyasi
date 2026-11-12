@@ -64,10 +64,30 @@ export function clipToSzz(sections: GenSection[], deny: MultiPolygon, notes: str
   return out;
 }
 
+/** denyZone birlashtirish xato bersa, bir-birini qoplagan boʻlaklar qaytadi — polygon-clipping ularni XOR qiladi.
+ *  Boʻlaklar bittadan birlashtiriladi (xatolisi oʻtkaziladi) */
+function normMP(mp: MultiPolygon): MultiPolygon {
+  if (mp.length < 2) return mp;
+  let u: MultiPolygon = [mp[0]];
+  for (const p of mp.slice(1)) { try { u = polygonClipping.union(u, p); } catch { /* oʻtkazildi */ } }
+  return u;
+}
 /** 12.11 (G1): daha maydoni va undan SMZ ichida boʻlmagan (turar joyga yaroqli) qismi, m² */
 export function usableOf(ring: XY[], deny: MultiPolygon): { total: number; usable: number } {
   const total = ringA(close(ring)); if (!deny.length) return { total, usable: total };
-  return { total, usable: mpArea(tryMP(() => polygonClipping.difference([close(ring)], deny), [])) };
+  return { total, usable: mpArea(tryMP(() => polygonClipping.difference([close(ring)], normMP(deny)), [])) };
+}
+
+/** 12.11 (egasi): parselni taqiq zonasi boʻyicha ajratish — [SMZ ichidagi, tashqaridagi] boʻlaklar (≥ minA m²); koordinatalar 1 mm ga
+ *  yaxlitlanadi (polygon-clipping aniqlik xatosi), xato boʻlsa — null */
+export function splitByDeny(rings: XY[][], deny: MultiPolygon, minA = 50): { inside: XY[][][]; outside: XY[][][] } | null {
+  if (!deny.length) return null;
+  const q = (v: number) => Math.round(v * 1000) / 1000, snap = (mp: MultiPolygon): MultiPolygon => mp.map(p => p.map(r => r.map(([x, y]) => [q(x), q(y)] as [number, number])));
+  const P: Polygon = rings.map(r => close(r).map(([x, y]) => [q(x), q(y)] as [number, number])), D = normMP(snap(deny));
+  try {
+    const keep = (mp: MultiPolygon) => mp.filter(p => ringA(p[0]) - p.slice(1).reduce((t, h) => t + ringA(h), 0) >= minA).map(p => p.map(open));
+    return { inside: keep(polygonClipping.intersection(P, D)), outside: keep(polygonClipping.difference(P, D)) };
+  } catch { return null; }
 }
 
 export interface SzzGreen { id: string; label: string; cls: string; need: number; area: number; green: number; share: number; rings: XY[][]; /** AMALIYOT zonasi (qabriston) */ amal?: boolean }
