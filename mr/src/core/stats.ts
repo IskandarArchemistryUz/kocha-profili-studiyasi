@@ -120,10 +120,43 @@ function onClick(e: MouseEvent): void {
 }
 
 /** Har bir xizmat sahifasida bir marta chaqiriladi: skript yuklanadi, sahifa koʻrish va yuklab olishlar sanaladi */
+/* ---------- xatolar: brauzer xatosi, WebGL yoʻqolishi, taxminiy qulash ---------- */
+let errN = 0;
+function errEv(n: string, m = '', at = ''): void {
+  if (++errN > 10) return;   // bir sahifada koʻpi bilan 10 ta
+  const p: Record<string, string> = {};
+  if (m) p.m = m.replace(/\s+/g, ' ').slice(0, 80);
+  if (at) p.at = at.slice(0, 60);
+  push({ n, p });
+  if (n !== 'err/js' || errN === 1) send();   // xato sahifani yiqitishi mumkin — tezroq yuboramiz
+}
+const fileAt = (file?: string, line?: number) => (file ? `${file.split(/[/?#]/).filter(Boolean).slice(-1)[0] ?? ''}:${line ?? 0}` : '');
+function initErrors(): void {
+  addEventListener('error', (e) => {
+    if (!(e instanceof ErrorEvent)) return;   // rasm/skript yuklanmasligi — bu yerda emas
+    errEv('err/js', e.message || String(e.error ?? ''), fileAt(e.filename, e.lineno));
+  });
+  addEventListener('unhandledrejection', (e) => {
+    const r = e.reason as { message?: string; name?: string } | undefined;
+    if (r?.name === 'AbortError') return;
+    errEv('err/promise', r?.message ?? String(r ?? ''));
+  });
+  // WebGL konteksti yoʻqoldi — odatda xotira yetmaganda (katta sahna)
+  document.addEventListener('webglcontextlost', () => errEv('err/webgl-lost'), true);
+  // Taxminiy qulash: sahifa ochilganda belgi qoʻyiladi, yopilganda olinadi; keyingi ochilishda belgi tursa — oldingisi yopilmay oʻchgan (Out of Memory va h.k.)
+  try {
+    const k = 'ax-live-' + svc;
+    if (sessionStorage.getItem(k)) errEv('err/crash');
+    sessionStorage.setItem(k, '1');
+    addEventListener('pagehide', () => { try { sessionStorage.removeItem(k); } catch { /* */ } });
+  } catch { /* */ }
+}
+
 export function initStats(service: string, view = ''): void {
   void initOwner();
   if (!enabled()) return;
   svc = service;
+  initErrors();
   document.addEventListener('click', onClick, true);
   addEventListener('pagehide', send);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') send(); });

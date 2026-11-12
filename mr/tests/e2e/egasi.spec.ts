@@ -29,7 +29,10 @@ const CARD = { id: 7, email: 'francois@gmail.com', phone: null, name: 'François
 const USAGE = { since: '2026-11-12T20:00:00Z', anons30: 40,
   funnel: [{ key: 'open', c: 40 }, { key: 'step1', c: 20 }, { key: 'login', c: 10 }, { key: 'step3', c: 5 }, { key: 'paid', c: 2 }],
   daily: [{ d: '2026-11-12', who: 12 }], services: [{ svc: 'mr', who: 40, c: 300 }, { svc: 'joy', who: 6, c: 20 }],
-  top: [{ svc: 'mr', name: 'click/mr/kgo', c: 55, who: 9 }], cohorts: [{ wk: '2026-11-02', size: 10, w: [4, 2, 0, 0] }] };
+  top: [{ svc: 'mr', name: 'click/mr/kgo', c: 55, who: 9 }], cohorts: [{ wk: '2026-11-02', size: 10, w: [4, 2, 0, 0] }],
+  sources: [{ s: 'telegram', who: 20, login: 5 }, { s: '-', who: 10, login: 1 }], campaigns: [{ s: 'telegram', c: 'reels1', who: 12 }],
+  devices: [{ k: 'desktop', who: 30, touch: 0 }, { k: 'tablet', who: 6, touch: 4 }, { k: 'phone', who: 4, touch: 4 }],
+  errors: [{ name: 'err/crash', svc: 'mr', m: '', src: '', c: 3, who: 2, last: '2026-11-12T20:00:00Z' }, { name: 'err/js', svc: 'joy', m: 'x is undefined', src: 'main.js:10', c: 5, who: 1, last: '2026-11-12T19:00:00Z' }] };
 async function mockApi(page: Page, owner: boolean, stats: unknown = STATS) {
   const hits = { stats: 0, reveal: [] as number[][], card: 0, grants: [] as { email: string; coins: number; note: string; key: string }[] };
   await page.route(`${API}/**`, async r => {
@@ -163,5 +166,10 @@ test('egasi: foydalanish — voronka, xizmatlar, qaytish, eng koʻp harakatlar',
   await expect(page.locator('#ownUsage')).toContainText('Joyshunos');
   await expect(page.locator('#ownUsage')).toContainText('4 (40 %)');
   await expect(page.locator('#ownTop')).toContainText('kgo');
+  await expect(page.locator('#ownDevices')).toContainText('75 %');
+  await expect(page.locator('#ownSources')).toContainText('5 (25 %)');
+  await expect(page.locator('#ownSources')).toContainText('reels1');
+  await expect(page.locator('#ownErrors')).toContainText('x is undefined');
+  await expect(page.locator('#ownErrors tbody tr')).toHaveCount(2);
   if (process.env.GX_SHOTS) await page.locator('#ownUsage').screenshot({ path: `${process.env.GX_SHOTS}/egasi_foydalanish.png` });
 });
