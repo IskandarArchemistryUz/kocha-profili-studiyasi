@@ -97,7 +97,8 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'ijtimoiy', scale: 0 }),   // 12.11: ijtimoiy infratuzilma (eski navbat, 2-band)
     mk({ kind: 'cheklov', scale: 0 }),   // 02.11: tahlil — cheklovlar rejasi va yer balansi
     mk({ kind: 'yashil', scale: 0 }), mk({ kind: 'insol', scale: 0 }),   // 02.11: tahlil — yashil balans, insolyatsiya
-    mk({ kind: 'transport', scale: 0 }),   // 02.11: tahlil 4 — transport sxemasi
+    mk({ kind: 'transport', scale: 0 }),
+    mk({ kind: 'parkovka', scale: 0 }),   // 12.11: avtoturargohlar sxemasi (eski navbat, 3-band)   // 02.11: tahlil 4 — transport sxemasi
     mk({ kind: 'relyef', scale: 0 }),   // 04.11: tahlil — relyef
     mk({ kind: 'navbat', scale: 0 }),   // 04.11: tahlil — qurilish navbati
     mk({ kind: 'shamol', scale: 0 }),   // 04.11: tahlil — shamol guli va oqim
