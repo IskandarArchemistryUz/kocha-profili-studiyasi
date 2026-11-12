@@ -62,3 +62,27 @@ test('issiqlik: Landsat yoʻq — MODIS ga qaytadi', async ({ page }) => {
   if (process.env.GX_SHOTS) { await joyClick(page, 'issiqlik', '.lt'); await page.waitForTimeout(600); await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_modis_tungi.png` }); }
   expect(errs).toEqual([]);
 });
+
+test('issiqlik: faqat tahlil doirasi ichida, silliq (12.11)', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const errs: string[] = []; await open(page, errs, true);
+  await joyClick(page, 'issiqlik', '.switch');
+  await expect(page.locator('[data-card=issiqlik] .big')).toHaveText(/°C/, { timeout: 60_000 });
+  const r = await page.evaluate(async () => {
+    const m = (window as unknown as { joyMap: { getSource: (id: string) => { coordinates: [number, number][]; url: string } } }).joyMap;
+    for (let i = 0; i < 100; i++) { const s = m.getSource('joy-heat'); if (s?.coordinates && s.coordinates[0][0] > 1) break; await new Promise(f => setTimeout(f, 200)); }
+    const s = m.getSource('joy-heat'), c = s.coordinates, lat = (c[0][1] + c[2][1]) / 2;
+    const w = (c[1][0] - c[0][0]) * 111_320 * Math.cos(lat * Math.PI / 180);
+    const im = new Image(); im.src = s.url; await im.decode();
+    const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const cx = cv.getContext('2d')!; cx.drawImage(im, 0, 0);
+    const a = (x: number, y: number) => cx.getImageData(x, y, 1, 1).data[3];
+    const W = im.width;
+    return { w, corner: Math.max(a(1, 1), a(W - 2, 1), a(1, W - 2), a(W - 2, W - 2), a(Math.round(W * 0.08), Math.round(W * 0.08))), mid: a(W >> 1, W >> 1), size: W };
+  });
+  expect(r.w).toBeGreaterThan(900); expect(r.w).toBeLessThan(1100);   // standart doira 500 m → rasm eni ≈ 1 000 m (avval 12 km)
+  expect(r.corner).toBe(0);
+  expect(r.mid).toBeGreaterThan(0);
+  expect(r.size).toBeGreaterThanOrEqual(256);
+  expect(errs).toEqual([]);
+});
